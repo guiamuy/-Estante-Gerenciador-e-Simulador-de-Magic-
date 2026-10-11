@@ -14085,7 +14085,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 108; // CR2b.6 · última informação conhecida: condição do gatilho, filtro do observador e concedidas ao sair
+const ENGINE_VERSION = 109; // CR2a.10 · 514.3a: ação de estado ou gatilho causados pelo fim dos efeitos do turno dão prioridade na limpeza
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -15580,9 +15580,12 @@ function fimDosEfeitosDoTurno(s) {
 }
 function finishCleanup(s) {
   fimDosEfeitosDoTurno(s);
+  for (const o of Object.values(s.objects)) if (o.zone === 'battlefield') { o.damage = 0; delete o.deathtouched; delete o.pump; } // efeitos até o fim do turno acabam
+  // CR2a.10 · 514.3a: se o fim dos efeitos causou ação de estado (o 1/1 com marcador −1/−1 que perdeu o +1/+1) ou gatilho, os jogadores
+  // recebem prioridade e depois vem outra limpeza (advanceStep). Antes o turno passava com o gatilho ainda por pôr na pilha.
+  { const ev = []; stateBased(s, ev); if (ev.length || (s.queued || []).length || s.pending) { s.turn.passes = 0; s.turn.priority = s.turn.active; return; } }
   s.players.forEach(pl => { pl.lifeGained = 0; pl.drawnThisTurn = 0; delete pl.lifeLost; delete pl.atacouCom; }); // M-248 · rastros do turno
   s.spellsThisTurn = 0;
-  for (const o of Object.values(s.objects)) if (o.zone === 'battlefield') { o.damage = 0; delete o.deathtouched; delete o.pump; } // efeitos até o fim do turno acabam
   s.pending = null;
   s.turn.firstTurn = false;
   s.turn.number++;

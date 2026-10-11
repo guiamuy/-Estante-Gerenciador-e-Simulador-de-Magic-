@@ -1,7 +1,7 @@
 {
  "sobre": "Mapa regra × motor. Cada item NNN.N das Comprehensive Rules de 25/09/2026 classificado contra o motor v72 em 06/10/2026 por 14 auditores independentes, com evidência vista (código com linha, teste ou sonda executada). status: coberta · parcial · ausente · definicao (só define termo) · fora (jogo físico, torneio ou variante que um app de dois jogadores não precisa). Quando um item muda de status, o teste que prova a mudança entra em `testes`.",
  "cr": "2026-09-25",
- "motor": 108,
+ "motor": 109,
  "auditoria": "2026-10-06",
  "itens": [
   {
@@ -4110,16 +4110,15 @@
    "n": "514.3",
    "regra": "Cleanup Step",
    "titulo": "Prioridade na limpeza só se houver gatilho ou ação de estado",
-   "status": "parcial",
-   "evidencia": "cleanup está em NO_PRIORITY (9979); insanidade no descarte da limpeza põe a mágica na pilha, dá prioridade ao ativo e depois roda OUTRA limpeza (afterMadness 10649, advanceStep 10737); sonda p5/t4.mjs L3; homologacao.regras 'R9 · insanidade na etapa de limpeza ... (514.3a)'; rules.unit 'S18 · insanidade no descarte da limpeza não trava o turno' · M-284 (CR2g.1): gatilho do descarte do tamanho da mão dá prioridade na limpeza e depois vem outra limpeza (514.3a)",
-   "falta": "ações de estado e gatilhos causados pelo próprio fim dos efeitos do turno ainda não reabrem a prioridade",
-   "esforco": "P",
+   "status": "coberta",
+   "evidencia": "cleanup está em NO_PRIORITY (9979); insanidade no descarte da limpeza põe a mágica na pilha, dá prioridade ao ativo e depois roda OUTRA limpeza (afterMadness 10649, advanceStep 10737); sonda p5/t4.mjs L3; homologacao.regras 'R9 · insanidade na etapa de limpeza ... (514.3a)'; rules.unit 'S18 · insanidade no descarte da limpeza não trava o turno' · M-284 (CR2g.1): gatilho do descarte do tamanho da mão dá prioridade na limpeza e depois vem outra limpeza (514.3a) · M-294 (CR2a.10): ação de estado ou gatilho causados pelo fim dos efeitos do turno dão prioridade na limpeza, e vem outra limpeza (514.3a)",
    "depende": [
     "704",
     "603"
    ],
    "testes": [
-    "CR2g.1 · 514.3a: gatilho de descarte na limpeza vai para a pilha, os jogadores recebem prioridade e depois vem outra limpeza (antes o turno passava com o gatilho na pilha)"
+    "CR2g.1 · 514.3a: gatilho de descarte na limpeza vai para a pilha, os jogadores recebem prioridade e depois vem outra limpeza (antes o turno passava com o gatilho na pilha)",
+    "CR 514.3 · o 1/1 com marcador −1/−1 que perde o +1/+1 do turno morre na limpeza, o \"morre\" dele resolve ainda neste turno e vem outra limpeza"
    ]
   },
   {
@@ -9056,12 +9055,15 @@
    "regra": "State-Based Actions",
    "titulo": "Checagem de SBA antes da prioridade, em laço com gatilhos",
    "status": "parcial",
-   "evidencia": "apply (12812-12815): stateBased → flushTriggers → stateBased; stateBased repete até 50 vezes enquanto algo muda (12092) · auditoria independente CR2a/CR2h (11/10/2026): 514.3a com gatilho na limpeza (CR2g.1)",
+   "evidencia": "apply (12812-12815): stateBased → flushTriggers → stateBased; stateBased repete até 50 vezes enquanto algo muda (12092) · auditoria independente CR2a/CR2h (11/10/2026): 514.3a com gatilho na limpeza (CR2g.1) · M-294 (CR2a.10): também na limpeza",
    "falta": "o laço ação de estado → gatilho só tem duas voltas em apply",
    "esforco": "P",
    "depende": [
     "603.3",
     "514.3"
+   ],
+   "testes": [
+    "CR 514.3 · o 1/1 com marcador −1/−1 que perde o +1/+1 do turno morre na limpeza, o \"morre\" dele resolve ainda neste turno e vem outra limpeza"
    ]
   },
   {

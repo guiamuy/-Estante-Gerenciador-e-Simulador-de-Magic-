@@ -3568,6 +3568,11 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Versão:** sobe para v108. Goldens regravados só pela versão. Partidas salvas antes não abrem.
 - **Próximo:** CR2d.14 (dependência, 613.8) e 514.3a completo (ações de estado e gatilhos causados pelo fim dos efeitos do turno).
 
+**CR2a.10 · Prioridade na limpeza causada pelo fim dos efeitos do turno (514.3a)** ✅ (leva M-294, motor v109) — 1 teste de conformidade, falha no motor v108.
+- **Regra:** quando o fim dos efeitos "até o fim do turno" mata uma criatura (o 1/1 com marcador −1/−1 que perde o +1/+1) ou dispara um gatilho, os jogadores recebem prioridade na limpeza. O gatilho resolve ainda neste turno, e depois vem outra limpeza. Antes o turno passava e o gatilho ia para a pilha no turno seguinte.
+- **Versão:** sobe para v109. Goldens regravados só pela versão. Partidas salvas antes não abrem.
+- **Próximo:** leitor de texto (plano LT1–LT8; decisão do dono sobre quando uma carta lida fica jogável, recomendada a revisão por lote).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
