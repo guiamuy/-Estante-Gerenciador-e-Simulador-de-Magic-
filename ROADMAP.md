@@ -3628,6 +3628,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Teste:** e2e `LT8` (lista com uma carta lida sem script à mão: 75%, selo `lida`, texto da revisão, título do selo).
 - **Fora:** botão para pedir a revisão de dentro do app (a revisão é por leva, com parecer registrado em APROVADAS); fica para quando houver candidatas de verdade.
 
+**M-304 · CR2d.1 · Duração "até ~ sair do campo" em mudança de zona (610.3)** ✅ (leva M-304, motor v109: só acrescenta um campo de script; goldens intactos) — "exile target creature until ~ leaves the battlefield" (Banishing Light, Fiend Hunter atual, Brutal Cathar, Skyclave Apparition…) deixa de ser aproximado pelo par de gatilhos antigo.
+- **Valor:** quando a permanente-fonte sai do campo, o que ela exilou volta **na hora**, sem gatilho nem pilha (não dá para responder à volta), sob o controle do dono (610.3b, mesmo que a criatura estivesse roubada); se a fonte for destruída em resposta ao gatilho de entrada, o alvo **não é exilado** (610.3a) — antes ficaria exilado para sempre, que é a regra do texto antigo (Journey to Nowhere), não deste.
+- **Script:** `{ do: 'exile', target: …, ate: 'fonte-sair' }` (também em `mover`); o validador só aceita essa duração nesses verbos. Leitor: lê "exile <alvo> until ~ leaves the battlefield".
+- **Parcial declarado (mapa 610.3):** Aura devolvida não escolhe o que encantar (610.3c); não há "até o fim do turno" para mudança de zona.
+- **Teste:** `duracao.ate.unit` (3 testes, todos falham no v109).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

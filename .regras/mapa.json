@@ -4725,12 +4725,18 @@
    "n": "610.3",
    "regra": "One-Shot Effects",
    "titulo": "Mudança de zona \"até\" um evento",
-   "status": "ausente",
-   "falta": "Não há duração \"until\": o motor só tem o par de gatilhos do texto antigo (Journey to Nowhere: exile com remember → o.holding :11134, e gatilho leaves-battlefield com return_held :11139, que usa a pilha e volta sob o controle do dono). Carta \"until\" (Banisher Priest, Banishing Light) sairia errada: a volta teria de ser imediata e sem pilha (610.3), não mover se a fonte já saiu (610.3a-b; hoje fica exilada para sempre, pauper.regras \"Leva 107\") e ser simultânea (610.3d).",
-   "esforco": "M",
+   "status": "parcial",
+   "falta": "Aura devolvida não escolhe o que encantar (610.3c); só o evento 'a fonte sai do campo' (não há 'até o fim do turno' para mudança de zona)",
+   "esforco": "P",
    "depende": [
     "603.6",
     "400.7"
+   ],
+   "evidencia": "M-304 (CR2d.1): exile/mover com ate:'fonte-sair' — devolução imediata sem pilha ao sair da fonte (610.3), sob o controle do dono (610.3b), nada se move se a fonte já saiu (610.3a)",
+   "testes": [
+    "CR 610.3 · o script aceita `ate: fonte-sair` só em exile/mover",
+    "CR 610.3 · o Banidor exila a Ursa do oponente; quando o Banidor morre, a Ursa volta na hora, sem pilha, sob o controle do dono",
+    "CR 610.3a · o Banidor morre em resposta ao gatilho de entrada: a Ursa NÃO é exilada (o evento \"até\" já aconteceu)"
    ]
   },
   {

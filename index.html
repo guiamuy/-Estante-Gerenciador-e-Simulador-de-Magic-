@@ -6127,6 +6127,7 @@ function effectErrors(effects, label, opcional) {
       if (selJogadores(e.cada)) errs.push(`${label} ${i + 1} (${e.do}): "cada" é para objetos; jogadores usam each-player/each-opponent`);
       return;
     }
+    if (['exile', 'mover'].includes(e.do) ? (e.ate != null && e.ate !== 'fonte-sair') : e.ate === 'fonte-sair') errs.push(`${label} ${i + 1} (${e.do}): a duração 'fonte-sair' ("até ~ sair do campo", 610.3) só vale em exile ou mover, e é a única que eles aceitam`); // CR2d.1
     const t = e.target || 'self';
     if (typeof t === 'object') { // M-229 · seletor: válido e compatível com o que o efeito sabe mirar (objeto e/ou jogador)
       errs.push(...seletorErros(t, `${label} ${i + 1} (${e.do})`));
@@ -14219,6 +14220,7 @@ const __m42 = (function () {
     [new RegExp(`^(each opponent|target opponent|target player) loses ${N} life$`, 'i'), m => [com({ do: 'lose', amount: num(m[2]) }, alvo(m[1]))]],
     [new RegExp(`^~ deals ${N} damage to (.+)$`, 'i'), m => [com({ do: 'damage', amount: num(m[1]) }, alvo(m[2]))]],
     [/^destroy (target [a-z ']+)$/i, m => [com({ do: 'destroy' }, alvo(m[1]))]],
+    [/^exile (target [a-z ']+) until ~ leaves the battlefield$/i, m => [com({ do: 'exile', ate: 'fonte-sair' }, alvo(m[1]))]], // CR2d.1 · 610.3
     [/^exile (target [a-z ']+)$/i, m => [com({ do: 'exile' }, alvo(m[1]))]],
     [/^counter (target [a-z ']+) unless its controller pays (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => [com({ do: 'counter', unless: { mana: m[2] } }, alvo(m[1]))]],
     [/^counter (target [a-z ']+)$/i, m => [com({ do: 'counter' }, alvo(m[1]))]],
@@ -15057,6 +15059,8 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
   const segurava = fromZone === 'battlefield' ? o.holding : null;
   delete o.holding; delete o.devolverAoSair;
   if (segurava) o.devolverAoSair = segurava;
+  const devolveAte = fromZone === 'battlefield' && to !== 'battlefield' ? (o.ate || []) : null; // CR2d.1 · 610.3
+  delete o.ate;
   if (!(to === 'stack' || (fromZone === 'stack' && to === 'battlefield'))) {
     for (const k of MARCAS_DA_CONJURACAO) delete o[k];
   }
@@ -15089,6 +15093,10 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
   if (fromZone === 'hand' && to === 'graveyard') noteDiscard(s, o.owner); // CR2b.4 · da mão para o cemitério é descarte
   // CR2-G R2a · 603.6 · entrar, morrer, sair do campo e "a anexada morre" são o mesmo evento de mudança de zona
   disparaZona(s, o, fromZone, to, fromController, ultima);
+  if (devolveAte && devolveAte.length) for (const a of devolveAte) { // CR2d.1 · 610.3: um segundo efeito único devolve o objeto à zona de onde veio, logo após a saída da fonte, sem usar a pilha
+    const v = s.objects[a.oid]; if (!v || v.zone !== 'exile') continue; // já saiu do exílio por outro caminho: é outro objeto (400.7)
+    moveObject(s, a.oid, a.de, a.de === 'battlefield' ? { controller: v.owner } : {}); // 610.3b · volta ao campo sob o controle do dono
+  }
   if (o.nomeImpresso != null && to !== 'battlefield') { o.name = o.nomeImpresso; delete o.nomeImpresso; delete o.copias; } // CR2f.1 · 400.7: fora do campo, a carta é ela mesma
   if (voltaAFrente && fromZone === 'battlefield') flipToFront(s, o); // CR2b.5 · a face de trás disparou o "morre" dela; agora volta à frente
 }
@@ -16531,6 +16539,11 @@ function sacrificarJogadores(s, src, spec, quem, events, note) {
 function moverObjeto(s, src, alvo, m, ctrl) {
   if (!alvo || (m.de != null && ![].concat(m.de).includes(alvo.zone)) || (m.para === 'library' && alvo.zone === 'library')) return false;
   if (m.lembra) { const fonte = src.ability ? s.objects[src.source] : src; if (fonte && fonte.zone === 'battlefield') fonte.holding = alvo.oid; }
+  if (m.ate === 'fonte-sair') { // CR2d.1 · 610.3: "até ~ sair do campo"
+    const fonte = src.ability ? s.objects[src.source] : src;
+    if (!fonte || fonte.zone !== 'battlefield' || (src.ability && src.fonteZc != null && (fonte.zc || 0) !== src.fonteZc)) return false; // 610.3a · o evento já aconteceu: o objeto não se move
+    fonte.ate = [...(fonte.ate || []), { oid: alvo.oid, de: alvo.zone }];
+  }
   moveObject(s, alvo.oid, m.para, { ...(m.posicao === 'fundo' ? { top: false } : {}), ...(m.para === 'battlefield' ? { controller: m.controle === 'dono' ? alvo.owner : ctrl } : {}) }); // CR2b.5 · 603.3a: entra já sob quem a pôs
   if (m.posicao === 'embaralhado') shuffle(s, s.zones[alvo.owner].library);
   if (m.para === 'battlefield') {
@@ -16634,7 +16647,7 @@ function applyEffect(s, src, eff, tgt, events) {
     }
     case 'exile': { // S48 · a permanente pode lembrar o que exilou, para devolver depois — CR2-G R4a · atalho de mover
       // Leva 107 · ruling do Journey to Nowhere: se ele já saiu do campo quando o exílio resolve, a criatura fica exilada para sempre
-      moverObjeto(s, src, obj, { para: 'exile', lembra: !!eff.remember }, ctrl); note({}); break;
+      if (moverObjeto(s, src, obj, { para: 'exile', lembra: !!eff.remember, ...(eff.ate ? { ate: eff.ate } : {}) }, ctrl)) note({}); else note({ failed: true }); break;
     }
     case 'mover': { // CR2-G R4a · mover entre zonas
       const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
@@ -17941,6 +17954,7 @@ function marcasDoGatilho(s, q, oid) {
   if (q.condition) s.objects[oid].condicao = q.condition; // Leva 107 · "se" do gatilho é conferido de novo na resolução (603.4)
   { const f = q.condition && s.objects[q.source]; if (f && !f.ability) s.objects[oid].fonteRetrato = { zc: f.zc || 0, controller: f.controller, ...(f.kicked ? { kicked: f.kicked } : {}), ...(f.bargained ? { bargained: true } : {}), ...(f.evidenced ? { evidenced: true } : {}), ...(f.faceDown ? { faceDown: true } : {}) }; } // CR2b.6 · 608.2h
   if (q.value != null) s.objects[oid].triggerValue = q.value; // S48 · o valor que o gatilho trouxe
+  { const f = s.objects[q.source]; if (f && !f.ability && (q.effects || []).some(e => e.ate === 'fonte-sair')) s.objects[oid].fonteZc = f.zc || 0; } // CR2d.1 · 610.3a: se a fonte já saiu quando o efeito resolve, nada se move
   if (q.lembrada) s.objects[oid].lembrada = q.lembrada; // CR2b.3 · "that card": a carta que saiu, na encarnação nova
   if (q.objeto) s.objects[oid].objetoAtrasado = q.objeto; // CR2b.2 · "ela", com a encarnação mirada
   if (q.jogador != null) s.objects[oid].jogadorAtrasado = q.jogador; // CR2b.1 · o "jogador daquela mágica" do gatilho atrasado
