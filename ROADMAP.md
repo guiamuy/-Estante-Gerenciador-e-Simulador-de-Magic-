@@ -520,6 +520,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-v ✅ | Publicação aditiva entre trilhas: nenhuma conversa apaga a entrega de outra sem declarar (leva 124) | Q12 | 1 | — |
 | 16º-ia 🟡 | Q15 CI só onde precisa: portão em push só no `main`; fuzz pesado da madrugada em job próprio (leva I-279) | Q | ½ | — |
 | 16º-ib 🟡 | Q16 conferência antes do portão: leva repetida na trilha, id repetido na ordem, goldens de outra versão e navegador da fase de tela (leva I-280) | Q | ½ | — |
+| 16º-ic 🟡 | Q17 fila de publicação: `publicar --fila` envia para `fila/<leva>`; o fluxo soma as levas, roda um portão e avança o `main`; recusada volta com o motivo (leva I-281, em ensaio) | Q | 2 | Q15 |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -2715,11 +2716,18 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Testes:** `agregacao.unit` Q16 (4), `portao.unit` Q16 (1). **Depende de:** nada.
 - **Fora:** arquivo de teste fora de commit (o publicar já recusa árvore com alteração); reserva de número entre conversas antes do commit (a fila da Q17 resolve: o nome do ramo é a reserva); conflito de comportamento (é do portão).
 
-**Q17 · Fila de publicação com o portão no CI** ⬜ (aprovada pelo dono em 11/10/2026)
-- **Valor:** a conversa entrega a leva em cerca de 1 min e segue; um portão, no CI, cobre todas as levas que estiverem na fila.
-- **Como:** `npm run publicar` faz rebase, guarda e conferência e envia para `fila/<trilha>-<n>`. O fluxo `fila.yml`, um por vez, põe os ramos da fila em ordem sobre o `main`, roda a guarda e um portão inteiro sobre a soma, e avança o `main`. Conflito, guarda ou portão vermelho: o `main` não muda, o ramo fica marcado com o motivo e a conversa dona corrige; lote que cai é dividido para achar a leva culpada.
-- **Aceite:** nenhum commit chega ao `main` sem portão verde sobre o código somado; rodapés e numeração de origem preservados; duas levas na fila = um portão; ramo publicado é apagado; `npm run publicar -- --situacao` diz onde a leva está.
-- **Testes:** ordem da fila, divisão do lote e preservação de rodapé em `agregacao.unit`/`portao.unit`; ensaio com ramos de sonda antes de virar o padrão. **Depende de:** Q15. **Parecer:** segurança (o fluxo escreve no `main`), escala (minutos). **Fora:** resolver conflito dentro do CI.
+**Q17 · Fila de publicação com o portão no CI** 🟡 (aprovada pelo dono em 11/10/2026; leva I-281: fila pronta, em ensaio com `--fila`; vira o caminho padrão na leva seguinte, publicada por ela mesma)
+- **Valor:** a conversa entrega a leva em minutos e segue; um portão, no CI, cobre todas as levas que estiverem na fila. Acaba a volta perdida porque outra trilha publicou no meio.
+- **Do lado da conversa (`npm run publicar -- --fila`):** rebase, guarda, conferência da Q16, fase rápida local (dispensável com `--sem-rapida`) e envio para `fila/<leva>`. O nome do ramo é a reserva do número: se outra conversa já enfileirou a mesma leva, o envio é recusado com o aviso de renumerar. `--esperar` fica olhando até publicar ou recusar; `-- --situacao` mostra a fila, as recusadas com o motivo e o que já chegou ao `main`.
+- **Do lado do CI (`fila.yml` + `fila.mjs`), uma rodada por vez:** soma os ramos da fila em ordem de chegada sobre o `main` (cherry-pick: mensagem, rodapés e data de autoria iguais; o sha muda); cada leva entra inteira ou fica de fora (conflito, guarda de agregação, conferência da Q16); roda um portão inteiro sobre a soma; verde, avança o `main` sem force e apaga os ramos publicados.
+- **Portão vermelho:** com uma leva só, ela é recusada; com várias, nada muda e a mais antiga é testada sozinha na rodada seguinte, até sobrar a culpada. Leva recusada vira `recusada/<nome>`, com o motivo (arquivos em conflito, achados da guarda ou testes que caíram) na mensagem do commit de cima; o `main` não muda.
+- **O que já foi publicado não volta:** a identidade da leva é a data de autoria mais o assunto. A fila pula o que já está no `main`, e o rebase do publicar tira da frente os commits locais que a fila publicou (reaplicar duplicaria linha no `ROADMAP.md`).
+- **Segurança (parecer de 11/10/2026: aprovado):** três jobs. `monta` e `portao` só leem e não deixam credencial no disco; o `portao` é o único que executa código de leva e de dependência. `avanca` é o único com escrita e não instala nem executa nada da leva: remonta a soma com o `fila.mjs` do `main`, exige a mesma árvore que o portão testou e o mesmo `main` do plano, e só então envia. O resultado do portão vem do estado do job, não de saída escrita pelo código testado. Nomes e shas do plano são validados antes de entrar em comando git. **Resíduo declarado:** quem pode enviar ramo para o repositório já pode publicar direto no `main`; a fila não muda esse limite.
+- **Escala (parecer de 11/10/2026: aprovado, a medir no ensaio):** um portão de ~22 min por rodada em vez de dois por leva (conversa + CI); no pior caso de lote vermelho com N levas, até N + 1 portões.
+- **Aceite:** nenhum commit chega ao `main` sem portão verde sobre o código somado; rodapés e numeração de origem preservados; duas levas na fila = um portão; ramo publicado é apagado; o commit publicado ganha a marca "Portão de release (fila)".
+- **Testes:** `fila.unit` (10): parte pura, validação do plano, soma de duas trilhas, conflito, guarda e conferência dentro da fila, portão vermelho com uma e com várias, árvore testada × árvore publicada, fluxo com o menor privilégio, lado da conversa.
+- **A conferir na primeira publicação real pela fila:** se o envio feito pelo fluxo dispara a publicação do Pages (o esperado é que sim); se não, o fluxo passa a publicar o Pages.
+- **Depende de:** Q15. **Fora:** resolver conflito dentro do CI (volta para a conversa dona); o caminho direto continua existindo.
 
 **Q18 · Vez de publicar por ramo** ⬜ (só se a Q17 não se sustentar no ensaio)
 - **Valor:** quem vai publicar espera a vez em vez de rodar um portão que será interrompido. Não aumenta a capacidade. **Depende de:** Q15.

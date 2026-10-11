@@ -7,12 +7,23 @@
 
      npm run publicar                 fluxo completo
      npm run publicar -- --conferir   até a guarda; não roda o portão nem envia
+
+   Q17 · pela fila (o portão inteiro roda no CI, uma vez para todas as levas que estiverem na fila):
+     npm run publicar -- --fila              rebase, guarda, conferência, fase rápida local e envio para `fila/<leva>`
+     npm run publicar -- --fila --esperar    idem, e fica olhando até a leva chegar ao main ou ser recusada
+     npm run publicar -- --fila --sem-rapida sem a fase rápida local (a fila pega a queda, 20 min depois)
+     npm run publicar -- --situacao          onde está cada leva: na fila, recusada (com o motivo) ou publicada
    ===================================================================== */
 import { execFileSync, spawnSync, spawn } from 'node:child_process';
 import { conferirFaixa, relatar, conferirArvore } from './agregacao.mjs';
 import { garantirNavegador } from './portao.mjs';
+import { chave, commitsDa, publicados, nomeDoRamo, situacao, PREFIXO_FILA, PREFIXO_RECUSADA } from './fila.mjs';
 
 const soConferir = process.argv.includes('--conferir');
+const pelaFila = process.argv.includes('--fila');
+const esperar = process.argv.includes('--esperar');
+const semRapida = process.argv.includes('--sem-rapida');
+const soSituacao = process.argv.includes('--situacao');
 const MAX_VOLTAS = 6; // Q14 · a volta ficou barata (a fase é interrompida quando o main anda)
 
 const git = (...a) => execFileSync('git', a, { encoding: 'utf8', maxBuffer: 1 << 30 }).trim();
@@ -38,6 +49,33 @@ function buscar() {
   if (!roda('git', raso ? ['fetch', '--quiet', '--depth=120', 'origin', 'main'] : ['fetch', '--quiet', 'origin', 'main'])) para('Não consegui buscar o main.');
 }
 
+/* ---------- Q17 · fila ---------- */
+const REFS_DA_FILA = [`+refs/heads/${PREFIXO_FILA}*:refs/remotes/origin/${PREFIXO_FILA}*`, `+refs/heads/${PREFIXO_RECUSADA}*:refs/remotes/origin/${PREFIXO_RECUSADA}*`];
+const buscarFila = () => roda('git', ['fetch', '--quiet', '--prune', 'origin', ...REFS_DA_FILA]);
+const refExiste = (ref) => spawnSync('git', ['rev-parse', '--verify', '--quiet', ref], { stdio: 'ignore' }).status === 0;
+/** Commits locais que ainda não estão no main (pela identidade da leva: a fila regrava o sha, não a autoria nem a mensagem). */
+function pendentes() { const ja = publicados(process.cwd(), 'origin/main'); return commitsDa(process.cwd(), 'origin/main..HEAD').filter((c) => !ja.has(chave(c))); }
+/** Rebase que sabe o que a fila já publicou: os commits locais que já estão no main (com outro sha) saem da frente em vez de
+    serem reaplicados (reaplicar duplicaria linha no ROADMAP, que junta os dois lados sozinho). */
+function rebasear() {
+  const locais = commitsDa(process.cwd(), 'origin/main..HEAD');
+  const ja = publicados(process.cwd(), 'origin/main');
+  let k = 0; while (k < locais.length && ja.has(chave(locais[k]))) k++;
+  if (k) console.log(`${k} commit(s) local(is) já estão no main (publicados pela fila): saem da frente`);
+  return roda('git', k ? ['rebase', '--onto', 'origin/main', locais[k - 1].sha] : ['rebase', 'origin/main']);
+}
+function mostrarSituacao() {
+  const s = situacao({ cwd: process.cwd() });
+  const levas = (ls) => ls.map((l) => `      ${l.publicado ? `✓ no main ${l.publicado.slice(0, 7)}` : '· aguardando'}  ${l.assunto.slice(0, 90)}`).join('\n');
+  console.log(`\nFila de publicação (${s.fila.length} ramo(s), em ordem de chegada):`);
+  for (const r of s.fila) console.log(`  ${PREFIXO_FILA}${r.nome}\n${levas(r.levas)}`);
+  for (const r of s.recusadas) console.log(`\n  ✗ ${PREFIXO_RECUSADA}${r.nome}\n${levas(r.levas)}\n${r.motivo.split('\n').map((l) => '      ' + l).join('\n')}`);
+  console.log(`\nNeste clone: ${s.locais.length ? '' : 'nada à frente do main.'}`);
+  if (s.locais.length) console.log(levas(s.locais));
+  return s;
+}
+if (soSituacao) { buscar(); buscarFila(); mostrarSituacao(); process.exit(0); }
+
 if (git('status', '--porcelain')) para('Há alteração fora de commit. Faça o commit da leva (com o rodapé `Trilha:`) antes de publicar.');
 
 for (let volta = 1; volta <= MAX_VOLTAS; volta++) {
@@ -51,7 +89,7 @@ for (let volta = 1; volta <= MAX_VOLTAS; volta++) {
   if (atras) {
     passo(2, 'pôr o trabalho local em cima do que as outras trilhas publicaram');
     console.log(git('log', '--format=  recebe %h %s', 'HEAD..origin/main').split('\n').map((l) => l.slice(0, 110)).join('\n'));
-    if (!roda('git', ['rebase', 'origin/main'])) {
+    if (!rebasear()) {
       para([
         'Conflito no rebase. Resolva ficando com OS DOIS lados (o da outra trilha e o seu):',
         '  1. abra cada arquivo com <<<<<<< e monte a versão que contém as duas entregas;',
@@ -76,6 +114,8 @@ for (let volta = 1; volta <= MAX_VOLTAS; volta++) {
   console.log(`antes do portão ✓ ids da ordem sem repetição · goldens na versão do motor${nav.erro ? '' : ' · navegador da fase de tela no lugar'}`);
   if (soConferir) { console.log('\n--conferir: parei antes do portão e do envio.'); process.exit(0); }
 
+  if (pelaFila) { await enviarParaAFila(); process.exit(0); }
+
   // Q14 · o mesmo portão do `npm test`, em duas fases (portao.mjs): a rápida primeiro, a de tela sozinha depois
   let recomeca = false;
   for (const [fase, nome] of [['test:rapido', 'fase rápida'], ['test:e2e', 'fase de tela']]) {
@@ -95,4 +135,43 @@ for (let volta = 1; volta <= MAX_VOLTAS; volta++) {
   }
   console.log('O envio foi recusado (alguém publicou antes). Recomeçando.');
 }
+/** Q17 · envia os commits pendentes para `fila/<leva>`; o portão inteiro roda no CI sobre a soma da fila. */
+async function enviarParaAFila() {
+  const meus = pendentes();
+  if (!meus.length) { console.log('Nada novo para a fila: o main já tem tudo o que está aqui.'); return; }
+  const nome = nomeDoRamo(meus);
+  buscarFila();
+  const naFila = `origin/${PREFIXO_FILA}${nome}`;
+  let trava = '';
+  if (refExiste(naFila)) {
+    // o nome do ramo é a reserva do número: se já existe com levas que não são as deste clone, outra conversa chegou antes
+    const minhas = new Set(meus.map(chave));
+    const estranhos = commitsDa(process.cwd(), `origin/main..${naFila}`).filter((c) => !minhas.has(chave(c)));
+    if (estranhos.length) para(`Já existe ${PREFIXO_FILA}${nome} na fila, de outra conversa:\n    ${estranhos.map((c) => c.assunto.slice(0, 100)).join('\n    ')}\nO número ${nome} está reservado por ela. Renumere a sua leva (commit e ROADMAP) e envie de novo.`);
+    trava = `--force-with-lease=refs/heads/${PREFIXO_FILA}${nome}:${git('rev-parse', naFila)}`; // é a mesma leva, reenviada depois de um rebase
+  }
+  if (!semRapida) {
+    passo(4, 'fase rápida local (a fila roda o portão inteiro; aqui a queda barata aparece antes de ocupar a fila)');
+    if (!roda('npm', ['run', '-s', 'test:rapido'])) para('Fase rápida vermelha. Nada foi para a fila.');
+  }
+  passo(5, `enviar para ${PREFIXO_FILA}${nome}`);
+  if (refExiste(`origin/${PREFIXO_RECUSADA}${nome}`)) roda('git', ['push', '--quiet', 'origin', `:refs/heads/${PREFIXO_RECUSADA}${nome}`]); // reenvio de leva recusada: o aviso antigo sai
+  if (!roda('git', ['push', ...(trava ? [trava] : []), 'origin', `HEAD:refs/heads/${PREFIXO_FILA}${nome}`])) para(`Não consegui enviar para ${PREFIXO_FILA}${nome}.`);
+  console.log(`\n✓ Na fila: ${PREFIXO_FILA}${nome} (${meus.length} commit(s)). O fluxo "Fila de publicação" soma as levas da fila, roda um portão e avança o main.`);
+  console.log('  Pode seguir trabalhando neste clone. Para saber onde está: npm run publicar -- --situacao');
+  if (!esperar) return;
+  const inicio = Date.now(), TETO_MS = 120 * 60000;
+  for (;;) {
+    await new Promise((r) => setTimeout(r, 45000));
+    if (!roda('git', ['fetch', '--quiet', 'origin', 'main']) || !buscarFila()) continue;
+    if (refExiste(`origin/${PREFIXO_RECUSADA}${nome}`)) { console.error(`\n✗ Recusada pela fila:\n${git('log', '-1', '--format=%b', `origin/${PREFIXO_RECUSADA}${nome}`)}`); process.exit(1); }
+    if (!pendentes().length) {
+      rebasear();
+      console.log(`\n✓ Publicado pela fila: main em ${git('rev-parse', '--short', 'origin/main')} (${Math.round((Date.now() - inicio) / 60000)} min de espera). O clone foi alinhado ao main.`);
+      return;
+    }
+    if (Date.now() - inicio > TETO_MS) para('Duas horas sem resultado da fila. Veja o fluxo "Fila de publicação" em Actions e rode: npm run publicar -- --situacao');
+  }
+}
+
 para(`O main mudou ${MAX_VOLTAS} vezes seguidas durante o portão. Combine a vez com as outras trilhas e rode de novo.`);

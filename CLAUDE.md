@@ -15,6 +15,15 @@ npm run publicar   # busca o main, rebase, guarda de agregação, portão, push
 - Nunca grave um arquivo inteiro a partir de cópia que não veio do `main` de agora. Edite por patch em cima do que está no clone.
 - Leva pequena, um assunto, publicada ao terminar. Quanto mais tempo sem publicar, mais conflito.
 
+### Pela fila (Q17, em ensaio)
+
+```
+npm run publicar -- --fila            # rebase, guarda, fase rápida local e envio para fila/<leva>; o portão inteiro roda no CI
+npm run publicar -- --situacao        # na fila · recusada (com o motivo) · publicada
+```
+
+O fluxo "Fila de publicação" soma as levas da fila sobre o `main`, roda um portão para todas e avança o `main`. A conversa não espera: segue trabalhando no mesmo clone, por cima da leva enviada. Leva recusada (conflito, guarda ou portão vermelho) aparece em `recusada/<leva>` com o motivo; corrija no clone e envie de novo. O sha muda quando a fila publica (a mensagem e a data de autoria não): o próximo `npm run publicar` tira da frente o que já está no `main`. Nunca envie nada para `fila/*` ou `recusada/*` à mão.
+
 ## Rodapés do commit
 
 Todo commit termina com a trilha da conversa (o escopo dela, sempre o mesmo nome):

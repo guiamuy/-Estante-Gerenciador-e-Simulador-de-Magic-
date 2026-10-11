@@ -1,0 +1,157 @@
+# Q17 · Fila de publicação. A conversa envia a leva para `fila/<nome>` (npm run publicar) e segue; aqui, uma rodada por vez
+# soma as levas da fila sobre o `main`, roda UM portão sobre a soma e avança o `main`. Regras completas em `fila.mjs`.
+#
+# Três jobs, do menor privilégio para o maior:
+#   monta   lê a fila e escreve o plano (quem entra, quem fica de fora). Não roda código de leva.
+#   portao  remonta a soma e roda o portão. Roda código de leva e de dependência, por isso NÃO tem escrita nem credencial.
+#   avanca  o único com escrita. Não instala nem executa nada da leva: remonta a soma com o `fila.mjs` do `main`,
+#           exige a mesma árvore que o portão testou e só então envia (nunca force).
+name: Fila de publicação
+
+on:
+  push:
+    branches: ['fila/**']
+  workflow_dispatch:
+    inputs:
+      so:
+        description: 'Testar e publicar só este ramo da fila (nome sem o prefixo fila/)'
+        required: false
+        default: ''
+
+# Padrão do fluxo: só leitura. O único job com escrita é o `avanca`, que declara a sua.
+permissions:
+  contents: read
+
+# Uma rodada por vez; a que chega durante outra espera (e cada rodada leva tudo o que estiver na fila).
+concurrency:
+  group: fila-de-publicacao
+  cancel-in-progress: false
+
+jobs:
+  monta:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      plano: ${{ steps.monta.outputs.plano }}
+      portao: ${{ steps.monta.outputs.portao }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4 (fixada por SHA)
+        with:
+          ref: main            # o código que monta a fila é sempre o do main, nunca o do ramo que chegou
+          fetch-depth: 200     # a guarda de agregação precisa enxergar os commits recentes das outras trilhas
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020   # v4 (fixada por SHA)
+        with:
+          node-version: 22
+      - name: Buscar os ramos da fila
+        run: git fetch --quiet --depth=200 origin '+refs/heads/fila/*:refs/remotes/origin/fila/*'
+      - name: Montar a soma (cada leva entra inteira ou fica de fora, com o motivo)
+        id: monta
+        env:
+          FILA_SO: ${{ inputs.so }}
+        run: |
+          if [ -n "$FILA_SO" ]; then node fila.mjs monta --so "$FILA_SO"; else node fila.mjs monta; fi
+
+  portao:
+    needs: monta
+    if: needs.monta.outputs.portao == 'sim'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    outputs:
+      quedas: ${{ steps.quedas.outputs.quedas }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4 (fixada por SHA)
+        with:
+          ref: main
+          fetch-depth: 200
+          persist-credentials: false   # o portão roda código de leva e de dependência: sem credencial no disco
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020   # v4 (fixada por SHA)
+        with:
+          node-version: 22
+      - name: Buscar os ramos da fila
+        run: git fetch --quiet --depth=200 origin '+refs/heads/fila/*:refs/remotes/origin/fila/*'
+      - name: Remontar a soma do plano (com o fila.mjs do main)
+        env:
+          FILA_PLANO: ${{ needs.monta.outputs.plano }}
+        run: |
+          cp fila.mjs agregacao.mjs "$RUNNER_TEMP/"
+          cd "$RUNNER_TEMP" && node fila.mjs aplica --cwd "$GITHUB_WORKSPACE"
+      - run: npm ci --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - name: Fase rápida · unidade, fuzz, golden e contrato visual
+        run: |
+          set -o pipefail
+          npm run -s test:rapido 2>&1 | tee portao.log
+        env:
+          CI: 'true'
+          FUZZ_GAMES: '250'
+      - name: Fase de tela · navegador, sozinha
+        run: |
+          set -o pipefail
+          npm run -s test:e2e 2>&1 | tee -a portao.log
+        env:
+          CI: 'true'
+      - name: Testes que caíram (vão para o motivo da recusa)
+        id: quedas
+        if: failure()
+        run: |
+          test -f portao.log || exit 0
+          grep -E '^not ok [0-9]+ - ' portao.log | grep -v '\.test\.mjs$' | cut -c1-160 | head -12 | tr '\n' ';' | sed 's/^/quedas=/' >> "$GITHUB_OUTPUT"
+      - name: Guardar o log do portão
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4 (fixada por SHA)
+        with:
+          name: portao-log
+          path: portao.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  avanca:
+    needs: [monta, portao]
+    if: always() && needs.monta.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write    # avançar o main, apagar fila/<nome>, gravar recusada/<nome>
+      actions: write     # disparar a rodada seguinte quando sobra ramo na fila
+      statuses: write    # marcar no commit publicado que o portão da fila passou
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4 (fixada por SHA)
+        with:
+          ref: main
+          fetch-depth: 200
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020   # v4 (fixada por SHA)
+        with:
+          node-version: 22
+      - name: Buscar o main de agora e os ramos da fila
+        run: |
+          git fetch --quiet --depth=200 origin main
+          git fetch --quiet --depth=200 origin '+refs/heads/fila/*:refs/remotes/origin/fila/*'
+      # Nada da leva é instalado nem executado aqui: só git e o fila.mjs do main (copiado para fora da árvore antes de remontar).
+      - name: Avançar o main, recusar ou isolar
+        id: avanca
+        env:
+          FILA_PLANO: ${{ needs.monta.outputs.plano }}
+          FILA_PORTAO: ${{ needs.portao.result }}
+          FILA_MOTIVO: ${{ needs.portao.outputs.quedas }}
+        run: |
+          cp fila.mjs agregacao.mjs "$RUNNER_TEMP/"
+          cd "$RUNNER_TEMP" && node fila.mjs avanca --cwd "$GITHUB_WORKSPACE" --portao "$FILA_PORTAO"
+      - name: Marcar o commit publicado
+        if: steps.avanca.outputs.publicado != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ steps.avanca.outputs.publicado }}
+        run: |
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='Portão de release (fila)' \
+            -f description='Portão inteiro verde sobre a soma da fila' -f target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+      - name: Rodada seguinte (sobrou ramo na fila, ou uma leva precisa ser testada sozinha)
+        if: steps.avanca.outputs.de_novo == 'sim'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SO: ${{ steps.avanca.outputs.isolar }}
+        run: gh workflow run fila.yml --repo "$GITHUB_REPOSITORY" --ref main -f so="$SO"

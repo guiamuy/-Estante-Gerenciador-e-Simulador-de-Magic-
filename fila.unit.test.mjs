@@ -1,0 +1,262 @@
+/* Q17 · fila de publicação: um portão no CI para todas as levas da fila; nenhuma leva chega ao main sem ele, nenhuma some. */
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { mkdtempSync, writeFileSync, readFileSync, rmSync, mkdirSync, appendFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { EPOCA } from './agregacao.mjs';
+import { chave, nomeDoRamo, ordemDaFila, decisao, limparMotivo, quedasDoLog, planoValido, NOME_VALIDO, montar, avancar, ramosDaFila, commitsDa, publicados, situacao } from './fila.mjs';
+
+const RAIZ = dirname(fileURLToPath(import.meta.url));
+const DEPOIS = Math.floor(EPOCA / 1000) + 3600;
+
+/** Um "GitHub" de mentira (repositório nu) e clones com relógio próprio: cada commit anda 10 minutos. */
+function mundo() {
+  const raiz = mkdtempSync(join(tmpdir(), 'estante-fila-'));
+  let relogio = DEPOIS;
+  const gitEm = (dir) => (...a) => execFileSync('git', a, {
+    cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+    env: { ...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t',
+      GIT_AUTHOR_DATE: `${relogio} +0000`, GIT_COMMITTER_DATE: `${relogio} +0000`, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null' },
+  }).trim();
+  const origem = join(raiz, 'origem.git');
+  mkdirSync(origem); gitEm(origem)('init', '-q', '--bare', '-b', 'main');
+  const clone = (nome) => {
+    const dir = join(raiz, nome);
+    gitEm(raiz)('clone', '-q', origem, dir);
+    const git = gitEm(dir);
+    return {
+      dir, git,
+      escreve(arquivo, linhas) { writeFileSync(join(dir, arquivo), linhas.join('\n') + '\n'); },
+      acrescenta(arquivo, linha) { appendFileSync(join(dir, arquivo), linha + '\n'); },
+      le(arquivo) { return readFileSync(join(dir, arquivo), 'utf8'); },
+      commit(mensagem) { relogio += 600; git('add', '-A'); git('commit', '-q', '-m', mensagem); return git('rev-parse', 'HEAD'); },
+      /** leva nova a partir do main publicado, enviada para fila/<nome> */
+      enfileira(nomeDoRamoNaFila, mensagem, mudar) { git('fetch', '-q', 'origin'); git('checkout', '-q', '-B', 'trabalho', 'origin/main'); mudar(); const sha = this.commit(mensagem); git('push', '-q', 'origin', `HEAD:refs/heads/fila/${nomeDoRamoNaFila}`); return sha; },
+      busca() { git('fetch', '-q', '--prune', 'origin', '+refs/heads/*:refs/remotes/origin/*'); },
+    };
+  };
+  const base = clone('base');
+  base.escreve('.gitattributes', ['ROADMAP.md merge=union']);
+  base.escreve('index.html', ['function mesa() {', '  const placar = desenharPlacar(estado);', '  return montarMesa(placar);', '}', 'const ENGINE_VERSION = 98; // motor']);
+  base.escreve('ROADMAP.md', ['| id | história |', '|---|---|', '| 16º-aa ✅ | primeira história da ordem |']);
+  base.commit('Leva G-1 · base\n\nTrilha: geral');
+  base.git('push', '-q', 'origin', 'HEAD:main');
+  return { raiz, origem, clone, fim() { rmSync(raiz, { recursive: true, force: true }); }, cabeca: (ref) => gitEm(origem)('rev-parse', ref), existe: (ref) => { try { gitEm(origem)('rev-parse', '--verify', '--quiet', ref); return true; } catch (e) { return false; } }, logDoMain: () => gitEm(origem)('log', '--format=%s|%at|%B', 'main') };
+}
+/** O clone que faz o papel do CI: enxerga o main e os ramos da fila como o fluxo os busca. */
+function ci(m) { const c = m.clone('ci'); c.busca(); return c; }
+const plano = (c) => { c.busca(); return montar({ cwd: c.dir, base: 'origin/main', ramos: ordemDaFila(ramosDaFila(c.dir)) }); };
+
+test('Q17 · parte pura: nome do ramo pela leva, ordem de chegada, decisão depois do portão, motivo limpo e quedas lidas do log', () => {
+  assert.equal(nomeDoRamo([{ sha: 'a'.repeat(40), assunto: 'Leva G-251 · x', corpo: 'Leva G-251 · x\n\nTrilha: geral' }, { sha: 'b'.repeat(40), assunto: 'Leva G-252 · y', corpo: 'Leva G-252 · y\n\nTrilha: geral' }]), 'G-252');
+  assert.equal(nomeDoRamo([{ sha: 'c'.repeat(40), assunto: 'Leva 207 · z', corpo: 'Leva 207 · z\n\nTrilha: geral' }]), '207');
+  assert.equal(nomeDoRamo([{ sha: 'abcdef1234', assunto: 'ROADMAP em dia', corpo: 'ROADMAP em dia\n\nTrilha: motor' }]), 'motor-abcdef1');
+  assert.equal(nomeDoRamo([]), '');
+  assert.deepEqual(ordemDaFila([{ nome: 'M-3', em: 30 }, { nome: 'G-9', em: 10 }, { nome: 'A-2', em: 10 }]).map((r) => r.nome), ['A-2', 'G-9', 'M-3']);
+  assert.deepEqual(ordemDaFila([{ nome: 'M-3', em: 30 }, { nome: 'G-9', em: 10 }], 'M-3').map((r) => r.nome), ['M-3']);
+  const um = [{ nome: 'G-9' }], dois = [{ nome: 'G-9' }, { nome: 'M-3' }];
+  assert.deepEqual(decisao({ aceitos: [], portao: 'skipped' }), { acao: 'nada' });
+  assert.deepEqual(decisao({ aceitos: dois, portao: 'success' }), { acao: 'publicar' });
+  assert.deepEqual(decisao({ aceitos: um, portao: 'failure' }), { acao: 'recusar', nome: 'G-9' });
+  assert.deepEqual(decisao({ aceitos: dois, portao: 'failure' }), { acao: 'isolar', nome: 'G-9' }, 'com várias levas, a mais antiga é testada sozinha');
+  assert.equal(decisao({ aceitos: dois, portao: 'cancelled' }).acao, 'manter', 'portão cancelado não publica nem recusa');
+  assert.equal(limparMotivo('a\u0000b\u001b[31m  c\td'), 'a b [31m c d'); assert.ok(limparMotivo('x'.repeat(5000)).length < 1900);
+  assert.deepEqual(quedasDoLog('ok 1 - a\nnot ok 2 - e2e · H7 imagens\n  ---\nnot ok 3 - e2e · I7 foco\nnot ok 1 - e2e.test.mjs\nnot ok 9 - e2e · H7 imagens'), ['e2e · H7 imagens', 'e2e · I7 foco']);
+  assert.equal(chave({ autorEm: 5, assunto: 'Leva M-1' }), '5|Leva M-1');
+});
+
+test('Q17 · o plano que vem de outro job só entra em comando git com forma de nome e de sha', () => {
+  const sha = 'a'.repeat(40);
+  assert.equal(planoValido({ base: sha, arvore: sha, aceitos: [{ nome: 'G-252', sha }], recusados: [], vazios: [] }), true);
+  for (const nome of ['--upload-pack=x', 'a/b', '../main', 'G 1', '', 'x;rm']) assert.equal(NOME_VALIDO.test(nome), false, nome);
+  assert.equal(planoValido({ base: sha, arvore: sha, aceitos: [{ nome: '--force', sha }] }), false);
+  assert.equal(planoValido({ base: 'main', arvore: sha, aceitos: [] }), false);
+  assert.equal(planoValido({ base: sha, arvore: sha, aceitos: [{ nome: 'G-1', sha: 'HEAD' }] }), false);
+});
+
+test('Q17 · duas levas de trilhas diferentes somam num portão só; mensagem, rodapé e data de autoria chegam iguais ao main; os ramos somem', () => {
+  const m = mundo();
+  try {
+    const motor = m.clone('motor'), geral = m.clone('geral');
+    const shaM = motor.enfileira('M-10', 'Leva M-10 · mana em combinação\n\nTrilha: motor', () => { motor.escreve('regras.js', ['const mana = motor.pagarEmQualquerCombinacao(custo);']); motor.acrescenta('ROADMAP.md', '| 16º-ab ✅ | mana em combinação (leva M-10) |'); });
+    const shaG = geral.enfileira('G-2', 'Leva G-2 · fichas do seu jeito\n\nTrilha: geral', () => { geral.escreve('fichas.js', ['const fichas = perfil.fichasDoJogador(estado);']); geral.acrescenta('ROADMAP.md', '| 16º-ac ✅ | fichas do seu jeito (leva G-2) |'); });
+    const c = ci(m);
+    const p = plano(c);
+    assert.deepEqual(p.aceitos.map((a) => [a.nome, a.sha, a.commits]), [['M-10', shaM, 1], ['G-2', shaG, 1]], 'ordem de chegada');
+    assert.deepEqual([p.recusados, p.vazios], [[], []]);
+    assert.match(c.le('ROADMAP.md'), /16º-ab[\s\S]*16º-ac/, 'o ROADMAP junta as duas linhas (merge=union)');
+    const antes = m.cabeca('main');
+    const r = avancar({ cwd: c.dir, plano: p, portao: 'success' });
+    assert.equal(r.acao, 'publicar'); assert.equal(m.cabeca('main'), r.publicado); assert.notEqual(r.publicado, antes);
+    assert.equal(execFileSync('git', ['merge-base', '--is-ancestor', antes, r.publicado], { cwd: m.origem }).length, 0, 'o main só avançou');
+    const log = m.logDoMain();
+    assert.match(log, /Leva M-10 · mana em combinação[\s\S]*Trilha: motor/); assert.match(log, /Leva G-2 · fichas do seu jeito[\s\S]*Trilha: geral/);
+    // a identidade da leva (autoria + assunto) é a mesma no clone de quem enviou e no main
+    motor.busca();
+    const local = commitsDa(motor.dir, `${shaM}~1..${shaM}`)[0];
+    assert.ok(publicados(motor.dir, 'origin/main').has(chave(local)), 'o publicar reconhece a própria leva no main, com outro sha');
+    assert.equal(m.existe('refs/heads/fila/M-10'), false); assert.equal(m.existe('refs/heads/fila/G-2'), false);
+    assert.deepEqual(plano(c).aceitos, [], 'fila vazia depois de publicar');
+  } finally { m.fim(); }
+});
+
+test('Q17 · leva em conflito com a que está na frente fica de fora, com o motivo; a da frente publica; a de trás vira recusada/<nome> e o main não leva nada dela', () => {
+  const m = mundo();
+  try {
+    const a = m.clone('a'), b = m.clone('b');
+    a.enfileira('M-11', 'Leva M-11 · placar novo\n\nTrilha: motor', () => a.escreve('index.html', ['function mesa() {', '  const placar = desenharPlacarDoMotor(estado);', '  return montarMesa(placar);', '}', 'const ENGINE_VERSION = 98; // motor']));
+    const shaB = b.enfileira('G-3', 'Leva G-3 · placar em balão\n\nTrilha: geral', () => b.escreve('index.html', ['function mesa() {', '  const placar = desenharPlacarEmBalao(estado);', '  return montarMesa(placar);', '}', 'const ENGINE_VERSION = 98; // motor']));
+    const c = ci(m);
+    const p = plano(c);
+    assert.deepEqual(p.aceitos.map((x) => x.nome), ['M-11']);
+    assert.equal(p.recusados.length, 1); assert.equal(p.recusados[0].nome, 'G-3');
+    assert.match(p.recusados[0].motivo, /CONFLITO[\s\S]*somado a M-11[\s\S]*index\.html[\s\S]*rebase origin\/main/);
+    assert.match(c.le('index.html'), /desenharPlacarDoMotor/); assert.doesNotMatch(c.le('index.html'), /<<<<<<<|EmBalao/);
+    const r = avancar({ cwd: c.dir, plano: p, portao: 'success' });
+    assert.ok(r.publicado); assert.deepEqual(r.recusadas, ['G-3']);
+    assert.equal(m.existe('refs/heads/fila/G-3'), false); assert.equal(m.existe('refs/heads/recusada/G-3'), true);
+    b.busca();
+    const s = situacao({ cwd: b.dir });
+    assert.equal(s.recusadas.length, 1); assert.match(s.recusadas[0].motivo, /CONFLITO/);
+    assert.deepEqual(s.recusadas[0].levas.map((l) => l.assunto), ['Leva G-3 · placar em balão'], 'a leva recusada continua inteira no ramo de aviso');
+    assert.equal(b.git('rev-parse', 'origin/recusada/G-3~1'), shaB);
+    assert.doesNotMatch(m.logDoMain(), /G-3/);
+  } finally { m.fim(); }
+});
+
+test('Q17 · a fila aplica a guarda e a conferência: leva que apaga entrega de outra trilha, ou que repete id da ordem, não entra na soma', () => {
+  const m = mundo();
+  try {
+    const bot = m.clone('bot'), geral = m.clone('geral'), motor = m.clone('motor');
+    bot.enfileira('B-5', 'Leva B-5 · jogada do Shark\n\nTrilha: bot', () => { bot.escreve('bot.js', ['const jogada = shark.escolherMelhorJogada(estado);', 'const plano = shark.planoDoBaralho(lista);']); bot.acrescenta('ROADMAP.md', '| 16º-ab ✅ | jogada do Shark (leva B-5) |'); });
+    const c = ci(m);
+    avancar({ cwd: c.dir, plano: plano(c), portao: 'success' });
+    // cópia antiga por cima: a leva da geral apaga a linha que o bot acabou de publicar
+    geral.enfileira('G-4', 'Leva G-4 · limpeza\n\nTrilha: geral', () => geral.escreve('bot.js', ['const plano = shark.planoDoBaralho(lista);']));
+    // id repetido: o motor pegou a mesma letra que o bot
+    motor.enfileira('M-12', 'Leva M-12 · fase\n\nTrilha: motor', () => { motor.escreve('fase.js', ['const fase = motor.saiDeFase(permanente);']); motor.acrescenta('ROADMAP.md', '| 16º-ab ✅ | fase (leva M-12) |'); });
+    const p = plano(c);
+    assert.deepEqual(p.aceitos, []);
+    const motivo = Object.fromEntries(p.recusados.map((r) => [r.nome, r.motivo]));
+    assert.match(motivo['G-4'], /GUARDA DE AGREGAÇÃO[\s\S]*SOBRESCRITA[\s\S]*escolherMelhorJogada/);
+    assert.match(motivo['M-12'], /CONFERÊNCIA ANTES DO PORTÃO[\s\S]*16º-ab aparece em mais de uma linha/);
+    const antes = m.cabeca('main');
+    const r = avancar({ cwd: c.dir, plano: p, portao: 'skipped' });
+    assert.equal(r.acao, 'nada'); assert.equal(m.cabeca('main'), antes); assert.deepEqual(r.recusadas.sort(), ['G-4', 'M-12']);
+  } finally { m.fim(); }
+});
+
+test('Q17 · portão vermelho: com uma leva, ela é recusada com as quedas no motivo; com várias, nada muda e a mais antiga é testada sozinha', () => {
+  const m = mundo();
+  try {
+    const a = m.clone('a'), b = m.clone('b');
+    a.enfileira('M-13', 'Leva M-13 · regra\n\nTrilha: motor', () => a.escreve('regra.js', ['const regra = motor.aplicarRegraNova(estado);']));
+    b.enfileira('G-5', 'Leva G-5 · tela\n\nTrilha: geral', () => b.escreve('tela.js', ['const tela = app.desenharTelaNova(estado);']));
+    const c = ci(m), antes = m.cabeca('main');
+    const dois = plano(c);
+    const r2 = avancar({ cwd: c.dir, plano: dois, portao: 'failure', motivo: 'not ok 3 - e2e · H7 imagens' });
+    assert.equal(r2.acao, 'isolar'); assert.equal(r2.isolar, 'M-13'); assert.equal(m.cabeca('main'), antes);
+    assert.ok(m.existe('refs/heads/fila/M-13') && m.existe('refs/heads/fila/G-5'), 'as duas continuam na fila');
+    c.busca();
+    const um = montar({ cwd: c.dir, base: 'origin/main', ramos: ordemDaFila(ramosDaFila(c.dir), 'M-13') });
+    assert.deepEqual(um.aceitos.map((x) => x.nome), ['M-13']);
+    const r1 = avancar({ cwd: c.dir, plano: um, portao: 'failure', motivo: 'not ok 3 - e2e · H7 imagens' });
+    assert.equal(r1.acao, 'recusar'); assert.equal(m.cabeca('main'), antes);
+    assert.equal(m.existe('refs/heads/fila/M-13'), false); assert.ok(m.existe('refs/heads/fila/G-5'));
+    c.busca();
+    assert.match(c.git('log', '-1', '--format=%B', 'origin/recusada/M-13'), /RECUSADA pela fila · M-13[\s\S]*PORTÃO VERMELHO[\s\S]*e2e · H7 imagens[\s\S]*O main não mudou/);
+    // cancelado ou sem resultado: nem publica nem recusa
+    const resto = plano(c);
+    const rc = avancar({ cwd: c.dir, plano: resto, portao: 'cancelled' });
+    assert.equal(rc.acao, 'manter'); assert.equal(m.cabeca('main'), antes); assert.ok(m.existe('refs/heads/fila/G-5'));
+  } finally { m.fim(); }
+});
+
+test('Q17 · só chega ao main a árvore que o portão testou: main que andou por fora, plano adulterado e ramo que recebeu commit no meio não publicam às cegas', () => {
+  const m = mundo();
+  try {
+    const a = m.clone('a'), fora = m.clone('fora');
+    a.enfileira('M-14', 'Leva M-14 · regra\n\nTrilha: motor', () => a.escreve('regra.js', ['const regra = motor.aplicarRegraNova(estado);']));
+    const c = ci(m);
+    const p = plano(c);
+    // 1. plano com outra árvore (job do portão não pode trocar o que vai ao main)
+    assert.throws(() => avancar({ cwd: c.dir, plano: { ...p, arvore: 'b'.repeat(40) }, portao: 'success' }), /não é a que o portão testou/);
+    assert.throws(() => avancar({ cwd: c.dir, plano: { ...p, aceitos: [{ ...p.aceitos[0], nome: '--force' }] }, portao: 'success' }), /fora do formato/);
+    // 2. alguém publicou direto no main enquanto o portão rodava
+    fora.git('fetch', '-q', 'origin'); fora.git('checkout', '-q', '-B', 't', 'origin/main'); fora.escreve('direto.js', ['const direto = publicarPeloCaminhoAntigo();']); fora.commit('Leva G-6 · direto\n\nTrilha: geral'); fora.git('push', '-q', 'origin', 'HEAD:main');
+    const depois = m.cabeca('main');
+    c.busca();
+    const r = avancar({ cwd: c.dir, plano: p, portao: 'success' });
+    assert.equal(r.acao, 'manter'); assert.equal(r.deNovo, true); assert.equal(m.cabeca('main'), depois); assert.ok(m.existe('refs/heads/fila/M-14'));
+    // 3. rodada seguinte soma sobre o main novo; no meio, a conversa envia mais um commit para o mesmo ramo: publica o testado, o ramo fica
+    const p2 = plano(c);
+    a.git('checkout', '-q', 'trabalho'); a.escreve('mais.js', ['const mais = motor.outraRegra(estado);']); a.commit('Leva M-15 · outra regra\n\nTrilha: motor'); a.git('push', '-q', 'origin', 'HEAD:refs/heads/fila/M-14');
+    const r3 = avancar({ cwd: c.dir, plano: p2, portao: 'success' });
+    assert.ok(r3.publicado); assert.match(m.logDoMain(), /Leva M-14/); assert.doesNotMatch(m.logDoMain(), /Leva M-15/);
+    assert.ok(m.existe('refs/heads/fila/M-14'), 'o ramo que recebeu commit novo não é apagado');
+    const p3 = plano(c);
+    assert.deepEqual(p3.aceitos.map((x) => [x.nome, x.commits]), [['M-14', 1]], 'na rodada seguinte só o commit novo entra (o outro já está no main)');
+    avancar({ cwd: c.dir, plano: p3, portao: 'success' });
+    assert.match(m.logDoMain(), /Leva M-15/); assert.equal(m.existe('refs/heads/fila/M-14'), false);
+    assert.equal(m.logDoMain().split('Leva M-14 · regra|').length - 1, 1, 'nenhuma leva entra duas vezes');
+  } finally { m.fim(); }
+});
+
+test('Q17 · o fluxo da fila: só o job que avança tem escrita e ele não executa código de leva; o portão roda sem credencial; uma rodada por vez', () => {
+  const yml = readFileSync(join(RAIZ, '.github/workflows/fila.yml'), 'utf8');
+  assert.match(yml, /^on:\n  push:\n    branches: \['fila\/\*\*'\]\n  workflow_dispatch:/m);
+  assert.match(yml, /^concurrency:\n  group: \S+\n  cancel-in-progress: false$/m);
+  assert.match(yml, /^permissions:\n  contents: read$/m, 'padrão do fluxo: só leitura');
+  const job = (nome) => (yml.match(new RegExp(`\\n  ${nome}:\\n([\\s\\S]*?)(?=\\n  [a-z]+:\\n|$)`)) || [])[1] || '';
+  const monta = job('monta'), portao = job('portao'), avanca = job('avanca');
+  assert.ok(monta && portao && avanca, 'três jobs');
+  for (const [nome, j] of [['monta', monta], ['portao', portao]]) {
+    assert.doesNotMatch(j, /write/, `${nome} não escreve em nada`);
+    assert.match(j, /persist-credentials: false/, `${nome} não deixa credencial no disco`);
+    assert.doesNotMatch(j, /github\.token|secrets\./, `${nome} não recebe token nem segredo`);
+  }
+  assert.match(portao, /npm ci\b/); assert.match(portao, /npm run (-s )?test:rapido/); assert.match(portao, /npm run (-s )?test:e2e/);
+  assert.match(portao, /needs\.monta\.outputs\.portao == 'sim'/);
+  assert.match(avanca, /contents: write/);
+  assert.doesNotMatch(avanca, /npm (ci|install|run|test)|npx |playwright/, 'o job com escrita não instala nem roda nada da leva');
+  assert.match(avanca, /cp fila\.mjs agregacao\.mjs "\$RUNNER_TEMP\/"/, 'o código que avança o main é copiado do main antes de a árvore mudar');
+  assert.match(avanca, /needs\.portao\.result/, 'quem diz se o portão passou é o resultado do job, não uma saída que o código testado escreve');
+  for (const j of [monta, portao, avanca]) assert.match(j, /ref: main/, 'todo job parte do main');
+  assert.doesNotMatch(yml, /--force(?!-)|push -f\b/, 'nenhum push forçado no fluxo');
+});
+
+test('Q17 · do lado da conversa: `publicar --fila` envia para fila/<leva>; número já na fila por outra conversa é recusado; o que a fila publicou sai da frente no rebase seguinte', () => {
+  const m = mundo();
+  try {
+    const publicar = (c, ...args) => spawnSync(process.execPath, [join(RAIZ, 'publicar.mjs'), ...args], { cwd: c.dir, encoding: 'utf8', env: { ...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t', GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null' } });
+    const a = m.clone('a'), b = m.clone('b');
+    a.escreve('fichas.js', ['const fichas = perfil.fichasDoJogador(estado);']); a.acrescenta('ROADMAP.md', '| 16º-ab ✅ | fichas (leva G-2) |');
+    a.commit('Leva G-2 · fichas do seu jeito\n\nTrilha: geral');
+    const r1 = publicar(a, '--fila', '--sem-rapida');
+    assert.equal(r1.status, 0, r1.stdout + r1.stderr); assert.match(r1.stdout, /✓ Na fila: fila\/G-2 \(1 commit/);
+    assert.equal(m.cabeca('refs/heads/fila/G-2'), a.git('rev-parse', 'HEAD'));
+    // outra conversa da mesma trilha, sem ver a primeira, com o mesmo número
+    b.escreve('catalogo.js', ['const catalogo = app.catalogoDeListas(estado);']);
+    b.commit('Leva G-2 · catálogo com valor\n\nTrilha: geral');
+    const r2 = publicar(b, '--fila', '--sem-rapida');
+    assert.equal(r2.status, 1); assert.match(r2.stderr, /Já existe fila\/G-2 na fila, de outra conversa[\s\S]*fichas do seu jeito[\s\S]*Renumere/);
+    assert.equal(m.cabeca('refs/heads/fila/G-2'), a.git('rev-parse', 'HEAD'), 'a leva de quem chegou antes fica intacta');
+    // a conversa segue trabalhando por cima da leva enfileirada; a fila publica a primeira
+    a.escreve('mais.js', ['const mais = app.outraTela(estado);']); a.acrescenta('ROADMAP.md', '| 16º-ac ✅ | outra tela (leva G-3) |');
+    a.commit('Leva G-3 · outra tela\n\nTrilha: geral');
+    const c = ci(m);
+    assert.ok(avancar({ cwd: c.dir, plano: plano(c), portao: 'success' }).publicado);
+    const sit = publicar(a, '--situacao');
+    assert.match(sit.stdout, /✓ no main [0-9a-f]{7}  Leva G-2[\s\S]*· aguardando  Leva G-3/);
+    const r3 = publicar(a, '--fila', '--sem-rapida');
+    assert.equal(r3.status, 0, r3.stdout + r3.stderr);
+    assert.match(r3.stdout, /1 commit\(s\) local\(is\) já estão no main \(publicados pela fila\): saem da frente/); assert.match(r3.stdout, /✓ Na fila: fila\/G-3 \(1 commit/);
+    assert.equal((a.le('ROADMAP.md').match(/16º-ab/g) || []).length, 1, 'a linha da leva já publicada não é duplicada pelo rebase');
+    assert.equal(a.git('rev-list', '--count', 'origin/main..HEAD'), '1');
+    assert.ok(avancar({ cwd: c.dir, plano: plano(c), portao: 'success' }).publicado);
+    assert.equal((m.logDoMain().match(/^Leva G-[23] /gm) || []).length, 2);
+  } finally { m.fim(); }
+});
