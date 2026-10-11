@@ -53,3 +53,23 @@ test('P-11 · antes de apagar, o app sai da conta e para a sincronia (o "antes" 
   const r = await S.apagaTudoDoAparelho({ store: outro, antes: async () => { throw new Error('sem rede'); } });
   assert.equal(r.sobrou.length, 0);
 });
+
+test('P-13 · apagar também da nuvem: a nuvem vem antes de tudo; se ela não confirmar, nada é apagado no aparelho; sem pedir, é o apagar de sempre', async () => {
+  const base = P.memoryStore(); await base.set('deck.a', 1); await base.set('conta.sessao', { uid: 'u1' });
+  const ordem = [];
+  const espia = { ...base, keys: base.keys, get: base.get, set: base.set, async remove(k) { ordem.push('remove'); return base.remove(k); } };
+  const falha = await S.apagaTudoComNuvem({ store: espia, nuvem: async () => { ordem.push('nuvem'); return false; }, antes: async () => { ordem.push('antes'); } });
+  assert.equal(falha.nuvem, 'falhou');
+  assert.equal(JSON.stringify(falha.sobrou), JSON.stringify(['nuvem: perfil e foto']));
+  assert.equal(JSON.stringify(ordem), JSON.stringify(['nuvem']), 'nem saiu da conta nem apagou nada');
+  assert.equal((await base.keys('')).length, 2);
+  const caiu = await S.apagaTudoComNuvem({ store: espia, nuvem: async () => { throw new Error('sem rede'); } });
+  assert.equal(caiu.nuvem, 'falhou'); assert.equal((await base.keys('')).length, 2);
+  ordem.length = 0;
+  const ok = await S.apagaTudoComNuvem({ store: espia, nuvem: async () => { ordem.push('nuvem'); return true; }, antes: async () => { ordem.push('antes'); } });
+  assert.equal(ok.nuvem, 'apagada'); assert.equal(ok.sobrou.length, 0);
+  assert.equal(JSON.stringify(ordem.slice(0, 3)), JSON.stringify(['nuvem', 'antes', 'remove']));
+  const outro = P.memoryStore(); await outro.set('deck.a', 1);
+  const sem = await S.apagaTudoComNuvem({ store: outro });
+  assert.equal(sem.nuvem, null); assert.equal(sem.sobrou.length, 0);
+});

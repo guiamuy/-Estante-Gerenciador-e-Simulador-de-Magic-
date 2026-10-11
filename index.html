@@ -11068,7 +11068,19 @@ async function apagaTudoDoAparelho({ store, caches = null, sessao = null, local 
   limpa(sessao, 'sessao'); limpa(local, 'local');
   return r;
 }
-return { DESTINOS, LINKS, ORIGENS, createSaidaScreen, apagaTudoDoAparelho };
+/** P-13 · SEG6b · "apagar também da nuvem": `nuvem()` apaga o perfil e a foto da conta da Estante e devolve true só
+    quando o banco confirma. Ela vem antes de tudo (com a conta ainda conectada); se não confirmar, nada é apagado no
+    aparelho e o resultado diz por quê. Sem `nuvem`, é o apagar de sempre. */
+async function apagaTudoComNuvem({ nuvem = null, ...resto }) {
+  if (nuvem) {
+    let ok = false; try { ok = (await nuvem()) === true; } catch (e) { ok = false; }
+    if (!ok) return { chaves: 0, caches: 0, sessao: 0, local: 0, sobrou: ['nuvem: perfil e foto'], nuvem: 'falhou' };
+  }
+  const r = await apagaTudoDoAparelho(resto);
+  r.nuvem = nuvem ? 'apagada' : null;
+  return r;
+}
+return { DESTINOS, LINKS, ORIGENS, createSaidaScreen, apagaTudoDoAparelho, apagaTudoComNuvem };
 })();
 
 /* ==== src/app/relatos.js ==== */
@@ -12075,18 +12087,22 @@ function createDecksHome({ decks, collection, files, cardRepo, backup = null, et
 
 /* ---------------- Leva 128 · /perfil ---------------- */
 /** Nome e foto de quem usa o aparelho, e o backup completo. Tudo local; a foto é reduzida aqui mesmo antes de guardar. */
-function createPerfilScreen({ perfil, backup, conta = null, haptics = null, theme = null, apresentacao = null, dados = null, som = null, fichas = null, partidas = null, terrenos = null, relatos = null, apagar = null }) {
+function createPerfilScreen({ perfil, backup, conta = null, haptics = null, theme = null, apresentacao = null, dados = null, som = null, fichas = null, partidas = null, terrenos = null, relatos = null, apagar = null, nuvemConectada = () => false }) {
   const root = Stack(pad(), __m3.Carregando('Abrindo…', { tamanho: 'tela' }));
   const st = { salvo: null, nome: '', avatar: null, erro: null, ocupado: false, conta: null, contaOcupada: false };
   const mudou = () => !!st.salvo && (st.nome !== st.salvo.nome || st.avatar !== st.salvo.avatar);
   function confirmaApagar() {
     const erro = h('div', { id: 'apagar-erro', role: 'alert' });
+    // P-13 · com a conta da Estante conectada: "apagar também da nuvem" (desligado por padrão: os outros aparelhos usam o perfil de lá)
+    const comNuvem = { ligada: false };
+    const nuvem = nuvemConectada() ? Chip('Apagar também da nuvem', { id: 'apagar-nuvem', icone: 'globo', pressed: false, onClick: e => { comNuvem.ligada = !comNuvem.ligada; e.currentTarget.setAttribute('aria-pressed', String(comNuvem.ligada)); } }) : null;
     const vai = Button('Apagar tudo', { variant: 'danger', icone: 'lixeira', id: 'apagar-confirmar', onClick: async () => {
       vai.disabled = true; vai.setAttribute('aria-busy', 'true'); clear(erro);
-      let r = null; try { r = await apagar(); } catch (e) { r = null; }
+      let r = null; try { r = await apagar({ nuvem: comNuvem.ligada }); } catch (e) { r = null; }
       if (!r || r.sobrou.length) {
         vai.disabled = false; vai.removeAttribute('aria-busy');
-        mount(erro, Note(r ? `Não consegui apagar ${r.sobrou.length === 1 ? '1 item' : r.sobrou.length + ' itens'}. Toque em Apagar tudo de novo.` : 'O navegador não deixou apagar agora. Toque em Apagar tudo de novo.', 'negative'));
+        mount(erro, Note(r && r.nuvem === 'falhou' ? 'A nuvem não confirmou e nada foi apagado. Confira a internet e toque em Apagar tudo de novo.'
+          : r ? `Não consegui apagar ${r.sobrou.length === 1 ? '1 item' : r.sobrou.length + ' itens'}. Toque em Apagar tudo de novo.` : 'O navegador não deixou apagar agora. Toque em Apagar tudo de novo.', 'negative'));
         return;
       }
       closeDialog(); toast('Tudo apagado deste aparelho');
@@ -12095,7 +12111,9 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
     Dialog({ title: 'Apagar tudo deste aparelho?', body: Stack({},
       Text('Não dá para desfazer. Para guardar as listas, a coleção e o perfil, exporte o backup antes.', { tone: 'muted' }),
       Row({ class: 'ds-row--wrap' }, Button('Exportar backup', { icone: 'exportar', id: 'apagar-backup', onClick: async e => { const b = e.currentTarget; await backup.exportar(); confirmaBotao(b, { texto: 'Exportado' }); } })),
-      Text('O backup no Drive e a partida online ficam como estão.', { size: 'sm', tone: 'muted' }),
+      nuvem ? Stack({ style: { gap: 'var(--space-2)' } }, Row({ class: 'ds-row--wrap' }, nuvem),
+        Text('Tira o seu perfil e a sua foto da conta da Estante. Nos outros aparelhos a conta continua, sem esse perfil.', { size: 'sm', tone: 'muted' })) : null,
+      Text(nuvem ? 'O backup no Drive e as salas da partida online ficam como estão.' : 'O backup no Drive e a partida online ficam como estão.', { size: 'sm', tone: 'muted' }),
       erro),
       actions: [Button('Cancelar', { id: 'apagar-cancelar', onClick: closeDialog }), vai] });
   }
@@ -27480,7 +27498,12 @@ const ROUTES = [
     // Y3 · abrir a partida anexada: entra no lugar da salva (sem a parte online) e a série em curso sai
     partidas: { temSalva: async () => { try { const d = await platform.store.get(__m18.SAVE_KEY); return !!(d && d.kind === 'estante.match'); } catch (e) { return false; } },
       abre: async p => { const { online: _fora, ...opcoes } = p.options || {}; await platform.store.set(__m18.SAVE_KEY, { ...p, options: opcoes, savedAt: Date.now() }); await platform.store.remove(__m18.SERIE_KEY).catch(() => {}); location.hash = '#/partida'; } } }) }, // Y1 · Y3
-  { path: '/perfil', title: 'Perfil', render: () => createPerfilScreen({ perfil, backup, conta, apagar: () => __m41.apagaTudoDoAparelho({ antes: async () => { try { sincronia.para(); } catch (e) { /* sem sincronia */ } await Promise.race([conta.sair().catch(() => {}), new Promise(r => setTimeout(r, 2000))]); }, store: platform.store, caches: typeof caches !== 'undefined' ? caches : null, sessao: (() => { try { return sessionStorage; } catch (e) { return null; } })(), local: (() => { try { return localStorage; } catch (e) { return null; } })() }), haptics: platform.haptics, theme, som, fichas, partidas, terrenos, relatos, apresentacao: () => mostraApresentacao(),
+  { path: '/perfil', title: 'Perfil', render: () => createPerfilScreen({ perfil, backup, conta, nuvemConectada: () => { try { return online.modo === 'firebase' && conta.estante().estado === 'conectada' && !!conta.sessao.uid(); } catch (e) { return false; } },
+    apagar: (o = {}) => __m41.apagaTudoComNuvem({ nuvem: o.nuvem ? async () => { // P-13 · nuvem primeiro, com a conta ainda conectada; falhou: a sincronia volta
+      try { sincronia.para(); } catch (e) { /* sem sincronia */ }
+      let ok = false; try { const uid = conta.sessao.uid(); ok = !!uid && await __m40.createPerfilRemoto({ transporte: online.transporte, uid }).apagarTudo(); } catch (e) { ok = false; }
+      if (!ok) { try { sincronia.agora(); } catch (e) { /* sem sincronia */ } }
+      return ok; } : null, antes: async () => { try { sincronia.para(); } catch (e) { /* sem sincronia */ } await Promise.race([conta.sair().catch(() => {}), new Promise(r => setTimeout(r, 2000))]); }, store: platform.store, caches: typeof caches !== 'undefined' ? caches : null, sessao: (() => { try { return sessionStorage; } catch (e) { return null; } })(), local: (() => { try { return localStorage; } catch (e) { return null; } })() }), haptics: platform.haptics, theme, som, fichas, partidas, terrenos, relatos, apresentacao: () => mostraApresentacao(),
     // D5 · Dados: base local de cartas (antes na tela Cartas), espaço e proteção (o mesmo do painel da tela inicial)
     dados: { baseLocal: () => __m12.painelBaseLocal({ local: localIndex, files: platform.files }),
       espaco: async () => ({ texto: descreveEspaco(await platform.persistence.estimate()), protecao: await platform.persistence.status() }),

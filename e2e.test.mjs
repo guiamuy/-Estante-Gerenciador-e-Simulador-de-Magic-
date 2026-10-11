@@ -4002,6 +4002,7 @@ test('e2e · P-10 Apagar tudo deste aparelho: em Perfil › Dados, Cancelar não
   // 1 · Cancelar não apaga nada
   await page.click('#perfil-apagar-tudo'); await page.waitForSelector('#apagar-confirmar');
   assert.match(await page.innerText('.ds-dialog'), /Não dá para desfazer[\s\S]*Exportar backup/);
+  assert.equal(await page.locator('#apagar-nuvem').count(), 0, 'sem a conta da Estante, nada de nuvem');
   await auditaTela(page, 'apagar tudo · confirmação');
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/p7-apagar.png' });
   await page.click('#apagar-cancelar');
@@ -5082,6 +5083,59 @@ test('e2e · P-8 sala pela internet: sem conta da Estante, Criar e Entrar dão l
 });
 
 /* ---------------- A-263 · T6d · perfil sincronizado pela conta da Estante ---------------- */
+test('e2e · P-13 Apagar também da nuvem: com a conta conectada a confirmação oferece a opção (desligada); se a nuvem não confirmar, nada é apagado e o app diz por quê; confirmando, o perfil e a foto saem do banco e o aparelho volta limpo', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  const negar = { sim: false };
+  const banco = { perfis: { uidE2E: { doc: { kind: 'estante.perfil.remoto', version: 1, atualizadoEm: 4e12, nome: 'Gui', pessoaEm: 0, p: { 'ui:theme': { v: '"light"', t: 4e12 } } } } } };
+  const pedidos = [];
+  await page.route('https://teste.firebaseio.com/**', async r => {
+    const u = new URL(r.request().url()), seg = u.pathname.replace(/\.json$/, '').split('/').filter(Boolean), metodo = r.request().method();
+    pedidos.push(metodo + ' /' + seg.join('/') + (u.searchParams.get('auth') ? ' (com token)' : ' (sem token)'));
+    if (u.searchParams.get('auth') !== 'id-e2e') return r.fulfill({ status: 401, json: { error: 'Permission denied' } });
+    const desce = () => seg.reduce((o, k) => (o && typeof o === 'object' ? o[k] : undefined), banco);
+    const poe = (caminho, v) => { let o = banco; for (const k of caminho.slice(0, -1)) o = o[k] = o[k] && typeof o[k] === 'object' ? o[k] : {}; if (v === null) delete o[caminho.at(-1)]; else o[caminho.at(-1)] = v; };
+    const corpo = r.request().postData() ? JSON.parse(r.request().postData()) : null;
+    if (negar.sim && metodo !== 'GET' && seg[0] === 'perfis') return r.fulfill({ status: 500, json: { error: 'falhou' } });
+    if (metodo === 'PUT') poe(seg, corpo);
+    if (metodo === 'PATCH') for (const [k, v] of Object.entries(corpo)) poe([...seg, ...k.split('/')], v);
+    return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(metodo === 'GET' ? (desce() ?? null) : corpo) });
+  });
+  await page.route('https://www.googleapis.com/**', r => r.request().url().includes('/oauth2/v3/userinfo') ? r.fulfill({ json: { name: 'Gui', email: 'gui@example.com' } }) : r.fulfill({ status: 404, json: {} }));
+  await page.addInitScript(() => {
+    window.__FIREBASE_DB_URL = 'https://teste.firebaseio.com';
+    window.__GOOGLE_CLIENT_ID = 'e2e.apps.googleusercontent.com'; window.__FIREBASE_API_KEY = 'chave-e2e';
+    window.__FIREBASE_FETCH = async url => new Response(JSON.stringify(url.includes('securetoken') ? { id_token: 'id-e2e', refresh_token: 'ref-e2e', expires_in: '3600', user_id: 'uidE2E' } : { localId: 'uidE2E', idToken: 'id-e2e', refreshToken: 'ref-e2e', expiresIn: '3600' }), { headers: { 'content-type': 'application/json' } });
+    window.__GOOGLE_FALSO = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+    window.EventSource = class { constructor() {} addEventListener() {} close() {} };
+  });
+  await createDeck(page, base, 'Fica até apagar', '20 Island');
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#conta-entrar:not([disabled])');
+  await page.click('#conta-entrar'); await page.waitForSelector('#conta-sincronia[data-estado="sincronizado"]', { timeout: 10000 });
+  banco.perfis.uidE2E.avatar = { dado: 'data:image/png;base64,AAAA', em: 1 };
+  negar.sim = true;                                                     // daqui em diante o banco recusa escrita em perfis/
+  // 1 · a opção aparece desligada; ligada com a nuvem recusando: nada é apagado
+  await page.click('#perfil-apagar-tudo'); await page.waitForSelector('#apagar-nuvem');
+  assert.equal(await page.getAttribute('#apagar-nuvem', 'aria-pressed'), 'false');
+  await page.waitForTimeout(350); assert.ok((await page.locator('#apagar-nuvem').boundingBox()).height >= 44);
+  await auditaTela(page, 'apagar tudo · com a opção da nuvem');
+  await page.click('#apagar-nuvem'); assert.equal(await page.getAttribute('#apagar-nuvem', 'aria-pressed'), 'true');
+  await page.click('#apagar-confirmar'); await page.waitForSelector('#apagar-erro .ds-note');
+  assert.match(await page.innerText('#apagar-erro'), /A nuvem não confirmou e nada foi apagado/);
+  assert.ok(banco.perfis.uidE2E.doc, 'o perfil continua no banco');
+  await page.keyboard.press('Escape');
+  await page.goto(base + '#/listas'); await page.waitForSelector('.deck-item >> text=Fica até apagar');
+  // 2 · a nuvem confirma: perfil e foto saem do banco, o aparelho volta limpo
+  negar.sim = false;
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-apagar-tudo');
+  await page.click('#perfil-apagar-tudo'); await page.waitForSelector('#apagar-nuvem'); await page.click('#apagar-nuvem');
+  await Promise.all([page.waitForNavigation({ timeout: 15000 }), page.click('#apagar-confirmar')]);
+  await page.waitForTimeout(1500);
+  assert.equal(Object.keys(banco.perfis.uidE2E || {}).length, 0, 'perfil e foto fora do banco (nó vazio o Firebase poda sozinho): ' + JSON.stringify(banco.perfis));
+  await page.goto(base + '#/listas'); await page.waitForSelector('#decks-vazio');
+  assert.deepEqual(errors.filter(e => !/status of 500/.test(e)), [], 'só a recusa que o teste provocou');
+});
+
 test('e2e · P-11 Apagar tudo com a conta conectada: sai da conta neste aparelho e nada vai para a nuvem — o perfil guardado no banco fica igual, nenhuma escrita depois de Apagar tudo, e o app volta desconectado', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.setViewportSize({ width: 360, height: 780 });

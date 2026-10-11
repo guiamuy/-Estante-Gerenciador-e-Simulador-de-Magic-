@@ -518,6 +518,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-dw ✅ | SEG6 apagar tudo deste aparelho em Perfil › Dados: armazenamento, caches e sessão do app, conferido antes de recarregar (leva P-10) | SEG | 1 | — |
 | 16º-dx ✅ | Apagar tudo com a conta no ar: sai da conta e para a sincronia antes, para nada apagado subir para a nuvem (leva P-11) | SEG | ½ | — |
 | 16º-dy ✅ | SEG7 silenciar a conversa da partida online: sem selo, aviso nem mensagens do outro; Ouvir sem enxurrada (leva P-12) | SEG | 1 | — |
+| 16º-dz ✅ | SEG6b apagar também da nuvem: com a conta no ar, opção na confirmação que tira perfil e foto da conta da Estante antes de apagar o aparelho; se a nuvem não confirmar, nada é apagado (leva P-13) | SEG | 1 | — |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -7924,6 +7925,19 @@ segredo do repositório. O `main` não recebe commit do coletor.
   do mesmo jeito (a saída espera no máximo 2 s). Testes: `seguranca.apagar.unit` +1 (o "antes" roda antes de qualquer
   chave sumir; se falhar, apaga igual — falhava antes desta leva); e2e "P-11" (conta conectada com banco falso: depois de
   Apagar tudo, nenhuma escrita na nuvem, o perfil no banco fica igual e o app volta desconectado).
+- **SEG6b · P-13 (11/10/2026), apagar também da nuvem:** com a conta da Estante conectada, a confirmação ganha o chip
+  **"Apagar também da nuvem"** (desligado por padrão; 44 px, `aria-pressed`) com uma linha do que ele faz. Ligado, a
+  **nuvem vem primeiro**: o app para a sincronia e apaga o perfil e a foto da conta (`perfis/<uid>`, pelo `apagarTudo` da
+  T6b) **com a conta ainda conectada**; só depois sai da conta e apaga o aparelho. Se a nuvem não confirmar (sem rede,
+  recusa), **nada é apagado**, a sincronia volta e a confirmação diz "A nuvem não confirmou e nada foi apagado" — apagar o
+  aparelho primeiro deixaria o perfil na nuvem sem jeito de alcançá-lo de novo. Sem conta conectada o chip não aparece.
+  Testes: `seguranca.apagar.unit` +1 (nuvem antes de tudo; recusa ou erro não apaga nada nem sai da conta; sem pedir, é o
+  apagar de sempre — falhava antes: a função não existia); e2e "P-13" (banco falso: opção desligada, recusa mantém lista e
+  perfil no banco com o aviso, confirmando o perfil e a foto saem do banco e o aparelho volta limpo; `auditaTela`); e2e
+  "P-10" +1 (sem conta, o chip não aparece). **Resíduo que continua:** o **backup no Google Drive** (pasta oculta do app)
+  sai no Google Drive pela web: Configurações › Gerenciar apps › Opções do app da Estante › Excluir dados ocultos do app; **salas da partida
+  online** ficam no banco até vencer (6 h) — não guardam perfil, só a partida; a conta da Estante (o login) continua
+  existindo nos outros aparelhos, sem esse perfil.
 - **Fora:** apagar por categoria (só imagens, só partidas) — o Espaço no aparelho e a Base local já limpam o que é
   derivado.
 
