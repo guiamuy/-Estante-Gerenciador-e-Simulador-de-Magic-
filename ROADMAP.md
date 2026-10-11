@@ -3690,6 +3690,15 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Testes:** `verbos.fortalecer.unit` (5), cenário S8 das duas cartas.
 - **Fora:** Honor's Reward (texto integral não conferido nesta leva).
 
+**V-4 · CR3 · Povoar (701.36)** 🟡 (leva V-4, motor v109 sem subir: só acrescenta ações; partidas-referência idênticas) — 701.36 passa de ausente a coberta.
+- **Valor:** "Populate" cria uma ficha que é cópia de uma ficha de criatura sua; com mais de uma, a mesa pergunta qual.
+- **Regra inteira:** escolha, não alvo; só fichas de criatura que você controla; uma candidata → automático; nenhuma → nada é criado (b); a cópia segue 707.8 (valores copiáveis; marcadores e anexos não vêm).
+- **Vocabulário:** efeito `populate`, que reaproveita `ficha_copia` (CR2f.2) e a fila de passos da V-2.
+- **Carta (texto oficial em `.listas/oficiais-verbos.json`, Oracle do Forge e mtggoldfish, 11/10/2026):** Eyes in the Skies.
+- **Mesa:** nenhuma decisão de tipo novo (`pick`).
+- **Testes:** `verbos.povoar.unit` (4), cenário S8.
+- **Ordem da trilha (decisão desta conversa, declarada):** os itens "completar" de 701 que pedem editar casos que já existem no motor (conspirar 701.50, explorar 701.44, amontoar 701.47, regenerar 701.19, vidência 701.22, buscar 701.23, anexar 701.3, transformar 701.27) ficam para o último lote, como levas de "Toca ponto comum", depois dos verbos novos — que só acrescentam linhas e não disputam região com a trilha `motor`. O amontoar (M-260, menos de 72 h) exigiria `Sobrescreve:` hoje.
+
 **CR4 · Habilidades de palavra-chave (702)** ○ — 150 ausentes e 21 parciais, em ondas pela frequência em cartas anotada no mapa: (1) fechar as evergreen e as parciais; (2) "muito comum" (proeza, tripular, reforço, convocar, cascata, evocar, persistir, imortal, fração de segundo, infectar e tóxico…); (3) "comum"; (4) "rara" e "uma coleção só". 50 a 65 levas.
 
 **CR4 · andamento (trilha `keywords`, levas `K-N`)** ▶ — ordem de 11/10/2026: primeiro as palavras-chave do acervo que o medidor do leitor (LT6) acusa fora do vocabulário, depois a onda 1 (proeza, convocar, cascata, evocar, persistir, imortal, exaltado, explorar, arremeter, improvisar, recomeçar, pós-vida, evoluir), a onda 2 (completar as parciais), a 3 (raras, da mais citada à menos) e a 4 (o resto de 702, com o que fica fora declarado no mapa). Auditoria independente por subagente ao fim de cada onda. Palavra-chave com parâmetro ("Ward {3}", "Kicker {B}", "Crew 1") também depende de o leitor ler a forma: isso é da trilha `motor` (leitor), avisada a cada leva.

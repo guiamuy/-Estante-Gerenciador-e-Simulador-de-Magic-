@@ -6108,13 +6108,17 @@
    "n": "701.36",
    "regra": "Keyword Actions",
    "titulo": "Populate",
-   "status": "ausente",
-   "falta": "não há ficha que é cópia de outra ficha",
-   "esforco": "M",
+   "status": "coberta",
    "depende": [
     "707"
    ],
-   "cartas": "rara"
+   "cartas": "rara",
+   "evidencia": "V-4 · efeito `populate` (povoar em core.js, abaixo da âncora ↓ V): quem controla escolhe uma ficha de criatura sua (uma candidata: automático; mais de uma: decisão pick obrigatória) e cria uma ficha que é cópia dela pelo caminho de 707.8 (`ficha_copia`: valores copiáveis, sem marcadores); sem ficha de criatura sua nada é criado (b); não mira; fichas que não são criatura e fichas do oponente não entram. Carta: Eyes in the Skies (.listas/oficiais-verbos.json)",
+   "testes": [
+    "CR 701.36 · povoar: com uma só ficha de criatura sua, cria a cópia dela sem perguntar (Eyes in the Skies: o Pássaro e a cópia do Pássaro)",
+    "CR 701.36 · povoar: com mais de uma ficha de criatura, quem controla escolhe qual copiar; ficha que não é criatura e ficha do oponente não entram",
+    "CR 701.36 · povoar (b): sem ficha de criatura sua, nada é criado; a cópia não leva marcadores (707.2)"
+   ]
   },
   {
    "n": "701.37",

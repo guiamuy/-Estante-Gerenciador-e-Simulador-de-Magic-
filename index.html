@@ -5351,6 +5351,7 @@ const EFFECTS = {
   /* ↓ K · efeitos da trilha keywords */
   salvaguarda: { fields: [], targets: [] }, // K-2 · 702.21a · gerado pelo motor quando uma permanente com salvaguarda vira alvo (não vai em script)
   /* ↓ V · efeitos da trilha verbos */
+  populate: { fields: [], targets: ['self'] }, // V-4 · 701.36 povoar: cria uma ficha que é cópia de uma ficha de criatura sua, à sua escolha
   bolster: { fields: ['amount'], targets: ['self'] }, // V-3 · 701.39 fortalecer N: marcadores na sua criatura de menor resistência (empate: você escolhe)
   proliferate: { fields: [], targets: ['self'] }, // V-2 · 701.34 proliferar: quem controla escolhe quantas permanentes e jogadores com marcador quiser
   // V-1 · 701.14 lutar. `lutador` só escolhe quem luta ("Target creature you control fights…"); `fight` mira a outra e faz a luta.
@@ -6161,6 +6162,9 @@ function effectErrors(effects, label, opcional) {
   });
   /* ↓ K · validação da trilha keywords */
   /* ↓ V · validação da trilha verbos */
+  effects.forEach((e, i) => { // V-4 · 701.36: povoar pode abrir escolha; o que vem depois não pode ter alvo próprio
+    if (e.do === 'populate' && effects.slice(i + 1).some(isTargeted)) errs.push(`${label} ${i + 1} (populate): efeito com alvo depois de uma escolha`);
+  });
   effects.forEach((e, i) => { // V-3 · 701.39: fortalecer pode abrir escolha (empate); o que vem depois não pode ter alvo próprio
     if (e.do === 'bolster' && effects.slice(i + 1).some(isTargeted)) errs.push(`${label} ${i + 1} (bolster): efeito com alvo depois de uma escolha`);
   });
@@ -6212,6 +6216,9 @@ const isTargeted = e => TARGETED.has(e.target) || (!!e.target && typeof e.target
 const RAW_SCRIPTS = [
   /* ↓ K · scripts de carta da trilha keywords (texto oficial em .listas/oficiais-keywords.json) */
   /* ↓ V · scripts de carta da trilha verbos (texto oficial em .listas/oficiais-verbos.json) */
+  // V-4 · 701.36 povoar
+  { name: 'Eyes in the Skies', effects: [{ do: 'token', amount: 1, token: { name: 'Bird', types: ['creature'], subtypes: ['Bird'], colors: ['W'], power: 1, toughness: 1, keywords: ['flying'] } }, { do: 'populate' }], // "Create a 1/1 white Bird creature token with flying, then populate."
+    example: { target: 'none', expect: { tokens: 2 } } },
   // V-3 · 701.39 fortalecer e 701.41 apoiar
   { name: 'Cached Defenses', effects: [{ do: 'bolster', amount: 3 }], // "Bolster 3."
     example: { target: 'none', expect: { handDelta: 0 } } },
@@ -17399,6 +17406,7 @@ function applyEffect(s, src, eff, tgt, events) {
       note({ pending: true }); break;
     }
     /* ↓ V · casos de applyEffect da trilha verbos */
+    case 'populate': povoar(s, src, events); break; // V-4 · 701.36
     case 'bolster': fortalecer(s, src, eff, events); break; // V-3 · 701.39
     case 'proliferate': proliferar(s, src, events); break; // V-2 · 701.34
     case 'proliferate_jogador': if (s.proliferar && !s.proliferar.jogadores.includes(eff.jogador)) s.proliferar.jogadores.push(eff.jogador); break; // V-2 · o "sim" da pergunta por jogador
@@ -20066,6 +20074,23 @@ function wardImpressoK(card) {
 }
 Object.assign(EXPORTS_K, { wardsDeK, wardImpressoK, custoDaSalvaguardaK });
 /* ↓ V · exportações de core.js da trilha verbos */
+/* V-4 · 701.36 povoar: "choose a creature token you control and create a token that's a copy of that creature token" (a); sem ficha de
+   criatura sua, nada é criado (b). Não mira. A cópia é a de 707.8 (mesmo caminho de `ficha_copia`): valores copiáveis, sem marcadores
+   nem anexos. Uma candidata: automático; mais de uma: quem controla escolhe (decisão pick obrigatória). */
+function povoar(s, src, events) {
+  const p = src.controller, cands = battlefield(s).filter(o => o.token && o.controller === p && isCreature(s, o));
+  if (!cands.length) { events.push({ kind: 'effect', do: 'populate', name: src.name, target: s.players[p].name, amount: 0 }); return; }
+  const passo = { passo: 'povoar-cria', p, nome: src.name, oid: src.oid, fonte: src.source || null, habilidade: !!src.ability };
+  if (cands.length === 1) { s.escolhaV = [cands[0].oid]; passoPovoarCria(s, passo, events); return; }
+  s.verbo = [...(s.verbo || []), passo];
+  startPick(s, { p, from: cands.map(o => o.oid), min: 1, max: 1, to: 'proliferar', rest: 'stay', label: 'povoar', source: `${src.name} — povoar` }, events);
+}
+function passoPovoarCria(s, passo, events) {
+  const oid = (s.escolhaV || [])[0]; delete s.escolhaV;
+  const src = s.objects[passo.oid] || { oid: passo.oid, name: passo.nome, controller: passo.p, ...(passo.habilidade ? { ability: true, source: passo.fonte } : {}) };
+  if (oid) applyEffect(s, src, { do: 'ficha_copia', amount: 1 }, { oid }, events);
+}
+Object.assign(EXPORTS_V, { povoar });
 /* V-3 · 701.39 fortalecer N: "Choose a creature you control with the least toughness or tied for least toughness among creatures you
    control. Put N +1/+1 counters on that creature." Não mira (sem alvo, sem salvaguarda); a resistência é a de agora; com empate quem
    controla escolhe (decisão pick, uma carta, obrigatória), com uma candidata só é automático; sem criatura, nada acontece. */
@@ -20090,7 +20115,7 @@ function continuaVerbo(s, events) {
   return !!s.pending;
 }
 /** Escolha de permanentes que alimenta um verbo (destino `proliferar` da decisão pick): só anota; o verbo aplica tudo junto no fim. */
-function escolhaDoVerbo(s, oid) { if (s.proliferar && !s.proliferar.objetos.includes(oid)) s.proliferar.objetos.push(oid); }
+function escolhaDoVerbo(s, oid) { const lista = s.proliferar ? s.proliferar.objetos : (s.escolhaV = s.escolhaV || []); if (!lista.includes(oid)) lista.push(oid); } // V-4 · sem proliferar em curso, a escolha fica em s.escolhaV para o passo seguinte
 /* V-2 · 701.34 proliferar. Quem controla o efeito escolhe qualquer número de permanentes e/ou jogadores que têm marcador (pode ser nenhum);
    depois cada escolhido recebe mais um marcador de cada tipo que já tem, todos de uma vez. Marcador em jogador, neste motor, é veneno. */
 const temMarcador = o => Object.values(o.counters || {}).some(n => n > 0);
@@ -20105,6 +20130,7 @@ function proliferar(s, src, events) {
   else continuaVerbo(s, events);
 }
 const PASSOS_V = {
+  'povoar-cria': (s, passo, events) => passoPovoarCria(s, passo, events), // V-4
   'proliferar-jogador'(s, passo, events) { // uma pergunta por jogador com veneno: "sim" anota o jogador
     const pl = s.players[passo.jogador]; if (!pl || pl.lost || !(pl.poison > 0)) return;
     s.pending = { kind: 'may_pay', p: passo.p, cost: null, name: `Proliferar: mais um marcador de veneno em ${pl.name}`,
@@ -22566,6 +22592,7 @@ const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas
   proliferate: () => 'prolifera (escolhe permanentes e jogadores com marcador; cada um recebe mais um de cada tipo que já tem)', // V-2
   proliferate_jogador: () => 'esse jogador recebe mais um marcador de veneno',
   bolster: e => `fortalece ${qtd(e.amount)} (põe ${qtd(e.amount) === 1 ? '1 marcador' : qtd(e.amount) + ' marcadores'} +1/+1 na sua criatura de menor resistência)`, // V-3
+  populate: () => 'povoa (cria uma ficha que é cópia de uma ficha de criatura sua)', // V-4
   fight: e => `${e.quem === 'self-source' ? 'esta criatura luta' : 'ela luta'} com ${ALVO_PT[e.target] || descreveAlvo(e.target)} (cada uma causa dano igual ao próprio poder à outra)`,
 };
 /* ↓ T · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha tipos */
