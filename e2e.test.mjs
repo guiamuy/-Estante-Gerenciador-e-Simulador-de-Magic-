@@ -88,6 +88,9 @@ async function open(t, { dev = true, apresentacao = false, cena = false } = {}) 
   // H6 · a folha de pagamento abre antes de toda mágica que vira terreno; os testes que não são dela continuam com o
   // pagamento automático (um toque a menos por mágica). O teste da H6 liga por `window.__estanteMesa.manaManual(true)`.
   await ctx.addInitScript(() => { window.__SEM_PAGAMENTO = true; });
+  // P-7 · T6c-2a · o app publicado tem Client ID e a chave da conta da Estante: os testes começam sem conta (como até a
+  // P-7) e sem falar com o Google; o teste que precisa liga com valores falsos (window.__GOOGLE_CLIENT_ID, __FIREBASE_*).
+  await ctx.addInitScript(() => { if (window.__GOOGLE_CLIENT_ID === undefined) window.__GOOGLE_CLIENT_ID = ''; if (window.__FIREBASE_API_KEY === undefined) window.__FIREBASE_API_KEY = ''; });
   const page = await ctx.newPage();
   // leva 113: o app publicado só tem o motor completo. Os testes de mesa montam o estado à mão (mover carta, conjurar
   // sem pagar), o que só existe na mesa assistida: ela fica ligada aqui por window.__MESA_DEV. Os testes do modo
@@ -4944,6 +4947,56 @@ test('e2e · Leva 129 conta Google: sem Client ID a seção explica e fica apaga
   // 7 · sem internet, entrar explica em vez de falhar em silêncio
   await page.context().setOffline(true); await page.click('#conta-entrar'); await page.waitForSelector('#ds-toast[data-open="true"]');
   assert.match(await page.innerText('#ds-toast'), /Sem internet/); await page.context().setOffline(false);
+  assert.deepEqual(errors, []);
+});
+
+/* ---------------- P-7 · T6c-2a · conta da Estante (Firebase) depois de entrar com Google ---------------- */
+test('e2e · P-7 conta da Estante: entrar com Google abre a conta da Estante; recusa mostra o motivo e Conectar tenta de novo; sair desliga; token fora do armazenamento', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.route('https://www.googleapis.com/**', r => /Bearer tok-e2e/.test(r.request().headers().authorization || '') && r.request().url().includes('/oauth2/v3/userinfo')
+    ? r.fulfill({ json: { name: 'Gui da Conta', email: 'gui@example.com' } }) : r.fulfill({ status: 404, json: {} }));
+  await page.addInitScript(() => {
+    window.__GOOGLE_CLIENT_ID = 'e2e.apps.googleusercontent.com';
+    window.__FIREBASE_API_KEY = 'chave-e2e';
+    window.__firebaseLog = []; window.__firebaseFalha = true;
+    // Identity Toolkit falso: a primeira tentativa recusa (como uma configuração errada no console); depois aceita
+    window.__FIREBASE_FETCH = async (url, init) => {
+      window.__firebaseLog.push({ url, corpo: JSON.parse(init.body) });
+      if (window.__firebaseFalha) return new Response(JSON.stringify({ error: { message: 'OPERATION_NOT_ALLOWED' } }), { status: 400, headers: { 'content-type': 'application/json' } });
+      return new Response(JSON.stringify({ localId: 'uidE2E_123', idToken: 'id-e2e-segredo', refreshToken: 'ref-e2e-segredo', expiresIn: '3600' }), { headers: { 'content-type': 'application/json' } });
+    };
+    window.__GOOGLE_FALSO = { accounts: { oauth2: {
+      initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }),
+      revoke: (tk, cb) => cb && cb() } } };
+  });
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#conta-entrar:not([disabled])');
+  await page.click('#conta-entrar'); await page.waitForSelector('#perfil-conta[data-conectada="true"]');
+  // 1 · o Google entrou, a conta da Estante não: a linha diz o motivo e oferece Conectar (alvo de 44 px)
+  await page.waitForSelector('#conta-estante[data-estado="desconectada"]');
+  assert.match(await page.innerText('#conta-estante'), /Conta da Estante desconectada · Entrada recusada/);
+  assert.ok((await page.locator('#conta-estante-conectar').boundingBox()).height >= 44);
+  const pedido = await page.evaluate(() => window.__firebaseLog[0]);
+  assert.match(pedido.url, /^https:\/\/identitytoolkit\.googleapis\.com\/v1\/accounts:signInWithIdp\?key=chave-e2e$/);
+  assert.equal(pedido.corpo.postBody, 'access_token=tok-e2e&providerId=google.com');
+  assert.equal(pedido.corpo.returnSecureToken, true);
+  await auditaTela(page, 'perfil · conta da Estante desconectada');
+  // 2 · Conectar tenta de novo com o mesmo Google (token reusado) e liga
+  await page.evaluate(() => { window.__firebaseFalha = false; });
+  await page.click('#conta-estante-conectar'); await page.waitForSelector('#conta-estante[data-estado="conectada"]');
+  assert.match(await page.innerText('#conta-estante'), /Conta da Estante conectada/);
+  await auditaTela(page, 'perfil · conta da Estante conectada');
+  // 3 · os tokens ficam só na memória: nada deles no armazenamento do aparelho
+  const guardado = await page.evaluate(async () => {
+    const tudo = [JSON.stringify(localStorage), JSON.stringify(sessionStorage)];
+    const db = await new Promise(r => { const q = indexedDB.open('mtg'); q.onsuccess = () => r(q.result); q.onerror = () => r(null); });
+    if (db) for (const nome of db.objectStoreNames) tudo.push(JSON.stringify(await new Promise(r => { const q = db.transaction(nome).objectStore(nome).getAll(); q.onsuccess = () => r(q.result); q.onerror = () => r([]); })));
+    return tudo.join('|');
+  });
+  assert.ok(!/segredo|tok-e2e/.test(guardado), 'token do Google ou do Firebase no armazenamento');
+  // 4 · sair desliga as duas contas
+  await page.click('#conta-sair'); await page.waitForSelector('#conta-entrar');
+  assert.equal(await page.locator('#conta-estante').count(), 0);
   assert.deepEqual(errors, []);
 });
 

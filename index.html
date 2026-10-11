@@ -782,6 +782,9 @@ a { color: var(--accent); }
 @keyframes ds-expansivel-entra { from { opacity: 0; transform: translateY(calc(var(--space-1) * -1)); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .ds-expansivel__seta { transition: none; } .ds-expansivel__corpo { animation: none; } }
 .perfil-conta__quem { align-items: center; gap: var(--space-3); }
+/* P-7 · conta da Estante: uma linha com o estado; o botão Conectar mantém o alvo de 44 px */
+.perfil-conta__estante { align-items: center; gap: var(--space-2); min-height: var(--tap-min); color: var(--fg-muted); }
+.perfil-conta__estante[data-estado="conectada"] { color: var(--accent); }
 /* D2 · amostra de cor nos botões de acento */
 .aparencia__cor { width: 14px; height: 14px; border-radius: var(--radius-full); flex: none; border: 1px solid var(--border-strong); }
 .aparencia__cor[data-acento="latao"] { background: var(--acento-latao); }
@@ -8801,8 +8804,9 @@ const GSI = 'https://accounts.google.com/gsi/client';
 const ARQUIVO = 'estante-backup.json';
 const API = 'https://www.googleapis.com';
 
-function createConta({ clientId = '', store, fetch: fetchFn = null, google: googleFn = null, carregaScript = null, agora = () => Date.now() }) {
+function createConta({ clientId = '', store, fetch: fetchFn = null, google: googleFn = null, carregaScript = null, agora = () => Date.now(), sessao = null }) {
   let token = null, expira = 0;
+  let erroEstante = null; // P-7 · última falha ao abrir a conta da Estante (Firebase), para a tela
   const erro = (codigo, extra = {}) => Object.assign(new Error(codigo), extra);
   const temRede = () => typeof navigator === 'undefined' || navigator.onLine !== false;
   const google = async () => {
@@ -8851,10 +8855,26 @@ function createConta({ clientId = '', store, fetch: fetchFn = null, google: goog
       const u = await json(`${API}/oauth2/v3/userinfo`, { headers: auth() });
       const c = { nome: u.name || '', email: u.email || '', foto: u.picture || null, entradaEm: agora(), backupEm: ((await this.get()) || {}).backupEm || 0 };
       await store.set(KEY, c);
+      await this.conectarEstante({ jaTemToken: true }).catch(() => {}); // P-7 · a conta Google vale mesmo se o Firebase falhar: a tela mostra
       return this.get();
     },
+    /** P-7 · T6c-2a · Abre a conta da Estante (Firebase) com o token do Google desta sessão. Sem sessão configurada, não faz
+        nada. Depois de reabrir o app (os tokens não ficam guardados), pede o Google de novo: precisa de um toque. */
+    async conectarEstante({ jaTemToken = false } = {}) {
+      if (!sessao || !sessao.disponivel()) return null;
+      erroEstante = null;
+      try {
+        if (!jaTemToken) { if (!temRede()) throw erro('sem-rede'); await pedeToken({ silencioso: true }); }
+        return await sessao.entrar(token);
+      } catch (e) { erroEstante = e && e.message || 'api'; throw e; }
+    },
+    /** P-7 · Situação da conta da Estante: 'desligada' (sem configuração), 'conectada' ou 'desconectada' (com o motivo). */
+    estante() { if (!sessao || !sessao.disponivel()) return { estado: 'desligada' }; return sessao.ativa() ? { estado: 'conectada', uid: sessao.uid() } : { estado: 'desconectada', motivo: erroEstante }; },
+    /** P-7 · A sessão do Firebase (token só na memória), para o banco: `uid()` e `token()`. */
+    sessao,
     /** Sai: revoga o token e apaga os dados da conta no aparelho. */
     async sair() {
+      if (sessao) sessao.sair(); erroEstante = null;
       const t = token; token = null; expira = 0;
       try { if (t) { const g = await google(); g.accounts.oauth2.revoke(t, () => {}); } } catch (e) { /* já saiu do app; o Google decide o resto */ }
       try { await store.remove(KEY); } catch (e) { /* sem store */ }
@@ -8898,10 +8918,76 @@ function carregaScriptWeb(src) {
     if (!ja) doc.head.appendChild(el);
   });
 }
+/* ---------------------------------------------------------------------
+   P-7 · T6c-2a · CONTA DA ESTANTE (Firebase Authentication por REST, sem SDK)
+   O token de acesso do Google (o da conta acima, só na memória) é trocado no Identity Toolkit
+   (`accounts:signInWithIdp`, `postBody` com `access_token` e `providerId=google.com`) por um token do Firebase
+   (`idToken`, ~1 h) e um de renovação. O `uid` vem da resposta (`localId`), nunca de quem digita. Os dois tokens
+   ficam só na memória: fechar o app encerra a sessão. A renovação (Secure Token, `grant_type=refresh_token`) acontece
+   sozinha 5 min antes de vencer; resposta de outro usuário encerra a sessão. É o `auth.uid` que as regras do banco
+   (database.rules.json, P-4) conferem em cada pedido.
+   --------------------------------------------------------------------- */
+const IDT = 'https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp';
+const STK = 'https://securetoken.googleapis.com/v1/token';
+const UID_OK = /^[A-Za-z0-9_-]{1,128}$/;
+const RENOVA_ANTES_MS = 5 * 60000;
+function createSessaoFirebase({ apiKey = '', fetch: fetchFn = null, agora = () => Date.now(), origem = null } = {}) {
+  let s = null, renovando = null;
+  const erro = (codigo, extra = {}) => Object.assign(new Error(codigo), extra);
+  const f = (...a) => (fetchFn || (typeof fetch !== 'undefined' ? fetch.bind(globalThis) : null))(...a);
+  const chave = () => encodeURIComponent(apiKey);
+  async function pede(url, init) {
+    let r; try { r = await f(url, init); } catch (e) { throw erro('sem-rede'); }
+    let corpo = null; try { corpo = await r.json(); } catch (e) { corpo = null; }
+    if (!r.ok) {
+      const motivo = String((corpo && corpo.error && corpo.error.message) || '').slice(0, 80); // só para diagnóstico; a tela usa MOTIVO
+      throw erro(r.status >= 400 && r.status < 500 ? 'firebase-recusou' : 'firebase-fora', { status: r.status, detalhe: motivo });
+    }
+    return corpo || {};
+  }
+  const requestUri = () => origem || (typeof location !== 'undefined' && /^https?:\/\//.test(String(location.origin || '')) ? location.origin : 'http://localhost');
+  return {
+    disponivel() { return !!apiKey; },
+    /** Troca o token do Google pela sessão da Estante. Devolve `{ uid }`. */
+    async entrar(tokenGoogle) {
+      if (!apiKey) throw erro('sem-firebase');
+      if (!tokenGoogle) throw erro('recusado');
+      const r = await pede(`${IDT}?key=${chave()}`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ postBody: `access_token=${encodeURIComponent(tokenGoogle)}&providerId=google.com`, requestUri: requestUri(), returnSecureToken: true, returnIdpCredential: false }) });
+      if (!UID_OK.test(String(r.localId || '')) || typeof r.idToken !== 'string' || typeof r.refreshToken !== 'string') throw erro('firebase-recusou');
+      s = { uid: r.localId, idToken: r.idToken, refreshToken: r.refreshToken, expira: agora() + (Number(r.expiresIn) || 3600) * 1000 };
+      renovando = null;
+      return { uid: s.uid };
+    },
+    uid() { return s ? s.uid : null; },
+    ativa() { return !!s; },
+    /** Token válido por pelo menos 5 min, renovado se preciso; null sem sessão. Sem rede na renovação: lança 'sem-rede' e a sessão fica. */
+    async token() {
+      if (!s) return null;
+      if (agora() < s.expira - RENOVA_ANTES_MS) return s.idToken;
+      if (!renovando) {
+        const atual = s;
+        renovando = (async () => {
+          try {
+            const r = await pede(`${STK}?key=${chave()}`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: `grant_type=refresh_token&refresh_token=${encodeURIComponent(atual.refreshToken)}` });
+            if (s !== atual) return s ? s.idToken : null; // saiu (ou entrou de novo) no meio: não ressuscita a sessão antiga
+            if (String(r.user_id || '') !== atual.uid || typeof r.id_token !== 'string') { s = null; throw erro('firebase-recusou'); }
+            s = { ...atual, idToken: r.id_token, refreshToken: typeof r.refresh_token === 'string' ? r.refresh_token : atual.refreshToken, expira: agora() + (Number(r.expires_in) || 3600) * 1000 };
+            return s.idToken;
+          } catch (e) { if (e.message === 'firebase-recusou' && s === atual) s = null; throw e; }
+          finally { renovando = null; }
+        })();
+      }
+      return renovando;
+    },
+    sair() { s = null; renovando = null; }
+  };
+}
 /** Frase de interface para cada erro da conta. */
-const MOTIVO = { 'sem-client-id': 'Entrar com Google precisa de um Client ID configurado no app.', 'sem-rede': 'Sem internet: a conta Google precisa de conexão.', 'sem-google': 'Não foi possível carregar o Google neste navegador.', recusado: 'Entrada cancelada ou recusada.', expirado: 'A sessão do Google expirou: entre de novo.', api: 'O Google não respondeu como esperado.' };
+const MOTIVO = { 'sem-client-id': 'Entrar com Google precisa de um Client ID configurado no app.', 'sem-firebase': 'Ainda não configurada neste app.', 'firebase-recusou': 'Entrada recusada. Saia e entre de novo.', 'firebase-fora': 'Sem resposta agora. Tente de novo em instantes.', 'sem-rede': 'Sem internet: a conta Google precisa de conexão.', 'sem-google': 'Não foi possível carregar o Google neste navegador.', recusado: 'Entrada cancelada ou recusada.', expirado: 'A sessão do Google expirou: entre de novo.', api: 'O Google não respondeu como esperado.' };
 const motivoDe = e => MOTIVO[e && e.message] || MOTIVO.api;
-return { createConta, carregaScriptWeb, motivoDe, MOTIVO, KEY, ARQUIVO };
+return { createConta, createSessaoFirebase, carregaScriptWeb, motivoDe, MOTIVO, KEY, ARQUIVO };
 })();
 
 /* ==== src/online/sala.js ==== */
@@ -10740,9 +10826,9 @@ const DESTINOS = [
     quando: 'Na primeira vez que o scanner é aberto; depois ele fica guardado.',
     evitar: 'Não abrir o scanner, ou abrir com o leitor já guardado.' },
   { id: 'google', nome: 'Conta Google', icone: 'pessoa', liga: 'google',
-    origens: ['https://accounts.google.com', 'https://oauth2.googleapis.com', 'https://www.googleapis.com', 'https://*.googleusercontent.com'],
-    vai: 'Só se você entrar: o backup vai para uma pasta do app no seu Drive, que só o app enxerga, e o app lê seu nome, e-mail e foto.',
-    quando: 'Ao entrar, enviar ou baixar o backup.',
+    origens: ['https://accounts.google.com', 'https://oauth2.googleapis.com', 'https://www.googleapis.com', 'https://*.googleusercontent.com', 'https://identitytoolkit.googleapis.com', 'https://securetoken.googleapis.com'],
+    vai: 'Só se você entrar: o backup vai para uma pasta do app no seu Drive, que só o app enxerga, e o app lê seu nome, e-mail e foto. Ao entrar, o Google também confirma quem você é para a conta da Estante (Firebase), que recebe seu e-mail e passa a ter um código seu.',
+    quando: 'Ao entrar, enviar ou baixar o backup. Com a conta da Estante conectada, o acesso dela é renovado a cada hora enquanto o app está aberto.',
     evitar: 'Não entrar, ou tocar em Sair na conta.' },
   { id: 'firebase', nome: 'Partida online', icone: 'pessoas', liga: 'firebase',
     origens: ['https://identitytoolkit.googleapis.com', 'https://securetoken.googleapis.com', 'https://*.firebaseio.com', 'wss://*.firebaseio.com', 'https://*.firebasedatabase.app'],
@@ -11898,6 +11984,17 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
     pinta();
     return box;
   }
+  /** P-7 · T6c-2a · conta da Estante (Firebase): conectada, ou desconectada com o motivo e o botão de conectar.
+      Os tokens não ficam guardados: depois de reabrir o app, conectar pede um toque. */
+  function linhaEstante(oc) {
+    const e = conta.estante ? conta.estante() : { estado: 'desligada' };
+    if (e.estado === 'desligada') return null;
+    if (e.estado === 'conectada') return Row({ class: 'perfil-conta__estante', id: 'conta-estante', dataset: { estado: 'conectada' } },
+      Icone('conferir', { tamanho: 18 }), Text('Conta da Estante conectada', { size: 'sm' }));
+    return Row({ class: 'ds-row--wrap perfil-conta__estante', id: 'conta-estante', dataset: { estado: 'desconectada' } },
+      Text('Conta da Estante desconectada' + (e.motivo ? ' · ' + __m29.motivoDe(new Error(e.motivo)) : ''), { size: 'sm', tone: 'muted', class: 'ds-grow' }),
+      Button('Conectar', { icone: 'externo', id: 'conta-estante-conectar', variant: 'ghost', disabled: oc, title: 'Conectar a conta da Estante com o Google', onClick: () => acaoDaConta(async () => { await conta.conectarEstante(); toast('Conta da Estante conectada'); }) }));
+  }
   function secaoConta() {
     if (!conta) return null;
     const semId = !conta.disponivel();
@@ -11913,6 +12010,7 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
       Row({ class: 'perfil-conta__quem' },
         Avatar({ nome: c.nome, avatar: c.foto }, { tamanho: 40 }),
         Stack({ class: 'ds-grow perfil-conta__texto' }, h('b', { class: 'ds-text ds-text--md', id: 'conta-nome' }, c.nome || c.email), Text(c.email, { size: 'sm', tone: 'muted', attrs: { id: 'conta-email' } }))),
+      linhaEstante(oc),
       Row({ class: 'ds-row--wrap' },
         Button('Usar na mesa', { icone: 'pessoa', id: 'conta-usar', title: 'Usar o nome e a foto da conta no perfil', disabled: oc, onClick: () => acaoDaConta(async () => {
           st.nome = c.nome || st.nome;
@@ -26588,8 +26686,14 @@ const collection = createCollection({ store: platform.store });
 const perfil = __m28.createPerfil({ store: platform.store });
 /* Leva 129 · CONTA GOOGLE — cole aqui o Client ID OAuth (tipo "Aplicativo da Web") do seu projeto no Google Cloud,
    com a origem https://guiamuy.github.io autorizada e a API do Google Drive ativada. Vazio = a seção da conta
-   aparece apagada com o motivo. Em testes, window.__GOOGLE_CLIENT_ID e window.__GOOGLE_FALSO substituem o real. */
-const GOOGLE_CLIENT_ID = '';
+   aparece apagada com o motivo. Em testes, window.__GOOGLE_CLIENT_ID e window.__GOOGLE_FALSO substituem o real.
+   P-7 · T6c-2a · preenchido com o cliente Web do projeto Firebase `estante-10102026` (configuração pública: só vale na
+   origem autorizada no Google Cloud). Nos testes, window.__GOOGLE_CLIENT_ID = '' simula o app sem conta (como até a P-7). */
+const GOOGLE_CLIENT_ID = typeof window !== 'undefined' && window.__GOOGLE_CLIENT_ID === '' ? '' : '993924277405-mue4t9vi9rbv3ohu1sm93k61hbgkvucs.apps.googleusercontent.com';
+/* P-7 · T6c-2a · CONTA DA ESTANTE — chave web do projeto Firebase (pública por natureza: identifica o projeto; quem
+   protege os dados são as regras do banco, database.rules.json). Nos testes, window.__FIREBASE_API_KEY = '' desliga a
+   conta da Estante e window.__FIREBASE_FETCH responde no lugar do Google. */
+const FIREBASE_API_KEY = typeof window !== 'undefined' && window.__FIREBASE_API_KEY === '' ? '' : ((typeof window !== 'undefined' && window.__FIREBASE_API_KEY) || 'AIzaSyD6WvzlsJ4KZ9b5QZOEdQnd-liaNeJ0xRk');
 /* Leva 133 · PARTIDA ONLINE — cole aqui a URL do seu Realtime Database do Firebase
    (https://<projeto>-default-rtdb.firebaseio.com). Vazia, a sala funciona só entre duas abas deste aparelho
    (transporte local), o que basta para testar; para dois celulares é preciso o Firebase (leva 133). */
@@ -26609,7 +26713,8 @@ const conta = __m29.createConta({
   clientId: (typeof window !== 'undefined' && window.__GOOGLE_CLIENT_ID) || GOOGLE_CLIENT_ID,
   store: platform.store,
   google: typeof window !== 'undefined' && window.__GOOGLE_FALSO ? () => window.__GOOGLE_FALSO : null,
-  carregaScript: __m29.carregaScriptWeb
+  carregaScript: __m29.carregaScriptWeb,
+  sessao: __m29.createSessaoFirebase({ apiKey: FIREBASE_API_KEY, fetch: typeof window !== 'undefined' && window.__FIREBASE_FETCH ? window.__FIREBASE_FETCH : null }) // P-7
 });
 const backup = {
   /** O texto do backup completo (v3). */

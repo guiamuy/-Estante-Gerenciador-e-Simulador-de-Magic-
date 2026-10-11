@@ -510,6 +510,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-dt ✅ | H7c: segunda causa do instável H7 (o guardião offline guardando as listas ao começar a partida gastava a rede ruim simulada antes da mesa), provada e fechada no teste (leva G-252) | Q | ½ | — |
 | 16º-du ✅ | SEG4 todo ponto que vira HTML numa lista fechada com as interpolações permitidas; símbolo de mana com código estranho vira texto; tamanho só como número (leva P-5) | SEG | 1 | — |
 | 16º-p4 ✅ | T6c-1 regras do banco no repositório (`database.rules.json`) com teste: perfil e fila só do dono, sala só com conta e só acrescentando, resto negado; código real do app roda sob as regras (leva P-4) | T | 1 | colar as regras no console (dono) |
+| 16º-p7 ✅ | T6c-2a entrar com Google abre a conta da Estante: Client ID e chave do projeto no app, troca do token do Google pela sessão do Firebase sem SDK, renovação, tokens só na memória, linha no Perfil com Conectar (leva P-7) | T | 1 | API do Drive ativada e origem no cliente Web (dono) |
 | 16º-dv ✅ | SEG5 "O que sai do aparelho" em Perfil › Dados: seis serviços com o que vai, quando e como evitar, conta e online com selo de uso; contrato une a tela e a política de conteúdo (leva P-6) | SEG | 1 | — |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
@@ -7390,6 +7391,37 @@ prontas.
 - **Fora do repositório (dono):** colar o arquivo no console e publicar; depois do primeiro login, o uid passa a
   existir (a regra não precisa dele: cada um só vê o seu).
 - **Fora:** entrada com Google e token (T6c-2); ligar a URL no app (T6c-2); tela (T6d).
+
+**T6c-2a · Entrar com Google abre a conta da Estante** ✅ (leva P-7, trilha `protecao`)
+- **Valor:** o "Entrar" do Perfil passa a funcionar no app publicado: a conta Google (nome, e-mail, foto e backup no
+  Drive, prontos desde a leva 129) e, junto, a conta da Estante no Firebase, que é quem as regras do banco reconhecem.
+- **Configuração:** `GOOGLE_CLIENT_ID` = cliente Web do projeto `estante-10102026`; `FIREBASE_API_KEY` = chave web do
+  mesmo projeto (as duas são públicas por natureza; valem só na origem autorizada e atrás das regras). `FIREBASE_DB_URL`
+  continua vazia (T6c-2b).
+- **Como entra (sem SDK):** o token de acesso do Google desta sessão vai ao Identity Toolkit
+  (`accounts:signInWithIdp`, `postBody=access_token=…&providerId=google.com`, `returnSecureToken`) e volta um token do
+  Firebase de ~1 h, um de renovação e o `uid` (`localId`, conferido no formato). Renovação pelo Secure Token
+  (`grant_type=refresh_token`) 5 min antes de vencer, uma por vez; resposta de outro usuário encerra a sessão; sem rede
+  na renovação a sessão fica. A conta Google entra mesmo se o Firebase recusar: a tela mostra o motivo.
+- **Tokens só na memória:** nem o do Google nem os do Firebase vão para o armazenamento, o backup ou a URL do app;
+  fechar o app encerra a sessão. **Consequência declarada:** depois de reabrir o app, a conta aparece desconectada da
+  Estante e o botão Conectar pede um toque (o Google pode abrir e fechar a janela sozinho). Guardar a sessão entre
+  aberturas é decisão a tomar na T6d, com a conta de risco (token de renovação no aparelho).
+- **Tela:** Perfil › Conta Google ganha a linha "Conta da Estante conectada", ou "desconectada · motivo" com o botão
+  Conectar (44 px). "O que sai do aparelho": o item Conta Google diz que o Google confirma quem você é para a conta da
+  Estante (e-mail e um código seu) e que o acesso é renovado a cada hora com o app aberto.
+- **Conferência pendente no aparelho:** a documentação REST mostra o exemplo com `id_token` para o Google; o caminho com
+  `access_token` é o que o SDK oficial usa com uma credencial só de acesso. Se no aparelho a linha disser "recusou a
+  entrada", a próxima leva troca para o `id_token` do Google (Sign In With Google).
+- **Testes:** U `conta.estante.unit` (9): formato do pedido e `uid` da resposta; renovação única com pedidos
+  simultâneos; sem rede mantém, outro usuário encerra; sair no meio da renovação não ressuscita; recusas e frases de
+  pessoa; conta Google + Estante sem token no armazenamento; Firebase recusou não derruba o Google; sem chave nada sai;
+  contrato (Client ID do mesmo projeto, chave, URL do banco ainda vazia, origens na política). E2E "P-7 conta da
+  Estante" (recusa com motivo, Conectar, conectada, nada de token no localStorage/sessionStorage/IndexedDB, sair, axe
+  nos dois estados). Os testes de tela começam sem conta (`__GOOGLE_CLIENT_ID = ''`), como antes desta leva.
+- **Fora do repositório (dono):** API do Google Drive ativada no projeto (o backup na nuvem usa); origem
+  `https://guiamuy.github.io` no cliente Web; regras da P-4 publicadas no console.
+- **Fora:** sala online presa à conta e `FIREBASE_DB_URL` (T6c-2b); sincronização (T6d); fila de relatos (T6e).
 
 ### Z · Catálogo de listas (E61, pedido de 08/10/2026)
 
