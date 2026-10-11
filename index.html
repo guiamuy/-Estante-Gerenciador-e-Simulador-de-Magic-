@@ -10945,7 +10945,37 @@ function createSaidaScreen({ config = {} } = {}) {
     Text('Links que o app só abre', { size: 'lg', display: true, as: 'h2' }),
     h('div', { class: 'saida-lista', id: 'saida-links' }, ...LINKS.map(d => cartao(d, true))));
 }
-return { DESTINOS, LINKS, ORIGENS, createSaidaScreen };
+/** P-10 · SEG6 · apaga tudo o que o app guardou neste aparelho e confere depois (lê de volta): as chaves do
+    armazenamento (pelo store recebido; com o store vigiado, apagar uma preferência grava o carimbo dela, por isso a
+    passada se repete até não sobrar chave), os caches do app (`estante-*`: telas, Scryfall, imagens, leitor) e o que é do
+    app na sessão e no armazenamento local (chaves que começam com "estante"). Não toca no que é de outro site ou app.
+    Devolve quantos apagou e o que sobrou ("sobrou" vazio = apagou tudo). Backup no Drive e sala online: fora (T6). */
+async function apagaTudoDoAparelho({ store, caches = null, sessao = null, local = null }) {
+  const r = { chaves: 0, caches: 0, sessao: 0, local: 0, sobrou: [] };
+  const apagadas = new Set();
+  for (let volta = 0; volta < 3; volta++) {
+    const ks = await store.keys('');
+    if (!ks.length) break;
+    for (const k of ks) { try { await store.remove(k); apagadas.add(k); } catch (e) { /* conferido abaixo */ } }
+    if (store.carimbos) { try { await store.carimbos(); } catch (e) { /* sem carimbo */ } }
+  }
+  r.chaves = apagadas.size;
+  for (const k of await store.keys('')) r.sobrou.push('armazenamento: ' + k);
+  if (caches && caches.keys) {
+    const doApp = async () => (await caches.keys()).filter(n => String(n).startsWith('estante-'));
+    for (const n of await doApp()) { try { if (await caches.delete(n)) r.caches++; } catch (e) { /* conferido abaixo */ } }
+    for (const n of await doApp()) r.sobrou.push('cache: ' + n);
+  }
+  const limpa = (st, campo) => {
+    if (!st) return;
+    const doApp = () => { const ks = []; try { for (let i = 0; i < st.length; i++) { const k = st.key(i); if (k && k.startsWith('estante')) ks.push(k); } } catch (e) { /* sem acesso */ } return ks; };
+    for (const k of doApp()) { try { st.removeItem(k); r[campo]++; } catch (e) { /* conferido abaixo */ } }
+    for (const k of doApp()) r.sobrou.push(campo + ': ' + k);
+  };
+  limpa(sessao, 'sessao'); limpa(local, 'local');
+  return r;
+}
+return { DESTINOS, LINKS, ORIGENS, createSaidaScreen, apagaTudoDoAparelho };
 })();
 
 /* ==== src/app/relatos.js ==== */
@@ -11952,10 +11982,30 @@ function createDecksHome({ decks, collection, files, cardRepo, backup = null, et
 
 /* ---------------- Leva 128 · /perfil ---------------- */
 /** Nome e foto de quem usa o aparelho, e o backup completo. Tudo local; a foto é reduzida aqui mesmo antes de guardar. */
-function createPerfilScreen({ perfil, backup, conta = null, haptics = null, theme = null, apresentacao = null, dados = null, som = null, fichas = null, partidas = null, terrenos = null, relatos = null }) {
+function createPerfilScreen({ perfil, backup, conta = null, haptics = null, theme = null, apresentacao = null, dados = null, som = null, fichas = null, partidas = null, terrenos = null, relatos = null, apagar = null }) {
   const root = Stack(pad(), __m3.Carregando('Abrindo…', { tamanho: 'tela' }));
   const st = { salvo: null, nome: '', avatar: null, erro: null, ocupado: false, conta: null, contaOcupada: false };
   const mudou = () => !!st.salvo && (st.nome !== st.salvo.nome || st.avatar !== st.salvo.avatar);
+  function confirmaApagar() {
+    const erro = h('div', { id: 'apagar-erro', role: 'alert' });
+    const vai = Button('Apagar tudo', { variant: 'danger', icone: 'lixeira', id: 'apagar-confirmar', onClick: async () => {
+      vai.disabled = true; vai.setAttribute('aria-busy', 'true'); clear(erro);
+      let r = null; try { r = await apagar(); } catch (e) { r = null; }
+      if (!r || r.sobrou.length) {
+        vai.disabled = false; vai.removeAttribute('aria-busy');
+        mount(erro, Note(r ? `Não consegui apagar ${r.sobrou.length === 1 ? '1 item' : r.sobrou.length + ' itens'}. Toque em Apagar tudo de novo.` : 'O navegador não deixou apagar agora. Toque em Apagar tudo de novo.', 'negative'));
+        return;
+      }
+      closeDialog(); toast('Tudo apagado deste aparelho');
+      setTimeout(() => { try { location.hash = '#/'; location.reload(); } catch (e) { /* sem recarregar: a próxima abertura já vem limpa */ } }, 600);
+    } });
+    Dialog({ title: 'Apagar tudo deste aparelho?', body: Stack({},
+      Text('Não dá para desfazer. Para guardar as listas, a coleção e o perfil, exporte o backup antes.', { tone: 'muted' }),
+      Row({ class: 'ds-row--wrap' }, Button('Exportar backup', { icone: 'exportar', id: 'apagar-backup', onClick: async e => { const b = e.currentTarget; await backup.exportar(); confirmaBotao(b, { texto: 'Exportado' }); } })),
+      Text('O backup no Drive e a partida online ficam como estão.', { size: 'sm', tone: 'muted' }),
+      erro),
+      actions: [Button('Cancelar', { id: 'apagar-cancelar', onClick: closeDialog }), vai] });
+  }
   const fotoInput = h('input', { type: 'file', accept: 'image/*', class: 'ds-hidden', id: 'perfil-foto-arquivo' });
   const backupInput = h('input', { type: 'file', accept: '.json,application/json', class: 'ds-hidden', id: 'perfil-backup-arquivo' });
 
@@ -12236,6 +12286,11 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
       h('button', { class: 'ds-surface ds-expansivel__cabeca perfil-atalho', type: 'button', id: 'perfil-saida', onClick: () => go('/perfil/saida') },
         h('span', { class: 'ds-expansivel__selo' }, Icone('proteger', { tamanho: 20 })), h('span', { class: 'ds-expansivel__titulo' }, 'O que sai do aparelho'),
         h('span', { class: 'ds-expansivel__resumo' }, 'Serviços, o que vai e quando'), Icone('seguir', { tamanho: 20 })),
+      // P-10 · SEG6 · apagar tudo deste aparelho: confirmação com o backup à mão; só recarrega depois de conferir que nada sobrou
+      apagar ? Surface({ class: 'ds-surface--pad', id: 'perfil-apagar' }, Stack({},
+        Text('Apagar tudo deste aparelho', { size: 'sm', as: 'h2', display: true }),
+        Text('Listas, coleção, perfil, partidas, preferências e as cartas e imagens guardadas saem deste aparelho. O app volta como recém-instalado.', { size: 'sm', tone: 'muted' }),
+        Row({ class: 'ds-row--wrap' }, Button('Apagar tudo', { variant: 'danger', icone: 'lixeira', id: 'perfil-apagar-tudo', onClick: confirmaApagar })))) : null,
       // D4b · a apresentação de primeira abertura pode ser revista daqui
       apresentacao ? Row({ style: { justifyContent: 'center' } }, Button('Rever apresentação', { variant: 'ghost', icone: 'seguir', id: 'perfil-apresentacao', onClick: apresentacao })) : null);
   }
@@ -26921,7 +26976,7 @@ const ROUTES = [
     // Y3 · abrir a partida anexada: entra no lugar da salva (sem a parte online) e a série em curso sai
     partidas: { temSalva: async () => { try { const d = await platform.store.get(__m18.SAVE_KEY); return !!(d && d.kind === 'estante.match'); } catch (e) { return false; } },
       abre: async p => { const { online: _fora, ...opcoes } = p.options || {}; await platform.store.set(__m18.SAVE_KEY, { ...p, options: opcoes, savedAt: Date.now() }); await platform.store.remove(__m18.SERIE_KEY).catch(() => {}); location.hash = '#/partida'; } } }) }, // Y1 · Y3
-  { path: '/perfil', title: 'Perfil', render: () => createPerfilScreen({ perfil, backup, conta, haptics: platform.haptics, theme, som, fichas, partidas, terrenos, relatos, apresentacao: () => mostraApresentacao(),
+  { path: '/perfil', title: 'Perfil', render: () => createPerfilScreen({ perfil, backup, conta, apagar: () => __m41.apagaTudoDoAparelho({ store: platform.store, caches: typeof caches !== 'undefined' ? caches : null, sessao: (() => { try { return sessionStorage; } catch (e) { return null; } })(), local: (() => { try { return localStorage; } catch (e) { return null; } })() }), haptics: platform.haptics, theme, som, fichas, partidas, terrenos, relatos, apresentacao: () => mostraApresentacao(),
     // D5 · Dados: base local de cartas (antes na tela Cartas), espaço e proteção (o mesmo do painel da tela inicial)
     dados: { baseLocal: () => __m12.painelBaseLocal({ local: localIndex, files: platform.files }),
       espaco: async () => ({ texto: descreveEspaco(await platform.persistence.estimate()), protecao: await platform.persistence.status() }),

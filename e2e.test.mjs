@@ -3986,6 +3986,43 @@ test('e2e · P-3 política de conteúdo: o leitor do scanner de verdade (Tessera
   assert.deepEqual(errors.filter(e => !/exemplo\.invalid/.test(e)), []);
 });
 
+test('e2e · P-10 Apagar tudo deste aparelho: em Perfil › Dados, Cancelar não apaga nada; Apagar tudo some com listas, perfil, chaves, caches e sessão do app, confere e volta como recém-instalado; o que é de outro site fica', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  const chaves = () => page.evaluate(() => new Promise(res => { const r = indexedDB.open('mtg', 1); r.onsuccess = () => { const q = r.result.transaction('kv').objectStore('kv').getAllKeys(); q.onsuccess = () => { r.result.close(); res(q.result.map(String).sort()); }; }; r.onerror = () => res([]); }));
+  await page.goto(base + '#/'); await page.waitForTimeout(1500);
+  const recem = new Set(await chaves());   // o que o app grava sozinho ao abrir pela primeira vez
+  await createDeck(page, base, 'Para apagar', '20 Island');
+  await page.evaluate(async () => { sessionStorage.setItem('estante.online.assento', '{}'); localStorage.setItem('estante.online:salas/ESTA-TEST', '{}'); localStorage.setItem('outro-site', 'fica');
+    const c = await caches.open('estante-img-v1'); await c.put('https://cards.scryfall.io/x.png', new Response('x')); await (await caches.open('outro-app-v1')).put('/y', new Response('y')); });
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-nome');
+  await page.fill('#perfil-nome', 'Gui'); await page.click('#perfil-salvar'); await page.waitForTimeout(300);
+  assert.ok((await chaves()).some(k => k.startsWith('deck.')), 'a lista está guardada');
+  // 1 · Cancelar não apaga nada
+  await page.click('#perfil-apagar-tudo'); await page.waitForSelector('#apagar-confirmar');
+  assert.match(await page.innerText('.ds-dialog'), /Não dá para desfazer[\s\S]*Exportar backup/);
+  await auditaTela(page, 'apagar tudo · confirmação');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/p7-apagar.png' });
+  await page.click('#apagar-cancelar');
+  assert.ok((await chaves()).some(k => k.startsWith('deck.')), 'cancelar não apagou');
+  // 2 · Apagar tudo: confere e recarrega
+  await page.click('#perfil-apagar-tudo'); await page.waitForSelector('#apagar-confirmar');
+  await Promise.all([page.waitForNavigation({ timeout: 15000 }), page.click('#apagar-confirmar')]);
+  await page.waitForTimeout(1500);
+  const depois = await chaves();
+  // sobra só o que um app recém-aberto também tem, ou dado derivado que o app reconstrói sozinho ao abrir (base de nomes)
+  const { perfil: PF } = (await import('./_load.mjs')).loadModules();
+  assert.deepEqual(depois.filter(k => !recem.has(k) && PF.classeDe(k) !== 'derivado'), [], 'só sobra o que o app grava sozinho ao abrir');
+  assert.ok(!depois.some(k => k.startsWith('deck.') || k === 'perfil' || k === 'collection.items'), JSON.stringify(depois));
+  const fora = await page.evaluate(async () => ({ sessao: Object.keys(sessionStorage).filter(k => k.startsWith('estante.online')), local: Object.keys(localStorage),
+    img: await (async () => { if (!(await caches.has('estante-img-v1'))) return 0; return (await (await caches.open('estante-img-v1')).keys()).length; })(), outro: await caches.has('outro-app-v1') }));
+  assert.deepEqual(fora, { sessao: [], local: ['outro-site'], img: 0, outro: true });
+  await page.goto(base + '#/listas'); await page.waitForSelector('#decks-vazio');
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-nome');
+  assert.equal(await page.inputValue('#perfil-nome'), '');
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · P-6 O que sai do aparelho: do Perfil (Dados) abre a lista dos serviços com o que vai, quando e como evitar; conta e online dizem se estão em uso; sem sobreposição nas quatro medidas e dois temas; volta ao Perfil', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.setViewportSize({ width: 360, height: 780 });

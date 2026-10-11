@@ -515,6 +515,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-p9 ✅ | T6c-3 conta da Estante fica conectada ao reabrir: só uid e token de renovação no aparelho (fora do backup), Sair e recusa apagam (leva P-9, decisão do dono) | T | 1 | — |
 | 16º-a263 ✅ | T6d perfil sincronizado entre aparelhos: encontro ao abrir, ao conectar, ao voltar a rede e depois de cada mudança, reaplica o que desce, estados e Sincronizar no Perfil (leva A-263, relato #6) | T | 1 | — |
 | 16º-dv ✅ | SEG5 "O que sai do aparelho" em Perfil › Dados: seis serviços com o que vai, quando e como evitar, conta e online com selo de uso; contrato une a tela e a política de conteúdo (leva P-6) | SEG | 1 | — |
+| 16º-dw ✅ | SEG6 apagar tudo deste aparelho em Perfil › Dados: armazenamento, caches e sessão do app, conferido antes de recarregar (leva P-10) | SEG | 1 | — |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -7801,6 +7802,30 @@ segredo do repositório. O `main` não recebe commit do coletor.
   parte); o que o Firebase guarda quando a T6 ligar o perfil sincronizado entra nesta lista na leva que ligar.
 - **Divergência do plano:** P-6 (lista) e G-253 (tela) saíram numa leva só — mesmo assunto, e cada publicação custa hoje
   40 a 80 min de portão; G-253 fica sem uso.
+
+**SEG6 · Apagar tudo deste aparelho** ✅ (leva P-10, 11/10/2026)
+- **Valor:** quem troca de celular, empresta o aparelho ou simplesmente quer recomeçar apaga tudo o que a Estante guardou,
+  num lugar só, e sabe que nada ficou para trás.
+- **Ameaça e camada:** quem pega o aparelho depois lê listas, coleção, perfil (nome, foto), partidas e o que estava em
+  cache. Antes desta leva só dava para apagar lista por lista ou limpar o navegador inteiro. Camada: aparelho.
+- **Entregue:** Perfil › Dados ganha o bloco **"Apagar tudo deste aparelho"** (botão de perigo). A confirmação diz que não
+  dá para desfazer, oferece **Exportar backup** ali mesmo e avisa que o backup no Drive e a partida online ficam como
+  estão. **Apagar tudo** remove: todas as chaves do armazenamento (pelo armazenamento vigiado da A-261; apagar uma
+  preferência grava o carimbo dela, por isso a passada se repete até não sobrar chave), os caches do app (`estante-*`:
+  telas, Scryfall, imagens, leitor do scanner) e o que é do app na sessão e no armazenamento local (`estante…`: abertura,
+  assento e salas da partida entre abas). **Lê de volta** e só recarrega se não sobrou nada; se sobrou, a confirmação diz
+  quantos itens e deixa tentar de novo. O que é de outro site ou app no mesmo navegador não é tocado.
+- **Testes:** U `seguranca.apagar.unit` (2: apaga e confere armazenamento, caches, sessão e local do app sem tocar no
+  resto; o que não sai aparece em "sobrou"); e2e "P-10" (Cancelar não apaga; Apagar tudo some com lista, perfil, chaves,
+  cache de imagem, sessão e local do app, recarrega, Listas vazia e nome em branco; o que sobra no armazenamento é só o que
+  um app recém-aberto grava ou dado derivado que ele reconstrói, pelo registro de classes da A-261; cache e chave de outro
+  site ficam; `auditaTela` da confirmação).
+- **Resíduo declarado:** backup no **Google Drive**, perfil na **conta da Estante** e dados da **sala online** não são
+  apagados aqui (a conversa do Firebase está ligando esses serviços nas P-7 a P-9; a T6b já tem `apagarTudo` do perfil
+  remoto, a ligar num botão próprio quando a conta estiver no ar); o service worker continua instalado (é o app,
+  não dado); o arquivo de backup que a pessoa exportou é dela e fica onde ela guardou.
+- **Fora:** apagar por categoria (só imagens, só partidas) — o Espaço no aparelho e a Base local já limpam o que é
+  derivado.
 
 ### P · Plataforma
 
