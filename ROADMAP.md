@@ -3802,6 +3802,14 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Adiado, declarado no mapa:** resistir (endure, 701.63) — a ficha Espírito N/N tem o mesmo nome para qualquer N, e fichas diferentes com o mesmo nome colidem no motor (pedido 5 à trilha `motor`).
 - **Testes:** `verbos.aprender.unit` (4).
 
+**V-14 · CR3 · Descartar ao acaso (701.9b)** 🟡 (leva V-14, motor v110 sem subir: só acrescenta ações; partidas-referência idênticas) — 701.9 continua parcial; falta só 701.9c (descarte para zona oculta).
+- **Valor:** "discards N cards at random" funciona: as cartas saem pelo sorteio do jogo, sem ninguém escolher — nem o jogador, nem o motor por ele.
+- **Regra:** o sorteio usa a semente da partida (o replay repete o mesmo descarte); com menos cartas do que o pedido, vão todas; as recém-compradas concorrem; é descarte de verdade (insanidade oferecida, "sempre que você descarta" dispara); o registro diz quais cartas saíram.
+- **Vocabulário:** efeito `discard_random` (você, jogador alvo, oponente alvo).
+- **Cartas (texto oficial em `.listas/oficiais-verbos.json`, Oracle do Forge, 11/10/2026; segunda fonte pendente):** Goblin Lore, Hymn to Tourach, Mind Knives.
+- **Fora, declarado:** "cada jogador compra e descarta ao acaso" (Burning Inquiry) pede `draw` para cada jogador, que não existe.
+- **Testes:** `verbos.acaso.unit` (5).
+
 **CR4 · Habilidades de palavra-chave (702)** ○ — 150 ausentes e 21 parciais, em ondas pela frequência em cartas anotada no mapa: (1) fechar as evergreen e as parciais; (2) "muito comum" (proeza, tripular, reforço, convocar, cascata, evocar, persistir, imortal, fração de segundo, infectar e tóxico…); (3) "comum"; (4) "rara" e "uma coleção só". 50 a 65 levas.
 
 **CR4 · andamento (trilha `keywords`, levas `K-N`)** ▶ — ordem de 11/10/2026: primeiro as palavras-chave do acervo que o medidor do leitor (LT6) acusa fora do vocabulário, depois a onda 1 (proeza, convocar, cascata, evocar, persistir, imortal, exaltado, explorar, arremeter, improvisar, recomeçar, pós-vida, evoluir), a onda 2 (completar as parciais), a 3 (raras, da mais citada à menos) e a 4 (o resto de 702, com o que fica fora declarado no mapa). Auditoria independente por subagente ao fim de cada onda. Palavra-chave com parâmetro ("Ward {3}", "Kicker {B}", "Crew 1") também depende de o leitor ler a forma: isso é da trilha `motor` (leitor), avisada a cada leva.

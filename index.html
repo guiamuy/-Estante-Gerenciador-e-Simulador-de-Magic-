@@ -5366,6 +5366,7 @@ const EFFECTS = {
   exaltado: { fields: ['criatura'], targets: [] }, // K-5 · exaltado (gerado pelo motor)
   cascata: { fields: ['mv'], targets: [] }, // K-7 · cascata (gerado pelo motor)
   /* ↓ V · efeitos da trilha verbos */
+  discard_random: { fields: ['amount'], targets: ['self', 'player', 'opponent'] }, // V-14 · 701.9b descartar ao acaso: as cartas saem pela semente do jogo, ninguém escolhe
   learn: { fields: [], targets: ['self'] }, // V-13 · 701.48 aprender: "You may discard a card. If you do, draw a card." (a Lição de fora do jogo não existe no app: parcial declarada)
   // V-12 · 701.60 suspeitar: a criatura fica suspeita (ameaçar e "não pode bloquear") até sair do campo ou até um efeito dizer que deixa de ser; `unsuspect` é o "is no longer suspected"
   suspect: { fields: [], targets: ['self-source', 'first-target', 'creature', 'creature-you-control', 'creature-opponent-controls'] },
@@ -6282,6 +6283,13 @@ const isTargeted = e => TARGETED.has(e.target) || (!!e.target && typeof e.target
 const RAW_SCRIPTS = [
   /* ↓ K · scripts de carta da trilha keywords (texto oficial em .listas/oficiais-keywords.json) */
   /* ↓ V · scripts de carta da trilha verbos (texto oficial em .listas/oficiais-verbos.json) */
+  // V-14 · 701.9b descartar ao acaso
+  { name: 'Goblin Lore', effects: [{ do: 'draw', amount: 4 }, { do: 'discard_random', amount: 3 }], // "Draw four cards, then discard three cards at random."
+    example: { target: 'none', expect: { handDelta: 1 } } },
+  { name: 'Hymn to Tourach', effects: [{ do: 'discard_random', amount: 2, target: 'player' }], // "Target player discards two cards at random."
+    example: { target: 'opponent', expect: { handDelta: 0 } } },
+  { name: 'Mind Knives', effects: [{ do: 'discard_random', amount: 1, target: 'opponent' }], // "Target opponent discards a card at random."
+    example: { target: 'opponent', expect: { handDelta: 0 } } },
   // V-13 · 701.48 aprender
   { name: 'Igneous Inspiration', effects: [{ do: 'damage', amount: 3, target: 'any' }, { do: 'learn' }], // "Igneous Inspiration deals 3 damage to any target. Learn."
     example: { target: 'opponent', expect: { opponentLife: -3 } } },
@@ -17660,6 +17668,7 @@ function applyEffect(s, src, eff, tgt, events) {
       note({ pending: true }); break;
     }
     /* ↓ V · casos de applyEffect da trilha verbos */
+    case 'discard_random': descartaAoAcaso(s, src, eff, tgt, events); break; // V-14 · 701.9b
     case 'learn': aprender(s, src, events); break; // V-13 · 701.48
     case 'suspect': suspeitar(s, src, eff, tgt, events); break; // V-12 · 701.60
     case 'unsuspect': absolver(s, src, eff, tgt, events); break; // V-12 · 701.60a "is no longer suspected"
@@ -20465,6 +20474,19 @@ function cascataAoFundoK(s, p, oids) {
 }
 Object.assign(EXPORTS_K, { valorDaMagicaK });
 /* ↓ V · exportações de core.js da trilha verbos */
+/* V-14 · 701.9b descartar ao acaso: as cartas são escolhidas pela semente do jogo (nenhum jogador escolhe, nem o motor "pelo jogador");
+   com menos cartas na mão do que o pedido, vão todas. É descarte de verdade: insanidade e gatilhos de descarte valem (caminho comum
+   descartaCarta). O registro diz quais saíram (descarte é para zona pública, 701.9a). */
+function descartaAoAcaso(s, src, eff, tgt, events) {
+  const p = tgt && tgt.player != null ? tgt.player : src.controller, pl = s.players[p];
+  if (!pl || pl.lost) return void events.push({ kind: 'effect', do: 'discard_random', name: src.name, failed: true });
+  const mao = s.zones[p].hand.slice(), n = Math.max(0, Math.min(amountOf(s, src, eff.amount), mao.length)), saem = [];
+  for (let i = 0; i < n; i++) saem.push(mao.splice(Math.floor(nextRand(s) * mao.length), 1)[0]);
+  const nomes = saem.map(oid => s.objects[oid].name);
+  for (const oid of saem) descartaCarta(s, oid);
+  events.push({ kind: 'effect', do: 'discard_random', name: src.name, target: pl.name, amount: n, nomes });
+}
+Object.assign(EXPORTS_V, { descartaAoAcaso });
 /* V-13 · 701.48 aprender: "You may discard a card. If you do, draw a card. If you didn't discard a card, you may reveal a Lesson card you
    own from outside the game and put it into your hand." Quem aprende é quem controla o efeito; descartar é escolha (a pergunta só aparece
    com carta na mão), a carta descartada é escolhida pelo jogador e a compra só acontece se houve descarte. O descarte é descarte de
@@ -23230,6 +23252,7 @@ Object.assign(PALAVRA_PT, { cascade: 'cascata' }); // K-7
 /* ↓ V · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha verbos */
 const MARCADOR_PT_V = { p1p1: '+1/+1', m1m1: '−1/−1', loyalty: 'de lealdade', poison: 'de veneno' }; // V-7
 const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas por descreveEfeito)
+  discard_random: e => `${e.target === 'player' ? 'o jogador alvo descarta' : e.target === 'opponent' ? 'o oponente alvo descarta' : 'descarta'} ${qtd(e.amount) === 1 ? '1 carta' : qtd(e.amount) + ' cartas'} ao acaso`, // V-14
   learn: () => 'aprende (você pode descartar uma carta; se descartar, compra uma)', // V-13
   suspect: e => `${e.target === 'self-source' ? 'esta permanente' : ALVO_PT[e.target] || descreveAlvo(e.target)} fica suspeita (tem ameaçar e não pode bloquear)`, // V-12
   unsuspect: e => e.target === 'each-creature' ? 'todas as criaturas suspeitas deixam de ser suspeitas' : `${e.target === 'self-source' ? 'esta permanente' : ALVO_PT[e.target] || descreveAlvo(e.target)} deixa de ser suspeita`,

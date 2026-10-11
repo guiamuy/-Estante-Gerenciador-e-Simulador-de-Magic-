@@ -5804,10 +5804,15 @@
    "regra": "Keyword Actions",
    "titulo": "Discard",
    "status": "parcial",
-   "evidencia": "pending discard com escolha do próprio jogador (index.html:11178-11186, handler 12720); discard_chosen: o oponente escolhe (11304); rules.unit \"S12 · descartar é escolha do jogador\", \"S45 · você escolhe o descarte do oponente\"",
-   "falta": "não existe descarte ao acaso (701.9b); descarte para zona oculta sem revelar (701.9c) não é tratado",
+   "evidencia": "pending discard com escolha do próprio jogador (index.html:11178-11186, handler 12720); discard_chosen: o oponente escolhe (11304); rules.unit \"S12 · descartar é escolha do jogador\", \"S45 · você escolhe o descarte do oponente\" · V-14 · descartar ao acaso (b): efeito `discard_random` (descartaAoAcaso em core.js, abaixo da âncora ↓ V) — as cartas saem pela semente do jogo, sem decisão de ninguém, pelo caminho comum de descarte (insanidade e \"sempre que você descarta\" valem). Cartas: Goblin Lore, Hymn to Tourach, Mind Knives (.listas/oficiais-verbos.json)",
+   "falta": "descarte para zona oculta sem revelar (701.9c: as características da carta ficam indefinidas) não é tratado",
    "esforco": "P",
-   "cartas": "evergreen"
+   "cartas": "evergreen",
+   "testes": [
+    "CR 701.9 · descartar ao acaso (b): ninguém escolhe; saem N cartas pela semente do jogo, e não sempre as mesmas posições",
+    "CR 701.9 · descartar ao acaso: com menos cartas do que o pedido vão todas; de mão vazia nada acontece; \"jogador alvo\" pode ser você, \"oponente alvo\" não",
+    "CR 701.9 · descartar ao acaso é descarte: insanidade é oferecida e \"sempre que você descarta\" dispara"
+   ]
   },
   {
    "n": "701.10",
