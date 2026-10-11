@@ -10498,7 +10498,7 @@ test('e2e · V-17 · CR 701.40b · manifestada: a folha da carta virada para bai
   const { page } = M;
   const [imp, pantano] = await page.evaluate(() => { const s = window.__estanteMesa.estado(), z = s.zones[0].library;
     const tira = nome => { const i = z.findIndex(o => s.objects[o].name === nome); if (i < 0) throw new Error('sem ' + nome + ' no grimório'); return z.splice(i, 1)[0]; };
-    const poe = (oid, extra) => { const o = s.objects[oid]; o.zc = (o.zc || 0) + 1; Object.assign(o, { zone: 'battlefield', controller: 0, tapped: false, sick: false, damage: 0, counters: {}, entrouNoTurno: s.turn.number, ...extra }); if (extra.faceDown) o.viradaV = { z: o.zc, modo: 'manifest' }; s.zones[0].battlefield.push(oid); return oid; };
+    const poe = (oid, extra) => { const o = s.objects[oid]; o.zc = (o.zc || 0) + 1; Object.assign(o, { zone: 'battlefield', controller: 0, tapped: false, sick: false, damage: 0, counters: {}, entrouNoTurno: s.turn.number, ...extra }); if (extra.faceDown) o.viradaV = { z: o.zc, modo: 'manifest', ts: o.ts }; s.zones[0].battlefield.push(oid); return oid; };
     for (let i = 0; i < 3; i++) poe(tira('Swamp'), {});
     return [poe(tira('Kitchen Imp'), { faceDown: true }), poe(tira('Swamp'), { faceDown: true })]; });
   const terra = await M.oid('Swamp'); assert.ok(terra, 'um Pântano na mão');

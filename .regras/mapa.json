@@ -6208,20 +6208,25 @@
    "regra": "Keyword Actions",
    "titulo": "Manifest",
    "status": "parcial",
-   "falta": "disfarce (d, 702.168) não existe; \"manifestar\" de outra zona que não o topo do grimório (cartas da mão, do cemitério, cartas escolhidas) não tem forma de script; efeito que viraria para cima uma instantânea manifestada (g) não existe porque nenhum efeito vira permanentes para cima; quatro leituras antigas do motor ainda perguntam \"é terreno?\" direto à carta, sem olhar se está virada para baixo (entra virada a menos que controle um subtipo, custos de devolver terreno, hospedeiro de Aura de terreno) — trilha motor; o Shark não vira a manifestada para cima",
+   "falta": "disfarce (d, 702.168) não existe; \"manifestar\" de outra zona que não o topo do grimório (cartas da mão, do cemitério, cartas escolhidas) não tem forma de script; efeito que viraria para cima uma instantânea manifestada (g) não existe porque nenhum efeito vira permanentes para cima; quatro leituras antigas do motor ainda perguntam \"é terreno?\" direto à carta, sem olhar se está virada para baixo (entra virada a menos que controle um subtipo, custos de devolver terreno, hospedeiro de Aura de terreno) — trilha motor; o Shark não vira a manifestada para cima; o revisor contou outras leituras antigas de tipo direto na carta que não foram sondadas uma a uma",
    "esforco": "P",
    "depende": [
     "708",
     "116.2b"
    ],
    "cartas": "rara",
-   "evidencia": "V-17 · efeito `manifest` (manifestar, poeViradaParaBaixoV, ehManifestada, podeVirarManifestada e viraManifestadaV em core.js, abaixo da âncora ↓ V): a carta do topo entra já virada para baixo — criatura 2/2 sem nome, tipos, cor, palavras-chave, habilidades nem mana, e nada dela dispara ao entrar (a, 708.2, 708.3); com prioridade, quem controla vira para cima pagando o custo de mana da carta de criatura, como ação especial sem pilha (b; ação `unmorph` com `manifest`), e a carta com metamorfose continua podendo virar pelo custo de metamorfose (c); várias cartas, uma de cada vez (e); terreno, instantânea e feitiço não viram para cima (b, g); a marca leva a encarnação e some ao sair do campo. A mesa mostra o botão \"Virar para cima\" com o custo e põe a manifestada entre as criaturas (linhasDoCampo). Cartas: Soul Summons, Formless Nurturing; Sultai Emissary provada no teste (.listas/oficiais-verbos.json)",
+   "evidencia": "V-17 · efeito `manifest` (manifestar, poeViradaParaBaixoV, ehManifestada, podeVirarManifestada e viraManifestadaV em core.js, abaixo da âncora ↓ V): a carta do topo entra já virada para baixo — criatura 2/2 sem nome, tipos, cor, palavras-chave, habilidades nem mana, e nada dela dispara ao entrar (a, 708.2, 708.3); com prioridade, quem controla vira para cima pagando o custo de mana da carta de criatura, como ação especial sem pilha (b; ação `unmorph` com `manifest`), e a carta com metamorfose continua podendo virar pelo custo de metamorfose (c); várias cartas, uma de cada vez (e); terreno, instantânea e feitiço não viram para cima (b, g); a marca leva a encarnação e some ao sair do campo. A mesa mostra o botão \"Virar para cima\" com o custo e põe a manifestada entre as criaturas (linhasDoCampo). Cartas: Soul Summons, Formless Nurturing; Sultai Emissary provada no teste (.listas/oficiais-verbos.json) · V-19 (auditoria independente): planeswalker e Aura manifestados ficam no campo como criatura 2/2 (regras de estado 704.5i e 704.5m, e o dano, olham se a carta está virada); \"sempre que uma criatura entrar ou morrer\" vê a manifestada e \"criaturas dos oponentes entram viradas\" vale para ela; criatura-terreno sem custo de mana não vira para cima; a marca leva o carimbo de quando entrou virada",
    "testes": [
     "CR 701.40 · manifestar (a): a carta do topo entra virada para baixo como criatura 2/2 sem nome, tipos, cor, palavras-chave nem habilidades — e nada dela dispara ao entrar",
     "CR 701.40 · manifestar (a): terreno, instantânea e planeswalker manifestados são só criaturas 2/2 — o terreno não dá mana nem conta como terreno jogado",
     "CR 701.40 · virar para cima (b): com prioridade, pagando o custo de mana da carta de criatura — ação especial, sem pilha; volta a ser ela mesma, sem enjoo novo nem gatilho de entrada",
     "CR 701.40 · virar para cima (b, g): terreno e instantânea manifestados não viram para cima; marcadores e dano ficam na permanente que virou",
-    "CR 701.40 · manifestar (a, e): deixa de ser manifestada ao sair do campo (de volta, é a carta comum); várias cartas vão uma de cada vez; grimório vazio não manifesta nada"
+    "CR 701.40 · manifestar (a, e): deixa de ser manifestada ao sair do campo (de volta, é a carta comum); várias cartas vão uma de cada vez; grimório vazio não manifesta nada",
+    "V-19 · auditoria D1 (701.40a, 708.2a): planeswalker manifestado é só criatura 2/2 — não morre por lealdade zero e o dano fica marcado como em criatura",
+    "V-19 · auditoria D2 (704.5m, 708.2a): Aura manifestada não é Aura — fica no campo como criatura 2/2 e nenhum evento publica o nome dela",
+    "V-19 · auditoria D3 (603.6, 708.2a): \"sempre que uma criatura entrar\" vê a manifestada; gatilho que pede subtipo não vê",
+    "V-19 · auditoria D4 (614.12, 708.2a): \"criaturas dos oponentes entram viradas\" vale para toda manifestada, seja qual for a carta",
+    "V-19 · auditoria D5 (701.40b): carta de criatura sem custo de mana (criatura-terreno) não vira para cima"
    ]
   },
   {
@@ -6449,11 +6454,12 @@
     "701.40"
    ],
    "cartas": "uma coleção só",
-   "evidencia": "V-18 · efeito `cloak` (viraDoTopoV, olhaEViraV, ehEncoberta e wardDaEncobertaV em core.js, abaixo da âncora ↓ V; mesma entrada virada para baixo do manifestar, V-17): a carta entra virada para baixo como criatura 2/2 com salvaguarda {2} enquanto ficar virada (a; wardsDeK lê a marca: a mágica do oponente que a mira é anulada se ele não pagar {2}); vira para cima pelo custo de mana da carta de criatura, sem pilha (b), ou pela metamorfose (c); uma de cada vez (e); terreno e instantânea ficam virados (g). `look: N` cobre \"look at the top N cards, cloak K of them, the rest on the bottom in a random order\". Carta: Hide in Plain Sight (.listas/oficiais-verbos.json)",
+   "evidencia": "V-18 · efeito `cloak` (viraDoTopoV, olhaEViraV, ehEncoberta e wardDaEncobertaV em core.js, abaixo da âncora ↓ V; mesma entrada virada para baixo do manifestar, V-17): a carta entra virada para baixo como criatura 2/2 com salvaguarda {2} enquanto ficar virada (a; wardsDeK lê a marca: a mágica do oponente que a mira é anulada se ele não pagar {2}); vira para cima pelo custo de mana da carta de criatura, sem pilha (b), ou pela metamorfose (c); uma de cada vez (e); terreno e instantânea ficam virados (g). `look: N` cobre \"look at the top N cards, cloak K of them, the rest on the bottom in a random order\". Carta: Hide in Plain Sight (.listas/oficiais-verbos.json) · V-19 (auditoria independente): a salvaguarda da encoberta é habilidade — some com \"perde todas as habilidades\" (613.1f)",
    "testes": [
     "CR 701.58 · encobrir (a): a carta do topo entra virada para baixo como criatura 2/2 com salvaguarda {2}; a manifestada não tem salvaguarda",
     "CR 701.58 · encobrir (a) e 702.21: a mágica do oponente que mira a encoberta dispara a salvaguarda — sem pagar {2}, é anulada",
-    "CR 701.58 · encobrir (b): vira para cima pelo custo de mana da carta de criatura e deixa de ter salvaguarda"
+    "CR 701.58 · encobrir (b): vira para cima pelo custo de mana da carta de criatura e deixa de ter salvaguarda",
+    "V-19 · auditoria D6 (701.58a, 613.1f): a encoberta que perde todas as habilidades perde a salvaguarda {2}"
    ]
   },
   {

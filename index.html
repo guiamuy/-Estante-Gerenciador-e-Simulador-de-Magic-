@@ -16677,7 +16677,7 @@ function selCasa(s, p, o, sel, selfOid, opts = {}) {
   if (sel.dono === 'you' && o.owner !== p) return false;
   if (sel.dono === 'opponent' && o.owner === p) return false;
   if (sel.outra && o.oid === selfOid) return false;
-  if ((sel.tipos || []).length && !sel.tipos.some(t => sel.tiposDaCarta ? (f.types || []).includes(t) : selTemTipo(s, o, t, sel.tiposImpressos))) return false; // R5a · tiposDaCarta: os da carta, sem camadas
+  if ((sel.tipos || []).length && !sel.tipos.some(t => sel.tiposDaCarta ? (o.faceDown ? t === 'creature' : (f.types || []).includes(t)) : selTemTipo(s, o, t, sel.tiposImpressos))) return false; // R5a · tiposDaCarta: os da carta, sem camadas
   if ((sel.semTipos || []).some(t => selTemTipo(s, o, t, sel.tiposImpressos))) return false;
   if ((sel.subtipos || []).length && !(sel.subtipos.some(x => isChangeling(s, o, x) || new RegExp('\\b' + x + '\\b').test(o.zone === 'battlefield' ? linhaDeTipo(s, o) : (f.typeText || ''))))) return false;
   if (sel.permanente && !isPermanent(f)) return false;
@@ -17052,7 +17052,7 @@ function applyEffect(s, src, eff, tgt, events) {
         if (n > 0 ? !resto : prevencaoLegado(s, src, obj)) { ganhaVida(n); note({ amount: n, prevented: true }); break; } // dano 0 prevenido continua no registro, como antes
         if (resto < n) ganhaVida(n - resto);
         n = resto;
-        if (obj && s.facts[obj.name].types.includes('planeswalker')) { obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - n); causouDano(s, src, n); note({ amount: n }); break; }
+        if (obj && !obj.faceDown && s.facts[obj.name].types.includes('planeswalker')) { obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - n); causouDano(s, src, n); note({ amount: n }); break; } // V-19 · virado para baixo recebe dano como criatura · Toca ponto comum: applyEffect damage
         if (obj && n > 0) { marcaDanoEmCriatura(s, src, obj, n); noteEnchantedEvent(s, obj, 'recebe-dano'); noteDamaged(s, obj); if (has(s, fonteDoDano(s, src), 'deathtouch')) obj.deathtouched = true; } // CR2a.9 // CR 120.8: dano 0 não é dano
         else danoEmJogador(s, src, playerOf(), n);
         causouDano(s, src, n, obj ? null : playerOf()); // Leva 106 · vínculo com a vida e Armadillo Cloak/Spirit Link também fora do combate
@@ -18231,6 +18231,7 @@ function matchesTriggerFilter(s, o, filter) {
   if ((filter.types || []).some(x => !tipos.includes(x))) return false;
   if (filter.anyTypes && !filter.anyTypes.some(x => tipos.includes(x))) return false; // R11 · "creature or planeswalker" (Cruel Celebrant)
   if (filter.noncreature && tipos.includes('creature')) return false;
+  if ((lki ? lki.faceDown : o.faceDown) && !filter.subtype) return true; // V-19 · 708.2a: a virada para baixo é criatura (os tipos acima já são os de agora); só o subtipo ela não tem · Toca ponto comum: matchesTriggerFilter (uma linha antes da regra da S54)
   if (lki ? lki.faceDown : o.faceDown) return false; // S54 · virada para baixo não combina com filtro de carta
   if (filter.subtype && !isChangeling(s, o, filter.subtype) && !new RegExp('\\b' + filter.subtype + '\\b', 'i').test(lki ? lki.linha : linhaDeTipo(s, o))) return false; // CR2d.12 · CR2b.6
   return true;
@@ -18891,7 +18892,7 @@ function stateBased(s, events) {
     for (const o of battlefield(s)) { const n = Math.min(o.counters.p1p1 || 0, o.counters.m1m1 || 0); if (n > 0) { o.counters.p1p1 -= n; o.counters.m1m1 -= n; changed = true; } }
     // CR 704.5m: Aura no campo sem estar anexada (entrou sem ser conjurada), ou anexada a algo que ela não pode encantar
     for (const o of battlefield(s)) {
-      const au = (s.facts[o.name].script || {}).aura; if (!au || (s.facts[o.name].script || {}).bestow) continue;
+      const au = (s.facts[o.name].script || {}).aura; if (!au || o.faceDown || (s.facts[o.name].script || {}).bestow) continue; // V-19 · 708.2a: virada para baixo não é Aura · Toca ponto comum: stateBased (704.5m)
       const host = o.attachedTo ? s.objects[o.attachedTo] : null;
       if (host && host.zone === 'battlefield' && auraPodeEncantar(s, au, host)) continue;
       if (host && host.zone === 'battlefield' ? true : !o.attachedTo) { moveObject(s, o.oid, 'graveyard'); events.push({ kind: 'unattached', oid: o.oid, name: o.name, died: true }); changed = true; }
@@ -18901,7 +18902,7 @@ function stateBased(s, events) {
     const morrem = [];
     for (const o of battlefield(s)) {
       // S21 · planeswalker sem lealdade vai para o cemitério
-      if (s.facts[o.name].types.includes('planeswalker') && (o.counters.loyalty || 0) <= 0) { morrem.push(o.oid); continue; }
+      if (!o.faceDown && s.facts[o.name].types.includes('planeswalker') && (o.counters.loyalty || 0) <= 0) { morrem.push(o.oid); continue; } // V-19 · 708.2a: virado para baixo não é planeswalker · Toca ponto comum: stateBased (704.5i)
       const f = s.facts[o.name];
       if (!isCreature(s, o) || (f.toughness == null && !(mutacao(s, o) || {}).base && !ptDefinido(s, o) && !o.faceDown)) continue; // CR2a.9 · a resistência de agora (Mishra's Factory animada)
       const t = toughness(s, o);
@@ -20667,7 +20668,7 @@ Object.assign(EXPORTS_K, { evocarImpressoK, altDoEvocarK, arremeterImpressoK, al
    controla escolhe; com uma carta só no grimório, é ela; sem nenhuma, nada acontece. */
 const ehEncoberta = (s, o) => ehManifestada(s, o) && o.viradaV.modo === 'cloak';
 /** 701.58a · a salvaguarda {2} da encoberta (chamada só por wardsDeK). */
-const wardDaEncobertaV = (s, o) => (ehEncoberta(s, o) ? ['{2}'] : []);
+const wardDaEncobertaV = (s, o) => (ehEncoberta(s, o) && !(mutacao(s, o) || {}).perde ? ['{2}'] : []); // V-19 · 613.1f: perde com "perde todas as habilidades"
 function viraDoTopoV(s, src, n, modo, events) {
   const p = src.controller; let feitas = 0;
   for (let i = 0; i < n; i++) { const topo = s.zones[p].library[0]; if (!topo) break; if (poeViradaParaBaixoV(s, topo, p, modo)) feitas++; }
@@ -20698,14 +20699,14 @@ Object.assign(EXPORTS_V, { ehEncoberta, wardDaEncobertaV, viraDoTopoV, olhaEVira
    pelo custo de metamorfose (c: a oferta comum de `unmorph` continua valendo). Várias cartas são manifestadas uma de cada vez (e).
    Instantânea, feitiço e toda carta que não é de criatura ficam viradas para baixo (g, b). A carta precisa estar virada ANTES de
    entrar (708.3: nada dela dispara ao entrar): ela passa pela pilha só para levar a marca, como a mágica conjurada virada. */
-const ehManifestada = (s, o) => !!o && !!o.faceDown && o.zone === 'battlefield' && !!o.viradaV && o.viradaV.z === (o.zc || 0);
+const ehManifestada = (s, o) => !!o && !!o.faceDown && o.zone === 'battlefield' && !!o.viradaV && o.viradaV.z === (o.zc || 0) && o.viradaV.ts === o.ts; // V-19 · o carimbo muda ao virar para cima (613.7f)
 function poeViradaParaBaixoV(s, oid, p, modo) {
   const o = s.objects[oid]; if (!o || !s.facts[o.name]) return null;
   moveObject(s, oid, 'stack'); o.faceDown = true; moveObject(s, oid, 'battlefield', { controller: p });
   if (o.zone !== 'battlefield') return null; // 701.40f: algo a impediu de entrar
   o.faceDown = true; o.sick = true; o.controller = p; delete o.counters.loyalty; // é criatura 2/2 e nada mais: sem lealdade nem escolha de cor da face de cima
   if (s.queuedChoices) { s.queuedChoices = s.queuedChoices.filter(c => c.oid !== oid); if (!s.queuedChoices.length) delete s.queuedChoices; }
-  o.viradaV = { z: o.zc || 0, modo };
+  o.viradaV = { z: o.zc || 0, modo, ts: o.ts };
   return o;
 }
 function manifestar(s, src, eff, events) {
@@ -20720,7 +20721,7 @@ function manifestar(s, src, eff, events) {
 /** 701.40b · dá para virar esta manifestada para cima pelo custo de mana? (carta de criatura com custo de mana) */
 function podeVirarManifestada(s, o) {
   if (!ehManifestada(s, o)) return false;
-  const f = s.facts[o.name]; return (f.types || []).includes('creature') && !!f.cost && !f.semCusto;
+  const f = s.facts[o.name]; return (f.types || []).includes('creature') && !!f.cost && !f.semCusto && !(f.types || []).includes('land'); // V-19 · terreno não tem custo de mana (criatura-terreno não vira assim)
 }
 /** 701.40b · ação especial: paga o custo de mana da carta e vira para cima (chamada só por HANDLERS.unmorph quando a ação traz `manifest`). */
 function viraManifestadaV(s, a) {
@@ -20732,7 +20733,7 @@ function viraManifestadaV(s, a) {
   delete o.faceDown; delete o.viradaV; o.ts = relogio(s); // 613.7f: virada para cima recebe carimbo novo
   s.turn.passes = 0;
 }
-Object.assign(EXPORTS_V, { ehManifestada, manifestar, podeVirarManifestada, viraManifestadaV, poeViradaParaBaixoV });
+Object.assign(EXPORTS_V, { ehManifestada, manifestar, podeVirarManifestada, viraManifestadaV, poeViradaParaBaixoV, matchesTriggerFilter });
 /* V-14 · 701.9b descartar ao acaso: as cartas são escolhidas pela semente do jogo (nenhum jogador escolhe, nem o motor "pelo jogador");
    com menos cartas na mão do que o pedido, vão todas. É descarte de verdade: insanidade e gatilhos de descarte valem (caminho comum
    descartaCarta). O registro diz quais saíram (descarte é para zona pública, 701.9a). */
