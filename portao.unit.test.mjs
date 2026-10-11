@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { arquivosDaFase, falhasDoTap, padraoExato, pushSemFiltro, ARQUIVO_DE_TELA } from './portao.mjs';
+import { arquivosDaFase, falhasDoTap, padraoExato, pushSemFiltro, navegadorDeTela, ARQUIVO_DE_TELA } from './portao.mjs';
 const RAIZ = dirname(fileURLToPath(import.meta.url));
 
 test('Q14 · as duas fases cobrem todos os arquivos de teste, sem repetir nenhum; o navegador fica sozinho na segunda', () => {
@@ -64,4 +64,18 @@ test('Q15 · o fuzz pesado da madrugada roda num job só dele; o portão não ro
   const limite = Number((fuzz.match(/timeout-minutes: (\d+)/) || [])[1]);
   assert.ok(limite >= 45 && limite <= 90, `tempo-limite próprio do fuzz (${limite})`);
   assert.match(JSON.parse(readFileSync(join(RAIZ, 'package.json'), 'utf8')).scripts['test:fuzz:full'], /FUZZ_GAMES=3000/);
+});
+
+// Q16 · navegador da fase de tela conferido antes do portão
+test('Q16 · o navegador da fase de tela: PW_CHROMIUM, o do Playwright instalado, ou outra revisão na pasta de navegadores; sem nenhum, erro antes do portão', () => {
+  const tem = (...c) => (p) => c.includes(p);
+  assert.deepEqual(navegadorDeTela({ env: { PW_CHROMIUM: '/x/chrome' }, existe: tem('/x/chrome') }), { caminho: '/x/chrome', origem: 'PW_CHROMIUM' });
+  assert.match(navegadorDeTela({ env: { PW_CHROMIUM: '/x/sumiu' }, existe: tem() }).erro, /PW_CHROMIUM aponta para um arquivo que não existe/);
+  assert.deepEqual(navegadorDeTela({ env: {}, existe: tem('/pw/chromium_headless_shell-1187/chrome-linux/headless_shell'), padrao: '/pw/chromium_headless_shell-1187/chrome-linux/headless_shell' }), { caminho: '', origem: 'playwright' });
+  // sessão de nuvem: o pacote pede a 1187 e a imagem traz a 1194
+  const nuvem = { env: { PLAYWRIGHT_BROWSERS_PATH: '/pw' }, padrao: '/pw/chromium_headless_shell-1187/chrome-linux/headless_shell', lista: () => ['chromium-1194', 'chromium_headless_shell-1194', 'ffmpeg-1011'] };
+  assert.deepEqual(navegadorDeTela({ ...nuvem, existe: tem('/pw/chromium_headless_shell-1194/chrome-linux/headless_shell', '/pw/chromium-1194/chrome-linux/chrome') }), { caminho: '/pw/chromium_headless_shell-1194/chrome-linux/headless_shell', origem: 'outra revisão' });
+  assert.deepEqual(navegadorDeTela({ ...nuvem, existe: tem('/pw/chromium-1194/chrome-linux/chrome') }), { caminho: '/pw/chromium-1194/chrome-linux/chrome', origem: 'outra revisão' });
+  assert.match(navegadorDeTela({ ...nuvem, existe: tem() }).erro, /playwright install chromium/);
+  assert.match(navegadorDeTela({ env: {}, existe: tem() }).erro, /Não achei o Chromium/);
 });

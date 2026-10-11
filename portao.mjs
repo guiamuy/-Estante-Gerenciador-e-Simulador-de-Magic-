@@ -19,7 +19,7 @@
      PORTAO_SEM_REPETIR=1 npm test sem a segunda chance (para caçar instabilidade)
    ===================================================================== */
 import { spawn } from 'node:child_process';
-import { readdirSync, appendFileSync } from 'node:fs';
+import { readdirSync, appendFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { availableParallelism } from 'node:os';
@@ -63,12 +63,37 @@ function roda(args, { eco = true } = {}) {
     filho.on('close', (codigo) => resolve({ ok: codigo === 0, saida }));
   });
 }
+/** Q16 · o navegador da fase de tela existe? Sem ele cada teste de tela cai em 30 ms, um a um, e a causa some no meio de 180 quedas.
+    Ordem: PW_CHROMIUM (se o arquivo existe) → o caminho que o Playwright instalado espera → um Chromium de outra revisão na pasta
+    de navegadores (sessões de nuvem trazem a 1194 e o package.json pede outra). Devolve { caminho, origem } ou { erro }. */
+export function navegadorDeTela({ env = process.env, existe = existsSync, lista = (d) => { try { return readdirSync(d); } catch (e) { return []; } }, padrao = '' } = {}) {
+  if (env.PW_CHROMIUM) return existe(env.PW_CHROMIUM) ? { caminho: env.PW_CHROMIUM, origem: 'PW_CHROMIUM' } : { erro: `PW_CHROMIUM aponta para um arquivo que não existe: ${env.PW_CHROMIUM}` };
+  if (padrao && existe(padrao)) return { caminho: '', origem: 'playwright' };
+  const pasta = env.PLAYWRIGHT_BROWSERS_PATH || '';
+  const nomes = pasta ? lista(pasta).sort().reverse() : [];
+  for (const [rx, resto] of [[/^chromium_headless_shell-\d+$/, 'chrome-linux/headless_shell'], [/^chromium-\d+$/, 'chrome-linux/chrome']]) {
+    for (const n of nomes.filter((x) => rx.test(x))) { const c = join(pasta, n, resto); if (existe(c)) return { caminho: c, origem: 'outra revisão' }; }
+  }
+  return { erro: 'Não achei o Chromium da fase de tela. Rode `npx playwright install chromium` ou aponte PW_CHROMIUM para o executável.' };
+}
+/** Confere o navegador antes de gastar a fase rápida; quando acha um de outra revisão, liga PW_CHROMIUM para os processos filhos. */
+export async function garantirNavegador() {
+  let padrao = '';
+  try { padrao = (await import('playwright')).chromium.executablePath(); } catch (e) { return { erro: 'O pacote `playwright` não está instalado. Rode `npm install`.' }; }
+  const r = navegadorDeTela({ padrao });
+  if (r.origem === 'outra revisão') { process.env.PW_CHROMIUM = r.caminho; console.log(`# navegador: o Playwright instalado espera outra revisão; usando ${r.caminho}`); }
+  return r;
+}
 const titulo = (t) => console.log(`\n# ── portão · ${t}`);
 const minutos = (ms) => `${(ms / 60000).toFixed(1)} min`;
 
 async function principal() {
   const fase = process.env.PORTAO_FASE || process.argv[2] || 'tudo';
   const inicio = Date.now();
+  if (fase === 'tudo' || fase === 'e2e') {
+    const nav = await garantirNavegador();
+    if (nav.erro) { console.error(`\n✗ ${nav.erro}\n  O portão nem começou.`); process.exit(1); }
+  }
   if (fase === 'tudo' || fase === 'rapido') {
     const arquivos = arquivosDaFase('rapido');
     titulo(`fase 1 · rápida (${arquivos.length} arquivos, sem navegador)`);

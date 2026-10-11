@@ -39,7 +39,7 @@ Fique com **os dois lados**: monte à mão a versão que contém a entrega da ou
 
 ## Numeração
 
-- Leva com prefixo da trilha (decisão de 06/10/2026): `Leva M-206 · …` para o motor, `B-` bot, `G-` geral, `D-` design, `S-` scanner, `I-` infra — a inicial do rodapé `Trilha:`. Cada trilha conta a sua: o número é o maior `Leva <P>-N` dela em `git log origin/main` + 1 (na primeira vez, o maior número publicado + 1). Não colide com ninguém; a guarda só barra prefixo que não é o da trilha.
+- Leva com prefixo da trilha (decisão de 06/10/2026): `Leva M-206 · …` para o motor, `B-` bot, `G-` geral, `D-` design, `S-` scanner, `I-` infra — a inicial do rodapé `Trilha:`. Cada trilha conta a sua: o número é o maior `Leva <P>-N` dela em `git log origin/main` + 1 (na primeira vez, o maior número publicado + 1). Não colide com outra trilha; a guarda barra prefixo que não é o da trilha e número já publicado na própria trilha (duas conversas na mesma trilha: a segunda renumera).
 - Leva sem prefixo (contagem antiga, ainda aceita): o número é o maior publicado + 1, conferido em `git log origin/main` logo antes do commit. A guarda barra número repetido entre trilhas e diz o próximo livre.
 - Na tabela "ordem por dependência" do ROADMAP, cada trilha usa a próxima letra livre de `16º-x`. O portão barra id repetido.
 
@@ -51,6 +51,7 @@ Fique com **os dois lados**: monte à mão a versão que contém a entrega da ou
 - Instável não é "resolvido": é dívida da trilha dona do teste. Conserte a causa (espera explícita, estado que sobra do teste anterior, leitor de mentira que não olha o que recebe) e registre na história.
 - A fase rápida nunca é repetida. `PORTAO_SEM_REPETIR=1 npm test` desliga a segunda chance, para caçar instabilidade.
 - Arquivo de teste novo que abre navegador entra na fase de tela (hoje só `e2e.test.mjs`; `portao.unit` barra navegador na fase rápida).
+- Antes do portão, o `npm run publicar` confere em segundos o que o derrubaria por descuido: id `16º-x` repetido no ROADMAP, partida-referência de outra versão do motor e navegador da fase de tela ausente (nas sessões de nuvem o portão acha sozinho o Chromium de outra revisão; `PW_CHROMIUM` continua valendo).
 - O `npm run publicar` olha o `main` a cada dois minutos durante o portão: se outra trilha publicar no meio, ele interrompe a fase e recomeça em cima do `main` novo, em vez de terminar um portão que não serviria.
 
 ## O que a guarda faz e o que não faz

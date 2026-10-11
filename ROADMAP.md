@@ -519,6 +519,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ao ✅ | D5 dados num lugar só: Perfil › Dados com backup, conta, base local de cartas e espaço; Listas sem backup; Cartas abre na busca (leva 150) | D | 1 | — |
 | 16º-v ✅ | Publicação aditiva entre trilhas: nenhuma conversa apaga a entrega de outra sem declarar (leva 124) | Q12 | 1 | — |
 | 16º-ia 🟡 | Q15 CI só onde precisa: portão em push só no `main`; fuzz pesado da madrugada em job próprio (leva I-279) | Q | ½ | — |
+| 16º-ib 🟡 | Q16 conferência antes do portão: leva repetida na trilha, id repetido na ordem, goldens de outra versão e navegador da fase de tela (leva I-280) | Q | ½ | — |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -2705,10 +2706,14 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Testes:** `portao.unit` Q15 (3): leitura de `on: push` sem filtro nas três formas do YAML; nenhum fluxo do repositório com push sem filtro; jobs `gate` e `fuzz` separados. As permissões dos fluxos seguem cobertas por `seguranca.actions.unit` (P-2).
 - **Depende de:** nada. **Fora:** portão em ramo por push (quem precisar abre pull request ou dispara à mão).
 
-**Q16 · Conferência de segundos antes do portão** ⬜
-- **Valor:** o que hoje cai no minuto 7 ou 25 do portão cai antes de ele começar. Em 10 e 11/10: duas `M-257`, `G-248`/`G-249` repetidas entre duas conversas da trilha geral, cinco colisões de id `16º-x`.
-- **Aceite:** depois do rebase e antes do portão, `npm run publicar` barra com a correção na mensagem: `Leva <P>-N` já publicada; id `16º-x` repetido na tabela de ordem; `ENGINE_VERSION` mudou na faixa e os goldens não; arquivo `.test.mjs` fora de commit; navegador do Playwright ausente (hoje os testes de tela caem um a um em 30 ms).
-- **Testes:** `agregacao.unit`, um caso por barreira. **Depende de:** nada. **Fora:** conflito de comportamento (é do portão).
+**Q16 · Conferência de segundos antes do portão** 🟡 (leva I-280)
+- **Valor:** o que caía no minuto 7 ou 25 do portão cai antes de ele começar. Em 10 e 11/10: duas `M-257`, `G-248`/`G-249` repetidas entre duas conversas da trilha geral, cinco colisões de id `16º-x`, e sessões de nuvem com os testes de tela caindo um a um por falta do navegador.
+- **Leva repetida na trilha (guarda):** `Leva <P>-N` já publicada, ou repetida entre os commits que sobem juntos, é barrada com a próxima livre. Vale nos três pontos da guarda (publicar, pre-push, CI). A Q13 só conferia o prefixo.
+- **Antes do portão (`npm run publicar`, depois do rebase e da guarda; também com `-- --conferir`):** id `16º-x` repetido na tabela de ordem, com as linhas em choque; partida-referência gravada em versão do motor diferente da do `index.html`, com o comando que corrige.
+- **Navegador da fase de tela (`portao.mjs`):** conferido antes da fase rápida. Sem `PW_CHROMIUM`, usa o do Playwright instalado; se a pasta de navegadores só tem outra revisão (caso das sessões de nuvem), usa essa e avisa; sem nenhum, o portão nem começa.
+- **Aceite:** cada caso acima para o publicar em segundos, com a correção na mensagem; o repositório publicado passa limpo.
+- **Testes:** `agregacao.unit` Q16 (4), `portao.unit` Q16 (1). **Depende de:** nada.
+- **Fora:** arquivo de teste fora de commit (o publicar já recusa árvore com alteração); reserva de número entre conversas antes do commit (a fila da Q17 resolve: o nome do ramo é a reserva); conflito de comportamento (é do portão).
 
 **Q17 · Fila de publicação com o portão no CI** ⬜ (aprovada pelo dono em 11/10/2026)
 - **Valor:** a conversa entrega a leva em cerca de 1 min e segue; um portão, no CI, cobre todas as levas que estiverem na fila.

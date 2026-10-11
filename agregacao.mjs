@@ -24,7 +24,7 @@
      node agregacao.mjs --auditar 40          relatório dos últimos 40, sem falhar
    ===================================================================== */
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
 export const JANELA_HORAS = 72;
@@ -158,6 +158,14 @@ export function conferir({ novos, janela, linhasDe, levasPublicadas = [] }) {
       // Q13 · a contagem com prefixo é só da trilha: basta o prefixo ser o dela
       const certo = prefixoDa(d.trilha);
       if (certo && d.prefixo !== certo) achados.push({ tipo: 'prefixo-errado', commit: d, certo });
+      // Q16 · dentro da trilha o número é um só: duas conversas da mesma trilha (ou um rebase por cima de quem publicou antes)
+      // não podem sair com a mesma "Leva M-257". Confere contra o que já está publicado e contra os commits que sobem juntos.
+      const mesma = (x) => x.prefixo === d.prefixo && x.leva === d.leva;
+      const ja = levasPublicadas.find(mesma) || novos.slice(0, novos.indexOf(d)).find(mesma);
+      if (ja) {
+        const usadas = [...levasPublicadas, ...novos].filter((x) => x.prefixo === d.prefixo && x.leva != null).map((x) => x.leva);
+        achados.push({ tipo: 'leva-repetida', commit: d, de: ja, livre: Math.max(...usadas) + 1 });
+      }
     } else if (d.leva != null) {
       const choque = levasPublicadas.find((p) => !p.prefixo && p.leva === d.leva && !(p.trilha && d.trilha && p.trilha === d.trilha));
       if (choque) {
@@ -191,7 +199,8 @@ export function relatar(achados) {
       out.push(`      Sobrescreve: ${a.de.sha.slice(0, 7)} — <por que a entrega da outra trilha sai>`);
     } else if (a.tipo === 'leva-repetida') {
       out.push(`✗ LEVA REPETIDA  ${quem}`);
-      out.push(`  a leva ${a.commit.leva} já foi publicada em ${a.de.sha.slice(0, 7)}${a.de.trilha ? ` [trilha ${a.de.trilha}]` : ''}. Próxima livre: ${a.livre}. Renumere no commit e no ROADMAP.`);
+      const pre = a.commit.prefixo ? `${a.commit.prefixo}-` : '';
+      out.push(`  a leva ${pre}${a.commit.leva} já foi publicada em ${a.de.sha.slice(0, 7)}${a.de.trilha ? ` [trilha ${a.de.trilha}]` : ''}. Próxima livre: ${pre}${a.livre}. Renumere no commit (git commit --amend) e no ROADMAP.`);
     } else if (a.tipo === 'prefixo-errado') {
       out.push(`✗ PREFIXO DE OUTRA TRILHA  ${quem}`);
       out.push(`  a trilha ${a.commit.trilha} numera as levas com "${a.certo}-". Use: Leva ${a.certo}-${a.commit.leva} (a contagem é só da sua trilha: maior "Leva ${a.certo}-N" publicado + 1).`);
@@ -201,6 +210,38 @@ export function relatar(achados) {
     out.push('');
   }
   return out.join('\n');
+}
+
+/* ---------- Q16 · conferência de segundos antes do portão (parte pura) ---------- */
+
+/** Ids `16º-x` que aparecem mais de uma vez na tabela "ordem por dependência" do ROADMAP, e o próximo id livre da série pedida. */
+export function idsRepetidos(roadmap) {
+  const ids = [...String(roadmap).matchAll(/^\| (16º-[a-z0-9]+)/gm)].map((m) => m[1]);
+  return [...new Set(ids.filter((id, i) => ids.indexOf(id) !== i))];
+}
+/** Linhas da tabela de ordem com aquele id (para a mensagem dizer quem está em choque). */
+export const linhasDoId = (roadmap, id) => String(roadmap).split('\n').filter((l) => l.startsWith(`| ${id} `)).map((l) => l.slice(0, 110));
+/** Versão do motor escrita no `index.html` (null se a linha não existir). */
+export function versaoDoMotor(html) { const m = String(html).match(/^const ENGINE_VERSION = (\d+);/m); return m ? Number(m[1]) : null; }
+
+/**
+ * O que derrubaria o portão por descuido, visto em segundos. Tudo chega pronto (sem git, sem disco):
+ *   roadmap: texto do ROADMAP.md · html: texto do index.html · goldens: [{ arquivo, engine }]
+ */
+export function conferirAntesDoPortao({ roadmap = '', html = '', goldens = [] }) {
+  const achados = [];
+  for (const id of idsRepetidos(roadmap)) {
+    achados.push({ tipo: 'id-repetido', id, texto: [`✗ ID REPETIDO NA ORDEM DAS LEVAS  ${id} aparece em mais de uma linha do ROADMAP.md (o merge=union juntou duas trilhas com a mesma letra):`,
+      ...linhasDoId(roadmap, id).map((l) => `    ${l}`), '  A SUA linha vai para um id livre; a linha da outra trilha fica como está.'].join('\n') });
+  }
+  const versao = versaoDoMotor(html);
+  const velhos = versao == null ? [] : goldens.filter((g) => g.engine !== versao);
+  if (velhos.length) {
+    achados.push({ tipo: 'golden-velho', texto: [`✗ GOLDENS DE OUTRA VERSÃO  o motor está na v${versao} e ${velhos.length} partida(s)-referência não (${velhos.map((g) => `${g.arquivo}: v${g.engine}`).join(', ')}).`,
+      '  A versão entra no hash do estado: o portão cairia inteiro. Rode `npm run golden:update`, ponha os arquivos no mesmo commit',
+      '  e diga na entrega se mudaram só pela versão ou qual regra mudou o resultado.'].join('\n') });
+  }
+  return achados;
 }
 
 /* ---------- adaptador git ---------- */
@@ -262,6 +303,15 @@ export function conferirFaixa(base, topo, { cwd } = {}) {
   }).filter(Boolean);
   const achados = conferir({ novos, janela, linhasDe: linhasDoGit(cwd), levasPublicadas });
   return { achados, novos, janela };
+}
+
+/** Q16 · lê do disco o que a conferência precisa (a árvore já está limpa e rebaseada quando o publicar chama). */
+export function conferirArvore(raiz = process.cwd()) {
+  const le = (n) => { try { return readFileSync(`${raiz}/${n}`, 'utf8'); } catch (e) { return ''; } };
+  const goldens = readdirSync(raiz).filter((n) => n.endsWith('.json')).map((arquivo) => {
+    try { const j = JSON.parse(le(arquivo)); return Array.isArray(j.checkpoints) && Number.isFinite(j.engine) ? { arquivo, engine: j.engine } : null; } catch (e) { return null; }
+  }).filter(Boolean);
+  return conferirAntesDoPortao({ roadmap: le('ROADMAP.md'), html: le('index.html'), goldens });
 }
 
 /* ---------- linha de comando ---------- */

@@ -9,7 +9,8 @@
      npm run publicar -- --conferir   até a guarda; não roda o portão nem envia
    ===================================================================== */
 import { execFileSync, spawnSync, spawn } from 'node:child_process';
-import { conferirFaixa, relatar } from './agregacao.mjs';
+import { conferirFaixa, relatar, conferirArvore } from './agregacao.mjs';
+import { garantirNavegador } from './portao.mjs';
 
 const soConferir = process.argv.includes('--conferir');
 const MAX_VOLTAS = 6; // Q14 · a volta ficou barata (a fase é interrompida quando o main anda)
@@ -66,6 +67,13 @@ for (let volta = 1; volta <= MAX_VOLTAS; volta++) {
   const { achados, novos } = conferirFaixa('origin/main', 'HEAD');
   if (achados.length) { console.error('\n' + relatar(achados)); para(`Guarda de agregação: ${achados.length} achado(s).`); }
   console.log(`agregação ✓ ${novos.length} commit(s) só somam ao main`);
+  // Q16 · o que derrubaria o portão por descuido cai aqui, em segundos: id repetido no ROADMAP, goldens de outra versão do motor
+  // (leva repetida e prefixo já saíram na guarda, acima) e navegador da fase de tela ausente
+  const antes = conferirArvore();
+  if (antes.length) { console.error('\n' + antes.map((a) => a.texto).join('\n\n')); para(`Conferência antes do portão: ${antes.length} achado(s).`); }
+  const nav = await garantirNavegador();
+  if (nav.erro && !soConferir) para(nav.erro);
+  console.log(`antes do portão ✓ ids da ordem sem repetição · goldens na versão do motor${nav.erro ? '' : ' · navegador da fase de tela no lugar'}`);
   if (soConferir) { console.log('\n--conferir: parei antes do portão e do envio.'); process.exit(0); }
 
   // Q14 · o mesmo portão do `npm test`, em duas fases (portao.mjs): a rápida primeiro, a de tela sozinha depois

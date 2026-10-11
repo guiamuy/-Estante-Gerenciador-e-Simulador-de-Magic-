@@ -6,7 +6,7 @@ import { mkdtempSync, writeFileSync, readFileSync, rmSync, existsSync } from 'no
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { conferirFaixa, lerRodapes, lerDiff, linhaConta, relatar, estendida, EPOCA } from './agregacao.mjs';
+import { conferirFaixa, lerRodapes, lerDiff, linhaConta, relatar, estendida, EPOCA, conferirAntesDoPortao, conferirArvore, idsRepetidos, versaoDoMotor } from './agregacao.mjs';
 
 const RAIZ = dirname(fileURLToPath(import.meta.url));
 const DEPOIS = Math.floor(EPOCA / 1000) + 3600; // todos os commits de teste nascem depois da época
@@ -258,4 +258,53 @@ test('Q12 · nenhum arquivo publicado carrega marca de conflito nem linha repeti
   const ids = [...readFileSync(join(RAIZ, 'ROADMAP.md'), 'utf8').matchAll(/^\| (16º-[a-z0-9]+)/gm)].map((m) => m[1]);
   const repetidos = ids.filter((id, i) => ids.indexOf(id) !== i);
   assert.deepEqual(repetidos, [], 'id repetido na ordem por dependência: duas trilhas pegaram a mesma letra');
+});
+
+/* Q16 · conferência de segundos antes do portão */
+test('Q16 · a mesma "Leva M-N" não sai duas vezes na trilha: barrada contra o publicado e contra o que sobe junto, com a próxima livre', () => {
+  const { r, bot } = comBotPublicado();
+  try {
+    r.escreve('regras.test.mjs', ['// teste novo da trilha do motor']);
+    const m10 = r.commit('Leva M-10 · mana em combinação\n\nTrilha: motor');
+    r.escreve('outra.test.mjs', ['// outra conversa do motor, sem ver a primeira']);
+    const repetida = r.commit('Leva M-10 · desenterrar\n\nTrilha: motor');
+    const { achados } = conferirFaixa(m10, repetida, { cwd: r.dir });
+    assert.equal(achados.length, 1); assert.equal(achados[0].tipo, 'leva-repetida'); assert.equal(achados[0].livre, 11);
+    assert.match(relatar(achados), /a leva M-10 já foi publicada[\s\S]*Próxima livre: M-11/);
+    // as duas no mesmo envio: a segunda é a repetida
+    const juntas = conferirFaixa(bot, repetida, { cwd: r.dir }).achados;
+    assert.equal(juntas.length, 1); assert.equal(juntas[0].commit.sha, repetida);
+    // número seguinte da mesma trilha e mesmo número de outra trilha continuam passando
+    r.escreve('mais.test.mjs', ['// leva seguinte do motor']);
+    const m11 = r.commit('Leva M-11 · fase\n\nTrilha: motor');
+    assert.deepEqual(conferirFaixa(repetida, m11, { cwd: r.dir }).achados, []);
+    r.escreve('geral.test.mjs', ['// leva da trilha geral']);
+    const g10 = r.commit('Leva G-10 · fichas\n\nTrilha: geral');
+    assert.deepEqual(conferirFaixa(m11, g10, { cwd: r.dir }).achados, []);
+  } finally { r.fim(); }
+});
+
+test('Q16 · id repetido na ordem das levas é dito antes do portão, com as linhas em choque', () => {
+  const roadmap = ['| 16º-dc ✅ | Z7 nome da lista (leva G-248) | Z | 1 | — |', '| 16º-dd ✅ | T6a perfil (leva A-261) | T | 1 | — |', '| 16º-dc ✅ | T6b fila (leva A-262) | T | 1 | — |', 'texto que cita 16º-dd não é linha da tabela'].join('\n');
+  assert.deepEqual(idsRepetidos(roadmap), ['16º-dc']);
+  const achados = conferirAntesDoPortao({ roadmap });
+  assert.equal(achados.length, 1); assert.equal(achados[0].tipo, 'id-repetido');
+  assert.match(achados[0].texto, /16º-dc aparece em mais de uma linha[\s\S]*G-248[\s\S]*A-262/);
+  assert.deepEqual(conferirAntesDoPortao({ roadmap: roadmap.split('\n').slice(0, 2).join('\n') }), []);
+});
+
+test('Q16 · motor de versão nova com partida-referência antiga é dito antes do portão', () => {
+  const html = 'x\nconst ENGINE_VERSION = 99; // M-300\ny';
+  assert.equal(versaoDoMotor(html), 99); assert.equal(versaoDoMotor('sem a linha'), null);
+  const achados = conferirAntesDoPortao({ html, goldens: [{ arquivo: 'pauper-42.json', engine: 98 }, { arquivo: 'commander-7.json', engine: 99 }] });
+  assert.equal(achados.length, 1); assert.equal(achados[0].tipo, 'golden-velho');
+  assert.match(achados[0].texto, /v99[\s\S]*pauper-42\.json: v98[\s\S]*golden:update/); assert.doesNotMatch(achados[0].texto, /commander-7/);
+  assert.deepEqual(conferirAntesDoPortao({ html, goldens: [{ arquivo: 'pauper-42.json', engine: 99 }] }), []);
+});
+
+test('Q16 · o repositório publicado passa na conferência, e o publicar a chama antes do portão', () => {
+  assert.deepEqual(conferirArvore(RAIZ), []);
+  const pub = readFileSync(join(RAIZ, 'publicar.mjs'), 'utf8');
+  assert.ok(pub.indexOf('conferirArvore()') > 0 && pub.indexOf('conferirArvore()') < pub.indexOf("'test:rapido'"), 'a conferência vem antes da primeira fase');
+  assert.ok(pub.indexOf('garantirNavegador()') > 0 && pub.indexOf('garantirNavegador()') < pub.indexOf("'test:rapido'"), 'o navegador é conferido antes da fase rápida');
 });
