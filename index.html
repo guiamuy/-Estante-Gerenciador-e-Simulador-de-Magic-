@@ -5366,6 +5366,9 @@ const EFFECTS = {
   exaltado: { fields: ['criatura'], targets: [] }, // K-5 · exaltado (gerado pelo motor)
   cascata: { fields: ['mv'], targets: [] }, // K-7 · cascata (gerado pelo motor)
   /* ↓ V · efeitos da trilha verbos */
+  // V-12 · 701.60 suspeitar: a criatura fica suspeita (ameaçar e "não pode bloquear") até sair do campo ou até um efeito dizer que deixa de ser; `unsuspect` é o "is no longer suspected"
+  suspect: { fields: [], targets: ['self-source', 'first-target', 'creature', 'creature-you-control', 'creature-opponent-controls'] },
+  unsuspect: { fields: [], targets: ['self-source', 'first-target', 'creature', 'each-creature'] },
   discover: { fields: ['amount'], targets: ['self'] }, // V-10 · 701.57 descobrir N
   investigate: { fields: [], targets: ['self'] }, // V-9 · 701.16 investigar: "Create a Clue token" (111.10f); `amount` opcional ("investigate twice", "investigate X times")
   // V-8 · 701.12 trocar. `trocar_com` anota o primeiro lado (permanente ou jogador alvo); `trocar` mira o segundo e faz a troca: `o`: 'controle' | 'vida' | 'vida-resistencia' | 'vida-poder'
@@ -6278,6 +6281,9 @@ const isTargeted = e => TARGETED.has(e.target) || (!!e.target && typeof e.target
 const RAW_SCRIPTS = [
   /* ↓ K · scripts de carta da trilha keywords (texto oficial em .listas/oficiais-keywords.json) */
   /* ↓ V · scripts de carta da trilha verbos (texto oficial em .listas/oficiais-verbos.json) */
+  // V-12 · 701.60 suspeitar
+  { name: 'Reasonable Doubt', effects: [{ do: 'counter', target: 'spell', unless: { mana: '{2}' } }, { do: 'suspect', target: 'creature', upTo: true }], // "Counter target spell unless its controller pays {2}. Suspect up to one target creature."
+    example: { target: 'enemy-spell', expect: { countered: true } } },
   // V-9 · 701.16 investigar
   { name: 'Deduce', effects: [{ do: 'draw', amount: 1 }, { do: 'investigate' }], // "Draw a card. Investigate."
     example: { target: 'none', expect: { handDelta: 1, tokens: 1 } } },
@@ -16308,7 +16314,7 @@ function eligibleAttackers(s, p) {
     (!enjoado(s, o) || has(s, o, 'haste')) && !has(s, o, 'defender')).map(o => o.oid);
 }
 function eligibleBlockers(s, p) {
-  return battlefield(s).filter(o => o.controller === p && isCreature(s, o) && !o.tapped && !naoBloqueia(s, o)).map(o => o.oid);
+  return battlefield(s).filter(o => o.controller === p && isCreature(s, o) && !o.tapped && !naoBloqueia(s, o) && !suspeitaNaoBloqueia(s, o)).map(o => o.oid); // V-12 · 701.60c
 }
 const TRAVESSIAS = [['islandwalk', 'Island'], ['swampwalk', 'Swamp'], ['forestwalk', 'Forest'], ['mountainwalk', 'Mountain'], ['plainswalk', 'Plains']];
 /** M-253 · "This creature can't block" (509.1a), impressa ou da ficha. */
@@ -17648,6 +17654,8 @@ function applyEffect(s, src, eff, tgt, events) {
       note({ pending: true }); break;
     }
     /* ↓ V · casos de applyEffect da trilha verbos */
+    case 'suspect': suspeitar(s, src, eff, tgt, events); break; // V-12 · 701.60
+    case 'unsuspect': absolver(s, src, eff, tgt, events); break; // V-12 · 701.60a "is no longer suspected"
     case 'discover': descobrir(s, src, eff, events); break; // V-10 · 701.57
     case 'investigate': applyEffect(s, src, { do: 'token', amount: eff.amount == null ? 1 : eff.amount, token: PISTA_V }, tgt, events); break; // V-9 · 701.16a: pelo mesmo caminho de criar ficha (substituições de 701.7 valem)
     case 'trocar_com': s.trocaV = { fonte: src.oid, fz: encarnacaoV(s, src), ...(obj ? { oid: obj.oid, z: obj.zc || 0 } : { player: playerOf() }) }; break; // V-8 · anota o primeiro lado; `trocar` apaga
@@ -20450,6 +20458,34 @@ function cascataAoFundoK(s, p, oids) {
 }
 Object.assign(EXPORTS_K, { valorDaMagicaK });
 /* ↓ V · exportações de core.js da trilha verbos */
+/* V-12 · 701.60 suspeitar. Suspeita é uma designação da permanente — não é habilidade nem valor copiável (b) — que dura até ela sair do
+   campo ou até um efeito dizer que deixa de ser (a): a marca leva a encarnação do objeto (400.7). Enquanto dura, a permanente tem
+   ameaçar e "esta criatura não pode bloquear" (c): as duas são habilidades, com o carimbo de quando ficou suspeita — quem perde todas as
+   habilidades depois continua suspeita, mas sem elas (613). Quem já é suspeita não fica suspeita de novo (d). */
+const ehSuspeita = (s, o) => !!o && !!o.suspeita && o.zone === 'battlefield' && o.suspeita.z === (o.zc || 0);
+const objetoDoVerbo = (s, src, eff, tgt) => eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : tgt && tgt.oid != null ? s.objects[tgt.oid] : null;
+function suspeitar(s, src, eff, tgt, events) {
+  const o = objetoDoVerbo(s, src, eff, tgt);
+  if (!o || o.zone !== 'battlefield' || !isCreature(s, o)) return void events.push({ kind: 'effect', do: 'suspect', name: src.name, failed: true });
+  if (ehSuspeita(s, o)) return void events.push({ kind: 'effect', do: 'suspect', name: src.name, target: o.name, amount: 0 }); // (d)
+  aplicaTemporario(s, o, { palavras: ['menace'], ate: 'sempre' }, src.controller);
+  const t = o.temporarios[o.temporarios.length - 1]; t.suspeita = true; o.suspeita = { z: o.zc || 0, ts: t.ts };
+  events.push({ kind: 'effect', do: 'suspect', name: src.name, target: o.name, amount: 1 });
+}
+function absolver(s, src, eff, tgt, events) {
+  const quais = eff.target === 'each-creature' ? battlefield(s).filter(o => isCreature(s, o)) : [objetoDoVerbo(s, src, eff, tgt)];
+  for (const o of quais) {
+    if (!ehSuspeita(s, o)) continue;
+    delete o.suspeita; o.temporarios = (o.temporarios || []).filter(t => !t.suspeita); if (!o.temporarios.length) delete o.temporarios;
+    events.push({ kind: 'effect', do: 'unsuspect', name: src.name, target: o.name });
+  }
+}
+/** 701.60c · "This creature can't block" da suspeita (chamada só por eligibleBlockers): vale enquanto a habilidade valer. */
+function suspeitaNaoBloqueia(s, o) {
+  if (!ehSuspeita(s, o)) return false;
+  const m = mutacao(s, o); return !(m && m.perde) || o.suspeita.ts > m.corte;
+}
+Object.assign(EXPORTS_V, { ehSuspeita, suspeitar, absolver, suspeitaNaoBloqueia });
 /* V-10 · 701.57 descobrir N: exila do topo do seu grimório até exilar uma carta que não é terreno com valor de mana N ou menor. Você
    pode conjurá-la sem pagar o custo de mana (a mágica resultante precisa ter valor ≤ N: com X, X = 0); se não conjurar, ela vai para a
    mão. As outras exiladas vão para o fundo do grimório em ordem aleatória (a). O grimório acabando sem achar, tudo o que foi exilado
@@ -23174,6 +23210,8 @@ Object.assign(PALAVRA_PT, { cascade: 'cascata' }); // K-7
 /* ↓ V · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha verbos */
 const MARCADOR_PT_V = { p1p1: '+1/+1', m1m1: '−1/−1', loyalty: 'de lealdade', poison: 'de veneno' }; // V-7
 const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas por descreveEfeito)
+  suspect: e => `${e.target === 'self-source' ? 'esta permanente' : ALVO_PT[e.target] || descreveAlvo(e.target)} fica suspeita (tem ameaçar e não pode bloquear)`, // V-12
+  unsuspect: e => e.target === 'each-creature' ? 'todas as criaturas suspeitas deixam de ser suspeitas' : `${e.target === 'self-source' ? 'esta permanente' : ALVO_PT[e.target] || descreveAlvo(e.target)} deixa de ser suspeita`,
   lutador: e => `escolhe ${ALVO_PT[e.target] || descreveAlvo(e.target)} para lutar`,
   proliferate: () => 'prolifera (escolhe permanentes e jogadores com marcador; cada um recebe mais um de cada tipo que já tem)', // V-2
   proliferate_jogador: () => 'esse jogador recebe mais um marcador de veneno',

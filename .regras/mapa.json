@@ -6441,10 +6441,18 @@
    "n": "701.60",
    "regra": "Keyword Actions",
    "titulo": "Suspect",
-   "status": "ausente",
-   "falta": "não há marca \"suspeita\" que dá ameaçar e \"não pode bloquear\" enquanto durar",
+   "status": "coberta",
    "esforco": "P",
-   "cartas": "uma coleção só"
+   "cartas": "uma coleção só",
+   "evidencia": "V-12 · efeitos `suspect` e `unsuspect` (suspeitar, absolver, ehSuspeita e suspeitaNaoBloqueia em core.js, abaixo da âncora ↓ V): a criatura fica suspeita até sair do campo ou até um efeito dizer que deixa de ser (a) — a marca leva a encarnação do objeto (400.7); é designação da permanente, não habilidade nem valor copiável (b: a cópia não é suspeita); enquanto dura, tem ameaçar (efeito contínuo sem prazo, com carimbo) e não pode bloquear (eligibleBlockers) — as duas somem se ela perder todas as habilidades depois, e valem se ficou suspeita depois de perder (c, 613.7); quem já é suspeita não fica de novo (d). Cartas: Reasonable Doubt, Person of Interest; Absolving Lammasu só como texto (.listas/oficiais-verbos.json). \"Can't become suspected\" (Airtight Alibi) e a condição \"if ~ is suspected\" (Repeat Offender) não têm forma de script: ficam para quando uma carta das listas pedir.",
+   "testes": [
+    "CR 701.60 · suspeitar (a, c): a criatura fica suspeita, tem ameaçar e não pode bloquear; a de outro jogador também",
+    "CR 701.60 · suspeitar (a): dura além do turno e acaba quando a permanente sai do campo — de volta, é objeto novo, sem ameaçar e podendo bloquear",
+    "CR 701.60 · suspeitar (d): a suspeita não fica suspeita de novo (nada muda, nenhuma segunda instância de ameaçar)",
+    "CR 701.60 · suspeitar (a, b): \"deixa de ser suspeita\" tira a designação, a ameaçar e a proibição de bloquear; \"todas as criaturas suspeitas\" vale para os dois lados; a designação não é copiada",
+    "CR 701.60 · suspeitar (c): ameaçar e \"não pode bloquear\" são habilidades — a suspeita que perde todas as habilidades depois continua suspeita, mas sem as duas",
+    "CR 701.60 · suspeitar (c) e 613.7: quem perdeu todas as habilidades antes e fica suspeita depois tem ameaçar e não bloqueia (o carimbo da suspeita é mais novo)"
+   ]
   },
   {
    "n": "701.61",
