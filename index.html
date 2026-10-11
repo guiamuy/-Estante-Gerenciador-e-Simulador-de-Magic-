@@ -14086,7 +14086,9 @@ const __m42 = (function () {
      fichas de criatura, "a menos que pague", combinações com "and" e alvos com restrição (não lendária, não <cor>).
      LT3 · permanentes: habilidades disparadas ("When this creature enters", "Whenever ~ deals combat damage to a player", "When ~ is put
      into a graveyard from the battlefield", "At the beginning of your upkeep"), com "you may"; Auras (Enchant X; "Enchanted creature gets
-     +N/+N and has <palavras>" / "has protection from <cor>"); "~ enters tapped"; palavras-chave com custo da permanente (ninjutsu). */
+     +N/+N and has <palavras>" / "has protection from <cor>"); "~ enters tapped"; palavras-chave com custo da permanente (ninjutsu).
+     LT4 · habilidades ativadas: "{custo}, {T}, Sacrifice ~: efeito" com mana, virar, sacrificar a si, sacrificar outra (artefato ou criatura) e
+     descartar; "Activate only as a sorcery"; "Tap/Untap enchanted creature". */
   const SC = __m23;
   const NUMEROS = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
   const N = '(a|an|one|two|three|four|five|six|seven|eight|nine|ten|\\d+)';
@@ -14144,6 +14146,10 @@ const __m42 = (function () {
     [new RegExp(`^(target player|target opponent) mills ${N} cards?$`, 'i'), m => [com({ do: 'mill', amount: num(m[2]) }, alvo(m[1]))]],
     [new RegExp(`^mill ${N} cards?$`, 'i'), m => [{ do: 'mill', amount: num(m[1]) }]],
     [/^tap (target [a-z ']+)$/i, m => [com({ do: 'tap' }, alvo(m[1]))]],
+    [/^tap enchanted creature$/i, () => [{ do: 'tap', target: 'enchanted' }]],
+    [/^untap enchanted creature$/i, () => [{ do: 'untap', target: 'enchanted' }]],
+    [/^return this aura to its owner's hand$/i, () => [{ do: 'to_hand', target: 'self-source', from: 'battlefield' }]],
+    [new RegExp(`^target player loses ${N} life and you gain ${N} life$`, 'i'), m => [{ do: 'lose', amount: num(m[1]), target: 'player' }, { do: 'gain', amount: num(m[2]) }]],
     [/^return ~ to its owner's hand$/i, () => [{ do: 'to_hand', target: 'self-source' }]],
     [/^(target creature|target creature an opponent controls|target creature you control) gets ([+-]\d+)\/([+-]\d+) until end of turn$/i, m => [com({ do: 'pump', power: SINAL(m[2]), toughness: SINAL(m[3]) }, alvo(m[1]))]],
     [/^you gain that much life$/i, () => [{ do: 'gain', amount: { per: 'trigger-value' } }]],
@@ -14188,6 +14194,33 @@ const __m42 = (function () {
     m = l.match(/^enchanted (?:creature|permanent) has ([a-z ,]+)$/i);
     if (m) { const kws = m[1].split(/,\s*|\s+and\s+/).map(x => x.trim().toLowerCase()); return kws.every(k => KW.has(k)) ? { keywords: kws } : null; }
     return null;
+  }
+  /** "{2}{U}, {T}, Sacrifice this artifact" → custo do vocabulário, ou null quando há uma parte que o motor não cobra assim. */
+  function leCusto(txt) {
+    const cost = {};
+    for (const parte of txt.split(/,\s*/).map(x => x.trim())) {
+      if (/^(\{[^}]+\})+$/.test(parte) && parte !== '{T}') { if (cost.mana) return null; cost.mana = parte; }
+      else if (parte === '{T}') cost.tap = true;
+      else if (/^sacrifice (this (creature|artifact|land|permanent)|~)$/i.test(parte)) cost.sacrifice = true;
+      else if (/^sacrifice an artifact or creature$/i.test(parte)) cost.sacrificeOther = { types: ['artifact', 'creature'] };
+      else if (/^sacrifice an artifact$/i.test(parte)) cost.sacrificeOther = { types: ['artifact'] };
+      else if (/^sacrifice another creature$/i.test(parte)) cost.sacrificeOther = { types: ['creature'], outra: true };
+      else if (/^discard a card$/i.test(parte)) cost.discard = 1;
+      else return null;
+    }
+    return Object.keys(cost).length ? cost : null;
+  }
+  /** Uma linha de habilidade ativada ("custo: efeito. Activate only as a sorcery.") → { ab, frases } ou null. */
+  function leAtivada(linha, nome, frases) {
+    const m = linha.match(/^((?:\{[^}]+\}|Sacrifice [^:,]+|Discard a card)(?:,\s*(?:\{[^}]+\}|Sacrifice [^:,]+|Discard a card))*): (.+)$/i);
+    if (!m) { frases.push({ texto: linha, lida: false, motivo: 'habilidade ativada sem padrão conhecido' }); return null; }
+    const cost = leCusto(m[1].replace(new RegExp(escapa(nome), 'g'), '~')); if (!cost) { frases.push({ texto: linha, lida: false, motivo: 'custo de ativação sem padrão conhecido' }); return null; }
+    let corpo = m[2].replace(/\.$/, ''); const extra = {};
+    if (/\.\s*Activate only as a sorcery$/i.test(corpo)) { corpo = corpo.replace(/\.\s*Activate only as a sorcery$/i, ''); extra.sorceryOnly = true; }
+    if (/^Add /.test(corpo)) { frases.push({ texto: linha, lida: false, motivo: 'habilidade de mana com custo além de {T} (LT5)' }); return null; }
+    const sub = []; const e = leParagrafo(corpo.replace(/^it /i, '~ '), nome, sub);
+    frases.push({ texto: m[1], lida: true }, ...sub);
+    return e ? { kind: 'activated', cost, ...extra, effects: e } : null;
   }
   /** Uma linha de habilidade disparada → { ab, frases } ou null. "you may" vira optional; "it" na frase vira "~" (a própria permanente). */
   function leGatilho(linha, nome, frases) {
@@ -14239,6 +14272,7 @@ const __m42 = (function () {
         const nj = lp.match(/^ninjutsu (\{[^}]+\}(?:\{[^}]+\})*)$/i); if (nj) { topo.ninjutsu = { mana: nj[1] }; frases.push({ texto: linha, lida: true }); continue; }
         const mana = lp.match(/^\{T\}: Add (\{[WUBRGC]\}(?: or \{[WUBRGC]\})*)$/); if (mana) { topo.produces = mana[1].split(' or ').map(x => [x.replace(/[{}]/g, '')]); frases.push({ texto: linha, lida: true }); continue; } // produção de mana
         if (GATILHOS.some(([re]) => re.test(lp.split(', ')[0]))) { const g = leGatilho(lp, nome, frases); if (g) (topo.abilities = topo.abilities || []).push(g); continue; } // gatilho (as frases do corpo já ficaram anotadas)
+        if (/^(\{[^}]+\}|Sacrifice |Discard a card)/.test(lp) && lp.includes(': ')) { const a = leAtivada(lp, nome, frases); if (a) (topo.abilities = topo.abilities || []).push(a); continue; } // LT4 · ativada
         const c = concessao(lp); if (c) { topo.grants = { ...(topo.grants || {}), ...c, ...(c.keywords && topo.grants && topo.grants.keywords ? { keywords: [...topo.grants.keywords, ...c.keywords] } : {}) }; frases.push({ texto: linha, lida: true }); continue; }
         frases.push({ texto: linha, lida: false, motivo: 'habilidade de permanente sem padrão conhecido' }); continue;
       }

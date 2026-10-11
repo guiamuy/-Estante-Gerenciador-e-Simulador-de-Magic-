@@ -3592,6 +3592,11 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Pendência de dados achada pelo teste:** o texto oficial guardado do Sagu Wildling não traz a face Omen (Roost Seek); o leitor não tem como ver, e a carta fica fora da concordância com o motivo registrado no teste. Corrigir em `.listas/oficiais.json` na próxima consulta.
 - **Fora:** habilidades ativadas, estáticas com seletor ("creatures you control get +1/+1"), fichas com habilidade, "investigate" e outros verbos de palavra-chave de ação.
 
+**LT4 · Leitor de texto: habilidades ativadas** ✅ (leva M-298, motor v109 sem mudança no jogo) — piso do teste de concordância sobe de 38 para 44 cartas (de 296).
+- **Entregue:** "{custo}, {T}, Sacrifice ~: efeito" com mana, virar, sacrificar a si ou outra (artefato ou criatura) e descartar; "Activate only as a sorcery"; "Tap/Untap enchanted creature"; "Return this Aura to its owner's hand"; "~ deals N damage to any target" em ativadas.
+- **Fidelidade:** uma linha de ativada que o leitor não entende (custo ou efeito) marca a carta como não lida, e a comparação com os scripts à mão passou a cobrir o custo e "só como feitiço".
+- **Fora:** habilidade de mana com custo além de {T} (Signets, Spire of Industry, Fetid Heath), "Add one mana of any color", efeitos com X e com "até N alvos".
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

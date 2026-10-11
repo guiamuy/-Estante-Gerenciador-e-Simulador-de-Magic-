@@ -17,7 +17,7 @@ const SO_REPETE = (h, c) => Object.keys(h).every(k => k !== 'self' || (Object.ke
 const TEXTO_INCOMPLETO = { 'Sagu Wildling': 'falta a face Omen (Roost Seek) no texto oficial guardado' };
 const ordena = v => Array.isArray(v) ? v.map(ordena) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map(k => [k, ordena(v[k])])) : v;
 const efs = l => (l || []).map(e => Object.fromEntries(CAMPOS.filter(k => e[k] != null).map(k => [k, e[k]])));
-const abs = l => (l || []).map(a => ({ kind: a.kind, when: a.when, optional: !!a.optional, effects: efs(a.effects) }));
+const abs = l => (l || []).map(a => ({ kind: a.kind, when: a.when, optional: !!a.optional, cost: a.cost || null, sorceryOnly: !!a.sorceryOnly, effects: efs(a.effects) }));
 // `produces` só conta quando o script à mão o declara (o motor lê a mana do texto da carta; o leitor também anota, por completude)
 const efeitos = (sc, ref) => JSON.stringify(ordena({ effects: efs(sc.effects), modes: (sc.modes || []).map(m => efs(m.effects)), abilities: abs(sc.abilities), ...Object.fromEntries(TOPO.filter(k => sc[k] != null && (k !== 'produces' || (ref || sc).produces != null)).map(k => [k, sc[k]])) }));
 const SO_EFEITOS = ['name', 'effects', 'modes', 'abilities', 'example', 'covers', 'note', ...TOPO];
@@ -37,7 +37,7 @@ test('LT1 · concordância: toda carta lida por inteiro dá o mesmo script escri
     else if (efeitos(h, h) !== efeitos(r.script, h)) divergentes.push(`${c.name}: leitor ${efeitos(r.script, h)} × à mão ${efeitos(h, h)}`);
   }
   assert.deepEqual(divergentes, []);
-  assert.ok(lidas.length >= 38, 'cartas lidas por inteiro: ' + lidas.length + ' (' + lidas.join(', ') + ')');
+  assert.ok(lidas.length >= 44, 'cartas lidas por inteiro: ' + lidas.length + ' (' + lidas.join(', ') + ')');
 });
 
 test('LT1 · fidelidade: frase sem padrão fica não lida, com o texto dela, e a carta não sai completa; permanente ainda não é lida', () => {
@@ -47,7 +47,9 @@ test('LT1 · fidelidade: frase sem padrão fica não lida, com o texto dela, e a
   const p = L.ler({ name: 'Ursa', type_line: 'Creature — Bear', oracle_text: 'When this creature enters, draw a card.' });
   assert.equal(p.completa, true, 'LT3: gatilho de entrada lido'); assert.deepEqual(JSON.parse(JSON.stringify(p.script.abilities)), [{ kind: 'triggered', when: 'etb', effects: [{ do: 'draw', amount: 1 }] }]);
   const q = L.ler({ name: 'Ursa', type_line: 'Creature — Bear', oracle_text: 'When this creature enters, draw a card. {2}: Ursa gains flying until end of turn.' });
-  assert.equal(q.completa, false, 'habilidade ativada ainda não é lida (LT4)');
+  assert.equal(q.completa, false, 'frase da ativada fora do vocabulário (ganha voar) fica não lida');
+  const a = L.ler({ name: 'Pinga', type_line: 'Creature — Wizard', oracle_text: '{1}, {T}, Sacrifice this creature: Pinga deals 1 damage to any target.' });
+  assert.deepEqual(JSON.parse(JSON.stringify(a.script.abilities)), [{ kind: 'activated', cost: { mana: '{1}', tap: true, sacrifice: true }, effects: [{ do: 'damage', amount: 1, target: 'any' }] }], 'LT4: ativada com mana, {T} e sacrifício');
   const k = L.ler({ name: 'Voadora', type_line: 'Creature — Bird', oracle_text: 'Flying, vigilance' });
   assert.equal(k.frases[0].lida, true, 'linha só de palavras-chave conhecidas: o motor já lê');
 });
