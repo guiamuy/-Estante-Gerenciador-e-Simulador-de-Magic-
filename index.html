@@ -7298,13 +7298,37 @@ function findScript(scripts, ...names) {
   }
   return null;
 }
-/** completo: o motor resolve tudo · parcial: parte vira adjudicação · manual: tudo na mão. */
+/* ---------------- LT7 · cartas lidas pelo motor (decisão A: jogam só depois da revisão por lote) ----------------
+   O leitor (src/engine/leitor.js) se registra aqui ao carregar. Carta sem script à mão que o leitor lê por inteiro fica "lida"
+   (em revisão) e NÃO joga; depois da revisão independente do lote, nome e assinatura do texto entram em APROVADAS e a carta passa a
+   jogar pelo script lido (createGame). Texto diferente do revisado (errata, outra face) volta para "em revisão" sozinho.
+   `node .listas/leitor-revisar.mjs` monta a ficha do lote para o revisor e as linhas de APROVADAS. Script à mão sempre vence. */
+let LEITOR = null;
+function registraLeitor(ler) { LEITOR = ler; }
+/** Assinatura curta e determinística do texto oficial (djb2 em base 36): a aprovação vale para ESTE texto. */
+function hashTexto(t) { let h = 5381; const s = String(t || ''); for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0; return h.toString(36); }
+const APROVADAS = { // 'Nome da carta': { texto: hashTexto(oracle_text revisado), leva: 'M-N' } — só por revisão independente do lote (LT7)
+};
+/** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
+function leitura(card) {
+  if (!LEITOR || !card || !card.oracle_text) return null;
+  const r = LEITOR(card); if (!r || !r.completa || !r.script) return null;
+  if (Object.keys(r.script).every(k => k === 'name' || k === 'produces' || (k === 'self' && Object.keys(r.script.self).every(k2 => k2 === 'keywords')))) return null; // só mana e palavras-chave: o motor já lê da carta (básicos, criaturas simples)
+  const ass = APROVADAS[card.name];
+  return { script: r.script, aprovada: !!ass && ass.texto === hashTexto(card.oracle_text) };
+}
+/** Script com que a carta joga quando não há script à mão: só o lido E aprovado (marcado `lido`). */
+function scriptLido(card) { const l = leitura(card); return l && l.aprovada ? { ...l.script, lido: true } : null; }
+
+/** completo: o motor resolve tudo · parcial: parte vira adjudicação · manual: tudo na mão · lida: o leitor leu, falta a revisão (LT7). */
 function coverage(card, scripts = SCRIPTS, key) {
   const sc = findScript(scripts, key, card && card.name);
   if (sc) {
     // S2 · o script pode cobrir só parte da carta (custo alternativo, sobrecarga, flashback…)
     return sc.covers === 'partial' ? { level: 'parcial', reason: sc.note || 'o script cobre só o uso normal da carta' } : { level: 'completo', reason: 'script validado' };
   }
+  const li = leitura(card); // LT7 · sem script à mão: o leitor
+  if (li) return li.aprovada ? { level: 'completo', reason: 'lida pelo motor e revisada' } : { level: 'lida', reason: 'lida pelo motor, em revisão' };
   const tl = String(card && card.type_line || '').toLowerCase();
   const lines = clean(card && card.oracle_text);
   if (!tl) return { level: 'manual', reason: 'carta desconhecida' };
@@ -7315,14 +7339,14 @@ function coverage(card, scripts = SCRIPTS, key) {
   if (known.length) return { level: 'parcial', reason: 'parte do texto o motor não resolve' };
   return { level: 'manual', reason: 'texto que o motor não resolve' };
 }
-const COVERAGE_PT = { completo: 'Completo', parcial: 'Parcial', manual: 'Manual' };
-const COVERAGE_MARK = { completo: '✓', parcial: '◐', manual: '✎' };
+const COVERAGE_PT = { completo: 'Completo', parcial: 'Parcial', manual: 'Manual', lida: 'Lida · em revisão' }; // LT7
+const COVERAGE_MARK = { completo: '✓', parcial: '◐', manual: '✎', lida: '◔' };
 /** U2 parte 3 · as mesmas marcas como ícones do app (o caractere fica para texto puro, como a cópia). */
-const COVERAGE_ICONE = { completo: 'marcar', parcial: 'meia', manual: 'editar' };
+const COVERAGE_ICONE = { completo: 'marcar', parcial: 'meia', manual: 'editar', lida: 'conferir' };
 
 /** Cobertura de uma lista: contagem por nível e percentual completo. */
 function deckCoverage(entries, cards, scripts = SCRIPTS) {
-  const count = { completo: 0, parcial: 0, manual: 0 };
+  const count = { completo: 0, parcial: 0, manual: 0, lida: 0 }; // LT7 · lida não joga (não entra em pct)
   let total = 0;
   const worst = [], pending = [];
   // S58 · básico sempre conhecido, com ou sem rede
@@ -7342,7 +7366,7 @@ const EXPORTS_K_SC = {}, EXPORTS_V_SC = {}, EXPORTS_T_SC = {}; // ↓ cada trilh
 /* ↓ K · exportações de scripts.js da trilha keywords */
 /* ↓ V · exportações de scripts.js da trilha verbos */
 /* ↓ T · exportações de scripts.js da trilha tipos */
-return { ...EXPORTS_K_SC, ...EXPORTS_V_SC, ...EXPORTS_T_SC, KEYWORDS, KEYWORD_COUNTERS, MARCADOR_PT, duracaoValida, danoErros, substituiErros, entraErros, substituicoesDoScript, JOGADORES_QUANT, VERBOS_DE_JOGADOR, jogadoresDe, DURACOES, continuoErros, tornaErros, tornaParaBecomes, GATILHO_ZONA, GATILHO_EVENTO, gatilhoDoEvento, falaDe, gatilhoDeZona, gatilhoErros, descreveGatilho, PASSOS_DO_GATILHO, ALVO_SELETOR, CADA_SELETOR, EFEITOS_ATALHO, cadaDe, seletorErros, seletorDe, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE, DUNGEONS, dungeonByName, roomById, fichasDoScript, fichasDasCartas, chaveDaFicha };
+return { ...EXPORTS_K_SC, ...EXPORTS_V_SC, ...EXPORTS_T_SC, registraLeitor, hashTexto, APROVADAS, leitura, scriptLido, KEYWORDS, KEYWORD_COUNTERS, MARCADOR_PT, duracaoValida, danoErros, substituiErros, entraErros, substituicoesDoScript, JOGADORES_QUANT, VERBOS_DE_JOGADOR, jogadoresDe, DURACOES, continuoErros, tornaErros, tornaParaBecomes, GATILHO_ZONA, GATILHO_EVENTO, gatilhoDoEvento, falaDe, gatilhoDeZona, gatilhoErros, descreveGatilho, PASSOS_DO_GATILHO, ALVO_SELETOR, CADA_SELETOR, EFEITOS_ATALHO, cadaDe, seletorErros, seletorDe, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE, DUNGEONS, dungeonByName, roomById, fichasDoScript, fichasDasCartas, chaveDaFicha };
 })();
 
 /* ==== src/data/decks.js ==== */
@@ -14371,6 +14395,7 @@ const __m42 = (function () {
     const completa = !!(lidas && ((script && !erros.length) || permanenteSemTexto || (!magica && frases.length && frases.every(f => f.palavras))));
     return { script, frases, completa, erros };
   }
+  SC.registraLeitor(ler); // LT7 · cobertura e partida consultam o leitor por aqui (script à mão sempre vence)
   return { ler, leFrase, PADROES };
 })();
 
@@ -14772,6 +14797,7 @@ function createGame(setup) {
   };
   const scripts = { ...SC.SCRIPTS };
   for (const [name, sc] of Object.entries(setup.scripts || {})) if (!SC.validateScript(sc).length) scripts[name] = sc;
+  for (const [name, card] of Object.entries(setup.cards || {})) if (!scripts[name]) { const li = SC.scriptLido(card); if (li) scripts[name] = li; } // LT7 · lida e revisada: joga pelo script lido (validado na leitura)
   for (const [name, card] of Object.entries(setup.cards || {})) s.facts[name] = cardFacts(card);
   // o estado guarda só o que o motor executa; o cenário de teste (S8) fica fora
   // S24 · a face de trás vira um conjunto de fatos próprio
