@@ -13834,7 +13834,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 102; // CR2g.3 · dois passos de dano de combate com prioridade entre eles (510.4)
+const ENGINE_VERSION = 103; // CR2d.12 · virada para baixo como camada 1b, subtipos de agora, carimbo ao virar e transformar
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -14039,32 +14039,36 @@ function redefinicoesDe(s, o) {
   return out.sort((x, y) => x.ts - y.ts);
 }
 function mutacao(s, o) {
-  if (!o || o.zone !== 'battlefield' || !o.mutavel) return null; // atalho: só quem já recebeu uma Aura dessas (o cálculo é chamado a cada consulta de habilidade)
+  if (!o || o.zone !== 'battlefield' || (!o.mutavel && !o.faceDown)) return null; // atalho: só quem já recebeu uma Aura dessas, ou está virada para baixo (o cálculo é chamado a cada consulta de habilidade)
   // CR2d.2 · também "this land becomes a N/N <tipo> creature until end of turn. It's still a land" (o.vira, com carimbo próprio)
-  const efeitos = redefinicoesDe(s, o);
-  if (!efeitos.length) return null;
+  const efeitos = o.mutavel ? redefinicoesDe(s, o) : [];
+  if (!efeitos.length && !o.faceDown) return null;
   const f = s.facts[o.name], subImpressos = String(f.typeText || '').split('—')[1] ? String(f.typeText).split('—')[1].trim().split(/\s+/) : [];
-  let m = { types: f.types, subtypes: subImpressos, base: null, perde: false, corte: -1, keywords: [] };
+  // CR2d.12 · 613.2b / 708.2: virada para baixo, a camada 1b dá uma criatura 2/2 sem subtipo; o que vem depois vale por cima
+  let m = o.faceDown ? { types: ['creature'], subtypes: [], base: [2, 2], perde: false, corte: -1, keywords: [] }
+    : { types: f.types, subtypes: subImpressos, base: null, perde: false, corte: -1, keywords: [] };
   for (const { ts, b } of efeitos) {
     m = { types: b.addTypes ? [...new Set([...m.types, ...(b.types || [])])] : (b.types || m.types),
       subtypes: b.addTypes ? [...new Set([...m.subtypes, ...(b.subtypes || [])])] : (b.subtypes || m.subtypes), base: b.base || m.base,
-      perde: !!b.loseAbilities || m.perde, corte: b.loseAbilities ? ts : m.corte, keywords: [...(b.loseAbilities ? [] : m.keywords), ...(b.keywords || [])] };
+      perde: !!b.loseAbilities || m.perde, corte: b.loseAbilities ? ts : m.corte, keywords: [...(b.loseAbilities ? [] : m.keywords), ...(b.keywords || [])],
+      subtiposDefinidos: (b.subtypes && !b.addTypes) || m.subtiposDefinidos }; // CR2d.12 · 613.3: redefinir os subtipos depois sobrepõe o metamorfo
   }
   return m;
 }
 /** CR2-G R3c · o caminho antigo da mutação (só para o teste de equivalência). */
 function mutacaoLegado(s, o) {
-  if (!o || o.zone !== 'battlefield' || !o.mutavel) return null; // atalho: só quem já recebeu uma Aura dessas (o cálculo é chamado a cada consulta de habilidade)
+  if (!o || o.zone !== 'battlefield' || (!o.mutavel && !o.faceDown)) return null; // CR2d.12 · a regra da virada para baixo (1b) mudou nos dois caminhos // atalho: só quem já recebeu uma Aura dessas (o cálculo é chamado a cada consulta de habilidade)
   // CR2d.2 · também "this land becomes a N/N <tipo> creature until end of turn. It's still a land" (o.vira, com carimbo próprio)
   const efeitos = attachedTo(s, o).filter(a => ((s.facts[a.name].script || {}).aura || {}).becomes).map(a => ({ ts: a.anexadaEm || 0, b: s.facts[a.name].script.aura.becomes }))
     .concat((o.vira || []).map(v => ({ ts: v.ts || 0, b: v }))).sort((x, y) => x.ts - y.ts);
-  if (!efeitos.length) return null;
+  if (!efeitos.length && !o.faceDown) return null;
   const f = s.facts[o.name], subImpressos = String(f.typeText || '').split('—')[1] ? String(f.typeText).split('—')[1].trim().split(/\s+/) : [];
-  let m = { types: f.types, subtypes: subImpressos, base: null, perde: false, corte: -1, keywords: [] };
+  let m = o.faceDown ? { types: ['creature'], subtypes: [], base: [2, 2], perde: false, corte: -1, keywords: [] } : { types: f.types, subtypes: subImpressos, base: null, perde: false, corte: -1, keywords: [] };
   for (const { ts, b } of efeitos) {
     m = { types: b.addTypes ? [...new Set([...m.types, ...(b.types || [])])] : (b.types || m.types),
       subtypes: b.addTypes ? [...new Set([...m.subtypes, ...(b.subtypes || [])])] : (b.subtypes || m.subtypes), base: b.base || m.base,
-      perde: !!b.loseAbilities || m.perde, corte: b.loseAbilities ? ts : m.corte, keywords: [...(b.loseAbilities ? [] : m.keywords), ...(b.keywords || [])] };
+      perde: !!b.loseAbilities || m.perde, corte: b.loseAbilities ? ts : m.corte, keywords: [...(b.loseAbilities ? [] : m.keywords), ...(b.keywords || [])],
+      subtiposDefinidos: (b.subtypes && !b.addTypes) || m.subtiposDefinidos }; // CR2d.12 · o mesmo campo do caminho novo
   }
   return m;
 }
@@ -14167,7 +14171,7 @@ function countFor(s, src, per) {
   if (per === 'enchantments-you-control') return ench.filter(o => o.controller === src.controller).length;
   if (per === 'other-enchantments') return ench.filter(o => o.oid !== src.oid).length;
   // Leva 107 · Aura é subtipo: conta toda aura pela linha de tipo (com ou sem script) e a criatura concedida
-  if (per === 'auras-on-battlefield') return s.zones.flatMap(z => z.battlefield).map(o => s.objects[o]).filter(o => o.bestowed || (s.facts[o.name].script || {}).aura || /\bAura\b/.test(s.facts[o.name].typeText || '')).length;
+  if (per === 'auras-on-battlefield') return s.zones.flatMap(z => z.battlefield).map(o => s.objects[o]).filter(o => o.bestowed || (s.facts[o.name].script || {}).aura || /\bAura\b/.test(linhaDeTipo(s, o))).length;
   const perms = battlefield(s);
   // Leva 107 · Elfo pela linha de tipo, metamorfo conta, carta virada para baixo não tem tipo (Priest of Titania, Timberwatch Elf)
   const isElf = o => !o.faceDown && (isChangeling(s, o) || /\bElf\b/i.test(linhaDeTipo(s, o)));
@@ -14398,7 +14402,7 @@ function entradaModificada(s, o, xPago) {
       const c = r.virada.aMenosQue;
       const livre = (c.anyPlayerLifeAtMost != null && s.players.some(pl => !pl.lost && pl.life <= c.anyPlayerLifeAtMost)) ||
         // R11.2 · "a menos que você controle um Plains ou um Swamp": a própria carta, entrando, não conta
-        (c.controlsSubtype && battlefield(s).some(x => x.oid !== o.oid && x.controller === o.controller && s.facts[x.name].types.includes('land') && c.controlsSubtype.some(k => new RegExp('\\b' + k + '\\b').test(s.facts[x.name].typeText || ''))));
+        (c.controlsSubtype && battlefield(s).some(x => x.oid !== o.oid && x.controller === o.controller && s.facts[x.name].types.includes('land') && c.controlsSubtype.some(k => new RegExp('\\b' + k + '\\b').test(linhaDeTipo(s, x)))));
       virada = !(livre || (c.revelaSubtipo && !!o.revelaAoEntrar)); // M-252 · revelou ao jogar (a escolha vem na ação)
     }
     for (const [k, v] of Object.entries(r.marcadores || {})) { const n = v === 'x' ? xPago : v === 'kicked' ? (o.kicked || 0) : v; if (n) marcadores[k] = (marcadores[k] || 0) + n; }
@@ -14417,7 +14421,7 @@ function entradaLegado(s, o, xPago) {
   if (to === 'battlefield' && semVirar) {
     const livre = (semVirar.anyPlayerLifeAtMost != null && s.players.some(pl => !pl.lost && pl.life <= semVirar.anyPlayerLifeAtMost)) ||
       // R11.2 · "a menos que você controle um Plains ou um Swamp" (Isolated Chapel, Sulfur Falls): a própria carta, entrando, não conta
-      (semVirar.controlsSubtype && battlefield(s).some(x => x.oid !== o.oid && x.controller === o.controller && s.facts[x.name].types.includes('land') && semVirar.controlsSubtype.some(k => new RegExp('\\b' + k + '\\b').test(s.facts[x.name].typeText || ''))));
+      (semVirar.controlsSubtype && battlefield(s).some(x => x.oid !== o.oid && x.controller === o.controller && s.facts[x.name].types.includes('land') && semVirar.controlsSubtype.some(k => new RegExp('\\b' + k + '\\b').test(linhaDeTipo(s, x)))));
     o.tapped = !livre;
   }
   // S34 · permanente que entra com marcadores +1/+1
@@ -14535,7 +14539,7 @@ function revelaveisAoEntrar(s, p, o, distintas) {
   const sc = (s.facts[o.name] || {}).script || {}, regra = (SC.substituicoesDoScript(sc).entra || []).find(r => r.afetados === 'self' && r.virada && r.virada.aMenosQue && r.virada.aMenosQue.revelaSubtipo);
   if (!regra) return [];
   const subs = regra.virada.aMenosQue.revelaSubtipo, vistos = new Set();
-  return s.zones[p].hand.filter(x => x !== o.oid && subs.some(k => new RegExp('\\b' + k + '\\b').test((s.facts[s.objects[x].name] || {}).typeText || '')))
+  return s.zones[p].hand.filter(x => x !== o.oid && subs.some(k => new RegExp('\\b' + k + '\\b').test(linhaDeTipo(s, s.objects[x]))))
     .filter(x => { if (!distintas) return true; const n = s.objects[x].name; if (vistos.has(n)) return false; vistos.add(n); return true; });
 }
 /** M-248 · 119.3 / 119.4: perder vida (dano, perda ou pagamento) num lugar só, com o rastro "vida perdida neste turno"
@@ -14591,10 +14595,18 @@ function aplicaTemporario(s, o, { poder, resistencia, palavras, ate = 'fim-do-tu
    impressas moram nos fatos do NOME do objeto: copiar é trocar o nome efetivo pelo do modelo — e o modelo que é cópia já tem o
    nome copiado (707.3). O nome impresso fica guardado; sem cópia valendo, ele volta. Exceções da cópia (707.9) entram como
    efeito de tipo com a mesma duração. */
+/** CR2d.12 · 707.2 / 708.10: o que se copia de uma permanente virada para baixo são os valores de virada para baixo — uma criatura 2/2 sem
+    nome, sem subtipo, sem habilidades e incolor (e a cópia fica virada para cima). No motor: fatos de nome próprio, criados uma vez. */
+const NOME_DA_VIRADA = 'Criatura virada para baixo';
+function nomeCopiavel(s, modelo) {
+  if (!modelo || !modelo.faceDown) return modelo && modelo.name;
+  if (!s.facts[NOME_DA_VIRADA]) s.facts[NOME_DA_VIRADA] = cardFacts({ name: NOME_DA_VIRADA, type_line: 'Creature', power: '2', toughness: '2', colors: [], keywords: [], oracle_text: '' });
+  return NOME_DA_VIRADA;
+}
 function aplicaCopia(s, o, modelo, ate = 'sempre', excecao) {
   if (!o || !modelo || o.zone !== 'battlefield' || o.oid === modelo.oid || !s.facts[modelo.name]) return false;
   if (o.nomeImpresso == null) o.nomeImpresso = o.name;
-  o.copias = [...(o.copias || []), { nome: modelo.name, ate, by: o.controller, ts: relogio(s), turno: s.turn.number }];
+  o.copias = [...(o.copias || []), { nome: nomeCopiavel(s, modelo), ate, by: o.controller, ts: relogio(s), turno: s.turn.number }];
   recalculaCopia(s, o);
   if (excecao && (excecao.somaTipos || []).length) aplicaTemporario(s, o, { vira: { types: excecao.somaTipos, addTypes: true }, ate }, o.controller); // 707.9b
   return true;
@@ -14675,20 +14687,22 @@ const pumpT = o => ((o.pump && o.pump.t) || 0) + ((o.pumpNext && o.pumpNext.t) |
  * com inteiro ou contagem; 7b: o fixado por efeito (mutação) vence o 7a; sem nenhum, o impresso. */
 const ptDefinido = (s, o) => { const d = ((s.facts[o.name].script || {}).self || {}).ptDefinido; if (!d || o.faceDown || semImpressas(s, o)) return null;
   return [d.poder != null ? amountOf(s, o, d.poder) : (s.facts[o.name].power || 0), d.resistencia != null ? amountOf(s, o, d.resistencia) : (s.facts[o.name].toughness || 0)]; };
-const basePT = (s, o) => { const m = mutacao(s, o); if (m && m.base) return m.base; return ptDefinido(s, o) || [s.facts[o.name].power || 0, s.facts[o.name].toughness || 0]; };
+const basePT = (s, o) => { const m = mutacao(s, o); if (m && m.base) return m.base; if (o.faceDown) return [2, 2]; return ptDefinido(s, o) || [s.facts[o.name].power || 0, s.facts[o.name].toughness || 0]; };
 /** CR2d.9 · 613.4d · 7d: "troque o poder e a resistência" — depois de todo o resto; um número ímpar de trocas troca. */
 let TROCA_ESTATICA = null;
 const trocaEstatica = () => (TROCA_ESTATICA ??= Object.values(SC.SCRIPTS || {}).some(sc => (sc.continuo || []).some(c => c.troca)));
 const trocaPT = (s, o) => ((o.temporarios || []).some(t => t.troca) || trocaEstatica()) && continuosQueAfetam(s, o).filter(e => e.troca).length % 2 === 1;
 // CR2-G R3b · 613.4: base (7b; virada para baixo é 2/2) + marcadores (7d) + efeitos contínuos temporários e estáticos (7c)
-const poderSemTroca = (s, o) => (faceDown(o) ? 2 : basePT(s, o)[0]) + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + bonusTemporario(s, o).p + bonus(s, o).p;
-const resistenciaSemTroca = (s, o) => (faceDown(o) ? 2 : basePT(s, o)[1]) + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + bonusTemporario(s, o).t + bonus(s, o).t;
+const poderSemTroca = (s, o) => basePT(s, o)[0] + // CR2d.12 · a virada para baixo é 2/2 na camada 1b; "torna-se N/N" (7b) vale por cima
+   (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + bonusTemporario(s, o).p + bonus(s, o).p;
+const resistenciaSemTroca = (s, o) => basePT(s, o)[1] +
+   (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + bonusTemporario(s, o).t + bonus(s, o).t;
 const power = (s, o) => (trocaPT(s, o) ? resistenciaSemTroca : poderSemTroca)(s, o); // CR2d.9 · 7d
 const toughness = (s, o) => (trocaPT(s, o) ? poderSemTroca : resistenciaSemTroca)(s, o);
 /** O caminho antigo (só para o teste de equivalência). */
-const powerLegado = (s, o) => faceDown(o) ? 2 + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + (pumpP(o)) + bonusLegado(s, o).p : // CR 708.2 + 613.4c: a 2/2 recebe os bônus de Aura e equipamento
+const powerLegado = (s, o) => faceDown(o) ? basePT(s, o)[0] /* CR2d.12 · a 1b muda nos dois caminhos */ + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + (pumpP(o)) + bonusLegado(s, o).p : // CR 708.2 + 613.4c: a 2/2 recebe os bônus de Aura e equipamento
   basePT(s, o)[0] + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + (pumpP(o)) + bonusLegado(s, o).p;
-const toughnessLegado = (s, o) => faceDown(o) ? 2 + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + (pumpT(o)) + bonusLegado(s, o).t : basePT(s, o)[1] + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + (pumpT(o)) + bonusLegado(s, o).t;
+const toughnessLegado = (s, o) => faceDown(o) ? basePT(s, o)[1] + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + (pumpT(o)) + bonusLegado(s, o).t : basePT(s, o)[1] + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + (pumpT(o)) + bonusLegado(s, o).t;
 const battlefield = s => s.zones.flatMap(z => z.battlefield).map(oid => s.objects[oid]).filter(o => !o.phasedOut);
 /** CR2g.1 · o campo com as permanentes fora de fase: para o que acaba com o tempo (702.26d: efeitos com duração acabam mesmo fora de fase). */
 const campoInteiro = s => s.zones.flatMap(z => z.battlefield).map(oid => s.objects[oid]); // M-261 · 702.26b: fora de fase é tratada como se não existisse
@@ -14767,7 +14781,7 @@ function productions(s, o, visto) {
   // R11.2 · cor que só sai com uma condição de campo (Tainted Field: um Swamp; Spire of Industry: um artefato)
   const regra = perde ? null : (s.facts[o.name].script || {}).manaRule;
   if (regra && (regra.needsSubtype || regra.needsType) && !battlefield(s).some(x => x.controller === o.controller &&
-    (regra.needsSubtype ? new RegExp('\\b' + regra.needsSubtype + '\\b').test(s.facts[x.name].typeText || '') : s.facts[x.name].types.includes(regra.needsType))))
+    (regra.needsSubtype ? new RegExp('\\b' + regra.needsSubtype + '\\b').test(linhaDeTipo(s, x)) : s.facts[x.name].types.includes(regra.needsType))))
     opts = opts.filter(x => !x.some(c => regra.colors.includes(c)));
   if (regra && regra.life && s.players[o.controller].life < regra.life) opts = opts.filter(x => !x.some(c => regra.colors.includes(c))); // CR 119.4: só paga a vida que tem
   if (s.mareAlta && opts.length && /\bIsland\b/.test(linhaDeTipo(s, o))) opts = opts.map(x => x.concat(Array(s.mareAlta).fill('U'))); // M-262 · High Tide (605.1b): cada Ilha virada para mana dá {U} a mais
@@ -14787,8 +14801,8 @@ const prevented = (s, o) => !s.noPrevention && (!!o.prevenirDano || attachedTo(s
 let PERDE_COR_ESTATICO = null, calculandoCor = false;
 const corEstatica = () => (PERDE_COR_ESTATICO ??= Object.values(SC.SCRIPTS || {}).some(sc => (sc.continuo || []).some(c => Array.isArray(c.cores))));
 function coresDe(s, o) {
-  if (!o || o.faceDown || !s.facts[o.name]) return []; // CR 708.2: virada para baixo não tem cor
-  const impressas = s.facts[o.name].colors || [];
+  if (!o || !s.facts[o.name]) return [];
+  const impressas = o.faceDown ? [] : s.facts[o.name].colors || []; // CR 708.2: virada para baixo não tem cor · CR2d.12: mas a camada 5 vale por cima
   if (calculandoCor || !((o.temporarios || []).some(t => t.cores) || corEstatica())) return impressas;
   calculandoCor = true;
   try {
@@ -14989,7 +15003,7 @@ function gastaMarcada(s, p, antes, paraQue) {
 function servePelaMarca(s, p, oid, t) {
   const g = ((s.facts[t.name] || {}).script || {}).aoGastarMana; if (!g || !g.criaturaQueCompartilhaTipoComOComandante) return false;
   const o = s.objects[oid]; if (!o || !(s.facts[o.name].types || []).includes('creature')) return false;
-  const tiposCriatura = x => ((s.facts[x.name].typeText || '').split('—')[1] || '').trim().split(/\s+/).filter(Boolean);
+  const tiposCriatura = x => ((linhaDeTipo(s, x)).split('—')[1] || '').trim().split(/\s+/).filter(Boolean);
   const meus = new Set(tiposCriatura(o)); if (s.facts[o.name].changeling || (s.facts[o.name].script || {}).changeling) return Object.values(s.objects).some(c => c.commander && c.owner === p);
   return Object.values(s.objects).some(c => c.commander && c.owner === p && (s.facts[c.name].types || []).includes('creature') && tiposCriatura(c).some(x => meus.has(x)));
 }
@@ -15061,7 +15075,7 @@ function affinityDiscount(s, p, o) {
 }
 /** S49 · exigência de criatura para desconto: subtipo, ou "que não seja daquele subtipo". */
 function matchesCreatureReq(s, o, req) {
-  const tem = x => isChangeling(s, o) || new RegExp('\\b' + x + '\\b', 'i').test(s.facts[o.name].typeText || '');
+  const tem = x => isChangeling(s, o) || new RegExp('\\b' + x + '\\b', 'i').test(linhaDeTipo(s, o));
   if (req.subtype && !tem(req.subtype)) return false;
   if (req.notSubtype && tem(req.notSubtype)) return false;
   return true;
@@ -15074,7 +15088,7 @@ const omenOf = (s, o) => (s.facts[o.name].script || {}).omen;
 /** Troca a face do objeto, guardando o nome da frente para voltar depois. */
 function flipTo(s, o, faceName) {
   if (!o.frontName) o.frontName = o.name;
-  o.name = faceName;
+  o.name = faceName; if (o.zone === 'battlefield') o.ts = relogio(s); // CR2d.12 · 613.7g: a permanente que transforma recebe carimbo novo
 }
 function flipToFront(s, o) { if (o.frontName) { o.name = o.frontName; delete o.frontName; delete o.omen; } }
 
@@ -15083,7 +15097,7 @@ const altCosts = (s, o) => ((s.facts[o.name].script || {}).alt) || [];
 const flashbackOf = (s, o) => (s.facts[o.name].script || {}).flashback;
 const escapeOf = (s, o) => (s.facts[o.name].script || {}).escape; // S48 · fuga
 /** CR2c.4 · "an Island card": carta com o subtipo na linha de tipo (Ilha básica, Tropical Island…). */
-const temSubtipo = (s, oid, sub) => new RegExp('\\b' + sub + '\\b').test((s.facts[s.objects[oid].name] || {}).typeText || '');
+const temSubtipo = (s, oid, sub) => new RegExp('\\b' + sub + '\\b').test(linhaDeTipo(s, s.objects[oid]));
 /** CR2c.4 · descartes que servem: com `discardSubtype`, pelo menos uma das cartas tem o subtipo. */
 const descarteServe = (s, cost, list) => !cost.discardSubtype || list.some(x => temSubtipo(s, x, cost.discardSubtype));
 /** CR2c.4 · cartas da mão da cor pedida que podem ser exiladas como custo (a própria mágica não). */
@@ -15091,7 +15105,7 @@ const exilaveisDaMao = (s, p, cor, selfOid) => s.zones[p].hand.filter(x => x !==
 /** CR2c.4 · condição do custo alternativo ("If an opponent controls an Island and you control a Mountain"). */
 function condicaoDoAlt(s, p, when) {
   if (!when) return true;
-  const terreno = (o, sub) => s.facts[o.name].types.includes('land') && !o.faceDown && new RegExp('\\b' + sub + '\\b').test(s.facts[o.name].typeText || '');
+  const terreno = (o, sub) => s.facts[o.name].types.includes('land') && !o.faceDown && new RegExp('\\b' + sub + '\\b').test(linhaDeTipo(s, o));
   if (when.opponentControlsSubtype && !battlefield(s).some(o => o.controller !== p && !s.players[o.controller].lost && terreno(o, when.opponentControlsSubtype))) return false;
   if (when.youControlSubtype && !battlefield(s).some(o => o.controller === p && terreno(o, when.youControlSubtype))) return false;
   return true;
@@ -15362,7 +15376,7 @@ function porQueNaoBloqueia(s, blocker, attacker) {
   if (has(s, a, 'shadow') !== has(s, b, 'shadow')) return has(s, a, 'shadow') ? 'sombra: só criatura com sombra bloqueia' : 'sombra: essa criatura só bloqueia quem tem sombra'; // 702.28b
   if (has(s, a, 'skulk') && power(s, b) > power(s, a)) return 'esgueirar: poder maior que o da atacante'; // 702.118b
   for (const [k, tipo] of TRAVESSIAS) // 702.14c · o defensor controla um terreno daquele tipo
-    if (has(s, a, k) && battlefield(s).some(l => l.controller === b.controller && !l.faceDown && s.facts[l.name].types.includes('land') && new RegExp('\\b' + tipo + '\\b', 'i').test(s.facts[l.name].typeText || ''))) return PALAVRA_DA_TRAVESSIA[k];
+    if (has(s, a, k) && battlefield(s).some(l => l.controller === b.controller && !l.faceDown && s.facts[l.name].types.includes('land') && new RegExp('\\b' + tipo + '\\b', 'i').test(linhaDeTipo(s, l)))) return PALAVRA_DA_TRAVESSIA[k];
   return null;
 }
 const PALAVRA_DA_TRAVESSIA = { islandwalk: 'travessia de ilha', swampwalk: 'travessia de pântano', forestwalk: 'travessia de floresta', mountainwalk: 'travessia de montanha', plainswalk: 'travessia de planície' };
@@ -15626,7 +15640,7 @@ function selCasa(s, p, o, sel, selfOid, opts = {}) {
   // M-230 · varreduras: palavra-chave, subtipo poupado (metamorfo conta como tendo) e valor de mana
   if (sel.palavra && !has(s, o, sel.palavra)) return false;
   if (sel.semPalavra && has(s, o, sel.semPalavra)) return false;
-  if ((sel.semSubtipos || []).some(x => isChangeling(s, o) || new RegExp('\\b' + x + '\\b', 'i').test(f.typeText || ''))) return false;
+  if ((sel.semSubtipos || []).some(x => isChangeling(s, o) || new RegExp('\\b' + x + '\\b', 'i').test(o.zone === 'battlefield' ? linhaDeTipo(s, o) : (f.typeText || '')))) return false; // CR2d.12 · subtipo de agora
   if (sel.mvMax != null || sel.mvMin != null) {
     const vm = o.faceDown ? 0 : (f.cmc || 0) + (o.zone === 'stack' ? (o.xPaid || 0) * ((f.cost || {}).x || 0) : 0);
     const fonte = opts.src || { controller: p };
@@ -16340,7 +16354,7 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'ficha_copia': { // CR2f.2 · 707.8: a ficha copia os valores copiáveis do alvo (o nome de agora: se o alvo é cópia, a ficha é cópia do que ele copia)
       if (!obj || obj.zone !== 'battlefield' || !s.facts[obj.name]) { note({ failed: true }); break; }
       const n = amountOf(s, src, eff.amount || 1), novas = [];
-      for (let i = 0; i < n; i++) { const t = createToken(s, { name: obj.name }, ctrl, events); novas.push(t);
+      for (let i = 0; i < n; i++) { const t = createToken(s, { name: nomeCopiavel(s, obj) }, ctrl, events); novas.push(t); // CR2d.12 · cópia da virada para baixo
         if ((eff.palavras || []).length || (eff.somaTipos || []).length) aplicaTemporario(s, s.objects[t], { ...((eff.palavras || []).length ? { palavras: eff.palavras } : {}), ...((eff.somaTipos || []).length ? { vira: { types: eff.somaTipos, addTypes: true } } : {}), ate: 'sempre' }, ctrl); } // 707.9 · "except it has haste"
       note({ name: obj.name, amount: novas.length }); break;
     }
@@ -16544,11 +16558,11 @@ function applyEffect(s, src, eff, tgt, events) {
       const fonte = src.ability ? (s.objects[src.source] || src) : src;
       // S55 · lista os tipos de criatura presentes no campo, dos dois lados
       const tipos = [...new Set(battlefield(s).filter(o => isCreature(s, o) && !o.faceDown)
-        .flatMap(o => String(s.facts[o.name].typeText || '').split('—')[1] || '')
+        .flatMap(o => String(linhaDeTipo(s, o)).split('—')[1] || '')
         .flatMap(t => t.trim().split(/\s+/)).filter(Boolean))];
       if (!tipos.length) { note({ amount: 0 }); break; }
       // Leva 106 · sem corte em 12: todos os tipos, os que mais rendem para quem escolhe primeiro
-      const rende = t => battlefield(s).filter(o => o.controller === ctrl && (isChangeling(s, o) || new RegExp('\\b' + t + '\\b', 'i').test(s.facts[o.name].typeText || ''))).length;
+      const rende = t => battlefield(s).filter(o => o.controller === ctrl && (isChangeling(s, o) || new RegExp('\\b' + t + '\\b', 'i').test(linhaDeTipo(s, o)))).length;
       const ordem = tipos.map(t => [t, rende(t)]).sort((x, y) => y[1] - x[1] || (x[0] < y[0] ? -1 : 1)).map(x => x[0]);
       s.pending = { kind: 'choose_type', p: ctrl, oid: fonte.oid, options: ordem };
       note({ pending: true }); break;
@@ -16671,7 +16685,7 @@ const ehVarredura = eff => !!SC.cadaDe(eff);
 function sweepTargetsLegado(s, src, eff) {
   const kind = typeof eff === 'string' ? eff : eff.target;
   const except = typeof eff === 'string' ? null : eff.exceptSubtype; // S38 · varredura que poupa um subtipo
-  const fora = x => except && (isChangeling(s, x) || new RegExp('\\b' + except + '\\b', 'i').test(s.facts[x.name].typeText || ''));
+  const fora = x => except && (isChangeling(s, x) || new RegExp('\\b' + except + '\\b', 'i').test(linhaDeTipo(s, x)));
   if (kind === 'each-flying-creature') return battlefield(s).filter(x => isCreature(s, x) && has(s, x, 'flying') && !fora(x));
   if (kind === 'each-nonflying-creature') return battlefield(s).filter(x => isCreature(s, x) && !has(s, x, 'flying') && !fora(x)); // Q11 · Krark-Clan Shaman
   // Leva 107 · "each creature and planeswalker they control" (End the Festivities)
@@ -17055,7 +17069,7 @@ function triggerConditionMet(s, o, cond) {
   return true;
 }
 /** S34 · metamorfo: a carta conta como qualquer subtipo de criatura. */
-const isChangeling = (s, o) => !semImpressas(s, o) && !!((s.facts[o.name].script || {}).changeling);
+const isChangeling = (s, o) => !semImpressas(s, o) && !!((s.facts[o.name].script || {}).changeling) && !(mutacao(s, o) || {}).subtiposDefinidos; // CR2d.12 · 613.3
 function matchesTriggerFilter(s, o, filter) {
   if (!filter) return true;
   const f = s.facts[o.name];
@@ -17063,7 +17077,7 @@ function matchesTriggerFilter(s, o, filter) {
   if (filter.anyTypes && !filter.anyTypes.some(x => f.types.includes(x))) return false; // R11 · "creature or planeswalker" (Cruel Celebrant)
   if (filter.noncreature && f.types.includes('creature')) return false;
   if (o.faceDown) return false; // S54 · virada para baixo não combina com filtro de carta
-  if (filter.subtype && !isChangeling(s, o) && !new RegExp('\\b' + filter.subtype + '\\b', 'i').test(f.typeText || '')) return false;
+  if (filter.subtype && !isChangeling(s, o) && !new RegExp('\\b' + filter.subtype + '\\b', 'i').test(linhaDeTipo(s, o))) return false; // CR2d.12
   return true;
 }
 /** S57 · aventurar-se na masmorra (regra 309). Sem masmorra, você escolhe uma e
@@ -17360,7 +17374,7 @@ function extraCostCandidates(s, p, spec, selfOid, needUntapped) {
     (spec.types || []).some(x => x === 'creature' ? isCreature(s, o) : !o.faceDown && s.facts[o.name].types.includes(x)) && // R9 · concedida é Aura; virada para baixo é só criatura
     // S50 · o custo pode pedir um subtipo ("dois Elfos que você controla")
     // Leva 108 · virada para baixo não tem tipo de criatura (708.2): não serve como "Elfo" num custo
-    (!spec.subtype || (!o.faceDown && (isChangeling(s, o) || new RegExp('\\b' + spec.subtype + '\\b', 'i').test(s.facts[o.name].typeText || '')))) &&
+    (!spec.subtype || (!o.faceDown && (isChangeling(s, o) || new RegExp('\\b' + spec.subtype + '\\b', 'i').test(linhaDeTipo(s, o))))) &&
     // S46 · a cor pedida pelo custo vale também para saber se dá para pagar
     (!spec.color || coresDe(s, o).includes(spec.color)) && // CR2d.8
     // S62 · enjoo de invocação vale só para o {T} da própria permanente (302.6).
@@ -17647,7 +17661,7 @@ function resolveTop(s, events = []) {
     o.copiaEscolhida = null;
   }
   if (comoCopia && o.copiaEscolhida) { const m = s.objects[o.copiaEscolhida];
-    if (m && m.zone === 'battlefield' && s.facts[m.name]) { o.nomeImpresso = o.name; o.copias = [{ nome: m.name, ate: 'sempre', by: controller, ts: relogio(s), turno: s.turn.number }]; o.name = m.name; } }
+    if (m && m.zone === 'battlefield' && s.facts[m.name]) { o.nomeImpresso = o.name; o.copias = [{ nome: nomeCopiavel(s, m), ate: 'sempre', by: controller, ts: relogio(s), turno: s.turn.number }]; o.name = m.name; } }
   if (scripted && !comoCopia) resolveScript(s, o, events);
   if (s.objects[item].zone === 'stack' && o.omen) { // S24 · presságio volta embaralhado para o grimório
     moveObject(s, item, 'library');
@@ -18347,7 +18361,7 @@ const HANDLERS = {
     const mp = (s.facts[o.name].script || {}).morph;
     if (!mp) throw new RuleError('metamorfose', 'esta carta não tem metamorfose');
     if (s.manaCheck) payCost(s, a.p, parseCost(mp.mana));
-    delete o.faceDown;
+    delete o.faceDown; o.ts = relogio(s); // CR2d.12 · 613.7f: virada para cima recebe carimbo novo
     s.turn.passes = 0;
   },
   plot(s, a) { // S53 · paga o custo de plot e exila a carta da mão, para conjurar de graça depois

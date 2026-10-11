@@ -3481,6 +3481,19 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Guarda:** `fatos.imutaveis` joga 20 partidas aleatórias com as listas reais e os fatos blindados. Qualquer escrita por dentro de uma entrada lança e derruba o portão.
 - **Fora:** o teste de orçamento da Q8 (p95 no CI e primeira renderização) continua aberto.
 
+**CR2d.12 · Virada para baixo como camada 1b, subtipos de agora e carimbo ao virar (613.2b, 613.3, 613.7f/g, 707.2, 708.2)** ✅ (leva M-288, motor v103) — 5 testes de conformidade, todos falham no motor v102.
+- **Origem:** auditoria independente das fases CR2d e CR2f (11/10/2026). Reproduziu 8 erros; esta leva fecha os 5 de virada para baixo e subtipos.
+- **Regra:**
+  - (1) A virada para baixo é a camada 1b: criatura 2/2 sem subtipo e incolor. "Torna-se 0/1" e "torna-se vermelha" valem por cima; antes o 2/2 e o incolor venciam.
+  - (2) Ela não tem subtipo: o hino de Elfos não a alcança e "exceto Elfos" a alcança. A Birchlore Rangers com metamorfose está nas listas.
+  - (3) O subtipo lido é o de agora (camada 4) em todo seletor, filtro e contagem tribal. O metamorfo que "torna-se Rã" deixa de ser Elfo.
+  - (4) A permanente virada para cima ou transformada recebe carimbo novo (613.7f/g).
+  - (5) Copiar uma permanente virada para baixo copia a 2/2 sem habilidades e incolor, não a carta escondida.
+- **Expectativa ajustada com justificativa:** o caminho antigo usado nas equivalências (`mutacaoLegado`, `statsLegado`) passa a seguir a regra nova da virada para baixo; sem isso, a matriz M-236 comparava a regra nova com a errada (virada + Rã 1/1 dava 2/2 no caminho antigo).
+- **Versão:** sobe para v103. Goldens regravados só pela versão: logs, status e turnos idênticos. Partidas salvas antes não abrem.
+- **Mapa:** 15 itens atualizados, que estavam defasados. 611.1, 611.3, 613.5 e 707.6 ficam cobertas; 610.2, 613.6, 707.9 e 708.10 ficam parciais; 707.8 volta a parcial (na CR de 2026 a 707.8 é cópia de dupla face).
+- **Próximo:** CR2d.13, com os 3 erros restantes da auditoria. "Até o seu próximo turno" não acaba em cópia e controle. Dois desses efeitos de jogadores diferentes se fundem num só. A exceção da cópia não entra nos valores copiáveis.
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

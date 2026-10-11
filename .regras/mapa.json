@@ -1,7 +1,7 @@
 {
  "sobre": "Mapa regra × motor. Cada item NNN.N das Comprehensive Rules de 25/09/2026 classificado contra o motor v72 em 06/10/2026 por 14 auditores independentes, com evidência vista (código com linha, teste ou sonda executada). status: coberta · parcial · ausente · definicao (só define termo) · fora (jogo físico, torneio ou variante que um app de dois jogadores não precisa). Quando um item muda de status, o teste que prova a mudança entra em `testes`.",
  "cr": "2026-09-25",
- "motor": 102,
+ "motor": 103,
  "auditoria": "2026-10-06",
  "itens": [
   {
@@ -4620,12 +4620,13 @@
    "n": "610.2",
    "regra": "One-Shot Effects",
    "titulo": "Efeito que cria gatilho atrasado",
-   "status": "ausente",
-   "falta": "Não existe gatilho atrasado: a lista TRIGGERS (index.html:4534) só tem eventos de permanente no campo e nada cria habilidade \"no início da próxima etapa X\". Arcane Denial está parcial por isso (nota em :5050); Mishra's Bauble e Priest of Fell Rites seguem manuais.",
-   "esforco": "M",
+   "status": "parcial",
+   "falta": "só três momentos: próxima manutenção, próximo passo final e fim do combate (ver 603.7)",
+   "esforco": "P",
    "depende": [
     "603.7"
-   ]
+   ],
+   "evidencia": "auditoria independente CR2d/CR2f (11/10/2026): verbo delayed e s.atrasados (CR2b.1)"
   },
   {
    "n": "610.3",
@@ -4644,8 +4645,8 @@
    "regra": "One-Shot Effects",
    "titulo": "Sair de fase \"até\" um evento",
    "status": "ausente",
-   "falta": "Sair de fase não existe no motor (nenhuma ocorrência de phase no core); 610.4a-d dependem disso. March of Swirling Mist e Slip Out the Back estão manuais.",
-   "esforco": "G",
+   "falta": "sair de fase existe (sai_de_fase, M-261); falta só a duração \"até\" um evento",
+   "esforco": "M",
    "depende": [
     "702.26"
    ]
@@ -4665,10 +4666,8 @@
    "n": "611.1",
    "regra": "Continuous Effects",
    "titulo": "O que é efeito contínuo",
-   "status": "parcial",
-   "evidencia": "Efeitos contínuos existem como campos soltos: o.pump/o.pumpNext/tempKeywords/tempProtection/keywordsNext/cantAttackNext/goaded no objeto, s.fogged/s.preventedColors/s.noPrevention no estado, e grants/grantsAll/self.per lidos do script a cada consulta (index.html:10065-10085, 10340)",
-   "falta": "Não existe o objeto \"efeito contínuo\" (fonte, duração, camada, conjunto afetado). Nenhum efeito muda controle, tipo, cor ou texto, nem retira habilidade; cada efeito novo exige campo e código novos.",
-   "esforco": "G",
+   "status": "coberta",
+   "evidencia": "Efeitos contínuos existem como campos soltos: o.pump/o.pumpNext/tempKeywords/tempProtection/keywordsNext/cantAttackNext/goaded no objeto, s.fogged/s.preventedColors/s.noPrevention no estado, e grants/grantsAll/self.per lidos do script a cada consulta (index.html:10065-10085, 10340) · auditoria independente CR2d/CR2f (11/10/2026): o.temporarios, o.controles, o.copias e continuo guardam fonte, carimbo e duração; controle, tipo, cor e perder habilidade existem",
    "depende": [
     "613"
    ]
@@ -4678,9 +4677,9 @@
    "regra": "Continuous Effects",
    "titulo": "Efeito contínuo criado por resolução",
    "status": "parcial",
-   "evidencia": "a) até o fim do turno acaba em finishCleanup (:10714; scripts.unit \"S4 · efeito até o fim do turno acaba na limpeza\") e \"até o seu próximo turno\" (rules.unit \"S57\", \"S59\", \"S61\"); c) conjunto travado na resolução: sonda Rally the Peasants (presente 4/3, quem chegou depois 2/3) e elves.regras \"Leva 136 · Timberwatch Elf ... contado ao resolver e travado\"; efeito de regra vale para fonte nova: sonda Prismatic Strands + Lightning Bolt conjurado depois (vida 20), rules.unit \"S30\"; d) X calculado uma vez (amountOf :11067) · CR2-G R6 (M-244, v95 sem mudança no que existe): durações gerais no verbo continuo — fim-do-seu-proximo-turno e { enquanto: controlar-fonte } (o.temporarios, com fonte e encarnação), \"torna\" com qualquer duração (o.vira com marca); vigente/podaTemporarios no começo do turno e na limpeza; testes em duracao.unit · CR2d.6/M-275 (v98): controle com duração (fim do turno, sem prazo, até o seu próximo turno, enquanto você controlar a fonte, 611.2b).",
-   "falta": "611.2a: não há duração \"pelo resto do jogo\" nem emblema. 611.2b: nenhuma duração \"enquanto...\" (for as long as). 611.2e: nada põe permanente no campo já com característica alterada. 611.2f: nada altera \"a próxima mágica que você conjurar\". Os bônus são números somados no objeto (o.pump), sem registro de qual efeito os deu: não dá para terminar um efeito isolado nem ordená-lo.",
-   "esforco": "G",
+   "evidencia": "a) até o fim do turno acaba em finishCleanup (:10714; scripts.unit \"S4 · efeito até o fim do turno acaba na limpeza\") e \"até o seu próximo turno\" (rules.unit \"S57\", \"S59\", \"S61\"); c) conjunto travado na resolução: sonda Rally the Peasants (presente 4/3, quem chegou depois 2/3) e elves.regras \"Leva 136 · Timberwatch Elf ... contado ao resolver e travado\"; efeito de regra vale para fonte nova: sonda Prismatic Strands + Lightning Bolt conjurado depois (vida 20), rules.unit \"S30\"; d) X calculado uma vez (amountOf :11067) · CR2-G R6 (M-244, v95 sem mudança no que existe): durações gerais no verbo continuo — fim-do-seu-proximo-turno e { enquanto: controlar-fonte } (o.temporarios, com fonte e encarnação), \"torna\" com qualquer duração (o.vira com marca); vigente/podaTemporarios no começo do turno e na limpeza; testes em duracao.unit · CR2d.6/M-275 (v98): controle com duração (fim do turno, sem prazo, até o seu próximo turno, enquanto você controlar a fonte, 611.2b). · auditoria independente CR2d/CR2f (11/10/2026): 611.2b (duracao.unit, controle.unit), duração \"sempre\", 611.2e em parte (entraComoCopia)",
+   "falta": "emblema e resto do jogo para jogador; 611.2f; \"até o seu próximo turno\" em cópia e controle não acaba; dois \"até o seu próximo turno\" de jogadores diferentes se fundem",
+   "esforco": "M",
    "depende": [
     "613"
    ],
@@ -4693,10 +4692,8 @@
    "n": "611.3",
    "regra": "Continuous Effects",
    "titulo": "Efeito contínuo de habilidade estática",
-   "status": "parcial",
-   "evidencia": "a-c) estáticos são recalculados a cada leitura, sem travar: bonus() :10072 (aura/equipamento e self.per: Ethereal Armor, Leonardo), grantedToAll :10442 (Tuktuk Rubblefort; rules.unit \"S56 · a permanente dá pressa a todas as suas criaturas, e não às do oponente\"), protections :10423; sonda: 2/3 + marcador + pump 4/4 + Ethereal Armor + Cryoshatter = 4/10",
-   "falta": "Só existem três formas de estático: o que o anexo dá à hospedeira (grants), palavra-chave para todas as suas criaturas (grantsAll) e bônus próprio por contagem (self.per). Faltam: bônus de P/T para um grupo (\"outras criaturas que você controla recebem +1/+1\"), estático sobre permanentes do oponente, estático que tira habilidade/muda tipo ou cor, e 611.3d (permissão de conjurar com habilidade que dura). grantedToAll não confere se a fonte está virada para baixo.",
-   "esforco": "G",
+   "status": "coberta",
+   "evidencia": "a-c) estáticos são recalculados a cada leitura, sem travar: bonus() :10072 (aura/equipamento e self.per: Ethereal Armor, Leonardo), grantedToAll :10442 (Tuktuk Rubblefort; rules.unit \"S56 · a permanente dá pressa a todas as suas criaturas, e não às do oponente\"), protections :10423; sonda: 2/3 + marcador + pump 4/4 + Ethereal Armor + Cryoshatter = 4/10 · auditoria independente CR2d/CR2f (11/10/2026): continuosQueAfetam (seletor, oponente, outra, perde, cores; continuo.equivalencia); 611.3d com permiteConjurar; fonte virada para baixo não concede",
    "depende": [
     "613"
    ]
@@ -4818,9 +4815,9 @@
    "regra": "Interaction of Continuous Effects",
    "titulo": "Características calculadas por camadas",
    "status": "parcial",
-   "evidencia": "Não há sistema de camadas: cada característica é uma função solta que soma fontes fixas (power/toughness index.html:10340-10341 = impresso + marcadores + pump + pumpNext + bonus(); has() :10065 = OU de palavras impressas, grantsAll, tempKeywords, keywordsNext e anexos; colorsOf :10428 = cor impressa). Dentro do que existe o resultado bate (sonda: 2/3 + marcador +1/+1 + pump +4/+4 + Ethereal Armor +2/+2 + Cryoshatter -5/-0 = 4/10) · CR2d.1 (v90): Aura que redefine a criatura (aura.becomes: tipos, subtipos, P/T base, palavras-chave, perde habilidades) — mutacao()/tiposDe()/linhaDeTipo()/basePT()/semImpressas(); commander.regras \"CR2d.1 · …\" · CR2d.2 (v91): efeito de habilidade \"vira criatura até o fim do turno\" entra na mesma ordenação por carimbo que as Auras · CR2-G R3a (M-234, motor v95 sem mudança): efeitos contínuos estáticos num caminho só — continuosQueAfetam(s, o) junta, com fonte e carimbo, os de Aura/Equipamento (afetados: anexada), \"suas criaturas têm\" (seletor) e o bônus próprio por contagem (self); bonus() (7c) e a parte concedida de has() (6) leem só esse caminho; carta nova escreve continuo: [{ afetados, poder, resistencia, palavras, per… }] (hinos, \"as dos oponentes recebem -1/-1\", \"outros Elfos têm…\"); equivalência com o caminho antigo em continuo.equivalencia.unit · CR2-G R3c (M-236, v95 sem mudança): \"torna-se\" (camadas 4, 6-perde e 7b) no mesmo caminho — a Aura que redefine (aura.becomes) e o \"vira criatura até o fim do turno\" (animate) viram atalhos de `torna`, a mutação lê redefinicoesDe (estáticas da permanente anexada + temporárias com carimbo); carta nova escreve continuo { afetados: anexada, torna } ou o verbo continuo com torna (\"torna-se uma Rã 1/1 e perde as outras habilidades até o fim do turno\") · CR2d.6/M-275 (v98): camada 2 — controle por efeito contínuo com carimbo e duração (o.controles; aplicaControle/recalculaControle): o mais novo que vale manda, acabado volta o anterior; até o fim do turno, sem prazo, até o seu próximo turno e enquanto controlar a fonte; enjoo (302.6) e saída do combate (506.4). · CR2d.8/M-277 (v98): camada 5 — cor por efeito com carimbo (torna-se [cor], além das outras cores, incolor; coresDe), lida em alvo por cor, seletor por cor, \"não-[cor]\" e custos por cor; virada para baixo sem cor (708.2).",
-   "falta": "Camada 1: só virada para baixo (cópia é da CR2f). Camada 2: só efeitos de resolução (Aura estática \"você controla a encantada\" ainda não). Camada 3 (texto): nada. Camadas 4–7: ver as levas seguintes da CR2d.",
-   "esforco": "G",
+   "evidencia": "Não há sistema de camadas: cada característica é uma função solta que soma fontes fixas (power/toughness index.html:10340-10341 = impresso + marcadores + pump + pumpNext + bonus(); has() :10065 = OU de palavras impressas, grantsAll, tempKeywords, keywordsNext e anexos; colorsOf :10428 = cor impressa). Dentro do que existe o resultado bate (sonda: 2/3 + marcador +1/+1 + pump +4/+4 + Ethereal Armor +2/+2 + Cryoshatter -5/-0 = 4/10) · CR2d.1 (v90): Aura que redefine a criatura (aura.becomes: tipos, subtipos, P/T base, palavras-chave, perde habilidades) — mutacao()/tiposDe()/linhaDeTipo()/basePT()/semImpressas(); commander.regras \"CR2d.1 · …\" · CR2d.2 (v91): efeito de habilidade \"vira criatura até o fim do turno\" entra na mesma ordenação por carimbo que as Auras · CR2-G R3a (M-234, motor v95 sem mudança): efeitos contínuos estáticos num caminho só — continuosQueAfetam(s, o) junta, com fonte e carimbo, os de Aura/Equipamento (afetados: anexada), \"suas criaturas têm\" (seletor) e o bônus próprio por contagem (self); bonus() (7c) e a parte concedida de has() (6) leem só esse caminho; carta nova escreve continuo: [{ afetados, poder, resistencia, palavras, per… }] (hinos, \"as dos oponentes recebem -1/-1\", \"outros Elfos têm…\"); equivalência com o caminho antigo em continuo.equivalencia.unit · CR2-G R3c (M-236, v95 sem mudança): \"torna-se\" (camadas 4, 6-perde e 7b) no mesmo caminho — a Aura que redefine (aura.becomes) e o \"vira criatura até o fim do turno\" (animate) viram atalhos de `torna`, a mutação lê redefinicoesDe (estáticas da permanente anexada + temporárias com carimbo); carta nova escreve continuo { afetados: anexada, torna } ou o verbo continuo com torna (\"torna-se uma Rã 1/1 e perde as outras habilidades até o fim do turno\") · CR2d.6/M-275 (v98): camada 2 — controle por efeito contínuo com carimbo e duração (o.controles; aplicaControle/recalculaControle): o mais novo que vale manda, acabado volta o anterior; até o fim do turno, sem prazo, até o seu próximo turno e enquanto controlar a fonte; enjoo (302.6) e saída do combate (506.4). · CR2d.8/M-277 (v98): camada 5 — cor por efeito com carimbo (torna-se [cor], além das outras cores, incolor; coresDe), lida em alvo por cor, seletor por cor, \"não-[cor]\" e custos por cor; virada para baixo sem cor (708.2). · M-288 (CR2d.12): a virada para baixo é a camada 1b e as camadas seguintes valem por cima",
+   "falta": "camada 3 (troca de texto); controle por estática",
+   "esforco": "M",
    "depende": [
     "613.7",
     "611"
@@ -4830,7 +4827,12 @@
     "M-236 · R3c · matriz de redefinições: Aura que redefine antes e depois de outras Auras, terrenos e Veículo que viram criatura (com e sem base, somando tipos, com voar) e redefinição temporária por cima — o mesmo pelos dois caminhos",
     "CR 613.1 · camada 2: \"até o fim do turno\" — o controle muda, a criatura fica com enjoo, e volta ao dono na limpeza",
     "CR 613.7 · camada 2 por carimbo: o efeito mais novo manda; quando ele acaba, vale o anterior, não o dono",
-    "CR 613.1 · camada 5: torna-se vermelha até o fim do turno; soma azul; incolor; na limpeza volta à cor impressa"
+    "CR 613.1 · camada 5: torna-se vermelha até o fim do turno; soma azul; incolor; na limpeza volta à cor impressa",
+    "CR 613.2 · virada para baixo é a camada 1b: \"torna-se 0/1\" vale por cima do 2/2, e \"torna-se vermelha\" por cima do incolor",
+    "CR 708.2 · virada para baixo não tem subtipo: o hino de Elfos não a alcança e \"exceto Elfos\" a alcança",
+    "CR 613.3 · subtipo de agora: \"exceto Humanos\" alcança o Humano que virou Rã, e o metamorfo que virou Rã deixa de ser Elfo",
+    "CR 613.7 · virada para cima recebe carimbo novo: a estática dela vence um \"perde voar\" aplicado antes",
+    "CR 707.2 · copiar uma permanente virada para baixo copia a 2/2 sem habilidades e incolor, não a carta escondida"
    ]
   },
   {
@@ -4838,12 +4840,15 @@
    "regra": "Interaction of Continuous Effects",
    "titulo": "Subcamadas da camada 1 (cópia e virada para baixo)",
    "status": "parcial",
-   "evidencia": "1b: virada para baixo é 2/2 sem palavras-chave nem tipo (power :10340, has :10065, countFor :10086; rules.unit \"S54 · metamorfose: entra virada para baixo como 2/2 sem nada\")",
-   "falta": "1a: não há cópia de permanente nem fusão (só cópia de mágica por tempestade). 1b incompleta, com dois erros reproduzidos: a carta virada para baixo mantém a cor impressa (colorsOf :10428 não olha faceDown; sonda: Birchlore Rangers virada para baixo ataca com dano verde prevenido e B fica em 20, devia ir a 18) e ignora bônus de aura/equipamento (power() sai antes de bonus(); sonda: virada para baixo + Ethereal Armor = 2/2, devia ser 3/3, embora ganhe first strike). 613.2c: não há \"valores copiáveis\".",
-   "esforco": "G",
+   "evidencia": "1b: virada para baixo é 2/2 sem palavras-chave nem tipo (power :10340, has :10065, countFor :10086; rules.unit \"S54 · metamorfose: entra virada para baixo como 2/2 sem nada\") · M-288 (CR2d.12): virada para baixo 2/2 criatura sem subtipo e incolor na 1b, com tipo, cor e \"torna-se N/N\" por cima",
+   "falta": "613.2c; exceção da cópia (707.9b) não entra nos valores copiáveis",
+   "esforco": "M",
    "depende": [
     "707",
     "708.2"
+   ],
+   "testes": [
+    "CR 613.2 · virada para baixo é a camada 1b: \"torna-se 0/1\" vale por cima do 2/2, e \"torna-se vermelha\" por cima do incolor"
    ]
   },
   {
@@ -4851,12 +4856,15 @@
    "regra": "Interaction of Continuous Effects",
    "titulo": "Camadas 2 a 6: definidoras primeiro, depois carimbo",
    "status": "parcial",
-   "evidencia": "As duas habilidades definidoras que existem (devoid :10166, changeling via isChangeling) valem sempre, antes de qualquer outra coisa, porque estão gravadas nos fatos da carta",
-   "falta": "Não há ordem alguma entre efeitos das camadas 2 a 6: não existem carimbos de tempo e os efeitos presentes são só aditivos (OU de palavras-chave, união de proteções), então a ordem não aparece. O primeiro efeito que retire ou substitua algo (perde voar, vira Ilha, vira azul) já sai errado.",
-   "esforco": "G",
+   "evidencia": "As duas habilidades definidoras que existem (devoid :10166, changeling via isChangeling) valem sempre, antes de qualquer outra coisa, porque estão gravadas nos fatos da carta · M-288 (CR2d.12): subtipo de agora em todo seletor e gatilho; metamorfo com subtipo redefinido depois deixa de ter todos",
+   "falta": "dependência (613.8)",
+   "esforco": "M",
    "depende": [
     "613.7",
     "613.8"
+   ],
+   "testes": [
+    "CR 613.3 · subtipo de agora: \"exceto Humanos\" alcança o Humano que virou Rã, e o metamorfo que virou Rã deixa de ser Elfo"
    ]
   },
   {
@@ -4878,10 +4886,8 @@
    "n": "613.5",
    "regra": "Interaction of Continuous Effects",
    "titulo": "Recalculo contínuo e instantâneo",
-   "status": "parcial",
-   "evidencia": "As características são derivadas a cada consulta, nunca guardadas: E.stats/hasKeyword (:13305) chamam power/has; Ethereal Armor reconta os encantamentos na hora (bogles.regras)",
-   "falta": "O recalculo é contínuo, mas só sobre o que existe: os dois exemplos da regra (cor muda → perde o bônus do estático; \"torna-se 0/1\" em 7b sob bônus de 7c) não são representáveis.",
-   "esforco": "G",
+   "status": "coberta",
+   "evidencia": "As características são derivadas a cada consulta, nunca guardadas: E.stats/hasKeyword (:13305) chamam power/has; Ethereal Armor reconta os encantamentos na hora (bogles.regras) · auditoria independente CR2d/CR2f (11/10/2026): os dois exemplos da regra passam (Honor of the Pure; Gray Ogre 5/8); pt7.unit",
    "depende": [
     "613.1"
    ]
@@ -4890,23 +4896,25 @@
    "n": "613.6",
    "regra": "Interaction of Continuous Effects",
    "titulo": "Efeito que age em mais de uma camada",
-   "status": "ausente",
-   "falta": "Nenhum efeito tem partes em camadas diferentes aplicadas ao mesmo conjunto (ex.: Act of Treason: controle + ímpeto; \"vira criatura 3/3\"). Hoje seriam dois efeitos de script independentes, cada um escrevendo seu campo.",
-   "esforco": "G",
+   "status": "parcial",
+   "falta": "estática com seletor é reavaliada a cada camada (\"criaturas brancas são pretas e recebem +1/+1\"); Act of Treason como efeito único",
+   "esforco": "M",
    "depende": [
     "613.1"
-   ]
+   ],
+   "evidencia": "auditoria independente CR2d/CR2f (11/10/2026): o verbo continuo aplica cada parte na sua camada ao mesmo alvo (M-236)"
   },
   {
    "n": "613.7",
    "regra": "Interaction of Continuous Effects",
    "titulo": "Ordem por carimbo de tempo",
    "status": "parcial",
-   "falta": "Carimbo só é usado pela Aura que redefine a criatura; marcadores de palavra-chave e \"até o seu próximo turno\" não têm carimbo (a Aura os apaga mesmo se vierem depois); sem dependência (613.8); demais efeitos continuam aditivos.",
-   "esforco": "G",
-   "evidencia": "CR2d.1 (v90): s.relogio; o.ts ao entrar no campo (613.7d), anexadaEm ao anexar (613.7e), tempTs por palavra-chave do turno; usados para decidir o que a Aura que tira as habilidades apaga (concedido antes some, depois fica). commander.regras \"CR2d.1 · carimbo de tempo (613.7)…\"",
+   "falta": "613.7c (marcadores); \"até o seu próximo turno\" sem carimbo",
+   "esforco": "M",
+   "evidencia": "CR2d.1 (v90): s.relogio; o.ts ao entrar no campo (613.7d), anexadaEm ao anexar (613.7e), tempTs por palavra-chave do turno; usados para decidir o que a Aura que tira as habilidades apaga (concedido antes some, depois fica). commander.regras \"CR2d.1 · carimbo de tempo (613.7)…\" · M-288 (CR2d.12): carimbo novo ao virar para cima (613.7f) e ao transformar (613.7g); carimbo em controle, cor, perde, torna, cópia e Aura",
    "testes": [
-    "CR2d.1 · carimbo de tempo (613.7): o +3/+3 de antes continua (7c), o voar dado antes da Reprobation some, o dado depois fica"
+    "CR2d.1 · carimbo de tempo (613.7): o +3/+3 de antes continua (7c), o voar dado antes da Reprobation some, o dado depois fica",
+    "CR 613.7 · virada para cima recebe carimbo novo: a estática dela vence um \"perde voar\" aplicado antes"
    ]
   },
   {
@@ -9136,11 +9144,14 @@
    "regra": "Copying Objects",
    "titulo": "Valores copiáveis",
    "status": "parcial",
-   "evidencia": "só cópia de mágica por tempestade: o gatilho-cópia leva os efeitos do script (index.html:12292-12293) e escolhe alvo próprio (rules.unit/pauper.regras, Leva 106) · CR2f.1/M-280 (v98): valores copiáveis = características impressas mais outras cópias (o nome copiado); marcadores e efeitos de outras camadas ficam no objeto.",
-   "falta": "Virada para baixo copiada, cópia de face de dupla face com a face de cima e de mágica com valores de conjuração ainda sem teste dedicado.",
+   "evidencia": "só cópia de mágica por tempestade: o gatilho-cópia leva os efeitos do script (index.html:12292-12293) e escolhe alvo próprio (rules.unit/pauper.regras, Leva 106) · CR2f.1/M-280 (v98): valores copiáveis = características impressas mais outras cópias (o nome copiado); marcadores e efeitos de outras camadas ficam no objeto. · M-288 (CR2d.12): copiar uma permanente virada para baixo copia a 2/2 sem habilidades e incolor (ficha_copia, torna_copia, entra como cópia)",
+   "falta": "a exceção da cópia não entra nos valores copiáveis (707.9b/707.3); ficha de dupla face",
    "esforco": "M",
    "depende": [
     "613"
+   ],
+   "testes": [
+    "CR 707.2 · copiar uma permanente virada para baixo copia a 2/2 sem habilidades e incolor, não a carta escondida"
    ]
   },
   {
@@ -9189,12 +9200,11 @@
    "n": "707.6",
    "regra": "Copying Objects",
    "titulo": "Escolhas da permanente não são copiadas",
-   "status": "ausente",
-   "falta": "sem cópia de permanente.",
-   "esforco": "P",
+   "status": "coberta",
    "depende": [
     "707.5"
-   ]
+   ],
+   "evidencia": "auditoria independente CR2d/CR2f (11/10/2026): a escolha mora no objeto (chosenColor); a cópia que entra faz a própria escolha"
   },
   {
    "n": "707.7",
@@ -9212,25 +9222,28 @@
    "n": "707.8",
    "regra": "Copying Objects",
    "titulo": "Ficha que é cópia de permanente",
-   "status": "coberta",
+   "status": "parcial",
    "depende": [
     "707.2"
    ],
-   "evidencia": "CR2f.2/M-281 (v98): verbo ficha_copia { amount, palavras, somaTipos }: a ficha copia os valores copiáveis do alvo (o nome de agora), com as exceções (707.9).",
+   "evidencia": "CR2f.2/M-281 (v98): verbo ficha_copia { amount, palavras, somaTipos }: a ficha copia os valores copiáveis do alvo (o nome de agora), com as exceções (707.9). · auditoria independente CR2d/CR2f (11/10/2026): na CR de 2026 a 707.8 é a cópia de dupla face; o nome da face de cima é copiado (flipTo)",
    "testes": [
     "CR 707.5 · recusar: entra como ela mesma, com o gatilho dela; CR 707.8 · ficha que é cópia"
-   ]
+   ],
+   "falta": "ficha que copia uma dupla face não tem as duas faces (707.8a)",
+   "esforco": "M"
   },
   {
    "n": "707.9",
    "regra": "Copying Objects",
    "titulo": "Cópia com exceções (\"except\")",
-   "status": "ausente",
-   "falta": "sem cópia de permanente.",
+   "status": "parcial",
+   "falta": "a exceção não entra nos valores copiáveis; 707.9c–g",
    "esforco": "M",
    "depende": [
     "707.2"
-   ]
+   ],
+   "evidencia": "M-280/M-281: somaTipos (707.9b) e palavras (707.9a) em copia.unit e copia2.unit"
   },
   {
    "n": "707.10",
@@ -9308,7 +9321,7 @@
    "regra": "Face-Down Spells and Permanents",
    "titulo": "Virada para baixo: 2/2 sem nome, tipo nem habilidade",
    "status": "parcial",
-   "evidencia": "power/toughness = 2 (index.html:10340-10341), has() nega palavras-chave (10065), abilitiesOf vazio (10901), sem subtipo/custo (10089, 10118, 11742, 11876); rules.unit \"S54 · metamorfose: entra virada para baixo como 2/2 sem nada\"; elves.regras Leva 136 · teste de conformidade em cr.conformidade (leva CR1a)",
+   "evidencia": "power/toughness = 2 (index.html:10340-10341), has() nega palavras-chave (10065), abilitiesOf vazio (10901), sem subtipo/custo (10089, 10118, 11742, 11876); rules.unit \"S54 · metamorfose: entra virada para baixo como 2/2 sem nada\"; elves.regras Leva 136 · teste de conformidade em cr.conformidade (leva CR1a) · M-288 (CR2d.12): a virada para baixo não tem subtipo nem cor, e efeitos posteriores valem por cima",
    "falta": "só metamorfose; 708.2a (disfarce com ward {2}, manifestar, camuflar) não existe; o objeto guarda o nome real em o.name (a tela esconde). Cor e bônus de anexo corrigidos.",
    "esforco": "M",
    "depende": [
@@ -9317,7 +9330,8 @@
     "613"
    ],
    "testes": [
-    "CR 708.2 · permanente virada para baixo é 2/2 incolor: a cor impressa não vale, e bônus de Aura valem"
+    "CR 708.2 · permanente virada para baixo é 2/2 incolor: a cor impressa não vale, e bônus de Aura valem",
+    "CR 708.2 · virada para baixo não tem subtipo: o hino de Elfos não a alcança e \"exceto Elfos\" a alcança"
    ]
   },
   {
@@ -9385,11 +9399,19 @@
    "n": "708.10",
    "regra": "Face-Down Spells and Permanents",
    "titulo": "Virada para baixo que vira cópia",
-   "status": "ausente",
-   "falta": "sem cópia de permanente.",
+   "status": "parcial",
+   "falta": "a cópia não guarda um nome vazio (usa \"Criatura virada para baixo\")",
    "esforco": "P",
    "depende": [
     "707.4"
+   ],
+   "evidencia": "M-288 (CR2d.12): cópia de permanente virada para baixo copia os valores de virada para baixo",
+   "testes": [
+    "CR 613.2 · virada para baixo é a camada 1b: \"torna-se 0/1\" vale por cima do 2/2, e \"torna-se vermelha\" por cima do incolor",
+    "CR 708.2 · virada para baixo não tem subtipo: o hino de Elfos não a alcança e \"exceto Elfos\" a alcança",
+    "CR 613.3 · subtipo de agora: \"exceto Humanos\" alcança o Humano que virou Rã, e o metamorfo que virou Rã deixa de ser Elfo",
+    "CR 613.7 · virada para cima recebe carimbo novo: a estática dela vence um \"perde voar\" aplicado antes",
+    "CR 707.2 · copiar uma permanente virada para baixo copia a 2/2 sem habilidades e incolor, não a carta escondida"
    ]
   },
   {
