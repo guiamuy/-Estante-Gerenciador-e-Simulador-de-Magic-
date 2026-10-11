@@ -378,6 +378,19 @@ test('K-9 · arremeter (702.109): a arremetida ataca no turno em que entra e vol
   assert.equal(f.objects[c].zone, 'hand', 'voltou para a mão');
 });
 
+test('K-10 · recomeçar (702.133): a mágica volta do cemitério descartando uma carta e depois fica no exílio', () => {
+  cobre('jump-start');
+  const cartas = { ...CARDS, Ideia: { name: 'Ideia', type_line: 'Instant', mana_cost: '{1}{U}', cmc: 2, colors: ['U'], keywords: ['Jump-start'], oracle_text: 'Draw a card.\nJump-start' } };
+  const scripts = { ...SCRIPTS, Ideia: { name: 'Ideia', effects: [{ do: 'draw', amount: 1 }], example: { target: 'none', expect: { handDelta: 1 } } } };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 41, mode: 'assisted', manaCheck: false, cards: cartas, scripts, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active; let c; [s, c] = poe(s, a, 'Ideia', { zone: 'graveyard' });
+  s = act(s, E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === c && x.recomecarK));
+  for (let i = 0; i < 4 && s.stack.length; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  assert.equal(s.objects[c].zone, 'exile');
+});
+
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));

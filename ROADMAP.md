@@ -3942,6 +3942,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Testes:** `keywords.cr4.unit` (4, falham sem a leva), `combat.audit` K-9. Texto oficial: Mardu Scout (Oracle do Forge, 11/10/2026). Goldens idênticos; motor v109.
 - **Parcial declarado (702.109):** só da mão; aumento e redução de custo não valem para custo alternativo no caminho comum (pedido à trilha `motor`, o mesmo da K-8); cópia de mágica arremetida não leva a marca (707.10).
 
+**K-10 · Recomeçar (702.133)** 🟡 (leva K-10)
+- **Valor:** mágica instantânea ou feitiço com "Jump-start" pode ser conjurada de novo do cemitério, pagando o custo normal e descartando uma carta que você escolhe; depois fica no exílio.
+- **Aceite:** Radical Idea (texto oficial; script novo na biblioteca) do cemitério com uma oferta por carta da mão; a descartada vai ao cemitério antes de a mágica resolver; resolvida ou anulada, vai para o exílio; mão vazia não oferece; sem a palavra-chave, do cemitério não sai; uma Ilha não paga {1}{U}, duas pagam; a linha "Jump-start" conta como palavra-chave.
+- **Toca ponto comum:** `HANDLERS.cast` (a condição "vem do cemitério" aceita `recomecarK`; duas linhas a mais: `pagaRecomecarK` e a marca de exílio do lampejo, que é o mesmo texto de 702.34a); `cardFacts` (`recomecarK`, uma linha a mais).
+- **Testes:** `keywords.cr4.unit` (4, falham sem a leva), `combat.audit` K-10, `scripts.unit` S8 (Radical Idea). Texto oficial: Radical Idea (Oracle do Forge, 11/10/2026). Goldens idênticos; motor v109.
+- **Pedido à mesa (não bloqueia):** o botão diz "Conjurar" (sem "recomeçar"); o registro não diz de onde veio.
+
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

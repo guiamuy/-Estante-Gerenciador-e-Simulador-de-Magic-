@@ -5207,6 +5207,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'cascade', // K-7 · 702.85: da mágica na pilha, uma por instância ("Cascade, cascade")
   'evoke', // K-8 · 702.74: custo alternativo lido da linha "Evoke <custo>" (evocarImpressoK) e "ao entrar, se foi evocada, sacrifique-a"
   'dash', // K-9 · 702.109: custo alternativo "Dash <custo>"; a arremetida tem ímpeto e volta para a mão no próximo passo final
+  'jump-start', // K-10 · 702.133: conjurar do cemitério pagando o custo e descartando uma carta; exilada ao sair da pilha
   /* ↓ V · palavras-chave da trilha verbos */
   /* ↓ T · palavras-chave da trilha tipos */
 ];
@@ -6318,6 +6319,8 @@ const isTargeted = e => TARGETED.has(e.target) || (!!e.target && typeof e.target
     além do alvo. Cada uma é exercitada pelos testes de cenário. */
 const RAW_SCRIPTS = [
   /* ↓ K · scripts de carta da trilha keywords (texto oficial em .listas/oficiais-keywords.json) */
+  // K-10 · 702.133: o recomeçar vem da linha impressa ("Jump-start"); o script só diz o efeito
+  { name: 'Radical Idea', effects: [{ do: 'draw', amount: 1 }], example: { target: 'none', expect: { handDelta: 1 } } }, // "Draw a card. / Jump-start"
   /* ↓ V · scripts de carta da trilha verbos (texto oficial em .listas/oficiais-verbos.json) */
   // V-18 · 701.58 encobrir
   { name: 'Hide in Plain Sight', effects: [{ do: 'cloak', look: 5, amount: 2 }], // "Look at the top five cards of your library, cloak two of them, and put the rest on the bottom of your library in a random order."
@@ -15043,6 +15046,7 @@ function cardFacts(card) {
     power: num(card && card.power), toughness: num(card && card.toughness), loyalty: num(card && card.loyalty),
     cmc: (card && card.cmc) || 0, prot: protecaoImpressa(card),
     wardImpresso: wardImpressoK(card), // K-2 · 702.21: "Ward {N}" / "Ward—Pay N life." / descarte / sacrifício, da face da frente (undefined quando não tem)
+    recomecarK: recomecarImpressoK(card), // K-10 · 702.133: linha "Jump-start" (undefined quando não tem)
     arremeterK: arremeterImpressoK(card), // K-9 · 702.109: "Dash {1}{R}" (undefined quando não tem)
     evocarK: evocarImpressoK(card), // K-8 · 702.74: "Evoke {2}{U}" / "Evoke—Exile a green card from your hand." (undefined quando não tem)
     numerosK: numerosDaPalavraK(card), // K-6 · "Afterlife 2", "Modular 1"…: o N de cada palavra-chave numerada impressa (undefined quando não tem)
@@ -19155,7 +19159,7 @@ const HANDLERS = {
   cast(s, a, events = []) { // M-265 · recebe o registro (o replicar anota as cópias)
     if (!a.granted) { noPending(s); holder(s, a.p); } semFracao(s); // CR2c.6 · 608.2g: por efeito, quem decide conjura sem a prioridade
     const o = s.objects[a.oid];
-    const fromGraveyard = (a.flashback || a.disturb || a.escape || a.retrace || a.permissao != null) && o && o.zone === 'graveyard';
+    const fromGraveyard = (a.flashback || a.disturb || a.escape || a.retrace || a.recomecarK || a.permissao != null) && o && o.zone === 'graveyard'; // K-10 · recomeçar
     // S53 · carta plotada: conjura do exílio, sem pagar mana, num turno depois
     const fromPlot = a.plotted && o && o.zone === 'exile' && o.plotted != null && o.plotted < s.turn.number;
     if (a.plotted && !fromPlot) throw new RuleError('plot', 'esta carta não está plotada para um turno anterior');
@@ -19164,6 +19168,7 @@ const HANDLERS = {
     if (!o || o.owner !== a.p || !(o.zone === 'hand' || fromGraveyard || fromPlot || fromExile || (o.zone === 'command' && o.commander))) throw new RuleError('objeto', 'só conjura da mão ou da zona de comando');
     if (a.flashback && !flashbackOf(s, o)) throw new RuleError('lampejo', 'esta carta não tem lampejo do passado');
     if (a.retrace && !(s.facts[o.name].script || {}).retrace) throw new RuleError('retraçar', 'esta carta não tem retraçar'); // M-222 · 702.81
+    if (a.recomecarK) pagaRecomecarK(s, a, o); // K-10 · 702.133a: confere e descarta a carta escolhida (custo adicional)
     if (a.permissao != null) { // M-256 · conjurar do cemitério pela permissão de uma permanente (uma vez por turno, por permanente)
       const perm = permissoesDoCemiterio(s, a.p).find(x => x.oid === a.permissao);
       if (!perm || !permissaoServe(s, a.p, perm, o) || s.facts[o.name].types.includes('land')) throw new RuleError('permissão', 'nenhuma permanente sua deixa conjurar esta carta do cemitério agora');
@@ -19282,6 +19287,7 @@ const HANDLERS = {
     if (a.kick && reforco && reforco.replicar) { for (let i = 0; i < a.kick; i++) s.queued.push({ source: a.oid, name: o.name, controller: a.p, effects: spellEffects(s, s.objects[a.oid]), when: 'replicar', copia: true, copiaDeMagia: true, marcasMagia: marcasDaMagia(s.objects[a.oid]) }); events.push({ kind: 'replicar', name: o.name, amount: a.kick }); }
     s.spellsThisTurn = (s.spellsThisTurn || 0) + 1;
     if (a.flashback) s.objects[a.oid].flashback = true; // exila em vez de voltar ao cemitério
+    if (a.recomecarK) s.objects[a.oid].flashback = true; // K-10 · 702.133a: "exile this card instead of putting it anywhere else any time it would leave the stack" (o mesmo caminho do lampejo, 702.34a)
     if (a.omen) s.objects[a.oid].omen = true; // volta embaralhado para o grimório
     if (a.bestow) s.objects[a.oid].bestowed = true; // entra como aura, não como criatura
     if (a.faceDown) s.objects[a.oid].faceDown = true; // S54 · fica virada para baixo até você pagar a metamorfose
@@ -20397,6 +20403,13 @@ function legalActions(s, p, { adjudication = false } = {}) {
     return canPay(s, p, custo, castExtra(s, p, o, a.x || 0, a.targets || []));
   });
   /* ↓ K · ofertas de legalActions da trilha keywords (out.push) */
+  // K-10 · 702.133a · recomeçar: do cemitério, mágica instantânea ou feitiço, pagando o custo e descartando uma carta (a escolha é de quem paga)
+  for (const oid of s.zones[p].graveyard) {
+    const o = s.objects[oid], f = s.facts[o.name];
+    if (!f.recomecarK || !(f.types.includes('instant') || f.types.includes('sorcery')) || !(canSorcery || !isSorcerySpeed(f)) || f.semCusto || !payable(o, castExtra(s, p, o, 0))) continue;
+    const mao = s.zones[p].hand.slice(0, LIMITE_PAGAMENTOS);
+    for (const c of mao) casts(o).forEach(x => out.push({ ...x, recomecarK: true, pay: { ...(x.pay || {}), discard: [c] } }));
+  }
   /* ↓ V · ofertas de legalActions da trilha verbos (out.push) */
   if (!s.pending) for (const o of battlefield(s)) if (o.controller === p && podeVirarManifestada(s, o) && (!s.manaCheck || canPay(s, p, s.facts[o.name].cost))) out.push({ t: 'unmorph', p, oid: o.oid, manifest: true }); // V-17 · 701.40b
   /* ↓ T · ofertas de legalActions da trilha tipos (out.push) */
@@ -20800,6 +20813,24 @@ function arremeteuK(s, o) {
     entrou em `script.alt` na criação da partida (depois dos do script). */
 function altSemScriptK(f) { return f && !f.script ? altsImpressosK(f) : []; }
 Object.assign(EXPORTS_K, { evocarImpressoK, altDoEvocarK, arremeterImpressoK, altsImpressosK });
+/* K-10 · 702.133 recomeçar. "You may cast this card from your graveyard if the resulting spell is an instant or sorcery spell by
+   discarding a card as an additional cost to cast it" + "if this spell was cast using its jump-start ability, exile this card instead
+   of putting it anywhere else any time it would leave the stack". O custo de mana é o normal (com aumentos e reduções, 601.2f); o
+   descarte é custo adicional (é descarte: dispara insanidade e "quando você descarta"). */
+function recomecarImpressoK(card) {
+  const txt = String((card && (card.oracle_text || (card.faces && card.faces[0] && card.faces[0].oracle_text))) || '');
+  return txt.split('\n').some(l => /^jump-start$/i.test(l.replace(/\s*\([^)]*\)/g, '').trim())) || undefined;
+}
+/** Confere a conjuração por recomeçar e paga o descarte (a carta escolhida, da mão, que não é a própria). */
+function pagaRecomecarK(s, a, o) {
+  const f = s.facts[o.name];
+  if (!f.recomecarK || o.zone !== 'graveyard') throw new RuleError('recomeçar', 'esta carta não tem recomeçar');
+  if (!(f.types.includes('instant') || f.types.includes('sorcery'))) throw new RuleError('recomeçar', 'só mágica instantânea ou feitiço'); // "if the resulting spell is an instant or sorcery spell"
+  const c = a.pay && [].concat(a.pay.discard || [])[0];
+  if (!c || !s.zones[a.p].hand.includes(c) || [].concat(a.pay.discard).length !== 1) throw new RuleError('custo', 'descarte uma carta da mão para recomeçar');
+  descartaCarta(s, c);
+}
+Object.assign(EXPORTS_K, { recomecarImpressoK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-18 · 701.58 encobrir: como manifestar, mas a permanente virada para baixo tem salvaguarda {2} enquanto ficar virada (a); vira para
    cima do mesmo jeito (b–d, g) e as cartas vão uma de cada vez (e). 701.62 manifestar pavor: "Look at the top two cards of your
@@ -23858,6 +23889,7 @@ Object.assign(PALAVRA_PT, { afterlife: 'pós-vida' }); // K-6
 Object.assign(PALAVRA_PT, { cascade: 'cascata' }); // K-7
 Object.assign(PALAVRA_PT, { evoke: 'evocar' }); // K-8
 Object.assign(PALAVRA_PT, { dash: 'arremeter' }); // K-9
+Object.assign(PALAVRA_PT, { 'jump-start': 'recomeçar' }); // K-10
 /* ↓ V · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha verbos */
 const MARCADOR_PT_V = { p1p1: '+1/+1', m1m1: '−1/−1', loyalty: 'de lealdade', poison: 'de veneno' }; // V-7
 const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas por descreveEfeito)

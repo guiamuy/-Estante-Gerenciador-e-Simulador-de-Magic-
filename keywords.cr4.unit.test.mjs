@@ -512,3 +512,55 @@ test('CR 702.109a · o custo de arremeter é o que se paga: Floresta e Montanha 
 test('CR 702.109a · a linha "Dash <custo>" conta como palavra-chave na cobertura', () => {
   assert.equal(S.coverage(oficial('Mardu Scout')).level, 'completo');
 });
+
+/* ---------------- K-10 · 702.133 recomeçar ---------------- */
+const IDEA = () => ({ ...oficial('Radical Idea'), keywords: ['Jump-start'] });
+const ANULA = { name: 'Anula', type_line: 'Instant', mana_cost: '{U}{U}', cmc: 2, colors: ['U'], keywords: [], oracle_text: 'Counter target spell.' };
+const SC_ANULA = { name: 'Anula', effects: [{ do: 'counter', target: 'spell' }], example: { action: 'cast', target: 'enemy-spell', expect: { countered: true } } };
+
+test('CR 702.133a · recomeçar (Radical Idea, texto oficial): do cemitério, descartando uma carta escolhida; a mágica resolve e é exilada', () => {
+  assert.equal(E.recomecarImpressoK(oficial('Radical Idea')), true);
+  let s = partida({ 'Radical Idea': IDEA(), Urso: URSO }); const a = s.turn.active;
+  let r, u; [s, r] = poe(s, a, 'Radical Idea', 'graveyard'); [s, u] = poe(s, a, 'Urso', 'hand');
+  const ofertas = E.legalActions(s, a).filter(x => x.t === 'cast' && x.oid === r);
+  assert.ok(ofertas.length >= 2 && ofertas.every(x => x.recomecarK), 'uma oferta por carta da mão para descartar');
+  assert.ok(ofertas.some(x => x.pay.discard[0] === u));
+  const mao = s.zones[a].hand.length;
+  let t = act(s, ofertas.find(x => x.pay.discard[0] === u));
+  assert.equal(t.objects[u].zone, 'graveyard', 'o Urso foi descartado (custo adicional)');
+  t = resolve(t);
+  assert.equal(t.objects[r].zone, 'exile', 'recomeçada: exilada ao sair da pilha');
+  assert.equal(t.zones[a].hand.length, mao - 1 + 1, 'descartou uma e comprou uma');
+});
+
+test('CR 702.133a · recomeçada anulada também vai para o exílio; sem carta na mão, não há oferta; carta sem recomeçar não sai do cemitério', () => {
+  let s = partida({ 'Radical Idea': IDEA(), Urso: URSO, Anula: ANULA }, { Anula: SC_ANULA }); const a = s.turn.active;
+  s = J(s); s.zones[a].library.push(...s.zones[a].hand.splice(0)); for (const x of s.zones[a].library) s.objects[x].zone = 'library';
+  let r; [s, r] = poe(s, a, 'Radical Idea', 'graveyard');
+  assert.ok(!E.legalActions(s, a).some(x => x.t === 'cast' && x.oid === r), 'mão vazia: nada para descartar');
+  let u; [s, u] = poe(s, a, 'Urso', 'hand');
+  assert.throws(() => act(s, { t: 'cast', p: a, oid: r }), /só conjura da mão/, 'sem recomeçar, do cemitério não');
+  s = act(s, E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === r && x.recomecarK));
+  const d = 1 - a; let an; [s, an] = poe(s, d, 'Anula', 'hand'); s = J(s); s.turn.priority = d;
+  s = resolve(act(s, { t: 'cast', p: d, oid: an, targets: [{ oid: r }] }));
+  assert.equal(s.objects[r].zone, 'exile', 'anulada: exílio, não cemitério');
+});
+
+test('CR 702.133a · o custo de mana é o normal, com o descarte por cima (não é custo alternativo)', () => {
+  const deck = [{ name: 'Radical Idea', qty: 4, zone: 'main' }, { name: 'Island', qty: 26, zone: 'main' }];
+  let s = E.createGame({ format: 'livre', seed: 5, mode: 'assisted', manaCheck: true, cards: { Island: terra('Island'), 'Radical Idea': IDEA() }, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active; let r; [s, r] = poe(s, a, 'Radical Idea', 'graveyard'); [s] = poe(s, a, 'Island');
+  assert.ok(!E.legalActions(s, a).some(x => x.t === 'cast' && x.oid === r), 'uma Ilha não paga {1}{U}');
+  [s] = poe(s, a, 'Island');
+  const of = E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === r);
+  assert.ok(of && of.recomecarK, 'duas Ilhas pagam');
+  const t = act(s, of);
+  assert.equal(t.zones[a].battlefield.filter(x => t.objects[x].tapped).length, 2, '{1}{U} pago');
+});
+
+test('CR 702.133a · a linha "Jump-start" conta como palavra-chave na cobertura (o efeito da mágica continua pedindo script)', () => {
+  assert.equal(S.coverage({ name: 'Z', type_line: 'Creature — Elf', oracle_text: 'Jump-start' }).level, 'completo');
+  assert.equal(S.coverage(oficial('Radical Idea')).level, 'completo', 'Radical Idea tem script');
+});

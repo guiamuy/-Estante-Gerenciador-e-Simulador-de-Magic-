@@ -8450,13 +8450,20 @@
    "n": "702.133",
    "regra": "Keyword Abilities",
    "titulo": "Jump-Start",
-   "status": "ausente",
-   "falta": "Sem conjurar do cemitério pagando o custo normal mais descartar uma carta, exilando ao sair da pilha (702.133a). O lampejo do passado do motor já aceita custos extras (payExtraCosts em flashback, index.html:12256-12259); falta a chave própria usando o custo de mana da carta.",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "702.34 lampejo do passado"
    ],
-   "cartas": "comum (Guilds of Ravnica; algumas em Pauper)"
+   "cartas": "comum (Guilds of Ravnica; algumas em Pauper)",
+   "evidencia": "K-10: 'jump-start' em KEYWORDS; recomecarImpressoK lê a linha \"Jump-start\" (cardFacts.recomecarK). Oferta (legalActions, âncora ↓ K): do cemitério, só mágica instantânea ou feitiço, no momento certo, com o custo de mana normal pagável (com aumentos e reduções, 601.2f), uma ação por carta da mão a descartar (a escolha é de quem paga; a mesa pergunta \"Qual carta você descarta?\"). HANDLERS.cast: pagaRecomecarK confere e descarta (custo adicional: é descarte, dispara insanidade); a marca de exílio ao sair da pilha é a do lampejo (702.34a, o mesmo texto): resolvida ou anulada, vai para o exílio. Carta exemplo: Radical Idea (Oracle do Forge, 11/10/2026).",
+   "testes": [
+    "CR 702.133a · recomeçar (Radical Idea, texto oficial): do cemitério, descartando uma carta escolhida; a mágica resolve e é exilada",
+    "CR 702.133a · recomeçada anulada também vai para o exílio; sem carta na mão, não há oferta; carta sem recomeçar não sai do cemitério",
+    "CR 702.133a · o custo de mana é o normal, com o descarte por cima (não é custo alternativo)",
+    "CR 702.133a · a linha \"Jump-start\" conta como palavra-chave na cobertura (o efeito da mágica continua pedindo script)",
+    "K-10 · recomeçar (702.133): a mágica volta do cemitério descartando uma carta e depois fica no exílio"
+   ]
   },
   {
    "n": "702.134",
