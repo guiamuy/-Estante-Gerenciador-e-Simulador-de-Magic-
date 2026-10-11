@@ -5286,6 +5286,8 @@ const EFFECTS = {
   mare_alta: { fields: [], targets: ['self'] }, // M-262 · High Tide
   topo_ou_fundo_do_dono: { fields: [], targets: ['permanent'] }, // M-264 · "The owner of target nonland permanent puts it on their choice of the top or bottom of their library"
   revelar_topo_para_mao: { fields: [], targets: ['self'] }, // M-263 · Dark Confidant
+  exilar_topo_conjuravel: { fields: ['amount'], targets: ['self'] }, // M-270 · Lukka +1: exila do topo; as criaturas exiladas podem ser conjuradas do exílio enquanto você controlar um planeswalker do subtipo
+  criaturas_causam_dano: { fields: [], targets: ['each-opponent'] }, // M-270 · Lukka −7: cada criatura sua causa dano igual ao poder a cada oponente (a fonte é a criatura)
   tirar_tempo: { fields: [], targets: ['self'] }, // M-269 · 702.62 suspender: na manutenção do dono, tira um marcador de tempo
   jogar_suspensa: { fields: [], targets: ['self'] }, // M-269 · "when the last is removed, they may play it without paying its mana cost"
   esconderijo: { fields: ['count'], targets: ['self'] }, // M-268 · 702.75 hideaway: olha N, exila uma virada para baixo ligada à permanente, o resto no fundo em ordem aleatória
@@ -6007,6 +6009,7 @@ function effectErrors(effects, label, opcional) {
       if (e.ate != null && !duracaoValida(e.ate)) errs.push(`${label} ${i + 1}: duração "${typeof e.ate === 'object' ? JSON.stringify(e.ate) : e.ate}" desconhecida`);
     }
     if (e.do === 'keyword' && !KEYWORDS.includes(String(e.keyword || '').toLowerCase())) errs.push(`${label} ${i + 1}: palavra-chave "${e.keyword}" não é resolvida pelo motor`);
+    if (e.do === 'exilar_topo_conjuravel' && !(typeof e.enquantoControlar === 'string' && e.enquantoControlar.trim())) errs.push(`${label} ${i + 1}: diga o subtipo de planeswalker que mantém a permissão (enquantoControlar)`); // M-270
     if (e.suspende != null && !(e.do === 'counter' && Number.isInteger(e.suspende) && e.suspende > 0)) errs.push(`${label} ${i + 1}: "suspende" (marcadores de tempo) só vale para anular, com um inteiro positivo`); // M-269
     if (e.unless && !e.unless.mana) errs.push(`${label} ${i + 1}: "a menos que pague" precisa de um custo de mana`);
     // S57 · duração do bônus: sem isso vale até o fim do turno
@@ -6665,10 +6668,12 @@ const RAW_SCRIPTS = [
     effects: [{ do: 'lose', amount: 2, target: 'player', upTo: true, targetCount: 2 }, { do: 'sacrificar', tipos: ['creature'], alvosJogadores: 'anteriores' }, // "Any number of target players each lose 2 life and sacrifice a creature of their choice."
       { do: 'add_mana', symbols: ['B', 'B'] }, { do: 'draw', amount: 1 }] }], // "You add {B}{B} and draw a card."
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // M-270 · texto oficial em .listas/oficiais-commander.json (05/10/2026; fonte única mtg.wtf, conferida de novo em 10/10/2026)
   { name: 'Lukka, Coppercoat Outcast', loyalty: [
-    { cost: -2, label: '−2: Exila uma criatura sua e revela até uma criatura de valor maior', effects: [{ do: 'exile', target: 'creature-you-control' }, { do: 'reveal_until', target: 'first-target', who: 'self', match: 'creature-greater-mv', rest: 'bottom-random' }] }],
-    covers: 'partial', note: 'faltam o +1 (exilar três e conjurar as criaturas do exílio enquanto controlar um Lukka) e o −7 (cada criatura sua causa dano igual ao poder a cada oponente)',
-    example: { action: 'loyalty:0', target: 'own-creature', expect: { targetExiled: true } } },
+    { cost: 1, label: '+1: Exila as três de cima; as criaturas podem ser conjuradas do exílio enquanto você controlar um Lukka', effects: [{ do: 'exilar_topo_conjuravel', amount: 3, enquantoControlar: 'Lukka' }] },
+    { cost: -2, label: '−2: Exila uma criatura sua e revela até uma criatura de valor maior', effects: [{ do: 'exile', target: 'creature-you-control' }, { do: 'reveal_until', target: 'first-target', who: 'self', match: 'creature-greater-mv', rest: 'bottom-random' }] },
+    { cost: -7, label: '−7: Cada criatura sua causa dano igual ao poder a cada oponente', effects: [{ do: 'criaturas_causam_dano', target: 'each-opponent' }] }],
+    example: { action: 'loyalty:1', target: 'own-creature', expect: { targetExiled: true } } },
   // CR2c.5 · texto oficial em .listas/oficiais-commander.json (consulta de 05/10/2026)
   { name: 'Patch Up', effects: [{ do: 'reanimate', target: 'creature-in-your-graveyard', upTo: true, targetCount: 3, totalMvMax: 3 }],
     example: { target: 'own-graveyard-creature', expect: { reanimated: true } } },
@@ -14172,7 +14177,7 @@ function zoneList(s, obj, zone) { return zone === 'stack' ? s.stack : s.zones[ob
 const VOLTA_COMANDO = ['graveyard', 'exile', 'hand', 'library'];
 /** Leva 105 · marcas que a conjuração põe na carta (e que não atravessam outra mudança de zona). */
 const MARCAS_DA_CONJURACAO = ['xPaid', 'bestowed', 'evidenced', 'faceDown', 'flashback', 'paidAdditional', 'discardedNonland', 'altIndex', 'mode',
-  'bargained', 'omen', 'stormCopies', 'chosenColor', 'plotted', 'playableFromExile', 'jogavelSoNesteTurno', 'escondida', 'suspensa', 'suspensaImpeto', 'sneakAtaque', 'kicked', 'modes', 'castFrom']; // 'revealed' fica: a habilidade do Martyr of Sands lê depois do sacrifício
+  'bargained', 'omen', 'stormCopies', 'chosenColor', 'plotted', 'playableFromExile', 'jogavelSoNesteTurno', 'escondida', 'suspensa', 'suspensaImpeto', 'jogavelSe', 'sneakAtaque', 'kicked', 'modes', 'castFrom']; // 'revealed' fica: a habilidade do Martyr of Sands lê depois do sacrifício
 /* ---------------- CR2-G R5c · 701.8/614 · "se fosse destruída" ---------------- */
 /** O que acontece se `o` fosse destruída agora: 'indestrutivel' (não é destruída), { totem: aura } (702.89: a Aura com
  * armadura de totem é destruída no lugar e o dano sai), 'regenerou' (701.15: um escudo de regeneração é gasto) ou 'destruida'.
@@ -14745,6 +14750,8 @@ function valoresDeX(s, qtdX, pagavel) {
 }
 /** M-267 · custo adicional "exile qualquer número de cartas [cor] da sua mão; esta mágica custa {N} a menos por carta" (March of Swirling
  * Mist): as cartas que servem e o desconto, que só tira do genérico (ruling: nunca abaixo do custo colorido). */
+/** M-270 · pode jogar do exílio: a permissão é do jogador e, se veio com condição ("as long as you control a Lukka planeswalker"), ela vale agora. */
+const jogavelDoExilio = (s, p, o) => !!o && o.zone === 'exile' && o.playableFromExile === p && (!o.jogavelSe || battlefield(s).some(x => x.controller === p && !x.faceDown && (s.facts[x.name].types || []).includes('planeswalker') && temSubtipo(s, x.oid, o.jogavelSe)));
 const exilaveisParaDesconto = (s, p, o) => { const em = ((s.facts[o.name] || {}).script || {}).exilaDaMao; return em ? exilaveisDaMao(s, p, em.cor, o.oid) : []; };
 const descontoExilaMao = (s, o, k, extra) => { const em = ((s.facts[o.name] || {}).script || {}).exilaDaMao; if (!em || !k) return 0;
   return Math.min(Math.max(0, (s.facts[o.name].cost.generic || 0) + extra), k * em.reduz); };
@@ -15994,6 +16001,18 @@ function applyEffect(s, src, eff, tgt, events) {
       const fichas = battlefield(s).filter(o => o.token && o.controller === quem && o.name === nome && o.oid !== obj.oid);
       for (const f of fichas) moveObject(s, f.oid, 'exile');
       note({ amount: fichas.length, name: nome }); break;
+    }
+    case 'exilar_topo_conjuravel': { // M-270 · "Exile the top three cards of your library. Creature cards exiled this way gain 'You may cast this card from exile as long as you control a Lukka planeswalker.'"
+      const topo = s.zones[ctrl].library.slice(0, amountOf(s, src, eff.amount));
+      let criaturas = 0;
+      for (const oid of topo) { moveObject(s, oid, 'exile'); const c = s.objects[oid];
+        if ((s.facts[c.name].types || []).includes('creature')) { c.playableFromExile = ctrl; c.jogavelSe = eff.enquantoControlar; criaturas++; } }
+      note({ amount: topo.length, target: topo.map(x => s.objects[x].name).join(', ') }); break;
+    }
+    case 'criaturas_causam_dano': { // M-270 · "Each creature you control deals damage equal to its power to each opponent." — cada criatura é a fonte (vínculo com a vida, infectar, prevenção por cor)
+      let total = 0;
+      for (const c of battlefield(s).filter(x => x.controller === ctrl && isCreature(s, x))) { const n = power(s, c); if (n > 0) { applyEffect(s, c, { do: 'damage', amount: n, target: 'each-opponent' }, null, events); total += n; } }
+      note({ amount: total }); break;
     }
     case 'tirar_tempo': { // M-269 · 702.62a: tira um marcador de tempo; tirado o último, dispara "pode jogá-la sem pagar"
       const carta = s.objects[src.ability ? src.source : src.oid];
@@ -17394,7 +17413,7 @@ const HANDLERS = {
     if (!a.granted) { noPending(s); holder(s, a.p); } // M-268 · "you may play" de um efeito acontece durante a resolução
     // S61 · Cavernas das Runas: a carta exilada pode ser jogada de lá
     const exilada = s.objects[a.oid];
-    const doExilio = exilada && exilada.zone === 'exile' && exilada.playableFromExile === a.p && exilada.owner === a.p;
+    const doExilio = jogavelDoExilio(s, a.p, exilada) && exilada.owner === a.p; // M-270
     const o = doExilio ? exilada : owns(s, a.p, a.oid, 'hand');
     if (!s.facts[o.name].types.includes('land')) throw new RuleError('tipo', 'não é terreno');
     if (s.turn.active !== a.p || (!a.granted && (!isMain(s) || s.stack.length))) throw new RuleError('tempo', 'terreno só na sua fase principal, com a pilha vazia'); // M-268 · por efeito: só no seu turno (305.2)
@@ -17416,7 +17435,7 @@ const HANDLERS = {
     const fromPlot = a.plotted && o && o.zone === 'exile' && o.plotted != null && o.plotted < s.turn.number;
     if (a.plotted && !fromPlot) throw new RuleError('plot', 'esta carta não está plotada para um turno anterior');
     // S61 · Cavernas das Runas: conjura do exílio pagando o custo normal
-    const fromExile = o && o.zone === 'exile' && o.playableFromExile === a.p;
+    const fromExile = jogavelDoExilio(s, a.p, o); // M-270
     if (!o || o.owner !== a.p || !(o.zone === 'hand' || fromGraveyard || fromPlot || fromExile || (o.zone === 'command' && o.commander))) throw new RuleError('objeto', 'só conjura da mão ou da zona de comando');
     if (a.flashback && !flashbackOf(s, o)) throw new RuleError('lampejo', 'esta carta não tem lampejo do passado');
     if (a.retrace && !(s.facts[o.name].script || {}).retrace) throw new RuleError('retraçar', 'esta carta não tem retraçar'); // M-222 · 702.81
@@ -18322,7 +18341,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
   }
   // S61 · Cavernas das Runas: as cartas exiladas que você pode jogar
   for (const oid of s.zones[p].exile) {
-    const o = s.objects[oid]; if (!o || o.playableFromExile !== p) continue;
+    const o = s.objects[oid]; if (!jogavelDoExilio(s, p, o)) continue; // M-270
     const f = s.facts[o.name];
     if (f.types.includes('land')) { if (canSorcery && s.players[p].landsPlayed < 1) out.push({ t: 'play_land', p, oid }); continue; }
     if ((canSorcery || !isSorcerySpeed(f)) && payable(o, castExtra(s, p, o, 0))) casts(o).forEach(x => out.push(x));
@@ -21185,6 +21204,8 @@ function descreveEfeito(e) {
     }
     case 'sacrifice_each': return 'cada jogador sacrifica uma permanente à sua escolha';
     case 'exilar_fichas_mesmo_nome': return 'exila as fichas de mesmo nome que esse jogador controla'; // M-258
+    case 'exilar_topo_conjuravel': return `exila as ${qtd(e.amount)} cartas de cima; as criaturas exiladas assim podem ser conjuradas do exílio enquanto você controlar um planeswalker ${e.enquantoControlar}`; // M-270
+    case 'criaturas_causam_dano': return 'cada criatura que você controla causa dano igual ao poder dela a cada oponente'; // M-270
     case 'esconderijo': return `olha as ${qtd(e.count)} cartas de cima e exila uma virada para baixo; o resto vai para o fundo em ordem aleatória`; // M-268
     case 'jogar_escondida': return `pode jogar a carta escondida sem pagar o custo de mana${e.seAtacouCom ? ` se você atacou com ${e.seAtacouCom} ou mais criaturas neste turno` : ''}`; // M-268
     case 'repartir_topo': return `olha as ${qtd(e.count)} cartas de cima e põe uma em cada destino, em ordem: ${(e.destinos || []).map(d => ({ hand: 'mão', 'library-bottom': 'fundo do grimório', 'library-top': 'topo do grimório', graveyard: 'cemitério', exile: 'exílio', 'exile-playable-turn': 'exílio (pode jogá-la neste turno)' })[d] || d).join(', ')}`; // M-267

@@ -3294,6 +3294,13 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Golden:** idênticas, sem regravar. Versão não sobe (Delay era parcial).
 - **Próximo:** M-270 — Lukka completo (+1 e −7).
 
+**M-270 · R11 · Lukka completo: permissão de conjurar do exílio com condição e dano pela força de cada criatura** ✅ (leva M-270, motor v96, sem mudança no que existe) — 2 testes de unidade.
+- **Regra:** verbo `exilar_topo_conjuravel { amount, enquantoControlar }`: exila do topo e as cartas de criatura ganham "pode conjurar do exílio enquanto você controlar um planeswalker [subtipo]"; a permissão é conferida num lugar só (oferta, conjuração e jogar terreno do exílio) e volta a valer com outro planeswalker do mesmo subtipo. Verbo `criaturas_causam_dano`: cada criatura sua causa dano igual ao poder a cada oponente, sendo ela a fonte (vínculo com a vida, infectar e prevenção por cor valem).
+- **Cartas cobertas (completas):** Lukka, Coppercoat Outcast (era parcial: faltavam o +1 e o −7; texto oficial em `.listas/oficiais-commander.json`, 05/10/2026, fonte única mtg.wtf).
+- **Medição:** Malcolm + Kediss 97% → **98%** (completo 98 · parcial 2 · manual 0). **Mapa:** sem mudança de status.
+- **Golden:** idênticas, sem regravar. Versão não sobe (o Lukka era parcial).
+- **Próximo:** M-271 — cópia de mágica na resolução com lampejo (Sevinne's Reclamation).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
