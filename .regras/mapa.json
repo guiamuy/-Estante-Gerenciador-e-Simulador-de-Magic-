@@ -7582,14 +7582,23 @@
    "n": "702.74",
    "regra": "Keyword Abilities",
    "titulo": "Evoke",
-   "status": "ausente",
-   "falta": "Sem custo alternativo \"evocado\" que marca a permanente e dispara \"ao entrar, sacrifique\" (702.74a). O alt de script existe (mana + efeitos), falta o vínculo com o gatilho de entrada.",
+   "status": "parcial",
+   "falta": "Só da mão (o motor oferece custo alternativo só para carta na mão; 702.74a vale em toda zona de onde a carta pode ser conjurada). Cópia de mágica evocada não copia a marca (707.10). Aumentos e reduções de custo não se aplicam a custo alternativo no caminho comum (payAlt/canPayAlt, 601.2f): pedido à trilha motor. Formas de custo além de mana e \"Exile a <cor> card from your hand\" ficam para o script.",
    "esforco": "P",
    "depende": [
     "118.9",
     "603.6"
    ],
-   "cartas": "comum (Mulldrifter, elementais de Modern Horizons 2)"
+   "cartas": "comum (Mulldrifter, elementais de Modern Horizons 2)",
+   "evidencia": "K-8: 'evoke' em KEYWORDS; evocarImpressoK lê \"Evoke {custo}\" e \"Evoke—Exile a <cor> card from your hand.\" da face da frente (cardFacts.evocarK); o custo entra como mais um custo alternativo (script.alt na criação da partida, depois dos do script; altSemScriptK para carta sem script), pago por payAlt; a conjuração marca evocadaK (MARCAS_DA_CONJURACAO: vai da pilha ao campo e some em outra mudança de zona, 400.7). GATILHOS_DE_PALAVRA_K.evoke gera \"quando entra\" só na permanente evocada com a habilidade impressa (instanciasK); a resolução (evocar_sacrifica) confere de novo a mesma encarnação evocada (603.4) e quem a controla a sacrifica. Cobertura: a linha conta como palavra-chave (palavraNaLinhaK). Cartas exemplo: Mulldrifter, Endurance (Oracle do Forge, 11/10/2026).",
+   "testes": [
+    "CR 702.74a · evocar (Mulldrifter, texto oficial): a mesa oferece o custo de evocar; a evocada entra, compra duas e é sacrificada; pelo custo normal, fica",
+    "CR 702.74a · o custo de evocar é o que se paga (601.2f): três terrenos pagam a evocada, não a de custo cheio",
+    "CR 702.74a · evocar com custo que não é mana (Endurance, texto oficial: \"Evoke—Exile a green card from your hand.\"): só com outra carta verde na mão; ela é exilada",
+    "CR 702.74a / 603.4 / 400.7 · a evocada que sai do campo antes do gatilho resolver não é sacrificada; de volta, é outro objeto e fica",
+    "CR 702.74a · a linha \"Evoke <custo>\" conta como palavra-chave na cobertura; custo que o motor não paga, não",
+    "K-8 · evocar (702.74): a criatura evocada é sacrificada ao entrar; pelo custo normal, fica no campo"
+   ]
   },
   {
    "n": "702.75",

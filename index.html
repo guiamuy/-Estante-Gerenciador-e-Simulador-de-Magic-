@@ -5205,6 +5205,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'exalted', // K-5 · 702.83: "quando uma criatura sua ataca sozinha, ela recebe +1/+1" (exaltadoK), uma por instância
   'afterlife', // K-6 · 702.135: "Afterlife N" — o N vem do texto (numerosDaPalavraK)
   'cascade', // K-7 · 702.85: da mágica na pilha, uma por instância ("Cascade, cascade")
+  'evoke', // K-8 · 702.74: custo alternativo lido da linha "Evoke <custo>" (evocarImpressoK) e "ao entrar, se foi evocada, sacrifique-a"
   /* ↓ V · palavras-chave da trilha verbos */
   /* ↓ T · palavras-chave da trilha tipos */
 ];
@@ -5365,6 +5366,7 @@ const EFFECTS = {
   volta_com_marcador: { fields: ['marcador'], targets: [] }, // K-4 · persistir e imortal (gerado pelo motor)
   exaltado: { fields: ['criatura'], targets: [] }, // K-5 · exaltado (gerado pelo motor)
   cascata: { fields: ['mv'], targets: [] }, // K-7 · cascata (gerado pelo motor)
+  evocar_sacrifica: { fields: ['z'], targets: [] }, // K-8 · 702.74a · "its controller sacrifices it" (gerado pelo motor)
   /* ↓ V · efeitos da trilha verbos */
   // V-17 · 701.40 manifestar: a carta do topo do seu grimório entra virada para baixo como criatura 2/2 (uma de cada vez; `amount` opcional, padrão 1; `marcadores`: "then put N +1/+1 counters on it")
   manifest: { fields: [], targets: ['self'] },
@@ -7606,7 +7608,10 @@ function wardCustoErrosK(c, varias) {
 Object.assign(EXPORTS_K_SC, { wardCustoErrosK });
 /** K-6 · palavras-chave de KEYWORDS que levam número na linha impressa ("Afterlife 2"): na cobertura, a linha conta como palavra-chave
     com o número. Declaração de função (vale antes da linha, no KW_LINE). */
-function palavraNaLinhaK(k) { return ['afterlife'].includes(k) ? `${k} \\d+` : k; }
+function palavraNaLinhaK(k) {
+  if (k === 'evoke') return 'evoke(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*exile an? (?:white|blue|black|red|green) card from your hand\\.?)'; // K-8 · só as formas que o motor paga
+  return ['afterlife'].includes(k) ? `${k} \\d+` : k;
+}
 /* ↓ V · exportações de scripts.js da trilha verbos */
 // V-6 · evento "ficou monstruosa" (701.37): da própria permanente
 EVENTOS_DE_OBJETO.push('monstruosa'); OBJETOS_DO_EVENTO.monstruosa = ['self']; GATILHO_EVENTO['becomes-monstrous'] = { evento: 'monstruosa', objeto: 'self' }; TRIGGER_PT['becomes-monstrous'] = 'quando fica monstruosa';
@@ -14919,6 +14924,7 @@ function cardFacts(card) {
     power: num(card && card.power), toughness: num(card && card.toughness), loyalty: num(card && card.loyalty),
     cmc: (card && card.cmc) || 0, prot: protecaoImpressa(card),
     wardImpresso: wardImpressoK(card), // K-2 · 702.21: "Ward {N}" / "Ward—Pay N life." / descarte / sacrifício, da face da frente (undefined quando não tem)
+    evocarK: evocarImpressoK(card), // K-8 · 702.74: "Evoke {2}{U}" / "Evoke—Exile a green card from your hand." (undefined quando não tem)
     numerosK: numerosDaPalavraK(card), // K-6 · "Afterlife 2", "Modular 1"…: o N de cada palavra-chave numerada impressa (undefined quando não tem)
     // CR 202.1b / 118.6: carta sem custo de mana (Living End, Lotus Bloom) tem custo impagável, não custo zero
     // (só quando o dado diz valor de mana 0: registro sem o campo de custo mas com valor de mana conhecido não é "sem custo")
@@ -15222,6 +15228,7 @@ function createGame(setup) {
     if (sc.evidence) f.script.evidence = sc.evidence; // S41 · colher provas
     if (sc.modes) f.script.modes = sc.modes;
     if (sc.alt) f.script.alt = sc.alt;
+    if (f.evocarK) f.script.alt = (f.script.alt || []).concat([altDoEvocarK(f.evocarK)]); // K-8 · 702.74a: evocar é mais um custo alternativo, depois dos do script
     if (sc.flashback) f.script.flashback = sc.flashback;
     if (sc.escape) f.script.escape = sc.escape; // S48 · fuga
     if (sc.discount) f.script.discount = sc.discount; // S49 · desconto por condição de campo
@@ -16117,7 +16124,7 @@ function flipTo(s, o, faceName) {
 function flipToFront(s, o) { if (o.frontName) { o.name = o.frontName; delete o.frontName; delete o.omen; } }
 
 /* ---------------- S16 · custos alternativos e lampejo do passado ---------------- */
-const altCosts = (s, o) => ((s.facts[o.name].script || {}).alt) || [];
+const altCosts = (s, o) => ((s.facts[o.name].script || {}).alt) || altSemScriptK(s.facts[o.name]); // K-8 · carta sem script com "Evoke" (Toca ponto comum: altCosts)
 const flashbackOf = (s, o) => (s.facts[o.name].script || {}).flashback;
 const escapeOf = (s, o) => (s.facts[o.name].script || {}).escape; // S48 · fuga
 /** CR2c.4 · "an Island card": carta com o subtipo na linha de tipo (Ilha básica, Tropical Island…). */
@@ -17697,6 +17704,12 @@ function applyEffect(s, src, eff, tgt, events) {
       break;
     }
     /* ↓ K · casos de applyEffect da trilha keywords */
+    case 'evocar_sacrifica': { // K-8 · 702.74a: confere de novo na resolução (603.4) que é a mesma permanente, evocada; quem a controla a sacrifica
+      const c = s.objects[src.ability ? src.source : src.oid];
+      if (!c || c.zone !== 'battlefield' || (c.zc || 0) !== eff.z || !c.evocadaK) { events.push({ kind: 'effect', do: 'evocar_sacrifica', name: src.name, failed: true }); break; }
+      events.push({ kind: 'effect', do: 'evocar_sacrifica', name: src.name, target: c.name });
+      sacrifice(s, c.oid, events); break;
+    }
     case 'cascata': { // K-7 · 702.85a
       const lib = s.zones[ctrl].library, exiladas = []; let achada = null;
       while (lib.length) { const x = lib[0]; moveObject(s, x, 'exile'); exiladas.push(x); const fx = s.facts[s.objects[x].name] || {};
@@ -19104,6 +19117,7 @@ const HANDLERS = {
     if (a.emenda) { s.objects[a.oid].emendas = emendasDe(s, a.emenda); events.push({ kind: 'effect', do: 'reveal', name: o.name, target: a.emenda.map(x => s.objects[x].name).join(', ') }); } // M-274 · reveladas; continuam na mão
     if (a.kick && !reforco.replicar) s.objects[a.oid].kicked = a.kick; // CR 702.33d
     if (a.alt != null && (altCosts(s, o)[a.alt] || {}).effects) s.objects[a.oid].altIndex = a.alt; // Q11 · sobrecarga
+    if (alt && alt.evocarK) s.objects[a.oid].evocadaK = true; // K-8 · 702.74a: "if its evoke cost was paid" (a marca vai com ela da pilha para o campo)
     // S34 · tempestade: copia a mágica uma vez por mágica conjurada antes neste turno
     if (a.x) s.objects[a.oid].xPaid = a.x; // S50 · quanto de X foi pago
     // Leva 106 · tempestade (702.40): as cópias vão para a pilha por cima da original, cada uma com alvo próprio
@@ -20482,6 +20496,9 @@ const GATILHOS_DE_PALAVRA_K = {
   // spell's mana value. Then put all cards exiled this way that weren't cast on the bottom of your library in a random order." O valor de
   // mana é o da mágica ao disparar (com o X escolhido, 202.3e); a habilidade existe mesmo que a mágica saia da pilha.
   cascade: (s, o) => ({ kind: 'triggered', when: 'cast-self', palavraK: 'cascade', effects: [{ do: 'cascata', mv: valorDaMagicaK(s, o) }] }),
+  // 702.74a · "When this permanent enters, if its evoke cost was paid, its controller sacrifices it." Só existe na permanente evocada
+  // (instanciasK); a resolução confere de novo (603.4) e só sacrifica a mesma encarnação (400.7).
+  evoke: (s, o) => ({ kind: 'triggered', when: 'etb', palavraK: 'evoke', effects: [{ do: 'evocar_sacrifica', z: (o && o.zc) || 0 }] }),
   afterlife: (s, o, i) => ({ kind: 'triggered', when: 'dies', palavraK: 'afterlife', effects: [{ do: 'token', amount: numeroDaPalavraK(s, o, 'afterlife', i), token: { name: 'Spirit', types: ['creature'], subtypes: ['Spirit'], colors: ['W', 'B'], power: 1, toughness: 1, keywords: ['flying'] } }] }),
 };
 /** As palavras-chave da tabela que algum script desta partida pode conceder. Cada fato é lido uma vez (WeakMap pelo próprio fato, que
@@ -20500,6 +20517,10 @@ function palavrasConcedidasK(s) {
 /** Quantas instâncias da palavra-chave `k` a permanente tem agora: a impressa (se não perdeu as habilidades), cada marcador (122.1b),
     a da mutação e cada efeito contínuo que a concede depois do corte (613.7); zero quando has() diz que não tem. */
 function instanciasK(s, o, k) {
+  if (k === 'evoke') { // K-8 · 702.74a: só a evocada ("if its evoke cost was paid", 603.4), enquanto tem a habilidade impressa
+    const f = o && s.facts[o.name]; if (!f || !f.evocarK || !o.evocadaK || o.zone !== 'battlefield' || o.faceDown) return 0;
+    return ((f.kw || []).includes('evoke') ? has(s, o, 'evoke') : !semImpressas(s, o)) ? 1 : 0; // sem a palavra na lista da Scryfall (dado só com o texto), vale a linha impressa
+  }
   if (o && o.zone !== 'battlefield' && k in PALAVRAS_DE_SAIDA_K) return ((o.ultima || {}).palavrasK || {})[k] || 0; // K-4 · 603.10a: como era no campo
   if (k in PALAVRAS_DA_PILHA_K) { const f0 = o && s.facts[o.name]; return o && o.zone === 'stack' && !o.ability && f0 && (f0.kw || []).includes(k) ? Math.max(1, ((f0.numerosK || {})[k] || []).length) : 0; } // K-7 · cascata: só na pilha (702.85a)
   const f = o && s.facts[o.name]; if (!f || o.faceDown || o.zone !== 'battlefield') return 0;
@@ -20572,6 +20593,31 @@ function cascataAoFundoK(s, p, oids) {
   for (const x of resto) moveObject(s, x, 'library', { top: false });
 }
 Object.assign(EXPORTS_K, { valorDaMagicaK });
+/* K-8 · 702.74 evocar. "Evoke [cost]" = "você pode conjurar esta carta pagando [custo] em vez do custo de mana" + "quando esta permanente
+   entra, se o custo de evocar foi pago, quem a controla a sacrifica". O custo segue 601.2b/601.2f–h pelo caminho dos custos alternativos
+   (payAlt); a marca `evocadaK` é da conjuração (MARCAS_DA_CONJURACAO): vai da pilha para o campo e some em qualquer outra mudança de zona. */
+MARCAS_DA_CONJURACAO.push('evocadaK');
+const COR_DO_NOME_K = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
+const COR_PT_K = { W: 'branca', U: 'azul', B: 'preta', R: 'vermelha', G: 'verde' };
+/** O custo de evocar impresso na face da frente: { mana: '{2}{U}' } ou { exileHandColor: 'G' } ("Evoke—Exile a green card from your
+    hand."). Forma que o motor não paga fica de fora (a carta declara no script). */
+function evocarImpressoK(card) {
+  const txt = String((card && (card.oracle_text || (card.faces && card.faces[0] && card.faces[0].oracle_text))) || '');
+  for (const l0 of txt.split('\n')) {
+    const l = l0.replace(/\s*\([^)]*\)/g, '').trim(); let m;
+    if ((m = l.match(/^Evoke\s+((?:\{[0-9WUBRGC]+\})+)$/))) return { mana: m[1] };
+    if ((m = l.match(/^Evoke\s*[—-]\s*Exile an? (white|blue|black|red|green) card from your hand\.?$/i))) return { exileHandColor: COR_DO_NOME_K[m[1].toLowerCase()] };
+  }
+  return undefined;
+}
+/** O custo alternativo que a palavra-chave dá (o rótulo é o da mesa). */
+function altDoEvocarK(c) {
+  return { label: c.mana ? `Evocar ${c.mana}` : `Evocar: exilar uma carta ${COR_PT_K[c.exileHandColor]} da mão`, cost: { ...c }, evocarK: true };
+}
+/** Carta sem script (só palavras-chave, coberta pelo texto): o custo de evocar impresso é o único alternativo. Com script, ele já
+    entrou em `script.alt` na criação da partida (depois dos do script). */
+function altSemScriptK(f) { return f && !f.script && f.evocarK ? [altDoEvocarK(f.evocarK)] : []; }
+Object.assign(EXPORTS_K, { evocarImpressoK, altDoEvocarK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-17 · 701.40 manifestar. A carta entra no campo virada para baixo: criatura 2/2 sem texto, nome, subtipos nem custo de mana (a);
    é permanente manifestada enquanto ficar virada para baixo. Com prioridade, quem a controla pode virá-la para cima pagando o custo de
@@ -23555,6 +23601,7 @@ Object.assign(PALAVRA_PT, { persist: 'persistir', undying: 'imortal' }); // K-4
 Object.assign(PALAVRA_PT, { exalted: 'exaltado' }); // K-5
 Object.assign(PALAVRA_PT, { afterlife: 'pós-vida' }); // K-6
 Object.assign(PALAVRA_PT, { cascade: 'cascata' }); // K-7
+Object.assign(PALAVRA_PT, { evoke: 'evocar' }); // K-8
 /* ↓ V · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha verbos */
 const MARCADOR_PT_V = { p1p1: '+1/+1', m1m1: '−1/−1', loyalty: 'de lealdade', poison: 'de veneno' }; // V-7
 const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas por descreveEfeito)

@@ -347,6 +347,22 @@ test('K-7 · cascata (702.85): conjurar a criatura com cascata traz de graça a 
   assert.ok(vivo(s, urso) && vivo(s, c), 'as duas no campo');
 });
 
+test('K-8 · evocar (702.74): a criatura evocada é sacrificada ao entrar; pelo custo normal, fica no campo', () => {
+  cobre('evoke');
+  const cartas = { ...CARDS, Evocada: cre('Evocada', 3, 3, ['Evoke'], { mana_cost: '{3}{W}', cmc: 4, oracle_text: 'Evoke {W}' }) };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 39, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active; let c; [s, c] = poe(s, a, 'Evocada', { zone: 'hand' });
+  const ofertas = E.legalActions(s, a).filter(x => x.t === 'cast' && x.oid === c);
+  let ev = act(s, ofertas.find(x => x.alt != null));
+  for (let i = 0; i < 8 && (ev.stack.length || ev.pending); i++) ev = ev.pending ? act(ev, E.legalActions(ev, ev.pending.p)[0]) : act(ev, { t: 'pass', p: ev.turn.priority });
+  assert.equal(ev.objects[c].zone, 'graveyard', 'evocada: sacrificada');
+  let n = act(s, ofertas.find(x => x.alt == null));
+  for (let i = 0; i < 8 && n.stack.length; i++) n = act(n, { t: 'pass', p: n.turn.priority });
+  assert.ok(vivo(n, c), 'pelo custo normal, fica');
+});
+
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));

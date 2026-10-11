@@ -3887,6 +3887,14 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Parcial declarado (702.85):** 702.85b (ação "as you cascade" de outra carta) não existe; carta dividida ou aventura achada usa o valor de mana da carta, não o da mágica resultante (fica para a trilha `tipos`, que faz essas cartas).
 - **Testes:** `keywords.cr4.unit` (2, falham sem a leva), `combat.audit` K-7. Textos oficiais: Bloodbraid Elf, Apex Devastator (Oracle do Forge, 11/10/2026). Goldens idênticos; motor v109.
 
+**K-8 · Evocar (702.74)** 🟡 (leva K-8)
+- **Valor:** carta com "Evoke" ganha o custo de evocar na mesa ("Custo alternativo · Evocar {2}{U}"); a evocada entra, as habilidades de entrada disparam e ela é sacrificada — só pela palavra-chave, sem marca no script.
+- **Aceite:** Mulldrifter (texto oficial) evocada compra duas e vai ao cemitério; pelo custo normal, fica; com três terrenos só a evocada é oferecida e {2}{U} é o que se paga; Endurance ("Evoke—Exile a green card from your hand.") só evoca com outra carta verde na mão, que é exilada; a evocada devolvida à mão antes de o gatilho resolver não é sacrificada e, conjurada de novo pelo custo normal, fica (603.4, 400.7); a linha "Evoke <custo>" conta como palavra-chave na cobertura.
+- **Toca ponto comum:** `cardFacts` (`evocarK`, uma linha a mais), criação da partida (uma linha a mais: o custo entra em `script.alt` depois dos do script), `HANDLERS.cast` (uma linha a mais: a marca `evocadaK`), `altCosts` (carta sem script: `altSemScriptK`). `MARCAS_DA_CONJURACAO` ganha `evocadaK` por `push`, abaixo da âncora.
+- **Testes:** `keywords.cr4.unit` (5, falham sem a leva), `combat.audit` K-8. Textos oficiais: Mulldrifter, Endurance (Oracle do Forge, 11/10/2026). Goldens idênticos; motor v109.
+- **Parcial declarado (702.74):** só da mão (o motor oferece custo alternativo só para a carta na mão); cópia de mágica evocada não leva a marca (707.10); aumento e redução de custo não valem para custo alternativo no caminho comum (`payAlt`/`canPayAlt`, 601.2f) — **pedido à trilha `motor`**; outras formas de custo ficam para o script.
+- **Pedidos (não bloqueiam):** à trilha `motor` — Mulldrifter na biblioteca precisa de `PERM_TYPES` em `fixtures.mjs` (o script fica no teste, como o da Person of Interest); à mesa — carta **sem script** com evocar mostra o botão sem o custo (o rótulo lê `script.alt`; com script, aparece "Custo alternativo · Evocar {2}{U}").
+
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

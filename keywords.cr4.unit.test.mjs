@@ -384,3 +384,80 @@ test('CR 702.85c · cada instância de cascata dispara à parte (Apex Devastator
   t = act(t, { t: 'cast', p: a2, oid: b2 }); for (let i = 0; i < 4 && t.stack.length > 1; i++) t = act(t, { t: 'pass', p: t.turn.priority });
   assert.equal(t.pending, null, 'nada para conjurar'); assert.equal(t.zones[a2].library.length, 3, 'as três voltaram ao grimório');
 });
+
+/* ---------------- K-8 · 702.74 evocar ---------------- */
+const SC_MULL = { name: 'Mulldrifter', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'draw', amount: 2 }] }], example: { action: 'etb', target: 'none', expect: { handDelta: 2 } } };
+const MULL = (kws = ['Flying', 'Evoke']) => ({ ...oficial('Mulldrifter'), keywords: kws }); // `keywords` como a Scryfall manda
+const BOUNCE = { name: 'Volta', type_line: 'Instant', mana_cost: '{U}', cmc: 1, colors: ['U'], keywords: [], oracle_text: 'Return target creature to its owner\'s hand.' };
+const SC_BOUNCE = { name: 'Volta', effects: [{ do: 'bounce', target: 'creature' }], example: { action: 'cast', target: 'own-creature', expect: { bounced: true } } };
+
+test('CR 702.74a · evocar (Mulldrifter, texto oficial): a mesa oferece o custo de evocar; a evocada entra, compra duas e é sacrificada; pelo custo normal, fica', () => {
+  assert.deepEqual(J(E.evocarImpressoK(oficial('Mulldrifter'))), { mana: '{2}{U}' });
+  for (const kws of [['Flying', 'Evoke'], ['Flying']]) { // com a lista da Scryfall e só com o texto
+    let s = partida({ Mulldrifter: MULL(kws) }, { Mulldrifter: SC_MULL }); const a = s.turn.active;
+    let m; [s, m] = poe(s, a, 'Mulldrifter', 'hand');
+    const ofertas = E.legalActions(s, a).filter(x => x.t === 'cast' && x.oid === m);
+    const ev = ofertas.find(x => x.alt != null), normal = ofertas.find(x => x.alt == null);
+    assert.ok(ev && normal, 'as duas formas de conjurar');
+    assert.equal(s.facts.Mulldrifter.script.alt[ev.alt].label, 'Evocar {2}{U}', 'o rótulo diz o custo');
+    const mao = s.zones[a].hand.length;
+    let e = act(s, ev); assert.equal(e.objects[m].evocadaK, true, 'a mágica sabe que foi evocada');
+    e = resolve(e);
+    assert.equal(e.objects[m].zone, 'graveyard', 'sacrificada ao entrar');
+    assert.equal(e.zones[a].hand.length, mao - 1 + 2, 'e a compra de duas aconteceu');
+    assert.ok(!e.objects[m].evocadaK, '400.7: a marca não vai para o cemitério');
+    const n = resolve(act(s, normal));
+    assert.equal(n.objects[m].zone, 'battlefield', 'pelo custo normal, fica'); assert.equal(n.stack.length, 0);
+  }
+});
+
+test('CR 702.74a · o custo de evocar é o que se paga (601.2f): três terrenos pagam a evocada, não a de custo cheio', () => {
+  const ilha = terra('Island');
+  const deck = [{ name: 'Mulldrifter', qty: 4, zone: 'main' }, { name: 'Island', qty: 26, zone: 'main' }];
+  let s = E.createGame({ format: 'livre', seed: 5, mode: 'assisted', manaCheck: true, cards: { Island: ilha, Mulldrifter: MULL() }, scripts: { Mulldrifter: SC_MULL }, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active; let m; [s, m] = poe(s, a, 'Mulldrifter', 'hand');
+  for (let i = 0; i < 3; i++) [s] = poe(s, a, 'Island');
+  const ofertas = E.legalActions(s, a).filter(x => x.t === 'cast' && x.oid === m);
+  assert.ok(ofertas.length && ofertas.every(x => x.alt != null), 'só a evocada cabe em três terrenos');
+  const e = act(s, ofertas[0]);
+  assert.equal(e.zones[a].battlefield.filter(x => e.objects[x].name === 'Island' && e.objects[x].tapped).length, 3, '{2}{U} pago');
+});
+
+test('CR 702.74a · evocar com custo que não é mana (Endurance, texto oficial: "Evoke—Exile a green card from your hand."): só com outra carta verde na mão; ela é exilada', () => {
+  const END = oficial('Endurance');
+  assert.deepEqual(J(E.evocarImpressoK(END)), { exileHandColor: 'G' });
+  let s = partida({ Endurance: END, Urso: URSO }); const a = s.turn.active;
+  s = J(s); s.zones[a].library.push(...s.zones[a].hand.splice(0)); for (const x of s.zones[a].library) s.objects[x].zone = 'library';
+  let en; [s, en] = poe(s, a, 'Endurance', 'hand');
+  assert.ok(!E.legalActions(s, a).some(x => x.t === 'cast' && x.oid === en && x.alt != null), 'a própria Endurance não paga o custo');
+  let u; [s, u] = poe(s, a, 'Urso', 'hand');
+  const ev = E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === en && x.alt != null);
+  assert.ok(ev, 'com o Urso verde na mão, dá para evocar');
+  const r = resolve(act(s, ev));
+  assert.equal(r.objects[u].zone, 'exile', 'o Urso pagou o custo'); assert.equal(r.objects[en].zone, 'graveyard', 'e a Endurance foi sacrificada');
+});
+
+test('CR 702.74a / 603.4 / 400.7 · a evocada que sai do campo antes do gatilho resolver não é sacrificada; de volta, é outro objeto e fica', () => {
+  let s = partida({ Mulldrifter: MULL(), Volta: BOUNCE }, { Mulldrifter: SC_MULL, Volta: SC_BOUNCE }); const a = s.turn.active;
+  let m, v; [s, m] = poe(s, a, 'Mulldrifter', 'hand'); [s, v] = poe(s, a, 'Volta', 'hand');
+  s = act(s, E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === m && x.alt != null));
+  for (let i = 0; i < 4 && s.objects[m].zone !== 'battlefield'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  for (let i = 0; i < 4 && s.pending; i++) s = act(s, E.legalActions(s, s.pending.p)[0]);
+  assert.equal(s.objects[m].zone, 'battlefield'); assert.ok(s.stack.length >= 1, 'o sacrifício está na pilha');
+  s = J(s); s.turn.priority = a;
+  s = act(s, { t: 'cast', p: a, oid: v, targets: [{ oid: m }] });
+  s = resolve(s);
+  assert.equal(s.objects[m].zone, 'hand', 'voltou para a mão e o gatilho não a achou');
+  assert.ok(!s.objects[m].evocadaK, 'na mão, a marca já não existe');
+  s = resolve(act(s, E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === m && x.alt == null)));
+  assert.equal(s.objects[m].zone, 'battlefield', 'conjurada de novo pelo custo normal, fica');
+});
+
+test('CR 702.74a · a linha "Evoke <custo>" conta como palavra-chave na cobertura; custo que o motor não paga, não', () => {
+  const c = t => S.coverage({ name: 'Z', type_line: 'Creature — Elemental', oracle_text: t }).level;
+  assert.equal(c('Flash\nReach\nEvoke—Exile a green card from your hand.'), 'completo');
+  assert.equal(c('Flying\nEvoke {2}{U} (You may cast this spell for its evoke cost. If you do, it\'s sacrificed when it enters.)'), 'completo');
+  assert.equal(c('Evoke—Sacrifice a creature.'), 'manual');
+});
