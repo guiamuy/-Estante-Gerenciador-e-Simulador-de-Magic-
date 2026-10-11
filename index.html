@@ -5354,6 +5354,7 @@ const EFFECTS = {
   /* ↓ K · efeitos da trilha keywords */
   salvaguarda: { fields: [], targets: [] }, // K-2 · 702.21a · gerado pelo motor quando uma permanente com salvaguarda vira alvo (não vai em script)
   /* ↓ V · efeitos da trilha verbos */
+  monstrosity: { fields: ['amount'], targets: ['self'] }, // V-6 · 701.37 monstruosidade N: se a permanente fonte não é monstruosa, N marcadores +1/+1 e ela fica monstruosa
   populate: { fields: [], targets: ['self'] }, // V-4 · 701.36 povoar: cria uma ficha que é cópia de uma ficha de criatura sua, à sua escolha
   bolster: { fields: ['amount'], targets: ['self'] }, // V-3 · 701.39 fortalecer N: marcadores na sua criatura de menor resistência (empate: você escolhe)
   proliferate: { fields: [], targets: ['self'] }, // V-2 · 701.34 proliferar: quem controla escolhe quantas permanentes e jogadores com marcador quiser
@@ -5643,6 +5644,7 @@ const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield
   'end-step', 'each-upkeep', 'begin-combat',
   /* ↓ K · gatilhos da trilha keywords */
   /* ↓ V · gatilhos da trilha verbos */
+  'becomes-monstrous', // V-6 · "When ~ becomes monstrous" (o valor do gatilho é o N da monstruosidade, 701.37c)
   /* ↓ T · gatilhos da trilha tipos */
 ];
 /** CR2-G R2a · 603.6 · gatilho de mudança de zona como um evento só: de onde (`de`), para onde (`para`), quem muda
@@ -6219,6 +6221,12 @@ const isTargeted = e => TARGETED.has(e.target) || (!!e.target && typeof e.target
 const RAW_SCRIPTS = [
   /* ↓ K · scripts de carta da trilha keywords (texto oficial em .listas/oficiais-keywords.json) */
   /* ↓ V · scripts de carta da trilha verbos (texto oficial em .listas/oficiais-verbos.json) */
+  // V-6 · 701.37 monstruosidade
+  { name: 'Nessian Asp', abilities: [{ kind: 'activated', cost: { mana: '{6}{G}' }, effects: [{ do: 'monstrosity', amount: 4 }] }], // "{6}{G}: Monstrosity 4."
+    example: { action: 'activate:0', target: 'none', expect: { counters: 4 } } },
+  { name: 'Keepsake Gorgon', abilities: [{ kind: 'activated', cost: { mana: '{5}{B}{B}' }, effects: [{ do: 'monstrosity', amount: 1 }] }, // "{5}{B}{B}: Monstrosity 1."
+    { kind: 'triggered', when: 'becomes-monstrous', effects: [{ do: 'destroy', target: { tipos: ['creature'], de: 'opponent', semSubtipos: ['Gorgon'] } }] }], // "When Keepsake Gorgon becomes monstrous, destroy target non-Gorgon creature an opponent controls."
+    example: { action: 'activate:0', target: 'none', expect: { counters: 1 } } },
   // V-4 · 701.36 povoar
   { name: 'Eyes in the Skies', effects: [{ do: 'token', amount: 1, token: { name: 'Bird', types: ['creature'], subtypes: ['Bird'], colors: ['W'], power: 1, toughness: 1, keywords: ['flying'] } }, { do: 'populate' }], // "Create a 1/1 white Bird creature token with flying, then populate."
     example: { target: 'none', expect: { tokens: 2 } } },
@@ -7451,6 +7459,8 @@ function wardCustoErrosK(c, varias) {
 }
 Object.assign(EXPORTS_K_SC, { wardCustoErrosK });
 /* ↓ V · exportações de scripts.js da trilha verbos */
+// V-6 · evento "ficou monstruosa" (701.37): da própria permanente
+EVENTOS_DE_OBJETO.push('monstruosa'); OBJETOS_DO_EVENTO.monstruosa = ['self']; GATILHO_EVENTO['becomes-monstrous'] = { evento: 'monstruosa', objeto: 'self' }; TRIGGER_PT['becomes-monstrous'] = 'quando fica monstruosa';
 /* ↓ T · exportações de scripts.js da trilha tipos */
 return { ...EXPORTS_K_SC, ...EXPORTS_V_SC, ...EXPORTS_T_SC, registraLeitor, hashTexto, APROVADAS, leitura, scriptLido, KEYWORDS, KEYWORD_COUNTERS, MARCADOR_PT, duracaoValida, danoErros, substituiErros, entraErros, substituicoesDoScript, JOGADORES_QUANT, VERBOS_DE_JOGADOR, jogadoresDe, DURACOES, continuoErros, tornaErros, tornaParaBecomes, GATILHO_ZONA, GATILHO_EVENTO, gatilhoDoEvento, falaDe, gatilhoDeZona, gatilhoErros, descreveGatilho, PASSOS_DO_GATILHO, ALVO_SELETOR, CADA_SELETOR, EFEITOS_ATALHO, cadaDe, seletorErros, seletorDe, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE, DUNGEONS, dungeonByName, roomById, fichasDoScript, fichasDasCartas, chaveDaFicha };
 })();
@@ -17423,6 +17433,7 @@ function applyEffect(s, src, eff, tgt, events) {
       note({ pending: true }); break;
     }
     /* ↓ V · casos de applyEffect da trilha verbos */
+    case 'monstrosity': monstruosidade(s, src, eff, events); break; // V-6 · 701.37
     case 'populate': povoar(s, src, events); break; // V-4 · 701.36
     case 'bolster': fortalecer(s, src, eff, events); break; // V-3 · 701.39
     case 'proliferate': proliferar(s, src, events); break; // V-2 · 701.34
@@ -20131,6 +20142,19 @@ function habilidadesDePalavraK(s, o) {
 }
 Object.assign(EXPORTS_K, { instanciasK, habilidadesDePalavraK });
 /* ↓ V · exportações de core.js da trilha verbos */
+/* V-6 · 701.37 monstruosidade N: "If this permanent isn't monstrous, put N +1/+1 counters on it and it becomes monstrous" (a). Monstruosa é
+   uma marca da permanente, não habilidade nem valor copiável; dura até ela sair do campo (b) — a marca leva a encarnação do objeto e
+   deixa de valer sozinha quando ele muda de zona (400.7). O N fica guardado e vai como valor do gatilho "quando fica monstruosa" (c). */
+const ehMonstruosa = (s, o) => !!o && !!o.monstruosa && o.zone === 'battlefield' && o.monstruosa.z === (o.zc || 0);
+function monstruosidade(s, src, eff, events) {
+  const o = src.ability ? s.objects[src.source] : src, n = amountOf(s, src, eff.amount);
+  if (!o || o.zone !== 'battlefield' || !s.facts[o.name]) { events.push({ kind: 'effect', do: 'monstrosity', name: src.name, failed: true }); return; } // só permanente fica monstruosa
+  if (ehMonstruosa(s, o)) { events.push({ kind: 'effect', do: 'monstrosity', name: o.name, target: o.name, amount: 0 }); return; }
+  addCounters(s, o, n); o.monstruosa = { z: o.zc || 0, x: n };
+  events.push({ kind: 'effect', do: 'counters', name: o.name, target: o.name, amount: n }); events.push({ kind: 'effect', do: 'monstrosity', name: o.name, target: o.name, amount: n });
+  gatilhosDaPermanente(s, 'monstruosa', o, ['self'], { value: n }, () => true, false);
+}
+Object.assign(EXPORTS_V, { monstruosidade, ehMonstruosa });
 /* V-4 · 701.36 povoar: "choose a creature token you control and create a token that's a copy of that creature token" (a); sem ficha de
    criatura sua, nada é criado (b). Não mira. A cópia é a de 707.8 (mesmo caminho de `ficha_copia`): valores copiáveis, sem marcadores
    nem anexos. Uma candidata: automático; mais de uma: quem controla escolhe (decisão pick obrigatória). */
@@ -22654,6 +22678,7 @@ const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas
   proliferate_jogador: () => 'esse jogador recebe mais um marcador de veneno',
   bolster: e => `fortalece ${qtd(e.amount)} (põe ${qtd(e.amount) === 1 ? '1 marcador' : qtd(e.amount) + ' marcadores'} +1/+1 na sua criatura de menor resistência)`, // V-3
   populate: () => 'povoa (cria uma ficha que é cópia de uma ficha de criatura sua)', // V-4
+  monstrosity: e => `monstruosidade ${qtd(e.amount)}: se ainda não é monstruosa, recebe ${qtd(e.amount) === 1 ? '1 marcador' : qtd(e.amount) + ' marcadores'} +1/+1 e fica monstruosa`, // V-6
   fight: e => `${e.quem === 'self-source' ? 'esta criatura luta' : 'ela luta'} com ${ALVO_PT[e.target] || descreveAlvo(e.target)} (cada uma causa dano igual ao próprio poder à outra)`,
 };
 /* ↓ T · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha tipos */

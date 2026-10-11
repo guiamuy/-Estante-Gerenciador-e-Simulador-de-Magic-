@@ -3715,6 +3715,15 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Conferido e certo pelo revisor:** fonte do dano na luta (toque mortífero, vínculo com a vida, infectar, proteção, poder 0 e negativo), alvo ilegal de um lado só, proliferar com vários tipos de marcador, lealdade, veneno, permanente que sai entre a escolha e a aplicação, estado sem resíduo, fortalecer com resistência modificada e empate, apoiar em mágica com 0/1/2 alvos, povoar com ficha-cópia e ficha animada; os sete scripts batem frase a frase com o texto oficial.
 - **Testes:** `verbos.auditoria1.unit` (7).
 
+**V-6 · CR3 · Monstruosidade (701.37)** 🟡 (leva V-6, motor v109 sem subir: só acrescenta ações; partidas-referência idênticas) — 701.37 passa de ausente a coberta. Primeira leva do lote 2.
+- **Valor:** "{custo}: Monstrosity N" põe os N marcadores uma vez só e a criatura fica monstruosa; "When ~ becomes monstrous, …" dispara nessa hora, vai à pilha e pede alvo.
+- **Regra inteira:** (a) só se ainda não é monstruosa — a habilidade continua ativável, mas não faz nada; (b) a marca dura até a permanente sair do campo (de volta, é objeto novo) e não é copiável; ter marcadores +1/+1 por outro caminho não é ser monstruosa; (c) o N viaja com o gatilho (`{ per: 'trigger-value' }`).
+- **Vocabulário:** efeito `monstrosity`; gatilho `becomes-monstrous` — o primeiro evento de gatilho da trilha (registrado abaixo da âncora de exportações de scripts.js; o mesmo caminho serve a "sempre que explorar/conspirar").
+- **Cartas (texto oficial em `.listas/oficiais-verbos.json`, Oracle do Forge e mtggoldfish, 11/10/2026):** Nessian Asp, Keepsake Gorgon.
+- **Mesa:** nenhuma decisão nova (ativar habilidade e alvo de gatilho já existem). **Pedido à mesa (não bloqueia):** mostrar a marca "monstruosa" na carta.
+- **Testes:** `verbos.monstruosidade.unit` (4), cenário S8 das duas cartas.
+- **Fora:** "~ is monstrous" como condição de outras habilidades ("as long as ~ is monstrous…") — a consulta existe (`ehMonstruosa`), falta a condição no vocabulário de estáticas (trilha `motor`).
+
 **CR4 · Habilidades de palavra-chave (702)** ○ — 150 ausentes e 21 parciais, em ondas pela frequência em cartas anotada no mapa: (1) fechar as evergreen e as parciais; (2) "muito comum" (proeza, tripular, reforço, convocar, cascata, evocar, persistir, imortal, fração de segundo, infectar e tóxico…); (3) "comum"; (4) "rara" e "uma coleção só". 50 a 65 levas.
 
 **CR4 · andamento (trilha `keywords`, levas `K-N`)** ▶ — ordem de 11/10/2026: primeiro as palavras-chave do acervo que o medidor do leitor (LT6) acusa fora do vocabulário, depois a onda 1 (proeza, convocar, cascata, evocar, persistir, imortal, exaltado, explorar, arremeter, improvisar, recomeçar, pós-vida, evoluir), a onda 2 (completar as parciais), a 3 (raras, da mais citada à menos) e a 4 (o resto de 702, com o que fica fora declarado no mapa). Auditoria independente por subagente ao fim de cada onda. Palavra-chave com parâmetro ("Ward {3}", "Kicker {B}", "Crew 1") também depende de o leitor ler a forma: isso é da trilha `motor` (leitor), avisada a cada leva.

@@ -6130,10 +6130,14 @@
    "n": "701.37",
    "regra": "Keyword Actions",
    "titulo": "Monstrosity",
-   "status": "ausente",
-   "falta": "não há marca \"monstruosa\" nem o valor X lembrado (701.37c); adaptar existe, mas é outra condição",
-   "esforco": "P",
-   "cartas": "rara"
+   "status": "coberta",
+   "cartas": "rara",
+   "evidencia": "V-6 · efeito `monstrosity` (monstruosidade e ehMonstruosa em core.js, abaixo da âncora ↓ V): se a permanente fonte não é monstruosa, recebe N marcadores +1/+1 e fica monstruosa; já sendo, nada acontece (a). A marca é da permanente (não é habilidade nem valor copiável), leva a encarnação do objeto e deixa de valer quando ele sai do campo (b, 400.7); ter marcadores por outro efeito não é ser monstruosa. Gatilho `becomes-monstrous` (\"When ~ becomes monstrous\"), que vai à pilha com alvo e leva o N como valor do gatilho (c). Cartas: Nessian Asp, Keepsake Gorgon (.listas/oficiais-verbos.json)",
+   "testes": [
+    "CR 701.37 · monstruosidade (a): a permanente que não é monstruosa recebe N marcadores +1/+1 e fica monstruosa; ativar de novo não põe mais nada",
+    "CR 701.37 · monstruosidade (b): a marca dura até a permanente sair do campo — de volta, é objeto novo e pode ficar monstruosa outra vez; marcadores postos por outro efeito não a tornam monstruosa",
+    "CR 701.37 · \"quando fica monstruosa\" dispara uma vez, vai à pilha com alvo, e leva o N como valor (c); se já era monstruosa não dispara"
+   ]
   },
   {
    "n": "701.38",
