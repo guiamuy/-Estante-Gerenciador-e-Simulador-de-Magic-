@@ -3334,6 +3334,12 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Medição:** Malcolm + Kediss 98% → **99%** (completo 99 · parcial 1: Saheeli, cujo −2 depende de cópia de permanente, a CR2f). **Mapa:** 702.47 parcial.
 - **Próximo:** alicerces do motor (CR2), começando pela CR2d (camadas com carimbo de tempo e mudança de controle).
 
+**CR2d.6 · Camada 2: controle como efeito contínuo, com carimbo e duração** ✅ (leva M-275, motor v98, sem mudança no que existe) — 4 testes de conformidade.
+- **Regra (613.1b, 613.7, 611.2):** "ganhe o controle" passa a ser um efeito contínuo guardado na permanente (`o.controles`: quem controla, carimbo e duração). O mais novo que ainda vale manda; quando ele acaba, vale o anterior, e sem nenhum volta quem controlava antes do primeiro. Durações: sem prazo, até o fim do turno (acaba na limpeza), até o seu próximo turno e enquanto você controlar a fonte (conferido nas ações de estado). Quem muda de controle fica com enjoo (302.6) e sai do combate (506.4); objeto novo não leva o efeito (400.7). O controle de agora continua materializado em `o.controller`, então nada que lê o controlador muda.
+- **Uso:** `{ do: 'ganhar_controle', target, ate }` (o −6 do Sorin já passa por aqui).
+- **Fora (no mapa):** Aura estática "você controla a criatura encantada" (efeito de habilidade estática na camada 2) e troca de controle entre dois objetos.
+- **Golden:** idênticas, sem regravar. Versão não sobe (o −6 do Sorin dá o mesmo resultado; só o estado guarda a origem do controle).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

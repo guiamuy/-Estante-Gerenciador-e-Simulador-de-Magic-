@@ -5290,7 +5290,7 @@ const EFFECTS = {
   mare_alta: { fields: [], targets: ['self'] }, // M-262 · High Tide
   topo_ou_fundo_do_dono: { fields: [], targets: ['permanent'] }, // M-264 · "The owner of target nonland permanent puts it on their choice of the top or bottom of their library"
   revelar_topo_para_mao: { fields: [], targets: ['self'] }, // M-263 · Dark Confidant
-  ganhar_controle: { fields: [], targets: ['creature', 'permanent'] }, // M-272 · "gain control of target creature" (sem prazo)
+  ganhar_controle: { fields: [], targets: ['creature', 'permanent', 'artifact'] }, // M-272 · "gain control of target creature" (sem prazo)
   copiar_esta: { fields: [], targets: ['self'] }, // M-271 · "if this spell was cast from a graveyard, you may copy this spell and may choose a new target for the copy" (707.10)
   exilar_topo_conjuravel: { fields: ['amount'], targets: ['self'] }, // M-270 · Lukka +1: exila do topo; as criaturas exiladas podem ser conjuradas do exílio enquanto você controlar um planeswalker do subtipo
   criaturas_causam_dano: { fields: [], targets: ['each-opponent'] }, // M-270 · Lukka −7: cada criatura sua causa dano igual ao poder a cada oponente (a fonte é a criatura)
@@ -6021,6 +6021,7 @@ function effectErrors(effects, label, opcional) {
     }
     if (e.do === 'keyword' && !KEYWORDS.includes(String(e.keyword || '').toLowerCase())) errs.push(`${label} ${i + 1}: palavra-chave "${e.keyword}" não é resolvida pelo motor`);
     if (e.seControlaOutra != null && !(e.do === 'counters' && e.seControlaOutra && ['W', 'U', 'B', 'R', 'G'].includes(e.seControlaOutra.cor))) errs.push(`${label} ${i + 1}: "seControlaOutra" vale para marcadores, com uma cor`); // M-272
+    if (e.do === 'ganhar_controle' && e.ate != null && !duracaoValida(e.ate)) errs.push(`${label} ${i + 1}: duração "${typeof e.ate === 'object' ? JSON.stringify(e.ate) : e.ate}" desconhecida para o controle`); // CR2d.6
     if (e.do === 'copiar_esta' && e.seConjuradaDe != null && !['graveyard', 'hand', 'exile'].includes(e.seConjuradaDe)) errs.push(`${label} ${i + 1}: "seConjuradaDe" precisa ser graveyard, hand ou exile`); // M-271
     if (e.do === 'exilar_topo_conjuravel' && !(typeof e.enquantoControlar === 'string' && e.enquantoControlar.trim())) errs.push(`${label} ${i + 1}: diga o subtipo de planeswalker que mantém a permissão (enquantoControlar)`); // M-270
     if (e.suspende != null && !(e.do === 'counter' && Number.isInteger(e.suspende) && e.suspende > 0)) errs.push(`${label} ${i + 1}: "suspende" (marcadores de tempo) só vale para anular, com um inteiro positivo`); // M-269
@@ -14335,7 +14336,7 @@ function moveObject(s, oid, to, { top = true } = {}) {
   if (!(to === 'stack' || (fromZone === 'stack' && to === 'battlefield'))) {
     for (const k of MARCAS_DA_CONJURACAO) delete o[k];
   }
-  o.tapped = false; o.damage = 0; o.counters = {}; o.controller = o.owner;
+  o.tapped = false; o.damage = 0; o.counters = {}; o.controller = o.owner; delete o.controles; delete o.controladorBase; // CR2d.6 · 400.7
   delete o.tempToxico; delete o.tempResguardoCor; delete o.tempNaoBloqueadaPor; delete o.tempHabilidades; delete o.permissaoUsada; if (fromZone !== to) delete o.desenterrada; // M-255/M-256/M-257 · 400.7
   delete o.attacking; delete o.atacandoPw; delete o.exigeAtacarPw; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.pumpNext; delete o.goaded; delete o.keywordsNext; delete o.cantAttackNext; delete o.targets; delete o.attachedTo; delete o.tempKeywords; delete o.tempTs; delete o.anexadaEm; delete o.mutavel; delete o.vira; delete o.prevenirDano; delete o.regenerar; delete o.temporarios; delete o.tempProtection; delete o.paired; // S39 · o vínculo de alma se desfaz ao sair do campo
   if (to === 'battlefield' && fromZone === 'stack' && o.suspensaImpeto) { delete o.suspensaImpeto; aplicaTemporario(s, o, { palavras: ['haste'], ate: { enquanto: 'controlar-fonte' } }, o.controller, o); } // M-269 · "if it's a creature, it has haste"
@@ -14448,6 +14449,30 @@ function aplicaTemporario(s, o, { poder, resistencia, palavras, ate = 'fim-do-tu
 /** CR2-G R6 · poda dos efeitos temporários com duração: 'inicio' (começo do turno: "até o seu próximo turno" de quem começa)
  * ou 'limpeza' ("até o fim do turno" sem marca, "até o fim do seu próximo turno" no turno de quem fez, e os que perderam a
  * fonte). Sem nada sobrando, a propriedade some (o estado fica igual ao de antes). */
+/* ---------------- CR2d.6 · 613.1b · camada 2: controle por efeito contínuo ----------------
+   O controle de agora fica materializado em o.controller (lido em todo o motor). Os efeitos de controle ficam em o.controles,
+   cada um com quem controla, carimbo de tempo (613.7) e duração; o mais novo que ainda vale manda. Sem efeito valendo, volta
+   o controlador de antes do primeiro efeito (quem pôs a permanente no campo). O recálculo acontece quando um efeito entra, na
+   limpeza (fim do turno) e nas ações de estado (a fonte de "enquanto você controlar" saiu). */
+const controleVigente = (s, t) => vigente(s, t);
+function aplicaControle(s, o, por, ate = 'sempre', fonte) {
+  if (!o || o.zone !== 'battlefield') return false;
+  if (o.controladorBase == null) o.controladorBase = o.controller;
+  o.controles = [...(o.controles || []), { por, ate, by: por, ts: relogio(s), turno: s.turn.number, ...(fonte && typeof ate === 'object' ? { fonte: { oid: fonte.oid, z: fonte.zc || 0 } } : {}) }];
+  return recalculaControle(s, o);
+}
+function recalculaControle(s, o) {
+  if (!o.controles) return false;
+  const ativos = o.controles.filter(t => controleVigente(s, t));
+  const novo = ativos.length ? ativos.reduce((a, b) => (b.ts > a.ts ? b : a)).por : o.controladorBase;
+  if (ativos.length) o.controles = ativos; else { delete o.controles; delete o.controladorBase; }
+  if (novo == null || novo === o.controller || (s.players[novo] || {}).lost) return false;
+  o.controller = novo; o.sick = isCreature(s, o); // 302.6: não está sob o novo controle desde o começo do turno dele
+  if (s.combat && s.combat.attackers) s.combat.attackers = s.combat.attackers.filter(x => x !== o.oid); // 506.4: sai do combate
+  if (o.blocking && s.objects[o.blocking]) s.objects[o.blocking].blockedBy = (s.objects[o.blocking].blockedBy || []).filter(x => x !== o.oid);
+  delete o.attacking; delete o.atacandoPw; delete o.blocking; delete o.blockedBy;
+  return true;
+}
 function podaTemporarios(s, o, momento) {
   const fica = t => {
     if (!vigente(s, t)) return false;
@@ -15061,6 +15086,7 @@ function fimDosEfeitosDoTurno(s) {
   for (const pl of s.players) delete pl.tempHexproof; // M-260 · resistência a magia do jogador acaba na limpeza
   for (const pl of s.players.keys()) for (const oid of s.zones[pl].exile) { const x = s.objects[oid]; if (x && x.jogavelSoNesteTurno) { delete x.playableFromExile; delete x.jogavelSoNesteTurno; } } // M-267 · "this turn"
   delete s.mareAlta; // M-262 · High Tide vale até o fim do turno
+  for (const o of battlefield(s)) if (o.controles) { o.controles = o.controles.filter(t => t.ate !== 'fim-do-turno'); recalculaControle(s, o); } // CR2d.6 · "until end of turn" acaba na limpeza (514.2)
   for (const o of battlefield(s)) { delete o.pump; delete o.tempKeywords; delete o.tempTs; podaTemporarios(s, o, 'limpeza'); delete o.prevenirDano; delete o.regenerar; delete o.tempProtection; delete o.tempToxico; delete o.tempResguardoCor; delete o.tempNaoBloqueadaPor; delete o.tempHabilidades; delete o.usedThisTurn; o.damage = 0; delete o.deathtouched; } // M-255 · tóxico, resistência a magia de cor e "não bloqueada por cor" até o fim do turno
   delete s.fogged; delete s.preventedColors; delete s.noPrevention; delete s.prevencoes; // CR2-G R5b · escudos do verbo prevenir também acabam
   for (const o of Object.values(s.objects)) if (o.damagePrevented) { delete o.damagePrevented; delete o.preventGainTo; } // R9 · Hallow: a prevenção acaba com o turno
@@ -15078,6 +15104,7 @@ function finishCleanup(s) {
   for (const o of battlefield(s)) {
     if (o.pumpNext && o.pumpNext.by === s.turn.active) delete o.pumpNext;
     if (o.vira || o.temporarios) podaTemporarios(s, o, 'inicio'); // CR2-G R6
+    if (o.controles && o.controles.some(t => t.ate === 'seu-proximo-turno' && t.by === s.turn.active)) { o.controles = o.controles.filter(t => !(t.ate === 'seu-proximo-turno' && t.by === s.turn.active)); recalculaControle(s, o); } // CR2d.6
     // S59 · provocar e palavra-chave "até o seu próximo turno" caem no mesmo momento
     if (o.goaded && o.goaded.by === s.turn.active) delete o.goaded;
     if (o.keywordsNext && o.keywordsNext.by === s.turn.active) delete o.keywordsNext;
@@ -16062,8 +16089,8 @@ function applyEffect(s, src, eff, tgt, events) {
     }
     case 'ganhar_controle': { // M-272 · sem prazo; a criatura que muda de controle fica com enjoo (302.6) e sai do combate (506.4)
       if (!obj || obj.zone !== 'battlefield') { note({ failed: true }); break; }
-      if (obj.controller !== ctrl) { obj.controller = ctrl; obj.sick = isCreature(s, obj); if (s.combat) { s.combat.attackers = (s.combat.attackers || []).filter(x => x !== obj.oid); } delete obj.attacking; delete obj.blocking; delete obj.blockedBy; }
-      note({ name: obj.name, target: s.players[ctrl].name }); break;
+      aplicaControle(s, obj, ctrl, eff.ate || 'sempre', src.ability ? s.objects[src.source] : src); // CR2d.6 · camada 2, com carimbo e duração
+      note({ name: obj.name, target: s.players[ctrl].name, ...(eff.ate && eff.ate !== 'sempre' ? { ate: eff.ate } : {}) }); break;
     }
     case 'copiar_esta': { // M-271 · a cópia vai para a pilha por cima, com alvo próprio; "may": quem controla decide ao resolver a cópia
       if (src.ability || src.copia || src.zone !== 'stack') { note({ failed: true }); break; } // só a mágica de verdade se copia (a cópia não é conjurada)
@@ -17344,6 +17371,7 @@ function stateBased(s, events) {
       else if ((pl.poison || 0) >= 10) why = 'veneno'; // M-253 · 704.5c
       if (why) { pl.lost = true; pl.lossReason = pl.lossReason === 'desistência' ? pl.lossReason : why; changed = true; events.push({ kind: 'lost', p: i, reason: why }); removePlayer(s, i); }
     });
+    for (const o of battlefield(s)) if (o.controles && o.controles.some(t => typeof t.ate === 'object') && recalculaControle(s, o)) changed = true; // CR2d.6 · "for as long as you control …"
     // M12 · 704.5d: ficha fora do campo deixa de existir
     for (const o of Object.values(s.objects)) {
       if (!o.token || o.zone === 'battlefield') continue;
@@ -21291,7 +21319,7 @@ function descreveEfeito(e) {
     }
     case 'sacrifice_each': return 'cada jogador sacrifica uma permanente à sua escolha';
     case 'exilar_fichas_mesmo_nome': return 'exila as fichas de mesmo nome que esse jogador controla'; // M-258
-    case 'ganhar_controle': return `ganha o controle de ${alvo || 'uma criatura'}`; // M-272
+    case 'ganhar_controle': return `ganha o controle de ${alvo || 'uma criatura'}${e.ate && e.ate !== 'sempre' ? ' ' + duracaoPT(e.ate) : ''}`; // M-272 · CR2d.6
     case 'copiar_esta': return `${e.seConjuradaDe === 'graveyard' ? 'se foi conjurada de um cemitério, ' : ''}pode copiar esta mágica (a cópia escolhe um alvo novo)`; // M-271
     case 'exilar_topo_conjuravel': return `exila as ${qtd(e.amount)} cartas de cima; as criaturas exiladas assim podem ser conjuradas do exílio enquanto você controlar um planeswalker ${e.enquantoControlar}`; // M-270
     case 'criaturas_causam_dano': return 'cada criatura que você controla causa dano igual ao poder dela a cada oponente'; // M-270
