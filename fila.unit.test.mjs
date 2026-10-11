@@ -235,9 +235,11 @@ test('Q17 · do lado da conversa: `publicar --fila` envia para fila/<leva>; núm
     const a = m.clone('a'), b = m.clone('b');
     a.escreve('fichas.js', ['const fichas = perfil.fichasDoJogador(estado);']); a.acrescenta('ROADMAP.md', '| 16º-ab ✅ | fichas (leva G-2) |');
     a.commit('Leva G-2 · fichas do seu jeito\n\nTrilha: geral');
-    const r1 = publicar(a, '--fila', '--sem-rapida');
+    const r1 = publicar(a, '--sem-rapida'); // a fila é o caminho padrão: sem `--direto`, nada vai ao main por este clone
     assert.equal(r1.status, 0, r1.stdout + r1.stderr); assert.match(r1.stdout, /✓ Na fila: fila\/G-2 \(1 commit/);
     assert.equal(m.cabeca('refs/heads/fila/G-2'), a.git('rev-parse', 'HEAD'));
+    assert.notEqual(m.cabeca('main'), a.git('rev-parse', 'HEAD'), 'o publicar não envia para o main');
+    assert.match(readFileSync(join(RAIZ, 'publicar.mjs'), 'utf8'), /const pelaFila = !direto;/);
     // outra conversa da mesma trilha, sem ver a primeira, com o mesmo número
     b.escreve('catalogo.js', ['const catalogo = app.catalogoDeListas(estado);']);
     b.commit('Leva G-2 · catálogo com valor\n\nTrilha: geral');

@@ -521,6 +521,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ia 🟡 | Q15 CI só onde precisa: portão em push só no `main`; fuzz pesado da madrugada em job próprio (leva I-279) | Q | ½ | — |
 | 16º-ib 🟡 | Q16 conferência antes do portão: leva repetida na trilha, id repetido na ordem, goldens de outra versão e navegador da fase de tela (leva I-280) | Q | ½ | — |
 | 16º-ic 🟡 | Q17 fila de publicação: `publicar --fila` envia para `fila/<leva>`; o fluxo soma as levas, roda um portão e avança o `main`; recusada volta com o motivo (leva I-281, em ensaio) | Q | 2 | Q15 |
+| 16º-id 🟡 | Q17 a fila vira o caminho padrão do `npm run publicar`; o caminho antigo fica em `--direto` (leva I-282, a primeira publicada pela fila) | Q | ½ | Q17 |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -2716,9 +2717,9 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Testes:** `agregacao.unit` Q16 (4), `portao.unit` Q16 (1). **Depende de:** nada.
 - **Fora:** arquivo de teste fora de commit (o publicar já recusa árvore com alteração); reserva de número entre conversas antes do commit (a fila da Q17 resolve: o nome do ramo é a reserva); conflito de comportamento (é do portão).
 
-**Q17 · Fila de publicação com o portão no CI** 🟡 (aprovada pelo dono em 11/10/2026; leva I-281: fila pronta, em ensaio com `--fila`; vira o caminho padrão na leva seguinte, publicada por ela mesma)
+**Q17 · Fila de publicação com o portão no CI** 🟡 (aprovada pelo dono em 11/10/2026; leva I-281: fila pronta; leva I-282: a fila é o caminho padrão do `npm run publicar`, e a própria I-282 foi a primeira leva publicada por ela)
 - **Valor:** a conversa entrega a leva em minutos e segue; um portão, no CI, cobre todas as levas que estiverem na fila. Acaba a volta perdida porque outra trilha publicou no meio.
-- **Do lado da conversa (`npm run publicar -- --fila`):** rebase, guarda, conferência da Q16, fase rápida local (dispensável com `--sem-rapida`) e envio para `fila/<leva>`. O nome do ramo é a reserva do número: se outra conversa já enfileirou a mesma leva, o envio é recusado com o aviso de renumerar. `--esperar` fica olhando até publicar ou recusar; `-- --situacao` mostra a fila, as recusadas com o motivo e o que já chegou ao `main`.
+- **Do lado da conversa (`npm run publicar`; o caminho antigo fica em `-- --direto`):** rebase, guarda, conferência da Q16, fase rápida local (dispensável com `--sem-rapida`) e envio para `fila/<leva>`. O nome do ramo é a reserva do número: se outra conversa já enfileirou a mesma leva, o envio é recusado com o aviso de renumerar. `--esperar` fica olhando até publicar ou recusar; `-- --situacao` mostra a fila, as recusadas com o motivo e o que já chegou ao `main`.
 - **Do lado do CI (`fila.yml` + `fila.mjs`), uma rodada por vez:** soma os ramos da fila em ordem de chegada sobre o `main` (cherry-pick: mensagem, rodapés e data de autoria iguais; o sha muda); cada leva entra inteira ou fica de fora (conflito, guarda de agregação, conferência da Q16); roda um portão inteiro sobre a soma; verde, avança o `main` sem force e apaga os ramos publicados.
 - **Portão vermelho:** com uma leva só, ela é recusada; com várias, nada muda e a mais antiga é testada sozinha na rodada seguinte, até sobrar a culpada. Leva recusada vira `recusada/<nome>`, com o motivo (arquivos em conflito, achados da guarda ou testes que caíram) na mensagem do commit de cima; o `main` não muda.
 - **O que já foi publicado não volta:** a identidade da leva é a data de autoria mais o assunto. A fila pula o que já está no `main`, e o rebase do publicar tira da frente os commits locais que a fila publicou (reaplicar duplicaria linha no `ROADMAP.md`).
@@ -7486,7 +7487,7 @@ segredo do repositório. O `main` não recebe commit do coletor.
 
 ```
 npm install        # uma vez por clone; liga o gancho de pre-push
-npm run publicar   # busca o main, rebase, guarda de agregação, portão, push
+npm run publicar   # busca o main, rebase, guarda, conferência, fase rápida e envio para a fila (Q17): um portão no CI publica todas as levas da fila
 ```
 
 Regras completas em `CLAUDE.md`. Trilhas em uso (o nome vai no rodapé `Trilha:` de todo commit):

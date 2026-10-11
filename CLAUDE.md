@@ -8,21 +8,25 @@ Um caminho só:
 
 ```
 npm install        # uma vez por clone; também liga o gancho de pre-push
-npm run publicar   # busca o main, rebase, guarda de agregação, portão, push
+npm run publicar   # busca o main, rebase, guarda, conferência, fase rápida local e envio para a fila
 ```
 
-- Nunca `git push --force`, nunca `--no-verify`, nunca `git push` direto no `main` sem passar por `npm run publicar`.
+**A fila (Q17).** O `npm run publicar` não envia para o `main`: envia a leva para `fila/<leva>` e termina em minutos. O fluxo "Fila de publicação", no GitHub, soma as levas que estiverem na fila sobre o `main`, roda **um** portão inteiro para todas e avança o `main`. A conversa não espera o portão: segue trabalhando no mesmo clone, por cima da leva enviada.
+
+```
+npm run publicar -- --situacao   # onde está cada leva: na fila · recusada (com o motivo) · publicada
+npm run publicar -- --esperar    # envia e fica olhando até publicar ou recusar
+npm run publicar -- --conferir   # só rebase, guarda e conferência
+npm run publicar -- --direto     # caminho antigo (portão inteiro no clone e push no main); só com a fila parada
+```
+
+- Leva recusada (conflito com quem estava na frente, guarda de agregação ou portão vermelho) aparece em `recusada/<leva>`, com o motivo. O `main` não mudou. Corrija no clone e rode `npm run publicar` de novo.
+- O nome do ramo é a reserva do número: se outra conversa da mesma trilha já enfileirou a mesma `Leva <P>-N`, o envio é recusado e a sua leva renumera.
+- O sha muda quando a fila publica (a mensagem, os rodapés e a data de autoria não). O próximo `npm run publicar` tira da frente o que já está no `main`; não faça isso à mão.
+- Só diga "publicado" com a leva no `main` (`-- --situacao` ou `-- --esperar`), nunca só por ter enviado para a fila.
+- Nunca `git push --force`, nunca `--no-verify`, nunca `git push` direto no `main`, nunca envie nada para `fila/*` ou `recusada/*` à mão.
 - Nunca grave um arquivo inteiro a partir de cópia que não veio do `main` de agora. Edite por patch em cima do que está no clone.
-- Leva pequena, um assunto, publicada ao terminar. Quanto mais tempo sem publicar, mais conflito.
-
-### Pela fila (Q17, em ensaio)
-
-```
-npm run publicar -- --fila            # rebase, guarda, fase rápida local e envio para fila/<leva>; o portão inteiro roda no CI
-npm run publicar -- --situacao        # na fila · recusada (com o motivo) · publicada
-```
-
-O fluxo "Fila de publicação" soma as levas da fila sobre o `main`, roda um portão para todas e avança o `main`. A conversa não espera: segue trabalhando no mesmo clone, por cima da leva enviada. Leva recusada (conflito, guarda ou portão vermelho) aparece em `recusada/<leva>` com o motivo; corrija no clone e envie de novo. O sha muda quando a fila publica (a mensagem e a data de autoria não): o próximo `npm run publicar` tira da frente o que já está no `main`. Nunca envie nada para `fila/*` ou `recusada/*` à mão.
+- Leva pequena, um assunto, enviada ao terminar. Quanto mais tempo sem publicar, mais conflito.
 
 ## Rodapés do commit
 
@@ -61,11 +65,11 @@ Fique com **os dois lados**: monte à mão a versão que contém a entrega da ou
 - A fase rápida nunca é repetida. `PORTAO_SEM_REPETIR=1 npm test` desliga a segunda chance, para caçar instabilidade.
 - Arquivo de teste novo que abre navegador entra na fase de tela (hoje só `e2e.test.mjs`; `portao.unit` barra navegador na fase rápida).
 - Antes do portão, o `npm run publicar` confere em segundos o que o derrubaria por descuido: id `16º-x` repetido no ROADMAP, partida-referência de outra versão do motor e navegador da fase de tela ausente (nas sessões de nuvem o portão acha sozinho o Chromium de outra revisão; `PW_CHROMIUM` continua valendo).
-- O `npm run publicar` olha o `main` a cada dois minutos durante o portão: se outra trilha publicar no meio, ele interrompe a fase e recomeça em cima do `main` novo, em vez de terminar um portão que não serviria.
+- No caminho antigo (`npm run publicar -- --direto`), o `main` é conferido a cada dois minutos durante o portão: se outra trilha publicar no meio, a fase é interrompida e recomeça em cima do `main` novo. Pela fila isso não acontece: o portão roda no CI sobre a soma.
 
 ## O que a guarda faz e o que não faz
 
-`agregacao.mjs` roda em três pontos: dentro do `npm run publicar`, no gancho de pre-push e no CI a cada push no `main` (o portão do CI só roda em push no `main`, em pull request e à mão; ramo de serviço não dispara portão). Ela barra: linhas de outra trilha apagadas sem declaração (linha movida ou que só ganhou conteúdo não conta), cópia antiga por cima de nova, leva repetida, histórico reescrito. Ela **não** enxerga conflito de comportamento (duas trilhas mudando a mesma regra em linhas diferentes): isso é trabalho do portão, por isso o portão roda depois do rebase, sobre o código já somado.
+`agregacao.mjs` roda em quatro pontos: dentro do `npm run publicar`, na fila (cada leva somada), no gancho de pre-push e no CI a cada push no `main` (o portão do CI só roda em push no `main`, em pull request e à mão; ramo de serviço não dispara portão). Ela barra: linhas de outra trilha apagadas sem declaração (linha movida ou que só ganhou conteúdo não conta), cópia antiga por cima de nova, leva repetida, histórico reescrito. Ela **não** enxerga conflito de comportamento (duas trilhas mudando a mesma regra em linhas diferentes): isso é trabalho do portão, por isso o portão roda depois do rebase, sobre o código já somado.
 
 Relatório do que aconteceu no `main`: `node agregacao.mjs --auditar 40`.
 

@@ -5,14 +5,14 @@
    (rebase, nunca force), confere que nada delas foi apagado, roda o
    portão e só então envia. Se alguém publicar no meio, recomeça.
 
-     npm run publicar                 fluxo completo
-     npm run publicar -- --conferir   até a guarda; não roda o portão nem envia
-
-   Q17 · pela fila (o portão inteiro roda no CI, uma vez para todas as levas que estiverem na fila):
-     npm run publicar -- --fila              rebase, guarda, conferência, fase rápida local e envio para `fila/<leva>`
-     npm run publicar -- --fila --esperar    idem, e fica olhando até a leva chegar ao main ou ser recusada
-     npm run publicar -- --fila --sem-rapida sem a fase rápida local (a fila pega a queda, 20 min depois)
-     npm run publicar -- --situacao          onde está cada leva: na fila, recusada (com o motivo) ou publicada
+     npm run publicar                 pela fila (Q17): rebase, guarda, conferência, fase rápida local e envio para `fila/<leva>`.
+                                      O portão inteiro roda no CI, uma vez para todas as levas da fila, e o main avança sozinho.
+     npm run publicar -- --esperar    idem, e fica olhando até a leva chegar ao main ou ser recusada
+     npm run publicar -- --sem-rapida sem a fase rápida local (a fila pega a queda, 20 min depois)
+     npm run publicar -- --situacao   onde está cada leva: na fila, recusada (com o motivo) ou publicada
+     npm run publicar -- --conferir   até a guarda e a conferência; não roda teste nem envia
+     npm run publicar -- --direto     caminho antigo: portão inteiro neste clone e push no main (para quando a fila
+                                      estiver parada; recomeça se outra trilha publicar no meio)
    ===================================================================== */
 import { execFileSync, spawnSync, spawn } from 'node:child_process';
 import { conferirFaixa, relatar, conferirArvore } from './agregacao.mjs';
@@ -20,7 +20,8 @@ import { garantirNavegador } from './portao.mjs';
 import { chave, commitsDa, publicados, nomeDoRamo, situacao, PREFIXO_FILA, PREFIXO_RECUSADA } from './fila.mjs';
 
 const soConferir = process.argv.includes('--conferir');
-const pelaFila = process.argv.includes('--fila');
+const direto = process.argv.includes('--direto');
+const pelaFila = !direto; // Q17 · a fila é o caminho padrão desde a leva I-282 (`--fila` continua aceito e não muda nada)
 const esperar = process.argv.includes('--esperar');
 const semRapida = process.argv.includes('--sem-rapida');
 const soSituacao = process.argv.includes('--situacao');
