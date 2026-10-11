@@ -22,13 +22,13 @@ jobs:
     runs-on: ubuntu-24.04   # Q21 · versão fixa: a troca do ubuntu-latest não pode derrubar o portão sem aviso
     timeout-minutes: 40   # Q14 · as fases rodam em sequência
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4 (P-2 · fixada por SHA)
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09   # v5 (fixada por SHA; roda em Node 24)
         with:
           fetch-depth: 150   # a guarda de agregação precisa enxergar os commits recentes das outras trilhas
       - name: Guarda de agregação (nenhuma trilha apaga a entrega de outra)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: node agregacao.mjs --faixa "${{ github.event.before }}..${{ github.sha }}"
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020   # v4 (P-2 · fixada por SHA)
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444   # v5 (fixada por SHA; roda em Node 24)
         with:
           node-version: 22
       - run: npm ci --no-audit --no-fund   # P-2 · exatamente o lockfile, sem versão nova entre um push e outro
@@ -59,7 +59,7 @@ jobs:
       # Q14 · o log inteiro fica guardado quando o portão cai: dá para ler a queda toda, não só a anotação
       - name: Guardar o log do portão
         if: failure()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4 (P-2 · fixada por SHA)
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f   # v6 (fixada por SHA; roda em Node 24)
         with:
           name: portao-log
           path: portao.log
@@ -73,8 +73,8 @@ jobs:
     runs-on: ubuntu-24.04   # Q21 · versão fixa: a troca do ubuntu-latest não pode derrubar o portão sem aviso
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4 (P-2 · fixada por SHA)
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020   # v4 (P-2 · fixada por SHA)
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09   # v5 (fixada por SHA; roda em Node 24)
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444   # v5 (fixada por SHA; roda em Node 24)
         with:
           node-version: 22
       - run: npm ci --no-audit --no-fund

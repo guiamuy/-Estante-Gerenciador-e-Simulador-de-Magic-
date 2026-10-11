@@ -37,12 +37,12 @@ jobs:
       plano: ${{ steps.monta.outputs.plano }}
       portao: ${{ steps.monta.outputs.portao }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4 (fixada por SHA)
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09   # v5 (fixada por SHA; roda em Node 24)
         with:
           ref: main            # o código que monta a fila é sempre o do main, nunca o do ramo que chegou
           fetch-depth: 200     # a guarda de agregação precisa enxergar os commits recentes das outras trilhas
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020   # v4 (fixada por SHA)
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444   # v5 (fixada por SHA; roda em Node 24)
         with:
           node-version: 22
       - name: Buscar os ramos da fila
@@ -64,12 +64,12 @@ jobs:
     outputs:
       quedas: ${{ steps.quedas.outputs.quedas }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4 (fixada por SHA)
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09   # v5 (fixada por SHA; roda em Node 24)
         with:
           ref: main
           fetch-depth: 200
           persist-credentials: false   # o portão roda código de leva e de dependência: sem credencial no disco
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020   # v4 (fixada por SHA)
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444   # v5 (fixada por SHA; roda em Node 24)
         with:
           node-version: 22
       - name: Buscar os ramos da fila
@@ -103,7 +103,7 @@ jobs:
           grep -E '^not ok [0-9]+ - ' portao.log | grep -v '\.test\.mjs$' | cut -c1-160 | head -12 | tr '\n' ';' | sed 's/^/quedas=/' >> "$GITHUB_OUTPUT"
       - name: Guardar o log do portão
         if: failure()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4 (fixada por SHA)
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f   # v6 (fixada por SHA; roda em Node 24)
         with:
           name: portao-log
           path: portao.log
@@ -120,11 +120,11 @@ jobs:
       actions: write     # disparar a rodada seguinte quando sobra ramo na fila
       statuses: write    # marcar no commit publicado que o portão da fila passou
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4 (fixada por SHA)
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09   # v5 (fixada por SHA; roda em Node 24)
         with:
           ref: main
           fetch-depth: 200
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020   # v4 (fixada por SHA)
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444   # v5 (fixada por SHA; roda em Node 24)
         with:
           node-version: 22
       - name: Buscar o main de agora e os ramos da fila

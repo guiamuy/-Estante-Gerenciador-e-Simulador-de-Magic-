@@ -133,3 +133,14 @@ test('Q21 · os fluxos que rodam o portão fixam a versão do sistema (ubuntu-la
     assert.deepEqual(onde.filter((o) => !/^ubuntu-\d\d\.\d\d$/.test(o)), [], `${nome}: todo job em versão fixa`);
   }
 });
+
+test('Q21 · toda ação de terceiro diz, ao lado do SHA, que versão é; nenhuma ficou na v4 (Node 20, que o GitHub está aposentando)', () => {
+  for (const nome of readdirSync(FLUXOS).filter((n) => /\.ya?ml$/.test(n))) {
+    const usos = [...readFileSync(join(FLUXOS, nome), 'utf8').matchAll(/^\s*-?\s*uses:\s*(\S+)(.*)$/gm)];
+    for (const [, acao, resto] of usos) {
+      const versao = (resto.match(/#\s*v(\d+)\b/) || [])[1];
+      assert.ok(versao, `${nome}: ${acao} sem a versão no comentário`);
+      assert.ok(Number(versao) >= 5, `${nome}: ${acao} está na v${versao}`);
+    }
+  }
+});
