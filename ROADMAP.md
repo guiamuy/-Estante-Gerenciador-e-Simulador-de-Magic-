@@ -3603,6 +3603,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Contrato:** ENGINE_VERSION, goldens e o piso do mapa de regras são só da trilha `motor` (integração). As trilhas paralelas não regravam goldens: o que fazem só acrescenta ações (critério da leva 104).
 - **Trilhas:** linhas `keywords`, `verbos` e `tipos` acrescentadas à tabela da seção 8.
 
+**M-300 · LT5 · Leitor de texto: estáticas e busca no grimório** ✅ (leva M-300, motor v109 sem mudança de jogo) — 56 das 296 cartas do acervo lidas por inteiro (eram 44), zero divergência.
+- **Valor:** o leitor passa a entender as frases mais comuns das permanentes e dos tutores: "Creatures you control have haste", "Equip {custo}", "~ gets +1/+1 for each <contagem>", "Enchanted creature gets +1/+1 for each <contagem>", evasões ("can't be blocked except by creatures with flying", "creatures with power less than ~'s power can't block it"), reciclagem em terreno e a busca completa de 701.23: "[Its controller may ]search your/their library for [up to N] <qualidade> card[ named X], reveal it, put it <na mão | no campo | no campo virada | no topo do grimório>, then shuffle".
+- **Qualidades de busca lidas:** terreno básico, básico de subtipos (Landscapes), um tipo ou "A or B" (instant or sorcery), subtipos (Plains; Aura or Equipment), "creature card with <palavra-chave>", "cards named ~". Qualidade fora disso (valor de mana, "nonland", cor) fica não lida, declarado no teste.
+- **Comparador:** `optional`, `filter` e `to` passam a contar na concordância; "you may <efeito único>" vale igual na habilidade ou no efeito (mesma pergunta para o motor); `entersTapped: false` à mão vale como ausente.
+- **Fora:** condição intermediária em gatilho ("if an opponent controls more lands than you"), "reveal until", mana de qualquer cor com custo além de {T}, "Choose two —", custo adicional de sacrifício: ficam para as trilhas `verbos` e LT6 (medição nas listas reais).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

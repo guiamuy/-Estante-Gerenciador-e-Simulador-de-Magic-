@@ -14120,7 +14120,10 @@ const __m42 = (function () {
      into a graveyard from the battlefield", "At the beginning of your upkeep"), com "you may"; Auras (Enchant X; "Enchanted creature gets
      +N/+N and has <palavras>" / "has protection from <cor>"); "~ enters tapped"; palavras-chave com custo da permanente (ninjutsu).
      LT4 · habilidades ativadas: "{custo}, {T}, Sacrifice ~: efeito" com mana, virar, sacrificar a si, sacrificar outra (artefato ou criatura) e
-     descartar; "Activate only as a sorcery"; "Tap/Untap enchanted creature". */
+     descartar; "Activate only as a sorcery"; "Tap/Untap enchanted creature".
+     LT5 · estáticas: "Creatures you control have <palavras>" (grantsAll), "~ gets +N/+N for each <contagem>" e "Enchanted creature gets
+     +N/+N for each <contagem>" (per), "Equip {custo}", "Enchanted creature gets -N/-0", "~ can't be blocked except by creatures with flying",
+     "<cor> creature tokens" com várias palavras. */
   const SC = __m23;
   const NUMEROS = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
   const N = '(a|an|one|two|three|four|five|six|seven|eight|nine|ten|\\d+)';
@@ -14156,6 +14159,30 @@ const __m42 = (function () {
     if (palavras.some(k => !SC.KEYWORDS.map(x => x.toLowerCase()).includes(k))) return null;
     return [{ do: 'token', amount: num(qtd), token: { name: sub, types: ['creature'], subtypes: sub.split(' '), colors: cs, power: p, toughness: t, ...(palavras.length ? { keywords: palavras } : {}) } }];
   }
+  const TIPOS = new Set(['artifact', 'creature', 'enchantment', 'instant', 'sorcery', 'land', 'planeswalker', 'battle']);
+  /** LT5 · "<qualidade> card" de uma busca → filter do vocabulário, ou null quando a qualidade não cabe nele. */
+  function filtroDeBusca(q) {
+    let t = q.trim(), f = {}, m;
+    if ((m = t.match(/^basic (.+)$/i))) { f.basic = true; f.types = ['land']; t = m[1]; if (/^land$/i.test(t)) return f; }
+    if ((m = t.match(/^(.+?) with (flying|defender|reach|trample|lifelink|deathtouch|vigilance|haste|menace)$/i))) { f.keyword = m[2].toLowerCase(); t = m[1]; }
+    const partes = t.split(/,\s*or\s+|,\s*|\s+or\s+/).map(x => x.trim()).filter(Boolean);
+    if (!partes.length) return null;
+    if (partes.every(x => TIPOS.has(x.toLowerCase()))) { if (f.types) return null; f.types = partes.map(x => x.toLowerCase()); return f; }
+    if (partes.every(x => /^[A-Z][a-z]+$/.test(x))) { f.subtypes = partes; return f; }
+    return null;
+  }
+  const DESTINO = { 'into your hand': 'hand', 'into their hand': 'hand', 'onto the battlefield tapped': 'battlefield-tapped', 'onto the battlefield': 'battlefield', 'on top of your library': 'library-top' };
+  /** LT5 · "[Its controller may ]search your library for [up to N] <qualidade> card[ named X], reveal it, put it <destino>" (o "then shuffle"
+      fica para a frase seguinte; o motor já embaralha ao fim da busca). */
+  function busca(m) {
+    const quem = m[1] ? (/^you may$/i.test(m[1]) ? null : 'target-controller') : null;
+    if (m[1] && !quem && !/^you may$/i.test(m[1])) return null;
+    const amount = num(m[3]); if (amount == null) return null;
+    const filter = m[5] ? { name: m[5] } : (m[4] ? filtroDeBusca(m[4]) : {}); if (!filter) return null;
+    if (filter.name === '~') filter.name = nomeAtual;
+    const to = m[6] ? DESTINO[m[6].toLowerCase()] : 'hand'; if (!to) return null;
+    return [{ do: 'search', amount, ...(quem ? { target: quem } : {}), ...(m[1] ? { optional: true } : {}), filter, to }];
+  }
   /* Padrões de frase de efeito de mágica (a frase já sem ponto final, com o nome da carta trocado por "~"). Cada um devolve a lista de
      efeitos ou null. */
   const PADROES = [
@@ -14189,6 +14216,8 @@ const __m42 = (function () {
     [new RegExp(`^put ${N} \\+1/\\+1 counters? on (this creature|~)$`, 'i'), m => [{ do: 'counters', amount: num(m[1]), target: 'self-source' }]],
     [/^exile target player's graveyard$/i, () => [{ do: 'exile_graveyard', target: 'player' }]],
     [/^it deals (\d+) damage to (each opponent|target opponent|any target)$/i, m => [com({ do: 'damage', amount: +m[1] }, alvo(m[2]))]],
+    [new RegExp(`^(?:(you may|its controller may|that player may|target player may) )?search (?:your|their) library for (?:(up to) )?${N}(?: (.+?))? cards?(?: named (.+?))?(?:, reveal (?:it|them))?(?:,? (?:and )?put (?:it|them|that card) (into (?:your|their) hand|onto the battlefield(?: tapped)?|on top of your library))?$`, 'i'), busca], // LT5 · 701.23
+    [/^shuffle(?: your library)?$/i, () => []], // LT5 · o "then shuffle" da busca: o motor embaralha ao fim dela
     [new RegExp(`^create ${N} (\\d+/\\d+) ((?:white|blue|black|red|green|colorless)(?: and (?:white|blue|black|red|green))?) ${TIPO_CRIATURA} creature tokens?(?: with ([a-z ,]+))?$`), m => ficha(m[1], m[2], m[3], m[4], m[5])]
   ];
   /** Linha de palavra-chave com custo, no topo do script ("Flashback {2}{R}" → flashback: { mana }). Só as que o motor executa assim. */
@@ -14215,11 +14244,17 @@ const __m42 = (function () {
     [/^whenever another creature enters(?: the battlefield)? under your control$/i, 'other-etb'],
     [/^when enchanted creature becomes tapped or is dealt damage$/i, 'enchanted-tapped-or-damaged']
   ];
+  const CONTAGENS = { 'enchantment you control': 'enchantments-you-control', 'other enchantment on the battlefield': 'other-enchantments', 'aura on the battlefield': 'auras-on-battlefield',
+    'creature you control': 'creatures-you-control', 'other creature you control': 'other-creatures-you-control', 'elf you control': 'elves-you-control', 'elf on the battlefield': 'elves-on-battlefield',
+    'permanent you control': 'permanents-you-control', 'nonland permanent you control': 'nonland-permanents-you-control', 'creature with defender you control': 'defenders-you-control' };
+  const contagem = t => CONTAGENS[String(t).toLowerCase().trim()];
   const ENCHANT = { 'enchant creature': 'creature', 'enchant creature you control': 'creature-you-control', 'enchant land': 'land', 'enchant permanent': 'permanent' };
   const PROT = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
   /** "Enchanted creature gets +2/+0 and has trample." / "Enchanted creature has flying." / "… has protection from black and from red." */
   function concessao(l) {
-    let m = l.match(/^enchanted (?:creature|permanent|land) gets ([+-]\d+)\/([+-]\d+)(?: and has ([a-z ,]+))?$/i);
+    let m = l.match(/^enchanted creature gets ([+-]\d+)\/([+-]\d+) for each (.+?)(?: and has ([a-z ,]+))?$/i);
+    if (m) { const per = contagem(m[3]); if (!per) return null; const kws = m[4] ? m[4].split(/,\s*|\s+and\s+/).map(x => x.trim().toLowerCase()) : []; if (kws.some(k => !KW.has(k))) return null; return { perPower: SINAL(m[1]), perToughness: SINAL(m[2]), per, ...(kws.length ? { keywords: kws } : {}) }; } // LT5
+    m = l.match(/^(?:enchanted|equipped) (?:creature|permanent|land) gets ([+-]\d+)\/([+-]\d+)(?: and has ([a-z ,]+))?$/i);
     if (m) { const kws = m[3] ? m[3].split(/,\s*|\s+and\s+/).map(x => x.trim().toLowerCase()) : []; if (kws.some(k => !KW.has(k))) return null; return { power: SINAL(m[1]), toughness: SINAL(m[2]), ...(kws.length ? { keywords: kws } : {}) }; }
     m = l.match(/^enchanted (?:creature|permanent) has protection from ((?:white|blue|black|red|green)(?: and from (?:white|blue|black|red|green))*)$/i);
     if (m) return { protection: m[1].split(/ and from /).map(c => PROT[c.toLowerCase()]) };
@@ -14279,7 +14314,7 @@ const __m42 = (function () {
   /** Um parágrafo de efeito de mágica → { efeitos, frases }. */
   function leParagrafo(texto, nome, frases) {
     const efeitos = [];
-    const partes = texto.replace(new RegExp(escapa(nome), 'g'), '~').split(/\.\s+|,\s+then\s+|\.$/).map(x => x.replace(/\.$/, '').trim()).filter(Boolean);
+    const partes = texto.replace(new RegExp(escapa(nome), 'g'), '~').replace(/, then shuffle and put that card on top(\.?)$/i, ', put that card on top of your library, then shuffle$1').split(/\.\s+|,\s+then\s+|\.$/).map(x => x.replace(/\.$/, '').trim()).filter(Boolean);
     let ok = true;
     for (const p of partes) {
       const e = leFrase(p);
@@ -14289,17 +14324,27 @@ const __m42 = (function () {
   }
   /** A carta → { script, frases: [{ texto, lida, motivo? }], completa }. Só mágicas instantâneas e feitiços (LT1–LT2): linhas de
       permanente (habilidades ativadas, disparadas, estáticas) ficam não lidas até o LT3/LT4. */
+  let nomeAtual = '';
   function ler(card) {
-    const nome = (card && card.name) || ''; const tipo = String((card && card.type_line) || '');
+    const nome = (card && card.name) || ''; nomeAtual = nome; const tipo = String((card && card.type_line) || '');
     const linhas = semLembrete(card && card.oracle_text).split('\n').map(x => x.trim()).filter(Boolean);
     const frases = [], efeitos = [], topo = {};
     const magica = /\b(Instant|Sorcery)\b/.test(tipo);
     let modos = null;
     for (const linha of linhas) {
       if (linhaDePalavras(linha)) { frases.push({ texto: linha, lida: true, palavras: true }); continue; }
+      const kc0 = !magica && COM_CUSTO.map(([re, faz]) => { const m = linha.replace(/\.$/, '').match(re); return m && faz(m); }).find(Boolean); // LT5 · reciclagem em terreno
+      if (kc0) { Object.assign(topo, kc0); frases.push({ texto: linha, lida: true }); continue; }
       if (!magica) { // LT3 · permanentes
         const lp = linha.replace(/\.$/, '');
         const en = ENCHANT[lp.toLowerCase()]; if (en) { topo.aura = { enchant: en }; frases.push({ texto: linha, lida: true }); continue; }
+        const eq = lp.match(/^Equip (\{[^}]+\}(?:\{[^}]+\})*)$/); if (eq) { topo.equip = { enchant: 'creature', cost: { mana: eq[1] } }; frases.push({ texto: linha, lida: true }); continue; } // LT5
+        const ga = lp.match(/^creatures you control have ([a-z ,]+)$/i); // LT5 · "Creatures you control have haste"
+        if (ga) { const kws = ga[1].split(/,\s*|\s+and\s+/).map(x => x.trim().toLowerCase()); if (kws.every(k => KW.has(k))) { topo.grantsAll = { ...(topo.grantsAll || {}), keywords: [...((topo.grantsAll || {}).keywords || []), ...kws] }; frases.push({ texto: linha, lida: true }); continue; } }
+        const pe = lp.match(/^~ gets ([+-]\d+)\/([+-]\d+) for each (.+)$/i); // LT5 · "~ gets +1/+1 for each Aura on the battlefield"
+        if (pe && contagem(pe[3])) { topo.self = { ...(topo.self || {}), perPower: SINAL(pe[1]), perToughness: SINAL(pe[2]), per: contagem(pe[3]) }; frases.push({ texto: linha, lida: true }); continue; }
+        if (/^~ can't be blocked except by creatures with flying$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'flying-only' }; frases.push({ texto: linha, lida: true }); continue; } // LT5
+        if (/^creatures with power less than ~'s power can't block it$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'power-less' }; frases.push({ texto: linha, lida: true }); continue; } // LT5
         if (/^(this land|this creature|~) enters(?: the battlefield)? tapped$/i.test(lp)) { topo.entersTapped = true; frases.push({ texto: linha, lida: true }); continue; }
         const nj = lp.match(/^ninjutsu (\{[^}]+\}(?:\{[^}]+\})*)$/i); if (nj) { topo.ninjutsu = { mana: nj[1] }; frases.push({ texto: linha, lida: true }); continue; }
         const mana = lp.match(/^\{T\}: Add (\{[WUBRGC]\}(?: or \{[WUBRGC]\})*)$/); if (mana) { topo.produces = mana[1].split(' or ').map(x => [x.replace(/[{}]/g, '')]); frases.push({ texto: linha, lida: true }); continue; } // produção de mana
@@ -14319,7 +14364,7 @@ const __m42 = (function () {
     let script = null;
     if (modos && modos.length && !efeitos.length) script = { name: nome, modes: modos.filter(Boolean), ...topo };
     else if (efeitos.length && !modos) script = { name: nome, effects: efeitos, ...topo };
-    else if (!magica && (topo.abilities || topo.aura || topo.entersTapped || topo.grants || topo.produces)) script = { name: nome, ...topo }; // LT3
+    else if (!magica && (topo.abilities || topo.aura || topo.equip || topo.entersTapped || topo.grants || topo.grantsAll || topo.self || topo.produces || topo.cycling)) script = { name: nome, ...topo }; // LT3/LT5
     const permanenteSemTexto = !magica && !linhas.length; // criatura sem texto: não precisa de script (o motor joga pelos dados da carta)
     const erros = script ? SC.validateScript({ ...script, example: { target: 'none', expect: {} } }).filter(e => !/cenário|example|exemplo/i.test(e)) : ['sem efeito'];
     const completa = !!(lidas && ((script && !erros.length) || permanenteSemTexto || (!magica && frases.length && frases.every(f => f.palavras))));
