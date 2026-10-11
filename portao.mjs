@@ -55,9 +55,46 @@ export function pushSemFiltro(yml) {
   return false;
 }
 
-function roda(args, { eco = true } = {}) {
+/* ---------- Q19 · fase de tela em fatias ---------- */
+
+/** Em quantos processos a fase de tela roda. Cada fatia tem o seu Chromium, e os testes de tela dependem de tempo: só vale
+    dividir com dois núcleos por fatia. Dois núcleos (conversas de nuvem) → 1, como sempre foi; quatro (CI) → 2. `PORTAO_FATIAS` manda. */
+export function fatiasDeTela(nucleos = availableParallelism(), env = process.env) {
+  const pedido = Number(env.PORTAO_FATIAS);
+  if (Number.isInteger(pedido) && pedido >= 1) return Math.min(pedido, 8);
+  return Math.max(1, Math.min(4, Math.floor(nucleos / 2)));
+}
+/** Embrulha o `test` do Node: com `fatia` = "i/n", o teste de ordem k (pela ordem em que o arquivo os registra) só roda quando
+    k % n === i - 1; os outros saem como pulados, com o motivo. Sem fatia (ou com fatia inválida), devolve o `test` como veio.
+    Cada teste de tela abre o seu servidor e o seu navegador, então não há estado entre eles para a divisão quebrar. */
+export function fatiar(test, fatia) {
+  const [, i, n] = String(fatia || '').match(/^(\d+)\/(\d+)$/) || [];
+  if (!n || +n < 2 || +i < 1 || +i > +n) return test;
+  let k = 0;
+  return (nome, ...resto) => {
+    const minha = k++ % +n === +i - 1;
+    if (minha) return test(nome, ...resto);
+    const fn = resto[resto.length - 1], opcoes = resto.length > 1 && typeof resto[0] === 'object' ? resto[0] : {};
+    return test(nome, { ...opcoes, skip: opcoes.skip || `fatia ${i}/${n}: roda em outra fatia` }, fn);
+  };
+}
+/** Lê as saídas TAP das fatias e confere que cada teste rodou em exatamente uma. Devolve { total, faltando, repetidos }. */
+export function conferirFatias(saidas) {
+  const vezes = new Map();
+  for (const tap of saidas) {
+    for (const m of String(tap).matchAll(/^(?:not )?ok \d+ - (.+?)( # SKIP\b.*)?$/gm)) {
+      const nome = m[1].trim();
+      if (/\.test\.mjs$/.test(nome)) continue;
+      vezes.set(nome, (vezes.get(nome) || 0) + (m[2] ? 0 : 1));
+    }
+  }
+  const nomes = [...vezes.keys()];
+  return { total: nomes.length, faltando: nomes.filter((n) => vezes.get(n) === 0), repetidos: nomes.filter((n) => vezes.get(n) > 1) };
+}
+
+function roda(args, { eco = true, env = process.env } = {}) {
   return new Promise((resolve) => {
-    const filho = spawn(process.execPath, args, { cwd: RAIZ, env: process.env, stdio: ['ignore', 'pipe', 'inherit'] });
+    const filho = spawn(process.execPath, args, { cwd: RAIZ, env, stdio: ['ignore', 'pipe', 'inherit'] });
     let saida = '';
     filho.stdout.on('data', (d) => { saida += d; if (eco) process.stdout.write(d); });
     filho.on('close', (codigo) => resolve({ ok: codigo === 0, saida }));
@@ -104,8 +141,22 @@ async function principal() {
   }
   if (fase === 'tudo' || fase === 'e2e') {
     const t0 = Date.now();
-    titulo('fase 2 · tela (navegador, sozinha)');
-    const r = await roda(['--test', ...arquivosDaFase('e2e')]);
+    const fatias = fatiasDeTela();
+    titulo(fatias > 1 ? `fase 2 · tela (navegador, sozinha) em ${fatias} fatias, um Chromium por fatia` : 'fase 2 · tela (navegador, sozinha)');
+    let r;
+    if (fatias === 1) r = await roda(['--test', ...arquivosDaFase('e2e')]);
+    else {
+      // Q19 · o mesmo arquivo, uma vez por fatia; a primeira aparece ao vivo e as outras em seguida, inteiras
+      const partes = await Promise.all(Array.from({ length: fatias }, (_, i) => roda(['--test', ...arquivosDaFase('e2e')], { eco: i === 0, env: { ...process.env, E2E_FATIA: `${i + 1}/${fatias}` } })));
+      partes.slice(1).forEach((p, i) => { console.log(`\n# ── fatia ${i + 2}/${fatias}`); process.stdout.write(p.saida); });
+      r = { ok: partes.every((p) => p.ok), saida: partes.map((p) => p.saida).join('\n') };
+      const c = conferirFatias(partes.map((p) => p.saida));
+      console.log(`# fatias: ${c.total} testes, cada um numa fatia só`);
+      if (c.faltando.length || c.repetidos.length) {
+        console.error(`\n✗ A divisão em fatias deixou teste de fora ou repetiu teste:${c.faltando.map((n) => `\n  não rodou: ${n}`).join('')}${c.repetidos.map((n) => `\n  rodou mais de uma vez: ${n}`).join('')}`);
+        process.exit(1);
+      }
+    }
     console.log(`# fase 2 em ${minutos(Date.now() - t0)}`);
     if (!r.ok) {
       const caidos = falhasDoTap(r.saida);

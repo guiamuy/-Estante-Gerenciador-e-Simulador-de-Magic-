@@ -522,6 +522,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ib 🟡 | Q16 conferência antes do portão: leva repetida na trilha, id repetido na ordem, goldens de outra versão e navegador da fase de tela (leva I-280) | Q | ½ | — |
 | 16º-ic 🟡 | Q17 fila de publicação: `publicar --fila` envia para `fila/<leva>`; o fluxo soma as levas, roda um portão e avança o `main`; recusada volta com o motivo (leva I-281, em ensaio) | Q | 2 | Q15 |
 | 16º-id 🟡 | Q17 a fila vira o caminho padrão do `npm run publicar`; o caminho antigo fica em `--direto` (leva I-282, a primeira publicada pela fila) | Q | ½ | Q17 |
+| 16º-ie 🟡 | Q19 fase de tela em fatias: o mesmo arquivo roda uma vez por fatia, um Chromium cada (2 fatias com 4 núcleos, 1 com 2); cada teste numa fatia só, conferido no fim (leva I-283) | Q | 1 | — |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -2733,10 +2734,16 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 **Q18 · Vez de publicar por ramo** ⬜ (só se a Q17 não se sustentar no ensaio)
 - **Valor:** quem vai publicar espera a vez em vez de rodar um portão que será interrompido. Não aumenta a capacidade. **Depende de:** Q15.
 
-**Q19 · Fase de tela em processos paralelos** ⬜
-- **Valor:** portão mais curto para todos (fase de tela: 15 min no CI, 18 a 23 min nas conversas).
-- **Aceite:** `e2e.test.mjs` dividido por tela em arquivos com navegador próprio; `portao.mjs` usa um processo por núcleo na fase de tela; a contagem de testes é a mesma antes e depois; nenhuma queda nova em 5 portões seguidos.
-- **Testes:** `portao.unit`. **Depende de:** medir o tempo por teste. **Parecer:** escala. **Fora:** mudar asserção.
+**Q19 · Fase de tela em fatias** 🟡 (leva I-283; ganho a medir nos primeiros portões do CI)
+- **Valor:** portão mais curto onde ele passou a rodar: no CI. A fase de tela era 15 dos 22 min.
+- **Como:** o arquivo de tela não foi dividido (nenhuma trilha precisa mexer em arquivo novo, nenhum conflito). O `portao.mjs` roda o mesmo `e2e.test.mjs` uma vez por fatia, cada uma com o seu Chromium, e o embrulho `fatiar` faz cada teste rodar numa fatia só (pela ordem de registro; os outros saem pulados com o motivo). Cada teste de tela já abria a sua página e o seu servidor, então não há estado entre eles.
+- **Quantas fatias:** duas com quatro núcleos (CI), uma com dois (conversas de nuvem, como sempre foi: teste de tela depende de tempo e precisa de dois núcleos por navegador). `PORTAO_FATIAS=n` manda.
+- **Garantia:** ao fim, o portão confere que cada teste rodou em exatamente uma fatia; teste de fora ou repetido deixa o portão vermelho. A segunda chance (Q14) continua igual, com o teste sozinho.
+- **Medida antes (11/10/2026):** 186 testes; fase de tela de 15 min no CI e 19,3 min nesta máquina; os doze testes mais longos somam 5 min (R0 sonda de alcance 42 s, J1 37 s, M-267 e M-268 33 s cada). **Alvo:** fase de tela do CI em ~8 min, portão em ~15 min; registrar no diário os cinco primeiros portões e as quedas, se houver.
+- **Aceite:** mesma contagem de testes antes e depois; nenhuma queda nova em 5 portões seguidos do CI; se houver, `PORTAO_FATIAS: 1` nos fluxos desfaz sem mexer em código.
+- **Testes:** `portao.unit` Q19 (4), um deles rodando um arquivo de verdade em duas fatias. **Parecer:** escala aprovado com ressalva (ganho e estabilidade a medir no CI).
+- **Regra para teste de tela novo:** só `test(nome, opções, fn)` no nível do arquivo, e nenhum teste depende de outro.
+- **Fora:** mudar asserção; dividir o arquivo; mais de uma fatia em máquina de dois núcleos.
 
 **Q20 · Instáveis zerados** ⬜ (contínuo; cada um é leva da trilha dona)
 - **Aceite:** lista INSTÁVEIS vazia em 20 portões seguidos. **Conhecido hoje:** H7 (imagens da partida, trilha geral, em correção na G-252).

@@ -1,7 +1,11 @@
 // Camada 4 · integração em navegador headless: fluxos do usuário ponta a
 // ponta, com a Scryfall simulada. Pula localmente se o Playwright não estiver
 // instalado; no CI a ausência é falha.
-import { test } from 'node:test';
+import { test as testeDoNode } from 'node:test';
+import { fatiar } from './portao.mjs';
+// Q19 · o portão pode rodar este arquivo em fatias (E2E_FATIA=i/n, um Chromium por fatia): cada teste roda numa fatia só.
+// Sem a variável, tudo roda como sempre. Regra para teste novo: nenhum teste depende de outro (cada um abre a sua página).
+const test = fatiar(testeDoNode, process.env.E2E_FATIA);
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync } from 'node:fs';

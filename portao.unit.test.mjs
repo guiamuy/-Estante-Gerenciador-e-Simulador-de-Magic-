@@ -1,10 +1,12 @@
 // Q14 · portão em duas fases: o que entra em cada fase, como as quedas são lidas da saída e como um teste é repetido sozinho.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { arquivosDaFase, falhasDoTap, padraoExato, pushSemFiltro, navegadorDeTela, ARQUIVO_DE_TELA } from './portao.mjs';
+import { arquivosDaFase, falhasDoTap, padraoExato, pushSemFiltro, navegadorDeTela, fatiasDeTela, fatiar, conferirFatias, ARQUIVO_DE_TELA } from './portao.mjs';
 const RAIZ = dirname(fileURLToPath(import.meta.url));
 
 test('Q14 · as duas fases cobrem todos os arquivos de teste, sem repetir nenhum; o navegador fica sozinho na segunda', () => {
@@ -78,4 +80,46 @@ test('Q16 · o navegador da fase de tela: PW_CHROMIUM, o do Playwright instalado
   assert.deepEqual(navegadorDeTela({ ...nuvem, existe: tem('/pw/chromium-1194/chrome-linux/chrome') }), { caminho: '/pw/chromium-1194/chrome-linux/chrome', origem: 'outra revisão' });
   assert.match(navegadorDeTela({ ...nuvem, existe: tem() }).erro, /playwright install chromium/);
   assert.match(navegadorDeTela({ env: {}, existe: tem() }).erro, /Não achei o Chromium/);
+});
+
+// Q19 · fase de tela em fatias
+test('Q19 · quantas fatias: duas por quatro núcleos, uma só com dois (teste de tela depende de tempo); PORTAO_FATIAS manda', () => {
+  assert.equal(fatiasDeTela(2, {}), 1); assert.equal(fatiasDeTela(3, {}), 1); assert.equal(fatiasDeTela(4, {}), 2); assert.equal(fatiasDeTela(8, {}), 4); assert.equal(fatiasDeTela(64, {}), 4);
+  assert.equal(fatiasDeTela(1, {}), 1);
+  assert.equal(fatiasDeTela(2, { PORTAO_FATIAS: '2' }), 2); assert.equal(fatiasDeTela(8, { PORTAO_FATIAS: '1' }), 1); assert.equal(fatiasDeTela(4, { PORTAO_FATIAS: 'x' }), 2); assert.equal(fatiasDeTela(4, { PORTAO_FATIAS: '0' }), 2);
+});
+
+test('Q19 · fatiar: cada teste cai numa fatia só, pela ordem de registro; os outros saem pulados com o motivo; sem fatia nada muda', () => {
+  const registra = (fatia) => { const visto = []; const t = fatiar((nome, ...r) => { const o = r.length > 1 ? r[0] : {}; visto.push([nome, o.skip || false]); }, fatia); for (const n of ['a', 'b', 'c', 'd', 'e']) t(n, { skip: false }, () => {}); return visto; };
+  const f1 = registra('1/2'), f2 = registra('2/2');
+  assert.deepEqual(f1.filter((x) => !x[1]).map((x) => x[0]), ['a', 'c', 'e']); assert.deepEqual(f2.filter((x) => !x[1]).map((x) => x[0]), ['b', 'd']);
+  assert.match(f1[1][1], /fatia 1\/2: roda em outra fatia/);
+  const dePular = []; fatiar((nome, o) => dePular.push(o.skip), '1/2')('x', { skip: 'Playwright não instalado' }, () => {});
+  assert.deepEqual(dePular, ['Playwright não instalado'], 'teste já pulado por outro motivo continua pulado, com o motivo dele');
+  const mesmo = () => {}; for (const ruim of [undefined, '', '1/1', '0/2', '3/2', 'x']) assert.equal(fatiar(mesmo, ruim), mesmo, String(ruim));
+  // teste sem opções (nome, fn) também é fatiado
+  const semOpc = []; const t = fatiar((nome, ...r) => semOpc.push([nome, r.length]), '2/2'); t('a', () => {}); t('b', () => {});
+  assert.deepEqual(semOpc, [['a', 2], ['b', 1]]);
+});
+
+test('Q19 · a conferência das fatias acusa teste que não rodou em nenhuma e teste que rodou em duas', () => {
+  const f1 = 'ok 1 - e2e · a\nok 2 - e2e · b # SKIP fatia 1/2: roda em outra fatia\nnot ok 3 - e2e · c\nok 1 - e2e.test.mjs';
+  const f2 = 'ok 1 - e2e · a # SKIP fatia 2/2: roda em outra fatia\nok 2 - e2e · b\nok 3 - e2e · c # SKIP fatia 2/2: roda em outra fatia';
+  assert.deepEqual(conferirFatias([f1, f2]), { total: 3, faltando: [], repetidos: [] });
+  assert.deepEqual(conferirFatias([f1, f1]), { total: 3, faltando: ['e2e · b'], repetidos: ['e2e · a', 'e2e · c'] });
+});
+
+test('Q19 · de verdade: um arquivo de teste rodado em duas fatias executa cada teste uma vez, e o arquivo de tela usa a mesma divisão', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'estante-fatias-'));
+  try {
+    const arq = join(dir, 'x.test.mjs');
+    writeFileSync(arq, `import { test as t0 } from 'node:test';\nimport { fatiar } from ${JSON.stringify(join(RAIZ, 'portao.mjs'))};\nconst test = fatiar(t0, process.env.E2E_FATIA);\nfor (const n of ['um', 'dois', 'três', 'quatro', 'cinco']) test('caso ' + n, { skip: false }, () => {});\n`);
+    const { NODE_TEST_CONTEXT, ...ambiente } = process.env; // sem isto o Node filho fala com o executor de testes pai, não em TAP
+    const saidas = ['1/2', '2/2'].map((f) => spawnSync(process.execPath, ['--test', '--test-reporter=tap', arq], { encoding: 'utf8', env: { ...ambiente, E2E_FATIA: f } }).stdout);
+    assert.deepEqual(conferirFatias(saidas), { total: 5, faltando: [], repetidos: [] });
+    assert.match(saidas[0], /ok \d+ - caso dois # SKIP fatia 1\/2/); assert.match(saidas[1], /ok \d+ - caso dois\n/);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+  const e2e = readFileSync(join(RAIZ, ARQUIVO_DE_TELA), 'utf8');
+  assert.match(e2e, /const test = fatiar\(testeDoNode, process\.env\.E2E_FATIA\);/);
+  assert.doesNotMatch(e2e, /\btest\.(only|describe|before|after)\b|^describe\(/m, 'o arquivo de tela só usa test(nome, opções, fn): é o que a divisão em fatias sabe repartir');
 });
