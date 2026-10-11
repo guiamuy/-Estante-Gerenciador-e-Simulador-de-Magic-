@@ -6198,6 +6198,9 @@ function effectErrors(effects, label, opcional) {
   });
   /* ↓ K · validação da trilha keywords */
   /* ↓ V · validação da trilha verbos */
+  effects.forEach((e, i) => { // V-16 · auditoria do lote 3
+    if (e.do === 'discard_random' && typeof e.amount === 'number' && !(Number.isInteger(e.amount) && e.amount > 0)) errs.push(`${label} ${i + 1} (discard_random): amount precisa ser inteiro positivo`);
+  });
   effects.forEach((e, i) => { // V-10 · 701.57: descobrir abre decisão (conjurar sem pagar ou não); o que vem depois não pode ter alvo próprio
     if (e.do === 'discover' && effects.slice(i + 1).some(isTargeted)) errs.push(`${label} ${i + 1} (discover): efeito com alvo depois de uma escolha`);
   });
@@ -17670,6 +17673,7 @@ function applyEffect(s, src, eff, tgt, events) {
     /* ↓ V · casos de applyEffect da trilha verbos */
     case 'discard_random': descartaAoAcaso(s, src, eff, tgt, events); break; // V-14 · 701.9b
     case 'learn': aprender(s, src, events); break; // V-13 · 701.48
+    case 'learn_sim': s.aprendeV = true; break; // V-16 · o "sim" do aprender (efeito interno, sem script)
     case 'suspect': suspeitar(s, src, eff, tgt, events); break; // V-12 · 701.60
     case 'unsuspect': absolver(s, src, eff, tgt, events); break; // V-12 · 701.60a "is no longer suspected"
     case 'discover': descobrir(s, src, eff, events); break; // V-10 · 701.57
@@ -20493,12 +20497,22 @@ Object.assign(EXPORTS_V, { descartaAoAcaso });
    verdade (insanidade e gatilhos valem). PARCIAL: o app não tem cartas de fora do jogo (reserva) durante a partida — a parte da Lição
    não é oferecida. */
 function aprender(s, src, events) {
-  const p = src.controller;
-  if (!s.zones[p].hand.length) return void events.push({ kind: 'effect', do: 'learn', name: src.name, target: s.players[p].name, amount: 0 });
-  s.pending = { kind: 'may_pay', p, cost: null, name: `${src.name} — aprender: descartar uma carta para comprar uma`,
-    then: { effects: [{ do: 'discard', amount: 1, target: 'self' }, { do: 'draw', amount: 1, target: 'self' }], source: src.ability ? src.source : src.oid, name: src.name, controller: p, targets: [] } };
-  events.push({ kind: 'choice', what: 'aprender', name: src.name, amount: 1 });
+  const p = src.controller, nome = src.name; // V-16 · quem aprende é quem controla o efeito agora (a fonte pode mudar de zona e de controlador antes da resposta)
+  if (!s.zones[p].hand.length) return void events.push({ kind: 'effect', do: 'learn', name: nome, target: s.players[p].name, amount: 0 });
+  // V-16 · o "sim" só anota; o descarte e a compra são passos da fila do verbo, que rodam antes de a mágica retomar o resto (608.2c)
+  s.verbo = [...(s.verbo || []), { passo: 'aprender-descarta', p, nome }];
+  s.pending = { kind: 'may_pay', p, cost: null, name: `${nome} — aprender: descartar uma carta para comprar uma`,
+    then: { effects: [{ do: 'learn_sim' }], source: src.ability ? src.source : src.oid, name: nome, controller: p, targets: [] } };
+  events.push({ kind: 'choice', what: 'aprender', name: nome, amount: 1 });
 }
+function passoAprenderDescarta(s, passo, events) {
+  const sim = s.aprendeV; delete s.aprendeV;
+  if (!sim || !s.zones[passo.p].hand.length) return;
+  s.verbo = [{ passo: 'aprender-compra', p: passo.p, nome: passo.nome }, ...(s.verbo || [])];
+  s.pending = { kind: 'discard', p: passo.p, n: 1, reason: 'effect', source: passo.nome };
+  events.push({ kind: 'effect', do: 'discard', name: passo.nome, target: s.players[passo.p].name, amount: 1 });
+}
+function passoAprenderCompra(s, passo, events) { draw(s, passo.p, 1); events.push({ kind: 'effect', do: 'draw', name: passo.nome, target: s.players[passo.p].name, amount: 1 }); }
 Object.assign(EXPORTS_V, { aprender });
 /* V-12 · 701.60 suspeitar. Suspeita é uma designação da permanente — não é habilidade nem valor copiável (b) — que dura até ela sair do
    campo ou até um efeito dizer que deixa de ser (a): a marca leva a encarnação do objeto (400.7). Enquanto dura, a permanente tem
@@ -20699,6 +20713,7 @@ function proliferar(s, src, events) {
   else continuaVerbo(s, events);
 }
 const PASSOS_V = {
+  'aprender-descarta': (s, passo, events) => passoAprenderDescarta(s, passo, events), 'aprender-compra': (s, passo, events) => passoAprenderCompra(s, passo, events), // V-16
   'descobrir-fim': (s, passo, events) => passoDescobrirFim(s, passo, events), // V-10
   'povoar-cria': (s, passo, events) => passoPovoarCria(s, passo, events), // V-4
   'proliferar-jogador'(s, passo, events) { // uma pergunta por jogador com veneno: "sim" anota o jogador
@@ -23254,6 +23269,7 @@ const MARCADOR_PT_V = { p1p1: '+1/+1', m1m1: '−1/−1', loyalty: 'de lealdade'
 const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas por descreveEfeito)
   discard_random: e => `${e.target === 'player' ? 'o jogador alvo descarta' : e.target === 'opponent' ? 'o oponente alvo descarta' : 'descarta'} ${qtd(e.amount) === 1 ? '1 carta' : qtd(e.amount) + ' cartas'} ao acaso`, // V-14
   learn: () => 'aprende (você pode descartar uma carta; se descartar, compra uma)', // V-13
+  learn_sim: () => 'descarta uma carta e compra uma', // V-16
   suspect: e => `${e.target === 'self-source' ? 'esta permanente' : ALVO_PT[e.target] || descreveAlvo(e.target)} fica suspeita (tem ameaçar e não pode bloquear)`, // V-12
   unsuspect: e => e.target === 'each-creature' ? 'todas as criaturas suspeitas deixam de ser suspeitas' : `${e.target === 'self-source' ? 'esta permanente' : ALVO_PT[e.target] || descreveAlvo(e.target)} deixa de ser suspeita`,
   lutador: e => `escolhe ${ALVO_PT[e.target] || descreveAlvo(e.target)} para lutar`,

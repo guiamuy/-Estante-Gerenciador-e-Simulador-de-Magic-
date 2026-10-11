@@ -6304,17 +6304,19 @@
    "regra": "Keyword Actions",
    "titulo": "Learn",
    "status": "parcial",
-   "falta": "\"reveal a Lesson card you own from outside the game and put it into your hand\": o app não tem cartas de fora do jogo (reserva) durante a partida, então a parte da Lição não é oferecida — quem não descarta não faz nada",
+   "falta": "\"reveal a Lesson card you own from outside the game and put it into your hand\": o app não tem cartas de fora do jogo (reserva) durante a partida, então a parte da Lição não é oferecida — quem não descarta não faz nada. Do motor (anterior à trilha): a carta com insanidade descartada pelo aprender abre a decisão de insanidade antes da compra — pela regra, a compra vem antes (702.35a: a insanidade é gatilho que vai à pilha depois)",
    "esforco": "M",
    "depende": [
     "reserva / fora do jogo (400.11)"
    ],
    "cartas": "uma coleção só (Strixhaven)",
-   "evidencia": "V-13 · efeito `learn` (aprender em core.js, abaixo da âncora ↓ V): quem controla decide se descarta (pergunta de sim ou não, só com carta na mão), escolhe a carta, e compra uma só se descartou; o descarte é o comum (insanidade e gatilhos valem) e o resto da mágica resolve depois da escolha. Cartas: Igneous Inspiration, Guiding Voice (.listas/oficiais-verbos.json)",
+   "evidencia": "V-13 · efeito `learn` (aprender em core.js, abaixo da âncora ↓ V): quem controla decide se descarta (pergunta de sim ou não, só com carta na mão), escolhe a carta, e compra uma só se descartou; o descarte é o comum (insanidade e gatilhos valem) e o resto da mágica resolve depois da escolha. Cartas: Igneous Inspiration, Guiding Voice (.listas/oficiais-verbos.json) · V-16 (auditoria independente): o \"sim\" só anota e o descarte e a compra são passos da fila do verbo — o resto da mágica resolve depois (608.2c) e quem descarta e compra é quem controlava o efeito, mesmo com a fonte já no cemitério do dono (603.3a)",
    "testes": [
     "CR 701.48 · aprender: descartar é escolha de quem controla; quem descarta escolhe a carta e compra uma — e a mágica termina de resolver",
     "CR 701.48 · aprender: recusar não descarta nem compra; de mão vazia não há pergunta",
-    "CR 701.48 · aprender: com uma carta só na mão o descarte ainda é escolha (sim ou não); Guiding Voice põe o marcador antes"
+    "CR 701.48 · aprender: com uma carta só na mão o descarte ainda é escolha (sim ou não); Guiding Voice põe o marcador antes",
+    "V-16 · auditoria D1 (608.2c, 701.48a): o que vem escrito depois de \"aprender\" resolve também quando o jogador descarta",
+    "V-16 · auditoria D2 (603.3a, 701.48a): quem aprende é quem controla a habilidade — a criatura do oponente que você controlava morre: você descarta e compra, não o dono"
    ]
   },
   {
