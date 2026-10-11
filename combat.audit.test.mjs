@@ -404,6 +404,24 @@ test('K-11 · evoluir (702.100): a criatura que evoluiu com a entrada de uma mai
   assert.equal(r.players[d].life, 18, 'Mutante 1/1 + 1 marcador');
 });
 
+test('K-12 · explorar (702.110): sacrificar o Urso ao entrar deixa o oponente sem bloqueador para o ataque seguinte', () => {
+  cobre('exploit');
+  const cartas = { ...CARDS, Grande: cre('Grande', 4, 4), Exploradora: cre('Exploradora', 2, 2, ['Exploit'], { oracle_text: 'Exploit\nWhen Exploradora exploits a creature, destroy target creature.' }) };
+  const scripts = { ...SCRIPTS, Exploradora: { name: 'Exploradora', abilities: [{ kind: 'triggered', when: 'exploits', effects: [{ do: 'destroy', target: 'creature' }] }], example: { action: 'etb', target: 'enemy-creature', expect: { gone: true } } } };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 43, mode: 'assisted', manaCheck: false, cards: cartas, scripts, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a; let e, u, uo, g; [s, u] = poe(s, a, 'Urso'); [s, g] = poe(s, a, 'Grande'); [s, uo] = poe(s, d, 'Urso'); [s, e] = poe(s, a, 'Exploradora', { zone: 'hand' });
+  s = act(s, { t: 'cast', p: a, oid: e });
+  for (let i = 0; i < 20 && (s.stack.length || s.pending); i++) {
+    if (s.pending) { const la = E.legalActions(s, s.pending.p); s = act(s, s.pending.kind === 'may_pay' ? la.find(x => x.t === 'pay') : s.pending.kind === 'sacrifice' ? la.find(x => x.oid === u) : la.find(x => JSON.stringify((s.pending.options || [])[x.index] || '').includes(uo)) || la[0]); }
+    else s = act(s, { t: 'pass', p: s.turn.priority });
+  }
+  assert.ok(!vivo(s, uo), 'explorou: o Urso do oponente foi destruído');
+  const r = combate(s, [g]);
+  assert.equal(r.players[d].life, 16, 'o Grande passou sem bloqueio');
+});
+
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));

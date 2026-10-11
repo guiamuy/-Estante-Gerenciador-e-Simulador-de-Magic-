@@ -5209,6 +5209,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'dash', // K-9 · 702.109: custo alternativo "Dash <custo>"; a arremetida tem ímpeto e volta para a mão no próximo passo final
   'jump-start', // K-10 · 702.133: conjurar do cemitério pagando o custo e descartando uma carta; exilada ao sair da pilha
   'evolve', // K-11 · 702.100: "sempre que uma criatura sua entra com poder ou resistência maior, +1/+1" (evoluirK), uma por instância
+  'exploit', // K-12 · 702.110: "quando entra, você pode sacrificar uma criatura"; o script diz o que acontece "quando ~ explora" (gatilho 'exploits')
   /* ↓ V · palavras-chave da trilha verbos */
   /* ↓ T · palavras-chave da trilha tipos */
 ];
@@ -5371,6 +5372,7 @@ const EFFECTS = {
   cascata: { fields: ['mv'], targets: [] }, // K-7 · cascata (gerado pelo motor)
   evocar_sacrifica: { fields: ['z'], targets: [] }, // K-8 · 702.74a · "its controller sacrifices it" (gerado pelo motor)
   evoluir: { fields: ['entrou'], targets: [] }, // K-11 · 702.100a · gerado pelo motor
+  explorar_k: { fields: ['fase'], targets: [] }, // K-12 · 702.110 · gerado pelo motor (antes e depois do sacrifício)
   /* ↓ V · efeitos da trilha verbos */
   // V-18 · 701.58 encobrir (como manifestar, com salvaguarda {2}; `look: N` = "look at the top N cards, cloak `amount` of them, the rest on the bottom in a random order") e 701.62 manifestar pavor (olha duas, manifesta uma, a outra vai para o cemitério)
   cloak: { fields: [], targets: ['self'] },
@@ -5686,6 +5688,7 @@ const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield
   // CR2g.5 · 508.3d / 509.3c / 509.3f(e) · "whenever you attack", "whenever ~ becomes blocked", "whenever ~ attacks and isn't blocked"
   'you-attack', 'becomes-blocked', 'attacks-unblocked',
   /* ↓ K · gatilhos da trilha keywords */
+  'exploits', // K-12 · 702.110b · "When ~ exploits a creature" (disparado pelo motor quando a habilidade de explorar sacrifica)
   /* ↓ V · gatilhos da trilha verbos */
   'becomes-monstrous', // V-6 · "When ~ becomes monstrous" (o valor do gatilho é o N da monstruosidade, 701.37c)
   /* ↓ T · gatilhos da trilha tipos */
@@ -7656,6 +7659,7 @@ function wardCustoErrosK(c, varias) {
 Object.assign(EXPORTS_K_SC, { wardCustoErrosK });
 /** K-6 · palavras-chave de KEYWORDS que levam número na linha impressa ("Afterlife 2"): na cobertura, a linha conta como palavra-chave
     com o número. Declaração de função (vale antes da linha, no KW_LINE). */
+TRIGGER_PT.exploits = 'quando explora uma criatura'; // K-12 · 702.110b
 function palavraNaLinhaK(k) {
   if (k === 'dash') return 'dash\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-9
   if (k === 'evoke') return 'evoke(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*exile an? (?:white|blue|black|red|green) card from your hand\\.?)'; // K-8 · só as formas que o motor paga
@@ -17835,6 +17839,13 @@ function applyEffect(s, src, eff, tgt, events) {
       break;
     }
     /* ↓ K · casos de applyEffect da trilha keywords */
+    case 'explorar_k': { // K-12 · 702.110b: "exploits a creature" = quem controla a habilidade sacrifica uma criatura enquanto ela resolve
+      if (eff.fase === 'antes') { s.explorandoK = { ab: src.oid, campo: battlefield(s).filter(x => x.controller === ctrl && isCreature(s, x)).map(x => ({ oid: x.oid, z: x.zc || 0 })) }; break; }
+      const antes = s.explorandoK && s.explorandoK.ab === src.oid ? s.explorandoK.campo : []; delete s.explorandoK;
+      const saiu = antes.filter(x => { const y = s.objects[x.oid]; return !y || y.zone !== 'battlefield' || (y.zc || 0) !== x.z; });
+      if (!saiu.length) break; // não sacrificou (recusou, ou não havia criatura)
+      explorouK(s, src, eff.z, saiu, ctrl); break;
+    }
     case 'evoluir': { // K-11 · 702.100a: a condição é conferida de novo na resolução (603.4); 702.100c: sem ser criatura, não evolui
       const w = s.objects[src.ability ? src.source : src.oid];
       const ok = w && w.zone === 'battlefield' && (w.zc || 0) === eff.zw && isCreature(s, w) && maiorQueK(s, eff, w);
@@ -20679,6 +20690,8 @@ const GATILHOS_DE_PALAVRA_K = {
   cascade: (s, o) => ({ kind: 'triggered', when: 'cast-self', palavraK: 'cascade', effects: [{ do: 'cascata', mv: valorDaMagicaK(s, o) }] }),
   // 702.74a · "When this permanent enters, if its evoke cost was paid, its controller sacrifices it." Só existe na permanente evocada
   // (instanciasK); a resolução confere de novo (603.4) e só sacrifica a mesma encarnação (400.7).
+  // 702.110a · "When this creature enters, you may sacrifice a creature." (603.5: a escolha é na resolução; pode ser ela mesma)
+  exploit: (s, o) => ({ kind: 'triggered', when: 'etb', optional: true, palavraK: 'exploit', effects: [{ do: 'explorar_k', fase: 'antes', z: (o && o.zc) || 0 }, { do: 'sacrifice_own', types: ['creature'] }, { do: 'explorar_k', fase: 'depois', z: (o && o.zc) || 0 }] }),
   evoke: (s, o) => ({ kind: 'triggered', when: 'etb', palavraK: 'evoke', effects: [{ do: 'evocar_sacrifica', z: (o && o.zc) || 0 }] }),
   afterlife: (s, o, i) => ({ kind: 'triggered', when: 'dies', palavraK: 'afterlife', effects: [{ do: 'token', amount: numeroDaPalavraK(s, o, 'afterlife', i), token: { name: 'Spirit', types: ['creature'], subtypes: ['Spirit'], colors: ['W', 'B'], power: 1, toughness: 1, keywords: ['flying'] } }] }),
 };
@@ -20862,6 +20875,19 @@ function maiorQueK(s, eff, w) {
   return (p != null && p > power(s, w)) || (t != null && t > toughness(s, w));
 }
 Object.assign(EXPORTS_K, { evoluirK });
+/* K-12 · 702.110 explorar. A habilidade "quando entra, você pode sacrificar uma criatura" é gerada da palavra-chave (GATILHOS_DE_PALAVRA_K,
+   opcional); ao resolver, se quem a controla sacrificou uma criatura, a criatura com explorar "explora uma criatura" (b) e as habilidades
+   "When ~ exploits a creature" dela disparam — também quando ela sacrificou a si mesma (olha como era no campo, 603.10a). Se ela saiu do
+   campo antes de a habilidade resolver, o sacrifício acontece, mas ela não explora (é outro objeto, 400.7). */
+function explorouK(s, src, z, saiu, ctrl) {
+  const w = s.objects[src.ability ? src.source : src.oid]; if (!w) return;
+  const noCampo = w.zone === 'battlefield' && (w.zc || 0) === z, aSiMesma = saiu.some(x => x.oid === w.oid && x.z === z);
+  if (!noCampo && !aSiMesma) return;
+  const habs = noCampo ? abilitiesOf(s, w) : ((w.ultima || {}).faceDown || (w.ultima || {}).semHabilidades) ? [] : ((s.facts[w.name].script || {}).abilities || []).concat((w.ultima || {}).concedidas || []);
+  for (const ab of habs) if (ab.kind === 'triggered' && ab.when === 'exploits')
+    s.queued.push({ source: w.oid, name: w.name, controller: ctrl, effects: ab.effects, when: 'exploits', ...marcasDaHabilidade(ab) });
+}
+Object.assign(EXPORTS_K, { explorouK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-18 · 701.58 encobrir: como manifestar, mas a permanente virada para baixo tem salvaguarda {2} enquanto ficar virada (a); vira para
    cima do mesmo jeito (b–d, g) e as cartas vão uma de cada vez (e). 701.62 manifestar pavor: "Look at the top two cards of your
@@ -23922,6 +23948,7 @@ Object.assign(PALAVRA_PT, { evoke: 'evocar' }); // K-8
 Object.assign(PALAVRA_PT, { dash: 'arremeter' }); // K-9
 Object.assign(PALAVRA_PT, { 'jump-start': 'recomeçar' }); // K-10
 Object.assign(PALAVRA_PT, { evolve: 'evoluir' }); // K-11
+Object.assign(PALAVRA_PT, { exploit: 'explorar' }); // K-12
 /* ↓ V · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha verbos */
 const MARCADOR_PT_V = { p1p1: '+1/+1', m1m1: '−1/−1', loyalty: 'de lealdade', poison: 'de veneno' }; // V-7
 const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas por descreveEfeito)

@@ -8136,14 +8136,20 @@
    "n": "702.110",
    "regra": "Keyword Abilities",
    "titulo": "Exploit",
-   "status": "ausente",
-   "falta": "Sem gatilho de entrada \"pode sacrificar uma criatura\" (702.110a) nem a marca \"explorou uma criatura\" para a habilidade ligada (702.110b).",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "603 gatilho etb com sacrifício opcional",
     "607 habilidades ligadas"
    ],
-   "cartas": "comum (Dragons of Tarkir; volta em coleções recentes)"
+   "cartas": "comum (Dragons of Tarkir; volta em coleções recentes)",
+   "evidencia": "K-12: 'exploit' em KEYWORDS; GATILHOS_DE_PALAVRA_K gera \"quando entra, você pode sacrificar uma criatura\" (opcional, a escolha na resolução: a mesa pergunta se quer e qual, inclusive ela mesma); efeito explorar_k guarda as criaturas de quem controla antes do sacrifício e confere depois: se uma saiu, a criatura com explorar \"explora uma criatura\" (702.110b) e as habilidades 'exploits' dela disparam (gatilho novo na âncora ↓ K, escrito no script) — também se ela sacrificou a si mesma (olha como era no campo, 603.10a); se ela saiu do campo antes de a habilidade resolver, o sacrifício acontece e não há \"explorar\" (400.7). Cartas exemplo: Sidisi's Faithful, Silumgar Butcher (Oracle do Forge, 11/10/2026).",
+   "testes": [
+    "CR 702.110a · explorar (Sidisi’s Faithful, texto oficial): ao entrar você pode sacrificar uma criatura; sacrificando, a habilidade \"quando explora\" dispara (702.110b); recusando, nada",
+    "CR 702.110b · sacrificar a própria criatura com explorar faz a habilidade dela disparar (olha como era no campo); se ela saiu antes, o sacrifício não é \"explorar\"",
+    "CR 702.110a · explorar sem script: a carta com só \"Exploit\" joga, e a palavra-chave conta na cobertura",
+    "K-12 · explorar (702.110): sacrificar o Urso ao entrar deixa o oponente sem bloqueador para o ataque seguinte"
+   ]
   },
   {
    "n": "702.111",

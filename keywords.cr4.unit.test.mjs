@@ -607,3 +607,43 @@ test('CR 702.100d · cada instância de evoluir dispara à parte, e cada uma con
   t2 = resolve(act(t2, { t: 'cast', p: a2, oid: u2 }));
   assert.equal(t2.objects[r2].counters.p1p1, 2, 'com 1/2: a primeira dá 2/3; a segunda, na resolução, vê 2 contra 2 e 2 contra 3: não evolui');
 });
+
+/* ---------------- K-12 · 702.110 explorar ---------------- */
+const FAITHFUL = () => ({ ...oficial("Sidisi's Faithful"), keywords: ['Exploit'] });
+const SC_FAITHFUL = { name: "Sidisi's Faithful", abilities: [{ kind: 'triggered', when: 'exploits', effects: [{ do: 'bounce', target: 'creature' }] }], example: { action: 'etb', target: 'enemy-creature', expect: { bounced: true } } };
+/** Resolve a pilha respondendo cada pendência com `escolhe(acoes, pendencia)` (ou a primeira ação). */
+function resolveCom(s, escolhe) {
+  for (let i = 0; i < 20 && (s.stack.length || s.pending); i++) {
+    if (s.pending) { const la = E.legalActions(s, s.pending.p); s = act(s, escolhe(la, s.pending, s) || la[0]); } else s = act(s, { t: 'pass', p: s.turn.priority });
+  }
+  return s;
+}
+
+test('CR 702.110a · explorar (Sidisi’s Faithful, texto oficial): ao entrar você pode sacrificar uma criatura; sacrificando, a habilidade "quando explora" dispara (702.110b); recusando, nada', () => {
+  let s = partida({ "Sidisi's Faithful": FAITHFUL(), Urso: URSO }, { "Sidisi's Faithful": SC_FAITHFUL }); const a = s.turn.active, d = 1 - a;
+  let f, u, uo; [s, u] = poe(s, a, 'Urso'); [s, uo] = poe(s, d, 'Urso'); [s, f] = poe(s, a, "Sidisi's Faithful", 'hand');
+  s = act(s, { t: 'cast', p: a, oid: f });
+  const sim = resolveCom(s, (la, pk, st) => pk.kind === 'may_pay' ? la.find(x => x.t === 'pay') : pk.kind === 'sacrifice' ? la.find(x => x.oid === u)
+    : pk.kind === 'pick_target' ? la.find(x => (st.pending.options || [])[x.index] && JSON.stringify(st.pending.options[x.index]).includes(uo)) : null);
+  assert.equal(sim.objects[u].zone, 'graveyard', 'sacrificou o Urso'); assert.equal(sim.objects[uo].zone, 'hand', 'explorou: o Urso do oponente voltou para a mão');
+  const nao = resolveCom(s, (la, pk) => pk.kind === 'may_pay' ? la.find(x => x.t === 'decline') : null);
+  assert.equal(nao.objects[u].zone, 'battlefield'); assert.equal(nao.objects[uo].zone, 'battlefield', 'recusou: ninguém explora');
+});
+
+test('CR 702.110b · sacrificar a própria criatura com explorar faz a habilidade dela disparar (olha como era no campo); se ela saiu antes, o sacrifício não é "explorar"', () => {
+  let s = partida({ "Sidisi's Faithful": FAITHFUL(), Urso: URSO, Volta: BOUNCE }, { "Sidisi's Faithful": SC_FAITHFUL, Volta: SC_BOUNCE }); const a = s.turn.active, d = 1 - a;
+  let f, u, uo, v; [s, u] = poe(s, a, 'Urso'); [s, uo] = poe(s, d, 'Urso'); [s, f] = poe(s, a, "Sidisi's Faithful", 'hand'); [s, v] = poe(s, a, 'Volta', 'hand');
+  s = act(s, { t: 'cast', p: a, oid: f });
+  const ela = resolveCom(s, (la, pk) => pk.kind === 'may_pay' ? la.find(x => x.t === 'pay') : pk.kind === 'sacrifice' ? la.find(x => x.oid === f) : null);
+  assert.equal(ela.objects[f].zone, 'graveyard'); assert.ok(ela.objects[uo].zone === 'hand' || ela.objects[u].zone === 'hand', 'sacrificou a si mesma e a volta disparou');
+  let t = s; for (let i = 0; i < 4 && !t.stack.some(x => t.objects[x].ability); i++) t = act(t, { t: 'pass', p: t.turn.priority });
+  t = J(t); t.turn.priority = a; t = act(t, { t: 'cast', p: a, oid: v, targets: [{ oid: f }] });
+  t = resolveCom(t, (la, pk) => pk.kind === 'may_pay' ? la.find(x => x.t === 'pay') : pk.kind === 'sacrifice' ? la.find(x => x.oid === u) : null);
+  assert.equal(t.objects[f].zone, 'hand'); assert.equal(t.objects[u].zone, 'graveyard', 'o sacrifício aconteceu');
+  assert.equal(t.objects[uo].zone, 'battlefield', 'mas a Faithful já tinha saído: não explorou');
+});
+
+test('CR 702.110a · explorar sem script: a carta com só "Exploit" joga, e a palavra-chave conta na cobertura', () => {
+  assert.equal(S.coverage({ name: 'Z', type_line: 'Creature — Zombie', oracle_text: 'Exploit (When this creature enters, you may sacrifice a creature.)' }).level, 'completo');
+  assert.equal(S.coverage(oficial('Silumgar Butcher')).level, 'parcial', 'a habilidade "quando explora" continua pedindo script');
+});

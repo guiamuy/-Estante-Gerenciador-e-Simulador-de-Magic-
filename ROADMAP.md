@@ -3956,6 +3956,14 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Testes:** `keywords.cr4.unit` (3, falham sem a leva), `combat.audit` K-11. Texto oficial: Cloudfin Raptor (Oracle do Forge, 11/10/2026). Goldens idênticos; motor v109.
 - **Parcial declarado (702.100):** 702.100b ("quando ~ evolui") não tem gatilho no motor; duas criaturas que entram ao mesmo tempo não se veem.
 
+**K-12 · Explorar (702.110)** 🟡 (leva K-12)
+- **Valor:** criatura com "Exploit" pergunta ao entrar se você quer sacrificar uma criatura (qualquer uma sua, ela inclusive); sacrificando, a habilidade "quando explora" da carta dispara.
+- **Aceite:** Sidisi's Faithful (texto oficial; script no teste) sacrifica o Urso e devolve o Urso do oponente; recusando, nada; sacrificando a si mesma, a volta dispara (olha como era no campo); devolvida à mão antes de a habilidade resolver, o sacrifício acontece e ela não explora (400.7); carta só com "Exploit" é completa na cobertura.
+- **Vocabulário:** gatilho `exploits` ("When ~ exploits a creature", 702.110b) para os scripts; o motor dispara.
+- **Toca ponto comum:** nenhum (a habilidade sai da tabela de palavras-chave; o sacrifício usa o `sacrifice_own` e a pendência que a mesa já tem).
+- **Testes:** `keywords.cr4.unit` (3, falham sem a leva), `combat.audit` K-12. Textos oficiais: Sidisi's Faithful, Silumgar Butcher (Oracle do Forge, 11/10/2026). Goldens idênticos; motor v109.
+- **Pedido à trilha `motor` (não bloqueia):** Sidisi's Faithful e Silumgar Butcher na biblioteca precisam de `PERM_TYPES` em `fixtures.mjs`.
+
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.
