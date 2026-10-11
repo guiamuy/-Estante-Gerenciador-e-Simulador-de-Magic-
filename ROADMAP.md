@@ -3655,6 +3655,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (mapa 500.8 parcial):** principal adicional sem combate, combate adicional "depois deste combate" (Combat Celebrant, Moraug), fases extras dadas a outro jogador.
 - **Teste:** `combate.extra.unit` (3 testes, falham no v109).
 
+**M-308 · Auditoria independente das primitivas M-304…M-307** ✅ (leva M-308, motor v110 sem mudança de forma; goldens intactos) — um revisor sem acesso à implementação sondou as quatro mecânicas novas contra as regras e os rulings: quatro divergências reproduzidas, três corrigidas aqui (cada uma virou teste antes), uma declarada.
+- **Corrigido:** (1) 610.3a também na habilidade **ativada** "exile … until ~ leaves": se a fonte pisca antes de resolver, nada é exilado (antes a criatura ficava presa ao objeto novo); (2) 400.7: a carta exilada que sai do exílio e volta a ele por outro efeito é outro objeto e não volta quando a fonte sai; (3) 708.2/113.6: dobrador virado para baixo ou sem habilidades não multiplica fichas nem marcadores.
+- **Declarado (mapa 614.16 parcial):** a criação do Exército do amass não passa pelos dobradores (o verbo é da trilha `verbos`).
+- **Conferido correto pelo revisor:** volta imediata sem pilha por qualquer saída da fonte, controle do dono, ficha exilada some, dois Banidores independentes; lealdade dobrada ao entrar e custo não dobrado; −1/−1 dobrado; dobrador do oponente; ficha-cópia; ×4/×8; ordem dos turnos extras em três cenários; "até o seu próximo turno" no turno extra; sequência de fases com duas Relentless Assault; desvirar só quem atacou (objeto novo fica virado); gatilho de ataque em cada combate.
+- **Teste:** `auditoria.cr2dge.unit` (3 testes, falham antes da correção).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

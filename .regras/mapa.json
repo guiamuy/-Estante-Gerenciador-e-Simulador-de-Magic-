@@ -4742,11 +4742,13 @@
     "603.6",
     "400.7"
    ],
-   "evidencia": "M-304 (CR2d.1): exile/mover com ate:'fonte-sair' — devolução imediata sem pilha ao sair da fonte (610.3), sob o controle do dono (610.3b), nada se move se a fonte já saiu (610.3a)",
+   "evidencia": "M-304 (CR2d.1): exile/mover com ate:'fonte-sair' — devolução imediata sem pilha ao sair da fonte (610.3), sob o controle do dono (610.3b), nada se move se a fonte já saiu (610.3a) · M-308 (auditoria): 610.3a também na habilidade ativada; o exilado guarda a encarnação (400.7)",
    "testes": [
     "CR 610.3 · o script aceita `ate: fonte-sair` só em exile/mover",
     "CR 610.3 · o Banidor exila a Ursa do oponente; quando o Banidor morre, a Ursa volta na hora, sem pilha, sob o controle do dono",
-    "CR 610.3a · o Banidor morre em resposta ao gatilho de entrada: a Ursa NÃO é exilada (o evento \"até\" já aconteceu)"
+    "CR 610.3a · o Banidor morre em resposta ao gatilho de entrada: a Ursa NÃO é exilada (o evento \"até\" já aconteceu)",
+    "CR 610.3a · habilidade ATIVADA \"exile … until ~ leaves\": a fonte pisca antes de resolver — nada é exilado (antes a Ursa ficava presa ao objeto novo)",
+    "CR 610.3 / 400.7 · a carta exilada sai do exílio e volta a ele por outro efeito: é outro objeto e não volta quando o Banidor morre"
    ]
   },
   {
@@ -5303,13 +5305,16 @@
    "depende": [
     "614.1"
    ],
-   "evidencia": "M-305 (CR2e.2): self.multiplica — fichas (dobro) e marcadores (dobro, ou +1 só +1/+1 em criatura) em todos os pontos de criação e colocação, inclusive entrar com marcadores e a lealdade inicial; custo de lealdade não passa (ruling)",
+   "evidencia": "M-305 (CR2e.2): self.multiplica — fichas (dobro) e marcadores (dobro, ou +1 só +1/+1 em criatura) em todos os pontos de criação e colocação, inclusive entrar com marcadores e a lealdade inicial; custo de lealdade não passa (ruling) · M-308 (auditoria): permanente sem habilidades (virada para baixo, perde tudo) não multiplica",
    "testes": [
     "CR 614.16 · os scripts das quatro cartas validam e chegam aos fatos da partida",
     "CR 614.16 · Parallel Lives dobra as fichas de quem a controla; duas quadruplicam; a do oponente não muda as suas",
     "CR 614.16 · Anointed Procession e Doubling Season também dobram fichas (somadas: ×4)",
     "CR 614.16 · Doubling Season dobra marcadores de qualquer tipo em permanente sua; Hardened Scales soma um só aos +1/+1 em criatura sua",
-    "CR 614.16 · entrar com marcadores também conta (Hardened Scales: 2 → 3) e o planeswalker entra com o dobro da lealdade; o + da lealdade (custo) não dobra"
+    "CR 614.16 · entrar com marcadores também conta (Hardened Scales: 2 → 3) e o planeswalker entra com o dobro da lealdade; o + da lealdade (custo) não dobra",
+    "CR 610.3a · habilidade ATIVADA \"exile … until ~ leaves\": a fonte pisca antes de resolver — nada é exilado (antes a Ursa ficava presa ao objeto novo)",
+    "CR 610.3 / 400.7 · a carta exilada sai do exílio e volta a ele por outro efeito: é outro objeto e não volta quando o Banidor morre",
+    "CR 708.2 / 113.6 · dobrador virado para baixo não tem habilidade: a ficha não dobra (antes dobrava)"
    ]
   },
   {
