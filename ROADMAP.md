@@ -516,6 +516,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-a263 ✅ | T6d perfil sincronizado entre aparelhos: encontro ao abrir, ao conectar, ao voltar a rede e depois de cada mudança, reaplica o que desce, estados e Sincronizar no Perfil (leva A-263, relato #6) | T | 1 | — |
 | 16º-dv ✅ | SEG5 "O que sai do aparelho" em Perfil › Dados: seis serviços com o que vai, quando e como evitar, conta e online com selo de uso; contrato une a tela e a política de conteúdo (leva P-6) | SEG | 1 | — |
 | 16º-dw ✅ | SEG6 apagar tudo deste aparelho em Perfil › Dados: armazenamento, caches e sessão do app, conferido antes de recarregar (leva P-10) | SEG | 1 | — |
+| 16º-dx ✅ | Apagar tudo com a conta no ar: sai da conta e para a sincronia antes, para nada apagado subir para a nuvem (leva P-11) | SEG | ½ | — |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -7841,6 +7842,13 @@ segredo do repositório. O `main` não recebe commit do coletor.
   apagados aqui (a conversa do Firebase está ligando esses serviços nas P-7 a P-9; a T6b já tem `apagarTudo` do perfil
   remoto, a ligar num botão próprio quando a conta estiver no ar); o service worker continua instalado (é o app,
   não dado); o arquivo de backup que a pessoa exportou é dela e fica onde ela guardou.
+- **P-11 (11/10/2026), com a conta no ar:** antes de apagar, o app **sai da conta neste aparelho** (revoga o acesso do
+  Google, apaga a sessão da conta da Estante) e **para a sincronia do perfil** (A-263). Sem isso, apagar as preferências
+  contaria como mudança local e a sincronia, alguns segundos depois, levaria o apagado para a nuvem e para os outros
+  aparelhos; hoje o recarregamento chega antes dela, mas a garantia não pode depender de tempo. Sem rede para sair, apaga
+  do mesmo jeito (a saída espera no máximo 2 s). Testes: `seguranca.apagar.unit` +1 (o "antes" roda antes de qualquer
+  chave sumir; se falhar, apaga igual — falhava antes desta leva); e2e "P-11" (conta conectada com banco falso: depois de
+  Apagar tudo, nenhuma escrita na nuvem, o perfil no banco fica igual e o app volta desconectado).
 - **Fora:** apagar por categoria (só imagens, só partidas) — o Espaço no aparelho e a Base local já limpam o que é
   derivado.
 

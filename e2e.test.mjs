@@ -5081,6 +5081,46 @@ test('e2e · P-8 sala pela internet: sem conta da Estante, Criar e Entrar dão l
 });
 
 /* ---------------- A-263 · T6d · perfil sincronizado pela conta da Estante ---------------- */
+test('e2e · P-11 Apagar tudo com a conta conectada: sai da conta neste aparelho e nada vai para a nuvem — o perfil guardado no banco fica igual, nenhuma escrita depois de Apagar tudo, e o app volta desconectado', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  const banco = { perfis: { uidE2E: { doc: { kind: 'estante.perfil.remoto', version: 1, atualizadoEm: 4e12, nome: 'Gui', pessoaEm: 0, p: { 'ui:theme': { v: '"light"', t: 4e12 } } } } } };
+  const pedidos = [];
+  await page.route('https://teste.firebaseio.com/**', async r => {
+    const u = new URL(r.request().url()), seg = u.pathname.replace(/\.json$/, '').split('/').filter(Boolean), metodo = r.request().method();
+    pedidos.push(metodo + ' /' + seg.join('/') + (u.searchParams.get('auth') ? ' (com token)' : ' (sem token)'));
+    if (u.searchParams.get('auth') !== 'id-e2e') return r.fulfill({ status: 401, json: { error: 'Permission denied' } });
+    const desce = () => seg.reduce((o, k) => (o && typeof o === 'object' ? o[k] : undefined), banco);
+    const poe = (caminho, v) => { let o = banco; for (const k of caminho.slice(0, -1)) o = o[k] = o[k] && typeof o[k] === 'object' ? o[k] : {}; if (v === null) delete o[caminho.at(-1)]; else o[caminho.at(-1)] = v; };
+    const corpo = r.request().postData() ? JSON.parse(r.request().postData()) : null;
+    if (metodo === 'PUT') poe(seg, corpo);
+    if (metodo === 'PATCH') for (const [k, v] of Object.entries(corpo)) poe([...seg, ...k.split('/')], v);
+    return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(metodo === 'GET' ? (desce() ?? null) : corpo) });
+  });
+  await page.route('https://www.googleapis.com/**', r => r.request().url().includes('/oauth2/v3/userinfo') ? r.fulfill({ json: { name: 'Gui', email: 'gui@example.com' } }) : r.fulfill({ status: 404, json: {} }));
+  await page.addInitScript(() => {
+    window.__FIREBASE_DB_URL = 'https://teste.firebaseio.com';
+    window.__GOOGLE_CLIENT_ID = 'e2e.apps.googleusercontent.com'; window.__FIREBASE_API_KEY = 'chave-e2e';
+    window.__FIREBASE_FETCH = async url => new Response(JSON.stringify(url.includes('securetoken') ? { id_token: 'id-e2e', refresh_token: 'ref-e2e', expires_in: '3600', user_id: 'uidE2E' } : { localId: 'uidE2E', idToken: 'id-e2e', refreshToken: 'ref-e2e', expiresIn: '3600' }), { headers: { 'content-type': 'application/json' } });
+    window.__GOOGLE_FALSO = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+    window.EventSource = class { constructor() {} addEventListener() {} close() {} };
+  });
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#conta-entrar:not([disabled])');
+  await page.click('#conta-entrar'); await page.waitForSelector('#conta-sincronia[data-estado="sincronizado"]', { timeout: 10000 });
+  const naNuvem = JSON.stringify(banco.perfis.uidE2E);
+  const marca = pedidos.length;
+  await page.click('#perfil-apagar-tudo'); await page.waitForSelector('#apagar-confirmar');
+  await Promise.all([page.waitForNavigation({ timeout: 15000 }), page.click('#apagar-confirmar')]);
+  await page.waitForSelector('#conta-entrar', { timeout: 10000 }).catch(() => {});
+  await page.waitForTimeout(6000);   // mais que a espera da sincronia (4 s): se algo fosse subir, subiria aqui
+  const escritas = pedidos.slice(marca).filter(p => /^(PUT|PATCH|POST|DELETE)/.test(p));
+  assert.deepEqual(escritas, [], 'nenhuma escrita na nuvem depois de Apagar tudo');
+  assert.equal(JSON.stringify(banco.perfis.uidE2E), naNuvem, 'o perfil na nuvem ficou igual');
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#conta-entrar:not([disabled])');
+  assert.equal(await page.locator('#conta-sincronia[data-estado="sincronizado"]').count(), 0, 'volta desconectado');
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · A-263 perfil sincronizado: ao conectar, o que a nuvem tem de mais novo desce e é aplicado (tema); mudar o tema sobe sozinho; o Perfil mostra a situação com Sincronizar', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.setViewportSize({ width: 360, height: 780 });

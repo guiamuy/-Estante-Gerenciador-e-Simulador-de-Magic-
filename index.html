@@ -10950,8 +10950,11 @@ function createSaidaScreen({ config = {} } = {}) {
     passada se repete até não sobrar chave), os caches do app (`estante-*`: telas, Scryfall, imagens, leitor) e o que é do
     app na sessão e no armazenamento local (chaves que começam com "estante"). Não toca no que é de outro site ou app.
     Devolve quantos apagou e o que sobrou ("sobrou" vazio = apagou tudo). Backup no Drive e sala online: fora (T6). */
-async function apagaTudoDoAparelho({ store, caches = null, sessao = null, local = null }) {
+async function apagaTudoDoAparelho({ store, caches = null, sessao = null, local = null, antes = null }) {
   const r = { chaves: 0, caches: 0, sessao: 0, local: 0, sobrou: [] };
+  // P-11 · antes de tudo: sair da conta neste aparelho e parar a sincronia do perfil (A-263). Sem isso, apagar as
+  // preferências contaria como "mudança local" e a sincronia levaria o apagado para a nuvem e os outros aparelhos.
+  if (antes) { try { await antes(); } catch (e) { /* sem rede para sair: apaga o aparelho do mesmo jeito */ } }
   const apagadas = new Set();
   for (let volta = 0; volta < 3; volta++) {
     const ks = await store.keys('');
@@ -27103,7 +27106,7 @@ const ROUTES = [
     // Y3 · abrir a partida anexada: entra no lugar da salva (sem a parte online) e a série em curso sai
     partidas: { temSalva: async () => { try { const d = await platform.store.get(__m18.SAVE_KEY); return !!(d && d.kind === 'estante.match'); } catch (e) { return false; } },
       abre: async p => { const { online: _fora, ...opcoes } = p.options || {}; await platform.store.set(__m18.SAVE_KEY, { ...p, options: opcoes, savedAt: Date.now() }); await platform.store.remove(__m18.SERIE_KEY).catch(() => {}); location.hash = '#/partida'; } } }) }, // Y1 · Y3
-  { path: '/perfil', title: 'Perfil', render: () => createPerfilScreen({ perfil, backup, conta, apagar: () => __m41.apagaTudoDoAparelho({ store: platform.store, caches: typeof caches !== 'undefined' ? caches : null, sessao: (() => { try { return sessionStorage; } catch (e) { return null; } })(), local: (() => { try { return localStorage; } catch (e) { return null; } })() }), haptics: platform.haptics, theme, som, fichas, partidas, terrenos, relatos, apresentacao: () => mostraApresentacao(),
+  { path: '/perfil', title: 'Perfil', render: () => createPerfilScreen({ perfil, backup, conta, apagar: () => __m41.apagaTudoDoAparelho({ antes: async () => { try { sincronia.para(); } catch (e) { /* sem sincronia */ } await Promise.race([conta.sair().catch(() => {}), new Promise(r => setTimeout(r, 2000))]); }, store: platform.store, caches: typeof caches !== 'undefined' ? caches : null, sessao: (() => { try { return sessionStorage; } catch (e) { return null; } })(), local: (() => { try { return localStorage; } catch (e) { return null; } })() }), haptics: platform.haptics, theme, som, fichas, partidas, terrenos, relatos, apresentacao: () => mostraApresentacao(),
     // D5 · Dados: base local de cartas (antes na tela Cartas), espaço e proteção (o mesmo do painel da tela inicial)
     dados: { baseLocal: () => __m12.painelBaseLocal({ local: localIndex, files: platform.files }),
       espaco: async () => ({ texto: descreveEspaco(await platform.persistence.estimate()), protecao: await platform.persistence.status() }),

@@ -42,3 +42,14 @@ test('P-10 · o que não saiu aparece em "sobrou" (o app avisa e não recarrega)
   const r2 = await S.apagaTudoDoAparelho({ store: limpo, caches: null, sessao: null, local: null });
   assert.equal(r2.sobrou.length, 0);
 });
+
+test('P-11 · antes de apagar, o app sai da conta e para a sincronia (o "antes" roda primeiro); se ele falhar, apaga do mesmo jeito', async () => {
+  const base = P.memoryStore(); await base.set('ui.theme', 'light'); await base.set('conta.sessao', { uid: 'u1' });
+  const ordem = [];
+  const espia = { ...base, keys: base.keys, get: base.get, set: base.set, async remove(k) { ordem.push('remove:' + k); return base.remove(k); } };
+  await S.apagaTudoDoAparelho({ store: espia, antes: async () => { ordem.push('antes'); } });
+  assert.equal(ordem[0], 'antes', 'sair e parar a sincronia vêm antes de qualquer chave sumir: ' + ordem.join(','));
+  const outro = P.memoryStore(); await outro.set('deck.a', 1);
+  const r = await S.apagaTudoDoAparelho({ store: outro, antes: async () => { throw new Error('sem rede'); } });
+  assert.equal(r.sobrou.length, 0);
+});
