@@ -10296,3 +10296,7 @@ test('e2e · M-285 · CR2g.2 · atacante bloqueado por dois: a mesa pergunta com
   assert.equal(fim.b2, 'graveyard', 'o Masked Vandal morreu'); assert.equal(fim.b1, 'battlefield', 'a Valakut Invoker do goldfish ficou');
   assert.deepEqual(M.errors, []);
 });
+
+/* ↓ K · testes de tela da trilha keywords (só test(nome, { skip }, fn) no nível do arquivo) */
+/* ↓ V · testes de tela da trilha verbos (só test(nome, { skip }, fn) no nível do arquivo) */
+/* ↓ T · testes de tela da trilha tipos (só test(nome, { skip }, fn) no nível do arquivo) */

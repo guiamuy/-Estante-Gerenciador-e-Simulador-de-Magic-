@@ -5181,11 +5181,20 @@ const __m23 = (function () {
 /** Palavras-chave que o motor resolve sozinho (M6 e regras de alvo). */
 /** CR2c.5 · 122.1b: marcadores que dão a palavra-chave de mesmo nome à permanente. */
 const KEYWORD_COUNTERS = ['flying', 'first strike', 'double strike', 'deathtouch', 'decayed', 'exalted', 'haste', 'hexproof', 'indestructible', 'lifelink', 'menace', 'reach', 'shadow', 'trample', 'vigilance'];
+/* ---------------- Paralelização (M-299) · âncoras por trilha ----------------
+   Três conversas trabalham no motor ao mesmo tempo (trilhas `keywords` K, `verbos` V e `tipos` T). Cada uma só acrescenta
+   linhas logo abaixo da própria âncora ("↓ K", "↓ V", "↓ T") em cada lista compartilhada deste arquivo, para que o rebase da
+   fila nunca encontre duas trilhas na mesma linha. ENGINE_VERSION, goldens e o piso do mapa de regras são só da trilha `motor`
+   (a integração). As âncoras não mudam comportamento. */
 const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigilance', 'haste', 'first strike',
   'double strike', 'menace', 'defender', 'indestructible', 'flash', 'hexproof', 'shroud',
   // CR1b · evasões de 702.13/.14/.28/.36/.118 (canBlock)
   'fear', 'intimidate', 'shadow', 'skulk', 'islandwalk', 'swampwalk', 'forestwalk', 'mountainwalk', 'plainswalk',
-  'infect']; // M-254 · 702.90
+  'infect', // M-254 · 702.90
+  /* ↓ K · palavras-chave da trilha keywords */
+  /* ↓ V · palavras-chave da trilha verbos */
+  /* ↓ T · palavras-chave da trilha tipos */
+];
 
 /** Efeitos que o motor sabe aplicar. Cada um declara os campos que exige. */
 const EFFECTS = {
@@ -5334,7 +5343,10 @@ const EFFECTS = {
   // S61 · Masmorra do Mago Louco
   cant_attack: { fields: [], targets: ['creature'] },
   exile_top_playable: { fields: ['amount'], targets: ['self'] },
-  draw_free_cast: { fields: ['amount'], targets: ['self'] }
+  draw_free_cast: { fields: ['amount'], targets: ['self'] },
+  /* ↓ K · efeitos da trilha keywords */
+  /* ↓ V · efeitos da trilha verbos */
+  /* ↓ T · efeitos da trilha tipos */
 };
 /** S57 · masmorras: o caminho, as salas e o que cada sala faz.
     Texto das salas conferido em 26/09/2026 (mtg.wtf, lista de cartas de masmorra).
@@ -5614,7 +5626,11 @@ const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield
   // CR2b.4 · a criatura encantada causa dano a um oponente (de quem controla a Aura); você descarta uma carta
   'enchanted-damages-opponent', 'you-discard',
   // CR2b.5 · passos: o seu passo final, cada manutenção (de qualquer jogador), início do combate no seu turno
-  'end-step', 'each-upkeep', 'begin-combat'];
+  'end-step', 'each-upkeep', 'begin-combat',
+  /* ↓ K · gatilhos da trilha keywords */
+  /* ↓ V · gatilhos da trilha verbos */
+  /* ↓ T · gatilhos da trilha tipos */
+];
 /** CR2-G R2a · 603.6 · gatilho de mudança de zona como um evento só: de onde (`de`), para onde (`para`), quem muda
  * (`objeto`: ela mesma, outra permanente, a permanente anexada) e, para outra, de quem ela é (`quem`, `donoVoce`).
  * Os nomes antigos viram atalhos para o descritor; o despachante do motor lê só o descritor. */
@@ -6122,6 +6138,9 @@ function effectErrors(effects, label, opcional) {
       if (!effects.slice(0, i).some(isTargeted)) errs.push(`${label} ${i + 1} (${e.do}): "no mesmo alvo" precisa de um alvo escolhido antes`);
     } else if (t !== 'self' && t !== 'delayed-object' && t !== 'remembered' && t !== 'that-player' && !spec.targets.includes(t)) errs.push(`${label} ${i + 1} (${e.do}): alvo "${t}" não vale aqui`);
   });
+  /* ↓ K · validação da trilha keywords */
+  /* ↓ V · validação da trilha verbos */
+  /* ↓ T · validação da trilha tipos */
   return errs;
 }
 /** M12 · validação da ficha declarada num efeito. */
@@ -6156,6 +6175,9 @@ const isTargeted = e => TARGETED.has(e.target) || (!!e.target && typeof e.target
 /** Biblioteca inicial: mágicas comuns de efeito direto, sem gatilho nem escolha
     além do alvo. Cada uma é exercitada pelos testes de cenário. */
 const RAW_SCRIPTS = [
+  /* ↓ K · scripts de carta da trilha keywords (texto oficial em .listas/oficiais-keywords.json) */
+  /* ↓ V · scripts de carta da trilha verbos (texto oficial em .listas/oficiais-verbos.json) */
+  /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
   // dano direto
   { name: 'Lightning Bolt', effects: [{ do: 'damage', amount: 3, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: -3 } } },
   { name: 'Shock', effects: [{ do: 'damage', amount: 2, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: -2 } } },
@@ -7315,7 +7337,11 @@ function deckCoverage(entries, cards, scripts = SCRIPTS) {
   return { ...count, total, pct: total ? Math.round(count.completo / total * 100) : 0, worst, pending };
 }
 
-return { KEYWORDS, KEYWORD_COUNTERS, MARCADOR_PT, duracaoValida, danoErros, substituiErros, entraErros, substituicoesDoScript, JOGADORES_QUANT, VERBOS_DE_JOGADOR, jogadoresDe, DURACOES, continuoErros, tornaErros, tornaParaBecomes, GATILHO_ZONA, GATILHO_EVENTO, gatilhoDoEvento, falaDe, gatilhoDeZona, gatilhoErros, descreveGatilho, PASSOS_DO_GATILHO, ALVO_SELETOR, CADA_SELETOR, EFEITOS_ATALHO, cadaDe, seletorErros, seletorDe, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE, DUNGEONS, dungeonByName, roomById, fichasDoScript, fichasDasCartas, chaveDaFicha };
+const EXPORTS_K_SC = {}, EXPORTS_V_SC = {}, EXPORTS_T_SC = {}; // ↓ cada trilha preenche o seu (Object.assign) logo abaixo da sua âncora
+/* ↓ K · exportações de scripts.js da trilha keywords */
+/* ↓ V · exportações de scripts.js da trilha verbos */
+/* ↓ T · exportações de scripts.js da trilha tipos */
+return { ...EXPORTS_K_SC, ...EXPORTS_V_SC, ...EXPORTS_T_SC, KEYWORDS, KEYWORD_COUNTERS, MARCADOR_PT, duracaoValida, danoErros, substituiErros, entraErros, substituicoesDoScript, JOGADORES_QUANT, VERBOS_DE_JOGADOR, jogadoresDe, DURACOES, continuoErros, tornaErros, tornaParaBecomes, GATILHO_ZONA, GATILHO_EVENTO, gatilhoDoEvento, falaDe, gatilhoDeZona, gatilhoErros, descreveGatilho, PASSOS_DO_GATILHO, ALVO_SELETOR, CADA_SELETOR, EFEITOS_ATALHO, cadaDe, seletorErros, seletorDe, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE, DUNGEONS, dungeonByName, roomById, fichasDoScript, fichasDasCartas, chaveDaFicha };
 })();
 
 /* ==== src/data/decks.js ==== */
@@ -17175,6 +17201,9 @@ function applyEffect(s, src, eff, tgt, events) {
       events.push({ kind: 'choice', what: 'virar ou desvirar', name: src.name, amount: 1 });
       break;
     }
+    /* ↓ K · casos de applyEffect da trilha keywords */
+    /* ↓ V · casos de applyEffect da trilha verbos */
+    /* ↓ T · casos de applyEffect da trilha tipos */
     case 'untap': { const alvo = eff.target === 'enchanted' ? criaturaEncantada(s, src) : eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj; if (alvo) alvo.tapped = false; note({}); break; }
     default: break;
   }
@@ -19031,6 +19060,9 @@ const HANDLERS = {
     // S60 · correção: o descarte pedido por um efeito não retomava o resto do efeito
     if (!s.pending) { stateBased(s, ev); if (!continueUnless(s, ev)) resumeEffects(s, ev); }
   },
+  /* ↓ K · ações (HANDLERS) da trilha keywords */
+  /* ↓ V · ações (HANDLERS) da trilha verbos */
+  /* ↓ T · ações (HANDLERS) da trilha tipos */
   concede(s, a) { const pl = s.players[a.p]; if (!pl.lost) { pl.life = Math.min(pl.life, 0); pl.lossReason = 'desistência'; } },
 
   /* ---- adjudicação (mesa assistida) ---- */
@@ -19563,6 +19595,9 @@ function legalActions(s, p, { adjudication = false } = {}) {
     let custo = a.kick ? somaCusto(f.cost, parseCost(f.script.kicker.mana), a.kick) : f.cost; if (a.vida != null) custo = custoPhyrexiano(custo, a.vida);
     return canPay(s, p, custo, castExtra(s, p, o, a.x || 0, a.targets || []));
   });
+  /* ↓ K · ofertas de legalActions da trilha keywords (out.push) */
+  /* ↓ V · ofertas de legalActions da trilha verbos (out.push) */
+  /* ↓ T · ofertas de legalActions da trilha tipos (out.push) */
   return out;
   })());
 }
@@ -19730,7 +19765,11 @@ function invariants(s, expectedObjects) {
   return errs;
 }
 
-return { ENGINE_VERSION, effectAllowed, eligibleBlockers, abilitiesOf, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, moveObject, seriaDestruida, danoSubstituido, danoAposPrevencao, prevencaoLegado, destinoSubstituido, destinoLegado, entradaModificada, entradaLegado, applyEffect, aplicaPorJogador, sacrificioLegado, moverObjeto, moverLegado, mutacao, mutacaoLegado, hasLegado, bonusLegado, continuosQueAfetam, aplicaTemporario, statsLegado: (s, o) => ({ power: powerLegado(s, o), toughness: toughnessLegado(s, o) }), sombraDosGatilhos, gatilhosDeZona, gatilhosDeZonaLegado, gatilhosDoObjeto, gatilhosDoPasso, enterStep, disparaEvento, noteDiscard, noteEnchantedDealt, noteDamaged, noteEnchantedEvent, addCounters, sacrifice, draw, sweepTargets, sweepTargetsLegado, targetable,
+const EXPORTS_K = {}, EXPORTS_V = {}, EXPORTS_T = {}; // ↓ cada trilha preenche o seu (Object.assign) logo abaixo da sua âncora
+/* ↓ K · exportações de core.js da trilha keywords */
+/* ↓ V · exportações de core.js da trilha verbos */
+/* ↓ T · exportações de core.js da trilha tipos */
+return { ...EXPORTS_K, ...EXPORTS_V, ...EXPORTS_T, ENGINE_VERSION, effectAllowed, eligibleBlockers, abilitiesOf, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, moveObject, seriaDestruida, danoSubstituido, danoAposPrevencao, prevencaoLegado, destinoSubstituido, destinoLegado, entradaModificada, entradaLegado, applyEffect, aplicaPorJogador, sacrificioLegado, moverObjeto, moverLegado, mutacao, mutacaoLegado, hasLegado, bonusLegado, continuosQueAfetam, aplicaTemporario, statsLegado: (s, o) => ({ power: powerLegado(s, o), toughness: toughnessLegado(s, o) }), sombraDosGatilhos, gatilhosDeZona, gatilhosDeZonaLegado, gatilhosDoObjeto, gatilhosDoPasso, enterStep, disparaEvento, noteDiscard, noteEnchantedDealt, noteDamaged, noteEnchantedEvent, addCounters, sacrifice, draw, sweepTargets, sweepTargetsLegado, targetable,
   stats: (s, o) => ({ power: power(s, o), toughness: toughness(s, o) }), hasKeyword: has, bonus, isCreature, tiposDe, pwsAtacaveis, exigePw, productions, protections, prevented, canBlock,
   createGame, apply, legalActions, linhaDeTipo, coresDe, colorsOf, targetAllowed, previewCombat, previewAttack, eligibleAttackers, mustAttack, eligibleBlockers, canBlock, canPay, commanderTax,
   createMatch, replay, hashState, randomPolicy, invariants };
@@ -22129,6 +22168,9 @@ const qtd = v => (typeof v === 'number' ? v : (v && v.per) ? 'X' : 1);
 const IGUAL_A = { 'life-lost-this-turn': 'à vida que você perdeu neste turno', 'life-gained-this-turn': 'à vida que você ganhou neste turno' }; // M-248
 const plural = (n, um, muitos) => (n === 1 ? `${n} ${um}` : `${n} ${muitos}`);
 /** Uma frase por efeito. O que o dicionário não conhece vira o nome do efeito, nunca some. */
+/* ↓ K · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha keywords */
+/* ↓ V · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha verbos */
+/* ↓ T · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha tipos */
 function descreveEfeito(e) {
   if (!e || !e.do) return '';
   if (e.jogadores && e.do !== 'sacrificar') { // CR2-G R4b · "cada jogador compra 1 carta", "cada oponente perde 2 de vida", "causa 1 de dano a cada jogador"

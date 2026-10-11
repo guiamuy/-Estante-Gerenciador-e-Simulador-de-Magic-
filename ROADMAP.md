@@ -3597,6 +3597,11 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fidelidade:** uma linha de ativada que o leitor não entende (custo ou efeito) marca a carta como não lida, e a comparação com os scripts à mão passou a cobrir o custo e "só como feitiço".
 - **Fora:** habilidade de mana com custo além de {T} (Signets, Spire of Industry, Fetid Heath), "Add one mana of any color", efeitos com X e com "até N alvos".
 
+**M-299 · Âncoras de paralelização do motor** ✅ (leva M-299, motor v109 sem mudança) — nenhum comportamento muda.
+- **Valor:** três conversas trabalham no motor ao mesmo tempo sem conflito de texto. Trilhas novas `keywords` (K, CR4), `verbos` (V, CR3) e `tipos` (T, CR5), cada uma inserindo só abaixo da própria âncora (`↓ K`, `↓ V`, `↓ T`) em KEYWORDS, EFFECTS, TRIGGERS, validador, RAW_SCRIPTS, exportações de scripts.js e core.js, applyEffect, HANDLERS, legalActions, textos de tela e e2e.
+- **Contrato:** ENGINE_VERSION, goldens e o piso do mapa de regras são só da trilha `motor` (integração). As trilhas paralelas não regravam goldens: o que fazem só acrescenta ações (critério da leva 104).
+- **Trilhas:** linhas `keywords`, `verbos` e `tipos` acrescentadas à tabela da seção 8.
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
@@ -7900,6 +7905,9 @@ Regras completas em `CLAUDE.md`. Trilhas em uso (o nome vai no rodapé `Trilha:`
 | `infra` | portão, CI, publicação |
 | `protecao` | segurança e privacidade: HTML seguro, CSP, terceiros, regras do Firebase, Actions, o que sai do aparelho (levas `P-N`) |
 | `armazem` | dados e armazenamento: store, perfil, backup, sincronização, forma dos dados no Firebase e nos ramos (levas `A-N`) |
+| `keywords` | CR4 · habilidades de palavra-chave (702), em ondas pela frequência nas listas; só abaixo das âncoras `↓ K` (levas `K-N`) |
+| `verbos` | CR3 · ações de palavra-chave (701); só abaixo das âncoras `↓ V` (levas `V-N`) |
+| `tipos` | CR5 · tipos e formatos de carta (Sagas, Veículos, aventuras, dupla face, batalhas, Classes); só abaixo das âncoras `↓ T` (levas `T-N`) |
 
 ### Publicar pela interface web
 
