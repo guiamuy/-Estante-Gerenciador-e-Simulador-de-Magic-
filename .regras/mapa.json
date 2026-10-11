@@ -1,7 +1,7 @@
 {
  "sobre": "Mapa regra × motor. Cada item NNN.N das Comprehensive Rules de 25/09/2026 classificado contra o motor v72 em 06/10/2026 por 14 auditores independentes, com evidência vista (código com linha, teste ou sonda executada). status: coberta · parcial · ausente · definicao (só define termo) · fora (jogo físico, torneio ou variante que um app de dois jogadores não precisa). Quando um item muda de status, o teste que prova a mudança entra em `testes`.",
  "cr": "2026-09-25",
- "motor": 104,
+ "motor": 105,
  "auditoria": "2026-10-06",
  "itens": [
   {
@@ -959,12 +959,14 @@
    "n": "113.10",
    "regra": "Abilities",
    "titulo": "Efeitos que dão ou tiram habilidades",
-   "status": "parcial",
-   "evidencia": "dar: grants de Aura/Equipamento com palavras-chave e ativadas com seu custo (index.html:10065-10069, 10890-10892), tempKeywords até o fim do turno, grantsAll (index.html:10442)",
-   "falta": "Não existe efeito que REMOVE habilidade (\"loses flying\", \"loses all abilities\" — Reprobation está no acervo sem script); 113.10c sem carimbo de tempo entre dar e tirar.",
-   "esforco": "M",
+   "status": "coberta",
+   "evidencia": "dar: grants de Aura/Equipamento com palavras-chave e ativadas com seu custo (index.html:10065-10069, 10890-10892), tempKeywords até o fim do turno, grantsAll (index.html:10442) · auditoria independente CR2c (11/10/2026): loseAbilities na camada 6 com carimbo; temporarios.perde; perder.unit",
    "depende": [
     "613"
+   ],
+   "testes": [
+    "CR 613.9 · \"perde voar até o fim do turno\": tira a palavra impressa; na limpeza ela volta",
+    "CR 613.7 · ordem por carimbo: ganhou voar, perdeu voar (não voa), ganhou de novo (voa); outras palavras não mudam"
    ]
   },
   {
@@ -1042,10 +1044,48 @@
    "n": "115.1",
    "regra": "Targets",
    "titulo": "Alvos escolhidos ao pôr na pilha",
-   "status": "parcial",
-   "evidencia": "mágica: alvos na ação cast, conferidos e gravados (index.html:12244-12250, 12285); Aura mira pelo enchant (index.html:12241, auraTarget index.html:12020); ativada (index.html:12387-12393); disparada escolhe ao ir para a pilha (putTriggerOnStack index.html:11854-11863; rules.unit \"S15 · gatilho com alvo: a mesa pergunta qual\"); equipar (index.html:10908)",
-   "falta": "115.1d: habilidade disparada só aceita UM alvo (validador recusa: \"gatilho com mais de um alvo ainda não entra\", index.html:4567; putTriggerOnStack usa só targeted[0]).",
-   "esforco": "M"
+   "status": "coberta",
+   "evidencia": "mágica: alvos na ação cast, conferidos e gravados (index.html:12244-12250, 12285); Aura mira pelo enchant (index.html:12241, auraTarget index.html:12020); ativada (index.html:12387-12393); disparada escolhe ao ir para a pilha (putTriggerOnStack index.html:11854-11863; rules.unit \"S15 · gatilho com alvo: a mesa pergunta qual\"); equipar (index.html:10908) · auditoria independente CR2c (11/10/2026): putTriggerOnStack (603.3d: um alvo por efeito); cr.conformidade \"CR 603.3 · gatilho com dois alvos\"",
+   "testes": [
+    "CR 119.4 · pagar vida exige ter pelo menos aquela vida: com exatamente 3, \"pague 3 de vida\" é permitido; com 2, não",
+    "CR 107.4 · mana phyrexiana: com a cor disponível o motor paga com mana, não com vida; sem mana paga 2 de vida, e só se tiver 2",
+    "CR 202.1 · carta sem custo de mana não pode ser conjurada pelo custo normal (não é custo zero)",
+    "CR 202.3 · o X pago conta no valor de mana da mágica na pilha: Spell Snare (valor 2) mira {X}{G} com X=1 e não com X=2",
+    "CR 120.8 · dano 0 não é dano: não dispara \"quando a criatura encantada recebe dano\"",
+    "CR 701.24 · buscar e pôr no topo: embaralha e DEPOIS põe a carta no topo (Mystical Tutor)",
+    "CR 701.23 · busca por característica em zona oculta: o jogador pode não achar",
+    "CR 708.2 · permanente virada para baixo é 2/2 incolor: a cor impressa não vale, e bônus de Aura valem",
+    "CR 704.5 · marcadores +1/+1 e −1/−1 na mesma permanente se anulam aos pares (704.5q)",
+    "CR 704.5 · Aura no campo sem estar anexada, ou anexada a algo que ela não pode encantar, vai para o cemitério (704.5m)",
+    "CR 511.2 · \"no fim do combate\" dispara para as permanentes de todos os jogadores, não só do ativo",
+    "CR 514.2 · na limpeza o dano sai e os efeitos \"até o fim do turno\" acabam ANTES de alguém receber prioridade (514.3a)",
+    "CR 104.3 · quem concede perde por desistência, não por vida",
+    "CR 903.3 · Veículo lendário pode ser comandante",
+    "CR 702.61 · fração de segundo: com a mágica na pilha ninguém conjura nem ativa habilidade que não seja de mana; mana continua",
+    "CR 702.16 · proteção impressa na carta: não é alvo, não é bloqueada e não recebe dano de fonte daquela cor; outra cor passa",
+    "CR 702.36 · medo: só criatura artefato ou preta bloqueia",
+    "CR 702.13 · intimidar: só criatura artefato ou que compartilha cor com ela bloqueia",
+    "CR 702.28 · sombra: só sombra bloqueia sombra, e sombra só bloqueia sombra",
+    "CR 702.14 · travessia: não pode ser bloqueada se o defensor controla terreno daquele tipo",
+    "CR 702.118 · esgueirar: não pode ser bloqueada por criatura de poder maior",
+    "CR 700.2 · gatilho modal: modo sem alvo legal não pode ser escolhido; sem nenhum modo legal o gatilho sai da pilha (700.2b)",
+    "CR 603.4 · \"se\" intermediário em gatilho de outra permanente: sem a condição não dispara; com ela, dispara",
+    "CR 605.3 · habilidade de mana pode ser ativada enquanto um efeito pede pagamento (\"a menos que pague\")",
+    "CR 704.4 · ações de estado não são conferidas no meio da resolução: 3 de dano em si mesmo com 3 de vida e depois ganhar 3 não perde o jogo",
+    "CR 704.5 · regra das lendas (704.5j): duas lendárias de mesmo nome com o mesmo controlador — ele escolhe uma, a outra vai para o cemitério, mesmo indestrutível",
+    "CR 704.5 · Equipamento anexado a permanente que não é criatura se solta e fica no campo (704.5n)",
+    "CR 400.7 · objeto que muda de zona vira objeto novo: a mágica que mirava a criatura não acerta a mesma carta depois que ela saiu e voltou",
+    "CR 603.10 · mortes simultâneas: quem observa \"outra criatura sua morre\" e morre junto vê as outras (603.10a)",
+    "CR 603.10 · gatilho de saída olha para trás: criatura que morre virada para baixo não dispara a habilidade da face de cima",
+    "CR 704.4 · resolução parada numa escolha do jogador também não confere ações de estado: dano, descarte escolhido e só então o ganho de vida",
+    "CR 603.7 · gatilho atrasado: criado na resolução, dispara uma vez só no início da manutenção do PRÓXIMO turno, controlado por quem conjurou a mágica",
+    "CR 603.7 · gatilho atrasado preso a um objeto: no início do próximo passo final ele age naquela criatura; se ela saiu e voltou, é outro objeto e nada acontece (603.7c)",
+    "CR 603.7 · \"no fim do combate\": o gatilho atrasado dispara no próximo passo de fim de combate, uma vez",
+    "CR 603.12 · gatilho reflexivo: \"você pode pagar; quando fizer, cause 2 de dano a qualquer alvo\" — o alvo é escolhido depois de pagar, e a nova habilidade vai à pilha",
+    "CR 603.3 · gatilho com dois alvos: cada alvo é escolhido ao pôr a habilidade na pilha, e cada efeito age no seu (603.3d)",
+    "CR 702.24 · manutenção cumulativa: na sua manutenção entra um marcador de idade e você paga o custo uma vez por marcador, ou sacrifica; pagamento parcial não existe",
+    "CR 603.2 · gatilhos de passo: \"no início do seu passo final\", \"no início de cada manutenção\" (também na do oponente) e \"no início do combate no seu turno\""
+   ]
   },
   {
    "n": "115.2",
@@ -1159,21 +1199,22 @@
    "regra": "Timing and Priority",
    "titulo": "Quem tem prioridade pode agir",
    "status": "parcial",
-   "evidencia": "a) isSorcerySpeed/flash (index.html:12235; engine.unit \"M4 · feitiço só na sua principal; instantânea a qualquer momento com prioridade\"); b) activate exige holder (index.html:12366); c) ações especiais; d) tap_mana com prioridade (index.html:12324) e toque automático ao pagar (index.html:10539)",
-   "falta": "117.1d: durante um pagamento pedido por efeito (decisão may_pay/unless) só valem as fontes de produção viradas pelo motor; ativar outra habilidade de mana (Tesouro, sacrifício) é recusado pela decisão pendente (index.html:12787).",
-   "esforco": "M",
+   "evidencia": "a) isSorcerySpeed/flash (index.html:12235; engine.unit \"M4 · feitiço só na sua principal; instantânea a qualquer momento com prioridade\"); b) activate exige holder (index.html:12366); c) ações especiais; d) tap_mana com prioridade (index.html:12324) e toque automático ao pagar (index.html:10539) · M-290 (CR2c.6): marca interna (concedido por efeito; sem pagar fora da mesa assistida) não vem do jogador; conjurar por efeito durante a resolução vale para quem decide (608.2g)",
+   "falta": "117.1d: durante um pagamento pedido por efeito só valem as fontes viradas pelo motor (Tesouro e sacrifício recusados)",
+   "esforco": "P",
    "depende": [
     "605"
+   ],
+   "testes": [
+    "CR 117.1 · marca interna não vem do jogador: \"concedido por efeito\" não fura a fase nem a prioridade, e habilidade de campo não ativa da mão"
    ]
   },
   {
    "n": "117.2",
    "regra": "Timing and Priority",
    "titulo": "Ações automáticas sem prioridade",
-   "status": "parcial",
-   "evidencia": "a) gatilhos esperam em s.queued e vão à pilha antes da prioridade (index.html:12814); b) estáticas sempre valendo; c) ações de turno em enterStep (index.html:10680); e) escolhas na resolução viram s.pending sem dar prioridade (index.html:11684)",
-   "falta": "117.2d: as ações baseadas em estado rodam também NO MEIO da resolução, entre um efeito e outro da mesma mágica (index.html:11703, 13230). Sonda sonda-1b.mjs R: \"cada oponente perde 1; você perde 1\" com os dois em 1 de vida termina com vitória de quem conjurou em vez de empate.",
-   "esforco": "M",
+   "status": "coberta",
+   "evidencia": "a) gatilhos esperam em s.queued e vão à pilha antes da prioridade (index.html:12814); b) estáticas sempre valendo; c) ações de turno em enterStep (index.html:10680); e) escolhas na resolução viram s.pending sem dar prioridade (index.html:11684) · auditoria independente CR2c (11/10/2026): guarda s.resume em stateBased; cr.conformidade \"CR 704.4\"",
    "depende": [
     "704.3"
    ]
@@ -1242,9 +1283,17 @@
    "regra": "Costs",
    "titulo": "Não se paga custo sem o recurso",
    "status": "parcial",
-   "evidencia": "mana insuficiente recusa (index.html:10541), permanente já virada recusa (index.html:11992), enjoo (index.html:11993); 118.3a mana sai da reserva (payFrom index.html:10348); 118.3c toque automático só do necessário (index.html:10512)",
-   "falta": "BUG 118.3b/119.4: pagar vida exige vida MAIOR que o custo (life <= cost recusa, index.html:11996, 12014, 10615, 10629) — sonda B: com 3 de vida, \"pague 3 de vida\" é recusado (\"vida insuficiente\"). E o contrário na mana phyrexiana: paga 2 de vida sem conferir o total (sonda A2: com 1 de vida conjura Gitaxian Probe e vai a -1).",
-   "esforco": "P"
+   "evidencia": "mana insuficiente recusa (index.html:10541), permanente já virada recusa (index.html:11992), enjoo (index.html:11993); 118.3a mana sai da reserva (payFrom index.html:10348); 118.3c toque automático só do necessário (index.html:10512) · M-290 (CR2c.6): a fonte do {T} não gera a mana do mesmo custo (semAFonte em payAbilityCost e canPayAbility)",
+   "falta": "pagamento parcial e ordem de pagamento de 601.2g-h ficam com o motor",
+   "esforco": "P",
+   "testes": [
+    "CR 602.2 · \"{1}{R}, {T}\": com só o Kher Keep e uma Mountain desvirados, a fonte do {T} não paga a própria mana",
+    "CR 606.3 · a planeswalker que muda de zona é um objeto novo: depois de voltar ao campo pode ativar lealdade no mesmo turno",
+    "CR 117.1 · marca interna não vem do jogador: \"concedido por efeito\" não fura a fase nem a prioridade, e habilidade de campo não ativa da mão",
+    "CR 601.2 · o reforço soma ao custo alternativo (antes saía de graça), e conjurar sem pagar faz X = 0 (107.3b)",
+    "CR 608.2 · conjurar sem pagar durante a resolução: o jogador da decisão conjura mesmo sem ser o ativo",
+    "CR 601.2 · o lampejo do passado cobra só o custo do lampejo, mesmo com o reforço somado no caminho alternativo (guarda contra o custo cobrado em dobro)"
+   ]
   },
   {
    "n": "118.4",
@@ -1269,18 +1318,17 @@
    "n": "118.6",
    "regra": "Costs",
    "titulo": "Sem custo de mana = custo impagável",
-   "status": "ausente",
-   "falta": "BUG: carta sem custo de mana é tratada como custo zero (parseCost(\"\") = 0, index.html:10007). Sonda C: mágica com mana_cost vazio é oferecida e aceita de graça em modo completo. Falta marcar \"sem custo\" nos fatos e recusar o custo normal (118.6a: só custo alternativo).",
-   "esforco": "P",
-   "cartas": "rara, mas decisiva (Ancestral Vision, Lotus Bloom, Living End, faces de trás)"
+   "status": "coberta",
+   "cartas": "rara, mas decisiva (Ancestral Vision, Lotus Bloom, Living End, faces de trás)",
+   "evidencia": "auditoria independente CR2c (11/10/2026): f.semCusto em HANDLERS.cast; cr.conformidade \"CR 202.1\""
   },
   {
    "n": "118.7",
    "regra": "Costs",
    "titulo": "Redução de custo",
    "status": "parcial",
-   "evidencia": "afinidade e desconto por condição reduzem só o genérico, com teto no genérico (affinityDiscount index.html:10557-10575; rules.unit \"S33 · afinidade desconta um genérico por artefato seu\"); delve como custo alternativo",
-   "falta": "118.7b-g: redução em mana colorida/incolor/híbrida/phyrexiana não existe; não há redução vinda de OUTRA permanente (\"mágicas custam {1} a menos\") nem aumento além do imposto de comandante.",
+   "evidencia": "afinidade e desconto por condição reduzem só o genérico, com teto no genérico (affinityDiscount index.html:10557-10575; rules.unit \"S33 · afinidade desconta um genérico por artefato seu\"); delve como custo alternativo · auditoria independente CR2c (11/10/2026): redução vinda de outra permanente condicionada ao alvo (reducaoPorAlvo)",
+   "falta": "redução incondicional (familiares), redução colorida e aumento (Thalia)",
    "esforco": "M",
    "depende": [
     "601.2f"
@@ -1316,7 +1364,15 @@
    "regra": "Costs",
    "titulo": "Um pagamento vale para um custo só",
    "status": "coberta",
-   "evidencia": "pagamentosDe impede a mesma permanente em duas partes do custo (usados, index.html:11902-11906); cada ativação paga de novo (payAbilityCost index.html:11981); rules.unit \"S50 · o custo pode exigir dois Elfos\""
+   "evidencia": "pagamentosDe impede a mesma permanente em duas partes do custo (usados, index.html:11902-11906); cada ativação paga de novo (payAbilityCost index.html:11981); rules.unit \"S50 · o custo pode exigir dois Elfos\" · M-290 (CR2c.6): pagamentosDe para as partes não-mana e planTaps sem a fonte do {T}",
+   "testes": [
+    "CR 602.2 · \"{1}{R}, {T}\": com só o Kher Keep e uma Mountain desvirados, a fonte do {T} não paga a própria mana",
+    "CR 606.3 · a planeswalker que muda de zona é um objeto novo: depois de voltar ao campo pode ativar lealdade no mesmo turno",
+    "CR 117.1 · marca interna não vem do jogador: \"concedido por efeito\" não fura a fase nem a prioridade, e habilidade de campo não ativa da mão",
+    "CR 601.2 · o reforço soma ao custo alternativo (antes saía de graça), e conjurar sem pagar faz X = 0 (107.3b)",
+    "CR 608.2 · conjurar sem pagar durante a resolução: o jogador da decisão conjura mesmo sem ser o ativo",
+    "CR 601.2 · o lampejo do passado cobra só o custo do lampejo, mesmo com o reforço somado no caminho alternativo (guarda contra o custo cobrado em dobro)"
+   ]
   },
   {
    "n": "118.11",
@@ -1342,9 +1398,9 @@
    "regra": "Costs",
    "titulo": "Símbolos pagos de mais de um jeito (híbrido, phyrexiano)",
    "status": "parcial",
-   "evidencia": "payFrom testa as metades do símbolo (index.html:10353-10366; rules.unit \"M7 · híbrido paga com qualquer das cores…\")",
-   "falta": "118.13a: quem paga não escolhe. Sonda A1: Gitaxian Probe {U/P} com Ilha desvirada cobra 2 de vida e deixa a Ilha em pé (o plano de toques acha a reserva \"suficiente\" com vida). Híbrido {2/W} idem, automático.",
-   "esforco": "M",
+   "evidencia": "payFrom testa as metades do símbolo (index.html:10353-10366; rules.unit \"M7 · híbrido paga com qualquer das cores…\") · auditoria independente CR2c (11/10/2026): o phyrexiano é escolhido (a.vida) na conjuração e na ativação",
+   "falta": "o híbrido continua automático",
+   "esforco": "P",
    "depende": [
     "601.2b"
    ]
@@ -4071,8 +4127,8 @@
    "regra": "Casting Spells",
    "titulo": "Passos para conjurar uma mágica",
    "status": "parcial",
-   "evidencia": "HANDLERS.cast (index.html:12215-12321): modo, X, custo alternativo/adicional, alvos distintos, total = mana + imposto + X − afinidade/desconto (castExtra :10554), pagamento atômico, gatilhos de conjuração e prioridade de volta a quem conjurou; apply clona e RuleError desfaz tudo (:12810). Sondas sonda-6a-c.mjs: alvo ilegal recusado com estado idêntico; após conjurar pilha=1 e prioridade do conjurador. Testes: rules.unit \"M7 · conjurar toca terrenos sozinho\", \"S12 · modal\", \"S31 · mágica de dois alvos exige alvos diferentes\", \"S50 · custo X\", \"S53 · custo adicional com duas opções\", mana.unit (601.2g/h), pauper.regras:221 (601.2b/f/h) · CR2c.3 (v86): o X escolhido entra na escolha de alvos — \"valor de mana X ou menos\" (targetMvMax {per:\"x\"}) na oferta, na conjuração e na resolução, e \"até X alvos\" (targetCount) com X instâncias opcionais; commander.regras \"CR2c.3 · Profane Command\" · M-259/M-263 (v97): 601.2f — redução que depende do alvo (Killian; reducaoPorAlvo na oferta otimista e no pagamento com os alvos reais) e delve por quantidade com escolha das cartas.",
-   "falta": "601.2b: sem buyback/splice (vários modos e reforço feitos na CR2c.1); híbrido decidido pelo motor; phyrexiano à escolha só na conjuração (CR2c.4) (payFrom :10348 tenta mana e só depois 2 de vida, sem perguntar e sem conferir vida). 601.2c: o mesmo alvo em instâncias diferentes só vale entre modos (CR2c.1); número variável de alvos como \"até N\"/\"até X\" (CR2c.3), com soma de valor de mana entre alvos (CR2c.5), sem \"qualquer número de alvos\"; não há gatilho de \"torna-se alvo\" (heroico). 601.2d: dividir dano/marcadores entre alvos não existe. 601.2f: nenhum efeito de outra permanente aumenta ou reduz custo (Thalia, familiares). 601.2g/h: a escolha de fontes só é do jogador se ele virar antes de conjurar; na conjuração o plano é automático (planTaps :10485). 601.2a: o custo é pago antes de a carta ir para a pilha (ordem invertida, sem efeito visível hoje).",
+   "evidencia": "HANDLERS.cast (index.html:12215-12321): modo, X, custo alternativo/adicional, alvos distintos, total = mana + imposto + X − afinidade/desconto (castExtra :10554), pagamento atômico, gatilhos de conjuração e prioridade de volta a quem conjurou; apply clona e RuleError desfaz tudo (:12810). Sondas sonda-6a-c.mjs: alvo ilegal recusado com estado idêntico; após conjurar pilha=1 e prioridade do conjurador. Testes: rules.unit \"M7 · conjurar toca terrenos sozinho\", \"S12 · modal\", \"S31 · mágica de dois alvos exige alvos diferentes\", \"S50 · custo X\", \"S53 · custo adicional com duas opções\", mana.unit (601.2g/h), pauper.regras:221 (601.2b/f/h) · CR2c.3 (v86): o X escolhido entra na escolha de alvos — \"valor de mana X ou menos\" (targetMvMax {per:\"x\"}) na oferta, na conjuração e na resolução, e \"até X alvos\" (targetCount) com X instâncias opcionais; commander.regras \"CR2c.3 · Profane Command\" · M-259/M-263 (v97): 601.2f — redução que depende do alvo (Killian; reducaoPorAlvo na oferta otimista e no pagamento com os alvos reais) e delve por quantidade com escolha das cartas. · M-290 (CR2c.6): o reforço soma ao custo alternativo, ao lampejo, à fuga e ao conceder; sem pagar o custo de mana, X = 0",
+   "falta": "dividir, buyback, aumento ou redução genérica vinda de outra permanente",
    "esforco": "G",
    "depende": [
     "700.2",
@@ -4080,6 +4136,10 @@
     "118.9",
     "107.4",
     "613"
+   ],
+   "testes": [
+    "CR 601.2 · o reforço soma ao custo alternativo (antes saía de graça), e conjurar sem pagar faz X = 0 (107.3b)",
+    "CR 601.2 · o lampejo do passado cobra só o custo do lampejo, mesmo com o reforço somado no caminho alternativo (guarda contra o custo cobrado em dobro)"
    ]
   },
   {
@@ -4152,11 +4212,14 @@
    "regra": "Activating Activated Abilities",
    "titulo": "Passos para ativar uma habilidade",
    "status": "parcial",
-   "evidencia": "HANDLERS.activate (index.html:12365-12406): só o controlador (:12368), alvos distintos e legais, custo pago (payAbilityCost :11981), objeto próprio na pilha (makeAbility :11712), habilidade da mão (canalizar) com fromHand; rules.unit \"M9 · habilidade ativada: custo de virar, mana e sacrifício\", \"M9 · habilidade com alvo que some é anulada na resolução\", \"S37 · descartar esta carta é habilidade da mão\"",
-   "falta": "Herda as lacunas de 601.2b-h: sem {X} em custo de ativação, sem modos em ativada, sem divisão, sem modificadores de custo, pagamento de mana automático; 602.2a não registra a revelação da carta ativada da mão.",
-   "esforco": "M",
+   "evidencia": "HANDLERS.activate (index.html:12365-12406): só o controlador (:12368), alvos distintos e legais, custo pago (payAbilityCost :11981), objeto próprio na pilha (makeAbility :11712), habilidade da mão (canalizar) com fromHand; rules.unit \"M9 · habilidade ativada: custo de virar, mana e sacrifício\", \"M9 · habilidade com alvo que some é anulada na resolução\", \"S37 · descartar esta carta é habilidade da mão\" · M-290 (CR2c.6): habilidade de campo não ativa da mão; fonte do {T} não paga a própria mana",
+   "falta": "ordem completa de 602.2 (anunciar, custo total, pagar) segue o padrão do código",
+   "esforco": "P",
    "depende": [
     "601.2"
+   ],
+   "testes": [
+    "CR 602.2 · \"{1}{R}, {T}\": com só o Kher Keep e uma Mountain desvirados, a fonte do {T} não paga a própria mana"
    ]
   },
   {
@@ -4179,9 +4242,17 @@
    "regra": "Activating Activated Abilities",
    "titulo": "Restrições de ativação (enjoo, uma vez por turno, tempo de feitiço)",
    "status": "parcial",
-   "evidencia": "enjoo para {T} sem ímpeto (index.html:11991-11994, 12013), oncePerTurn fica na permanente (:11997-12000), sorceryOnly (:12386); rules.unit \"M9 · … enjoo impede {T}\", \"S29 · devolver Floresta como custo, uma vez por turno\", \"S11 · equipar só na sua fase principal\" · CR2a.4 (v78): \"Activate only if you have at least N life more than your starting life total\" (onlyIfLifeOverStart, na oferta e na ativação) · CR2b.4 (v82): \"Activate only if this creature is attacking\" (onlyIfAttacking)",
-   "falta": "602.5a: símbolo de desvirar {Q} não existe e o enjoo olha o tipo impresso, não o tipo atual. 602.5b/c: \"uma vez por turno\" é uma marca única por permanente (usedThisTurn), compartilhada entre habilidades diferentes e concedidas. Não há \"não pode ser ativada\" nem \"ative somente se/durante…\" (ROADMAP:2532 lista como pendente).",
-   "esforco": "M"
+   "evidencia": "enjoo para {T} sem ímpeto (index.html:11991-11994, 12013), oncePerTurn fica na permanente (:11997-12000), sorceryOnly (:12386); rules.unit \"M9 · … enjoo impede {T}\", \"S29 · devolver Floresta como custo, uma vez por turno\", \"S11 · equipar só na sua fase principal\" · CR2a.4 (v78): \"Activate only if you have at least N life more than your starting life total\" (onlyIfLifeOverStart, na oferta e na ativação) · CR2b.4 (v82): \"Activate only if this creature is attacking\" (onlyIfAttacking) · M-290 (CR2c.6): \"uma vez por turno\" é do objeto (400.7); o enjoo usa o tipo atual",
+   "falta": "sem {Q}; sem \"não pode ser ativada\" genérico",
+   "esforco": "P",
+   "testes": [
+    "CR 602.2 · \"{1}{R}, {T}\": com só o Kher Keep e uma Mountain desvirados, a fonte do {T} não paga a própria mana",
+    "CR 606.3 · a planeswalker que muda de zona é um objeto novo: depois de voltar ao campo pode ativar lealdade no mesmo turno",
+    "CR 117.1 · marca interna não vem do jogador: \"concedido por efeito\" não fura a fase nem a prioridade, e habilidade de campo não ativa da mão",
+    "CR 601.2 · o reforço soma ao custo alternativo (antes saía de graça), e conjurar sem pagar faz X = 0 (107.3b)",
+    "CR 608.2 · conjurar sem pagar durante a resolução: o jogador da decisão conjura mesmo sem ser o ativo",
+    "CR 601.2 · o lampejo do passado cobra só o custo do lampejo, mesmo com o reforço somado no caminho alternativo (guarda contra o custo cobrado em dobro)"
+   ]
   },
   {
    "n": "603.1",
@@ -4451,7 +4522,10 @@
    "regra": "Loyalty Abilities",
    "titulo": "Lealdade: tempo de feitiço, uma por permanente por turno",
    "status": "coberta",
-   "evidencia": "sorceryOnly + loyaltyTurn (index.html:10906, 11984, 12008); rules.unit \"S21 · planeswalker entra com a lealdade da carta e usa uma habilidade por turno\", \"S21 · lealdade insuficiente, só no tempo de feitiço\""
+   "evidencia": "sorceryOnly + loyaltyTurn (index.html:10906, 11984, 12008); rules.unit \"S21 · planeswalker entra com a lealdade da carta e usa uma habilidade por turno\", \"S21 · lealdade insuficiente, só no tempo de feitiço\" · M-290 (CR2c.6): o uso de lealdade é do objeto; mudar de zona zera (400.7)",
+   "testes": [
+    "CR 606.3 · a planeswalker que muda de zona é um objeto novo: depois de voltar ao campo pode ativar lealdade no mesmo turno"
+   ]
   },
   {
    "n": "606.4",
@@ -5465,10 +5539,8 @@
    "n": "700.7",
    "regra": "General",
    "titulo": "\"Este/aquele [algo]\" segue o objeto",
-   "status": "parcial",
-   "evidencia": "Efeitos e habilidades guardam o objeto por oid (makeAbility com source e targets, index.html:11866; resolução por oid), não por característica — o motor não contradiz a regra para a própria fonte.",
-   "falta": "O caso do exemplo não é alcançável: não achei efeito adiado do tipo \"destroy/sacrifice/exile that creature at the beginning of the next end step\" (grep por next end step/delayed vazio), então não há onde verificar que o objeto é seguido mesmo deixando de ser criatura. Sem sonda possível; classificado por baixo.",
-   "esforco": "M",
+   "status": "coberta",
+   "evidencia": "Efeitos e habilidades guardam o objeto por oid (makeAbility com source e targets, index.html:11866; resolução por oid), não por característica — o motor não contradiz a regra para a própria fonte. · auditoria independente CR2c (11/10/2026): gatilho atrasado delayed-object guarda oid e encarnação",
    "depende": [
     "603.7 gatilhos adiados"
    ]

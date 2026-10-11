@@ -13834,7 +13834,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 104; // CR2d.13 · "até o seu próximo turno" por dono, durações de cópia e controle, exceção da cópia copiável
+const ENGINE_VERSION = 105; // CR2c.6 · fonte do {T} não paga a própria mana, uso da habilidade por objeto, marcas internas, reforço no alternativo
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -14479,6 +14479,7 @@ function moveObject(s, oid, to, { top = true } = {}) {
   o.tapped = false; o.damage = 0; o.counters = {}; o.controller = o.owner; delete o.controles; delete o.controladorBase; // CR2d.6 · 400.7
   delete o.tempToxico; delete o.tempResguardoCor; delete o.tempNaoBloqueadaPor; delete o.tempHabilidades; delete o.permissaoUsada; if (fromZone !== to) delete o.desenterrada; // M-255/M-256/M-257 · 400.7
   delete o.attacking; delete o.atacandoPw; delete o.exigeAtacarPw; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.pumpNext; delete o.goaded; delete o.keywordsNext; delete o.cantAttackNext; delete o.targets; delete o.attachedTo; delete o.tempKeywords; delete o.tempTs; delete o.anexadaEm; delete o.mutavel; delete o.vira; delete o.prevenirDano; delete o.regenerar; delete o.temporarios; delete o.tempProtection; delete o.paired; // S39 · o vínculo de alma se desfaz ao sair do campo
+  delete o.loyaltyTurn; delete o.usedThisTurn; // CR2c.6 · 400.7: o objeto novo não carrega o uso da habilidade do anterior (606.3, 602.5b)
   if (to === 'battlefield' && fromZone === 'stack' && o.suspensaImpeto) { delete o.suspensaImpeto; aplicaTemporario(s, o, { palavras: ['haste'], ate: { enquanto: 'controlar-fonte' } }, o.controller, o); } // M-269 · "if it's a creature, it has haste"
   if (to === 'battlefield') o.ts = relogio(s); // CR2d.1 · 613.7d: carimbo de tempo de quem entra no campo
   o.sick = to === 'battlefield' && s.facts[o.name].types.includes('creature');
@@ -14932,8 +14933,11 @@ function combinacoesUteis(n, cost) {
   })(0, []);
   return out;
 }
+/** CR2c.6 · a permanente cujo {T} faz parte do custo em pagamento: não pode virar para gerar a mana desse custo (602.2b, 118.3). */
+let fonteReservada = null;
+const semAFonte = (oid, f) => { const antes = fonteReservada; fonteReservada = oid; try { return f(); } finally { fonteReservada = antes; } };
 function sources(s, p) {
-  return battlefield(s).filter(o => o.controller === p && !o.tapped && productions(s, o).length &&
+  return battlefield(s).filter(o => o.controller === p && !o.tapped && o.oid !== fonteReservada && productions(s, o).length &&
     !(isCreature(s, o) && enjoado(s, o) && !has(s, o, 'haste'))); // CR2d.2 · criatura de agora (terreno animado)
 }
 /** Escolhe fontes desviradas para completar o pagamento. Busca limitada e determinística. */
@@ -17557,14 +17561,14 @@ function payAbilityCost(s, p, source, ab) {
     if (source.tapped) throw new RuleError('custo', 'a permanente já está virada');
     if (isCreature(s, source) && enjoado(s, source) && !has(s, source, 'haste')) throw new RuleError('custo', 'criatura com enjoo não pode usar {T}');
   }
-  if (cost.mana && s.manaCheck) {
+  if (cost.mana && s.manaCheck) semAFonte(cost.tap ? source.oid : null, () => { // CR2c.6 · a fonte do {T} não paga a própria mana
     const c = parseCost(cost.mana);
     if (ab.vida != null) { // M-255 · phyrexiano: quem ativa escolhe quantos símbolos paga com vida
       if (!(Number.isInteger(ab.vida) && ab.vida >= 0 && ab.vida <= nPhyrexianos(c))) throw new RuleError('custo', 'escolha quantos símbolos phyrexianos pagar com vida');
       if (s.players[p].life < 2 * ab.vida) throw new RuleError('custo', 'vida insuficiente para pagar o phyrexiano');
       payCost(s, p, custoPhyrexiano(c, ab.vida)); perdeVida(s, p, 2 * ab.vida);
     } else payCost(s, p, c);
-  }
+  });
   if (cost.life) { if (s.players[p].life < cost.life) throw new RuleError('custo', 'vida insuficiente'); perdeVida(s, p, cost.life); }
   if (ab.oncePerTurn) {
     if (source.usedThisTurn) throw new RuleError('custo', 'esta habilidade só pode ser usada uma vez por turno');
@@ -17610,7 +17614,7 @@ const canPayAbility = (s, p, source, ab) => {
   if (ab.onlyIfAttacking && source.attacking == null) return false; // "Activate only if this creature is attacking"
   if (ab.onlyIfGraveyardAtLeast != null && s.zones[p].graveyard.length < ab.onlyIfGraveyardAtLeast) return false; // M-249 · limiar (702.25 Threshold)
   if (cost.life && s.players[p].life < cost.life) return false;
-  return !(cost.mana && s.manaCheck) || canPay(s, p, parseCost(cost.mana));
+  return !(cost.mana && s.manaCheck) || semAFonte(cost.tap ? source.oid : null, () => canPay(s, p, parseCost(cost.mana))); // CR2c.6
 };
 
 /* ---------------- M4 · prioridade e pilha ---------------- */
@@ -17878,7 +17882,7 @@ const HANDLERS = {
     s.turn.passes = 0;
   },
   cast(s, a, events = []) { // M-265 · recebe o registro (o replicar anota as cópias)
-    noPending(s); holder(s, a.p); semFracao(s);
+    if (!a.granted) { noPending(s); holder(s, a.p); } semFracao(s); // CR2c.6 · 608.2g: por efeito, quem decide conjura sem a prioridade
     const o = s.objects[a.oid];
     const fromGraveyard = (a.flashback || a.disturb || a.escape || a.retrace || a.permissao != null) && o && o.zone === 'graveyard';
     // S53 · carta plotada: conjura do exílio, sem pagar mana, num turno depois
@@ -17919,6 +17923,8 @@ const HANDLERS = {
     const alvoAura = auraTarget(f, a.bestow);
     if (a.bestow && !bestowOf(s, o)) throw new RuleError('conceder', 'esta carta não tem conceder');
     if (a.x != null && !(Number.isInteger(a.x) && a.x >= 0 && a.x <= LIMITE_X)) throw new RuleError('custo', `X precisa ser um número inteiro de 0 a ${LIMITE_X}`);
+    if ((a.granted || a.plotted) && a.x > 0) throw new RuleError('custo', 'sem pagar o custo de mana, X é 0'); // CR2c.6 · 107.3b
+    if (a.kick && a.faceDown) throw new RuleError('custo', 'virada para baixo não tem reforço'); // 708.4
     const need = alvoAura ? [{ target: alvoAura }] : spellEffects(s, { name: o.name, mode: a.mode, ...(nModos ? { modes: a.modes } : {}), altIndex: a.alt != null ? a.alt : null, xPaid: a.x || 0, ...(a.emenda ? { emendas: emendasDe(s, a.emenda) } : {}) }, a.mode).filter(SC.isTargeted); // M-274 · alvos do texto encaixado também
     const chosen = a.targets || [];
     const minAlvos = need.filter(x => !x.upTo).length; // S38 · "até N alvos" aceita menos
@@ -17964,6 +17970,7 @@ const HANDLERS = {
         if (s.players[a.p].life < 2 * a.vida) throw new RuleError('custo', 'vida insuficiente para pagar o phyrexiano'); // 119.4
         payCost(s, a.p, custoPhyrexiano(custo, a.vida), extraPago, { criaturaDoComandante: true, oid: a.oid }); perdeVida(s, a.p, 2 * a.vida);
       } else payCost(s, a.p, custo, extraPago, { criaturaDoComandante: true, oid: a.oid }); } // M-273 // M-259 · a redução por alvo usa os alvos escolhidos
+    if (a.kick && reforco && s.manaCheck && !a.free && (alt || a.flashback || a.escape || a.disturb || a.omen || a.bestow || a.plotted)) payCost(s, a.p, somaCusto(parseCost('{0}'), parseCost(reforco.mana), a.kick)); // CR2c.6 · 601.2f: o reforço soma ao custo alternativo
     if (a.retrace) { // M-222 · 702.81a: "discarding a land card in addition to paying its other costs"
       const l = a.pay && a.pay.retrace, lo = l && s.objects[l];
       if (!lo || !s.zones[a.p].hand.includes(l) || !(s.facts[lo.name].types || []).includes('land')) throw new RuleError('custo', 'descarte um terreno da mão para retraçar');
@@ -18092,6 +18099,7 @@ const HANDLERS = {
     if (!ehHabilidadeDeMana(base)) semFracao(s);
     // S23 · mana de qualquer cor: a cor escolhida vem na ação
     if ((base.cost || {}).fromHand && !a.fromHand) throw new RuleError('habilidade', 'esta habilidade só funciona com a carta na mão');
+    if (a.fromHand && !(base.cost || {}).fromHand) throw new RuleError('habilidade', 'esta habilidade só funciona com a permanente no campo'); // CR2c.6 · 113.6
     if ((base.effects || []).some(e => e.do === 'add_mana' && e.identity)) {
       // Q10 · sem cor, ou cor fora da identidade, a habilidade não é ativada (antes virava a fonte por nada)
       if (!a.color) throw new RuleError('mana', identidade(s, a.p).length ? 'escolha uma cor da identidade do seu comandante' : 'sem identidade de cor, essa habilidade não produz mana');
@@ -18579,6 +18587,7 @@ function apply(state, action) {
   if (!action || !HANDLERS[action.t]) throw new RuleError('acao', 'ação desconhecida: ' + (action && action.t));
   if (state.status === 'over') throw new RuleError('fim', 'partida encerrada');
   if (!state.players[action.p] || state.players[action.p].lost) throw new RuleError('jogador', 'jogador inválido');
+  if (action.granted || (action.free && state.mode !== 'assisted')) throw new RuleError('acao', 'essa ação só existe por efeito de carta ou na mesa assistida'); // CR2c.6 · 117.1a: marca interna não vem do jogador
   if (state.status === 'mulligan' && !MULLIGAN_ACTIONS.has(action.t)) throw new RuleError('fase', 'termine os mulligans primeiro');
   if (state.pending && !PENDING_ACTIONS[state.pending.kind].includes(action.t)) {
     const k = state.pending.kind;

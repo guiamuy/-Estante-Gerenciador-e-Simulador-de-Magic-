@@ -3504,6 +3504,22 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Versão:** sobe para v104. Goldens regravados só pela versão: logs, status e turnos idênticos. Partidas salvas antes não abrem.
 - **Próximo:** CR2d.14, dependência entre efeitos contínuos (613.8), e auditoria independente da fase CR2c (conjurar, ativar e pagar).
 
+**CR2c.6 · Conjurar, ativar e pagar: os cinco erros da auditoria (602.2b, 606.3, 117.1a, 601.2f, 107.3b, 608.2g)** ✅ (leva M-290, motor v105) — 6 testes de conformidade (5 falham no motor v104; 1 de guarda).
+- **Origem:** auditoria independente da fase CR2c (11/10/2026).
+- **Regra:**
+  - (1) Num custo com {T}, a própria fonte não pode virar para gerar a mana desse custo. Antes, com só o Kher Keep e uma Mountain, a mesa oferecia "{1}{R}, {T}: crie um Kobold".
+  - (2) A planeswalker que muda de zona é um objeto novo e pode ativar lealdade de novo no mesmo turno. O mesmo vale para "uma vez por turno".
+  - (3) Marcas internas ("concedido por efeito", "sem pagar" fora da mesa assistida, "da mão" numa habilidade de campo) não podem vir do jogador.
+  - (4) O reforço soma ao custo alternativo, ao lampejo do passado, à fuga e ao conceder; antes saía de graça. Conjurar sem pagar o custo de mana faz X = 0.
+  - (5) Conjurar por efeito durante a resolução vale para quem decide, mesmo sem ser o jogador ativo.
+- **Guarda:** teste novo confere que o lampejo do passado cobra só o custo do lampejo (a primeira versão desta leva cobrava também o custo normal; a auditoria seguinte pegou antes de publicar).
+- **Versão:** sobe para v105. Goldens regravados só pela versão: logs, status e turnos idênticos. Partidas salvas antes não abrem.
+- **Mapa:**
+  - 115.1, 117.2, 113.10, 118.6 e 700.7 estavam defasadas e passam a cobertas.
+  - 606.3 e 118.10 continuam cobertas, agora sem o erro.
+  - 118.3, 602.2, 602.5 e 601.2 continuam parciais, com o que falta reescrito.
+- **Próximo:** CR2d.14 (dependência, 613.8) e auditoria independente das fases CR2a (zonas e ações de estado) e CR2h.
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
