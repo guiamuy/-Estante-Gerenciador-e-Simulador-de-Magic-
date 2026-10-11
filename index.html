@@ -14356,6 +14356,10 @@ function moveObject(s, oid, to, { top = true } = {}) {
     delete s.objects[oid];
     return;
   }
+  if (o.copiaDeMagia) { // CR2f.3 · 707.10a/704.5e: a cópia fora da pilha deixa de existir; 707.10c: a de mágica de permanente entra como ficha
+    if (o.zone === 'stack' && to === 'battlefield') { delete o.copiaDeMagia; o.token = true; }
+    else { const i = s.stack.indexOf(oid); if (i >= 0) s.stack.splice(i, 1); delete s.objects[oid]; return; }
+  }
   // S24 · fora do campo e da pilha, a carta volta para a face da frente
   // S52 · "se fosse para o cemitério, exile em vez disso" (Luminous Phantom)
   to = destinoSubstituido(s, o, fromZone, to); // CR2-G R5a · 614.6 · "em vez disso" (Luminous Phantom e substituições escritas como dado)
@@ -15341,6 +15345,8 @@ function spellEffects(s, o, mode) { return expandeAlvos(s, o, efeitosDaMagia(s, 
 /** M-274 · 702.47c: o texto das cartas encaixadas vem depois do texto da mágica, cada uma como frase própria ("o mesmo alvo" vale dentro dela). */
 function efeitosDaMagia(s, o, mode) { const base = efeitosBaseDaMagia(s, o, mode); if (!o || !(o.emendas || []).length) return base;
   return base.concat(...o.emendas.map((e, k) => (e.effects || []).map(x => ({ ...x, __modo: `emenda-${k}` })))); }
+/** CR2f.3 · 707.10: as escolhas feitas ao conjurar que a cópia leva (modo, modos, X pago, reforço, encaixe, custo alternativo, cor escolhida). */
+const marcasDaMagia = o => { if (!o) return {}; const m = {}; for (const k of ['mode', 'modes', 'xPaid', 'kicked', 'emendas', 'altIndex', 'chosenColor']) if (o[k] != null) m[k] = Array.isArray(o[k]) ? o[k].slice() : o[k]; return m; };
 const emendasDe = (s, oids) => oids.map(x => ({ name: s.objects[x].name, effects: ((s.facts[s.objects[x].name].script || {}).effects || []) }));
 const encaixavelEm = (s, carta, magia) => { const sp = ((s.facts[s.objects[carta].name] || {}).script || {}).splice; return !!sp && carta !== magia && temSubtipo(s, magia, sp.subtipo); };
 function efeitosBaseDaMagia(s, o, mode) {
@@ -16209,10 +16215,11 @@ function applyEffect(s, src, eff, tgt, events) {
       note({ name: obj.name, target: s.players[ctrl].name, ...(eff.ate && eff.ate !== 'sempre' ? { ate: eff.ate } : {}) }); break;
     }
     case 'copiar_esta': { // M-271 · a cópia vai para a pilha por cima, com alvo próprio; "may": quem controla decide ao resolver a cópia
-      if (src.ability || src.copia || src.zone !== 'stack') { note({ failed: true }); break; } // só a mágica de verdade se copia (a cópia não é conjurada)
+      if (src.ability || src.copia || src.copiaDeMagia || src.zone !== 'stack') { note({ failed: true }); break; } // só a mágica de verdade se copia (a cópia não é conjurada)
       if (eff.seConjuradaDe && src.castFrom !== eff.seConjuradaDe) { note({ failed: true }); break; }
       const efeitos = ((s.facts[src.name].script || {}).effects || []).filter(x => x.do !== 'copiar_esta');
-      s.queued.push({ source: src.oid, name: src.name, controller: ctrl, effects: efeitos, when: 'copia', copia: true, optional: true });
+      // CR2f.3 · "you may copy": a decisão vem antes de a cópia ir à pilha (copiar, escolhendo o alvo novo, ou não copiar)
+      s.queued.push({ source: src.oid, name: src.name, controller: ctrl, modes: [{ label: 'Copiar', effects: efeitos }, { label: 'Não copiar', effects: [] }], when: 'copia', copia: true, copiaDeMagia: true, recusavel: true, marcasMagia: marcasDaMagia(src) });
       note({ name: src.name }); break;
     }
     case 'exilar_topo_conjuravel': { // M-270 · "Exile the top three cards of your library. Creature cards exiled this way gain 'You may cast this card from exile as long as you control a Lukka planeswalker.'"
@@ -17185,6 +17192,14 @@ function putTriggerOnStack(s, q, events) {
     if (opts.length > 1) { s.pending = { kind: 'pick_target', p: q.controller, trigger: { ...q, alvos: targets }, options: opts, name: q.name, ...(targeted.length > 1 ? { qual: i + 1, de: targeted.length } : {}) }; return false; }
     targets.push(opts[0]);
   }
+  if (q.copiaDeMagia) { // CR2f.3 · 707.10: a cópia de uma mágica é uma mágica na pilha (pode ser anulada, é alvo de "mágica"), não é conjurada
+    if (!(q.effects || []).length && (q.modes || []).length === 0 && q.recusavel) { events.push({ kind: 'effect', do: 'copy', name: q.name, failed: true }); return false; }
+    const oid = 'k' + (s.proximaCopia = (s.proximaCopia || 0) + 1);
+    s.objects[oid] = { oid, name: q.name, owner: q.controller, controller: q.controller, zone: 'stack', copiaDeMagia: true, tapped: false, damage: 0, counters: {}, ...(q.marcasMagia || {}), ...(targets.length ? { targets: carimbaAlvos(s, targets) } : {}) };
+    s.stack.push(oid);
+    events.push({ kind: 'copy', name: q.name, oid });
+    return true;
+  }
   const oid = makeAbility(s, { oid: q.source, name: q.name, controller: q.controller }, { effects: q.effects }, targets);
   marcasDoGatilho(s, q, oid);
   events.push({ kind: 'trigger', name: q.name, when: q.when, oid });
@@ -17495,9 +17510,9 @@ function resolveTop(s, events = []) {
     moveObject(s, item, exiles ? 'exile' : dest);
     if (dest === 'battlefield') s.objects[item].controller = controller;
     const ent = s.objects[item];
-    delete ent.copiaEscolhida; // CR2f.2
-    if (comoCopia && ent.nomeImpresso != null && (f.script.entraComoCopia.somaTipos || []).length) aplicaTemporario(s, ent, { vira: { types: f.script.entraComoCopia.somaTipos, addTypes: true }, ate: 'sempre' }, controller); // 707.9b
-    if (dest === 'battlefield' && ent.sneakAtaque != null) { // Leva 106 · esgueirar-se: entra virada e atacando
+    if (ent) delete ent.copiaEscolhida; // CR2f.2 (a cópia de mágica já deixou de existir: sem objeto)
+    if (comoCopia && ent && ent.nomeImpresso != null && (f.script.entraComoCopia.somaTipos || []).length) aplicaTemporario(s, ent, { vira: { types: f.script.entraComoCopia.somaTipos, addTypes: true }, ate: 'sempre' }, controller); // 707.9b
+    if (dest === 'battlefield' && ent && ent.sneakAtaque != null) { // Leva 106 · esgueirar-se: entra virada e atacando
       if (s.combat && ['combat_blockers', 'combat_damage'].includes(s.turn.step)) { ent.tapped = true; ent.attacking = ent.sneakAtaque; s.combat.attackers.push(item); }
       delete ent.sneakAtaque;
     }
@@ -17795,10 +17810,10 @@ const HANDLERS = {
     // Leva 106 · tempestade (702.40): as cópias vão para a pilha por cima da original, cada uma com alvo próprio
     // ("you may choose new targets"), e resolvem mesmo se a original for anulada. Antes resolviam junto com ela.
     if ((f.script || {}).storm) for (let i = 0; i < (s.spellsThisTurn || 0); i++)
-      s.queued.push({ source: a.oid, name: o.name, controller: a.p, effects: f.script.effects, when: 'storm', copia: true });
+      s.queued.push({ source: a.oid, name: o.name, controller: a.p, effects: spellEffects(s, s.objects[a.oid]), when: 'storm', copia: true, copiaDeMagia: true, marcasMagia: marcasDaMagia(s.objects[a.oid]) }); // CR2f.3
     // M-265 · replicar (702.56b): "when you cast this spell, copy it for each time you paid its replicate cost" — como a tempestade, cópias
     // com alvo próprio por cima da original, que existem mesmo se a original for anulada; não são conjuradas
-    if (a.kick && reforco && reforco.replicar) { for (let i = 0; i < a.kick; i++) s.queued.push({ source: a.oid, name: o.name, controller: a.p, effects: f.script.effects, when: 'replicar', copia: true }); events.push({ kind: 'replicar', name: o.name, amount: a.kick }); }
+    if (a.kick && reforco && reforco.replicar) { for (let i = 0; i < a.kick; i++) s.queued.push({ source: a.oid, name: o.name, controller: a.p, effects: spellEffects(s, s.objects[a.oid]), when: 'replicar', copia: true, copiaDeMagia: true, marcasMagia: marcasDaMagia(s.objects[a.oid]) }); events.push({ kind: 'replicar', name: o.name, amount: a.kick }); }
     s.spellsThisTurn = (s.spellsThisTurn || 0) + 1;
     if (a.flashback) s.objects[a.oid].flashback = true; // exila em vez de voltar ao cemitério
     if (a.omen) s.objects[a.oid].omen = true; // volta embaralhado para o grimório
@@ -20709,6 +20724,7 @@ function describe(before, a, events, after) {
     if (ev.kind === 'fizzled') L.push(`${ev.name} não resolveu: alvo ilegal`);
     if (ev.kind === 'storm') L.push(`Tempestade: ${plural(ev.amount, 'cópia', 'cópias')} de ${ev.name}`);
     if (ev.kind === 'replicar') L.push(`Replicar: ${plural(ev.amount, 'cópia', 'cópias')} de ${ev.name}`); // M-265
+    if (ev.kind === 'copy') L.push(`Cópia de ${ev.name} na pilha`); // CR2f.3
     if (ev.kind === 'choice') L.push(`${ev.name}: ${ev.what} (${plural(ev.amount, 'carta', 'cartas')})`);
     if (ev.kind === 'trigger-fizzled') L.push(`Gatilho de ${ev.name} sem alvo legal: saiu da pilha`);
     if (ev.kind === 'room') L.push(`${ev.target} se aventurou na masmorra: ${ev.dungeon} — ${ev.name}`); // S57

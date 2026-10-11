@@ -9152,15 +9152,17 @@
    "regra": "Copying Objects",
    "titulo": "Copiar mágica ou habilidade",
    "status": "parcial",
-   "evidencia": "tempestade: uma cópia por mágica anterior, na pilha por cima da original, com alvo próprio, resolve mesmo se a original for anulada (index.html:12288-12293; ordem em 11821-11827; resolução 12046-12050) · M-265/M-271 (v97): cópias do replicar (uma por pagamento, alvo próprio) e \"pode copiar esta mágica\" na resolução quando conjurada de um cemitério (copiar_esta; Sevinne's Reclamation), as duas como item na pilha com alvo novo.",
-   "falta": "só tempestade. A cópia entra como gatilho, não como mágica (não pode ser alvo de anulação, não conta como mágica); não há \"copy target spell\", cópia de habilidade (10b), cópia por alvo possível (10d), alvo imposto (10e), cópia de mágica de permanente virando ficha (10f) nem de dupla face (10g); 10c: não dá para manter o alvo original ilegal.",
+   "evidencia": "tempestade: uma cópia por mágica anterior, na pilha por cima da original, com alvo próprio, resolve mesmo se a original for anulada (index.html:12288-12293; ordem em 11821-11827; resolução 12046-12050) · M-265/M-271 (v97): cópias do replicar (uma por pagamento, alvo próprio) e \"pode copiar esta mágica\" na resolução quando conjurada de um cemitério (copiar_esta; Sevinne's Reclamation), as duas como item na pilha com alvo novo. · CR2f.3/M-282 (v98): a cópia de mágica (tempestade, replicar, \"pode copiar esta mágica\") é uma mágica na pilha — alvo de \"anule a mágica alvo\", leva modo, X, reforço, encaixe e custo alternativo da original, não é conjurada, e fora da pilha deixa de existir (707.10a, 704.5e); cópia de mágica de permanente entra como ficha (707.10c). \"Pode copiar\" decide antes de a cópia ir à pilha. copia3.unit.",
+   "falta": "Faltam \"copie a mágica alvo\" de outra pessoa (verbo de carta), cópia de habilidade (707.10b) e cópia que muda de alvo por regra (707.10d).",
    "esforco": "M",
    "depende": [
     "707.2",
     "112"
    ],
    "testes": [
-    "M-265 · replicar: a mesa oferece pagar o custo de replicar 0, 1, 2… vezes (o que a mana pagar); cada pagamento é uma cópia com alvo próprio, antes da original"
+    "M-265 · replicar: a mesa oferece pagar o custo de replicar 0, 1, 2… vezes (o que a mana pagar); cada pagamento é uma cópia com alvo próprio, antes da original",
+    "CR 707.10 · replicar: a cópia é mágica na pilha, com o nome da original; resolvida, deixa de existir (não vai para o cemitério)",
+    "CR 707.10 · a cópia pode ser anulada como qualquer mágica, e anulada deixa de existir; leva o X pago da original"
    ]
   },
   {

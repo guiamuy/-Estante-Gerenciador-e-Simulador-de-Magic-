@@ -3436,6 +3436,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Simplificação declarada:** a escolha de entrar como cópia vale quando a permanente entra pela resolução da própria mágica (vinda de outra zona por efeito, entra como ela mesma).
 - **Golden:** idênticas, sem regravar. Versão não sobe.
 
+**CR2f.3 · A cópia de uma mágica é uma mágica na pilha (707.10)** ✅ (leva M-282, motor v98) — 2 testes de conformidade; 1 expectativa ajustada com justificativa.
+- **Regra:** as cópias da tempestade, do replicar e do "pode copiar esta mágica" passam a ser mágicas na pilha, com o nome da original: podem ser alvo de "anule a mágica alvo", levam as escolhas da original (modo, X pago, reforço, encaixe, custo alternativo, cor escolhida), não são conjuradas (não contam para "mágicas conjuradas neste turno" nem disparam "quando você conjura") e, fora da pilha — resolvidas ou anuladas —, deixam de existir (707.10a, 704.5e). Cópia de mágica de permanente entra como ficha (707.10c). Antes as cópias eram itens de habilidade na pilha.
+- **Expectativa ajustada:** `sevinne.unit`: o "you may copy" do Sevinne's Reclamation passa a ser decidido antes de a cópia ir à pilha (Copiar / Não copiar); antes era perguntado ao resolver a cópia. O resultado é o mesmo.
+- **Versão:** não sobe — a mudança só acrescenta ações (mirar a cópia), e os registros antigos continuam válidos e dão o mesmo resultado (critério da leva 104). Goldens idênticos, sem regravar.
+- **Fora (no mapa):** "copie a mágica alvo" de outro jogador, cópia de habilidade (707.10b).
+- **Próximo:** CR2e — substituição e prevenção (regeneração completa, "entra com", escudos, ordem escolhida pelo afetado, 616).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

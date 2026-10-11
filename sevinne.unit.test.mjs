@@ -17,6 +17,8 @@ function resolve(s, alvo, aceita) {
     const pd = s.pending;
     if (pd && pd.kind === 'pick_target') { const i2 = pd.options.findIndex(o => o.oid === alvo); s = act(s, { t: 'pick_target', p: pd.p, index: i2 >= 0 ? i2 : 0 }); continue; }
     if (pd && pd.kind === 'may_pay') { s = act(s, aceita ? legais(s, pd.p, a => a.t !== 'decline' && a.t !== 'concede')[0] : { t: 'decline', p: pd.p }); continue; }
+    // CR2f.3 · "you may copy": a decisão vem antes de a cópia ir à pilha (Copiar / Não copiar); antes era perguntada ao resolver a cópia
+    if (pd && pd.kind === 'choose_mode') { s = act(s, { t: 'choose_mode', p: pd.p, index: aceita ? 0 : 1 }); continue; }
     s = pd ? act(s, legais(s, pd.p)[0]) : act(s, { t: 'pass', p: s.turn.priority });
   }
   return s;
