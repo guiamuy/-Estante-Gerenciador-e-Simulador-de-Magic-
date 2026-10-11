@@ -5202,6 +5202,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'changeling', 'devoid', // K-1 · 702.73 e 702.114: definem característica (604.3), valem em toda zona, lidas da palavra-chave impressa
   'prowess', // K-3 · 702.108: habilidade disparada gerada pela palavra-chave (gatilhosDePalavraK), uma por instância
   'persist', 'undying', // K-4 · 702.79 e 702.93: "quando morre, se não tinha marcador -1/-1 (+1/+1), volta com um"
+  'exalted', // K-5 · 702.83: "quando uma criatura sua ataca sozinha, ela recebe +1/+1" (exaltadoK), uma por instância
   /* ↓ V · palavras-chave da trilha verbos */
   /* ↓ T · palavras-chave da trilha tipos */
 ];
@@ -5359,6 +5360,8 @@ const EFFECTS = {
   draw_free_cast: { fields: ['amount'], targets: ['self'] },
   /* ↓ K · efeitos da trilha keywords */
   salvaguarda: { fields: [], targets: [] }, // K-2 · 702.21a · gerado pelo motor quando uma permanente com salvaguarda vira alvo (não vai em script)
+  volta_com_marcador: { fields: ['marcador'], targets: [] }, // K-4 · persistir e imortal (gerado pelo motor)
+  exaltado: { fields: ['criatura'], targets: [] }, // K-5 · exaltado (gerado pelo motor)
   /* ↓ V · efeitos da trilha verbos */
   discover: { fields: ['amount'], targets: ['self'] }, // V-10 · 701.57 descobrir N
   investigate: { fields: [], targets: ['self'] }, // V-9 · 701.16 investigar: "Create a Clue token" (111.10f); `amount` opcional ("investigate twice", "investigate X times")
@@ -17600,6 +17603,12 @@ function applyEffect(s, src, eff, tgt, events) {
       break;
     }
     /* ↓ K · casos de applyEffect da trilha keywords */
+    case 'exaltado': { // K-5 · 702.83a: "that creature gets +1/+1 until end of turn" (a que atacou, ainda a mesma, mesmo fora do combate)
+      const c = s.objects[eff.criatura];
+      if (!c || c.zone !== 'battlefield' || (c.zc || 0) !== eff.z) { note({ failed: true }); break; }
+      aplicaTemporario(s, c, { poder: 1, resistencia: 1, ate: 'fim-do-turno' }, ctrl);
+      note({ target: c.name, power: 1, toughness: 1 }); break;
+    }
     case 'volta_com_marcador': { // K-4 · 702.79a / 702.93a: a carta que caiu (a mesma encarnação) volta sob o controle do dono, com o marcador
       const c = s.objects[src.ability ? src.source : src.oid];
       if (!c || c.zone !== 'graveyard' || (c.zc || 0) !== eff.z) { note({ failed: true }); break; } // saiu do cemitério (ou a ficha deixou de existir): nada volta
@@ -19048,6 +19057,7 @@ const HANDLERS = {
     for (const oid of list) (s.atacaramNoTurno = s.atacaramNoTurno || []).push({ oid, z: s.objects[oid].zc || 0 }); // CR2g.4 · "creatures that attacked this turn"
     if (list.length) s.players[a.p].atacouCom = (s.players[a.p].atacouCom || 0) + list.length; // M-248 · "se você atacou neste turno" (508.1; pôr no campo atacando não é atacar)
     disparaEvento(s, 'ataca', list.map(oid => s.objects[oid]));
+    exaltadoK(s, a.p, list); // K-5 · 702.83a: exaltado, quando uma só ataca
     s.pending = null; s.turn.priority = s.turn.active; s.turn.passes = 0;
   },
   /** M6 · declaração de bloqueadores. blocks = [[bloqueador, atacante], …] */
@@ -20360,6 +20370,19 @@ function ultimaPalavrasK(s, o) {
   return Object.keys(out).length ? { palavrasK: out } : {};
 }
 Object.assign(EXPORTS_K, { ultimaPalavrasK });
+/** K-5 · 702.83a · "Whenever a creature you control attacks alone, that creature gets +1/+1 until end of turn." 702.83b/506.5: ataca
+    sozinha quem é a única declarada atacante neste combate. Cada permanente de quem ataca, com cada instância de exaltado
+    (impressa, concedida, de marcador), dispara uma vez; a habilidade lembra a criatura (e a encarnação) que atacou. */
+function exaltadoK(s, p, atacantes) {
+  if ((atacantes || []).length !== 1) return;
+  const c = s.objects[atacantes[0]]; if (!c) return;
+  for (const w of battlefield(s)) {
+    if (w.controller !== p) continue;
+    const n = instanciasK(s, w, 'exalted');
+    for (let i = 0; i < n; i++) s.queued.push({ source: w.oid, name: w.name, controller: p, effects: [{ do: 'exaltado', criatura: c.oid, z: c.zc || 0 }], when: 'exalted' });
+  }
+}
+Object.assign(EXPORTS_K, { exaltadoK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-10 · 701.57 descobrir N: exila do topo do seu grimório até exilar uma carta que não é terreno com valor de mana N ou menor. Você
    pode conjurá-la sem pagar o custo de mana (a mágica resultante precisa ter valor ≤ N: com X, X = 0); se não conjurar, ela vai para a
@@ -23074,6 +23097,7 @@ const plural = (n, um, muitos) => (n === 1 ? `${n} ${um}` : `${n} ${muitos}`);
 Object.assign(PALAVRA_PT, { changeling: 'metamorfo', devoid: 'desprovido' }); // K-1
 Object.assign(PALAVRA_PT, { prowess: 'proeza' }); // K-3
 Object.assign(PALAVRA_PT, { persist: 'persistir', undying: 'imortal' }); // K-4
+Object.assign(PALAVRA_PT, { exalted: 'exaltado' }); // K-5
 /* ↓ V · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha verbos */
 const MARCADOR_PT_V = { p1p1: '+1/+1', m1m1: '−1/−1', loyalty: 'de lealdade', poison: 'de veneno' }; // V-7
 const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas por descreveEfeito)

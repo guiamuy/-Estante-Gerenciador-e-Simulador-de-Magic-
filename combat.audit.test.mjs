@@ -308,6 +308,17 @@ test('K-4 · persistir (702.79) e imortal (702.93): o bloqueador que morre no co
   assert.equal(E.stats(r, r.objects[t]).power, 1, 'persistir: −1/−1'); assert.equal(E.stats(r, r.objects[l]).power, 3, 'imortal: +1/+1');
 });
 
+test('K-5 · exaltado (702.83): atacar sozinho com uma exaltada no campo causa 1 a mais', () => {
+  cobre('exalted');
+  const cartas = { ...CARDS, Nobre: cre('Nobre', 1, 1, ['Exalted']) };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 36, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a; let urso; [s] = poe(s, a, 'Nobre'); [s, urso] = poe(s, a, 'Urso');
+  const r = combate(s, [urso]);
+  assert.equal(r.players[d].life, 17, 'Urso 2 + exaltado 1');
+});
+
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));

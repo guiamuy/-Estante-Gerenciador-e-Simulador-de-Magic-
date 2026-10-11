@@ -3804,6 +3804,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `moveObject` (uma linha a mais: a foto da saída anota `palavrasK`), `entradaModificada` (uma linha a mais: `o.entraComK`). Só acrescentam.
 - **Testes:** `keywords.cr4.unit` (4, falham sem a leva), `combat.audit` K-4. Textos oficiais: Kitchen Finks, Young Wolf (Oracle do Forge, 11/10/2026). Goldens idênticos; motor v109.
 
+**K-5 · Exaltado (702.83)** 🟡 (leva K-5)
+- **Valor:** cada permanente com "Exalted" dá +1/+1 até o fim do turno à criatura que ataca sozinha, só pela palavra-chave.
+- **Aceite:** com duas Akrasan Squire (texto oficial), o Urso que ataca sozinho vira 4/4; a exaltada que ataca sozinha conta a própria; a exaltada do oponente não conta; com duas atacando, nada.
+- **Toca ponto comum:** `HANDLERS.attack` (uma linha a mais: `exaltadoK` depois dos gatilhos de ataque). Só acrescenta.
+- **Testes:** `keywords.cr4.unit` (1, falha sem a leva), `combat.audit` K-5. Texto oficial: Akrasan Squire (Oracle do Forge, 11/10/2026). Goldens idênticos; motor v109.
+
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

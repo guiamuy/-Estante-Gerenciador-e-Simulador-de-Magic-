@@ -299,3 +299,23 @@ test('CR 702.79a · persistir concedido (ficha): a ficha vai ao cemitério e dei
   s = mata(s, z);
   assert.ok(!s.zones[a].battlefield.some(x => s.objects[x] && s.objects[x].name === 'Zumbi K'), 'a ficha não volta');
 });
+
+/* ---------------- K-5 · 702.83 exaltado ---------------- */
+/** Vai ao passo de ataque e declara os atacantes; devolve o estado com os gatilhos de ataque resolvidos. */
+function ataca(s, atacantes) {
+  for (let i = 0; i < 40 && s.turn.step !== 'combat_attackers'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  s = act(s, { t: 'attack', p: s.turn.active, attackers: atacantes });
+  for (let i = 0; i < 8 && (s.stack.length || (s.pending && s.pending.kind === 'triggers')); i++) s = s.pending ? act(s, E.legalActions(s, s.pending.p)[0]) : act(s, { t: 'pass', p: s.turn.priority });
+  return s;
+}
+test('CR 702.83a/b · exaltado (Akrasan Squire, texto oficial): a criatura que ataca sozinha recebe +1/+1 por instância de exaltado de quem ataca; com duas atacando, nada', () => {
+  const AS = oficial('Akrasan Squire'); assert.deepEqual(J(AS.keywords), ['Exalted']);
+  let s = partida({ 'Akrasan Squire': AS, Urso: URSO }); const a = s.turn.active, d = 1 - a;
+  let q1, q2, u, u2, qd; [s, q1] = poe(s, a, 'Akrasan Squire'); [s, q2] = poe(s, a, 'Akrasan Squire'); [s, u] = poe(s, a, 'Urso'); [s, u2] = poe(s, a, 'Urso'); [s, qd] = poe(s, d, 'Akrasan Squire');
+  const so = ataca(s, [u]);
+  assert.equal(E.stats(so, so.objects[u]).power, 4, 'Urso 2/2 + duas exaltadas suas (a do oponente não conta) = 4/4');
+  const exaltada = ataca(s, [q1]);
+  assert.equal(E.stats(exaltada, exaltada.objects[q1]).power, 3, 'a própria exaltada atacando sozinha conta a dela também (1 + 2)');
+  const duas = ataca(s, [u, u2]);
+  assert.equal(E.stats(duas, duas.objects[u]).power, 2, 'duas atacando: ninguém ataca sozinha');
+});

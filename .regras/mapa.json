@@ -7675,14 +7675,18 @@
    "n": "702.83",
    "regra": "Keyword Abilities",
    "titulo": "Exalted",
-   "status": "ausente",
-   "falta": "Sem gatilho \"uma criatura sua ataca sozinha\" (702.83a-b); o gatilho attacks existe, falta a condição de atacante único e o disparo por cada permanente com exaltado.",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "506.5",
     "508"
    ],
-   "cartas": "comum"
+   "cartas": "comum",
+   "evidencia": "K-5: 'exalted' em KEYWORDS; exaltadoK (core.js, abaixo da âncora ↓ K), chamado na declaração de atacantes (HANDLERS.attack): com uma só atacante declarada (702.83b, 506.5), cada permanente de quem ataca dispara uma vez por instância de exaltado (instanciasK: impressa, concedida, marcador de exaltado 122.1b); a habilidade lembra a criatura e a encarnação e, na resolução (efeito exaltado), ela recebe +1/+1 até o fim do turno, mesmo se saiu do combate. Carta exemplo: Akrasan Squire (Oracle do Forge, 11/10/2026).",
+   "testes": [
+    "CR 702.83a/b · exaltado (Akrasan Squire, texto oficial): a criatura que ataca sozinha recebe +1/+1 por instância de exaltado de quem ataca; com duas atacando, nada",
+    "K-5 · exaltado (702.83): atacar sozinho com uma exaltada no campo causa 1 a mais"
+   ]
   },
   {
    "n": "702.84",
