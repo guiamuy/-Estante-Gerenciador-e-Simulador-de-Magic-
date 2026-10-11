@@ -19741,7 +19741,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
     if (k === 'pick') {
       const pk = s.pending;
       if (pk.picked.length < pk.max) pk.from.filter(oid => !pk.picked.includes(oid) && matchesFilter(s, s.objects[oid], pk.filter)).forEach(oid => out.push({ t: 'pick', p, oid }));
-      if (pk.picked.length >= pk.min) out.push({ t: 'pick_done', p });
+      if (pk.picked.length >= pk.min && !(pk.needMv && pickedMv(s, pk) < pk.needMv)) out.push({ t: 'pick_done', p }); // M-310 · oferta = aceite: colher provas só confirma com o valor de mana somado (o fuzz com listas reais achou a oferta sem ele)
     }
     if (k === 'triggers') s.queued.filter(q => q.controller === p).forEach((q, i) => out.push({ t: 'order_trigger', p, index: i }));
     if (k === 'blockers') {
@@ -20261,7 +20261,9 @@ function invariants(s, expectedObjects) {
   if (s.status === 'playing') {
     if (s.players[s.turn.active].lost) errs.push('ativo perdeu e continua ativo');
     if (!s.pending && s.players[s.turn.priority].lost) errs.push('prioridade com jogador fora');
-    if (NO_PRIORITY.has(s.turn.step) && !s.pending) errs.push('parado em passo sem prioridade');
+    // 514.3a: na limpeza, mágica ou gatilho (insanidade do descarte, ação de estado do fim dos efeitos) dão prioridade e depois vem outra
+    // limpeza — isso não é travar, desde que alguém tenha o que fazer (M-310: o fuzz com listas reais achou esta invariante errada)
+    if (NO_PRIORITY.has(s.turn.step) && !s.pending && !(s.turn.step === 'cleanup' && legalActions(s, s.turn.priority).length)) errs.push('parado em passo sem prioridade');
   }
   if (s.status === 'over' && s.players.length > 1 && alive(s).length > 1) errs.push('encerrada com mais de um vivo');
   return errs;

@@ -3669,6 +3669,11 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (mapa 614.11 parcial):** dragar (trilha keywords), "em vez de comprar, olhe…" (Underrealm Lich).
 - **Teste:** `compra.substituicao.unit` (3 testes; os dois primeiros falham antes).
 
+**M-310 · Integração · fuzz em modo completo com as nove listas reais** ✅ (leva M-310, motor v110 sem mudança de forma; goldens intactos) — fecha a lacuna conhecida da malha: o fuzz rodava só com os baralhos mínimos de `fixtures.mjs`.
+- **Valor:** `listas.fuzz` joga cada lista do acervo contra outra (7 Pauper em roda, Killian × Malcolm nos dois assentos), ações aleatórias de `legalActions`, até 300 por partida; a cada ação: nada legal é recusado, as invariantes valem, nada trava. É o guarda-corpo das trilhas paralelas: verbo, palavra-chave ou tipo novo que quebre uma lista real cai no portão. Portão: 3 sementes (≈10 s); `FUZZ_LISTAS=N` e `FUZZ_BASE` para rodadas longas (rodadas aqui: 25 e 40 sementes, sem falha depois das correções).
+- **Achados pelo fuzz (viraram teste antes da correção):** (1) "colher provas" oferecia **Confirmar** antes de somar o valor de mana pedido, e o motor recusava (oferta ≠ aceite, Vitu-Ghazi Inspector × Faeries); agora só oferece com a soma. (2) A invariante "parado em passo sem prioridade" acusava a prioridade legítima na limpeza (514.3a: insanidade do descarte na limpeza, Rakdos Madness × Bogles); agora aceita a limpeza com prioridade quando há ação a fazer.
+- **Teste:** `listas.fuzz` (9 testes).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
