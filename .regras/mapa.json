@@ -1,7 +1,7 @@
 {
  "sobre": "Mapa regra × motor. Cada item NNN.N das Comprehensive Rules de 25/09/2026 classificado contra o motor v72 em 06/10/2026 por 14 auditores independentes, com evidência vista (código com linha, teste ou sonda executada). status: coberta · parcial · ausente · definicao (só define termo) · fora (jogo físico, torneio ou variante que um app de dois jogadores não precisa). Quando um item muda de status, o teste que prova a mudança entra em `testes`.",
  "cr": "2026-09-25",
- "motor": 99,
+ "motor": 100,
  "auditoria": "2026-10-06",
  "itens": [
   {
@@ -3546,13 +3546,19 @@
    "n": "502.1",
    "regra": "Untap Step",
    "titulo": "Fase (phasing) no passo de desvirar",
-   "status": "ausente",
-   "falta": "Não existe phasing no motor (nenhuma ocorrência de phase out/in em core.js); Slip Out the Back e March of Swirling Mist estão nas listas.",
-   "esforco": "G",
+   "status": "coberta",
    "depende": [
     "702.26"
    ],
-   "cartas": "rara"
+   "cartas": "rara",
+   "evidencia": "M-261 + M-284 (CR2g.1): no desvirar, entra em fase o que o jogador ativo controla; o que saiu de fase indiretamente volta só com aquilo a que está anexado (702.26g)",
+   "testes": [
+    "CR2g.1 · ninjutsu: o ninja ataca o mesmo planeswalker que o atacante devolvido (antes atacava o jogador)",
+    "CR2g.1 · 511.3: no passo de fim do combate as criaturas ainda estão atacando, e o ninjutsu é oferecido ali; saem do combate quando o passo termina",
+    "CR2g.1 · 514.3a: gatilho de descarte na limpeza vai para a pilha, os jogadores recebem prioridade e depois vem outra limpeza (antes o turno passava com o gatilho na pilha)",
+    "CR2g.1 · 702.26d: efeito \"até o fim do turno\" acaba mesmo com a permanente fora de fase",
+    "CR2g.1 · 702.26g: a Aura de outro jogador que saiu de fase junto só volta com a criatura (antes voltava sozinha no desvirar do dono da Aura)"
+   ]
   },
   {
    "n": "502.2",
@@ -3672,14 +3678,16 @@
    "n": "505.6",
    "regra": "Main Phase",
    "titulo": "Prioridade na principal; feitiços e um terreno por turno",
-   "status": "parcial",
-   "evidencia": "cast recusa tempo de feitiço fora da principal do ativo ou com pilha (index.html:12235); play_land exige principal do ativo, pilha vazia, prioridade e landsPlayed < 1 (12209-12212), sem usar a pilha; sonda p5/t5.mjs F1: criatura e terreno só em main1/main2 e nunca com mágica na pilha, 2º terreno recusado; engine.unit 'M4 · um terreno por turno...' e 'M4 · feitiço só na sua principal'",
-   "falta": "505.6b: não existe \"pode jogar terreno adicional\" (limite fixo em 1: Exploration, Azusa, Explore).",
-   "esforco": "P",
+   "status": "coberta",
+   "evidencia": "cast recusa tempo de feitiço fora da principal do ativo ou com pilha (index.html:12235); play_land exige principal do ativo, pilha vazia, prioridade e landsPlayed < 1 (12209-12212), sem usar a pilha; sonda p5/t5.mjs F1: criatura e terreno só em main1/main2 e nunca com mágica na pilha, 2º terreno recusado; engine.unit 'M4 · um terreno por turno...' e 'M4 · feitiço só na sua principal' · auditoria CR2g/CR2b: 505.6b, terrenos a mais por turno (M-279, terrenosPorTurno)",
    "depende": [
     "305.2"
    ],
-   "cartas": "comum"
+   "cartas": "comum",
+   "testes": [
+    "CR 613.10 · \"seus oponentes não podem ganhar vida\" (estática de quem controla a permanente): o oponente não ganha; você ganha",
+    "CR 613.11 · \"você pode jogar um terreno a mais neste turno\" e \"sem tamanho máximo de mão\" (de resolução, até o fim do turno)"
+   ]
   },
   {
    "n": "506.1",
@@ -3814,12 +3822,19 @@
    "regra": "Declare Attackers Step",
    "titulo": "Criatura posta em campo atacando",
    "status": "parcial",
-   "evidencia": "ninjutsu (index.html:12651) e esgueirar-se (12081): entra virada, atacando o defensor, não bloqueada, sem disparar 'attacks' — sonda p5/t3.mjs N1 (attackers = [Ninja], dano 2 no jogador, gatilho de ataque não disparou); rules.unit 'S18 · ninjutsu troca o atacante...' e 'S54 · esgueirar-se'",
+   "evidencia": "ninjutsu (index.html:12651) e esgueirar-se (12081): entra virada, atacando o defensor, não bloqueada, sem disparar 'attacks' — sonda p5/t3.mjs N1 (attackers = [Ninja], dano 2 no jogador, gatilho de ataque não disparou); rules.unit 'S18 · ninjutsu troca o atacante...' e 'S54 · esgueirar-se' · M-284 (CR2g.1): o ninja (ninjutsu e esgueirar-se) ataca o mesmo jogador ou planeswalker que o atacante devolvido; se o planeswalker saiu, ataca o jogador",
    "falta": "Não há escolha do que ela ataca (508.4, sem planeswalker/batalha) e não existe efeito genérico \"ponha em campo virada e atacando\" (fichas atacando, Kaalia). Ninjutsu não é oferecido no passo de fim de combate (sonda N1: 0 opções em combat_end), embora o atacante ainda devesse estar atacando ali (511.3).",
    "esforco": "P",
    "depende": [
     "506.2",
     "511.3"
+   ],
+   "testes": [
+    "CR2g.1 · ninjutsu: o ninja ataca o mesmo planeswalker que o atacante devolvido (antes atacava o jogador)",
+    "CR2g.1 · 511.3: no passo de fim do combate as criaturas ainda estão atacando, e o ninjutsu é oferecido ali; saem do combate quando o passo termina",
+    "CR2g.1 · 514.3a: gatilho de descarte na limpeza vai para a pilha, os jogadores recebem prioridade e depois vem outra limpeza (antes o turno passava com o gatilho na pilha)",
+    "CR2g.1 · 702.26d: efeito \"até o fim do turno\" acaba mesmo com a permanente fora de fase",
+    "CR2g.1 · 702.26g: a Aura de outro jogador que saiu de fase junto só volta com a criatura (antes voltava sozinha no desvirar do dono da Aura)"
    ]
   },
   {
@@ -3871,10 +3886,8 @@
    "n": "509.2",
    "regra": "Declare Blockers Step",
    "titulo": "Prioridade depois dos bloqueadores",
-   "status": "parcial",
-   "evidencia": "block devolve a prioridade ao ativo (index.html:12361); sonda p5/t2.mjs C1: após bloquear, passo=combat_blockers prio=0",
-   "falta": "509.2a: não há gatilho de bloqueio para pôr na pilha (ver 509.3).",
-   "esforco": "P",
+   "status": "coberta",
+   "evidencia": "block devolve a prioridade ao ativo (index.html:12361); sonda p5/t2.mjs C1: após bloquear, passo=combat_blockers prio=0 · auditoria CR2g/CR2b: gatilho de bloqueio vai para a pilha antes da prioridade no passo de bloqueadores",
    "depende": [
     "509.3"
    ]
@@ -3883,13 +3896,14 @@
    "n": "509.3",
    "regra": "Declare Blockers Step",
    "titulo": "Gatilhos de bloquear e de ser bloqueada",
-   "status": "ausente",
-   "falta": "TRIGGERS (4534) não tem \"bloqueia\", \"é bloqueada\", \"bloqueia uma criatura\" nem \"ataca e não é bloqueada\" (509.3a-g); a ação block não chama queueTriggers (12345-12362). Smuggler's Copter (\"ataca ou bloqueia\") está nas listas.",
+   "status": "parcial",
+   "falta": "faltam \"é bloqueada\", \"bloqueia uma criatura\" com a criatura bloqueada e \"ataca e não é bloqueada\"",
    "esforco": "M",
    "depende": [
     "603"
    ],
-   "cartas": "muito comum"
+   "cartas": "muito comum",
+   "evidencia": "auditoria CR2g/CR2b: gatilho \"quando bloqueia\" dispara e vai para a pilha no passo de bloqueadores"
   },
   {
    "n": "509.4",
@@ -3974,10 +3988,11 @@
    "n": "511.3",
    "regra": "End of Combat Step",
    "titulo": "Todos saem do combate quando o passo termina",
-   "status": "parcial",
-   "evidencia": "enterStep('combat_end') apaga attacking/blocking/blockedBy/blocked e s.combat (index.html:10704-10707); sonda p5/t2.mjs C1: combat = null em combat_end; depois vem main2",
-   "falta": "A saída do combate acontece quando o passo de fim de combate COMEÇA, não quando termina: durante a prioridade desse passo ninguém mais é \"atacante/bloqueador\" (sonda t3.mjs N1: Charger.attacking = undefined em combat_end). Efeitos que miram \"criatura atacante/bloqueadora\" e ninjutsu não funcionam nesse passo, e a condição de gatilho que lê s.combat (11728) precisa ser reconferida na resolução.",
-   "esforco": "P"
+   "status": "coberta",
+   "evidencia": "enterStep('combat_end') apaga attacking/blocking/blockedBy/blocked e s.combat (index.html:10704-10707); sonda p5/t2.mjs C1: combat = null em combat_end; depois vem main2 · M-284 (CR2g.1): as criaturas saem do combate quando o passo de fim do combate termina (saiDoCombate em advanceStep); durante o passo continuam atacando e o ninjutsu é oferecido",
+   "testes": [
+    "CR2g.1 · 511.3: no passo de fim do combate as criaturas ainda estão atacando, e o ninjutsu é oferecido ali; saem do combate quando o passo termina"
+   ]
   },
   {
    "n": "512.1",
@@ -3997,14 +4012,13 @@
    "n": "513.2",
    "regra": "End Step",
    "titulo": "Gatilho de passo final criado durante o passo final",
-   "status": "ausente",
-   "falta": "Não existe gatilho de \"no início do passo final\" nem gatilho atrasado \"no início do próximo passo final\" (ver 500.6), então não há o que esperar para o turno seguinte. Entra junto com o gatilho de passo final.",
-   "esforco": "P",
+   "status": "coberta",
    "depende": [
     "500.6",
     "603.7"
    ],
-   "cartas": "muito comum"
+   "cartas": "muito comum",
+   "evidencia": "auditoria CR2g/CR2b: gatilho atrasado \"no início do próximo passo final\" criado durante o passo final espera o passo final seguinte"
   },
   {
    "n": "514.1",
@@ -4028,12 +4042,15 @@
    "regra": "Cleanup Step",
    "titulo": "Prioridade na limpeza só se houver gatilho ou ação de estado",
    "status": "parcial",
-   "evidencia": "cleanup está em NO_PRIORITY (9979); insanidade no descarte da limpeza põe a mágica na pilha, dá prioridade ao ativo e depois roda OUTRA limpeza (afterMadness 10649, advanceStep 10737); sonda p5/t4.mjs L3; homologacao.regras 'R9 · insanidade na etapa de limpeza ... (514.3a)'; rules.unit 'S18 · insanidade no descarte da limpeza não trava o turno'",
-   "falta": "514.3a só está ligada à insanidade: finishCleanup não confere ações de estado nem s.queued depois de tirar dano e efeitos, então um gatilho de descarte ou uma ação de estado surgida na limpeza (ex.: criatura que morre quando o bônus de resistência acaba por outro motivo, aura que cai) não dá prioridade ali — o gatilho só sobe na manutenção seguinte. E a ordem está trocada no caso da insanidade (ver 514.2).",
+   "evidencia": "cleanup está em NO_PRIORITY (9979); insanidade no descarte da limpeza põe a mágica na pilha, dá prioridade ao ativo e depois roda OUTRA limpeza (afterMadness 10649, advanceStep 10737); sonda p5/t4.mjs L3; homologacao.regras 'R9 · insanidade na etapa de limpeza ... (514.3a)'; rules.unit 'S18 · insanidade no descarte da limpeza não trava o turno' · M-284 (CR2g.1): gatilho do descarte do tamanho da mão dá prioridade na limpeza e depois vem outra limpeza (514.3a)",
+   "falta": "ações de estado e gatilhos causados pelo próprio fim dos efeitos do turno ainda não reabrem a prioridade",
    "esforco": "P",
    "depende": [
     "704",
     "603"
+   ],
+   "testes": [
+    "CR2g.1 · 514.3a: gatilho de descarte na limpeza vai para a pilha, os jogadores recebem prioridade e depois vem outra limpeza (antes o turno passava com o gatilho na pilha)"
    ]
   },
   {
@@ -4321,12 +4338,14 @@
    "n": "604.3",
    "regra": "Handling Static Abilities",
    "titulo": "Habilidades que definem características (CDA)",
-   "status": "parcial",
-   "evidencia": "changeling vale em qualquer zona (isChangeling index.html:11735 usado em filtros de busca e custo), devoid no script (self.devoid), poder/resistência por contagem (self.perPower → bonus :10074); rules.unit \"S34 · metamorfo conta como qualquer subtipo de criatura\", \"S40 · força por outras criaturas suas\"",
-   "falta": "Poder/resistência \"*\" só é calculado no campo (power() :10340 soma bonus de permanente); fora do campo vale o impresso (0). Não distingue CDA de efeito comum para a ordem das camadas (604.3a).",
-   "esforco": "P",
+   "status": "coberta",
+   "evidencia": "changeling vale em qualquer zona (isChangeling index.html:11735 usado em filtros de busca e custo), devoid no script (self.devoid), poder/resistência por contagem (self.perPower → bonus :10074); rules.unit \"S34 · metamorfo conta como qualquer subtipo de criatura\", \"S40 · força por outras criaturas suas\" · auditoria CR2g/CR2b: poder e resistência definidos pela própria carta valem em todas as zonas (M-278, self.ptDefinido)",
    "depende": [
     "613"
+   ],
+   "testes": [
+    "CR 613.4 · 7a: P/T definido por habilidade (criaturas que você controla); 7c soma por cima; 7b fixa e vence o 7a",
+    "CR 613.4 · 7d: trocar poder e resistência vem depois de tudo; duas trocas se anulam; acaba na limpeza"
    ]
   },
   {
@@ -6650,9 +6669,11 @@
     "110.5 estado da permanente"
    ],
    "cartas": "rara como palavra; \"phase out\" como efeito é comum em Commander",
-   "evidencia": "M-261 (v97): verbo sai_de_fase; battlefield() e attachedTo ignoram o que está fora de fase (não é alvo, não sofre efeito, sai do combate); anexos saem junto; entra em fase no desvirar de quem a controla. fase.unit (Slip Out the Back).",
+   "evidencia": "M-261 (v97): verbo sai_de_fase; battlefield() e attachedTo ignoram o que está fora de fase (não é alvo, não sofre efeito, sai do combate); anexos saem junto; entra em fase no desvirar de quem a controla. fase.unit (Slip Out the Back). · M-284 (CR2g.1): efeitos com duração acabam fora de fase (702.26d); fase indireta volta junto (702.26g)",
    "testes": [
-    "M-261 · Slip Out the Back: a criatura recebe o marcador e sai de fase — não é alvo, não morre pelo efeito que vem depois, fica fora do combate, e volta no próximo desvirar de quem a controla"
+    "M-261 · Slip Out the Back: a criatura recebe o marcador e sai de fase — não é alvo, não morre pelo efeito que vem depois, fica fora do combate, e volta no próximo desvirar de quem a controla",
+    "CR2g.1 · 702.26d: efeito \"até o fim do turno\" acaba mesmo com a permanente fora de fase",
+    "CR2g.1 · 702.26g: a Aura de outro jogador que saiu de fase junto só volta com a criatura (antes voltava sozinha no desvirar do dono da Aura)"
    ]
   },
   {
@@ -6946,13 +6967,20 @@
    "regra": "Keyword Abilities",
    "titulo": "Ninjutsu",
    "status": "parcial",
-   "evidencia": "ação ninjutsu (index.html:12651-12678): paga o custo, devolve um atacante não bloqueado como custo e põe uma habilidade na pilha; na resolução (ninjutsu_entra, 11211-11217) o ninja entra virado e atacando o mesmo defensor (702.49c), e nada acontece se ele saiu da mão; janela só depois dos bloqueadores (10670-10676); rules.unit S18, faeries.regras Leva 131 (Moon-Circuit Hacker, Ninja of the Deep Hours)",
+   "evidencia": "ação ninjutsu (index.html:12651-12678): paga o custo, devolve um atacante não bloqueado como custo e põe uma habilidade na pilha; na resolução (ninjutsu_entra, 11211-11217) o ninja entra virado e atacando o mesmo defensor (702.49c), e nada acontece se ele saiu da mão; janela só depois dos bloqueadores (10670-10676); rules.unit S18, faeries.regras Leva 131 (Moon-Circuit Hacker, Ninja of the Deep Hours) · M-284 (CR2g.1): ninjutsu vale no passo de fim do combate e o ninja ataca o mesmo planeswalker",
    "falta": "702.49d: ninjutsu de comandante (da zona de comando, Yuriko) não existe, e o modo Commander existe. 702.49b (carta revelada) é só informação",
    "esforco": "P",
    "depende": [
     "903 zona de comando"
    ],
-   "cartas": "comum"
+   "cartas": "comum",
+   "testes": [
+    "CR2g.1 · ninjutsu: o ninja ataca o mesmo planeswalker que o atacante devolvido (antes atacava o jogador)",
+    "CR2g.1 · 511.3: no passo de fim do combate as criaturas ainda estão atacando, e o ninjutsu é oferecido ali; saem do combate quando o passo termina",
+    "CR2g.1 · 514.3a: gatilho de descarte na limpeza vai para a pilha, os jogadores recebem prioridade e depois vem outra limpeza (antes o turno passava com o gatilho na pilha)",
+    "CR2g.1 · 702.26d: efeito \"até o fim do turno\" acaba mesmo com a permanente fora de fase",
+    "CR2g.1 · 702.26g: a Aura de outro jogador que saiu de fase junto só volta com a criatura (antes voltava sozinha no desvirar do dono da Aura)"
+   ]
   },
   {
    "n": "702.50",

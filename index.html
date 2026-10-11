@@ -13834,7 +13834,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 99; // CR2e.1 · fichas entram pelas modificações de entrada, dano a cada oponente substituído e prevenido, ordem 616.1 // M-272 · Sorin: extorsão nas duas faces e transformação por exílio (objeto novo) mudam partidas com ele
+const ENGINE_VERSION = 100; // CR2g.1 · saída do combate ao fim do passo (511.3), ninja no planeswalker, gatilhos na limpeza, fase indireta
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -14327,7 +14327,7 @@ function zoneList(s, obj, zone) { return zone === 'stack' ? s.stack : s.zones[ob
 const VOLTA_COMANDO = ['graveyard', 'exile', 'hand', 'library'];
 /** Leva 105 · marcas que a conjuração põe na carta (e que não atravessam outra mudança de zona). */
 const MARCAS_DA_CONJURACAO = ['xPaid', 'bestowed', 'evidenced', 'faceDown', 'flashback', 'paidAdditional', 'discardedNonland', 'altIndex', 'mode',
-  'bargained', 'omen', 'stormCopies', 'chosenColor', 'plotted', 'playableFromExile', 'jogavelSoNesteTurno', 'escondida', 'suspensa', 'suspensaImpeto', 'jogavelSe', 'emendas', 'sneakAtaque', 'kicked', 'modes', 'castFrom']; // 'revealed' fica: a habilidade do Martyr of Sands lê depois do sacrifício
+  'bargained', 'omen', 'stormCopies', 'chosenColor', 'plotted', 'playableFromExile', 'jogavelSoNesteTurno', 'escondida', 'suspensa', 'suspensaImpeto', 'jogavelSe', 'emendas', 'sneakAtaque', 'sneakPw', 'kicked', 'modes', 'castFrom']; // 'revealed' fica: a habilidade do Martyr of Sands lê depois do sacrifício
 /* ---------------- CR2-G R5c · 701.8/614 · "se fosse destruída" ---------------- */
 /** O que acontece se `o` fosse destruída agora: 'indestrutivel' (não é destruída), { totem: aura } (702.89: a Aura com
  * armadura de totem é destruída no lugar e o dano sai), 'regenerou' (701.15: um escudo de regeneração é gasto) ou 'destruida'.
@@ -14689,7 +14689,9 @@ const toughness = (s, o) => (trocaPT(s, o) ? poderSemTroca : resistenciaSemTroca
 const powerLegado = (s, o) => faceDown(o) ? 2 + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + (pumpP(o)) + bonusLegado(s, o).p : // CR 708.2 + 613.4c: a 2/2 recebe os bônus de Aura e equipamento
   basePT(s, o)[0] + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + (pumpP(o)) + bonusLegado(s, o).p;
 const toughnessLegado = (s, o) => faceDown(o) ? 2 + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + (pumpT(o)) + bonusLegado(s, o).t : basePT(s, o)[1] + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + (pumpT(o)) + bonusLegado(s, o).t;
-const battlefield = s => s.zones.flatMap(z => z.battlefield).map(oid => s.objects[oid]).filter(o => !o.phasedOut); // M-261 · 702.26b: fora de fase é tratada como se não existisse
+const battlefield = s => s.zones.flatMap(z => z.battlefield).map(oid => s.objects[oid]).filter(o => !o.phasedOut);
+/** CR2g.1 · o campo com as permanentes fora de fase: para o que acaba com o tempo (702.26d: efeitos com duração acabam mesmo fora de fase). */
+const campoInteiro = s => s.zones.flatMap(z => z.battlefield).map(oid => s.objects[oid]); // M-261 · 702.26b: fora de fase é tratada como se não existisse
 const canSorceryNow = (s, p) => s.turn.active === p && isMain(s) && !s.stack.length && s.turn.priority === p && !s.pending;
 
 /* ---------------- M7 · pagamento ---------------- */
@@ -15154,7 +15156,7 @@ function afterMadness(s) {
   const after = s.pendingAfterMadness; s.pendingAfterMadness = null;
   // R9 · 514.3a: com a mágica na pilha, os jogadores recebem prioridade na limpeza e depois vem outra limpeza
   // CR 514.2 antes da 514.3a: o dano já saiu quando alguém recebe prioridade na limpeza
-  if (after === 'cleanup') { if (s.stack.length) { fimDosEfeitosDoTurno(s); s.turn.passes = 0; s.turn.priority = s.turn.active; } else finishCleanup(s); }
+  if (after === 'cleanup') { if (s.stack.length || (s.queued || []).length /* CR2g.1 · também com gatilho do descarte esperando */) { fimDosEfeitosDoTurno(s); s.turn.passes = 0; s.turn.priority = s.turn.active; } else finishCleanup(s); }
   else if (after && after.kind === 'discard') s.pending = after; // continua o descarte que faltava
 }
 const ninjutsuOf = (s, o) => (s.facts[o.name].script || {}).ninjutsu;
@@ -15210,6 +15212,8 @@ function abreInsanidadeDaFila(s) {
   if (!s.filaInsanidade.length) delete s.filaInsanidade;
   if (s.objects[m.oid] && s.objects[m.oid].zone === 'exile') { s.pendingAfterMadness = null; s.pending = { kind: 'madness', p: m.p, oid: m.oid, cost: m.cost }; }
 }
+/** CR2g.1 · o planeswalker que o atacante devolvido atacava, se continua no campo (o mesmo objeto), em fase e do jogador defensor; senão o ninja ataca o jogador. */
+const pwAindaAtacavel = (s, e) => { const pw = e.pw != null && s.objects[e.pw]; return pw && pw.zone === 'battlefield' && !pw.phasedOut && (pw.zc || 0) === e.pwZ && pw.controller === e.defensor ? pw.oid : null; };
 /** 702.49: depois dos bloqueadores, devolve um atacante não bloqueado e entra virado e atacando. */
 function unblockedAttackers(s, p) {
   // Leva 107 · ninjutsu vale depois dos bloqueadores declarados: bloqueio, dano e fim do combate (esgueirar-se só no bloqueio)
@@ -15226,7 +15230,9 @@ function enterStep(s, step) {
   s.turn.step = step; s.turn.passes = 0; s.turn.priority = s.turn.active;
   const a = s.turn.active;
   if (step === 'untap') {
-    for (const oid of s.zones.flatMap(z => z.battlefield)) { const o = s.objects[oid]; if (o.phasedOut && o.controller === a) delete o.phasedOut; } // M-261 · 502.1: entra em fase antes de desvirar
+    const voltam = new Set(); // M-261 · 502.1: entra em fase antes de desvirar · CR2g.1 · 702.26g: o que saiu indiretamente volta com o que o levou, e só com ele
+    for (const o of campoInteiro(s)) if (o.phasedOut && o.faseCom == null && o.controller === a) { delete o.phasedOut; voltam.add(o.oid); }
+    for (const o of campoInteiro(s)) if (o.phasedOut && o.faseCom != null && voltam.has(o.faseCom)) { delete o.phasedOut; delete o.faseCom; }
     for (const o of battlefield(s)) if (o.controller === a) { o.tapped = false; o.sick = false; }
     return enterStep(s, 'upkeep');
   }
@@ -15257,10 +15263,6 @@ function enterStep(s, step) {
     if (eligibleBlockers(s, d).length) s.pending = { kind: 'blockers', p: d };
   }
   if (step === 'combat_damage') { dealCombatDamage(s); }
-  if (step === 'combat_end') {
-    for (const o of battlefield(s)) { delete o.attacking; delete o.atacandoPw; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.struck; }
-    s.combat = null;
-  }
   if (step === 'cleanup') {
     const over = semLimiteDeMao(s, a) ? 0 : s.zones[a].hand.length - FORMAT_RULES[s.format].hand; // CR2d.10 · 402.2
     if (over > 0) { s.pending = { kind: 'discard', p: a, n: over }; return; }
@@ -15273,9 +15275,9 @@ function fimDosEfeitosDoTurno(s) {
   for (const pl of s.players) if (pl.efeitos) { pl.efeitos = pl.efeitos.filter(e => e.ate !== 'fim-do-turno'); if (!pl.efeitos.length) delete pl.efeitos; } // CR2d.10
   for (const pl of s.players.keys()) for (const oid of s.zones[pl].exile) { const x = s.objects[oid]; if (x && x.jogavelSoNesteTurno) { delete x.playableFromExile; delete x.jogavelSoNesteTurno; } } // M-267 · "this turn"
   delete s.mareAlta; // M-262 · High Tide vale até o fim do turno
-  for (const o of battlefield(s)) if (o.copias) { o.copias = o.copias.filter(t => t.ate !== 'fim-do-turno'); recalculaCopia(s, o); } // CR2f.1
-  for (const o of battlefield(s)) if (o.controles) { o.controles = o.controles.filter(t => t.ate !== 'fim-do-turno'); recalculaControle(s, o); } // CR2d.6 · "until end of turn" acaba na limpeza (514.2)
-  for (const o of battlefield(s)) { delete o.pump; delete o.tempKeywords; delete o.tempTs; podaTemporarios(s, o, 'limpeza'); delete o.prevenirDano; delete o.regenerar; delete o.tempProtection; delete o.tempToxico; delete o.tempResguardoCor; delete o.tempNaoBloqueadaPor; delete o.tempHabilidades; delete o.usedThisTurn; o.damage = 0; delete o.deathtouched; } // M-255 · tóxico, resistência a magia de cor e "não bloqueada por cor" até o fim do turno
+  for (const o of campoInteiro(s)) if (o.copias) { o.copias = o.copias.filter(t => t.ate !== 'fim-do-turno'); recalculaCopia(s, o); } // CR2f.1
+  for (const o of campoInteiro(s)) if (o.controles) { o.controles = o.controles.filter(t => t.ate !== 'fim-do-turno'); recalculaControle(s, o); } // CR2d.6 · "until end of turn" acaba na limpeza (514.2)
+  for (const o of campoInteiro(s)) { delete o.pump; delete o.tempKeywords; delete o.tempTs; podaTemporarios(s, o, 'limpeza'); delete o.prevenirDano; delete o.regenerar; delete o.tempProtection; delete o.tempToxico; delete o.tempResguardoCor; delete o.tempNaoBloqueadaPor; delete o.tempHabilidades; delete o.usedThisTurn; o.damage = 0; delete o.deathtouched; } // M-255 · tóxico, resistência a magia de cor e "não bloqueada por cor" até o fim do turno
   delete s.fogged; delete s.preventedColors; delete s.noPrevention; delete s.prevencoes; // CR2-G R5b · escudos do verbo prevenir também acabam
   for (const o of Object.values(s.objects)) if (o.damagePrevented) { delete o.damagePrevented; delete o.preventGainTo; } // R9 · Hallow: a prevenção acaba com o turno
 }
@@ -15290,7 +15292,7 @@ function finishCleanup(s) {
   s.turn.active = nextAlive(s, s.turn.active);
   // S57 · "até o seu próximo turno" termina quando esse turno começa
   for (const pl of s.players) if (pl.efeitos) { pl.efeitos = pl.efeitos.filter(e => !(e.ate === 'seu-proximo-turno' && e.by === s.turn.active)); if (!pl.efeitos.length) delete pl.efeitos; } // CR2d.10
-  for (const o of battlefield(s)) {
+  for (const o of campoInteiro(s)) { // CR2g.1 · 702.26d: "até o seu próximo turno" também acaba fora de fase
     if (o.pumpNext && o.pumpNext.by === s.turn.active) delete o.pumpNext;
     if (o.vira || o.temporarios) podaTemporarios(s, o, 'inicio'); // CR2-G R6
     if (o.controles && o.controles.some(t => t.ate === 'seu-proximo-turno' && t.by === s.turn.active)) { o.controles = o.controles.filter(t => !(t.ate === 'seu-proximo-turno' && t.by === s.turn.active)); recalculaControle(s, o); } // CR2d.6
@@ -15303,8 +15305,15 @@ function finishCleanup(s) {
   s.players.forEach(pl => { pl.landsPlayed = 0; });
   enterStep(s, 'untap');
 }
+/** CR2g.1 · 511.3: ao fim do passo de fim do combate, todas as criaturas e planeswalkers saem do combate. Até lá continuam atacando e
+    bloqueando (o ninjutsu vale no passo de fim do combate; gatilhos "no fim do combate" veem as atacantes). */
+function saiDoCombate(s) {
+  for (const o of campoInteiro(s)) { delete o.attacking; delete o.atacandoPw; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.struck; }
+  s.combat = null;
+}
 function advanceStep(s) {
   if (s.turn.step === 'cleanup') return enterStep(s, 'cleanup'); // R9 · houve prioridade na limpeza: outra etapa de limpeza
+  if (s.turn.step === 'combat_end') saiDoCombate(s); // CR2g.1 · 511.3
   let i = STEPS.indexOf(s.turn.step) + 1;
   // 508.8: sem atacantes declarados, bloqueio e dano não acontecem
   if (STEPS[i] === 'combat_blockers' && !(s.combat && s.combat.attackers.length)) i = STEPS.indexOf('combat_end');
@@ -16052,6 +16061,7 @@ function applyEffect(s, src, eff, tgt, events) {
       if (ninja && ninja.zone === 'hand' && s.combat && ['combat_blockers', 'combat_damage', 'combat_end'].includes(s.turn.step)) {
         moveObject(s, ninja.oid, 'battlefield');
         Object.assign(ninja, { controller: ctrl, tapped: true, attacking: eff.defensor });
+        const pw = pwAindaAtacavel(s, eff); if (pw) ninja.atacandoPw = pw; // CR2g.1
         s.combat.attackers.push(ninja.oid); note({ name: ninja.name });
       } else note({ failed: true });
       break;
@@ -16382,7 +16392,7 @@ function applyEffect(s, src, eff, tgt, events) {
       if (!obj || obj.zone !== 'battlefield' || obj.phasedOut) { note({ failed: true }); break; }
       const juntos = [obj, ...attachedTo(s, obj)];
       for (const x of juntos) {
-        x.phasedOut = true;
+        x.phasedOut = true; if (x !== obj) x.faseCom = obj.oid; // CR2g.1 · 702.26g: fase indireta
         if (s.combat) { s.combat.attackers = (s.combat.attackers || []).filter(a => a !== x.oid); delete x.attacking; delete x.atacandoPw; delete x.blocking; delete x.blockedBy; }
       }
       note({ target: obj.name, amount: juntos.length }); break;
@@ -17604,8 +17614,8 @@ function resolveTop(s, events = []) {
     if (ent) delete ent.copiaEscolhida; // CR2f.2 (a cópia de mágica já deixou de existir: sem objeto)
     if (comoCopia && ent && ent.nomeImpresso != null && (f.script.entraComoCopia.somaTipos || []).length) aplicaTemporario(s, ent, { vira: { types: f.script.entraComoCopia.somaTipos, addTypes: true }, ate: 'sempre' }, controller); // 707.9b
     if (dest === 'battlefield' && ent && ent.sneakAtaque != null) { // Leva 106 · esgueirar-se: entra virada e atacando
-      if (s.combat && ['combat_blockers', 'combat_damage'].includes(s.turn.step)) { ent.tapped = true; ent.attacking = ent.sneakAtaque; s.combat.attackers.push(item); }
-      delete ent.sneakAtaque;
+      if (s.combat && ['combat_blockers', 'combat_damage'].includes(s.turn.step)) { ent.tapped = true; ent.attacking = ent.sneakAtaque; const pw = pwAindaAtacavel(s, { defensor: ent.sneakAtaque, ...(ent.sneakPw || {}) }); if (pw) ent.atacandoPw = pw; s.combat.attackers.push(item); } // CR2g.1 · o mesmo planeswalker
+      delete ent.sneakAtaque; delete ent.sneakPw;
     }
   }
   // S4: com script, o motor já aplicou tudo; sem script, a mesa assistida pede adjudicação
@@ -18342,13 +18352,14 @@ const HANDLERS = {
     if (s.manaCheck && !a.free) payCost(s, a.p, parseCost(nj.mana));
     const alvo = s.objects[a.attacker];
     const defender = alvo.attacking;
+    const pwAtacado = alvo.atacandoPw != null && s.objects[alvo.atacandoPw] ? { pw: alvo.atacandoPw, pwZ: s.objects[alvo.atacandoPw].zc || 0 } : {}; // CR2g.1 · o ninja ataca o mesmo planeswalker
     s.combat.attackers = s.combat.attackers.filter(x => x !== a.attacker);
     moveObject(s, a.attacker, 'hand');
     if (a.sneak) {
       // Leva 106 · esgueirar-se é CONJURAR (a mágica vai para a pilha, pode ser anulada, conta para tempestade e
       // dispara "quando você conjura"); na resolução ela entra virada e atacando (Leonardo, Big Brother)
       moveObject(s, a.oid, 'stack');
-      Object.assign(s.objects[a.oid], { controller: a.p, sneakAtaque: defender });
+      Object.assign(s.objects[a.oid], { controller: a.p, sneakAtaque: defender, ...(pwAtacado.pw ? { sneakPw: pwAtacado } : {}) });
       s.spellsThisTurn = (s.spellsThisTurn || 0) + 1;
       disparaEvento(s, 'conjurar', [s.objects[a.oid]]);
       s.turn.passes = 0;
@@ -18356,7 +18367,7 @@ const HANDLERS = {
     }
     // Leva 107 · ninjutsu é habilidade ativada (702.49a): devolver o atacante é custo; pôr o ninja no campo, virado e
     // atacando, acontece na resolução — o oponente pode responder e, se o ninja sair da mão antes, nada acontece
-    makeAbility(s, { oid: a.oid, name: ninja.name, controller: a.p }, { effects: [{ do: 'ninjutsu_entra', ninja: a.oid, defensor: defender }] }, []);
+    makeAbility(s, { oid: a.oid, name: ninja.name, controller: a.p }, { effects: [{ do: 'ninjutsu_entra', ninja: a.oid, defensor: defender, ...pwAtacado }] }, []);
     s.turn.passes = 0;
   },
   /** S18 · insanidade: conjura do exílio pelo custo de insanidade. */
@@ -18423,7 +18434,7 @@ const HANDLERS = {
       return;
     }
     moveObject(s, o.oid, 'graveyard');
-    if (after === 'cleanup') { finishCleanup(s); return; }
+    if (after === 'cleanup') { if ((s.queued || []).length) { fimDosEfeitosDoTurno(s); s.turn.passes = 0; s.turn.priority = s.turn.active; return; } finishCleanup(s); return; } // CR2g.1 · 514.3a: gatilho na limpeza → prioridade, depois outra limpeza
     // S60 · correção: o descarte pedido por um efeito não retomava o resto do efeito
     if (!s.pending) { stateBased(s, ev); if (!continueUnless(s, ev)) resumeEffects(s, ev); }
   },
@@ -19097,7 +19108,7 @@ function invariants(s, expectedObjects) {
   });
   for (const o of Object.values(s.objects)) {
     if ((o.attacking != null || o.blocking) && o.zone !== 'battlefield') errs.push(`${o.oid} em combate fora do campo`);
-    if ((o.attacking != null || o.blocking) && !['combat_attackers', 'combat_blockers', 'combat_damage'].includes(s.turn.step)) errs.push(`${o.oid} em combate no passo ${s.turn.step}`);
+    if ((o.attacking != null || o.blocking) && !['combat_attackers', 'combat_blockers', 'combat_damage', 'combat_end'].includes(s.turn.step)) errs.push(`${o.oid} em combate no passo ${s.turn.step}`); // CR2g.1 · 511.3: no fim do combate ainda estão em combate
   }
   if (s.status === 'playing') {
     if (s.players[s.turn.active].lost) errs.push('ativo perdeu e continua ativo');

@@ -3453,6 +3453,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora:** escolha de cor antes de entrar (614.12a, Benevolent Blessing); compra e ganho de vida como eventos modificáveis.
 - **Próximo:** CR2g.1 — os cinco erros de fases, passos e fora de fase achados na segunda auditoria.
 
+**CR2g.1 · Fases, combate e fora de fase: os cinco erros da segunda auditoria (511.3, 514.3a, 702.26d, 702.26g, 508.4)** ✅ (leva M-284, motor v100) — 5 testes de conformidade, todos falham no motor v99.
+- **Regra:** (1) o ninja posto em campo por ninjutsu ou esgueirar-se ataca o mesmo planeswalker que o atacante devolvido (antes atacava o jogador); (2) as criaturas saem do combate quando o passo de fim do combate **termina** (511.3): até lá continuam atacando, e o ninjutsu passa a ser oferecido nesse passo; (3) gatilho disparado pelo descarte da limpeza vai para a pilha, os jogadores recebem prioridade e depois vem outra limpeza (514.3a) — antes o turno passava com o gatilho na pilha; (4) efeito com duração acaba mesmo com a permanente fora de fase (702.26d); (5) o que saiu de fase junto, por estar anexado, só volta com aquilo a que está anexado (702.26g).
+- **Versão:** sobe para v100 (o estado no passo de fim do combate e as ações oferecidas nele mudaram). Goldens regravados só pela versão: logs, status e turnos idênticos. Partidas salvas antes não abrem.
+- **Mapa:** 511.3, 502.1, 505.6, 509.2, 513.2 e 604.3 passam a cobertas; 509.3 a parcial.
+- **Fora:** ações de estado e gatilhos causados pelo próprio fim dos efeitos do turno ainda não reabrem a prioridade na limpeza; divisão do dano de combate escolhida por quem ataca (510.1c).
+- **Próximo:** CR2g.2 — quem ataca escolhe como divide o dano entre os bloqueadores (510.1c, 702.19b), com a decisão na mesa.
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
