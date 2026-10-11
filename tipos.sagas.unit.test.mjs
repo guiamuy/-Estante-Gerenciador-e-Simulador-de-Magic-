@@ -470,3 +470,132 @@ test('CR 714.3b · o Shark responde à escolha do capítulo com uma das ações 
   const t2 = act(s, { t: 'saga_capitulo', p: 0, n: 2 });
   assert.ok(J(T.estadoDaCarta(t2, t2.objects[saga]).marcas).some(m => m.k === 'marcador' && m.texto === 'capítulo II'), 'marca "capítulo II" na carta: ' + JSON.stringify(T.estadoDaCarta(t2, t2.objects[saga]).marcas));
 });
+
+/* ---------------- T-2 · correções da auditoria independente (32 sondas; cada divergência nasceu aqui como teste que falhava) ---------------- */
+const alvo = oid => a => (a.targets || [])[0] && a.targets[0].oid === oid;
+Object.assign(SCRIPTS, {
+  'Fere e Conta': { name: 'Fere e Conta', effects: [{ do: 'damage', amount: 5, target: 'creature' }, { do: 'counters', tipo: 'lore', amount: 1, target: 'first-target' }], ...EX },
+  'Fere e Prolifera': { name: 'Fere e Prolifera', effects: [{ do: 'damage', amount: 5, target: 'creature' }, { do: 'proliferate' }], ...EX },
+  'Conta': { name: 'Conta', effects: [{ do: 'counters', tipo: 'lore', amount: 1, target: 'creature' }], ...EX },
+  'Saga Frágil': { name: 'Saga Frágil', ...LORE1, abilities: [cap([1], ganha(1)), cap([2], ganha(10))], ...EX },
+  // capítulo final com efeito IGUAL ao de uma habilidade ativada da própria Saga
+  'Saga Gêmea': { name: 'Saga Gêmea', ...LORE1, abilities: [cap([1], ganha(7)), { kind: 'activated', cost: { mana: '{0}' }, effects: ganha(7) }], ...EX },
+  'Saga Relâmpago': { name: 'Saga Relâmpago', ...LORE1, abilities: [cap([1], ganha(1))], ...EX },
+  'Anula': { name: 'Anula', effects: [{ do: 'counter', target: 'spell-or-ability' }], ...EX },
+  'Apaga': { name: 'Apaga', effects: [{ do: 'continuo', target: 'creature', torna: { perdeHabilidades: true } }], ...EX },
+  'Vira Cópia': { name: 'Vira Cópia', effects: [{ do: 'escolhe_copiadora', target: { tipos: ['creature'], de: 'you' } }, { do: 'torna_copia', target: { tipos: ['enchantment'], de: 'you' } }], ...EX },
+});
+carta('Saga Gêmea', 'Enchantment — Saga'); carta('Saga Relâmpago', 'Enchantment — Saga', { keywords: ['Flash'], oracle_text: 'Flash' });
+carta('Saga Frágil', 'Enchantment Creature — Saga Spirit', { power: '0', toughness: '0' });
+for (const n of ['Fere e Conta', 'Fere e Prolifera', 'Conta', 'Anula', 'Apaga']) carta(n, 'Instant');
+carta('Vira Cópia', 'Sorcery');
+const capitulosNaPilha = s => [...s.stack].map(x => s.objects[x]).filter(o => o.ability && o.capituloDe).map(o => o.capituloDe.n);
+
+test('CR 603.2 · o capítulo dispara no momento em que o marcador de lore é posto: a mágica que causa dano letal à Saga-criatura e põe um marcador nela dispara o capítulo II, que vai à pilha e resolve com a Saga já no cemitério (603.3, 714.2b, 113.7a)', () => {
+  let s = mesa(['Saga Criatura', 'Fere e Conta']), saga, x;
+  [s, saga] = entra(s, 0, 'Saga Criatura'); s = esvazia(s);
+  assert.equal(vida(s), 1); assert.equal(lore(s, saga), 1);
+  [s, x] = conjura(s, 0, 'Fere e Conta', alvo(saga)); s = resolveUm(s);
+  assert.equal(s.objects[saga].zone, 'graveyard', '5 de dano na 2/2: morreu na conferência depois da mágica');
+  assert.deepEqual(pilha(s), ['Saga Criatura'], 'o marcador foi posto antes de ela morrer: o capítulo II disparou e está na pilha');
+  assert.deepEqual(capitulosNaPilha(s), [2]); assert.equal(s.objects[s.stack[0]].controller, 0, '603.3a · de quem controlava a fonte quando disparou');
+  s = esvazia(s); assert.equal(vida(s), 1 + 10, 'o capítulo II resolveu sem a fonte no campo');
+});
+
+test('CR 714.2b · marcador de lore posto por proliferar dispara o capítulo no ato, uma vez só: com dano letal na mesma mágica o capítulo ainda vai à pilha; sem dano, a Saga segue e é sacrificada depois do capítulo final', () => {
+  const prolifera = (s, saga) => { assert.equal(s.pending && s.pending.kind, 'pick', 'proliferar pergunta em quem'); s = act(s, legais(s, 0, a => a.t === 'pick' && a.oid === saga)[0]); return s.pending && s.pending.kind === 'pick' ? act(s, { t: 'pick_done', p: 0 }) : s; };
+  let s = mesa(['Saga Criatura', 'Fere e Prolifera']), saga, x;
+  [s, saga] = entra(s, 0, 'Saga Criatura'); s = esvazia(s);
+  [s, x] = conjura(s, 0, 'Fere e Prolifera', alvo(saga)); s = prolifera(resolveUm(s), saga);
+  assert.equal(s.objects[saga].zone, 'graveyard'); assert.deepEqual(pilha(s), ['Saga Criatura'], 'capítulo II na pilha, a Saga já morta'); assert.deepEqual(capitulosNaPilha(s), [2]);
+  s = esvazia(s); assert.equal(vida(s), 1 + 10);
+  // sem a morte no caminho: um marcador, um disparo (o gancho e a conferência de segurança não somam)
+  SCRIPTS['Só Prolifera'] = { name: 'Só Prolifera', effects: [{ do: 'proliferate' }], ...EX }; carta('Só Prolifera', 'Instant');
+  let t = mesa(['Saga de Teste', 'Só Prolifera']), g; [t, g] = entra(t, 0, 'Saga de Teste'); t = esvazia(t);
+  [t, x] = conjura(t, 0, 'Só Prolifera'); t = prolifera(resolveUm(t), g);
+  assert.equal(lore(t, g), 2); assert.deepEqual(capitulosNaPilha(t), [2]); assert.equal(t.queued.length, 0);
+  t = esvazia(t); assert.equal(vida(t), 1 + 10); assert.ok(noCampo(t, g));
+});
+
+test('CR 714.3a · 122.6 · entrar com o marcador é pôr o marcador: a Saga-criatura de resistência 0 entra, morre na mesma conferência e o capítulo I dispara assim mesmo', () => {
+  let s = mesa(['Saga Frágil']), saga;
+  [s, saga] = entra(s, 0, 'Saga Frágil');
+  assert.equal(s.objects[saga].zone, 'graveyard', '0/0: morreu ao entrar (704.5f)');
+  assert.deepEqual(pilha(s), ['Saga Frágil'], 'o capítulo I disparou na entrada'); assert.deepEqual(capitulosNaPilha(s), [1]);
+  s = esvazia(s); assert.equal(vida(s), 1);
+});
+
+test('CR 714.3b · 702.155b · "as this Saga enters": a permanente que já estava no campo e vira cópia de uma Saga com read ahead não escolhe capítulo; fica sem marcador e ganha o primeiro na próxima fase principal do controlador', () => {
+  let s = mesa(['Saga Adiantada', 'Urso', 'Vira Cópia']), saga, u, x;
+  [s, u] = poe(s, 0, 'Urso'); [s, saga] = entra(s, 0, 'Saga Adiantada'); s = esvazia(act(s, { t: 'saga_capitulo', p: 0, n: 1 }));
+  [s, x] = conjura(s, 0, 'Vira Cópia', a => a.targets && a.targets[0].oid === u && a.targets[1] && a.targets[1].oid === saga); s = resolveUm(s);
+  assert.equal(s.objects[u].name, 'Saga Adiantada', 'o Urso virou cópia da Saga'); assert.equal(E.capituloFinal(s, s.objects[u]), 3);
+  assert.equal(s.pending, null, 'virar Saga não é entrar no campo: ninguém escolhe capítulo'); assert.equal(legais(s, 0, a => a.t === 'saga_capitulo').length, 0);
+  assert.equal(lore(s, u), 0); assert.ok(noCampo(s, u), 'sem marcador não é sacrificada'); assert.deepEqual(pilha(s), []);
+  s = proximaPrincipal(s, 0);
+  assert.equal(lore(s, u), 1, '714.3c · o primeiro marcador vem na fase principal seguinte');
+  assert.deepEqual([...s.queued, ...[...s.stack].map(i => s.objects[i]).filter(o => o.capituloDe).map(o => ({ source: o.source, capitulo: o.capituloDe.n }))].filter(q => q.source === u).map(q => q.capitulo), [1], 'e só o capítulo I da cópia dispara');
+});
+
+test('CR 714.2b · "quando marcadores de lore são postos": a permanente que já tinha marcadores e vira Saga não dispara os capítulos passados; o seguinte dispara quando o próximo marcador é posto', () => {
+  let s = mesa(['Saga de Teste', 'Urso', 'Vira Cópia', 'Conta']), saga, u, x;
+  [s, u] = poe(s, 0, 'Urso'); [s, saga] = entra(s, 0, 'Saga de Teste'); s = esvazia(s);
+  for (let i = 0; i < 2; i++) { [s, x] = conjura(s, 0, 'Conta', alvo(u)); s = esvazia(s); }
+  assert.equal(lore(s, u), 2); assert.equal(vida(s), 1, 'marcador de lore em quem não é Saga não dispara nada');
+  [s, x] = conjura(s, 0, 'Vira Cópia', a => a.targets && a.targets[0].oid === u && a.targets[1] && a.targets[1].oid === saga); s = resolveUm(s);
+  assert.equal(s.objects[u].name, 'Saga de Teste'); assert.equal(lore(s, u), 2);
+  assert.deepEqual(pilha(s), [], 'nenhum marcador foi posto: nenhum capítulo'); assert.equal(s.queued.length, 0); assert.equal(s.pending, null);
+  s = proximaPrincipal(s, 0); // a cópia vai a 3 (capítulo III) e a original a 2 (capítulo II)
+  for (let k = 0; k < 6 && (s.pending || s.stack.length); k++) s = s.pending ? act(s, legais(s, s.pending.p)[0]) : esvazia(s);
+  assert.equal(vida(s), 1 + 10 + 100); assert.equal(s.objects[u].zone, 'graveyard', 'a cópia chegou ao capítulo final e foi sacrificada'); assert.ok(noCampo(s, saga));
+});
+
+test('CR 714.4 · 704.5s · só capítulo segura o sacrifício: com o capítulo final anulado, a habilidade ATIVADA da própria Saga com efeito igual ao dele, ainda na pilha, não segura', () => {
+  let s = mesa(['Saga Gêmea', 'Anula']), saga, x;
+  [s, saga] = entra(s, 0, 'Saga Gêmea');
+  const capitulo = s.stack[s.stack.length - 1], marca = s.objects[capitulo].capituloDe, z = s.objects[saga].zc || 0;
+  s = ativa(s, 0, saga, 0);
+  const ativada = s.objects[s.stack[s.stack.length - 1]];
+  assert.ok(noCampo(s, saga), 'com o capítulo final na pilha, a Saga espera');
+  [s, x] = conjura(s, 0, 'Anula', alvo(capitulo)); s = resolveUm(s);
+  assert.deepEqual(pilha(s), ['Saga Gêmea'], 'só a habilidade ativada na pilha');
+  assert.equal(s.objects[saga].zone, 'graveyard', 'nenhum capítulo dela na pilha e marcadores ≥ capítulo final: sacrificada já');
+  s = esvazia(s); assert.equal(vida(s), 7, 'a ativada resolve assim mesmo (113.7a)');
+  assert.deepEqual(J(marca || null), { n: 1, z }, 'a habilidade de capítulo na pilha leva a marca do capítulo e a encarnação da Saga'); assert.equal(ativada.capituloDe, undefined, 'a ativada não é capítulo');
+});
+
+test('CR 400.7 · 714.4 · o capítulo da encarnação anterior (Saga devolvida à mão e conjurada de novo), ainda na pilha, não segura o sacrifício da Saga nova', () => {
+  let s = mesa(['Saga Relâmpago', 'Sopro']), saga, x;
+  [s, saga] = entra(s, 0, 'Saga Relâmpago');
+  [s, x] = conjura(s, 0, 'Sopro', alvo(saga)); s = resolveUm(s);
+  assert.equal(s.objects[saga].zone, 'hand'); assert.deepEqual(pilha(s), ['Saga Relâmpago'], 'o capítulo I da primeira encarnação segue na pilha');
+  s = mana(s, 0); s = act(s, legais(s, 0, a => a.t === 'cast' && a.oid === saga)[0]); s = resolveUm(s);
+  assert.equal(pilha(s).length, 2); assert.ok(noCampo(s, saga)); const zs = [...s.stack].map(i => (s.objects[i].capituloDe || {}).z);
+  s = resolveUm(s); // resolve o capítulo I da Saga nova; o da antiga continua na pilha
+  assert.equal(vida(s), 1); assert.equal(pilha(s).length, 1);
+  assert.equal(s.objects[saga].zone, 'graveyard', 'o capítulo que sobrou é de outro objeto (400.7): a Saga nova é sacrificada');
+  s = esvazia(s); assert.equal(vida(s), 2);
+  assert.ok(zs[0] != null && zs[1] != null && zs[0] !== zs[1], 'cada capítulo na pilha leva a encarnação da Saga que o disparou: ' + JSON.stringify(zs));
+});
+
+test('CR 514.3a · 714.4 · Saga que recupera as habilidades na limpeza com marcadores ≥ capítulo final é sacrificada ali, o sacrifício aparece no registro da mesa, os jogadores recebem prioridade e vem outra limpeza', () => {
+  const { table: T } = loadModules();
+  let s = mesa(['Saga Criatura', 'Apaga']), saga, x;
+  [s, saga] = entra(s, 0, 'Saga Criatura'); s = esvazia(s); s = proximaPrincipal(s, 0);
+  [s, x] = conjura(s, 0, 'Apaga', alvo(saga)); s = esvazia(s);
+  assert.equal(lore(s, saga), 2); assert.equal(E.capituloFinal(s, s.objects[saga]), 0); assert.ok(noCampo(s, saga), 'sem habilidades até o fim do turno: capítulo final 0, fica');
+  const turno = s.turn.number, linhas = []; let onde = null;
+  for (let k = 0; k < 40 && s.turn.number === turno; k++) {
+    const pd = s.pending, a = pd ? (pd.kind === 'attackers' ? { t: 'attack', p: pd.p, attackers: [] } : pd.kind === 'discard' ? { t: 'discard', p: pd.p, oid: s.zones[pd.p].hand[0] } : legais(s, pd.p)[0]) : { t: 'pass', p: s.turn.priority };
+    const r = E.apply(s, a);
+    if (noCampo(s, saga) && !noCampo(r.state, saga)) { onde = r.state.turn.step; assert.ok(r.events.some(e => e.kind === 'effect' && e.do === 'sacrificar' && e.saga && e.name === 'Saga Criatura'), 'evento do sacrifício: ' + JSON.stringify(r.events)); assert.equal(r.state.turn.priority, 0, 'o jogador ativo recebe prioridade na limpeza'); }
+    linhas.push(...J(T.describe(s, a, r.events, r.state))); s = r.state;
+  }
+  assert.equal(onde, 'cleanup', 'sacrificada na limpeza'); assert.equal(s.turn.number, turno + 1, 'depois da prioridade vem outra limpeza e o turno segue');
+  assert.ok(linhas.some(l => /A sacrificou Saga Criatura/.test(typeof l === 'string' ? l : JSON.stringify(l))), 'linha do registro em português: ' + JSON.stringify(linhas.slice(-8)));
+});
+
+test('CR 714.3b · passar com a escolha do capítulo aberta é recusado com a mensagem da decisão ("escolha o capítulo da Saga primeiro")', () => {
+  let s = mesa(['Saga Adiantada']), saga; [s, saga] = entra(s, 0, 'Saga Adiantada');
+  assert.throws(() => act(s, { t: 'pass', p: 0 }), e => e.code === 'pendente' && /escolha o capítulo da Saga primeiro/.test(e.message));
+});

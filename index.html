@@ -15399,6 +15399,7 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
   if (to === 'library' && !top) dest.push(oid); else if (to === 'library') dest.unshift(oid); else dest.push(oid);
   // CR2-G R5a · 614.1c/614.12 · "entra virada", "entra virada a menos que…", "entra com N marcadores": um caminho só
   if (to === 'battlefield') { const r = entradaModificada(s, o, xPago); if (r.virada != null) o.tapped = r.virada; for (const [k, n] of Object.entries(r.marcadores)) o.counters[k] = (o.counters[k] || 0) + marcadoresAoPor(s, o, k, n, true); } // CR2e.2 · 614.16: entrar com marcadores também é pôr marcadores
+  if (to === 'battlefield') sagaEntrou(s, o); // T-2 · CR 714.3a / 122.6 / 714.3b · Saga que ENTRA no campo: o marcador de entrada dispara o capítulo aqui; com read ahead, fica anotada para a escolha (função abaixo da âncora T das exportações)
   // S21 · planeswalker entra com sua lealdade inicial
   if (to === 'battlefield' && s.facts[o.name].types.includes('planeswalker') && s.facts[o.name].loyalty != null) o.counters.loyalty = marcadoresAoPor(s, o, 'loyalty', s.facts[o.name].loyalty, true); // CR2e.2 · ruling: entra com o dobro da lealdade
   // S39 · vínculo de alma: ao entrar, emparelha com uma criatura sua ainda sozinha
@@ -16265,6 +16266,7 @@ function fimDosEfeitosDoTurno(s) {
 function finishCleanup(s) {
   fimDosEfeitosDoTurno(s);
   for (const o of Object.values(s.objects)) if (o.zone === 'battlefield') { o.damage = 0; delete o.deathtouched; delete o.pump; } // efeitos até o fim do turno acabam
+  if (sagasNaLimpeza(s)) return; // T-2 · CR 514.3a / 714.4 · Saga a sacrificar na limpeza: os jogadores recebem prioridade e a ação de estado roda na conferência do apply, com o evento no registro (função abaixo da âncora T das exportações)
   // CR2a.10 · 514.3a: se o fim dos efeitos causou ação de estado (o 1/1 com marcador −1/−1 que perdeu o +1/+1) ou gatilho, os jogadores
   // recebem prioridade e depois vem outra limpeza (advanceStep). Antes o turno passava com o gatilho ainda por pôr na pilha.
   { const ev = []; stateBased(s, ev); if (ev.length || (s.queued || []).length || s.pending) { s.turn.passes = 0; s.turn.priority = s.turn.active; return; } }
@@ -17918,6 +17920,7 @@ function marcadoresAoPor(s, o, tipo, n, entrando = false) {
 }
 /** Põe `n` marcadores do tipo num permanente (o +1/+1 passa por addCounters, que avisa quem observa). Devolve quantos foram postos. */
 function poeMarcadores(s, o, tipo, n) {
+  if (tipo === 'lore') return sagaPoeLore(s, o, n); // T-2 · CR 714.2b / 603.2 · o capítulo dispara no ato de pôr o marcador de lore (função abaixo da âncora T das exportações)
   if (!tipo || tipo === 'p1p1') return addCounters(s, o, n);
   const k = marcadoresAoPor(s, o, tipo, n); if (k > 0) o.counters[tipo] = (o.counters[tipo] || 0) + k; return k;
 }
@@ -18044,6 +18047,7 @@ function createToken(s, def, controller, events) {
   s.zones[controller].battlefield.push(oid);
   { const t = s.objects[oid]; t.ts = relogio(s); t.entrouNoTurno = s.turn.number; const r = entradaModificada(s, t, 0); // CR2e.1 · 614.12: a ficha também "entra virada" / "entra com N marcadores"
     if (r.virada != null) t.tapped = r.virada; for (const [k, n] of Object.entries(r.marcadores)) t.counters[k] = (t.counters[k] || 0) + marcadoresAoPor(s, t, k, n, true); } // CR2e.2
+  sagaEntrou(s, s.objects[oid]); // T-2 · CR 714.3a / 122.6 / 714.3b · a ficha que é Saga também entra no campo (mesma função do moveObject)
   events.push({ kind: 'effect', do: 'token', name, target: s.players[controller].name, amount: 1 });
   disparaZona(s, s.objects[oid], null, 'battlefield', controller, null); // CR2-G R2a · a ficha entra: mesmo evento de zona
   return oid;
@@ -18373,6 +18377,7 @@ function flushTriggers(s, events) {
 /** Leva 107 · o que viaja do gatilho para a habilidade na pilha — o mesmo com alvo escolhido na hora ou depois
  * (antes, quando o jogador escolhia o alvo, o custo opcional, o "você pode", a condição e o valor se perdiam) */
 function marcasDoGatilho(s, q, oid) {
+  sagaMarcaNaPilha(s, q, oid); // T-2 · CR 714.4 / 704.5s / 400.7 · a habilidade de capítulo na pilha leva o número do capítulo e a encarnação da Saga (função abaixo da âncora T das exportações)
   if (q.mayPay) s.objects[oid].mayPay = q.mayPay; // S47 · o custo opcional viaja com a habilidade
   if (q.optional) s.objects[oid].optionalTrigger = true; // S49 · gatilho opcional sem custo
   if (q.condition) s.objects[oid].condicao = q.condition; // Leva 107 · "se" do gatilho é conferido de novo na resolução (603.4)
@@ -19595,7 +19600,7 @@ const HANDLERS = {
     if (!pd || pd.kind !== 'saga_capitulo' || pd.p !== a.p) throw new RuleError('tempo', 'nenhuma Saga esperando o capítulo inicial');
     if (!Number.isInteger(a.n) || a.n < 1 || a.n > pd.max) throw new RuleError('capitulo', `escolha um capítulo de I a ${ROMANOS[pd.max] || pd.max}`);
     const o = s.objects[pd.oid]; s.pending = null;
-    if (o && o.zone === 'battlefield') { o.counters.lore = a.n; ev.push({ kind: 'effect', do: 'counters', tipo: 'lore', amount: a.n, name: o.name }); }
+    if (o && o.zone === 'battlefield') { o.counters.lore = a.n; ev.push({ kind: 'effect', do: 'counters', tipo: 'lore', amount: a.n, name: o.name }); sagaEscolheu(s, o); } // T-2 · o capítulo escolhido dispara aqui
   },
   concede(s, a) { const pl = s.players[a.p]; if (!pl.lost) { pl.life = Math.min(pl.life, 0); pl.lossReason = 'desistência'; } },
 
@@ -19647,6 +19652,7 @@ function apply(state, action) {
   if (state.status === 'mulligan' && !MULLIGAN_ACTIONS.has(action.t)) throw new RuleError('fase', 'termine os mulligans primeiro');
   if (state.pending && !PENDING_ACTIONS[state.pending.kind].includes(action.t)) {
     const k = state.pending.kind;
+    sagaRecusa(k); // T-2 · CR 714.3b · mensagem própria da escolha do capítulo (função abaixo da âncora T das exportações)
     throw new RuleError('pendente', k === 'discard' ? `descarte ${state.pending.n} carta(s) primeiro` : k === 'attackers' ? 'declare os atacantes primeiro'
       : k === 'triggers' ? 'escolha a ordem dos gatilhos primeiro' : k === 'choose_color' ? 'escolha a cor primeiro'
       : k === 'commander_zone' ? 'decida se o comandante volta para a zona de comando primeiro'
@@ -20767,18 +20773,25 @@ function lutar(s, src, eff, tgt, events) {
 }
 Object.assign(EXPORTS_V, { lutar });
 /* ↓ T · exportações de core.js da trilha tipos */
-/* ---------------- T-1 · CR 714 · Sagas ----------------
+/* ---------------- T-1 / T-2 · CR 714 · Sagas ----------------
    Tudo o que a regra pede sai dos marcadores de lore e das habilidades de capítulo do script (when: 'chapter', chapters: [N…]).
-   - 714.2b · o capítulo dispara quando o número de marcadores "era menor que N e passou a ser pelo menos N". O motor guarda em
-     `s.sagas[oid] = { z, n }` quantos marcadores cada Saga tinha na última conferência (z = encarnação: 400.7, objeto novo recomeça
-     do zero) e compara a cada conferência de ações de estado — antes de qualquer jogador receber prioridade. Assim todo caminho
-     que põe marcador (entrada, ação de turno, efeito, escolha do read ahead) dispara, sem gancho em cada um. O campo só existe
-     em partida com Saga no campo (o hash das outras não muda).
-   - 714.3b / 702.155 · read ahead: ao entrar, a decisão pendente `saga_capitulo`; no turno em que entrou só dispara o capítulo de
-     número igual aos marcadores.
+   - 714.2b / 603.2 · o capítulo dispara NO ATO de pôr o marcador ("era menor que N e passou a ser pelo menos N"): `sagaMarcou` é
+     chamada de cada ponto que põe marcador de lore — entrada no campo (`sagaEntrou`: moveObject e createToken), efeito
+     (`sagaPoeLore`, de poeMarcadores), proliferar (pelo mesmo `poeMarcadores`, desde a V-11), ação de turno (`sagasNaPrincipal`) e escolha do read ahead
+     (`sagaEscolheu`). O gatilho vai para a fila na hora e chega à pilha mesmo que a Saga saia do campo antes (603.3, 113.7a).
+     T-2: até a T-1 o disparo era percebido só na conferência de ações de estado, depois das mortes da mesma passada.
+   - `s.sagas[oid] = { z, n }` guarda os marcadores de cada Saga conhecida (z = encarnação: 400.7). Serve de rede de segurança
+     (marcador posto por um caminho sem gancho — hoje só o ajuste manual da mesa assistida — dispara na conferência seguinte, e
+     nunca duas vezes: quem dispara atualiza `n`) e separa quem ENTROU de quem só virou Saga. O campo só existe em partida com
+     Saga no campo (o hash das outras não muda).
+   - 714.3b / 702.155 · read ahead: quem ENTRA no campo fica com `escolhe` no registro e recebe a decisão pendente
+     `saga_capitulo`; a permanente que já estava no campo e vira cópia de Saga não escolhe (fica como está e ganha marcador na
+     próxima fase principal). No turno em que entrou só dispara o capítulo de número igual aos marcadores.
    - 714.3c / 703.4f · `sagasNaPrincipal`, chamada por enterStep('main1').
    - 714.4 / 704.5s · `sagasDeEstado`, chamada por stateBased: sacrifica se marcadores ≥ capítulo final e não há capítulo dela
-     disparado que ainda não saiu da pilha (fila, escolha de ordem/alvo/modo, pilha). */
+     disparado que ainda não saiu da pilha (fila, escolha de ordem/alvo/modo, pilha). A habilidade na pilha é capítulo pela marca
+     `capituloDe: { n, z }` posta em marcasDoGatilho (z = encarnação da Saga no disparo: capítulo de encarnação anterior não conta).
+   - 514.3a · `sagasNaLimpeza`, chamada por finishCleanup: Saga a sacrificar na limpeza dá prioridade aos jogadores. */
 const ROMANOS = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
 /** A carta (como está impressa) tem capítulo? Filtro barato para não olhar habilidades de quem não é Saga. */
 function ehSaga(s, o) { const sc = o && s.facts[o.name] && s.facts[o.name].script; return !!sc && SC.capitulosDoScript(sc).length > 0; }
@@ -20789,43 +20802,82 @@ function capituloFinal(s, o) { return capitulosDe(s, o).reduce((m, ab) => Math.m
 /** 702.155 · a Saga tem read ahead agora? */
 function leAdiante(s, o) { return ehSaga(s, o) && !semImpressas(s, o) && !!((scriptOf(s, o).self || {}).readAhead); }
 /** 714.4 · há habilidade de capítulo desta Saga que disparou e ainda não saiu da pilha? Olha a fila de gatilhos, a decisão
- * pendente que segura um gatilho (alvo, modo) e a pilha. A habilidade na pilha não carrega o nome do gatilho: é reconhecida pela
- * fonte e pelos efeitos, iguais aos de um capítulo impresso. */
+ * pendente que segura um gatilho (alvo, modo) e a pilha. T-2 · só vale capítulo de verdade (a marca `capituloDe`, não os efeitos:
+ * uma habilidade ativada com o mesmo efeito não segura o sacrifício) e desta encarnação da Saga (400.7: o capítulo da Saga que
+ * saiu do campo e voltou é de outro objeto). */
 function capituloPendente(s, o) {
-  const dela = q => !!q && q.source === o.oid && q.when === 'chapter';
+  const z = o.zc || 0, dela = q => !!q && q.source === o.oid && q.when === 'chapter' && q.sagaZ === z;
   if ((s.queued || []).some(dela) || (s.pending && dela(s.pending.trigger))) return true;
-  const efeitos = new Set();
-  for (const ab of SC.capitulosDoScript(scriptOf(s, o))) { efeitos.add(JSON.stringify(ab.effects || null)); for (const m of ab.modes || []) efeitos.add(JSON.stringify(m.effects || null)); }
-  return s.stack.some(oid => { const x = s.objects[oid]; return !!x && isAbility(x) && x.source === o.oid && efeitos.has(JSON.stringify(x.effects || null)); });
+  return s.stack.some(oid => { const x = s.objects[oid]; return !!x && isAbility(x) && x.source === o.oid && !!x.capituloDe && x.capituloDe.z === z; });
 }
-/** 714.2b / 714.3b · confere os marcadores de lore de cada Saga contra a última conferência e põe na fila os capítulos atravessados. */
+/** T-2 · 714.2b / 603.2 · marcadores de lore acabaram de ser postos em `o`, que tinha `antes`: cada capítulo que a Saga tem AGORA e
+ * que foi atravessado ("era menor que N e passou a ser pelo menos N") dispara neste momento. O gatilho leva o número do capítulo
+ * e a encarnação da fonte (`sagaZ`), e vai à pilha na próxima prioridade mesmo que a Saga já tenha saído do campo (603.3, 113.7a). */
+function sagaMarcou(s, o, antes) {
+  if (!o || o.zone !== 'battlefield' || !ehSaga(s, o)) return;
+  const agora = o.counters.lore || 0, z = o.zc || 0, regs = s.sagas = s.sagas || {};
+  if (!regs[o.oid] || regs[o.oid].z !== z) regs[o.oid] = { z, n: 0 };
+  regs[o.oid].n = agora; // quem dispara atualiza o registro: a conferência de segurança não dispara de novo
+  if (agora <= antes) return;
+  const soExato = leAdiante(s, o) && o.entrouNoTurno === s.turn.number; // 702.155a · no turno em que entrou, só o capítulo de número igual aos marcadores
+  const disparam = [];
+  for (const ab of capitulosDe(s, o)) for (const n of ab.chapters) if (antes < n && agora >= n && (!soExato || n === agora)) disparam.push({ n, ab });
+  disparam.sort((x, y) => x.n - y.n);
+  for (const { n, ab } of disparam) s.queued.push({ source: o.oid, name: o.name, controller: o.controller, effects: ab.effects, when: 'chapter', capitulo: n, sagaZ: z, ...marcasDaHabilidade(ab) });
+}
+/** T-2 · efeito que põe marcadores de lore (poeMarcadores): o mesmo caminho dos outros marcadores nomeados (614.16), mais o disparo. */
+function sagaPoeLore(s, o, n) {
+  const antes = o.counters.lore || 0, k = marcadoresAoPor(s, o, 'lore', n);
+  if (k > 0) { o.counters.lore = antes + k; sagaMarcou(s, o, antes); }
+  return k;
+}
+/** T-2 · 714.3a / 122.6 / 714.3b · a Saga ENTROU no campo (carta ou ficha). Entrar com marcadores é pôr marcadores: os capítulos
+ * disparam aqui. Com read ahead e sem marcador, o registro guarda `escolhe`: a conferência seguinte abre a decisão do capítulo.
+ * Quem já estava no campo e vira Saga não passa por aqui — "as this Saga enters" não vale para ela. */
+function sagaEntrou(s, o) {
+  if (!o || !ehSaga(s, o)) return;
+  (s.sagas = s.sagas || {})[o.oid] = { z: o.zc || 0, n: 0 };
+  if ((o.counters.lore || 0) > 0) sagaMarcou(s, o, 0);
+  else if (leAdiante(s, o) && capituloFinal(s, o) >= 1) s.sagas[o.oid].escolhe = true;
+}
+/** T-2 · 714.3b · a escolha do read ahead foi feita: a Saga "entra com esse número de marcadores" e o capítulo de mesmo número dispara. */
+function sagaEscolheu(s, o) { const reg = (s.sagas || {})[o.oid]; if (reg) delete reg.escolhe; sagaMarcou(s, o, 0); }
+/** T-2 · 714.4 / 400.7 · a marca que faz da habilidade na pilha um capítulo: número e encarnação da Saga no disparo. */
+function sagaMarcaNaPilha(s, q, oid) { if (q.when === 'chapter' && s.objects[oid]) s.objects[oid].capituloDe = { n: q.capitulo, z: q.sagaZ }; }
+/** T-2 · 514.3a · na limpeza, com os efeitos do turno já encerrados: há Saga que a ação de estado vai sacrificar (a que recuperou
+ * as habilidades com marcadores ≥ capítulo final)? Então os jogadores recebem prioridade; o sacrifício acontece na conferência
+ * do `apply`, que entrega o evento ao registro, e depois vem outra limpeza. */
+function sagasNaLimpeza(s) {
+  if (s.pending || !battlefield(s).some(o => { const fim = capituloFinal(s, o); return fim > 0 && (o.counters.lore || 0) >= fim && !capituloPendente(s, o); })) return false;
+  s.turn.passes = 0; s.turn.priority = s.turn.active; return true;
+}
+/** T-2 · 714.3b · outra ação com a escolha do capítulo aberta: a recusa fala da decisão certa. */
+function sagaRecusa(k) { if (k === 'saga_capitulo') throw new RuleError('pendente', 'escolha o capítulo da Saga primeiro'); }
+/** 714.3b · abre a escolha do read ahead de quem entrou; 714.2b · rede de segurança do disparo (T-2: o disparo de verdade é no
+ * ato de pôr o marcador, em `sagaMarcou`); e o aviso, no registro, do marcador que a ação de turno pôs. */
 function sagaConfere(s, events) {
   let mudou = false;
-  const vistos = s.sagas || {};
-  for (const oid of Object.keys(vistos)) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield' || (o.zc || 0) !== vistos[oid].z) delete vistos[oid]; } // 400.7 · saiu do campo: objeto novo
+  for (const oid of s.sagaAviso || []) { const o = s.objects[oid]; if (o) events.push({ kind: 'effect', do: 'counters', tipo: 'lore', amount: 1, name: o.name }); } // o marcador da ação de turno aparece no registro
+  delete s.sagaAviso;
+  const vistos = s.sagas = s.sagas || {};
+  for (const oid of Object.keys(vistos)) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield' || (o.zc || 0) !== vistos[oid].z || !ehSaga(s, o)) delete vistos[oid]; } // 400.7 · saiu do campo: objeto novo; deixou de ser cópia de Saga: sai do registro
   for (const o of battlefield(s)) {
     if (!ehSaga(s, o)) continue;
-    let reg = vistos[o.oid];
-    if (!reg) { // acabou de entrar no campo (conjurada, reanimada, ficha, cópia)
-      if (leAdiante(s, o) && !(o.counters.lore > 0)) { // 714.3b · "As this Saga enters, choose a number between one and this Saga's final chapter number"
+    const reg = vistos[o.oid];
+    if (!reg) { vistos[o.oid] = { z: o.zc || 0, n: o.counters.lore || 0 }; continue; } // já estava no campo e virou Saga (cópia): não entrou, não escolhe capítulo (714.3b) e nenhum marcador foi posto (714.2b)
+    if (reg.escolhe) { // 714.3b · "As this Saga enters, choose a number between one and this Saga's final chapter number"
+      if (!(o.counters.lore > 0)) {
         const fim = capituloFinal(s, o);
         if (fim > 1) { if (!s.pending && s.status === 'playing') s.pending = { kind: 'saga_capitulo', p: o.controller, oid: o.oid, name: o.name, max: fim }; continue; } // uma decisão por vez; as outras esperam
-        if (fim === 1) { o.counters.lore = 1; mudou = true; } // um candidato só: sem pergunta
+        if (fim === 1) { o.counters.lore = 1; sagaEscolheu(s, o); mudou = true; continue; } // um candidato só: sem pergunta
       }
-      reg = vistos[o.oid] = { z: o.zc || 0, n: 0 };
+      delete reg.escolhe;
     }
-    const antes = reg.n, agora = o.counters.lore || 0;
-    reg.n = agora; // menos marcadores também conta: tirar e repor redispara (714.2b: "era menor que N e passou a ser pelo menos N")
-    if (agora <= antes) continue;
-    if ((s.sagaAviso || []).includes(o.oid)) events.push({ kind: 'effect', do: 'counters', tipo: 'lore', amount: agora - antes, name: o.name }); // o marcador da ação de turno aparece no registro
-    const soExato = leAdiante(s, o) && o.entrouNoTurno === s.turn.number; // 702.155a · no turno em que entrou, só o capítulo de número igual aos marcadores
-    const disparam = [];
-    for (const ab of capitulosDe(s, o)) for (const n of ab.chapters) if (antes < n && agora >= n && (!soExato || n === agora)) disparam.push({ n, ab });
-    disparam.sort((x, y) => x.n - y.n);
-    for (const { n, ab } of disparam) s.queued.push({ source: o.oid, name: o.name, controller: o.controller, effects: ab.effects, when: 'chapter', capitulo: n, ...marcasDaHabilidade(ab) });
+    const agora = o.counters.lore || 0;
+    if (agora > reg.n) sagaMarcou(s, o, reg.n); // marcador posto por caminho sem gancho: dispara aqui, uma vez
+    else reg.n = agora; // menos marcadores também conta: o registro acompanha
   }
-  delete s.sagaAviso;
-  if (Object.keys(vistos).length) s.sagas = vistos; else delete s.sagas;
+  if (!Object.keys(vistos).length) delete s.sagas;
   return mudou;
 }
 /** 714.4 / 704.5s · ação de estado das Sagas (e, antes, os capítulos que dispararam). Devolve true se algo mudou. */
@@ -20844,7 +20896,7 @@ function sagasDeEstado(s, events) {
  * controla com um ou mais capítulos. Ação de turno: não usa a pilha; os capítulos disparam na conferência seguinte, antes da prioridade. */
 function sagasNaPrincipal(s) {
   const a = s.turn.active; if (!s.players[a] || s.players[a].lost) return;
-  for (const o of battlefield(s)) if (o.controller === a && capitulosDe(s, o).length) { o.counters.lore = (o.counters.lore || 0) + 1; (s.sagaAviso = s.sagaAviso || []).push(o.oid); }
+  for (const o of battlefield(s)) if (o.controller === a && capitulosDe(s, o).length) { const antes = o.counters.lore || 0; o.counters.lore = antes + 1; (s.sagaAviso = s.sagaAviso || []).push(o.oid); sagaMarcou(s, o, antes); } // T-2 · o capítulo dispara no ato
 }
 /** 714.3b · ofertas da decisão pendente: um capítulo por ação. */
 function sagaOfertas(s, p, out) {
