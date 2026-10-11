@@ -7219,6 +7219,11 @@ test('e2e · H7 imagens da partida: a que falha ou chega cortada volta sozinha e
     const tipo = r.request().resourceType(), n = tipo === 'fetch' ? (porQuem.get(u) || 0) + 1 : 3; if (tipo === 'fetch') porQuem.set(u, n);
     if (n === 1) return r.abort('internetdisconnected');
     return r.fulfill({ status: 200, contentType: 'image/png', body: n === 2 ? PNG.subarray(0, 70) : PNG, headers: { 'access-control-allow-origin': '*' } }); });
+  // G-252 · ao começar, a mesa também manda o guardião guardar as imagens das duas listas, em segundo plano, pelo mesmo
+  // `fetch`: quando ele pedia antes da mesa, gastava a falha e a cortada e a mesa acertava de primeira ("houve nova
+  // tentativa" caía; 11/10/2026, 1 em ~15 rodadas, sob carga). Este teste é da memória da mesa; o guardião diante de
+  // imagem cortada tem prova própria (offline.unit H7). Aqui ele não vai à rede.
+  await page.evaluate(() => { const k = window.__estanteKeeper; if (k) k.guardarLista = async () => ({ fixadas: [], faltando: [], imagens: 0 }); });
   await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', '4'); await page.click('#mesa-start');
   await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass');
   assert.ok(await page.locator('.tb-hand .tb-card img').count() >= 6, 'mão com imagens');

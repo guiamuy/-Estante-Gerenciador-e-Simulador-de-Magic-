@@ -507,6 +507,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-dp ✅ | Z7 correção: catálogo guardado no formato antigo é trocado ao abrir (os nomes novos não apareciam), validade de 1 hora e Atualizar no rodapé (leva G-249) | Z | 1 | — |
 | 16º-dq ✅ | Fichas com 20 listas de Commander: as cartas guardadas lidas juntas (1,56 s → 0,49 s com o processador 4× mais lento); as cores da estante ganham junto (leva G-250) | I | ½ | — |
 | 16º-ds ✅ | SEG3 política de conteúdo (CSP) por meta: script e conexão só das origens que o app usa, leitor do scanner testado de verdade com ela ligada, contrato que barra origem nova fora da política (leva P-3) | SEG | 1 | — |
+| 16º-dt ✅ | H7c: segunda causa do instável H7 (o guardião offline guardando as listas ao começar a partida gastava a rede ruim simulada antes da mesa), provada e fechada no teste (leva G-252) | Q | ½ | — |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -6063,6 +6064,12 @@ recolhível; conseguir acompanhar as jogadas do oponente; escolher as manas que 
   guardião em vez de ir à rede enquanto ele tenta): cortava downloads com sinal ruim (10 → 7), mas sem internet deixava a
   carta sem imagem por até ~5 min — a `<img>` lê a imagem que o service worker guardou para ela (resposta sem CORS), o que o
   `fetch` do guardião não consegue. Fica declarado: com sinal ruim, a `<img>` e o guardião podem baixar a mesma imagem.
+- **H7c · a segunda causa (leva G-252, 11/10/2026):** o H7 voltou a cair uma vez em ~15 rodadas (G-249 e P-3), com a
+  memória da mesa acertando de primeira (`pedidos: 1`). Ao começar, a mesa também manda o **guardião offline** guardar as
+  imagens das duas listas (`keeper.guardarLista`), em segundo plano e pelo mesmo `fetch`: quando ele pedia antes da mesa,
+  gastava a falha e a cortada. Provado: com o guardião pedindo antes de propósito, o teste cai com a mesma mensagem. O
+  teste é da memória da mesa: nele o guardião não vai à rede (o guardião diante de imagem cortada tem prova própria em
+  `offline.unit` H7). Declarado de novo: com sinal ruim, guardião, memória da mesa e `<img>` podem baixar a mesma imagem.
 
 ### I · Leitura e gestão (E56, pedido de 05/10/2026)
 
