@@ -3345,6 +3345,11 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Simplificação declarada:** marcadores de palavra-chave não têm carimbo próprio e contam como antigos.
 - **Golden:** idênticas, sem regravar. Versão não sobe.
 
+**CR2d.8 · Camada 5: cor por efeito, com carimbo** ✅ (leva M-277, motor v98, sem mudança no que existe) — 2 testes de conformidade.
+- **Regra (613.1e, 613.7, 708.2):** chaves `cores` (vazio = incolor) e `somaCores` no contínuo temporário e no estático. A cor de agora (`coresDe`) aplica, em ordem de carimbo, "torna-se [cor]" (substitui), "além das outras cores" (soma) e "incolor"; vale para alvo por cor, seletor por cor, "não-[cor]" e custos que pedem cor. Virada para baixo não tem cor em zona nenhuma (antes o seletor lia a cor impressa da virada).
+- **Simplificação declarada:** um seletor de efeito estático que pergunta a cor enquanto a cor está sendo calculada lê a cor impressa (a dependência entre efeitos, 613.8, é a CR2d.11).
+- **Golden:** idênticas, sem regravar. Versão não sobe.
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

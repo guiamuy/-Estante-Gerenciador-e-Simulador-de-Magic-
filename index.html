@@ -5542,7 +5542,7 @@ function substituicoesDoScript(sc) {
 /** CR2-G R3a · um efeito contínuo estático: `afetados` ('self', 'anexada' ou seletor de permanentes no campo, sem
  * palavra-chave no seletor — a camada 6 dependeria dela mesma), e ao menos uma mudança: poder, resistencia, palavras, ou
  * perPoder/perResistencia com uma contagem `per`. */
-const CHAVES_CONTINUO = ['afetados', 'poder', 'resistencia', 'palavras', 'per', 'perPoder', 'perResistencia', 'torna', 'seAfetado', 'ward', 'se', 'perde']; // CR2d.7 · perde: palavras-chave perdidas (camada 6) // M-251 · "enquanto a encantada for …", resistência a magia com custo
+const CHAVES_CONTINUO = ['afetados', 'poder', 'resistencia', 'palavras', 'per', 'perPoder', 'perResistencia', 'torna', 'seAfetado', 'ward', 'se', 'perde', 'cores', 'somaCores']; // CR2d.8 · cores (camada 5) // CR2d.7 · perde: palavras-chave perdidas (camada 6) // M-251 · "enquanto a encantada for …", resistência a magia com custo
 /** CR2-G R3c · "torna-se": camada 4 (tipos e subtipos, substituindo ou somando — `somaTipos`), 6 (perde todas as outras
  * habilidades; `palavras` aqui entram junto com a redefinição, com o mesmo carimbo) e 7b (P/T base). */
 const CHAVES_TORNA = ['tipos', 'subtipos', 'somaTipos', 'base', 'perdeHabilidades', 'palavras'];
@@ -5582,7 +5582,8 @@ function continuoErros(c, tag) {
   if ((c.perPoder != null || c.perResistencia != null) && !(PER_COUNTS.includes(c.per) || (c.per && typeof c.per === 'object' && typeof c.per.subtype === 'string'))) errs.push(`${tag}: contagem "${c.per}" desconhecida`);
   if (c.torna != null) { errs.push(...tornaErros(c.torna, tag)); if (c.afetados !== 'anexada') errs.push(`${tag}: "torna" estático só vale para a permanente anexada (o resto precisa da dependência 613.8)`); }
   if (c.perde != null && !(Array.isArray(c.perde) && c.perde.length && c.perde.every(k => KEYWORDS.includes(String(k).toLowerCase())))) errs.push(`${tag}: palavra-chave desconhecida em "perde"`); // CR2d.7
-  if (!c.poder && !c.resistencia && !(c.palavras || []).length && !c.perPoder && !c.perResistencia && !c.torna && !(c.perde || []).length) errs.push(`${tag}: não muda nada`);
+  if (c.cores != null && !(Array.isArray(c.cores) && c.cores.every(x => ['W', 'U', 'B', 'R', 'G'].includes(x)) && (c.cores.length || !c.somaCores))) errs.push(`${tag}: "cores" precisa de W, U, B, R ou G (vazio = incolor)`); // CR2d.8
+  if (!c.poder && !c.resistencia && !(c.palavras || []).length && !c.perPoder && !c.perResistencia && !c.torna && !(c.perde || []).length && c.cores == null) errs.push(`${tag}: não muda nada`);
   return errs;
 }
 const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield', 'enchanted-deals-damage', 'upkeep', 'attacks', 'blocks', 'other-etb', 'other-dies', 'combat-damage', 'cast-self', 'other-cast', 'main2', 'end-of-combat', 'other-sacrificed', 'counters-added', 'third-draw', 'enchanted-tapped-or-damaged',
@@ -6013,7 +6014,8 @@ function effectErrors(effects, label, opcional) {
       if (e.lembra && e.para !== 'exile') errs.push(`${L}: "lembra" só vale para o exílio`);
     }
     if (e.do === 'continuo') { // CR2-G R3b
-      if (e.poder == null && e.resistencia == null && !(e.palavras || []).length && !e.torna && !e.toxico && !(e.perde || []).length) errs.push(`${label} ${i + 1}: efeito contínuo não muda nada`);
+      if (e.poder == null && e.resistencia == null && !(e.palavras || []).length && !e.torna && !e.toxico && !(e.perde || []).length && e.cores == null) errs.push(`${label} ${i + 1}: efeito contínuo não muda nada`);
+      if (e.cores != null && !(Array.isArray(e.cores) && e.cores.every(x => ['W', 'U', 'B', 'R', 'G'].includes(x)) && (e.cores.length || !e.somaCores))) errs.push(`${label} ${i + 1}: "cores" precisa de W, U, B, R ou G (vazio = incolor)`); // CR2d.8
       if (e.perde != null && !(Array.isArray(e.perde) && e.perde.length && e.perde.every(k => KEYWORDS.includes(String(k).toLowerCase())))) errs.push(`${label} ${i + 1}: palavra-chave desconhecida em "perde"`); // CR2d.7
       if (e.toxico != null && !(Number.isInteger(e.toxico) && e.toxico > 0 && (e.ate == null || e.ate === 'fim-do-turno'))) errs.push(`${label} ${i + 1}: tóxico concedido é inteiro positivo e dura até o fim do turno`); // M-255
       if (e.torna != null) errs.push(...tornaErros(e.torna, `${label} ${i + 1}`)); // CR2-G R6 · "torna" aceita todas as durações
@@ -14441,7 +14443,7 @@ const faceDown = o => !!(o && o.faceDown);
 /** CR2-G R3b · grava um efeito contínuo temporário no objeto. A guarda continua nos campos de sempre (o bot, a tela e as
  * partidas salvas os leem): até o fim do turno → pump e tempKeywords (com carimbo); até o seu próximo turno → pumpNext e
  * keywordsNext, marcados com quem fez (`by`), que acabam quando o turno dele começa. */
-function aplicaTemporario(s, o, { poder, resistencia, palavras, ate = 'fim-do-turno', vira, perde }, by, fonte) {
+function aplicaTemporario(s, o, { poder, resistencia, palavras, ate = 'fim-do-turno', vira, perde, cores, somaCores }, by, fonte) {
   const proximo = ate === 'seu-proximo-turno';
   // CR2-G R6 · 611.2 · duração nova (até o fim do seu próximo turno; enquanto você controlar a fonte): marca de quando, de quem
   // e de qual fonte (encarnação), para a poda e a leitura
@@ -14449,6 +14451,7 @@ function aplicaTemporario(s, o, { poder, resistencia, palavras, ate = 'fim-do-tu
   // CR2-G R3c · "torna-se …": redefinição com carimbo próprio (613.7), apagada na limpeza (ou quando a duração acabar); vem antes
   // das palavras-chave ganhas no mesmo efeito, que assim sobrevivem ao "perde as outras habilidades"
   if (vira) { o.vira = [...(o.vira || []), { ...vira, ts: relogio(s), ...(marca || {}) }]; o.mutavel = true; }
+  if (cores != null) o.temporarios = [...(o.temporarios || []), { cores: cores.slice(), ...(somaCores ? { somaCores: true } : {}), ts: relogio(s), ...(marca || {}) }]; // CR2d.8 · camada 5 com carimbo
   if ((perde || []).length) o.temporarios = [...(o.temporarios || []), { perde: perde.map(k => String(k).toLowerCase()), ts: relogio(s), ...(marca || {}) }]; // CR2d.7 · "perde voar" com carimbo; sem marca = até o fim do turno (sai na limpeza)
   if (ate !== 'fim-do-turno' && ate !== 'seu-proximo-turno') { // durações novas: lista própria, lida pelo caminho dos contínuos
     if (poder != null || resistencia != null || (palavras || []).length)
@@ -14517,7 +14520,7 @@ function vigente(s, t) {
 }
 function temporariosDe(o, s) {
   const out = [];
-  for (const t of o.temporarios || []) if (!s || vigente(s, t)) out.push({ afetados: 'self', temporario: t.ate, poder: t.poder || 0, resistencia: t.resistencia || 0, ...(t.palavras ? { palavras: t.palavras } : {}), ...(t.perde ? { perde: t.perde } : {}), ts: t.ts || 0 }); // CR2-G R6 · CR2d.7
+  for (const t of o.temporarios || []) if (!s || vigente(s, t)) out.push({ afetados: 'self', temporario: t.ate, poder: t.poder || 0, resistencia: t.resistencia || 0, ...(t.palavras ? { palavras: t.palavras } : {}), ...(t.perde ? { perde: t.perde } : {}), ...(t.cores ? { cores: t.cores, ...(t.somaCores ? { somaCores: true } : {}) } : {}), ts: t.ts || 0 }); // CR2-G R6 · CR2d.7 · CR2d.8
   if (o.pump) out.push({ afetados: 'self', temporario: 'fim-do-turno', poder: o.pump.p || 0, resistencia: o.pump.t || 0, ts: 0 });
   if (o.pumpNext) out.push({ afetados: 'self', temporario: 'seu-proximo-turno', poder: o.pumpNext.p || 0, resistencia: o.pumpNext.t || 0, ts: 0 });
   const tts = o.tempTs || [];
@@ -14633,7 +14636,23 @@ const protections = (s, o) => protImpressa(s, o).concat(o.tempProtection || [], 
   return [].concat(g.protection).flatMap(c => c === 'chosen' ? (x.chosenColor ? [x.chosenColor] : []) : [c]);
 }));
 const prevented = (s, o) => !s.noPrevention && (!!o.prevenirDano || attachedTo(s, o).some(x => (grantsOf(s, x) || {}).prevent)); // CR2d.5 · prevenção do turno (Gideon)
-const colorsOf = (s, src) => (src && !src.faceDown && s.facts[src.name] ? s.facts[src.name].colors || [] : []); // CR 708.2: virada para baixo não tem cor
+/* CR2d.8 · 613.1e · camada 5 (cor): a cor impressa, depois os efeitos de cor em ordem de carimbo — "torna-se [cor]" substitui,
+   "além das outras cores" soma. Os seletores de efeitos estáticos que perguntam a cor durante esse cálculo leem a cor impressa
+   (a dependência entre efeitos, 613.8, é da CR2d.11). */
+let PERDE_COR_ESTATICO = null, calculandoCor = false;
+const corEstatica = () => (PERDE_COR_ESTATICO ??= Object.values(SC.SCRIPTS || {}).some(sc => (sc.continuo || []).some(c => Array.isArray(c.cores))));
+function coresDe(s, o) {
+  if (!o || o.faceDown || !s.facts[o.name]) return []; // CR 708.2: virada para baixo não tem cor
+  const impressas = s.facts[o.name].colors || [];
+  if (calculandoCor || !((o.temporarios || []).some(t => t.cores) || corEstatica())) return impressas;
+  calculandoCor = true;
+  try {
+    let cores = impressas;
+    for (const e of continuosQueAfetam(s, o).filter(e => Array.isArray(e.cores)).sort((a, b) => (a.ts || 0) - (b.ts || 0))) cores = e.somaCores ? [...new Set([...cores, ...e.cores])] : e.cores.slice();
+    return cores;
+  } finally { calculandoCor = false; }
+}
+const colorsOf = (s, src) => coresDe(s, src); // CR2d.8 · a cor de agora (camada 5)
 const protectedFrom = (s, o, src) => protections(s, o).some(c => colorsOf(s, src).includes(c));
 /** Leva 108 · proteção que derruba anexos (702.16c), menos a que diz "não remove as auras e equipamentos que você
  * controla e que já estavam anexados" (Benevolent Blessing) quando o anexo é do mesmo controlador da fonte. */
@@ -15407,10 +15426,10 @@ function selCasa(s, p, o, sel, selfOid, opts = {}) {
     if (sel.mvMax != null && vm > amountOf(s, fonte, sel.mvMax)) return false;
     if (sel.mvMin != null && vm < amountOf(s, fonte, sel.mvMin)) return false;
   }
-  if (sel.cor && !(f.colors || []).includes(sel.cor)) return false;
+  if (sel.cor && !coresDe(s, o).includes(sel.cor)) return false; // CR2d.8
   if (sel.lendaria != null && (!!f.legendary && !o.faceDown) !== sel.lendaria) return false;
   if (sel.comToxico && !toxicoDe(s, o)) return false; // M-253 · "creatures you control with toxic" // M-246 · 205.4 · lendária (virada para baixo não tem supertipo)
-  if (sel.semCor && (f.colors || []).includes(sel.semCor)) return false;
+  if (sel.semCor && coresDe(s, o).includes(sel.semCor)) return false; // CR2d.8
   if (sel.subtipoDaAura) { // Q11 · aura de subtipo ("Enchant Forest"): a fonte diz o subtipo e o terreno precisa tê-lo
     const sub = selfOid && s.objects[selfOid] && s.facts[s.objects[selfOid].name] ? auraSubtype(s.facts[s.objects[selfOid].name]) : null;
     if (sub && !new RegExp('\\b' + sub + '\\b', 'i').test(f.typeText || o.name)) return false;
@@ -15451,7 +15470,7 @@ function legalTargets(s, p, kind, selfOid, color) {
   const sel = SC.seletorDe(kind);
   if (!sel) return legalTargetsLegado(s, p, kind, selfOid, color);
   const out = selecionar(s, p, sel, selfOid);
-  return color ? out.filter(x => { const o = x.oid != null ? s.objects[x.oid] : null; return o && ((s.facts[o.name] || {}).colors || []).includes(color); }) : out;
+  return color ? out.filter(x => { const o = x.oid != null ? s.objects[x.oid] : null; return o && coresDe(s, o).includes(color); }) : out; // CR2d.8
 }
 function legalTargetsLegado(s, p, kind, selfOid, color) {
   let out = [];
@@ -15565,7 +15584,7 @@ function legalTargetsLegado(s, p, kind, selfOid, color) {
   // Leva 106 · Flagbearer saiu daqui: a regra vale só ao conjurar ou ativar e pede "pelo menos um" (violaPortaEstandarte)
   return color ? out.filter(x => {
     const o = x.oid != null ? s.objects[x.oid] : null;
-    return o && ((s.facts[o.name] || {}).colors || []).includes(color);
+    return o && coresDe(s, o).includes(color); // CR2d.8
   }) : out;
 }
 /** Leva 106 · Flagbearer (Standard Bearer): "While choosing targets as part of casting a spell or activating an
@@ -15591,7 +15610,7 @@ function targetAllowed(s, eff, tgt, src) {
   if (eff.targetSubtype && !(o.zone === 'battlefield' && (isChangeling(s, o) || new RegExp('\\b' + eff.targetSubtype + '\\b').test(linhaDeTipo(s, o))))) return false; // CR2d.2 · "target Assembly-Worker creature" // CR2c.4 · "that wasn't cast from its owner's hand" (Wash Away)
   if (eff.targetNotLand && (f.types || []).includes('land')) return false; // R11 · "nonland permanent"
   if (eff.targetTypes && !eff.targetTypes.some(x => (f.types || []).includes(x))) return false; // R11 · "instant or sorcery spell"
-  if (eff.targetNotColor && (f.colors || []).includes(eff.targetNotColor)) return false; // S38 · "criatura não-preta"
+  if (eff.targetNotColor && coresDe(s, o).includes(eff.targetNotColor)) return false; // S38 · "criatura não-preta" · CR2d.8
   const vm = (f.cmc || 0) + (o.zone === 'stack' ? (o.xPaid || 0) * ((f.cost || {}).x || 0) : 0); // CR 202.3e: na pilha, X é o valor escolhido
   if (eff.targetMv != null && vm !== eff.targetMv) return false;
   if (eff.targetMvMax != null) {
@@ -15832,7 +15851,7 @@ function applyEffect(s, src, eff, tgt, events) {
       if (!alvo || alvo.zone !== 'battlefield') break;
       const pw = eff.poder != null ? amountOf(s, src, eff.poder) : undefined, tg = eff.resistencia != null ? amountOf(s, src, eff.resistencia) : undefined;
       if (eff.toxico) alvo.tempToxico = (alvo.tempToxico || 0) + eff.toxico; // M-255 · "gains toxic 1 until end of turn"
-      if (pw != null || tg != null || (eff.palavras || []).length || eff.torna || (eff.perde || []).length) aplicaTemporario(s, alvo, { poder: pw, resistencia: tg, palavras: eff.palavras, ate: eff.ate || 'fim-do-turno', ...(eff.torna ? { vira: SC.tornaParaBecomes(eff.torna) } : {}), ...((eff.perde || []).length ? { perde: eff.perde } : {}) }, ctrl, src.ability ? s.objects[src.source] : src);
+      if (pw != null || tg != null || (eff.palavras || []).length || eff.torna || (eff.perde || []).length || eff.cores != null) aplicaTemporario(s, alvo, { ...(eff.cores != null ? { cores: eff.cores, somaCores: !!eff.somaCores } : {}), poder: pw, resistencia: tg, palavras: eff.palavras, ate: eff.ate || 'fim-do-turno', ...(eff.torna ? { vira: SC.tornaParaBecomes(eff.torna) } : {}), ...((eff.perde || []).length ? { perde: eff.perde } : {}) }, ctrl, src.ability ? s.objects[src.source] : src);
       note({ name: alvo.name, power: pw || 0, toughness: tg || 0, palavras: (eff.palavras || []).map(k => String(k).toLowerCase()), ate: eff.ate || 'fim-do-turno' });
       break;
     }
@@ -17102,7 +17121,7 @@ function extraCostCandidates(s, p, spec, selfOid, needUntapped) {
     // Leva 108 · virada para baixo não tem tipo de criatura (708.2): não serve como "Elfo" num custo
     (!spec.subtype || (!o.faceDown && (isChangeling(s, o) || new RegExp('\\b' + spec.subtype + '\\b', 'i').test(s.facts[o.name].typeText || '')))) &&
     // S46 · a cor pedida pelo custo vale também para saber se dá para pagar
-    (!spec.color || (s.facts[o.name].colors || []).includes(spec.color)) &&
+    (!spec.color || coresDe(s, o).includes(spec.color)) && // CR2d.8
     // S62 · enjoo de invocação vale só para o {T} da própria permanente (302.6).
     // Virar OUTRA criatura como custo aceita criatura que entrou agora — regra
     // confirmada na carta Jaspera Sentinel (consulta em 27/09/2026).
@@ -18874,7 +18893,7 @@ function invariants(s, expectedObjects) {
 
 return { ENGINE_VERSION, effectAllowed, eligibleBlockers, abilitiesOf, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, moveObject, seriaDestruida, danoSubstituido, danoAposPrevencao, prevencaoLegado, destinoSubstituido, destinoLegado, entradaModificada, entradaLegado, applyEffect, aplicaPorJogador, sacrificioLegado, moverObjeto, moverLegado, mutacao, mutacaoLegado, hasLegado, bonusLegado, continuosQueAfetam, aplicaTemporario, statsLegado: (s, o) => ({ power: powerLegado(s, o), toughness: toughnessLegado(s, o) }), sombraDosGatilhos, gatilhosDeZona, gatilhosDeZonaLegado, gatilhosDoObjeto, gatilhosDoPasso, enterStep, disparaEvento, noteDiscard, noteEnchantedDealt, noteDamaged, noteEnchantedEvent, addCounters, sacrifice, draw, sweepTargets, sweepTargetsLegado, targetable,
   stats: (s, o) => ({ power: power(s, o), toughness: toughness(s, o) }), hasKeyword: has, bonus, isCreature, tiposDe, pwsAtacaveis, exigePw, productions, protections, prevented, canBlock,
-  createGame, apply, legalActions, linhaDeTipo, previewCombat, previewAttack, eligibleAttackers, mustAttack, eligibleBlockers, canBlock, canPay, commanderTax,
+  createGame, apply, legalActions, linhaDeTipo, coresDe, colorsOf, targetAllowed, previewCombat, previewAttack, eligibleAttackers, mustAttack, eligibleBlockers, canBlock, canPay, commanderTax,
   createMatch, replay, hashState, randomPolicy, invariants };
 })();
 
@@ -21219,6 +21238,8 @@ function descreveDano(r) {
   const muda = [r.soma ? `${r.soma} a mais` : '', r.multiplica === 2 ? 'o dobro' : r.multiplica ? `${r.multiplica} vezes esse dano` : ''].filter(Boolean).join(' e depois ');
   return `se ${fonte} fosse causar dano${r.soCombate ? ' de combate' : ''}${a}, causa ${muda}`;
 }
+const COR_PT = { W: 'branca', U: 'azul', B: 'preta', R: 'vermelha', G: 'verde' };
+const descreveCores = (cores, soma) => !cores.length ? 'torna-se incolor' : `torna-se ${cores.map(c => COR_PT[c]).join(' e ')}${soma ? ' além das outras cores' : ''}`; // CR2d.8
 function descreveContinuo(c) {
   const sinal = n => (n < 0 ? '' : '+') + n;
   const quem = c.afetados === 'self' ? 'esta permanente' : c.afetados === 'anexada' ? 'a permanente anexada'
@@ -21230,6 +21251,7 @@ function descreveContinuo(c) {
   if ((c.palavras || []).length) partes.push(`tem ${c.palavras.map(k => PALAVRA_PT[String(k).toLowerCase()] || k).join(' e ')}`);
   if (c.ward) partes.push(`tem proteção (ward) ${c.ward}`); // M-251
   if ((c.perde || []).length) partes.push(`perde ${c.perde.map(k => PALAVRA_PT[String(k).toLowerCase()] || k).join(' e ')}`); // CR2d.7
+  if (c.cores != null) partes.unshift(descreveCores(c.cores, c.somaCores)); // CR2d.8
   if (c.torna) partes.unshift(descreveTorna(c.torna));
   const se = c.seAfetado ? `enquanto for ${c.seAfetado.lendaria ? 'lendária' : ''}${c.seAfetado.lendaria && (c.seAfetado.tipos || []).length ? ' e ' : ''}${(c.seAfetado.tipos || []).map(x => TIPO_PT[x] || x).join(' ou ')}, ` : ''; // M-251
   const seJogo = c.se ? `enquanto um oponente tiver ${c.se.oponenteComVeneno} ou mais marcadores de veneno, ` : ''; // M-253 · Corrompido
@@ -21319,6 +21341,7 @@ function descreveEfeito(e) {
       if ((e.palavras || []).length) partes.push(`ganha ${e.palavras.map(k => PALAVRA_PT[String(k).toLowerCase()] || k).join(' e ')}`);
       if (e.toxico) partes.push(`ganha tóxico ${e.toxico}`); // M-255
       if ((e.perde || []).length) partes.push(`perde ${e.perde.map(k => PALAVRA_PT[String(k).toLowerCase()] || k).join(' e ')}`); // CR2d.7
+      if (e.cores != null) partes.unshift(descreveCores(e.cores, e.somaCores)); // CR2d.8
       if (e.torna) partes.unshift(descreveTorna(e.torna)); // CR2-G R3c
       const quem = e.target === 'self-source' ? 'esta criatura' : alvo || 'a criatura';
       return `${quem} ${partes.join(' e ')} ${duracaoPT(e.ate)}`;
