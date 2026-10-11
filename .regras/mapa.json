@@ -5234,12 +5234,18 @@
    "n": "614.11",
    "regra": "Replacement Effects",
    "titulo": "Substituição de compra",
-   "status": "ausente",
-   "falta": "draw() (:10314) move a carta direto, sem ponto de substituição (dragar, \"em vez de comprar\"); 614.11a-b dependem disso. Com grimório vazio a função retorna antes de qualquer checagem.",
+   "status": "parcial",
+   "falta": "dragar (702.52, trilha keywords), 'em vez de comprar, olhe/ponha' (Underrealm Lich), escolha da ordem pelo afetado (o motor aplica a vitória antes do desvio)",
    "esforco": "M",
    "depende": [
     "614.1",
     "121"
+   ],
+   "evidencia": "M-309 (CR2e.3): draw() passa por quemCompra — self.substituiCompra: grimório vazio → vence (Laboratory Maniac) e compra do oponente desviada para você exceto a primeira do passo de compra dele (Notion Thief), cada efeito uma vez por compra",
+   "testes": [
+    "CR 614.11 · Laboratory Maniac: comprar com o grimório vazio vence o jogo em vez de perder (sem ela, perde)",
+    "CR 614.11 · Notion Thief: compra extra do oponente vira compra sua; a primeira do passo de compra dele não",
+    "CR 614.11 · ruling: um Notion Thief de cada lado — quem ia comprar compra (cada efeito vale uma vez)"
    ]
   },
   {

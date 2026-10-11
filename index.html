@@ -5987,6 +5987,10 @@ function validateScript(sc) {
     if (self.keywords != null && (!Array.isArray(self.keywords) || self.keywords.some(k => !KEYWORDS.includes(k)))) errs.push('bônus próprio: palavra-chave desconhecida');
     if (self.evasion && !EVASIONS.includes(self.evasion)) errs.push(`evasão "${self.evasion}" desconhecida`);
     if (self.entersWithCounters != null && !Number.isInteger(self.entersWithCounters)) errs.push('marcadores de entrada precisam ser inteiros');
+    if (self.substituiCompra != null) { // CR2e.3 · 614.11: "se você fosse comprar com o grimório vazio, você vence" / "se um oponente fosse comprar, você compra"
+      if (!Array.isArray(self.substituiCompra) || !self.substituiCompra.length || self.substituiCompra.some(x => !x || !((x.seVazia === 'vence' && Object.keys(x).length === 1) || (x.oponente === 'voce-compra' && (x.exceto == null || x.exceto === 'primeira-do-passo') && Object.keys(x).every(k => k === 'oponente' || k === 'exceto')))))
+        errs.push('bônus próprio: substituiCompra é [{ seVazia: "vence" }] ou [{ oponente: "voce-compra", exceto?: "primeira-do-passo" }]');
+    }
     if (self.multiplica != null) { // CR2e.2 · 614.16: "cria o dobro de fichas" / "põe o dobro de marcadores" / "esse número mais um"
       if (!Array.isArray(self.multiplica) || !self.multiplica.length) errs.push('bônus próprio: multiplica precisa ser uma lista');
       else for (const m of self.multiplica) {
@@ -6288,6 +6292,9 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // CR2e.3 · 614.11 · substituição de compra (texto oficial em .listas/oficiais-motor.json, mtg.wtf e grimoria.app, 2026-10-11)
+  { name: 'Laboratory Maniac', self: { substituiCompra: [{ seVazia: 'vence' }] }, example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Notion Thief', self: { substituiCompra: [{ oponente: 'voce-compra', exceto: 'primeira-do-passo' }] }, example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // CR2g.2 · 500.7 · turnos extras (texto oficial em .listas/oficiais-motor.json, mtg.wtf, 2026-10-11)
   { name: 'Time Warp', effects: [{ do: 'turno_extra', target: 'player' }], example: { target: 'self-player', expect: { extraTurn: 1 } } },
   { name: 'Temporal Manipulation', effects: [{ do: 'turno_extra' }], example: { target: 'none', expect: { extraTurn: 1 } } },
@@ -14522,6 +14529,11 @@ const __m42 = (function () {
     'creature you control': 'creatures-you-control', 'other creature you control': 'other-creatures-you-control', 'elf you control': 'elves-you-control', 'elf on the battlefield': 'elves-on-battlefield',
     'permanent you control': 'permanents-you-control', 'nonland permanent you control': 'nonland-permanents-you-control', 'creature with defender you control': 'defenders-you-control' };
   const contagem = t => CONTAGENS[String(t).toLowerCase().trim()];
+  /** CR2e.3 · 614.11 · substituição de compra. */
+  const SUBST_COMPRA = [
+    [/^if you would draw a card while your library has no cards in it, you win the game instead$/i, { seVazia: 'vence' }],
+    [/^if an opponent would draw a card except the first one they draw in each of their draw steps, instead that player skips that draw and you draw a card$/i, { oponente: 'voce-compra', exceto: 'primeira-do-passo' }]
+  ];
   /** CR2e.2 · 614.16 · substituição na criação de fichas e na colocação de marcadores. */
   const MULTIPLICA = [
     [/^if an effect would create one or more tokens under your control, it creates twice that many of those tokens instead$/i, { evento: 'fichas', modo: 'dobro' }],
@@ -14626,6 +14638,8 @@ const __m42 = (function () {
         if (pe && contagem(pe[3])) { topo.self = { ...(topo.self || {}), perPower: SINAL(pe[1]), perToughness: SINAL(pe[2]), per: contagem(pe[3]) }; frases.push({ texto: linha, lida: true }); continue; }
         if (/^~ can't be blocked except by creatures with flying$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'flying-only' }; frases.push({ texto: linha, lida: true }); continue; } // LT5
         if (/^creatures with power less than ~'s power can't block it$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'power-less' }; frases.push({ texto: linha, lida: true }); continue; } // LT5
+        const sc = SUBST_COMPRA.find(([re]) => re.test(lp)); // CR2e.3 · 614.11
+        if (sc) { topo.self = { ...(topo.self || {}), substituiCompra: [...((topo.self || {}).substituiCompra || []), sc[1]] }; frases.push({ texto: linha, lida: true }); continue; }
         const mu = MULTIPLICA.find(([re]) => re.test(lp)); // CR2e.2 · 614.16
         if (mu) { topo.self = { ...(topo.self || {}), multiplica: [...((topo.self || {}).multiplica || []), mu[1]] }; frases.push({ texto: linha, lida: true }); continue; }
         if (/^(this land|this creature|~) enters(?: the battlefield)? tapped$/i.test(lp)) { topo.entersTapped = true; frases.push({ texto: linha, lida: true }); continue; }
@@ -15359,10 +15373,30 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
 }
 /** M-262 · algum oponente de `p` controla uma permanente que limita as compras dele a uma por turno? */
 const limiteDeCompra = (s, p) => battlefield(s).some(o => o.controller !== p && !o.faceDown && !semImpressas(s, o) && (((s.facts[o.name] || {}).script || {}).self || {}).oponentesCompramUma);
-function draw(s, p, n = 1) {
-  if (s.players[p].dummy) return;
+/** CR2e.3 · 614.11 · substituições de compra das permanentes no campo (sem as viradas para baixo ou sem habilidades). */
+function substituicoesDeCompra(s, filtro) {
+  const out = [];
+  for (const o of battlefield(s)) if (!semImpressas(s, o)) for (const x of ((((s.facts[o.name] || {}).script || {}).self || {}).substituiCompra || [])) if (filtro(o, x)) out.push(o);
+  return out;
+}
+/** Quem de fato compra a carta que `p` compraria: Notion Thief do oponente desvia (exceto a primeira do passo de compra dele), e cada
+    efeito vale uma vez por compra (ruling: com um Notion Thief de cada lado, quem ia comprar compra). Devolve { quem, vence }. */
+function quemCompra(s, p, primeiraDoPasso) {
+  let quem = p; const usadas = new Set();
+  for (let g = 0; g < 8; g++) {
+    if (!s.zones[quem].library.length && substituicoesDeCompra(s, (o, x) => o.controller === quem && x.seVazia === 'vence').length) return { quem, vence: true }; // Laboratory Maniac (616.1: o motor aplica antes do desvio, a favor de quem compra)
+    const ladrao = substituicoesDeCompra(s, (o, x) => o.controller !== quem && x.oponente === 'voce-compra' && !usadas.has(o.oid) && !(x.exceto === 'primeira-do-passo' && primeiraDoPasso && quem === p))[0];
+    if (!ladrao) break;
+    usadas.add(ladrao.oid); quem = ladrao.controller;
+  }
+  return { quem, vence: false };
+}
+function draw(s, p0, n = 1, { primeiraDoPasso = false } = {}) {
+  if (s.players[p0].dummy) return;
   for (let k = 0; k < n; k++) {
-    if ((s.players[p].drawnThisTurn || 0) >= 1 && limiteDeCompra(s, p)) return; // M-262 · Narset: "Each opponent can't draw more than one card each turn"
+    if ((s.players[p0].drawnThisTurn || 0) >= 1 && limiteDeCompra(s, p0)) return; // M-262 · Narset: "Each opponent can't draw more than one card each turn"
+    const qc = quemCompra(s, p0, primeiraDoPasso && k === 0), p = qc.quem; // CR2e.3 · 614.11
+    if (qc.vence) { for (const [i, pl] of s.players.entries()) if (i !== p && !pl.lost) pl.derrotadoPor = p; return; } // "you win the game instead": a compra foi substituída
     const lib = s.zones[p].library;
     if (!lib.length) { s.players[p].drewFromEmpty = true; return; }
     moveObject(s, lib[0], 'hand');
@@ -16152,7 +16186,7 @@ function enterStep(s, step) {
   if (step === 'main1') sagasNaPrincipal(s); // T-1 · CR 714.3c / 703.4f · marcador de lore em cada Saga do jogador ativo, antes da prioridade (função abaixo da âncora T das exportações)
   if (step === 'draw') {
     const skip = s.turn.firstTurn && s.players.length === 2; // 103.8a
-    if (!skip) draw(s, a, 1);
+    if (!skip) draw(s, a, 1, { primeiraDoPasso: true }); // CR2e.3 · a compra do turno é a primeira do passo de compra
   }
   if (step === 'combat_attackers') {
     s.combat = { attackers: [], defender: nextAlive(s, a) };
@@ -18656,6 +18690,7 @@ function stateBased(s, events) {
       let why = null;
       if (pl.life <= 0) why = 'vida';
       else if (pl.drewFromEmpty) why = 'grimório vazio';
+      else if (pl.derrotadoPor != null) why = 'o oponente venceu o jogo'; // CR2e.3 · 104.2a / Laboratory Maniac
       else if (s.format === 'commander' && Object.values(pl.commanderDamage).some(d => d >= FORMAT_RULES.commander.commanderDamage)) why = 'dano de comandante';
       else if ((pl.poison || 0) >= 10) why = 'veneno'; // M-253 · 704.5c
       if (why) { pl.lost = true; pl.lossReason = pl.lossReason === 'desistência' ? pl.lossReason : why; changed = true; events.push({ kind: 'lost', p: i, reason: why }); removePlayer(s, i); }

@@ -3662,6 +3662,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Conferido correto pelo revisor:** volta imediata sem pilha por qualquer saída da fonte, controle do dono, ficha exilada some, dois Banidores independentes; lealdade dobrada ao entrar e custo não dobrado; −1/−1 dobrado; dobrador do oponente; ficha-cópia; ×4/×8; ordem dos turnos extras em três cenários; "até o seu próximo turno" no turno extra; sequência de fases com duas Relentless Assault; desvirar só quem atacou (objeto novo fica virado); gatilho de ataque em cada combate.
 - **Teste:** `auditoria.cr2dge.unit` (3 testes, falham antes da correção).
 
+**M-309 · CR2e.3 · Substituição de compra (614.11)** ✅ (leva M-309, motor v110 sem mudança de forma; goldens intactos) — Laboratory Maniac e Notion Thief jogam no modo completo.
+- **Valor:** a compra passa a ter um ponto de substituição. Laboratory Maniac: comprar com o grimório vazio **vence o jogo** em vez de perder. Notion Thief: toda compra do oponente que não seja a primeira do passo de compra dele vira compra sua ("compre duas" do oponente dá duas cartas a você); com um Notion Thief de cada lado, quem ia comprar compra (ruling: cada efeito vale uma vez). Permanente virada para baixo ou sem habilidades não substitui.
+- **Script:** `self.substituiCompra: [{ seVazia: 'vence' } | { oponente: 'voce-compra', exceto?: 'primeira-do-passo' }]`, validado; a compra do turno é marcada como a primeira do passo. Leitor lê as duas frases (73 lidas, zero divergência). Texto oficial em `.listas/oficiais-motor.json` (mtg.wtf e grimoria.app, 11/10/2026).
+- **Simplificação declarada (616.1):** com as duas juntas, a ordem é do afetado; o motor aplica a vitória antes do desvio. "Você não pode vencer" (Angel's Grace) não existe no motor.
+- **Fora (mapa 614.11 parcial):** dragar (trilha keywords), "em vez de comprar, olhe…" (Underrealm Lich).
+- **Teste:** `compra.substituicao.unit` (3 testes; os dois primeiros falham antes).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
