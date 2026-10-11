@@ -3642,6 +3642,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (mapa 614.16 parcial):** triplo e outras quantidades, troca do tipo de ficha, criação do Exército do amass.
 - **Teste:** `multiplica.unit` (6 testes, todos falham no v109).
 
+**M-306 · CR2g.2 · Turnos extras (500.7)** ✅ (leva M-306, motor v109: só acrescenta um verbo; goldens intactos) — Time Warp e Temporal Manipulation jogam no modo completo.
+- **Valor:** "(Target player) takes an extra turn after this one" funciona: o turno extra entra logo depois do atual; com vários no mesmo turno, o criado por último é jogado primeiro (ruling de 2022-12-08); depois do extra, a ordem normal continua de onde estava (o oponente que recebeu um extra joga dois turnos seguidos); quem saiu do jogo perde o extra.
+- **Script:** `{ do: 'turno_extra', target?: 'player' }`; cenário S8 `extraTurn`; registro e pilha explicada em português. Leitor: lê as duas frases (70 cartas lidas, zero divergência). Texto oficial em `.listas/oficiais-motor.json` (mtg.wtf, 11/10/2026).
+- **Teste:** `turnos.extras.unit` (3 testes, falham no v109). Mapa: 500.7 coberta.
+- **Fora:** fases e passos extras (500.8–500.10) e pular (500.11) — próximas levas da CR2g.
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

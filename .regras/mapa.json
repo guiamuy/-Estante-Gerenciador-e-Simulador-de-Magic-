@@ -3536,10 +3536,14 @@
    "n": "500.7",
    "regra": "General",
    "titulo": "Turnos extras",
-   "status": "ausente",
-   "falta": "finishCleanup sempre passa o turno ao próximo vivo (index.html:10724); não há fila de turnos extras (Time Walk, Nexus of Fate etc.).",
-   "esforco": "M",
-   "cartas": "comum"
+   "status": "coberta",
+   "cartas": "comum",
+   "evidencia": "M-306 (CR2g.2): verbo turno_extra; pilha s.turnosExtras (o criado por último primeiro), pulando quem saiu do jogo; depois do extra a ordem segue de quem jogou o último turno normal (proximoTurno)",
+   "testes": [
+    "CR 500.7 · Temporal Manipulation: quem conjurou joga o turno seguinte de novo; depois a vez volta ao oponente",
+    "CR 500.7 · Time Warp mira qualquer jogador: dado ao oponente, B joga dois turnos seguidos",
+    "CR 500.7 · dois turnos extras no mesmo turno: o criado por último é jogado primeiro (B, depois A)"
+   ]
   },
   {
    "n": "500.8",
