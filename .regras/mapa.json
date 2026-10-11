@@ -6138,10 +6138,14 @@
    "n": "701.39",
    "regra": "Keyword Actions",
    "titulo": "Bolster",
-   "status": "ausente",
-   "falta": "não há \"escolha a sua criatura de menor resistência e ponha N marcadores\"",
-   "esforco": "P",
-   "cartas": "rara"
+   "status": "coberta",
+   "cartas": "rara",
+   "evidencia": "V-3 · efeito `bolster` (fortalecer em core.js, abaixo da âncora ↓ V): N marcadores +1/+1 na criatura de menor resistência entre as que quem controla o efeito controla, pela resistência de agora; não mira (resistência a magia não impede); com empate o jogador escolhe entre as empatadas (decisão pick obrigatória), com uma candidata é automático; sem criatura nada acontece. Carta: Cached Defenses (.listas/oficiais-verbos.json)",
+   "testes": [
+    "CR 701.39 · fortalecer: os marcadores vão na sua criatura de menor resistência, sem alvo e sem pergunta quando só há uma",
+    "CR 701.39 · fortalecer: com empate na menor resistência, quem controla escolhe entre as empatadas (e só entre elas)",
+    "CR 701.39 · fortalecer: vale a resistência de agora (marcadores contam), funciona em criatura com resistência a magia, e sem criatura nada acontece"
+   ]
   },
   {
    "n": "701.40",
@@ -6160,10 +6164,13 @@
    "n": "701.41",
    "regra": "Keyword Actions",
    "titulo": "Support",
-   "status": "ausente",
-   "falta": "não há \"até N criaturas alvo recebem um marcador\" (counters aceita um alvo só)",
-   "esforco": "P",
-   "cartas": "rara"
+   "status": "coberta",
+   "cartas": "rara",
+   "evidencia": "V-3 · apoiar N escreve-se com o vocabulário que o motor já tinha: `{ do: 'counters', amount: 1, target: 'creature', upTo: true, targetCount: N }` na mágica e `target: { tipos: ['creature'], outra: true }` na permanente (\"other target creatures\"); até N alvos distintos, zero inclusive, de qualquer jogador. Carta: Shoulder to Shoulder (.listas/oficiais-verbos.json)",
+   "testes": [
+    "CR 701.41 · apoiar N numa mágica: um marcador +1/+1 em cada uma de até N criaturas alvo — zero, uma ou duas, suas ou não, nunca a mesma duas vezes",
+    "CR 701.41 · apoiar N numa permanente: \"each of up to N other target creatures\" — a própria fonte não é alvo"
+   ]
   },
   {
    "n": "701.42",

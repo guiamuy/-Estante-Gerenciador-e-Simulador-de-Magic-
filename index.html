@@ -5350,6 +5350,7 @@ const EFFECTS = {
   draw_free_cast: { fields: ['amount'], targets: ['self'] },
   /* ↓ K · efeitos da trilha keywords */
   /* ↓ V · efeitos da trilha verbos */
+  bolster: { fields: ['amount'], targets: ['self'] }, // V-3 · 701.39 fortalecer N: marcadores na sua criatura de menor resistência (empate: você escolhe)
   proliferate: { fields: [], targets: ['self'] }, // V-2 · 701.34 proliferar: quem controla escolhe quantas permanentes e jogadores com marcador quiser
   // V-1 · 701.14 lutar. `lutador` só escolhe quem luta ("Target creature you control fights…"); `fight` mira a outra e faz a luta.
   lutador: { fields: [], targets: ['creature', 'creature-you-control'] },
@@ -6159,6 +6160,9 @@ function effectErrors(effects, label, opcional) {
   });
   /* ↓ K · validação da trilha keywords */
   /* ↓ V · validação da trilha verbos */
+  effects.forEach((e, i) => { // V-3 · 701.39: fortalecer pode abrir escolha (empate); o que vem depois não pode ter alvo próprio
+    if (e.do === 'bolster' && effects.slice(i + 1).some(isTargeted)) errs.push(`${label} ${i + 1} (bolster): efeito com alvo depois de uma escolha`);
+  });
   effects.forEach((e, i) => { // V-2 · 701.34: proliferar abre escolhas; o que vem depois não pode ter alvo próprio (mesma regra dos efeitos com escolha)
     if (e.do === 'proliferate' && effects.slice(i + 1).some(isTargeted)) errs.push(`${label} ${i + 1} (proliferate): efeito com alvo depois de uma escolha`);
   });
@@ -6207,6 +6211,11 @@ const isTargeted = e => TARGETED.has(e.target) || (!!e.target && typeof e.target
 const RAW_SCRIPTS = [
   /* ↓ K · scripts de carta da trilha keywords (texto oficial em .listas/oficiais-keywords.json) */
   /* ↓ V · scripts de carta da trilha verbos (texto oficial em .listas/oficiais-verbos.json) */
+  // V-3 · 701.39 fortalecer e 701.41 apoiar
+  { name: 'Cached Defenses', effects: [{ do: 'bolster', amount: 3 }], // "Bolster 3."
+    example: { target: 'none', expect: { handDelta: 0 } } },
+  { name: 'Shoulder to Shoulder', effects: [{ do: 'counters', amount: 1, target: 'creature', upTo: true, targetCount: 2 }, { do: 'draw', amount: 1 }], // "Support 2. (Put a +1/+1 counter on each of up to two target creatures.) Draw a card."
+    example: { target: 'own-creature', expect: { stats: [3, 3] } } },
   // V-2 · 701.34 proliferar
   { name: 'Steady Progress', effects: [{ do: 'proliferate' }, { do: 'draw', amount: 1 }], // "Proliferate. Draw a card."
     example: { target: 'none', expect: { handDelta: 1 } } },
@@ -17377,6 +17386,7 @@ function applyEffect(s, src, eff, tgt, events) {
     }
     /* ↓ K · casos de applyEffect da trilha keywords */
     /* ↓ V · casos de applyEffect da trilha verbos */
+    case 'bolster': fortalecer(s, src, eff, events); break; // V-3 · 701.39
     case 'proliferate': proliferar(s, src, events); break; // V-2 · 701.34
     case 'proliferate_jogador': if (s.proliferar && !s.proliferar.jogadores.includes(eff.jogador)) s.proliferar.jogadores.push(eff.jogador); break; // V-2 · o "sim" da pergunta por jogador
     case 'lutador': break; // V-1 · só escolhe quem luta; a luta é o `fight` seguinte
@@ -19994,6 +20004,18 @@ function metamorfoK(s, o, sub) {
 function coresImpressasK(kw, cores) { return (kw || []).includes('devoid') ? [] : cores; }
 Object.assign(EXPORTS_K, { metamorfoK, ehTipoDeCriaturaK });
 /* ↓ V · exportações de core.js da trilha verbos */
+/* V-3 · 701.39 fortalecer N: "Choose a creature you control with the least toughness or tied for least toughness among creatures you
+   control. Put N +1/+1 counters on that creature." Não mira (sem alvo, sem salvaguarda); a resistência é a de agora; com empate quem
+   controla escolhe (decisão pick, uma carta, obrigatória), com uma candidata só é automático; sem criatura, nada acontece. */
+function fortalecer(s, src, eff, events) {
+  const p = src.controller, n = amountOf(s, src, eff.amount);
+  const minhas = battlefield(s).filter(o => o.controller === p && isCreature(s, o));
+  if (!minhas.length || !(n > 0)) { events.push({ kind: 'effect', do: 'bolster', name: src.name, target: s.players[p].name, amount: 0 }); return; }
+  const menor = Math.min(...minhas.map(o => toughness(s, o))), cands = minhas.filter(o => toughness(s, o) === menor);
+  if (cands.length === 1) { addCounters(s, cands[0], n); events.push({ kind: 'effect', do: 'counters', name: cands[0].name, target: cands[0].name, amount: n }); return; }
+  startPick(s, { p, from: cands.map(o => o.oid), min: 1, max: 1, to: 'stay', rest: 'stay', label: 'fortalecer', source: `${src.name} — fortalecer ${n}`, onPicked: { counters: n } }, events);
+}
+Object.assign(EXPORTS_V, { fortalecer });
 /* V-2 · passos de um verbo. Uma ação de palavra-chave com mais de uma escolha (proliferar: permanentes, depois cada jogador) enfileira
    os passos em `s.verbo`; cada escolha concluída chama resumeEffects, que primeiro anda esta fila e só depois retoma a mágica.
    Sem passos na fila nada muda. Devolve true quando um passo abriu outra decisão. */
@@ -22481,6 +22503,7 @@ const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas
   lutador: e => `escolhe ${ALVO_PT[e.target] || descreveAlvo(e.target)} para lutar`,
   proliferate: () => 'prolifera (escolhe permanentes e jogadores com marcador; cada um recebe mais um de cada tipo que já tem)', // V-2
   proliferate_jogador: () => 'esse jogador recebe mais um marcador de veneno',
+  bolster: e => `fortalece ${qtd(e.amount)} (põe ${qtd(e.amount) === 1 ? '1 marcador' : qtd(e.amount) + ' marcadores'} +1/+1 na sua criatura de menor resistência)`, // V-3
   fight: e => `${e.quem === 'self-source' ? 'esta criatura luta' : 'ela luta'} com ${ALVO_PT[e.target] || descreveAlvo(e.target)} (cada uma causa dano igual ao próprio poder à outra)`,
 };
 /* ↓ T · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha tipos */

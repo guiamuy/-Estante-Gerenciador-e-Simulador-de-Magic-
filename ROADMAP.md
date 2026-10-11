@@ -3681,6 +3681,15 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Testes:** `verbos.proliferar.unit` (6), cenário S8 das duas cartas.
 - **Simplificado, declarado:** o piloto automático e o Shark confirmam sem escolher nada (não proliferam); a resposta do Shark fica para a integração (trilha `bot`).
 
+**V-3 · CR3 · Fortalecer (701.39) e apoiar (701.41)** 🟡 (leva V-3, motor v109 sem subir: só acrescenta ações; partidas-referência idênticas) — as duas passam de ausentes a cobertas.
+- **Valor:** "Bolster N" põe os marcadores na sua criatura de menor resistência; se duas empatam, a mesa pergunta qual. "Support N" põe um marcador em cada uma de até N criaturas alvo.
+- **Fortalecer, regra inteira:** não mira (vale em criatura com resistência a magia); a resistência é a de agora; empate → o jogador escolhe só entre as empatadas, e a escolha é obrigatória; uma candidata → automático; sem criatura → nada.
+- **Apoiar, regra inteira:** já cabia no vocabulário — `counters` com `upTo` e `targetCount: N`; na permanente, o alvo é "outra criatura" (`{ tipos: ['creature'], outra: true }`). Zero alvos é válido e a mágica ainda resolve; a mesma criatura não entra duas vezes.
+- **Cartas (texto oficial em `.listas/oficiais-verbos.json`, Oracle do Forge, 11/10/2026; segunda fonte pendente — mtg.wtf recusou por limite de taxa):** Cached Defenses, Shoulder to Shoulder.
+- **Mesa:** nenhuma decisão de tipo novo (o empate usa `pick`; os alvos, o caminho de alvos). Mesmo pedido de título da V-2 para a escolha do fortalecer.
+- **Testes:** `verbos.fortalecer.unit` (5), cenário S8 das duas cartas.
+- **Fora:** Honor's Reward (texto integral não conferido nesta leva).
+
 **CR4 · Habilidades de palavra-chave (702)** ○ — 150 ausentes e 21 parciais, em ondas pela frequência em cartas anotada no mapa: (1) fechar as evergreen e as parciais; (2) "muito comum" (proeza, tripular, reforço, convocar, cascata, evocar, persistir, imortal, fração de segundo, infectar e tóxico…); (3) "comum"; (4) "rara" e "uma coleção só". 50 a 65 levas.
 
 **CR4 · andamento (trilha `keywords`, levas `K-N`)** ▶ — ordem de 11/10/2026: primeiro as palavras-chave do acervo que o medidor do leitor (LT6) acusa fora do vocabulário, depois a onda 1 (proeza, convocar, cascata, evocar, persistir, imortal, exaltado, explorar, arremeter, improvisar, recomeçar, pós-vida, evoluir), a onda 2 (completar as parciais), a 3 (raras, da mais citada à menos) e a 4 (o resto de 702, com o que fica fora declarado no mapa). Auditoria independente por subagente ao fim de cada onda. Palavra-chave com parâmetro ("Ward {3}", "Kicker {B}", "Crew 1") também depende de o leitor ler a forma: isso é da trilha `motor` (leitor), avisada a cada leva.
