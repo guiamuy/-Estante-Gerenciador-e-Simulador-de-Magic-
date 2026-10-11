@@ -3675,6 +3675,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Achados pelo fuzz (viraram teste antes da correção):** (1) "colher provas" oferecia **Confirmar** antes de somar o valor de mana pedido, e o motor recusava (oferta ≠ aceite, Vitu-Ghazi Inspector × Faeries); agora só oferece com a soma. (2) A invariante "parado em passo sem prioridade" acusava a prioridade legítima na limpeza (514.3a: insanidade do descarte na limpeza, Rakdos Madness × Bogles); agora aceita a limpeza com prioridade quando há ação a fazer.
 - **Teste:** `listas.fuzz` (9 testes).
 
+**M-311 · CR2b.7 · Gatilhos "sempre que você ganha vida" (119.9)** ✅ (leva M-311, motor v110 sem mudança de forma; goldens intactos) — Ajani's Pridemate, Sanguine Bond e Epicure of Blood jogam no modo completo.
+- **Valor:** todo ganho de vida (mágica, habilidade, vínculo vital) dispara "whenever you gain life" uma vez por evento, qualquer que seja a quantidade, e o valor viaja com o gatilho ("target opponent loses that much life"). No combate, cada criatura com vínculo vital é um evento (duas acertando juntas: Pridemate +2) e uma criatura causando dano a vários recebedores (atropelar sobre o bloqueador) é um evento só — rulings da Pridemate e da Sanguine Bond. "Não pode ganhar vida" não dispara nada.
+- **Script:** `when: 'you-gain-life'` (evento de jogador `ganha-vida`); leitor lê "Whenever you gain life, …" e "loses that much life". Texto oficial em `.listas/oficiais-motor.json` (mtg.wtf, 11/10/2026).
+- **Fora:** "sempre que um oponente ganha/perde vida" (Exquisite Blood; o laço com Sanguine Bond pede a regra de laço obrigatório, 104.4b).
+- **Teste:** `vida.gatilhos.unit` (4 testes, falham no v110 anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

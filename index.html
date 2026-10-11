@@ -5676,6 +5676,8 @@ const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield
   'enchanted-damages-opponent', 'you-discard',
   // CR2b.5 · passos: o seu passo final, cada manutenção (de qualquer jogador), início do combate no seu turno
   'end-step', 'each-upkeep', 'begin-combat',
+  // CR2b.7 · 119.9 · "whenever you gain life" (uma vez por evento de ganho de vida)
+  'you-gain-life',
   /* ↓ K · gatilhos da trilha keywords */
   /* ↓ V · gatilhos da trilha verbos */
   'becomes-monstrous', // V-6 · "When ~ becomes monstrous" (o valor do gatilho é o N da monstruosidade, 701.37c)
@@ -5704,7 +5706,7 @@ const PASSOS_DO_GATILHO = ['upkeep', 'draw', 'main1', 'combat_begin', 'combat_en
 /* CR2-G R2c · os oito últimos nomes: descartar e comprar (de um jogador), sacrificar outra, receber marcadores, receber dano,
  * causar dano (`a`: qualquer/jogador/oponente) e virar — com a Aura ou o Equipamento observando a permanente anexada. */
 const EVENTOS_DE_OBJETO = ['conjurar', 'ataca', 'bloqueia', 'dano-combate', 'marcadores', 'recebe-dano', 'causa-dano', 'vira', 'sacrifica'];
-const EVENTOS_DE_JOGADOR = ['descarta', 'compra'];
+const EVENTOS_DE_JOGADOR = ['descarta', 'compra', 'ganha-vida']; // CR2b.7 · 119.9
 /** M-258 · 603.2c · evento em lote: "whenever one or more <criaturas suas> deal damage to your opponents" dispara uma vez por golpe simultâneo. */
 const EVENTOS_DE_LOTE = ['causam-dano'];
 /** De quem o gatilho observa o evento, por evento (o primeiro é o padrão). */
@@ -5725,6 +5727,7 @@ const GATILHO_EVENTO = {
   'combat-damage': { evento: 'dano-combate', objeto: 'self' },
   'you-discard': { evento: 'descarta', quem: 'voce' },
   'third-draw': { evento: 'compra', n: 3, quem: 'voce' },
+  'you-gain-life': { evento: 'ganha-vida', quem: 'voce' }, // CR2b.7
   'other-sacrificed': { evento: 'sacrifica', objeto: 'outra', quem: 'voce' },
   'counters-added': { evento: 'marcadores', objeto: 'self' },
   'dealt-damage': { evento: 'recebe-dano', objeto: 'self' },
@@ -5741,7 +5744,7 @@ const falaDe = (d, evento) => !!d && (Array.isArray(d.evento) ? d.evento.include
 /** O descritor de zona de um gatilho; null se não for de zona. */
 const gatilhoDeZona = w => { const d = gatilhoDoEvento(w); return d && d.evento === 'zona' ? d : null; };
 const CHAVES_DO_EVENTO = { zona: ['evento', 'de', 'para', 'objeto', 'quem', 'donoVoce'], passo: ['evento', 'passo', 'turno'],
-  descarta: ['evento', 'quem'], compra: ['evento', 'n', 'quem'], 'causam-dano': ['evento', 'a'], 'recebe-dano': ['evento', 'objeto'], vira: ['evento', 'objeto'], 'causa-dano': ['evento', 'objeto', 'a'] };
+  descarta: ['evento', 'quem'], compra: ['evento', 'n', 'quem'], 'ganha-vida': ['evento', 'quem'], 'causam-dano': ['evento', 'a'], 'recebe-dano': ['evento', 'objeto'], vira: ['evento', 'objeto'], 'causa-dano': ['evento', 'objeto', 'a'] };
 for (const e of EVENTOS_DE_OBJETO) CHAVES_DO_EVENTO[e] = CHAVES_DO_EVENTO[e] || ['evento', 'objeto', 'quem', 'donoVoce'];
 function gatilhoErros(w, tag) {
   if (typeof w === 'string') return TRIGGERS.includes(w) ? [] : [`${tag}: gatilho "${w}" desconhecido`];
@@ -5831,7 +5834,7 @@ const STATIC_RULES = ['flagbearer', 'exile-instead-of-graveyard', 'opponent-crea
 const TRIGGER_PT = { etb: 'quando entra no campo', dies: 'quando morre', upkeep: 'na sua manutenção', attacks: 'quando ataca', blocks: 'quando bloqueia',
   'other-etb': 'quando outra criatura sua entra', 'other-dies': 'quando outra criatura sua morre',
   'combat-damage': 'quando causa dano de combate a um jogador', 'end-step': 'no início do seu passo final', 'each-upkeep': 'no início de cada manutenção', 'begin-combat': 'no início do combate no seu turno',
-  'enchanted-damages-opponent': 'quando a criatura encantada causa dano a um oponente', 'you-discard': 'quando você descarta uma carta', 'dealt-damage': 'quando recebe dano', 'attached-dies': 'quando a criatura anexada morre', 'attached-dies-or-exiled': 'quando a permanente encantada morre ou é exilada',
+  'enchanted-damages-opponent': 'quando a criatura encantada causa dano a um oponente', 'you-discard': 'quando você descarta uma carta', 'you-gain-life': 'sempre que você ganha vida', 'dealt-damage': 'quando recebe dano', 'attached-dies': 'quando a criatura anexada morre', 'attached-dies-or-exiled': 'quando a permanente encantada morre ou é exilada',
   'other-sacrificed': 'quando você sacrifica outra permanente',
   'leaves-battlefield': 'quando sai do campo de batalha', 'other-leaves-battlefield': 'quando outra criatura sua sai do campo', 'enchanted-deals-damage': 'quando a criatura encantada causa dano',
   'counters-added': 'quando recebe marcadores +1/+1', 'third-draw': 'quando você compra a terceira carta do turno',
@@ -6394,6 +6397,10 @@ const RAW_SCRIPTS = [
   { name: 'Revoke Privileges', aura: { enchant: 'creature' }, self: { anexadaNaoTripula: true }, covers: 'partial',
     note: 'vale o "não pode tripular Veículos" (702.122d); falta "a criatura encantada não pode atacar nem bloquear": restrição de ataque e bloqueio dada por Aura (508.1c, 509.1b) ainda não existe no motor',
     example: { action: 'aura', target: 'own-creature', expect: { attached: true } } },
+  // CR2b.7 · 119.9 · gatilhos de ganho de vida (texto oficial em .listas/oficiais-motor.json, mtg.wtf, 2026-10-11)
+  { name: "Ajani's Pridemate", abilities: [{ kind: 'triggered', when: 'you-gain-life', effects: [{ do: 'counters', amount: 1, target: 'self-source' }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Sanguine Bond', abilities: [{ kind: 'triggered', when: 'you-gain-life', effects: [{ do: 'lose', amount: { per: 'trigger-value' }, target: 'opponent' }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Epicure of Blood', abilities: [{ kind: 'triggered', when: 'you-gain-life', effects: [{ do: 'lose', amount: 1, target: 'each-opponent' }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // CR2e.3 · 614.11 · substituição de compra (texto oficial em .listas/oficiais-motor.json, mtg.wtf e grimoria.app, 2026-10-11)
   { name: 'Laboratory Maniac', self: { substituiCompra: [{ seVazia: 'vence' }] }, example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Notion Thief', self: { substituiCompra: [{ oponente: 'voce-compra', exceto: 'primeira-do-passo' }] }, example: { action: 'etb', target: 'none', expect: { attached: false } } },
@@ -14701,6 +14708,7 @@ const __m42 = (function () {
     [/^target player takes an extra turn after this one$/i, () => [{ do: 'turno_extra', target: 'player' }]], // CR2g.2 · 500.7
     [/^take an extra turn after this one$/i, () => [{ do: 'turno_extra' }]],
     [/^untap all creatures that attacked this turn$/i, () => [{ do: 'desvira_atacantes' }]], // CR2g.4
+    [/^(target opponent|each opponent) loses that much life$/i, m => [com({ do: 'lose', amount: { per: 'trigger-value' } }, alvo(m[1]))]], // CR2b.7 · "that much": o valor do gatilho
     [/^after this main phase, there is an additional combat phase followed by an additional main phase$/i, () => [{ do: 'combate_extra' }]], // LT5 · o "then shuffle" da busca: o motor embaralha ao fim dela
     [new RegExp(`^create ${N} (\\d+/\\d+) ((?:white|blue|black|red|green|colorless)(?: and (?:white|blue|black|red|green))?) ${TIPO_CRIATURA} creature tokens?(?: with ([a-z ,]+))?$`), m => ficha(m[1], m[2], m[3], m[4], m[5])]
   ];
@@ -14726,6 +14734,7 @@ const __m42 = (function () {
     [/^whenever enchanted creature deals damage$/i, 'enchanted-deals-damage'],
     [/^whenever enchanted creature deals damage to an opponent$/i, 'enchanted-damages-opponent'],
     [/^whenever another creature enters(?: the battlefield)? under your control$/i, 'other-etb'],
+    [/^whenever you gain life$/i, 'you-gain-life'], // CR2b.7 · 119.9
     [/^when enchanted creature becomes tapped or is dealt damage$/i, 'enchanted-tapped-or-damaged']
   ];
   const CONTAGENS = { 'enchantment you control': 'enchantments-you-control', 'other enchantment on the battlefield': 'other-enchantments', 'aura on the battlefield': 'auras-on-battlefield',
@@ -16329,7 +16338,7 @@ function gatilhosDeJogador(s, evento, p, n) {
   const ordem = [p, ...s.players.map((_, i) => i).filter(i => i !== p)];
   for (const q of ordem) {
     // descarte: o campo na ordem de sempre (battlefield), uma passada só; compra: cemitério e campo de cada jogador
-    if (evento === 'descarta' && q !== p) break;
+    if ((evento === 'descarta' || evento === 'ganha-vida') && q !== p) break; // CR2b.7 · ganho de vida: o campo uma vez só
     const lugares = evento === 'compra' ? [...s.zones[q].graveyard, ...s.zones[q].battlefield] : battlefield(s).map(w => w.oid);
     for (const oid of lugares) {
       const w = s.objects[oid]; if (!w || isAbility(w) || !s.facts[w.name]) continue;
@@ -16339,7 +16348,7 @@ function gatilhosDeJogador(s, evento, p, n) {
         if (!SC.falaDe(d, evento) || (evento === 'compra' && d.n !== n) || !quemCasa(d, c, p)) continue;
         if (w.zone === 'graveyard' && !ab.fromGraveyard) continue; // S33 · do cemitério só o que diz que funciona de lá
         if (!triggerConditionMet(s, w, ab.condition)) continue;
-        s.queued.push({ source: w.oid, name: w.name, controller: c, effects: ab.effects, when: ab.when, ...((d.quem || 'voce') !== 'voce' ? { jogador: p } : {}), ...marcasDaHabilidade(ab) });
+        s.queued.push({ source: w.oid, name: w.name, controller: c, effects: ab.effects, when: ab.when, ...((d.quem || 'voce') !== 'voce' ? { jogador: p } : {}), ...(evento === 'ganha-vida' ? { value: n } : {}), ...marcasDaHabilidade(ab) });
       }
     }
   }
@@ -16600,6 +16609,7 @@ function dealCombatDamage(s) {
     // simultâneo: aplica tudo depois de calcular
     if (s.fogged && !s.noPrevention) { s.combat.damageDone = true; return; } // S29 · Fog, salvo se a prevenção foi cancelada
     const golpesEmJogador = []; // M-258 · o dano de combate é simultâneo: um lote só
+    const vinculo = new Map(); // CR2b.7 · vínculo vital: um evento de ganho por fonte, somando o dano a todos os recebedores
     for (let [src, obj, player, amt, ehPw] of hits) {
       // CR2-G R5b · prevenção num caminho só (S30 cor; S11b prevenção e proteção, Leva 106: Flaring Pain vale para a proteção)
       amt = danoSubstituido(s, src, obj ? { obj } : { player }, amt, true); // CR2-G R5d · "causa N a mais / o dobro" vem antes da prevenção
@@ -16612,10 +16622,11 @@ function dealCombatDamage(s) {
         darVeneno(s, player, toxicoDe(s, src), null, src.name); // M-253 · 702.164c: dano de combate a jogador com tóxico dá veneno
         if (src.commander) s.players[player].commanderDamage[src.oid] = (s.players[player].commanderDamage[src.oid] || 0) + amt;
       }
-      if (has(s, src, 'lifelink')) ganhaVidaJogador(s, src.controller, amt); // CR2d.10
+      if (has(s, src, 'lifelink')) vinculo.set(src.oid, { quem: src.controller, n: ((vinculo.get(src.oid) || {}).n || 0) + amt }); // CR2d.10 · CR2b.7
       noteEnchantedDealt(s, src, amt, obj ? null : player); // S48 · Armadillo Cloak: a aura de quem causou o dano é avisada
       if (player != null && !obj) disparaEvento(s, 'dano-combate', [src]); // S18 · dano de combate ao jogador
     }
+    for (const v of vinculo.values()) ganhaVidaJogador(s, v.quem, v.n); // CR2b.7 · um ganho por criatura com vínculo vital
     disparaLoteDeDano(s, golpesEmJogador); // M-258
     for (const [src] of hits) src.struck = true;
     c.passosFeitos = [...(c.passosFeitos || []), pass]; for (const oid of c.attackers) if (s.objects[oid]) delete s.objects[oid].divisaoDano; // CR2g.2 · a escolha vale para este passo
@@ -18816,7 +18827,9 @@ const semLimiteDeMao = (s, p) => regrasDoJogador(s, p).some(e => e.semLimiteDeMa
 /** CR2d.10 · 119.7: todo ganho de vida passa por aqui; quem não pode ganhar vida não ganha (o evento que ganharia não acontece). */
 function ganhaVidaJogador(s, p, n) {
   if (!(n > 0) || !s.players[p] || naoGanhaVida(s, p)) return 0;
-  s.players[p].life += n; s.players[p].lifeGained = (s.players[p].lifeGained || 0) + n; return n;
+  s.players[p].life += n; s.players[p].lifeGained = (s.players[p].lifeGained || 0) + n;
+  gatilhosDeJogador(s, 'ganha-vida', p, n); // CR2b.7 · 119.9: cada ganho de vida é um evento (o valor viaja: "that much life")
+  return n;
 }
 const vidaAcimaDaInicial = (s, p, n) => s.players[p].life >= (s.players[p].startLife != null ? s.players[p].startLife : ((FORMAT_RULES[s.format] || {}).life || 20)) + n;
 const canPayAbility = (s, p, source, ab) => {

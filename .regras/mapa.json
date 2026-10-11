@@ -1491,10 +1491,15 @@
    "n": "119.9",
    "regra": "Life",
    "titulo": "Gatilhos \"sempre que você ganha vida\"",
-   "status": "ausente",
-   "falta": "TRIGGERS (index.html:4534) não tem gatilho de ganho de vida; só existe o contador lifeGained do turno para condições e contagens. Ganhar 0 ainda passa pelo código de ganho.",
-   "esforco": "M",
-   "cartas": "comum (Ajani's Pridemate, Sanguine Bond, Epicure of Blood)"
+   "status": "coberta",
+   "cartas": "comum (Ajani's Pridemate, Sanguine Bond, Epicure of Blood)",
+   "evidencia": "M-311 (CR2b.7): gatilho you-gain-life (evento de jogador ganha-vida), um disparo por evento, com o valor (\"that much\"); no combate, um evento por criatura com vínculo vital somando todos os recebedores",
+   "testes": [
+    "CR 119.9 · ganhar 3 de vida: Pridemate ganha um marcador (um evento), Sanguine Bond faz o oponente perder 3, Epicure faz perder 1",
+    "CR 119.9 · ruling: dois atacantes com vínculo vital acertando juntos = dois eventos (Pridemate +2)",
+    "CR 119.9 · ruling: uma criatura com vínculo vital e atropelar causando dano ao bloqueador e ao jogador ao mesmo tempo = um evento (Pridemate +1)",
+    "CR 119.9 · sem ganho de vida (efeito \"não pode ganhar vida\"), nada dispara"
+   ]
   },
   {
    "n": "119.10",
