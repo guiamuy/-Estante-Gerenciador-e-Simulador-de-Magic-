@@ -5387,6 +5387,7 @@ const EFFECTS = {
   lutador: { fields: [], targets: ['creature', 'creature-you-control'] },
   fight: { fields: [], targets: ['creature', 'creature-opponent-controls', 'creature-you-control'] }, // quem: 'self-source' (a permanente fonte luta) | 'primeiro-alvo' (luta a criatura anotada pelo `lutador` anterior)
   /* ↓ T · efeitos da trilha tipos */
+  tripulada: { fields: [], targets: ['self'] }, // T-3 · CR 702.122e · último efeito da habilidade de tripular de um Veículo com "Whenever ~ becomes crewed": avisa que a habilidade de tripular resolveu
 };
 /** S57 · masmorras: o caminho, as salas e o que cada sala faz.
     Texto das salas conferido em 26/09/2026 (mtg.wtf, lista de cartas de masmorra).
@@ -5671,6 +5672,7 @@ const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield
   /* ↓ V · gatilhos da trilha verbos */
   'becomes-monstrous', // V-6 · "When ~ becomes monstrous" (o valor do gatilho é o N da monstruosidade, 701.37c)
   /* ↓ T · gatilhos da trilha tipos */
+  'crews', 'becomes-crewed', // T-3 · CR 702.122b "Whenever ~ crews a Vehicle" (o Veículo é o `remembered` do gatilho) e 702.122e "Whenever ~ becomes crewed" (o valor do gatilho é o número de criaturas que tripularam)
   'chapter', // T-1 · CR 714.2 · habilidade de capítulo de Saga: { kind: 'triggered', when: 'chapter', chapters: [1, 2], effects } (o motor a dispara pelos marcadores de lore)
 ];
 /** CR2-G R2a · 603.6 · gatilho de mudança de zona como um evento só: de onde (`de`), para onde (`para`), quem muda
@@ -6040,7 +6042,7 @@ function validateScript(sc) {
   if (sc && sc.replicate != null && sc.kicker) errs.push('replicar e reforço na mesma carta não são aceitos (os dois usam o pagamento repetido)');
   if (sc && sc.modeCount != null && !(Number.isInteger(sc.modeCount) && sc.modeCount >= 2 && (sc.modes || []).length && (sc.modeRepeat || sc.modeCount <= sc.modes.length))) errs.push('número de modos inválido');
   if (sc && sc.cumulativeUpkeep && !/\{/.test(String(sc.cumulativeUpkeep.mana || ''))) errs.push('manutenção cumulativa precisa de um custo de mana');
-  errs.push(...sagaErros(sc)); // T-1 · CR 714 · Saga: capítulos, read ahead e o marcador de entrada (função abaixo da âncora T das exportações)
+  errs.push(...sagaErros(sc), ...tripularErros(sc)); // T-3 · CR 702.122 · tripular (mesma chamada da T-1) // T-1 · CR 714 · Saga: capítulos, read ahead e o marcador de entrada (função abaixo da âncora T das exportações)
   return errs.concat(exampleErrors(sc));
 }
 const ATRASOS = ['next-upkeep', 'next-end-step', 'end-of-combat']; // CR2b.1 · momentos de gatilho atrasado que o motor conhece
@@ -6335,6 +6337,22 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-3 · CR 702.122 · tripular (Oracle do Forge, clone de 11/10/2026). O Veículo escreve a habilidade de tripular como ativada de custo
+  // { crew: N }; com "becomes crewed", o último efeito dela é `tripulada`. "Crews a Vehicle" é o gatilho `crews` da criatura, e
+  // "that Vehicle" é o alvo `remembered`. Voar, iniciativa e ímpeto vêm do texto da carta. Cenário S8 de verdade em tipos.veiculos.unit.
+  { name: 'Mobilizer Mech', abilities: [
+    { kind: 'triggered', when: 'becomes-crewed', effects: [{ do: 'continuo', target: { tipos: ['artifact'], subtipos: ['Vehicle'], de: 'you', outra: true }, upTo: true, torna: { tipos: ['artifact', 'creature'], somaTipos: true } }] },
+    { kind: 'activated', label: 'Tripular 3', cost: { crew: 3 }, effects: [{ do: 'animate', target: 'self-source', becomes: { types: ['artifact', 'creature'], addTypes: true } }, { do: 'tripulada' }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Gearshift Ace', abilities: [{ kind: 'triggered', when: 'crews', effects: [{ do: 'keyword', keyword: 'first strike', target: 'remembered' }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Speedway Fanatic', abilities: [{ kind: 'triggered', when: 'crews', effects: [{ do: 'keyword', keyword: 'haste', target: 'remembered' }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Veteran Motorist', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'scry', amount: 2 }] },
+    { kind: 'triggered', when: 'crews', effects: [{ do: 'pump', power: 1, toughness: 1, target: 'remembered' }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Hotshot Mechanic', self: { tripulaMais: 2 }, example: { action: 'etb', target: 'none', expect: { attached: false } } }, // "crews Vehicles as though its power were 2 greater"
+  { name: 'Giant Ox', self: { tripulaPela: 'resistencia' }, example: { action: 'etb', target: 'none', expect: { attached: false } } }, // "crews Vehicles using its toughness rather than its power"
+  { name: 'Revoke Privileges', aura: { enchant: 'creature' }, self: { anexadaNaoTripula: true }, covers: 'partial',
+    note: 'vale o "não pode tripular Veículos" (702.122d); falta "a criatura encantada não pode atacar nem bloquear": restrição de ataque e bloqueio dada por Aura (508.1c, 509.1b) ainda não existe no motor',
+    example: { action: 'aura', target: 'own-creature', expect: { attached: true } } },
   // CR2e.3 · 614.11 · substituição de compra (texto oficial em .listas/oficiais-motor.json, mtg.wtf e grimoria.app, 2026-10-11)
   { name: 'Laboratory Maniac', self: { substituiCompra: [{ seVazia: 'vence' }] }, example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Notion Thief', self: { substituiCompra: [{ oponente: 'voce-compra', exceto: 'primeira-do-passo' }] }, example: { action: 'etb', target: 'none', expect: { attached: false } } },
@@ -7580,6 +7598,31 @@ function palavraNaLinhaK(k) { return ['afterlife'].includes(k) ? `${k} \\d+` : k
 // V-6 · evento "ficou monstruosa" (701.37): da própria permanente
 EVENTOS_DE_OBJETO.push('monstruosa'); OBJETOS_DO_EVENTO.monstruosa = ['self']; GATILHO_EVENTO['becomes-monstrous'] = { evento: 'monstruosa', objeto: 'self' }; TRIGGER_PT['becomes-monstrous'] = 'quando fica monstruosa';
 /* ↓ T · exportações de scripts.js da trilha tipos */
+/* ---------------- T-3 · CR 702.122 · tripular (forma do script) ----------------
+   Tripular é a habilidade ativada de custo `{ crew: N }` (CR2d.3). Esta leva acrescenta:
+   - `self.tripulaMais: N` ("crews Vehicles as though its power were N greater"), `self.suasTripulamMais: N` ("each creature you
+     control crews Vehicles … as though its power were N greater"), `self.tripulaPela: 'resistencia'` ("crews Vehicles using its
+     toughness rather than its power"), `self.naoTripula: true` e, numa Aura ou Equipamento, `self.anexadaNaoTripula: true` (702.122d);
+   - gatilho `crews` (702.122b) na criatura e `becomes-crewed` (702.122e) no Veículo; este exige `{ do: 'tripulada' }` como último
+     efeito da habilidade de tripular. */
+function tripularErros(sc) {
+  const errs = [], self = (sc && sc.self) || {}, abs = (sc && sc.abilities) || [];
+  for (const k of ['tripulaMais', 'suasTripulamMais']) if (self[k] != null && !(Number.isInteger(self[k]) && self[k] > 0)) errs.push(`tripular: self.${k} precisa ser um inteiro positivo`);
+  if (self.tripulaPela != null && self.tripulaPela !== 'resistencia') errs.push("tripular: self.tripulaPela só conhece 'resistencia'");
+  for (const k of ['naoTripula', 'anexadaNaoTripula']) if (self[k] != null && self[k] !== true) errs.push(`tripular: self.${k} só vale como true`);
+  if (self.anexadaNaoTripula && !(sc.aura || sc.equip)) errs.push('tripular: self.anexadaNaoTripula só vale em Aura ou Equipamento');
+  const deTripular = abs.filter(ab => ab && ab.kind === 'activated' && ab.cost && ab.cost.crew != null);
+  abs.forEach((ab, i) => { const efs = (ab && ab.effects) || [], k = efs.findIndex(e => e && e.do === 'tripulada');
+    if (k >= 0 && !(deTripular.includes(ab) && k === efs.length - 1)) errs.push(`habilidade ${i + 1}: "tripulada" só vale como último efeito de uma habilidade de tripular (custo crew)`); });
+  if (abs.some(ab => ab && ab.kind === 'triggered' && ab.when === 'becomes-crewed') && !(deTripular.length && deTripular.every(ab => (ab.effects || []).some(e => e.do === 'tripulada'))))
+    errs.push('gatilho "becomes-crewed" precisa de uma habilidade de tripular (custo crew) terminada em { do: \'tripulada\' } (702.122e)');
+  return errs;
+}
+// evento "tripulou um Veículo" (702.122b), da criatura; evento "ficou tripulado" (702.122e), do Veículo
+EVENTOS_DE_OBJETO.push('tripula', 'tripulada'); OBJETOS_DO_EVENTO.tripula = ['self']; OBJETOS_DO_EVENTO.tripulada = ['self'];
+GATILHO_EVENTO['crews'] = { evento: 'tripula', objeto: 'self' }; GATILHO_EVENTO['becomes-crewed'] = { evento: 'tripulada', objeto: 'self' };
+TRIGGER_PT['crews'] = 'quando tripula um Veículo'; TRIGGER_PT['becomes-crewed'] = 'quando fica tripulado';
+Object.assign(EXPORTS_T_SC, { tripularErros });
 /* ---------------- T-1 · CR 714 · Sagas (forma do script) ----------------
    Capítulo = habilidade disparada `{ kind: 'triggered', when: 'chapter', chapters: [N…], effects | modes }` (714.2b; "I, II —" são
    dois capítulos com o mesmo efeito, 714.2c). Sem read ahead, o script declara a substituição de entrada
@@ -17695,6 +17738,7 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'lutador': if (obj) s.lutadorV = { fonte: src.oid, fz: encarnacaoV(s, src), oid: obj.oid, z: obj.zc || 0 }; break; // V-1/V-5 · anota quem luta; a luta é o `fight` seguinte, que apaga a anotação
     case 'fight': lutar(s, src, eff, tgt, events); break; // V-1 · 701.14
     /* ↓ T · casos de applyEffect da trilha tipos */
+    case 'tripulada': tripulada(s, src, events); break; // T-3 · CR 702.122e · a habilidade de tripular resolveu: "Whenever ~ becomes crewed"
     case 'untap': { const alvo = eff.target === 'enchanted' ? criaturaEncantada(s, src) : eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj; if (alvo) alvo.tapped = false; note({}); break; }
     default: break;
   }
@@ -18506,6 +18550,7 @@ function pagamentosDe(s, p, cost, selfOid) {
 const comPagamento = pay => (pay && Object.keys(pay).length ? { pay } : {});
 function payExtraCosts(s, p, cost, pay, selfOid) {
   if (cost.pagarVida != null) { if (s.players[p].life < cost.pagarVida) throw new RuleError('custo', 'vida insuficiente'); perdeVida(s, p, cost.pagarVida); } // K-2 · salvaguarda com vida
+  if (cost.crew != null) cost = pagaTripulacaoT(s, p, cost, pay, selfOid); // T-3 · CR 702.122a–d · paga a tripulação (qualquer grupo que some N), anota quem tripulou e dispara "crews a Vehicle"; devolve o custo sem a parte de tripular (função abaixo da âncora T das exportações)
   if (cost.crew != null) { // CR2d.3 · tripular: confere e vira as escolhidas
     const lista = (pay && pay.crew) || formasDeTripular(s, p, cost.crew, selfOid)[0] || [];
     const ok = lista.every(x => { const o = s.objects[x]; return o && o.zone === 'battlefield' && o.controller === p && x !== selfOid && !o.tapped && isCreature(s, o); }) && new Set(lista).size === lista.length;
@@ -18568,6 +18613,7 @@ function payExtraCosts(s, p, cost, pay, selfOid) {
 /** CR2d.3 · 702.122a "Crew N": vire qualquer número de OUTRAS criaturas desviradas suas com poder total N ou mais.
  * A mesa oferece os grupos mínimos (sem tripulante sobrando); criatura com enjoo pode tripular (não é habilidade {T} dela). */
 function formasDeTripular(s, p, n, selfOid) {
+  if (formasDeTripularT) return formasDeTripularT(s, p, n, selfOid); // T-3 · CR 702.122a/d · quem pode tripular e com que força ("não pode tripular", "como se o poder fosse N maior", "pela resistência"); função abaixo da âncora T das exportações
   const cands = battlefield(s).filter(o => o.controller === p && o.oid !== selfOid && !o.tapped && isCreature(s, o)).map(o => ({ oid: o.oid, f: Math.max(0, power(s, o)) }))
     .sort((a, b) => b.f - a.f || (a.oid < b.oid ? -1 : 1));
   const out = [];
@@ -19594,6 +19640,31 @@ const HANDLERS = {
   /* ↓ K · ações (HANDLERS) da trilha keywords */
   /* ↓ V · ações (HANDLERS) da trilha verbos */
   /* ↓ T · ações (HANDLERS) da trilha tipos */
+  /** T-3 · CR 702.122a · "vire qualquer número de outras criaturas": abre a escolha de quem tripula, criatura a criatura (os grupos
+   * mínimos continuam oferecidos direto em `activate`). Nada é pago até `tripular_pronto`. */
+  tripular(s, a) {
+    noPending(s); holder(s, a.p);
+    const o = onField(s, a.oid); if (o.controller !== a.p) throw new RuleError('objeto', 'a permanente não é sua');
+    const ab = abilitiesOf(s, o).filter(x => x.kind === 'activated')[a.index || 0];
+    if (!soTripular(ab)) throw new RuleError('habilidade', 'essa habilidade não é de tripular');
+    const formas = formasDeTripularT(s, a.p, ab.cost.crew, o.oid);
+    if (!formas.length) throw new RuleError('custo', `vire criaturas suas com poder total ${ab.cost.crew} ou mais`);
+    HANDLERS.activate(cloneEstado(s), { t: 'activate', p: a.p, oid: o.oid, index: a.index || 0, pay: { crew: formas[0] } }, []); // a ativação precisa ser legal agora (tempo, fração de segundo): ensaio numa cópia
+    s.pending = { kind: 'tripular', p: a.p, oid: o.oid, index: a.index || 0, n: ab.cost.crew, name: o.name, escolhidas: [] };
+  },
+  tripulante(s, a) {
+    const pd = s.pending;
+    if (!pd || pd.kind !== 'tripular' || pd.p !== a.p) throw new RuleError('tempo', 'nenhum Veículo esperando a tripulação');
+    if (pd.escolhidas.includes(a.oid) || !candidatosATripular(s, a.p, pd.oid).includes(a.oid)) throw new RuleError('custo', 'essa criatura não pode tripular agora');
+    pd.escolhidas.push(a.oid);
+  },
+  tripular_pronto(s, a, ev) {
+    const pd = s.pending;
+    if (!pd || pd.kind !== 'tripular' || pd.p !== a.p) throw new RuleError('tempo', 'nenhum Veículo esperando a tripulação');
+    if (forcaDoGrupo(s, pd.escolhidas) < pd.n) throw new RuleError('custo', `vire criaturas suas com poder total ${pd.n} ou mais`);
+    s.pending = null;
+    HANDLERS.activate(s, { t: 'activate', p: a.p, oid: pd.oid, index: pd.index, pay: { crew: pd.escolhidas.slice() } }, ev);
+  },
   /** T-1 · CR 714.3b · read ahead: o controlador escolhe o capítulo; a Saga fica com esse número de marcadores de lore. */
   saga_capitulo(s, a, ev) {
     const pd = s.pending;
@@ -20139,6 +20210,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
   /* ↓ K · ofertas de legalActions da trilha keywords (out.push) */
   /* ↓ V · ofertas de legalActions da trilha verbos (out.push) */
   /* ↓ T · ofertas de legalActions da trilha tipos (out.push) */
+  tripularOfertas(s, p, out); // T-3 · CR 702.122a · "qualquer número de outras criaturas": além dos grupos mínimos, a escolha de quem tripula (função abaixo da âncora T das exportações)
   return out;
   })());
 }
@@ -20852,7 +20924,7 @@ function sagasNaLimpeza(s) {
   s.turn.passes = 0; s.turn.priority = s.turn.active; return true;
 }
 /** T-2 · 714.3b · outra ação com a escolha do capítulo aberta: a recusa fala da decisão certa. */
-function sagaRecusa(k) { if (k === 'saga_capitulo') throw new RuleError('pendente', 'escolha o capítulo da Saga primeiro'); }
+function sagaRecusa(k) { if (k === 'saga_capitulo') throw new RuleError('pendente', 'escolha o capítulo da Saga primeiro'); if (k === 'tripular') throw new RuleError('pendente', 'escolha quem tripula o Veículo primeiro'); } // T-3 · a mesma chamada serve às decisões da trilha tipos
 /** 714.3b · abre a escolha do read ahead de quem entrou; 714.2b · rede de segurança do disparo (T-2: o disparo de verdade é no
  * ato de pôr o marcador, em `sagaMarcou`); e o aviso, no registro, do marcador que a ação de turno pôs. */
 function sagaConfere(s, events) {
@@ -20901,8 +20973,113 @@ function sagasNaPrincipal(s) {
 /** 714.3b · ofertas da decisão pendente: um capítulo por ação. */
 function sagaOfertas(s, p, out) {
   if (s.pending && s.pending.kind === 'saga_capitulo' && s.pending.p === p) for (let n = 1; n <= s.pending.max; n++) out.push({ t: 'saga_capitulo', p, n, label: 'Capítulo ' + (ROMANOS[n] || n) });
+  tripularPendentes(s, p, out); // T-3 · CR 702.122a · a mesma chamada serve às decisões da trilha tipos
 }
 PENDING_ACTIONS.saga_capitulo = ['saga_capitulo', 'concede'];
+/* ---------------- T-3 · CR 702.122 · tripular (com 301.7 e 208.3a) ----------------
+   A habilidade de tripular é a ativada de custo `{ crew: N }` do script (CR2d.3: vira criatura artefato até o fim do turno, com o
+   P/T impresso — 301.7a–b). Esta leva completa a regra:
+   - 702.122a · "qualquer número de OUTRAS criaturas desviradas suas com poder total N ou mais": os grupos mínimos continuam
+     oferecidos em `activate` (um toque); para virar criatura a mais de propósito, a ação `tripular` abre a decisão pendente
+     `tripular` — `tripulante` (uma criatura por vez) e `tripular_pronto` quando a soma chega a N. Nada é pago antes do "pronto";
+     a ativação de verdade é o `activate` de sempre, com `pay.crew` = as escolhidas. Só para habilidade cujo custo é só tripular.
+   - 702.122b · cada criatura virada para pagar "tripula o Veículo": o gatilho `crews` dela dispara no pagamento e leva o Veículo
+     como `lembrada` ("that Vehicle" = alvo `remembered`). Resolve antes da habilidade de tripular, com o Veículo ainda sem ser
+     criatura: o efeito contínuo é criado assim mesmo e vale quando ele virar criatura (208.3a, exemplo do Veteran Motorist).
+   - 702.122c · "tripulado por": `tripulantesDe(s, veiculo)` = quem foi virada para pagar a tripulação dele NESTE turno, somando
+     as ativações (o registro leva o turno e a encarnação do Veículo; não precisa de limpeza).
+   - 702.122d · "não pode tripular Veículos": fora dos candidatos, dos grupos oferecidos e do pagamento.
+   - 702.122e · "fica tripulado" = uma habilidade de tripular DELE resolve (efeito `tripulada`, o último da habilidade): dispara
+     `becomes-crewed`, com o número de criaturas viradas para pagar AQUELA ativação como valor do gatilho (`trigger-value`).
+   - força de tripular: poder (nunca menos que 0), ou resistência com `tripulaPela`, mais `tripulaMais` dela e `suasTripulamMais`
+     das permanentes do controlador. Permanente virada para baixo ou sem as habilidades impressas não conta nem concede. */
+const selfT = (s, o) => (o && !o.faceDown && s.facts[o.name] && !semImpressas(s, o) ? ((scriptOf(s, o) || {}).self || {}) : {});
+/** 702.122d · a criatura não pode tripular: dito por ela mesma ou por quem está anexado a ela. */
+const naoTripula = (s, o) => !!selfT(s, o).naoTripula || attachedTo(s, o).some(x => !!selfT(s, x).anexadaNaoTripula);
+/** Com quanto a criatura conta para a soma de "poder total N ou mais". */
+function forcaDeTripular(s, o) {
+  const eu = selfT(s, o), base = eu.tripulaPela === 'resistencia' ? toughness(s, o) : power(s, o);
+  let mais = eu.tripulaMais || 0;
+  for (const x of battlefield(s)) if (x.controller === o.controller) mais += selfT(s, x).suasTripulamMais || 0;
+  return Math.max(0, base + mais);
+}
+const forcaDoGrupo = (s, lista) => lista.reduce((n, x) => n + forcaDeTripular(s, s.objects[x]), 0);
+/** 702.122a · quem pode ser virada para tripular o Veículo `selfOid`: outra criatura desvirada de `p` (enjoo não impede: o custo
+ * não é o {T} dela), que possa tripular (702.122d). Um Veículo que já é criatura pode tripular outro. */
+const candidatosATripular = (s, p, selfOid) => battlefield(s).filter(o => o.controller === p && o.oid !== selfOid && !o.tapped && isCreature(s, o) && !naoTripula(s, o)).map(o => o.oid);
+/** Os grupos mínimos (nenhum tripulante sobrando), na mesma ordem de antes: é o que `activate` oferece direto. */
+function formasDeTripularT(s, p, n, selfOid) {
+  const cands = candidatosATripular(s, p, selfOid).map(oid => ({ oid, f: forcaDeTripular(s, s.objects[oid]) })).sort((a, b) => b.f - a.f || (a.oid < b.oid ? -1 : 1));
+  const out = [];
+  (function busca(i, escolhidos, soma) {
+    if (out.length >= LIMITE_PAGAMENTOS) return;
+    if (soma >= n && escolhidos.length) { if (escolhidos.every(x => soma - x.f < n)) out.push(escolhidos.map(x => x.oid)); return; }
+    if (n <= 0 && !escolhidos.length) { out.push([]); return; }
+    for (let j = i; j < cands.length && escolhidos.length < 5; j++) busca(j + 1, escolhidos.concat([cands[j]]), soma + cands[j].f);
+  })(0, [], 0);
+  return out;
+}
+/** 702.122c · as criaturas que tripularam este Veículo neste turno (a mesma encarnação dele). */
+function tripulantesDe(s, v) { const t = v && v.tripulantes; return t && t.turno === s.turn.number && t.z === (v.zc || 0) ? t.oids.slice() : []; }
+/** Paga a parte "tripular" do custo: confere o grupo (qualquer um que some N), vira as criaturas juntas, anota quem tripulou
+ * (702.122c) e dispara "tripula um Veículo" de cada uma (702.122b). Devolve o custo sem a parte de tripular. */
+function pagaTripulacaoT(s, p, cost, pay, selfOid) {
+  const n = cost.crew, lista = (pay && pay.crew) || formasDeTripularT(s, p, n, selfOid)[0] || [], cands = candidatosATripular(s, p, selfOid);
+  if (!Array.isArray(lista) || new Set(lista).size !== lista.length || !lista.every(x => cands.includes(x)) || forcaDoGrupo(s, lista) < n) throw new RuleError('custo', `vire criaturas suas com poder total ${n} ou mais`);
+  for (const x of lista) { const o = s.objects[x]; noteEnchantedEvent(s, o); o.tapped = true; }
+  const v = s.objects[selfOid];
+  if (v) {
+    v.crewedBy = lista.slice(); // CR2d.3 · o grupo da última ativação (campo de antes)
+    v.tripulantes = { turno: s.turn.number, z: v.zc || 0, oids: [...new Set(tripulantesDe(s, v).concat(lista))] };
+    // 702.122e · o grupo desta ativação viaja com a habilidade que vai à pilha em seguida (makeAbility dá a ela o próximo número)
+    const vivos = {}; for (const k of Object.keys(s.tripulou || {})) if (s.stack.includes(k)) vivos[k] = s.tripulou[k];
+    vivos['ab' + s.nextAbility] = lista.slice(); s.tripulou = vivos;
+    for (const x of lista) { const de = s.queued.length; gatilhosDaPermanente(s, 'tripula', s.objects[x], ['self'], {}, () => true, false);
+      for (let i = de; i < s.queued.length; i++) s.queued[i].lembrada = { oid: v.oid, z: v.zc || 0 }; } // "that Vehicle"
+  }
+  const { crew, ...resto } = cost; return resto;
+}
+/** 702.122e · a habilidade de tripular resolveu: se o Veículo ainda é o mesmo no campo, "fica tripulado". */
+function tripulada(s, src, events) {
+  const v = src.ability ? s.objects[src.source] : src, grupo = (s.tripulou || {})[src.oid] || [];
+  if (s.tripulou) { delete s.tripulou[src.oid]; if (!Object.keys(s.tripulou).length) delete s.tripulou; }
+  if (!v || v.zone !== 'battlefield') return;
+  events.push({ kind: 'effect', do: 'tripulada', name: v.name, target: v.name, amount: grupo.length });
+  gatilhosDaPermanente(s, 'tripulada', v, ['self'], { value: grupo.length }, () => true, false);
+}
+/** A escolha de quem tripula só existe para a habilidade cujo custo é só tripular e que não mira (a "Crew N" impressa). */
+const soTripular = ab => !!ab && ab.kind === 'activated' && !!ab.cost && Number.isInteger(ab.cost.crew) && Object.keys(ab.cost).every(k => k === 'crew') && !(ab.effects || []).some(SC.isTargeted);
+/** 702.122a · oferta da escolha livre de quem tripula: só quando existe grupo além dos mínimos (alguma criatura sobrando). */
+function tripularOfertas(s, p, out) {
+  if (s.pending || fracaoDeSegundo(s)) return;
+  const vistos = new Set();
+  for (const a of out.slice()) {
+    if (a.t !== 'activate' || a.fromHand || !a.pay || !Array.isArray(a.pay.crew)) continue;
+    const k = a.oid + ':' + (a.index || 0); if (vistos.has(k)) continue; vistos.add(k);
+    const o = s.objects[a.oid], ab = o && abilitiesOf(s, o).filter(x => x.kind === 'activated')[a.index || 0];
+    if (!soTripular(ab)) continue;
+    const menor = Math.min(...out.filter(x => x.t === 'activate' && x.oid === a.oid && (x.index || 0) === (a.index || 0) && x.pay && Array.isArray(x.pay.crew)).map(x => x.pay.crew.length));
+    if (candidatosATripular(s, p, a.oid).length > menor) out.push({ t: 'tripular', p, oid: a.oid, index: a.index || 0 });
+  }
+}
+/** As ações da decisão pendente `tripular`: "pronto" primeiro, quando a soma já chega; depois cada criatura que ainda pode entrar. */
+function tripularPendentes(s, p, out) {
+  const pd = s.pending; if (!pd || pd.kind !== 'tripular' || pd.p !== p) return;
+  if (forcaDoGrupo(s, pd.escolhidas) >= pd.n) out.push({ t: 'tripular_pronto', p });
+  for (const oid of candidatosATripular(s, p, pd.oid)) if (!pd.escolhidas.includes(oid)) out.push({ t: 'tripulante', p, oid });
+}
+PENDING_ACTIONS.tripular = ['tripulante', 'tripular_pronto', 'concede'];
+/** Para a mesa: o resumo da decisão pendente (nome, soma, quem falta) e a resposta de quem joga sem humano (goldfish). */
+function tripulacaoPendente(s) {
+  const pd = s.pending; if (!pd || pd.kind !== 'tripular') return null;
+  const soma = forcaDoGrupo(s, pd.escolhidas);
+  return { nome: pd.name, n: pd.n, soma, pronto: soma >= pd.n, escolhidas: pd.escolhidas.map(x => s.objects[x].name),
+    candidatos: candidatosATripular(s, pd.p, pd.oid).filter(x => !pd.escolhidas.includes(x)).map(oid => ({ oid, nome: s.objects[oid].name, forca: forcaDeTripular(s, s.objects[oid]) })) };
+}
+const tripulacaoPadrao = s => { const out = []; tripularPendentes(s, s.pending.p, out); return out[0] || { t: 'concede', p: s.pending.p }; };
+/** Para a folha da carta na mesa: as ações da trilha tipos que não são `activate`, com o rótulo do botão. */
+const acoesDeTipos = (s, p, oid) => legalActions(s, p).filter(a => a.t === 'tripular' && a.oid === oid).map(action => ({ label: 'Escolher quem tripula', action }));
+Object.assign(EXPORTS_T, { forcaDeTripular, candidatosATripular, tripulantesDe, tripulacaoPendente, tripulacaoPadrao, acoesDeTipos });
 Object.assign(EXPORTS_T, { capitulosDe, capituloFinal, capituloPendente, ROMANOS });
 return { ...EXPORTS_K, ...EXPORTS_V, ...EXPORTS_T, ENGINE_VERSION, effectAllowed, eligibleBlockers, abilitiesOf, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, moveObject, seriaDestruida, danoSubstituido, danoAposPrevencao, prevencaoLegado, destinoSubstituido, destinoLegado, entradaModificada, entradaLegado, applyEffect, aplicaPorJogador, sacrificioLegado, moverObjeto, moverLegado, mutacao, mutacaoLegado, hasLegado, bonusLegado, continuosQueAfetam, aplicaTemporario, statsLegado: (s, o) => ({ power: powerLegado(s, o), toughness: toughnessLegado(s, o) }), sombraDosGatilhos, gatilhosDeZona, gatilhosDeZonaLegado, gatilhosDoObjeto, gatilhosDoPasso, enterStep, disparaEvento, noteDiscard, noteEnchantedDealt, noteDamaged, noteEnchantedEvent, addCounters, sacrifice, draw, sweepTargets, sweepTargetsLegado, targetable,
   stats: (s, o) => ({ power: power(s, o), toughness: toughness(s, o) }), hasKeyword: has, bonus, isCreature, tiposDe, pwsAtacaveis, exigePw, productions, protections, prevented, canBlock,
@@ -22587,6 +22764,9 @@ function describe(before, a, events, after) {
       L.push(a.yes ? `${P} levou ${o ? o.name : 'o comandante'} para a zona de comando` : `${P} deixou ${o ? o.name : 'o comandante'} ${onde}`); break; }
     // Leva 131 · escolha de modo: o que foi escolhido, ou que preferiu não fazer
     case 'saga_capitulo': L.push(`${P} começou ${(before.pending || {}).name || 'a Saga'} no capítulo ${['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'][a.n] || a.n}`); break; // T-1 · CR 714.3b
+    case 'tripular': L.push(`${P} vai escolher quem tripula ${nameOf(before, a.oid)}`); break; // T-3 · CR 702.122a
+    case 'tripulante': L.push(`${P} escolheu ${nameOf(before, a.oid)} para tripular`); break;
+    case 'tripular_pronto': { const pd = before.pending || {}; L.push(`${P} tripulou ${pd.name || 'o Veículo'} com ${(pd.escolhidas || []).map(x => nameOf(before, x)).join(' + ') || 'ninguém'}`); break; }
     case 'dividir_dano': { const op = ((before.pending || {}).opcoes || [])[a.index]; L.push(`${P} dividiu o dano de ${nameOf(before, (before.pending || {}).oid)}: ${op ? op.rotulo : '?'}`); break; } // CR2g.2
     case 'choose_mode': { const pd = before.pending || {}; const alvo = pd.naResolucao && before.objects[pd.naResolucao.oid] ? before.objects[pd.naResolucao.oid].name : null;
       L.push(a.decline ? `${P} preferiu não usar o efeito de ${pd.name || 'o gatilho'}` : `${P} escolheu ${String((pd.options || [])[a.index || 0] || 'um modo').toLowerCase()}${alvo ? ' ' + alvo : ''} (${pd.name || 'gatilho'})`); break; }
@@ -22820,6 +23000,7 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
           : pd.kind === 'choose_room' ? { t: 'choose_room', p: pd.p, index: 0 }
           : pd.kind === 'topo_fundo' ? { t: 'topo_fundo', p: pd.p, topo: true } // M-264
           : pd.kind === 'saga_capitulo' ? { t: 'saga_capitulo', p: pd.p, n: 1 } // T-1 · CR 714.3b · o goldfish começa a Saga pelo capítulo I
+          : pd.kind === 'tripular' ? E.tripulacaoPadrao(s) // T-3 · CR 702.122a · o goldfish fecha a tripulação assim que a soma chega
           : pd.kind === 'dividir_dano' ? { t: 'dividir_dano', p: pd.p, index: 0 } // CR2g.2 · o goldfish mata na ordem do bloqueio
           : pd.kind === 'madness' ? { t: 'decline_madness', p: pd.p }
           : pd.kind === 'pick_target' ? { t: 'pick_target', p: pd.p, index: 0 }
@@ -23343,9 +23524,11 @@ const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas
   fight: e => `${e.quem === 'self-source' ? 'esta criatura luta' : 'ela luta'} com ${ALVO_PT[e.target] || descreveAlvo(e.target)} (cada uma causa dano igual ao próprio poder à outra)`,
 };
 /* ↓ T · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha tipos */
+const EFEITO_PT_T = { tripulada: () => 'fica tripulado' }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
 function descreveEfeito(e) {
   if (!e || !e.do) return '';
   if (EFEITO_PT_V[e.do]) return EFEITO_PT_V[e.do](e); // V-1 · Toca ponto comum: descreveEfeito (frases da trilha verbos)
+  if (EFEITO_PT_T[e.do]) return EFEITO_PT_T[e.do](e); // T-3 · Toca ponto comum: descreveEfeito (frases da trilha tipos)
   if (e.jogadores && e.do !== 'sacrificar') { // CR2-G R4b · "cada jogador compra 1 carta", "cada oponente perde 2 de vida", "causa 1 de dano a cada jogador"
     const { jogadores, ...base } = e, quem = { cada: 'cada jogador', 'cada-oponente': 'cada oponente', voce: 'você' }[jogadores] || 'cada jogador';
     if (e.do === 'damage') return `causa ${qtd(e.amount)} de dano a ${quem}`;
@@ -25454,6 +25637,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       const oQueFaz = o.token || custoRepetido ? T.descreveEfeitos(ab.effects) : '';
       legal.push(doBtn(`Ativar${cost ? ` (${cost})` : ''}${oQueFaz ? `: ${oQueFaz}` : ''}${(act.targets || []).length ? ` → ${act.targets.map(x => targetName(s, x)).join(' + ')}` : ''}`, act, { variant: 'primary' }));
     }
+    for (const x of E.acoesDeTipos(s, v, oid)) legal.push(doBtn(x.label, x.action)); // T-3 · CR 702.122a · "Escolher quem tripula" (ação `tripular`): abre o aviso com um botão por criatura
     // Leva 111 · habilidade que existe mas não dá para ativar agora aparece apagada, com o motivo
     // (antes a folha ficava vazia e parecia que a ficha não tinha habilidade)
     if (o.zone === 'battlefield' && o.controller === v) (f.script && f.script.abilities || []).forEach((ab, index) => {
@@ -25750,6 +25934,11 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     } else if (s.pending && s.pending.kind === 'saga_capitulo' && s.pending.p === v) { // T-1 · CR 714.3b · read ahead
       banner = PriorityBanner({ title: `${s.pending.name}: em que capítulo começar?`, hint: 'Ela entra com esse número de marcadores. Os capítulos anteriores não acontecem.', tone: 'warning',
         actions: Array.from({ length: Math.min(s.pending.max, 8) }, (_, i) => Button('Capítulo ' + (['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'][i] || i + 1), { variant: i ? undefined : 'primary', id: i ? undefined : 'tb-saga_capitulo', onClick: () => act({ t: 'saga_capitulo', p: v, n: i + 1 }) })) });
+    } else if (s.pending && s.pending.kind === 'tripular' && s.pending.p === v) { // T-3 · CR 702.122a · quem tripula (qualquer número de criaturas)
+      const tp = E.tripulacaoPendente(s);
+      banner = PriorityBanner({ title: `Quem tripula ${tp.nome}?`, hint: `Poder somado: ${tp.soma} de ${tp.n}${tp.escolhidas.length ? ' · ' + tp.escolhidas.join(' + ') : ''}. Toque em quem vira; pode virar mais do que o necessário.`, tone: 'warning',
+        actions: [...(tp.pronto ? [Button('Pronto', { variant: 'primary', id: 'tb-tripular', onClick: () => act({ t: 'tripular_pronto', p: v }) })] : []),
+          ...tp.candidatos.slice(0, 7).map((c, i) => Button(`${c.nome} (${c.forca})`, { variant: !tp.pronto && !i ? 'primary' : undefined, id: i ? undefined : 'tb-tripulante', onClick: () => act({ t: 'tripulante', p: v, oid: c.oid }) }))] });
     } else if (s.pending && s.pending.kind === 'dividir_dano' && s.pending.p === v) { // CR2g.2 · 510.1c
       banner = PriorityBanner({ title: `${s.pending.name}: como dividir ${s.pending.amount} de dano?`, hint: 'Você escolhe entre os bloqueadores. Com atropelar, só o que passa do letal de todos vai para o jogador.', tone: 'warning',
         actions: (s.pending.opcoes || []).slice(0, 8).map((op, index) => Button(op.rotulo, { variant: index ? undefined : 'primary', id: index ? undefined : 'tb-dividir', onClick: () => act({ t: 'dividir_dano', p: v, index }) })) });

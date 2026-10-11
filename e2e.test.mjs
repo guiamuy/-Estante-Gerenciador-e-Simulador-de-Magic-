@@ -10503,7 +10503,9 @@ test('e2e · T-1 · CR 714.3b · Saga com read ahead: a mesa pergunta em que cap
     const z = s.zones[0].library, i = z.findIndex(o => s.objects[o].name === 'History of Benalia'); if (i < 0) throw new Error('sem a Saga no grimório');
     const oid = z.splice(i, 1)[0];
     const sc = s.facts['History of Benalia'].script; s.facts['History of Benalia'] = { ...s.facts['History of Benalia'], script: { ...sc, self: { ...(sc.self || {}), readAhead: true } } };
-    Object.assign(s.objects[oid], { zone: 'battlefield', controller: 0, tapped: false, sick: false, damage: 0, counters: {}, entrouNoTurno: s.turn.number }); s.zones[0].battlefield.push(oid); return oid; });
+    Object.assign(s.objects[oid], { zone: 'battlefield', controller: 0, tapped: false, sick: false, damage: 0, counters: {}, entrouNoTurno: s.turn.number }); s.zones[0].battlefield.push(oid);
+    // T-2 · só quem ENTRA no campo escolhe o capítulo (714.3b): a montagem por dado anota a entrada como o motor anota (sagaEntrou)
+    (s.sagas = s.sagas || {})[oid] = { z: s.objects[oid].zc || 0, n: 0, escolhe: true }; return oid; });
   const terra = await M.oid('Plains'); assert.ok(terra, 'uma Planície na mão');
   assert.equal(await M.act({ t: 'play_land', p: 0, oid: terra }), true); await page.waitForTimeout(250);
   let e = await M.est();
@@ -10520,5 +10522,52 @@ test('e2e · T-1 · CR 714.3b · Saga com read ahead: a mesa pergunta em que cap
   const fim = await page.evaluate(oid => { const s = window.__estanteMesa.estado(); return { lore: s.objects[oid].counters.lore, zona: s.objects[oid].zone, pend: s.pending && s.pending.kind, cavaleiros: Object.values(s.objects).filter(o => o.token && o.name === 'Knight').length }; }, saga);
   assert.deepEqual(fim, { lore: 2, zona: 'battlefield', pend: null, cavaleiros: 1 }, 'entrou com dois marcadores e só o capítulo II aconteceu (um Cavaleiro)');
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/t1-saga-depois.png' });
+  assert.deepEqual(M.errors, []);
+});
+
+test('e2e · T-3 · CR 702.122a · tripular escolhendo as criaturas: a folha do Veículo abre "Escolher quem tripula", o aviso soma o poder com um botão por criatura e "Pronto" vira todas as escolhidas', { skip }, async t => {
+  // Texto oficial em .listas/oficiais-tipos.json (Mobilizer Mech: casualplaneswalker.com + Forge; Gearshift Ace e Hotshot Mechanic: Oracle do
+  // Forge, 11/10/2026). As permanentes são postas no campo por dado; o que se testa aqui é a decisão na tela (o motor é provado em tipos.veiculos.unit).
+  const nomes = ['Mobilizer Mech', 'Gearshift Ace', 'Hotshot Mechanic'];
+  const extras = JSON.parse(readFileSync(join(ROOT, '.listas', 'oficiais-tipos.json'), 'utf8')).cartas.filter(c => nomes.includes(c.name));
+  const M = await comLista125(t, '24 Plains\n4 Mobilizer Mech\n8 Gearshift Ace\n4 Hotshot Mechanic', ['Plains', ...nomes], '4', { extras });
+  const { page } = M;
+  const ids = await page.evaluate(() => { const s = window.__estanteMesa.estado(), out = {};
+    const poe = nome => { const z = s.zones[0].library, i = z.findIndex(o => s.objects[o].name === nome); if (i < 0) throw new Error('sem ' + nome + ' no grimório');
+      const oid = z.splice(i, 1)[0]; Object.assign(s.objects[oid], { zone: 'battlefield', controller: 0, tapped: false, sick: false, damage: 0, counters: {} }); s.zones[0].battlefield.push(oid); return oid; };
+    out.mech = poe('Mobilizer Mech'); out.ace1 = poe('Gearshift Ace'); out.ace2 = poe('Gearshift Ace'); out.hot = poe('Hotshot Mechanic'); return out; });
+  const terra = await M.oid('Plains'); assert.ok(terra, 'uma Planície na mão');
+  assert.equal(await M.act({ t: 'play_land', p: 0, oid: terra }), true); await page.waitForTimeout(250);
+  // a folha do Veículo: o grupo mínimo num toque e a escolha livre ao lado
+  await page.locator(`.tb-side--me .tb-card[data-oid="${ids.mech}"]`).first().click(); await page.waitForSelector('.ds-dialog');
+  const botoes = (await page.locator('.ds-dialog .tb-sheet__actions button').allInnerTexts()).map(x => x.replace(/\s+/g, ' ').trim());
+  assert.ok(botoes.includes('Escolher quem tripula'), 'botão da escolha livre na folha: ' + JSON.stringify(botoes));
+  assert.ok(botoes.some(b => /^Ativar/.test(b)), 'e a ativação direta continua lá: ' + JSON.stringify(botoes));
+  await page.locator('.ds-dialog .tb-sheet__actions button', { hasText: /^Escolher quem tripula$/ }).click(); await page.waitForTimeout(250);
+  let e = await M.est();
+  assert.equal(e.pend, 'tripular', 'a mesa pede a tripulação: ' + JSON.stringify(e));
+  assert.match(await M.decisao(), /^Quem tripula Mobilizer Mech\? \| Poder somado: 0 de 3\. Toque em quem vira; pode virar mais do que o necessário\./);
+  assert.deepEqual((await page.locator('.tb-banner button').allInnerTexts()).map(x => x.trim()).filter(Boolean).sort(), ['Gearshift Ace (2)', 'Gearshift Ace (2)', 'Hotshot Mechanic (4)'], 'um botão por criatura, com a força de tripular (a Hotshot conta 2 a mais); sem "Pronto" antes da soma');
+  for (const b of await page.locator('.tb-banner button', { hasText: /\(\d\)$/ }).all()) { const cx = await b.boundingBox(); assert.ok(cx && cx.height >= 44, 'botão com 44 px de altura ou mais: ' + JSON.stringify(cx)); }
+  await auditaTela(page, 'quem tripula o Veículo (início)');
+  await page.locator('#tb-tripulante').click(); await page.waitForTimeout(200);
+  await page.locator('.tb-banner button', { hasText: /^Gearshift Ace/ }).first().click(); await page.waitForTimeout(200);
+  assert.match(await M.decisao(), /Poder somado: (4|6) de 3 · /, 'a soma aparece com quem já foi escolhida: ' + await M.decisao());
+  assert.equal(await page.locator('#tb-tripular').count(), 1, '"Pronto" aparece quando a soma chega');
+  await auditaTela(page, 'quem tripula o Veículo (com a soma)');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/t3-tripular.png' });
+  // põe a última também (três criaturas para Tripular 3: de propósito, a mais) e fecha
+  await page.locator('.tb-banner button', { hasText: /\(\d\)$/ }).first().click(); await page.waitForTimeout(200);
+  assert.deepEqual((await page.locator('.tb-banner button').allInnerTexts()).map(x => x.trim()).filter(Boolean), ['Pronto'], 'sem criatura sobrando, só "Pronto"');
+  await page.locator('#tb-tripular').click(); await page.waitForTimeout(250);
+  // dois gatilhos "crews a Vehicle" iguais (as duas Ace) e a habilidade de tripular: resolve tudo
+  for (let i = 0; i < 6; i++) { e = await M.est(); if (e.pend === 'triggers') { const a = (await M.legal('a.t === "order_trigger"'))[0]; assert.equal(await M.act(a), true); await page.waitForTimeout(150); } else break; }
+  e = await M.resolve();
+  const fim = await page.evaluate(ids => { const s = window.__estanteMesa.estado(), E = window.__estanteMesa.motor || null; const o = s.objects[ids.mech];
+    return { pend: s.pending && s.pending.kind, viradas: [ids.ace1, ids.ace2, ids.hot].map(x => !!s.objects[x].tapped), tripulantes: ((o.tripulantes || {}).oids || []).length, pilha: s.stack.length }; }, ids);
+  assert.deepEqual(fim, { pend: null, viradas: [true, true, true], tripulantes: 3, pilha: 0 }, 'as três viraram e o Veículo foi tripulado por elas');
+  const linhas = await page.evaluate(() => (window.__estanteMesa.registro ? window.__estanteMesa.registro() : []).map(String));
+  if (linhas.length) assert.ok(linhas.some(l => /tripulou Mobilizer Mech com/.test(l)), 'registro em português: ' + JSON.stringify(linhas.slice(-8)));
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/t3-tripulado.png' });
   assert.deepEqual(M.errors, []);
 });

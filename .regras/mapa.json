@@ -2270,9 +2270,11 @@
     "613",
     "702.122"
    ],
-   "evidencia": "CR2d.3 (v92): Veículo é artefato com P/T impresso que só é criatura depois de tripulado (animate sem base: vale o impresso); 301.7a-b via enjoado()/isCreature. commander.regras \"CR2d.3 · …\"",
+   "evidencia": "CR2d.3 (v92): Veículo é artefato com P/T impresso que só é criatura depois de tripulado (animate sem base: vale o impresso); 301.7a-b via enjoado()/isCreature. commander.regras \"CR2d.3 · …\". T-3 (11/10/2026) · tipos.veiculos.unit: parado no campo não é criatura, não ataca e não tripula outro Veículo (301.7a); tripulado é criatura artefato com o P/T impresso e continua Veículo, e deixa de ser criatura na limpeza (301.7b); outro efeito também o torna criatura (Mobilizer Mech) e modifica o P/T (Veteran Motorist, 208.3a).",
    "testes": [
-    "CR2d.3 · Veículo que entrou neste turno e foi tripulado não ataca (302.6)"
+    "CR2d.3 · Veículo que entrou neste turno e foi tripulado não ataca (302.6)",
+    "CR 301.7a · o Veículo tem o P/T impresso só enquanto é criatura: parado no campo não é criatura, não ataca e não conta para efeito que olha criaturas",
+    "CR 301.7b · 702.122a · tripulado, o Veículo vira criatura artefato até o fim do turno, com o P/T impresso; na limpeza volta a ser só artefato"
    ]
   },
   {
@@ -8218,8 +8220,7 @@
    "n": "702.122",
    "regra": "Keyword Abilities",
    "titulo": "Crew",
-   "status": "parcial",
-   "falta": "A mesa oferece só grupos mínimos de tripulantes (não dá para virar criatura a mais de propósito); sem \"quando for tripulado\" (702.122e) nem \"não pode tripular\" (702.122d).",
+   "status": "coberta",
    "esforco": "M",
    "depende": [
     "301.7 veículos",
@@ -8227,9 +8228,28 @@
     "602 custo de virar outras criaturas"
    ],
    "cartas": "muito comum (Kaladesh em diante, recorrente)",
-   "evidencia": "CR2d.3 (v92): custo crew N (formasDeTripular: outras criaturas desviradas suas com poder total ≥ N, enjoo não impede), vira criatura artefato até o fim do turno; crewedBy guardado (702.122c)",
+   "evidencia": "CR2d.3 (v92): custo crew N, vira criatura artefato até o fim do turno. T-3 (11/10/2026) · src/engine/core.js, bloco \"T-3 · CR 702.122 · tripular\": 702.122a — candidatosATripular (outra criatura desvirada sua, enjoo não impede, Veículo já criatura tripula outro); os grupos mínimos seguem oferecidos em activate (formasDeTripularT) e a ação `tripular` abre a decisão pendente `tripular` (tripulante, um por criatura; tripular_pronto quando a soma chega) para virar criatura a mais de propósito — botão \"Escolher quem tripula\" na folha do Veículo, aviso tb-tripular na mesa, goldfish e Shark; o pagamento (pagaTripulacaoT) aceita qualquer grupo que some N. 702.122b — cada criatura virada para pagar dispara o gatilho `crews`, com o Veículo e a encarnação dele como `lembrada` (alvo `remembered` = \"that Vehicle\"); resolve antes da habilidade de tripular e o efeito vale quando o Veículo vira criatura (208.3a). 702.122c — tripulantesDe: as criaturas que tripularam o Veículo no turno, somando as ativações, por turno e encarnação. 702.122d — naoTripula (self.naoTripula; self.anexadaNaoTripula em Aura ou Equipamento): fora dos candidatos, dos grupos e do pagamento. 702.122e — efeito `tripulada` (último da habilidade de tripular; o validador exige quando há `becomes-crewed`): dispara quando a habilidade RESOLVE, com o número de criaturas daquela ativação como valor do gatilho; Veículo fora do campo não fica tripulado. Força de tripular: poder (mínimo 0), `tripulaPela: 'resistencia'`, `tripulaMais` e `suasTripulamMais`. Limites declarados: (1) a escolha livre só é oferecida para habilidade cujo custo é só tripular (a \"Crew N\" impressa); (2) quando legalActions sai pelo filtro da oferta otimista (redução de custo por alvo, M-259) as ofertas das trilhas K/V/T não rodam e, nesse estado, só os grupos mínimos aparecem (ponto comum da trilha motor); (3) \"Crew N\" ainda precisa estar no script (leitura da palavra-chave impressa: próxima leva); (4) condição \"se foi tripulado por exatamente N\" e \"pela primeira vez no turno\" não têm vocabulário de condição (o número viaja como valor do gatilho); (5) ficha de Piloto com \"crews as though\" depende do script da ficha.",
    "testes": [
-    "CR2d.3 · Veículo que entrou neste turno e foi tripulado não ataca (302.6)"
+    "CR2d.3 · Veículo que entrou neste turno e foi tripulado não ataca (302.6)",
+    "CR 702.122a · \"qualquer número de outras criaturas\": os grupos mínimos seguem oferecidos direto, e a escolha livre deixa virar criatura a mais de propósito",
+    "CR 702.122a · o motor aceita qualquer grupo que some N em `activate` (não só os mínimos) e recusa grupo que não soma, criatura virada, do oponente, repetida ou o próprio Veículo",
+    "CR 702.122a · a escolha livre só aparece quando há criatura sobrando; criatura com enjoo de invocação tripula (o custo não é o {T} dela); Veículo que já é criatura tripula outro",
+    "CR 702.122b · 208.3a · \"Whenever ~ crews a Vehicle, that Vehicle gains first strike\": dispara no pagamento, resolve antes da habilidade de tripular (o Veículo ainda não é criatura) e vale quando ele vira criatura",
+    "CR 702.122b · cada criatura virada para pagar tripula: Gearshift Ace e Speedway Fanatic disparam os dois; Veteran Motorist dá +1/+1 (exemplo de 208.3a); virar por outro motivo não dispara",
+    "CR 702.122b · o gatilho de quem tripula lembra o Veículo e a encarnação dele: se o Veículo sai do campo e volta, \"that Vehicle\" não é o objeto novo (400.7)",
+    "CR 702.122c · \"tripulado por\": soma as criaturas viradas para pagar a tripulação dele no turno, em todas as ativações, e zera no turno seguinte ou se ele mudar de zona",
+    "CR 702.122d · \"não pode tripular Veículos\" (Revoke Privileges na criatura): ela fica fora dos grupos oferecidos, da escolha livre e do pagamento; sem a Aura volta a tripular",
+    "CR 702.122d · criatura com \"não pode tripular\" impresso: fora da conta mesmo sendo a única com poder suficiente; perdendo as habilidades, pode",
+    "CR 702.122e · \"Whenever ~ becomes crewed\" dispara quando a habilidade de tripular RESOLVE (não na ativação), uma vez por ativação, e só conta as criaturas viradas para pagar aquela ativação",
+    "CR 702.122e · se o Veículo saiu do campo antes de a habilidade de tripular resolver, ele não fica tripulado",
+    "CR 702.122e · Mobilizer Mech: ao ficar tripulado, até um outro Veículo seu alvo vira criatura artefato até o fim do turno (pode não escolher nenhum)",
+    "CR 702.122a · \"crews Vehicles as though its power were 2 greater\" (Hotshot Mechanic) e \"using its toughness rather than its power\" (Giant Ox) mudam só a conta da tripulação",
+    "CR 702.122a · \"Each creature you control crews Vehicles as though its power were 2 greater\": vale para as suas e não para as do oponente; poder negativo conta como 0",
+    "S8 · cenário das cartas exemplo com a linha de tipo real: scripts válidos e o efeito de cada uma numa partida",
+    "CR 702.122 · validador: \"tripulada\" só fecha habilidade de tripular; \"becomes-crewed\" exige a habilidade de tripular terminada em \"tripulada\"; chaves de self conferidas",
+    "CR 702.122 · partida sem Veículo não ganha campo novo no estado (o hash das partidas existentes não muda)",
+    "CR 702.122a · passeio aleatório com Veículos e pilotos: toda ação oferecida é aceita, as invariantes valem a cada passo e a escolha livre é exercitada",
+    "CR 702.122a · mesa: botão \"Escolher quem tripula\" na folha do Veículo, resumo da decisão para o aviso, registro em português; o Shark e o goldfish respondem à decisão"
    ]
   },
   {
