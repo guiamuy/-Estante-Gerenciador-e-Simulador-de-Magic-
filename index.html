@@ -5678,6 +5678,8 @@ const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield
   'end-step', 'each-upkeep', 'begin-combat',
   // CR2b.7 · 119.9 · "whenever you gain life" (uma vez por evento de ganho de vida)
   'you-gain-life',
+  // CR2b.8 · heroico (palavra de habilidade, 207.2c): "whenever you cast a spell that targets this creature"
+  'heroic',
   /* ↓ K · gatilhos da trilha keywords */
   /* ↓ V · gatilhos da trilha verbos */
   'becomes-monstrous', // V-6 · "When ~ becomes monstrous" (o valor do gatilho é o N da monstruosidade, 701.37c)
@@ -5834,7 +5836,7 @@ const STATIC_RULES = ['flagbearer', 'exile-instead-of-graveyard', 'opponent-crea
 const TRIGGER_PT = { etb: 'quando entra no campo', dies: 'quando morre', upkeep: 'na sua manutenção', attacks: 'quando ataca', blocks: 'quando bloqueia',
   'other-etb': 'quando outra criatura sua entra', 'other-dies': 'quando outra criatura sua morre',
   'combat-damage': 'quando causa dano de combate a um jogador', 'end-step': 'no início do seu passo final', 'each-upkeep': 'no início de cada manutenção', 'begin-combat': 'no início do combate no seu turno',
-  'enchanted-damages-opponent': 'quando a criatura encantada causa dano a um oponente', 'you-discard': 'quando você descarta uma carta', 'you-gain-life': 'sempre que você ganha vida', 'dealt-damage': 'quando recebe dano', 'attached-dies': 'quando a criatura anexada morre', 'attached-dies-or-exiled': 'quando a permanente encantada morre ou é exilada',
+  'enchanted-damages-opponent': 'quando a criatura encantada causa dano a um oponente', 'you-discard': 'quando você descarta uma carta', 'you-gain-life': 'sempre que você ganha vida', heroic: 'heroico: quando você conjura uma mágica que mira esta criatura', 'dealt-damage': 'quando recebe dano', 'attached-dies': 'quando a criatura anexada morre', 'attached-dies-or-exiled': 'quando a permanente encantada morre ou é exilada',
   'other-sacrificed': 'quando você sacrifica outra permanente',
   'leaves-battlefield': 'quando sai do campo de batalha', 'other-leaves-battlefield': 'quando outra criatura sua sai do campo', 'enchanted-deals-damage': 'quando a criatura encantada causa dano',
   'counters-added': 'quando recebe marcadores +1/+1', 'third-draw': 'quando você compra a terceira carta do turno',
@@ -6397,6 +6399,8 @@ const RAW_SCRIPTS = [
   { name: 'Revoke Privileges', aura: { enchant: 'creature' }, self: { anexadaNaoTripula: true }, covers: 'partial',
     note: 'vale o "não pode tripular Veículos" (702.122d); falta "a criatura encantada não pode atacar nem bloquear": restrição de ataque e bloqueio dada por Aura (508.1c, 509.1b) ainda não existe no motor',
     example: { action: 'aura', target: 'own-creature', expect: { attached: true } } },
+  // CR2b.8 · heroico (texto oficial em .listas/oficiais-motor.json, mtg.wtf, 2026-10-11)
+  { name: 'Akroan Skyguard', abilities: [{ kind: 'triggered', when: 'heroic', effects: [{ do: 'counters', amount: 1, target: 'self-source' }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // CR2b.7 · 119.9 · gatilhos de ganho de vida (texto oficial em .listas/oficiais-motor.json, mtg.wtf, 2026-10-11)
   { name: "Ajani's Pridemate", abilities: [{ kind: 'triggered', when: 'you-gain-life', effects: [{ do: 'counters', amount: 1, target: 'self-source' }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Sanguine Bond', abilities: [{ kind: 'triggered', when: 'you-gain-life', effects: [{ do: 'lose', amount: { per: 'trigger-value' }, target: 'opponent' }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
@@ -14735,6 +14739,7 @@ const __m42 = (function () {
     [/^whenever enchanted creature deals damage to an opponent$/i, 'enchanted-damages-opponent'],
     [/^whenever another creature enters(?: the battlefield)? under your control$/i, 'other-etb'],
     [/^whenever you gain life$/i, 'you-gain-life'], // CR2b.7 · 119.9
+    [/^(?:heroic — )?whenever you cast a spell that targets (this creature|~)$/i, 'heroic'], // CR2b.8
     [/^when enchanted creature becomes tapped or is dealt damage$/i, 'enchanted-tapped-or-damaged']
   ];
   const CONTAGENS = { 'enchantment you control': 'enchantments-you-control', 'other enchantment on the battlefield': 'other-enchantments', 'aura on the battlefield': 'auras-on-battlefield',
@@ -18384,6 +18389,19 @@ const disparaZona = (s, o, de, para, ctrlAntes, ultima) => naSombra(s, `${o.name
   () => gatilhosDeZonaLegado(s, o, de, para, ctrlAntes, ultima), () => gatilhosDeZona(s, o, de, para, ctrlAntes, ultima));
 /** CR2-G R2b · o evento acontece com cada objeto da lista (conjurar, atacar, bloquear, dano de combate). */
 const NOME_DO_EVENTO = { conjurar: 'cast-self', ataca: 'attacks', bloqueia: 'blocks', 'dano-combate': 'combat-damage' };
+/** CR2b.8 · heroico: ao conjurar, cada criatura sua mirada pela mágica dispara uma vez (mesmo mirada duas vezes); cópia e troca de alvo
+    não disparam (rulings da Akroan Skyguard). Aura conjurada também mira. */
+function disparaHeroico(s, magia) {
+  if (!magia || !Array.isArray(magia.targets)) return;
+  const vistos = new Set();
+  for (const t of magia.targets) {
+    const o = t && t.oid != null ? s.objects[t.oid] : null;
+    if (!o || o.zone !== 'battlefield' || vistos.has(o.oid) || o.controller !== magia.controller || !s.facts[o.name]) continue;
+    vistos.add(o.oid);
+    for (const ab of abilitiesOf(s, o)) if (ab.kind === 'triggered' && ab.when === 'heroic' && triggerConditionMet(s, o, ab.condition))
+      s.queued.push({ source: o.oid, name: o.name, controller: o.controller, effects: ab.effects, when: 'heroic', ...marcasDaHabilidade(ab) });
+  }
+}
 const disparaEvento = (s, evento, objects) => naSombra(s, `${evento}: ${objects.map(o => o && o.name).join(', ')}`,
   () => queueTriggersLegado(s, NOME_DO_EVENTO[evento], objects), () => gatilhosDoObjeto(s, evento, objects));
 /** CR2-G R2b · começo de passo. `fase` 'seu' = gatilhos do jogador ativo; 'todos' = de cada jogador e dos oponentes. */
@@ -19251,6 +19269,7 @@ const HANDLERS = {
     if (a.faceDown) s.objects[a.oid].faceDown = true; // S54 · fica virada para baixo até você pagar a metamorfose
     // Leva 107 · os gatilhos de conjuração veem a mágica como ela foi conjurada: virada para baixo não é Elfo (Lys Alana Huntmaster)
     disparaEvento(s, 'conjurar', [s.objects[a.oid]]); // S23 · gatilhos de conjuração
+    disparaHeroico(s, s.objects[a.oid]); // CR2b.8
     if (a.bargain) { // S37 · barganha: sacrifica algo ao conjurar e a mágica lembra disso
       if (!(f.script || {}).bargain) throw new RuleError('barganha', 'esta carta não tem barganha');
       const alvo = a.pay && a.pay.bargain;
@@ -19736,6 +19755,7 @@ const HANDLERS = {
     // Leva 108 · conjurar pela insanidade é conjurar: conta para tempestade, dispara "quando você conjura" e cobra ward
     s.spellsThisTurn = (s.spellsThisTurn || 0) + 1;
     disparaEvento(s, 'conjurar', [s.objects[oid]]);
+    disparaHeroico(s, s.objects[oid]); // CR2b.8
     afterMadness(s);
     chargeWard(s, a.p, oid, chosen);
     s.turn.passes = 0;

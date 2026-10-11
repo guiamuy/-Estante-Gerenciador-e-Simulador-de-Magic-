@@ -3681,6 +3681,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora:** "sempre que um oponente ganha/perde vida" (Exquisite Blood; o laço com Sanguine Bond pede a regra de laço obrigatório, 104.4b).
 - **Teste:** `vida.gatilhos.unit` (4 testes, falham no v110 anterior).
 
+**M-312 · CR2b.8 · Heroico (palavra de habilidade, 207.2c)** ✅ (leva M-312, motor v110 sem mudança de forma; goldens intactos) — Akroan Skyguard joga no modo completo.
+- **Valor:** "Heroic — Whenever you cast a spell that targets this creature" dispara quando você conjura uma mágica que mira a criatura, inclusive Aura conjurada nela; uma vez por mágica (mesmo mirando duas vezes); o gatilho fica por cima e resolve antes da mágica; mágica do oponente ou mirando outra criatura não dispara; cópia não dispara (rulings de 2013-09-15).
+- **Script:** `when: 'heroic'`; leitor lê "Heroic — Whenever you cast a spell that targets this creature, …" (77 lidas, zero divergência). Texto oficial em `.listas/oficiais-motor.json` (mtg.wtf, 11/10/2026).
+- **Pendência de texto:** Lagonna-Band Trailblazer e Phalanx Leader ficaram de fora (o mtg.wtf limitou as consultas, 429); entram quando o texto oficial for conferido.
+- **Fora (mapa 115.9 parcial):** "quando se torna alvo de uma mágica ou habilidade" (valente), restrições "mágica que só mira…".
+- **Teste:** `heroico.unit` (2 testes).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
