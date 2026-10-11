@@ -158,10 +158,10 @@ export function conferir({ novos, janela, linhasDe, levasPublicadas = [] }) {
       // Q13 · a contagem com prefixo é só da trilha: basta o prefixo ser o dela
       const certo = prefixoDa(d.trilha);
       if (certo && d.prefixo !== certo) achados.push({ tipo: 'prefixo-errado', commit: d, certo });
-      // Q16 · dentro da trilha o número é um só: duas conversas da mesma trilha (ou um rebase por cima de quem publicou antes)
-      // não podem sair com a mesma "Leva M-257". Confere contra o que já está publicado e contra os commits que sobem juntos.
-      const mesma = (x) => x.prefixo === d.prefixo && x.leva === d.leva;
-      const ja = levasPublicadas.find(mesma) || novos.slice(0, novos.indexOf(d)).find(mesma);
+      // Q16 · dentro da trilha o número é um só: uma leva não sai com o número de outra já publicada (duas conversas da mesma
+      // trilha, ou rebase por cima de quem publicou antes). Commits do MESMO envio podem repetir o número: é a mesma leva com
+      // uma correção por cima (leva recusada pela fila e consertada com commit novo). Entre conversas, quem barra é o nome do ramo da fila.
+      const ja = levasPublicadas.find((x) => x.prefixo === d.prefixo && x.leva === d.leva);
       if (ja) {
         const usadas = [...levasPublicadas, ...novos].filter((x) => x.prefixo === d.prefixo && x.leva != null).map((x) => x.leva);
         achados.push({ tipo: 'leva-repetida', commit: d, de: ja, livre: Math.max(...usadas) + 1 });

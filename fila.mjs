@@ -77,6 +77,14 @@ export function limparMotivo(texto, teto = 1800) {
   return limpo.length > teto ? limpo.slice(0, teto) + ' …' : limpo;
 }
 
+/** O fluxo entrega as quedas numa linha só, separadas por ";" e com a repetição do teste sozinho junto ("not ok 119 - X;not ok 1 - X").
+    Aqui viram uma lista sem repetição, um teste por linha, para quem lê o motivo da recusa. */
+export function formatarQuedas(texto) {
+  const nomes = String(texto || '').split(/;|\n/).map((l) => l.replace(/^\s*not ok \d+ - /, '').trim()).filter(Boolean);
+  const unicos = [...new Set(nomes)];
+  return unicos.length ? `Testes que caíram (${unicos.length}):\n${unicos.map((n) => `- ${n}`).join('\n')}` : '';
+}
+
 /** Nomes dos testes que caíram, lidos do log do portão (linhas `not ok` de teste, não de arquivo). */
 export function quedasDoLog(log, max = 12) {
   const nomes = [...String(log).matchAll(/^not ok \d+ - (.+)$/gm)].map((m) => m[1].trim()).filter((n) => !/\.test\.mjs$/.test(n));
@@ -156,6 +164,13 @@ export function recusar({ cwd, remoto = 'origin', nome, sha, motivo }) {
   return apagarDaFila({ cwd, remoto, nome, sha });
 }
 
+/** Tira o aviso `recusada/<nome>` de uma leva que acabou de chegar ao main (ou que já estava lá): aviso velho de leva publicada confunde. */
+export function apagarAviso({ cwd, remoto = 'origin', nome }) {
+  const g = gitEm(cwd);
+  if (!tenta(g, ['ls-remote', '--exit-code', '--heads', remoto, `${PREFIXO_RECUSADA}${nome}`])) return false;
+  return tenta(g, ['push', '--quiet', remoto, `:refs/heads/${PREFIXO_RECUSADA}${nome}`]) !== null;
+}
+
 /** Apaga `fila/<nome>` só se o topo ainda é o que a fila processou (quem enviou mais commits no meio fica para a próxima rodada). */
 export function apagarDaFila({ cwd, remoto = 'origin', nome, sha }) {
   const ref = `refs/heads/${PREFIXO_FILA}${nome}`;
@@ -171,12 +186,12 @@ export function avancar({ cwd, plano, portao, motivo = '', remoto = 'origin', pr
   const g = gitEm(cwd);
   const saida = { acao: 'nada', recusadas: [], apagados: [], isolar: '', deNovo: false };
   for (const r of plano.recusados || []) { recusar({ cwd, remoto, ...r }); saida.recusadas.push(r.nome); }
-  for (const v of plano.vazios || []) if (apagarDaFila({ cwd, remoto, ...v })) saida.apagados.push(v.nome);
+  for (const v of plano.vazios || []) { if (apagarDaFila({ cwd, remoto, ...v })) saida.apagados.push(v.nome); apagarAviso({ cwd, remoto, nome: v.nome }); }
   const d = decisao({ aceitos: plano.aceitos || [], portao });
   saida.acao = d.acao;
   if (d.acao === 'recusar') {
     const a = plano.aceitos[0];
-    recusar({ cwd, remoto, nome: a.nome, sha: a.sha, motivo: `PORTÃO VERMELHO com esta leva sozinha sobre o main (${plano.base.slice(0, 7)}).\n${motivo || 'Veja o log do portão na execução do fluxo Fila.'}` });
+    recusar({ cwd, remoto, nome: a.nome, sha: a.sha, motivo: `PORTÃO VERMELHO com esta leva sozinha sobre o main (${plano.base.slice(0, 7)}).\n${formatarQuedas(motivo) || 'Veja o log do portão na execução do fluxo "Fila de publicação".'}` });
     saida.recusadas.push(a.nome);
   } else if (d.acao === 'isolar') {
     saida.isolar = d.nome;
@@ -188,7 +203,7 @@ export function avancar({ cwd, plano, portao, motivo = '', remoto = 'origin', pr
     // nunca force: se o main andou no último segundo, o push é recusado e a fila roda de novo
     if (tenta(g, ['push', '--quiet', remoto, `${de.topo}:refs/heads/${principal}`]) === null) { saida.acao = 'manter'; saida.deNovo = true; saida.porque = `o ${principal} andou no instante do envio: nada publicado; a fila roda de novo`; return saida; }
     saida.publicado = de.topo;
-    for (const a of plano.aceitos) if (apagarDaFila({ cwd, remoto, ...a })) saida.apagados.push(a.nome);
+    for (const a of plano.aceitos) { if (apagarDaFila({ cwd, remoto, ...a })) saida.apagados.push(a.nome); apagarAviso({ cwd, remoto, nome: a.nome }); }
   } else if (d.porque) saida.porque = d.porque;
   return saida;
 }
@@ -202,7 +217,8 @@ export function situacao({ cwd, remoto = 'origin', principal = 'main' }) {
     return { nome: r.nome, estado, levas: commits.map((c) => ({ assunto: c.assunto, publicado: noMain.get(chave(c)) || '' })) };
   };
   const fila = ordemDaFila(ramosDaFila(cwd, { remoto })).map((r) => linha(r, 'na fila'));
-  const recusadas = ramosDaFila(cwd, { remoto, prefixo: PREFIXO_RECUSADA }).map((r) => ({ ...linha(r, 'recusada'), motivo: g(['log', '-1', '--format=%b', r.sha]) }));
+  const recusadas = ramosDaFila(cwd, { remoto, prefixo: PREFIXO_RECUSADA }).map((r) => ({ ...linha(r, 'recusada'), motivo: g(['log', '-1', '--format=%b', r.sha]) }))
+    .filter((r) => !r.levas.length || r.levas.some((l) => !l.publicado)); // aviso velho de leva que já chegou ao main não é recusa pendente
   const locais = commitsDa(cwd, `${remoto}/${principal}..HEAD`).map((c) => ({ assunto: c.assunto, publicado: noMain.get(chave(c)) || '' }));
   return { fila, recusadas, locais };
 }

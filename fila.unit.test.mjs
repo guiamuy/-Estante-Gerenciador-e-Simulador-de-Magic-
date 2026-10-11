@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { EPOCA } from './agregacao.mjs';
-import { chave, nomeDoRamo, ordemDaFila, decisao, limparMotivo, quedasDoLog, planoValido, NOME_VALIDO, montar, avancar, ramosDaFila, commitsDa, publicados, situacao } from './fila.mjs';
+import { chave, nomeDoRamo, ordemDaFila, decisao, limparMotivo, quedasDoLog, planoValido, NOME_VALIDO, montar, avancar, ramosDaFila, commitsDa, publicados, situacao, formatarQuedas } from './fila.mjs';
 
 const RAIZ = dirname(fileURLToPath(import.meta.url));
 const DEPOIS = Math.floor(EPOCA / 1000) + 3600;
@@ -261,4 +261,34 @@ test('Q17 · do lado da conversa: `publicar --fila` envia para fila/<leva>; núm
     assert.ok(avancar({ cwd: c.dir, plano: plano(c), portao: 'success' }).publicado);
     assert.equal((m.logDoMain().match(/^Leva G-[23] /gm) || []).length, 2);
   } finally { m.fim(); }
+});
+
+test('Q17 · leva recusada, corrigida e publicada: o aviso recusada/<nome> some com a publicação, e aviso velho não aparece como recusa pendente', () => {
+  const m = mundo();
+  try {
+    const a = m.clone('a');
+    a.enfileira('P-6', 'Leva P-6 · o que sai do aparelho\n\nTrilha: protecao', () => a.escreve('dados.js', ['const destinos = app.oQueSaiDoAparelho(estado);']));
+    const c = ci(m);
+    avancar({ cwd: c.dir, plano: plano(c), portao: 'failure', motivo: 'not ok 119 - e2e · D5 dados num lugar só;not ok 1 - e2e · D5 dados num lugar só;' });
+    assert.ok(m.existe('refs/heads/recusada/P-6'));
+    c.busca();
+    const motivo = c.git('log', '-1', '--format=%B', 'origin/recusada/P-6');
+    assert.match(motivo, /Testes que caíram \(1\):\n- e2e · D5 dados num lugar só\n/, 'um teste por linha, sem a repetição do teste sozinho');
+    assert.doesNotMatch(motivo, /not ok|;/);
+    // a conversa corrige com um commit por cima e reenvia sem apagar o aviso (clone que não enxergava o ramo recusada/)
+    a.git('checkout', '-q', 'trabalho'); a.escreve('dados.js', ['const destinos = app.oQueSaiDoAparelho(estado);', 'const lista = destinos.filter(visivel);']);
+    a.commit('Leva P-6 · correção do teste D5\n\nTrilha: protecao'); a.git('push', '-q', 'origin', 'HEAD:refs/heads/fila/P-6');
+    a.busca();
+    assert.equal(situacao({ cwd: a.dir }).recusadas.length, 1, 'enquanto a leva não chega ao main, a recusa aparece');
+    const pl = plano(c);
+    assert.deepEqual(pl.recusados, [], 'a correção por cima, com o mesmo número de leva, não é leva repetida');
+    assert.ok(avancar({ cwd: c.dir, plano: pl, portao: 'success' }).publicado);
+    assert.equal(m.existe('refs/heads/recusada/P-6'), false, 'publicou: o aviso sai');
+    assert.equal(m.existe('refs/heads/fila/P-6'), false);
+  } finally { m.fim(); }
+});
+
+test('Q17 · motivo da recusa por portão: lista sem repetição, um teste por linha; sem quedas informadas, aponta o log', () => {
+  assert.equal(formatarQuedas('not ok 3 - e2e · H7 imagens;not ok 12 - e2e · I7 foco;not ok 1 - e2e · H7 imagens;'), 'Testes que caíram (2):\n- e2e · H7 imagens\n- e2e · I7 foco');
+  assert.equal(formatarQuedas(''), ''); assert.equal(formatarQuedas(undefined), '');
 });

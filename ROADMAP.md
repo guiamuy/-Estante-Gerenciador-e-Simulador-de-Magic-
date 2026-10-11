@@ -521,12 +521,13 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ap ✅ | Barra sem internet em tela estreita: chip só com ícone e tema fora da barra; e2e D8 audita com fonte larga (CI verde de novo) (leva 158) | D | 1 | — |
 | 16º-ao ✅ | D5 dados num lugar só: Perfil › Dados com backup, conta, base local de cartas e espaço; Listas sem backup; Cartas abre na busca (leva 150) | D | 1 | — |
 | 16º-v ✅ | Publicação aditiva entre trilhas: nenhuma conversa apaga a entrega de outra sem declarar (leva 124) | Q12 | 1 | — |
-| 16º-ia 🟡 | Q15 CI só onde precisa: portão em push só no `main`; fuzz pesado da madrugada em job próprio (leva I-279) | Q | ½ | — |
+| 16º-ia ✅ | Q15 CI só onde precisa: portão em push só no `main`; fuzz pesado da madrugada em job próprio (leva I-279) | Q | ½ | — |
 | 16º-ib 🟡 | Q16 conferência antes do portão: leva repetida na trilha, id repetido na ordem, goldens de outra versão e navegador da fase de tela (leva I-280) | Q | ½ | — |
-| 16º-ic 🟡 | Q17 fila de publicação: `publicar --fila` envia para `fila/<leva>`; o fluxo soma as levas, roda um portão e avança o `main`; recusada volta com o motivo (leva I-281, em ensaio) | Q | 2 | Q15 |
-| 16º-id 🟡 | Q17 a fila vira o caminho padrão do `npm run publicar`; o caminho antigo fica em `--direto` (leva I-282, a primeira publicada pela fila) | Q | ½ | Q17 |
-| 16º-ie 🟡 | Q19 fase de tela em fatias: o mesmo arquivo roda uma vez por fatia, um Chromium cada (2 fatias com 4 núcleos, 1 com 2); cada teste numa fatia só, conferido no fim (leva I-283) | Q | 1 | — |
+| 16º-ic ✅ | Q17 fila de publicação: `publicar --fila` envia para `fila/<leva>`; o fluxo soma as levas, roda um portão e avança o `main`; recusada volta com o motivo (leva I-281, em ensaio) | Q | 2 | Q15 |
+| 16º-id ✅ | Q17 a fila vira o caminho padrão do `npm run publicar`; o caminho antigo fica em `--direto` (leva I-282, a primeira publicada pela fila) | Q | ½ | Q17 |
+| 16º-ie ✅ | Q19 fase de tela em fatias: o mesmo arquivo roda uma vez por fatia, um Chromium cada (2 fatias com 4 núcleos, 1 com 2); cada teste numa fatia só, conferido no fim (leva I-283) | Q | 1 | — |
 | 16º-if 🟡 | Q21 portão em sistema de versão fixa (`ubuntu-24.04`) nos fluxos que instalam o navegador, antes da troca do `ubuntu-latest` em 19/10/2026 (leva I-284) | Q | ½ | — |
+| 16º-ig ✅ | Q17 acertos do primeiro dia de fila: aviso de recusa sai quando a leva publica; motivo com um teste por linha; correção por cima da mesma leva não é leva repetida (leva I-285) | Q | ½ | Q17 |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -2707,7 +2708,7 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 
 Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora) num caminho que comporta 1,5 a 2 por hora — um portão local de 30 a 40 min por vez, sobre o `main` parado. Do commit ao `main`: mediana de 29 min no motor, 38 min na geral (pior caso 243 min). Cada leva roda o portão duas vezes (na conversa e no CI): cerca de 790 min de CI por dia. Detalhe em `claude/ROADMAP-infra-velocidade-de-publicacao.md` (Projeto).
 
-**Q15 · CI só onde precisa** 🟡 (leva I-279)
+**Q15 · CI só onde precisa** ✅ (leva I-279; fuzz pesado conferido em 11/10/2026: o job próprio terminou verde em 18,6 min, depois de duas madrugadas cancelado)
 - **Valor:** ramo de serviço (fila, sonda, acumulado) deixa de custar um portão de 22 min (três gastos no `z5-sonda` em 09/10); o fuzz pesado da madrugada volta a terminar (10 e 11/10 foi cancelado pelo tempo-limite: 33 min de fase rápida com 3000 partidas, e a fase de tela cortada aos 40).
 - **Aceite:** `gate.yml` roda em push só no `main`, em pull request e à mão; no agendamento roda só o job `fuzz` (3000 partidas, tempo-limite de 60 min, sem navegador); o portão de push usa sempre 250 partidas.
 - **Testes:** `portao.unit` Q15 (3): leitura de `on: push` sem filtro nas três formas do YAML; nenhum fluxo do repositório com push sem filtro; jobs `gate` e `fuzz` separados. As permissões dos fluxos seguem cobertas por `seguranca.actions.unit` (P-2).
@@ -2715,7 +2716,7 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 
 **Q16 · Conferência de segundos antes do portão** 🟡 (leva I-280)
 - **Valor:** o que caía no minuto 7 ou 25 do portão cai antes de ele começar. Em 10 e 11/10: duas `M-257`, `G-248`/`G-249` repetidas entre duas conversas da trilha geral, cinco colisões de id `16º-x`, e sessões de nuvem com os testes de tela caindo um a um por falta do navegador.
-- **Leva repetida na trilha (guarda):** `Leva <P>-N` já publicada, ou repetida entre os commits que sobem juntos, é barrada com a próxima livre. Vale nos três pontos da guarda (publicar, pre-push, CI). A Q13 só conferia o prefixo.
+- **Leva repetida na trilha (guarda):** `Leva <P>-N` já publicada é barrada com a próxima livre. Commits do mesmo envio podem repetir o número (correção por cima da mesma leva; ajuste da I-285, depois que a primeira recusa real da fila mostrou o caso). Vale nos três pontos da guarda (publicar, pre-push, CI). A Q13 só conferia o prefixo.
 - **Antes do portão (`npm run publicar`, depois do rebase e da guarda; também com `-- --conferir`):** id `16º-x` repetido na tabela de ordem, com as linhas em choque; partida-referência gravada em versão do motor diferente da do `index.html`, com o comando que corrige.
 - **Navegador da fase de tela (`portao.mjs`):** conferido antes da fase rápida. Sem `PW_CHROMIUM`, usa o do Playwright instalado; se a pasta de navegadores só tem outra revisão (caso das sessões de nuvem), usa essa e avisa; sem nenhum, o portão nem começa.
 - **Aceite:** cada caso acima para o publicar em segundos, com a correção na mensagem; o repositório publicado passa limpo.
@@ -2723,6 +2724,7 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora:** arquivo de teste fora de commit (o publicar já recusa árvore com alteração); reserva de número entre conversas antes do commit (a fila da Q17 resolve: o nome do ramo é a reserva); conflito de comportamento (é do portão).
 
 **Q17 · Fila de publicação com o portão no CI** 🟡 (aprovada pelo dono em 11/10/2026; leva I-281: fila pronta; leva I-282: a fila é o caminho padrão do `npm run publicar`, e a própria I-282 foi a primeira leva publicada por ela)
+- **Em uso (11/10/2026, 06:25 a 12:37 UTC):** 11 rodadas, 17 levas de três trilhas (infra, protecao, motor) no `main`, lotes de até quatro levas com um portão; uma recusa legítima (P-6, teste D5), devolvida com o motivo, corrigida e publicada. **Leva I-285:** o aviso `recusada/<leva>` passa a sair quando a leva chega ao `main` (o da P-6 tinha ficado), e o motivo da recusa por portão vem com um teste por linha, sem a repetição do teste sozinho.
 - **Valor:** a conversa entrega a leva em minutos e segue; um portão, no CI, cobre todas as levas que estiverem na fila. Acaba a volta perdida porque outra trilha publicou no meio.
 - **Do lado da conversa (`npm run publicar`; o caminho antigo fica em `-- --direto`):** rebase, guarda, conferência da Q16, fase rápida local (dispensável com `--sem-rapida`) e envio para `fila/<leva>`. O nome do ramo é a reserva do número: se outra conversa já enfileirou a mesma leva, o envio é recusado com o aviso de renumerar. `--esperar` fica olhando até publicar ou recusar; `-- --situacao` mostra a fila, as recusadas com o motivo e o que já chegou ao `main`.
 - **Do lado do CI (`fila.yml` + `fila.mjs`), uma rodada por vez:** soma os ramos da fila em ordem de chegada sobre o `main` (cherry-pick: mensagem, rodapés e data de autoria iguais; o sha muda); cada leva entra inteira ou fica de fora (conflito, guarda de agregação, conferência da Q16); roda um portão inteiro sobre a soma; verde, avança o `main` sem force e apaga os ramos publicados.
@@ -2738,7 +2740,8 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 **Q18 · Vez de publicar por ramo** ⬜ (só se a Q17 não se sustentar no ensaio)
 - **Valor:** quem vai publicar espera a vez em vez de rodar um portão que será interrompido. Não aumenta a capacidade. **Depende de:** Q15.
 
-**Q19 · Fase de tela em fatias** 🟡 (leva I-283; ganho a medir nos primeiros portões do CI)
+**Q19 · Fase de tela em fatias** ✅ (leva I-283)
+- **Medido em 11/10/2026, sete portões seguidos da fila com duas fatias:** fase de tela em 10,1 · 10,0 · 9,6 · 8,8 · 9,7 · 8,7 · 9,7 min (antes 15 a 16,8); portão inteiro entre 13 e 20 min (antes 22 a 25,5). Nenhuma queda por instabilidade; a única queda (D5, leva P-6) repetiu sozinha e era da leva.
 - **Valor:** portão mais curto onde ele passou a rodar: no CI. A fase de tela era 15 dos 22 min.
 - **Como:** o arquivo de tela não foi dividido (nenhuma trilha precisa mexer em arquivo novo, nenhum conflito). O `portao.mjs` roda o mesmo `e2e.test.mjs` uma vez por fatia, cada uma com o seu Chromium, e o embrulho `fatiar` faz cada teste rodar numa fatia só (pela ordem de registro; os outros saem pulados com o motivo). Cada teste de tela já abria a sua página e o seu servidor, então não há estado entre eles.
 - **Quantas fatias:** duas com quatro núcleos (CI), uma com dois (conversas de nuvem, como sempre foi: teste de tela depende de tempo e precisa de dois núcleos por navegador). `PORTAO_FATIAS=n` manda.

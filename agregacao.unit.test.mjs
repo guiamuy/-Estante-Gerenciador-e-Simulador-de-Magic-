@@ -261,7 +261,7 @@ test('Q12 · nenhum arquivo publicado carrega marca de conflito nem linha repeti
 });
 
 /* Q16 · conferência de segundos antes do portão */
-test('Q16 · a mesma "Leva M-N" não sai duas vezes na trilha: barrada contra o publicado e contra o que sobe junto, com a próxima livre', () => {
+test('Q16 · a mesma "Leva M-N" não sai duas vezes na trilha: barrada contra o que já está publicado, com a próxima livre; correção no mesmo envio passa', () => {
   const { r, bot } = comBotPublicado();
   try {
     r.escreve('regras.test.mjs', ['// teste novo da trilha do motor']);
@@ -271,9 +271,8 @@ test('Q16 · a mesma "Leva M-N" não sai duas vezes na trilha: barrada contra o 
     const { achados } = conferirFaixa(m10, repetida, { cwd: r.dir });
     assert.equal(achados.length, 1); assert.equal(achados[0].tipo, 'leva-repetida'); assert.equal(achados[0].livre, 11);
     assert.match(relatar(achados), /a leva M-10 já foi publicada[\s\S]*Próxima livre: M-11/);
-    // as duas no mesmo envio: a segunda é a repetida
-    const juntas = conferirFaixa(bot, repetida, { cwd: r.dir }).achados;
-    assert.equal(juntas.length, 1); assert.equal(juntas[0].commit.sha, repetida);
+    // no mesmo envio o número pode repetir: é a mesma leva com uma correção por cima (I-285: a fila recusou, a conversa consertou com commit novo)
+    assert.deepEqual(conferirFaixa(bot, repetida, { cwd: r.dir }).achados, []);
     // número seguinte da mesma trilha e mesmo número de outra trilha continuam passando
     r.escreve('mais.test.mjs', ['// leva seguinte do motor']);
     const m11 = r.commit('Leva M-11 · fase\n\nTrilha: motor');
