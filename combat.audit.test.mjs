@@ -295,6 +295,19 @@ test('K-3 · proeza (702.108): a mágica que não é criatura antes do ataque fa
   assert.equal(r.players[d].life, 20 - 2 - 2, 'Choque 2 + Monge 1+1');
 });
 
+test('K-4 · persistir (702.79) e imortal (702.93): o bloqueador que morre no combate volta, com o marcador', () => {
+  cobre('persist'); cobre('undying');
+  const cartas = { ...CARDS, Teimoso: cre('Teimoso', 2, 2, ['Persist']), Lobo: cre('Lobo', 2, 2, ['Undying']), Grande: cre('Grande', 4, 4) };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 35, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a; let g1, g2, t, l; [s, g1] = poe(s, a, 'Grande'); [s, g2] = poe(s, a, 'Grande'); [s, t] = poe(s, d, 'Teimoso'); [s, l] = poe(s, d, 'Lobo');
+  let r = combate(s, [g1, g2], [[t, g1], [l, g2]]);
+  for (let i = 0; i < 10 && (r.stack.length || r.pending); i++) r = r.pending ? act(r, E.legalActions(r, r.pending.p)[0]) : act(r, { t: 'pass', p: r.turn.priority });
+  assert.ok(vivo(r, t) && vivo(r, l), 'os dois voltaram');
+  assert.equal(E.stats(r, r.objects[t]).power, 1, 'persistir: −1/−1'); assert.equal(E.stats(r, r.objects[l]).power, 3, 'imortal: +1/+1');
+});
+
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));

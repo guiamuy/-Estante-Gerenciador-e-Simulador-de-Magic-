@@ -7590,15 +7590,21 @@
    "n": "702.79",
    "regra": "Keyword Abilities",
    "titulo": "Persist",
-   "status": "ausente",
-   "falta": "Sem o gatilho \"ao morrer sem marcador -1/-1, volta ao campo com um -1/-1\" (702.79a). O motor conta m1m1 na força (index.html:10340) mas nenhum efeito de script o põe, e não há a regra de +1/+1 e -1/-1 se anularem.",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "704.5q",
     "400.7",
     "603.10"
    ],
-   "cartas": "comum (Shadowmoor, Modern Horizons)"
+   "cartas": "comum (Shadowmoor, Modern Horizons)",
+   "evidencia": "K-4: 'persist' em KEYWORDS; GATILHOS_DE_PALAVRA_K gera \"quando morre\" (when 'dies', battlefield → graveyard, qualquer permanente) a partir da palavra-chave; a condição \"se não tinha -1/-1\" e as instâncias olham para trás (603.10a): ultimaPalavrasK anota na foto da saída (moveObject) como a permanente era no campo; na resolução (efeito volta_com_marcador) a mesma encarnação no cemitério (400.7, zc) volta sob o controle do dono e entra com o marcador (entradaModificada, o.entraComK: 614.1c, é entrar com, não pôr depois). Ficha não volta (deixou de existir). Carta exemplo: Kitchen Finks (Oracle do Forge, 11/10/2026).",
+   "testes": [
+    "CR 702.79a · persistir (Kitchen Finks, texto oficial): morre sem -1/-1 e volta com um, sob o controle do dono; com o marcador, não volta mais",
+    "CR 702.79a / 400.7 · a carta que saiu do cemitério antes de o gatilho resolver não volta; quem perdeu as habilidades no campo não dispara",
+    "CR 702.79a · persistir concedido (ficha): a ficha vai ao cemitério e deixa de existir — o gatilho não devolve nada",
+    "K-4 · persistir (702.79) e imortal (702.93): o bloqueador que morre no combate volta, com o marcador"
+   ]
   },
   {
    "n": "702.80",
@@ -7790,14 +7796,19 @@
    "n": "702.93",
    "regra": "Keyword Abilities",
    "titulo": "Undying",
-   "status": "ausente",
-   "falta": "Sem \"ao morrer sem marcador +1/+1, volta com um +1/+1\" (702.93a).",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "400.7",
     "603.10"
    ],
-   "cartas": "comum em poucas coleções"
+   "cartas": "comum em poucas coleções",
+   "evidencia": "K-4: 'undying' em KEYWORDS; o mesmo caminho do persistir (GATILHOS_DE_PALAVRA_K, ultimaPalavrasK, volta_com_marcador) com o marcador +1/+1. Carta exemplo: Young Wolf (Oracle do Forge, 11/10/2026).",
+   "testes": [
+    "CR 702.93a · imortal (Young Wolf, texto oficial): volta com +1/+1; já com o marcador, não; a condição é como ela era no campo",
+    "CR 702.79a / 400.7 · a carta que saiu do cemitério antes de o gatilho resolver não volta; quem perdeu as habilidades no campo não dispara",
+    "K-4 · persistir (702.79) e imortal (702.93): o bloqueador que morre no combate volta, com o marcador"
+   ]
   },
   {
    "n": "702.94",

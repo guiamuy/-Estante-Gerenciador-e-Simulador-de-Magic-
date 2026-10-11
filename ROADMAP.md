@@ -3766,6 +3766,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `abilitiesOf` (as duas saídas ganham `habilidadesDePalavraK`; só acrescenta).
 - **Testes:** `keywords.cr4.unit` (2, falham sem a leva), `combat.audit` K-3. Texto oficial novo em `.listas/oficiais-keywords.json` (Oracle do Forge, 11/10/2026). Goldens idênticos; motor v109.
 
+**K-4 · Persistir e imortal (702.79, 702.93)** 🟡 (leva K-4)
+- **Valor:** criatura com "Persist" ou "Undying" volta do cemitério uma vez, com o marcador −1/−1 ou +1/+1, só pela palavra-chave.
+- **Aceite:** Kitchen Finks morre e volta 2/1; morre de novo e fica; Young Wolf volta 2/2 e depois fica; a condição e as instâncias são as do campo (603.10a); a carta que saiu do cemitério antes de o gatilho resolver não volta (400.7); sem habilidades no campo, não dispara; ficha com persistir não volta; volta sob o controle do dono e entra com o marcador (614.1c).
+- **Toca ponto comum:** `moveObject` (uma linha a mais: a foto da saída anota `palavrasK`), `entradaModificada` (uma linha a mais: `o.entraComK`). Só acrescentam.
+- **Testes:** `keywords.cr4.unit` (4, falham sem a leva), `combat.audit` K-4. Textos oficiais: Kitchen Finks, Young Wolf (Oracle do Forge, 11/10/2026). Goldens idênticos; motor v109.
+
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

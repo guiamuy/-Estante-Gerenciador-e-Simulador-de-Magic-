@@ -247,3 +247,55 @@ test('CR 702.108b · cada instância de proeza dispara à parte (impressa + conc
   let r2; [t, r2] = poe(t, a2, 'Raio', 'hand'); t = act(t, { t: 'cast', p: a2, oid: r2, targets: [{ player: 1 - a2 }] });
   assert.equal(t.stack.length, 1, 'sem habilidades, sem proeza');
 });
+
+/* ---------------- K-4 · 702.79 persistir e 702.93 imortal ---------------- */
+const MATA = { name: 'Mata', type_line: 'Instant', mana_cost: '{B}', cmc: 1, colors: ['B'], keywords: [], oracle_text: 'Destroy target creature.' };
+const SC_MATA = { Mata: { name: 'Mata', effects: [{ do: 'destroy', target: 'creature' }], example: { target: 'enemy-creature', expect: { gone: true } } } };
+/** O jogador ativo mata a criatura `alvo` com a Mata e resolve tudo. */
+function mata(s, alvo) { const a = s.turn.active; let m; [s, m] = poe(s, a, 'Mata', 'hand'); return resolve(act(s, { t: 'cast', p: a, oid: m, targets: [{ oid: alvo }] })); }
+
+test('CR 702.79a · persistir (Kitchen Finks, texto oficial): morre sem -1/-1 e volta com um, sob o controle do dono; com o marcador, não volta mais', () => {
+  const KF = oficial('Kitchen Finks'); assert.ok(KF.keywords.includes('Persist'));
+  let s = partida({ 'Kitchen Finks': KF, Mata: MATA }, SC_MATA); const a = s.turn.active, d = 1 - a;
+  let kf; [s, kf] = poe(s, d, 'Kitchen Finks');
+  s = mata(s, kf);
+  assert.equal(s.objects[kf].zone, 'battlefield', 'voltou'); assert.equal(s.objects[kf].controller, d);
+  assert.equal(s.objects[kf].counters.m1m1, 1, 'com um marcador -1/-1'); assert.equal(E.stats(s, s.objects[kf]).power, 2);
+  s = mata(s, kf);
+  assert.equal(s.objects[kf].zone, 'graveyard', 'com o marcador, a persistência não dispara');
+});
+
+test('CR 702.93a · imortal (Young Wolf, texto oficial): volta com +1/+1; já com o marcador, não; a condição é como ela era no campo', () => {
+  const YW = oficial('Young Wolf');
+  let s = partida({ 'Young Wolf': YW, Mata: MATA }, SC_MATA); const a = s.turn.active, d = 1 - a;
+  let yw; [s, yw] = poe(s, d, 'Young Wolf');
+  s = mata(s, yw);
+  assert.equal(s.objects[yw].zone, 'battlefield'); assert.equal(s.objects[yw].counters.p1p1, 1); assert.equal(E.stats(s, s.objects[yw]).power, 2);
+  s = mata(s, yw);
+  assert.equal(s.objects[yw].zone, 'graveyard', 'com +1/+1, não volta');
+});
+
+test('CR 702.79a / 400.7 · a carta que saiu do cemitério antes de o gatilho resolver não volta; quem perdeu as habilidades no campo não dispara', () => {
+  const YW = oficial('Young Wolf');
+  let s = partida({ 'Young Wolf': YW, Mata: MATA }, SC_MATA); const a = s.turn.active, d = 1 - a;
+  let yw, m; [s, yw] = poe(s, d, 'Young Wolf'); [s, m] = poe(s, a, 'Mata', 'hand');
+  s = act(s, { t: 'cast', p: a, oid: m, targets: [{ oid: yw }] });
+  for (let i = 0; i < 6 && !s.stack.some(x => s.objects[x].ability); i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  assert.ok(s.stack.some(x => s.objects[x].ability && s.objects[x].name === 'Young Wolf'), 'o imortal está na pilha');
+  s = J(s); const gy = s.zones[d].graveyard; gy.splice(gy.indexOf(yw), 1); s.zones[d].exile.push(yw); s.objects[yw].zone = 'exile'; s.objects[yw].zc = (s.objects[yw].zc || 0) + 1; // exilada em resposta
+  s = resolve(s);
+  assert.equal(s.objects[yw].zone, 'exile', 'é outro objeto: não volta');
+  let t = partida({ 'Young Wolf': YW, Mata: MATA }, SC_MATA); let y2; [t, y2] = poe(t, 1 - t.turn.active, 'Young Wolf');
+  t = J(t); t.objects[y2].mutavel = true; t.objects[y2].vira = [{ ts: 1, loseAbilities: true }];
+  t = mata(t, y2); assert.equal(t.objects[y2].zone, 'graveyard', 'sem habilidades no campo, não há imortal');
+});
+
+test('CR 702.79a · persistir concedido (ficha): a ficha vai ao cemitério e deixa de existir — o gatilho não devolve nada', () => {
+  const FAZ = { name: 'Faz', type_line: 'Sorcery', mana_cost: '{B}', cmc: 1, colors: ['B'], keywords: [], oracle_text: 'Create a 2/2 black Zombie creature token with persist.' };
+  const SC = { ...SC_MATA, Faz: { name: 'Faz', effects: [{ do: 'token', amount: 1, token: { name: 'Zumbi K', types: ['creature'], subtypes: ['Zombie'], colors: ['B'], power: 2, toughness: 2, keywords: ['persist'] } }], example: { target: 'none', expect: { tokens: 1 } } } };
+  let s = partida({ Faz: FAZ, Mata: MATA }, SC); const a = s.turn.active;
+  let f; [s, f] = poe(s, a, 'Faz', 'hand'); s = resolve(act(s, { t: 'cast', p: a, oid: f }));
+  const z = s.zones[a].battlefield.find(x => s.objects[x].name === 'Zumbi K'); assert.ok(z);
+  s = mata(s, z);
+  assert.ok(!s.zones[a].battlefield.some(x => s.objects[x] && s.objects[x].name === 'Zumbi K'), 'a ficha não volta');
+});

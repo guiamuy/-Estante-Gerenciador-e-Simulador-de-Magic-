@@ -5201,6 +5201,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   /* ↓ K · palavras-chave da trilha keywords */
   'changeling', 'devoid', // K-1 · 702.73 e 702.114: definem característica (604.3), valem em toda zona, lidas da palavra-chave impressa
   'prowess', // K-3 · 702.108: habilidade disparada gerada pela palavra-chave (gatilhosDePalavraK), uma por instância
+  'persist', 'undying', // K-4 · 702.79 e 702.93: "quando morre, se não tinha marcador -1/-1 (+1/+1), volta com um"
   /* ↓ V · palavras-chave da trilha verbos */
   /* ↓ T · palavras-chave da trilha tipos */
 ];
@@ -15233,6 +15234,7 @@ function entradaModificada(s, o, xPago) {
     }
     for (const [k, v] of Object.entries(r.marcadores || {})) { const n = v === 'x' ? xPago : v === 'kicked' ? (o.kicked || 0) : v; if (n) marcadores[k] = (marcadores[k] || 0) + n; }
   }
+  for (const [k, n] of Object.entries(o.entraComK || {})) marcadores[k] = (marcadores[k] || 0) + n; delete o.entraComK; // K-4 · "volta com um marcador" (persistir, imortal): entra com ele
   return { virada, marcadores };
 }
 /** CR2-G R5a · o caminho antigo das modificações de entrada, tal como era no moveObject (só para o teste de equivalência). */
@@ -15294,6 +15296,7 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
     ...(isCreature(s, o) ? { power: power(s, o), toughness: toughness(s, o) } : {}),
     tipos: tiposDe(s, o).slice(), linha: linhaDeTipo(s, o), // CR2b.6 · 603.10a: o observador vê o que ela era no campo (terreno animado é criatura)
     ...((c => c.length ? { concedidas: c } : {})(grantedAbilities(s, o).filter(a => a.kind === 'triggered'))) } : null; // CR2b.6 · 603.10a: a habilidade disparada concedida também olha para trás
+  if (ultima) Object.assign(ultima, ultimaPalavrasK(s, o)); // K-4 · 603.10a: persistir/imortal olham como ela era no campo
   delete o.ultima;
   const segurava = fromZone === 'battlefield' ? o.holding : null;
   delete o.holding; delete o.devolverAoSair;
@@ -17539,6 +17542,13 @@ function applyEffect(s, src, eff, tgt, events) {
       break;
     }
     /* ↓ K · casos de applyEffect da trilha keywords */
+    case 'volta_com_marcador': { // K-4 · 702.79a / 702.93a: a carta que caiu (a mesma encarnação) volta sob o controle do dono, com o marcador
+      const c = s.objects[src.ability ? src.source : src.oid];
+      if (!c || c.zone !== 'graveyard' || (c.zc || 0) !== eff.z) { note({ failed: true }); break; } // saiu do cemitério (ou a ficha deixou de existir): nada volta
+      c.entraComK = { [eff.marcador]: 1 };
+      moveObject(s, c.oid, 'battlefield', { controller: c.owner }); delete c.entraComK; if (c.zone === 'battlefield') c.controller = c.owner; // uma substituição pode tê-la mandado a outro lugar
+      note({ target: c.name }); break;
+    }
     case 'salvaguarda': { // K-2 · 702.21a: "anula aquela mágica ou habilidade, a menos que aquele jogador pague [custo]"; 702.21b: X na resolução
       const alvo = s.objects[eff.pilha];
       if (!alvo || alvo.zone !== 'stack') { note({ failed: true }); break; } // a mágica já saiu da pilha: nada a anular
@@ -20239,6 +20249,11 @@ Object.assign(EXPORTS_K, { wardsDeK, wardImpressoK, custoDaSalvaguardaK });
 const GATILHOS_DE_PALAVRA_K = {
   // 702.108a · "Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn."
   prowess: () => ({ kind: 'triggered', when: 'other-cast', filter: { noncreature: true }, palavraK: 'prowess', effects: [{ do: 'continuo', target: 'self-source', poder: 1, resistencia: 1, ate: 'fim-do-turno' }] }),
+  // 702.79a · "When this permanent is put into a graveyard from the battlefield, if it had no -1/-1 counters on it, return it to the
+  // battlefield under its owner's control with a -1/-1 counter on it." 702.93a: o mesmo com +1/+1. A condição olha para trás (603.10a):
+  // conferida no campo, na hora de sair (ultimaPalavrasK); `z` é a encarnação no cemitério (a carta que saiu de lá é outra, 400.7).
+  persist: (s, o) => ({ kind: 'triggered', when: 'dies', palavraK: 'persist', effects: [{ do: 'volta_com_marcador', marcador: 'm1m1', z: (o && o.zc) || 0 }] }),
+  undying: (s, o) => ({ kind: 'triggered', when: 'dies', palavraK: 'undying', effects: [{ do: 'volta_com_marcador', marcador: 'p1p1', z: (o && o.zc) || 0 }] }),
 };
 /** As palavras-chave da tabela que algum script desta partida pode conceder. Cada fato é lido uma vez (WeakMap pelo próprio fato, que
     não muda depois de criado); a união é refeita uma vez por estado (o mapa de fatos é copiado raso a cada ação). */
@@ -20256,6 +20271,7 @@ function palavrasConcedidasK(s) {
 /** Quantas instâncias da palavra-chave `k` a permanente tem agora: a impressa (se não perdeu as habilidades), cada marcador (122.1b),
     a da mutação e cada efeito contínuo que a concede depois do corte (613.7); zero quando has() diz que não tem. */
 function instanciasK(s, o, k) {
+  if (o && o.zone !== 'battlefield' && PALAVRAS_DE_SAIDA_K[k]) return ((o.ultima || {}).palavrasK || {})[k] || 0; // K-4 · 603.10a: como era no campo
   const f = o && s.facts[o.name]; if (!f || o.faceDown || o.zone !== 'battlefield') return 0;
   const impressa = (f.kw || []).includes(k), marcadores = SC.KEYWORD_COUNTERS.includes(k) ? ((o.counters || {})[k] || 0) : 0, concedivel = palavrasConcedidasK(s).has(k);
   if (!impressa && !marcadores && !concedivel && !o.mutavel) return 0;
@@ -20268,10 +20284,19 @@ function instanciasK(s, o, k) {
 /** As habilidades disparadas que as palavras-chave da tabela dão à permanente, uma por instância. */
 function habilidadesDePalavraK(s, o) {
   const out = [];
-  for (const k in GATILHOS_DE_PALAVRA_K) { const n = instanciasK(s, o, k); for (let i = 0; i < n; i++) out.push(GATILHOS_DE_PALAVRA_K[k]()); }
+  for (const k in GATILHOS_DE_PALAVRA_K) { const n = instanciasK(s, o, k); for (let i = 0; i < n; i++) out.push(GATILHOS_DE_PALAVRA_K[k](s, o)); }
   return out;
 }
 Object.assign(EXPORTS_K, { instanciasK, habilidadesDePalavraK });
+/** K-4 · palavras-chave de "quando morre" que olham para trás (603.10a), com o marcador que as impede (a condição "se não tinha"). */
+const PALAVRAS_DE_SAIDA_K = { persist: 'm1m1', undying: 'p1p1' };
+/** K-4 · na hora de sair do campo (a permanente ainda é como era): quantas instâncias de cada uma ela tinha e se a condição vale. */
+function ultimaPalavrasK(s, o) {
+  const out = {};
+  for (const [k, m] of Object.entries(PALAVRAS_DE_SAIDA_K)) { if (((o.counters || {})[m] || 0) > 0) continue; const n = instanciasK(s, o, k); if (n) out[k] = n; }
+  return Object.keys(out).length ? { palavrasK: out } : {};
+}
+Object.assign(EXPORTS_K, { ultimaPalavrasK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-7 · 701.10 dobrar e 701.11 triplicar.
    Poder e resistência (a–c): efeito contínuo que soma (não fixa valor): a criatura recebe +X/+0, X = o poder dela ao resolver (dobrar)
@@ -22918,6 +22943,7 @@ const plural = (n, um, muitos) => (n === 1 ? `${n} ${um}` : `${n} ${muitos}`);
 /* ↓ K · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha keywords */
 Object.assign(PALAVRA_PT, { changeling: 'metamorfo', devoid: 'desprovido' }); // K-1
 Object.assign(PALAVRA_PT, { prowess: 'proeza' }); // K-3
+Object.assign(PALAVRA_PT, { persist: 'persistir', undying: 'imortal' }); // K-4
 /* ↓ V · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha verbos */
 const MARCADOR_PT_V = { p1p1: '+1/+1', m1m1: '−1/−1', loyalty: 'de lealdade', poison: 'de veneno' }; // V-7
 const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas por descreveEfeito)
