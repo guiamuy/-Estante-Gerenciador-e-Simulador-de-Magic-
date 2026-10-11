@@ -5349,6 +5349,7 @@ const EFFECTS = {
   exile_top_playable: { fields: ['amount'], targets: ['self'] },
   draw_free_cast: { fields: ['amount'], targets: ['self'] },
   /* ↓ K · efeitos da trilha keywords */
+  salvaguarda: { fields: [], targets: [] }, // K-2 · 702.21a · gerado pelo motor quando uma permanente com salvaguarda vira alvo (não vai em script)
   /* ↓ V · efeitos da trilha verbos */
   bolster: { fields: ['amount'], targets: ['self'] }, // V-3 · 701.39 fortalecer N: marcadores na sua criatura de menor resistência (empate: você escolhe)
   proliferate: { fields: [], targets: ['self'] }, // V-2 · 701.34 proliferar: quem controla escolhe quantas permanentes e jogadores com marcador quiser
@@ -5611,7 +5612,7 @@ function continuoErros(c, tag) {
   const a = c.afetados;
   if (c.seAfetado != null) { if (typeof c.seAfetado !== 'object' || Array.isArray(c.seAfetado)) errs.push(`${tag}: "seAfetado" precisa ser um seletor`); else { errs.push(...seletorErros(c.seAfetado, `${tag}: seAfetado`)); for (const k of ['zona', 'ref', 'ou', 'jogadores', 'habilidades']) if (c.seAfetado[k] != null) errs.push(`${tag}: seAfetado não aceita "${k}"`); } }
   if (c.se != null && !(c.se && Number.isInteger(c.se.oponenteComVeneno) && Object.keys(c.se).length === 1)) errs.push(`${tag}: "se" conhece só oponenteComVeneno (inteiro)`); // M-253 · Corrompido
-  if (c.ward != null && (typeof c.ward !== 'string' || !/^(\{[^}]+\})+$/.test(c.ward))) errs.push(`${tag}: "ward" precisa ser um custo de mana`);
+  if (c.ward != null) errs.push(...wardCustoErrosK(c.ward, false).map(e => `${tag}: "ward" ${e}`)); // K-2 · 702.21
   if (a !== 'self' && a !== 'anexada' && a !== 'equipada-pela-anexada') {
     if (!a || typeof a !== 'object') errs.push(`${tag}: "afetados" precisa ser self, anexada ou um seletor (ou equipada-pela-anexada)`);
     else {
@@ -5958,7 +5959,7 @@ function validateScript(sc) {
     for (const f of ['perPower', 'perToughness']) if (self[f] != null && !Number.isInteger(self[f])) errs.push(`bônus próprio: ${f} precisa ser inteiro`);
     if ((self.perPower != null || self.perToughness != null) && !PER_COUNTS.includes(self.per)) errs.push(`bônus próprio: contagem "${self.per}" desconhecida`);
     if (self.ptDefinido != null) { const d = self.ptDefinido; if (!d || typeof d !== 'object' || (d.poder == null && d.resistencia == null)) errs.push('P/T definido por habilidade precisa de poder ou resistência'); else for (const k of ['poder', 'resistencia']) if (d[k] != null) errs.push(...valueErrors(d[k], `P/T definido: ${k}`)); } // CR2d.9 · 7a
-    if (self.ward != null && (typeof self.ward !== 'string' || !self.ward.trim())) errs.push('bônus próprio: vigilância precisa de um custo de mana');
+    if (self.ward != null) errs.push(...wardCustoErrosK(self.ward, true).map(e => 'bônus próprio: salvaguarda ' + e)); // K-2 · 702.21: custo de mana, de vida, descarte, sacrifício ou {X}; uma ou mais instâncias
     if (self.devoid != null && self.devoid !== true) errs.push('bônus próprio: devoid só vale como true');
     if (self.toxic != null && !(Number.isInteger(self.toxic) && self.toxic > 0)) errs.push('bônus próprio: tóxico precisa ser inteiro positivo'); // M-253
     if (self.oponentesCompramUma != null && self.oponentesCompramUma !== true) errs.push('bônus próprio: oponentesCompramUma só vale como true'); // M-262
@@ -7420,6 +7421,23 @@ function deckCoverage(entries, cards, scripts = SCRIPTS) {
 
 const EXPORTS_K_SC = {}, EXPORTS_V_SC = {}, EXPORTS_T_SC = {}; // ↓ cada trilha preenche o seu (Object.assign) logo abaixo da sua âncora
 /* ↓ K · exportações de scripts.js da trilha keywords */
+/** K-2 · 702.21 · custo da salvaguarda: "{3}" (mana), ou { mana, pagarVida, discard, sacrificeOther: { types }, x } (702.21b: {X} decidido
+    na resolução, pela contagem `x`); com `varias`, também uma lista (cada instância dispara à parte). */
+function wardCustoErrosK(c, varias) {
+  if (varias && Array.isArray(c)) return c.length ? c.flatMap(x => wardCustoErrosK(x, false)) : ['precisa de pelo menos um custo'];
+  const mana = m => typeof m === 'string' && /^(\{[^}]+\})+$/.test(m);
+  if (typeof c === 'string') return mana(c) ? [] : ['precisa ser um custo de mana como {3}'];
+  if (!c || typeof c !== 'object' || Array.isArray(c)) return ['precisa ser um custo'];
+  const errs = [];
+  for (const k of Object.keys(c)) if (!['mana', 'pagarVida', 'discard', 'sacrificeOther', 'x'].includes(k)) errs.push(`chave "${k}" desconhecida`);
+  if (c.mana != null && !mana(c.mana)) errs.push('mana precisa ser um custo como {2}');
+  for (const k of ['pagarVida', 'discard']) if (c[k] != null && !(Number.isInteger(c[k]) && c[k] > 0)) errs.push(`${k} precisa ser inteiro positivo`);
+  if (c.sacrificeOther != null && !(c.sacrificeOther && Array.isArray(c.sacrificeOther.types) && c.sacrificeOther.types.length)) errs.push('sacrificeOther precisa de types');
+  if (c.x != null && !PER_COUNTS.includes(c.x)) errs.push(`contagem "${c.x}" desconhecida para o X`);
+  if (c.mana == null && c.pagarVida == null && c.discard == null && c.sacrificeOther == null && c.x == null) errs.push('sem custo');
+  return errs;
+}
+Object.assign(EXPORTS_K_SC, { wardCustoErrosK });
 /* ↓ V · exportações de scripts.js da trilha verbos */
 /* ↓ T · exportações de scripts.js da trilha tipos */
 return { ...EXPORTS_K_SC, ...EXPORTS_V_SC, ...EXPORTS_T_SC, registraLeitor, hashTexto, APROVADAS, leitura, scriptLido, KEYWORDS, KEYWORD_COUNTERS, MARCADOR_PT, duracaoValida, danoErros, substituiErros, entraErros, substituicoesDoScript, JOGADORES_QUANT, VERBOS_DE_JOGADOR, jogadoresDe, DURACOES, continuoErros, tornaErros, tornaParaBecomes, GATILHO_ZONA, GATILHO_EVENTO, gatilhoDoEvento, falaDe, gatilhoDeZona, gatilhoErros, descreveGatilho, PASSOS_DO_GATILHO, ALVO_SELETOR, CADA_SELETOR, EFEITOS_ATALHO, cadaDe, seletorErros, seletorDe, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE, DUNGEONS, dungeonByName, roomById, fichasDoScript, fichasDasCartas, chaveDaFicha };
@@ -14630,6 +14648,7 @@ function cardFacts(card) {
     types, legendary: tl.includes('legendary'), flash: kw.includes('flash'), kw,
     power: num(card && card.power), toughness: num(card && card.toughness), loyalty: num(card && card.loyalty),
     cmc: (card && card.cmc) || 0, prot: protecaoImpressa(card),
+    wardImpresso: wardImpressoK(card), // K-2 · 702.21: "Ward {N}" / "Ward—Pay N life." / descarte / sacrifício, da face da frente (undefined quando não tem)
     // CR 202.1b / 118.6: carta sem custo de mana (Living End, Lotus Bloom) tem custo impagável, não custo zero
     // (só quando o dado diz valor de mana 0: registro sem o campo de custo mas com valor de mana conhecido não é "sem custo")
     semCusto: !tl.includes('land') && !((card && card.cmc) > 0) && !String((card && (card.mana_cost || (card.faces && card.faces[0] && card.faces[0].mana_cost))) || '').trim(),
@@ -16245,22 +16264,7 @@ function evidenceCards(s, p, n) {
     separado na pilha, então ninguém responde entre a vigilância e a mágica. */
 const wardOf = (s, o) => { if (!o || o.zone !== 'battlefield') return null; const proprio = (((s.facts[o.name] || {}).script || {}).self || {}).ward; if (proprio) return proprio;
   const c = continuosQueAfetam(s, o).find(e => e.ward); return c ? c.ward : null; }; // M-251 · ward concedido (Combat Research)
-function chargeWard(s, p, stackOid, chosen) {
-  // Leva 107 · cada permanente com proteção (ward) mirada cobra a sua: a primeira vira pendência, as outras esperam
-  const cobrancas = [];
-  for (const t of chosen || []) {
-    if (!t || t.oid == null) continue;
-    const alvo = s.objects[t.oid];
-    if (!alvo || alvo.controller === p) continue;
-    const custo = wardOf(s, alvo);
-    if (!custo) continue;
-    cobrancas.push({ kind: 'may_pay', p, cost: custo, target: stackOid, name: `salvaguarda de ${alvo.name}` });
-  }
-  if (!cobrancas.length) return;
-  if (s.pending) { s.filaWard = (s.filaWard || []).concat(cobrancas); return; }
-  s.pending = cobrancas.shift();
-  if (cobrancas.length) s.filaWard = (s.filaWard || []).concat(cobrancas);
-}
+function chargeWard(s, p, stackOid, chosen) { salvaguardaK(s, p, stackOid, chosen); } // K-2 · 702.21a: a salvaguarda é habilidade disparada, vai para a pilha (salvaguardaK)
 /** Leva 107 · próxima cobrança de ward, se a mágica/habilidade ainda estiver na pilha. */
 function proximaWard(s) {
   while (!s.pending && s.filaWard && s.filaWard.length) {
@@ -17385,6 +17389,15 @@ function applyEffect(s, src, eff, tgt, events) {
       break;
     }
     /* ↓ K · casos de applyEffect da trilha keywords */
+    case 'salvaguarda': { // K-2 · 702.21a: "anula aquela mágica ou habilidade, a menos que aquele jogador pague [custo]"; 702.21b: X na resolução
+      const alvo = s.objects[eff.pilha];
+      if (!alvo || alvo.zone !== 'stack') { note({ failed: true }); break; } // a mágica já saiu da pilha: nada a anular
+      const pagador = alvo.controller, c = custoDaSalvaguardaK(s, src, eff.custo);
+      const pode = (!c.mana || !s.manaCheck || canPay(s, pagador, parseCost(c.mana))) && (!c.extra || canPayExtra(s, pagador, c.extra, null) && pagamentosDe(s, pagador, c.extra, null).length > 0);
+      if (!pode) { moveObject(s, alvo.oid, 'graveyard'); note({ target: alvo.name }); break; } // não tem como pagar: anula sem perguntar
+      s.pending = { kind: 'may_pay', p: pagador, cost: c.mana || null, ...(c.extra ? { extra: c.extra } : {}), target: alvo.oid, name: `salvaguarda de ${src.name}${c.texto ? ` (${c.texto})` : ''}` };
+      note({ pending: true }); break;
+    }
     /* ↓ V · casos de applyEffect da trilha verbos */
     case 'bolster': fortalecer(s, src, eff, events); break; // V-3 · 701.39
     case 'proliferate': proliferar(s, src, events); break; // V-2 · 701.34
@@ -18199,6 +18212,7 @@ function pagamentosDe(s, p, cost, selfOid) {
 }
 const comPagamento = pay => (pay && Object.keys(pay).length ? { pay } : {});
 function payExtraCosts(s, p, cost, pay, selfOid) {
+  if (cost.pagarVida != null) { if (s.players[p].life < cost.pagarVida) throw new RuleError('custo', 'vida insuficiente'); perdeVida(s, p, cost.pagarVida); } // K-2 · salvaguarda com vida
   if (cost.crew != null) { // CR2d.3 · tripular: confere e vira as escolhidas
     const lista = (pay && pay.crew) || formasDeTripular(s, p, cost.crew, selfOid)[0] || [];
     const ok = lista.every(x => { const o = s.objects[x]; return o && o.zone === 'battlefield' && o.controller === p && x !== selfOid && !o.tapped && isCreature(s, o); }) && new Set(lista).size === lista.length;
@@ -18273,6 +18287,7 @@ function formasDeTripular(s, p, n, selfOid) {
   return out;
 }
 const canPayExtra = (s, p, cost, selfOid) =>
+  (cost.pagarVida == null || s.players[p].life >= cost.pagarVida) && // K-2 · 119.4: só paga a vida que tem
   (cost.crew == null || formasDeTripular(s, p, cost.crew, selfOid).length > 0) &&
   (!cost.exileFromGraveyard || s.zones[p].graveyard.some(x => matchesFilter(s, s.objects[x], cost.exileFromGraveyard))) &&
   (!cost.returnLand || !!defaultPayment(s, p, cost, selfOid).land) &&
@@ -20003,6 +20018,53 @@ function metamorfoK(s, o, sub) {
 /** 702.114a · desprovido: o objeto é incolor, mesmo com mana colorida no custo. */
 function coresImpressasK(kw, cores) { return (kw || []).includes('devoid') ? [] : cores; }
 Object.assign(EXPORTS_K, { metamorfoK, ehTipoDeCriaturaK });
+/* K-2 · 702.21 salvaguarda (ward) inteira: habilidade disparada que vai para a pilha quando a permanente vira alvo de mágica ou
+   habilidade de um oponente (qualquer um responde antes dela); na resolução, quem controla a mágica paga ou ela é anulada.
+   Custo de mana, de vida, descarte ou sacrifício; {X} decidido na resolução (702.21b); cada instância dispara à parte (impressa,
+   do texto quando o script não a declara, e cada uma concedida). Perder as habilidades tira a impressa. */
+/** As salvaguardas que a permanente tem agora (uma entrada por instância). */
+function wardsDeK(s, o) {
+  if (!o || o.zone !== 'battlefield' || o.phasedOut) return [];
+  const f = s.facts[o.name] || {}, out = [];
+  if (!semImpressas(s, o)) { const doScript = ((f.script || {}).self || {}).ward; out.push(...(doScript != null ? [].concat(doScript) : (f.wardImpresso || []))); }
+  for (const e of continuosQueAfetam(s, o)) if (e.ward) out.push(...[].concat(e.ward));
+  return out;
+}
+/** 702.21a · cada permanente com salvaguarda que virou alvo de mágica ou habilidade de `p` (oponente de quem a controla) dispara. */
+function salvaguardaK(s, p, stackOid, chosen) {
+  const vistos = new Set();
+  for (const t of chosen || []) {
+    if (!t || t.oid == null || vistos.has(t.oid)) continue; vistos.add(t.oid); // a mesma permanente mirada duas vezes vira alvo uma vez
+    const alvo = s.objects[t.oid];
+    if (!alvo || alvo.controller === p) continue;
+    for (const custo of wardsDeK(s, alvo)) s.queued.push({ source: alvo.oid, name: alvo.name, controller: alvo.controller, effects: [{ do: 'salvaguarda', pilha: stackOid, custo }], when: 'ward' });
+  }
+}
+/** 702.21b · o custo na hora da resolução: { mana, extra (custos que não são mana), texto (para a pergunta) }. */
+function custoDaSalvaguardaK(s, src, c) {
+  if (typeof c === 'string') return { mana: c };
+  const x = c.x != null ? Math.max(0, amountOf(s, src, { per: c.x }) || 0) : null;
+  const mana = (x != null ? `{${x}}` : '') + (c.mana || '');
+  const extra = {}; if (c.pagarVida != null) extra.pagarVida = c.pagarVida; if (c.discard != null) extra.discard = c.discard; if (c.sacrificeOther) extra.sacrificeOther = c.sacrificeOther;
+  const texto = [c.pagarVida != null ? `pagar ${c.pagarVida} de vida` : '', c.discard != null ? (c.discard === 1 ? 'descartar uma carta' : `descartar ${c.discard} cartas`) : '', c.sacrificeOther ? 'sacrificar ' + ({ creature: 'uma criatura', artifact: 'um artefato', land: 'um terreno', enchantment: 'um encantamento' }[c.sacrificeOther.types[0]] || 'uma permanente') : ''].filter(Boolean).join(', ');
+  return { mana: mana === '{0}' ? '' : mana, ...(Object.keys(extra).length ? { extra } : {}), ...(texto ? { texto } : {}) };
+}
+/** 702.21 · salvaguarda impressa, lida da face da frente: "Ward {2}", "Ward—Pay 3 life.", "Ward—Discard a card.", "Ward—Sacrifice a creature."
+    Forma que o motor não paga ("Ward—Collect evidence", "Waterbend") fica de fora: o script da carta declara (`self.ward`). */
+function wardImpressoK(card) {
+  const txt = String((card && (card.oracle_text || (card.faces && card.faces[0] && card.faces[0].oracle_text))) || '');
+  const tipos = { creature: ['creature'], artifact: ['artifact'], land: ['land'], enchantment: ['enchantment'], permanent: ['artifact', 'creature', 'enchantment', 'land', 'planeswalker', 'battle'] };
+  const out = [];
+  for (const l0 of txt.split('\n')) {
+    const l = l0.replace(/\s*\([^)]*\)/g, '').trim(); let m;
+    if ((m = l.match(/^Ward\s+((?:\{[0-9WUBRGC]+\})+)$/))) out.push(m[1]);
+    else if ((m = l.match(/^Ward\s*[—-]\s*Pay (\d+) life\.?$/i))) out.push({ pagarVida: +m[1] });
+    else if (/^Ward\s*[—-]\s*Discard a card\.?$/i.test(l)) out.push({ discard: 1 });
+    else if ((m = l.match(/^Ward\s*[—-]\s*Sacrifice an? (creature|artifact|land|enchantment|permanent)\.?$/i))) out.push({ sacrificeOther: { types: tipos[m[1].toLowerCase()] } });
+  }
+  return out.length ? out : undefined;
+}
+Object.assign(EXPORTS_K, { wardsDeK, wardImpressoK, custoDaSalvaguardaK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-3 · 701.39 fortalecer N: "Choose a creature you control with the least toughness or tied for least toughness among creatures you
    control. Put N +1/+1 counters on that creature." Não mira (sem alvo, sem salvaguarda); a resistência é a de agora; com empate quem

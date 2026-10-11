@@ -2414,6 +2414,7 @@ test('S41 · vigilância: o oponente paga ou a mágica dele é anulada; a sua n�
   [s, caranguejo] = put(s, d, 'Crab');
   [s, bolt] = put(s, a, 'Bolt', { zone: 'hand' });
   s = act(s, { t: 'cast', p: a, oid: bolt, targets: [{ oid: caranguejo }] });
+  for (let i = 0; i < 6 && !s.pending && s.stack.length > 1; i++) s = act(s, { t: 'pass', p: s.turn.priority }); // K-2 · 702.21a: a salvaguarda vai para a pilha e resolve antes da mágica
   assert.ok(s.pending && s.pending.kind === 'may_pay' && s.pending.p === a, 'mirar a criatura com vigilância cobra de quem conjurou');
   // recusar anula a mágica
   const recusou = settle(act(s, { t: 'decline', p: a }));
@@ -2427,6 +2428,7 @@ test('S41 · vigilância: o oponente paga ou a mágica dele é anulada; a sua n�
   for (let i = 0; i < 3; i++) { let t; [s2, t] = put(s2, a2, 'Forest'); }
   [s2, bolt2] = put(s2, a2, 'Bolt', { zone: 'hand' });
   s2 = act(s2, { t: 'cast', p: a2, oid: bolt2, targets: [{ oid: car2 }] });
+  for (let i = 0; i < 6 && !s2.pending && s2.stack.length > 1; i++) s2 = act(s2, { t: 'pass', p: s2.turn.priority }); // K-2 · a salvaguarda resolve antes
   assert.ok(E.legalActions(s2, a2).some(x => x.t === 'pay'), 'com mana disponível, pagar é oferecido');
   s2 = settle(act(s2, { t: 'pay', p: a2 }));
   assert.equal(s2.objects[car2].damage, 3, 'pagou e o dano passou');

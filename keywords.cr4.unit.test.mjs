@@ -97,3 +97,105 @@ test('CR 702.114a · desprovido lido da palavra-chave impressa: incolor mesmo co
   s = resolve(act(s, { t: 'cast', p: a, oid: e }));
   assert.deepEqual(J(E.colorsOf(s, s.objects[e])), [], 'no campo');
 });
+
+/* ---------------- K-2 · 702.21 salvaguarda (ward) ---------------- */
+const CRAB = { name: 'Crab', type_line: 'Creature — Crab', mana_cost: '{3}{U}', cmc: 4, colors: ['U'], power: '2', toughness: '5', keywords: ['Ward'], oracle_text: 'Ward {2}' };
+const VIDA = { name: 'Vida', type_line: 'Creature — Spirit', mana_cost: '{B}', cmc: 1, colors: ['B'], power: '1', toughness: '4', keywords: ['Ward'], oracle_text: 'Ward—Pay 3 life.' };
+const DESC = { name: 'Desc', type_line: 'Creature — Spirit', mana_cost: '{B}', cmc: 1, colors: ['B'], power: '1', toughness: '4', keywords: ['Ward'], oracle_text: 'Ward—Discard a card.' };
+const RAIO = { name: 'Raio', type_line: 'Instant', mana_cost: '{R}', cmc: 1, colors: ['R'], keywords: [], oracle_text: 'Raio deals 3 damage to any target.' };
+const SC_RAIO = { Raio: { name: 'Raio', effects: [{ do: 'damage', amount: 3, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: 17 } } } };
+const ward = (cards, scripts = {}) => partida({ Crab: CRAB, Vida: VIDA, Desc: DESC, Raio: RAIO, ...cards }, { ...SC_RAIO, ...scripts }, 5);
+/** A conjura o Raio na permanente `alvo` de B; devolve o estado logo depois da conjuração. */
+function raioEm(s, alvo) { const a = s.turn.active; let r; [s, r] = poe(s, a, 'Raio', 'hand'); return [act(s, { t: 'cast', p: a, oid: r, targets: [{ oid: alvo }] }), r]; }
+const passaAteDecidir = s => { for (let i = 0; i < 8 && !s.pending && s.stack.length; i++) s = act(s, { t: 'pass', p: s.turn.priority }); return s; };
+
+test('CR 702.21a · a salvaguarda é habilidade disparada: vai para a pilha acima da mágica, controlada por quem controla a permanente, e dá para responder', () => {
+  let s = ward({}); const a = s.turn.active, d = 1 - a;
+  let crab, raio; [s] = poe(s, a, 'Forest'); [s] = poe(s, a, 'Forest'); [s, crab] = poe(s, d, 'Crab'); [s, raio] = raioEm(s, crab);
+  assert.equal(s.pending, null, 'nada é cobrado na conjuração');
+  assert.equal(s.stack.length, 2); const topo = s.objects[s.stack[1]];
+  assert.ok(topo.ability && topo.name === 'Crab' && topo.controller === d, 'a salvaguarda do Crab está no topo, de quem controla o Crab');
+  assert.equal(s.stack[0], raio);
+  assert.ok(E.legalActions(s, s.turn.priority).some(x => x.t === 'pass'), 'quem tem prioridade pode responder ou passar');
+  s = passaAteDecidir(s);
+  assert.equal(s.pending && s.pending.kind, 'may_pay'); assert.equal(s.pending.p, a, 'quem conjurou decide se paga'); assert.equal(s.pending.cost, '{2}');
+  const recusou = passaAteDecidir(act(s, { t: 'decline', p: a }));
+  assert.equal(recusou.objects[raio].zone, 'graveyard'); assert.equal(recusou.objects[crab].damage, 0, 'recusar anula a mágica');
+  const pagou = passaAteDecidir(act(s, { t: 'pay', p: a }));
+  assert.equal(pagou.objects[crab].damage, 3, 'pagar deixa a mágica passar');
+});
+
+test('CR 702.21a · só mágica ou habilidade de um oponente: a própria mágica não dispara a salvaguarda', () => {
+  let s = ward({}); const a = s.turn.active;
+  let crab; [s, crab] = poe(s, a, 'Crab'); [s] = raioEm(s, crab);
+  assert.equal(s.stack.length, 1, 'sem salvaguarda na pilha');
+});
+
+test('CR 702.21a · a mágica que saiu da pilha antes de a salvaguarda resolver não é cobrada; sem como pagar, anula sem perguntar', () => {
+  let s = ward({}); const a = s.turn.active, d = 1 - a;
+  let crab, raio; [s, crab] = poe(s, d, 'Crab'); [s, raio] = raioEm(s, crab);
+  let x = J(x0(s, raio)); x = passaAteDecidir(x);
+  assert.equal(x.pending, null, 'nada a cobrar: a mágica já tinha saído');
+  // com a conferência de mana ligada e nenhuma terra, {2} não dá para pagar: anula direto
+  let y = J(s); y.manaCheck = true; y = passaAteDecidir(y);
+  assert.equal(y.pending, null, 'não pergunta'); assert.equal(y.objects[raio].zone, 'graveyard'); assert.equal(y.objects[crab].damage, 0);
+});
+/** Tira a mágica da pilha (como se tivesse sido anulada por outro efeito). */
+function x0(s, oid) { s = J(s); s.stack.splice(s.stack.indexOf(oid), 1); s.objects[oid].zone = 'graveyard'; s.zones[s.objects[oid].owner].graveyard.push(oid); return s; }
+
+test('CR 702.21 · salvaguarda impressa lida do texto, com custo que não é mana: pagar vida (119.4: só a vida que tem) e descartar', () => {
+  let s = ward({}); const a = s.turn.active, d = 1 - a;
+  let vida, raio; [s, vida] = poe(s, d, 'Vida');
+  assert.deepEqual(J(s.facts.Vida.wardImpresso), [{ pagarVida: 3 }]);
+  [s, raio] = raioEm(s, vida); s = passaAteDecidir(s);
+  assert.equal(s.pending.kind, 'may_pay'); assert.match(s.pending.name, /pagar 3 de vida/);
+  const v0 = s.players[a].life; const pagou = passaAteDecidir(act(s, E.legalActions(s, a).find(x => x.t === 'pay')));
+  assert.equal(pagou.players[a].life, v0 - 3, 'pagou 3 de vida'); assert.equal(pagou.objects[vida].damage, 3);
+  let pobre = ward({}); let v2, r2; [pobre, v2] = poe(pobre, 1 - pobre.turn.active, 'Vida'); pobre = J(pobre); pobre.players[pobre.turn.active].life = 2;
+  [pobre, r2] = raioEm(pobre, v2); pobre = passaAteDecidir(pobre);
+  assert.equal(pobre.objects[r2].zone, 'graveyard', 'com 2 de vida não paga 3: anula sem perguntar'); assert.equal(pobre.players[pobre.turn.active].life, 2);
+  // descartar: quem conjurou escolhe a carta
+  let t = ward({}); const a2 = t.turn.active; let desc; [t, desc] = poe(t, 1 - a2, 'Desc'); [t] = raioEm(t, desc); t = passaAteDecidir(t);
+  const pagar = E.legalActions(t, a2).filter(x => x.t === 'pay');
+  assert.equal(pagar.length, t.zones[a2].hand.length > 0 ? new Set(t.zones[a2].hand).size : 0, 'uma forma de pagar por carta da mão');
+  const mao = t.zones[a2].hand.length; const t2 = passaAteDecidir(act(t, pagar[0]));
+  assert.equal(t2.zones[a2].hand.length, mao - 1, 'descartou uma'); assert.equal(t2.objects[desc].damage, 3);
+});
+
+test('CR 702.21 · salvaguarda de sacrifício, e cada instância dispara à parte', () => {
+  const SAC = { name: 'Sac', type_line: 'Creature — Spirit', mana_cost: '{B}', cmc: 1, colors: ['B'], power: '1', toughness: '4', keywords: ['Ward'], oracle_text: 'Ward—Sacrifice a creature.' };
+  let s = ward({ Sac: SAC }); const a = s.turn.active, d = 1 - a;
+  assert.deepEqual(J(s.facts.Sac.wardImpresso), [{ sacrificeOther: { types: ['creature'] } }]);
+  let sac, raio; [s, sac] = poe(s, d, 'Sac');
+  let semCriatura = J(s); [semCriatura, raio] = raioEm(semCriatura, sac); semCriatura = passaAteDecidir(semCriatura);
+  assert.equal(semCriatura.objects[raio].zone, 'graveyard', 'sem criatura para sacrificar, anula sem perguntar');
+  let x; [s, x] = poe(s, a, 'Crab'); [s, raio] = raioEm(s, sac); s = passaAteDecidir(s);
+  const pagar = E.legalActions(s, a).filter(y => y.t === 'pay'); assert.equal(pagar.length, 1, 'o Crab é a única criatura que serve');
+  s = passaAteDecidir(act(s, pagar[0])); assert.equal(s.objects[x].zone, 'graveyard', 'sacrificou o Crab'); assert.equal(s.objects[sac].damage, 3);
+  // duas instâncias (impressa + concedida)
+  let u = ward({}); const a3 = u.turn.active; let crab; [u, crab] = poe(u, 1 - a3, 'Crab');
+  u = J(u); u.objects[crab].vira = []; const dupla = { ...u.facts.Crab, script: { name: 'Crab', effects: [], abilities: [], self: { ward: ['{2}', { pagarVida: 1 }] } } }; u.facts.Crab = dupla;
+  assert.equal(J(E.wardsDeK(u, u.objects[crab])).length, 2);
+  [u] = raioEm(u, crab);
+  assert.equal(u.pending && u.pending.kind, 'triggers', 'duas salvaguardas diferentes do mesmo jogador: ele escolhe a ordem (603.3b)'); assert.equal(u.queued.length, 2);
+});
+
+test('CR 702.21b · salvaguarda {X}: o X é decidido na resolução, não no disparo', () => {
+  assert.deepEqual(J(S.validateScript({ name: 'T', self: { ward: { x: 'creatures-you-control' } }, example: { action: 'etb', target: 'none', expect: { attached: false } } })), []);
+  assert.ok(S.validateScript({ name: 'T', self: { ward: { vida: 2 } }, example: { action: 'etb', target: 'none', expect: { attached: false } } }).length > 0, 'chave desconhecida é barrada');
+  let s = ward({}, { Crab: { name: 'Crab', self: { ward: { x: 'creatures-you-control' } }, example: { action: 'etb', target: 'none', expect: { attached: false } } } });
+  const a = s.turn.active, d = 1 - a; let crab; [s, crab] = poe(s, d, 'Crab'); [s] = raioEm(s, crab);
+  let mais; [s, mais] = poe(s, d, 'Vida'); // outra criatura entra depois do disparo e antes da resolução
+  s = passaAteDecidir(s);
+  assert.equal(s.pending.cost, '{2}', 'X = 2 criaturas de quem controla o Crab, contadas na resolução');
+});
+
+test('CR 702.21a · perder todas as habilidades tira a salvaguarda impressa; virada para baixo não tem', () => {
+  let s = ward({}); const a = s.turn.active, d = 1 - a;
+  let crab; [s, crab] = poe(s, d, 'Crab');
+  s = J(s); s.objects[crab].mutavel = true; s.objects[crab].vira = [{ ts: 1, loseAbilities: true }];
+  assert.equal(J(E.wardsDeK(s, s.objects[crab])).length, 0);
+  [s] = raioEm(s, crab); assert.equal(s.stack.length, 1, 'sem salvaguarda');
+  let v = ward({}); let c2; [v, c2] = poe(v, 1 - v.turn.active, 'Crab'); v = J(v); v.objects[c2].faceDown = true;
+  assert.equal(J(E.wardsDeK(v, v.objects[c2])).length, 0, '708.2: virada para baixo não tem habilidade');
+});

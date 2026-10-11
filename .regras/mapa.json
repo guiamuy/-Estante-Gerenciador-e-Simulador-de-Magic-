@@ -6762,9 +6762,8 @@
    "n": "702.21",
    "regra": "Keyword Abilities",
    "titulo": "Ward",
-   "status": "parcial",
-   "evidencia": "chargeWard (index.html:10843) cobra ao conjurar (12319), ativar (12404), gatilho (11840) e insanidade (12700): pendência may_pay, e recusar anula; rules.unit S41 (2407), R9b; sonda sonda2-702a.mjs: Bolt no Mirrorshell Crab abre may_pay {3} e, recusado, o Bolt vai ao cemitério sem dano · M-292 (CR2b.5): a cobrança da salvaguarda não se perde quando outra decisão de gatilho abre na mesma rodada",
-   "falta": "Não é gatilho na pilha (simplificação declarada em 10839): a cobrança é imediata, sem resposta entre a salvaguarda e a mágica (702.21a). Custo só de mana (self.ward é texto de mana): \"Ward—pagar vida/descartar/sacrificar\" e X (702.21b) não existem; só ward próprio do script, não concedido (Combat Research sem script)",
+   "status": "coberta",
+   "evidencia": "Até a K-2: chargeWard (index.html:10843) cobra ao conjurar (12319), ativar (12404), gatilho (11840) e insanidade (12700): pendência may_pay, e recusar anula; rules.unit S41 (2407), R9b; sonda sonda2-702a.mjs: Bolt no Mirrorshell Crab abre may_pay {3} e, recusado, o Bolt vai ao cemitério sem dano · M-292 (CR2b.5): a cobrança da salvaguarda não se perde quando outra decisão de gatilho abre na mesma rodada · K-2: chargeWard → salvaguardaK (abaixo da âncora ↓ K de core.js): a salvaguarda vira habilidade disparada na pilha (s.queued, when 'ward'), controlada por quem controla a permanente, acima da mágica ou habilidade do oponente que a mirou (cast, ativar, gatilho com alvo, insanidade — os quatro caminhos que já chamavam chargeWard); qualquer jogador responde antes dela. Resolução (efeito 'salvaguarda' em applyEffect): se a mágica ainda está na pilha, quem a controla paga (may_pay) ou ela é anulada; sem como pagar, anula sem perguntar. Custos: mana, pagar vida (119.4), descartar, sacrificar (canPayExtra/payExtraCosts com pagarVida); {X} contado na resolução (702.21b). Instâncias: a impressa (script `self.ward`, aceita lista; sem script, lida do texto pela face da frente: wardImpressoK) e cada concedida (continuo `ward`), cada uma dispara à parte; perder as habilidades ou virar para baixo tira a impressa.",
    "esforco": "M",
    "depende": [
     "603"
@@ -6774,7 +6773,14 @@
     "CR 603.3 · APNAP com escolha aberta: o gatilho do jogador ativo que pede alvo fica embaixo do gatilho do outro (antes ficava em cima)",
     "CR 603.3 · Animate Dead na criatura do oponente: o \"ao entrar\" dela é de quem a pôs no campo, e o seu \"outra criatura sua entra\" dispara",
     "CR 603.3 · gatilhos que lembram cartas diferentes (Angelic Renewal com duas criaturas morrendo juntas): o controlador escolhe a ordem",
-    "CR 603.10 · a permanente transformada que morre dispara o \"morre\" da face de trás, não o da frente"
+    "CR 603.10 · a permanente transformada que morre dispara o \"morre\" da face de trás, não o da frente",
+    "CR 702.21a · a salvaguarda é habilidade disparada: vai para a pilha acima da mágica, controlada por quem controla a permanente, e dá para responder",
+    "CR 702.21a · só mágica ou habilidade de um oponente: a própria mágica não dispara a salvaguarda",
+    "CR 702.21a · a mágica que saiu da pilha antes de a salvaguarda resolver não é cobrada; sem como pagar, anula sem perguntar",
+    "CR 702.21 · salvaguarda impressa lida do texto, com custo que não é mana: pagar vida (119.4: só a vida que tem) e descartar",
+    "CR 702.21 · salvaguarda de sacrifício, e cada instância dispara à parte",
+    "CR 702.21b · salvaguarda {X}: o X é decidido na resolução, não no disparo",
+    "CR 702.21a · perder todas as habilidades tira a salvaguarda impressa; virada para baixo não tem"
    ]
   },
   {

@@ -44,6 +44,7 @@ test('R9b · registro: indestrutível continua dito quando é esse o motivo', ()
 test('R9b · ward na cobrança chama "salvaguarda", não "vigilância" (que é outra habilidade)', () => {
   let s = limpaMao(jogo({ lista: 'Pauper Elves', oponente: 'Pauper Elves', terrenos: ['Forest', 'Forest', 'Forest'] }), 0), tw, cr; [s, tw] = poe(s, 0, 'Timberwatch Elf'); [s, cr] = poe(s, 1, 'Mirrorshell Crab');
   s = act(s, legais(s, 0, a => a.oid === tw && a.targets[0].oid === cr)[0]);
+  for (let i = 0; i < 6 && !s.pending && s.stack.length > 1; i++) s = act(s, { t: 'pass', p: s.turn.priority }); // K-2 · 702.21a: a salvaguarda vai para a pilha e resolve antes
   assert.equal(s.pending.kind, 'may_pay'); assert.equal(s.pending.name, 'salvaguarda de Mirrorshell Crab');
 });
 

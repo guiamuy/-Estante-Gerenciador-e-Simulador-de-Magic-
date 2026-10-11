@@ -34,7 +34,7 @@ test('M-251 · Combat Research: "As long as enchanted creature is legendary, it 
   assert.deepEqual(J(E.stats(comum, comum.objects[ins])), J(E.stats(s, s.objects[ins])), 'criatura comum: sem bônus');
   const st = E.stats(lendaria, lendaria.objects[elas]); assert.equal(st.power, 3); assert.equal(st.toughness, 3, 'lendária: +1/+1');
   // ward {1}: o Lightning Bolt do oponente na Elas cobra {1}
-  let x = comMana(lendaria, 'R', 1); x = act(x, { t: 'pass', p: 0 });
+  let x = comMana(comMana(lendaria, 'R', 1), 'R', 1); x = act(x, { t: 'pass', p: 0 }); // K-2 · com um {R} a mais para pagar a salvaguarda: sem como pagar, ela anula sem perguntar
   x = act(x, legais(x, 1, a => a.t === 'cast' && a.oid === bolt && a.targets[0].oid === elas)[0]);
   for (let i = 0; i < 6 && !(x.pending && x.pending.kind === 'may_pay'); i++) x = act(x, { t: 'pass', p: x.turn.priority });
   assert.equal(x.pending && x.pending.kind, 'may_pay', 'ward pede o pagamento ao oponente'); assert.equal(x.pending.p, 1);
