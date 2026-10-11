@@ -10492,3 +10492,33 @@ test('e2e · LT8 · carta lida pelo motor sem script à mão aparece como "em re
 /* ↓ K · testes de tela da trilha keywords (só test(nome, { skip }, fn) no nível do arquivo) */
 /* ↓ V · testes de tela da trilha verbos (só test(nome, { skip }, fn) no nível do arquivo) */
 /* ↓ T · testes de tela da trilha tipos (só test(nome, { skip }, fn) no nível do arquivo) */
+test('e2e · T-1 · CR 714.3b · Saga com read ahead: a mesa pergunta em que capítulo começar, com um botão por capítulo, e só o capítulo escolhido acontece', { skip }, async t => {
+  // Texto oficial em .listas/oficiais-tipos.json (Oracle do Forge, 11/10/2026). A única carta com read ahead da biblioteca (The Weatherseed
+  // Treaty) é parcial declarada e lista com carta parcial não abre na mesa; por isso a montagem é por dado: uma History of Benalia posta no
+  // campo sem marcador, com read ahead ligado nos fatos desta partida. O que se testa aqui é a decisão na tela (o motor é provado em tipos.sagas.unit).
+  const extras = JSON.parse(readFileSync(join(ROOT, '.listas', 'oficiais-tipos.json'), 'utf8')).cartas.filter(c => c.name === 'History of Benalia');
+  const M = await comLista125(t, '24 Plains\n16 History of Benalia', ['Plains', 'History of Benalia'], '4', { extras });
+  const { page } = M;
+  const saga = await page.evaluate(() => { const s = window.__estanteMesa.estado();
+    const z = s.zones[0].library, i = z.findIndex(o => s.objects[o].name === 'History of Benalia'); if (i < 0) throw new Error('sem a Saga no grimório');
+    const oid = z.splice(i, 1)[0];
+    const sc = s.facts['History of Benalia'].script; s.facts['History of Benalia'] = { ...s.facts['History of Benalia'], script: { ...sc, self: { ...(sc.self || {}), readAhead: true } } };
+    Object.assign(s.objects[oid], { zone: 'battlefield', controller: 0, tapped: false, sick: false, damage: 0, counters: {}, entrouNoTurno: s.turn.number }); s.zones[0].battlefield.push(oid); return oid; });
+  const terra = await M.oid('Plains'); assert.ok(terra, 'uma Planície na mão');
+  assert.equal(await M.act({ t: 'play_land', p: 0, oid: terra }), true); await page.waitForTimeout(250);
+  let e = await M.est();
+  assert.equal(e.pend, 'saga_capitulo', 'a mesa pede o capítulo: ' + JSON.stringify(e));
+  assert.match(await M.decisao(), /^History of Benalia: em que capítulo começar\? \| Ela entra com esse número de marcadores\. Os capítulos anteriores não acontecem\./);
+  const rotulos = await page.locator('.tb-banner button', { hasText: /^Capítulo / }).allInnerTexts();
+  assert.deepEqual(rotulos, ['Capítulo I', 'Capítulo II', 'Capítulo III'], 'um botão por capítulo');
+  assert.equal(await page.locator('#tb-saga_capitulo').count(), 1);
+  for (const b of await page.locator('.tb-banner button', { hasText: /^Capítulo / }).all()) { const cx = await b.boundingBox(); assert.ok(cx && cx.height >= 44, 'botão com 44 px de altura ou mais: ' + JSON.stringify(cx)); }
+  await auditaTela(page, 'capítulo inicial da Saga (read ahead)');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/t1-saga-capitulo.png' });
+  await page.locator('.tb-banner button', { hasText: /^Capítulo II$/ }).click(); await page.waitForTimeout(250);
+  e = await M.resolve();
+  const fim = await page.evaluate(oid => { const s = window.__estanteMesa.estado(); return { lore: s.objects[oid].counters.lore, zona: s.objects[oid].zone, pend: s.pending && s.pending.kind, cavaleiros: Object.values(s.objects).filter(o => o.token && o.name === 'Knight').length }; }, saga);
+  assert.deepEqual(fim, { lore: 2, zona: 'battlefield', pend: null, cavaleiros: 1 }, 'entrou com dois marcadores e só o capítulo II aconteceu (um Cavaleiro)');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/t1-saga-depois.png' });
+  assert.deepEqual(M.errors, []);
+});

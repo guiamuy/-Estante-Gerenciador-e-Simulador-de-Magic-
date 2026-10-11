@@ -5654,6 +5654,7 @@ const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield
   /* ↓ V · gatilhos da trilha verbos */
   'becomes-monstrous', // V-6 · "When ~ becomes monstrous" (o valor do gatilho é o N da monstruosidade, 701.37c)
   /* ↓ T · gatilhos da trilha tipos */
+  'chapter', // T-1 · CR 714.2 · habilidade de capítulo de Saga: { kind: 'triggered', when: 'chapter', chapters: [1, 2], effects } (o motor a dispara pelos marcadores de lore)
 ];
 /** CR2-G R2a · 603.6 · gatilho de mudança de zona como um evento só: de onde (`de`), para onde (`para`), quem muda
  * (`objeto`: ela mesma, outra permanente, a permanente anexada) e, para outra, de quem ela é (`quem`, `donoVoce`).
@@ -6018,6 +6019,7 @@ function validateScript(sc) {
   if (sc && sc.replicate != null && sc.kicker) errs.push('replicar e reforço na mesma carta não são aceitos (os dois usam o pagamento repetido)');
   if (sc && sc.modeCount != null && !(Number.isInteger(sc.modeCount) && sc.modeCount >= 2 && (sc.modes || []).length && (sc.modeRepeat || sc.modeCount <= sc.modes.length))) errs.push('número de modos inválido');
   if (sc && sc.cumulativeUpkeep && !/\{/.test(String(sc.cumulativeUpkeep.mana || ''))) errs.push('manutenção cumulativa precisa de um custo de mana');
+  errs.push(...sagaErros(sc)); // T-1 · CR 714 · Saga: capítulos, read ahead e o marcador de entrada (função abaixo da âncora T das exportações)
   return errs.concat(exampleErrors(sc));
 }
 const ATRASOS = ['next-upkeep', 'next-end-step', 'end-of-combat']; // CR2b.1 · momentos de gatilho atrasado que o motor conhece
@@ -6280,6 +6282,29 @@ const RAW_SCRIPTS = [
   { name: 'Parallel Lives', self: { multiplica: [{ evento: 'fichas', modo: 'dobro' }] }, example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Anointed Procession', self: { multiplica: [{ evento: 'fichas', modo: 'dobro' }] }, example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Hardened Scales', self: { multiplica: [{ evento: 'marcadores', modo: 'mais1', tipo: 'p1p1', em: 'creature' }] }, example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // T-1 · CR 714 · Sagas (Oracle do Forge, consulta de 11/10/2026). Cada capítulo é uma habilidade disparada `when: 'chapter'` com os
+  // números em `chapters` ("I, II —" = [1, 2]); "entra com um marcador de lore" (714.3a) é a substituição de entrada de sempre.
+  // "I, II — Create a 2/2 white Knight creature token with vigilance. III — Knights you control get +2/+1 until end of turn."
+  { name: 'History of Benalia', entra: [{ afetados: 'self', marcadores: { lore: 1 } }], abilities: [
+    { kind: 'triggered', when: 'chapter', chapters: [1, 2], effects: [{ do: 'token', amount: 1, token: { name: 'Knight', types: ['creature'], subtypes: ['Knight'], colors: ['W'], power: 2, toughness: 2, keywords: ['vigilance'] } }] },
+    { kind: 'triggered', when: 'chapter', chapters: [3], effects: [{ do: 'continuo', cada: { subtipos: ['Knight'], de: 'you' }, poder: 2, resistencia: 1 }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o cenário de verdade (linha de tipo real) está em tipos.sagas.unit: "S8 · …"
+  // "I — Search your library for a basic Plains card, reveal it, put it into your hand, then shuffle. II — Create a 0/4 colorless Wall
+  // artifact creature token with defender. III — You gain 2 life."
+  { name: 'The Birth of Meletis', entra: [{ afetados: 'self', marcadores: { lore: 1 } }], abilities: [
+    { kind: 'triggered', when: 'chapter', chapters: [1], effects: [{ do: 'search', amount: 1, filter: { types: ['land'], basic: true, subtypes: ['Plains'] }, to: 'hand' }] },
+    { kind: 'triggered', when: 'chapter', chapters: [2], effects: [{ do: 'token', amount: 1, token: { name: 'Wall', types: ['artifact', 'creature'], subtypes: ['Wall'], colors: [], power: 0, toughness: 4, keywords: ['defender'] } }] },
+    { kind: 'triggered', when: 'chapter', chapters: [3], effects: [{ do: 'gain', amount: 2 }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // "Read ahead … I — Search your library for a basic land card, put it onto the battlefield tapped, then shuffle. II — Create a 1/1 green
+  // Saproling creature token. III — Domain — Target creature you control gets +X/+X and gains trample until end of turn, where X is the
+  // number of basic land types among lands you control."
+  { name: 'The Weatherseed Treaty', covers: 'partial', note: 'capítulo III: a criatura alvo ganha atropelar, mas falta o +X/+X do domínio (o motor ainda não conta tipos de terreno básico)',
+    self: { readAhead: true }, abilities: [
+    { kind: 'triggered', when: 'chapter', chapters: [1], effects: [{ do: 'search', amount: 1, filter: { types: ['land'], basic: true }, to: 'battlefield-tapped' }] },
+    { kind: 'triggered', when: 'chapter', chapters: [2], effects: [{ do: 'token', amount: 1, token: { name: 'Saproling', types: ['creature'], subtypes: ['Saproling'], colors: ['G'], power: 1, toughness: 1 } }] },
+    { kind: 'triggered', when: 'chapter', chapters: [3], effects: [{ do: 'continuo', target: 'creature-you-control', palavras: ['trample'] }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // dano direto
   { name: 'Lightning Bolt', effects: [{ do: 'damage', amount: 3, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: -3 } } },
   { name: 'Shock', effects: [{ do: 'damage', amount: 2, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: -2 } } },
@@ -7486,6 +7511,34 @@ Object.assign(EXPORTS_K_SC, { wardCustoErrosK });
 // V-6 · evento "ficou monstruosa" (701.37): da própria permanente
 EVENTOS_DE_OBJETO.push('monstruosa'); OBJETOS_DO_EVENTO.monstruosa = ['self']; GATILHO_EVENTO['becomes-monstrous'] = { evento: 'monstruosa', objeto: 'self' }; TRIGGER_PT['becomes-monstrous'] = 'quando fica monstruosa';
 /* ↓ T · exportações de scripts.js da trilha tipos */
+/* ---------------- T-1 · CR 714 · Sagas (forma do script) ----------------
+   Capítulo = habilidade disparada `{ kind: 'triggered', when: 'chapter', chapters: [N…], effects | modes }` (714.2b; "I, II —" são
+   dois capítulos com o mesmo efeito, 714.2c). Sem read ahead, o script declara a substituição de entrada
+   `entra: [{ afetados: 'self', marcadores: { lore: 1 } }]` (714.3a); com read ahead (`self: { readAhead: true }`) o motor pergunta o
+   capítulo ao entrar (714.3b) e o script NÃO declara marcador de entrada. */
+function ehCapitulo(ab) { return !!ab && ab.kind === 'triggered' && ab.when === 'chapter'; } // declarações (içadas): o validador roda na carga, antes desta linha
+/** As habilidades de capítulo declaradas num script. */
+function capitulosDoScript(sc) { return ((sc && sc.abilities) || []).filter(ehCapitulo); }
+function sagaErros(sc) {
+  const errs = [], abs = (sc && sc.abilities) || [], caps = capitulosDoScript(sc), ra = ((sc && sc.self) || {}).readAhead;
+  abs.forEach((ab, i) => { if (ab && ab.chapters != null && !ehCapitulo(ab)) errs.push(`habilidade ${i + 1}: "chapters" só vale em habilidade de capítulo (when: 'chapter')`); });
+  if (ra != null && ra !== true) errs.push('Saga: read ahead só vale como true');
+  if (!caps.length) { if (ra) errs.push('read ahead só vale em Saga (script com habilidade de capítulo)'); return errs; }
+  const vistos = [];
+  for (const ab of caps) {
+    const ns = ab.chapters;
+    if (!Array.isArray(ns) || !ns.length || ns.some(n => !Number.isInteger(n) || n < 1)) { errs.push('Saga: cada capítulo precisa de "chapters" com números inteiros a partir de 1'); continue; }
+    for (const n of ns) { if (vistos.includes(n)) errs.push(`Saga: capítulo ${n} repetido`); vistos.push(n); }
+  }
+  const fim = Math.max(0, ...vistos);
+  for (let n = 1; n <= fim; n++) if (!vistos.includes(n)) errs.push(`Saga: falta o capítulo ${n}`);
+  const entraLore = ((sc && sc.entra) || []).filter(r => r && r.afetados === 'self' && r.marcadores && r.marcadores.lore != null);
+  if (ra && entraLore.length) errs.push('Saga com read ahead não declara marcador de lore de entrada: o jogador escolhe o capítulo (714.3b)');
+  if (!ra && !(entraLore.length === 1 && entraLore[0].marcadores.lore === 1)) errs.push('Saga sem read ahead precisa de entra: [{ afetados: \'self\', marcadores: { lore: 1 } }] (714.3a)');
+  return errs;
+}
+TRIGGER_PT.chapter = 'capítulo da Saga';
+Object.assign(EXPORTS_T_SC, { sagaErros, capitulosDoScript });
 return { ...EXPORTS_K_SC, ...EXPORTS_V_SC, ...EXPORTS_T_SC, registraLeitor, hashTexto, APROVADAS, leitura, scriptLido, KEYWORDS, KEYWORD_COUNTERS, MARCADOR_PT, duracaoValida, danoErros, substituiErros, entraErros, substituicoesDoScript, JOGADORES_QUANT, VERBOS_DE_JOGADOR, jogadoresDe, DURACOES, continuoErros, tornaErros, tornaParaBecomes, GATILHO_ZONA, GATILHO_EVENTO, gatilhoDoEvento, falaDe, gatilhoDeZona, gatilhoErros, descreveGatilho, PASSOS_DO_GATILHO, ALVO_SELETOR, CADA_SELETOR, EFEITOS_ATALHO, cadaDe, seletorErros, seletorDe, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE, DUNGEONS, dungeonByName, roomById, fichasDoScript, fichasDasCartas, chaveDaFicha };
 })();
 
@@ -16078,6 +16131,7 @@ function enterStep(s, step) {
   // CR2-G R2b · nos outros passos, os atrasados vêm antes; depois os do jogador ativo e os de cada jogador / dos oponentes
   // (CR2b.5 · 603.2b; CR 511.2: o fim do combate é de todos os jogadores, não só do ativo)
   if (SC.PASSOS_DO_GATILHO.includes(step)) { if (step !== 'upkeep') disparaPasso(s, step, 'seu'); disparaPasso(s, step, 'todos'); }
+  if (step === 'main1') sagasNaPrincipal(s); // T-1 · CR 714.3c / 703.4f · marcador de lore em cada Saga do jogador ativo, antes da prioridade (função abaixo da âncora T das exportações)
   if (step === 'draw') {
     const skip = s.turn.firstTurn && s.players.length === 2; // 103.8a
     if (!skip) draw(s, a, 1);
@@ -18634,6 +18688,7 @@ function stateBased(s, events) {
       for (const oid of morrem) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield') continue; moveObject(s, oid, 'graveyard'); changed = true; events.push({ kind: 'died', oid, name: o.name }); }
       delete s.saindoJuntas;
     }
+    if (sagasDeEstado(s, events)) changed = true; // T-1 · CR 714.2b (capítulos disparam), 714.3b (read ahead) e 714.4 / 704.5s (sacrifício); função abaixo da âncora T das exportações
     if (!changed) break;
   }
   // CR 704.5j · regra das lendas: o controlador escolhe qual fica; as outras vão para o cemitério
@@ -19399,6 +19454,14 @@ const HANDLERS = {
   /* ↓ K · ações (HANDLERS) da trilha keywords */
   /* ↓ V · ações (HANDLERS) da trilha verbos */
   /* ↓ T · ações (HANDLERS) da trilha tipos */
+  /** T-1 · CR 714.3b · read ahead: o controlador escolhe o capítulo; a Saga fica com esse número de marcadores de lore. */
+  saga_capitulo(s, a, ev) {
+    const pd = s.pending;
+    if (!pd || pd.kind !== 'saga_capitulo' || pd.p !== a.p) throw new RuleError('tempo', 'nenhuma Saga esperando o capítulo inicial');
+    if (!Number.isInteger(a.n) || a.n < 1 || a.n > pd.max) throw new RuleError('capitulo', `escolha um capítulo de I a ${ROMANOS[pd.max] || pd.max}`);
+    const o = s.objects[pd.oid]; s.pending = null;
+    if (o && o.zone === 'battlefield') { o.counters.lore = a.n; ev.push({ kind: 'effect', do: 'counters', tipo: 'lore', amount: a.n, name: o.name }); }
+  },
   concede(s, a) { const pl = s.players[a.p]; if (!pl.lost) { pl.life = Math.min(pl.life, 0); pl.lossReason = 'desistência'; } },
 
   /* ---- adjudicação (mesa assistida) ---- */
@@ -19588,6 +19651,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
         if (can.length >= 2) out.push({ t: 'block', p, blocks: can.slice(0, 2).map(b => [b, a]) });
       }
     }
+    sagaOfertas(s, p, out); // T-1 · CR 714.3b · decisão pendente da trilha tipos (função abaixo da âncora T das exportações)
     return out;
   }
   if (s.turn.priority !== p) return out;
@@ -20361,6 +20425,91 @@ function lutar(s, src, eff, tgt, events) {
 }
 Object.assign(EXPORTS_V, { lutar });
 /* ↓ T · exportações de core.js da trilha tipos */
+/* ---------------- T-1 · CR 714 · Sagas ----------------
+   Tudo o que a regra pede sai dos marcadores de lore e das habilidades de capítulo do script (when: 'chapter', chapters: [N…]).
+   - 714.2b · o capítulo dispara quando o número de marcadores "era menor que N e passou a ser pelo menos N". O motor guarda em
+     `s.sagas[oid] = { z, n }` quantos marcadores cada Saga tinha na última conferência (z = encarnação: 400.7, objeto novo recomeça
+     do zero) e compara a cada conferência de ações de estado — antes de qualquer jogador receber prioridade. Assim todo caminho
+     que põe marcador (entrada, ação de turno, efeito, escolha do read ahead) dispara, sem gancho em cada um. O campo só existe
+     em partida com Saga no campo (o hash das outras não muda).
+   - 714.3b / 702.155 · read ahead: ao entrar, a decisão pendente `saga_capitulo`; no turno em que entrou só dispara o capítulo de
+     número igual aos marcadores.
+   - 714.3c / 703.4f · `sagasNaPrincipal`, chamada por enterStep('main1').
+   - 714.4 / 704.5s · `sagasDeEstado`, chamada por stateBased: sacrifica se marcadores ≥ capítulo final e não há capítulo dela
+     disparado que ainda não saiu da pilha (fila, escolha de ordem/alvo/modo, pilha). */
+const ROMANOS = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
+/** A carta (como está impressa) tem capítulo? Filtro barato para não olhar habilidades de quem não é Saga. */
+function ehSaga(s, o) { const sc = o && s.facts[o.name] && s.facts[o.name].script; return !!sc && SC.capitulosDoScript(sc).length > 0; }
+/** 714.2 · as habilidades de capítulo que a permanente tem agora (perdeu as habilidades ou está virada para baixo: nenhuma). */
+function capitulosDe(s, o) { return ehSaga(s, o) ? abilitiesOf(s, o).filter(ab => ab.kind === 'triggered' && ab.when === 'chapter') : []; }
+/** 714.2d · capítulo final: o maior número entre as habilidades de capítulo; sem nenhuma, 0. */
+function capituloFinal(s, o) { return capitulosDe(s, o).reduce((m, ab) => Math.max(m, ...ab.chapters), 0); }
+/** 702.155 · a Saga tem read ahead agora? */
+function leAdiante(s, o) { return ehSaga(s, o) && !semImpressas(s, o) && !!((scriptOf(s, o).self || {}).readAhead); }
+/** 714.4 · há habilidade de capítulo desta Saga que disparou e ainda não saiu da pilha? Olha a fila de gatilhos, a decisão
+ * pendente que segura um gatilho (alvo, modo) e a pilha. A habilidade na pilha não carrega o nome do gatilho: é reconhecida pela
+ * fonte e pelos efeitos, iguais aos de um capítulo impresso. */
+function capituloPendente(s, o) {
+  const dela = q => !!q && q.source === o.oid && q.when === 'chapter';
+  if ((s.queued || []).some(dela) || (s.pending && dela(s.pending.trigger))) return true;
+  const efeitos = new Set();
+  for (const ab of SC.capitulosDoScript(scriptOf(s, o))) { efeitos.add(JSON.stringify(ab.effects || null)); for (const m of ab.modes || []) efeitos.add(JSON.stringify(m.effects || null)); }
+  return s.stack.some(oid => { const x = s.objects[oid]; return !!x && isAbility(x) && x.source === o.oid && efeitos.has(JSON.stringify(x.effects || null)); });
+}
+/** 714.2b / 714.3b · confere os marcadores de lore de cada Saga contra a última conferência e põe na fila os capítulos atravessados. */
+function sagaConfere(s, events) {
+  let mudou = false;
+  const vistos = s.sagas || {};
+  for (const oid of Object.keys(vistos)) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield' || (o.zc || 0) !== vistos[oid].z) delete vistos[oid]; } // 400.7 · saiu do campo: objeto novo
+  for (const o of battlefield(s)) {
+    if (!ehSaga(s, o)) continue;
+    let reg = vistos[o.oid];
+    if (!reg) { // acabou de entrar no campo (conjurada, reanimada, ficha, cópia)
+      if (leAdiante(s, o) && !(o.counters.lore > 0)) { // 714.3b · "As this Saga enters, choose a number between one and this Saga's final chapter number"
+        const fim = capituloFinal(s, o);
+        if (fim > 1) { if (!s.pending && s.status === 'playing') s.pending = { kind: 'saga_capitulo', p: o.controller, oid: o.oid, name: o.name, max: fim }; continue; } // uma decisão por vez; as outras esperam
+        if (fim === 1) { o.counters.lore = 1; mudou = true; } // um candidato só: sem pergunta
+      }
+      reg = vistos[o.oid] = { z: o.zc || 0, n: 0 };
+    }
+    const antes = reg.n, agora = o.counters.lore || 0;
+    reg.n = agora; // menos marcadores também conta: tirar e repor redispara (714.2b: "era menor que N e passou a ser pelo menos N")
+    if (agora <= antes) continue;
+    if ((s.sagaAviso || []).includes(o.oid)) events.push({ kind: 'effect', do: 'counters', tipo: 'lore', amount: agora - antes, name: o.name }); // o marcador da ação de turno aparece no registro
+    const soExato = leAdiante(s, o) && o.entrouNoTurno === s.turn.number; // 702.155a · no turno em que entrou, só o capítulo de número igual aos marcadores
+    const disparam = [];
+    for (const ab of capitulosDe(s, o)) for (const n of ab.chapters) if (antes < n && agora >= n && (!soExato || n === agora)) disparam.push({ n, ab });
+    disparam.sort((x, y) => x.n - y.n);
+    for (const { n, ab } of disparam) s.queued.push({ source: o.oid, name: o.name, controller: o.controller, effects: ab.effects, when: 'chapter', capitulo: n, ...marcasDaHabilidade(ab) });
+  }
+  delete s.sagaAviso;
+  if (Object.keys(vistos).length) s.sagas = vistos; else delete s.sagas;
+  return mudou;
+}
+/** 714.4 / 704.5s · ação de estado das Sagas (e, antes, os capítulos que dispararam). Devolve true se algo mudou. */
+function sagasDeEstado(s, events) {
+  let mudou = sagaConfere(s, events);
+  if (s.pending) return mudou; // 704.4 · efeito do capítulo parado numa escolha do jogador: a Saga espera a resolução terminar
+  const vao = battlefield(s).filter(o => { const fim = capituloFinal(s, o); return fim > 0 && (o.counters.lore || 0) >= fim && !capituloPendente(s, o); }).map(o => o.oid);
+  if (!vao.length) return mudou;
+  s.saindoJuntas = vao; // 704.3 · as que saem nesta conferência saem juntas
+  for (const oid of vao) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield') continue; const nome = o.name, dono = o.controller;
+    sacrifice(s, oid, events); events.push({ kind: 'effect', do: 'sacrificar', name: nome, target: s.players[dono].name, amount: 1, saga: true }); mudou = true; } // é sacrifício: indestrutível não salva, e quem observa sacrifício vê
+  delete s.saindoJuntas;
+  return mudou;
+}
+/** 714.3c / 703.4f · assim que a fase principal pré-combate começa, o jogador ativo põe um marcador de lore em cada Saga que
+ * controla com um ou mais capítulos. Ação de turno: não usa a pilha; os capítulos disparam na conferência seguinte, antes da prioridade. */
+function sagasNaPrincipal(s) {
+  const a = s.turn.active; if (!s.players[a] || s.players[a].lost) return;
+  for (const o of battlefield(s)) if (o.controller === a && capitulosDe(s, o).length) { o.counters.lore = (o.counters.lore || 0) + 1; (s.sagaAviso = s.sagaAviso || []).push(o.oid); }
+}
+/** 714.3b · ofertas da decisão pendente: um capítulo por ação. */
+function sagaOfertas(s, p, out) {
+  if (s.pending && s.pending.kind === 'saga_capitulo' && s.pending.p === p) for (let n = 1; n <= s.pending.max; n++) out.push({ t: 'saga_capitulo', p, n, label: 'Capítulo ' + (ROMANOS[n] || n) });
+}
+PENDING_ACTIONS.saga_capitulo = ['saga_capitulo', 'concede'];
+Object.assign(EXPORTS_T, { capitulosDe, capituloFinal, capituloPendente, ROMANOS });
 return { ...EXPORTS_K, ...EXPORTS_V, ...EXPORTS_T, ENGINE_VERSION, effectAllowed, eligibleBlockers, abilitiesOf, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, moveObject, seriaDestruida, danoSubstituido, danoAposPrevencao, prevencaoLegado, destinoSubstituido, destinoLegado, entradaModificada, entradaLegado, applyEffect, aplicaPorJogador, sacrificioLegado, moverObjeto, moverLegado, mutacao, mutacaoLegado, hasLegado, bonusLegado, continuosQueAfetam, aplicaTemporario, statsLegado: (s, o) => ({ power: powerLegado(s, o), toughness: toughnessLegado(s, o) }), sombraDosGatilhos, gatilhosDeZona, gatilhosDeZonaLegado, gatilhosDoObjeto, gatilhosDoPasso, enterStep, disparaEvento, noteDiscard, noteEnchantedDealt, noteDamaged, noteEnchantedEvent, addCounters, sacrifice, draw, sweepTargets, sweepTargetsLegado, targetable,
   stats: (s, o) => ({ power: power(s, o), toughness: toughness(s, o) }), hasKeyword: has, bonus, isCreature, tiposDe, pwsAtacaveis, exigePw, productions, protections, prevented, canBlock,
   createGame, apply, legalActions, linhaDeTipo, coresDe, colorsOf, targetAllowed, previewCombat, previewAttack, eligibleAttackers, mustAttack, eligibleBlockers, canBlock, canPay, commanderTax,
@@ -22043,6 +22192,7 @@ function describe(before, a, events, after) {
     case 'commander_zone': { const o = before.objects[a.oid || (before.pending || {}).oid]; const onde = { graveyard: 'no cemitério', exile: 'no exílio', hand: 'na mão', library: 'no grimório' }[(before.pending || {}).from] || 'onde caiu';
       L.push(a.yes ? `${P} levou ${o ? o.name : 'o comandante'} para a zona de comando` : `${P} deixou ${o ? o.name : 'o comandante'} ${onde}`); break; }
     // Leva 131 · escolha de modo: o que foi escolhido, ou que preferiu não fazer
+    case 'saga_capitulo': L.push(`${P} começou ${(before.pending || {}).name || 'a Saga'} no capítulo ${['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'][a.n] || a.n}`); break; // T-1 · CR 714.3b
     case 'dividir_dano': { const op = ((before.pending || {}).opcoes || [])[a.index]; L.push(`${P} dividiu o dano de ${nameOf(before, (before.pending || {}).oid)}: ${op ? op.rotulo : '?'}`); break; } // CR2g.2
     case 'choose_mode': { const pd = before.pending || {}; const alvo = pd.naResolucao && before.objects[pd.naResolucao.oid] ? before.objects[pd.naResolucao.oid].name : null;
       L.push(a.decline ? `${P} preferiu não usar o efeito de ${pd.name || 'o gatilho'}` : `${P} escolheu ${String((pd.options || [])[a.index || 0] || 'um modo').toLowerCase()}${alvo ? ' ' + alvo : ''} (${pd.name || 'gatilho'})`); break; }
@@ -22275,6 +22425,7 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
           : pd.kind === 'choose_dungeon' ? { t: 'choose_dungeon', p: pd.p, index: 0 }
           : pd.kind === 'choose_room' ? { t: 'choose_room', p: pd.p, index: 0 }
           : pd.kind === 'topo_fundo' ? { t: 'topo_fundo', p: pd.p, topo: true } // M-264
+          : pd.kind === 'saga_capitulo' ? { t: 'saga_capitulo', p: pd.p, n: 1 } // T-1 · CR 714.3b · o goldfish começa a Saga pelo capítulo I
           : pd.kind === 'dividir_dano' ? { t: 'dividir_dano', p: pd.p, index: 0 } // CR2g.2 · o goldfish mata na ordem do bloqueio
           : pd.kind === 'madness' ? { t: 'decline_madness', p: pd.p }
           : pd.kind === 'pick_target' ? { t: 'pick_target', p: pd.p, index: 0 }
@@ -22484,6 +22635,7 @@ function estadoDaCarta(s, o, plano = null) {
   if (plano && plano.blocks && plano.blocks.has(o.oid)) { const alvo = s.objects[plano.blocks.get(o.oid)]; marcas.push({ k: 'bloqueia', texto: `→ ${alvo ? alvo.name.split(',')[0] : '?'}`, icone: 'escudo', rotulo: alvo ? `Bloqueia ${alvo.name}` : 'Bloqueando' }); anel = 'bloqueia'; }
   if (plano && plano.attack && plano.attack.has(o.oid)) anel = 'ataca';
   for (const [k, v] of Object.entries(o.counters || {})) { if (!v) continue; marcas.push({ k: 'marcador', texto: k === 'p1p1' ? `+${v}/+${v}` : k === 'm1m1' ? `−${v}/−${v}` : k === 'loyalty' ? `lealdade ${v}` : k === 'age' ? `idade ${v}` : `${k} ${v}` }); }
+  if ((o.counters || {}).lore) { const m = marcas.find(x => x.k === 'marcador' && x.texto === `lore ${o.counters.lore}`); if (m) { m.texto = 'capítulo ' + (['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'][o.counters.lore] || o.counters.lore); m.rotulo = `${o.counters.lore} marcador(es) de saga`; } } // T-1 · CR 714 · a Saga diz em que capítulo está
   if (o.damage) marcas.push({ k: 'dano', texto: `${o.damage} dano` });
   // T4 · habilidades ganhas (verde) e perdidas (tachada): uma pílula para cada lado; o nome inteiro fica no rótulo
   const mod = modificacoesDaCarta(s, o, pt);
@@ -25186,6 +25338,9 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       banner = PriorityBanner({ title: 'Em qual masmorra se aventurar?', hint: 'Você entra na primeira sala dela.', tone: 'warning',
         actions: (s.pending.labels || s.pending.options || []).slice(0, 4).map((rot, index) =>
           Button(rot, { variant: index ? undefined : 'primary', id: index ? undefined : 'tb-choose-dungeon', onClick: () => act({ t: 'choose_dungeon', p: v, index }) })) });
+    } else if (s.pending && s.pending.kind === 'saga_capitulo' && s.pending.p === v) { // T-1 · CR 714.3b · read ahead
+      banner = PriorityBanner({ title: `${s.pending.name}: em que capítulo começar?`, hint: 'Ela entra com esse número de marcadores. Os capítulos anteriores não acontecem.', tone: 'warning',
+        actions: Array.from({ length: Math.min(s.pending.max, 8) }, (_, i) => Button('Capítulo ' + (['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'][i] || i + 1), { variant: i ? undefined : 'primary', id: i ? undefined : 'tb-saga_capitulo', onClick: () => act({ t: 'saga_capitulo', p: v, n: i + 1 }) })) });
     } else if (s.pending && s.pending.kind === 'dividir_dano' && s.pending.p === v) { // CR2g.2 · 510.1c
       banner = PriorityBanner({ title: `${s.pending.name}: como dividir ${s.pending.amount} de dano?`, hint: 'Você escolhe entre os bloqueadores. Com atropelar, só o que passa do letal de todos vai para o jogador.', tone: 'warning',
         actions: (s.pending.opcoes || []).slice(0, 8).map((op, index) => Button(op.rotulo, { variant: index ? undefined : 'primary', id: index ? undefined : 'tb-dividir', onClick: () => act({ t: 'dividir_dano', p: v, index }) })) });

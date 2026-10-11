@@ -10049,15 +10049,27 @@
    "n": "714.1",
    "regra": "Saga Cards",
    "titulo": "Sagas: moldura",
-   "status": "definicao"
+   "status": "coberta",
+   "evidencia": "T-1 (11/10/2026): a moldura é só definição; 714.1a (Saga que também é criatura) tem comportamento e está provado: a carta \"Enchantment Creature — Saga\" tem P/R, ataca, e as habilidades fora dos capítulos (script.abilities que não são when: 'chapter') funcionam à parte e não seguram o sacrifício (capituloPendente só reconhece capítulo).",
+   "testes": [
+    "CR 714.1a · Saga encantamento-criatura: tem P/R, ataca, as habilidades fora dos capítulos funcionam à parte, e a regra dos capítulos vale igual"
+   ]
   },
   {
    "n": "714.2",
    "regra": "Saga Cards",
    "titulo": "Habilidades de capítulo",
-   "status": "ausente",
-   "falta": "não há Sagas: sem gatilho de capítulo nem marcador de lore (grep saga/lore/chapter no motor: nada).",
-   "esforco": "M",
+   "status": "coberta",
+   "evidencia": "T-1 (11/10/2026) · src/engine/core.js, bloco \"T-1 · CR 714 · Sagas\": capítulo = habilidade disparada { kind: 'triggered', when: 'chapter', chapters: [N…] } (714.2a–c; \"I, II —\" = [1, 2], validado por sagaErros em scripts.js). sagaConfere (chamada por stateBased, antes de qualquer prioridade) compara os marcadores de lore com a última conferência (s.sagas[oid] = { z, n }) e põe na fila cada capítulo atravessado, uma vez (714.2b); o gatilho segue o caminho de todos (flushTriggers: ordem do controlador, alvo ao ir à pilha, pode ser respondido). capituloFinal = maior número; sem habilidades (perdeu todas, virada para baixo) = 0 (714.2d–e). Como a conferência é por diferença, tirar e repor marcador redispara, e qualquer caminho que ponha marcador dispara (entrada, ação de turno, efeito, read ahead). Limite declarado: tirar e repor marcadores dentro da MESMA resolução, sem conferência no meio, não redispara — nenhum efeito do vocabulário atual faz isso (não há proliferar nem \"remova um marcador\" como efeito; remover é só custo).",
+   "testes": [
+    "CR 714.2b · pôr dois marcadores de uma vez dispara cada capítulo atravessado uma vez, e o controlador escolhe a ordem entre eles",
+    "CR 714.2c · \"I, II — efeito\" são dois capítulos com o mesmo efeito: dispara no primeiro e no segundo marcador (History of Benalia cria um Cavaleiro em cada)",
+    "CR 714.2b · o capítulo é habilidade disparada: escolhe o alvo ao ir para a pilha (a mesa pergunta) e a Saga espera a escolha",
+    "CR 714.2d · Saga que perdeu as habilidades tem capítulo final 0: não ganha marcador na fase principal e não é sacrificada, mesmo com marcadores de sobra",
+    "CR 714.2b · tirar um marcador e repor redispara o capítulo: \"era menor que N e passou a ser pelo menos N\"",
+    "CR 714.2b · marcador de lore posto por efeito (não pela ação de turno) dispara o capítulo, também no turno do oponente",
+    "CR 714.2b · o capítulo na pilha resolve mesmo se a Saga saiu do campo (a habilidade existe independente da fonte: 113.7a)"
+   ],
    "depende": [
     "703.4f",
     "704.5s"
@@ -10068,9 +10080,20 @@
    "n": "714.3",
    "regra": "Saga Cards",
    "titulo": "Marcadores de lore (entrada e pré-combate)",
-   "status": "ausente",
-   "falta": "sem Sagas; a ação de turno 703.4f não existe em enterStep (10680).",
-   "esforco": "M",
+   "status": "coberta",
+   "evidencia": "T-1 (11/10/2026): 714.3a — \"entra com um marcador de lore\" é a substituição de entrada de sempre (entra: [{ afetados: 'self', marcadores: { lore: 1 } }], 614.1c em entradaModificada; o validador exige a linha em toda Saga sem read ahead), vale para conjurada, reanimada e ficha-cópia. 714.3b — read ahead (self.readAhead): ao entrar, decisão pendente saga_capitulo (ação saga_capitulo com n de 1 ao capítulo final, em legalActions e PENDING_ACTIONS; botão na mesa, goldfish e Shark), a Saga fica com n marcadores e, no turno em que entrou, só dispara o capítulo de número igual aos marcadores (702.155a); com um capítulo só não há pergunta. A escolha acontece logo depois da entrada, antes de qualquer gatilho ir à pilha e de qualquer prioridade (a Saga existe um instante com 0 marcadores, sem que nada a veja). 714.3c / 703.4f — sagasNaPrincipal, chamada por enterStep('main1'): um marcador em cada Saga do jogador ativo com um ou mais capítulos, sem pilha, antes da prioridade; a conjurada na própria fase principal só ganha no turno seguinte.",
+   "testes": [
+    "CR 714.3a · a Saga entra com um marcador de lore (substituição, sem pilha) e o capítulo I dispara ao entrar: vai à pilha e pode ser respondido",
+    "CR 714.3a · vale para qualquer entrada no campo: devolvida do cemitério por um efeito e ficha que é cópia também entram com um marcador e disparam o capítulo I",
+    "CR 714.3c · no começo da fase principal pré-combate o jogador ativo põe um marcador em cada Saga sua, sem pilha e antes da prioridade; a conjurada na principal só ganha no turno seguinte",
+    "CR 714.3c · dois jogadores com Sagas: cada um só ganha marcador no próprio turno; a que entrou antes da fase principal do mesmo turno também ganha",
+    "CR 714.3a · Saga que muda de zona é objeto novo (400.7): devolvida à mão e conjurada de novo, recomeça com um marcador e o capítulo I dispara outra vez",
+    "CR 714.3b · read ahead: ao entrar, o controlador escolhe um número entre 1 e o capítulo final; a escolha é decisão pendente com uma ação por capítulo",
+    "CR 714.3b · read ahead: no turno em que entrou só dispara o capítulo de número igual aos marcadores (702.155a); do turno seguinte em diante vale a regra normal",
+    "CR 714.3b · read ahead vale para qualquer entrada (devolvida do cemitério: a mesa pergunta); com um capítulo só não há o que escolher",
+    "CR 714.3b · The Weatherseed Treaty (read ahead): a mesa pergunta o capítulo; I busca um terreno básico e o põe no campo virado; II cria o Saproling 1/1 verde; a carta é parcial declarada (domínio do capítulo III)",
+    "CR 714.3b · o Shark responde à escolha do capítulo com uma das ações oferecidas, e o goldfish da mesa escolhe o capítulo I"
+   ],
    "depende": [
     "714.2"
    ]
@@ -10079,9 +10102,13 @@
    "n": "714.4",
    "regra": "Saga Cards",
    "titulo": "Sacrificar a Saga no capítulo final",
-   "status": "ausente",
-   "falta": "sem a SBA 704.5s.",
-   "esforco": "P",
+   "status": "coberta",
+   "evidencia": "T-1 (11/10/2026): sagasDeEstado, chamada por stateBased (704.5s): Saga com um ou mais capítulos, marcadores ≥ capítulo final e nenhum capítulo dela disparado que ainda não saiu da pilha (capituloPendente: fila de gatilhos, decisão pendente de ordem/alvo/modo e a pilha) é SACRIFICADA pelo controlador (sacrifice: dispara \"sempre que você sacrificar\", indestrutível não salva); as que saem na mesma conferência saem juntas. Com efeito do capítulo parado numa escolha do jogador, o sacrifício espera a resolução terminar (704.4). Limite declarado: a habilidade na pilha é reconhecida pela fonte e pelos efeitos (o objeto da pilha não guarda o nome do gatilho), e a fonte é o oid: um capítulo da encarnação anterior da mesma carta ainda na pilha seguraria o sacrifício da nova até resolver.",
+   "testes": [
+    "CR 714.4 · depois que o último capítulo resolve, o controlador SACRIFICA a Saga: quem observa sacrifício dispara e indestrutível não salva",
+    "CR 714.4 · marcadores acima do capítulo final com o gatilho pendente não sacrificam antes; se o capítulo final é anulado ou sai da pilha de outro jeito, a Saga é sacrificada",
+    "CR 714.4 · capítulo final sem alvo legal sai da pilha sem resolver e a Saga é sacrificada; com o efeito do capítulo final parado numa escolha do jogador, o sacrifício espera a resolução terminar (704.4)"
+   ],
    "depende": [
     "714.2"
    ]
