@@ -83,7 +83,7 @@ test('CR 701.14 · lutar: o script só vale com quem luta e com alvo, e a mesa d
   const ex = { target: 'own-creature', expect: { gone: true } };
   const erros = effects => S.validateScript({ name: 'X', effects, example: ex }).join(' | ');
   assert.match(erros([{ do: 'fight', target: 'creature' }]), /"quem" precisa ser/);
-  assert.match(erros([{ do: 'fight', quem: 'primeiro-alvo', target: 'creature' }]), /precisa de um alvo escolhido antes/);
+  assert.match(erros([{ do: 'fight', quem: 'primeiro-alvo', target: 'creature' }]), /precisa de um `lutador` antes/);
   assert.match(erros([{ do: 'lutador', target: 'creature-you-control' }]), /precisa ser seguido da luta/);
   assert.match(erros([{ do: 'fight', quem: 'self-source' }]), /lutar precisa de um alvo/);
   assert.equal(erros([{ do: 'fight', quem: 'self-source', target: 'creature-opponent-controls' }]), '');

@@ -5858,7 +5858,7 @@
     "120"
    ],
    "cartas": "muito comum (evergreen)",
-   "evidencia": "V-1 · efeito `fight` (lutar, danoDeLuta e lutadorDe em core.js, abaixo da âncora ↓ V): cada criatura causa dano igual ao próprio poder à outra, as duas quantias medidas antes do dano (a); se uma saiu do campo, deixou de ser criatura ou virou alvo ilegal, nenhuma luta (b); lutar consigo mesma causa o dobro do poder (c); não é dano de combate e a fonte é a criatura — toque mortífero, vínculo com a vida, infectar e proteção valem (d). Formas: `quem: 'primeiro-alvo'` (\"Target creature you control fights target creature you don't control\", com `lutador`, ou depois de outro efeito com alvo: \"It fights…\") e `quem: 'self-source'` (\"~ fights target creature\"). Cartas: Prey Upon, Epic Confrontation (.listas/oficiais-verbos.json)",
+   "evidencia": "V-1/V-5 · efeito `fight` (lutar, danoDeLuta e lutadorDe em core.js, abaixo da âncora ↓ V): cada criatura causa dano igual ao próprio poder à outra, as duas quantias medidas antes do dano (a); se uma saiu do campo, deixou de ser criatura ou era alvo ilegal ao começar a resolver, nenhuma luta (b; a legalidade não é conferida de novo no meio da resolução, 608.2b); lutar consigo mesma causa o dobro do poder (c); não é dano de combate e a fonte é a criatura — toque mortífero, vínculo com a vida, infectar e proteção valem (d). Formas: `lutador` (anota a criatura alvo que luta) seguido de `fight` com `quem: 'primeiro-alvo'` (\"Target creature you control fights target creature you don't control\"; \"…gets +1/+2. It fights…\"), e `quem: 'self-source'` (\"~ fights target creature\"); valem em mágica, habilidade e gatilho opcional. Cartas: Prey Upon, Epic Confrontation (.listas/oficiais-verbos.json)",
    "testes": [
     "CR 701.14 · lutar (a): cada criatura causa dano igual ao próprio poder à outra, e a mágica só é oferecida com os dois alvos",
     "CR 701.14 · lutar (a): o poder de agora conta — Epic Confrontation dá +1/+2 antes da luta",
@@ -6174,13 +6174,15 @@
    "n": "701.41",
    "regra": "Keyword Actions",
    "titulo": "Support",
-   "status": "coberta",
+   "status": "parcial",
    "cartas": "rara",
-   "evidencia": "V-3 · apoiar N escreve-se com o vocabulário que o motor já tinha: `{ do: 'counters', amount: 1, target: 'creature', upTo: true, targetCount: N }` na mágica e `target: { tipos: ['creature'], outra: true }` na permanente (\"other target creatures\"); até N alvos distintos, zero inclusive, de qualquer jogador. Carta: Shoulder to Shoulder (.listas/oficiais-verbos.json)",
+   "evidencia": "V-3 · apoiar N escreve-se com o vocabulário que o motor já tinha: `{ do: 'counters', amount: 1, target: 'creature', upTo: true, targetCount: N }` na mágica (até N alvos distintos, zero inclusive, de qualquer jogador) e `target: { tipos: ['creature'], outra: true }` na permanente (a fonte nunca é oferecida). Carta: Shoulder to Shoulder (.listas/oficiais-verbos.json)",
    "testes": [
     "CR 701.41 · apoiar N numa mágica: um marcador +1/+1 em cada uma de até N criaturas alvo — zero, uma ou duas, suas ou não, nunca a mesma duas vezes",
     "CR 701.41 · apoiar N numa permanente: \"each of up to N other target creatures\" — a própria fonte não é alvo"
-   ]
+   ],
+   "esforco": "P",
+   "falta": "Apoiar numa permanente por gatilho (\"other target creatures\"): putTriggerOnStack escolhe um alvo obrigatório por efeito e ignora `upTo` e `targetCount` — não dá para escolher 0 ou menos de N, e sem alvo o gatilho inteiro some (auditoria do lote 1, D1). É região da trilha motor (alvos de gatilho, 603.3d); a forma de mágica e a de habilidade ativada estão inteiras."
   },
   {
    "n": "701.42",

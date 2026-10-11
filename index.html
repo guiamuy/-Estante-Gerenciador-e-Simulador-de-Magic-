@@ -5358,7 +5358,7 @@ const EFFECTS = {
   proliferate: { fields: [], targets: ['self'] }, // V-2 · 701.34 proliferar: quem controla escolhe quantas permanentes e jogadores com marcador quiser
   // V-1 · 701.14 lutar. `lutador` só escolhe quem luta ("Target creature you control fights…"); `fight` mira a outra e faz a luta.
   lutador: { fields: [], targets: ['creature', 'creature-you-control'] },
-  fight: { fields: [], targets: ['creature', 'creature-opponent-controls', 'creature-you-control'] }, // quem: 'self-source' (a permanente fonte luta) | 'primeiro-alvo' (o alvo do efeito com alvo anterior luta)
+  fight: { fields: [], targets: ['creature', 'creature-opponent-controls', 'creature-you-control'] }, // quem: 'self-source' (a permanente fonte luta) | 'primeiro-alvo' (luta a criatura anotada pelo `lutador` anterior)
   /* ↓ T · efeitos da trilha tipos */
 };
 /** S57 · masmorras: o caminho, as salas e o que cada sala faz.
@@ -6177,9 +6177,9 @@ function effectErrors(effects, label, opcional) {
     if (e.do === 'fight') {
       if (!['self-source', 'primeiro-alvo'].includes(e.quem)) errs.push(`${label} ${i + 1} (fight): "quem" precisa ser self-source ou primeiro-alvo`);
       if (!isTargeted(e)) errs.push(`${label} ${i + 1} (fight): lutar precisa de um alvo`);
-      if (e.quem === 'primeiro-alvo' && !effects.slice(0, i).some(isTargeted)) errs.push(`${label} ${i + 1} (fight): "primeiro-alvo" precisa de um alvo escolhido antes`);
+      if (e.quem === 'primeiro-alvo' && !effects.slice(0, i).some(x => x.do === 'lutador')) errs.push(`${label} ${i + 1} (fight): "primeiro-alvo" precisa de um \`lutador\` antes`);
     }
-    if (e.do === 'lutador' && !(effects[i + 1] && effects[i + 1].do === 'fight' && effects[i + 1].quem === 'primeiro-alvo')) errs.push(`${label} ${i + 1} (lutador): precisa ser seguido da luta (fight, quem: primeiro-alvo)`);
+    if (e.do === 'lutador' && !effects.slice(i + 1).some(x => x.do === 'fight' && x.quem === 'primeiro-alvo')) errs.push(`${label} ${i + 1} (lutador): precisa ser seguido da luta (fight, quem: primeiro-alvo)`);
   });
   /* ↓ T · validação da trilha tipos */
   return errs;
@@ -6234,7 +6234,7 @@ const RAW_SCRIPTS = [
   // V-1 · 701.14 lutar
   { name: 'Prey Upon', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control fights target creature you don't control."
     example: { target: 'own-creature', expect: { gone: true } } },
-  { name: 'Epic Confrontation', effects: [{ do: 'pump', power: 1, toughness: 2, target: 'creature-you-control' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
+  { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
   // CR2g.2 · 500.7 · turnos extras (texto oficial em .listas/oficiais-motor.json, mtg.wtf, 2026-10-11)
@@ -17426,7 +17426,7 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'bolster': fortalecer(s, src, eff, events); break; // V-3 · 701.39
     case 'proliferate': proliferar(s, src, events); break; // V-2 · 701.34
     case 'proliferate_jogador': if (s.proliferar && !s.proliferar.jogadores.includes(eff.jogador)) s.proliferar.jogadores.push(eff.jogador); break; // V-2 · o "sim" da pergunta por jogador
-    case 'lutador': break; // V-1 · só escolhe quem luta; a luta é o `fight` seguinte
+    case 'lutador': if (obj) s.lutadorV = { fonte: src.oid, oid: obj.oid, z: obj.zc || 0 }; break; // V-1/V-5 · anota quem luta; a luta é o `fight` seguinte, que apaga a anotação
     case 'fight': lutar(s, src, eff, tgt, events); break; // V-1 · 701.14
     /* ↓ T · casos de applyEffect da trilha tipos */
     case 'untap': { const alvo = eff.target === 'enchanted' ? criaturaEncantada(s, src) : eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj; if (alvo) alvo.tapped = false; note({}); break; }
@@ -18938,6 +18938,7 @@ const HANDLERS = {
         if (!effectAllowed(s, s.objects[pk.then.source], eff)) continue;
         if (SC.isTargeted(eff) && !alvo) continue;
         applyEffect(s, src, eff, alvo, ev);
+        if (s.pending) { s.resume = pausaDoSim(pk, src, eff, ti); return; } // V-5 · Toca ponto comum: pay (608.2c: o que vem depois de uma escolha espera a escolha)
       }
       return resumeEffects(s, ev);
     }
@@ -20102,9 +20103,14 @@ function povoar(s, src, events) {
   s.verbo = [...(s.verbo || []), passo];
   startPick(s, { p, from: cands.map(o => o.oid), min: 1, max: 1, to: 'proliferar', rest: 'stay', label: 'povoar', source: `${src.name} — povoar` }, events);
 }
+/** V-5 · o resto dos efeitos de um "sim" (gatilho opcional ou "pode pagar") que parou numa escolha: retomado por resumeEffects, com os alvos que faltam. */
+function pausaDoSim(pk, src, eff, ti) {
+  const efeitos = pk.then.effects;
+  return { oid: src.oid, name: pk.then.name, controller: pk.then.controller, effects: efeitos.slice(efeitos.indexOf(eff) + 1), alvo: (pk.then.targets || [])[0] || null, alvos: (pk.then.targets || []).slice(ti) };
+}
 function passoPovoarCria(s, passo, events) {
   const oid = (s.escolhaV || [])[0]; delete s.escolhaV;
-  const src = s.objects[passo.oid] || { oid: passo.oid, name: passo.nome, controller: passo.p, ...(passo.habilidade ? { ability: true, source: passo.fonte } : {}) };
+  const src = { oid: passo.oid, name: passo.nome, controller: passo.p, ...(passo.habilidade ? { ability: true, source: passo.fonte } : {}) }; // V-5 · quem povoa é quem controlava o efeito (a mágica já pode estar no cemitério do dono)
   if (oid) applyEffect(s, src, { do: 'ficha_copia', amount: 1 }, { oid }, events);
 }
 Object.assign(EXPORTS_V, { povoar });
@@ -20180,19 +20186,15 @@ function danoDeLuta(s, fonte, alvo, n, events) {
   events.push({ kind: 'effect', do: 'damage', name: fonte.name, target: alvo.name, amount: resto });
   return resto;
 }
-/** Quem luta: a permanente fonte, ou o alvo do efeito com alvo logo antes desta luta (ainda legal, 608.2b). */
-function lutadorDe(s, src, eff, tgt) {
+/** Quem luta: a permanente fonte, ou a criatura que o efeito `lutador` desta mesma mágica ou habilidade anotou. `lutador` só é aplicado
+    quando o alvo dele era legal ao começar a resolver (608.2b); daí em diante só importa estar no campo e ser criatura (701.14b). */
+function lutadorDe(s, src, eff) {
   if (eff.quem === 'self-source') return src.ability ? s.objects[src.source] : src;
-  const efeitos = (src.ability ? src.effects : spellEffects(s, src)) || [], mirados = efeitos.filter(SC.isTargeted), alvos = src.targets || [];
-  for (let j = 1; j < mirados.length; j++) {
-    if (mirados[j].do !== 'fight' || !alvos[j] || !tgt || alvos[j].oid !== tgt.oid) continue;
-    const e0 = mirados[j - 1], t0 = alvos[j - 1];
-    return t0 && t0.oid != null && targetStillLegal(s, src.controller, e0.target, t0, src.oid, e0.targetColor, e0, src) ? s.objects[t0.oid] : null;
-  }
-  return null;
+  const m = s.lutadorV; delete s.lutadorV;
+  return m && m.fonte === src.oid && mesmaEncarnacao(s, m) ? s.objects[m.oid] : null;
 }
 function lutar(s, src, eff, tgt, events) {
-  const b = tgt && tgt.oid != null ? s.objects[tgt.oid] : null, a = lutadorDe(s, src, eff, tgt);
+  const b = tgt && tgt.oid != null ? s.objects[tgt.oid] : null, a = lutadorDe(s, src, eff);
   const luta = x => !!x && x.zone === 'battlefield' && !!s.facts[x.name] && isCreature(s, x);
   if (!luta(a) || !luta(b)) { events.push({ kind: 'effect', do: 'fight', name: src.name, target: b ? b.name : '', failed: true }); return; } // 701.14b
   const pa = Math.max(0, power(s, a)), pb = Math.max(0, power(s, b));
