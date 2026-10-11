@@ -517,6 +517,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-dv ✅ | SEG5 "O que sai do aparelho" em Perfil › Dados: seis serviços com o que vai, quando e como evitar, conta e online com selo de uso; contrato une a tela e a política de conteúdo (leva P-6) | SEG | 1 | — |
 | 16º-dw ✅ | SEG6 apagar tudo deste aparelho em Perfil › Dados: armazenamento, caches e sessão do app, conferido antes de recarregar (leva P-10) | SEG | 1 | — |
 | 16º-dx ✅ | Apagar tudo com a conta no ar: sai da conta e para a sincronia antes, para nada apagado subir para a nuvem (leva P-11) | SEG | ½ | — |
+| 16º-dy ✅ | SEG7 silenciar a conversa da partida online: sem selo, aviso nem mensagens do outro; Ouvir sem enxurrada (leva P-12) | SEG | 1 | — |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -7867,6 +7868,21 @@ segredo do repositório. O `main` não recebe commit do coletor.
   Apagar tudo, nenhuma escrita na nuvem, o perfil no banco fica igual e o app volta desconectado).
 - **Fora:** apagar por categoria (só imagens, só partidas) — o Espaço no aparelho e a Base local já limpam o que é
   derivado.
+
+**SEG7 · Silenciar a conversa da partida online** ✅ (leva P-12, 11/10/2026)
+- **Valor:** com a partida online pela internet (P-8), quem joga com um desconhecido pode calar a conversa: as mensagens do
+  outro jogador param de aparecer, de acender o selo e de vibrar, sem sair da partida.
+- **Ameaça e camada:** mensagem ofensiva ou insistente de quem entrou na sala; camada: aparelho (cada um decide o que vê).
+- **Entregue:** na folha **Conversa**, botão **Silenciar** / **Ouvir** (fantasma, 44 px, `aria-pressed`). Silenciada: só as
+  suas mensagens aparecem, as do outro viram "N mensagens do outro jogador escondidas", sem selo, aviso nem vibração; as
+  que chegam enquanto silenciada contam como lidas, então **Ouvir** mostra tudo sem acender uma enxurrada de novas. Vale
+  para a sala até fechar o app (sessão; "Apagar tudo" leva junto). Nada é apagado nem enviado: a outra pessoa não sabe.
+- **Testes:** U `seguranca.chat.unit` (só as minhas e a contagem; sem silêncio, tudo como antes); e2e "P-12" (duas abas:
+  A silencia, B manda texto e frase, A sem selo e sem aviso, abre e vê só a contagem, Ouvir mostra as duas e o selo fica
+  apagado; `auditaTela`).
+- **Resíduo declarado:** **bloquear** a pessoa (recusar que a mesma conta entre nas suas salas) e **denunciar** ficam para
+  uma próxima leva — bloquear precisa da identidade da conta na sala (P-8) e de uma lista guardada; denunciar precisa de
+  alguém do outro lado para receber. Sair da partida continua sendo o jeito de encerrar o contato.
 
 ### P · Plataforma
 

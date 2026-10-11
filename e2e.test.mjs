@@ -5937,6 +5937,46 @@ test('e2e · Leva 135 partida online: cartão "online, sala X" ao voltar, aviso 
 });
 
 /* ---------------- Leva 137 · chat na partida online ---------------- */
+test('e2e · P-12 Silenciar a conversa: com a conversa silenciada as mensagens do outro não dão selo, aviso nem aparecem (só a contagem); Ouvir mostra tudo sem enxurrada de novas; vale para a sala até sair do app', { skip }, async t => {
+  const { page: A, errors, base } = await open(t, { dev: false });
+  await A.addInitScript(() => { window.__MTG_TEST = true; }); await A.setViewportSize({ width: 360, height: 780 });
+  await createDeck(A, base, 'Coberta', '30 Island\n30 Counterspell', 'livre');
+  await A.goto(base + '#/mesa'); await A.waitForSelector('[data-opponent="online"]'); await A.click('[data-opponent="online"]');
+  await A.waitForFunction(() => document.querySelector('#online-criar') && !document.querySelector('#online-criar').disabled, null, { timeout: 10000 });
+  await A.click('#online-criar'); await A.waitForSelector('#online-codigo'); const codigo = (await A.innerText('#online-codigo')).trim();
+  const B = await A.context().newPage(); const errosB = [];
+  B.on('pageerror', e => errosB.push(String(e))); B.on('console', m => { if (m.type() === 'error' && !/Failed to load resource: net::ERR_/.test(m.text())) errosB.push(m.text()); });
+  await B.addInitScript(() => { window.__MTG_TEST = true; }); await B.setViewportSize({ width: 360, height: 780 });
+  await B.goto(base + '#/mesa'); await B.waitForSelector('[data-opponent="online"]'); await B.click('[data-opponent="online"]'); await B.click('[data-online-modo="entrar"]');
+  await B.waitForSelector('#online-codigo-input'); await B.fill('#online-codigo-input', codigo); await B.waitForFunction(() => !document.querySelector('#online-entrar').disabled, null, { timeout: 10000 }); await B.click('#online-entrar');
+  await A.waitForSelector('#tb-chat', { timeout: 20000 }); await B.waitForSelector('#tb-chat', { timeout: 20000 });
+  // A silencia (o botão fica no topo da Conversa, 44 px, com o estado falado)
+  await A.click('#tb-chat'); await A.waitForSelector('#tb-chat-silenciar');
+  assert.equal(await A.getAttribute('#tb-chat-silenciar', 'aria-pressed'), 'false');
+  await A.waitForTimeout(350); // o diálogo entra com escala: mede depois da entrada
+  const caixa = await A.locator('#tb-chat-silenciar').boundingBox(); assert.ok(caixa.height >= 44, JSON.stringify(caixa));
+  await A.click('#tb-chat-silenciar'); await A.waitForSelector('#tb-chat-silenciar[aria-pressed="true"]');
+  await auditaTela(A, 'conversa silenciada');
+  await A.keyboard.press('Escape'); await A.waitForTimeout(400);
+  // B escreve duas: em A, nada de selo nem aviso
+  await B.click('#tb-chat'); await B.waitForSelector('#tb-chat-campo');
+  await B.fill('#tb-chat-campo', 'provocação'); await B.press('#tb-chat-campo', 'Enter');
+  await B.click('[data-frase="GG"]'); await B.waitForFunction(() => document.querySelectorAll('#tb-chat-lista .tb-chat__msg--minha').length === 2);
+  await A.waitForTimeout(2500);
+  assert.equal(await A.getAttribute('#tb-chat', 'data-novas'), '0', 'sem selo');
+  assert.doesNotMatch((await A.locator('#ds-toast').count()) ? await A.innerText('#ds-toast') : '', /provocação/, 'sem aviso');
+  // A abre: só a contagem, nenhuma das mensagens
+  await A.click('#tb-chat'); await A.waitForSelector('#tb-chat-escondidas');
+  assert.match(await A.innerText('#tb-chat-escondidas'), /2 mensagens do outro jogador escondidas/);
+  assert.doesNotMatch(await A.innerText('#tb-chat-lista'), /provocação/);
+  // Ouvir: as duas aparecem, o selo não acende depois
+  await A.click('#tb-chat-silenciar'); await A.waitForFunction(() => /provocação/.test(document.querySelector('#tb-chat-lista').innerText));
+  assert.equal(await A.locator('#tb-chat-escondidas').count(), 0);
+  await A.keyboard.press('Escape'); await A.waitForTimeout(400);
+  assert.equal(await A.getAttribute('#tb-chat', 'data-novas'), '0', 'ao voltar a ouvir não chega uma enxurrada de novas');
+  assert.deepEqual(errors, []); assert.deepEqual(errosB, []);
+});
+
 test('e2e · Leva 137 chat: botão com selo de novas, frase rápida e texto chegam do outro lado, aviso com a mensagem, texto nunca vira HTML', { skip }, async t => {
   const { page: A, errors, base } = await open(t, { dev: false });
   await A.addInitScript(() => { window.__MTG_TEST = true; }); await A.setViewportSize({ width: 360, height: 780 });

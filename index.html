@@ -822,6 +822,7 @@ a { color: var(--accent); }
 #tb-chat { position: relative; }
 #tb-chat .ds-btn__conta { position: absolute; top: 2px; right: 2px; }
 .tb-chat { gap: var(--space-3); }
+.tb-chat__topo { justify-content: flex-end; } /* P-12 · Silenciar / Ouvir à direita, acima das mensagens */
 .tb-chat__lista { display: flex; flex-direction: column; gap: var(--space-2); max-height: 40vh; min-height: 120px; overflow: auto; padding: var(--space-1); }
 .tb-chat__msg { align-self: flex-start; max-width: 85%; display: flex; flex-direction: column; gap: 2px; padding: var(--space-2) var(--space-3); border-radius: var(--radius-3); border-bottom-left-radius: var(--radius-1); background: var(--bg-elev-2); border: 1px solid var(--border); }
 .tb-chat__msg--minha { align-self: flex-end; background: var(--accent-soft); border-color: var(--accent); border-bottom-left-radius: var(--radius-3); border-bottom-right-radius: var(--radius-1); }
@@ -9266,6 +9267,11 @@ function mensagensDe(sala, assento) {
 }
 /** Quantas do outro chegaram depois da última leitura (`lidoAte` = `em` da última lida). */
 function naoLidas(mensagens, assento, lidoAte = 0) { return mensagens.filter(m => m.de !== assento && m.em > lidoAte).length; }
+/** P-12 · conversa silenciada: só as minhas aparecem; as do outro jogador viram uma contagem (nada é apagado da sala). */
+function visiveisDaConversa(mensagens, silenciado) {
+  if (!silenciado) return { lista: mensagens, escondidas: 0 };
+  const lista = mensagens.filter(m => m.minha); return { lista, escondidas: mensagens.length - lista.length };
+}
 
 /* ---------- sincronizador: liga uma mesa local à lista de ações da sala ---------- */
 /** `criaMesa(setup)` monta a mesa (createTable sem bot, sem desfazer). `assento` é quem joga neste aparelho.
@@ -9366,7 +9372,7 @@ function mesaOnline(sinc, online) {
   return api;
 }
 
-return { gerarCodigo, normalizaCodigo, transporteMemoria, transporteLocal, transporteFirebase, createSala, criaSincronizador, mesaOnline, limpaMensagem, mensagensDe, naoLidas, MENSAGEM_MAX, FRASES, ALFABETO, PREFIXO, RAIZ, VALIDADE_MS };
+return { gerarCodigo, normalizaCodigo, transporteMemoria, transporteLocal, transporteFirebase, createSala, criaSincronizador, mesaOnline, limpaMensagem, mensagensDe, naoLidas, visiveisDaConversa, MENSAGEM_MAX, FRASES, ALFABETO, PREFIXO, RAIZ, VALIDADE_MS };
 })();
 
 const __m27 = (function () {
@@ -23350,9 +23356,15 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   let sinc = null, pararPresenca = null; // leva 133 · partida online
   // Leva 137 · chat: lido até (hora da última mensagem lida), folha aberta, última chave anunciada
   const chat = { lidoAte: 0, aberto: null, anunciada: null };
+  // P-12 · silenciar a conversa desta sala: vale até sair do app (sessão), e "Apagar tudo" leva junto (prefixo estante)
+  const chaveSilencio = () => 'estante.online.silencio:' + ((table && table.online && table.online.codigo) || '');
+  const silenciado = () => { try { return sessionStorage.getItem(chaveSilencio()) === '1'; } catch (e) { return false; } };
   function mensagens() { return sinc ? __m30.mensagensDe(sinc.sala(), table.online.assento) : []; }
   function pintaChat() {
-    const btn = root.querySelector('#tb-chat'); const ms = mensagens(); const n = __m30.naoLidas(ms, table.online.assento, chat.lidoAte);
+    const btn = root.querySelector('#tb-chat'); const ms = mensagens(); const sil = silenciado();
+    // silenciada: as do outro contam como lidas (sem selo, sem aviso, sem vibração; ao voltar a ouvir não chega uma enxurrada)
+    if (sil) { const ultOutro = ms.filter(m => !m.minha).at(-1); if (ultOutro) { chat.lidoAte = Math.max(chat.lidoAte, ultOutro.em); chat.anunciada = ultOutro.chave; } }
+    const n = __m30.naoLidas(ms, table.online.assento, chat.lidoAte);
     if (btn) { let conta = btn.querySelector('.ds-btn__conta'); if (!conta) { conta = h('span', { class: 'ds-btn__conta' }); btn.appendChild(conta); } conta.textContent = n ? String(n) : ''; conta.hidden = !n; btn.setAttribute('aria-label', n ? `Conversa, ${n} nova(s)` : 'Conversa'); btn.dataset.novas = String(n); }
     if (chat.aberto) pintaFolhaChat(ms);
     // mensagem nova com a folha fechada: aviso curto e vibração, uma vez por mensagem
@@ -23360,12 +23372,14 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     if (ult && !chat.aberto && ult.em > chat.lidoAte && chat.anunciada !== ult.chave) { chat.anunciada = ult.chave; toast(`${table.state.players[ult.de].name}: ${ult.texto.length > 60 ? ult.texto.slice(0, 57) + '…' : ult.texto}`, 3200); __m0.haptics.evento('alerta'); }
     if (chat.aberto) { const ultTodas = ms.at(-1); if (ultTodas) chat.lidoAte = Math.max(chat.lidoAte, ultTodas.em); }
   }
-  function pintaFolhaChat(ms) {
+  function pintaFolhaChat(todas) {
     const lista = chat.aberto.querySelector('#tb-chat-lista'); if (!lista) return;
-    mount(lista, ms.length ? ms.map(m => h('div', { class: 'tb-chat__msg' + (m.minha ? ' tb-chat__msg--minha' : ''), dataset: { de: String(m.de) } },
+    const { lista: ms, escondidas } = __m30.visiveisDaConversa(todas, silenciado());
+    const aviso = escondidas ? Text(`${escondidas === 1 ? '1 mensagem' : escondidas + ' mensagens'} do outro jogador ${escondidas === 1 ? 'escondida' : 'escondidas'}. Toque em Ouvir para ver.`, { size: 'sm', tone: 'muted', attrs: { id: 'tb-chat-escondidas' } }) : null;
+    mount(lista, aviso, ...(ms.length ? ms.map(m => h('div', { class: 'tb-chat__msg' + (m.minha ? ' tb-chat__msg--minha' : ''), dataset: { de: String(m.de) } },
       h('span', { class: 'tb-chat__texto' }, m.texto),
       h('span', { class: 'tb-chat__hora' }, new Date(m.em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }))))
-      : Text('Nenhuma mensagem ainda. Uma frase rápida ou escreva abaixo.', { size: 'sm', tone: 'muted' }));
+      : (escondidas ? [] : [Text('Nenhuma mensagem ainda. Uma frase rápida ou escreva abaixo.', { size: 'sm', tone: 'muted' })])));
     lista.scrollTop = lista.scrollHeight;
   }
   async function enviarMensagem(texto) {
@@ -23378,7 +23392,13 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const campo = Input({ id: 'tb-chat-campo', placeholder: 'Escreva…' }); campo.maxLength = __m30.MENSAGEM_MAX; campo.autocomplete = 'off'; campo.setAttribute('aria-label', 'Mensagem');
     const manda = async () => { const t = campo.value; campo.value = ''; campo.focus(); await enviarMensagem(t); };
     campo.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); manda(); } });
-    const corpo = Stack({ class: 'tb-chat' }, lista,
+    // P-12 · Silenciar / Ouvir: esconde as mensagens do outro jogador nesta sala, sem aviso nem vibração
+    const botaoSilencio = () => { const sil = silenciado(); const b = Button(sil ? 'Ouvir' : 'Silenciar', { variant: 'ghost', icone: sil ? 'som' : 'somMudo', id: 'tb-chat-silenciar',
+      title: sil ? 'Voltar a ver as mensagens do outro jogador' : 'Esconder as mensagens do outro jogador nesta sala',
+      onClick: () => { const novo = !silenciado(); try { if (novo) sessionStorage.setItem(chaveSilencio(), '1'); else sessionStorage.removeItem(chaveSilencio()); } catch (e) { /* sem sessão: não guarda */ }
+        b.replaceWith(botaoSilencio()); pintaChat(); } });
+      b.setAttribute('aria-pressed', String(sil)); return b; };
+    const corpo = Stack({ class: 'tb-chat' }, Row({ class: 'tb-chat__topo' }, botaoSilencio()), lista,
       Row({ class: 'ds-row--wrap tb-chat__frases' }, ...__m30.FRASES.map(f => Chip(f, { dataset: { frase: f }, onClick: () => enviarMensagem(f) }))),
       Row({ class: 'tb-chat__linha' }, campo, IconButton('seguir', 'Enviar', { id: 'tb-chat-enviar', variant: 'primary', onClick: manda })));
     chat.aberto = Dialog({ title: 'Conversa', body: corpo });
