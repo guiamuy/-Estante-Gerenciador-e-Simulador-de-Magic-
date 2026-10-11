@@ -3818,6 +3818,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Testes:** `keywords.cr4.unit` (2, falham sem a leva), `combat.audit` K-6. Texto oficial: Ministrant of Obligation (Oracle do Forge, 11/10/2026). Goldens idênticos; motor v109.
 - **Fora:** fichas são fatos por nome (armadilha 27): Espírito 1/1 só branco de outra carta (Lingering Souls) na mesma partida divide o fato com o do pós-vida. Leitor (trilha `motor`): a linha "Afterlife N" ainda é frase não lida no medidor.
 
+**K-7 · Cascata (702.85)** 🟡 (leva K-7)
+- **Valor:** mágica com "Cascade" traz de graça, ao ser conjurada, a primeira mágica de valor menor do topo do grimório; você decide se conjura; o resto vai para o fundo em ordem aleatória.
+- **Aceite:** Bloodbraid Elf (texto oficial) passa pela Floresta e pelo Grandão (valor 5) e para no Urso (valor 2): conjurar ou recusar; as que não foram conjuradas vão para o fundo; Apex Devastator dispara quatro vezes; grimório só com terrenos devolve tudo ao fundo.
+- **Toca ponto comum:** `HANDLERS.cast_free` e `decline_free` (uma linha a mais cada: as exiladas para o fundo). Só acrescentam.
+- **Parcial declarado (702.85):** 702.85b (ação "as you cascade" de outra carta) não existe; carta dividida ou aventura achada usa o valor de mana da carta, não o da mágica resultante (fica para a trilha `tipos`, que faz essas cartas).
+- **Testes:** `keywords.cr4.unit` (2, falham sem a leva), `combat.audit` K-7. Textos oficiais: Bloodbraid Elf, Apex Devastator (Oracle do Forge, 11/10/2026). Goldens idênticos; motor v109.
+
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

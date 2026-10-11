@@ -344,3 +344,43 @@ test('CR 702.135b · cada instância de pós-vida dispara à parte', () => {
   s = mata(s, mo);
   assert.equal(s.zones[d].battlefield.filter(x => s.objects[x].token).length, 3, 'a impressa cria 2, a concedida ("afterlife 1") cria 1');
 });
+
+/* ---------------- K-7 · 702.85 cascata ---------------- */
+const GRANDAO = { name: 'Grandao', type_line: 'Creature — Giant', mana_cost: '{4}{G}', cmc: 5, colors: ['G'], power: '5', toughness: '5', keywords: [], oracle_text: '' };
+/** Põe as cartas pedidas (pelo nome) no topo do grimório de `p`, na ordem dada. */
+function noTopo(s, p, nomes) {
+  s = J(s); const lib = s.zones[p].library;
+  const pegos = nomes.map(n => { const i = lib.findIndex(o => s.objects[o].name === n && !pegosSet.has(o)); const o = lib[i]; pegosSet.add(o); return o; });
+  for (const o of pegos) lib.splice(lib.indexOf(o), 1);
+  lib.unshift(...pegos); pegosSet.clear(); return [s, pegos];
+}
+const pegosSet = new Set();
+test('CR 702.85a · cascata (Bloodbraid Elf, texto oficial): exila até achar mágica que não é terreno de valor menor; pode conjurá-la sem pagar; o resto vai para o fundo', () => {
+  const BBE = oficial('Bloodbraid Elf'); assert.ok(BBE.keywords.includes('Cascade'));
+  let s = partida({ 'Bloodbraid Elf': BBE, Urso: URSO, Grandao: GRANDAO }); const a = s.turn.active;
+  let bbe, topo; [s, bbe] = poe(s, a, 'Bloodbraid Elf', 'hand'); [s, topo] = noTopo(s, a, ['Forest', 'Grandao', 'Urso', 'Forest']);
+  s = act(s, { t: 'cast', p: a, oid: bbe });
+  assert.equal(s.stack.length, 2, 'a cascata dispara ao conjurar e fica acima do elfo'); assert.ok(s.objects[s.stack[1]].ability);
+  for (let i = 0; i < 4 && !s.pending; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  assert.equal(s.pending.kind, 'free_cast'); assert.deepEqual(J(s.pending.options), [topo[2]], 'parou no Urso (valor 2 < 4); o Grandão (5) passou');
+  assert.ok(['exile'].includes(s.objects[topo[0]].zone) && s.objects[topo[1]].zone === 'exile');
+  const conjurou = act(s, { t: 'cast_free', p: a, oid: topo[2] });
+  assert.equal(conjurou.objects[topo[2]].zone, 'stack', 'conjurou sem pagar');
+  const fundo = conjurou.zones[a].library.slice(-2);
+  assert.deepEqual(new Set(fundo), new Set([topo[0], topo[1]]), 'a Floresta e o Grandão foram para o fundo'); assert.equal(conjurou.objects[topo[3]].zone, 'library');
+  const recusou = act(s, { t: 'decline_free', p: a });
+  assert.deepEqual(new Set(recusou.zones[a].library.slice(-3)), new Set(topo.slice(0, 3)), 'recusando, as três exiladas vão para o fundo');
+});
+
+test('CR 702.85c · cada instância de cascata dispara à parte (Apex Devastator: "Cascade, cascade, cascade, cascade"); sem achar, tudo volta ao fundo', () => {
+  const AD = oficial('Apex Devastator');
+  assert.deepEqual(J(E.numerosDaPalavraK(AD)), { cascade: [1, 1, 1, 1] });
+  let s = partida({ 'Apex Devastator': AD }); const a = s.turn.active;
+  let ad; [s, ad] = poe(s, a, 'Apex Devastator', 'hand');
+  s = act(s, { t: 'cast', p: a, oid: ad });
+  assert.equal(s.stack.length + s.queued.length, 5, 'quatro cascatas e a mágica');
+  let t = partida({ 'Bloodbraid Elf': oficial('Bloodbraid Elf') }); const a2 = t.turn.active; let b2; [t, b2] = poe(t, a2, 'Bloodbraid Elf', 'hand');
+  t = J(t); t.zones[a2].library = t.zones[a2].library.filter(o => t.objects[o].name === 'Forest').slice(0, 3); // só terrenos
+  t = act(t, { t: 'cast', p: a2, oid: b2 }); for (let i = 0; i < 4 && t.stack.length > 1; i++) t = act(t, { t: 'pass', p: t.turn.priority });
+  assert.equal(t.pending, null, 'nada para conjurar'); assert.equal(t.zones[a2].library.length, 3, 'as três voltaram ao grimório');
+});

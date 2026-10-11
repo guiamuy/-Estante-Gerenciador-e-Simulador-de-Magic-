@@ -7710,14 +7710,20 @@
    "n": "702.85",
    "regra": "Keyword Abilities",
    "titulo": "Cascade",
-   "status": "ausente",
-   "falta": "Sem exilar do topo até achar não-terreno de valor menor, conjurar sem pagar e pôr o resto no fundo em ordem aleatória (702.85a-c). A decisão free_cast existe (index.html:11361) e ajuda.",
+   "status": "parcial",
+   "falta": "702.85b (ação \"as you cascade\" de outra carta) não existe no motor; carta dividida/aventura usa o valor de mana da carta, não o da metade escolhida (\"resulting spell's mana value\").",
    "esforco": "M",
    "depende": [
     "601 (conjurar sem pagar)",
     "202.3"
    ],
-   "cartas": "comum (muito jogada em Commander e Pauper)"
+   "cartas": "comum (muito jogada em Commander e Pauper)",
+   "evidencia": "K-7: 'cascade' em KEYWORDS; GATILHOS_DE_PALAVRA_K gera \"quando você conjura esta mágica\" (cast-self) só com a mágica na pilha (PALAVRAS_DA_PILHA_K), uma por repetição impressa (\"Cascade, cascade…\": numerosK conta as repetições, 702.85c); o valor de mana é o da mágica ao disparar, com o X (202.3e). Resolução (efeito cascata): exila do topo até a primeira mágica que não é terreno de valor menor; pendência free_cast (você pode conjurá-la sem pagar, a decisão é do jogador); as exiladas que não foram conjuradas vão para o fundo em ordem aleatória (cascataAoFundoK, também ao recusar e quando nada serve). Cartas exemplo: Bloodbraid Elf, Apex Devastator (Oracle do Forge, 11/10/2026).",
+   "testes": [
+    "CR 702.85a · cascata (Bloodbraid Elf, texto oficial): exila até achar mágica que não é terreno de valor menor; pode conjurá-la sem pagar; o resto vai para o fundo",
+    "CR 702.85c · cada instância de cascata dispara à parte (Apex Devastator: \"Cascade, cascade, cascade, cascade\"); sem achar, tudo volta ao fundo",
+    "K-7 · cascata (702.85): conjurar a criatura com cascata traz de graça a de valor menor do topo"
+   ]
   },
   {
    "n": "702.86",

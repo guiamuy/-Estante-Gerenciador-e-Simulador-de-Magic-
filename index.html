@@ -5204,6 +5204,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'persist', 'undying', // K-4 · 702.79 e 702.93: "quando morre, se não tinha marcador -1/-1 (+1/+1), volta com um"
   'exalted', // K-5 · 702.83: "quando uma criatura sua ataca sozinha, ela recebe +1/+1" (exaltadoK), uma por instância
   'afterlife', // K-6 · 702.135: "Afterlife N" — o N vem do texto (numerosDaPalavraK)
+  'cascade', // K-7 · 702.85: da mágica na pilha, uma por instância ("Cascade, cascade")
   /* ↓ V · palavras-chave da trilha verbos */
   /* ↓ T · palavras-chave da trilha tipos */
 ];
@@ -5363,6 +5364,7 @@ const EFFECTS = {
   salvaguarda: { fields: [], targets: [] }, // K-2 · 702.21a · gerado pelo motor quando uma permanente com salvaguarda vira alvo (não vai em script)
   volta_com_marcador: { fields: ['marcador'], targets: [] }, // K-4 · persistir e imortal (gerado pelo motor)
   exaltado: { fields: ['criatura'], targets: [] }, // K-5 · exaltado (gerado pelo motor)
+  cascata: { fields: ['mv'], targets: [] }, // K-7 · cascata (gerado pelo motor)
   /* ↓ V · efeitos da trilha verbos */
   discover: { fields: ['amount'], targets: ['self'] }, // V-10 · 701.57 descobrir N
   investigate: { fields: [], targets: ['self'] }, // V-9 · 701.16 investigar: "Create a Clue token" (111.10f); `amount` opcional ("investigate twice", "investigate X times")
@@ -17608,6 +17610,16 @@ function applyEffect(s, src, eff, tgt, events) {
       break;
     }
     /* ↓ K · casos de applyEffect da trilha keywords */
+    case 'cascata': { // K-7 · 702.85a
+      const lib = s.zones[ctrl].library, exiladas = []; let achada = null;
+      while (lib.length) { const x = lib[0]; moveObject(s, x, 'exile'); exiladas.push(x); const fx = s.facts[s.objects[x].name] || {};
+        if (!(fx.types || []).includes('land') && (fx.cmc || 0) < eff.mv) { achada = x; break; } }
+      events.push({ kind: 'effect', do: 'cascata', name: src.name, amount: exiladas.length, target: achada ? s.objects[achada].name : null });
+      if (!achada) { cascataAoFundoK(s, ctrl, exiladas); break; } // não achou: tudo para o fundo
+      s.objects[achada].playableFromExile = ctrl; // só durante a decisão
+      s.pending = { kind: 'free_cast', p: ctrl, options: [achada], name: src.name, cascataK: { exiladas } };
+      break;
+    }
     case 'exaltado': { // K-5 · 702.83a: "that creature gets +1/+1 until end of turn" (a que atacou, ainda a mesma, mesmo fora do combate)
       const c = s.objects[eff.criatura];
       if (!c || c.zone !== 'battlefield' || (c.zc || 0) !== eff.z) { note({ failed: true }); break; }
@@ -19224,12 +19236,14 @@ const HANDLERS = {
     if (pk.escondida) delete s.objects[a.oid].faceDown; // M-268 · ao jogar, a carta vira para cima
     if (terreno) HANDLERS.play_land(s, { t: 'play_land', p: a.p, oid: a.oid, granted: true }, ev); // M-268 · usa a jogada de terreno do turno
     else HANDLERS.cast(s, { ...a, t: 'cast', free: true, granted: true }, ev);
+    if (pk.cascataK) { delete s.objects[a.oid].playableFromExile; cascataAoFundoK(s, a.p, pk.cascataK.exiladas.filter(x => x !== a.oid)); } // K-7 · 702.85a: as que não foram conjuradas, para o fundo
     if (pk.suspensa && s.objects[a.oid] && s.objects[a.oid].zone === 'stack') { delete s.objects[a.oid].suspensa; if (s.facts[s.objects[a.oid].name].types.includes('creature')) s.objects[a.oid].suspensaImpeto = true; } // M-269
     if (!continueUnless(s, ev)) resumeEffects(s, ev);
   },
   decline_free(s, a, ev) { // S61 · não conjurar nada
     if (!s.pending || s.pending.kind !== 'free_cast' || s.pending.p !== a.p) throw new RuleError('tempo', 'nada para recusar');
     if (s.pending.escondida || s.pending.suspensa) for (const oid of s.pending.options || []) if (s.objects[oid]) delete s.objects[oid].playableFromExile; // M-268/M-269 · continua exilada
+    if (s.pending.cascataK) { for (const oid of s.pending.options || []) if (s.objects[oid]) delete s.objects[oid].playableFromExile; cascataAoFundoK(s, a.p, s.pending.cascataK.exiladas); } // K-7 · recusou: todas para o fundo, em ordem aleatória
     s.pending = null;
     if (!continueUnless(s, ev)) resumeEffects(s, ev);
   },
@@ -20333,6 +20347,11 @@ const GATILHOS_DE_PALAVRA_K = {
   persist: (s, o) => ({ kind: 'triggered', when: 'dies', palavraK: 'persist', effects: [{ do: 'volta_com_marcador', marcador: 'm1m1', z: (o && o.zc) || 0 }] }),
   undying: (s, o) => ({ kind: 'triggered', when: 'dies', palavraK: 'undying', effects: [{ do: 'volta_com_marcador', marcador: 'p1p1', z: (o && o.zc) || 0 }] }),
   // 702.135a · "When this permanent is put into a graveyard from the battlefield, create N 1/1 white and black Spirit creature tokens with flying."
+  // 702.85a · "When you cast this spell, exile cards from the top of your library until you exile a nonland card whose mana value is less
+  // than this spell's mana value. You may cast that card without paying its mana cost if the resulting spell's mana value is less than this
+  // spell's mana value. Then put all cards exiled this way that weren't cast on the bottom of your library in a random order." O valor de
+  // mana é o da mágica ao disparar (com o X escolhido, 202.3e); a habilidade existe mesmo que a mágica saia da pilha.
+  cascade: (s, o) => ({ kind: 'triggered', when: 'cast-self', palavraK: 'cascade', effects: [{ do: 'cascata', mv: valorDaMagicaK(s, o) }] }),
   afterlife: (s, o, i) => ({ kind: 'triggered', when: 'dies', palavraK: 'afterlife', effects: [{ do: 'token', amount: numeroDaPalavraK(s, o, 'afterlife', i), token: { name: 'Spirit', types: ['creature'], subtypes: ['Spirit'], colors: ['W', 'B'], power: 1, toughness: 1, keywords: ['flying'] } }] }),
 };
 /** As palavras-chave da tabela que algum script desta partida pode conceder. Cada fato é lido uma vez (WeakMap pelo próprio fato, que
@@ -20352,12 +20371,13 @@ function palavrasConcedidasK(s) {
     a da mutação e cada efeito contínuo que a concede depois do corte (613.7); zero quando has() diz que não tem. */
 function instanciasK(s, o, k) {
   if (o && o.zone !== 'battlefield' && k in PALAVRAS_DE_SAIDA_K) return ((o.ultima || {}).palavrasK || {})[k] || 0; // K-4 · 603.10a: como era no campo
+  if (k in PALAVRAS_DA_PILHA_K) { const f0 = o && s.facts[o.name]; return o && o.zone === 'stack' && !o.ability && f0 && (f0.kw || []).includes(k) ? Math.max(1, ((f0.numerosK || {})[k] || []).length) : 0; } // K-7 · cascata: só na pilha (702.85a)
   const f = o && s.facts[o.name]; if (!f || o.faceDown || o.zone !== 'battlefield') return 0;
   const impressa = (f.kw || []).includes(k), marcadores = SC.KEYWORD_COUNTERS.includes(k) ? ((o.counters || {})[k] || 0) : 0, concedivel = palavrasConcedidasK(s).has(k);
   if (!impressa && !marcadores && !concedivel && !o.mutavel) return 0;
   if (!has(s, o, k)) return 0;
   const m = mutacao(s, o), corte = m && m.perde ? m.corte : -1;
-  let n = (impressa && corte < 0 ? 1 : 0) + (corte < 0 ? marcadores : 0) + (m ? m.keywords.filter(x => x === k).length : 0);
+  let n = (impressa && corte < 0 ? Math.max(1, ((f.numerosK || {})[k] || []).length) : 0) + (corte < 0 ? marcadores : 0) + (m ? m.keywords.filter(x => x === k).length : 0); // K-7 · "Prowess, prowess": cada repetição impressa é uma instância
   if (concedivel) n += continuosQueAfetam(s, o).filter(e => e.palavras && e.palavras.includes(k) && (corte < 0 || (e.ts || 0) > corte)).length;
   return Math.max(n, 1);
 }
@@ -20393,11 +20413,14 @@ Object.assign(EXPORTS_K, { exaltadoK });
 /** K-6 · palavras-chave com número (702): o N lido da linha impressa da face da frente ("Afterlife 2"). Uma lista por palavra, uma
     entrada por instância impressa. */
 const NUMERADAS_K = ['afterlife', 'annihilator', 'bushido', 'fading', 'vanishing', 'modular', 'rampage', 'absorb', 'amplify', 'bloodthirst', 'graft', 'frenzy', 'poisonous', 'renown', 'fabricate', 'afflict', 'tribute', 'soulshift', 'dredge', 'toxic', 'backup', 'crew', 'ravenous', 'casualty', 'squad', 'mobilize', 'ripple'];
+/** K-7 · palavras-chave sem número que o motor resolve por instância: as repetições impressas contam (702.85c, 702.108b…). */
+const POR_INSTANCIA_K = ['cascade', 'prowess', 'exalted', 'persist', 'undying', 'evolve'];
 function numerosDaPalavraK(card) {
   const txt = String((card && (card.oracle_text || (card.faces && card.faces[0] && card.faces[0].oracle_text))) || ''), out = {};
   for (const l0 of txt.split('\n')) for (const p of l0.replace(/\s*\([^)]*\)/g, '').split(/,\s*/)) {
-    const m = p.trim().match(/^([A-Za-z]+) (\d+)$/); const k = m && m[1].toLowerCase();
-    if (k && NUMERADAS_K.includes(k)) (out[k] = out[k] || []).push(+m[2]);
+    const m = p.trim().match(/^([A-Za-z]+)(?: (\d+))?$/); const k = m && m[1].toLowerCase();
+    if (k && m[2] != null && NUMERADAS_K.includes(k)) (out[k] = out[k] || []).push(+m[2]);
+    else if (k && m[2] == null && POR_INSTANCIA_K.includes(k)) (out[k] = out[k] || []).push(1); // K-7 · "Cascade, cascade": uma entrada por repetição
   }
   return Object.keys(out).length ? out : undefined;
 }
@@ -20409,6 +20432,16 @@ function numeroDaPalavraK(s, o, k, i = 0) {
   return temImpressa && i < imp.length ? imp[i] : 1;
 }
 Object.assign(EXPORTS_K, { numerosDaPalavraK, numeroDaPalavraK });
+/** K-7 · palavras-chave que só funcionam com a mágica na pilha. */
+const PALAVRAS_DA_PILHA_K = { cascade: true };
+/** K-7 · 202.3e · valor de mana da mágica na pilha (com o X escolhido). */
+function valorDaMagicaK(s, o) { const f = (o && s.facts[o.name]) || {}; return (f.cmc || 0) + (o && o.zone === 'stack' ? (o.xPaid || 0) * ((f.cost || {}).x || 0) : 0); }
+/** K-7 · 702.85a · bota no fundo do grimório, em ordem aleatória, as cartas exiladas pela cascata que não foram conjuradas. */
+function cascataAoFundoK(s, p, oids) {
+  const resto = oids.filter(x => s.objects[x] && s.objects[x].zone === 'exile'); shuffle(s, resto);
+  for (const x of resto) moveObject(s, x, 'library', { top: false });
+}
+Object.assign(EXPORTS_K, { valorDaMagicaK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-10 · 701.57 descobrir N: exila do topo do seu grimório até exilar uma carta que não é terreno com valor de mana N ou menor. Você
    pode conjurá-la sem pagar o custo de mana (a mágica resultante precisa ter valor ≤ N: com X, X = 0); se não conjurar, ela vai para a
@@ -23125,6 +23158,7 @@ Object.assign(PALAVRA_PT, { prowess: 'proeza' }); // K-3
 Object.assign(PALAVRA_PT, { persist: 'persistir', undying: 'imortal' }); // K-4
 Object.assign(PALAVRA_PT, { exalted: 'exaltado' }); // K-5
 Object.assign(PALAVRA_PT, { afterlife: 'pós-vida' }); // K-6
+Object.assign(PALAVRA_PT, { cascade: 'cascata' }); // K-7
 /* ↓ V · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha verbos */
 const MARCADOR_PT_V = { p1p1: '+1/+1', m1m1: '−1/−1', loyalty: 'de lealdade', poison: 'de veneno' }; // V-7
 const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas por descreveEfeito)

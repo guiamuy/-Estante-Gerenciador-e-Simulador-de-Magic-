@@ -332,6 +332,21 @@ test('K-6 · pós-vida (702.135): o bloqueador que morre deixa uma ficha 1/1 voa
   assert.equal(fichas.length, 1); assert.ok(E.hasKeyword(r, r.objects[fichas[0]], 'flying'));
 });
 
+test('K-7 · cascata (702.85): conjurar a criatura com cascata traz de graça a de valor menor do topo', () => {
+  cobre('cascade');
+  const cartas = { ...CARDS, Cascateira: cre('Cascateira', 3, 3, ['Cascade'], { mana_cost: '{3}{W}', cmc: 4 }) };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 38, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active; let c; [s, c] = poe(s, a, 'Cascateira', { zone: 'hand' });
+  s = J(s); const lib = s.zones[a].library; const urso = lib.find(o => s.objects[o].name === 'Urso'); lib.splice(lib.indexOf(urso), 1); lib.unshift(urso);
+  s = act(s, { t: 'cast', p: a, oid: c });
+  for (let i = 0; i < 4 && !s.pending; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  s = act(s, { t: 'cast_free', p: a, oid: urso });
+  for (let i = 0; i < 8 && s.stack.length; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  assert.ok(vivo(s, urso) && vivo(s, c), 'as duas no campo');
+});
+
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));
