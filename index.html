@@ -5286,6 +5286,8 @@ const EFFECTS = {
   mare_alta: { fields: [], targets: ['self'] }, // M-262 · High Tide
   topo_ou_fundo_do_dono: { fields: [], targets: ['permanent'] }, // M-264 · "The owner of target nonland permanent puts it on their choice of the top or bottom of their library"
   revelar_topo_para_mao: { fields: [], targets: ['self'] }, // M-263 · Dark Confidant
+  esconderijo: { fields: ['count'], targets: ['self'] }, // M-268 · 702.75 hideaway: olha N, exila uma virada para baixo ligada à permanente, o resto no fundo em ordem aleatória
+  jogar_escondida: { fields: [], targets: ['self'] }, // M-268 · "you may play the exiled card without paying its mana cost [if …]"
   repartir_topo: { fields: ['count'], targets: ['self'] }, // M-267 · Expressive Iteration: "put one into your hand, one on the bottom, and exile one" — em ordem, uma escolha por destino
   embaralhar_do_cemiterio: { fields: ['amount'], targets: ['self'] }, // M-265 · Stream of Thought: "You shuffle up to four cards from your graveyard into your library"
   amass: { fields: ['amount'], targets: ['self'] }, // M-260 · 701.47 amass
@@ -5983,6 +5985,7 @@ function effectErrors(effects, label, opcional) {
       if (e.naoFicha && (e.jogadores || 'voce') === 'voce' && e.target == null && !e.alvosJogadores) errs.push(`${L}: "naoFicha" só vale quando cada jogador ou o alvo escolhe`);
       if (e.alvosJogadores != null && (e.alvosJogadores !== 'anteriores' || e.jogadores != null || e.target != null)) errs.push(`${L}: "alvosJogadores" só vale como anteriores, sem jogadores nem alvo`); // M-264
     }
+    if (e.do === 'jogar_escondida' && e.seAtacouCom != null && !(Number.isInteger(e.seAtacouCom) && e.seAtacouCom > 0)) errs.push(`${label} ${i + 1}: "se atacou com" precisa de um inteiro positivo`); // M-268
     if (e.do === 'repartir_topo' && !(Array.isArray(e.destinos) && e.destinos.length >= 2 && e.destinos.every(d => ['hand', 'library-bottom', 'library-top', 'graveyard', 'exile', 'exile-playable-turn'].includes(d)))) errs.push(`${label} ${i + 1}: repartir precisa de dois ou mais destinos conhecidos`); // M-267
     if (e.do === 'mover') { // CR2-G R4a
       const ZM = ['battlefield', 'graveyard', 'exile', 'hand', 'library'], L = `${label} ${i + 1}`;
@@ -7071,6 +7074,12 @@ const RAW_SCRIPTS = [
   // "Look at the top three cards of your library. Put one of them into your hand, put one of them on the bottom of your library, and exile one of them. You may play the exiled card this turn."
   { name: 'Expressive Iteration', effects: [{ do: 'repartir_topo', count: 3, destinos: ['hand', 'library-bottom', 'exile-playable-turn'] }],
     example: { target: 'none', expect: { picked: true } } },
+  // M-268 · texto oficial em .listas/oficiais-commander.json (05/10/2026); segunda fonte, Oracle do Forge (10/10/2026); rulings de 2022-04-29
+  // "Hideaway 4 (When this land enters, look at the top four cards of your library, exile one face down, then put the rest on the bottom in a random order.) This land enters tapped. {T}: Add {W}. {W}, {T}: You may play the exiled card without paying its mana cost if you attacked with three or more creatures this turn."
+  { name: 'Windbrisk Heights', entersTapped: true, abilities: [
+    { kind: 'triggered', when: 'etb', effects: [{ do: 'esconderijo', count: 4 }] },
+    { kind: 'activated', cost: { mana: '{W}', tap: true }, effects: [{ do: 'jogar_escondida', seAtacouCom: 3 }] }],
+    example: { action: 'etb', target: 'none', expect: { picked: true } } },
   // S12 · escolhas do jogador
   { name: 'Faithless Looting', effects: [{ do: 'draw', amount: 2 }, { do: 'discard', amount: 2 }], flashback: { mana: '{2}{R}' },
     example: { action: 'flashback', target: 'none', expect: { handDelta: 2, discarded: 2, exiled: true } } },
@@ -14160,7 +14169,7 @@ function zoneList(s, obj, zone) { return zone === 'stack' ? s.stack : s.zones[ob
 const VOLTA_COMANDO = ['graveyard', 'exile', 'hand', 'library'];
 /** Leva 105 · marcas que a conjuração põe na carta (e que não atravessam outra mudança de zona). */
 const MARCAS_DA_CONJURACAO = ['xPaid', 'bestowed', 'evidenced', 'faceDown', 'flashback', 'paidAdditional', 'discardedNonland', 'altIndex', 'mode',
-  'bargained', 'omen', 'stormCopies', 'chosenColor', 'plotted', 'playableFromExile', 'jogavelSoNesteTurno', 'sneakAtaque', 'kicked', 'modes', 'castFrom']; // 'revealed' fica: a habilidade do Martyr of Sands lê depois do sacrifício
+  'bargained', 'omen', 'stormCopies', 'chosenColor', 'plotted', 'playableFromExile', 'jogavelSoNesteTurno', 'escondida', 'sneakAtaque', 'kicked', 'modes', 'castFrom']; // 'revealed' fica: a habilidade do Martyr of Sands lê depois do sacrifício
 /* ---------------- CR2-G R5c · 701.8/614 · "se fosse destruída" ---------------- */
 /** O que acontece se `o` fosse destruída agora: 'indestrutivel' (não é destruída), { totem: aura } (702.89: a Aura com
  * armadura de totem é destruída no lugar e o dano sai), 'regenerou' (701.15: um escudo de regeneração é gasto) ou 'destruida'.
@@ -15979,6 +15988,22 @@ function applyEffect(s, src, eff, tgt, events) {
       for (const f of fichas) moveObject(s, f.oid, 'exile');
       note({ amount: fichas.length, name: nome }); break;
     }
+    case 'esconderijo': { // M-268 · 702.75a: "look at the top N cards of your library, exile one face down, then put the rest on the bottom in a random order"
+      const fonte = src.ability ? s.objects[src.source] : src;
+      const from = s.zones[ctrl].library.slice(0, amountOf(s, src, eff.count));
+      if (!from.length) { note({ amount: 0 }); break; }
+      startPick(s, { p: ctrl, from, min: 1, max: 1, to: 'esconder', rest: 'library-bottom-random', label: 'esconder', source: src.name, esconde: fonte && fonte.zone === 'battlefield' ? fonte.oid : null }, events);
+      note({ amount: from.length, pending: true }); break;
+    }
+    case 'jogar_escondida': { // M-268 · Windbrisk Heights: "you may play the exiled card without paying its mana cost if you attacked with three or more creatures this turn" (confere na resolução)
+      const fonte = src.ability ? s.objects[src.source] : src;
+      const c = fonte && fonte.escondida ? s.objects[fonte.escondida] : null;
+      if (!c || c.zone !== 'exile') { note({ failed: true }); break; }
+      if (eff.seAtacouCom && (s.players[ctrl].atacouCom || 0) < eff.seAtacouCom) { note({ failed: true, motivo: `não atacou com ${eff.seAtacouCom} criaturas neste turno` }); break; }
+      c.playableFromExile = ctrl; // só durante a decisão: recusar tira a permissão
+      s.pending = { kind: 'free_cast', p: ctrl, options: [c.oid], name: src.name, escondida: true };
+      note({ pending: true }); break;
+    }
     case 'repartir_topo': { // M-267 · "Look at the top three … put one into your hand, one on the bottom, and exile one": em ordem; com menos
       // cartas, os destinos são cumpridos na ordem e os últimos ficam sem carta (ruling de 20/03/2026)
       const from = s.zones[ctrl].library.slice(0, amountOf(s, src, eff.count));
@@ -16272,7 +16297,8 @@ function startPick(s, spec, events) {
     ...(spec.mostrar ? { mostrar: spec.mostrar } : {}), // Leva 107 · mão revelada inteira (Duress)
     ...(spec.depois ? { depois: spec.depois } : {}), // Leva 107 · "se fizer, compre duas" (Highway Robbery)
     ...(spec.onPicked ? { onPicked: spec.onPicked } : {}), // S59 · o que a carta escolhida recebe
-    ...(spec.repartir ? { repartir: spec.repartir } : {}) }; // M-267 · os próximos destinos do repartir
+    ...(spec.repartir ? { repartir: spec.repartir } : {}), // M-267 · os próximos destinos do repartir
+    ...(spec.esconde ? { esconde: spec.esconde } : {}) }; // M-268 · a permanente do esconderijo // M-267 · os próximos destinos do repartir
   events.push({ kind: 'choice', what: spec.label, name: spec.source, amount: spec.from.length });
 }
 /** S55 · soma do valor de mana do que já foi escolhido. */
@@ -16293,6 +16319,7 @@ function concluiPick(s, events) {
     else if (where === 'library-bottom') moveObject(s, oid, 'library', { top: false });
     else if (where === 'battlefield-tapped') { moveObject(s, oid, 'battlefield'); s.objects[oid].tapped = true; s.objects[oid].controller = pk.p; }
     else if (where === 'graveyard' && pk.discard) descartaCarta(s, oid); // Leva 105 · Duress: é descarte
+    else if (where === 'esconder') { moveObject(s, oid, 'exile'); s.objects[oid].faceDown = true; const f = pk.esconde && s.objects[pk.esconde]; if (f && f.zone === 'battlefield') f.escondida = oid; } // M-268 · 702.75a
     else if (where === 'exile-playable-turn') { moveObject(s, oid, 'exile'); s.objects[oid].playableFromExile = pk.p; s.objects[oid].jogavelSoNesteTurno = true; } // M-267
     else if (where === 'desvira') { if (s.objects[oid] && s.objects[oid].zone === 'battlefield') s.objects[oid].tapped = false; } // M-250
     else if (where === 'descarta-ou-sacrifica') { if (s.objects[oid].zone === 'hand') descartaCarta(s, oid); else sacrifice(s, oid); }
@@ -17343,13 +17370,13 @@ const HANDLERS = {
     advanceStep(s);
   },
   play_land(s, a, ev = []) {
-    noPending(s); holder(s, a.p);
+    if (!a.granted) { noPending(s); holder(s, a.p); } // M-268 · "you may play" de um efeito acontece durante a resolução
     // S61 · Cavernas das Runas: a carta exilada pode ser jogada de lá
     const exilada = s.objects[a.oid];
     const doExilio = exilada && exilada.zone === 'exile' && exilada.playableFromExile === a.p && exilada.owner === a.p;
     const o = doExilio ? exilada : owns(s, a.p, a.oid, 'hand');
     if (!s.facts[o.name].types.includes('land')) throw new RuleError('tipo', 'não é terreno');
-    if (s.turn.active !== a.p || !isMain(s) || s.stack.length) throw new RuleError('tempo', 'terreno só na sua fase principal, com a pilha vazia');
+    if (s.turn.active !== a.p || (!a.granted && (!isMain(s) || s.stack.length))) throw new RuleError('tempo', 'terreno só na sua fase principal, com a pilha vazia'); // M-268 · por efeito: só no seu turno (305.2)
     if (s.players[a.p].landsPlayed >= 1) throw new RuleError('limite', 'já jogou terreno neste turno');
     if (a.revela != null) { // M-252 · 'As this land enters, you may reveal a Plains or Swamp card from your hand'
       if (!revelaveisAoEntrar(s, a.p, o).includes(a.revela)) throw new RuleError('escolha', 'revele uma carta da mão que sirva para esta terra');
@@ -17691,13 +17718,17 @@ const HANDLERS = {
     if (!s.pending || s.pending.kind !== 'free_cast' || s.pending.p !== a.p) throw new RuleError('tempo', 'nada para conjurar sem pagar'); semFracao(s);
     const pk = s.pending;
     if (!(pk.options || []).includes(a.oid)) throw new RuleError('objeto', 'essa carta não veio deste efeito');
-    if (s.facts[s.objects[a.oid].name].types.includes('land')) throw new RuleError('tipo', 'terreno é jogado, não conjurado');
+    const terreno = s.facts[s.objects[a.oid].name].types.includes('land');
+    if (terreno && !pk.escondida) throw new RuleError('tipo', 'terreno é jogado, não conjurado');
     s.pending = null;
-    HANDLERS.cast(s, { ...a, t: 'cast', free: true, granted: true }, ev);
+    if (pk.escondida) delete s.objects[a.oid].faceDown; // M-268 · ao jogar, a carta vira para cima
+    if (terreno) HANDLERS.play_land(s, { t: 'play_land', p: a.p, oid: a.oid, granted: true }, ev); // M-268 · usa a jogada de terreno do turno
+    else HANDLERS.cast(s, { ...a, t: 'cast', free: true, granted: true }, ev);
     if (!continueUnless(s, ev)) resumeEffects(s, ev);
   },
   decline_free(s, a, ev) { // S61 · não conjurar nada
     if (!s.pending || s.pending.kind !== 'free_cast' || s.pending.p !== a.p) throw new RuleError('tempo', 'nada para recusar');
+    if (s.pending.escondida) for (const oid of s.pending.options || []) if (s.objects[oid]) delete s.objects[oid].playableFromExile; // M-268 · continua escondida
     s.pending = null;
     if (!continueUnless(s, ev)) resumeEffects(s, ev);
   },
@@ -18144,7 +18175,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
       out.push({ t: 'decline_free', p });
       for (const oid of s.pending.options || []) {
         const fc = s.facts[s.objects[oid].name];
-        if (fc.types.includes('land')) continue;
+        if (fc.types.includes('land')) { if (s.pending.escondida && s.turn.active === p && s.players[p].landsPlayed < 1) out.push({ t: 'cast_free', p, oid }); continue; } // M-268
         const modos = (fc.script && fc.script.modes) || [];
         const listas = modos.length ? modos.map((m, i) => ({ need: (m.effects || []).filter(SC.isTargeted), mode: i }))
           : [{ need: ((fc.script && fc.script.effects) || []).filter(SC.isTargeted), mode: null }];
@@ -21132,6 +21163,8 @@ function descreveEfeito(e) {
     }
     case 'sacrifice_each': return 'cada jogador sacrifica uma permanente à sua escolha';
     case 'exilar_fichas_mesmo_nome': return 'exila as fichas de mesmo nome que esse jogador controla'; // M-258
+    case 'esconderijo': return `olha as ${qtd(e.count)} cartas de cima e exila uma virada para baixo; o resto vai para o fundo em ordem aleatória`; // M-268
+    case 'jogar_escondida': return `pode jogar a carta escondida sem pagar o custo de mana${e.seAtacouCom ? ` se você atacou com ${e.seAtacouCom} ou mais criaturas neste turno` : ''}`; // M-268
     case 'repartir_topo': return `olha as ${qtd(e.count)} cartas de cima e põe uma em cada destino, em ordem: ${(e.destinos || []).map(d => ({ hand: 'mão', 'library-bottom': 'fundo do grimório', 'library-top': 'topo do grimório', graveyard: 'cemitério', exile: 'exílio', 'exile-playable-turn': 'exílio (pode jogá-la neste turno)' })[d] || d).join(', ')}`; // M-267
     case 'embaralhar_do_cemiterio': return `embaralha até ${plural(n, 'carta', 'cartas')} do seu cemitério no grimório`; // M-265
     case 'revelar_topo_para_mao': return `revela a carta do topo e a põe na mão${e.perdeVidaPeloValor ? '; perde vida igual ao valor de mana dela' : ''}`; // M-263
@@ -23359,12 +23392,14 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     } else if (s.pending && s.pending.kind === 'free_cast' && s.pending.p === v) {
       // S61 · Covil do Mago Louco: uma das cartas compradas pode ser conjurada sem pagar
       const opts = E.legalActions(s, v).filter(x => x.t === 'cast_free');
-      banner = PriorityBanner({ title: `${s.pending.name}: conjurar uma sem pagar?`, tone: 'warning',
-        hint: opts.length ? 'Vale só para uma das cartas que você acabou de comprar.' : 'Nenhuma das compradas pode ser conjurada agora.',
+      const esc = !!s.pending.escondida; // M-268 · esconderijo
+      banner = PriorityBanner({ title: esc ? `${s.pending.name}: jogar a carta escondida sem pagar?` : `${s.pending.name}: conjurar uma sem pagar?`, tone: 'warning',
+        hint: esc ? (opts.length ? 'Se não jogar agora, ela continua escondida.' : 'A carta escondida não pode ser jogada agora (terreno: só no seu turno, se ainda não jogou terreno).')
+          : opts.length ? 'Vale só para uma das cartas que você acabou de comprar.' : 'Nenhuma das compradas pode ser conjurada agora.',
         // Leva 110 · um botão por carta; os alvos abrem a folha completa
         actions: [...[...new Set(opts.map(x => x.oid))].map((oid, i) => { const da = opts.filter(x => x.oid === oid);
           return Button(da.length > 1 ? `${nameOf(s, oid)}…` : nameOf(s, oid), { variant: i ? undefined : 'primary', id: i ? undefined : 'tb-cast-free', onClick: () => escolherAlvo(`Conjurar ${nameOf(s, oid)}`, da) }); }),
-          Button('Não conjurar', { id: 'tb-decline-free', onClick: () => act({ t: 'decline_free', p: v }) })] });
+          Button(esc ? 'Não jogar' : 'Não conjurar', { id: 'tb-decline-free', onClick: () => act({ t: 'decline_free', p: v }) })] });
     } else if (s.pending && s.pending.kind === 'unless' && s.pending.p === v) {
       // S60 · "perde 2 a menos que descarte/sacrifique"
       const c = s.pending.cost || {};
@@ -23423,7 +23458,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     } else if (s.pending && s.pending.kind === 'pick' && s.pending.p === v) {
       const pk = s.pending;
       const done = pk.picked.length >= pk.min;
-      const LABEL = { 'colher provas': 'Colher provas: exile do cemitério', desvirar: 'Escolha o que desvirar', delve: 'Delve: escolha o que exilar do cemitério', 'descartar ou sacrificar': 'Descartar ou sacrificar um terreno?', 'escolher o descarte': 'Escolha o descarte do oponente', 'devolver para a mão': 'Escolha o que volta para a mão', 'scry': 'Vidência: escolha o que fica no topo', 'surveil': 'Vigiar: escolha o que fica no topo', 'vasculhar': 'Vasculhar o grimório', 'olhar o topo': 'Olhar o topo do grimório', 'devolver ao topo': 'Devolver ao topo', 'embaralhar no grimório': 'Escolha do seu cemitério o que embaralhar no grimório', 'exilar da mão': 'Escolha as cartas da mão a exilar', 'repartir hand': 'Escolha a que vai para a mão', 'repartir library-bottom': 'Escolha a que vai para o fundo do grimório', 'repartir exile-playable-turn': 'Escolha a que vai para o exílio (pode jogar neste turno)' }; // M-265
+      const LABEL = { 'colher provas': 'Colher provas: exile do cemitério', desvirar: 'Escolha o que desvirar', delve: 'Delve: escolha o que exilar do cemitério', 'descartar ou sacrificar': 'Descartar ou sacrificar um terreno?', 'escolher o descarte': 'Escolha o descarte do oponente', 'devolver para a mão': 'Escolha o que volta para a mão', 'scry': 'Vidência: escolha o que fica no topo', 'surveil': 'Vigiar: escolha o que fica no topo', 'vasculhar': 'Vasculhar o grimório', 'olhar o topo': 'Olhar o topo do grimório', 'devolver ao topo': 'Devolver ao topo', 'embaralhar no grimório': 'Escolha do seu cemitério o que embaralhar no grimório', 'exilar da mão': 'Escolha as cartas da mão a exilar', 'esconder': 'Esconderijo: escolha a carta a exilar virada para baixo', 'repartir hand': 'Escolha a que vai para a mão', 'repartir library-bottom': 'Escolha a que vai para o fundo do grimório', 'repartir exile-playable-turn': 'Escolha a que vai para o exílio (pode jogar neste turno)' }; // M-265
       const REST = { 'library-bottom': 'vai para o fundo', 'graveyard': 'vai para o cemitério', 'stay': 'fica onde está', 'library-top': 'fica no topo' };
       // Leva 125 · o título diz de qual carta é a escolha; a contagem só aparece quando se escolhe mais de uma
       const tituloPk = LABEL[pk.label] || 'Escolha cartas';

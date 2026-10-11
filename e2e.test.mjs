@@ -9956,3 +9956,23 @@ test('e2e · M-267 · Expressive Iteration: a mesa pergunta a carta da mão e de
   assert.equal(exilada, 1, 'uma carta exilada que pode ser jogada neste turno');
   assert.deepEqual(M.errors, []);
 });
+
+test('e2e · M-268 · Windbrisk Heights: ao entrar, a mesa pede a carta a esconder entre as quatro de cima; ela vai para o exílio virada para baixo', { skip }, async t => {
+  const extras = JSON.parse(readFileSync(join(ROOT, '.listas', 'oficiais-commander.json'), 'utf8')).cartas.filter(c => c.name === 'Windbrisk Heights');
+  const M = await comLista125(t, '20 Plains\n20 Windbrisk Heights', ['Plains', 'Windbrisk Heights'], '4', { extras });
+  const { page } = M; let e;
+  for (let i = 0; i < 8; i++) { e = await M.est(); if (e.mao.includes('Windbrisk Heights')) break; const pl = await M.oid('Plains'); if (pl) await M.act({ t: 'play_land', p: 0, oid: pl }); await M.proximo(); }
+  e = await M.est(); assert.ok(e.mao.includes('Windbrisk Heights'), 'mesa pronta: ' + JSON.stringify(e));
+  await page.locator('#tb-hand .tb-card[aria-label^="Windbrisk Heights"]').first().click(); await naFolha(page, /Jogar terreno/);
+  e = await segueR6(M, x => x.pend === 'pick');
+  assert.equal(e.pend, 'pick');
+  assert.match(await M.decisao(), /^Windbrisk Heights · Esconderijo: escolha a carta a exilar virada para baixo/);
+  assert.equal(await page.locator('#tb-pick-cards .tb-card').count(), 4, 'as quatro de cima');
+  await auditaTela(page, 'esconderijo da Windbrisk Heights');
+  await page.locator('#tb-pick-cards .tb-card').first().click(); await page.waitForTimeout(200);
+  if (/Esconderijo/.test(await M.decisao().catch(() => ''))) { await page.click('#tb-pick-done'); await page.waitForTimeout(200); }
+  e = await segueR6(M); assert.notEqual(e.pend, 'pick');
+  const r = await page.evaluate(() => { const s = window.__estanteMesa.estado(); const wb = s.zones[0].battlefield.find(o => s.objects[o].name === 'Windbrisk Heights'); const x = s.objects[wb].escondida; return { exilada: s.objects[x].zone, virada: !!s.objects[x].faceDown }; });
+  assert.deepEqual(r, { exilada: 'exile', virada: true });
+  assert.deepEqual(M.errors, []);
+});

@@ -3278,6 +3278,14 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Mapa de regras:** nenhum item muda de status. **Golden:** idênticas, sem regravar. Versão não sobe (cartas sem script antes).
 - **Próximo:** M-268 — Windbrisk Heights (esconderijo, 702.75) e Path of Ancestry.
 
+**M-268 · R11 · Esconderijo (702.75) e "jogue a carta escondida sem pagar"** ✅ (leva M-268, motor v96, sem mudança no que existe) — 3 testes de unidade e 1 headless.
+- **Regra (702.75a, redação de 2022):** verbo `esconderijo { count }`: olha N do topo, quem controla escolhe uma para o exílio virada para baixo (ligada à permanente; a ligação some se ela mudar de zona, 400.7) e o resto vai para o fundo em ordem aleatória. Verbo `jogar_escondida { seAtacouCom }`: confere a condição na resolução e oferece jogar a carta sem pagar o custo de mana; terreno usa a jogada de terreno do turno e só no seu turno; recusar deixa a carta escondida e sem permissão. A conjuração gratuita aprendeu terreno (só para o esconderijo) e jogar terreno por efeito durante a resolução.
+- **Cartas cobertas (completas):** Windbrisk Heights (texto oficial em `.listas/oficiais-commander.json`, 05/10/2026; segunda fonte, Oracle do Forge, 10/10/2026; rulings de 2007-10-01 e 2022-04-29).
+- **Simplificação declarada:** "atacou com três ou mais criaturas neste turno" conta declarações de ataque; a mesma criatura atacando em dois combates do turno conta duas vezes (o ruling pede três criaturas diferentes).
+- **Medição:** Killian 96% → **97%** (completo 98 · parcial 3 · manual 0). **Mapa:** 702.75 coberta (227 cobertos, 448 ausentes).
+- **Golden:** idênticas, sem regravar. Versão não sobe (carta sem script antes).
+- **Próximo:** M-269 — suspender (702.62) pelo Delay.
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
