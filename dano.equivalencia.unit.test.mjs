@@ -37,7 +37,7 @@ test('M-243 · R5d · a comparação pega divergência: uma regra de dano no cam
   assert.throws(() => compara(comRegra(s, 'Lunarch Veteran', [{ fonte: { de: 'you' }, multiplica: 2 }]), 'com regra'));
 });
 
-test('M-243 · R5d · na partida: "se uma fonte sua fosse causar dano a um oponente, causa o dobro" dobra o Lightning Bolt no oponente e não na criatura; "+1 de combate" das suas criaturas soma antes de dobrar; a prevenção vem depois', () => {
+test('M-243 · R5d · na partida: "se uma fonte sua fosse causar dano a um oponente, causa o dobro" dobra o Lightning Bolt no oponente e não na criatura; com "+1 de combate", o afetado escolhe a ordem (616.1); a prevenção vem depois', () => {
   let s = jogo({ lista: 'Pauper Boros Bully', oponente: 'Pauper Elves', seed: 3, terrenos: ['Mountain'] }), fonte, bolt, elfo;
   [s, fonte] = poe(s, 0, 'Lunarch Veteran'); [s, bolt] = poe(s, 0, 'Lightning Bolt', 'hand'); [s, elfo] = poe(s, 1, 'Llanowar Elves');
   const regras = [{ fonte: { de: 'you' }, a: 'oponente', multiplica: 2 }, { fonte: { tipos: ['creature'], de: 'you' }, soma: 1, soCombate: true }];
@@ -47,7 +47,8 @@ test('M-243 · R5d · na partida: "se uma fonte sua fosse causar dano a um opone
   const x = resolve(conjura(s, 0, bolt, a => (a.targets || []).some(t => t.player === 1)));
   assert.equal(x.players[1].life, vida - 6, 'o raio causou 6 ao oponente');
   assert.equal(E.danoSubstituido(s, s.objects[bolt], { obj: s.objects[elfo] }, 3, false), 3, 'na criatura não dobra');
-  assert.equal(E.danoSubstituido(s, s.objects[fonte], { player: 1 }, 1, true), 4, 'criatura sua em combate no oponente: (1+1)×2');
+  // CR2e.1 · 616.1: o oponente afetado escolhe a ordem das duas substituições e escolheria 1×2+1 = 3; antes o motor somava antes de dobrar e dava 4
+  assert.equal(E.danoSubstituido(s, s.objects[fonte], { player: 1 }, 1, true), 3, 'criatura sua em combate no oponente: o afetado escolhe a ordem de menos dano (1×2+1)');
   assert.equal(E.danoSubstituido(s, s.objects[fonte], { player: 1 }, 1, false), 2, 'fora do combate, só o dobro');
   assert.equal(E.danoSubstituido(s, s.objects[elfo], { player: 0 }, 1, true), 1, 'fonte do oponente não muda');
   const y = J(s); y.prevencoes = [{ alvo: { player: 1 }, quantidade: 4 }];

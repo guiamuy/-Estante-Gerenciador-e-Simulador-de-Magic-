@@ -13834,7 +13834,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 98; // M-272 · Sorin: extorsão nas duas faces e transformação por exílio (objeto novo) mudam partidas com ele
+const ENGINE_VERSION = 99; // CR2e.1 · fichas entram pelas modificações de entrada, dano a cada oponente substituído e prevenido, ordem 616.1 // M-272 · Sorin: extorsão nas duas faces e transformação por exílio (objeto novo) mudam partidas com ele
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -14364,7 +14364,7 @@ function substituicoesPara(s, o, fromZone) {
   const proprias = SC.substituicoesDoScript(s.facts[o.name].script);
   const temAsSuas = !(fromZone === 'battlefield' && semImpressas(s, o));
   for (const r of proprias.sub) if ((r.quando.objeto || 'self') === 'self' && temAsSuas) sub.push(r);
-  for (const r of proprias.entra) if (r.afetados === 'self') entra.push({ r, fonte: o, propria: true });
+  for (const r of proprias.entra) if (r.afetados === 'self' && !o.faceDown) entra.push({ r, fonte: o, propria: true }); // CR2e.1 · 708.2: virada para baixo não tem as regras da frente
   for (const x of battlefield(s)) {
     if (x.oid === o.oid || semImpressas(s, x)) continue;
     const de = SC.substituicoesDoScript(s.facts[x.name].script);
@@ -14379,8 +14379,11 @@ function destinoSubstituido(s, o, fromZone, to) {
   if (o.desenterrada && fromZone === 'battlefield' && to !== 'exile') return 'exile'; // M-257 · 702.84a "if it would leave the battlefield"
   const sc = s.facts[o.name].script;
   if (!sc && !battlefield(s).length) return to;
-  for (const r of substituicoesPara(s, o, fromZone).sub) if (r.quando.para === to && (r.quando.de == null || r.quando.de === fromZone)) return r.em.para;
-  return to;
+  // CR2e.1 · 616.2: uma substituição pode tornar outra aplicável ("iria ao cemitério → exílio" e depois "iria ao exílio → mão"); cada uma vale uma vez
+  // por evento (614.5). A ordem entre as que casam ao mesmo tempo segue o código (616.1: o afetado escolheria; simplificação declarada).
+  const subs = substituicoesPara(s, o, fromZone).sub, usadas = new Set(); let destino = to;
+  for (let mudou = true; mudou;) { mudou = false; for (const r of subs) if (!usadas.has(r) && r.quando.para === destino && (r.quando.de == null || r.quando.de === fromZone)) { usadas.add(r); destino = r.em.para; mudou = true; break; } }
+  return destino;
 }
 const destinoLegado = (s, o, fromZone, to) => to === 'graveyard' && !(fromZone === 'battlefield' && semImpressas(s, o)) && ((s.facts[o.name].script || {}).staticRule) === 'exile-instead-of-graveyard' ? 'exile' : to;
 /** 614.1c/614.12 · como `o` entra no campo: virada (sim, ou "a menos que…", que pode desvirar) e marcadores. As de outras
@@ -14823,7 +14826,9 @@ function danoSubstituido(s, src, alvo, amt, combate) {
       soma += r.soma || 0; vezes *= r.multiplica || 1;
     }
   }
-  return (amt + soma) * vezes;
+  // CR2e.1 · 616.1: quem é afetado escolhe a ordem das substituições; o motor escolhe por ele a ordem que causa menos dano (multiplicar antes de
+  // somar, quando há as duas). Antes somava sempre antes de multiplicar, o que dava mais dano do que o afetado escolheria.
+  return vezes > 1 && soma > 0 ? amt * vezes + soma : (amt + soma) * vezes;
 }
 /** CR2-G R5b · 615 · quanto do dano `amt` da fonte `src` a `alvo` ({ obj } ou { player }) sobra depois da prevenção, num
  * caminho só. Atalhos (guardas de sempre): a mágica cujo dano foi prevenido e as cores escolhidas (colorPrevented), "todo
@@ -15912,10 +15917,13 @@ function applyEffect(s, src, eff, tgt, events) {
         };
         // S47 · "a cada oponente" é dano em jogador. Antes caía na varredura de criaturas.
         // Leva 105 · a prevenção (Prismatic Strands, Hallow) vale também para o dano a cada oponente
-        if (eff.target === 'each-opponent') {
-          const bloqueado = colorPrevented(s, src);
-          s.players.forEach((pl, i) => { if (i === ctrl || pl.lost) return; if (bloqueado) ganhaVida(n); else { danoEmJogador(s, src, i, n); causouDano(s, src, n, i); } });
-          note({ amount: n, ...(bloqueado ? { prevented: true } : {}) }); break;
+        if (eff.target === 'each-opponent') { // CR2e.1 · cada oponente recebe o dano pelo mesmo caminho do dano a um alvo: substituição (dobradores) e prevenção (escudos)
+          let total = 0, prevenido = false;
+          s.players.forEach((pl, i) => { if (i === ctrl || pl.lost) return;
+            const m = danoSubstituido(s, src, { player: i }, n, false), resto = danoAposPrevencao(s, src, { player: i }, m, false);
+            if (resto < m) { ganhaVida(m - resto); prevenido = true; }
+            if (resto > 0) { danoEmJogador(s, src, i, resto); causouDano(s, src, resto, i); total += resto; } });
+          note({ amount: total || n, ...(prevenido && !total ? { prevented: true } : {}) }); break;
         }
         // CR2-G R5b · prevenção num caminho só; o que foi prevenido de fato pode virar vida (S52)
         n = danoSubstituido(s, src, obj ? { obj } : { player: playerOf() }, n, false); // CR2-G R5d
@@ -16905,6 +16913,8 @@ function createToken(s, def, controller, events) {
   s.objects[oid] = { oid, name, token: true, owner: controller, controller, zone: 'battlefield', tapped: false,
     sick: s.facts[name].types.includes('creature'), damage: 0, counters: {} };
   s.zones[controller].battlefield.push(oid);
+  { const t = s.objects[oid]; t.ts = relogio(s); t.entrouNoTurno = s.turn.number; const r = entradaModificada(s, t, 0); // CR2e.1 · 614.12: a ficha também "entra virada" / "entra com N marcadores"
+    if (r.virada != null) t.tapped = r.virada; for (const [k, n] of Object.entries(r.marcadores)) t.counters[k] = (t.counters[k] || 0) + n; }
   events.push({ kind: 'effect', do: 'token', name, target: s.players[controller].name, amount: 1 });
   disparaZona(s, s.objects[oid], null, 'battlefield', controller, null); // CR2-G R2a · a ficha entra: mesmo evento de zona
   return oid;

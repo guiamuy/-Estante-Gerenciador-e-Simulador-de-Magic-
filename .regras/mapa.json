@@ -1,7 +1,7 @@
 {
  "sobre": "Mapa regra × motor. Cada item NNN.N das Comprehensive Rules de 25/09/2026 classificado contra o motor v72 em 06/10/2026 por 14 auditores independentes, com evidência vista (código com linha, teste ou sonda executada). status: coberta · parcial · ausente · definicao (só define termo) · fora (jogo físico, torneio ou variante que um app de dois jogadores não precisa). Quando um item muda de status, o teste que prova a mudança entra em `testes`.",
  "cr": "2026-09-25",
- "motor": 98,
+ "motor": 99,
  "auditoria": "2026-10-06",
  "itens": [
   {
@@ -4949,15 +4949,17 @@
    "regra": "Replacement Effects",
    "titulo": "O que é efeito de substituição",
    "status": "parcial",
-   "evidencia": "Substituições fixas dentro de moveObject (:10244): exile-instead-of-graveyard (:10256; rules.unit \"S52 · ... ela exila em vez de morrer\"), exílio do lampejo (:10258), entra virado (:10283; rules.unit \"S22\"), entra virado a menos que (rules.unit \"S56\"), entra com marcadores (rules.unit \"S50\", pauper.regras \"Leva 104 · Nyxborn Hydra\"), escolha de cor da aura · CR2-G R5a (M-240, v95 sem mudança): substituições de mudança de zona num formato só — substitui: [{ quando: { para, de, objeto: self|seletor }, em: { para } }] e entra: [{ afetados: self|seletor, virada: true|{ aMenosQue }, marcadores }] (substituicoesPara, destinoSubstituido, entradaModificada); staticRule de exílio e de entrar virada, entersTapped, entersTappedUnless, entersWithCounters, X e chargePerKick viraram atalhos; equivalência em substitui.equivalencia.unit · CR2-G R5d (M-243): substituição de dano — dano: [{ fonte: self|seletor, a, soma, multiplica, soCombate }] numa permanente; danoSubstituido antes da prevenção, no combate e no dano de efeito; somas antes dos multiplicadores (616 sem escolha); equivalência sem regras em dano.equivalencia.unit",
-   "falta": "Não há canal de eventos onde uma substituição se registre: cada caso é um if na função que faz a coisa. 614.1a: só a própria carta indo ao cemitério (STATIC_RULES :4548). 614.1b: nenhum \"pule\". 614.1d: nenhuma substituição vinda de outra permanente (Authority of the Consuls manual). 614.1e: nada \"ao ser virada para cima\". Dano, compra, ganho de vida, fichas e marcadores não podem ser substituídos.",
+   "evidencia": "Substituições fixas dentro de moveObject (:10244): exile-instead-of-graveyard (:10256; rules.unit \"S52 · ... ela exila em vez de morrer\"), exílio do lampejo (:10258), entra virado (:10283; rules.unit \"S22\"), entra virado a menos que (rules.unit \"S56\"), entra com marcadores (rules.unit \"S50\", pauper.regras \"Leva 104 · Nyxborn Hydra\"), escolha de cor da aura · CR2-G R5a (M-240, v95 sem mudança): substituições de mudança de zona num formato só — substitui: [{ quando: { para, de, objeto: self|seletor }, em: { para } }] e entra: [{ afetados: self|seletor, virada: true|{ aMenosQue }, marcadores }] (substituicoesPara, destinoSubstituido, entradaModificada); staticRule de exílio e de entrar virada, entersTapped, entersTappedUnless, entersWithCounters, X e chargePerKick viraram atalhos; equivalência em substitui.equivalencia.unit · CR2-G R5d (M-243): substituição de dano — dano: [{ fonte: self|seletor, a, soma, multiplica, soCombate }] numa permanente; danoSubstituido antes da prevenção, no combate e no dano de efeito; somas antes dos multiplicadores (616 sem escolha); equivalência sem regras em dano.equivalencia.unit · M-283 (CR2e.1, auditoria independente): dano a um alvo, de combate e agora também \"a cada oponente\" passam por danoSubstituido e danoAposPrevencao; destino de zona por destinoSubstituido; entrada por entradaModificada, inclusive fichas",
+   "falta": "não há evento modificável genérico para compra, ganho de vida, fichas criadas ou marcadores colocados (dobradores desses eventos)",
    "esforco": "G",
    "depende": [
     "616"
    ],
    "testes": [
     "M-240 · R5a · destino substituído (\"em vez disso\"): o caminho único e o antigo dão o mesmo para cada objeto, zona e destino, em partidas aleatórias com as listas reais",
-    "M-243 · R5d · sem regra de dano no campo, o dano é exatamente o de antes, para cada fonte, alvo, tipo e quantidade, em partidas aleatórias com as listas reais"
+    "M-243 · R5d · sem regra de dano no campo, o dano é exatamente o de antes, para cada fonte, alvo, tipo e quantidade, em partidas aleatórias com as listas reais",
+    "CR 614.1 · dano \"a cada oponente\": o dobrador dobra e o escudo de prevenção segura (antes os dois eram ignorados)",
+    "CR 614.12 · fichas entram viradas e com marcadores pelas regras de entrada de outras permanentes"
    ]
   },
   {
@@ -4973,21 +4975,26 @@
    "n": "614.3",
    "regra": "Replacement Effects",
    "titulo": "Substituição criada por mágica ou habilidade",
-   "status": "ausente",
-   "falta": "Nenhuma mágica ou habilidade cria substituição com duração ou \"escudo\" (regenerar, \"se fosse morrer neste turno, exile\"). As que existem são todas estáticas da própria carta.",
+   "status": "parcial",
+   "falta": "\"se fosse morrer neste turno, exile\" criado por mágica ainda não existe",
    "esforco": "G",
    "depende": [
     "614.1"
+   ],
+   "evidencia": "R5b/R5c: mágica ou habilidade cria escudo de prevenção (verbo prevenir) e de regeneração com duração (a limpeza apaga)",
+   "testes": [
+    "M-241 · R5b · prevenção pelo caminho único e pelo antigo: o mesmo para cada fonte, alvo e tipo de dano, em partidas aleatórias, com cores prevenidas, \"a prevenção não se aplica\", prevenção na criatura e proteção temporária sorteadas",
+    "M-241 · R5b · a comparação pega divergência: um escudo do verbo novo só o caminho único vê",
+    "M-241 · R5b · verbo \"prevenir\" na partida: \"previna os próximos 3 de dano que seria causado à criatura alvo\" segura um Lightning Bolt inteiro e só uma parte do segundo; acaba no fim do turno",
+    "M-241 · R5b · escudos de cor, só de combate e de jogador; \"a prevenção não se aplica\" fura tudo; validador"
    ]
   },
   {
    "n": "614.4",
    "regra": "Replacement Effects",
    "titulo": "A substituição precisa existir antes do evento",
-   "status": "parcial",
-   "evidencia": "As substituições que existem são lidas do script no momento do movimento (moveObject :10256, :10283), então nunca agem para trás",
-   "falta": "Vale só por construção para os casos fixos; não há efeito criado em resposta (exemplo da regra: regenerar em resposta).",
-   "esforco": "G",
+   "status": "coberta",
+   "evidencia": "As substituições que existem são lidas do script no momento do movimento (moveObject :10256, :10283), então nunca agem para trás · auditoria M-283: substituições e escudos são lidos no momento do evento (substituicoesPara, danoAposPrevencao); escudo criado em resposta (regenerar, prevenir) vale para o evento seguinte e não retroage",
    "depende": [
     "614.1",
     "614.8"
@@ -4997,22 +5004,25 @@
    "n": "614.5",
    "regra": "Replacement Effects",
    "titulo": "A substituição não se aplica duas vezes ao mesmo evento",
-   "status": "ausente",
-   "falta": "Sem evento modificável não há o que marcar como \"já aplicado\"; dobradores (dano, fichas, marcadores) não existem.",
-   "esforco": "G",
+   "status": "coberta",
    "depende": [
     "614.1",
     "616"
+   ],
+   "evidencia": "auditoria M-283: cada substituição vale uma vez por evento — dano com dobrador aplicado uma vez por fonte de regra; destino encadeado marca as já usadas (destinoSubstituido, usadas)",
+   "testes": [
+    "CR 614.1 · dano \"a cada oponente\": o dobrador dobra e o escudo de prevenção segura (antes os dois eram ignorados)",
+    "CR 614.12 · fichas entram viradas e com marcadores pelas regras de entrada de outras permanentes",
+    "CR 708.2 · virada para baixo não segue a regra de entrada da frente; CR 616.1 · o afetado escolhe a ordem das substituições de dano",
+    "CR 616.2 · uma substituição torna outra aplicável: \"iria ao cemitério → exílio\" e \"iria ao exílio → mão\" levam a criatura que morre para a mão"
    ]
   },
   {
    "n": "614.6",
    "regra": "Replacement Effects",
    "titulo": "Evento substituído não acontece",
-   "status": "parcial",
-   "evidencia": "moveObject troca o destino antes de enfileirar gatilhos (:10256 vem antes de queueTriggers \"dies\" :10310): Luminous Phantom vai ao exílio sem \"morrer\" (rules.unit \"S52\"); lampejo anulado vai ao exílio (:10258)",
-   "falta": "Só para os dois destinos fixos; não há evento modificado genérico que dispare gatilhos próprios.",
-   "esforco": "G",
+   "status": "coberta",
+   "evidencia": "moveObject troca o destino antes de enfileirar gatilhos (:10256 vem antes de queueTriggers \"dies\" :10310): Luminous Phantom vai ao exílio sem \"morrer\" (rules.unit \"S52\"); lampejo anulado vai ao exílio (:10258) · auditoria M-283: o evento substituído não acontece — moveObject troca o destino antes de enfileirar gatilhos; dano prevenido não marca dano nem dispara 'causou dano'",
    "depende": [
     "614.1"
    ]
@@ -5021,10 +5031,8 @@
    "n": "614.7",
    "regra": "Replacement Effects",
    "titulo": "Substituição sem evento não faz nada; dano 0 não é dano",
-   "status": "parcial",
-   "evidencia": "Dano de combate 0 é pulado (dealCombatDamage: \"if (amt <= 0) continue\" :10781) e causouDano ignora n <= 0 (:11557)",
-   "falta": "ERRO reproduzido em 614.7a: efeito de dano com valor 0 ainda trata a criatura como \"recebeu dano\" — applyEffect damage (:11124) chama noteEnchantedEvent sem conferir n > 0. Sonda: Thraben Charm (dobro das suas criaturas, com 0 criaturas) numa criatura com Cryoshatter → evento \"damage:0\", gatilho do Cryoshatter e a criatura é destruída. Corrigir com guarda n > 0.",
-   "esforco": "P",
+   "status": "coberta",
+   "evidencia": "Dano de combate 0 é pulado (dealCombatDamage: \"if (amt <= 0) continue\" :10781) e causouDano ignora n <= 0 (:11557) · auditoria M-283: dano 0 não é dano (CR 120.8: marcaDanoEmCriatura e noteEnchantedEvent só com n > 0, combate pula amt <= 0)",
    "depende": [
     "120.8"
    ]
@@ -5084,15 +5092,16 @@
    "regra": "Replacement Effects",
    "titulo": "Substituição que muda como a permanente entra",
    "status": "parcial",
-   "evidencia": "Da própria carta: entersTapped (:10283; rules.unit \"S22\"), entersTappedUnless (:10285; \"S56\"), entersWithCounters e X pago (:10293-10298; \"S50\", pauper.regras \"Leva 104/105 · Nyxborn Hydra\"), lealdade inicial, cor escolhida pela aura · CR2-G R5a: \"entra virada\", \"entra virada a menos que…\" e \"entra com N marcadores\" da própria carta ou por seletor de outra permanente (entradaModificada); as de outras permanentes antes das dela",
-   "falta": "614.12a: a escolha de cor é feita DEPOIS de entrar — sonda Benevolent Blessing: decisão choose_color aparece com a aura já no campo e anexada (moveObject enfileira s.queuedChoices :10307). Fichas não passam por moveObject (createToken :11643): ficha com \"entra virada/com marcadores\" não aplicaria nada. Não há substituição de entrada vinda de outra permanente (\"permanentes entram viradas\": Authority of the Consuls, manual) nem checagem das características \"como existiria no campo\". Carta virada para baixo ainda lê entersTapped/entersWithCounters do script da frente. 614.12b-c (custos combinados, palavras-âncora): ausentes.",
+   "evidencia": "Da própria carta: entersTapped (:10283; rules.unit \"S22\"), entersTappedUnless (:10285; \"S56\"), entersWithCounters e X pago (:10293-10298; \"S50\", pauper.regras \"Leva 104/105 · Nyxborn Hydra\"), lealdade inicial, cor escolhida pela aura · CR2-G R5a: \"entra virada\", \"entra virada a menos que…\" e \"entra com N marcadores\" da própria carta ou por seletor de outra permanente (entradaModificada); as de outras permanentes antes das dela · M-283: fichas passam por entradaModificada ao serem criadas (entram viradas, entram com marcadores); virada para baixo não usa as regras de entrada da frente (708.2)",
+   "falta": "614.12a: a escolha de cor da Benevolent Blessing ainda acontece depois de entrar",
    "esforco": "G",
    "depende": [
     "614.1",
     "616.1"
    ],
    "testes": [
-    "M-240 · R5a · matriz de entradas: cada carta com \"entra virada\", \"a menos que…\" ou \"entra com marcadores\", dos dois lados, com e sem Authority of the Consuls do outro lado, com vida alta e baixa, com e sem terreno do tipo pedido, X e reforço pagos — o mesmo pelos dois caminhos"
+    "M-240 · R5a · matriz de entradas: cada carta com \"entra virada\", \"a menos que…\" ou \"entra com marcadores\", dos dois lados, com e sem Authority of the Consuls do outro lado, com vida alta e baixa, com e sem terreno do tipo pedido, X e reforço pagos — o mesmo pelos dois caminhos",
+    "CR 614.12 · fichas entram viradas e com marcadores pelas regras de entrada de outras permanentes"
    ]
   },
   {
@@ -5122,13 +5131,14 @@
    "n": "614.15",
    "regra": "Replacement Effects",
    "titulo": "Efeitos de auto-substituição",
-   "status": "ausente",
-   "falta": "Um script só tem efeitos condicionais simples (onlyIf, ifColor: effectAllowed :11079), que ligam ou desligam um efeito; não há \"faz Y em vez de X\" dentro da mesma mágica com prioridade sobre outras substituições.",
+   "status": "parcial",
+   "falta": "\"faz Y em vez de X\" dentro da mesma mágica não é um tipo de efeito próprio",
    "esforco": "M",
    "depende": [
     "614.1",
     "616.1"
-   ]
+   ],
+   "evidencia": "auditoria M-283: efeitos condicionais da própria mágica (onlyIf, ifColor) se aplicam antes das substituições externas"
   },
   {
    "n": "614.16",
@@ -5146,11 +5156,15 @@
    "regra": "Replacement Effects",
    "titulo": "Efeitos de \"não pode\"",
    "status": "parcial",
-   "evidencia": "Proibições como marcas conferidas na geração de ações: não pode atacar (cantAttackNext em eligibleAttackers :10754; rules.unit \"S61\"), defensor, resistência a magia em targetable (:10912), evasão por script; indestrutível barra a destruição (:11128; scripts.unit \"S4\")",
+   "evidencia": "Proibições como marcas conferidas na geração de ações: não pode atacar (cantAttackNext em eligibleAttackers :10754; rules.unit \"S61\"), defensor, resistência a magia em targetable (:10912), evasão por script; indestrutível barra a destruição (:11128; scripts.unit \"S4\") · M-279 (CR2d.10): \"não pode ganhar vida\" por um caminho só (ganhaVidaJogador)",
    "falta": "Cada \"não pode\" é um if no ponto de uso; não há \"o evento não pode acontecer\" genérico (não pode ganhar vida, não pode ser anulada, não pode comprar mais de uma: Narset, manual). 614.17b (não pagar custo que inclua o evento proibido) e 614.17c (só auto-substituição troca evento proibido) não existem; 614.17d (não pode entrar) ausente.",
    "esforco": "G",
    "depende": [
     "614.1"
+   ],
+   "testes": [
+    "CR 613.10 · \"seus oponentes não podem ganhar vida\" (estática de quem controla a permanente): o oponente não ganha; você ganha",
+    "CR 613.11 · \"você pode jogar um terreno a mais neste turno\" e \"sem tamanho máximo de mão\" (de resolução, até o fim do turno)"
    ]
   },
   {
@@ -5158,7 +5172,7 @@
    "regra": "Prevention Effects",
    "titulo": "O que é efeito de prevenção",
    "status": "parcial",
-   "evidencia": "Prevenção total em quatro formas: névoa (s.fogged, dealCombatDamage :10800; rules.unit \"S29 · Fog previne todo o dano de combate do turno\"), por cor de fonte (colorPrevented :10439; \"S30\"; boros.regras \"R6 · Prismatic Strands\"), da mágica alvo (prevent_spell :11400; \"S36/S52\"), da criatura encantada (prevented :10427), mais a proteção (protegeDoDano :11553) · CR2d.5 (v94): prevenção de todo dano a uma permanente no turno (prevent_self → o.prevenirDano, limpa na limpeza) · CR2-G R5b (M-241, v95 sem mudança): prevenção num caminho só — danoAposPrevencao(fonte, alvo, quanto, combate) no dano de combate e no de efeito; cor prevenida, \"todo dano a ela\" e proteção viram atalhos; verbo prevenir { target|cada|jogadores|todos, quantidade, deCor, soCombate } grava escudos em s.prevencoes (limpos no fim do turno); equivalência em prevencao.equivalencia.unit",
+   "evidencia": "Prevenção total em quatro formas: névoa (s.fogged, dealCombatDamage :10800; rules.unit \"S29 · Fog previne todo o dano de combate do turno\"), por cor de fonte (colorPrevented :10439; \"S30\"; boros.regras \"R6 · Prismatic Strands\"), da mágica alvo (prevent_spell :11400; \"S36/S52\"), da criatura encantada (prevented :10427), mais a proteção (protegeDoDano :11553) · CR2d.5 (v94): prevenção de todo dano a uma permanente no turno (prevent_self → o.prevenirDano, limpa na limpeza) · CR2-G R5b (M-241, v95 sem mudança): prevenção num caminho só — danoAposPrevencao(fonte, alvo, quanto, combate) no dano de combate e no de efeito; cor prevenida, \"todo dano a ela\" e proteção viram atalhos; verbo prevenir { target|cada|jogadores|todos, quantidade, deCor, soCombate } grava escudos em s.prevencoes (limpos no fim do turno); equivalência em prevencao.equivalencia.unit · M-283: prevenção vale também no dano \"a cada oponente\" (e ganha vida quando o escudo manda)",
    "falta": "Só existe \"previna todo o dano\"; não há prevenção de quantidade (parte do dano passa), nem escudo consumível. A prevenção é um if antes de aplicar o dano, repetido em applyEffect e dealCombatDamage, sem evento de dano comum.",
    "esforco": "G",
    "depende": [
@@ -5166,7 +5180,11 @@
     "120"
    ],
    "testes": [
-    "M-241 · R5b · prevenção pelo caminho único e pelo antigo: o mesmo para cada fonte, alvo e tipo de dano, em partidas aleatórias, com cores prevenidas, \"a prevenção não se aplica\", prevenção na criatura e proteção temporária sorteadas"
+    "M-241 · R5b · prevenção pelo caminho único e pelo antigo: o mesmo para cada fonte, alvo e tipo de dano, em partidas aleatórias, com cores prevenidas, \"a prevenção não se aplica\", prevenção na criatura e proteção temporária sorteadas",
+    "CR 614.1 · dano \"a cada oponente\": o dobrador dobra e o escudo de prevenção segura (antes os dois eram ignorados)",
+    "CR 614.12 · fichas entram viradas e com marcadores pelas regras de entrada de outras permanentes",
+    "CR 708.2 · virada para baixo não segue a regra de entrada da frente; CR 616.1 · o afetado escolhe a ordem das substituições de dano",
+    "CR 616.2 · uma substituição torna outra aplicável: \"iria ao cemitério → exílio\" e \"iria ao exílio → mão\" levam a criatura que morre para a mão"
    ]
   },
   {
@@ -5218,13 +5236,19 @@
    "n": "615.7",
    "regra": "Prevention Effects",
    "titulo": "Escudo de \"previna os próximos N de dano\"",
-   "status": "ausente",
-   "falta": "Não existe escudo com quantidade: toda prevenção é total. (O comentário do no_prevention em :11399 cita \"615.7\" por engano; a regra de dano imprevenível é a 615.12.) Falta contador por alvo, consumo parcial e a escolha entre fontes simultâneas.",
+   "status": "parcial",
+   "falta": "escolha entre fontes simultâneas e entre escudos é do motor",
    "esforco": "M",
    "depende": [
     "615.1"
    ],
-   "evidencia": " · CR2-G R5b: escudo \"os próximos N\" reduz o dano e se gasta (danoAposPrevencao); com vários escudos, do mais antigo ao mais novo (sem o afetado escolher a ordem)"
+   "evidencia": "CR2-G R5b: escudo \"os próximos N\" reduz o dano e se gasta (danoAposPrevencao); com vários escudos, do mais antigo ao mais novo (sem o afetado escolher a ordem) · R5b: escudo \"os próximos N\" reduz e se gasta (prevencao.equivalencia)",
+   "testes": [
+    "M-241 · R5b · prevenção pelo caminho único e pelo antigo: o mesmo para cada fonte, alvo e tipo de dano, em partidas aleatórias, com cores prevenidas, \"a prevenção não se aplica\", prevenção na criatura e proteção temporária sorteadas",
+    "M-241 · R5b · a comparação pega divergência: um escudo do verbo novo só o caminho único vê",
+    "M-241 · R5b · verbo \"prevenir\" na partida: \"previna os próximos 3 de dano que seria causado à criatura alvo\" segura um Lightning Bolt inteiro e só uma parte do segundo; acaba no fim do turno",
+    "M-241 · R5b · escudos de cor, só de combate e de jogador; \"a prevenção não se aplica\" fura tudo; validador"
+   ]
   },
   {
    "n": "615.8",
@@ -5264,11 +5288,16 @@
    "n": "615.11",
    "regra": "Prevention Effects",
    "titulo": "Escudos para várias criaturas sem alvo",
-   "status": "ausente",
-   "falta": "Depende do escudo de quantidade (615.7), que não existe.",
-   "esforco": "P",
+   "status": "coberta",
    "depende": [
     "615.7"
+   ],
+   "evidencia": "auditoria M-283: escudo de prevenção sem alvo para várias criaturas (verbo prevenir com seletor) se gasta por criatura",
+   "testes": [
+    "M-241 · R5b · prevenção pelo caminho único e pelo antigo: o mesmo para cada fonte, alvo e tipo de dano, em partidas aleatórias, com cores prevenidas, \"a prevenção não se aplica\", prevenção na criatura e proteção temporária sorteadas",
+    "M-241 · R5b · a comparação pega divergência: um escudo do verbo novo só o caminho único vê",
+    "M-241 · R5b · verbo \"prevenir\" na partida: \"previna os próximos 3 de dano que seria causado à criatura alvo\" segura um Lightning Bolt inteiro e só uma parte do segundo; acaba no fim do turno",
+    "M-241 · R5b · escudos de cor, só de combate e de jogador; \"a prevenção não se aplica\" fura tudo; validador"
    ]
   },
   {
@@ -5293,23 +5322,32 @@
    "n": "616.1",
    "regra": "Interaction of Replacement and/or Prevention Effects",
    "titulo": "Ordem entre substituições e prevenções",
-   "status": "ausente",
-   "falta": "Não há escolha do jogador afetado nem as etapas 616.1a-g: a ordem é a do código (em moveObject: exílio em vez de cemitério → exílio do lampejo → entra virado → marcadores → lealdade; no dano: prevenção por cor → prevenção/proteção do alvo). Com o que existe o resultado não muda com a ordem, mas a primeira dupla que conflite (ex.: \"se fosse morrer, exile\" + \"se fosse morrer, embaralhe\") sai fixa.",
-   "esforco": "G",
+   "status": "parcial",
+   "falta": "o afetado não escolhe na mesa: o motor escolhe por ele a ordem de menos dano (dano) ou a ordem do código (destino de zona)",
+   "esforco": "P",
    "depende": [
     "614.1",
     "615.1"
+   ],
+   "evidencia": "M-283: com dobrador e soma juntos, vale a ordem que o afetado escolheria (multiplicar antes de somar: menos dano)",
+   "testes": [
+    "CR 708.2 · virada para baixo não segue a regra de entrada da frente; CR 616.1 · o afetado escolhe a ordem das substituições de dano",
+    "M-243 · R5d · na partida: \"se uma fonte sua fosse causar dano a um oponente, causa o dobro\" dobra o Lightning Bolt no oponente e não na criatura; com \"+1 de combate\", o afetado escolhe a ordem (616.1); a prevenção vem depois"
    ]
   },
   {
    "n": "616.2",
    "regra": "Interaction of Replacement and/or Prevention Effects",
    "titulo": "Uma substituição torna outra aplicável",
-   "status": "ausente",
-   "falta": "Sem evento modificável não há encadeamento (ganharia vida → compra → outra substituição).",
+   "status": "parcial",
+   "falta": "encadeamento só para destino de zona; compra e ganho de vida não são eventos modificáveis",
    "esforco": "G",
    "depende": [
     "616.1"
+   ],
+   "evidencia": "M-283: destino de zona encadeado — uma substituição pode tornar outra aplicável, cada uma uma vez (destinoSubstituido)",
+   "testes": [
+    "CR 616.2 · uma substituição torna outra aplicável: \"iria ao cemitério → exílio\" e \"iria ao exílio → mão\" levam a criatura que morre para a mão"
    ]
   },
   {

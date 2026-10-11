@@ -3444,6 +3444,15 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (no mapa):** "copie a mágica alvo" de outro jogador, cópia de habilidade (707.10b).
 - **Próximo:** CR2e — substituição e prevenção (regeneração completa, "entra com", escudos, ordem escolhida pelo afetado, 616).
 
+**CR2e.1 · Substituição e prevenção: os três buracos da auditoria (614.1, 614.12, 616.1, 616.2)** ✅ (leva M-283, motor v99) — 4 testes de conformidade, todos falham no motor v98; 1 expectativa ajustada com justificativa.
+- **Regra:** uma auditoria independente da fase CR2e reproduziu três erros, que viraram teste antes da correção: (1) o dano "a cada oponente" ignorava dobradores e escudos de prevenção — agora passa pelo mesmo caminho do dano a um alvo (614.1, 615.1); (2) fichas não passavam pelas regras de entrada de outras permanentes ("entram viradas", "entram com marcadores") — agora passam (614.12); (3) uma permanente virada para baixo seguia a regra de entrada da frente — não segue mais (708.2). Junto: destino de zona encadeado ("iria ao cemitério → exílio" e depois "iria ao exílio → mão"), cada substituição uma vez por evento (616.2, 614.5).
+- **Expectativa ajustada:** `dano.equivalencia` (M-243): com "+1 de combate" e "o dobro" ao mesmo tempo, o oponente afetado escolhe a ordem (616.1) e escolheria 1×2+1 = 3; o motor somava antes de dobrar e dava 4.
+- **Simplificação declarada (muda resultado só quando há duas substituições ao mesmo tempo):** o afetado não escolhe a ordem na mesa; o motor escolhe por ele a ordem de menos dano, e no destino de zona segue a ordem do código.
+- **Versão:** sobe para v99 (o dano de combate com as duas substituições dá outro número). Goldens regravados só pela versão: logs, status e turnos idênticos. Partidas salvas antes não abrem.
+- **Mapa:** 614.4, 614.5, 614.6, 614.7 e 615.11 passam a cobertas; 614.3, 614.15, 615.7, 616.1 e 616.2 a parciais.
+- **Fora:** escolha de cor antes de entrar (614.12a, Benevolent Blessing); compra e ganho de vida como eventos modificáveis.
+- **Próximo:** CR2g.1 — os cinco erros de fases, passos e fora de fase achados na segunda auditoria.
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
