@@ -5287,11 +5287,19 @@
    "n": "614.16",
    "regra": "Replacement Effects",
    "titulo": "Substituir criação de fichas ou marcadores",
-   "status": "ausente",
-   "falta": "createToken (:11643) e addCounters (:11579) não têm ponto de substituição (Doubling Season e semelhantes).",
-   "esforco": "M",
+   "status": "parcial",
+   "falta": "triplo e outras quantidades (Ojer Taq), troca do tipo de ficha (Academy Manufactor); a criação do Exército do amass não passa pela substituição",
+   "esforco": "P",
    "depende": [
     "614.1"
+   ],
+   "evidencia": "M-305 (CR2e.2): self.multiplica — fichas (dobro) e marcadores (dobro, ou +1 só +1/+1 em criatura) em todos os pontos de criação e colocação, inclusive entrar com marcadores e a lealdade inicial; custo de lealdade não passa (ruling)",
+   "testes": [
+    "CR 614.16 · os scripts das quatro cartas validam e chegam aos fatos da partida",
+    "CR 614.16 · Parallel Lives dobra as fichas de quem a controla; duas quadruplicam; a do oponente não muda as suas",
+    "CR 614.16 · Anointed Procession e Doubling Season também dobram fichas (somadas: ×4)",
+    "CR 614.16 · Doubling Season dobra marcadores de qualquer tipo em permanente sua; Hardened Scales soma um só aos +1/+1 em criatura sua",
+    "CR 614.16 · entrar com marcadores também conta (Hardened Scales: 2 → 3) e o planeswalker entra com o dobro da lealdade; o + da lealdade (custo) não dobra"
    ]
   },
   {
@@ -5472,10 +5480,11 @@
     "614.1",
     "615.1"
    ],
-   "evidencia": "M-283: com dobrador e soma juntos, vale a ordem que o afetado escolheria (multiplicar antes de somar: menos dano)",
+   "evidencia": "M-283: com dobrador e soma juntos, vale a ordem que o afetado escolheria (multiplicar antes de somar: menos dano) · M-305: marcadores — com mais1 e dobro juntos o motor aplica mais1 antes (o maior total)",
    "testes": [
     "CR 708.2 · virada para baixo não segue a regra de entrada da frente; CR 616.1 · o afetado escolhe a ordem das substituições de dano",
-    "M-243 · R5d · na partida: \"se uma fonte sua fosse causar dano a um oponente, causa o dobro\" dobra o Lightning Bolt no oponente e não na criatura; com \"+1 de combate\", o afetado escolhe a ordem (616.1); a prevenção vem depois"
+    "M-243 · R5d · na partida: \"se uma fonte sua fosse causar dano a um oponente, causa o dobro\" dobra o Lightning Bolt no oponente e não na criatura; com \"+1 de combate\", o afetado escolhe a ordem (616.1); a prevenção vem depois",
+    "CR 616.1 · Hardened Scales e Doubling Season juntas: o motor aplica \"mais um\" antes do dobro (1 → 4); duas Scales: 1 → 3"
    ]
   },
   {

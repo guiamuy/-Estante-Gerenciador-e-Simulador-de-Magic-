@@ -5963,6 +5963,16 @@ function validateScript(sc) {
     if (self.keywords != null && (!Array.isArray(self.keywords) || self.keywords.some(k => !KEYWORDS.includes(k)))) errs.push('bônus próprio: palavra-chave desconhecida');
     if (self.evasion && !EVASIONS.includes(self.evasion)) errs.push(`evasão "${self.evasion}" desconhecida`);
     if (self.entersWithCounters != null && !Number.isInteger(self.entersWithCounters)) errs.push('marcadores de entrada precisam ser inteiros');
+    if (self.multiplica != null) { // CR2e.2 · 614.16: "cria o dobro de fichas" / "põe o dobro de marcadores" / "esse número mais um"
+      if (!Array.isArray(self.multiplica) || !self.multiplica.length) errs.push('bônus próprio: multiplica precisa ser uma lista');
+      else for (const m of self.multiplica) {
+        if (!m || !['fichas', 'marcadores'].includes(m.evento)) errs.push('multiplica: evento precisa ser fichas ou marcadores');
+        else if (!['dobro', 'mais1'].includes(m.modo)) errs.push('multiplica: modo precisa ser dobro ou mais1');
+        else if (m.evento === 'fichas' && (m.tipo != null || m.em != null)) errs.push('multiplica: fichas não aceita tipo nem em');
+        else if (m.tipo != null && typeof m.tipo !== 'string') errs.push('multiplica: tipo de marcador inválido');
+        else if (m.em != null && !['creature', 'permanent'].includes(m.em)) errs.push('multiplica: em precisa ser creature ou permanent');
+      }
+    }
   }
   // M-251 · habilidade disparada concedida pela aura ou equipamento: quem controla a criatura é quem controla o gatilho
   for (const [i, ab] of ((((sc && sc.grants) || {}).triggered) || []).entries()) {
@@ -6197,6 +6207,11 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'pump', power: 1, toughness: 2, target: 'creature-you-control' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // CR2e.2 · 614.16 · substituição de fichas e marcadores (texto oficial em .listas/oficiais-motor.json, mtg.wtf, 2026-10-11)
+  { name: 'Doubling Season', self: { multiplica: [{ evento: 'fichas', modo: 'dobro' }, { evento: 'marcadores', modo: 'dobro', em: 'permanent' }] }, example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Parallel Lives', self: { multiplica: [{ evento: 'fichas', modo: 'dobro' }] }, example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Anointed Procession', self: { multiplica: [{ evento: 'fichas', modo: 'dobro' }] }, example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Hardened Scales', self: { multiplica: [{ evento: 'marcadores', modo: 'mais1', tipo: 'p1p1', em: 'creature' }] }, example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // dano direto
   { name: 'Lightning Bolt', effects: [{ do: 'damage', amount: 3, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: -3 } } },
   { name: 'Shock', effects: [{ do: 'damage', amount: 2, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: -2 } } },
@@ -14292,6 +14307,12 @@ const __m42 = (function () {
     'creature you control': 'creatures-you-control', 'other creature you control': 'other-creatures-you-control', 'elf you control': 'elves-you-control', 'elf on the battlefield': 'elves-on-battlefield',
     'permanent you control': 'permanents-you-control', 'nonland permanent you control': 'nonland-permanents-you-control', 'creature with defender you control': 'defenders-you-control' };
   const contagem = t => CONTAGENS[String(t).toLowerCase().trim()];
+  /** CR2e.2 · 614.16 · substituição na criação de fichas e na colocação de marcadores. */
+  const MULTIPLICA = [
+    [/^if an effect would create one or more tokens under your control, it creates twice that many of those tokens instead$/i, { evento: 'fichas', modo: 'dobro' }],
+    [/^if an effect would put one or more counters on a permanent you control, it puts twice that many of those counters on that permanent instead$/i, { evento: 'marcadores', modo: 'dobro', em: 'permanent' }],
+    [/^if one or more \+1\/\+1 counters would be put on a creature you control, that many plus one \+1\/\+1 counters are put on it instead$/i, { evento: 'marcadores', modo: 'mais1', tipo: 'p1p1', em: 'creature' }]
+  ];
   const ENCHANT = { 'enchant creature': 'creature', 'enchant creature you control': 'creature-you-control', 'enchant land': 'land', 'enchant permanent': 'permanent' };
   const PROT = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
   /** "Enchanted creature gets +2/+0 and has trample." / "Enchanted creature has flying." / "… has protection from black and from red." */
@@ -14390,6 +14411,8 @@ const __m42 = (function () {
         if (pe && contagem(pe[3])) { topo.self = { ...(topo.self || {}), perPower: SINAL(pe[1]), perToughness: SINAL(pe[2]), per: contagem(pe[3]) }; frases.push({ texto: linha, lida: true }); continue; }
         if (/^~ can't be blocked except by creatures with flying$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'flying-only' }; frases.push({ texto: linha, lida: true }); continue; } // LT5
         if (/^creatures with power less than ~'s power can't block it$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'power-less' }; frases.push({ texto: linha, lida: true }); continue; } // LT5
+        const mu = MULTIPLICA.find(([re]) => re.test(lp)); // CR2e.2 · 614.16
+        if (mu) { topo.self = { ...(topo.self || {}), multiplica: [...((topo.self || {}).multiplica || []), mu[1]] }; frases.push({ texto: linha, lida: true }); continue; }
         if (/^(this land|this creature|~) enters(?: the battlefield)? tapped$/i.test(lp)) { topo.entersTapped = true; frases.push({ texto: linha, lida: true }); continue; }
         const nj = lp.match(/^ninjutsu (\{[^}]+\}(?:\{[^}]+\})*)$/i); if (nj) { topo.ninjutsu = { mana: nj[1] }; frases.push({ texto: linha, lida: true }); continue; }
         const mana = lp.match(/^\{T\}: Add (\{[WUBRGC]\}(?: or \{[WUBRGC]\})*)$/); if (mana) { topo.produces = mana[1].split(' or ').map(x => [x.replace(/[{}]/g, '')]); frases.push({ texto: linha, lida: true }); continue; } // produção de mana
@@ -15096,9 +15119,9 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
   if (o.commander && VOLTA_COMANDO.includes(to) && fromZone !== to && fromZone !== 'command') (s.voltaComando = s.voltaComando || []).push(oid);
   if (to === 'library' && !top) dest.push(oid); else if (to === 'library') dest.unshift(oid); else dest.push(oid);
   // CR2-G R5a · 614.1c/614.12 · "entra virada", "entra virada a menos que…", "entra com N marcadores": um caminho só
-  if (to === 'battlefield') { const r = entradaModificada(s, o, xPago); if (r.virada != null) o.tapped = r.virada; for (const [k, n] of Object.entries(r.marcadores)) o.counters[k] = (o.counters[k] || 0) + n; }
+  if (to === 'battlefield') { const r = entradaModificada(s, o, xPago); if (r.virada != null) o.tapped = r.virada; for (const [k, n] of Object.entries(r.marcadores)) o.counters[k] = (o.counters[k] || 0) + marcadoresAoPor(s, o, k, n, true); } // CR2e.2 · 614.16: entrar com marcadores também é pôr marcadores
   // S21 · planeswalker entra com sua lealdade inicial
-  if (to === 'battlefield' && s.facts[o.name].types.includes('planeswalker') && s.facts[o.name].loyalty != null) o.counters.loyalty = s.facts[o.name].loyalty;
+  if (to === 'battlefield' && s.facts[o.name].types.includes('planeswalker') && s.facts[o.name].loyalty != null) o.counters.loyalty = marcadoresAoPor(s, o, 'loyalty', s.facts[o.name].loyalty, true); // CR2e.2 · ruling: entra com o dobro da lealdade
   // S39 · vínculo de alma: ao entrar, emparelha com uma criatura sua ainda sozinha
   if (to === 'battlefield') pairSoulbond(s, o);
   // M9 · gatilhos de mudança de zona
@@ -16701,8 +16724,8 @@ function applyEffect(s, src, eff, tgt, events) {
       const fonteM = src.ability ? s.objects[src.source] : src; // M-272 · "se você controlar uma permanente [cor] que não seja ela nem a fonte"
       if (alvo && eff.seControlaOutra && !battlefield(s).some(x => x.controller === ctrl && x.oid !== alvo.oid && !(fonteM && x.oid === fonteM.oid) && colorsOf(s, x).includes(eff.seControlaOutra.cor))) { note({ failed: true }); break; }
       if (alvo && alvo.zone === 'battlefield') {
-        if (eff.tipo && eff.tipo !== 'p1p1') { alvo.counters[eff.tipo] = (alvo.counters[eff.tipo] || 0) + eff.amount; note({ amount: eff.amount, tipo: eff.tipo, name: alvo.name }); } // M-249 · marcador nomeado (122.1)
-        else { addCounters(s, alvo, eff.amount); note({ amount: eff.amount }); }
+        if (eff.tipo && eff.tipo !== 'p1p1') { const k = poeMarcadores(s, alvo, eff.tipo, eff.amount); note({ amount: k, tipo: eff.tipo, name: alvo.name }); } // M-249 · marcador nomeado (122.1) · CR2e.2 · 614.16
+        else { const k = addCounters(s, alvo, eff.amount); note({ amount: k }); }
       }
       break;
     }
@@ -16883,7 +16906,7 @@ function applyEffect(s, src, eff, tgt, events) {
       note({ amount: n, pending: true }); break;
     }
     case 'attach': attachTo(s, src.ability ? s.objects[src.source] : src, obj.oid, events); break;
-    case 'token': { const n = amountOf(s, src, eff.amount); for (let i = 0; i < n; i++) createToken(s, eff.token, playerOf(), events); } break; // M-258 · quantidade também por contagem (um Tesouro por oponente)
+    case 'token': { const n = fichasAoCriar(s, playerOf(), amountOf(s, src, eff.amount)); for (let i = 0; i < n; i++) createToken(s, eff.token, playerOf(), events); } break; // M-258 · quantidade também por contagem (um Tesouro por oponente)
     case 'to_hand': { // S44 · a própria carta pode voltar para a mão (Rancor)
       const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
       // Leva 107 · Rancor: "return Rancor to its owner's hand" só se ele ainda estiver no cemitério (400.7)
@@ -16952,7 +16975,7 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'counter_choice': { // CR2c.5 · "Put a <palavra> counter on either of them": entre as que esta mágica devolveu
       const cands = (src.devolvidas || []).filter(oid => s.objects[oid] && s.objects[oid].zone === 'battlefield');
       if (!cands.length) break; // ruling: sem criatura devolvida, nenhum marcador
-      if (cands.length === 1) { const o1 = s.objects[cands[0]]; o1.counters[eff.kind] = (o1.counters[eff.kind] || 0) + 1; note({ target: o1.name, kind: eff.kind }); break; }
+      if (cands.length === 1) { const o1 = s.objects[cands[0]]; poeMarcadores(s, o1, eff.kind, 1); note({ target: o1.name, kind: eff.kind }); break; } // CR2e.2 · 614.16
       const nomes = cands.map(oid => s.objects[oid].name), rotulos = nomes.map((n, i) => nomes.indexOf(n) !== i || nomes.lastIndexOf(n) !== i ? `${n} (${i + 1})` : n);
       s.pending = { kind: 'choose_mode', p: ctrl, name: src.name, options: rotulos, marcador: { kind: eff.kind, oids: cands } };
       break;
@@ -16999,7 +17022,7 @@ function applyEffect(s, src, eff, tgt, events) {
     }
     case 'ficha_copia': { // CR2f.2 · 707.8: a ficha copia os valores copiáveis do alvo (o nome de agora: se o alvo é cópia, a ficha é cópia do que ele copia)
       if (!obj || obj.zone !== 'battlefield' || !s.facts[obj.name]) { note({ failed: true }); break; }
-      const n = amountOf(s, src, eff.amount || 1), novas = [];
+      const n = fichasAoCriar(s, ctrl, amountOf(s, src, eff.amount || 1)), novas = []; // CR2e.2 · 614.16
       const exc = excecaoCopiavel(s, obj, { somaTipos: eff.somaTipos, palavras: eff.palavras }); // CR2d.13 · 707.9b: a exceção do modelo vem junto
       for (let i = 0; i < n; i++) { const t = createToken(s, { name: nomeCopiavel(s, obj) }, ctrl, events); novas.push(t); const ft = s.objects[t]; // CR2d.12 · cópia da virada para baixo
         if (exc) { ft.nomeImpresso = ft.name; ft.copias = [{ nome: ft.name, ate: 'sempre', by: ctrl, ts: relogio(s), turno: s.turn.number, excecao: exc }]; aplicaExcecao(s, ft, exc, 'sempre'); } } // 707.9 · "except it has haste"
@@ -17518,11 +17541,36 @@ const noteDamaged = (s, o) => naSombra(s, `recebe dano ${o.name}`, () => noteDam
 const noteEnchantedEvent = (s, host, evento = 'vira') => naSombra(s, `${evento} ${host.name}`, () => noteEnchantedEventLegado(s, host),
   // no dano, os dela e os de "outra" vêm logo depois pelo noteDamaged (a ordem de antes: a Aura, depois ela)
   () => gatilhosDaPermanente(s, evento, host, evento === 'vira' ? ['anexada', 'self'] : ['anexada'], { host: true }, undefined, evento === 'vira'));
+/** CR2e.2 · 614.16 · os efeitos "em vez disso, o dobro / esse número mais um" das permanentes de `p` para `evento` (fichas | marcadores).
+    `exceto`: o objeto que está entrando não modifica a própria entrada (ainda não estava no campo quando a substituição se aplica). */
+function multiplicadores(s, p, evento, exceto) {
+  const out = [];
+  for (const o of battlefield(s)) if (o.controller === p && o.oid !== exceto && !o.phasedOut) for (const m of ((((s.facts[o.name] || {}).script || {}).self || {}).multiplica || [])) if (m.evento === evento) out.push(m);
+  return out;
+}
+/** 616.1 · com "mais um" e "dobro" juntos, o afetado escolhe a ordem; o motor aplica "mais um" antes (o maior total). Parcial declarado. */
+const aplicaMultiplicadores = (ms, n) => { for (const m of ms) if (m.modo === 'mais1') n += 1; for (const m of ms) if (m.modo === 'dobro') n *= 2; return n; };
+/** Quantas fichas `p` cria quando um efeito criaria `n` (Doubling Season, Parallel Lives, Anointed Procession). */
+const fichasAoCriar = (s, p, n) => n > 0 ? aplicaMultiplicadores(multiplicadores(s, p, 'fichas'), n) : n;
+/** Quantos marcadores `tipo` vão para `o` quando um efeito poria `n` (Doubling Season, Hardened Scales). Custo não é efeito: a lealdade
+    posta como custo de ativação não passa por aqui (ruling da Doubling Season). */
+function marcadoresAoPor(s, o, tipo, n, entrando = false) {
+  if (!(n > 0) || !o) return n;
+  const ms = multiplicadores(s, o.controller, 'marcadores', entrando ? o.oid : null).filter(m => (m.tipo == null || m.tipo === tipo) && (m.em !== 'creature' || isCreature(s, o)));
+  return aplicaMultiplicadores(ms, n);
+}
+/** Põe `n` marcadores do tipo num permanente (o +1/+1 passa por addCounters, que avisa quem observa). Devolve quantos foram postos. */
+function poeMarcadores(s, o, tipo, n) {
+  if (!tipo || tipo === 'p1p1') return addCounters(s, o, n);
+  const k = marcadoresAoPor(s, o, tipo, n); if (k > 0) o.counters[tipo] = (o.counters[tipo] || 0) + k; return k;
+}
 /** S33 · pôr marcadores +1/+1 avisa quem observa marcadores. */
 function addCounters(s, o, n) {
-  if (n <= 0) return;
+  if (n <= 0) return 0;
+  n = marcadoresAoPor(s, o, 'p1p1', n); // CR2e.2 · 614.16
   o.counters.p1p1 = (o.counters.p1p1 || 0) + n;
   naSombra(s, `marcadores ${o.name}`, () => addCountersLegado(s, o), () => gatilhosDaPermanente(s, 'marcadores', o, ['self']));
+  return n;
 }
 function addCountersLegado(s, o) {
   for (const ab of abilitiesOf(s, o)) {
@@ -17638,7 +17686,7 @@ function createToken(s, def, controller, events) {
     sick: s.facts[name].types.includes('creature'), damage: 0, counters: {} };
   s.zones[controller].battlefield.push(oid);
   { const t = s.objects[oid]; t.ts = relogio(s); t.entrouNoTurno = s.turn.number; const r = entradaModificada(s, t, 0); // CR2e.1 · 614.12: a ficha também "entra virada" / "entra com N marcadores"
-    if (r.virada != null) t.tapped = r.virada; for (const [k, n] of Object.entries(r.marcadores)) t.counters[k] = (t.counters[k] || 0) + n; }
+    if (r.virada != null) t.tapped = r.virada; for (const [k, n] of Object.entries(r.marcadores)) t.counters[k] = (t.counters[k] || 0) + marcadoresAoPor(s, t, k, n, true); } // CR2e.2
   events.push({ kind: 'effect', do: 'token', name, target: s.players[controller].name, amount: 1 });
   disparaZona(s, s.objects[oid], null, 'battlefield', controller, null); // CR2-G R2a · a ficha entra: mesmo evento de zona
   return oid;
@@ -18823,7 +18871,7 @@ const HANDLERS = {
     if (pk.marcador) { // CR2c.5 · em qual das devolvidas vai o marcador
       const oid = pk.marcador.oids[a.index]; if (!oid) throw new RuleError('escolha', 'criatura inválida');
       s.pending = null; const o1 = s.objects[oid];
-      if (o1 && o1.zone === 'battlefield') { o1.counters[pk.marcador.kind] = (o1.counters[pk.marcador.kind] || 0) + 1; ev.push({ kind: 'effect', do: 'counter_choice', name: pk.name, target: o1.name, kind: pk.marcador.kind }); }
+      if (o1 && o1.zone === 'battlefield') { poeMarcadores(s, o1, pk.marcador.kind, 1); ev.push({ kind: 'effect', do: 'counter_choice', name: pk.name, target: o1.name, kind: pk.marcador.kind }); }
       if (!s.pending) resumeEffects(s, ev);
       return;
     }

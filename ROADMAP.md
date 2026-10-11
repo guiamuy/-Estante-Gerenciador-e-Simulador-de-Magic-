@@ -3634,6 +3634,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Parcial declarado (mapa 610.3):** Aura devolvida não escolhe o que encantar (610.3c); não há "até o fim do turno" para mudança de zona.
 - **Teste:** `duracao.ate.unit` (3 testes, todos falham no v109).
 
+**M-305 · CR2e.2 · Substituição na criação de fichas e na colocação de marcadores (614.16)** ✅ (leva M-305, motor v109: só acrescenta scripts e um campo; goldens intactos) — Doubling Season, Parallel Lives, Anointed Procession e Hardened Scales passam a jogar no modo completo.
+- **Valor:** "cria o dobro de fichas", "põe o dobro de marcadores" e "esse número mais um" valem em todo lugar em que o motor cria ficha ou põe marcador: efeito de ficha e ficha-cópia, marcadores +1/+1 e nomeados, marcador escolhido, entrar com marcadores e a lealdade inicial do planeswalker (entra com o dobro). Duas cópias multiplicam (×4, ×8); a do oponente não afeta as suas; a lealdade posta como custo de ativação não dobra (ruling da Doubling Season: custo não é efeito).
+- **Script:** `self.multiplica: [{ evento: 'fichas' | 'marcadores', modo: 'dobro' | 'mais1', tipo?, em?: 'creature' | 'permanent' }]`, validado. Leitor: lê as três frases oficiais; as quatro cartas entram na concordância (68 lidas, zero divergência). Texto oficial em `.listas/oficiais-motor.json` (mtg.wtf, 11/10/2026).
+- **Simplificação declarada (616.1):** com "mais um" e "dobro" juntos, a ordem é do afetado; o motor aplica "mais um" antes (o maior total: 1 → 4). Correção: o marcador escolhido de tipo +1/+1 passa a avisar quem observa marcadores, como os demais.
+- **Fora (mapa 614.16 parcial):** triplo e outras quantidades, troca do tipo de ficha, criação do Exército do amass.
+- **Teste:** `multiplica.unit` (6 testes, todos falham no v109).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
