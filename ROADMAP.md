@@ -3460,6 +3460,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora:** ações de estado e gatilhos causados pelo próprio fim dos efeitos do turno ainda não reabrem a prioridade na limpeza; divisão do dano de combate escolhida por quem ataca (510.1c).
 - **Próximo:** CR2g.2 — quem ataca escolhe como divide o dano entre os bloqueadores (510.1c, 702.19b), com a decisão na mesa.
 
+**CR2g.2 · Quem ataca divide o dano entre os bloqueadores (510.1c, 702.19b)** ✅ (leva M-285, motor v101) — 4 testes de conformidade (3 falham no motor v100) e 1 de tela.
+- **Regra:** quando dois ou mais bloqueadores param o mesmo atacante, a mesa pergunta a quem ataca como dividir o dano. Cada botão diz quanto vai em cada um ("3 em Masked Vandal · 2 em Valakut Invoker"). As opções: matar os bloqueadores numa ordem (letal a cada um; o resto no último ou, com atropelar, no jogador) ou pôr tudo num só. A primeira opção é a de antes (ordem do bloqueio), que o goldfish usa. O Shark escolhe pela avaliação. Com iniciativa, a escolha vale para um passo de dano e é refeita no segundo, com o que sobrou. Antes, o motor dava o letal na ordem do bloqueio sem perguntar.
+- **Simplificação declarada:** divisões que não mudam quem morre (ex.: 2 e 2 em dois 3/3) não são oferecidas; com um bloqueador só e atropelar, o letal vai para o bloqueador e o resto para o jogador, sem perguntar.
+- **Versão:** sobe para v101 (decisão nova no passo de dano). Goldens regravados só pela versão: logs, status e turnos idênticos. Partidas salvas antes não abrem.
+- **Fora:** 510.1d (bloqueador de várias atacantes), dois passos de dano com prioridade entre eles (510.4, 702.7b).
+- **Próximo:** CR2g.3 — dois passos de dano de combate com prioridade entre eles (510.4).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

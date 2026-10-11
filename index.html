@@ -13834,7 +13834,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 100; // CR2g.1 · saída do combate ao fim do passo (511.3), ninja no planeswalker, gatilhos na limpeza, fase indireta
+const ENGINE_VERSION = 101; // CR2g.2 · quem ataca divide o dano entre os bloqueadores (510.1c)
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -15308,7 +15308,7 @@ function finishCleanup(s) {
 /** CR2g.1 · 511.3: ao fim do passo de fim do combate, todas as criaturas e planeswalkers saem do combate. Até lá continuam atacando e
     bloqueando (o ninjutsu vale no passo de fim do combate; gatilhos "no fim do combate" veem as atacantes). */
 function saiDoCombate(s) {
-  for (const o of campoInteiro(s)) { delete o.attacking; delete o.atacandoPw; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.struck; }
+  for (const o of campoInteiro(s)) { delete o.attacking; delete o.atacandoPw; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.struck; delete o.divisaoDano; }
   s.combat = null;
 }
 function advanceStep(s) {
@@ -15366,13 +15366,58 @@ function porQueNaoBloqueia(s, blocker, attacker) {
 const PALAVRA_DA_TRAVESSIA = { islandwalk: 'travessia de ilha', swampwalk: 'travessia de pântano', forestwalk: 'travessia de floresta', mountainwalk: 'travessia de montanha', plainswalk: 'travessia de planície' };
 const canBlock = (s, blocker, attacker) => !porQueNaoBloqueia(s, blocker, attacker);
 /** Dano de combate em duas passadas: iniciativa (first/double strike) e normal. */
+/* ---------------- CR2g.2 · 510.1c · quem ataca divide o dano entre os bloqueadores ----------------
+   Com dois ou mais bloqueadores, o controlador do atacante divide o dano entre eles como quiser (510.1c); com atropelar, só o que passa do
+   letal de todos pode ir ao jogador (702.19b). As opções oferecidas: matar os bloqueadores numa ordem (letal a cada um, o resto no último ou,
+   com atropelar, no jogador) e pôr tudo num só. A primeira opção é a de antes (ordem do bloqueio). Simplificação declarada: divisões que
+   não matam ninguém a mais (ex.: 2 e 2 em dois 3/3) não são oferecidas. A escolha vale para um passo de dano; no segundo (iniciativa),
+   pergunta de novo, com o que sobrou. */
+const bloqueadoresVivos = (s, a) => (a.blockedBy || []).map(b => s.objects[b]).filter(b => b && b.zone === 'battlefield' && !b.phasedOut && b.blocking === a.oid);
+function distribuiDano(s, a, blockers, amt, tudo) {
+  const dt = has(s, a, 'deathtouch'), tr = has(s, a, 'trample'), partes = [];
+  if (tudo) { partes.push([blockers[0], amt]); return { partes, resto: 0 }; }
+  blockers.forEach((b, i) => {
+    const lethal = dt ? 1 : Math.max(0, toughness(s, b) - b.damage);
+    const give = i === blockers.length - 1 && !tr ? amt : Math.min(amt, lethal);
+    if (give > 0) { partes.push([b, give]); amt -= give; }
+  });
+  return { partes, resto: tr ? amt : 0 };
+}
+function permutacoes(xs) { if (xs.length <= 1) return [xs.slice()]; const out = []; xs.forEach((x, i) => { for (const r of permutacoes(xs.filter((_, j) => j !== i))) out.push([x, ...r]); }); return out; }
+function opcoesDeDivisao(s, a) {
+  const blockers = bloqueadoresVivos(s, a), amt = power(s, a);
+  if (blockers.length < 2 || amt <= 0) return null;
+  const ordens = blockers.length <= 4 ? permutacoes(blockers.map(b => b.oid)) : [blockers.map(b => b.oid)];
+  const out = [], vistas = new Set();
+  const poe = (ordem, tudo) => {
+    const bs = ordem.map(x => s.objects[x]), d = distribuiDano(s, a, bs, amt, tudo);
+    const rotulo = [...d.partes.map(([b, n]) => `${n} em ${b.name}`), ...(d.resto ? [`${d.resto} no jogador`] : [])].join(' · ') || 'nenhum dano';
+    const chave = d.partes.map(([b, n]) => b.oid + ':' + n).sort().join(',') + '|' + d.resto;
+    if (!vistas.has(chave)) { vistas.add(chave); out.push({ ordem, ...(tudo ? { tudo: true } : {}), rotulo }); }
+  };
+  for (const o of ordens) poe(o, false);
+  for (const b of blockers) poe([b.oid, ...blockers.filter(x => x !== b).map(x => x.oid)], true);
+  return out.length >= 2 ? out : null;
+}
+const causaNestePasso = (s, o, pass) => pass === 'first' ? (has(s, o, 'first strike') || has(s, o, 'double strike')) : (has(s, o, 'double strike') || !o.struck);
+/** CR2g.2 · antes de um passo de dano, o próximo atacante com escolha de divisão ainda não feita vira decisão de quem o controla. */
+function pedeDivisao(s, pass) {
+  for (const oid of (s.combat || {}).attackers || []) {
+    const a = s.objects[oid];
+    if (!a || a.zone !== 'battlefield' || a.attacking == null || !a.blocked || a.divisaoDano || !causaNestePasso(s, a, pass)) continue;
+    const opcoes = opcoesDeDivisao(s, a);
+    if (opcoes) { s.pending = { kind: 'dividir_dano', p: a.controller, oid, name: a.name, amount: power(s, a), opcoes }; return true; }
+  }
+  return false;
+}
 function dealCombatDamage(s) {
   const c = s.combat; if (!c) return;
   const inCombat = () => battlefield(s).filter(o => o.attacking != null || o.blocking);
   const anyFirst = inCombat().some(o => has(s, o, 'first strike') || has(s, o, 'double strike'));
   for (const pass of anyFirst ? ['first', 'regular'] : ['regular']) {
-    const deals = o => pass === 'first' ? (has(s, o, 'first strike') || has(s, o, 'double strike'))
-      : (has(s, o, 'double strike') || !o.struck);
+    if ((c.passosFeitos || []).includes(pass)) continue; // CR2g.2 · retomada depois da escolha da divisão
+    if (pedeDivisao(s, pass)) return; // CR2g.2 · 510.1c: quem ataca escolhe antes; o handler retoma daqui
+    const deals = o => causaNestePasso(s, o, pass);
     const hits = []; // [fonte, alvoObjeto | null, alvoJogador | null, quantidade, planeswalker?]
     // M-228 · 510.1: o dano do atacante sem bloqueio vai para quem ele ataca — o jogador ou o planeswalker; planeswalker que saiu do campo não recebe nada (506.4)
     const defensor = a => { if (!a.atacandoPw) return [null, a.attacking]; const pw = s.objects[a.atacandoPw]; return pw && pw.zone === 'battlefield' ? [pw, null, true] : null; };
@@ -15384,14 +15429,11 @@ function dealCombatDamage(s) {
       const blockers = (a.blockedBy || []).map(b => s.objects[b]).filter(b => b && b.zone === 'battlefield' && b.blocking === oid);
       if (!a.blocked) { golpeia(a, amt); continue; }
       if (!blockers.length) { if (has(s, a, 'trample')) golpeia(a, amt); continue; }
-      const dt = has(s, a, 'deathtouch');
-      blockers.forEach((b, i) => {
-        const lethal = dt ? 1 : Math.max(0, toughness(s, b) - b.damage);
-        const last = i === blockers.length - 1;
-        const give = last && !has(s, a, 'trample') ? amt : Math.min(amt, lethal);
-        if (give > 0) { hits.push([a, b, null, give]); amt -= give; }
-      });
-      if (amt > 0 && has(s, a, 'trample')) golpeia(a, amt);
+      // CR2g.2 · 510.1c: na ordem (e do jeito) que quem ataca escolheu; sem escolha (um bloqueador, ou uma opção só), a ordem do bloqueio
+      const esc = a.divisaoDano, ordem = esc ? [...esc.ordem.map(x => blockers.find(b => b.oid === x)).filter(Boolean), ...blockers.filter(b => !esc.ordem.includes(b.oid))] : blockers;
+      const d = distribuiDano(s, a, ordem, amt, !!(esc && esc.tudo));
+      for (const [b, n] of d.partes) hits.push([a, b, null, n]);
+      if (d.resto > 0) golpeia(a, d.resto);
     }
     for (const b of battlefield(s)) {
       if (!b.blocking || !deals(b)) continue;
@@ -15419,6 +15461,7 @@ function dealCombatDamage(s) {
     }
     disparaLoteDeDano(s, golpesEmJogador); // M-258
     for (const [src] of hits) src.struck = true;
+    c.passosFeitos = [...(c.passosFeitos || []), pass]; for (const oid of c.attackers) if (s.objects[oid]) delete s.objects[oid].divisaoDano; // CR2g.2 · a escolha vale para este passo
     stateBased(s, []);
   }
 }
@@ -18174,6 +18217,16 @@ const HANDLERS = {
     s.pending = null;
     enterDungeon(s, a.p, nome, pk.source, ev);
   },
+  /** CR2g.2 · 510.1c: quem ataca escolhe como divide o dano entre os bloqueadores; depois o passo de dano continua. */
+  dividir_dano(s, a) {
+    const pd = s.pending;
+    if (!pd || pd.kind !== 'dividir_dano' || pd.p !== a.p) throw new RuleError('tempo', 'nenhuma divisão de dano a escolher');
+    const op = (pd.opcoes || [])[a.index];
+    if (!op) throw new RuleError('dividir', 'escolha uma das divisões oferecidas');
+    const at = s.objects[pd.oid]; s.pending = null;
+    if (at) at.divisaoDano = { ordem: op.ordem.slice(), ...(op.tudo ? { tudo: true } : {}) };
+    dealCombatDamage(s);
+  },
   topo_fundo(s, a, ev) { // M-264 · o dono põe a permanente no topo ou no fundo do grimório
     if (!s.pending || s.pending.kind !== 'topo_fundo' || s.pending.p !== a.p) throw new RuleError('tempo', 'nada a pôr no grimório');
     const pk = s.pending; s.pending = null;
@@ -18478,7 +18531,7 @@ function assisted(s) { if (s.mode !== 'assisted') throw new RuleError('modo', 'c
 function onField(s, oid) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield') throw new RuleError('objeto', 'objeto fora do campo'); return o; }
 
 const MULLIGAN_ACTIONS = new Set(['mulligan', 'keep', 'concede']);
-const PENDING_ACTIONS = { topo_fundo: ['topo_fundo', 'concede'], commander_zone: ['commander_zone', 'concede'], discard: ['discard', 'concede'], choose_type: ['choose_type', 'concede'], choose_pair: ['choose_pair', 'concede'], legend: ['choose_legend', 'concede'], unless: ['take_loss', 'pay_unless', 'tap_mana', 'concede'], free_cast: ['cast_free', 'decline_free', 'concede'], sacrifice: ['sacrifice', 'concede'], choose_mode: ['choose_mode', 'concede'], choose_dungeon: ['choose_dungeon', 'concede'], choose_room: ['choose_room', 'concede'], attackers: ['attack', 'concede'], blockers: ['block', 'concede'], triggers: ['order_trigger', 'concede'], choose_color: ['choose_color', 'concede'], pick: ['pick', 'pick_done', 'concede'], pick_target: ['pick_target', 'concede'], may_pay: ['pay', 'decline', 'tap_mana', 'concede'], madness: ['cast_madness', 'decline_madness', 'tap_mana', 'concede'] };
+const PENDING_ACTIONS = { dividir_dano: ['dividir_dano', 'concede'], topo_fundo: ['topo_fundo', 'concede'], commander_zone: ['commander_zone', 'concede'], discard: ['discard', 'concede'], choose_type: ['choose_type', 'concede'], choose_pair: ['choose_pair', 'concede'], legend: ['choose_legend', 'concede'], unless: ['take_loss', 'pay_unless', 'tap_mana', 'concede'], free_cast: ['cast_free', 'decline_free', 'concede'], sacrifice: ['sacrifice', 'concede'], choose_mode: ['choose_mode', 'concede'], choose_dungeon: ['choose_dungeon', 'concede'], choose_room: ['choose_room', 'concede'], attackers: ['attack', 'concede'], blockers: ['block', 'concede'], triggers: ['order_trigger', 'concede'], choose_color: ['choose_color', 'concede'], pick: ['pick', 'pick_done', 'concede'], pick_target: ['pick_target', 'concede'], may_pay: ['pay', 'decline', 'tap_mana', 'concede'], madness: ['cast_madness', 'decline_madness', 'tap_mana', 'concede'] };
 
 function apply(state, action) {
   if (!action || !HANDLERS[action.t]) throw new RuleError('acao', 'ação desconhecida: ' + (action && action.t));
@@ -18609,6 +18662,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
     // S57 · masmorra: escolher em qual entrar e para qual sala avançar
     if (k === 'choose_dungeon') (s.pending.options || []).forEach((name, index) => out.push({ t: 'choose_dungeon', p, index, label: (s.pending.labels || [])[index] || name }));
     if (k === 'topo_fundo') { out.push({ t: 'topo_fundo', p, topo: true }); out.push({ t: 'topo_fundo', p, topo: false }); } // M-264
+    if (k === 'dividir_dano') (s.pending.opcoes || []).forEach((op, index) => out.push({ t: 'dividir_dano', p, index, label: op.rotulo })); // CR2g.2
     if (k === 'choose_room') (s.pending.options || []).forEach((id, index) => out.push({ t: 'choose_room', p, index, label: (s.pending.labels || [])[index] || id }));
     if (k === 'pick') {
       const pk = s.pending;
@@ -18980,6 +19034,9 @@ function previewCombat(state, blocks) {
     const before = s.players.map(pl => pl.life);
     const alive0 = new Set(battlefield(s).map(o => o.oid));
     dealCombatDamage(s);
+    // CR2g.2 · com dois bloqueadores a divisão é de quem ataca: a prévia mostra a primeira opção (a ordem do bloqueio)
+    for (let i = 0; i < 16 && s.pending && s.pending.kind === 'dividir_dano'; i++) { const op = s.pending.opcoes[0], at = s.objects[s.pending.oid]; s.pending = null;
+      if (at) at.divisaoDano = { ordem: op.ordem.slice(), ...(op.tudo ? { tudo: true } : {}) }; dealCombatDamage(s); }
     // H1 · ficha que morre deixa de existir em s.objects: conta como morta, pelo nome do estado original
     const saiu = oid => !s.objects[oid] || s.objects[oid].zone !== 'battlefield';
     const mortos = [...alive0].filter(saiu).map(oid => ({ oid, name: (s.objects[oid] || state.objects[oid]).name, controller: state.objects[oid].controller }));
@@ -20798,6 +20855,7 @@ function describe(before, a, events, after) {
     case 'commander_zone': { const o = before.objects[a.oid || (before.pending || {}).oid]; const onde = { graveyard: 'no cemitério', exile: 'no exílio', hand: 'na mão', library: 'no grimório' }[(before.pending || {}).from] || 'onde caiu';
       L.push(a.yes ? `${P} levou ${o ? o.name : 'o comandante'} para a zona de comando` : `${P} deixou ${o ? o.name : 'o comandante'} ${onde}`); break; }
     // Leva 131 · escolha de modo: o que foi escolhido, ou que preferiu não fazer
+    case 'dividir_dano': { const op = ((before.pending || {}).opcoes || [])[a.index]; L.push(`${P} dividiu o dano de ${nameOf(before, (before.pending || {}).oid)}: ${op ? op.rotulo : '?'}`); break; } // CR2g.2
     case 'choose_mode': { const pd = before.pending || {}; const alvo = pd.naResolucao && before.objects[pd.naResolucao.oid] ? before.objects[pd.naResolucao.oid].name : null;
       L.push(a.decline ? `${P} preferiu não usar o efeito de ${pd.name || 'o gatilho'}` : `${P} escolheu ${String((pd.options || [])[a.index || 0] || 'um modo').toLowerCase()}${alvo ? ' ' + alvo : ''} (${pd.name || 'gatilho'})`); break; }
     case 'choose_color': L.push(`${P} escolheu ${{ W: 'branco', U: 'azul', B: 'preto', R: 'vermelho', G: 'verde' }[a.color]}`); break;
@@ -21029,6 +21087,7 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
           : pd.kind === 'choose_dungeon' ? { t: 'choose_dungeon', p: pd.p, index: 0 }
           : pd.kind === 'choose_room' ? { t: 'choose_room', p: pd.p, index: 0 }
           : pd.kind === 'topo_fundo' ? { t: 'topo_fundo', p: pd.p, topo: true } // M-264
+          : pd.kind === 'dividir_dano' ? { t: 'dividir_dano', p: pd.p, index: 0 } // CR2g.2 · o goldfish mata na ordem do bloqueio
           : pd.kind === 'madness' ? { t: 'decline_madness', p: pd.p }
           : pd.kind === 'pick_target' ? { t: 'pick_target', p: pd.p, index: 0 }
           : { t: 'concede', p: pd.p };
@@ -23867,6 +23926,9 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       banner = PriorityBanner({ title: 'Em qual masmorra se aventurar?', hint: 'Você entra na primeira sala dela.', tone: 'warning',
         actions: (s.pending.labels || s.pending.options || []).slice(0, 4).map((rot, index) =>
           Button(rot, { variant: index ? undefined : 'primary', id: index ? undefined : 'tb-choose-dungeon', onClick: () => act({ t: 'choose_dungeon', p: v, index }) })) });
+    } else if (s.pending && s.pending.kind === 'dividir_dano' && s.pending.p === v) { // CR2g.2 · 510.1c
+      banner = PriorityBanner({ title: `${s.pending.name}: como dividir ${s.pending.amount} de dano?`, hint: 'Você escolhe entre os bloqueadores. Com atropelar, só o que passa do letal de todos vai para o jogador.', tone: 'warning',
+        actions: (s.pending.opcoes || []).slice(0, 8).map((op, index) => Button(op.rotulo, { variant: index ? undefined : 'primary', id: index ? undefined : 'tb-dividir', onClick: () => act({ t: 'dividir_dano', p: v, index }) })) });
     } else if (s.pending && s.pending.kind === 'topo_fundo' && s.pending.p === v) { // M-264
       banner = PriorityBanner({ title: `${s.pending.name}: ${s.pending.alvo} volta para o seu grimório`, hint: 'Você escolhe: no topo ou no fundo.', tone: 'warning',
         actions: [Button('No topo', { variant: 'primary', id: 'tb-topo', onClick: () => act({ t: 'topo_fundo', p: v, topo: true }) }), Button('No fundo', { id: 'tb-fundo', onClick: () => act({ t: 'topo_fundo', p: v, topo: false }) })] });

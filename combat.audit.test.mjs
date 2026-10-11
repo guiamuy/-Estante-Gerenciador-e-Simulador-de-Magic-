@@ -68,6 +68,8 @@ function combate(s, atacantes, blocos = []) {
   // a pergunta de bloqueio só chega quando o passo avança
   for (let i = 0; i < 60 && s.turn.step !== 'main2'; i++) {
     if (s.pending && s.pending.kind === 'blockers') { s = act(s, { t: 'block', p: d, blocks: blocos }); blocos = []; continue; }
+    // CR2g.2 · 510.1c: com dois bloqueadores, quem ataca escolhe a divisão; a auditoria fica com a primeira opção (a ordem do bloqueio, como antes)
+    if (s.pending && s.pending.kind === 'dividir_dano') { s = act(s, { t: 'dividir_dano', p: s.pending.p, index: 0 }); continue; }
     if (s.pending) break;
     s = act(s, { t: 'pass', p: s.turn.priority });
   }

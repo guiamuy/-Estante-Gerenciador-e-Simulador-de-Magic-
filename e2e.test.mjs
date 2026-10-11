@@ -10044,3 +10044,34 @@ test('e2e · M-268 · Windbrisk Heights: ao entrar, a mesa pede a carta a escond
   assert.deepEqual(r, { exilada: 'exile', virada: true });
   assert.deepEqual(M.errors, []);
 });
+
+test('e2e · M-285 · CR2g.2 · atacante bloqueado por dois: a mesa pergunta como dividir o dano e cada botão diz quanto vai em cada bloqueador', { skip }, async t => {
+  const M = await comLista125(t, '20 Mountain\n10 Valakut Invoker\n10 Masked Vandal', ['Mountain', 'Valakut Invoker', 'Masked Vandal'], '4', { paradas: true });
+  const { page } = M;
+  // montagem por dado: uma Valakut Invoker sua (veterana) e duas criaturas do goldfish no campo; o goldfish não bloqueia sozinho,
+  // então o bloqueio também é posto no estado (o que se testa aqui é a decisão de divisão na tela)
+  const ids = await page.evaluate(() => { const s = window.__estanteMesa.estado();
+    const tira = (p, nome) => { const z = s.zones[0].library, i = z.findIndex(o => s.objects[o].name === nome); if (i < 0) throw new Error(`sem ${nome} no grimório`); const oid = z.splice(i, 1)[0]; // o goldfish não tem grimório: a carta sai do seu e passa a ser dele
+      Object.assign(s.objects[oid], { zone: 'battlefield', owner: p, controller: p, tapped: false, sick: false, entrouNoTurno: -1, damage: 0 }); s.zones[p].battlefield.push(oid); return oid; };
+    return { at: tira(0, 'Valakut Invoker'), b1: tira(1, 'Valakut Invoker'), b2: tira(1, 'Masked Vandal') }; });
+  let e;
+  for (let i = 0; i < 20; i++) { e = await M.est(); if (e.pend === 'attackers') break; await page.click('#tb-pass').catch(() => {}); await page.waitForTimeout(80); }
+  assert.equal(e.pend, 'attackers', 'chega à declaração de ataque: ' + JSON.stringify(e));
+  assert.equal(await M.act({ t: 'attack', p: 0, attackers: [ids.at] }), true);
+  for (let i = 0; i < 20; i++) { e = await M.est(); if (e.passo === 'combat_blockers' && e.prio === 0 && !e.pend) break; if (e.passo === 'combat_attackers' && e.prio === 0) await page.click('#tb-pass').catch(() => {}); await page.waitForTimeout(80); }
+  assert.equal(e.passo, 'combat_blockers');
+  await page.evaluate(({ at, b1, b2 }) => { const s = window.__estanteMesa.estado();
+    Object.assign(s.objects[at], { blocked: true, blockedBy: [b1, b2] }); s.objects[b1].blocking = at; s.objects[b2].blocking = at;
+    s.objects[at].pump = { p: 3, t: 0 }; }, ids); // 2/3 vira 5/3: dá para matar um dos dois, não os dois
+  await page.click('#tb-pass'); await page.waitForTimeout(200);
+  for (let i = 0; i < 20; i++) { e = await M.est(); if (e.pend === 'dividir_dano') break; await page.waitForTimeout(80); }
+  assert.equal(e.pend, 'dividir_dano', 'a mesa pede a divisão: ' + JSON.stringify(e));
+  assert.match(await M.decisao(), /^Valakut Invoker: como dividir 5 de dano\? \| Você escolhe entre os bloqueadores\./);
+  const rotulos = await page.locator('.tb-banner button', { hasText: /\d+ em / }).allInnerTexts();
+  assert.ok(rotulos.includes('3 em Masked Vandal · 2 em Valakut Invoker'), 'cada botão diz quanto vai em cada um: ' + rotulos.join(' / '));
+  await auditaTela(page, 'divisão do dano de combate');
+  await page.locator('.tb-banner button', { hasText: '3 em Masked Vandal · 2 em Valakut Invoker' }).click(); await page.waitForTimeout(250);
+  const fim = await page.evaluate(({ b1, b2 }) => { const s = window.__estanteMesa.estado(); return { b1: s.objects[b1].zone, b2: s.objects[b2].zone, pend: s.pending && s.pending.kind }; }, ids);
+  assert.equal(fim.b2, 'graveyard', 'o Masked Vandal morreu'); assert.equal(fim.b1, 'battlefield', 'a Valakut Invoker do goldfish ficou');
+  assert.deepEqual(M.errors, []);
+});

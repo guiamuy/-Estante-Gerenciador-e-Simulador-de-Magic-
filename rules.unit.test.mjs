@@ -149,6 +149,8 @@ test('M6 · iniciativa mata antes; toque mortífero mata; indestrutível sobrevi
   s = act(s, { t: 'block', p: d, blocks: [[ids['Sky Pike@d'], ids['Twin Blade']], [ids['Venom Eel@d'], ids['Brute']], [ids['Wall Guard@d'], ids['Brute']]] });
   const life = s.players[d].life;
   s = passTo(s, 'combat_damage');
+  // CR2g.2 · 510.1c: o Brute tem dois bloqueadores e quem ataca escolhe a divisão; a primeira opção é a de antes (ordem do bloqueio)
+  if (s.pending && s.pending.kind === 'dividir_dano') s = act(s, { t: 'dividir_dano', p: a, index: 0 });
   assert.equal(s.objects[ids['Sky Pike@d']].zone, 'graveyard', 'golpe duplo: 1 de iniciativa + 1 normal mata a 2/1');
   assert.equal(s.objects[ids['Twin Blade']].zone, 'battlefield', 'Sky Pike morreu antes de causar dano');
   assert.equal(s.objects[ids['Brute']].zone, 'battlefield', 'indestrutível ignora toque mortífero e dano');
@@ -4345,6 +4347,9 @@ test('A16 · prévia do ataque (sem bloqueio) e do bloqueio batem com o resultad
     const vidaAntes = s.players.map(p => p.life);
     const vivos = new Set(s.zones.flatMap(z => z.battlefield));
     if (s.pending && s.pending.kind === 'blockers') s = act(s, { t: 'block', p: d, blocks: blocos });   // sem criatura, não há declaração
+    s = passTo(s, 'combat_damage');
+    // CR2g.2 · 510.1c: com dois bloqueadores, quem ataca escolhe; a prévia segue a primeira opção (a ordem do bloqueio)
+    for (let i = 0; i < 4 && s.pending && s.pending.kind === 'dividir_dano'; i++) s = act(s, { t: 'dividir_dano', p: s.pending.p, index: 0 });
     s = passTo(s, 'combat_end');
     const real = JSON.parse(JSON.stringify(s.players.map((p, i) => p.life - vidaAntes[i])));
     const mortosReais = [...vivos].filter(o => s.objects[o].zone !== 'battlefield').map(o => s.objects[o].name).sort();

@@ -1,7 +1,7 @@
 {
  "sobre": "Mapa regra × motor. Cada item NNN.N das Comprehensive Rules de 25/09/2026 classificado contra o motor v72 em 06/10/2026 por 14 auditores independentes, com evidência vista (código com linha, teste ou sonda executada). status: coberta · parcial · ausente · definicao (só define termo) · fora (jogo físico, torneio ou variante que um app de dois jogadores não precisa). Quando um item muda de status, o teste que prova a mudança entra em `testes`.",
  "cr": "2026-09-25",
- "motor": 100,
+ "motor": 101,
  "auditoria": "2026-10-06",
  "itens": [
   {
@@ -3919,13 +3919,16 @@
    "regra": "Combat Damage Step",
    "titulo": "Atribuição do dano de combate",
    "status": "parcial",
-   "evidencia": "dealCombatDamage (index.html:10770-10798): dano = poder, 0 ou menos não atribui (10781), não bloqueada → jogador, bloqueada sem bloqueador → nada, bloqueador → o atacante que bloqueia; sonda p5/t2.mjs C4 (5/5 x 3/3+2/2), C6, C7 (poder 0); combat.audit K13, K14; rules.unit 'A16 · prévia do ataque...'",
-   "falta": "510.1c: com dois ou mais bloqueadores quem ataca NÃO escolhe a divisão — o motor dá o letal a cada bloqueador na ordem da declaração e o resto ao último (10786-10791). Sonda C4: 3/3 bloqueada por 5/5 e 1/1 põe os 3 no 5/5 e o 1/1 sobrevive; o jogador não pode matar o 1/1. O mesmo vale para atropelar (não dá para pôr mais que o letal no bloqueador). 510.1b: sem planeswalker/batalha. 510.1d com vários atacantes não se aplica (um atacante por bloqueador).",
+   "evidencia": "dealCombatDamage (index.html:10770-10798): dano = poder, 0 ou menos não atribui (10781), não bloqueada → jogador, bloqueada sem bloqueador → nada, bloqueador → o atacante que bloqueia; sonda p5/t2.mjs C4 (5/5 x 3/3+2/2), C6, C7 (poder 0); combat.audit K13, K14; rules.unit 'A16 · prévia do ataque...' · M-285 (CR2g.2): com dois ou mais bloqueadores, quem ataca escolhe a divisão na mesa (decisão dividir_dano): matar os bloqueadores numa ordem ou pôr tudo num só; a escolha vale para cada passo de dano",
+   "falta": "divisões que não mudam quem morre (ex.: 2 e 2 em dois 3/3) não são oferecidas; 510.1d (bloqueador de várias atacantes) e batalha ficam de fora",
    "esforco": "M",
    "depende": [
     "702.19 (atropelar)"
    ],
-   "cartas": "evergreen"
+   "cartas": "evergreen",
+   "testes": [
+    "CR2g.2 · 510.1c: com dois bloqueadores, quem ataca escolhe a divisão — matar o Masked Vandal em vez do Valakut Invoker"
+   ]
   },
   {
    "n": "510.2",
@@ -6573,14 +6576,17 @@
    "regra": "Keyword Abilities",
    "titulo": "Trample",
    "status": "parcial",
-   "evidencia": "dealCombatDamage (index.html:10784-10792): letal a cada bloqueador (descontando dano já marcado; 1 com toque mortífero) e o resto ao jogador; bloqueador que saiu = tudo ao jogador (702.19d); combat.audit K2; sondas sonda-702a.mjs: 5/5 x 2/2 passa 3, x 3/3 já ferido passa 4, x dois bloqueadores passa 2, atropelar+toque passa 4",
-   "falta": "A divisão é automática: o atacante não escolhe pôr mais que o letal no bloqueador nem deixar de dar letal (702.19b). Atacar planeswalker não existe (combat.defender é sempre jogador), logo 702.19c, e, f (atropelar sobre planeswalkers) ficam de fora",
+   "evidencia": "dealCombatDamage (index.html:10784-10792): letal a cada bloqueador (descontando dano já marcado; 1 com toque mortífero) e o resto ao jogador; bloqueador que saiu = tudo ao jogador (702.19d); combat.audit K2; sondas sonda-702a.mjs: 5/5 x 2/2 passa 3, x 3/3 já ferido passa 4, x dois bloqueadores passa 2, atropelar+toque passa 4 · M-285 (CR2g.2): com atropelar, o jogador só recebe o que passa do letal de todos os bloqueadores, na divisão escolhida por quem ataca",
+   "falta": "pôr mais que o letal num bloqueador único com atropelar não é oferecido (a mesa só pergunta com dois ou mais bloqueadores)",
    "esforco": "M",
    "depende": [
     "510.1c",
     "506 atacar planeswalker"
    ],
-   "cartas": "evergreen"
+   "cartas": "evergreen",
+   "testes": [
+    "CR2g.2 · 702.19b: com atropelar, o jogador só recebe o que passa do letal de todos os bloqueadores"
+   ]
   },
   {
    "n": "702.20",
