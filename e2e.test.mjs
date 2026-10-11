@@ -5043,6 +5043,54 @@ test('e2e · P-8 sala pela internet: sem conta da Estante, Criar e Entrar dão l
   assert.deepEqual(errors, []);
 });
 
+/* ---------------- A-263 · T6d · perfil sincronizado pela conta da Estante ---------------- */
+test('e2e · A-263 perfil sincronizado: ao conectar, o que a nuvem tem de mais novo desce e é aplicado (tema); mudar o tema sobe sozinho; o Perfil mostra a situação com Sincronizar', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  // banco falso com o token conferido: o perfil da conta já tem o tema claro, escolhido "no futuro" (outro aparelho)
+  const banco = { perfis: { uidE2E: { doc: { kind: 'estante.perfil.remoto', version: 1, atualizadoEm: 4e12, nome: 'Gui', pessoaEm: 0, p: { 'ui:theme': { v: '"light"', t: 4e12 } } } } } };
+  const pedidos = [];
+  await page.route('https://teste.firebaseio.com/**', async r => {
+    const u = new URL(r.request().url()), seg = u.pathname.replace(/\.json$/, '').split('/').filter(Boolean), metodo = r.request().method();
+    pedidos.push(metodo + ' /' + seg.join('/') + (u.searchParams.get('auth') ? ' (com token)' : ' (sem token)'));
+    if (u.searchParams.get('auth') !== 'id-e2e') return r.fulfill({ status: 401, json: { error: 'Permission denied' } });
+    const desce = () => seg.reduce((o, k) => (o && typeof o === 'object' ? o[k] : undefined), banco);
+    const poe = (caminho, v) => { let o = banco; for (const k of caminho.slice(0, -1)) o = o[k] = o[k] && typeof o[k] === 'object' ? o[k] : {}; if (v === null) delete o[caminho.at(-1)]; else o[caminho.at(-1)] = v; };
+    const corpo = r.request().postData() ? JSON.parse(r.request().postData()) : null;
+    if (metodo === 'PUT') poe(seg, corpo);
+    if (metodo === 'PATCH') for (const [k, v] of Object.entries(corpo)) poe([...seg, ...k.split('/')], v);
+    return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(metodo === 'GET' ? (desce() ?? null) : corpo) });
+  });
+  await page.route('https://www.googleapis.com/**', r => r.request().url().includes('/oauth2/v3/userinfo') ? r.fulfill({ json: { name: 'Gui', email: 'gui@example.com' } }) : r.fulfill({ status: 404, json: {} }));
+  await page.addInitScript(() => {
+    window.__FIREBASE_DB_URL = 'https://teste.firebaseio.com';
+    window.__GOOGLE_CLIENT_ID = 'e2e.apps.googleusercontent.com'; window.__FIREBASE_API_KEY = 'chave-e2e';
+    window.__FIREBASE_FETCH = async url => new Response(JSON.stringify(url.includes('securetoken') ? { id_token: 'id-e2e', refresh_token: 'ref-e2e', expires_in: '3600', user_id: 'uidE2E' } : { localId: 'uidE2E', idToken: 'id-e2e', refreshToken: 'ref-e2e', expiresIn: '3600' }), { headers: { 'content-type': 'application/json' } });
+    window.__GOOGLE_FALSO = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+    window.EventSource = class { constructor() {} addEventListener() {} close() {} };
+  });
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#conta-entrar:not([disabled])');
+  const aqui = await page.getAttribute('html', 'data-theme'), la = aqui === 'dark' ? 'light' : 'dark'; // a nuvem tem o outro tema
+  banco.perfis.uidE2E.doc.p['ui:theme'].v = JSON.stringify(la);
+  await page.click('#conta-entrar'); await page.waitForSelector('#conta-sincronia[data-estado="sincronizado"]', { timeout: 10000 });
+  // 1 · desceu: o tema escolhido no outro aparelho vale aqui, sem recarregar
+  await page.waitForFunction(t => document.documentElement.getAttribute('data-theme') === t, la);
+  assert.match(await page.innerText('#conta-sincronia'), /Perfil sincronizado às \d\d:\d\d/);
+  assert.ok((await page.locator('#conta-sincronizar').boundingBox()).height >= 44);
+  assert.ok(pedidos.every(p => /com token/.test(p)), 'todo pedido leva o token: ' + pedidos.join(', '));
+  await auditaTela(page, 'perfil · sincronizado');
+  // 2 · mudar o tema aqui sobe sozinho alguns segundos depois
+  await page.click('[data-theme-toggle]');
+  await page.waitForSelector('#conta-sincronia[data-estado="pendente"]');
+  await page.waitForFunction(() => document.querySelector('#conta-sincronia')?.dataset.estado === 'sincronizado', null, { timeout: 15000 });
+  assert.equal(banco.perfis.uidE2E.doc.p['ui:theme'].v, JSON.stringify(aqui));
+  // 3 · Sincronizar à mão: sem novidade, um pedido de leitura e nenhuma escrita
+  const antes = pedidos.length; await page.click('#conta-sincronizar'); await page.waitForSelector('#conta-sincronia[data-estado="sincronizado"]');
+  await page.waitForTimeout(300);
+  assert.deepEqual(pedidos.slice(antes).map(p => p.split(' ')[0]), ['GET'], 'encontro sem novidade = uma leitura');
+  assert.deepEqual(errors, []);
+});
+
 // ---- Leva 131 · R3 · Mono Blue Faeries pela tela (360×780, modo único) ----
 const dock131 = async page => (await page.locator('.tb-dock').innerText()).replace(/\s*\n+\s*/g, ' | ');
 const folha131 = async (page, nome, onde = '#tb-hand') => { await page.locator(`${onde} .tb-card[aria-label^="${nome}"]`).first().click(); await page.waitForSelector('.ds-dialog'); await page.waitForTimeout(250);

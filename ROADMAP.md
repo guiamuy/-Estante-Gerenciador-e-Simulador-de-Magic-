@@ -513,6 +513,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-p7 ✅ | T6c-2a entrar com Google abre a conta da Estante: Client ID e chave do projeto no app, troca do token do Google pela sessão do Firebase sem SDK, renovação, tokens só na memória, linha no Perfil com Conectar (leva P-7) | T | 1 | API do Drive ativada e origem no cliente Web (dono) |
 | 16º-p8 ✅ | T6c-2b partida online pela internet: banco ligado, token da conta em cada pedido e no fluxo de eventos, assentos presos às contas nas regras, painel pede Conectar (leva P-8) | T | 1 | publicar as regras novas no console (dono) |
 | 16º-p9 ✅ | T6c-3 conta da Estante fica conectada ao reabrir: só uid e token de renovação no aparelho (fora do backup), Sair e recusa apagam (leva P-9, decisão do dono) | T | 1 | — |
+| 16º-a263 ✅ | T6d perfil sincronizado entre aparelhos: encontro ao abrir, ao conectar, ao voltar a rede e depois de cada mudança, reaplica o que desce, estados e Sincronizar no Perfil (leva A-263, relato #6) | T | 1 | — |
 | 16º-dv ✅ | SEG5 "O que sai do aparelho" em Perfil › Dados: seis serviços com o que vai, quando e como evitar, conta e online com selo de uso; contrato une a tela e a política de conteúdo (leva P-6) | SEG | 1 | — |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
@@ -7473,6 +7474,28 @@ prontas.
   guardada, reabrir continua conectado, Sair apaga) e "P-8 sala" (reabrir mostra a sala sem pedir o Google; sem a
   sessão, Conectar liga ali). As duas expectativas mudaram por decisão do dono (antes: nada guardado).
 - **Fora:** expirar a sessão por inatividade; aviso de "outro aparelho entrou".
+
+**T6d · Perfil sincronizado entre aparelhos** ✅ (leva A-263, trilha `armazem`; relato #6)
+- **Valor:** entrou com a mesma conta em outro aparelho, o tema, as preferências, o nome e a foto vêm junto; mudou aqui,
+  vai para lá sozinho. O Perfil diz se está sincronizado (com a hora), com mudanças pendentes, sem internet ou se o
+  banco recusou, com o botão Sincronizar (44 px).
+- **Quando roda (`createSincronia`, em `src/data/remoto.js`):** ao abrir o app com a conta conectada; ao conectar (ao
+  entrar, no Perfil ou na sala); quando a rede volta; ao voltar ao app depois de um minuto; 4 s depois da última mudança
+  de preferência (várias seguidas = um encontro). Um encontro por vez; mudança no meio agenda mais um. Sair para tudo.
+- **O que desce é reaplicado** como na restauração do backup: tema, etiquetas, som, e nome e foto (evento
+  `estante:perfil`). A escrita que veio da nuvem (com carimbo) não agenda novo encontro.
+- **Gancho no armazenamento:** `vigiaStore({ aoMudarPreferencia })` avisa só mudança local de preferência (sem carimbo).
+- **Estados:** desligada (sem conta ou sem banco) · sincronizando · sincronizado · pendente · sem-rede · recusada (401/403:
+  regras do console desatualizadas — a ressalva da P-4 — ou sessão vencida) · erro. Sem rede nada se perde: o aparelho
+  é a fonte e o encontro roda quando a rede voltar.
+- **Custo (medido no teste):** encontro sem novidade = 1 leitura e 0 escritas; uma mudança = 1 leitura, 1 PATCH com
+  só as preferências mudadas, 1 leitura de conferência. Sem conexão aberta (REST): não ocupa o teto de conexões.
+- **Testes:** U `sincronia.unit` (5): agendamento e convergência entre dois aparelhos com reaplicação; um encontro por
+  vez sem perder mudança feita no meio; desligada, sem rede, recusada, erro; parar e avisos para a tela; encontro sem
+  novidade não mexe no aparelho. E2E "A-263 perfil sincronizado" (o tema da nuvem desce e vale sem recarregar; mudar o
+  tema sobe sozinho; Sincronizar sem novidade = uma leitura; todo pedido com token; axe).
+- **Fora:** listas e coleção pela conta (conteúdo, história própria: hoje vão pelo backup no Drive); apagar o perfil da
+  nuvem pelo app (o `apagarTudo` existe; a tela entra junto da T6e); escolher o que sincronizar.
 
 ### Z · Catálogo de listas (E61, pedido de 08/10/2026)
 

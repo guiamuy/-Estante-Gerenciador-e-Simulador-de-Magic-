@@ -8675,18 +8675,19 @@ const DO_DOCUMENTO = REGISTRO.filter(r => r[1] === 'preferencia').map(r => r[0])
 const igual = (a, b) => JSON.stringify(a === undefined ? null : a) === JSON.stringify(b === undefined ? null : b);
 /** Store vigiado: o mesmo contrato da plataforma. Escrever ou apagar uma preferência guarda o instante em
     `perfil.carimbos` (é o que decide, entre dois aparelhos, qual escolha é a mais nova); chave sem classe é avisada uma vez. */
-function vigiaStore(store, { agora = () => Date.now(), aoDesconhecer = null } = {}) {
+function vigiaStore(store, { agora = () => Date.now(), aoDesconhecer = null, aoMudarPreferencia = null } = {}) { // A-263 · aoMudarPreferencia(chave): a sincronização agenda o encontro
   let mapa = null, fila = Promise.resolve();
   const semClasse = new Set();
   const carrega = () => mapa || (mapa = Promise.resolve().then(() => store.get(CARIMBOS)).then(c => (c && typeof c === 'object' && !Array.isArray(c) ? { ...c } : {})).catch(() => ({})));
   const carimba = (k, quando) => (fila = fila.then(async () => { const m = await carrega(); m[k] = quando != null ? quando : Math.max(agora(), (m[k] || 0) + 1); await store.set(CARIMBOS, m); }).catch(() => {}));
+  const avisaMudanca = k => { if (aoMudarPreferencia) { try { aoMudarPreferencia(k); } catch (e) { /* aviso não derruba a escrita */ } } };
   const confere = k => { const c = classeDe(k); if (!c && !semClasse.has(k)) { semClasse.add(k); if (aoDesconhecer) { try { aoDesconhecer(k); } catch (e) { /* aviso não derruba a escrita */ } } } return c; };
   return {
     kind: store.kind, vigiado: true,
     get: k => store.get(k),
     keys: prefix => store.keys(prefix),
-    async set(k, v, { carimbo = null } = {}) { const c = confere(k); const r = await store.set(k, v); if (c === 'preferencia') await carimba(k, carimbo); return r; },
-    async remove(k, { carimbo = null } = {}) { const c = confere(k); const r = await store.remove(k); if (c === 'preferencia') await carimba(k, carimbo); return r; },
+    async set(k, v, { carimbo = null } = {}) { const c = confere(k); const r = await store.set(k, v); if (c === 'preferencia') { await carimba(k, carimbo); if (carimbo == null) avisaMudanca(k); /* escrita com carimbo veio de outro aparelho: não agenda de novo */ } return r; },
+    async remove(k, { carimbo = null } = {}) { const c = confere(k); const r = await store.remove(k); if (c === 'preferencia') { await carimba(k, carimbo); if (carimbo == null) avisaMudanca(k); /* escrita com carimbo veio de outro aparelho: não agenda de novo */ } return r; },
     /** Instante da última mudança de cada preferência (cópia). Preferência anterior a esta leva não tem carimbo: vale 0. */
     async carimbos() { await fila; return { ...(await carrega()) }; },
     semClasse: () => [...semClasse]
@@ -9781,12 +9782,68 @@ function createFilaDeRelatos({ transporte, uid, agora = () => Date.now() }) {
     async pendentes() { const f = await transporte.ler(c.fila); return f && typeof f === 'object' ? Object.keys(f) : []; }
   };
 }
+/* ---------------------------------------------------------------------
+   A-263 · T6d · QUANDO O ENCONTRO RODA (sincronização do perfil)
+   Uma vez ao abrir o app com a conta da Estante conectada, ao conectar, ao voltar a rede, ao voltar ao app depois de
+   um minuto, e alguns segundos depois de cada mudança de preferência (as mudanças em sequência viram um encontro só).
+   Um encontro por vez: pedido no meio espera o que está rodando; mudança de preferência no meio agenda mais um. O que desce é reaplicado (`aoDescer`: tema,
+   etiquetas, som, nome e foto). Estados para a tela: desligada (sem conta ou sem banco), sincronizando, sincronizado
+   (com a hora), pendente, sem-rede, recusada (o banco recusou: regras do console desatualizadas ou sessão vencida) e
+   erro. Sem rede o aparelho continua sendo a fonte: nada se perde, o encontro roda quando a rede voltar.
+   --------------------------------------------------------------------- */
+function createSincronia({ remotoDe, perfil, aoDescer = async () => {}, agora = () => Date.now(), espera = 4000,
+  relogio = { set: (f, ms) => setTimeout(f, ms), clear: t => clearTimeout(t) }, temRede = () => typeof navigator === 'undefined' || navigator.onLine !== false }) {
+  let estado = { estado: 'desligada' }, rodando = null, deNovo = false, timer = null;
+  const ouvintes = new Set();
+  const muda = e => { estado = e; for (const cb of [...ouvintes]) { try { cb(estado); } catch (err) { /* tela fechada */ } } };
+  const remoto = () => { try { return remotoDe(); } catch (e) { return null; } };
+  function agende() {
+    if (timer) relogio.clear(timer);
+    if (!remoto()) { timer = null; if (estado.estado !== 'desligada') muda({ estado: 'desligada' }); return; }
+    if (estado.estado === 'sincronizado' || estado.estado === 'desligada') muda({ estado: 'pendente', em: estado.em || 0 });
+    timer = relogio.set(() => { timer = null; encontro(); }, espera);
+  }
+  function encontro() {
+    if (rodando) return rodando; // pedir de novo no meio só espera o que está rodando (mudança no meio é que agenda outro)
+    const r = remoto();
+    if (!r) { muda({ estado: 'desligada' }); return Promise.resolve(estado); }
+    if (!temRede()) { muda({ estado: 'sem-rede', em: estado.em || 0 }); return Promise.resolve(estado); }
+    if (timer) { relogio.clear(timer); timer = null; }
+    const em = estado.em || 0;
+    muda({ estado: 'sincronizando', em });
+    rodando = (async () => {
+      try {
+        const res = await r.sincroniza(perfil);
+        if ((res.desceu && res.desceu.length) || res.pessoaDesceu) { try { await aoDescer(res); } catch (e) { /* reaplicar é conveniência */ } }
+        muda({ estado: res.conferido ? 'sincronizado' : 'pendente', em: agora(), desceu: (res.desceu || []).length + (res.pessoaDesceu ? 1 : 0), subiu: (res.subiu || []).length + (res.pessoaSubiu ? 1 : 0) });
+      } catch (e) {
+        const m = e && e.message, st = e && e.status;
+        muda({ estado: m === 'sem-rede' ? 'sem-rede' : (st === 401 || st === 403) ? 'recusada' : 'erro', em, motivo: m || 'erro' });
+      } finally {
+        rodando = null;
+        if (deNovo) { deNovo = false; agende(); }
+      }
+      return estado;
+    })();
+    return rodando;
+  }
+  return {
+    /** Roda o encontro agora (ou logo depois do que está rodando). */
+    agora: encontro,
+    /** Uma preferência mudou: o encontro roda alguns segundos depois da última mudança. */
+    mudou() { if (rodando) { deNovo = true; return; } agende(); },
+    estado: () => estado,
+    aoMudar(cb) { ouvintes.add(cb); return () => ouvintes.delete(cb); },
+    /** Sem conta (saiu): para o que estava agendado e volta a "desligada". */
+    para() { if (timer) relogio.clear(timer); timer = null; deNovo = false; muda({ estado: 'desligada' }); }
+  };
+}
 /** Lê um nó da fila como dado de fora: devolve o relato ou null. É o que o fluxo do repositório usa. */
 function relatoDaFila(no) {
   if (!no || no.kind !== RELATO_KIND || no.version !== RELATO_VERSION || typeof no.dado !== 'string' || no.dado.length > RELATO_MAX) return null;
   try { const r = JSON.parse(no.dado); return r && typeof r === 'object' && ID_OK.test(String(r.id || '')) ? r : null; } catch (e) { return null; }
 }
-return { caminhos, codifica, decodifica, paraRemoto, doRemoto, oQueSobe, createPerfilRemoto, createFilaDeRelatos, relatoDaFila, REMOTO_KIND, REMOTO_VERSION, RELATO_KIND, RELATO_VERSION, VALOR_MAX, RELATO_MAX };
+return { caminhos, codifica, decodifica, paraRemoto, doRemoto, oQueSobe, createPerfilRemoto, createFilaDeRelatos, createSincronia, relatoDaFila, REMOTO_KIND, REMOTO_VERSION, RELATO_KIND, RELATO_VERSION, VALOR_MAX, RELATO_MAX };
 })();
 
 /* ==== src/data/etiquetas.js ==== */
@@ -12020,6 +12077,21 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
       Text('Conta da Estante desconectada' + (e.motivo ? ' · ' + __m29.motivoDe(new Error(e.motivo)) : ''), { size: 'sm', tone: 'muted', class: 'ds-grow' }),
       Button('Conectar', { icone: 'externo', id: 'conta-estante-conectar', variant: 'ghost', disabled: oc, title: 'Conectar a conta da Estante com o Google', onClick: () => acaoDaConta(async () => { await conta.conectarEstante(); toast('Conta da Estante conectada'); }) }));
   }
+  /** A-263 · T6d · situação da sincronização do perfil, com Sincronizar (44 px). Só com a conta da Estante conectada. */
+  let paraSinc = null;
+  function linhaSincronia(oc) {
+    const s = conta.sincronia;
+    if (!s || !conta.estante || conta.estante().estado !== 'conectada') return null;
+    if (!paraSinc) paraSinc = s.aoMudar(() => { if (!root.isConnected) { paraSinc(); paraSinc = null; return; } paint(); });
+    const e = s.estado();
+    const hora = e.em ? quando(e.em).split(' ')[1] : null;
+    const frase = { sincronizando: 'Sincronizando…', sincronizado: 'Perfil sincronizado' + (hora ? ' às ' + hora : ''), pendente: 'Mudanças para sincronizar',
+      'sem-rede': 'Sem internet: sincroniza quando a conexão voltar', recusada: 'O banco recusou a sincronização. Tente mais tarde.', erro: 'Não sincronizou. Tente de novo.', desligada: 'Sincronização desligada' }[e.estado] || '';
+    return Row({ class: 'ds-row--wrap perfil-conta__estante', id: 'conta-sincronia', dataset: { estado: e.estado } },
+      Text(frase, { size: 'sm', tone: e.estado === 'recusada' || e.estado === 'erro' ? 'negative' : 'muted', class: 'ds-grow', attrs: { id: 'conta-sincronia-texto', role: 'status' } }),
+      Button('Sincronizar', { icone: 'atualizar', id: 'conta-sincronizar', variant: 'ghost', disabled: oc || e.estado === 'sincronizando', title: 'Sincronizar o perfil agora',
+        onClick: async () => { await s.agora(); const f = s.estado(); if (f.estado === 'sincronizado') toast(f.desceu ? 'Perfil atualizado com a nuvem' : 'Perfil sincronizado'); } }));
+  }
   function secaoConta() {
     if (!conta) return null;
     const semId = !conta.disponivel();
@@ -12036,6 +12108,7 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
         Avatar({ nome: c.nome, avatar: c.foto }, { tamanho: 40 }),
         Stack({ class: 'ds-grow perfil-conta__texto' }, h('b', { class: 'ds-text ds-text--md', id: 'conta-nome' }, c.nome || c.email), Text(c.email, { size: 'sm', tone: 'muted', attrs: { id: 'conta-email' } }))),
       linhaEstante(oc),
+      linhaSincronia(oc),
       Row({ class: 'ds-row--wrap' },
         Button('Usar na mesa', { icone: 'pessoa', id: 'conta-usar', title: 'Usar o nome e a foto da conta no perfil', disabled: oc, onClick: () => acaoDaConta(async () => {
           st.nome = c.nome || st.nome;
@@ -26709,7 +26782,8 @@ const { createOcr, createScannerScreen } = __m22;
 const { createOfflineKeeper } = __m26;
 const platform = createPlatform();
 // A-261 · todo o app escreve pelo store vigiado: preferência ganha o instante da mudança; chave fora do registro de perfil.js é erro
-platform.store = __m28.vigiaStore(platform.store, { aoDesconhecer: k => console.error('[armazenamento] chave sem classe no registro de src/data/perfil.js: ' + k) });
+let aoPreferencia = () => {}; // A-263 · a sincronização se pendura aqui quando existir
+platform.store = __m28.vigiaStore(platform.store, { aoDesconhecer: k => console.error('[armazenamento] chave sem classe no registro de src/data/perfil.js: ' + k), aoMudarPreferencia: k => aoPreferencia(k) });
 const theme = createTheme(platform.store, undefined, undefined, { aoAparencia: a => { __m0.haptics.ligar(a.vibracao); platform.haptics.ligar(a.vibracao); } });
 const scryfall = createScryfall({});
 const images = createImageCache({ caches: typeof caches !== 'undefined' ? caches : null, fetch: typeof fetch !== 'undefined' ? fetch.bind(globalThis) : null });
@@ -26791,6 +26865,26 @@ __m38.usa(relatos); __m3.usaRelatar(() => __m38.abreRelato());
 // G-243 · relato enviado e ainda aberto: a situação do registro volta do GitHub pouco depois de abrir o app (o Perfil conta os abertos)
 setTimeout(() => { relatos.todos().then(l => { if (l.some(r => (r.enviadoEm || r.registro) && r.status !== 'resolvido')) return relatos.sincroniza(); }).catch(() => {}); }, 4000);
 const som = __m33.createSom({ store: platform.store }); som.init(); // G4 · som da partida
+/* A-263 · T6d · PERFIL SINCRONIZADO: com a conta da Estante conectada e o banco ligado, as preferências, o nome e a foto
+   vão e voltam entre aparelhos (árvore v1 da A-262, regras da P-4). O que desce é reaplicado como na restauração do backup. */
+const sincronia = __m40.createSincronia({
+  remotoDe: () => { if (online.modo !== 'firebase' || conta.estante().estado !== 'conectada') return null; const uid = conta.sessao.uid(); return uid ? __m40.createPerfilRemoto({ transporte: online.transporte, uid }) : null; },
+  perfil,
+  aoDescer: async r => { await theme.init(); etiquetas.recarrega(); await som.init(); if (r.pessoaDesceu) document.dispatchEvent(new CustomEvent('estante:perfil')); }
+});
+conta.sincronia = sincronia;
+aoPreferencia = () => sincronia.mudou();
+{ // conectar (ao entrar, no Perfil ou na sala) já sincroniza; sair para
+  const conectar = conta.conectarEstante.bind(conta), sair = conta.sair.bind(conta);
+  conta.conectarEstante = async (...a) => { const r = await conectar(...a); if (conta.estante().estado === 'conectada') sincronia.agora(); return r; };
+  conta.sair = async (...a) => { sincronia.para(); return sair(...a); };
+}
+conta.pronta.then(() => sincronia.agora());
+if (typeof window !== 'undefined' && window.addEventListener) {
+  window.addEventListener('online', () => sincronia.agora());
+  let ultimaVolta = Date.now();
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState !== 'visible' || Date.now() - ultimaVolta < 60000) return; ultimaVolta = Date.now(); sincronia.agora(); });
+}
 // leva 163 · cotação do dólar: guardada no aparelho, buscada com a rede do navegador
 __m31.padrao.configura({ store: platform.store, fetch: typeof fetch !== 'undefined' ? fetch.bind(globalThis) : null });
 const ocr = createOcr();
