@@ -9929,3 +9929,30 @@ test('e2e · M-265 · Stream of Thought com replicar: a folha oferece "replicar 
   e = await M.est(); assert.notEqual(e.pend, 'pick');
   assert.deepEqual(M.errors, []);
 });
+
+test('e2e · M-267 · Expressive Iteration: a mesa pergunta a carta da mão e depois a do fundo; a última vai para o exílio e pode ser jogada', { skip }, async t => {
+  const extras = JSON.parse(readFileSync(join(ROOT, '.listas', 'oficiais-commander.json'), 'utf8')).cartas.filter(c => c.name === 'Expressive Iteration');
+  const M = await comLista125(t, '12 Island\n12 Mountain\n16 Expressive Iteration', ['Island', 'Mountain', 'Expressive Iteration'], '4', { extras });
+  const { page } = M; let e;
+  for (let i = 0; i < 20; i++) {
+    e = await M.est(); const falta = e.campo.includes('Island') ? 'Mountain' : 'Island';
+    const o = await M.oid(falta) || await M.oid(falta === 'Island' ? 'Mountain' : 'Island'); if (o) await M.act({ t: 'play_land', p: 0, oid: o }); e = await M.est();
+    if (e.campo.includes('Island') && e.campo.includes('Mountain') && e.mao.includes('Expressive Iteration')) break; await M.proximo(); }
+  e = await M.est(); assert.ok(e.campo.includes('Island') && e.campo.includes('Mountain') && e.mao.includes('Expressive Iteration'), 'mesa pronta: ' + JSON.stringify(e));
+  await page.locator('#tb-hand .tb-card[aria-label^="Expressive Iteration"]').first().click(); await naFolha(page, /^Conjurar/);
+  e = await segueR6(M, x => x.pend === 'pick');
+  assert.equal(e.pend, 'pick');
+  assert.match(await M.decisao(), /^Expressive Iteration · Escolha a que vai para a mão \| Toque na carta\./);
+  assert.equal(await page.locator('#tb-pick-cards .tb-card').count(), 3, 'as três de cima');
+  await auditaTela(page, 'repartir da Expressive Iteration');
+  await page.locator('#tb-pick-cards .tb-card').first().click(); await page.waitForTimeout(200);
+  if (/para a mão/.test(await M.decisao())) { await page.click('#tb-pick-done'); await page.waitForTimeout(200); }
+  assert.match(await M.decisao(), /^Expressive Iteration · Escolha a que vai para o fundo do grimório/);
+  assert.equal(await page.locator('#tb-pick-cards .tb-card').count(), 2, 'as duas que sobraram');
+  await page.locator('#tb-pick-cards .tb-card').first().click(); await page.waitForTimeout(200);
+  if (/fundo do grimório/.test(await M.decisao().catch(() => ''))) { await page.click('#tb-pick-done'); await page.waitForTimeout(200); }
+  e = await segueR6(M); assert.notEqual(e.pend, 'pick');
+  const exilada = await page.evaluate(() => { const s = window.__estanteMesa.estado(); return s.zones[0].exile.filter(o => s.objects[o].playableFromExile === 0).length; });
+  assert.equal(exilada, 1, 'uma carta exilada que pode ser jogada neste turno');
+  assert.deepEqual(M.errors, []);
+});

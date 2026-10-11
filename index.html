@@ -5282,6 +5282,7 @@ const EFFECTS = {
   mare_alta: { fields: [], targets: ['self'] }, // M-262 · High Tide
   topo_ou_fundo_do_dono: { fields: [], targets: ['permanent'] }, // M-264 · "The owner of target nonland permanent puts it on their choice of the top or bottom of their library"
   revelar_topo_para_mao: { fields: [], targets: ['self'] }, // M-263 · Dark Confidant
+  repartir_topo: { fields: ['count'], targets: ['self'] }, // M-267 · Expressive Iteration: "put one into your hand, one on the bottom, and exile one" — em ordem, uma escolha por destino
   embaralhar_do_cemiterio: { fields: ['amount'], targets: ['self'] }, // M-265 · Stream of Thought: "You shuffle up to four cards from your graveyard into your library"
   amass: { fields: ['amount'], targets: ['self'] }, // M-260 · 701.47 amass
   resistencia_jogador: { fields: [], targets: ['self'] }, // M-260 · "You … gain hexproof until end of turn" (702.11)
@@ -5838,6 +5839,7 @@ function validateScript(sc) {
   if (sc && sc.transmute && !sc.transmute.mana) errs.push('transmutar sem custo');
   if (sc && sc.unearth != null && !(sc.unearth && typeof sc.unearth.mana === 'string')) errs.push('desenterrar sem custo'); // M-257 · 702.84
   if (sc && sc.backup != null && !(Number.isInteger(sc.backup) && sc.backup > 0)) errs.push('reforço precisa de um número inteiro'); // M-260 · 702.165
+  if (sc && sc.exilaDaMao != null && !(sc.exilaDaMao && ['W', 'U', 'B', 'R', 'G'].includes(sc.exilaDaMao.cor) && Number.isInteger(sc.exilaDaMao.reduz) && sc.exilaDaMao.reduz > 0)) errs.push('exilar da mão precisa de cor (W, U, B, R, G) e de quanto reduz por carta'); // M-267
   if (sc && sc.delve != null && sc.delve !== true) errs.push('delve é uma marca, sem valor'); // M-263 · 702.66
   // S34 · tempestade, conceder e metamorfo
   if (sc && sc.storm != null && sc.storm !== true) errs.push('tempestade é uma marca, sem valor');
@@ -5977,6 +5979,7 @@ function effectErrors(effects, label, opcional) {
       if (e.naoFicha && (e.jogadores || 'voce') === 'voce' && e.target == null && !e.alvosJogadores) errs.push(`${L}: "naoFicha" só vale quando cada jogador ou o alvo escolhe`);
       if (e.alvosJogadores != null && (e.alvosJogadores !== 'anteriores' || e.jogadores != null || e.target != null)) errs.push(`${L}: "alvosJogadores" só vale como anteriores, sem jogadores nem alvo`); // M-264
     }
+    if (e.do === 'repartir_topo' && !(Array.isArray(e.destinos) && e.destinos.length >= 2 && e.destinos.every(d => ['hand', 'library-bottom', 'library-top', 'graveyard', 'exile', 'exile-playable-turn'].includes(d)))) errs.push(`${label} ${i + 1}: repartir precisa de dois ou mais destinos conhecidos`); // M-267
     if (e.do === 'mover') { // CR2-G R4a
       const ZM = ['battlefield', 'graveyard', 'exile', 'hand', 'library'], L = `${label} ${i + 1}`;
       if (!ZM.includes(e.para)) errs.push(`${L}: mover precisa de "para" (campo, cemitério, exílio, mão ou grimório)`);
@@ -7057,6 +7060,13 @@ const RAW_SCRIPTS = [
   // M-265 · "Target player mills four cards. You shuffle up to four cards from your graveyard into your library. Replicate {2}{U}{U}" (o script só mirava o oponente)
   { name: 'Stream of Thought', replicate: '{2}{U}{U}', effects: [{ do: 'mill', amount: 4, target: 'player' }, { do: 'embaralhar_do_cemiterio', amount: 4 }],
     example: { target: 'opponent', expect: { milled: 4 } } },
+  // M-267 · texto oficial em .listas/oficiais-commander.json (05/10/2026); segunda fonte, Oracle do Forge (10/10/2026)
+  // "As an additional cost to cast this spell, you may exile any number of blue cards from your hand. This spell costs {2} less to cast for each card exiled this way. Up to X target creatures phase out."
+  { name: 'March of Swirling Mist', exilaDaMao: { cor: 'U', reduz: 2 }, effects: [{ do: 'sai_de_fase', target: 'creature', upTo: true, targetCount: { per: 'x' } }],
+    example: { target: 'none', expect: { handDelta: 0 } } },
+  // "Look at the top three cards of your library. Put one of them into your hand, put one of them on the bottom of your library, and exile one of them. You may play the exiled card this turn."
+  { name: 'Expressive Iteration', effects: [{ do: 'repartir_topo', count: 3, destinos: ['hand', 'library-bottom', 'exile-playable-turn'] }],
+    example: { target: 'none', expect: { picked: true } } },
   // S12 · escolhas do jogador
   { name: 'Faithless Looting', effects: [{ do: 'draw', amount: 2 }, { do: 'discard', amount: 2 }], flashback: { mana: '{2}{R}' },
     example: { action: 'flashback', target: 'none', expect: { handDelta: 2, discarded: 2, exiled: true } } },
@@ -14057,6 +14067,7 @@ function createGame(setup) {
     if (sc.unearth) f.script.unearth = sc.unearth; // M-257
     if (sc.backup) f.script.backup = sc.backup; // M-260
     if (sc.delve) f.script.delve = true; // M-263
+    if (sc.exilaDaMao) f.script.exilaDaMao = sc.exilaDaMao; // M-267
     if (sc.self) f.script.self = sc.self;
     // palavras-chave impressas na carta, declaradas no script: valem mesmo quando o dado da carta veio sem elas (sem rede)
     if (sc.self && sc.self.devoid) f.colors = []; // R7 · desprovido de cor (702.114): incolor mesmo com mana colorida no custo
@@ -14145,7 +14156,7 @@ function zoneList(s, obj, zone) { return zone === 'stack' ? s.stack : s.zones[ob
 const VOLTA_COMANDO = ['graveyard', 'exile', 'hand', 'library'];
 /** Leva 105 · marcas que a conjuração põe na carta (e que não atravessam outra mudança de zona). */
 const MARCAS_DA_CONJURACAO = ['xPaid', 'bestowed', 'evidenced', 'faceDown', 'flashback', 'paidAdditional', 'discardedNonland', 'altIndex', 'mode',
-  'bargained', 'omen', 'stormCopies', 'chosenColor', 'plotted', 'playableFromExile', 'sneakAtaque', 'kicked', 'modes', 'castFrom']; // 'revealed' fica: a habilidade do Martyr of Sands lê depois do sacrifício
+  'bargained', 'omen', 'stormCopies', 'chosenColor', 'plotted', 'playableFromExile', 'jogavelSoNesteTurno', 'sneakAtaque', 'kicked', 'modes', 'castFrom']; // 'revealed' fica: a habilidade do Martyr of Sands lê depois do sacrifício
 /* ---------------- CR2-G R5c · 701.8/614 · "se fosse destruída" ---------------- */
 /** O que acontece se `o` fosse destruída agora: 'indestrutivel' (não é destruída), { totem: aura } (702.89: a Aura com
  * armadura de totem é destruída no lugar e o dano sai), 'regenerou' (701.15: um escudo de regeneração é gasto) ou 'destruida'.
@@ -14715,6 +14726,11 @@ function valoresDeX(s, qtdX, pagavel) {
   for (let x = 0; x <= LIMITE_X; x++) { if (!pagavel(x)) break; xs.push(x); }
   return xs;
 }
+/** M-267 · custo adicional "exile qualquer número de cartas [cor] da sua mão; esta mágica custa {N} a menos por carta" (March of Swirling
+ * Mist): as cartas que servem e o desconto, que só tira do genérico (ruling: nunca abaixo do custo colorido). */
+const exilaveisParaDesconto = (s, p, o) => { const em = ((s.facts[o.name] || {}).script || {}).exilaDaMao; return em ? exilaveisDaMao(s, p, em.cor, o.oid) : []; };
+const descontoExilaMao = (s, o, k, extra) => { const em = ((s.facts[o.name] || {}).script || {}).exilaDaMao; if (!em || !k) return 0;
+  return Math.min(Math.max(0, (s.facts[o.name].cost.generic || 0) + extra), k * em.reduz); };
 const castExtra = (s, p, o, x = 0, alvos) => { const base = (o.zone === 'command' ? commanderTax(s, p, o.oid) : 0) + x * (s.facts[o.name].cost.x || 0), af = affinityDiscount(s, p, o); // S33 · afinidade reduz o custo genérico
   const teto = Math.max(0, (s.facts[o.name].cost.generic || 0) + base - af); return base - af - Math.min(teto, reducaoPorAlvo(s, p, o, alvos)); };
 /** M-259 · 601.2f · "Spells you cast that target a creature cost {2} less" (Killian): reduções de permanentes suas que dependem do alvo.
@@ -14967,6 +14983,7 @@ function enterStep(s, step) {
 /** CR 514.2 · o dano marcado sai e os efeitos "até o fim do turno" e "neste turno" acabam, tudo ao mesmo tempo. */
 function fimDosEfeitosDoTurno(s) {
   for (const pl of s.players) delete pl.tempHexproof; // M-260 · resistência a magia do jogador acaba na limpeza
+  for (const pl of s.players.keys()) for (const oid of s.zones[pl].exile) { const x = s.objects[oid]; if (x && x.jogavelSoNesteTurno) { delete x.playableFromExile; delete x.jogavelSoNesteTurno; } } // M-267 · "this turn"
   delete s.mareAlta; // M-262 · High Tide vale até o fim do turno
   for (const o of battlefield(s)) { delete o.pump; delete o.tempKeywords; delete o.tempTs; podaTemporarios(s, o, 'limpeza'); delete o.prevenirDano; delete o.regenerar; delete o.tempProtection; delete o.tempToxico; delete o.tempResguardoCor; delete o.tempNaoBloqueadaPor; delete o.tempHabilidades; delete o.usedThisTurn; o.damage = 0; delete o.deathtouched; } // M-255 · tóxico, resistência a magia de cor e "não bloqueada por cor" até o fim do turno
   delete s.fogged; delete s.preventedColors; delete s.noPrevention; delete s.prevencoes; // CR2-G R5b · escudos do verbo prevenir também acabam
@@ -15958,6 +15975,12 @@ function applyEffect(s, src, eff, tgt, events) {
       for (const f of fichas) moveObject(s, f.oid, 'exile');
       note({ amount: fichas.length, name: nome }); break;
     }
+    case 'repartir_topo': { // M-267 · "Look at the top three … put one into your hand, one on the bottom, and exile one": em ordem; com menos
+      // cartas, os destinos são cumpridos na ordem e os últimos ficam sem carta (ruling de 20/03/2026)
+      const from = s.zones[ctrl].library.slice(0, amountOf(s, src, eff.count));
+      if (!from.length) { note({ amount: 0 }); break; }
+      iniciaRepartir(s, ctrl, from, eff.destinos, src.name, events); note({ amount: from.length }); break;
+    }
     case 'embaralhar_do_cemiterio': { // M-265 · "You shuffle up to four cards from your graveyard into your library": escolha na resolução, aceita zero
       const n = amountOf(s, src, eff.amount), cem = s.zones[ctrl].graveyard.slice();
       if (!cem.length || !n) { shuffle(s, s.zones[ctrl].library); note({ amount: 0 }); break; }
@@ -16244,12 +16267,19 @@ function startPick(s, spec, events) {
     ...(spec.discard ? { discard: true } : {}), // Leva 105 · escolha que é descarte (insanidade)
     ...(spec.mostrar ? { mostrar: spec.mostrar } : {}), // Leva 107 · mão revelada inteira (Duress)
     ...(spec.depois ? { depois: spec.depois } : {}), // Leva 107 · "se fizer, compre duas" (Highway Robbery)
-    ...(spec.onPicked ? { onPicked: spec.onPicked } : {}) }; // S59 · o que a carta escolhida recebe
+    ...(spec.onPicked ? { onPicked: spec.onPicked } : {}), // S59 · o que a carta escolhida recebe
+    ...(spec.repartir ? { repartir: spec.repartir } : {}) }; // M-267 · os próximos destinos do repartir
   events.push({ kind: 'choice', what: spec.label, name: spec.source, amount: spec.from.length });
 }
 /** S55 · soma do valor de mana do que já foi escolhido. */
 const pickedMv = (s, pk) => (pk.picked || []).reduce((n, oid) => n + ((s.facts[s.objects[oid].name] || {}).cmc || 0), 0);
-function finishPick(s, events) { concluiPick(s, events); resumeEffects(s, events); }
+function finishPick(s, events) { concluiPick(s, events); if (!s.pending) resumeEffects(s, events); } // M-267 · repartir encadeia escolhas
+/** M-267 · repartir as cartas olhadas entre destinos, em ordem: uma escolha por destino; sobrando uma carta, ela vai sozinha para o próximo. */
+function iniciaRepartir(s, p, from, destinos, fonte, events) {
+  if (!from.length || !destinos.length) return;
+  if (from.length === 1) { const pk = { p, from, picked: from.slice(), to: destinos[0], rest: 'stay', label: 'repartir', source: fonte }; s.pending = { kind: 'pick', ...pk }; concluiPick(s, events); return; }
+  startPick(s, { p, from, min: 1, max: 1, to: destinos[0], rest: 'stay', label: `repartir ${destinos[0]}`, source: fonte, repartir: { de: from, destinos: destinos.slice(1) } }, events);
+}
 /** O que a escolha faz com as cartas, sem retomar os efeitos (quem chama de dentro de uma resolução continua sozinho). */
 function concluiPick(s, events) {
   const pk = s.pending; s.pending = null;
@@ -16259,6 +16289,7 @@ function concluiPick(s, events) {
     else if (where === 'library-bottom') moveObject(s, oid, 'library', { top: false });
     else if (where === 'battlefield-tapped') { moveObject(s, oid, 'battlefield'); s.objects[oid].tapped = true; s.objects[oid].controller = pk.p; }
     else if (where === 'graveyard' && pk.discard) descartaCarta(s, oid); // Leva 105 · Duress: é descarte
+    else if (where === 'exile-playable-turn') { moveObject(s, oid, 'exile'); s.objects[oid].playableFromExile = pk.p; s.objects[oid].jogavelSoNesteTurno = true; } // M-267
     else if (where === 'desvira') { if (s.objects[oid] && s.objects[oid].zone === 'battlefield') s.objects[oid].tapped = false; } // M-250
     else if (where === 'descarta-ou-sacrifica') { if (s.objects[oid].zone === 'hand') descartaCarta(s, oid); else sacrifice(s, oid); }
     else moveObject(s, oid, where);
@@ -16278,6 +16309,7 @@ function concluiPick(s, events) {
     }
   }
   events.push({ kind: 'choice-done', what: pk.label, name: pk.source, amount: pk.picked.length });
+  if (pk.repartir) iniciaRepartir(s, pk.p, pk.repartir.de.filter(oid => !pk.picked.includes(oid) && s.objects[oid].zone === 'library'), pk.repartir.destinos, pk.source, events); // M-267
 }
 /** Efeitos que ficaram esperando a escolha terminar. */
 function resumeEffects(s, events) {
@@ -17378,6 +17410,8 @@ const HANDLERS = {
     if (excedeSoma(s, need, chosen)) throw new RuleError('alvo', 'os alvos passam do valor de mana total permitido'); // CR2c.5
     // M-263 · 702.66 delve: cada carta exilada do cemitério paga {1}; quantas vem na ação, quais o jogador escolhe logo depois
     const delveN = a.delve || 0;
+    const exilaMaoN = a.exilaMao || 0; // M-267
+    if (exilaMaoN && !(Number.isInteger(exilaMaoN) && exilaMaoN > 0 && (f.script || {}).exilaDaMao && !a.alt && !a.flashback && !delveN && o.zone === 'hand' && exilaveisParaDesconto(s, a.p, o).length >= exilaMaoN)) throw new RuleError('custo', 'exile da mão só cartas da cor pedida, quantas tiver');
     if (delveN && !(Number.isInteger(delveN) && delveN > 0 && (f.script || {}).delve && !a.alt && !a.flashback && delveN <= (f.cost.generic || 0) && s.zones[a.p].graveyard.filter(x => x !== a.oid).length >= delveN)) throw new RuleError('delve', 'delve: exile de 1 até o custo genérico, com cartas suficientes no cemitério');
     // S16 · custo alternativo, lampejo do passado ou o custo normal
     const alt = a.alt != null ? altCosts(s, o)[a.alt] : null;
@@ -17400,11 +17434,12 @@ const HANDLERS = {
     else if (a.plotted) { /* S53 · plot: o mana já foi pago quando a carta foi plotada */ }
     else if (s.manaCheck && !a.free) { if (f.semCusto) throw new RuleError('custo', 'esta carta não tem custo de mana: não pode ser conjurada assim');
       const custo = a.kick ? somaCusto(f.cost, parseCost(reforco.mana), a.kick) : f.cost;
+      const extraBase = castExtra(s, a.p, o, a.x || 0, a.targets || []), extraPago = extraBase - delveN - descontoExilaMao(s, o, exilaMaoN, extraBase); // M-267
       if (a.vida != null) { // CR2c.4 · phyrexiano: quem conjura escolhe quantos símbolos paga com vida
         if (!(Number.isInteger(a.vida) && a.vida >= 0 && a.vida <= nPhyrexianos(custo))) throw new RuleError('custo', 'escolha quantos símbolos phyrexianos pagar com vida');
         if (s.players[a.p].life < 2 * a.vida) throw new RuleError('custo', 'vida insuficiente para pagar o phyrexiano'); // 119.4
-        payCost(s, a.p, custoPhyrexiano(custo, a.vida), castExtra(s, a.p, o, a.x || 0, a.targets || []) - delveN); perdeVida(s, a.p, 2 * a.vida);
-      } else payCost(s, a.p, custo, castExtra(s, a.p, o, a.x || 0, a.targets || []) - delveN); } // M-259 · a redução por alvo usa os alvos escolhidos
+        payCost(s, a.p, custoPhyrexiano(custo, a.vida), extraPago); perdeVida(s, a.p, 2 * a.vida);
+      } else payCost(s, a.p, custo, extraPago); } // M-259 · a redução por alvo usa os alvos escolhidos
     if (a.retrace) { // M-222 · 702.81a: "discarding a land card in addition to paying its other costs"
       const l = a.pay && a.pay.retrace, lo = l && s.objects[l];
       if (!lo || !s.zones[a.p].hand.includes(l) || !(s.facts[lo.name].types || []).includes('land')) throw new RuleError('custo', 'descarte um terreno da mão para retraçar');
@@ -17465,6 +17500,7 @@ const HANDLERS = {
       startPick(s, { p: a.p, from: cemiterio, min: 1, max: cemiterio.length, needMv: n, to: 'exile', rest: 'stay',
         label: 'colher provas', source: o.name }, []);
     }
+    if (exilaMaoN) startPick(s, { p: a.p, from: exilaveisParaDesconto(s, a.p, o), min: exilaMaoN, max: exilaMaoN, to: 'exile', rest: 'stay', label: 'exilar da mão', source: o.name }, []); // M-267 · as cartas, quem conjura escolhe
     if (delveN) { const cemiterio = s.zones[a.p].graveyard.filter(x => x !== a.oid); // M-263 · as cartas do delve: quem conjura escolhe
       startPick(s, { p: a.p, from: cemiterio, min: delveN, max: delveN, to: 'exile', rest: 'stay', label: 'delve', source: o.name }, []); }
     chargeWard(s, a.p, a.oid, chosen); // S41 · vigilância do alvo
@@ -18262,6 +18298,19 @@ function legalActions(s, p, { adjudication = false } = {}) {
   if (canSorcery) for (const oid of s.zones[p].graveyard) {
     const un = (s.facts[s.objects[oid].name].script || {}).unearth;
     if (un && (!s.manaCheck || canPay(s, p, parseCost(un.mana)))) out.push({ t: 'unearth', p, oid });
+  }
+  // M-267 · "exile qualquer número de cartas [cor] da mão; custa {N} a menos por carta": uma oferta por quantidade que ainda reduz o
+  // custo (exilar além do que reduz não é oferecido, simplificação declarada); as cartas, quem conjura escolhe logo depois
+  for (const oid of s.zones[p].hand) {
+    const o = s.objects[oid], f = s.facts[o.name], em = (f.script || {}).exilaDaMao;
+    if (!em || !(canSorcery || !isSorcerySpeed(f)) || (s.manaCheck && f.semCusto)) continue;
+    const n = exilaveisParaDesconto(s, p, o).length;
+    for (let k = 1; k <= n; k++) {
+      const ext = x => { const e = castExtra(s, p, o, x || 0, OTIMISTA); return e - descontoExilaMao(s, o, k, e); };
+      const reduz = x => (f.cost.generic || 0) + castExtra(s, p, o, x || 0) > em.reduz * (k - 1);
+      const xs = valoresDeX(s, f.cost.x || 0, x => payable(o, ext(x))).filter(x => reduz(x));
+      for (const xv of xs) (xNoAlvo(f.script) ? casts(o, xv) : casts(o)).forEach(c => out.push({ ...c, ...(xv != null ? { x: xv } : {}), exilaMao: k }));
+    }
   }
   // M-263 · delve: uma oferta por quantidade de cartas exiladas (as cartas, quem conjura escolhe depois)
   for (const oid of s.zones[p].hand) {
@@ -21079,6 +21128,7 @@ function descreveEfeito(e) {
     }
     case 'sacrifice_each': return 'cada jogador sacrifica uma permanente à sua escolha';
     case 'exilar_fichas_mesmo_nome': return 'exila as fichas de mesmo nome que esse jogador controla'; // M-258
+    case 'repartir_topo': return `olha as ${qtd(e.count)} cartas de cima e põe uma em cada destino, em ordem: ${(e.destinos || []).map(d => ({ hand: 'mão', 'library-bottom': 'fundo do grimório', 'library-top': 'topo do grimório', graveyard: 'cemitério', exile: 'exílio', 'exile-playable-turn': 'exílio (pode jogá-la neste turno)' })[d] || d).join(', ')}`; // M-267
     case 'embaralhar_do_cemiterio': return `embaralha até ${plural(n, 'carta', 'cartas')} do seu cemitério no grimório`; // M-265
     case 'revelar_topo_para_mao': return `revela a carta do topo e a põe na mão${e.perdeVidaPeloValor ? '; perde vida igual ao valor de mana dela' : ''}`; // M-263
     case 'topo_ou_fundo_do_dono': return `o dono de ${alvo || 'uma permanente'} a põe no topo ou no fundo do grimório, à escolha dele`; // M-264
@@ -22960,7 +23010,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
         : a.t === 'unmorph' ? doBtn(`Virar para cima · ${(f.script.morph || {}).mana || ''}`, a, { variant: 'primary' })
         : a.t === 'cast' && a.faceDown ? doBtn('Conjurar virada para baixo · {3}', a)
         : a.t === 'cast' && a.plotted ? doBtn('Conjurar sem pagar' + ((a.targets || []).length ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : ''), a, { variant: 'primary' })
-        : a.t === 'cast' ? doBtn(((a.alt != null && f.script && f.script.alt && f.script.alt[a.alt]) ? ((f.script.alt[a.alt].cost || {}).mana ? `Custo alternativo · ${f.script.alt[a.alt].label}` : `Conjurar sem pagar mana · ${f.script.alt[a.alt].label}`) : a.flashback ? `Lampejo do passado · ${custoDoLampejo(f.script.flashback)}` : a.retrace ? 'Retraçar · descartando um terreno' : Array.isArray(a.modes) ? a.modes.map(m => (f.script.modes[m] || {}).label || 'modo').join(' + ') : (f.script && f.script.modes && f.script.modes[a.mode || 0]) ? f.script.modes[a.mode || 0].label : a.permissao != null ? `Conjurar do cemitério (${(s.objects[a.permissao] || {}).name || 'permissão'})` : a.delve ? `Conjurar com delve (exila ${a.delve} do cemitério)` : (o.zone === 'command' ? `Conjurar da zona de comando (imposto ${E.commanderTax(s, v, oid)})` : a.evidence ? `Conjurar com provas ${(f.script || {}).evidence || ''}`.trim() : 'Conjurar')) + ((a.targets || []).length ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : '')
+        : a.t === 'cast' ? doBtn(((a.alt != null && f.script && f.script.alt && f.script.alt[a.alt]) ? ((f.script.alt[a.alt].cost || {}).mana ? `Custo alternativo · ${f.script.alt[a.alt].label}` : `Conjurar sem pagar mana · ${f.script.alt[a.alt].label}`) : a.flashback ? `Lampejo do passado · ${custoDoLampejo(f.script.flashback)}` : a.retrace ? 'Retraçar · descartando um terreno' : Array.isArray(a.modes) ? a.modes.map(m => (f.script.modes[m] || {}).label || 'modo').join(' + ') : (f.script && f.script.modes && f.script.modes[a.mode || 0]) ? f.script.modes[a.mode || 0].label : a.permissao != null ? `Conjurar do cemitério (${(s.objects[a.permissao] || {}).name || 'permissão'})` : a.delve ? `Conjurar com delve (exila ${a.delve} do cemitério)` : a.exilaMao ? `Conjurar exilando ${a.exilaMao} ${a.exilaMao > 1 ? 'cartas' : 'carta'} da mão` : (o.zone === 'command' ? `Conjurar da zona de comando (imposto ${E.commanderTax(s, v, oid)})` : a.evidence ? `Conjurar com provas ${(f.script || {}).evidence || ''}`.trim() : 'Conjurar')) + ((a.targets || []).length ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : '')
           // Leva 125 · lampejo e custo alternativo já dizem o que se paga: o custo impresso da carta não entra ("{2}{R} · {R}" confundia)
           + (a.kick ? (((f.script || {}).kicker || {}).replicar ? ` · replicar ×${a.kick}` : a.kick > 1 ? ` · reforço ×${a.kick}` : ' · com reforço') : '') // CR2c.1; M-265 · replicar
           + (a.vida != null ? (a.vida ? ` · pagando ${2 * a.vida} de vida` : ' · pagando com mana') : '') // CR2c.4 · phyrexiano
@@ -23369,7 +23419,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     } else if (s.pending && s.pending.kind === 'pick' && s.pending.p === v) {
       const pk = s.pending;
       const done = pk.picked.length >= pk.min;
-      const LABEL = { 'colher provas': 'Colher provas: exile do cemitério', desvirar: 'Escolha o que desvirar', delve: 'Delve: escolha o que exilar do cemitério', 'descartar ou sacrificar': 'Descartar ou sacrificar um terreno?', 'escolher o descarte': 'Escolha o descarte do oponente', 'devolver para a mão': 'Escolha o que volta para a mão', 'scry': 'Vidência: escolha o que fica no topo', 'surveil': 'Vigiar: escolha o que fica no topo', 'vasculhar': 'Vasculhar o grimório', 'olhar o topo': 'Olhar o topo do grimório', 'devolver ao topo': 'Devolver ao topo', 'embaralhar no grimório': 'Escolha do seu cemitério o que embaralhar no grimório' }; // M-265
+      const LABEL = { 'colher provas': 'Colher provas: exile do cemitério', desvirar: 'Escolha o que desvirar', delve: 'Delve: escolha o que exilar do cemitério', 'descartar ou sacrificar': 'Descartar ou sacrificar um terreno?', 'escolher o descarte': 'Escolha o descarte do oponente', 'devolver para a mão': 'Escolha o que volta para a mão', 'scry': 'Vidência: escolha o que fica no topo', 'surveil': 'Vigiar: escolha o que fica no topo', 'vasculhar': 'Vasculhar o grimório', 'olhar o topo': 'Olhar o topo do grimório', 'devolver ao topo': 'Devolver ao topo', 'embaralhar no grimório': 'Escolha do seu cemitério o que embaralhar no grimório', 'exilar da mão': 'Escolha as cartas da mão a exilar', 'repartir hand': 'Escolha a que vai para a mão', 'repartir library-bottom': 'Escolha a que vai para o fundo do grimório', 'repartir exile-playable-turn': 'Escolha a que vai para o exílio (pode jogar neste turno)' }; // M-265
       const REST = { 'library-bottom': 'vai para o fundo', 'graveyard': 'vai para o cemitério', 'stay': 'fica onde está', 'library-top': 'fica no topo' };
       // Leva 125 · o título diz de qual carta é a escolha; a contagem só aparece quando se escolhe mais de uma
       const tituloPk = LABEL[pk.label] || 'Escolha cartas';

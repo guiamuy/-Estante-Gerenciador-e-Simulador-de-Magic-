@@ -3269,6 +3269,14 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Daqui em diante:** toda leva do motor que mudar o status de um item atualiza o mapa na mesma leva.
 - **Próximo:** M-267 — March of Swirling Mist (custo adicional de exilar cartas azuis da mão, {2} a menos por carta) e Expressive Iteration.
 
+**M-267 · R11 · Custo adicional "exile cartas de uma cor da mão, {N} a menos cada" e "repartir o topo entre destinos"** ✅ (leva M-267, motor v96, sem mudança no que existe) — 4 testes de unidade e 1 headless.
+- **Regra (601.2b/601.2f):** chave `exilaDaMao: { cor, reduz }`: a mesa oferece conjurar exilando 1, 2… cartas da cor da mão, cada uma tirando {N} do genérico (nunca abaixo do custo colorido, e sem devolver mana); a quantidade vem na ação e as cartas, quem conjura escolhe logo depois. Verbo `repartir_topo { count, destinos }`: uma escolha por destino, em ordem; sobrando uma carta ela vai sozinha para o próximo; com menos cartas, os últimos destinos ficam sem carta (ruling). Destino novo "exílio, pode jogar neste turno" (a permissão acaba na limpeza; a carta fica exilada).
+- **Cartas cobertas (completas):** March of Swirling Mist (até X criaturas alvo saem de fase) e Expressive Iteration (texto oficial em `.listas/oficiais-commander.json`, 05/10/2026; segunda fonte, Oracle do Forge, 10/10/2026; rulings em mtg.wtf, 10/10/2026).
+- **Simplificação declarada:** exilar mais cartas do que o necessário para reduzir o custo (permitido pela regra, sem efeito) não é oferecido.
+- **Medição:** Malcolm + Kediss 94% → **96%** (completo 96 · parcial 4 · manual 0); Killian segue 96%.
+- **Mapa de regras:** nenhum item muda de status. **Golden:** idênticas, sem regravar. Versão não sobe (cartas sem script antes).
+- **Próximo:** M-268 — Windbrisk Heights (esconderijo, 702.75) e Path of Ancestry.
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
