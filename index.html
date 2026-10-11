@@ -1367,6 +1367,10 @@ body {
 .pt-linha__data { flex: none; font-size: var(--text-xs); color: var(--fg-muted); font-variant-numeric: tabular-nums; }
 /* I4 · fichas: linha da lista (miniatura ou ícone, nome, cores, estado) e grade de artes */
 .perfil-atalho { text-align: left; color: var(--fg); font: inherit; }
+/* P-14 · contas bloqueadas: nome ocupa o que sobra e quebra dentro; o botão tem caixa própria */
+.perfil-bloqueio { align-items: center; gap: var(--space-2); border-top: 1px solid var(--border); padding-top: var(--space-2); }
+.perfil-bloqueio__nome { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; font-size: var(--text-md); }
+.perfil-bloqueio .ds-btn { flex: 0 0 auto; }
 .ficha-linha { display: flex; align-items: center; gap: var(--space-3); width: 100%; min-height: calc(var(--tap-min) + var(--space-3)); text-align: left; }
 .ficha-catalogo__aviso { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); flex-wrap: wrap; padding: var(--space-2) var(--space-3); } /* G-242 */
 .ficha-linha__selo { flex: none; width: var(--tap-min); height: var(--tap-min); display: inline-flex; align-items: center; justify-content: center; overflow: hidden; border-radius: var(--radius-2); background: var(--bg-elev-2); border: 1px solid var(--border); color: var(--fg-muted); }
@@ -3029,6 +3033,7 @@ const ICONES = {
   cartaMais: '<path d="M15.5 11V5.3a1.8 1.8 0 0 0-1.8-1.8H6.3a1.8 1.8 0 0 0-1.8 1.8v11.9A1.8 1.8 0 0 0 6.3 19h4.2"/><path d="M17 14v6.5M13.75 17.25h6.5"/>',
   som: '<path d="M4.5 9.5h3l4.5-3.8v12.6l-4.5-3.8h-3z"/><path d="M15.5 9.2a4 4 0 0 1 0 5.6"/><path d="M18 6.7a7.5 7.5 0 0 1 0 10.6"/>', // G4 · som da partida ligado
   somMudo: '<path d="M4.5 9.5h3l4.5-3.8v12.6l-4.5-3.8h-3z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/>', // G4 · som desligado
+  bloquear: '<circle cx="12" cy="12" r="8.25"/><path d="M6.2 6.2l11.6 11.6"/>', // P-14 · bloquear uma conta na partida online
   vida: '<path d="M12 19.5s-7-4.4-7-9.7a3.9 3.9 0 0 1 7-2.3 3.9 3.9 0 0 1 7 2.3c0 5.3-7 9.7-7 9.7z"/>', // H4 · vida, no resumo do turno
   etiqueta: '<path d="M3.5 11.8V5.3a1.8 1.8 0 0 1 1.8-1.8h6.5a1.8 1.8 0 0 1 1.3.5l6.9 6.9a1.8 1.8 0 0 1 0 2.6l-6.5 6.5a1.8 1.8 0 0 1-2.6 0L4 13.1a1.8 1.8 0 0 1-.5-1.3z"/><circle cx="8.2" cy="8.2" r="1.3"/>', // G2 · etiquetas de cartas e listas
   cartaSai: '<path d="M15.5 10V5.3a1.8 1.8 0 0 0-1.8-1.8H6.3a1.8 1.8 0 0 0-1.8 1.8v11.9A1.8 1.8 0 0 0 6.3 19h5.2"/><path d="M17 20.5v-7"/><path d="M13.9 16.6 17 13.5l3.1 3.1"/>', // leva 160 · bloco Exportar da coleção: a carta que sai
@@ -8797,6 +8802,7 @@ const REGISTRO = [
   ['ui.apresentacao', 'preferencia', true], ['mesa.relatarY', 'preferencia', true], ['decks.reservaVista.v2', 'preferencia', true],
   ['decks.estatisticas', 'preferencia', true], ['lista.visao', 'preferencia', true], ['catalogo.visao', 'preferencia', true],
   ['catalogo.estatisticas', 'preferencia', true], ['cartas.rulings', 'preferencia', true],
+  ['online.bloqueios', 'conteudo', true], // P-14 · contas bloqueadas na partida online: vão no backup; fora do perfil sincronizado até as regras do banco aceitarem a chave (SEG8)
   // conteúdo com campo próprio no backup (perfil, decks, owned, ownedNames, items)
   ['perfil', 'conteudo', false], ['deck.', 'conteudo', false], ['collection.owned', 'conteudo', false],
   ['collection.names', 'conteudo', false], ['collection.items', 'conteudo', false],
@@ -9326,7 +9332,7 @@ function transporteFirebase({ url, fetch: fetchFn = null, EventSource: ES = null
     { criadaEm, estado: 'esperando' | 'pronta' | 'jogando' | 'encerrada', formato,
       anfitriao: { nome, avatar?, deck }, convidado: { nome, avatar?, deck } | null,
       setup (quando pronta), acoes: { <chave>: { antes, p, action, de } }, presenca: { 0: ms, 1: ms }, fim: { motivo } } */
-function createSala({ transporte, agora = () => Date.now(), aleatorio = Math.random, quem = () => null }) {
+function createSala({ transporte, agora = () => Date.now(), aleatorio = Math.random, quem = () => null, bloqueado = async () => false }) {
   const caminho = codigo => `${RAIZ}/${codigo}`;
   // P-8 · T6c-2b · com a conta da Estante, cada assento leva o uid de quem sentou: é ele que as regras do banco conferem
   // em cada jogada, mensagem e presença (database.rules.json). Sem conta (transporte local), nada muda.
@@ -9344,7 +9350,8 @@ function createSala({ transporte, agora = () => Date.now(), aleatorio = Math.ran
       }
       throw new Error('sem-codigo-livre');
     },
-    /** Convidado: entra com a própria lista. Erros: sala-inexistente, sala-cheia, sala-velha, formato-diferente. */
+    /** Convidado: entra com a própria lista. Erros: sala-inexistente, sala-cheia, sala-velha, formato-diferente,
+        sala-bloqueada (P-14: quem criou a sala está na sua lista de bloqueados; nada é escrito na sala). */
     async entrar(codigoDigitado, { nome, avatar = null, deck, formato }) {
       const codigo = normalizaCodigo(codigoDigitado); if (!codigo) throw new Error('codigo-invalido');
       const sala = await transporte.ler(caminho(codigo));
@@ -9352,6 +9359,8 @@ function createSala({ transporte, agora = () => Date.now(), aleatorio = Math.ran
       if (agora() - (sala.criadaEm || 0) > VALIDADE_MS || sala.estado === 'encerrada') throw new Error('sala-velha');
       if (sala.convidado) throw new Error('sala-cheia');
       if (sala.formato && formato && sala.formato !== formato) throw new Error('formato-diferente');
+      let barrado = false; try { barrado = !!(sala.anfitriao && sala.anfitriao.uid) && (await bloqueado(sala.anfitriao.uid)) === true; } catch (e) { barrado = false; }
+      if (barrado) throw new Error('sala-bloqueada');
       await transporte.atualizar(caminho(codigo), { convidado: comUid({ nome, avatar, deck }), estado: 'pronta', presenca: { ...(sala.presenca || {}), 1: agora() } });
       return codigo;
     },
@@ -9392,6 +9401,22 @@ function visiveisDaConversa(mensagens, silenciado) {
   if (!silenciado) return { lista: mensagens, escondidas: 0 };
   const lista = mensagens.filter(m => m.minha); return { lista, escondidas: mensagens.length - lista.length };
 }
+/* ---------- P-14 · SEG8 · contas bloqueadas (lista guardada em `online.bloqueios`: vai no backup; ainda não sincroniza entre
+   aparelhos — as regras do banco recusariam a chave e, num PATCH só, levariam as outras preferências junto). Quem está na lista não entra nas suas salas e você não entra nas dele. Só vale com a conta da Estante:
+   sem ela não há identidade de conta na sala. ---------- */
+const BLOQUEIOS_KEY = 'online.bloqueios', BLOQUEIOS_MAX = 200;
+const uidValido = u => typeof u === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(u);
+/** Lista guardada → lista limpa: só itens com uid válido, sem repetição, no máximo BLOQUEIOS_MAX (os mais novos ficam). */
+function bloqueiosDe(v) {
+  const vistos = new Set(), out = [];
+  for (const b of Array.isArray(v) ? v : []) { if (!b || !uidValido(b.uid) || vistos.has(b.uid)) continue; vistos.add(b.uid); out.push({ uid: b.uid, nome: limpaMensagem(b.nome).slice(0, 40) || 'Jogador', em: Number(b.em) || 0 }); }
+  return out.slice(-BLOQUEIOS_MAX);
+}
+function estaBloqueado(lista, uid) { return uidValido(uid) && bloqueiosDe(lista).some(b => b.uid === uid); }
+function bloquear(lista, { uid, nome, em = 0 }) { if (!uidValido(uid)) return bloqueiosDe(lista); return bloqueiosDe([...bloqueiosDe(lista).filter(b => b.uid !== uid), { uid, nome, em }]); }
+function desbloquear(lista, uid) { return bloqueiosDe(lista).filter(b => b.uid !== uid); }
+/** Quem está do outro lado da sala para quem senta em `assento`: { uid, nome } (uid null quando a sala não tem conta). */
+function outroDaSala(sala, assento) { const o = sala && (assento === 0 ? sala.convidado : sala.anfitriao); return o ? { uid: uidValido(o.uid) ? o.uid : null, nome: limpaMensagem(o.nome) || 'Jogador' } : null; }
 
 /* ---------- sincronizador: liga uma mesa local à lista de ações da sala ---------- */
 /** `criaMesa(setup)` monta a mesa (createTable sem bot, sem desfazer). `assento` é quem joga neste aparelho.
@@ -9492,7 +9517,7 @@ function mesaOnline(sinc, online) {
   return api;
 }
 
-return { gerarCodigo, normalizaCodigo, transporteMemoria, transporteLocal, transporteFirebase, createSala, criaSincronizador, mesaOnline, limpaMensagem, mensagensDe, naoLidas, visiveisDaConversa, MENSAGEM_MAX, FRASES, ALFABETO, PREFIXO, RAIZ, VALIDADE_MS };
+return { gerarCodigo, normalizaCodigo, transporteMemoria, transporteLocal, transporteFirebase, createSala, criaSincronizador, mesaOnline, limpaMensagem, mensagensDe, naoLidas, visiveisDaConversa, BLOQUEIOS_KEY, BLOQUEIOS_MAX, bloqueiosDe, estaBloqueado, bloquear, desbloquear, outroDaSala, MENSAGEM_MAX, FRASES, ALFABETO, PREFIXO, RAIZ, VALIDADE_MS };
 })();
 
 const __m27 = (function () {
@@ -12149,7 +12174,7 @@ function createDecksHome({ decks, collection, files, cardRepo, backup = null, et
 
 /* ---------------- Leva 128 · /perfil ---------------- */
 /** Nome e foto de quem usa o aparelho, e o backup completo. Tudo local; a foto é reduzida aqui mesmo antes de guardar. */
-function createPerfilScreen({ perfil, backup, conta = null, haptics = null, theme = null, apresentacao = null, dados = null, som = null, fichas = null, partidas = null, terrenos = null, relatos = null, apagar = null, nuvemConectada = () => false }) {
+function createPerfilScreen({ perfil, backup, conta = null, haptics = null, theme = null, apresentacao = null, dados = null, som = null, fichas = null, partidas = null, terrenos = null, relatos = null, apagar = null, nuvemConectada = () => false, bloqueios = null }) {
   const root = Stack(pad(), __m3.Carregando('Abrindo…', { tamanho: 'tela' }));
   const st = { salvo: null, nome: '', avatar: null, erro: null, ocupado: false, conta: null, contaOcupada: false };
   const mudou = () => !!st.salvo && (st.nome !== st.salvo.nome || st.avatar !== st.salvo.avatar);
@@ -12459,6 +12484,7 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
       h('button', { class: 'ds-surface ds-expansivel__cabeca perfil-atalho', type: 'button', id: 'perfil-saida', onClick: () => go('/perfil/saida') },
         h('span', { class: 'ds-expansivel__selo' }, Icone('proteger', { tamanho: 20 })), h('span', { class: 'ds-expansivel__titulo' }, 'O que sai do aparelho'),
         h('span', { class: 'ds-expansivel__resumo' }, 'Serviços, o que vai e quando'), Icone('seguir', { tamanho: 20 })),
+      secaoBloqueios(),
       // P-10 · SEG6 · apagar tudo deste aparelho: confirmação com o backup à mão; só recarrega depois de conferir que nada sobrou
       apagar ? Surface({ class: 'ds-surface--pad', id: 'perfil-apagar' }, Stack({},
         Text('Apagar tudo deste aparelho', { size: 'sm', as: 'h2', display: true }),
@@ -12467,7 +12493,23 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
       // D4b · a apresentação de primeira abertura pode ser revista daqui
       apresentacao ? Row({ style: { justifyContent: 'center' } }, Button('Rever apresentação', { variant: 'ghost', icone: 'seguir', id: 'perfil-apresentacao', onClick: apresentacao })) : null);
   }
+  /** P-14 · SEG8 · contas bloqueadas na partida online: aparece só quando há alguma; Desbloquear devolve a conta às salas. */
+  function secaoBloqueios() {
+    const l = st.bloqueios || []; if (!bloqueios || !l.length) return null;
+    return Surface({ class: 'ds-surface--pad', id: 'perfil-bloqueios' }, Stack({},
+      Text('Contas bloqueadas', { size: 'sm', as: 'h2', display: true }),
+      Text('Não entram nas suas salas e você não entra nas delas. Vale neste aparelho e vai junto no backup.', { size: 'sm', tone: 'muted' }),
+      ...l.map(b => Row({ class: 'perfil-bloqueio', dataset: { uid: b.uid } },
+        h('span', { class: 'perfil-bloqueio__nome' }, b.nome),
+        Button('Desbloquear', { variant: 'ghost', icone: 'desfazer', title: 'Desbloquear ' + b.nome, onClick: async e => {
+          e.currentTarget.disabled = true;
+          try { st.bloqueios = await bloqueios.desbloquear(b.uid); toast(b.nome + ' desbloqueado'); }
+          catch (err) { toast('Não consegui desbloquear. Tente de novo.', 3000); }
+          paint();
+        } })))));
+  }
   async function carrega() {
+    if (bloqueios) { try { st.bloqueios = await bloqueios.lista(); } catch (e) { st.bloqueios = []; } }
     try { st.salvo = await perfil.get(); st.nome = st.salvo.nome; st.avatar = st.salvo.avatar; st.erro = null; }
     catch (e) { st.erro = e; }
     if (conta) { try { if (conta.pronta) await conta.pronta; /* P-9 */ st.conta = await conta.get(); } catch (e) { st.conta = null; } }
@@ -23584,7 +23626,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
       : state.opponent === 'online' ? painelOnline() : null);
     /* ---- Leva 133 · partida online: criar sala ou entrar com código; a sala monta a mesa nos dois aparelhos ---- */
     const on = { modo: 'criar', codigo: null, digitado: '', esperando: false, erro: null, parar: null, publiquei: false };
-    const ERROS_SALA = { 'codigo-invalido': 'Código incompleto: são 4 letras ou números depois de ESTA-.', 'sala-inexistente': 'Não há sala com esse código.', 'sala-cheia': 'Essa sala já tem dois jogadores.', 'sala-velha': 'Essa sala já acabou.', 'formato-diferente': 'A sala é de outro formato.', 'sem-codigo-livre': 'Não consegui sortear um código. Tente de novo.' };
+    const ERROS_SALA = { 'codigo-invalido': 'Código incompleto: são 4 letras ou números depois de ESTA-.', 'sala-inexistente': 'Não há sala com esse código.', 'sala-cheia': 'Essa sala já tem dois jogadores.', 'sala-velha': 'Essa sala já acabou.', 'formato-diferente': 'A sala é de outro formato.', 'sala-bloqueada': 'Você bloqueou quem criou essa sala. Para jogar com essa conta, desbloqueie em Perfil › Dados.', 'sem-codigo-livre': 'Não consegui sortear um código. Tente de novo.' };
     const meuNome = (papel = 'criar') => state.meuNome || (state.me.trim() && state.me.trim() !== 'Você' ? state.me.trim() : '') || (papel === 'criar' ? 'Jogador 1' : 'Jogador 2');
     const cobertaOnline = () => DEV || state.coverage === 100; // online é motor completo: a lista precisa jogar sozinha
     async function cartasDe(entries) {
@@ -23615,6 +23657,12 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
           if (d.sala.estado === 'encerrada') { on.erro = 'O outro jogador saiu da sala.'; on.esperando = false; on.codigo = null; if (on.parar) { on.parar(); on.parar = null; } return paintOpponent(); }
           if (d.sala.convidado && !on.publiquei) {
             on.publiquei = true;
+            // P-14 · SEG8 · conta que você bloqueou: a sala fecha antes de montar a mesa (do outro lado aparece "O anfitrião fechou a sala")
+            if (d.sala.convidado.uid && await online.bloqueios.tem(d.sala.convidado.uid)) {
+              try { await online.sala.encerrar(on.codigo, 'bloqueio'); } catch (e) { /* sala já foi */ }
+              if (on.parar) { on.parar(); on.parar = null; }
+              on.erro = 'Uma conta que você bloqueou tentou entrar e a sala foi fechada. Crie outra para jogar.'; on.esperando = false; on.codigo = null; on.publiquei = false; return paintOpponent();
+            }
             try {
               const theirs = { entries: d.sala.convidado.deck, format: mine.format, name: 'Lista de ' + d.sala.convidado.nome };
               const cards = await cartasDe([...mine.entries, ...theirs.entries]);
@@ -23908,13 +23956,30 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       onClick: () => { const novo = !silenciado(); try { if (novo) sessionStorage.setItem(chaveSilencio(), '1'); else sessionStorage.removeItem(chaveSilencio()); } catch (e) { /* sem sessão: não guarda */ }
         b.replaceWith(botaoSilencio()); pintaChat(); } });
       b.setAttribute('aria-pressed', String(sil)); return b; };
-    const corpo = Stack({ class: 'tb-chat' }, Row({ class: 'tb-chat__topo' }, botaoSilencio()), lista,
+    // P-14 · SEG8 · Bloquear: só com a conta da Estante dos dois lados (a sala leva o uid de quem sentou)
+    const outro = (() => { try { return __m30.outroDaSala(sinc.sala(), table.online.assento); } catch (e) { return null; } })();
+    const botaoBloquear = outro && outro.uid && chat.bloqueou !== outro.uid ? Button('Bloquear', { variant: 'ghost', icone: 'bloquear', id: 'tb-chat-bloquear',
+      title: 'Bloquear esta conta: vocês não entram mais nas salas um do outro', onClick: () => confirmaBloqueio(outro) }) : null;
+    const corpo = Stack({ class: 'tb-chat' }, Row({ class: 'tb-chat__topo' }, botaoSilencio(), botaoBloquear), lista,
       Row({ class: 'ds-row--wrap tb-chat__frases' }, ...__m30.FRASES.map(f => Chip(f, { dataset: { frase: f }, onClick: () => enviarMensagem(f) }))),
       Row({ class: 'tb-chat__linha' }, campo, IconButton('seguir', 'Enviar', { id: 'tb-chat-enviar', variant: 'primary', onClick: manda })));
     chat.aberto = Dialog({ title: 'Conversa', body: corpo });
     pintaChat();
     // fechar devolve o estado e repinta o selo
     const vigia = setInterval(() => { if (!chat.aberto || !chat.aberto.isConnected) { clearInterval(vigia); chat.aberto = null; pintaChat(); } }, 300);
+  }
+  /** P-14 · SEG8 · confirma o bloqueio: guarda a conta na lista, silencia a conversa desta sala e diz como sair da partida. */
+  function confirmaBloqueio(outro) {
+    const confirmar = Button('Bloquear', { variant: 'danger', icone: 'bloquear', id: 'tb-bloquear-confirmar', onClick: async () => {
+      confirmar.disabled = true;
+      try { await online.bloqueios.bloquear({ uid: outro.uid, nome: outro.nome }); }
+      catch (e) { confirmar.disabled = false; toast('Não consegui guardar o bloqueio. Tente de novo.', 3000); return; }
+      try { sessionStorage.setItem(chaveSilencio(), '1'); } catch (e) { /* sem sessão: só o bloqueio vale */ }
+      chat.bloqueou = outro.uid; closeDialog(); pintaChat(); toast(`${outro.nome} bloqueado. Para sair da partida, use Desistir.`, 3600);
+    } });
+    Dialog({ title: `Bloquear ${outro.nome}?`, body: Stack({}, Text('Vocês não entram mais nas salas um do outro enquanto este aparelho guardar o bloqueio. A conversa desta partida fica em silêncio.', { size: 'sm' }),
+      Text('A partida continua até alguém desistir. Para desfazer, Perfil › Dados › Contas bloqueadas.', { size: 'sm', tone: 'muted' })),
+      actions: [Button('Cancelar', { id: 'tb-bloquear-cancelar', onClick: closeDialog }), confirmar] });
   }
   // U6 · mão recolhida: preferência guardada no aparelho, vale para as próximas partidas também
   // U7 · faixa de quem joga: anima só quando o turno troca.
@@ -27675,8 +27740,13 @@ const online = (() => {
   const token = () => { const c = contaJa(); return c && c.sessao && c.sessao.ativa() ? c.sessao.token() : null; };
   const transporte = urlFirebase ? __m30.transporteFirebase({ url: urlFirebase, token })
     : temStorage ? __m30.transporteLocal({ storage: localStorage, canal }) : __m30.transporteMemoria();
-  const sala = __m30.createSala({ transporte, quem: () => { const c = contaJa(); return urlFirebase && c && c.sessao ? c.sessao.uid() : null; } });
-  return { transporte, sala, modo: urlFirebase ? 'firebase' : 'local', descricao: urlFirebase ? 'dois aparelhos, pela internet' : 'duas abas deste aparelho',
+  // P-14 · SEG8 · a lista de contas bloqueadas mora no store do aparelho (vai no backup)
+  const bloqueios = { async lista() { try { return __m30.bloqueiosDe(await platform.store.get(__m30.BLOQUEIOS_KEY)); } catch (e) { return []; } },
+    async tem(uid) { return __m30.estaBloqueado(await this.lista(), uid); },
+    async bloquear(o) { const l = __m30.bloquear(await this.lista(), { ...o, em: Date.now() }); await platform.store.set(__m30.BLOQUEIOS_KEY, l); return l; },
+    async desbloquear(uid) { const l = __m30.desbloquear(await this.lista(), uid); if (l.length) await platform.store.set(__m30.BLOQUEIOS_KEY, l); else await platform.store.remove(__m30.BLOQUEIOS_KEY); return l; } };
+  const sala = __m30.createSala({ transporte, quem: () => { const c = contaJa(); return urlFirebase && c && c.sessao ? c.sessao.uid() : null; }, bloqueado: uid => bloqueios.tem(uid) });
+  return { transporte, sala, bloqueios, modo: urlFirebase ? 'firebase' : 'local', descricao: urlFirebase ? 'dois aparelhos, pela internet' : 'duas abas deste aparelho',
     /** P-8 · a sala na internet pede a conta da Estante (as regras do banco exigem); sem chave configurada, como antes. */
     precisaConta() { const c = contaJa(); return !!urlFirebase && !!c && c.estante().estado !== 'desligada'; },
     contaPronta() { const c = contaJa(); return !!c && c.estante().estado === 'conectada'; },
@@ -27775,7 +27845,7 @@ const ROUTES = [
     // Y3 · abrir a partida anexada: entra no lugar da salva (sem a parte online) e a série em curso sai
     partidas: { temSalva: async () => { try { const d = await platform.store.get(__m18.SAVE_KEY); return !!(d && d.kind === 'estante.match'); } catch (e) { return false; } },
       abre: async p => { const { online: _fora, ...opcoes } = p.options || {}; await platform.store.set(__m18.SAVE_KEY, { ...p, options: opcoes, savedAt: Date.now() }); await platform.store.remove(__m18.SERIE_KEY).catch(() => {}); location.hash = '#/partida'; } } }) }, // Y1 · Y3
-  { path: '/perfil', title: 'Perfil', render: () => createPerfilScreen({ perfil, backup, conta, nuvemConectada: () => { try { return online.modo === 'firebase' && conta.estante().estado === 'conectada' && !!conta.sessao.uid(); } catch (e) { return false; } },
+  { path: '/perfil', title: 'Perfil', render: () => createPerfilScreen({ perfil, backup, conta, bloqueios: online.bloqueios, nuvemConectada: () => { try { return online.modo === 'firebase' && conta.estante().estado === 'conectada' && !!conta.sessao.uid(); } catch (e) { return false; } },
     apagar: (o = {}) => __m41.apagaTudoComNuvem({ nuvem: o.nuvem ? async () => { // P-13 · nuvem primeiro, com a conta ainda conectada; falhou: a sincronia volta
       try { sincronia.para(); } catch (e) { /* sem sincronia */ }
       let ok = false; try { const uid = conta.sessao.uid(); ok = !!uid && await __m40.createPerfilRemoto({ transporte: online.transporte, uid }).apagarTudo(); } catch (e) { ok = false; }

@@ -5136,6 +5136,91 @@ test('e2e · P-13 Apagar também da nuvem: com a conta conectada a confirmação
   assert.deepEqual(errors.filter(e => !/status of 500/.test(e)), [], 'só a recusa que o teste provocou');
 });
 
+test('e2e · P-14 Bloquear uma conta: na Conversa da partida online, Bloquear guarda a conta e silencia; não se entra na sala de quem se bloqueou e a sala fecha quando ele tenta entrar na sua; Perfil › Dados lista e desbloqueia', { skip }, async t => {
+  const { page, errors, base } = await open(t, { dev: false });
+  await page.setViewportSize({ width: 360, height: 780 });
+  // banco falso (o teste faz o papel do outro jogador escrevendo direto nele); o EventSource sonda o nó por GET
+  const banco = {}; const chamadas = []; let n = 0;
+  const desce = seg => seg.reduce((o, k) => (o && typeof o === 'object' ? o[k] : undefined), banco);
+  const poe = (seg, v) => { let o = banco; for (const k of seg.slice(0, -1)) o = o[k] = o[k] && typeof o[k] === 'object' ? o[k] : {}; if (v === null) delete o[seg.at(-1)]; else o[seg.at(-1)] = v; };
+  await page.route('https://teste.firebaseio.com/**', async r => {
+    const u = new URL(r.request().url()), seg = u.pathname.replace(/\.json$/, '').split('/').filter(Boolean), metodo = r.request().method();
+    chamadas.push(metodo + ' /' + seg.join('/'));
+    const corpo = r.request().postData() ? JSON.parse(r.request().postData()) : null;
+    if (metodo === 'PUT') poe(seg, corpo);
+    if (metodo === 'PATCH') for (const [k, v] of Object.entries(corpo)) poe([...seg, ...k.split('/')], v);
+    if (metodo === 'POST') { const chave = '-N' + String(++n).padStart(6, '0'); poe([...seg, chave], corpo); return r.fulfill({ json: { name: chave } }); }
+    if (metodo === 'DELETE') poe(seg, null);
+    return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(metodo === 'GET' ? (desce(seg) ?? null) : corpo) });
+  });
+  await page.route('https://www.googleapis.com/**', r => r.request().url().includes('/oauth2/v3/userinfo') ? r.fulfill({ json: { name: 'Gui', email: 'gui@example.com' } }) : r.fulfill({ status: 404, json: {} }));
+  await page.addInitScript(() => {
+    window.__FIREBASE_DB_URL = 'https://teste.firebaseio.com'; window.__MTG_TEST = true;
+    window.__GOOGLE_CLIENT_ID = 'e2e.apps.googleusercontent.com'; window.__FIREBASE_API_KEY = 'chave-e2e';
+    window.__FIREBASE_FETCH = async url => new Response(JSON.stringify(url.includes('securetoken') ? { id_token: 'id-e2e', refresh_token: 'ref-e2e', expires_in: '3600', user_id: 'uidE2E' } : { localId: 'uidE2E', idToken: 'id-e2e', refreshToken: 'ref-e2e', expiresIn: '3600' }), { headers: { 'content-type': 'application/json' } });
+    window.__GOOGLE_FALSO = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+    window.EventSource = class {
+      constructor(url) { this.url = url; this.ouv = {}; this.ultimo = undefined; this.timer = setInterval(() => this.sonda(), 250); setTimeout(() => this.sonda(), 0); }
+      addEventListener(tp, f) { (this.ouv[tp] = this.ouv[tp] || []).push(f); }
+      async sonda() { try { const r = await fetch(this.url); const txt = await r.text(); if (txt !== this.ultimo) { this.ultimo = txt; (this.ouv.open || []).forEach(f => f({})); (this.ouv.put || []).forEach(f => f({ data: JSON.stringify({ path: '/', data: JSON.parse(txt || 'null') }) })); } } catch (e) { (this.ouv.error || []).forEach(f => f({})); } }
+      close() { clearInterval(this.timer); }
+    };
+  });
+  await createDeck(page, base, 'Coberta', '30 Island\n30 Counterspell', 'livre');
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#conta-entrar:not([disabled])');
+  await page.click('#conta-entrar'); await page.waitForSelector('#conta-estante[data-estado="conectada"]');
+  const guardado = () => page.evaluate(() => new Promise(r => { const q = indexedDB.open('mtg'); q.onsuccess = () => { const g = q.result.transaction('kv').objectStore('kv').get('online.bloqueios'); g.onsuccess = () => r(g.result === undefined ? null : g.result); }; }));
+  const deck = [{ name: 'Island', qty: 30 }, { name: 'Counterspell', qty: 30 }];
+  const abreOnline = async () => { await page.goto(base + '#/mesa'); await page.waitForSelector('[data-opponent="online"]'); await page.click('[data-opponent="online"]'); };
+  // 1 · Perfil sem bloqueios: a seção não aparece
+  assert.equal(await page.locator('#perfil-bloqueios').count(), 0, 'sem conta bloqueada, sem seção');
+  // 2 · partida com Beto (conta uidBeto): na Conversa, Bloquear (44 px) → confirmação → guardado e conversa em silêncio
+  await abreOnline(); await page.waitForFunction(() => document.querySelector('#online-criar') && !document.querySelector('#online-criar').disabled, null, { timeout: 10000 });
+  await page.click('#online-criar'); await page.waitForSelector('#online-codigo');
+  let codigo = (await page.innerText('#online-codigo')).trim();
+  assert.equal(desce(['salas', codigo, 'anfitriao', 'uid']), 'uidE2E');
+  poe(['salas', codigo, 'convidado'], { nome: 'Beto', uid: 'uidBeto', deck }); poe(['salas', codigo, 'estado'], 'pronta');
+  await page.waitForSelector('#tb-chat', { timeout: 25000 });
+  await page.click('#tb-chat'); await page.waitForSelector('#tb-chat-bloquear');
+  await page.waitForTimeout(350); assert.ok((await page.locator('#tb-chat-bloquear').boundingBox()).height >= 44);
+  await auditaTela(page, 'conversa · Silenciar e Bloquear');
+  await page.click('#tb-chat-bloquear'); await page.waitForSelector('#tb-bloquear-confirmar');
+  assert.match(await page.innerText('.ds-dialog'), /Bloquear Beto\?[\s\S]*não entram mais nas salas/);
+  await page.waitForTimeout(350); await auditaTela(page, 'confirmação de bloquear');
+  await page.click('#tb-bloquear-confirmar'); await page.waitForFunction(() => !document.querySelector('#tb-bloquear-confirmar'));
+  assert.equal(JSON.stringify((await guardado()).map(b => [b.uid, b.nome])), JSON.stringify([['uidBeto', 'Beto']]));
+  await page.click('#tb-chat'); await page.waitForSelector('#tb-chat-silenciar');
+  assert.equal(await page.getAttribute('#tb-chat-silenciar', 'aria-pressed'), 'true', 'a conversa ficou em silêncio');
+  assert.equal(await page.locator('#tb-chat-bloquear').count(), 0, 'já bloqueado: o botão sai');
+  await page.keyboard.press('Escape');
+  // 3 · entrar na sala que Beto criou: recusado, nada escrito na sala
+  poe(['salas', 'ESTA-BTKX'], { criadaEm: Date.now(), estado: 'esperando', formato: 'livre', melhorDe: 1, anfitriao: { nome: 'Beto', uid: 'uidBeto', deck }, convidado: null, acoes: {}, presenca: { 0: Date.now() } });
+  const antes = chamadas.length;
+  await page.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+  await page.evaluate(() => new Promise(r => { const q = indexedDB.open('mtg'); q.onsuccess = () => { const tx = q.result.transaction('kv', 'readwrite'); tx.objectStore('kv').delete('match.current'); tx.oncomplete = r; }; }));
+  await abreOnline(); await page.click('[data-online-modo="entrar"]'); await page.waitForSelector('#online-codigo-input');
+  await page.fill('#online-codigo-input', 'ESTA-BTKX'); await page.waitForFunction(() => !document.querySelector('#online-entrar').disabled, null, { timeout: 10000 }); await page.click('#online-entrar');
+  await page.waitForSelector('.ds-note--negative'); assert.match(await page.innerText('.ds-note--negative'), /Você bloqueou quem criou essa sala/);
+  assert.equal(desce(['salas', 'ESTA-BTKX', 'convidado']) ?? null, null, 'ninguém entrou');
+  assert.ok(!chamadas.slice(antes).some(c => /^(PUT|PATCH|POST) \/salas\/ESTA-BTKX/.test(c)), 'nada escrito na sala: ' + chamadas.slice(antes));
+  // 4 · Beto tenta entrar numa sala nova: ela fecha antes de montar a mesa, e o app diz por quê
+  await page.click('[data-online-modo="criar"]'); await page.waitForFunction(() => document.querySelector('#online-criar') && !document.querySelector('#online-criar').disabled, null, { timeout: 10000 });
+  await page.click('#online-criar'); await page.waitForSelector('#online-codigo'); codigo = (await page.innerText('#online-codigo')).trim();
+  poe(['salas', codigo, 'convidado'], { nome: 'Beto', uid: 'uidBeto', deck }); poe(['salas', codigo, 'estado'], 'pronta');
+  await page.waitForFunction(() => /Uma conta que você bloqueou tentou entrar/.test(document.body.innerText), null, { timeout: 10000 });
+  assert.equal(desce(['salas', codigo, 'estado']), 'encerrada'); assert.equal(desce(['salas', codigo, 'fim', 'motivo']), 'bloqueio');
+  assert.equal(desce(['salas', codigo, 'setup']) ?? null, null, 'a mesa não foi montada');
+  // 5 · Perfil › Dados lista Beto; Desbloquear devolve a conta e a seção some
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-bloqueios');
+  assert.match(await page.innerText('#perfil-bloqueios'), /Contas bloqueadas[\s\S]*Beto/);
+  await page.locator('#perfil-bloqueios').scrollIntoViewIfNeeded();
+  assert.ok((await page.locator('#perfil-bloqueios .ds-btn').boundingBox()).height >= 44);
+  await auditaTela(page, 'perfil · contas bloqueadas');
+  await page.click('#perfil-bloqueios .ds-btn'); await page.waitForFunction(() => !document.querySelector('#perfil-bloqueios'));
+  assert.equal(await guardado(), null, 'lista vazia sai do armazenamento');
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · P-11 Apagar tudo com a conta conectada: sai da conta neste aparelho e nada vai para a nuvem — o perfil guardado no banco fica igual, nenhuma escrita depois de Apagar tudo, e o app volta desconectado', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.setViewportSize({ width: 360, height: 780 });

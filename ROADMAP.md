@@ -519,6 +519,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-dx ✅ | Apagar tudo com a conta no ar: sai da conta e para a sincronia antes, para nada apagado subir para a nuvem (leva P-11) | SEG | ½ | — |
 | 16º-dy ✅ | SEG7 silenciar a conversa da partida online: sem selo, aviso nem mensagens do outro; Ouvir sem enxurrada (leva P-12) | SEG | 1 | — |
 | 16º-dz ✅ | SEG6b apagar também da nuvem: com a conta no ar, opção na confirmação que tira perfil e foto da conta da Estante antes de apagar o aparelho; se a nuvem não confirmar, nada é apagado (leva P-13) | SEG | 1 | — |
+| 16º-ea ✅ | SEG8 bloquear uma conta na partida online: na Conversa, Bloquear guarda a conta e silencia; quem você bloqueou não entra nas suas salas e você não entra nas dele; Perfil › Dados lista e desbloqueia; vale no aparelho e no backup (leva P-14) | SEG | 1 | — |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -8035,6 +8036,38 @@ segredo do repositório. O `main` não recebe commit do coletor.
 - **Resíduo declarado:** **bloquear** a pessoa (recusar que a mesma conta entre nas suas salas) e **denunciar** ficam para
   uma próxima leva — bloquear precisa da identidade da conta na sala (P-8) e de uma lista guardada; denunciar precisa de
   alguém do outro lado para receber. Sair da partida continua sendo o jeito de encerrar o contato.
+
+**SEG8 · Bloquear uma conta na partida online** ✅ (leva P-14, 11/10/2026)
+- **Valor:** quem foi incomodado por alguém na partida pela internet bloqueia aquela conta uma vez e não cruza mais com
+  ela: ela não entra nas suas salas e você não entra nas dela.
+- **Ameaça e camada:** a mesma pessoa voltando a entrar nas suas salas (o código circula) ou chamando você para a dela;
+  camada: aparelho, pela identidade da conta que a sala já leva (P-8: `anfitriao.uid` e `convidado.uid`).
+- **Entregue:** na folha **Conversa**, ao lado de Silenciar, botão **Bloquear** (fantasma, ícone novo `bloquear`, 44 px),
+  só quando o outro lado tem conta (sala pela internet). A confirmação diz o que acontece; **Bloquear** guarda a conta
+  na lista, deixa a conversa em silêncio e lembra que sair é por Desistir (a partida não é encerrada à força: o motor
+  e a série seguem iguais). **Ao entrar** na sala de quem você bloqueou: recusa antes de escrever qualquer coisa na sala,
+  com "Você bloqueou quem criou essa sala…". **Na sua sala**: se a conta bloqueada entrar, a sala fecha antes de montar a
+  mesa (do lado dela aparece "O anfitrião fechou a sala", sem dizer que foi bloqueio) e você vê "Uma conta que você
+  bloqueou tentou entrar…". **Perfil › Dados › Contas bloqueadas** (só aparece com alguém na lista): nome e
+  **Desbloquear** (44 px). A lista é a chave `online.bloqueios`, classe **conteúdo** (A-261): vai no backup completo;
+  no máximo 200, limpa ao ler (uid de conta válido, sem repetição, nome cortado em 40). **Não sincroniza entre aparelhos
+  ainda**, de propósito: o perfil sobe as preferências mudadas num PATCH só e o Firebase recusa o PATCH inteiro quando
+  uma chave não passa na regra — como preferência, um bloqueio feito antes de o dono publicar as regras novas pararia a
+  sincronia de todas as outras (o portão pegou pelo contrato da P-4).
+- **Testes:** U `seguranca.bloqueio.unit` (4: lista limpa, sem repetir, teto com os mais novos, uid inválido fora; quem
+  está do outro lado; entrar na sala de quem foi bloqueado é recusado sem escrever na sala e lista ilegível não impede de
+  jogar; a chave vai no backup e fica fora do documento sincronizado, e a lista cheia cabe no teto de 64 KB — os quatro
+  falhavam antes: nada disso existia); e2e "P-14" (uma aba
+  com conta e banco falso, o teste faz o papel do outro: Bloquear 44 px na Conversa, confirmação, guardado e conversa em
+  silêncio, botão some; entrar na sala do bloqueado recusado sem escrita; sala nova fecha com motivo `bloqueio` sem mesa;
+  Perfil lista e desbloqueia, a chave sai do armazenamento; `auditaTela` nas três telas).
+- **Resíduo declarado:** o bloqueio é do **aparelho**, não do banco: um app alterado consegue entrar na sala de quem o
+  bloqueou até o anfitrião fechá-la (a recusa de verdade precisaria de regra no `database.rules.json` lendo a lista de
+  quem criou a sala — pedido para a conversa do Firebase, P-4); quem não usa conta (duas abas no mesmo aparelho) não
+  tem bloqueio; a lista **vale só no aparelho** onde o bloqueio foi feito (e em quem restaurar o backup); **denunciar**
+  continua fora (não há quem receba). Próximo passo, uma leva: `online:bloqueios` na regra do banco + o dono publica as
+  regras no console + a chave passa a preferência (sincroniza).
+- **Fora:** bloquear pelo nome (nome não é identidade); bloquear quem ainda não jogou com você.
 
 ### P · Plataforma
 
