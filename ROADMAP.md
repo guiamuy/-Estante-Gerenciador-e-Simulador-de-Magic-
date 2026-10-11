@@ -512,6 +512,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-p4 ✅ | T6c-1 regras do banco no repositório (`database.rules.json`) com teste: perfil e fila só do dono, sala só com conta e só acrescentando, resto negado; código real do app roda sob as regras (leva P-4) | T | 1 | colar as regras no console (dono) |
 | 16º-p7 ✅ | T6c-2a entrar com Google abre a conta da Estante: Client ID e chave do projeto no app, troca do token do Google pela sessão do Firebase sem SDK, renovação, tokens só na memória, linha no Perfil com Conectar (leva P-7) | T | 1 | API do Drive ativada e origem no cliente Web (dono) |
 | 16º-p8 ✅ | T6c-2b partida online pela internet: banco ligado, token da conta em cada pedido e no fluxo de eventos, assentos presos às contas nas regras, painel pede Conectar (leva P-8) | T | 1 | publicar as regras novas no console (dono) |
+| 16º-p9 ✅ | T6c-3 conta da Estante fica conectada ao reabrir: só uid e token de renovação no aparelho (fora do backup), Sair e recusa apagam (leva P-9, decisão do dono) | T | 1 | — |
 | 16º-dv ✅ | SEG5 "O que sai do aparelho" em Perfil › Dados: seis serviços com o que vai, quando e como evitar, conta e online com selo de uso; contrato une a tela e a política de conteúdo (leva P-6) | SEG | 1 | — |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
@@ -7455,6 +7456,23 @@ prontas.
 - **Fora do repositório (dono):** publicar no console a versão nova de `database.rules.json` (as regras da sala
   mudaram); **sem isso, a sala pela internet é recusada**.
 - **Fora:** sincronização do perfil (T6d); relatos (T6e); avisar o outro jogador quando um cai (já existe pela presença).
+
+**T6c-3 · A conta da Estante fica conectada ao reabrir** ✅ (leva P-9, trilha `protecao`; decisão do dono em 11/10/2026)
+- **Valor:** fechar e abrir o app não desconecta: a partida online e (na T6d) a sincronização seguem sem pedir o Google.
+- **O que fica no aparelho:** só `{ uid, refreshToken }` da conta da Estante, na chave `conta.sessao` (classe `aparelho`
+  no `REGISTRO`: fora do backup e do documento de perfil). O token de acesso do Firebase (~1 h) e o do Google continuam
+  só na memória. Na abertura, a sessão volta se a conta Google deste aparelho existe; o primeiro pedido renova.
+  Renovação que troca o token regrava; renovação recusada (ou de outro usuário) e Sair apagam o guardado.
+- **Risco aceito pelo dono:** quem tiver o aparelho desbloqueado (ou um script injetado na página) age na conta da
+  Estante dessa pessoa — só nos dados dela, que as regras isolam. As defesas contra script injetado são as da P-1, P-3
+  e P-5 (HTML seguro, política de conteúdo). É o mesmo modelo do SDK oficial do Firebase na web (IndexedDB).
+- **Tela:** a linha diz "Conta da Estante conectada neste aparelho". Supersede o resíduo (1) da T6c-2b: reabrir no meio
+  de uma partida online não pede mais Conectar.
+- **Testes:** `conta.estante.unit` (+3: o que é guardado e quando; retomar e renovar; dado estranho; sem conta Google
+  não retoma; classe no registro). E2E "P-7 conta da Estante" (token de acesso fora do armazenamento, renovação
+  guardada, reabrir continua conectado, Sair apaga) e "P-8 sala" (reabrir mostra a sala sem pedir o Google; sem a
+  sessão, Conectar liga ali). As duas expectativas mudaram por decisão do dono (antes: nada guardado).
+- **Fora:** expirar a sessão por inatividade; aviso de "outro aparelho entrou".
 
 ### Z · Catálogo de listas (E61, pedido de 08/10/2026)
 

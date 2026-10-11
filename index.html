@@ -8654,7 +8654,7 @@ const REGISTRO = [
   ['perfil', 'conteudo', false], ['deck.', 'conteudo', false], ['collection.owned', 'conteudo', false],
   ['collection.names', 'conteudo', false], ['collection.items', 'conteudo', false],
   // deste aparelho
-  ['perfil.carimbos', 'aparelho', false], ['conta', 'aparelho', false], ['backup.last', 'aparelho', false],
+  ['perfil.carimbos', 'aparelho', false], ['conta', 'aparelho', false], ['backup.last', 'aparelho', false], ['conta.sessao', 'aparelho', false], // P-9 · sessão da conta da Estante mantida neste aparelho (fora do backup)
   ['scanner.zoom', 'aparelho', false], ['scanner.lente', 'aparelho', false], ['scanner.lot', 'aparelho', false],
   ['offline.', 'aparelho', false], ['ocr.ready', 'aparelho', false], ['noticias.vista', 'aparelho', false],
   ['ui.ultimaLista', 'aparelho', false], ['collection.pending', 'aparelho', false], ['match.', 'aparelho', false],
@@ -8870,8 +8870,14 @@ function createConta({ clientId = '', store, fetch: fetchFn = null, google: goog
     },
     /** P-7 · Situação da conta da Estante: 'desligada' (sem configuração), 'conectada' ou 'desconectada' (com o motivo). */
     estante() { if (!sessao || !sessao.disponivel()) return { estado: 'desligada' }; return sessao.ativa() ? { estado: 'conectada', uid: sessao.uid() } : { estado: 'desconectada', motivo: erroEstante }; },
-    /** P-7 · A sessão do Firebase (token só na memória), para o banco: `uid()` e `token()`. */
+    /** P-7 · A sessão do Firebase, para o banco: `uid()` e `token()`. */
     sessao,
+    /** P-9 · Na abertura: volta a sessão guardada, se a conta Google deste aparelho ainda existe. */
+    async retomaEstante(guardada) {
+      if (!sessao || !sessao.disponivel() || !sessao.retoma) return false;
+      if (!(await this.get())) return false;
+      return sessao.retoma(guardada);
+    },
     /** Sai: revoga o token e apaga os dados da conta no aparelho. */
     async sair() {
       if (sessao) sessao.sair(); erroEstante = null;
@@ -8931,8 +8937,12 @@ const IDT = 'https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp';
 const STK = 'https://securetoken.googleapis.com/v1/token';
 const UID_OK = /^[A-Za-z0-9_-]{1,128}$/;
 const RENOVA_ANTES_MS = 5 * 60000;
-function createSessaoFirebase({ apiKey = '', fetch: fetchFn = null, agora = () => Date.now(), origem = null } = {}) {
+function createSessaoFirebase({ apiKey = '', fetch: fetchFn = null, agora = () => Date.now(), origem = null, guarda = null } = {}) {
   let s = null, renovando = null;
+  // P-9 · decisão do dono (11/10/2026): a conta da Estante fica conectada entre aberturas. Só o uid e o token de
+  // renovação vão para o aparelho (`guarda`, chave `conta.sessao`, fora do backup); o token de acesso e o do Google
+  // continuam só na memória. Sair, ou o Firebase recusar a renovação, apaga o que foi guardado.
+  const grava = d => { if (!guarda) return; try { Promise.resolve(guarda(d)).catch(() => {}); } catch (e) { /* guardar é conveniência: falha não derruba a sessão */ } };
   const erro = (codigo, extra = {}) => Object.assign(new Error(codigo), extra);
   const f = (...a) => (fetchFn || (typeof fetch !== 'undefined' ? fetch.bind(globalThis) : null))(...a);
   const chave = () => encodeURIComponent(apiKey);
@@ -8956,8 +8966,13 @@ function createSessaoFirebase({ apiKey = '', fetch: fetchFn = null, agora = () =
         body: JSON.stringify({ postBody: `access_token=${encodeURIComponent(tokenGoogle)}&providerId=google.com`, requestUri: requestUri(), returnSecureToken: true, returnIdpCredential: false }) });
       if (!UID_OK.test(String(r.localId || '')) || typeof r.idToken !== 'string' || typeof r.refreshToken !== 'string') throw erro('firebase-recusou');
       s = { uid: r.localId, idToken: r.idToken, refreshToken: r.refreshToken, expira: agora() + (Number(r.expiresIn) || 3600) * 1000 };
-      renovando = null;
+      renovando = null; grava({ uid: s.uid, refreshToken: s.refreshToken });
       return { uid: s.uid };
+    },
+    /** P-9 · Volta a sessão guardada neste aparelho: o primeiro `token()` renova. Dado estranho é ignorado. */
+    retoma(d) {
+      if (!apiKey || s || !d || !UID_OK.test(String(d.uid || '')) || typeof d.refreshToken !== 'string' || !d.refreshToken) return false;
+      s = { uid: d.uid, idToken: null, refreshToken: d.refreshToken, expira: 0 }; renovando = null; return true;
     },
     uid() { return s ? s.uid : null; },
     ativa() { return !!s; },
@@ -8972,16 +8987,17 @@ function createSessaoFirebase({ apiKey = '', fetch: fetchFn = null, agora = () =
             const r = await pede(`${STK}?key=${chave()}`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
               body: `grant_type=refresh_token&refresh_token=${encodeURIComponent(atual.refreshToken)}` });
             if (s !== atual) return s ? s.idToken : null; // saiu (ou entrou de novo) no meio: não ressuscita a sessão antiga
-            if (String(r.user_id || '') !== atual.uid || typeof r.id_token !== 'string') { s = null; throw erro('firebase-recusou'); }
+            if (String(r.user_id || '') !== atual.uid || typeof r.id_token !== 'string') { s = null; grava(null); throw erro('firebase-recusou'); }
             s = { ...atual, idToken: r.id_token, refreshToken: typeof r.refresh_token === 'string' ? r.refresh_token : atual.refreshToken, expira: agora() + (Number(r.expires_in) || 3600) * 1000 };
+            if (s.refreshToken !== atual.refreshToken) grava({ uid: s.uid, refreshToken: s.refreshToken });
             return s.idToken;
-          } catch (e) { if (e.message === 'firebase-recusou' && s === atual) s = null; throw e; }
+          } catch (e) { if (e.message === 'firebase-recusou' && s === atual) { s = null; grava(null); } throw e; }
           finally { renovando = null; }
         })();
       }
       return renovando;
     },
-    sair() { s = null; renovando = null; }
+    sair() { s = null; renovando = null; grava(null); }
   };
 }
 /** Frase de interface para cada erro da conta. */
@@ -11999,7 +12015,7 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
     const e = conta.estante ? conta.estante() : { estado: 'desligada' };
     if (e.estado === 'desligada') return null;
     if (e.estado === 'conectada') return Row({ class: 'perfil-conta__estante', id: 'conta-estante', dataset: { estado: 'conectada' } },
-      Icone('conferir', { tamanho: 18 }), Text('Conta da Estante conectada', { size: 'sm' }));
+      Icone('conferir', { tamanho: 18 }), Text('Conta da Estante conectada neste aparelho', { size: 'sm' }));
     return Row({ class: 'ds-row--wrap perfil-conta__estante', id: 'conta-estante', dataset: { estado: 'desconectada' } },
       Text('Conta da Estante desconectada' + (e.motivo ? ' · ' + __m29.motivoDe(new Error(e.motivo)) : ''), { size: 'sm', tone: 'muted', class: 'ds-grow' }),
       Button('Conectar', { icone: 'externo', id: 'conta-estante-conectar', variant: 'ghost', disabled: oc, title: 'Conectar a conta da Estante com o Google', onClick: () => acaoDaConta(async () => { await conta.conectarEstante(); toast('Conta da Estante conectada'); }) }));
@@ -12153,7 +12169,7 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
   async function carrega() {
     try { st.salvo = await perfil.get(); st.nome = st.salvo.nome; st.avatar = st.salvo.avatar; st.erro = null; }
     catch (e) { st.erro = e; }
-    if (conta) { try { st.conta = await conta.get(); } catch (e) { st.conta = null; } }
+    if (conta) { try { if (conta.pronta) await conta.pronta; /* P-9 */ st.conta = await conta.get(); } catch (e) { st.conta = null; } }
     if (fichas) { try { st.fichasEscolhidas = Object.keys((await fichas.estado()).escolhas).length; } catch (e) { st.fichasEscolhidas = 0; } }
     if (terrenos) { try { st.terrenosEscolhidos = Object.keys((await terrenos.estado()).escolhas).length; } catch (e) { st.terrenosEscolhidos = 0; } }
     if (partidas) { try { st.partidas = __m35.estatisticas(await partidas.lista()); } catch (e) { st.partidas = null; } }
@@ -26744,8 +26760,11 @@ const conta = __m29.createConta({
   store: platform.store,
   google: typeof window !== 'undefined' && window.__GOOGLE_FALSO ? () => window.__GOOGLE_FALSO : null,
   carregaScript: __m29.carregaScriptWeb,
-  sessao: __m29.createSessaoFirebase({ apiKey: FIREBASE_API_KEY, fetch: typeof window !== 'undefined' && window.__FIREBASE_FETCH ? window.__FIREBASE_FETCH : null }) // P-7
+  sessao: __m29.createSessaoFirebase({ apiKey: FIREBASE_API_KEY, fetch: typeof window !== 'undefined' && window.__FIREBASE_FETCH ? window.__FIREBASE_FETCH : null, // P-7
+    guarda: d => (d ? platform.store.set('conta.sessao', d) : platform.store.remove('conta.sessao')) }) // P-9
 });
+// P-9 · a conta da Estante volta conectada ao abrir o app (o primeiro pedido ao banco renova o acesso)
+conta.pronta = (async () => { try { await conta.retomaEstante(await platform.store.get('conta.sessao')); } catch (e) { /* sem sessão guardada: segue desconectada */ } })();
 const backup = {
   /** O texto do backup completo (v3). */
   async texto() { return decks.exportAll(collection, { perfil: await perfil.get(), prefs: await perfil.exportaPreferencias() }); },

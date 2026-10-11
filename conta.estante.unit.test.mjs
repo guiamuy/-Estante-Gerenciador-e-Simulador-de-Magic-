@@ -133,3 +133,42 @@ test('P-7/P-8 · contrato: Client ID, chave e banco do projeto estante-10102026 
   const csp = HTML.match(/http-equiv="Content-Security-Policy" content="([^"]+)"/)[1];
   for (const o of ['https://identitytoolkit.googleapis.com', 'https://securetoken.googleapis.com', 'https://accounts.google.com']) assert.ok(csp.includes(o), o + ' na política');
 });
+
+test('P-9 · sessão mantida: entrar guarda só uid e token de renovação; renovação que troca o token regrava; sair e recusa apagam', async () => {
+  const G = googleFalso(); let agora = 0; const guardados = [];
+  const s = C.createSessaoFirebase({ apiKey: 'k', fetch: G.fetch, agora: () => agora, guarda: d => { guardados.push(d && { ...d }); } });
+  await s.entrar('tok-google');
+  assert.deepEqual(guardados.at(-1), { uid: 'uidAna_1', refreshToken: 'ref-1' }, 'nem o token de acesso nem o do Google');
+  agora = 56 * 60000; await s.token();
+  assert.deepEqual(guardados.at(-1), { uid: 'uidAna_1', refreshToken: 'ref-2' });
+  s.sair(); assert.equal(guardados.at(-1), null);
+  await s.entrar('tok'); agora += 56 * 60000; G.trocaUsuario('outra'); await s.token().catch(() => {});
+  assert.equal(guardados.at(-1), null, 'renovação recusada apaga o que foi guardado');
+  const falha = C.createSessaoFirebase({ apiKey: 'k', fetch: googleFalso().fetch, guarda: () => { throw new Error('disco cheio'); } });
+  assert.deepEqual({ ...(await falha.entrar('tok')) }, { uid: 'uidAna_1' }, 'guardar que falha não derruba a entrada');
+});
+
+test('P-9 · retomar: a sessão guardada volta e o primeiro token renova; dado estranho é ignorado; sem conta Google não retoma', async () => {
+  const G = googleFalso({ uid: 'uidAna_1' });
+  const s = C.createSessaoFirebase({ apiKey: 'k', fetch: G.fetch });
+  assert.equal(s.retoma({ uid: '../x', refreshToken: 'r' }), false);
+  assert.equal(s.retoma({ uid: 'uidAna_1' }), false);
+  assert.equal(s.retoma(null), false);
+  assert.equal(s.retoma({ uid: 'uidAna_1', refreshToken: 'ref-guardado' }), true);
+  assert.equal(s.ativa(), true); assert.equal(s.uid(), 'uidAna_1');
+  assert.equal(await s.token(), 'id-1');
+  assert.equal(G.pedidos[0].corpo, 'grant_type=refresh_token&refresh_token=ref-guardado');
+  assert.equal(s.retoma({ uid: 'outro', refreshToken: 'x' }), false, 'com sessão ativa não troca');
+  assert.equal(C.createSessaoFirebase({ apiKey: '' }).retoma({ uid: 'a', refreshToken: 'b' }), false, 'sem chave não retoma');
+  const { conta } = contaCom(C.createSessaoFirebase({ apiKey: 'k', fetch: G.fetch }));
+  assert.equal(await conta.retomaEstante({ uid: 'uidAna_1', refreshToken: 'r' }), false, 'sem conta Google no aparelho');
+  await conta.entrar(); conta.sessao.sair();
+  assert.equal(await conta.retomaEstante({ uid: 'uidAna_1', refreshToken: 'r' }), true);
+  assert.equal(conta.estante().estado, 'conectada');
+});
+
+test('P-9 · a sessão guardada é do aparelho: classe "aparelho" no registro, fora do backup e do documento de perfil', () => {
+  const { perfil: PF } = loadModules();
+  assert.equal(PF.classeDe('conta.sessao'), 'aparelho');
+  assert.ok(!PF.PREFERENCIAS.includes('conta.sessao') && !PF.DO_DOCUMENTO.includes('conta.sessao'));
+});

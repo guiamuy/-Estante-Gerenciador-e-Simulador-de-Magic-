@@ -4951,7 +4951,7 @@ test('e2e · Leva 129 conta Google: sem Client ID a seção explica e fica apaga
 });
 
 /* ---------------- P-7 · T6c-2a · conta da Estante (Firebase) depois de entrar com Google ---------------- */
-test('e2e · P-7 conta da Estante: entrar com Google abre a conta da Estante; recusa mostra o motivo e Conectar tenta de novo; sair desliga; token fora do armazenamento', { skip }, async t => {
+test('e2e · P-7 conta da Estante: entrar com Google abre a conta da Estante; recusa mostra o motivo e Conectar tenta de novo; P-9 fica conectada ao reabrir; sair desliga e apaga', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.setViewportSize({ width: 360, height: 780 });
   await page.route('https://www.googleapis.com/**', r => /Bearer tok-e2e/.test(r.request().headers().authorization || '') && r.request().url().includes('/oauth2/v3/userinfo')
@@ -4962,8 +4962,9 @@ test('e2e · P-7 conta da Estante: entrar com Google abre a conta da Estante; re
     window.__firebaseLog = []; window.__firebaseFalha = true;
     // Identity Toolkit falso: a primeira tentativa recusa (como uma configuração errada no console); depois aceita
     window.__FIREBASE_FETCH = async (url, init) => {
-      window.__firebaseLog.push({ url, corpo: JSON.parse(init.body) });
+      window.__firebaseLog.push({ url, corpo: url.includes('securetoken') ? init.body : JSON.parse(init.body) });
       if (window.__firebaseFalha) return new Response(JSON.stringify({ error: { message: 'OPERATION_NOT_ALLOWED' } }), { status: 400, headers: { 'content-type': 'application/json' } });
+      if (url.includes('securetoken')) return new Response(JSON.stringify({ id_token: 'id-e2e-renovado', refresh_token: 'ref-e2e-segredo', expires_in: '3600', user_id: 'uidE2E_123' }), { headers: { 'content-type': 'application/json' } }); // P-9
       return new Response(JSON.stringify({ localId: 'uidE2E_123', idToken: 'id-e2e-segredo', refreshToken: 'ref-e2e-segredo', expiresIn: '3600' }), { headers: { 'content-type': 'application/json' } });
     };
     window.__GOOGLE_FALSO = { accounts: { oauth2: {
@@ -4986,22 +4987,27 @@ test('e2e · P-7 conta da Estante: entrar com Google abre a conta da Estante; re
   await page.click('#conta-estante-conectar'); await page.waitForSelector('#conta-estante[data-estado="conectada"]');
   assert.match(await page.innerText('#conta-estante'), /Conta da Estante conectada/);
   await auditaTela(page, 'perfil · conta da Estante conectada');
-  // 3 · os tokens ficam só na memória: nada deles no armazenamento do aparelho
+  // 3 · P-9 (decisão do dono, 11/10): a conta fica conectada neste aparelho — só o token de renovação é guardado;
+  // o token de acesso do Firebase e o do Google continuam só na memória
   const guardado = await page.evaluate(async () => {
     const tudo = [JSON.stringify(localStorage), JSON.stringify(sessionStorage)];
     const db = await new Promise(r => { const q = indexedDB.open('mtg'); q.onsuccess = () => r(q.result); q.onerror = () => r(null); });
     if (db) for (const nome of db.objectStoreNames) tudo.push(JSON.stringify(await new Promise(r => { const q = db.transaction(nome).objectStore(nome).getAll(); q.onsuccess = () => r(q.result); q.onerror = () => r([]); })));
     return tudo.join('|');
   });
-  assert.ok(!/segredo|tok-e2e/.test(guardado), 'token do Google ou do Firebase no armazenamento');
-  // 4 · sair desliga as duas contas
+  assert.ok(!/id-e2e-segredo|tok-e2e/.test(guardado), 'token de acesso (Google ou Firebase) no armazenamento');
+  assert.match(guardado, /ref-e2e-segredo/, 'a sessão mantida guarda o token de renovação');
+  // 4 · reabrir: a conta da Estante volta conectada sem tocar em nada
+  await page.reload(); await page.goto(base + '#/perfil'); await page.waitForSelector('#conta-estante[data-estado="conectada"]');
+  // 5 · sair desliga as duas contas e apaga a sessão guardada
   await page.click('#conta-sair'); await page.waitForSelector('#conta-entrar');
   assert.equal(await page.locator('#conta-estante').count(), 0);
+  await page.waitForFunction(async () => { const db = await new Promise(r => { const q = indexedDB.open('mtg'); q.onsuccess = () => r(q.result); }); const tudo = []; for (const n of db.objectStoreNames) tudo.push(JSON.stringify(await new Promise(r => { const q = db.transaction(n).objectStore(n).getAll(); q.onsuccess = () => r(q.result); }))); return !/ref-e2e-segredo/.test(tudo.join('|')); });
   assert.deepEqual(errors, []);
 });
 
 /* ---------------- P-8 · T6c-2b · sala pela internet pede a conta da Estante ---------------- */
-test('e2e · P-8 sala pela internet: sem conta da Estante, Criar e Entrar dão lugar a Conectar; sem conta Google leva ao Perfil; conectada, a sala aparece; reabrir pede Conectar de novo', { skip }, async t => {
+test('e2e · P-8 sala pela internet: sem conta da Estante, Criar e Entrar dão lugar a Conectar; sem conta Google leva ao Perfil; conectada, a sala aparece; P-9 reabrir continua conectado; sem sessão, Conectar liga ali', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.setViewportSize({ width: 360, height: 780 });
   await page.route('https://www.googleapis.com/**', r => r.request().url().includes('/oauth2/v3/userinfo') ? r.fulfill({ json: { name: 'Gui', email: 'gui@example.com' } }) : r.fulfill({ status: 404, json: {} }));
@@ -5009,7 +5015,7 @@ test('e2e · P-8 sala pela internet: sem conta da Estante, Criar e Entrar dão l
   await page.addInitScript(() => {
     window.__FIREBASE_DB_URL = 'https://teste.firebaseio.com'; window.__MTG_TEST = true;
     window.__GOOGLE_CLIENT_ID = 'e2e.apps.googleusercontent.com'; window.__FIREBASE_API_KEY = 'chave-e2e'; window.__googlePedidos = 0;
-    window.__FIREBASE_FETCH = async () => new Response(JSON.stringify({ localId: 'uidE2E', idToken: 'id-e2e', refreshToken: 'ref-e2e', expiresIn: '3600' }), { headers: { 'content-type': 'application/json' } });
+    window.__FIREBASE_FETCH = async url => new Response(JSON.stringify(url.includes('securetoken') ? { id_token: 'id-e2e-2', refresh_token: 'ref-e2e', expires_in: '3600', user_id: 'uidE2E' } : { localId: 'uidE2E', idToken: 'id-e2e', refreshToken: 'ref-e2e', expiresIn: '3600' }), { headers: { 'content-type': 'application/json' } });
     window.__GOOGLE_FALSO = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => { window.__googlePedidos++; setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0); } }), revoke: (tk, cb) => cb && cb() } } };
     window.EventSource = class { constructor() {} addEventListener() {} close() {} };
   });
@@ -5026,10 +5032,14 @@ test('e2e · P-8 sala pela internet: sem conta da Estante, Criar e Entrar dão l
   await page.click('#conta-entrar'); await page.waitForSelector('#conta-estante[data-estado="conectada"]');
   await abreOnline(); await page.waitForSelector('#online-criar');
   assert.equal(await page.locator('#online-conta').count(), 0);
-  // 3 · reabrir o app (a sessão não fica guardada): Conectar volta e liga ali mesmo, sem ir ao Perfil
+  // 3 · P-9 · reabrir o app: a conta continua conectada e a sala aparece sem pedir o Google de novo
+  await page.reload(); await abreOnline(); await page.waitForSelector('#online-criar');
+  assert.equal(await page.evaluate(() => window.__googlePedidos), 0, 'reabrir não pede o Google');
+  // 4 · com a conta Google mas sem a da Estante (sessão apagada), Conectar liga ali mesmo, sem ir ao Perfil
+  await page.evaluate(() => new Promise(r => { const q = indexedDB.open('mtg'); q.onsuccess = () => { const db = q.result; const tx = db.transaction(db.objectStoreNames[0], 'readwrite'); tx.objectStore(db.objectStoreNames[0]).delete('conta.sessao'); tx.oncomplete = r; }; }));
   await page.reload(); await abreOnline(); await page.waitForSelector('#online-conectar');
   await page.click('#online-conectar'); await page.waitForSelector('#online-criar');
-  assert.equal(await page.evaluate(() => window.__googlePedidos), 1, 'depois de reabrir, reconectar pediu o Google uma vez (o contador recomeça com a página)');
+  assert.equal(await page.evaluate(() => window.__googlePedidos), 1, 'conectar pediu o Google uma vez');
   assert.deepEqual(errors, []);
 });
 
