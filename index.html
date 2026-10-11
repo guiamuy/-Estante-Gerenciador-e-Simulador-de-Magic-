@@ -5348,6 +5348,9 @@ const EFFECTS = {
   draw_free_cast: { fields: ['amount'], targets: ['self'] },
   /* ↓ K · efeitos da trilha keywords */
   /* ↓ V · efeitos da trilha verbos */
+  // V-1 · 701.14 lutar. `lutador` só escolhe quem luta ("Target creature you control fights…"); `fight` mira a outra e faz a luta.
+  lutador: { fields: [], targets: ['creature', 'creature-you-control'] },
+  fight: { fields: [], targets: ['creature', 'creature-opponent-controls', 'creature-you-control'] }, // quem: 'self-source' (a permanente fonte luta) | 'primeiro-alvo' (o alvo do efeito com alvo anterior luta)
   /* ↓ T · efeitos da trilha tipos */
 };
 /** S57 · masmorras: o caminho, as salas e o que cada sala faz.
@@ -6143,6 +6146,14 @@ function effectErrors(effects, label, opcional) {
   });
   /* ↓ K · validação da trilha keywords */
   /* ↓ V · validação da trilha verbos */
+  effects.forEach((e, i) => { // V-1 · 701.14: lutar precisa de quem luta e de um alvo
+    if (e.do === 'fight') {
+      if (!['self-source', 'primeiro-alvo'].includes(e.quem)) errs.push(`${label} ${i + 1} (fight): "quem" precisa ser self-source ou primeiro-alvo`);
+      if (!isTargeted(e)) errs.push(`${label} ${i + 1} (fight): lutar precisa de um alvo`);
+      if (e.quem === 'primeiro-alvo' && !effects.slice(0, i).some(isTargeted)) errs.push(`${label} ${i + 1} (fight): "primeiro-alvo" precisa de um alvo escolhido antes`);
+    }
+    if (e.do === 'lutador' && !(effects[i + 1] && effects[i + 1].do === 'fight' && effects[i + 1].quem === 'primeiro-alvo')) errs.push(`${label} ${i + 1} (lutador): precisa ser seguido da luta (fight, quem: primeiro-alvo)`);
+  });
   /* ↓ T · validação da trilha tipos */
   return errs;
 }
@@ -6180,6 +6191,11 @@ const isTargeted = e => TARGETED.has(e.target) || (!!e.target && typeof e.target
 const RAW_SCRIPTS = [
   /* ↓ K · scripts de carta da trilha keywords (texto oficial em .listas/oficiais-keywords.json) */
   /* ↓ V · scripts de carta da trilha verbos (texto oficial em .listas/oficiais-verbos.json) */
+  // V-1 · 701.14 lutar
+  { name: 'Prey Upon', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control fights target creature you don't control."
+    example: { target: 'own-creature', expect: { gone: true } } },
+  { name: 'Epic Confrontation', effects: [{ do: 'pump', power: 1, toughness: 2, target: 'creature-you-control' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
+    example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
   // dano direto
   { name: 'Lightning Bolt', effects: [{ do: 'damage', amount: 3, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: -3 } } },
@@ -17296,6 +17312,8 @@ function applyEffect(s, src, eff, tgt, events) {
     }
     /* ↓ K · casos de applyEffect da trilha keywords */
     /* ↓ V · casos de applyEffect da trilha verbos */
+    case 'lutador': break; // V-1 · só escolhe quem luta; a luta é o `fight` seguinte
+    case 'fight': lutar(s, src, eff, tgt, events); break; // V-1 · 701.14
     /* ↓ T · casos de applyEffect da trilha tipos */
     case 'untap': { const alvo = eff.target === 'enchanted' ? criaturaEncantada(s, src) : eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj; if (alvo) alvo.tapped = false; note({}); break; }
     default: break;
@@ -19862,6 +19880,40 @@ function invariants(s, expectedObjects) {
 const EXPORTS_K = {}, EXPORTS_V = {}, EXPORTS_T = {}; // ↓ cada trilha preenche o seu (Object.assign) logo abaixo da sua âncora
 /* ↓ K · exportações de core.js da trilha keywords */
 /* ↓ V · exportações de core.js da trilha verbos */
+/* V-1 · 701.14 lutar. Cada criatura causa dano igual ao próprio poder à outra (a), as duas quantias medidas antes de qualquer dano;
+   se uma delas saiu do campo, deixou de ser criatura ou virou alvo ilegal, nenhuma luta (b); lutar consigo mesma é o dobro do poder
+   em si (c); não é dano de combate (d). A fonte do dano é a criatura (toque mortífero, vínculo com a vida, infectar, proteção). */
+function danoDeLuta(s, fonte, alvo, n, events) {
+  if (!(n > 0)) return 0; // 120.8 · dano 0 não é dano
+  n = danoSubstituido(s, fonte, { obj: alvo }, n, false);
+  const resto = danoAposPrevencao(s, fonte, { obj: alvo }, n, false);
+  if (!(resto > 0)) { events.push({ kind: 'effect', do: 'damage', name: fonte.name, target: alvo.name, amount: n, prevented: true }); return 0; }
+  marcaDanoEmCriatura(s, fonte, alvo, resto); noteEnchantedEvent(s, alvo, 'recebe-dano'); noteDamaged(s, alvo);
+  if (has(s, fonte, 'deathtouch')) alvo.deathtouched = true;
+  causouDano(s, fonte, resto, null);
+  events.push({ kind: 'effect', do: 'damage', name: fonte.name, target: alvo.name, amount: resto });
+  return resto;
+}
+/** Quem luta: a permanente fonte, ou o alvo do efeito com alvo logo antes desta luta (ainda legal, 608.2b). */
+function lutadorDe(s, src, eff, tgt) {
+  if (eff.quem === 'self-source') return src.ability ? s.objects[src.source] : src;
+  const efeitos = (src.ability ? src.effects : spellEffects(s, src)) || [], mirados = efeitos.filter(SC.isTargeted), alvos = src.targets || [];
+  for (let j = 1; j < mirados.length; j++) {
+    if (mirados[j].do !== 'fight' || !alvos[j] || !tgt || alvos[j].oid !== tgt.oid) continue;
+    const e0 = mirados[j - 1], t0 = alvos[j - 1];
+    return t0 && t0.oid != null && targetStillLegal(s, src.controller, e0.target, t0, src.oid, e0.targetColor, e0, src) ? s.objects[t0.oid] : null;
+  }
+  return null;
+}
+function lutar(s, src, eff, tgt, events) {
+  const b = tgt && tgt.oid != null ? s.objects[tgt.oid] : null, a = lutadorDe(s, src, eff, tgt);
+  const luta = x => !!x && x.zone === 'battlefield' && !!s.facts[x.name] && isCreature(s, x);
+  if (!luta(a) || !luta(b)) { events.push({ kind: 'effect', do: 'fight', name: src.name, target: b ? b.name : '', failed: true }); return; } // 701.14b
+  const pa = Math.max(0, power(s, a)), pb = Math.max(0, power(s, b));
+  if (a.oid === b.oid) danoDeLuta(s, a, a, 2 * pa, events); // 701.14c
+  else { danoDeLuta(s, a, b, pa, events); danoDeLuta(s, b, a, pb, events); }
+}
+Object.assign(EXPORTS_V, { lutar });
 /* ↓ T · exportações de core.js da trilha tipos */
 return { ...EXPORTS_K, ...EXPORTS_V, ...EXPORTS_T, ENGINE_VERSION, effectAllowed, eligibleBlockers, abilitiesOf, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, moveObject, seriaDestruida, danoSubstituido, danoAposPrevencao, prevencaoLegado, destinoSubstituido, destinoLegado, entradaModificada, entradaLegado, applyEffect, aplicaPorJogador, sacrificioLegado, moverObjeto, moverLegado, mutacao, mutacaoLegado, hasLegado, bonusLegado, continuosQueAfetam, aplicaTemporario, statsLegado: (s, o) => ({ power: powerLegado(s, o), toughness: toughnessLegado(s, o) }), sombraDosGatilhos, gatilhosDeZona, gatilhosDeZonaLegado, gatilhosDoObjeto, gatilhosDoPasso, enterStep, disparaEvento, noteDiscard, noteEnchantedDealt, noteDamaged, noteEnchantedEvent, addCounters, sacrifice, draw, sweepTargets, sweepTargetsLegado, targetable,
   stats: (s, o) => ({ power: power(s, o), toughness: toughness(s, o) }), hasKeyword: has, bonus, isCreature, tiposDe, pwsAtacaveis, exigePw, productions, protections, prevented, canBlock,
@@ -22264,9 +22316,14 @@ const plural = (n, um, muitos) => (n === 1 ? `${n} ${um}` : `${n} ${muitos}`);
 /** Uma frase por efeito. O que o dicionário não conhece vira o nome do efeito, nunca some. */
 /* ↓ K · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha keywords */
 /* ↓ V · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha verbos */
+const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas por descreveEfeito)
+  lutador: e => `escolhe ${ALVO_PT[e.target] || descreveAlvo(e.target)} para lutar`,
+  fight: e => `${e.quem === 'self-source' ? 'esta criatura luta' : 'ela luta'} com ${ALVO_PT[e.target] || descreveAlvo(e.target)} (cada uma causa dano igual ao próprio poder à outra)`,
+};
 /* ↓ T · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha tipos */
 function descreveEfeito(e) {
   if (!e || !e.do) return '';
+  if (EFEITO_PT_V[e.do]) return EFEITO_PT_V[e.do](e); // V-1 · Toca ponto comum: descreveEfeito (frases da trilha verbos)
   if (e.jogadores && e.do !== 'sacrificar') { // CR2-G R4b · "cada jogador compra 1 carta", "cada oponente perde 2 de vida", "causa 1 de dano a cada jogador"
     const { jogadores, ...base } = e, quem = { cada: 'cada jogador', 'cada-oponente': 'cada oponente', voce: 'você' }[jogadores] || 'cada jogador';
     if (e.do === 'damage') return `causa ${qtd(e.amount)} de dano a ${quem}`;

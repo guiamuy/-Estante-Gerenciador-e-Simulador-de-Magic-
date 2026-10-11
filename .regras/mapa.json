@@ -5834,13 +5834,19 @@
    "n": "701.14",
    "regra": "Keyword Actions",
    "titulo": "Fight",
-   "status": "ausente",
-   "falta": "não existe efeito \"lutar\": duas criaturas causando dano igual ao poder uma à outra, com a checagem \"as duas ainda em campo e alvos legais\" (701.14b) e lutar consigo mesma (c). Hoje nem dá para aproximar: `damage` não tem quantidade \"poder de outra criatura\"",
-   "esforco": "M",
+   "status": "coberta",
    "depende": [
     "120"
    ],
-   "cartas": "muito comum (evergreen)"
+   "cartas": "muito comum (evergreen)",
+   "evidencia": "V-1 · efeito `fight` (lutar, danoDeLuta e lutadorDe em core.js, abaixo da âncora ↓ V): cada criatura causa dano igual ao próprio poder à outra, as duas quantias medidas antes do dano (a); se uma saiu do campo, deixou de ser criatura ou virou alvo ilegal, nenhuma luta (b); lutar consigo mesma causa o dobro do poder (c); não é dano de combate e a fonte é a criatura — toque mortífero, vínculo com a vida, infectar e proteção valem (d). Formas: `quem: 'primeiro-alvo'` (\"Target creature you control fights target creature you don't control\", com `lutador`, ou depois de outro efeito com alvo: \"It fights…\") e `quem: 'self-source'` (\"~ fights target creature\"). Cartas: Prey Upon, Epic Confrontation (.listas/oficiais-verbos.json)",
+   "testes": [
+    "CR 701.14 · lutar (a): cada criatura causa dano igual ao próprio poder à outra, e a mágica só é oferecida com os dois alvos",
+    "CR 701.14 · lutar (a): o poder de agora conta — Epic Confrontation dá +1/+2 antes da luta",
+    "CR 701.14 · lutar (b): se uma das duas saiu do campo ou virou alvo ilegal, nenhuma luta nem causa dano",
+    "CR 701.14 · lutar (c): a criatura que luta consigo mesma causa a si o dobro do próprio poder",
+    "CR 701.14 · lutar (d): não é dano de combate — prevenir \"todo o dano de combate\" não impede, e a fonte do dano é a criatura (toque mortífero, vínculo com a vida)"
+   ]
   },
   {
    "n": "701.15",
