@@ -3350,6 +3350,12 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Simplificação declarada:** um seletor de efeito estático que pergunta a cor enquanto a cor está sendo calculada lê a cor impressa (a dependência entre efeitos, 613.8, é a CR2d.11).
 - **Golden:** idênticas, sem regravar. Versão não sobe.
 
+**CR2d.9 · Camada 7 completa: P/T definido por habilidade e troca de poder e resistência** ✅ (leva M-278, motor v98, sem mudança no que existe) — 2 testes de conformidade.
+- **Regra (613.4, 604.3):** 7a `self.ptDefinido { poder, resistencia }` (inteiro ou contagem, vale em todas as zonas); 7b o P/T fixado por efeito (Aura que redefine, "torna-se X/Y") vence o 7a; 7c modificações e marcadores somam; 7d `troca: true` no contínuo troca poder e resistência depois de tudo (duas trocas se anulam). Sem troca em jogo, a conta segue o caminho de antes.
+- **Mapa:** 613.4 coberta.
+- **Golden:** idênticas, sem regravar. Versão não sobe.
+- **Próximo:** CR2d.10 — efeitos contínuos sobre jogadores e sobre as regras do jogo (613.10, 613.11).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
