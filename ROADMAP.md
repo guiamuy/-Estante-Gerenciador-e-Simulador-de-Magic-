@@ -531,6 +531,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ig ✅ | Q17 acertos do primeiro dia de fila: aviso de recusa sai quando a leva publica; motivo com um teste por linha; correção por cima da mesma leva não é leva repetida (leva I-285) | Q | ½ | Q17 |
 | 16º-ih ✅ | Q21 ações do GitHub nas versões que rodam em Node 24 (`checkout` v5, `setup-node` v5, `upload-artifact` v6), fixadas por SHA em todos os fluxos (leva I-286) | Q | ½ | — |
 | 16º-ii ✅ | Q17 a fila apaga a cada rodada o aviso de recusa de leva que já está no `main`; o `--esperar` ignora aviso de envio anterior (leva I-287) | Q | ½ | Q17 |
+| 16º-ij ✅ | Q21 Playwright 1.56.1, a versão do Chromium que as sessões de nuvem já têm (1194); versão exata no `package.json` (leva I-288) | Q | ½ | — |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -2759,6 +2760,7 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Valor:** em 19/10/2026 o GitHub passa o `ubuntu-latest` para o Ubuntu 26 (aviso nos jobs de 11/10); o portão instala o Chromium com dependências do sistema (`playwright install --with-deps`), e uma versão que o Playwright 1.55 não conhece derrubaria toda publicação de uma vez.
 - **Aceite:** `gate.yml` e `fila.yml` rodam em `ubuntu-24.04`; a troca de sistema passa a ser leva da trilha `infra`, junto com a versão do Playwright, e não surpresa.
 - **Ações em Node 24 (leva I-286):** os jobs avisavam que `checkout`, `setup-node` e `upload-artifact` da v4 (Node 20) estavam sendo forçadas a rodar em Node 24. Todos os fluxos passam para `checkout` v5, `setup-node` v5 e `upload-artifact` v6, fixadas por SHA (tags conferidas no repositório oficial de cada ação em 11/10/2026; o `action.yml` de cada SHA declara `node24`). Parecer de segurança: aprovado (nenhuma permissão nova; mesmas três ações, do mesmo dono).
+- **Playwright 1.56.1 (leva I-288):** o projeto pedia a 1.55.0, que procura o Chromium da revisão 1187; as sessões de nuvem trazem a 1194, que é a do Playwright 1.56. Com a versão acertada (exata, sem faixa), o portão das conversas usa o navegador certo sem atalho, e o CI instala o mesmo. Não fui para a versão mais nova porque ela ficaria oito versões à frente do navegador disponível nas sessões. O atalho da Q16 (achar Chromium de outra revisão) continua como rede de segurança.
 - **Testes:** `portao.unit` Q21. **Fora:** os fluxos de coleta (notícias, catálogo, relatos) não instalam navegador e seguem no `ubuntu-latest`; subir o Playwright e o sistema (leva própria, com o portão medindo).
 
 **Q20 · Instáveis zerados** ⬜ (contínuo; cada um é leva da trilha dona)

@@ -65,7 +65,7 @@ Fique com **os dois lados**: monte à mão a versão que contém a entrega da ou
 - A fase rápida nunca é repetida. `PORTAO_SEM_REPETIR=1 npm test` desliga a segunda chance, para caçar instabilidade.
 - Com quatro núcleos ou mais (CI), a fase de tela roda em fatias: o mesmo `e2e.test.mjs` uma vez por fatia, um Chromium cada, e cada teste numa fatia só (o portão confere). Por isso teste de tela novo é `test(nome, opções, fn)` no nível do arquivo e não depende de outro teste. `PORTAO_FATIAS=1` desliga.
 - Arquivo de teste novo que abre navegador entra na fase de tela (hoje só `e2e.test.mjs`; `portao.unit` barra navegador na fase rápida).
-- Antes do portão, o `npm run publicar` confere em segundos o que o derrubaria por descuido: id `16º-x` repetido no ROADMAP, partida-referência de outra versão do motor e navegador da fase de tela ausente (nas sessões de nuvem o portão acha sozinho o Chromium de outra revisão; `PW_CHROMIUM` continua valendo).
+- Antes do portão, o `npm run publicar` confere em segundos o que o derrubaria por descuido: id `16º-x` repetido no ROADMAP, partida-referência de outra versão do motor e navegador da fase de tela ausente (o Playwright do projeto usa a mesma revisão do Chromium das sessões de nuvem; se elas mudarem, o portão acha sozinho o de outra revisão; `PW_CHROMIUM` continua valendo).
 - No caminho antigo (`npm run publicar -- --direto`), o `main` é conferido a cada dois minutos durante o portão: se outra trilha publicar no meio, a fase é interrompida e recomeça em cima do `main` novo. Pela fila isso não acontece: o portão roda no CI sobre a soma.
 
 ## O que a guarda faz e o que não faz

@@ -144,3 +144,11 @@ test('Q21 · toda ação de terceiro diz, ao lado do SHA, que versão é; nenhum
     }
   }
 });
+
+test('Q21 · o Playwright tem versão exata (sem faixa): versão nova pede outro Chromium, e isso é leva da infra, não surpresa de um npm install', () => {
+  const pkg = JSON.parse(readFileSync(join(RAIZ, 'package.json'), 'utf8'));
+  assert.match(pkg.devDependencies.playwright, /^\d+\.\d+\.\d+$/);
+  const lock = JSON.parse(readFileSync(join(RAIZ, 'package-lock.json'), 'utf8'));
+  assert.equal(lock.packages['node_modules/playwright'].version, pkg.devDependencies.playwright, 'o lockfile instala a mesma versão');
+  assert.equal(lock.packages['node_modules/playwright-core'].version, pkg.devDependencies.playwright);
+});
