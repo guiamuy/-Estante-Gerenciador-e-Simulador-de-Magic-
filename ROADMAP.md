@@ -509,6 +509,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ds ✅ | SEG3 política de conteúdo (CSP) por meta: script e conexão só das origens que o app usa, leitor do scanner testado de verdade com ela ligada, contrato que barra origem nova fora da política (leva P-3) | SEG | 1 | — |
 | 16º-dt ✅ | H7c: segunda causa do instável H7 (o guardião offline guardando as listas ao começar a partida gastava a rede ruim simulada antes da mesa), provada e fechada no teste (leva G-252) | Q | ½ | — |
 | 16º-du ✅ | SEG4 todo ponto que vira HTML numa lista fechada com as interpolações permitidas; símbolo de mana com código estranho vira texto; tamanho só como número (leva P-5) | SEG | 1 | — |
+| 16º-p4 ✅ | T6c-1 regras do banco no repositório (`database.rules.json`) com teste: perfil e fila só do dono, sala só com conta e só acrescentando, resto negado; código real do app roda sob as regras (leva P-4) | T | 1 | colar as regras no console (dono) |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -7204,6 +7205,43 @@ prontas.
   token e sem; sonda do service worker).
 - **Fora:** regras e entrada (T6c); quando sincronizar e a tela (T6d); o fluxo que cria o registro e o botão Enviar
   (T6e). O fluxo de eventos (`ouvir`) não leva token: o perfil não ouve, só lê.
+
+**T6c-1 · Regras de acesso do banco, versionadas e testadas** ✅ (leva P-4, trilha `protecao`; nada ligado no app ainda)
+- **Valor:** o banco do Firebase (`estante-10102026`) passa a ter dono por pessoa antes de qualquer dado subir: só você
+  lê e muda o seu perfil e os seus relatos; a sala online só aceita quem entrou com Google e só deixa acrescentar jogadas.
+- **Arquivo:** `database.rules.json` na raiz — é ele que o dono cola no console (Realtime Database › Regras). O que não
+  está no repositório não existe para o portão: mudar regra é mudar este arquivo, rodar o portão e publicar no console.
+- **Perfis:** `perfis/<uid>` só para `auth.uid === uid` (ler, escrever, apagar). `doc` com `kind`/`version` conferidos,
+  chave de preferência só da lista do `REGISTRO` (22, com `:`), `v` texto até 64 KB, `t` número, nome até 24, nada a
+  mais; `avatar` só `data:image/(jpeg|png|webp)` abaixo de 400 000 caracteres.
+- **Fila de relatos:** `relatos/fila/<uid>/<id>` — só o dono escreve; criar ou reenviar o **mesmo** relato (o
+  `enfileira` da A-262 reenvia e lê de volta), nunca alterar nem apagar pelo app; dado até 24 KB; id do formato do app.
+  Leitura: só a da própria fila (divergência registrada com a T6b, que pedia "ninguém lê": o `enfileira` confere lendo
+  de volta e `pendentes` lê; ler os próprios relatos não expõe ninguém). Ninguém lista a fila de todos; quem tira da
+  fila é o fluxo do repositório (T6e), com credencial de serviço, que não passa pelas regras.
+- **Salas:** `salas/ESTA-XXXX` só com conta (ler e escrever); criar só sala nova, com `criadaEm` a até 10 min do relógio
+  do servidor; depois de criada, só acrescentar: lugar do convidado e setup uma vez, ação e mensagem nunca reescritas
+  nem apagadas, estado da lista fechada, mensagem até 200; sala com mais de 6 h não aceita escrita (só apagar); campo
+  desconhecido recusado; lista de salas negada.
+- **Resto:** raiz fechada; qualquer outro caminho negado.
+- **Não ligado:** `FIREBASE_DB_URL` continua vazia. Preenchê-la hoje levaria a sala online (que ainda não manda token)
+  para um banco que exige conta: as duas coisas entram juntas na T6c-2.
+- **Resíduo declarado:** (1) a sala não está presa ao uid dos dois jogadores — quem entrou e sabe o código lê a sala e
+  pode apagá-la; prender os assentos ao uid entra na T6c-2, junto da entrada. (2) Código de 4 símbolos (~1 milhão) é
+  adivinhável por quem entrou e insiste. (3) As regras não limitam ritmo nem quantidade: quem entrou pode encher o
+  próprio perfil (até 22 chaves × 64 KB) e a própria fila; salas vencidas ficam no banco até alguém apagar (limpeza
+  agendada: história da T6e). (4) O arquivo de regras é público (Pages publica a raiz): segurança aqui é a regra, não o
+  segredo. (5) O teste usa um avaliador próprio do subconjunto da linguagem de regras; o emulador oficial fica para um
+  job opcional — a conferência final é publicar no console e usar.
+- **Testes:** U `regras.unit` (10): arquivo e raiz fechada; expressões só no subconjunto que o Firebase aceita (sem
+  `{n,m}`); contrato com o app (chaves = `DO_DOCUMENTO`, tetos = `VALOR_MAX`, `RELATO_MAX`, `MENSAGEM_MAX`, `NOME_MAX`,
+  foto e validade da sala — preferência nova sem regra nova derruba o portão); o **código real** do perfil remoto, da
+  fila e da sala rodando sob as regras (encontro completo, reenvio, partida com melhor de 3, troca e chat) e as
+  recusas (perfil alheio, sem conta, forma, tamanho, reescrita de jogada, lugar tomado, sala vencida, caminho fora).
+  Prova: afrouxar `.read` do perfil ou o `.write` da sala derruba 3 testes.
+- **Fora do repositório (dono):** colar o arquivo no console e publicar; depois do primeiro login, o uid passa a
+  existir (a regra não precisa dele: cada um só vê o seu).
+- **Fora:** entrada com Google e token (T6c-2); ligar a URL no app (T6c-2); tela (T6d).
 
 ### Z · Catálogo de listas (E61, pedido de 08/10/2026)
 
