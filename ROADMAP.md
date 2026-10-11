@@ -3431,6 +3431,11 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Expectativa ajustada:** `scripts.unit` "S2 · script que cobre só parte…" procurava um parcial na biblioteca; sem nenhum, confere a mesma regra com um parcial sintético.
 - **Golden:** idênticas, sem regravar. Versão não sobe (a Saheeli era parcial).
 
+**CR2f.2 · "Entra como cópia" (707.5) e ficha que é cópia (707.8)** ✅ (leva M-281, motor v98, sem mudança no que existe) — 2 testes de conformidade.
+- **Regra:** chave `entraComoCopia { de: seletor, somaTipos }`: ao resolver a mágica de permanente, quem controla escolhe o que ela copia (0 ou 1, pela escolha de cartas que a mesa já tem); escolhida, a permanente entra já com os valores copiados — os gatilhos de entrada são os do modelo. Verbo `ficha_copia { amount, palavras, somaTipos }`: fichas com os valores copiáveis do alvo e as exceções ("exceto que tem ímpeto").
+- **Simplificação declarada:** a escolha de entrar como cópia vale quando a permanente entra pela resolução da própria mágica (vinda de outra zona por efeito, entra como ela mesma).
+- **Golden:** idênticas, sem regravar. Versão não sobe.
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

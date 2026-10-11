@@ -9090,12 +9090,14 @@
    "n": "707.5",
    "regra": "Copying Objects",
    "titulo": "Entrar como cópia (Clone)",
-   "status": "ausente",
-   "falta": "sem \"enters as a copy\".",
-   "esforco": "G",
+   "status": "coberta",
    "depende": [
     "707.2",
     "614.12"
+   ],
+   "evidencia": "CR2f.2/M-281 (v98): chave entraComoCopia { de, somaTipos }: ao resolver a mágica de permanente, quem controla escolhe (0 ou 1) o que ela copia ao entrar; escolhido, entra já com os valores copiados e os gatilhos de entrada do modelo disparam. copia2.unit.",
+   "testes": [
+    "CR 707.5 · entra como cópia: a mesa pergunta qual criatura copiar; escolhida, entra já como ela e dispara o gatilho de entrada do modelo"
    ]
   },
   {
@@ -9125,11 +9127,13 @@
    "n": "707.8",
    "regra": "Copying Objects",
    "titulo": "Ficha que é cópia de permanente",
-   "status": "ausente",
-   "falta": "o efeito `token` só cria ficha definida no script (index.html:4877, 5245); não copia permanente.",
-   "esforco": "M",
+   "status": "coberta",
    "depende": [
     "707.2"
+   ],
+   "evidencia": "CR2f.2/M-281 (v98): verbo ficha_copia { amount, palavras, somaTipos }: a ficha copia os valores copiáveis do alvo (o nome de agora), com as exceções (707.9).",
+   "testes": [
+    "CR 707.5 · recusar: entra como ela mesma, com o gatilho dela; CR 707.8 · ficha que é cópia"
    ]
   },
   {

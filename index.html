@@ -5298,7 +5298,8 @@ const EFFECTS = {
   revelar_topo_para_mao: { fields: [], targets: ['self'] }, // M-263 · Dark Confidant
   ganhar_controle: { fields: [], targets: ['creature', 'permanent', 'artifact'] },
   efeito_jogador: { fields: [], targets: ['self'] },
-  escolhe_copiadora: { fields: [], targets: ['artifact', 'creature', 'permanent'] }, // CR2f.1 · o primeiro alvo de "alvo A torna-se uma cópia de outro alvo B"
+  escolhe_copiadora: { fields: [], targets: ['artifact', 'creature', 'permanent'] },
+  ficha_copia: { fields: ['amount'], targets: ['creature', 'artifact', 'permanent', 'creature-you-control'] }, // CR2f.2 · 707.8: "create a token that's a copy of target …" // CR2f.1 · o primeiro alvo de "alvo A torna-se uma cópia de outro alvo B"
   torna_copia: { fields: [], targets: ['artifact', 'creature', 'permanent'] }, // CR2f.1 · o modelo; quem copia é o alvo do escolhe_copiadora // CR2d.10 · 613.10/613.11: "you can't gain life this turn", "you may play an additional land this turn" // M-272 · "gain control of target creature" (sem prazo)
   copiar_esta: { fields: [], targets: ['self'] }, // M-271 · "if this spell was cast from a graveyard, you may copy this spell and may choose a new target for the copy" (707.10)
   exilar_topo_conjuravel: { fields: ['amount'], targets: ['self'] }, // M-270 · Lukka +1: exila do topo; as criaturas exiladas podem ser conjuradas do exílio enquanto você controlar um planeswalker do subtipo
@@ -5764,7 +5765,7 @@ function validateScript(sc) {
   const errs = [];
   if (!sc || typeof sc.name !== 'string' || !sc.name.trim()) errs.push('script sem nome');
   const abilities = (sc && sc.abilities) || [];
-  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || sc.staticRule || sc.cumulativeUpkeep || sc.affinity || sc.storm || sc.changeling || sc.bestow || sc.bargain || sc.soulbond || sc.evidence || sc.escape || sc.discount || sc.morph || sc.sneak || sc.entersTapped || sc.entersTappedUnless || sc.grantsAll || (sc.continuo || []).length || (sc.substitui || []).length || (sc.entra || []).length || sc.armaduraTotem || (sc.dano || []).length || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length || sc.semEfeito || sc.permiteConjurar || (sc.regraJogador || []).length))) return errs.concat('script sem efeitos');
+  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || sc.staticRule || sc.cumulativeUpkeep || sc.affinity || sc.storm || sc.changeling || sc.bestow || sc.bargain || sc.soulbond || sc.evidence || sc.escape || sc.discount || sc.morph || sc.sneak || sc.entersTapped || sc.entersTappedUnless || sc.grantsAll || (sc.continuo || []).length || (sc.substitui || []).length || (sc.entra || []).length || sc.armaduraTotem || (sc.dano || []).length || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length || sc.semEfeito || sc.permiteConjurar || (sc.regraJogador || []).length || sc.entraComoCopia))) return errs.concat('script sem efeitos');
   // M-246 · carta cujo texto não muda nada na mesa de dois jogadores ("each other opponent"): o motivo é obrigatório e exclui efeitos
   if (sc && sc.semEfeito != null && (typeof sc.semEfeito !== 'string' || !sc.semEfeito.trim() || (sc.effects || []).length || abilities.length)) errs.push('"semEfeito" precisa do motivo e não convive com efeitos ou habilidades');
   // M9 · habilidades da permanente
@@ -5870,6 +5871,7 @@ function validateScript(sc) {
   if (sc && sc.unearth != null && !(sc.unearth && typeof sc.unearth.mana === 'string')) errs.push('desenterrar sem custo'); // M-257 · 702.84
   if (sc && sc.backup != null && !(Number.isInteger(sc.backup) && sc.backup > 0)) errs.push('reforço precisa de um número inteiro'); // M-260 · 702.165
   for (const [k, e] of ((sc && sc.regraJogador) || []).entries()) { if (!['voce', 'oponentes', 'todos', undefined].includes(e.quem)) errs.push(`regra de jogador ${k + 1}: quem precisa ser voce, oponentes ou todos`); if (!REGRAS_DO_JOGADOR.some(x => e[x] != null) || Object.keys(e).some(x => x !== 'quem' && !REGRAS_DO_JOGADOR.includes(x))) errs.push(`regra de jogador ${k + 1}: chave desconhecida ou nada a mudar`); } // CR2d.10
+  if (sc && sc.entraComoCopia != null && !(sc.entraComoCopia && typeof sc.entraComoCopia === 'object' && (sc.entraComoCopia.de == null || !seletorErros(sc.entraComoCopia.de, 'entra como cópia').length))) errs.push('entra como cópia precisa de um seletor em "de" (ou nenhum, para criatura)'); // CR2f.2
   if (sc && sc.splice != null && !(sc.splice && typeof sc.splice.subtipo === 'string' && sc.splice.subtipo.trim() && /^(\{[^}]+\})+$/.test(String(sc.splice.mana || '')))) errs.push('encaixar precisa do subtipo e do custo de mana'); // M-274 · 702.47
   if (sc && sc.aoGastarMana != null && !(sc.aoGastarMana && sc.aoGastarMana.criaturaQueCompartilhaTipoComOComandante === true && Array.isArray(sc.aoGastarMana.effects) && sc.aoGastarMana.effects.length)) errs.push('"ao gastar a mana" precisa da condição e dos efeitos'); // M-273
   if (sc && sc.aoGastarMana) errs.push(...effectErrors(sc.aoGastarMana.effects, 'ao gastar a mana'));
@@ -14155,6 +14157,7 @@ function createGame(setup) {
     if (sc.aoGastarMana) f.script.aoGastarMana = sc.aoGastarMana; // M-273
     if (sc.splice) f.script.splice = sc.splice; // M-274
     if (sc.regraJogador) f.script.regraJogador = sc.regraJogador; // CR2d.10
+    if (sc.entraComoCopia) f.script.entraComoCopia = sc.entraComoCopia; // CR2f.2
     if (sc.self) f.script.self = sc.self;
     // palavras-chave impressas na carta, declaradas no script: valem mesmo quando o dado da carta veio sem elas (sem rede)
     if (sc.self && sc.self.devoid) f.colors = []; // R7 · desprovido de cor (702.114): incolor mesmo com mana colorida no custo
@@ -16181,6 +16184,13 @@ function applyEffect(s, src, eff, tgt, events) {
       for (const f of fichas) moveObject(s, f.oid, 'exile');
       note({ amount: fichas.length, name: nome }); break;
     }
+    case 'ficha_copia': { // CR2f.2 · 707.8: a ficha copia os valores copiáveis do alvo (o nome de agora: se o alvo é cópia, a ficha é cópia do que ele copia)
+      if (!obj || obj.zone !== 'battlefield' || !s.facts[obj.name]) { note({ failed: true }); break; }
+      const n = amountOf(s, src, eff.amount || 1), novas = [];
+      for (let i = 0; i < n; i++) { const t = createToken(s, { name: obj.name }, ctrl, events); novas.push(t);
+        if ((eff.palavras || []).length || (eff.somaTipos || []).length) aplicaTemporario(s, s.objects[t], { ...((eff.palavras || []).length ? { palavras: eff.palavras } : {}), ...((eff.somaTipos || []).length ? { vira: { types: eff.somaTipos, addTypes: true } } : {}), ate: 'sempre' }, ctrl); } // 707.9 · "except it has haste"
+      note({ name: obj.name, amount: novas.length }); break;
+    }
     case 'escolhe_copiadora': { src.copiadora = obj && obj.oid; note({ name: obj && obj.name }); break; } // CR2f.1
     case 'torna_copia': { // CR2f.1 · 707.4: "Target artifact you control becomes a copy of another target artifact or creature you control until end of turn, except …"
       const quem = src.copiadora && s.objects[src.copiadora];
@@ -16540,7 +16550,8 @@ function startPick(s, spec, events) {
     ...(spec.depois ? { depois: spec.depois } : {}), // Leva 107 · "se fizer, compre duas" (Highway Robbery)
     ...(spec.onPicked ? { onPicked: spec.onPicked } : {}), // S59 · o que a carta escolhida recebe
     ...(spec.repartir ? { repartir: spec.repartir } : {}), // M-267 · os próximos destinos do repartir
-    ...(spec.esconde ? { esconde: spec.esconde } : {}) }; // M-268 · a permanente do esconderijo // M-267 · os próximos destinos do repartir
+    ...(spec.esconde ? { esconde: spec.esconde } : {}), // M-268 · a permanente do esconderijo
+    ...(spec.copiaAoEntrar ? { copiaAoEntrar: spec.copiaAoEntrar } : {}) }; // CR2f.2 // M-268 · a permanente do esconderijo // M-267 · os próximos destinos do repartir
   events.push({ kind: 'choice', what: spec.label, name: spec.source, amount: spec.from.length });
 }
 /** S55 · soma do valor de mana do que já foi escolhido. */
@@ -16582,6 +16593,8 @@ function concluiPick(s, events) {
     }
   }
   events.push({ kind: 'choice-done', what: pk.label, name: pk.source, amount: pk.picked.length });
+  if (pk.copiaAoEntrar && s.objects[pk.copiaAoEntrar] && s.objects[pk.copiaAoEntrar].zone === 'stack' && s.stack[s.stack.length - 1] === pk.copiaAoEntrar) { // CR2f.2 · retoma a resolução
+    s.objects[pk.copiaAoEntrar].copiaEscolhida = pk.picked[0] || null; events.push(resolveTop(s, events)); s.turn.priority = s.turn.active; }
   if (pk.repartir) iniciaRepartir(s, pk.p, pk.repartir.de.filter(oid => !pk.picked.includes(oid) && s.objects[oid].zone === 'library'), pk.repartir.destinos, pk.source, events); // M-267
 }
 /** Efeitos que ficaram esperando a escolha terminar. */
@@ -17461,7 +17474,17 @@ function resolveTop(s, events = []) {
     else attachTo(s, s.objects[item], tgt.oid, events);
     return { kind: 'resolved', oid: item, name: o.name, to: 'battlefield', scripted: true, adjudicate: false };
   }
-  if (scripted) resolveScript(s, o, events);
+  // CR2f.2 · 707.5 · "You may have this creature enter as a copy of …": a escolha vem ao entrar (antes dos gatilhos de entrada), pela
+  // escolha de cartas que a mesa já conhece (0 ou 1); escolhido, a permanente entra já com os valores copiados
+  const comoCopia = dest === 'battlefield' && scripted && f.script.entraComoCopia;
+  if (comoCopia && o.copiaEscolhida === undefined) {
+    const opcoes = selecionar(s, controller, { ...(f.script.entraComoCopia.de || { tipos: ['creature'] }), zona: 'battlefield' }, item).map(x => x.oid).filter(x => x && x !== item);
+    if (opcoes.length) { startPick(s, { p: controller, from: opcoes, min: 0, max: 1, to: 'stay', rest: 'stay', label: 'copiar ao entrar', source: o.name, copiaAoEntrar: item }, events); return { kind: 'choice', what: 'copiar ao entrar', name: o.name, amount: opcoes.length }; }
+    o.copiaEscolhida = null;
+  }
+  if (comoCopia && o.copiaEscolhida) { const m = s.objects[o.copiaEscolhida];
+    if (m && m.zone === 'battlefield' && s.facts[m.name]) { o.nomeImpresso = o.name; o.copias = [{ nome: m.name, ate: 'sempre', by: controller, ts: relogio(s), turno: s.turn.number }]; o.name = m.name; } }
+  if (scripted && !comoCopia) resolveScript(s, o, events);
   if (s.objects[item].zone === 'stack' && o.omen) { // S24 · presságio volta embaralhado para o grimório
     moveObject(s, item, 'library');
     shuffle(s, s.zones[s.objects[item].owner].library);
@@ -17472,6 +17495,8 @@ function resolveTop(s, events = []) {
     moveObject(s, item, exiles ? 'exile' : dest);
     if (dest === 'battlefield') s.objects[item].controller = controller;
     const ent = s.objects[item];
+    delete ent.copiaEscolhida; // CR2f.2
+    if (comoCopia && ent.nomeImpresso != null && (f.script.entraComoCopia.somaTipos || []).length) aplicaTemporario(s, ent, { vira: { types: f.script.entraComoCopia.somaTipos, addTypes: true }, ate: 'sempre' }, controller); // 707.9b
     if (dest === 'battlefield' && ent.sneakAtaque != null) { // Leva 106 · esgueirar-se: entra virada e atacando
       if (s.combat && ['combat_blockers', 'combat_damage'].includes(s.turn.step)) { ent.tapped = true; ent.attacking = ent.sneakAtaque; s.combat.attackers.push(item); }
       delete ent.sneakAtaque;
@@ -21454,6 +21479,7 @@ function descreveEfeito(e) {
     }
     case 'sacrifice_each': return 'cada jogador sacrifica uma permanente à sua escolha';
     case 'exilar_fichas_mesmo_nome': return 'exila as fichas de mesmo nome que esse jogador controla'; // M-258
+    case 'ficha_copia': return `cria ${qtd(e.amount || 1) > 1 ? qtd(e.amount) + ' fichas que são cópias' : 'uma ficha que é cópia'} de ${alvo || 'uma permanente'}${(e.palavras || []).length ? ', com ' + e.palavras.map(k => PALAVRA_PT[k] || k).join(' e ') : ''}`; // CR2f.2
     case 'escolhe_copiadora': return `escolhe ${alvo || 'uma permanente'} para virar cópia`; // CR2f.1
     case 'torna_copia': return `ela vira uma cópia de ${alvo || 'outra permanente'}${(e.somaTipos || []).length ? ', além de ' + e.somaTipos.map(x => TIPO_PT[x] || x).join(' e ') : ''}${e.ate && e.ate !== 'sempre' ? ' ' + duracaoPT(e.ate) : ''}`; // CR2f.1
     case 'efeito_jogador': { const q = { voce: 'você', oponentes: 'cada oponente', todos: 'cada jogador' }[e.quem || 'voce']; const partes = []; if (e.naoGanhaVida) partes.push('não pode ganhar vida'); if (e.terrenosExtras) partes.push(`pode jogar ${e.terrenosExtras} terreno${e.terrenosExtras > 1 ? 's' : ''} a mais`); if (e.semLimiteDeMao) partes.push('não tem tamanho máximo de mão'); return `${q} ${partes.join(' e ')} ${duracaoPT(e.ate)}`; } // CR2d.10
@@ -23757,7 +23783,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     } else if (s.pending && s.pending.kind === 'pick' && s.pending.p === v) {
       const pk = s.pending;
       const done = pk.picked.length >= pk.min;
-      const LABEL = { 'colher provas': 'Colher provas: exile do cemitério', desvirar: 'Escolha o que desvirar', delve: 'Delve: escolha o que exilar do cemitério', 'descartar ou sacrificar': 'Descartar ou sacrificar um terreno?', 'escolher o descarte': 'Escolha o descarte do oponente', 'devolver para a mão': 'Escolha o que volta para a mão', 'scry': 'Vidência: escolha o que fica no topo', 'surveil': 'Vigiar: escolha o que fica no topo', 'vasculhar': 'Vasculhar o grimório', 'olhar o topo': 'Olhar o topo do grimório', 'devolver ao topo': 'Devolver ao topo', 'embaralhar no grimório': 'Escolha do seu cemitério o que embaralhar no grimório', 'exilar da mão': 'Escolha as cartas da mão a exilar', 'esconder': 'Esconderijo: escolha a carta a exilar virada para baixo', 'repartir hand': 'Escolha a que vai para a mão', 'repartir library-bottom': 'Escolha a que vai para o fundo do grimório', 'repartir exile-playable-turn': 'Escolha a que vai para o exílio (pode jogar neste turno)' }; // M-265
+      const LABEL = { 'colher provas': 'Colher provas: exile do cemitério', desvirar: 'Escolha o que desvirar', delve: 'Delve: escolha o que exilar do cemitério', 'descartar ou sacrificar': 'Descartar ou sacrificar um terreno?', 'escolher o descarte': 'Escolha o descarte do oponente', 'devolver para a mão': 'Escolha o que volta para a mão', 'scry': 'Vidência: escolha o que fica no topo', 'surveil': 'Vigiar: escolha o que fica no topo', 'vasculhar': 'Vasculhar o grimório', 'olhar o topo': 'Olhar o topo do grimório', 'devolver ao topo': 'Devolver ao topo', 'embaralhar no grimório': 'Escolha do seu cemitério o que embaralhar no grimório', 'exilar da mão': 'Escolha as cartas da mão a exilar', 'esconder': 'Esconderijo: escolha a carta a exilar virada para baixo', 'copiar ao entrar': 'Escolha o que ela copia ao entrar (ou confirme sem escolher)', 'repartir hand': 'Escolha a que vai para a mão', 'repartir library-bottom': 'Escolha a que vai para o fundo do grimório', 'repartir exile-playable-turn': 'Escolha a que vai para o exílio (pode jogar neste turno)' }; // M-265
       const REST = { 'library-bottom': 'vai para o fundo', 'graveyard': 'vai para o cemitério', 'stay': 'fica onde está', 'library-top': 'fica no topo' };
       // Leva 125 · o título diz de qual carta é a escolha; a contagem só aparece quando se escolhe mais de uma
       const tituloPk = LABEL[pk.label] || 'Escolha cartas';
