@@ -6197,6 +6197,11 @@ function effectErrors(effects, label, opcional) {
     if (e.do === 'discover' && effects.slice(i + 1).some(isTargeted)) errs.push(`${label} ${i + 1} (discover): efeito com alvo depois de uma escolha`);
   });
   effects.forEach((e, i) => { if (e.do === 'investigate' && e.amount != null) errs.push(...valueErrors(e.amount, `${label} ${i + 1} (investigate): amount`)); }); // V-9
+  effects.forEach((e, i) => { // V-11 · auditoria do lote 2
+    if (e.do === 'investigate' && typeof e.amount === 'number' && e.amount < 0) errs.push(`${label} ${i + 1} (investigate): amount não pode ser negativo`);
+    if (e.do === 'monstrosity' && e.amount && e.amount.per === 'x') errs.push(`${label} ${i + 1} (monstrosity): X no custo de habilidade ativada ainda não existe no motor (a carta fica manual)`);
+    if (e.do === 'monstrosity' && typeof e.amount === 'number' && !(Number.isInteger(e.amount) && e.amount > 0)) errs.push(`${label} ${i + 1} (monstrosity): amount precisa ser inteiro positivo`);
+  });
   effects.forEach((e, i) => { // V-8 · 701.12
     if (e.do === 'trocar_com' && !effects.slice(i + 1).some(x => x.do === 'trocar')) errs.push(`${label} ${i + 1} (trocar_com): precisa ser seguido da troca (trocar)`);
     if (e.do !== 'trocar') return;
@@ -17645,7 +17650,7 @@ function applyEffect(s, src, eff, tgt, events) {
     /* ↓ V · casos de applyEffect da trilha verbos */
     case 'discover': descobrir(s, src, eff, events); break; // V-10 · 701.57
     case 'investigate': applyEffect(s, src, { do: 'token', amount: eff.amount == null ? 1 : eff.amount, token: PISTA_V }, tgt, events); break; // V-9 · 701.16a: pelo mesmo caminho de criar ficha (substituições de 701.7 valem)
-    case 'trocar_com': s.trocaV = { fonte: src.oid, ...(obj ? { oid: obj.oid, z: obj.zc || 0 } : { player: playerOf() }) }; break; // V-8 · anota o primeiro lado; `trocar` apaga
+    case 'trocar_com': s.trocaV = { fonte: src.oid, fz: encarnacaoV(s, src), ...(obj ? { oid: obj.oid, z: obj.zc || 0 } : { player: playerOf() }) }; break; // V-8 · anota o primeiro lado; `trocar` apaga
     case 'trocar': trocar(s, src, eff, tgt, events); break; // V-8 · 701.12
     case 'embaralha_esta': { // V-7 · a mágica sai da pilha para o grimório do dono, que é embaralhado; não vai para o cemitério
       if (!src.ability && s.objects[src.oid] && s.objects[src.oid].zone === 'stack') { const dono = s.objects[src.oid].owner; moveObject(s, src.oid, 'library'); shuffle(s, s.zones[dono].library); note({ target: src.name }); }
@@ -17657,7 +17662,7 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'bolster': fortalecer(s, src, eff, events); break; // V-3 · 701.39
     case 'proliferate': proliferar(s, src, events); break; // V-2 · 701.34
     case 'proliferate_jogador': if (s.proliferar && !s.proliferar.jogadores.includes(eff.jogador)) s.proliferar.jogadores.push(eff.jogador); break; // V-2 · o "sim" da pergunta por jogador
-    case 'lutador': if (obj) s.lutadorV = { fonte: src.oid, oid: obj.oid, z: obj.zc || 0 }; break; // V-1/V-5 · anota quem luta; a luta é o `fight` seguinte, que apaga a anotação
+    case 'lutador': if (obj) s.lutadorV = { fonte: src.oid, fz: encarnacaoV(s, src), oid: obj.oid, z: obj.zc || 0 }; break; // V-1/V-5 · anota quem luta; a luta é o `fight` seguinte, que apaga a anotação
     case 'fight': lutar(s, src, eff, tgt, events); break; // V-1 · 701.14
     /* ↓ T · casos de applyEffect da trilha tipos */
     case 'untap': { const alvo = eff.target === 'enchanted' ? criaturaEncantada(s, src) : eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj; if (alvo) alvo.tapped = false; note({}); break; }
@@ -20477,7 +20482,7 @@ const PISTA_V = { name: 'Clue', types: ['artifact'], subtypes: ['Clue'], colors:
    recebe um efeito contínuo que FIXA aquele valor (613.4b, camada 7b: marcadores e bônus somam depois).
    Fora, declarado no mapa: trocar cartas entre zonas (d–f) e caixas de texto (h). */
 function trocar(s, src, eff, tgt, events) {
-  const ctrl = src.controller, m = s.trocaV && s.trocaV.fonte === src.oid ? s.trocaV : null; delete s.trocaV;
+  const ctrl = src.controller, m = s.trocaV && s.trocaV.fonte === src.oid && s.trocaV.fz === encarnacaoV(s, src) ? s.trocaV : null; delete s.trocaV; // V-11 · a anotação é desta conjuração
   const falha = () => events.push({ kind: 'effect', do: 'trocar', name: src.name, failed: true });
   const vivo = p => p != null && s.players[p] && !s.players[p].lost;
   const ajusta = (p, para) => { const d = para - s.players[p].life; if (d > 0) ganhaVidaJogador(s, p, d); else if (d < 0) perdeVida(s, p, -d); };
@@ -20506,8 +20511,10 @@ function trocar(s, src, eff, tgt, events) {
   if (!vivo(p) || !c || c.zone !== 'battlefield' || !isCreature(s, c)) return falha();
   const noPoder = eff.o === 'vida-poder', valor = noPoder ? power(s, c) : toughness(s, c), vida = s.players[p].life;
   if (!podeIrPara(p, valor)) return falha();
-  const base = basePT(s, c);
-  ajusta(p, valor); aplicaTemporario(s, c, { vira: { base: noPoder ? [vida, base[1]] : [base[0], vida] }, ate: 'sempre' }, ctrl);
+  // V-11 · só a característica trocada é fixada (701.12g). O efeito do motor fixa o par inteiro, então o outro lado leva o valor impresso
+  // (ou definido pela carta), não o de um "torna-se N/N" passageiro — que, enquanto durar, perde para este efeito mais novo (declarado no mapa)
+  const f = s.facts[c.name] || {}, imp = ptDefinido(s, c) || [Number(f.power) || 0, Number(f.toughness) || 0];
+  ajusta(p, valor); aplicaTemporario(s, c, { vira: { base: noPoder ? [vida, imp[1]] : [imp[0], vida] }, ate: 'sempre' }, ctrl);
   events.push({ kind: 'effect', do: 'trocar', name: src.name, target: s.players[p].name, o: eff.o, de: vida, para: valor });
 }
 Object.assign(EXPORTS_V, { trocar });
@@ -20530,8 +20537,9 @@ function dobrar(s, src, eff, tgt, events) {
   if (!o || o.zone !== 'battlefield') return nota({ failed: true });
   if (eff.o === 'marcadores') {
     const n = (o.counters[eff.tipo] || 0) * k;
-    if (n > 0) { if (eff.tipo === 'p1p1') addCounters(s, o, n); else o.counters[eff.tipo] += n; events.push({ kind: 'effect', do: 'counters', name: o.name, target: o.name, amount: n, ...(eff.tipo === 'p1p1' ? {} : { tipo: eff.tipo }) }); }
-    return nota({ target: o.name, amount: n, o: 'marcadores' });
+    const postos = n > 0 ? poeMarcadores(s, o, eff.tipo, n) : 0; // V-11 · pôr marcadores passa pelas substituições (614.16), qualquer que seja o tipo
+    if (postos > 0) events.push({ kind: 'effect', do: 'counters', name: o.name, target: o.name, amount: postos, ...(eff.tipo === 'p1p1' ? {} : { tipo: eff.tipo }) });
+    return nota({ target: o.name, amount: postos, o: 'marcadores' });
   }
   if (!isCreature(s, o)) return nota({ failed: true });
   const dp = eff.o !== 'resistencia' ? power(s, o) * k : 0, dt = eff.o !== 'poder' ? toughness(s, o) * k : 0;
@@ -20626,8 +20634,8 @@ const PASSOS_V = {
     let dados = 0;
     for (const oid of pr.objetos) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield') continue;
       for (const [tipo, n] of Object.entries(o.counters)) { if (!(n > 0)) continue; dados++;
-        if (tipo === 'p1p1') { addCounters(s, o, 1); events.push({ kind: 'effect', do: 'counters', name: o.name, target: o.name, amount: 1 }); }
-        else { o.counters[tipo] = n + 1; events.push({ kind: 'effect', do: 'counters', name: o.name, target: o.name, amount: 1, tipo }); } } }
+        const postos = poeMarcadores(s, o, tipo, 1); // V-11 · pelo caminho comum de pôr marcadores (substituições de 614.16)
+        if (postos > 0) events.push({ kind: 'effect', do: 'counters', name: o.name, target: o.name, amount: postos, ...(tipo === 'p1p1' ? {} : { tipo }) }); } }
     for (const i of pr.jogadores) { if (s.players[i] && !s.players[i].lost && s.players[i].poison > 0) { darVeneno(s, i, 1, events, pr.nome); dados++; } }
     events.push({ kind: 'effect', do: 'proliferate', name: pr.nome, target: s.players[pr.p].name, amount: dados });
   },
@@ -20652,8 +20660,10 @@ function danoDeLuta(s, fonte, alvo, n, events) {
 function lutadorDe(s, src, eff) {
   if (eff.quem === 'self-source') return src.ability ? s.objects[src.source] : src;
   const m = s.lutadorV; delete s.lutadorV;
-  return m && m.fonte === src.oid && mesmaEncarnacao(s, m) ? s.objects[m.oid] : null;
+  return m && m.fonte === src.oid && m.fz === encarnacaoV(s, src) && mesmaEncarnacao(s, m) ? s.objects[m.oid] : null; // V-11 · a anotação é desta conjuração
 }
+/** V-11 · a encarnação da mágica ou habilidade que está resolvendo (a mesma carta conjurada de novo é outro objeto, 400.7). */
+const encarnacaoV = (s, src) => ((s.objects[src.oid] || src).zc || 0);
 function lutar(s, src, eff, tgt, events) {
   const b = tgt && tgt.oid != null ? s.objects[tgt.oid] : null, a = lutadorDe(s, src, eff);
   const luta = x => !!x && x.zone === 'battlefield' && !!s.facts[x.name] && isCreature(s, x);

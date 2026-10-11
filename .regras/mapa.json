@@ -5847,7 +5847,7 @@
    "regra": "Keyword Actions",
    "titulo": "Exchange",
    "status": "parcial",
-   "falta": "Trocar cartas entre zonas (701.12d–f: mão × exílio, anexos que acompanham, zona vazia) e caixas de texto (701.12h, Exchange of Words). \"Não pode perder vida\" (119.8) não existe no motor, então só o lado \"não pode ganhar\" da 701.12c é conferido. Troca de dois valores que não sejam vida × poder/resistência (701.12g em geral) não tem forma.",
+   "falta": "Trocar cartas entre zonas (701.12d–f: mão × exílio, anexos que acompanham, zona vazia) e caixas de texto (701.12h, Exchange of Words). \"Não pode perder vida\" (119.8) não existe no motor, então só o lado \"não pode ganhar\" da 701.12c é conferido. Troca de dois valores que não sejam vida × poder/resistência (701.12g em geral) não tem forma. Vida × poder/resistência: o efeito do motor fixa o par de P/T base inteiro, então o lado não trocado leva o valor impresso — um \"torna-se N/N\" passageiro que estivesse valendo perde para a troca enquanto durar (701.12g pede fixar só a característica trocada).",
    "esforco": "M",
    "depende": [
     "613 camada 2",
@@ -6160,14 +6160,16 @@
    "n": "701.37",
    "regra": "Keyword Actions",
    "titulo": "Monstrosity",
-   "status": "coberta",
+   "status": "parcial",
    "cartas": "rara",
    "evidencia": "V-6 · efeito `monstrosity` (monstruosidade e ehMonstruosa em core.js, abaixo da âncora ↓ V): se a permanente fonte não é monstruosa, recebe N marcadores +1/+1 e fica monstruosa; já sendo, nada acontece (a). A marca é da permanente (não é habilidade nem valor copiável), leva a encarnação do objeto e deixa de valer quando ele sai do campo (b, 400.7); ter marcadores por outro efeito não é ser monstruosa. Gatilho `becomes-monstrous` (\"When ~ becomes monstrous\"), que vai à pilha com alvo e leva o N como valor do gatilho (c). Cartas: Nessian Asp, Keepsake Gorgon (.listas/oficiais-verbos.json)",
    "testes": [
     "CR 701.37 · monstruosidade (a): a permanente que não é monstruosa recebe N marcadores +1/+1 e fica monstruosa; ativar de novo não põe mais nada",
     "CR 701.37 · monstruosidade (b): a marca dura até a permanente sair do campo — de volta, é objeto novo e pode ficar monstruosa outra vez; marcadores postos por outro efeito não a tornam monstruosa",
     "CR 701.37 · \"quando fica monstruosa\" dispara uma vez, vai à pilha com alvo, e leva o N como valor (c); se já era monstruosa não dispara"
-   ]
+   ],
+   "esforco": "P",
+   "falta": "\"Monstrosity X\" com {X} no custo da habilidade (Polukranos, Hydra Broodmaster): o motor não oferece X na ativação de habilidade (região da trilha motor, 601.2b/602.2b); o validador recusa o script em vez de aceitar X = 0. A habilidade na pilha não guarda a encarnação da fonte: se a permanente sai e volta em resposta, a monstruosidade cai no objeto novo (400.7; dívida antiga do motor, vale para toda habilidade \"esta permanente\")."
   },
   {
    "n": "701.38",
@@ -6401,7 +6403,7 @@
     "702.85 cascata"
    ],
    "cartas": "uma coleção só",
-   "evidencia": "V-10 · efeito `discover` (descobrir e passoDescobrirFim em core.js, abaixo da âncora ↓ V): exila do topo do grimório de quem controla até a primeira carta que não é terreno com valor de mana N ou menor; decisão de conjurar sem pagar (free_cast, com alvos escolhidos na hora) ou não — não conjurada, vai para a mão; as outras exiladas vão para o fundo em ordem aleatória (a); sem carta que sirva, tudo volta para o fundo e nada é descoberto (b); a carta descoberta fica no evento (c). Carta: Trumpeting Carnosaur (texto em .listas/oficiais-verbos.json; script provado no teste)",
+   "evidencia": "V-10 · efeito `discover` (descobrir e passoDescobrirFim em core.js, abaixo da âncora ↓ V): exila do topo do grimório de quem controla até a primeira carta que não é terreno com valor de mana N ou menor; decisão de conjurar sem pagar (free_cast, com alvos escolhidos na hora) ou não — não conjurada, vai para a mão; as outras exiladas vão para o fundo em ordem aleatória (a); sem carta que sirva, tudo volta para o fundo e nada é descoberto (b); a carta descoberta fica no evento (c). Carta: Trumpeting Carnosaur (texto em .listas/oficiais-verbos.json; script provado no teste). Herdado do motor (decisão free_cast, S61), declarado: a conjuração sem pagar aceita reforço sem cobrar e oferece conjurar carta cujo custo adicional não pode ser pago (118.9d) — pedido à trilha motor",
    "testes": [
     "CR 701.57 · descobrir N: exila do topo até a primeira carta que não é terreno de valor N ou menor; conjurada sem pagar, vai à pilha, e as outras exiladas vão para o fundo do grimório",
     "CR 701.57 · descobrir: quem não conjura leva a carta para a mão; o resto vai para o fundo do mesmo jeito",
