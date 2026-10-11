@@ -3810,6 +3810,14 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `HANDLERS.attack` (uma linha a mais: `exaltadoK` depois dos gatilhos de ataque). Só acrescenta.
 - **Testes:** `keywords.cr4.unit` (1, falha sem a leva), `combat.audit` K-5. Texto oficial: Akrasan Squire (Oracle do Forge, 11/10/2026). Goldens idênticos; motor v109.
 
+**K-6 · Pós-vida (702.135) e palavras-chave numeradas** 🟡 (leva K-6)
+- **Valor:** criatura com "Afterlife N" deixa N Espíritos 1/1 brancos e pretos voando ao morrer, só pela palavra-chave; a carta que só tem essa linha joga sem script.
+- **Aceite:** Ministrant of Obligation (texto oficial) morre e deixa dois Espíritos para quem a controlava; com "suas criaturas têm pós-vida 1", deixa três (2 + 1); a cobertura conta "Afterlife 2" como palavra-chave.
+- **Estrutura nova:** `numerosDaPalavraK` lê o N de cada palavra-chave numerada impressa (afterlife, modular, toxic, crew, annihilator…) para o fato da carta (`numerosK`, ausente quando não tem); `palavraNaLinhaK` deixa a cobertura aceitar "<palavra> N" para as numeradas que o motor resolve.
+- **Toca ponto comum:** `cardFacts` (`numerosK`, uma linha a mais), `KW_LINE` da cobertura (a lista ganha o número para as numeradas; só acrescenta).
+- **Testes:** `keywords.cr4.unit` (2, falham sem a leva), `combat.audit` K-6. Texto oficial: Ministrant of Obligation (Oracle do Forge, 11/10/2026). Goldens idênticos; motor v109.
+- **Fora:** fichas são fatos por nome (armadilha 27): Espírito 1/1 só branco de outra carta (Lingering Souls) na mesma partida divide o fato com o do pós-vida. Leitor (trilha `motor`): a linha "Afterlife N" ainda é frase não lida no medidor.
+
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

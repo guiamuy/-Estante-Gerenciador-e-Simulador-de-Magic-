@@ -319,6 +319,19 @@ test('K-5 · exaltado (702.83): atacar sozinho com uma exaltada no campo causa 1
   assert.equal(r.players[d].life, 17, 'Urso 2 + exaltado 1');
 });
 
+test('K-6 · pós-vida (702.135): o bloqueador que morre deixa uma ficha 1/1 voando', () => {
+  cobre('afterlife');
+  const cartas = { ...CARDS, Clerigo: cre('Clerigo', 2, 1, ['Afterlife'], { oracle_text: 'Afterlife 1' }), Grande: cre('Grande', 4, 4) };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 37, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a; let g, c; [s, g] = poe(s, a, 'Grande'); [s, c] = poe(s, d, 'Clerigo');
+  let r = combate(s, [g], [[c, g]]);
+  for (let i = 0; i < 10 && (r.stack.length || r.pending); i++) r = r.pending ? act(r, E.legalActions(r, r.pending.p)[0]) : act(r, { t: 'pass', p: r.turn.priority });
+  const fichas = r.zones[d].battlefield.filter(x => r.objects[x].token);
+  assert.equal(fichas.length, 1); assert.ok(E.hasKeyword(r, r.objects[fichas[0]], 'flying'));
+});
+
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));

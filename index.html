@@ -5203,6 +5203,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'prowess', // K-3 · 702.108: habilidade disparada gerada pela palavra-chave (gatilhosDePalavraK), uma por instância
   'persist', 'undying', // K-4 · 702.79 e 702.93: "quando morre, se não tinha marcador -1/-1 (+1/+1), volta com um"
   'exalted', // K-5 · 702.83: "quando uma criatura sua ataca sozinha, ela recebe +1/+1" (exaltadoK), uma por instância
+  'afterlife', // K-6 · 702.135: "Afterlife N" — o N vem do texto (numerosDaPalavraK)
   /* ↓ V · palavras-chave da trilha verbos */
   /* ↓ T · palavras-chave da trilha tipos */
 ];
@@ -7434,7 +7435,7 @@ function fichasDasCartas(names) {
 }
 
 /* ---------------- S2 · cobertura ---------------- */
-const KW_LINE = new RegExp(`^(${KEYWORDS.join('|')})(,\\s*(${KEYWORDS.join('|')}))*$`, 'i');
+const KW_LINE = new RegExp(`^(${KEYWORDS.map(palavraNaLinhaK).join('|')})(,\\s*(${KEYWORDS.map(palavraNaLinhaK).join('|')}))*$`, 'i'); // K-6 · palavra-chave numerada ("Afterlife 2") com o número
 const MANA_LINE = /^\{T\}: Add /i;
 const clean = t => String(t || '').replace(/\([^)]*\)/g, '').split('\n').map(l => l.trim()).filter(Boolean);
 
@@ -7542,6 +7543,9 @@ function wardCustoErrosK(c, varias) {
   return errs;
 }
 Object.assign(EXPORTS_K_SC, { wardCustoErrosK });
+/** K-6 · palavras-chave de KEYWORDS que levam número na linha impressa ("Afterlife 2"): na cobertura, a linha conta como palavra-chave
+    com o número. Declaração de função (vale antes da linha, no KW_LINE). */
+function palavraNaLinhaK(k) { return ['afterlife'].includes(k) ? `${k} \\d+` : k; }
 /* ↓ V · exportações de scripts.js da trilha verbos */
 // V-6 · evento "ficou monstruosa" (701.37): da própria permanente
 EVENTOS_DE_OBJETO.push('monstruosa'); OBJETOS_DO_EVENTO.monstruosa = ['self']; GATILHO_EVENTO['becomes-monstrous'] = { evento: 'monstruosa', objeto: 'self' }; TRIGGER_PT['becomes-monstrous'] = 'quando fica monstruosa';
@@ -14829,6 +14833,7 @@ function cardFacts(card) {
     power: num(card && card.power), toughness: num(card && card.toughness), loyalty: num(card && card.loyalty),
     cmc: (card && card.cmc) || 0, prot: protecaoImpressa(card),
     wardImpresso: wardImpressoK(card), // K-2 · 702.21: "Ward {N}" / "Ward—Pay N life." / descarte / sacrifício, da face da frente (undefined quando não tem)
+    numerosK: numerosDaPalavraK(card), // K-6 · "Afterlife 2", "Modular 1"…: o N de cada palavra-chave numerada impressa (undefined quando não tem)
     // CR 202.1b / 118.6: carta sem custo de mana (Living End, Lotus Bloom) tem custo impagável, não custo zero
     // (só quando o dado diz valor de mana 0: registro sem o campo de custo mas com valor de mana conhecido não é "sem custo")
     semCusto: !tl.includes('land') && !((card && card.cmc) > 0) && !String((card && (card.mana_cost || (card.faces && card.faces[0] && card.faces[0].mana_cost))) || '').trim(),
@@ -20327,6 +20332,8 @@ const GATILHOS_DE_PALAVRA_K = {
   // conferida no campo, na hora de sair (ultimaPalavrasK); `z` é a encarnação no cemitério (a carta que saiu de lá é outra, 400.7).
   persist: (s, o) => ({ kind: 'triggered', when: 'dies', palavraK: 'persist', effects: [{ do: 'volta_com_marcador', marcador: 'm1m1', z: (o && o.zc) || 0 }] }),
   undying: (s, o) => ({ kind: 'triggered', when: 'dies', palavraK: 'undying', effects: [{ do: 'volta_com_marcador', marcador: 'p1p1', z: (o && o.zc) || 0 }] }),
+  // 702.135a · "When this permanent is put into a graveyard from the battlefield, create N 1/1 white and black Spirit creature tokens with flying."
+  afterlife: (s, o, i) => ({ kind: 'triggered', when: 'dies', palavraK: 'afterlife', effects: [{ do: 'token', amount: numeroDaPalavraK(s, o, 'afterlife', i), token: { name: 'Spirit', types: ['creature'], subtypes: ['Spirit'], colors: ['W', 'B'], power: 1, toughness: 1, keywords: ['flying'] } }] }),
 };
 /** As palavras-chave da tabela que algum script desta partida pode conceder. Cada fato é lido uma vez (WeakMap pelo próprio fato, que
     não muda depois de criado); a união é refeita uma vez por estado (o mapa de fatos é copiado raso a cada ação). */
@@ -20344,7 +20351,7 @@ function palavrasConcedidasK(s) {
 /** Quantas instâncias da palavra-chave `k` a permanente tem agora: a impressa (se não perdeu as habilidades), cada marcador (122.1b),
     a da mutação e cada efeito contínuo que a concede depois do corte (613.7); zero quando has() diz que não tem. */
 function instanciasK(s, o, k) {
-  if (o && o.zone !== 'battlefield' && PALAVRAS_DE_SAIDA_K[k]) return ((o.ultima || {}).palavrasK || {})[k] || 0; // K-4 · 603.10a: como era no campo
+  if (o && o.zone !== 'battlefield' && k in PALAVRAS_DE_SAIDA_K) return ((o.ultima || {}).palavrasK || {})[k] || 0; // K-4 · 603.10a: como era no campo
   const f = o && s.facts[o.name]; if (!f || o.faceDown || o.zone !== 'battlefield') return 0;
   const impressa = (f.kw || []).includes(k), marcadores = SC.KEYWORD_COUNTERS.includes(k) ? ((o.counters || {})[k] || 0) : 0, concedivel = palavrasConcedidasK(s).has(k);
   if (!impressa && !marcadores && !concedivel && !o.mutavel) return 0;
@@ -20357,16 +20364,16 @@ function instanciasK(s, o, k) {
 /** As habilidades disparadas que as palavras-chave da tabela dão à permanente, uma por instância. */
 function habilidadesDePalavraK(s, o) {
   const out = [];
-  for (const k in GATILHOS_DE_PALAVRA_K) { const n = instanciasK(s, o, k); for (let i = 0; i < n; i++) out.push(GATILHOS_DE_PALAVRA_K[k](s, o)); }
+  for (const k in GATILHOS_DE_PALAVRA_K) { const n = instanciasK(s, o, k); for (let i = 0; i < n; i++) out.push(GATILHOS_DE_PALAVRA_K[k](s, o, i)); }
   return out;
 }
 Object.assign(EXPORTS_K, { instanciasK, habilidadesDePalavraK });
 /** K-4 · palavras-chave de "quando morre" que olham para trás (603.10a), com o marcador que as impede (a condição "se não tinha"). */
-const PALAVRAS_DE_SAIDA_K = { persist: 'm1m1', undying: 'p1p1' };
+const PALAVRAS_DE_SAIDA_K = { persist: 'm1m1', undying: 'p1p1', afterlife: null }; // K-6 · pós-vida não tem condição
 /** K-4 · na hora de sair do campo (a permanente ainda é como era): quantas instâncias de cada uma ela tinha e se a condição vale. */
 function ultimaPalavrasK(s, o) {
   const out = {};
-  for (const [k, m] of Object.entries(PALAVRAS_DE_SAIDA_K)) { if (((o.counters || {})[m] || 0) > 0) continue; const n = instanciasK(s, o, k); if (n) out[k] = n; }
+  for (const [k, m] of Object.entries(PALAVRAS_DE_SAIDA_K)) { if (m && ((o.counters || {})[m] || 0) > 0) continue; const n = instanciasK(s, o, k); if (n) out[k] = n; }
   return Object.keys(out).length ? { palavrasK: out } : {};
 }
 Object.assign(EXPORTS_K, { ultimaPalavrasK });
@@ -20383,6 +20390,25 @@ function exaltadoK(s, p, atacantes) {
   }
 }
 Object.assign(EXPORTS_K, { exaltadoK });
+/** K-6 · palavras-chave com número (702): o N lido da linha impressa da face da frente ("Afterlife 2"). Uma lista por palavra, uma
+    entrada por instância impressa. */
+const NUMERADAS_K = ['afterlife', 'annihilator', 'bushido', 'fading', 'vanishing', 'modular', 'rampage', 'absorb', 'amplify', 'bloodthirst', 'graft', 'frenzy', 'poisonous', 'renown', 'fabricate', 'afflict', 'tribute', 'soulshift', 'dredge', 'toxic', 'backup', 'crew', 'ravenous', 'casualty', 'squad', 'mobilize', 'ripple'];
+function numerosDaPalavraK(card) {
+  const txt = String((card && (card.oracle_text || (card.faces && card.faces[0] && card.faces[0].oracle_text))) || ''), out = {};
+  for (const l0 of txt.split('\n')) for (const p of l0.replace(/\s*\([^)]*\)/g, '').split(/,\s*/)) {
+    const m = p.trim().match(/^([A-Za-z]+) (\d+)$/); const k = m && m[1].toLowerCase();
+    if (k && NUMERADAS_K.includes(k)) (out[k] = out[k] || []).push(+m[2]);
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+/** O N da instância `i` da palavra-chave numerada: as primeiras são as impressas, com o número da linha (se a permanente ainda tem
+    as impressas); as outras (concedidas por efeito, que nos scripts dizem só a palavra) valem 1. */
+function numeroDaPalavraK(s, o, k, i = 0) {
+  const f = o && s.facts[o.name], imp = (f && (f.kw || []).includes(k) && f.numerosK && f.numerosK[k]) || [];
+  const temImpressa = o && (o.zone === 'battlefield' ? !semImpressas(s, o) : !((o.ultima || {}).faceDown || (o.ultima || {}).semHabilidades));
+  return temImpressa && i < imp.length ? imp[i] : 1;
+}
+Object.assign(EXPORTS_K, { numerosDaPalavraK, numeroDaPalavraK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-10 · 701.57 descobrir N: exila do topo do seu grimório até exilar uma carta que não é terreno com valor de mana N ou menor. Você
    pode conjurá-la sem pagar o custo de mana (a mágica resultante precisa ter valor ≤ N: com X, X = 0); se não conjurar, ela vai para a
@@ -23098,6 +23124,7 @@ Object.assign(PALAVRA_PT, { changeling: 'metamorfo', devoid: 'desprovido' }); //
 Object.assign(PALAVRA_PT, { prowess: 'proeza' }); // K-3
 Object.assign(PALAVRA_PT, { persist: 'persistir', undying: 'imortal' }); // K-4
 Object.assign(PALAVRA_PT, { exalted: 'exaltado' }); // K-5
+Object.assign(PALAVRA_PT, { afterlife: 'pós-vida' }); // K-6
 /* ↓ V · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha verbos */
 const MARCADOR_PT_V = { p1p1: '+1/+1', m1m1: '−1/−1', loyalty: 'de lealdade', poison: 'de veneno' }; // V-7
 const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas por descreveEfeito)

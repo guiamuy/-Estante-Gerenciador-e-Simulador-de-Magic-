@@ -8360,13 +8360,18 @@
    "n": "702.135",
    "regra": "Keyword Abilities",
    "titulo": "Afterlife",
-   "status": "ausente",
-   "falta": "Palavra-chave não reconhecida; o efeito (\"quando morre, crie N fichas Espírito 1/1 branco e preto com voar\", 702.135a) já cabe em gatilho `dies` + ficha, falta ler do texto.",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "111 fichas"
    ],
-   "cartas": "comum (Ravnica Allegiance)"
+   "cartas": "comum (Ravnica Allegiance)",
+   "evidencia": "K-6: 'afterlife' em KEYWORDS; o N vem da linha impressa (numerosDaPalavraK em cardFacts: numerosK, para as palavras-chave numeradas de 702); GATILHOS_DE_PALAVRA_K gera \"quando vai do campo para o cemitério, cria N fichas 1/1 brancas e pretas de Espírito, voando\" para quem a controlava; instâncias olham para trás (PALAVRAS_DE_SAIDA_K, como persistir), cada uma dispara à parte (702.135b), a impressa com o seu N e a concedida (\"afterlife 1\") com 1. Cobertura: linha \"Afterlife N\" conta como palavra-chave (palavraNaLinhaK no KW_LINE): carta só com ela joga sem script. Carta exemplo: Ministrant of Obligation (Oracle do Forge, 11/10/2026).",
+   "testes": [
+    "CR 702.135a · pós-vida (Ministrant of Obligation, texto oficial: \"Afterlife 2\"): ao morrer, cria duas fichas 1/1 brancas e pretas de Espírito, voando, para quem a controlava",
+    "CR 702.135b · cada instância de pós-vida dispara à parte",
+    "K-6 · pós-vida (702.135): o bloqueador que morre deixa uma ficha 1/1 voando"
+   ]
   },
   {
    "n": "702.136",

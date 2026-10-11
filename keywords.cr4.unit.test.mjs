@@ -206,7 +206,7 @@ const OFICIAIS_K = JSON.parse(readFileSync(new URL('./.listas/oficiais-keywords.
 /** Carta com o texto oficial guardado; `keywords` como a Scryfall manda (palavras-chave das linhas só de palavra-chave). */
 function oficial(nome) {
   const c = OFICIAIS_K.find(x => x.name === nome); if (!c) throw new Error('sem texto oficial: ' + nome);
-  const kws = String(c.oracle_text).split('\n').flatMap(l => { const ps = l.replace(/\s*\([^)]*\)/g, '').split(/,\s*/).map(x => x.trim()); return ps.every(x => S.KEYWORDS.includes(x.toLowerCase())) ? ps : []; });
+  const kws = String(c.oracle_text).split('\n').flatMap(l => { const ps = l.replace(/\s*\([^)]*\)/g, '').split(/,\s*/).map(x => x.trim().replace(/ \d+$/, '')); return ps.every(x => S.KEYWORDS.includes(x.toLowerCase())) ? ps : []; }); // como a Scryfall: "Afterlife 2" → Afterlife
   const cores = [...new Set((c.mana_cost.match(/[WUBRG]/g) || []))];
   return { name: c.name, type_line: c.type_line, mana_cost: c.mana_cost, cmc: (c.mana_cost.match(/\{[^}]+\}/g) || []).reduce((n, x) => n + (/^\{\d+\}$/.test(x) ? +x.slice(1, -1) : 1), 0), colors: cores, keywords: kws, oracle_text: c.oracle_text, ...(c.power != null ? { power: c.power, toughness: c.toughness } : {}) };
 }
@@ -318,4 +318,29 @@ test('CR 702.83a/b · exaltado (Akrasan Squire, texto oficial): a criatura que a
   assert.equal(E.stats(exaltada, exaltada.objects[q1]).power, 3, 'a própria exaltada atacando sozinha conta a dela também (1 + 2)');
   const duas = ataca(s, [u, u2]);
   assert.equal(E.stats(duas, duas.objects[u]).power, 2, 'duas atacando: ninguém ataca sozinha');
+});
+
+/* ---------------- K-6 · 702.135 pós-vida ---------------- */
+test('CR 702.135a · pós-vida (Ministrant of Obligation, texto oficial: "Afterlife 2"): ao morrer, cria duas fichas 1/1 brancas e pretas de Espírito, voando, para quem a controlava', () => {
+  const MO = oficial('Ministrant of Obligation');
+  assert.deepEqual(J(E.numerosDaPalavraK(MO)), { afterlife: [2] });
+  assert.equal(S.coverage(MO).level, 'completo', 'só a palavra-chave numerada: a carta joga sem script');
+  let s = partida({ 'Ministrant of Obligation': MO, Mata: MATA }, SC_MATA); const a = s.turn.active, d = 1 - a;
+  let mo; [s, mo] = poe(s, d, 'Ministrant of Obligation');
+  s = mata(s, mo);
+  const fichas = s.zones[d].battlefield.filter(x => s.objects[x].token);
+  assert.equal(fichas.length, 2, 'duas fichas, do lado de quem a controlava');
+  const f = s.objects[fichas[0]];
+  assert.deepEqual(J(E.colorsOf(s, f)).sort(), ['B', 'W']); assert.equal(E.stats(s, f).power, 1); assert.ok(E.hasKeyword(s, f, 'flying')); assert.match(E.linhaDeTipo(s, f), /Spirit/);
+});
+
+test('CR 702.135b · cada instância de pós-vida dispara à parte', () => {
+  const MO = oficial('Ministrant of Obligation');
+  const FAZ = { name: 'Alma', type_line: 'Enchantment', mana_cost: '{1}{B}', cmc: 2, colors: ['B'], keywords: [], oracle_text: 'Creatures you control have afterlife 1.' };
+  const SC = { ...SC_MATA, Alma: { name: 'Alma', grantsAll: { keywords: ['afterlife'] }, example: { action: 'etb', target: 'none', expect: { attached: false } } } };
+  let s = partida({ 'Ministrant of Obligation': MO, Mata: MATA, Alma: FAZ }, SC); const a = s.turn.active, d = 1 - a;
+  let mo; [s, mo] = poe(s, d, 'Ministrant of Obligation'); [s] = poe(s, d, 'Alma');
+  assert.equal(E.instanciasK(s, s.objects[mo], 'afterlife'), 2);
+  s = mata(s, mo);
+  assert.equal(s.zones[d].battlefield.filter(x => s.objects[x].token).length, 3, 'a impressa cria 2, a concedida ("afterlife 1") cria 1');
 });
