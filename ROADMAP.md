@@ -3286,6 +3286,14 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Golden:** idênticas, sem regravar. Versão não sobe (carta sem script antes).
 - **Próximo:** M-269 — suspender (702.62) pelo Delay.
 
+**M-269 · R11 · Suspender (702.62) pelo Delay** ✅ (leva M-269, motor v96, sem mudança no que existe) — 3 testes de unidade.
+- **Regra (702.62a):** anular com `suspende: N` exila a mágica com N marcadores de tempo e suspender. Na manutenção do dono, um gatilho na pilha tira um marcador; tirado o último, outro gatilho oferece conjurar sem pagar o custo de mana (a decisão "conjurar sem pagar" que já existia, com título e dica próprios); recusar deixa a carta exilada e sem permissão; criatura conjurada assim tem ímpeto enquanto o dono a controlar.
+- **Cartas cobertas (completas):** Delay (era parcial: a mágica ia para o cemitério; texto oficial em `.listas/oficiais-commander.json`, 05/10/2026).
+- **Fora (declarado no mapa):** a ação especial de suspender da mão pagando o custo de suspender (nenhuma carta das listas tem suspender impresso). Sem e2e próprio: a tela usa a decisão de conjurar sem pagar, já coberta pela homologação.
+- **Medição:** Malcolm + Kediss 96% → **97%** (completo 97 · parcial 3 · manual 0). **Mapa:** 702.62 parcial (447 ausentes).
+- **Golden:** idênticas, sem regravar. Versão não sobe (Delay era parcial).
+- **Próximo:** M-270 — Lukka completo (+1 e −7).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

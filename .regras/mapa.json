@@ -7053,16 +7053,20 @@
    "n": "702.62",
    "regra": "Keyword Abilities",
    "titulo": "Suspend",
-   "status": "ausente",
-   "falta": "Sem ação especial de exilar da mão com N marcadores de tempo (702.62a-b), sem gatilho de manutenção que remove marcador, sem conjurar sem pagar ao sair o último e sem ímpeto para a criatura (702.62a). O ROADMAP lista \"suspender\" como estrutura pendente; Delay está parcial por isso (index.html:5053).",
-   "esforco": "G",
+   "status": "parcial",
+   "falta": "A ação especial de suspender da mão pagando o custo de suspender (702.62a-b) não existe — nenhuma carta das listas tem suspender impresso; só o Delay põe cartas em suspensão.",
+   "esforco": "P",
    "depende": [
     "116.2",
     "122 (marcador nomeado em carta exilada)",
     "601 (conjurar sem pagar)",
     "702.63"
    ],
-   "cartas": "comum em poucas coleções (Time Spiral, Modern Horizons)"
+   "cartas": "comum em poucas coleções (Time Spiral, Modern Horizons)",
+   "evidencia": "M-269 (v96): carta exilada com marcadores de tempo e suspender (Delay: counter com suspende); na manutenção do dono, um gatilho na pilha tira um marcador; tirado o último, outro gatilho oferece conjurar sem pagar (recusar deixa exilada, sem permissão); criatura conjurada assim tem ímpeto enquanto o dono a controlar. suspender.unit.",
+   "testes": [
+    "M-269 · suspender: um marcador por manutenção do dono (gatilho na pilha); no último, o dono conjura sem pagar e a criatura tem ímpeto"
+   ]
   },
   {
    "n": "702.63",

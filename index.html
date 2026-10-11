@@ -5286,6 +5286,8 @@ const EFFECTS = {
   mare_alta: { fields: [], targets: ['self'] }, // M-262 · High Tide
   topo_ou_fundo_do_dono: { fields: [], targets: ['permanent'] }, // M-264 · "The owner of target nonland permanent puts it on their choice of the top or bottom of their library"
   revelar_topo_para_mao: { fields: [], targets: ['self'] }, // M-263 · Dark Confidant
+  tirar_tempo: { fields: [], targets: ['self'] }, // M-269 · 702.62 suspender: na manutenção do dono, tira um marcador de tempo
+  jogar_suspensa: { fields: [], targets: ['self'] }, // M-269 · "when the last is removed, they may play it without paying its mana cost"
   esconderijo: { fields: ['count'], targets: ['self'] }, // M-268 · 702.75 hideaway: olha N, exila uma virada para baixo ligada à permanente, o resto no fundo em ordem aleatória
   jogar_escondida: { fields: [], targets: ['self'] }, // M-268 · "you may play the exiled card without paying its mana cost [if …]"
   repartir_topo: { fields: ['count'], targets: ['self'] }, // M-267 · Expressive Iteration: "put one into your hand, one on the bottom, and exile one" — em ordem, uma escolha por destino
@@ -6005,6 +6007,7 @@ function effectErrors(effects, label, opcional) {
       if (e.ate != null && !duracaoValida(e.ate)) errs.push(`${label} ${i + 1}: duração "${typeof e.ate === 'object' ? JSON.stringify(e.ate) : e.ate}" desconhecida`);
     }
     if (e.do === 'keyword' && !KEYWORDS.includes(String(e.keyword || '').toLowerCase())) errs.push(`${label} ${i + 1}: palavra-chave "${e.keyword}" não é resolvida pelo motor`);
+    if (e.suspende != null && !(e.do === 'counter' && Number.isInteger(e.suspende) && e.suspende > 0)) errs.push(`${label} ${i + 1}: "suspende" (marcadores de tempo) só vale para anular, com um inteiro positivo`); // M-269
     if (e.unless && !e.unless.mana) errs.push(`${label} ${i + 1}: "a menos que pague" precisa de um custo de mana`);
     // S57 · duração do bônus: sem isso vale até o fim do turno
     if (e.until != null && e.until !== 'your-next-turn') errs.push(`${label} ${i + 1}: duração "${e.until}" desconhecida`);
@@ -6365,9 +6368,9 @@ const RAW_SCRIPTS = [
   { name: 'Arcane Denial', effects: [{ do: 'counter', target: 'spell' }, { do: 'delayed', when: 'next-upkeep', target: 'target-controller', effects: [{ do: 'draw_up_to', amount: 2, target: 'delayed-player' }] },
     { do: 'delayed', when: 'next-upkeep', effects: [{ do: 'draw', amount: 1 }] }],
     example: { target: 'enemy-spell', expect: { countered: true } } },
-  { name: 'Delay', effects: [{ do: 'counter', target: 'spell' }],
-    covers: 'partial', note: 'a mágica vai para o cemitério; exilar com três marcadores de tempo e ganhar suspender não entra',
-    example: { target: 'enemy-spell', expect: { countered: true } } },
+  // M-269 · "Counter target spell. If the spell is countered this way, exile it with three time counters on it instead of putting it into its owner's graveyard. If it doesn't have suspend, it gains suspend." (texto de 05/10/2026)
+  { name: 'Delay', effects: [{ do: 'counter', target: 'spell', suspende: 3 }],
+    example: { target: 'enemy-spell', expect: { targetExiled: true } } },
   // S41 · manuais das Elves (textos conferidos em 26/09)
   { name: 'Vitu-Ghazi Inspector', evidence: 6,
     abilities: [{ kind: 'triggered', when: 'etb', condition: { evidenced: true },
@@ -14169,7 +14172,7 @@ function zoneList(s, obj, zone) { return zone === 'stack' ? s.stack : s.zones[ob
 const VOLTA_COMANDO = ['graveyard', 'exile', 'hand', 'library'];
 /** Leva 105 · marcas que a conjuração põe na carta (e que não atravessam outra mudança de zona). */
 const MARCAS_DA_CONJURACAO = ['xPaid', 'bestowed', 'evidenced', 'faceDown', 'flashback', 'paidAdditional', 'discardedNonland', 'altIndex', 'mode',
-  'bargained', 'omen', 'stormCopies', 'chosenColor', 'plotted', 'playableFromExile', 'jogavelSoNesteTurno', 'escondida', 'sneakAtaque', 'kicked', 'modes', 'castFrom']; // 'revealed' fica: a habilidade do Martyr of Sands lê depois do sacrifício
+  'bargained', 'omen', 'stormCopies', 'chosenColor', 'plotted', 'playableFromExile', 'jogavelSoNesteTurno', 'escondida', 'suspensa', 'suspensaImpeto', 'sneakAtaque', 'kicked', 'modes', 'castFrom']; // 'revealed' fica: a habilidade do Martyr of Sands lê depois do sacrifício
 /* ---------------- CR2-G R5c · 701.8/614 · "se fosse destruída" ---------------- */
 /** O que acontece se `o` fosse destruída agora: 'indestrutivel' (não é destruída), { totem: aura } (702.89: a Aura com
  * armadura de totem é destruída no lugar e o dano sai), 'regenerou' (701.15: um escudo de regeneração é gasto) ou 'destruida'.
@@ -14306,6 +14309,7 @@ function moveObject(s, oid, to, { top = true } = {}) {
   o.tapped = false; o.damage = 0; o.counters = {}; o.controller = o.owner;
   delete o.tempToxico; delete o.tempResguardoCor; delete o.tempNaoBloqueadaPor; delete o.tempHabilidades; delete o.permissaoUsada; if (fromZone !== to) delete o.desenterrada; // M-255/M-256/M-257 · 400.7
   delete o.attacking; delete o.atacandoPw; delete o.exigeAtacarPw; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.pumpNext; delete o.goaded; delete o.keywordsNext; delete o.cantAttackNext; delete o.targets; delete o.attachedTo; delete o.tempKeywords; delete o.tempTs; delete o.anexadaEm; delete o.mutavel; delete o.vira; delete o.prevenirDano; delete o.regenerar; delete o.temporarios; delete o.tempProtection; delete o.paired; // S39 · o vínculo de alma se desfaz ao sair do campo
+  if (to === 'battlefield' && fromZone === 'stack' && o.suspensaImpeto) { delete o.suspensaImpeto; aplicaTemporario(s, o, { palavras: ['haste'], ate: { enquanto: 'controlar-fonte' } }, o.controller, o); } // M-269 · "if it's a creature, it has haste"
   if (to === 'battlefield') o.ts = relogio(s); // CR2d.1 · 613.7d: carimbo de tempo de quem entra no campo
   o.sick = to === 'battlefield' && s.facts[o.name].types.includes('creature');
   if (to === 'battlefield') o.entrouNoTurno = s.turn.number; // Leva 107
@@ -14959,6 +14963,7 @@ function enterStep(s, step) {
   }
   // CR2-G R2b · 603.2b · começo do passo: na manutenção, os do jogador ativo vêm antes dos atrasados (como antes)
   if (step === 'upkeep') disparaPasso(s, step, 'seu');
+  if (step === 'upkeep') for (const oid of s.zones[a].exile) { const x = s.objects[oid]; if (x && x.suspensa && (x.counters.time || 0) > 0) s.queued.push({ source: oid, name: x.name, controller: a, effects: [{ do: 'tirar_tempo' }], when: 'suspender' }); } // M-269 · 702.62a
   // CR 603.7 · gatilhos atrasados: disparam uma vez, no próximo começo do passo pedido, e somem. A manutenção é "do próximo
   // turno"; o passo final e o fim do combate são os próximos a começar (criado dentro do próprio passo, espera o seguinte)
   const momento = { upkeep: 'next-upkeep', end: 'next-end-step', combat_end: 'end-of-combat' }[step];
@@ -15683,6 +15688,8 @@ function applyEffect(s, src, eff, tgt, events) {
         s.pending = { kind: 'may_pay', p: obj.controller, cost: eff.unless.mana, target: obj.oid, name: src.name };
         note({ pending: true }); break;
       }
+      if (eff.suspende && s.objects[obj.oid]) { // M-269 · Delay: "exile it with three time counters on it instead … If it doesn't have suspend, it gains suspend"
+        moveObject(s, obj.oid, 'exile'); obj.counters.time = eff.suspende; obj.suspensa = true; note({ suspensa: eff.suspende }); break; }
       moveObject(s, obj.oid, 'graveyard'); note({}); break;
     case 'draw': { const n = amountOf(s, src, eff.amount); draw(s, playerOf(), n); note({ amount: n }); } break;
     case 'gain': { const n = amountOf(s, src, eff.amount); const who = playerOf(); s.players[who].life += n; s.players[who].lifeGained = (s.players[who].lifeGained || 0) + n; note({ amount: n }); } break;
@@ -15987,6 +15994,20 @@ function applyEffect(s, src, eff, tgt, events) {
       const fichas = battlefield(s).filter(o => o.token && o.controller === quem && o.name === nome && o.oid !== obj.oid);
       for (const f of fichas) moveObject(s, f.oid, 'exile');
       note({ amount: fichas.length, name: nome }); break;
+    }
+    case 'tirar_tempo': { // M-269 · 702.62a: tira um marcador de tempo; tirado o último, dispara "pode jogá-la sem pagar"
+      const carta = s.objects[src.ability ? src.source : src.oid];
+      if (!carta || carta.zone !== 'exile' || !(carta.counters.time > 0)) { note({ failed: true }); break; }
+      carta.counters.time -= 1; note({ name: carta.name, amount: carta.counters.time });
+      if (!carta.counters.time) s.queued.push({ source: carta.oid, name: carta.name, controller: carta.owner, effects: [{ do: 'jogar_suspensa' }], when: 'suspender' });
+      break;
+    }
+    case 'jogar_suspensa': { // M-269 · 702.62a: "if it's exiled, you may play it without paying its mana cost if able. If you don't, it remains exiled."
+      const carta = s.objects[src.ability ? src.source : src.oid];
+      if (!carta || carta.zone !== 'exile' || s.facts[carta.name].types.includes('land')) { note({ failed: true }); break; }
+      carta.playableFromExile = carta.owner;
+      s.pending = { kind: 'free_cast', p: carta.owner, options: [carta.oid], name: carta.name, suspensa: true };
+      note({ pending: true }); break;
     }
     case 'esconderijo': { // M-268 · 702.75a: "look at the top N cards of your library, exile one face down, then put the rest on the bottom in a random order"
       const fonte = src.ability ? s.objects[src.source] : src;
@@ -17724,11 +17745,12 @@ const HANDLERS = {
     if (pk.escondida) delete s.objects[a.oid].faceDown; // M-268 · ao jogar, a carta vira para cima
     if (terreno) HANDLERS.play_land(s, { t: 'play_land', p: a.p, oid: a.oid, granted: true }, ev); // M-268 · usa a jogada de terreno do turno
     else HANDLERS.cast(s, { ...a, t: 'cast', free: true, granted: true }, ev);
+    if (pk.suspensa && s.objects[a.oid] && s.objects[a.oid].zone === 'stack') { delete s.objects[a.oid].suspensa; if (s.facts[s.objects[a.oid].name].types.includes('creature')) s.objects[a.oid].suspensaImpeto = true; } // M-269
     if (!continueUnless(s, ev)) resumeEffects(s, ev);
   },
   decline_free(s, a, ev) { // S61 · não conjurar nada
     if (!s.pending || s.pending.kind !== 'free_cast' || s.pending.p !== a.p) throw new RuleError('tempo', 'nada para recusar');
-    if (s.pending.escondida) for (const oid of s.pending.options || []) if (s.objects[oid]) delete s.objects[oid].playableFromExile; // M-268 · continua escondida
+    if (s.pending.escondida || s.pending.suspensa) for (const oid of s.pending.options || []) if (s.objects[oid]) delete s.objects[oid].playableFromExile; // M-268/M-269 · continua exilada
     s.pending = null;
     if (!continueUnless(s, ev)) resumeEffects(s, ev);
   },
@@ -20298,7 +20320,7 @@ function effectLine(ev) {
     case 'destroy': return ev.failed ? `${ev.name} não destruiu ${t}${ev.why ? ` (${ev.why})` : ': sem efeito'}` : `${ev.name} destruiu ${t}`; // R9b · Hydroblast em permanente que não é vermelha dizia "(indestrutível)"
     case 'exile': return `${ev.name} exilou ${t}`;
     case 'bounce': return `${ev.name} devolveu ${t} à mão do dono`;
-    case 'counter': return ev.paid ? `${t} escapou de ${ev.name}: o custo foi pago` : ev.pending ? `${ev.name} espera o pagamento de ${t}` : ev.failed ? `${ev.name} não anulou ${t}: sem efeito` : `${ev.name} anulou ${t}`; // R9b · dizia "anulou" com a mágica ainda na pilha
+    case 'counter': if (ev.suspensa) return `${ev.name} anulou ${t} e a exilou com ${ev.suspensa} marcadores de tempo (suspender)`; return ev.paid ? `${t} escapou de ${ev.name}: o custo foi pago` : ev.pending ? `${ev.name} espera o pagamento de ${t}` : ev.failed ? `${ev.name} não anulou ${t}: sem efeito` : `${ev.name} anulou ${t}`; // R9b · dizia "anulou" com a mágica ainda na pilha
     case 'counters': return ev.tipo ? `${ev.name} recebeu ${plural(n, 'marcador ' + (MARCADOR_PT[ev.tipo] || ev.tipo), 'marcadores ' + (MARCADOR_PT[ev.tipo] || ev.tipo))}` : `${ev.name} recebeu ${plural(n, 'marcador +1/+1', 'marcadores +1/+1')}`;
     case 'adapt': return n ? `${ev.name} adaptou: ${plural(n, 'marcador +1/+1', 'marcadores +1/+1')}` : `${ev.name} não adaptou: já tinha marcador +1/+1`;
     case 'return_chosen': return `${ev.name}: ${t} devolveu uma permanente à mão`;
@@ -21103,7 +21125,7 @@ function descreveEfeito(e) {
     case 'damage': return `causa ${n} de dano a ${alvo || 'um alvo'}`;
     case 'gain': return e.amount && IGUAL_A[e.amount.per] ? `ganha vida igual ${IGUAL_A[e.amount.per]}` : `ganha ${n} de vida`;
     case 'lose': return `${alvo === 'cada oponente' ? 'cada oponente perde' : 'perde'} ${n} de vida`;
-    case 'counter': return `anula ${alvo || 'uma mágica'}`;
+    case 'counter': return `anula ${alvo || 'uma mágica'}${e.suspende ? ` e a exila com ${e.suspende} marcadores de tempo, com suspender` : ''}`; // M-269
     case 'destroy': return `destrói ${alvo || 'uma permanente'}`;
     case 'destroy_all': { const nomes = { artifact: 'artefatos', enchantment: 'encantamentos', creature: 'criaturas', land: 'terrenos', planeswalker: 'planeswalkers' }; // CR2c.2
       const vm = e.mvMax != null ? ` de valor de mana ${e.mvMax} ou menos` : e.mvMin != null ? ` de valor de mana ${e.mvMin} ou mais` : '';
@@ -23392,9 +23414,9 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     } else if (s.pending && s.pending.kind === 'free_cast' && s.pending.p === v) {
       // S61 · Covil do Mago Louco: uma das cartas compradas pode ser conjurada sem pagar
       const opts = E.legalActions(s, v).filter(x => x.t === 'cast_free');
-      const esc = !!s.pending.escondida; // M-268 · esconderijo
-      banner = PriorityBanner({ title: esc ? `${s.pending.name}: jogar a carta escondida sem pagar?` : `${s.pending.name}: conjurar uma sem pagar?`, tone: 'warning',
-        hint: esc ? (opts.length ? 'Se não jogar agora, ela continua escondida.' : 'A carta escondida não pode ser jogada agora (terreno: só no seu turno, se ainda não jogou terreno).')
+      const esc = !!s.pending.escondida, susp = !!s.pending.suspensa; // M-268 · esconderijo; M-269 · suspender
+      banner = PriorityBanner({ title: esc ? `${s.pending.name}: jogar a carta escondida sem pagar?` : susp ? `${s.pending.name}: saiu o último marcador de tempo. Conjurar sem pagar?` : `${s.pending.name}: conjurar uma sem pagar?`, tone: 'warning',
+        hint: susp ? (opts.length ? 'Se não conjurar agora, ela continua exilada. Criatura conjurada assim tem ímpeto.' : 'Ela não pode ser conjurada agora e continua exilada.') : esc ? (opts.length ? 'Se não jogar agora, ela continua escondida.' : 'A carta escondida não pode ser jogada agora (terreno: só no seu turno, se ainda não jogou terreno).')
           : opts.length ? 'Vale só para uma das cartas que você acabou de comprar.' : 'Nenhuma das compradas pode ser conjurada agora.',
         // Leva 110 · um botão por carta; os alvos abrem a folha completa
         actions: [...[...new Set(opts.map(x => x.oid))].map((oid, i) => { const da = opts.filter(x => x.oid === oid);
