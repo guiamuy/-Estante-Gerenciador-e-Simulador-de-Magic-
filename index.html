@@ -13834,7 +13834,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 107; // CR2b.5 · ordem APNAP com escolha aberta, gatilho de entrada de quem controla, gatilhos distintos pelo que lembram, face de trás dispara ao sair
+const ENGINE_VERSION = 108; // CR2b.6 · última informação conhecida: condição do gatilho, filtro do observador e concedidas ao sair
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -14469,7 +14469,9 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
   // Leva 107 · o que esta permanente exilou vira "devolver ao sair" só para o gatilho de saída; qualquer outra mudança limpa
   // CR 603.10 / 704.8 / 113.7a · última informação conhecida: como a permanente era no campo, para os gatilhos que olham para trás
   const ultima = fromZone === 'battlefield' && to !== 'battlefield' ? { controller: fromController, faceDown: !!o.faceDown, ...(semImpressas(s, o) && !o.faceDown ? { semHabilidades: true } : {}), tapped: !!o.tapped, counters: { ...(o.counters || {}) }, ...(o.attachedTo ? { anexadaA: o.attachedTo } : {}),
-    ...(isCreature(s, o) ? { power: power(s, o), toughness: toughness(s, o) } : {}) } : null;
+    ...(isCreature(s, o) ? { power: power(s, o), toughness: toughness(s, o) } : {}),
+    tipos: tiposDe(s, o).slice(), linha: linhaDeTipo(s, o), // CR2b.6 · 603.10a: o observador vê o que ela era no campo (terreno animado é criatura)
+    ...((c => c.length ? { concedidas: c } : {})(grantedAbilities(s, o).filter(a => a.kind === 'triggered'))) } : null; // CR2b.6 · 603.10a: a habilidade disparada concedida também olha para trás
   delete o.ultima;
   const segurava = fromZone === 'battlefield' ? o.holding : null;
   delete o.holding; delete o.devolverAoSair;
@@ -17105,11 +17107,13 @@ const isChangeling = (s, o) => !semImpressas(s, o) && !!((s.facts[o.name].script
 function matchesTriggerFilter(s, o, filter) {
   if (!filter) return true;
   const f = s.facts[o.name];
-  if ((filter.types || []).some(x => !f.types.includes(x))) return false;
-  if (filter.anyTypes && !filter.anyTypes.some(x => f.types.includes(x))) return false; // R11 · "creature or planeswalker" (Cruel Celebrant)
-  if (filter.noncreature && f.types.includes('creature')) return false;
-  if (o.faceDown) return false; // S54 · virada para baixo não combina com filtro de carta
-  if (filter.subtype && !isChangeling(s, o) && !new RegExp('\\b' + filter.subtype + '\\b', 'i').test(linhaDeTipo(s, o))) return false; // CR2d.12
+  const lki = o.zone !== 'battlefield' && o.ultima && o.ultima.tipos ? o.ultima : null; // CR2b.6 · 603.10a: quem saiu do campo é visto como era lá
+  const tipos = lki ? lki.tipos : o.zone === 'battlefield' ? tiposDe(s, o) : f.types;
+  if ((filter.types || []).some(x => !tipos.includes(x))) return false;
+  if (filter.anyTypes && !filter.anyTypes.some(x => tipos.includes(x))) return false; // R11 · "creature or planeswalker" (Cruel Celebrant)
+  if (filter.noncreature && tipos.includes('creature')) return false;
+  if (lki ? lki.faceDown : o.faceDown) return false; // S54 · virada para baixo não combina com filtro de carta
+  if (filter.subtype && !isChangeling(s, o) && !new RegExp('\\b' + filter.subtype + '\\b', 'i').test(lki ? lki.linha : linhaDeTipo(s, o))) return false; // CR2d.12 · CR2b.6
   return true;
 }
 /** S57 · aventurar-se na masmorra (regra 309). Sem masmorra, você escolhe uma e
@@ -17232,7 +17236,7 @@ function gatilhosDeZona(s, o, de, para, ctrlAntes, ultima) {
   if (isAbility(o) || !s.facts[o.name]) return;
   const saiu = de === 'battlefield' && para !== 'battlefield';
   const ctrl = saiu ? ctrlAntes : o.controller;
-  const dela = saiu && o.ultima && (o.ultima.faceDown || o.ultima.semHabilidades) ? [] : abilitiesOf(s, o); // CR 603.10a · CR2d.1
+  const dela = saiu && o.ultima && (o.ultima.faceDown || o.ultima.semHabilidades) ? [] : abilitiesOf(s, o).concat(saiu && o.ultima ? o.ultima.concedidas || [] : []); // CR 603.10a · CR2d.1 · CR2b.6: com as concedidas que ela tinha no campo
   // CR 603.10a · quem saiu do campo NO MESMO evento (s.saindoJuntas) também observa, como era no campo
   const juntas = saiu ? (s.saindoJuntas || []).map(x => s.objects[x]).filter(w => w && w.zone !== 'battlefield' && w.ultima && !w.ultima.faceDown && !w.ultima.semHabilidades) : [];
   const observadores = battlefield(s).concat(juntas);
@@ -17348,6 +17352,7 @@ function marcasDoGatilho(s, q, oid) {
   if (q.mayPay) s.objects[oid].mayPay = q.mayPay; // S47 · o custo opcional viaja com a habilidade
   if (q.optional) s.objects[oid].optionalTrigger = true; // S49 · gatilho opcional sem custo
   if (q.condition) s.objects[oid].condicao = q.condition; // Leva 107 · "se" do gatilho é conferido de novo na resolução (603.4)
+  { const f = q.condition && s.objects[q.source]; if (f && !f.ability) s.objects[oid].fonteRetrato = { zc: f.zc || 0, controller: f.controller, ...(f.kicked ? { kicked: f.kicked } : {}), ...(f.bargained ? { bargained: true } : {}), ...(f.evidenced ? { evidenced: true } : {}), ...(f.faceDown ? { faceDown: true } : {}) }; } // CR2b.6 · 608.2h
   if (q.value != null) s.objects[oid].triggerValue = q.value; // S48 · o valor que o gatilho trouxe
   if (q.lembrada) s.objects[oid].lembrada = q.lembrada; // CR2b.3 · "that card": a carta que saiu, na encarnação nova
   if (q.objeto) s.objects[oid].objetoAtrasado = q.objeto; // CR2b.2 · "ela", com a encarnação mirada
@@ -19116,7 +19121,9 @@ function previewAttack(state, attackers, alvos) {
 function resolveAbility(s, o, events) {
   // Leva 107 · 603.4: condição "se …" do gatilho (Faerie Miscreant) precisa continuar valendo na resolução
   if (o.condicao && !o.condicaoConferida) {
-    const fonte = s.objects[o.source];
+    const viva = s.objects[o.source], r = o.fonteRetrato;
+    // CR2b.6 · 603.4 / 608.2h: se a fonte mudou de zona, a condição usa a última informação conhecida dela (o retrato do disparo)
+    const fonte = viva && r && (viva.zc || 0) !== r.zc ? (({ zc, ...m }) => ({ ...viva, kicked: undefined, bargained: undefined, evidenced: undefined, faceDown: undefined, ...m }))(r) : viva;
     // "atacou com três ou mais" é informação do combate que já passou: vale o que foi visto no disparo
     const { attackersAtLeast, atacaSozinha, ...resto } = o.condicao; // M-252 · "ataca sozinha" também é do disparo
     if (fonte && !triggerConditionMet(s, fonte, resto)) { events.push({ kind: 'trigger-fizzled', name: o.name, when: 'condição' }); return; }

@@ -3552,6 +3552,15 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
   - o filtro do observador pelos tipos do campo (Mishra's Factory animada morrendo com Zulaport Cutthroat);
   - as habilidades disparadas concedidas, que hoje não disparam ao sair.
 
+**CR2b.6 · Última informação conhecida nos gatilhos (603.4, 603.10a, 608.2h)** ✅ (leva M-293, motor v108) — 3 testes de conformidade, todos falham no motor v107.
+- **Regra:** fecha os três erros restantes da auditoria da CR2b.
+  - (1) Benalish Sleeper conjurada com reforço e devolvida à mão em resposta ao gatilho: cada jogador sacrifica mesmo assim, porque a condição usa como a fonte era no disparo. Antes o gatilho falhava.
+  - (2) Mishra's Factory animada que morre com Zulaport Cutthroat no campo era criatura ao morrer, então o oponente perde 1. Antes o observador olhava o tipo impresso.
+  - (3) A habilidade disparada concedida por uma Aura ("quando esta criatura morrer, compre") dispara quando a criatura morre.
+- **Filtro de gatilho:** usa também os tipos de agora para quem está no campo (terreno animado conta como criatura).
+- **Versão:** sobe para v108. Goldens regravados só pela versão. Partidas salvas antes não abrem.
+- **Próximo:** CR2d.14 (dependência, 613.8) e 514.3a completo (ações de estado e gatilhos causados pelo fim dos efeitos do turno).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

@@ -1,7 +1,7 @@
 {
  "sobre": "Mapa regra × motor. Cada item NNN.N das Comprehensive Rules de 25/09/2026 classificado contra o motor v72 em 06/10/2026 por 14 auditores independentes, com evidência vista (código com linha, teste ou sonda executada). status: coberta · parcial · ausente · definicao (só define termo) · fora (jogo físico, torneio ou variante que um app de dois jogadores não precisa). Quando um item muda de status, o teste que prova a mudança entra em `testes`.",
  "cr": "2026-09-25",
- "motor": 107,
+ "motor": 108,
  "auditoria": "2026-10-06",
  "itens": [
   {
@@ -4308,11 +4308,12 @@
    "regra": "Handling Triggered Abilities",
    "titulo": "Cláusula \"se\" intermediária",
    "status": "parcial",
-   "evidencia": "triggerConditionMet no disparo (index.html:11788) e de novo na resolução (resolveAbility :13187-13193, condição levada por marcasDoGatilho :11837); faeries.regras:70 (Faerie Miscreant), rules.unit \"S25 · transforma na fase pós-combate só se ganhou vida suficiente\", \"S28 · gatilho só dispara com outra permanente de mesmo nome\" · CR1b (motor v74): gatilhos de \"outra permanente\" conferem a condição ao disparar e a levam para a resolução; teste de conformidade em cr.conformidade",
-   "falta": "Se a fonte saiu do campo a reconferência na resolução é pulada (devia usar a última informação conhecida). Só cinco condições existem (vida ganha, atacantes, mesmo nome, barganha, provas).",
+   "evidencia": "triggerConditionMet no disparo (index.html:11788) e de novo na resolução (resolveAbility :13187-13193, condição levada por marcasDoGatilho :11837); faeries.regras:70 (Faerie Miscreant), rules.unit \"S25 · transforma na fase pós-combate só se ganhou vida suficiente\", \"S28 · gatilho só dispara com outra permanente de mesmo nome\" · CR1b (motor v74): gatilhos de \"outra permanente\" conferem a condição ao disparar e a levam para a resolução; teste de conformidade em cr.conformidade · M-293 (CR2b.6): se a fonte mudou de zona, a condição \"se\" é reconferida no retrato do disparo (reforço, barganha, provas, controlador; 608.2h)",
+   "falta": "condições de contagem no campo (\"se você controla\") seguem o estado de agora",
    "esforco": "P",
    "testes": [
-    "CR 603.4 · \"se\" intermediário em gatilho de outra permanente: sem a condição não dispara; com ela, dispara"
+    "CR 603.4 · \"se\" intermediário em gatilho de outra permanente: sem a condição não dispara; com ela, dispara",
+    "CR 603.4 · Benalish Sleeper conjurada com reforço e devolvida em resposta ao gatilho: cada jogador sacrifica mesmo assim (antes o gatilho falhava)"
    ]
   },
   {
@@ -4378,16 +4379,18 @@
    "regra": "Handling Triggered Abilities",
    "titulo": "Gatilhos que \"olham para trás\"",
    "status": "parcial",
-   "evidencia": "Morte e saída do campo da própria permanente disparam com o controlador de antes da mudança (moveObject index.html:10309-10311, fromController); sacrifício avisa other-sacrificed (sacrifice :11628); rules.unit \"M9 · gatilhos de morte\", \"S32 · sacrificar outra permanente dispara o gatilho\" · CR2a.3 (motor v77): 603.10a — as mortes de uma mesma checagem de estado saem em lote (s.saindoJuntas) e quem sai junto também observa as outras; moveObject guarda a última informação conhecida (o.ultima: controlador, face, virada, marcadores, poder e resistência) e a criatura que sai virada para baixo não dispara a habilidade da face de cima; testes de conformidade em cr.conformidade · CR2a.4 (v78): \"cada jogador sacrifica\" escolhe em ordem e sacrifica em lote (sacrifice_each, continuaEdito); commander.regras Accursed Marauder · CR2c.2 (v85): \"destroy all\" com filtro (destroy_all) também sai em lote com s.saindoJuntas — Zulaport vê a própria morte e as das outras destruídas junto (commander.regras \"CR2c.2 · Austere Command\") · M-292 (CR2b.5): a face de trás dispara o \"morre\" dela antes de voltar à frente",
-   "falta": "habilidades disparadas concedidas não disparam ao sair; o filtro do observador usa o tipo impresso, não a última informação",
-   "esforco": "M",
+   "evidencia": "Morte e saída do campo da própria permanente disparam com o controlador de antes da mudança (moveObject index.html:10309-10311, fromController); sacrifício avisa other-sacrificed (sacrifice :11628); rules.unit \"M9 · gatilhos de morte\", \"S32 · sacrificar outra permanente dispara o gatilho\" · CR2a.3 (motor v77): 603.10a — as mortes de uma mesma checagem de estado saem em lote (s.saindoJuntas) e quem sai junto também observa as outras; moveObject guarda a última informação conhecida (o.ultima: controlador, face, virada, marcadores, poder e resistência) e a criatura que sai virada para baixo não dispara a habilidade da face de cima; testes de conformidade em cr.conformidade · CR2a.4 (v78): \"cada jogador sacrifica\" escolhe em ordem e sacrifica em lote (sacrifice_each, continuaEdito); commander.regras Accursed Marauder · CR2c.2 (v85): \"destroy all\" com filtro (destroy_all) também sai em lote com s.saindoJuntas — Zulaport vê a própria morte e as das outras destruídas junto (commander.regras \"CR2c.2 · Austere Command\") · M-292 (CR2b.5): a face de trás dispara o \"morre\" dela antes de voltar à frente · M-293 (CR2b.6): o observador vê quem saiu do campo pelos tipos e pela linha de tipo de lá; a habilidade disparada concedida também olha para trás",
+   "falta": "603.10a para o que sai da mão ou do cemitério ao mesmo tempo",
+   "esforco": "P",
    "depende": [
     "704 (mortes simultâneas num só evento)"
    ],
    "testes": [
     "CR 603.10 · mortes simultâneas: quem observa \"outra criatura sua morre\" e morre junto vê as outras (603.10a)",
     "CR 603.10 · gatilho de saída olha para trás: criatura que morre virada para baixo não dispara a habilidade da face de cima",
-    "CR 603.10 · a permanente transformada que morre dispara o \"morre\" da face de trás, não o da frente"
+    "CR 603.10 · a permanente transformada que morre dispara o \"morre\" da face de trás, não o da frente",
+    "CR 603.10 · Mishra\\",
+    "CR 603.10 · a habilidade disparada concedida por uma Aura (\"quando esta criatura morrer, compre\") dispara quando a criatura morre"
    ]
   },
   {
@@ -9126,9 +9129,12 @@
     "603.10",
     "608.2h"
    ],
-   "evidencia": "CR2a.3 (motor v77): moveObject fotografa a permanente antes de zerar (o.ultima: controlador, face, virada, marcadores, poder e resistência) e os gatilhos de saída leem a foto para a face e o controlador; cr.conformidade \"CR 603.10 · gatilho de saída olha para trás…\" · CR2a.4 (v78): a foto é lida por um efeito — { per: \"sacrificed-toughness\" } (Ayli, Eternal Pilgrim) · auditoria independente CR2a/CR2h (11/10/2026): o.ultima guarda controlador, face, anexos, P/T e marcadores; lida por gatilhos",
+   "evidencia": "CR2a.3 (motor v77): moveObject fotografa a permanente antes de zerar (o.ultima: controlador, face, virada, marcadores, poder e resistência) e os gatilhos de saída leem a foto para a face e o controlador; cr.conformidade \"CR 603.10 · gatilho de saída olha para trás…\" · CR2a.4 (v78): a foto é lida por um efeito — { per: \"sacrificed-toughness\" } (Ayli, Eternal Pilgrim) · auditoria independente CR2a/CR2h (11/10/2026): o.ultima guarda controlador, face, anexos, P/T e marcadores; lida por gatilhos · M-293 (CR2b.6): o.ultima guarda também tipos, linha de tipo e as disparadas concedidas",
    "testes": [
-    "CR 603.10 · gatilho de saída olha para trás: criatura que morre virada para baixo não dispara a habilidade da face de cima"
+    "CR 603.10 · gatilho de saída olha para trás: criatura que morre virada para baixo não dispara a habilidade da face de cima",
+    "CR 603.4 · Benalish Sleeper conjurada com reforço e devolvida em resposta ao gatilho: cada jogador sacrifica mesmo assim (antes o gatilho falhava)",
+    "CR 603.10 · Mishra\\",
+    "CR 603.10 · a habilidade disparada concedida por uma Aura (\"quando esta criatura morrer, compre\") dispara quando a criatura morre"
    ]
   },
   {
