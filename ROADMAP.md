@@ -3586,6 +3586,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Medida:** 20 das 107 mágicas do acervo lidas por inteiro, todas idênticas ao script à mão (Abrade, Steel Sabotage, Fiery Temper, Faithless Looting, Spell Pierce, Cast Down, Dark Withering, Treasure Cruise…).
 - **Fora:** fichas com habilidade no texto (Eldrazi Spawn), olhar o topo, revelar, custos adicionais, "até N alvos", sobrecarga.
 
+**LT3 · Leitor de texto: habilidades disparadas de permanente, Auras, "entra virada" e produção de mana** ✅ (leva M-297, motor v109 sem mudança no jogo) — piso do teste de concordância sobe de 20 para 38 cartas (de 296).
+- **Entregue:** o leitor lê "When this creature enters, …", "When ~ is put into a graveyard from the battlefield, …", "Whenever ~ deals combat damage to a player, you may …" (e mais 10 aberturas), com "you may" virando opcional; "Enchant <tipo>" e "Enchanted creature gets +N/+N and has <palavras>" / "has protection from <cores>"; "This land enters tapped"; "{T}: Add {X} or {Y}"; "Ninjutsu {custo}". Permanente só com palavras-chave ou mana conta como lida (o motor joga pelos dados da carta).
+- **Fidelidade:** a comparação com os scripts à mão passou a cobrir habilidades, Aura, concessões e "entra virada". Habilidade ativada ainda não é lida (LT4).
+- **Pendência de dados achada pelo teste:** o texto oficial guardado do Sagu Wildling não traz a face Omen (Roost Seek); o leitor não tem como ver, e a carta fica fora da concordância com o motivo registrado no teste. Corrigir em `.listas/oficiais.json` na próxima consulta.
+- **Fora:** habilidades ativadas, estáticas com seletor ("creatures you control get +1/+1"), fichas com habilidade, "investigate" e outros verbos de palavra-chave de ação.
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

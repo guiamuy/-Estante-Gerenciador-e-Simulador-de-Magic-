@@ -14083,7 +14083,10 @@ const __m42 = (function () {
      com o texto dela; a carta só sai "completa" quando todas as frases foram lidas e o script passa no validador. O que o leitor produz
      ainda não joga sozinho: a revisão (LT7) decide. A concordância com os scripts escritos à mão é medida no portão (leitor.concordancia).
      LT2 · mágicas modais ("Choose one —"), palavras-chave com custo (lampejo do passado, insanidade, tempestade, delve, reciclagem),
-     fichas de criatura, "a menos que pague", combinações com "and" e alvos com restrição (não lendária, não <cor>). */
+     fichas de criatura, "a menos que pague", combinações com "and" e alvos com restrição (não lendária, não <cor>).
+     LT3 · permanentes: habilidades disparadas ("When this creature enters", "Whenever ~ deals combat damage to a player", "When ~ is put
+     into a graveyard from the battlefield", "At the beginning of your upkeep"), com "you may"; Auras (Enchant X; "Enchanted creature gets
+     +N/+N and has <palavras>" / "has protection from <cor>"); "~ enters tapped"; palavras-chave com custo da permanente (ninjutsu). */
   const SC = __m23;
   const NUMEROS = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
   const N = '(a|an|one|two|three|four|five|six|seven|eight|nine|ten|\\d+)';
@@ -14140,6 +14143,14 @@ const __m42 = (function () {
     [new RegExp(`^(target player|target opponent) discards ${N} cards?$`, 'i'), m => [com({ do: 'discard', amount: num(m[2]) }, alvo(m[1]))]],
     [new RegExp(`^(target player|target opponent) mills ${N} cards?$`, 'i'), m => [com({ do: 'mill', amount: num(m[2]) }, alvo(m[1]))]],
     [new RegExp(`^mill ${N} cards?$`, 'i'), m => [{ do: 'mill', amount: num(m[1]) }]],
+    [/^tap (target [a-z ']+)$/i, m => [com({ do: 'tap' }, alvo(m[1]))]],
+    [/^return ~ to its owner's hand$/i, () => [{ do: 'to_hand', target: 'self-source' }]],
+    [/^(target creature|target creature an opponent controls|target creature you control) gets ([+-]\d+)\/([+-]\d+) until end of turn$/i, m => [com({ do: 'pump', power: SINAL(m[2]), toughness: SINAL(m[3]) }, alvo(m[1]))]],
+    [/^you gain that much life$/i, () => [{ do: 'gain', amount: { per: 'trigger-value' } }]],
+    [/^untap (target [a-z ']+)$/i, m => [com({ do: 'untap' }, alvo(m[1]))]],
+    [new RegExp(`^put ${N} \\+1/\\+1 counters? on (this creature|~)$`, 'i'), m => [{ do: 'counters', amount: num(m[1]), target: 'self-source' }]],
+    [/^exile target player's graveyard$/i, () => [{ do: 'exile_graveyard', target: 'player' }]],
+    [/^it deals (\d+) damage to (each opponent|target opponent|any target)$/i, m => [com({ do: 'damage', amount: +m[1] }, alvo(m[2]))]],
     [new RegExp(`^create ${N} (\\d+/\\d+) ((?:white|blue|black|red|green|colorless)(?: and (?:white|blue|black|red|green))?) ${TIPO_CRIATURA} creature tokens?(?: with ([a-z ,]+))?$`), m => ficha(m[1], m[2], m[3], m[4], m[5])]
   ];
   /** Linha de palavra-chave com custo, no topo do script ("Flashback {2}{R}" → flashback: { mana }). Só as que o motor executa assim. */
@@ -14150,6 +14161,46 @@ const __m42 = (function () {
     [/^storm$/i, () => ({ storm: true })],
     [/^delve$/i, () => ({ delve: true })]
   ];
+  /** Abertura de habilidade disparada → `when` do vocabulário (os que o motor executa com esse nome). */
+  const GATILHOS = [
+    [/^when (this creature|this artifact|this land|this aura|this permanent|this enchantment|~) enters(?: the battlefield)?$/i, 'etb'],
+    [/^when (this creature|this artifact|~) (?:dies|is put into a graveyard from the battlefield)$/i, 'dies'],
+    [/^when (this creature|this artifact|~) leaves the battlefield$/i, 'leaves-battlefield'],
+    [/^whenever (this creature|~) deals combat damage to a player$/i, 'combat-damage'],
+    [/^whenever (this creature|~) attacks$/i, 'attacks'],
+    [/^whenever (this creature|~) blocks$/i, 'blocks'],
+    [/^at the beginning of your upkeep$/i, 'upkeep'],
+    [/^at the beginning of your end step$/i, 'end-step'],
+    [/^at the beginning of combat on your turn$/i, 'begin-combat'],
+    [/^whenever enchanted creature deals damage$/i, 'enchanted-deals-damage'],
+    [/^whenever enchanted creature deals damage to an opponent$/i, 'enchanted-damages-opponent'],
+    [/^whenever another creature enters(?: the battlefield)? under your control$/i, 'other-etb'],
+    [/^when enchanted creature becomes tapped or is dealt damage$/i, 'enchanted-tapped-or-damaged']
+  ];
+  const ENCHANT = { 'enchant creature': 'creature', 'enchant creature you control': 'creature-you-control', 'enchant land': 'land', 'enchant permanent': 'permanent' };
+  const PROT = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
+  /** "Enchanted creature gets +2/+0 and has trample." / "Enchanted creature has flying." / "… has protection from black and from red." */
+  function concessao(l) {
+    let m = l.match(/^enchanted (?:creature|permanent|land) gets ([+-]\d+)\/([+-]\d+)(?: and has ([a-z ,]+))?$/i);
+    if (m) { const kws = m[3] ? m[3].split(/,\s*|\s+and\s+/).map(x => x.trim().toLowerCase()) : []; if (kws.some(k => !KW.has(k))) return null; return { power: SINAL(m[1]), toughness: SINAL(m[2]), ...(kws.length ? { keywords: kws } : {}) }; }
+    m = l.match(/^enchanted (?:creature|permanent) has protection from ((?:white|blue|black|red|green)(?: and from (?:white|blue|black|red|green))*)$/i);
+    if (m) return { protection: m[1].split(/ and from /).map(c => PROT[c.toLowerCase()]) };
+    m = l.match(/^enchanted (?:creature|permanent) has ([a-z ,]+)$/i);
+    if (m) { const kws = m[1].split(/,\s*|\s+and\s+/).map(x => x.trim().toLowerCase()); return kws.every(k => KW.has(k)) ? { keywords: kws } : null; }
+    return null;
+  }
+  /** Uma linha de habilidade disparada → { ab, frases } ou null. "you may" vira optional; "it" na frase vira "~" (a própria permanente). */
+  function leGatilho(linha, nome, frases) {
+    const i = linha.indexOf(', '); if (i < 0) return null;
+    const cab = linha.slice(0, i), resto = linha.slice(i + 2).replace(/\.$/, '');
+    const g = GATILHOS.find(([re]) => re.test(cab)); if (!g) return null;
+    const opcional = /^you may /i.test(resto);
+    const corpo = resto.replace(/^you may /i, '').replace(/^it /i, '~ ');
+    const sub = [];
+    const e = leParagrafo(corpo, nome, sub);
+    frases.push({ texto: cab, lida: true }, ...sub);
+    return e ? { kind: 'triggered', when: g[1], ...(opcional ? { optional: true } : {}), effects: e } : null;
+  }
   const semLembrete = t => String(t || '').replace(/\s*\([^)]*\)/g, '').trim();
   const KW = new Set(SC.KEYWORDS.map(k => k.toLowerCase()));
   /** Uma linha só de palavras-chave que o motor conhece ("Flying, vigilance"): o motor já as lê do texto. */
@@ -14181,7 +14232,16 @@ const __m42 = (function () {
     let modos = null;
     for (const linha of linhas) {
       if (linhaDePalavras(linha)) { frases.push({ texto: linha, lida: true, palavras: true }); continue; }
-      if (!magica) { frases.push({ texto: linha, lida: false, motivo: 'habilidade de permanente (LT3/LT4)' }); continue; }
+      if (!magica) { // LT3 · permanentes
+        const lp = linha.replace(/\.$/, '');
+        const en = ENCHANT[lp.toLowerCase()]; if (en) { topo.aura = { enchant: en }; frases.push({ texto: linha, lida: true }); continue; }
+        if (/^(this land|this creature|~) enters(?: the battlefield)? tapped$/i.test(lp)) { topo.entersTapped = true; frases.push({ texto: linha, lida: true }); continue; }
+        const nj = lp.match(/^ninjutsu (\{[^}]+\}(?:\{[^}]+\})*)$/i); if (nj) { topo.ninjutsu = { mana: nj[1] }; frases.push({ texto: linha, lida: true }); continue; }
+        const mana = lp.match(/^\{T\}: Add (\{[WUBRGC]\}(?: or \{[WUBRGC]\})*)$/); if (mana) { topo.produces = mana[1].split(' or ').map(x => [x.replace(/[{}]/g, '')]); frases.push({ texto: linha, lida: true }); continue; } // produção de mana
+        if (GATILHOS.some(([re]) => re.test(lp.split(', ')[0]))) { const g = leGatilho(lp, nome, frases); if (g) (topo.abilities = topo.abilities || []).push(g); continue; } // gatilho (as frases do corpo já ficaram anotadas)
+        const c = concessao(lp); if (c) { topo.grants = { ...(topo.grants || {}), ...c, ...(c.keywords && topo.grants && topo.grants.keywords ? { keywords: [...topo.grants.keywords, ...c.keywords] } : {}) }; frases.push({ texto: linha, lida: true }); continue; }
+        frases.push({ texto: linha, lida: false, motivo: 'habilidade de permanente sem padrão conhecido' }); continue;
+      }
       const kc = COM_CUSTO.map(([re, faz]) => { const m = linha.match(re); return m && faz(m); }).find(Boolean);
       if (kc) { Object.assign(topo, kc); frases.push({ texto: linha, lida: true }); continue; }
       if (/^choose one\s*—$/i.test(linha)) { modos = []; frases.push({ texto: linha, lida: true }); continue; }
@@ -14193,8 +14253,11 @@ const __m42 = (function () {
     let script = null;
     if (modos && modos.length && !efeitos.length) script = { name: nome, modes: modos.filter(Boolean), ...topo };
     else if (efeitos.length && !modos) script = { name: nome, effects: efeitos, ...topo };
+    else if (!magica && (topo.abilities || topo.aura || topo.entersTapped || topo.grants || topo.produces)) script = { name: nome, ...topo }; // LT3
+    const permanenteSemTexto = !magica && !linhas.length; // criatura sem texto: não precisa de script (o motor joga pelos dados da carta)
     const erros = script ? SC.validateScript({ ...script, example: { target: 'none', expect: {} } }).filter(e => !/cenário|example|exemplo/i.test(e)) : ['sem efeito'];
-    return { script, frases, completa: !!(magica && lidas && script && !erros.length), erros };
+    const completa = !!(lidas && ((script && !erros.length) || permanenteSemTexto || (!magica && frases.length && frases.every(f => f.palavras))));
+    return { script, frases, completa, erros };
   }
   return { ler, leFrase, PADROES };
 })();
