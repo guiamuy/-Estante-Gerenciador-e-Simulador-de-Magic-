@@ -14307,7 +14307,7 @@ const __m42 = (function () {
   const linhaDePalavras = l => { const ps = l.split(/,\s*/).map(x => x.trim().toLowerCase()); return ps.length > 0 && ps.every(p => KW.has(p)); };
   /** Frase de efeito → efeitos, ou null (inclusive quando o alvo ficou fora do vocabulário). */
   function leFrase(f) {
-    for (const [re, faz] of PADROES) { const m = f.match(re); if (m) { const e = faz(m); return e && e.every(Boolean) ? e : null; } }
+    for (const [re, faz] of PADROES) { const m = f.match(re); if (m) { const e = faz(m); if (e && e.every(Boolean)) return e; } } // LT6 · padrão que casa mas não cabe no vocabulário deixa os seguintes tentarem
     return null;
   }
   const escapa = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -14336,7 +14336,8 @@ const __m42 = (function () {
       const kc0 = !magica && COM_CUSTO.map(([re, faz]) => { const m = linha.replace(/\.$/, '').match(re); return m && faz(m); }).find(Boolean); // LT5 · reciclagem em terreno
       if (kc0) { Object.assign(topo, kc0); frases.push({ texto: linha, lida: true }); continue; }
       if (!magica) { // LT3 · permanentes
-        const lp = linha.replace(/\.$/, '');
+        const lp = linha.replace(/\.$/, '').replace(new RegExp(escapa(nome || '\u0000'), 'g'), '~'); // LT6 · o nome impresso vale como "~"
+
         const en = ENCHANT[lp.toLowerCase()]; if (en) { topo.aura = { enchant: en }; frases.push({ texto: linha, lida: true }); continue; }
         const eq = lp.match(/^Equip (\{[^}]+\}(?:\{[^}]+\})*)$/); if (eq) { topo.equip = { enchant: 'creature', cost: { mana: eq[1] } }; frases.push({ texto: linha, lida: true }); continue; } // LT5
         const ga = lp.match(/^creatures you control have ([a-z ,]+)$/i); // LT5 · "Creatures you control have haste"

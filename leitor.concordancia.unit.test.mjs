@@ -24,7 +24,7 @@ const limpaSelf = sc => sc.self && Object.keys(sc.self).some(k => k !== 'keyword
 const efeitos = (sc, ref) => JSON.stringify(ordena({ self: limpaSelf(sc), effects: efs(sc.effects), modes: (sc.modes || []).map(m => efs(m.effects)), abilities: abs(sc.abilities), ...Object.fromEntries(TOPO.filter(k => k !== 'self' && sc[k] != null && sc[k] !== false && (k !== 'produces' || (ref || sc).produces != null)).map(k => [k, sc[k]])) }));
 const SO_EFEITOS = ['name', 'effects', 'modes', 'abilities', 'example', 'covers', 'note', ...TOPO];
 
-test('LT1 · concordância (piso LT5: 56): toda carta lida por inteiro dá o mesmo script escrito à mão (nenhuma divergência)', () => {
+test('LT1 · concordância (piso LT6: 64): toda carta lida por inteiro dá o mesmo script escrito à mão (nenhuma divergência)', () => {
   const lidas = [], divergentes = [];
   for (const c of CARTAS) {
     const r = L.ler(c); if (!r.completa) continue;
@@ -39,7 +39,7 @@ test('LT1 · concordância (piso LT5: 56): toda carta lida por inteiro dá o mes
     else if (efeitos(h, h) !== efeitos(r.script, h)) divergentes.push(`${c.name}: leitor ${efeitos(r.script, h)} × à mão ${efeitos(h, h)}`);
   }
   assert.deepEqual(divergentes, []);
-  assert.ok(lidas.length >= 56, 'cartas lidas por inteiro: ' + lidas.length + ' (' + lidas.join(', ') + ')');
+  assert.ok(lidas.length >= 64, 'cartas lidas por inteiro: ' + lidas.length + ' (' + lidas.join(', ') + ')');
 });
 
 test('LT1 · fidelidade: frase sem padrão fica não lida, com o texto dela, e a carta não sai completa; permanente ainda não é lida', () => {
