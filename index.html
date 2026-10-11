@@ -5178,7 +5178,7 @@ const EFFECTS = {
   draw: { fields: ['amount'], targets: ['player', 'self'] },
   gain: { fields: ['amount'], targets: ['player', 'self'] },
   lose: { fields: ['amount'], targets: ['player', 'opponent', 'self', 'target-controller', 'each-opponent'] },
-  counters: { fields: ['amount'], targets: ['self-source', 'creature'] },
+  counters: { fields: ['amount'], targets: ['self-source', 'creature', 'first-target'] }, // M-272 · first-target: o alvo de um efeito anterior
   pump: { fields: ['power', 'toughness'], targets: ['creature', 'creature-you-control', 'creature-opponent-controls', 'each-creature', 'each-opponent-creature', 'each-own-creature'] },
   tap: { fields: [], targets: ['self-source', 'enchanted', 'creature', 'permanent', 'permanent-opponent-controls'] },
   untap: { fields: [], targets: ['self-source', 'enchanted', 'creature', 'permanent'] },
@@ -5212,7 +5212,7 @@ const EFFECTS = {
   keyword: { fields: [], targets: ['self-source', 'creature', 'creature-you-control', 'other-creature-you-control', 'each-own-creature'] },
   // CR2-G R3b · efeito contínuo temporário: +N/+N e palavras-chave num efeito só, com duração (até o fim do turno, padrão;
   // até o seu próximo turno). `pump` e `keyword` viraram atalhos dele.
-  continuo: { fields: [], targets: ['self-source', 'creature', 'creature-you-control', 'creature-opponent-controls', 'other-creature-you-control', 'each-creature', 'each-opponent-creature', 'each-own-creature'] },
+  continuo: { fields: [], targets: ['self-source', 'first-target', 'creature', 'creature-you-control', 'creature-opponent-controls', 'other-creature-you-control', 'each-creature', 'each-opponent-creature', 'each-own-creature'] },
   // M-255 · "hexproof from that color" e "can't be blocked by creatures of that color this turn", com a cor escolhida na ativação
   resistencia_cor: { fields: [], targets: ['creature', 'creature-you-control', 'other-creature-you-control', 'first-target'] },
   imbloqueavel_cor: { fields: [], targets: ['creature', 'creature-you-control', 'other-creature-you-control', 'first-target'] },
@@ -5286,6 +5286,7 @@ const EFFECTS = {
   mare_alta: { fields: [], targets: ['self'] }, // M-262 · High Tide
   topo_ou_fundo_do_dono: { fields: [], targets: ['permanent'] }, // M-264 · "The owner of target nonland permanent puts it on their choice of the top or bottom of their library"
   revelar_topo_para_mao: { fields: [], targets: ['self'] }, // M-263 · Dark Confidant
+  ganhar_controle: { fields: [], targets: ['creature', 'permanent'] }, // M-272 · "gain control of target creature" (sem prazo)
   copiar_esta: { fields: [], targets: ['self'] }, // M-271 · "if this spell was cast from a graveyard, you may copy this spell and may choose a new target for the copy" (707.10)
   exilar_topo_conjuravel: { fields: ['amount'], targets: ['self'] }, // M-270 · Lukka +1: exila do topo; as criaturas exiladas podem ser conjuradas do exílio enquanto você controlar um planeswalker do subtipo
   criaturas_causam_dano: { fields: [], targets: ['each-opponent'] }, // M-270 · Lukka −7: cada criatura sua causa dano igual ao poder a cada oponente (a fonte é a criatura)
@@ -5314,6 +5315,8 @@ const EFFECTS = {
     Texto das salas conferido em 26/09/2026 (mtg.wtf, lista de cartas de masmorra).
     Só a Mina Perdida de Phandelver está montada; as outras três precisam de
     efeitos que o motor ainda não tem (provocar, jogar do exílio, conjurar de graça). */
+/** M-272 · extorsão (702.101a), uma instância por habilidade; mesa de dois: "you gain that much life" é 1 (o que o único oponente perdeu). */
+const EXTORSAO = { kind: 'triggered', when: 'other-cast', mayPay: { mana: '{W/B}' }, effects: [{ do: 'lose', target: 'each-opponent', amount: 1 }, { do: 'gain', amount: 1, target: 'self' }] };
 const TESOURO = { name: 'Treasure', types: ['artifact'], subtypes: ['Treasure'], colors: [],
   abilities: [{ kind: 'activated', cost: { tap: true, sacrifice: true }, effects: [{ do: 'add_mana', anyColor: true }] }] };
 const DUNGEONS = [
@@ -5441,7 +5444,7 @@ function jogadoresDe(e) {
   return null;
 }
 /** CR2-G R3b · durações dos efeitos temporários (611.2a; a R6 junta as outras). */
-const DURACOES = ['fim-do-turno', 'seu-proximo-turno', 'fim-do-seu-proximo-turno'];
+const DURACOES = ['fim-do-turno', 'seu-proximo-turno', 'fim-do-seu-proximo-turno', 'sempre']; // M-272 · 'sempre': sem prazo, enquanto o objeto ficar no campo (611.2a)
 /** CR2-G R6 · 611.2 · duração válida: um dos nomes, ou { enquanto: 'controlar-fonte' } ("enquanto você controlar <a fonte>"). */
 const duracaoValida = d => DURACOES.includes(d) || !!(d && typeof d === 'object' && d.enquanto === 'controlar-fonte' && Object.keys(d).length === 1);
 const EFEITOS_ATALHO = { sacrifice_own: 'sacrificar (você)', sacrifice_each: 'sacrificar (cada jogador)', edict: 'sacrificar (jogador alvo)', exile: 'mover (exílio)', bounce: 'mover (mão)', to_hand: 'mover (mão)', reanimate: 'mover (campo, seu controle)', reanimate_tapped: 'mover (campo, virada)', to_library_shuffled: 'mover (grimório, embaralhado)', to_bottom: 'mover (fundo do grimório)', animate: 'continuo (torna)', destroy_all: 'destroy + cada', reanimate_all: 'reanimate + cada (seu cemitério)', pump: 'continuo (poder/resistência)', keyword: 'continuo (palavra-chave)' };
@@ -6010,6 +6013,7 @@ function effectErrors(effects, label, opcional) {
       if (e.ate != null && !duracaoValida(e.ate)) errs.push(`${label} ${i + 1}: duração "${typeof e.ate === 'object' ? JSON.stringify(e.ate) : e.ate}" desconhecida`);
     }
     if (e.do === 'keyword' && !KEYWORDS.includes(String(e.keyword || '').toLowerCase())) errs.push(`${label} ${i + 1}: palavra-chave "${e.keyword}" não é resolvida pelo motor`);
+    if (e.seControlaOutra != null && !(e.do === 'counters' && e.seControlaOutra && ['W', 'U', 'B', 'R', 'G'].includes(e.seControlaOutra.cor))) errs.push(`${label} ${i + 1}: "seControlaOutra" vale para marcadores, com uma cor`); // M-272
     if (e.do === 'copiar_esta' && e.seConjuradaDe != null && !['graveyard', 'hand', 'exile'].includes(e.seConjuradaDe)) errs.push(`${label} ${i + 1}: "seConjuradaDe" precisa ser graveyard, hand ou exile`); // M-271
     if (e.do === 'exilar_topo_conjuravel' && !(typeof e.enquantoControlar === 'string' && e.enquantoControlar.trim())) errs.push(`${label} ${i + 1}: diga o subtipo de planeswalker que mantém a permissão (enquantoControlar)`); // M-270
     if (e.suspende != null && !(e.do === 'counter' && Number.isInteger(e.suspende) && e.suspende > 0)) errs.push(`${label} ${i + 1}: "suspende" (marcadores de tempo) só vale para anular, com um inteiro positivo`); // M-269
@@ -6837,12 +6841,18 @@ const RAW_SCRIPTS = [
       { do: 'discard', amount: 1, target: 'each-opponent' }] }], // Leva 107 · "each opponent discards": sem alvo
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // S25 · transformar no campo (textos conferidos na Scryfall)
+  // M-272 · texto oficial em .listas/oficiais-commander.json (05/10/2026), confirmado na segunda fonte (Oracle do Forge, 10/10/2026):
+  // "At the beginning of each of your postcombat main phases, if you gained 3 or more life this turn, exile Sorin, then return him to the
+  // battlefield transformed under his owner's control." · Extort nas duas faces · −6 "Gain control of target creature. It becomes a Vampire in
+  // addition to its other types. Put a lifelink counter on it if you control a white permanent other than that creature or Sorin."
   { name: 'Sorin of House Markov',
-    abilities: [{ kind: 'triggered', when: 'main2', condition: { lifeGained: 3 }, effects: [{ do: 'transform', target: 'self-source' }] }],
-    back: { name: 'Sorin, Ravenous Neonate', types: ['planeswalker'], loyalty: 3, loyaltyAbilities: [
+    abilities: [{ kind: 'triggered', when: 'main2', condition: { lifeGained: 3 }, effects: [{ do: 'exile_return_transformed', target: 'self-source' }] }, EXTORSAO],
+    back: { name: 'Sorin, Ravenous Neonate', types: ['planeswalker'], subtypes: ['Sorin'], colors: ['W', 'B'], loyalty: 3, abilities: [EXTORSAO], loyaltyAbilities: [
       { cost: 2, label: '+2: Criar uma ficha de Comida', effects: [{ do: 'token', amount: 1, token: { name: 'Food', types: ['artifact'], subtypes: ['Food'], colors: [], abilities: [{ kind: 'activated', cost: { mana: '{2}', tap: true, sacrifice: true }, effects: [{ do: 'gain', amount: 3 }] }] } }] },
-      { cost: -1, label: '−1: Dano igual à vida ganha no turno', effects: [{ do: 'damage', amount: { per: 'life-gained-this-turn' }, target: 'any' }] }] },
-    covers: 'partial', note: 'extorsão, vínculo com a vida da frente vem do texto, e o −6 de roubar criatura ainda não entra',
+      { cost: -1, label: '−1: Dano igual à vida ganha no turno', effects: [{ do: 'damage', amount: { per: 'life-gained-this-turn' }, target: 'any' }] },
+      { cost: -6, label: '−6: Ganha o controle de uma criatura; ela vira Vampiro', effects: [{ do: 'ganhar_controle', target: 'creature' },
+        { do: 'continuo', target: 'first-target', torna: { tipos: ['creature'], subtipos: ['Vampire'], somaTipos: true }, ate: 'sempre' },
+        { do: 'counters', target: 'first-target', tipo: 'lifelink', amount: 1, seControlaOutra: { cor: 'W' } }] }] },
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // CR2d.5 · texto conferido em duas fontes (impressão ORI em 05/10/2026 e tcgzen.com em 08/10/2026): "exile Kytheon, then return him
   // to the battlefield transformed under his owner's control"; +1 "Until your next turn, target creature gains indestructible. Untap that creature.";
@@ -13709,7 +13719,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 97;
+const ENGINE_VERSION = 98; // M-272 · Sorin: extorsão nas duas faces e transformação por exílio (objeto novo) mudam partidas com ele
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -15708,6 +15718,8 @@ function applyEffect(s, src, eff, tgt, events) {
         perdeVida(s, playerOf(), n); note({ amount: n }); } break;
     case 'counters': {
       const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
+      const fonteM = src.ability ? s.objects[src.source] : src; // M-272 · "se você controlar uma permanente [cor] que não seja ela nem a fonte"
+      if (alvo && eff.seControlaOutra && !battlefield(s).some(x => x.controller === ctrl && x.oid !== alvo.oid && !(fonteM && x.oid === fonteM.oid) && colorsOf(s, x).includes(eff.seControlaOutra.cor))) { note({ failed: true }); break; }
       if (alvo && alvo.zone === 'battlefield') {
         if (eff.tipo && eff.tipo !== 'p1p1') { alvo.counters[eff.tipo] = (alvo.counters[eff.tipo] || 0) + eff.amount; note({ amount: eff.amount, tipo: eff.tipo, name: alvo.name }); } // M-249 · marcador nomeado (122.1)
         else { addCounters(s, alvo, eff.amount); note({ amount: eff.amount }); }
@@ -16003,6 +16015,11 @@ function applyEffect(s, src, eff, tgt, events) {
       const fichas = battlefield(s).filter(o => o.token && o.controller === quem && o.name === nome && o.oid !== obj.oid);
       for (const f of fichas) moveObject(s, f.oid, 'exile');
       note({ amount: fichas.length, name: nome }); break;
+    }
+    case 'ganhar_controle': { // M-272 · sem prazo; a criatura que muda de controle fica com enjoo (302.6) e sai do combate (506.4)
+      if (!obj || obj.zone !== 'battlefield') { note({ failed: true }); break; }
+      if (obj.controller !== ctrl) { obj.controller = ctrl; obj.sick = isCreature(s, obj); if (s.combat) { s.combat.attackers = (s.combat.attackers || []).filter(x => x !== obj.oid); } delete obj.attacking; delete obj.blocking; delete obj.blockedBy; }
+      note({ name: obj.name, target: s.players[ctrl].name }); break;
     }
     case 'copiar_esta': { // M-271 · a cópia vai para a pilha por cima, com alvo próprio; "may": quem controla decide ao resolver a cópia
       if (src.ability || src.copia || src.zone !== 'stack') { note({ failed: true }); break; } // só a mágica de verdade se copia (a cópia não é conjurada)
@@ -18746,7 +18763,7 @@ function invariants(s, expectedObjects) {
 
 return { ENGINE_VERSION, effectAllowed, eligibleBlockers, abilitiesOf, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, moveObject, seriaDestruida, danoSubstituido, danoAposPrevencao, prevencaoLegado, destinoSubstituido, destinoLegado, entradaModificada, entradaLegado, applyEffect, aplicaPorJogador, sacrificioLegado, moverObjeto, moverLegado, mutacao, mutacaoLegado, hasLegado, bonusLegado, continuosQueAfetam, aplicaTemporario, statsLegado: (s, o) => ({ power: powerLegado(s, o), toughness: toughnessLegado(s, o) }), sombraDosGatilhos, gatilhosDeZona, gatilhosDeZonaLegado, gatilhosDoObjeto, gatilhosDoPasso, enterStep, disparaEvento, noteDiscard, noteEnchantedDealt, noteDamaged, noteEnchantedEvent, addCounters, sacrifice, draw, sweepTargets, sweepTargetsLegado, targetable,
   stats: (s, o) => ({ power: power(s, o), toughness: toughness(s, o) }), hasKeyword: has, bonus, isCreature, tiposDe, pwsAtacaveis, exigePw, productions, protections, prevented, canBlock,
-  createGame, apply, legalActions, previewCombat, previewAttack, eligibleAttackers, mustAttack, eligibleBlockers, canBlock, canPay, commanderTax,
+  createGame, apply, legalActions, linhaDeTipo, previewCombat, previewAttack, eligibleAttackers, mustAttack, eligibleBlockers, canBlock, canPay, commanderTax,
   createMatch, replay, hashState, randomPolicy, invariants };
 })();
 
@@ -21107,7 +21124,7 @@ function descreveContinuo(c) {
   return `${seJogo}${se}${quem} ${partes.join(' e ')}`;
 }
 /** CR2-G R6 · a duração em português. */
-const duracaoPT = d => d && typeof d === 'object' ? 'enquanto você controlar esta permanente' : ({ 'seu-proximo-turno': 'até o seu próximo turno', 'fim-do-seu-proximo-turno': 'até o fim do seu próximo turno' }[d] || 'até o fim do turno');
+const duracaoPT = d => d && typeof d === 'object' ? 'enquanto você controlar esta permanente' : ({ 'seu-proximo-turno': 'até o seu próximo turno', 'fim-do-seu-proximo-turno': 'até o fim do seu próximo turno', sempre: 'sem prazo' }[d] || 'até o fim do turno');
 function descreveAlvo(chave) {
   if (chave && typeof chave === 'object') return descreveSeletor(chave);
   const k = String(chave);
@@ -21213,6 +21230,7 @@ function descreveEfeito(e) {
     }
     case 'sacrifice_each': return 'cada jogador sacrifica uma permanente à sua escolha';
     case 'exilar_fichas_mesmo_nome': return 'exila as fichas de mesmo nome que esse jogador controla'; // M-258
+    case 'ganhar_controle': return `ganha o controle de ${alvo || 'uma criatura'}`; // M-272
     case 'copiar_esta': return `${e.seConjuradaDe === 'graveyard' ? 'se foi conjurada de um cemitério, ' : ''}pode copiar esta mágica (a cópia escolhe um alvo novo)`; // M-271
     case 'exilar_topo_conjuravel': return `exila as ${qtd(e.amount)} cartas de cima; as criaturas exiladas assim podem ser conjuradas do exílio enquanto você controlar um planeswalker ${e.enquantoControlar}`; // M-270
     case 'criaturas_causam_dano': return 'cada criatura que você controla causa dano igual ao poder dela a cada oponente'; // M-270

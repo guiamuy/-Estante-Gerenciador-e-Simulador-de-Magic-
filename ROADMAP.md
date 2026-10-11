@@ -3191,21 +3191,21 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Golden:** regravados **só pela versão** (com a correção e a v96 saem idênticos; logs iguais). Versão sobe porque uma partida antiga com os dados da Scryfall daria outro resultado; partida salva na v96 não abre na v97.
 - **Testes:** `boros.regras` +2 (o relato com a carta como a Scryfall manda: sem voar, bloqueio recusado com o motivo "voar", Luminous Phantom voando; a classe: transformar, dupla face modal com lembrete, aventura, "citar voar não é ter voar", uma face e dividida intactas, ação de palavra-chave no meio da frase).
 
-**M-257 · R11 · Desenterrar (702.84): Priest of Fell Rites** ✅ (leva M-257, motor v96, sem mudança no que existe) — 3 testes novos.
+**M-257 · R11 · Desenterrar (702.84): Priest of Fell Rites** ✅ (leva M-257, motor v97, sem mudança no que existe) — 3 testes novos.
 - **Regra:** `unearth: { mana }` no script dá à carta no cemitério a ação "Desenterrar" (só no tempo de feitiço, pagando o custo); é uma habilidade na pilha, que pode ser respondida. Ao resolver, se a carta ainda estiver no cemitério: volta ao campo sob o seu controle com ímpeto (enquanto você a controlar), com um gatilho atrasado que a exila no início do próximo passo final (603.7, guardando a encarnação), e com a substituição "se fosse sair do campo, vai para o exílio" (614) — morrer, voltar à mão ou ser sacrificada como custo.
 - **Carta coberta (completa):** Priest of Fell Rites (era parcial).
 - **Medição:** Killian 90% → **91%** (completo 92 · parcial 5 · manual 4).
 - **Golden:** idênticas, sem regravar. Versão não sobe (a carta era parcial).
 - **Próximo:** M-258 — Malcolm, Keen-Eyed Navigator (gatilho de dano por subtipo: "uma ou mais Piratas suas causam dano aos oponentes") e Kediss já coberta; depois Killian, Ink Duelist (redução por alvo).
 
-**M-258 · R11 · Gatilho em lote de dano e fichas de mesmo nome: Malcolm e Legions to Ashes** ✅ (leva M-258, motor v96, sem mudança no que existe) — 2 testes novos.
+**M-258 · R11 · Gatilho em lote de dano e fichas de mesmo nome: Malcolm e Legions to Ashes** ✅ (leva M-258, motor v97, sem mudança no que existe) — 2 testes novos.
 - **Regra:** evento em lote `causam-dano` (603.2c: "whenever one or more … deal damage to your opponents" dispara uma vez por golpe simultâneo — o dano de combate é um lote; cada dano de efeito é outro), com o filtro de subtipo do gatilho e o valor = quantos jogadores levaram dano; quantidade de fichas por contagem (`token` com `amount: { per }`); verbo `exilar_fichas_mesmo_nome` (as fichas de quem controlava o alvo, pelo nome, pela última informação).
 - **Cartas cobertas (completas):** Malcolm, Keen-Eyed Navigator (um Tesouro por oponente com dano; dois Piratas no mesmo combate dão um gatilho só) e Legions to Ashes.
 - **Medição:** Killian 91% → **92%** (completo 93 · parcial 5 · manual 3); Malcolm + Kediss 84% → **85%**.
 - **Golden:** idênticas, sem regravar. Versão não sobe (cartas sem script antes; `token` com número continua igual).
 - **Próximo:** M-259 — Killian, Ink Duelist ("mágicas que você conjura que miram uma criatura custam {2} a menos").
 
-**M-259 · R11 · Redução de custo que depende do alvo: Killian, Ink Duelist** ✅ (leva M-259, motor v96, sem mudança no que existe) — 2 testes novos.
+**M-259 · R11 · Redução de custo que depende do alvo: Killian, Ink Duelist** ✅ (leva M-259, motor v97, sem mudança no que existe) — 2 testes novos.
 - **Regra (601.2f):** `self.reduzSeMira: { tipos: ['creature'], generic: N }` numa permanente sua: a mágica que você conjura mirando uma criatura custa N genérico a menos (nunca o colorido). O custo é calculado com os alvos escolhidos — na oferta, a mesa é otimista só quando há essa redução no campo e depois confere cada conjuração com os alvos dela; no pagamento, vale o alvo da ação. Cobre o custo de mana, o lampejo do passado e o conceder (Aura que mira a criatura).
 - **Carta coberta (completa):** Killian, Ink Duelist (vínculo com a vida e ameaça vêm do texto).
 - **Limitação declarada:** outros custos alternativos (fuga, disturb, presságio, custos alternativos de carta) ainda não recebem a redução — nenhum aparece nas listas atuais; nas listas, só a Rite of Oblivion usa custo alternativo (lampejo), e ela recebe.
@@ -3214,7 +3214,7 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Escala:** com Killian no campo, a oferta confere o custo de cada conjuração com alvo (uma verificação de mana a mais por ação oferecida); sem ele, nada muda.
 - **Próximo:** M-260 — backup (702.165: Scorn-Blade Berserker) e Lazotep Plating (amass, resistência a magia do jogador).
 
-**M-260 · R11 · Reforço, amass e resistência a magia do jogador: Scorn-Blade Berserker e Lazotep Plating** ✅ (leva M-260, motor v96, sem mudança no que existe) — 2 testes novos.
+**M-260 · R11 · Reforço, amass e resistência a magia do jogador: Scorn-Blade Berserker e Lazotep Plating** ✅ (leva M-260, motor v97, sem mudança no que existe) — 2 testes novos.
 - **Regra:** reforço N (702.165) como chave de script: ao entrar, N marcadores +1/+1 na criatura alvo e, se for outra, ela ganha as outras habilidades da carta até o fim do turno (habilidades ganhas até o fim do turno moram no objeto e somem na limpeza e ao mudar de zona); amass N (701.47: sem Exército, cria um Exército 0/0 preto do tipo; depois N marcadores num Exército seu); resistência a magia do jogador até o fim do turno (oponentes não miram você), e "suas permanentes ganham resistência a magia" pelo `keyword` com "cada".
 - **Cartas cobertas (completas):** Scorn-Blade Berserker e Lazotep Plating.
 - **Simplificação declarada:** Exército que já existe e não é do tipo pedido não ganha o subtipo (nas listas, o único Exército é o que a própria Lazotep cria).
@@ -3222,7 +3222,7 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Golden:** idênticas, sem regravar. Versão não sobe (cartas sem script antes).
 - **Próximo:** M-261 — fase (702.26: March of Swirling Mist, Slip Out the Back).
 
-**M-261 · R11 · Fase (702.26): Slip Out the Back** ✅ (leva M-261, motor v96, sem mudança no que existe) — 1 teste novo.
+**M-261 · R11 · Fase (702.26): Slip Out the Back** ✅ (leva M-261, motor v97, sem mudança no que existe) — 1 teste novo.
 - **Regra:** verbo `sai_de_fase`: a permanente e o que está anexado a ela (fase indireta) passam a ser tratados como se não existissem — o campo do motor deixa de vê-las (alvo, ações de estado, efeitos de "cada", combate, mana) —, sem mudar de zona (sem gatilho de entrar ou sair, marcadores e anexos ficam); saem do combate; entram em fase no desvirar de quem a controla, antes de desvirar (502.1). A mesa marca "fora de fase".
 - **Carta coberta (completa):** Slip Out the Back (o raio que mirava a criatura perde o alvo).
 - **Fora (próxima):** March of Swirling Mist (custo adicional variável "exile cartas azuis da mão, {2} a menos por carta" e "até X alvos").
@@ -3230,14 +3230,14 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Golden:** idênticas, sem regravar. Versão não sobe: nada que existia saía de fase.
 - **Próximo:** M-262 — March of Swirling Mist; Moonsnare Prototype (canalizar; topo ou fundo à escolha do dono).
 
-**M-262 · R11 · High Tide e Narset, Parter of Veils** ✅ (leva M-262, motor v96, sem mudança no que existe) — 2 testes novos.
+**M-262 · R11 · High Tide e Narset, Parter of Veils** ✅ (leva M-262, motor v97, sem mudança no que existe) — 2 testes novos.
 - **Regra:** High Tide (605.1b, habilidade de mana disparada): até o fim do turno, cada Ilha virada para mana dá {U} a mais, para qualquer jogador; entra na produção da Ilha, então o pagamento automático já conta com ela; duas High Tides somam. Narset: limite de compra dos oponentes (uma por turno, contando as compras anteriores do turno; a compra que passa do limite simplesmente não acontece, sem perder por grimório vazio); −2 olha as quatro de cima, pode pegar uma que não seja criatura nem terreno (revelada), e o resto vai para o fundo em ordem aleatória (destino novo `library-bottom-random`).
 - **Cartas cobertas (completas):** High Tide e Narset, Parter of Veils.
 - **Medição:** Malcolm + Kediss 87% → **89%** (completo 89 · parcial 8 · manual 3); Killian segue 94%.
 - **Golden:** idênticas, sem regravar. Versão não sobe (cartas sem script antes).
 - **Próximo:** M-263 — March of Swirling Mist (custo adicional variável com redução) e Moonsnare Prototype (canalizar; topo ou fundo à escolha do dono).
 
-**M-263 · R11 · Delve com escolha e Dark Confidant** ✅ (leva M-263, motor v96, sem mudança no que existe) — 3 testes novos.
+**M-263 · R11 · Delve com escolha e Dark Confidant** ✅ (leva M-263, motor v97, sem mudança no que existe) — 3 testes novos.
 - **Regra (702.66):** `delve: true` no script: a mesa oferece conjurar exilando de 1 até o custo genérico em cartas do cemitério (cada uma paga {1}); a quantidade vem na ação e, logo depois de a mágica ir à pilha e antes de qualquer prioridade, quem conjura escolhe quais cartas exilar (a mesma escolha da "colher provas"). Substitui o atalho antigo que só oferecia "custo cheio ou delve máximo".
 - **Correção de carta:** Dig Through Time mandava as cinco não escolhidas para o cemitério; o texto oficial manda para o fundo do grimório (e as duas escolhidas são obrigatórias).
 - **Cartas cobertas (completas):** Treasure Cruise e Dig Through Time (eram parciais) e Dark Confidant (revela o topo, põe na mão e perde vida igual ao valor de mana).
@@ -3246,7 +3246,7 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Golden:** idênticas, sem regravar. Versão não sobe: as duas cartas de delve eram parciais (lista com elas não jogava em modo completo).
 - **Próximo:** M-264 — Moonsnare Prototype (mana com custo de virar outra; canalizar com a escolha de topo ou fundo pelo dono) e Priest of Forgotten Gods.
 
-**M-264 · R11 · Edito para vários jogadores alvo, sacrifício de várias como custo e "topo ou fundo à escolha do dono"** ✅ (leva M-264, motor v96, sem mudança no que existe) — 2 testes de unidade e 1 headless.
+**M-264 · R11 · Edito para vários jogadores alvo, sacrifício de várias como custo e "topo ou fundo à escolha do dono"** ✅ (leva M-264, motor v97, sem mudança no que existe) — 2 testes de unidade e 1 headless.
 - **Regra:** custo "sacrifique N outras criaturas" (`sacrificeOther.amount`) passa a valer na oferta, na conferência e no pagamento (uma ação por combinação); o edito (`sacrificar`) aceita os jogadores alvo escolhidos na conjuração (`alvosJogadores: 'anteriores'`), em ordem APNAP, cada um escolhendo o que sacrifica; habilidades ativadas com vários alvos (`targetCount`) são expandidas na oferta e na ativação. Decisão nova `topo_fundo`: o **dono** da permanente escolhe "No topo" ou "No fundo" do grimório (botões na mesa, resposta do goldfish e do bot).
 - **Correção:** a oferta de habilidade ativada da mão (canalizar) usava o índice dentro da lista filtrada e podia mirar a habilidade errada; agora usa o índice entre todas as ativadas (teste novo falhava antes).
 - **Cartas cobertas (completas):** Priest of Forgotten Gods e Moonsnare Prototype (texto oficial em `.listas/oficiais-commander.json`, 05/10/2026; segunda fonte 10/10/2026).
@@ -3255,7 +3255,7 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Golden:** idênticas, sem regravar. Versão não sobe (cartas sem script antes; a correção do índice só afeta habilidades da mão que não estavam na primeira posição, que nenhuma carta coberta tinha).
 - **Próximo:** M-265 — March of Swirling Mist (custo adicional variável) e Path of Ancestry.
 
-**M-265 · R11 · Replicar (702.56) e "embaralhe até N do seu cemitério"** ✅ (leva M-265, motor v96, sem mudança no que existe) — 3 testes de unidade e 1 headless.
+**M-265 · R11 · Replicar (702.56) e "embaralhe até N do seu cemitério"** ✅ (leva M-265, motor v97, sem mudança no que existe) — 3 testes de unidade e 1 headless.
 - **Regra (702.56):** chave de script `replicate: '{custo}'`: a mesa oferece pagar o custo de replicar 0, 1, 2… vezes (o que a mana pagar, pelo mesmo caminho do multirreforço) e o botão diz "replicar ×N"; ao conjurar, uma cópia por pagamento vai para a pilha por cima da original, cada uma escolhendo o próprio alvo, e as cópias existem mesmo se a original for anulada; não são conjuradas e a mágica não fica "com reforço". Verbo `embaralhar_do_cemiterio`: escolha na resolução de até N cartas do seu cemitério (aceita zero), embaralhadas no grimório.
 - **Correções de carta:** Lose Focus cobrava {1} para salvar a mágica; o texto oficial diz {2}. Stream of Thought só mirava o oponente; o texto diz "target player" (você também).
 - **Cartas cobertas (completas):** Lose Focus e Stream of Thought (eram parciais; texto oficial em `.listas/oficiais-commander.json`, 05/10/2026; segunda fonte, Oracle do Forge, 10/10/2026).
@@ -3263,14 +3263,14 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Golden:** idênticas, sem regravar. Versão não sobe (as duas cartas eram parciais: lista com elas não jogava em modo completo).
 - **Próximo:** M-266 — March of Swirling Mist (custo adicional de exilar cartas azuis da mão, com redução) e Expressive Iteration.
 
-**M-266 · Mapa de regras em dia com as levas M-245 a M-265** ✅ (leva M-266, motor v96, sem mudança no motor) — o piso do teste do mapa sobe.
+**M-266 · Mapa de regras em dia com as levas M-245 a M-265** ✅ (leva M-266, motor v97, sem mudança no motor) — o piso do teste do mapa sobe.
 - **Correção de processo:** as levas M-245 a M-265 implementaram regras sem atualizar `.regras/mapa.json`; o placar seguia o retrato de 06/10. Agora cada item tocado traz a evidência (função e teste) e, quando parcial, o que falta.
 - **Itens que mudaram:** cobertos — infectar (702.90), tóxico (702.164), desenterrar (702.84), delve (702.66), reforço (702.165), replicar (702.56); parciais — fase (702.26: falta a palavra-chave "phasing"), amass (701.47: o Exército existente não ganha o subtipo). Evidência e "falta" atualizadas em 122.1, 704.5, 104.3, 120.3, 702.11, 601.2, 601.3, 605.1, 107.4 e 509.1.
 - **Placar:** 220 → **226** cobertos, 456 → **449** ausentes (25% dos aplicáveis; a fração arredonda igual). O teste `regras.mapa.unit` passa a exigir 226 / 449.
 - **Daqui em diante:** toda leva do motor que mudar o status de um item atualiza o mapa na mesma leva.
 - **Próximo:** M-267 — March of Swirling Mist (custo adicional de exilar cartas azuis da mão, {2} a menos por carta) e Expressive Iteration.
 
-**M-267 · R11 · Custo adicional "exile cartas de uma cor da mão, {N} a menos cada" e "repartir o topo entre destinos"** ✅ (leva M-267, motor v96, sem mudança no que existe) — 4 testes de unidade e 1 headless.
+**M-267 · R11 · Custo adicional "exile cartas de uma cor da mão, {N} a menos cada" e "repartir o topo entre destinos"** ✅ (leva M-267, motor v97, sem mudança no que existe) — 4 testes de unidade e 1 headless.
 - **Regra (601.2b/601.2f):** chave `exilaDaMao: { cor, reduz }`: a mesa oferece conjurar exilando 1, 2… cartas da cor da mão, cada uma tirando {N} do genérico (nunca abaixo do custo colorido, e sem devolver mana); a quantidade vem na ação e as cartas, quem conjura escolhe logo depois. Verbo `repartir_topo { count, destinos }`: uma escolha por destino, em ordem; sobrando uma carta ela vai sozinha para o próximo; com menos cartas, os últimos destinos ficam sem carta (ruling). Destino novo "exílio, pode jogar neste turno" (a permissão acaba na limpeza; a carta fica exilada).
 - **Cartas cobertas (completas):** March of Swirling Mist (até X criaturas alvo saem de fase) e Expressive Iteration (texto oficial em `.listas/oficiais-commander.json`, 05/10/2026; segunda fonte, Oracle do Forge, 10/10/2026; rulings em mtg.wtf, 10/10/2026).
 - **Simplificação declarada:** exilar mais cartas do que o necessário para reduzir o custo (permitido pela regra, sem efeito) não é oferecido.
@@ -3278,7 +3278,7 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Mapa de regras:** nenhum item muda de status. **Golden:** idênticas, sem regravar. Versão não sobe (cartas sem script antes).
 - **Próximo:** M-268 — Windbrisk Heights (esconderijo, 702.75) e Path of Ancestry.
 
-**M-268 · R11 · Esconderijo (702.75) e "jogue a carta escondida sem pagar"** ✅ (leva M-268, motor v96, sem mudança no que existe) — 3 testes de unidade e 1 headless.
+**M-268 · R11 · Esconderijo (702.75) e "jogue a carta escondida sem pagar"** ✅ (leva M-268, motor v97, sem mudança no que existe) — 3 testes de unidade e 1 headless.
 - **Regra (702.75a, redação de 2022):** verbo `esconderijo { count }`: olha N do topo, quem controla escolhe uma para o exílio virada para baixo (ligada à permanente; a ligação some se ela mudar de zona, 400.7) e o resto vai para o fundo em ordem aleatória. Verbo `jogar_escondida { seAtacouCom }`: confere a condição na resolução e oferece jogar a carta sem pagar o custo de mana; terreno usa a jogada de terreno do turno e só no seu turno; recusar deixa a carta escondida e sem permissão. A conjuração gratuita aprendeu terreno (só para o esconderijo) e jogar terreno por efeito durante a resolução.
 - **Cartas cobertas (completas):** Windbrisk Heights (texto oficial em `.listas/oficiais-commander.json`, 05/10/2026; segunda fonte, Oracle do Forge, 10/10/2026; rulings de 2007-10-01 e 2022-04-29).
 - **Simplificação declarada:** "atacou com três ou mais criaturas neste turno" conta declarações de ataque; a mesma criatura atacando em dois combates do turno conta duas vezes (o ruling pede três criaturas diferentes).
@@ -3286,7 +3286,7 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Golden:** idênticas, sem regravar. Versão não sobe (carta sem script antes).
 - **Próximo:** M-269 — suspender (702.62) pelo Delay.
 
-**M-269 · R11 · Suspender (702.62) pelo Delay** ✅ (leva M-269, motor v96, sem mudança no que existe) — 3 testes de unidade.
+**M-269 · R11 · Suspender (702.62) pelo Delay** ✅ (leva M-269, motor v97, sem mudança no que existe) — 3 testes de unidade.
 - **Regra (702.62a):** anular com `suspende: N` exila a mágica com N marcadores de tempo e suspender. Na manutenção do dono, um gatilho na pilha tira um marcador; tirado o último, outro gatilho oferece conjurar sem pagar o custo de mana (a decisão "conjurar sem pagar" que já existia, com título e dica próprios); recusar deixa a carta exilada e sem permissão; criatura conjurada assim tem ímpeto enquanto o dono a controlar.
 - **Cartas cobertas (completas):** Delay (era parcial: a mágica ia para o cemitério; texto oficial em `.listas/oficiais-commander.json`, 05/10/2026).
 - **Fora (declarado no mapa):** a ação especial de suspender da mão pagando o custo de suspender (nenhuma carta das listas tem suspender impresso). Sem e2e próprio: a tela usa a decisão de conjurar sem pagar, já coberta pela homologação.
@@ -3294,20 +3294,30 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Golden:** idênticas, sem regravar. Versão não sobe (Delay era parcial).
 - **Próximo:** M-270 — Lukka completo (+1 e −7).
 
-**M-270 · R11 · Lukka completo: permissão de conjurar do exílio com condição e dano pela força de cada criatura** ✅ (leva M-270, motor v96, sem mudança no que existe) — 2 testes de unidade.
+**M-270 · R11 · Lukka completo: permissão de conjurar do exílio com condição e dano pela força de cada criatura** ✅ (leva M-270, motor v97, sem mudança no que existe) — 2 testes de unidade.
 - **Regra:** verbo `exilar_topo_conjuravel { amount, enquantoControlar }`: exila do topo e as cartas de criatura ganham "pode conjurar do exílio enquanto você controlar um planeswalker [subtipo]"; a permissão é conferida num lugar só (oferta, conjuração e jogar terreno do exílio) e volta a valer com outro planeswalker do mesmo subtipo. Verbo `criaturas_causam_dano`: cada criatura sua causa dano igual ao poder a cada oponente, sendo ela a fonte (vínculo com a vida, infectar e prevenção por cor valem).
 - **Cartas cobertas (completas):** Lukka, Coppercoat Outcast (era parcial: faltavam o +1 e o −7; texto oficial em `.listas/oficiais-commander.json`, 05/10/2026, fonte única mtg.wtf).
 - **Medição:** Malcolm + Kediss 97% → **98%** (completo 98 · parcial 2 · manual 0). **Mapa:** sem mudança de status.
 - **Golden:** idênticas, sem regravar. Versão não sobe (o Lukka era parcial).
 - **Próximo:** M-271 — cópia de mágica na resolução com lampejo (Sevinne's Reclamation).
 
-**M-271 · R11 · "Pode copiar esta mágica" na resolução, quando conjurada de um cemitério (707.10), e lampejo do Sevinne's** ✅ (leva M-271, motor v96, sem mudança no que existe) — 2 testes de unidade.
+**M-271 · R11 · "Pode copiar esta mágica" na resolução, quando conjurada de um cemitério (707.10), e lampejo do Sevinne's** ✅ (leva M-271, motor v97, sem mudança no que existe) — 2 testes de unidade.
 - **Regra:** verbo `copiar_esta { seConjuradaDe }`: na resolução, se a mágica de verdade (não uma cópia) foi conjurada da zona pedida, uma cópia vai para a pilha por cima, escolhendo alvo novo; "may": quem controla decide ao resolver a cópia (recusar não faz nada). Mágica que perde todos os alvos não resolve e não copia.
 - **Cartas cobertas (completas):** Sevinne's Reclamation (era parcial: faltavam o lampejo {4}{W} e a cópia; texto oficial em `.listas/oficiais-commander.json`, 05/10/2026).
 - **Simplificação declarada:** a escolha de copiar é perguntada quando a cópia vai resolver, depois de escolhido o alvo dela (o resultado é o mesmo: recusar não faz nada); a cópia segue sendo item na pilha, não mágica (limitação já registrada em 707.10).
 - **Medição:** Killian 97% → **98%** (completo 99 · parcial 2 · manual 0). **Mapa:** 707.10 continua parcial, com a evidência nova.
 - **Golden:** idênticas, sem regravar. Versão não sobe.
 - **Próximo:** M-272 — extorsão (702.101) e a frente do Sorin (texto do −6 da face de trás ainda a confirmar).
+
+**M-272 · R11 · Extorsão (702.101), ganhar o controle sem prazo e Sorin completo** ✅ (leva M-272, **motor v98**) — 3 testes de unidade; 2 expectativas ajustadas com justificativa.
+- **Regra:** habilidade pronta `EXTORSAO` (702.101a: "sempre que você conjura uma mágica, pode pagar {W/B}; cada oponente perde 1 e você ganha o que eles perderam"; uma instância por habilidade, 702.101b). Verbo `ganhar_controle` (sem prazo; a criatura que muda de controle fica com enjoo, 302.6, e sai do combate, 506.4). Duração nova `sempre` (enquanto o objeto ficar no campo). Marcador com condição `seControlaOutra: { cor }`. `first-target` aceito em marcadores e contínuos.
+- **Correção de carta:** o Sorin se transformava no lugar; o texto oficial manda exilar e voltar transformado (objeto novo, 712). A face de trás ganha subtipo Sorin e as cores branco e preto.
+- **Cartas cobertas (completas):** Sorin of House Markov // Sorin, Ravenous Neonate (era parcial: faltavam a extorsão das duas faces e o −6). Texto oficial em `.listas/oficiais-commander.json` (05/10/2026); a divergência de redação do gatilho foi resolvida pela segunda fonte, o Oracle do Forge (10/10/2026): "each of your postcombat main phases".
+- **Simplificações declaradas:** mesa de dois — "you gain that much life" é 1; a mudança de controle é escrita direto no objeto (a camada 2 com carimbo de tempo é da CR2d).
+- **Expectativas ajustadas:** `pauper.regras` "Leva 111 · Food (Sorin)": a face de trás agora tem extorsão e conjurar a Fanatical Offering pergunta se paga; o teste recusa. `commander.lote.unit`: o Sorin sai da lista de textos incertos.
+- **Versão e golden:** sobe para a v98 (partidas com o Sorin dariam outro resultado). Goldens regravados: ações, registro e situação final idênticos, conferidos um a um; mudam só a versão e os hashes. Partida salva de versão anterior não abre.
+- **Correção de registro:** as entregas M-258 a M-271 diziam "motor v96"; o motor já era v97 desde a M-257 (relato #12). Corrigido aqui e no mapa de regras.
+- **Medição:** Killian 98% → **99%** (completo 100 · parcial 1). **Mapa:** 702.101 coberta.
 
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.

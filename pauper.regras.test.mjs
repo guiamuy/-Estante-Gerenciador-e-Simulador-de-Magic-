@@ -1050,7 +1050,10 @@ test('Leva 111 · Food (Sorin) e Map (Fanatical Offering) com a carta da ficha n
   assert.equal(s.players[a].life, vida + 3); assert.equal(fichas(s, a, 'Food').length, 0);
   // Map: explorar com criatura sua, só na velocidade de feitiço
   [s, fo] = poe(s, a, 'Fanatical Offering', 'hand'); [s, pedra] = poe(s, a, 'Pedra'); [s, urso] = poe(s, a, 'Urso');
-  s = passaAte(act(s, { t: 'cast', p: a, oid: fo, pay: { sacrificeOther: pedra } }), y => !y.stack.length);
+  s = passaAte(act(s, { t: 'cast', p: a, oid: fo, pay: { sacrificeOther: pedra } }), y => !y.stack.length || !!y.pending);
+  // M-272 · a face de trás do Sorin tem extorsão (texto oficial, segunda fonte de 10/10/2026): conjurar a Fanatical Offering dispara a
+  // extorsão, que pergunta se paga {W/B}; o teste recusa e segue (antes o script da face de trás não tinha extorsão)
+  for (let i = 0; i < 4 && s.pending && s.pending.kind === 'may_pay'; i++) s = passaAte(act(s, { t: 'decline', p: s.pending.p }), y => !y.stack.length || !!y.pending);
   const [mapa] = fichas(s, a, 'Map'); assert.ok(mapa, 'Mapa criado');
   const ops = ativa(s, a, mapa); assert.ok(ops.some(y => (y.targets || [])[0] && y.targets[0].oid === urso), 'Mapa mira criatura sua');
 });

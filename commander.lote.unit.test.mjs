@@ -12,7 +12,8 @@ test('R10 · toda carta das listas Commander tem texto oficial com fonte e data'
   const novas = L('oficiais-commander.json').cartas;
   assert.deepEqual(novas.filter(c => !c.oracle_text || !c.type_line || !c.fonte || !c.consulta).map(c => c.name), [], 'texto, tipo, fonte e data em todas');
   // M-227 · a Kytheon saiu da lista: texto confirmado em segunda fonte (tcgzen.com, 08/10/2026) antes de o script ser refeito
-  assert.deepEqual(novas.filter(c => c.incerto).map(c => c.name).sort(), ['Sorin of House Markov'], 'incertas conhecidas: não escrever script delas sem nova conferência');
+  // M-272 · o Sorin saiu da lista: a redação do gatilho ("each of your postcombat main phases") e a face de trás confirmadas no Oracle do Forge (10/10/2026)
+  assert.deepEqual(novas.filter(c => c.incerto).map(c => c.name).sort(), [], 'incertas conhecidas: não escrever script delas sem nova conferência');
 });
 
 test('R10 · a triagem cobre as mesmas cartas, cada uma num balde, e toda carta B ou C diz a primitiva ou estrutura que falta', () => {
