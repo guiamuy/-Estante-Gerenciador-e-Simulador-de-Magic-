@@ -3467,6 +3467,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora:** 510.1d (bloqueador de várias atacantes), dois passos de dano com prioridade entre eles (510.4, 702.7b).
 - **Próximo:** CR2g.3 — dois passos de dano de combate com prioridade entre eles (510.4).
 
+**CR2g.3 · Dois passos de dano de combate com prioridade entre eles (510.4, 702.7b)** ✅ (leva M-286, motor v102) — 3 testes de conformidade (1 falha no motor v101); 1 expectativa ajustada com justificativa.
+- **Regra:** com iniciativa ou golpe duplo no combate, o dano de iniciativa sai primeiro e os gatilhos dele vão para a pilha (ex.: "sempre que causar dano de combate"). Os jogadores recebem prioridade e podem responder; o dano normal só vem quando todos passam. Antes os dois danos saíam juntos, sem janela entre eles. A prévia do combate continua mostrando a soma dos dois.
+- **Expectativa ajustada:** `rules.unit` M6 passa a ceder a prioridade entre os dois passos antes de conferir o resultado (o resultado é o mesmo).
+- **Versão:** sobe para v102. Goldens regravados só pela versão: logs, status e turnos idênticos. Partidas salvas antes não abrem.
+- **Fora:** 702.7c (criatura que ganha ou perde iniciativa entre os dois passos).
+- **Próximo:** os demais itens de CR2b/CR2c/CR2h do mapa e o alicerce de desempenho (p95 do `apply`).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

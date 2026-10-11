@@ -13834,7 +13834,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 101; // CR2g.2 · quem ataca divide o dano entre os bloqueadores (510.1c)
+const ENGINE_VERSION = 102; // CR2g.3 · dois passos de dano de combate com prioridade entre eles (510.4)
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -15314,6 +15314,8 @@ function saiDoCombate(s) {
 function advanceStep(s) {
   if (s.turn.step === 'cleanup') return enterStep(s, 'cleanup'); // R9 · houve prioridade na limpeza: outra etapa de limpeza
   if (s.turn.step === 'combat_end') saiDoCombate(s); // CR2g.1 · 511.3
+  // CR2g.3 · 510.4: todos passaram depois do dano de iniciativa (com os gatilhos dele resolvidos): vem o segundo passo de dano
+  if (s.turn.step === 'combat_damage' && faltaSegundoDano(s)) { emptyPools(s); s.turn.passes = 0; s.turn.priority = s.turn.active; dealCombatDamage(s); return; }
   let i = STEPS.indexOf(s.turn.step) + 1;
   // 508.8: sem atacantes declarados, bloqueio e dano não acontecem
   if (STEPS[i] === 'combat_blockers' && !(s.combat && s.combat.attackers.length)) i = STEPS.indexOf('combat_end');
@@ -15463,8 +15465,11 @@ function dealCombatDamage(s) {
     for (const [src] of hits) src.struck = true;
     c.passosFeitos = [...(c.passosFeitos || []), pass]; for (const oid of c.attackers) if (s.objects[oid]) delete s.objects[oid].divisaoDano; // CR2g.2 · a escolha vale para este passo
     stateBased(s, []);
+    if (pass === 'first') return; // CR2g.3 · 510.4: acabou o primeiro passo de dano; o segundo vem depois da prioridade (advanceStep)
   }
 }
+/** CR2g.3 · 510.4: o primeiro passo de dano (iniciativa) já aconteceu e o normal ainda não. */
+const faltaSegundoDano = s => !!(s.combat && (s.combat.passosFeitos || []).includes('first') && !s.combat.passosFeitos.includes('regular'));
 
 /* ---------------- S5 · alvos ---------------- */
 const scriptOf = (s, o) => s.facts[o.name].script;
@@ -19035,7 +19040,9 @@ function previewCombat(state, blocks) {
     const alive0 = new Set(battlefield(s).map(o => o.oid));
     dealCombatDamage(s);
     // CR2g.2 · com dois bloqueadores a divisão é de quem ataca: a prévia mostra a primeira opção (a ordem do bloqueio)
-    for (let i = 0; i < 16 && s.pending && s.pending.kind === 'dividir_dano'; i++) { const op = s.pending.opcoes[0], at = s.objects[s.pending.oid]; s.pending = null;
+    for (let i = 0; i < 16 && ((s.pending && s.pending.kind === 'dividir_dano') || faltaSegundoDano(s)); i++) { // CR2g.3 · os dois passos de dano
+      if (!s.pending) { dealCombatDamage(s); continue; }
+      const op = s.pending.opcoes[0], at = s.objects[s.pending.oid]; s.pending = null;
       if (at) at.divisaoDano = { ordem: op.ordem.slice(), ...(op.tudo ? { tudo: true } : {}) }; dealCombatDamage(s); }
     // H1 · ficha que morre deixa de existir em s.objects: conta como morta, pelo nome do estado original
     const saiu = oid => !s.objects[oid] || s.objects[oid].zone !== 'battlefield';

@@ -150,7 +150,9 @@ test('M6 · iniciativa mata antes; toque mortífero mata; indestrutível sobrevi
   const life = s.players[d].life;
   s = passTo(s, 'combat_damage');
   // CR2g.2 · 510.1c: o Brute tem dois bloqueadores e quem ataca escolhe a divisão; a primeira opção é a de antes (ordem do bloqueio)
-  if (s.pending && s.pending.kind === 'dividir_dano') s = act(s, { t: 'dividir_dano', p: a, index: 0 });
+  // CR2g.3 · 510.4: depois do dano de iniciativa os jogadores recebem prioridade; o dano normal vem quando todos passam
+  for (let i = 0; i < 10 && s.turn.step === 'combat_damage' && !(s.combat.passosFeitos || []).includes('regular'); i++)
+    s = s.pending && s.pending.kind === 'dividir_dano' ? act(s, { t: 'dividir_dano', p: a, index: 0 }) : act(s, { t: 'pass', p: s.turn.priority });
   assert.equal(s.objects[ids['Sky Pike@d']].zone, 'graveyard', 'golpe duplo: 1 de iniciativa + 1 normal mata a 2/1');
   assert.equal(s.objects[ids['Twin Blade']].zone, 'battlefield', 'Sky Pike morreu antes de causar dano');
   assert.equal(s.objects[ids['Brute']].zone, 'battlefield', 'indestrutível ignora toque mortífero e dano');

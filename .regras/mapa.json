@@ -1,7 +1,7 @@
 {
  "sobre": "Mapa regra × motor. Cada item NNN.N das Comprehensive Rules de 25/09/2026 classificado contra o motor v72 em 06/10/2026 por 14 auditores independentes, com evidência vista (código com linha, teste ou sonda executada). status: coberta · parcial · ausente · definicao (só define termo) · fora (jogo físico, torneio ou variante que um app de dois jogadores não precisa). Quando um item muda de status, o teste que prova a mudança entra em `testes`.",
  "cr": "2026-09-25",
- "motor": 101,
+ "motor": 102,
  "auditoria": "2026-10-06",
  "itens": [
   {
@@ -3956,13 +3956,16 @@
    "regra": "Combat Damage Step",
    "titulo": "Dois passos de dano com iniciativa/golpe duplo",
    "status": "parcial",
-   "evidencia": "dealCombatDamage faz a passada de iniciativa e depois a normal, com stateBased entre elas; golpe duplo bate nas duas (index.html:10773-10776, 10813-10814); sonda p5/t2.mjs C2/C3; combat.audit K7; rules.unit 'M6 · iniciativa mata antes'",
-   "falta": "As duas passadas acontecem no MESMO passo: ninguém recebe prioridade entre o dano de iniciativa e o dano normal, e os gatilhos do primeiro dano só sobem depois do segundo. Sonda t2.mjs C2 (um par de passes sai do bloqueio com os dois danos já causados) e t3.mjs G3 (B em 16 com o gatilho do primeiro golpe ainda na pilha; o certo é 18). Também não se guarda quem \"tinha iniciativa quando o 1º passo começou\" (usa o.struck).",
+   "evidencia": "dealCombatDamage faz a passada de iniciativa e depois a normal, com stateBased entre elas; golpe duplo bate nas duas (index.html:10773-10776, 10813-10814); sonda p5/t2.mjs C2/C3; combat.audit K7; rules.unit 'M6 · iniciativa mata antes' · M-286 (CR2g.3): com iniciativa ou golpe duplo há dois passos de dano; depois do primeiro, os gatilhos vão para a pilha e os jogadores recebem prioridade; o dano normal vem quando todos passam",
+   "falta": "não se guarda quem tinha iniciativa quando o primeiro passo começou (criatura que ganha iniciativa depois dele causa dano de novo, 702.7c)",
    "esforco": "M",
    "depende": [
     "506.1"
    ],
-   "cartas": "evergreen"
+   "cartas": "evergreen",
+   "testes": [
+    "CR2g.3 · 510.4: golpe duplo — o primeiro dano sai, o gatilho dele vai para a pilha e há prioridade antes do segundo dano"
+   ]
   },
   {
    "n": "511.1",
@@ -6398,13 +6401,18 @@
    "regra": "Keyword Abilities",
    "titulo": "Double Strike",
    "status": "parcial",
-   "evidencia": "dealCombatDamage (index.html:10773-10776) faz duas passadas e o golpe duplo causa dano nas duas (marca struck); combat.audit K7; sondas sonda-702a.mjs: 2/2 livre tira 4, golpe duplo+atropelar 3/3 x 2/2 tira 4, golpe duplo+vínculo ganha 4",
-   "falta": "As duas passadas rodam dentro do mesmo passo combat_damage, sem segundo passo de dano com prioridade entre elas (702.4b): ninguém responde depois do dano de iniciativa, e gatilhos do primeiro dano só resolvem depois do segundo. 702.4c-d ficam inalcançáveis por isso",
+   "evidencia": "dealCombatDamage (index.html:10773-10776) faz duas passadas e o golpe duplo causa dano nas duas (marca struck); combat.audit K7; sondas sonda-702a.mjs: 2/2 livre tira 4, golpe duplo+atropelar 3/3 x 2/2 tira 4, golpe duplo+vínculo ganha 4 · M-286 (CR2g.3): golpe duplo causa dano nos dois passos, com prioridade entre eles (702.4b)",
+   "falta": "702.4c-d (ganhar ou perder golpe duplo entre os passos) não é rastreado",
    "esforco": "M",
    "depende": [
     "510.4"
    ],
-   "cartas": "evergreen"
+   "cartas": "evergreen",
+   "testes": [
+    "CR2g.3 · 510.4: golpe duplo — o primeiro dano sai, o gatilho dele vai para a pilha e há prioridade antes do segundo dano",
+    "CR2g.3 · sem iniciativa nem golpe duplo, há um passo de dano só (o combate de sempre)",
+    "CR2g.3 · a prévia do combate continua mostrando os dois passos de dano"
+   ]
   },
   {
    "n": "702.5",
@@ -6437,13 +6445,18 @@
    "regra": "Keyword Abilities",
    "titulo": "First Strike",
    "status": "parcial",
-   "evidencia": "dealCombatDamage (index.html:10773-10776): quem tem iniciativa ou golpe duplo causa dano antes, SBA entre as passadas (10815); combat.audit K7, rules.unit M6; sondas sonda-702a.mjs: 2/2 iniciativa mata 2/2 sem levar dano; iniciativa x iniciativa trocam",
-   "falta": "Não há segundo passo de dano de combate com prioridade (702.7b): as duas passadas acontecem seguidas no mesmo passo, sem janela para mágicas/habilidades nem para resolver gatilhos entre elas. 702.7c fica inalcançável",
+   "evidencia": "dealCombatDamage (index.html:10773-10776): quem tem iniciativa ou golpe duplo causa dano antes, SBA entre as passadas (10815); combat.audit K7, rules.unit M6; sondas sonda-702a.mjs: 2/2 iniciativa mata 2/2 sem levar dano; iniciativa x iniciativa trocam · M-286 (CR2g.3): janela de prioridade entre o dano de iniciativa e o normal (702.7b)",
+   "falta": "702.7c (ganhar ou perder iniciativa entre os passos) não é rastreado",
    "esforco": "M",
    "depende": [
     "510.4"
    ],
-   "cartas": "evergreen"
+   "cartas": "evergreen",
+   "testes": [
+    "CR2g.3 · 510.4: golpe duplo — o primeiro dano sai, o gatilho dele vai para a pilha e há prioridade antes do segundo dano",
+    "CR2g.3 · sem iniciativa nem golpe duplo, há um passo de dano só (o combate de sempre)",
+    "CR2g.3 · a prévia do combate continua mostrando os dois passos de dano"
+   ]
   },
   {
    "n": "702.8",
