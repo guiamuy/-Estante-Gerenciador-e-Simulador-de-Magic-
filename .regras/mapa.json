@@ -10273,39 +10273,60 @@
    "n": "715.2",
    "regra": "Adventurer Cards",
    "titulo": "Características alternativas da Aventura",
-   "status": "ausente",
-   "falta": "sem aventura (grep adventure: só \"venture\" de masmorra).",
+   "status": "coberta",
    "esforco": "M",
-   "cartas": "comum"
+   "cartas": "comum",
+   "testes": [
+    "CR 715.4 · 715.2c · em toda zona fora da pilha a carta tem só as características normais e é uma carta só: mão, cemitério, exílio e campo",
+    "CR 715.2a · \"tem uma Aventura\": o motor responde para a carta em qualquer zona, mesmo quando ela não está usando as características da Aventura",
+    "CR 715.2b · as características da Aventura fazem parte dos valores copiáveis: a ficha que é cópia de uma criatura com Aventura também \"tem uma Aventura\""
+   ],
+   "evidencia": "T-5 (11/10/2026) · as características alternativas da Aventura moram na face de trás do script (`self: { aventura: true }`, `omen: { mana }`, `back: { name, types, colors, effects }`). 715.2a — E.aventuraDe(s, objeto): a carta \"tem uma Aventura\" em qualquer zona, usando ou não as características dela. 715.2b — a cópia de permanente leva o nome e os fatos do modelo: a ficha-cópia também tem a Aventura. 715.2c — é um objeto só (a face troca no próprio objeto: flipTo/flipToFront)."
   },
   {
    "n": "715.3",
    "regra": "Adventurer Cards",
    "titulo": "Conjurar como Aventura, exilar e conjurar depois",
-   "status": "ausente",
-   "falta": "sem aventura; o mecanismo de presságio (script `back` + marca na pilha) é a base mais próxima.",
+   "status": "parcial",
+   "falta": "715.3c (cópia de uma mágica de Aventura): não há efeito \"copie a mágica alvo\" no vocabulário para provar; pela construção a cópia leva as marcas da mágica e deixa de existir ao sair da pilha (707.10a). 715.3d, última frase: outro efeito que deixe conjurar a carta (do cemitério, do topo do grimório) não oferece a Aventura — só a mão oferece.",
    "esforco": "M",
    "depende": [
     "715.2"
-   ]
+   ],
+   "testes": [
+    "CR 715.3 · da mão, o jogador escolhe: a carta normal (criatura) ou a Aventura — duas ofertas, cada uma com o seu custo e o seu tempo",
+    "CR 715.3a · Aventura instantânea de uma criatura sem lampejo: no turno do oponente só a Aventura é oferecida, e o custo dela é o da Aventura",
+    "CR 715.3b · na pilha como Aventura a mágica tem só as características da Aventura: nome, tipo e cor; \"anule a mágica de criatura alvo\" não a alcança",
+    "CR 715.3d · ao resolver, a Aventura é exilada pelo controlador (não vai ao cemitério) e ele pode conjurar a carta do exílio — como criatura, pelo custo e no tempo dela",
+    "CR 715.3d · \"enquanto a carta ficar exilada\": a permissão vale nos turnos seguintes, respeita o custo e o tempo da criatura, e acaba quando a carta sai do exílio",
+    "CR 715.3d · só a Aventura que RESOLVE é exilada: anulada vai ao cemitério; sem alvo legal ao resolver, também (608.2b) — e nenhuma das duas pode ser conjurada depois",
+    "S8 · Foulmire Knight // Profane Insight: a Aventura compra uma carta e custa 1 de vida; depois o Cavaleiro 1/1 com toque mortífero é conjurado do exílio",
+    "S8 · Ardenvale Tactician // Dizzying Swoop: \"vire até duas criaturas alvo\" aceita duas, uma ou nenhuma; Shepherd of the Flock // Usher to Safety devolve uma permanente sua à mão do dono",
+    "CR 715.3 · mesa: o registro diz \"como a aventura <nome>\"; a folha tem o rótulo da Aventura (E.aventuraDe); partida sem aventura não ganha campo novo no estado"
+   ],
+   "evidencia": "T-5 (11/10/2026) · src/engine/core.js, bloco \"T-5 · CR 715 · cartas de aventura\". 715.3 — da mão, legalActions oferece a carta normal (`cast`) e a Aventura (`cast` com `omen: true`, o caminho de conjurar do presságio); a folha da mesa mostra os dois botões (\"Conjurar · custo\" e \"Aventura · nome · custo\"). 715.3a — custo, tempo e alvos da Aventura vêm só da face de trás. 715.3b — na pilha o objeto tem o nome, o tipo e a cor da Aventura. 715.3d — aventuraResolveu (chamada de resolveTop, antes do destino do presságio): a Aventura que resolve é exilada pelo controlador e fica jogável do exílio por ele (playableFromExile, caminho da M-270: custo e tempo normais, some quando a carta sai do exílio); anulada ou sem alvo legal ao resolver vai ao cemitério; do exílio a oferta é só da carta normal e aventuraNaConjuracao recusa o pedido de Aventura fora da mão."
   },
   {
    "n": "715.4",
    "regra": "Adventurer Cards",
    "titulo": "Fora da pilha, só as características normais",
-   "status": "ausente",
-   "falta": "sem aventura.",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "715.2"
-   ]
+   ],
+   "testes": [
+    "CR 715.3d · ao resolver, a Aventura é exilada pelo controlador (não vai ao cemitério) e ele pode conjurar a carta do exílio — como criatura, pelo custo e no tempo dela",
+    "CR 715.4 · 715.2c · em toda zona fora da pilha a carta tem só as características normais e é uma carta só: mão, cemitério, exílio e campo"
+   ],
+   "evidencia": "T-5 (11/10/2026) · fora da pilha, e na pilha conjurada normalmente, o objeto tem o nome e os fatos da carta normal: moveObject volta a face (flipToFront) em toda saída da pilha; conferido na mão, no cemitério, no exílio e no campo, e por um passeio aleatório que barra face de Aventura fora da pilha."
   },
   {
    "n": "715.5",
    "regra": "Adventurer Cards",
    "titulo": "Escolher o nome da Aventura",
    "status": "ausente",
-   "falta": "não há efeito de escolher nome de carta.",
+   "falta": "não há efeito de escolher nome de carta no vocabulário (nenhuma carta das listas pede); quando existir, o nome da Aventura (E.aventuraDe(…).nome) é uma escolha válida.",
    "esforco": "P",
    "depende": [
     "201.4"

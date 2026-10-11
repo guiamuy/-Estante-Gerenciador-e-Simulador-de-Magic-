@@ -6050,7 +6050,7 @@ function validateScript(sc) {
   if (sc && sc.replicate != null && sc.kicker) errs.push('replicar e reforço na mesma carta não são aceitos (os dois usam o pagamento repetido)');
   if (sc && sc.modeCount != null && !(Number.isInteger(sc.modeCount) && sc.modeCount >= 2 && (sc.modes || []).length && (sc.modeRepeat || sc.modeCount <= sc.modes.length))) errs.push('número de modos inválido');
   if (sc && sc.cumulativeUpkeep && !/\{/.test(String(sc.cumulativeUpkeep.mana || ''))) errs.push('manutenção cumulativa precisa de um custo de mana');
-  errs.push(...sagaErros(sc), ...tripularErros(sc)); // T-3 · CR 702.122 · tripular (mesma chamada da T-1) // T-1 · CR 714 · Saga: capítulos, read ahead e o marcador de entrada (função abaixo da âncora T das exportações)
+  errs.push(...sagaErros(sc), ...tripularErros(sc), ...aventuraErros(sc)); // T-5 · CR 715 · aventura (mesma chamada) // T-3 · CR 702.122 · tripular (mesma chamada da T-1) // T-1 · CR 714 · Saga: capítulos, read ahead e o marcador de entrada (função abaixo da âncora T das exportações)
   return errs.concat(exampleErrors(sc));
 }
 const ATRASOS = ['next-upkeep', 'next-end-step', 'end-of-combat']; // CR2b.1 · momentos de gatilho atrasado que o motor conhece
@@ -6366,6 +6366,18 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-5 · CR 715 · cartas de aventura (Oracle do Forge, clone de 11/10/2026). A Aventura é a "face de trás" conjurável da mão
+  // (`back`, instantânea ou feitiço) com o custo em `omen: { mana }` e a marca `self: { aventura: true }`: ao resolver é exilada e a carta pode ser
+  // conjurada do exílio, só como a carta normal (715.3d). Toque mortífero e voar vêm do texto da carta.
+  { name: 'Foulmire Knight', self: { aventura: true }, omen: { mana: '{2}{B}' },
+    back: { name: 'Profane Insight', types: ['instant'], colors: ['B'], effects: [{ do: 'draw', amount: 1 }, { do: 'lose', amount: 1, target: 'self' }] }, // "You draw a card and you lose 1 life."
+    example: { action: 'omen', target: 'none', expect: { selfLife: -1 } } },
+  { name: 'Ardenvale Tactician', self: { aventura: true }, omen: { mana: '{1}{W}' },
+    back: { name: 'Dizzying Swoop', types: ['instant'], colors: ['W'], effects: [{ do: 'tap', target: 'creature', upTo: true }, { do: 'tap', target: 'creature', upTo: true }] }, // "Tap up to two target creatures." (dois alvos opcionais escritos um a um: a oferta do presságio não expande `targetCount`)
+    example: { action: 'omen', target: 'none', expect: { selfLife: 0 } } },
+  { name: 'Shepherd of the Flock', self: { aventura: true }, omen: { mana: '{W}' },
+    back: { name: 'Usher to Safety', types: ['instant'], colors: ['W'], effects: [{ do: 'bounce', target: 'permanent-you-control' }] }, // "Return target permanent you control to its owner's hand."
+    example: { action: 'omen', target: 'own-creature', expect: { bounced: true } } },
   // T-3 · CR 702.122 · tripular (Oracle do Forge, clone de 11/10/2026). O Veículo escreve a habilidade de tripular como ativada de custo
   // { crew: N } e efeito `tripulada` (forma canônica, T-4: vira criatura artefato até o fim do turno e avisa "becomes crewed"). "Crews a Vehicle" é o gatilho `crews` da criatura, e
   // "that Vehicle" é o alvo `remembered`. Voar, iniciativa e ímpeto vêm do texto da carta. Cenário S8 de verdade em tipos.veiculos.unit.
@@ -7631,6 +7643,23 @@ function palavraNaLinhaK(k) {
 // V-6 · evento "ficou monstruosa" (701.37): da própria permanente
 EVENTOS_DE_OBJETO.push('monstruosa'); OBJETOS_DO_EVENTO.monstruosa = ['self']; GATILHO_EVENTO['becomes-monstrous'] = { evento: 'monstruosa', objeto: 'self' }; TRIGGER_PT['becomes-monstrous'] = 'quando fica monstruosa';
 /* ↓ T · exportações de scripts.js da trilha tipos */
+/* ---------------- T-5 · CR 715 · cartas de aventura (forma do script) ----------------
+   `self: { aventura: true }` + `omen: { mana }` + `back: { name, types: ['instant' | 'sorcery'], colors, effects }`: as características
+   alternativas da Aventura (715.2) moram na face de trás, que só existe na pilha (715.3b, 715.4). É o mesmo caminho de conjurar
+   do presságio (720); o que muda é o destino ao resolver: exílio, com a permissão de conjurar a carta normal de lá (715.3d). */
+function aventuraErros(sc) {
+  const errs = [], av = sc && sc.self && sc.self.aventura;
+  if (av == null) return errs;
+  if (av !== true) errs.push('aventura: self.aventura só vale como true');
+  if (!(sc.omen && sc.omen.mana && sc.back)) errs.push('aventura: falta o custo (omen.mana) ou a Aventura (back)');
+  const tipos = (sc.back && sc.back.types) || [];
+  if (!(tipos.length && tipos.every(t => t === 'instant' || t === 'sorcery'))) errs.push('aventura: a Aventura (face de trás) é instantânea ou feitiço');
+  return errs;
+}
+/** As faces de trás desta trilha só viram fatos na partida que tem a carta (createGame): script novo com `back` na biblioteca não
+ * muda o estado das partidas que não o usam. Cada tipo de carta da trilha acrescenta a sua marca aqui. */
+const versoSoNaPartida = sc => !!(sc && sc.self && sc.self.aventura);
+Object.assign(EXPORTS_T_SC, { aventuraErros, versoSoNaPartida });
 /* ---------------- T-3 · CR 702.122 · tripular (forma do script) ----------------
    Tripular é a habilidade ativada de custo `{ crew: N }` (CR2d.3). Esta leva acrescenta:
    - `self.tripulaMais: N` ("crews Vehicles as though its power were N greater"), `self.suasTripulamMais: N` ("each creature you
@@ -15201,6 +15230,7 @@ function createGame(setup) {
   // S24 · a face de trás vira um conjunto de fatos próprio
   for (const sc of Object.values(scripts)) {
     const b = sc.back; if (!b || s.facts[b.name]) continue;
+    if (SC.versoSoNaPartida(sc) && !Object.keys(setup.cards || {}).some(n => n === sc.name || n.split(' // ')[0] === sc.name)) continue; // T-5 · a face de trás das cartas da trilha tipos (aventura…) só entra nos fatos da partida que tem a carta: partida sem ela fica com o estado, e o hash, de antes
     // Leva 107 · a face de trás tem subtipos e cor próprios (Luminous Phantom: Creature — Spirit Cleric, branca)
     const linhaTras = (b.types || []).join(' ') + ((b.subtypes || []).length ? ' — ' + b.subtypes.join(' ') : '');
     s.facts[b.name] = cardFacts({ name: b.name, type_line: linhaTras, power: b.power, toughness: b.toughness, keywords: b.keywords || [], colors: b.colors || [], oracle_text: '' });
@@ -18826,6 +18856,7 @@ function resolveTop(s, events = []) {
   if (comoCopia && o.copiaEscolhida) { const m = s.objects[o.copiaEscolhida];
     if (m && m.zone === 'battlefield' && s.facts[m.name]) { const exc = excecaoCopiavel(s, m, { somaTipos: f.script.entraComoCopia.somaTipos }); o.nomeImpresso = o.name; o.copias = [{ ...(exc ? { excecao: exc } : {}), nome: nomeCopiavel(s, m), ate: 'sempre', by: controller, ts: relogio(s), turno: s.turn.number }]; o.name = m.name; } }
   if (scripted && !comoCopia) resolveScript(s, o, events);
+  { const av = aventuraResolveu(s, item, o, controller, events); if (av) return { kind: 'resolved', oid: item, name: av, to: (s.objects[item] || {}).zone || 'exile', scripted: true, adjudicate: false }; } // T-5 · CR 715.3d · a Aventura que resolve é exilada pelo controlador, que pode conjurar a carta de lá (função abaixo da âncora T das exportações)
   if (s.objects[item].zone === 'stack' && o.omen) { // S24 · presságio volta embaralhado para o grimório
     moveObject(s, item, 'library');
     shuffle(s, s.zones[s.objects[item].owner].library);
@@ -19040,6 +19071,7 @@ const HANDLERS = {
     if (a.escape && !escapeOf(s, o)) throw new RuleError('fuga', 'esta carta não tem fuga');
     if (a.disturb && !disturbOf(s, o)) throw new RuleError('disturb', 'esta carta não tem disturb');
     if (a.omen && !omenOf(s, o)) throw new RuleError('presságio', 'esta carta não tem presságio');
+    aventuraNaConjuracao(s, a, o); // T-5 · CR 715.3d · carta em aventura no exílio: só a carta normal, nunca como Aventura (função abaixo da âncora T das exportações)
     if (a.disturb || a.omen) flipTo(s, o, backOf(s, o)); // conjura com a face de trás
     const f = s.facts[o.name];
     if (a.faceDown && !(f.script || {}).morph) throw new RuleError('metamorfose', 'esta carta não tem metamorfose');
@@ -21273,6 +21305,34 @@ const tripulacaoPadrao = s => { const out = []; tripularPendentes(s, s.pending.p
 /** Para a folha da carta na mesa: as ações da trilha tipos que não são `activate`, com o rótulo do botão. */
 const acoesDeTipos = (s, p, oid) => legalActions(s, p).filter(a => a.t === 'tripular' && a.oid === oid).map(action => ({ label: 'Escolher quem tripula', action }));
 Object.assign(EXPORTS_T, { forcaDeTripular, candidatosATripular, tripulantesDe, tripulacaoPendente, tripulacaoPadrao, acoesDeTipos });
+/* ---------------- T-5 · CR 715 · cartas de aventura ----------------
+   A Aventura usa o caminho de conjurar do presságio (`cast` com `omen: true`: a carta vai à pilha com a face de trás — 715.3a–b: só
+   as características alternativas valem para conjurar e na pilha). O que é próprio da aventura:
+   - 715.3d · ao RESOLVER, o controlador a exila em vez de pô-la no cemitério (`aventuraResolveu`, antes do destino do presságio), e
+     a carta fica jogável do exílio por ele (`playableFromExile`, o caminho da M-270: custo e tempo normais; a marca some quando a
+     carta sai do exílio). Anulada ou sem alvo legal ao resolver, vai ao cemitério como qualquer mágica. Cópia de Aventura deixa de
+     existir ao sair da pilha (707.10a), sem carta para exilar.
+   - 715.3d · "não pode ser conjurada como Aventura desse jeito": a oferta do presságio é só da mão, e `aventuraNaConjuracao`
+     recusa o pedido feito fora dela.
+   - 715.4 / 715.2c · fora da pilha é a carta normal, uma carta só (o `flipToFront` de toda mudança de zona).
+   - 715.2a · `aventuraDe(s, oid)`: a carta "tem uma Aventura" em qualquer zona. */
+function aventuraDe(s, x) {
+  const o = typeof x === 'string' ? s.objects[x] : x; if (!o || o.ability) return null;
+  const f = s.facts[o.frontName || o.name], sc = f && f.script;
+  return sc && sc.self && sc.self.aventura && sc.omen && sc.back ? { nome: sc.back, mana: sc.omen.mana } : null;
+}
+function aventuraNaConjuracao(s, a, o) { if (a.omen && o && o.zone !== 'hand' && aventuraDe(s, o)) throw new RuleError('aventura', 'fora da mão esta carta não é conjurada como Aventura (do exílio, só a carta normal)'); }
+/** Devolve o nome da Aventura que acabou de ser exilada, ou null quando a mágica que resolveu não é uma Aventura na pilha. */
+function aventuraResolveu(s, item, o, controller, events) {
+  if (!o || o.zone !== 'stack' || !o.omen || !aventuraDe(s, o)) return null;
+  const nome = o.name;
+  if (events.some(e => e.kind === 'fizzled' && e.oid === item)) { moveObject(s, item, 'graveyard'); return nome; } // 608.2b · sem alvo legal não resolve: cemitério, sem a permissão do exílio
+  moveObject(s, item, 'exile');
+  const c = s.objects[item];
+  if (c && c.zone === 'exile') { c.playableFromExile = controller; events.push({ kind: 'effect', do: 'aventura', name: nome, target: c.name }); }
+  return nome;
+}
+Object.assign(EXPORTS_T, { aventuraDe });
 Object.assign(EXPORTS_T, { capitulosDe, capituloFinal, capituloPendente, ROMANOS });
 return { ...EXPORTS_K, ...EXPORTS_V, ...EXPORTS_T, ENGINE_VERSION, effectAllowed, eligibleBlockers, abilitiesOf, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, moveObject, seriaDestruida, danoSubstituido, danoAposPrevencao, prevencaoLegado, destinoSubstituido, destinoLegado, entradaModificada, entradaLegado, applyEffect, aplicaPorJogador, sacrificioLegado, moverObjeto, moverLegado, mutacao, mutacaoLegado, hasLegado, bonusLegado, continuosQueAfetam, aplicaTemporario, statsLegado: (s, o) => ({ power: powerLegado(s, o), toughness: toughnessLegado(s, o) }), sombraDosGatilhos, gatilhosDeZona, gatilhosDeZonaLegado, gatilhosDoObjeto, gatilhosDoPasso, enterStep, disparaEvento, noteDiscard, noteEnchantedDealt, noteDamaged, noteEnchantedEvent, addCounters, sacrifice, draw, sweepTargets, sweepTargetsLegado, targetable,
   stats: (s, o) => ({ power: power(s, o), toughness: toughness(s, o) }), hasKeyword: has, bonus, isCreature, tiposDe, pwsAtacaveis, exigePw, productions, protections, prevented, canBlock,
@@ -22926,6 +22986,7 @@ function describe(before, a, events, after) {
       const comX = a.x != null ? ` com X = ${a.x}` : ''; // Leva 104
       // Leva 110 · "alvo:" no lugar da seta, que não dizia nada para quem não conhece o app
       L.push(extra ? `${P} conjurou ${o.name}${extra}${comX}${alvo ? ` · alvo: ${alvo}` : ''}` : (o.zone === 'command' ? `${P} conjurou ${o.name} da zona de comando (imposto ${E.commanderTax(after, a.p, a.oid)})` : `${P} conjurou ${o.name}${comX}`) + (alvo ? ` · alvo: ${alvo}` : ''));
+      { const av = a.omen && E.aventuraDe(before, a.oid); if (av) L[L.length - 1] = L[L.length - 1].replace(' (presságio)', ` como a aventura ${av.nome}`); } // T-5 · CR 715.3 · a Aventura diz o nome dela no registro
       break;
     }
     case 'move': L.push(`${P} moveu ${nameOf(before, a.oid)} ${DE_ZONA[before.objects[a.oid].zone] || 'de ' + ZONE_PT[before.objects[a.oid].zone]} ${PARA_ZONA[a.to] || 'para ' + ZONE_PT[a.to]}`); break;
@@ -25791,6 +25852,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     // S24: faces duplas
     for (const x of E.legalActions(s, v).filter(y => y.t === 'cast' && y.oid === oid && (y.disturb || y.omen)))
       legal.push(doBtn(x.disturb ? `Perturbar · ${(f.script.disturb || {}).mana || ''}` : `Presságio · ${(f.script.omen || {}).mana || ''}`, x, { variant: 'primary' }));
+    { const av = E.aventuraDe(s, oid); if (av) for (const b of legal) if (b.action && b.action.t === 'cast' && b.action.omen) b.label = `Aventura · ${av.nome} · ${av.mana}`; } // T-5 · CR 715.3 · a escolha "carta normal ou Aventura": o botão diz Aventura, o nome e o custo
     // S34: conceder
     for (const bw of E.legalActions(s, v).filter(x => x.t === 'cast' && x.oid === oid && x.bestow))
       legal.push(doBtn(`Conceder · ${(f.script.bestow || {}).mana || ''} → ${targetName(s, bw.targets[0])}`, bw, { variant: 'primary' }));

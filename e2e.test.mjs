@@ -10599,3 +10599,36 @@ test('e2e · T-3 · CR 702.122a · tripular escolhendo as criaturas: a folha do 
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/t3-tripulado.png' });
   assert.deepEqual(M.errors, []);
 });
+
+test('e2e · T-5 · CR 715.3 · carta de aventura: a folha oferece a carta normal e a Aventura (com nome e custo); resolvida, a carta vai para o exílio e pode ser conjurada de lá como criatura', { skip }, async t => {
+  // Texto oficial em .listas/oficiais-tipos.json (Oracle do Forge, 11/10/2026): Foulmire Knight // Profane Insight.
+  const todas = JSON.parse(readFileSync(join(ROOT, '.listas', 'oficiais-tipos.json'), 'utf8')).cartas;
+  const extras = todas.filter(c => c.name === 'Foulmire Knight');
+  const M = await comLista125(t, '24 Swamp\n16 Foulmire Knight', ['Swamp', 'Foulmire Knight'], '4', { extras });
+  const { page } = M;
+  // três Pântanos desvirados no campo e um Foulmire Knight na mão, por dado
+  const ids = await page.evaluate(() => { const s = window.__estanteMesa.estado(), out = { terras: [] };
+    const tira = (nome, de) => { const z = s.zones[0][de], i = z.findIndex(o => s.objects[o].name === nome); if (i < 0) return null; return z.splice(i, 1)[0]; };
+    for (let i = 0; i < 3; i++) { const oid = tira('Swamp', 'library'); Object.assign(s.objects[oid], { zone: 'battlefield', controller: 0, tapped: false, sick: false, damage: 0, counters: {} }); s.zones[0].battlefield.push(oid); out.terras.push(oid); }
+    out.kn = s.zones[0].hand.find(o => s.objects[o].name === 'Foulmire Knight') || (() => { const oid = tira('Foulmire Knight', 'library'); s.objects[oid].zone = 'hand'; s.zones[0].hand.push(oid); return oid; })();
+    return out; });
+  const terra = await M.oid('Swamp');
+  if (terra) { assert.equal(await M.act({ t: 'play_land', p: 0, oid: terra }), true); await page.waitForTimeout(250); }
+  else { await page.evaluate(() => window.__estanteMesa.repinta && window.__estanteMesa.repinta()); }
+  await page.locator(`#tb-hand .tb-card[aria-label^="Foulmire Knight"]`).first().click(); await page.waitForSelector('.ds-dialog'); await page.waitForTimeout(400); // a folha termina de abrir antes de medir
+  const botoes = (await page.locator('.ds-dialog .tb-sheet__actions button').allInnerTexts()).map(x => x.replace(/\s+/g, ' ').trim());
+  assert.ok(botoes.some(b => /^Conjurar · \{B\}$/.test(b)), 'a carta normal: ' + JSON.stringify(botoes));
+  assert.ok(botoes.includes('Aventura · Profane Insight · {2}{B}'), 'a Aventura, com nome e custo: ' + JSON.stringify(botoes));
+  assert.ok(!botoes.some(b => /Presságio/.test(b)), 'não aparece como presságio');
+  for (const b of await page.locator('.ds-dialog .tb-sheet__actions button', { hasText: /^(Conjurar|Aventura)/ }).all()) { const cx = await b.boundingBox(); assert.ok(cx && cx.height >= 44, 'botão com 44 px de altura ou mais: ' + JSON.stringify(cx)); }
+  await auditaTela(page, 'folha da carta de aventura');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/t5-aventura.png' });
+  await page.locator('.ds-dialog .tb-sheet__actions button', { hasText: /^Aventura · Profane Insight/ }).click(); await page.waitForTimeout(300);
+  await M.resolve();
+  const fim = await page.evaluate(kn => { const s = window.__estanteMesa.estado(), o = s.objects[kn]; return { zona: o.zone, nome: o.name, vida: s.players[0].life, jogavel: o.playableFromExile, doExilio: window.__estanteMesa.legais().filter(a => a.t === 'cast' && a.oid === kn).map(a => !!a.omen) }; }, ids.kn);
+  assert.deepEqual({ zona: fim.zona, nome: fim.nome, vida: fim.vida, jogavel: fim.jogavel }, { zona: 'exile', nome: 'Foulmire Knight', vida: 19, jogavel: 0 }, 'a Aventura resolveu (comprou e perdeu 1 de vida) e a carta ficou no exílio, jogável: ' + JSON.stringify(fim));
+  assert.ok(fim.doExilio.every(x => x === false), 'do exílio, só a carta normal: ' + JSON.stringify(fim.doExilio));
+  const linhas = await page.evaluate(() => (window.__estanteMesa.registro ? window.__estanteMesa.registro() : []).map(String));
+  if (linhas.length) assert.ok(linhas.some(l => /conjurou Foulmire Knight como a aventura Profane Insight/.test(l)), 'registro: ' + JSON.stringify(linhas.slice(-6)));
+  assert.deepEqual(M.errors, []);
+});
