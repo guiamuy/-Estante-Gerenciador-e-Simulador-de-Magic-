@@ -5369,6 +5369,9 @@ const EFFECTS = {
   cascata: { fields: ['mv'], targets: [] }, // K-7 · cascata (gerado pelo motor)
   evocar_sacrifica: { fields: ['z'], targets: [] }, // K-8 · 702.74a · "its controller sacrifices it" (gerado pelo motor)
   /* ↓ V · efeitos da trilha verbos */
+  // V-18 · 701.58 encobrir (como manifestar, com salvaguarda {2}; `look: N` = "look at the top N cards, cloak `amount` of them, the rest on the bottom in a random order") e 701.62 manifestar pavor (olha duas, manifesta uma, a outra vai para o cemitério)
+  cloak: { fields: [], targets: ['self'] },
+  manifest_dread: { fields: [], targets: ['self'] },
   // V-17 · 701.40 manifestar: a carta do topo do seu grimório entra virada para baixo como criatura 2/2 (uma de cada vez; `amount` opcional, padrão 1; `marcadores`: "then put N +1/+1 counters on it")
   manifest: { fields: [], targets: ['self'] },
   discard_random: { fields: ['amount'], targets: ['self', 'player', 'opponent'] }, // V-14 · 701.9b descartar ao acaso: as cartas saem pela semente do jogo, ninguém escolhe
@@ -6205,6 +6208,13 @@ function effectErrors(effects, label, opcional) {
   });
   /* ↓ K · validação da trilha keywords */
   /* ↓ V · validação da trilha verbos */
+  effects.forEach((e, i) => { // V-18 · 701.58, 701.62
+    if (e.do === 'cloak') {
+      for (const k of ['amount', 'look']) if (e[k] != null && !(Number.isInteger(e[k]) && e[k] > 0)) errs.push(`${label} ${i + 1} (cloak): ${k} precisa ser inteiro positivo`);
+      if (e.look != null && (e.amount || 1) > e.look) errs.push(`${label} ${i + 1} (cloak): não dá para encobrir mais cartas do que as olhadas`);
+    }
+    if (['cloak', 'manifest_dread'].includes(e.do) && (e.do === 'manifest_dread' || e.look != null) && effects.slice(i + 1).some(isTargeted)) errs.push(`${label} ${i + 1} (${e.do}): efeito com alvo depois de uma escolha`);
+  });
   effects.forEach((e, i) => { // V-17 · 701.40
     if (e.do !== 'manifest') return;
     if (e.amount != null) errs.push(...valueErrors(e.amount, `${label} ${i + 1} (manifest): amount`));
@@ -6299,6 +6309,9 @@ const isTargeted = e => TARGETED.has(e.target) || (!!e.target && typeof e.target
 const RAW_SCRIPTS = [
   /* ↓ K · scripts de carta da trilha keywords (texto oficial em .listas/oficiais-keywords.json) */
   /* ↓ V · scripts de carta da trilha verbos (texto oficial em .listas/oficiais-verbos.json) */
+  // V-18 · 701.58 encobrir
+  { name: 'Hide in Plain Sight', effects: [{ do: 'cloak', look: 5, amount: 2 }], // "Look at the top five cards of your library, cloak two of them, and put the rest on the bottom of your library in a random order."
+    example: { target: 'none', expect: { picked: true } } },
   // V-17 · 701.40 manifestar
   { name: 'Soul Summons', effects: [{ do: 'manifest' }], // "Manifest the top card of your library."
     example: { target: 'none', expect: { handDelta: 0 } } },
@@ -17747,6 +17760,8 @@ function applyEffect(s, src, eff, tgt, events) {
       note({ pending: true }); break;
     }
     /* ↓ V · casos de applyEffect da trilha verbos */
+    case 'cloak': if (eff.look) olhaEViraV(s, src, { count: eff.look, amount: eff.amount || 1, modo: 'cloak', rest: 'library-bottom-random' }, events); else viraDoTopoV(s, src, eff.amount || 1, 'cloak', events); break; // V-18 · 701.58
+    case 'manifest_dread': olhaEViraV(s, src, { count: 2, amount: 1, modo: 'manifest', rest: 'graveyard', pavor: true }, events); break; // V-18 · 701.62
     case 'manifest': manifestar(s, src, eff, events); break; // V-17 · 701.40
     case 'discard_random': descartaAoAcaso(s, src, eff, tgt, events); break; // V-14 · 701.9b
     case 'learn': aprender(s, src, events); break; // V-13 · 701.48
@@ -20447,6 +20462,7 @@ function wardsDeK(s, o) {
   const f = s.facts[o.name] || {}, out = [];
   if (!semImpressas(s, o)) { const doScript = ((f.script || {}).self || {}).ward; out.push(...(doScript != null ? [].concat(doScript) : (f.wardImpresso || []))); }
   for (const e of continuosQueAfetam(s, o)) if (e.ward) out.push(...[].concat(e.ward));
+  out.push(...wardDaEncobertaV(s, o)); // V-18 · 701.58a: a encoberta tem salvaguarda {2} · Toca ponto comum: wardsDeK (uma linha)
   return out;
 }
 /** 702.21a · cada permanente com salvaguarda que virou alvo de mágica ou habilidade de `p` (oponente de quem a controla) dispara. */
@@ -20645,6 +20661,37 @@ function arremeteuK(s, o) {
 function altSemScriptK(f) { return f && !f.script ? altsImpressosK(f) : []; }
 Object.assign(EXPORTS_K, { evocarImpressoK, altDoEvocarK, arremeterImpressoK, altsImpressosK });
 /* ↓ V · exportações de core.js da trilha verbos */
+/* V-18 · 701.58 encobrir: como manifestar, mas a permanente virada para baixo tem salvaguarda {2} enquanto ficar virada (a); vira para
+   cima do mesmo jeito (b–d, g) e as cartas vão uma de cada vez (e). 701.62 manifestar pavor: "Look at the top two cards of your
+   library. Manifest one of them, then put the cards you looked at that were not manifested this way into your graveyard" (a) — quem
+   controla escolhe; com uma carta só no grimório, é ela; sem nenhuma, nada acontece. */
+const ehEncoberta = (s, o) => ehManifestada(s, o) && o.viradaV.modo === 'cloak';
+/** 701.58a · a salvaguarda {2} da encoberta (chamada só por wardsDeK). */
+const wardDaEncobertaV = (s, o) => (ehEncoberta(s, o) ? ['{2}'] : []);
+function viraDoTopoV(s, src, n, modo, events) {
+  const p = src.controller; let feitas = 0;
+  for (let i = 0; i < n; i++) { const topo = s.zones[p].library[0]; if (!topo) break; if (poeViradaParaBaixoV(s, topo, p, modo)) feitas++; }
+  events.push({ kind: 'effect', do: modo === 'cloak' ? 'cloak' : 'manifest', name: src.name, target: s.players[p].name, amount: feitas });
+}
+function olhaEViraV(s, src, { count, amount, modo, rest, pavor }, events) {
+  const p = src.controller, nome = src.name, de = s.zones[p].library.slice(0, count), k = Math.min(amount, de.length);
+  const verbo = pavor ? 'manifest_dread' : modo === 'cloak' ? 'cloak' : 'manifest';
+  if (!de.length) return void events.push({ kind: 'effect', do: verbo, name: nome, target: s.players[p].name, amount: 0 });
+  s.verbo = [...(s.verbo || []), { passo: 'virar-escolhidas', p, nome, modo, rest, de, verbo }];
+  if (de.length <= k) { s.escolhaV = de.slice().reverse(); return void continuaVerbo(s, events); } // sem o que escolher: todas as olhadas
+  const dica = pavor ? 'manifestar pavor: escolha a carta que entra virada para baixo (a outra vai para o cemitério)' : `${modo === 'cloak' ? 'encobrir' : 'manifestar'}: escolha ${k === 1 ? 'a carta que entra' : 'as ' + k + ' cartas que entram'} virada${k === 1 ? '' : 's'} para baixo`;
+  startPick(s, { p, from: de, min: k, max: k, to: 'proliferar', rest: 'stay', label: pavor ? 'manifestar pavor' : modo === 'cloak' ? 'encobrir' : 'manifestar', source: `${nome} — ${dica}` }, events);
+}
+function passoVirarEscolhidas(s, passo, events) {
+  const escolhidas = (s.escolhaV || []).slice().reverse().filter(oid => passo.de.includes(oid)); delete s.escolhaV; // concluiPick anota de trás para a frente: aqui volta a ordem em que o jogador escolheu
+  const noGrimorio = oid => s.objects[oid] && s.objects[oid].zone === 'library' && s.objects[oid].owner === passo.p;
+  let feitas = 0; for (const oid of escolhidas) if (noGrimorio(oid) && poeViradaParaBaixoV(s, oid, passo.p, passo.modo)) feitas++; // uma de cada vez, na ordem escolhida
+  const resto = passo.de.filter(oid => !escolhidas.includes(oid) && noGrimorio(oid));
+  if (passo.rest === 'graveyard') for (const oid of resto) moveObject(s, oid, 'graveyard');
+  else { shuffle(s, resto); for (const oid of resto) moveObject(s, oid, 'library', { top: false }); }
+  events.push({ kind: 'effect', do: passo.verbo, name: passo.nome, target: s.players[passo.p].name, amount: feitas, resto: resto.length });
+}
+Object.assign(EXPORTS_V, { ehEncoberta, wardDaEncobertaV, viraDoTopoV, olhaEViraV });
 /* V-17 · 701.40 manifestar. A carta entra no campo virada para baixo: criatura 2/2 sem texto, nome, subtipos nem custo de mana (a);
    é permanente manifestada enquanto ficar virada para baixo. Com prioridade, quem a controla pode virá-la para cima pagando o custo de
    mana da carta, se for carta de criatura com custo de mana — ação especial, sem pilha (b); carta com metamorfose também pode virar
@@ -20921,6 +20968,7 @@ function proliferar(s, src, events) {
   else continuaVerbo(s, events);
 }
 const PASSOS_V = {
+  'virar-escolhidas': (s, passo, events) => passoVirarEscolhidas(s, passo, events), // V-18
   'aprender-descarta': (s, passo, events) => passoAprenderDescarta(s, passo, events), 'aprender-compra': (s, passo, events) => passoAprenderCompra(s, passo, events), // V-16
   'descobrir-fim': (s, passo, events) => passoDescobrirFim(s, passo, events), // V-10
   'povoar-cria': (s, passo, events) => passoPovoarCria(s, passo, events), // V-4
@@ -23632,6 +23680,8 @@ Object.assign(PALAVRA_PT, { dash: 'arremeter' }); // K-9
 /* ↓ V · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha verbos */
 const MARCADOR_PT_V = { p1p1: '+1/+1', m1m1: '−1/−1', loyalty: 'de lealdade', poison: 'de veneno' }; // V-7
 const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas por descreveEfeito)
+  cloak: e => e.look ? `olha as ${e.look} cartas do topo do seu grimório, encobre ${(e.amount || 1) === 1 ? 'uma' : e.amount} delas (entram viradas para baixo como criaturas 2/2 com salvaguarda {2}) e põe o resto no fundo em ordem aleatória` : `encobre ${(e.amount || 1) === 1 ? 'a carta do topo' : 'as ' + e.amount + ' cartas do topo'} do seu grimório (entra virada para baixo como criatura 2/2 com salvaguarda {2})`, // V-18
+  manifest_dread: () => 'manifesta pavor (olha as duas cartas do topo do seu grimório: uma entra virada para baixo como criatura 2/2, a outra vai para o cemitério)', // V-18
   manifest: e => `manifesta ${e.amount == null || e.amount === 1 ? 'a carta do topo' : 'as ' + qtd(e.amount) + ' cartas do topo'} do seu grimório (entra virada para baixo como criatura 2/2)${e.marcadores ? ` e põe ${e.marcadores === 1 ? '1 marcador' : e.marcadores + ' marcadores'} +1/+1 nela` : ''}`, // V-17
   discard_random: e => `${e.target === 'player' ? 'o jogador alvo descarta' : e.target === 'opponent' ? 'o oponente alvo descarta' : 'descarta'} ${qtd(e.amount) === 1 ? '1 carta' : qtd(e.amount) + ' cartas'} ao acaso`, // V-14
   learn: () => 'aprende (você pode descartar uma carta; se descartar, compra uma)', // V-13
