@@ -3474,6 +3474,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora:** 702.7c (criatura que ganha ou perde iniciativa entre os dois passos).
 - **Próximo:** os demais itens de CR2b/CR2c/CR2h do mapa e o alicerce de desempenho (p95 do `apply`).
 
+**CR2-P1 · Desempenho: os estados compartilham os fatos das cartas** ✅ (leva M-287, motor v102 sem mudança) — 2 testes novos (`fatos.imutaveis`).
+- **Valor:** cada jogada fica de 3 a 4 vezes mais rápida no motor, o que deixa a mesa mais fluida no celular e o Shark com mais tempo para pensar.
+- **Medida (Node 22, mesma máquina, listas reais Commander e Pauper, 3.600 ações aleatórias):** `apply` p50 1,81 → 0,41 ms e p95 5,38 → 1,68 ms (meta Q8: p95 < 2 ms). Os fatos das cartas eram ≈ 76% do estado em Commander (110 de 145 KB) e eram copiados inteiros a cada ação.
+- **Alavanca:** o estado novo copia tudo, menos as entradas dos fatos. O mapa é novo, mas as entradas são as mesmas, porque o motor só acrescenta fatos ou troca uma entrada inteira. A ordem das chaves, o JSON e o hash são os mesmos: os goldens passam sem regravar.
+- **Guarda:** `fatos.imutaveis` joga 20 partidas aleatórias com as listas reais e os fatos blindados. Qualquer escrita por dentro de uma entrada lança e derruba o portão.
+- **Fora:** o teste de orçamento da Q8 (p95 no CI e primeira renderização) continua aberto.
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

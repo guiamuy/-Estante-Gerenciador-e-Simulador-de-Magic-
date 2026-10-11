@@ -18560,7 +18560,7 @@ function apply(state, action) {
         : k === 'pick' ? 'termine a escolha de cartas primeiro' : k === 'pick_target' ? 'escolha o alvo do gatilho primeiro'
           : k === 'may_pay' ? 'decida se paga primeiro' : k === 'madness' ? 'decida a insanidade primeiro' : 'declare os bloqueadores primeiro');
   }
-  const s = clone(state);
+  const s = cloneEstado(state); // desempenho · fatos compartilhados
   const events = [];
   HANDLERS[action.t](s, action, events);
   if (!s.pending && s.resume) resumeEffects(s, events); // CR 704.4 · a decisão acabou: o resto da resolução vem antes de qualquer ação de estado
@@ -19034,7 +19034,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
 /** A6 · prévia do dano de combate para uma proposta de bloqueio (sem mudar nada). */
 function previewCombat(state, blocks) {
   try {
-    let s = clone(state);
+    let s = cloneEstado(state);
     if (s.pending && s.pending.kind === 'blockers') s = apply(s, { t: 'block', p: s.pending.p, blocks }).state;
     const before = s.players.map(pl => pl.life);
     const alive0 = new Set(battlefield(s).map(o => o.oid));
@@ -19054,7 +19054,7 @@ function previewCombat(state, blocks) {
 function previewAttack(state, attackers, alvos) {
   try {
     if (!attackers || !attackers.length) return null;
-    const s = apply(clone(state), { t: 'attack', p: state.pending ? state.pending.p : state.turn.active, attackers, ...(alvos ? { alvos } : {}) }).state; // M-228
+    const s = apply(state, { t: 'attack', p: state.pending ? state.pending.p : state.turn.active, attackers, ...(alvos ? { alvos } : {}) }).state; // M-228
     return previewCombat(s, []);
   } catch (e) { return null; }
 }
@@ -19116,6 +19116,15 @@ function resolveAbility(s, o, events) {
 
 /* ---------------- M8 · registro, replay e desfazer ---------------- */
 function clone(x) { return JSON.parse(JSON.stringify(x)); }
+/** Desempenho · os fatos das cartas (≈ 75% do estado em Commander) não mudam depois de criados: o motor só acrescenta entradas
+    (createGame, createToken) ou troca uma entrada inteira, nunca altera uma por dentro. O estado novo copia tudo e compartilha as
+    entradas dos fatos com o anterior (o mapa é novo; as entradas são as mesmas). Mesma ordem de chaves, mesmo JSON, mesmo hash.
+    O teste `fatos.imutaveis` roda partidas com os fatos blindados e derruba o portão se alguém alterar uma entrada por dentro. */
+function cloneEstado(state) {
+  const s = {};
+  for (const k of Object.keys(state)) { const v = state[k]; if (v === undefined) continue; s[k] = k === 'facts' && v ? { ...v } : (v !== null && typeof v === 'object' ? JSON.parse(JSON.stringify(v)) : v); }
+  return s;
+}
 function hashState(s) {
   const str = JSON.stringify(s); let h = 0x811c9dc5;
   for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
