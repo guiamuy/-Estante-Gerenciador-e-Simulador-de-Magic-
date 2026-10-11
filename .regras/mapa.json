@@ -4779,12 +4779,13 @@
    "n": "612.10",
    "regra": "Text-Changing Effects",
    "titulo": "Emendar (splice) soma texto à mágica",
-   "status": "ausente",
-   "falta": "Splice não existe; exigiria juntar os efeitos de outra carta aos da mágica na pilha.",
-   "esforco": "M",
+   "status": "parcial",
+   "falta": "As mesmas limitações de 702.47.",
+   "esforco": "P",
    "depende": [
     "702.47"
-   ]
+   ],
+   "evidencia": "M-274 (v98): ver 702.47 (encaixar soma o texto da carta à mágica, como frase própria)."
   },
   {
    "n": "613.1",
@@ -6860,14 +6861,18 @@
    "n": "702.47",
    "regra": "Keyword Abilities",
    "titulo": "Splice",
-   "status": "ausente",
-   "falta": "Sem revelar carta da mão e somar o texto dela a outra mágica (702.47a-e). Reweave (lista de Commander) tem \"Splice onto Arcane\" e está sem script",
-   "esforco": "M",
+   "status": "parcial",
+   "falta": "Até duas cartas por mágica; só na conjuração normal da mão (sem custo alternativo, lampejo, X ou modos); cópia de mágica encaixada não leva o texto encaixado (702.47e).",
+   "esforco": "P",
    "depende": [
     "601.2b",
     "613 mudança de texto"
    ],
-   "cartas": "rara"
+   "cartas": "rara",
+   "evidencia": "M-274 (v98): chave splice { subtipo, mana }: ao conjurar uma mágica do subtipo, revela da mão cartas que se encaixam e paga o custo de cada uma; o texto delas entra depois do da mágica, cada carta como frase própria, com alvos próprios; as cartas ficam na mão. encaixar.unit (Reweave).",
+   "testes": [
+    "M-274 · encaixar: a mágica resolve o próprio texto e depois o do Reweave, cada um com o seu alvo; o Reweave fica na mão"
+   ]
   },
   {
    "n": "702.48",

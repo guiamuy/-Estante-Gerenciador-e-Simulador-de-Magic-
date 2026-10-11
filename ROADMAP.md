@@ -3326,6 +3326,13 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Medição:** Killian 99% → **100%** (completo 101 · parcial 0 · manual 0): a lista Orzhov Killian joga em modo completo. **Mapa:** 106.6 parcial (faltam as restrições "só para conjurar X").
 - **Golden:** idênticas além da versão. Versão não sobe nesta leva.
 
+**M-274 · R11 · Encaixar (702.47): Reweave** ✅ (leva M-274, motor v98, sem mudança no que existe) — 2 testes de unidade.
+- **Regra:** chave `splice: { subtipo, mana }`. Ao conjurar uma mágica do subtipo, a mesa oferece revelar da mão cartas que se encaixam nela e pagar o custo de cada uma; o texto delas entra depois do texto da mágica, cada carta como frase própria ("o mesmo alvo" vale dentro dela), com alvos próprios escolhidos na conjuração; as cartas reveladas continuam na mão.
+- **Cartas cobertas (completas):** Reweave (era parcial; texto oficial em `.listas/oficiais-commander.json`, 05/10/2026). As listas não têm outra mágica Arcane, então hoje o encaixar não aparece numa partida dessas listas; o teste usa uma mágica marcada como Arcane.
+- **Simplificações declaradas:** no máximo duas cartas encaixadas por mágica, só na conjuração normal da mão (sem custo alternativo, lampejo, X ou modos), e cópia de mágica encaixada não leva o texto encaixado (702.47e).
+- **Medição:** Malcolm + Kediss 98% → **99%** (completo 99 · parcial 1: Saheeli, cujo −2 depende de cópia de permanente, a CR2f). **Mapa:** 702.47 parcial.
+- **Próximo:** alicerces do motor (CR2), começando pela CR2d (camadas com carimbo de tempo e mudança de controle).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

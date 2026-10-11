@@ -5853,6 +5853,7 @@ function validateScript(sc) {
   if (sc && sc.transmute && !sc.transmute.mana) errs.push('transmutar sem custo');
   if (sc && sc.unearth != null && !(sc.unearth && typeof sc.unearth.mana === 'string')) errs.push('desenterrar sem custo'); // M-257 · 702.84
   if (sc && sc.backup != null && !(Number.isInteger(sc.backup) && sc.backup > 0)) errs.push('reforço precisa de um número inteiro'); // M-260 · 702.165
+  if (sc && sc.splice != null && !(sc.splice && typeof sc.splice.subtipo === 'string' && sc.splice.subtipo.trim() && /^(\{[^}]+\})+$/.test(String(sc.splice.mana || '')))) errs.push('encaixar precisa do subtipo e do custo de mana'); // M-274 · 702.47
   if (sc && sc.aoGastarMana != null && !(sc.aoGastarMana && sc.aoGastarMana.criaturaQueCompartilhaTipoComOComandante === true && Array.isArray(sc.aoGastarMana.effects) && sc.aoGastarMana.effects.length)) errs.push('"ao gastar a mana" precisa da condição e dos efeitos'); // M-273
   if (sc && sc.aoGastarMana) errs.push(...effectErrors(sc.aoGastarMana.effects, 'ao gastar a mana'));
   if (sc && sc.exilaDaMao != null && !(sc.exilaDaMao && ['W', 'U', 'B', 'R', 'G'].includes(sc.exilaDaMao.cor) && Number.isInteger(sc.exilaDaMao.reduz) && sc.exilaDaMao.reduz > 0)) errs.push('exilar da mão precisa de cor (W, U, B, R, G) e de quanto reduz por carta'); // M-267
@@ -6535,8 +6536,8 @@ const RAW_SCRIPTS = [
     example: { target: 'enemy-creature', expect: { gone: true } } },
   { name: 'Reality Scramble', retrace: true, effects: [{ do: 'to_bottom', target: 'permanent-you-own' }, { do: 'reveal_until', target: 'first-target', who: 'self', match: 'shares-type', rest: 'bottom-random' }],
     example: { target: 'own-creature', expect: { gone: true } } },
-  { name: 'Reweave', effects: [{ do: 'sacrifice_it', target: 'permanent' }, { do: 'reveal_until', target: 'first-target', match: 'shares-type', permanentOnly: true, rest: 'shuffle' }],
-    covers: 'partial', note: 'falta o encaixar (Splice onto Arcane {2}{U}{U}, 702.47)',
+  // M-274 · "Splice onto Arcane {2}{U}{U}" (texto oficial em .listas/oficiais-commander.json, 05/10/2026)
+  { name: 'Reweave', splice: { subtipo: 'Arcane', mana: '{2}{U}{U}' }, effects: [{ do: 'sacrifice_it', target: 'permanent' }, { do: 'reveal_until', target: 'first-target', match: 'shares-type', permanentOnly: true, rest: 'shuffle' }],
     example: { target: 'enemy-creature', expect: { gone: true } } },
   // M-246 · balde A do Commander: texto oficial em .listas/oficiais-commander.json (consulta de 05/10/2026; segunda fonte, Oracle do
   // Forge, 10/10/2026). Cada frase escrita com o vocabulário da CR2-G (seletor, mover, por jogador); nada de memória.
@@ -14107,6 +14108,7 @@ function createGame(setup) {
     if (sc.delve) f.script.delve = true; // M-263
     if (sc.exilaDaMao) f.script.exilaDaMao = sc.exilaDaMao; // M-267
     if (sc.aoGastarMana) f.script.aoGastarMana = sc.aoGastarMana; // M-273
+    if (sc.splice) f.script.splice = sc.splice; // M-274
     if (sc.self) f.script.self = sc.self;
     // palavras-chave impressas na carta, declaradas no script: valem mesmo quando o dado da carta veio sem elas (sem rede)
     if (sc.self && sc.self.devoid) f.colors = []; // R7 · desprovido de cor (702.114): incolor mesmo com mana colorida no custo
@@ -14195,7 +14197,7 @@ function zoneList(s, obj, zone) { return zone === 'stack' ? s.stack : s.zones[ob
 const VOLTA_COMANDO = ['graveyard', 'exile', 'hand', 'library'];
 /** Leva 105 · marcas que a conjuração põe na carta (e que não atravessam outra mudança de zona). */
 const MARCAS_DA_CONJURACAO = ['xPaid', 'bestowed', 'evidenced', 'faceDown', 'flashback', 'paidAdditional', 'discardedNonland', 'altIndex', 'mode',
-  'bargained', 'omen', 'stormCopies', 'chosenColor', 'plotted', 'playableFromExile', 'jogavelSoNesteTurno', 'escondida', 'suspensa', 'suspensaImpeto', 'jogavelSe', 'sneakAtaque', 'kicked', 'modes', 'castFrom']; // 'revealed' fica: a habilidade do Martyr of Sands lê depois do sacrifício
+  'bargained', 'omen', 'stormCopies', 'chosenColor', 'plotted', 'playableFromExile', 'jogavelSoNesteTurno', 'escondida', 'suspensa', 'suspensaImpeto', 'jogavelSe', 'emendas', 'sneakAtaque', 'kicked', 'modes', 'castFrom']; // 'revealed' fica: a habilidade do Martyr of Sands lê depois do sacrifício
 /* ---------------- CR2-G R5c · 701.8/614 · "se fosse destruída" ---------------- */
 /** O que acontece se `o` fosse destruída agora: 'indestrutivel' (não é destruída), { totem: aura } (702.89: a Aura com
  * armadura de totem é destruída no lugar e o dano sai), 'regenerou' (701.15: um escudo de regeneração é gasto) ou 'destruida'.
@@ -15206,7 +15208,12 @@ function excedeSoma(s, need, chosen) {
 const expandeAlvos = (s, o, effs) => effs.some(e => e.targetCount != null) ? effs.flatMap(e => e.targetCount == null ? [e]
   : Array.from({ length: Math.max(0, amountOf(s, o || {}, e.targetCount)) }, () => { const c = { ...e, upTo: true }; delete c.targetCount; return c; })) : effs;
 function spellEffects(s, o, mode) { return expandeAlvos(s, o, efeitosDaMagia(s, o, mode)); }
-function efeitosDaMagia(s, o, mode) {
+/** M-274 · 702.47c: o texto das cartas encaixadas vem depois do texto da mágica, cada uma como frase própria ("o mesmo alvo" vale dentro dela). */
+function efeitosDaMagia(s, o, mode) { const base = efeitosBaseDaMagia(s, o, mode); if (!o || !(o.emendas || []).length) return base;
+  return base.concat(...o.emendas.map((e, k) => (e.effects || []).map(x => ({ ...x, __modo: `emenda-${k}` })))); }
+const emendasDe = (s, oids) => oids.map(x => ({ name: s.objects[x].name, effects: ((s.facts[s.objects[x].name].script || {}).effects || []) }));
+const encaixavelEm = (s, carta, magia) => { const sp = ((s.facts[s.objects[carta].name] || {}).script || {}).splice; return !!sp && carta !== magia && temSubtipo(s, magia, sp.subtipo); };
+function efeitosBaseDaMagia(s, o, mode) {
   const sc = scriptOf(s, o); if (!sc) return [];
   // Q11 · custo alternativo com efeitos próprios (sobrecarga): Electrickery por {1}{R} vira varredura
   if (o && o.altIndex != null && sc.alt && sc.alt[o.altIndex] && sc.alt[o.altIndex].effects) return sc.alt[o.altIndex].effects;
@@ -17528,7 +17535,7 @@ const HANDLERS = {
     const alvoAura = auraTarget(f, a.bestow);
     if (a.bestow && !bestowOf(s, o)) throw new RuleError('conceder', 'esta carta não tem conceder');
     if (a.x != null && !(Number.isInteger(a.x) && a.x >= 0 && a.x <= LIMITE_X)) throw new RuleError('custo', `X precisa ser um número inteiro de 0 a ${LIMITE_X}`);
-    const need = alvoAura ? [{ target: alvoAura }] : spellEffects(s, { name: o.name, mode: a.mode, ...(nModos ? { modes: a.modes } : {}), altIndex: a.alt != null ? a.alt : null, xPaid: a.x || 0 }, a.mode).filter(SC.isTargeted);
+    const need = alvoAura ? [{ target: alvoAura }] : spellEffects(s, { name: o.name, mode: a.mode, ...(nModos ? { modes: a.modes } : {}), altIndex: a.alt != null ? a.alt : null, xPaid: a.x || 0, ...(a.emenda ? { emendas: emendasDe(s, a.emenda) } : {}) }, a.mode).filter(SC.isTargeted); // M-274 · alvos do texto encaixado também
     const chosen = a.targets || [];
     const minAlvos = need.filter(x => !x.upTo).length; // S38 · "até N alvos" aceita menos
     if (chosen.length < minAlvos || chosen.length > need.length) throw new RuleError('alvo', `escolha ${minAlvos === need.length ? need.length : `de ${minAlvos} a ${need.length}`} alvo(s)`);
@@ -17541,6 +17548,8 @@ const HANDLERS = {
     // M-263 · 702.66 delve: cada carta exilada do cemitério paga {1}; quantas vem na ação, quais o jogador escolhe logo depois
     const delveN = a.delve || 0;
     const exilaMaoN = a.exilaMao || 0; // M-267
+    if (a.emenda != null && !(Array.isArray(a.emenda) && a.emenda.length && new Set(a.emenda).size === a.emenda.length && o.zone === 'hand' && a.alt == null && !a.flashback && !delveN && !exilaMaoN
+      && a.emenda.every(x => s.objects[x] && s.objects[x].zone === 'hand' && s.objects[x].owner === a.p && encaixavelEm(s, x, a.oid)))) throw new RuleError('custo', 'encaixar: revele da mão cartas que se encaixam nesta mágica'); // M-274
     if (exilaMaoN && !(Number.isInteger(exilaMaoN) && exilaMaoN > 0 && (f.script || {}).exilaDaMao && !a.alt && !a.flashback && !delveN && o.zone === 'hand' && exilaveisParaDesconto(s, a.p, o).length >= exilaMaoN)) throw new RuleError('custo', 'exile da mão só cartas da cor pedida, quantas tiver');
     if (delveN && !(Number.isInteger(delveN) && delveN > 0 && (f.script || {}).delve && !a.alt && !a.flashback && delveN <= (f.cost.generic || 0) && s.zones[a.p].graveyard.filter(x => x !== a.oid).length >= delveN)) throw new RuleError('delve', 'delve: exile de 1 até o custo genérico, com cartas suficientes no cemitério');
     // S16 · custo alternativo, lampejo do passado ou o custo normal
@@ -17563,7 +17572,8 @@ const HANDLERS = {
     else if (a.faceDown) { if (s.manaCheck && !a.free) payCost(s, a.p, parseCost('{3}')); } // S54 · virada para baixo custa {3}
     else if (a.plotted) { /* S53 · plot: o mana já foi pago quando a carta foi plotada */ }
     else if (s.manaCheck && !a.free) { if (f.semCusto) throw new RuleError('custo', 'esta carta não tem custo de mana: não pode ser conjurada assim');
-      const custo = a.kick ? somaCusto(f.cost, parseCost(reforco.mana), a.kick) : f.cost;
+      let custo = a.kick ? somaCusto(f.cost, parseCost(reforco.mana), a.kick) : f.cost;
+      for (const x of a.emenda || []) custo = somaCusto(custo, parseCost(s.facts[s.objects[x].name].script.splice.mana), 1); // M-274 · 702.47b: paga o custo de encaixar de cada uma
       const extraBase = castExtra(s, a.p, o, a.x || 0, a.targets || []), extraPago = extraBase - delveN - descontoExilaMao(s, o, exilaMaoN, extraBase); // M-267
       if (a.vida != null) { // CR2c.4 · phyrexiano: quem conjura escolhe quantos símbolos paga com vida
         if (!(Number.isInteger(a.vida) && a.vida >= 0 && a.vida <= nPhyrexianos(custo))) throw new RuleError('custo', 'escolha quantos símbolos phyrexianos pagar com vida');
@@ -17594,6 +17604,7 @@ const HANDLERS = {
     if (need.length) s.objects[a.oid].targets = carimbaAlvos(s, chosen);
     if (modes.length && !nModos) s.objects[a.oid].mode = a.mode;
     if (nModos) s.objects[a.oid].modes = a.modes.slice().sort((x, y) => x - y);
+    if (a.emenda) { s.objects[a.oid].emendas = emendasDe(s, a.emenda); events.push({ kind: 'effect', do: 'reveal', name: o.name, target: a.emenda.map(x => s.objects[x].name).join(', ') }); } // M-274 · reveladas; continuam na mão
     if (a.kick && !reforco.replicar) s.objects[a.oid].kicked = a.kick; // CR 702.33d
     if (a.alt != null && (altCosts(s, o)[a.alt] || {}).effects) s.objects[a.oid].altIndex = a.alt; // Q11 · sobrecarga
     // S34 · tempestade: copia a mágica uma vez por mágica conjurada antes neste turno
@@ -18445,6 +18456,19 @@ function legalActions(s, p, { adjudication = false } = {}) {
       const reduz = x => (f.cost.generic || 0) + castExtra(s, p, o, x || 0) > em.reduz * (k - 1);
       const xs = valoresDeX(s, f.cost.x || 0, x => payable(o, ext(x))).filter(x => reduz(x));
       for (const xv of xs) (xNoAlvo(f.script) ? casts(o, xv) : casts(o)).forEach(c => out.push({ ...c, ...(xv != null ? { x: xv } : {}), exilaMao: k }));
+    }
+  }
+  // M-274 · 702.47 encaixar: ao conjurar uma mágica do subtipo, revela da mão cartas com "Splice onto [subtipo]" e paga o custo de cada uma;
+  // o texto delas entra na mágica, com alvos próprios (até duas cartas por mágica e só na conjuração normal da mão: simplificação declarada)
+  for (const oid of s.zones[p].hand) {
+    const o = s.objects[oid], f = s.facts[o.name];
+    if (f.types.includes('land') || !(canSorcery || !isSorcerySpeed(f)) || (s.manaCheck && f.semCusto) || ((f.script || {}).modes || []).length || f.cost.x) continue;
+    const enc = s.zones[p].hand.filter(x => encaixavelEm(s, x, oid)); if (!enc.length) continue;
+    const grupos = []; enc.forEach((x, i) => { grupos.push([x]); enc.slice(i + 1).forEach(y => grupos.push([x, y])); });
+    for (const g of grupos) {
+      const custo = g.reduce((c, x) => somaCusto(c, parseCost(s.facts[s.objects[x].name].script.splice.mana), 1), f.cost);
+      if (s.manaCheck && !canPay(s, p, custo, castExtra(s, p, o, 0, OTIMISTA))) continue;
+      castWith(o, spellEffects(s, { name: o.name, emendas: emendasDe(s, g) }).filter(SC.isTargeted)).forEach(c => out.push({ ...c, emenda: g }));
     }
   }
   // M-263 · delve: uma oferta por quantidade de cartas exiladas (as cartas, quem conjura escolhe depois)
@@ -23153,6 +23177,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
         : a.t === 'cast' && a.plotted ? doBtn('Conjurar sem pagar' + ((a.targets || []).length ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : ''), a, { variant: 'primary' })
         : a.t === 'cast' ? doBtn(((a.alt != null && f.script && f.script.alt && f.script.alt[a.alt]) ? ((f.script.alt[a.alt].cost || {}).mana ? `Custo alternativo · ${f.script.alt[a.alt].label}` : `Conjurar sem pagar mana · ${f.script.alt[a.alt].label}`) : a.flashback ? `Lampejo do passado · ${custoDoLampejo(f.script.flashback)}` : a.retrace ? 'Retraçar · descartando um terreno' : Array.isArray(a.modes) ? a.modes.map(m => (f.script.modes[m] || {}).label || 'modo').join(' + ') : (f.script && f.script.modes && f.script.modes[a.mode || 0]) ? f.script.modes[a.mode || 0].label : a.permissao != null ? `Conjurar do cemitério (${(s.objects[a.permissao] || {}).name || 'permissão'})` : a.delve ? `Conjurar com delve (exila ${a.delve} do cemitério)` : a.exilaMao ? `Conjurar exilando ${a.exilaMao} ${a.exilaMao > 1 ? 'cartas' : 'carta'} da mão` : (o.zone === 'command' ? `Conjurar da zona de comando (imposto ${E.commanderTax(s, v, oid)})` : a.evidence ? `Conjurar com provas ${(f.script || {}).evidence || ''}`.trim() : 'Conjurar')) + ((a.targets || []).length ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : '')
           // Leva 125 · lampejo e custo alternativo já dizem o que se paga: o custo impresso da carta não entra ("{2}{R} · {R}" confundia)
+          + (a.emenda ? ` · encaixando ${a.emenda.map(x => nameOf(s, x)).join(' e ')}` : '') // M-274
           + (a.kick ? (((f.script || {}).kicker || {}).replicar ? ` · replicar ×${a.kick}` : a.kick > 1 ? ` · reforço ×${a.kick}` : ' · com reforço') : '') // CR2c.1; M-265 · replicar
           + (a.vida != null ? (a.vida ? ` · pagando ${2 * a.vida} de vida` : ' · pagando com mana') : '') // CR2c.4 · phyrexiano
           + (s.manaCheck && costTxt && !a.flashback && a.alt == null ? ` · ${costPago}` : ''), a, { variant: 'primary' })
