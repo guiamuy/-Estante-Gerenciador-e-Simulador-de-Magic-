@@ -3580,6 +3580,11 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Medida:** 7 das 107 mágicas do acervo lidas por inteiro, todas idênticas ao script à mão.
 - **Fora:** permanentes (ficam não lidas até o LT3); qualquer alvo fora do vocabulário (não lido, nunca aproximado).
 
+**LT2 · Leitor de texto: modos, palavras-chave com custo, fichas, "a menos que" e restrições de alvo** ✅ (leva M-296, motor v109 sem mudança no jogo) — piso do teste de concordância sobe de 7 para 20 cartas.
+- **Entregue:** "Choose one —" com as balas vira script modal; lampejo do passado, insanidade, reciclagem, tempestade e delve viram as chaves de topo; "crie N fichas P/T <cor> <tipo> com <palavras>" vira ficha com cor, subtipo e palavras; "a menos que o controlador pague {N}"; "alvo não lendária" e "alvo não <cor>"; "perde N e você ganha N"; "criaturas que você controla recebem +N/+N".
+- **Medida:** 20 das 107 mágicas do acervo lidas por inteiro, todas idênticas ao script à mão (Abrade, Steel Sabotage, Fiery Temper, Faithless Looting, Spell Pierce, Cast Down, Dark Withering, Treasure Cruise…).
+- **Fora:** fichas com habilidade no texto (Eldrazi Spawn), olhar o topo, revelar, custos adicionais, "até N alvos", sobrecarga.
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

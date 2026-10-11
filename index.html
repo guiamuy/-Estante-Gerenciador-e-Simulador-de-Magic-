@@ -14078,12 +14078,15 @@ const __m42 = (function () {
   /* LT1 · Leitor de texto: monta o script de uma carta a partir do texto oficial (Oracle), frase a frase, só com o vocabulário que o
      motor já executa (R1–R6). Regra de fidelidade: o leitor não adivinha. Frase que não casa com um padrão conhecido fica "não lida",
      com o texto dela; a carta só sai "completa" quando todas as frases foram lidas e o script passa no validador. O que o leitor produz
-     ainda não joga sozinho: a revisão (LT7) decide. A concordância com os scripts escritos à mão é medida no portão (leitor.concordancia). */
+     ainda não joga sozinho: a revisão (LT7) decide. A concordância com os scripts escritos à mão é medida no portão (leitor.concordancia).
+     LT2 · mágicas modais ("Choose one —"), palavras-chave com custo (lampejo do passado, insanidade, tempestade, delve, reciclagem),
+     fichas de criatura, "a menos que pague", combinações com "and" e alvos com restrição (não lendária, não <cor>). */
   const SC = __m23;
   const NUMEROS = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
   const N = '(a|an|one|two|three|four|five|six|seven|eight|nine|ten|\\d+)';
   const num = t => (/^\d+$/.test(t) ? +t : NUMEROS[String(t).toLowerCase()]);
-  // "target X" → alvo do vocabulário; cada verbo aceita só os alvos que o validador conhece (o que não casa fica não lido)
+  const CORES = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
+  // "target X" → alvo do vocabulário; o que não está aqui fica não lido (o validador também confere o alvo de cada verbo)
   const ALVOS = {
     'any target': 'any', 'target creature': 'creature', 'target player': 'player', 'target opponent': 'opponent', 'target planeswalker': 'planeswalker',
     'target permanent': 'permanent', 'target artifact': 'artifact', 'target enchantment': 'enchantment', 'target land': 'land',
@@ -14091,58 +14094,102 @@ const __m42 = (function () {
     'target creature an opponent controls': 'creature-opponent-controls', 'target creature you don\'t control': 'creature-opponent-controls',
     'each creature': 'each-creature', 'each opponent': 'each-opponent', 'each creature you control': 'each-own-creature',
     'each creature your opponents control': 'each-opponent-creature', 'each creature you don\'t control': 'each-opponent-creature',
+    'creatures you control': 'each-own-creature', 'creatures your opponents control': 'each-opponent-creature', 'all creatures': 'each-creature',
     'target spell': 'spell', 'target creature spell': 'creature-spell', 'target noncreature spell': 'noncreature-spell', 'target instant spell': 'instant-spell',
-    'target artifact spell': 'artifact-spell', 'target spell or ability': 'spell-or-ability'
+    'target artifact spell': 'artifact-spell', 'target artifact or enchantment spell': 'artifact-enchantment-spell', 'target spell or ability': 'spell-or-ability'
   };
-  const alvo = t => ALVOS[String(t).toLowerCase()];
+  /** "target nonlegendary creature", "target nonblack creature": alvo do vocabulário mais a restrição que o motor já confere. */
+  function alvo(t) {
+    const k = String(t).toLowerCase(); if (ALVOS[k]) return { target: ALVOS[k] };
+    let m = k.match(/^target nonlegendary (creature)$/); if (m) return { target: 'creature', targetNotLegendary: true };
+    m = k.match(/^target non(white|blue|black|red|green) creature$/); if (m) return { target: 'creature', targetNotColor: CORES[m[1]] };
+    return null;
+  }
   const SINAL = t => (t.startsWith('-') ? -1 : 1) * +t.replace(/^[+-]/, '');
+  const com = (base, a) => (a ? { ...base, ...a } : null);
+  const TIPO_CRIATURA = '([A-Z][a-z]+(?: [A-Z][a-z]+)*)';
+  /** "two 1/1 white Bird creature tokens with flying" → ficha do vocabulário (nome = subtipo, como nas fichas escritas à mão). */
+  function ficha(qtd, pt, cores, sub, kws) {
+    const [p, t] = pt.split('/').map(Number), cs = cores.split(/ and /).map(c => CORES[c.toLowerCase()]).filter(Boolean);
+    if (!cs.length && !/colorless/i.test(cores)) return null;
+    const palavras = kws ? kws.split(/,\s*|\s+and\s+/).map(x => x.trim().toLowerCase()) : [];
+    if (palavras.some(k => !SC.KEYWORDS.map(x => x.toLowerCase()).includes(k))) return null;
+    return [{ do: 'token', amount: num(qtd), token: { name: sub, types: ['creature'], subtypes: sub.split(' '), colors: cs, power: p, toughness: t, ...(palavras.length ? { keywords: palavras } : {}) } }];
+  }
   /* Padrões de frase de efeito de mágica (a frase já sem ponto final, com o nome da carta trocado por "~"). Cada um devolve a lista de
-     efeitos ou null. A ordem importa só quando dois padrões casariam a mesma frase. */
+     efeitos ou null. */
   const PADROES = [
     [new RegExp(`^draw ${N} cards?$`, 'i'), m => [{ do: 'draw', amount: num(m[1]) }]],
     [new RegExp(`^target player draws ${N} cards?$`, 'i'), m => [{ do: 'draw', amount: num(m[1]), target: 'player' }]],
     [new RegExp(`^you gain ${N} life$`, 'i'), m => [{ do: 'gain', amount: num(m[1]) }]],
-    [new RegExp(`^(each opponent|target opponent|target player) loses ${N} life$`, 'i'), m => [{ do: 'lose', amount: num(m[2]), target: alvo(m[1]) }]],
-    [new RegExp(`^~ deals ${N} damage to (.+)$`, 'i'), m => alvo(m[2]) ? [{ do: 'damage', amount: num(m[1]), target: alvo(m[2]) }] : null],
-    [/^destroy (target [a-z ']+)$/i, m => alvo(m[1]) ? [{ do: 'destroy', target: alvo(m[1]) }] : null],
-    [/^exile (target [a-z ']+)$/i, m => alvo(m[1]) ? [{ do: 'exile', target: alvo(m[1]) }] : null],
-    [/^counter (target [a-z ']+)$/i, m => alvo(m[1]) ? [{ do: 'counter', target: alvo(m[1]) }] : null],
-    [/^return (target [a-z ']+) to its owner's hand$/i, m => alvo(m[1]) ? [{ do: 'bounce', target: alvo(m[1]) }] : null],
-    [/^(target creature|target creature you control) gets ([+-]\d+)\/([+-]\d+) until end of turn$/i, m => [{ do: 'pump', power: SINAL(m[2]), toughness: SINAL(m[3]), target: alvo(m[1]) }]],
+    [new RegExp(`^(each opponent|target opponent|target player) loses ${N} life and you gain ${N} life$`, 'i'), m => [com({ do: 'lose', amount: num(m[2]) }, alvo(m[1])), { do: 'gain', amount: num(m[3]) }]],
+    [new RegExp(`^(each opponent|target opponent|target player) loses ${N} life$`, 'i'), m => [com({ do: 'lose', amount: num(m[2]) }, alvo(m[1]))]],
+    [new RegExp(`^~ deals ${N} damage to (.+)$`, 'i'), m => [com({ do: 'damage', amount: num(m[1]) }, alvo(m[2]))]],
+    [/^destroy (target [a-z ']+)$/i, m => [com({ do: 'destroy' }, alvo(m[1]))]],
+    [/^exile (target [a-z ']+)$/i, m => [com({ do: 'exile' }, alvo(m[1]))]],
+    [/^counter (target [a-z ']+) unless its controller pays (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => [com({ do: 'counter', unless: { mana: m[2] } }, alvo(m[1]))]],
+    [/^counter (target [a-z ']+)$/i, m => [com({ do: 'counter' }, alvo(m[1]))]],
+    [/^return (target [a-z ']+) to its owner's hand$/i, m => [com({ do: 'bounce' }, alvo(m[1]))]],
+    [/^(target creature|target creature you control|creatures you control|creatures your opponents control|all creatures) gets? ([+-]\d+)\/([+-]\d+) until end of turn$/i, m => [com({ do: 'pump', power: SINAL(m[2]), toughness: SINAL(m[3]) }, alvo(m[1]))]],
     [new RegExp(`^scry ${N}$`, 'i'), m => [{ do: 'scry', amount: num(m[1]) }]],
     [new RegExp(`^surveil ${N}$`, 'i'), m => [{ do: 'surveil', amount: num(m[1]) }]],
     [new RegExp(`^discard ${N} cards?$`, 'i'), m => [{ do: 'discard', amount: num(m[1]) }]],
-    [new RegExp(`^(target player|target opponent) discards ${N} cards?$`, 'i'), m => [{ do: 'discard', amount: num(m[2]), target: alvo(m[1]) }]],
-    [new RegExp(`^(target player|target opponent) mills ${N} cards?$`, 'i'), m => [{ do: 'mill', amount: num(m[2]), target: alvo(m[1]) }]],
-    [new RegExp(`^mill ${N} cards?$`, 'i'), m => [{ do: 'mill', amount: num(m[1]) }]]
+    [new RegExp(`^(target player|target opponent) discards ${N} cards?$`, 'i'), m => [com({ do: 'discard', amount: num(m[2]) }, alvo(m[1]))]],
+    [new RegExp(`^(target player|target opponent) mills ${N} cards?$`, 'i'), m => [com({ do: 'mill', amount: num(m[2]) }, alvo(m[1]))]],
+    [new RegExp(`^mill ${N} cards?$`, 'i'), m => [{ do: 'mill', amount: num(m[1]) }]],
+    [new RegExp(`^create ${N} (\\d+/\\d+) ((?:white|blue|black|red|green|colorless)(?: and (?:white|blue|black|red|green))?) ${TIPO_CRIATURA} creature tokens?(?: with ([a-z ,]+))?$`), m => ficha(m[1], m[2], m[3], m[4], m[5])]
+  ];
+  /** Linha de palavra-chave com custo, no topo do script ("Flashback {2}{R}" → flashback: { mana }). Só as que o motor executa assim. */
+  const COM_CUSTO = [
+    [/^flashback (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ flashback: { mana: m[1] } })],
+    [/^madness (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ madness: { mana: m[1] } })],
+    [/^cycling (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ cycling: { mana: m[1] } })],
+    [/^storm$/i, () => ({ storm: true })],
+    [/^delve$/i, () => ({ delve: true })]
   ];
   const semLembrete = t => String(t || '').replace(/\s*\([^)]*\)/g, '').trim();
   const KW = new Set(SC.KEYWORDS.map(k => k.toLowerCase()));
   /** Uma linha só de palavras-chave que o motor conhece ("Flying, vigilance"): o motor já as lê do texto. */
   const linhaDePalavras = l => { const ps = l.split(/,\s*/).map(x => x.trim().toLowerCase()); return ps.length > 0 && ps.every(p => KW.has(p)); };
-  /** Frase de efeito → efeitos, ou null. "X, then Y" e "X. Y" viram frases separadas antes de chegar aqui. */
+  /** Frase de efeito → efeitos, ou null (inclusive quando o alvo ficou fora do vocabulário). */
   function leFrase(f) {
-    for (const [re, faz] of PADROES) { const m = f.match(re); if (m) { const e = faz(m); if (e && e.every(x => !x.target || x.target)) return e; } }
+    for (const [re, faz] of PADROES) { const m = f.match(re); if (m) { const e = faz(m); return e && e.every(Boolean) ? e : null; } }
     return null;
   }
-  /** A carta → { script, frases: [{ texto, lida, motivo? }], completa }. Só mágicas instantâneas e feitiços nesta etapa (LT1): linhas de
-      permanente (habilidades ativadas, disparadas, estáticas) ficam não lidas até o LT2/LT3. */
+  const escapa = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  /** Um parágrafo de efeito de mágica → { efeitos, frases }. */
+  function leParagrafo(texto, nome, frases) {
+    const efeitos = [];
+    const partes = texto.replace(new RegExp(escapa(nome), 'g'), '~').split(/\.\s+|,\s+then\s+|\.$/).map(x => x.replace(/\.$/, '').trim()).filter(Boolean);
+    let ok = true;
+    for (const p of partes) {
+      const e = leFrase(p);
+      if (e) { frases.push({ texto: p, lida: true }); efeitos.push(...e); } else { frases.push({ texto: p, lida: false, motivo: 'frase sem padrão conhecido' }); ok = false; }
+    }
+    return ok ? efeitos : null;
+  }
+  /** A carta → { script, frases: [{ texto, lida, motivo? }], completa }. Só mágicas instantâneas e feitiços (LT1–LT2): linhas de
+      permanente (habilidades ativadas, disparadas, estáticas) ficam não lidas até o LT3/LT4. */
   function ler(card) {
-    const nome = card && card.name; const tipo = String((card && card.type_line) || '');
+    const nome = (card && card.name) || ''; const tipo = String((card && card.type_line) || '');
     const linhas = semLembrete(card && card.oracle_text).split('\n').map(x => x.trim()).filter(Boolean);
-    const frases = [], efeitos = [];
+    const frases = [], efeitos = [], topo = {};
     const magica = /\b(Instant|Sorcery)\b/.test(tipo);
+    let modos = null;
     for (const linha of linhas) {
       if (linhaDePalavras(linha)) { frases.push({ texto: linha, lida: true, palavras: true }); continue; }
-      if (!magica) { frases.push({ texto: linha, lida: false, motivo: 'habilidade de permanente (LT2/LT3)' }); continue; }
-      const partes = linha.replace(new RegExp(nome.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), '~').split(/\.\s+|,\s+then\s+|\.$/).map(x => x.replace(/\.$/, '').trim()).filter(Boolean);
-      for (const p of partes) {
-        const e = leFrase(p);
-        if (e) { frases.push({ texto: p, lida: true }); efeitos.push(...e); } else frases.push({ texto: p, lida: false, motivo: 'frase sem padrão conhecido' });
-      }
+      if (!magica) { frases.push({ texto: linha, lida: false, motivo: 'habilidade de permanente (LT3/LT4)' }); continue; }
+      const kc = COM_CUSTO.map(([re, faz]) => { const m = linha.match(re); return m && faz(m); }).find(Boolean);
+      if (kc) { Object.assign(topo, kc); frases.push({ texto: linha, lida: true }); continue; }
+      if (/^choose one\s*—$/i.test(linha)) { modos = []; frases.push({ texto: linha, lida: true }); continue; }
+      const bala = linha.match(/^•\s*(.+)$/);
+      if (bala && modos) { const e = leParagrafo(bala[1], nome, frases); modos.push(e ? { label: bala[1].replace(/\.$/, ''), effects: e } : null); continue; }
+      const e = leParagrafo(linha, nome, frases); if (e) efeitos.push(...e);
     }
-    const lidas = frases.every(f => f.lida);
-    const script = efeitos.length ? { name: nome, effects: efeitos } : null;
+    const lidas = frases.every(f => f.lida) && (!modos || (modos.length >= 2 && modos.every(Boolean)));
+    let script = null;
+    if (modos && modos.length && !efeitos.length) script = { name: nome, modes: modos.filter(Boolean), ...topo };
+    else if (efeitos.length && !modos) script = { name: nome, effects: efeitos, ...topo };
     const erros = script ? SC.validateScript({ ...script, example: { target: 'none', expect: {} } }).filter(e => !/cenário|example|exemplo/i.test(e)) : ['sem efeito'];
     return { script, frases, completa: !!(magica && lidas && script && !erros.length), erros };
   }

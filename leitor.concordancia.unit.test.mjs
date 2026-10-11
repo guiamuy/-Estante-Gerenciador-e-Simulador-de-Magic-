@@ -28,7 +28,7 @@ test('LT1 · concordância: toda carta lida por inteiro dá o mesmo script escri
     else if (efeitos(h) !== efeitos(r.script)) divergentes.push(`${c.name}: leitor ${efeitos(r.script)} × à mão ${efeitos(h)}`);
   }
   assert.deepEqual(divergentes, []);
-  assert.ok(lidas.length >= 7, 'cartas lidas por inteiro: ' + lidas.length + ' (' + lidas.join(', ') + ')');
+  assert.ok(lidas.length >= 20, 'cartas lidas por inteiro: ' + lidas.length + ' (' + lidas.join(', ') + ')');
 });
 
 test('LT1 · fidelidade: frase sem padrão fica não lida, com o texto dela, e a carta não sai completa; permanente ainda não é lida', () => {
