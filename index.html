@@ -1482,6 +1482,7 @@ body:has(#outlet .ds-fab[data-acoes="1"]) #outlet { padding-bottom: calc(56px + 
 /* G-248 · o evento (onde a lista apareceu) numa linha própria, e o valor somado junto dos números */
 .cat-item__evento { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--fg-muted); }
 .cat-item__valor { flex: none; font-variant-numeric: tabular-nums; font-weight: var(--weight-medium); color: var(--fg); white-space: nowrap; }
+.cat-rodape { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
 .cat-item__onde { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .catd__evento { font-size: var(--text-sm); color: var(--fg-muted); overflow-wrap: anywhere; }
 .catd-valor { display: flex; flex-direction: column; gap: var(--space-2); }
@@ -11064,7 +11065,7 @@ function fichasDoCatalogo(dados) {
     && (f.power == null) === (f.toughness == null) && (f.power == null || (String(f.power).length <= 3 && String(f.toughness).length <= 3)))
     .map(f => ({ name: f.name.trim(), types: f.types.map(String), subtypes: Array.isArray(f.subtypes) ? f.subtypes.map(String) : [], colors: f.colors.filter(c => 'WUBRG'.includes(c)), ...(f.power != null ? { power: String(f.power), toughness: String(f.toughness) } : {}) }));
 }
-const PRAZO_MS = 12 * 3600 * 1000; // o coletor roda uma vez por semana: meio dia de cache basta
+const PRAZO_MS = 3600 * 1000; // G-249 · o coletor roda todo dia e o índice muda (listas novas, valor do dia): a cópia do aparelho vale uma hora; a busca é condicional ("não mudou" custa quase nada)
 const LOTE = 30; // lista grande desenhada em lotes
 // Z5 · os formatos de torneio (TopDeck.gg) entram ao lado dos produtos oficiais; "Desafio" são os decks de desafio da Wizards
 const FORMATOS = [['commander', 'Commander'], ['pauper', 'Pauper'], ['modern', 'Modern'], ['standard', 'Standard'], ['pioneer', 'Pioneer'], ['legacy', 'Legacy'],
@@ -11092,6 +11093,10 @@ function filtraCatalogo(listas, { formato = 'all', texto = '' } = {}) {
 /* G-248 · relato #15 · o nome é o da lista (o arquétipo, dado pelo coletor), o evento é informação à parte e o valor
    somado vem do índice. Tudo aqui é puro; índice de antes desta leva (sem `evento` nem `valorUsd`) desenha como antes. */
 const curto = (x, n = 120) => (typeof x === 'string' ? x.replace(/\s+/g, ' ').trim().slice(0, n) : '');
+/** G-249 · índice do formato de antes da G-248: tem lista de torneio e nenhuma traz `evento` (o título ainda é o evento).
+    Cópia assim guardada no aparelho é tratada como vencida, qualquer que seja a idade: foi por ela que os nomes novos
+    não apareceram depois da G-248. */
+function indiceAntigo(dados) { const t = listasDoIndice(dados).filter(deTorneio); return t.length > 0 && !t.some(l => typeof l.evento === 'string' && l.evento.trim()); }
 /** As duas linhas de baixo do cartão: onde a lista apareceu, e quem jogou (ou quem comanda) com a data. */
 function linhasDoCartao(l) {
   const evento = curto(l.evento) && norm(l.evento) !== norm(l.nome) ? curto(l.evento) : '';
@@ -11152,7 +11157,7 @@ function createCatalogo({ store, busca = typeof fetch !== 'undefined' ? fetch.bi
     /** O índice: guardado se ainda vale; senão busca. Sem rede, o guardado (marcado `velho`); sem nada, o erro. */
     async indice({ forcar = false } = {}) {
       const g = await le(CHAVE_INDICE);
-      if (g && g.dados && !forcar && agora() - g.em < prazo) return { dados: g.dados, em: g.em, origem: 'guardado' };
+      if (g && g.dados && !forcar && agora() - g.em < prazo && !indiceAntigo(g.dados)) return { dados: g.dados, em: g.em, origem: 'guardado' };
       try {
         const r = await json('indice.json');
         if (r.ausente) return g ? { dados: g.dados, em: g.em, origem: 'guardado', velho: true } : { dados: null, ausente: true };
@@ -11263,7 +11268,10 @@ function SecaoCatalogo({ catalogo, decks, formato = 'all', aoImportar = null }) 
       h('div', { class: 'cat-lista', id: 'catalogo-lista' }, ...visiveis.map(l => CartaoCatalogo(l, { tenho: jaNaEstante(l, st.minhas), ocupado: st.ocupado === l.id, onAdicionar: () => adiciona(l), taxas: st.taxas }))),
       // T5 · respiro entre a última lista e o botão (relato #1: estava colado)
       recorte.length > visiveis.length ? h('div', { class: 'cat-mais' }, Button(`Mostrar mais ${Math.min(LOTE, recorte.length - visiveis.length)}`, { icone: 'descer', id: 'catalogo-mais', onClick: () => { st.mostra += LOTE; pintaLista(); } })) : null,
-      Text(`${st.r.velho ? 'Sem internet: o catálogo guardado em ' : 'Catálogo atualizado em '}${new Date(st.r.em).toLocaleDateString('pt-BR')}`, { size: 'xs', tone: 'subtle', attrs: { id: 'catalogo-fonte' } }),
+      // G-249 · a data da cópia e um Atualizar à mão (busca de novo agora, sem esperar a hora)
+      h('div', { class: 'cat-rodape' },
+        Text(`${st.r.velho ? 'Sem internet: o catálogo guardado em ' : 'Catálogo atualizado em '}${new Date(st.r.em).toLocaleDateString('pt-BR')}`, { size: 'xs', tone: 'subtle', attrs: { id: 'catalogo-fonte' } }),
+        IconButton('atualizar', 'Atualizar o catálogo', { id: 'catalogo-atualizar', variant: 'ghost', onClick: async () => { await carrega(true); if (st.estado === 'pronto') toast(st.r.velho ? 'Sem internet: ficou o catálogo guardado' : 'Catálogo atualizado'); } })),
       CreditoDasFontes(new Set(todas.map(l => l.fonte || 'mtgjson')), 'catalogo-credito', { comMtgjson: true }));
   }
   async function carrega(forcar = false) {
@@ -11332,7 +11340,7 @@ function createCatalogoListaScreen({ catalogo, decks, cardRepo, store }) {
         : Empty('Esta lista não está no catálogo.', Button('Ver o catálogo', { icone: 'voltar', onClick: () => go('/listas/prontas') }), { icone: 'caixa', titulo: 'Lista não encontrada', id: 'catd-ausente' }));
     }
     // G-248 · a lista guardada no aparelho pode ser de antes do nome novo: o índice guardado atualiza nome, evento e valor
-    try { const ind = await store.get(CHAVE_INDICE); const resumo = listasDoIndice(ind && ind.dados).find(x => x.id === id); if (resumo) st.l = comResumo(st.l, resumo); } catch (e) { /* fica como veio */ }
+    try { const ind = await catalogo.indice(); const resumo = listasDoIndice(ind && ind.dados).find(x => x.id === id); if (resumo) st.l = comResumo(st.l, resumo); } catch (e) { /* sem índice: fica como veio */ }
     __m31.padrao.taxas().then(t => { st.taxas = t || null; }).catch(() => { st.taxas = null; }).then(() => { if (st.l && root.isConnected && root.querySelector('#catd-nome')) pinta(); });
     try { st.minhas = await decks.list(); } catch (e) { st.minhas = []; }
     const progresso = h('span', { class: 'ds-carregando__texto' }, 'Buscando cartas…');
@@ -11441,7 +11449,7 @@ function createCatalogoListaScreen({ catalogo, decks, cardRepo, store }) {
   return root;
 }
 
-return { linhasDoCartao, valorDoResumo, comResumo, precoDaCarta, fichasDoCatalogo, CHAVE_FICHAS, deTorneio, FONTES_DO_CATALOGO, CreditoDasFontes, VISOES, gruposPorTipo, gruposPorCusto, createCatalogoListaScreen, BASE, CHAVE_INDICE, PRAZO_MS, LOTE, FORMATOS, listasDoIndice, filtraCatalogo, imagemDaCarta, listaParaSalvar, jaNaEstante, createCatalogo, CartaoCatalogo, SecaoCatalogo };
+return { indiceAntigo, linhasDoCartao, valorDoResumo, comResumo, precoDaCarta, fichasDoCatalogo, CHAVE_FICHAS, deTorneio, FONTES_DO_CATALOGO, CreditoDasFontes, VISOES, gruposPorTipo, gruposPorCusto, createCatalogoListaScreen, BASE, CHAVE_INDICE, PRAZO_MS, LOTE, FORMATOS, listasDoIndice, filtraCatalogo, imagemDaCarta, listaParaSalvar, jaNaEstante, createCatalogo, CartaoCatalogo, SecaoCatalogo };
 })();
 
 /* ==== src/app/decks.js ==== */

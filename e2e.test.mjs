@@ -8326,6 +8326,32 @@ test('e2e · G-248 catálogo: o título é o nome da lista, o evento vem embaixo
   assert.deepEqual(errors, []);
 });
 
+/* ---------------- G-249 · a cópia antiga do catálogo no aparelho não esconde os nomes novos ---------------- */
+test('e2e · G-249 catálogo guardado no formato antigo é trocado ao abrir Listas prontas; Atualizar busca de novo na hora', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  const antiga = { id: 'mtgo-pauper-league-1', nome: '5-0 · Pauper League', formato: 'pauper', tipo: 'Liga · 5-0', data: '2026-10-10', fonte: 'mtgo', cores: 'UBR', destaque: 'X', destaqueId: null, comandante: [], cartas: 60, jogador: 'piloto', torneio: 'Pauper League' };
+  const nova = { ...antiga, nome: 'Grixis Fiery Temper', evento: '5-0 · Pauper League', nv: 1, valorUsd: 100 };
+  let agora = antiga, pedidos = 0;
+  await page.route(/^https:\/\/raw\.githubusercontent\.com\/.*\/catalogo\/indice\.json/, r => { pedidos++; return r.fulfill({ json: { versao: 1, geradoEm: '2026-10-10T00:00:00.000Z', fontes: [], formatos: [], total: 1, pendentes: 0, listas: [agora] }, headers: { 'access-control-allow-origin': '*' } }); });
+  // 1 · o aparelho guarda o catálogo de antes (o título é o evento)
+  await page.goto(base + '#/listas/prontas'); await page.waitForSelector('#catalogo-lista');
+  assert.equal(await page.locator('.cat-item[data-id="mtgo-pauper-league-1"] .cat-item__nome').innerText(), '5-0 · Pauper League'); assert.equal(pedidos, 1);
+  // 2 · a coleta nova saiu; o app é reaberto minutos depois: a cópia antiga não vale, o nome novo aparece
+  agora = nova; await page.reload(); await page.waitForSelector('#catalogo-lista');
+  assert.equal(await page.locator('.cat-item[data-id="mtgo-pauper-league-1"] .cat-item__nome').innerText(), 'Grixis Fiery Temper'); assert.equal(await page.locator('.cat-item__onde').innerText(), '5-0 · Pauper League');
+  assert.equal(pedidos, 2);
+  // 3 · cópia nova dentro da hora: reabrir não busca; Atualizar busca
+  await page.reload(); await page.waitForSelector('#catalogo-lista'); assert.equal(pedidos, 2);
+  const bt = page.locator('#catalogo-atualizar'); const caixa = await bt.boundingBox(); assert.ok(caixa.width >= 44 && caixa.height >= 44);
+  assert.equal(await bt.getAttribute('aria-label'), 'Atualizar o catálogo');
+  await emTodasAsMedidas(page, 'G-249 rodapé do catálogo');
+  agora = { ...nova, nome: 'Grixis Madness' }; await page.locator('#catalogo-atualizar').click();
+  await page.waitForFunction(() => (document.querySelector('.cat-item__nome') || {}).textContent === 'Grixis Madness'); assert.equal(pedidos, 3);
+  await page.waitForSelector('.ds-toast'); assert.match(await page.locator('.ds-toast').last().innerText(), /Catálogo atualizado/);
+  assert.deepEqual(errors, []);
+});
+
 /* ---------------- Z4 · jogar a partir do catálogo ---------------- */
 test('e2e · Z4 jogar a partir do catálogo: Jogar ao lado de Adicionar traz a lista para a estante (uma vez só) e abre o preparo com ela escolhida; depois o detalhe diz que ela está na estante e fica guardada', { skip }, async t => {
   const { page, errors, base } = await open(t);

@@ -504,6 +504,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-dm ✅ | Commander da TopDeck.gg de volta: EDH com janela de 14 dias (reserva de 7) e prazo de 90 s (leva G-246) | Z | ½ | — |
 | 16º-dn ✅ | Testes de desempenho B2 e C12 medem o tempo de processador do teste, não o relógio de parede (mesmos limites) (leva G-247) | Q | ½ | — |
 | 16º-do ✅ | Z7 nome da lista (arquétipo dado pelo coletor), evento à parte e valor somado no catálogo; no detalhe, valor da lista e preço de cada carta (relato #15, leva G-248) | Z | 1 | — |
+| 16º-dp ✅ | Z7 correção: catálogo guardado no formato antigo é trocado ao abrir (os nomes novos não apareciam), validade de 1 hora e Atualizar no rodapé (leva G-249) | Z | 1 | — |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -7239,6 +7240,14 @@ segredo do repositório. O `main` não recebe commit do coletor.
   iguais).
 - **Fora:** tabela manual de arquétipos (o nome consagrado, como "Rakdos Madness"); preço da impressão mais barata (a
   estante também usa a padrão); ranking de metagame (escopo negativo).
+- **Correção (leva G-249, 10/10/2026):** os nomes novos não apareciam no aparelho de quem já tinha aberto o catálogo — a
+  cópia do índice guardada valia 12 horas e, no formato antigo, o título continuava sendo o evento ("5-0 · Pauper
+  League"). Erro da G-248: a compatibilidade com o índice antigo foi testada, a troca da cópia guardada não. Agora a
+  cópia no formato antigo (tem lista de torneio e nenhuma com `evento`) é tratada como vencida; a validade caiu para 1
+  hora (o coletor é diário e o valor muda todo dia; a busca é condicional); há um Atualizar no rodapé do catálogo; e o
+  detalhe pega nome, evento e valor pelo serviço do índice. Testes: U `catalogo.tela.unit` +2 (formato antigo; serviço
+  com cópia antiga, nova, vencida, forçada e sem rede); e2e "G-249" (cópia antiga trocada ao reabrir, sem busca dentro da
+  hora, Atualizar).
 
 ### SEG · Segurança e privacidade (trilha `protecao`, auditoria de 09/10/2026)
 

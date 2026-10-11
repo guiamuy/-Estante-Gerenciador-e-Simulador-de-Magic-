@@ -169,3 +169,31 @@ test('G-248 · lista guardada antes do nome novo recebe nome, evento e valor do 
   assert.equal(K.precoDaCarta({ prices: { usd: null, usd_foil: '3.00' } }, null), 'US$ 3,00', 'só há foil: vale o foil');
   assert.equal(K.precoDaCarta({ prices: {} }, TAXAS), null); assert.equal(K.precoDaCarta(null, TAXAS), null);
 });
+
+// ---------------------------------------------------------------------------------------------------------------
+// G-249 · a cópia do índice guardada no aparelho no formato antigo escondia os nomes novos (relato #15, de novo).
+test('G-249 · índice antigo: tem lista de torneio e nenhuma com evento; só oficiais, vazio ou novo não são antigos', () => {
+  const idx = listas => ({ versao: 1, listas });
+  const oficial = { id: 'mtgjson-anjos-fdc', nome: 'Calling All Angels', formato: 'commander', fonte: 'mtgjson' };
+  assert.equal(K.indiceAntigo(idx([ANTIGA, oficial])), true);
+  assert.equal(K.indiceAntigo(idx([NOVA, ANTIGA])), false, 'uma lista ainda sem nome (a Scryfall falhou naquela coleta) não torna o índice antigo');
+  assert.equal(K.indiceAntigo(idx([oficial])), false); assert.equal(K.indiceAntigo(idx([])), false); assert.equal(K.indiceAntigo(null), false);
+  assert.equal(K.indiceAntigo(idx([{ ...ANTIGA, evento: '   ' }])), true, 'evento vazio não conta');
+  assert.equal(K.PRAZO_MS, 3600 * 1000, 'a cópia do aparelho vale uma hora');
+});
+
+test('G-249 · serviço: cópia antiga dentro do prazo é buscada de novo; cópia nova no prazo não; sem rede fica a guardada, marcada', async () => {
+  const store = P.memoryStore(); let agora = 1e12, cai = false, remoto = { versao: 1, listas: [ANTIGA] }; const pedidos = [];
+  const busca = async url => { pedidos.push(url); if (cai) throw new Error('rede'); return { ok: true, status: 200, json: async () => JSON.parse(JSON.stringify(remoto)) }; };
+  const C = K.createCatalogo({ store, busca, base: 'https://x/', agora: () => agora });
+  assert.equal((await C.indice()).origem, 'rede'); assert.equal(pedidos.length, 1);
+  // a coleta nova saiu um minuto depois: sem esta leva o aparelho ficava 12 horas com os títulos de evento
+  remoto = { versao: 1, listas: [NOVA] }; agora += 60000;
+  const r = await C.indice(); assert.equal(r.origem, 'rede'); assert.equal(pedidos.length, 2); assert.equal(K.listasDoIndice(r.dados)[0].nome, 'Izzet Murktide Regent');
+  agora += 60000; assert.equal((await C.indice()).origem, 'guardado'); assert.equal(pedidos.length, 2, 'cópia no formato novo, dentro da hora: não busca');
+  agora += K.PRAZO_MS; assert.equal((await C.indice()).origem, 'rede'); assert.equal(pedidos.length, 3, 'passou da hora: busca');
+  assert.equal((await C.indice({ forcar: true })).origem, 'rede'); assert.equal(pedidos.length, 4, 'Atualizar busca sempre');
+  // cópia antiga e sem rede: mostra a guardada, marcada como velha (nunca tela de erro por causa do formato)
+  await store.set(K.CHAVE_INDICE, { em: agora, dados: { versao: 1, listas: [ANTIGA] } }); cai = true;
+  const v = await C.indice(); assert.equal(v.origem, 'guardado'); assert.equal(v.velho, true); assert.equal(K.listasDoIndice(v.dados)[0].nome, '5-0 · Modern League');
+});
