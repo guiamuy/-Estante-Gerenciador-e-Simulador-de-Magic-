@@ -90,7 +90,7 @@ async function open(t, { dev = true, apresentacao = false, cena = false } = {}) 
   await ctx.addInitScript(() => { window.__SEM_PAGAMENTO = true; });
   // P-7 · T6c-2a · o app publicado tem Client ID e a chave da conta da Estante: os testes começam sem conta (como até a
   // P-7) e sem falar com o Google; o teste que precisa liga com valores falsos (window.__GOOGLE_CLIENT_ID, __FIREBASE_*).
-  await ctx.addInitScript(() => { if (window.__GOOGLE_CLIENT_ID === undefined) window.__GOOGLE_CLIENT_ID = ''; if (window.__FIREBASE_API_KEY === undefined) window.__FIREBASE_API_KEY = ''; });
+  await ctx.addInitScript(() => { if (window.__GOOGLE_CLIENT_ID === undefined) window.__GOOGLE_CLIENT_ID = ''; if (window.__FIREBASE_API_KEY === undefined) window.__FIREBASE_API_KEY = ''; if (window.__FIREBASE_DB_URL === undefined) window.__FIREBASE_DB_URL = ''; }); // P-8 · e a sala entre duas abas
   const page = await ctx.newPage();
   // leva 113: o app publicado só tem o motor completo. Os testes de mesa montam o estado à mão (mover carta, conjurar
   // sem pagar), o que só existe na mesa assistida: ela fica ligada aqui por window.__MESA_DEV. Os testes do modo
@@ -4997,6 +4997,39 @@ test('e2e · P-7 conta da Estante: entrar com Google abre a conta da Estante; re
   // 4 · sair desliga as duas contas
   await page.click('#conta-sair'); await page.waitForSelector('#conta-entrar');
   assert.equal(await page.locator('#conta-estante').count(), 0);
+  assert.deepEqual(errors, []);
+});
+
+/* ---------------- P-8 · T6c-2b · sala pela internet pede a conta da Estante ---------------- */
+test('e2e · P-8 sala pela internet: sem conta da Estante, Criar e Entrar dão lugar a Conectar; sem conta Google leva ao Perfil; conectada, a sala aparece; reabrir pede Conectar de novo', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.route('https://www.googleapis.com/**', r => r.request().url().includes('/oauth2/v3/userinfo') ? r.fulfill({ json: { name: 'Gui', email: 'gui@example.com' } }) : r.fulfill({ status: 404, json: {} }));
+  await page.route('https://teste.firebaseio.com/**', r => r.fulfill({ status: 200, contentType: 'application/json', body: 'null' }));
+  await page.addInitScript(() => {
+    window.__FIREBASE_DB_URL = 'https://teste.firebaseio.com'; window.__MTG_TEST = true;
+    window.__GOOGLE_CLIENT_ID = 'e2e.apps.googleusercontent.com'; window.__FIREBASE_API_KEY = 'chave-e2e'; window.__googlePedidos = 0;
+    window.__FIREBASE_FETCH = async () => new Response(JSON.stringify({ localId: 'uidE2E', idToken: 'id-e2e', refreshToken: 'ref-e2e', expiresIn: '3600' }), { headers: { 'content-type': 'application/json' } });
+    window.__GOOGLE_FALSO = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => { window.__googlePedidos++; setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0); } }), revoke: (tk, cb) => cb && cb() } } };
+    window.EventSource = class { constructor() {} addEventListener() {} close() {} };
+  });
+  await createDeck(page, base, 'Coberta', '30 Island\n30 Counterspell', 'livre');
+  const abreOnline = async () => { await page.goto(base + '#/mesa'); await page.waitForSelector('[data-opponent="online"]'); await page.click('[data-opponent="online"]'); };
+  // 1 · sem conta Google neste aparelho: o painel pede a conta e Conectar leva ao Perfil
+  await abreOnline(); await page.waitForSelector('#online-conta');
+  assert.equal(await page.locator('#online-criar').count(), 0, 'sem conta, Criar não aparece');
+  assert.match(await page.innerText('#online-conta'), /conecte a conta da Estante/);
+  assert.ok((await page.locator('#online-conectar').boundingBox()).height >= 44);
+  await auditaTela(page, 'sala online · pede a conta');
+  await page.click('#online-conectar'); await page.waitForSelector('#perfil-conta');
+  // 2 · entra no Perfil: a sala pela internet libera Criar
+  await page.click('#conta-entrar'); await page.waitForSelector('#conta-estante[data-estado="conectada"]');
+  await abreOnline(); await page.waitForSelector('#online-criar');
+  assert.equal(await page.locator('#online-conta').count(), 0);
+  // 3 · reabrir o app (a sessão não fica guardada): Conectar volta e liga ali mesmo, sem ir ao Perfil
+  await page.reload(); await abreOnline(); await page.waitForSelector('#online-conectar');
+  await page.click('#online-conectar'); await page.waitForSelector('#online-criar');
+  assert.equal(await page.evaluate(() => window.__googlePedidos), 1, 'depois de reabrir, reconectar pediu o Google uma vez (o contador recomeça com a página)');
   assert.deepEqual(errors, []);
 });
 

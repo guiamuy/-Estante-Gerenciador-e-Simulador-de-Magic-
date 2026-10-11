@@ -9134,13 +9134,19 @@ function transporteFirebase({ url, fetch: fetchFn = null, EventSource: ES = null
       if (!Fonte) { pede('GET', caminho).then(v => cb(v)).catch(() => cb(null)); return () => {}; }
       let replica = null, fonte = null, parado = false;
       const avisa = () => { if (!parado) cb(replica === undefined ? null : replica); };
-      const abre = () => {
-        fonte = new Fonte(endereco(caminho));
-        fonte.addEventListener('put', e => { try { const { path, data } = JSON.parse(e.data); replica = aplica(replica, 'put', path, data); } catch (err) { /* evento ilegível */ } marca(true); avisa(); });
+      let espera = 2000;
+      // P-8 · com conta, o fluxo leva o token (`?auth=`); o Firebase manda `auth_revoked` quando ele vence: reabre com um
+      // novo. `cancel` (regra recusou) reabre com espera crescente até 30 s, sem martelar o banco.
+      const abre = async () => {
+        let url; try { url = await comToken(endereco(caminho)); } catch (e) { url = endereco(caminho); }
+        if (parado) return;
+        fonte = new Fonte(url);
+        fonte.addEventListener('auth_revoked', () => { try { fonte.close(); } catch (e) { /* já fechou */ } if (!parado) abre(); });
+        fonte.addEventListener('put', e => { try { const { path, data } = JSON.parse(e.data); replica = aplica(replica, 'put', path, data); } catch (err) { /* evento ilegível */ } espera = 2000; marca(true); avisa(); });
         fonte.addEventListener('patch', e => { try { const { path, data } = JSON.parse(e.data); replica = aplica(replica, 'patch', path, data); } catch (err) { /* evento ilegível */ } avisa(); });
         fonte.addEventListener('open', () => marca(true));
         fonte.addEventListener('error', () => { marca(false); /* o EventSource reconecta sozinho; ao voltar, o Firebase manda o nó inteiro de novo */ });
-        fonte.addEventListener('cancel', () => { marca(false); try { fonte.close(); } catch (e) { /* já fechou */ } if (!parado) setTimeout(abre, 2000); });
+        fonte.addEventListener('cancel', () => { marca(false); try { fonte.close(); } catch (e) { /* já fechou */ } if (!parado) { setTimeout(abre, espera); espera = Math.min(espera * 2, 30000); } });
       };
       abre();
       return () => { parado = true; try { fonte && fonte.close(); } catch (e) { /* já fechou */ } };
@@ -9156,8 +9162,11 @@ function transporteFirebase({ url, fetch: fetchFn = null, EventSource: ES = null
     { criadaEm, estado: 'esperando' | 'pronta' | 'jogando' | 'encerrada', formato,
       anfitriao: { nome, avatar?, deck }, convidado: { nome, avatar?, deck } | null,
       setup (quando pronta), acoes: { <chave>: { antes, p, action, de } }, presenca: { 0: ms, 1: ms }, fim: { motivo } } */
-function createSala({ transporte, agora = () => Date.now(), aleatorio = Math.random }) {
+function createSala({ transporte, agora = () => Date.now(), aleatorio = Math.random, quem = () => null }) {
   const caminho = codigo => `${RAIZ}/${codigo}`;
+  // P-8 · T6c-2b · com a conta da Estante, cada assento leva o uid de quem sentou: é ele que as regras do banco conferem
+  // em cada jogada, mensagem e presença (database.rules.json). Sem conta (transporte local), nada muda.
+  const comUid = o => { let u = null; try { u = quem(); } catch (e) { u = null; } return u ? { ...o, uid: u } : o; };
   const ordenadas = acoes => Object.entries(acoes || {}).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([chave, v]) => ({ chave, ...v }));
   return {
     gerarCodigo: () => gerarCodigo(aleatorio), normalizaCodigo,
@@ -9166,7 +9175,7 @@ function createSala({ transporte, agora = () => Date.now(), aleatorio = Math.ran
       for (let tent = 0; tent < 8; tent++) {
         const codigo = gerarCodigo(aleatorio);
         if (await transporte.ler(caminho(codigo))) continue;
-        await transporte.escrever(caminho(codigo), { criadaEm: agora(), estado: 'esperando', formato, melhorDe: melhorDe === 3 ? 3 : 1, anfitriao: { nome, avatar, deck }, convidado: null, acoes: {}, presenca: { 0: agora() } });
+        await transporte.escrever(caminho(codigo), { criadaEm: agora(), estado: 'esperando', formato, melhorDe: melhorDe === 3 ? 3 : 1, anfitriao: comUid({ nome, avatar, deck }), convidado: null, acoes: {}, presenca: { 0: agora() } });
         return codigo;
       }
       throw new Error('sem-codigo-livre');
@@ -9179,7 +9188,7 @@ function createSala({ transporte, agora = () => Date.now(), aleatorio = Math.ran
       if (agora() - (sala.criadaEm || 0) > VALIDADE_MS || sala.estado === 'encerrada') throw new Error('sala-velha');
       if (sala.convidado) throw new Error('sala-cheia');
       if (sala.formato && formato && sala.formato !== formato) throw new Error('formato-diferente');
-      await transporte.atualizar(caminho(codigo), { convidado: { nome, avatar, deck }, estado: 'pronta', presenca: { ...(sala.presenca || {}), 1: agora() } });
+      await transporte.atualizar(caminho(codigo), { convidado: comUid({ nome, avatar, deck }), estado: 'pronta', presenca: { ...(sala.presenca || {}), 1: agora() } });
       return codigo;
     },
     async ler(codigo) { return transporte.ler(caminho(codigo)); },
@@ -10832,7 +10841,7 @@ const DESTINOS = [
     evitar: 'Não entrar, ou tocar em Sair na conta.' },
   { id: 'firebase', nome: 'Partida online', icone: 'pessoas', liga: 'firebase',
     origens: ['https://identitytoolkit.googleapis.com', 'https://securetoken.googleapis.com', 'https://*.firebaseio.com', 'wss://*.firebaseio.com', 'https://*.firebasedatabase.app'],
-    vai: 'Na sala: o código, seu nome e foto do perfil, a lista que você escolheu, as jogadas e as mensagens da conversa.',
+    vai: 'Na sala: o código, seu nome e foto do perfil, a lista que você escolheu, as jogadas e as mensagens da conversa. Cada assento leva o código da conta da Estante de quem sentou, para que ninguém jogue no seu lugar.',
     quando: 'Só enquanto você cria ou entra numa sala online.',
     evitar: 'Jogar contra o bot ou a dois no mesmo aparelho: nada sai.' }
 ];
@@ -22715,6 +22724,17 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
         ...[['criar', 'Criar sala', 'mais'], ['entrar', 'Entrar', 'seguir']].map(([k, rotulo, icone]) => { const c = Chip(rotulo, { icone, pressed: on.modo === k, dataset: { onlineModo: k } }); c.disabled = on.esperando; c.addEventListener('click', () => { on.modo = k; on.erro = null; paintOpponent(); }); return c; }));
       const aviso = Text((online.modo === 'firebase' ? 'A sala vive na internet: ' + online.descricao + '. ' : `Sem servidor configurado, a sala funciona entre ${online.descricao}. `) + 'O outro jogador precisa do app aberto. As duas listas são enviadas para a sala; a mão fica escondida na tela, mas a partida é de confiança entre vocês.', { size: 'sm', tone: 'muted' });
       const erro = on.erro ? Note(on.erro, 'negative') : null;
+      // P-8 · T6c-2b · pela internet, a sala é de quem entrou na conta da Estante: sem ela, Criar e Entrar não aparecem
+      if (online.precisaConta && online.precisaConta() && !online.contaPronta() && !(on.esperando && on.codigo)) {
+        return Stack({ id: 'online-conta' }, aviso,
+          Note('Para jogar pela internet, conecte a conta da Estante (entrar com Google). A sala fica presa às contas dos dois jogadores.'),
+          Row({}, Button('Conectar', { variant: 'primary', icone: 'pessoa', id: 'online-conectar', disabled: on.conectando, onClick: async () => {
+            on.conectando = true; on.erro = null; paintOpponent();
+            try { const r = await online.conectar(); if (r === 'perfil') { go('/perfil'); return; } if (r !== 'ok') on.erro = 'A conta da Estante não conectou. Veja o motivo no Perfil.'; }
+            catch (e) { on.erro = __m29.motivoDe(e); }
+            finally { on.conectando = false; paintOpponent(); }
+          } })), erro);
+      }
       if (on.esperando && on.codigo) {
         return Stack({}, aviso,
           Surface({ class: 'ds-surface--pad online-sala', id: 'online-sala' }, Stack({},
@@ -26696,18 +26716,28 @@ const GOOGLE_CLIENT_ID = typeof window !== 'undefined' && window.__GOOGLE_CLIENT
 const FIREBASE_API_KEY = typeof window !== 'undefined' && window.__FIREBASE_API_KEY === '' ? '' : ((typeof window !== 'undefined' && window.__FIREBASE_API_KEY) || 'AIzaSyD6WvzlsJ4KZ9b5QZOEdQnd-liaNeJ0xRk');
 /* Leva 133 · PARTIDA ONLINE — cole aqui a URL do seu Realtime Database do Firebase
    (https://<projeto>-default-rtdb.firebaseio.com). Vazia, a sala funciona só entre duas abas deste aparelho
-   (transporte local), o que basta para testar; para dois celulares é preciso o Firebase (leva 133). */
-const FIREBASE_DB_URL = '';
+   (transporte local), o que basta para testar; para dois celulares é preciso o Firebase (leva 133).
+   P-8 · T6c-2b · preenchida com o banco do projeto `estante-10102026` (bloqueado pelas regras da P-4: só quem entrou na
+   conta da Estante lê e escreve). Nos testes, window.__FIREBASE_DB_URL = '' mantém a sala entre duas abas. */
+const FIREBASE_DB_URL = typeof window !== 'undefined' && window.__FIREBASE_DB_URL === '' ? '' : 'https://estante-10102026-default-rtdb.firebaseio.com';
 const online = (() => {
   // leva 134 · com a URL do Firebase (ou window.__FIREBASE_DB_URL nos testes) a sala vive no banco: dois celulares.
   // Sem ela, transporte local: duas abas deste aparelho.
   const urlFirebase = (typeof window !== 'undefined' && window.__FIREBASE_DB_URL) || FIREBASE_DB_URL;
   const temStorage = typeof localStorage !== 'undefined';
   const canal = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('estante.online') : null;
-  const transporte = urlFirebase ? __m30.transporteFirebase({ url: urlFirebase })
+  // P-8 · o token da conta da Estante vai em cada pedido; `conta` é criada logo abaixo e só é lida quando a sala fala com o banco
+  const contaJa = () => { try { return conta; } catch (e) { return null; } }; // antes de `conta` existir: null (zona morta do const)
+  const token = () => { const c = contaJa(); return c && c.sessao && c.sessao.ativa() ? c.sessao.token() : null; };
+  const transporte = urlFirebase ? __m30.transporteFirebase({ url: urlFirebase, token })
     : temStorage ? __m30.transporteLocal({ storage: localStorage, canal }) : __m30.transporteMemoria();
-  const sala = __m30.createSala({ transporte });
-  return { transporte, sala, modo: urlFirebase ? 'firebase' : 'local', descricao: urlFirebase ? 'dois aparelhos, pela internet' : 'duas abas deste aparelho' };
+  const sala = __m30.createSala({ transporte, quem: () => { const c = contaJa(); return urlFirebase && c && c.sessao ? c.sessao.uid() : null; } });
+  return { transporte, sala, modo: urlFirebase ? 'firebase' : 'local', descricao: urlFirebase ? 'dois aparelhos, pela internet' : 'duas abas deste aparelho',
+    /** P-8 · a sala na internet pede a conta da Estante (as regras do banco exigem); sem chave configurada, como antes. */
+    precisaConta() { const c = contaJa(); return !!urlFirebase && !!c && c.estante().estado !== 'desligada'; },
+    contaPronta() { const c = contaJa(); return !!c && c.estante().estado === 'conectada'; },
+    /** P-8 · liga a conta da Estante a partir da sala: 'perfil' quando ainda não há conta Google neste aparelho (entrar é no Perfil). */
+    async conectar() { const c = contaJa(); if (!c || !(await c.get())) return 'perfil'; await c.conectarEstante(); return c.estante().estado === 'conectada' ? 'ok' : 'falhou'; } };
 })();
 const conta = __m29.createConta({
   clientId: (typeof window !== 'undefined' && window.__GOOGLE_CLIENT_ID) || GOOGLE_CLIENT_ID,

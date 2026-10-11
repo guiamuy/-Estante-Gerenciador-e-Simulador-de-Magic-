@@ -125,11 +125,11 @@ test('P-7 · sem chave da Estante a conta Google segue como antes (nenhum pedido
   const { conta: semSessao } = contaCom(null); await semSessao.entrar(); assert.equal(semSessao.estante().estado, 'desligada');
 });
 
-test('P-7 · contrato: Client ID e chave do projeto estante-10102026 no app; banco ainda desligado até a T6c-2b', () => {
+test('P-7/P-8 · contrato: Client ID, chave e banco do projeto estante-10102026 no app', () => {
   const id = HTML.match(/'(\d+-[a-z0-9]+\.apps\.googleusercontent\.com)'/);
   assert.ok(id && id[1].startsWith('993924277405-'), 'Client ID do mesmo projeto do Firebase (número do projeto 993924277405)');
   assert.match(HTML, /'AIzaSyD6WvzlsJ4KZ9b5QZOEdQnd-liaNeJ0xRk'/);
-  assert.match(HTML, /^const FIREBASE_DB_URL = '';$/m, 'a URL do banco só entra com a sala presa à conta (T6c-2b)');
+  assert.match(HTML, /^const FIREBASE_DB_URL = .*'https:\/\/estante-10102026-default-rtdb\.firebaseio\.com';$/m, 'P-8 · banco do mesmo projeto, ligado com a sala presa à conta');
   const csp = HTML.match(/http-equiv="Content-Security-Policy" content="([^"]+)"/)[1];
   for (const o of ['https://identitytoolkit.googleapis.com', 'https://securetoken.googleapis.com', 'https://accounts.google.com']) assert.ok(csp.includes(o), o + ' na política');
 });

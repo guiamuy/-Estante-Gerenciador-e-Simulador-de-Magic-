@@ -221,11 +221,11 @@ test('P-4 · fila de relatos: o dono põe o relato, reenvia sem duplicar e confe
 });
 
 /* ---------- sala online (código real da leva 130 a 137) ---------- */
-test('P-4 · sala: quem entrou cria, o convidado entra, ações e mensagens só se acrescentam; a partida roda sob as regras', async () => {
+test('P-4/P-8 · sala: quem entrou cria, o convidado entra, ações e mensagens só se acrescentam e cada assento é de uma conta; a partida roda sob as regras', async () => {
   let relogio = 1_000_000_000; const agora = () => relogio;
   const b = bancoComRegras({ agora }); let sorteio = 0;
-  const salaA = O.createSala({ transporte: transporte(b, ANA), agora, aleatorio: () => (sorteio++ % 32) / 32 });
-  const salaB = O.createSala({ transporte: transporte(b, BETO), agora });
+  const salaA = O.createSala({ transporte: transporte(b, ANA), agora, aleatorio: () => (sorteio++ % 32) / 32, quem: () => ANA.uid });
+  const salaB = O.createSala({ transporte: transporte(b, BETO), agora, quem: () => BETO.uid });
   const deck = { nome: 'Teste', cartas: [{ nome: 'Forest', qtd: 40 }] };
   const codigo = await salaA.criar({ nome: 'Ana', deck, formato: 'pauper' });
   await salaB.entrar(codigo, { nome: 'Beto', deck, formato: 'pauper' });
@@ -235,9 +235,21 @@ test('P-4 · sala: quem entrou cria, o convidado entra, ações e mensagens só 
   await salaB.enviarMensagem(codigo, { de: 1, texto: 'boa partida' });
   await salaA.marcarPresenca(codigo, 0);
   await salaA.publicarProxima(codigo, 2, { setup: { semente: 8 } });
-  await salaB.enviarAcao(codigo, { antes: 0, p: 1, action: { type: 'pass' } }, 2);
+  await salaB.enviarAcao(codigo, { antes: 0, p: 1, action: { type: 'pass' }, de: 1 }, 2);
   await salaA.publicarTroca(codigo, 1, 0, { entries: [] });
-  await salaA.encerrar(codigo, 'concedeu');
+  await salaB.publicarTroca(codigo, 1, 1, { entries: [] });
+  // P-8 · cada assento é de uma conta: ninguém joga, fala ou troca pelo outro; quem está fora não lê a sala cheia
+  const tC = transporte(b, CAIO);
+  await recusa(tC.ler(`salas/${codigo}`), 'terceiro lendo sala com os dois jogadores');
+  await recusa(tC.empurrar(`salas/${codigo}/acoes`, { antes: 9, p: 0, action: { type: 'pass' }, de: 0 }), 'terceiro jogando');
+  await recusa(transporte(b, BETO).empurrar(`salas/${codigo}/acoes`, { antes: 9, p: 0, action: { type: 'pass' }, de: 0 }), 'convidado jogando como anfitrião');
+  await recusa(transporte(b, ANA).empurrar(`salas/${codigo}/mensagens`, { de: 1, texto: 'sou o Beto', em: 1 }), 'anfitrião falando como convidado');
+  await recusa(transporte(b, BETO).atualizar(`salas/${codigo}/serie/j1`, { a0: { entries: [], em: 1 } }), 'convidado trocando a lista do anfitrião');
+  await recusa(transporte(b, BETO).atualizar(`salas/${codigo}/presenca`, { 0: 999 }), 'convidado marcando presença do anfitrião');
+  await recusa(transporte(b, BETO).atualizar(`salas/${codigo}/jogos`, { j3: { setup: { semente: 1 } } }), 'convidado publicando a próxima partida');
+  await recusa(tC.atualizar(`salas/${codigo}`, { estado: 'encerrada', fim: { motivo: 'x' } }), 'terceiro encerrando');
+  await recusa(tC.apagar(`salas/${codigo}`), 'terceiro apagando');
+  await salaB.encerrar(codigo, 'concedeu'); // o convidado também pode encerrar (desistir)
   const tB = transporte(b, BETO), sala = `salas/${codigo}`;
   await recusa(tB.escrever(`${sala}/acoes/${k1}`, { antes: 0, p: 1, action: { type: 'concede' } }), 'reescrever ação já feita');
   await recusa(tB.apagar(`${sala}/acoes/${k1}`), 'apagar ação já feita');
@@ -255,16 +267,21 @@ test('P-4 · sala: sem conta não cria nem lê; código fora do formato, lista d
   let relogio = 1_000_000_000; const agora = () => relogio;
   const b = bancoComRegras({ agora });
   await recusa(O.createSala({ transporte: transporte(b, null), agora }).criar({ nome: 'X', deck: { a: 1 }, formato: 'pauper' }), 'criar sem conta');
+  await recusa(O.createSala({ transporte: transporte(b, ANA), agora }).criar({ nome: 'X', deck: { a: 1 }, formato: 'pauper' }), 'criar sem pôr o próprio uid no assento');
+  await recusa(O.createSala({ transporte: transporte(b, ANA), agora, quem: () => BETO.uid }).criar({ nome: 'X', deck: { a: 1 }, formato: 'pauper' }), 'criar no nome de outra conta');
   const tA = transporte(b, ANA);
   await recusa(tA.escrever('salas/QUALQUER', { criadaEm: agora(), estado: 'esperando', formato: 'pauper', anfitriao: { nome: 'A', deck: 1 } }), 'código fora do formato');
   await recusa(tA.escrever('salas/ESTA-ABCD', { criadaEm: agora() - 3_600_000, estado: 'esperando', formato: 'pauper', anfitriao: { nome: 'A', deck: 1 } }), 'sala nascida no passado');
-  const codigo = await O.createSala({ transporte: tA, agora }).criar({ nome: 'Ana', deck: { a: 1 }, formato: 'pauper' });
+  const codigo = await O.createSala({ transporte: tA, agora, quem: () => ANA.uid }).criar({ nome: 'Ana', deck: { a: 1 }, formato: 'pauper' });
+  assert.ok(await transporte(b, CAIO).ler(`salas/${codigo}`), 'sala esperando convidado: quem tem o código lê para entrar');
+  await recusa(O.createSala({ transporte: transporte(b, CAIO), agora, quem: () => BETO.uid }).entrar(codigo, { nome: 'Caio', deck: { a: 1 }, formato: 'pauper' }), 'entrar no nome de outra conta');
   await recusa(tA.ler('salas'), 'listar salas');
   await recusa(transporte(b, null).ler(`salas/${codigo}`), 'ler sala sem conta');
-  await recusa(tA.escrever(`salas/${codigo}`, { criadaEm: agora(), estado: 'esperando', formato: 'pauper', anfitriao: { nome: 'A', deck: 2 } }), 'sobrescrever a sala inteira');
+  await recusa(tA.escrever(`salas/${codigo}`, { criadaEm: agora(), estado: 'esperando', formato: 'pauper', anfitriao: { nome: 'A', deck: 2, uid: ANA.uid } }), 'sobrescrever a sala inteira');
   relogio += O.VALIDADE_MS + 1;
-  await recusa(O.createSala({ transporte: transporte(b, BETO), agora }).enviarMensagem(codigo, { de: 1, texto: 'ainda aí?' }), 'escrever em sala vencida');
-  await O.createSala({ transporte: tA, agora }).apagar(codigo); // apagar continua possível: é o que limpa
+  await recusa(O.createSala({ transporte: transporte(b, ANA), agora }).enviarMensagem(codigo, { de: 0, texto: 'ainda aí?' }), 'escrever em sala vencida');
+  await recusa(transporte(b, BETO).apagar(`salas/${codigo}`), 'apagar sala de outra pessoa');
+  await O.createSala({ transporte: tA, agora }).apagar(codigo); // o dono apaga mesmo vencida: é o que limpa
 });
 
 test('P-4 · o resto do banco é negado (ler a raiz, escrever fora dos três ramos)', async () => {

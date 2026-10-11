@@ -8,28 +8,54 @@
         ".write": "auth != null && auth.uid === $uid",
         "doc": {
           ".validate": "newData.hasChildren(['kind', 'version', 'atualizadoEm']) && newData.child('kind').val() === 'estante.perfil.remoto' && newData.child('version').val() === 1",
-          "kind": { ".validate": "newData.isString()" },
-          "version": { ".validate": "newData.isNumber()" },
-          "atualizadoEm": { ".validate": "newData.isNumber() && newData.val() >= 0" },
-          "nome": { ".validate": "newData.isString() && newData.val().length <= 24" },
-          "pessoaEm": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+          "kind": {
+            ".validate": "newData.isString()"
+          },
+          "version": {
+            ".validate": "newData.isNumber()"
+          },
+          "atualizadoEm": {
+            ".validate": "newData.isNumber() && newData.val() >= 0"
+          },
+          "nome": {
+            ".validate": "newData.isString() && newData.val().length <= 24"
+          },
+          "pessoaEm": {
+            ".validate": "newData.isNumber() && newData.val() >= 0"
+          },
           "p": {
             "$chave": {
               ".validate": "$chave.matches(/^(ui:theme|ui:aparencia|mesa:maoRecolhida|collection:prefs|collection:views|decks:reservaVista|mesa:som|mesa:verJogadas|mesa:manaManual|mesa:paradas|fichas:escolhas|terrenos:escolhas|noticias:idiomas|noticias:filtro|ui:apresentacao|mesa:relatarY|decks:reservaVista:v2|decks:estatisticas|lista:visao|catalogo:visao|catalogo:estatisticas|cartas:rulings)$/) && newData.hasChild('t')",
-              "t": { ".validate": "newData.isNumber() && newData.val() >= 0" },
-              "v": { ".validate": "newData.isString() && newData.val().length <= 65536" },
-              "$outro": { ".validate": false }
+              "t": {
+                ".validate": "newData.isNumber() && newData.val() >= 0"
+              },
+              "v": {
+                ".validate": "newData.isString() && newData.val().length <= 65536"
+              },
+              "$outro": {
+                ".validate": false
+              }
             }
           },
-          "$outro": { ".validate": false }
+          "$outro": {
+            ".validate": false
+          }
         },
         "avatar": {
           ".validate": "newData.hasChildren(['dado', 'em'])",
-          "dado": { ".validate": "newData.isString() && newData.val().length < 400000 && newData.val().matches(/^data:image\\/(jpeg|png|webp);base64,/)" },
-          "em": { ".validate": "newData.isNumber() && newData.val() >= 0" },
-          "$outro": { ".validate": false }
+          "dado": {
+            ".validate": "newData.isString() && newData.val().length < 400000 && newData.val().matches(/^data:image\\/(jpeg|png|webp);base64,/)"
+          },
+          "em": {
+            ".validate": "newData.isNumber() && newData.val() >= 0"
+          },
+          "$outro": {
+            ".validate": false
+          }
         },
-        "$outro": { ".validate": false }
+        "$outro": {
+          ".validate": false
+        }
       }
     },
     "relatos": {
@@ -39,51 +65,76 @@
           "$id": {
             ".write": "auth != null && auth.uid === $uid && newData.exists() && (!data.exists() || newData.child('dado').val() === data.child('dado').val())",
             ".validate": "$id.matches(/^[A-Za-z0-9_-]+$/) && $id.length <= 64 && newData.hasChildren(['kind', 'version', 'enviadoEm', 'dado']) && newData.child('kind').val() === 'estante.relato' && newData.child('version').val() === 1",
-            "kind": { ".validate": "newData.isString()" },
-            "version": { ".validate": "newData.isNumber()" },
-            "enviadoEm": { ".validate": "newData.isString() && newData.val().length <= 32" },
-            "dado": { ".validate": "newData.isString() && newData.val().length <= 24576" },
-            "$outro": { ".validate": false }
+            "kind": {
+              ".validate": "newData.isString()"
+            },
+            "version": {
+              ".validate": "newData.isNumber()"
+            },
+            "enviadoEm": {
+              ".validate": "newData.isString() && newData.val().length <= 32"
+            },
+            "dado": {
+              ".validate": "newData.isString() && newData.val().length <= 24576"
+            },
+            "$outro": {
+              ".validate": false
+            }
           }
         }
       }
     },
     "salas": {
       "$codigo": {
-        ".read": "auth != null",
-        ".write": "auth != null && (!data.exists() || !newData.exists())",
+        ".read": "auth != null && (!data.child('convidado/uid').exists() || data.child('anfitriao/uid').val() === auth.uid || data.child('convidado/uid').val() === auth.uid)",
+        ".write": "auth != null && ((!data.exists() && newData.child('anfitriao/uid').val() === auth.uid) || (data.exists() && !newData.exists() && (data.child('anfitriao/uid').val() === auth.uid || data.child('convidado/uid').val() === auth.uid)))",
         ".validate": "$codigo.matches(/^ESTA-[A-HJ-NP-Z2-9]+$/) && $codigo.length === 9 && newData.hasChildren(['criadaEm', 'estado', 'formato', 'anfitriao'])",
-        "criadaEm": { ".validate": "newData.isNumber() && (data.exists() ? newData.val() === data.val() : (newData.val() > now - 600000 && newData.val() < now + 600000))" },
+        "criadaEm": {
+          ".validate": "newData.isNumber() && (data.exists() ? newData.val() === data.val() : (newData.val() > now - 600000 && newData.val() < now + 600000))"
+        },
         "estado": {
-          ".write": "auth != null && root.child('salas/' + $codigo + '/criadaEm').val() > now - 21600000",
+          ".write": "auth != null && root.child('salas/' + $codigo + '/criadaEm').val() > now - 21600000 && (root.child('salas/' + $codigo + '/anfitriao/uid').val() === auth.uid || newData.parent().child('convidado/uid').val() === auth.uid)",
           ".validate": "newData.isString() && newData.val().matches(/^(esperando|pronta|jogando|encerrada)$/)"
         },
-        "formato": { ".validate": "newData.isString() && newData.val().length <= 32" },
-        "melhorDe": { ".validate": "newData.isNumber() && (newData.val() === 1 || newData.val() === 3)" },
-        "anfitriao": { ".validate": "newData.hasChildren(['nome', 'deck'])" },
+        "formato": {
+          ".validate": "newData.isString() && newData.val().length <= 32"
+        },
+        "melhorDe": {
+          ".validate": "newData.isNumber() && (newData.val() === 1 || newData.val() === 3)"
+        },
+        "anfitriao": {
+          ".validate": "newData.hasChildren(['nome', 'deck', 'uid'])",
+          "uid": {
+            ".validate": "newData.val() === auth.uid"
+          }
+        },
         "convidado": {
           ".write": "auth != null && !data.exists() && root.child('salas/' + $codigo + '/criadaEm').val() > now - 21600000",
-          ".validate": "newData.hasChildren(['nome', 'deck'])"
+          ".validate": "newData.hasChildren(['nome', 'deck', 'uid']) && newData.child('uid').val() === auth.uid"
         },
-        "setup": { ".write": "auth != null && !data.exists() && root.child('salas/' + $codigo + '/criadaEm').val() > now - 21600000" },
+        "setup": {
+          ".write": "auth != null && !data.exists() && root.child('salas/' + $codigo + '/criadaEm').val() > now - 21600000 && root.child('salas/' + $codigo + '/anfitriao/uid').val() === auth.uid"
+        },
         "presenca": {
-          ".write": "auth != null && root.child('salas/' + $codigo + '/criadaEm').val() > now - 21600000",
-          "$assento": { ".validate": "$assento.matches(/^[01]$/) && newData.isNumber()" }
+          ".write": "auth != null && root.child('salas/' + $codigo + '/criadaEm').val() > now - 21600000 && (root.child('salas/' + $codigo + '/anfitriao/uid').val() === auth.uid || root.child('salas/' + $codigo + '/convidado/uid').val() === auth.uid || newData.parent().child('convidado/uid').val() === auth.uid)",
+          "$assento": {
+            ".validate": "$assento.matches(/^[01]$/) && newData.isNumber() && (newData.val() === data.val() || ($assento === '0' && newData.parent().parent().child('anfitriao/uid').val() === auth.uid) || ($assento === '1' && newData.parent().parent().child('convidado/uid').val() === auth.uid))"
+          }
         },
         "acoes": {
           "$k": {
             ".write": "auth != null && !data.exists() && root.child('salas/' + $codigo + '/criadaEm').val() > now - 21600000",
-            ".validate": "newData.hasChild('action')"
+            ".validate": "newData.hasChild('action') && ((newData.child('de').val() === 0 && root.child('salas/' + $codigo + '/anfitriao/uid').val() === auth.uid) || (newData.child('de').val() === 1 && root.child('salas/' + $codigo + '/convidado/uid').val() === auth.uid))"
           }
         },
         "jogos": {
           "$j": {
-            ".write": "auth != null && !data.exists() && root.child('salas/' + $codigo + '/criadaEm').val() > now - 21600000",
+            ".write": "auth != null && !data.exists() && root.child('salas/' + $codigo + '/criadaEm').val() > now - 21600000 && root.child('salas/' + $codigo + '/anfitriao/uid').val() === auth.uid",
             ".validate": "$j.matches(/^j[2-9]$/)",
             "acoes": {
               "$k": {
                 ".write": "auth != null && !data.exists() && root.child('salas/' + $codigo + '/criadaEm').val() > now - 21600000",
-                ".validate": "newData.hasChild('action')"
+                ".validate": "newData.hasChild('action') && ((newData.child('de').val() === 0 && root.child('salas/' + $codigo + '/anfitriao/uid').val() === auth.uid) || (newData.child('de').val() === 1 && root.child('salas/' + $codigo + '/convidado/uid').val() === auth.uid))"
               }
             }
           }
@@ -92,7 +143,7 @@
           "$j": {
             ".validate": "$j.matches(/^j[1-9]$/)",
             "$a": {
-              ".write": "auth != null && root.child('salas/' + $codigo + '/criadaEm').val() > now - 21600000",
+              ".write": "auth != null && root.child('salas/' + $codigo + '/criadaEm').val() > now - 21600000 && (($a === 'a0' && root.child('salas/' + $codigo + '/anfitriao/uid').val() === auth.uid) || ($a === 'a1' && root.child('salas/' + $codigo + '/convidado/uid').val() === auth.uid))",
               ".validate": "$a.matches(/^a[01]$/)"
             }
           }
@@ -100,15 +151,27 @@
         "mensagens": {
           "$k": {
             ".write": "auth != null && !data.exists() && root.child('salas/' + $codigo + '/criadaEm').val() > now - 21600000",
-            ".validate": "newData.hasChildren(['de', 'texto', 'em'])",
-            "texto": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 200" },
-            "de": { ".validate": "newData.isNumber() || newData.isString()" },
-            "em": { ".validate": "newData.isNumber()" },
-            "$outro": { ".validate": false }
+            ".validate": "newData.hasChildren(['de', 'texto', 'em']) && ((newData.child('de').val() === 0 && root.child('salas/' + $codigo + '/anfitriao/uid').val() === auth.uid) || (newData.child('de').val() === 1 && root.child('salas/' + $codigo + '/convidado/uid').val() === auth.uid))",
+            "texto": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 200"
+            },
+            "de": {
+              ".validate": "newData.isNumber()"
+            },
+            "em": {
+              ".validate": "newData.isNumber()"
+            },
+            "$outro": {
+              ".validate": false
+            }
           }
         },
-        "fim": { ".write": "auth != null && root.child('salas/' + $codigo + '/criadaEm').val() > now - 21600000" },
-        "$outro": { ".validate": false }
+        "fim": {
+          ".write": "auth != null && root.child('salas/' + $codigo + '/criadaEm').val() > now - 21600000 && (root.child('salas/' + $codigo + '/anfitriao/uid').val() === auth.uid || root.child('salas/' + $codigo + '/convidado/uid').val() === auth.uid)"
+        },
+        "$outro": {
+          ".validate": false
+        }
       }
     }
   }

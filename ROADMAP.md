@@ -511,6 +511,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-du ✅ | SEG4 todo ponto que vira HTML numa lista fechada com as interpolações permitidas; símbolo de mana com código estranho vira texto; tamanho só como número (leva P-5) | SEG | 1 | — |
 | 16º-p4 ✅ | T6c-1 regras do banco no repositório (`database.rules.json`) com teste: perfil e fila só do dono, sala só com conta e só acrescentando, resto negado; código real do app roda sob as regras (leva P-4) | T | 1 | colar as regras no console (dono) |
 | 16º-p7 ✅ | T6c-2a entrar com Google abre a conta da Estante: Client ID e chave do projeto no app, troca do token do Google pela sessão do Firebase sem SDK, renovação, tokens só na memória, linha no Perfil com Conectar (leva P-7) | T | 1 | API do Drive ativada e origem no cliente Web (dono) |
+| 16º-p8 ✅ | T6c-2b partida online pela internet: banco ligado, token da conta em cada pedido e no fluxo de eventos, assentos presos às contas nas regras, painel pede Conectar (leva P-8) | T | 1 | publicar as regras novas no console (dono) |
 | 16º-dv ✅ | SEG5 "O que sai do aparelho" em Perfil › Dados: seis serviços com o que vai, quando e como evitar, conta e online com selo de uso; contrato une a tela e a política de conteúdo (leva P-6) | SEG | 1 | — |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
@@ -7424,6 +7425,36 @@ prontas.
 - **Fora do repositório (dono):** API do Google Drive ativada no projeto (o backup na nuvem usa); origem
   `https://guiamuy.github.io` no cliente Web; regras da P-4 publicadas no console.
 - **Fora:** sala online presa à conta e `FIREBASE_DB_URL` (T6c-2b); sincronização (T6d); fila de relatos (T6e).
+
+**T6c-2b · Partida online pela internet, presa às contas** ✅ (leva P-8, trilha `protecao`)
+- **Valor:** dois celulares jogam pela internet (até aqui, só duas abas do mesmo aparelho). Cada assento é de uma conta:
+  ninguém joga, conversa, troca a lista ou encerra pelo outro, e quem está fora não lê a sala cheia.
+- **Ligado:** `FIREBASE_DB_URL` = banco do projeto `estante-10102026`. Todo pedido da sala leva o token da conta da
+  Estante (`?auth=`); o fluxo de eventos também, e reabre com token novo quando o Firebase avisa `auth_revoked`;
+  recusa da regra (`cancel`) reabre com espera de 2 s a 30 s em vez de martelar o banco.
+- **Assento com dono:** `createSala({ quem })` grava `anfitriao.uid` e `convidado.uid` (o `uid` vem da sessão, nunca
+  de quem digita). Regras: criar exige o próprio uid no lugar do anfitrião; entrar, o próprio uid no lugar do
+  convidado; jogada e mensagem só com `de` do próprio assento; setup e próxima partida só do anfitrião; troca da série
+  e presença só do próprio assento; encerrar e apagar só dos dois; ler, qualquer conta enquanto a sala espera o
+  convidado (é como ele entra) e depois só os dois. A mesma conta nos dois assentos é aceita (dá para testar com dois
+  aparelhos e uma conta só).
+- **Tela:** com o banco ligado e sem a conta da Estante conectada, o painel da sala online troca Criar e Entrar por uma
+  nota e o botão Conectar (primário, 44 px): sem conta Google neste aparelho leva ao Perfil; com ela, conecta ali mesmo.
+  "O que sai do aparelho": o item Partida online diz que cada assento leva o código da conta.
+- **Sem chave da Estante configurada** (testes, ou se a chave sair do app) a sala volta a funcionar como antes, sem conta.
+- **Resíduos declarados:** (1) reabrir o app no meio de uma partida online pede Conectar no Perfil ou no painel da
+  sala; até lá a mesa mostra "sem ligação" (manter a sessão entre aberturas é decisão da T6d). (2) Quem tem o código
+  lê a sala enquanto ela espera o convidado (listas e nomes). (3) Código de 4 símbolos continua adivinhável por quem
+  entrou na conta e insiste. (4) Um cliente modificado ainda vê a mão do outro (os dois montam a mesma mesa pela
+  semente; declarado desde a U14). (5) Salas vencidas ficam no banco até o anfitrião apagar (limpeza agendada: T6e).
+- **Testes:** `regras.unit` (a partida inteira com dois uids; recusas de terceiro lendo, jogando, encerrando e apagando;
+  convidado jogando, trocando lista, marcando presença e publicando partida pelo anfitrião; criar e entrar no nome de
+  outra conta; mutação: tirar o dono da jogada derruba o teste). `online.conta.unit` (3): uid nos assentos, token no
+  fluxo e reabertura com token novo, sem conta como antes. `conta.estante.unit`: contrato com a URL do banco.
+  E2E "P-8 sala pela internet" (pede a conta, leva ao Perfil, libera Criar, reabrir pede Conectar e conecta ali).
+- **Fora do repositório (dono):** publicar no console a versão nova de `database.rules.json` (as regras da sala
+  mudaram); **sem isso, a sala pela internet é recusada**.
+- **Fora:** sincronização do perfil (T6d); relatos (T6e); avisar o outro jogador quando um cai (já existe pela presença).
 
 ### Z · Catálogo de listas (E61, pedido de 08/10/2026)
 
