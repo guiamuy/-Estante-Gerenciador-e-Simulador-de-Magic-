@@ -5840,15 +5840,23 @@
    "n": "701.12",
    "regra": "Keyword Actions",
    "titulo": "Exchange",
-   "status": "ausente",
-   "falta": "não há troca de controle (701.12b — o motor nem tem efeito de mudar controle), de totais de vida (c), de cartas entre zonas (d-f), de valores numéricos (g) nem de caixas de texto (h); tampouco o \"tudo ou nada\" de 701.12a",
-   "esforco": "G",
+   "status": "parcial",
+   "falta": "Trocar cartas entre zonas (701.12d–f: mão × exílio, anexos que acompanham, zona vazia) e caixas de texto (701.12h, Exchange of Words). \"Não pode perder vida\" (119.8) não existe no motor, então só o lado \"não pode ganhar\" da 701.12c é conferido. Troca de dois valores que não sejam vida × poder/resistência (701.12g em geral) não tem forma.",
+   "esforco": "M",
    "depende": [
     "613 camada 2",
     "119",
     "612"
    ],
-   "cartas": "comum"
+   "cartas": "comum",
+   "evidencia": "V-8 · efeitos `trocar_com` + `trocar` (core.js, abaixo da âncora ↓ V): tudo ou nada (a); controle de duas permanentes — de controladores diferentes cada um passa a controlar a do outro ao mesmo tempo, do mesmo nada (b; aplicaControle, camada 2, com duração opcional); totais de vida — cada jogador ganha ou perde a diferença, contando como ganho e perda, e quem não pode ganhar vida impede a troca inteira (c); vida × resistência ou poder — o jogador fica com o valor e a criatura recebe efeito contínuo que fixa o valor na camada 7b (g). Cartas: Switcheroo (biblioteca), Tree of Perdition (texto em .listas/oficiais-verbos.json; script provado no teste)",
+   "testes": [
+    "CR 701.12 · trocar o controle de duas permanentes (b): cada jogador passa a controlar a do outro, ao mesmo tempo; a que muda de dono fica com enjoo de invocação",
+    "CR 701.12 · trocar o controle (b): as duas do mesmo jogador — nada acontece; (a) se uma saiu do campo, a outra não muda de controle",
+    "CR 701.12 · trocar totais de vida (c): cada jogador ganha ou perde o que falta para ficar com o total do outro — e conta como ganho e perda de vida",
+    "CR 701.12 · trocar totais de vida (a, c): quem não pode ganhar vida não pode subir assim — e então nada é trocado",
+    "CR 701.12 · trocar o total de vida com a resistência de uma criatura (g): o jogador fica com o valor, e a criatura recebe um efeito que fixa a resistência no total antigo (Tree of Perdition)"
+   ]
   },
   {
    "n": "701.13",

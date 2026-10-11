@@ -3740,6 +3740,15 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Testes:** `verbos.dobrar.unit` (6), cenário S8 de Unleash Fury.
 - **Fora:** carta de exemplo para triplicar (a regra é provada direto no efeito).
 
+**V-8 · CR3 · Trocar (701.12)** 🟡 (leva V-8, motor v109 sem subir: só acrescenta ações; partidas-referência idênticas) — 701.12 passa de ausente a parcial (o que falta está no mapa).
+- **Valor:** "Exchange control of two target creatures", "exchange life totals with target player" e "exchange target opponent's life total with ~'s toughness" funcionam, com a regra do tudo ou nada.
+- **Regra coberta:** (a) se a troca inteira não pode acontecer, nada acontece; (b) controle — cada um passa a controlar a do outro ao mesmo tempo, as duas do mesmo jogador não fazem nada, quem muda de controle fica com enjoo; (c) vida — cada jogador ganha ou perde a diferença (conta como ganho e perda), e quem não pode ganhar vida trava a troca; (g) vida × poder ou resistência — a criatura recebe um efeito que fixa o valor (camada 7b; marcadores somam depois).
+- **Vocabulário:** `trocar_com` (anota o primeiro lado: permanente ou jogador alvo) + `trocar` (`o`: controle · vida · vida-resistencia · vida-poder; `ate` para controle).
+- **Cartas (texto oficial em `.listas/oficiais-verbos.json`, Oracle do Forge e mtggoldfish, 11/10/2026):** Switcheroo (biblioteca); Tree of Perdition (script provado no teste; fora da biblioteca porque o tipo das permanentes de exemplo mora em `fixtures.mjs`, vedado à trilha).
+- **Mesa:** nenhuma decisão nova.
+- **Testes:** `verbos.trocar.unit` (6), cenário S8 de Switcheroo.
+- **Fora, declarado no mapa:** trocar cartas entre zonas (701.12d–f) e caixas de texto (h); "não pode perder vida" (o motor não tem).
+
 **CR4 · Habilidades de palavra-chave (702)** ○ — 150 ausentes e 21 parciais, em ondas pela frequência em cartas anotada no mapa: (1) fechar as evergreen e as parciais; (2) "muito comum" (proeza, tripular, reforço, convocar, cascata, evocar, persistir, imortal, fração de segundo, infectar e tóxico…); (3) "comum"; (4) "rara" e "uma coleção só". 50 a 65 levas.
 
 **CR4 · andamento (trilha `keywords`, levas `K-N`)** ▶ — ordem de 11/10/2026: primeiro as palavras-chave do acervo que o medidor do leitor (LT6) acusa fora do vocabulário, depois a onda 1 (proeza, convocar, cascata, evocar, persistir, imortal, exaltado, explorar, arremeter, improvisar, recomeçar, pós-vida, evoluir), a onda 2 (completar as parciais), a 3 (raras, da mais citada à menos) e a 4 (o resto de 702, com o que fica fora declarado no mapa). Auditoria independente por subagente ao fim de cada onda. Palavra-chave com parâmetro ("Ward {3}", "Kicker {B}", "Crew 1") também depende de o leitor ler a forma: isso é da trilha `motor` (leitor), avisada a cada leva.

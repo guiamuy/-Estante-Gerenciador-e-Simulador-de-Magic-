@@ -5360,6 +5360,9 @@ const EFFECTS = {
   /* ↓ K · efeitos da trilha keywords */
   salvaguarda: { fields: [], targets: [] }, // K-2 · 702.21a · gerado pelo motor quando uma permanente com salvaguarda vira alvo (não vai em script)
   /* ↓ V · efeitos da trilha verbos */
+  // V-8 · 701.12 trocar. `trocar_com` anota o primeiro lado (permanente ou jogador alvo); `trocar` mira o segundo e faz a troca: `o`: 'controle' | 'vida' | 'vida-resistencia' | 'vida-poder'
+  trocar_com: { fields: [], targets: ['creature', 'permanent', 'artifact', 'creature-you-control', 'player', 'opponent'] },
+  trocar: { fields: [], targets: ['self', 'creature', 'permanent', 'artifact', 'creature-opponent-controls', 'creature-you-control', 'player', 'opponent'] },
   embaralha_esta: { fields: [], targets: ['self'] }, // V-7 · "Shuffle ~ into its owner's library": a própria mágica, ao terminar de resolver (701.24)
   // V-7 · 701.10 dobrar e 701.11 triplicar. `o`: 'poder' | 'resistencia' | 'poder-resistencia' (efeito contínuo, `ate`) | 'vida' | 'marcadores' (`tipo`) | 'mana' (`cor`); `vezes`: 2 ou 3
   dobrar: { fields: [], targets: ['self', 'self-source', 'first-target', 'creature', 'creature-you-control', 'permanent', 'player', 'opponent', 'each-own-creature', 'each-creature'] },
@@ -6178,6 +6181,15 @@ function effectErrors(effects, label, opcional) {
   });
   /* ↓ K · validação da trilha keywords */
   /* ↓ V · validação da trilha verbos */
+  effects.forEach((e, i) => { // V-8 · 701.12
+    if (e.do === 'trocar_com' && !effects.slice(i + 1).some(x => x.do === 'trocar')) errs.push(`${label} ${i + 1} (trocar_com): precisa ser seguido da troca (trocar)`);
+    if (e.do !== 'trocar') return;
+    const tag = `${label} ${i + 1} (trocar)`, antes = effects.slice(0, i).some(x => x.do === 'trocar_com');
+    if (!['controle', 'vida', 'vida-resistencia', 'vida-poder'].includes(e.o)) errs.push(`${tag}: "o" precisa ser controle, vida, vida-resistencia ou vida-poder`);
+    if (e.o === 'controle' && !(antes && isTargeted(e))) errs.push(`${tag}: trocar o controle precisa de dois alvos (trocar_com antes, e o alvo da troca)`);
+    if (e.o === 'vida' && !isTargeted(e)) errs.push(`${tag}: trocar totais de vida precisa de um jogador alvo`);
+    if (e.ate != null && !(e.o === 'controle' && duracaoValida(e.ate))) errs.push(`${tag}: duração só vale para controle, e precisa ser conhecida`);
+  });
   effects.forEach((e, i) => { // V-7 · 701.10/701.11
     if (e.do !== 'dobrar') return;
     const tag = `${label} ${i + 1} (dobrar)`, pt = ['poder', 'resistencia', 'poder-resistencia'].includes(e.o);
@@ -6245,6 +6257,9 @@ const isTargeted = e => TARGETED.has(e.target) || (!!e.target && typeof e.target
 const RAW_SCRIPTS = [
   /* ↓ K · scripts de carta da trilha keywords (texto oficial em .listas/oficiais-keywords.json) */
   /* ↓ V · scripts de carta da trilha verbos (texto oficial em .listas/oficiais-verbos.json) */
+  // V-8 · 701.12 trocar
+  { name: 'Switcheroo', effects: [{ do: 'trocar_com', target: 'creature' }, { do: 'trocar', o: 'controle', target: 'creature' }], // "Exchange control of two target creatures."
+    example: { target: 'own-creature', expect: { handDelta: 0 } } },
   // V-7 · 701.10 dobrar
   { name: 'Unleash Fury', effects: [{ do: 'dobrar', o: 'poder', target: 'creature' }], // "Double the power of target creature until end of turn."
     example: { target: 'own-creature', expect: { stats: [4, 2] } } },
@@ -17559,6 +17574,8 @@ function applyEffect(s, src, eff, tgt, events) {
       note({ pending: true }); break;
     }
     /* ↓ V · casos de applyEffect da trilha verbos */
+    case 'trocar_com': s.trocaV = { fonte: src.oid, ...(obj ? { oid: obj.oid, z: obj.zc || 0 } : { player: playerOf() }) }; break; // V-8 · anota o primeiro lado; `trocar` apaga
+    case 'trocar': trocar(s, src, eff, tgt, events); break; // V-8 · 701.12
     case 'embaralha_esta': { // V-7 · a mágica sai da pilha para o grimório do dono, que é embaralhado; não vai para o cemitério
       if (!src.ability && s.objects[src.oid] && s.objects[src.oid].zone === 'stack') { const dono = s.objects[src.oid].owner; moveObject(s, src.oid, 'library'); shuffle(s, s.zones[dono].library); note({ target: src.name }); }
       break;
@@ -20298,6 +20315,47 @@ function ultimaPalavrasK(s, o) {
 }
 Object.assign(EXPORTS_K, { ultimaPalavrasK });
 /* ↓ V · exportações de core.js da trilha verbos */
+/* V-8 · 701.12 trocar. Ou a troca inteira acontece, ou nada acontece (a).
+   Controle de duas permanentes (b): de controladores diferentes, cada um passa a controlar a do outro, ao mesmo tempo; do mesmo, nada.
+   Totais de vida (c): cada jogador ganha ou perde o que falta para ficar com o total que o outro tinha; quem não pode ganhar vida não
+   pode subir assim — e então nada é trocado. Vida com poder ou resistência (g): o jogador ganha ou perde a diferença e a criatura
+   recebe um efeito contínuo que FIXA aquele valor (613.4b, camada 7b: marcadores e bônus somam depois).
+   Fora, declarado no mapa: trocar cartas entre zonas (d–f) e caixas de texto (h). */
+function trocar(s, src, eff, tgt, events) {
+  const ctrl = src.controller, m = s.trocaV && s.trocaV.fonte === src.oid ? s.trocaV : null; delete s.trocaV;
+  const falha = () => events.push({ kind: 'effect', do: 'trocar', name: src.name, failed: true });
+  const vivo = p => p != null && s.players[p] && !s.players[p].lost;
+  const ajusta = (p, para) => { const d = para - s.players[p].life; if (d > 0) ganhaVidaJogador(s, p, d); else if (d < 0) perdeVida(s, p, -d); };
+  const podeIrPara = (p, para) => !(para > s.players[p].life && naoGanhaVida(s, p));
+  if (eff.o === 'controle') {
+    const a = m && m.oid != null && mesmaEncarnacao(s, m) ? s.objects[m.oid] : null, b = tgt && tgt.oid != null ? s.objects[tgt.oid] : null;
+    if (!a || !b || a.zone !== 'battlefield' || b.zone !== 'battlefield') return falha(); // 701.12a
+    if (a.controller === b.controller) { events.push({ kind: 'effect', do: 'trocar', name: src.name, target: b.name, amount: 0 }); return; } // 701.12b
+    const ca = a.controller, cb = b.controller, fonte = src.ability ? s.objects[src.source] : src;
+    aplicaControle(s, a, cb, eff.ate || 'sempre', fonte); aplicaControle(s, b, ca, eff.ate || 'sempre', fonte);
+    events.push({ kind: 'effect', do: 'ganhar_controle', name: a.name, target: s.players[cb].name }); events.push({ kind: 'effect', do: 'ganhar_controle', name: b.name, target: s.players[ca].name });
+    return;
+  }
+  if (eff.o === 'vida') {
+    const a = m && m.player != null ? m.player : ctrl, b = tgt && tgt.player != null ? tgt.player : null;
+    if (!vivo(a) || !vivo(b)) return falha();
+    const la = s.players[a].life, lb = s.players[b].life;
+    if (a === b || la === lb) { events.push({ kind: 'effect', do: 'trocar', name: src.name, target: s.players[b].name, amount: 0 }); return; }
+    if (!podeIrPara(a, lb) || !podeIrPara(b, la)) return falha(); // 701.12a + 701.12c
+    ajusta(a, lb); ajusta(b, la);
+    events.push({ kind: 'effect', do: 'trocar', name: src.name, target: s.players[b].name, o: 'vida', de: la, para: lb });
+    return;
+  }
+  // vida × resistência ou poder: o jogador é o alvo (se for jogador) ou quem controla; a criatura é o alvo (se for objeto) ou a fonte
+  const p = tgt && tgt.player != null ? tgt.player : ctrl, c = tgt && tgt.oid != null ? s.objects[tgt.oid] : (src.ability ? s.objects[src.source] : src);
+  if (!vivo(p) || !c || c.zone !== 'battlefield' || !isCreature(s, c)) return falha();
+  const noPoder = eff.o === 'vida-poder', valor = noPoder ? power(s, c) : toughness(s, c), vida = s.players[p].life;
+  if (!podeIrPara(p, valor)) return falha();
+  const base = basePT(s, c);
+  ajusta(p, valor); aplicaTemporario(s, c, { vira: { base: noPoder ? [vida, base[1]] : [base[0], vida] }, ate: 'sempre' }, ctrl);
+  events.push({ kind: 'effect', do: 'trocar', name: src.name, target: s.players[p].name, o: eff.o, de: vida, para: valor });
+}
+Object.assign(EXPORTS_V, { trocar });
 /* V-7 · 701.10 dobrar e 701.11 triplicar.
    Poder e resistência (a–c): efeito contínuo que soma (não fixa valor): a criatura recebe +X/+0, X = o poder dela ao resolver (dobrar)
    ou duas vezes ele (triplicar); com valor negativo recebe −X, pela mesma conta. Dura até o fim do turno, ou `ate`.
@@ -22957,6 +23015,10 @@ const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas
     const oq = { poder: 'o poder', resistencia: 'a resistência', 'poder-resistencia': 'o poder e a resistência', vida: 'o total de vida', marcadores: `os marcadores ${MARCADOR_PT_V[e.tipo] || e.tipo}`, mana: `a mana ${e.cor} da reserva` }[e.o] || e.o;
     return `${v} ${oq}${de}${['poder', 'resistencia', 'poder-resistencia'].includes(e.o) ? (e.ate && e.ate !== 'fim-do-turno' ? '' : ' até o fim do turno') : ''}`; },
   embaralha_esta: () => 'embaralha esta mágica no grimório do dono', // V-7
+  trocar_com: e => `escolhe ${ALVO_PT[e.target] || descreveAlvo(e.target)} para a troca`, // V-8
+  trocar: e => { const a = e.target && e.target !== 'self' ? (ALVO_PT[e.target] || descreveAlvo(e.target)) : null;
+    return e.o === 'controle' ? `troca o controle dela com o de ${a || 'outra permanente'}` : e.o === 'vida' ? `troca os totais de vida com ${a || 'um jogador'}`
+      : `troca o total de vida ${a && /jogador|oponente/.test(a) ? 'de ' + a : 'seu'} com ${e.o === 'vida-poder' ? 'o poder' : 'a resistência'} ${a && !/jogador|oponente/.test(a) ? 'de ' + a : 'desta criatura'}`; },
   fight: e => `${e.quem === 'self-source' ? 'esta criatura luta' : 'ela luta'} com ${ALVO_PT[e.target] || descreveAlvo(e.target)} (cada uma causa dano igual ao próprio poder à outra)`,
 };
 /* ↓ T · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha tipos */
