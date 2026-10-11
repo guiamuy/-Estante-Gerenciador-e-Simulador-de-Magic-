@@ -13834,7 +13834,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 103; // CR2d.12 · virada para baixo como camada 1b, subtipos de agora, carimbo ao virar e transformar
+const ENGINE_VERSION = 104; // CR2d.13 · "até o seu próximo turno" por dono, durações de cópia e controle, exceção da cópia copiável
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -14017,6 +14017,7 @@ function hasLegado(s, o, k) {
   const tts = o.tempTs || []; if ((o.tempKeywords || []).some((x, i) => x === k && vale(tts[i]))) return true;
   if (corte < 0 && SC.KEYWORD_COUNTERS.includes(k) && ((o.counters || {})[k] || 0) > 0) return true; // CR2c.5 · 122.1b (sem carimbo: a Aura que tira tudo também os anula)
   if (corte < 0 && (((o.keywordsNext || {}).list) || []).includes(k)) return true; // S59 · até o seu próximo turno
+  if ((o.temporarios || []).some(t => t.ate === 'seu-proximo-turno' && (t.palavras || []).includes(k) && vale(t.ts))) return true; // CR2d.13 · agora com carimbo
   return attachedTo(s, o).some(x => vale(x.anexadaEm) && ((grantsOf(s, x) || {}).keywords || []).map(w => String(w).toLowerCase()).includes(k));
 }
 const grantsOf = (s, o) => (o.bestowed || !(s.facts[o.name].script || {}).bestow) ? (s.facts[o.name].script || {}).grants : null;
@@ -14038,6 +14039,9 @@ function redefinicoesDe(s, o) {
   for (const v of o.vira || []) if (vigente(s, v)) out.push({ ts: v.ts || 0, b: v }); // CR2-G R6 · "torna" com duração
   return out.sort((x, y) => x.ts - y.ts);
 }
+/** CR2d.13 · 205.2: os tipos somados ficam na ordem da linha de tipo ("Artifact Creature", não "Creature Artifact"). */
+const ORDEM_DOS_TIPOS = ['kindred', 'tribal', 'artifact', 'enchantment', 'land', 'creature', 'planeswalker', 'battle', 'instant', 'sorcery'];
+const ordenaTipos = ts => ts.slice().sort((a, b) => (ORDEM_DOS_TIPOS.indexOf(a) + 1 || 99) - (ORDEM_DOS_TIPOS.indexOf(b) + 1 || 99));
 function mutacao(s, o) {
   if (!o || o.zone !== 'battlefield' || (!o.mutavel && !o.faceDown)) return null; // atalho: só quem já recebeu uma Aura dessas, ou está virada para baixo (o cálculo é chamado a cada consulta de habilidade)
   // CR2d.2 · também "this land becomes a N/N <tipo> creature until end of turn. It's still a land" (o.vira, com carimbo próprio)
@@ -14048,7 +14052,7 @@ function mutacao(s, o) {
   let m = o.faceDown ? { types: ['creature'], subtypes: [], base: [2, 2], perde: false, corte: -1, keywords: [] }
     : { types: f.types, subtypes: subImpressos, base: null, perde: false, corte: -1, keywords: [] };
   for (const { ts, b } of efeitos) {
-    m = { types: b.addTypes ? [...new Set([...m.types, ...(b.types || [])])] : (b.types || m.types),
+    m = { types: b.addTypes ? ordenaTipos([...new Set([...m.types, ...(b.types || [])])]) : (b.types || m.types),
       subtypes: b.addTypes ? [...new Set([...m.subtypes, ...(b.subtypes || [])])] : (b.subtypes || m.subtypes), base: b.base || m.base,
       perde: !!b.loseAbilities || m.perde, corte: b.loseAbilities ? ts : m.corte, keywords: [...(b.loseAbilities ? [] : m.keywords), ...(b.keywords || [])],
       subtiposDefinidos: (b.subtypes && !b.addTypes) || m.subtiposDefinidos }; // CR2d.12 · 613.3: redefinir os subtipos depois sobrepõe o metamorfo
@@ -14065,7 +14069,7 @@ function mutacaoLegado(s, o) {
   const f = s.facts[o.name], subImpressos = String(f.typeText || '').split('—')[1] ? String(f.typeText).split('—')[1].trim().split(/\s+/) : [];
   let m = o.faceDown ? { types: ['creature'], subtypes: [], base: [2, 2], perde: false, corte: -1, keywords: [] } : { types: f.types, subtypes: subImpressos, base: null, perde: false, corte: -1, keywords: [] };
   for (const { ts, b } of efeitos) {
-    m = { types: b.addTypes ? [...new Set([...m.types, ...(b.types || [])])] : (b.types || m.types),
+    m = { types: b.addTypes ? ordenaTipos([...new Set([...m.types, ...(b.types || [])])]) : (b.types || m.types),
       subtypes: b.addTypes ? [...new Set([...m.subtypes, ...(b.subtypes || [])])] : (b.subtypes || m.subtypes), base: b.base || m.base,
       perde: !!b.loseAbilities || m.perde, corte: b.loseAbilities ? ts : m.corte, keywords: [...(b.loseAbilities ? [] : m.keywords), ...(b.keywords || [])],
       subtiposDefinidos: (b.subtypes && !b.addTypes) || m.subtiposDefinidos }; // CR2d.12 · o mesmo campo do caminho novo
@@ -14568,7 +14572,7 @@ function aplicaTemporario(s, o, { poder, resistencia, palavras, ate = 'fim-do-tu
   if (troca) o.temporarios = [...(o.temporarios || []), { troca: true, ts: relogio(s), ...(marca || {}) }]; // CR2d.9 · 7d
   if (cores != null) o.temporarios = [...(o.temporarios || []), { cores: cores.slice(), ...(somaCores ? { somaCores: true } : {}), ts: relogio(s), ...(marca || {}) }]; // CR2d.8 · camada 5 com carimbo
   if ((perde || []).length) o.temporarios = [...(o.temporarios || []), { perde: perde.map(k => String(k).toLowerCase()), ts: relogio(s), ...(marca || {}) }]; // CR2d.7 · "perde voar" com carimbo; sem marca = até o fim do turno (sai na limpeza)
-  if (ate !== 'fim-do-turno' && ate !== 'seu-proximo-turno') { // durações novas: lista própria, lida pelo caminho dos contínuos
+  if (ate !== 'fim-do-turno') { // durações novas (e "até o seu próximo turno", CR2d.13: cada um com o seu dono): lista própria, lida pelo caminho dos contínuos
     if (poder != null || resistencia != null || (palavras || []).length)
       o.temporarios = [...(o.temporarios || []), { ...(poder != null ? { poder } : {}), ...(resistencia != null ? { resistencia } : {}), ...((palavras || []).length ? { palavras: palavras.map(k => String(k).toLowerCase()) } : {}), ts: relogio(s), ...marca }];
     return;
@@ -14603,12 +14607,25 @@ function nomeCopiavel(s, modelo) {
   if (!s.facts[NOME_DA_VIRADA]) s.facts[NOME_DA_VIRADA] = cardFacts({ name: NOME_DA_VIRADA, type_line: 'Creature', power: '2', toughness: '2', colors: [], keywords: [], oracle_text: '' });
   return NOME_DA_VIRADA;
 }
+/** CR2d.13 · 707.9b / 707.3: a exceção de uma cópia ("além de artefato", "tem ímpeto") vira valor copiável; a cópia de uma cópia herda a do
+    modelo. Junta a exceção nova com a que o modelo carrega. */
+function excecaoCopiavel(s, modelo, nova) {
+  const vale = !modelo || modelo.faceDown ? [] : (modelo.copias || []).filter(t => vigente(s, t));
+  const doModelo = vale.length ? (vale.reduce((a, b) => (b.ts > a.ts ? b : a)).excecao || {}) : {};
+  const somaTipos = [...new Set([...(doModelo.somaTipos || []), ...((nova || {}).somaTipos || [])])], palavras = [...new Set([...(doModelo.palavras || []), ...((nova || {}).palavras || [])])];
+  return somaTipos.length || palavras.length ? { ...(somaTipos.length ? { somaTipos } : {}), ...(palavras.length ? { palavras } : {}) } : null;
+}
+function aplicaExcecao(s, o, exc, ate) {
+  if (!exc) return;
+  aplicaTemporario(s, o, { ...((exc.somaTipos || []).length ? { vira: { types: exc.somaTipos, addTypes: true } } : {}), ...((exc.palavras || []).length ? { palavras: exc.palavras } : {}), ate }, o.controller);
+}
 function aplicaCopia(s, o, modelo, ate = 'sempre', excecao) {
   if (!o || !modelo || o.zone !== 'battlefield' || o.oid === modelo.oid || !s.facts[modelo.name]) return false;
   if (o.nomeImpresso == null) o.nomeImpresso = o.name;
-  o.copias = [...(o.copias || []), { nome: nomeCopiavel(s, modelo), ate, by: o.controller, ts: relogio(s), turno: s.turn.number }];
+  const exc = excecaoCopiavel(s, modelo, excecao);
+  o.copias = [...(o.copias || []), { nome: nomeCopiavel(s, modelo), ate, by: o.controller, ts: relogio(s), turno: s.turn.number, ...(exc ? { excecao: exc } : {}) }];
   recalculaCopia(s, o);
-  if (excecao && (excecao.somaTipos || []).length) aplicaTemporario(s, o, { vira: { types: excecao.somaTipos, addTypes: true }, ate }, o.controller); // 707.9b
+  aplicaExcecao(s, o, exc, ate); // 707.9b
   return true;
 }
 function recalculaCopia(s, o) {
@@ -14643,13 +14660,16 @@ function recalculaControle(s, o) {
   delete o.attacking; delete o.atacandoPw; delete o.blocking; delete o.blockedBy;
   return true;
 }
+/** CR2-G R6 · CR2d.13 · o efeito com duração continua depois deste momento ('limpeza' ou 'inicio' do turno)? Vale para os temporários,
+    as redefinições, a cópia e o controle (611.2a). */
+function ficaTemporario(s, t, momento) {
+  if (!vigente(s, t)) return false;
+  if (momento === 'inicio') return !(t.ate === 'seu-proximo-turno' && t.by === s.turn.active);
+  if (!t.ate || t.ate === 'fim-do-turno') return false;
+  return !(t.ate === 'fim-do-seu-proximo-turno' && t.by === s.turn.active && s.turn.number > t.turno);
+}
 function podaTemporarios(s, o, momento) {
-  const fica = t => {
-    if (!vigente(s, t)) return false;
-    if (momento === 'inicio') return !(t.ate === 'seu-proximo-turno' && t.by === s.turn.active);
-    if (!t.ate || t.ate === 'fim-do-turno') return false;
-    return !(t.ate === 'fim-do-seu-proximo-turno' && t.by === s.turn.active && s.turn.number > t.turno);
-  };
+  const fica = t => ficaTemporario(s, t, momento);
   for (const k of ['vira', 'temporarios']) {
     if (!o[k]) continue;
     if (momento === 'inicio' && k === 'vira' && !o[k].some(t => t.ate)) continue;
@@ -14680,8 +14700,9 @@ function bonusTemporario(s, o) {
   return { p, t: tgh };
 }
 /** S57 · bônus temporários: até o fim do turno e até o seu próximo turno. */
-const pumpP = o => ((o.pump && o.pump.p) || 0) + ((o.pumpNext && o.pumpNext.p) || 0);
-const pumpT = o => ((o.pump && o.pump.t) || 0) + ((o.pumpNext && o.pumpNext.t) || 0);
+const proximoP = (o, k) => (o.temporarios || []).filter(t => t.ate === 'seu-proximo-turno').reduce((n, t) => n + (t[k] || 0), 0); // CR2d.13 · agora em o.temporarios
+const pumpP = o => ((o.pump && o.pump.p) || 0) + ((o.pumpNext && o.pumpNext.p) || 0) + proximoP(o, 'poder');
+const pumpT = o => ((o.pump && o.pump.t) || 0) + ((o.pumpNext && o.pumpNext.t) || 0) + proximoP(o, 'resistencia');
 /** CR2d.1 · 7b: P/T base fixado pela Aura que redefine a criatura, senão o impresso. */
 /** CR2d.9 · 613.4a · 7a: P/T definido por habilidade (604.3: poder ou resistência com asterisco; vale em todas as zonas) — `self.ptDefinido { poder, resistencia }`
  * com inteiro ou contagem; 7b: o fixado por efeito (mutação) vence o 7a; sem nenhum, o impresso. */
@@ -15289,8 +15310,8 @@ function fimDosEfeitosDoTurno(s) {
   for (const pl of s.players) if (pl.efeitos) { pl.efeitos = pl.efeitos.filter(e => e.ate !== 'fim-do-turno'); if (!pl.efeitos.length) delete pl.efeitos; } // CR2d.10
   for (const pl of s.players.keys()) for (const oid of s.zones[pl].exile) { const x = s.objects[oid]; if (x && x.jogavelSoNesteTurno) { delete x.playableFromExile; delete x.jogavelSoNesteTurno; } } // M-267 · "this turn"
   delete s.mareAlta; // M-262 · High Tide vale até o fim do turno
-  for (const o of campoInteiro(s)) if (o.copias) { o.copias = o.copias.filter(t => t.ate !== 'fim-do-turno'); recalculaCopia(s, o); } // CR2f.1
-  for (const o of campoInteiro(s)) if (o.controles) { o.controles = o.controles.filter(t => t.ate !== 'fim-do-turno'); recalculaControle(s, o); } // CR2d.6 · "until end of turn" acaba na limpeza (514.2)
+  for (const o of campoInteiro(s)) if (o.copias) { o.copias = o.copias.filter(t => ficaTemporario(s, t, 'limpeza')); recalculaCopia(s, o); } // CR2f.1 · CR2d.13: também "até o fim do seu próximo turno"
+  for (const o of campoInteiro(s)) if (o.controles) { o.controles = o.controles.filter(t => ficaTemporario(s, t, 'limpeza')); recalculaControle(s, o); } // CR2d.13 // CR2d.6 · "until end of turn" acaba na limpeza (514.2)
   for (const o of campoInteiro(s)) { delete o.pump; delete o.tempKeywords; delete o.tempTs; podaTemporarios(s, o, 'limpeza'); delete o.prevenirDano; delete o.regenerar; delete o.tempProtection; delete o.tempToxico; delete o.tempResguardoCor; delete o.tempNaoBloqueadaPor; delete o.tempHabilidades; delete o.usedThisTurn; o.damage = 0; delete o.deathtouched; } // M-255 · tóxico, resistência a magia de cor e "não bloqueada por cor" até o fim do turno
   delete s.fogged; delete s.preventedColors; delete s.noPrevention; delete s.prevencoes; // CR2-G R5b · escudos do verbo prevenir também acabam
   for (const o of Object.values(s.objects)) if (o.damagePrevented) { delete o.damagePrevented; delete o.preventGainTo; } // R9 · Hallow: a prevenção acaba com o turno
@@ -15309,7 +15330,8 @@ function finishCleanup(s) {
   for (const o of campoInteiro(s)) { // CR2g.1 · 702.26d: "até o seu próximo turno" também acaba fora de fase
     if (o.pumpNext && o.pumpNext.by === s.turn.active) delete o.pumpNext;
     if (o.vira || o.temporarios) podaTemporarios(s, o, 'inicio'); // CR2-G R6
-    if (o.controles && o.controles.some(t => t.ate === 'seu-proximo-turno' && t.by === s.turn.active)) { o.controles = o.controles.filter(t => !(t.ate === 'seu-proximo-turno' && t.by === s.turn.active)); recalculaControle(s, o); } // CR2d.6
+    if (o.controles && o.controles.some(t => !ficaTemporario(s, t, 'inicio'))) { o.controles = o.controles.filter(t => ficaTemporario(s, t, 'inicio')); recalculaControle(s, o); } // CR2d.6 · CR2d.13
+    if (o.copias && o.copias.some(t => !ficaTemporario(s, t, 'inicio'))) { o.copias = o.copias.filter(t => ficaTemporario(s, t, 'inicio')); recalculaCopia(s, o); } // CR2d.13 · cópia "até o seu próximo turno"
     // S59 · provocar e palavra-chave "até o seu próximo turno" caem no mesmo momento
     if (o.goaded && o.goaded.by === s.turn.active) delete o.goaded;
     if (o.keywordsNext && o.keywordsNext.by === s.turn.active) delete o.keywordsNext;
@@ -16354,8 +16376,9 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'ficha_copia': { // CR2f.2 · 707.8: a ficha copia os valores copiáveis do alvo (o nome de agora: se o alvo é cópia, a ficha é cópia do que ele copia)
       if (!obj || obj.zone !== 'battlefield' || !s.facts[obj.name]) { note({ failed: true }); break; }
       const n = amountOf(s, src, eff.amount || 1), novas = [];
-      for (let i = 0; i < n; i++) { const t = createToken(s, { name: nomeCopiavel(s, obj) }, ctrl, events); novas.push(t); // CR2d.12 · cópia da virada para baixo
-        if ((eff.palavras || []).length || (eff.somaTipos || []).length) aplicaTemporario(s, s.objects[t], { ...((eff.palavras || []).length ? { palavras: eff.palavras } : {}), ...((eff.somaTipos || []).length ? { vira: { types: eff.somaTipos, addTypes: true } } : {}), ate: 'sempre' }, ctrl); } // 707.9 · "except it has haste"
+      const exc = excecaoCopiavel(s, obj, { somaTipos: eff.somaTipos, palavras: eff.palavras }); // CR2d.13 · 707.9b: a exceção do modelo vem junto
+      for (let i = 0; i < n; i++) { const t = createToken(s, { name: nomeCopiavel(s, obj) }, ctrl, events); novas.push(t); const ft = s.objects[t]; // CR2d.12 · cópia da virada para baixo
+        if (exc) { ft.nomeImpresso = ft.name; ft.copias = [{ nome: ft.name, ate: 'sempre', by: ctrl, ts: relogio(s), turno: s.turn.number, excecao: exc }]; aplicaExcecao(s, ft, exc, 'sempre'); } } // 707.9 · "except it has haste"
       note({ name: obj.name, amount: novas.length }); break;
     }
     case 'escolhe_copiadora': { src.copiadora = obj && obj.oid; note({ name: obj && obj.name }); break; } // CR2f.1
@@ -17661,7 +17684,7 @@ function resolveTop(s, events = []) {
     o.copiaEscolhida = null;
   }
   if (comoCopia && o.copiaEscolhida) { const m = s.objects[o.copiaEscolhida];
-    if (m && m.zone === 'battlefield' && s.facts[m.name]) { o.nomeImpresso = o.name; o.copias = [{ nome: nomeCopiavel(s, m), ate: 'sempre', by: controller, ts: relogio(s), turno: s.turn.number }]; o.name = m.name; } }
+    if (m && m.zone === 'battlefield' && s.facts[m.name]) { const exc = excecaoCopiavel(s, m, { somaTipos: f.script.entraComoCopia.somaTipos }); o.nomeImpresso = o.name; o.copias = [{ ...(exc ? { excecao: exc } : {}), nome: nomeCopiavel(s, m), ate: 'sempre', by: controller, ts: relogio(s), turno: s.turn.number }]; o.name = m.name; } }
   if (scripted && !comoCopia) resolveScript(s, o, events);
   if (s.objects[item].zone === 'stack' && o.omen) { // S24 · presságio volta embaralhado para o grimório
     moveObject(s, item, 'library');
@@ -17674,7 +17697,7 @@ function resolveTop(s, events = []) {
     if (dest === 'battlefield') s.objects[item].controller = controller;
     const ent = s.objects[item];
     if (ent) delete ent.copiaEscolhida; // CR2f.2 (a cópia de mágica já deixou de existir: sem objeto)
-    if (comoCopia && ent && ent.nomeImpresso != null && (f.script.entraComoCopia.somaTipos || []).length) aplicaTemporario(s, ent, { vira: { types: f.script.entraComoCopia.somaTipos, addTypes: true }, ate: 'sempre' }, controller); // 707.9b
+    if (comoCopia && ent && ent.nomeImpresso != null && ent.copias && ent.copias[0].excecao) aplicaExcecao(s, ent, ent.copias[0].excecao, 'sempre'); // 707.9b · CR2d.13: com a exceção herdada do modelo
     if (dest === 'battlefield' && ent && ent.sneakAtaque != null) { // Leva 106 · esgueirar-se: entra virada e atacando
       if (s.combat && ['combat_blockers', 'combat_damage'].includes(s.turn.step)) { ent.tapped = true; ent.attacking = ent.sneakAtaque; const pw = pwAindaAtacavel(s, { defensor: ent.sneakAtaque, ...(ent.sneakPw || {}) }); if (pw) ent.atacandoPw = pw; s.combat.attackers.push(item); } // CR2g.1 · o mesmo planeswalker
       delete ent.sneakAtaque; delete ent.sneakPw;
@@ -21474,7 +21497,8 @@ function bandejaDaMao(s, v, recolhida) {
   return { aberta: !recolhida || !!motivo, forcada: !!(recolhida && motivo), motivo, total };
 }
 /** U5 · o que faz uma permanente diferente das irmãs de mesmo nome (e por isso fica fora do leque). */
-const MODIFICADORES = ['pump', 'pumpNext', 'tempKeywords', 'keywordsNext', 'goaded', 'attacking', 'blocking', 'blockedBy', 'cantAttackNext',
+const MODIFICADORES = ['pump', 'pumpNext', 'tempKeywords', 'keywordsNext', 'temporarios', 'copias', 'controles', // CR2d.13 · efeito com duração separa do leque
+  'goaded', 'attacking', 'blocking', 'blockedBy', 'cantAttackNext',
   'chosenColor', 'bestowed', 'faceDown', 'paired', 'mayPay', 'xPaid', 'tempProtection', 'usedThisTurn']; // Q10 · paired (não pairedWith), proteção do turno, "uma vez por turno"
 const temValor = v => Array.isArray(v) ? v.length > 0 : (v && typeof v === 'object') ? Object.keys(v).length > 0 : !!v;
 /** U5 · permanentes iguais viram um leque: nome, quantas, quantas viradas, e a primeira desvirada para tocar.

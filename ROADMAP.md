@@ -3494,6 +3494,16 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Mapa:** 15 itens atualizados, que estavam defasados. 611.1, 611.3, 613.5 e 707.6 ficam cobertas; 610.2, 613.6, 707.9 e 708.10 ficam parciais; 707.8 volta a parcial (na CR de 2026 a 707.8 é cópia de dupla face).
 - **Próximo:** CR2d.13, com os 3 erros restantes da auditoria. "Até o seu próximo turno" não acaba em cópia e controle. Dois desses efeitos de jogadores diferentes se fundem num só. A exceção da cópia não entra nos valores copiáveis.
 
+**CR2d.13 · Durações por dono e exceção da cópia copiável (611.2a, 613.7b, 707.9b)** ✅ (leva M-289, motor v104) — 4 testes de conformidade, todos falham no motor v103.
+- **Regra:** fecha os três erros restantes da auditoria das camadas e da cópia.
+  - Dois "até o seu próximo turno" vindos de jogadores diferentes deixam de se fundir: cada um acaba no turno de quem o criou e tem carimbo próprio. Antes viravam um efeito só, com o dono do último.
+  - Cópia e controle com "até o seu próximo turno" ou "até o fim do seu próximo turno" acabam no prazo. Antes duravam para sempre.
+  - A exceção da cópia ("além de artefato", "tem ímpeto") passa a fazer parte do que se copia: quem copia a cópia leva a exceção junto. Os tipos somados aparecem na ordem da linha de tipo ("Artifact Creature").
+- **Mesa:** criatura com efeito que dura, cópia ou controle emprestado deixa de se agrupar com as irmãs de mesmo nome.
+- **Caminho antigo das equivalências:** acompanha a mudança, sem afrouxar nenhuma asserção.
+- **Versão:** sobe para v104. Goldens regravados só pela versão: logs, status e turnos idênticos. Partidas salvas antes não abrem.
+- **Próximo:** CR2d.14, dependência entre efeitos contínuos (613.8), e auditoria independente da fase CR2c (conjurar, ativar e pagar).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

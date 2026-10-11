@@ -1,7 +1,7 @@
 {
  "sobre": "Mapa regra × motor. Cada item NNN.N das Comprehensive Rules de 25/09/2026 classificado contra o motor v72 em 06/10/2026 por 14 auditores independentes, com evidência vista (código com linha, teste ou sonda executada). status: coberta · parcial · ausente · definicao (só define termo) · fora (jogo físico, torneio ou variante que um app de dois jogadores não precisa). Quando um item muda de status, o teste que prova a mudança entra em `testes`.",
  "cr": "2026-09-25",
- "motor": 103,
+ "motor": 104,
  "auditoria": "2026-10-06",
  "itens": [
   {
@@ -4677,15 +4677,18 @@
    "regra": "Continuous Effects",
    "titulo": "Efeito contínuo criado por resolução",
    "status": "parcial",
-   "evidencia": "a) até o fim do turno acaba em finishCleanup (:10714; scripts.unit \"S4 · efeito até o fim do turno acaba na limpeza\") e \"até o seu próximo turno\" (rules.unit \"S57\", \"S59\", \"S61\"); c) conjunto travado na resolução: sonda Rally the Peasants (presente 4/3, quem chegou depois 2/3) e elves.regras \"Leva 136 · Timberwatch Elf ... contado ao resolver e travado\"; efeito de regra vale para fonte nova: sonda Prismatic Strands + Lightning Bolt conjurado depois (vida 20), rules.unit \"S30\"; d) X calculado uma vez (amountOf :11067) · CR2-G R6 (M-244, v95 sem mudança no que existe): durações gerais no verbo continuo — fim-do-seu-proximo-turno e { enquanto: controlar-fonte } (o.temporarios, com fonte e encarnação), \"torna\" com qualquer duração (o.vira com marca); vigente/podaTemporarios no começo do turno e na limpeza; testes em duracao.unit · CR2d.6/M-275 (v98): controle com duração (fim do turno, sem prazo, até o seu próximo turno, enquanto você controlar a fonte, 611.2b). · auditoria independente CR2d/CR2f (11/10/2026): 611.2b (duracao.unit, controle.unit), duração \"sempre\", 611.2e em parte (entraComoCopia)",
-   "falta": "emblema e resto do jogo para jogador; 611.2f; \"até o seu próximo turno\" em cópia e controle não acaba; dois \"até o seu próximo turno\" de jogadores diferentes se fundem",
+   "evidencia": "a) até o fim do turno acaba em finishCleanup (:10714; scripts.unit \"S4 · efeito até o fim do turno acaba na limpeza\") e \"até o seu próximo turno\" (rules.unit \"S57\", \"S59\", \"S61\"); c) conjunto travado na resolução: sonda Rally the Peasants (presente 4/3, quem chegou depois 2/3) e elves.regras \"Leva 136 · Timberwatch Elf ... contado ao resolver e travado\"; efeito de regra vale para fonte nova: sonda Prismatic Strands + Lightning Bolt conjurado depois (vida 20), rules.unit \"S30\"; d) X calculado uma vez (amountOf :11067) · CR2-G R6 (M-244, v95 sem mudança no que existe): durações gerais no verbo continuo — fim-do-seu-proximo-turno e { enquanto: controlar-fonte } (o.temporarios, com fonte e encarnação), \"torna\" com qualquer duração (o.vira com marca); vigente/podaTemporarios no começo do turno e na limpeza; testes em duracao.unit · CR2d.6/M-275 (v98): controle com duração (fim do turno, sem prazo, até o seu próximo turno, enquanto você controlar a fonte, 611.2b). · auditoria independente CR2d/CR2f (11/10/2026): 611.2b (duracao.unit, controle.unit), duração \"sempre\", 611.2e em parte (entraComoCopia) · M-289 (CR2d.13): cada \"até o seu próximo turno\" tem o seu dono e carimbo; cópia e controle com \"até o seu próximo turno\" e \"até o fim do seu próximo turno\" acabam no prazo",
+   "falta": "emblema e resto do jogo para jogador; 611.2f",
    "esforco": "M",
    "depende": [
     "613"
    ],
    "testes": [
     "M-244 · R6 · \"enquanto você controlar esta permanente\": acaba quando a fonte sai do campo, e só vale para a mesma encarnação",
-    "CR 611.2 · \"enquanto você controlar a fonte\": a fonte sai e o controle volta (ação de estado); objeto novo não leva o efeito (400.7)"
+    "CR 611.2 · \"enquanto você controlar a fonte\": a fonte sai e o controle volta (ação de estado); objeto novo não leva o efeito (400.7)",
+    "CR 611.2 · dois \"até o seu próximo turno\" de jogadores diferentes: no turno de B acaba só o de B (antes se fundiam com o dono do último)",
+    "CR 611.2 · cópia \"até o seu próximo turno\" e \"até o fim do seu próximo turno\" acaba no prazo (antes ficava para sempre)",
+    "CR 611.2 · controle \"até o fim do seu próximo turno\" volta ao dono na limpeza do próximo turno de quem ganhou (antes nunca voltava)"
    ]
   },
   {
@@ -4840,15 +4843,19 @@
    "regra": "Interaction of Continuous Effects",
    "titulo": "Subcamadas da camada 1 (cópia e virada para baixo)",
    "status": "parcial",
-   "evidencia": "1b: virada para baixo é 2/2 sem palavras-chave nem tipo (power :10340, has :10065, countFor :10086; rules.unit \"S54 · metamorfose: entra virada para baixo como 2/2 sem nada\") · M-288 (CR2d.12): virada para baixo 2/2 criatura sem subtipo e incolor na 1b, com tipo, cor e \"torna-se N/N\" por cima",
-   "falta": "613.2c; exceção da cópia (707.9b) não entra nos valores copiáveis",
+   "evidencia": "1b: virada para baixo é 2/2 sem palavras-chave nem tipo (power :10340, has :10065, countFor :10086; rules.unit \"S54 · metamorfose: entra virada para baixo como 2/2 sem nada\") · M-288 (CR2d.12): virada para baixo 2/2 criatura sem subtipo e incolor na 1b, com tipo, cor e \"torna-se N/N\" por cima · M-289 (CR2d.13): exceção da cópia copiável",
+   "falta": "613.2c",
    "esforco": "M",
    "depende": [
     "707",
     "708.2"
    ],
    "testes": [
-    "CR 613.2 · virada para baixo é a camada 1b: \"torna-se 0/1\" vale por cima do 2/2, e \"torna-se vermelha\" por cima do incolor"
+    "CR 613.2 · virada para baixo é a camada 1b: \"torna-se 0/1\" vale por cima do 2/2, e \"torna-se vermelha\" por cima do incolor",
+    "CR 611.2 · dois \"até o seu próximo turno\" de jogadores diferentes: no turno de B acaba só o de B (antes se fundiam com o dono do último)",
+    "CR 611.2 · cópia \"até o seu próximo turno\" e \"até o fim do seu próximo turno\" acaba no prazo (antes ficava para sempre)",
+    "CR 611.2 · controle \"até o fim do seu próximo turno\" volta ao dono na limpeza do próximo turno de quem ganhou (antes nunca voltava)",
+    "CR 707.9 · a exceção da cópia é copiável: a ficha que copia o Sol Ring \"cópia do Inspector, além de artefato\" também é artefato"
    ]
   },
   {
@@ -4909,12 +4916,16 @@
    "regra": "Interaction of Continuous Effects",
    "titulo": "Ordem por carimbo de tempo",
    "status": "parcial",
-   "falta": "613.7c (marcadores); \"até o seu próximo turno\" sem carimbo",
+   "falta": "613.7c (marcadores)",
    "esforco": "M",
-   "evidencia": "CR2d.1 (v90): s.relogio; o.ts ao entrar no campo (613.7d), anexadaEm ao anexar (613.7e), tempTs por palavra-chave do turno; usados para decidir o que a Aura que tira as habilidades apaga (concedido antes some, depois fica). commander.regras \"CR2d.1 · carimbo de tempo (613.7)…\" · M-288 (CR2d.12): carimbo novo ao virar para cima (613.7f) e ao transformar (613.7g); carimbo em controle, cor, perde, torna, cópia e Aura",
+   "evidencia": "CR2d.1 (v90): s.relogio; o.ts ao entrar no campo (613.7d), anexadaEm ao anexar (613.7e), tempTs por palavra-chave do turno; usados para decidir o que a Aura que tira as habilidades apaga (concedido antes some, depois fica). commander.regras \"CR2d.1 · carimbo de tempo (613.7)…\" · M-288 (CR2d.12): carimbo novo ao virar para cima (613.7f) e ao transformar (613.7g); carimbo em controle, cor, perde, torna, cópia e Aura · M-289 (CR2d.13): \"até o seu próximo turno\" ganha carimbo próprio (613.7b)",
    "testes": [
     "CR2d.1 · carimbo de tempo (613.7): o +3/+3 de antes continua (7c), o voar dado antes da Reprobation some, o dado depois fica",
-    "CR 613.7 · virada para cima recebe carimbo novo: a estática dela vence um \"perde voar\" aplicado antes"
+    "CR 613.7 · virada para cima recebe carimbo novo: a estática dela vence um \"perde voar\" aplicado antes",
+    "CR 611.2 · dois \"até o seu próximo turno\" de jogadores diferentes: no turno de B acaba só o de B (antes se fundiam com o dono do último)",
+    "CR 611.2 · cópia \"até o seu próximo turno\" e \"até o fim do seu próximo turno\" acaba no prazo (antes ficava para sempre)",
+    "CR 611.2 · controle \"até o fim do seu próximo turno\" volta ao dono na limpeza do próximo turno de quem ganhou (antes nunca voltava)",
+    "CR 707.9 · a exceção da cópia é copiável: a ficha que copia o Sol Ring \"cópia do Inspector, além de artefato\" também é artefato"
    ]
   },
   {
@@ -9144,14 +9155,18 @@
    "regra": "Copying Objects",
    "titulo": "Valores copiáveis",
    "status": "parcial",
-   "evidencia": "só cópia de mágica por tempestade: o gatilho-cópia leva os efeitos do script (index.html:12292-12293) e escolhe alvo próprio (rules.unit/pauper.regras, Leva 106) · CR2f.1/M-280 (v98): valores copiáveis = características impressas mais outras cópias (o nome copiado); marcadores e efeitos de outras camadas ficam no objeto. · M-288 (CR2d.12): copiar uma permanente virada para baixo copia a 2/2 sem habilidades e incolor (ficha_copia, torna_copia, entra como cópia)",
-   "falta": "a exceção da cópia não entra nos valores copiáveis (707.9b/707.3); ficha de dupla face",
+   "evidencia": "só cópia de mágica por tempestade: o gatilho-cópia leva os efeitos do script (index.html:12292-12293) e escolhe alvo próprio (rules.unit/pauper.regras, Leva 106) · CR2f.1/M-280 (v98): valores copiáveis = características impressas mais outras cópias (o nome copiado); marcadores e efeitos de outras camadas ficam no objeto. · M-288 (CR2d.12): copiar uma permanente virada para baixo copia a 2/2 sem habilidades e incolor (ficha_copia, torna_copia, entra como cópia) · M-289 (CR2d.13): a exceção vem junto ao copiar uma cópia",
+   "falta": "ficha de dupla face",
    "esforco": "M",
    "depende": [
     "613"
    ],
    "testes": [
-    "CR 707.2 · copiar uma permanente virada para baixo copia a 2/2 sem habilidades e incolor, não a carta escondida"
+    "CR 707.2 · copiar uma permanente virada para baixo copia a 2/2 sem habilidades e incolor, não a carta escondida",
+    "CR 611.2 · dois \"até o seu próximo turno\" de jogadores diferentes: no turno de B acaba só o de B (antes se fundiam com o dono do último)",
+    "CR 611.2 · cópia \"até o seu próximo turno\" e \"até o fim do seu próximo turno\" acaba no prazo (antes ficava para sempre)",
+    "CR 611.2 · controle \"até o fim do seu próximo turno\" volta ao dono na limpeza do próximo turno de quem ganhou (antes nunca voltava)",
+    "CR 707.9 · a exceção da cópia é copiável: a ficha que copia o Sol Ring \"cópia do Inspector, além de artefato\" também é artefato"
    ]
   },
   {
@@ -9238,12 +9253,15 @@
    "regra": "Copying Objects",
    "titulo": "Cópia com exceções (\"except\")",
    "status": "parcial",
-   "falta": "a exceção não entra nos valores copiáveis; 707.9c–g",
+   "falta": "707.9c–g",
    "esforco": "M",
    "depende": [
     "707.2"
    ],
-   "evidencia": "M-280/M-281: somaTipos (707.9b) e palavras (707.9a) em copia.unit e copia2.unit"
+   "evidencia": "M-280/M-281: somaTipos (707.9b) e palavras (707.9a) em copia.unit e copia2.unit · M-289 (CR2d.13): a exceção da cópia (somaTipos, palavras) é valor copiável e passa a quem copia a cópia (707.9b, 707.3)",
+   "testes": [
+    "CR 707.9 · a exceção da cópia é copiável: a ficha que copia o Sol Ring \"cópia do Inspector, além de artefato\" também é artefato"
+   ]
   },
   {
    "n": "707.10",
