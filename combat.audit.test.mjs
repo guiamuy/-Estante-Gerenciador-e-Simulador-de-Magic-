@@ -391,6 +391,19 @@ test('K-10 · recomeçar (702.133): a mágica volta do cemitério descartando um
   assert.equal(s.objects[c].zone, 'exile');
 });
 
+test('K-11 · evoluir (702.100): a criatura que evoluiu com a entrada de uma maior bate mais forte', () => {
+  cobre('evolve');
+  const cartas = { ...CARDS, Mutante: cre('Mutante', 1, 1, ['Evolve'], { oracle_text: 'Evolve' }) };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 42, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a; let m, u; [s, m] = poe(s, a, 'Mutante'); [s, u] = poe(s, a, 'Urso', { zone: 'hand' });
+  s = act(s, { t: 'cast', p: a, oid: u });
+  for (let i = 0; i < 6 && (s.stack.length || s.pending); i++) s = s.pending ? act(s, E.legalActions(s, s.pending.p)[0]) : act(s, { t: 'pass', p: s.turn.priority });
+  const r = combate(s, [m]);
+  assert.equal(r.players[d].life, 18, 'Mutante 1/1 + 1 marcador');
+});
+
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));

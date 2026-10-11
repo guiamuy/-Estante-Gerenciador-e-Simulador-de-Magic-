@@ -7999,14 +7999,21 @@
    "n": "702.100",
    "regra": "Keyword Abilities",
    "titulo": "Evolve",
-   "status": "ausente",
-   "falta": "Sem gatilho \"criatura sua entra com força ou resistência maior que a desta: +1/+1\" com a condição conferida ao disparar e ao resolver (702.100a-d); other-etb existe, falta a comparação.",
+   "status": "parcial",
+   "falta": "702.100b: o motor não tem o gatilho \"quando ~ evolui\" (\"whenever this creature evolves\"), usado por poucas cartas (Experiment One não precisa; Fathom Mage, Shambleshark… sim). Duas criaturas que entram juntas não se veem (uma entra depois da outra no motor).",
    "esforco": "P",
    "depende": [
     "603.4",
     "208"
    ],
-   "cartas": "rara (volta de vez em quando)"
+   "cartas": "rara (volta de vez em quando)",
+   "evidencia": "K-11: 'evolve' em KEYWORDS; evoluirK (chamado por disparaZona quando algo entra no campo, inclusive ficha) olha cada criatura sua com evoluir (instanciasK: impressa, concedida, marcador, uma por repetição impressa, 702.100d) e enfileira um gatilho por instância se a que entrou tem poder ou resistência maior; efeito evoluir confere de novo na resolução (603.4) com os valores de agora — da que entrou, se saiu do campo, como era (608.2h) — e põe +1/+1 (addCounters, 614.16); 702.100c: quem não é criatura não evolui. Carta exemplo: Cloudfin Raptor (Oracle do Forge, 11/10/2026).",
+   "testes": [
+    "CR 702.100a · evoluir (Cloudfin Raptor, texto oficial, sem script): criatura sua maior entra e ele ganha +1/+1; menor ou igual, não; a do oponente, não",
+    "CR 702.100a / 603.4 · a condição confere de novo na resolução; a que entrou e saiu vale como era (608.2h)",
+    "CR 702.100d · cada instância de evoluir dispara à parte, e cada uma confere a condição de novo ao resolver",
+    "K-11 · evoluir (702.100): a criatura que evoluiu com a entrada de uma maior bate mais forte"
+   ]
   },
   {
    "n": "702.101",

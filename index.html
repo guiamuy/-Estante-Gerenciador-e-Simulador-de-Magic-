@@ -5208,6 +5208,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'evoke', // K-8 · 702.74: custo alternativo lido da linha "Evoke <custo>" (evocarImpressoK) e "ao entrar, se foi evocada, sacrifique-a"
   'dash', // K-9 · 702.109: custo alternativo "Dash <custo>"; a arremetida tem ímpeto e volta para a mão no próximo passo final
   'jump-start', // K-10 · 702.133: conjurar do cemitério pagando o custo e descartando uma carta; exilada ao sair da pilha
+  'evolve', // K-11 · 702.100: "sempre que uma criatura sua entra com poder ou resistência maior, +1/+1" (evoluirK), uma por instância
   /* ↓ V · palavras-chave da trilha verbos */
   /* ↓ T · palavras-chave da trilha tipos */
 ];
@@ -5369,6 +5370,7 @@ const EFFECTS = {
   exaltado: { fields: ['criatura'], targets: [] }, // K-5 · exaltado (gerado pelo motor)
   cascata: { fields: ['mv'], targets: [] }, // K-7 · cascata (gerado pelo motor)
   evocar_sacrifica: { fields: ['z'], targets: [] }, // K-8 · 702.74a · "its controller sacrifices it" (gerado pelo motor)
+  evoluir: { fields: ['entrou'], targets: [] }, // K-11 · 702.100a · gerado pelo motor
   /* ↓ V · efeitos da trilha verbos */
   // V-18 · 701.58 encobrir (como manifestar, com salvaguarda {2}; `look: N` = "look at the top N cards, cloak `amount` of them, the rest on the bottom in a random order") e 701.62 manifestar pavor (olha duas, manifesta uma, a outra vai para o cemitério)
   cloak: { fields: [], targets: ['self'] },
@@ -17833,6 +17835,12 @@ function applyEffect(s, src, eff, tgt, events) {
       break;
     }
     /* ↓ K · casos de applyEffect da trilha keywords */
+    case 'evoluir': { // K-11 · 702.100a: a condição é conferida de novo na resolução (603.4); 702.100c: sem ser criatura, não evolui
+      const w = s.objects[src.ability ? src.source : src.oid];
+      const ok = w && w.zone === 'battlefield' && (w.zc || 0) === eff.zw && isCreature(s, w) && maiorQueK(s, eff, w);
+      if (!ok) { events.push({ kind: 'effect', do: 'evoluir', name: src.name, failed: true }); break; }
+      const n = addCounters(s, w, 1); events.push({ kind: 'effect', do: 'evoluir', name: src.name, target: w.name, amount: n }); break;
+    }
     case 'evocar_sacrifica': { // K-8 · 702.74a: confere de novo na resolução (603.4) que é a mesma permanente, evocada; quem a controla a sacrifica
       const c = s.objects[src.ability ? src.source : src.oid];
       if (!c || c.zone !== 'battlefield' || (c.zc || 0) !== eff.z || !c.evocadaK) { events.push({ kind: 'effect', do: 'evocar_sacrifica', name: src.name, failed: true }); break; }
@@ -18399,8 +18407,8 @@ function naSombra(s, rotulo, legado, novo) {
   for (const q of s.queued.slice(n)) { const k = typeof q.when === 'string' ? q.when : 'descritor'; sombraGatilhos.porGatilho[k] = (sombraGatilhos.porGatilho[k] || 0) + 1; }
   if (velho !== nova && sombraGatilhos.diferencas.length < 20) sombraGatilhos.diferencas.push({ rotulo, velho, novo: nova });
 }
-const disparaZona = (s, o, de, para, ctrlAntes, ultima) => naSombra(s, `${o.name}: ${de} → ${para}`,
-  () => gatilhosDeZonaLegado(s, o, de, para, ctrlAntes, ultima), () => gatilhosDeZona(s, o, de, para, ctrlAntes, ultima));
+const disparaZona = (s, o, de, para, ctrlAntes, ultima) => (para === 'battlefield' && de !== 'battlefield' && evoluirK(s, o), naSombra(s, `${o.name}: ${de} → ${para}`, // K-11 · evoluir (Toca ponto comum: disparaZona)
+  () => gatilhosDeZonaLegado(s, o, de, para, ctrlAntes, ultima), () => gatilhosDeZona(s, o, de, para, ctrlAntes, ultima)));
 /** CR2-G R2b · o evento acontece com cada objeto da lista (conjurar, atacar, bloquear, dano de combate). */
 const NOME_DO_EVENTO = { conjurar: 'cast-self', ataca: 'attacks', bloqueia: 'blocks', 'dano-combate': 'combat-damage' };
 /** CR2g.5 · 509.3c/509.3f · depois da declaração de bloqueadores: "é bloqueada" (uma vez, com um ou mais bloqueadores) e "ataca e não é
@@ -20831,6 +20839,29 @@ function pagaRecomecarK(s, a, o) {
   descartaCarta(s, c);
 }
 Object.assign(EXPORTS_K, { recomecarImpressoK });
+/* K-11 · 702.100 evoluir. "Whenever a creature you control enters, if that creature's power is greater than this creature's power and/or
+   that creature's toughness is greater than this creature's toughness, put a +1/+1 counter on this creature." Cada instância dispara à
+   parte (d); a condição é intermediária (603.4): conferida ao disparar e de novo na resolução, com o poder e a resistência de agora — da
+   que entrou, se saiu do campo, como ela era (608.2h); 702.100c: quem não é criatura não evolui. */
+function evoluirK(s, o) {
+  if (!o || o.zone !== 'battlefield' || !isCreature(s, o)) return;
+  for (const w of battlefield(s)) {
+    if (w.oid === o.oid || w.controller !== o.controller || !isCreature(s, w)) continue;
+    const n = instanciasK(s, w, 'evolve'); if (!n) continue;
+    const eff = { do: 'evoluir', entrou: o.oid, z: o.zc || 0, zw: w.zc || 0 };
+    if (!maiorQueK(s, eff, w)) continue;
+    for (let i = 0; i < n; i++) s.queued.push({ source: w.oid, name: w.name, controller: w.controller, effects: [eff], when: 'evolve' });
+  }
+}
+/** A criatura que entrou tem poder ou resistência maior que `w`? (como ela é agora, ou como era ao sair do campo) */
+function maiorQueK(s, eff, w) {
+  const e = s.objects[eff.entrou]; if (!e) return false;
+  const viva = e.zone === 'battlefield' && (e.zc || 0) === eff.z;
+  const p = viva ? (isCreature(s, e) ? power(s, e) : null) : e.ultima && e.ultima.power, t = viva ? (isCreature(s, e) ? toughness(s, e) : null) : e.ultima && e.ultima.toughness;
+  if (p == null && t == null) return false;
+  return (p != null && p > power(s, w)) || (t != null && t > toughness(s, w));
+}
+Object.assign(EXPORTS_K, { evoluirK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-18 · 701.58 encobrir: como manifestar, mas a permanente virada para baixo tem salvaguarda {2} enquanto ficar virada (a); vira para
    cima do mesmo jeito (b–d, g) e as cartas vão uma de cada vez (e). 701.62 manifestar pavor: "Look at the top two cards of your
@@ -23890,6 +23921,7 @@ Object.assign(PALAVRA_PT, { cascade: 'cascata' }); // K-7
 Object.assign(PALAVRA_PT, { evoke: 'evocar' }); // K-8
 Object.assign(PALAVRA_PT, { dash: 'arremeter' }); // K-9
 Object.assign(PALAVRA_PT, { 'jump-start': 'recomeçar' }); // K-10
+Object.assign(PALAVRA_PT, { evolve: 'evoluir' }); // K-11
 /* ↓ V · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha verbos */
 const MARCADOR_PT_V = { p1p1: '+1/+1', m1m1: '−1/−1', loyalty: 'de lealdade', poison: 'de veneno' }; // V-7
 const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas por descreveEfeito)

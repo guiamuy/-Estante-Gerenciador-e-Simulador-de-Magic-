@@ -564,3 +564,46 @@ test('CR 702.133a · a linha "Jump-start" conta como palavra-chave na cobertura 
   assert.equal(S.coverage({ name: 'Z', type_line: 'Creature — Elf', oracle_text: 'Jump-start' }).level, 'completo');
   assert.equal(S.coverage(oficial('Radical Idea')).level, 'completo', 'Radical Idea tem script');
 });
+
+/* ---------------- K-11 · 702.100 evoluir ---------------- */
+const RAPTOR = () => oficial('Cloudfin Raptor');
+const NANICO = { name: 'Nanico', type_line: 'Creature — Elf', mana_cost: '{G}', cmc: 1, colors: ['G'], power: '1', toughness: '1', keywords: [], oracle_text: '' };
+const LAMPEJO = { name: 'Lampejo', type_line: 'Creature — Bear', mana_cost: '{1}{G}', cmc: 2, colors: ['G'], power: '3', toughness: '3', keywords: ['Flash'], oracle_text: 'Flash' };
+const pilhaDe = (s, nome) => s.stack.filter(x => s.objects[x].ability && s.objects[x].name === nome).length + s.queued.filter(q => q.name === nome).length;
+
+test('CR 702.100a · evoluir (Cloudfin Raptor, texto oficial, sem script): criatura sua maior entra e ele ganha +1/+1; menor ou igual, não; a do oponente, não', () => {
+  let s = partida({ 'Cloudfin Raptor': RAPTOR(), Urso: URSO, Nanico: NANICO, Lampejo: LAMPEJO }); const a = s.turn.active, d = 1 - a;
+  let r, u, n; [s, r] = poe(s, a, 'Cloudfin Raptor'); [s, u] = poe(s, a, 'Urso', 'hand');
+  s = act(s, { t: 'cast', p: a, oid: u }); s = resolve(s);
+  assert.equal(E.stats(s, s.objects[r]).power, 1, '0/1 → 1/2 com o Urso 2/2'); assert.equal(E.stats(s, s.objects[r]).toughness, 2);
+  [s, n] = poe(s, a, 'Nanico', 'hand'); s = act(s, { t: 'cast', p: a, oid: n });
+  for (let i = 0; i < 3 && s.stack.length; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  assert.equal(pilhaDe(s, 'Cloudfin Raptor'), 0, 'o 1/1 não é maior que o 1/2: não dispara');
+  let uo; [s, uo] = poe(s, d, 'Lampejo', 'hand'); s = J(s); s.turn.priority = d; s = resolve(act(s, { t: 'cast', p: d, oid: uo }));
+  assert.equal(E.stats(s, s.objects[r]).power, 1, 'a criatura do oponente não conta');
+});
+
+test('CR 702.100a / 603.4 · a condição confere de novo na resolução; a que entrou e saiu vale como era (608.2h)', () => {
+  let s = partida({ 'Cloudfin Raptor': RAPTOR(), Urso: URSO, Volta: BOUNCE }, { Volta: SC_BOUNCE }); const a = s.turn.active;
+  let r, u, v; [s, r] = poe(s, a, 'Cloudfin Raptor'); [s, u] = poe(s, a, 'Urso', 'hand'); [s, v] = poe(s, a, 'Volta', 'hand');
+  const comGatilho = st => { for (let i = 0; i < 4 && !st.stack.some(x => st.objects[x].ability); i++) st = act(st, { t: 'pass', p: st.turn.priority }); return st; };
+  let base = comGatilho(act(s, { t: 'cast', p: a, oid: u }));
+  assert.equal(pilhaDe(base, 'Cloudfin Raptor'), 1, 'disparou');
+  let cresceu = J(base); cresceu.objects[r].counters.p1p1 = 3; cresceu = resolve(cresceu); // agora 3/4: o Urso 2/2 já não é maior
+  assert.equal(cresceu.objects[r].counters.p1p1, 3, 'na resolução a condição falhou: nada');
+  let saiu = J(base); saiu.turn.priority = a; saiu = resolve(act(saiu, { t: 'cast', p: a, oid: v, targets: [{ oid: u }] }));
+  assert.equal(saiu.objects[u].zone, 'hand'); assert.equal(saiu.objects[r].counters.p1p1, 1, 'o Urso saiu, mas era 2/2: evoluiu');
+});
+
+test('CR 702.100d · cada instância de evoluir dispara à parte, e cada uma confere a condição de novo ao resolver', () => {
+  const DUPLO = { ...RAPTOR(), name: 'Duplo', oracle_text: 'Evolve, evolve', keywords: ['Evolve'] };
+  let s = partida({ Duplo: DUPLO, Urso: URSO }); const a = s.turn.active;
+  let r, u; [s, r] = poe(s, a, 'Duplo'); [s, u] = poe(s, a, 'Urso', 'hand');
+  s = act(s, { t: 'cast', p: a, oid: u }); for (let i = 0; i < 3 && !s.stack.some(x => s.objects[x].ability); i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  assert.equal(pilhaDe(s, 'Duplo'), 2, 'duas instâncias, dois gatilhos');
+  s = resolve(s); assert.equal(s.objects[r].counters.p1p1, 2, 'a segunda confere de novo: o 1/2 ainda tem poder menor que o Urso 2/2 → evolui também');
+  let t2 = partida({ Duplo: DUPLO, Urso: URSO }); const a2 = t2.turn.active; let r2, u2; [t2, r2] = poe(t2, a2, 'Duplo'); [t2, u2] = poe(t2, a2, 'Urso', 'hand');
+  t2 = J(t2); t2.objects[r2].counters.p1p1 = 1; // 1/2: só a primeira passa? as duas conferem ao disparar (o Urso 2/2 é maior no poder)
+  t2 = resolve(act(t2, { t: 'cast', p: a2, oid: u2 }));
+  assert.equal(t2.objects[r2].counters.p1p1, 2, 'com 1/2: a primeira dá 2/3; a segunda, na resolução, vê 2 contra 2 e 2 contra 3: não evolui');
+});

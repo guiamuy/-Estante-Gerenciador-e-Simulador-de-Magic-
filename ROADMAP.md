@@ -3949,6 +3949,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Testes:** `keywords.cr4.unit` (4, falham sem a leva), `combat.audit` K-10, `scripts.unit` S8 (Radical Idea). Texto oficial: Radical Idea (Oracle do Forge, 11/10/2026). Goldens idênticos; motor v109.
 - **Pedido à mesa (não bloqueia):** o botão diz "Conjurar" (sem "recomeçar"); o registro não diz de onde veio.
 
+**K-11 · Evoluir (702.100)** 🟡 (leva K-11)
+- **Valor:** criatura com "Evolve" ganha +1/+1 quando entra uma criatura sua maior (no poder ou na resistência), só pela palavra-chave; Cloudfin Raptor joga sem script.
+- **Aceite:** Cloudfin Raptor (texto oficial) 0/1 vira 1/2 com o Urso 2/2; o 1/1 seguinte não dispara; a criatura do oponente não conta; a condição confere de novo na resolução (603.4: se ele cresceu antes, nada) e a que entrou e saiu vale como era (608.2h); "Evolve, evolve" dispara duas vezes e cada uma confere de novo.
+- **Toca ponto comum:** `disparaZona` (chama `evoluirK` quando algo entra no campo — o mesmo ponto para carta e ficha; fora da comparação de sombra).
+- **Testes:** `keywords.cr4.unit` (3, falham sem a leva), `combat.audit` K-11. Texto oficial: Cloudfin Raptor (Oracle do Forge, 11/10/2026). Goldens idênticos; motor v109.
+- **Parcial declarado (702.100):** 702.100b ("quando ~ evolui") não tem gatilho no motor; duas criaturas que entram ao mesmo tempo não se veem.
+
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.
