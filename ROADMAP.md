@@ -506,6 +506,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-do ✅ | Z7 nome da lista (arquétipo dado pelo coletor), evento à parte e valor somado no catálogo; no detalhe, valor da lista e preço de cada carta (relato #15, leva G-248) | Z | 1 | — |
 | 16º-dp ✅ | Z7 correção: catálogo guardado no formato antigo é trocado ao abrir (os nomes novos não apareciam), validade de 1 hora e Atualizar no rodapé (leva G-249) | Z | 1 | — |
 | 16º-dq ✅ | Fichas com 20 listas de Commander: as cartas guardadas lidas juntas (1,56 s → 0,49 s com o processador 4× mais lento); as cores da estante ganham junto (leva G-250) | I | ½ | — |
+| 16º-ds ✅ | SEG3 política de conteúdo (CSP) por meta: script e conexão só das origens que o app usa, leitor do scanner testado de verdade com ela ligada, contrato que barra origem nova fora da política (leva P-3) | SEG | 1 | — |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -7358,6 +7359,33 @@ segredo do repositório. O `main` não recebe commit do coletor.
 - **Fora do repositório (recomendação, não bloqueia):** em GitHub › Settings › Branches, regra para `main` com "Block
   force pushes" e "Restrict deletions" ligados — e **sem** "Require a pull request" nem status obrigatório, que
   travariam o `npm run publicar`.
+
+**SEG3 · Política de conteúdo (CSP)** ✅ (leva P-3, 11/10/2026)
+- **Ameaça:** se um texto de fora voltar a virar HTML (a P-1 fechou os pontos conhecidos), ele podia carregar script de
+  qualquer site, mandar dados para qualquer endereço por `fetch`, ou trocar a base dos endereços (`<base>`) e os
+  plugins (`<object>`). Sem política, o navegador aceitava tudo.
+- **Medida:** `<meta http-equiv="Content-Security-Policy">` no `<head>`, antes do primeiro script: `default-src 'self'`;
+  **script** só do app, do CDN do leitor (jsDelivr) e do Google (entrada com a conta), mais `wasm-unsafe-eval` para o
+  leitor; **conexão** só com Scryfall, ramos de dados (`raw.githubusercontent.com`), câmbio (três APIs), leitor (jsDelivr,
+  dados do inglês), Google (Drive, entrada e a foto da conta em `*.googleusercontent.com`, que o perfil baixa) e Firebase (`*.firebaseio.com`, `*.firebasedatabase.app`, já previstos para
+  a T6); worker de `blob:` (o leitor); imagens de qualquer `https:` (cartas, notícias, foto da conta); `object-src 'none'`,
+  `base-uri 'none'`, `form-action 'self'`.
+- **Guarda-corpo:** `seguranca.csp.unit` — a política existe antes do primeiro script, fecha `object`/`base`, não tem
+  curinga em script, conexão, worker e quadro, não tem `unsafe-eval`; **toda origem `https://`/`wss://` citada no
+  `index.html` e no `sw.js` está na política** ou na lista de links que o app só abre (GitHub, Pages, TopDeck, MTGO,
+  Scryfall) — origem nova de qualquer trilha cai no portão com a instrução de onde acrescentar. e2e "P-3": o **leitor do
+  scanner de verdade** (Tesseract 5.1.1 dos pacotes instalados no lugar do CDN, worker de blob, WebAssembly, dados do
+  inglês) lê "Counterspell" com a política ligada e sem nenhuma violação; `fetch` e `<script>` para origem fora da lista
+  são recusados. O portão pegou a foto da conta (endereço que vem do Google, não do código) — por isso a lista também é
+  conferida pelos testes de tela. Prova: sem `wasm-unsafe-eval` o leitor para (o teste desiste em 60 s); sem `blob:` no worker, cai na hora.
+  Os ~185 testes de tela rodam com a política e exigem console sem erro: um fluxo que esbarrasse nela cairia.
+- **Resíduo declarado:** `'unsafe-inline'` em script continua (o app inteiro é um script inline, ADR-02): um HTML
+  injetado com `onerror=` ainda executaria — a defesa disso é a P-1. Trocar por hash do script exige a publicação calcular
+  o hash a cada leva (história de infra, não aberta). Imagem de qualquer `https:` permite vazar dado pelo endereço de uma
+  imagem. `frame-ancestors` não vale em `<meta>` (o Pages não deixa mandar cabeçalho): o app pode ser emoldurado por outro
+  site. A política não vale para o service worker (ele não carrega HTML de fora).
+- **Para as outras trilhas:** a entrada com Google e o Firebase da T6 (conversa armazem) já estão liberados; serviço novo
+  entra na meta do `index.html` e o contrato confere.
 
 ### P · Plataforma
 
