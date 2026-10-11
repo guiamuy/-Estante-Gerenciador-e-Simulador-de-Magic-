@@ -3319,6 +3319,13 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Correção de registro:** as entregas M-258 a M-271 diziam "motor v96"; o motor já era v97 desde a M-257 (relato #12). Corrigido aqui e no mapa de regras.
 - **Medição:** Killian 98% → **99%** (completo 100 · parcial 1). **Mapa:** 702.101 coberta.
 
+**M-273 · R11 · Mana com efeito ao ser gasta (106.6): Path of Ancestry** ✅ (leva M-273, motor v98, sem mudança no que existe) — 3 testes de unidade.
+- **Regra:** a mana gerada por uma fonte com `aoGastarMana` leva a marca de quem a gerou (some com a reserva, 500.4). Quando um pagamento de conjuração gasta a mana marcada numa criatura que compartilha tipo de criatura com o seu comandante, dispara o efeito (vidência 1, na pilha, acima da criatura).
+- **Cartas cobertas (completas):** Path of Ancestry (era parcial; texto oficial em `.listas/oficiais-commander.json`, 05/10/2026; segunda fonte, Oracle do Forge, 10/10/2026).
+- **Simplificação declarada:** quem paga escolhe qual mana gasta; o motor gasta a marcada primeiro quando o gasto dispara o efeito e por último quando não dispara (sempre a favor de quem joga).
+- **Medição:** Killian 99% → **100%** (completo 101 · parcial 0 · manual 0): a lista Orzhov Killian joga em modo completo. **Mapa:** 106.6 parcial (faltam as restrições "só para conjurar X").
+- **Golden:** idênticas além da versão. Versão não sobe nesta leva.
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

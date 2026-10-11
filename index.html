@@ -5853,6 +5853,8 @@ function validateScript(sc) {
   if (sc && sc.transmute && !sc.transmute.mana) errs.push('transmutar sem custo');
   if (sc && sc.unearth != null && !(sc.unearth && typeof sc.unearth.mana === 'string')) errs.push('desenterrar sem custo'); // M-257 · 702.84
   if (sc && sc.backup != null && !(Number.isInteger(sc.backup) && sc.backup > 0)) errs.push('reforço precisa de um número inteiro'); // M-260 · 702.165
+  if (sc && sc.aoGastarMana != null && !(sc.aoGastarMana && sc.aoGastarMana.criaturaQueCompartilhaTipoComOComandante === true && Array.isArray(sc.aoGastarMana.effects) && sc.aoGastarMana.effects.length)) errs.push('"ao gastar a mana" precisa da condição e dos efeitos'); // M-273
+  if (sc && sc.aoGastarMana) errs.push(...effectErrors(sc.aoGastarMana.effects, 'ao gastar a mana'));
   if (sc && sc.exilaDaMao != null && !(sc.exilaDaMao && ['W', 'U', 'B', 'R', 'G'].includes(sc.exilaDaMao.cor) && Number.isInteger(sc.exilaDaMao.reduz) && sc.exilaDaMao.reduz > 0)) errs.push('exilar da mão precisa de cor (W, U, B, R, G) e de quanto reduz por carta'); // M-267
   if (sc && sc.delve != null && sc.delve !== true) errs.push('delve é uma marca, sem valor'); // M-263 · 702.66
   // S34 · tempestade, conceder e metamorfo
@@ -7094,6 +7096,9 @@ const RAW_SCRIPTS = [
   // "Look at the top three cards of your library. Put one of them into your hand, put one of them on the bottom of your library, and exile one of them. You may play the exiled card this turn."
   { name: 'Expressive Iteration', effects: [{ do: 'repartir_topo', count: 3, destinos: ['hand', 'library-bottom', 'exile-playable-turn'] }],
     example: { target: 'none', expect: { picked: true } } },
+  // M-273 · "This land enters tapped. {T}: Add one mana of any color in your commander's color identity. When that mana is spent to cast a creature spell that shares a creature type with your commander, scry 1." (texto de 05/10/2026; segunda fonte, Oracle do Forge, 10/10/2026)
+  { name: 'Path of Ancestry', entersTapped: true, aoGastarMana: { criaturaQueCompartilhaTipoComOComandante: true, effects: [{ do: 'scry', amount: 1 }] },
+    example: { action: 'etb', target: 'none', expect: { tappedOnEntry: true } } },
   // M-268 · texto oficial em .listas/oficiais-commander.json (05/10/2026); segunda fonte, Oracle do Forge (10/10/2026); rulings de 2022-04-29
   // "Hideaway 4 (When this land enters, look at the top four cards of your library, exile one face down, then put the rest on the bottom in a random order.) This land enters tapped. {T}: Add {W}. {W}, {T}: You may play the exiled card without paying its mana cost if you attacked with three or more creatures this turn."
   { name: 'Windbrisk Heights', entersTapped: true, abilities: [
@@ -14101,6 +14106,7 @@ function createGame(setup) {
     if (sc.backup) f.script.backup = sc.backup; // M-260
     if (sc.delve) f.script.delve = true; // M-263
     if (sc.exilaDaMao) f.script.exilaDaMao = sc.exilaDaMao; // M-267
+    if (sc.aoGastarMana) f.script.aoGastarMana = sc.aoGastarMana; // M-273
     if (sc.self) f.script.self = sc.self;
     // palavras-chave impressas na carta, declaradas no script: valem mesmo quando o dado da carta veio sem elas (sem rede)
     if (sc.self && sc.self.devoid) f.colors = []; // R7 · desprovido de cor (702.114): incolor mesmo com mana colorida no custo
@@ -14488,7 +14494,7 @@ const battlefield = s => s.zones.flatMap(z => z.battlefield).map(oid => s.object
 const canSorceryNow = (s, p) => s.turn.active === p && isMain(s) && !s.stack.length && s.turn.priority === p && !s.pending;
 
 /* ---------------- M7 · pagamento ---------------- */
-function emptyPools(s) { s.players.forEach(pl => { for (const c of COLORS) pl.pool[c] = 0; }); }
+function emptyPools(s) { s.players.forEach(pl => { for (const c of COLORS) pl.pool[c] = 0; delete pl.manaMarcada; }); } // M-273 · a marca vai junto com a mana
 /** Tenta pagar o custo com a reserva. Devolve a reserva restante e a vida gasta, ou null. */
 function payFrom(pool, cost, extraGeneric = 0, maxLife = Infinity) {
   const P = { ...pool };
@@ -14729,17 +14735,44 @@ function tapForMana(s, oid, option, mana) {
   if (!o.tapped) noteEnchantedEvent(s, o);
   if (!opt) throw new RuleError('mana', 'essa fonte não produz essa mana');
   o.tapped = true; opt.forEach(c => { s.players[o.controller].pool[c]++; });
+  const aoGastar = (s.facts[o.name].script || {}).aoGastarMana; // M-273 · Path of Ancestry: "when that mana is spent to cast …" — a mana leva a marca de quem a gerou
+  if (aoGastar) { const pl = s.players[o.controller]; pl.manaMarcada = [...(pl.manaMarcada || []), ...opt.map(c => ({ cor: c, fonte: o.oid, name: o.name }))]; }
   // R11.2 · "This land deals 1 damage to you" (terrenos de dor, Talismãs) e "Pay 1 life" (Spire of Industry) ao gerar cor
   const regra = (s.facts[o.name].script || {}).manaRule;
   if (regra && (regra.damage || regra.life) && opt.some(c => regra.colors.includes(c))) perdeVida(s, o.controller, regra.damage || regra.life);
 }
 /** Paga o custo (tocando fontes se preciso) ou lança RuleError. */
-function payCost(s, p, cost, extra = 0) {
+function payCost(s, p, cost, extra = 0, paraQue) {
   const taps = planTaps(s, p, cost, extra);
   if (!taps) throw new RuleError('mana', 'mana insuficiente');
   taps.forEach(([oid, k, mana]) => tapForMana(s, oid, k, mana));
+  const antes = { ...s.players[p].pool }; // M-273 · para saber quanto de cada cor foi gasto
   const r = payFrom(s.players[p].pool, cost, extra, 0) || payFrom(s.players[p].pool, cost, extra, s.players[p].life);
   s.players[p].pool = r.pool; perdeVida(s, p, r.life);
+  if ((s.players[p].manaMarcada || []).length) gastaMarcada(s, p, antes, paraQue); // M-273
+}
+/** M-273 · 106.12 (mana com efeito ao ser gasta): a mana marcada que saiu da reserva neste pagamento foi gasta. Quem paga escolhe qual mana
+ * gasta; o motor gasta a marcada primeiro quando o gasto dispara o efeito (a criatura serve) e por último quando não dispara. */
+function gastaMarcada(s, p, antes, paraQue) {
+  const pl = s.players[p], fica = [];
+  const gasto = c => (antes[c] || 0) - (pl.pool[c] || 0);
+  const restante = {}; for (const c of COLORS) restante[c] = gasto(c);
+  const serve = t => !!(paraQue && paraQue.criaturaDoComandante && servePelaMarca(s, p, paraQue.oid, t));
+  const porCor = {}; for (const t of pl.manaMarcada) (porCor[t.cor] = porCor[t.cor] || []).push(t);
+  for (const [c, lista] of Object.entries(porCor)) {
+    const semMarca = (antes[c] || 0) - lista.length;
+    let gastas = serve(lista[0]) ? Math.min(lista.length, restante[c]) : Math.max(0, restante[c] - semMarca);
+    for (const t of lista) { if (gastas > 0) { gastas--; if (serve(t)) s.queued.push({ source: t.fonte, name: t.name, controller: p, effects: (s.facts[t.name].script.aoGastarMana || {}).effects || [], when: 'mana-gasta' }); } else fica.push(t); }
+  }
+  if (fica.length) pl.manaMarcada = fica; else delete pl.manaMarcada;
+}
+/** M-273 · "a creature spell that shares a creature type with your commander" */
+function servePelaMarca(s, p, oid, t) {
+  const g = ((s.facts[t.name] || {}).script || {}).aoGastarMana; if (!g || !g.criaturaQueCompartilhaTipoComOComandante) return false;
+  const o = s.objects[oid]; if (!o || !(s.facts[o.name].types || []).includes('creature')) return false;
+  const tiposCriatura = x => ((s.facts[x.name].typeText || '').split('—')[1] || '').trim().split(/\s+/).filter(Boolean);
+  const meus = new Set(tiposCriatura(o)); if (s.facts[o.name].changeling || (s.facts[o.name].script || {}).changeling) return Object.values(s.objects).some(c => c.commander && c.owner === p);
+  return Object.values(s.objects).some(c => c.commander && c.owner === p && (s.facts[c.name].types || []).includes('creature') && tiposCriatura(c).some(x => meus.has(x)));
 }
 const canPay = (s, p, cost, extra = 0) => !!planTaps(s, p, cost, extra);
 /** CR2c.4 · 107.4f/601.2f: quantos símbolos phyrexianos o custo tem; com `vida` = n, os n primeiros são pagos com 2 de vida
@@ -17535,8 +17568,8 @@ const HANDLERS = {
       if (a.vida != null) { // CR2c.4 · phyrexiano: quem conjura escolhe quantos símbolos paga com vida
         if (!(Number.isInteger(a.vida) && a.vida >= 0 && a.vida <= nPhyrexianos(custo))) throw new RuleError('custo', 'escolha quantos símbolos phyrexianos pagar com vida');
         if (s.players[a.p].life < 2 * a.vida) throw new RuleError('custo', 'vida insuficiente para pagar o phyrexiano'); // 119.4
-        payCost(s, a.p, custoPhyrexiano(custo, a.vida), extraPago); perdeVida(s, a.p, 2 * a.vida);
-      } else payCost(s, a.p, custo, extraPago); } // M-259 · a redução por alvo usa os alvos escolhidos
+        payCost(s, a.p, custoPhyrexiano(custo, a.vida), extraPago, { criaturaDoComandante: true, oid: a.oid }); perdeVida(s, a.p, 2 * a.vida);
+      } else payCost(s, a.p, custo, extraPago, { criaturaDoComandante: true, oid: a.oid }); } // M-273 // M-259 · a redução por alvo usa os alvos escolhidos
     if (a.retrace) { // M-222 · 702.81a: "discarding a land card in addition to paying its other costs"
       const l = a.pay && a.pay.retrace, lo = l && s.objects[l];
       if (!lo || !s.zones[a.p].hand.includes(l) || !(s.facts[lo.name].types || []).includes('land')) throw new RuleError('custo', 'descarte um terreno da mão para retraçar');

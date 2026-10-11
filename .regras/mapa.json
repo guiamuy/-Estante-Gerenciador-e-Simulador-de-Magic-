@@ -316,13 +316,17 @@
    "n": "106.6",
    "regra": "Mana",
    "titulo": "Mana com restrição ou efeito de uso",
-   "status": "ausente",
-   "falta": "A reserva não distingue manas: não há \"só para conjurar criaturas\", \"não pode ser gasta em mágica não artefato\" (Powerstone), nem efeito ou gatilho ligado ao gasto. 106.6a idem.",
-   "esforco": "G",
+   "status": "parcial",
+   "falta": "Restrições de uso (\"só para conjurar criaturas\", Powerstone) não existem; a escolha de qual mana gastar é do motor (a marcada primeiro quando dispara, por último quando não).",
+   "esforco": "M",
    "depende": [
     "106.3"
    ],
-   "cartas": "comum"
+   "cartas": "comum",
+   "evidencia": "M-273 (v98): mana com efeito ao ser gasta — a mana de fonte com aoGastarMana leva a marca de quem a gerou (some com a reserva); gasta numa conjuração que serve, dispara o efeito na pilha (Path of Ancestry). path.unit.",
+   "testes": [
+    "M-273 · Path of Ancestry: a mana dela gasta numa criatura que compartilha tipo com o comandante dispara a vidência 1"
+   ]
   },
   {
    "n": "106.7",
