@@ -6396,13 +6396,18 @@
    "n": "701.57",
    "regra": "Keyword Actions",
    "titulo": "Discover",
-   "status": "ausente",
-   "falta": "não há exilar do topo até achar não-terreno de valor ≤ N, conjurar sem pagar ou pôr na mão e devolver o resto ao fundo em ordem aleatória (o motor já tem conjurar de graça: free_cast)",
-   "esforco": "M",
+   "status": "coberta",
    "depende": [
     "702.85 cascata"
    ],
-   "cartas": "uma coleção só"
+   "cartas": "uma coleção só",
+   "evidencia": "V-10 · efeito `discover` (descobrir e passoDescobrirFim em core.js, abaixo da âncora ↓ V): exila do topo do grimório de quem controla até a primeira carta que não é terreno com valor de mana N ou menor; decisão de conjurar sem pagar (free_cast, com alvos escolhidos na hora) ou não — não conjurada, vai para a mão; as outras exiladas vão para o fundo em ordem aleatória (a); sem carta que sirva, tudo volta para o fundo e nada é descoberto (b); a carta descoberta fica no evento (c). Carta: Trumpeting Carnosaur (texto em .listas/oficiais-verbos.json; script provado no teste)",
+   "testes": [
+    "CR 701.57 · descobrir N: exila do topo até a primeira carta que não é terreno de valor N ou menor; conjurada sem pagar, vai à pilha, e as outras exiladas vão para o fundo do grimório",
+    "CR 701.57 · descobrir: quem não conjura leva a carta para a mão; o resto vai para o fundo do mesmo jeito",
+    "CR 701.57 · descobrir: mágica com alvo pode ser conjurada com o alvo escolhido na hora; valor exatamente N serve; sem nenhuma carta que sirva, o grimório inteiro volta para o fundo",
+    "CR 701.57 · descobrir num gatilho de entrada (Trumpeting Carnosaur): o script vale, o gatilho abre a decisão e a frase sai em português"
+   ]
   },
   {
    "n": "701.58",

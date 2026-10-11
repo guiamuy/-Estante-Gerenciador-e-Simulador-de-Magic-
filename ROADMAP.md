@@ -3763,6 +3763,15 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Testes:** `verbos.investigar.unit` (2), cenário S8.
 - **Fora:** gatilho "sempre que você investigar"; migrar os três scripts à mão para a palavra nova (são linhas da trilha `motor`; o resultado é idêntico).
 
+**V-10 · CR3 · Descobrir (701.57)** 🟡 (leva V-10, motor v109 sem subir: só acrescenta ações; partidas-referência idênticas) — 701.57 passa de ausente a coberta.
+- **Valor:** "Discover N" exila do topo até achar a carta, pergunta se você conjura sem pagar e põe o resto no fundo.
+- **Regra inteira:** só conta carta que não é terreno com valor ≤ N (valor exatamente N serve); conjurar é opcional e os alvos são escolhidos na hora; não conjurada vai para a mão; o resto vai para o fundo em ordem aleatória (semente do jogo); grimório sem carta que sirva → tudo para o fundo, sem decisão.
+- **Vocabulário:** efeito `discover`, sobre a decisão `free_cast` que já existia e a fila de passos da V-2.
+- **Carta (texto oficial em `.listas/oficiais-verbos.json`, Oracle do Forge, 11/10/2026; segunda fonte pendente):** Trumpeting Carnosaur — script provado no teste (três habilidades), fora da biblioteca pelo mesmo motivo das outras permanentes de exemplo (`fixtures.mjs`).
+- **Mesa:** nenhuma decisão de tipo novo. **Pedido à mesa (não bloqueia):** a dica da decisão `free_cast` diz "vale só para uma das cartas que você acabou de comprar" — para descobrir, o certo é "se não conjurar, ela vai para a mão"; o título já diz "<carta> — descobrir N: <achada>".
+- **Simplificado, declarado:** o piloto automático e o Shark não conjuram de graça (levam a carta para a mão); resposta do Shark na integração.
+- **Testes:** `verbos.descobrir.unit` (4).
+
 **CR4 · Habilidades de palavra-chave (702)** ○ — 150 ausentes e 21 parciais, em ondas pela frequência em cartas anotada no mapa: (1) fechar as evergreen e as parciais; (2) "muito comum" (proeza, tripular, reforço, convocar, cascata, evocar, persistir, imortal, fração de segundo, infectar e tóxico…); (3) "comum"; (4) "rara" e "uma coleção só". 50 a 65 levas.
 
 **CR4 · andamento (trilha `keywords`, levas `K-N`)** ▶ — ordem de 11/10/2026: primeiro as palavras-chave do acervo que o medidor do leitor (LT6) acusa fora do vocabulário, depois a onda 1 (proeza, convocar, cascata, evocar, persistir, imortal, exaltado, explorar, arremeter, improvisar, recomeçar, pós-vida, evoluir), a onda 2 (completar as parciais), a 3 (raras, da mais citada à menos) e a 4 (o resto de 702, com o que fica fora declarado no mapa). Auditoria independente por subagente ao fim de cada onda. Palavra-chave com parâmetro ("Ward {3}", "Kicker {B}", "Crew 1") também depende de o leitor ler a forma: isso é da trilha `motor` (leitor), avisada a cada leva.

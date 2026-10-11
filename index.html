@@ -5360,6 +5360,7 @@ const EFFECTS = {
   /* ↓ K · efeitos da trilha keywords */
   salvaguarda: { fields: [], targets: [] }, // K-2 · 702.21a · gerado pelo motor quando uma permanente com salvaguarda vira alvo (não vai em script)
   /* ↓ V · efeitos da trilha verbos */
+  discover: { fields: ['amount'], targets: ['self'] }, // V-10 · 701.57 descobrir N
   investigate: { fields: [], targets: ['self'] }, // V-9 · 701.16 investigar: "Create a Clue token" (111.10f); `amount` opcional ("investigate twice", "investigate X times")
   // V-8 · 701.12 trocar. `trocar_com` anota o primeiro lado (permanente ou jogador alvo); `trocar` mira o segundo e faz a troca: `o`: 'controle' | 'vida' | 'vida-resistencia' | 'vida-poder'
   trocar_com: { fields: [], targets: ['creature', 'permanent', 'artifact', 'creature-you-control', 'player', 'opponent'] },
@@ -6186,6 +6187,9 @@ function effectErrors(effects, label, opcional) {
   });
   /* ↓ K · validação da trilha keywords */
   /* ↓ V · validação da trilha verbos */
+  effects.forEach((e, i) => { // V-10 · 701.57: descobrir abre decisão (conjurar sem pagar ou não); o que vem depois não pode ter alvo próprio
+    if (e.do === 'discover' && effects.slice(i + 1).some(isTargeted)) errs.push(`${label} ${i + 1} (discover): efeito com alvo depois de uma escolha`);
+  });
   effects.forEach((e, i) => { if (e.do === 'investigate' && e.amount != null) errs.push(...valueErrors(e.amount, `${label} ${i + 1} (investigate): amount`)); }); // V-9
   effects.forEach((e, i) => { // V-8 · 701.12
     if (e.do === 'trocar_com' && !effects.slice(i + 1).some(x => x.do === 'trocar')) errs.push(`${label} ${i + 1} (trocar_com): precisa ser seguido da troca (trocar)`);
@@ -17613,6 +17617,7 @@ function applyEffect(s, src, eff, tgt, events) {
       note({ pending: true }); break;
     }
     /* ↓ V · casos de applyEffect da trilha verbos */
+    case 'discover': descobrir(s, src, eff, events); break; // V-10 · 701.57
     case 'investigate': applyEffect(s, src, { do: 'token', amount: eff.amount == null ? 1 : eff.amount, token: PISTA_V }, tgt, events); break; // V-9 · 701.16a: pelo mesmo caminho de criar ficha (substituições de 701.7 valem)
     case 'trocar_com': s.trocaV = { fonte: src.oid, ...(obj ? { oid: obj.oid, z: obj.zc || 0 } : { player: playerOf() }) }; break; // V-8 · anota o primeiro lado; `trocar` apaga
     case 'trocar': trocar(s, src, eff, tgt, events); break; // V-8 · 701.12
@@ -20356,6 +20361,29 @@ function ultimaPalavrasK(s, o) {
 }
 Object.assign(EXPORTS_K, { ultimaPalavrasK });
 /* ↓ V · exportações de core.js da trilha verbos */
+/* V-10 · 701.57 descobrir N: exila do topo do seu grimório até exilar uma carta que não é terreno com valor de mana N ou menor. Você
+   pode conjurá-la sem pagar o custo de mana (a mágica resultante precisa ter valor ≤ N: com X, X = 0); se não conjurar, ela vai para a
+   mão. As outras exiladas vão para o fundo do grimório em ordem aleatória (a). O grimório acabando sem achar, tudo o que foi exilado
+   vai para o fundo e nada é descoberto. A carta descoberta fica anotada no evento (c). */
+function descobrir(s, src, eff, events) {
+  const p = src.controller, n = amountOf(s, src, eff.amount), lib = s.zones[p].library;
+  const serve = oid => { const f = s.facts[s.objects[oid].name] || {}; return !(f.types || []).includes('land') && (f.cmc || 0) <= n; };
+  const i = lib.findIndex(serve), exiladas = i >= 0 ? lib.slice(0, i + 1) : lib.slice(), achada = i >= 0 ? lib[i] : null;
+  for (const oid of exiladas) moveObject(s, oid, 'exile');
+  events.push({ kind: 'effect', do: 'discover', name: src.name, target: s.players[p].name, amount: n, nomes: exiladas.map(x => s.objects[x].name), achada: achada ? s.objects[achada].name : null });
+  s.verbo = [...(s.verbo || []), { passo: 'descobrir-fim', p, achada, resto: exiladas.filter(x => x !== achada) }];
+  if (!achada) return void continuaVerbo(s, events);
+  s.objects[achada].playableFromExile = p; // só durante a decisão: o passo seguinte tira a permissão
+  s.pending = { kind: 'free_cast', p, options: [achada], name: `${src.name} — descobrir ${n}: ${s.objects[achada].name}` };
+  events.push({ kind: 'choice', what: 'descobrir', name: src.name, amount: 1 });
+}
+function passoDescobrirFim(s, passo, events) {
+  const c = passo.achada && s.objects[passo.achada];
+  if (c) { delete c.playableFromExile; if (c.zone === 'exile') { moveObject(s, c.oid, 'hand'); events.push({ kind: 'effect', do: 'to_hand', name: c.name, target: s.players[passo.p].name }); } } // não conjurou: vai para a mão
+  const resto = passo.resto.filter(oid => s.objects[oid] && s.objects[oid].zone === 'exile');
+  shuffle(s, resto); for (const oid of resto) moveObject(s, oid, 'library', { top: false }); // fundo, em ordem aleatória (pela semente do jogo)
+}
+Object.assign(EXPORTS_V, { descobrir });
 /** V-9 · 111.10f: a ficha de Pista — "a colorless Clue artifact token with '{2}, Sacrifice this token: Draw a card.'" (a mesma definição dos scripts à mão). */
 const PISTA_V = { name: 'Clue', types: ['artifact'], subtypes: ['Clue'], colors: [], abilities: [{ kind: 'activated', cost: { mana: '{2}', sacrifice: true }, effects: [{ do: 'draw', amount: 1 }] }] };
 /* V-8 · 701.12 trocar. Ou a troca inteira acontece, ou nada acontece (a).
@@ -20501,6 +20529,7 @@ function proliferar(s, src, events) {
   else continuaVerbo(s, events);
 }
 const PASSOS_V = {
+  'descobrir-fim': (s, passo, events) => passoDescobrirFim(s, passo, events), // V-10
   'povoar-cria': (s, passo, events) => passoPovoarCria(s, passo, events), // V-4
   'proliferar-jogador'(s, passo, events) { // uma pergunta por jogador com veneno: "sim" anota o jogador
     const pl = s.players[passo.jogador]; if (!pl || pl.lost || !(pl.poison > 0)) return;
@@ -23063,6 +23092,7 @@ const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas
     return e.o === 'controle' ? `troca o controle dela com o de ${a || 'outra permanente'}` : e.o === 'vida' ? `troca os totais de vida com ${a || 'um jogador'}`
       : `troca o total de vida ${a && /jogador|oponente/.test(a) ? 'de ' + a : 'seu'} com ${e.o === 'vida-poder' ? 'o poder' : 'a resistência'} ${a && !/jogador|oponente/.test(a) ? 'de ' + a : 'desta criatura'}`; },
   investigate: e => (e.amount == null || e.amount === 1 ? 'investiga (cria uma ficha de Pista: {2}, sacrificar: compre uma carta)' : `investiga ${qtd(e.amount)} vezes (uma ficha de Pista por vez)`), // V-9
+  discover: e => `descobre ${qtd(e.amount)} (exila do topo até uma carta que não é terreno de valor ${qtd(e.amount)} ou menor; pode conjurá-la sem pagar ou levá-la para a mão; o resto vai para o fundo)`, // V-10
   fight: e => `${e.quem === 'self-source' ? 'esta criatura luta' : 'ela luta'} com ${ALVO_PT[e.target] || descreveAlvo(e.target)} (cada uma causa dano igual ao próprio poder à outra)`,
 };
 /* ↓ T · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha tipos */
