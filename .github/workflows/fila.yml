@@ -29,7 +29,7 @@ concurrency:
 
 jobs:
   monta:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # Q21 · versão fixa: a troca do ubuntu-latest não pode derrubar o portão sem aviso
     timeout-minutes: 10
     permissions:
       contents: read
@@ -57,7 +57,7 @@ jobs:
   portao:
     needs: monta
     if: needs.monta.outputs.portao == 'sim'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # Q21 · versão fixa: a troca do ubuntu-latest não pode derrubar o portão sem aviso
     timeout-minutes: 45
     permissions:
       contents: read
@@ -113,7 +113,7 @@ jobs:
   avanca:
     needs: [monta, portao]
     if: always() && needs.monta.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # Q21 · versão fixa: a troca do ubuntu-latest não pode derrubar o portão sem aviso
     timeout-minutes: 10
     permissions:
       contents: write    # avançar o main, apagar fila/<nome>, gravar recusada/<nome>

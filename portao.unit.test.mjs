@@ -123,3 +123,13 @@ test('Q19 · de verdade: um arquivo de teste rodado em duas fatias executa cada 
   assert.match(e2e, /const test = fatiar\(testeDoNode, process\.env\.E2E_FATIA\);/);
   assert.doesNotMatch(e2e, /\btest\.(only|describe|before|after)\b|^describe\(/m, 'o arquivo de tela só usa test(nome, opções, fn): é o que a divisão em fatias sabe repartir');
 });
+
+// Q21 · o portão não muda de sistema sozinho
+test('Q21 · os fluxos que rodam o portão fixam a versão do sistema (ubuntu-latest troca de versão sem aviso e o Playwright instala dependências do sistema)', () => {
+  for (const nome of ['gate.yml', 'fila.yml']) {
+    const yml = readFileSync(join(FLUXOS, nome), 'utf8');
+    const onde = [...yml.matchAll(/runs-on: (\S+)/g)].map((m) => m[1]);
+    assert.ok(onde.length >= 2, nome);
+    assert.deepEqual(onde.filter((o) => !/^ubuntu-\d\d\.\d\d$/.test(o)), [], `${nome}: todo job em versão fixa`);
+  }
+});

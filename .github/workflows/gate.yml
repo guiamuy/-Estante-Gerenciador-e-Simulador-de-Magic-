@@ -19,7 +19,7 @@ jobs:
   gate:
     # Q15 · a madrugada roda só o fuzz pesado (job abaixo); o portão é de push, pull request e disparo à mão
     if: github.event_name != 'schedule'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # Q21 · versão fixa: a troca do ubuntu-latest não pode derrubar o portão sem aviso
     timeout-minutes: 40   # Q14 · as fases rodam em sequência
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4 (P-2 · fixada por SHA)
@@ -70,7 +70,7 @@ jobs:
   # pelo tempo-limite no meio da fase de tela (10 e 11/10/2026): a madrugada terminava sem resultado nenhum.
   fuzz:
     if: github.event_name == 'schedule'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # Q21 · versão fixa: a troca do ubuntu-latest não pode derrubar o portão sem aviso
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4 (P-2 · fixada por SHA)

@@ -525,6 +525,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ic 🟡 | Q17 fila de publicação: `publicar --fila` envia para `fila/<leva>`; o fluxo soma as levas, roda um portão e avança o `main`; recusada volta com o motivo (leva I-281, em ensaio) | Q | 2 | Q15 |
 | 16º-id 🟡 | Q17 a fila vira o caminho padrão do `npm run publicar`; o caminho antigo fica em `--direto` (leva I-282, a primeira publicada pela fila) | Q | ½ | Q17 |
 | 16º-ie 🟡 | Q19 fase de tela em fatias: o mesmo arquivo roda uma vez por fatia, um Chromium cada (2 fatias com 4 núcleos, 1 com 2); cada teste numa fatia só, conferido no fim (leva I-283) | Q | 1 | — |
+| 16º-if 🟡 | Q21 portão em sistema de versão fixa (`ubuntu-24.04`) nos fluxos que instalam o navegador, antes da troca do `ubuntu-latest` em 19/10/2026 (leva I-284) | Q | ½ | — |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -2746,6 +2747,11 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Testes:** `portao.unit` Q19 (4), um deles rodando um arquivo de verdade em duas fatias. **Parecer:** escala aprovado com ressalva (ganho e estabilidade a medir no CI).
 - **Regra para teste de tela novo:** só `test(nome, opções, fn)` no nível do arquivo, e nenhum teste depende de outro.
 - **Fora:** mudar asserção; dividir o arquivo; mais de uma fatia em máquina de dois núcleos.
+
+**Q21 · O portão não muda de sistema sozinho** 🟡 (leva I-284)
+- **Valor:** em 19/10/2026 o GitHub passa o `ubuntu-latest` para o Ubuntu 26 (aviso nos jobs de 11/10); o portão instala o Chromium com dependências do sistema (`playwright install --with-deps`), e uma versão que o Playwright 1.55 não conhece derrubaria toda publicação de uma vez.
+- **Aceite:** `gate.yml` e `fila.yml` rodam em `ubuntu-24.04`; a troca de sistema passa a ser leva da trilha `infra`, junto com a versão do Playwright, e não surpresa.
+- **Testes:** `portao.unit` Q21. **Fora:** os fluxos de coleta (notícias, catálogo, relatos) não instalam navegador e seguem no `ubuntu-latest`; subir o Playwright e o sistema (leva própria, com o portão medindo).
 
 **Q20 · Instáveis zerados** ⬜ (contínuo; cada um é leva da trilha dona)
 - **Aceite:** lista INSTÁVEIS vazia em 20 portões seguidos. **Conhecido hoje:** H7 (imagens da partida, trilha geral, em correção na G-252).
