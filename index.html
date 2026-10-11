@@ -5296,7 +5296,8 @@ const EFFECTS = {
   mare_alta: { fields: [], targets: ['self'] }, // M-262 · High Tide
   topo_ou_fundo_do_dono: { fields: [], targets: ['permanent'] }, // M-264 · "The owner of target nonland permanent puts it on their choice of the top or bottom of their library"
   revelar_topo_para_mao: { fields: [], targets: ['self'] }, // M-263 · Dark Confidant
-  ganhar_controle: { fields: [], targets: ['creature', 'permanent', 'artifact'] }, // M-272 · "gain control of target creature" (sem prazo)
+  ganhar_controle: { fields: [], targets: ['creature', 'permanent', 'artifact'] },
+  efeito_jogador: { fields: [], targets: ['self'] }, // CR2d.10 · 613.10/613.11: "you can't gain life this turn", "you may play an additional land this turn" // M-272 · "gain control of target creature" (sem prazo)
   copiar_esta: { fields: [], targets: ['self'] }, // M-271 · "if this spell was cast from a graveyard, you may copy this spell and may choose a new target for the copy" (707.10)
   exilar_topo_conjuravel: { fields: ['amount'], targets: ['self'] }, // M-270 · Lukka +1: exila do topo; as criaturas exiladas podem ser conjuradas do exílio enquanto você controlar um planeswalker do subtipo
   criaturas_causam_dano: { fields: [], targets: ['each-opponent'] }, // M-270 · Lukka −7: cada criatura sua causa dano igual ao poder a cada oponente (a fonte é a criatura)
@@ -5389,6 +5390,7 @@ DUNGEONS.push(
   ] });
 const dungeonByName = n => DUNGEONS.find(d => d.name === n) || null;
 const roomById = (d, id) => (d ? d.rooms.find(r => r.id === id) : null) || null;
+const REGRAS_DO_JOGADOR = ['naoGanhaVida', 'terrenosExtras', 'semLimiteDeMao']; // CR2d.10 (o motor tem a mesma lista)
 const PICK_DESTS = ['hand', 'graveyard', 'battlefield', 'battlefield-tapped', 'library-top', 'library-bottom', 'library-bottom-random', 'stay']; // M-262 · "on the bottom in a random order"
 const FILTER_TYPES = ['creature', 'land', 'artifact', 'enchantment', 'instant', 'sorcery', 'planeswalker', 'battle']; // M-246 · "nonland permanent" inclui batalha
 const LOYALTY_PT = c => (c > 0 ? '+' : '') + c;
@@ -5760,7 +5762,7 @@ function validateScript(sc) {
   const errs = [];
   if (!sc || typeof sc.name !== 'string' || !sc.name.trim()) errs.push('script sem nome');
   const abilities = (sc && sc.abilities) || [];
-  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || sc.staticRule || sc.cumulativeUpkeep || sc.affinity || sc.storm || sc.changeling || sc.bestow || sc.bargain || sc.soulbond || sc.evidence || sc.escape || sc.discount || sc.morph || sc.sneak || sc.entersTapped || sc.entersTappedUnless || sc.grantsAll || (sc.continuo || []).length || (sc.substitui || []).length || (sc.entra || []).length || sc.armaduraTotem || (sc.dano || []).length || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length || sc.semEfeito || sc.permiteConjurar))) return errs.concat('script sem efeitos');
+  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || sc.staticRule || sc.cumulativeUpkeep || sc.affinity || sc.storm || sc.changeling || sc.bestow || sc.bargain || sc.soulbond || sc.evidence || sc.escape || sc.discount || sc.morph || sc.sneak || sc.entersTapped || sc.entersTappedUnless || sc.grantsAll || (sc.continuo || []).length || (sc.substitui || []).length || (sc.entra || []).length || sc.armaduraTotem || (sc.dano || []).length || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length || sc.semEfeito || sc.permiteConjurar || (sc.regraJogador || []).length))) return errs.concat('script sem efeitos');
   // M-246 · carta cujo texto não muda nada na mesa de dois jogadores ("each other opponent"): o motivo é obrigatório e exclui efeitos
   if (sc && sc.semEfeito != null && (typeof sc.semEfeito !== 'string' || !sc.semEfeito.trim() || (sc.effects || []).length || abilities.length)) errs.push('"semEfeito" precisa do motivo e não convive com efeitos ou habilidades');
   // M9 · habilidades da permanente
@@ -5865,6 +5867,7 @@ function validateScript(sc) {
   if (sc && sc.transmute && !sc.transmute.mana) errs.push('transmutar sem custo');
   if (sc && sc.unearth != null && !(sc.unearth && typeof sc.unearth.mana === 'string')) errs.push('desenterrar sem custo'); // M-257 · 702.84
   if (sc && sc.backup != null && !(Number.isInteger(sc.backup) && sc.backup > 0)) errs.push('reforço precisa de um número inteiro'); // M-260 · 702.165
+  for (const [k, e] of ((sc && sc.regraJogador) || []).entries()) { if (!['voce', 'oponentes', 'todos', undefined].includes(e.quem)) errs.push(`regra de jogador ${k + 1}: quem precisa ser voce, oponentes ou todos`); if (!REGRAS_DO_JOGADOR.some(x => e[x] != null) || Object.keys(e).some(x => x !== 'quem' && !REGRAS_DO_JOGADOR.includes(x))) errs.push(`regra de jogador ${k + 1}: chave desconhecida ou nada a mudar`); } // CR2d.10
   if (sc && sc.splice != null && !(sc.splice && typeof sc.splice.subtipo === 'string' && sc.splice.subtipo.trim() && /^(\{[^}]+\})+$/.test(String(sc.splice.mana || '')))) errs.push('encaixar precisa do subtipo e do custo de mana'); // M-274 · 702.47
   if (sc && sc.aoGastarMana != null && !(sc.aoGastarMana && sc.aoGastarMana.criaturaQueCompartilhaTipoComOComandante === true && Array.isArray(sc.aoGastarMana.effects) && sc.aoGastarMana.effects.length)) errs.push('"ao gastar a mana" precisa da condição e dos efeitos'); // M-273
   if (sc && sc.aoGastarMana) errs.push(...effectErrors(sc.aoGastarMana.effects, 'ao gastar a mana'));
@@ -6032,6 +6035,7 @@ function effectErrors(effects, label, opcional) {
     }
     if (e.do === 'keyword' && !KEYWORDS.includes(String(e.keyword || '').toLowerCase())) errs.push(`${label} ${i + 1}: palavra-chave "${e.keyword}" não é resolvida pelo motor`);
     if (e.seControlaOutra != null && !(e.do === 'counters' && e.seControlaOutra && ['W', 'U', 'B', 'R', 'G'].includes(e.seControlaOutra.cor))) errs.push(`${label} ${i + 1}: "seControlaOutra" vale para marcadores, com uma cor`); // M-272
+    if (e.do === 'efeito_jogador') { if (!['voce', 'oponentes', 'todos', undefined].includes(e.quem)) errs.push(`${label} ${i + 1}: quem precisa ser voce, oponentes ou todos`); if (!REGRAS_DO_JOGADOR.some(k => e[k] != null)) errs.push(`${label} ${i + 1}: efeito sobre jogador não muda nada`); if (e.terrenosExtras != null && !(Number.isInteger(e.terrenosExtras) && e.terrenosExtras > 0)) errs.push(`${label} ${i + 1}: terrenos extras precisa ser inteiro positivo`); if (e.ate != null && !['fim-do-turno', 'seu-proximo-turno', 'sempre'].includes(e.ate)) errs.push(`${label} ${i + 1}: duração desconhecida para efeito sobre jogador`); } // CR2d.10
     if (e.do === 'ganhar_controle' && e.ate != null && !duracaoValida(e.ate)) errs.push(`${label} ${i + 1}: duração "${typeof e.ate === 'object' ? JSON.stringify(e.ate) : e.ate}" desconhecida para o controle`); // CR2d.6
     if (e.do === 'copiar_esta' && e.seConjuradaDe != null && !['graveyard', 'hand', 'exile'].includes(e.seConjuradaDe)) errs.push(`${label} ${i + 1}: "seConjuradaDe" precisa ser graveyard, hand ou exile`); // M-271
     if (e.do === 'exilar_topo_conjuravel' && !(typeof e.enquantoControlar === 'string' && e.enquantoControlar.trim())) errs.push(`${label} ${i + 1}: diga o subtipo de planeswalker que mantém a permissão (enquantoControlar)`); // M-270
@@ -14144,6 +14148,7 @@ function createGame(setup) {
     if (sc.exilaDaMao) f.script.exilaDaMao = sc.exilaDaMao; // M-267
     if (sc.aoGastarMana) f.script.aoGastarMana = sc.aoGastarMana; // M-273
     if (sc.splice) f.script.splice = sc.splice; // M-274
+    if (sc.regraJogador) f.script.regraJogador = sc.regraJogador; // CR2d.10
     if (sc.self) f.script.self = sc.self;
     // palavras-chave impressas na carta, declaradas no script: valem mesmo quando o dado da carta veio sem elas (sem rede)
     if (sc.self && sc.self.devoid) f.colors = []; // R7 · desprovido de cor (702.114): incolor mesmo com mana colorida no custo
@@ -15135,7 +15140,7 @@ function enterStep(s, step) {
     s.combat = null;
   }
   if (step === 'cleanup') {
-    const over = s.zones[a].hand.length - FORMAT_RULES[s.format].hand;
+    const over = semLimiteDeMao(s, a) ? 0 : s.zones[a].hand.length - FORMAT_RULES[s.format].hand; // CR2d.10 · 402.2
     if (over > 0) { s.pending = { kind: 'discard', p: a, n: over }; return; }
     return finishCleanup(s);
   }
@@ -15143,6 +15148,7 @@ function enterStep(s, step) {
 /** CR 514.2 · o dano marcado sai e os efeitos "até o fim do turno" e "neste turno" acabam, tudo ao mesmo tempo. */
 function fimDosEfeitosDoTurno(s) {
   for (const pl of s.players) delete pl.tempHexproof; // M-260 · resistência a magia do jogador acaba na limpeza
+  for (const pl of s.players) if (pl.efeitos) { pl.efeitos = pl.efeitos.filter(e => e.ate !== 'fim-do-turno'); if (!pl.efeitos.length) delete pl.efeitos; } // CR2d.10
   for (const pl of s.players.keys()) for (const oid of s.zones[pl].exile) { const x = s.objects[oid]; if (x && x.jogavelSoNesteTurno) { delete x.playableFromExile; delete x.jogavelSoNesteTurno; } } // M-267 · "this turn"
   delete s.mareAlta; // M-262 · High Tide vale até o fim do turno
   for (const o of battlefield(s)) if (o.controles) { o.controles = o.controles.filter(t => t.ate !== 'fim-do-turno'); recalculaControle(s, o); } // CR2d.6 · "until end of turn" acaba na limpeza (514.2)
@@ -15160,6 +15166,7 @@ function finishCleanup(s) {
   s.turn.number++;
   s.turn.active = nextAlive(s, s.turn.active);
   // S57 · "até o seu próximo turno" termina quando esse turno começa
+  for (const pl of s.players) if (pl.efeitos) { pl.efeitos = pl.efeitos.filter(e => !(e.ate === 'seu-proximo-turno' && e.by === s.turn.active)); if (!pl.efeitos.length) delete pl.efeitos; } // CR2d.10
   for (const o of battlefield(s)) {
     if (o.pumpNext && o.pumpNext.by === s.turn.active) delete o.pumpNext;
     if (o.vira || o.temporarios) podaTemporarios(s, o, 'inicio'); // CR2-G R6
@@ -15274,7 +15281,7 @@ function dealCombatDamage(s) {
         darVeneno(s, player, toxicoDe(s, src), null, src.name); // M-253 · 702.164c: dano de combate a jogador com tóxico dá veneno
         if (src.commander) s.players[player].commanderDamage[src.oid] = (s.players[player].commanderDamage[src.oid] || 0) + amt;
       }
-      if (has(s, src, 'lifelink')) { s.players[src.controller].life += amt; s.players[src.controller].lifeGained = (s.players[src.controller].lifeGained || 0) + amt; }
+      if (has(s, src, 'lifelink')) ganhaVidaJogador(s, src.controller, amt); // CR2d.10
       noteEnchantedDealt(s, src, amt, obj ? null : player); // S48 · Armadillo Cloak: a aura de quem causou o dano é avisada
       if (player != null && !obj) disparaEvento(s, 'dano-combate', [src]); // S18 · dano de combate ao jogador
     }
@@ -15780,9 +15787,7 @@ function applyEffect(s, src, eff, tgt, events) {
         // S52 · dano prevenido por uma mágica que dá vida: quem preveniu ganha o que foi prevenido
         const ganhaVida = (quanto) => {
           if (src && src.preventGainTo != null && quanto > 0) {
-            const quem = src.preventGainTo;
-            s.players[quem].life += quanto;
-            s.players[quem].lifeGained = (s.players[quem].lifeGained || 0) + quanto;
+            ganhaVidaJogador(s, src.preventGainTo, quanto); // CR2d.10
           }
         };
         // S47 · "a cada oponente" é dano em jogador. Antes caía na varredura de criaturas.
@@ -15841,7 +15846,7 @@ function applyEffect(s, src, eff, tgt, events) {
         moveObject(s, obj.oid, 'exile'); obj.counters.time = eff.suspende; obj.suspensa = true; note({ suspensa: eff.suspende }); break; }
       moveObject(s, obj.oid, 'graveyard'); note({}); break;
     case 'draw': { const n = amountOf(s, src, eff.amount); draw(s, playerOf(), n); note({ amount: n }); } break;
-    case 'gain': { const n = amountOf(s, src, eff.amount); const who = playerOf(); s.players[who].life += n; s.players[who].lifeGained = (s.players[who].lifeGained || 0) + n; note({ amount: n }); } break;
+    case 'gain': { const n = amountOf(s, src, eff.amount); const who = playerOf(); const g = ganhaVidaJogador(s, who, n); note({ amount: g, ...(g < n ? { failed: true } : {}) }); } break; // CR2d.10
     case 'lose':
       { const n = amountOf(s, src, eff.amount);
         if (eff.target === 'each-opponent') { s.players.forEach((pl, i) => { if (i !== ctrl && !pl.lost) perdeVida(s, i, n); }); note({ amount: n }); break; }
@@ -16146,6 +16151,12 @@ function applyEffect(s, src, eff, tgt, events) {
       for (const f of fichas) moveObject(s, f.oid, 'exile');
       note({ amount: fichas.length, name: nome }); break;
     }
+    case 'efeito_jogador': { // CR2d.10 · efeito contínuo de resolução sobre jogadores, com duração
+      const e = {}; for (const k of REGRAS_JOGADOR) if (eff[k] != null) e[k] = eff[k];
+      const ate = eff.ate || 'fim-do-turno';
+      s.players.forEach((pl, i) => { if (!pl.lost && casaJogadores(eff.quem || 'voce', ctrl, i)) pl.efeitos = [...(pl.efeitos || []), { ...e, ate, by: ctrl, ts: relogio(s), turno: s.turn.number }]; });
+      note({ amount: 1 }); break;
+    }
     case 'ganhar_controle': { // M-272 · sem prazo; a criatura que muda de controle fica com enjoo (302.6) e sai do combate (506.4)
       if (!obj || obj.zone !== 'battlefield') { note({ failed: true }); break; }
       aplicaControle(s, obj, ctrl, eff.ate || 'sempre', src.ability ? s.objects[src.source] : src); // CR2d.6 · camada 2, com carimbo e duração
@@ -16384,8 +16395,7 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'gain_per_revealed': { // S30 · ganha vida pelo que foi revelado como custo
       const fonte2 = src.ability ? (s.objects[src.source] || src) : src;
       const n = (fonte2.revealed || 0) * (eff.times || 1);
-      s.players[ctrl].life += n; s.players[ctrl].lifeGained = (s.players[ctrl].lifeGained || 0) + n;
-      note({ amount: n }); break;
+      note({ amount: ganhaVidaJogador(s, ctrl, n) }); break; // CR2d.10
     }
     case 'to_library_shuffled': { // S26 · a carta volta embaralhada para o grimório
       const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
@@ -16581,7 +16591,7 @@ function disparaLoteDeDano(s, golpes) {
 function causouDano(s, src, n, aJogador = null) {
   const fonte = src && src.ability ? s.objects[src.source] : src;
   if (!fonte || !(n > 0)) return;
-  if (has(s, fonte, 'lifelink')) { const c = fonte.controller; s.players[c].life += n; s.players[c].lifeGained = (s.players[c].lifeGained || 0) + n; }
+  if (has(s, fonte, 'lifelink')) ganhaVidaJogador(s, fonte.controller, n); // CR2d.10
   if (fonte.zone === 'battlefield') noteEnchantedDealt(s, fonte, n, aJogador);
   if (aJogador != null && fonte.zone === 'battlefield' && s.facts[fonte.name]) disparaLoteDeDano(s, [{ fonte, jogador: aJogador }]); // M-258 · dano de efeito: um golpe
 }
@@ -17315,6 +17325,27 @@ function payAbilityCost(s, p, source, ab) {
   if (cost.sacrifice) sacrifice(s, source.oid);
 }
 /** "at least N life more than your starting life total" (Ayli). Estado antigo sem `startLife` usa a vida do formato. */
+/* ---------------- CR2d.10 · 613.10 e 613.11 · efeitos contínuos sobre jogadores e sobre as regras do jogo ----------------
+   De habilidade estática (`regraJogador: [{ quem, ... }]` no script, relativo a quem controla a permanente) ou de resolução
+   (`efeito_jogador`, guardado em s.players[i].efeitos com duração). O que existe: não pode ganhar vida (119.7), terrenos a mais
+   por turno (305.2) e sem tamanho máximo de mão (402.2). */
+const REGRAS_JOGADOR = ['naoGanhaVida', 'terrenosExtras', 'semLimiteDeMao'];
+const casaJogadores = (quem, dono, p) => quem === 'todos' || (quem === 'voce' ? p === dono : quem === 'oponentes' ? p !== dono : false);
+function regrasDoJogador(s, p) {
+  const out = [];
+  for (const o of battlefield(s)) { const r = ((s.facts[o.name] || {}).script || {}).regraJogador; if (!r || o.faceDown || semImpressas(s, o)) continue;
+    for (const e of r) if (casaJogadores(e.quem || 'voce', o.controller, p)) out.push(e); }
+  for (const e of (s.players[p] || {}).efeitos || []) out.push(e);
+  return out;
+}
+const naoGanhaVida = (s, p) => regrasDoJogador(s, p).some(e => e.naoGanhaVida);
+const terrenosPorTurno = (s, p) => 1 + regrasDoJogador(s, p).reduce((n, e) => n + (e.terrenosExtras || 0), 0);
+const semLimiteDeMao = (s, p) => regrasDoJogador(s, p).some(e => e.semLimiteDeMao);
+/** CR2d.10 · 119.7: todo ganho de vida passa por aqui; quem não pode ganhar vida não ganha (o evento que ganharia não acontece). */
+function ganhaVidaJogador(s, p, n) {
+  if (!(n > 0) || !s.players[p] || naoGanhaVida(s, p)) return 0;
+  s.players[p].life += n; s.players[p].lifeGained = (s.players[p].lifeGained || 0) + n; return n;
+}
 const vidaAcimaDaInicial = (s, p, n) => s.players[p].life >= (s.players[p].startLife != null ? s.players[p].startLife : ((FORMAT_RULES[s.format] || {}).life || 20)) + n;
 const canPayAbility = (s, p, source, ab) => {
   const cost = ab.cost || {};
@@ -17574,7 +17605,7 @@ const HANDLERS = {
     const o = doExilio ? exilada : owns(s, a.p, a.oid, 'hand');
     if (!s.facts[o.name].types.includes('land')) throw new RuleError('tipo', 'não é terreno');
     if (s.turn.active !== a.p || (!a.granted && (!isMain(s) || s.stack.length))) throw new RuleError('tempo', 'terreno só na sua fase principal, com a pilha vazia'); // M-268 · por efeito: só no seu turno (305.2)
-    if (s.players[a.p].landsPlayed >= 1) throw new RuleError('limite', 'já jogou terreno neste turno');
+    if (s.players[a.p].landsPlayed >= terrenosPorTurno(s, a.p)) throw new RuleError('limite', 'já jogou terreno neste turno'); // CR2d.10 · 305.2
     if (a.revela != null) { // M-252 · 'As this land enters, you may reveal a Plains or Swamp card from your hand'
       if (!revelaveisAoEntrar(s, a.p, o).includes(a.revela)) throw new RuleError('escolha', 'revele uma carta da mão que sirva para esta terra');
       o.revelaAoEntrar = a.revela; ev.push({ kind: 'effect', do: 'reveal', name: o.name, target: s.objects[a.revela].name });
@@ -18377,7 +18408,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
       out.push({ t: 'decline_free', p });
       for (const oid of s.pending.options || []) {
         const fc = s.facts[s.objects[oid].name];
-        if (fc.types.includes('land')) { if (s.pending.escondida && s.turn.active === p && s.players[p].landsPlayed < 1) out.push({ t: 'cast_free', p, oid }); continue; } // M-268
+        if (fc.types.includes('land')) { if (s.pending.escondida && s.turn.active === p && s.players[p].landsPlayed < terrenosPorTurno(s, p)) out.push({ t: 'cast_free', p, oid }); continue; } // M-268
         const modos = (fc.script && fc.script.modes) || [];
         const listas = modos.length ? modos.map((m, i) => ({ need: (m.effects || []).filter(SC.isTargeted), mode: i }))
           : [{ need: ((fc.script && fc.script.effects) || []).filter(SC.isTargeted), mode: null }];
@@ -18422,6 +18453,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
   out.push({ t: 'pass', p });
   const canSorcery = canSorceryNow(s, p);
   const payable = (o, extra) => !s.manaCheck || canPay(s, p, s.facts[o.name].cost, extra);
+  const terrenos = terrenosPorTurno(s, p); // CR2d.10 · 305.2: terrenos a mais por turno
   const OTIMISTA = s.manaCheck && temReducaoPorAlvo(s, p) ? 'otimista' : undefined; // M-259 · só com redução por alvo no campo
   const castWith = (o, need, mode, xv) => {
     const base = mode != null ? { t: 'cast', p, oid: o.oid, mode } : { t: 'cast', p, oid: o.oid };
@@ -18487,7 +18519,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
     for (let n = 1; n <= (k.multi ? 5 : 1); n++) { if (s.manaCheck && !canPay(s, p, somaCusto(s.facts[o.name].cost, kc, n), castExtra(s, p, o, 0, OTIMISTA))) break; out.push(n); } return out; };
   for (const oid of s.zones[p].hand) {
     const o = s.objects[oid], f = s.facts[o.name];
-    if (f.types.includes('land')) { if (canSorcery && s.players[p].landsPlayed < 1) { out.push({ t: 'play_land', p, oid }); for (const r of revelaveisAoEntrar(s, p, o, true)) out.push({ t: 'play_land', p, oid, revela: r }); } }
+    if (f.types.includes('land')) { if (canSorcery && s.players[p].landsPlayed < terrenos) { out.push({ t: 'play_land', p, oid }); for (const r of revelaveisAoEntrar(s, p, o, true)) out.push({ t: 'play_land', p, oid, revela: r }); } }
     else if ((canSorcery || !isSorcerySpeed(f)) && !(s.manaCheck && f.semCusto) && payable(o, castExtra(s, p, o, 0, OTIMISTA))) {
       // S50/Leva 104 · custo com X: quem conjura escolhe X (601.2b), de 0 até o que dá para pagar
       const xs = valoresDeX(s, (f.cost.x || 0), x => payable(o, castExtra(s, p, o, x, OTIMISTA)));
@@ -18504,7 +18536,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
   for (const oid of s.zones[p].exile) {
     const o = s.objects[oid]; if (!jogavelDoExilio(s, p, o)) continue; // M-270
     const f = s.facts[o.name];
-    if (f.types.includes('land')) { if (canSorcery && s.players[p].landsPlayed < 1) out.push({ t: 'play_land', p, oid }); continue; }
+    if (f.types.includes('land')) { if (canSorcery && s.players[p].landsPlayed < terrenos) out.push({ t: 'play_land', p, oid }); continue; }
     if ((canSorcery || !isSorcerySpeed(f)) && payable(o, castExtra(s, p, o, 0))) casts(o).forEach(x => out.push(x));
   }
   // S54 · metamorfose: conjura virada para baixo por {3}, como criatura
@@ -21386,6 +21418,7 @@ function descreveEfeito(e) {
     }
     case 'sacrifice_each': return 'cada jogador sacrifica uma permanente à sua escolha';
     case 'exilar_fichas_mesmo_nome': return 'exila as fichas de mesmo nome que esse jogador controla'; // M-258
+    case 'efeito_jogador': { const q = { voce: 'você', oponentes: 'cada oponente', todos: 'cada jogador' }[e.quem || 'voce']; const partes = []; if (e.naoGanhaVida) partes.push('não pode ganhar vida'); if (e.terrenosExtras) partes.push(`pode jogar ${e.terrenosExtras} terreno${e.terrenosExtras > 1 ? 's' : ''} a mais`); if (e.semLimiteDeMao) partes.push('não tem tamanho máximo de mão'); return `${q} ${partes.join(' e ')} ${duracaoPT(e.ate)}`; } // CR2d.10
     case 'ganhar_controle': return `ganha o controle de ${alvo || 'uma criatura'}${e.ate && e.ate !== 'sempre' ? ' ' + duracaoPT(e.ate) : ''}`; // M-272 · CR2d.6
     case 'copiar_esta': return `${e.seConjuradaDe === 'graveyard' ? 'se foi conjurada de um cemitério, ' : ''}pode copiar esta mágica (a cópia escolhe um alvo novo)`; // M-271
     case 'exilar_topo_conjuravel': return `exila as ${qtd(e.amount)} cartas de cima; as criaturas exiladas assim podem ser conjuradas do exílio enquanto você controlar um planeswalker ${e.enquantoControlar}`; // M-270

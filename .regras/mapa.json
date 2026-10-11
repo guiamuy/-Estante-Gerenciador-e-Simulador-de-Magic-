@@ -4917,11 +4917,15 @@
    "n": "613.10",
    "regra": "Interaction of Continuous Effects",
    "titulo": "Efeitos contínuos sobre jogadores",
-   "status": "ausente",
-   "falta": "Nenhum efeito contínuo recai sobre jogador (proteção ou resistência a magia de jogador, \"não pode ganhar vida\"): protections() (:10423) só olha permanente.",
+   "status": "parcial",
+   "falta": "Faltam \"não pode perder vida\", \"sua vida não pode mudar\", proteção de jogador por qualidade e \"não pode conjurar\" (601.3).",
    "esforco": "M",
    "depende": [
     "613.7"
+   ],
+   "evidencia": "CR2d.10/M-279 (v98): efeitos contínuos sobre jogadores de habilidade estática (regraJogador, relativo a quem controla) e de resolução (efeito_jogador, com duração): não pode ganhar vida (119.7; todo ganho de vida passa por ganhaVidaJogador), e a resistência a magia de jogador (M-260).",
+   "testes": [
+    "CR 613.10 · \"seus oponentes não podem ganhar vida\" (estática de quem controla a permanente): o oponente não ganha; você ganha"
    ]
   },
   {
@@ -4929,12 +4933,15 @@
    "regra": "Interaction of Continuous Effects",
    "titulo": "Efeitos sobre as regras do jogo",
    "status": "parcial",
-   "evidencia": "Existem como marcas: não pode atacar até o próximo turno (cantAttackNext :10754; rules.unit \"S61\"), provocar/goad (rules.unit \"S59\"), porta-estandarte (:11038; rules.unit \"S30 · Flagbearer\"), dano não pode ser prevenido (s.noPrevention), descontos de custo (affinityDiscount :10557; rules.unit \"S33\", \"S49\")",
-   "falta": "Tamanho máximo de mão é fixo por formato (FORMAT_RULES, enterStep :10713); não há \"sem limite de mão\", terreno extra por turno, nem ordem de carimbo entre efeitos de regra. Custos: só desconto e taxa de comandante, sem a ordem completa de 601.2f (aumentos, reduções, Trinisphere).",
+   "evidencia": "Existem como marcas: não pode atacar até o próximo turno (cantAttackNext :10754; rules.unit \"S61\"), provocar/goad (rules.unit \"S59\"), porta-estandarte (:11038; rules.unit \"S30 · Flagbearer\"), dano não pode ser prevenido (s.noPrevention), descontos de custo (affinityDiscount :10557; rules.unit \"S33\", \"S49\") · CR2d.10/M-279 (v98): terrenos a mais por turno (305.2; oferta e jogada) e sem tamanho máximo de mão (402.2), de estática ou de resolução.",
+   "falta": "Outros efeitos sobre as regras (ex.: \"jogue com a mão revelada\", ordem de carimbo entre regras conflitantes) não existem.",
    "esforco": "M",
    "depende": [
     "601.2f",
     "613.7"
+   ],
+   "testes": [
+    "CR 613.11 · \"você pode jogar um terreno a mais neste turno\" e \"sem tamanho máximo de mão\" (de resolução, até o fim do turno)"
    ]
   },
   {

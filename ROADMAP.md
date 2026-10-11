@@ -3419,6 +3419,11 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Golden:** idênticas, sem regravar. Versão não sobe.
 - **Próximo:** CR2d.10 — efeitos contínuos sobre jogadores e sobre as regras do jogo (613.10, 613.11).
 
+**CR2d.10 · Efeitos contínuos sobre jogadores e sobre as regras do jogo** ✅ (leva M-279, motor v98, sem mudança no que existe) — 2 testes de conformidade.
+- **Regra (613.10, 613.11, 119.7, 305.2, 402.2):** de habilidade estática (`regraJogador: [{ quem: voce | oponentes | todos, ... }]`, relativo a quem controla a permanente) ou de resolução (`{ do: 'efeito_jogador', quem, ..., ate }`, com duração: até o fim do turno, até o seu próximo turno, sem prazo). O que existe: **não pode ganhar vida** (todo ganho de vida — efeito, vínculo com a vida, vida de prevenção — passa por um caminho só e não acontece), **terrenos a mais por turno** (oferta e jogada) e **sem tamanho máximo de mão** (a limpeza não pede descarte).
+- **Fora (no mapa):** "não pode perder vida", "sua vida não pode mudar", proteção de jogador por qualidade, "não pode conjurar".
+- **Golden:** idênticas, sem regravar. Versão não sobe.
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
