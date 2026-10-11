@@ -5366,6 +5366,7 @@ const EFFECTS = {
   exaltado: { fields: ['criatura'], targets: [] }, // K-5 · exaltado (gerado pelo motor)
   cascata: { fields: ['mv'], targets: [] }, // K-7 · cascata (gerado pelo motor)
   /* ↓ V · efeitos da trilha verbos */
+  learn: { fields: [], targets: ['self'] }, // V-13 · 701.48 aprender: "You may discard a card. If you do, draw a card." (a Lição de fora do jogo não existe no app: parcial declarada)
   // V-12 · 701.60 suspeitar: a criatura fica suspeita (ameaçar e "não pode bloquear") até sair do campo ou até um efeito dizer que deixa de ser; `unsuspect` é o "is no longer suspected"
   suspect: { fields: [], targets: ['self-source', 'first-target', 'creature', 'creature-you-control', 'creature-opponent-controls'] },
   unsuspect: { fields: [], targets: ['self-source', 'first-target', 'creature', 'each-creature'] },
@@ -6281,6 +6282,11 @@ const isTargeted = e => TARGETED.has(e.target) || (!!e.target && typeof e.target
 const RAW_SCRIPTS = [
   /* ↓ K · scripts de carta da trilha keywords (texto oficial em .listas/oficiais-keywords.json) */
   /* ↓ V · scripts de carta da trilha verbos (texto oficial em .listas/oficiais-verbos.json) */
+  // V-13 · 701.48 aprender
+  { name: 'Igneous Inspiration', effects: [{ do: 'damage', amount: 3, target: 'any' }, { do: 'learn' }], // "Igneous Inspiration deals 3 damage to any target. Learn."
+    example: { target: 'opponent', expect: { opponentLife: -3 } } },
+  { name: 'Guiding Voice', effects: [{ do: 'counters', amount: 1, target: 'creature' }, { do: 'learn' }], // "Put a +1/+1 counter on target creature. Learn."
+    example: { target: 'own-creature', expect: { stats: [3, 3] } } },
   // V-12 · 701.60 suspeitar
   { name: 'Reasonable Doubt', effects: [{ do: 'counter', target: 'spell', unless: { mana: '{2}' } }, { do: 'suspect', target: 'creature', upTo: true }], // "Counter target spell unless its controller pays {2}. Suspect up to one target creature."
     example: { target: 'enemy-spell', expect: { countered: true } } },
@@ -17654,6 +17660,7 @@ function applyEffect(s, src, eff, tgt, events) {
       note({ pending: true }); break;
     }
     /* ↓ V · casos de applyEffect da trilha verbos */
+    case 'learn': aprender(s, src, events); break; // V-13 · 701.48
     case 'suspect': suspeitar(s, src, eff, tgt, events); break; // V-12 · 701.60
     case 'unsuspect': absolver(s, src, eff, tgt, events); break; // V-12 · 701.60a "is no longer suspected"
     case 'discover': descobrir(s, src, eff, events); break; // V-10 · 701.57
@@ -20458,6 +20465,19 @@ function cascataAoFundoK(s, p, oids) {
 }
 Object.assign(EXPORTS_K, { valorDaMagicaK });
 /* ↓ V · exportações de core.js da trilha verbos */
+/* V-13 · 701.48 aprender: "You may discard a card. If you do, draw a card. If you didn't discard a card, you may reveal a Lesson card you
+   own from outside the game and put it into your hand." Quem aprende é quem controla o efeito; descartar é escolha (a pergunta só aparece
+   com carta na mão), a carta descartada é escolhida pelo jogador e a compra só acontece se houve descarte. O descarte é descarte de
+   verdade (insanidade e gatilhos valem). PARCIAL: o app não tem cartas de fora do jogo (reserva) durante a partida — a parte da Lição
+   não é oferecida. */
+function aprender(s, src, events) {
+  const p = src.controller;
+  if (!s.zones[p].hand.length) return void events.push({ kind: 'effect', do: 'learn', name: src.name, target: s.players[p].name, amount: 0 });
+  s.pending = { kind: 'may_pay', p, cost: null, name: `${src.name} — aprender: descartar uma carta para comprar uma`,
+    then: { effects: [{ do: 'discard', amount: 1, target: 'self' }, { do: 'draw', amount: 1, target: 'self' }], source: src.ability ? src.source : src.oid, name: src.name, controller: p, targets: [] } };
+  events.push({ kind: 'choice', what: 'aprender', name: src.name, amount: 1 });
+}
+Object.assign(EXPORTS_V, { aprender });
 /* V-12 · 701.60 suspeitar. Suspeita é uma designação da permanente — não é habilidade nem valor copiável (b) — que dura até ela sair do
    campo ou até um efeito dizer que deixa de ser (a): a marca leva a encarnação do objeto (400.7). Enquanto dura, a permanente tem
    ameaçar e "esta criatura não pode bloquear" (c): as duas são habilidades, com o carimbo de quando ficou suspeita — quem perde todas as
@@ -23210,6 +23230,7 @@ Object.assign(PALAVRA_PT, { cascade: 'cascata' }); // K-7
 /* ↓ V · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha verbos */
 const MARCADOR_PT_V = { p1p1: '+1/+1', m1m1: '−1/−1', loyalty: 'de lealdade', poison: 'de veneno' }; // V-7
 const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas por descreveEfeito)
+  learn: () => 'aprende (você pode descartar uma carta; se descartar, compra uma)', // V-13
   suspect: e => `${e.target === 'self-source' ? 'esta permanente' : ALVO_PT[e.target] || descreveAlvo(e.target)} fica suspeita (tem ameaçar e não pode bloquear)`, // V-12
   unsuspect: e => e.target === 'each-creature' ? 'todas as criaturas suspeitas deixam de ser suspeitas' : `${e.target === 'self-source' ? 'esta permanente' : ALVO_PT[e.target] || descreveAlvo(e.target)} deixa de ser suspeita`,
   lutador: e => `escolhe ${ALVO_PT[e.target] || descreveAlvo(e.target)} para lutar`,

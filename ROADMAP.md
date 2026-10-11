@@ -3793,6 +3793,15 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora, declarado:** "can't become suspected" (Airtight Alibi) e a condição "if ~ is suspected" (Repeat Offender, Frantic Scapegoat) não têm forma de script. **Pedido à mesa (não bloqueia):** marca "suspeita" na carta — hoje a mesa mostra a ameaçar e o registro diz que ficou suspeita.
 - **Testes:** `verbos.suspeitar.unit` (9).
 
+**V-13 · CR3 · Aprender (701.48)** 🟡 (leva V-13, motor v110 sem subir: só acrescenta ações; partidas-referência idênticas) — 701.48 passa de ausente a **parcial**.
+- **Valor:** "Learn" funciona como ciclo de mão: você decide se descarta uma carta e, se descartar, compra uma.
+- **Regra:** quem aprende é quem controla o efeito; a pergunta só aparece com carta na mão; a carta descartada é escolhida pelo jogador; a compra só acontece se houve descarte; o resto da mágica resolve depois.
+- **Parcial, declarado:** a Lição "de fora do jogo" não existe — o app não tem reserva durante a partida. Quem não descarta não faz nada.
+- **Vocabulário:** efeito `learn`, sobre as decisões `may_pay` (sim ou não) e `discard` que já existiam.
+- **Cartas (texto oficial em `.listas/oficiais-verbos.json`, Oracle do Forge, 11/10/2026; segunda fonte pendente):** Igneous Inspiration, Guiding Voice.
+- **Adiado, declarado no mapa:** resistir (endure, 701.63) — a ficha Espírito N/N tem o mesmo nome para qualquer N, e fichas diferentes com o mesmo nome colidem no motor (pedido 5 à trilha `motor`).
+- **Testes:** `verbos.aprender.unit` (4).
+
 **CR4 · Habilidades de palavra-chave (702)** ○ — 150 ausentes e 21 parciais, em ondas pela frequência em cartas anotada no mapa: (1) fechar as evergreen e as parciais; (2) "muito comum" (proeza, tripular, reforço, convocar, cascata, evocar, persistir, imortal, fração de segundo, infectar e tóxico…); (3) "comum"; (4) "rara" e "uma coleção só". 50 a 65 levas.
 
 **CR4 · andamento (trilha `keywords`, levas `K-N`)** ▶ — ordem de 11/10/2026: primeiro as palavras-chave do acervo que o medidor do leitor (LT6) acusa fora do vocabulário, depois a onda 1 (proeza, convocar, cascata, evocar, persistir, imortal, exaltado, explorar, arremeter, improvisar, recomeçar, pós-vida, evoluir), a onda 2 (completar as parciais), a 3 (raras, da mais citada à menos) e a 4 (o resto de 702, com o que fica fora declarado no mapa). Auditoria independente por subagente ao fim de cada onda. Palavra-chave com parâmetro ("Ward {3}", "Kicker {B}", "Crew 1") também depende de o leitor ler a forma: isso é da trilha `motor` (leitor), avisada a cada leva.

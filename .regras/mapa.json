@@ -6295,13 +6295,19 @@
    "n": "701.48",
    "regra": "Keyword Actions",
    "titulo": "Learn",
-   "status": "ausente",
-   "falta": "não há \"pode descartar e comprar; senão, trazer uma Lição de fora do jogo\"",
+   "status": "parcial",
+   "falta": "\"reveal a Lesson card you own from outside the game and put it into your hand\": o app não tem cartas de fora do jogo (reserva) durante a partida, então a parte da Lição não é oferecida — quem não descarta não faz nada",
    "esforco": "M",
    "depende": [
     "reserva / fora do jogo (400.11)"
    ],
-   "cartas": "uma coleção só (Strixhaven)"
+   "cartas": "uma coleção só (Strixhaven)",
+   "evidencia": "V-13 · efeito `learn` (aprender em core.js, abaixo da âncora ↓ V): quem controla decide se descarta (pergunta de sim ou não, só com carta na mão), escolhe a carta, e compra uma só se descartou; o descarte é o comum (insanidade e gatilhos valem) e o resto da mágica resolve depois da escolha. Cartas: Igneous Inspiration, Guiding Voice (.listas/oficiais-verbos.json)",
+   "testes": [
+    "CR 701.48 · aprender: descartar é escolha de quem controla; quem descarta escolhe a carta e compra uma — e a mágica termina de resolver",
+    "CR 701.48 · aprender: recusar não descarta nem compra; de mão vazia não há pergunta",
+    "CR 701.48 · aprender: com uma carta só na mão o descarte ainda é escolha (sim ou não); Guiding Voice põe o marcador antes"
+   ]
   },
   {
    "n": "701.49",
@@ -6481,7 +6487,7 @@
    "regra": "Keyword Actions",
    "titulo": "Endure",
    "status": "ausente",
-   "falta": "não há \"ponha N marcadores nesta permanente ou crie um Espírito N/N\" (ficha de tamanho variável)",
+   "falta": "não há o verbo (\"cria uma ficha Espírito N/N branca, a menos que ponha N marcadores +1/+1 nesta permanente\"). Adiado pela trilha verbos em 11/10/2026: a ficha é N/N com o mesmo nome \"Spirit\" para qualquer N (e o mesmo nome da ficha do pós-vida), e o motor guarda os fatos de ficha por nome — duas fichas diferentes com o mesmo nome colidem (pedido 5 à trilha motor). Implementar antes disso daria ficha de tamanho errado em silêncio.",
    "esforco": "P",
    "cartas": "uma coleção só"
   },
