@@ -14072,6 +14072,83 @@ return { PainelEstatisticas, createDecksHome, createStarterDecks, createDeckEdit
 })();
 
 
+/* ==== src/engine/leitor.js ==== */
+const __m42 = (function () {
+  'use strict';
+  /* LT1 · Leitor de texto: monta o script de uma carta a partir do texto oficial (Oracle), frase a frase, só com o vocabulário que o
+     motor já executa (R1–R6). Regra de fidelidade: o leitor não adivinha. Frase que não casa com um padrão conhecido fica "não lida",
+     com o texto dela; a carta só sai "completa" quando todas as frases foram lidas e o script passa no validador. O que o leitor produz
+     ainda não joga sozinho: a revisão (LT7) decide. A concordância com os scripts escritos à mão é medida no portão (leitor.concordancia). */
+  const SC = __m23;
+  const NUMEROS = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+  const N = '(a|an|one|two|three|four|five|six|seven|eight|nine|ten|\\d+)';
+  const num = t => (/^\d+$/.test(t) ? +t : NUMEROS[String(t).toLowerCase()]);
+  // "target X" → alvo do vocabulário; cada verbo aceita só os alvos que o validador conhece (o que não casa fica não lido)
+  const ALVOS = {
+    'any target': 'any', 'target creature': 'creature', 'target player': 'player', 'target opponent': 'opponent', 'target planeswalker': 'planeswalker',
+    'target permanent': 'permanent', 'target artifact': 'artifact', 'target enchantment': 'enchantment', 'target land': 'land',
+    'target artifact or enchantment': 'artifact-enchantment', 'target creature you control': 'creature-you-control',
+    'target creature an opponent controls': 'creature-opponent-controls', 'target creature you don\'t control': 'creature-opponent-controls',
+    'each creature': 'each-creature', 'each opponent': 'each-opponent', 'each creature you control': 'each-own-creature',
+    'each creature your opponents control': 'each-opponent-creature', 'each creature you don\'t control': 'each-opponent-creature',
+    'target spell': 'spell', 'target creature spell': 'creature-spell', 'target noncreature spell': 'noncreature-spell', 'target instant spell': 'instant-spell',
+    'target artifact spell': 'artifact-spell', 'target spell or ability': 'spell-or-ability'
+  };
+  const alvo = t => ALVOS[String(t).toLowerCase()];
+  const SINAL = t => (t.startsWith('-') ? -1 : 1) * +t.replace(/^[+-]/, '');
+  /* Padrões de frase de efeito de mágica (a frase já sem ponto final, com o nome da carta trocado por "~"). Cada um devolve a lista de
+     efeitos ou null. A ordem importa só quando dois padrões casariam a mesma frase. */
+  const PADROES = [
+    [new RegExp(`^draw ${N} cards?$`, 'i'), m => [{ do: 'draw', amount: num(m[1]) }]],
+    [new RegExp(`^target player draws ${N} cards?$`, 'i'), m => [{ do: 'draw', amount: num(m[1]), target: 'player' }]],
+    [new RegExp(`^you gain ${N} life$`, 'i'), m => [{ do: 'gain', amount: num(m[1]) }]],
+    [new RegExp(`^(each opponent|target opponent|target player) loses ${N} life$`, 'i'), m => [{ do: 'lose', amount: num(m[2]), target: alvo(m[1]) }]],
+    [new RegExp(`^~ deals ${N} damage to (.+)$`, 'i'), m => alvo(m[2]) ? [{ do: 'damage', amount: num(m[1]), target: alvo(m[2]) }] : null],
+    [/^destroy (target [a-z ']+)$/i, m => alvo(m[1]) ? [{ do: 'destroy', target: alvo(m[1]) }] : null],
+    [/^exile (target [a-z ']+)$/i, m => alvo(m[1]) ? [{ do: 'exile', target: alvo(m[1]) }] : null],
+    [/^counter (target [a-z ']+)$/i, m => alvo(m[1]) ? [{ do: 'counter', target: alvo(m[1]) }] : null],
+    [/^return (target [a-z ']+) to its owner's hand$/i, m => alvo(m[1]) ? [{ do: 'bounce', target: alvo(m[1]) }] : null],
+    [/^(target creature|target creature you control) gets ([+-]\d+)\/([+-]\d+) until end of turn$/i, m => [{ do: 'pump', power: SINAL(m[2]), toughness: SINAL(m[3]), target: alvo(m[1]) }]],
+    [new RegExp(`^scry ${N}$`, 'i'), m => [{ do: 'scry', amount: num(m[1]) }]],
+    [new RegExp(`^surveil ${N}$`, 'i'), m => [{ do: 'surveil', amount: num(m[1]) }]],
+    [new RegExp(`^discard ${N} cards?$`, 'i'), m => [{ do: 'discard', amount: num(m[1]) }]],
+    [new RegExp(`^(target player|target opponent) discards ${N} cards?$`, 'i'), m => [{ do: 'discard', amount: num(m[2]), target: alvo(m[1]) }]],
+    [new RegExp(`^(target player|target opponent) mills ${N} cards?$`, 'i'), m => [{ do: 'mill', amount: num(m[2]), target: alvo(m[1]) }]],
+    [new RegExp(`^mill ${N} cards?$`, 'i'), m => [{ do: 'mill', amount: num(m[1]) }]]
+  ];
+  const semLembrete = t => String(t || '').replace(/\s*\([^)]*\)/g, '').trim();
+  const KW = new Set(SC.KEYWORDS.map(k => k.toLowerCase()));
+  /** Uma linha só de palavras-chave que o motor conhece ("Flying, vigilance"): o motor já as lê do texto. */
+  const linhaDePalavras = l => { const ps = l.split(/,\s*/).map(x => x.trim().toLowerCase()); return ps.length > 0 && ps.every(p => KW.has(p)); };
+  /** Frase de efeito → efeitos, ou null. "X, then Y" e "X. Y" viram frases separadas antes de chegar aqui. */
+  function leFrase(f) {
+    for (const [re, faz] of PADROES) { const m = f.match(re); if (m) { const e = faz(m); if (e && e.every(x => !x.target || x.target)) return e; } }
+    return null;
+  }
+  /** A carta → { script, frases: [{ texto, lida, motivo? }], completa }. Só mágicas instantâneas e feitiços nesta etapa (LT1): linhas de
+      permanente (habilidades ativadas, disparadas, estáticas) ficam não lidas até o LT2/LT3. */
+  function ler(card) {
+    const nome = card && card.name; const tipo = String((card && card.type_line) || '');
+    const linhas = semLembrete(card && card.oracle_text).split('\n').map(x => x.trim()).filter(Boolean);
+    const frases = [], efeitos = [];
+    const magica = /\b(Instant|Sorcery)\b/.test(tipo);
+    for (const linha of linhas) {
+      if (linhaDePalavras(linha)) { frases.push({ texto: linha, lida: true, palavras: true }); continue; }
+      if (!magica) { frases.push({ texto: linha, lida: false, motivo: 'habilidade de permanente (LT2/LT3)' }); continue; }
+      const partes = linha.replace(new RegExp(nome.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), '~').split(/\.\s+|,\s+then\s+|\.$/).map(x => x.replace(/\.$/, '').trim()).filter(Boolean);
+      for (const p of partes) {
+        const e = leFrase(p);
+        if (e) { frases.push({ texto: p, lida: true }); efeitos.push(...e); } else frases.push({ texto: p, lida: false, motivo: 'frase sem padrão conhecido' });
+      }
+    }
+    const lidas = frases.every(f => f.lida);
+    const script = efeitos.length ? { name: nome, effects: efeitos } : null;
+    const erros = script ? SC.validateScript({ ...script, example: { target: 'none', expect: {} } }).filter(e => !/cenário|example|exemplo/i.test(e)) : ['sem efeito'];
+    return { script, frases, completa: !!(magica && lidas && script && !erros.length), erros };
+  }
+  return { ler, leFrase, PADROES };
+})();
+
 /* ==== src/engine/core.js ==== */
 const __m16 = (function () {
 /* =====================================================================

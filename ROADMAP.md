@@ -3573,6 +3573,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Versão:** sobe para v109. Goldens regravados só pela versão. Partidas salvas antes não abrem.
 - **Próximo:** leitor de texto (plano LT1–LT8; decisão do dono sobre quando uma carta lida fica jogável, recomendada a revisão por lote).
 
+**LT · Leitor de texto** ▶ (decisão 8 de 06/10/2026; começa na leva M-295) — o motor passa a montar o script de uma carta a partir do texto oficial (Oracle), frase a frase, usando só o vocabulário que ele já executa. Regra de fidelidade: o leitor não adivinha; frase sem padrão fica "não lida" e a carta não sai completa. Toda carta lida por inteiro precisa dar exatamente o script escrito à mão e conferido (teste `leitor.concordancia`, zero divergência). Carta lida só joga depois da revisão (LT7; decisão do dono pendente, recomendada a revisão independente por lote). Etapas: LT1 mágicas simples · LT2 modos, palavras-chave com custo, fichas, "a menos que", restrições de alvo · LT3 habilidades disparadas de permanente · LT4 estáticas e ativadas · LT5 seletores gerais (R1) e efeitos contínuos (R3) · LT6 medição nas listas reais (o que falta por mecânica) · LT7 fluxo de revisão e registro · LT8 tela (estado "lida pelo motor, em revisão" em Jogar).
+
+**LT1 · Leitor de texto: mágicas simples** ✅ (leva M-295, motor v109 sem mudança no jogo) — 3 testes novos; módulo `src/engine/leitor.js` (`__m42`).
+- **Entregue:** `leitor.ler(carta)` devolve o script, a lista de frases (lida ou não, com o motivo) e se a carta saiu completa. Lê: comprar, ganhar e perder vida, dano, destruir, exilar, anular, devolver à mão, +N/+N até o fim do turno, vidência, vigiar, descartar, moer, com os alvos do vocabulário; linha só de palavras-chave conta como lida (o motor já as lê do texto).
+- **Medida:** 7 das 107 mágicas do acervo lidas por inteiro, todas idênticas ao script à mão.
+- **Fora:** permanentes (ficam não lidas até o LT3); qualquer alvo fora do vocabulário (não lido, nunca aproximado).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
