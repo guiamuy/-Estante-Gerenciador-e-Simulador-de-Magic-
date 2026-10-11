@@ -270,6 +270,18 @@ test('K12c · infectar (702.90): na criatura, o dano vira marcadores −1/−1; 
     assert.equal(s.players[a].life, 22, 'o vínculo com a vida conta o dano causado'); }
 });
 
+/* ↓ K · cenários da trilha keywords (CR4): cada palavra-chave que a trilha põe em KEYWORDS ganha a prova aqui */
+test('K-1 · metamorfo (702.73) e desprovido (702.114): lidos da palavra-chave impressa, definem tipo e cor', () => {
+  cobre('changeling'); cobre('devoid');
+  const cartas = { ...CARDS, Muda: cre('Muda', 1, 1, ['Changeling'], { type_line: 'Creature — Shapeshifter' }), Eld: cre('Eld', 2, 2, ['Devoid'], { colors: ['R'], mana_cost: '{1}{R}' }) };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 33, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  let muda, eld; [s, muda] = poe(s, 0, 'Muda'); [s, eld] = poe(s, 0, 'Eld');
+  assert.equal(E.metamorfoK(s, s.objects[muda], 'Goblin'), true, 'metamorfo é Goblin'); assert.equal(E.metamorfoK(s, s.objects[muda], 'Forest'), false, 'mas não Floresta');
+  assert.deepEqual(J(E.colorsOf(s, s.objects[eld])), [], 'desprovido é incolor');
+});
+
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));

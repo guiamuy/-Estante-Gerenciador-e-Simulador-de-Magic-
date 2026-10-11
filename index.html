@@ -5194,6 +5194,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'fear', 'intimidate', 'shadow', 'skulk', 'islandwalk', 'swampwalk', 'forestwalk', 'mountainwalk', 'plainswalk',
   'infect', // M-254 · 702.90
   /* ↓ K · palavras-chave da trilha keywords */
+  'changeling', 'devoid', // K-1 · 702.73 e 702.114: definem característica (604.3), valem em toda zona, lidas da palavra-chave impressa
   /* ↓ V · palavras-chave da trilha verbos */
   /* ↓ T · palavras-chave da trilha tipos */
 ];
@@ -14590,7 +14591,7 @@ function cardFacts(card) {
     // CR 202.1b / 118.6: carta sem custo de mana (Living End, Lotus Bloom) tem custo impagável, não custo zero
     // (só quando o dado diz valor de mana 0: registro sem o campo de custo mas com valor de mana conhecido não é "sem custo")
     semCusto: !tl.includes('land') && !((card && card.cmc) > 0) && !String((card && (card.mana_cost || (card.faces && card.faces[0] && card.faces[0].mana_cost))) || '').trim(),
-    colors: ((card && (card.colors || card.color_identity)) || []).map(c => String(c).toUpperCase()),
+    colors: coresImpressasK(kw, ((card && (card.colors || card.color_identity)) || []).map(c => String(c).toUpperCase())), // K-1 · 702.114a desprovido
     typeText: String(card && card.type_line || ''),
     cost: parseCost(card && (card.mana_cost || (card.faces && card.faces[0] && card.faces[0].mana_cost))),
     produces: parseProduction(card),
@@ -14782,14 +14783,14 @@ function bonus(s, host) {
 function countFor(s, src, per) {
   if (per && typeof per === 'object' && per.subtype) {
     const rx = new RegExp('\\b' + per.subtype + '\\b', 'i');
-    return battlefield(s).filter(o => o.controller === src.controller && !o.faceDown && (isChangeling(s, o) || rx.test(linhaDeTipo(s, o)))).length; // R9 · virada para baixo não tem tipo
+    return battlefield(s).filter(o => o.controller === src.controller && !o.faceDown && (isChangeling(s, o, per.subtype) || rx.test(linhaDeTipo(s, o)))).length; // R9 · virada para baixo não tem tipo
   }
   if (per === 'trigger-value') return src.triggerValue || 0; // S48 · quanto o gatilho trouxe (dano causado)
   if (per === 'chosen-type-permanents') { // S50 · permanentes suas do tipo escolhido
     const tipo = src.chosenType;
     if (!tipo) return 0;
     const rx = new RegExp('\\b' + tipo + '\\b', 'i');
-    return battlefield(s).filter(o => o.controller === src.controller && !o.faceDown && (isChangeling(s, o) || rx.test(linhaDeTipo(s, o)))).length; // R9 · virada para baixo não tem tipo
+    return battlefield(s).filter(o => o.controller === src.controller && !o.faceDown && (isChangeling(s, o, tipo) || rx.test(linhaDeTipo(s, o)))).length; // R9 · virada para baixo não tem tipo
   }
   if (per === 'counters-on-source') return (src.counters || {}).p1p1 || 0;
   const ench = s.zones.flatMap(z => z.battlefield).map(oid => s.objects[oid]).filter(o => s.facts[o.name].types.includes('enchantment'));
@@ -15664,8 +15665,8 @@ function servePelaMarca(s, p, oid, t) {
   const g = ((s.facts[t.name] || {}).script || {}).aoGastarMana; if (!g || !g.criaturaQueCompartilhaTipoComOComandante) return false;
   const o = s.objects[oid]; if (!o || !(s.facts[o.name].types || []).includes('creature')) return false;
   const tiposCriatura = x => ((linhaDeTipo(s, x)).split('—')[1] || '').trim().split(/\s+/).filter(Boolean);
-  const meus = new Set(tiposCriatura(o)); if (s.facts[o.name].changeling || (s.facts[o.name].script || {}).changeling) return Object.values(s.objects).some(c => c.commander && c.owner === p);
-  return Object.values(s.objects).some(c => c.commander && c.owner === p && (s.facts[c.name].types || []).includes('creature') && tiposCriatura(c).some(x => meus.has(x)));
+  const meus = new Set(tiposCriatura(o)), todos = isChangeling(s, o); // K-1 · 702.73a: metamorfo dos dois lados (mágica e comandante)
+  return Object.values(s.objects).some(c => c.commander && c.owner === p && (s.facts[c.name].types || []).includes('creature') && (todos ? (isChangeling(s, c) || tiposCriatura(c).length > 0) : isChangeling(s, c) ? meus.size > 0 : tiposCriatura(c).some(x => meus.has(x))));
 }
 const canPay = (s, p, cost, extra = 0) => !!planTaps(s, p, cost, extra);
 /** CR2c.4 · 107.4f/601.2f: quantos símbolos phyrexianos o custo tem; com `vida` = n, os n primeiros são pagos com 2 de vida
@@ -15735,7 +15736,7 @@ function affinityDiscount(s, p, o) {
 }
 /** S49 · exigência de criatura para desconto: subtipo, ou "que não seja daquele subtipo". */
 function matchesCreatureReq(s, o, req) {
-  const tem = x => isChangeling(s, o) || new RegExp('\\b' + x + '\\b', 'i').test(linhaDeTipo(s, o));
+  const tem = x => isChangeling(s, o, x) || new RegExp('\\b' + x + '\\b', 'i').test(linhaDeTipo(s, o));
   if (req.subtype && !tem(req.subtype)) return false;
   if (req.notSubtype && tem(req.notSubtype)) return false;
   return true;
@@ -16299,12 +16300,12 @@ function selCasa(s, p, o, sel, selfOid, opts = {}) {
   if (sel.outra && o.oid === selfOid) return false;
   if ((sel.tipos || []).length && !sel.tipos.some(t => sel.tiposDaCarta ? (f.types || []).includes(t) : selTemTipo(s, o, t, sel.tiposImpressos))) return false; // R5a · tiposDaCarta: os da carta, sem camadas
   if ((sel.semTipos || []).some(t => selTemTipo(s, o, t, sel.tiposImpressos))) return false;
-  if ((sel.subtipos || []).length && !(isChangeling(s, o) || sel.subtipos.some(x => new RegExp('\\b' + x + '\\b').test(o.zone === 'battlefield' ? linhaDeTipo(s, o) : (f.typeText || ''))))) return false;
+  if ((sel.subtipos || []).length && !(sel.subtipos.some(x => isChangeling(s, o, x) || new RegExp('\\b' + x + '\\b').test(o.zone === 'battlefield' ? linhaDeTipo(s, o) : (f.typeText || ''))))) return false;
   if (sel.permanente && !isPermanent(f)) return false;
   // M-230 · varreduras: palavra-chave, subtipo poupado (metamorfo conta como tendo) e valor de mana
   if (sel.palavra && !has(s, o, sel.palavra)) return false;
   if (sel.semPalavra && has(s, o, sel.semPalavra)) return false;
-  if ((sel.semSubtipos || []).some(x => isChangeling(s, o) || new RegExp('\\b' + x + '\\b', 'i').test(o.zone === 'battlefield' ? linhaDeTipo(s, o) : (f.typeText || '')))) return false; // CR2d.12 · subtipo de agora
+  if ((sel.semSubtipos || []).some(x => isChangeling(s, o, x) || new RegExp('\\b' + x + '\\b', 'i').test(o.zone === 'battlefield' ? linhaDeTipo(s, o) : (f.typeText || '')))) return false; // CR2d.12 · subtipo de agora
   if (sel.mvMax != null || sel.mvMin != null) {
     const vm = o.faceDown ? 0 : (f.cmc || 0) + (o.zone === 'stack' ? (o.xPaid || 0) * ((f.cost || {}).x || 0) : 0);
     const fonte = opts.src || { controller: p };
@@ -16492,7 +16493,7 @@ function targetAllowed(s, eff, tgt, src) {
   const f = s.facts[o.name] || {};
   if (eff.targetNotLegendary && f.legendary) return false;
   if (eff.targetNotFromHand && o.zone === 'stack' && o.castFrom === 'hand') return false;
-  if (eff.targetSubtype && !(o.zone === 'battlefield' && (isChangeling(s, o) || new RegExp('\\b' + eff.targetSubtype + '\\b').test(linhaDeTipo(s, o))))) return false; // CR2d.2 · "target Assembly-Worker creature" // CR2c.4 · "that wasn't cast from its owner's hand" (Wash Away)
+  if (eff.targetSubtype && !(o.zone === 'battlefield' && (isChangeling(s, o, eff.targetSubtype) || new RegExp('\\b' + eff.targetSubtype + '\\b').test(linhaDeTipo(s, o))))) return false; // CR2d.2 · "target Assembly-Worker creature" // CR2c.4 · "that wasn't cast from its owner's hand" (Wash Away)
   if (eff.targetNotLand && (f.types || []).includes('land')) return false; // R11 · "nonland permanent"
   if (eff.targetTypes && !eff.targetTypes.some(x => (f.types || []).includes(x))) return false; // R11 · "instant or sorcery spell"
   if (eff.targetNotColor && coresDe(s, o).includes(eff.targetNotColor)) return false; // S38 · "criatura não-preta" · CR2d.8
@@ -17232,7 +17233,7 @@ function applyEffect(s, src, eff, tgt, events) {
         .flatMap(t => t.trim().split(/\s+/)).filter(Boolean))];
       if (!tipos.length) { note({ amount: 0 }); break; }
       // Leva 106 · sem corte em 12: todos os tipos, os que mais rendem para quem escolhe primeiro
-      const rende = t => battlefield(s).filter(o => o.controller === ctrl && (isChangeling(s, o) || new RegExp('\\b' + t + '\\b', 'i').test(linhaDeTipo(s, o)))).length;
+      const rende = t => battlefield(s).filter(o => o.controller === ctrl && (isChangeling(s, o, t) || new RegExp('\\b' + t + '\\b', 'i').test(linhaDeTipo(s, o)))).length;
       const ordem = tipos.map(t => [t, rende(t)]).sort((x, y) => y[1] - x[1] || (x[0] < y[0] ? -1 : 1)).map(x => x[0]);
       s.pending = { kind: 'choose_type', p: ctrl, oid: fonte.oid, options: ordem };
       note({ pending: true }); break;
@@ -17360,7 +17361,7 @@ const ehVarredura = eff => !!SC.cadaDe(eff);
 function sweepTargetsLegado(s, src, eff) {
   const kind = typeof eff === 'string' ? eff : eff.target;
   const except = typeof eff === 'string' ? null : eff.exceptSubtype; // S38 · varredura que poupa um subtipo
-  const fora = x => except && (isChangeling(s, x) || new RegExp('\\b' + except + '\\b', 'i').test(linhaDeTipo(s, x)));
+  const fora = x => except && (isChangeling(s, x, except) || new RegExp('\\b' + except + '\\b', 'i').test(linhaDeTipo(s, x)));
   if (kind === 'each-flying-creature') return battlefield(s).filter(x => isCreature(s, x) && has(s, x, 'flying') && !fora(x));
   if (kind === 'each-nonflying-creature') return battlefield(s).filter(x => isCreature(s, x) && !has(s, x, 'flying') && !fora(x)); // Q11 · Krark-Clan Shaman
   // Leva 107 · "each creature and planeswalker they control" (End the Festivities)
@@ -17379,7 +17380,7 @@ function matchesFilter(s, o, filter) {
   if (filter.keyword && !(f.kw || []).includes(String(filter.keyword).toLowerCase())) return false;
   // S44 · "básico" e "um destes subtipos" (Sheltering Landscape)
   if (filter.basic && !/^\s*basic\b/i.test(f.typeText || '')) return false;
-  if ((filter.subtypes || []).length && !filter.subtypes.some(x => new RegExp('\\b' + x + '\\b', 'i').test(f.typeText || ''))) return false;
+  if ((filter.subtypes || []).length && !filter.subtypes.some(x => isChangeling(s, o, x) || new RegExp('\\b' + x + '\\b', 'i').test(f.typeText || ''))) return false; // K-1 · 702.73a: o metamorfo vale também no grimório e na mão
   if ((filter.notTypes || []).some(x => (f.types || []).includes(x))) return false; // S45 · "que não seja criatura nem terreno"
   const types = filter.types || [];
   return !types.length || types.some(x => (f.types || []).includes(x));
@@ -17769,7 +17770,7 @@ function triggerConditionMet(s, o, cond) {
   return true;
 }
 /** S34 · metamorfo: a carta conta como qualquer subtipo de criatura. */
-const isChangeling = (s, o) => !semImpressas(s, o) && !!((s.facts[o.name].script || {}).changeling) && !(mutacao(s, o) || {}).subtiposDefinidos; // CR2d.12 · 613.3
+const isChangeling = (s, o, sub) => metamorfoK(s, o, sub); // K-1 · 702.73a inteira: palavra-chave impressa, toda zona, só tipo de criatura (metamorfoK)
 function matchesTriggerFilter(s, o, filter) {
   if (!filter) return true;
   const f = s.facts[o.name];
@@ -17779,7 +17780,7 @@ function matchesTriggerFilter(s, o, filter) {
   if (filter.anyTypes && !filter.anyTypes.some(x => tipos.includes(x))) return false; // R11 · "creature or planeswalker" (Cruel Celebrant)
   if (filter.noncreature && tipos.includes('creature')) return false;
   if (lki ? lki.faceDown : o.faceDown) return false; // S54 · virada para baixo não combina com filtro de carta
-  if (filter.subtype && !isChangeling(s, o) && !new RegExp('\\b' + filter.subtype + '\\b', 'i').test(lki ? lki.linha : linhaDeTipo(s, o))) return false; // CR2d.12 · CR2b.6
+  if (filter.subtype && !isChangeling(s, o, filter.subtype) && !new RegExp('\\b' + filter.subtype + '\\b', 'i').test(lki ? lki.linha : linhaDeTipo(s, o))) return false; // CR2d.12 · CR2b.6
   return true;
 }
 /** S57 · aventurar-se na masmorra (regra 309). Sem masmorra, você escolhe uma e
@@ -18079,7 +18080,7 @@ function extraCostCandidates(s, p, spec, selfOid, needUntapped) {
     (spec.types || []).some(x => x === 'creature' ? isCreature(s, o) : !o.faceDown && s.facts[o.name].types.includes(x)) && // R9 · concedida é Aura; virada para baixo é só criatura
     // S50 · o custo pode pedir um subtipo ("dois Elfos que você controla")
     // Leva 108 · virada para baixo não tem tipo de criatura (708.2): não serve como "Elfo" num custo
-    (!spec.subtype || (!o.faceDown && (isChangeling(s, o) || new RegExp('\\b' + spec.subtype + '\\b', 'i').test(linhaDeTipo(s, o))))) &&
+    (!spec.subtype || (!o.faceDown && (isChangeling(s, o, spec.subtype) || new RegExp('\\b' + spec.subtype + '\\b', 'i').test(linhaDeTipo(s, o))))) &&
     // S46 · a cor pedida pelo custo vale também para saber se dá para pagar
     (!spec.color || coresDe(s, o).includes(spec.color)) && // CR2d.8
     // S62 · enjoo de invocação vale só para o {T} da própria permanente (302.6).
@@ -19927,6 +19928,26 @@ function invariants(s, expectedObjects) {
 
 const EXPORTS_K = {}, EXPORTS_V = {}, EXPORTS_T = {}; // ↓ cada trilha preenche o seu (Object.assign) logo abaixo da sua âncora
 /* ↓ K · exportações de core.js da trilha keywords */
+/* K-1 · 702.73 metamorfo e 702.114 desprovido: habilidades que definem característica (604.3a), lidas da palavra-chave impressa
+   (Scryfall `keywords`) ou da marca do script (sem rede); valem em toda zona, até fora da partida (702.73a, 702.114a). */
+const TIPOS_DE_CRIATURA_K = new Set(['Time Lord', 'Advisor', 'Aetherborn', 'Alien', 'Ally', 'Angel', 'Antelope', 'Ape', 'Archer', 'Archon', 'Armadillo', 'Army', 'Artificer', 'Assassin', 'Assembly-Worker', 'Astartes', 'Atog', 'Aurochs', 'Avatar', 'Azra', 'Badger', 'Balloon', 'Barbarian', 'Bard', 'Basilisk', 'Bat', 'Bear', 'Beast', 'Beaver', 'Beeble', 'Beholder', 'Berserker', 'Bird', 'Bison', 'Blinkmoth', 'Boar', 'Bringer', 'Brushwagg', 'Camarid', 'Camel', 'Capybara', 'Caribou', 'Carrier', 'Cat', 'Centaur', 'Child', 'Chimera', 'Citizen', 'Cleric', 'Clown', 'Cockatrice', 'Construct', 'Coward', 'Coyote', 'Crab', 'Crocodile', 'C\'tan', 'Custodes', 'Cyberman', 'Cyclops', 'Dalek', 'Dauthi', 'Demigod', 'Demon', 'Deserter', 'Detective', 'Devil', 'Dinosaur', 'Djinn', 'Doctor', 'Dog', 'Dragon', 'Drake', 'Dreadnought', 'Drix', 'Drone', 'Druid', 'Dryad', 'Dwarf', 'Echidna', 'Efreet', 'Egg', 'Elder', 'Eldrazi', 'Elemental', 'Elephant', 'Elf', 'Elk', 'Employee', 'Eternal', 'Eye', 'Faerie', 'Ferret', 'Fish', 'Flagbearer', 'Fox', 'Fractal', 'Frog', 'Fungus', 'Gamer', 'Gamma', 'Gargoyle', 'Germ', 'Giant', 'Giraffe', 'Gith', 'Glimmer', 'Gnoll', 'Gnome', 'Goat', 'Goblin', 'God', 'Golem', 'Gorgon', 'Graveborn', 'Gremlin', 'Griffin', 'Guest', 'Hag', 'Halfling', 'Hamster', 'Harpy', 'Hedgehog', 'Hellion', 'Hero', 'Hippo', 'Hippogriff', 'Homarid', 'Homunculus', 'Horror', 'Horse', 'Human', 'Hydra', 'Hyena', 'Illusion', 'Imp', 'Incarnation', 'Inhuman', 'Inkling', 'Inquisitor', 'Insect', 'Jackal', 'Jellyfish', 'Juggernaut', 'Kangaroo', 'Kavu', 'Kirin', 'Kithkin', 'Knight', 'Kobold', 'Kor', 'Kraken', 'Kree', 'Llama', 'Lamia', 'Lammasu', 'Leech', 'Lemur', 'Leviathan', 'Lhurgoyf', 'Licid', 'Lizard', 'Lobster', 'Manticore', 'Masticore', 'Mercenary', 'Merfolk', 'Metathran', 'Minion', 'Minotaur', 'Mite', 'Mole', 'Monger', 'Mongoose', 'Monk', 'Monkey', 'Moogle', 'Moonfolk', 'Mount', 'Mouse', 'Mutant', 'Myr', 'Mystic', 'Nautilus', 'Necron', 'Nephilim', 'Nightmare', 'Nightstalker', 'Ninja', 'Noble', 'Noggle', 'Nomad', 'Nymph', 'Octopus', 'Ogre', 'Ooze', 'Orb', 'Orc', 'Orgg', 'Otter', 'Ouphe', 'Ox', 'Oyster', 'Pangolin', 'Peasant', 'Pegasus', 'Pentavite', 'Performer', 'Pest', 'Phelddagrif', 'Phoenix', 'Phyrexian', 'Pilot', 'Pincher', 'Pirate', 'Plant', 'Platypus', 'Porcupine', 'Possum', 'Praetor', 'Primarch', 'Prism', 'Processor', 'Qu', 'Rabbit', 'Raccoon', 'Ranger', 'Rat', 'Rebel', 'Reflection', 'Rhino', 'Rigger', 'Robot', 'Rogue', 'Sable', 'Salamander', 'Samurai', 'Sand', 'Saproling', 'Satyr', 'Scarecrow', 'Scientist', 'Scion', 'Scorpion', 'Scout', 'Sculpture', 'Seal', 'Serf', 'Serpent', 'Servo', 'Shade', 'Shaman', 'Shapeshifter', 'Shark', 'Sheep', 'Shi\'ar', 'Siren', 'Skeleton', 'Skrull', 'Skunk', 'Slith', 'Sliver', 'Sloth', 'Slug', 'Snail', 'Snake', 'Soldier', 'Soltari', 'Sorcerer', 'Spawn', 'Specter', 'Spellshaper', 'Sphinx', 'Spider', 'Spike', 'Spirit', 'Splinter', 'Sponge', 'Spy', 'Squid', 'Squirrel', 'Starfish', 'Surrakar', 'Survivor', 'Symbiote', 'Synth', 'Tentacle', 'Tetravite', 'Thalakos', 'Thopter', 'Thrull', 'Tiefling', 'Toy', 'Treefolk', 'Trilobite', 'Triskelavite', 'Troll', 'Turtle', 'Tyranid', 'Unicorn', 'Utrom', 'Vampire', 'Varmint', 'Vedalken', 'Villain', 'Volver', 'Wall', 'Walrus', 'Warlock', 'Warrior', 'Weasel', 'Weird', 'Werewolf', 'Whale', 'Wizard', 'Wolf', 'Wolverine', 'Wombat', 'Worm', 'Wraith', 'Wurm', 'Yeti', 'Zombie', 'Zubera'].map(x => x.toLowerCase())); // 205.3m, edição de 25/09/2026
+/** 205.3m · o subtipo é um tipo de criatura (o metamorfo não vira Floresta, Aura nem Equipamento). */
+function ehTipoDeCriaturaK(sub) { return TIPOS_DE_CRIATURA_K.has(String(sub || '').replace(/’/g, "'").toLowerCase()); }
+/** 702.73a · o objeto é todo tipo de criatura (sem `sub`: tem todos; com `sub`: tem aquele, se for tipo de criatura).
+    205.3d: só criatura ou kindred tem tipo de criatura. 708.2: virada para baixo não tem habilidade nem subtipo (camada 1b).
+    613.3: efeito que define o tipo de criatura depois (camada 4) sobrepõe; perder as habilidades (camada 6) não tira os tipos,
+    porque o metamorfo já valeu na camada 4 (rulings da Masked Vandal, 05/02/2021). */
+function metamorfoK(s, o, sub) {
+  if (!o || o.faceDown || !s.facts[o.name]) return false;
+  const f = s.facts[o.name];
+  if (!((f.kw || []).includes('changeling') || (f.script || {}).changeling)) return false;
+  if (!/\b(creature|kindred|tribal)\b/i.test(o.zone === 'battlefield' ? linhaDeTipo(s, o) : (f.typeText || ''))) return false;
+  if ((mutacao(s, o) || {}).subtiposDefinidos) return false;
+  return sub == null || ehTipoDeCriaturaK(sub);
+}
+/** 702.114a · desprovido: o objeto é incolor, mesmo com mana colorida no custo. */
+function coresImpressasK(kw, cores) { return (kw || []).includes('devoid') ? [] : cores; }
+Object.assign(EXPORTS_K, { metamorfoK, ehTipoDeCriaturaK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-1 · 701.14 lutar. Cada criatura causa dano igual ao próprio poder à outra (a), as duas quantias medidas antes de qualquer dano;
    se uma delas saiu do campo, deixou de ser criatura ou virou alvo ilegal, nenhuma luta (b); lutar consigo mesma é o dobro do poder
@@ -22363,6 +22384,7 @@ const IGUAL_A = { 'life-lost-this-turn': 'à vida que você perdeu neste turno',
 const plural = (n, um, muitos) => (n === 1 ? `${n} ${um}` : `${n} ${muitos}`);
 /** Uma frase por efeito. O que o dicionário não conhece vira o nome do efeito, nunca some. */
 /* ↓ K · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha keywords */
+Object.assign(PALAVRA_PT, { changeling: 'metamorfo', devoid: 'desprovido' }); // K-1
 /* ↓ V · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha verbos */
 const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas por descreveEfeito)
   lutador: e => `escolhe ${ALVO_PT[e.target] || descreveAlvo(e.target)} para lutar`,

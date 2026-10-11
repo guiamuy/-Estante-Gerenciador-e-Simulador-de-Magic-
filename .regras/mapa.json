@@ -7450,15 +7450,24 @@
    "n": "702.73",
    "regra": "Keyword Abilities",
    "titulo": "Changeling",
-   "status": "parcial",
-   "evidencia": "isChangeling (index.html:11735) lê a marca changeling do script; respeitado em gatilhos por subtipo (11743), contagens (10089-10106, 11393), alvo por subtipo (11876), varredura (11466); testes rules.unit \"S34 · metamorfo conta como qualquer subtipo de criatura\", \"S38 · a varredura poupa o subtipo declarado\" e pauper.regras \"Leva 107 · Priest of Titania...\"; carta Masked Vandal.",
-   "falta": "Só vale com a marca no script (não sai do texto; não está em KEYWORDS). Vários testes de subtipo ignoram o metamorfo: filtro de busca/revelação em outras zonas (filter.subtypes, 11484 — 702.73a vale em todas as zonas), manaRule.needsSubtype (10417), lista de tipos presentes (11389). Não pode ser concedido nem perdido.",
+   "status": "coberta",
+   "evidencia": "K-1: metamorfoK (core.js, abaixo da âncora ↓ K das exportações) lê a palavra-chave impressa (Scryfall `keywords`, ficha com `keywords`) ou a marca do script (sem rede); 'changeling' em KEYWORDS (o leitor lê a linha). isChangeling(s, o, sub) passa o subtipo em cada teste (contagem por subtipo, gatilho, alvo, seletor, varredura que poupa, custo, desconto, escolha de tipo) e só aceita tipo de criatura (205.3m, 324 tipos da edição de 25/09/2026); vale em toda zona (busca no grimório, mágica na pilha, comandante na zona de comando: Path of Ancestry); 205.3d (só criatura ou kindred); 708.2 (virada para baixo não tem); perder as habilidades não tira os tipos e um tipo de criatura definido depois sobrepõe (rulings da Masked Vandal, 05/02/2021). Concedido por outro efeito (camada 6) não dá tipo, como manda 613.1d/604.3a (só impresso, da ficha ou de cópia).",
    "esforco": "P",
    "depende": [
     "604.3",
     "205.3m"
    ],
-   "cartas": "comum (volta em várias coleções)"
+   "cartas": "comum (volta em várias coleções)",
+   "testes": [
+    "CR 702.73a · metamorfo lido da palavra-chave impressa (sem marca no script): o \"outro Elfo entra\" dispara",
+    "CR 702.73a · o metamorfo vale em toda zona: \"busque uma carta de Elfo\" acha a criatura com metamorfo no grimório",
+    "CR 205.3m · o metamorfo só tem tipos de criatura: não é Floresta, nem Aura, nem Equipamento",
+    "CR 702.73a · ruling da Masked Vandal: perder todas as habilidades não tira os tipos; definir um tipo de criatura depois, sim; virada para baixo não tem tipo",
+    "CR 702.73a · metamorfo concedido pela carta da ficha conta; a palavra-chave entra no vocabulário do motor",
+    "K-1 · metamorfo (702.73) e desprovido (702.114): lidos da palavra-chave impressa, definem tipo e cor",
+    "CR 702.73a · comandante com metamorfo compartilha tipo com qualquer criatura (Faerie Seer com a mana da Path dispara)",
+    "CR 702.73a · metamorfo na pilha compartilha tipo com o comandante (Masked Vandal com a mana da Path of Ancestry dispara a vidência)"
+   ]
   },
   {
    "n": "702.74",
@@ -7984,8 +7993,12 @@
    "regra": "Keyword Abilities",
    "titulo": "Devoid",
    "status": "coberta",
-   "evidencia": "Script `self.devoid` (validador index.html:4691) zera as cores do fato da carta na criação da partida (:10166), valendo em qualquer zona. Sonda sonda-702c.mjs: Writhing Chrysalis ({2}{R}{G}) fica com colors [].",
-   "cartas": "comum (Eldrazi; uma carta nas listas: Writhing Chrysalis)"
+   "evidencia": "K-1: além da marca `self.devoid` do script (sem rede), a palavra-chave impressa 'devoid' zera as cores no fato da carta (coresImpressasK em cardFacts), valendo em toda zona; 'devoid' em KEYWORDS (o leitor lê a linha). Sonda sonda-702c.mjs: Writhing Chrysalis ({2}{R}{G}) fica com colors [].",
+   "cartas": "comum (Eldrazi; uma carta nas listas: Writhing Chrysalis)",
+   "testes": [
+    "CR 702.114a · desprovido lido da palavra-chave impressa: incolor mesmo com mana colorida no custo, em qualquer zona",
+    "K-1 · metamorfo (702.73) e desprovido (702.114): lidos da palavra-chave impressa, definem tipo e cor"
+   ]
   },
   {
    "n": "702.115",
