@@ -199,3 +199,51 @@ test('CR 702.21a · perder todas as habilidades tira a salvaguarda impressa; vir
   let v = ward({}); let c2; [v, c2] = poe(v, 1 - v.turn.active, 'Crab'); v = J(v); v.objects[c2].faceDown = true;
   assert.equal(J(E.wardsDeK(v, v.objects[c2])).length, 0, '708.2: virada para baixo não tem habilidade');
 });
+
+/* ---------------- K-3 · 702.108 proeza ---------------- */
+import { readFileSync } from 'node:fs';
+const OFICIAIS_K = JSON.parse(readFileSync(new URL('./.listas/oficiais-keywords.json', import.meta.url), 'utf8')).cartas;
+/** Carta com o texto oficial guardado; `keywords` como a Scryfall manda (palavras-chave das linhas só de palavra-chave). */
+function oficial(nome) {
+  const c = OFICIAIS_K.find(x => x.name === nome); if (!c) throw new Error('sem texto oficial: ' + nome);
+  const kws = String(c.oracle_text).split('\n').flatMap(l => { const ps = l.replace(/\s*\([^)]*\)/g, '').split(/,\s*/).map(x => x.trim()); return ps.every(x => S.KEYWORDS.includes(x.toLowerCase())) ? ps : []; });
+  const cores = [...new Set((c.mana_cost.match(/[WUBRG]/g) || []))];
+  return { name: c.name, type_line: c.type_line, mana_cost: c.mana_cost, cmc: (c.mana_cost.match(/\{[^}]+\}/g) || []).reduce((n, x) => n + (/^\{\d+\}$/.test(x) ? +x.slice(1, -1) : 1), 0), colors: cores, keywords: kws, oracle_text: c.oracle_text, ...(c.power != null ? { power: c.power, toughness: c.toughness } : {}) };
+}
+const URSO = { name: 'Urso', type_line: 'Creature — Bear', mana_cost: '{1}{G}', cmc: 2, colors: ['G'], power: '2', toughness: '2', keywords: [], oracle_text: '' };
+
+test('CR 702.108a · proeza (Monastery Swiftspear, texto oficial): mágica que não é criatura dá +1/+1 até o fim do turno; de criatura, não; a do oponente, não', () => {
+  const SW = oficial('Monastery Swiftspear'); assert.deepEqual(J(SW.keywords), ['Haste', 'Prowess']);
+  let s = partida({ 'Monastery Swiftspear': SW, Raio: RAIO, Urso: URSO }, SC_RAIO); const a = s.turn.active, d = 1 - a;
+  let sw; [s, sw] = poe(s, a, 'Monastery Swiftspear');
+  let r; [s, r] = poe(s, a, 'Raio', 'hand');
+  s = act(s, { t: 'cast', p: a, oid: r, targets: [{ player: d }] });
+  assert.equal(s.stack.length, 2, 'a proeza disparou e está acima do Raio');
+  s = resolve(s);
+  assert.equal(E.stats(s, s.objects[sw]).power, 2); assert.equal(E.stats(s, s.objects[sw]).toughness, 3, '+1/+1');
+  let u; [s, u] = poe(s, a, 'Urso', 'hand'); s = act(s, { t: 'cast', p: a, oid: u });
+  assert.equal(s.stack.length, 1, 'mágica de criatura não dispara'); s = resolve(s);
+  let ro; [s, ro] = poe(s, d, 'Raio', 'hand'); s = J(s); s.turn.priority = d;
+  s = act(s, { t: 'cast', p: d, oid: ro, targets: [{ player: a }] });
+  assert.equal(s.stack.length, 1, 'a mágica do oponente não dispara a sua proeza'); s = resolve(s);
+  for (let i = 0; i < 60 && s.turn.active === a; i++) s = s.pending ? act(s, E.legalActions(s, s.pending.p)[0]) : act(s, { t: 'pass', p: s.turn.priority });
+  assert.equal(E.stats(s, s.objects[sw]).power, 1, 'acabou no fim do turno');
+});
+
+test('CR 702.108b · cada instância de proeza dispara à parte (impressa + concedida); quem perde as habilidades não dispara', () => {
+  const SW = oficial('Monastery Swiftspear');
+  const MESTRE = { name: 'Mestre', type_line: 'Enchantment', mana_cost: '{2}{R}', cmc: 3, colors: ['R'], keywords: [], oracle_text: 'Creatures you control have prowess.' };
+  const SC = { ...SC_RAIO, Mestre: { name: 'Mestre', grantsAll: { keywords: ['prowess'] }, example: { action: 'etb', target: 'none', expect: { attached: false } } } };
+  let s = partida({ 'Monastery Swiftspear': SW, Raio: RAIO, Mestre: MESTRE, Urso: URSO }, SC); const a = s.turn.active, d = 1 - a;
+  let sw, urso; [s, sw] = poe(s, a, 'Monastery Swiftspear'); [s] = poe(s, a, 'Mestre'); [s, urso] = poe(s, a, 'Urso');
+  assert.equal(E.instanciasK(s, s.objects[sw], 'prowess'), 2); assert.equal(E.instanciasK(s, s.objects[urso], 'prowess'), 1);
+  let r; [s, r] = poe(s, a, 'Raio', 'hand'); s = act(s, { t: 'cast', p: a, oid: r, targets: [{ player: d }] });
+  for (let i = 0; i < 6 && s.pending && s.pending.kind === 'triggers'; i++) s = act(s, E.legalActions(s, s.pending.p)[0]);
+  assert.equal(s.stack.length + s.queued.length, 4, 'três proezas (duas da Swiftspear, uma do Urso) acima do Raio');
+  s = resolve(s);
+  assert.equal(E.stats(s, s.objects[sw]).power, 3, 'Swiftspear +2/+2'); assert.equal(E.stats(s, s.objects[urso]).power, 3, 'Urso +1/+1');
+  let t = partida({ 'Monastery Swiftspear': SW, Raio: RAIO }, SC_RAIO); const a2 = t.turn.active; let sw2; [t, sw2] = poe(t, a2, 'Monastery Swiftspear');
+  t = J(t); t.objects[sw2].mutavel = true; t.objects[sw2].vira = [{ ts: 1, loseAbilities: true }];
+  let r2; [t, r2] = poe(t, a2, 'Raio', 'hand'); t = act(t, { t: 'cast', p: a2, oid: r2, targets: [{ player: 1 - a2 }] });
+  assert.equal(t.stack.length, 1, 'sem habilidades, sem proeza');
+});

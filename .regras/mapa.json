@@ -7954,13 +7954,18 @@
    "n": "702.108",
    "regra": "Keyword Abilities",
    "titulo": "Prowess",
-   "status": "ausente",
-   "falta": "Não está em KEYWORDS (index.html:4371) nem há gatilho equivalente: \"ao conjurar mágica que não é criatura, +1/+1 até o fim do turno\" (702.108a), cada instância à parte (702.108b). O gatilho `other-cast` existe; falta o filtro \"não criatura\" como palavra-chave lida do texto.",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "603 gatilho other-cast com filtro de tipo"
    ],
-   "cartas": "muito comum (foi evergreen; Monastery Swiftspear e afins em Pauper)"
+   "cartas": "muito comum (foi evergreen; Monastery Swiftspear e afins em Pauper)",
+   "evidencia": "K-3: 'prowess' em KEYWORDS; GATILHOS_DE_PALAVRA_K (core.js, abaixo da âncora ↓ K) gera a habilidade disparada \"quando você conjura uma mágica que não é criatura, +1/+1 até o fim do turno\" (other-cast com filtro noncreature, efeito continuo em self-source) em abilitiesOf, uma por instância (instanciasK: impressa, marcador, mutação e cada efeito contínuo que concede, com o corte de 613.7); perder as habilidades ou virar para baixo tira; a mágica do oponente não dispara. Carta exemplo: Monastery Swiftspear (texto oficial em .listas/oficiais-keywords.json, Oracle do Forge, 11/10/2026).",
+   "testes": [
+    "CR 702.108a · proeza (Monastery Swiftspear, texto oficial): mágica que não é criatura dá +1/+1 até o fim do turno; de criatura, não; a do oponente, não",
+    "CR 702.108b · cada instância de proeza dispara à parte (impressa + concedida); quem perde as habilidades não dispara",
+    "K-3 · proeza (702.108): a mágica que não é criatura antes do ataque faz o atacante causar 1 a mais"
+   ]
   },
   {
    "n": "702.109",

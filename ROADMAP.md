@@ -3734,6 +3734,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Leitor (trilha `motor`):** "Ward {N}" e "Ward—Pay N life." ainda caem como palavra-chave fora do vocabulário no medidor; o motor já lê a forma (`wardImpressoK`), falta o leitor aceitar a linha.
 - **Fora:** "Ward—Collect evidence N", "Ward—Waterbend {N}" e outros custos raros (a carta declara `self.ward` no script quando couber); trocar o alvo de uma mágica (o motor não tem efeito de redirecionar).
 
+**K-3 · Proeza (702.108)** 🟡 (leva K-3)
+- **Valor:** criatura com "Prowess" ganha +1/+1 até o fim do turno a cada mágica que não é criatura que você conjura, só pela palavra-chave, sem script; cada instância conta (a impressa e cada uma concedida).
+- **Aceite:** Monastery Swiftspear (texto oficial) cresce com o Raio e não com uma criatura nem com a mágica do oponente; volta ao normal no fim do turno; com "suas criaturas têm proeza", a Swiftspear dispara duas vezes; sem habilidades, não dispara.
+- **Estrutura nova (vale para as próximas):** `GATILHOS_DE_PALAVRA_K` — tabela de palavras-chave que são habilidades disparadas; `instanciasK` conta as instâncias (impressa, marcador de palavra-chave 122.1b, mutação, cada efeito contínuo depois do corte de 613.7) e `abilitiesOf` acrescenta uma habilidade por instância. A leitura do que os scripts concedem é guardada por fato (WeakMap) e refeita uma vez por estado.
+- **Toca ponto comum:** `abilitiesOf` (as duas saídas ganham `habilidadesDePalavraK`; só acrescenta).
+- **Testes:** `keywords.cr4.unit` (2, falham sem a leva), `combat.audit` K-3. Texto oficial novo em `.listas/oficiais-keywords.json` (Oracle do Forge, 11/10/2026). Goldens idênticos; motor v109.
+
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR6 · Multijogador e variantes** ○ — mesa de três e quatro (800–803, 806), Commander de mesa (903.2), Brawl (903.12); as variantes hoje "fora" só entram por decisão. 10 a 14 levas.

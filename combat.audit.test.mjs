@@ -282,6 +282,19 @@ test('K-1 · metamorfo (702.73) e desprovido (702.114): lidos da palavra-chave i
   assert.deepEqual(J(E.colorsOf(s, s.objects[eld])), [], 'desprovido é incolor');
 });
 
+test('K-3 · proeza (702.108): a mágica que não é criatura antes do ataque faz o atacante causar 1 a mais', () => {
+  cobre('prowess');
+  const cartas = { ...CARDS, Monge: cre('Monge', 1, 2, ['Prowess']) };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 34, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a; let monge, choque; [s, monge] = poe(s, a, 'Monge'); [s, choque] = poe(s, a, 'Choque', { zone: 'hand' });
+  s = act(s, { t: 'cast', p: a, oid: choque, targets: [{ player: d }] });
+  for (let i = 0; i < 6 && s.stack.length; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const r = combate(s, [monge]);
+  assert.equal(r.players[d].life, 20 - 2 - 2, 'Choque 2 + Monge 1+1');
+});
+
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));

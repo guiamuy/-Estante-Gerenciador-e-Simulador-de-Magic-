@@ -5195,6 +5195,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'infect', // M-254 · 702.90
   /* ↓ K · palavras-chave da trilha keywords */
   'changeling', 'devoid', // K-1 · 702.73 e 702.114: definem característica (604.3), valem em toda zona, lidas da palavra-chave impressa
+  'prowess', // K-3 · 702.108: habilidade disparada gerada pela palavra-chave (gatilhosDePalavraK), uma por instância
   /* ↓ V · palavras-chave da trilha verbos */
   /* ↓ T · palavras-chave da trilha tipos */
 ];
@@ -16330,7 +16331,7 @@ const abilitiesOf = (s, o) => {
   if (o && o.faceDown) return []; // S54 · virada para baixo não tem habilidade
   const mu = mutacao(s, o); if (mu && mu.perde) return grantedAbilities(s, o).filter(ab => (ab.grantedTs || 0) > mu.corte); // CR2d.1
   const sc = scriptOf(s, o);
-  if (!sc) return grantedAbilities(s, o);
+  if (!sc) return grantedAbilities(s, o).concat(habilidadesDePalavraK(s, o)); // K-3 · palavra-chave que é habilidade disparada (proeza…)
   const list = (sc.abilities || []).slice();
   // CR 702.24 · manutenção cumulativa é uma habilidade disparada da sua manutenção
   if (sc.cumulativeUpkeep) list.push({ kind: 'triggered', when: 'upkeep', effects: [{ do: 'cumulative_upkeep', mana: sc.cumulativeUpkeep.mana }] });
@@ -16340,7 +16341,7 @@ const abilitiesOf = (s, o) => {
   if (sc.backup) list.unshift({ kind: 'triggered', when: 'etb', effects: [{ do: 'counters', amount: sc.backup, target: 'creature' }, { do: 'reforco', target: 'first-target' }] });
   // S11 · equipar é uma habilidade ativada com alvo, só no tempo de feitiço
   if (sc.equip) list.push({ kind: 'activated', cost: sc.equip.cost || {}, sorceryOnly: true, equip: true, effects: [{ do: 'attach', target: 'creature-you-control' }] });
-  return list.concat(grantedAbilities(s, o));
+  return list.concat(grantedAbilities(s, o), habilidadesDePalavraK(s, o)); // K-3 · palavra-chave que é habilidade disparada (proeza…)
 };
 /** Uma permanente pode ser alvo? Protegida e maldição de véu respondem aqui. */
 function targetable(s, p, o, src) {
@@ -20091,6 +20092,44 @@ function wardImpressoK(card) {
   return out.length ? out : undefined;
 }
 Object.assign(EXPORTS_K, { wardsDeK, wardImpressoK, custoDaSalvaguardaK });
+/* K-3 · palavras-chave que são habilidades disparadas (702.108 proeza…): o motor gera a habilidade a partir da palavra-chave que a
+   permanente tem agora (impressa, concedida, de marcador ou de mutação), uma por instância (702.108b), em abilitiesOf. */
+const GATILHOS_DE_PALAVRA_K = {
+  // 702.108a · "Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn."
+  prowess: () => ({ kind: 'triggered', when: 'other-cast', filter: { noncreature: true }, palavraK: 'prowess', effects: [{ do: 'continuo', target: 'self-source', poder: 1, resistencia: 1, ate: 'fim-do-turno' }] }),
+};
+/** As palavras-chave da tabela que algum script desta partida pode conceder. Cada fato é lido uma vez (WeakMap pelo próprio fato, que
+    não muda depois de criado); a união é refeita uma vez por estado (o mapa de fatos é copiado raso a cada ação). */
+const CONCEDE_FATO_K = new WeakMap(), CONCEDIDAS_K = new WeakMap();
+function concedeDoFatoK(f) {
+  let c = CONCEDE_FATO_K.get(f);
+  if (!c) { const txt = f.script ? JSON.stringify(f.script).toLowerCase() : ''; c = Object.keys(GATILHOS_DE_PALAVRA_K).filter(k => txt.includes(`"${k}"`)); CONCEDE_FATO_K.set(f, c); }
+  return c;
+}
+function palavrasConcedidasK(s) {
+  let c = CONCEDIDAS_K.get(s.facts);
+  if (!c) { c = new Set(); for (const f of Object.values(s.facts)) if (f) for (const k of concedeDoFatoK(f)) c.add(k); CONCEDIDAS_K.set(s.facts, c); }
+  return c;
+}
+/** Quantas instâncias da palavra-chave `k` a permanente tem agora: a impressa (se não perdeu as habilidades), cada marcador (122.1b),
+    a da mutação e cada efeito contínuo que a concede depois do corte (613.7); zero quando has() diz que não tem. */
+function instanciasK(s, o, k) {
+  const f = o && s.facts[o.name]; if (!f || o.faceDown || o.zone !== 'battlefield') return 0;
+  const impressa = (f.kw || []).includes(k), marcadores = SC.KEYWORD_COUNTERS.includes(k) ? ((o.counters || {})[k] || 0) : 0, concedivel = palavrasConcedidasK(s).has(k);
+  if (!impressa && !marcadores && !concedivel && !o.mutavel) return 0;
+  if (!has(s, o, k)) return 0;
+  const m = mutacao(s, o), corte = m && m.perde ? m.corte : -1;
+  let n = (impressa && corte < 0 ? 1 : 0) + (corte < 0 ? marcadores : 0) + (m ? m.keywords.filter(x => x === k).length : 0);
+  if (concedivel) n += continuosQueAfetam(s, o).filter(e => e.palavras && e.palavras.includes(k) && (corte < 0 || (e.ts || 0) > corte)).length;
+  return Math.max(n, 1);
+}
+/** As habilidades disparadas que as palavras-chave da tabela dão à permanente, uma por instância. */
+function habilidadesDePalavraK(s, o) {
+  const out = [];
+  for (const k in GATILHOS_DE_PALAVRA_K) { const n = instanciasK(s, o, k); for (let i = 0; i < n; i++) out.push(GATILHOS_DE_PALAVRA_K[k]()); }
+  return out;
+}
+Object.assign(EXPORTS_K, { instanciasK, habilidadesDePalavraK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-4 · 701.36 povoar: "choose a creature token you control and create a token that's a copy of that creature token" (a); sem ficha de
    criatura sua, nada é criado (b). Não mira. A cópia é a de 707.8 (mesmo caminho de `ficha_copia`): valores copiáveis, sem marcadores
@@ -22607,6 +22646,7 @@ const plural = (n, um, muitos) => (n === 1 ? `${n} ${um}` : `${n} ${muitos}`);
 /** Uma frase por efeito. O que o dicionário não conhece vira o nome do efeito, nunca some. */
 /* ↓ K · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha keywords */
 Object.assign(PALAVRA_PT, { changeling: 'metamorfo', devoid: 'desprovido' }); // K-1
+Object.assign(PALAVRA_PT, { prowess: 'proeza' }); // K-3
 /* ↓ V · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha verbos */
 const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas por descreveEfeito)
   lutador: e => `escolhe ${ALVO_PT[e.target] || descreveAlvo(e.target)} para lutar`,
