@@ -13834,7 +13834,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 105; // CR2c.6 · fonte do {T} não paga a própria mana, uso da habilidade por objeto, marcas internas, reforço no alternativo
+const ENGINE_VERSION = 106; // CR2a.9 · resistência de agora nas ações de estado, toque mortífero da fonte da habilidade e com infectar, marcas da resolução por objeto
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -14479,6 +14479,7 @@ function moveObject(s, oid, to, { top = true } = {}) {
   o.tapped = false; o.damage = 0; o.counters = {}; o.controller = o.owner; delete o.controles; delete o.controladorBase; // CR2d.6 · 400.7
   delete o.tempToxico; delete o.tempResguardoCor; delete o.tempNaoBloqueadaPor; delete o.tempHabilidades; delete o.permissaoUsada; if (fromZone !== to) delete o.desenterrada; // M-255/M-256/M-257 · 400.7
   delete o.attacking; delete o.atacandoPw; delete o.exigeAtacarPw; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.pumpNext; delete o.goaded; delete o.keywordsNext; delete o.cantAttackNext; delete o.targets; delete o.attachedTo; delete o.tempKeywords; delete o.tempTs; delete o.anexadaEm; delete o.mutavel; delete o.vira; delete o.prevenirDano; delete o.regenerar; delete o.temporarios; delete o.tempProtection; delete o.paired; // S39 · o vínculo de alma se desfaz ao sair do campo
+  if (fromZone !== 'stack') { delete o.chosenColor; delete o.chosenType; delete o.damagePrevented; delete o.preventGainTo; delete o.devolvidas; } // CR2a.9 · 400.7 / 608.2n: a marca da resolução fica onde a carta caiu; ao sair de lá, o objeto é novo
   delete o.loyaltyTurn; delete o.usedThisTurn; // CR2c.6 · 400.7: o objeto novo não carrega o uso da habilidade do anterior (606.3, 602.5b)
   if (to === 'battlefield' && fromZone === 'stack' && o.suspensaImpeto) { delete o.suspensaImpeto; aplicaTemporario(s, o, { palavras: ['haste'], ate: { enquanto: 'controlar-fonte' } }, o.controller, o); } // M-269 · "if it's a creature, it has haste"
   if (to === 'battlefield') o.ts = relogio(s); // CR2d.1 · 613.7d: carimbo de tempo de quem entra no campo
@@ -14534,7 +14535,9 @@ const permissaoServe = (s, p, perm, carta) => !!perm && selCasa(s, p, carta, s.f
 const toxicoDe = (s, o) => !o ? 0 : (o.tempToxico || 0) + (o.faceDown || semImpressas(s, o) ? 0 : ((((s.facts[o.name] || {}).script || {}).self || {}).toxic || 0)); // M-255 · o concedido até o fim do turno soma
 /** M-253 · 122.1f · marcadores de veneno no jogador (o campo só existe depois do primeiro). */
 /** M-254 · 702.90b/c · dano numa criatura: de fonte com infectar vira marcadores −1/−1 (continua sendo dano). */
-const infecta = (s, src) => !!src && !!s.facts[src.name] && has(s, src, 'infect'); // fonte sem carta (efeito sintético) não infecta
+/** CR2a.9 · a fonte do dano de uma habilidade é o objeto de onde ela veio (o pinger com Basilisk Collar tem toque mortífero). */
+const fonteDoDano = (s, src) => (src && src.ability && s.objects[src.source]) || src;
+const infecta = (s, src0) => { const src = fonteDoDano(s, src0); return !!src && !!s.facts[src.name] && has(s, src, 'infect'); }; // fonte sem carta (efeito sintético) não infecta
 function marcaDanoEmCriatura(s, src, obj, n) { if (infecta(s, src)) obj.counters.m1m1 = (obj.counters.m1m1 || 0) + n; else obj.damage += n; }
 /** M-254 · 702.90b · dano num jogador: de fonte com infectar vira veneno, sem perda de vida. */
 function danoEmJogador(s, src, p, n) { if (infecta(s, src)) darVeneno(s, p, n, null, src.name); else perdeVida(s, p, n); }
@@ -15491,7 +15494,7 @@ function dealCombatDamage(s) {
       amt = danoAposPrevencao(s, src, obj ? { obj } : { player }, amt, true); if (!amt) continue;
       if (ehPw) { // M-228 · 120.3c: dano ao planeswalker tira lealdade; se ele também é criatura (Gideon no 0), o dano fica marcado (120.3e)
         obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - amt); if (isCreature(s, obj)) marcaDanoEmCriatura(s, src, obj, amt); noteDamaged(s, obj);
-      } else if (obj && amt > 0) { marcaDanoEmCriatura(s, src, obj, amt); noteEnchantedEvent(s, obj, 'recebe-dano'); noteDamaged(s, obj); if (has(s, src, 'deathtouch')) obj.deathtouched = true; }
+      } else if (obj && amt > 0) { marcaDanoEmCriatura(s, src, obj, amt); noteEnchantedEvent(s, obj, 'recebe-dano'); noteDamaged(s, obj); if (has(s, fonteDoDano(s, src), 'deathtouch')) obj.deathtouched = true; }
       else {
         danoEmJogador(s, src, player, amt); golpesEmJogador.push({ fonte: src, jogador: player });
         darVeneno(s, player, toxicoDe(s, src), null, src.name); // M-253 · 702.164c: dano de combate a jogador com tóxico dá veneno
@@ -16029,7 +16032,7 @@ function applyEffect(s, src, eff, tgt, events) {
         if (resto < n) ganhaVida(n - resto);
         n = resto;
         if (obj && s.facts[obj.name].types.includes('planeswalker')) { obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - n); causouDano(s, src, n); note({ amount: n }); break; }
-        if (obj && n > 0) { marcaDanoEmCriatura(s, src, obj, n); noteEnchantedEvent(s, obj, 'recebe-dano'); noteDamaged(s, obj); if (has(s, src, 'deathtouch')) obj.deathtouched = true; } // CR 120.8: dano 0 não é dano
+        if (obj && n > 0) { marcaDanoEmCriatura(s, src, obj, n); noteEnchantedEvent(s, obj, 'recebe-dano'); noteDamaged(s, obj); if (has(s, fonteDoDano(s, src), 'deathtouch')) obj.deathtouched = true; } // CR2a.9 // CR 120.8: dano 0 não é dano
         else danoEmJogador(s, src, playerOf(), n);
         causouDano(s, src, n, obj ? null : playerOf()); // Leva 106 · vínculo com a vida e Armadillo Cloak/Spirit Link também fora do combate
         note({ amount: n }); } break;
@@ -17767,15 +17770,16 @@ function stateBased(s, events) {
       // S21 · planeswalker sem lealdade vai para o cemitério
       if (s.facts[o.name].types.includes('planeswalker') && (o.counters.loyalty || 0) <= 0) { morrem.push(o.oid); continue; }
       const f = s.facts[o.name];
-      if (!isCreature(s, o) || f.toughness == null) continue;
+      if (!isCreature(s, o) || (f.toughness == null && !(mutacao(s, o) || {}).base && !ptDefinido(s, o) && !o.faceDown)) continue; // CR2a.9 · a resistência de agora (Mishra's Factory animada)
       const t = toughness(s, o);
-      const lethal = (o.damage > 0 && o.damage >= t) || (o.deathtouched && o.damage > 0);
+      const lethal = (o.damage > 0 && o.damage >= t) || !!o.deathtouched; // CR2a.9 · 704.5h: dano de toque mortífero desde a última checagem, também o de infectar (vira marcador)
       if (t <= 0) { morrem.push(o.oid); continue; } // 704.5f: resistência 0 não é destruição (nada a substitui)
       if (!lethal) continue;
       const r = seriaDestruida(s, o); // CR2-G R5c · 704.5g/h: dano letal destrói — e "se fosse destruída" pode substituir
       if (r === 'destruida') morrem.push(o.oid);
       else if (r !== 'indestrutivel') { substituiDestruicao(s, o, r, events); changed = true; }
     }
+    for (const o of campoInteiro(s)) delete o.deathtouched; // CR2a.9 · 704.5h: vale só para esta checagem (o indestrutível que perde a indestrutibilidade depois não morre)
     if (morrem.length) {
       s.saindoJuntas = morrem;
       for (const oid of morrem) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield') continue; moveObject(s, oid, 'graveyard'); changed = true; events.push({ kind: 'died', oid, name: o.name }); }

@@ -3520,6 +3520,19 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
   - 118.3, 602.2, 602.5 e 601.2 continuam parciais, com o que falta reescrito.
 - **Próximo:** CR2d.14 (dependência, 613.8) e auditoria independente das fases CR2a (zonas e ações de estado) e CR2h.
 
+**CR2a.9 · Ações de estado e marcas por objeto: os erros da auditoria das zonas (704.5f/g/h, 702.2b, 702.90b, 400.7, 608.2n)** ✅ (leva M-291, motor v106) — 4 testes de conformidade, todos falham no motor v105.
+- **Origem:** auditoria independente das fases CR2a e CR2h (11/10/2026).
+- **Regra:**
+  - (1) Criatura sem resistência impressa, como terreno animado ou "torna-se N/N", morre pela resistência de agora. Antes, a Mishra's Factory com 3 de dano ficava no campo.
+  - (2) O toque mortífero de uma habilidade de dano é o da fonte dela: um pinger com colar destrói.
+  - (3) Toque mortífero com infectar também destrói.
+  - (4) A marca de toque mortífero vale só desde a última checagem: o indestrutível que perde a indestrutibilidade depois não morre por um dano antigo.
+  - (5) O que a resolução anotou na carta (cor e tipo escolhidos, escudo, criaturas devolvidas) não acompanha o objeto novo. O lampejo do Prismatic Strands pede a cor de novo.
+- **Fora:** criatura */* sem script continua manual.
+- **Versão:** sobe para v106. Goldens regravados só pela versão. Partidas salvas antes não abrem.
+- **Mapa:** 122.3, 119.7, 403.4 e 702.2 cobertas; mais 13 itens com evidência e falta reescritas.
+- **Próximo:** CR2d.14 (dependência, 613.8) e auditoria independente da fase CR2b (gatilhos e estáticas).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

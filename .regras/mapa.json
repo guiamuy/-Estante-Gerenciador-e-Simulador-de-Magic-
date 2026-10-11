@@ -1,7 +1,7 @@
 {
  "sobre": "Mapa regra × motor. Cada item NNN.N das Comprehensive Rules de 25/09/2026 classificado contra o motor v72 em 06/10/2026 por 14 auditores independentes, com evidência vista (código com linha, teste ou sonda executada). status: coberta · parcial · ausente · definicao (só define termo) · fora (jogo físico, torneio ou variante que um app de dois jogadores não precisa). Quando um item muda de status, o teste que prova a mudança entra em `testes`.",
  "cr": "2026-09-25",
- "motor": 105,
+ "motor": 106,
  "auditoria": "2026-10-06",
  "itens": [
   {
@@ -1466,11 +1466,14 @@
    "n": "119.7",
    "regra": "Life",
    "titulo": "\"Não pode ganhar vida\"",
-   "status": "ausente",
-   "falta": "Nenhuma restrição de ganho de vida; gain e vínculo com a vida somam direto.",
-   "esforco": "P",
+   "status": "coberta",
    "depende": [
     "614"
+   ],
+   "evidencia": "auditoria independente CR2a/CR2h (11/10/2026): ganhaVidaJogador/naoGanhaVida (CR2d.10); jogador.unit",
+   "testes": [
+    "CR 613.10 · \"seus oponentes não podem ganhar vida\" (estática de quem controla a permanente): o oponente não ganha; você ganha",
+    "CR 613.11 · \"você pode jogar um terreno a mais neste turno\" e \"sem tamanho máximo de mão\" (de resolução, até o fim do turno)"
    ]
   },
   {
@@ -1528,14 +1531,20 @@
    "regra": "Damage",
    "titulo": "Resultados do dano",
    "status": "parcial",
-   "evidencia": "a) jogador perde vida (index.html:10806, 11125); c) planeswalker perde lealdade por dano de efeito (index.html:11123; rules.unit \"S21 · … dano tira lealdade\"); e) dano marcado (index.html:10804, 11124); f) vínculo com a vida no combate e fora (index.html:10809, 11558; combat.audit K4) · M-228 (v95): cada atacante ataca o jogador ou um planeswalker dele (ação attack com alvos; o.atacandoPw); dano de combate sem bloqueio vai para o planeswalker e tira lealdade (criatura-planeswalker também marca dano); planeswalker que saiu não recebe nada; exigência \"ataca X se puder\" (Gideon +2) · M-253/M-254 (v96): 120.3b infectar em jogador vira veneno; 120.3d infectar em criatura vira −1/−1; 120.3g tóxico dá veneno (combat.audit K12c, veneno.unit).",
-   "falta": "d: definhar (wither) não existe; h: batalha. c: coberto na M-228 (dano de combate em planeswalker).",
+   "evidencia": "a) jogador perde vida (index.html:10806, 11125); c) planeswalker perde lealdade por dano de efeito (index.html:11123; rules.unit \"S21 · … dano tira lealdade\"); e) dano marcado (index.html:10804, 11124); f) vínculo com a vida no combate e fora (index.html:10809, 11558; combat.audit K4) · M-228 (v95): cada atacante ataca o jogador ou um planeswalker dele (ação attack com alvos; o.atacandoPw); dano de combate sem bloqueio vai para o planeswalker e tira lealdade (criatura-planeswalker também marca dano); planeswalker que saiu não recebe nada; exigência \"ataca X se puder\" (Gideon +2) · M-253/M-254 (v96): 120.3b infectar em jogador vira veneno; 120.3d infectar em criatura vira −1/−1; 120.3g tóxico dá veneno (combat.audit K12c, veneno.unit). · M-291 (CR2a.9): toque mortífero e infectar de habilidade são os da fonte; 120.3b infectar (M-254)",
+   "falta": "d definhar; e dano de efeito em planeswalker-criatura só tira lealdade; h batalha",
    "esforco": "M",
    "depende": [
     "122.1f",
     "702.90",
     "702.164",
     "506"
+   ],
+   "testes": [
+    "CR 704.5 · Mishra\\",
+    "CR 702.2 · toque mortífero concedido à fonte de uma habilidade de dano destrói (pinger com colar); com infectar também destrói",
+    "CR 704.5 · o toque mortífero vale só desde a última checagem: o indestrutível que perde a indestrutibilidade depois não morre",
+    "CR 400.7 · o que a resolução anotou na carta não acompanha o objeto novo: o lampejo do Prismatic Strands pede a cor de novo; a segunda Call of the Death-Dweller sem alvo não mexe na criatura da primeira"
    ]
   },
   {
@@ -1543,8 +1552,8 @@
    "regra": "Damage",
    "titulo": "Sequência do evento de dano",
    "status": "parcial",
-   "evidencia": "prevenção total antes de aplicar: Fog, cor escolhida, mágica prevenida, proteção, Aura que previne (index.html:10800-10803, 11122; rules.unit S29, S30, S31, \"S36/S52 · prevenir o dano de uma mágica da pilha\"); dano de combate calculado e aplicado em lote (index.html:10799)",
-   "falta": "120.4a: \"excesso de dano vai para outro alvo\" não existe; 120.4b: prevenção parcial (\"previna os próximos N\") não existe; 120.4c: nada substitui os resultados (vida/marcadores); gatilhos de dano só \"combat-damage\" ao jogador e os de Aura.",
+   "evidencia": "prevenção total antes de aplicar: Fog, cor escolhida, mágica prevenida, proteção, Aura que previne (index.html:10800-10803, 11122; rules.unit S29, S30, S31, \"S36/S52 · prevenir o dano de uma mágica da pilha\"); dano de combate calculado e aplicado em lote (index.html:10799) · auditoria independente CR2a/CR2h (11/10/2026): 120.4b escudo \"próximos N\" em danoAposPrevencao",
+   "falta": "4a redirecionar excesso, 4c",
    "esforco": "M",
    "depende": [
     "614",
@@ -1618,8 +1627,8 @@
    "regra": "Drawing a Card",
    "titulo": "Compras são uma de cada vez",
    "status": "parcial",
-   "evidencia": "draw repete compra a compra e conta cada uma (index.html:10316-10322; rules.unit \"S33 · terceira compra do turno…\")",
-   "falta": "121.2a/b: sem substituição pelo número de compras nem \"não pode comprar mais de uma por turno\"; 121.2c: não há efeito \"cada jogador compra\" (draw só mira jogador ou você, index.html:4383). 121.2d é equipe.",
+   "evidencia": "draw repete compra a compra e conta cada uma (index.html:10316-10322; rules.unit \"S33 · terceira compra do turno…\") · auditoria independente CR2a/CR2h (11/10/2026): 121.2b Narset (limiteDeCompra); 121.2c cada jogador compra",
+   "falta": "121.2a substituição pelo número de compras",
    "esforco": "P",
    "depende": [
     "614"
@@ -1698,9 +1707,9 @@
    "regra": "Counters",
    "titulo": "Marcadores e seus tipos",
    "status": "parcial",
-   "evidencia": "+1/+1 soma em poder/resistência (index.html:10340-10341; addCounters index.html:11579); lealdade (index.html:10301, 12125; rules.unit S21) · CR2c.5 (v88): b) marcador de palavra-chave (122.1b) — has() lê marcadores de voar, iniciativa, golpe duplo, toque mortífero, decaído, exaltado, ímpeto, resistência a magia, indestrutível, vínculo com a vida, ameaça, alcance, sombra, atropelar e vigilância; efeito counter_choice (commander.regras \"CR2c.5 · Call of the Death-Dweller\") · M-249/M-253 (v96): marcadores nomeados em permanente (counters com tipo; custo removeCounters; semMarcadorSacrifica) e marcadores de veneno em jogador (darVeneno; 10 = derrota); −1/−1 colocado por infectar (M-254).",
-   "falta": "c) escudo, d) atordoamento, g) defesa, h) finalidade, i) radiação, j) hone: ausentes. Marcadores em jogador além do veneno (energia, experiência) não existem.",
-   "esforco": "G",
+   "evidencia": "+1/+1 soma em poder/resistência (index.html:10340-10341; addCounters index.html:11579); lealdade (index.html:10301, 12125; rules.unit S21) · CR2c.5 (v88): b) marcador de palavra-chave (122.1b) — has() lê marcadores de voar, iniciativa, golpe duplo, toque mortífero, decaído, exaltado, ímpeto, resistência a magia, indestrutível, vínculo com a vida, ameaça, alcance, sombra, atropelar e vigilância; efeito counter_choice (commander.regras \"CR2c.5 · Call of the Death-Dweller\") · M-249/M-253 (v96): marcadores nomeados em permanente (counters com tipo; custo removeCounters; semMarcadorSacrifica) e marcadores de veneno em jogador (darVeneno; 10 = derrota); −1/−1 colocado por infectar (M-254). · auditoria independente CR2a/CR2h (11/10/2026): marcadores nomeados (M-249), de palavra-chave (CR2c.5), veneno (M-253)",
+   "falta": "escudo, atordoamento, defesa, energia, experiência",
+   "esforco": "M",
    "depende": [
     "614",
     "704"
@@ -1717,13 +1726,12 @@
    "n": "122.3",
    "regra": "Counters",
    "titulo": "+1/+1 e -1/-1 se anulam",
-   "status": "ausente",
-   "falta": "stateBased não remove pares +1/+1 e -1/-1 (na mesa assistida dá para pôr m1m1 à mão e eles ficam).",
-   "esforco": "P",
+   "status": "coberta",
    "depende": [
     "122.1a",
     "704.5q"
-   ]
+   ],
+   "evidencia": "auditoria independente CR2a/CR2h (11/10/2026): stateBased 704.5q; cr.conformidade \"CR 704.5 · marcadores +1/+1 e −1/−1\""
   },
   {
    "n": "122.4",
@@ -3093,9 +3101,9 @@
    "regra": "General",
    "titulo": "Substituição ao mudar de zona",
    "status": "parcial",
-   "evidencia": "casos fixos em moveObject: \"exile em vez do cemitério\" (index.html:10256), lampejo (index.html:10258), comandante escolhe a zona de comando (index.html:10280, 12137); teste \"S52 · ... ela exila em vez de morrer\"",
-   "falta": "não há sistema geral de efeitos de substituição nem escolha entre efeitos contraditórios (Rest in Peace, Leyline of the Void).",
-   "esforco": "G",
+   "evidencia": "casos fixos em moveObject: \"exile em vez do cemitério\" (index.html:10256), lampejo (index.html:10258), comandante escolhe a zona de comando (index.html:10280, 12137); teste \"S52 · ... ela exila em vez de morrer\" · auditoria independente CR2a/CR2h (11/10/2026): destinoSubstituido/substituicoesPara com encadeamento (616.2)",
+   "falta": "ordem fixa pelo código, sem escolha do afetado (616.1)",
+   "esforco": "M",
    "depende": [
     "614",
     "616"
@@ -3106,14 +3114,15 @@
    "regra": "General",
    "titulo": "Objeto novo ao mudar de zona",
    "status": "parcial",
-   "evidencia": "moveObject zera dano, marcadores, anexos, bônus e marcas de conjuração (index.html:10262-10275); 400.7d: X pago e custo adicional seguem da pilha ao campo (index.html:10270); 400.7e: teste \"S44 · a aura volta para a mão\"; teste \"S24 · disturb ... volta à frente se sair do campo\" · CR2a.2 (motor v76): moveObject conta a encarnação do objeto (zc) a cada mudança de zona; mágicas e habilidades guardam em cada alvo a encarnação mirada (carimbaAlvos) e targetStillLegal recusa alvo de outra encarnação (mesmaEncarnacao); teste de conformidade em cr.conformidade · CR2-G R4a: o verbo mover aceita `de` — se o objeto já saiu da zona esperada, é outro objeto e nada acontece (moverObjeto)",
-   "falta": "O identificador interno continua o mesmo: referências que não são alvo (fonte de habilidade na pilha, \"ela\" de gatilho, efeitos retomados depois de uma escolha, efeitos \"até o fim do turno\" guardados fora do objeto) ainda seguem a carta. Exceções 400.7a-j (permanente que resolve, comandante, etc.) não são tratadas uma a uma.",
+   "evidencia": "moveObject zera dano, marcadores, anexos, bônus e marcas de conjuração (index.html:10262-10275); 400.7d: X pago e custo adicional seguem da pilha ao campo (index.html:10270); 400.7e: teste \"S44 · a aura volta para a mão\"; teste \"S24 · disturb ... volta à frente se sair do campo\" · CR2a.2 (motor v76): moveObject conta a encarnação do objeto (zc) a cada mudança de zona; mágicas e habilidades guardam em cada alvo a encarnação mirada (carimbaAlvos) e targetStillLegal recusa alvo de outra encarnação (mesmaEncarnacao); teste de conformidade em cr.conformidade · CR2-G R4a: o verbo mover aceita `de` — se o objeto já saiu da zona esperada, é outro objeto e nada acontece (moverObjeto) · M-291 (CR2a.9): cor e tipo escolhidos, escudo e criaturas devolvidas anotados na resolução não acompanham o objeto novo",
+   "falta": "a fonte de habilidade e \"ela\" seguem a carta em alguns caminhos",
    "esforco": "M",
    "depende": [
     "608.2b"
    ],
    "testes": [
-    "CR 400.7 · objeto que muda de zona vira objeto novo: a mágica que mirava a criatura não acerta a mesma carta depois que ela saiu e voltou"
+    "CR 400.7 · objeto que muda de zona vira objeto novo: a mágica que mirava a criatura não acerta a mesma carta depois que ela saiu e voltou",
+    "CR 400.7 · o que a resolução anotou na carta não acompanha o objeto novo: o lampejo do Prismatic Strands pede a cor de novo; a segunda Call of the Death-Dweller sem alvo não mexe na criatura da primeira"
    ]
   },
   {
@@ -3263,10 +3272,8 @@
    "n": "403.4",
    "regra": "Battlefield",
    "titulo": "Permanente que entra é objeto novo",
-   "status": "parcial",
-   "evidencia": "moveObject zera o estado ao entrar (index.html:10273-10276); teste rules.unit:912 \"volta com enjoo\"",
-   "falta": "mesmo problema de 400.7: o oid se mantém e mágicas na pilha continuam mirando a permanente que voltou (sonda do Lightning Bolt).",
-   "esforco": "M",
+   "status": "coberta",
+   "evidencia": "moveObject zera o estado ao entrar (index.html:10273-10276); teste rules.unit:912 \"volta com enjoo\" · auditoria independente CR2a/CR2h (11/10/2026): moveObject zc + mesmaEncarnacao; teste CR 400.7 (a mágica que mirava a criatura não acerta)",
    "depende": [
     "400.7"
    ]
@@ -3360,9 +3367,9 @@
    "regra": "Exile",
    "titulo": "Exílio aberto e exílio virado para baixo",
    "status": "parcial",
-   "evidencia": "cartas exiladas ficam abertas na zona exile (index.html:11137)",
-   "falta": "não existe exílio virado para baixo (prever, esconderijo, 406.3a-b).",
-   "esforco": "M",
+   "evidencia": "cartas exiladas ficam abertas na zona exile (index.html:11137) · auditoria independente CR2a/CR2h (11/10/2026): exílio virado para baixo existe (esconderijo, M-268)",
+   "falta": "prever (foretell) e permissão de olhar (406.3a)",
+   "esforco": "P",
    "depende": [
     "708"
    ]
@@ -4605,12 +4612,18 @@
    "regra": "Resolving Spells and Abilities",
    "titulo": "Resolução de instantânea, feitiço ou habilidade",
    "status": "parcial",
-   "evidencia": "resolveScript (index.html:11666-11707) e resolveAbility (:13185-13235): \"se\" do gatilho reconferido (:13187), alvos reconferidos e mágica anulada só se todos ficaram ilegais, efeito parcial com alvo ilegal pulado (:11686-11688), instruções na ordem, escolhas na resolução com retomada (resume/resumeEffects :11531), conjurar durante a resolução (cast_free :12461), controlador do alvo por última informação (:11689), mágica ao cemitério no fim (resolveTop :12080). Testes: rules.unit \"M9 · habilidade com alvo que some é anulada\", \"S38 · até dois alvos\", \"S47 · mágica de até dois alvos … resolve sem anular\", \"S38 · destruir o artefato e o dano vai para quem o controlava\", \"S60 · correção: descarte pedido por um efeito retoma o resto do efeito\", \"S61 · Covil do Mago Louco: compra três e conjura uma sem pagar\"; scripts.unit:213 (608.2b) · CR2a.1/CR2a.4 (v75, v78): 608.2c — nenhuma ação de estado entre os efeitos de uma resolução, nem quando ela para numa escolha; 608.2h — \"X = resistência da criatura sacrificada\" lê a foto da permanente (Ayli)",
-   "falta": "608.2d: sem dividir entre não-alvos. 608.2e: em \"cada jogador decide\" a ordem é controlador primeiro (:11365), não APNAP, e cada um age antes de o próximo decidir. 608.2g: pagamento de mana na resolução é automático (sem ativar habilidades de mana à mão). 608.2h: última informação conhecida só em casos pontuais (blockedAt, dono do alvo, criatura encantada no disparo, entrou neste turno); contagens leem a fonte atual. 608.2n: quando a resolução para numa escolha, a carta já foi ao cemitério antes do resto do efeito. 608.2p: sem gatilho de \"quando resolver\".",
+   "evidencia": "resolveScript (index.html:11666-11707) e resolveAbility (:13185-13235): \"se\" do gatilho reconferido (:13187), alvos reconferidos e mágica anulada só se todos ficaram ilegais, efeito parcial com alvo ilegal pulado (:11686-11688), instruções na ordem, escolhas na resolução com retomada (resume/resumeEffects :11531), conjurar durante a resolução (cast_free :12461), controlador do alvo por última informação (:11689), mágica ao cemitério no fim (resolveTop :12080). Testes: rules.unit \"M9 · habilidade com alvo que some é anulada\", \"S38 · até dois alvos\", \"S47 · mágica de até dois alvos … resolve sem anular\", \"S38 · destruir o artefato e o dano vai para quem o controlava\", \"S60 · correção: descarte pedido por um efeito retoma o resto do efeito\", \"S61 · Covil do Mago Louco: compra três e conjura uma sem pagar\"; scripts.unit:213 (608.2b) · CR2a.1/CR2a.4 (v75, v78): 608.2c — nenhuma ação de estado entre os efeitos de uma resolução, nem quando ela para numa escolha; 608.2h — \"X = resistência da criatura sacrificada\" lê a foto da permanente (Ayli) · auditoria independente CR2a/CR2h (11/10/2026): 608.2e \"cada jogador sacrifica\" em APNAP (CR2a.4); 608.2n por objeto (M-291)",
+   "falta": "lose_unless começa pelo controlador; 608.2g, h e p como estão",
    "esforco": "M",
    "depende": [
     "704.3",
     "113.7a"
+   ],
+   "testes": [
+    "CR 704.5 · Mishra\\",
+    "CR 702.2 · toque mortífero concedido à fonte de uma habilidade de dano destrói (pinger com colar); com infectar também destrói",
+    "CR 704.5 · o toque mortífero vale só desde a última checagem: o indestrutível que perde a indestrutibilidade depois não morre",
+    "CR 400.7 · o que a resolução anotou na carta não acompanha o objeto novo: o lampejo do Prismatic Strands pede a cor de novo; a segunda Call of the Death-Dweller sem alvo não mexe na criatura da primeira"
    ]
   },
   {
@@ -4618,8 +4631,8 @@
    "regra": "Resolving Spells and Abilities",
    "titulo": "Resolução de mágica de permanente",
    "status": "parcial",
-   "evidencia": "resolveTop (index.html:12043-12087): permanente entra sob o controle de quem conjurou; aura reconfere o alvo e entra anexada, com alvo ilegal vai ao cemitério; conceder com alvo ilegal entra como criatura; engine.unit \"M4 · permanente resolvida entra no campo; criatura entra com enjoo\", rules.unit \"S11 · aura cujo alvo some antes de resolver é anulada e vai para o cemitério\", \"S34 · conceder\"",
-   "falta": "608.3d (mutar) ausente; 608.3e (não pode entrar no campo) sem efeito que o exija; 608.3f (cópia de mágica de permanente vira ficha) ausente — tempestade só copia efeitos; 608.3g (dash, blitz, warp criando gatilho atrasado) ausente.",
+   "evidencia": "resolveTop (index.html:12043-12087): permanente entra sob o controle de quem conjurou; aura reconfere o alvo e entra anexada, com alvo ilegal vai ao cemitério; conceder com alvo ilegal entra como criatura; engine.unit \"M4 · permanente resolvida entra no campo; criatura entra com enjoo\", rules.unit \"S11 · aura cujo alvo some antes de resolver é anulada e vai para o cemitério\", \"S34 · conceder\" · auditoria independente CR2a/CR2h (11/10/2026): 608.3f (cópia de mágica de permanente vira ficha)",
+   "falta": "608.3d (mutar), 608.3g (dash/blitz)",
    "esforco": "M",
    "depende": [
     "603.7",
@@ -6472,12 +6485,14 @@
    "regra": "Keyword Abilities",
    "titulo": "Deathtouch",
    "status": "coberta",
-   "evidencia": "dealCombatDamage (index.html:10785-10804) trata 1 de dano como letal (702.2c, inclusive com atropelar) e marca deathtouched; SBA (12131) destrói; dano fora do combate marca em 11124; combat.audit K3; sondas sonda-702a.mjs: 1/1 mata 5/5, 2/2 mata dois bloqueadores, indestrutível sobrevive, atropelar+toque passa 4 de 5",
-   "falta": "Detalhes: a marca deathtouched só é limpa na limpeza (não \"desde a última checagem de SBA\"), e 702.2e (última informação conhecida) não existe",
+   "evidencia": "dealCombatDamage (index.html:10785-10804) trata 1 de dano como letal (702.2c, inclusive com atropelar) e marca deathtouched; SBA (12131) destrói; dano fora do combate marca em 11124; combat.audit K3; sondas sonda-702a.mjs: 1/1 mata 5/5, 2/2 mata dois bloqueadores, indestrutível sobrevive, atropelar+toque passa 4 de 5 · M-291 (CR2a.9): toque mortífero da fonte da habilidade, com infectar, só desde a última checagem (702.2e, última informação conhecida, segue a carta onde ela está)",
    "depende": [
     "704.5h"
    ],
-   "cartas": "evergreen"
+   "cartas": "evergreen",
+   "testes": [
+    "CR 702.2 · toque mortífero concedido à fonte de uma habilidade de dano destrói (pinger com colar); com infectar também destrói"
+   ]
   },
   {
    "n": "702.3",
@@ -8999,8 +9014,8 @@
    "regra": "Turn-Based Actions",
    "titulo": "Lista das ações baseadas em turno",
    "status": "parcial",
-   "evidencia": "enterStep (10680-10712): desvirar (d/c), compra com 103.8a (d), atacantes/bloqueadores (i, j), dealCombatDamage simultâneo (m, 10770), descarte até 7 e finishCleanup (n, p; sonda p7b/sba2-7b.mjs: mão 9→7, dano 1→0), emptyPools a cada passo (q; sonda: reserva zerada)",
-   "falta": "fases (703.4a) e dia/noite (4b) não existem; nenhuma restrição de desvirar (\"doesn't untap\") em 4c; Sagas (4f) não ganham marcador; a distribuição do dano de combate é automática, sem escolha do jogador (4k); tamanho máximo de mão fixo em 7 (4n). 4e, 4g, 4h são de variantes/multijogador.",
+   "evidencia": "enterStep (10680-10712): desvirar (d/c), compra com 103.8a (d), atacantes/bloqueadores (i, j), dealCombatDamage simultâneo (m, 10770), descarte até 7 e finishCleanup (n, p; sonda p7b/sba2-7b.mjs: mão 9→7, dano 1→0), emptyPools a cada passo (q; sonda: reserva zerada) · auditoria independente CR2a/CR2h (11/10/2026): 4a fase no desvirar (M-261); 4k divisão escolhida (CR2g.2); 4n sem limite de mão",
+   "falta": "dia/noite, \"não desvira\", Sagas",
    "esforco": "M",
    "depende": [
     "502.1",
@@ -9028,8 +9043,8 @@
    "regra": "State-Based Actions",
    "titulo": "Checagem de SBA antes da prioridade, em laço com gatilhos",
    "status": "parcial",
-   "evidencia": "apply (12812-12815): stateBased → flushTriggers → stateBased; stateBased repete até 50 vezes enquanto algo muda (12092)",
-   "falta": "não é laço completo: gatilhos gerados pela segunda checagem só entram na pilha na ação seguinte; as ações de uma checagem são aplicadas em sequência (aura, planeswalker, criatura), não como evento único; na limpeza só o caminho da insanidade (afterMadness, 10646) dá prioridade — gatilho ou SBA na limpeza não abre prioridade (514.3a).",
+   "evidencia": "apply (12812-12815): stateBased → flushTriggers → stateBased; stateBased repete até 50 vezes enquanto algo muda (12092) · auditoria independente CR2a/CR2h (11/10/2026): 514.3a com gatilho na limpeza (CR2g.1)",
+   "falta": "o laço ação de estado → gatilho só tem duas voltas em apply",
    "esforco": "P",
    "depende": [
     "603.3",
@@ -9052,9 +9067,9 @@
    "regra": "State-Based Actions",
    "titulo": "Lista das ações baseadas em estado",
    "status": "parcial",
-   "evidencia": "stateBased (12091-12136) + sondas p7b/sba-7b.mjs e sba2-7b.mjs: 5a vida ≤0 perde (e os dois a 0 = empate); 5b comprar de grimório vazio (drewFromEmpty 10318); 5d ficha fora do campo some (12104; rules.unit \"M12 · ficha que sai do campo deixa de existir\"); 5f resistência 0 morre mesmo indestrutível; 5g dano letal, indestrutível sobrevive; 5h toque mortífero (deathtouched 10804/12131); 5i lealdade 0; 5m aura cujo hospedeiro saiu vai ao cemitério; 5n equipamento solta quando o hospedeiro sai; engine.unit \"M5 · vida zero, grimório vazio e 21 de dano de comandante\" · CR2a (motor v75): 5j regra das lendas (lendasRepetidas → decisão pendente \"legend\", ação choose_legend; as outras vão para o cemitério sem destruir) e 5n Equipamento em não-criatura se solta; testes de conformidade em cr.conformidade · M-253 (v96): 704.5c — dez ou mais marcadores de veneno, o jogador perde (lossReason veneno; veneno.unit).",
-   "falta": "5n: fortificação não existe. 5g/h: sem regeneração. 5j: a escolha é pedida depois das outras ações da mesma checagem, não junto. Demais subitens (batalha, Saga, papel, masmorra completa) dependem de tipos que não existem.",
-   "esforco": "M",
+   "evidencia": "stateBased (12091-12136) + sondas p7b/sba-7b.mjs e sba2-7b.mjs: 5a vida ≤0 perde (e os dois a 0 = empate); 5b comprar de grimório vazio (drewFromEmpty 10318); 5d ficha fora do campo some (12104; rules.unit \"M12 · ficha que sai do campo deixa de existir\"); 5f resistência 0 morre mesmo indestrutível; 5g dano letal, indestrutível sobrevive; 5h toque mortífero (deathtouched 10804/12131); 5i lealdade 0; 5m aura cujo hospedeiro saiu vai ao cemitério; 5n equipamento solta quando o hospedeiro sai; engine.unit \"M5 · vida zero, grimório vazio e 21 de dano de comandante\" · CR2a (motor v75): 5j regra das lendas (lendasRepetidas → decisão pendente \"legend\", ação choose_legend; as outras vão para o cemitério sem destruir) e 5n Equipamento em não-criatura se solta; testes de conformidade em cr.conformidade · M-253 (v96): 704.5c — dez ou mais marcadores de veneno, o jogador perde (lossReason veneno; veneno.unit). · M-291 (CR2a.9): 5f/5g pela resistência de agora (terreno animado); 5h com toque mortífero da fonte da habilidade, com infectar e só desde a última checagem; 5n equipamento; 5q marcadores",
+   "falta": "criatura */* sem script vira 0/0 (fica manual); fortificação; 5j escolha depois das outras ações",
+   "esforco": "P",
    "depende": [
     "122",
     "303.4",
@@ -9067,7 +9082,9 @@
     "CR 704.5 · marcadores +1/+1 e −1/−1 na mesma permanente se anulam aos pares (704.5q)",
     "CR 704.5 · Aura no campo sem estar anexada, ou anexada a algo que ela não pode encantar, vai para o cemitério (704.5m)",
     "CR 704.5 · regra das lendas (704.5j): duas lendárias de mesmo nome com o mesmo controlador — ele escolhe uma, a outra vai para o cemitério, mesmo indestrutível",
-    "CR 704.5 · Equipamento anexado a permanente que não é criatura se solta e fica no campo (704.5n)"
+    "CR 704.5 · Equipamento anexado a permanente que não é criatura se solta e fica no campo (704.5n)",
+    "CR 704.5 · Mishra\\",
+    "CR 704.5 · o toque mortífero vale só desde a última checagem: o indestrutível que perde a indestrutibilidade depois não morre"
    ]
   },
   {
@@ -9093,13 +9110,13 @@
    "regra": "State-Based Actions",
    "titulo": "Última informação conhecida vem de antes das SBA",
    "status": "parcial",
-   "falta": "Só a resistência da permanente sacrificada no custo é lida da foto; marcadores e poder ainda não têm primitiva. O exemplo do Young Wolf depende de imortal (702.93).",
+   "falta": "nenhum leitor de quantidade (poder ou marcadores) usa a foto",
    "esforco": "P",
    "depende": [
     "603.10",
     "608.2h"
    ],
-   "evidencia": "CR2a.3 (motor v77): moveObject fotografa a permanente antes de zerar (o.ultima: controlador, face, virada, marcadores, poder e resistência) e os gatilhos de saída leem a foto para a face e o controlador; cr.conformidade \"CR 603.10 · gatilho de saída olha para trás…\" · CR2a.4 (v78): a foto é lida por um efeito — { per: \"sacrificed-toughness\" } (Ayli, Eternal Pilgrim)",
+   "evidencia": "CR2a.3 (motor v77): moveObject fotografa a permanente antes de zerar (o.ultima: controlador, face, virada, marcadores, poder e resistência) e os gatilhos de saída leem a foto para a face e o controlador; cr.conformidade \"CR 603.10 · gatilho de saída olha para trás…\" · CR2a.4 (v78): a foto é lida por um efeito — { per: \"sacrificed-toughness\" } (Ayli, Eternal Pilgrim) · auditoria independente CR2a/CR2h (11/10/2026): o.ultima guarda controlador, face, anexos, P/T e marcadores; lida por gatilhos",
    "testes": [
     "CR 603.10 · gatilho de saída olha para trás: criatura que morre virada para baixo não dispara a habilidade da face de cima"
    ]
