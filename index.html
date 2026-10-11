@@ -5286,6 +5286,7 @@ const EFFECTS = {
   mare_alta: { fields: [], targets: ['self'] }, // M-262 · High Tide
   topo_ou_fundo_do_dono: { fields: [], targets: ['permanent'] }, // M-264 · "The owner of target nonland permanent puts it on their choice of the top or bottom of their library"
   revelar_topo_para_mao: { fields: [], targets: ['self'] }, // M-263 · Dark Confidant
+  copiar_esta: { fields: [], targets: ['self'] }, // M-271 · "if this spell was cast from a graveyard, you may copy this spell and may choose a new target for the copy" (707.10)
   exilar_topo_conjuravel: { fields: ['amount'], targets: ['self'] }, // M-270 · Lukka +1: exila do topo; as criaturas exiladas podem ser conjuradas do exílio enquanto você controlar um planeswalker do subtipo
   criaturas_causam_dano: { fields: [], targets: ['each-opponent'] }, // M-270 · Lukka −7: cada criatura sua causa dano igual ao poder a cada oponente (a fonte é a criatura)
   tirar_tempo: { fields: [], targets: ['self'] }, // M-269 · 702.62 suspender: na manutenção do dono, tira um marcador de tempo
@@ -6009,6 +6010,7 @@ function effectErrors(effects, label, opcional) {
       if (e.ate != null && !duracaoValida(e.ate)) errs.push(`${label} ${i + 1}: duração "${typeof e.ate === 'object' ? JSON.stringify(e.ate) : e.ate}" desconhecida`);
     }
     if (e.do === 'keyword' && !KEYWORDS.includes(String(e.keyword || '').toLowerCase())) errs.push(`${label} ${i + 1}: palavra-chave "${e.keyword}" não é resolvida pelo motor`);
+    if (e.do === 'copiar_esta' && e.seConjuradaDe != null && !['graveyard', 'hand', 'exile'].includes(e.seConjuradaDe)) errs.push(`${label} ${i + 1}: "seConjuradaDe" precisa ser graveyard, hand ou exile`); // M-271
     if (e.do === 'exilar_topo_conjuravel' && !(typeof e.enquantoControlar === 'string' && e.enquantoControlar.trim())) errs.push(`${label} ${i + 1}: diga o subtipo de planeswalker que mantém a permissão (enquantoControlar)`); // M-270
     if (e.suspende != null && !(e.do === 'counter' && Number.isInteger(e.suspende) && e.suspende > 0)) errs.push(`${label} ${i + 1}: "suspende" (marcadores de tempo) só vale para anular, com um inteiro positivo`); // M-269
     if (e.unless && !e.unless.mana) errs.push(`${label} ${i + 1}: "a menos que pague" precisa de um custo de mana`);
@@ -6936,8 +6938,8 @@ const RAW_SCRIPTS = [
   // S20 · cemitério e custos adicionais
   { name: 'Unearth', effects: [{ do: 'reanimate', target: 'creature-in-your-graveyard', targetMvMax: 3 }], cycling: { mana: '{2}' },
     example: { target: 'own-graveyard-creature', expect: { reanimated: true } } },
-  { name: "Sevinne's Reclamation", effects: [{ do: 'reanimate', target: 'permanent-in-your-graveyard', targetMvMax: 3 }],
-    covers: 'partial', note: 'lampejo do passado com cópia ainda não entra',
+  // M-271 · "Return target permanent card with mana value 3 or less from your graveyard to the battlefield. If this spell was cast from a graveyard, you may copy this spell and may choose a new target for the copy. Flashback {4}{W}" (texto de 05/10/2026)
+  { name: "Sevinne's Reclamation", effects: [{ do: 'reanimate', target: 'permanent-in-your-graveyard', targetMvMax: 3 }, { do: 'copiar_esta', seConjuradaDe: 'graveyard' }], flashback: { mana: '{4}{W}' },
     example: { target: 'own-graveyard-creature', expect: { reanimated: true } } },
   { name: 'Pulse of Murasa', effects: [{ do: 'to_hand', target: 'creature-land-in-any-graveyard' }, { do: 'gain', amount: 6 }],
     example: { target: 'own-graveyard-creature', expect: { returned: true, selfLife: 6 } } },
@@ -16002,6 +16004,13 @@ function applyEffect(s, src, eff, tgt, events) {
       for (const f of fichas) moveObject(s, f.oid, 'exile');
       note({ amount: fichas.length, name: nome }); break;
     }
+    case 'copiar_esta': { // M-271 · a cópia vai para a pilha por cima, com alvo próprio; "may": quem controla decide ao resolver a cópia
+      if (src.ability || src.copia || src.zone !== 'stack') { note({ failed: true }); break; } // só a mágica de verdade se copia (a cópia não é conjurada)
+      if (eff.seConjuradaDe && src.castFrom !== eff.seConjuradaDe) { note({ failed: true }); break; }
+      const efeitos = ((s.facts[src.name].script || {}).effects || []).filter(x => x.do !== 'copiar_esta');
+      s.queued.push({ source: src.oid, name: src.name, controller: ctrl, effects: efeitos, when: 'copia', copia: true, optional: true });
+      note({ name: src.name }); break;
+    }
     case 'exilar_topo_conjuravel': { // M-270 · "Exile the top three cards of your library. Creature cards exiled this way gain 'You may cast this card from exile as long as you control a Lukka planeswalker.'"
       const topo = s.zones[ctrl].library.slice(0, amountOf(s, src, eff.amount));
       let criaturas = 0;
@@ -21204,6 +21213,7 @@ function descreveEfeito(e) {
     }
     case 'sacrifice_each': return 'cada jogador sacrifica uma permanente à sua escolha';
     case 'exilar_fichas_mesmo_nome': return 'exila as fichas de mesmo nome que esse jogador controla'; // M-258
+    case 'copiar_esta': return `${e.seConjuradaDe === 'graveyard' ? 'se foi conjurada de um cemitério, ' : ''}pode copiar esta mágica (a cópia escolhe um alvo novo)`; // M-271
     case 'exilar_topo_conjuravel': return `exila as ${qtd(e.amount)} cartas de cima; as criaturas exiladas assim podem ser conjuradas do exílio enquanto você controlar um planeswalker ${e.enquantoControlar}`; // M-270
     case 'criaturas_causam_dano': return 'cada criatura que você controla causa dano igual ao poder dela a cada oponente'; // M-270
     case 'esconderijo': return `olha as ${qtd(e.count)} cartas de cima e exila uma virada para baixo; o resto vai para o fundo em ordem aleatória`; // M-268

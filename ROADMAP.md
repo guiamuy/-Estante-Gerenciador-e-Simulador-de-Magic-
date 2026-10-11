@@ -3301,6 +3301,14 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Golden:** idênticas, sem regravar. Versão não sobe (o Lukka era parcial).
 - **Próximo:** M-271 — cópia de mágica na resolução com lampejo (Sevinne's Reclamation).
 
+**M-271 · R11 · "Pode copiar esta mágica" na resolução, quando conjurada de um cemitério (707.10), e lampejo do Sevinne's** ✅ (leva M-271, motor v96, sem mudança no que existe) — 2 testes de unidade.
+- **Regra:** verbo `copiar_esta { seConjuradaDe }`: na resolução, se a mágica de verdade (não uma cópia) foi conjurada da zona pedida, uma cópia vai para a pilha por cima, escolhendo alvo novo; "may": quem controla decide ao resolver a cópia (recusar não faz nada). Mágica que perde todos os alvos não resolve e não copia.
+- **Cartas cobertas (completas):** Sevinne's Reclamation (era parcial: faltavam o lampejo {4}{W} e a cópia; texto oficial em `.listas/oficiais-commander.json`, 05/10/2026).
+- **Simplificação declarada:** a escolha de copiar é perguntada quando a cópia vai resolver, depois de escolhido o alvo dela (o resultado é o mesmo: recusar não faz nada); a cópia segue sendo item na pilha, não mágica (limitação já registrada em 707.10).
+- **Medição:** Killian 97% → **98%** (completo 99 · parcial 2 · manual 0). **Mapa:** 707.10 continua parcial, com a evidência nova.
+- **Golden:** idênticas, sem regravar. Versão não sobe.
+- **Próximo:** M-272 — extorsão (702.101) e a frente do Sorin (texto do −6 da face de trás ainda a confirmar).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
