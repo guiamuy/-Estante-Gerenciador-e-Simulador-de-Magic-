@@ -1,7 +1,7 @@
 {
  "sobre": "Mapa regra × motor. Cada item NNN.N das Comprehensive Rules de 25/09/2026 classificado contra o motor v72 em 06/10/2026 por 14 auditores independentes, com evidência vista (código com linha, teste ou sonda executada). status: coberta · parcial · ausente · definicao (só define termo) · fora (jogo físico, torneio ou variante que um app de dois jogadores não precisa). Quando um item muda de status, o teste que prova a mudança entra em `testes`.",
  "cr": "2026-09-25",
- "motor": 106,
+ "motor": 107,
  "auditoria": "2026-10-06",
  "itens": [
   {
@@ -4290,14 +4290,17 @@
    "regra": "Handling Triggered Abilities",
    "titulo": "Gatilho vai à pilha: APNAP, ordem, modo e alvo",
    "status": "parcial",
-   "evidencia": "flushTriggers (index.html:11812-11831) roda em todo apply antes da prioridade (:12814), jogador ativo primeiro; sonda sonda-6a-gatilhos.mjs B/C: com A ativo a pilha fica [A, B] e com B ativo [B, A] (o do não ativo resolve primeiro); controlador = quem controlava a fonte ao disparar (fromController :10309); rules.unit \"M10 · dois gatilhos ao mesmo tempo: o controlador escolhe a ordem\", \"S15 · gatilho com alvo: a mesa pergunta qual, e sem alvo legal o gatilho some\", \"S56 · gatilho com modos\" · CR2b.4 (motor v82): 603.3d — gatilho com vários alvos: putTriggerOnStack escolhe um alvo por efeito, em ordem, todos diferentes, antes de a habilidade ir à pilha; CR1b: 603.3c descarta modo sem alvo; teste de conformidade em cr.conformidade",
-   "falta": "\"Até N alvos\" em gatilho some se não houver alvo (603.3d, alvo opcional). 603.3b: gatilhos nascidos na última conferência de estado do apply só vão à pilha na ação seguinte.",
+   "evidencia": "flushTriggers (index.html:11812-11831) roda em todo apply antes da prioridade (:12814), jogador ativo primeiro; sonda sonda-6a-gatilhos.mjs B/C: com A ativo a pilha fica [A, B] e com B ativo [B, A] (o do não ativo resolve primeiro); controlador = quem controlava a fonte ao disparar (fromController :10309); rules.unit \"M10 · dois gatilhos ao mesmo tempo: o controlador escolhe a ordem\", \"S15 · gatilho com alvo: a mesa pergunta qual, e sem alvo legal o gatilho some\", \"S56 · gatilho com modos\" · CR2b.4 (motor v82): 603.3d — gatilho com vários alvos: putTriggerOnStack escolhe um alvo por efeito, em ordem, todos diferentes, antes de a habilidade ir à pilha; CR1b: 603.3c descarta modo sem alvo; teste de conformidade em cr.conformidade · M-292 (CR2b.5): a escolha aberta por um gatilho para a fila (APNAP mantida, salvaguarda não se perde); quem põe a permanente no campo controla os gatilhos de entrada dela (603.3a); gatilhos que lembram cartas diferentes pedem a ordem",
+   "falta": "603.3c (gatilho que dispara durante a escolha de outro) segue a ordem do código",
    "esforco": "M",
    "depende": [
     "601.2c"
    ],
    "testes": [
-    "CR 603.3 · gatilho com dois alvos: cada alvo é escolhido ao pôr a habilidade na pilha, e cada efeito age no seu (603.3d)"
+    "CR 603.3 · gatilho com dois alvos: cada alvo é escolhido ao pôr a habilidade na pilha, e cada efeito age no seu (603.3d)",
+    "CR 603.3 · APNAP com escolha aberta: o gatilho do jogador ativo que pede alvo fica embaixo do gatilho do outro (antes ficava em cima)",
+    "CR 603.3 · Animate Dead na criatura do oponente: o \"ao entrar\" dela é de quem a pôs no campo, e o seu \"outra criatura sua entra\" dispara",
+    "CR 603.3 · gatilhos que lembram cartas diferentes (Angelic Renewal com duas criaturas morrendo juntas): o controlador escolhe a ordem"
    ]
   },
   {
@@ -4375,15 +4378,16 @@
    "regra": "Handling Triggered Abilities",
    "titulo": "Gatilhos que \"olham para trás\"",
    "status": "parcial",
-   "evidencia": "Morte e saída do campo da própria permanente disparam com o controlador de antes da mudança (moveObject index.html:10309-10311, fromController); sacrifício avisa other-sacrificed (sacrifice :11628); rules.unit \"M9 · gatilhos de morte\", \"S32 · sacrificar outra permanente dispara o gatilho\" · CR2a.3 (motor v77): 603.10a — as mortes de uma mesma checagem de estado saem em lote (s.saindoJuntas) e quem sai junto também observa as outras; moveObject guarda a última informação conhecida (o.ultima: controlador, face, virada, marcadores, poder e resistência) e a criatura que sai virada para baixo não dispara a habilidade da face de cima; testes de conformidade em cr.conformidade · CR2a.4 (v78): \"cada jogador sacrifica\" escolhe em ordem e sacrifica em lote (sacrifice_each, continuaEdito); commander.regras Accursed Marauder · CR2c.2 (v85): \"destroy all\" com filtro (destroy_all) também sai em lote com s.saindoJuntas — Zulaport vê a própria morte e as das outras destruídas junto (commander.regras \"CR2c.2 · Austere Command\")",
-   "falta": "603.10a fora das ações de estado: varreduras que destroem, exilam ou devolvem várias permanentes ainda saem uma a uma (não há primitiva de varredura que mova permanentes). 603.10b-e (sair de fase, desanexar, perder controle, mágica anulada) ausentes; 603.10f-g não se aplicam a dois jogadores.",
+   "evidencia": "Morte e saída do campo da própria permanente disparam com o controlador de antes da mudança (moveObject index.html:10309-10311, fromController); sacrifício avisa other-sacrificed (sacrifice :11628); rules.unit \"M9 · gatilhos de morte\", \"S32 · sacrificar outra permanente dispara o gatilho\" · CR2a.3 (motor v77): 603.10a — as mortes de uma mesma checagem de estado saem em lote (s.saindoJuntas) e quem sai junto também observa as outras; moveObject guarda a última informação conhecida (o.ultima: controlador, face, virada, marcadores, poder e resistência) e a criatura que sai virada para baixo não dispara a habilidade da face de cima; testes de conformidade em cr.conformidade · CR2a.4 (v78): \"cada jogador sacrifica\" escolhe em ordem e sacrifica em lote (sacrifice_each, continuaEdito); commander.regras Accursed Marauder · CR2c.2 (v85): \"destroy all\" com filtro (destroy_all) também sai em lote com s.saindoJuntas — Zulaport vê a própria morte e as das outras destruídas junto (commander.regras \"CR2c.2 · Austere Command\") · M-292 (CR2b.5): a face de trás dispara o \"morre\" dela antes de voltar à frente",
+   "falta": "habilidades disparadas concedidas não disparam ao sair; o filtro do observador usa o tipo impresso, não a última informação",
    "esforco": "M",
    "depende": [
     "704 (mortes simultâneas num só evento)"
    ],
    "testes": [
     "CR 603.10 · mortes simultâneas: quem observa \"outra criatura sua morre\" e morre junto vê as outras (603.10a)",
-    "CR 603.10 · gatilho de saída olha para trás: criatura que morre virada para baixo não dispara a habilidade da face de cima"
+    "CR 603.10 · gatilho de saída olha para trás: criatura que morre virada para baixo não dispara a habilidade da face de cima",
+    "CR 603.10 · a permanente transformada que morre dispara o \"morre\" da face de trás, não o da frente"
    ]
   },
   {
@@ -4423,7 +4427,7 @@
    "regra": "Handling Static Abilities",
    "titulo": "Habilidades que definem características (CDA)",
    "status": "coberta",
-   "evidencia": "changeling vale em qualquer zona (isChangeling index.html:11735 usado em filtros de busca e custo), devoid no script (self.devoid), poder/resistência por contagem (self.perPower → bonus :10074); rules.unit \"S34 · metamorfo conta como qualquer subtipo de criatura\", \"S40 · força por outras criaturas suas\" · auditoria CR2g/CR2b: poder e resistência definidos pela própria carta valem em todas as zonas (M-278, self.ptDefinido)",
+   "evidencia": "changeling vale em qualquer zona (isChangeling index.html:11735 usado em filtros de busca e custo), devoid no script (self.devoid), poder/resistência por contagem (self.perPower → bonus :10074); rules.unit \"S34 · metamorfo conta como qualquer subtipo de criatura\", \"S40 · força por outras criaturas suas\" · auditoria CR2g/CR2b: poder e resistência definidos pela própria carta valem em todas as zonas (M-278, self.ptDefinido) · auditoria independente CR2b (11/10/2026): ptDefinido em todas as zonas (basePT); metamorfo e devoid valem em todas as zonas",
    "depende": [
     "613"
    ],
@@ -6720,13 +6724,19 @@
    "regra": "Keyword Abilities",
    "titulo": "Ward",
    "status": "parcial",
-   "evidencia": "chargeWard (index.html:10843) cobra ao conjurar (12319), ativar (12404), gatilho (11840) e insanidade (12700): pendência may_pay, e recusar anula; rules.unit S41 (2407), R9b; sonda sonda2-702a.mjs: Bolt no Mirrorshell Crab abre may_pay {3} e, recusado, o Bolt vai ao cemitério sem dano",
+   "evidencia": "chargeWard (index.html:10843) cobra ao conjurar (12319), ativar (12404), gatilho (11840) e insanidade (12700): pendência may_pay, e recusar anula; rules.unit S41 (2407), R9b; sonda sonda2-702a.mjs: Bolt no Mirrorshell Crab abre may_pay {3} e, recusado, o Bolt vai ao cemitério sem dano · M-292 (CR2b.5): a cobrança da salvaguarda não se perde quando outra decisão de gatilho abre na mesma rodada",
    "falta": "Não é gatilho na pilha (simplificação declarada em 10839): a cobrança é imediata, sem resposta entre a salvaguarda e a mágica (702.21a). Custo só de mana (self.ward é texto de mana): \"Ward—pagar vida/descartar/sacrificar\" e X (702.21b) não existem; só ward próprio do script, não concedido (Combat Research sem script)",
    "esforco": "M",
    "depende": [
     "603"
    ],
-   "cartas": "evergreen"
+   "cartas": "evergreen",
+   "testes": [
+    "CR 603.3 · APNAP com escolha aberta: o gatilho do jogador ativo que pede alvo fica embaixo do gatilho do outro (antes ficava em cima)",
+    "CR 603.3 · Animate Dead na criatura do oponente: o \"ao entrar\" dela é de quem a pôs no campo, e o seu \"outra criatura sua entra\" dispara",
+    "CR 603.3 · gatilhos que lembram cartas diferentes (Angelic Renewal com duas criaturas morrendo juntas): o controlador escolhe a ordem",
+    "CR 603.10 · a permanente transformada que morre dispara o \"morre\" da face de trás, não o da frente"
+   ]
   },
   {
    "n": "702.22",

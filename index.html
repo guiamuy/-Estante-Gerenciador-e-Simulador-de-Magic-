@@ -13834,7 +13834,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 106; // CR2a.9 · resistência de agora nas ações de estado, toque mortífero da fonte da habilidade e com infectar, marcas da resolução por objeto
+const ENGINE_VERSION = 107; // CR2b.5 · ordem APNAP com escolha aberta, gatilho de entrada de quem controla, gatilhos distintos pelo que lembram, face de trás dispara ao sair
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -14438,7 +14438,7 @@ function entradaLegado(s, o, xPago) {
     if (self.chargePerKick && o.kicked) o.counters.charge = (o.counters.charge || 0) + o.kicked; // CR2c.1 · Everflowing Chalice
   }
 }
-function moveObject(s, oid, to, { top = true } = {}) {
+function moveObject(s, oid, to, { top = true, controller } = {}) {
   const o = s.objects[oid]; if (!o) throw new RuleError('objeto', 'objeto inexistente');
   if (to !== 'stack' && !ZONE_NAMES.includes(to)) throw new RuleError('zona', 'zona inválida: ' + to);
   const fromZone = o.zone, fromController = o.controller;
@@ -14457,7 +14457,8 @@ function moveObject(s, oid, to, { top = true } = {}) {
   to = destinoSubstituido(s, o, fromZone, to); // CR2-G R5a · 614.6 · "em vez disso" (Luminous Phantom e substituições escritas como dado)
   // Leva 105 · 702.34a: conjurada com lampejo, sai da pilha para o exílio seja qual for o destino (anulada também)
   if (fromZone === 'stack' && o.flashback && to !== 'exile') to = 'exile';
-  if (to !== 'battlefield' && to !== 'stack') flipToFront(s, o);
+  const voltaAFrente = to !== 'battlefield' && to !== 'stack';
+  if (voltaAFrente && fromZone !== 'battlefield') flipToFront(s, o); // CR2b.5 · saindo do campo, só depois dos gatilhos (603.10a)
   const from = zoneList(s, o, o.zone);
   const i = from.indexOf(oid); if (i >= 0) from.splice(i, 1);
   if (to !== fromZone) o.zc = (o.zc || 0) + 1; // CR 400.7 · "encarnação": o alvo que mirou a anterior não vale para esta (mesmaEncarnacao)
@@ -14476,7 +14477,7 @@ function moveObject(s, oid, to, { top = true } = {}) {
   if (!(to === 'stack' || (fromZone === 'stack' && to === 'battlefield'))) {
     for (const k of MARCAS_DA_CONJURACAO) delete o[k];
   }
-  o.tapped = false; o.damage = 0; o.counters = {}; o.controller = o.owner; delete o.controles; delete o.controladorBase; // CR2d.6 · 400.7
+  o.tapped = false; o.damage = 0; o.counters = {}; o.controller = to === 'battlefield' && controller != null ? controller : o.owner; delete o.controles; delete o.controladorBase; // CR2d.6 · 400.7 · CR2b.5 · 603.3a: entra já sob quem a pôs no campo
   delete o.tempToxico; delete o.tempResguardoCor; delete o.tempNaoBloqueadaPor; delete o.tempHabilidades; delete o.permissaoUsada; if (fromZone !== to) delete o.desenterrada; // M-255/M-256/M-257 · 400.7
   delete o.attacking; delete o.atacandoPw; delete o.exigeAtacarPw; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.pumpNext; delete o.goaded; delete o.keywordsNext; delete o.cantAttackNext; delete o.targets; delete o.attachedTo; delete o.tempKeywords; delete o.tempTs; delete o.anexadaEm; delete o.mutavel; delete o.vira; delete o.prevenirDano; delete o.regenerar; delete o.temporarios; delete o.tempProtection; delete o.paired; // S39 · o vínculo de alma se desfaz ao sair do campo
   if (fromZone !== 'stack') { delete o.chosenColor; delete o.chosenType; delete o.damagePrevented; delete o.preventGainTo; delete o.devolvidas; } // CR2a.9 · 400.7 / 608.2n: a marca da resolução fica onde a carta caiu; ao sair de lá, o objeto é novo
@@ -14506,6 +14507,7 @@ function moveObject(s, oid, to, { top = true } = {}) {
   // CR2-G R2a · 603.6 · entrar, morrer, sair do campo e "a anexada morre" são o mesmo evento de mudança de zona
   disparaZona(s, o, fromZone, to, fromController, ultima);
   if (o.nomeImpresso != null && to !== 'battlefield') { o.name = o.nomeImpresso; delete o.nomeImpresso; delete o.copias; } // CR2f.1 · 400.7: fora do campo, a carta é ela mesma
+  if (voltaAFrente && fromZone === 'battlefield') flipToFront(s, o); // CR2b.5 · a face de trás disparou o "morre" dela; agora volta à frente
 }
 /** M-262 · algum oponente de `p` controla uma permanente que limita as compras dele a uma por turno? */
 const limiteDeCompra = (s, p) => battlefield(s).some(o => o.controller !== p && !o.faceDown && !semImpressas(s, o) && (((s.facts[o.name] || {}).script || {}).self || {}).oponentesCompramUma);
@@ -15943,7 +15945,7 @@ function sacrificarJogadores(s, src, spec, quem, events, note) {
 function moverObjeto(s, src, alvo, m, ctrl) {
   if (!alvo || (m.de != null && ![].concat(m.de).includes(alvo.zone)) || (m.para === 'library' && alvo.zone === 'library')) return false;
   if (m.lembra) { const fonte = src.ability ? s.objects[src.source] : src; if (fonte && fonte.zone === 'battlefield') fonte.holding = alvo.oid; }
-  moveObject(s, alvo.oid, m.para, m.posicao === 'fundo' ? { top: false } : undefined);
+  moveObject(s, alvo.oid, m.para, { ...(m.posicao === 'fundo' ? { top: false } : {}), ...(m.para === 'battlefield' ? { controller: m.controle === 'dono' ? alvo.owner : ctrl } : {}) }); // CR2b.5 · 603.3a: entra já sob quem a pôs
   if (m.posicao === 'embaralhado') shuffle(s, s.zones[alvo.owner].library);
   if (m.para === 'battlefield') {
     const o = s.objects[alvo.oid];
@@ -15977,9 +15979,9 @@ function moverLegado(s, src, eff, obj, ctrl) {
     case 'to_hand': { const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
       if (alvo && eff.target === 'self-source' && alvo.zone !== (eff.from || 'graveyard')) return false;
       if (alvo) moveObject(s, alvo.oid, 'hand'); return !!alvo; }
-    case 'reanimate': moveObject(s, obj.oid, 'battlefield'); s.objects[obj.oid].controller = ctrl; if (!src.ability && s.objects[src.oid] === src) (src.devolvidas = src.devolvidas || []).push(obj.oid); return true;
+    case 'reanimate': moveObject(s, obj.oid, 'battlefield', { controller: ctrl }); s.objects[obj.oid].controller = ctrl; if (!src.ability && s.objects[src.oid] === src) (src.devolvidas = src.devolvidas || []).push(obj.oid); return true;
     case 'reanimate_tapped': { const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
-      if (alvo && alvo.zone === 'graveyard') { moveObject(s, alvo.oid, 'battlefield'); alvo.controller = ctrl; alvo.tapped = true; return true; } return false; }
+      if (alvo && alvo.zone === 'graveyard') { moveObject(s, alvo.oid, 'battlefield', { controller: ctrl }); alvo.controller = ctrl; alvo.tapped = true; return true; } return false; }
     case 'to_library_shuffled': { const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
       const saiu = eff.target === 'self-source' && alvo && !['graveyard', 'battlefield'].includes(alvo.zone);
       if (alvo && alvo.zone !== 'library' && !saiu) { moveObject(s, alvo.oid, 'library'); shuffle(s, s.zones[alvo.owner].library); return true; } return false; }
@@ -16058,7 +16060,7 @@ function applyEffect(s, src, eff, tgt, events) {
       const fonte = src.ability ? s.objects[src.source] : src;
       const guarda = fonte && (fonte.devolverAoSair || fonte.holding);
       const guardada = guarda ? s.objects[guarda] : null;
-      if (guardada && guardada.zone === 'exile') { moveObject(s, guardada.oid, 'battlefield'); guardada.controller = guardada.owner; note({ target: guardada.name }); }
+      if (guardada && guardada.zone === 'exile') { moveObject(s, guardada.oid, 'battlefield', { controller: guardada.owner }); guardada.controller = guardada.owner; note({ target: guardada.name }); }
       else note({ failed: true });
       if (fonte) { delete fonte.holding; delete fonte.devolverAoSair; }
       break;
@@ -16280,7 +16282,7 @@ function applyEffect(s, src, eff, tgt, events) {
       if (!aura || aura.zone !== 'battlefield') break; // ruling: fora do campo, nada acontece
       const carta = aura.attachedTo ? s.objects[aura.attachedTo] : null;
       if (!carta || carta.zone !== 'graveyard' || !((s.facts[carta.name] || {}).types || []).includes('creature')) { moveObject(s, aura.oid, 'graveyard'); note({ failed: true }); break; } // 704.5m: encantando nada válido
-      moveObject(s, carta.oid, 'battlefield'); carta.controller = aura.controller;
+      moveObject(s, carta.oid, 'battlefield', { controller: aura.controller }); carta.controller = aura.controller;
       attachTo(s, aura, carta.oid, events); aura.reanimada = { oid: carta.oid, z: carta.zc || 0 };
       note({ target: carta.name }); break;
     }
@@ -16316,7 +16318,7 @@ function applyEffect(s, src, eff, tgt, events) {
       const lib = s.zones[who].library, i = lib.findIndex(serve);
       const reveladas = i >= 0 ? lib.slice(0, i + 1) : lib.slice(), achada = i >= 0 ? lib[i] : null;
       note({ target: s.players[who].name, amount: reveladas.length, nomes: reveladas.map(x => s.objects[x].name), achada: achada ? s.objects[achada].name : null });
-      if (achada) { moveObject(s, achada, 'battlefield'); s.objects[achada].controller = who; }
+      if (achada) { moveObject(s, achada, 'battlefield', { controller: who }); s.objects[achada].controller = who; }
       const resto = reveladas.filter(x => x !== achada);
       if (eff.rest === 'bottom-random') { s.zones[who].library = s.zones[who].library.filter(x => !resto.includes(x)); shuffle(s, resto); s.zones[who].library.push(...resto); } // "in a random order"
       else shuffle(s, s.zones[who].library);
@@ -16507,7 +16509,7 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'desenterrar': { // M-257 · volta ao campo com ímpeto; exilada no próximo passo final; se fosse sair do campo, exilada no lugar
       const carta = s.objects[src.ability ? src.source : src.oid];
       if (!carta || carta.zone !== 'graveyard') { note({ failed: true }); break; }
-      moveObject(s, carta.oid, 'battlefield'); carta.controller = ctrl; carta.desenterrada = true;
+      moveObject(s, carta.oid, 'battlefield', { controller: ctrl }); carta.controller = ctrl; carta.desenterrada = true;
       aplicaTemporario(s, carta, { palavras: ['haste'], ate: { enquanto: 'controlar-fonte' } }, ctrl, carta);
       (s.atrasados = s.atrasados || []).push({ when: 'next-end-step', turno: s.turn.number, controller: ctrl, jogador: ctrl, objeto: { oid: carta.oid, z: carta.zc || 0 },
         name: carta.name, source: carta.oid, effects: [{ do: 'mover', target: 'delayed-object', para: 'exile' }] });
@@ -16654,7 +16656,7 @@ function applyEffect(s, src, eff, tgt, events) {
       if (!alvo || !back || alvo.zone !== 'battlefield') { note({ failed: true }); break; }
       moveObject(s, alvo.oid, 'exile');
       if (alvo.zone !== 'exile') { note({ failed: true }); break; }
-      flipTo(s, alvo, back); moveObject(s, alvo.oid, 'battlefield'); alvo.controller = alvo.owner; // a lealdade entra pelo moveObject
+      flipTo(s, alvo, back); moveObject(s, alvo.oid, 'battlefield', { controller: alvo.owner }); alvo.controller = alvo.owner; // a lealdade entra pelo moveObject
       note({ name: alvo.name }); break;
     }
     case 'must_attack_source': { // M-228 · Gideon +2: a criatura alvo ataca a fonte no próximo turno do controlador dela, se puder
@@ -16768,7 +16770,7 @@ function concluiPick(s, events) {
     if (where === 'stay') return;
     if (where === 'library-top') moveObject(s, oid, 'library', { top: true });
     else if (where === 'library-bottom') moveObject(s, oid, 'library', { top: false });
-    else if (where === 'battlefield-tapped') { moveObject(s, oid, 'battlefield'); s.objects[oid].tapped = true; s.objects[oid].controller = pk.p; }
+    else if (where === 'battlefield-tapped') { moveObject(s, oid, 'battlefield', { controller: pk.p }); s.objects[oid].tapped = true; s.objects[oid].controller = pk.p; }
     else if (where === 'graveyard' && pk.discard) descartaCarta(s, oid); // Leva 105 · Duress: é descarte
     else if (where === 'esconder') { moveObject(s, oid, 'exile'); s.objects[oid].faceDown = true; const f = pk.esconde && s.objects[pk.esconde]; if (f && f.zone === 'battlefield') f.escondida = oid; } // M-268 · 702.75a
     else if (where === 'exile-playable-turn') { moveObject(s, oid, 'exile'); s.objects[oid].playableFromExile = pk.p; s.objects[oid].jogavelSoNesteTurno = true; } // M-267
@@ -17331,11 +17333,12 @@ function flushTriggers(s, events) {
     // Leva 106 · cópias de tempestade da mesma mágica são iguais: não há ordem a escolher
     // v69 · gatilhos idênticos da mesma fonte (Lunarch Veteran com dois Pássaros entrando juntos) também não têm ordem a
     // escolher: antes a mesa perguntava "qual entra primeiro" entre duas opções iguais
-    const cara = q => JSON.stringify([q.source, q.when, q.effects || null, q.modes || null, q.value ?? null, q.mayPay || null, !!q.optional, q.condition || null, q.cost || null]);
+    const cara = q => JSON.stringify([q.source, q.when, q.effects || null, q.modes || null, q.value ?? null, q.mayPay || null, !!q.optional, q.condition || null, q.cost || null, q.lembrada || null, q.jogador ?? null, q.objeto || null, q.host || null, q.targets || null]); // CR2b.5 · o que o gatilho lembra também o distingue
     const soCopias = mine.every(q => q.copia && q.source === mine[0].source) || mine.every(q => cara(q) === cara(mine[0]));
     if (mine.length > 1 && !soCopias) { s.pending = { kind: 'triggers', p }; return; }
-    if (soCopias && mine.length > 1) { for (const q of mine) { if (s.pending) break; putTriggerOnStack(s, q, events); } continue; }
-    if (!putTriggerOnStack(s, mine[0], events)) continue;
+    if (soCopias && mine.length > 1) { for (const q of mine) { if (s.pending) break; putTriggerOnStack(s, q, events); } if (s.pending) return; continue; } // CR2b.5
+    putTriggerOnStack(s, mine[0], events);
+    if (s.pending) return; // CR2b.5 · 603.3b: a escolha do jogador ativo vem antes dos gatilhos do outro (antes o laço seguia e invertia a ordem, ou a escolha se perdia)
   }
   if (s.queued.length) flushTriggers(s, events);
 }
@@ -17672,12 +17675,12 @@ function resolveTop(s, events = []) {
       // Leva 105 · 702.103e: com conceder e alvo ilegal, a mágica deixa de ser Aura e entra como criatura
       if (o.bestowed) {
         delete o.bestowed; delete o.targets;
-        moveObject(s, item, 'battlefield'); s.objects[item].controller = controller;
+        moveObject(s, item, 'battlefield', { controller: controller }); s.objects[item].controller = controller;
         events.push({ kind: 'unattached', oid: item, name: o.name });
         return { kind: 'resolved', oid: item, name: o.name, to: 'battlefield', scripted: true, adjudicate: false };
       }
       events.push({ kind: 'fizzled', oid: item, name: o.name }); moveObject(s, item, 'graveyard'); return { kind: 'resolved', oid: item, name: o.name, to: 'graveyard', scripted: true, adjudicate: false }; }
-    moveObject(s, item, 'battlefield'); s.objects[item].controller = controller;
+    moveObject(s, item, 'battlefield', { controller: controller }); s.objects[item].controller = controller;
     if (aura === 'creature-card-in-graveyard') { delete s.objects[item].reanimada; s.objects[item].attachedTo = tgt.oid; s.objects[item].anexadaEm = relogio(s); events.push({ kind: 'effect', do: 'attach', name: o.name, target: s.objects[tgt.oid].name }); } // CR2d.4 · entra encantando a carta no cemitério; o gatilho de entrada faz o resto
     else attachTo(s, s.objects[item], tgt.oid, events);
     return { kind: 'resolved', oid: item, name: o.name, to: 'battlefield', scripted: true, adjudicate: false };

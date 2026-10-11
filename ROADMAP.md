@@ -3539,6 +3539,19 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Mapa:** 122.3, 119.7, 403.4 e 702.2 cobertas; mais 13 itens com evidência e falta reescritas.
 - **Próximo:** CR2d.14 (dependência, 613.8) e auditoria independente da fase CR2b (gatilhos e estáticas).
 
+**CR2b.5 · Gatilhos: ordem APNAP com escolha, controlador ao entrar, ordem pelo que lembram, face de trás ao morrer (603.3a/b, 603.10a, 702.21)** ✅ (leva M-292, motor v107) — 4 testes de conformidade, todos falham no motor v106.
+- **Origem:** auditoria independente da fase CR2b (11/10/2026). Reproduziu 7 erros; esta leva fecha 4.
+- **Regra:**
+  - (1) Quando o gatilho do jogador ativo pede alvo ou modo, a fila para até a escolha e a ordem APNAP se mantém. Antes o gatilho do ativo ficava em cima do do outro; com dois gatilhos do outro, ele sumia, e a cobrança da salvaguarda se perdia.
+  - (2) Quem põe a permanente no campo controla os gatilhos de entrada dela: com Animate Dead na criatura do oponente, quem compra é você, e o seu "outra criatura sua entra" dispara.
+  - (3) Gatilhos que lembram cartas diferentes (Angelic Renewal com duas criaturas morrendo juntas) não são iguais: o controlador escolhe a ordem.
+  - (4) A permanente transformada que morre dispara o "morre" da face de trás.
+- **Versão:** sobe para v107. Goldens regravados só pela versão. Partidas salvas antes não abrem.
+- **Próximo:** CR2b.6, os 3 restantes, todos de "última informação conhecida":
+  - a condição "se" de um gatilho cuja fonte mudou de zona;
+  - o filtro do observador pelos tipos do campo (Mishra's Factory animada morrendo com Zulaport Cutthroat);
+  - as habilidades disparadas concedidas, que hoje não disparam ao sair.
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
