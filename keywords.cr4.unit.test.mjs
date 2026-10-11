@@ -461,3 +461,54 @@ test('CR 702.74a · a linha "Evoke <custo>" conta como palavra-chave na cobertur
   assert.equal(c('Flying\nEvoke {2}{U} (You may cast this spell for its evoke cost. If you do, it\'s sacrificed when it enters.)'), 'completo');
   assert.equal(c('Evoke—Sacrifice a creature.'), 'manual');
 });
+
+/* ---------------- K-9 · 702.109 arremeter ---------------- */
+const SCOUT = (kws = ['Dash']) => ({ ...oficial('Mardu Scout'), keywords: kws });
+/** Passa a prioridade (respondendo pendências com a primeira ação) até o turno de `p` acabar. */
+function ateFimDoTurno(s, p) { for (let i = 0; i < 80 && s.turn.active === p; i++) s = s.pending ? act(s, E.legalActions(s, s.pending.p)[0]) : act(s, { t: 'pass', p: s.turn.priority }); return s; }
+
+test('CR 702.109a · arremeter (Mardu Scout, texto oficial, sem script): a arremetida tem ímpeto e volta para a mão do dono no início do próximo passo final; pelo custo normal, não', () => {
+  assert.deepEqual(J(E.arremeterImpressoK(oficial('Mardu Scout'))), { mana: '{1}{R}' });
+  for (const kws of [['Dash'], []]) {
+    let s = partida({ 'Mardu Scout': SCOUT(kws) }); const a = s.turn.active;
+    let m; [s, m] = poe(s, a, 'Mardu Scout', 'hand');
+    const ofertas = E.legalActions(s, a).filter(x => x.t === 'cast' && x.oid === m);
+    const ar = ofertas.find(x => x.alt != null), normal = ofertas.find(x => x.alt == null);
+    assert.ok(ar && normal, 'as duas formas de conjurar');
+    let d = resolve(act(s, ar));
+    assert.equal(d.objects[m].zone, 'battlefield'); assert.ok(E.hasKeyword(d, d.objects[m], 'haste'), 'arremetida: ímpeto');
+    d = ateFimDoTurno(d, a);
+    assert.equal(d.objects[m].zone, 'hand', 'voltou para a mão no passo final');
+    assert.ok(!d.objects[m].arremetidaK, '400.7: a marca não vai para a mão');
+    let n = resolve(act(s, normal));
+    assert.ok(!E.hasKeyword(n, n.objects[m], 'haste'), 'pelo custo normal, sem ímpeto');
+    n = ateFimDoTurno(n, a);
+    assert.equal(n.objects[m].zone, 'battlefield', 'e fica');
+  }
+});
+
+test('CR 702.109a / 400.7 · a arremetida que sai do campo e volta é outro objeto: não tem ímpeto nem volta para a mão', () => {
+  let s = partida({ 'Mardu Scout': SCOUT(), Volta: BOUNCE }, { Volta: SC_BOUNCE }); const a = s.turn.active;
+  let m, v; [s, m] = poe(s, a, 'Mardu Scout', 'hand'); [s, v] = poe(s, a, 'Volta', 'hand');
+  s = resolve(act(s, E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === m && x.alt != null)));
+  s = resolve(act(s, { t: 'cast', p: a, oid: v, targets: [{ oid: m }] }));
+  assert.equal(s.objects[m].zone, 'hand');
+  s = resolve(act(s, E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === m && x.alt == null)));
+  assert.ok(!E.hasKeyword(s, s.objects[m], 'haste'), 'o objeto novo não foi arremetido');
+  s = ateFimDoTurno(s, a);
+  assert.equal(s.objects[m].zone, 'battlefield', 'o gatilho atrasado não acha a encarnação nova (603.7c)');
+});
+
+test('CR 702.109a · o custo de arremeter é o que se paga: Floresta e Montanha pagam {1}{R}, não {R}{R}', () => {
+  const deck = [{ name: 'Mardu Scout', qty: 4, zone: 'main' }, { name: 'Mountain', qty: 13, zone: 'main' }, { name: 'Forest', qty: 13, zone: 'main' }];
+  let s = E.createGame({ format: 'livre', seed: 5, mode: 'assisted', manaCheck: true, cards: { Mountain: terra('Mountain'), Forest: terra('Forest'), 'Mardu Scout': SCOUT() }, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active; let m; [s, m] = poe(s, a, 'Mardu Scout', 'hand'); [s] = poe(s, a, 'Mountain'); [s] = poe(s, a, 'Forest');
+  const ofertas = E.legalActions(s, a).filter(x => x.t === 'cast' && x.oid === m);
+  assert.ok(ofertas.length && ofertas.every(x => x.alt != null), 'só a arremetida cabe em Floresta + Montanha');
+});
+
+test('CR 702.109a · a linha "Dash <custo>" conta como palavra-chave na cobertura', () => {
+  assert.equal(S.coverage(oficial('Mardu Scout')).level, 'completo');
+});

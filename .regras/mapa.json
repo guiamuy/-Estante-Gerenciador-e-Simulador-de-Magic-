@@ -8076,14 +8076,22 @@
    "n": "702.109",
    "regra": "Keyword Abilities",
    "titulo": "Dash",
-   "status": "ausente",
-   "falta": "Sem o custo alternativo que dá ímpeto e devolve a criatura à mão no início da próxima etapa final (702.109a). O motor tem custo alternativo (altCosts) mas não marca \"foi conjurada por dash\" nem cria o gatilho atrasado.",
+   "status": "parcial",
+   "falta": "Só da mão (custo alternativo só é oferecido para carta na mão). Aumentos e reduções de custo não se aplicam a custo alternativo no caminho comum (payAlt/canPayAlt, 601.2f): pedido à trilha motor. Cópia de mágica arremetida não leva a marca (707.10).",
    "esforco": "M",
    "depende": [
     "601.2b custo alternativo",
     "603.7 gatilho atrasado na etapa final"
    ],
-   "cartas": "comum (Dragons of Tarkir, reedições)"
+   "cartas": "comum (Dragons of Tarkir, reedições)",
+   "evidencia": "K-9: 'dash' em KEYWORDS; arremeterImpressoK lê \"Dash {custo}\" da face da frente (cardFacts.arremeterK); altsImpressosK põe o custo entre os alternativos (script.alt na criação da partida; altSemScriptK para carta sem script, como Mardu Scout); a conjuração marca arremetidaK (MARCAS_DA_CONJURACAO, 400.7). Ao entrar vinda da pilha (moveObject → arremeteuK): ímpeto como habilidade dela enquanto estiver no campo (temporário com carimbo, 613.7) e gatilho atrasado de quem a conjurou que a devolve à mão do dono no início do próximo passo final, lembrando a encarnação (603.7c). Cobertura: a linha conta como palavra-chave (palavraNaLinhaK). Carta exemplo: Mardu Scout (Oracle do Forge, 11/10/2026).",
+   "testes": [
+    "CR 702.109a · arremeter (Mardu Scout, texto oficial, sem script): a arremetida tem ímpeto e volta para a mão do dono no início do próximo passo final; pelo custo normal, não",
+    "CR 702.109a / 400.7 · a arremetida que sai do campo e volta é outro objeto: não tem ímpeto nem volta para a mão",
+    "CR 702.109a · o custo de arremeter é o que se paga: Floresta e Montanha pagam {1}{R}, não {R}{R}",
+    "CR 702.109a · a linha \"Dash <custo>\" conta como palavra-chave na cobertura",
+    "K-9 · arremeter (702.109): a arremetida ataca no turno em que entra e volta para a mão no passo final"
+   ]
   },
   {
    "n": "702.110",

@@ -363,6 +363,21 @@ test('K-8 · evocar (702.74): a criatura evocada é sacrificada ao entrar; pelo 
   assert.ok(vivo(n, c), 'pelo custo normal, fica');
 });
 
+test('K-9 · arremeter (702.109): a arremetida ataca no turno em que entra e volta para a mão no passo final', () => {
+  cobre('dash');
+  const cartas = { ...CARDS, Batedor: cre('Batedor', 3, 1, ['Dash'], { mana_cost: '{R}{R}', cmc: 2, oracle_text: 'Dash {1}{R}' }) };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 40, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a; let c; [s, c] = poe(s, a, 'Batedor', { zone: 'hand' });
+  s = act(s, E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === c && x.alt != null));
+  for (let i = 0; i < 4 && s.stack.length; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const r = combate(s, [c]);
+  assert.equal(r.players[d].life, 17, 'atacou no turno em que entrou');
+  let f = r; for (let i = 0; i < 40 && f.turn.active === a; i++) f = f.pending ? act(f, E.legalActions(f, f.pending.p)[0]) : act(f, { t: 'pass', p: f.turn.priority });
+  assert.equal(f.objects[c].zone, 'hand', 'voltou para a mão');
+});
+
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));
