@@ -5234,6 +5234,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'mobilize', // K-52 · 702.181: gatilho de ataque que cria N Guerreiros 1/1 vermelhos virados e atacando, sacrificados na próxima etapa final (mobilizar_k)
   'offspring', // K-53 · 702.175: custo adicional opcional; paga, a permanente cria ao entrar uma ficha que é cópia dela, só que 1/1 (proleK)
   'spree', // K-54 · 702.172: escolha um ou mais modos, cada um com o custo adicional dele ("+ {1} — …"); cada combinação é um modo do script (modosSpreeK)
+  'harmonize', // K-55 · 702.180: conjurar do cemitério pelo custo de harmonizar, virando até uma criatura sua para reduzir o genérico pelo poder dela; depois, exílio (harmonizarK)
   'afflict', 'melee', 'mentor', 'training', // K-31 · 702.130, 702.121, 702.134, 702.149: gatilhos de ataque gerados pela palavra, um por instância
   'battle cry', 'rampage', 'flanking', 'bushido', // K-30 · 702.91, 702.23, 702.25, 702.45: gatilhos de combate gerados pela palavra (GATILHOS_DE_PALAVRA_K), um por instância
   /* ↓ V · palavras-chave da trilha verbos */
@@ -6441,6 +6442,7 @@ const RAW_SCRIPTS = [
     example: { action: 'mode:0', target: 'enemy-creature', expect: { gone: true } } },
   { name: 'Staggershock', effects: [{ do: 'damage', amount: 2, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: -2 } } }, // K-35 · "deals 2 damage to any target. / Rebound"
   { name: "Prey's Vengeance", effects: [{ do: 'pump', power: 2, toughness: 2, target: 'creature' }], example: { target: 'own-creature', expect: { pump: [2, 2] } } }, // K-35 · "Target creature gets +2/+2 until end of turn. / Rebound" 
+  { name: 'Wild Ride', effects: [{ do: 'pump', power: 3, toughness: 0, target: 'creature' }, { do: 'keyword', keyword: 'haste', target: 'first-target' }], example: { target: 'own-creature', expect: { pump: [3, 0] } } }, // K-55 · "Target creature gets +3/+0 and gains haste until end of turn. / Harmonize {4}{R}"
   { name: 'Borrowed Malevolence', modes: [{ label: '+1/+1 numa criatura', effects: [{ do: 'pump', power: 1, toughness: 1, target: 'creature' }] }, { label: '−1/−1 numa criatura', effects: [{ do: 'pump', power: -1, toughness: -1, target: 'creature' }] }], // K-48 · "Escalate {2} / Choose one or both — • Target creature gets +1/+1 until end of turn. • Target creature gets -1/-1 until end of turn."
     example: { action: 'mode:0', target: 'own-creature', expect: { pump: [1, 1] } } },
   { name: 'Borrowed Hostility', modes: [{ label: '+3/+0 numa criatura', effects: [{ do: 'pump', power: 3, toughness: 0, target: 'creature' }] }, { label: 'Iniciativa a uma criatura', effects: [{ do: 'keyword', keyword: 'first strike', target: 'creature' }] }], // K-48 · "Escalate {3} / Choose one or both — • Target creature gets +3/+0 until end of turn. • Target creature gains first strike until end of turn."
@@ -8356,6 +8358,7 @@ function palavraNaLinhaK(k) {
   if (k === 'mobilize') return 'mobilize \\d+'; // K-52 · "Mobilize X" fica de fora
   if (k === 'offspring') return 'offspring\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-53
   if (k === 'spree') return 'spree'; // K-54 · as linhas "+ {custo} — efeito" são os modos do script
+  if (k === 'harmonize') return 'harmonize\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-55 · "Harmonize {X}…" fica de fora
   if (k === 'dash') return 'dash\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-9
   if (k === 'evoke') return 'evoke(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*exile an? (?:white|blue|black|red|green) card from your hand\\.?)'; // K-8 · só as formas que o motor paga
   return ['afterlife', 'rampage', 'bushido', 'afflict'].includes(k) ? `${k} \\d+` : k; // K-30 · alvoroço N e bushido N
@@ -16059,6 +16062,7 @@ function cardFacts(card) {
     dobraK: dobraImpressaK(card), // K-51 · 702.185: "Warp {1}{U}" / "Warp—{B}, Pay 2 life." (undefined quando não tem)
     proleK: custoDaLinhaK(card, 'Offspring'), // K-53 · 702.175: "Offspring {2}" (undefined quando não tem)
     spreeK: spreeImpressoK(card), // K-54 · 702.172: os custos "+ {1} — …" de cada modo, na ordem (undefined quando não tem)
+    harmonizarK: custoDaLinhaK(card, 'Harmonize'), // K-55 · 702.180: "Harmonize {4}{R}" (undefined quando não tem)
     campeaoK: campeaoImpressoK(card), // K-44 · 702.72: "Champion a creature" → 'creature'; "Champion an Elf" → 'Elf' (undefined quando não tem)
     suspenderK: suspenderImpressoK(card), // K-22 · 702.62a: "Suspend N—{custo}" (undefined quando não tem)
     equipesK: equipesImpressosK(card), // K-28 · 702.6c: "Equip [qualidade] {custo}" (undefined quando não tem)
@@ -20601,7 +20605,7 @@ const HANDLERS = {
   cast(s, a, events = []) { // M-265 · recebe o registro (o replicar anota as cópias)
     if (!a.granted) { noPending(s); holder(s, a.p); } semFracao(s); // CR2c.6 · 608.2g: por efeito, quem decide conjura sem a prioridade
     const o = s.objects[a.oid];
-    const fromGraveyard = (a.flashback || a.disturb || a.escape || a.retrace || a.recomecarK || a.permissao != null) && o && o.zone === 'graveyard'; // K-10 · recomeçar
+    const fromGraveyard = (a.flashback || a.disturb || a.escape || a.retrace || a.recomecarK || a.harmonizarK || a.permissao != null) && o && o.zone === 'graveyard'; // K-10 · recomeçar · K-55 · harmonizar
     // S53 · carta plotada: conjura do exílio, sem pagar mana, num turno depois
     const fromPlot = a.plotted && o && o.zone === 'exile' && o.plotted != null && o.plotted < s.turn.number;
     if (a.plotted && !fromPlot) throw new RuleError('plot', 'esta carta não está plotada para um turno anterior');
@@ -20612,6 +20616,7 @@ const HANDLERS = {
     if (a.flashback && !flashbackOf(s, o)) throw new RuleError('lampejo', 'esta carta não tem lampejo do passado');
     if (a.retrace && !(s.facts[o.name].script || {}).retrace) throw new RuleError('retraçar', 'esta carta não tem retraçar'); // M-222 · 702.81
     if (a.recomecarK) pagaRecomecarK(s, a, o); // K-10 · 702.133a: confere e descarta a carta escolhida (custo adicional)
+    confereHarmonizarK(s, a, o); // K-55 · 702.180a: harmonizar só do cemitério, e só pelo custo de harmonizar (Toca ponto comum: HANDLERS.cast)
     if (a.permissao != null) { // M-256 · conjurar do cemitério pela permissão de uma permanente (uma vez por turno, por permanente)
       const perm = permissoesDoCemiterio(s, a.p).find(x => x.oid === a.permissao);
       if (!perm || !permissaoServe(s, a.p, perm, o) || s.facts[o.name].types.includes('land')) throw new RuleError('permissão', 'nenhuma permanente sua deixa conjurar esta carta do cemitério agora');
@@ -20696,6 +20701,7 @@ const HANDLERS = {
     if (a.recompraK) pagaRecompraK(s, a, o, alt); // K-33 · 702.27a: o custo de recompra, 601.2b/601.2f–h (Toca ponto comum: HANDLERS.cast)
     if (a.proleK) pagaProleK(s, a, o, alt); // K-53 · 702.175a: o custo de prole, 601.2b/601.2f–h (Toca ponto comum: HANDLERS.cast)
     if (alt && alt.emergirK) pagaEmergirK(s, a, o, alt); // K-47 · 702.119a: o custo de emergir menos o valor de mana da sacrificada (Toca ponto comum: HANDLERS.cast)
+    if (alt && alt.harmonizarK) pagaHarmonizarK(s, a, o, alt); // K-55 · 702.180a/b: vira a criatura escolhida e paga o custo reduzido pelo poder dela (Toca ponto comum: HANDLERS.cast)
     if (a.mode != null && ((((f.script || {}).modes) || [])[a.mode] || {}).entrelacarK) pagaEntrelacarK(s, a, o, alt); // K-34 · 702.42a: o custo de entrelaçar (Toca ponto comum: HANDLERS.cast)
     if (a.kick && reforco && s.manaCheck && a.free) payCost(s, a.p, somaCusto(parseCost('{0}'), parseCost(reforco.mana), a.kick)); // M-337 · 118.9d: conjurada sem pagar (cascata, Covil), o reforço é custo adicional e é pago — antes era de graça
     if (escaladoNaAcaoK(s, a, o)) pagaEscalarK(s, a, o, alt); // K-48 · 702.120a: o custo de escalar, uma vez por modo além do primeiro (Toca ponto comum: HANDLERS.cast)
@@ -20740,6 +20746,7 @@ const HANDLERS = {
     contaMagiaK(s, a.p); // K-32 · 702.117a: quantas mágicas cada jogador conjurou no turno (Toca ponto comum: HANDLERS.cast)
     if (a.flashback) s.objects[a.oid].flashback = true; // exila em vez de voltar ao cemitério
     if (a.recomecarK) s.objects[a.oid].flashback = true; // K-10 · 702.133a: "exile this card instead of putting it anywhere else any time it would leave the stack" (o mesmo caminho do lampejo, 702.34a)
+    if (a.harmonizarK) s.objects[a.oid].flashback = true; // K-55 · 702.180a: "exile this card instead of putting it anywhere else any time it would leave the stack" (o caminho do lampejo)
     if (a.omen) s.objects[a.oid].omen = true; // volta embaralhado para o grimório
     if (a.bestow) s.objects[a.oid].bestowed = true; // entra como aura, não como criatura
     if (a.faceDown) s.objects[a.oid].faceDown = true; // S54 · fica virada para baixo até você pagar a metamorfose
@@ -21890,6 +21897,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
     return canPay(s, p, custo, castExtra(s, p, o, a.x || 0, a.targets || []));
   });
   /* ↓ K · ofertas de legalActions da trilha keywords (out.push) */
+  ofertasHarmonizarK(s, p, out, casts); // K-55 · 702.180a: do cemitério, uma oferta por criatura a virar (ou nenhuma); da mão, a opção some
   alvosPorModoK(s, p, out); // K-48 · 115.3: nos modos somados de entrelaçar e escalar, cada modo escolhe os alvos dele (o mesmo objeto pode voltar em outro modo)
   ofertasEmergirK(s, p, out); // K-47 · 702.119a: só as sacrificadas que fecham o custo reduzido
   // K-34 · 702.42a · entrelaçar: a conjuração no modo de todos os modos fica só se o custo a mais fecha (custo extra: uma ação por forma)
@@ -22374,6 +22382,7 @@ MARCAS_DA_CONJURACAO.push('devorouK', 'entrarComEscolhasK'); // K-43 · 702.82b:
 MARCAS_DA_CONJURACAO.push('emergiuK'); // K-47
 MARCAS_DA_CONJURACAO.push('dobradaK', 'dobraK'); // K-51 · a marca da carta exilada (702.185b) some quando ela muda de zona (400.7)
 MARCAS_DA_CONJURACAO.push('proleK'); // K-53 · a marca de prole paga vai da pilha ao campo e some depois (400.7)
+MARCAS_DA_CONJURACAO.push('harmonizadaK'); // K-55
 MARCAS_DA_CONJURACAO.push('campeaoDeK', 'campeaoNesteK'); // K-44 · a ligação é deste objeto (400.7)
 const COR_DO_NOME_K = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
 const COR_PT_K = { W: 'branca', U: 'azul', B: 'preta', R: 'vermelha', G: 'verde' };
@@ -22406,6 +22415,7 @@ function altsImpressosK(f) {
   if (f.arremeterK) out.push({ label: `Arremeter ${f.arremeterK.mana}`, cost: { ...f.arremeterK }, marcaK: 'arremetidaK' });
   if (f.espetaculoK) out.push({ label: `Espetáculo ${f.espetaculoK.mana}`, cost: { ...f.espetaculoK }, when: { espetaculoK: true }, marcaK: 'espetaculoK' }); // K-32 · 702.137a
   if (f.emergirK) out.push({ label: `Emergir ${f.emergirK.mana}, sacrificando ${f.emergirK.tipo === 'creature' ? 'uma criatura' : 'um ' + f.emergirK.tipo} (menos o valor dela)`, cost: { mana: '{0}', sacrificeOther: { types: [f.emergirK.tipo] } }, emergirK: { ...f.emergirK }, marcaK: 'emergiuK' }); // K-47 · 702.119a/b
+  if (f.harmonizarK) out.push({ label: `Harmonizar ${f.harmonizarK.mana}`, cost: { mana: '{0}' }, harmonizarK: { ...f.harmonizarK }, marcaK: 'harmonizadaK', doCemiterioK: true }); // K-55 · 702.180a: só do cemitério (conferido em confereHarmonizarK)
   if (f.dobraK) out.push({ label: `Dobra ${f.dobraK.mana}${f.dobraK.life ? ` e ${f.dobraK.life} de vida` : ''}`, cost: { ...f.dobraK }, marcaK: 'dobradaK' }); // K-51 · 702.185a
   if (f.surtoK) out.push({ label: `Surto ${f.surtoK.mana}`, cost: { ...f.surtoK }, when: { surtoK: true }, marcaK: 'surtoK' }); // K-32 · 702.117a
   return out;
@@ -23385,6 +23395,45 @@ function ofertasSpreeK(s, p, out) {
   }
 }
 Object.assign(EXPORTS_K, { spreeImpressoK, modosSpreeK });
+/* K-55 · 702.180 harmonizar: "You may cast this card from your graveyard by paying [cost] and tapping up to one untapped creature you control
+   rather than paying this spell's mana cost", "its total cost is reduced by an amount of generic mana equal to the tapped creature's power" e "exile
+   this card instead of putting it anywhere else any time it would leave the stack". É um custo alternativo (altsImpressosK, `doCemiterioK`) que só
+   vale do cemitério; a criatura a virar vai na ação (`harmonizarK`: o oid, ou true para nenhuma), escolhida ao escolher pagar (702.180b). */
+const altHarmonizarK = (s, o) => { const lista = altCosts(s, o) || []; const i = lista.findIndex(x => x && x.harmonizarK); return i < 0 ? null : i; };
+function confereHarmonizarK(s, a, o) {
+  const alt = a.alt != null ? (altCosts(s, o) || [])[a.alt] : null;
+  if (!a.harmonizarK && !(alt && alt.harmonizarK)) return;
+  if (!alt || !alt.harmonizarK || !a.harmonizarK) throw new RuleError('custo', 'harmonizar é o custo alternativo de harmonizar, do cemitério');
+  if (o.zone !== 'graveyard') throw new RuleError('custo', 'só se harmoniza do cemitério');
+  if (a.harmonizarK !== true) { const c = s.objects[a.harmonizarK];
+    if (!c || c.zone !== 'battlefield' || c.controller !== a.p || c.tapped || !tiposDe(s, c).includes('creature')) throw new RuleError('custo', 'vire uma criatura desvirada sua (ou nenhuma)'); }
+}
+function custoHarmonizadoK(s, alt, criatura) {
+  const c = parseCost(alt.harmonizarK.mana), pw = criatura ? Math.max(0, power(s, criatura) || 0) : 0;
+  return { ...c, generic: Math.max(0, (c.generic || 0) - pw) };
+}
+function pagaHarmonizarK(s, a, o, alt) {
+  const c = a.harmonizarK !== true ? s.objects[a.harmonizarK] : null;
+  const custo = custoHarmonizadoK(s, alt, c); // o poder de quando paga (antes de virar: virar não muda o poder)
+  if (c) { noteEnchantedEvent(s, c); c.tapped = true; }
+  if (s.manaCheck && !a.free) payCost(s, a.p, custo);
+}
+function ofertasHarmonizarK(s, p, out, casts) {
+  for (let i = out.length - 1; i >= 0; i--) { const x = out[i]; if (x.t === 'cast' && x.alt != null && !x.harmonizarK && s.objects[x.oid] && x.alt === altHarmonizarK(s, s.objects[x.oid])) out.splice(i, 1); } // da mão, não
+  if (s.pending) return;
+  const canSorcery = canSorceryNow(s, p);
+  for (const oid of s.zones[p].graveyard) {
+    const o = s.objects[oid], f = s.facts[o.name]; if (!f || !f.harmonizarK || f.types.includes('land')) continue;
+    const ia = altHarmonizarK(s, o); if (ia == null || !(canSorcery || !isSorcerySpeed(f))) continue;
+    const criaturas = [true, ...battlefield(s).filter(c => c.controller === p && !c.tapped && tiposDe(s, c).includes('creature')).map(c => c.oid)];
+    for (const cr of criaturas) {
+      const custo = custoHarmonizadoK(s, (altCosts(s, o) || [])[ia], cr === true ? null : s.objects[cr]);
+      if (s.manaCheck && !canPay(cr === true ? s : semFonteK(s, cr), p, custo)) continue;
+      for (const x of casts(o)) out.push({ ...x, alt: ia, harmonizarK: cr });
+    }
+  }
+}
+Object.assign(EXPORTS_K, { altHarmonizarK, ofertasHarmonizarK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-30 · 701.65 aerobender: "that player exiles those objects. For each card exiled this way, for as long as it remains exiled, its owner
    may cast it by paying {2} rather than paying its mana cost" (a). A permissão é do DONO e da encarnação exilada (400.7: se a carta sair do
@@ -27301,6 +27350,7 @@ Object.assign(PALAVRA_PT, { warp: 'dobra' }); // K-51
 Object.assign(PALAVRA_PT, { mobilize: 'mobilizar' }); // K-52
 Object.assign(PALAVRA_PT, { offspring: 'prole' }); // K-53
 Object.assign(PALAVRA_PT, { spree: 'farra' }); // K-54
+Object.assign(PALAVRA_PT, { harmonize: 'harmonizar' }); // K-55
 Object.assign(PALAVRA_PT, { afflict: 'aflição', melee: 'refrega', mentor: 'mentor', training: 'treinamento' }); // K-31
 Object.assign(PALAVRA_PT, { 'battle cry': 'grito de guerra', rampage: 'alvoroço', flanking: 'flanquear', bushido: 'bushido' }); // K-30
 const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consultadas por descreveEfeito; antes a pilha mostrava "proeza k")

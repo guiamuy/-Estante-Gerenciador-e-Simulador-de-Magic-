@@ -4485,6 +4485,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Aceite:** Three Steps Ahead com seis Ilhas: "ficha cópia + comprar duas e descartar uma" paga {U}{3}{2} e faz as duas coisas; com cinco, essa combinação some e "só comprar" ({U}{2}) continua.
 - **Testes:** `keywords.cr4.unit` (1, falha sem a leva), `combat.audit` (1 cenário). Texto oficial: Lively Dirge, Three Steps Ahead, Return the Favor, Requisition Raid (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
 - **Parcial declarado:** só pelo custo normal (ou sem pagar o custo de mana); Lively Dirge, Return the Favor e Requisition Raid sem script (efeitos fora do vocabulário do motor).
+**K-55 · Harmonizar (harmonize, 702.180)** 🟡 (leva K-55) — onda 4 (205 cópias em 91 listas: Nature's Rhythm, Winternight Stories, Wild Ride)
+- **Valor:** a carta com "Harmonize {custo}" no cemitério ganha botões de conjurar de lá, um por criatura sua a virar (ou nenhuma); virar reduz o genérico pelo poder da criatura. Depois de resolver, a carta vai para o exílio.
+- **Aceite:** Wild Ride no cemitério com três Montanhas e um Urso: conjurar virando o Urso paga {2}{R}; o Urso ganha +3/+0 e ímpeto; a carta vai para o exílio. Da mão, a harmonização não aparece.
+- **Toca ponto comum:** `HANDLERS.cast` (a condição "do cemitério" ganha `a.harmonizarK`, na linha do recomeçar, K-10; mais três linhas: conferir, pagar e exilar).
+- **Testes:** `keywords.cr4.unit` (1, falha sem a leva), `combat.audit` (1 cenário). Texto oficial: Nature's Rhythm, Winternight Stories, Wild Ride (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
+- **Parcial declarado:** "Harmonize {X}…" (Nature's Rhythm) não é lido; reduções de outras fontes não valem sobre o custo de harmonizar; com redução por alvo no campo (filtro OTIMISTA) a oferta não aparece.
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

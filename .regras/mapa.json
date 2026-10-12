@@ -9418,14 +9418,19 @@
    "n": "702.180",
    "regra": "Keyword Abilities",
    "titulo": "Harmonize",
-   "status": "ausente",
-   "falta": "Sem implementação (grep sem ocorrência no motor nem nos scripts). Falta conjurar do cemitério por custo alternativo virando até uma criatura para reduzir o genérico pelo poder dela, e exilar a carta ao sair da pilha (flashback existe e serve de base).",
+   "status": "parcial",
+   "falta": "\"Harmonize {X}…\" (Nature's Rhythm) não é lido. Aumentos e reduções de custo de outras fontes não valem sobre o custo de harmonizar (caminho comum do custo alternativo, payAlt; pedido à trilha motor). Com redução por alvo no campo (filtro OTIMISTA, M-259), a âncora ↓ K não é alcançada e a harmonização não é oferecida.",
    "esforco": "M",
    "depende": [
     "702.34 flashback (existe)",
     "601.2f redução de custo"
    ],
-   "cartas": "uma coleção só (Tarkir: Dragonstorm)"
+   "cartas": "uma coleção só (Tarkir: Dragonstorm)",
+   "evidencia": "K-55: \"Harmonize {custo}\" (custoDaLinhaK) vira custo alternativo só do cemitério (altsImpressosK com doCemiterioK; confereHarmonizarK em HANDLERS.cast recusa da mão e sem a escolha). A ação traz a criatura a virar (harmonizarK: o oid, ou true para nenhuma; 702.180b), e pagaHarmonizarK vira a criatura e paga o custo com o genérico reduzido pelo poder dela. A mágica vai para o exílio ao sair da pilha (o caminho do lampejo). ofertasHarmonizarK oferece, do cemitério, uma conjuração por criatura que fecha o custo (sem contar a mana da própria criatura virada) e tira a opção da mão. Wild Ride em RAW_SCRIPTS (S8).",
+   "testes": [
+    "CR 702.180a/b · harmonizar (Wild Ride, texto oficial: \"Harmonize {4}{R}\"): do cemitério, pelo custo de harmonizar; virar uma criatura sua reduz o genérico pelo poder dela; depois vai para o exílio; da mão não",
+    "K-55 · harmonizar (702.180): Wild Ride do cemitério, virando outro Urso, dá +3/+0 e ímpeto ao atacante: 5 de dano"
+   ]
   },
   {
    "n": "702.181",

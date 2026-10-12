@@ -2091,3 +2091,21 @@ test('CR 702.172a · spree (Three Steps Ahead, texto oficial): um botão por com
   assert.equal(t.zones[a].battlefield.filter(x => t.objects[x].token && t.objects[x].name === 'Urso').length, 1, 'a ficha cópia do Urso');
   assert.equal(t.zones[a].hand.length, mao - 1 + 2 - 1, 'comprou duas e descartou uma');
 });
+
+/* ---------------- K-55 · harmonizar 702.180 ---------------- */
+test('CR 702.180a/b · harmonizar (Wild Ride, texto oficial: "Harmonize {4}{R}"): do cemitério, pelo custo de harmonizar; virar uma criatura sua reduz o genérico pelo poder dela; depois vai para o exílio; da mão não', () => {
+  let s = comManaK33({ 'Wild Ride': oficial('Wild Ride'), Urso: URSO, Mountain: terra('Mountain') }, { 'Wild Ride': S.SCRIPTS['Wild Ride'] }); const a = s.turn.active;
+  assert.deepEqual(J(s.facts['Wild Ride'].harmonizarK), { mana: '{4}{R}' });
+  s = terrenos(s, a, 'Mountain', 3); let w, u; [s, w] = poe(s, a, 'Wild Ride', 'graveyard'); [s, u] = poe(s, a, 'Urso');
+  const ofs = E.legalActions(s, a).filter(x => x.t === 'cast' && x.oid === w);
+  assert.ok(ofs.length && ofs.every(x => x.harmonizarK === u), 'com três terrenos só fecha virando o Urso (poder 2): {2}{R}');
+  let t = resolve(act(s, ofs.find(x => x.targets[0].oid === u)));
+  assert.equal(t.objects[u].tapped, true, 'o Urso foi virado'); assert.equal(E.stats(t, t.objects[u]).power, 5, '+3/+0');
+  assert.equal(t.zones[a].battlefield.filter(x => t.objects[x].tapped && t.objects[x].name === 'Mountain').length, 3);
+  assert.equal(t.objects[w].zone, 'exile', 'harmonizada: exílio');
+  let m = J(s); const z = m.zones[a].graveyard; z.splice(z.indexOf(w), 1); m.zones[a].hand.push(w); m.objects[w].zone = 'hand';
+  assert.ok(!E.legalActions(m, a).some(x => x.t === 'cast' && x.oid === w && x.alt != null), 'da mão, a harmonização não aparece');
+  const ia = E.altHarmonizarK(m, m.objects[w]);
+  assert.throws(() => E.apply(m, { t: 'cast', p: a, oid: w, alt: ia, harmonizarK: true, targets: [{ oid: u }] }), /cemitério/);
+  assert.throws(() => E.apply(s, { t: 'cast', p: a, oid: w, alt: ia, harmonizarK: true, targets: [{ oid: u }] }), /mana/, 'sem virar, {4}{R} não fecha');
+});
