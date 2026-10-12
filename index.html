@@ -14696,6 +14696,15 @@ const __m42 = (function () {
     const to = m[6] ? DESTINO[m[6].toLowerCase()] : 'hand'; if (!to) return null;
     return [{ do: 'search', amount, ...(quem ? { target: quem } : {}), ...(m[1] ? { optional: true } : {}), filter, to }];
   }
+  /** LT9 · 111.10 · fichas predefinidas, como o motor as cria (mesma definição dos scripts à mão). */
+  const FICHAS_PREDEFINIDAS = {
+    treasure: { name: 'Treasure', types: ['artifact'], subtypes: ['Treasure'], colors: [], abilities: [{ kind: 'activated', cost: { tap: true, sacrifice: true }, effects: [{ do: 'add_mana', anyColor: true }] }] },
+    food: { name: 'Food', types: ['artifact'], subtypes: ['Food'], colors: [], abilities: [{ kind: 'activated', cost: { mana: '{2}', tap: true, sacrifice: true }, effects: [{ do: 'gain', amount: 3 }] }] },
+    blood: { name: 'Blood', types: ['artifact'], subtypes: ['Blood'], colors: [], abilities: [{ kind: 'activated', cost: { mana: '{1}', tap: true, sacrifice: true, discard: 1 }, effects: [{ do: 'draw', amount: 1 }] }] },
+    map: { name: 'Map', types: ['artifact'], subtypes: ['Map'], colors: [], abilities: [{ kind: 'activated', cost: { mana: '{1}', tap: true, sacrifice: true }, sorceryOnly: true, effects: [{ do: 'explore', target: 'creature-you-control' }] }] },
+    clue: { name: 'Clue', types: ['artifact'], subtypes: ['Clue'], colors: [], abilities: [{ kind: 'activated', cost: { mana: '{2}', sacrifice: true }, effects: [{ do: 'draw', amount: 1 }] }] }
+  };
+  const fichaPredefinida = (q, nome) => { const d = FICHAS_PREDEFINIDAS[String(nome).toLowerCase()]; return d ? [{ do: 'token', amount: num(q), token: JSON.parse(JSON.stringify(d)) }] : null; };
   /* Padrões de frase de efeito de mágica (a frase já sem ponto final, com o nome da carta trocado por "~"). Cada um devolve a lista de
      efeitos ou null. */
   const PADROES = [
@@ -14732,6 +14741,18 @@ const __m42 = (function () {
     [/^it deals (\d+) damage to (each opponent|target opponent|any target)$/i, m => [com({ do: 'damage', amount: +m[1] }, alvo(m[2]))]],
     [new RegExp(`^(?:(you may|its controller may|that player may|target player may) )?search (?:your|their) library for (?:(up to) )?${N}(?: (.+?))? cards?(?: named (.+?))?(?:, reveal (?:it|them))?(?:,? (?:and )?put (?:it|them|that card) (into (?:your|their) hand|onto the battlefield(?: tapped)?|on top of your library))?$`, 'i'), busca], // LT5 · 701.23
     [/^shuffle(?: your library)?$/i, () => []],
+    [new RegExp(`^create ${N} (treasure|food|blood|map|clue) tokens?$`, 'i'), m => fichaPredefinida(m[1], m[2])], // LT9 · 111.10
+    [/^investigate$/i, () => fichaPredefinida('a', 'clue')], // LT9 · 701.16
+    [/^prevent all combat damage that would be dealt this turn$/i, () => [{ do: 'fog' }]], // LT9
+    [/^exile all cards from target player's graveyard$/i, () => [{ do: 'exile_graveyard', target: 'player' }]], // LT9
+    [/^return target creature card from your graveyard to your hand$/i, () => [{ do: 'to_hand', target: 'creature-in-your-graveyard' }]], // LT9
+    [/^return target creature or land card from a graveyard to its owner's hand$/i, () => [{ do: 'to_hand', target: 'creature-land-in-any-graveyard' }]], // LT9
+    [/^~ connives$/i, () => [{ do: 'connive', amount: 1 }]], // LT9 · 701.50
+    [new RegExp(`^~ deals ${N} damage to each creature without flying$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'each-nonflying-creature' }]], // LT10
+    [/^damage can't be prevented this turn$/i, () => [{ do: 'no_prevention' }]], // LT10 · 615.12
+    [new RegExp(`^~ deals ${N} damage to each creature with flying$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'each-flying-creature' }]], // LT9
+    [/^venture into the dungeon$/i, () => [{ do: 'venture' }]], // LT9 · 701.49
+    [/^exile two target (artifact|creature|enchantment)s$/i, m => [com({ do: 'exile' }, alvo('target ' + m[1])), com({ do: 'exile' }, alvo('target ' + m[1]))]], // LT9
     [/^target player takes an extra turn after this one$/i, () => [{ do: 'turno_extra', target: 'player' }]], // CR2g.2 · 500.7
     [/^take an extra turn after this one$/i, () => [{ do: 'turno_extra' }]],
     [/^untap all creatures that attacked this turn$/i, () => [{ do: 'desvira_atacantes' }]], // CR2g.4
@@ -14745,7 +14766,10 @@ const __m42 = (function () {
     [/^madness (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ madness: { mana: m[1] } })],
     [/^cycling (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ cycling: { mana: m[1] } })],
     [/^storm$/i, () => ({ storm: true })],
-    [/^delve$/i, () => ({ delve: true })]
+    [/^delve$/i, () => ({ delve: true })],
+    [/^transmute (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ transmute: { mana: m[1] } })], // LT10 · 702.53
+    [new RegExp(`^escape—(\\{[^}]+\\}(?:\\{[^}]+\\})*), exile ${N} other cards from your graveyard$`, 'i'), m => ({ escape: { mana: m[1], exileGraveyard: num(m[2]) } })], // LT10 · 702.138
+    [/^as an additional cost to cast this spell, sacrifice an artifact or creature$/i, () => ({ additional: { sacrificeOther: { types: ['artifact', 'creature'] } } })] // LT10 · 601.2b
   ];
   /** Abertura de habilidade disparada → `when` do vocabulário (os que o motor executa com esse nome). */
   const GATILHOS = [
@@ -14762,6 +14786,8 @@ const __m42 = (function () {
     [/^whenever enchanted creature deals damage to an opponent$/i, 'enchanted-damages-opponent'],
     [/^whenever another creature enters(?: the battlefield)? under your control$/i, 'other-etb'],
     [/^whenever you gain life$/i, 'you-gain-life'], // CR2b.7 · 119.9
+    [/^whenever you sacrifice another permanent$/i, 'other-sacrificed'], // LT10
+    [/^[Ww]henever another ([A-Z][a-z]+) enters(?: the battlefield)?$/, 'other-etb', m => ({ anyController: true, filter: { types: ['creature'], subtype: m[1] } })], // LT10 · "another Elf enters" (de qualquer jogador)
     [/^(?:heroic — )?whenever you cast a spell that targets (this creature|~)$/i, 'heroic'], // CR2b.8
     [/^whenever you attack$/i, 'you-attack'], // CR2g.5
     [/^whenever (this creature|~) becomes blocked$/i, 'becomes-blocked'],
@@ -14815,7 +14841,7 @@ const __m42 = (function () {
   }
   /** Uma linha de habilidade ativada ("custo: efeito. Activate only as a sorcery.") → { ab, frases } ou null. */
   function leAtivada(linha, nome, frases) {
-    const m = linha.match(/^((?:\{[^}]+\}|Sacrifice [^:,]+|Discard a card)(?:,\s*(?:\{[^}]+\}|Sacrifice [^:,]+|Discard a card))*): (.+)$/i);
+    const m = linha.match(/^((?:(?:\{[^}]+\})+|Sacrifice [^:,]+|Discard a card)(?:,\s*(?:(?:\{[^}]+\})+|Sacrifice [^:,]+|Discard a card))*): (.+)$/i); // LT9 · {2}{U} seguidos
     if (!m) { frases.push({ texto: linha, lida: false, motivo: 'habilidade ativada sem padrão conhecido' }); return null; }
     const cost = leCusto(m[1].replace(new RegExp(escapa(nome), 'g'), '~')); if (!cost) { frases.push({ texto: linha, lida: false, motivo: 'custo de ativação sem padrão conhecido' }); return null; }
     let corpo = m[2].replace(/\.$/, ''); const extra = {};
@@ -14830,12 +14856,13 @@ const __m42 = (function () {
     const i = linha.indexOf(', '); if (i < 0) return null;
     const cab = linha.slice(0, i), resto = linha.slice(i + 2).replace(/\.$/, '');
     const g = GATILHOS.find(([re]) => re.test(cab)); if (!g) return null;
+    const extra = g[2] ? g[2](cab.match(g[0])) : {}; // LT10 · filtro e "de qualquer jogador" da abertura
     const opcional = /^you may /i.test(resto);
     const corpo = resto.replace(/^you may /i, '').replace(/^it /i, '~ ');
     const sub = [];
     const e = leParagrafo(corpo, nome, sub);
     frases.push({ texto: cab, lida: true }, ...sub);
-    return e ? { kind: 'triggered', when: g[1], ...(opcional ? { optional: true } : {}), effects: e } : null;
+    return e ? { kind: 'triggered', when: g[1], ...extra, ...(opcional ? { optional: true } : {}), effects: e } : null;
   }
   const semLembrete = t => String(t || '').replace(/\s*\([^)]*\)/g, '').trim();
   const KW = new Set(SC.KEYWORDS.map(k => k.toLowerCase()));
@@ -14894,7 +14921,7 @@ const __m42 = (function () {
         const c = concessao(lp); if (c) { topo.grants = { ...(topo.grants || {}), ...c, ...(c.keywords && topo.grants && topo.grants.keywords ? { keywords: [...topo.grants.keywords, ...c.keywords] } : {}) }; frases.push({ texto: linha, lida: true }); continue; }
         frases.push({ texto: linha, lida: false, motivo: 'habilidade de permanente sem padrão conhecido' }); continue;
       }
-      const kc = COM_CUSTO.map(([re, faz]) => { const m = linha.match(re); return m && faz(m); }).find(Boolean);
+      const kc = COM_CUSTO.map(([re, faz]) => { const m = linha.replace(/\.$/, '').match(re); return m && faz(m); }).find(Boolean); // LT10 · com ponto final
       if (kc) { Object.assign(topo, kc); frases.push({ texto: linha, lida: true }); continue; }
       if (/^choose one\s*—$/i.test(linha)) { modos = []; frases.push({ texto: linha, lida: true }); continue; }
       const bala = linha.match(/^•\s*(.+)$/);
@@ -14905,7 +14932,7 @@ const __m42 = (function () {
     let script = null;
     if (modos && modos.length && !efeitos.length) script = { name: nome, modes: modos.filter(Boolean), ...topo };
     else if (efeitos.length && !modos) script = { name: nome, effects: efeitos, ...topo };
-    else if (!magica && (topo.abilities || topo.aura || topo.equip || topo.entersTapped || topo.grants || topo.grantsAll || topo.self || topo.produces || topo.cycling)) script = { name: nome, ...topo }; // LT3/LT5
+    else if (!magica && (topo.abilities || topo.aura || topo.equip || topo.entersTapped || topo.grants || topo.grantsAll || topo.self || topo.produces || topo.cycling || topo.transmute || topo.escape)) script = { name: nome, ...topo }; // LT3/LT5
     const permanenteSemTexto = !magica && !linhas.length; // criatura sem texto: não precisa de script (o motor joga pelos dados da carta)
     const erros = script ? SC.validateScript({ ...script, example: { target: 'none', expect: {} } }).filter(e => !/cenário|example|exemplo/i.test(e)) : ['sem efeito'];
     const completa = !!(lidas && ((script && !erros.length) || permanenteSemTexto || (!magica && frases.length && frases.every(f => f.palavras))));

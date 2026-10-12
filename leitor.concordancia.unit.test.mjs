@@ -10,7 +10,7 @@ const { leitor: L, scripts: S } = loadModules();
 const CARTAS = [...JSON.parse(readFileSync(new URL('./.listas/oficiais.json', import.meta.url), 'utf8')).cartas, ...JSON.parse(readFileSync(new URL('./.listas/oficiais-commander.json', import.meta.url), 'utf8')).cartas, ...JSON.parse(readFileSync(new URL('./.listas/oficiais-motor.json', import.meta.url), 'utf8')).cartas]; // M-305 · também as cartas dos alicerces
 // o que conta para a regra: efeitos (com os campos que o motor lê), modos e as palavras-chave com custo do topo; rótulos não contam
 const CAMPOS = ['do', 'amount', 'power', 'toughness', 'target', 'unless', 'token', 'targetNotLegendary', 'targetNotColor', 'optional', 'filter', 'to', 'ate']; // LT5 · M-304: duração de mudança de zona · busca: filtro, destino e "pode"
-const TOPO = ['flashback', 'madness', 'cycling', 'storm', 'delve', 'aura', 'equip', 'grants', 'grantsAll', 'self', 'entersTapped', 'ninjutsu', 'produces'];
+const TOPO = ['flashback', 'madness', 'cycling', 'storm', 'delve', 'transmute', 'escape', 'additional', 'aura', 'equip', 'grants', 'grantsAll', 'self', 'entersTapped', 'ninjutsu', 'produces'];
 // `self.keywords` repete a linha de palavras-chave impressa (o motor já a lê da carta): não é regra a mais
 const SO_REPETE = (h, c) => Object.keys(h).every(k => k !== 'self' || (Object.keys(h.self).join() === 'keywords' && h.self.keywords.every(k2 => new RegExp('\\b' + k2 + '\\b', 'i').test(c.oracle_text || ''))));
 // texto oficial incompleto no acervo (falta a face Omen do Sagu Wildling em .listas/oficiais.json): o leitor não tem como ver; registrado como pendência de dados
@@ -18,13 +18,13 @@ const TEXTO_INCOMPLETO = { 'Sagu Wildling': 'falta a face Omen (Roost Seek) no t
 const ordena = v => Array.isArray(v) ? v.map(ordena) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map(k => [k, ordena(v[k])])) : v;
 const efs = l => (l || []).map(e => Object.fromEntries(CAMPOS.filter(k => e[k] != null).map(k => [k, e[k]])));
 // "you may <efeito único>": à mão às vezes está no efeito (search optional), no leitor fica na habilidade; para o motor é a mesma pergunta — normaliza para a habilidade
-const abs = l => (l || []).map(a => { const es = efs(a.effects); const opt = !!a.optional || (es.length === 1 && !!es[0].optional); if (es.length === 1) delete es[0].optional; return { kind: a.kind, when: a.when, optional: opt, cost: a.cost || null, sorceryOnly: !!a.sorceryOnly, effects: es }; });
+const abs = l => (l || []).map(a => { const es = efs(a.effects); const opt = !!a.optional || (es.length === 1 && !!es[0].optional); if (es.length === 1) delete es[0].optional; return { kind: a.kind, when: a.when, optional: opt, cost: a.cost || null, sorceryOnly: !!a.sorceryOnly, filter: a.filter || null, anyController: !!a.anyController, condition: a.condition || null, effects: es }; }); // LT10 · filtro, "de qualquer jogador" e condição do gatilho também contam
 // `produces` só conta quando o script à mão o declara (o motor lê a mana do texto da carta; o leitor também anota, por completude)
 const limpaSelf = sc => sc.self && Object.keys(sc.self).some(k => k !== 'keywords') ? Object.fromEntries(Object.entries(sc.self).filter(([k]) => k !== 'keywords')) : undefined;
 const efeitos = (sc, ref) => JSON.stringify(ordena({ self: limpaSelf(sc), effects: efs(sc.effects), modes: (sc.modes || []).map(m => efs(m.effects)), abilities: abs(sc.abilities), ...Object.fromEntries(TOPO.filter(k => k !== 'self' && sc[k] != null && sc[k] !== false && (k !== 'produces' || (ref || sc).produces != null)).map(k => [k, sc[k]])) }));
 const SO_EFEITOS = ['name', 'effects', 'modes', 'abilities', 'example', 'covers', 'note', ...TOPO];
 
-test('LT1 · concordância (piso M-314: 78): toda carta lida por inteiro dá o mesmo script escrito à mão (nenhuma divergência)', () => {
+test('LT1 · concordância (piso M-315: 101): toda carta lida por inteiro dá o mesmo script escrito à mão (nenhuma divergência)', () => {
   const lidas = [], divergentes = [];
   for (const c of CARTAS) {
     const r = L.ler(c); if (!r.completa) continue;
@@ -39,7 +39,7 @@ test('LT1 · concordância (piso M-314: 78): toda carta lida por inteiro dá o m
     else if (efeitos(h, h) !== efeitos(r.script, h)) divergentes.push(`${c.name}: leitor ${efeitos(r.script, h)} × à mão ${efeitos(h, h)}`);
   }
   assert.deepEqual(divergentes, []);
-  assert.ok(lidas.length >= 78, 'cartas lidas por inteiro: ' + lidas.length + ' (' + lidas.join(', ') + ')');
+  assert.ok(lidas.length >= 101, 'cartas lidas por inteiro: ' + lidas.length + ' (' + lidas.join(', ') + ')');
 });
 
 test('LT1 · fidelidade: frase sem padrão fica não lida, com o texto dela, e a carta não sai completa; permanente ainda não é lida', () => {
@@ -52,6 +52,12 @@ test('LT1 · fidelidade: frase sem padrão fica não lida, com o texto dela, e a
   assert.equal(q.completa, false, 'frase da ativada fora do vocabulário (ganha voar) fica não lida');
   const a = L.ler({ name: 'Pinga', type_line: 'Creature — Wizard', oracle_text: '{1}, {T}, Sacrifice this creature: Pinga deals 1 damage to any target.' });
   assert.deepEqual(JSON.parse(JSON.stringify(a.script.abilities)), [{ kind: 'activated', cost: { mana: '{1}', tap: true, sacrifice: true }, effects: [{ do: 'damage', amount: 1, target: 'any' }] }], 'LT4: ativada com mana, {T} e sacrifício');
+  // LT9 · custo com símbolos de mana seguidos e fichas predefinidas (111.10)
+  const st = L.ler({ name: 'Coruja', type_line: 'Creature — Bird', oracle_text: '{2}{U}: Draw a card, then discard a card.' });
+  assert.equal(st.completa, true, '{2}{U} seguidos');
+  const bl = L.ler({ name: 'Sangue', type_line: 'Sorcery', oracle_text: 'Create two Blood tokens.' });
+  assert.equal(bl.completa, true); assert.equal(bl.script.effects[0].token.name, 'Blood'); assert.equal(bl.script.effects[0].amount, 2);
+  assert.equal(L.ler({ name: 'Ouro', type_line: 'Sorcery', oracle_text: 'Create a Gold token.' }).completa, false, 'ficha predefinida que o leitor não conhece: não lida');
   const k = L.ler({ name: 'Voadora', type_line: 'Creature — Bird', oracle_text: 'Flying, vigilance' });
   assert.equal(k.frases[0].lida, true, 'linha só de palavras-chave conhecidas: o motor já lê');
   // LT5 · busca (701.23): qualidade, destino e "then shuffle"; qualidade fora do vocabulário fica não lida

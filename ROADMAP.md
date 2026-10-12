@@ -3701,6 +3701,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (mapa 502.3 parcial):** "você pode escolher não desvirar".
 - **Teste:** `naodesvira.unit` (3 testes, falham no motor anterior).
 
+**M-315 · LT9 · Leitor de texto: 101 cartas lidas por inteiro** ✅ (leva M-315, motor v110 sem mudança de jogo) — eram 78, zero divergência.
+- **Valor:** o leitor passa a entender custo com símbolos de mana seguidos ("{2}{U}: Draw a card, then discard a card" — antes só lia com vírgula entre os símbolos), fichas predefinidas (Treasure, Food, Blood, Map, Clue, 111.10), "investigate", "prevent all combat damage that would be dealt this turn", "exile all cards from target player's graveyard", devolver criatura (ou terreno) do cemitério para a mão, "~ connives", "~ deals N damage to each creature with flying", "venture into the dungeon" "exile two target <tipo>s", transmutar, fuga ("Escape—{W}, Exile two other cards…"), custo adicional de sacrificar artefato ou criatura, "each creature without flying", "damage can't be prevented this turn", "whenever you sacrifice another permanent" e "whenever another <Tipo> enters" (de qualquer jogador).
+- **Comparador mais rigoroso:** a concordância passa a comparar também o filtro, o "de qualquer jogador" e a condição de cada gatilho, e as palavras-chave com custo transmutar, fuga e custo adicional (nenhuma divergência escondida apareceu).
+- **Achado pela lista "a uma frase de ser lida":** 128 cartas do acervo ficavam presas numa única frase; esta leva destrava 23.
+- **Teste:** fidelidade (custo seguido, Blood ×2, ficha predefinida desconhecida fica não lida); piso da concordância 101.
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
