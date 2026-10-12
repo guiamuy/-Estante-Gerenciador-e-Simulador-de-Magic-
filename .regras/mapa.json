@@ -8517,14 +8517,18 @@
    "n": "702.123",
    "regra": "Keyword Abilities",
    "titulo": "Fabricate",
-   "status": "ausente",
-   "falta": "Sem gatilho de entrada com escolha \"N marcadores +1/+1 nela ou N fichas Servo 1/1\" (702.123a), nem o caso de não poder receber marcadores (702.123b).",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "603 gatilho etb com escolha",
     "111 fichas"
    ],
-   "cartas": "rara (Kaladesh)"
+   "cartas": "rara (Kaladesh)",
+   "evidencia": "K-38: \"Fabricate N\" gera o gatilho de entrada (GATILHOS_DE_PALAVRA_K.fabricate, um por instância, 702.123b); na resolução (fabricar_k), com a criatura ainda no campo, quem controla escolhe entre N marcadores +1/+1 nela e N fichas de Servo 1/1 artefato criatura incolor (choose_mode com opcoesK); se ela já saiu, cria os Servos.",
+   "testes": [
+    "CR 702.123a · fabricar (Glint-Sleeve Artisan, texto oficial): quando entra, N marcadores +1/+1 nela ou N fichas de Servo 1/1 artefato criatura incolor; se ela já saiu, só os Servos",
+    "K-38 · tumulto e fabricar (702.136, 702.123): a de tumulto escolhe ímpeto e ataca no turno em que entra; a de fabricar cria um Servo, que bloqueia"
+   ]
   },
   {
    "n": "702.124",
@@ -8714,13 +8718,17 @@
    "n": "702.136",
    "regra": "Keyword Abilities",
    "titulo": "Riot",
-   "status": "ausente",
-   "falta": "Sem a escolha ao entrar \"marcador +1/+1 ou ímpeto\" como efeito de substituição (702.136a-b).",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "614.1c entra com escolha"
    ],
-   "cartas": "rara (Ravnica Allegiance)"
+   "cartas": "rara (Ravnica Allegiance)",
+   "evidencia": "K-38: \"Riot\" faz a permanente entrar com o marcador +1/+1 (entraComPalavrasK) e, logo em seguida, antes de qualquer gatilho ou prioridade, quem a controla escolhe (escolhaDeEntradaK, chamada no começo de flushTriggers; decisão choose_mode com opcoesK, que a mesa já desenha): ficar com o marcador ou tirá-lo e ganhar ímpeto sem prazo (tumulto_k, aplicaTemporario 'sempre'). O resultado é o mesmo da escolha ao entrar (como a terra de choque da M-330). 702.136b: uma escolha por instância.",
+   "testes": [
+    "CR 702.136a · tumulto (Zhur-Taa Goblin, texto oficial): ao entrar, quem controla escolhe — com o marcador +1/+1, ou sem ele e com ímpeto (que não acaba no fim do turno)",
+    "K-38 · tumulto e fabricar (702.136, 702.123): a de tumulto escolhe ímpeto e ataca no turno em que entra; a de fabricar cria um Servo, que bloqueia"
+   ]
   },
   {
    "n": "702.137",

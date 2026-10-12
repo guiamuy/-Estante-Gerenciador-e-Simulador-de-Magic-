@@ -4343,6 +4343,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `entradaModificada` (uma linha: os marcadores de `entraComPalavrasK`).
 - **Testes:** `keywords.cr4.unit` (3; os dois primeiros falham sem a leva), `combat.audit` (1 cenário). Texto oficial: Blastoderm, Aven Riftwatcher (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
 - **Parcial declarado:** o "sacrifique quando sai o último" do sumir só dispara quando o próprio sumir tira o marcador.
+**K-38 · Tumulto e fabricar (riot 702.136, fabricate 702.123)** 🟡 (leva K-38)
+- **Valor:** criatura com "Riot" pergunta ao entrar: marcador +1/+1 ou ímpeto; com "Fabricate N", o gatilho de entrada pergunta: N marcadores nela ou N Servos 1/1. As duas usam a pergunta de opções que a mesa já desenha (um botão por linha). Zhur-Taa Goblin e Glint-Sleeve Artisan (Pauper) jogam pelo texto.
+- **Aceite:** Zhur-Taa Goblin: as duas opções; com marcador fica 3/3 sem ímpeto; com ímpeto fica 2/2, ataca no turno e o ímpeto não acaba; Glint-Sleeve Artisan: marcador nela ou um Servo artefato criatura 1/1; se ela saiu antes de o gatilho resolver, só o Servo.
+- **Toca ponto comum:** `flushTriggers` (uma linha: a escolha do tumulto antes dos gatilhos) e `HANDLERS.choose_mode` (uma linha: opções com efeitos, `opcoesK`). O tumulto entra com o marcador e a escolha vem logo depois, sem prioridade no meio (o resultado é o mesmo da escolha ao entrar, como a terra de choque da M-330).
+- **Testes:** `keywords.cr4.unit` (2, falham sem a leva), `combat.audit` (1 cenário). Texto oficial: Zhur-Taa Goblin, Glint-Sleeve Artisan (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
+- **Pedido à mesa:** o título da pergunta diz "o que o gatilho faz?" também no tumulto, que não é gatilho.
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

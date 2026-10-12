@@ -1577,3 +1577,39 @@ test('CR 702.63a · sumir: sem marcador de tempo (tirados por outro meio) o gati
   s = resolve(act(s, { t: 'cast', p: a, oid: r })); s = J(s); s.objects[r].counters = {};
   s = manutencoesK37(s, a, 2); assert.equal(s.objects[r].zone, 'battlefield');
 });
+
+/* ---------------- K-38 · tumulto 702.136 e fabricar 702.123 ---------------- */
+const ateEscolhaK38 = s => { for (let i = 0; i < 8 && !(s.pending && s.pending.kind === 'choose_mode') && (s.stack.length || (s.queued || []).length); i++) s = act(s, { t: 'pass', p: s.turn.priority }); return s; };
+
+test('CR 702.136a · tumulto (Zhur-Taa Goblin, texto oficial): ao entrar, quem controla escolhe — com o marcador +1/+1, ou sem ele e com ímpeto (que não acaba no fim do turno)', () => {
+  let s = partida({ 'Zhur-Taa Goblin': oficial('Zhur-Taa Goblin') }); const a = s.turn.active;
+  let g; [s, g] = poe(s, a, 'Zhur-Taa Goblin', 'hand');
+  s = act(s, { t: 'cast', p: a, oid: g }); s = act(s, { t: 'pass', p: s.turn.priority }); s = ateEscolhaK38(s);
+  assert.equal((s.pending || {}).kind, 'choose_mode', 'a escolha do tumulto'); assert.equal(s.pending.p, a);
+  const ops = E.legalActions(s, a).filter(x => x.t === 'choose_mode'); assert.equal(ops.length, 2);
+  const marc = act(s, ops.find(x => /marcador/i.test(x.label)));
+  assert.equal(marc.objects[g].counters.p1p1, 1); assert.equal(E.hasKeyword(marc, marc.objects[g], 'haste'), false);
+  let imp = act(s, ops.find(x => /ímpeto/i.test(x.label)));
+  assert.ok(!imp.objects[g].counters.p1p1); assert.equal(E.hasKeyword(imp, imp.objects[g], 'haste'), true, 'com ímpeto');
+  imp = ateK35(imp, 1 - a, 'main1'); assert.equal(E.hasKeyword(imp, imp.objects[g], 'haste'), true, 'o ímpeto do tumulto não acaba no fim do turno');
+});
+
+test('CR 702.123a · fabricar (Glint-Sleeve Artisan, texto oficial): quando entra, N marcadores +1/+1 nela ou N fichas de Servo 1/1 artefato criatura incolor; se ela já saiu, só os Servos', () => {
+  let s = partida({ 'Glint-Sleeve Artisan': oficial('Glint-Sleeve Artisan') }); const a = s.turn.active;
+  let g; [s, g] = poe(s, a, 'Glint-Sleeve Artisan', 'hand');
+  s = act(s, { t: 'cast', p: a, oid: g }); s = act(s, { t: 'pass', p: s.turn.priority }); s = ateEscolhaK38(s);
+  assert.equal((s.pending || {}).kind, 'choose_mode', 'na resolução do gatilho: a escolha');
+  const ops = E.legalActions(s, a).filter(x => x.t === 'choose_mode');
+  const m = act(s, ops.find(x => /marcador/i.test(x.label))); assert.equal(m.objects[g].counters.p1p1, 1);
+  const sv = act(s, ops.find(x => /Servo/i.test(x.label)));
+  const fichas = sv.zones[a].battlefield.map(x => sv.objects[x]).filter(o => o.name === 'Servo');
+  assert.equal(fichas.length, 1); assert.ok(!sv.objects[g].counters.p1p1);
+  assert.deepEqual(J(sv.facts.Servo.types).sort(), ['artifact', 'creature']); assert.equal(E.stats(sv, fichas[0]).power, 1);
+  let t;
+  function s0K38() { let x = partida({ 'Glint-Sleeve Artisan': oficial('Glint-Sleeve Artisan') }); const aa = x.turn.active; let gg; [x, gg] = poe(x, aa, 'Glint-Sleeve Artisan', 'hand');
+    x = act(x, { t: 'cast', p: aa, oid: gg }); for (let i = 0; i < 6 && x.objects[gg].zone !== 'battlefield'; i++) x = act(x, { t: 'pass', p: x.turn.priority });
+    assert.ok(x.stack.length, 'o gatilho do fabricar está na pilha'); x = J(x); const z = x.zones[aa].battlefield; z.splice(z.indexOf(gg), 1); x.zones[aa].graveyard.push(gg); x.objects[gg].zone = 'graveyard'; x.objects[gg].zc = (x.objects[gg].zc || 0) + 1; return x; }
+  t = s0K38(); const aa = t.turn.active; t = ateEscolhaK38(t);
+  assert.ok(!(t.pending && t.pending.kind === 'choose_mode'), 'sem a criatura no campo não há escolha');
+  assert.equal(t.zones[aa].battlefield.filter(x => t.objects[x].name === 'Servo').length, 1, 'cria o Servo');
+});

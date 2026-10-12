@@ -656,6 +656,24 @@ test('K-37 · desvanecer e sumir (702.32, 702.63): a 5/5 com "Fading 1" e a 3/3 
   s = proxima(s); assert.equal(vivo(s, f), false, 'sumir: saiu o último, sacrificada'); assert.equal(vivo(s, b), true, 'desvanecer: tirou o último, ainda fica');
   s = proxima(s); assert.equal(vivo(s, b), false, 'desvanecer: não deu para tirar, sacrificada');
 });
+test('K-38 · tumulto e fabricar (702.136, 702.123): a de tumulto escolhe ímpeto e ataca no turno em que entra; a de fabricar cria um Servo, que bloqueia', () => {
+  cobre('riot'); cobre('fabricate');
+  const cartas = { ...CARDS, Arruaca: cre('Arruaca', 2, 2, ['Riot'], { oracle_text: 'Riot' }), Artesa: cre('Artesa', 2, 2, ['Flash', 'Fabricate'], { oracle_text: 'Flash\nFabricate 1' }) };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 62, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a; let r, f; [s, r] = poe(s, a, 'Arruaca', { zone: 'hand' }); [s, f] = poe(s, d, 'Artesa', { zone: 'hand' });
+  s = act(s, { t: 'cast', p: a, oid: r });
+  for (let i = 0; i < 6 && !(s.pending && s.pending.kind === 'choose_mode'); i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  s = act(s, E.legalActions(s, a).find(x => x.t === 'choose_mode' && /ímpeto/.test(x.label)));
+  assert.equal(combate(s, [r]).players[d].life, 18, 'com ímpeto, atacou no turno em que entrou');
+  let t = J(s); t.turn.priority = d; t = act(t, { t: 'cast', p: d, oid: f });
+  for (let i = 0; i < 8 && !(t.pending && t.pending.kind === 'choose_mode'); i++) t = act(t, { t: 'pass', p: t.turn.priority });
+  t = act(t, E.legalActions(t, d).find(x => x.t === 'choose_mode' && /Servo/.test(x.label)));
+  for (let i = 0; i < 4 && t.stack.length; i++) t = act(t, { t: 'pass', p: t.turn.priority });
+  const servo = t.zones[d].battlefield.find(x => t.objects[x].name === 'Servo'); assert.ok(servo, 'o Servo entrou');
+  t = combate(t, [r], [[servo, r]]); assert.equal(t.players[d].life, 20, 'o Servo bloqueou'); assert.ok(!t.objects[servo] || t.objects[servo].zone !== 'battlefield', 'e morreu');
+});
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));

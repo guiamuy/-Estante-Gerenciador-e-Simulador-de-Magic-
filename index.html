@@ -5221,6 +5221,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'rebound', // K-35 · 702.88: conjurada da mão, vai para o exílio ao resolver e volta na sua próxima manutenção (ricocheteNaManutencaoK)
   'echo', // K-36 · 702.30: gatilho da sua manutenção "sacrifique a menos que pague" para a permanente que chegou desde a sua última manutenção (GATILHOS_DE_PALAVRA_K)
   'fading', 'vanishing', // K-37 · 702.32 e 702.63: entram com marcadores (entraComPalavrasK) e tiram um a cada manutenção sua (GATILHOS_DE_PALAVRA_K)
+  'riot', 'fabricate', // K-38 · 702.136 (escolha ao entrar: marcador ou ímpeto) e 702.123 (gatilho de entrada: marcadores ou Servos), pela escolha opcoesK
   'afflict', 'melee', 'mentor', 'training', // K-31 · 702.130, 702.121, 702.134, 702.149: gatilhos de ataque gerados pela palavra, um por instância
   'battle cry', 'rampage', 'flanking', 'bushido', // K-30 · 702.91, 702.23, 702.25, 702.45: gatilhos de combate gerados pela palavra (GATILHOS_DE_PALAVRA_K), um por instância
   /* ↓ V · palavras-chave da trilha verbos */
@@ -8193,6 +8194,7 @@ function palavraNaLinhaK(k) {
   if (k === 'entwine') return 'entwine(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*(?:sacrifice (?:an?|one|two|three) (?:lands?|creatures?|artifacts?|enchantments?)|discard (?:a|one|two|three) cards?|pay \\d+ life)\\.?)'; // K-34
   if (k === 'echo') return 'echo\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-36 · só custo de mana (o que o "pague" da mesa paga)
   if (k === 'fading') return 'fading \\d+'; if (k === 'vanishing') return 'vanishing(?: \\d+)?'; // K-37 · 702.63b: sumir sem número
+  if (k === 'fabricate') return 'fabricate \\d+'; // K-38
   if (k === 'dash') return 'dash\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-9
   if (k === 'evoke') return 'evoke(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*exile an? (?:white|blue|black|red|green) card from your hand\\.?)'; // K-8 · só as formas que o motor paga
   return ['afterlife', 'rampage', 'bushido', 'afflict'].includes(k) ? `${k} \\d+` : k; // K-30 · alvoroço N e bushido N
@@ -18742,6 +18744,21 @@ function applyEffect(s, src, eff, tgt, events) {
       break;
     }
     /* ↓ K · casos de applyEffect da trilha keywords */
+    case 'fabricar_k': { // K-38 · 702.123a: na resolução, marcadores nela (se ainda está no campo) ou Servos
+      const perm = s.objects[src.ability ? src.source : src.oid], n = eff.n || 1, servos = { do: 'token', amount: n, token: SERVO_K };
+      if (!perm || perm.zone !== 'battlefield' || (perm.zc || 0) !== eff.z) { applyEffect(s, src, servos, null, events); break; }
+      s.pending = { kind: 'choose_mode', p: ctrl, name: `Fabricar ${n} de ${perm.name}`, options: [`${n === 1 ? 'Um marcador' : n + ' marcadores'} +1/+1 em ${perm.name}`, `${n === 1 ? 'Uma ficha' : n + ' fichas'} de Servo 1/1`],
+        opcoesK: [{ effects: [{ do: 'counters', amount: n, target: 'self-source' }] }, { effects: [servos] }], fonteK: { oid: perm.oid, name: perm.name, controller: ctrl } };
+      break;
+    }
+    case 'tumulto_k': { // K-38 · 702.136a: "if you don't [have it enter with the counter], it gains haste" — tira o marcador do tumulto e dá ímpeto sem prazo
+      const perm = s.objects[src.ability ? src.source : src.oid];
+      if (!perm || perm.zone !== 'battlefield' || (perm.zc || 0) !== eff.z) { events.push({ kind: 'effect', do: 'tumulto_k', name: src.name, failed: true }); break; }
+      if ((perm.counters.p1p1 || 0) > 0) { perm.counters.p1p1 -= 1; if (!perm.counters.p1p1) delete perm.counters.p1p1; }
+      aplicaTemporario(s, perm, { palavras: ['haste'], ate: 'sempre' }, perm.controller);
+      events.push({ kind: 'effect', do: 'tumulto_k', name: perm.name });
+      break;
+    }
     case 'desvanecer_k': case 'sumir_k': case 'sacrifica_se_k': { // K-37 · 702.32a / 702.63a
       const perm = s.objects[src.ability ? src.source : src.oid];
       if (!perm || perm.zone !== 'battlefield' || (perm.zc || 0) !== eff.z) { events.push({ kind: 'effect', do: eff.do, name: src.name, failed: true }); break; }
@@ -19652,6 +19669,7 @@ function queueTriggersLegado(s, when, objects, controller) {
 }
 /** Põe os gatilhos guardados na pilha (603.3b: cada controlador na ordem que quiser). */
 function flushTriggers(s, events) {
+  if (escolhaDeEntradaK(s)) return; // K-38 · 702.136a: a escolha do tumulto, antes dos gatilhos (Toca ponto comum: flushTriggers)
   // escolhas pendentes vêm antes dos gatilhos
   // M-330 · 614.12 · "you may pay 2 life; if you don't, it enters tapped": a terra entra virada e o controlador decide em seguida se paga
   // para desvirá-la (o resultado é o mesmo da escolha ao entrar; nada acontece entre a entrada e a decisão). Sem a vida (119.4), não há pergunta.
@@ -20580,6 +20598,7 @@ const HANDLERS = {
   choose_mode(s, a, ev) { // S56 · escolhe o modo do gatilho e segue
     if (!s.pending || s.pending.kind !== 'choose_mode' || s.pending.p !== a.p) throw new RuleError('tempo', 'nenhum gatilho esperando escolha');
     const pk = s.pending;
+    if (pk.opcoesK) return escolheOpcaoK(s, a, ev, pk); // K-38 · escolha entre resultados rotulados (tumulto, fabricar) (Toca ponto comum: choose_mode)
     if (pk.compra) { // CR2b.1 · "may draw up to N": a opção escolhida diz quantas
       const n = pk.compra.max - (a.index || 0);
       if (!(n >= 0 && n <= pk.compra.max)) throw new RuleError('escolha', 'quantidade inválida');
@@ -21812,6 +21831,8 @@ Object.assign(EXPORTS_K, { wardsDeK, wardImpressoK, custoDaSalvaguardaK });
 /* K-3 · palavras-chave que são habilidades disparadas (702.108 proeza…): o motor gera a habilidade a partir da palavra-chave que a
    permanente tem agora (impressa, concedida, de marcador ou de mutação), uma por instância (702.108b), em abilitiesOf. */
 const GATILHOS_DE_PALAVRA_K = {
+  // K-38 · 702.123a · "When this permanent enters, you may put N +1/+1 counters on it. If you don't, create N 1/1 colorless Servo artifact creature tokens."
+  fabricate: (s, o, i) => ({ kind: 'triggered', when: 'etb', palavraK: 'fabricate', effects: [{ do: 'fabricar_k', n: numeroDaPalavraK(s, o, 'fabricate', i), z: (o && o.zc) || 0 }] }),
   // K-37 · 702.32a · "At the beginning of your upkeep, remove a fade counter from this permanent. If you can't, sacrifice the permanent."
   fading: (s, o) => ({ kind: 'triggered', when: 'upkeep', palavraK: 'fading', effects: [{ do: 'desvanecer_k', z: (o && o.zc) || 0 }] }),
   // K-37 · 702.63a · "At the beginning of your upkeep, if this permanent has a time counter on it, remove a time counter from it" (603.4: só dispara
@@ -22540,9 +22561,34 @@ Object.assign(EXPORTS_K, { ricocheteImpressoK, ricocheteNaManutencaoK, manutenca
 function entraComPalavrasK(s, o) {
   const f = o && s.facts[o.name], out = {}; if (!f || o.faceDown) return out;
   for (const [k, tipo] of [['fading', 'fade'], ['vanishing', 'time']]) if ((f.kw || []).includes(k)) for (const n of ((f.numerosK || {})[k] || [])) out[tipo] = (out[tipo] || 0) + n;
+  if ((f.kw || []).includes('riot')) for (let i = 0; i < Math.max(1, ((f.numerosK || {}).riot || []).length); i++) { out.p1p1 = (out.p1p1 || 0) + 1; s.queuedChoices = (s.queuedChoices || []).concat([{ kind: 'tumulto_k', oid: o.oid, p: o.controller, name: o.name }]); } // K-38 · 702.136a/b: entra com o marcador e pergunta em seguida (como a terra de choque, M-330)
   return out;
 }
 Object.assign(EXPORTS_K, { entraComPalavrasK });
+/* K-38 · escolha entre resultados rotulados (choose_mode com `opcoesK`): cada opção é uma lista de efeitos aplicados com a fonte `fonteK`.
+   Usada pelo tumulto (702.136a: a escolha é feita ao entrar; aqui ela entra com o marcador e a pergunta vem logo depois, antes de qualquer
+   gatilho ou prioridade, como a terra de choque da M-330: o resultado é o mesmo) e pelo fabricar (702.123a, na resolução do gatilho). */
+const SERVO_K = { name: 'Servo', types: ['artifact', 'creature'], subtypes: ['Servo'], colors: [], power: 1, toughness: 1 };
+function escolhaDeEntradaK(s) {
+  while (!s.pending && (s.queuedChoices || []).length && s.queuedChoices[0].kind === 'tumulto_k') {
+    const c = s.queuedChoices.shift(), t = s.objects[c.oid];
+    if (!t || t.zone !== 'battlefield' || !s.players[c.p] || s.players[c.p].lost) continue;
+    s.pending = { kind: 'choose_mode', p: c.p, name: `Tumulto de ${t.name}`, options: ['Entrar com um marcador +1/+1', 'Entrar sem o marcador, com ímpeto'],
+      opcoesK: [{ effects: [] }, { effects: [{ do: 'tumulto_k', z: t.zc || 0 }] }], fonteK: { oid: t.oid, name: t.name, controller: c.p } };
+    return true;
+  }
+  return false;
+}
+function escolheOpcaoK(s, a, ev, pk) {
+  const op = Number.isInteger(a.index) ? pk.opcoesK[a.index] : null;
+  if (!op) throw new RuleError('escolha', 'opção inválida');
+  s.pending = null;
+  const f = pk.fonteK, src = { oid: f.oid, name: f.name, controller: f.controller, ability: true, source: f.oid }, resto = (op.effects || []).slice();
+  while (resto.length) { const eff = resto.shift(); applyEffect(s, src, eff, null, ev); if (s.pending) { if (resto.length) s.resume = { oid: f.oid, name: f.name, controller: f.controller, effects: resto }; return; } }
+  stateBased(s, ev);
+  if (!s.pending) resumeEffects(s, ev);
+}
+Object.assign(EXPORTS_K, { escolhaDeEntradaK, escolheOpcaoK, SERVO_K });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-28 · 701.66 terrabender N: "Target land you control becomes a 0/0 land creature with haste in addition to its other types. Put N
    +1/+1 counters on it. When that land dies or is put into exile, return it to the battlefield tapped under your control" (a). A
@@ -26308,9 +26354,12 @@ Object.assign(PALAVRA_PT, { entwine: 'entrelaçar' }); // K-34
 Object.assign(PALAVRA_PT, { rebound: 'ricochete' }); // K-35
 Object.assign(PALAVRA_PT, { echo: 'eco' }); // K-36
 Object.assign(PALAVRA_PT, { fading: 'desvanecer', vanishing: 'sumir' }); // K-37
+Object.assign(PALAVRA_PT, { riot: 'tumulto', fabricate: 'fabricar' }); // K-38
 Object.assign(PALAVRA_PT, { afflict: 'aflição', melee: 'refrega', mentor: 'mentor', training: 'treinamento' }); // K-31
 Object.assign(PALAVRA_PT, { 'battle cry': 'grito de guerra', rampage: 'alvoroço', flanking: 'flanquear', bushido: 'bushido' }); // K-30
 const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consultadas por descreveEfeito; antes a pilha mostrava "proeza k")
+  fabricar_k: e => `põe ${e.n || 1} marcador(es) +1/+1 nesta criatura ou cria ${e.n || 1} ficha(s) de Servo 1/1 (fabricar)`, // K-38
+  tumulto_k: () => 'tira o marcador +1/+1 do tumulto; a criatura ganha ímpeto (tumulto)', // K-38
   desvanecer_k: () => 'tira um marcador de desvanecer desta permanente; se não der, ela é sacrificada (desvanecer)', // K-37
   sumir_k: () => 'tira um marcador de tempo desta permanente; quando sai o último, ela é sacrificada (sumir)', // K-37
   sacrifica_se_k: () => 'saiu o último marcador de tempo: esta permanente é sacrificada (sumir)', // K-37
