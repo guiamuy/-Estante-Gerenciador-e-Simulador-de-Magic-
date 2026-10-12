@@ -6975,13 +6975,17 @@
    "n": "702.23",
    "regra": "Keyword Abilities",
    "titulo": "Rampage",
-   "status": "ausente",
-   "falta": "Sem gatilho \"fica bloqueada\" com contagem de bloqueadores além do primeiro (702.23a-b)",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "gatilho becomes-blocked"
    ],
-   "cartas": "rara"
+   "cartas": "rara",
+   "evidencia": "K-30: \"Rampage N\" gera o gatilho \"becomes blocked\" (N lido da linha, numeroDaPalavraK; um por instância, 702.23c); na resolução (alvoroco_k) +N/+N por bloqueador além do primeiro, contados naquela hora (702.23b: bloqueador que entra ou sai depois não muda)",
+   "testes": [
+    "CR 702.23a-b · alvoroço 2 (Wolverine Pack, texto oficial): bloqueada por três, +4/+4 (dois além do primeiro), calculado na resolução; por um, nada",
+    "K-30 · alvoroço (702.23): bloqueado por dois Ursos, o 3/3 com alvoroço 2 vira 5/5 e sobrevive"
+   ]
   },
   {
    "n": "702.24",
@@ -7003,13 +7007,17 @@
    "n": "702.25",
    "regra": "Keyword Abilities",
    "titulo": "Flanking",
-   "status": "ausente",
-   "falta": "Sem gatilho de bloqueio que dá -1/-1 ao bloqueador sem flanquear (702.25a)",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "gatilho becomes-blocked"
    ],
-   "cartas": "rara"
+   "cartas": "rara",
+   "evidencia": "K-30: um gatilho \"becomes blocked\" por bloqueador SEM flanquear (o com flanquear não dispara), cada um dá -1/-1 até o fim do turno àquele bloqueador (o mesmo objeto, flanquear_k); uma instância a mais, um gatilho a mais por bloqueador (702.25b)",
+   "testes": [
+    "CR 702.25a · flanquear (Mtenda Herder, texto oficial): cada bloqueador sem flanquear recebe -1/-1, um gatilho por bloqueador; o que tem flanquear, não",
+    "K-30 · flanquear (702.25): o Urso que bloqueia vira 1/1 e morre para a 1/2"
+   ]
   },
   {
    "n": "702.26",
@@ -7281,13 +7289,17 @@
    "n": "702.45",
    "regra": "Keyword Abilities",
    "titulo": "Bushido",
-   "status": "ausente",
-   "falta": "Sem gatilho \"bloqueia ou fica bloqueada: +N/+N até o fim do turno\" (702.45a)",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "gatilho becomes-blocked/blocks"
    ],
-   "cartas": "uma coleção só (Kamigawa)"
+   "cartas": "uma coleção só (Kamigawa)",
+   "evidencia": "K-30: \"Bushido N\" gera os dois gatilhos (bloqueia; é bloqueada), +N/+N até o fim do turno (bushido_k), um por instância (702.45b)",
+   "testes": [
+    "CR 702.45a · bushido 1 (Devoted Retainer, texto oficial): ao bloquear ou ser bloqueada, +1/+1 até o fim do turno",
+    "K-30 · bushido (702.45): bloqueando, a 1/1 com bushido 1 vira 2/2 e mata o Urso que ataca"
+   ]
   },
   {
    "n": "702.46",
@@ -7965,13 +7977,17 @@
    "n": "702.91",
    "regra": "Keyword Abilities",
    "titulo": "Battle Cry",
-   "status": "ausente",
-   "falta": "Sem \"ao atacar, cada outra atacante recebe +1/+0\" (702.91a); falta o alvo de efeito \"cada outra criatura atacante\".",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "508"
    ],
-   "cartas": "rara"
+   "cartas": "rara",
+   "evidencia": "K-30: a palavra gera o gatilho \"Whenever this creature attacks\" (GATILHOS_DE_PALAVRA_K, um por instância, 702.91b); na resolução (grito_k) cada OUTRA criatura atacante recebe +1/+0 até o fim do turno; a linha \"Battle cry\" conta na cobertura",
+   "testes": [
+    "CR 702.91a · grito de guerra (Goblin Wardriver, texto oficial): ao atacar, cada OUTRA criatura atacante recebe +1/+0; com dois, cada um dá ao outro",
+    "K-30 · grito de guerra (702.91): o Urso que ataca junto bate 3"
+   ]
   },
   {
    "n": "702.92",

@@ -1236,3 +1236,57 @@ test('CR 702.11c / 702.18a · auditoria K-29: "You have hexproof." dá resistên
   let ag, r; [s, ag] = poe(s, a, 'Aegis of the Gods'); [s, r] = poe(s, d, 'Raio', 'hand'); s = J(s); s.turn.priority = d;
   assert.ok(E.legalActions(s, d).some(x => x.oid === r && x.targets && x.targets[0].oid === ag), 'o oponente mira a criatura');
 });
+
+/* ---------------- K-30 · gatilhos de combate: grito de guerra 702.91, alvoroço 702.23, flanquear 702.25, bushido 702.45 ---------------- */
+/** Ataca com `atacantes`, declara `blocos` ([bloqueador, atacante]) e vai até o fim do passo de dano; devolve o estado (os efeitos "até o fim do turno" ainda valem). */
+function ateODano(s, atacantes, blocos = []) {
+  const a = s.turn.active;
+  for (let i = 0; i < 6 && s.turn.step !== 'combat_attackers'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  s = act(s, { t: 'attack', p: a, attackers: atacantes });
+  for (let i = 0; i < 12 && !(s.pending && s.pending.kind === 'blockers') && s.turn.step !== 'combat_damage' && s.turn.step !== 'main2'; i++) s = s.pending ? act(s, E.legalActions(s, s.pending.p)[0]) : act(s, { t: 'pass', p: s.turn.priority });
+  if (s.pending && s.pending.kind === 'blockers') s = act(s, { t: 'block', p: 1 - a, blocks: blocos });
+  for (let i = 0; i < 30 && s.turn.step !== 'main2'; i++) s = s.pending ? act(s, E.legalActions(s, s.pending.p)[0]) : act(s, { t: 'pass', p: s.turn.priority });
+  return s;
+}
+test('CR 702.91a · grito de guerra (Goblin Wardriver, texto oficial): ao atacar, cada OUTRA criatura atacante recebe +1/+0; com dois, cada um dá ao outro', () => {
+  let s = partida({ 'Goblin Wardriver': oficial('Goblin Wardriver'), Urso: URSO }); const a = s.turn.active, d = 1 - a;
+  let g, u; [s, g] = poe(s, a, 'Goblin Wardriver'); [s, u] = poe(s, a, 'Urso');
+  const v = s.players[d].life;
+  assert.equal(ateODano(s, [g, u]).players[d].life, v - 5, 'Urso 2+1, Wardriver 2 (não se dá o bônus)');
+  let g2; [s, g2] = poe(s, a, 'Goblin Wardriver');
+  assert.equal(ateODano(s, [g, g2]).players[d].life, v - 6, 'dois Wardrivers: cada um dá +1/+0 ao outro (3 + 3)');
+});
+
+test('CR 702.23a-b · alvoroço 2 (Wolverine Pack, texto oficial): bloqueada por três, +4/+4 (dois além do primeiro), calculado na resolução; por um, nada', () => {
+  const WP = oficial('Wolverine Pack');
+  let s = partida({ 'Wolverine Pack': WP, Urso: URSO }); const a = s.turn.active, d = 1 - a;
+  let w; [s, w] = poe(s, a, 'Wolverine Pack'); const us = []; for (let i = 0; i < 3; i++) { let u; [s, u] = poe(s, d, 'Urso'); us.push(u); }
+  const tres = ateODano(s, [w], us.map(u => [u, w]));
+  assert.equal(E.stats(tres, tres.objects[w]).power, 6, '2 + 2×2'); assert.equal(tres.objects[w].zone, 'battlefield', '6/8 sobrevive aos 6 de dano');
+  const um = ateODano(s, [w], [[us[0], w]]);
+  assert.equal(E.stats(um, um.objects[w]).power, 2, 'um bloqueador só: sem bônus');
+});
+
+test('CR 702.25a · flanquear (Mtenda Herder, texto oficial): cada bloqueador sem flanquear recebe -1/-1, um gatilho por bloqueador; o que tem flanquear, não', () => {
+  const MH = oficial('Mtenda Herder');
+  let s = partida({ 'Mtenda Herder': MH, Urso: URSO }); const a = s.turn.active, d = 1 - a;
+  let m, u1, u2; [s, m] = poe(s, a, 'Mtenda Herder'); [s, u1] = poe(s, d, 'Urso'); [s, u2] = poe(s, d, 'Urso');
+  const r = ateODano(s, [m], [[u1, m], [u2, m]]);
+  const mortos = [u1, u2].filter(x => r.objects[x].zone === 'graveyard'), vivo = [u1, u2].find(x => r.objects[x].zone === 'battlefield');
+  assert.equal(mortos.length, 1, 'os dois viraram 1/1: o 1 de dano do Herder mata um'); assert.equal(E.stats(r, r.objects[vivo]).power, 1, 'o outro está 1/1');
+  let t = partida({ 'Mtenda Herder': MH }); const b = t.turn.active; let m1, m2; [t, m1] = poe(t, b, 'Mtenda Herder'); [t, m2] = poe(t, 1 - b, 'Mtenda Herder');
+  const r2 = ateODano(t, [m1], [[m2, m1]]);
+  assert.equal(r2.objects[m2].zone, 'graveyard', 'o bloqueador com flanquear não encolhe: 1/1 contra 1/1, os dois morrem'); assert.equal(r2.objects[m1].zone, 'graveyard');
+});
+
+test('CR 702.45a · bushido 1 (Devoted Retainer, texto oficial): ao bloquear ou ser bloqueada, +1/+1 até o fim do turno', () => {
+  const DR = oficial('Devoted Retainer');
+  let s = partida({ 'Devoted Retainer': DR, Goblin: GOBLIN }); const a = s.turn.active, d = 1 - a;
+  let r, u; [s, r] = poe(s, a, 'Devoted Retainer'); [s, u] = poe(s, d, 'Goblin');
+  const bloqueada = ateODano(s, [r], [[u, r]]);
+  assert.equal(E.stats(bloqueada, bloqueada.objects[r]).power, 2, 'bloqueada: 2/2'); assert.equal(bloqueada.objects[r].zone, 'battlefield', 'sobrevive ao Goblin 1/1'); assert.equal(bloqueada.objects[u].zone, 'graveyard');
+  let t = partida({ 'Devoted Retainer': DR, Goblin: GOBLIN }); const b = t.turn.active; let r2, u2; [t, u2] = poe(t, b, 'Goblin'); [t, r2] = poe(t, 1 - b, 'Devoted Retainer');
+  const bloqueou = ateODano(t, [u2], [[r2, u2]]);
+  assert.equal(bloqueou.objects[r2].zone, 'battlefield', 'bloqueando: 2/2 sobrevive ao Goblin'); assert.equal(bloqueou.objects[u2].zone, 'graveyard');
+  const fora = ateODano(t, [u2]); assert.equal(E.stats(fora, fora.objects[r2]).power, 1, 'sem combate, sem bônus');
+});

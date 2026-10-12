@@ -4180,6 +4180,14 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `cardFacts` (uma linha nova: `semPalavraDoJogadorK`).
 - **Testes:** `keywords.cr4.unit` (1, falha sem a leva). Goldens idênticos; motor v109.
 
+
+**CR4 · onda 3 (as palavras-chave ausentes, por classe)** ▶ — ordem: gatilhos de combate → custos de conjuração (buyback, entwine, surge, spectacle, prowl, emerge, escalate) → ao entrar e ao sair (echo, fading, vanishing, modular, riot, fabricate, tribute, sunburst, amplify, devour, champion, soulshift) → cemitério (dredge, scavenge, embalm, eternalize, encore, recover, rebound) → dano (wither, poisonous, annihilator, renown, ingest). As parciais de poucas cartas da onda 2 (reforço com dois custos, afinidade por subtipo, manutenção cumulativa que não é mana, encaixar, vínculo de alma, parceiro, fase) e a insanidade como gatilho (decisão do dono) ficam para a onda 4. Auditoria independente ao fim da onda.
+
+**K-30 · Gatilhos de combate: grito de guerra, alvoroço, flanquear e bushido (702.91, 702.23, 702.25, 702.45)** 🟡 (leva K-30)
+- **Valor:** criaturas com essas quatro palavras jogam sem script e certas: grito de guerra dá +1/+0 a cada outra atacante; alvoroço N dá +N/+N por bloqueador além do primeiro, contado na resolução; flanquear dá -1/-1 a cada bloqueador sem flanquear (um gatilho por bloqueador); bushido N dá +N/+N ao bloquear ou ser bloqueada. Cada instância dispara à parte.
+- **Aceite:** Goblin Wardriver + Urso atacam: 2 + 3; dois Wardrivers: 3 + 3. Wolverine Pack bloqueada por três Ursos vira 6/8 e sobrevive; por um, 2/4. Mtenda Herder bloqueada por dois Ursos: os dois viram 1/1; bloqueada por outra com flanquear, nada. Devoted Retainer vira 2/2 bloqueando ou bloqueada.
+- **Testes:** `keywords.cr4.unit` (4, falham sem a leva), `combat.audit` (4 cenários, um por palavra; o K12 cobra). Texto oficial: Goblin Wardriver, Wolverine Pack, Mtenda Herder, Devoted Retainer (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v109. 702.91, 702.23, 702.25 e 702.45 passam a cobertas.
+
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

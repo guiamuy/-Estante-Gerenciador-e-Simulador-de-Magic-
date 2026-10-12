@@ -5214,6 +5214,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'landwalk', // K-21 · 702.14: travessias com qualidade ("Nonbasic landwalk", "Desertwalk", "Snow swampwalk"…), lidas da linha (travessiasK)
   'protection', // K-17 · 702.16: a qualidade vem da linha "Protection from …" (cores, tipos, subtipos, multicolorido, tudo); a palavra sozinha não protege
   'convoke', 'improvise', // K-13 · 702.51 e 702.126: virar criaturas (artefatos) para pagar parte do custo total (tapaParaPagarK)
+  'battle cry', 'rampage', 'flanking', 'bushido', // K-30 · 702.91, 702.23, 702.25, 702.45: gatilhos de combate gerados pela palavra (GATILHOS_DE_PALAVRA_K), um por instância
   /* ↓ V · palavras-chave da trilha verbos */
   /* ↓ T · palavras-chave da trilha tipos */
 ];
@@ -7781,7 +7782,7 @@ function palavraNaLinhaK(k) {
   if (k === 'protection') { const q = '(?:white|blue|black|red|green|everything|multicolored|monocolored|colorless|all colors|creatures|artifacts|enchantments|instants|sorceries|planeswalkers|lands|' + Object.keys(protecaoNaoCriaturaSCK()).join('|') + '|' + pluraisDeCriaturaSCK() + ')'; return `protection from ${q}(?: and from ${q})*`; } // K-24 · sem palavra solta: só fichas, subtipos que se anexam e tipos de criatura // K-17 · só as qualidades que o motor confere (protecaoImpressa e protecaoQualidadesK)
   if (k === 'dash') return 'dash\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-9
   if (k === 'evoke') return 'evoke(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*exile an? (?:white|blue|black|red|green) card from your hand\\.?)'; // K-8 · só as formas que o motor paga
-  return ['afterlife'].includes(k) ? `${k} \\d+` : k;
+  return ['afterlife', 'rampage', 'bushido'].includes(k) ? `${k} \\d+` : k; // K-30 · alvoroço N e bushido N
 }
 /* ↓ V · exportações de scripts.js da trilha verbos */
 // V-20 · evento "foi exaurida" (701.43): da própria permanente
@@ -18164,6 +18165,23 @@ function applyEffect(s, src, eff, tgt, events) {
       break;
     }
     /* ↓ K · casos de applyEffect da trilha keywords */
+    case 'grito_k': { // K-30 · 702.91a: cada outra criatura atacante, na resolução
+      const eu = src.ability ? src.source : src.oid; let n = 0;
+      for (const c of battlefield(s)) if (c.attacking != null && c.oid !== eu && isCreature(s, c)) { aplicaTemporario(s, c, { poder: 1, resistencia: 0, ate: 'fim-do-turno' }, ctrl); n++; }
+      note({ amount: n }); break;
+    }
+    case 'alvoroco_k': case 'bushido_k': { // K-30 · 702.23a (+N/+N por bloqueador além do primeiro, contado agora) · 702.45a (+N/+N)
+      const c = s.objects[src.ability ? src.source : src.oid];
+      if (!c || c.zone !== 'battlefield' || (c.zc || 0) !== eff.z) { note({ failed: true }); break; }
+      const k = eff.do === 'bushido_k' ? 1 : Math.max(0, battlefield(s).filter(b => b.blocking === c.oid).length - 1), x = (eff.n || 0) * k;
+      if (x) aplicaTemporario(s, c, { poder: x, resistencia: x, ate: 'fim-do-turno' }, ctrl);
+      note({ target: c.name, power: x, toughness: x }); break;
+    }
+    case 'flanquear_k': { // K-30 · 702.25a: o bloqueador (o mesmo objeto) recebe -1/-1
+      const b = s.objects[eff.bloqueador];
+      if (!b || b.zone !== 'battlefield' || (b.zc || 0) !== eff.zb) { note({ failed: true }); break; }
+      aplicaTemporario(s, b, { poder: -1, resistencia: -1, ate: 'fim-do-turno' }, ctrl); note({ target: b.name, power: -1, toughness: -1 }); break;
+    }
     case 'tempestade_k': { // K-25 · 702.40a: "copy it for each other spell that was cast before it this turn" — as cópias (707.10, mágicas na pilha, com alvo próprio) saem na resolução do gatilho, mesmo que a original já tenha saído da pilha (707.10: copia pela última informação)
       for (let i = 0; i < (eff.n || 0); i++) s.queued.push({ source: src.source, name: src.name, controller: ctrl, effects: eff.efeitos || [], when: 'storm', copia: true, copiaDeMagia: true, marcasMagia: eff.marcas || {} });
       events.push({ kind: 'storm', name: src.name, amount: eff.n || 0 });
@@ -21099,6 +21117,15 @@ Object.assign(EXPORTS_K, { wardsDeK, wardImpressoK, custoDaSalvaguardaK });
 /* K-3 · palavras-chave que são habilidades disparadas (702.108 proeza…): o motor gera a habilidade a partir da palavra-chave que a
    permanente tem agora (impressa, concedida, de marcador ou de mutação), uma por instância (702.108b), em abilitiesOf. */
 const GATILHOS_DE_PALAVRA_K = {
+  // K-30 · 702.91a · "Whenever this creature attacks, each other attacking creature gets +1/+0 until end of turn."
+  'battle cry': (s, o) => ({ kind: 'triggered', when: 'attacks', palavraK: 'battle cry', effects: [{ do: 'grito_k', z: (o && o.zc) || 0 }] }),
+  // K-30 · 702.23a · "Whenever this creature becomes blocked, it gets +N/+N until end of turn for each creature blocking it beyond the first." (b: contado na resolução)
+  rampage: (s, o, i) => ({ kind: 'triggered', when: 'becomes-blocked', palavraK: 'rampage', effects: [{ do: 'alvoroco_k', n: numeroDaPalavraK(s, o, 'rampage', i), z: (o && o.zc) || 0 }] }),
+  // K-30 · 702.25a · "Whenever a creature without flanking blocks this creature, the blocking creature gets -1/-1 until end of turn." — um gatilho por bloqueador sem flanquear
+  flanking: (s, o) => ((o && o.blockedBy) || []).map(b => s.objects[b]).filter(b => b && b.zone === 'battlefield' && !has(s, b, 'flanking'))
+    .map(b => ({ kind: 'triggered', when: 'becomes-blocked', palavraK: 'flanking', effects: [{ do: 'flanquear_k', bloqueador: b.oid, zb: b.zc || 0 }] })),
+  // K-30 · 702.45a · "Whenever this creature blocks or becomes blocked, it gets +N/+N until end of turn." — os dois eventos, um em cada combate
+  bushido: (s, o, i) => ['blocks', 'becomes-blocked'].map(when => ({ kind: 'triggered', when, palavraK: 'bushido', effects: [{ do: 'bushido_k', n: numeroDaPalavraK(s, o, 'bushido', i), z: (o && o.zc) || 0 }] })),
   // 702.108a · "Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn."
   prowess: (s, o) => ({ kind: 'triggered', when: 'other-cast', filter: { noncreature: true }, palavraK: 'prowess', effects: [{ do: 'proeza_k', z: (o && o.zc) || 0 }] }), // K-14 · 400.7: só a mesma encarnação
   // 702.79a · "When this permanent is put into a graveyard from the battlefield, if it had no -1/-1 counters on it, return it to the
@@ -21153,7 +21180,7 @@ function instanciasK(s, o, k) {
 /** As habilidades disparadas que as palavras-chave da tabela dão à permanente, uma por instância. */
 function habilidadesDePalavraK(s, o) {
   const out = [];
-  for (const k in GATILHOS_DE_PALAVRA_K) { const n = instanciasK(s, o, k); for (let i = 0; i < n; i++) out.push(GATILHOS_DE_PALAVRA_K[k](s, o, i)); }
+  for (const k in GATILHOS_DE_PALAVRA_K) { const n = instanciasK(s, o, k); for (let i = 0; i < n; i++) { const g = GATILHOS_DE_PALAVRA_K[k](s, o, i); if (Array.isArray(g)) out.push(...g); else out.push(g); } } // K-30 · uma palavra pode gerar mais de um gatilho (bushido: bloqueia ou é bloqueada; flanquear: um por bloqueador)
   return out;
 }
 Object.assign(EXPORTS_K, { instanciasK, habilidadesDePalavraK });
@@ -25074,6 +25101,7 @@ Object.assign(PALAVRA_PT, { convoke: 'convocar', improvise: 'improvisar' }); // 
 Object.assign(PALAVRA_PT, { protection: 'proteção' }); // K-17
 Object.assign(PALAVRA_PT, { landwalk: 'travessia' }); // K-21
 Object.assign(PALAVRA_PT, { suspend: 'suspender' }); // K-22
+Object.assign(PALAVRA_PT, { 'battle cry': 'grito de guerra', rampage: 'alvoroço', flanking: 'flanquear', bushido: 'bushido' }); // K-30
 const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consultadas por descreveEfeito; antes a pilha mostrava "proeza k")
   tempestade_k: e => e.n ? `copia esta mágica ${e.n === 1 ? 'uma vez' : e.n + ' vezes'} (tempestade; cada cópia pode ter alvo novo)` : 'copia esta mágica para cada mágica conjurada antes dela neste turno (nenhuma)',
   proeza_k: () => 'esta criatura recebe +1/+1 até o fim do turno (proeza)',
@@ -25084,6 +25112,10 @@ const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consulta
   exaltado: () => 'a criatura que ataca sozinha recebe +1/+1 até o fim do turno (exaltado)',
   volta_com_marcador: e => `devolve a carta ao campo com um marcador ${e.marcador === 'm1m1' ? '−1/−1 (persistir)' : '+1/+1 (imortal)'}`,
   salvaguarda: () => 'anula aquela mágica ou habilidade, a menos que quem a controla pague o custo da salvaguarda',
+  grito_k: () => 'cada outra criatura atacante recebe +1/+0 até o fim do turno (grito de guerra)', // K-30
+  alvoroco_k: e => `esta criatura recebe +${e.n}/+${e.n} até o fim do turno para cada criatura que a bloqueia além da primeira (alvoroço)`,
+  bushido_k: e => `esta criatura recebe +${e.n}/+${e.n} até o fim do turno (bushido)`,
+  flanquear_k: () => 'a criatura que bloqueia recebe -1/-1 até o fim do turno (flanquear)',
 };
 /* ↓ V · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha verbos */
 const MARCADOR_PT_V = { p1p1: '+1/+1', m1m1: '−1/−1', loyalty: 'de lealdade', poison: 'de veneno' }; // V-7

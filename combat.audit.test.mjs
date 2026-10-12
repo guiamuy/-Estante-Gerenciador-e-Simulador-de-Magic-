@@ -484,6 +484,50 @@ test('K-22 · suspender (702.62): a criatura suspensa volta no turno seguinte co
   assert.equal(r.players[d].life, vida - 3, 'atacou no turno em que voltou');
 });
 
+test('K-30 · grito de guerra (702.91): o Urso que ataca junto bate 3', () => {
+  cobre('battle cry');
+  const cartas = { ...CARDS, Arauto: cre('Arauto', 1, 1, ['Battle cry'], { oracle_text: 'Battle cry' }) };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 48, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a;
+  let ar, u; [s, ar] = poe(s, a, 'Arauto'); [s, u] = poe(s, a, 'Urso');
+  assert.equal(combate(s, [ar, u]).players[d].life, 16, 'Arauto 1 + Urso 2+1');
+});
+
+test('K-30 · alvoroço (702.23): bloqueado por dois Ursos, o 3/3 com alvoroço 2 vira 5/5 e sobrevive', () => {
+  cobre('rampage');
+  const cartas = { ...CARDS, Fera: cre('Fera', 3, 3, ['Rampage'], { oracle_text: 'Rampage 2' }) };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 49, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a;
+  let f, u1, u2; [s, f] = poe(s, a, 'Fera'); [s, u1] = poe(s, d, 'Urso'); [s, u2] = poe(s, d, 'Urso');
+  const r = combate(s, [f], [[u1, f], [u2, f]]); assert.equal(vivo(r, f), true, '5/5 leva 4');
+});
+
+test('K-30 · flanquear (702.25): o Urso que bloqueia vira 1/1 e morre para a 1/2', () => {
+  cobre('flanking');
+  const cartas = { ...CARDS, Cavaleiro: cre('Cavaleiro', 1, 2, ['Flanking'], { oracle_text: 'Flanking' }) };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 50, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a;
+  let c, u; [s, c] = poe(s, a, 'Cavaleiro'); [s, u] = poe(s, d, 'Urso');
+  const r = combate(s, [c], [[u, c]]); assert.equal(vivo(r, u), false, 'Urso 1/1 levou 1'); assert.equal(vivo(r, c), true, 'e o Cavaleiro 1/2 levou só 1');
+});
+
+test('K-30 · bushido (702.45): bloqueando, a 1/1 com bushido 1 vira 2/2 e mata o Urso que ataca', () => {
+  cobre('bushido');
+  const cartas = { ...CARDS, Samurai: cre('Samurai', 1, 1, ['Bushido'], { oracle_text: 'Bushido 1' }) };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 51, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a;
+  let sa, u; [s, u] = poe(s, a, 'Urso'); [s, sa] = poe(s, d, 'Samurai');
+  const r = combate(s, [u], [[sa, u]]); assert.equal(vivo(r, u), false, '2 de dano no Urso'); assert.equal(vivo(r, sa), false, 'e os 2 do Urso matam a 2/2');
+});
+
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));
