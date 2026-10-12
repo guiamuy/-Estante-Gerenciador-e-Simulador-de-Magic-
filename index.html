@@ -5402,6 +5402,7 @@ const EFFECTS = {
   lutador: { fields: [], targets: ['creature', 'creature-you-control'] },
   fight: { fields: [], targets: ['creature', 'creature-opponent-controls', 'creature-you-control'] }, // quem: 'self-source' (a permanente fonte luta) | 'primeiro-alvo' (luta a criatura anotada pelo `lutador` anterior)
   /* ↓ T · efeitos da trilha tipos */
+  transformar: { fields: [], targets: ['self'] }, // T-7 · CR 701.27 · "transform ~": a permanente fonte vira a outra face (nos dois sentidos), se for carta ou ficha de dupla face (712.9) e a outra face for de permanente (701.27d), uma vez por habilidade (701.27f)
   tripulada: { fields: [], targets: ['self'] }, // T-3/T-4 · CR 702.122a/e · o efeito da habilidade de tripular: "esta permanente vira criatura artefato até o fim do turno" (só o mesmo objeto, 400.7) e, sendo Veículo, "fica tripulado"; depois de um `animate` (forma antiga) só avisa
 };
 /** S57 · masmorras: o caminho, as salas e o que cada sala faz.
@@ -5694,6 +5695,7 @@ const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield
   /* ↓ V · gatilhos da trilha verbos */
   'becomes-monstrous', // V-6 · "When ~ becomes monstrous" (o valor do gatilho é o N da monstruosidade, 701.37c)
   /* ↓ T · gatilhos da trilha tipos */
+  'transforms', // T-7 · CR 701.27e · "When ~ transforms (into …)": dispara na face que ficou para cima depois de a permanente transformar
   'crews', 'becomes-crewed', // T-3 · CR 702.122b "Whenever ~ crews a Vehicle" (o Veículo é o `remembered` do gatilho) e 702.122e "Whenever ~ becomes crewed" (o valor do gatilho é o número de criaturas que tripularam)
   'chapter', // T-1 · CR 714.2 · habilidade de capítulo de Saga: { kind: 'triggered', when: 'chapter', chapters: [1, 2], effects } (o motor a dispara pelos marcadores de lore)
 ];
@@ -6070,7 +6072,7 @@ function validateScript(sc) {
   if (sc && sc.replicate != null && sc.kicker) errs.push('replicar e reforço na mesma carta não são aceitos (os dois usam o pagamento repetido)');
   if (sc && sc.modeCount != null && !(Number.isInteger(sc.modeCount) && sc.modeCount >= 2 && (sc.modes || []).length && (sc.modeRepeat || sc.modeCount <= sc.modes.length))) errs.push('número de modos inválido');
   if (sc && sc.cumulativeUpkeep && !/\{/.test(String(sc.cumulativeUpkeep.mana || ''))) errs.push('manutenção cumulativa precisa de um custo de mana');
-  errs.push(...sagaErros(sc), ...tripularErros(sc), ...aventuraErros(sc)); // T-5 · CR 715 · aventura (mesma chamada) // T-3 · CR 702.122 · tripular (mesma chamada da T-1) // T-1 · CR 714 · Saga: capítulos, read ahead e o marcador de entrada (função abaixo da âncora T das exportações)
+  errs.push(...sagaErros(sc), ...tripularErros(sc), ...aventuraErros(sc), ...duplaFaceErros(sc)); // T-7 · CR 712 · dupla face (mesma chamada) // T-5 · CR 715 · aventura (mesma chamada) // T-3 · CR 702.122 · tripular (mesma chamada da T-1) // T-1 · CR 714 · Saga: capítulos, read ahead e o marcador de entrada (função abaixo da âncora T das exportações)
   return errs.concat(exampleErrors(sc));
 }
 const ATRASOS = ['next-upkeep', 'next-end-step', 'end-of-combat']; // CR2b.1 · momentos de gatilho atrasado que o motor conhece
@@ -6390,6 +6392,22 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-7 · CR 701.27 / 712 · dupla face que transforma (Oracle do Forge, clone de 11/10/2026). `self: { duplaFace: true }` + `back` (a face de
+  // trás, sempre de permanente) e o efeito `transformar`. Defensor, voar e vínculo com a vida da frente vêm do texto da carta; os do
+  // verso, de `back.keywords`. A cor do verso é a do indicador de cor da carta (`back.colors`).
+  { name: 'Thraben Gargoyle', self: { duplaFace: true }, abilities: [{ kind: 'activated', cost: { mana: '{6}' }, effects: [{ do: 'transformar' }] }], // "{6}: Transform Thraben Gargoyle."
+    back: { name: 'Stonewing Antagonizer', types: ['artifact', 'creature'], subtypes: ['Gargoyle', 'Horror'], power: 4, toughness: 2, keywords: ['flying'] },
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Desperate Farmer', self: { duplaFace: true }, abilities: [{ kind: 'triggered', when: 'other-dies', filter: { types: ['creature'] }, effects: [{ do: 'transformar' }] }], // "When another creature you control dies, transform Desperate Farmer."
+    back: { name: 'Depraved Harvester', types: ['creature'], subtypes: ['Human', 'Knight'], colors: ['B'], power: 4, toughness: 3, keywords: ['lifelink'] },
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Cloistered Youth', self: { duplaFace: true }, abilities: [{ kind: 'triggered', when: 'upkeep', optional: true, effects: [{ do: 'transformar' }] }], // "At the beginning of your upkeep, you may transform Cloistered Youth."
+    back: { name: 'Unholy Fiend', types: ['creature'], subtypes: ['Horror'], colors: ['B'], power: 3, toughness: 3,
+      abilities: [{ kind: 'triggered', when: 'end-step', effects: [{ do: 'lose', amount: 1, target: 'self' }] }] }, // "At the beginning of your end step, you lose 1 life."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Heir of Falkenrath', self: { duplaFace: true }, abilities: [{ kind: 'activated', cost: { discard: 1 }, oncePerTurn: true, effects: [{ do: 'transformar' }] }], // "Discard a card: Transform Heir of Falkenrath. Activate only once each turn."
+    back: { name: 'Heir to the Night', types: ['creature'], subtypes: ['Vampire', 'Berserker'], colors: ['B'], power: 3, toughness: 2, keywords: ['flying'] },
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // T-5 · CR 715 · cartas de aventura (Oracle do Forge, clone de 11/10/2026). A Aventura é a "face de trás" conjurável da mão
   // (`back`, instantânea ou feitiço) com o custo em `omen: { mana }` e a marca `self: { aventura: true }`: ao resolver é exilada e a carta pode ser
   // conjurada do exílio, só como a carta normal (715.3d). Toque mortífero e voar vêm do texto da carta.
@@ -7677,6 +7695,22 @@ function palavraNaLinhaK(k) {
 // V-6 · evento "ficou monstruosa" (701.37): da própria permanente
 EVENTOS_DE_OBJETO.push('monstruosa'); OBJETOS_DO_EVENTO.monstruosa = ['self']; GATILHO_EVENTO['becomes-monstrous'] = { evento: 'monstruosa', objeto: 'self' }; TRIGGER_PT['becomes-monstrous'] = 'quando fica monstruosa';
 /* ↓ T · exportações de scripts.js da trilha tipos */
+/* ---------------- T-7 · CR 712 / 701.27 · dupla face que transforma (forma do script) ----------------
+   `self: { duplaFace: true }` marca a carta de dupla face desta trilha; `back` é a face de trás (sempre de permanente: 712.10 trata
+   de quem tem face instantânea ou feitiço, que não transforma). O efeito `transformar` vira a face da permanente fonte; o gatilho
+   `transforms` é "quando ~ transforma". As cartas antigas com `back` (Sorin, Kytheon, Lunarch Veteran) seguem no efeito antigo. */
+function duplaFaceErros(sc) {
+  const errs = [], df = sc && sc.self && sc.self.duplaFace;
+  if (df == null) return errs;
+  if (df !== true) errs.push('dupla face: self.duplaFace só vale como true');
+  if (!sc.back) { errs.push('dupla face: falta a face de trás (back)'); return errs; }
+  const tipos = sc.back.types || [];
+  if (!tipos.length || tipos.some(t => t === 'instant' || t === 'sorcery')) errs.push('dupla face: a face de trás de quem transforma é de permanente');
+  if (sc.self.aventura) errs.push('dupla face: a carta é de aventura ou de dupla face, não as duas');
+  return errs;
+}
+EVENTOS_DE_OBJETO.push('transforma'); OBJETOS_DO_EVENTO.transforma = ['self']; GATILHO_EVENTO['transforms'] = { evento: 'transforma', objeto: 'self' }; TRIGGER_PT['transforms'] = 'quando transforma';
+Object.assign(EXPORTS_T_SC, { duplaFaceErros });
 /* ---------------- T-5 · CR 715 · cartas de aventura (forma do script) ----------------
    `self: { aventura: true }` + `omen: { mana }` + `back: { name, types: ['instant' | 'sorcery'], colors, effects }`: as características
    alternativas da Aventura (715.2) moram na face de trás, que só existe na pilha (715.3b, 715.4). É o mesmo caminho de conjurar
@@ -7693,7 +7727,7 @@ function aventuraErros(sc) {
 }
 /** As faces de trás desta trilha só viram fatos na partida que tem a carta (createGame): script novo com `back` na biblioteca não
  * muda o estado das partidas que não o usam. Cada tipo de carta da trilha acrescenta a sua marca aqui. */
-const versoSoNaPartida = sc => !!(sc && sc.self && sc.self.aventura);
+const versoSoNaPartida = sc => !!(sc && sc.self && (sc.self.aventura || sc.self.duplaFace)); // T-7 · dupla face que transforma
 Object.assign(EXPORTS_T_SC, { aventuraErros, versoSoNaPartida });
 /* ---------------- T-3 · CR 702.122 · tripular (forma do script) ----------------
    Tripular é a habilidade ativada de custo `{ crew: N }` (CR2d.3). Esta leva acrescenta:
@@ -17584,6 +17618,7 @@ function applyEffect(s, src, eff, tgt, events) {
       const n = fichasAoCriar(s, ctrl, amountOf(s, src, eff.amount || 1)), novas = []; // CR2e.2 · 614.16
       const exc = excecaoCopiavel(s, obj, { somaTipos: eff.somaTipos, palavras: eff.palavras }); // CR2d.13 · 707.9b: a exceção do modelo vem junto
       for (let i = 0; i < n; i++) { const t = createToken(s, { name: nomeCopiavel(s, obj) }, ctrl, events); novas.push(t); const ft = s.objects[t]; // CR2d.12 · cópia da virada para baixo
+        fichaDeDuplaFaceT(s, ft, obj); // T-7 · CR 707.8a · a ficha que copia uma permanente de dupla face é ficha de dupla face, com a mesma face para cima (função abaixo da âncora T das exportações)
         if (exc) { ft.nomeImpresso = ft.name; ft.copias = [{ nome: ft.name, ate: 'sempre', by: ctrl, ts: relogio(s), turno: s.turn.number, excecao: exc }]; aplicaExcecao(s, ft, exc, 'sempre'); } } // 707.9 · "except it has haste"
       note({ name: obj.name, amount: novas.length }); break;
     }
@@ -17976,6 +18011,7 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'lutador': if (obj) s.lutadorV = { fonte: src.oid, fz: encarnacaoV(s, src), oid: obj.oid, z: obj.zc || 0 }; break; // V-1/V-5 · anota quem luta; a luta é o `fight` seguinte, que apaga a anotação
     case 'fight': lutar(s, src, eff, tgt, events); break; // V-1 · 701.14
     /* ↓ T · casos de applyEffect da trilha tipos */
+    case 'transformar': transformaT(s, src.ability ? s.objects[src.source] : src, src, events); break; // T-7 · CR 701.27 · "transform ~"
     case 'tripulada': tripulada(s, src, events); break; // T-3 · CR 702.122e · a habilidade de tripular resolveu: "Whenever ~ becomes crewed"
     case 'untap': { const alvo = eff.target === 'enchanted' ? criaturaEncantada(s, src) : eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj; if (alvo) desvira(s, alvo); note({}); break; } // CR2g.6 · atordoamento
     case 'nao_desvira': { const alvo = eff.target === 'enchanted' ? criaturaEncantada(s, src) : obj; if (alvo && alvo.zone === 'battlefield') { alvo.naoDesviraProximo = true; note({ name: alvo.name }); } else note({ failed: true }); break; } // CR2g.6
@@ -21670,12 +21706,61 @@ function fatosDeDuasPartesT(s, sc, setup) {
     fb.cost = parseCost(sc.omen.mana); fb.cmc = valorDoCustoT(fb.cost); fb.semCusto = false;
     if (!(sc.back.colors || []).length) fb.colors = coresDoCustoT(fb.cost);
   }
+  if (fb && sc.self && sc.self.duplaFace) { // T-7 · 712.8e: com o verso para cima, o valor de mana é o da frente
+    const frente = Object.keys(setup.cards || {}).find(n => n === sc.name || n.split(' // ')[0] === sc.name);
+    if (frente && s.facts[frente]) fb.cmc = s.facts[frente].cmc || 0;
+  }
   for (const [n, card] of Object.entries(setup.cards || {})) {
     if (n !== sc.name && n.split(' // ')[0] !== sc.name) continue;
     const mc = String((card && card.mana_cost) || '');
     if (s.facts[n] && mc.includes(' // ')) s.facts[n].cost = parseCost(mc.split(' // ')[0]);
   }
 }
+/* ---------------- T-7 · CR 701.27 / 712 / 707.8a · dupla face que transforma ----------------
+   - 712.9 / 701.27c · quem transforma é a CARTA (ou ficha) de dupla face, não quem tem o nome dela: `parDuplaFaceT` olha o nome
+     impresso do objeto (sem o efeito de cópia) e a marca `self.duplaFace` do script; a ficha de dupla face leva o par em `duplaFace`
+     (707.8a). A cópia de uma dupla face feita por uma carta comum copia a habilidade, mas não transforma.
+   - 701.27a · nos dois sentidos, no mesmo objeto (712.18: marcadores, dano, anexos e efeitos ficam), com carimbo de tempo novo (613.7g).
+   - 701.27d / 712.10 · a outra face instantânea ou feitiço: nada. 712.15a · virada para baixo: nada.
+   - 701.27f · a habilidade da própria permanente só a transforma se ela não transformou desde que a habilidade foi para a pilha:
+     a permanente guarda o número da próxima habilidade no momento em que transforma (`transformouEm`); habilidade de número menor,
+     que já estava na pilha, é ignorada. Limite declarado: gatilho atrasado (conta desde a criação) usa a mesma conta, pela pilha.
+   - 701.27e/g · evento `transforma` (gatilho `transforms`, lido na face que ficou para cima) e `transformada(s, o)`.
+   - 712.8a / 712.14 · fora do campo e ao entrar de outra zona vale a frente (o `flipToFront` de toda mudança de zona). */
+function parDuplaFaceT(s, o) {
+  if (!o || o.ability) return null;
+  if (o.duplaFace) return o.duplaFace; // ficha de dupla face (707.8a)
+  if (o.token) return null;
+  const impresso = o.frontName || (o.nomeImpresso != null ? o.nomeImpresso : o.name), sc = (s.facts[impresso] || {}).script;
+  return sc && sc.self && sc.self.duplaFace && sc.back ? { frente: impresso, verso: sc.back } : null;
+}
+/** 701.27g · "permanente transformada": dupla face no campo com o verso para cima. */
+const transformada = (s, o) => !!o && o.zone === 'battlefield' && !!o.frontName && !!parDuplaFaceT(s, o);
+/** Transforma a permanente `o` por instrução de `src` (a mágica ou habilidade que resolve). Devolve se transformou. */
+function transformaT(s, o, src, events) {
+  const par = parDuplaFaceT(s, o);
+  if (!par || o.zone !== 'battlefield' || o.faceDown) return false; // 701.27c · 712.15a
+  const paraVerso = !o.frontName, destino = paraVerso ? par.verso : par.frente, fd = s.facts[destino];
+  if (!fd || (fd.types || []).some(t => t === 'instant' || t === 'sorcery')) return false; // 701.27d
+  if (src && src.ability && src.source === o.oid && o.transformouEm != null && parseInt(String(src.oid).slice(2), 10) < o.transformouEm) return false; // 701.27f
+  const de = paraVerso ? par.frente : par.verso;
+  if (o.nomeImpresso != null) { // sob efeito de cópia: vira a face impressa; os valores copiados continuam valendo (707.2)
+    if (paraVerso) { o.frontName = par.frente; o.nomeImpresso = par.verso; } else { o.nomeImpresso = par.frente; delete o.frontName; }
+    o.ts = relogio(s);
+  } else if (paraVerso) flipTo(s, o, par.verso);
+  else { o.name = par.frente; delete o.frontName; o.ts = relogio(s); } // de volta à frente, com carimbo novo (613.7g)
+  o.transformouEm = s.nextAbility;
+  events.push({ kind: 'effect', do: 'transformar', name: de, target: destino });
+  gatilhosDaPermanente(s, 'transforma', o, ['self'], {}, () => true, false);
+  return true;
+}
+/** 707.8a · a ficha criada como cópia de uma permanente de dupla face tem as duas faces e entra com a mesma face para cima. */
+function fichaDeDuplaFaceT(s, ft, modelo) {
+  const par = parDuplaFaceT(s, modelo); if (!par || !ft) return;
+  ft.duplaFace = { frente: par.frente, verso: par.verso };
+  if (modelo.frontName) ft.frontName = par.frente; // o modelo está com o verso para cima: a ficha também
+}
+Object.assign(EXPORTS_T, { parDuplaFaceT, transformada, transformaT });
 Object.assign(EXPORTS_T, { aventuraDe });
 Object.assign(EXPORTS_T, { capitulosDe, capituloFinal, capituloPendente, ROMANOS });
 return { ...EXPORTS_K, ...EXPORTS_V, ...EXPORTS_T, ENGINE_VERSION, effectAllowed, eligibleBlockers, abilitiesOf, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, moveObject, seriaDestruida, danoSubstituido, danoAposPrevencao, prevencaoLegado, destinoSubstituido, destinoLegado, entradaModificada, entradaLegado, applyEffect, aplicaPorJogador, sacrificioLegado, moverObjeto, moverLegado, mutacao, mutacaoLegado, hasLegado, bonusLegado, continuosQueAfetam, aplicaTemporario, statsLegado: (s, o) => ({ power: powerLegado(s, o), toughness: toughnessLegado(s, o) }), sombraDosGatilhos, gatilhosDeZona, gatilhosDeZonaLegado, gatilhosDoObjeto, gatilhosDoPasso, enterStep, disparaEvento, noteDiscard, noteEnchantedDealt, noteDamaged, noteEnchantedEvent, addCounters, sacrifice, draw, sweepTargets, sweepTargetsLegado, targetable,
@@ -23259,6 +23344,7 @@ function who(s, p) { return s.players[p] ? s.players[p].name : '?'; }
 
 /** S4 · uma linha por efeito aplicado pelo script. */
 function effectLine(ev) {
+  if (LINHA_T[ev.do]) return LINHA_T[ev.do](ev); // T-7 · Toca ponto comum: effectLine (linhas do registro da trilha tipos)
   const n = ev.amount, t = ev.target;
   switch (ev.do) {
     case 'damage': return ev.failed ? `${ev.name} não causou dano: alvo ilegal` : `${ev.name} causou ${n} de dano a ${t}`;
@@ -24132,7 +24218,9 @@ const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas
   fight: e => `${e.quem === 'self-source' ? 'esta criatura luta' : 'ela luta'} com ${ALVO_PT[e.target] || descreveAlvo(e.target)} (cada uma causa dano igual ao próprio poder à outra)`,
 };
 /* ↓ T · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha tipos */
-const EFEITO_PT_T = { tripulada: () => 'vira criatura artefato até o fim do turno' }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
+const EFEITO_PT_T = { tripulada: () => 'vira criatura artefato até o fim do turno', transformar: () => 'transforma (vira a outra face)' }; // T-7 · 701.27
+/** T-7 · linhas do registro para os eventos da trilha tipos. */
+const LINHA_T = { transformar: ev => `${ev.name} transformou em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
 function descreveEfeito(e) {
   if (!e || !e.do) return '';
   if (EFEITO_PT_V[e.do]) return EFEITO_PT_V[e.do](e); // V-1 · Toca ponto comum: descreveEfeito (frases da trilha verbos)

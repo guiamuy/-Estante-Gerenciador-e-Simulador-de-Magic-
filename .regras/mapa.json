@@ -10009,11 +10009,15 @@
    "regra": "Double-Faced Cards",
    "titulo": "Dupla face não modal (transformar)",
    "status": "parcial",
-   "evidencia": "script `back` vira fatos da face de trás (index.html:10197); efeito transform (11429-11436); rules.unit \"S25 · transforma na fase pós-combate\" e \"no fim do combate com três atacantes\"; Sorin of House Markov e Kytheon (5262-5275)",
-   "falta": "não há a palavra \"convert\"; cor/indicador de cor e valor de mana da face de trás dependem do que o script declarar (712.2b-c não verificados no motor).",
+   "evidencia": "T-7 (11/10/2026) · src/engine/core.js, bloco \"T-7 · CR 701.27 / 712 / 707.8a\" (cartas marcadas `self: { duplaFace: true }`, efeito `transformar`): transformar nos dois sentidos (transformaT), cor do verso pelo indicador de cor (`back.colors`), valor de mana do verso igual ao da frente (fatosDeDuasPartesT). Cartas: Thraben Gargoyle, Desperate Farmer, Cloistered Youth, Heir of Falkenrath. As cartas antigas com `back` (Sorin, Kytheon, Lunarch Veteran) seguem no efeito antigo `transform`/`exile_return_transformed` (trilha motor).",
+   "falta": "não há \"convert\" (701.28; 16 cartas); as cartas antigas com `back` não transformam de volta e têm valor de mana 0 no verso (trilha motor, próxima subida de versão).",
    "esforco": "P",
    "depende": [
     "701.27"
+   ],
+   "testes": [
+    "S8 · Thraben Gargoyle: \"{6}: Transform\" vira Stonewing Antagonizer 4/2 com voar (sem defensor); Heir of Falkenrath: \"Discard a card: Transform\", só uma vez por turno",
+    "S8 · Desperate Farmer: quando outra criatura sua morre, transforma em Depraved Harvester 4/3 com vínculo com a vida; Cloistered Youth: na sua manutenção você PODE transformar; Unholy Fiend custa 1 de vida no seu passo final"
    ]
   },
   {
@@ -10070,11 +10074,15 @@
    "regra": "Double-Faced Cards",
    "titulo": "Cada face com suas características; fora do campo vale a frente",
    "status": "parcial",
-   "evidencia": "moveObject devolve à frente fora do campo e da pilha (flipToFront, index.html:10259, 10594); rules.unit \"S24 · disturb: ... volta à frente se sair do campo\"",
-   "falta": "valor de mana da face de trás igual ao da frente (712.8c-e) não é garantido pelo motor: os fatos de trás saem só do script.",
+   "evidencia": "T-7 (11/10/2026) · src/engine/core.js, bloco \"T-7 · CR 701.27 / 712 / 707.8a\" (cartas marcadas `self: { duplaFace: true }`, efeito `transformar`): 712.8a — fora do campo e da pilha vale a frente (flipToFront em toda mudança de zona). 712.8d–e — com a frente para cima só a frente; com o verso para cima só o verso (nome, tipos, subtipos, cor, P/T, palavras-chave e habilidades), com o valor de mana da frente.",
+   "falta": "712.8c (conjurada transformada, disturb) e as faces de trás antigas têm valor de mana 0 (trilha motor); a permanente que COPIA um verso deveria ter valor de mana 0 (712.8e) e fica com o da frente (os fatos são por nome); 712.8f é da dupla face modal (próxima leva).",
    "esforco": "P",
    "depende": [
     "202.3b"
+   ],
+   "testes": [
+    "CR 701.27a · 712.18 · transformar vira a outra face para cima, nos dois sentidos, e a permanente continua o mesmo objeto: marcadores, dano e virada ficam; nome, tipo, cor, P/T e habilidades passam a ser os da face de cima",
+    "CR 712.8a · 712.14 · fora do campo a carta tem só a frente, e de outra zona entra com a frente para cima; 712.8e · com o verso para cima, o valor de mana é o da frente"
    ]
   },
   {
@@ -10082,15 +10090,22 @@
    "regra": "Double-Faced Cards",
    "titulo": "Só dupla face pode transformar",
    "status": "coberta",
-   "evidencia": "o efeito transform exige backOf (index.html:11431): sem face de trás nada acontece"
+   "evidencia": "T-7 (11/10/2026) · src/engine/core.js, bloco \"T-7 · CR 701.27 / 712 / 707.8a\" (cartas marcadas `self: { duplaFace: true }`, efeito `transformar`): parDuplaFaceT decide pela CARTA (nome impresso, sem o efeito de cópia) ou pela ficha de dupla face (707.8a): carta comum mandada transformar não muda, e a criatura que entra como cópia de uma dupla face copia a habilidade mas não transforma (exemplo da regra). Limite: o efeito antigo `transform` (cartas da trilha motor) ainda decide pelo nome.",
+   "testes": [
+    "CR 701.27c · 712.9 · só carta ou ficha de dupla face transforma: carta comum com \"transforme\" não muda; a criatura que entra como cópia de uma dupla face tem a habilidade copiada, mas não transforma",
+    "CR 707.8a · a ficha que é cópia de uma permanente de dupla face é uma ficha de dupla face, com a mesma face para cima: copiando a frente ela transforma no verso; copiando o verso ela já é \"transformada\" e volta à frente"
+   ]
   },
   {
    "n": "712.10",
    "regra": "Double-Faced Cards",
    "titulo": "Não transforma se a outra face é instantânea/feitiço",
-   "status": "ausente",
-   "falta": "transform não confere o tipo da face de trás (11429-11436).",
-   "esforco": "P"
+   "status": "coberta",
+   "esforco": "P",
+   "testes": [
+    "CR 701.27d · 712.10 · a outra face instantânea ou feitiço: nada acontece (carta de aventura mandada transformar); 712.15a · virada para baixo não transforma"
+   ],
+   "evidencia": "T-7 (11/10/2026) · src/engine/core.js, bloco \"T-7 · CR 701.27 / 712 / 707.8a\" (cartas marcadas `self: { duplaFace: true }`, efeito `transformar`): transformaT não faz nada quando a outra face é instantânea ou feitiço (701.27d); o validador não aceita `duplaFace` com face de trás que não seja de permanente, e carta de aventura ou presságio mandada transformar não muda."
   },
   {
    "n": "712.11",
@@ -10133,7 +10148,7 @@
    "titulo": "Dupla face posta no campo por outra zona",
    "status": "parcial",
    "evidencia": "entra com a frente (flipToFront ao mudar de zona, 10259)",
-   "falta": "\"exile and return transformed\" (Kytheon, Sorin) é feito como transformar no lugar (11429-11436): a permanente não vira objeto novo, mantém marcadores, auras e dano — simplificação que muda o resultado; 712.14a-c ausentes.",
+   "falta": "712.14a (\"entra transformada\" vinda de outra zona) só existe no efeito antigo `exile_return_transformed` (Sorin, Kytheon: objeto novo de verdade, 17803); carta sem verso mandada entrar transformada deveria ser exilada e ficar no exílio. 712.14b é da dupla face modal.",
    "esforco": "M",
    "depende": [
     "400.7"
@@ -10143,12 +10158,16 @@
    "n": "712.15",
    "regra": "Double-Faced Cards",
    "titulo": "Dupla face conjurada virada para baixo",
-   "status": "ausente",
-   "falta": "nenhuma carta de dupla face com metamorfose/disfarce tratada.",
+   "status": "parcial",
+   "falta": "712.15 (dupla face conjurada ou posta virada para baixo com as características do efeito) e a volta para cima com a frente não têm carta nem teste.",
    "esforco": "P",
    "depende": [
     "708"
-   ]
+   ],
+   "testes": [
+    "CR 701.27d · 712.10 · a outra face instantânea ou feitiço: nada acontece (carta de aventura mandada transformar); 712.15a · virada para baixo não transforma"
+   ],
+   "evidencia": "T-7 (11/10/2026) · src/engine/core.js, bloco \"T-7 · CR 701.27 / 712 / 707.8a\" (cartas marcadas `self: { duplaFace: true }`, efeito `transformar`): 712.15a — permanente virada para baixo não transforma (transformaT)."
   },
   {
    "n": "712.16",
@@ -10173,7 +10192,11 @@
    "regra": "Double-Faced Cards",
    "titulo": "Transformar não cria objeto novo",
    "status": "coberta",
-   "evidencia": "flipTo só troca o nome/face do mesmo oid (index.html:10590-10593); marcadores, dano e anexos ficam; rules.unit S25"
+   "evidencia": "T-7 (11/10/2026) · src/engine/core.js, bloco \"T-7 · CR 701.27 / 712 / 707.8a\" (cartas marcadas `self: { duplaFace: true }`, efeito `transformar`): transformar troca a face no mesmo objeto: marcadores, dano, virada, anexos e efeitos ficam; carimbo de tempo novo (613.7g); 701.27f — a habilidade da própria permanente só a transforma se ela não transformou desde que foi para a pilha (transformouEm).",
+   "testes": [
+    "CR 701.27a · 712.18 · transformar vira a outra face para cima, nos dois sentidos, e a permanente continua o mesmo objeto: marcadores, dano e virada ficam; nome, tipo, cor, P/T e habilidades passam a ser os da face de cima",
+    "CR 701.27f · a habilidade da própria permanente só a transforma se ela não transformou desde que a habilidade foi para a pilha: duas ativações em resposta transformam uma vez só"
+   ]
   },
   {
    "n": "712.19",
