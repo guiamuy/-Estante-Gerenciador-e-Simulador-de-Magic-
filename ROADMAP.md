@@ -3822,6 +3822,11 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Script:** `discard_chosen.filter` (com `mvMax` em `matchesFilter`), contagem `power-of-target`, `targetNotBasic`, `look.revelaEscolhida`; `gain` aceita `target-controller`.
 - **Simplificação declarada:** "the rest on the bottom of your library in any order" põe o resto na ordem em que estava (o jogador não escolhe a ordem do fundo), como já valia para Dig Through Time.
 - **Teste:** `staples.unit` (8 testes, falham no motor anterior); `--confere` com 298 aprovadas.
+**M-336 · LT19 · Equipamentos e Auras que concedem ou proíbem, terras rápidas e "não pode ser bloqueada neste turno" — revisão por lote X (15 cartas)** ✅ (leva M-336, motor v110 sem mudança de forma; goldens intactos).
+- **Valor:** "Equipped creature has hexproof and haste" (Swiftfoot Boots, Lightning Greaves com equipar {0}), "Enchanted creature can't attack or block" (Pacifism; também "can't block" / "can't attack" de Aura ou Equipamento), as dez terras rápidas ("enters tapped unless you control two or fewer other lands": Spirebluff Canal, Blooming Marsh, Concealed Courtyard, Seachrome Coast, Darkslick Shores, Blackcleave Cliffs, Copperline Gorge, Razorverge Thicket, Inspiring Vantage, Botanical Sanctum), Idyllic Beachfront e Rogue's Passage ("Target creature can't be blocked this turn"). Um revisor independente com 61 sondas aprovou as 15, sem achado no motor. Cópias das listas do catálogo que jogam: Pioneer 26,5% → 32,4%, Standard 24,0% → 27,2%, Modern 37,5% → 38,3%.
+- **Script:** bônus de anexo `naoAtaca` / `naoBloqueia`; `entersTappedUnless.maxOutrasTerras`; efeito `imbloqueavel` (até a limpeza; objeto novo não carrega, 400.7).
+- **Observação da revisão (comportamento antigo, fora do escopo):** `legalActions` lista só a primeira opção de mana de um terreno de duas cores; a mesa oferece as duas e `apply` aceita ambas.
+- **Teste:** `lt19.unit` (6 testes, falham no leitor anterior); `--confere` com 313 aprovadas.
 
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.

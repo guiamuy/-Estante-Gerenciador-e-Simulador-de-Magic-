@@ -5286,6 +5286,7 @@ const EFFECTS = {
   // M-255 · "hexproof from that color" e "can't be blocked by creatures of that color this turn", com a cor escolhida na ativação
   resistencia_cor: { fields: [], targets: ['creature', 'creature-you-control', 'other-creature-you-control', 'first-target'] },
   imbloqueavel_cor: { fields: [], targets: ['creature', 'creature-you-control', 'other-creature-you-control', 'first-target'] },
+  imbloqueavel: { fields: [], targets: ['creature', 'creature-you-control', 'first-target', 'self-source'] }, // M-336 · "Target creature can't be blocked this turn" (Rogue's Passage)
   // S43 · proteção contra a cor da sua escolha, até o fim do turno
   protection: { fields: [], targets: ['creature-you-control', 'other-creature-you-control', 'creature-enchantment-you-control'] },
   // S20 · cemitério
@@ -5650,7 +5651,7 @@ function substituiErros(r, tag) {
   if (q.objeto != null && q.objeto !== 'self') { if (typeof q.objeto !== 'object') errs.push(`${tag}: "quando.objeto" precisa ser self ou um seletor`); else errs.push(...seletorErros(q.objeto, `${tag}: objeto`)); }
   return errs;
 }
-const CONDICOES_ENTRA = ['anyPlayerLifeAtMost', 'controlsSubtype', 'revelaSubtipo', 'pagaVida']; // M-252 · "you may reveal a Plains or Swamp card from your hand"
+const CONDICOES_ENTRA = ['anyPlayerLifeAtMost', 'controlsSubtype', 'revelaSubtipo', 'pagaVida', 'maxOutrasTerras']; // M-252 · "you may reveal a Plains or Swamp card from your hand"
 function entraErros(r, tag) {
   if (!r || typeof r !== 'object') return [`${tag}: precisa ser um objeto`];
   const errs = [];
@@ -5976,7 +5977,7 @@ function validateScript(sc) {
   if (sc && sc.additionalOptional && !sc.additional) errs.push('custo adicional opcional sem custo');
   if (sc && sc.plot && !sc.plot.mana) errs.push('plot sem custo de mana');
   if (sc && sc.morph && !sc.morph.mana) errs.push('metamorfose sem custo de mana');
-  if (sc && sc.entersTappedUnless && sc.entersTappedUnless.anyPlayerLifeAtMost == null && !Array.isArray(sc.entersTappedUnless.controlsSubtype) && !(Number.isInteger(sc.entersTappedUnless.pagaVida) && sc.entersTappedUnless.pagaVida > 0)) errs.push('entra virado a menos que: condição desconhecida');
+  if (sc && sc.entersTappedUnless && sc.entersTappedUnless.anyPlayerLifeAtMost == null && !Array.isArray(sc.entersTappedUnless.controlsSubtype) && !(Number.isInteger(sc.entersTappedUnless.pagaVida) && sc.entersTappedUnless.pagaVida > 0) && !Number.isInteger(sc.entersTappedUnless.maxOutrasTerras)) errs.push('entra virado a menos que: condição desconhecida');
   if (sc && sc.manaRule && !(/^[WUBRG]+$/.test(sc.manaRule.colors || '') && (sc.manaRule.damage || sc.manaRule.life || sc.manaRule.needsSubtype || sc.manaRule.needsType))) errs.push('regra de mana: precisa das cores e de dano, vida ou condição');
   for (const k of ((sc && sc.grantsAll) || {}).keywords || []) if (!KEYWORDS.includes(String(k).toLowerCase())) errs.push(`dá a todas: palavra-chave "${k}" não é resolvida pelo motor`);
   // CR2-G R3a · efeitos contínuos estáticos: quem afeta e o que muda (camadas 6 e 7c)
@@ -6058,6 +6059,7 @@ function validateScript(sc) {
     if ((g.perPower != null || g.perToughness != null) && !PER_COUNTS.includes(g.per)) errs.push(`bônus: contagem "${g.per}" desconhecida`);
     for (const k of g.keywords || []) if (!KEYWORDS.includes(String(k).toLowerCase())) errs.push(`bônus: palavra-chave "${k}" não é resolvida pelo motor`);
     if (g.naoDesvira != null && g.naoDesvira !== true) errs.push('bônus: naoDesvira só vale como true'); // CR2g.6
+    for (const k of ['naoAtaca', 'naoBloqueia']) if (g[k] != null && g[k] !== true) errs.push(`bônus: ${k} só vale como true`); // M-336 · 508.1c / 509.1b (Pacifism)
     for (const cor of [].concat(g.protection || []))
       if (cor !== 'chosen' && !'WUBRG'.includes(cor)) errs.push('bônus: proteção precisa ser "chosen" ou cores WUBRG');
     if (g.produces && !Array.isArray(g.produces)) errs.push('bônus: produces precisa ser lista de opções de mana');
@@ -8109,6 +8111,22 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Read the Bones': { texto: '1baoc0u', leva: 'M-335' },
   'Firebolt': { texto: '1t4ojh4', leva: 'M-335' },
   'Seal of Fire': { texto: '1p28i5n', leva: 'M-335' },
+  // M-336 · revisão por lote X (LT19: equipamentos e auras que concedem ou proíbem, terras rápidas, imbloqueável no turno), revisor independente com 61 sondas: 15 de 15 aprovadas
+  'Swiftfoot Boots': { texto: '1568wgf', leva: 'M-336' },
+  'Lightning Greaves': { texto: '151511k', leva: 'M-336' },
+  'Pacifism': { texto: '1pjbrkz', leva: 'M-336' },
+  'Rogue\'s Passage': { texto: 'kr585o', leva: 'M-336' },
+  'Idyllic Beachfront': { texto: '1amo2my', leva: 'M-336' },
+  'Blooming Marsh': { texto: 'b3j0vv', leva: 'M-336' },
+  'Botanical Sanctum': { texto: '1b6b6x8', leva: 'M-336' },
+  'Blackcleave Cliffs': { texto: 'b3jfu6', leva: 'M-336' },
+  'Inspiring Vantage': { texto: 'canjgb', leva: 'M-336' },
+  'Copperline Gorge': { texto: 'canw2z', leva: 'M-336' },
+  'Concealed Courtyard': { texto: '1cdfi8b', leva: 'M-336' },
+  'Seachrome Coast': { texto: '1cdfcv0', leva: 'M-336' },
+  'Spirebluff Canal': { texto: 'lcem6x', leva: 'M-336' },
+  'Razorverge Thicket': { texto: '1b6b8i6', leva: 'M-336' },
+  'Darkslick Shores': { texto: 'lceytl', leva: 'M-336' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -15433,6 +15451,7 @@ const __m42 = (function () {
     [new RegExp(`^~ deals ${N} damage to each opponent and each creature and planeswalker they control$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'each-opponent' }, { do: 'damage', amount: num(m[1]), target: 'each-opponent-creature-planeswalker' }]], // LT12
     [new RegExp(`^~ deals ${N} damage to each creature with flying$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'each-flying-creature' }]], // LT9
     [/^venture into the dungeon$/i, () => [{ do: 'venture' }]], // LT9 · 701.49
+    [/^target creature can't be blocked this turn$/i, () => [{ do: 'imbloqueavel', target: 'creature' }]], // M-336 · Rogue's Passage
     [new RegExp(`^you lose ${N} life$`, 'i'), m => [{ do: 'lose', amount: num(m[1]) }]], // M-335 · Thoughtseize (sem alvo: quem controla perde, como nos scripts à mão)
     [/^its controller gains life equal to its power$/i, () => [{ do: 'gain', amount: { per: 'power-of-target' }, target: 'target-controller' }]], // M-335 · Swords to Plowshares (608.2h: o poder como era no campo)
     [/^it doesn't untap during its controller's next untap step$/i, () => [{ do: 'nao_desvira', target: 'first-target' }]], // M-334 · LT18 · 502.3 (Sleep of the Dead)
@@ -15524,9 +15543,12 @@ const __m42 = (function () {
     if (m) { const per = contagem(m[3]); if (!per) return null; const kws = m[4] ? m[4].split(/,\s*|\s+and\s+/).map(x => x.trim().toLowerCase()) : []; if (kws.some(k => !KW.has(k))) return null; return { perPower: SINAL(m[1]), perToughness: SINAL(m[2]), per, ...(kws.length ? { keywords: kws } : {}) }; } // LT5
     m = l.match(/^(?:enchanted|equipped) (?:creature|permanent|land) gets ([+-]\d+)\/([+-]\d+)(?: and has ([a-z ,]+))?$/i);
     if (m) { const kws = m[3] ? m[3].split(/,\s*|\s+and\s+/).map(x => x.trim().toLowerCase()) : []; if (kws.some(k => !KW.has(k))) return null; return { power: SINAL(m[1]), toughness: SINAL(m[2]), ...(kws.length ? { keywords: kws } : {}) }; }
-    m = l.match(/^enchanted (?:creature|permanent) has protection from ((?:white|blue|black|red|green)(?: and from (?:white|blue|black|red|green))*)$/i);
+    if (/^(?:enchanted|equipped) creature can't attack or block$/i.test(l)) return { naoAtaca: true, naoBloqueia: true }; // M-336 · Pacifism
+    if (/^(?:enchanted|equipped) creature can't block$/i.test(l)) return { naoBloqueia: true }; // M-336
+    if (/^(?:enchanted|equipped) creature can't attack$/i.test(l)) return { naoAtaca: true }; // M-336
+    m = l.match(/^(?:enchanted|equipped) (?:creature|permanent) has protection from ((?:white|blue|black|red|green)(?: and from (?:white|blue|black|red|green))*)$/i);
     if (m) return { protection: m[1].split(/ and from /).map(c => PROT[c.toLowerCase()]) };
-    m = l.match(/^enchanted (?:creature|permanent) has ([a-z ,]+)$/i);
+    m = l.match(/^(?:enchanted|equipped) (?:creature|permanent) has ([a-z ,]+)$/i); // M-336 · também "Equipped creature has hexproof and haste" (Swiftfoot Boots)
     if (m) { const kws = m[1].split(/,\s*|\s+and\s+/).map(x => x.trim().toLowerCase()); return kws.every(k => KW.has(k)) ? { keywords: kws } : null; }
     return null;
   }
@@ -15674,6 +15696,7 @@ const __m42 = (function () {
         const mana = lp.match(/^\{T\}: Add ((?:\{[WUBRGC]\})+(?: or (?:\{[WUBRGC]\})+)*)$/); if (mana) { topo.produces = [...(topo.produces || []), ...mana[1].split(' or ').map(x => x.match(/[WUBRGC]/g))]; frases.push({ texto: linha, lida: true }); continue; } // produção de mana (LT13: também "{T}: Add {B}{R}")
         const etu = lp.match(/^(?:this land|~) enters(?: the battlefield)? tapped unless you control an? (Plains|Island|Swamp|Mountain|Forest) or an? (Plains|Island|Swamp|Mountain|Forest)$/i); // LT13 · 305.7 · "check lands"
         if (etu) { topo.entersTappedUnless = { controlsSubtype: [etu[1], etu[2]] }; frases.push({ texto: linha, lida: true }); continue; }
+        if (/^(?:this land|~) enters(?: the battlefield)? tapped unless you control two or fewer other lands$/i.test(lp)) { topo.entersTappedUnless = { maxOutrasTerras: 2 }; frases.push({ texto: linha, lida: true }); continue; } // M-336 · terras rápidas
         const ech = lp.match(/^as (?:~|this land) enters(?: the battlefield)?, you may pay (\d+) life\. if you don't, it enters(?: the battlefield)? tapped$/i); // M-330 · 614.12 (terras de choque)
         if (ech) { topo.entersTappedUnless = { pagaVida: +ech[1] }; frases.push({ texto: linha, lida: true }); continue; }
         const etv = lp.match(/^(?:this land|~) enters(?: the battlefield)? tapped unless a player has (\d+) or less life$/i); // LT13 · Razortrap Gorge
@@ -16363,7 +16386,8 @@ function entradaModificada(s, o, xPago) {
       const c = r.virada.aMenosQue, jaVirada = virada === true;
       const livre = (c.anyPlayerLifeAtMost != null && s.players.some(pl => !pl.lost && pl.life <= c.anyPlayerLifeAtMost)) ||
         // R11.2 · "a menos que você controle um Plains ou um Swamp": a própria carta, entrando, não conta
-        (c.controlsSubtype && battlefield(s).some(x => x.oid !== o.oid && x.controller === o.controller && s.facts[x.name].types.includes('land') && c.controlsSubtype.some(k => new RegExp('\\b' + k + '\\b').test(linhaDeTipo(s, x)))));
+        (c.controlsSubtype && battlefield(s).some(x => x.oid !== o.oid && x.controller === o.controller && s.facts[x.name].types.includes('land') && c.controlsSubtype.some(k => new RegExp('\\b' + k + '\\b').test(linhaDeTipo(s, x))))) ||
+        (c.maxOutrasTerras != null && outrasTerras(s, o) <= c.maxOutrasTerras); // M-336 · terras rápidas: "unless you control two or fewer other lands"
       virada = !(livre || (c.revelaSubtipo && !!o.revelaAoEntrar)); // M-252 · revelou ao jogar (a escolha vem na ação)
       if (c.pagaVida) { if (jaVirada) virada = true; else pagaVida = c.pagaVida; } // M-330 · "As ~ enters, you may pay 2 life. If you don't, it enters tapped." (outra permanente já a faz entrar virada: pagar não adianta)
     }
@@ -16373,6 +16397,8 @@ function entradaModificada(s, o, xPago) {
   for (const [k, n] of Object.entries(entraComPalavrasK(s, o))) marcadores[k] = (marcadores[k] || 0) + n; // K-37 · 702.32a/702.63a: "enters with N fade/time counters" (Toca ponto comum: entradaModificada)
   return { virada, marcadores, ...(pagaVida ? { pagaVida } : {}) };
 }
+/** M-336 · quantos outros terrenos o controlador de `o` tem no campo (a própria carta, entrando, não conta). */
+const outrasTerras = (s, o) => battlefield(s).filter(x => x.oid !== o.oid && x.controller === o.controller && tiposDe(s, x).includes('land')).length;
 /** CR2-G R5a · o caminho antigo das modificações de entrada, tal como era no moveObject (só para o teste de equivalência). */
 function entradaLegado(s, o, xPago) {
   const to = 'battlefield';
@@ -16385,7 +16411,8 @@ function entradaLegado(s, o, xPago) {
   if (to === 'battlefield' && semVirar) {
     const livre = (semVirar.anyPlayerLifeAtMost != null && s.players.some(pl => !pl.lost && pl.life <= semVirar.anyPlayerLifeAtMost)) ||
       // R11.2 · "a menos que você controle um Plains ou um Swamp" (Isolated Chapel, Sulfur Falls): a própria carta, entrando, não conta
-      (semVirar.controlsSubtype && battlefield(s).some(x => x.oid !== o.oid && x.controller === o.controller && s.facts[x.name].types.includes('land') && semVirar.controlsSubtype.some(k => new RegExp('\\b' + k + '\\b').test(linhaDeTipo(s, x)))));
+      (semVirar.controlsSubtype && battlefield(s).some(x => x.oid !== o.oid && x.controller === o.controller && s.facts[x.name].types.includes('land') && semVirar.controlsSubtype.some(k => new RegExp('\\b' + k + '\\b').test(linhaDeTipo(s, x))))) ||
+      (semVirar.maxOutrasTerras != null && outrasTerras(s, o) <= semVirar.maxOutrasTerras); // M-336
     o.tapped = !livre;
   }
   // S34 · permanente que entra com marcadores +1/+1
@@ -16446,7 +16473,7 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
     for (const k of MARCAS_DA_CONJURACAO) delete o[k];
   }
   o.tapped = false; o.damage = 0; o.counters = {}; o.controller = to === 'battlefield' && controller != null ? controller : o.owner; delete o.controles; delete o.controladorBase; // CR2d.6 · 400.7 · CR2b.5 · 603.3a: entra já sob quem a pôs no campo
-  delete o.tempToxico; delete o.tempResguardoCor; delete o.tempNaoBloqueadaPor; delete o.tempHabilidades; delete o.permissaoUsada; if (fromZone !== to) delete o.desenterrada; // M-255/M-256/M-257 · 400.7
+  delete o.tempToxico; delete o.tempResguardoCor; delete o.tempNaoBloqueadaPor; delete o.tempImbloqueavel; delete o.tempHabilidades; delete o.permissaoUsada; if (fromZone !== to) delete o.desenterrada; // M-255/M-256/M-257 · 400.7
   delete o.attacking; delete o.atacandoPw; delete o.exigeAtacarPw; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.pumpNext; delete o.goaded; delete o.keywordsNext; delete o.cantAttackNext; delete o.targets; delete o.attachedTo; delete o.tempKeywords; delete o.tempTs; delete o.anexadaEm; delete o.mutavel; delete o.vira; delete o.prevenirDano; delete o.regenerar; delete o.temporarios; delete o.tempProtection; delete o.paired; // S39 · o vínculo de alma se desfaz ao sair do campo
   if (fromZone !== 'stack') { delete o.chosenColor; delete o.chosenType; delete o.damagePrevented; delete o.preventGainTo; delete o.devolvidas; } // CR2a.9 · 400.7 / 608.2n: a marca da resolução fica onde a carta caiu; ao sair de lá, o objeto é novo
   delete o.loyaltyTurn; delete o.usedThisTurn; delete o.alvejadoNoTurno; // CR2c.6 · 400.7: o objeto novo não carrega o uso da habilidade do anterior (606.3, 602.5b) nem o "primeira vez no turno" do valente (CR2b.9)
@@ -17362,7 +17389,7 @@ function fimDosEfeitosDoTurno(s) {
   delete s.mareAlta; // M-262 · High Tide vale até o fim do turno
   for (const o of campoInteiro(s)) if (o.copias) { o.copias = o.copias.filter(t => ficaTemporario(s, t, 'limpeza')); recalculaCopia(s, o); } // CR2f.1 · CR2d.13: também "até o fim do seu próximo turno"
   for (const o of campoInteiro(s)) if (o.controles) { o.controles = o.controles.filter(t => ficaTemporario(s, t, 'limpeza')); recalculaControle(s, o); } // CR2d.13 // CR2d.6 · "until end of turn" acaba na limpeza (514.2)
-  for (const o of campoInteiro(s)) { delete o.pump; delete o.tempKeywords; delete o.tempTs; podaTemporarios(s, o, 'limpeza'); delete o.prevenirDano; delete o.regenerar; delete o.tempProtection; delete o.tempToxico; delete o.tempResguardoCor; delete o.tempNaoBloqueadaPor; delete o.tempHabilidades; delete o.usedThisTurn; o.damage = 0; delete o.deathtouched; } // M-255 · tóxico, resistência a magia de cor e "não bloqueada por cor" até o fim do turno
+  for (const o of campoInteiro(s)) { delete o.pump; delete o.tempKeywords; delete o.tempTs; podaTemporarios(s, o, 'limpeza'); delete o.prevenirDano; delete o.regenerar; delete o.tempProtection; delete o.tempToxico; delete o.tempResguardoCor; delete o.tempNaoBloqueadaPor; delete o.tempImbloqueavel; delete o.tempHabilidades; delete o.usedThisTurn; o.damage = 0; delete o.deathtouched; } // M-255 · tóxico, resistência a magia de cor e "não bloqueada por cor" até o fim do turno
   delete s.fogged; delete s.preventedColors; delete s.noPrevention; delete s.prevencoes; // CR2-G R5b · escudos do verbo prevenir também acabam
   for (const o of Object.values(s.objects)) if (o.damagePrevented) { delete o.damagePrevented; delete o.preventGainTo; } // R9 · Hallow: a prevenção acaba com o turno
 }
@@ -17433,6 +17460,7 @@ const exigePw = (s, o) => { const e = o.exigeAtacarPw; if (!e || e.turno !== s.t
 function eligibleAttackers(s, p) {
   return battlefield(s).filter(o => o.controller === p && !ehBatalhaT(s, o) && isCreature(s, o) && !o.tapped && // T-15 · CR 508.1a: quem ataca não pode ser também batalha · Toca ponto comum: eligibleAttackers
     !o.cantAttackNext && // S61 · Cavernas Retorcidas: não pode atacar até o próximo turno de quem lançou
+    !anexoProibe(s, o, 'naoAtaca') && // M-336 · Pacifism
     (!enjoado(s, o) || has(s, o, 'haste')) && !has(s, o, 'defender')).map(o => o.oid);
 }
 function eligibleBlockers(s, p) {
@@ -17440,10 +17468,13 @@ function eligibleBlockers(s, p) {
 }
 const TRAVESSIAS = [['islandwalk', 'Island'], ['swampwalk', 'Swamp'], ['forestwalk', 'Forest'], ['mountainwalk', 'Mountain'], ['plainswalk', 'Plains']];
 /** M-253 · "This creature can't block" (509.1a), impressa ou da ficha. */
-const naoBloqueia = (s, o) => !o.faceDown && !semImpressas(s, o) && !!((((s.facts[o.name] || {}).script || {}).self || {}).naoBloqueia);
+const naoBloqueia = (s, o) => (!o.faceDown && !semImpressas(s, o) && !!((((s.facts[o.name] || {}).script || {}).self || {}).naoBloqueia)) || anexoProibe(s, o, 'naoBloqueia'); // M-336 · Pacifism
+/** M-336 · "Enchanted creature can't attack or block" / "Equipped creature can't block": o anexo proíbe (509.1b, 508.1c). */
+const anexoProibe = (s, o, k) => attachedTo(s, o).some(x => !semImpressas(s, x) && !!((((s.facts[x.name] || {}).script || {}).grants || {})[k]));
 /** Por que `blocker` não pode bloquear `attacker` (texto para a mesa), ou null quando pode. */
 function porQueNaoBloqueia(s, blocker, attacker) {
   const b = s.objects[blocker], a = s.objects[attacker];
+  if (a.tempImbloqueavel) return 'não pode ser bloqueada neste turno'; // M-336
   if ((a.tempNaoBloqueadaPor || []).some(c => colorsOf(s, b).includes(c))) return 'não pode ser bloqueada por criaturas dessa cor neste turno'; // M-255
   if (has(s, a, 'flying') && !has(s, b, 'flying') && !has(s, b, 'reach')) return 'voar';
   const ev = evasionOf(s, a); // S11b · evasão estática
@@ -18699,6 +18730,11 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'prevent_spell': { // S52 · a mágica alvo não causa dano neste turno; a vida vem do dano prevenido de fato
       if (obj) { obj.damagePrevented = true; obj.preventGainTo = ctrl; note({}); }
       break;
+    }
+    case 'imbloqueavel': { // M-336 · até o fim do turno (514.2)
+      const alvo = eff.target === 'self-source' ? s.objects[src.ability ? src.source : src.oid] : obj;
+      if (!alvo || alvo.zone !== 'battlefield') { note({ failed: true }); break; }
+      alvo.tempImbloqueavel = true; note({ target: alvo.name }); break;
     }
     case 'resistencia_cor': case 'imbloqueavel_cor': { // M-255 · com a cor escolhida ao ativar, até o fim do turno
       const cor = src.chosenColor;
@@ -26977,6 +27013,7 @@ function descreveEfeito(e) {
     case 'look_hand': return 'olha a mão do jogador alvo';
     case 'protection': return `${alvo || 'a criatura'} ganha proteção contra uma cor`;
     case 'resistencia_cor': return `${alvo || 'a criatura'} ganha resistência a magia da cor escolhida até o fim do turno`; // M-255
+    case 'imbloqueavel': return `${alvo || 'a criatura'} não pode ser ${/^o /.test(alvo || '') ? 'bloqueado' : 'bloqueada'} neste turno`; // M-336
     case 'imbloqueavel_cor': return `${alvo || 'a criatura'} não pode ser ${/^o /.test(alvo || '') ? 'bloqueado' : 'bloqueada'} por criaturas da cor escolhida neste turno`;
     case 'transform': return 'transforma';
     case 'animate_dead': return 'devolve a carta encantada ao campo sob o seu controle e se anexa a ela'; // CR2d.4
