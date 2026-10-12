@@ -7915,6 +7915,9 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Angel of Mercy': { texto: '1t593ug', leva: 'M-326' },
   'Flametongue Kavu': { texto: 'uoiria', leva: 'M-326' },
   'Prodigal Pyromancer': { texto: '1fb1cbo', leva: 'M-326' },
+  // M-327 · as duas recusadas do lote 1, depois das correções (motor e leitor), aprovadas por um revisor independente com sondas
+  'Ghost Quarter': { texto: '1edscb4', leva: 'M-327' },
+  'Viscera Seer': { texto: '1ktupzu', leva: 'M-327' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -15299,7 +15302,7 @@ const __m42 = (function () {
       else if (/^sacrifice (this (creature|artifact|land|permanent)|~)$/i.test(parte)) cost.sacrifice = true;
       else if (/^sacrifice an artifact or creature$/i.test(parte)) cost.sacrificeOther = { types: ['artifact', 'creature'] };
       else if (/^sacrifice an artifact$/i.test(parte)) cost.sacrificeOther = { types: ['artifact'] };
-      else if (/^sacrifice a creature$/i.test(parte)) cost.sacrificeOther = { types: ['creature'] }; // LT13 · Phyrexian Tower
+      else if (/^sacrifice a creature$/i.test(parte)) cost.sacrificeOther = { types: ['creature'], ...(/\bcreature\b/i.test(tipoAtual) ? { includeSelf: true } : {}) }; // LT13 · Phyrexian Tower · M-327: a criatura com esse custo pode se sacrificar (Viscera Seer)
       else if (/^sacrifice another creature$/i.test(parte)) cost.sacrificeOther = { types: ['creature'], outra: true };
       else if (/^discard a card$/i.test(parte)) cost.discard = 1;
       else return null;
@@ -15371,9 +15374,9 @@ const __m42 = (function () {
   }
   /** A carta → { script, frases: [{ texto, lida, motivo? }], completa }. Só mágicas instantâneas e feitiços (LT1–LT2): linhas de
       permanente (habilidades ativadas, disparadas, estáticas) ficam não lidas até o LT3/LT4. */
-  let nomeAtual = '';
+  let nomeAtual = '', tipoAtual = ''; // M-327 · o tipo da carta lida (custo "Sacrifice a creature" inclui a própria criatura)
   function ler(card) {
-    const nome = (card && card.name) || ''; nomeAtual = nome; const tipo = String((card && card.type_line) || '');
+    const nome = (card && card.name) || ''; nomeAtual = nome; const tipo = String((card && card.type_line) || ''); tipoAtual = tipo;
     const texto = card && card.verso ? [card.oracle_text, '//', card.verso.oracle_text].join('\n') : card && card.oracle_text; // M-322 · a Aventura guardada à parte (.listas): mesma forma do app ("frente\n//\nverso")
     const linhas = semLembrete(texto).split('\n').map(x => x.trim()).filter(Boolean);
     const frases = [], efeitos = [], topo = {};
@@ -21245,11 +21248,12 @@ function resolveAbility(s, o, events) {
   const chosen = o.targets || [];
   const ok = targeted.map((eff, i) => targetStillLegal(s, o.controller, eff.target, chosen[i], o.oid, eff.targetColor, eff, o));
   if (targeted.length && ok.every(x => !x)) { events.push({ kind: 'fizzled', oid: o.oid, name: o.name }); return; }
-  let ti = 0, primeiro = null;
+  let ti = 0, primeiro = null, donoDoPrimeiro = null; // M-327 · 608.2h: o controlador do alvo é o de antes do efeito
   const fonte = s.objects[o.source];
   for (const eff of o.effects || []) {
     if (!effectAllowed(s, fonte, eff)) continue; // S49 · condição do próprio efeito
-    if (SC.isTargeted(eff)) { const t = chosen[ti]; const legal = ok[ti]; ti++; if (!primeiro) primeiro = t; if (legal) applyEffect(s, o, eff, t, events); }
+    if (SC.isTargeted(eff)) { const t = chosen[ti]; const legal = ok[ti]; ti++; if (!primeiro) { primeiro = t; donoDoPrimeiro = t && t.oid != null && s.objects[t.oid] ? s.objects[t.oid].controller : null; } if (legal) applyEffect(s, o, eff, t, events); }
+    else if (eff.target === 'target-controller') { const t = primeiro; applyEffect(s, o, eff, { player: t && t.player != null ? t.player : donoDoPrimeiro != null ? donoDoPrimeiro : o.controller }, events); } // M-327 · "its controller" também em habilidade (Ghost Quarter: quem busca é o dono do terreno destruído; antes era quem ativou)
     else if (eff.target === 'first-target') { if (primeiro) applyEffect(s, o, eff, primeiro, events); } // S42 · o mesmo alvo
     else if (porJogador(eff)) aplicaPorJogador(s, o, eff, events); // CR2-G R4b
     else if (eff.target === 'each-opponent' || eff.target === 'each-player') applyEffect(s, o, eff, null, events); // S47 · jogadores, não criaturas (CR2b.1: "cada jogador" caía na varredura de criaturas e sumia sem criatura na mesa)

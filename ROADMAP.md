@@ -3774,6 +3774,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Medida (catálogo):** Pauper 0 → 1 lista jogável e 15 → 24 listas a até duas cartas; o resto das listas ainda trava em cartas sem script (fetchlands, Force of Will, Thoughtseize, Lórien Revealed, Snuff Out…) — é a fila de trabalho daqui em diante, ordenada por quantas listas cada carta destrava.
 - **Teste:** assinatura (nome × "this creature", lembrete, palavra a mais); carta aprovada joga pelo script lido com o texto da Scryfall (Baleful Strix compra ao entrar); `--confere` no portão; candidatas à revisão excluem as aprovadas.
 
+**M-327 · "Its controller" dentro de habilidade (608.2h) e "Sacrifice a creature" incluindo a própria criatura** ✅ (leva M-327, motor v110 sem mudança de forma; goldens intactos) — Ghost Quarter e Viscera Seer jogam.
+- **Correção (bug do motor, achado pela revisão do lote 1):** numa habilidade ativada ou disparada, "its controller" (o controlador do alvo) virava quem ativou: o Ghost Quarter destruía o terreno do oponente e quem buscava o básico era você. Agora vale o controlador do alvo antes do efeito, como já valia nas mágicas (Path to Exile).
+- **Correção (leitor):** "Sacrifice a creature" no custo de uma criatura passa a incluir a própria criatura (Viscera Seer pode se sacrificar); num terreno nada muda (Phyrexian Tower).
+- **Revisão:** as duas cartas recusadas no lote 1 foram revistas por um revisor independente com sondas no motor e aprovadas (171 aprovadas no total).
+- **Teste:** `controlador.habilidade.unit` (2 testes, falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
