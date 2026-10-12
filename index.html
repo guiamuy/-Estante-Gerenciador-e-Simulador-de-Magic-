@@ -16124,8 +16124,53 @@ function regraDeManaDoTexto(card) {
     if (m) return { colors: m[1] + (m[2] || ''), damage: 1 };
     m = l.match(/^\{T\}: Add \{([WUBRG])\}(?: or \{([WUBRG])\})?\. Activate only if you control an? (Plains|Island|Swamp|Mountain|Forest)\.?$/);
     if (m) return { colors: m[1] + (m[2] || ''), needsSubtype: m[3] };
+    // M-345 · D3 · 106.6: "Spend this mana only to cast artifact spells" (Mishra's Workshop) — a mana dessa linha só paga o que a frase permite
+    m = l.match(/^\{T\}: Add (.+?)\. Spend this mana only to (.+?)\.?$/i);
+    if (m) { const g = gastoDoTexto(m[2]), ops = opcoesDoCorpo(m[1]); if (g && ops) return { colors: [...new Set(ops.flat())].join(''), opcoes: ops.map(x => x.join('')), gasto: g }; }
+    // M-344 · D3 · 602.5b: "Activate only if you control an Island or a Mountain" (Verges)
+    m = l.match(/^\{T\}: Add \{([WUBRG])\}(?: or \{([WUBRG])\})?\. Activate only if you control an? (Plains|Island|Swamp|Mountain|Forest) or an? (Plains|Island|Swamp|Mountain|Forest)\.?$/);
+    if (m) return { colors: m[1] + (m[2] || ''), needsSubtype: [m[3], m[4]] };
+    // M-344 · "Activate only if you control five or more lands" (Temple of the False God): a mana inteira da linha
+    m = l.match(/^\{T\}: Add ((?:\{[WUBRGC]\})+)\. Activate only if you control (\d+|two|three|four|five|six|seven) or more lands\.?$/);
+    if (m) return { colors: [...new Set(m[1].match(/[WUBRGC]/g))].join(''), minTerrenos: /^\d+$/.test(m[2]) ? +m[2] : { two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7 }[m[2]] };
+    // M-344 · "Activate only if this land entered this turn or if you control a basic land" (Hidden Lair, Gleaming Bastion)
+    m = l.match(/^\{T\}: Add \{([WUBRG])\}(?: or \{([WUBRG])\})?\. Activate only if this land entered this turn or if you(?:r)? control a basic land\.?$/);
+    if (m) return { colors: m[1] + (m[2] || ''), entrouOuBasico: true };
   }
   return undefined;
+}
+/** M-345 · o corpo de "{T}: Add …" → as opções de mana: "{C}{C}{C}" → [[C,C,C]], "{U} or {B}" → [[U],[B]], "one mana of any color" → as cinco. */
+function opcoesDoCorpo(b) {
+  if (/^one mana of any color$/i.test(b)) return ['W', 'U', 'B', 'R', 'G'].map(c => [c]);
+  if (/^((?:\{[WUBRGC]\})+)$/.test(b)) return [b.match(/[WUBRGC]/g)];
+  const m = b.match(/^\{([WUBRGC])\} or \{([WUBRGC])\}$/); if (m) return [[m[1]], [m[2]]];
+  return null;
+}
+/** M-345 · 106.6 · "cast artifact spells", "cast a legendary spell, and that spell can't be countered", "cast colorless Eldrazi spells or activate
+ * abilities of colorless Eldrazi" → { magia: qualidade, habilidade?: qualidade, naoAnulavel? }; null quando a frase não cabe (a carta segue como hoje). */
+function gastoDoTexto(t) {
+  let r = {}, m; t = t.trim();
+  if ((m = t.match(/^(.*), and that spell can't be countered$/i))) { r.naoAnulavel = true; t = m[1]; }
+  let hab = null; if ((m = t.match(/^(.*) or activate abilities of (.+)$/i))) { hab = m[2].replace(/ sources?$/i, ''); t = m[1]; }
+  m = t.match(/^cast (?:an? )?(.+?) spells?$/i); if (!m) return null;
+  const q = qualidadeDeMagia(m[1]); if (!q) return null; r.magia = q;
+  if (hab) { const h = qualidadeDeMagia(hab); if (!h) return null; r.habilidade = h; }
+  return r;
+}
+function qualidadeDeMagia(t) {
+  const TIPOS = ['artifact', 'creature', 'enchantment', 'instant', 'sorcery', 'planeswalker', 'battle'], q = {};
+  const alt = t.match(/^(\w+) (?:and|or) (\w+)$/i);
+  if (alt && TIPOS.includes(alt[1].toLowerCase()) && TIPOS.includes(alt[2].toLowerCase())) return { tipos: [alt[1].toLowerCase(), alt[2].toLowerCase()] };
+  for (const w of t.split(/\s+/)) {
+    const k = w.toLowerCase();
+    if (k === 'legendary') q.lendaria = true;
+    else if (k === 'colorless') q.incolor = true;
+    else if (TIPOS.includes(k)) (q.tipos = q.tipos || []).push(k);
+    else if (/^non(\w+)$/.test(k) && TIPOS.includes(k.slice(3))) (q.semTipos = q.semTipos || []).push(k.slice(3));
+    else if (/^[A-Z][a-z]+$/.test(w)) (q.subtipos = q.subtipos || []).push(w);
+    else return null;
+  }
+  return Object.keys(q).length ? q : null;
 }
 /** M-321 · a regra de mana: a do script (R11.2) ou, sem ela, a impressa na linha de mana. */
 const manaRuleDe = f => ((f && f.script) || {}).manaRule || (f && f.manaRuleTexto) || null;
@@ -17080,7 +17125,7 @@ const campoInteiro = s => s.zones.flatMap(z => z.battlefield).map(oid => s.objec
 const canSorceryNow = (s, p) => s.turn.active === p && isMain(s) && !s.stack.length && s.turn.priority === p && !s.pending;
 
 /* ---------------- M7 · pagamento ---------------- */
-function emptyPools(s) { s.players.forEach(pl => { for (const c of COLORS) pl.pool[c] = 0; delete pl.manaMarcada; }); } // M-273 · a marca vai junto com a mana
+function emptyPools(s) { s.players.forEach(pl => { for (const c of COLORS) pl.pool[c] = 0; delete pl.manaMarcada; delete pl.manaRestrita; }); } // M-345 · a restrita também se esvazia (106.4) // M-273 · a marca vai junto com a mana
 /** Tenta pagar o custo com a reserva. Devolve a reserva restante e a vida gasta, ou null. */
 function payFrom(pool, cost, extraGeneric = 0, maxLife = Infinity) {
   const P = { ...pool };
@@ -17153,8 +17198,10 @@ function productions(s, o, visto) {
   // R11.2 · cor que só sai com uma condição de campo (Tainted Field: um Swamp; Spire of Industry: um artefato)
   const regra = perde ? null : manaRuleDe(s.facts[o.name]); // M-321 · também a impressa, sem script
   if (regra && (regra.needsSubtype || regra.needsType) && !battlefield(s).some(x => x.controller === o.controller &&
-    (regra.needsSubtype ? new RegExp('\\b' + regra.needsSubtype + '\\b').test(linhaDeTipo(s, x)) : s.facts[x.name].types.includes(regra.needsType))))
+    (regra.needsSubtype ? [].concat(regra.needsSubtype).some(k => new RegExp('\\b' + k + '\\b').test(linhaDeTipo(s, x))) : s.facts[x.name].types.includes(regra.needsType)))) // M-344 · um subtipo ou outro (Verges)
     opts = opts.filter(x => !x.some(c => regra.colors.includes(c)));
+  if (regra && regra.minTerrenos && battlefield(s).filter(x => x.controller === o.controller && tiposDe(s, x).includes('land')).length < regra.minTerrenos) opts = opts.filter(x => !x.some(c => regra.colors.includes(c))); // M-344 · D3 · 602.5b
+  if (regra && regra.entrouOuBasico && o.entrouNoTurno !== s.turn.number && !battlefield(s).some(x => x.controller === o.controller && tiposDe(s, x).includes('land') && /^\s*basic\b/i.test(linhaDeTipo(s, x)))) opts = opts.filter(x => !x.some(c => regra.colors.includes(c))); // M-344 · D3
   if (regra && regra.life && s.players[o.controller].life < regra.life) opts = opts.filter(x => !x.some(c => regra.colors.includes(c))); // CR 119.4: só paga a vida que tem
   if (s.mareAlta && opts.length && /\bIsland\b/.test(linhaDeTipo(s, o))) opts = opts.map(x => x.concat(Array(s.mareAlta).fill('U'))); // M-262 · High Tide (605.1b): cada Ilha virada para mana dá {U} a mais
   const seen = new Set();
@@ -17285,6 +17332,68 @@ function combinacoesUteis(n, cost) {
 }
 /** CR2c.6 · a permanente cujo {T} faz parte do custo em pagamento: não pode virar para gerar a mana desse custo (602.2b, 118.3). */
 let fonteReservada = null;
+/** M-345 · 106.6 · o que o pagamento em curso paga: { magia: oid } (conjurar) ou { habilidade: oid } (ativar); null = outra coisa (custo de
+ * "a menos que", proteção…), e aí a mana restrita não serve. */
+let GASTO = null;
+const comGasto = (ctx, f) => { const antes = GASTO; GASTO = ctx; try { return f(); } finally { GASTO = antes; } };
+/** M-345 · a restrição de gasto da opção de mana desta fonte (a regra impressa), ou null. */
+const restricaoDaOpcao = (s, o, opt) => { const r = manaRuleDe(s.facts[o.name]); return r && r.gasto && (r.opcoes || []).includes(opt.join('')) ? r.gasto : null; };
+/** M-345 · 106.6 · as ofertas: a passada de sempre (a mana restrita não paga nada); com mana restrita à vista, mais uma passada por grupo de
+ * cartas que as mesmas restrições servem, guardando só as conjurações (ou ativações) dessas cartas. */
+let OFERTA_BASE = false;
+function ofertasComGasto(s, p, opts) {
+  const antes = OFERTA_BASE; OFERTA_BASE = true;
+  try {
+    const base = comGasto(null, () => legalActions(s, p, opts));
+    const cands = s.status === 'playing' && s.players[p] ? candidatosDeGasto(s, p) : [];
+    if (!cands.length) return base;
+    const visto = new Set(base.map(a => JSON.stringify(a)));
+    for (const c of cands) for (const a of comGasto({ servidos: c.servidos }, () => legalActions(s, p, opts))) {
+      if (!c.oids.has(a.oid) || a.t !== c.t) continue;
+      const k = JSON.stringify(a); if (!visto.has(k)) { visto.add(k); base.push(a); }
+    }
+    return base;
+  } finally { OFERTA_BASE = antes; }
+}
+/** M-345 · 106.6 · as cartas (para conjurar) e permanentes (para ativar) que alguma mana restrita à vista paga, agrupadas pelas restrições que as servem. */
+function candidatosDeGasto(s, p) {
+  const gs = (s.players[p].manaRestrita || []).map(t => t.gasto);
+  for (const o of sources(s, p)) for (const opt of productions(s, o)) { const g = restricaoDaOpcao(s, o, opt); if (g) gs.push(g); }
+  if (!gs.length) return [];
+  const chaves = [...new Set(gs.map(g => JSON.stringify(g)))], grupos = new Map(), z = s.zones[p];
+  const poe = (t, oid, ctx) => { const sv = chaves.filter(k => serveGasto(s, JSON.parse(k), ctx)); if (!sv.length) return;
+    const id = t + '|' + sv.join('|'); if (!grupos.has(id)) grupos.set(id, { t, servidos: new Set(sv), oids: new Set() }); grupos.get(id).oids.add(oid); };
+  for (const oid of [...z.hand, ...z.graveyard, ...z.exile, ...(z.command || [])]) poe('cast', oid, { magia: oid });
+  for (const o of battlefield(s)) if (o.controller === p) poe('activate', o.oid, { habilidade: o.oid });
+  return [...grupos.values()];
+}
+/** M-345 · "só para mágicas de artefato", "só para mágicas lendárias (não podem ser anuladas)", "só para mágicas e habilidades de Eldrazi incolores". */
+function descreveGasto(g) {
+  const TP = { artifact: 'artefato', creature: 'criatura', enchantment: 'encantamento', instant: 'instantânea', sorcery: 'feitiço', planeswalker: 'planeswalker', battle: 'batalha' };
+  const q = x => [x.tipos ? x.tipos.map(t => TP[t] || t).join(' ou ') : null, x.semTipos ? x.semTipos.map(t => 'não ' + (TP[t] || t)).join(', ') : null,
+    x.lendaria ? 'lendárias' : null, x.subtipos ? x.subtipos.join(' ou ') : null, x.incolor ? 'incolores' : null].filter(Boolean).join(' ');
+  const m = g.magia ? q(g.magia) : '', h = g.habilidade ? q(g.habilidade) : '';
+  return `só para mágicas${m ? ' de ' + m : ''}${h ? (h === m ? ' e habilidades delas' : ` e habilidades de ${h}`) : ''}${g.naoAnulavel ? ' (não podem ser anuladas)' : ''}`;
+}
+/** M-345 · a mana com esta restrição paga o que está sendo pago agora? */
+function serveGasto(s, g, ctx) {
+  if (!g || !ctx) return false;
+  if (ctx.servidos) return ctx.servidos.has(JSON.stringify(g)); // oferta agrupada: as cartas do grupo são servidas pelas mesmas restrições
+  const casa = (q, o) => { const f = o && s.facts[o.name]; if (!f || !q) return false;
+    if (q.tipos && !q.tipos.some(t => (f.types || []).includes(t))) return false;
+    if (q.semTipos && q.semTipos.some(t => (f.types || []).includes(t))) return false;
+    if (q.lendaria && !f.legendary) return false;
+    if (q.incolor && coresDe(s, o).length) return false;
+    if (q.subtipos && !q.subtipos.some(k => new RegExp('\\b' + k + '\\b').test(linhaDeTipo(s, o)))) return false;
+    return true; };
+  return ctx.magia != null ? casa(g.magia, s.objects[ctx.magia]) : ctx.habilidade != null ? casa(g.habilidade, s.objects[ctx.habilidade]) : false;
+}
+/** M-345 · a reserva que paga o que está sendo pago: a comum mais a restrita que serve. */
+function poolUsavel(s, p) {
+  const P = { ...s.players[p].pool };
+  for (const t of s.players[p].manaRestrita || []) if (serveGasto(s, t.gasto, GASTO)) P[t.cor] = (P[t.cor] || 0) + 1;
+  return P;
+}
 const semAFonte = (oid, f) => { const antes = fonteReservada; fonteReservada = oid; try { return f(); } finally { fonteReservada = antes; } };
 function sources(s, p) {
   return battlefield(s).filter(o => o.controller === p && !o.tapped && o.oid !== fonteReservada && productions(s, o).length &&
@@ -17295,8 +17404,8 @@ function sources(s, p) {
 // só sem mana usa vida, e nunca mais vida do que o jogador tem. A escolha livre entre mana e vida entra com a CR2c (601.2f).
 function planTaps(s, p, cost, extra) { return (cost.hybrid || []).some(h => h.includes('P')) ? (planoDePagamento(s, p, cost, extra, 0) || planoDePagamento(s, p, cost, extra, s.players[p].life)) : planoDePagamento(s, p, cost, extra, Infinity); }
 function planoDePagamento(s, p, cost, extra, maxLife) {
-  const pl = s.players[p];
-  if (payFrom(pl.pool, cost, extra, maxLife)) return [];
+  const pl = s.players[p], P0 = (pl.manaRestrita || []).length ? poolUsavel(s, p) : pl.pool; // M-345
+  if (payFrom(P0, cost, extra, maxLife)) return [];
   const src = sources(s, p).sort((a, b) => productions(s, a).length - productions(s, b).length || (a.oid < b.oid ? -1 : 1));
   let budget = 4000, found = null;
   (function dfs(i, pool, taps) {
@@ -17313,16 +17422,17 @@ function planoDePagamento(s, p, cost, extra, maxLife) {
     });
     else productions(s, o).forEach((opt, k) => {
       if (found) return;
+      { const g = restricaoDaOpcao(s, o, opt); if (g && !serveGasto(s, g, GASTO)) return; } // M-345 · 106.6: a mana restrita só entra no plano do que ela paga
       const P = { ...pool }; opt.forEach(c => { P[c]++; });
       dfs(i + 1, P, taps.concat([[o.oid, k]]));
     });
     dfs(i + 1, pool, taps);
-  })(0, { ...pl.pool }, []);
+  })(0, { ...P0 }, []);
   // Leva 125 · a busca devolve a primeira solução, que vira toda fonte anterior à que resolve: pagar {B} com três
   // Mountain e um Swamp virava os quatro. O plano é enxugado: tira-se cada toque que não faz falta, do mais flexível
   // (mais opções de cor, que vale guardar) para o menos, e fica só o que o custo exige (601.2g: paga-se o custo, nada mais).
   if (found && found.length > 1) {
-    const soma = taps => { const P = { ...pl.pool }; for (const [oid, k, mana] of taps) (mana || productions(s, s.objects[oid])[k] || []).forEach(c => { P[c]++; }); return P; };
+    const soma = taps => { const P = { ...P0 }; for (const [oid, k, mana] of taps) (mana || productions(s, s.objects[oid])[k] || []).forEach(c => { P[c]++; }); return P; };
     for (let i = found.length - 1; i >= 0 && found.length > 1; i--) {
       const sem = found.slice(0, i).concat(found.slice(i + 1));
       if (payFrom(soma(sem), cost, extra, maxLife)) found = sem;
@@ -17342,7 +17452,9 @@ function tapForMana(s, oid, option, mana) {
   }
   if (!o.tapped) noteEnchantedEvent(s, o);
   if (!opt) throw new RuleError('mana', 'essa fonte não produz essa mana');
-  o.tapped = true; opt.forEach(c => { s.players[o.controller].pool[c]++; });
+  o.tapped = true;
+  { const g = restricaoDaOpcao(s, o, opt); const pl = s.players[o.controller]; // M-345 · 106.6: a restrição acompanha a mana até ela ser gasta
+    if (g) pl.manaRestrita = [...(pl.manaRestrita || []), ...opt.map(c => ({ cor: c, gasto: g, fonte: o.oid, name: o.name }))]; else opt.forEach(c => { pl.pool[c]++; }); }
   const aoGastar = (s.facts[o.name].script || {}).aoGastarMana; // M-273 · Path of Ancestry: "when that mana is spent to cast …" — a mana leva a marca de quem a gerou
   if (aoGastar) { const pl = s.players[o.controller]; pl.manaMarcada = [...(pl.manaMarcada || []), ...opt.map(c => ({ cor: c, fonte: o.oid, name: o.name }))]; }
   // R11.2 · "This land deals 1 damage to you" (terrenos de dor, Talismãs) e "Pay 1 life" (Spire of Industry) ao gerar cor
@@ -17355,9 +17467,26 @@ function payCost(s, p, cost, extra = 0, paraQue) {
   if (!taps) throw new RuleError('mana', 'mana insuficiente');
   taps.forEach(([oid, k, mana]) => tapForMana(s, oid, k, mana));
   const antes = { ...s.players[p].pool }; // M-273 · para saber quanto de cada cor foi gasto
+  if ((s.players[p].manaRestrita || []).length) return pagaComRestrita(s, p, cost, extra, paraQue, antes); // M-345
   const r = payFrom(s.players[p].pool, cost, extra, 0) || payFrom(s.players[p].pool, cost, extra, s.players[p].life);
   s.players[p].pool = r.pool; perdeVida(s, p, r.life);
   if ((s.players[p].manaMarcada || []).length) gastaMarcada(s, p, antes, paraQue); // M-273
+}
+/** M-345 · 106.6 · pagamento com mana restrita na reserva: a que serve a este gasto entra; ela é gasta antes da comum (é a única coisa que
+ * ela paga); a que não foi gasta continua restrita. Mana de Delighted Halfling gasta numa mágica: a mágica não pode ser anulada. */
+function pagaComRestrita(s, p, cost, extra, paraQue, antes) {
+  const pl = s.players[p], usaveis = pl.manaRestrita.filter(t => serveGasto(s, t.gasto, GASTO)), U = {};
+  for (const t of usaveis) U[t.cor] = (U[t.cor] || 0) + 1;
+  const P = { ...pl.pool }; for (const [c, n] of Object.entries(U)) P[c] = (P[c] || 0) + n;
+  const r = payFrom(P, cost, extra, 0) || payFrom(P, cost, extra, pl.life);
+  if (!r) throw new RuleError('mana', 'mana insuficiente');
+  const novo = { ...r.pool }, gastas = new Set();
+  for (const c of COLORS) { const u = U[c] || 0; if (!u) continue; const gasto = (P[c] || 0) - (r.pool[c] || 0), consumidas = Math.min(u, gasto); novo[c] = (r.pool[c] || 0) - (u - consumidas);
+    for (const t of usaveis.filter(x => x.cor === c).slice(0, consumidas)) gastas.add(t); }
+  pl.pool = novo; perdeVida(s, p, r.life);
+  const fica = pl.manaRestrita.filter(t => !gastas.has(t)); if (fica.length) pl.manaRestrita = fica; else delete pl.manaRestrita;
+  if (GASTO && GASTO.magia != null && [...gastas].some(t => t.gasto.naoAnulavel) && s.objects[GASTO.magia]) s.objects[GASTO.magia].naoAnulavel = true; // "that spell can't be countered"
+  if ((pl.manaMarcada || []).length) gastaMarcada(s, p, antes, paraQue);
 }
 /** M-273 · 106.12 (mana com efeito ao ser gasta): a mana marcada que saiu da reserva neste pagamento foi gasta. Quem paga escolhe qual mana
  * gasta; o motor gasta a marcada primeiro quando o gasto dispara o efeito (a criatura serve) e por último quando não dispara. */
@@ -18488,6 +18617,7 @@ function applyEffect(s, src, eff, tgt, events) {
     }
     case 'bounce': moverObjeto(s, src, obj, { para: 'hand' }, ctrl); note({}); break; // CR2-G R4a · atalho de mover
     case 'counter':
+      if (obj && obj.naoAnulavel && obj.zone === 'stack') { note({ failed: true, naoAnulavel: true }); break; } // M-345 · Delighted Halfling: "that spell can't be countered" (101.2)
       const custoUnless = eff.unless ? String(eff.unless.mana).replace(/\{X\}/g, `{${src.xPaid || 0}}`) : null; // M-338 · 107.3a: o X anunciado (Syncopate)
       if (eff.unless && s.manaCheck && canPay(s, obj.controller, parseCost(custoUnless))) {
         // S16 · o controlador da mágica decide se paga para salvá-la
@@ -21614,6 +21744,9 @@ const HANDLERS = {
     s.players[a.p].pool[a.color] = Math.max(0, s.players[a.p].pool[a.color] + (a.delta || 1));
   }
 };
+{ const c0 = HANDLERS.cast, a0 = HANDLERS.activate; // M-345 · 106.6: conjurar e ativar pagam sabendo o que pagam (a mágica, a fonte da habilidade)
+  HANDLERS.cast = function (s, a, ev) { return comGasto({ magia: a.oid }, () => c0.call(HANDLERS, s, a, ev)); };
+  HANDLERS.activate = function (s, a, ev) { return comGasto({ habilidade: a.oid }, () => a0.call(HANDLERS, s, a, ev)); }; }
 function assisted(s) { if (s.mode !== 'assisted') throw new RuleError('modo', 'controle direto só existe na mesa assistida'); }
 function onField(s, oid) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield') throw new RuleError('objeto', 'objeto fora do campo'); return o; }
 
@@ -21666,6 +21799,7 @@ const PARADAS_PELA_FRACAO = new Set(['cast', 'cycle', 'transmute', 'ninjutsu', '
 const semAsParadasPelaFracao = (s, out) => (!out.length || !fracaoDeSegundo(s)) ? out
   : out.filter(a => !PARADAS_PELA_FRACAO.has(a.t) && !(a.t === 'activate' && !ehHabilidadeDeMana((abilitiesOf(s, s.objects[a.oid]).filter(x => x.kind === 'activated')[a.index || 0]) || {})));
 function legalActions(s, p, { adjudication = false } = {}) {
+  if (!OFERTA_BASE) return ofertasComGasto(s, p, { adjudication }); // M-345 · 106.6
   return semAsParadasPelaFracao(s, (() => { // CR 702.61 · o filtro vale para todas as saídas abaixo
   const out = [];
   if (s.status === 'over' || !s.players[p] || s.players[p].lost) return out;
@@ -25340,7 +25474,7 @@ Object.assign(EXPORTS_T, { aventuraDe });
 Object.assign(EXPORTS_T, { capitulosDe, capituloFinal, capituloPendente, ROMANOS });
 return { ...EXPORTS_K, ...EXPORTS_V, ...EXPORTS_T, ENGINE_VERSION, effectAllowed, eligibleBlockers, abilitiesOf, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, moveObject, seriaDestruida, danoSubstituido, danoAposPrevencao, prevencaoLegado, destinoSubstituido, destinoLegado, entradaModificada, entradaLegado, applyEffect, aplicaPorJogador, sacrificioLegado, moverObjeto, moverLegado, mutacao, mutacaoLegado, hasLegado, bonusLegado, continuosQueAfetam, aplicaTemporario, statsLegado: (s, o) => ({ power: powerLegado(s, o), toughness: toughnessLegado(s, o) }), sombraDosGatilhos, gatilhosDeZona, gatilhosDeZonaLegado, gatilhosDoObjeto, gatilhosDoPasso, enterStep, disparaEvento, noteDiscard, noteEnchantedDealt, noteDamaged, noteEnchantedEvent, addCounters, sacrifice, draw, sweepTargets, sweepTargetsLegado, targetable,
   stats: (s, o) => ({ power: power(s, o), toughness: toughness(s, o) }), hasKeyword: has, bonus, isCreature, tiposDe, pwsAtacaveis, exigePw, productions, protections, prevented, canBlock,
-  createGame, apply, legalActions, linhaDeTipo, coresDe, colorsOf, targetAllowed, previewCombat, previewAttack, eligibleAttackers, mustAttack, eligibleBlockers, canBlock, canPay, commanderTax,
+  createGame, apply, legalActions, descreveGasto, linhaDeTipo, coresDe, colorsOf, targetAllowed, previewCombat, previewAttack, eligibleAttackers, mustAttack, eligibleBlockers, canBlock, canPay, commanderTax,
   createMatch, replay, hashState, randomPolicy, invariants };
 })();
 
@@ -29582,10 +29716,13 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   // U3 · reserva de mana: um símbolo por cor com a quantidade ao lado (três {G} viram "{G}×3")
   const poolView = pl => {
     const cores = E.COLORS.filter(c => pl.pool[c] > 0);
-    if (!cores.length) return null;
-    const total = cores.reduce((n, c) => n + pl.pool[c], 0);
+    // M-345 · 106.6 · a mana restrita aparece à parte, com a restrição por extenso
+    const grupos = []; for (const t of pl.manaRestrita || []) { const d = E.descreveGasto(t.gasto), g = grupos.find(x => x.cor === t.cor && x.d === d); if (g) g.n++; else grupos.push({ cor: t.cor, d, n: 1 }); }
+    if (!cores.length && !grupos.length) return null;
+    const total = cores.reduce((n, c) => n + pl.pool[c], 0) + (pl.manaRestrita || []).length;
     return h('span', { class: 'tb-pool', role: 'group', 'aria-label': `reserva de mana: ${total}` },
-      ...cores.map(c => h('span', { class: 'tb-pool__cor' }, Simbolo(c), pl.pool[c] > 1 ? h('b', {}, `×${pl.pool[c]}`) : null)));
+      ...cores.map(c => h('span', { class: 'tb-pool__cor' }, Simbolo(c), pl.pool[c] > 1 ? h('b', {}, `×${pl.pool[c]}`) : null)),
+      ...grupos.map(g => h('span', { class: 'tb-pool__cor', 'aria-label': `${g.n} ${g.d}` }, Simbolo(g.cor), g.n > 1 ? h('b', {}, `×${g.n}`) : null, h('small', {}, ' ' + g.d))));
   };
 
   /* ---- A6 · declaração de ataque e bloqueio ---- */
@@ -29887,7 +30024,9 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   }
   /** R11.2 · o que gerar aquela cor custa além de virar: terreno de dor e Talismã ("1 de dano em você"), Spire of Industry ("paga 1 de vida"). */
   function custoDaMana(f, opt) {
-    const r = (f.script || {}).manaRule || f.manaRuleTexto; if (!r || !(r.damage || r.life) || !opt.some(c => r.colors.includes(c))) return ''; // M-321
+    const r = (f.script || {}).manaRule || f.manaRuleTexto;
+    if (r && r.gasto && (r.opcoes || []).includes(opt.join(''))) return ` (${E.descreveGasto(r.gasto)})`; // M-345 · 106.6
+    if (!r || !(r.damage || r.life) || !opt.some(c => r.colors.includes(c))) return ''; // M-321
     return r.damage ? ` (${r.damage} de dano em você)` : ` (paga ${r.life} de vida)`;
   }
   function custoDaHabilidade(ab) {
