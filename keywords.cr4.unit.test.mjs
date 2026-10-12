@@ -904,3 +904,24 @@ test('CR 702.16a · a linha "Protection from <qualidade>" conta como palavra-cha
   assert.equal(c('Protection from creatures'), 'completo'); assert.equal(c('Flying, protection from Humans'), 'completo'); assert.equal(c('Protection from white and from blue'), 'completo');
   assert.equal(c('Protection from the chosen player'), 'manual');
 });
+
+/* ---------------- K-18 · 702.11d resistência a magia contra uma qualidade ---------------- */
+test('CR 702.11d · "Hexproof from black" (Knight of Grace, texto oficial) é lida da linha impressa e não vira resistência a magia completa', () => {
+  const k = { ...oficial('Knight of Grace'), keywords: ['First strike', 'Hexproof from'] };
+  const f = E.cardFacts(k);
+  assert.deepEqual(J(f.hexK), ['B']); assert.ok(!f.kw.includes('hexproof'), 'não é "hexproof" puro');
+});
+
+test('CR 702.11d/f · resistência a magia contra monocolorida: a mágica monocolorida do oponente não mira; a multicolorida mira; a sua, também', () => {
+  const RES = { name: 'Resistente', type_line: 'Creature — Soldier', mana_cost: '{W}', cmc: 1, colors: ['W'], power: '2', toughness: '2', keywords: ['Hexproof from'], oracle_text: 'Hexproof from monocolored' };
+  const OURO = { name: 'Ouro', type_line: 'Instant', mana_cost: '{R}{G}', cmc: 2, colors: ['R', 'G'], keywords: [], oracle_text: 'Ouro deals 3 damage to any target.' };
+  const SC_OURO = { Ouro: { name: 'Ouro', effects: [{ do: 'damage', amount: 3, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: 17 } } } };
+  let s = partida({ Resistente: RES, Raio: RAIO, Ouro: OURO }, { ...SC_RAIO, ...SC_OURO }); const a = s.turn.active, d = 1 - a;
+  let x; [s, x] = poe(s, a, 'Resistente');
+  let r; [s, r] = poe(s, d, 'Raio', 'hand'); let t = J(s); t.turn.priority = d;
+  assert.throws(() => act(t, { t: 'cast', p: d, oid: r, targets: [{ oid: x }] }), /alvo/, 'o Raio (monocolorido) do oponente não mira');
+  let o; [t, o] = poe(t, d, 'Ouro', 'hand'); t = J(t); t.turn.priority = d;
+  assert.equal(resolve(act(t, { t: 'cast', p: d, oid: o, targets: [{ oid: x }] })).objects[x].zone, 'graveyard', 'o Ouro (multicolorido) mira');
+  let r2; [s, r2] = poe(s, a, 'Raio', 'hand');
+  assert.equal(resolve(act(s, { t: 'cast', p: a, oid: r2, targets: [{ oid: x }] })).objects[x].zone, 'graveyard', 'o Raio de quem a controla mira');
+});

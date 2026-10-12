@@ -4070,6 +4070,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Testes:** `keywords.cr4.unit` (3, falham sem a leva), `combat.audit` K-17. Texto oficial: Beloved Chaplain (Oracle do Forge, 11/10/2026). Goldens idênticos; motor v109.
 - **Parcial declarado (702.16):** proteção de jogador e contra jogador; proteção concedida por efeito continua só de cor; face de trás.
 
+**K-18 · Resistência a magia contra uma qualidade, impressa (702.11d–f)** 🟡 (leva K-18)
+- **Valor:** "Hexproof from black", "from monocolored", "from white and from blue" impressos passam a valer (antes só a concedida por efeito, de cor).
+- **Aceite:** Knight of Grace (texto oficial) lê "from black" sem virar resistência completa; "from monocolored": o Raio do oponente não mira, o Ouro (vermelho e verde) mira, o Raio de quem a controla mira; a linha conta como palavra-chave na cobertura.
+- **Toca ponto comum:** `targetable` (uma linha a mais: `resistenteAK`); `cardFacts` (`hexK`, uma linha a mais).
+- **Testes:** `keywords.cr4.unit` (2, falham sem a leva). Texto oficial: Knight of Grace (Oracle do Forge, 11/10/2026). Goldens idênticos; motor v109.
+- **Parcial declarado (702.11):** jogador com resistência por habilidade estática; "hexproof from" concedido continua só de cor; 702.11g.
+
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

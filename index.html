@@ -7723,6 +7723,7 @@ Object.assign(EXPORTS_K_SC, { wardCustoErrosK });
 TRIGGER_PT.exploits = 'quando explora uma criatura'; // K-12 · 702.110b
 TRIGGER_PT.cycled = 'quando você a cicla'; // K-16 · 702.29c
 function palavraNaLinhaK(k) {
+  if (k === 'hexproof') return 'hexproof(?: from (?:white|blue|black|red|green|everything|multicolored|monocolored|colorless|creatures|artifacts|enchantments|instants|sorceries|planeswalkers|lands)(?: and from (?:white|blue|black|red|green|multicolored|monocolored|colorless|creatures|artifacts|enchantments|instants|sorceries|planeswalkers|lands))*)?'; // K-18 · 702.11d
   if (k === 'protection') { const q = '(?:white|blue|black|red|green|everything|multicolored|monocolored|colorless|all colors|creatures|artifacts|enchantments|instants|sorceries|planeswalkers|lands|(?!players\\b|opponents\\b)[a-z]+s)'; return `protection from ${q}(?: and from ${q})*`; } // K-17 · só as qualidades que o motor confere (protecaoImpressa e protecaoQualidadesK)
   if (k === 'dash') return 'dash\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-9
   if (k === 'evoke') return 'evoke(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*exile an? (?:white|blue|black|red|green) card from your hand\\.?)'; // K-8 · só as formas que o motor paga
@@ -15207,6 +15208,7 @@ function cardFacts(card) {
     tapaK: tapaImpressoK(card), // K-13 · 702.51/702.126: "Convoke" / "Improvise" impressos (undefined quando não tem)
     recomecarK: recomecarImpressoK(card), // K-10 · 702.133: linha "Jump-start" (undefined quando não tem)
     arremeterK: arremeterImpressoK(card), // K-9 · 702.109: "Dash {1}{R}" (undefined quando não tem)
+    hexK: resistenciaQualidadesK(card), // K-18 · 702.11d: "Hexproof from black", "from monocolored"… impressos (undefined quando não tem)
     protK: protecaoQualidadesK(card), // K-17 · 702.16a: qualidades que não são cor ("from creatures", "from Demons", "from everything"…) (undefined quando não tem)
     evocarK: evocarImpressoK(card), // K-8 · 702.74: "Evoke {2}{U}" / "Evoke—Exile a green card from your hand." (undefined quando não tem)
     numerosK: numerosDaPalavraK(card), // K-6 · "Afterlife 2", "Modular 1"…: o N de cada palavra-chave numerada impressa (undefined quando não tem)
@@ -16944,6 +16946,7 @@ function targetable(s, p, o, src) {
   if (has(s, o, 'hexproof') && o.controller !== p) return false;
   if (src && protectedFrom(s, o, src)) return false; // S11b · proteção de cor
   if (src && (o.tempResguardoCor || []).length && o.controller !== p && o.tempResguardoCor.some(c => colorsOf(s, src).includes(c))) return false; // M-255 · 702.11d "hexproof from [cor]"
+  if (src && o.controller !== p && resistenteAK(s, o, src)) return false; // K-18 · 702.11d: "hexproof from [qualidade]" impresso (Toca ponto comum: targetable)
   return true;
 }
 const isCreature = (s, o) => (o.faceDown || tiposDe(s, o).includes('creature')) && !o.bestowed; // CR2d.1 · camada 4
@@ -21236,6 +21239,28 @@ function casaProtecaoK(s, q, src) {
   return false;
 }
 Object.assign(EXPORTS_K, { protecaoQualidadesK, casaProtecaoK });
+/* K-18 · 702.11d–h · "hexproof from [quality]" impresso: não pode ser alvo de mágicas [da qualidade] dos oponentes nem de habilidades dos
+   oponentes de fontes [da qualidade]. As qualidades usam a mesma forma da proteção (cor de uma letra, 'tipo:…', 'multicolorida'…);
+   "from A and from B" são duas (f); perder as habilidades tira todas (e: some com as impressas). */
+function resistenciaQualidadesK(card) {
+  const txt = String((card && (card.oracle_text || (card.faces && card.faces[0] && card.faces[0].oracle_text))) || ''), out = [];
+  const CORES = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
+  for (const linha of txt.split('\n')) for (const parte of linha.replace(/\([^)]*\)/g, '').split(/[,;]/)) {
+    const m = /^\s*hexproof from (.+?)\.?\s*$/i.exec(parte.trim()); if (!m) continue;
+    for (const q0 of m[1].split(/\s+and\s+(?:from\s+)?/i)) {
+      const ql = q0.trim().toLowerCase();
+      if (CORES[ql]) out.push(CORES[ql]); else if (ql === 'everything') out.push('tudo'); else if (ql === 'multicolored') out.push('multicolorida');
+      else if (ql === 'monocolored') out.push('monocolorida'); else if (ql === 'colorless') out.push('incolor'); else if (TIPOS_DA_PROTECAO_K[ql]) out.push('tipo:' + TIPOS_DA_PROTECAO_K[ql]);
+    }
+  }
+  return out.length ? [...new Set(out)] : undefined;
+}
+/** A permanente tem "hexproof from" uma qualidade que casa com a fonte da mágica ou da habilidade (e ainda tem as habilidades impressas)? */
+function resistenteAK(s, o, src) {
+  const f = s.facts[o.name]; if (!f || !f.hexK || semImpressas(s, o)) return false;
+  return f.hexK.some(q => casaProtecaoK(s, q, src));
+}
+Object.assign(EXPORTS_K, { resistenciaQualidadesK, resistenteAK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-22 · 701.68 afligir N: "put N −1/−1 counters on a creature you control" (a) — a criatura é escolhida por quem aflige (não mira);
    sem criatura sua, nada acontece (b); com uma só, é ela. Os marcadores passam pelas substituições de pôr marcadores (614.16).
