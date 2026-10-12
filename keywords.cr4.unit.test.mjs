@@ -1794,3 +1794,27 @@ test('CR 702.38a · amplificar (Glowering Rogon, texto oficial): revela cartas d
   assert.deepEqual(J(s.pending.from).sort(), J(s.zones[a].hand.filter(x => ['Fera', 'Glowering Rogon'].includes(s.objects[x].name))).sort(), 'só as Feras da mão (o Urso não compartilha tipo)'); assert.ok(!s.pending.from.includes(u));
   s = pegaK43(s, a, [f1, f2]); assert.equal(s.objects[g].counters.p1p1, 2); assert.equal(s.objects[f1].zone, 'hand'); assert.equal(s.objects[f2].zone, 'hand');
 });
+
+/* ---------------- K-44 · campeão 702.72 ---------------- */
+const HEROI = () => ({ ...oficial('Changeling Hero'), keywords: ['Changeling', 'Champion', 'Lifelink'] }); // como a Scryfall
+const ateEscolhaK44 = s => { for (let i = 0; i < 10 && !(s.pending && s.pending.kind === 'pick') && (s.stack.length || (s.queued || []).length); i++) s = s.pending ? act(s, E.legalActions(s, s.pending.p)[0]) : act(s, { t: 'pass', p: s.turn.priority }); return s; };
+
+test('CR 702.72a · campeão (Changeling Hero, texto oficial): ao entrar, exile outra criatura sua ou sacrifique-o; ao sair do campo, a exilada volta sob o controle do dono', () => {
+  let s = partida({ 'Changeling Hero': HEROI(), Urso: URSO, Matar: MATAR_K41 }, SC_MATAR_K41); const a = s.turn.active, d = 1 - a;
+  let h, u, ui, m; [s, h] = poe(s, a, 'Changeling Hero', 'hand'); [s, u] = poe(s, a, 'Urso'); [s, ui] = poe(s, d, 'Urso'); [s, m] = poe(s, a, 'Matar', 'hand');
+  s = ateEscolhaK44(act(s, { t: 'cast', p: a, oid: h }));
+  assert.equal((s.pending || {}).kind, 'pick'); assert.deepEqual(J(s.pending.from), [u], 'só outra criatura sua');
+  s = act(s, { t: 'pick', p: a, oid: u }); s = resolve(s);
+  assert.equal(s.objects[h].zone, 'battlefield'); assert.equal(s.objects[u].zone, 'exile');
+  s = act(s, { t: 'cast', p: a, oid: m, targets: [{ oid: h }] }); s = resolve(s);
+  assert.equal(s.objects[h].zone, 'graveyard'); assert.equal(s.objects[u].zone, 'battlefield', 'o Urso voltou'); assert.equal(s.objects[u].controller, a);
+});
+
+test('CR 702.72a · campeão: sem exilar (recusou ou não tem outra), o campeão é sacrificado', () => {
+  let s = partida({ 'Changeling Hero': HEROI(), Urso: URSO }); const a = s.turn.active;
+  let h, u; [s, h] = poe(s, a, 'Changeling Hero', 'hand'); [s, u] = poe(s, a, 'Urso');
+  let t = ateEscolhaK44(act(s, { t: 'cast', p: a, oid: h })); t = act(t, { t: 'pick_done', p: a }); t = resolve(t);
+  assert.equal(t.objects[h].zone, 'graveyard', 'recusou: sacrificado'); assert.equal(t.objects[u].zone, 'battlefield');
+  let v = J(s); const z = v.zones[a].battlefield; z.splice(z.indexOf(u), 1); v.zones[a].graveyard.push(u); v.objects[u].zone = 'graveyard';
+  v = ateEscolhaK44(act(v, { t: 'cast', p: a, oid: h })); v = resolve(v); assert.equal(v.objects[h].zone, 'graveyard', 'sem outra criatura: sacrificado');
+});

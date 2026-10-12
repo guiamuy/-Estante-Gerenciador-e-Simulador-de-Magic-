@@ -4399,6 +4399,11 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Aceite:** Gorger Wurm: só as suas criaturas, não ela; dois Ursos sacrificados, dois marcadores; zero também vale. Caprichrome: só artefatos. Glowering Rogon: só as cartas de Fera da mão; reveladas ficam na mão.
 - **Toca ponto comum:** `concluiPick` (uma linha: o destino `entrarComK`). Ela entra e a escolha vem logo depois, antes de gatilho ou prioridade (como o tumulto).
 - **Testes:** `keywords.cr4.unit` (3, falham sem a leva), `combat.audit` (1 cenário). Texto oficial: Gorger Wurm, Caprichrome, Glowering Rogon (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
+**K-44 · Campeão (champion, 702.72)** 🟡 (leva K-44)
+- **Valor:** os campeões de Lorwyn pedem, ao entrar, outra criatura (ou do tipo pedido) sua para exilar; sem exilar, são sacrificados; quando saem do campo, a exilada volta. Changeling Hero joga pelo texto.
+- **Aceite:** Changeling Hero: a lista mostra só outra criatura sua; o Urso vai para o exílio; o Herói morre e o Urso volta para o dono; recusando, ou sem outra criatura, o Herói é sacrificado.
+- **Toca ponto comum:** `concluiPick` (uma linha: o destino `campeaoK`).
+- **Testes:** `keywords.cr4.unit` (2, falham sem a leva), `combat.audit` (1 cenário). Texto oficial: Changeling Hero (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

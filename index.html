@@ -5226,6 +5226,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'modular', 'soulshift', // K-41 · 702.43 e 702.46: "entra com N" e gatilhos de morte com alvo, que olham para trás (603.10a)
   'dethrone', 'frenzy', 'outlast', // K-42 · 702.105 e 702.68 (gatilhos de ataque) e 702.107 (habilidade ativada gerada pela palavra, só como feitiço)
   'devour', 'amplify', // K-43 · 702.82 e 702.38: escolha logo depois de entrar (sacrificar / revelar) e N +1/+1 por escolhida (entrarComPickK)
+  'champion', // K-44 · 702.72: os dois gatilhos ligados (exilar outra ao entrar ou sacrificar; ao sair, a exilada volta)
   'afflict', 'melee', 'mentor', 'training', // K-31 · 702.130, 702.121, 702.134, 702.149: gatilhos de ataque gerados pela palavra, um por instância
   'battle cry', 'rampage', 'flanking', 'bushido', // K-30 · 702.91, 702.23, 702.25, 702.45: gatilhos de combate gerados pela palavra (GATILHOS_DE_PALAVRA_K), um por instância
   /* ↓ V · palavras-chave da trilha verbos */
@@ -8217,6 +8218,7 @@ function palavraNaLinhaK(k) {
   if (k === 'modular' || k === 'soulshift') return `${k} \\d+`; // K-41 · Modular—Sunburst fica de fora (o motor não guarda as cores gastas)
   if (k === 'frenzy') return 'frenzy \\d+'; if (k === 'outlast') return 'outlast\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-42
   if (k === 'devour') return 'devour(?: (?:artifact|creature|land|enchantment))? \\d+'; if (k === 'amplify') return 'amplify \\d+'; // K-43
+  if (k === 'champion') return 'champion an? [a-z]+'; // K-44 · "Champion a creature", "Champion a Faerie"
   if (k === 'dash') return 'dash\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-9
   if (k === 'evoke') return 'evoke(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*exile an? (?:white|blue|black|red|green) card from your hand\\.?)'; // K-8 · só as formas que o motor paga
   return ['afterlife', 'rampage', 'bushido', 'afflict'].includes(k) ? `${k} \\d+` : k; // K-30 · alvoroço N e bushido N
@@ -15881,6 +15883,7 @@ function cardFacts(card) {
     ecoK: custoDaLinhaK(card, 'Echo'), // K-36 · 702.30: "Echo {2}{R}" (undefined quando não tem)
     perdurarK: custoDaLinhaK(card, 'Outlast'), // K-42 · 702.107a: "Outlast {1}{W}" (undefined quando não tem)
     devorarK: devorarImpressoK(card), // K-43 · 702.82: [{ n, tipo }] por linha "Devour [qualidade] N" (undefined quando não tem)
+    campeaoK: campeaoImpressoK(card), // K-44 · 702.72: "Champion a creature" → 'creature'; "Champion an Elf" → 'Elf' (undefined quando não tem)
     suspenderK: suspenderImpressoK(card), // K-22 · 702.62a: "Suspend N—{custo}" (undefined quando não tem)
     equipesK: equipesImpressosK(card), // K-28 · 702.6c: "Equip [qualidade] {custo}" (undefined quando não tem)
     jogadorK: jogadorImpressoK(card), // K-26 · 702.11c / 702.18a: "You have hexproof." / "You have shroud." (undefined quando não tem)
@@ -18768,6 +18771,29 @@ function applyEffect(s, src, eff, tgt, events) {
       break;
     }
     /* ↓ K · casos de applyEffect da trilha keywords */
+    case 'campeao_k': { // K-44 · 702.72a: escolhe outra permanente sua da qualidade para exilar (0 ou 1); sem escolher, campeao_fim_k sacrifica
+      const perm = s.objects[src.ability ? src.source : src.oid];
+      if (!perm || perm.zone !== 'battlefield' || (perm.zc || 0) !== eff.z) break;
+      delete perm.campeaoNesteK;
+      const cands = battlefield(s).filter(x => x.oid !== perm.oid && x.controller === perm.controller && (eff.qualidade === 'creature' ? isCreature(s, x) : temSubtipo(s, x.oid, eff.qualidade))).map(x => x.oid);
+      if (!cands.length) break;
+      startPick(s, { p: perm.controller, from: cands, min: 0, max: 1, to: 'campeaoK', rest: 'stay', source: perm.name, label: `Campeão: exile outra ${eff.qualidade === 'creature' ? 'criatura' : eff.qualidade} sua, ou ${perm.name} é sacrificado` }, events);
+      s.pending.campeaoK = { oid: perm.oid, z: perm.zc || 0 };
+      break;
+    }
+    case 'campeao_fim_k': { // K-44 · "sacrifice it unless you exile another"
+      const perm = s.objects[src.ability ? src.source : src.oid];
+      if (!perm || perm.zone !== 'battlefield' || (perm.zc || 0) !== eff.z) break;
+      if (perm.campeaoNesteK) { delete perm.campeaoNesteK; break; }
+      sacrifice(s, perm.oid, events); events.push({ kind: 'effect', do: 'sacrifice_own', name: perm.name, target: perm.name });
+      break;
+    }
+    case 'campeao_volta_k': { // K-44 · 702.72a: a exilada (o mesmo objeto, 400.7) volta sob o controle do dono
+      const e = eff.exilada, c = e && s.objects[e.oid];
+      if (!c || c.zone !== 'exile' || (c.zc || 0) !== e.z) { events.push({ kind: 'effect', do: 'campeao_volta_k', name: src.name, failed: true }); break; }
+      moveObject(s, c.oid, 'battlefield', { controller: c.owner }); events.push({ kind: 'effect', do: 'campeao_volta_k', name: src.name, target: c.name });
+      break;
+    }
     case 'frenesi_k': { // K-42 · 702.68a
       const perm = s.objects[src.ability ? src.source : src.oid];
       if (!perm || perm.zone !== 'battlefield' || (perm.zc || 0) !== eff.z) { events.push({ kind: 'effect', do: 'frenesi_k', name: src.name, failed: true }); break; }
@@ -19055,6 +19081,7 @@ function concluiPick(s, events) {
     else if (where === 'exile-playable-turn') { moveObject(s, oid, 'exile'); s.objects[oid].playableFromExile = pk.p; s.objects[oid].jogavelSoNesteTurno = true; } // M-267
     else if (where === 'proliferar') escolhaDoVerbo(s, oid); // V-2 · Toca ponto comum: concluiPick (a escolha só é anotada; o verbo aplica no fim)
     else if (where === 'desvira') { if (s.objects[oid] && s.objects[oid].zone === 'battlefield') desvira(s, s.objects[oid]); } // M-250 · CR2g.6
+    else if (where === 'campeaoK') campeaoExilaK(s, oid, pk); // K-44 · 702.72a (Toca ponto comum: concluiPick)
     else if (where === 'entrarComK') entrarComPickK(s, oid, pk); // K-43 · devorar / amplificar (Toca ponto comum: concluiPick)
     else if (where === 'descarta-ou-sacrifica') { if (s.objects[oid].zone === 'hand') descartaCarta(s, oid); else sacrifice(s, oid); }
     else moveObject(s, oid, where);
@@ -21887,6 +21914,12 @@ Object.assign(EXPORTS_K, { wardsDeK, wardImpressoK, custoDaSalvaguardaK });
 /* K-3 · palavras-chave que são habilidades disparadas (702.108 proeza…): o motor gera a habilidade a partir da palavra-chave que a
    permanente tem agora (impressa, concedida, de marcador ou de mutação), uma por instância (702.108b), em abilitiesOf. */
 const GATILHOS_DE_PALAVRA_K = {
+  // K-44 · 702.72a · "When this permanent enters, sacrifice it unless you exile another [object] you control" e "When this permanent leaves the
+  // battlefield, return the exiled card to the battlefield under its owner's control" (ligadas, 702.72b/607): a exilada fica em campeaoDeK
+  champion: (s, o) => { const f = o && s.facts[o.name]; if (!f || !f.campeaoK) return [];
+    const ligada = o.zone === 'battlefield' ? o.campeaoDeK : ((o.ultima || {}).campeaoDeK);
+    return [{ kind: 'triggered', when: 'etb', palavraK: 'champion', effects: [{ do: 'campeao_k', qualidade: f.campeaoK, z: o.zc || 0 }, { do: 'campeao_fim_k', z: o.zc || 0 }] },
+      { kind: 'triggered', when: 'leaves-battlefield', palavraK: 'champion', effects: [{ do: 'campeao_volta_k', exilada: ligada || null }] }]; },
   // K-42 · 702.105a · "Whenever this creature attacks the player with the most life or tied for most life, put a +1/+1 counter on this creature." (b: por instância)
   dethrone: (s, o) => { const d = o && defensorDeK(s, o); const vivos = s.players.filter(p => !p.lost); return d != null && o.atacandoPw == null && s.players[d] && vivos.every(p => p.life <= s.players[d].life)
     ? ({ kind: 'triggered', when: 'attacks', palavraK: 'dethrone', effects: [{ do: 'counters', amount: 1, target: 'self-source' }] }) : []; },
@@ -22001,14 +22034,14 @@ const PALAVRAS_DE_SAIDA_K = { persist: 'm1m1', undying: 'p1p1', afterlife: null 
 function ultimaPalavrasK(s, o) {
   const out = {};
   for (const [k, m] of Object.entries(PALAVRAS_DE_SAIDA_K)) { if (m && ((o.counters || {})[m] || 0) > 0) continue; const n = instanciasK(s, o, k); if (n) out[k] = n; }
-  return Object.keys(out).length ? { palavrasK: out, ...(out.modular ? { p1p1K: (o.counters || {}).p1p1 || 0 } : {}) } : {}; // K-41 · 702.43a: quantos +1/+1 ela tinha
+  return Object.keys(out).length ? { palavrasK: out, ...(out.modular ? { p1p1K: (o.counters || {}).p1p1 || 0 } : {}), ...(out.champion && o.campeaoDeK ? { campeaoDeK: o.campeaoDeK } : {}) } : {}; // K-41 · 702.43a: quantos +1/+1 ela tinha; K-44 · a exilada pelo campeão
 }
 Object.assign(EXPORTS_K, { ultimaPalavrasK });
 /** K-14 · 603.10a · a foto de quem sai do campo é tirada antes de ela sair; quando várias saem no mesmo evento (s.saindoJuntas: destruir
     todas, ações de estado, sacrifício de cada jogador), a de todas é tirada antes da primeira sair — cada uma vê as outras ainda no campo
     (quem concede persistir e morre junto conta). Guardada fora do estado (WeakMap pela lista do evento), refeita a cada evento. */
 const FOTOS_JUNTAS_K = new WeakMap();
-PALAVRAS_DE_SAIDA_K.modular = null; PALAVRAS_DE_SAIDA_K.soulshift = null; // K-41 · 603.10a: contam como eram no campo
+PALAVRAS_DE_SAIDA_K.modular = null; PALAVRAS_DE_SAIDA_K.soulshift = null; PALAVRAS_DE_SAIDA_K.champion = null; // K-44 // K-41 · 603.10a: contam como eram no campo
 function palavrasAoSairK(s, o) {
   const j = s.saindoJuntas;
   if (Array.isArray(j) && j.includes(o.oid)) {
@@ -22073,6 +22106,7 @@ MARCAS_DA_CONJURACAO.push('recompraK'); // K-33 · 702.27a: some ao sair da pilh
 MARCAS_DA_CONJURACAO.push('ricocheteK'); // K-35 · 702.88a: o gatilho atrasado vale para este objeto no exílio; saiu de lá, acabou (400.7)
 MARCAS_DA_CONJURACAO.push('renomadaK'); // K-40 · 702.112b: renomada até sair do campo (400.7)
 MARCAS_DA_CONJURACAO.push('devorouK'); // K-43 · 702.82b: "it devoured" vale para esta permanente
+MARCAS_DA_CONJURACAO.push('campeaoDeK', 'campeaoNesteK'); // K-44 · a ligação é deste objeto (400.7)
 const COR_DO_NOME_K = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
 const COR_PT_K = { W: 'branca', U: 'azul', B: 'preta', R: 'vermelha', G: 'verde' };
 /** O custo de evocar impresso na face da frente: { mana: '{2}{U}' } ou { exileHandColor: 'G' } ("Evoke—Exile a green card from your
@@ -22721,6 +22755,20 @@ function entrarComPickK(s, oid, pk) {
   if (t && t.zone === 'battlefield' && (t.zc || 0) === e.z) { poeMarcadores(s, t, 'p1p1', e.n); if (e.devorar) t.devorouK = (t.devorouK || 0) + 1; }
 }
 Object.assign(EXPORTS_K, { devorarImpressoK, escolhaDeEntrarComK, entrarComPickK });
+/* K-44 · 702.72 campeão. Os dois gatilhos estão em GATILHOS_DE_PALAVRA_K; a exilada fica ligada ao campeão em `campeaoDeK` (oid e encarnação no
+   exílio) e entra na foto de quem sai (ultimaPalavrasK, 603.10a), para o "ao sair" achá-la. */
+function campeaoImpressoK(card) {
+  const txt = String((card && (card.oracle_text || (card.faces && card.faces[0] && card.faces[0].oracle_text))) || '');
+  for (const l0 of txt.split('\n')) { const m = l0.replace(/\s*\([^)]*\)/g, '').trim().match(/^Champion an? ([A-Za-z-]+)$/); if (m) return m[1].toLowerCase() === 'creature' ? 'creature' : m[1]; }
+  return undefined;
+}
+function campeaoExilaK(s, oid, pk) {
+  const e = pk.campeaoK, perm = s.objects[e.oid], x = s.objects[oid];
+  if (!x || x.zone !== 'battlefield' || !perm || perm.zone !== 'battlefield' || (perm.zc || 0) !== e.z) return;
+  moveObject(s, oid, 'exile'); const ex = s.objects[oid];
+  perm.campeaoDeK = { oid, z: ex.zc || 0 }; perm.campeaoNesteK = true;
+}
+Object.assign(EXPORTS_K, { campeaoImpressoK, campeaoExilaK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-30 · 701.65 aerobender: "that player exiles those objects. For each card exiled this way, for as long as it remains exiled, its owner
    may cast it by paying {2} rather than paying its mana cost" (a). A permissão é do DONO e da encarnação exilada (400.7: se a carta sair do
@@ -26606,9 +26654,12 @@ Object.assign(PALAVRA_PT, { annihilator: 'aniquilador', poisonous: 'venenoso', r
 Object.assign(PALAVRA_PT, { modular: 'modular', soulshift: 'transmigrar' }); // K-41
 Object.assign(PALAVRA_PT, { dethrone: 'destronar', frenzy: 'frenesi', outlast: 'perdurar' }); // K-42
 Object.assign(PALAVRA_PT, { devour: 'devorar', amplify: 'amplificar' }); // K-43
+Object.assign(PALAVRA_PT, { champion: 'campeão' }); // K-44
 Object.assign(PALAVRA_PT, { afflict: 'aflição', melee: 'refrega', mentor: 'mentor', training: 'treinamento' }); // K-31
 Object.assign(PALAVRA_PT, { 'battle cry': 'grito de guerra', rampage: 'alvoroço', flanking: 'flanquear', bushido: 'bushido' }); // K-30
 const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consultadas por descreveEfeito; antes a pilha mostrava "proeza k")
+  campeao_k: () => 'exile outra permanente sua da qualidade; se não exilar, esta é sacrificada (campeão)', campeao_fim_k: () => '', // K-44
+  campeao_volta_k: () => 'a carta exilada pelo campeão volta ao campo sob o controle do dono (campeão)', // K-44
   frenesi_k: e => `esta criatura recebe +${e.n || 1}/+0 até o fim do turno (frenesi)`, // K-42
   aniquilador_k: e => `o jogador defensor sacrifica ${e.n || 1} permanente(s) à escolha dele (aniquilador)`, // K-40
   venenoso_k: e => `o jogador atingido recebe ${e.n || 1} marcador(es) de veneno (venenoso)`, // K-40

@@ -734,6 +734,19 @@ test('K-43 · devorar e amplificar (702.82, 702.38): a de devorar come o Urso e 
   assert.equal(s.objects[f].counters.p1p1, 1); assert.equal(s.objects[f2].zone, 'hand');
   assert.equal(combate(s, [g, f]).players[d].life, 15, '3 + 2');
 });
+test('K-44 · campeão (702.72): o campeão exila o Urso ao entrar e ataca; morto no bloqueio, o Urso volta', () => {
+  cobre('champion');
+  const cartas = { ...CARDS, Heroi: cre('Heroi', 3, 3, ['Champion', 'Haste'], { oracle_text: 'Haste\nChampion a creature' }), Muralha: cre('Muralha', 3, 5, []) };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 67, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a; let h, u, m; [s, h] = poe(s, a, 'Heroi', { zone: 'hand' }); [s, u] = poe(s, a, 'Urso'); [s, m] = poe(s, d, 'Muralha');
+  s = act(s, { t: 'cast', p: a, oid: h }); for (let i = 0; i < 8 && !(s.pending && s.pending.kind === 'pick') && (s.stack.length || (s.queued || []).length); i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  s = act(s, { t: 'pick', p: a, oid: u }); for (let i = 0; i < 4 && s.stack.length; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  assert.equal(s.objects[u].zone, 'exile');
+  let v = J(s); v.objects[m] && (v.objects[m].counters = { p1p1: 2 }); v = combate(v, [h], [[m, h]]); for (let i = 0; i < 10 && (v.stack.length || v.pending); i++) v = v.pending ? act(v, E.legalActions(v, v.pending.p)[0]) : act(v, { t: 'pass', p: v.turn.priority });
+  assert.equal(vivo(v, h), false, 'contra a 5/7, morre'); assert.equal(v.objects[u].zone, 'battlefield', 'o Urso voltou');
+});
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));

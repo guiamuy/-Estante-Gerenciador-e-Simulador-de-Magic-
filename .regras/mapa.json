@@ -7786,14 +7786,19 @@
    "n": "702.72",
    "regra": "Keyword Abilities",
    "titulo": "Champion",
-   "status": "ausente",
-   "falta": "Sem o gatilho de entrada \"exile outro [tipo] seu ou sacrifique\" nem o de saída que devolve a carta exilada (702.72a-c).",
+   "status": "coberta",
    "esforco": "M",
    "depende": [
     "607",
     "603.6"
    ],
-   "cartas": "rara (Lorwyn/Morningtide)"
+   "cartas": "rara (Lorwyn/Morningtide)",
+   "evidencia": "K-44: \"Champion a creature\" / \"Champion an [subtipo]\" (campeaoImpressoK) gera os dois gatilhos ligados (702.72b/607): ao entrar, a escolha de outra permanente sua da qualidade para exilar (pick 0 ou 1; concluiPick → campeaoExilaK guarda a ligação em campeaoDeK); sem exilar (recusou ou não há), campeao_fim_k sacrifica; ao sair, a exilada — a mesma encarnação (400.7) — volta sob o controle do dono (a ligação entra na foto de quem sai, ultimaPalavrasK, 603.10a).",
+   "testes": [
+    "CR 702.72a · campeão (Changeling Hero, texto oficial): ao entrar, exile outra criatura sua ou sacrifique-o; ao sair do campo, a exilada volta sob o controle do dono",
+    "CR 702.72a · campeão: sem exilar (recusou ou não tem outra), o campeão é sacrificado",
+    "K-44 · campeão (702.72): o campeão exila o Urso ao entrar e ataca; morto no bloqueio, o Urso volta"
+   ]
   },
   {
    "n": "702.73",
