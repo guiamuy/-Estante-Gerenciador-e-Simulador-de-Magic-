@@ -5658,7 +5658,7 @@ function substituiErros(r, tag) {
   if (q.objeto != null && q.objeto !== 'self') { if (typeof q.objeto !== 'object') errs.push(`${tag}: "quando.objeto" precisa ser self ou um seletor`); else errs.push(...seletorErros(q.objeto, `${tag}: objeto`)); }
   return errs;
 }
-const CONDICOES_ENTRA = ['anyPlayerLifeAtMost', 'controlsSubtype', 'revelaSubtipo', 'pagaVida', 'maxOutrasTerras']; // M-252 · "you may reveal a Plains or Swamp card from your hand"
+const CONDICOES_ENTRA = ['anyPlayerLifeAtMost', 'controlsSubtype', 'revelaSubtipo', 'pagaVida', 'maxOutrasTerras', 'minOutrasTerras', 'minBasicos']; // M-252 · "you may reveal a Plains or Swamp card from your hand"
 function entraErros(r, tag) {
   if (!r || typeof r !== 'object') return [`${tag}: precisa ser um objeto`];
   const errs = [];
@@ -5984,7 +5984,7 @@ function validateScript(sc) {
   if (sc && sc.additionalOptional && !sc.additional) errs.push('custo adicional opcional sem custo');
   if (sc && sc.plot && !sc.plot.mana) errs.push('plot sem custo de mana');
   if (sc && sc.morph && !sc.morph.mana) errs.push('metamorfose sem custo de mana');
-  if (sc && sc.entersTappedUnless && sc.entersTappedUnless.anyPlayerLifeAtMost == null && !Array.isArray(sc.entersTappedUnless.controlsSubtype) && !(Number.isInteger(sc.entersTappedUnless.pagaVida) && sc.entersTappedUnless.pagaVida > 0) && !Number.isInteger(sc.entersTappedUnless.maxOutrasTerras)) errs.push('entra virado a menos que: condição desconhecida');
+  if (sc && sc.entersTappedUnless && sc.entersTappedUnless.anyPlayerLifeAtMost == null && !Array.isArray(sc.entersTappedUnless.controlsSubtype) && !(Number.isInteger(sc.entersTappedUnless.pagaVida) && sc.entersTappedUnless.pagaVida > 0) && !Number.isInteger(sc.entersTappedUnless.maxOutrasTerras) && !Number.isInteger(sc.entersTappedUnless.minOutrasTerras) && !Number.isInteger(sc.entersTappedUnless.minBasicos)) errs.push('entra virado a menos que: condição desconhecida');
   if (sc && sc.manaRule && !(/^[WUBRG]+$/.test(sc.manaRule.colors || '') && (sc.manaRule.damage || sc.manaRule.life || sc.manaRule.needsSubtype || sc.manaRule.needsType))) errs.push('regra de mana: precisa das cores e de dano, vida ou condição');
   for (const k of ((sc && sc.grantsAll) || {}).keywords || []) if (!KEYWORDS.includes(String(k).toLowerCase())) errs.push(`dá a todas: palavra-chave "${k}" não é resolvida pelo motor`);
   // CR2-G R3a · efeitos contínuos estáticos: quem afeta e o que muda (camadas 6 e 7c)
@@ -8196,6 +8196,42 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Sage of Epityr': { texto: 'ozx39u', leva: 'M-339' },
   'Spire Owl': { texto: '1ndik2z', leva: 'M-339' },
   'Aven Fateshaper': { texto: 'a79rw0', leva: 'M-339' },
+  // M-340 · revisão por lote XIV (terras lentas, de batalha e tri-terras; pump próprio; regenerar; não bloqueia; landfall), revisor independente com sondas: 33 de 35 na primeira rodada; Drudge Skeletons e Sanguine Guard passaram depois da correção do dano a atacante fora de combate (506.4)
+  'Prairie Stream': { texto: 'd8j2li', leva: 'M-340' },
+  'Stormcarved Coast': { texto: 'g7bn73', leva: 'M-340' },
+  'Cinder Glade': { texto: 'd8j2li', leva: 'M-340' },
+  'Canopy Vista': { texto: 'd8j2li', leva: 'M-340' },
+  'Sunken Hollow': { texto: 'd8j2li', leva: 'M-340' },
+  'Shattered Sanctum': { texto: '1o7ks8t', leva: 'M-340' },
+  'Smoldering Marsh': { texto: 'd8j2li', leva: 'M-340' },
+  'Shipwreck Marsh': { texto: 'g7bakf', leva: 'M-340' },
+  'Sazh\'s Chocobo': { texto: 'a2uu1a', leva: 'M-340' },
+  'Jungle Shrine': { texto: 'rfa6b2', leva: 'M-340' },
+  'Deserted Beach': { texto: '1o7kvxm', leva: 'M-340' },
+  'Seaside Citadel': { texto: '1bsyls9', leva: 'M-340' },
+  'Mystic Monastery': { texto: '3he998', leva: 'M-340' },
+  'Arcane Sanctum': { texto: 'quzhn0', leva: 'M-340' },
+  'Crumbling Necropolis': { texto: 'c3k70p', leva: 'M-340' },
+  'Frontier Bivouac': { texto: 'prcc98', leva: 'M-340' },
+  'Opulent Palace': { texto: '93bbss', leva: 'M-340' },
+  'Sandsteppe Citadel': { texto: '8112ce', leva: 'M-340' },
+  'Shivan Dragon': { texto: '1qqn5mg', leva: 'M-340' },
+  'Savage Lands': { texto: '1ntg5h7', leva: 'M-340' },
+  'Nomad Outpost': { texto: 'it4giz', leva: 'M-340' },
+  'Rampaging Baloths': { texto: '14ekq4r', leva: 'M-340' },
+  'Carrion Feeder': { texto: '7s851k', leva: 'M-340' },
+  'Furnace Whelp': { texto: '1qqn5mg', leva: 'M-340' },
+  'Sundown Pass': { texto: '1deswi5', leva: 'M-340' },
+  'Scorched Geyser': { texto: 'd8j2li', leva: 'M-340' },
+  'Drudge Skeletons': { texto: '7ie0zb', leva: 'M-340' },
+  'Goblin Raider': { texto: 'qnf083', leva: 'M-340' },
+  'Basking Rootwalla': { texto: '1deddhn', leva: 'M-340' },
+  'Blazing Rootwalla': { texto: 'evt44r', leva: 'M-340' },
+  'Fallen Angel': { texto: 'cibuxb', leva: 'M-340' },
+  'Radiant Summit': { texto: 'd8j2li', leva: 'M-340' },
+  'Dreamroot Cascade': { texto: '1pep1ve', leva: 'M-340' },
+  'Sanguine Guard': { texto: 'a49z0i', leva: 'M-340' },
+  'Hollow Dogs': { texto: '1uwuufq', leva: 'M-340' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -15532,6 +15568,8 @@ const __m42 = (function () {
     [new RegExp(`^you lose ${N} life$`, 'i'), m => [{ do: 'lose', amount: num(m[1]) }]], // M-335 · Thoughtseize (sem alvo: quem controla perde, como nos scripts à mão)
     [/^exile up to one other target creature$/i, () => [{ do: 'exile', target: { tipos: ['creature'], outra: true }, upTo: true }]], // M-338 · Solitude
     [/^that creature's controller gains life equal to its power$/i, () => [{ do: 'gain', amount: { per: 'power-of-target' }, target: 'target-controller' }]], // M-338 · Solitude (608.2h)
+    [/^~ gets ([+-]\d+)\/([+-]\d+) until end of turn$/i, m => [{ do: 'continuo', target: 'self-source', poder: SINAL(m[1]), resistencia: SINAL(m[2]) }]], // M-340 · Fallen Angel, Hollow Dogs (613.4c, até a limpeza)
+    [/^regenerate ~$/i, () => [{ do: 'regenerar', target: 'self-source' }]], // M-340 · 701.19 (Sanguine Guard, Dutiful Thrull)
     [/^you may shuffle$/i, () => [{ do: 'embaralhar_grimorio', optional: true }]], // M-339 · Ponder (701.24)
     [/^its controller gains life equal to its power$/i, () => [{ do: 'gain', amount: { per: 'power-of-target' }, target: 'target-controller' }]], // M-335 · Swords to Plowshares (608.2h: o poder como era no campo)
     [/^it doesn't untap during its controller's next untap step$/i, () => [{ do: 'nao_desvira', target: 'first-target' }]], // M-334 · LT18 · 502.3 (Sleep of the Dead)
@@ -15586,6 +15624,7 @@ const __m42 = (function () {
     [/^whenever enchanted creature deals damage to an opponent$/i, 'enchanted-damages-opponent'],
     [/^whenever another creature enters(?: the battlefield)? under your control$/i, 'other-etb', () => ({ filter: { types: ['creature'] } })], // M-324 · o filtro de criatura (sem ele, qualquer permanente sua dispararia)
     [/^whenever another creature you control enters(?: the battlefield)?$/i, 'other-etb', () => ({ filter: { types: ['creature'] } })], // M-324
+    [/^(?:landfall — )?whenever a land you control enters(?: the battlefield)?$/i, 'other-etb', () => ({ filter: { types: ['land'] } })], // M-340 · Landfall
     [/^whenever another creature you control dies$/i, 'other-dies', () => ({ filter: { types: ['creature'] } })], // M-324
     [/^whenever (this creature|~) is dealt damage$/i, 'dealt-damage'], // M-324 · CR2b.3
     [/^whenever equipped creature dies$/i, 'attached-dies'], // M-324 · CR2b.3
@@ -15790,6 +15829,10 @@ const __m42 = (function () {
         const mana = lp.match(/^\{T\}: Add ((?:\{[WUBRGC]\})+(?: or (?:\{[WUBRGC]\})+)*)$/); if (mana) { topo.produces = [...(topo.produces || []), ...mana[1].split(' or ').map(x => x.match(/[WUBRGC]/g))]; frases.push({ texto: linha, lida: true }); continue; } // produção de mana (LT13: também "{T}: Add {B}{R}")
         const etu = lp.match(/^(?:this land|~) enters(?: the battlefield)? tapped unless you control an? (Plains|Island|Swamp|Mountain|Forest) or an? (Plains|Island|Swamp|Mountain|Forest)$/i); // LT13 · 305.7 · "check lands"
         if (etu) { topo.entersTappedUnless = { controlsSubtype: [etu[1], etu[2]] }; frases.push({ texto: linha, lida: true }); continue; }
+        if (/^(?:this land|~) enters(?: the battlefield)? tapped unless you control two or more other lands$/i.test(lp)) { topo.entersTappedUnless = { minOutrasTerras: 2 }; frases.push({ texto: linha, lida: true }); continue; } // M-340 · terras lentas
+        if (/^(?:this land|~) enters(?: the battlefield)? tapped unless you control two or more basic lands$/i.test(lp)) { topo.entersTappedUnless = { minBasicos: 2 }; frases.push({ texto: linha, lida: true }); continue; } // M-340 · terras de batalha
+        if (/^~ can't block$/i.test(lp)) { topo.self = { ...(topo.self || {}), naoBloqueia: true }; frases.push({ texto: linha, lida: true }); continue; } // M-340 · 509.1a
+        const tri = lp.match(/^\{T\}: Add (\{[WUBRGC]\}), (\{[WUBRGC]\}), or (\{[WUBRGC]\})$/); if (tri) { topo.produces = [...(topo.produces || []), ...tri.slice(1, 4).map(x => x.match(/[WUBRGC]/g))]; frases.push({ texto: linha, lida: true }); continue; } // M-340 · tri-terras
         if (/^(?:this land|~) enters(?: the battlefield)? tapped unless you control two or fewer other lands$/i.test(lp)) { topo.entersTappedUnless = { maxOutrasTerras: 2 }; frases.push({ texto: linha, lida: true }); continue; } // M-336 · terras rápidas
         const ech = lp.match(/^as (?:~|this land) enters(?: the battlefield)?, you may pay (\d+) life\. if you don't, it enters(?: the battlefield)? tapped$/i); // M-330 · 614.12 (terras de choque)
         if (ech) { topo.entersTappedUnless = { pagaVida: +ech[1] }; frases.push({ texto: linha, lida: true }); continue; }
@@ -16484,7 +16527,8 @@ function entradaModificada(s, o, xPago) {
       const livre = (c.anyPlayerLifeAtMost != null && s.players.some(pl => !pl.lost && pl.life <= c.anyPlayerLifeAtMost)) ||
         // R11.2 · "a menos que você controle um Plains ou um Swamp": a própria carta, entrando, não conta
         (c.controlsSubtype && battlefield(s).some(x => x.oid !== o.oid && x.controller === o.controller && s.facts[x.name].types.includes('land') && c.controlsSubtype.some(k => new RegExp('\\b' + k + '\\b').test(linhaDeTipo(s, x))))) ||
-        (c.maxOutrasTerras != null && outrasTerras(s, o) <= c.maxOutrasTerras); // M-336 · terras rápidas: "unless you control two or fewer other lands"
+        (c.maxOutrasTerras != null && outrasTerras(s, o) <= c.maxOutrasTerras) || // M-336 · terras rápidas: "unless you control two or fewer other lands"
+        (c.minOutrasTerras != null && outrasTerras(s, o) >= c.minOutrasTerras) || (c.minBasicos != null && outrasTerras(s, o, true) >= c.minBasicos); // M-340 · terras lentas e de batalha
       virada = !(livre || (c.revelaSubtipo && !!o.revelaAoEntrar)); // M-252 · revelou ao jogar (a escolha vem na ação)
       if (c.pagaVida) { if (jaVirada) virada = true; else pagaVida = c.pagaVida; } // M-330 · "As ~ enters, you may pay 2 life. If you don't, it enters tapped." (outra permanente já a faz entrar virada: pagar não adianta)
     }
@@ -16495,7 +16539,7 @@ function entradaModificada(s, o, xPago) {
   return { virada, marcadores, ...(pagaVida ? { pagaVida } : {}) };
 }
 /** M-336 · quantos outros terrenos o controlador de `o` tem no campo (a própria carta, entrando, não conta). */
-const outrasTerras = (s, o) => battlefield(s).filter(x => x.oid !== o.oid && x.controller === o.controller && tiposDe(s, x).includes('land')).length;
+const outrasTerras = (s, o, basicos = false) => battlefield(s).filter(x => x.oid !== o.oid && x.controller === o.controller && tiposDe(s, x).includes('land') && (!basicos || /^\s*basic\b/i.test(linhaDeTipo(s, x)))).length; // M-340 · basicos: "two or more basic lands"
 /** CR2-G R5a · o caminho antigo das modificações de entrada, tal como era no moveObject (só para o teste de equivalência). */
 function entradaLegado(s, o, xPago) {
   const to = 'battlefield';
@@ -16509,7 +16553,8 @@ function entradaLegado(s, o, xPago) {
     const livre = (semVirar.anyPlayerLifeAtMost != null && s.players.some(pl => !pl.lost && pl.life <= semVirar.anyPlayerLifeAtMost)) ||
       // R11.2 · "a menos que você controle um Plains ou um Swamp" (Isolated Chapel, Sulfur Falls): a própria carta, entrando, não conta
       (semVirar.controlsSubtype && battlefield(s).some(x => x.oid !== o.oid && x.controller === o.controller && s.facts[x.name].types.includes('land') && semVirar.controlsSubtype.some(k => new RegExp('\\b' + k + '\\b').test(linhaDeTipo(s, x))))) ||
-      (semVirar.maxOutrasTerras != null && outrasTerras(s, o) <= semVirar.maxOutrasTerras); // M-336
+      (semVirar.maxOutrasTerras != null && outrasTerras(s, o) <= semVirar.maxOutrasTerras) || // M-336
+      (semVirar.minOutrasTerras != null && outrasTerras(s, o) >= semVirar.minOutrasTerras) || (semVirar.minBasicos != null && outrasTerras(s, o, true) >= semVirar.minBasicos); // M-340
     o.tapped = !livre;
   }
   // S34 · permanente que entra com marcadores +1/+1
@@ -17669,7 +17714,7 @@ function dealCombatDamage(s) {
     for (const b of battlefield(s)) {
       if (!b.blocking || !deals(b)) continue;
       const a = s.objects[b.blocking]; const amt = power(s, b);
-      if (a && a.zone === 'battlefield' && amt > 0) hits.push([b, a, null, amt]);
+      if (a && a.zone === 'battlefield' && (s.combat.attackers || []).includes(a.oid) && amt > 0) hits.push([b, a, null, amt]); // M-340 · 506.4 / 510.1d: atacante tirado do combate (regenerou no golpe primeiro) não recebe o dano do bloqueador (achado da revisão do lote XIV)
     }
     // simultâneo: aplica tudo depois de calcular
     if (s.fogged && !s.noPrevention) { s.combat.damageDone = true; return; } // S29 · Fog, salvo se a prevenção foi cancelada
