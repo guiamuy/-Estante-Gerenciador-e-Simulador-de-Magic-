@@ -7739,15 +7739,19 @@
    "n": "702.70",
    "regra": "Keyword Abilities",
    "titulo": "Poisonous",
-   "status": "ausente",
-   "falta": "Sem marcadores de veneno em jogador: o gatilho de dano de combate que dá N marcadores não tem onde escrever (702.70a).",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "122.1f",
     "704.5c",
     "702.90"
    ],
-   "cartas": "rara"
+   "cartas": "rara",
+   "evidencia": "K-40: \"Poisonous N\" gera o gatilho de dano de combate a jogador (um por instância, 702.70b); venenoso_k dá N marcadores de veneno ao jogador atingido (numa mesa de dois, o que ela atacava). Concedido por efeito (Virulent Sliver) depende do script da fonte.",
+   "testes": [
+    "CR 702.70a · venenoso: dano de combate a um jogador dá N marcadores de veneno (além do dano); bloqueada, nada",
+    "K-40 · aniquilador, venenoso, renome e ingerir (702.86, 702.70, 702.112, 702.115): um ataque sem bloqueio muda vida, veneno, marcadores, campo e grimório do defensor"
+   ]
   },
   {
    "n": "702.71",
@@ -7996,14 +8000,18 @@
    "n": "702.86",
    "regra": "Keyword Abilities",
    "titulo": "Annihilator",
-   "status": "ausente",
-   "falta": "Sem \"ao atacar, o jogador defensor sacrifica N permanentes\" (702.86a-b): falta o efeito de sacrifício escolhido pelo oponente em quantidade N de qualquer permanente.",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "701.21",
     "508"
    ],
-   "cartas": "rara (Eldrazi; Ulamog's Crusher em Pauper)"
+   "cartas": "rara (Eldrazi; Ulamog's Crusher em Pauper)",
+   "evidencia": "K-40: \"Annihilator N\" gera o gatilho de ataque (GATILHOS_DE_PALAVRA_K.annihilator, um por instância, 702.86b); aniquilador_k abre o édito do defensor (o jogador que ela ataca, defensorDeK) para N permanentes diferentes (continuaEdito com diferentesK), que saem juntas (701.21); com menos, todas.",
+   "testes": [
+    "CR 702.86a · aniquilador (Ulamog’s Crusher, texto oficial): ao atacar, o defensor sacrifica duas permanentes à escolha dele, diferentes",
+    "K-40 · aniquilador, venenoso, renome e ingerir (702.86, 702.70, 702.112, 702.115): um ataque sem bloqueio muda vida, veneno, marcadores, campo e grimório do defensor"
+   ]
   },
   {
    "n": "702.87",
@@ -8367,14 +8375,18 @@
    "n": "702.112",
    "regra": "Keyword Abilities",
    "titulo": "Renown",
-   "status": "ausente",
-   "falta": "Sem o gatilho de dano de combate a jogador que põe N marcadores e marca a permanente como renomada (702.112a-b), nem a designação (702.112c). O gatilho `combat-damage` existe; falta a designação persistente.",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "510 gatilho de dano de combate",
     "designação na permanente"
    ],
-   "cartas": "rara (Magic Origins)"
+   "cartas": "rara (Magic Origins)",
+   "evidencia": "K-40: \"Renown N\" gera o gatilho só se a permanente não é renomada (603.4) e renome_k confere de novo (702.112c); põe N marcadores +1/+1 e a marca renomadaK (MARCAS_DA_CONJURACAO: some ao sair do campo, 702.112b).",
+   "testes": [
+    "CR 702.112a · renome (Knight of the Pilgrim’s Road, texto oficial): o primeiro dano de combate a jogador põe N marcadores e a torna renomada; o segundo, não",
+    "K-40 · aniquilador, venenoso, renome e ingerir (702.86, 702.70, 702.112, 702.115): um ataque sem bloqueio muda vida, veneno, marcadores, campo e grimório do defensor"
+   ]
   },
   {
    "n": "702.113",
@@ -8406,13 +8418,17 @@
    "n": "702.115",
    "regra": "Keyword Abilities",
    "titulo": "Ingest",
-   "status": "ausente",
-   "falta": "Sem gatilho \"causa dano de combate a um jogador: ele exila o topo do grimório\" (702.115a). O gatilho `combat-damage` existe; falta o efeito de exilar o topo do grimório do jogador atingido.",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "510 gatilho de dano de combate"
    ],
-   "cartas": "rara (Battle for Zendikar)"
+   "cartas": "rara (Battle for Zendikar)",
+   "evidencia": "K-40: \"Ingest\" gera o gatilho de dano de combate a jogador (um por instância, 702.115b); ingerir_k exila a carta do topo do grimório do jogador atingido.",
+   "testes": [
+    "CR 702.115a · ingerir (Culling Drone, texto oficial): dano de combate a um jogador exila a carta do topo do grimório dele",
+    "K-40 · aniquilador, venenoso, renome e ingerir (702.86, 702.70, 702.112, 702.115): um ataque sem bloqueio muda vida, veneno, marcadores, campo e grimório do defensor"
+   ]
   },
   {
    "n": "702.116",

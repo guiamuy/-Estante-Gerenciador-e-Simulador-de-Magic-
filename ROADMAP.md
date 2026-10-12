@@ -4377,6 +4377,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Corrigido:** (1) eco não disparava para a permanente roubada (702.30a): conta o efeito de controle mais novo; (2) redução de custo ("costs {1} less for each…") não valia sobre a recompra nem o entrelaçar (601.2f): vale sobre o genérico somado; (3) "Riot" repetido virava uma escolha só (702.136b); (4) com sacrifício como custo e mais de uma opção, a ação sem a escolha era aceita e o motor escolhia (601.2h): agora é recusada.
 - **Fica como pedido à trilha motor:** o mesmo objeto como alvo dos dois modos entrelaçados (601.2c; a conferência de alvos repetidos do motor só separa modos em "escolha dois"); a mesma redução sobre o reforço (suspeita do revisor, fora da trilha).
 - **Testes:** `keywords.cr4.unit` (4, falham sem a leva); as 51 sondas do revisor rodadas sobre a correção: 50 verdes, 1 (601.2c) declarada. Goldens idênticos; motor v110.
+**K-40 · Aniquilador, venenoso, renome e ingerir (702.86, 702.70, 702.112, 702.115)** 🟡 (leva K-40)
+- **Valor:** os gatilhos de ataque e de dano de combate dos Eldrazi e afins jogam pelo texto: "Annihilator N" faz o defensor sacrificar N permanentes à escolha dele; "Poisonous N" dá veneno; "Renown N" dá marcadores uma vez só; "Ingest" exila o topo do grimório do atingido.
+- **Aceite:** Ulamog's Crusher ataca: o defensor escolhe duas permanentes diferentes, que saem juntas; venenoso 2 sem bloqueio dá 2 de veneno (bloqueada, nada); Knight of the Pilgrim's Road ganha o marcador no primeiro dano e não no segundo; Culling Drone exila o topo do grimório do defensor.
+- **Toca ponto comum:** `continuaEdito` (uma linha: édito de N permanentes diferentes).
+- **Testes:** `keywords.cr4.unit` (4, falham sem a leva), `combat.audit` (1 cenário, as quatro). Texto oficial: Ulamog's Crusher, Knight of the Pilgrim's Road, Culling Drone (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
+- **Fora:** murchar (702.80) espera a linha `marcaDanoEmCriatura` da M-297 passar de 72 horas (14/10) ou um gancho da trilha motor.
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

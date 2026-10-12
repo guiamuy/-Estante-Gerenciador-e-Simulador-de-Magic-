@@ -674,6 +674,20 @@ test('K-38 · tumulto e fabricar (702.136, 702.123): a de tumulto escolhe ímpet
   const servo = t.zones[d].battlefield.find(x => t.objects[x].name === 'Servo'); assert.ok(servo, 'o Servo entrou');
   t = combate(t, [r], [[servo, r]]); assert.equal(t.players[d].life, 20, 'o Servo bloqueou'); assert.ok(!t.objects[servo] || t.objects[servo].zone !== 'battlefield', 'e morreu');
 });
+test('K-40 · aniquilador, venenoso, renome e ingerir (702.86, 702.70, 702.112, 702.115): um ataque sem bloqueio muda vida, veneno, marcadores, campo e grimório do defensor', () => {
+  cobre('annihilator'); cobre('poisonous'); cobre('renown'); cobre('ingest');
+  const cartas = { ...CARDS, Colosso: cre('Colosso', 4, 4, ['Annihilator'], { oracle_text: 'Annihilator 1' }), Viboras: cre('Viboras', 1, 1, ['Poisonous'], { oracle_text: 'Poisonous 1' }),
+    Cavaleira: cre('Cavaleira', 2, 2, ['Renown'], { oracle_text: 'Renown 2' }), Zangao: cre('Zangao', 1, 1, ['Ingest'], { oracle_text: 'Ingest' }) };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 63, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a; let c, v, k, z, pl; [s, c] = poe(s, a, 'Colosso'); [s, v] = poe(s, a, 'Viboras'); [s, k] = poe(s, a, 'Cavaleira'); [s, z] = poe(s, a, 'Zangao'); [s, pl] = poe(s, d, 'Plains');
+  const topo = s.zones[d].library[0];
+  s = combate(s, [c, v, k, z]); for (let i = 0; i < 40 && s.turn.step !== 'main2'; i++) s = s.pending ? act(s, E.legalActions(s, s.pending.p)[0]) : act(s, { t: 'pass', p: s.turn.priority }); // a ordem dos gatilhos é perguntada
+  assert.equal(s.objects[pl].zone, 'graveyard', 'aniquilador: a única permanente dele foi sacrificada');
+  assert.equal(s.players[d].poison || 0, 1, 'venenoso'); assert.equal(s.objects[k].counters.p1p1, 2, 'renome'); assert.equal(s.objects[topo].zone, 'exile', 'ingerir');
+  assert.equal(s.players[d].life, 12, '4 + 1 + 2 + 1');
+});
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));

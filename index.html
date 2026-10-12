@@ -5222,6 +5222,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'echo', // K-36 · 702.30: gatilho da sua manutenção "sacrifique a menos que pague" para a permanente que chegou desde a sua última manutenção (GATILHOS_DE_PALAVRA_K)
   'fading', 'vanishing', // K-37 · 702.32 e 702.63: entram com marcadores (entraComPalavrasK) e tiram um a cada manutenção sua (GATILHOS_DE_PALAVRA_K)
   'riot', 'fabricate', // K-38 · 702.136 (escolha ao entrar: marcador ou ímpeto) e 702.123 (gatilho de entrada: marcadores ou Servos), pela escolha opcoesK
+  'annihilator', 'poisonous', 'renown', 'ingest', // K-40 · 702.86, 702.70, 702.112, 702.115: gatilhos de ataque e de dano de combate a jogador (GATILHOS_DE_PALAVRA_K)
   'afflict', 'melee', 'mentor', 'training', // K-31 · 702.130, 702.121, 702.134, 702.149: gatilhos de ataque gerados pela palavra, um por instância
   'battle cry', 'rampage', 'flanking', 'bushido', // K-30 · 702.91, 702.23, 702.25, 702.45: gatilhos de combate gerados pela palavra (GATILHOS_DE_PALAVRA_K), um por instância
   /* ↓ V · palavras-chave da trilha verbos */
@@ -8209,6 +8210,7 @@ function palavraNaLinhaK(k) {
   if (k === 'echo') return 'echo\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-36 · só custo de mana (o que o "pague" da mesa paga)
   if (k === 'fading') return 'fading \\d+'; if (k === 'vanishing') return 'vanishing(?: \\d+)?'; // K-37 · 702.63b: sumir sem número
   if (k === 'fabricate') return 'fabricate \\d+'; // K-38
+  if (k === 'annihilator' || k === 'poisonous' || k === 'renown') return `${k} \\d+`; // K-40
   if (k === 'dash') return 'dash\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-9
   if (k === 'evoke') return 'evoke(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*exile an? (?:white|blue|black|red|green) card from your hand\\.?)'; // K-8 · só as formas que o motor paga
   return ['afterlife', 'rampage', 'bushido', 'afflict'].includes(k) ? `${k} \\d+` : k; // K-30 · alvoroço N e bushido N
@@ -18758,6 +18760,25 @@ function applyEffect(s, src, eff, tgt, events) {
       break;
     }
     /* ↓ K · casos de applyEffect da trilha keywords */
+    case 'aniquilador_k': { // K-40 · 702.86a: o defensor escolhe N permanentes diferentes; saem juntas (édito, 701.21)
+      const d = eff.defensor; if (d == null || !s.players[d] || s.players[d].lost) { events.push({ kind: 'effect', do: 'aniquilador_k', name: src.name, failed: true }); break; }
+      const tipos = ['artifact', 'creature', 'enchantment', 'land', 'planeswalker', 'battle'], n = Math.min(eff.n || 1, sacrificeOptions(s, d, tipos).length);
+      if (!n) { events.push({ kind: 'effect', do: 'aniquilador_k', name: src.name, amount: 0 }); break; }
+      s.edito = { fila: Array(n).fill(d), escolhidas: [], types: tipos, nontoken: false, name: src.name, diferentesK: true }; continuaEdito(s, events);
+      break;
+    }
+    case 'venenoso_k': { if (eff.jogador != null) darVeneno(s, eff.jogador, eff.n || 1, events, src.name); break; } // K-40 · 702.70a
+    case 'renome_k': { // K-40 · 702.112a: confere de novo (603.4; 702.112c: a segunda instância não faz nada)
+      const perm = s.objects[src.ability ? src.source : src.oid];
+      if (!perm || perm.zone !== 'battlefield' || (perm.zc || 0) !== eff.z || perm.renomadaK) { events.push({ kind: 'effect', do: 'renome_k', name: src.name, failed: true }); break; }
+      poeMarcadores(s, perm, 'p1p1', eff.n || 1); perm.renomadaK = true; events.push({ kind: 'effect', do: 'renome_k', name: perm.name, amount: eff.n || 1 });
+      break;
+    }
+    case 'ingerir_k': { // K-40 · 702.115a
+      const p = eff.jogador, topo = p != null && s.zones[p] ? s.zones[p].library[0] : null;
+      if (topo) { const nome = s.objects[topo].name; moveObject(s, topo, 'exile'); events.push({ kind: 'effect', do: 'ingerir_k', name: src.name, target: nome }); }
+      break;
+    }
     case 'fabricar_k': { // K-38 · 702.123a: na resolução, marcadores nela (se ainda está no campo) ou Servos
       const perm = s.objects[src.ability ? src.source : src.oid], n = eff.n || 1, servos = { do: 'token', amount: n, token: SERVO_K };
       if (!perm || perm.zone !== 'battlefield' || (perm.zc || 0) !== eff.z) { applyEffect(s, src, servos, null, events); break; }
@@ -19205,6 +19226,7 @@ function continuaEdito(s, events) {
   while (ed.fila.length) {
     const p = ed.fila[0];
     const opts = sacrificeOptions(s, p, ed.types).filter(oid => !(ed.nontoken && s.objects[oid].token));
+    if (ed.diferentesK) { const resto = opts.filter(oid => !ed.escolhidas.includes(oid)); opts.length = 0; opts.push(...resto); } // K-40 · 702.86a: "sacrifices N permanents" são N diferentes (Toca ponto comum: continuaEdito)
     if (opts.length > 1) { s.pending = { kind: 'sacrifice', p, options: opts, types: ed.types, name: ed.name, edito: true }; return true; }
     if (opts.length === 1) ed.escolhidas.push(opts[0]);
     ed.fila.shift();
@@ -21850,6 +21872,14 @@ Object.assign(EXPORTS_K, { wardsDeK, wardImpressoK, custoDaSalvaguardaK });
 /* K-3 · palavras-chave que são habilidades disparadas (702.108 proeza…): o motor gera a habilidade a partir da palavra-chave que a
    permanente tem agora (impressa, concedida, de marcador ou de mutação), uma por instância (702.108b), em abilitiesOf. */
 const GATILHOS_DE_PALAVRA_K = {
+  // K-40 · 702.86a · "Whenever this creature attacks, defending player sacrifices N permanents." (um gatilho por instância, b)
+  annihilator: (s, o, i) => ({ kind: 'triggered', when: 'attacks', palavraK: 'annihilator', effects: [{ do: 'aniquilador_k', n: numeroDaPalavraK(s, o, 'annihilator', i), defensor: defensorDeK(s, o) }] }),
+  // K-40 · 702.70a · "Whenever this creature deals combat damage to a player, that player gets N poison counters." (o jogador atingido é o que ela atacava)
+  poisonous: (s, o, i) => ({ kind: 'triggered', when: 'combat-damage', palavraK: 'poisonous', effects: [{ do: 'venenoso_k', n: numeroDaPalavraK(s, o, 'poisonous', i), jogador: defensorDeK(s, o) }] }),
+  // K-40 · 702.112a · "When this creature deals combat damage to a player, if it isn't renowned, put N +1/+1 counters on it and it becomes renowned." (603.4)
+  renown: (s, o, i) => o && !o.renomadaK ? ({ kind: 'triggered', when: 'combat-damage', palavraK: 'renown', effects: [{ do: 'renome_k', n: numeroDaPalavraK(s, o, 'renown', i), z: o.zc || 0 }] }) : [],
+  // K-40 · 702.115a · "Whenever this creature deals combat damage to a player, that player exiles the top card of their library."
+  ingest: (s, o) => ({ kind: 'triggered', when: 'combat-damage', palavraK: 'ingest', effects: [{ do: 'ingerir_k', jogador: defensorDeK(s, o) }] }),
   // K-38 · 702.123a · "When this permanent enters, you may put N +1/+1 counters on it. If you don't, create N 1/1 colorless Servo artifact creature tokens."
   fabricate: (s, o, i) => ({ kind: 'triggered', when: 'etb', palavraK: 'fabricate', effects: [{ do: 'fabricar_k', n: numeroDaPalavraK(s, o, 'fabricate', i), z: (o && o.zc) || 0 }] }),
   // K-37 · 702.32a · "At the beginning of your upkeep, remove a fade counter from this permanent. If you can't, sacrifice the permanent."
@@ -22012,6 +22042,7 @@ MARCAS_DA_CONJURACAO.push('evocadaK', 'arremetidaK'); // K-9 · arremeter usa o 
 MARCAS_DA_CONJURACAO.push('espetaculoK', 'surtoK'); // K-32
 MARCAS_DA_CONJURACAO.push('recompraK'); // K-33 · 702.27a: some ao sair da pilha (400.7)
 MARCAS_DA_CONJURACAO.push('ricocheteK'); // K-35 · 702.88a: o gatilho atrasado vale para este objeto no exílio; saiu de lá, acabou (400.7)
+MARCAS_DA_CONJURACAO.push('renomadaK'); // K-40 · 702.112b: renomada até sair do campo (400.7)
 const COR_DO_NOME_K = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
 const COR_PT_K = { W: 'branca', U: 'azul', B: 'preta', R: 'vermelha', G: 'verde' };
 /** O custo de evocar impresso na face da frente: { mana: '{2}{U}' } ou { exileHandColor: 'G' } ("Evoke—Exile a green card from your
@@ -26509,9 +26540,14 @@ Object.assign(PALAVRA_PT, { rebound: 'ricochete' }); // K-35
 Object.assign(PALAVRA_PT, { echo: 'eco' }); // K-36
 Object.assign(PALAVRA_PT, { fading: 'desvanecer', vanishing: 'sumir' }); // K-37
 Object.assign(PALAVRA_PT, { riot: 'tumulto', fabricate: 'fabricar' }); // K-38
+Object.assign(PALAVRA_PT, { annihilator: 'aniquilador', poisonous: 'venenoso', renown: 'renome', ingest: 'ingerir' }); // K-40
 Object.assign(PALAVRA_PT, { afflict: 'aflição', melee: 'refrega', mentor: 'mentor', training: 'treinamento' }); // K-31
 Object.assign(PALAVRA_PT, { 'battle cry': 'grito de guerra', rampage: 'alvoroço', flanking: 'flanquear', bushido: 'bushido' }); // K-30
 const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consultadas por descreveEfeito; antes a pilha mostrava "proeza k")
+  aniquilador_k: e => `o jogador defensor sacrifica ${e.n || 1} permanente(s) à escolha dele (aniquilador)`, // K-40
+  venenoso_k: e => `o jogador atingido recebe ${e.n || 1} marcador(es) de veneno (venenoso)`, // K-40
+  renome_k: e => `se ainda não é renomada, recebe ${e.n || 1} marcador(es) +1/+1 e fica renomada (renome)`, // K-40
+  ingerir_k: () => 'o jogador atingido exila a carta do topo do grimório (ingerir)', // K-40
   fabricar_k: e => `põe ${e.n || 1} marcador(es) +1/+1 nesta criatura ou cria ${e.n || 1} ficha(s) de Servo 1/1 (fabricar)`, // K-38
   tumulto_k: () => 'tira o marcador +1/+1 do tumulto; a criatura ganha ímpeto (tumulto)', // K-38
   desvanecer_k: () => 'tira um marcador de desvanecer desta permanente; se não der, ela é sacrificada (desvanecer)', // K-37

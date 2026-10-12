@@ -1667,3 +1667,47 @@ test('K-39 · CR 601.2h · recompra ou entrelaçar com sacrifício: sem dizer o 
   const ie = t.facts['Betrayal of Flesh'].script.modes.findIndex(m => m.entrelacarK);
   assert.throws(() => E.apply(t, { t: 'cast', p: at, oid: b, mode: ie, targets: [{ oid: u1 }, { oid: u2 }] }), /escolha/);
 });
+
+/* ---------------- K-40 · aniquilador 702.86, venenoso 702.70, renome 702.112, ingerir 702.115 ---------------- */
+/** Declara o ataque e para na primeira decisão do jogador `quem` (ou no fim do combate). */
+function ataqueAteDecisaoK40(s, atacantes, quem) {
+  const a = s.turn.active;
+  for (let i = 0; i < 6 && s.turn.step !== 'combat_attackers'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  s = act(s, { t: 'attack', p: a, attackers: atacantes });
+  for (let i = 0; i < 20 && !(s.pending && s.pending.p === quem && s.pending.kind !== 'blockers') && s.turn.step !== 'main2'; i++)
+    s = s.pending ? (s.pending.kind === 'blockers' ? act(s, { t: 'block', p: s.pending.p, blocks: [] }) : act(s, E.legalActions(s, s.pending.p)[0])) : act(s, { t: 'pass', p: s.turn.priority });
+  return s;
+}
+
+test('CR 702.86a · aniquilador (Ulamog’s Crusher, texto oficial): ao atacar, o defensor sacrifica duas permanentes à escolha dele, diferentes', () => {
+  let s = partida({ "Ulamog's Crusher": oficial("Ulamog's Crusher"), Urso: URSO }); const a = s.turn.active, d = 1 - a;
+  let c, f, u1, u2; [s, c] = poe(s, a, "Ulamog's Crusher"); [s, f] = poe(s, d, 'Forest'); [s, u1] = poe(s, d, 'Urso'); [s, u2] = poe(s, d, 'Urso');
+  s = ataqueAteDecisaoK40(s, [c], d);
+  assert.equal((s.pending || {}).kind, 'sacrifice', 'o defensor escolhe'); assert.equal(s.pending.p, d);
+  assert.deepEqual(J(s.pending.options).sort(), [f, u1, u2].sort(), 'qualquer permanente dele');
+  s = act(s, { t: 'sacrifice', p: d, oid: f });
+  assert.equal((s.pending || {}).kind, 'sacrifice', 'a segunda'); assert.ok(!s.pending.options.includes(f), 'não a mesma');
+  s = act(s, { t: 'sacrifice', p: d, oid: u1 });
+  assert.equal(s.objects[f].zone, 'graveyard'); assert.equal(s.objects[u1].zone, 'graveyard'); assert.equal(s.objects[u2].zone, 'battlefield');
+});
+
+test('CR 702.70a · venenoso: dano de combate a um jogador dá N marcadores de veneno (além do dano); bloqueada, nada', () => {
+  const COBRA = { name: 'Cobra', type_line: 'Creature — Snake', mana_cost: '{1}{B}', cmc: 2, colors: ['B'], power: '1', toughness: '1', keywords: ['Poisonous'], oracle_text: 'Poisonous 2' };
+  let s = partida({ Cobra: COBRA, Urso: URSO }); const a = s.turn.active, d = 1 - a;
+  let c; [s, c] = poe(s, a, 'Cobra');
+  const t = ateODano(s, [c]); assert.equal(t.players[d].poison || 0, 2); assert.equal(t.players[d].life, 19);
+  let u; [s, u] = poe(s, d, 'Urso'); const b = ateODano(s, [c], [[u, c]]); assert.equal(b.players[d].poison || 0, 0);
+});
+
+test('CR 702.112a · renome (Knight of the Pilgrim’s Road, texto oficial): o primeiro dano de combate a jogador põe N marcadores e a torna renomada; o segundo, não', () => {
+  let s = partida({ "Knight of the Pilgrim's Road": oficial("Knight of the Pilgrim's Road") }); const a = s.turn.active, d = 1 - a;
+  let k; [s, k] = poe(s, a, "Knight of the Pilgrim's Road");
+  s = ateODano(s, [k]); assert.equal(s.objects[k].counters.p1p1, 1); assert.equal(s.players[d].life, 17);
+  s = ateK35(s, a, 'main1'); s = ateODano(s, [k]); assert.equal(s.objects[k].counters.p1p1, 1, 'já renomada: nada'); assert.equal(s.players[d].life, 13);
+});
+
+test('CR 702.115a · ingerir (Culling Drone, texto oficial): dano de combate a um jogador exila a carta do topo do grimório dele', () => {
+  let s = partida({ 'Culling Drone': oficial('Culling Drone') }); const a = s.turn.active, d = 1 - a;
+  let c; [s, c] = poe(s, a, 'Culling Drone'); const topo = s.zones[d].library[0];
+  s = ateODano(s, [c]); assert.equal(s.objects[topo].zone, 'exile');
+});
