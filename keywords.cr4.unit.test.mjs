@@ -1869,3 +1869,22 @@ test('CR 702.58a · enxerto (Simic Initiate, texto oficial): entra com N +1/+1; 
   let t = J(s); t.turn.priority = d; t = act(t, { t: 'cast', p: d, oid: uo }); t = resolveSimK41(t);
   assert.ok(!t.objects[uo].counters.p1p1, 'sem marcador nela, o enxerto não dispara');
 });
+
+/* ---------------- K-47 · emergir 702.119 ---------------- */
+const GRYFF = () => ({ ...oficial('Wretched Gryff'), keywords: ['Emerge', 'Flying'] });
+const SC_GRYFF = { 'Wretched Gryff': { name: 'Wretched Gryff', abilities: [{ kind: 'triggered', when: 'cast-self', effects: [{ do: 'draw', amount: 1 }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } } };
+
+test('CR 702.119a · emergir (Wretched Gryff, texto oficial): custo alternativo "{5}{U} e sacrifique uma criatura", reduzido no genérico pelo valor de mana da sacrificada; uma oferta por criatura que fecha o custo', () => {
+  const GRANDE = { ...URSO, name: 'Grande', mana_cost: '{4}{G}', cmc: 5 };
+  let s = comManaK33({ 'Wretched Gryff': GRYFF(), Urso: URSO, Grande: GRANDE }, SC_GRYFF); const a = s.turn.active;
+  let g, u, gr; [s, g] = poe(s, a, 'Wretched Gryff', 'hand'); [s, u] = poe(s, a, 'Urso'); [s, gr] = poe(s, a, 'Grande');
+  s = terrenos(s, a, 'Island', 2);
+  const alt = st => E.legalActions(st, a).filter(x => x.t === 'cast' && x.oid === g && x.alt != null);
+  const ofs = alt(s); assert.deepEqual(J(ofs.map(x => [].concat(x.pay.sacrifice)[0])), [gr], 'com duas Ilhas: só sacrificando a Grande (valor 5): {5}{U} − 5 = {U}');
+  let t = act(s, ofs[0]); assert.equal(t.objects[gr].zone, 'graveyard'); assert.equal(t.zones[a].battlefield.filter(x => t.objects[x].tapped).length, 1, 'pagou só {U}');
+  t = resolve(t); assert.equal(t.objects[g].zone, 'battlefield');
+  s = terrenos(s, a, 'Island', 2);
+  assert.equal(alt(s).length, 2, 'com quatro Ilhas: o Urso (valor 2: {3}{U}) também');
+  const comUrso = alt(s).find(x => [].concat(x.pay.sacrifice)[0] === u); let v = act(s, comUrso);
+  assert.equal(v.zones[a].battlefield.filter(x => v.objects[x].tapped).length, 4, '{5}{U} − 2 = {3}{U}');
+});

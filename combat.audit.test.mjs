@@ -758,6 +758,17 @@ test('K-46 · enxerto (702.58): a 0/0 com "Graft 2" passa um marcador para a cri
   assert.equal(s.objects[e].counters.p1p1, 1); assert.equal(s.objects[u].counters.p1p1, 1);
   assert.equal(combate(s, [u]).players[d].life, 17, 'a Rápida 2/2 + 1');
 });
+test('K-47 · emergir (702.119): sacrificando o Urso, a 5/5 voadora sai pelo custo alternativo', () => {
+  cobre('emerge');
+  const cartas = { ...CARDS, Grifo: cre('Grifo', 5, 5, ['Emerge', 'Flying'], { mana_cost: '{7}', cmc: 7, oracle_text: 'Emerge {5}{U}\nFlying' }) };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 69, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a; let g, u; [s, g] = poe(s, a, 'Grifo', { zone: 'hand' }); [s, u] = poe(s, a, 'Urso');
+  const of = E.legalActions(s, a).find(x => x.oid === g && x.alt != null && [].concat((x.pay || {}).sacrifice || [])[0] === u); assert.ok(of, 'emergir sacrificando o Urso');
+  s = act(s, of); for (let i = 0; i < 4 && s.stack.length; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  assert.equal(vivo(s, g), true); assert.equal(s.objects[u].zone, 'graveyard');
+});
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));

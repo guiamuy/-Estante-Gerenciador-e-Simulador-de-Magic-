@@ -5228,6 +5228,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'devour', 'amplify', // K-43 · 702.82 e 702.38: escolha logo depois de entrar (sacrificar / revelar) e N +1/+1 por escolhida (entrarComPickK)
   'champion', // K-44 · 702.72: os dois gatilhos ligados (exilar outra ao entrar ou sacrificar; ao sair, a exilada volta)
   'graft', // K-46 · 702.58: entra com N +1/+1 e, quando outra criatura entra, pode mover um para ela (enxertoK, junto do evoluir)
+  'emerge', // K-47 · 702.119: custo alternativo "[custo] e sacrifique uma criatura", reduzido pelo valor de mana dela (altsImpressosK, pagaEmergirK)
   'afflict', 'melee', 'mentor', 'training', // K-31 · 702.130, 702.121, 702.134, 702.149: gatilhos de ataque gerados pela palavra, um por instância
   'battle cry', 'rampage', 'flanking', 'bushido', // K-30 · 702.91, 702.23, 702.25, 702.45: gatilhos de combate gerados pela palavra (GATILHOS_DE_PALAVRA_K), um por instância
   /* ↓ V · palavras-chave da trilha verbos */
@@ -8221,6 +8222,7 @@ function palavraNaLinhaK(k) {
   if (k === 'devour') return 'devour(?: (?:artifact|creature|land|enchantment))? \\d+'; if (k === 'amplify') return 'amplify \\d+'; // K-43
   if (k === 'champion') return 'champion an? [a-z]+'; // K-44 · "Champion a creature", "Champion a Faerie"
   if (k === 'graft') return 'graft \\d+'; // K-46
+  if (k === 'emerge') return 'emerge(?: from an? [a-z]+)?\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-47
   if (k === 'dash') return 'dash\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-9
   if (k === 'evoke') return 'evoke(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*exile an? (?:white|blue|black|red|green) card from your hand\\.?)'; // K-8 · só as formas que o motor paga
   return ['afterlife', 'rampage', 'bushido', 'afflict'].includes(k) ? `${k} \\d+` : k; // K-30 · alvoroço N e bushido N
@@ -15885,6 +15887,7 @@ function cardFacts(card) {
     ecoK: custoDaLinhaK(card, 'Echo'), // K-36 · 702.30: "Echo {2}{R}" (undefined quando não tem)
     perdurarK: custoDaLinhaK(card, 'Outlast'), // K-42 · 702.107a: "Outlast {1}{W}" (undefined quando não tem)
     devorarK: devorarImpressoK(card), // K-43 · 702.82: [{ n, tipo }] por linha "Devour [qualidade] N" (undefined quando não tem)
+    emergirK: emergirImpressoK(card), // K-47 · 702.119: { mana, tipo } (undefined quando não tem)
     campeaoK: campeaoImpressoK(card), // K-44 · 702.72: "Champion a creature" → 'creature'; "Champion an Elf" → 'Elf' (undefined quando não tem)
     suspenderK: suspenderImpressoK(card), // K-22 · 702.62a: "Suspend N—{custo}" (undefined quando não tem)
     equipesK: equipesImpressosK(card), // K-28 · 702.6c: "Equip [qualidade] {custo}" (undefined quando não tem)
@@ -20463,6 +20466,7 @@ const HANDLERS = {
       } else payCost(s, a.p, ...custoTapadoK(s, a, o, custo, extraPago), { criaturaDoComandante: true, oid: a.oid }); } // K-13 · convocar/improvisar (Toca ponto comum: o pagamento do custo normal) // M-273 // M-259 · a redução por alvo usa os alvos escolhidos
     if (a.kick && reforco && s.manaCheck && !a.free && (alt || a.flashback || a.escape || a.disturb || a.omen || a.bestow || a.plotted)) payCost(s, a.p, somaCusto(parseCost('{0}'), parseCost(reforco.mana), a.kick)); // CR2c.6 · 601.2f: o reforço soma ao custo alternativo
     if (a.recompraK) pagaRecompraK(s, a, o, alt); // K-33 · 702.27a: o custo de recompra, 601.2b/601.2f–h (Toca ponto comum: HANDLERS.cast)
+    if (alt && alt.emergirK) pagaEmergirK(s, a, o, alt); // K-47 · 702.119a: o custo de emergir menos o valor de mana da sacrificada (Toca ponto comum: HANDLERS.cast)
     if (a.mode != null && ((((f.script || {}).modes) || [])[a.mode] || {}).entrelacarK) pagaEntrelacarK(s, a, o, alt); // K-34 · 702.42a: o custo de entrelaçar (Toca ponto comum: HANDLERS.cast)
     if (a.retrace) { // M-222 · 702.81a: "discarding a land card in addition to paying its other costs"
       const l = a.pay && a.pay.retrace, lo = l && s.objects[l];
@@ -21649,6 +21653,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
     return canPay(s, p, custo, castExtra(s, p, o, a.x || 0, a.targets || []));
   });
   /* ↓ K · ofertas de legalActions da trilha keywords (out.push) */
+  ofertasEmergirK(s, p, out); // K-47 · 702.119a: só as sacrificadas que fecham o custo reduzido
   // K-34 · 702.42a · entrelaçar: a conjuração no modo de todos os modos fica só se o custo a mais fecha (custo extra: uma ação por forma)
   ofertasEntrelacarK(s, p, out);
   // K-33 · 702.27a · recompra: cada conjuração pelo custo normal ganha a variante que paga também o custo de recompra (opcional: as duas ficam)
@@ -22118,6 +22123,7 @@ MARCAS_DA_CONJURACAO.push('recompraK'); // K-33 · 702.27a: some ao sair da pilh
 MARCAS_DA_CONJURACAO.push('ricocheteK'); // K-35 · 702.88a: o gatilho atrasado vale para este objeto no exílio; saiu de lá, acabou (400.7)
 MARCAS_DA_CONJURACAO.push('renomadaK'); // K-40 · 702.112b: renomada até sair do campo (400.7)
 MARCAS_DA_CONJURACAO.push('devorouK', 'entrarComEscolhasK'); // K-43 · 702.82b: "it devoured" vale para esta permanente
+MARCAS_DA_CONJURACAO.push('emergiuK'); // K-47
 MARCAS_DA_CONJURACAO.push('campeaoDeK', 'campeaoNesteK'); // K-44 · a ligação é deste objeto (400.7)
 const COR_DO_NOME_K = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
 const COR_PT_K = { W: 'branca', U: 'azul', B: 'preta', R: 'vermelha', G: 'verde' };
@@ -22149,6 +22155,7 @@ function altsImpressosK(f) {
   if (f.evocarK) out.push(altDoEvocarK(f.evocarK));
   if (f.arremeterK) out.push({ label: `Arremeter ${f.arremeterK.mana}`, cost: { ...f.arremeterK }, marcaK: 'arremetidaK' });
   if (f.espetaculoK) out.push({ label: `Espetáculo ${f.espetaculoK.mana}`, cost: { ...f.espetaculoK }, when: { espetaculoK: true }, marcaK: 'espetaculoK' }); // K-32 · 702.137a
+  if (f.emergirK) out.push({ label: `Emergir ${f.emergirK.mana}, sacrificando ${f.emergirK.tipo === 'creature' ? 'uma criatura' : 'um ' + f.emergirK.tipo} (menos o valor dela)`, cost: { mana: '{0}', sacrificeOther: { types: [f.emergirK.tipo] } }, emergirK: { ...f.emergirK }, marcaK: 'emergiuK' }); // K-47 · 702.119a/b
   if (f.surtoK) out.push({ label: `Surto ${f.surtoK.mana}`, cost: { ...f.surtoK }, when: { surtoK: true }, marcaK: 'surtoK' }); // K-32 · 702.117a
   return out;
 }
@@ -22831,6 +22838,33 @@ function enxertoK(s, o) {
   }
 }
 Object.assign(EXPORTS_K, { enxertoK });
+/* K-47 · 702.119 emergir: "You may cast this spell by paying [cost] and sacrificing a creature rather than paying its mana cost" e "… its total
+   cost is reduced by an amount of generic mana equal to the sacrificed creature's mana value"; b: "Emerge from [quality]". O sacrifício vai pelo
+   caminho do custo alternativo (uma oferta por criatura, 702.119c: escolhida ao escolher pagar); o mana, reduzido, em pagaEmergirK. */
+function emergirImpressoK(card) {
+  const txt = String((card && (card.oracle_text || (card.faces && card.faces[0] && card.faces[0].oracle_text))) || '');
+  for (const l0 of txt.split('\n')) { const m = l0.replace(/\s*\([^)]*\)/g, '').trim().match(/^Emerge(?: from an? ([a-z]+))?\s+((?:\{[0-9WUBRGC]+\})+)$/i); if (m) return { mana: m[2], tipo: (m[1] || 'creature').toLowerCase() }; }
+  return undefined;
+}
+function custoEmergidoK(s, alt, sacrificada) {
+  const c = parseCost(alt.emergirK.mana), mv = sacrificada ? ((s.facts[sacrificada.name] || {}).cmc || 0) : 0;
+  return { ...c, generic: Math.max(0, (c.generic || 0) - mv) };
+}
+function pagaEmergirK(s, a, o, alt) {
+  const sac = [].concat((a.pay || {}).sacrifice || [])[0], so = sac && s.objects[sac];
+  if (!so) throw new RuleError('custo', 'escolha a criatura a sacrificar para emergir');
+  if (s.manaCheck && !a.free) payCost(s, a.p, custoEmergidoK(s, alt, so));
+}
+function ofertasEmergirK(s, p, out) {
+  if (!s.manaCheck) return;
+  for (let i = out.length - 1; i >= 0; i--) {
+    const x = out[i]; if (x.t !== 'cast' || x.alt == null || !s.objects[x.oid]) continue;
+    const alt = altCosts(s, s.objects[x.oid])[x.alt]; if (!alt || !alt.emergirK) continue;
+    const sac = [].concat((x.pay || {}).sacrifice || [])[0];
+    if (!sac || !canPay(s, p, custoEmergidoK(s, alt, s.objects[sac]))) out.splice(i, 1);
+  }
+}
+Object.assign(EXPORTS_K, { emergirImpressoK, pagaEmergirK, ofertasEmergirK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-30 · 701.65 aerobender: "that player exiles those objects. For each card exiled this way, for as long as it remains exiled, its owner
    may cast it by paying {2} rather than paying its mana cost" (a). A permissão é do DONO e da encarnação exilada (400.7: se a carta sair do
@@ -26741,6 +26775,7 @@ Object.assign(PALAVRA_PT, { dethrone: 'destronar', frenzy: 'frenesi', outlast: '
 Object.assign(PALAVRA_PT, { devour: 'devorar', amplify: 'amplificar' }); // K-43
 Object.assign(PALAVRA_PT, { champion: 'campeão' }); // K-44
 Object.assign(PALAVRA_PT, { graft: 'enxerto' }); // K-46
+Object.assign(PALAVRA_PT, { emerge: 'emergir' }); // K-47
 Object.assign(PALAVRA_PT, { afflict: 'aflição', melee: 'refrega', mentor: 'mentor', training: 'treinamento' }); // K-31
 Object.assign(PALAVRA_PT, { 'battle cry': 'grito de guerra', rampage: 'alvoroço', flanking: 'flanquear', bushido: 'bushido' }); // K-30
 const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consultadas por descreveEfeito; antes a pilha mostrava "proeza k")

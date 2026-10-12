@@ -4414,6 +4414,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Aceite:** Simic Initiate entra 1/1; o Urso entra e, aceitando, o marcador passa para ele; com a Initiate sem marcador, a criatura do oponente que entra não dispara nada.
 - **Toca ponto comum:** nenhum novo (o enxerto vai na mesma chamada do evoluir, `evoluirK`, função da trilha).
 - **Testes:** `keywords.cr4.unit` (1, falha sem a leva), `combat.audit` (1 cenário). Texto oficial: Simic Initiate (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
+**K-47 · Emergir (emerge, 702.119)** 🟡 (leva K-47)
+- **Valor:** "Emerge {custo}" vira o botão de custo alternativo "sacrificando uma criatura": o custo cai o valor de mana da sacrificada. Wretched Gryff (Pauper) sai por {U} sacrificando uma criatura de valor 5.
+- **Aceite:** com duas Ilhas, só a oferta que sacrifica a criatura de valor 5 aparece e paga {U}; com quatro, também a do Urso (valor 2), que paga {3}{U}.
+- **Toca ponto comum:** `HANDLERS.cast` (uma linha: `pagaEmergirK`).
+- **Testes:** `keywords.cr4.unit` (1, falha sem a leva), `combat.audit` (1 cenário). Texto oficial: Wretched Gryff (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
+- **Parcial declarado:** reduções de outras fontes não valem sobre o custo de emergir (o caminho comum do custo alternativo não aplica reduções; pedido à trilha motor).
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

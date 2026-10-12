@@ -8534,14 +8534,19 @@
    "n": "702.119",
    "regra": "Keyword Abilities",
    "titulo": "Emerge",
-   "status": "ausente",
-   "falta": "Sem o custo alternativo \"pague [custo] e sacrifique uma criatura; reduza pelo valor de mana dela\" (702.119a-c), incluindo a variante \"emergir de [qualidade]\".",
+   "status": "parcial",
+   "falta": "Reduções e aumentos de custo de outras fontes não se aplicam ao custo de emergir (caminho comum do custo alternativo, payAlt; pedido à trilha motor). Com redução por alvo no campo (filtro OTIMISTA, M-259), a âncora ↓ K não confere o custo reduzido.",
    "esforco": "M",
    "depende": [
     "601.2b/601.2f custo alternativo com redução",
     "202.3 valor de mana"
    ],
-   "cartas": "rara (Eldritch Moon, Modern Horizons 3)"
+   "cartas": "rara (Eldritch Moon, Modern Horizons 3)",
+   "evidencia": "K-47: \"Emerge {custo}\" e \"Emerge from a/an [qualidade] {custo}\" (emergirImpressoK) viram custo alternativo (altsImpressosK) com o sacrifício escolhido na oferta (uma por permanente, 702.119c); o mana é o de emergir menos o valor de mana da sacrificada no genérico (pagaEmergirK em HANDLERS.cast; ofertasEmergirK tira as sacrificadas que não fecham). Marca emergiuK.",
+   "testes": [
+    "CR 702.119a · emergir (Wretched Gryff, texto oficial): custo alternativo \"{5}{U} e sacrifique uma criatura\", reduzido no genérico pelo valor de mana da sacrificada; uma oferta por criatura que fecha o custo",
+    "K-47 · emergir (702.119): sacrificando o Urso, a 5/5 voadora sai pelo custo alternativo"
+   ]
   },
   {
    "n": "702.120",
