@@ -5628,7 +5628,7 @@ function substituiErros(r, tag) {
   if (q.objeto != null && q.objeto !== 'self') { if (typeof q.objeto !== 'object') errs.push(`${tag}: "quando.objeto" precisa ser self ou um seletor`); else errs.push(...seletorErros(q.objeto, `${tag}: objeto`)); }
   return errs;
 }
-const CONDICOES_ENTRA = ['anyPlayerLifeAtMost', 'controlsSubtype', 'revelaSubtipo']; // M-252 · "you may reveal a Plains or Swamp card from your hand"
+const CONDICOES_ENTRA = ['anyPlayerLifeAtMost', 'controlsSubtype', 'revelaSubtipo', 'pagaVida']; // M-252 · "you may reveal a Plains or Swamp card from your hand"
 function entraErros(r, tag) {
   if (!r || typeof r !== 'object') return [`${tag}: precisa ser um objeto`];
   const errs = [];
@@ -5950,7 +5950,7 @@ function validateScript(sc) {
   if (sc && sc.additionalOptional && !sc.additional) errs.push('custo adicional opcional sem custo');
   if (sc && sc.plot && !sc.plot.mana) errs.push('plot sem custo de mana');
   if (sc && sc.morph && !sc.morph.mana) errs.push('metamorfose sem custo de mana');
-  if (sc && sc.entersTappedUnless && sc.entersTappedUnless.anyPlayerLifeAtMost == null && !Array.isArray(sc.entersTappedUnless.controlsSubtype)) errs.push('entra virado a menos que: condição desconhecida');
+  if (sc && sc.entersTappedUnless && sc.entersTappedUnless.anyPlayerLifeAtMost == null && !Array.isArray(sc.entersTappedUnless.controlsSubtype) && !(Number.isInteger(sc.entersTappedUnless.pagaVida) && sc.entersTappedUnless.pagaVida > 0)) errs.push('entra virado a menos que: condição desconhecida');
   if (sc && sc.manaRule && !(/^[WUBRG]+$/.test(sc.manaRule.colors || '') && (sc.manaRule.damage || sc.manaRule.life || sc.manaRule.needsSubtype || sc.manaRule.needsType))) errs.push('regra de mana: precisa das cores e de dano, vida ou condição');
   for (const k of ((sc && sc.grantsAll) || {}).keywords || []) if (!KEYWORDS.includes(String(k).toLowerCase())) errs.push(`dá a todas: palavra-chave "${k}" não é resolvida pelo motor`);
   // CR2-G R3a · efeitos contínuos estáticos: quem afeta e o que muda (camadas 6 e 7c)
@@ -7969,6 +7969,23 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Selesnya Signet': { texto: '1ygups9', leva: 'M-329' },
   'Meandering River': { texto: '1yxs0h4', leva: 'M-329' },
   'Woodland Stream': { texto: '13s4fs', leva: 'M-329' },
+  // M-330 · lote 4: as dez terras de choque (614.12) e outras seis, revisor independente com sondas (as de choque, depois da correção que ele pediu)
+  'Steam Vents': { texto: 'pquhxs', leva: 'M-330' },
+  'Hallowed Fountain': { texto: 'pquhxs', leva: 'M-330' },
+  'Watery Grave': { texto: 'pquhxs', leva: 'M-330' },
+  'Overgrown Tomb': { texto: 'pquhxs', leva: 'M-330' },
+  'Sacred Foundry': { texto: 'pquhxs', leva: 'M-330' },
+  'Blood Crypt': { texto: 'pquhxs', leva: 'M-330' },
+  'Godless Shrine': { texto: 'pquhxs', leva: 'M-330' },
+  'Breeding Pool': { texto: 'pquhxs', leva: 'M-330' },
+  'Stomping Ground': { texto: 'pquhxs', leva: 'M-330' },
+  'Temple Garden': { texto: 'pquhxs', leva: 'M-330' },
+  'Desolate Lighthouse': { texto: '7svmli', leva: 'M-330' },
+  'Behemoth Sledge': { texto: '1kjngw3', leva: 'M-330' },
+  'Kazandu Refuge': { texto: '4filv', leva: 'M-330' },
+  'Inspiring Captain': { texto: 'cszlca', leva: 'M-330' },
+  'Borderland Ranger': { texto: '4acl5', leva: 'M-330' },
+  'Talrand, Sky Summoner': { texto: '1fa49p5', leva: 'M-330' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -15465,6 +15482,8 @@ const __m42 = (function () {
         const mana = lp.match(/^\{T\}: Add ((?:\{[WUBRGC]\})+(?: or (?:\{[WUBRGC]\})+)*)$/); if (mana) { topo.produces = [...(topo.produces || []), ...mana[1].split(' or ').map(x => x.match(/[WUBRGC]/g))]; frases.push({ texto: linha, lida: true }); continue; } // produção de mana (LT13: também "{T}: Add {B}{R}")
         const etu = lp.match(/^(?:this land|~) enters(?: the battlefield)? tapped unless you control an? (Plains|Island|Swamp|Mountain|Forest) or an? (Plains|Island|Swamp|Mountain|Forest)$/i); // LT13 · 305.7 · "check lands"
         if (etu) { topo.entersTappedUnless = { controlsSubtype: [etu[1], etu[2]] }; frases.push({ texto: linha, lida: true }); continue; }
+        const ech = lp.match(/^as (?:~|this land) enters(?: the battlefield)?, you may pay (\d+) life\. if you don't, it enters(?: the battlefield)? tapped$/i); // M-330 · 614.12 (terras de choque)
+        if (ech) { topo.entersTappedUnless = { pagaVida: +ech[1] }; frases.push({ texto: linha, lida: true }); continue; }
         const etv = lp.match(/^(?:this land|~) enters(?: the battlefield)? tapped unless a player has (\d+) or less life$/i); // LT13 · Razortrap Gorge
         if (etv) { topo.entersTappedUnless = { anyPlayerLifeAtMost: +etv[1] }; frases.push({ texto: linha, lida: true }); continue; }
         const om = lp.match(/^whenever (?:this creature|~) or another creature( or planeswalker)? you control dies, (.+)$/i); // M-324 · ela ou outra sua morre: dois gatilhos (outra · ela)
@@ -16117,23 +16136,26 @@ function destinoSubstituido(s, o, fromZone, to) {
 const destinoLegado = (s, o, fromZone, to) => to === 'graveyard' && !(fromZone === 'battlefield' && semImpressas(s, o)) && ((s.facts[o.name].script || {}).staticRule) === 'exile-instead-of-graveyard' ? 'exile' : to;
 /** 614.1c/614.12 · como `o` entra no campo: virada (sim, ou "a menos que…", que pode desvirar) e marcadores. As de outras
  * permanentes vêm antes das dela, como antes. */
+/** M-330 · o efeito pôs a permanente no campo virada ("onto the battlefield tapped"): a pergunta da terra de choque some (pagar não a desvira). */
+function entraViradaPorEfeito(s, o) { o.tapped = true; if ((s.queuedChoices || []).length) s.queuedChoices = s.queuedChoices.filter(c => !(c.kind === 'paga_vida_entrada' && c.oid === o.oid)); }
 function entradaModificada(s, o, xPago) {
   const { entra } = substituicoesPara(s, o, null);
   const ordem = entra.filter(e => !e.propria).concat(entra.filter(e => e.propria));
-  let virada; const marcadores = {};
+  let virada, pagaVida = 0; const marcadores = {};
   for (const { r } of ordem) {
     if (r.virada === true) virada = true;
     else if (r.virada && r.virada.aMenosQue) {
-      const c = r.virada.aMenosQue;
+      const c = r.virada.aMenosQue, jaVirada = virada === true;
       const livre = (c.anyPlayerLifeAtMost != null && s.players.some(pl => !pl.lost && pl.life <= c.anyPlayerLifeAtMost)) ||
         // R11.2 · "a menos que você controle um Plains ou um Swamp": a própria carta, entrando, não conta
         (c.controlsSubtype && battlefield(s).some(x => x.oid !== o.oid && x.controller === o.controller && s.facts[x.name].types.includes('land') && c.controlsSubtype.some(k => new RegExp('\\b' + k + '\\b').test(linhaDeTipo(s, x)))));
       virada = !(livre || (c.revelaSubtipo && !!o.revelaAoEntrar)); // M-252 · revelou ao jogar (a escolha vem na ação)
+      if (c.pagaVida) { if (jaVirada) virada = true; else pagaVida = c.pagaVida; } // M-330 · "As ~ enters, you may pay 2 life. If you don't, it enters tapped." (outra permanente já a faz entrar virada: pagar não adianta)
     }
     for (const [k, v] of Object.entries(r.marcadores || {})) { const n = v === 'x' ? xPago : v === 'kicked' ? (o.kicked || 0) : v; if (n) marcadores[k] = (marcadores[k] || 0) + n; }
   }
   for (const [k, n] of Object.entries(o.entraComK || {})) marcadores[k] = (marcadores[k] || 0) + n; delete o.entraComK; // K-4 · "volta com um marcador" (persistir, imortal): entra com ele
-  return { virada, marcadores };
+  return { virada, marcadores, ...(pagaVida ? { pagaVida } : {}) };
 }
 /** CR2-G R5a · o caminho antigo das modificações de entrada, tal como era no moveObject (só para o teste de equivalência). */
 function entradaLegado(s, o, xPago) {
@@ -16223,7 +16245,7 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
   if (o.commander && VOLTA_COMANDO.includes(to) && fromZone !== to && fromZone !== 'command') (s.voltaComando = s.voltaComando || []).push(oid);
   if (to === 'library' && !top) dest.push(oid); else if (to === 'library') dest.unshift(oid); else dest.push(oid);
   // CR2-G R5a · 614.1c/614.12 · "entra virada", "entra virada a menos que…", "entra com N marcadores": um caminho só
-  if (to === 'battlefield') { const r = entradaModificada(s, o, xPago); if (r.virada != null) o.tapped = r.virada; for (const [k, n] of Object.entries(r.marcadores)) o.counters[k] = (o.counters[k] || 0) + marcadoresAoPor(s, o, k, n, true); } // CR2e.2 · 614.16: entrar com marcadores também é pôr marcadores
+  if (to === 'battlefield') { const r = entradaModificada(s, o, xPago); if (r.virada != null) o.tapped = r.virada; if (r.pagaVida) s.queuedChoices = (s.queuedChoices || []).concat([{ kind: 'paga_vida_entrada', oid: o.oid, z: o.zc || 0, p: o.controller, n: r.pagaVida, name: o.name }]); for (const [k, n] of Object.entries(r.marcadores)) o.counters[k] = (o.counters[k] || 0) + marcadoresAoPor(s, o, k, n, true); } // CR2e.2 · 614.16: entrar com marcadores também é pôr marcadores
   if (to === 'battlefield') sagaEntrou(s, o); // T-2 · CR 714.3a / 122.6 / 714.3b · Saga que ENTRA no campo: o marcador de entrada dispara o capítulo aqui; com read ahead, fica anotada para a escolha (função abaixo da âncora T das exportações)
   // S21 · planeswalker entra com sua lealdade inicial
   if (to === 'battlefield' && s.facts[o.name].types.includes('planeswalker') && s.facts[o.name].loyalty != null) o.counters.loyalty = marcadoresAoPor(s, o, 'loyalty', s.facts[o.name].loyalty, true); // CR2e.2 · ruling: entra com o dobro da lealdade
@@ -17743,7 +17765,7 @@ function moverObjeto(s, src, alvo, m, ctrl) {
   if (m.para === 'battlefield') {
     const o = s.objects[alvo.oid];
     o.controller = m.controle === 'dono' ? o.owner : ctrl;
-    if (m.virada) o.tapped = true;
+    if (m.virada) entraViradaPorEfeito(s, o); // M-330
     if (!m.semRegistro && !src.ability && s.objects[src.oid] === src) (src.devolvidas = src.devolvidas || []).push(alvo.oid); // CR2c.5 · a mágica lembra quem devolveu (o atalho antigo de reanimar virada não registrava)
   }
   return true;
@@ -17774,7 +17796,7 @@ function moverLegado(s, src, eff, obj, ctrl) {
       if (alvo) moveObject(s, alvo.oid, 'hand'); return !!alvo; }
     case 'reanimate': moveObject(s, obj.oid, 'battlefield', { controller: ctrl }); s.objects[obj.oid].controller = ctrl; if (!src.ability && s.objects[src.oid] === src) (src.devolvidas = src.devolvidas || []).push(obj.oid); return true;
     case 'reanimate_tapped': { const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
-      if (alvo && alvo.zone === 'graveyard') { moveObject(s, alvo.oid, 'battlefield', { controller: ctrl }); alvo.controller = ctrl; alvo.tapped = true; return true; } return false; }
+      if (alvo && alvo.zone === 'graveyard') { moveObject(s, alvo.oid, 'battlefield', { controller: ctrl }); alvo.controller = ctrl; entraViradaPorEfeito(s, alvo); return true; } return false; } // M-330
     case 'to_library_shuffled': { const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
       const saiu = eff.target === 'self-source' && alvo && !['graveyard', 'battlefield'].includes(alvo.zone);
       if (alvo && alvo.zone !== 'library' && !saiu) { moveObject(s, alvo.oid, 'library'); shuffle(s, s.zones[alvo.owner].library); return true; } return false; }
@@ -18709,7 +18731,7 @@ function concluiPick(s, events) {
     if (where === 'stay') return;
     if (where === 'library-top') moveObject(s, oid, 'library', { top: true });
     else if (where === 'library-bottom') moveObject(s, oid, 'library', { top: false });
-    else if (where === 'battlefield-tapped') { moveObject(s, oid, 'battlefield', { controller: pk.p }); s.objects[oid].tapped = true; s.objects[oid].controller = pk.p; }
+    else if (where === 'battlefield-tapped') { moveObject(s, oid, 'battlefield', { controller: pk.p }); entraViradaPorEfeito(s, s.objects[oid]); s.objects[oid].controller = pk.p; } // M-330
     else if (where === 'graveyard' && pk.discard) descartaCarta(s, oid); // Leva 105 · Duress: é descarte
     else if (where === 'esconder') { moveObject(s, oid, 'exile'); s.objects[oid].faceDown = true; const f = pk.esconde && s.objects[pk.esconde]; if (f && f.zone === 'battlefield') f.escondida = oid; } // M-268 · 702.75a
     else if (where === 'exile-playable-turn') { moveObject(s, oid, 'exile'); s.objects[oid].playableFromExile = pk.p; s.objects[oid].jogavelSoNesteTurno = true; } // M-267
@@ -19342,6 +19364,15 @@ function queueTriggersLegado(s, when, objects, controller) {
 /** Põe os gatilhos guardados na pilha (603.3b: cada controlador na ordem que quiser). */
 function flushTriggers(s, events) {
   // escolhas pendentes vêm antes dos gatilhos
+  // M-330 · 614.12 · "you may pay 2 life; if you don't, it enters tapped": a terra entra virada e o controlador decide em seguida se paga
+  // para desvirá-la (o resultado é o mesmo da escolha ao entrar; nada acontece entre a entrada e a decisão). Sem a vida (119.4), não há pergunta.
+  while ((s.queuedChoices || []).length && !s.pending && s.queuedChoices[0].kind === 'paga_vida_entrada') {
+    const c = s.queuedChoices.shift(), t = s.objects[c.oid];
+    if (!t || t.zone !== 'battlefield' || (t.zc || 0) !== c.z || !s.players[c.p] || s.players[c.p].lost || s.players[c.p].life < c.n) continue;
+    s.pending = { kind: 'may_pay', p: c.p, cost: null, name: c.name, pagaVidaEntrada: c.n,
+      then: { effects: [{ do: 'lose', amount: c.n, target: 'self' }, { do: 'untap', target: 'self-source' }], source: c.oid, name: c.name, controller: c.p, targets: [] } };
+    return;
+  }
   if ((s.queuedChoices || []).length && !s.pending) { const c = s.queuedChoices[0];
     s.pending = c.kind === 'pair' ? { kind: 'choose_pair', p: c.p, oid: c.oid, options: c.options } : { kind: 'choose_color', p: c.p, oid: c.oid }; return; }
   if (!s.queued.length || s.pending) return;
@@ -28069,7 +28100,8 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       const efeito = !!s.pending.then; // S49 · custo opcional de gatilho, ou decisão sem custo
       const extra = s.pending.extra; // Leva 106 · custo opcional sem mana (Masked Vandal)
       const senao = s.pending.senao; // CR2b.5 · "a menos que pague"
-      const titulo = senao ? (senao.sacrifica ? `${s.pending.name}: pagar ${s.pending.cost} de manutenção cumulativa?` : `${s.pending.name}: pagar ${s.pending.cost}?`)
+      const pv = s.pending.pagaVidaEntrada; // M-330 · terra de choque: pagar vida para entrar desvirada
+      const titulo = pv ? `${s.pending.name}: pagar ${pv} de vida para entrar desvirado?` : senao ? (senao.sacrifica ? `${s.pending.name}: pagar ${s.pending.cost} de manutenção cumulativa?` : `${s.pending.name}: pagar ${s.pending.cost}?`)
         : !efeito ? `Pagar ${s.pending.cost} para ${alvo ? alvo.name : 'sua mágica'} não ser anulada?`
         : extra && extra.sacrificeSelf ? `Sacrificar ${s.pending.name} para o efeito acontecer?` // CR2b.3 · Angelic Renewal
         : extra && extra.pagarVida != null ? `${s.pending.name}: pagar ${extra.pagarVida} de vida para o efeito acontecer?` // V-26 · Call of the Ring (Toca ponto comum: pergunta do custo opcional)
@@ -28079,10 +28111,10 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       const pagamentos = E.legalActions(s, v).filter(x => x.t === 'pay');
       // Leva 125 · a dica diz o que o efeito faz (antes: "o gatilho não faz nada", sem dizer o que se ganhava pagando)
       const oQueFaz = efeito ? T.descreveEfeitos((s.pending.then || {}).effects) : '';
-      banner = PriorityBanner({ title: titulo, hint: efeito ? (oQueFaz ? `Se ${s.pending.cost ? 'pagar' : 'aceitar'}: ${oQueFaz}. Recusando, nada acontece.` : 'Se você recusar, o gatilho não faz nada.') : `${s.pending.name} está na pilha.`, tone: 'warning',
-        actions: [Button(extra ? 'Exilar' : s.pending.cost ? `Pagar ${s.pending.cost}` : 'Fazer', { variant: 'primary', id: 'tb-pay',
+      banner = PriorityBanner({ title: titulo, hint: pv ? `Pagando, você perde ${pv} de vida e ${s.pending.name} fica desvirado. Sem pagar, fica virado.` : efeito ? (oQueFaz ? `Se ${s.pending.cost ? 'pagar' : 'aceitar'}: ${oQueFaz}. Recusando, nada acontece.` : 'Se você recusar, o gatilho não faz nada.') : `${s.pending.name} está na pilha.`, tone: 'warning',
+        actions: [Button(pv ? `Pagar ${pv} de vida` : extra ? 'Exilar' : s.pending.cost ? `Pagar ${s.pending.cost}` : 'Fazer', { variant: 'primary', id: 'tb-pay',
           onClick: () => (pagamentos.length > 1 ? escolher(s.pending.name, pagamentos) : act(pagamentos[0] || { t: 'pay', p: v })) }),
-          Button(efeito ? (s.pending.cost || extra ? 'Não pagar' : 'Não fazer') : 'Deixar anular', { id: 'tb-decline', onClick: () => act({ t: 'decline', p: v }) })] });
+          Button(pv ? 'Deixar virado' : efeito ? (s.pending.cost || extra ? 'Não pagar' : 'Não fazer') : 'Deixar anular', { id: 'tb-decline', onClick: () => act({ t: 'decline', p: v }) })] });
     } else if (s.pending && s.pending.kind === 'choose_type' && s.pending.p === v) {
       banner = PriorityBanner({ title: `${s.objects[s.pending.oid] ? s.objects[s.pending.oid].name + ' · ' : ''}Escolha um tipo de criatura`, hint: 'O efeito conta as suas permanentes desse tipo. Os tipos vêm do que mais rende para o que menos rende.', tone: 'warning', // Leva 136 · diz de qual carta é a escolha
         // Leva 106 · os tipos vêm do que mais rende para o menos; com muitos, "Outros tipos" abre a lista inteira

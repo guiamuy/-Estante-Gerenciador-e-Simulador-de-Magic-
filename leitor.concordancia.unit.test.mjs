@@ -77,6 +77,8 @@ test('LT1 · fidelidade: frase sem padrão fica não lida, com o texto dela, e a
   assert.deepEqual(JSON.parse(JSON.stringify(b3.script.effects)), [{ do: 'search', amount: 1, filter: { types: ['instant', 'sorcery'] }, to: 'library-top' }], 'LT5: "shuffle and put that card on top" vai ao topo do grimório');
   const l5 = L.ler({ name: 'Terra', type_line: 'Land', oracle_text: '{T}: Add {C}.\nCycling {R}{G}{W}' });
   // LT13 · terreno de dor: a cobertura por texto ainda trata a linha como mana; lida pelo leitor, a carta sem script à mão deixaria de jogar (decisão 11)
+  // M-330 · terra de choque
+  assert.deepEqual(JSON.parse(JSON.stringify(L.ler({ name: 'Vapor', type_line: 'Land — Island Mountain', oracle_text: "({T}: Add {U} or {R}.)\nAs Vapor enters, you may pay 2 life. If you don't, it enters tapped." }).script)), { name: 'Vapor', entersTappedUnless: { pagaVida: 2 } });
   // M-329 · "Pay N life" no custo de ativação (fetchlands)
   assert.deepEqual(JSON.parse(JSON.stringify(L.ler({ name: 'Busca', type_line: 'Land', oracle_text: '{T}, Pay 1 life, Sacrifice Busca: Search your library for an Island or Swamp card, put it onto the battlefield, then shuffle.' }).script.abilities[0].cost)), { tap: true, life: 1, sacrifice: true });
   // M-328 · tipociclar, custo alternativo de vida/sacrifício e gatilhos de conjurar

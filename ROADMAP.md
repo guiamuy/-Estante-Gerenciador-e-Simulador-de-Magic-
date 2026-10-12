@@ -3789,6 +3789,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Medida (catálogo, com as levas M-326…M-329):** Pauper 0 → 6 listas jogáveis e 15 → 81 listas a até duas cartas.
 - **Teste:** fidelidade do leitor (custo com vida); `--confere` com 220 aprovadas.
 
+**M-330 · Terras de choque (614.12): "pague 2 de vida ou entra virada" — as dez passam a jogar (revisão por lote IV)** ✅ (leva M-330, motor v110 sem mudança de forma; goldens intactos).
+- **Valor:** "As ~ enters, you may pay 2 life. If you don't, it enters tapped." passa a existir: a terra entra virada e a mesa pergunta em seguida "pagar 2 de vida para entrar desvirado?" ("Pagar 2 de vida" / "Deixar virado"); vale ao jogar da mão e quando ela entra por efeito (fetchland). Sem a vida (119.4) não há pergunta. Steam Vents, Hallowed Fountain, Watery Grave, Overgrown Tomb, Sacred Foundry, Blood Crypt, Godless Shrine, Breeding Pool, Stomping Ground e Temple Garden jogam, e mais seis cartas do mesmo lote (Talrand, Behemoth Sledge, Borderland Ranger, Inspiring Captain, Kazandu Refuge, Desolate Lighthouse).
+- **Correção no caminho (revisão independente):** na primeira rodada, uma terra de choque buscada "onto the battlefield tapped" (Farseek) ficava desvirada se você pagasse; agora, quando um efeito ou outra permanente manda a terra entrar virada, não há pergunta e ela fica virada.
+- **Simplificação declarada:** a decisão vem logo depois da entrada (a terra aparece virada até você decidir), não no instante da entrada; nada no motor observa esse intervalo hoje.
+- **Script:** `entersTappedUnless: { pagaVida: 2 }`; leitor lê a frase. Texto oficial em `.listas/oficiais-revisadas.json` (Oracle do Forge, 12/10/2026).
+- **Teste:** `choque.unit` (4 testes, falham no motor anterior) e e2e da pergunta na mesa.
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

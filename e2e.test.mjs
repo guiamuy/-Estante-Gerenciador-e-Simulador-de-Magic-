@@ -10539,6 +10539,25 @@ test('e2e · CR2c.7 · habilidade com X no custo (Crypt Rats): a folha abre o se
   assert.deepEqual(M.errors, []);
 });
 
+test('e2e · M-330 · terra de choque: ao jogar Steam Vents a mesa pergunta se paga 2 de vida; pagando, ela fica desvirada', { skip }, async t => {
+  // Steam Vents joga pelo script lido e aprovado na revisão por lote (texto oficial em .listas/oficiais-revisadas.json, Oracle do Forge, 12/10/2026).
+  const extras = JSON.parse(readFileSync(join(ROOT, '.listas', 'oficiais-revisadas.json'), 'utf8')).cartas.filter(c => c.name === 'Steam Vents');
+  const M = await comLista125(t, '30 Steam Vents\n10 Island', ['Steam Vents', 'Island'], '4', { extras });
+  const { page } = M;
+  const sv = await M.oid('Steam Vents'); assert.ok(sv, 'Steam Vents na mão');
+  assert.equal(await M.act({ t: 'play_land', p: 0, oid: sv }), true);
+  await page.waitForSelector('#tb-pay');
+  assert.match(await page.innerText('#tb-decisao'), /pagar 2 de vida para entrar desvirado/i);
+  assert.match(await page.innerText('#tb-pay'), /Pagar 2 de vida/);
+  assert.match(await page.innerText('#tb-decline'), /Deixar virado/);
+  await auditaTela(page, 'pergunta da terra de choque');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/m330-choque.png' });
+  await page.click('#tb-pay');
+  await page.waitForFunction(o => { const s = window.__estanteMesa.estado(); return !s.pending && !s.objects[o].tapped; }, sv, { timeout: 4000 });
+  assert.equal(await page.evaluate(() => window.__estanteMesa.estado().players[0].life), 18);
+  assert.deepEqual(M.errors, []);
+});
+
 /* ↓ K · testes de tela da trilha keywords (só test(nome, { skip }, fn) no nível do arquivo) */
 /* ↓ V · testes de tela da trilha verbos (só test(nome, { skip }, fn) no nível do arquivo) */
 test('e2e · V-26 · Call of the Ring: ao escolher o Portador do Anel, a mesa pergunta se você paga 2 de vida para comprar uma carta, e pagar tira a vida e compra', { skip }, async t => {
