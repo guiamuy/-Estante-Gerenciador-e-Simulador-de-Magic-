@@ -5236,6 +5236,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'spree', // K-54 · 702.172: escolha um ou mais modos, cada um com o custo adicional dele ("+ {1} — …"); cada combinação é um modo do script (modosSpreeK)
   'harmonize', // K-55 · 702.180: conjurar do cemitério pelo custo de harmonizar, virando até uma criatura sua para reduzir o genérico pelo poder dela; depois, exílio (harmonizarK)
   'gift', // K-56 · 702.174: custo adicional opcional de escolher um oponente; o presente vem antes dos outros efeitos da mágica (modo "prometendo o presente") ou num gatilho de entrada da permanente
+  'dredge', // K-57 · 702.52: substituição da compra — no lugar de comprar, moer N e devolver a carta do cemitério à mão (escolha do jogador a cada compra)
   'afflict', 'melee', 'mentor', 'training', // K-31 · 702.130, 702.121, 702.134, 702.149: gatilhos de ataque gerados pela palavra, um por instância
   'battle cry', 'rampage', 'flanking', 'bushido', // K-30 · 702.91, 702.23, 702.25, 702.45: gatilhos de combate gerados pela palavra (GATILHOS_DE_PALAVRA_K), um por instância
   /* ↓ V · palavras-chave da trilha verbos */
@@ -5407,6 +5408,8 @@ const EFFECTS = {
   mobilizar_ataca_k: { fields: [], targets: [] }, // K-52 · 508.4: as fichas atacam o que o controlador escolheu (gerado pelo motor)
   prole_k: { fields: ['z'], targets: [] }, // K-53 · 702.175a (gerado pelo motor)
   presente_k: { fields: ['tipo', 'jogador'], targets: [] }, // K-56 · 702.174d-i (gerado pelo motor)
+  compra_k: { fields: ['jogador', 'resto'], targets: [] }, // K-57 · comprar em vez de dragar (gerado pelo motor)
+  dragar_k: { fields: ['jogador', 'carta', 'n', 'resto'], targets: [] }, // K-57 · 702.52a (gerado pelo motor)
   salvaguarda: { fields: [], targets: [] }, // K-2 · 702.21a · gerado pelo motor quando uma permanente com salvaguarda vira alvo (não vai em script)
   volta_com_marcador: { fields: ['marcador'], targets: [] }, // K-4 · persistir e imortal (gerado pelo motor)
   exaltado: { fields: ['criatura'], targets: [] }, // K-5 · exaltado (gerado pelo motor)
@@ -8363,6 +8366,7 @@ function palavraNaLinhaK(k) {
   if (k === 'spree') return 'spree'; // K-54 · as linhas "+ {custo} — efeito" são os modos do script
   if (k === 'harmonize') return 'harmonize\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-55 · "Harmonize {X}…" fica de fora
   if (k === 'gift') return 'gift (?:a card|a tapped fish|an extra turn|a food|a treasure|an octopus)'; // K-56
+  if (k === 'dredge') return 'dredge \\d+'; // K-57
   if (k === 'dash') return 'dash\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-9
   if (k === 'evoke') return 'evoke(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*exile an? (?:white|blue|black|red|green) card from your hand\\.?)'; // K-8 · só as formas que o motor paga
   return ['afterlife', 'rampage', 'bushido', 'afflict'].includes(k) ? `${k} \\d+` : k; // K-30 · alvoroço N e bushido N
@@ -16699,6 +16703,7 @@ function draw(s, p0, n = 1, { primeiraDoPasso = false } = {}) {
     if ((s.players[p0].drawnThisTurn || 0) >= 1 && limiteDeCompra(s, p0)) return; // M-262 · Narset: "Each opponent can't draw more than one card each turn"
     const qc = quemCompra(s, p0, primeiraDoPasso && k === 0), p = qc.quem; // CR2e.3 · 614.11
     if (qc.vence) { for (const [i, pl] of s.players.entries()) if (i !== p && !pl.lost) pl.derrotadoPor = p; return; } // "you win the game instead": a compra foi substituída
+    if (dragarK(s, p, n - k, primeiraDoPasso && k === 0)) return; // K-57 · 702.52a: com carta de dragar no cemitério, o jogador escolhe entre comprar e dragar (o resto das compras continua depois da escolha) (Toca ponto comum: draw)
     const lib = s.zones[p].library;
     if (!lib.length) { s.players[p].drewFromEmpty = true; return; }
     moveObject(s, lib[0], 'hand');
@@ -18982,6 +18987,21 @@ function applyEffect(s, src, eff, tgt, events) {
       break;
     }
     /* ↓ K · casos de applyEffect da trilha keywords */
+    case 'compra_k': { // K-57 · a compra que o jogador escolheu fazer (sem perguntar de novo por ela) e as que faltam
+      s.semDragarK = true; draw(s, eff.jogador, 1, { primeiraDoPasso: !!eff.primeira }); delete s.semDragarK;
+      if (eff.resto > 1) draw(s, eff.jogador, eff.resto - 1);
+      break;
+    }
+    case 'dragar_k': { // K-57 · 702.52a: "mill N cards instead. If you do, return this card from your graveyard to your hand"
+      const p = eff.jogador, c = s.objects[eff.carta];
+      if (c && c.zone === 'graveyard' && c.owner === p && s.zones[p].library.length >= eff.n) {
+        s.zones[p].library.slice(0, eff.n).forEach(oid => moveObject(s, oid, 'graveyard'));
+        moveObject(s, c.oid, 'hand');
+        events.push({ kind: 'effect', do: 'dragar_k', name: c.name, target: s.players[p].name, amount: eff.n });
+      }
+      if (eff.resto > 1) draw(s, p, eff.resto - 1);
+      break;
+    }
     case 'presente_k': { // K-56 · 702.174d-i: o jogador escolhido recebe o presente
       const q = eff.jogador; if (q == null || !s.players[q] || s.players[q].lost) { note({ failed: true }); break; }
       const t = eff.tipo;
@@ -23496,6 +23516,26 @@ function ofertasPresenteK(s, p, out) {
   for (const x of base) for (const q of s.players.keys()) if (presenteServeK(s, p, q)) out.push({ ...x, presenteK: q });
 }
 Object.assign(EXPORTS_K, { presenteImpressoK, modosDoPresenteK });
+/* K-57 · 702.52 dragar: "If you would draw a card, you may mill N cards instead. If you do, return this card from your graveyard to your
+   hand." Só com N cartas ou mais no grimório (702.52b). A cada compra (uma por vez, 121.2), se o jogador tem no cemitério carta com dragar
+   que dá para usar, a compra para numa escolha rotulada (choose_mode com opcoesK): comprar, ou dragar com cada carta; as compras que faltam
+   seguem depois da escolha. Dragar não é comprar (não conta como compra do turno). */
+function dragarK(s, p, resto, primeira) {
+  if (s.semDragarK || !s.players[p] || s.players[p].dummy) return false;
+  const lib = s.zones[p].library.length;
+  const cartas = s.zones[p].graveyard.map(oid => s.objects[oid]).filter(c => c && c.owner === p).map(c => ({ c, n: numeroDragarK(s, c) })).filter(x => x.n && lib >= x.n);
+  if (!cartas.length) return false;
+  s.pending = { kind: 'choose_mode', p, name: 'Comprar ou dragar', pergunta: 'Comprar ou dragar?', options: ['Comprar a carta'].concat(cartas.map(x => `Dragar ${x.c.name}: moer ${x.n} e devolvê-la à mão`)),
+    opcoesK: [{ effects: [{ do: 'compra_k', jogador: p, resto, primeira }] }].concat(cartas.map(x => ({ effects: [{ do: 'dragar_k', jogador: p, carta: x.c.oid, n: x.n, resto }] }))),
+    fonteK: { oid: cartas[0].c.oid, name: cartas[0].c.name, controller: p } };
+  return true;
+}
+/** O N de "Dredge N" da carta (o primeiro, se houver mais de um; 0 sem dragar). Funciona do cemitério. */
+function numeroDragarK(s, c) {
+  const f = s.facts[c.name];
+  return (f && f.numerosK && (f.numerosK.dredge || [])[0]) || 0;
+}
+Object.assign(EXPORTS_K, { dragarK, numeroDragarK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-30 · 701.65 aerobender: "that player exiles those objects. For each card exiled this way, for as long as it remains exiled, its owner
    may cast it by paying {2} rather than paying its mana cost" (a). A permissão é do DONO e da encarnação exilada (400.7: se a carta sair do
@@ -27414,6 +27454,7 @@ Object.assign(PALAVRA_PT, { offspring: 'prole' }); // K-53
 Object.assign(PALAVRA_PT, { spree: 'farra' }); // K-54
 Object.assign(PALAVRA_PT, { harmonize: 'harmonizar' }); // K-55
 Object.assign(PALAVRA_PT, { gift: 'presente' }); // K-56
+Object.assign(PALAVRA_PT, { dredge: 'dragar' }); // K-57
 Object.assign(PALAVRA_PT, { afflict: 'aflição', melee: 'refrega', mentor: 'mentor', training: 'treinamento' }); // K-31
 Object.assign(PALAVRA_PT, { 'battle cry': 'grito de guerra', rampage: 'alvoroço', flanking: 'flanquear', bushido: 'bushido' }); // K-30
 const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consultadas por descreveEfeito; antes a pilha mostrava "proeza k")
@@ -27435,6 +27476,7 @@ const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consulta
   dobra_k: () => 'exila esta permanente; o dono pode conjurá-la do exílio a partir do próximo turno (dobra)', // K-51
   prole_k: () => 'cria uma ficha que é cópia desta permanente, só que 1/1 (prole)', // K-53
   presente_k: e => `${({ card: 'o oponente escolhido compra uma carta', fish: 'o oponente escolhido cria uma ficha de Peixe 1/1 azul virada', turn: 'o oponente escolhido joga um turno extra depois deste', food: 'o oponente escolhido cria uma ficha de Comida', treasure: 'o oponente escolhido cria uma ficha de Tesouro', octopus: 'o oponente escolhido cria uma ficha de Polvo 8/8 azul' })[e.tipo] || 'o oponente escolhido recebe o presente'} (presente)`, // K-56
+  compra_k: () => 'compra a carta', dragar_k: e => `mói ${e.n} e devolve esta carta do cemitério à mão no lugar de comprar (dragar)`, // K-57
   mobilizar_k: e => `cria ${e.n === 1 ? 'uma ficha' : e.n + ' fichas'} de Guerreiro 1/1 vermelho viradas e atacando; na próxima etapa final elas são sacrificadas (mobilizar)`, mobilizar_ataca_k: () => '', // K-52
   tempestade_k: e => e.n ? `copia esta mágica ${e.n === 1 ? 'uma vez' : e.n + ' vezes'} (tempestade; cada cópia pode ter alvo novo)` : 'copia esta mágica para cada mágica conjurada antes dela neste turno (nenhuma)',
   proeza_k: () => 'esta criatura recebe +1/+1 até o fim do turno (proeza)',

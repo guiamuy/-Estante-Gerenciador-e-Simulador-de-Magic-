@@ -7516,15 +7516,21 @@
    "n": "702.52",
    "regra": "Keyword Abilities",
    "titulo": "Dredge",
-   "status": "ausente",
-   "falta": "Sem substituição da compra: trocar comprar por triturar N e devolver a carta do cemitério à mão (702.52a), só se houver N cartas no grimório (702.52b).",
+   "status": "parcial",
+   "falta": "Com outra substituição da compra ao mesmo tempo (Notion Thief, Laboratory Maniac), a ordem não é escolhida pelo jogador (616.1): a do motor (quemCompra) vale antes do dragar. Efeito que compra e descarta num passo só do motor (ex.: \"connive\") descarta antes da compra adiada pela escolha.",
    "esforco": "M",
    "depende": [
     "614",
     "121.6",
     "701.17"
    ],
-   "cartas": "rara (Ravnica e poucas reedições; define um arquétipo)"
+   "cartas": "rara (Ravnica e poucas reedições; define um arquétipo)",
+   "evidencia": "K-57: na compra (draw, uma por vez, 121.2), se o jogador tem no cemitério carta com \"Dredge N\" e o grimório tem N cartas ou mais (702.52b), a compra para numa escolha rotulada (dragarK: choose_mode com opcoesK; Toca ponto comum: draw): comprar (compra_k, sem perguntar de novo por ela) ou dragar com cada carta (dragar_k: mói N e devolve a carta à mão; não conta como compra). As compras que faltam seguem depois da escolha, cada uma com a sua pergunta.",
+   "testes": [
+    "CR 702.52a/b · dragar (Stinkweed Imp, texto oficial: \"Dredge 5\"): na compra, o jogador escolhe entre comprar e moer 5 devolvendo a carta à mão; dragar não conta como compra; com menos de 5 no grimório, não há escolha",
+    "CR 121.2 com 702.52a · \"compre duas\": cada compra é substituída à parte — a primeira dragada, a segunda pergunta de novo (com o Imp já na mão, a segunda é compra)",
+    "K-57 · dragar (702.52): no passo de compra, dragar 2 devolve a criatura do cemitério à mão"
+   ]
   },
   {
    "n": "702.53",

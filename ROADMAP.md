@@ -4497,6 +4497,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `HANDLERS.cast` (uma linha: `conferePresenteK`), `createGame` (uma linha: `modosDoPresenteK`).
 - **Testes:** `keywords.cr4.unit` (2, falham sem a leva), `combat.audit` (1 cenário). Texto oficial: Into the Flood Maw, Cruelclaw's Heist, Sazacap's Brew, Scrapshooter, Dawn's Truce (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
 - **Parcial declarado:** "sempre que um jogador dá um presente" não existe; condição "se o presente foi prometido" em gatilho de permanente (Scrapshooter) espera condição de script nova (ponto comum do validador); Cruelclaw's Heist, Sazacap's Brew e Dawn's Truce sem script.
+**K-57 · Dragar (dredge, 702.52)** 🟡 (leva K-57) — onda 4 (209 cópias em 47 listas: Life from the Loam, Stinkweed Imp, Golgari Thug)
+- **Valor:** com carta de dragar no cemitério, cada compra pergunta "Comprar ou dragar?": dragar mói N e devolve a carta à mão no lugar da compra. "Compre duas" pergunta a cada compra.
+- **Aceite:** Stinkweed Imp no cemitério: no passo de compra a escolha aparece; dragar mói 5 e devolve o Imp; comprar compra normalmente. Com 4 cartas no grimório, Dredge 5 não é oferecido.
+- **Toca ponto comum:** `draw` (uma linha: `dragarK`).
+- **Testes:** `keywords.cr4.unit` (2, falham sem a leva), `combat.audit` (1 cenário). Texto oficial: Life from the Loam, Stinkweed Imp, Golgari Thug (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
+- **Parcial declarado:** com outra substituição da compra ao mesmo tempo, a ordem não é escolhida (616.1); efeito do motor que compra e descarta num passo só descarta antes da compra adiada.
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

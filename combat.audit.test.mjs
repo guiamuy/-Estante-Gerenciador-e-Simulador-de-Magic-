@@ -855,6 +855,17 @@ test('K-56 · presente (702.174): a Raposa com "Gift a tapped Fish" prometido d�
   const peixe = s.zones[d].battlefield.find(x => s.objects[x].name === 'Fish'); assert.ok(peixe && s.objects[peixe].tapped);
   assert.equal(combate(s, [u]).players[d].life, 18);
 });
+test('K-57 · dragar (702.52): no passo de compra, dragar 2 devolve a criatura do cemitério à mão', () => {
+  cobre('dredge');
+  const cartas = { ...CARDS, Draga: cre('Draga', 2, 2, ['Dredge'], { oracle_text: 'Dredge 2' }) };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 77, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active; let g; [s, g] = poe(s, a, 'Draga', { zone: 'graveyard' });
+  for (let i = 0; i < 300 && !(s.pending && s.pending.kind === 'choose_mode' && s.pending.p === a); i++) s = s.pending ? act(s, E.legalActions(s, s.pending.p)[0]) : act(s, { t: 'pass', p: s.turn.priority });
+  s = act(s, { t: 'choose_mode', p: a, index: 1 });
+  assert.equal(s.objects[g].zone, 'hand');
+});
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));

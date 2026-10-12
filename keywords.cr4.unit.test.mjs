@@ -2141,3 +2141,33 @@ test('CR 702.174b · presente na permanente: a conjuração com o presente prome
   let v = resolve(act(s, ofs.find(x => x.presenteK == null)));
   assert.equal(v.zones[d].hand.length, mao, 'sem prometer, nada');
 });
+
+/* ---------------- K-57 · dragar 702.52 ---------------- */
+const IMP_K57 = () => ({ ...oficial('Stinkweed Imp'), keywords: ['Flying', 'Dredge'] });
+test('CR 702.52a/b · dragar (Stinkweed Imp, texto oficial: "Dredge 5"): na compra, o jogador escolhe entre comprar e moer 5 devolvendo a carta à mão; dragar não conta como compra; com menos de 5 no grimório, não há escolha', () => {
+  let s = partida({ 'Stinkweed Imp': IMP_K57() }); const a = s.turn.active, d = 1 - a;
+  let im; [s, im] = poe(s, a, 'Stinkweed Imp', 'graveyard');
+  s = ateK35(s, d, 'main1'); for (let i = 0; i < 200 && !(s.pending && s.pending.kind === 'choose_mode'); i++) s = s.pending ? act(s, E.legalActions(s, s.pending.p)[0]) : act(s, { t: 'pass', p: s.turn.priority });
+  assert.equal(s.turn.active, a); assert.equal(s.turn.step, 'draw'); assert.equal(s.pending.p, a); assert.equal(s.pending.options.length, 2);
+  const mao = s.zones[a].hand.length, gv = s.zones[a].graveyard.length, lib = s.zones[a].library.length;
+  const t = act(s, { t: 'choose_mode', p: a, index: 1 });
+  assert.equal(t.objects[im].zone, 'hand', 'o Imp voltou à mão');
+  assert.equal(t.zones[a].hand.length, mao + 1); assert.equal(t.zones[a].library.length, lib - 5); assert.equal(t.zones[a].graveyard.length, gv - 1 + 5, 'moeu 5');
+  assert.equal(t.players[a].drawnThisTurn || 0, 0, 'dragar não é comprar');
+  const c = act(s, { t: 'choose_mode', p: a, index: 0 });
+  assert.equal(c.objects[im].zone, 'graveyard'); assert.equal(c.zones[a].hand.length, mao + 1); assert.equal(c.zones[a].library.length, lib - 1, 'comprou');
+  let pouco = J(s); pouco.pending = null; const resto = pouco.zones[a].library.splice(4); pouco.zones[a].exile.push(...resto); for (const x of resto) pouco.objects[x].zone = 'exile';
+  assert.equal(E.dragarK(pouco, a, 1, false), false, 'com 4 cartas no grimório, Dredge 5 não serve');
+});
+
+test('CR 121.2 com 702.52a · "compre duas": cada compra é substituída à parte — a primeira dragada, a segunda pergunta de novo (com o Imp já na mão, a segunda é compra)', () => {
+  const DUAS = { name: 'Duas', type_line: 'Sorcery', mana_cost: '{U}', cmc: 1, colors: ['U'], keywords: [], oracle_text: 'Draw two cards.' };
+  let s = partida({ 'Stinkweed Imp': IMP_K57(), Duas: DUAS }, { Duas: { name: 'Duas', effects: [{ do: 'draw', amount: 2 }], example: { target: 'none', expect: { handDelta: 1 } } } }); const a = s.turn.active;
+  let im, du; [s, im] = poe(s, a, 'Stinkweed Imp', 'graveyard'); [s, du] = poe(s, a, 'Duas', 'hand');
+  s = act(s, { t: 'cast', p: a, oid: du }); for (let i = 0; i < 6 && !s.pending; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  assert.equal((s.pending || {}).kind, 'choose_mode');
+  const mao = s.zones[a].hand.length;
+  s = act(s, { t: 'choose_mode', p: a, index: 1 });
+  assert.equal(s.objects[im].zone, 'hand'); assert.ok(!s.pending, 'o Imp saiu do cemitério: a segunda compra é normal');
+  assert.equal(s.zones[a].hand.length, mao + 2, 'o Imp e a carta comprada'); assert.equal(s.objects[du].zone, 'graveyard');
+});
