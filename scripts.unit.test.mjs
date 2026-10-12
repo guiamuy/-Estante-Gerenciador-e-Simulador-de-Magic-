@@ -316,6 +316,7 @@ function runExample(sc) {
   const porOponentes = (sc.abilities || []).some(x => (x.effects || []).some(e => e.do === 'add_mana' && e.opponentLands));
   if (porOponentes) { let fl; [s, fl] = put(s, d, 'Test Forest'); }
   if (how === 'madness') s = act(s, { t: 'discard', p: a, oid });
+  if (how === 'madness') for (let i = 0; i < 20 && !s.pending && s.stack.length; i++) s = act(s, { t: 'pass', p: s.turn.priority }); // K-74 · 702.35a: o gatilho da insanidade resolve antes da decisão (decisão D1 do dono)
   if (how === 'disturb') { s = JSON.parse(JSON.stringify(s)); s.zones[a].hand = s.zones[a].hand.filter(x => x !== oid); s.zones[a].graveyard.push(oid); s.objects[oid].zone = 'graveyard'; }
   if (how === 'flashback') { s = JSON.parse(JSON.stringify(s)); s.zones[a].hand = s.zones[a].hand.filter(x => x !== oid); s.zones[a].graveyard.push(oid); s.objects[oid].zone = 'graveyard'; }
   const loyaltyIndex = ((sc.abilities || []).filter(x => x.kind === 'activated').length) + (sc.equip ? 1 : 0);

@@ -4711,6 +4711,11 @@ test('e2e · Leva 125 · Rakdos: a pergunta de cada decisão fica escrita na ban
   await auditaTela(page, 'descarte por efeito');
   // descarta o Kitchen Imp: insanidade com a carta, o custo e as duas saídas à vista
   await page.locator('#tb-hand .tb-card[aria-label^="Kitchen Imp"]').first().click(); await page.waitForTimeout(250);
+  // K-74 · 702.35a (decisão D1 do dono, 12/10/2026): a insanidade é gatilho na pilha; o segundo descarte da mesma Looting vem antes da pergunta e continua dizendo a fonte
+  e = await M.est(); assert.equal(e.pend, 'discard'); assert.equal(await M.decisao(), 'Faithless Looting: descarte 1 carta | Toque na carta da mão que você descarta.');
+  const fica = e.mao.find(n => !['Kitchen Imp', 'Fiery Temper'].includes(n));
+  await page.locator(`#tb-hand .tb-card[aria-label^="${fica}"]`).first().click(); await page.waitForTimeout(200);
+  for (let i = 0; i < 12; i++) { e = await M.est(); if (e.pend === 'madness' || !e.pilha) break; await page.click('#tb-pass').catch(() => {}); await page.waitForTimeout(150); }
   e = await M.est(); assert.equal(e.pend, 'madness');
   assert.match(await M.decisao(), /^Kitchen Imp: insanidade \{B\} \| Conjure agora por \{B\} ou deixe ir para o cemitério\.$/);
   assert.equal(await page.locator('#tb-decisao .ds-sym').count() >= 2, true, 'o custo aparece em símbolo');
@@ -4719,11 +4724,7 @@ test('e2e · Leva 125 · Rakdos: a pergunta de cada decisão fica escrita na ban
   await auditaTela(page, 'insanidade');
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/125-insanidade.png' });
   await page.click('#tb-madness'); await page.waitForTimeout(250);
-  e = await M.est(); assert.ok(e.pilha >= 1, 'Kitchen Imp na pilha por insanidade');
-  // segundo descarte da mesma Looting continua dizendo a fonte
-  assert.equal(e.pend, 'discard'); assert.equal(await M.decisao(), 'Faithless Looting: descarte 1 carta | Toque na carta da mão que você descarta.');
-  const fica = e.mao.find(n => !['Kitchen Imp', 'Fiery Temper'].includes(n));
-  await page.locator(`#tb-hand .tb-card[aria-label^="${fica}"]`).first().click(); await page.waitForTimeout(200);
+  e = await M.est(); assert.ok(e.pilha >= 1 || (e.campo.includes('Kitchen Imp') && !e.exilio.includes('Kitchen Imp')), 'Kitchen Imp conjurado por insanidade'); // K-74: conjurado com a pilha vazia (o gatilho já resolveu), a passagem automática da mesa pode resolvê-lo antes da leitura
   for (let i = 0; i < 12; i++) { e = await M.est(); if (e.pend === 'madness') await page.click('#tb-madness-no'); else if (e.pilha) await page.click('#tb-pass').catch(() => {}); else break; await page.waitForTimeout(120); }
   e = await M.est(); assert.ok(e.campo.includes('Kitchen Imp'), 'o Imp entrou'); assert.ok(e.cemiterio.includes('Faithless Looting'));
   // lampejo: sem mana sobrando, o chip do cemitério não acende e a folha diz por quê

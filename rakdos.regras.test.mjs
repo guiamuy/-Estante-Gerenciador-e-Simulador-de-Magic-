@@ -5,6 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { E, J, act, poe, jogo as jogoDaLista, limpaMao, legais, conjura, resolve, passaAte, alvosDe, oficiais, temPalavra } from './listas.mjs';
+const ateInsanidadeK = s => { for (let i = 0; i < 30 && (s.pending ? s.pending.kind === 'triggers' : (s.stack.length || (s.queued || []).length)); i++) s = s.pending ? E.apply(s, E.legalActions(s, s.pending.p)[0]).state : E.apply(s, { t: 'pass', p: s.turn.priority }).state; return s; }; // a ordem dos gatilhos juntos (603.3b): a primeira oferecida // K-74 · 702.35a: a insanidade é gatilho na pilha (decisão D1 do dono, 12/10/2026): passa até a decisão
 const RAKDOS = ['Mountain', 'Mountain', 'Mountain', 'Mountain', 'Swamp', 'Swamp'];
 const jogo = (seed = 1, extra = {}) => jogoDaLista({ lista: 'Pauper Rakdos Madness', seed, terrenos: RAKDOS, terrenosDoOponente: ['Island', 'Island', 'Island', 'Island'], ...extra });
 const zona = (s, oid) => s.objects[oid].zone;
@@ -50,14 +51,17 @@ test('Leva 125 · Faithless Looting descartando duas cartas de insanidade: cada 
   s = limpaMao(s, a); [s, fl] = poe(s, a, 'Faithless Looting', 'hand'); [s, ft] = poe(s, a, 'Fiery Temper', 'hand'); [s, ki] = poe(s, a, 'Kitchen Imp', 'hand');
   s = resolve(conjura(s, a, fl));
   s = act(s, { t: 'discard', p: a, oid: ft });
-  assert.equal(zona(s, ft), 'exile', 'insanidade: descartada para o exílio'); assert.equal(s.pending.kind, 'madness'); assert.equal(s.pending.cost, '{R}');
-  assert.equal(alvosDe(s, legais(s, a, x => x.t === 'cast_madness')).length >= 2, true, 'Fiery Temper mira qualquer alvo');
-  s = act(s, legais(s, a, x => x.t === 'cast_madness' && x.targets[0].player === 1 - a)[0]);
-  assert.equal(s.pending.kind, 'discard', 'depois da decisão, o segundo descarte da Looting');
-  s = act(s, { t: 'discard', p: a, oid: ki });
-  assert.equal(s.pending.kind, 'madness'); assert.equal(s.pending.cost, '{B}');
-  s = act(s, legais(s, a, x => x.t === 'cast_madness')[0]);
-  assert.deepEqual(J(s.stack.map(o => s.objects[o].name)), ['Fiery Temper', 'Kitchen Imp']);
+  // K-74 · 702.35a (decisão D1 do dono, 12/10/2026): a insanidade é gatilho; os dois descartes da Looting acontecem antes das decisões,
+  // e cada gatilho, ao resolver, pergunta pela sua carta (antes: a decisão vinha entre um descarte e outro)
+  assert.equal(zona(s, ft), 'exile', 'insanidade: descartada para o exílio'); assert.equal(s.pending.kind, 'discard', 'o segundo descarte vem antes das decisões');
+  s = act(s, { t: 'discard', p: a, oid: ki }); assert.equal(zona(s, ki), 'exile');
+  for (let k = 0; k < 2; k++) {
+    s = ateInsanidadeK(s); assert.equal(s.pending.kind, 'madness');
+    const temper = s.pending.oid === ft; assert.equal(s.pending.cost, temper ? '{R}' : '{B}');
+    if (temper) assert.equal(alvosDe(s, legais(s, a, x => x.t === 'cast_madness')).length >= 2, true, 'Fiery Temper mira qualquer alvo');
+    s = act(s, legais(s, a, x => x.t === 'cast_madness' && (!temper || x.targets[0].player === 1 - a))[0]);
+  }
+  assert.ok(J(s.stack.map(o => s.objects[o].name)).some(n => n === 'Fiery Temper' || n === 'Kitchen Imp'), 'as conjuradas pela insanidade vão para a pilha (cada uma por cima do gatilho seguinte)');
   s = resolve(resolve(s));
   assert.equal(zona(s, ki), 'battlefield'); assert.equal(vida(s)[1 - a], 17, 'Fiery Temper: 3 de dano');
   assert.equal(zona(s, ft), 'graveyard');
@@ -78,6 +82,7 @@ test('Leva 125 · Kitchen Imp: insanidade {B} no turno do oponente, descartado c
   const ativa = legais(s, a, x => x.t === 'activate' && x.oid === sangue)[0];
   assert.deepEqual(J(ativa.pay.discard), [ki], 'o custo pede a carta a descartar');
   s = act(s, ativa);
+  s = ateInsanidadeK(s);
   assert.equal(s.pending.kind, 'madness', 'descarte como custo também dá insanidade');
   s = act(s, legais(s, a, x => x.t === 'cast_madness')[0]);
   assert.deepEqual(J(s.stack.map(o => s.objects[o].name)), ['Blood', 'Kitchen Imp'], 'o Imp resolve antes da habilidade que o descartou');
@@ -95,6 +100,7 @@ test('Leva 125 · insanidade vale no descarte da limpeza; sem mana, a única sa�
   s = passaAte(s, x => !!(x.pending && x.pending.kind === 'discard'));
   assert.equal(s.turn.step, 'cleanup'); assert.equal(s.pending.source, undefined, 'descarte da limpeza não tem carta de origem');
   s = act(s, { t: 'discard', p: a, oid: ft });
+  s = ateInsanidadeK(s);
   assert.equal(zona(s, ft), 'exile'); assert.equal(s.pending.kind, 'madness');
   assert.deepEqual(J(legais(s, a).map(x => x.t)), ['decline_madness'], 'sem mana: só recusar');
   s = act(s, { t: 'decline_madness', p: a }); assert.equal(zona(s, ft), 'graveyard');

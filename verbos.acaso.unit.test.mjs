@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { loadModules } from './_load.mjs';
 import { E, J, act, poe, legais, mesa, comMana, tudo, criatura, conjura } from './verbos.mjs';
 import { alvos } from './cmd.mjs';
+const ateInsanidadeK = s => { for (let i = 0; i < 30 && (s.pending ? s.pending.kind === 'triggers' : (s.stack.length || (s.queued || []).length)); i++) s = s.pending ? E.apply(s, E.legalActions(s, s.pending.p)[0]).state : E.apply(s, { t: 'pass', p: s.turn.priority }).state; return s; }; // a ordem dos gatilhos juntos (603.3b): a primeira oferecida // K-74 · 702.35a: a insanidade é gatilho na pilha (decisão D1 do dono, 12/10/2026): passa até a decisão
 const { scripts: S, table: T } = loadModules();
 const NOMES = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map(x => criatura('Carta ' + x, 1, 1));
 const semDecisao = s => tudo(s, y => { throw new Error('ninguém escolhe no descarte ao acaso: ' + y.pending.kind); });
@@ -49,6 +50,7 @@ test('CR 701.9 · descartar ao acaso é descarte: insanidade é oferecida e "sem
   let s = mesa(['Hymn to Tourach', ...NOMES], ['Fiery Temper', 'Glint-Horn Buccaneer', ...NOMES]), hy, mao, buc; [s, mao] = maoSo(s, 1, ['Fiery Temper']); [s, buc] = poe(s, 1, 'Glint-Horn Buccaneer'); [s, hy] = poe(s, 0, 'Hymn to Tourach', 'hand');
   let r = conjura(comMana(s, 'BB'), 0, hy, [{ player: 1 }]);
   for (let i = 0; i < 6 && !r.pending; i++) r = act(r, { t: 'pass', p: r.turn.priority });
+  r = ateInsanidadeK(r);
   assert.equal(r.pending && r.pending.kind, 'madness'); assert.equal(r.objects[mao[0]].zone, 'exile');
   r = tudo(act(r, legais(r, 1, a => a.t === 'decline_madness')[0]));
   assert.equal(r.objects[mao[0]].zone, 'graveyard'); assert.equal(r.players[0].life, s.players[0].life - 1, 'Glint-Horn Buccaneer viu o descarte');

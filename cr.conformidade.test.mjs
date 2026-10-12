@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadModules } from './_load.mjs';
 import { E, J, act, poe, legais, passaAte, resolveUm, CARTAS, comMana, tudo, alvos } from './cmd.mjs';
+const ateInsanidadeK = s => { for (let i = 0; i < 30 && (s.pending ? s.pending.kind === 'triggers' : (s.stack.length || (s.queued || []).length)); i++) s = s.pending ? E.apply(s, E.legalActions(s, s.pending.p)[0]).state : E.apply(s, { t: 'pass', p: s.turn.priority }).state; return s; }; // a ordem dos gatilhos juntos (603.3b): a primeira oferecida // K-74 · 702.35a: a insanidade é gatilho na pilha (decisão D1 do dono, 12/10/2026): passa até a decisão
 const { decks: D } = loadModules();
 const c = (name, type_line, mana_cost, extra = {}) => ({ name, type_line, mana_cost, cmc: 0, keywords: [], oracle_text: '', colors: [...new Set((mana_cost.match(/[WUBRG]/g) || []))], ...extra });
 const INVENTADAS = {
@@ -147,6 +148,7 @@ test('CR 514.2 · na limpeza o dano sai e os efeitos "até o fim do turno" acaba
   let s = mesa(['Fiery Temper', 'Mountain'], ['Grande']), t, x; [s, t] = poe(s, 0, 'Fiery Temper', 'hand'); [s, x] = poe(s, 1, 'Grande'); [s] = poe(s, 0, 'Mountain');
   s = J(s); s.objects[x].damage = 2; while (s.zones[0].hand.length < 8) { const o = s.zones[0].library.shift(); s.zones[0].hand.push(o); s.objects[o].zone = 'hand'; }
   s = passaAte(s, y => y.pending && y.pending.kind === 'discard'); assert.equal(s.turn.step, 'cleanup'); s = act(s, { t: 'discard', p: 0, oid: t });
+  s = ateInsanidadeK(s); // K-74
   s = act(s, legais(s, 0, a => a.t === 'cast_madness' && a.targets.some(z => z.oid === x))[0]); assert.equal(s.objects[x].damage, 0, 'o dano do turno já saiu quando a mágica vai para a pilha');
   s = act(act(s, { t: 'pass', p: 0 }), { t: 'pass', p: 1 }); assert.equal(s.objects[x].zone, 'battlefield', 'a 5/5 sobrevive aos 3 da Fiery Temper'); assert.equal(s.objects[x].damage, 3);
 });

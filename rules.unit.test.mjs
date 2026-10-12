@@ -22,6 +22,7 @@ function put(s, p, name, { zone = 'battlefield', sick = false, tapped = false } 
   return [s, oid];
 }
 const act = (s, a) => E.apply(s, a).state;
+const ateInsanidadeK = s => { for (let i = 0; i < 30 && (s.pending ? s.pending.kind === 'triggers' : (s.stack.length || (s.queued || []).length)); i++) s = s.pending ? E.apply(s, E.legalActions(s, s.pending.p)[0]).state : E.apply(s, { t: 'pass', p: s.turn.priority }).state; return s; }; // a ordem dos gatilhos juntos (603.3b): a primeira oferecida // K-74 · 702.35a: a insanidade é gatilho na pilha (decisão D1 do dono, 12/10/2026): passa até a decisão
 const passTo = (s, step, max = 60) => { for (let i = 0; i < max && s.turn.step !== step; i++) s = act(s, { t: 'pass', p: s.turn.priority }); assert.equal(s.turn.step, step); return s; };
 const toMain = s => passTo(s, 'main1');
 
@@ -798,6 +799,7 @@ test('S18 · insanidade: descartar exila e o dono decide conjurar pelo custo de 
   let s = ninGame(5); const a = s.turn.active, d = 1 - a;
   let temper; [s, temper] = put(s, a, 'Temper', { zone: 'hand' });
   s = act(s, { t: 'discard', p: a, oid: temper });
+  s = ateInsanidadeK(s);
   assert.deepEqual({ kind: s.pending.kind, p: s.pending.p }, { kind: 'madness', p: a });
   assert.equal(s.objects[temper].zone, 'exile', 'fica no exílio enquanto decide');
   const recusou = act(s, { t: 'decline_madness', p: a });
@@ -819,6 +821,7 @@ test('S18 · insanidade no descarte da limpeza não trava o turno', () => {
     s = act(s, { t: 'discard', p: a, oid: alvo });
     if (s.pending && s.pending.kind === 'madness') s = act(s, { t: 'decline_madness', p: a });
   }
+  for (let i = 0; i < 40 && (s.stack.length || s.pending || s.turn.step === 'cleanup'); i++) s = s.pending && s.pending.kind === 'madness' ? act(s, { t: 'decline_madness', p: a }) : act(s, { t: 'pass', p: s.turn.priority }); // K-74 · o gatilho da insanidade dá prioridade na limpeza (514.3a)
   assert.equal(s.pending, null);
   assert.notEqual(s.turn.step, 'cleanup', 'a limpeza terminou e o turno passou');
 });

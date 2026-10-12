@@ -44,6 +44,7 @@ function poe(s, p, name, zone = 'battlefield', extra = {}) {
   return [s, oid];
 }
 const act = (s, a) => E.apply(s, a).state;
+const ateInsanidadeK = s => { for (let i = 0; i < 30 && (s.pending ? s.pending.kind === 'triggers' : (s.stack.length || (s.queued || []).length)); i++) s = s.pending ? E.apply(s, E.legalActions(s, s.pending.p)[0]).state : E.apply(s, { t: 'pass', p: s.turn.priority }).state; return s; }; // a ordem dos gatilhos juntos (603.3b): a primeira oferecida // K-74 · 702.35a: a insanidade é gatilho na pilha (decisão D1 do dono, 12/10/2026): passa até a decisão
 const resolve = s => { s = act(s, { t: 'pass', p: s.turn.priority }); return act(s, { t: 'pass', p: s.turn.priority }); };
 const stats = (s, oid) => { const st = E.stats(s, s.objects[oid]); return [st.power, st.toughness]; };
 
@@ -358,6 +359,7 @@ test('Leva 105 · insanidade vale para descarte como custo e para descarte escol
   [s, grab] = poe(s, a, 'Grab the Prize', 'hand'); [s, temper] = poe(s, a, 'Fiery Temper', 'hand');
   s = act(s, { t: 'cast', p: a, oid: grab, pay: { discard: [temper] } });
   assert.equal(s.objects[temper].zone, 'exile', 'descartada com insanidade: exílio');
+  s = ateInsanidadeK(s);
   assert.equal(s.pending && s.pending.kind, 'madness', 'e o dono decide se conjura (antes: cemitério direto)');
   s = act(s, { t: 'cast_madness', p: a, targets: [{ player: d }] });
   s = passaAte(s, x => !x.stack.length);
@@ -368,6 +370,7 @@ test('Leva 105 · insanidade vale para descarte como custo e para descarte escol
   const blood = s.zones[a].battlefield.find(x => s.objects[x].name === 'Blood');
   [s, t2] = poe(s, a, 'Fiery Temper', 'hand');
   s = act(s, { t: 'activate', p: a, oid: blood, index: 0, pay: { discard: [t2] } });
+  s = ateInsanidadeK(s);
   assert.equal(s.objects[t2].zone, 'exile'); assert.equal(s.pending && s.pending.kind, 'madness');
   s = act(s, { t: 'decline_madness', p: a });
   assert.equal(s.objects[t2].zone, 'graveyard', 'recusou: cemitério');
@@ -377,6 +380,7 @@ test('Leva 105 · insanidade vale para descarte como custo e para descarte escol
   [s, dur] = poe(s, a, 'Duress', 'hand'); [s, t3] = poe(s, d, 'Fiery Temper', 'hand');
   s = passaAte(act(s, { t: 'cast', p: a, oid: dur, targets: [{ player: d }] }), x => !!x.pending);
   if (s.pending.kind === 'pick') s = act(s, { t: 'pick', p: a, oid: t3 });
+  s = ateInsanidadeK(s);
   if (s.pending.kind === 'pick') s = act(s, { t: 'pick_done', p: a }); // ao chegar no máximo a escolha fecha sozinha
   assert.equal(s.objects[t3].zone, 'exile');
   assert.deepEqual([s.pending && s.pending.kind, s.pending && s.pending.p], ['madness', d]);
@@ -422,6 +426,7 @@ test('Leva 121 · Highway Robbery: descarte com insanidade compra duas e depois 
   s = act(s, { t: 'pick', p: a, oid: ft });
   assert.equal(s.zones[a].hand.length, mao - 1 + 2, 'descartou uma e comprou duas');
   assert.equal(s.objects[ft].zone, 'exile', 'insanidade: a descartada vai para o exílio, não para o cemitério');
+  s = ateInsanidadeK(s);
   assert.equal(s.pending && s.pending.kind, 'madness', 'e a decisão de conjurar por insanidade vem depois das compras');
   assert.ok(E.legalActions(s, a).some(x => x.t === 'cast_madness'), 'a mesa oferece conjurar');
   s = act(s, { t: 'decline_madness', p: a });
@@ -907,6 +912,7 @@ test('Leva 108 · conjurar pela insanidade conta para tempestade e dispara "quan
   let s = jogo(); const a = s.turn.active, d = 1 - a; let grab, ft;
   [s, grab] = poe(s, a, 'Grab the Prize', 'hand'); [s, ft] = poe(s, a, 'Fiery Temper', 'hand');
   s = act(s, { t: 'cast', p: a, oid: grab, pay: { discard: [ft] } });
+  s = ateInsanidadeK(s);
   const antes = s.spellsThisTurn;
   s = act(s, { t: 'cast_madness', p: a, targets: [{ player: d }] });
   assert.equal(s.spellsThisTurn, antes + 1, 'conta como mágica conjurada (antes: não)');
@@ -961,6 +967,7 @@ test('Leva 110 · "qualquer alvo" com a mesa cheia: os dois jogadores e todas as
   for (const q of [a, d]) for (const n of ['Urso', 'Urso', 'Urso', 'Gaivota', 'Gaivota', 'Gaivota']) { let o; [s, o] = poe(s, q, n); criaturas.push(o); }
   [s, grab] = poe(s, a, 'Grab the Prize', 'hand'); [s, temper] = poe(s, a, 'Fiery Temper', 'hand');
   s = act(s, { t: 'cast', p: a, oid: grab, pay: { discard: [temper] } });
+  s = ateInsanidadeK(s);
   assert.equal(s.pending && s.pending.kind, 'madness');
   const alvos = J(E.legalActions(s, a)).filter(x => x.t === 'cast_madness').map(x => x.targets[0]);
   assert.ok(alvos.some(x => x.player === d), 'o oponente é alvo (antes: cortado depois de 10 permanentes)');

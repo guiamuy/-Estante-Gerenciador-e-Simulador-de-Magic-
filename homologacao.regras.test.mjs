@@ -3,6 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { E, J, act, poe, jogo, limpaMao, legais, conjura, resolve, resolveUm, passaAte, alvosDe } from './listas.mjs';
+const ateInsanidadeK = s => { for (let i = 0; i < 30 && (s.pending ? s.pending.kind === 'triggers' : (s.stack.length || (s.queued || []).length)); i++) s = s.pending ? E.apply(s, E.legalActions(s, s.pending.p)[0]).state : E.apply(s, { t: 'pass', p: s.turn.priority }).state; return s; }; // a ordem dos gatilhos juntos (603.3b): a primeira oferecida // K-74 · 702.35a: a insanidade é gatilho na pilha (decisão D1 do dono, 12/10/2026): passa até a decisão
 const comMana = (s, m, p = 0) => { s = J(s); for (const c of m) s.players[p].pool[c]++; return s; };
 const viradas = (s, p = 0) => s.zones[p].battlefield.filter(o => s.objects[o].tapped).length;
 const nomes = (s, z, p = 0) => J(s.zones[p][z].map(o => s.objects[o].name));
@@ -90,7 +91,7 @@ test('R9 · insanidade na etapa de limpeza: a mágica resolve ainda no turno de 
   s = limpaMao(s, 0); const ids = [];
   for (const n of ['Kitchen Imp', 'Mountain', 'Mountain', 'Mountain', 'Mountain', 'Lightning Bolt', 'Lightning Bolt', 'Duress']) { let o; [s, o] = poe(s, 0, n, 'hand'); ids.push(o); }
   s = passaAte(s, x => x.pending); assert.equal(s.turn.step, 'cleanup'); const turno = s.turn.number;
-  s = act(s, { t: 'discard', p: 0, oid: ids[0] }); assert.equal(s.pending.kind, 'madness');
+  s = act(s, { t: 'discard', p: 0, oid: ids[0] }); s = ateInsanidadeK(s); assert.equal(s.pending.kind, 'madness'); // K-74 · o gatilho da insanidade resolve antes da decisão
   s = act(s, { t: 'cast_madness', p: 0 });
   assert.equal(s.turn.number, turno, 'o turno não vira com a mágica na pilha'); assert.equal(s.turn.active, 0); assert.equal(s.turn.step, 'cleanup');
   assert.equal(s.turn.priority, 0, 'o jogador ativo recebe a prioridade'); assert.deepEqual(J(s.stack.map(o => s.objects[o].name)), ['Kitchen Imp']);

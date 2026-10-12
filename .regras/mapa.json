@@ -7254,14 +7254,16 @@
    "n": "702.35",
    "regra": "Keyword Abilities",
    "titulo": "Madness",
-   "status": "parcial",
-   "evidencia": "descartaCarta (index.html:10657-10662) exila em vez de pôr no cemitério, em qualquer descarte (custo, efeito, limpeza, ciclar); pendência madness com cast_madness/decline_madness (12680-12745), que conta para tempestade e cobra ward; pauper.regras e rakdos.regras (Kitchen Imp, Fiery Temper, Alms of the Vein, Dark Withering)",
-   "falta": "A segunda habilidade não é um gatilho na pilha (702.35a): a decisão de conjurar ou mandar ao cemitério é uma pendência imediata, sem prioridade antes dela (não dá para gerar mana ou responder com a carta ainda no exílio)",
+   "status": "coberta",
+   "evidencia": "descartaCarta (index.html:10657-10662) exila em vez de pôr no cemitério, em qualquer descarte (custo, efeito, limpeza, ciclar); pendência madness com cast_madness/decline_madness (12680-12745), que conta para tempestade e cobra ward; pauper.regras e rakdos.regras (Kitchen Imp, Fiery Temper, Alms of the Vein, Dark Withering) K-74 (decisão D1 do dono, 12/10/2026): a segunda habilidade é gatilho na pilha (insanidadeNaPilhaK em descartaCarta, HANDLERS.cycle e HANDLERS.discard; efeito insanidade_k): dá para responder antes da decisão; o descarte que continua (vários descartes, a limpeza) não espera; a decisão abre ao resolver, só se a carta ainda está no exílio (400.7).",
    "esforco": "P",
    "depende": [
     "603"
    ],
-   "cartas": "comum"
+   "cartas": "comum",
+   "testes": [
+    "CR 702.35a · K-74 · insanidade é gatilho: descartada, a carta vai para o exílio e o gatilho vai para a pilha (dá para responder); ao resolver, o dono decide; se a carta sair do exílio antes, nada"
+   ]
   },
   {
    "n": "702.36",

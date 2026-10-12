@@ -5423,6 +5423,7 @@ const EFFECTS = {
   compra_k: { fields: ['jogador', 'resto'], targets: [] }, // K-57 · comprar em vez de dragar (gerado pelo motor)
   dragar_k: { fields: ['jogador', 'carta', 'n', 'resto'], targets: [] }, // K-57 · 702.52a (gerado pelo motor)
   iminente_k: { fields: ['z'], targets: [] }, // K-58 · 702.176a (gerado pelo motor)
+  insanidade_k: { fields: ['carta', 'z'], targets: [] }, // K-74 · 702.35a (gerado pelo motor)
   ascender_k: { fields: [], targets: [] }, // K-59 · 702.131a (gerado pelo motor na mágica com ascensão)
   equipa_ficha_k: { fields: ['ficha', 'z'], targets: [] }, // K-60 (gerado pelo motor)
   desencadear_k: { fields: ['z'], targets: [] }, // K-62 · tira o marcador do desencadear (gerado pelo motor)
@@ -17814,7 +17815,7 @@ function descartaCarta(s, oid) {
   const o = s.objects[oid]; const md = madnessOf(s, o);
   if (!md) { moveObject(s, oid, 'graveyard'); return; }
   moveObject(s, oid, 'exile'); noteDiscard(s, o.owner); // com insanidade a carta vai ao exílio, mas foi descartada
-  (s.filaInsanidade = s.filaInsanidade || []).push({ p: o.owner, oid, cost: md.mana });
+  insanidadeNaPilhaK(s, o.owner, oid); // K-74 · 702.35a: o gatilho da insanidade vai para a pilha (decisão D1 do dono; Toca ponto comum: descartaCarta)
 }
 function abreInsanidadeDaFila(s) {
   if (s.pending || !s.filaInsanidade || !s.filaInsanidade.length) return;
@@ -19335,6 +19336,12 @@ function applyEffect(s, src, eff, tgt, events) {
       break;
     }
     /* ↓ K · casos de applyEffect da trilha keywords */
+    case 'insanidade_k': { // K-74 · 702.35a: "When this card is exiled this way, its owner may cast it by paying [cost]. If that player doesn't, they put this card into their graveyard."
+      const c = s.objects[eff.carta], md = c && madnessOf(s, c);
+      if (!c || c.zone !== 'exile' || (c.zc || 0) !== eff.z || !md) { note({ failed: true }); break; } // saiu do exílio: nada (400.7)
+      s.pendingAfterMadness = null; s.pending = { kind: 'madness', p: c.owner, oid: c.oid, cost: md.mana };
+      note({ name: c.name }); break;
+    }
     case 'esquadrao_k': { // K-67 · 702.157a: uma ficha cópia por vez paga (a cópia não tem o custo pago: não cria outras)
       const perm = s.objects[src.ability ? src.source : src.oid];
       const nome = perm && perm.zone === 'battlefield' && (perm.zc || 0) === eff.z ? nomeCopiavel(s, perm) : perm && perm.name;
@@ -21630,7 +21637,7 @@ const HANDLERS = {
     if (!cy) throw new RuleError('ciclar', 'esta carta não tem ciclar');
     if (s.manaCheck && !a.free) { if (cy.mana) payCost(s, a.p, parseCost(cy.mana)); if (cy.life) { if (s.players[a.p].life < cy.life) throw new RuleError('custo', 'vida insuficiente'); perdeVida(s, a.p, cy.life); } } // M-341 · 119.4: paga vida só quem tem
     const madness = madnessOf(s, o);
-    if (madness) { moveObject(s, o.oid, 'exile'); s.pendingAfterMadness = null; s.pending = { kind: 'madness', p: a.p, oid: o.oid, cost: madness.mana }; }
+    if (madness) { moveObject(s, o.oid, 'exile'); insanidadeNaPilhaK(s, a.p, o.oid); } // K-74 · 702.35a: gatilho na pilha (decisão D1 do dono; Toca ponto comum: HANDLERS.cycle)
     else moveObject(s, o.oid, 'graveyard');
     cicloK(s, a, o, cy); // K-16 · 702.29a: "Draw a card" é o efeito de uma habilidade ativada — vai para a pilha (Toca ponto comum: HANDLERS.cycle)
     s.turn.passes = 0;
@@ -21726,13 +21733,8 @@ const HANDLERS = {
       else after = s.pending;
     }
     // S18 · insanidade: a carta descartada vai para o exílio e o dono decide
-    if (madness) {
-      moveObject(s, o.oid, 'exile'); noteDiscard(s, a.p);
-      s.pendingAfterMadness = after;
-      s.pending = { kind: 'madness', p: a.p, oid: o.oid, cost: madness.mana };
-      return;
-    }
-    moveObject(s, o.oid, 'graveyard');
+    if (madness) { moveObject(s, o.oid, 'exile'); noteDiscard(s, a.p); insanidadeNaPilhaK(s, a.p, o.oid); } // K-74 · 702.35a: gatilho na pilha; o descarte (e a limpeza) seguem (decisão D1 do dono; Toca ponto comum: HANDLERS.discard)
+    else moveObject(s, o.oid, 'graveyard');
     if (after === 'cleanup') { if ((s.queued || []).length) { fimDosEfeitosDoTurno(s); s.turn.passes = 0; s.turn.priority = s.turn.active; return; } finishCleanup(s); return; } // CR2g.1 · 514.3a: gatilho na limpeza → prioridade, depois outra limpeza
     // S60 · correção: o descarte pedido por um efeito não retomava o resto do efeito
     if (!s.pending) { stateBased(s, ev); if (!continueUnless(s, ev)) resumeEffects(s, ev); }
@@ -24156,6 +24158,15 @@ function ofertasEquipeK(s, p, out) {
   }
 }
 Object.assign(EXPORTS_K, { gruposDeEquipeK, ofertasEquipeK });
+/* K-74 · 702.35a insanidade como gatilho (decisão D1 do dono, 12/10/2026): o descarte exila a carta (substituição) e o gatilho "When this card
+   is exiled this way" vai para a pilha na próxima vez que alguém receberia prioridade (603.3): dá para responder com mana gerada ou outras
+   mágicas antes da decisão. Na resolução, se a carta ainda está no exílio (a mesma encarnação), abre a decisão de sempre (cast_madness ou
+   decline_madness). O descarte que continua (vários descartes, a limpeza) não espera a decisão: segue, e a limpeza com o gatilho dá
+   prioridade (514.3a). */
+function insanidadeNaPilhaK(s, p, oid) {
+  const c = s.objects[oid]; if (!c) return;
+  s.queued.push({ source: oid, name: c.name, controller: p, effects: [{ do: 'insanidade_k', carta: oid, z: c.zc || 0 }], when: 'madness' });
+}
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-30 · 701.65 aerobender: "that player exiles those objects. For each card exiled this way, for as long as it remains exiled, its owner
    may cast it by paying {2} rather than paying its mana cost" (a). A permissão é do DONO e da encarnação exilada (400.7: se a carta sair do
@@ -28201,6 +28212,7 @@ const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consulta
   prole_k: () => 'cria uma ficha que é cópia desta permanente, só que 1/1 (prole)', // K-53
   presente_k: e => `${({ card: 'o oponente escolhido compra uma carta', fish: 'o oponente escolhido cria uma ficha de Peixe 1/1 azul virada', turn: 'o oponente escolhido joga um turno extra depois deste', food: 'o oponente escolhido cria uma ficha de Comida', treasure: 'o oponente escolhido cria uma ficha de Tesouro', octopus: 'o oponente escolhido cria uma ficha de Polvo 8/8 azul' })[e.tipo] || 'o oponente escolhido recebe o presente'} (presente)`, // K-56
   compra_k: () => 'compra a carta', dragar_k: e => `mói ${e.n} e devolve esta carta do cemitério à mão no lugar de comprar (dragar)`, // K-57
+  insanidade_k: () => 'o dono pode conjurar a carta exilada pelo custo de insanidade; se não conjurar, ela vai para o cemitério (insanidade)', // K-74
   esquadrao_k: e => `cria ${e.n === 1 ? 'uma ficha que é cópia' : e.n + ' fichas que são cópias'} desta criatura (esquadrão)`, // K-67
   decaida_k: () => 'esta criatura é sacrificada no fim do combate (decaída)', // K-65
   desencadear_k: () => 'entra sem o marcador +1/+1 do desencadear', // K-62

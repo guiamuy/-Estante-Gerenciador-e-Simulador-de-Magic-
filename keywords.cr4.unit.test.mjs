@@ -2478,3 +2478,20 @@ test('CR 702.62a · K-73 · suspender entra no legalActions (a mesa tem o botão
   const t = act(s, of); assert.equal(t.objects[r].zone, 'exile');
   assert.match(T.describe(s, of, [], t).join(' '), /suspendeu Rift Bolt/);
 });
+
+/* ---------------- K-74 · insanidade como gatilho na pilha (decisão D1 do dono) ---------------- */
+test('CR 702.35a · K-74 · insanidade é gatilho: descartada, a carta vai para o exílio e o gatilho vai para a pilha (dá para responder); ao resolver, o dono decide; se a carta sair do exílio antes, nada', () => {
+  const FT = { name: 'Fiery Temper', type_line: 'Instant', mana_cost: '{1}{R}{R}', cmc: 3, colors: ['R'], keywords: ['Madness'], oracle_text: 'Fiery Temper deals 3 damage to any target.\nMadness {R}' };
+  let s = partida({ 'Fiery Temper': FT }, { 'Fiery Temper': S.SCRIPTS['Fiery Temper'] }); const a = s.turn.active, d = 1 - a;
+  let ft; [s, ft] = poe(s, a, 'Fiery Temper', 'hand');
+  s = act(s, { t: 'discard', p: a, oid: ft });
+  assert.equal(s.objects[ft].zone, 'exile'); assert.equal(s.pending, null, 'sem decisão imediata');
+  assert.equal(s.stack.length, 1, 'o gatilho da insanidade está na pilha'); assert.equal(s.turn.priority, a, 'e o jogador recebe prioridade (pode responder)');
+  let t = act(act(s, { t: 'pass', p: a }), { t: 'pass', p: d });
+  assert.equal(t.pending.kind, 'madness'); assert.equal(t.pending.p, a);
+  t = resolve(act(t, { t: 'cast_madness', p: a, targets: [{ player: d }] }));
+  assert.equal(t.players[d].life, s.players[d].life - 3);
+  let fora = J(s); const z = fora.zones[a].exile; z.splice(z.indexOf(ft), 1); fora.zones[a].graveyard.push(ft); fora.objects[ft].zone = 'graveyard'; fora.objects[ft].zc = (fora.objects[ft].zc || 0) + 1;
+  fora = act(act(fora, { t: 'pass', p: a }), { t: 'pass', p: d });
+  assert.equal(fora.pending, null, 'a carta saiu do exílio: o gatilho não faz nada (400.7)');
+});
