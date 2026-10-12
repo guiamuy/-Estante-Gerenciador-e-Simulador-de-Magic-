@@ -21238,22 +21238,30 @@ Object.assign(EXPORTS_V, { afligir, recrutar });
    ataca: reaproveita "não pode atacar até o próximo turno de quem lançou" (cantAttackNext, S61). Não bloqueia: eligibleBlockers.
    Habilidades ativadas — inclusive as de mana (605.1a) e as de lealdade — não são oferecidas, não entram no pagamento automático
    (productions) e são recusadas no apply. Habilidades disparadas e estáticas continuam valendo. */
-const ehDetida = (s, o) => !!o && o.zone === 'battlefield' && !!o.detidaV && o.detidaV.z === (o.zc || 0);
+const detencoesV = o => (o && o.detidaV || []).filter(m => m.z === (o.zc || 0)); // V-24 · uma marca por detenção: cada uma acaba no turno de quem a fez
+const ehDetida = (s, o) => !!o && o.zone === 'battlefield' && detencoesV(o).length > 0;
 function deter(s, o, p, events) {
   if (!o || o.zone !== 'battlefield') return false;
-  o.detidaV = { by: p, z: o.zc || 0 }; o.cantAttackNext = { by: p };
+  o.detidaV = [...detencoesV(o), { by: p, z: o.zc || 0 }]; o.cantAttackNext = { by: o.detidaV[0].by };
   events.push({ kind: 'effect', do: 'detain', name: o.name, target: o.name });
   return true;
 }
 /** A ação é ativar habilidade (de mana ou não) de uma permanente detida? */
 function acaoDeDetidaV(s, a) {
-  if (!a || !(a.t === 'activate' || a.t === 'tap_mana') || a.fromHand || a.oid == null) return false;
+  if (!a || !['activate', 'tap_mana', 'tripular'].includes(a.t) || a.fromHand || a.oid == null) return false; // V-24 · tripular é habilidade ativada do Veículo
   return ehDetida(s, s.objects[a.oid]);
 }
 /** Chamada só por apply, antes do tratador da ação. */
 function barraDetidaV(s, a) { if (acaoDeDetidaV(s, a)) throw new RuleError('detida', 'esta permanente está detida: as habilidades ativadas dela não podem ser ativadas até o próximo turno de quem a deteve'); }
 /** Chamada no começo do turno de `a` (pelo passo de desvirar): o que `a` deteve deixa de estar detido. */
-function soltaDetidasV(s, a) { for (const o of campoInteiro(s)) if (o.detidaV && o.detidaV.by === a) delete o.detidaV; }
+function soltaDetidasV(s, a) {
+  for (const o of campoInteiro(s)) {
+    if (!o.detidaV) continue;
+    const resto = detencoesV(o).filter(m => m.by !== a);
+    if (resto.length) { o.detidaV = resto; o.cantAttackNext = { by: resto[0].by }; } // V-24 · a detenção de outro jogador continua: a proibição de atacar também
+    else { delete o.detidaV; if (o.cantAttackNext && o.cantAttackNext.by === a) delete o.cantAttackNext; }
+  }
+}
 Object.assign(EXPORTS_V, { ehDetida, deter, acaoDeDetidaV });
 /* V-20 · 502.3 e 701.43. "Doesn't untap during its controller's next untap step": a permanente fica presa até o próximo passo de
    desvirar de quem a controlar nessa hora — a marca é gasta nesse passo. Exaurir (701.43a): quem exaure escolhe que ela não desvire no
@@ -21294,7 +21302,7 @@ function exaurirAoAtacarV(s, p, list, events) {
   continuaVerbo(s, events);
 }
 function passoExaurirPergunta(s, passo, events) {
-  const o = s.objects[passo.oid]; if (!o || o.zone !== 'battlefield' || (o.zc || 0) !== passo.z || !o.attacking) return;
+  const o = s.objects[passo.oid]; if (!o || o.zone !== 'battlefield' || (o.zc || 0) !== passo.z || o.attacking == null) return; // V-24 · o.attacking é o índice de quem defende: 0 também é atacar
   s.pending = { kind: 'may_pay', p: passo.p, cost: null, name: `${o.name}: exaurir ao atacar (não desvira no seu próximo passo de desvirar)`,
     then: { effects: [{ do: 'exert_sim', oid: o.oid, z: passo.z, p: passo.p }], source: o.oid, name: o.name, controller: passo.p, targets: [] } };
   events.push({ kind: 'choice', what: 'exaurir', name: o.name, amount: 1 });

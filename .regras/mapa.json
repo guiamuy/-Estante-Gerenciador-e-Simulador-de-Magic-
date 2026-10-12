@@ -6172,11 +6172,13 @@
    "titulo": "Detain",
    "status": "coberta",
    "cartas": "rara",
-   "evidencia": "V-21 · efeito `detain` (deter, ehDetida, acaoDeDetidaV, barraDetidaV e soltaDetidasV em core.js, abaixo da âncora ↓ V): até o próximo turno de quem controla a mágica ou habilidade, a permanente não ataca (cantAttackNext), não bloqueia (eligibleBlockers) e as habilidades ativadas dela — inclusive as de mana — não são oferecidas, não entram no pagamento automático (productions) e são recusadas no apply (a); a marca leva a encarnação, segue a permanente se o controle mudar e acaba no começo do turno de quem deteve; habilidades disparadas e estáticas continuam. Cartas: Inaction Injunction; Azorius Arrester provada no teste (.listas/oficiais-verbos.json). A mesa ainda não marca a carta detida (o registro diz).",
+   "evidencia": "V-21 · efeito `detain` (deter, ehDetida, acaoDeDetidaV, barraDetidaV e soltaDetidasV em core.js, abaixo da âncora ↓ V): até o próximo turno de quem controla a mágica ou habilidade, a permanente não ataca (cantAttackNext), não bloqueia (eligibleBlockers) e as habilidades ativadas dela — inclusive as de mana — não são oferecidas, não entram no pagamento automático (productions) e são recusadas no apply (a); a marca leva a encarnação, segue a permanente se o controle mudar e acaba no começo do turno de quem deteve; habilidades disparadas e estáticas continuam. Cartas: Inaction Injunction; Azorius Arrester provada no teste (.listas/oficiais-verbos.json). A mesa ainda não marca a carta detida (o registro diz). · V-24 (auditoria independente): cada detenção é uma marca própria — a de um jogador acabar não solta a de outro; tripular um Veículo detido é recusado.",
    "testes": [
     "CR 701.35 · deter (a): as habilidades ativadas da detida não são oferecidas nem aceitas — as de mana também; as outras permanentes seguem normais",
     "CR 701.35 · deter (a): a detida não ataca nem bloqueia até o próximo turno de quem deteve; nesse turno volta tudo — e as habilidades disparadas nunca pararam",
-    "CR 701.35 · deter: a marca segue a permanente se o controle mudar e acaba ao sair do campo (de volta, é objeto novo)"
+    "CR 701.35 · deter: a marca segue a permanente se o controle mudar e acaba ao sair do campo (de volta, é objeto novo)",
+    "V-24 · auditoria D2 (701.35a): duas detenções na mesma permanente são independentes — a de um jogador acabar não solta a do outro",
+    "V-24 · auditoria D3 (701.35a): tripular é habilidade ativada do Veículo — forçada num Veículo detido, é recusada"
    ]
   },
   {
@@ -6297,12 +6299,13 @@
     "502.3"
    ],
    "cartas": "uma coleção só (Amonkhet)",
-   "evidencia": "V-20 e V-23 · efeito `exert` e gatilho `exerted` (exaurir, prendeNoDesvirarV, presasNoDesvirarV, exaurirAoAtacarV em core.js, abaixo da âncora ↓ V; uma linha em enterStep e uma em HANDLERS.attack): a marca guarda quem exauriu e, no passo de desvirar desse jogador, vira o \"não desvira no próximo passo\" comum do motor (M-314) — a exaurida não desvira no próximo passo de desvirar de quem a exauriu (a); pode ser exaurida desvirada e mais de uma vez, e todas as marcas acabam no mesmo passo (b); fora do campo não se exaure (c); \"You may exert ~ as it attacks\" (`self.exaurirAoAtacar`) pergunta ao declarar o ataque, antes de qualquer prioridade, e \"when you do\" é gatilho na pilha (d). Cartas: Hooded Brawler provada no teste; Crippling Chill usa o `nao_desvira` do motor (.listas/oficiais-verbos.json)",
+   "evidencia": "V-20 e V-23 · efeito `exert` e gatilho `exerted` (exaurir, prendeNoDesvirarV, presasNoDesvirarV, exaurirAoAtacarV em core.js, abaixo da âncora ↓ V; uma linha em enterStep e uma em HANDLERS.attack): a marca guarda quem exauriu e, no passo de desvirar desse jogador, vira o \"não desvira no próximo passo\" comum do motor (M-314) — a exaurida não desvira no próximo passo de desvirar de quem a exauriu (a); pode ser exaurida desvirada e mais de uma vez, e todas as marcas acabam no mesmo passo (b); fora do campo não se exaure (c); \"You may exert ~ as it attacks\" (`self.exaurirAoAtacar`) pergunta ao declarar o ataque, antes de qualquer prioridade, e \"when you do\" é gatilho na pilha (d). Cartas: Hooded Brawler provada no teste; Crippling Chill usa o `nao_desvira` do motor (.listas/oficiais-verbos.json) · V-24 (auditoria independente): a pergunta de exaurir ao atacar vale para os dois jogadores.",
    "testes": [
     "CR 701.43 · exaurir (a, b, c): não desvira no próximo passo de desvirar de QUEM EXAURIU; pode exaurir desvirada e duas vezes — tudo acaba no mesmo passo; fora do campo não se exaure",
     "CR 701.43 · exaurir (a): se a exaurida está com outro jogador, ela desvira no passo dele — a marca era do passo de quem exauriu",
     "CR 701.43 · \"You may exert ~ as it attacks. When you do…\" (d): a pergunta vem ao declarar o ataque, antes da prioridade; \"sim\" exaure e põe o gatilho na pilha; \"não\" não faz nada",
-    "CR 701.43 · exaurir e 122.1d: a exaurida com marcador de atordoamento não desvira e não gasta o marcador no passo em que já não desviraria"
+    "CR 701.43 · exaurir e 122.1d: a exaurida com marcador de atordoamento não desvira e não gasta o marcador no passo em que já não desviraria",
+    "V-24 · auditoria D1 (701.43d, 508.1g): a pergunta de exaurir ao atacar vale para os dois jogadores — também quando quem defende é o primeiro jogador"
    ]
   },
   {
