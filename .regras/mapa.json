@@ -6698,7 +6698,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Double Strike",
    "status": "coberta",
-   "evidencia": "dealCombatDamage (index.html:10773-10776) faz duas passadas e o golpe duplo causa dano nas duas (marca struck); combat.audit K7; sondas sonda-702a.mjs: 2/2 livre tira 4, golpe duplo+atropelar 3/3 x 2/2 tira 4, golpe duplo+vínculo ganha 4 · M-286 (CR2g.3): golpe duplo causa dano nos dois passos, com prioridade entre eles (702.4b) K-20: ganhar ou perder a palavra-chave entre os dois passos (702.4c-d, 702.7c) já sai certo do caminho da CR2g.3 (causaNestePasso: no segundo passo causa quem tem golpe duplo agora ou quem ainda não causou, marca struck) — provado por teste com a mudança feita na janela de prioridade entre os passos; a falta antiga estava desatualizada.",
+   "evidencia": "dealCombatDamage (index.html:10773-10776) faz duas passadas e o golpe duplo causa dano nas duas (marca struck); combat.audit K7; sondas sonda-702a.mjs: 2/2 livre tira 4, golpe duplo+atropelar 3/3 x 2/2 tira 4, golpe duplo+vínculo ganha 4 · M-286 (CR2g.3): golpe duplo causa dano nos dois passos, com prioridade entre eles (702.4b) K-20: ganhar ou perder a palavra-chave entre os dois passos (702.4c-d, 702.7c) já sai certo do caminho da CR2g.3 (causaNestePasso: no segundo passo causa quem tem golpe duplo agora ou quem ainda não causou, marca struck) — provado por teste com a mudança feita na janela de prioridade entre os passos; a falta antiga estava desatualizada. · K-24 (auditoria): a marca de quem já golpeou vem do começo do 1º passo (iniciativaNoComecoK, Toca ponto comum: dealCombatDamage), não do dano causado — a criatura com iniciativa e poder 0 no 1º passo não causa dano no 2º (510.4)",
    "esforco": "M",
    "depende": [
     "510.4"
@@ -6708,7 +6708,8 @@
     "CR2g.3 · 510.4: golpe duplo — o primeiro dano sai, o gatilho dele vai para a pilha e há prioridade antes do segundo dano",
     "CR2g.3 · sem iniciativa nem golpe duplo, há um passo de dano só (o combate de sempre)",
     "CR2g.3 · a prévia do combate continua mostrando os dois passos de dano",
-    "CR 702.4c-d · perder o golpe duplo no primeiro passo tira o segundo dano; ganhar golpe duplo (com iniciativa) depois do primeiro dá o segundo"
+    "CR 702.4c-d · perder o golpe duplo no primeiro passo tira o segundo dano; ganhar golpe duplo (com iniciativa) depois do primeiro dá o segundo",
+    "CR 702.7b / 510.4 · auditoria K-24: quem tinha iniciativa quando o 1º passo começou não causa dano no 2º, mesmo com poder 0 no 1º e +3 entre os passos"
    ]
   },
   {
@@ -6742,7 +6743,7 @@
    "regra": "Keyword Abilities",
    "titulo": "First Strike",
    "status": "coberta",
-   "evidencia": "dealCombatDamage (index.html:10773-10776): quem tem iniciativa ou golpe duplo causa dano antes, SBA entre as passadas (10815); combat.audit K7, rules.unit M6; sondas sonda-702a.mjs: 2/2 iniciativa mata 2/2 sem levar dano; iniciativa x iniciativa trocam · M-286 (CR2g.3): janela de prioridade entre o dano de iniciativa e o normal (702.7b) K-20: ganhar ou perder a palavra-chave entre os dois passos (702.4c-d, 702.7c) já sai certo do caminho da CR2g.3 (causaNestePasso: no segundo passo causa quem tem golpe duplo agora ou quem ainda não causou, marca struck) — provado por teste com a mudança feita na janela de prioridade entre os passos; a falta antiga estava desatualizada.",
+   "evidencia": "dealCombatDamage (index.html:10773-10776): quem tem iniciativa ou golpe duplo causa dano antes, SBA entre as passadas (10815); combat.audit K7, rules.unit M6; sondas sonda-702a.mjs: 2/2 iniciativa mata 2/2 sem levar dano; iniciativa x iniciativa trocam · M-286 (CR2g.3): janela de prioridade entre o dano de iniciativa e o normal (702.7b) K-20: ganhar ou perder a palavra-chave entre os dois passos (702.4c-d, 702.7c) já sai certo do caminho da CR2g.3 (causaNestePasso: no segundo passo causa quem tem golpe duplo agora ou quem ainda não causou, marca struck) — provado por teste com a mudança feita na janela de prioridade entre os passos; a falta antiga estava desatualizada. · K-24 (auditoria): 702.7b — quem tinha iniciativa quando o 1º passo começou não causa dano no 2º, mesmo sem ter causado dano no 1º (poder 0); antes a marca vinha do dano causado",
    "esforco": "M",
    "depende": [
     "510.4"
@@ -6752,7 +6753,8 @@
     "CR2g.3 · 510.4: golpe duplo — o primeiro dano sai, o gatilho dele vai para a pilha e há prioridade antes do segundo dano",
     "CR2g.3 · sem iniciativa nem golpe duplo, há um passo de dano só (o combate de sempre)",
     "CR2g.3 · a prévia do combate continua mostrando os dois passos de dano",
-    "CR 702.7c · ganhar iniciativa depois do primeiro passo não impede o dano no segundo; perder depois de causar não dá um segundo dano"
+    "CR 702.7c · ganhar iniciativa depois do primeiro passo não impede o dano no segundo; perder depois de causar não dá um segundo dano",
+    "CR 702.7b / 510.4 · auditoria K-24: quem tinha iniciativa quando o 1º passo começou não causa dano no 2º, mesmo com poder 0 no 1º e +3 entre os passos"
    ]
   },
   {
@@ -6859,7 +6861,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Protection",
    "status": "parcial",
-   "evidencia": "Só proteção contra COR vinda de aura/equipamento (grants.protection) ou efeito temporário (tempProtection): protections/protectedFrom (index.html:10423-10429) valem em alvo (10916), bloqueio (10766), dano de combate (10803) e fora dele (11122), e derrubam anexos (protecaoDerruba 10432, SBA 12114) com as exceções de 702.16n/p; protecao.regras.test.mjs, pauper.regras Leva 108 (Benevolent Blessing), R11 Flickering Ward · CR1b (motor v74): proteção IMPRESSA contra cor é lida da linha de palavra-chave do texto (protecaoImpressa em cardFacts → protImpressa), vale em alvo, bloqueio, dano e anexos, e some com a carta virada para baixo; teste de conformidade em cr.conformidade K-17: qualidades que não são cor lidas da linha impressa (protecaoQualidadesK em cardFacts.protK: tipo de carta, subtipo, multicolorida, monocolorida, incolor, todas as cores, tudo) e conferidas por casaProtecaoK nos três pontos que conferiam só a cor — alvo e dano (protectedFrom), bloqueio, anexos (protecaoDerruba); a linha conta como palavra-chave na cobertura só com as qualidades que o motor confere. Carta exemplo: Beloved Chaplain (Oracle do Forge, 11/10/2026).",
+   "evidencia": "Só proteção contra COR vinda de aura/equipamento (grants.protection) ou efeito temporário (tempProtection): protections/protectedFrom (index.html:10423-10429) valem em alvo (10916), bloqueio (10766), dano de combate (10803) e fora dele (11122), e derrubam anexos (protecaoDerruba 10432, SBA 12114) com as exceções de 702.16n/p; protecao.regras.test.mjs, pauper.regras Leva 108 (Benevolent Blessing), R11 Flickering Ward · CR1b (motor v74): proteção IMPRESSA contra cor é lida da linha de palavra-chave do texto (protecaoImpressa em cardFacts → protImpressa), vale em alvo, bloqueio, dano e anexos, e some com a carta virada para baixo; teste de conformidade em cr.conformidade K-17: qualidades que não são cor lidas da linha impressa (protecaoQualidadesK em cardFacts.protK: tipo de carta, subtipo, multicolorida, monocolorida, incolor, todas as cores, tudo) e conferidas por casaProtecaoK nos três pontos que conferiam só a cor — alvo e dano (protectedFrom), bloqueio, anexos (protecaoDerruba); a linha conta como palavra-chave na cobertura só com as qualidades que o motor confere. Carta exemplo: Beloved Chaplain (Oracle do Forge, 11/10/2026). · K-24 (auditoria): \"from tokens\" (ficha), \"from Auras/Equipment/Vehicles/Curses/Fortifications\" (subtipo) conferidos; a cobertura conta a linha só com qualidade conhecida (cores, tipos de carta, essas palavras e os tipos de criatura de 205.3m no plural — a lista mora em scripts.js e o motor lê a mesma); antes qualquer plural contava",
    "falta": "Proteção de jogador (702.16b-e, \"you have protection from …\") e contra jogador (702.16j \"from [a player]\", \"from each of your opponents\") não existem; proteção concedida por efeito (Aura, \"gains protection\") continua só de cor; proteção impressa na face de trás de carta dupla.",
    "esforco": "M",
    "depende": [
@@ -6871,7 +6873,8 @@
     "CR 702.16a/f · proteção contra criaturas (Beloved Chaplain, texto oficial): não é bloqueada por criatura; mágica que não é criatura mira normalmente",
     "CR 702.16 · proteção contra subtipo, multicolorido e tudo: bloqueio e alvo conferem a qualidade",
     "CR 702.16a · a linha \"Protection from <qualidade>\" conta como palavra-chave na cobertura só quando o motor confere a qualidade",
-    "K-17 · proteção contra criaturas (702.16): bloqueia o Urso e não leva dano dele"
+    "K-17 · proteção contra criaturas (702.16): bloqueia o Urso e não leva dano dele",
+    "CR 702.16a · auditoria K-24: proteção contra fichas, Auras, Equipamentos e Veículos é lida e conferida; plural que o motor não entende não conta como coberto"
    ]
   },
   {
@@ -6897,7 +6900,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Trample",
    "status": "parcial",
-   "evidencia": "dealCombatDamage (index.html:10784-10792): letal a cada bloqueador (descontando dano já marcado; 1 com toque mortífero) e o resto ao jogador; bloqueador que saiu = tudo ao jogador (702.19d); combat.audit K2; sondas sonda-702a.mjs: 5/5 x 2/2 passa 3, x 3/3 já ferido passa 4, x dois bloqueadores passa 2, atropelar+toque passa 4 · M-285 (CR2g.2): com atropelar, o jogador só recebe o que passa do letal de todos os bloqueadores, na divisão escolhida por quem ataca K-19: opcoesDeDivisao chama opcoesAtropelarUmK com um bloqueador só: com atropelar e excedente, a pendência dividir_dano (a mesma da CR2g.2, com botão na mesa e resposta do goldfish e do bot) oferece o letal no bloqueador e o resto no jogador (a de antes) ou tudo no bloqueador.",
+   "evidencia": "dealCombatDamage (index.html:10784-10792): letal a cada bloqueador (descontando dano já marcado; 1 com toque mortífero) e o resto ao jogador; bloqueador que saiu = tudo ao jogador (702.19d); combat.audit K2; sondas sonda-702a.mjs: 5/5 x 2/2 passa 3, x 3/3 já ferido passa 4, x dois bloqueadores passa 2, atropelar+toque passa 4 · M-285 (CR2g.2): com atropelar, o jogador só recebe o que passa do letal de todos os bloqueadores, na divisão escolhida por quem ataca K-19: opcoesDeDivisao chama opcoesAtropelarUmK com um bloqueador só: com atropelar e excedente, a pendência dividir_dano (a mesma da CR2g.2, com botão na mesa e resposta do goldfish e do bot) oferece o letal no bloqueador e o resto no jogador (a de antes) ou tudo no bloqueador. · K-24 (auditoria): a opção do excedente diz para onde vai (jogador, planeswalker ou batalha)",
    "falta": "Com um bloqueador só, a mesa oferece as duas pontas (letal no bloqueador e o resto no jogador, ou tudo no bloqueador), não as divisões do meio (a mesma simplificação da CR2g.2); o letal não desconta o dano que outra atacante atribui ao mesmo bloqueador no mesmo passo; atropelar sobre planeswalkers (702.19c-e) não existe.",
    "esforco": "M",
    "depende": [
@@ -6908,7 +6911,8 @@
    "testes": [
     "CR2g.2 · 702.19b: com atropelar, o jogador só recebe o que passa do letal de todos os bloqueadores",
     "CR 702.19b · atropelar bloqueado por uma criatura: quem ataca escolhe entre o letal no bloqueador (e o resto no jogador) e tudo no bloqueador",
-    "CR 702.19b · sem excedente (o atacante não passa do letal) ou sem atropelar, um bloqueador não abre pergunta"
+    "CR 702.19b · sem excedente (o atacante não passa do letal) ou sem atropelar, um bloqueador não abre pergunta",
+    "CR 702.19b · auditoria K-24: atacando um planeswalker, a opção do excedente diz \"no planeswalker\", não \"no jogador\""
    ]
   },
   {
@@ -7049,7 +7053,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Cycling",
    "status": "parcial",
-   "evidencia": "K-16: HANDLERS.cycle paga o custo (mana e o descarte, com insanidade) e chama cicloK, que põe na pilha a habilidade \"compre uma carta\" (ou, no tipociclar, a busca de uma carta do tipo, revelada, para a mão, e embaralha: cycling.busca = { types, subtypes, basic }) — pode ser respondida (702.29a, e, f); \"When you cycle this card\" (gatilho novo 'cycled') dispara da zona onde a carta foi parar (702.29c). Cartas exemplo: Renewed Faith (script novo na biblioteca), Ash Barrens (Oracle do Forge, 11/10/2026).",
+   "evidencia": "K-16: HANDLERS.cycle paga o custo (mana e o descarte, com insanidade) e chama cicloK, que põe na pilha a habilidade \"compre uma carta\" (ou, no tipociclar, a busca de uma carta do tipo, revelada, para a mão, e embaralha: cycling.busca = { types, subtypes, basic }) — pode ser respondida (702.29a, e, f); \"When you cycle this card\" (gatilho novo 'cycled') dispara da zona onde a carta foi parar (702.29c). Cartas exemplo: Renewed Faith (script novo na biblioteca), Ash Barrens (Oracle do Forge, 11/10/2026). · K-24 (auditoria): ciclar com insanidade avisa o descarte (702.29d), como o descarte comum; antes o gatilho \"sempre que você descarta\" não via",
    "falta": "702.29d: gatilho de observador \"sempre que você cicla outra carta\" não existe (\"cicla ou descarta\" já vê um descarte só, pelo caminho do descarte). 702.29b: a habilidade de ciclar não conta como habilidade ativada fora da mão para efeitos que perguntam isso. O leitor de texto (trilha motor) ainda não lê \"<Tipo>cycling {custo}\" — a forma no script existe (cycling.busca).",
    "esforco": "M",
    "depende": [
@@ -7059,7 +7063,8 @@
    "testes": [
     "CR 702.29a · ciclar é habilidade ativada: o descarte é custo e a compra vai para a pilha (o oponente pode responder antes)",
     "CR 702.29c · \"When you cycle Renewed Faith, you may gain 2 life\" (texto oficial) dispara do cemitério; recusando, nada",
-    "CR 702.29e · tipociclar (Ash Barrens, texto oficial: \"Basic landcycling {1}\"): procura um terreno básico, põe na mão e embaralha; terreno não básico não serve"
+    "CR 702.29e · tipociclar (Ash Barrens, texto oficial: \"Basic landcycling {1}\"): procura um terreno básico, põe na mão e embaralha; terreno não básico não serve",
+    "CR 702.29d / 702.35a · auditoria K-24: ciclar uma carta com insanidade é descartar — \"sempre que você descarta\" dispara uma vez"
    ]
   },
   {
@@ -7506,7 +7511,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Suspend",
    "status": "parcial",
-   "falta": "702.62c: efeitos que proíbem conjurar a carta não são conferidos antes de suspender; a mesa ainda não desenha o botão da ação suspender_k (pedido à mesa) — o bot e o goldfish a veem.",
+   "falta": "702.62c: efeitos que proíbem conjurar a carta não são conferidos antes de suspender; a ação suspender_k existe no motor (apply e ofertasSuspenderK), mas sai do legalActions até a mesa desenhar o botão (pedido à trilha mesa): hoje nem a mesa, nem o bot, nem o goldfish suspendem da mão.",
    "esforco": "P",
    "depende": [
     "116.2",
@@ -7515,12 +7520,13 @@
     "702.63"
    ],
    "cartas": "comum em poucas coleções (Time Spiral, Modern Horizons)",
-   "evidencia": "M-269 (v97): carta exilada com marcadores de tempo e suspender (Delay: counter com suspende); na manutenção do dono, um gatilho na pilha tira um marcador; tirado o último, outro gatilho oferece conjurar sem pagar (recusar deixa exilada, sem permissão); criatura conjurada assim tem ímpeto enquanto o dono a controlar. suspender.unit. K-22: ação especial suspender_k (702.62a): da mão, quando a carta poderia ser conjurada (com a prioridade; feitiço só no tempo de feitiço), paga o custo de suspender e exila com N marcadores de tempo, sem usar a pilha; a marca `suspensa` liga as outras duas habilidades que já existiam (M-269). suspenderImpressoK lê \"Suspend N—{custo}\" (cardFacts.suspenderK). Carta exemplo: Rift Bolt (script novo na biblioteca; Oracle do Forge, 11/10/2026).",
+   "evidencia": "M-269 (v97): carta exilada com marcadores de tempo e suspender (Delay: counter com suspende); na manutenção do dono, um gatilho na pilha tira um marcador; tirado o último, outro gatilho oferece conjurar sem pagar (recusar deixa exilada, sem permissão); criatura conjurada assim tem ímpeto enquanto o dono a controlar. suspender.unit. K-22: ação especial suspender_k (702.62a): da mão, quando a carta poderia ser conjurada (com a prioridade; feitiço só no tempo de feitiço), paga o custo de suspender e exila com N marcadores de tempo, sem usar a pilha; a marca `suspensa` liga as outras duas habilidades que já existiam (M-269). suspenderImpressoK lê \"Suspend N—{custo}\" (cardFacts.suspenderK). Carta exemplo: Rift Bolt (script novo na biblioteca; Oracle do Forge, 11/10/2026). · K-24 (auditoria): com fração de segundo na pilha não suspende (702.61a); a oferta (ofertasSuspenderK) e o apply concordam",
    "testes": [
     "M-269 · suspender: um marcador por manutenção do dono (gatilho na pilha); no último, o dono conjura sem pagar e a criatura tem ímpeto",
     "CR 702.62a · suspender (Rift Bolt, texto oficial): da mão, pagando {R}, exila com 1 marcador sem usar a pilha; na manutenção seguinte sai o marcador e você conjura sem pagar",
     "CR 702.62a · suspender só quando a carta poderia ser conjurada: feitiço não suspende no turno do oponente nem com a pilha ocupada",
-    "K-22 · suspender (702.62): a criatura suspensa volta no turno seguinte com ímpeto e ataca"
+    "K-22 · suspender (702.62): a criatura suspensa volta no turno seguinte com ímpeto e ataca",
+    "CR 702.62a / 702.61a · auditoria K-24: com fração de segundo na pilha não se conjura, então não se suspende — e a oferta concorda com o apply"
    ]
   },
   {

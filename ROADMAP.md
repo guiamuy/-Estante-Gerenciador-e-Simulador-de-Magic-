@@ -4123,6 +4123,14 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Testes:** `keywords.cr4.unit` (2; o da megamorfose falha sem a leva, o da cor confere o que já valia). Texto oficial: Aerie Bowmasters (Oracle do Forge, 11/10/2026). Goldens idênticos; motor v109.
 - **Parcial declarado (702.37):** custo com X (702.37f); o leitor (trilha `motor`) ainda não lê "Megamorph {custo}" — **pedido**.
 
+**K-24 · Auditoria independente da onda 2 (K-16 a K-23): cinco correções** 🟡 (leva K-24)
+- **Valor:** o que a auditoria (subagente sem o raciocínio da implementação, 12 sondas executáveis) achou deixa de acontecer na partida: a criatura com iniciativa e poder 0 que ganha poder entre os passos não causa dano no 2º passo; ciclar com insanidade dispara "sempre que você descarta"; suspender não aparece com fração de segundo na pilha; "Protection from tokens/Auras/Vehicles" vale de verdade (antes a cobertura dizia completo e nada era conferido); a opção do atropelar diz "no planeswalker" quando é ele o atacado.
+- **Aceite:** um teste por achado em `keywords.cr4.unit` (os cinco falham sem a leva); 702.4, 702.7, 702.16, 702.19, 702.29 e 702.62 com a evidência no mapa.
+- **Toca ponto comum:** `dealCombatDamage` (uma linha: `iniciativaNoComecoK` no começo do 1º passo marca quem tem iniciativa ou golpe duplo). A lista de tipos de criatura (205.3m) passou de core.js para scripts.js (`tiposDeCriaturaSCK`), para a cobertura da proteção usar a mesma que o motor; core.js lê de lá (`TIPOS_DE_CRIATURA_K`).
+- **Suspender saiu do legalActions:** o guarda-corpo `tela.acoes` (toda ação oferecida tem botão) barrou a K-22, porque a mesa (`src/app/table.js`, fora desta trilha) não desenha `suspender_k`. A oferta mora em `ofertasSuspenderK` até a mesa ter o botão — **pedido à trilha mesa** (ou toque autorizado pelo dono, como na V-17). Até lá, ninguém suspende da mão (a carta conjura normal); 702.62 continua parcial.
+- **Testes:** `keywords.cr4.unit` (5 novos; 2 da K-22 ajustados para ler `ofertasSuspenderK`, com a justificativa no teste). Goldens idênticos; motor v109.
+- **Fora (riscos anotados pela auditoria):** 702.62b — carta exilada com marcador de tempo sem a marca de suspensa não perde marcador (nenhum caminho do motor cria esse estado hoje); criatura virada para baixo com habilidade concedida por Aura (708.2) — `abilitiesOf` devolve vazio, da trilha `motor`.
+
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

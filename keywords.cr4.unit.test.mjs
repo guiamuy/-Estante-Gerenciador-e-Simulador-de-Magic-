@@ -1016,7 +1016,8 @@ test('CR 702.62a · suspender (Rift Bolt, texto oficial): da mão, pagando {R}, 
   assert.deepEqual(J(E.suspenderImpressoK(oficial('Rift Bolt'))), { n: 1, mana: '{R}' });
   let s = partida({ 'Rift Bolt': oficial('Rift Bolt') }); const a = s.turn.active, d = 1 - a;
   let r; [s, r] = poe(s, a, 'Rift Bolt', 'hand');
-  const of = E.legalActions(s, a).find(x => x.t === 'suspender_k' && x.oid === r); assert.ok(of, 'a mesa oferece suspender');
+  // K-24 · a oferta saiu do legalActions até a mesa ter o botão (tela.acoes: toda ação oferecida tem botão); o motor a calcula em ofertasSuspenderK
+  const of = E.ofertasSuspenderK(s, a).find(x => x.oid === r); assert.ok(of, 'o motor oferece suspender');
   s = act(s, of);
   assert.equal(s.objects[r].zone, 'exile'); assert.equal(s.objects[r].counters.time, 1); assert.equal(s.stack.length, 0, 'não usa a pilha');
   for (let i = 0; i < 200 && !(s.pending && s.pending.kind === 'free_cast'); i++) s = s.pending ? act(s, E.legalActions(s, s.pending.p).find(x => x.t !== 'concede') || E.legalActions(s, s.pending.p)[0]) : act(s, { t: 'pass', p: s.turn.priority });
@@ -1030,7 +1031,7 @@ test('CR 702.62a · suspender só quando a carta poderia ser conjurada: feitiço
   let s = partida({ 'Rift Bolt': oficial('Rift Bolt'), Raio: RAIO }, SC_RAIO); const a = s.turn.active, d = 1 - a;
   let r, ra; [s, r] = poe(s, a, 'Rift Bolt', 'hand'); [s, ra] = poe(s, a, 'Raio', 'hand');
   s = act(s, { t: 'cast', p: a, oid: ra, targets: [{ player: d }] });
-  assert.ok(!E.legalActions(s, a).some(x => x.t === 'suspender_k'), 'com o Raio na pilha, não');
+  assert.ok(!E.ofertasSuspenderK(s, a).length, 'com o Raio na pilha, não'); // K-24 · ver acima
   assert.throws(() => act(s, { t: 'suspender_k', p: a, oid: r }), /só quando/);
   assert.equal(S.coverage(oficial('Rift Bolt')).level, 'completo', 'Rift Bolt tem script; a linha do suspender conta como palavra-chave');
 });
@@ -1064,4 +1065,67 @@ test('CR 702.37a / 708.2 · virada para baixo é incolor: a proteção contra ve
   s = act(s, { t: 'block', p: d, blocks: [[pv, b]] });
   for (let i = 0; i < 12 && s.turn.step !== 'main2'; i++) s = s.pending ? act(s, E.legalActions(s, s.pending.p)[0]) : act(s, { t: 'pass', p: s.turn.priority });
   assert.equal(s.objects[pv].zone, 'graveyard', 'os 2 de dano da 2/2 incolor não foram prevenidos');
+});
+
+/* ---------------- K-24 · correções da auditoria independente da onda 2 (K-16 a K-23) ---------------- */
+test('CR 702.7b / 510.4 · auditoria K-24: quem tinha iniciativa quando o 1º passo começou não causa dano no 2º, mesmo com poder 0 no 1º e +3 entre os passos', () => {
+  const ZERO = { name: 'Zero', type_line: 'Creature — Bear', mana_cost: '{G}', cmc: 1, colors: ['G'], power: '0', toughness: '1', keywords: ['First strike'], oracle_text: 'First strike' };
+  let s = partida({ Normal: NORMAL, Zero: ZERO }); const a = s.turn.active, d = 1 - a;
+  let n, z; [s, n] = poe(s, a, 'Normal'); [s, z] = poe(s, a, 'Zero');
+  const v = s.players[d].life;
+  const t = entrePassos(s, [n, z], st => { st.objects[z].counters.p1p1 = 3; });
+  assert.equal(t.players[d].life, v - 2, 'só os 2 do Normal: a Zero tinha iniciativa no começo do 1º passo');
+});
+
+test('CR 702.29d / 702.35a · auditoria K-24: ciclar uma carta com insanidade é descartar — "sempre que você descarta" dispara uma vez', () => {
+  const LOUCA = { name: 'Louca', type_line: 'Instant', mana_cost: '{1}{R}', cmc: 2, colors: ['R'], keywords: ['Cycling', 'Madness'], oracle_text: 'Louca deals 1 damage to any target.\nMadness {R}\nCycling {0}' };
+  const OLHO = { name: 'Olho', type_line: 'Creature — Bear', mana_cost: '{1}{G}', cmc: 2, colors: ['G'], power: '2', toughness: '2', keywords: [], oracle_text: 'Whenever you discard a card, you gain 1 life.' };
+  const SC = { Louca: { name: 'Louca', effects: [{ do: 'damage', amount: 1, target: 'any' }], madness: { mana: '{R}' }, cycling: { mana: '{0}' }, example: { target: 'opponent', expect: { opponentLife: -1 } } },
+    Olho: { name: 'Olho', abilities: [{ kind: 'triggered', when: 'you-discard', effects: [{ do: 'gain', amount: 1 }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } } };
+  let s = partida({ Louca: LOUCA, Olho: OLHO }, SC); const a = s.turn.active;
+  let l; [s, l] = poe(s, a, 'Louca', 'hand'); [s] = poe(s, a, 'Olho');
+  const vida = s.players[a].life;
+  s = act(s, { t: 'cycle', p: a, oid: l });
+  assert.equal(s.objects[l].zone, 'exile', 'insanidade: ao exílio');
+  s = resolveCom(s, (la, pk) => pk.kind === 'madness' ? la.find(x => x.t === 'decline_madness') : null);
+  assert.equal(s.players[a].life, vida + 1, 'o gatilho de descarte viu o descarte');
+});
+
+test('CR 702.62a / 702.61a · auditoria K-24: com fração de segundo na pilha não se conjura, então não se suspende — e a oferta concorda com o apply', () => {
+  const INST = { name: 'Inst', type_line: 'Instant', mana_cost: '{3}{U}', cmc: 4, colors: ['U'], keywords: ['Suspend'], oracle_text: 'Draw two cards.\nSuspend 2—{U}' };
+  const FRACAO = { name: 'Fracao', type_line: 'Instant', mana_cost: '{R}', cmc: 1, colors: ['R'], keywords: ['Split second'], oracle_text: 'Split second\nFracao deals 2 damage to any target.' };
+  const SC = { Inst: { name: 'Inst', effects: [{ do: 'draw', amount: 2 }], example: { target: 'none', expect: { handDelta: 2 } } },
+    Fracao: { name: 'Fracao', effects: [{ do: 'damage', amount: 2, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: -2 } } } };
+  let s = partida({ Inst: INST, Fracao: FRACAO }, SC); const a = s.turn.active, d = 1 - a;
+  let fr, i; [s, fr] = poe(s, a, 'Fracao', 'hand'); [s, i] = poe(s, d, 'Inst', 'hand');
+  const livre = act(s, { t: 'pass', p: a });
+  assert.ok(E.ofertasSuspenderK(livre, d).some(x => x.oid === i), 'sem a fração de segundo, a instantânea suspende no turno do oponente');
+  s = act(act(s, { t: 'cast', p: a, oid: fr, targets: [{ player: d }] }), { t: 'pass', p: a });
+  assert.equal(E.podeSuspenderAgoraK(s, d, s.facts.Inst), false);
+  assert.ok(!E.ofertasSuspenderK(s, d).some(x => x.oid === i), 'com a fração de segundo, nada a oferecer');
+  assert.throws(() => act(s, { t: 'suspender_k', p: d, oid: i }));
+});
+
+test('CR 702.16a · auditoria K-24: proteção contra fichas, Auras, Equipamentos e Veículos é lida e conferida; plural que o motor não entende não conta como coberto', () => {
+  const q = t => J(E.protecaoQualidadesK({ oracle_text: t }) || []);
+  assert.deepEqual(q('Protection from tokens'), ['ficha']); assert.deepEqual(q('Protection from Auras'), ['sub:aura']);
+  assert.deepEqual(q('Protection from Equipment'), ['sub:equipment']); assert.deepEqual(q('Protection from Vehicles'), ['sub:vehicle']);
+  const c = t => S.coverage({ name: 'Z', type_line: 'Creature — Human', oracle_text: t }).level;
+  for (const t of ['Protection from tokens', 'Protection from Auras', 'Protection from Vehicles', 'Protection from Elves', 'Protection from Wolves', 'Protection from Demons']) assert.equal(c(t), 'completo', t);
+  assert.equal(c('Protection from blorbs'), 'manual', 'palavra que não é qualidade conhecida');
+  const PF = { name: 'Paladino', type_line: 'Creature — Knight', mana_cost: '{W}', cmc: 1, colors: ['W'], power: '2', toughness: '2', keywords: ['Protection'], oracle_text: 'Protection from tokens' };
+  let s = partida({ Paladino: PF, Urso: URSO }); const a = s.turn.active, d = 1 - a;
+  let x, u; [s, x] = poe(s, a, 'Paladino'); [s, u] = poe(s, d, 'Urso');
+  assert.equal(podeBloquear(s, x, u), true, 'carta comum bloqueia');
+  s = J(s); s.objects[u].token = true;
+  assert.equal(podeBloquear(s, x, u), false, 'ficha não bloqueia');
+});
+
+test('CR 702.19b · auditoria K-24: atacando um planeswalker, a opção do excedente diz "no planeswalker", não "no jogador"', () => {
+  const ATR = { name: 'Atropela', type_line: 'Creature — Beast', mana_cost: '{3}{G}', cmc: 4, colors: ['G'], power: '4', toughness: '4', keywords: ['Trample'], oracle_text: 'Trample' };
+  let s = partida({ Atropela: ATR, Urso: URSO }); const a = s.turn.active, d = 1 - a;
+  let at, u, pw; [s, at] = poe(s, a, 'Atropela'); [s, u] = poe(s, d, 'Urso'); [s, pw] = poe(s, d, 'Forest');
+  assert.match(E.opcoesAtropelarUmK(s, s.objects[at], s.objects[u], 4)[0].rotulo, /2 no jogador/);
+  s = J(s); s.objects[at].atacandoPw = pw;
+  assert.match(E.opcoesAtropelarUmK(s, s.objects[at], s.objects[u], 4)[0].rotulo, /2 no planeswalker/);
 });

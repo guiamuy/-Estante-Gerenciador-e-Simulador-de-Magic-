@@ -7740,12 +7740,27 @@ Object.assign(EXPORTS_K_SC, { wardCustoErrosK });
 /** K-6 · palavras-chave de KEYWORDS que levam número na linha impressa ("Afterlife 2"): na cobertura, a linha conta como palavra-chave
     com o número. Declaração de função (vale antes da linha, no KW_LINE). */
 TRIGGER_PT.exploits = 'quando explora uma criatura'; // K-12 · 702.110b
+/** K-1 / K-24 · 205.3m · os tipos de criatura (minúsculos); core.js lê daqui (TIPOS_DE_CRIATURA_K). Declarações de função e `var`:
+    o KW_LINE, mais acima, monta a cobertura da proteção com eles quando o módulo carrega. */
+var tiposDeCriaturaCacheSCK;
+function tiposDeCriaturaSCK() { return tiposDeCriaturaCacheSCK || (tiposDeCriaturaCacheSCK = new Set(['Time Lord', 'Advisor', 'Aetherborn', 'Alien', 'Ally', 'Angel', 'Antelope', 'Ape', 'Archer', 'Archon', 'Armadillo', 'Army', 'Artificer', 'Assassin', 'Assembly-Worker', 'Astartes', 'Atog', 'Aurochs', 'Avatar', 'Azra', 'Badger', 'Balloon', 'Barbarian', 'Bard', 'Basilisk', 'Bat', 'Bear', 'Beast', 'Beaver', 'Beeble', 'Beholder', 'Berserker', 'Bird', 'Bison', 'Blinkmoth', 'Boar', 'Bringer', 'Brushwagg', 'Camarid', 'Camel', 'Capybara', 'Caribou', 'Carrier', 'Cat', 'Centaur', 'Child', 'Chimera', 'Citizen', 'Cleric', 'Clown', 'Cockatrice', 'Construct', 'Coward', 'Coyote', 'Crab', 'Crocodile', 'C\'tan', 'Custodes', 'Cyberman', 'Cyclops', 'Dalek', 'Dauthi', 'Demigod', 'Demon', 'Deserter', 'Detective', 'Devil', 'Dinosaur', 'Djinn', 'Doctor', 'Dog', 'Dragon', 'Drake', 'Dreadnought', 'Drix', 'Drone', 'Druid', 'Dryad', 'Dwarf', 'Echidna', 'Efreet', 'Egg', 'Elder', 'Eldrazi', 'Elemental', 'Elephant', 'Elf', 'Elk', 'Employee', 'Eternal', 'Eye', 'Faerie', 'Ferret', 'Fish', 'Flagbearer', 'Fox', 'Fractal', 'Frog', 'Fungus', 'Gamer', 'Gamma', 'Gargoyle', 'Germ', 'Giant', 'Giraffe', 'Gith', 'Glimmer', 'Gnoll', 'Gnome', 'Goat', 'Goblin', 'God', 'Golem', 'Gorgon', 'Graveborn', 'Gremlin', 'Griffin', 'Guest', 'Hag', 'Halfling', 'Hamster', 'Harpy', 'Hedgehog', 'Hellion', 'Hero', 'Hippo', 'Hippogriff', 'Homarid', 'Homunculus', 'Horror', 'Horse', 'Human', 'Hydra', 'Hyena', 'Illusion', 'Imp', 'Incarnation', 'Inhuman', 'Inkling', 'Inquisitor', 'Insect', 'Jackal', 'Jellyfish', 'Juggernaut', 'Kangaroo', 'Kavu', 'Kirin', 'Kithkin', 'Knight', 'Kobold', 'Kor', 'Kraken', 'Kree', 'Llama', 'Lamia', 'Lammasu', 'Leech', 'Lemur', 'Leviathan', 'Lhurgoyf', 'Licid', 'Lizard', 'Lobster', 'Manticore', 'Masticore', 'Mercenary', 'Merfolk', 'Metathran', 'Minion', 'Minotaur', 'Mite', 'Mole', 'Monger', 'Mongoose', 'Monk', 'Monkey', 'Moogle', 'Moonfolk', 'Mount', 'Mouse', 'Mutant', 'Myr', 'Mystic', 'Nautilus', 'Necron', 'Nephilim', 'Nightmare', 'Nightstalker', 'Ninja', 'Noble', 'Noggle', 'Nomad', 'Nymph', 'Octopus', 'Ogre', 'Ooze', 'Orb', 'Orc', 'Orgg', 'Otter', 'Ouphe', 'Ox', 'Oyster', 'Pangolin', 'Peasant', 'Pegasus', 'Pentavite', 'Performer', 'Pest', 'Phelddagrif', 'Phoenix', 'Phyrexian', 'Pilot', 'Pincher', 'Pirate', 'Plant', 'Platypus', 'Porcupine', 'Possum', 'Praetor', 'Primarch', 'Prism', 'Processor', 'Qu', 'Rabbit', 'Raccoon', 'Ranger', 'Rat', 'Rebel', 'Reflection', 'Rhino', 'Rigger', 'Robot', 'Rogue', 'Sable', 'Salamander', 'Samurai', 'Sand', 'Saproling', 'Satyr', 'Scarecrow', 'Scientist', 'Scion', 'Scorpion', 'Scout', 'Sculpture', 'Seal', 'Serf', 'Serpent', 'Servo', 'Shade', 'Shaman', 'Shapeshifter', 'Shark', 'Sheep', 'Shi\'ar', 'Siren', 'Skeleton', 'Skrull', 'Skunk', 'Slith', 'Sliver', 'Sloth', 'Slug', 'Snail', 'Snake', 'Soldier', 'Soltari', 'Sorcerer', 'Spawn', 'Specter', 'Spellshaper', 'Sphinx', 'Spider', 'Spike', 'Spirit', 'Splinter', 'Sponge', 'Spy', 'Squid', 'Squirrel', 'Starfish', 'Surrakar', 'Survivor', 'Symbiote', 'Synth', 'Tentacle', 'Tetravite', 'Thalakos', 'Thopter', 'Thrull', 'Tiefling', 'Toy', 'Treefolk', 'Trilobite', 'Triskelavite', 'Troll', 'Turtle', 'Tyranid', 'Unicorn', 'Utrom', 'Vampire', 'Varmint', 'Vedalken', 'Villain', 'Volver', 'Wall', 'Walrus', 'Warlock', 'Warrior', 'Weasel', 'Weird', 'Werewolf', 'Whale', 'Wizard', 'Wolf', 'Wolverine', 'Wombat', 'Worm', 'Wraith', 'Wurm', 'Yeti', 'Zombie', 'Zubera'].map(x => x.toLowerCase()))); } // 205.3m, edição de 25/09/2026
+/** K-24 · 702.16a · as qualidades de uma palavra que a proteção confere (protecaoQualidadesK, em core.js): fichas, os subtipos de
+    artefato e encantamento que se anexam ou tripulam, e os tipos de criatura no plural. A cobertura conta a linha só com estas. */
+function protecaoNaoCriaturaSCK() { return { tokens: 'ficha', auras: 'sub:aura', equipment: 'sub:equipment', vehicles: 'sub:vehicle', curses: 'sub:curse', fortifications: 'sub:fortification' }; }
+var pluraisDaProtecaoSCK;
+function pluraisDeCriaturaSCK() {
+  if (pluraisDaProtecaoSCK) return pluraisDaProtecaoSCK;
+  const formas = new Set();
+  for (const x of tiposDeCriaturaSCK()) for (const f of [x, x + 's', x + 'es', x.replace(/f$/, 'ves'), x.replace(/y$/, 'ies')]) formas.add(f);
+  return (pluraisDaProtecaoSCK = [...formas].sort((a, b) => b.length - a.length).map(f => f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'));
+}
+Object.assign(EXPORTS_K_SC, { TIPOS_DE_CRIATURA_SCK: tiposDeCriaturaSCK(), PROTECAO_NAO_CRIATURA_SCK: protecaoNaoCriaturaSCK() });
 TRIGGER_PT.cycled = 'quando você a cicla'; // K-16 · 702.29c
 function palavraNaLinhaK(k) {
   if (k === 'suspend') return 'suspend \\d+\\s*[—-]\\s*(?:\\{[0-9WUBRGC]+\\})+'; // K-22
   if (k === 'landwalk') return '(?:(?:non)?(?:basic|legendary|snow|artifact) )?(?:land|desert|island|swamp|forest|mountain|plains|gate|cave|lair|locus|sphere|urza\'s)walk'; // K-21
   if (k === 'hexproof') return 'hexproof(?: from (?:white|blue|black|red|green|everything|multicolored|monocolored|colorless|creatures|artifacts|enchantments|instants|sorceries|planeswalkers|lands)(?: and from (?:white|blue|black|red|green|multicolored|monocolored|colorless|creatures|artifacts|enchantments|instants|sorceries|planeswalkers|lands))*)?'; // K-18 · 702.11d
-  if (k === 'protection') { const q = '(?:white|blue|black|red|green|everything|multicolored|monocolored|colorless|all colors|creatures|artifacts|enchantments|instants|sorceries|planeswalkers|lands|(?!players\\b|opponents\\b)[a-z]+s)'; return `protection from ${q}(?: and from ${q})*`; } // K-17 · só as qualidades que o motor confere (protecaoImpressa e protecaoQualidadesK)
+  if (k === 'protection') { const q = '(?:white|blue|black|red|green|everything|multicolored|monocolored|colorless|all colors|creatures|artifacts|enchantments|instants|sorceries|planeswalkers|lands|' + Object.keys(protecaoNaoCriaturaSCK()).join('|') + '|' + pluraisDeCriaturaSCK() + ')'; return `protection from ${q}(?: and from ${q})*`; } // K-24 · sem palavra solta: só fichas, subtipos que se anexam e tipos de criatura // K-17 · só as qualidades que o motor confere (protecaoImpressa e protecaoQualidadesK)
   if (k === 'dash') return 'dash\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-9
   if (k === 'evoke') return 'evoke(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*exile an? (?:white|blue|black|red|green) card from your hand\\.?)'; // K-8 · só as formas que o motor paga
   return ['afterlife'].includes(k) ? `${k} \\d+` : k;
@@ -16839,6 +16854,7 @@ function dealCombatDamage(s) {
   for (const pass of anyFirst ? ['first', 'regular'] : ['regular']) {
     if ((c.passosFeitos || []).includes(pass)) continue; // CR2g.2 · retomada depois da escolha da divisão
     if (pedeDivisao(s, pass)) return; // CR2g.2 · 510.1c: quem ataca escolhe antes; o handler retoma daqui
+    if (pass === 'first') iniciativaNoComecoK(s, inCombat()); // K-24 · 702.7b / 510.4 (Toca ponto comum: dealCombatDamage)
     const deals = o => causaNestePasso(s, o, pass);
     const hits = []; // [fonte, alvoObjeto | null, alvoJogador | null, quantidade, planeswalker?]
     // M-228 · 510.1: o dano do atacante sem bloqueio vai para quem ele ataca — o jogador ou o planeswalker; planeswalker que saiu do campo não recebe nada (506.4)
@@ -20705,11 +20721,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
     return canPay(s, p, custo, castExtra(s, p, o, a.x || 0, a.targets || []));
   });
   /* ↓ K · ofertas de legalActions da trilha keywords (out.push) */
-  // K-22 · 702.62a · suspender da mão, quando a carta poderia ser conjurada (ação especial)
-  for (const oid of s.zones[p].hand) {
-    const f = s.facts[s.objects[oid].name], sp = f.suspenderK;
-    if (sp && podeSuspenderAgoraK(s, p, f) && (!s.manaCheck || canPay(s, p, parseCost(sp.mana)))) out.push({ t: 'suspender_k', p, oid });
-  }
+  // K-22 · 702.62a · suspender: a oferta mora em ofertasSuspenderK até a mesa ter o botão (K-24; pedido à trilha mesa)
   // K-13 · 702.51/702.126 · convocar e improvisar: a mesma conjuração, virando criaturas (artefatos) suas para pagar parte do custo total;
   // quais virar é escolha de quem paga (uma ação por grupo, do menor ao maior, até o limite de formas de pagar)
   const gruposDaChamadaK = new Map();
@@ -20906,7 +20918,7 @@ const EXPORTS_K = {}, EXPORTS_V = {}, EXPORTS_T = {}; // ↓ cada trilha preench
 /* ↓ K · exportações de core.js da trilha keywords */
 /* K-1 · 702.73 metamorfo e 702.114 desprovido: habilidades que definem característica (604.3a), lidas da palavra-chave impressa
    (Scryfall `keywords`) ou da marca do script (sem rede); valem em toda zona, até fora da partida (702.73a, 702.114a). */
-const TIPOS_DE_CRIATURA_K = new Set(['Time Lord', 'Advisor', 'Aetherborn', 'Alien', 'Ally', 'Angel', 'Antelope', 'Ape', 'Archer', 'Archon', 'Armadillo', 'Army', 'Artificer', 'Assassin', 'Assembly-Worker', 'Astartes', 'Atog', 'Aurochs', 'Avatar', 'Azra', 'Badger', 'Balloon', 'Barbarian', 'Bard', 'Basilisk', 'Bat', 'Bear', 'Beast', 'Beaver', 'Beeble', 'Beholder', 'Berserker', 'Bird', 'Bison', 'Blinkmoth', 'Boar', 'Bringer', 'Brushwagg', 'Camarid', 'Camel', 'Capybara', 'Caribou', 'Carrier', 'Cat', 'Centaur', 'Child', 'Chimera', 'Citizen', 'Cleric', 'Clown', 'Cockatrice', 'Construct', 'Coward', 'Coyote', 'Crab', 'Crocodile', 'C\'tan', 'Custodes', 'Cyberman', 'Cyclops', 'Dalek', 'Dauthi', 'Demigod', 'Demon', 'Deserter', 'Detective', 'Devil', 'Dinosaur', 'Djinn', 'Doctor', 'Dog', 'Dragon', 'Drake', 'Dreadnought', 'Drix', 'Drone', 'Druid', 'Dryad', 'Dwarf', 'Echidna', 'Efreet', 'Egg', 'Elder', 'Eldrazi', 'Elemental', 'Elephant', 'Elf', 'Elk', 'Employee', 'Eternal', 'Eye', 'Faerie', 'Ferret', 'Fish', 'Flagbearer', 'Fox', 'Fractal', 'Frog', 'Fungus', 'Gamer', 'Gamma', 'Gargoyle', 'Germ', 'Giant', 'Giraffe', 'Gith', 'Glimmer', 'Gnoll', 'Gnome', 'Goat', 'Goblin', 'God', 'Golem', 'Gorgon', 'Graveborn', 'Gremlin', 'Griffin', 'Guest', 'Hag', 'Halfling', 'Hamster', 'Harpy', 'Hedgehog', 'Hellion', 'Hero', 'Hippo', 'Hippogriff', 'Homarid', 'Homunculus', 'Horror', 'Horse', 'Human', 'Hydra', 'Hyena', 'Illusion', 'Imp', 'Incarnation', 'Inhuman', 'Inkling', 'Inquisitor', 'Insect', 'Jackal', 'Jellyfish', 'Juggernaut', 'Kangaroo', 'Kavu', 'Kirin', 'Kithkin', 'Knight', 'Kobold', 'Kor', 'Kraken', 'Kree', 'Llama', 'Lamia', 'Lammasu', 'Leech', 'Lemur', 'Leviathan', 'Lhurgoyf', 'Licid', 'Lizard', 'Lobster', 'Manticore', 'Masticore', 'Mercenary', 'Merfolk', 'Metathran', 'Minion', 'Minotaur', 'Mite', 'Mole', 'Monger', 'Mongoose', 'Monk', 'Monkey', 'Moogle', 'Moonfolk', 'Mount', 'Mouse', 'Mutant', 'Myr', 'Mystic', 'Nautilus', 'Necron', 'Nephilim', 'Nightmare', 'Nightstalker', 'Ninja', 'Noble', 'Noggle', 'Nomad', 'Nymph', 'Octopus', 'Ogre', 'Ooze', 'Orb', 'Orc', 'Orgg', 'Otter', 'Ouphe', 'Ox', 'Oyster', 'Pangolin', 'Peasant', 'Pegasus', 'Pentavite', 'Performer', 'Pest', 'Phelddagrif', 'Phoenix', 'Phyrexian', 'Pilot', 'Pincher', 'Pirate', 'Plant', 'Platypus', 'Porcupine', 'Possum', 'Praetor', 'Primarch', 'Prism', 'Processor', 'Qu', 'Rabbit', 'Raccoon', 'Ranger', 'Rat', 'Rebel', 'Reflection', 'Rhino', 'Rigger', 'Robot', 'Rogue', 'Sable', 'Salamander', 'Samurai', 'Sand', 'Saproling', 'Satyr', 'Scarecrow', 'Scientist', 'Scion', 'Scorpion', 'Scout', 'Sculpture', 'Seal', 'Serf', 'Serpent', 'Servo', 'Shade', 'Shaman', 'Shapeshifter', 'Shark', 'Sheep', 'Shi\'ar', 'Siren', 'Skeleton', 'Skrull', 'Skunk', 'Slith', 'Sliver', 'Sloth', 'Slug', 'Snail', 'Snake', 'Soldier', 'Soltari', 'Sorcerer', 'Spawn', 'Specter', 'Spellshaper', 'Sphinx', 'Spider', 'Spike', 'Spirit', 'Splinter', 'Sponge', 'Spy', 'Squid', 'Squirrel', 'Starfish', 'Surrakar', 'Survivor', 'Symbiote', 'Synth', 'Tentacle', 'Tetravite', 'Thalakos', 'Thopter', 'Thrull', 'Tiefling', 'Toy', 'Treefolk', 'Trilobite', 'Triskelavite', 'Troll', 'Turtle', 'Tyranid', 'Unicorn', 'Utrom', 'Vampire', 'Varmint', 'Vedalken', 'Villain', 'Volver', 'Wall', 'Walrus', 'Warlock', 'Warrior', 'Weasel', 'Weird', 'Werewolf', 'Whale', 'Wizard', 'Wolf', 'Wolverine', 'Wombat', 'Worm', 'Wraith', 'Wurm', 'Yeti', 'Zombie', 'Zubera'].map(x => x.toLowerCase())); // 205.3m, edição de 25/09/2026
+const TIPOS_DE_CRIATURA_K = SC.TIPOS_DE_CRIATURA_SCK; // K-24 · a lista (205.3m) mora em scripts.js: a cobertura da proteção usa a mesma
 /** 205.3m · o subtipo é um tipo de criatura (o metamorfo não vira Floresta, Aura nem Equipamento). */
 function ehTipoDeCriaturaK(sub) { return TIPOS_DE_CRIATURA_K.has(String(sub || '').replace(/’/g, "'").toLowerCase()); }
 /** 702.73a · o objeto é todo tipo de criatura (sem `sub`: tem todos; com `sub`: tem aquele, se for tipo de criatura).
@@ -21286,6 +21298,7 @@ Object.assign(EXPORTS_K, { tapaImpressoK, gruposParaTaparK, palavrasDoTextoK });
    "When you cycle this card" (c) dispara da zona onde a carta foi parar (cemitério, ou exílio com insanidade). Ciclar é descartar (d):
    os gatilhos de descarte veem um descarte só. */
 function cicloK(s, a, o, cy) {
+  if (s.objects[o.oid] && s.objects[o.oid].zone === 'exile') noteDiscard(s, a.p); // K-24 · 702.29d: com insanidade a carta foi ao exílio, mas foi descartada
   const b = cy.busca && typeof cy.busca === 'object' ? Object.fromEntries(Object.entries(cy.busca).filter(([k]) => ['types', 'subtypes', 'basic'].includes(k))) : null; // filtro de carta: types, subtypes, basic
   const efeito = b ? { do: 'search', amount: 1, filter: b, to: 'hand' } : { do: 'draw', amount: 1 };
   makeAbility(s, { oid: o.oid, name: o.name, controller: a.p }, { effects: [efeito] }, []);
@@ -21312,6 +21325,7 @@ function protecaoQualidadesK(card) {
       if (ql === 'everything') out.push('tudo'); else if (ql === 'multicolored') out.push('multicolorida'); else if (ql === 'monocolored') out.push('monocolorida');
       else if (ql === 'colorless') out.push('incolor'); else if (ql === 'all colors') out.push('W', 'U', 'B', 'R', 'G');
       else if (TIPOS_DA_PROTECAO_K[ql]) out.push('tipo:' + TIPOS_DA_PROTECAO_K[ql]);
+      else if (SC.PROTECAO_NAO_CRIATURA_SCK[ql]) out.push(SC.PROTECAO_NAO_CRIATURA_SCK[ql]); // K-24 · fichas, Auras, Equipamentos, Veículos
       else { const sub = subtipoDaProtecaoK(q); if (sub) out.push('sub:' + sub); }
     }
   }
@@ -21326,6 +21340,7 @@ function casaProtecaoK(s, q, src) {
   if (q === 'multicolorida') return cores.length > 1;
   if (q === 'monocolorida') return cores.length === 1;
   if (q === 'incolor') return cores.length === 0;
+  if (q === 'ficha') return !!(fonte && fonte.token); // K-24 · "protection from tokens"
   if (!fonte || !s.facts[fonte.name]) return false;
   const tipos = fonte.zone === 'battlefield' ? tiposDe(s, fonte) : (s.facts[fonte.name].types || []);
   if (q.startsWith('tipo:')) return tipos.includes(q.slice(5));
@@ -21394,8 +21409,18 @@ function suspenderImpressoK(card) {
   return undefined;
 }
 /** "If you could begin to cast this card": no tempo de conjurá-la (instantânea ou lampejo: com a prioridade; senão, tempo de feitiço). */
-function podeSuspenderAgoraK(s, p, f) { return !f.types.includes('land') && s.turn.priority === p && !s.pending && (!isSorcerySpeed(f) || canSorceryNow(s, p)); }
-Object.assign(EXPORTS_K, { suspenderImpressoK, podeSuspenderAgoraK });
+function podeSuspenderAgoraK(s, p, f) { return !f.types.includes('land') && s.turn.priority === p && !s.pending && !fracaoDeSegundo(s) && (!isSorcerySpeed(f) || canSorceryNow(s, p)); } // K-24 · 702.61a: com fração de segundo ninguém conjura, então não suspende
+/** K-24 · 702.62a · as ações de suspender que o jogador `p` tem agora (da mão, quando poderia conjurar a carta, pagando o custo).
+    Fora do legalActions até a mesa (src/app/table.js) desenhar o botão: o guarda-corpo tela.acoes cobra botão para toda ação oferecida. */
+function ofertasSuspenderK(s, p) {
+  const out = [];
+  for (const oid of s.zones[p].hand) {
+    const f = s.facts[s.objects[oid].name], sp = f.suspenderK;
+    if (sp && podeSuspenderAgoraK(s, p, f) && (!s.manaCheck || canPay(s, p, parseCost(sp.mana)))) out.push({ t: 'suspender_k', p, oid });
+  }
+  return out;
+}
+Object.assign(EXPORTS_K, { suspenderImpressoK, podeSuspenderAgoraK, ofertasSuspenderK });
 /* K-23 · 702.37b megamorfose: "Megamorph [cost]" = metamorfose + "as this permanent is turned face up, put a +1/+1 counter on it if its
    megamorph cost was paid to turn it face up". No script: `morph: { mana, mega: true }` (o leitor de texto é da trilha motor). Virar por
    outro efeito não põe o marcador. */
@@ -21409,9 +21434,15 @@ function opcoesAtropelarUmK(s, a, b, amt) {
   if (!has(s, a, 'trample')) return null;
   const letal = has(s, a, 'deathtouch') ? 1 : Math.max(0, toughness(s, b) - b.damage);
   if (amt <= letal) return null;
-  return [{ ordem: [b.oid], rotulo: `${letal} em ${b.name} · ${amt - letal} no jogador` }, { ordem: [b.oid], tudo: true, rotulo: `${amt} em ${b.name}` }];
+  const pw = a.atacandoPw != null ? s.objects[a.atacandoPw] : null, onde = !pw ? 'no jogador' : (tiposDe(s, pw) || []).includes('battle') ? 'na batalha' : 'no planeswalker'; // K-24 · o rótulo diz para onde vai
+  return [{ ordem: [b.oid], rotulo: `${letal} em ${b.name} · ${amt - letal} ${onde}` }, { ordem: [b.oid], tudo: true, rotulo: `${amt} em ${b.name}` }];
 }
 Object.assign(EXPORTS_K, { opcoesAtropelarUmK });
+/* K-24 · 702.7b / 702.4b / 510.4 · no 2º passo de dano só causa dano quem não tinha iniciativa nem golpe duplo quando o 1º passo começou
+   (mais quem tem golpe duplo agora). A marca `struck` vem do começo do 1º passo, não do dano causado: a criatura com iniciativa e
+   poder 0 no 1º passo, que ganha poder entre os passos, não causa dano no 2º. */
+function iniciativaNoComecoK(s, combatentes) { for (const o of combatentes) if (has(s, o, 'first strike') || has(s, o, 'double strike')) o.struck = true; }
+Object.assign(EXPORTS_K, { iniciativaNoComecoK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-22 · 701.68 afligir N: "put N −1/−1 counters on a creature you control" (a) — a criatura é escolhida por quem aflige (não mira);
    sem criatura sua, nada acontece (b); com uma só, é ela. Os marcadores passam pelas substituições de pôr marcadores (614.16).
