@@ -3796,6 +3796,11 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Script:** `entersTappedUnless: { pagaVida: 2 }`; leitor lê a frase. Texto oficial em `.listas/oficiais-revisadas.json` (Oracle do Forge, 12/10/2026).
 - **Teste:** `choque.unit` (4 testes, falham no motor anterior) e e2e da pergunta na mesa.
 
+**M-331 · Peças miúdas do Pauper: metalurgia, "se foi conjurada de um cemitério", P+T no alvo e lampejo que sacrifica — revisão por lote V (9 cartas)** ✅ (leva M-331, motor v110 sem mudança de forma; goldens intactos).
+- **Valor:** quatro peças de motor que travavam listas de Pauper do catálogo: alvo "with total power and toughness N or less" (Cut Down), metalurgia como condição de efeito e de quantidade ("exile that creature" do Dispatch; "deals 4 damage instead" do Galvanic Blast — os artefatos contam na resolução), "If this spell was cast from a graveyard, draw two cards instead" (Plunder the Trollshaws) e lampejo do passado pago sacrificando uma Montanha (Lava Dart). O leitor lê as cinco frases; um revisor independente com sondas aprovou as 9 cartas do lote (as cinco, Opportunity, Remove Soul, Kor Cartographer e Bonesplitter).
+- **Script:** `targetPTTotalMax`, `onlyIf: 'metalcraft' | 'cast-from-graveyard'`, quantidade `{ per: 'se', se, sim, nao }`, `flashback: { sacrificeOther }`; a folha mostra o lampejo como "sacrificar uma Montanha".
+- **Teste:** `pauper.miudas.unit` (4 testes, falham no motor anterior) e fidelidade do leitor; `--confere` com 245 aprovadas.
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

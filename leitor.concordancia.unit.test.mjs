@@ -77,6 +77,13 @@ test('LT1 · fidelidade: frase sem padrão fica não lida, com o texto dela, e a
   assert.deepEqual(JSON.parse(JSON.stringify(b3.script.effects)), [{ do: 'search', amount: 1, filter: { types: ['instant', 'sorcery'] }, to: 'library-top' }], 'LT5: "shuffle and put that card on top" vai ao topo do grimório');
   const l5 = L.ler({ name: 'Terra', type_line: 'Land', oracle_text: '{T}: Add {C}.\nCycling {R}{G}{W}' });
   // LT13 · terreno de dor: a cobertura por texto ainda trata a linha como mana; lida pelo leitor, a carta sem script à mão deixaria de jogar (decisão 11)
+  // M-331 · metalurgia, "cast from a graveyard … instead", P+T no alvo, lampejo que sacrifica
+  const gb = L.ler({ name: 'Raio', type_line: 'Instant', oracle_text: 'Raio deals 2 damage to any target.\nMetalcraft — Raio deals 4 damage instead if you control three or more artifacts.' });
+  assert.deepEqual(JSON.parse(JSON.stringify(gb.script.effects[0].amount)), { per: 'se', se: 'metalcraft', sim: 4, nao: 2 });
+  const ds = L.ler({ name: 'Envio', type_line: 'Instant', oracle_text: 'Tap target creature.\nMetalcraft — If you control three or more artifacts, exile that creature.' });
+  assert.deepEqual(JSON.parse(JSON.stringify(ds.script.effects[1])), { do: 'exile', target: 'first-target', onlyIf: 'metalcraft' });
+  assert.equal(L.ler({ name: 'Corte', type_line: 'Instant', oracle_text: 'Destroy target creature with total power and toughness 5 or less.' }).script.effects[0].targetPTTotalMax, 5);
+  assert.deepEqual(JSON.parse(JSON.stringify(L.ler({ name: 'Dardo', type_line: 'Instant', oracle_text: 'Dardo deals 1 damage to any target.\nFlashback—Sacrifice a Mountain.' }).script.flashback)), { sacrificeOther: { types: ['land'], subtype: 'Mountain' } });
   // M-330 · terra de choque
   assert.deepEqual(JSON.parse(JSON.stringify(L.ler({ name: 'Vapor', type_line: 'Land — Island Mountain', oracle_text: "({T}: Add {U} or {R}.)\nAs Vapor enters, you may pay 2 life. If you don't, it enters tapped." }).script)), { name: 'Vapor', entersTappedUnless: { pagaVida: 2 } });
   // M-329 · "Pay N life" no custo de ativação (fetchlands)
