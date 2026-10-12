@@ -7162,13 +7162,17 @@
    "regra": "Keyword Abilities",
    "titulo": "Morph",
    "status": "parcial",
-   "evidencia": "conjurar virada para baixo por {3} (index.html:12231, 12268, 12298; oferta 12974-12975); 2/2 sem palavras-chave nem habilidades (has 10065, power/toughness 10340, abilitiesOf 10901); unmorph é ação especial sem pilha, com prioridade (12602-12611, 12979-12981); rules.unit S54 (3592), elves.regras (Birchlore Rangers)",
-   "falta": "Megamorph (702.37b) e custo de metamorfose com X (702.37f) não existem. A carta virada para baixo ainda responde pela cor da carta real em proteção/prevenção (colorsOf, 10428, não confere faceDown) — deveria ser incolor (702.37a/c)",
+   "evidencia": "conjurar virada para baixo por {3} (index.html:12231, 12268, 12298; oferta 12974-12975); 2/2 sem palavras-chave nem habilidades (has 10065, power/toughness 10340, abilitiesOf 10901); unmorph é ação especial sem pilha, com prioridade (12602-12611, 12979-12981); rules.unit S54 (3592), elves.regras (Birchlore Rangers) K-23: megamorfose (702.37b): ao virar para cima pagando o custo (HANDLERS.unmorph → megamorfoseK), entra um marcador +1/+1 (addCounters, 614.16); virar por outro efeito não põe. A virada para baixo é incolor também na proteção e na prevenção (coresDe, CR2d.12) — conferido por teste; a falta antiga estava desatualizada. Carta exemplo: Aerie Bowmasters (Oracle do Forge, 11/10/2026).",
+   "falta": "Custo de metamorfose com X (702.37f) não existe; o leitor de texto (trilha motor) ainda não lê \"Megamorph {custo}\" — a forma no script existe (morph.mega).",
    "esforco": "P",
    "depende": [
     "708"
    ],
-   "cartas": "comum"
+   "cartas": "comum",
+   "testes": [
+    "CR 702.37b · megamorfose (Aerie Bowmasters, texto oficial): virada para cima pagando a megamorfose ganha um marcador +1/+1; metamorfose comum, não",
+    "CR 702.37a / 708.2 · virada para baixo é incolor: a proteção contra verde não previne o dano da carta verde virada para baixo"
+   ]
   },
   {
    "n": "702.38",

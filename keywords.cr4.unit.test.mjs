@@ -1034,3 +1034,34 @@ test('CR 702.62a · suspender só quando a carta poderia ser conjurada: feitiço
   assert.throws(() => act(s, { t: 'suspender_k', p: a, oid: r }), /só quando/);
   assert.equal(S.coverage(oficial('Rift Bolt')).level, 'completo', 'Rift Bolt tem script; a linha do suspender conta como palavra-chave');
 });
+
+/* ---------------- K-23 · 702.37b megamorfose ---------------- */
+test('CR 702.37b · megamorfose (Aerie Bowmasters, texto oficial): virada para cima pagando a megamorfose ganha um marcador +1/+1; metamorfose comum, não', () => {
+  const AB = { ...oficial('Aerie Bowmasters'), keywords: ['Reach', 'Megamorph'] };
+  const sc = mega => ({ 'Aerie Bowmasters': { name: 'Aerie Bowmasters', morph: { mana: '{5}{G}', ...(mega ? { mega: true } : {}) }, example: { action: 'etb', target: 'none', expect: { attached: false } } } });
+  for (const mega of [true, false]) {
+    let s = partida({ 'Aerie Bowmasters': AB }, sc(mega)); const a = s.turn.active;
+    let b; [s, b] = poe(s, a, 'Aerie Bowmasters', 'hand');
+    const fd = E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === b && x.faceDown); assert.ok(fd, 'conjura virada para baixo');
+    s = resolve(act(s, fd)); assert.equal(E.stats(s, s.objects[b]).power, 2, '2/2 virada para baixo');
+    s = act(s, { t: 'unmorph', p: a, oid: b });
+    assert.equal(s.objects[b].faceDown, undefined);
+    assert.equal(E.stats(s, s.objects[b]).power, mega ? 4 : 3, mega ? 'megamorfose: 3/4 + 1/1' : 'metamorfose: 3/4');
+  }
+});
+
+test('CR 702.37a / 708.2 · virada para baixo é incolor: a proteção contra verde não previne o dano da carta verde virada para baixo', () => {
+  const AB = { ...oficial('Aerie Bowmasters'), keywords: ['Reach', 'Megamorph'] };
+  const SC_AB = { 'Aerie Bowmasters': { name: 'Aerie Bowmasters', morph: { mana: '{5}{G}', mega: true }, example: { action: 'etb', target: 'none', expect: { attached: false } } } };
+  const PV = { name: 'Paladino', type_line: 'Creature — Knight', mana_cost: '{W}', cmc: 1, colors: ['W'], power: '1', toughness: '2', keywords: ['Protection'], oracle_text: 'Protection from green' };
+  let s = partida({ 'Aerie Bowmasters': AB, Paladino: PV }, SC_AB); const a = s.turn.active, d = 1 - a;
+  let b, pv; [s, b] = poe(s, a, 'Aerie Bowmasters', 'hand'); [s, pv] = poe(s, d, 'Paladino');
+  s = resolve(act(s, E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === b && x.faceDown)));
+  s = J(s); s.objects[b].sick = false;
+  for (let i = 0; i < 6 && s.turn.step !== 'combat_attackers'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  s = act(s, { t: 'attack', p: a, attackers: [b] });
+  for (let i = 0; i < 6 && !(s.pending && s.pending.kind === 'blockers'); i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  s = act(s, { t: 'block', p: d, blocks: [[pv, b]] });
+  for (let i = 0; i < 12 && s.turn.step !== 'main2'; i++) s = s.pending ? act(s, E.legalActions(s, s.pending.p)[0]) : act(s, { t: 'pass', p: s.turn.priority });
+  assert.equal(s.objects[pv].zone, 'graveyard', 'os 2 de dano da 2/2 incolor não foram prevenidos');
+});

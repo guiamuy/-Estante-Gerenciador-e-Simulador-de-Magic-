@@ -4116,6 +4116,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Testes:** `keywords.cr4.unit` (2, falham sem a leva), `combat.audit` K-22, `scripts.unit` S8 (Rift Bolt). Goldens idênticos; motor v109.
 - **Parcial declarado (702.62):** 702.62c (proibições de conjurar não são conferidas antes de suspender).
 
+**K-23 · Megamorfose (702.37b) e a virada para baixo incolor (702.37a)** 🟡 (leva K-23)
+- **Valor:** carta com megamorfose ganha o marcador +1/+1 ao virar para cima pelo custo; confirmado que a virada para baixo é incolor também na proteção (a falta antiga do mapa estava desatualizada).
+- **Aceite:** Aerie Bowmasters (texto oficial) virada para baixo é 2/2; virada pela megamorfose fica 4/5; pela metamorfose comum, 3/4; a 2/2 virada para baixo (verde por baixo) mata o bloqueador com proteção contra verde.
+- **Toca ponto comum:** `HANDLERS.unmorph` (uma linha a mais: `megamorfoseK`). No script: `morph: { mana, mega: true }`.
+- **Testes:** `keywords.cr4.unit` (2; o da megamorfose falha sem a leva, o da cor confere o que já valia). Texto oficial: Aerie Bowmasters (Oracle do Forge, 11/10/2026). Goldens idênticos; motor v109.
+- **Parcial declarado (702.37):** custo com X (702.37f); o leitor (trilha `motor`) ainda não lê "Megamorph {custo}" — **pedido**.
+
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

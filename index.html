@@ -19968,6 +19968,7 @@ const HANDLERS = {
     if (!mp) throw new RuleError('metamorfose', 'esta carta não tem metamorfose');
     if (s.manaCheck) payCost(s, a.p, parseCost(mp.mana));
     delete o.faceDown; o.ts = relogio(s); // CR2d.12 · 613.7f: virada para cima recebe carimbo novo
+    megamorfoseK(s, o, mp); // K-23 · 702.37b: com o custo de megamorfose pago, entra o marcador +1/+1 ao virar (Toca ponto comum: HANDLERS.unmorph)
     s.turn.passes = 0;
   },
   plot(s, a) { // S53 · paga o custo de plot e exila a carta da mão, para conjurar de graça depois
@@ -21395,6 +21396,11 @@ function suspenderImpressoK(card) {
 /** "If you could begin to cast this card": no tempo de conjurá-la (instantânea ou lampejo: com a prioridade; senão, tempo de feitiço). */
 function podeSuspenderAgoraK(s, p, f) { return !f.types.includes('land') && s.turn.priority === p && !s.pending && (!isSorcerySpeed(f) || canSorceryNow(s, p)); }
 Object.assign(EXPORTS_K, { suspenderImpressoK, podeSuspenderAgoraK });
+/* K-23 · 702.37b megamorfose: "Megamorph [cost]" = metamorfose + "as this permanent is turned face up, put a +1/+1 counter on it if its
+   megamorph cost was paid to turn it face up". No script: `morph: { mana, mega: true }` (o leitor de texto é da trilha motor). Virar por
+   outro efeito não põe o marcador. */
+function megamorfoseK(s, o, mp) { if (mp && mp.mega) addCounters(s, o, 1); }
+Object.assign(EXPORTS_K, { megamorfoseK });
 /* K-19 · 702.19b · atropelar com um bloqueador só: depois do letal no bloqueador, o excedente vai como quem ataca escolher, entre o
    bloqueador e o jogador (ou planeswalker/batalha atacado). A mesa oferece as duas pontas — o letal no bloqueador e o resto no jogador
    (a de antes, primeira opção) e tudo no bloqueador — pelo mesmo caminho da divisão entre bloqueadores (CR2g.2). Divisões no meio não são
