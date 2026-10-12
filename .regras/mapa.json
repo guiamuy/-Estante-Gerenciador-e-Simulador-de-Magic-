@@ -7085,12 +7085,14 @@
     "601.2b custo adicional opcional"
    ],
    "cartas": "rara",
-   "evidencia": "K-33: \"Buyback {custo}\" e \"Buyback—<custo>\" (sacrificar terreno/criatura/artefato/encantamento, descartar N, pagar N de vida) lidos da linha (recompraImpressaK). legalActions oferece, ao lado de cada conjuração pelo custo normal, a variante com recompra (ofertasRecompraK; custo extra: uma ação por forma de pagar). HANDLERS.cast: o mana soma ao custo total no caminho normal (custoTapadoK, reduções valem sobre a soma, 601.2f) e é pago à parte com custo alternativo (pagaRecompraK); a marca recompraK fica na mágica (MARCAS_DA_CONJURACAO). resolveTop: ao resolver, vai para a mão do dono em vez do cemitério (recompraAoResolverK); anulada ou sem alvo legal (608.2b), cemitério; com lampejo do passado, exílio (702.34a). Capsize, Whispers of the Muse e Constant Mists em RAW_SCRIPTS (S8).",
+   "evidencia": "K-33: \"Buyback {custo}\" e \"Buyback—<custo>\" (sacrificar terreno/criatura/artefato/encantamento, descartar N, pagar N de vida) lidos da linha (recompraImpressaK). legalActions oferece, ao lado de cada conjuração pelo custo normal, a variante com recompra (ofertasRecompraK; custo extra: uma ação por forma de pagar). HANDLERS.cast: o mana soma ao custo total no caminho normal (custoTapadoK, reduções valem sobre a soma, 601.2f) e é pago à parte com custo alternativo (pagaRecompraK); a marca recompraK fica na mágica (MARCAS_DA_CONJURACAO). resolveTop: ao resolver, vai para a mão do dono em vez do cemitério (recompraAoResolverK); anulada ou sem alvo legal (608.2b), cemitério; com lampejo do passado, exílio (702.34a). Capsize, Whispers of the Muse e Constant Mists em RAW_SCRIPTS (S8). K-39 (auditoria): reduções do genérico valem sobre o custo total com a recompra somada (castExtraK, 601.2f); com custo de sacrifício e mais de uma opção, a ação sem a escolha é recusada (601.2h).",
    "testes": [
     "CR 702.27a · recompra (Capsize, texto oficial): \"Buyback {3}\" é custo adicional opcional; pago, a mágica volta para a mão do dono ao resolver; sem pagar, cemitério",
     "CR 702.27a · a recompra só vale \"as it resolves\": com o alvo ilegal a mágica não resolve (608.2b) e vai para o cemitério; anulada também",
     "CR 702.27a · recompra com custo que não é mana (Constant Mists, texto oficial: \"Buyback—Sacrifice a land\"): uma oferta por terreno; o escolhido é sacrificado e a carta volta para a mão",
-    "K-33 · recompra (702.27): a névoa com recompra sacrificando um terreno impede o dano do Urso e volta para a mão; sem recompra, cemitério"
+    "K-33 · recompra (702.27): a névoa com recompra sacrificando um terreno impede o dano do Urso e volta para a mão; sem recompra, cemitério",
+    "K-39 · CR 601.2f · a redução de custo vale sobre o custo total, com a recompra ou o entrelaçar somados",
+    "K-39 · CR 601.2h · recompra ou entrelaçar com sacrifício: sem dizer o que sacrificar (e com mais de uma opção), o motor recusa em vez de escolher"
    ]
   },
   {
@@ -7131,17 +7133,18 @@
    "regra": "Keyword Abilities",
    "titulo": "Echo",
    "status": "parcial",
-   "falta": "Só eco de mana (\"Echo—<custo que não é mana>\" e o eco variável de Volcano Hellion não são lidos). \"Veio para o seu controle\" conta pelo carimbo de entrada no campo (o.ts): a permanente roubada por efeito de controle não dispara o eco, e a que vira de face ou transforma depois da sua manutenção dispara de novo.",
+   "falta": "Só eco de mana (\"Echo—<custo que não é mana>\" e o eco variável de Volcano Hellion não são lidos). A permanente que volta ao dono quando um efeito de controle acaba não conta como \"veio para o seu controle\" (o motor não carimba o fim do efeito); a que transforma ou vira de face depois da sua manutenção dispara de novo.",
    "esforco": "P",
    "depende": [
     "gatilho de manutenção com \"a menos que pague\""
    ],
    "cartas": "rara",
-   "evidencia": "K-36: \"Echo {custo}\" lido da linha (custoDaLinhaK → ecoK). GATILHOS_DE_PALAVRA_K.echo gera o gatilho da sua manutenção só se a permanente entrou no campo depois do começo da sua última manutenção (o.ts comparado com s.players[p].relogioManutencaoK, guardado por manutencaoK no começo de cada manutenção, só em partida com carta de eco); eco_k confere de novo a condição (603.4) e abre \"pague ou sacrifique\" (may_pay com senao.sacrifica, o mesmo da manutenção cumulativa); sem mana, sacrifica direto. 702.30b: o Oracle já traz o custo. Pouncing Jaguar joga sem script (a linha conta como palavra-chave na cobertura).",
+   "evidencia": "K-36: \"Echo {custo}\" lido da linha (custoDaLinhaK → ecoK). GATILHOS_DE_PALAVRA_K.echo gera o gatilho da sua manutenção só se a permanente entrou no campo depois do começo da sua última manutenção (o.ts comparado com s.players[p].relogioManutencaoK, guardado por manutencaoK no começo de cada manutenção, só em partida com carta de eco); eco_k confere de novo a condição (603.4) e abre \"pague ou sacrifique\" (may_pay com senao.sacrifica, o mesmo da manutenção cumulativa); sem mana, sacrifica direto. 702.30b: o Oracle já traz o custo. Pouncing Jaguar joga sem script (a linha conta como palavra-chave na cobertura). K-39 (auditoria): o carimbo é o da entrada no campo ou o do efeito de controle mais novo do controlador atual (sobControleDesdeK): a permanente roubada paga o eco na manutenção de quem a tomou.",
    "testes": [
     "CR 702.30a · eco (Pouncing Jaguar, texto oficial): na sua manutenção seguinte, \"sacrifique a menos que pague {G}\"; pago, fica e não pergunta de novo na outra; a manutenção do oponente não conta",
     "CR 702.30a · eco: recusar sacrifica; sem mana para pagar, sacrifica sem perguntar",
-    "K-36 · eco (702.30): a criatura com eco que entrou neste turno, sem o eco pago na sua manutenção seguinte, é sacrificada e não ataca"
+    "K-36 · eco (702.30): a criatura com eco que entrou neste turno, sem o eco pago na sua manutenção seguinte, é sacrificada e não ataca",
+    "K-39 · CR 702.30a · eco: a permanente que veio para o seu controle por efeito (ganhar o controle) desde a sua última manutenção paga o eco na sua manutenção"
    ]
   },
   {
@@ -7305,19 +7308,20 @@
    "regra": "Keyword Abilities",
    "titulo": "Entwine",
    "status": "parcial",
-   "falta": "Só mágica de \"choose one\" (com \"choose two\", modeCount, o entrelaçar não é oferecido). A conjuração entrelaçada não é oferecida com custo alternativo, convocar/improvisar, phyrexiano pago com vida ou lampejo do passado (o motor aceita a ação; só não a oferece). O mesmo objeto não pode ser alvo de dois modos entrelaçados (a conferência de 601.2c do motor separa alvos só em \"choose two\"). Com redução de custo por alvo no campo (filtro OTIMISTA, M-259), a âncora ↓ K não confere o custo a mais (pedido à trilha motor).",
+   "falta": "Só mágica de \"choose one\" (com \"choose two\", modeCount, o entrelaçar não é oferecido). A conjuração entrelaçada não é oferecida com custo alternativo, convocar/improvisar, phyrexiano pago com vida ou lampejo do passado (o motor aceita a ação; só não a oferece). O mesmo objeto não pode ser alvo de dois modos entrelaçados (601.2c: a conferência de alvos repetidos do motor só separa modos em \"choose two\"; pedido à trilha motor, achado da auditoria K-39). Com redução de custo por alvo no campo (filtro OTIMISTA, M-259), a âncora ↓ K não confere o custo a mais (pedido à trilha motor).",
    "esforco": "P",
    "depende": [
     "700.2 modal",
     "601.2b"
    ],
    "cartas": "rara",
-   "evidencia": "K-34: \"Entwine {custo}\" e \"Entwine—<custo>\" (sacrificar N terrenos/criaturas/artefatos/encantamentos, descartar N, pagar N de vida) lidos da linha (entrelacarImpressoK). Em createGame o script ganha mais um modo, \"Entrelaçar (custo): modo A + modo B\" (modoEntrelacadoK), com os efeitos de cada modo na ordem impressa (702.42b) e a marca de cada modo; a mesa já desenha o modo como botão. HANDLERS.cast cobra o custo a mais (pagaEntrelacarK; no caminho normal ele soma ao custo total em custoTapadoK, 601.2f); legalActions tira a conjuração entrelaçada que não fecha o custo e abre uma por forma de pagar o custo extra (ofertasEntrelacarK). Rain of Rust, Dream's Grip e Betrayal of Flesh em RAW_SCRIPTS (S8).",
+   "evidencia": "K-34: \"Entwine {custo}\" e \"Entwine—<custo>\" (sacrificar N terrenos/criaturas/artefatos/encantamentos, descartar N, pagar N de vida) lidos da linha (entrelacarImpressoK). Em createGame o script ganha mais um modo, \"Entrelaçar (custo): modo A + modo B\" (modoEntrelacadoK), com os efeitos de cada modo na ordem impressa (702.42b) e a marca de cada modo; a mesa já desenha o modo como botão. HANDLERS.cast cobra o custo a mais (pagaEntrelacarK; no caminho normal ele soma ao custo total em custoTapadoK, 601.2f); legalActions tira a conjuração entrelaçada que não fecha o custo e abre uma por forma de pagar o custo extra (ofertasEntrelacarK). Rain of Rust, Dream's Grip e Betrayal of Flesh em RAW_SCRIPTS (S8). K-39 (auditoria): idem para o entrelaçar (601.2f e 601.2h).",
    "testes": [
     "CR 702.42a · entrelaçar (Rain of Rust, texto oficial): \"Entwine {3}{R}\" vira a opção de escolher os dois modos pagando {3}{R} a mais, oferecida só quando o total fecha; resolve os dois, na ordem impressa (702.42b)",
     "CR 702.42a · sem pagar o entrelaçar não há os dois modos: o motor recusa o modo entrelaçado sem mana para o custo a mais",
     "CR 702.42a · entrelaçar que não é mana (Betrayal of Flesh, texto oficial: \"Entwine—Sacrifice three lands\"): uma oferta por trio de terrenos; destrói e devolve",
-    "K-34 · entrelaçar (702.42): Dream’s Grip com os dois modos vira o bloqueador do oponente e desvira o Urso virado, que ataca sem bloqueio"
+    "K-34 · entrelaçar (702.42): Dream’s Grip com os dois modos vira o bloqueador do oponente e desvira o Urso virado, que ataca sem bloqueio",
+    "K-39 · CR 601.2f · a redução de custo vale sobre o custo total, com a recompra ou o entrelaçar somados"
    ]
   },
   {
@@ -8724,10 +8728,11 @@
     "614.1c entra com escolha"
    ],
    "cartas": "rara (Ravnica Allegiance)",
-   "evidencia": "K-38: \"Riot\" faz a permanente entrar com o marcador +1/+1 (entraComPalavrasK) e, logo em seguida, antes de qualquer gatilho ou prioridade, quem a controla escolhe (escolhaDeEntradaK, chamada no começo de flushTriggers; decisão choose_mode com opcoesK, que a mesa já desenha): ficar com o marcador ou tirá-lo e ganhar ímpeto sem prazo (tumulto_k, aplicaTemporario 'sempre'). O resultado é o mesmo da escolha ao entrar (como a terra de choque da M-330). 702.136b: uma escolha por instância.",
+   "evidencia": "K-38: \"Riot\" faz a permanente entrar com o marcador +1/+1 (entraComPalavrasK) e, logo em seguida, antes de qualquer gatilho ou prioridade, quem a controla escolhe (escolhaDeEntradaK, chamada no começo de flushTriggers; decisão choose_mode com opcoesK, que a mesa já desenha): ficar com o marcador ou tirá-lo e ganhar ímpeto sem prazo (tumulto_k, aplicaTemporario 'sempre'). O resultado é o mesmo da escolha ao entrar (como a terra de choque da M-330). 702.136b: uma escolha por instância. K-39 (auditoria): \"Riot\" repetido conta uma escolha por instância (POR_INSTANCIA_K, 702.136b).",
    "testes": [
     "CR 702.136a · tumulto (Zhur-Taa Goblin, texto oficial): ao entrar, quem controla escolhe — com o marcador +1/+1, ou sem ele e com ímpeto (que não acaba no fim do turno)",
-    "K-38 · tumulto e fabricar (702.136, 702.123): a de tumulto escolhe ímpeto e ataca no turno em que entra; a de fabricar cria um Servo, que bloqueia"
+    "K-38 · tumulto e fabricar (702.136, 702.123): a de tumulto escolhe ímpeto e ataca no turno em que entra; a de fabricar cria um Servo, que bloqueia",
+    "K-39 · CR 702.136b · duas instâncias de tumulto: duas escolhas, cada uma à parte"
    ]
   },
   {

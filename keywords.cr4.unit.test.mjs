@@ -1613,3 +1613,57 @@ test('CR 702.123a · fabricar (Glint-Sleeve Artisan, texto oficial): quando entr
   assert.ok(!(t.pending && t.pending.kind === 'choose_mode'), 'sem a criatura no campo não há escolha');
   assert.equal(t.zones[aa].battlefield.filter(x => t.objects[x].name === 'Servo').length, 1, 'cria o Servo');
 });
+
+/* ---------------- K-39 · auditoria independente da onda 3 (K-33 a K-38) ---------------- */
+test('K-39 · CR 702.30a · eco: a permanente que veio para o seu controle por efeito (ganhar o controle) desde a sua última manutenção paga o eco na sua manutenção', () => {
+  const ROUBO = { name: 'Roubo', type_line: 'Sorcery', mana_cost: '{1}', cmc: 1, colors: [], keywords: [], oracle_text: 'Gain control of target creature.' };
+  const SC = { Roubo: { name: 'Roubo', effects: [{ do: 'ganhar_controle', target: 'creature' }], example: { target: 'enemy-creature', expect: { bounced: false } } } };
+  let s = partida({ 'Pouncing Jaguar': JAGUAR(), Roubo: ROUBO }, SC); const a = s.turn.active, d = 1 - a;
+  let j, r; [s] = poe(s, a, 'Forest'); [s, j] = poe(s, a, 'Pouncing Jaguar', 'hand'); [s] = poe(s, d, 'Forest'); [s, r] = poe(s, d, 'Roubo', 'hand');
+  s = resolve(act(s, { t: 'cast', p: a, oid: j }));
+  s = ateK35(s, d, 'main1');
+  s = resolve(act(s, { t: 'cast', p: d, oid: r, targets: [{ oid: j }] }));
+  assert.equal(s.objects[j].controller, d, 'B ganhou o controle');
+  s = ateEcoK36(s, a); if (s.pending && s.pending.kind === 'may_pay') s = act(s, { t: 'pay', p: s.pending.p });
+  s = ateEcoK36(s, d);
+  assert.equal((s.pending || {}).kind, 'may_pay', 'na manutenção de B: o eco do Jaguar'); assert.equal(s.pending.p, d);
+});
+
+test('K-39 · CR 601.2f · a redução de custo vale sobre o custo total, com a recompra ou o entrelaçar somados', () => {
+  const BARATA = { name: 'Barata', type_line: 'Instant', mana_cost: '{4}{U}', cmc: 5, colors: ['U'], keywords: ['Buyback'], oracle_text: 'Buyback {3}\nThis spell costs {1} less to cast for each creature on the battlefield.\nDraw a card.' };
+  const TRAMA = { name: 'Trama', type_line: 'Instant', mana_cost: '{3}{U}', cmc: 4, colors: ['U'], keywords: ['Entwine'], oracle_text: 'Choose one —\n• Draw a card.\n• You gain 2 life.\nEntwine {2}\nThis spell costs {1} less to cast for each creature on the battlefield.' };
+  const SC = { Barata: { name: 'Barata', reduzPor: { generic: 1, per: 'creatures-on-battlefield' }, effects: [{ do: 'draw', amount: 1 }], example: { target: 'none', expect: { handDelta: 1 } } },
+    Trama: { name: 'Trama', reduzPor: { generic: 1, per: 'creatures-on-battlefield' }, modes: [{ label: 'Comprar', effects: [{ do: 'draw', amount: 1 }] }, { label: 'Ganhar 2', effects: [{ do: 'gain', amount: 2 }] }], example: { action: 'mode:1', target: 'none', expect: { selfLife: 2 } } } };
+  let s = comManaK33({ Barata: BARATA, Trama: TRAMA, Urso: URSO }, SC); const a = s.turn.active, d = 1 - a;
+  let b, t; [s, b] = poe(s, a, 'Barata', 'hand'); [s, t] = poe(s, a, 'Trama', 'hand');
+  for (let i = 0; i < 3; i++) [s] = poe(s, d, 'Urso'); for (let i = 0; i < 2; i++) [s] = poe(s, a, 'Urso');
+  s = terrenos(s, a, 'Island', 3);
+  const comR = E.legalActions(s, a).find(x => x.oid === b && x.recompraK); assert.ok(comR, '{4}{U} + {3} − 5 = {2}{U}: três Ilhas bastam');
+  const t1 = act(s, comR); assert.equal(t1.zones[a].battlefield.filter(x => t1.objects[x].tapped).length, 3);
+  let s1 = J(s); for (const x of s1.zones[a].battlefield.filter(x => s1.objects[x].name === 'Island').slice(0, 2)) s1.objects[x].tapped = true;
+  const ie = s.facts.Trama.script.modes.findIndex(m => m.entrelacarK);
+  const ent = E.legalActions(s1, a).find(x => x.oid === t && x.mode === ie); assert.ok(ent, '{3}{U} + {2} − 5 = {U}: uma Ilha basta');
+  const t2 = act(s1, ent); assert.equal(t2.zones[a].battlefield.filter(x => t2.objects[x].tapped).length, 3);
+});
+
+test('K-39 · CR 702.136b · duas instâncias de tumulto: duas escolhas, cada uma à parte', () => {
+  const DUPLO = { name: 'Duplo', type_line: 'Creature — Goblin', mana_cost: '{R}', cmc: 1, colors: ['R'], power: '1', toughness: '1', keywords: ['Riot'], oracle_text: 'Riot\nRiot' };
+  let s = partida({ Duplo: DUPLO }); const a = s.turn.active;
+  let g; [s, g] = poe(s, a, 'Duplo', 'hand');
+  s = act(s, { t: 'cast', p: a, oid: g }); s = act(s, { t: 'pass', p: s.turn.priority }); s = ateEscolhaK38(s);
+  s = act(s, E.legalActions(s, a).find(x => x.t === 'choose_mode' && /marcador/i.test(x.label)));
+  assert.equal((s.pending || {}).kind, 'choose_mode', 'a segunda escolha');
+  s = act(s, E.legalActions(s, a).find(x => x.t === 'choose_mode' && /ímpeto/i.test(x.label)));
+  assert.equal(s.objects[g].counters.p1p1, 1, 'um marcador (da primeira)'); assert.equal(E.hasKeyword(s, s.objects[g], 'haste'), true, 'e ímpeto (da segunda)');
+});
+
+test('K-39 · CR 601.2h · recompra ou entrelaçar com sacrifício: sem dizer o que sacrificar (e com mais de uma opção), o motor recusa em vez de escolher', () => {
+  let s = comManaK33({ 'Constant Mists': oficial('Constant Mists') }); const a = s.turn.active;
+  s = terrenos(s, a, 'Forest', 3); let c; [s, c] = poe(s, a, 'Constant Mists', 'hand');
+  assert.throws(() => E.apply(s, { t: 'cast', p: a, oid: c, recompraK: true }), /escolha/);
+  const SC = { 'Betrayal of Flesh': { name: 'Betrayal of Flesh', modes: [{ label: 'Destruir', effects: [{ do: 'destroy', target: 'creature' }] }, { label: 'Devolver', effects: [{ do: 'reanimate', target: 'creature-in-your-graveyard' }] }], example: { action: 'mode:0', target: 'enemy-creature', expect: { gone: true } } } };
+  let t = partida({ 'Betrayal of Flesh': oficial('Betrayal of Flesh'), Urso: URSO }, SC); const at = t.turn.active;
+  let b, u1, u2; [t, b] = poe(t, at, 'Betrayal of Flesh', 'hand'); [t, u1] = poe(t, 1 - at, 'Urso'); [t, u2] = poe(t, at, 'Urso', 'graveyard'); for (let i = 0; i < 4; i++) [t] = poe(t, at, 'Forest');
+  const ie = t.facts['Betrayal of Flesh'].script.modes.findIndex(m => m.entrelacarK);
+  assert.throws(() => E.apply(t, { t: 'cast', p: at, oid: b, mode: ie, targets: [{ oid: u1 }, { oid: u2 }] }), /escolha/);
+});
