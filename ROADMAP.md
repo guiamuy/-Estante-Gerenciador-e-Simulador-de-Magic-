@@ -4586,6 +4586,11 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `HANDLERS.cast` (uma linha: `baixaNaPilhaK`, ao lado da tempestade).
 - **Testes:** `keywords.cr4.unit` (1, falha sem a leva), `combat.audit` (1 cenário). Texto oficial: Light 'Em Up, Cut Your Losses (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
 - **Parcial declarado:** só mágica instantânea ou feitiço (Ob Nixilis, "Casualty X", fica de fora); várias instâncias contam como uma.
+**K-69 · Escalonado (tiered, 702.183)** ✅ (leva K-69) — onda 4 (77 cópias em 51 listas: Fire Magic)
+- **Valor:** Fire Magic e Thunder Magic mostram um botão por modo, cada um com o custo adicional dele; só aparecem os que dá para pagar.
+- **Aceite:** Thunder Magic com quatro Montanhas oferece "2 de dano" ({R}) e "4 de dano" ({R}+{3}), não "8 de dano" ({R}+{5}{R}).
+- **Toca ponto comum:** `createGame` (uma linha: os custos nos modos).
+- **Testes:** `keywords.cr4.unit` (1, falha sem a leva), `combat.audit` (1 cenário). Texto oficial: Fire Magic, Thunder Magic (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

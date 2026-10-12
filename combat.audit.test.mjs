@@ -979,6 +979,17 @@ test('K-68 · baixa (702.153): sacrificando o Urso, o "+2/+0" é copiado; o outr
   for (let i = 0; i < 12 && (s.stack.length || s.pending); i++) s = s.pending ? act(s, E.legalActions(s, s.pending.p)[0]) : act(s, { t: 'pass', p: s.turn.priority });
   assert.equal(combate(s, [u]).players[d].life, 14);
 });
+test('K-69 · escalonado (702.183): o modo de 2 de dano mata o bloqueador antes do combate e o Urso passa', () => {
+  cobre('tiered');
+  const cartas = { ...CARDS, Raio: { name: 'Raio', type_line: 'Instant', mana_cost: '{R}', cmc: 1, colors: ['R'], keywords: ['Tiered'], oracle_text: 'Tiered\n• Um — {0} — Raio deals 1 damage to target creature.\n• Dois — {1} — Raio deals 2 damage to target creature.' } };
+  const scripts = { ...SCRIPTS, Raio: { name: 'Raio', modes: [{ label: 'Um', effects: [{ do: 'damage', amount: 1, target: 'creature' }] }, { label: 'Dois', effects: [{ do: 'damage', amount: 2, target: 'creature' }] }], example: { action: 'mode:1', target: 'enemy-creature', expect: { gone: true } } } };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 88, mode: 'assisted', manaCheck: false, cards: cartas, scripts, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a; let u, b, r; [s, u] = poe(s, a, 'Urso'); [s, b] = poe(s, d, 'Urso'); [s, r] = poe(s, a, 'Raio', { zone: 'hand' });
+  s = act(s, E.legalActions(s, a).find(x => x.oid === r && x.mode === 1 && x.targets[0].oid === b)); for (let i = 0; i < 4 && s.stack.length; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  assert.equal(vivo(s, b), false); assert.equal(combate(s, [u]).players[d].life, 18);
+});
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));

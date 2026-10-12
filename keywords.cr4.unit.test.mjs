@@ -2428,3 +2428,14 @@ test('CR 702.153a · baixa (Light ’Em Up, texto oficial: "Casualty 2"): sacrif
   assert.equal(t.objects[x1].zone, 'graveyard', 'a original matou o Urso do oponente');
   assert.equal(t.objects[x2].zone, 'graveyard', 'a cópia, com alvo novo, matou o outro');
 });
+
+/* ---------------- K-69 · escalonado (tiered) 702.183 ---------------- */
+test('CR 702.183a · escalonado (Thunder Magic, texto oficial): um modo só, com o custo adicional dele; o modo que não fecha não aparece', () => {
+  assert.deepEqual(J(E.tieredImpressoK(oficial('Thunder Magic'))), ['{0}', '{3}', '{5}{R}']);
+  let s = comManaK33({ 'Thunder Magic': oficial('Thunder Magic'), Urso: URSO, Mountain: terra('Mountain') }, { 'Thunder Magic': S.SCRIPTS['Thunder Magic'] }); const a = s.turn.active, d = 1 - a;
+  s = terrenos(s, a, 'Mountain', 4); let t, u; [s, t] = poe(s, a, 'Thunder Magic', 'hand'); [s, u] = poe(s, d, 'Urso');
+  const modos = new Set(E.legalActions(s, a).filter(x => x.t === 'cast' && x.oid === t).map(x => x.mode));
+  assert.deepEqual([...modos].sort(), [0, 1], 'com quatro Montanhas: {R}+{0} e {R}+{3}; {R}+{5}{R} não');
+  const r = resolve(act(s, E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === t && x.mode === 1)));
+  assert.equal(r.zones[a].battlefield.filter(x => r.objects[x].tapped).length, 4, 'pagou {R} + {3}'); assert.equal(r.objects[u].zone, 'graveyard');
+});

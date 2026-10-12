@@ -9552,14 +9552,18 @@
    "n": "702.183",
    "regra": "Keyword Abilities",
    "titulo": "Tiered",
-   "status": "ausente",
-   "falta": "Sem implementação (grep sem ocorrência no motor nem nos scripts). Os modos existem (script.modes), mas sem custo adicional por modo: falta somar o custo do modo escolhido ao conjurar.",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "700.2 mágica modal (existe)",
     "601.2b custo adicional"
    ],
-   "cartas": "uma coleção só (Final Fantasy)"
+   "cartas": "uma coleção só (Final Fantasy)",
+   "evidencia": "K-69: as linhas \"• Nome — {custo} — efeito\" (tieredImpressoK) dão o custo de cada modo do script; em createGame cada modo ganha a marca spreeK com o custo dele e segue o caminho do spree (custo somado ao total, pagaSpreeK, ofertasSpreeK, também sem pagar o custo de mana). Fire Magic e Thunder Magic em RAW_SCRIPTS (S8).",
+   "testes": [
+    "CR 702.183a · escalonado (Thunder Magic, texto oficial): um modo só, com o custo adicional dele; o modo que não fecha não aparece",
+    "K-69 · escalonado (702.183): o modo de 2 de dano mata o bloqueador antes do combate e o Urso passa"
+   ]
   },
   {
    "n": "702.184",
