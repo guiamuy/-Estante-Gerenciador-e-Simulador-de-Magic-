@@ -5246,6 +5246,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'wither', 'decayed', // K-65 · 702.80 (dano a criatura vira marcadores −1/−1, murchaK) e 702.147 (não bloqueia; ao atacar, sacrificada no fim do combate)
   'blitz', // K-66 · 702.152: custo alternativo; paga, ímpeto, "ao morrer, compre um card" e sacrificada no começo da etapa final (blitzouK)
   'ravenous', 'squad', // K-67 · 702.156 (entra com X marcadores +1/+1; com X 5 ou mais, compra ao entrar) e 702.157 (custo adicional pago quantas vezes quiser; ao entrar, uma ficha cópia por vez)
+  'casualty', // K-68 · 702.153: sacrificar uma criatura com poder N ou mais ao conjurar; se sacrificou, o gatilho copia a mágica (casualtyK)
   'afflict', 'melee', 'mentor', 'training', // K-31 · 702.130, 702.121, 702.134, 702.149: gatilhos de ataque gerados pela palavra, um por instância
   'battle cry', 'rampage', 'flanking', 'bushido', // K-30 · 702.91, 702.23, 702.25, 702.45: gatilhos de combate gerados pela palavra (GATILHOS_DE_PALAVRA_K), um por instância
   /* ↓ V · palavras-chave da trilha verbos */
@@ -8442,6 +8443,7 @@ function palavraNaLinhaK(k) {
   if (k === 'wither' || k === 'decayed') return k; // K-65
   if (k === 'blitz') return 'blitz\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-66
   if (k === 'ravenous') return 'ravenous'; if (k === 'squad') return 'squad\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-67 · esquadrão com custo que não é mana fica de fora
+  if (k === 'casualty') return 'casualty \\d+'; // K-68 · "Casualty X" (Ob Nixilis) fica de fora
   if (k === 'dash') return 'dash\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-9
   if (k === 'evoke') return 'evoke(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*exile an? (?:white|blue|black|red|green) card from your hand\\.?)'; // K-8 · só as formas que o motor paga
   return ['afterlife', 'rampage', 'bushido', 'afflict'].includes(k) ? `${k} \\d+` : k; // K-30 · alvoroço N e bushido N
@@ -21149,6 +21151,7 @@ const HANDLERS = {
     // Leva 106 · tempestade (702.40): as cópias vão para a pilha por cima da original, cada uma com alvo próprio
     // ("you may choose new targets"), e resolvem mesmo se a original for anulada. Antes resolviam junto com ela.
     if ((f.script || {}).storm) tempestadeNaPilhaK(s, a, o); // K-25 · 702.40a: um gatilho só, que copia na resolução (Toca ponto comum: HANDLERS.cast)
+    if (a.casualtyK != null) baixaNaPilhaK(s, a, o); // K-68 · 702.153a: sacrifica a criatura e põe na pilha o gatilho que copia (Toca ponto comum: HANDLERS.cast)
     // M-265 · replicar (702.56b): "when you cast this spell, copy it for each time you paid its replicate cost" — como a tempestade, cópias
     // com alvo próprio por cima da original, que existem mesmo se a original for anulada; não são conjuradas
     if (a.kick && reforco && reforco.replicar) { for (let i = 0; i < a.kick; i++) s.queued.push({ source: a.oid, name: o.name, controller: a.p, effects: spellEffects(s, s.objects[a.oid]), when: 'replicar', copia: true, copiaDeMagia: true, marcasMagia: marcasDaMagia(s.objects[a.oid]) }); events.push({ kind: 'replicar', name: o.name, amount: a.kick }); }
@@ -22336,6 +22339,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
   ofertasRecompraK(s, p, out);
   ofertasProleK(s, p, out); // K-53 · 702.175a · prole: cada conjuração pelo custo normal ganha a variante que paga também o custo de prole
   ofertasEsquadraoK(s, p, out); // K-67 · 702.157a: uma variante por quantidade de vezes que fecha o custo
+  ofertasBaixaK(s, p, out); // K-68 · 702.153a: uma variante por criatura sua com poder N ou mais
   // K-22 · 702.62a · suspender: a oferta mora em ofertasSuspenderK até a mesa ter o botão (K-24; pedido à trilha mesa)
   // K-27 · 702.49d · ninjutsu de comandante, da zona de comando (da mão, pelo caminho de sempre)
   for (const oid of s.zones[p].command) {
@@ -24025,6 +24029,7 @@ function ofertasSemPagarK(s, p, out) {
     const o = s.objects[x.oid], f = o && s.facts[o.name]; if (!f) continue;
     if (f.proleK && !x.proleK && (!s.manaCheck || canPay(s, p, parseCost(f.proleK.mana)))) tmp.push({ ...x, proleK: true });
     if (f.esquadraoK && !x.esquadraoK) for (let n = 1; n <= LIMITE_ESQUADRAO_K && (!s.manaCheck || canPay(s, p, somaCusto(parseCost('{0}'), parseCost(f.esquadraoK.mana), n))); n++) tmp.push({ ...x, esquadraoK: n }); // K-67 · 118.9d
+    if (f.numerosK && (f.numerosK.casualty || [])[0] && x.casualtyK == null && (f.types.includes('instant') || f.types.includes('sorcery'))) for (const c of criaturasDaBaixaK(s, p, f.numerosK.casualty[0])) tmp.push({ ...x, casualtyK: c }); // K-68 · 118.9d
     if (f.recompraK && !x.recompraK && (!f.recompraK.mana || !s.manaCheck || canPay(s, p, parseCost(f.recompraK.mana)))) {
       if (!f.recompraK.extra) tmp.push({ ...x, recompraK: true });
       else if (canPayExtra(s, p, f.recompraK.extra, x.oid)) for (const pg of formasDoExtraK(s, p, f.recompraK.extra, x.oid, pagamentosDe(s, p, f.recompraK.extra, x.oid)).slice(0, LIMITE_PAGAMENTOS)) tmp.push(pg ? { ...x, recompraK: true, pay: { ...(x.pay || {}), recompraK: pg } } : { ...x, recompraK: true });
@@ -24069,6 +24074,24 @@ function ofertasEsquadraoK(s, p, out) {
   }
 }
 Object.assign(EXPORTS_K, { pagaEsquadraoK, ofertasEsquadraoK });
+/* K-68 · 702.153 baixa (casualty): "As you cast this spell, you may sacrifice a creature with power N or greater" e "When you cast this spell,
+   if a casualty cost was paid for it, copy it. If the copy has targets, you may choose new targets for the copy" (b: várias instâncias, uma
+   cópia por custo pago). A ação traz a criatura (`casualtyK`), escolhida ao conjurar; o gatilho vai para a pilha por cima da mágica (como a
+   tempestade, com uma cópia). Só mágica instantânea ou feitiço (a cópia de mágica de permanente, Ob Nixilis, fica de fora). */
+const numeroBaixaK = (s, o) => { const f = o && s.facts[o.name]; return (f && f.numerosK && (f.numerosK.casualty || [])[0]) || 0; };
+const criaturasDaBaixaK = (s, p, n) => battlefield(s).filter(c => c.controller === p && isCreature(s, c) && power(s, c) >= n).map(c => c.oid);
+function baixaNaPilhaK(s, a, o) {
+  const f = s.facts[o.name], n = numeroBaixaK(s, o), c = s.objects[a.casualtyK];
+  if (!n || !(f.types.includes('instant') || f.types.includes('sorcery'))) throw new RuleError('custo', 'esta mágica não tem baixa');
+  if (!c || c.zone !== 'battlefield' || c.controller !== a.p || !isCreature(s, c) || power(s, c) < n) throw new RuleError('custo', `sacrifique uma criatura sua com poder ${n} ou mais`);
+  sacrifice(s, c.oid, []);
+  s.queued.push({ source: a.oid, name: o.name, controller: a.p, effects: [{ do: 'tempestade_k', n: 1, efeitos: spellEffects(s, s.objects[a.oid]), marcas: marcasDaMagia(s.objects[a.oid]) }], when: 'casualty' });
+}
+function ofertasBaixaK(s, p, out) {
+  const base = out.filter(x => x.t === 'cast' && x.casualtyK == null && s.objects[x.oid] && numeroBaixaK(s, s.objects[x.oid]) && ['instant', 'sorcery'].some(t => s.facts[s.objects[x.oid].name].types.includes(t)));
+  for (const x of base) for (const c of criaturasDaBaixaK(s, p, numeroBaixaK(s, s.objects[x.oid]))) out.push({ ...x, casualtyK: c });
+}
+Object.assign(EXPORTS_K, { ofertasBaixaK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-30 · 701.65 aerobender: "that player exiles those objects. For each card exiled this way, for as long as it remains exiled, its owner
    may cast it by paying {2} rather than paying its mana cost" (a). A permissão é do DONO e da encarnação exilada (400.7: se a carta sair do
@@ -28088,6 +28111,7 @@ Object.assign(PALAVRA_PT, { horsemanship: 'equitação' }); // K-63
 Object.assign(PALAVRA_PT, { wither: 'murchar', decayed: 'decaída' }); // K-65
 Object.assign(PALAVRA_PT, { blitz: 'blitz' }); // K-66
 Object.assign(PALAVRA_PT, { ravenous: 'voraz', squad: 'esquadrão' }); // K-67
+Object.assign(PALAVRA_PT, { casualty: 'baixa' }); // K-68
 Object.assign(PALAVRA_PT, { afflict: 'aflição', melee: 'refrega', mentor: 'mentor', training: 'treinamento' }); // K-31
 Object.assign(PALAVRA_PT, { 'battle cry': 'grito de guerra', rampage: 'alvoroço', flanking: 'flanquear', bushido: 'bushido' }); // K-30
 const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consultadas por descreveEfeito; antes a pilha mostrava "proeza k")

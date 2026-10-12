@@ -967,6 +967,18 @@ test('K-67 · voraz e esquadrão (702.156, 702.157): o voraz com X 3 entra 3/3; 
   s = act(s, E.legalActions(s, a).find(x => x.oid === q && x.esquadraoK === 1)); for (let i = 0; i < 6 && (s.stack.length || s.pending); i++) s = s.pending ? act(s, E.legalActions(s, s.pending.p)[0]) : act(s, { t: 'pass', p: s.turn.priority });
   assert.equal(s.zones[a].battlefield.filter(x => s.objects[x].token && s.objects[x].name === 'Esq').length, 1);
 });
+test('K-68 · baixa (702.153): sacrificando o Urso, o "+2/+0" é copiado; o outro Urso ataca com +4/+0', () => {
+  cobre('casualty');
+  const cartas = { ...CARDS, Baixa: { name: 'Baixa', type_line: 'Instant', mana_cost: '{R}', cmc: 1, colors: ['R'], keywords: ['Casualty'], oracle_text: 'Casualty 2\nTarget creature gets +2/+0 until end of turn.' } };
+  const scripts = { ...SCRIPTS, Baixa: { name: 'Baixa', effects: [{ do: 'pump', power: 2, toughness: 0, target: 'creature' }], example: { target: 'own-creature', expect: { pump: [2, 0] } } } };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 87, mode: 'assisted', manaCheck: false, cards: cartas, scripts, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a; let u, v, b; [s, u] = poe(s, a, 'Urso'); [s, v] = poe(s, a, 'Urso'); [s, b] = poe(s, a, 'Baixa', { zone: 'hand' });
+  s = act(s, E.legalActions(s, a).find(x => x.oid === b && x.casualtyK === v && x.targets[0].oid === u));
+  for (let i = 0; i < 12 && (s.stack.length || s.pending); i++) s = s.pending ? act(s, E.legalActions(s, s.pending.p)[0]) : act(s, { t: 'pass', p: s.turn.priority });
+  assert.equal(combate(s, [u]).players[d].life, 14);
+});
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));

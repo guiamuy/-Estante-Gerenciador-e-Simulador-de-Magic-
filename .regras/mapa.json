@@ -9112,14 +9112,19 @@
    "n": "702.153",
    "regra": "Keyword Abilities",
    "titulo": "Casualty",
-   "status": "ausente",
-   "falta": "Sem implementação (grep sem ocorrência no motor nem nos scripts). Falta custo adicional opcional de sacrificar criatura com poder N+ e o gatilho de conjuração que copia a mágica com novos alvos (só existe cópia de tempestade).",
+   "status": "parcial",
+   "falta": "Só mágica instantânea ou feitiço: a cópia de mágica de permanente (Ob Nixilis, \"Casualty X\") fica de fora. Várias instâncias de baixa (702.153b) contam como uma.",
    "esforco": "M",
    "depende": [
     "707.10 cópia de mágica",
     "601.2b custo adicional"
    ],
-   "cartas": "uma coleção só (Streets of New Capenna)"
+   "cartas": "uma coleção só (Streets of New Capenna)",
+   "evidencia": "K-68: \"Casualty N\" (numerosK) é custo adicional opcional: a ação traz a criatura a sacrificar (casualtyK; ofertasBaixaK: uma variante por criatura sua com poder N ou mais, também na conjuração sem pagar). Em HANDLERS.cast, baixaNaPilhaK confere o poder, sacrifica e põe na pilha o gatilho que copia a mágica (tempestade_k com uma cópia, alvo próprio).",
+   "testes": [
+    "CR 702.153a · baixa (Light ’Em Up, texto oficial: \"Casualty 2\"): sacrificando uma criatura com poder 2 ou mais, a mágica é copiada (a cópia com alvo próprio); poder menor não serve",
+    "K-68 · baixa (702.153): sacrificando o Urso, o \"+2/+0\" é copiado; o outro Urso ataca com +4/+0"
+   ]
   },
   {
    "n": "702.154",

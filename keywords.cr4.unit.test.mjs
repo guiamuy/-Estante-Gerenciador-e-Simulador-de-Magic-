@@ -2408,3 +2408,23 @@ test('CR 702.157a · esquadrão (Vanguard Suppressor, texto oficial: "Squad {2}"
   assert.equal(fichas.length, 2); assert.equal(t.zones[a].battlefield.filter(x => t.objects[x].tapped).length, 8, '{3}{U} + {2}{2}');
   assert.ok(fichas.every(x => E.hasKeyword(t, t.objects[x], 'flying')));
 });
+
+/* ---------------- K-68 · baixa (casualty) 702.153 ---------------- */
+test('CR 702.153a · baixa (Light ’Em Up, texto oficial: "Casualty 2"): sacrificando uma criatura com poder 2 ou mais, a mágica é copiada (a cópia com alvo próprio); poder menor não serve', () => {
+  const LE = { ...oficial("Light 'Em Up"), keywords: ['Casualty'] };
+  const SC = { "Light 'Em Up": { name: "Light 'Em Up", effects: [{ do: 'damage', amount: 2, target: 'creature' }], example: { target: 'enemy-creature', expect: { gone: true } } } };
+  const UM = { name: 'Um', type_line: 'Creature — Elf', mana_cost: '{G}', cmc: 1, colors: ['G'], power: '1', toughness: '1', keywords: [], oracle_text: '' };
+  let s = partida({ "Light 'Em Up": LE, Urso: URSO, Um: UM }, SC); const a = s.turn.active, d = 1 - a;
+  let l, u, um, x1, x2; [s, l] = poe(s, a, "Light 'Em Up", 'hand'); [s, u] = poe(s, a, 'Urso'); [s, um] = poe(s, a, 'Um'); [s, x1] = poe(s, d, 'Urso'); [s, x2] = poe(s, d, 'Um');
+  const ofs = E.legalActions(s, a).filter(x => x.t === 'cast' && x.oid === l && x.casualtyK != null);
+  assert.ok(ofs.length && ofs.every(x => x.casualtyK === u), 'só o Urso (poder 2) serve');
+  assert.throws(() => E.apply(s, { t: 'cast', p: a, oid: l, targets: [{ oid: x1 }], casualtyK: um }), /poder 2/);
+  let t = act(s, ofs.find(x => x.targets[0].oid === x1));
+  assert.equal(t.objects[u].zone, 'graveyard', 'o Urso foi sacrificado ao conjurar');
+  for (let i = 0; i < 20 && (t.stack.length || t.pending); i++) {
+    if (t.pending && t.pending.kind === 'pick_target') { const k = t.pending.options.findIndex(o => o && (o.oid === x2 || o === x2)); t = act(t, { t: 'pick_target', p: t.pending.p, index: k >= 0 ? k : 0 }); continue; }
+    t = t.pending ? act(t, E.legalActions(t, t.pending.p)[0]) : act(t, { t: 'pass', p: t.turn.priority });
+  }
+  assert.equal(t.objects[x1].zone, 'graveyard', 'a original matou o Urso do oponente');
+  assert.equal(t.objects[x2].zone, 'graveyard', 'a cópia, com alvo novo, matou o outro');
+});
