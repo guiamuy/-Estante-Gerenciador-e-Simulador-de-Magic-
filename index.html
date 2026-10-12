@@ -5217,6 +5217,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'convoke', 'improvise', // K-13 · 702.51 e 702.126: virar criaturas (artefatos) para pagar parte do custo total (tapaParaPagarK)
   'spectacle', 'surge', // K-32 · 702.137 e 702.117: custo alternativo impresso com condição (altsImpressosK, condicaoDoAltK)
   'buyback', // K-33 · 702.27: custo adicional opcional lido da linha (recompraImpressaK); pago, a mágica volta para a mão ao resolver
+  'entwine', // K-34 · 702.42: o modo "todos os modos" com custo adicional (modoEntrelacadoK), lido da linha (entrelacarImpressoK)
   'afflict', 'melee', 'mentor', 'training', // K-31 · 702.130, 702.121, 702.134, 702.149: gatilhos de ataque gerados pela palavra, um por instância
   'battle cry', 'rampage', 'flanking', 'bushido', // K-30 · 702.91, 702.23, 702.25, 702.45: gatilhos de combate gerados pela palavra (GATILHOS_DE_PALAVRA_K), um por instância
   /* ↓ V · palavras-chave da trilha verbos */
@@ -6401,6 +6402,12 @@ const RAW_SCRIPTS = [
   { name: 'Capsize', effects: [{ do: 'bounce', target: 'permanent' }], example: { target: 'enemy-creature', expect: { bounced: true } } }, // K-33 · "Buyback {3} / Return target permanent to its owner's hand."
   { name: 'Whispers of the Muse', effects: [{ do: 'draw', amount: 1 }], example: { target: 'none', expect: { handDelta: 1 } } }, // K-33 · "Buyback {5} / Draw a card."
   { name: 'Constant Mists', effects: [{ do: 'fog' }], example: { target: 'none', expect: { fogged: true } } }, // K-33 · "Buyback—Sacrifice a land. / Prevent all combat damage that would be dealt this turn." 
+  { name: 'Rain of Rust', modes: [{ label: 'Destruir um artefato', effects: [{ do: 'destroy', target: 'artifact' }] }, { label: 'Destruir um terreno', effects: [{ do: 'destroy', target: 'land' }] }], // K-34 · "Choose one — • Destroy target artifact. • Destroy target land. / Entwine {3}{R}"
+    example: { action: 'mode:1', target: 'own-land', expect: { gone: true } } },
+  { name: "Dream's Grip", modes: [{ label: 'Virar uma permanente', effects: [{ do: 'tap', target: 'permanent' }] }, { label: 'Desvirar uma permanente', effects: [{ do: 'untap', target: 'permanent' }] }], // K-34 · "Choose one — • Tap target permanent. • Untap target permanent. / Entwine {1}"
+    example: { action: 'mode:0', target: 'enemy-creature', expect: { tapped: true } } },
+  { name: 'Betrayal of Flesh', modes: [{ label: 'Destruir uma criatura', effects: [{ do: 'destroy', target: 'creature' }] }, { label: 'Criatura do seu cemitério ao campo', effects: [{ do: 'reanimate', target: 'creature-in-your-graveyard' }] }], // K-34 · "Choose one — • Destroy target creature. • Return target creature card from your graveyard to the battlefield. / Entwine—Sacrifice three lands."
+    example: { action: 'mode:0', target: 'enemy-creature', expect: { gone: true } } },
   /* ↓ V · scripts de carta da trilha verbos (texto oficial em .listas/oficiais-verbos.json) */
   // V-28 · 701.66 terrabender
   { name: 'Earthbending Lesson', effects: [{ do: 'earthbend', amount: 4, target: 'land-you-control' }], // "Earthbend 4."
@@ -8177,6 +8184,7 @@ function palavraNaLinhaK(k) {
   if (k === 'protection') { const q = '(?:white|blue|black|red|green|everything|multicolored|monocolored|colorless|all colors|creatures|artifacts|enchantments|instants|sorceries|planeswalkers|lands|' + Object.keys(protecaoNaoCriaturaSCK()).join('|') + '|' + pluraisDeCriaturaSCK() + ')'; return `protection from ${q}(?: and from ${q})*`; } // K-24 · sem palavra solta: só fichas, subtipos que se anexam e tipos de criatura // K-17 · só as qualidades que o motor confere (protecaoImpressa e protecaoQualidadesK)
   if (k === 'spectacle' || k === 'surge') return `${k}\\s+(?:\\{[0-9WUBRGC]+\\})+`; // K-32
   if (k === 'buyback') return 'buyback(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*(?:sacrifice an? (?:land|creature|artifact|enchantment)|discard (?:a|one|two|three) cards?|pay \\d+ life)\\.?)'; // K-33 · só as formas que recompraImpressaK lê
+  if (k === 'entwine') return 'entwine(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*(?:sacrifice (?:an?|one|two|three) (?:lands?|creatures?|artifacts?|enchantments?)|discard (?:a|one|two|three) cards?|pay \\d+ life)\\.?)'; // K-34
   if (k === 'dash') return 'dash\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-9
   if (k === 'evoke') return 'evoke(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*exile an? (?:white|blue|black|red|green) card from your hand\\.?)'; // K-8 · só as formas que o motor paga
   return ['afterlife', 'rampage', 'bushido', 'afflict'].includes(k) ? `${k} \\d+` : k; // K-30 · alvoroço N e bushido N
@@ -15836,6 +15844,7 @@ function cardFacts(card) {
     arremeterK: arremeterImpressoK(card), // K-9 · 702.109: "Dash {1}{R}" (undefined quando não tem)
     espetaculoK: custoDaLinhaK(card, 'Spectacle'), surtoK: custoDaLinhaK(card, 'Surge'), // K-32 · 702.137 e 702.117
     recompraK: recompraImpressaK(card), // K-33 · 702.27: "Buyback {3}" / "Buyback—Sacrifice a land." (undefined quando não tem)
+    entrelacarK: entrelacarImpressoK(card), // K-34 · 702.42: "Entwine {2}" / "Entwine—Sacrifice three lands." (undefined quando não tem)
     suspenderK: suspenderImpressoK(card), // K-22 · 702.62a: "Suspend N—{custo}" (undefined quando não tem)
     equipesK: equipesImpressosK(card), // K-28 · 702.6c: "Equip [qualidade] {custo}" (undefined quando não tem)
     jogadorK: jogadorImpressoK(card), // K-26 · 702.11c / 702.18a: "You have hexproof." / "You have shroud." (undefined quando não tem)
@@ -16167,6 +16176,7 @@ function createGame(setup) {
     if (sc.modes) f.script.modes = sc.modes;
     if (sc.alt) f.script.alt = sc.alt;
     if (altsImpressosK(f).length) f.script.alt = (f.script.alt || []).concat(altsImpressosK(f)); // K-8/K-9 · evocar e arremeter são mais custos alternativos, depois dos do script
+    if (f.entrelacarK && (f.script.modes || []).length > 1 && !f.script.modeCount) f.script.modes = f.script.modes.concat([modoEntrelacadoK(f.script.modes, f.entrelacarK)]); // K-34 · 702.42a: "choose all modes" é mais um modo, com custo adicional
     if (sc.flashback) f.script.flashback = sc.flashback;
     if (sc.escape) f.script.escape = sc.escape; // S48 · fuga
     if (sc.discount) f.script.discount = sc.discount; // S49 · desconto por condição de campo
@@ -20303,6 +20313,7 @@ const HANDLERS = {
       } else payCost(s, a.p, ...custoTapadoK(s, a, o, custo, extraPago), { criaturaDoComandante: true, oid: a.oid }); } // K-13 · convocar/improvisar (Toca ponto comum: o pagamento do custo normal) // M-273 // M-259 · a redução por alvo usa os alvos escolhidos
     if (a.kick && reforco && s.manaCheck && !a.free && (alt || a.flashback || a.escape || a.disturb || a.omen || a.bestow || a.plotted)) payCost(s, a.p, somaCusto(parseCost('{0}'), parseCost(reforco.mana), a.kick)); // CR2c.6 · 601.2f: o reforço soma ao custo alternativo
     if (a.recompraK) pagaRecompraK(s, a, o, alt); // K-33 · 702.27a: o custo de recompra, 601.2b/601.2f–h (Toca ponto comum: HANDLERS.cast)
+    if (a.mode != null && ((((f.script || {}).modes) || [])[a.mode] || {}).entrelacarK) pagaEntrelacarK(s, a, o, alt); // K-34 · 702.42a: o custo de entrelaçar (Toca ponto comum: HANDLERS.cast)
     if (a.retrace) { // M-222 · 702.81a: "discarding a land card in addition to paying its other costs"
       const l = a.pay && a.pay.retrace, lo = l && s.objects[l];
       if (!lo || !s.zones[a.p].hand.includes(l) || !(s.facts[lo.name].types || []).includes('land')) throw new RuleError('custo', 'descarte um terreno da mão para retraçar');
@@ -21486,6 +21497,8 @@ function legalActions(s, p, { adjudication = false } = {}) {
     return canPay(s, p, custo, castExtra(s, p, o, a.x || 0, a.targets || []));
   });
   /* ↓ K · ofertas de legalActions da trilha keywords (out.push) */
+  // K-34 · 702.42a · entrelaçar: a conjuração no modo de todos os modos fica só se o custo a mais fecha (custo extra: uma ação por forma)
+  ofertasEntrelacarK(s, p, out);
   // K-33 · 702.27a · recompra: cada conjuração pelo custo normal ganha a variante que paga também o custo de recompra (opcional: as duas ficam)
   ofertasRecompraK(s, p, out);
   // K-22 · 702.62a · suspender: a oferta mora em ofertasSuspenderK até a mesa ter o botão (K-24; pedido à trilha mesa)
@@ -22068,7 +22081,8 @@ function gruposParaTaparK(s, p, o, custo, extra) {
 }
 /** HANDLERS.cast · o custo normal a pagar com mana depois de virar o grupo escolhido (sem `tapaK`, o mesmo de antes). */
 function custoTapadoK(s, a, o, custo, extra) {
-  if (a.recompraK && (s.facts[o.name].recompraK || {}).mana) custo = somaCusto(custo, parseCost(s.facts[o.name].recompraK.mana), 1); // K-33 · 601.2f: a recompra soma ao custo total (reduções valem sobre a soma)
+  if (a.recompraK && (s.facts[o.name].recompraK || {}).mana) custo = somaCusto(custo, parseCost(s.facts[o.name].recompraK.mana), 1); // K-33
+  if (entrelacadoNaAcaoK(s, a, o) && (s.facts[o.name].entrelacarK || {}).mana) custo = somaCusto(custo, parseCost(s.facts[o.name].entrelacarK.mana), 1); // K-34 · idem · 601.2f: a recompra soma ao custo total (reduções valem sobre a soma)
   if (!a.tapaK) return [custo, extra];
   const f = s.facts[o.name], g = [].concat(a.tapaK);
   if (!f.tapaK || !g.length || new Set(g).size !== g.length) throw new RuleError('custo', 'esta mágica não tem convocar nem improvisar');
@@ -22335,8 +22349,8 @@ Object.assign(EXPORTS_K, { tempestadeNaPilhaK });
    `pay.recompraK`. A marca `recompraK` fica na mágica (MARCAS_DA_CONJURACAO) e só vale se ela resolver: anulada ou sem alvo legal (608.2b)
    vai para o cemitério. Lampejo do passado ganha (exílio, 702.34a, aplicado em moveObject). */
 function extraDaFraseK(t) {
-  const x = String(t).trim().toLowerCase(), N = { a: 1, one: 1, two: 2, three: 3 };
-  let m = x.match(/^sacrifice an? (land|creature|artifact|enchantment)$/); if (m) return { sacrificeOther: { types: [m[1]] } };
+  const x = String(t).trim().toLowerCase(), N = { a: 1, an: 1, one: 1, two: 2, three: 3 };
+  let m = x.match(/^sacrifice (an?|one|two|three) (land|creature|artifact|enchantment)s?$/); if (m) return { sacrificeOther: { types: [m[2]], ...(N[m[1]] > 1 ? { amount: N[m[1]] } : {}) } }; // K-34 · "Sacrifice three lands"
   m = x.match(/^discard (a|one|two|three) cards?$/); if (m) return { discard: N[m[1]] };
   m = x.match(/^pay (\d+) life$/); if (m) return { pagarVida: +m[1] };
   return undefined;
@@ -22390,6 +22404,57 @@ function ofertasRecompraK(s, p, out) {
   }
 }
 Object.assign(EXPORTS_K, { recompraImpressaK, pagaRecompraK, recompraAoResolverK, ofertasRecompraK });
+/* K-34 · 702.42 entrelaçar: "Entwine [cost]" = "You may choose all modes of this spell instead of just the number specified. If you do, you
+   pay an additional [cost]" (601.2b, 601.2f–h); 702.42b: pago, segue o texto de cada modo na ordem impressa. O "escolher todos" vira mais um
+   modo do script (modoEntrelacadoK: os efeitos de cada modo, na ordem, cada um com a marca do seu modo, para "o mesmo alvo" valer dentro dele),
+   com a marca `entrelacarK`; a mesa já desenha cada modo como botão. O custo a mais soma ao custo total no caminho normal (custoTapadoK) e é
+   pago à parte com custo alternativo (pagaEntrelacarK); custo que não é mana vai pelos custos extras, com a escolha em `pay.entrelacarK`. */
+function entrelacarImpressoK(card) {
+  const txt = String((card && (card.oracle_text || (card.faces && card.faces[0] && card.faces[0].oracle_text))) || '');
+  for (const l0 of txt.split('\n')) {
+    const l = l0.replace(/\s*\([^)]*\)/g, '').trim();
+    let m = l.match(/^Entwine\s+((?:\{[0-9WUBRGC]+\})+)$/); if (m) return { mana: m[1] };
+    m = l.match(/^Entwine\s*[—-]\s*(.+?)\.?$/); if (m) { const extra = extraDaFraseK(m[1]); if (extra) return { extra }; }
+  }
+  return undefined;
+}
+function modoEntrelacadoK(modes, ek) {
+  const custo = ek.mana || (ek.extra.sacrificeOther ? `sacrificar ${ek.extra.sacrificeOther.amount || 1} ${({ land: 'terreno', creature: 'criatura', artifact: 'artefato', enchantment: 'encantamento' })[ek.extra.sacrificeOther.types[0]]}(s)` : ek.extra.discard ? `descartar ${ek.extra.discard}` : `pagar ${ek.extra.pagarVida} de vida`);
+  return { label: `Entrelaçar (${custo}): ${modes.map(m => m.label || 'modo').join(' + ')}`, entrelacarK: true,
+    effects: modes.flatMap((m, k) => (m.effects || []).map(e => ({ ...e, __modo: `entrelacar-${k}` }))) };
+}
+const entrelacadoNaAcaoK = (s, a, o) => a.mode != null && !!(((((s.facts[o.name] || {}).script || {}).modes) || [])[a.mode] || {}).entrelacarK;
+/** HANDLERS.cast · o custo de entrelaçar (a parte de mana só fora do caminho normal, onde custoTapadoK já a somou). */
+function pagaEntrelacarK(s, a, o, alt) {
+  const ek = s.facts[o.name].entrelacarK;
+  if (!ek) throw new RuleError('custo', 'esta mágica não tem entrelaçar');
+  const viaNormal = s.manaCheck && !a.free && !alt && !a.flashback && !a.escape && !a.disturb && !a.omen && !a.bestow && !a.plotted && a.vida == null;
+  if (ek.mana && s.manaCheck && !viaNormal) payCost(s, a.p, parseCost(ek.mana));
+  if (ek.extra) {
+    if (!canPayExtra(s, a.p, ek.extra, a.oid)) throw new RuleError('custo', 'não dá para pagar o entrelaçar');
+    payExtraCosts(s, a.p, ek.extra, (a.pay || {}).entrelacarK, a.oid);
+  }
+}
+/** legalActions · tira a conjuração entrelaçada que não fecha o custo a mais (e as que não são pelo custo normal, que o motor não confere aqui);
+    custo extra: uma ação por forma de pagar. */
+function ofertasEntrelacarK(s, p, out) {
+  for (let i = out.length - 1; i >= 0; i--) {
+    const x = out[i]; if (x.t !== 'cast' || x.pay && x.pay.entrelacarK || !s.objects[x.oid] || !entrelacadoNaAcaoK(s, x, s.objects[x.oid])) continue;
+    const o = s.objects[x.oid], f = s.facts[o.name], ek = f.entrelacarK;
+    out.splice(i, 1);
+    if (x.alt != null || x.flashback || x.escape || x.disturb || x.omen || x.bestow || x.faceDown || x.plotted || x.tapaK || x.recomecarK || x.retrace || x.emenda || x.vida != null || x.face != null || x.permissao != null) continue;
+    if (s.manaCheck && !x.free && ek.mana) {
+      let custo = x.kick ? somaCusto(f.cost, parseCost(f.script.kicker.mana), x.kick) : f.cost;
+      custo = somaCusto(custo, parseCost(ek.mana), 1);
+      if (!canPay(s, p, custo, castExtra(s, p, o, x.x || 0, x.targets || []) - (x.delve || 0))) continue;
+    } else if (s.manaCheck && x.free && ek.mana && !canPay(s, p, parseCost(ek.mana))) continue;
+    if (!ek.extra) { out.push(x); continue; }
+    if (!canPayExtra(s, p, ek.extra, x.oid)) continue;
+    const usados = new Set(Object.values(x.pay || {}).flat().filter(v => typeof v === 'string'));
+    for (const pg of pagamentosDe(s, p, ek.extra, x.oid).filter(pg => !Object.values(pg).flat().some(v => usados.has(v))).slice(0, LIMITE_PAGAMENTOS)) out.push({ ...x, pay: { ...(x.pay || {}), entrelacarK: pg } });
+  }
+}
+Object.assign(EXPORTS_K, { entrelacarImpressoK, modoEntrelacadoK, pagaEntrelacarK, ofertasEntrelacarK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-28 · 701.66 terrabender N: "Target land you control becomes a 0/0 land creature with haste in addition to its other types. Put N
    +1/+1 counters on it. When that land dies or is put into exile, return it to the battlefield tapped under your control" (a). A
@@ -26151,6 +26216,7 @@ Object.assign(PALAVRA_PT, { landwalk: 'travessia' }); // K-21
 Object.assign(PALAVRA_PT, { suspend: 'suspender' }); // K-22
 Object.assign(PALAVRA_PT, { spectacle: 'espetáculo', surge: 'surto' }); // K-32
 Object.assign(PALAVRA_PT, { buyback: 'recompra' }); // K-33
+Object.assign(PALAVRA_PT, { entwine: 'entrelaçar' }); // K-34
 Object.assign(PALAVRA_PT, { afflict: 'aflição', melee: 'refrega', mentor: 'mentor', training: 'treinamento' }); // K-31
 Object.assign(PALAVRA_PT, { 'battle cry': 'grito de guerra', rampage: 'alvoroço', flanking: 'flanquear', bushido: 'bushido' }); // K-30
 const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consultadas por descreveEfeito; antes a pilha mostrava "proeza k")

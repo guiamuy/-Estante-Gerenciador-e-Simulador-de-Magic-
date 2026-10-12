@@ -1419,3 +1419,47 @@ test('CR 702.27a · carta sem a palavra não tem recompra (o motor recusa a aç�
   assert.throws(() => E.apply(s2, { t: 'cast', p: s2.turn.active, oid: r, targets: [{ player: 1 - s2.turn.active }], recompraK: true }), /recompra/);
   assert.ok(base);
 });
+
+/* ---------------- K-34 · entrelaçar 702.42 ---------------- */
+const SC_RAIN = { 'Rain of Rust': { name: 'Rain of Rust', modes: [{ label: 'Destruir um artefato', effects: [{ do: 'destroy', target: 'artifact' }] }, { label: 'Destruir um terreno', effects: [{ do: 'destroy', target: 'land' }] }], example: { action: 'mode:0', target: 'none', expect: {} } } };
+const ART_K34 = { name: 'Peça', type_line: 'Artifact', mana_cost: '{1}', cmc: 1, colors: [], keywords: [], oracle_text: '' };
+
+test('CR 702.42a · entrelaçar (Rain of Rust, texto oficial): "Entwine {3}{R}" vira a opção de escolher os dois modos pagando {3}{R} a mais, oferecida só quando o total fecha; resolve os dois, na ordem impressa (702.42b)', () => {
+  assert.deepEqual(J(E.entrelacarImpressoK(oficial('Rain of Rust'))), { mana: '{3}{R}' });
+  let s = comManaK33({ 'Rain of Rust': oficial('Rain of Rust'), Peça: ART_K34, Mountain: terra('Mountain') }); const a = s.turn.active, d = 1 - a;
+  s = terrenos(s, a, 'Mountain', 4); s = terrenos(s, a, 'Island', 5);
+  let r, pc, ter; [s, r] = poe(s, a, 'Rain of Rust', 'hand'); [s, pc] = poe(s, d, 'Peça'); [s, ter] = poe(s, d, 'Forest');
+  const modos = s.facts['Rain of Rust'].script.modes; assert.equal(modos.length, 3, 'os dois modos impressos e o entrelaçado');
+  const ie = modos.findIndex(m => m.entrelacarK); assert.equal(ie, 2);
+  const ofertas = st => E.legalActions(st, a).filter(x => x.t === 'cast' && x.oid === r && x.mode === ie);
+  let pouco = J(s); for (const x of pouco.zones[a].battlefield.slice(0, 2)) pouco.objects[x].tapped = true;
+  assert.equal(ofertas(pouco).length, 0, 'com sete terrenos desvirados, {3}{R}{R} + {3}{R} não fecha');
+  const of = ofertas(s).find(x => x.targets.some(t => t.oid === pc) && x.targets.some(t => t.oid === ter)); assert.ok(of, 'com nove: os dois modos, um alvo para cada');
+  let t = resolve(act(s, of));
+  assert.equal(t.objects[pc].zone, 'graveyard'); assert.equal(t.objects[ter].zone, 'graveyard', 'destruiu o artefato e o terreno');
+  assert.equal(t.zones[a].battlefield.filter(x => t.objects[x].tapped).length, 9, 'pagou {3}{R}{R} + {3}{R}');
+  assert.ok(E.legalActions(s, a).some(x => x.t === 'cast' && x.oid === r && x.mode === 0), 'um modo só continua oferecido');
+});
+
+test('CR 702.42a · sem pagar o entrelaçar não há os dois modos: o motor recusa o modo entrelaçado sem mana para o custo a mais', () => {
+  let s = comManaK33({ 'Rain of Rust': oficial('Rain of Rust'), Peça: ART_K34, Mountain: terra('Mountain') }); const a = s.turn.active, d = 1 - a;
+  s = terrenos(s, a, 'Mountain', 4); s = terrenos(s, a, 'Island', 2);
+  let r, pc, ter; [s, r] = poe(s, a, 'Rain of Rust', 'hand'); [s, pc] = poe(s, d, 'Peça'); [s, ter] = poe(s, d, 'Forest');
+  assert.throws(() => E.apply(s, { t: 'cast', p: a, oid: r, mode: 2, targets: [{ oid: pc }, { oid: ter }] }), /mana|custo/);
+});
+
+test('CR 702.42a · entrelaçar que não é mana (Betrayal of Flesh, texto oficial: "Entwine—Sacrifice three lands"): uma oferta por trio de terrenos; destrói e devolve', () => {
+  assert.deepEqual(J(E.entrelacarImpressoK(oficial('Betrayal of Flesh'))), { extra: { sacrificeOther: { types: ['land'], amount: 3 } } });
+  const SC = { 'Betrayal of Flesh': { name: 'Betrayal of Flesh', modes: [{ label: 'Destruir uma criatura', effects: [{ do: 'destroy', target: 'creature' }] }, { label: 'Criatura do seu cemitério ao campo', effects: [{ do: 'reanimate', target: 'creature-in-your-graveyard' }] }], example: { action: 'mode:0', target: 'enemy-creature', expect: { gone: true } } } };
+  let s = partida({ 'Betrayal of Flesh': oficial('Betrayal of Flesh'), Urso: URSO }, SC); const a = s.turn.active, d = 1 - a;
+  let b, u1, u2; [s, b] = poe(s, a, 'Betrayal of Flesh', 'hand'); [s, u1] = poe(s, d, 'Urso'); [s, u2] = poe(s, a, 'Urso', 'graveyard');
+  for (let i = 0; i < 4; i++) [s] = poe(s, a, 'Forest');
+  const ie = s.facts['Betrayal of Flesh'].script.modes.findIndex(m => m.entrelacarK);
+  const ofs = E.legalActions(s, a).filter(x => x.t === 'cast' && x.oid === b && x.mode === ie && x.targets[0].oid === u1);
+  assert.equal(ofs.length, 4, 'quatro Florestas: quatro trios');
+  let t = resolve(act(s, ofs[0]));
+  assert.equal(t.objects[u1].zone, 'graveyard'); assert.equal(t.objects[u2].zone, 'battlefield');
+  assert.equal(t.zones[a].battlefield.filter(x => t.objects[x].name === 'Forest').length, 1, 'três terrenos sacrificados');
+  let v = J(s); for (const x of v.zones[a].battlefield.filter(x => v.objects[x].name === 'Forest').slice(0, 2)) { const z = v.zones[a].battlefield; z.splice(z.indexOf(x), 1); v.zones[a].graveyard.push(x); v.objects[x].zone = 'graveyard'; }
+  assert.equal(E.legalActions(v, a).filter(x => x.t === 'cast' && x.oid === b && x.mode === ie).length, 0, 'com dois terrenos, sem entrelaçar');
+});

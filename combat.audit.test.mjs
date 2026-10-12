@@ -602,6 +602,19 @@ test('K-33 · recompra (702.27): a névoa com recompra sacrificando um terreno i
   let v = act(s, E.legalActions(s, a).find(x => x.oid === br && !x.recompraK)); for (let i = 0; i < 4 && v.stack.length; i++) v = act(v, { t: 'pass', p: v.turn.priority });
   assert.equal(v.objects[br].zone, 'graveyard'); assert.equal(v.objects[pl].zone, 'battlefield');
 });
+test('K-34 · entrelaçar (702.42): Dream’s Grip com os dois modos vira o bloqueador do oponente e desvira o Urso virado, que ataca sem bloqueio', () => {
+  cobre('entwine');
+  const cartas = { ...CARDS, "Dream's Grip": { name: "Dream's Grip", type_line: 'Instant', mana_cost: '{U}', cmc: 1, colors: ['U'], keywords: ['Entwine'], oracle_text: 'Choose one —\n• Tap target permanent.\n• Untap target permanent.\nEntwine {1}' } };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 58, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a; let u, b, g; [s, u] = poe(s, a, 'Urso', { tapped: true }); [s, b] = poe(s, d, 'Urso'); [s, g] = poe(s, a, "Dream's Grip", { zone: 'hand' });
+  const ie = s.facts["Dream's Grip"].script.modes.findIndex(m => m.entrelacarK);
+  const of = E.legalActions(s, a).find(x => x.oid === g && x.mode === ie && x.targets[0].oid === b && x.targets[1].oid === u); assert.ok(of, 'os dois modos, um alvo em cada');
+  s = act(s, of); for (let i = 0; i < 4 && s.stack.length; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  assert.equal(s.objects[b].tapped, true); assert.equal(s.objects[u].tapped, false);
+  assert.equal(combate(s, [u], [[b, u]]).players[d].life, 18, 'o bloqueador virado não bloqueia');
+});
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));

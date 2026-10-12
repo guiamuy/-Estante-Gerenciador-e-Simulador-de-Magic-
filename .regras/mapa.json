@@ -7294,14 +7294,21 @@
    "n": "702.42",
    "regra": "Keyword Abilities",
    "titulo": "Entwine",
-   "status": "ausente",
-   "falta": "Sem custo adicional para escolher todos os modos de uma mágica modal (702.42a-b); o motor escolhe um modo só (o.mode)",
+   "status": "parcial",
+   "falta": "Só mágica de \"choose one\" (com \"choose two\", modeCount, o entrelaçar não é oferecido). A conjuração entrelaçada não é oferecida com custo alternativo, convocar/improvisar, phyrexiano pago com vida ou lampejo do passado (o motor aceita a ação; só não a oferece). O mesmo objeto não pode ser alvo de dois modos entrelaçados (a conferência de 601.2c do motor separa alvos só em \"choose two\"). Com redução de custo por alvo no campo (filtro OTIMISTA, M-259), a âncora ↓ K não confere o custo a mais (pedido à trilha motor).",
    "esforco": "P",
    "depende": [
     "700.2 modal",
     "601.2b"
    ],
-   "cartas": "rara"
+   "cartas": "rara",
+   "evidencia": "K-34: \"Entwine {custo}\" e \"Entwine—<custo>\" (sacrificar N terrenos/criaturas/artefatos/encantamentos, descartar N, pagar N de vida) lidos da linha (entrelacarImpressoK). Em createGame o script ganha mais um modo, \"Entrelaçar (custo): modo A + modo B\" (modoEntrelacadoK), com os efeitos de cada modo na ordem impressa (702.42b) e a marca de cada modo; a mesa já desenha o modo como botão. HANDLERS.cast cobra o custo a mais (pagaEntrelacarK; no caminho normal ele soma ao custo total em custoTapadoK, 601.2f); legalActions tira a conjuração entrelaçada que não fecha o custo e abre uma por forma de pagar o custo extra (ofertasEntrelacarK). Rain of Rust, Dream's Grip e Betrayal of Flesh em RAW_SCRIPTS (S8).",
+   "testes": [
+    "CR 702.42a · entrelaçar (Rain of Rust, texto oficial): \"Entwine {3}{R}\" vira a opção de escolher os dois modos pagando {3}{R} a mais, oferecida só quando o total fecha; resolve os dois, na ordem impressa (702.42b)",
+    "CR 702.42a · sem pagar o entrelaçar não há os dois modos: o motor recusa o modo entrelaçado sem mana para o custo a mais",
+    "CR 702.42a · entrelaçar que não é mana (Betrayal of Flesh, texto oficial: \"Entwine—Sacrifice three lands\"): uma oferta por trio de terrenos; destrói e devolve",
+    "K-34 · entrelaçar (702.42): Dream’s Grip com os dois modos vira o bloqueador do oponente e desvira o Urso virado, que ataca sem bloqueio"
+   ]
   },
   {
    "n": "702.43",

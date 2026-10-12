@@ -4320,6 +4320,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Testes:** `keywords.cr4.unit` (4, falham sem a leva), `combat.audit` (1 cenário), S8 das três cartas. Texto oficial: Capsize, Whispers of the Muse, Constant Mists (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v109.
 - **Parcial declarado:** a variante com recompra não é oferecida com custo alternativo, convocar/improvisar, phyrexiano pago com vida ou lampejo (o motor aceita a ação); a mesa mostra as duas conjurações com o mesmo rótulo — **pedido à mesa:** " · com recompra {custo}" no botão quando `a.recompraK`.
 
+**K-34 · Entrelaçar (entwine, 702.42)** 🟡 (leva K-34)
+- **Valor:** mágica de "escolha um" com "Entwine {custo}" (ou "Entwine—Sacrifice three lands") ganha mais um botão na mesa, "Entrelaçar (custo): modo A + modo B", que paga o custo a mais e faz os dois modos, na ordem impressa. Rain of Rust, Dream's Grip e Betrayal of Flesh passam a ter script.
+- **Aceite:** Rain of Rust com sete terrenos: só um modo; com nove, os dois (um alvo para cada), destrói o artefato e o terreno e vira os nove; o motor recusa o modo entrelaçado sem mana para o custo a mais. Betrayal of Flesh: uma oferta por trio de terrenos; destrói a criatura e devolve a do cemitério.
+- **Toca ponto comum:** `HANDLERS.cast` (uma linha: `pagaEntrelacarK`) e a cópia do script para os fatos em `createGame` (uma linha: o modo entrelaçado depois dos modos do script). O mana a mais soma ao custo total em `custoTapadoK` (função da trilha).
+- **Testes:** `keywords.cr4.unit` (3, falham sem a leva), `combat.audit` (1 cenário), S8 das três cartas. Texto oficial: Rain of Rust, Dream's Grip, Betrayal of Flesh (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v109.
+- **Parcial declarado:** só "escolha um" ("escolha dois" com entrelaçar, como Kaya's Guile, não); sem oferta com custo alternativo, convocar, phyrexiano por vida ou lampejo; o mesmo objeto não pode ser alvo dos dois modos (a conferência de alvos repetidos do motor só separa modos em "escolha dois").
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.
