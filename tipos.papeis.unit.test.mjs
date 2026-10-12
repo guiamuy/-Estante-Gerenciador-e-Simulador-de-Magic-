@@ -17,10 +17,12 @@ const PAPEIS = ['Cursed', 'Monster', 'Royal', 'Sorcerer', 'Virtuous', 'Wicked', 
 const SCRIPTS = { 'Raio': { name: 'Raio', effects: [{ do: 'damage', amount: 2, target: 'any' }], ...EX }, 'Marca': { name: 'Marca', effects: [{ do: 'counters', amount: 1, target: 'creature' }], ...EX } };
 for (const p of PAPEIS) { const n = 'Papel ' + p; SCRIPTS[n] = { name: n, effects: [{ do: 'papel', papel: p, target: 'creature' }], ...EX }; carta(n, 'Instant'); }
 carta('Raio', 'Instant'); carta('Marca', 'Instant');
-carta('Urso', 'Creature — Bear', { power: '2', toughness: '2' }); carta('Gigante', 'Creature — Giant', { power: '3', toughness: '4' });
+carta('Urso', 'Creature — Bear', { power: '2', toughness: '2' });
+carta('Gigante', 'Creature — Giant', { power: '3', toughness: '4' });
+carta('Muralha', 'Creature — Wall', { power: '2', toughness: '2', oracle_text: 'Protection from enchantments' }); // T-21
 
 const baralho = nomes => { const u = [...new Set(nomes)]; return u.map(name => ({ name, qty: Math.max(4, Math.ceil(40 / u.length)), zone: 'main' })); };
-const TODAS = ['Monstrous Rage', 'Embereth Veteran', 'Raio', 'Marca', 'Urso', 'Gigante', ...PAPEIS.map(p => 'Papel ' + p)];
+const TODAS = ['Muralha', 'Monstrous Rage', 'Embereth Veteran', 'Raio', 'Marca', 'Urso', 'Gigante', ...PAPEIS.map(p => 'Papel ' + p)];
 function mesa(seed = 1) {
   let s = E.createGame({ format: 'livre', seed, mode: 'full', cards: CARTAS, scripts: SCRIPTS, players: [{ name: 'A', deck: baralho([...TODAS, 'Mountain']) }, { name: 'B', deck: baralho([...TODAS, 'Island']) }] });
   for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
@@ -133,4 +135,14 @@ test('Monstrous Rage (texto oficial, Oracle do Forge, 12/10/2026) · +2/+0 até 
 
 test('validador · papel desconhecido é recusado', () => {
   assert.ok(S.validateScript({ name: 'X', effects: [{ do: 'papel', papel: 'Dragão', target: 'creature' }], ...EX }).some(e => /papel/i.test(e)));
+});
+
+/* ---------------- T-21 · correções da auditoria independente ---------------- */
+test('CR 303.4i / 702.16 · o Papel que não pode encantar a criatura (proteção contra encantamentos) não é criado: nada entra, nada vai ao cemitério, e o resto da mágica vale', () => {
+  let s = mesa(); let m; [s, m] = poe(s, 0, 'Muralha');
+  const vida = s.players[1].life, fichas = Object.values(s.objects).filter(o => o.token).length;
+  s = esvazia(mira(s, 0, 'Monstrous Rage', m));
+  eq([pt(s, m), papeisEm(s, m).length, Object.values(s.objects).filter(o => o.token).length], [[4, 2], 0, fichas], '+2/+0 vale; nenhuma ficha');
+  s = papel(s, 0, 'Wicked', m);
+  assert.equal(s.players[1].life, vida, 'o Wicked que não chegou a existir não faz ninguém perder vida');
 });

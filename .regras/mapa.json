@@ -2408,10 +2408,11 @@
    "regra": "Enchantments",
    "titulo": "Papéis (Role)",
    "status": "coberta",
-   "evidencia": "T-20 (12/10/2026): as sete fichas de Papel da 111.10j–r (SC.PAPEIS_T: Aura Role incolor, encantar criatura, e o que cada uma dá), o efeito `papel` (ficha criada anexada ao alvo; sem criatura, não é criada, 303.4i) e a 303.7a / 704.5z (`papeisDeEstadoT`: do mesmo controlador na mesma permanente, só o de anexo mais recente fica). Cartas exemplo completas: Monstrous Rage e Embereth Veteran.",
+   "evidencia": "T-20 (12/10/2026): as sete fichas de Papel da 111.10j–r (SC.PAPEIS_T: Aura Role incolor, encantar criatura, e o que cada uma dá), o efeito `papel` (ficha criada anexada ao alvo; sem criatura, não é criada, 303.4i) e a 303.7a / 704.5z (`papeisDeEstadoT`: do mesmo controlador na mesma permanente, só o de anexo mais recente fica). Cartas exemplo completas: Monstrous Rage e Embereth Veteran. T-21 (12/10/2026) · auditoria independente (119 conferências, fuzz de 60 partidas / 14.750 ações, 212 Papéis): o Papel que não poderia encantar a criatura (proteção contra encantamentos, incolor, fichas ou Auras) não é criado (303.4i) — antes entrava e caía, disparando \"entra\" e o Wicked.",
    "testes": [
     "CR 111.10 / 303.7 · as fichas de Papel são encantamentos Aura Role incolores, com encantar criatura, e cada definição passa no validador",
-    "CR 303.7a / 704.5z · dois Papéis do mesmo controlador na mesma permanente: o mais antigo vai para o cemitério (a ficha deixa de existir); de controladores diferentes, os dois ficam"
+    "CR 303.7a / 704.5z · dois Papéis do mesmo controlador na mesma permanente: o mais antigo vai para o cemitério (a ficha deixa de existir); de controladores diferentes, os dois ficam",
+    "CR 303.4i / 702.16 · o Papel que não pode encantar a criatura (proteção contra encantamentos) não é criado: nada entra, nada vai ao cemitério, e o resto da mágica vale"
    ]
   },
   {

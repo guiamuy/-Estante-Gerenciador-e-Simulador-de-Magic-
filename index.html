@@ -24505,8 +24505,18 @@ function fatosDoPapelT(s, nome) {
 function criaPapelT(s, src, eff, obj, events) {
   const nome = eff.papel;
   if (!obj || obj.zone !== 'battlefield' || !isCreature(s, obj) || !fatosDoPapelT(s, nome)) { events.push({ kind: 'effect', do: 'papel', name: src.name, target: nome, failed: true }); return; } // 303.4i
+  if (!papelFicariaT(s, src, nome, obj)) { events.push({ kind: 'effect', do: 'papel', name: src.name, target: nome, failed: true }); return; } // T-21 · 303.4i: o Papel que não poderia encantar a criatura (proteção) não é criado
   const oid = createToken(s, { name: nome, types: ['enchantment'], subtypes: ['Aura', 'Role'] }, src.controller, events);
   attachTo(s, s.objects[oid], obj.oid, events);
+}
+/** T-21 · 303.4i · ensaio numa cópia do estado: a ficha criada e anexada passa nas conferências de anexo da 704.5m (pode encantar,
+ * proteção de qualquer qualidade)? A mesma regra que a derrubaria decide se ela pode ser criada. */
+function papelFicariaT(s, src, nome, obj) {
+  const s2 = cloneEstado(s), ev = [];
+  const oid = createToken(s2, { name: nome, types: ['enchantment'], subtypes: ['Aura', 'Role'] }, src.controller, ev);
+  const f = s2.objects[oid], host = s2.objects[obj.oid];
+  attachTo(s2, f, obj.oid, ev);
+  return auraPodeEncantar(s2, SC.PAPEIS_T[nome].aura, host) && !protecaoDerruba(s2, host, f); // as duas conferências da 704.5m sobre o anexo (a morte da criatura, se houver, vem depois, como na partida)
 }
 function papeisDeEstadoT(s, events) {
   const grupos = new Map();

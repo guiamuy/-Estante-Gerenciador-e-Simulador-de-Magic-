@@ -4768,6 +4768,14 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `triggerConditionMet` (uma linha: `resistenciaAte`), validador de condições de gatilho e de gatilho concedido (`...condicoesT()` nas listas). Funções novas abaixo das âncoras T; a ação de estado entra pela linha da trilha em `stateBased`.
 - **Próximo:** auditoria independente dos Papéis.
 
+**CR5-T21 · Papéis: correções da auditoria independente** ✅ (leva T-21, sem mudança de versão do motor) — revisor sem acesso à implementação rodou 119 conferências, um fuzz de 60 partidas (14.750 ações, 212 Papéis em campo) e 12 pedidos diretos; 2 divergências, 1 da implementação. 1 teste novo em `tipos.papeis.unit` (12 no arquivo; falha sem a leva).
+- **Corrigido:** **303.4i (D1)** — o Papel que não poderia encantar a criatura (proteção contra encantamentos, incolor, fichas ou Auras) era criado, anexado e caía pela 704.5m, disparando "quando um encantamento entra" e o Wicked; agora um ensaio numa cópia do estado faz as mesmas conferências de anexo e, se ele cairia, a ficha não é criada (o resto da mágica vale).
+- **Conferido e correto pela auditoria:** as sete fichas (Cursed por carimbo de tempo, Virtuous e Wicked por quem controla o Papel, Royal contra oponentes de quem controla a criatura, Young Hero conferido ao disparar e ao resolver); 704.5z em todos os casos (mesma resolução, controle trocado, controladores diferentes, Aura comum); alvo que some ou deixa de ser criatura; hexproof; criatura roubada ou fora de fase; proliferar; sacrificar encantamento; Embereth Veteran nunca mira a si mesmo.
+- **Pendência para a trilha `motor` (caminho anterior):** **303.4f / 707.2** — a ficha cópia de uma Aura (`ficha_copia`) entra solta e cai pela 704.5m, em vez de quem a controla escolher o que ela encanta (a cópia de um Wicked faz o oponente perder 1).
+- **Versão e goldens:** a versão não sobe; goldens idênticos.
+- **Toca ponto comum:** nenhum novo.
+- **Próximo:** decisão do dono — o épico CR5 desta trilha está fechado; os restos (303.4f, Salas, virar, subir de nível, fundir) estão no mapa com custo.
+
 **CR6 · Multijogador e variantes** ○ — mesa de três e quatro (800–803, 806), Commander de mesa (903.2), Brawl (903.12); as variantes hoje "fora" só entram por decisão. 10 a 14 levas.
 
 **CR7 · Consolidação** ○ (em paralelo a partir da CR2) — a cada fase: fuzz em modo completo com listas reais, homologação por revisor independente relendo a seção das regras contra o motor, e rodada de simulação do dono do produto. 6 a 8 levas ao todo.
