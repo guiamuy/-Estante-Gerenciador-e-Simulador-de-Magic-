@@ -8033,6 +8033,23 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Lionheart Glimmer': { texto: '1zwbvi', leva: 'M-333' },
   'Unflinching Hortimancer': { texto: '1n5xo2i', leva: 'M-333' },
   'Archive Dragon': { texto: '1w3q660', leva: 'M-333' },
+  // M-334 · revisão por lote VIII (LT18: rituais, custo adicional de sacrificar, não desvirar, uma vez por turno, encaixar, evocar), revisor independente com sondas: 16 de 16 aprovadas
+  'Dark Ritual': { texto: 'gr7w32', leva: 'M-334' },
+  'Crop Rotation': { texto: 'mwldp3', leva: 'M-334' },
+  'Tinker': { texto: 'iqqkuv', leva: 'M-334' },
+  'Mulldrifter': { texto: '17g360r', leva: 'M-334' },
+  'Desperate Ritual': { texto: '1thrf6f', leva: 'M-334' },
+  'Sleep of the Dead': { texto: '1889v17', leva: 'M-334' },
+  'Pyretic Ritual': { texto: 'ssrpa', leva: 'M-334' },
+  'Diabolic Intent': { texto: '1camhf5', leva: 'M-334' },
+  'Seething Song': { texto: 'okp3um', leva: 'M-334' },
+  'Culling the Weak': { texto: '1hnqde4', leva: 'M-334' },
+  'Harrow': { texto: 'zvhxes', leva: 'M-334' },
+  'Barrels of Blasting Jelly': { texto: '177zq03', leva: 'M-334' },
+  'Burning-Tree Emissary': { texto: '1xbg7xe', leva: 'M-334' },
+  'Shrapnel Blast': { texto: '1cw9ev1', leva: 'M-334' },
+  'Bone Splinters': { texto: 'egwhr1', leva: 'M-334' },
+  'Doomed Traveler': { texto: '11oheon', leva: 'M-334' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -15329,6 +15346,8 @@ const __m42 = (function () {
     [new RegExp(`^~ deals ${N} damage to each opponent and each creature and planeswalker they control$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'each-opponent' }, { do: 'damage', amount: num(m[1]), target: 'each-opponent-creature-planeswalker' }]], // LT12
     [new RegExp(`^~ deals ${N} damage to each creature with flying$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'each-flying-creature' }]], // LT9
     [/^venture into the dungeon$/i, () => [{ do: 'venture' }]], // LT9 · 701.49
+    [/^it doesn't untap during its controller's next untap step$/i, () => [{ do: 'nao_desvira', target: 'first-target' }]], // M-334 · LT18 · 502.3 (Sleep of the Dead)
+    [/^add ((?:\{[WUBRGC]\})+)$/i, m => [{ do: 'add_mana', symbols: m[1].match(/[WUBRGC]/g) }]], // M-334 · LT18 · mágica ou gatilho que adiciona mana (Seething Song, Burning-Tree Emissary)
     [/^you become the monarch$/i, () => [{ do: 'monarch' }]], // M-332 · CR 725
     [/^you take the initiative$/i, () => [{ do: 'initiative' }]], // M-332 · CR 726
     [/^exile two target (artifact|creature|enchantment)s$/i, m => [com({ do: 'exile' }, alvo('target ' + m[1])), com({ do: 'exile' }, alvo('target ' + m[1]))]], // LT9
@@ -15354,7 +15373,10 @@ const __m42 = (function () {
     [/^affinity for (artifacts|creatures)$/i, m => ({ affinity: m[1].toLowerCase().replace(/s$/, '') })], // LT11 · 702.41
     [/^transmute (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ transmute: { mana: m[1] } })], // LT10 · 702.53
     [new RegExp(`^escape—(\\{[^}]+\\}(?:\\{[^}]+\\})*), exile ${N} other cards from your graveyard$`, 'i'), m => ({ escape: { mana: m[1], exileGraveyard: num(m[2]) } })], // LT10 · 702.138
-    [/^as an additional cost to cast this spell, sacrifice an artifact or creature$/i, () => ({ additional: { sacrificeOther: { types: ['artifact', 'creature'] } } })] // LT10 · 601.2b
+    [/^as an additional cost to cast this spell, sacrifice an artifact or creature$/i, () => ({ additional: { sacrificeOther: { types: ['artifact', 'creature'] } } })], // LT10 · 601.2b
+    [/^as an additional cost to cast this spell, sacrifice an? (land|creature|artifact|enchantment)$/i, m => ({ additional: { sacrificeOther: { types: [m[1].toLowerCase()] } } })], // M-334 · LT18 · 601.2b (Crop Rotation)
+    [/^splice onto arcane (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ splice: { subtipo: 'Arcane', mana: m[1] } })], // M-334 · LT18 · 702.47 (o motor encaixa desde a M-273)
+    [/^(?:evoke|dash|spectacle|surge) (?:\{[0-9WUBRGC]+\})+$/i, () => ({})] // M-334 · LT18 · 702.74 / 702.109 / 702.137 / 702.117: o motor lê a linha impressa da carta (K-8, K-9, K-32)
   ];
   /** Abertura de habilidade disparada → `when` do vocabulário (os que o motor executa com esse nome). */
   const GATILHOS = [
@@ -15446,6 +15468,7 @@ const __m42 = (function () {
     const fraseSo = so && /\{X\}/.test(cost.mana || '') ? { texto: so[0].replace(/^\.\s*/, ''), lida: true } : null;
     if (fraseSo) { corpo = corpo.slice(0, so.index); cost.xCor = CORES[so[1].toLowerCase()]; }
     if (/\.\s*Activate only as a sorcery$/i.test(corpo)) { corpo = corpo.replace(/\.\s*Activate only as a sorcery$/i, ''); extra.sorceryOnly = true; }
+    if (/\.\s*Activate only once each turn$/i.test(corpo)) { corpo = corpo.replace(/\.\s*Activate only once each turn$/i, ''); extra.oncePerTurn = true; } // M-334 · LT18 · 602.5b (Barrels of Blasting Jelly)
     if (/^Add one mana of any color$/i.test(corpo) && !(cost.tap && Object.keys(cost).length === 1)) { frases.push({ texto: m[1], lida: true }, { texto: corpo, lida: true }); return { kind: 'activated', cost, ...extra, effects: [{ do: 'add_mana', anyColor: true }] }; } // LT11 · mana de qualquer cor com custo além de {T}
     const sim = corpo.match(/^Add ((?:\{[WUBRGC]\})+)$/); // LT13 · "{1}, {T}: Add {U}{R}" (Signets), "{T}, Sacrifice this land: Add {R}{R}"
     if (sim) { frases.push({ texto: m[1], lida: true }, { texto: corpo, lida: true }); return { kind: 'activated', cost, ...extra, effects: [{ do: 'add_mana', symbols: sim[1].match(/[WUBRGC]/g) }] }; }
