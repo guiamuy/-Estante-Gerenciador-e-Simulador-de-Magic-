@@ -4533,6 +4533,14 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `applyEffect` attach (`if (!anexoBarradoT(…))` na mesma linha); a ação de estado entra pela linha da trilha em `stateBased`. Funções abaixo da âncora T das exportações de core.js.
 - **Próximo:** auditoria independente do Equipamento; depois CR5-T18 — planeswalker completo (306).
 
+**CR5-T17 · Equipamento: correções da auditoria independente** ✅ (leva T-17, sem mudança de versão do motor) — revisor sem acesso à implementação rodou 9 arquivos de sonda (69 conferências), um fuzz de 60 partidas (13.200 ações, 1.336 conferências de anexo) e ~12.840 pedidos diretos de equipar comparados com as ofertas; 4 divergências. 3 testes novos em `tipos.equipamentos.unit` (9 no arquivo; falham sem a leva).
+- **Corrigido:** **400.7 / 301.5b (D1)** — o Equipamento que saía e voltava ao campo (lampejo) em resposta ao equipar era anexado; agora o Equipamento guarda, ao entrar, o número da próxima habilidade (`entrouEmAbT`, só em Equipamento) e a habilidade de antes não o move (limite da T-16 que deixa de existir). **111.7 / 301.5b (D2)** — a ficha de Equipamento que deixava de existir com o equipar na pilha derrubava a partida (erro em `attachTo`, caminho anterior à T-16); agora a habilidade resolve sem efeito. **701.3b (D3, caminho anterior)** — equipar de novo a mesma criatura renovava o carimbo de tempo do anexo (e mudava qual efeito vence); agora não faz nada (vale para qualquer anexo).
+- **Conferido e correto pela auditoria:** solta em todos os casos de 704.5n (deixa de ser criatura, sai, proteção, vira criatura, perde o subtipo); fase (702.26i); equipar só como feitiço e só em criatura sua, com o controle conferido na resolução; alvo que deixa de ser criatura ou faz lampejo; reequipar move; controles separados (Skullclamp e Loxodon Warhammer oficiais em criatura do oponente); 301.5f com Aura; Behemoth Sledge e Bonesplitter oficiais; Blackblade Reforged com as duas habilidades.
+- **Pendência para a trilha `motor` (já devolvida na T-13):** **702.26b geral** — o pedido direto de ativar habilidade de permanente fora de fase é aceito (o equipar vai à pilha e não anexa; vale para qualquer permanente).
+- **Versão e goldens:** a versão não sobe; goldens idênticos (`entrouEmAbT` só nasce em Equipamento que entra no campo; nenhum nos goldens).
+- **Toca ponto comum:** nenhum novo (as linhas são da trilha: `sagaEntrou` e `anexoBarradoT`).
+- **Próximo:** CR5-T18 — planeswalker completo (306).
+
 **CR6 · Multijogador e variantes** ○ — mesa de três e quatro (800–803, 806), Commander de mesa (903.2), Brawl (903.12); as variantes hoje "fora" só entram por decisão. 10 a 14 levas.
 
 **CR7 · Consolidação** ○ (em paralelo a partir da CR2) — a cada fase: fuzz em modo completo com listas reais, homologação por revisor independente relendo a seção das regras contra o motor, e rodada de simulação do dono do produto. 6 a 8 levas ao todo.

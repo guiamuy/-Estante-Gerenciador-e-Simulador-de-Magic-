@@ -23282,7 +23282,11 @@ const podeEquiparT = (s, eq, host) => !!eq && eq.zone === 'battlefield' && !eq.p
 /** 301.5b · o efeito `attach` de um Equipamento que não pode equipar o alvo não move nada. Devolve true quando barrou. */
 function anexoBarradoT(s, src, obj, events) {
   const eq = src && src.ability ? s.objects[src.source] : src;
-  if (!eq || !ehEquipamentoImpressoT(s, eq) || podeEquiparT(s, eq, obj)) return false;
+  if (!eq) { events.push({ kind: 'effect', do: 'anexo_barrado', name: src ? src.name : '', target: obj ? obj.name : null }); return true; } // T-17 · 111.7: a ficha que deixou de existir não é anexada (antes derrubava a partida)
+  if (obj && eq.attachedTo === obj.oid && eq.zone === 'battlefield') return true; // T-17 · 701.3b: já está anexada a ele — o efeito não faz nada (o carimbo de tempo fica)
+  if (!ehEquipamentoImpressoT(s, eq)) return false;
+  if (src.ability && eq.entrouEmAbT != null && parseInt(String(src.oid).slice(2), 10) < eq.entrouEmAbT) { events.push({ kind: 'effect', do: 'anexo_barrado', name: eq.name, target: obj ? obj.name : null }); return true; } // T-17 · 400.7: habilidade de antes de o Equipamento entrar é do objeto anterior
+  if (podeEquiparT(s, eq, obj)) return false;
   events.push({ kind: 'effect', do: 'anexo_barrado', name: eq.name, target: obj ? obj.name : null });
   return true;
 }
@@ -23511,6 +23515,7 @@ function sagaPoeLore(s, o, n) {
  * disparam aqui. Com read ahead e sem marcador, o registro guarda `escolhe`: a conferência seguinte abre a decisão do capítulo.
  * Quem já estava no campo e vira Saga não passa por aqui — "as this Saga enters" não vale para ela. */
 function sagaEntrou(s, o) {
+  if (o && ehEquipamentoImpressoT(s, o)) o.entrouEmAbT = s.nextAbility; // T-17 · CR 400.7: a habilidade de equipar criada antes de o Equipamento entrar é do objeto anterior
   batalhaEntrouT(s, o); // T-14 · CR 310.4b / 310.9a · a batalha que entra: marcadores de defesa e protetor (mesmo ponto de entrada: moveObject e createToken)
   if (o && parDuplaFaceT(s, o)) o.transformouEm = s.nextAbility; // T-9 · 400.7 / 701.27f: habilidade criada antes de a dupla face entrar no campo é do objeto antigo e não a transforma
   if (!o || !ehSaga(s, o)) return;

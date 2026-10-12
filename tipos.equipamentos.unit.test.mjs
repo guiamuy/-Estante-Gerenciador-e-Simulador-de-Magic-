@@ -19,14 +19,17 @@ const SCRIPTS = {
   'Animar': { name: 'Animar', effects: [{ do: 'continuo', target: { tipos: ['artifact'] }, torna: { tipos: ['artifact', 'creature'], base: [3, 3], somaTipos: true }, ate: 'fim-do-turno' }], ...EX },
   // "O artefato alvo vira um artefato Golem (perde os outros subtipos) até o fim do turno."
   'Desmonte': { name: 'Desmonte', effects: [{ do: 'continuo', target: { tipos: ['artifact'] }, torna: { tipos: ['artifact'], subtipos: ['Golem'] }, ate: 'fim-do-turno' }], ...EX },
+  // T-17 · "exile a permanente alvo e devolva-a ao campo" (lampejo) e "crie uma ficha que é cópia do artefato alvo"
+  'Lampejo': { name: 'Lampejo', effects: [{ do: 'exile', target: 'permanent' }, { do: 'mover', target: 'first-target', de: 'exile', para: 'battlefield', controle: 'dono' }], ...EX },
+  'Cópia': { name: 'Cópia', effects: [{ do: 'ficha_copia', amount: 1, target: 'artifact' }], ...EX },
   'Volta': { name: 'Volta', effects: [{ do: 'bounce', target: 'permanent' }], ...EX },
   'Roubo': { name: 'Roubo', effects: [{ do: 'ganhar_controle', target: 'permanent' }], ...EX },
 };
-carta('Bastão', 'Artifact — Equipment'); carta('Animar', 'Instant'); carta('Desmonte', 'Instant'); carta('Volta', 'Instant'); carta('Roubo', 'Instant');
+carta('Bastão', 'Artifact — Equipment'); carta('Animar', 'Instant'); carta('Desmonte', 'Instant'); carta('Lampejo', 'Instant'); carta('Cópia', 'Instant'); carta('Volta', 'Instant'); carta('Roubo', 'Instant');
 carta('Urso', 'Creature — Bear', { power: '2', toughness: '2' });
 
 const baralho = nomes => { const u = [...new Set(nomes)]; return u.map(name => ({ name, qty: Math.max(4, Math.ceil(40 / u.length)), zone: 'main' })); };
-const TODAS = ['Bonesplitter', 'Bastão', 'Animar', 'Desmonte', 'Volta', 'Roubo', 'Urso'];
+const TODAS = ['Bonesplitter', 'Bastão', 'Animar', 'Desmonte', 'Lampejo', 'Cópia', 'Volta', 'Roubo', 'Urso'];
 function mesa(seed = 1) {
   let s = E.createGame({ format: 'livre', seed, mode: 'full', cards: CARTAS, scripts: SCRIPTS, players: [{ name: 'A', deck: baralho([...TODAS, 'Plains']) }, { name: 'B', deck: baralho([...TODAS, 'Mountain']) }] });
   for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
@@ -103,4 +106,30 @@ test('CR 301.5c · o Equipamento que perde o subtipo Equipment se solta e não e
   assert.equal(E.ehEquipamentoT(s, s.objects[b]), false, 'perdeu o subtipo');
   eq([s.objects[b].attachedTo, pt(s, u)], [undefined, [2, 2]]);
   const a = equipa(s, 0, b, u); if (a) assert.equal(esvazia(act(mana(s, 0), a)).objects[b].attachedTo, undefined, 'não equipa');
+});
+
+/* ---------------- T-17 · correções da auditoria independente ---------------- */
+test('CR 400.7 / 301.5b · o Equipamento que sai e volta ao campo (lampejo) em resposta ao equipar é outro objeto: a habilidade não o anexa', () => {
+  let s = mesa(); let b; [s, b] = poe(s, 0, 'Bonesplitter'); let u; [s, u] = poe(s, 0, 'Urso');
+  s = act(mana(s, 0), equipa(s, 0, b, u));
+  s = esvazia(mira(s, 0, 'Lampejo', b));
+  eq([s.objects[b].zone, s.objects[b].attachedTo, pt(s, u)], ['battlefield', undefined, [2, 2]]);
+});
+
+test('CR 301.5b / 111.7 · a ficha de Equipamento que deixa de existir com o equipar na pilha: a habilidade resolve sem efeito, e a partida segue', () => {
+  let s = mesa(); let b; [s, b] = poe(s, 0, 'Bonesplitter'); let u; [s, u] = poe(s, 0, 'Urso');
+  s = esvazia(mira(s, 0, 'Cópia', b));
+  const f = Object.values(s.objects).find(o => o.token && o.zone === 'battlefield' && o.name === 'Bonesplitter'); assert.ok(f, 'a ficha cópia');
+  s = act(mana(s, 0), equipa(s, 0, f.oid, u));
+  s = esvazia(mira(s, 0, 'Volta', f.oid));
+  eq([!!s.objects[f.oid], pt(s, u), s.stack.length], [false, [2, 2], 0]);
+});
+
+test('CR 701.3b · equipar de novo a criatura que já está equipada por ele não faz nada (o carimbo de tempo do anexo não muda)', () => {
+  let s = mesa(); let b; [s, b] = poe(s, 0, 'Bonesplitter'); let u; [s, u] = poe(s, 0, 'Urso');
+  s = esvazia(act(mana(s, 0), equipa(s, 0, b, u)));
+  const antes = s.objects[b].anexadaEm;
+  const r = E.apply(mana(s, 0), equipa(s, 0, b, u)); let t = r.state;
+  t = esvazia(t);
+  eq([t.objects[b].attachedTo, t.objects[b].anexadaEm], [u, antes]);
 });
