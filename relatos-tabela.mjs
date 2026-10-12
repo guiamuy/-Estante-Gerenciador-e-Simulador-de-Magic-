@@ -16,6 +16,16 @@ export const AREAS = ['Mesa', 'Jogar', 'Série', 'Lista', 'Listas', 'Coleção',
 // cores das etiquetas (o GitHub pede hexadecimal sem #; isto não é CSS do app)
 const COR_TIPO = 'c5a15a', COR_URGENCIA = { bloqueia: 'b60205', alta: 'd93f0b', media: 'fbca04', baixa: 'c2e0c6' }, COR_AREA = '5b7a99', COR_RELATO = '7a5a17';
 
+/** P-17 · SEG10 · qualquer conta do GitHub abre registro e dispara o fluxo: só vale o de quem tem acesso ao repositório
+    (dono, membro, colaborador) ou o que o dono aceitou com a etiqueta `relato-aceito` (etiqueta só quem tem acesso põe).
+    Sem o campo `author_association` (a API sempre manda; os testes antigos não), vale como antes. */
+export const ACEITO = 'relato-aceito';
+const VINCULOS = ['OWNER', 'MEMBER', 'COLLABORATOR'];
+export function confiavel(issue) {
+  if (!issue) return false;
+  if ((issue.labels || []).some(l => (typeof l === 'string' ? l : l && l.name) === ACEITO)) return true;
+  return issue.author_association == null || VINCULOS.includes(issue.author_association);
+}
 /** Os dados do relato no corpo do registro, ou null quando o registro não veio do app. */
 export function leDados(corpo) {
   const m = String(corpo || '').match(new RegExp(`<!--\\s*${MARCA}\\s+(\\{[\\s\\S]*?\\})\\s*-->`));
@@ -38,7 +48,7 @@ export function etiquetasDe(d) {
 }
 /** Uma linha da tabela para um registro do app (null para os outros). */
 export function linhaDe(issue) {
-  if (!issue || issue.pull_request) return null;
+  if (!issue || issue.pull_request || !confiavel(issue)) return null;
   const d = leDados(issue.body); if (!d) return null;
   const tela = d.tela || {};
   return {
@@ -101,7 +111,7 @@ export async function atualiza(pasta, { token, repo, busca = globalThis.fetch, l
   const issues = await todas(pede, `/repos/${repo}/issues?state=all`);
   const existentes = new Set((await todas(pede, `/repos/${repo}/labels`)).map(l => l.name));
   for (const issue of issues) {
-    if (issue.pull_request) continue;
+    if (issue.pull_request || !confiavel(issue)) continue; // P-17 · registro de estranho não ganha etiqueta
     const d = leDados(issue.body); if (!d) continue;
     const tem = new Set((issue.labels || []).map(l => (typeof l === 'string' ? l : l.name)));
     const faltam = etiquetasDe(d).filter(e => !tem.has(e.nome));

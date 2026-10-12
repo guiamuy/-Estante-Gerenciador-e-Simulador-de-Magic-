@@ -522,6 +522,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ea ✅ | SEG8 bloquear uma conta na partida online: na Conversa, Bloquear guarda a conta e silencia; quem você bloqueou não entra nas suas salas e você não entra nas dele; Perfil › Dados lista e desbloqueia; vale no aparelho e no backup (leva P-14) | SEG | 1 | — |
 | 16º-eb ✅ | SEG8b bloqueio no banco: `bloqueios/<conta>` só da dona; a regra da sala recusa o bloqueado nos dois sentidos; a lista vale nos aparelhos da conta e sai com "Apagar também da nuvem"; "O que sai do aparelho" passa a dizer o perfil sincronizado e a lista (leva P-15) | SEG | 1 | regras publicadas no console |
 | 16º-ec ✅ | SEG9 código de sala com 6 símbolos (≈ 1 bilhão de códigos, era ≈ 1 milhão); entrar aceita 6 e 4; com as regras antigas no console, a sala nasce com 4 (leva P-16) | SEG | 1 | regras publicadas no console |
+| 16º-ed ✅ | SEG10 relato só de quem tem acesso ao repositório: registro de outra conta não ganha etiqueta nem entra na tabela, a não ser que o dono o aceite com `relato-aceito` (leva P-17) | SEG | ½ | — |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -8696,6 +8697,22 @@ segredo do repositório. O `main` não recebe commit do coletor.
 - **Resíduo:** salas de 4 continuam aceitas até uma leva futura tirar o recuo (depois das regras publicadas); a sala
   esperando continua legível por quem tem o código (é assim que o convidado entra); o banco não limita tentativas por
   conta (o Realtime Database não tem limite de taxa nas regras).
+
+**SEG10 · Relato só de quem tem acesso** ✅ (leva P-17, 12/10/2026)
+- **Valor:** a tabela de relatos que as conversas de correção leem só tem relatos seus (ou que você aceitou): ninguém de
+  fora enche a tabela nem planta texto nela.
+- **Ameaça e camada:** qualquer conta do GitHub abre registro no repositório público com o bloco do app e dispara o
+  fluxo "Relatos"; antes desta leva o registro ganhava a etiqueta `relato` (a que o `CLAUDE.md` manda consultar) e entrava
+  em `relatos.json`. O texto já era tratado como dado, nunca comando; agora nem chega. Camada: `relatos-tabela.mjs` (o
+  `.yml` é da infra e não mudou).
+- **Entregue:** vale o registro de dono, membro ou colaborador (`author_association`) ou o que tiver a etiqueta
+  **`relato-aceito`** (só quem tem acesso põe etiqueta). O de outra conta fica no GitHub, sem etiqueta e fora da tabela.
+  Os 15 registros existentes são do dono (conferido em 12/10/2026): nenhum sai.
+- **Testes:** U `seguranca.relatos.unit` (2: a tabela aceita dono, membro, colaborador e o aceito, recusa contribuidor,
+  primeira vez e sem vínculo; o fluxo não etiqueta nem grava o registro de estranho — os dois falhavam antes).
+- **Resíduo:** o fluxo continua rodando a cada registro de qualquer conta (só o código do `main`, sem nada do registro
+  como comando; minutos de Actions por registro de estranho: < 1 min). Se o app ganhar outros usuários, os relatos deles
+  precisam do `relato-aceito` posto pelo dono.
 
 ### P · Plataforma
 
