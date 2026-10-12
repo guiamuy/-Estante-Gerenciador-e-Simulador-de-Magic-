@@ -21810,6 +21810,7 @@ function sagaPoeLore(s, o, n) {
  * disparam aqui. Com read ahead e sem marcador, o registro guarda `escolhe`: a conferência seguinte abre a decisão do capítulo.
  * Quem já estava no campo e vira Saga não passa por aqui — "as this Saga enters" não vale para ela. */
 function sagaEntrou(s, o) {
+  if (o && parDuplaFaceT(s, o)) o.transformouEm = s.nextAbility; // T-9 · 400.7 / 701.27f: habilidade criada antes de a dupla face entrar no campo é do objeto antigo e não a transforma
   if (!o || !ehSaga(s, o)) return;
   (s.sagas = s.sagas || {})[o.oid] = { z: o.zc || 0, n: 0 };
   if ((o.counters.lore || 0) > 0) sagaMarcou(s, o, 0);
@@ -22082,7 +22083,7 @@ function parDuplaFaceT(s, o) {
   if (o.duplaFace) return o.duplaFace; // ficha de dupla face (707.8a)
   if (o.token) return null;
   const impresso = o.frontName || (o.nomeImpresso != null ? o.nomeImpresso : o.name), sc = (s.facts[impresso] || {}).script;
-  return sc && sc.self && sc.self.duplaFace && sc.back ? { frente: impresso, verso: sc.back } : null;
+  return sc && sc.self && (sc.self.duplaFace || sc.self.modal) && sc.back ? { frente: impresso, verso: sc.back } : null; // T-9 · 712.3: a modal também é carta de dupla face (transforma se tiver a habilidade; 701.27d barra face de mágica)
 }
 /** 701.27g · "permanente transformada": dupla face no campo com o verso para cima. */
 const transformada = (s, o) => !!o && o.zone === 'battlefield' && !!o.frontName && !!parDuplaFaceT(s, o);
@@ -22096,6 +22097,7 @@ function transformaT(s, o, src, events) {
   const de = paraVerso ? par.frente : par.verso;
   if (o.nomeImpresso != null) { // sob efeito de cópia: vira a face impressa; os valores copiados continuam valendo (707.2)
     if (paraVerso) { o.frontName = par.frente; o.nomeImpresso = par.verso; } else { o.nomeImpresso = par.frente; delete o.frontName; }
+    if (o.duplaFace) { for (const c of o.copias || []) if (c.nome === de) c.nome = destino; if (o.name === de) o.name = destino; } // T-9 · 707.8a/707.9: a ficha de dupla face criada com exceção ("com ímpeto") troca a face nos próprios valores copiados
     o.ts = relogio(s);
   } else if (paraVerso) flipTo(s, o, par.verso);
   else { o.name = par.frente; delete o.frontName; o.ts = relogio(s); } // de volta à frente, com carimbo novo (613.7g)
@@ -22128,14 +22130,15 @@ const costStringT = c => (c.x ? '{X}'.repeat(c.x) : '') + (c.generic ? `{${c.gen
 function faceEscolhidaT(s, a, o) {
   if (a.face == null) return;
   const fv = o && faceDeTras(s, o);
-  if (a.face !== 'verso' || !fv || o.zone !== 'hand' || o.frontName) throw new RuleError('face', 'só a carta de dupla face modal, na mão, escolhe a face');
+  if (a.face !== 'verso' || !fv || !(o.zone === 'hand' || (o.zone === 'exile' && jogavelDoExilio(s, a.p, o))) || o.frontName) throw new RuleError('face', 'só a carta de dupla face modal, na mão ou jogável do exílio, escolhe a face'); // T-9 · 712.11b/712.12 não limitam a escolha à mão
+  if (a.x != null && a.x !== 0 && !((s.facts[fv.nome] || {}).cost || {}).x) throw new RuleError('face', 'esta face não tem X no custo'); // T-9 · 107.3
   if (a.omen || a.disturb || a.flashback || a.escape || a.plotted || a.faceDown || a.bestow || a.retrace || a.permissao != null || a.alt != null || a.kick) throw new RuleError('face', 'a face de trás é jogada pelo custo dela');
   flipTo(s, o, fv.nome);
 }
 let DENTRO_DAS_MODAIS = false;
 function modalOfertas(s, p, out) {
   if (DENTRO_DAS_MODAIS || s.pending) return;
-  const modais = s.zones[p].hand.filter(oid => !s.objects[oid].frontName && faceDeTras(s, oid));
+  const modais = s.zones[p].hand.concat(s.zones[p].exile.filter(oid => jogavelDoExilio(s, p, s.objects[oid]))).filter(oid => !s.objects[oid].frontName && faceDeTras(s, oid)); // T-9 · também a jogável do exílio
   if (!modais.length) return;
   const s2 = cloneEstado(s); for (const oid of modais) flipTo(s2, s2.objects[oid], faceDeTras(s, oid).nome);
   DENTRO_DAS_MODAIS = true;

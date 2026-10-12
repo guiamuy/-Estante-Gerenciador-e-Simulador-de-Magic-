@@ -257,7 +257,7 @@ test('CR 712.13 · 712.8f · a face conjurada é a que entra no campo, e a perma
   eq([zona(s, m), nome(s, m), J(s.facts[nome(s, m)].types), s.facts[nome(s, m)].cmc], ['stack', 'Torre', ['artifact'], 3], '712.8f: na pilha é a Torre, valor de mana 3');
   s = esvazia(s);
   eq([zona(s, m), nome(s, m), E.isCreature(s, s.objects[m]), vida(s)], ['battlefield', 'Torre', false, 7], 'entrou a Torre (gatilho dela), não o Mago');
-  assert.equal(E.transformada(s, s.objects[m]), false, 'verso modal para cima não é "permanente transformada" de carta que transforma');
+  assert.equal(E.transformada(s, s.objects[m]), true, '701.27g: dupla face no campo com o verso para cima — a modal também (expectativa da T-8 corrigida na T-9 pela auditoria: o texto não restringe às que transformam)');
   s = J(s); s.zones[0].battlefield.splice(s.zones[0].battlefield.indexOf(m), 1); s.zones[0].hand.push(m); Object.assign(s.objects[m], { zone: 'hand', name: 'Mago' }); delete s.objects[m].frontName;
   let t, n; [t, n] = naMao(mesa(['Mago']), 0, 'Mago'); t = mana(t, 0); t = esvazia(act(t, frente(t, 0, n)[0]));
   eq([nome(t, n), vida(t)], ['Mago', 1], 'conjurada pela frente, entra o Mago');
@@ -384,4 +384,61 @@ test('CR 712.3 · partida sem a carta modal não ganha nada no estado, e o passe
     }
   }
   assert.ok(pelaFace > 15, 'jogadas pela face de trás no passeio: ' + pelaFace);
+});
+
+/* ---------------- T-9 · correções da auditoria independente (161 sondas, fuzz de 120 partidas, 130.152 pedidos diretos; cada divergência nasceu aqui como teste que falhava) ---------------- */
+Object.assign(SCRIPTS, {
+  // dupla face com lampejo e "{0}: transforme": dá para devolvê-la e conjurá-la de novo com a habilidade na pilha
+  'Lobo Ligeiro': { name: 'Lobo Ligeiro', self: { duplaFace: true }, abilities: [VIRA], back: { name: 'Fera Ligeira', types: ['creature'], power: 5, toughness: 5 }, ...EX },
+  'Imitação Veloz': { name: 'Imitação Veloz', effects: [{ do: 'ficha_copia', amount: 1, target: 'permanent', palavras: ['haste'] }], ...EX },
+  'Modal Vira': { name: 'Modal Vira', self: { modal: true }, abilities: [VIRA], back: { name: 'Torre Vira', types: ['artifact'], mana: '{2}', abilities: [VIRA] }, ...EX },
+  'Exila Topo': { name: 'Exila Topo', effects: [{ do: 'exile_top_playable', amount: 1 }], ...EX },
+  'Sopro2': { name: 'Sopro2', effects: [{ do: 'bounce', target: 'permanent' }], ...EX },
+});
+carta('Lobo Ligeiro', 'Creature — Wolf', { power: '2', toughness: '2', keywords: ['Flash'], oracle_text: 'Flash' });
+carta('Imitação Veloz', 'Sorcery'); carta('Modal Vira', 'Creature — Golem', { power: '1', toughness: '1' }); carta('Exila Topo', 'Sorcery'); carta('Sopro2', 'Instant');
+
+test('CR 400.7 · a habilidade da permanente que saiu do campo e voltou não transforma o objeto novo (D1)', () => {
+  let s, l, x; [s, l] = campo(mesa(['Lobo Ligeiro', 'Sopro2']), 0, 'Lobo Ligeiro');
+  s = ativa(s, l); // "{0}: transforme" na pilha
+  [s, x] = conjura(s, 0, 'Sopro2', alvo(l)); s = resolveUm(s);
+  assert.equal(s.objects[l].zone, 'hand');
+  s = mana(s, 0); s = resolveUm(act(s, legais(s, 0, a => a.t === 'cast' && a.oid === l)[0])); // conjurada de novo, com lampejo
+  assert.equal(s.objects[l].zone, 'battlefield');
+  s = esvazia(s);
+  assert.equal(nome(s, l), 'Lobo Ligeiro', 'a habilidade era do objeto antigo: o novo não transforma');
+});
+
+test('CR 707.8a · 707.9 · a ficha que copia uma dupla face "com ímpeto" (exceção da cópia) também transforma e volta (D3)', () => {
+  let s, l, x; [s, l] = campo(mesa(['Lobo', 'Imitação Veloz']), 0, 'Lobo');
+  [s, x] = conjura(s, 0, 'Imitação Veloz', alvo(l)); s = esvazia(s);
+  const f = Object.values(s.objects).find(o => o.token && o.zone === 'battlefield').oid;
+  eq([nome(s, f), tem(s, f, 'haste')], ['Lobo', true]);
+  s = esvazia(ativa(s, f)); eq([nome(s, f), pt(s, f), tem(s, f, 'trample'), tem(s, f, 'haste'), E.transformada(s, s.objects[f])], ['Fera', [4, 4], true, true, true], 'virou a Fera, ainda com o ímpeto da exceção');
+  s = esvazia(ativa(s, f)); eq([nome(s, f), pt(s, f), E.transformada(s, s.objects[f])], ['Lobo', [2, 2], false]);
+});
+
+test('CR 712.3 · 701.27a · 701.27g · a dupla face modal com "transforme" transforma para a outra face e, com o verso para cima, é uma permanente transformada (D5)', () => {
+  let s, m; [s, m] = campo(mesa(['Modal Vira']), 0, 'Modal Vira');
+  s = esvazia(ativa(s, m)); eq([nome(s, m), E.transformada(s, s.objects[m]), E.isCreature(s, s.objects[m])], ['Torre Vira', true, false]);
+  s = esvazia(ativa(s, m)); eq([nome(s, m), E.transformada(s, s.objects[m])], ['Modal Vira', false]);
+  // a carta de uma face modal com a face de trás que é mágica não transforma (701.27d): a Batedora segue Batedora
+  let t, b; [t, b] = campo(mesa(['Batedora']), 0, 'Batedora'); t = esvazia(ativa(t, b)); assert.equal(nome(t, b), 'Batedora');
+});
+
+test('CR 712.11b · 712.12 · carta modal jogável do exílio ("exile the top card; you may play it"): as duas faces são oferecidas lá também (D6)', () => {
+  for (const [alvoN, t0, verso0] of [['Zof Consumption', 'play_land', 'Zof Bloodbog'], ['Mago', 'cast', 'Torre'], ['Brightclimb Pathway', 'play_land', 'Grimclimb Pathway']]) {
+    let s, ex; [s, ex] = poe(mesa(['Exila Topo', 'Zof Consumption', 'Mago', 'Brightclimb Pathway']), 0, 'Exila Topo', 'hand'); s = J(s);
+    const lib = s.zones[0].library, z = lib.find(o => s.objects[o].name === alvoN); lib.splice(lib.indexOf(z), 1); lib.unshift(z);
+    s = mana(s, 0); s = esvazia(act(s, legais(s, 0, a => a.t === 'cast' && a.oid === ex)[0]));
+    eq([s.objects[z].zone, s.objects[z].playableFromExile], ['exile', 0], alvoN + ' no exílio, jogável');
+    s = mana(s, 0);
+    const v = verso(s, 0, z); assert.ok(v.length >= 1 && v.every(a => a.t === t0), alvoN + ': a face de trás é oferecida do exílio: ' + JSON.stringify(v));
+    const r = esvazia(act(s, v[0])); eq([r.objects[z].zone, nome(r, z)], ['battlefield', verso0], alvoN);
+  }
+});
+
+test('CR 107.3 · pedido da face de trás com X numa face sem X é recusado (D10)', () => {
+  let s, m; [s, m] = naMao(mesa(['Mago']), 0, 'Mago'); s = mana(s, 0);
+  assert.throws(() => act(s, { t: 'cast', p: 0, oid: m, face: 'verso', x: 3 }), /X/);
 });
