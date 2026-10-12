@@ -4516,6 +4516,15 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `eligibleAttackers` e `eligibleBlockers` (`!ehBatalhaT(s, o) &&` na mesma linha), `payExtraCosts` (uma linha inserida no remover marcadores), `pwAindaAtacavel` (o protetor na mesma condição), refrega K-31 (filtro na mesma linha). Só acréscimos de palavras: nenhuma palavra das linhas de outras trilhas sai.
 - **Próximo:** CR5-T16 — Equipamento completo (301.5, fortify fora).
 
+**CR5-T16 · Equipamento completo (301.5, com 704.5n)** ✅ (leva T-16, sem mudança de versão do motor) — 6 testes em `tipos.equipamentos.unit` (4 falham sem a leva; os outros 2 guardam o que já valia: 301.5d e a carta exemplo).
+- **Valor:** o Equipamento faz o que a regra manda nos casos de borda: a habilidade de equipar que resolve depois de ele sair do campo não "anexa" nada; o Equipamento que vira criatura (ou perde o subtipo) se solta e não equipa mais; ninguém equipa a si mesmo.
+- **Regra:** **301.5b** — efeito que tenta anexar o Equipamento ao que ele não pode equipar, ou o Equipamento que já saiu do campo (400.7), não o move (registro "X não pode equipar Y e fica onde está"). **301.5c / 704.5n** — Equipamento que é criatura (reconfigurar não existe), que perdeu o subtipo Equipment ou que mira a si mesmo não equipa; anexado assim, se solta na ação de estado e fica no campo. **301.5d** — controles separados (guarda): a criatura roubada continua equipada, o equipar é de quem controla o Equipamento e a habilidade concedida é de quem controla a criatura. **301.5f** — "equipada" é a permanente anexada (o caminho comum `anexada`).
+- **Carta exemplo** (texto oficial em `.listas/oficiais-revisadas.json`, Oracle do Forge, 12/10/2026), completa: Bonesplitter.
+- **Fora / limites (mapa):** Fortificação (301.6 / 702.67), por decisão do pedido; reconfigurar (702.151) — as cartas ficam manuais; 301.5e inalcançável (nenhum efeito põe Equipamento no campo anexado); equipar que resolve depois de o Equipamento sair e voltar (lampejo em resposta) ainda anexa o objeto novo (a habilidade não guarda a encarnação da fonte; mudar o efeito do equipar mexeria nos goldens).
+- **Versão e goldens:** a versão não sobe; goldens idênticos.
+- **Toca ponto comum:** `applyEffect` attach (`if (!anexoBarradoT(…))` na mesma linha); a ação de estado entra pela linha da trilha em `stateBased`. Funções abaixo da âncora T das exportações de core.js.
+- **Próximo:** auditoria independente do Equipamento; depois CR5-T18 — planeswalker completo (306).
+
 **CR6 · Multijogador e variantes** ○ — mesa de três e quatro (800–803, 806), Commander de mesa (903.2), Brawl (903.12); as variantes hoje "fora" só entram por decisão. 10 a 14 levas.
 
 **CR7 · Consolidação** ○ (em paralelo a partir da CR2) — a cada fase: fuzz em modo completo com listas reais, homologação por revisor independente relendo a seção das regras contra o motor, e rodada de simulação do dono do produto. 6 a 8 levas ao todo.

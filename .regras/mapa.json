@@ -2252,11 +2252,18 @@
    "regra": "Artifacts",
    "titulo": "Equipamento",
    "status": "parcial",
-   "evidencia": "equipar é habilidade ativada de tempo de feitiço em criatura sua (index.html:10908); equipamento solta e fica no campo quando a criatura some (index.html:12110-12120); testes \"S11 · a criatura encantada some: ... o equipamento só desanexa\", \"S11 · equipar só na sua fase principal e só nas suas criaturas\", \"S11 · Skullclamp\"",
-   "falta": "301.5c: a ação baseada em estado só solta se o hospedeiro saiu ou tem proteção — não confere se deixou de ser criatura; equipamento-criatura/reconfigurar e 301.5e (entrar anexado) não existem.",
+   "evidencia": "equipar é habilidade ativada de tempo de feitiço em criatura sua (index.html:10908); equipamento solta e fica no campo quando a criatura some (index.html:12110-12120); testes \"S11 · a criatura encantada some: ... o equipamento só desanexa\", \"S11 · equipar só na sua fase principal e só nas suas criaturas\", \"S11 · Skullclamp\" T-16 (12/10/2026): 301.5b — o efeito `attach` de Equipamento que não pode equipar o alvo (ou que já saiu do campo, 400.7) não o move (`anexoBarradoT`, registro \"X não pode equipar Y e fica onde está\"); 301.5c / 704.5n — o Equipamento que vira criatura, perde o subtipo Equipment ou está anexado a si mesmo se solta e fica no campo, e não equipa (`podeEquiparT`, `equipamentosDeEstadoT`); 301.5d — controles separados conferidos (a criatura roubada continua equipada; equipar só por quem controla o Equipamento; a habilidade concedida, só por quem controla a criatura).",
+   "falta": "Reconfigurar (702.151: Equipamento-criatura que equipa) não existe no motor — essas cartas ficam manuais; 301.5e não é alcançável (nenhum efeito do vocabulário põe Equipamento no campo anexado); a habilidade de equipar que resolve depois de o Equipamento sair e VOLTAR ao campo (lampejo em resposta) ainda anexa o objeto novo (a habilidade não guarda a encarnação da fonte).",
    "esforco": "P",
    "depende": [
     "704.5n"
+   ],
+   "testes": [
+    "CR 301.5b / 400.7 · a habilidade de equipar que resolve depois de o Equipamento sair do campo não anexa nada (o Equipamento \"não se move\")",
+    "CR 301.5c / 704.5n · o Equipamento que vira criatura se solta (ação de estado) e fica no campo; a criatura deixa de ser equipada",
+    "CR 301.5c · o Equipamento que é criatura não equipa ninguém (nem a si mesmo): a habilidade resolve sem anexar",
+    "CR 301.5c · o Equipamento que perde o subtipo Equipment se solta e não equipa mais",
+    "CR 301.5d · controles separados: a criatura equipada que muda de controle continua equipada; quem controla o Equipamento ativa o equipar, e a habilidade concedida é ativada por quem controla a criatura"
    ]
   },
   {

@@ -18304,7 +18304,7 @@ function applyEffect(s, src, eff, tgt, events) {
         label: 'exilar do cemitério', source: src.name }, events);
       note({ amount: n, pending: true }); break;
     }
-    case 'attach': attachTo(s, src.ability ? s.objects[src.source] : src, obj.oid, events); break;
+    case 'attach': if (!anexoBarradoT(s, src, obj, events)) attachTo(s, src.ability ? s.objects[src.source] : src, obj.oid, events); break; // T-16 · CR 301.5b: o Equipamento que não pode equipar o alvo não se move · Toca ponto comum: applyEffect attach
     case 'token': { const n = fichasAoCriar(s, playerOf(), amountOf(s, src, eff.amount)); for (let i = 0; i < n; i++) createToken(s, eff.token, playerOf(), events); } break; // M-258 · quantidade também por contagem (um Tesouro por oponente)
     case 'to_hand': { // S44 · a própria carta pode voltar para a mão (Rancor)
       const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
@@ -20172,7 +20172,7 @@ function stateBased(s, events) {
       for (const oid of morrem) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield') continue; moveObject(s, oid, 'graveyard'); changed = true; events.push({ kind: 'died', oid, name: o.name }); }
       delete s.saindoJuntas;
     }
-    if (batalhasDeEstadoT(s, events)) changed = true; // T-14 · CR 310.7 / 310.8 / 310.10 / 310.11 / 704.5v–y · batalhas (função abaixo da âncora T das exportações)
+    if (batalhasDeEstadoT(s, events) | equipamentosDeEstadoT(s, events)) changed = true; // T-16 · CR 301.5c / 704.5n · Equipamento que não pode equipar se solta // T-14 · CR 310.7 / 310.8 / 310.10 / 310.11 / 704.5v–y · batalhas (função abaixo da âncora T das exportações)
     if (sagasDeEstado(s, events)) changed = true; // T-1 · CR 714.2b (capítulos disparam), 714.3b (read ahead) e 714.4 / 704.5s (sacrifício); função abaixo da âncora T das exportações
     if (!changed) break;
   }
@@ -23223,6 +23223,40 @@ function lutar(s, src, eff, tgt, events) {
 }
 Object.assign(EXPORTS_V, { lutar });
 /* ↓ T · exportações de core.js da trilha tipos */
+/* ---------------- T-16 · CR 301.5 · Equipamento ----------------
+   - Quem é Equipamento: a linha de tipo de agora (com efeitos que mudam tipo) tem "Equipment"; sem linha de tipo no dado, o `equip`
+     do script. 301.5c: o Equipamento que é criatura (reconfigurar não existe no motor), que perdeu o subtipo ou que mira a si mesmo
+     não equipa; 301.5: só criatura é equipada.
+   - 301.5b · o efeito que tenta anexar o Equipamento ao que ele não pode equipar (ou o Equipamento que já saiu do campo, 400.7)
+     não o move: `anexoBarradoT` antes do `attachTo` do efeito `attach`.
+   - 301.5c / 704.5n · ação de estado: o Equipamento anexado que não pode mais equipar aquela permanente se solta e fica no campo
+     (`equipamentosDeEstadoT`, junto da ação de estado das batalhas). A parte que já existia (criatura que saiu, deixou de ser
+     criatura ou ganhou proteção) continua no laço de anexos do stateBased.
+   - 301.5d · controles separados: já valia (testes de guarda); 301.5e não é alcançável (nenhum efeito do vocabulário põe
+     Equipamento no campo anexado); 301.5f: o "equipada" do script é a permanente anexada, seja qual for a fonte. */
+const ehEquipamentoImpressoT = (s, o) => { const f = o && !o.ability && s.facts[o.name]; return !!f && (/\bEquipment\b/.test(f.typeText || '') || !!(f.script || {}).equip); };
+const ehEquipamentoT = (s, o) => { const f = o && !o.ability && s.facts[o.name]; return !!f && (f.typeText ? /\bEquipment\b/.test(linhaDeTipo(s, o)) : !!(f.script || {}).equip); };
+/** 301.5 / 301.5c · `eq` pode equipar `host` agora? */
+const podeEquiparT = (s, eq, host) => !!eq && eq.zone === 'battlefield' && !eq.phasedOut && ehEquipamentoT(s, eq) && !isCreature(s, eq) && !!host && host.oid !== eq.oid && host.zone === 'battlefield' && isCreature(s, host);
+/** 301.5b · o efeito `attach` de um Equipamento que não pode equipar o alvo não move nada. Devolve true quando barrou. */
+function anexoBarradoT(s, src, obj, events) {
+  const eq = src && src.ability ? s.objects[src.source] : src;
+  if (!eq || !ehEquipamentoImpressoT(s, eq) || podeEquiparT(s, eq, obj)) return false;
+  events.push({ kind: 'effect', do: 'anexo_barrado', name: eq.name, target: obj ? obj.name : null });
+  return true;
+}
+/** 301.5c / 704.5n · Equipamento anexado ao que não pode mais equipar se solta (fica no campo). Devolve true se algo mudou. */
+function equipamentosDeEstadoT(s, events) {
+  let mudou = false;
+  for (const o of battlefield(s)) {
+    if (!o.attachedTo || !ehEquipamentoImpressoT(s, o) || o.bestowed || (s.facts[o.name].script || {}).aura) continue;
+    const host = s.objects[o.attachedTo];
+    if (!host || host.zone !== 'battlefield' || podeEquiparT(s, o, host)) continue;
+    delete o.attachedTo; events.push({ kind: 'unattached', oid: o.oid, name: o.name }); mudou = true;
+  }
+  return mudou;
+}
+Object.assign(EXPORTS_T, { ehEquipamentoT, podeEquiparT });
 /* ---------------- T-14 · CR 310 · batalhas ----------------
    - 310.4 · defesa: a impressa vem do dado da carta (`facts.defesaT`) ou do script (`self.defesa`); a batalha ENTRA com esse número de
      marcadores de defesa (`batalhaEntrouT`, chamada de `sagaEntrou`: moveObject e createToken — carta, ficha e ficha cópia), pelo mesmo
@@ -26445,7 +26479,7 @@ const EFEITO_PT_T = { nivel_classe: e => `a Classe sobe para o nível ${e.n}`, t
 /** T-7 · linhas do registro para os eventos da trilha tipos. */
 const LINHA_T = { nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
 Object.assign(EFEITO_PT_T, { cerco_derrotado: () => 'exila o Cerco; você pode conjurá-lo transformado, sem pagar' }); // T-14 · CR 310.12b
-Object.assign(LINHA_T, { cerco_derrotado: ev => (ev.failed ? `${ev.name}: o Cerco já tinha saído do campo, nada a exilar` : `${ev.name} foi derrotada e exilada${ev.target ? ` (pode virar ${ev.target})` : ''}`), protetor_batalha: ev => `${ev.target} passa a proteger ${ev.name}`, batalha_cemiterio: ev => `${ev.name} ficou sem defesa e foi para o cemitério` }); // T-14 · CR 310.12b / 310.11 / 310.8
+Object.assign(LINHA_T, { cerco_derrotado: ev => (ev.failed ? `${ev.name}: o Cerco já tinha saído do campo, nada a exilar` : `${ev.name} foi derrotada e exilada${ev.target ? ` (pode virar ${ev.target})` : ''}`), protetor_batalha: ev => `${ev.target} passa a proteger ${ev.name}`, anexo_barrado: ev => `${ev.name} não pode equipar${ev.target ? ' ' + ev.target : ''} e fica onde está`, batalha_cemiterio: ev => `${ev.name} ficou sem defesa e foi para o cemitério` }); // T-14 · CR 310.12b / 310.11 / 310.8
 function descreveEfeito(e) {
   if (!e || !e.do) return '';
   if (EFEITO_PT_V[e.do]) return EFEITO_PT_V[e.do](e); // V-1 · Toca ponto comum: descreveEfeito (frases da trilha verbos)
