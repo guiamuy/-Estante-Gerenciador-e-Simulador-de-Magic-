@@ -5414,6 +5414,7 @@ const EFFECTS = {
   lutador: { fields: [], targets: ['creature', 'creature-you-control'] },
   fight: { fields: [], targets: ['creature', 'creature-opponent-controls', 'creature-you-control'] }, // quem: 'self-source' (a permanente fonte luta) | 'primeiro-alvo' (luta a criatura anotada pelo `lutador` anterior)
   /* ↓ T · efeitos da trilha tipos */
+  nivel_classe: { fields: [], targets: ['self'] }, // T-12 · CR 716.2a · "o nível desta Classe vira N" (o efeito da barra de nível; o motor o monta a partir de `self.classe`, o script não o escreve)
   transformar: { fields: [], targets: ['self'] }, // T-7 · CR 701.27 · "transform ~": a permanente fonte vira a outra face (nos dois sentidos), se for carta ou ficha de dupla face (712.9) e a outra face for de permanente (701.27d), uma vez por habilidade (701.27f)
   tripulada: { fields: [], targets: ['self'] }, // T-3/T-4 · CR 702.122a/e · o efeito da habilidade de tripular: "esta permanente vira criatura artefato até o fim do turno" (só o mesmo objeto, 400.7) e, sendo Veículo, "fica tripulado"; depois de um `animate` (forma antiga) só avisa
 };
@@ -5709,6 +5710,7 @@ const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield
   'exerted', // V-20 · "You may exert ~ as it attacks. When you do, …" (701.43d): dispara quando a permanente é exaurida
   'becomes-monstrous', // V-6 · "When ~ becomes monstrous" (o valor do gatilho é o N da monstruosidade, 701.37c)
   /* ↓ T · gatilhos da trilha tipos */
+  'becomes-level', // T-12 · CR 716.2a · "When this Class becomes level N": só dentro de um nível de `self.classe` (o motor a dispara quando o efeito de subir de nível resolve)
   'transforms', // T-7 · CR 701.27e · "When ~ transforms (into …)": dispara na face que ficou para cima depois de a permanente transformar
   'crews', 'becomes-crewed', // T-3 · CR 702.122b "Whenever ~ crews a Vehicle" (o Veículo é o `remembered` do gatilho) e 702.122e "Whenever ~ becomes crewed" (o valor do gatilho é o número de criaturas que tripularam)
   'chapter', // T-1 · CR 714.2 · habilidade de capítulo de Saga: { kind: 'triggered', when: 'chapter', chapters: [1, 2], effects } (o motor a dispara pelos marcadores de lore)
@@ -6087,7 +6089,7 @@ function validateScript(sc) {
   if (sc && sc.replicate != null && sc.kicker) errs.push('replicar e reforço na mesma carta não são aceitos (os dois usam o pagamento repetido)');
   if (sc && sc.modeCount != null && !(Number.isInteger(sc.modeCount) && sc.modeCount >= 2 && (sc.modes || []).length && (sc.modeRepeat || sc.modeCount <= sc.modes.length))) errs.push('número de modos inválido');
   if (sc && sc.cumulativeUpkeep && !/\{/.test(String(sc.cumulativeUpkeep.mana || ''))) errs.push('manutenção cumulativa precisa de um custo de mana');
-  errs.push(...sagaErros(sc), ...tripularErros(sc), ...aventuraErros(sc), ...duplaFaceErros(sc), ...modalErros(sc), ...divididaErros(sc)); // T-10 · CR 709 · carta dividida (mesma chamada) // T-8 · CR 712.3 · dupla face modal (mesma chamada) // T-7 · CR 712 · dupla face (mesma chamada) // T-5 · CR 715 · aventura (mesma chamada) // T-3 · CR 702.122 · tripular (mesma chamada da T-1) // T-1 · CR 714 · Saga: capítulos, read ahead e o marcador de entrada (função abaixo da âncora T das exportações)
+  errs.push(...sagaErros(sc), ...tripularErros(sc), ...aventuraErros(sc), ...duplaFaceErros(sc), ...modalErros(sc), ...divididaErros(sc), ...classeErros(sc)); // T-12 · CR 716 · Classe (mesma chamada) // T-10 · CR 709 · carta dividida (mesma chamada) // T-8 · CR 712.3 · dupla face modal (mesma chamada) // T-7 · CR 712 · dupla face (mesma chamada) // T-5 · CR 715 · aventura (mesma chamada) // T-3 · CR 702.122 · tripular (mesma chamada da T-1) // T-1 · CR 714 · Saga: capítulos, read ahead e o marcador de entrada (função abaixo da âncora T das exportações)
   return errs.concat(exampleErrors(sc));
 }
 const ATRASOS = ['next-upkeep', 'next-end-step', 'end-of-combat']; // CR2b.1 · momentos de gatilho atrasado que o motor conhece
@@ -6421,6 +6423,13 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-12 · CR 716 · Classe (Oracle do Forge, clone de 11/10/2026). Nível 1 no script comum; `self.classe` = [nível 2, nível 3].
+  { name: "Stormchaser's Talent", abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'token', amount: 1, token: { name: 'Otter', types: ['creature'], subtypes: ['Otter'], colors: ['U', 'R'], power: 1, toughness: 1, keywords: ['prowess'] } }] }], // "When Stormchaser's Talent enters, create a 1/1 blue and red Otter creature token with prowess."
+    self: { classe: [
+      { mana: '{3}{U}', abilities: [{ kind: 'triggered', when: 'becomes-level', effects: [{ do: 'to_hand', target: { zona: 'graveyard', de: 'you', tipos: ['instant', 'sorcery'] } }] }] }, // "{3}{U}: Level 2 — When this Class becomes level 2, return target instant or sorcery card from your graveyard to your hand."
+      { mana: '{5}{U}', abilities: [{ kind: 'triggered', when: 'other-cast', filter: { anyTypes: ['instant', 'sorcery'] }, effects: [{ do: 'token', amount: 1, token: { name: 'Otter', types: ['creature'], subtypes: ['Otter'], colors: ['U', 'R'], power: 1, toughness: 1, keywords: ['prowess'] } }] }] }, // "{5}{U}: Level 3 — Whenever you cast an instant or sorcery spell, create a 1/1 blue and red Otter creature token with prowess."
+    ] },
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o cenário de verdade (os três níveis) está em tipos.classes.unit
   // T-10 · CR 709 · cartas divididas (Oracle do Forge, clone de 11/10/2026). O script mora no nome da carta inteira ("Wax // Wane");
   // `self: { dividida: true, mana, types }` e `effects` são a metade esquerda, `back` é a direita (com `mana`). A partida usa sempre a carta inteira.
   { name: 'Wax // Wane', self: { dividida: true, mana: '{G}', types: ['instant'] }, effects: [{ do: 'pump', power: 2, toughness: 2, target: 'creature' }], // "Target creature gets +2/+2 until end of turn."
@@ -7788,6 +7797,32 @@ function divididaErros(sc) {
   return errs;
 }
 Object.assign(EXPORTS_T_SC, { divididaErros });
+/* ---------------- T-12 · CR 716 · Classe (forma do script) ----------------
+   O nível 1 é o script comum (`abilities`, `continuo`, `regraJogador`…: 716.3, vale sempre). `self.classe` é a lista das barras de
+   nível, em ordem: a primeira é o nível 2, a segunda o nível 3. Cada barra: `{ mana, abilities?, continuo?, regraJogador? }` — o custo
+   da ativada "subir para o nível N" e o que a Classe tem enquanto estiver no nível N ou acima (716.2a). O gatilho `becomes-level`
+   ("When this Class becomes level N") só vale dentro da barra. Concessão a anexada (`grants`), `grantsAll`, `self.per` e Aura não
+   existem numa Classe: o validador recusa, para o motor não ter dois caminhos de efeito contínuo. */
+function classeErros(sc) {
+  const errs = [], sf = sc && sc.self, cl = sf && sf.classe;
+  if (cl == null) return errs;
+  if (!Array.isArray(cl) || !cl.length) return ['classe: self.classe é a lista das barras de nível (a primeira é o nível 2)'];
+  if (sf.dividida || sf.modal || sf.duplaFace || sf.aventura) errs.push('classe: a Classe não é dividida, modal, de transformar nem de aventura');
+  if (sc.grants || sc.grantsAll || sf.per || sc.aura || sc.back) errs.push('classe: grants, grantsAll, self.per, aura e face de trás não existem numa Classe (use continuo)');
+  if ((sc.abilities || []).some(ab => ab && ab.when === 'becomes-level')) errs.push('classe: o gatilho "becomes-level" fica dentro da barra de nível');
+  cl.forEach((b, i) => {
+    const tag = `classe, nível ${i + 2}`;
+    if (!b || typeof b !== 'object') { errs.push(`${tag}: precisa ser um objeto`); return; }
+    for (const k of Object.keys(b)) if (!['mana', 'abilities', 'continuo', 'regraJogador'].includes(k)) errs.push(`${tag}: chave "${k}" desconhecida`);
+    if (!(typeof b.mana === 'string' && /\{/.test(b.mana))) errs.push(`${tag}: falta o custo de subir de nível (mana)`);
+    if (!(b.abilities || []).length && !(b.continuo || []).length && !(b.regraJogador || []).length) errs.push(`${tag}: a barra não dá nada`);
+    const v = validateScript({ name: `${sc.name} (${tag})`, abilities: b.abilities || [], continuo: b.continuo, regraJogador: b.regraJogador, self: {}, example: sc.example || { target: 'none', expect: { selfLife: 0 } } });
+    errs.push(...v.map(e => `${tag}: ${e}`));
+  });
+  return errs;
+}
+Object.assign(EXPORTS_T_SC, { classeErros });
+GATILHO_EVENTO['becomes-level'] = { evento: 'classe_nivel', objeto: 'self' }; TRIGGER_PT['becomes-level'] = 'quando a Classe sobe para este nível';
 /* ---------------- T-8 · CR 712.3 · dupla face modal (forma do script) ----------------
    `self: { modal: true }` + `back: { name, types, … }`. A face de trás que não é terreno tem custo próprio (`back.mana`) e é
    conjurada por ela; a que é terreno é jogada como terreno (`back.produces: [['G']]`, `back.entersTapped: true`). As duas faces
@@ -15445,6 +15480,7 @@ function bonusLegado(s, host) {
 const SEM_CONTINUOS = Object.freeze([]);
 function continuosDaFonte(s, x) {
   const sc = s.facts[x.name].script;
+  if (sc && sc.self && sc.self.classe) return continuosDaClasseT(s, x, sc); // T-12 · CR 716.2a · os contínuos do nível 1 e dos níveis alcançados
   if (!sc || !(sc.grants || sc.grantsAll || (sc.self && sc.self.per) || sc.continuo || (sc.aura && sc.aura.becomes))) return SEM_CONTINUOS; // atalho: quase toda permanente não concede nada
   const out = [];
   if (sc.aura && sc.aura.becomes) out.push({ afetados: 'anexada', redefine: sc.aura.becomes }); // CR2d.1 · atalho: Aura que redefine a criatura
@@ -17030,6 +17066,7 @@ const abilitiesOf = (s, o) => {
   if (sc.backup) list.unshift({ kind: 'triggered', when: 'etb', effects: [{ do: 'counters', amount: sc.backup, target: 'creature' }, { do: 'reforco', target: 'first-target' }] });
   // S11 · equipar é uma habilidade ativada com alvo, só no tempo de feitiço
   if (sc.equip) list.push({ kind: 'activated', cost: sc.equip.cost || {}, sorceryOnly: true, equip: true, effects: [{ do: 'attach', target: 'creature-you-control' }] });
+  if (sc.self && sc.self.classe) classeHabilidadesT(s, o, sc, list); // T-12 · CR 716.2a · as habilidades dos níveis alcançados e a ativada do próximo nível
   return list.concat(grantedAbilities(s, o), habilidadesDePalavraK(s, o)); // K-3 · palavra-chave que é habilidade disparada (proeza…)
 };
 /** Uma permanente pode ser alvo? Protegida e maldição de véu respondem aqui. */
@@ -18196,6 +18233,7 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'lutador': if (obj) s.lutadorV = { fonte: src.oid, fz: encarnacaoV(s, src), oid: obj.oid, z: obj.zc || 0 }; break; // V-1/V-5 · anota quem luta; a luta é o `fight` seguinte, que apaga a anotação
     case 'fight': lutar(s, src, eff, tgt, events); break; // V-1 · 701.14
     /* ↓ T · casos de applyEffect da trilha tipos */
+    case 'nivel_classe': nivelDaClasseSobeT(s, src, eff, events); break; // T-12 · CR 716.2a · o nível da Classe vira N e dispara "When this Class becomes level N"
     case 'transformar': transformaT(s, src.ability ? s.objects[src.source] : src, src, events); break; // T-7 · CR 701.27 · "transform ~"
     case 'tripulada': tripulada(s, src, events); break; // T-3 · CR 702.122e · a habilidade de tripular resolveu: "Whenever ~ becomes crewed"
     case 'untap': { const alvo = eff.target === 'enchanted' ? criaturaEncantada(s, src) : eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj; if (alvo) desvira(s, alvo); note({}); break; } // CR2g.6 · atordoamento
@@ -19171,6 +19209,7 @@ function regrasDoJogador(s, p) {
   const out = [];
   for (const o of battlefield(s)) { const r = ((s.facts[o.name] || {}).script || {}).regraJogador; if (!r || o.faceDown || semImpressas(s, o)) continue;
     for (const e of r) if (casaJogadores(e.quem || 'voce', o.controller, p)) out.push(e); }
+  regrasDosNiveisT(s, p, out); // T-12 · CR 716.2a · regra de jogador de um nível de Classe alcançado
   for (const e of (s.players[p] || {}).efeitos || []) out.push(e);
   return out;
 }
@@ -22431,6 +22470,60 @@ Object.assign(EXPORTS_T, { gruposGratisT });
 const chaveDeFaceT = a => (a && a.face != null ? '|face:' + a.face : '');
 Object.assign(EXPORTS_T, { chaveDeFaceT });
 Object.assign(EXPORTS_T, { metadesDe, nomesDe });
+/* ---------------- T-12 · CR 716 · Classes ----------------
+   - 716.2b / 716.2d: o nível é uma designação da permanente, guardada fora do objeto em `s.classes[oid] = { z, n }` (z = encarnação,
+     400.7); sem registro, nível 1. Não é copiável (a cópia tem o próprio oid) e fica mesmo se a permanente deixar de ser Classe.
+     `s.classes` só nasce quando uma Classe sobe: partida sem Classe não muda de estado.
+   - 716.2a: `abilitiesOf` ganha as habilidades das barras alcançadas (marcadas com `nivelT`) e, no campo, a ativada da barra
+     seguinte ("Nível N", custo da barra, só como feitiço) — só a do nível atual + 1, que é quando ela pode ser ativada; as ofertas
+     e a recusa saem da mesma lista. O efeito `nivel_classe` leva a encarnação (`z`): a Classe que saiu e voltou não sobe.
+   - Os contínuos (`continuo`) e as regras de jogador (`regraJogador`) da barra valem a partir do nível dela.
+   - "When this Class becomes level N" (`becomes-level` dentro da barra N) dispara quando o efeito de subir resolve. */
+function nivelDaClasseT(s, o) { const r = o && s.classes && s.classes[o.oid]; return r && r.z === (o.zc || 0) ? r.n : 1; }
+function classeHabilidadesT(s, o, sc, list) {
+  if (!o || o.zone !== 'battlefield') return;
+  const n = nivelDaClasseT(s, o), barras = sc.self.classe;
+  barras.forEach((b, i) => { if (n >= i + 2) for (const ab of b.abilities || []) list.push({ ...ab, nivelT: i + 2 }); });
+  const prox = barras[n - 1];
+  if (prox && prox.mana) list.push({ kind: 'activated', cost: { mana: prox.mana }, sorceryOnly: true, label: `Nível ${n + 1}`, classeNivelT: n + 1, effects: [{ do: 'nivel_classe', n: n + 1, z: o.zc || 0 }] });
+}
+function nivelDaClasseSobeT(s, src, eff, events) {
+  const o = src.ability ? s.objects[src.source] : src;
+  if (!o || o.zone !== 'battlefield' || (eff.z != null && (o.zc || 0) !== eff.z)) { events.push({ kind: 'effect', do: 'nivel_classe', name: src.name, failed: true }); return; }
+  (s.classes = s.classes || {})[o.oid] = { z: o.zc || 0, n: eff.n };
+  events.push({ kind: 'effect', do: 'nivel_classe', name: o.name, target: o.name, amount: eff.n });
+  for (const ab of abilitiesOf(s, o)) {
+    if (ab.kind !== 'triggered' || ab.when !== 'becomes-level' || ab.nivelT !== eff.n || !triggerConditionMet(s, o, ab.condition)) continue;
+    s.queued.push({ source: o.oid, name: o.name, controller: o.controller, effects: ab.effects, when: ab.when, ...marcasDaHabilidade(ab) });
+  }
+}
+function continuosDaClasseT(s, x, sc) {
+  const n = nivelDaClasseT(s, x), cs = (sc.continuo || []).concat(...sc.self.classe.slice(0, Math.max(0, n - 1)).map(b => b.continuo || []));
+  if (!cs.length) return SEM_CONTINUOS;
+  return cs.map(c => ({ ...c, palavras: c.palavras ? c.palavras.map(w => String(w).toLowerCase()) : undefined, ...(c.torna ? { redefine: SC.tornaParaBecomes(c.torna) } : {}) })); // como o laço do `continuo` em continuosDaFonte
+}
+function regrasDosNiveisT(s, p, out) {
+  if (!s.classes) return;
+  for (const oid of Object.keys(s.classes)) {
+    const o = s.objects[oid], sc = o && o.zone === 'battlefield' && ((s.facts[o.name] || {}).script || {}); if (!sc || !sc.self || !sc.self.classe || o.faceDown || semImpressas(s, o)) continue;
+    const n = nivelDaClasseT(s, o);
+    sc.self.classe.slice(0, Math.max(0, n - 1)).forEach(b => { for (const e of b.regraJogador || []) if (casaJogadores(e.quem || 'voce', o.controller, p)) out.push(e); });
+  }
+}
+/** T-12 · rótulos da folha para as ativadas de uma Classe: a folha conhece só as ativadas impressas do script; as dos níveis e a de
+ * subir vêm de `abilitiesOf`. A de subir diz "Subir para o nível N · custo"; as de um nível, "Ativar (custo)" (com o alvo, se houver). */
+function rotulosDaClasseT(s, oid, legal, custo) {
+  const o = s.objects[oid], sc = o && ((s.facts[o.name] || {}).script || {}); if (!sc || !sc.self || !sc.self.classe) return;
+  const abs = abilitiesOf(s, o).filter(x => x.kind === 'activated'), impressas = (sc.abilities || []).filter(x => x.kind === 'activated').length;
+  for (const b of legal) {
+    const a = b && b.action; if (!a || a.t !== 'activate' || a.oid !== oid) continue;
+    const i = a.index || 0, ab = abs[i]; if (!ab || i < impressas) continue;
+    const resto = (b.label || '').includes(' → ') ? b.label.slice(b.label.indexOf(' → ')) : '';
+    if (ab.classeNivelT) b.label = `Subir para o nível ${ab.classeNivelT} · ${ab.cost.mana}`;
+    else { const c = custo(ab); b.label = `Ativar${c ? ` (${c})` : ''}${resto}`; }
+  }
+}
+Object.assign(EXPORTS_T, { nivelDaClasseT, rotulosDaClasseT });
 Object.assign(EXPORTS_T, { faceDeTras });
 Object.assign(EXPORTS_T, { parDuplaFaceT, transformada, transformaT });
 Object.assign(EXPORTS_T, { aventuraDe });
@@ -24901,9 +24994,9 @@ const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas
   fight: e => `${e.quem === 'self-source' ? 'esta criatura luta' : 'ela luta'} com ${ALVO_PT[e.target] || descreveAlvo(e.target)} (cada uma causa dano igual ao próprio poder à outra)`,
 };
 /* ↓ T · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha tipos */
-const EFEITO_PT_T = { tripulada: () => 'vira criatura artefato até o fim do turno', transformar: () => 'transforma (vira a outra face)' }; // T-7 · 701.27
+const EFEITO_PT_T = { nivel_classe: e => `a Classe sobe para o nível ${e.n}`, tripulada: () => 'vira criatura artefato até o fim do turno', transformar: () => 'transforma (vira a outra face)' }; // T-7 · 701.27
 /** T-7 · linhas do registro para os eventos da trilha tipos. */
-const LINHA_T = { transformar: ev => `${ev.name} transformou em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
+const LINHA_T = { nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe não está mais no campo, não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
 function descreveEfeito(e) {
   if (!e || !e.do) return '';
   if (EFEITO_PT_V[e.do]) return EFEITO_PT_V[e.do](e); // V-1 · Toca ponto comum: descreveEfeito (frases da trilha verbos)
@@ -27025,6 +27118,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       const oQueFaz = o.token || custoRepetido ? T.descreveEfeitos(ab.effects) : '';
       legal.push(doBtn(`Ativar${cost ? ` (${cost})` : ''}${oQueFaz ? `: ${oQueFaz}` : ''}${(act.targets || []).length ? ` → ${act.targets.map(x => targetName(s, x)).join(' + ')}` : ''}`, act, { variant: 'primary' }));
     }
+    E.rotulosDaClasseT(s, oid, legal, custoDaHabilidade); // T-12 · CR 716.2a · "Subir para o nível N · custo" e o custo certo das ativadas de um nível
     for (const x of E.acoesDeTipos(s, v, oid)) legal.push(doBtn(x.label, x.action)); // T-3 · CR 702.122a · "Escolher quem tripula" (ação `tripular`): abre o aviso com um botão por criatura
     // Leva 111 · habilidade que existe mas não dá para ativar agora aparece apagada, com o motivo
     // (antes a folha ficava vazia e parecia que a ficha não tinha habilidade)

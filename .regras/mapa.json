@@ -10539,31 +10539,53 @@
    "n": "716.1",
    "regra": "Class Cards",
    "titulo": "Classes: moldura",
-   "status": "definicao"
+   "status": "definicao",
+   "evidencia": "T-12 (12/10/2026): Classe = encantamento com `self.classe` (lista das barras de nível, a primeira é o nível 2).",
+   "testes": [
+    "S8 · Stormchaser’s Talent: ao entrar, uma Lontra 1/1 azul e vermelha com proeza; nível 2 devolve uma instantânea ou feitiço do cemitério à mão; nível 3 cria uma Lontra a cada instantânea ou feitiço que você conjura"
+   ]
   },
   {
    "n": "716.2",
    "regra": "Class Cards",
    "titulo": "Barra de nível de classe",
-   "status": "ausente",
-   "falta": "sem Classes nem nível de classe.",
+   "status": "parcial",
+   "falta": "Numa barra, só habilidades ativadas e disparadas, `continuo` e `regraJogador`: redução de custo, substituição e regra estática por nível não são lidas da barra (cartas como Bard Class, Artist's Talent, Fishers' Talent ficam manuais). 716.2c (\"ganhar um nível\" como restrição de mana, Sorcerer Class) não existe.",
    "esforco": "M",
    "depende": [
     "613"
    ],
-   "cartas": "rara"
+   "cartas": "rara",
+   "evidencia": "T-12 (12/10/2026): 716.2a — `abilitiesOf` dá as habilidades das barras alcançadas e, no campo, a ativada da barra seguinte (custo da barra, só como feitiço, só no nível N−1); o efeito `nivel_classe` sobe o nível e dispara \"When this Class becomes level N\" (`becomes-level`); `continuo` e `regraJogador` da barra valem a partir do nível dela. 716.2b/716.2d — o nível é designação do objeto (`s.classes[oid]` com a encarnação), não copiável, nível 1 sem registro. Mesa: \"Subir para o nível N · custo\"; registro \"X subiu para o nível N\".",
+   "testes": [
+    "CR 716.2a · subir de nível: só a barra seguinte (nível atual + 1), pelo custo dela, e só como feitiço — fora disso não é oferecida e o pedido é recusado",
+    "CR 716.2a · \"só como feitiço\": no turno do oponente, com a pilha ocupada ou na etapa de combate a barra não é oferecida",
+    "CR 716.2a · \"When this Class becomes level N\" dispara uma vez, só ao virar aquele nível; as habilidades de um nível só existem do nível em diante",
+    "CR 716.2a · contínuo e regra de jogador da barra valem a partir do nível dela: suas criaturas +1/+1 e um terreno a mais por turno no nível 2",
+    "CR 716.2b / 716.2d / 400.7 · o nível não é copiável e é do objeto: a cópia de uma Classe nível 3 está no nível 1; a Classe que volta para a mão e entra de novo também",
+    "CR 400.7 · a habilidade de subir resolve depois que a Classe saiu e voltou: o objeto novo não sobe e nada dispara",
+    "S8 · Stormchaser’s Talent: ao entrar, uma Lontra 1/1 azul e vermelha com proeza; nível 2 devolve uma instantânea ou feitiço do cemitério à mão; nível 3 cria uma Lontra a cada instantânea ou feitiço que você conjura",
+    "CR 716 · validador: barra sem custo, chave desconhecida, barra vazia, \"becomes-level\" fora da barra e grants numa Classe são recusados; erros dentro da barra dizem o nível",
+    "CR 716 · mesa e registro: o botão diz \"Subir para o nível 2 · {1}\" e a ativada de um nível diz o custo dela; a pilha explica e o registro diz que a Classe subiu",
+    "CR 716 · partida sem Classe não ganha nada no estado; passeio aleatório com Classes: nada oferecido é recusado e o nível nunca passa de 3 nem pula"
+   ]
   },
   {
    "n": "716.3",
    "regra": "Class Cards",
    "titulo": "Habilidades fora da barra são normais",
-   "status": "definicao"
+   "status": "definicao",
+   "evidencia": "T-12: a habilidade fora das barras é o script comum e vale sempre.",
+   "testes": [
+    "CR 716.3 · a habilidade do topo vale sempre: o \"ao entrar\" da Classe dispara no nível 1"
+   ]
   },
   {
    "n": "716.4",
    "regra": "Class Cards",
    "titulo": "Classes não são cartas de nível",
-   "status": "definicao"
+   "status": "definicao",
+   "evidencia": "T-12: o nível de Classe não usa marcadores (fica em `s.classes`); proliferar e \"level up\" (702.87) não o tocam."
   },
   {
    "n": "717.1",

@@ -10772,3 +10772,33 @@ test('e2e · T-11 · CR 709.3 · conjurar sem pagar com carta dividida: a decis�
   assert.deepEqual(fim, { nome: 'Assault // Battery', elefantes: 1 });
   assert.deepEqual(M.errors, []);
 });
+
+test('e2e · T-12 · CR 716.2a · Classe: a folha da Classe no campo oferece "Subir para o nível 2 · custo"; ao resolver, o nível 2 vale e a folha passa a oferecer o nível 3', { skip }, async t => {
+  // Texto oficial em .listas/oficiais-tipos.json (Oracle do Forge, 11/10/2026): Stormchaser's Talent. A Classe é posta no campo por dado;
+  // o que se testa aqui é a folha (o motor é provado em tipos.classes.unit).
+  const extras = JSON.parse(readFileSync(join(ROOT, '.listas', 'oficiais-tipos.json'), 'utf8')).cartas.filter(c => c.name === "Stormchaser's Talent");
+  const M = await comLista125(t, "24 Island\n16 Stormchaser's Talent", ['Island', "Stormchaser's Talent"], '4', { extras });
+  const { page } = M;
+  const ids = await page.evaluate(() => { const s = window.__estanteMesa.estado(), z = s.zones[0];
+    const poe = nome => { const i = z.library.findIndex(o => s.objects[o].name === nome); const oid = z.library.splice(i, 1)[0];
+      Object.assign(s.objects[oid], { zone: 'battlefield', controller: 0, tapped: false, sick: false, damage: 0, counters: {} }); z.battlefield.push(oid); return oid; };
+    const out = { st: poe("Stormchaser's Talent") }; for (let i = 0; i < 4; i++) poe('Island'); return out; });
+  const terra = await M.oid('Island'); assert.equal(await M.act({ t: 'play_land', p: 0, oid: terra }), true); await page.waitForTimeout(250);
+  await page.locator(`.tb-side--me .tb-card[data-oid="${ids.st}"]`).first().click(); await page.waitForSelector('.ds-dialog'); await page.waitForTimeout(300);
+  let botoes = (await page.locator('.ds-dialog .tb-sheet__actions button').allInnerTexts()).map(x => x.replace(/\s+/g, ' ').trim());
+  assert.ok(botoes.includes('Subir para o nível 2 · {3}{U}'), 'a barra de nível na folha: ' + JSON.stringify(botoes));
+  for (const b of await page.locator('.ds-dialog .tb-sheet__actions button', { hasText: /^Subir/ }).all()) { const cx = await b.boundingBox(); assert.ok(cx && cx.height >= 44, 'botão com 44 px de altura ou mais: ' + JSON.stringify(cx)); }
+  await auditaTela(page, 'folha da Classe');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/t12-classe.png' });
+  await page.locator('.ds-dialog .tb-sheet__actions button', { hasText: /^Subir para o nível 2/ }).click(); await page.waitForTimeout(300);
+  await M.resolve();
+  const nivel = await page.evaluate(st => { const s = window.__estanteMesa.estado(); return s.classes && s.classes[st] ? s.classes[st].n : 1; }, ids.st);
+  assert.equal(nivel, 2);
+  await page.evaluate(() => { const s = window.__estanteMesa.estado(); for (const c of 'WUBRG') s.players[0].pool[c] += 6; });
+  await page.locator(`.tb-side--me .tb-card[data-oid="${ids.st}"]`).first().click(); await page.waitForSelector('.ds-dialog'); await page.waitForTimeout(300);
+  botoes = (await page.locator('.ds-dialog .tb-sheet__actions button').allInnerTexts()).map(x => x.replace(/\s+/g, ' ').trim());
+  assert.ok(botoes.includes('Subir para o nível 3 · {5}{U}') && !botoes.some(b => /nível 2/.test(b)), 'agora o nível 3: ' + JSON.stringify(botoes));
+  const linhas = await page.evaluate(() => (window.__estanteMesa.registro ? window.__estanteMesa.registro() : []).map(String));
+  if (linhas.length) assert.ok(linhas.some(l => /Stormchaser's Talent subiu para o nível 2/.test(l)), 'registro: ' + JSON.stringify(linhas.slice(-6)));
+  assert.deepEqual(M.errors, []);
+});
