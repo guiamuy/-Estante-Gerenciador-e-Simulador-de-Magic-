@@ -4459,6 +4459,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Correções:** (1) emergir sacrificando criatura virada para baixo reduz 0 (708.2a), também lendo a última informação da já sacrificada; (2) a oferta de emergir não conta a mana da própria sacrificada (o motor sacrifica antes de pagar; virar o Elfo antes de conjurar continua fechando); (3) "descarte duas cartas" pago com a mesma carta duas vezes é recusado (recompra, entrelaçar, escalar).
 - **Testes:** `keywords.cr4.unit` (3, falham sem a leva). Goldens idênticos; motor v110.
 - **Pedido à trilha motor:** gerar a mana antes do sacrifício no custo alternativo (601.2g), para emergir com uma fonte de mana sacrificada sem virar antes.
+**K-51 · Dobra (warp, 702.185)** 🟡 (leva K-51) — onda 4, a palavra-chave ausente mais usada no catálogo (811 cópias em 243 listas: Quantum Riddler, Pinnacle Emissary, Haliya, Mightform Harmonizer, Nova Hellkite)
+- **Valor:** "Warp {custo}" vira o botão "Dobra {custo}" na mão. A permanente entra, é exilada no começo da próxima etapa final, e a partir do turno seguinte o dono pode conjurá-la do exílio pelo custo normal.
+- **Aceite:** Bygone Colossus pela dobra paga {3}, entra e vai para o exílio na etapa final. No mesmo turno não dá para conjurá-la de novo; no turno seguinte, sim, por {9}. Conjurada pelo custo normal, ela fica.
+- **Toca ponto comum:** `moveObject` (uma linha: `dobrouK`, ao lado do arremeter).
+- **Testes:** `keywords.cr4.unit` (2, falham sem a leva), `combat.audit` (1 cenário). Texto oficial: Quantum Riddler, Nova Hellkite, Timeline Culler, Bygone Colossus (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
+- **Parcial declarado:** "a spell was warped this turn" (702.185c) não fica registrado; conjurar do cemitério pela dobra (Timeline Culler) não é lido; aumentos e reduções de custo não valem sobre o custo da dobra (o mesmo limite do arremeter).
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

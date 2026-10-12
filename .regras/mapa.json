@@ -9473,15 +9473,21 @@
    "n": "702.185",
    "regra": "Keyword Abilities",
    "titulo": "Warp",
-   "status": "ausente",
-   "falta": "Sem implementação (grep sem ocorrência no motor nem nos scripts). Falta custo alternativo da mão, gatilho atrasado que exila a permanente no próximo passo final e a permissão de conjurar do exílio em turnos seguintes; marcas \"dobrada\" (185b-c).",
+   "status": "parcial",
+   "falta": "702.185c (\"a spell was warped this turn\") não fica registrado. \"Você pode conjurar esta carta do cemitério usando a dobra\" (Timeline Culler) não é lido. Aumentos e reduções de custo não se aplicam ao custo da dobra (caminho comum do custo alternativo, payAlt; o mesmo pedido de arremeter e emergir à trilha motor).",
    "esforco": "M",
    "depende": [
     "601.2b custo alternativo",
     "603.7 gatilho atrasado",
     "conjurar do exílio (playableFromExile existe)"
    ],
-   "cartas": "uma coleção só (Edge of Eternities)"
+   "cartas": "uma coleção só (Edge of Eternities)",
+   "evidencia": "K-51: \"Warp {custo}\" e \"Warp—{custo}, Pay N life\" (dobraImpressaK) viram custo alternativo da mão (altsImpressosK, marca dobradaK). A permanente que a mágica dobrada vira ganha o gatilho atrasado de quem a conjurou, preso à encarnação (dobrouK em moveObject; 603.7c): no começo da próxima etapa final, dobra_k a exila e marca a carta (dobraK, 702.185b). Na primeira manutenção depois desse turno (dobraNaManutencaoK) o dono ganha a permissão de conjurá-la do exílio, pelo custo normal. A marca some quando a carta muda de zona (400.7).",
+   "testes": [
+    "CR 702.185a · dobra (Bygone Colossus, texto oficial): \"Warp {3}\" é custo alternativo da mão; no começo da próxima etapa final a permanente é exilada; o dono pode conjurá-la do exílio só depois desse turno, pelo custo normal",
+    "CR 702.185a · a dobra vale para a encarnação: a permanente dobrada que sai do campo antes da etapa final e volta não é exilada; carta exilada por outro efeito não fica conjurável",
+    "K-51 · dobra (702.185): a 4/4 com ímpeto entra pela dobra, ataca por 4 e é exilada na etapa final"
+   ]
   },
   {
    "n": "702.186",

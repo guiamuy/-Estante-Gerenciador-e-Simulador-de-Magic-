@@ -5230,6 +5230,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'graft', // K-46 · 702.58: entra com N +1/+1 e, quando outra criatura entra, pode mover um para ela (enxertoK, junto do evoluir)
   'emerge', // K-47 · 702.119: custo alternativo "[custo] e sacrifique uma criatura", reduzido pelo valor de mana dela (altsImpressosK, pagaEmergirK)
   'escalate', // K-48 · 702.120: cada combinação de dois ou mais modos é mais um modo, com o custo de escalar por modo além do primeiro (modosEscaladosK)
+  'warp', // K-51 · 702.185: custo alternativo da mão; a permanente é exilada no começo da próxima etapa final e o dono pode conjurá-la do exílio a partir do turno seguinte (dobrouK)
   'afflict', 'melee', 'mentor', 'training', // K-31 · 702.130, 702.121, 702.134, 702.149: gatilhos de ataque gerados pela palavra, um por instância
   'battle cry', 'rampage', 'flanking', 'bushido', // K-30 · 702.91, 702.23, 702.25, 702.45: gatilhos de combate gerados pela palavra (GATILHOS_DE_PALAVRA_K), um por instância
   /* ↓ V · palavras-chave da trilha verbos */
@@ -5396,6 +5397,7 @@ const EFFECTS = {
   exile_top_playable: { fields: ['amount'], targets: ['self'] },
   draw_free_cast: { fields: ['amount'], targets: ['self'] },
   /* ↓ K · efeitos da trilha keywords */
+  dobra_k: { fields: [], targets: [] }, // K-51 · 702.185a · exila a permanente dobrada no começo da próxima etapa final (gerado pelo motor)
   salvaguarda: { fields: [], targets: [] }, // K-2 · 702.21a · gerado pelo motor quando uma permanente com salvaguarda vira alvo (não vai em script)
   volta_com_marcador: { fields: ['marcador'], targets: [] }, // K-4 · persistir e imortal (gerado pelo motor)
   exaltado: { fields: ['criatura'], targets: [] }, // K-5 · exaltado (gerado pelo motor)
@@ -8306,6 +8308,7 @@ function palavraNaLinhaK(k) {
   if (k === 'graft') return 'graft \\d+'; // K-46
   if (k === 'emerge') return 'emerge(?: from an? [a-z]+)?\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-47
   if (k === 'escalate') return 'escalate(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*(?:sacrifice (?:an?|one|two|three) (?:lands?|creatures?|artifacts?|enchantments?)|discard (?:a|one|two|three) cards?|tap an untapped creature you control|pay \\d+ life)\\.?)'; // K-48
+  if (k === 'warp') return 'warp(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*(?:\\{[0-9WUBRGC]+\\})+, pay \\d+ life\\.?)'; // K-51
   if (k === 'dash') return 'dash\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-9
   if (k === 'evoke') return 'evoke(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*exile an? (?:white|blue|black|red|green) card from your hand\\.?)'; // K-8 · só as formas que o motor paga
   return ['afterlife', 'rampage', 'bushido', 'afflict'].includes(k) ? `${k} \\d+` : k; // K-30 · alvoroço N e bushido N
@@ -15999,6 +16002,7 @@ function cardFacts(card) {
     devorarK: devorarImpressoK(card), // K-43 · 702.82: [{ n, tipo }] por linha "Devour [qualidade] N" (undefined quando não tem)
     emergirK: emergirImpressoK(card), // K-47 · 702.119: { mana, tipo } (undefined quando não tem)
     escalarK: escalarImpressoK(card), // K-48 · 702.120: "Escalate {1}" / "Escalate—Discard a card." (undefined quando não tem)
+    dobraK: dobraImpressaK(card), // K-51 · 702.185: "Warp {1}{U}" / "Warp—{B}, Pay 2 life." (undefined quando não tem)
     campeaoK: campeaoImpressoK(card), // K-44 · 702.72: "Champion a creature" → 'creature'; "Champion an Elf" → 'Elf' (undefined quando não tem)
     suspenderK: suspenderImpressoK(card), // K-22 · 702.62a: "Suspend N—{custo}" (undefined quando não tem)
     equipesK: equipesImpressosK(card), // K-28 · 702.6c: "Equip [qualidade] {custo}" (undefined quando não tem)
@@ -16567,6 +16571,7 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
   if (fromZone !== 'stack') { delete o.chosenColor; delete o.chosenType; delete o.damagePrevented; delete o.preventGainTo; delete o.devolvidas; } // CR2a.9 · 400.7 / 608.2n: a marca da resolução fica onde a carta caiu; ao sair de lá, o objeto é novo
   delete o.loyaltyTurn; delete o.usedThisTurn; delete o.alvejadoNoTurno; // CR2c.6 · 400.7: o objeto novo não carrega o uso da habilidade do anterior (606.3, 602.5b) nem o "primeira vez no turno" do valente (CR2b.9)
   if (to === 'battlefield' && fromZone === 'stack' && o.arremetidaK) arremeteuK(s, o); // K-9 · 702.109a: a permanente que a mágica arremetida vira
+  if (to === 'battlefield' && fromZone === 'stack' && o.dobradaK) dobrouK(s, o); // K-51 · 702.185a: a permanente que a mágica dobrada vira (Toca ponto comum: moveObject)
   if (to === 'battlefield' && fromZone === 'stack' && o.suspensaImpeto) { delete o.suspensaImpeto; aplicaTemporario(s, o, { palavras: ['haste'], ate: { enquanto: 'controlar-fonte' } }, o.controller, o); } // M-269 · "if it's a creature, it has haste"
   if (to === 'battlefield') o.ts = relogio(s); // CR2d.1 · 613.7d: carimbo de tempo de quem entra no campo
   o.sick = to === 'battlefield' && s.facts[o.name].types.includes('creature');
@@ -18908,6 +18913,13 @@ function applyEffect(s, src, eff, tgt, events) {
       break;
     }
     /* ↓ K · casos de applyEffect da trilha keywords */
+    case 'dobra_k': { // K-51 · 702.185a: "exile the permanent this spell becomes at the beginning of the next end step"
+      if (!obj || obj.zone !== 'battlefield') { note({ failed: true }); break; }
+      const nome = obj.name;
+      if (moverObjeto(s, src, obj, { para: 'exile' }, ctrl) && s.objects[obj.oid] && s.objects[obj.oid].zone === 'exile') s.objects[obj.oid].dobraK = { turno: s.turn.number }; // 702.185b: "warped card in exile"
+      note({ name: nome });
+      break;
+    }
     case 'enxerto_k': { // K-46 · 702.58a: confere de novo (603.4) e move um +1/+1 para a que entrou (a mesma encarnação)
       const w = s.objects[src.ability ? src.source : src.oid], e = s.objects[eff.entrou];
       if (!w || w.zone !== 'battlefield' || (w.zc || 0) !== eff.zw || !((w.counters || {}).p1p1 > 0) || !e || e.zone !== 'battlefield' || (e.zc || 0) !== eff.z) { events.push({ kind: 'effect', do: 'enxerto_k', name: src.name, failed: true }); break; }
@@ -22270,6 +22282,7 @@ MARCAS_DA_CONJURACAO.push('ricocheteK'); // K-35 · 702.88a: o gatilho atrasado 
 MARCAS_DA_CONJURACAO.push('renomadaK'); // K-40 · 702.112b: renomada até sair do campo (400.7)
 MARCAS_DA_CONJURACAO.push('devorouK', 'entrarComEscolhasK'); // K-43 · 702.82b: "it devoured" vale para esta permanente
 MARCAS_DA_CONJURACAO.push('emergiuK'); // K-47
+MARCAS_DA_CONJURACAO.push('dobradaK', 'dobraK'); // K-51 · a marca da carta exilada (702.185b) some quando ela muda de zona (400.7)
 MARCAS_DA_CONJURACAO.push('campeaoDeK', 'campeaoNesteK'); // K-44 · a ligação é deste objeto (400.7)
 const COR_DO_NOME_K = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
 const COR_PT_K = { W: 'branca', U: 'azul', B: 'preta', R: 'vermelha', G: 'verde' };
@@ -22302,6 +22315,7 @@ function altsImpressosK(f) {
   if (f.arremeterK) out.push({ label: `Arremeter ${f.arremeterK.mana}`, cost: { ...f.arremeterK }, marcaK: 'arremetidaK' });
   if (f.espetaculoK) out.push({ label: `Espetáculo ${f.espetaculoK.mana}`, cost: { ...f.espetaculoK }, when: { espetaculoK: true }, marcaK: 'espetaculoK' }); // K-32 · 702.137a
   if (f.emergirK) out.push({ label: `Emergir ${f.emergirK.mana}, sacrificando ${f.emergirK.tipo === 'creature' ? 'uma criatura' : 'um ' + f.emergirK.tipo} (menos o valor dela)`, cost: { mana: '{0}', sacrificeOther: { types: [f.emergirK.tipo] } }, emergirK: { ...f.emergirK }, marcaK: 'emergiuK' }); // K-47 · 702.119a/b
+  if (f.dobraK) out.push({ label: `Dobra ${f.dobraK.mana}${f.dobraK.life ? ` e ${f.dobraK.life} de vida` : ''}`, cost: { ...f.dobraK }, marcaK: 'dobradaK' }); // K-51 · 702.185a
   if (f.surtoK) out.push({ label: `Surto ${f.surtoK.mana}`, cost: { ...f.surtoK }, when: { surtoK: true }, marcaK: 'surtoK' }); // K-32 · 702.117a
   return out;
 }
@@ -22830,6 +22844,7 @@ function ricocheteImpressoK(card) {
     O relógio só é guardado numa partida com carta de eco (o estado das outras, e o das partidas-referência, não muda). */
 function manutencaoK(s, a) {
   ricocheteNaManutencaoK(s, a);
+  if (partidaTemK(s, 'dobraK')) dobraNaManutencaoK(s); // K-51
   if (partidaTemK(s, 'ecoK')) s.players[a].relogioManutencaoK = s.relogio || 0;
 }
 const TEM_K = new WeakMap(); // por fato: quais campos da trilha ele tem (o fato não muda depois de criado)
@@ -23168,6 +23183,31 @@ function semRepetidoK(pg) {
   for (const v of Object.values(pg || {})) if (Array.isArray(v) && new Set(v).size !== v.length) throw new RuleError('custo', 'a mesma carta não paga o custo duas vezes');
 }
 Object.assign(EXPORTS_K, { semRepetidoK });
+/* K-51 · 702.185 dobra (warp): "You may cast this card from your hand by paying [cost] rather than its mana cost" e "If this spell's warp
+   cost was paid, exile the permanent this spell becomes at the beginning of the next end step. Its owner may cast this card after the current
+   turn has ended for as long as it remains exiled." O custo alternativo entra em altsImpressosK (como arremeter, só da mão); a permanente
+   ganha o gatilho atrasado de quem a conjurou, que lembra a encarnação (603.7c); a carta exilada fica marcada (702.185b) e a permissão de
+   conjurar do exílio começa no primeiro passo com prioridade depois do turno em que foi exilada (a manutenção seguinte), pelo custo normal. */
+function dobraImpressaK(card) {
+  const txt = String((card && (card.oracle_text || (card.faces && card.faces[0] && card.faces[0].oracle_text))) || '');
+  for (const l0 of txt.split('\n')) {
+    const l = l0.replace(/\s*\([^)]*\)/g, '').trim();
+    let m = l.match(/^Warp\s+((?:\{[0-9WUBRGC]+\})+)$/); if (m) return { mana: m[1] };
+    m = l.match(/^Warp\s*[—-]\s*((?:\{[0-9WUBRGC]+\})+), Pay (\d+) life\.?$/i); if (m) return { mana: m[1], life: +m[2] };
+  }
+  return undefined;
+}
+function dobrouK(s, o) {
+  (s.atrasados = s.atrasados || []).push({ when: 'next-end-step', turno: s.turn.number, controller: o.controller, jogador: o.controller, objeto: { oid: o.oid, z: o.zc || 0 },
+    name: o.name, source: o.oid, effects: [{ do: 'dobra_k', target: 'delayed-object' }] });
+}
+function dobraNaManutencaoK(s) {
+  for (const p of s.players.keys()) for (const oid of s.zones[p].exile) {
+    const x = s.objects[oid]; if (!x || !x.dobraK || x.playableFromExile != null || !(s.turn.number > x.dobraK.turno)) continue;
+    x.playableFromExile = x.owner; // "Its owner may cast this card after the current turn has ended" (pelo custo normal: a dobra é só da mão)
+  }
+}
+Object.assign(EXPORTS_K, { dobraImpressaK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-30 · 701.65 aerobender: "that player exiles those objects. For each card exiled this way, for as long as it remains exiled, its owner
    may cast it by paying {2} rather than paying its mana cost" (a). A permissão é do DONO e da encarnação exilada (400.7: se a carta sair do
@@ -27080,6 +27120,7 @@ Object.assign(PALAVRA_PT, { champion: 'campeão' }); // K-44
 Object.assign(PALAVRA_PT, { graft: 'enxerto' }); // K-46
 Object.assign(PALAVRA_PT, { emerge: 'emergir' }); // K-47
 Object.assign(PALAVRA_PT, { escalate: 'escalar' }); // K-48
+Object.assign(PALAVRA_PT, { warp: 'dobra' }); // K-51
 Object.assign(PALAVRA_PT, { afflict: 'aflição', melee: 'refrega', mentor: 'mentor', training: 'treinamento' }); // K-31
 Object.assign(PALAVRA_PT, { 'battle cry': 'grito de guerra', rampage: 'alvoroço', flanking: 'flanquear', bushido: 'bushido' }); // K-30
 const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consultadas por descreveEfeito; antes a pilha mostrava "proeza k")
@@ -27098,6 +27139,7 @@ const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consulta
   sacrifica_se_k: () => 'saiu o último marcador de tempo: esta permanente é sacrificada (sumir)', // K-37
   eco_k: e => `sacrifique esta permanente a menos que pague ${e.mana} (eco)`, // K-36
   ricochete_k: () => 'você pode conjurar esta carta do exílio sem pagar o custo de mana (ricochete)', // K-35
+  dobra_k: () => 'exila esta permanente; o dono pode conjurá-la do exílio a partir do próximo turno (dobra)', // K-51
   tempestade_k: e => e.n ? `copia esta mágica ${e.n === 1 ? 'uma vez' : e.n + ' vezes'} (tempestade; cada cópia pode ter alvo novo)` : 'copia esta mágica para cada mágica conjurada antes dela neste turno (nenhuma)',
   proeza_k: () => 'esta criatura recebe +1/+1 até o fim do turno (proeza)',
   explorar_k: () => '', // o sacrifício já se descreve; esta é só a foto de antes e de depois

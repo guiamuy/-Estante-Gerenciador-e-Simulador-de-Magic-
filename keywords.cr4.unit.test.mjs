@@ -1993,3 +1993,34 @@ test('CR 601.2h · a forma de pagar "descarte duas cartas" com a mesma carta dua
   const i = s.facts['Collective Brutality'].script.modes.findIndex(m => m.escalarK === 2);
   assert.throws(() => E.apply(s, { t: 'cast', p: a, oid: cb, mode: i, targets: [{ player: d }, { oid: u }, { player: d }], pay: { escalarK: { discard: [h, h] } } }), /duas vezes/);
 });
+
+/* ---------------- K-51 · dobra (warp) 702.185 ---------------- */
+test('CR 702.185a · dobra (Bygone Colossus, texto oficial): "Warp {3}" é custo alternativo da mão; no começo da próxima etapa final a permanente é exilada; o dono pode conjurá-la do exílio só depois desse turno, pelo custo normal', () => {
+  assert.deepEqual(J(E.dobraImpressaK(oficial('Bygone Colossus'))), { mana: '{3}' });
+  assert.deepEqual(J(E.dobraImpressaK(oficial('Timeline Culler'))), { mana: '{B}', life: 2 });
+  let s = comManaK33({ 'Bygone Colossus': { ...oficial('Bygone Colossus'), keywords: ['Warp'] } }); const a = s.turn.active, d = 1 - a;
+  s = terrenos(s, a, 'Island', 8); s = terrenos(s, a, 'Forest', 1); let c; [s, c] = poe(s, a, 'Bygone Colossus', 'hand');
+  const alt = E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === c && x.alt != null); assert.ok(alt, 'a dobra é oferecida');
+  let t = resolve(act(s, alt));
+  assert.equal(t.objects[c].zone, 'battlefield'); assert.equal(t.zones[a].battlefield.filter(x => t.objects[x].tapped).length, 3, 'pagou {3}');
+  t = ateK35(t, a, 'end'); for (let i = 0; i < 6 && t.objects[c].zone === 'battlefield'; i++) t = t.pending ? act(t, E.legalActions(t, t.pending.p)[0]) : act(t, { t: 'pass', p: t.turn.priority });
+  assert.equal(t.objects[c].zone, 'exile', 'exilada na etapa final');
+  assert.ok(!E.legalActions(t, a).some(x => x.t === 'cast' && x.oid === c), 'no mesmo turno, não');
+  t = ateK35(t, d, 'upkeep'); t = act(t, { t: 'pass', p: t.turn.priority });
+  assert.equal(t.objects[c].playableFromExile, a, 'depois do turno, o dono pode conjurá-la');
+  t = ateK35(t, a, 'main1');
+  const doExilio = E.legalActions(t, a).filter(x => x.t === 'cast' && x.oid === c);
+  assert.ok(doExilio.length >= 1 && doExilio.every(x => x.alt == null), 'do exílio, pelo custo normal ({9}), sem a dobra');
+  t = resolve(act(t, doExilio[0])); assert.equal(t.objects[c].zone, 'battlefield');
+  t = ateK35(t, a, 'end'); for (let i = 0; i < 6; i++) t = t.pending ? act(t, E.legalActions(t, t.pending.p)[0]) : act(t, { t: 'pass', p: t.turn.priority });
+  assert.equal(t.objects[c].zone, 'battlefield', 'conjurada pelo custo normal, fica');
+});
+
+test('CR 702.185a · a dobra vale para a encarnação: a permanente dobrada que sai do campo antes da etapa final e volta não é exilada; carta exilada por outro efeito não fica conjurável', () => {
+  let s = comManaK33({ 'Bygone Colossus': { ...oficial('Bygone Colossus'), keywords: ['Warp'] } }); const a = s.turn.active, d = 1 - a;
+  s = terrenos(s, a, 'Island', 3); let c; [s, c] = poe(s, a, 'Bygone Colossus', 'hand');
+  let t = resolve(act(s, E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === c && x.alt != null)));
+  t = J(t); const z = t.zones[a].battlefield; z.splice(z.indexOf(c), 1); t.zones[a].exile.push(c); t.objects[c].zone = 'exile'; t.objects[c].zc = (t.objects[c].zc || 0) + 1; delete t.objects[c].dobradaK;
+  t = ateK35(t, d, 'upkeep'); t = act(t, { t: 'pass', p: t.turn.priority });
+  assert.equal(t.objects[c].playableFromExile, undefined, 'exilada por outro caminho: sem permissão');
+});
