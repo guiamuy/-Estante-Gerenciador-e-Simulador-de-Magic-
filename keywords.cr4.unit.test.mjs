@@ -1156,3 +1156,32 @@ test('CR 702.40a · a mesa descreve o gatilho e os efeitos da trilha (antes a pi
   assert.match(TM.descreveEfeito({ do: 'proeza_k' }), /\+1\/\+1 até o fim do turno \(proeza\)/);
   assert.equal(S.TRIGGER_PT['storm-gatilho'], 'quando você a conjura (tempestade)');
 });
+
+/* ---------------- K-26 · 702.11c resistência a magia e 702.18a manto do jogador ---------------- */
+test('CR 702.18a · "You have shroud." (True Believer, texto oficial): ninguém mira quem a controla — nem o oponente, nem ele mesmo', () => {
+  let s = partida({ 'True Believer': oficial('True Believer'), Raio: RAIO }, SC_RAIO); const a = s.turn.active, d = 1 - a;
+  [s] = poe(s, a, 'True Believer');
+  let r; [s, r] = poe(s, a, 'Raio', 'hand');
+  const alvos = E.legalActions(s, a).filter(x => x.oid === r && x.t === 'cast').map(x => J(x.targets[0]));
+  assert.ok(!alvos.some(x => x.player === a), 'não mira a si mesmo'); assert.ok(alvos.some(x => x.player === d), 'mira o oponente');
+  let t = J(s); let r2; [t, r2] = poe(t, d, 'Raio', 'hand'); t.turn.priority = d;
+  assert.ok(!E.legalActions(t, d).some(x => x.oid === r2 && x.targets && x.targets[0].player === a), 'o oponente não mira');
+  assert.equal(S.coverage(oficial('True Believer')).level, 'completo', 'a linha "You have shroud." conta');
+});
+
+test('CR 702.11c · "You have hexproof." (Aegis of the Gods, texto oficial): o oponente não mira; quem a controla, sim; ganhar depois de mirado deixa o alvo ilegal (608.2b)', () => {
+  let s = partida({ 'Aegis of the Gods': oficial('Aegis of the Gods'), Raio: RAIO }, SC_RAIO); const a = s.turn.active, d = 1 - a;
+  let ag; [s, ag] = poe(s, a, 'Aegis of the Gods', 'hand');
+  let r; [s, r] = poe(s, a, 'Raio', 'hand');
+  const vida = s.players[a].life;
+  s = act(s, { t: 'cast', p: a, oid: r, targets: [{ player: a }] }); // mira a si mesmo antes de ter a resistência
+  s = J(s); const z = s.zones[a].hand; z.splice(z.indexOf(ag), 1); s.zones[a].battlefield.push(ag); Object.assign(s.objects[ag], { zone: 'battlefield' });
+  assert.equal(resolve(s).players[a].life, vida - 3, 'quem a controla pode ser alvo das próprias mágicas');
+  let t = partida({ 'Aegis of the Gods': oficial('Aegis of the Gods'), Raio: RAIO }, SC_RAIO); const b = t.turn.active, e = 1 - b;
+  let r2, ag2; [t, r2] = poe(t, e, 'Raio', 'hand'); [t, ag2] = poe(t, b, 'Aegis of the Gods', 'hand'); t = J(t); t.turn.priority = e;
+  t = act(t, { t: 'cast', p: e, oid: r2, targets: [{ player: b }] });
+  t = J(t); const z2 = t.zones[b].hand; z2.splice(z2.indexOf(ag2), 1); t.zones[b].battlefield.push(ag2); Object.assign(t.objects[ag2], { zone: 'battlefield' });
+  const vb = t.players[b].life; assert.equal(resolve(t).players[b].life, vb, 'ganhou resistência com o Raio na pilha: alvo ilegal, nada');
+  assert.ok(!E.legalActions(t, e).some(x => x.targets && x.targets.some(y => y.player === b)), 'e o oponente não mira mais');
+  assert.equal(S.coverage(oficial('Aegis of the Gods')).level, 'completo');
+});

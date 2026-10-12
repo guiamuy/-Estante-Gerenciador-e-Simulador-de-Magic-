@@ -4153,6 +4153,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Testes:** `keywords.cr4.unit` (2, falham sem a leva). Goldens idênticos; motor v109.
 - **Medido e não feito (decisão do dono):** insanidade como gatilho na pilha (702.35a). A troca é de três linhas no motor, mas muda 13 testes em 7 arquivos de outras trilhas (motor, verbos, o executor do S8) e o fluxo da mesa (a decisão aparece depois de o gatilho resolver, não no descarte). Proposta: fazer numa leva combinada com a trilha `motor`, ou o dono autoriza a trilha `keywords` a ajustar esses testes.
 
+**K-26 · Resistência a magia e manto do jogador (702.11c, 702.18a)** 🟡 (leva K-26)
+- **Valor:** "You have hexproof." (Aegis of the Gods) e "You have shroud." (True Believer) impressos numa permanente passam a valer: o oponente (ou, com manto, ninguém) não mira o jogador enquanto ela está no campo; quem ganha a proteção com a mágica já na pilha a faz perder o alvo. A linha conta na cobertura — as duas cartas jogam sem script.
+- **Aceite:** True Believer em campo: o Raio de quem a controla não mira a si mesmo, o do oponente não mira ninguém daquele lado. Aegis: o oponente não mira; o próprio dono, sim; Aegis entra com o Raio do oponente na pilha mirando o dono: o Raio não faz nada.
+- **Toca ponto comum:** alvos de jogador — uma linha nova depois de cada filtro existente (`selecionar` e `legalTargetsLegado`), sem mudar as linhas da M-260.
+- **Testes:** `keywords.cr4.unit` (2, falham sem a leva). Texto oficial: True Believer, Aegis of the Gods (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v109.
+- **Parcial declarado (702.11):** Shalai ("You, planeswalkers you control, and other creatures you control have hexproof"), Leyline of Sanctity (a abertura com ela no campo) e 702.11g ficam de fora. 702.18 passa a coberta.
+
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

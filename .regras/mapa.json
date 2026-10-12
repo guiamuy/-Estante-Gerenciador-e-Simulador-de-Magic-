@@ -6791,13 +6791,14 @@
    "regra": "Keyword Abilities",
    "titulo": "Hexproof",
    "status": "parcial",
-   "evidencia": "targetable (index.html:10915): permanente com hexproof não é alvo do oponente, mas é do dono; combat.audit K11; sonda sonda2-702a.mjs: Bolt de A mira o HEX1 próprio e não o do oponente · M-255/M-260 (v97): 702.11c jogador com resistência a magia até o fim do turno (resistencia_jogador; Lazotep Plating); \"hexproof from [cor]\" concedido (tempResguardoCor; Skrelv). K-18: \"Hexproof from [qualidade]\" impresso lido da linha (resistenciaQualidadesK em cardFacts.hexK: cor, multicolorida, monocolorida, incolor, tipo de carta, tudo; \"from A and from B\" são duas, 702.11f) e conferido em targetable contra a mágica do oponente ou a fonte da habilidade (resistenteAK, com casaProtecaoK); some com as habilidades impressas (702.11e); não vira \"hexproof\" puro. Carta exemplo: Knight of Grace (Oracle do Forge, 11/10/2026).",
-   "falta": "702.11c: jogador com resistência a magia por habilidade estática (\"You have hexproof\") não existe — só a temporária (resistencia_jogador); \"hexproof from\" concedido por efeito continua só de cor (M-255); 702.11g (\"from each [característica]\") não é lido.",
+   "evidencia": "targetable (index.html:10915): permanente com hexproof não é alvo do oponente, mas é do dono; combat.audit K11; sonda sonda2-702a.mjs: Bolt de A mira o HEX1 próprio e não o do oponente · M-255/M-260 (v97): 702.11c jogador com resistência a magia até o fim do turno (resistencia_jogador; Lazotep Plating); \"hexproof from [cor]\" concedido (tempResguardoCor; Skrelv). K-18: \"Hexproof from [qualidade]\" impresso lido da linha (resistenciaQualidadesK em cardFacts.hexK: cor, multicolorida, monocolorida, incolor, tipo de carta, tudo; \"from A and from B\" são duas, 702.11f) e conferido em targetable contra a mágica do oponente ou a fonte da habilidade (resistenteAK, com casaProtecaoK); some com as habilidades impressas (702.11e); não vira \"hexproof\" puro. Carta exemplo: Knight of Grace (Oracle do Forge, 11/10/2026). · K-26: 702.11c estático — \"You have hexproof.\" impresso numa permanente (jogadorImpressoK, cardFacts.jogadorK) vale enquanto ela está no campo sob o controle do jogador, virada para cima e sem perder as habilidades (jogadorIntocavelK); conferido nos alvos de jogador na conjuração e de novo na resolução (608.2b); a linha conta na cobertura",
+   "falta": "\"hexproof from\" concedido por efeito continua só de cor (M-255); 702.11g (\"from each [característica]\") não é lido; \"You, planeswalkers you control, and other creatures you control have hexproof\" (Shalai) e o \"Leyline\" da mão inicial não existem.",
    "esforco": "P",
    "cartas": "evergreen",
    "testes": [
     "CR 702.11d · \"Hexproof from black\" (Knight of Grace, texto oficial) é lida da linha impressa e não vira resistência a magia completa",
-    "CR 702.11d/f · resistência a magia contra monocolorida: a mágica monocolorida do oponente não mira; a multicolorida mira; a sua, também"
+    "CR 702.11d/f · resistência a magia contra monocolorida: a mágica monocolorida do oponente não mira; a multicolorida mira; a sua, também",
+    "CR 702.11c · \"You have hexproof.\" (Aegis of the Gods, texto oficial): o oponente não mira; quem a controla, sim; ganhar depois de mirado deixa o alvo ilegal (608.2b)"
    ]
   },
   {
@@ -6889,11 +6890,13 @@
    "n": "702.18",
    "regra": "Keyword Abilities",
    "titulo": "Shroud",
-   "status": "parcial",
-   "evidencia": "targetable (index.html:10914): permanente com véu não é alvo de ninguém; combat.audit K11; sonda sonda2-702a.mjs: Bolt de A não mira SHR1 de nenhum dos lados",
-   "falta": "Jogador com véu (702.18a \"permanent or player\") não existe — jogadores são sempre alvo legal",
+   "status": "coberta",
+   "evidencia": "targetable (index.html:10914): permanente com véu não é alvo de ninguém; combat.audit K11; sonda sonda2-702a.mjs: Bolt de A não mira SHR1 de nenhum dos lados · K-26: 702.18a jogador com manto — \"You have shroud.\" impresso numa permanente (True Believer) faz o jogador não ser alvo de ninguém, nem dele mesmo, enquanto ela está no campo sob o controle dele, virada para cima e sem perder as habilidades (jogadorIntocavelK); conferido na conjuração e na resolução; a linha conta na cobertura",
    "esforco": "P",
-   "cartas": "comum (antiga evergreen)"
+   "cartas": "comum (antiga evergreen)",
+   "testes": [
+    "CR 702.18a · \"You have shroud.\" (True Believer, texto oficial): ninguém mira quem a controla — nem o oponente, nem ele mesmo"
+   ]
   },
   {
    "n": "702.19",

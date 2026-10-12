@@ -7776,7 +7776,8 @@ TRIGGER_PT['storm-gatilho'] = 'quando você a conjura (tempestade)'; // K-25 · 
 function palavraNaLinhaK(k) {
   if (k === 'suspend') return 'suspend \\d+\\s*[—-]\\s*(?:\\{[0-9WUBRGC]+\\})+'; // K-22
   if (k === 'landwalk') return '(?:(?:non)?(?:basic|legendary|snow|artifact) )?(?:land|desert|island|swamp|forest|mountain|plains|gate|cave|lair|locus|sphere|urza\'s)walk'; // K-21
-  if (k === 'hexproof') return 'hexproof(?: from (?:white|blue|black|red|green|everything|multicolored|monocolored|colorless|creatures|artifacts|enchantments|instants|sorceries|planeswalkers|lands)(?: and from (?:white|blue|black|red|green|multicolored|monocolored|colorless|creatures|artifacts|enchantments|instants|sorceries|planeswalkers|lands))*)?'; // K-18 · 702.11d
+  if (k === 'hexproof') return 'hexproof(?: from (?:white|blue|black|red|green|everything|multicolored|monocolored|colorless|creatures|artifacts|enchantments|instants|sorceries|planeswalkers|lands)(?: and from (?:white|blue|black|red|green|multicolored|monocolored|colorless|creatures|artifacts|enchantments|instants|sorceries|planeswalkers|lands))*)?|you have hexproof\\.?'; // K-18 · 702.11d · K-26 · 702.11c: "You have hexproof."
+  if (k === 'shroud') return 'shroud|you have shroud\\.?'; // K-26 · 702.18a: "You have shroud."
   if (k === 'protection') { const q = '(?:white|blue|black|red|green|everything|multicolored|monocolored|colorless|all colors|creatures|artifacts|enchantments|instants|sorceries|planeswalkers|lands|' + Object.keys(protecaoNaoCriaturaSCK()).join('|') + '|' + pluraisDeCriaturaSCK() + ')'; return `protection from ${q}(?: and from ${q})*`; } // K-24 · sem palavra solta: só fichas, subtipos que se anexam e tipos de criatura // K-17 · só as qualidades que o motor confere (protecaoImpressa e protecaoQualidadesK)
   if (k === 'dash') return 'dash\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-9
   if (k === 'evoke') return 'evoke(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*exile an? (?:white|blue|black|red|green) card from your hand\\.?)'; // K-8 · só as formas que o motor paga
@@ -15345,6 +15346,7 @@ function cardFacts(card) {
     recomecarK: recomecarImpressoK(card), // K-10 · 702.133: linha "Jump-start" (undefined quando não tem)
     arremeterK: arremeterImpressoK(card), // K-9 · 702.109: "Dash {1}{R}" (undefined quando não tem)
     suspenderK: suspenderImpressoK(card), // K-22 · 702.62a: "Suspend N—{custo}" (undefined quando não tem)
+    jogadorK: jogadorImpressoK(card), // K-26 · 702.11c / 702.18a: "You have hexproof." / "You have shroud." (undefined quando não tem)
     travK: travessiasImpressasK(card), // K-21 · 702.14a/c: "Nonbasic landwalk", "Desertwalk"… (undefined quando não tem)
     hexK: resistenciaQualidadesK(card), // K-18 · 702.11d: "Hexproof from black", "from monocolored"… impressos (undefined quando não tem)
     protK: protecaoQualidadesK(card), // K-17 · 702.16a: qualidades que não são cor ("from creatures", "from Demons", "from everything"…) (undefined quando não tem)
@@ -17161,6 +17163,7 @@ function selecionar(s, p, sel, selfOid, opts = {}) {
     for (const oid of s.stack) { const o = s.objects[oid]; if (oid === selfOid || (isAbility(o) && !sel.habilidades)) continue; if (isAbility(o) || selCasa(s, p, o, sel, selfOid, opts)) out.push({ oid }); }
   }
   if (sel.jogadores) s.players.forEach((pl, i) => { if (!pl.lost && !(mira && pl.tempHexproof && i !== p) && (sel.jogadores === 'any' || (sel.jogadores === 'opponent' ? i !== p : i === p))) out.push({ player: i }); }); // M-260 · jogador com resistência a magia
+  if (sel.jogadores && mira) for (let k = out.length - 1; k >= 0; k--) if (out[k].player != null && jogadorIntocavelK(s, out[k].player, p)) out.splice(k, 1); // K-26 · 702.11c / 702.18a: também a resistência e o manto estáticos do jogador (Toca ponto comum: alvos de jogador)
   return out;
 }
 /** Alvos legais: seletor escrito no script, ou nome antigo traduzido para seletor (ALVO_SELETOR); o que não tem
@@ -17176,6 +17179,7 @@ function legalTargetsLegado(s, p, kind, selfOid, color) {
   const srcObj = selfOid ? s.objects[selfOid] : null;
   const perms = battlefield(s).filter(o => targetable(s, p, o, srcObj));
   const players = s.players.map((pl, i) => pl.lost || (pl.tempHexproof && i !== p) ? -1 : i).filter(i => i >= 0); // M-260 · jogador com resistência a magia não é alvo de oponente
+  players.splice(0, players.length, ...players.filter(i => !jogadorIntocavelK(s, i, p))); // K-26 · 702.11c / 702.18a: também a resistência e o manto estáticos (Toca ponto comum: alvos de jogador)
   if (['any', 'creature', 'planeswalker', 'permanent', 'artifact', 'enchantment', 'artifact-enchantment', 'artifact-creature'].includes(kind)) {
     for (const o of perms) {
       const f = { ...s.facts[o.name], types: tiposDe(s, o) }; // CR2d.1 · tipos de agora (camada 4)
@@ -21543,6 +21547,26 @@ Object.assign(EXPORTS_K, { opcoesAtropelarUmK });
    poder 0 no 1º passo, que ganha poder entre os passos, não causa dano no 2º. */
 function iniciativaNoComecoK(s, combatentes) { for (const o of combatentes) if (has(s, o, 'first strike') || has(s, o, 'double strike')) o.struck = true; }
 Object.assign(EXPORTS_K, { iniciativaNoComecoK });
+/* K-26 · 702.11c / 702.18a · resistência a magia e manto do jogador, de habilidade estática de permanente ("You have hexproof." /
+   "You have shroud.", lidas da linha impressa). Resistência: o jogador não é alvo de mágica ou habilidade de oponente; manto: de
+   ninguém. Vale enquanto a permanente está no campo sob o controle dele, virada para cima e sem ter perdido as habilidades; junta-se
+   à resistência temporária (M-260). Os alvos de jogador conferem aqui — na conjuração e de novo na resolução (608.2b). */
+function jogadorImpressoK(card) {
+  const txt = String((card && (card.oracle_text || (card.faces && card.faces[0] && card.faces[0].oracle_text))) || '').replace(/\([^)]*\)/g, '');
+  const out = txt.split('\n').map(l => /^\s*you have (hexproof|shroud)\.?\s*$/i.exec(l)).filter(Boolean).map(m => m[1].toLowerCase());
+  return out.length ? [...new Set(out)] : undefined;
+}
+function jogadorIntocavelK(s, i, p) {
+  const pl = s.players[i]; if (pl.tempHexproof && i !== p) return true;
+  for (const o of battlefield(s)) {
+    if (o.controller !== i || o.faceDown || o.phasedOut) continue;
+    const k = (s.facts[o.name] || {}).jogadorK; if (!k) continue;
+    if ((mutacao(s, o) || {}).perde) continue; // perdeu as habilidades (camada 6)
+    if (k.includes('shroud') || (k.includes('hexproof') && i !== p)) return true;
+  }
+  return false;
+}
+Object.assign(EXPORTS_K, { jogadorImpressoK, jogadorIntocavelK });
 /* K-25 · 702.40a · tempestade é UM gatilho ("When you cast this spell, copy it for each other spell that was cast before it this turn"):
    vai para a pilha por cima da mágica, pode ser respondido (e anulado, sem cópia nenhuma) e, na resolução, cria as cópias. A contagem é a
    das mágicas conjuradas antes desta no turno (as conjuradas depois não são "antes dela"); a cópia leva modo, X e reforço da original. */
