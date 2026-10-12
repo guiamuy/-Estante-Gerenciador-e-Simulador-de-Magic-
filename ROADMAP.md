@@ -3707,6 +3707,11 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Achado pela lista "a uma frase de ser lida":** 128 cartas do acervo ficavam presas numa única frase; esta leva destrava 23.
 - **Teste:** fidelidade (custo seguido, Blood ×2, ficha predefinida desconhecida fica não lida); piso da concordância 101.
 
+**M-316 · LT10 · Leitor de texto: 112 cartas lidas por inteiro** ✅ (leva M-316, motor v110 sem mudança de jogo) — eram 101, zero divergência.
+- **Valor:** o leitor passa a entender mana de qualquer cor com custo além de {T} ("{G}: Add one mana of any color"), afinidade por artefatos/criaturas, "whenever you cast an <Tipo> spell", "draw N cards and create a <ficha predefinida> token", "its controller creates N Treasure tokens", dano em "each non-<Tipo> creature", "each player sacrifices a nontoken creature of their choice", busca de "creature card with defender" e "When ~ enters or is put into a graveyard from the battlefield" (dois gatilhos).
+- **Comparador mais rigoroso:** a concordância passa a comparar também `anyColor`, `exceptSubtype`, `types`, `nontoken` dos efeitos e a afinidade (nenhuma divergência apareceu).
+- **Teste:** piso da concordância 112.
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

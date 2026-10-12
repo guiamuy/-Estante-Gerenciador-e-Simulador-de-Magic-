@@ -14744,6 +14744,11 @@ const __m42 = (function () {
     [/^shuffle(?: your library)?$/i, () => []],
     [new RegExp(`^create ${N} (treasure|food|blood|map|clue) tokens?$`, 'i'), m => fichaPredefinida(m[1], m[2])], // LT9 · 111.10
     [/^investigate$/i, () => fichaPredefinida('a', 'clue')], // LT9 · 701.16
+    [new RegExp(`^draw ${N} cards? and create ${N} (treasure|food|blood|map|clue) tokens?$`, 'i'), m => [{ do: 'draw', amount: num(m[1]) }, ...fichaPredefinida(m[2], m[3])]], // LT11
+    [new RegExp(`^its controller creates ${N} (treasure|food|blood|map|clue) tokens?$`, 'i'), m => fichaPredefinida(m[1], m[2]).map(e => ({ ...e, target: 'target-controller' }))], // LT11 · "its controller": o controlador do alvo
+    [new RegExp(`^~ deals ${N} damage to each non-([A-Z][a-z]+) creature$`), m => [{ do: 'damage', amount: num(m[1]), target: 'each-creature', exceptSubtype: m[2] }]], // LT11
+    [/^each player sacrifices a nontoken creature of their choice$/i, () => [{ do: 'sacrifice_each', types: ['creature'], nontoken: true }]], // LT11 · 701.21
+    [/^search your library for a creature card with (defender|flying|reach), reveal it, put it into your hand$/i, m => [{ do: 'search', amount: 1, filter: { types: ['creature'], keyword: m[1].toLowerCase() }, to: 'hand' }]], // LT11
     [/^prevent all combat damage that would be dealt this turn$/i, () => [{ do: 'fog' }]], // LT9
     [/^exile all cards from target player's graveyard$/i, () => [{ do: 'exile_graveyard', target: 'player' }]], // LT9
     [/^return target creature card from your graveyard to your hand$/i, () => [{ do: 'to_hand', target: 'creature-in-your-graveyard' }]], // LT9
@@ -14768,6 +14773,7 @@ const __m42 = (function () {
     [/^cycling (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ cycling: { mana: m[1] } })],
     [/^storm$/i, () => ({ storm: true })],
     [/^delve$/i, () => ({ delve: true })],
+    [/^affinity for (artifacts|creatures)$/i, m => ({ affinity: m[1].toLowerCase().replace(/s$/, '') })], // LT11 · 702.41
     [/^transmute (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ transmute: { mana: m[1] } })], // LT10 · 702.53
     [new RegExp(`^escape—(\\{[^}]+\\}(?:\\{[^}]+\\})*), exile ${N} other cards from your graveyard$`, 'i'), m => ({ escape: { mana: m[1], exileGraveyard: num(m[2]) } })], // LT10 · 702.138
     [/^as an additional cost to cast this spell, sacrifice an artifact or creature$/i, () => ({ additional: { sacrificeOther: { types: ['artifact', 'creature'] } } })] // LT10 · 601.2b
@@ -14788,6 +14794,7 @@ const __m42 = (function () {
     [/^whenever another creature enters(?: the battlefield)? under your control$/i, 'other-etb'],
     [/^whenever you gain life$/i, 'you-gain-life'], // CR2b.7 · 119.9
     [/^whenever you sacrifice another permanent$/i, 'other-sacrificed'], // LT10
+    [/^[Ww]henever you cast an? ([A-Z][a-z]+) spell$/, 'other-cast', m => ({ filter: { subtype: m[1] } })], // LT11 · "whenever you cast an Elf spell"
     [/^[Ww]henever another ([A-Z][a-z]+) enters(?: the battlefield)?$/, 'other-etb', m => ({ anyController: true, filter: { types: ['creature'], subtype: m[1] } })], // LT10 · "another Elf enters" (de qualquer jogador)
     [/^(?:heroic — )?whenever you cast a spell that targets (this creature|~)$/i, 'heroic'], // CR2b.8
     [/^whenever you attack$/i, 'you-attack'], // CR2g.5
@@ -14847,6 +14854,7 @@ const __m42 = (function () {
     const cost = leCusto(m[1].replace(new RegExp(escapa(nome), 'g'), '~')); if (!cost) { frases.push({ texto: linha, lida: false, motivo: 'custo de ativação sem padrão conhecido' }); return null; }
     let corpo = m[2].replace(/\.$/, ''); const extra = {};
     if (/\.\s*Activate only as a sorcery$/i.test(corpo)) { corpo = corpo.replace(/\.\s*Activate only as a sorcery$/i, ''); extra.sorceryOnly = true; }
+    if (/^Add one mana of any color$/i.test(corpo) && !(cost.tap && Object.keys(cost).length === 1)) { frases.push({ texto: m[1], lida: true }, { texto: corpo, lida: true }); return { kind: 'activated', cost, ...extra, effects: [{ do: 'add_mana', anyColor: true }] }; } // LT11 · mana de qualquer cor com custo além de {T}
     if (/^Add /.test(corpo)) { frases.push({ texto: linha, lida: false, motivo: 'habilidade de mana com custo além de {T} (LT5)' }); return null; }
     const sub = []; const e = leParagrafo(corpo.replace(/^it /i, '~ '), nome, sub);
     frases.push({ texto: m[1], lida: true }, ...sub);
@@ -14917,6 +14925,8 @@ const __m42 = (function () {
         if (/^(this land|this creature|~) enters(?: the battlefield)? tapped$/i.test(lp)) { topo.entersTapped = true; frases.push({ texto: linha, lida: true }); continue; }
         const nj = lp.match(/^ninjutsu (\{[^}]+\}(?:\{[^}]+\})*)$/i); if (nj) { topo.ninjutsu = { mana: nj[1] }; frases.push({ texto: linha, lida: true }); continue; }
         const mana = lp.match(/^\{T\}: Add (\{[WUBRGC]\}(?: or \{[WUBRGC]\})*)$/); if (mana) { topo.produces = mana[1].split(' or ').map(x => [x.replace(/[{}]/g, '')]); frases.push({ texto: linha, lida: true }); continue; } // produção de mana
+        const ed = lp.match(/^when ~ enters(?: the battlefield)? or is put into a graveyard from the battlefield, (.+)$/i); // LT11 · entra ou morre: dois gatilhos com o mesmo efeito
+        if (ed) { const g1 = leGatilho(`When ~ enters, ${ed[1]}`, nome, frases), g2 = leGatilho(`When ~ dies, ${ed[1]}`, nome, []); if (g1 && g2) (topo.abilities = topo.abilities || []).push(g1, g2); continue; }
         if (GATILHOS.some(([re]) => re.test(lp.split(', ')[0]))) { const g = leGatilho(lp, nome, frases); if (g) (topo.abilities = topo.abilities || []).push(g); continue; } // gatilho (as frases do corpo já ficaram anotadas)
         if (/^(\{[^}]+\}|Sacrifice |Discard a card)/.test(lp) && lp.includes(': ')) { const a = leAtivada(lp, nome, frases); if (a) (topo.abilities = topo.abilities || []).push(a); continue; } // LT4 · ativada
         const c = concessao(lp); if (c) { topo.grants = { ...(topo.grants || {}), ...c, ...(c.keywords && topo.grants && topo.grants.keywords ? { keywords: [...topo.grants.keywords, ...c.keywords] } : {}) }; frases.push({ texto: linha, lida: true }); continue; }
