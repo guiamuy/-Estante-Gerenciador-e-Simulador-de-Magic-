@@ -5354,6 +5354,7 @@ const EFFECTS = {
   must_attack_source: { fields: [], targets: ['creature-opponent-controls'] }, // M-228 · "attacks <esta planeswalker> during its controller's next turn if able"
   prevent_self: { fields: [], targets: ['self-source'] }, // CR2d.2 · "this land becomes a N/N <tipo> creature until end of turn"
   to_bottom: { fields: [], targets: ['permanent-you-own'] },
+  topo_do_dono: { fields: [], targets: ['self-source'] }, // M-345 · "put ~ on top of its owner's library" (Sensei's Divining Top)
   // CR2-G R4a · 701/400.7 · mover entre zonas num verbo só: para onde, de onde (se já saiu, nada acontece), posição no
   // grimório, virada e sob o controle de quem no campo, e "lembra" o exilado; exilar, devolver à mão, reanimar, embaralhar
   // no grimório e pôr no fundo viraram atalhos dele
@@ -8323,6 +8324,31 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Wall of Omens': { texto: 'tlbxva', leva: 'M-343' },
   'Radiant Grove': { texto: '1amo2my', leva: 'M-343' },
   'Tranquil Expanse': { texto: '13s60q', leva: 'M-343' },
+  // M-345 · revisão por lote XVIII (Vampiric Tutor, Sensei's Divining Top, Cultivate, terras-filtro, até dois alvos), revisor independente com 433 verificações: 24 de 24 aprovadas
+  'Cultivate': { texto: '1gwumrh', leva: 'M-345' },
+  'Vampiric Tutor': { texto: '1x77j94', leva: 'M-345' },
+  'Sensei\'s Divining Top': { texto: '1vyweg', leva: 'M-345' },
+  'Prismari Charm': { texto: 'e5gd0r', leva: 'M-345' },
+  'Blood Fountain': { texto: 'rr8ai0', leva: 'M-345' },
+  'Imperial Seal': { texto: '1x77j94', leva: 'M-345' },
+  'Kodama\'s Reach': { texto: '1gwumrh', leva: 'M-345' },
+  'Mystic Gate': { texto: 'dbo52q', leva: 'M-345' },
+  'Flooded Grove': { texto: 'k4jws2', leva: 'M-345' },
+  'Rugged Prairie': { texto: '1941vwy', leva: 'M-345' },
+  'Cascade Bluffs': { texto: '13ktpiq', leva: 'M-345' },
+  'Twilight Mire': { texto: '1cs87v6', leva: 'M-345' },
+  'Vitu-Ghazi, the City-Tree': { texto: '1g7kme1', leva: 'M-345' },
+  'Tattered Mummy': { texto: 'yuzl4q', leva: 'M-345' },
+  'Oakenform': { texto: 'rssz0q', leva: 'M-345' },
+  'Inspiring Overseer': { texto: '1tfc9tw', leva: 'M-345' },
+  'Macabre Waltz': { texto: '1tauzp', leva: 'M-345' },
+  'Dutiful Return': { texto: '151e469', leva: 'M-345' },
+  'Storm of Steel': { texto: 'yw9tq1', leva: 'M-345' },
+  'Wooded Bastion': { texto: '161512q', leva: 'M-345' },
+  'Sunken Ruins': { texto: '12uc12q', leva: 'M-345' },
+  'Graven Cairns': { texto: '68s00i', leva: 'M-345' },
+  'Fire-Lit Thicket': { texto: '18dk7gy', leva: 'M-345' },
+  'March of the Returned': { texto: '151e469', leva: 'M-345' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -15766,6 +15792,10 @@ const __m42 = (function () {
     [/^prevent all combat damage that would be dealt this turn$/i, () => [{ do: 'fog' }]], // LT9
     [/^exile all cards from target player's graveyard$/i, () => [{ do: 'exile_graveyard', target: 'player' }]], // LT9
     [/^return target creature card from your graveyard to your hand$/i, () => [{ do: 'to_hand', target: 'creature-in-your-graveyard' }]], // LT9
+    [new RegExp(`^return up to ${N} target (creature|permanent) cards? from your graveyard to your hand$`, 'i'), m => [{ do: 'to_hand', target: m[2].toLowerCase() + '-in-your-graveyard', upTo: true, targetCount: num(m[1]) }]], // M-345 · Macabre Waltz, Dutiful Return (115.1d: até N)
+    [/^put (?:~|this artifact) on top of its owner's library$/i, () => [{ do: 'topo_do_dono', target: 'self-source' }]], // M-345 · Sensei's Divining Top
+    [/^search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand$/i, () => [{ do: 'search', amount: 2, filter: { basic: true, types: ['land'] }, to: 'battlefield-tapped', reparte: ['battlefield-tapped', 'hand'] }]], // M-345 · Cultivate, Kodama's Reach: uma busca de até dois; o primeiro escolhido entra virado, o segundo vai para a mão (achado da revisão: um só entra virado, 609.3)
+    [new RegExp(`^~ deals ${N} damage to each of one or two targets$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'any' }, { do: 'damage', amount: num(m[1]), target: 'any', upTo: true }]], // M-345 · Storm of Steel, Prismari Charm (601.2c: alvos diferentes)
     [/^return target creature card with mana value (\d+) or less from your graveyard to the battlefield$/i, m => [{ do: 'reanimate', target: 'creature-in-your-graveyard', targetMvMax: +m[1] }]], // LT13
     [/^return target creature or land card from a graveyard to its owner's hand$/i, () => [{ do: 'to_hand', target: 'creature-land-in-any-graveyard' }]], // LT9
     [/^~ connives$/i, () => [{ do: 'connive', amount: 1 }]], // LT9 · 701.50
@@ -16005,7 +16035,7 @@ const __m42 = (function () {
     for (let achou = true; achou && texto;) { achou = false; // M-335
       for (const [re, faz] of PRE_PARAGRAFO) { const m = texto.match(re); const e = m && faz(m); if (!e) continue; efeitos.push(...e); frases.push({ texto: m[0].trim().replace(/\.$/, ''), lida: true }); texto = texto.slice(m[0].length).trim(); achou = true; break; } }
     if (!texto) return efeitos;
-    const partes = texto.replace(/, then shuffle and put that card on top(\.?)$/i, ', put that card on top of your library, then shuffle$1').split(/\.\s+|,\s+then\s+|\.$/).map(x => x.replace(/\.$/, '').trim()).filter(Boolean);
+    const partes = texto.replace(/, then shuffle and put that card on top(\.|$)/i, ', put that card on top of your library, then shuffle$1').split(/\.\s+|,\s+then\s+|\.$/).map(x => x.replace(/\.$/, '').trim()).filter(Boolean);
     let ok = true;
     for (const p of partes) {
       if (/^if that spell is countered this way, exile it instead of putting it into its owner's graveyard$/i.test(p) && efeitos.length && efeitos[efeitos.length - 1].do === 'counter') { efeitos[efeitos.length - 1].exila = true; frases.push({ texto: p, lida: true }); continue; } // M-338 · Force of Negation
@@ -16075,6 +16105,8 @@ const __m42 = (function () {
         if (/^(?:this land|~) enters(?: the battlefield)? tapped unless it[’']s your first, second, or third turn of the game$/i.test(lp)) { topo.entersTappedUnless = { ateTurnoProprio: 3 }; frases.push({ texto: linha, lida: true }); continue; } // M-342 · Starting Town
         const mox = lp.match(/^Metalcraft — \{T\}: Add one mana of any color\. Activate only if you control three or more artifacts$/i); // M-342 · Mox Opal (602.5b)
         if (mox) { (topo.abilities = topo.abilities || []).push({ kind: 'activated', cost: { tap: true }, onlyIfMetalcraft: true, effects: [{ do: 'add_mana', anyColor: true }] }); frases.push({ texto: linha, lida: true }); continue; }
+        const fl = lp.match(/^(\{[WUBRG]\/[WUBRG]\}), \{T\}: Add (\{[WUBRG]\}\{[WUBRG]\}), (\{[WUBRG]\}\{[WUBRG]\}), or (\{[WUBRG]\}\{[WUBRG]\})$/); // M-345 · terras-filtro (Shadowmoor/Eventide)
+        if (fl) { (topo.abilities = topo.abilities || []).push(...[fl[2], fl[3], fl[4]].map(x => ({ kind: 'activated', cost: { mana: fl[1], tap: true }, effects: [{ do: 'add_mana', symbols: x.match(/[WUBRG]/g) }] }))); frases.push({ texto: linha, lida: true }); continue; }
         const tri = lp.match(/^\{T\}: Add (\{[WUBRGC]\}), (\{[WUBRGC]\}), or (\{[WUBRGC]\})$/); if (tri) { topo.produces = [...(topo.produces || []), ...tri.slice(1, 4).map(x => x.match(/[WUBRGC]/g))]; frases.push({ texto: linha, lida: true }); continue; } // M-340 · tri-terras
         if (/^(?:this land|~) enters(?: the battlefield)? tapped unless you control two or fewer other lands$/i.test(lp)) { topo.entersTappedUnless = { maxOutrasTerras: 2 }; frases.push({ texto: linha, lida: true }); continue; } // M-336 · terras rápidas
         const ech = lp.match(/^as (?:~|this land) enters(?: the battlefield)?, you may pay (\d+) life\. if you don't, it enters(?: the battlefield)? tapped$/i); // M-330 · 614.12 (terras de choque)
@@ -18799,7 +18831,7 @@ function applyEffect(s, src, eff, tgt, events) {
       if (!from.length) { shuffle(s, s.zones[who].library); note({ amount: 0 }); break; }
       // CR 701.23b: busca por uma qualidade em zona oculta não obriga a achar; sem filtro ("a card"), é obrigatória
       const qualidade = eff.filter && Object.keys(eff.filter).length > 0;
-      startPick(s, { p: who, from, min: eff.optional || qualidade ? 0 : eff.amount, max: eff.amount, to: eff.to || 'hand', rest: 'stay', shuffle: true, filter: eff.filter, label: 'vasculhar', source: src.name, ...(eff.desviraSeTerrenos ? { onPicked: { desviraSeTerrenos: eff.desviraSeTerrenos } } : {}) }, events); // M-343
+      startPick(s, { p: who, from, min: eff.optional || qualidade ? 0 : eff.amount, max: eff.amount, to: eff.to || 'hand', rest: 'stay', shuffle: true, filter: eff.filter, label: 'vasculhar', source: src.name, ...(Array.isArray(eff.reparte) ? { reparte: eff.reparte } : {}), ...(eff.desviraSeTerrenos ? { onPicked: { desviraSeTerrenos: eff.desviraSeTerrenos } } : {}) }, events); // M-343
       break;
     }
     case 'transmute_busca': { // Leva 107 · resolução do transmutar: procura uma carta de mesmo valor e embaralha
@@ -18957,6 +18989,11 @@ function applyEffect(s, src, eff, tgt, events) {
     }
     case 'to_bottom': { // M-222 · no fundo do grimório do dono
       if (moverObjeto(s, src, obj, { para: 'library', de: 'battlefield', posicao: 'fundo' }, ctrl)) note({}); else note({ failed: true }); // CR2-G R4a · atalho de mover
+      break;
+    }
+    case 'topo_do_dono': { // M-345 · Sensei's Divining Top: se ainda está no campo (400.7), vai para o topo do grimório do dono
+      const alvo = src.ability ? s.objects[src.source] : src;
+      if (alvo && alvo.zone === 'battlefield' && (src.fonteZc == null || (alvo.zc || 0) === src.fonteZc)) { const nome = alvo.name; moveObject(s, alvo.oid, 'library', { top: true }); note({ name: nome }); } else note({ failed: true }); // 400.7: a que saiu e voltou é outro objeto
       break;
     }
     case 'sacrifice_it': { // M-222 · "Target permanent's controller sacrifices it"
@@ -19755,6 +19792,7 @@ function startPick(s, spec, events) {
     to: spec.to, rest: spec.rest || 'stay', shuffle: !!spec.shuffle, filter: spec.filter || null, label: spec.label, source: spec.source,
     ...(spec.needMv ? { needMv: spec.needMv } : {}),
     ...(spec.discard ? { discard: true } : {}), // Leva 105 · escolha que é descarte (insanidade)
+    ...(spec.reparte ? { reparte: spec.reparte } : {}), // M-345 · Cultivate: um destino por ordem de escolha
     ...(spec.revelaEscolhida ? { revelaEscolhida: true } : {}), // M-335 · 701.20a: revela só a carta escolhida
     ...(spec.mostrar ? { mostrar: spec.mostrar } : {}), // Leva 107 · mão revelada inteira (Duress)
     ...(spec.depois ? { depois: spec.depois } : {}), // Leva 107 · "se fizer, compre duas" (Highway Robbery)
@@ -19792,7 +19830,8 @@ function concluiPick(s, events) {
     else moveObject(s, oid, where);
   };
   if (pk.revelaEscolhida && pk.picked.length) events.push({ kind: 'effect', do: 'reveal', name: pk.source, target: pk.picked.map(oid => s.objects[oid].name).join(', ') }); // M-335 · 701.20a
-  [...pk.picked].reverse().forEach(oid => dest(oid, pk.to)); // o primeiro escolhido termina no topo
+  if (pk.reparte) pk.picked.forEach((oid, i) => dest(oid, pk.reparte[Math.min(i, pk.reparte.length - 1)])); // M-345 · Cultivate (609.3: um só achado vai para o primeiro destino)
+  else [...pk.picked].reverse().forEach(oid => dest(oid, pk.to)); // o primeiro escolhido termina no topo
   { const resto = pk.from.filter(oid => !pk.picked.includes(oid)); if (pk.rest === 'library-bottom-random') { shuffle(s, resto); resto.forEach(oid => dest(oid, 'library-bottom')); } else resto.forEach(oid => dest(oid, pk.rest)); } // M-262
   if (pk.shuffle) { shuffle(s, s.zones[pk.p].library);
     // CR 701.24b: "embaralhe e ponha a carta no topo" — a carta achada não entra no embaralhamento (Mystical Tutor)
@@ -20125,7 +20164,7 @@ function makeAbility(s, source, ab, targets, blockedAt = source.blocking) {
   s.objects[oid] = { oid, ability: true, name: source.name, source: source.oid, effects: ab.effects, owner: source.controller,
     controller: source.controller, zone: 'stack', tapped: false, sick: false, damage: 0, counters: {}, targets: carimbaAlvos(s, targets),
     ...(blockedAt ? { blockedAt } : {}) }; // Q11 · Tinder Wall: quem ela bloqueava, mesmo depois de sacrificada (última informação conhecida)
-  { const f = s.objects[source.oid]; if (f && !f.ability && (ab.effects || []).some(e => e && e.ate === 'fonte-sair')) s.objects[oid].fonteZc = f.zc || 0; } // CR2d.1 · 610.3a (auditoria M-308: também na ativada): se a fonte já saiu quando o efeito resolve, nada se move
+  { const f = s.objects[source.oid]; if (f && !f.ability && (ab.effects || []).some(e => e && (e.ate === 'fonte-sair' || e.do === 'topo_do_dono'))) s.objects[oid].fonteZc = f.zc || 0; } // M-345 · também "put ~ on top" (achado da revisão) // CR2d.1 · 610.3a (auditoria M-308: também na ativada): se a fonte já saiu quando o efeito resolve, nada se move
   s.stack.push(oid);
   return oid;
 }
@@ -28393,7 +28432,7 @@ function descreveEfeito(e) {
     case 'token': { const t = e.token || {}; const pt = t.power != null ? ` ${t.power}/${t.toughness}` : ''; return `cria ${plural(n, 'ficha', 'fichas')}${t.name ? ` de ${t.name}` : ''}${pt}`; }
     case 'pump': { const p = e.power || 0, t = e.toughness || 0; const sinal = v => (v && v.per ? ((v.times || 1) < 0 ? '−X' : '+X') : v >= 0 ? `+${v}` : `−${Math.abs(v)}`); return `${alvo || 'a criatura'} recebe ${sinal(p)}/${sinal(t)}${e.until === 'your-next-turn' ? ' até o seu próximo turno' : ' até o fim do turno'}`; }
     case 'add_mana': return e.identity ? 'adiciona mana de uma cor da identidade do seu comandante' : e.opponentLands ? 'adiciona mana de uma cor que um terreno de um oponente poderia produzir' : e.anyColor ? 'adiciona mana de qualquer cor' : 'adiciona mana';
-    case 'search': return `procura ${plural(n, 'carta', 'cartas')} no grimório${e.desviraSeTerrenos ? ` (desvira a terra achada se você tiver ${e.desviraSeTerrenos} terrenos ou mais)` : ''}`; // M-343
+    case 'search': return `procura ${plural(n, 'carta', 'cartas')} no grimório${e.reparte ? ' (a primeira entra virada, a segunda vai para a mão)' : ''}${e.desviraSeTerrenos ? ` (desvira a terra achada se você tiver ${e.desviraSeTerrenos} terrenos ou mais)` : ''}`; // M-343
     case 'scry': return `vidência ${n}: olha ${plural(n, 'carta', 'cartas')} de cima e decide o que fica no topo`;
     case 'surveil': return `vigia ${n}`;
     case 'look': return `olha as ${n} cartas de cima`;
@@ -28489,6 +28528,7 @@ function descreveEfeito(e) {
     case 'animate': { const b = e.becomes || {}; return `vira uma criatura ${b.base ? b.base.join('/') : ''}${(b.keywords || []).length ? ' com ' + b.keywords.map(k => PALAVRA_PT[k] || k).join(', ') : ''} até o fim do turno${b.addTypes ? ' (continua terreno)' : ''}`; } // CR2d.2
     case 'reveal_until': return `${e.who === 'self' ? 'você revela' : 'o controlador dela revela'} cartas do topo até ${e.match === 'creature' ? 'uma criatura' : e.match === 'creature-greater-mv' ? 'uma criatura de valor de mana maior' : `uma carta${e.permanentOnly ? ' de permanente' : ''} que divida um tipo com ela`}, põe no campo e ${e.rest === 'shuffle' ? 'embaralha as outras' : 'põe as outras no fundo em ordem aleatória'}`; // M-222
     case 'to_bottom': return 'põe a sua permanente alvo no fundo do grimório';
+    case 'topo_do_dono': return 'põe esta permanente no topo do grimório do dono'; // M-345
     case 'sacrifice_it': return e.target === 'self-source' ? 'sacrifica esta permanente' : 'o controlador sacrifica a permanente alvo'; // M-342
     case 'reanimate_all': return `devolve ao campo todas as ${(e.types || []).map(x => ({ creature: 'criaturas', planeswalker: 'planeswalkers' }[x] || x)).join(' e ')}${e.mvMax != null ? ` de valor de mana ${qtd(e.mvMax)} ou menos` : ''} do seu cemitério`; // CR2c.5
     case 'exile_self': return 'exila esta mágica';
@@ -30853,6 +30893,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       banner = PriorityBanner({ title: pk.source ? `${pk.source} · ${tituloPk}` : tituloPk, tone: 'warning',
         // Leva 136 · olhar o topo com filtro (Lead the Stampede): o aviso diz o que pode ser pego e para onde vai
         hint: (() => { const TIPO = { creature: 'criaturas', land: 'terrenos', artifact: 'artefatos', enchantment: 'encantamentos' }, PARA = { hand: 'para a mão', battlefield: 'para o campo' };
+          if (pk.reparte) return `A primeira que você tocar entra no campo virada; a segunda vai para a mão · ${pk.picked.length} de até ${pk.max}`; // M-345 · Cultivate
           if (pk.needMv) return `Toque nas cartas até somar ${pk.needMv} de valor de mana: ${pk.picked.reduce((n, o) => n + ((s.facts[s.objects[o].name] || {}).cmc || 0), 0)} de ${pk.needMv}`; // colher provas
           const tipo = pk.label === 'olhar o topo' && pk.filter && (pk.filter.types || []).length === 1 && Object.keys(pk.filter).length === 1 ? TIPO[pk.filter.types[0]] : null;
           const UMA = { creature: 'uma criatura', land: 'um terreno', artifact: 'um artefato', enchantment: 'um encantamento' };
