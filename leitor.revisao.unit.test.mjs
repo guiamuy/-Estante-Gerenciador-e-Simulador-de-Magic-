@@ -11,7 +11,7 @@ import { candidatas, confere } from './.listas/leitor-revisar.mjs';
 const c = (name, type_line, mana_cost, extra = {}) => ({ name, type_line, mana_cost, cmc: 1, keywords: [], oracle_text: '', colors: [...new Set((mana_cost.match(/[WUBRG]/g) || []))], ...extra });
 const FAISCA = c('Faísca de Teste', 'Instant', '{R}', { oracle_text: 'Faísca de Teste deals 3 damage to any target.' });
 const J2 = x => JSON.parse(JSON.stringify(x)); // os objetos vêm do vm (outro realm): deepEqual compara pela forma
-const aprova = (card, leva = 'teste') => { S.APROVADAS[card.name] = { texto: S.hashTexto(card.oracle_text), leva }; };
+const aprova = (card, leva = 'teste') => { S.APROVADAS[card.name] = { texto: S.assinaturaRevisao(card), leva }; }; // M-326
 const desaprova = card => { delete S.APROVADAS[card.name]; };
 function mesaX(a, cards) {
   const baralho = ns => [...new Set(ns)].map(name => ({ name, qty: 12, zone: 'main' }));
@@ -57,4 +57,24 @@ test('LT7 · texto diferente do revisado volta para "em revisão"; script à mã
   assert.equal(S.coverage(c('Rabisco', 'Instant', '{U}', { oracle_text: 'The moon turns purple.' })).level, 'manual', 'não lida: segue manual');
   assert.deepEqual(confere(), [], 'toda aprovação registrada ainda casa com o texto guardado e é lida por inteiro');
   for (const f of candidatas()) assert.equal(S.coverage(f).level, 'lida', `${f.name}: candidata à revisão aparece como lida`);
+});
+
+test('M-326 · assinatura da revisão: nome da carta e "this creature" são a mesma frase; lembrete não conta; outra palavra muda a assinatura', () => {
+  const a = { name: 'Baleful Strix', oracle_text: 'Flying, deathtouch\nWhen Baleful Strix enters, draw a card.' };
+  const b = { name: 'Baleful Strix', oracle_text: 'Flying, deathtouch\nWhen this creature enters, draw a card. (lembrete qualquer)' };
+  assert.equal(S.assinaturaRevisao(a), S.assinaturaRevisao(b));
+  assert.notEqual(S.assinaturaRevisao(a), S.assinaturaRevisao({ ...a, oracle_text: a.oracle_text.replace('a card', 'two cards') }));
+});
+
+test('M-326 · lote 1 aprovado: a carta revisada joga pelo script lido com o texto que a Scryfall entrega (Baleful Strix compra ao entrar)', () => {
+  const strix = { name: 'Baleful Strix', type_line: 'Artifact Creature — Bird', mana_cost: '{U}{B}', cmc: 2, keywords: ['Flying', 'Deathtouch'], colors: ['U', 'B'], power: '1', toughness: '1',
+    oracle_text: 'Flying, deathtouch\nWhen this creature enters, draw a card.' };
+  assert.equal(S.coverage(strix).level, 'completo', 'aprovada na M-326');
+  let s = mesaX(['Baleful Strix'], { 'Baleful Strix': strix }), o;
+  [s, o] = poe(s, 0, 'Baleful Strix', 'hand'); s = comMana(s, 'UB');
+  const m = s.zones[0].hand.length;
+  s = tudo(act(act(act(s, legais(s, 0, x => x.t === 'cast' && x.oid === o)[0]), { t: 'pass', p: 0 }), { t: 'pass', p: 1 }));
+  s = tudo(s); if (s.stack.length) s = tudo(act(act(s, { t: 'pass', p: 0 }), { t: 'pass', p: 1 }));
+  assert.equal(s.objects[o].zone, 'battlefield');
+  assert.equal(s.zones[0].hand.length, m - 1 + 1, 'saiu da mão e comprou uma ao entrar');
 });

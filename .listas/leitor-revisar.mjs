@@ -10,24 +10,25 @@ import { loadModules } from '../_load.mjs';
 
 const { leitor: L, scripts: S } = loadModules();
 const base = new URL('./', import.meta.url);
-const ACERVO = [...JSON.parse(readFileSync(new URL('oficiais.json', base), 'utf8')).cartas, ...JSON.parse(readFileSync(new URL('oficiais-commander.json', base), 'utf8')).cartas];
+// M-326 · as cartas revisadas por lote fora do acervo das listas guardam o texto em oficiais-revisadas.json
+const ACERVO = ['oficiais.json', 'oficiais-commander.json', 'oficiais-revisadas.json'].flatMap(f => JSON.parse(readFileSync(new URL(f, base), 'utf8')).cartas);
 const porNome = Object.fromEntries(ACERVO.map(c => [c.name, c]));
 
 /** Ficha de uma carta: o que o revisor lê. */
 export function ficha(card) {
   const r = L.ler(card);
   return { name: card.name, type_line: card.type_line, oracle_text: card.oracle_text, completa: r.completa, frases: r.frases, script: r.script, erros: r.erros,
-    aMao: !!S.SCRIPTS[card.name], aprovada: !!S.APROVADAS[card.name], assinatura: S.hashTexto(card.oracle_text) };
+    aMao: !!S.SCRIPTS[card.name], aprovada: !!S.APROVADAS[card.name], assinatura: S.assinaturaRevisao(card) }; // M-326
 }
 /** Cartas do acervo que a revisão destravaria: lidas por inteiro, com script, sem script à mão. */
 /** LT13 · só as que a cobertura de fato mostra como lidas (SC.leitura): script que só repete mana e palavras-chave impressas o motor já lê da carta (Sol Ring). */
-export function candidatas(acervo = ACERVO) { return acervo.filter(c => !S.SCRIPTS[c.name] && S.leitura(c)).map(ficha).filter(f => f.completa && f.script); }
+export function candidatas(acervo = ACERVO) { return acervo.filter(c => !S.SCRIPTS[c.name] && S.leitura(c) && !S.leitura(c).aprovada).map(ficha).filter(f => f.completa && f.script); }
 /** Conferência das aprovadas: texto igual ao revisado e leitura ainda inteira. Devolve a lista de problemas (vazia = tudo certo). */
 export function confere(acervo = ACERVO) {
   const nomes = Object.fromEntries(acervo.map(c => [c.name, c])); const problemas = [];
   for (const [nome, ass] of Object.entries(S.APROVADAS)) {
     const c = nomes[nome]; if (!c) { problemas.push(`${nome}: aprovada, mas sem texto oficial guardado em .listas/oficiais*.json`); continue; }
-    if (S.hashTexto(c.oracle_text) !== ass.texto) problemas.push(`${nome}: o texto guardado mudou desde a revisão (assinatura ${S.hashTexto(c.oracle_text)} ≠ ${ass.texto})`);
+    if (S.assinaturaRevisao(c) !== ass.texto) problemas.push(`${nome}: o texto guardado mudou desde a revisão (assinatura ${S.assinaturaRevisao(c)} ≠ ${ass.texto})`);
     const r = L.ler(c); if (!r.completa || !r.script) problemas.push(`${nome}: o leitor não a lê mais por inteiro`);
     if (S.SCRIPTS[nome]) problemas.push(`${nome}: tem script à mão; a aprovação é redundante (o script à mão vence)`);
     if (!ass.leva) problemas.push(`${nome}: aprovação sem a leva da revisão`);
