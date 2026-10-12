@@ -5241,6 +5241,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'ascend', // K-59 · 702.131: com dez permanentes ou mais, o jogador ganha a bênção da cidade pelo resto do jogo (ascensaoK); condição de gatilho bencaoK
   'living weapon', 'for mirrodin!', 'job select', // K-60 · 702.92, 702.163, 702.182: o Equipamento entra, cria a ficha (Germe 0/0 preto, Rebelde 2/2 vermelho, Herói 1/1 incolor) e se anexa a ela (FICHAS_DO_EQUIPAMENTO_K)
   'bloodthirst', // K-61 · 702.54: entra com N marcadores +1/+1 se um oponente sofreu dano neste turno (danoNoTurnoK)
+  'unleash', // K-62 · 702.98: escolha de entrar com um marcador +1/+1 a mais; com marcador +1/+1, não bloqueia (naoBloqueiaK)
   'afflict', 'melee', 'mentor', 'training', // K-31 · 702.130, 702.121, 702.134, 702.149: gatilhos de ataque gerados pela palavra, um por instância
   'battle cry', 'rampage', 'flanking', 'bushido', // K-30 · 702.91, 702.23, 702.25, 702.45: gatilhos de combate gerados pela palavra (GATILHOS_DE_PALAVRA_K), um por instância
   /* ↓ V · palavras-chave da trilha verbos */
@@ -5417,6 +5418,7 @@ const EFFECTS = {
   iminente_k: { fields: ['z'], targets: [] }, // K-58 · 702.176a (gerado pelo motor)
   ascender_k: { fields: [], targets: [] }, // K-59 · 702.131a (gerado pelo motor na mágica com ascensão)
   equipa_ficha_k: { fields: ['ficha'], targets: [] }, // K-60 (gerado pelo motor)
+  desencadear_k: { fields: ['z'], targets: [] }, // K-62 · tira o marcador do desencadear (gerado pelo motor)
   salvaguarda: { fields: [], targets: [] }, // K-2 · 702.21a · gerado pelo motor quando uma permanente com salvaguarda vira alvo (não vai em script)
   volta_com_marcador: { fields: ['marcador'], targets: [] }, // K-4 · persistir e imortal (gerado pelo motor)
   exaltado: { fields: ['criatura'], targets: [] }, // K-5 · exaltado (gerado pelo motor)
@@ -8394,6 +8396,7 @@ function palavraNaLinhaK(k) {
   if (k === 'ascend') return 'ascend'; // K-59
   if (k === 'living weapon' || k === 'for mirrodin!' || k === 'job select') return k.replace('!', '\\!'); // K-60
   if (k === 'bloodthirst') return 'bloodthirst \\d+'; // K-61 · "Bloodthirst X" fica de fora
+  if (k === 'unleash') return 'unleash'; // K-62
   if (k === 'dash') return 'dash\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-9
   if (k === 'evoke') return 'evoke(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*exile an? (?:white|blue|black|red|green) card from your hand\\.?)'; // K-8 · só as formas que o motor paga
   return ['afterlife', 'rampage', 'bushido', 'afflict'].includes(k) ? `${k} \\d+` : k; // K-30 · alvoroço N e bushido N
@@ -17675,7 +17678,7 @@ function eligibleBlockers(s, p) {
 }
 const TRAVESSIAS = [['islandwalk', 'Island'], ['swampwalk', 'Swamp'], ['forestwalk', 'Forest'], ['mountainwalk', 'Mountain'], ['plainswalk', 'Plains']];
 /** M-253 · "This creature can't block" (509.1a), impressa ou da ficha. */
-const naoBloqueia = (s, o) => (!o.faceDown && !semImpressas(s, o) && !!((((s.facts[o.name] || {}).script || {}).self || {}).naoBloqueia)) || anexoProibe(s, o, 'naoBloqueia'); // M-336 · Pacifism
+const naoBloqueia = (s, o) => (!o.faceDown && !semImpressas(s, o) && !!((((s.facts[o.name] || {}).script || {}).self || {}).naoBloqueia)) || anexoProibe(s, o, 'naoBloqueia') || naoBloqueiaK(s, o); // M-336 · Pacifism · K-62 · 702.98a (Toca ponto comum: naoBloqueia)
 /** M-336 · "Enchanted creature can't attack or block" / "Equipped creature can't block": o anexo proíbe (509.1b, 508.1c). */
 const anexoProibe = (s, o, k) => attachedTo(s, o).some(x => !semImpressas(s, x) && !!((((s.facts[x.name] || {}).script || {}).grants || {})[k]));
 /** Por que `blocker` não pode bloquear `attacker` (texto para a mesa), ou null quando pode. */
@@ -19026,6 +19029,11 @@ function applyEffect(s, src, eff, tgt, events) {
       break;
     }
     /* ↓ K · casos de applyEffect da trilha keywords */
+    case 'desencadear_k': { // K-62 · 702.98a: escolheu não entrar com o marcador: ele sai (como no tumulto)
+      const perm = s.objects[src.ability ? src.source : src.oid];
+      if (perm && perm.zone === 'battlefield' && (perm.zc || 0) === eff.z && (perm.counters.p1p1 || 0) > 0) { perm.counters.p1p1 -= 1; if (!perm.counters.p1p1) delete perm.counters.p1p1; }
+      note({ name: src.name }); break;
+    }
     case 'equipa_ficha_k': { // K-60 · cria a ficha e anexa este Equipamento a ela (se ele ainda está no campo)
       const eq = s.objects[src.ability ? src.source : src.oid], def = FICHAS_DO_EQUIPAMENTO_K[eff.ficha];
       if (!def) { note({ failed: true }); break; }
@@ -23079,6 +23087,7 @@ function entraComPalavrasK(s, o) {
   if (o.entrarComEscolhasK) { for (const e of o.entrarComEscolhasK) out.p1p1 = (out.p1p1 || 0) + e.n; const dv = o.entrarComEscolhasK.reduce((t, e) => t + (e.devorou || 0), 0); if (dv) o.devorouK = dv; } // K-45 · escolhido antes de entrar (conjurada)
   else for (const d of (f.devorarK || [])) s.queuedChoices = (s.queuedChoices || []).concat([{ kind: 'devorar_k', oid: o.oid, p: o.controller, n: d.n, tipo: d.tipo }]); // K-43 · 702.82a/c
   if (!o.entrarComEscolhasK && (f.kw || []).includes('amplify')) for (const n of ((f.numerosK || {}).amplify || [])) s.queuedChoices = (s.queuedChoices || []).concat([{ kind: 'amplificar_k', oid: o.oid, p: o.controller, n }]); // K-43 · 702.38a/b
+  if ((f.kw || []).includes('unleash') && !semImpressas(s, o)) { out.p1p1 = (out.p1p1 || 0) + 1; s.queuedChoices = (s.queuedChoices || []).concat([{ kind: 'desencadear_k', oid: o.oid, p: o.controller }]); } // K-62 · 702.98a
   if ((f.kw || []).includes('riot')) for (let i = 0; i < Math.max(1, ((f.numerosK || {}).riot || []).length); i++) { out.p1p1 = (out.p1p1 || 0) + 1; s.queuedChoices = (s.queuedChoices || []).concat([{ kind: 'tumulto_k', oid: o.oid, p: o.controller, name: o.name }]); } // K-38 · 702.136a/b: entra com o marcador e pergunta em seguida (como a terra de choque, M-330)
   return out;
 }
@@ -23088,9 +23097,11 @@ Object.assign(EXPORTS_K, { entraComPalavrasK });
    gatilho ou prioridade, como a terra de choque da M-330: o resultado é o mesmo) e pelo fabricar (702.123a, na resolução do gatilho). */
 const SERVO_K = { name: 'Servo', types: ['artifact', 'creature'], subtypes: ['Servo'], colors: [], power: 1, toughness: 1 };
 function escolhaDeEntradaK(s) {
-  while (!s.pending && (s.queuedChoices || []).length && ['tumulto_k', 'devorar_k', 'amplificar_k'].includes(s.queuedChoices[0].kind)) {
+  while (!s.pending && (s.queuedChoices || []).length && ['tumulto_k', 'devorar_k', 'amplificar_k', 'desencadear_k'].includes(s.queuedChoices[0].kind)) { // K-62 · desencadear também
     const c = s.queuedChoices.shift(), t = s.objects[c.oid];
     if (!t || t.zone !== 'battlefield' || !s.players[c.p] || s.players[c.p].lost) continue;
+    if (c.kind === 'desencadear_k') { s.pending = { kind: 'choose_mode', p: c.p, name: `Desencadear ${t.name}`, options: ['Entrar com o marcador +1/+1 (não bloqueia enquanto tiver)', 'Entrar sem o marcador'],
+      opcoesK: [{ effects: [] }, { effects: [{ do: 'desencadear_k', z: t.zc || 0 }] }], fonteK: { oid: t.oid, name: t.name, controller: c.p } }; return true; } // K-62 · 702.98a
     if (c.kind !== 'tumulto_k') { if (escolhaDeEntrarComK(s, c, t)) return true; continue; } // K-43
     s.pending = { kind: 'choose_mode', p: c.p, name: `Tumulto de ${t.name}`, options: ['Entrar com um marcador +1/+1', 'Entrar sem o marcador, com ímpeto'],
       opcoesK: [{ effects: [] }, { effects: [{ do: 'tumulto_k', z: t.zc || 0 }] }], fonteK: { oid: t.oid, name: t.name, controller: c.p } };
@@ -23654,6 +23665,10 @@ const FICHAS_DO_EQUIPAMENTO_K = {
 const TEM_SEDE_K = new WeakMap(); // por fato: tem sede de sangue? (só partidas com a palavra guardam o carimbo: o estado das outras não muda)
 const partidaTemSedeK = s => Object.values(s.facts).some(f => { if (!f || typeof f !== 'object') return false; if (!TEM_SEDE_K.has(f)) TEM_SEDE_K.set(f, (f.kw || []).includes('bloodthirst')); return TEM_SEDE_K.get(f); });
 function danoNoTurnoK(s, p, n) { if (n > 0 && s.players[p] && partidaTemSedeK(s)) s.players[p].danoNoTurnoK = s.turn.number; }
+/* K-62 · 702.98 desencadear: "You may have this permanent enter with an additional +1/+1 counter on it" (pelo caminho do tumulto: entra
+   com o marcador e a escolha logo depois pode tirá-lo) e "This permanent can't block as long as it has a +1/+1 counter on it" (qualquer
+   marcador +1/+1, não só o do desencadear). */
+const naoBloqueiaK = (s, o) => !!o && !o.faceDown && ((o.counters || {}).p1p1 || 0) > 0 && !semImpressas(s, o) && ((s.facts[o.name] || {}).kw || []).includes('unleash');
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-30 · 701.65 aerobender: "that player exiles those objects. For each card exiled this way, for as long as it remains exiled, its owner
    may cast it by paying {2} rather than paying its mana cost" (a). A permissão é do DONO e da encarnação exilada (400.7: se a carta sair do
@@ -27577,6 +27592,7 @@ Object.assign(PALAVRA_PT, { impending: 'iminente' }); // K-58
 Object.assign(PALAVRA_PT, { ascend: 'ascensão' }); // K-59
 Object.assign(PALAVRA_PT, { 'living weapon': 'arma viva', 'for mirrodin!': 'por Mirrodin!', 'job select': 'escolha de classe' }); // K-60
 Object.assign(PALAVRA_PT, { bloodthirst: 'sede de sangue' }); // K-61
+Object.assign(PALAVRA_PT, { unleash: 'desencadear' }); // K-62
 Object.assign(PALAVRA_PT, { afflict: 'aflição', melee: 'refrega', mentor: 'mentor', training: 'treinamento' }); // K-31
 Object.assign(PALAVRA_PT, { 'battle cry': 'grito de guerra', rampage: 'alvoroço', flanking: 'flanquear', bushido: 'bushido' }); // K-30
 const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consultadas por descreveEfeito; antes a pilha mostrava "proeza k")
@@ -27599,6 +27615,7 @@ const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consulta
   prole_k: () => 'cria uma ficha que é cópia desta permanente, só que 1/1 (prole)', // K-53
   presente_k: e => `${({ card: 'o oponente escolhido compra uma carta', fish: 'o oponente escolhido cria uma ficha de Peixe 1/1 azul virada', turn: 'o oponente escolhido joga um turno extra depois deste', food: 'o oponente escolhido cria uma ficha de Comida', treasure: 'o oponente escolhido cria uma ficha de Tesouro', octopus: 'o oponente escolhido cria uma ficha de Polvo 8/8 azul' })[e.tipo] || 'o oponente escolhido recebe o presente'} (presente)`, // K-56
   compra_k: () => 'compra a carta', dragar_k: e => `mói ${e.n} e devolve esta carta do cemitério à mão no lugar de comprar (dragar)`, // K-57
+  desencadear_k: () => 'entra sem o marcador +1/+1 do desencadear', // K-62
   equipa_ficha_k: e => `cria uma ficha de ${({ germe: 'Germe 0/0 preto', rebelde: 'Rebelde 2/2 vermelho', heroi: 'Herói 1/1 incolor' })[e.ficha] || 'criatura'} e anexa este Equipamento a ela`, // K-60
   ascender_k: () => 'se você controla dez ou mais permanentes, ganha a bênção da cidade (ascensão)', // K-59
   iminente_k: () => 'tira um marcador de tempo desta permanente; sem marcador, ela volta a ser criatura (iminente)', // K-58

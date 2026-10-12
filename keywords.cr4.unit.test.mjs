@@ -2268,3 +2268,19 @@ test('CR 702.54a · sede de sangue (Gorehorn Minotaurs, texto oficial: "Bloodthi
   t = resolve(act(t, { t: 'cast', p: a, oid: g }));
   assert.equal(t.objects[g].counters.p1p1, 2); assert.equal(E.stats(t, t.objects[g]).power, 5);
 });
+
+/* ---------------- K-62 · desencadear 702.98 ---------------- */
+test('CR 702.98a · desencadear (Gore-House Chainwalker, texto oficial): ao entrar, o jogador escolhe entrar com o marcador +1/+1 (e aí não bloqueia) ou sem ele', () => {
+  const GC = { ...oficial('Gore-House Chainwalker'), keywords: ['Unleash'] };
+  let s = partida({ 'Gore-House Chainwalker': GC, Urso: URSO }); const a = s.turn.active, d = 1 - a;
+  let g; [s, g] = poe(s, a, 'Gore-House Chainwalker', 'hand');
+  let t = act(s, { t: 'cast', p: a, oid: g }); for (let i = 0; i < 6 && !(t.pending && t.pending.kind === 'choose_mode'); i++) t = act(t, { t: 'pass', p: t.turn.priority });
+  assert.equal(t.pending.kind, 'choose_mode'); assert.equal(t.pending.options.length, 2);
+  const com = act(t, { t: 'choose_mode', p: a, index: 0 }), sem = act(t, { t: 'choose_mode', p: a, index: 1 });
+  assert.equal(com.objects[g].counters.p1p1, 1); assert.equal((sem.objects[g].counters || {}).p1p1 || 0, 0);
+  const bloqueia = st => { let u; [st, u] = poe(st, d, 'Urso'); st = ateK35(st, d, 'combat_attackers'); for (let i = 0; i < 6 && !(st.pending && st.pending.kind === 'attackers'); i++) st = act(st, { t: 'pass', p: st.turn.priority });
+    st = act(st, { t: 'attack', p: d, attackers: [u] }); for (let i = 0; i < 6 && !(st.pending && st.pending.kind === 'blockers'); i++) st = st.pending ? act(st, E.legalActions(st, st.pending.p)[0]) : act(st, { t: 'pass', p: st.turn.priority });
+    try { act(st, { t: 'block', p: a, blocks: [[g, u]] }); return true; } catch (e) { return false; } };
+  assert.equal(bloqueia(com), false, 'com o marcador +1/+1, não bloqueia');
+  assert.equal(bloqueia(sem), true, 'sem o marcador, bloqueia');
+});

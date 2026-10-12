@@ -8245,14 +8245,18 @@
    "n": "702.98",
    "regra": "Keyword Abilities",
    "titulo": "Unleash",
-   "status": "ausente",
-   "falta": "Sem a escolha de entrar com um marcador +1/+1 nem \"não pode bloquear enquanto tiver marcador +1/+1\" (702.98a).",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "614.1c",
     "509"
    ],
-   "cartas": "uma coleção só (Return to Ravnica)"
+   "cartas": "uma coleção só (Return to Ravnica)",
+   "evidencia": "K-62: a palavra é substituição de entrada (entraComPalavrasK: entra com o marcador) com a escolha logo depois de entrar (escolhaDeEntradaK, choose_mode com opcoesK; tirar o marcador é desencadear_k), pelo caminho do tumulto. \"Não pode bloquear enquanto tiver marcador +1/+1\" (qualquer um) em naoBloqueiaK, ligado a naoBloqueia (Toca ponto comum).",
+   "testes": [
+    "CR 702.98a · desencadear (Gore-House Chainwalker, texto oficial): ao entrar, o jogador escolhe entrar com o marcador +1/+1 (e aí não bloqueia) ou sem ele",
+    "K-62 · desencadear (702.98): entrando com o marcador, a criatura ataca 3/2 mas não pode bloquear"
+   ]
   },
   {
    "n": "702.99",

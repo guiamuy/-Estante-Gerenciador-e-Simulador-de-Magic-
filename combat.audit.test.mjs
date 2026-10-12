@@ -914,6 +914,17 @@ test('K-61 · sede de sangue (702.54): depois que o Urso causa dano de combate, 
   t = act(t, { t: 'cast', p: a, oid: g }); for (let i = 0; i < 4 && t.stack.length; i++) t = act(t, { t: 'pass', p: t.turn.priority });
   assert.equal(t.objects[g].counters.p1p1, 2);
 });
+test('K-62 · desencadear (702.98): entrando com o marcador, a criatura ataca 3/2 mas não pode bloquear', () => {
+  cobre('unleash');
+  const cartas = { ...CARDS, Solta: cre('Solta', 2, 1, ['Unleash'], { oracle_text: 'Unleash' }) };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 82, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a; let g; [s, g] = poe(s, a, 'Solta', { zone: 'hand' });
+  s = act(s, { t: 'cast', p: a, oid: g }); for (let i = 0; i < 6 && !(s.pending && s.pending.kind === 'choose_mode'); i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  s = act(s, { t: 'choose_mode', p: a, index: 0 }); s = JSON.parse(JSON.stringify(s)); s.objects[g].sick = false;
+  assert.equal(combate(s, [g]).players[d].life, 17);
+});
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));

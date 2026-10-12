@@ -4529,6 +4529,11 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `danoEmJogador` (a linha ganha `danoNoTurnoK` no começo, sem tirar nada).
 - **Testes:** `keywords.cr4.unit` (1, falha sem a leva), `combat.audit` (1 cenário). Texto oficial: Gorehorn Minotaurs, Stormblood Berserker (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
 - **Parcial declarado:** "Bloodthirst X" não é lido.
+**K-62 · Desencadear (unleash, 702.98)** ✅ (leva K-62) — onda 4 (36 cópias em 8 listas: Rakdos Cackler, Gore-House Chainwalker)
+- **Valor:** ao entrar, a mesa pergunta se a criatura entra com o marcador +1/+1; com marcador +1/+1, ela não pode bloquear.
+- **Aceite:** Gore-House Chainwalker com o marcador é 3/2 e não bloqueia; sem o marcador, 2/1 e bloqueia.
+- **Toca ponto comum:** `naoBloqueia` (a linha ganha `|| naoBloqueiaK(s, o)`, sem tirar nada).
+- **Testes:** `keywords.cr4.unit` (1, falha sem a leva), `combat.audit` (1 cenário). Texto oficial: Rakdos Cackler, Gore-House Chainwalker (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.
