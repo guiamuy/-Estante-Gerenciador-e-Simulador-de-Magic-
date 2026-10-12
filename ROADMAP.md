@@ -523,6 +523,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-eb ✅ | SEG8b bloqueio no banco: `bloqueios/<conta>` só da dona; a regra da sala recusa o bloqueado nos dois sentidos; a lista vale nos aparelhos da conta e sai com "Apagar também da nuvem"; "O que sai do aparelho" passa a dizer o perfil sincronizado e a lista (leva P-15) | SEG | 1 | regras publicadas no console |
 | 16º-ec ✅ | SEG9 código de sala com 6 símbolos (≈ 1 bilhão de códigos, era ≈ 1 milhão); entrar aceita 6 e 4; com as regras antigas no console, a sala nasce com 4 (leva P-16) | SEG | 1 | regras publicadas no console |
 | 16º-ed ✅ | SEG10 relato só de quem tem acesso ao repositório: registro de outra conta não ganha etiqueta nem entra na tabela, a não ser que o dono o aceite com `relato-aceito` (leva P-17) | SEG | ½ | — |
+| 16º-ef ✅ | SEG11 licença: `LICENSE` com todos os direitos reservados ao autor (Guilherme de Aguiar Schmidt Amuy), separando o que é de terceiros (Wizards, Scryfall, MTGJSON, Tesseract) (leva P-18) | SEG | ½ | nome do dono |
 | 16º-ee ✅ | T6e-2 Enviar relato sem sair do app: com a conta conectada e a fila ligada, o relato vai para a fila do Firebase e o cartão mostra "Na fila" até o número do registro (relato #13, leva G-255) | T | 1 | — |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
@@ -9275,6 +9276,21 @@ segredo do repositório. O `main` não recebe commit do coletor.
 - **Resíduo:** o fluxo continua rodando a cada registro de qualquer conta (só o código do `main`, sem nada do registro
   como comando; minutos de Actions por registro de estranho: < 1 min). Se o app ganhar outros usuários, os relatos deles
   precisam do `relato-aceito` posto pelo dono.
+
+**SEG11 · Licença do código** ✅ (leva P-18, 12/10/2026)
+- **Valor:** fica escrito que o código e os textos da Estante são seus e que ninguém pode copiar ou reaproveitar sem
+  autorização; o que é da Wizards, da Scryfall e de outras fontes fica separado e creditado.
+- **Ameaça e camada:** repositório público sem licença deixava a titularidade implícita (a lei já protege, mas sem
+  aviso). Camada: repositório (`LICENSE`, `README.md`).
+- **Entregue:** `LICENSE` (todos os direitos reservados; única permissão é ver e fazer fork dentro do GitHub, como os
+  Termos do GitHub exigem; usar o app publicado é livre; aviso da Fan Content Policy; Scryfall, MTGJSON, Tesseract.js,
+  texto das Comprehensive Rules e ferramentas de teste com as próprias licenças; resumo em inglês). `README.md` com a
+  seção Licença.
+- **Testes:** nenhum (sem código).
+- **Resíduo:** licença não impede cópia, só dá base para cobrar; o `index.html` continua legível por qualquer pessoa na
+  URL do app (Pages). O app ainda não mostra o aviso da Fan Content Policy numa tela "Sobre" (hoje só no crédito das
+  listas do Magic Online): fica como recomendação para a trilha de design. Isto não é parecer jurídico; registro no INPI
+  continua opcional antes de monetizar.
 
 ### P · Plataforma
 
