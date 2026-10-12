@@ -1225,3 +1225,14 @@ test('CR 702.6c-d · Blackblade Reforged (texto oficial: "Equip legendary creatu
   assert.equal(s.objects[bb].attachedTo, l, 'equipou a lendária');
   const c = J(E.cardFacts({ ...oficial('Blackblade Reforged') }).equipesK || []); assert.equal(c.length, 1);
 });
+
+/* ---------------- K-29 · auditoria da onda 2 (K-24 a K-28) ---------------- */
+test('CR 702.11c / 702.18a · auditoria K-29: "You have hexproof." dá resistência ao jogador, não à permanente — mesmo quando os dados da carta trazem a palavra-chave "Hexproof"', () => {
+  const AG = { ...oficial('Aegis of the Gods'), keywords: ['Hexproof'] }, TB = { ...oficial('True Believer'), keywords: ['Shroud'] };
+  assert.ok(!E.cardFacts(AG).kw.includes('hexproof')); assert.ok(!E.cardFacts(TB).kw.includes('shroud'));
+  const KH = { name: 'Dupla', type_line: 'Creature — Soldier', mana_cost: '{W}', cmc: 1, colors: ['W'], power: '1', toughness: '1', keywords: ['Hexproof'], oracle_text: 'Hexproof\nYou have hexproof.' };
+  assert.ok(E.cardFacts(KH).kw.includes('hexproof'), 'com a linha "Hexproof" também, a permanente tem');
+  let s = partida({ 'Aegis of the Gods': AG, Raio: RAIO }, SC_RAIO); const a = s.turn.active, d = 1 - a;
+  let ag, r; [s, ag] = poe(s, a, 'Aegis of the Gods'); [s, r] = poe(s, d, 'Raio', 'hand'); s = J(s); s.turn.priority = d;
+  assert.ok(E.legalActions(s, d).some(x => x.oid === r && x.targets && x.targets[0].oid === ag), 'o oponente mira a criatura');
+});

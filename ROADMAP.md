@@ -4174,6 +4174,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Testes:** `keywords.cr4.unit` (1, falha sem a leva). Texto oficial: Blackblade Reforged (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v109.
 - **Parcial declarado (702.6):** "Equip planeswalker" (702.6e) e qualidades compostas ("Dwarf or Elf") ficam de fora; o +1/+1 por terreno da Blackblade precisa de script (contagem por terreno no `grants`).
 
+**K-29 · Auditoria independente da onda 2 (K-24 a K-28)** 🟡 (leva K-29)
+- **Valor:** o revisor (subagente sem o raciocínio da implementação, 13 sondas, 426 testes de regressão verdes) não achou divergência nas cinco levas. Achou um limite de ponto comum e um risco de dados: (1) com cobrança de mana e Killian, Ink Duelist no campo (redução por alvo, M-259), o `legalActions` devolve as ofertas antes das âncoras das trilhas K, V e T — some o ninjutsu da zona de comando (K-27), o recomeçar (K-10) e os grupos de convocar/improvisar (K-13); o `apply` aceita se a ação chegar. **Pedido à trilha `motor`** (já feito na onda 1, agora com sonda): aplicar o filtro otimista depois das âncoras. (2) Se os dados da carta trouxerem "Hexproof"/"Shroud" em `keywords` por causa da linha "You have …", a permanente ganharia a palavra: corrigido aqui.
+- **Aceite:** Aegis of the Gods com `keywords: ['Hexproof']` não tem resistência (o oponente mira a criatura); com a linha "Hexproof" também, tem.
+- **Toca ponto comum:** `cardFacts` (uma linha nova: `semPalavraDoJogadorK`).
+- **Testes:** `keywords.cr4.unit` (1, falha sem a leva). Goldens idênticos; motor v109.
+
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

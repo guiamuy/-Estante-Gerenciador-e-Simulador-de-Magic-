@@ -15335,6 +15335,7 @@ function cardFacts(card) {
   const tl = String(card && card.type_line || '').toLowerCase().split('//')[0];
   const types = PERMANENT.concat(['instant', 'sorcery']).filter(t => tl.includes(t));
   const kw = palavrasDaFrente(card, (card && card.keywords || []).map(k => String(k).toLowerCase()));
+  semPalavraDoJogadorK(card, kw); // K-29 · "You have hexproof/shroud." é do jogador: a palavra não vale para a permanente sem a linha própria (Toca ponto comum: cardFacts)
   const num = v => (v == null || isNaN(parseInt(v, 10))) ? null : parseInt(v, 10);
   return {
     types, legendary: tl.includes('legendary'), flash: kw.includes('flash'), kw,
@@ -21599,6 +21600,15 @@ function jogadorIntocavelK(s, i, p) {
   return false;
 }
 Object.assign(EXPORTS_K, { jogadorImpressoK, jogadorIntocavelK });
+/** K-29 · os dados da carta podem trazer "Hexproof"/"Shroud" em `keywords` por causa da linha "You have …" (que é do jogador): sem uma linha
+    de palavra-chave própria ("Hexproof", "Flying, shroud"), a palavra sai da lista da permanente. */
+function semPalavraDoJogadorK(card, kw) {
+  const doJogador = jogadorImpressoK(card); if (!doJogador) return;
+  const txt = String((card && (card.oracle_text || (card.faces && card.faces[0] && card.faces[0].oracle_text))) || '').replace(/\([^)]*\)/g, '');
+  const partes = txt.split('\n').flatMap(l => l.trim().toLowerCase().split(/,\s*/));
+  for (const k of doJogador) { if (partes.some(x => x === k || x.startsWith(k + ' from'))) continue; const i = kw.indexOf(k); if (i >= 0) kw.splice(i, 1); }
+}
+Object.assign(EXPORTS_K, { semPalavraDoJogadorK });
 /* K-25 · 702.40a · tempestade é UM gatilho ("When you cast this spell, copy it for each other spell that was cast before it this turn"):
    vai para a pilha por cima da mágica, pode ser respondido (e anulado, sem cópia nenhuma) e, na resolução, cria as cópias. A contagem é a
    das mágicas conjuradas antes desta no turno (as conjuradas depois não são "antes dela"); a cópia leva modo, X e reforço da original. */
