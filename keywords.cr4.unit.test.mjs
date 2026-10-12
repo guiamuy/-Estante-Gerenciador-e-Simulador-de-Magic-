@@ -1711,3 +1711,29 @@ test('CR 702.115a · ingerir (Culling Drone, texto oficial): dano de combate a u
   let c; [s, c] = poe(s, a, 'Culling Drone'); const topo = s.zones[d].library[0];
   s = ateODano(s, [c]); assert.equal(s.objects[topo].zone, 'exile');
 });
+
+/* ---------------- K-41 · modular 702.43 e transmigrar (soulshift) 702.46 ---------------- */
+const MATAR_K41 = { name: 'Matar', type_line: 'Instant', mana_cost: '{B}', cmc: 1, colors: ['B'], keywords: [], oracle_text: 'Destroy target creature.' };
+const SC_MATAR_K41 = { Matar: { name: 'Matar', effects: [{ do: 'destroy', target: 'creature' }], example: { target: 'enemy-creature', expect: { gone: true } } } };
+const TOPTERO = { name: 'Toptero', type_line: 'Artifact Creature — Thopter', mana_cost: '{0}', cmc: 0, colors: [], power: '0', toughness: '2', keywords: [], oracle_text: '' };
+/** Resolve a pilha respondendo "sim" às perguntas de "você pode" e escolhendo o primeiro alvo. */
+const resolveSimK41 = s => { for (let i = 0; i < 20 && (s.stack.length || s.pending); i++) s = s.pending ? act(s, s.pending.kind === 'may_pay' ? { t: 'pay', p: s.pending.p } : E.legalActions(s, s.pending.p)[0]) : act(s, { t: 'pass', p: s.turn.priority }); return s; };
+
+test('CR 702.43a · modular (Arcbound Prototype, texto oficial): entra com 2 marcadores +1/+1; ao morrer, você pode pôr um +1/+1 na criatura artefato alvo por marcador que ela tinha', () => {
+  let s = partida({ 'Arcbound Prototype': oficial('Arcbound Prototype'), Toptero: TOPTERO, Matar: MATAR_K41 }, SC_MATAR_K41); const a = s.turn.active;
+  let p, t, m; [s, p] = poe(s, a, 'Arcbound Prototype', 'hand'); [s, t] = poe(s, a, 'Toptero'); [s, m] = poe(s, a, 'Matar', 'hand');
+  s = resolve(act(s, { t: 'cast', p: a, oid: p })); assert.equal(s.objects[p].counters.p1p1, 2, 'entra com dois');
+  s = J(s); s.objects[p].counters.p1p1 = 3; // ganhou mais um: conta o que ela tinha ao morrer
+  s = act(s, { t: 'cast', p: a, oid: m, targets: [{ oid: p }] }); s = resolveSimK41(s);
+  assert.equal(s.objects[p].zone, 'graveyard'); assert.equal(s.objects[t].counters.p1p1, 3, 'os três foram para o Tóptero');
+});
+
+test('CR 702.46a · transmigrar (Torii Watchward, texto oficial): ao morrer, você pode devolver à mão a carta de Espírito alvo de valor 4 ou menos do seu cemitério (não ela mesma, de valor 5; não a que não é Espírito)', () => {
+  let s = partida({ 'Torii Watchward': oficial('Torii Watchward'), 'Kami of Empty Graves': oficial('Kami of Empty Graves'), Urso: URSO, Matar: MATAR_K41 }, SC_MATAR_K41); const a = s.turn.active;
+  let w, k, u, m; [s, w] = poe(s, a, 'Torii Watchward'); [s, k] = poe(s, a, 'Kami of Empty Graves', 'graveyard'); [s, u] = poe(s, a, 'Urso', 'graveyard'); [s, m] = poe(s, a, 'Matar', 'hand');
+  s = act(s, { t: 'cast', p: a, oid: m, targets: [{ oid: w }] });
+  for (let i = 0; i < 10 && !s.pending && (s.stack.length && !(s.objects[s.stack[s.stack.length - 1]] || {}).ability); i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const gat = s.stack.map(x => s.objects[x]).find(x => x && x.ability); assert.ok(gat, 'o gatilho foi para a pilha');
+  assert.deepEqual(J((gat.targets || []).map(x => x.oid)), [k], 'o único alvo legal é o Kami (Espírito de valor 4)');
+  s = resolveSimK41(s); assert.equal(s.objects[k].zone, 'hand'); assert.equal(s.objects[u].zone, 'graveyard'); assert.equal(s.objects[w].zone, 'graveyard');
+});

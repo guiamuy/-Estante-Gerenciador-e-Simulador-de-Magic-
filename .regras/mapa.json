@@ -7352,14 +7352,19 @@
    "n": "702.43",
    "regra": "Keyword Abilities",
    "titulo": "Modular",
-   "status": "ausente",
-   "falta": "Sem \"entra com N marcadores +1/+1\" ligado ao gatilho de morte que move os marcadores para um artefato criatura alvo (702.43a-b)",
+   "status": "parcial",
+   "falta": "\"Modular—Sunburst\" (Arcbound Wanderer) não é lido: o motor não guarda as cores de mana gastas (702.44, raio de sol).",
    "esforco": "M",
    "depende": [
     "614.1c",
     "última informação conhecida"
    ],
-   "cartas": "rara (comum em Pauper/Modern Affinity)"
+   "cartas": "rara (comum em Pauper/Modern Affinity)",
+   "evidencia": "K-41: \"Modular N\" entra com N marcadores +1/+1 por instância (entraComPalavrasK) e gera o gatilho de morte opcional com alvo (criatura artefato) que põe tantos +1/+1 quantos ela tinha no campo (603.10a: foto p1p1K em ultimaPalavrasK; PALAVRAS_DE_SAIDA_K); um gatilho por instância (702.43b).",
+   "testes": [
+    "CR 702.43a · modular (Arcbound Prototype, texto oficial): entra com 2 marcadores +1/+1; ao morrer, você pode pôr um +1/+1 na criatura artefato alvo por marcador que ela tinha",
+    "K-41 · modular e transmigrar (702.43, 702.46): o 0/0 artefato com \"Modular 1\" entra 1/1 e ataca; o Espírito com \"Soulshift 2\" morre bloqueando e devolve o Espírito do cemitério"
+   ]
   },
   {
    "n": "702.44",
@@ -7393,10 +7398,14 @@
    "n": "702.46",
    "regra": "Keyword Abilities",
    "titulo": "Soulshift",
-   "status": "ausente",
-   "falta": "Sem gatilho de morte que devolve Espírito de valor de mana N ou menor do cemitério (702.46a)",
+   "status": "coberta",
    "esforco": "P",
-   "cartas": "uma coleção só (Kamigawa)"
+   "cartas": "uma coleção só (Kamigawa)",
+   "evidencia": "K-41: \"Soulshift N\" gera o gatilho de morte opcional (um por instância, b) que devolve à mão a carta de Espírito alvo de valor de mana N ou menos do seu cemitério (to_hand com targetMvMax e alvoSubtipoCartaK: o subtipo é conferido em qualquer zona, metamorfo incluso, em alvoPermitidoK).",
+   "testes": [
+    "CR 702.46a · transmigrar (Torii Watchward, texto oficial): ao morrer, você pode devolver à mão a carta de Espírito alvo de valor 4 ou menos do seu cemitério (não ela mesma, de valor 5; não a que não é Espírito)",
+    "K-41 · modular e transmigrar (702.43, 702.46): o 0/0 artefato com \"Modular 1\" entra 1/1 e ataca; o Espírito com \"Soulshift 2\" morre bloqueando e devolve o Espírito do cemitério"
+   ]
   },
   {
    "n": "702.47",

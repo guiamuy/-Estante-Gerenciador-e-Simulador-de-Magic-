@@ -688,6 +688,23 @@ test('K-40 · aniquilador, venenoso, renome e ingerir (702.86, 702.70, 702.112, 
   assert.equal(s.players[d].poison || 0, 1, 'venenoso'); assert.equal(s.objects[k].counters.p1p1, 2, 'renome'); assert.equal(s.objects[topo].zone, 'exile', 'ingerir');
   assert.equal(s.players[d].life, 12, '4 + 1 + 2 + 1');
 });
+test('K-41 · modular e transmigrar (702.43, 702.46): o 0/0 artefato com "Modular 1" entra 1/1 e ataca; o Espírito com "Soulshift 2" morre bloqueando e devolve o Espírito do cemitério', () => {
+  cobre('modular'); cobre('soulshift');
+  const art = (n, p, t, k, txt) => ({ name: n, type_line: 'Artifact Creature — Construct', mana_cost: '{1}', cmc: 1, colors: [], power: String(p), toughness: String(t), keywords: k, oracle_text: txt });
+  const cartas = { ...CARDS, Peca: art('Peca', 0, 0, ['Modular'], 'Modular 1'), Torre: art('Torre', 0, 3, [], ''), Kami: { name: 'Kami', type_line: 'Creature — Spirit', mana_cost: '{1}{W}', cmc: 2, colors: ['W'], power: '1', toughness: '1', keywords: ['Soulshift'], oracle_text: 'Soulshift 2' },
+    Fantasma: { name: 'Fantasma', type_line: 'Creature — Spirit', mana_cost: '{1}', cmc: 1, colors: ['W'], power: '1', toughness: '1', keywords: [], oracle_text: '' } };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 64, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a; let pc, tr, km, fa, u;
+  [s, pc] = poe(s, a, 'Peca', { zone: 'hand' }); [s, tr] = poe(s, a, 'Torre'); [s, km] = poe(s, d, 'Kami'); [s, fa] = poe(s, d, 'Fantasma', { zone: 'graveyard' }); [s, u] = poe(s, a, 'Urso');
+  s = act(s, { t: 'cast', p: a, oid: pc }); for (let i = 0; i < 4 && s.stack.length; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  assert.equal(s.objects[pc].counters.p1p1, 1); s = J(s); s.objects[pc].sick = false;
+  s = combate(s, [pc, u], [[km, u]]);
+  for (let i = 0; i < 30 && (s.stack.length || s.pending); i++) s = s.pending ? act(s, s.pending.kind === 'may_pay' ? { t: 'pay', p: s.pending.p } : E.legalActions(s, s.pending.p)[0]) : act(s, { t: 'pass', p: s.turn.priority });
+  assert.equal(vivo(s, km), false, 'o Kami morreu bloqueando'); assert.equal(s.objects[fa].zone, 'hand', 'transmigrar: o Espírito voltou para a mão');
+  assert.equal(s.players[d].life, 19, 'a Peça 1/1 passou');
+});
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));

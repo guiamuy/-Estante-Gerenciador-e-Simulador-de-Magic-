@@ -4383,6 +4383,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `continuaEdito` (uma linha: édito de N permanentes diferentes).
 - **Testes:** `keywords.cr4.unit` (4, falham sem a leva), `combat.audit` (1 cenário, as quatro). Texto oficial: Ulamog's Crusher, Knight of the Pilgrim's Road, Culling Drone (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
 - **Fora:** murchar (702.80) espera a linha `marcaDanoEmCriatura` da M-297 passar de 72 horas (14/10) ou um gancho da trilha motor.
+**K-41 · Modular e transmigrar (modular 702.43, soulshift 702.46)** 🟡 (leva K-41)
+- **Valor:** os Arcbound entram com os marcadores e, ao morrer, oferecem passá-los para outra criatura artefato; os Kami de Kamigawa devolvem à mão um Espírito do cemitério. Jogam pelo texto.
+- **Aceite:** Arcbound Prototype entra 2/2 (0/0 com dois marcadores); com três marcadores ao morrer, o Tóptero recebe os três; Torii Watchward morre e o único alvo legal é o Kami of Empty Graves (Espírito de valor 4): volta para a mão; o Urso (não Espírito) fica.
+- **Toca ponto comum:** nenhum novo (entrada com marcadores e restrição de alvo pelas funções da trilha: `entraComPalavrasK`, `alvoPermitidoK`).
+- **Testes:** `keywords.cr4.unit` (2, falham sem a leva), `combat.audit` (1 cenário). Texto oficial: Arcbound Prototype, Torii Watchward, Kami of Empty Graves (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
+- **Parcial declarado:** "Modular—Sunburst" (o motor não guarda as cores gastas).
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.
