@@ -14853,6 +14853,9 @@ const __m42 = (function () {
     [/^~ connives$/i, () => [{ do: 'connive', amount: 1 }]], // LT9 · 701.50
     [new RegExp(`^~ deals ${N} damage to each creature without flying$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'each-nonflying-creature' }]], // LT10
     [/^damage can't be prevented this turn$/i, () => [{ do: 'no_prevention' }]], // LT10 · 615.12
+    [/^return an? (permanent|land|creature) you control to its owner's hand$/i, m => [{ do: 'return_chosen', target: 'self', ...(m[1].toLowerCase() !== 'permanent' ? { filter: { types: [m[1].toLowerCase()] } } : {}) }]], // LT12
+    [new RegExp(`^~ deals ${N} damage to that (artifact|creature|permanent|enchantment)'s controller$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'target-controller' }]], // LT12
+    [new RegExp(`^~ deals ${N} damage to each opponent and each creature and planeswalker they control$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'each-opponent' }, { do: 'damage', amount: num(m[1]), target: 'each-opponent-creature-planeswalker' }]], // LT12
     [new RegExp(`^~ deals ${N} damage to each creature with flying$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'each-flying-creature' }]], // LT9
     [/^venture into the dungeon$/i, () => [{ do: 'venture' }]], // LT9 · 701.49
     [/^exile two target (artifact|creature|enchantment)s$/i, m => [com({ do: 'exile' }, alvo('target ' + m[1])), com({ do: 'exile' }, alvo('target ' + m[1]))]], // LT9
@@ -14919,6 +14922,7 @@ const __m42 = (function () {
   /** "Enchanted creature gets +2/+0 and has trample." / "Enchanted creature has flying." / "… has protection from black and from red." */
   function concessao(l) {
     if (/^enchanted creature doesn't untap during its controller's untap step$/i.test(l)) return { naoDesvira: true }; // CR2g.6 · 502.3
+    if (/^enchanted land has "\{T\}: Add one mana of any color\.?"$/i.test(l)) return { produces: [['W'], ['U'], ['B'], ['R'], ['G']] }; // LT12
     let m = l.match(/^enchanted creature gets ([+-]\d+)\/([+-]\d+) for each (.+?)(?: and has ([a-z ,]+))?$/i);
     if (m) { const per = contagem(m[3]); if (!per) return null; const kws = m[4] ? m[4].split(/,\s*|\s+and\s+/).map(x => x.trim().toLowerCase()) : []; if (kws.some(k => !KW.has(k))) return null; return { perPower: SINAL(m[1]), perToughness: SINAL(m[2]), per, ...(kws.length ? { keywords: kws } : {}) }; } // LT5
     m = l.match(/^(?:enchanted|equipped) (?:creature|permanent|land) gets ([+-]\d+)\/([+-]\d+)(?: and has ([a-z ,]+))?$/i);
@@ -14963,12 +14967,15 @@ const __m42 = (function () {
     const cab = linha.slice(0, i), resto = linha.slice(i + 2).replace(/\.$/, '');
     const g = GATILHOS.find(([re]) => re.test(cab)); if (!g) return null;
     const extra = g[2] ? g[2](cab.match(g[0])) : {}; // LT10 · filtro e "de qualquer jogador" da abertura
-    const opcional = /^you may /i.test(resto);
-    const corpo = resto.replace(/^you may /i, '').replace(/^it /i, '~ ');
+    let resto2 = resto, condicao = null;
+    const se = resto2.match(/^if you control another creature named ~, (.+)$/i); // LT12 · 603.4 "if" intermediário (Faerie Miscreant)
+    if (se) { condicao = { controlsOtherNamed: true }; resto2 = se[1]; }
+    const opcional = /^you may /i.test(resto2);
+    const corpo = resto2.replace(/^you may /i, '').replace(/^it /i, '~ ');
     const sub = [];
     const e = leParagrafo(corpo, nome, sub);
     frases.push({ texto: cab, lida: true }, ...sub);
-    return e ? { kind: 'triggered', when: g[1], ...extra, ...(opcional ? { optional: true } : {}), effects: e } : null;
+    return e ? { kind: 'triggered', when: g[1], ...extra, ...(condicao ? { condition: condicao } : {}), ...(opcional ? { optional: true } : {}), effects: e } : null;
   }
   const semLembrete = t => String(t || '').replace(/\s*\([^)]*\)/g, '').trim();
   const KW = new Set(SC.KEYWORDS.map(k => k.toLowerCase()));

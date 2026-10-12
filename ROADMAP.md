@@ -3718,6 +3718,10 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Leitor:** "It can't be regenerated." depois de um "destroy" vira a mesma destruição sem regeneração; a concordância passa a comparar `semRegenerar`. O erro do script à mão apareceu na lista de cartas "a uma frase de serem lidas" do leitor.
 - **Teste:** `terminate.regenerar.unit` (2 testes; o primeiro falha no motor anterior).
 
+**M-318 · LT11 · Leitor de texto: 118 cartas lidas por inteiro** ✅ (leva M-318, motor v110 sem mudança de jogo) — eram 112 (113 com o Terminate da M-317), zero divergência.
+- **Valor:** o leitor passa a entender "return a permanent/land/creature you control to its owner's hand", dano "to that artifact's controller", "each opponent and each creature and planeswalker they control", o "if" intermediário "if you control another creature named ~" (condição do gatilho, 603.4) e a Aura de terreno 'Enchanted land has "{T}: Add one mana of any color."'.
+- **Teste:** piso da concordância 118.
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
