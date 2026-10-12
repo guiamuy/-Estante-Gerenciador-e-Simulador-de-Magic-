@@ -3847,6 +3847,10 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Achado da revisão, corrigido com teste antes:** o atacante tirado do combate no passo de golpe primeiro (regenerou) ainda recebia o dano do bloqueador no passo normal (506.4 / 510.1d) — agora não recebe; vale para qualquer atacante que sai do combate.
 - **Script:** `entersTappedUnless.minOutrasTerras` e `.minBasicos`.
 - **Teste:** `lt23.unit` (6 testes, falham no motor anterior); `--confere` com 401 aprovadas.
+**M-341 · LT24 · "Exile target nonland permanent an opponent controls until ~ leaves", "power N or less", "if you controlled that permanent", ciclar pagando vida e "creature, enchantment, or planeswalker" — revisão por lote XV (13 cartas)** ✅ (leva M-341, motor v110 sem mudança de forma; goldens intactos).
+- **Valor:** frases únicas que travavam cartas do catálogo (medidas por cópias em listas): Banishing Light, Cast Out, Conclave Tribunal, Leyline Binding e Meteor Golem (alvo só do oponente, 610.3 até sair do campo); Goblin Tunneler, Access Tunnel e Escape Tunnel ("criatura com poder 2 ou menos"); Boomerang Basics e Geistwave ("se você controlava a permanente, compre", 608.2h); Street Wraith ("Ciclar — pague 2 de vida", 119.4); Get Lost (criatura, encantamento ou planeswalker; o controlador cria dois Mapas); Desolate Mire. Um revisor independente aprovou 13 de 13 (172 conferências), sem desvio de motor.
+- **Script:** `cycling.life`, `targetPowerMax`, `onlyIf: 'alvo-era-seu'`; seletor `{de:'opponent'}` com `targetNotLand` lido pelo leitor.
+- **Teste:** `lt24.unit` (5 testes, falham no motor anterior); `--confere` com 414 aprovadas.
 
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.

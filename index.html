@@ -5551,7 +5551,7 @@ const CHOICE_EFFECTS = ['topo_ou_fundo_do_dono', 'untap_chosen', 'discard_or_sac
 /** S47 · condição do próprio efeito, olhando o que foi pago como custo. */
 /** M-249 · 122.1 · marcadores nomeados em português (o tipo é a chave em `counters`). */
 const MARCADOR_PT = { p1p1: '+1/+1', oil: 'de óleo', depletion: 'de esgotamento', charge: 'de carga', age: 'de idade', loyalty: 'de lealdade', time: 'de tempo', lore: 'de saga', poison: 'de veneno' };
-const ONLY_IF = ['discarded-nonland', 'source-entered-earlier', 'paid-additional', 'kicked', 'not-attacked', 'metalcraft', 'cast-from-graveyard'];
+const ONLY_IF = ['discarded-nonland', 'source-entered-earlier', 'paid-additional', 'kicked', 'not-attacked', 'metalcraft', 'cast-from-graveyard', 'alvo-era-seu'];
 /** S16 · custos que substituem o custo de mana, e o custo do lampejo do passado. */
 const ALT_COST_PARTS = ['mana', 'life', 'discard', 'returnLand', 'exileGraveyard', 'tapOther', 'sacrificeOther', 'discardSubtype', 'exileHandColor', 'free']; // CR2c.4 · Ilha entre as descartadas (Foil), exilar carta da cor da mão (Snapback), de graça (Mogg Salvage)
 /** S48 · fuga: conjura do cemitério pagando o custo, e a carta fica em jogo. */
@@ -5944,7 +5944,7 @@ function validateScript(sc) {
   const errs = [];
   if (!sc || typeof sc.name !== 'string' || !sc.name.trim()) errs.push('script sem nome');
   const abilities = (sc && sc.abilities) || [];
-  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || sc.staticRule || sc.cumulativeUpkeep || sc.affinity || sc.storm || sc.changeling || sc.bestow || sc.bargain || sc.soulbond || sc.evidence || sc.escape || sc.discount || sc.reduzPor || sc.morph || sc.sneak || sc.entersTapped || sc.entersTappedUnless || sc.grantsAll || (sc.continuo || []).length || (sc.substitui || []).length || (sc.entra || []).length || sc.armaduraTotem || (sc.dano || []).length || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length || sc.semEfeito || sc.permiteConjurar || (sc.regraJogador || []).length || sc.entraComoCopia))) return errs.concat('script sem efeitos');
+  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || sc.staticRule || sc.cumulativeUpkeep || sc.affinity || sc.storm || sc.changeling || sc.bestow || sc.bargain || sc.soulbond || sc.evidence || sc.escape || sc.discount || sc.reduzPor || sc.cycling || sc.morph || sc.sneak || sc.entersTapped || sc.entersTappedUnless || sc.grantsAll || (sc.continuo || []).length || (sc.substitui || []).length || (sc.entra || []).length || sc.armaduraTotem || (sc.dano || []).length || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length || sc.semEfeito || sc.permiteConjurar || (sc.regraJogador || []).length || sc.entraComoCopia))) return errs.concat('script sem efeitos');
   // M-246 · carta cujo texto não muda nada na mesa de dois jogadores ("each other opponent"): o motivo é obrigatório e exclui efeitos
   if (sc && sc.semEfeito != null && (typeof sc.semEfeito !== 'string' || !sc.semEfeito.trim() || (sc.effects || []).length || abilities.length)) errs.push('"semEfeito" precisa do motivo e não convive com efeitos ou habilidades');
   // M9 · habilidades da permanente
@@ -6048,7 +6048,7 @@ function validateScript(sc) {
   if (sc && (sc.disturb || sc.omen) && !sc.back) errs.push('disturb ou presságio sem face de trás');
   if (sc && sc.disturb && !sc.disturb.mana) errs.push('disturb sem custo');
   if (sc && sc.omen && !sc.omen.mana) errs.push('presságio sem custo');
-  if (sc && sc.cycling && !sc.cycling.mana) errs.push('ciclar sem custo');
+  if (sc && sc.cycling && !sc.cycling.mana && !(Number.isInteger(sc.cycling.life) && sc.cycling.life > 0)) errs.push('ciclar sem custo'); // M-341 · também "Cycling—Pay N life"
   if (sc && sc.transmute && !sc.transmute.mana) errs.push('transmutar sem custo');
   if (sc && sc.unearth != null && !(sc.unearth && typeof sc.unearth.mana === 'string')) errs.push('desenterrar sem custo'); // M-257 · 702.84
   if (sc && sc.backup != null && !(Number.isInteger(sc.backup) && sc.backup > 0)) errs.push('reforço precisa de um número inteiro'); // M-260 · 702.165
@@ -8251,6 +8251,20 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Dreamroot Cascade': { texto: '1pep1ve', leva: 'M-340' },
   'Sanguine Guard': { texto: 'a49z0i', leva: 'M-340' },
   'Hollow Dogs': { texto: '1uwuufq', leva: 'M-340' },
+  // M-341 · revisão por lote XV (exílio até sair, alvo com poder máximo, se você controlava, ciclar pagando vida), revisor independente com 172 verificações: 13 de 13 aprovadas
+  'Boomerang Basics': { texto: '1hrcltv', leva: 'M-341' },
+  'Street Wraith': { texto: '92f8wl', leva: 'M-341' },
+  'Get Lost': { texto: '1cdf8yn', leva: 'M-341' },
+  'Escape Tunnel': { texto: 'f2jxct', leva: 'M-341' },
+  'Meteor Golem': { texto: 'ytu2ot', leva: 'M-341' },
+  'Banishing Light': { texto: '1f30f8v', leva: 'M-341' },
+  'Leyline Binding': { texto: '16vgqiw', leva: 'M-341' },
+  'Desolate Mire': { texto: '96mj0s', leva: 'M-341' },
+  'Cast Out': { texto: '13dgk6z', leva: 'M-341' },
+  'Conclave Tribunal': { texto: 's0iyz4', leva: 'M-341' },
+  'Goblin Tunneler': { texto: '1lclffl', leva: 'M-341' },
+  'Access Tunnel': { texto: '1ud207l', leva: 'M-341' },
+  'Geistwave': { texto: '1hrcltv', leva: 'M-341' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -15454,6 +15468,7 @@ const __m42 = (function () {
   const N = '(a|an|one|two|three|four|five|six|seven|eight|nine|ten|\\d+)';
   const num = t => (/^\d+$/.test(t) ? +t : NUMEROS[String(t).toLowerCase()]);
   const CORES = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
+  const SC_ALVEJA = e => !!e && (typeof e.target === 'object' || /creature|permanent|artifact|enchantment|land|planeswalker|spell/.test(String(e.target || ''))); // M-341
   const COR_NOME_PT = { white: 'branca', blue: 'azul', black: 'preta', red: 'vermelha', green: 'verde' }; // M-338
   // "target X" → alvo do vocabulário; o que não está aqui fica não lido (o validador também confere o alvo de cada verbo)
   const ALVOS = {
@@ -15475,6 +15490,8 @@ const __m42 = (function () {
     if (k === 'target nonland permanent') return { target: 'permanent', targetNotLand: true }; // LT13
     if (k === 'target nonbasic land') return { target: 'land', targetNotBasic: true }; // M-335 · Wasteland
     if (k === 'target creature or planeswalker') return { target: { tipos: ['creature', 'planeswalker'] } }; // M-337 · seletor (Erode, Sear)
+    if (k === 'target nonland permanent an opponent controls') return { target: { de: 'opponent' }, targetNotLand: true }; // M-341 · Banishing Light, Cast Out
+    if (k === 'target creature, enchantment, or planeswalker') return { target: { tipos: ['creature', 'enchantment', 'planeswalker'] } }; // M-341 · Get Lost
     if (k === 'target instant or sorcery spell') return { target: 'spell', targetTypes: ['instant', 'sorcery'] }; // LT13
     return null;
   }
@@ -15542,6 +15559,7 @@ const __m42 = (function () {
     [/^destroy target creature with total power and toughness (\d+) or less$/i, m => [{ do: 'destroy', target: 'creature', targetPTTotalMax: +m[1] }]], // M-331 · Cut Down
     [/^exile that creature$/i, () => [{ do: 'exile', target: 'first-target' }]], // M-331 · "Tap target creature. … exile that creature." (Dispatch)
     [/^destroy (target [a-z ']+)$/i, m => [com({ do: 'destroy' }, alvo(m[1]))]],
+    [/^destroy (target creature, enchantment, or planeswalker)$/i, m => [com({ do: 'destroy' }, alvo(m[1]))]], // M-341 · Get Lost
     [/^exile (target [a-z ']+) until ~ leaves the battlefield$/i, m => [com({ do: 'exile', ate: 'fonte-sair' }, alvo(m[1]))]], // CR2d.1 · 610.3
     [/^exile (target [a-z ']+)$/i, m => [com({ do: 'exile' }, alvo(m[1]))]],
     [/^counter (target [a-z ']+) unless its controller pays (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => [com({ do: 'counter', unless: { mana: m[2] } }, alvo(m[1]))]],
@@ -15593,6 +15611,7 @@ const __m42 = (function () {
     [/^(target player|target opponent) sacrifices an? (creature|artifact|enchantment|planeswalker)(?: of their choice)?$/i, m => [{ do: 'edict', types: [m[2].toLowerCase()], target: m[1].toLowerCase() === 'target player' ? 'player' : 'opponent' }]], // M-337 · 701.21a (Diabolic Edict, Gatekeeper of Malakir)
     [/^each player sacrifices an? (creature|artifact|enchantment|planeswalker)(?: of their choice)?$/i, m => [{ do: 'sacrifice_each', types: [m[1].toLowerCase()] }]], // M-337 · 701.21a (a mesma forma dos scripts à mão: Benalish Sleeper)
     [/^each opponent sacrifices an? (creature|artifact|enchantment|planeswalker)(?: of their choice)?$/i, m => [{ do: 'sacrificar', tipos: [m[1].toLowerCase()], jogadores: 'cada-oponente' }]], // M-337 · 701.21a
+    [/^target creature with power (\d+) or less can't be blocked this turn$/i, m => [{ do: 'imbloqueavel', target: 'creature', targetPowerMax: +m[1] }]], // M-341 · Goblin Tunneler, Access Tunnel
     [/^target creature can't be blocked this turn$/i, () => [{ do: 'imbloqueavel', target: 'creature' }]], // M-336 · Rogue's Passage
     [new RegExp(`^you lose ${N} life$`, 'i'), m => [{ do: 'lose', amount: num(m[1]) }]], // M-335 · Thoughtseize (sem alvo: quem controla perde, como nos scripts à mão)
     [/^exile up to one other target creature$/i, () => [{ do: 'exile', target: { tipos: ['creature'], outra: true }, upTo: true }]], // M-338 · Solitude
@@ -15630,6 +15649,7 @@ const __m42 = (function () {
     [new RegExp(`^escape—(\\{[^}]+\\}(?:\\{[^}]+\\})*), exile ${N} other cards from your graveyard$`, 'i'), m => ({ escape: { mana: m[1], exileGraveyard: num(m[2]) } })], // LT10 · 702.138
     [/^as an additional cost to cast this spell, sacrifice an artifact or creature$/i, () => ({ additional: { sacrificeOther: { types: ['artifact', 'creature'] } } })], // LT10 · 601.2b
     [/^as an additional cost to cast this spell, sacrifice an? (land|creature|artifact|enchantment)$/i, m => ({ additional: { sacrificeOther: { types: [m[1].toLowerCase()] } } })], // M-334 · LT18 · 601.2b (Crop Rotation)
+    [/^cycling—pay (\d+) life$/i, m => ({ cycling: { life: +m[1] } })], // M-341 · Street Wraith
     [/^kicker (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ kicker: { mana: m[1] } })], // M-337 · 702.33 (o motor reforça desde a S-série)
     [/^splice onto arcane (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ splice: { subtipo: 'Arcane', mana: m[1] } })], // M-334 · LT18 · 702.47 (o motor encaixa desde a M-273)
     [/^(?:evoke|dash|spectacle|surge) (?:\{[0-9WUBRGC]+\})+$/i, () => ({})], // (o motor lê da carta)
@@ -15805,6 +15825,7 @@ const __m42 = (function () {
     let ok = true;
     for (const p of partes) {
       if (/^if that spell is countered this way, exile it instead of putting it into its owner's graveyard$/i.test(p) && efeitos.length && efeitos[efeitos.length - 1].do === 'counter') { efeitos[efeitos.length - 1].exila = true; frases.push({ texto: p, lida: true }); continue; } // M-338 · Force of Negation
+      if (/^if you controlled that permanent, draw a card$/i.test(p) && efeitos.length && SC_ALVEJA(efeitos[efeitos.length - 1])) { efeitos.push({ do: 'draw', amount: 1, onlyIf: 'alvo-era-seu' }); frases.push({ texto: p, lida: true }); continue; } // M-341 · Boomerang Basics
       const ik = p.match(new RegExp(`^if this spell was kicked, (?:it|~) deals ${N} damage(?: to that (?:creature|player|permanent|planeswalker))? instead$`, 'i')); // M-337 · 702.33d · Burst Lightning
       if (ik && efeitos.length && efeitos[efeitos.length - 1].do === 'damage' && Number.isInteger(efeitos[efeitos.length - 1].amount)) { const ult = efeitos[efeitos.length - 1]; ult.amount = { per: 'se', se: 'kicked', sim: num(ik[1]), nao: ult.amount }; frases.push({ texto: p, lida: true }); continue; }
       const ig = p.match(new RegExp(`^if this spell was cast from a graveyard, draw ${N} cards instead$`, 'i')); // M-331 · Plunder the Trollshaws
@@ -18123,6 +18144,7 @@ function targetAllowed(s, eff, tgt, src) {
   const f = s.facts[o.name] || {};
   if (eff.targetNotLegendary && portadorLendarioV(s, o)) return false; // V-25 · 701.54c (1) (Toca ponto comum: targetAllowed)
   if (eff.targetNotLegendary && f.legendary) return false;
+  if (eff.targetPowerMax != null && !(o.zone === 'battlefield' && isCreature(s, o) && power(s, o) <= eff.targetPowerMax)) return false; // M-341 · "target creature with power N or less"
   if (eff.targetNotBasic && /^\s*basic\b/i.test((o.zone === 'battlefield' ? linhaDeTipo(s, o) : f.typeText) || '')) return false; // M-335 · "target nonbasic land" (Wasteland)
   if (eff.targetNotFromHand && o.zone === 'stack' && o.castFrom === 'hand') return false;
   if (eff.targetSubtype && !(o.zone === 'battlefield' && (isChangeling(s, o, eff.targetSubtype) || new RegExp('\\b' + eff.targetSubtype + '\\b').test(linhaDeTipo(s, o))))) return false; // CR2d.2 · "target Assembly-Worker creature" // CR2c.4 · "that wasn't cast from its owner's hand" (Wash Away)
@@ -19696,6 +19718,7 @@ function resolveScript(s, o, events) {
     if (eff.__modo != null && eff.__modo !== modoAtual) { modoAtual = eff.__modo; firstTarget = null; donoDoPrimeiro = null; } // CR 700.2d · cada modo é uma frase própria
     // Q10 · a retomada leva o alvo junto: "perde 1 de vida" depois de devolver o comandante era cobrado de quem conjurou
     if (s.pending) { s.resume = { oid: o.oid, name: o.name, controller: o.controller, effects: effects.slice(idx), alvo: firstTarget, alvos: chosen.slice(ti) }; return; }
+    if (eff.onlyIf === 'alvo-era-seu' && donoDoPrimeiro !== o.controller) continue; // M-341 · "If you controlled that permanent" (608.2h: o controlador de antes do efeito)
     if (!effectAllowed(s, o, eff)) continue; // S47/S49 · condição do próprio efeito
     if (SC.isTargeted(eff)) {
       const tgt = chosen[ti]; const ok = stillLegal[ti]; ti++;
@@ -21266,7 +21289,7 @@ const HANDLERS = {
     const o = owns(s, a.p, a.oid, 'hand');
     const cy = (s.facts[o.name].script || {}).cycling;
     if (!cy) throw new RuleError('ciclar', 'esta carta não tem ciclar');
-    if (s.manaCheck && !a.free) payCost(s, a.p, parseCost(cy.mana));
+    if (s.manaCheck && !a.free) { if (cy.mana) payCost(s, a.p, parseCost(cy.mana)); if (cy.life) { if (s.players[a.p].life < cy.life) throw new RuleError('custo', 'vida insuficiente'); perdeVida(s, a.p, cy.life); } } // M-341 · 119.4: paga vida só quem tem
     const madness = madnessOf(s, o);
     if (madness) { moveObject(s, o.oid, 'exile'); s.pendingAfterMadness = null; s.pending = { kind: 'madness', p: a.p, oid: o.oid, cost: madness.mana }; }
     else moveObject(s, o.oid, 'graveyard');
@@ -21778,7 +21801,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
   // S22 · ciclar, da mão, a qualquer momento com prioridade
   for (const oid of s.zones[p].hand) {
     const cy = (s.facts[s.objects[oid].name].script || {}).cycling;
-    if (cy && (!s.manaCheck || canPay(s, p, parseCost(cy.mana)))) out.push({ t: 'cycle', p, oid });
+    if (cy && (!s.manaCheck || ((!cy.mana || canPay(s, p, parseCost(cy.mana))) && (!cy.life || s.players[p].life >= cy.life)))) out.push({ t: 'cycle', p, oid }); // M-341 · ciclar pagando vida
   }
   // S18 · ninjutsu, depois dos bloqueadores · S54 · esgueirar-se pelo mesmo caminho
   for (const oid of s.zones[p].hand) {
@@ -22081,6 +22104,7 @@ function resolveAbility(s, o, events) {
   let ti = 0, primeiro = null, donoDoPrimeiro = null, primeiroVazio = false; // M-327 · 608.2h: o controlador do alvo é o de antes do efeito
   const fonte = s.objects[o.source];
   for (const eff of o.effects || []) {
+    if (eff.onlyIf === 'alvo-era-seu' && donoDoPrimeiro !== o.controller) continue; // M-341
     if (!effectAllowed(s, fonte, eff)) continue; // S49 · condição do próprio efeito
     if (SC.isTargeted(eff)) { const t = chosen[ti]; const legal = ok[ti]; ti++; if (ti === 1 && t == null && eff.upTo) primeiroVazio = true; if (!primeiro) { primeiro = t; donoDoPrimeiro = t && t.oid != null && s.objects[t.oid] ? s.objects[t.oid].controller : null; } if (legal) applyEffect(s, o, eff, t, events); }
     else if (eff.target === 'target-controller') { if (primeiroVazio) continue; const t = primeiro; applyEffect(s, o, eff, { player: t && t.player != null ? t.player : donoDoPrimeiro != null ? donoDoPrimeiro : o.controller }, events); } // M-327 · "its controller" também em habilidade (Ghost Quarter: quem busca é o dono do terreno destruído; antes era quem ativou)
@@ -29729,7 +29753,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       legal.push(doBtn(`Transmutar · ${(f.script.transmute || {}).mana || ''}`, tm));
     // S22: ciclar
     for (const cy of E.legalActions(s, v).filter(x => x.t === 'cycle' && x.oid === oid))
-      legal.push(doBtn(`Ciclar · ${(f.script.cycling || {}).mana || ''}`, cy));
+      legal.push(doBtn(`Ciclar · ${(f.script.cycling || {}).mana || ((f.script.cycling || {}).life ? `pagar ${(f.script.cycling || {}).life} de vida` : '')}`, cy)); // M-341
     // S18: ninjutsu, trocando um atacante sem bloqueio
     for (const nj of E.legalActions(s, v).filter(x => x.t === 'ninjutsu' && x.oid === oid))
       legal.push(doBtn(`${nj.sneak ? 'Esgueirar-se' : 'Ninjutsu'} · ${((nj.sneak ? f.script.sneak : f.script.ninjutsu) || {}).mana || ''} → devolve ${s.objects[nj.attacker].name}`, nj, { variant: 'primary' })); // R6 · esgueirar-se (Leonardo) saía como "Ninjutsu · " sem custo // Leva 131 · diz o custo e o que acontece com o atacante
