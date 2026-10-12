@@ -4096,6 +4096,11 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Testes:** `keywords.cr4.unit` (2, falham sem a leva). Goldens idênticos; motor v109.
 - **Parcial declarado (702.19):** só as duas pontas (as divisões do meio não são oferecidas, como na CR2g.2); o letal não desconta o dano de outra atacante no mesmo bloqueador; atropelar sobre planeswalkers.
 
+**K-20 · Iniciativa e golpe duplo entre os dois passos de dano (702.7c, 702.4c-d): conferência** 🟡 (leva K-20)
+- **Valor:** o mapa dizia que ganhar ou perder iniciativa ou golpe duplo entre os passos de dano não era rastreado; os testes mostram que o caminho da CR2g.3 (M-286) já faz certo. 702.4 e 702.7 passam a cobertas, com prova.
+- **Aceite:** com a mudança feita na janela de prioridade entre o dano de iniciativa e o normal: quem ganha iniciativa ainda causa no segundo passo; quem perde depois de causar não causa de novo; quem perde golpe duplo não causa o segundo; quem tem iniciativa e ganha golpe duplo causa o segundo.
+- **Sem mudança no motor.** **Testes:** `keywords.cr4.unit` (2; passam antes e depois — a leva corrige a declaração do mapa, não o comportamento). Goldens idênticos; motor v109.
+
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

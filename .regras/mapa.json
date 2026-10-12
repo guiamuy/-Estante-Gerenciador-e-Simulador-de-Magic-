@@ -6697,9 +6697,8 @@
    "n": "702.4",
    "regra": "Keyword Abilities",
    "titulo": "Double Strike",
-   "status": "parcial",
-   "evidencia": "dealCombatDamage (index.html:10773-10776) faz duas passadas e o golpe duplo causa dano nas duas (marca struck); combat.audit K7; sondas sonda-702a.mjs: 2/2 livre tira 4, golpe duplo+atropelar 3/3 x 2/2 tira 4, golpe duplo+vínculo ganha 4 · M-286 (CR2g.3): golpe duplo causa dano nos dois passos, com prioridade entre eles (702.4b)",
-   "falta": "702.4c-d (ganhar ou perder golpe duplo entre os passos) não é rastreado",
+   "status": "coberta",
+   "evidencia": "dealCombatDamage (index.html:10773-10776) faz duas passadas e o golpe duplo causa dano nas duas (marca struck); combat.audit K7; sondas sonda-702a.mjs: 2/2 livre tira 4, golpe duplo+atropelar 3/3 x 2/2 tira 4, golpe duplo+vínculo ganha 4 · M-286 (CR2g.3): golpe duplo causa dano nos dois passos, com prioridade entre eles (702.4b) K-20: ganhar ou perder a palavra-chave entre os dois passos (702.4c-d, 702.7c) já sai certo do caminho da CR2g.3 (causaNestePasso: no segundo passo causa quem tem golpe duplo agora ou quem ainda não causou, marca struck) — provado por teste com a mudança feita na janela de prioridade entre os passos; a falta antiga estava desatualizada.",
    "esforco": "M",
    "depende": [
     "510.4"
@@ -6708,7 +6707,8 @@
    "testes": [
     "CR2g.3 · 510.4: golpe duplo — o primeiro dano sai, o gatilho dele vai para a pilha e há prioridade antes do segundo dano",
     "CR2g.3 · sem iniciativa nem golpe duplo, há um passo de dano só (o combate de sempre)",
-    "CR2g.3 · a prévia do combate continua mostrando os dois passos de dano"
+    "CR2g.3 · a prévia do combate continua mostrando os dois passos de dano",
+    "CR 702.4c-d · perder o golpe duplo no primeiro passo tira o segundo dano; ganhar golpe duplo (com iniciativa) depois do primeiro dá o segundo"
    ]
   },
   {
@@ -6741,9 +6741,8 @@
    "n": "702.7",
    "regra": "Keyword Abilities",
    "titulo": "First Strike",
-   "status": "parcial",
-   "evidencia": "dealCombatDamage (index.html:10773-10776): quem tem iniciativa ou golpe duplo causa dano antes, SBA entre as passadas (10815); combat.audit K7, rules.unit M6; sondas sonda-702a.mjs: 2/2 iniciativa mata 2/2 sem levar dano; iniciativa x iniciativa trocam · M-286 (CR2g.3): janela de prioridade entre o dano de iniciativa e o normal (702.7b)",
-   "falta": "702.7c (ganhar ou perder iniciativa entre os passos) não é rastreado",
+   "status": "coberta",
+   "evidencia": "dealCombatDamage (index.html:10773-10776): quem tem iniciativa ou golpe duplo causa dano antes, SBA entre as passadas (10815); combat.audit K7, rules.unit M6; sondas sonda-702a.mjs: 2/2 iniciativa mata 2/2 sem levar dano; iniciativa x iniciativa trocam · M-286 (CR2g.3): janela de prioridade entre o dano de iniciativa e o normal (702.7b) K-20: ganhar ou perder a palavra-chave entre os dois passos (702.4c-d, 702.7c) já sai certo do caminho da CR2g.3 (causaNestePasso: no segundo passo causa quem tem golpe duplo agora ou quem ainda não causou, marca struck) — provado por teste com a mudança feita na janela de prioridade entre os passos; a falta antiga estava desatualizada.",
    "esforco": "M",
    "depende": [
     "510.4"
@@ -6752,7 +6751,8 @@
    "testes": [
     "CR2g.3 · 510.4: golpe duplo — o primeiro dano sai, o gatilho dele vai para a pilha e há prioridade antes do segundo dano",
     "CR2g.3 · sem iniciativa nem golpe duplo, há um passo de dano só (o combate de sempre)",
-    "CR2g.3 · a prévia do combate continua mostrando os dois passos de dano"
+    "CR2g.3 · a prévia do combate continua mostrando os dois passos de dano",
+    "CR 702.7c · ganhar iniciativa depois do primeiro passo não impede o dano no segundo; perder depois de causar não dá um segundo dano"
    ]
   },
   {

@@ -952,3 +952,41 @@ test('CR 702.19b · sem excedente (o atacante não passa do letal) ou sem atrope
   assert.equal(E.opcoesAtropelarUmK(s, s.objects[at], s.objects[u], 2), null, '2 contra um 2/2: nada passa');
   assert.equal(E.opcoesAtropelarUmK(s, s.objects[u], s.objects[at], 3), null, 'sem atropelar');
 });
+
+/* ---------------- K-20 · 702.7c e 702.4c-d · iniciativa e golpe duplo ganhos ou perdidos entre os dois passos de dano ---------------- */
+const NORMAL = { name: 'Normal', type_line: 'Creature — Bear', mana_cost: '{1}{G}', cmc: 2, colors: ['G'], power: '2', toughness: '2', keywords: [], oracle_text: '' };
+const RAPIDO = { name: 'Rapido', type_line: 'Creature — Bear', mana_cost: '{1}{G}', cmc: 2, colors: ['G'], power: '1', toughness: '1', keywords: ['First strike'], oracle_text: 'First strike' };
+const DUPLO = { name: 'Duplo', type_line: 'Creature — Bear', mana_cost: '{1}{G}', cmc: 2, colors: ['G'], power: '1', toughness: '1', keywords: ['Double strike'], oracle_text: 'Double strike' };
+/** Ataca sem bloqueio com `atacantes`, para na janela entre o dano de iniciativa e o normal, aplica `muda` e vai até o fim do combate. */
+function entrePassos(s, atacantes, muda) {
+  const a = s.turn.active;
+  for (let i = 0; i < 6 && s.turn.step !== 'combat_attackers'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  s = act(s, { t: 'attack', p: a, attackers: atacantes });
+  for (let i = 0; i < 20 && !(s.turn.step === 'combat_damage' && ((s.combat || {}).passosFeitos || []).length === 1); i++) s = s.pending ? act(s, E.legalActions(s, s.pending.p)[0]) : act(s, { t: 'pass', p: s.turn.priority });
+  assert.deepEqual(J(s.combat.passosFeitos), ['first'], 'parou entre os passos');
+  s = J(s); muda(s);
+  for (let i = 0; i < 20 && s.turn.step !== 'main2'; i++) s = s.pending ? act(s, E.legalActions(s, s.pending.p)[0]) : act(s, { t: 'pass', p: s.turn.priority });
+  return s;
+}
+const ganha = (s, o, k) => { o.tempKeywords = [...(o.tempKeywords || []), k]; o.tempTs = [...(o.tempTs || []), 1e9]; };
+const perde = (s, o, k) => { o.temporarios = [...(o.temporarios || []), { perde: [k], ts: 1e9 }]; };
+
+test('CR 702.7c · ganhar iniciativa depois do primeiro passo não impede o dano no segundo; perder depois de causar não dá um segundo dano', () => {
+  let s = partida({ Normal: NORMAL, Rapido: RAPIDO }); const a = s.turn.active, d = 1 - a;
+  let n, r; [s, n] = poe(s, a, 'Normal'); [s, r] = poe(s, a, 'Rapido');
+  const v = s.players[d].life;
+  const g = entrePassos(s, [n, r], t => ganha(t, t.objects[n], 'first strike'));
+  assert.equal(g.players[d].life, v - 3, 'o Normal ganhou iniciativa entre os passos e ainda causa os 2 dele');
+  const p = entrePassos(s, [n, r], t => perde(t, t.objects[r], 'first strike'));
+  assert.equal(p.players[d].life, v - 3, 'o Rápido perdeu a iniciativa depois de causar: não causa de novo');
+});
+
+test('CR 702.4c-d · perder o golpe duplo no primeiro passo tira o segundo dano; ganhar golpe duplo (com iniciativa) depois do primeiro dá o segundo', () => {
+  let s = partida({ Duplo: DUPLO, Rapido: RAPIDO }); const a = s.turn.active, d = 1 - a;
+  let du, r; [s, du] = poe(s, a, 'Duplo'); [s, r] = poe(s, a, 'Rapido');
+  const v = s.players[d].life;
+  const sem = entrePassos(s, [du], t => perde(t, t.objects[du], 'double strike'));
+  assert.equal(sem.players[d].life, v - 1, '702.4c: só o primeiro dano');
+  const com = entrePassos(s, [r], t => ganha(t, t.objects[r], 'double strike'));
+  assert.equal(com.players[d].life, v - 2, '702.4d: o Rápido ganhou golpe duplo e causa no segundo passo também');
+});
