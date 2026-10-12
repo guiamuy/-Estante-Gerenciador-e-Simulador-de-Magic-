@@ -3827,6 +3827,11 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Script:** bônus de anexo `naoAtaca` / `naoBloqueia`; `entersTappedUnless.maxOutrasTerras`; efeito `imbloqueavel` (até a limpeza; objeto novo não carrega, 400.7).
 - **Observação da revisão (comportamento antigo, fora do escopo):** `legalActions` lista só a primeira opção de mana de um terreno de duas cores; a mesa oferece as duas e `apply` aceita ambas.
 - **Teste:** `lt19.unit` (6 testes, falham no leitor anterior); `--confere` com 313 aprovadas.
+**M-337 · LT20 · "Criatura ou planeswalker", reforço e éditos lidos pelo leitor — revisão por lote XI (20 cartas)** ✅ (leva M-337, motor v110 sem mudança de forma; goldens intactos).
+- **Valor:** "target creature or planeswalker" (seletor: Erode, Hero's Downfall, Dreadbore, Vraska's Contempt, Sear), "Kicker {…}" com "If this spell was kicked, it deals N damage [to that creature] instead" (Burst Lightning, Firebending Lesson) e "When ~ enters, if it was kicked, …" (Gatekeeper of Malakir, Josu Vess), e os éditos "Target player/opponent sacrifices a creature" (Diabolic Edict, Chainer's Edict, Cruel Edict) e "Each player / each opponent sacrifices a creature" (Fleshbag Marauder, Merciless Executioner, Innocent Blood, Butcher of Malakir); mais Unholy Strength, Altar's Reap, Bituminous Blast e Blood Pet. Um revisor independente aprovou as 20. Cópias das listas do catálogo que jogam: Standard 27,2% → 30,1%, Pioneer 32,4% → 33,8%.
+- **Achado da revisão, corrigido com teste antes:** conjurada sem pagar o custo de mana (cascata, Covil do Mago Louco), a mágica não oferecia o reforço e, numa ação montada à mão, aceitava `kick` sem cobrar — 118.9d: o reforço é custo adicional e é pago; agora é oferecido quando há mana e recusado sem ela.
+- **Script:** quantidade `{ per: 'se', se: 'kicked' }`; teste de concordância passa a comparar `kicker`, `splice` e `reduzPor`.
+- **Teste:** `lt20.unit` (7 testes, falham no leitor anterior); `--confere` com 333 aprovadas.
 
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.

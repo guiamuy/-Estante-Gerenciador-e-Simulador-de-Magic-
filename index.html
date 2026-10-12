@@ -5900,7 +5900,7 @@ const REDUZ_POR = ['instants-sorceries-in-your-graveyard', 'creature-cards-in-yo
   'creatures-attacked-this-turn', 'creatures-you-attacked-with-this-turn'];
 /** S19 · um valor pode ser um número ou uma contagem do campo. */
 const isCount = v => v && typeof v === 'object' && (typeof v.per === 'string' || typeof v.subtype === 'string');
-const valueErrors = (v, label) => isCount(v) ? (v.per === 'se' && !(['metalcraft', 'cast-from-graveyard'].includes(v.se) && Number.isInteger(v.sim) && Number.isInteger(v.nao)) ? [`${label}: "se" precisa da condição (metalcraft, cast-from-graveyard) e dos valores sim/não`] : v.subtype || PER_COUNTS.includes(v.per) ? [] : [`${label}: contagem "${v.per}" desconhecida`]) // M-331
+const valueErrors = (v, label) => isCount(v) ? (v.per === 'se' && !(['metalcraft', 'cast-from-graveyard', 'kicked'].includes(v.se) && Number.isInteger(v.sim) && Number.isInteger(v.nao)) ? [`${label}: "se" precisa da condição (metalcraft, cast-from-graveyard, kicked) e dos valores sim/não`] : v.subtype || PER_COUNTS.includes(v.per) ? [] : [`${label}: contagem "${v.per}" desconhecida`]) // M-331
   : (Number.isInteger(v) ? [] : [`${label}: precisa ser inteiro ou contagem`]);
 /** S11b · evasão estática e escolhas feitas quando a permanente entra. */
 const EVASIONS = ['flying-only', 'power-less'];
@@ -8127,6 +8127,27 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Spirebluff Canal': { texto: 'lcem6x', leva: 'M-336' },
   'Razorverge Thicket': { texto: '1b6b8i6', leva: 'M-336' },
   'Darkslick Shores': { texto: 'lceytl', leva: 'M-336' },
+  // M-337 · revisão por lote XI (criatura ou planeswalker, reforço, éditos), revisor independente com sondas: 20 de 20 aprovadas
+  'Erode': { texto: '1lv5wgf', leva: 'M-337' },
+  'Burst Lightning': { texto: 'lf8gve', leva: 'M-337' },
+  'Fleshbag Marauder': { texto: '1q5cw1k', leva: 'M-337' },
+  'Butcher of Malakir': { texto: '1pxoxx2', leva: 'M-337' },
+  'Firebending Lesson': { texto: '12g22en', leva: 'M-337' },
+  'Sear': { texto: 't5f5lu', leva: 'M-337' },
+  'Hero\'s Downfall': { texto: 'lj68x1', leva: 'M-337' },
+  'Unholy Strength': { texto: 'rtiavd', leva: 'M-337' },
+  'Altar\'s Reap': { texto: '12x9r7q', leva: 'M-337' },
+  'Bituminous Blast': { texto: 'sy97z8', leva: 'M-337' },
+  'Blood Pet': { texto: 'csjzwp', leva: 'M-337' },
+  'Diabolic Edict': { texto: '16r5px7', leva: 'M-337' },
+  'Chainer\'s Edict': { texto: '3m02l5', leva: 'M-337' },
+  'Gatekeeper of Malakir': { texto: 'g1tdx', leva: 'M-337' },
+  'Dreadbore': { texto: 'lj68x1', leva: 'M-337' },
+  'Vraska\'s Contempt': { texto: 'zzckzm', leva: 'M-337' },
+  'Cruel Edict': { texto: '12g5y6x', leva: 'M-337' },
+  'Innocent Blood': { texto: 'vfzqpx', leva: 'M-337' },
+  'Merciless Executioner': { texto: '1q5cw1k', leva: 'M-337' },
+  'Josu Vess, Lich Knight': { texto: '116n3y7', leva: 'M-337' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -15336,6 +15357,7 @@ const __m42 = (function () {
     m = k.match(/^target non(white|blue|black|red|green) creature$/); if (m) return { target: 'creature', targetNotColor: CORES[m[1]] };
     if (k === 'target nonland permanent') return { target: 'permanent', targetNotLand: true }; // LT13
     if (k === 'target nonbasic land') return { target: 'land', targetNotBasic: true }; // M-335 · Wasteland
+    if (k === 'target creature or planeswalker') return { target: { tipos: ['creature', 'planeswalker'] } }; // M-337 · seletor (Erode, Sear)
     if (k === 'target instant or sorcery spell') return { target: 'spell', targetTypes: ['instant', 'sorcery'] }; // LT13
     return null;
   }
@@ -15451,6 +15473,9 @@ const __m42 = (function () {
     [new RegExp(`^~ deals ${N} damage to each opponent and each creature and planeswalker they control$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'each-opponent' }, { do: 'damage', amount: num(m[1]), target: 'each-opponent-creature-planeswalker' }]], // LT12
     [new RegExp(`^~ deals ${N} damage to each creature with flying$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'each-flying-creature' }]], // LT9
     [/^venture into the dungeon$/i, () => [{ do: 'venture' }]], // LT9 · 701.49
+    [/^(target player|target opponent) sacrifices an? (creature|artifact|enchantment|planeswalker)(?: of their choice)?$/i, m => [{ do: 'edict', types: [m[2].toLowerCase()], target: m[1].toLowerCase() === 'target player' ? 'player' : 'opponent' }]], // M-337 · 701.21a (Diabolic Edict, Gatekeeper of Malakir)
+    [/^each player sacrifices an? (creature|artifact|enchantment|planeswalker)(?: of their choice)?$/i, m => [{ do: 'sacrifice_each', types: [m[1].toLowerCase()] }]], // M-337 · 701.21a (a mesma forma dos scripts à mão: Benalish Sleeper)
+    [/^each opponent sacrifices an? (creature|artifact|enchantment|planeswalker)(?: of their choice)?$/i, m => [{ do: 'sacrificar', tipos: [m[1].toLowerCase()], jogadores: 'cada-oponente' }]], // M-337 · 701.21a
     [/^target creature can't be blocked this turn$/i, () => [{ do: 'imbloqueavel', target: 'creature' }]], // M-336 · Rogue's Passage
     [new RegExp(`^you lose ${N} life$`, 'i'), m => [{ do: 'lose', amount: num(m[1]) }]], // M-335 · Thoughtseize (sem alvo: quem controla perde, como nos scripts à mão)
     [/^its controller gains life equal to its power$/i, () => [{ do: 'gain', amount: { per: 'power-of-target' }, target: 'target-controller' }]], // M-335 · Swords to Plowshares (608.2h: o poder como era no campo)
@@ -15483,6 +15508,7 @@ const __m42 = (function () {
     [new RegExp(`^escape—(\\{[^}]+\\}(?:\\{[^}]+\\})*), exile ${N} other cards from your graveyard$`, 'i'), m => ({ escape: { mana: m[1], exileGraveyard: num(m[2]) } })], // LT10 · 702.138
     [/^as an additional cost to cast this spell, sacrifice an artifact or creature$/i, () => ({ additional: { sacrificeOther: { types: ['artifact', 'creature'] } } })], // LT10 · 601.2b
     [/^as an additional cost to cast this spell, sacrifice an? (land|creature|artifact|enchantment)$/i, m => ({ additional: { sacrificeOther: { types: [m[1].toLowerCase()] } } })], // M-334 · LT18 · 601.2b (Crop Rotation)
+    [/^kicker (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ kicker: { mana: m[1] } })], // M-337 · 702.33 (o motor reforça desde a S-série)
     [/^splice onto arcane (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ splice: { subtipo: 'Arcane', mana: m[1] } })], // M-334 · LT18 · 702.47 (o motor encaixa desde a M-273)
     [/^(?:evoke|dash|spectacle|surge) (?:\{[0-9WUBRGC]+\})+$/i, () => ({})] // M-334 · LT18 · 702.74 / 702.109 / 702.137 / 702.117: o motor lê a linha impressa da carta (K-8, K-9, K-32)
   ];
@@ -15601,7 +15627,9 @@ const __m42 = (function () {
     if (se) { condicao = { controlsOtherNamed: true }; resto2 = se[1]; }
     const sv = !se && resto2.match(/^if you have (\d+) or more life, (.+)$/i); // M-325 · CR2h.6 · 603.4
     if (sv) { condicao = { vidaPeloMenos: +sv[1] }; resto2 = sv[2]; }
-    const sm = !se && !sv && resto2.match(/^if there are (\d+) or more ([a-z]+) counters on (?:~|this [a-z]+), (.+)$/i); // M-325
+    const sk = !se && !sv && resto2.match(/^if (?:it|~) was kicked, (.+)$/i); // M-337 · 702.33d · "When ~ enters, if it was kicked, …" (Goblin Bushwhacker)
+    if (sk) { condicao = { kicked: true }; resto2 = sk[1]; }
+    const sm = !se && !sv && !sk && resto2.match(/^if there are (\d+) or more ([a-z]+) counters on (?:~|this [a-z]+), (.+)$/i); // M-325
     if (sm) { condicao = { marcadoresNaFonte: { tipo: sm[2].toLowerCase(), n: +sm[1] } }; resto2 = sm[3]; }
     const opcional = /^you may /i.test(resto2);
     let corpo = resto2.replace(/^you may /i, '').replace(/^it /i, '~ ');
@@ -15645,6 +15673,8 @@ const __m42 = (function () {
     const partes = texto.replace(/, then shuffle and put that card on top(\.?)$/i, ', put that card on top of your library, then shuffle$1').split(/\.\s+|,\s+then\s+|\.$/).map(x => x.replace(/\.$/, '').trim()).filter(Boolean);
     let ok = true;
     for (const p of partes) {
+      const ik = p.match(new RegExp(`^if this spell was kicked, (?:it|~) deals ${N} damage(?: to that (?:creature|player|permanent|planeswalker))? instead$`, 'i')); // M-337 · 702.33d · Burst Lightning
+      if (ik && efeitos.length && efeitos[efeitos.length - 1].do === 'damage' && Number.isInteger(efeitos[efeitos.length - 1].amount)) { const ult = efeitos[efeitos.length - 1]; ult.amount = { per: 'se', se: 'kicked', sim: num(ik[1]), nao: ult.amount }; frases.push({ texto: p, lida: true }); continue; }
       const ig = p.match(new RegExp(`^if this spell was cast from a graveyard, draw ${N} cards instead$`, 'i')); // M-331 · Plunder the Trollshaws
       if (ig && efeitos.length && efeitos[efeitos.length - 1].do === 'draw' && Number.isInteger(efeitos[efeitos.length - 1].amount)) { const ult = efeitos[efeitos.length - 1]; ult.amount = { per: 'se', se: 'cast-from-graveyard', sim: num(ig[1]), nao: ult.amount }; frases.push({ texto: p, lida: true }); continue; }
       if (/^it can't be regenerated$/i.test(p) && efeitos.length && efeitos[efeitos.length - 1].do === 'destroy') { efeitos[efeitos.length - 1].semRegenerar = true; frases.push({ texto: p, lida: true }); continue; } // M-317 · 701.19c
@@ -17986,6 +18016,7 @@ function condicaoDoEfeito(s, fonte, k) {
   if (!fonte) return false;
   if (k === 'metalcraft') return battlefield(s).filter(x => x.controller === fonte.controller && tiposDe(s, x).includes('artifact')).length >= 3;
   if (k === 'cast-from-graveyard') return fonte.castFrom === 'graveyard';
+  if (k === 'kicked') return !!fonte.kicked; // M-337 · 702.33d · "If this spell was kicked, it deals 4 damage instead" (Burst Lightning)
   return false;
 }
 function effectAllowed(s, fonte, eff) {
@@ -20504,6 +20535,7 @@ const HANDLERS = {
     if (a.recompraK) pagaRecompraK(s, a, o, alt); // K-33 · 702.27a: o custo de recompra, 601.2b/601.2f–h (Toca ponto comum: HANDLERS.cast)
     if (alt && alt.emergirK) pagaEmergirK(s, a, o, alt); // K-47 · 702.119a: o custo de emergir menos o valor de mana da sacrificada (Toca ponto comum: HANDLERS.cast)
     if (a.mode != null && ((((f.script || {}).modes) || [])[a.mode] || {}).entrelacarK) pagaEntrelacarK(s, a, o, alt); // K-34 · 702.42a: o custo de entrelaçar (Toca ponto comum: HANDLERS.cast)
+    if (a.kick && reforco && s.manaCheck && a.free) payCost(s, a.p, somaCusto(parseCost('{0}'), parseCost(reforco.mana), a.kick)); // M-337 · 118.9d: conjurada sem pagar (cascata, Covil), o reforço é custo adicional e é pago — antes era de graça
     if (a.retrace) { // M-222 · 702.81a: "discarding a land card in addition to paying its other costs"
       const l = a.pay && a.pay.retrace, lo = l && s.objects[l];
       if (!lo || !s.zones[a.p].hand.includes(l) || !(s.facts[lo.name].types || []).includes('land')) throw new RuleError('custo', 'descarte um terreno da mão para retraçar');
@@ -21305,16 +21337,18 @@ function legalActions(s, p, { adjudication = false } = {}) {
         const modos = (fc.script && fc.script.modes) || [];
         const listas = modos.length ? modos.map((m, i) => ({ need: (m.effects || []).filter(SC.isTargeted), mode: i }))
           : [{ need: ((fc.script && fc.script.effects) || []).filter(SC.isTargeted), mode: null }];
+        const rfK = fc.script && fc.script.kicker, kickOk = !!rfK && (!s.manaCheck || canPay(s, p, parseCost(rfK.mana))); // M-337 · 118.9d: o reforço também na conjuração sem pagar
+        const pushK = x => { out.push(x); if (kickOk) out.push({ ...x, kick: 1 }); };
         for (const { need, mode } of listas) {
           const base = mode == null ? { t: 'cast_free', p, oid } : { t: 'cast_free', p, oid, mode };
-          if (!need.length) { out.push(base); continue; }
+          if (!need.length) { pushK(base); continue; }
           let combos = [[]];
           for (const eff of need) {
             const opts = limitaAlvos(legalTargets(s, p, eff.target, oid, eff.targetColor).filter(x => targetAllowed(s, eff, x)), need.length);
             if (!opts.length) { combos = []; break; }
             combos = addTarget(combos, opts);
           }
-          combos.forEach(targets => out.push({ ...base, targets }));
+          combos.forEach(targets => pushK({ ...base, targets }));
         }
       }
     }
@@ -26778,7 +26812,7 @@ const ALVO_PT = { 'each-opponent-creature': 'cada criatura dos oponentes', 'each
 ALVO_PT['that-player'] = 'quem controla a mágica que disparou'; // M-322 · CR2b.9 (Bonecrusher Giant: "that spell's controller"); o portão R9b pegou a frase em inglês
 const PALAVRA_PT = { infect: 'infectar', indestructible: 'indestrutível', hexproof: 'resistência a magia', flying: 'voar', haste: 'ímpeto', trample: 'atropelar', lifelink: 'vínculo com a vida', deathtouch: 'toque mortífero', vigilance: 'vigilância', reach: 'alcance', menace: 'ameaçar', 'first strike': 'iniciativa', 'double strike': 'golpe duplo',
   fear: 'medo', intimidate: 'intimidar', shadow: 'sombra', skulk: 'esgueirar', islandwalk: 'travessia de ilha', swampwalk: 'travessia de pântano', forestwalk: 'travessia de floresta', mountainwalk: 'travessia de montanha', plainswalk: 'travessia de planície' };
-const qtd = v => (typeof v === 'number' ? v : (v && v.per === 'se') ? `${v.nao} (${v.sim} ${({ metalcraft: 'com três artefatos ou mais', 'cast-from-graveyard': 'se veio do cemitério' })[v.se] || 'com a condição'})` : (v && v.per) ? 'X' : 1); // M-331
+const qtd = v => (typeof v === 'number' ? v : (v && v.per === 'se') ? `${v.nao} (${v.sim} ${({ metalcraft: 'com três artefatos ou mais', 'cast-from-graveyard': 'se veio do cemitério', kicked: 'com reforço' })[v.se] || 'com a condição'})` : (v && v.per) ? 'X' : 1); // M-331
 const IGUAL_A = { 'life-lost-this-turn': 'à vida que você perdeu neste turno', 'life-gained-this-turn': 'à vida que você ganhou neste turno', 'power-of-source': 'ao poder dela', 'power-of-target': 'ao poder do alvo' }; // M-248 · CR2b.10
 const plural = (n, um, muitos) => (n === 1 ? `${n} ${um}` : `${n} ${muitos}`);
 /** Uma frase por efeito. O que o dicionário não conhece vira o nome do efeito, nunca some. */
