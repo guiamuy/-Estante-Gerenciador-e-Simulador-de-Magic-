@@ -7953,6 +7953,22 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Prophetic Prism': { texto: '1b0flcg', leva: 'M-328' },
   'Foreboding Landscape': { texto: 't8mrk5', leva: 'M-328' },
   'Tendrils of Agony': { texto: '1ddity3', leva: 'M-328' },
+  // M-329 · lote 3: fetchlands e Mana Confluence (custo "Pay 1 life"), revisor independente com sondas
+  'Flooded Strand': { texto: 'xznlkh', leva: 'M-329' },
+  'Polluted Delta': { texto: 'ip5qy6', leva: 'M-329' },
+  'Scalding Tarn': { texto: 'dm70fx', leva: 'M-329' },
+  'Misty Rainforest': { texto: '1st2675', leva: 'M-329' },
+  'Arid Mesa': { texto: 'di3non', leva: 'M-329' },
+  'Marsh Flats': { texto: '1312qlw', leva: 'M-329' },
+  'Verdant Catacombs': { texto: '77ub50', leva: 'M-329' },
+  'Bloodstained Mire': { texto: '1dr6c6u', leva: 'M-329' },
+  'Wooded Foothills': { texto: '1tsioqf', leva: 'M-329' },
+  'Windswept Heath': { texto: '114e8ad', leva: 'M-329' },
+  'Mana Confluence': { texto: 'w8fkk', leva: 'M-329' },
+  'Prismatic Vista': { texto: '13yr291', leva: 'M-329' },
+  'Selesnya Signet': { texto: '1ygups9', leva: 'M-329' },
+  'Meandering River': { texto: '1yxs0h4', leva: 'M-329' },
+  'Woodland Stream': { texto: '13s4fs', leva: 'M-329' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -15346,13 +15362,14 @@ const __m42 = (function () {
       else if (/^sacrifice a creature$/i.test(parte)) cost.sacrificeOther = { types: ['creature'], ...(/\bcreature\b/i.test(tipoAtual) ? { includeSelf: true } : {}) }; // LT13 · Phyrexian Tower · M-327: a criatura com esse custo pode se sacrificar (Viscera Seer)
       else if (/^sacrifice another creature$/i.test(parte)) cost.sacrificeOther = { types: ['creature'], outra: true };
       else if (/^discard a card$/i.test(parte)) cost.discard = 1;
+      else if (/^pay (\d+) life$/i.test(parte)) cost.life = +parte.match(/\d+/)[0]; // M-329 · 119.4 · fetchlands ("{T}, Pay 1 life, Sacrifice ~")
       else return null;
     }
     return Object.keys(cost).length ? cost : null;
   }
   /** Uma linha de habilidade ativada ("custo: efeito. Activate only as a sorcery.") → { ab, frases } ou null. */
   function leAtivada(linha, nome, frases) {
-    const m = linha.match(/^((?:(?:\{[^}]+\})+|Sacrifice [^:,]+|Discard a card)(?:,\s*(?:(?:\{[^}]+\})+|Sacrifice [^:,]+|Discard a card))*): (.+)$/i); // LT9 · {2}{U} seguidos
+    const m = linha.match(/^((?:(?:\{[^}]+\})+|Sacrifice [^:,]+|Discard a card|Pay \d+ life)(?:,\s*(?:(?:\{[^}]+\})+|Sacrifice [^:,]+|Discard a card|Pay \d+ life))*): (.+)$/i); // M-329 · também "Pay N life" // LT9 · {2}{U} seguidos
     if (!m) { frases.push({ texto: linha, lida: false, motivo: 'habilidade ativada sem padrão conhecido' }); return null; }
     const cost = leCusto(m[1].replace(new RegExp(escapa(nome), 'g'), '~')); if (!cost) { frases.push({ texto: linha, lida: false, motivo: 'custo de ativação sem padrão conhecido' }); return null; }
     let corpo = m[2].replace(/\.$/, ''); const extra = {};
