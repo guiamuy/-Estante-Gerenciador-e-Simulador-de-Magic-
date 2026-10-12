@@ -1352,3 +1352,70 @@ test('CR 702.117a · surto (Comparative Analysis, texto oficial): o custo {2}{U}
   const mao = s.zones[a].hand.length; s = resolve(act(s, of.find(x => x.targets[0].player === a)));
   assert.equal(s.zones[a].hand.length, mao - 1 + 2, 'comprou duas');
 });
+
+/* ---------------- K-33 · recompra 702.27 ---------------- */
+/** Põe n terrenos `nome` do grimório no campo de p (desvirados). */
+/** comMana com oito de cada terreno básico no grimório. */
+function comManaK33(cards, scripts = {}) {
+  const all = { Forest: terra('Forest'), Island: terra('Island'), ...cards };
+  const deck = Object.keys(all).map(name => ({ name, qty: /^(Forest|Island)$/.test(name) ? 8 : 4, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 7, mode: 'assisted', manaCheck: true, cards: all, scripts, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  s = J(s); for (let p = 0; p < 2; p++) { s.zones[p].library.push(...s.zones[p].hand.splice(0)); for (const x of s.zones[p].library) s.objects[x].zone = 'library'; }
+  return s;
+}
+const battlefieldDe = (s, p) => s.zones[p].battlefield.map(x => s.objects[x]);
+function terrenos(s, p, nome, n) { for (let i = 0; i < n; i++) [s] = poe(s, p, nome); return s; }
+const ALVO_K33 = { name: 'Alvo', type_line: 'Artifact', mana_cost: '{1}', cmc: 1, colors: [], keywords: [], oracle_text: '' };
+
+test('CR 702.27a · recompra (Capsize, texto oficial): "Buyback {3}" é custo adicional opcional; pago, a mágica volta para a mão do dono ao resolver; sem pagar, cemitério', () => {
+  assert.deepEqual(J(E.recompraImpressaK(oficial('Capsize'))), { mana: '{3}' });
+  let s = comManaK33({ Capsize: oficial('Capsize'), Alvo: ALVO_K33 }); const a = s.turn.active, d = 1 - a;
+  s = terrenos(s, a, 'Island', 5); let c, al; [s, c] = poe(s, a, 'Capsize', 'hand'); [s, al] = poe(s, d, 'Alvo');
+  const ofertas = st => E.legalActions(st, a).filter(x => x.t === 'cast' && x.oid === c);
+  assert.ok(ofertas(s).length && !ofertas(s).some(x => x.recompraK), 'com cinco terrenos, {1}{U}{U} + {3} não fecha: só o custo normal');
+  s = terrenos(s, a, 'Island', 1);
+  const comR = ofertas(s).find(x => x.recompraK && x.targets[0].oid === al); assert.ok(comR, 'com seis: a conjuração com recompra');
+  assert.ok(ofertas(s).some(x => !x.recompraK && x.targets[0].oid === al), 'e a sem recompra continua oferecida (é opcional)');
+  let t = act(s, comR);
+  assert.equal(battlefieldDe(t, a).filter(x => x.tapped).length, 6, 'pagou {1}{U}{U} e mais {3}');
+  t = resolve(t);
+  assert.equal(t.objects[al].zone, 'hand', 'devolveu o alvo'); assert.equal(t.objects[c].zone, 'hand', 'a Capsize volta para a mão do dono');
+  assert.ok(!t.objects[c].recompraK, 'a marca não sobrevive à mudança de zona (400.7)');
+  const sem = resolve(act(s, ofertas(s).find(x => !x.recompraK && x.targets[0].oid === al)));
+  assert.equal(sem.objects[c].zone, 'graveyard', 'sem recompra: cemitério');
+});
+
+test('CR 702.27a · a recompra só vale "as it resolves": com o alvo ilegal a mágica não resolve (608.2b) e vai para o cemitério; anulada também', () => {
+  let s = comManaK33({ Capsize: oficial('Capsize'), Alvo: ALVO_K33 }); const a = s.turn.active, d = 1 - a;
+  s = terrenos(s, a, 'Island', 6); let c, al; [s, c] = poe(s, a, 'Capsize', 'hand'); [s, al] = poe(s, d, 'Alvo');
+  s = act(s, E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === c && x.recompraK && x.targets[0].oid === al));
+  let t = J(s); const z = t.zones[d].battlefield; z.splice(z.indexOf(al), 1); t.zones[d].graveyard.push(al); t.objects[al].zone = 'graveyard';
+  t = resolve(t);
+  assert.equal(t.objects[c].zone, 'graveyard', 'sem alvo legal não resolve: cemitério, não a mão');
+  let u = J(s); u.mode = 'assisted'; u = act(u, { t: 'move', p: a, oid: c, to: 'graveyard' });
+  assert.equal(u.objects[c].zone, 'graveyard');
+});
+
+test('CR 702.27a · recompra com custo que não é mana (Constant Mists, texto oficial: "Buyback—Sacrifice a land"): uma oferta por terreno; o escolhido é sacrificado e a carta volta para a mão', () => {
+  assert.deepEqual(J(E.recompraImpressaK(oficial('Constant Mists'))), { extra: { sacrificeOther: { types: ['land'] } } });
+  let s = comManaK33({ 'Constant Mists': oficial('Constant Mists') }); const a = s.turn.active;
+  s = terrenos(s, a, 'Forest', 2); s = terrenos(s, a, 'Island', 1); let c; [s, c] = poe(s, a, 'Constant Mists', 'hand');
+  const comR = E.legalActions(s, a).filter(x => x.t === 'cast' && x.oid === c && x.recompraK);
+  assert.equal(comR.length, 3, 'qualquer um dos três terrenos pode ser o sacrificado (quem paga escolhe)');
+  const ilha = s.zones[a].battlefield.find(x => s.objects[x].name === 'Island');
+  const esc = comR.find(x => x.pay.recompraK.sacrifice === ilha || [].concat(x.pay.recompraK.sacrifice).includes(ilha)); assert.ok(esc, 'oferta que sacrifica a Ilha');
+  let t = resolve(act(s, esc));
+  assert.equal(t.objects[ilha].zone, 'graveyard', 'a Ilha foi o custo');
+  assert.equal(t.objects[c].zone, 'hand', 'Constant Mists volta para a mão'); assert.equal(t.fogged, true);
+});
+
+test('CR 702.27a · carta sem a palavra não tem recompra (o motor recusa a ação)', () => {
+  let s = comManaK33({ Capsize: oficial('Capsize'), Alvo: ALVO_K33 }); const a = s.turn.active, d = 1 - a;
+  s = terrenos(s, a, 'Island', 6); let c, al; [s, c] = poe(s, a, 'Capsize', 'hand'); [s, al] = poe(s, d, 'Alvo');
+  const base = E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === c && !x.recompraK);
+  let s2 = partida({ Raio: RAIO }, SC_RAIO); let r; [s2, r] = poe(s2, s2.turn.active, 'Raio', 'hand');
+  assert.throws(() => E.apply(s2, { t: 'cast', p: s2.turn.active, oid: r, targets: [{ player: 1 - s2.turn.active }], recompraK: true }), /recompra/);
+  assert.ok(base);
+});

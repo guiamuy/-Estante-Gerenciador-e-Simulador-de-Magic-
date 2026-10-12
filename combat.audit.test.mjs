@@ -587,6 +587,21 @@ test('K-32 · espetáculo e surto (702.137, 702.117): depois do Urso passar, a c
   const sur = E.legalActions(s, a).find(x => x.oid === su && x.alt != null); assert.ok(sur, 'já conjurou outra mágica: surto');
 });
 
+test('K-33 · recompra (702.27): a névoa com recompra sacrificando um terreno impede o dano do Urso e volta para a mão; sem recompra, cemitério', () => {
+  cobre('buyback');
+  const cartas = { ...CARDS, Brumas: { name: 'Brumas', type_line: 'Instant', mana_cost: '{1}{G}', cmc: 2, colors: ['G'], keywords: ['Buyback'], oracle_text: 'Buyback—Sacrifice a land.\nPrevent all combat damage that would be dealt this turn.' } };
+  const scripts = { ...SCRIPTS, Brumas: { name: 'Brumas', effects: [{ do: 'fog' }], example: { target: 'none', expect: { fogged: true } } } };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 57, mode: 'assisted', manaCheck: false, cards: cartas, scripts, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a; let u, br, pl; [s, u] = poe(s, a, 'Urso'); [s, pl] = poe(s, a, 'Plains'); [s, br] = poe(s, a, 'Brumas', { zone: 'hand' });
+  const comR = E.legalActions(s, a).find(x => x.oid === br && x.recompraK); assert.ok(comR, 'com um terreno no campo: a recompra é oferecida');
+  let t = act(s, comR); for (let i = 0; i < 4 && t.stack.length; i++) t = act(t, { t: 'pass', p: t.turn.priority });
+  assert.equal(t.objects[br].zone, 'hand'); assert.equal(t.objects[pl].zone, 'graveyard', 'o terreno pagou a recompra');
+  assert.equal(combate(t, [u]).players[d].life, 20, 'dano de combate prevenido');
+  let v = act(s, E.legalActions(s, a).find(x => x.oid === br && !x.recompraK)); for (let i = 0; i < 4 && v.stack.length; i++) v = act(v, { t: 'pass', p: v.turn.priority });
+  assert.equal(v.objects[br].zone, 'graveyard'); assert.equal(v.objects[pl].zone, 'battlefield');
+});
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));

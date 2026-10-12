@@ -7065,13 +7065,20 @@
    "n": "702.27",
    "regra": "Keyword Abilities",
    "titulo": "Buyback",
-   "status": "ausente",
-   "falta": "Sem custo adicional opcional que devolve a mágica à mão ao resolver (702.27a)",
+   "status": "parcial",
+   "falta": "A variante com recompra não é oferecida junto de custo alternativo, convocar/improvisar, phyrexiano pago com vida ou lampejo do passado (o motor aceita a ação; só não a oferece); a mesa mostra as duas conjurações com o mesmo rótulo (pedido à mesa: \" · com recompra {custo}\"); com redução de custo por alvo no campo (filtro OTIMISTA, M-259) as ofertas da âncora ↓ K não aparecem (pedido à trilha motor). Recompra com mana e custo extra na mesma linha não é lida.",
    "esforco": "P",
    "depende": [
     "601.2b custo adicional opcional"
    ],
-   "cartas": "rara"
+   "cartas": "rara",
+   "evidencia": "K-33: \"Buyback {custo}\" e \"Buyback—<custo>\" (sacrificar terreno/criatura/artefato/encantamento, descartar N, pagar N de vida) lidos da linha (recompraImpressaK). legalActions oferece, ao lado de cada conjuração pelo custo normal, a variante com recompra (ofertasRecompraK; custo extra: uma ação por forma de pagar). HANDLERS.cast: o mana soma ao custo total no caminho normal (custoTapadoK, reduções valem sobre a soma, 601.2f) e é pago à parte com custo alternativo (pagaRecompraK); a marca recompraK fica na mágica (MARCAS_DA_CONJURACAO). resolveTop: ao resolver, vai para a mão do dono em vez do cemitério (recompraAoResolverK); anulada ou sem alvo legal (608.2b), cemitério; com lampejo do passado, exílio (702.34a). Capsize, Whispers of the Muse e Constant Mists em RAW_SCRIPTS (S8).",
+   "testes": [
+    "CR 702.27a · recompra (Capsize, texto oficial): \"Buyback {3}\" é custo adicional opcional; pago, a mágica volta para a mão do dono ao resolver; sem pagar, cemitério",
+    "CR 702.27a · a recompra só vale \"as it resolves\": com o alvo ilegal a mágica não resolve (608.2b) e vai para o cemitério; anulada também",
+    "CR 702.27a · recompra com custo que não é mana (Constant Mists, texto oficial: \"Buyback—Sacrifice a land\"): uma oferta por terreno; o escolhido é sacrificado e a carta volta para a mão",
+    "K-33 · recompra (702.27): a névoa com recompra sacrificando um terreno impede o dano do Urso e volta para a mão; sem recompra, cemitério"
+   ]
   },
   {
    "n": "702.28",

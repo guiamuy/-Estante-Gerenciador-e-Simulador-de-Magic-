@@ -5215,6 +5215,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'protection', // K-17 · 702.16: a qualidade vem da linha "Protection from …" (cores, tipos, subtipos, multicolorido, tudo); a palavra sozinha não protege
   'convoke', 'improvise', // K-13 · 702.51 e 702.126: virar criaturas (artefatos) para pagar parte do custo total (tapaParaPagarK)
   'spectacle', 'surge', // K-32 · 702.137 e 702.117: custo alternativo impresso com condição (altsImpressosK, condicaoDoAltK)
+  'buyback', // K-33 · 702.27: custo adicional opcional lido da linha (recompraImpressaK); pago, a mágica volta para a mão ao resolver
   'afflict', 'melee', 'mentor', 'training', // K-31 · 702.130, 702.121, 702.134, 702.149: gatilhos de ataque gerados pela palavra, um por instância
   'battle cry', 'rampage', 'flanking', 'bushido', // K-30 · 702.91, 702.23, 702.25, 702.45: gatilhos de combate gerados pela palavra (GATILHOS_DE_PALAVRA_K), um por instância
   /* ↓ V · palavras-chave da trilha verbos */
@@ -6395,6 +6396,9 @@ const RAW_SCRIPTS = [
   { name: 'Radical Idea', effects: [{ do: 'draw', amount: 1 }], example: { target: 'none', expect: { handDelta: 1 } } }, // "Draw a card. / Jump-start"
   { name: 'Skewer the Critics', effects: [{ do: 'damage', amount: 3, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: -3 } } }, // K-32 · "Spectacle {R} / deals 3 damage to any target"
   { name: 'Comparative Analysis', effects: [{ do: 'draw', amount: 2, target: 'player' }], example: { target: 'self-player', expect: { handDelta: 2 } } }, // K-32 · "Surge {2}{U} / Target player draws two cards"
+  { name: 'Capsize', effects: [{ do: 'bounce', target: 'permanent' }], example: { target: 'enemy-creature', expect: { bounced: true } } }, // K-33 · "Buyback {3} / Return target permanent to its owner's hand."
+  { name: 'Whispers of the Muse', effects: [{ do: 'draw', amount: 1 }], example: { target: 'none', expect: { handDelta: 1 } } }, // K-33 · "Buyback {5} / Draw a card."
+  { name: 'Constant Mists', effects: [{ do: 'fog' }], example: { target: 'none', expect: { fogged: true } } }, // K-33 · "Buyback—Sacrifice a land. / Prevent all combat damage that would be dealt this turn." 
   /* ↓ V · scripts de carta da trilha verbos (texto oficial em .listas/oficiais-verbos.json) */
   // V-28 · 701.66 terrabender
   { name: 'Earthbending Lesson', effects: [{ do: 'earthbend', amount: 4, target: 'land-you-control' }], // "Earthbend 4."
@@ -8163,6 +8167,7 @@ function palavraNaLinhaK(k) {
   if (k === 'shroud') return 'shroud|you have shroud\\.?'; // K-26 · 702.18a: "You have shroud."
   if (k === 'protection') { const q = '(?:white|blue|black|red|green|everything|multicolored|monocolored|colorless|all colors|creatures|artifacts|enchantments|instants|sorceries|planeswalkers|lands|' + Object.keys(protecaoNaoCriaturaSCK()).join('|') + '|' + pluraisDeCriaturaSCK() + ')'; return `protection from ${q}(?: and from ${q})*`; } // K-24 · sem palavra solta: só fichas, subtipos que se anexam e tipos de criatura // K-17 · só as qualidades que o motor confere (protecaoImpressa e protecaoQualidadesK)
   if (k === 'spectacle' || k === 'surge') return `${k}\\s+(?:\\{[0-9WUBRGC]+\\})+`; // K-32
+  if (k === 'buyback') return 'buyback(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*(?:sacrifice an? (?:land|creature|artifact|enchantment)|discard (?:a|one|two|three) cards?|pay \\d+ life)\\.?)'; // K-33 · só as formas que recompraImpressaK lê
   if (k === 'dash') return 'dash\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-9
   if (k === 'evoke') return 'evoke(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*exile an? (?:white|blue|black|red|green) card from your hand\\.?)'; // K-8 · só as formas que o motor paga
   return ['afterlife', 'rampage', 'bushido', 'afflict'].includes(k) ? `${k} \\d+` : k; // K-30 · alvoroço N e bushido N
@@ -15808,6 +15813,7 @@ function cardFacts(card) {
     recomecarK: recomecarImpressoK(card), // K-10 · 702.133: linha "Jump-start" (undefined quando não tem)
     arremeterK: arremeterImpressoK(card), // K-9 · 702.109: "Dash {1}{R}" (undefined quando não tem)
     espetaculoK: custoDaLinhaK(card, 'Spectacle'), surtoK: custoDaLinhaK(card, 'Surge'), // K-32 · 702.137 e 702.117
+    recompraK: recompraImpressaK(card), // K-33 · 702.27: "Buyback {3}" / "Buyback—Sacrifice a land." (undefined quando não tem)
     suspenderK: suspenderImpressoK(card), // K-22 · 702.62a: "Suspend N—{custo}" (undefined quando não tem)
     equipesK: equipesImpressosK(card), // K-28 · 702.6c: "Equip [qualidade] {custo}" (undefined quando não tem)
     jogadorK: jogadorImpressoK(card), // K-26 · 702.11c / 702.18a: "You have hexproof." / "You have shroud." (undefined quando não tem)
@@ -19979,6 +19985,7 @@ function resolveTop(s, events = []) {
     if (m && m.zone === 'battlefield' && s.facts[m.name]) { const exc = excecaoCopiavel(s, m, { somaTipos: f.script.entraComoCopia.somaTipos }); o.nomeImpresso = o.name; o.copias = [{ ...(exc ? { excecao: exc } : {}), nome: nomeCopiavel(s, m), ate: 'sempre', by: controller, ts: relogio(s), turno: s.turn.number }]; o.name = m.name; } }
   if (scripted && !comoCopia) resolveScript(s, o, events);
   { const av = aventuraResolveu(s, item, o, controller, events); if (av) return { kind: 'resolved', oid: item, name: av, to: (s.objects[item] || {}).zone || 'exile', scripted: true, adjudicate: false }; } // T-5 · CR 715.3d · a Aventura que resolve é exilada pelo controlador, que pode conjurar a carta de lá (função abaixo da âncora T das exportações)
+  { const rk = recompraAoResolverK(s, item, o, dest, events); if (rk) return { kind: 'resolved', oid: item, name: o.name, to: rk, scripted, adjudicate: s.mode === 'assisted' && !scripted }; } // K-33 · 702.27a (Toca ponto comum: resolveTop)
   if (s.objects[item].zone === 'stack' && o.omen) { // S24 · presságio volta embaralhado para o grimório
     moveObject(s, item, 'library');
     shuffle(s, s.zones[s.objects[item].owner].library);
@@ -20268,6 +20275,7 @@ const HANDLERS = {
         payCost(s, a.p, custoPhyrexiano(custo, a.vida), extraPago, { criaturaDoComandante: true, oid: a.oid }); perdeVida(s, a.p, 2 * a.vida);
       } else payCost(s, a.p, ...custoTapadoK(s, a, o, custo, extraPago), { criaturaDoComandante: true, oid: a.oid }); } // K-13 · convocar/improvisar (Toca ponto comum: o pagamento do custo normal) // M-273 // M-259 · a redução por alvo usa os alvos escolhidos
     if (a.kick && reforco && s.manaCheck && !a.free && (alt || a.flashback || a.escape || a.disturb || a.omen || a.bestow || a.plotted)) payCost(s, a.p, somaCusto(parseCost('{0}'), parseCost(reforco.mana), a.kick)); // CR2c.6 · 601.2f: o reforço soma ao custo alternativo
+    if (a.recompraK) pagaRecompraK(s, a, o, alt); // K-33 · 702.27a: o custo de recompra, 601.2b/601.2f–h (Toca ponto comum: HANDLERS.cast)
     if (a.retrace) { // M-222 · 702.81a: "discarding a land card in addition to paying its other costs"
       const l = a.pay && a.pay.retrace, lo = l && s.objects[l];
       if (!lo || !s.zones[a.p].hand.includes(l) || !(s.facts[lo.name].types || []).includes('land')) throw new RuleError('custo', 'descarte um terreno da mão para retraçar');
@@ -21450,6 +21458,8 @@ function legalActions(s, p, { adjudication = false } = {}) {
     return canPay(s, p, custo, castExtra(s, p, o, a.x || 0, a.targets || []));
   });
   /* ↓ K · ofertas de legalActions da trilha keywords (out.push) */
+  // K-33 · 702.27a · recompra: cada conjuração pelo custo normal ganha a variante que paga também o custo de recompra (opcional: as duas ficam)
+  ofertasRecompraK(s, p, out);
   // K-22 · 702.62a · suspender: a oferta mora em ofertasSuspenderK até a mesa ter o botão (K-24; pedido à trilha mesa)
   // K-27 · 702.49d · ninjutsu de comandante, da zona de comando (da mão, pelo caminho de sempre)
   for (const oid of s.zones[p].command) {
@@ -21870,6 +21880,7 @@ Object.assign(EXPORTS_K, { valorDaMagicaK });
    (payAlt); a marca `evocadaK` é da conjuração (MARCAS_DA_CONJURACAO): vai da pilha para o campo e some em qualquer outra mudança de zona. */
 MARCAS_DA_CONJURACAO.push('evocadaK', 'arremetidaK'); // K-9 · arremeter usa o mesmo caminho
 MARCAS_DA_CONJURACAO.push('espetaculoK', 'surtoK'); // K-32
+MARCAS_DA_CONJURACAO.push('recompraK'); // K-33 · 702.27a: some ao sair da pilha (400.7)
 const COR_DO_NOME_K = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
 const COR_PT_K = { W: 'branca', U: 'azul', B: 'preta', R: 'vermelha', G: 'verde' };
 /** O custo de evocar impresso na face da frente: { mana: '{2}{U}' } ou { exileHandColor: 'G' } ("Evoke—Exile a green card from your
@@ -22029,6 +22040,7 @@ function gruposParaTaparK(s, p, o, custo, extra) {
 }
 /** HANDLERS.cast · o custo normal a pagar com mana depois de virar o grupo escolhido (sem `tapaK`, o mesmo de antes). */
 function custoTapadoK(s, a, o, custo, extra) {
+  if (a.recompraK && (s.facts[o.name].recompraK || {}).mana) custo = somaCusto(custo, parseCost(s.facts[o.name].recompraK.mana), 1); // K-33 · 601.2f: a recompra soma ao custo total (reduções valem sobre a soma)
   if (!a.tapaK) return [custo, extra];
   const f = s.facts[o.name], g = [].concat(a.tapaK);
   if (!f.tapaK || !g.length || new Set(g).size !== g.length) throw new RuleError('custo', 'esta mágica não tem convocar nem improvisar');
@@ -22288,6 +22300,68 @@ Object.assign(EXPORTS_K, { semPalavraDoJogadorK });
    das mágicas conjuradas antes desta no turno (as conjuradas depois não são "antes dela"); a cópia leva modo, X e reforço da original. */
 function tempestadeNaPilhaK(s, a, o) { s.queued.push({ source: a.oid, name: o.name, controller: a.p, effects: [{ do: 'tempestade_k', n: s.spellsThisTurn || 0, efeitos: spellEffects(s, s.objects[a.oid]), marcas: marcasDaMagia(s.objects[a.oid]) }], when: 'storm-gatilho' }); }
 Object.assign(EXPORTS_K, { tempestadeNaPilhaK });
+/* K-33 · 702.27a recompra: "Buyback [cost]" = "You may pay an additional [cost] as you cast this spell" e "If the buyback cost was paid,
+   put this spell into its owner's hand instead of into that player's graveyard as it resolves" (601.2b, 601.2f–h). Lida da linha impressa;
+   custo de mana soma ao custo total no caminho normal (custoTapadoK: reduções e convocar valem sobre a soma); com custo alternativo é pago à
+   parte. Custo que não é mana ("Sacrifice a land", "Discard two cards", "Pay N life") vai pelo caminho dos custos extras, com a escolha em
+   `pay.recompraK`. A marca `recompraK` fica na mágica (MARCAS_DA_CONJURACAO) e só vale se ela resolver: anulada ou sem alvo legal (608.2b)
+   vai para o cemitério. Lampejo do passado ganha (exílio, 702.34a, aplicado em moveObject). */
+function extraDaFraseK(t) {
+  const x = String(t).trim().toLowerCase(), N = { a: 1, one: 1, two: 2, three: 3 };
+  let m = x.match(/^sacrifice an? (land|creature|artifact|enchantment)$/); if (m) return { sacrificeOther: { types: [m[1]] } };
+  m = x.match(/^discard (a|one|two|three) cards?$/); if (m) return { discard: N[m[1]] };
+  m = x.match(/^pay (\d+) life$/); if (m) return { pagarVida: +m[1] };
+  return undefined;
+}
+function recompraImpressaK(card) {
+  const txt = String((card && (card.oracle_text || (card.faces && card.faces[0] && card.faces[0].oracle_text))) || '');
+  for (const l0 of txt.split('\n')) {
+    const l = l0.replace(/\s*\([^)]*\)/g, '').trim();
+    let m = l.match(/^Buyback\s+((?:\{[0-9WUBRGC]+\})+)$/); if (m) return { mana: m[1] };
+    m = l.match(/^Buyback\s*[—-]\s*(.+?)\.?$/); if (m) { const extra = extraDaFraseK(m[1]); if (extra) return { extra }; }
+  }
+  return undefined;
+}
+/** HANDLERS.cast · confere e paga a recompra (a parte de mana só fora do caminho normal, onde custoTapadoK já a somou) e marca a mágica. */
+function pagaRecompraK(s, a, o, alt) {
+  const rk = s.facts[o.name].recompraK;
+  if (!rk) throw new RuleError('custo', 'esta mágica não tem recompra');
+  if (a.faceDown) throw new RuleError('custo', 'virada para baixo não tem recompra'); // 708.4
+  const viaNormal = s.manaCheck && !a.free && !alt && !a.flashback && !a.escape && !a.disturb && !a.omen && !a.bestow && !a.plotted && a.vida == null;
+  if (rk.mana && s.manaCheck && !viaNormal) payCost(s, a.p, parseCost(rk.mana));
+  if (rk.extra) {
+    if (rk.extra.pagarVida != null && s.players[a.p].life < rk.extra.pagarVida) throw new RuleError('custo', 'vida insuficiente para a recompra');
+    if (!canPayExtra(s, a.p, rk.extra, a.oid)) throw new RuleError('custo', 'não dá para pagar a recompra');
+    payExtraCosts(s, a.p, rk.extra, (a.pay || {}).recompraK, a.oid);
+  }
+  s.objects[a.oid].recompraK = true;
+}
+/** resolveTop · "as it resolves": a mágica com recompra paga vai para a mão do dono em vez do cemitério. Devolve a zona final, ou null. */
+function recompraAoResolverK(s, item, o, dest, events) {
+  const x = s.objects[item];
+  if (!x || x.zone !== 'stack' || !x.recompraK || dest !== 'graveyard' || x.copiaDeMagia || x.omen) return null;
+  if (events.some(e => e.kind === 'fizzled' && e.oid === item)) return null; // 608.2b · não resolveu
+  moveObject(s, item, 'hand'); // lampejo do passado: moveObject manda ao exílio (702.34a)
+  return (s.objects[item] || {}).zone || 'hand';
+}
+/** legalActions · a variante com recompra de cada conjuração pelo custo normal (sem custo alternativo, lampejo, conceder, convocar, vida
+    phyrexiana): a mesma conferência que HANDLERS.cast fará (custo + recompra, com as reduções); custo extra, uma ação por forma de pagar. */
+function ofertasRecompraK(s, p, out) {
+  const base = out.filter(x => x.t === 'cast' && !x.recompraK && x.alt == null && !x.flashback && !x.escape && !x.disturb && !x.omen && !x.bestow && !x.faceDown && !x.plotted && !x.free && !x.tapaK && !x.recomecarK && !x.retrace && !x.emenda && x.vida == null && x.face == null && x.permissao == null && s.objects[x.oid] && (s.facts[s.objects[x.oid].name] || {}).recompraK);
+  for (const x of base) {
+    const o = s.objects[x.oid], f = s.facts[o.name], rk = f.recompraK;
+    if (s.manaCheck && rk.mana) {
+      let custo = x.kick ? somaCusto(f.cost, parseCost(f.script.kicker.mana), x.kick) : f.cost;
+      custo = somaCusto(custo, parseCost(rk.mana), 1);
+      if (!canPay(s, p, custo, castExtra(s, p, o, x.x || 0, x.targets || []) - (x.delve || 0))) continue;
+    }
+    if (rk.extra && rk.extra.pagarVida != null && s.players[p].life < rk.extra.pagarVida) continue;
+    const usados = new Set(Object.values(x.pay || {}).flat().filter(v => typeof v === 'string'));
+    const formas = rk.extra ? pagamentosDe(s, p, rk.extra, x.oid).filter(pg => !Object.values(pg).flat().some(v => usados.has(v))) : [{}];
+    for (const pg of formas.slice(0, LIMITE_PAGAMENTOS)) out.push({ ...x, recompraK: true, ...(Object.keys(pg).length ? { pay: { ...(x.pay || {}), recompraK: pg } } : {}) });
+  }
+}
+Object.assign(EXPORTS_K, { recompraImpressaK, pagaRecompraK, recompraAoResolverK, ofertasRecompraK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-28 · 701.66 terrabender N: "Target land you control becomes a 0/0 land creature with haste in addition to its other types. Put N
    +1/+1 counters on it. When that land dies or is put into exile, return it to the battlefield tapped under your control" (a). A
@@ -25892,6 +25966,7 @@ Object.assign(PALAVRA_PT, { protection: 'proteção' }); // K-17
 Object.assign(PALAVRA_PT, { landwalk: 'travessia' }); // K-21
 Object.assign(PALAVRA_PT, { suspend: 'suspender' }); // K-22
 Object.assign(PALAVRA_PT, { spectacle: 'espetáculo', surge: 'surto' }); // K-32
+Object.assign(PALAVRA_PT, { buyback: 'recompra' }); // K-33
 Object.assign(PALAVRA_PT, { afflict: 'aflição', melee: 'refrega', mentor: 'mentor', training: 'treinamento' }); // K-31
 Object.assign(PALAVRA_PT, { 'battle cry': 'grito de guerra', rampage: 'alvoroço', flanking: 'flanquear', bushido: 'bushido' }); // K-30
 const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consultadas por descreveEfeito; antes a pilha mostrava "proeza k")

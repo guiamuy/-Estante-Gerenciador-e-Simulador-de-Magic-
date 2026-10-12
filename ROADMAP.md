@@ -4313,6 +4313,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `condicaoDoAlt` (uma linha: `condicaoDoAltK`) e a contagem por jogador das mágicas do turno (`contaMagiaK`, uma linha depois de cada `spellsThisTurn` em `HANDLERS.cast`, esgueirar-se e `cast_madness`). A contagem só é guardada numa partida com alguma carta de surto: as outras (e as partidas-referência) ficam com o estado de antes.
 - **Testes:** `keywords.cr4.unit` (2, falham sem a leva), `combat.audit` (1 cenário, cobre as duas), S8 das duas cartas. Texto oficial: Skewer the Critics, Comparative Analysis (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v109.
 
+**K-33 · Recompra (buyback, 702.27)** 🟡 (leva K-33)
+- **Valor:** "Buyback {custo}" e "Buyback—Sacrifice a land" impressos viram custo adicional opcional: ao conjurar, a mesa oferece as duas formas, e a paga com recompra volta para a mão ao resolver. Capsize, Whispers of the Muse e Constant Mists passam a ter script.
+- **Aceite:** Capsize com cinco terrenos: só o custo normal; com seis, as duas; a com recompra vira seis terrenos, devolve o alvo e volta para a mão; sem recompra vai ao cemitério; com o alvo fora do campo (não resolve, 608.2b) vai ao cemitério. Constant Mists: uma oferta por terreno, o escolhido é sacrificado e a carta volta.
+- **Toca ponto comum:** `HANDLERS.cast` (uma linha: `pagaRecompraK`) e `resolveTop` (uma linha antes do presságio: `recompraAoResolverK`). O mana da recompra soma ao custo total em `custoTapadoK` (função da trilha).
+- **Testes:** `keywords.cr4.unit` (4, falham sem a leva), `combat.audit` (1 cenário), S8 das três cartas. Texto oficial: Capsize, Whispers of the Muse, Constant Mists (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v109.
+- **Parcial declarado:** a variante com recompra não é oferecida com custo alternativo, convocar/improvisar, phyrexiano pago com vida ou lampejo (o motor aceita a ação); a mesa mostra as duas conjurações com o mesmo rótulo — **pedido à mesa:** " · com recompra {custo}" no botão quando `a.recompraK`.
+
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.
