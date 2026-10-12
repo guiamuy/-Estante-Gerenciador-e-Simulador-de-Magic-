@@ -1856,3 +1856,16 @@ test('K-45 · CR 702.105b e 702.115b · "Dethrone" e "Ingest" repetidos disparam
   s = ateODano(s, [x]);
   assert.equal(s.objects[x].counters.p1p1, 2, 'dois destronar'); assert.deepEqual(topo.map(o => s.objects[o].zone), ['exile', 'exile'], 'dois ingerir');
 });
+
+/* ---------------- K-46 · enxerto 702.58 ---------------- */
+test('CR 702.58a · enxerto (Simic Initiate, texto oficial): entra com N +1/+1; quando OUTRA criatura entra (de qualquer jogador), você pode mover um marcador dela para a que entrou; sem marcador, nada', () => {
+  const LAMPEJO = { ...URSO, name: 'Lampejo', keywords: ['Flash'], oracle_text: 'Flash' };
+  let s = partida({ 'Simic Initiate': oficial('Simic Initiate'), Urso: URSO, Lampejo: LAMPEJO }); const a = s.turn.active, d = 1 - a;
+  let i, u, uo; [s, i] = poe(s, a, 'Simic Initiate', 'hand'); [s, u] = poe(s, a, 'Urso', 'hand'); [s, uo] = poe(s, d, 'Lampejo', 'hand');
+  s = resolve(act(s, { t: 'cast', p: a, oid: i })); assert.equal(s.objects[i].counters.p1p1, 1, 'entra com um');
+  s = act(s, { t: 'cast', p: a, oid: u }); for (let k = 0; k < 10 && !(s.pending && s.pending.kind === 'may_pay') && (s.stack.length || (s.queued || []).length); k++) s = act(s, { t: 'pass', p: s.turn.priority });
+  assert.equal((s.pending || {}).kind, 'may_pay', 'você pode mover'); s = act(s, { t: 'pay', p: a }); s = resolve(s);
+  assert.ok(!s.objects[i].counters.p1p1, 'saiu dela'); assert.equal(s.objects[u].counters.p1p1, 1, 'foi para o Urso');
+  let t = J(s); t.turn.priority = d; t = act(t, { t: 'cast', p: d, oid: uo }); t = resolveSimK41(t);
+  assert.ok(!t.objects[uo].counters.p1p1, 'sem marcador nela, o enxerto não dispara');
+});

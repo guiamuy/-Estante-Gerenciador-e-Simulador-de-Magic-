@@ -5227,6 +5227,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'dethrone', 'frenzy', 'outlast', // K-42 · 702.105 e 702.68 (gatilhos de ataque) e 702.107 (habilidade ativada gerada pela palavra, só como feitiço)
   'devour', 'amplify', // K-43 · 702.82 e 702.38: escolha logo depois de entrar (sacrificar / revelar) e N +1/+1 por escolhida (entrarComPickK)
   'champion', // K-44 · 702.72: os dois gatilhos ligados (exilar outra ao entrar ou sacrificar; ao sair, a exilada volta)
+  'graft', // K-46 · 702.58: entra com N +1/+1 e, quando outra criatura entra, pode mover um para ela (enxertoK, junto do evoluir)
   'afflict', 'melee', 'mentor', 'training', // K-31 · 702.130, 702.121, 702.134, 702.149: gatilhos de ataque gerados pela palavra, um por instância
   'battle cry', 'rampage', 'flanking', 'bushido', // K-30 · 702.91, 702.23, 702.25, 702.45: gatilhos de combate gerados pela palavra (GATILHOS_DE_PALAVRA_K), um por instância
   /* ↓ V · palavras-chave da trilha verbos */
@@ -8219,6 +8220,7 @@ function palavraNaLinhaK(k) {
   if (k === 'frenzy') return 'frenzy \\d+'; if (k === 'outlast') return 'outlast\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-42
   if (k === 'devour') return 'devour(?: (?:artifact|creature|land|enchantment))? \\d+'; if (k === 'amplify') return 'amplify \\d+'; // K-43
   if (k === 'champion') return 'champion an? [a-z]+'; // K-44 · "Champion a creature", "Champion a Faerie"
+  if (k === 'graft') return 'graft \\d+'; // K-46
   if (k === 'dash') return 'dash\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-9
   if (k === 'evoke') return 'evoke(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*exile an? (?:white|blue|black|red|green) card from your hand\\.?)'; // K-8 · só as formas que o motor paga
   return ['afterlife', 'rampage', 'bushido', 'afflict'].includes(k) ? `${k} \\d+` : k; // K-30 · alvoroço N e bushido N
@@ -18772,6 +18774,13 @@ function applyEffect(s, src, eff, tgt, events) {
       break;
     }
     /* ↓ K · casos de applyEffect da trilha keywords */
+    case 'enxerto_k': { // K-46 · 702.58a: confere de novo (603.4) e move um +1/+1 para a que entrou (a mesma encarnação)
+      const w = s.objects[src.ability ? src.source : src.oid], e = s.objects[eff.entrou];
+      if (!w || w.zone !== 'battlefield' || (w.zc || 0) !== eff.zw || !((w.counters || {}).p1p1 > 0) || !e || e.zone !== 'battlefield' || (e.zc || 0) !== eff.z) { events.push({ kind: 'effect', do: 'enxerto_k', name: src.name, failed: true }); break; }
+      w.counters.p1p1 -= 1; if (!w.counters.p1p1) delete w.counters.p1p1; poeMarcadores(s, e, 'p1p1', 1);
+      events.push({ kind: 'effect', do: 'enxerto_k', name: w.name, target: e.name });
+      break;
+    }
     case 'campeao_k': { // K-44 · 702.72a: escolhe outra permanente sua da qualidade para exilar (0 ou 1); sem escolher, campeao_fim_k sacrifica
       const perm = s.objects[src.ability ? src.source : src.oid];
       if (!perm || perm.zone !== 'battlefield' || (perm.zc || 0) !== eff.z) break;
@@ -22179,6 +22188,7 @@ Object.assign(EXPORTS_K, { recomecarImpressoK });
    que entrou, se saiu do campo, como ela era (608.2h); 702.100c: quem não é criatura não evolui. */
 function evoluirK(s, o) {
   if (!o || o.zone !== 'battlefield' || !isCreature(s, o)) return;
+  enxertoK(s, o); // K-46 · o enxerto também olha a criatura que entra
   for (const w of battlefield(s)) {
     if (w.oid === o.oid || w.controller !== o.controller || !isCreature(s, w)) continue;
     const n = instanciasK(s, w, 'evolve'); if (!n) continue;
@@ -22684,6 +22694,7 @@ function entraComPalavrasK(s, o) {
   const f = o && s.facts[o.name], out = {}; if (!f || o.faceDown) return out;
   for (const [k, tipo] of [['fading', 'fade'], ['vanishing', 'time']]) if ((f.kw || []).includes(k)) for (const n of ((f.numerosK || {})[k] || [])) out[tipo] = (out[tipo] || 0) + n;
   if ((f.kw || []).includes('modular')) for (const n of ((f.numerosK || {}).modular || [])) out.p1p1 = (out.p1p1 || 0) + n; // K-41 · 702.43a/b
+  if ((f.kw || []).includes('graft')) for (const n of ((f.numerosK || {}).graft || [])) out.p1p1 = (out.p1p1 || 0) + n; // K-46 · 702.58a/b
   if (o.entrarComEscolhasK) { for (const e of o.entrarComEscolhasK) out.p1p1 = (out.p1p1 || 0) + e.n; const dv = o.entrarComEscolhasK.reduce((t, e) => t + (e.devorou || 0), 0); if (dv) o.devorouK = dv; } // K-45 · escolhido antes de entrar (conjurada)
   else for (const d of (f.devorarK || [])) s.queuedChoices = (s.queuedChoices || []).concat([{ kind: 'devorar_k', oid: o.oid, p: o.controller, n: d.n, tipo: d.tipo }]); // K-43 · 702.82a/c
   if (!o.entrarComEscolhasK && (f.kw || []).includes('amplify')) for (const n of ((f.numerosK || {}).amplify || [])) s.queuedChoices = (s.queuedChoices || []).concat([{ kind: 'amplificar_k', oid: o.oid, p: o.controller, n }]); // K-43 · 702.38a/b
@@ -22810,6 +22821,16 @@ function antesDeEntrarFeitoK(s, pk, events) {
   events.push(resolveTop(s, events)); s.turn.priority = s.turn.active;
 }
 Object.assign(EXPORTS_K, { escolhaAntesDeEntrarK, antesDeEntrarFeitoK });
+/* K-46 · 702.58a enxerto: "Whenever another creature enters, if this permanent has a +1/+1 counter on it, you may move a +1/+1 counter from
+   this permanent onto that creature." De qualquer jogador; condição intermediária (603.4); cada instância à parte (b). */
+function enxertoK(s, o) {
+  for (const w of battlefield(s)) {
+    if (w.oid === o.oid || !((w.counters || {}).p1p1 > 0)) continue;
+    const n = instanciasK(s, w, 'graft'); if (!n) continue;
+    for (let i = 0; i < n; i++) s.queued.push({ source: w.oid, name: w.name, controller: w.controller, effects: [{ do: 'enxerto_k', entrou: o.oid, z: o.zc || 0, zw: w.zc || 0 }], when: 'graft', optional: true });
+  }
+}
+Object.assign(EXPORTS_K, { enxertoK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-30 · 701.65 aerobender: "that player exiles those objects. For each card exiled this way, for as long as it remains exiled, its owner
    may cast it by paying {2} rather than paying its mana cost" (a). A permissão é do DONO e da encarnação exilada (400.7: se a carta sair do
@@ -26719,9 +26740,11 @@ Object.assign(PALAVRA_PT, { modular: 'modular', soulshift: 'transmigrar' }); // 
 Object.assign(PALAVRA_PT, { dethrone: 'destronar', frenzy: 'frenesi', outlast: 'perdurar' }); // K-42
 Object.assign(PALAVRA_PT, { devour: 'devorar', amplify: 'amplificar' }); // K-43
 Object.assign(PALAVRA_PT, { champion: 'campeão' }); // K-44
+Object.assign(PALAVRA_PT, { graft: 'enxerto' }); // K-46
 Object.assign(PALAVRA_PT, { afflict: 'aflição', melee: 'refrega', mentor: 'mentor', training: 'treinamento' }); // K-31
 Object.assign(PALAVRA_PT, { 'battle cry': 'grito de guerra', rampage: 'alvoroço', flanking: 'flanquear', bushido: 'bushido' }); // K-30
 const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consultadas por descreveEfeito; antes a pilha mostrava "proeza k")
+  enxerto_k: () => 'move um marcador +1/+1 desta permanente para a criatura que entrou (enxerto)', // K-46
   campeao_k: () => 'exile outra permanente sua da qualidade; se não exilar, esta é sacrificada (campeão)', campeao_fim_k: () => '', // K-44
   campeao_volta_k: () => 'a carta exilada pelo campeão volta ao campo sob o controle do dono (campeão)', // K-44
   frenesi_k: e => `esta criatura recebe +${e.n || 1}/+0 até o fim do turno (frenesi)`, // K-42

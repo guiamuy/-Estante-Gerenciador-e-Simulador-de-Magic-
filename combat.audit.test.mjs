@@ -747,6 +747,17 @@ test('K-44 · campeão (702.72): o campeão exila o Urso ao entrar e ataca; mort
   let v = J(s); v.objects[m] && (v.objects[m].counters = { p1p1: 2 }); v = combate(v, [h], [[m, h]]); for (let i = 0; i < 10 && (v.stack.length || v.pending); i++) v = v.pending ? act(v, E.legalActions(v, v.pending.p)[0]) : act(v, { t: 'pass', p: v.turn.priority });
   assert.equal(vivo(v, h), false, 'contra a 5/7, morre'); assert.equal(v.objects[u].zone, 'battlefield', 'o Urso voltou');
 });
+test('K-46 · enxerto (702.58): a 0/0 com "Graft 2" passa um marcador para a criatura com ímpeto que entra, e ela ataca 3/3', () => {
+  cobre('graft');
+  const cartas = { ...CARDS, Enxerto: cre('Enxerto', 0, 0, ['Graft'], { oracle_text: 'Graft 2' }) };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 68, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a; let e, u; [s, e] = poe(s, a, 'Enxerto', { zone: 'hand' }); [s, u] = poe(s, a, 'Rápida', { zone: 'hand' });
+  for (const x of [e, u]) { s = act(s, { t: 'cast', p: a, oid: x }); for (let i = 0; i < 10 && (s.stack.length || s.pending || (s.queued || []).length); i++) s = s.pending ? act(s, s.pending.kind === 'may_pay' ? { t: 'pay', p: s.pending.p } : E.legalActions(s, s.pending.p)[0]) : act(s, { t: 'pass', p: s.turn.priority }); }
+  assert.equal(s.objects[e].counters.p1p1, 1); assert.equal(s.objects[u].counters.p1p1, 1);
+  assert.equal(combate(s, [u]).players[d].life, 17, 'a Rápida 2/2 + 1');
+});
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));
