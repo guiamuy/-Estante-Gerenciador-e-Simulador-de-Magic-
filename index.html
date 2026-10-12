@@ -5383,6 +5383,8 @@ const EFFECTS = {
   explorar_k: { fields: ['fase'], targets: [] }, // K-12 · 702.110 · gerado pelo motor (antes e depois do sacrifício)
   proeza_k: { fields: ['z'], targets: [] }, // K-14 · 702.108a · +1/+1 até o fim do turno, só na mesma encarnação (gerado pelo motor)
   /* ↓ V · efeitos da trilha verbos */
+  // V-25 · 701.54 o Anel tenta você: quem é tentado ganha o emblema O Anel (701.54c) se ainda não tem e escolhe uma criatura sua para Portador do Anel (a)
+  ring_tempts: { fields: [], targets: ['self'] },
   // V-22 · 701.28 converter (a mesma ação de transformar, com outro nome: cartas de duas faces "Convert ~") · 701.68 afligir N (N marcadores −1/−1 numa criatura sua, à sua escolha) · 701.70 recrutar (compra, descarta; se a descartada não é terreno, cria um Soldado Humano 1/1 branco)
   convert: { fields: [], targets: ['self-source'] },
   blight: { fields: ['amount'], targets: ['self'] },
@@ -5712,6 +5714,7 @@ const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield
   'cycled', // K-16 · 702.29c · "When you cycle this card" (dispara da zona onde a carta foi parar)
   'exploits', // K-12 · 702.110b · "When ~ exploits a creature" (disparado pelo motor quando a habilidade de explorar sacrifica)
   /* ↓ V · gatilhos da trilha verbos */
+  'ring-tempts', 'ring-bearer-chosen', // V-25 · "Whenever the Ring tempts you" (701.54d) e "Whenever you choose a creature as your Ring-bearer"
   'exerted', // V-20 · "You may exert ~ as it attacks. When you do, …" (701.43d): dispara quando a permanente é exaurida
   'becomes-monstrous', // V-6 · "When ~ becomes monstrous" (o valor do gatilho é o N da monstruosidade, 701.37c)
   /* ↓ T · gatilhos da trilha tipos */
@@ -6252,6 +6255,9 @@ function effectErrors(effects, label, opcional) {
   });
   /* ↓ K · validação da trilha keywords */
   /* ↓ V · validação da trilha verbos */
+  effects.forEach((e, i) => { // V-25 · a escolha do Portador abre uma decisão no meio da resolução: nada com alvo depois dela
+    if (e.do === 'ring_tempts' && effects.slice(i + 1).some(isTargeted)) errs.push(`${label} ${i + 1} (ring_tempts): efeito com alvo depois de uma escolha`);
+  });
   effects.forEach((e, i) => { // V-22
     if (e.do === 'blight' && typeof e.amount === 'number' && !(Number.isInteger(e.amount) && e.amount > 0)) errs.push(`${label} ${i + 1} (blight): amount precisa ser inteiro positivo`);
     if (['blight', 'recruit'].includes(e.do) && effects.slice(i + 1).some(isTargeted)) errs.push(`${label} ${i + 1} (${e.do}): efeito com alvo depois de uma escolha`);
@@ -6367,6 +6373,13 @@ const RAW_SCRIPTS = [
   { name: 'Skewer the Critics', effects: [{ do: 'damage', amount: 3, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: -3 } } }, // K-32 · "Spectacle {R} / deals 3 damage to any target"
   { name: 'Comparative Analysis', effects: [{ do: 'draw', amount: 2, target: 'player' }], example: { target: 'self-player', expect: { handDelta: 2 } } }, // K-32 · "Surge {2}{U} / Target player draws two cards"
   /* ↓ V · scripts de carta da trilha verbos (texto oficial em .listas/oficiais-verbos.json) */
+  // V-25 · 701.54 o Anel tenta você
+  { name: 'Claim the Precious', effects: [{ do: 'destroy', target: 'creature' }, { do: 'ring_tempts' }], // "Destroy target creature. The Ring tempts you."
+    example: { target: 'enemy-creature', expect: { gone: true } } },
+  { name: 'Birthday Escape', effects: [{ do: 'draw', amount: 1 }, { do: 'ring_tempts' }], // "Draw a card. The Ring tempts you."
+    example: { target: 'none', expect: { handDelta: 1 } } },
+  { name: "Ranger's Firebrand", effects: [{ do: 'damage', amount: 2, target: 'any' }, { do: 'ring_tempts' }], // "Ranger's Firebrand deals 2 damage to any target. The Ring tempts you."
+    example: { target: 'opponent', expect: { opponentLife: -2 } } },
   // V-23 · 502.3 pela primitiva da M-314: virar o alvo e prendê-lo no próximo passo de desvirar
   { name: 'Crippling Chill', effects: [{ do: 'tap', target: 'creature' }, { do: 'nao_desvira', target: 'first-target' }, { do: 'draw', amount: 1 }], // "Tap target creature. It doesn't untap during its controller's next untap step. Draw a card."
     example: { target: 'enemy-creature', expect: { tapped: true, handDelta: 1 } } },
@@ -7794,6 +7807,10 @@ function palavraNaLinhaK(k) {
   return ['afterlife', 'rampage', 'bushido', 'afflict'].includes(k) ? `${k} \\d+` : k; // K-30 · alvoroço N e bushido N
 }
 /* ↓ V · exportações de scripts.js da trilha verbos */
+// V-25 · eventos de jogador do Anel (701.54d): "the Ring tempts you" e "you choose a creature as your Ring-bearer" — de quem é tentado
+EVENTOS_DE_JOGADOR.push('anel-tenta', 'escolhe-portador'); CHAVES_DO_EVENTO['anel-tenta'] = ['evento', 'quem']; CHAVES_DO_EVENTO['escolhe-portador'] = ['evento', 'quem'];
+GATILHO_EVENTO['ring-tempts'] = { evento: 'anel-tenta', quem: 'voce' }; GATILHO_EVENTO['ring-bearer-chosen'] = { evento: 'escolhe-portador', quem: 'voce' };
+TRIGGER_PT['ring-tempts'] = 'sempre que o Anel tenta você'; TRIGGER_PT['ring-bearer-chosen'] = 'sempre que você escolhe uma criatura como Portador do Anel';
 // V-20 · evento "foi exaurida" (701.43): da própria permanente
 EVENTOS_DE_OBJETO.push('exaurida'); OBJETOS_DO_EVENTO.exaurida = ['self']; GATILHO_EVENTO['exerted'] = { evento: 'exaurida', objeto: 'self' }; TRIGGER_PT['exerted'] = 'quando é exaurida';
 // V-6 · evento "ficou monstruosa" (701.37): da própria permanente
@@ -16115,6 +16132,7 @@ function recalculaControle(s, o) {
   if (ativos.length) o.controles = ativos; else { delete o.controles; delete o.controladorBase; }
   if (novo == null || novo === o.controller || (s.players[novo] || {}).lost) return false;
   o.controller = novo; o.sick = isCreature(s, o); // 302.6: não está sob o novo controle desde o começo do turno dele
+  largaPortadorV(s, o); // V-25 · 701.54a: outro jogador ganhou o controle do Portador do Anel (Toca ponto comum: recalculaControle)
   if (s.combat && s.combat.attackers) s.combat.attackers = s.combat.attackers.filter(x => x !== o.oid); // 506.4: sai do combate
   if (o.blocking && s.objects[o.blocking]) s.objects[o.blocking].blockedBy = (s.objects[o.blocking].blockedBy || []).filter(x => x !== o.oid);
   delete o.attacking; delete o.atacandoPw; delete o.blocking; delete o.blockedBy;
@@ -16886,6 +16904,7 @@ function porQueNaoBloqueia(s, blocker, attacker) {
   if (has(s, a, 'skulk') && power(s, b) > power(s, a)) return 'esgueirar: poder maior que o da atacante'; // 702.118b
   for (const [k, tipo] of TRAVESSIAS) // 702.14c · o defensor controla um terreno daquele tipo
     if (has(s, a, k) && battlefield(s).some(l => l.controller === b.controller && !l.faceDown && s.facts[l.name].types.includes('land') && new RegExp('\\b' + tipo + '\\b', 'i').test(linhaDeTipo(s, l)))) return PALAVRA_DA_TRAVESSIA[k];
+  { const an = anelBarraBloqueioV(s, a, b); if (an) return an; } // V-25 · 701.54c (1): o Portador do Anel (Toca ponto comum: porQueNaoBloqueia)
   { const tv = travessiaQueBarraK(s, a, b); if (tv) return tv; } // K-21 · 702.14c com qualidade (Toca ponto comum: porQueNaoBloqueia)
   return null;
 }
@@ -17150,6 +17169,7 @@ function selCasa(s, p, o, sel, selfOid, opts = {}) {
     if (sel.mvMin != null && vm < amountOf(s, fonte, sel.mvMin)) return false;
   }
   if (sel.cor && !coresDe(s, o).includes(sel.cor)) return false; // CR2d.8
+  if (sel.lendaria != null && portadorLendarioV(s, o)) { if (!sel.lendaria) return false; sel = { ...sel, lendaria: null }; } // V-25 · 701.54c (1): o Portador do Anel é lendário (Toca ponto comum: seletor)
   if (sel.lendaria != null && (!!f.legendary && !o.faceDown) !== sel.lendaria) return false;
   if (sel.comToxico && !toxicoDe(s, o)) return false; // M-253 · "creatures you control with toxic" // M-246 · 205.4 · lendária (virada para baixo não tem supertipo)
   if (sel.semCor && coresDe(s, o).includes(sel.semCor)) return false; // CR2d.8
@@ -17330,6 +17350,7 @@ function targetAllowed(s, eff, tgt, src) {
   const o = tgt && tgt.oid != null ? s.objects[tgt.oid] : null;
   if (!o) return true;
   const f = s.facts[o.name] || {};
+  if (eff.targetNotLegendary && portadorLendarioV(s, o)) return false; // V-25 · 701.54c (1) (Toca ponto comum: targetAllowed)
   if (eff.targetNotLegendary && f.legendary) return false;
   if (eff.targetNotFromHand && o.zone === 'stack' && o.castFrom === 'hand') return false;
   if (eff.targetSubtype && !(o.zone === 'battlefield' && (isChangeling(s, o, eff.targetSubtype) || new RegExp('\\b' + eff.targetSubtype + '\\b').test(linhaDeTipo(s, o))))) return false; // CR2d.2 · "target Assembly-Worker creature" // CR2c.4 · "that wasn't cast from its owner's hand" (Wash Away)
@@ -18281,6 +18302,7 @@ function applyEffect(s, src, eff, tgt, events) {
       note({ pending: true }); break;
     }
     /* ↓ V · casos de applyEffect da trilha verbos */
+    case 'ring_tempts': anelTentaV(s, src, events); break; // V-25 · 701.54
     case 'convert': applyEffect(s, src, { ...eff, do: 'transform' }, tgt, events); break; // V-22 · 701.28a: segue as regras de transformar (701.27)
     case 'blight': afligir(s, src, eff, events); break; // V-22 · 701.68
     case 'recruit': recrutar(s, src, events); break; // V-22 · 701.70
@@ -21722,6 +21744,76 @@ Object.assign(EXPORTS_K, { semPalavraDoJogadorK });
 function tempestadeNaPilhaK(s, a, o) { s.queued.push({ source: a.oid, name: o.name, controller: a.p, effects: [{ do: 'tempestade_k', n: s.spellsThisTurn || 0, efeitos: spellEffects(s, s.objects[a.oid]), marcas: marcasDaMagia(s.objects[a.oid]) }], when: 'storm-gatilho' }); }
 Object.assign(EXPORTS_K, { tempestadeNaPilhaK });
 /* ↓ V · exportações de core.js da trilha verbos */
+/* V-25 · 701.54 o Anel tenta você. Cada vez que o Anel tenta um jogador: sem o emblema O Anel ele ganha o emblema (c, antes de
+   escolher); escolhe uma criatura que controla e ela vira o Portador do Anel (a) até outra criatura virar o Portador ou ela sair do
+   seu controle (o objeto novo, ao voltar ao campo, não é mais o Portador — 400.7). Sem criatura, nada é escolhido, mas o Anel tentou
+   assim mesmo (d): a conta sobe e "Whenever the Ring tempts you" dispara. Escolher a mesma criatura de novo vale como escolha. O
+   emblema mora na zona de comando de quem foi tentado (114.1) e é a fonte das habilidades dele. O Anel dá ao Portador: (1) lendário e
+   "não pode ser bloqueado por criaturas com poder maior"; (2) com duas tentações ou mais, "Whenever your Ring-bearer attacks, draw a
+   card, then discard a card". As habilidades de três e quatro tentações ficam para a V-26. O Portador não é valor copiável (b): mora
+   no jogador, não na carta. */
+const ANEL_V = 'The Ring';
+const vezesDoAnelV = (s, p) => (s.players[p] && s.players[p].anelV) || 0;
+function emblemaDoAnelV(s, p) {
+  const ja = s.zones[p].command.find(oid => s.objects[oid] && s.objects[oid].emblemaV && s.objects[oid].name === ANEL_V);
+  if (ja) return s.objects[ja];
+  if (!s.facts[ANEL_V]) s.facts[ANEL_V] = cardFacts({ name: ANEL_V, type_line: 'Emblem', keywords: [], colors: [], oracle_text: 'Your Ring-bearer is legendary and can\'t be blocked by creatures with greater power.' });
+  const oid = 'anel' + p;
+  s.objects[oid] = { oid, name: ANEL_V, owner: p, controller: p, zone: 'command', emblemaV: true, tapped: false, sick: false, damage: 0, counters: {} };
+  s.zones[p].command.push(oid);
+  return s.objects[oid];
+}
+/** 701.54e · o Portador do Anel de `p`: no campo, com `p`, a mesma encarnação que foi escolhida (null se não há). */
+function portadorDoAnelV(s, p) {
+  const m = s.players[p] && s.players[p].portadorV, o = m && s.objects[m.oid];
+  return o && o.zone === 'battlefield' && (o.zc || 0) === m.z && o.controller === p ? o : null;
+}
+/** 701.54a · chamada só por recalculaControle, quando outro jogador ganha o controle: a permanente deixa de ser o Portador de quem a tinha (mesmo que o controle volte depois). */
+function largaPortadorV(s, o) { for (const pl of s.players) if (pl.portadorV && pl.portadorV.oid === o.oid) delete pl.portadorV;
+}
+const ehPortadorV = (s, o) => !!o && o.zone === 'battlefield' && portadorDoAnelV(s, o.controller) === o;
+function anelTentaV(s, src, events) {
+  const p = src.controller, nome = src.name;
+  emblemaDoAnelV(s, p); // 701.54c: o emblema vem antes da escolha
+  const suas = battlefield(s).filter(o => o.controller === p && isCreature(s, o)).map(o => o.oid);
+  s.verbo = [...(s.verbo || []), { passo: 'anel-portador', p, nome }];
+  if (suas.length > 1) return void startPick(s, { p, from: suas, min: 1, max: 1, to: 'proliferar', rest: 'stay', label: 'portador do Anel', source: `${nome} — o Anel tenta você: escolha uma criatura sua para ser o Portador do Anel` }, events);
+  s.escolhaV = suas.slice(); continuaVerbo(s, events);
+}
+function passoAnelPortador(s, passo, events) {
+  const p = passo.p, pl = s.players[p], oid = (s.escolhaV || [])[0]; delete s.escolhaV;
+  const o = oid && s.objects[oid], escolheu = !!o && o.zone === 'battlefield' && o.controller === p;
+  if (escolheu) pl.portadorV = { oid: o.oid, z: o.zc || 0 };
+  pl.anelV = (pl.anelV || 0) + 1;
+  events.push({ kind: 'effect', do: 'ring_tempts', name: passo.nome, target: escolheu ? o.name : pl.name, amount: pl.anelV });
+  if (escolheu) gatilhosDoAnelV(s, 'escolhe-portador', p);
+  gatilhosDoAnelV(s, 'anel-tenta', p);
+}
+/** "Whenever the Ring tempts you" e "Whenever you choose a creature as your Ring-bearer": o campo inteiro uma vez, `quem` relativo a quem controla. */
+function gatilhosDoAnelV(s, evento, p) {
+  for (const w of battlefield(s)) {
+    if (!s.facts[w.name]) continue;
+    for (const ab of abilitiesOf(s, w)) {
+      const d = ab.kind === 'triggered' && SC.gatilhoDoEvento(ab.when);
+      if (!SC.falaDe(d, evento) || !quemCasa(d, w.controller, p) || !triggerConditionMet(s, w, ab.condition)) continue;
+      s.queued.push({ source: w.oid, name: w.name, controller: w.controller, effects: ab.effects, when: ab.when, ...marcasDaHabilidade(ab) });
+    }
+  }
+}
+/** Habilidade (1) do Anel, chamada só por porQueNaoBloqueia: o Portador não é bloqueado por criatura com poder maior. */
+function anelBarraBloqueioV(s, a, b) {
+  return ehPortadorV(s, a) && power(s, b) > power(s, a) ? 'o Anel: poder maior que o do Portador do Anel' : null;
+}
+/** Habilidade (1) do Anel, chamada pelo seletor "lendária" e por "nonlegendary": o Portador é lendário (205.4). */
+const portadorLendarioV = (s, o) => ehPortadorV(s, o);
+/** Habilidade (2) do Anel, chamada na declaração de ataque: com duas tentações ou mais, o emblema dispara quando o Portador ataca. */
+function anelAoAtacarV(s, p, list) {
+  if (vezesDoAnelV(s, p) < 2) return;
+  const port = portadorDoAnelV(s, p); if (!port || !list.includes(port.oid)) return;
+  const emb = emblemaDoAnelV(s, p);
+  s.queued.push({ source: emb.oid, name: ANEL_V, controller: p, effects: [{ do: 'draw', amount: 1 }, { do: 'discard', amount: 1, target: 'self' }], when: 'ring-bearer-attacks' });
+}
+Object.assign(EXPORTS_V, { vezesDoAnelV, portadorDoAnelV, ehPortadorV, anelTentaV, emblemaDoAnelV });
 /* V-22 · 701.68 afligir N: "put N −1/−1 counters on a creature you control" (a) — a criatura é escolhida por quem aflige (não mira);
    sem criatura sua, nada acontece (b); com uma só, é ela. Os marcadores passam pelas substituições de pôr marcadores (614.16).
    701.70 recrutar: "Draw a card, then discard a card. If you discarded a nonland card this way, create a 1/1 white Human Soldier
@@ -21819,6 +21911,7 @@ function exaurir(s, o, p, events) {
 }
 /** 701.43d · chamada só por HANDLERS.attack, depois de declarar: uma pergunta por atacante que diz "you may exert ~ as it attacks". */
 function exaurirAoAtacarV(s, p, list, events) {
+  anelAoAtacarV(s, p, list); // V-25 · 701.54c (2): "Whenever your Ring-bearer attacks, draw a card, then discard a card"
   const podem = list.map(oid => s.objects[oid]).filter(o => o && o.zone === 'battlefield' && !o.faceDown && !semImpressas(s, o) && (((s.facts[o.name] || {}).script || {}).self || {}).exaurirAoAtacar);
   if (!podem.length) return;
   s.verbo = [...(s.verbo || []), ...podem.map(o => ({ passo: 'exaurir-pergunta', p, oid: o.oid, z: o.zc || 0 }))];
@@ -22139,6 +22232,7 @@ function proliferar(s, src, events) {
   else continuaVerbo(s, events);
 }
 const PASSOS_V = {
+  'anel-portador': (s, passo, events) => passoAnelPortador(s, passo, events), // V-25
   'afligir-aplica': (s, passo, events) => passoAfligirAplica(s, passo, events), 'recrutar-ficha': (s, passo, events) => passoRecrutarFicha(s, passo, events), // V-22
   'exaurir-pergunta': (s, passo, events) => passoExaurirPergunta(s, passo, events), // V-20
   'virar-escolhidas': (s, passo, events) => passoVirarEscolhidas(s, passo, events), // V-18
@@ -25205,6 +25299,7 @@ const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consulta
 /* ↓ V · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha verbos */
 const MARCADOR_PT_V = { p1p1: '+1/+1', m1m1: '−1/−1', loyalty: 'de lealdade', poison: 'de veneno' }; // V-7
 const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas por descreveEfeito)
+  ring_tempts: () => 'o Anel tenta você (escolha uma criatura sua para ser o Portador do Anel)', // V-25
   convert: () => 'converte esta permanente (vira para a outra face)', // V-22
   blight: e => `aflige ${qtd(e.amount)} (põe ${qtd(e.amount) === 1 ? '1 marcador' : qtd(e.amount) + ' marcadores'} −1/−1 numa criatura sua, à sua escolha)`, // V-22
   recruit: () => 'recruta (compra uma carta e descarta uma; se a descartada não for terreno, cria um Soldado Humano 1/1 branco)', // V-22
