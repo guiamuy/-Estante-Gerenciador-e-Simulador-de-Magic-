@@ -1,7 +1,6 @@
 // V-20 · CR 502.3 ("doesn't untap during its controller's next untap step") e CR 701.43 · exaurir. Texto oficial em
 // .listas/oficiais-verbos.json (Oracle do Forge, 11/10/2026): Crippling Chill — "Tap target creature. It doesn't untap during its
-// controller's next untap step. Draw a card." · Frost Breath — "Tap up to two target creatures. Those creatures don't untap during their
-// controller's next untap step." · Hooded Brawler — "You may exert Hooded Brawler as it attacks. When you do, it gets +2/+2 until end of turn."
+// controller's next untap step. Draw a card." (pela primitiva `nao_desvira` da trilha motor, M-314) · Hooded Brawler — "You may exert Hooded Brawler as it attacks. When you do, it gets +2/+2 until end of turn."
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadModules } from './_load.mjs';
@@ -18,18 +17,18 @@ const ateOTurnoDe = (s, p) => { const n0 = s.turn.number; for (let i = 0; i < 40
 
 test('CR 502.3 · "não desvira no próximo passo de desvirar de quem a controla": fica virada nesse passo e desvira no seguinte', () => {
   let s = mesa([URSO], [LOBO]), lobo, urso; [s, lobo] = poe(s, 1, LOBO); [s, urso] = poe(s, 0, URSO);
-  [s] = faz(s, { do: 'nao_desvira', vira: true, target: 'creature' }, lobo); s.objects[urso].tapped = true;
+  [s] = faz(s, { do: 'tap', target: 'creature' }, lobo); [s] = faz(s, { do: 'nao_desvira', target: 'creature' }, lobo); s.objects[urso].tapped = true; // a primitiva é da trilha motor (M-314)
   assert.equal(s.objects[lobo].tapped, true); assert.equal(E.estaPresaNoDesvirar(s, s.objects[lobo]), true); assert.equal(E.estaExaurida(s, s.objects[lobo]), false);
   s = ateOTurnoDe(s, 1);
   assert.equal(s.objects[lobo].tapped, true, 'não desvirou no passo dele'); assert.equal(E.estaPresaNoDesvirar(s, s.objects[lobo]), false, 'a marca foi gasta');
   s = ateOTurnoDe(s, 0); assert.equal(s.objects[urso].tapped, false, 'as outras permanentes desviram normalmente');
-  s = ateOTurnoDe(s, 1); assert.equal(s.objects[lobo].tapped, false, 'no passo seguinte, desvira'); assert.equal(s.objects[lobo].presaV, undefined);
+  s = ateOTurnoDe(s, 1); assert.equal(s.objects[lobo].tapped, false, 'no passo seguinte, desvira');
 });
 
 test('CR 502.3 · a marca é da permanente: fora do campo acaba (de volta, é objeto novo); o passo de desvirar do outro jogador não a gasta', () => {
   let s = mesa([URSO], [LOBO]), lobo; [s, lobo] = poe(s, 1, LOBO);
   if (s.turn.active !== 0) s = ateOTurnoDe(s, 0);
-  [s] = faz(s, { do: 'nao_desvira', vira: true, target: 'creature' }, lobo);
+  [s] = faz(s, { do: 'tap', target: 'creature' }, lobo); [s] = faz(s, { do: 'nao_desvira', target: 'creature' }, lobo);
   let x = ateOTurnoDe(ateOTurnoDe(s, 1), 0); // um passo de desvirar do dono já passou: gasta
   assert.equal(E.estaPresaNoDesvirar(x, x.objects[lobo]), false);
   let y; [y] = faz(s, { do: 'bounce', target: 'creature' }, lobo); y = J(y); E.moveObject(y, lobo, 'battlefield');
@@ -73,12 +72,16 @@ test('CR 701.43 · "You may exert ~ as it attacks. When you do…" (d): a pergun
   let d = ateOTurnoDe(sim, 0); assert.equal(d.objects[b].tapped, true); d = ateOTurnoDe(d, 0); assert.equal(d.objects[b].tapped, false);
 });
 
-test('Crippling Chill e Frost Breath: os scripts, até dois alvos, e as frases em português', () => {
-  let s = mesa(['Frost Breath', 'Crippling Chill'], [LOBO, URSO]), fb, lobo, urso; [s, lobo] = poe(s, 1, LOBO); [s, urso] = poe(s, 1, URSO); [s, fb] = poe(s, 0, 'Frost Breath', 'hand');
-  const n = legais(comMana(s, 'UUU'), 0, a => a.t === 'cast' && a.oid === fb).map(a => (a.targets || []).length);
-  assert.ok(n.includes(0) && n.includes(1) && n.includes(2), 'até dois alvos: ' + [...new Set(n)]);
-  s = resolve(conjura(comMana(s, 'UUU'), 0, fb, [lobo, urso]));
-  for (const o of [lobo, urso]) { assert.equal(s.objects[o].tapped, true); assert.equal(E.estaPresaNoDesvirar(s, s.objects[o]), true); }
-  assert.equal(T.descreveEfeitos(S.SCRIPTS['Crippling Chill'].effects), 'vira uma criatura; ela não desvira no próximo passo de desvirar de quem a controla; compra 1 carta');
+test('Crippling Chill: vira o alvo, prende no próximo passo de desvirar e compra uma; o gatilho de exaurir tem nome em português', () => {
+  let s = mesa(['Crippling Chill', URSO, URSO], [LOBO]), cc, lobo; [s, lobo] = poe(s, 1, LOBO); [s, cc] = poe(s, 0, 'Crippling Chill', 'hand');
+  const mao = s.zones[0].hand.length; s = resolve(conjura(comMana(s, 'UUU'), 0, cc, [lobo]));
+  assert.equal(s.objects[lobo].tapped, true); assert.equal(E.estaPresaNoDesvirar(s, s.objects[lobo]), true); assert.equal(s.zones[0].hand.length, mao, 'gastou a mágica e comprou uma');
   assert.equal(S.descreveGatilho('exerted'), 'quando é exaurida');
+});
+
+test('CR 701.43 · exaurir e 122.1d: a exaurida com marcador de atordoamento não desvira e não gasta o marcador no passo em que já não desviraria', () => {
+  let s = mesa([URSO], []), urso; [s, urso] = poe(s, 0, URSO); if (s.turn.active !== 0) s = ateOTurnoDe(s, 0);
+  [s] = faz(s, { do: 'exert', target: 'creature-you-control' }, urso); s = J(s); s.objects[urso].tapped = true; s.objects[urso].counters.stun = 1;
+  s = ateOTurnoDe(s, 0); assert.equal(s.objects[urso].tapped, true); assert.equal(s.objects[urso].counters.stun, 1, 'o atordoamento fica para o passo seguinte');
+  s = ateOTurnoDe(s, 0); assert.equal(s.objects[urso].tapped, true, 'agora o marcador sai em vez de desvirar'); assert.equal(s.objects[urso].counters.stun || 0, 0);
 });

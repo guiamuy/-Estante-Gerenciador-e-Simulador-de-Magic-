@@ -6297,11 +6297,12 @@
     "502.3"
    ],
    "cartas": "uma coleção só (Amonkhet)",
-   "evidencia": "V-20 · efeito `exert` e gatilho `exerted` (exaurir, prendeNoDesvirarV, presasNoDesvirarV, exaurirAoAtacarV em core.js, abaixo da âncora ↓ V; duas linhas em enterStep e uma em HANDLERS.attack): a permanente exaurida não desvira no próximo passo de desvirar de quem a exauriu (a); pode ser exaurida desvirada e mais de uma vez, e todas as marcas acabam no mesmo passo (b); fora do campo não se exaure (c); \"You may exert ~ as it attacks\" (`self.exaurirAoAtacar`) pergunta ao declarar o ataque, antes de qualquer prioridade, e \"when you do\" é gatilho na pilha (d). A mesma marca serve a \"doesn't untap during its controller's next untap step\" (efeito `nao_desvira`, 502.3). Cartas: Crippling Chill, Frost Breath; Hooded Brawler provada no teste (.listas/oficiais-verbos.json)",
+   "evidencia": "V-20 e V-23 · efeito `exert` e gatilho `exerted` (exaurir, prendeNoDesvirarV, presasNoDesvirarV, exaurirAoAtacarV em core.js, abaixo da âncora ↓ V; uma linha em enterStep e uma em HANDLERS.attack): a marca guarda quem exauriu e, no passo de desvirar desse jogador, vira o \"não desvira no próximo passo\" comum do motor (M-314) — a exaurida não desvira no próximo passo de desvirar de quem a exauriu (a); pode ser exaurida desvirada e mais de uma vez, e todas as marcas acabam no mesmo passo (b); fora do campo não se exaure (c); \"You may exert ~ as it attacks\" (`self.exaurirAoAtacar`) pergunta ao declarar o ataque, antes de qualquer prioridade, e \"when you do\" é gatilho na pilha (d). Cartas: Hooded Brawler provada no teste; Crippling Chill usa o `nao_desvira` do motor (.listas/oficiais-verbos.json)",
    "testes": [
     "CR 701.43 · exaurir (a, b, c): não desvira no próximo passo de desvirar de QUEM EXAURIU; pode exaurir desvirada e duas vezes — tudo acaba no mesmo passo; fora do campo não se exaure",
     "CR 701.43 · exaurir (a): se a exaurida está com outro jogador, ela desvira no passo dele — a marca era do passo de quem exauriu",
-    "CR 701.43 · \"You may exert ~ as it attacks. When you do…\" (d): a pergunta vem ao declarar o ataque, antes da prioridade; \"sim\" exaure e põe o gatilho na pilha; \"não\" não faz nada"
+    "CR 701.43 · \"You may exert ~ as it attacks. When you do…\" (d): a pergunta vem ao declarar o ataque, antes da prioridade; \"sim\" exaure e põe o gatilho na pilha; \"não\" não faz nada",
+    "CR 701.43 · exaurir e 122.1d: a exaurida com marcador de atordoamento não desvira e não gasta o marcador no passo em que já não desviraria"
    ]
   },
   {
