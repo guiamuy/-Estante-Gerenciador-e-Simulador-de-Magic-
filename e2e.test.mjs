@@ -10503,6 +10503,42 @@ test('e2e · LT8 · carta lida pelo motor sem script à mão aparece como "em re
   assert.deepEqual(errors, []);
 });
 
+test('e2e · CR2c.7 · habilidade com X no custo (Crypt Rats): a folha abre o seletor de X com o máximo pagável só em mana preta e ativa com o X escolhido', { skip }, async t => {
+  // Texto oficial em .listas/oficiais-motor.json (Oracle do Forge, 12/10/2026). Montagem por dado: os Ratos e três Pântanos do grimório no campo, mais o
+  // Pântano jogado da mão (que redesenha a mesa) (o motor é provado em ativada.x.unit).
+  const extras = JSON.parse(readFileSync(join(ROOT, '.listas', 'oficiais-motor.json'), 'utf8')).cartas.filter(c => c.name === 'Crypt Rats');
+  const M = await comLista125(t, '24 Swamp\n16 Crypt Rats', ['Swamp', 'Crypt Rats'], '4', { extras });
+  const { page } = M;
+  const ratos = await page.evaluate(() => { const s = window.__estanteMesa.estado(), z = s.zones[0].library;
+    const tira = nome => { const i = z.findIndex(o => s.objects[o].name === nome); if (i < 0) throw new Error('sem ' + nome + ' no grimório'); return z.splice(i, 1)[0]; };
+    const poe = oid => { Object.assign(s.objects[oid], { zone: 'battlefield', controller: 0, tapped: false, sick: false, damage: 0, counters: {}, entrouNoTurno: s.turn.number - 1 }); s.zones[0].battlefield.push(oid); return oid; };
+    for (let i = 0; i < 3; i++) poe(tira('Swamp'));
+    return poe(tira('Crypt Rats')); });
+  const terra = await M.oid('Swamp'); assert.ok(terra, 'um Pântano na mão');
+  assert.equal(await M.act({ t: 'play_land', p: 0, oid: terra }), true, 'jogar o Pântano redesenha a mesa'); await page.waitForTimeout(250);
+  const xs = (await M.legal(`a.t === 'activate' && a.oid === '${ratos}'`)).map(a => a.x);
+  assert.deepEqual([...new Set(xs)].sort(), [0, 1, 2, 3, 4], 'quatro Pântanos: X de 0 a 4');
+  await page.locator(`.tb-side--me [data-oid="${ratos}"]`).first().click(); await page.waitForSelector('.ds-dialog');
+  const botao = page.locator('.ds-dialog .tb-sheet__actions button', { hasText: /^Ativar/ });
+  assert.equal(await botao.count(), 1, 'um botão só para todos os X');
+  await botao.click();
+  await page.waitForSelector('#tb-x-valor');
+  assert.match(await page.innerText('.ds-dialog'), /de 0 a 4/);
+  for (let i = 0; i < 5; i++) await page.click('#tb-x-mais', { force: true });
+  assert.equal(await page.innerText('#tb-x-valor'), '4', 'não passa do que dá para pagar');
+  assert.equal(await page.locator('#tb-x-total .ds-sym').count(), 4, 'o total em símbolos pretos: {B}{B}{B}{B} — ' + await page.innerHTML('#tb-x-total'));
+  assert.match(await page.innerText('.tb-x__ok'), /^Ativar com X = 4$/);
+  await page.click('#tb-x-menos');
+  await auditaTela(page, 'seletor de X da habilidade');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/cr2c7-x-habilidade.png' });
+  await page.click('.tb-x__ok');
+  await page.waitForFunction(() => { const s = window.__estanteMesa.estado(); return s.stack.some(o => s.objects[o].ability && s.objects[o].xPaid === 3); }, null, { timeout: 4000 })
+    .catch(async () => assert.fail('a habilidade não foi ativada com X = 3: ' + (await page.locator('#tb-recusa').count() ? await page.innerText('#tb-recusa') : 'sem recusa na tela')));
+  const virados = await page.evaluate(() => { const s = window.__estanteMesa.estado(); return s.zones[0].battlefield.filter(o => s.objects[o].name === 'Swamp' && s.objects[o].tapped).length; });
+  assert.equal(virados, 3, 'pagou X = 3 virando três Pântanos');
+  assert.deepEqual(M.errors, []);
+});
+
 /* ↓ K · testes de tela da trilha keywords (só test(nome, { skip }, fn) no nível do arquivo) */
 /* ↓ V · testes de tela da trilha verbos (só test(nome, { skip }, fn) no nível do arquivo) */
 test('e2e · V-17 · CR 701.40b · manifestada: a folha da carta virada para baixo oferece "Virar para cima" com o custo de mana da carta de criatura; terreno manifestado fica entre as criaturas e não vira', { skip }, async t => {

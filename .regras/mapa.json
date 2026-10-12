@@ -417,8 +417,8 @@
    "regra": "Numbers and Symbols",
    "titulo": "X",
    "status": "parcial",
-   "evidencia": "{X} no custo de mana e no de conceder: quem conjura escolhe 0..20 (valoresDeX index.html:10547, cast index.html:12243), paga X vezes e a permanente entra com X marcadores (index.html:10298); rules.unit 'S50 · custo X'. 107.3g: cmc dos fatos conta X como 0. · CR2c.3 (v86): contagem {per:\"x\"} = X pago, o mesmo valor em todo o texto (107.3a), também negativo (−X/−X)",
-   "falta": "Nenhum efeito de mágica lê X (dano X, -X/-X, comprar X: Profane Command, March of Swirling Mist, Ascend from Avernus ficam sem script); X em custo de habilidade ativada e [-X] de lealdade não existem (107.3a,k); 107.3b (X=0 ao conjurar sem pagar) não é imposto; 107.3c-f,h,j,m,n ausentes; teto artificial de X=20.",
+   "evidencia": "{X} no custo de mana e no de conceder: quem conjura escolhe 0..20 (valoresDeX index.html:10547, cast index.html:12243), paga X vezes e a permanente entra com X marcadores (index.html:10298); rules.unit 'S50 · custo X'. 107.3g: cmc dos fatos conta X como 0. · CR2c.3 (v86): contagem {per:\"x\"} = X pago, o mesmo valor em todo o texto (107.3a), também negativo (−X/−X) · CR2c.7 (M-319): {X} no custo de habilidade ativada (escolhido ao ativar, 0..máximo pagável, guardado na habilidade e na retomada) e lealdade [−X]; \"Spend only <cor> mana on X\" (xCor); ativada.x.unit",
+   "falta": "Nenhum efeito de mágica lê X (dano X, -X/-X, comprar X: Profane Command, March of Swirling Mist, Ascend from Avernus ficam sem script); X em habilidade de mana e em habilidade da mão fica 0; 107.3b (X=0 ao conjurar sem pagar) não é imposto; 107.3c-f,h,j,m,n ausentes; teto artificial de X=20.",
    "esforco": "M",
    "cartas": "muito comum"
   },
@@ -1306,7 +1306,7 @@
    "titulo": "Custos com X",
    "status": "parcial",
    "evidencia": "X na conjuração: ação traz x, custo soma x vezes os {X} (index.html:12243, 10554), valores oferecidos por valoresDeX (index.html:10548); rules.unit \"S50 · custo X: a mesa oferece valores de X e a criatura entra com X marcadores\"",
-   "falta": "X limitado a 20 (LIMITE_X); X em custo de habilidade ativada não existe (payAbilityCost paga parseCost sem X, index.html:11995); X em efeitos de mágica só via marcadores de entrada.",
+   "falta": "X limitado a 20 (LIMITE_X); X em habilidade de mana e em habilidade da mão fica 0 (CR2c.7, M-319, cobre {X} nas demais ativadas e a lealdade [−X]).",
    "esforco": "P",
    "depende": [
     "107.3"

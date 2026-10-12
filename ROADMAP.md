@@ -3722,6 +3722,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Valor:** o leitor passa a entender "return a permanent/land/creature you control to its owner's hand", dano "to that artifact's controller", "each opponent and each creature and planeswalker they control", o "if" intermediário "if you control another creature named ~" (condição do gatilho, 603.4) e a Aura de terreno 'Enchanted land has "{T}: Add one mana of any color."'.
 - **Teste:** piso da concordância 118.
 
+**M-319 · CR2c.7 · X no custo de habilidade ativada e lealdade [−X] (107.3a, 107.3k, 602.2b, 606.4)** ✅ (leva M-319, motor v110 sem mudança de forma; goldens intactos) — Crypt Rats joga no modo completo.
+- **Valor:** "{X}: …" passa a existir: quem ativa escolhe X (de 0 ao máximo que consegue pagar), paga X vezes, e o X vale em todo o texto da habilidade até ela resolver, inclusive depois de uma decisão no meio dela. "Spend only black mana on X" obriga X a ser pago com mana da cor. A lealdade "[−X]" tira X marcadores (X de 0 à lealdade atual). Na mesa, o botão "Ativar" abre o mesmo seletor de X da conjuração ("Ativar com X = n", total em símbolos da cor), e o registro diz "ativou … com X = n".
+- **Script:** `cost: { mana: '{X}', xCor: 'B' }` e `{ per: 'x' }` nos efeitos da habilidade; lealdade `{ cost: '-X', … }`. "Put X counters" agora aceita quantidade variável (o efeito `counters` lia só número). Texto oficial do Crypt Rats em `.listas/oficiais-motor.json` (Oracle do Forge, 12/10/2026).
+- **Fora (mapa 107.3 parcial):** habilidade de mana com X ("{X}: Add X mana") e habilidade da mão com X (o X fica 0); teto de X = 20 (LIMITE_X); 107.3b (X = 0 ao conjurar sem pagar), 107.3c–f, h, j, m, n.
+- **Teste:** `ativada.x.unit` (5 testes, falham no motor anterior) e e2e "habilidade com X no custo (Crypt Rats)".
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

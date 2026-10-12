@@ -5885,6 +5885,7 @@ function validateScript(sc) {
     if (ab.kind === 'activated') {
       const cost = ab.cost || {};
       if (cost.mana != null && typeof cost.mana !== 'string') errs.push(`${tag}: custo de mana inválido`);
+      if (cost.xCor != null && !(typeof cost.xCor === 'string' && cost.xCor.length === 1 && 'WUBRG'.includes(cost.xCor) && /\{X\}/i.test(cost.mana || ''))) errs.push(`${tag}: "gaste só mana de uma cor em X" precisa de uma cor WUBRG e de {X} no custo`); // CR2c.7
       if (cost.crew != null && !(Number.isInteger(cost.crew) && cost.crew >= 0)) errs.push(`${tag}: tripular precisa de um número`); // CR2d.3
       if (cost.crew == null && !cost.mana && !cost.tap && !cost.sacrifice && !cost.sacrificeOther && !cost.tapOther && !cost.life && !cost.discard && !cost.returnLand && !cost.revealColor && !cost.discardSelf && !cost.exileSelf && !cost.removeCounters) errs.push(`${tag}: habilidade ativada sem custo`);
       if (ab.semMarcadorSacrifica != null && !(cost.removeCounters && cost.removeCounters.tipo === ab.semMarcadorSacrifica && (ab.effects || []).length && ab.effects.every(e => e.do === 'add_mana'))) errs.push(`${tag}: "sem marcador, sacrifique" só vale em habilidade de mana que remove esse marcador`); // M-250
@@ -5952,7 +5953,7 @@ function validateScript(sc) {
   if (sc && sc.evidence != null && !(Number.isInteger(sc.evidence) && sc.evidence > 0)) errs.push('colher provas precisa de um número inteiro positivo');
   for (const ab of (sc && sc.abilities) || []) if (ab.mayPay && !ab.mayPay.mana && !ab.mayPay.exileFromGraveyard && !ab.mayPay.sacrificeSelf) errs.push('custo opcional do gatilho sem custo');
   for (const [i, ab] of ((sc && sc.loyalty) || []).entries()) {
-    if (!Number.isInteger(ab.cost)) errs.push(`lealdade ${i + 1}: custo precisa ser inteiro (pode ser negativo)`);
+    if (!Number.isInteger(ab.cost) && ab.cost !== '-X') errs.push(`lealdade ${i + 1}: custo precisa ser inteiro (pode ser negativo) ou '-X'`); // CR2c.7 · [−X]
     if (!ab.label) errs.push(`lealdade ${i + 1}: falta o rótulo`);
     errs.push(...effectErrors(ab.effects, `lealdade ${i + 1}`));
   }
@@ -5970,7 +5971,7 @@ function validateScript(sc) {
     if (b.staticRule && !STATIC_RULES.includes(b.staticRule)) errs.push(`face de trás: regra estática "${b.staticRule}" desconhecida`);
     if (b.types && b.types.includes('planeswalker') && !Number.isInteger(b.loyalty)) errs.push('face de trás: planeswalker sem lealdade');
     for (const [i, ab] of (b.loyaltyAbilities || []).entries()) {
-      if (!Number.isInteger(ab.cost)) errs.push(`face de trás, lealdade ${i + 1}: custo precisa ser inteiro`);
+      if (!Number.isInteger(ab.cost) && ab.cost !== '-X') errs.push(`face de trás, lealdade ${i + 1}: custo precisa ser inteiro ou '-X'`);
       errs.push(...effectErrors(ab.effects, `face de trás, lealdade ${i + 1}`));
     }
   }
@@ -7588,6 +7589,9 @@ const RAW_SCRIPTS = [
   { name: 'Mind Stone', abilities: [{ kind: 'activated', cost: { mana: '{1}', tap: true, sacrifice: true }, effects: [{ do: 'draw', amount: 1 }] }],
     example: { action: 'activate:0', target: 'none', expect: { handDelta: 1 } } },
   /* ↓ M · scripts de carta da trilha motor (alicerces CR2; texto oficial em .listas/oficiais-motor.json). Fica no fim da lista, longe das âncoras das paralelas (M-313: dois rebases da M-311/M-312 colidiram com a trilha tipos logo abaixo da âncora T) */
+  // CR2c.7 · 107.3k · X no custo de habilidade ativada, pago só com mana preta (texto oficial em .listas/oficiais-motor.json, Oracle do Forge, 2026-10-12)
+  { name: 'Crypt Rats', abilities: [{ kind: 'activated', cost: { mana: '{X}', xCor: 'B' }, effects: [{ do: 'damage', amount: { per: 'x' }, target: 'each-creature' }, { do: 'damage', amount: { per: 'x' }, jogadores: 'cada' }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // CR2g.6 · 502.3 · não desvira (texto oficial em .listas/oficiais-motor.json, mtg.wtf, 2026-10-11)
   { name: 'Claustrophobia', aura: { enchant: 'creature' }, grants: { naoDesvira: true }, abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'tap', target: 'enchanted' }] }], example: { action: 'aura', target: 'own-creature', expect: { attached: true } } },
 ];
@@ -17425,8 +17429,9 @@ function applyEffect(s, src, eff, tgt, events) {
       const fonteM = src.ability ? s.objects[src.source] : src; // M-272 · "se você controlar uma permanente [cor] que não seja ela nem a fonte"
       if (alvo && eff.seControlaOutra && !battlefield(s).some(x => x.controller === ctrl && x.oid !== alvo.oid && !(fonteM && x.oid === fonteM.oid) && colorsOf(s, x).includes(eff.seControlaOutra.cor))) { note({ failed: true }); break; }
       if (alvo && alvo.zone === 'battlefield') {
-        if (eff.tipo && eff.tipo !== 'p1p1') { const k = poeMarcadores(s, alvo, eff.tipo, eff.amount); note({ amount: k, tipo: eff.tipo, name: alvo.name }); } // M-249 · marcador nomeado (122.1) · CR2e.2 · 614.16
-        else { const k = addCounters(s, alvo, eff.amount); note({ amount: k }); }
+        const nM = amountOf(s, src, eff.amount); // CR2c.7 · quantidade variável ("put X counters": o X da habilidade)
+        if (eff.tipo && eff.tipo !== 'p1p1') { const k = poeMarcadores(s, alvo, eff.tipo, nM); note({ amount: k, tipo: eff.tipo, name: alvo.name }); } // M-249 · marcador nomeado (122.1) · CR2e.2 · 614.16
+        else { const k = addCounters(s, alvo, nM); note({ amount: k }); }
       }
       break;
     }
@@ -18245,9 +18250,11 @@ function resumeEffects(s, events) {
   if (continuaVerbo(s, events)) return; // V-2 · Toca ponto comum: resumeEffects (os passos de um verbo vêm antes de retomar a mágica)
   const r = s.resume; if (!r) return;
   s.resume = null;
-  const src = s.objects[r.oid] || { oid: r.oid, name: r.name, controller: r.controller };
+  const src = s.objects[r.oid] || { oid: r.oid, name: r.name, controller: r.controller, ...(r.xPaid != null ? { xPaid: r.xPaid } : {}) };
   const alvos = (r.alvos || []).slice();
-  for (const eff of r.effects) {
+  // CR2c.7 · habilidade com X retomada depois de uma decisão: a fonte é a permanente, e o X é o da habilidade só durante esta retomada
+  const xRet = r.xPaid != null && s.objects[r.oid] ? src : null, xAntes = xRet ? xRet.xPaid : undefined; if (xRet) xRet.xPaid = r.xPaid;
+  try { for (const eff of r.effects) {
     // Q10 · mesmos alvos da resolução interrompida (os que ainda não foram usados, na ordem)
     let tgt = null;
     if (SC.isTargeted(eff)) tgt = alvos.shift() || null;
@@ -18256,7 +18263,7 @@ function resumeEffects(s, events) {
     if (porJogador(eff)) aplicaPorJogador(s, src, eff, events); else if (ehVarredura(eff)) aplicaCada(s, src, eff, events); else // M-230 · a varredura também retoma depois de uma decisão; CR2-G R4b
     applyEffect(s, src, eff, tgt, events); // CR 704.4 · sem ações de estado entre os efeitos de uma mesma resolução
     if (s.pending) { s.resume = { ...r, effects: r.effects.slice(r.effects.indexOf(eff) + 1), alvos }; return; }
-  }
+  } } finally { if (xRet) { if (xAntes === undefined) delete xRet.xPaid; else xRet.xPaid = xAntes; } }
 }
 
 /** S35 · avisa as auras que observam a criatura encantada virar ou levar dano. */
@@ -19054,11 +19061,20 @@ const canPayExtra = (s, p, cost, selfOid) =>
   (!cost.tapOther || extraCostCandidates(s, p, cost.tapOther, selfOid, true).length >= (cost.tapOther.amount || 1)) &&
   (!cost.removeCounters || ((((s.objects[selfOid] || {}).counters) || {})[cost.removeCounters.tipo] || 0) >= (cost.removeCounters.n || 1)); // M-249 · "Remove two oil counters from this artifact"
 
+/** CR2c.7 · 107.3k · X no custo de habilidade ativada: quantos X a habilidade tem ({X} no custo de mana ou a lealdade [−X]) e o custo de mana
+ * com o X escolhido já somado — no genérico, ou na cor de "Spend only <cor> mana on X" (`cost.xCor`). */
+const xDaHabilidade = ab => ab.loyalty === '-X' ? 1 : (((ab.cost || {}).mana && parseCost(ab.cost.mana).x) || 0);
+function custoAtivadaComX(cost, x) {
+  const c = parseCost(cost.mana); if (!c.x) return c;
+  const n = (x || 0) * c.x; c.x = 0;
+  if (cost.xCor) c.colored[cost.xCor] = (c.colored[cost.xCor] || 0) + n; else c.generic += n;
+  return c;
+}
 function payAbilityCost(s, p, source, ab) {
   const cost = ab.cost || {};
   if (ab.loyalty != null) {
     if (source.loyaltyTurn === s.turn.number) throw new RuleError('lealdade', 'esta planeswalker já usou uma habilidade neste turno');
-    const atual = (source.counters.loyalty || 0) + ab.loyalty;
+    const atual = (source.counters.loyalty || 0) + (ab.loyalty === '-X' ? -(ab.x || 0) : ab.loyalty); // CR2c.7 · [−X]: tira X marcadores
     if (atual < 0) throw new RuleError('lealdade', 'lealdade insuficiente');
     source.counters.loyalty = atual;
     source.loyaltyTurn = s.turn.number;
@@ -19069,7 +19085,7 @@ function payAbilityCost(s, p, source, ab) {
     if (isCreature(s, source) && enjoado(s, source) && !has(s, source, 'haste')) throw new RuleError('custo', 'criatura com enjoo não pode usar {T}');
   }
   if (cost.mana && s.manaCheck) semAFonte(cost.tap ? source.oid : null, () => { // CR2c.6 · a fonte do {T} não paga a própria mana
-    const c = parseCost(cost.mana);
+    const c = custoAtivadaComX(cost, ab.x); // CR2c.7 · o X escolhido entra no custo
     if (ab.vida != null) { // M-255 · phyrexiano: quem ativa escolhe quantos símbolos paga com vida
       if (!(Number.isInteger(ab.vida) && ab.vida >= 0 && ab.vida <= nPhyrexianos(c))) throw new RuleError('custo', 'escolha quantos símbolos phyrexianos pagar com vida');
       if (s.players[p].life < 2 * ab.vida) throw new RuleError('custo', 'vida insuficiente para pagar o phyrexiano');
@@ -19114,7 +19130,7 @@ const canPayAbility = (s, p, source, ab) => {
   const cost = ab.cost || {};
   if (ab.loyalty != null) {
     if (source.loyaltyTurn === s.turn.number) return false; // uma por turno
-    return (source.counters.loyalty || 0) + ab.loyalty >= 0;
+    return (source.counters.loyalty || 0) + (ab.loyalty === '-X' ? 0 : ab.loyalty) >= 0; // CR2c.7 · [−X] sempre dá com X = 0
   }
   if (cost.tap && (source.tapped || (isCreature(s, source) && enjoado(s, source) && !has(s, source, 'haste')))) return false;
   if (!canPayExtra(s, p, cost, source.oid)) return false;
@@ -19123,7 +19139,7 @@ const canPayAbility = (s, p, source, ab) => {
   if (ab.onlyIfAttacking && source.attacking == null) return false; // "Activate only if this creature is attacking"
   if (ab.onlyIfGraveyardAtLeast != null && s.zones[p].graveyard.length < ab.onlyIfGraveyardAtLeast) return false; // M-249 · limiar (702.25 Threshold)
   if (cost.life && s.players[p].life < cost.life) return false;
-  return !(cost.mana && s.manaCheck) || semAFonte(cost.tap ? source.oid : null, () => canPay(s, p, parseCost(cost.mana))); // CR2c.6
+  return !(cost.mana && s.manaCheck) || semAFonte(cost.tap ? source.oid : null, () => canPay(s, p, custoAtivadaComX(cost, 0))); // CR2c.6 · CR2c.7: com X, basta X = 0
 };
 
 /* ---------------- M4 · prioridade e pilha ---------------- */
@@ -19621,6 +19637,9 @@ const HANDLERS = {
     if (!a.fromHand && o.controller !== a.p) throw new RuleError('objeto', 'a permanente não é sua');
     const base = abilitiesOf(s, o).filter(x => x.kind === 'activated')[a.index || 0];
     if (!base) throw new RuleError('habilidade', 'essa permanente não tem essa habilidade');
+    const nX = xDaHabilidade(base); // CR2c.7 · 107.3k · 602.2b: o X é escolhido ao ativar
+    if (a.x != null && !nX) throw new RuleError('custo', 'esta habilidade não tem X no custo');
+    if (a.x != null && !(Number.isInteger(a.x) && a.x >= 0 && a.x <= LIMITE_X)) throw new RuleError('custo', `X precisa ser um número inteiro de 0 a ${LIMITE_X}`);
     if (!ehHabilidadeDeMana(base)) semFracao(s);
     // S23 · mana de qualquer cor: a cor escolhida vem na ação
     if ((base.cost || {}).fromHand && !a.fromHand) throw new RuleError('habilidade', 'esta habilidade só funciona com a carta na mão');
@@ -19652,7 +19671,7 @@ const HANDLERS = {
     if (base.onlyIfGraveyardAtLeast != null && s.zones[a.p].graveyard.length < base.onlyIfGraveyardAtLeast) throw new RuleError('tempo', `só ativa com ${base.onlyIfGraveyardAtLeast} ou mais cartas no seu cemitério`);
     delete s.sacrificadosNoCusto;
     const bloqueavaAntes = o.blocking; // Q11 · o custo pode sacrificar a fonte (Tinder Wall): a habilidade nasce sabendo quem ela bloqueava
-    payAbilityCost(s, a.p, o, { ...ab, pay: a.pay, ...(a.vida != null ? { vida: a.vida } : {}) });
+    payAbilityCost(s, a.p, o, { ...ab, pay: a.pay, ...(a.vida != null ? { vida: a.vida } : {}), ...(nX ? { x: a.x || 0 } : {}) });
     // S33/Leva 106 · adaptar usa a pilha (701.46a): os marcadores entram na resolução, se ela ainda não tiver nenhum
     // 605.1a · habilidade de mana não usa a pilha: resolve na hora
     if ((ab.effects || []).length && (ab.effects || []).every(e => e.do === 'add_mana') && !need.length) {
@@ -19662,6 +19681,7 @@ const HANDLERS = {
     } else { // S41 · vigilância do alvo · S43 · a cor escolhida viaja com a habilidade
       const abOid = makeAbility(s, o, ab.adapt != null ? { ...ab, effects: [{ do: 'adapt', amount: ab.adapt }, ...(ab.effects || [])] } : ab, chosen, bloqueavaAntes);
       if (a.color) s.objects[abOid].chosenColor = a.color;
+      if (nX) s.objects[abOid].xPaid = a.x || 0; // CR2c.7 · 107.3a: o mesmo X em todo o texto da habilidade, até ela resolver
       if (s.sacrificadosNoCusto) s.objects[abOid].sacrificados = s.sacrificadosNoCusto;
       chargeWard(s, a.p, abOid, chosen);
     }
@@ -20604,8 +20624,11 @@ function legalActions(s, p, { adjudication = false } = {}) {
       const pays = pagamentosDe(s, p, cost, o.oid);
       ab = { ...ab, effects: expandeAlvos(s, o, ab.effects || []) }; // M-264 · "any number of target players": uma instância por alvo possível
       // M-255 · 107.4f/601.2f · phyrexiano no custo da habilidade: uma oferta por quantidade de símbolos pagos com 2 de vida
-      const vidas = (() => { const c = cost.mana ? parseCost(cost.mana) : null, k = c ? nPhyrexianos(c) : 0; if (!k || !s.manaCheck) return [null];
-        const ok = []; for (let v = 0; v <= k; v++) if (s.players[p].life >= 2 * v && canPay(s, p, custoPhyrexiano(c, v))) ok.push(v); return ok; })();
+      const vidasDe = x => { const c = cost.mana ? custoAtivadaComX(cost, x || 0) : null, k = c ? nPhyrexianos(c) : 0; if (!k || !s.manaCheck) return [null];
+        const ok = []; for (let v = 0; v <= k; v++) if (s.players[p].life >= 2 * v && canPay(s, p, custoPhyrexiano(c, v))) ok.push(v); return ok; };
+      // CR2c.7 · 107.3k · X no custo: uma ação por valor pagável (0..máximo, teto LIMITE_X); [−X] vai até a lealdade atual
+      const xs = xDaHabilidade(ab) ? valoresDeX(s, 1, x => ab.loyalty === '-X' ? x <= (o.counters.loyalty || 0) : (!(cost.mana && s.manaCheck) || semAFonte(cost.tap ? o.oid : null, () => canPay(s, p, custoAtivadaComX(cost, x))))) : [null];
+      const comXA = x => (x != null ? { x } : {});
       const need = (ab.effects || []).filter(SC.isTargeted);
       if (ab.adapt != null && !(ab.effects || []).length) { if (canPayAbility(s, p, o, ab)) out.push({ t: 'activate', p, oid: o.oid, index }); return; }
       if (!need.length) {
@@ -20613,7 +20636,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
         const porIdentidade = (ab.effects || []).some(e => e.do === 'add_mana' && e.identity);
         const porOponentes = (ab.effects || []).some(e => e.do === 'add_mana' && e.opponentLands);
         const cores = porOponentes ? coresDosTerrenosDosOponentes(s, p) : porIdentidade ? identidade(s, p) : anyColor ? ['W', 'U', 'B', 'R', 'G'] : [null];
-        return cores.forEach(color => pays.forEach(pay => out.push({ t: 'activate', p, oid: o.oid, index, ...(color ? { color } : {}), ...comPagamento(pay) })));
+        return cores.forEach(color => pays.forEach(pay => xs.forEach(x => out.push({ t: 'activate', p, oid: o.oid, index, ...(color ? { color } : {}), ...comPagamento(pay), ...comXA(x) }))));
       }
       let combos = [[]];
       for (const eff of need) {
@@ -20623,7 +20646,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
       }
       // S43 · proteção pede a cor junto do alvo
       const cores = (ab.effects || []).some(e => e.do === 'protection' || e.do === 'resistencia_cor' || e.do === 'imbloqueavel_cor') ? ['W', 'U', 'B', 'R', 'G'] : [null]; // M-255
-      combos.filter(targets => !violaPortaEstandarte(s, p, need, targets, o.oid)).forEach(targets => cores.forEach(color => pays.forEach(pay => vidas.forEach(v => out.push({ t: 'activate', p, oid: o.oid, index, targets, ...(color ? { color } : {}), ...comPagamento(pay), ...(v != null ? { vida: v } : {}) })))));
+      combos.filter(targets => !violaPortaEstandarte(s, p, need, targets, o.oid)).forEach(targets => cores.forEach(color => pays.forEach(pay => xs.forEach(x => vidasDe(x).forEach(v => out.push({ t: 'activate', p, oid: o.oid, index, targets, ...(color ? { color } : {}), ...comPagamento(pay), ...(v != null ? { vida: v } : {}), ...comXA(x) }))))));
     });
   }
   if (adjudication && s.mode === 'assisted') {
@@ -20753,7 +20776,7 @@ function resolveAbility(s, o, events) {
     else if (eff.target === 'delayed-player') applyEffect(s, o, eff, { player: o.jogadorAtrasado != null ? o.jogadorAtrasado : o.controller }, events); // CR2b.1
     else if (ehVarredura(eff)) aplicaCada(s, o, eff, events); // M-230
     else applyEffect(s, o, eff, null, events);
-    if (s.pending) { s.resume = { oid: o.source || o.oid, name: o.name, controller: o.controller, effects: (o.effects || []).slice((o.effects || []).indexOf(eff) + 1), alvo: primeiro, alvos: chosen.slice(ti) }; return; }
+    if (s.pending) { s.resume = { oid: o.source || o.oid, name: o.name, controller: o.controller, effects: (o.effects || []).slice((o.effects || []).indexOf(eff) + 1), alvo: primeiro, alvos: chosen.slice(ti), ...(o.xPaid != null ? { xPaid: o.xPaid } : {}) }; return; } // CR2c.7 · o X viaja com a retomada
   }
 }
 
@@ -23940,7 +23963,7 @@ function describe(before, a, events, after) {
     case 'companion': L.push(`${P} pôs o companheiro ${nameOf(before, a.oid)} na mão${a.free ? ' (sem pagar)' : ` ({${E.COMPANION_COST}})`}`); break;
     case 'activate': {
       const alvo = (a.targets || []).map(x => x.player != null ? who(before, x.player) : nameOf(before, x.oid)).join(' + ');
-      L.push(`${P} ativou ${nameOf(before, a.oid)}${alvo ? ` · alvo: ${alvo}` : ''}`); break;
+      L.push(`${P} ativou ${nameOf(before, a.oid)}${a.x != null ? ` com X = ${a.x}` : ''}${alvo ? ` · alvo: ${alvo}` : ''}`); break; // CR2c.7
     }
     case 'order_trigger': L.push(`${P} ordenou os gatilhos na pilha`); break;
     case 'choose_legend': L.push(`${P} ficou com uma ${nameOf(before, a.oid)} (regra das lendas)`); break; // CR 704.5j
@@ -26635,7 +26658,10 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   }
   function escolherX(titulo, opcoes, xs) {
     const s = table.state, a0 = opcoes[0], o = s.objects[a0.oid], f = s.facts[o.name];
-    const base = a0.bestow ? E.parseCost(((f.script || {}).bestow || {}).mana || '') : f.cost;
+    // CR2c.7 · habilidade com X: o custo é o da habilidade ("Spend only black mana on X": X em símbolos da cor); [−X] tira lealdade
+    const hab = a0.t === 'activate' ? (E.abilitiesOf(s, o).filter(k => k.kind === 'activated')[a0.index || 0] || {}) : null;
+    const lealdadeX = !!hab && hab.loyalty === '-X', xCor = hab && (hab.cost || {}).xCor;
+    const base = hab ? E.parseCost((hab.cost || {}).mana || '') : a0.bestow ? E.parseCost(((f.script || {}).bestow || {}).mana || '') : f.cost;
     let i = xs.length > 1 ? Math.min(1, xs.length - 1) : 0; // começa em X = 1 quando dá
     const valor = h('output', { class: 'tb-x__valor', id: 'tb-x-valor', 'aria-live': 'polite' });
     const total = h('p', { class: 'tb-x__total', id: 'tb-x-total' });
@@ -26645,10 +26671,10 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     function pinta() {
       const x = xs[i];
       valor.textContent = String(x);
-      const txt = costLabel({ ...base, x: 0 }, x * (base.x || 0)) || '{0}';
-      total.textContent = `Você paga ${txt}`;
+      const txt = xCor ? (costLabel({ ...base, x: 0, colored: { ...base.colored, [xCor]: (base.colored[xCor] || 0) + x * (base.x || 0) } }, 0) || '{0}') : (costLabel({ ...base, x: 0 }, x * (base.x || 0)) || '{0}');
+      total.textContent = lealdadeX ? `Tira ${x} de lealdade (fica com ${Math.max(0, (o.counters.loyalty || 0) - x)})` : `Você paga ${txt}`;
       simbolizar(total);
-      confirma.textContent = `Conjurar com X = ${x}`;
+      confirma.textContent = `${hab ? 'Ativar' : 'Conjurar'} com X = ${x}`;
       menos.disabled = i === 0; mais.disabled = i === xs.length - 1;
     }
     confirma.addEventListener('click', () => {
