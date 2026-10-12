@@ -4544,6 +4544,11 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Declarado:** mágica com ascensão sem script (Golden Demise) não dá a bênção.
 - **Toca ponto comum:** `legalActions` (uma linha no `free_cast`: `ofertasSemPagarK`).
 - **Testes:** `keywords.cr4.unit` (3, falham sem a leva). Goldens idênticos; motor v110.
+**K-65 · Murchar (wither, 702.80) e decaída (decayed, 702.147)** ✅ (leva K-65) — onda 4
+- **Valor:** o dano de fonte com murchar em criatura vira marcadores −1/−1 (Boggart Ram-Gang, Sickle Ripper); a criatura decaída (fichas Zumbi de Innistrad) não bloqueia e, quando ataca, é sacrificada no fim do combate.
+- **Aceite:** Sickle Ripper bloqueada por uma 0/4 deixa dois −1/−1 e nenhum dano; no jogador, 2 de vida. A decaída ataca, causa 2 e vai para o cemitério no fim do combate; não consegue bloquear.
+- **Toca ponto comum:** `marcaDanoEmCriatura` (a condição ganha `|| murchaK(s, src)`, sem tirar nada).
+- **Testes:** `keywords.cr4.unit` (2, falham sem a leva), `combat.audit` (1 cenário). Texto oficial: Boggart Ram-Gang, Sickle Ripper (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

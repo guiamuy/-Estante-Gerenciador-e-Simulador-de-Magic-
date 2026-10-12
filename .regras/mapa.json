@@ -7961,14 +7961,18 @@
    "n": "702.80",
    "regra": "Keyword Abilities",
    "titulo": "Wither",
-   "status": "ausente",
-   "falta": "Dano a criatura sempre é marcado: falta virar marcadores -1/-1 (702.80a), inclusive vindo de fonte fora de campo e por última informação conhecida (702.80b-c).",
+   "status": "coberta",
    "esforco": "M",
    "depende": [
     "120.3d",
     "704.5q"
    ],
-   "cartas": "rara (Shadowmoor/Eventide)"
+   "cartas": "rara (Shadowmoor/Eventide)",
+   "evidencia": "K-65: marcaDanoEmCriatura (Toca ponto comum) marca −1/−1 em vez de dano quando a fonte do dano (o objeto de onde a habilidade veio, fonteDoDano) tem murchar (murchaK), pelo caminho do infectar; dano a jogador fica como era.",
+   "testes": [
+    "CR 702.80b · murchar (Sickle Ripper, texto oficial): o dano dela a criatura vira marcadores −1/−1 (não dano marcado); ao jogador, perda de vida normal",
+    "K-65 · murchar e decaída (702.80, 702.147): o Urso com murchar bloqueado por uma 1/4 deixa dois −1/−1; a decaída ataca e é sacrificada"
+   ]
   },
   {
    "n": "702.81",
@@ -9011,14 +9015,18 @@
    "n": "702.147",
    "regra": "Keyword Abilities",
    "titulo": "Decayed",
-   "status": "ausente",
-   "falta": "Sem \"não pode bloquear\" mais \"quando ataca, sacrifique no fim do combate\" (702.147a). Aparece sobretudo em fichas Zumbi 2/2.",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "509.1b restrição de bloqueio",
     "603.7 gatilho atrasado no fim do combate"
    ],
-   "cartas": "comum (Innistrad: Midnight Hunt)"
+   "cartas": "comum (Innistrad: Midnight Hunt)",
+   "evidencia": "K-65: \"não pode bloquear\" em naoBloqueiaK (ligado a naoBloqueia); o gatilho de ataque gerado pela palavra (decaida_k) cria o gatilho atrasado \"sacrifique-a no fim do combate\", preso à encarnação (603.7c).",
+   "testes": [
+    "CR 702.147a · decaída: não bloqueia; ao atacar, é sacrificada no fim do combate",
+    "K-65 · murchar e decaída (702.80, 702.147): o Urso com murchar bloqueado por uma 1/4 deixa dois −1/−1; a decaída ataca e é sacrificada"
+   ]
   },
   {
    "n": "702.148",

@@ -5243,6 +5243,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'bloodthirst', // K-61 · 702.54: entra com N marcadores +1/+1 se um oponente sofreu dano neste turno (danoNoTurnoK)
   'unleash', // K-62 · 702.98: escolha de entrar com um marcador +1/+1 a mais; com marcador +1/+1, não bloqueia (naoBloqueiaK)
   'horsemanship', // K-63 · 702.31: só criatura com equitação bloqueia a criatura com equitação (horsemanshipBarraK)
+  'wither', 'decayed', // K-65 · 702.80 (dano a criatura vira marcadores −1/−1, murchaK) e 702.147 (não bloqueia; ao atacar, sacrificada no fim do combate)
   'afflict', 'melee', 'mentor', 'training', // K-31 · 702.130, 702.121, 702.134, 702.149: gatilhos de ataque gerados pela palavra, um por instância
   'battle cry', 'rampage', 'flanking', 'bushido', // K-30 · 702.91, 702.23, 702.25, 702.45: gatilhos de combate gerados pela palavra (GATILHOS_DE_PALAVRA_K), um por instância
   /* ↓ V · palavras-chave da trilha verbos */
@@ -5420,6 +5421,7 @@ const EFFECTS = {
   ascender_k: { fields: [], targets: [] }, // K-59 · 702.131a (gerado pelo motor na mágica com ascensão)
   equipa_ficha_k: { fields: ['ficha', 'z'], targets: [] }, // K-60 (gerado pelo motor)
   desencadear_k: { fields: ['z'], targets: [] }, // K-62 · tira o marcador do desencadear (gerado pelo motor)
+  decaida_k: { fields: ['z'], targets: [] }, // K-65 · 702.147a (gerado pelo motor)
   salvaguarda: { fields: [], targets: [] }, // K-2 · 702.21a · gerado pelo motor quando uma permanente com salvaguarda vira alvo (não vai em script)
   volta_com_marcador: { fields: ['marcador'], targets: [] }, // K-4 · persistir e imortal (gerado pelo motor)
   exaltado: { fields: ['criatura'], targets: [] }, // K-5 · exaltado (gerado pelo motor)
@@ -8399,6 +8401,7 @@ function palavraNaLinhaK(k) {
   if (k === 'bloodthirst') return 'bloodthirst \\d+'; // K-61 · "Bloodthirst X" fica de fora
   if (k === 'unleash') return 'unleash'; // K-62
   if (k === 'horsemanship') return 'horsemanship'; // K-63
+  if (k === 'wither' || k === 'decayed') return k; // K-65
   if (k === 'dash') return 'dash\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-9
   if (k === 'evoke') return 'evoke(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*exile an? (?:white|blue|black|red|green) card from your hand\\.?)'; // K-8 · só as formas que o motor paga
   return ['afterlife', 'rampage', 'bushido', 'afflict'].includes(k) ? `${k} \\d+` : k; // K-30 · alvoroço N e bushido N
@@ -16772,7 +16775,7 @@ const toxicoDe = (s, o) => !o ? 0 : (o.tempToxico || 0) + (o.faceDown || semImpr
 /** CR2a.9 · a fonte do dano de uma habilidade é o objeto de onde ela veio (o pinger com Basilisk Collar tem toque mortífero). */
 const fonteDoDano = (s, src) => (src && src.ability && s.objects[src.source]) || src;
 const infecta = (s, src0) => { const src = fonteDoDano(s, src0); return !!src && !!s.facts[src.name] && has(s, src, 'infect'); }; // fonte sem carta (efeito sintético) não infecta
-function marcaDanoEmCriatura(s, src, obj, n) { if (infecta(s, src)) obj.counters.m1m1 = (obj.counters.m1m1 || 0) + n; else obj.damage += n; }
+function marcaDanoEmCriatura(s, src, obj, n) { if (infecta(s, src) || murchaK(s, src)) obj.counters.m1m1 = (obj.counters.m1m1 || 0) + n; else obj.damage += n; }
 /** M-254 · 702.90b · dano num jogador: de fonte com infectar vira veneno, sem perda de vida. */
 function danoEmJogador(s, src, p, n) { danoNoTurnoK(s, p, n); if (infecta(s, src)) darVeneno(s, p, n, null, src.name); else perdeVida(s, p, n); }
 function darVeneno(s, p, n, events, fonte) { if (!(n > 0) || !s.players[p]) return; s.players[p].poison = (s.players[p].poison || 0) + n; (events || []).push({ kind: 'effect', do: 'poison', name: fonte || '', target: s.players[p].name, amount: n }); }
@@ -19031,6 +19034,11 @@ function applyEffect(s, src, eff, tgt, events) {
       break;
     }
     /* ↓ K · casos de applyEffect da trilha keywords */
+    case 'decaida_k': { // K-65 · 702.147a: o sacrifício no fim do combate é um gatilho atrasado preso à encarnação (603.7c)
+      const perm = s.objects[src.ability ? src.source : src.oid];
+      if (perm && perm.zone === 'battlefield' && (perm.zc || 0) === eff.z) (s.atrasados = s.atrasados || []).push({ when: 'end-of-combat', turno: s.turn.number, controller: ctrl, jogador: ctrl, objeto: { oid: perm.oid, z: perm.zc || 0 }, name: perm.name, source: perm.oid, effects: [{ do: 'sacrifice_it', target: 'delayed-object' }] });
+      note({ name: src.name }); break;
+    }
     case 'desencadear_k': { // K-62 · 702.98a: escolheu não entrar com o marcador: ele sai (como no tumulto)
       const perm = s.objects[src.ability ? src.source : src.oid];
       if (perm && perm.zone === 'battlefield' && (perm.zc || 0) === eff.z && (perm.counters.p1p1 || 0) > 0) { perm.counters.p1p1 -= 1; if (!perm.counters.p1p1) delete perm.counters.p1p1; }
@@ -22315,6 +22323,8 @@ const GATILHOS_DE_PALAVRA_K = {
   offspring: (s, o) => o && o.proleK ? ({ kind: 'triggered', when: 'etb', palavraK: 'offspring', effects: [{ do: 'prole_k', z: o.zc || 0 }] }) : [],
   // K-56 · 702.174b · "When this permanent enters, if its gift cost was paid, [effect]."
   gift: (s, o) => o && o.presenteK != null ? ({ kind: 'triggered', when: 'etb', palavraK: 'gift', effects: [{ do: 'presente_k', tipo: s.facts[o.name].presenteK, jogador: o.presenteK }] }) : [],
+  // K-65 · 702.147a · "When this creature attacks, sacrifice it at end of combat."
+  decayed: (s, o) => ({ kind: 'triggered', when: 'attacks', palavraK: 'decayed', effects: [{ do: 'decaida_k', z: (o && o.zc) || 0 }] }),
   // K-60 · 702.92a/163a/182a · "When this Equipment enters, create a … token, then attach this Equipment to it." (um gatilho por instância)
   'living weapon': (s, o) => ({ kind: 'triggered', when: 'etb', palavraK: 'living weapon', effects: [{ do: 'equipa_ficha_k', ficha: 'germe', z: (o && o.zc) || 0 }] }),
   'for mirrodin!': (s, o) => ({ kind: 'triggered', when: 'etb', palavraK: 'for mirrodin!', effects: [{ do: 'equipa_ficha_k', ficha: 'rebelde', z: (o && o.zc) || 0 }] }),
@@ -23672,7 +23682,7 @@ function danoNoTurnoK(s, p, n) { if (n > 0 && s.players[p] && partidaTemSedeK(s)
 /* K-62 · 702.98 desencadear: "You may have this permanent enter with an additional +1/+1 counter on it" (pelo caminho do tumulto: entra
    com o marcador e a escolha logo depois pode tirá-lo) e "This permanent can't block as long as it has a +1/+1 counter on it" (qualquer
    marcador +1/+1, não só o do desencadear). */
-const naoBloqueiaK = (s, o) => !!o && !o.faceDown && ((o.counters || {}).p1p1 || 0) > 0 && !semImpressas(s, o) && ((s.facts[o.name] || {}).kw || []).includes('unleash');
+const naoBloqueiaK = (s, o) => !!o && ((!o.faceDown && ((o.counters || {}).p1p1 || 0) > 0 && !semImpressas(s, o) && ((s.facts[o.name] || {}).kw || []).includes('unleash')) || has(s, o, 'decayed')); // K-65 · 702.147a: decaída não bloqueia
 /* K-64 · achados das auditorias 4a e 4b. (1) 118.9d: a conjuração sem pagar o custo de mana (cascata, descobrir) oferece os custos
    adicionais da trilha: as ofertas `cast_free` passam pelas mesmas funções das conjurações normais (como `cast` com `free`), e prole e
    recompra ganham a variante que paga só o adicional. (2) 702.131b: a bênção é conferida antes de cada leva de gatilhos (escolhaDeEntradaK).
@@ -23693,6 +23703,11 @@ function ofertasSemPagarK(s, p, out) {
   out.length = 0; out.push(...outros, ...tmp.map(({ t, free, ...r }) => ({ ...r, t: 'cast_free' })));
 }
 Object.assign(EXPORTS_K, { ofertasSemPagarK });
+/* K-65 · 702.80 murchar: "Damage dealt to a creature by a source with wither isn't marked on that creature. Rather, it causes that source's
+   controller to put that many -1/-1 counters on that creature" (b); o caminho do infectar (marcaDanoEmCriatura; Toca ponto comum), com a
+   fonte do dano de uma habilidade sendo o objeto de onde ela veio. 702.147 decaída: não bloqueia (naoBloqueiaK) e, ao atacar, é
+   sacrificada no fim do combate (gatilho atrasado). */
+const murchaK = (s, src0) => { const src = fonteDoDano(s, src0); return !!src && !!s.facts[src.name] && has(s, src, 'wither'); };
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-30 · 701.65 aerobender: "that player exiles those objects. For each card exiled this way, for as long as it remains exiled, its owner
    may cast it by paying {2} rather than paying its mana cost" (a). A permissão é do DONO e da encarnação exilada (400.7: se a carta sair do
@@ -27618,6 +27633,7 @@ Object.assign(PALAVRA_PT, { 'living weapon': 'arma viva', 'for mirrodin!': 'por 
 Object.assign(PALAVRA_PT, { bloodthirst: 'sede de sangue' }); // K-61
 Object.assign(PALAVRA_PT, { unleash: 'desencadear' }); // K-62
 Object.assign(PALAVRA_PT, { horsemanship: 'equitação' }); // K-63
+Object.assign(PALAVRA_PT, { wither: 'murchar', decayed: 'decaída' }); // K-65
 Object.assign(PALAVRA_PT, { afflict: 'aflição', melee: 'refrega', mentor: 'mentor', training: 'treinamento' }); // K-31
 Object.assign(PALAVRA_PT, { 'battle cry': 'grito de guerra', rampage: 'alvoroço', flanking: 'flanquear', bushido: 'bushido' }); // K-30
 const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consultadas por descreveEfeito; antes a pilha mostrava "proeza k")
@@ -27640,6 +27656,7 @@ const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consulta
   prole_k: () => 'cria uma ficha que é cópia desta permanente, só que 1/1 (prole)', // K-53
   presente_k: e => `${({ card: 'o oponente escolhido compra uma carta', fish: 'o oponente escolhido cria uma ficha de Peixe 1/1 azul virada', turn: 'o oponente escolhido joga um turno extra depois deste', food: 'o oponente escolhido cria uma ficha de Comida', treasure: 'o oponente escolhido cria uma ficha de Tesouro', octopus: 'o oponente escolhido cria uma ficha de Polvo 8/8 azul' })[e.tipo] || 'o oponente escolhido recebe o presente'} (presente)`, // K-56
   compra_k: () => 'compra a carta', dragar_k: e => `mói ${e.n} e devolve esta carta do cemitério à mão no lugar de comprar (dragar)`, // K-57
+  decaida_k: () => 'esta criatura é sacrificada no fim do combate (decaída)', // K-65
   desencadear_k: () => 'entra sem o marcador +1/+1 do desencadear', // K-62
   equipa_ficha_k: e => `cria uma ficha de ${({ germe: 'Germe 0/0 preto', rebelde: 'Rebelde 2/2 vermelho', heroi: 'Herói 1/1 incolor' })[e.ficha] || 'criatura'} e anexa este Equipamento a ela`, // K-60
   ascender_k: () => 'se você controla dez ou mais permanentes, ganha a bênção da cidade (ascensão)', // K-59

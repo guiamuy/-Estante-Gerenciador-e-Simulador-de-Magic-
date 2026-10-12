@@ -2340,3 +2340,30 @@ test('CR 400.7 com 702.92a · o gatilho de arma viva do Batterskull que saiu e v
   const germes = Object.values(s.objects).filter(o => o.token && o.name === 'Phyrexian Germ');
   assert.ok(germes.every(o => s.objects[b].attachedTo !== o.oid), 'o Batterskull novo não é anexado pelo gatilho do antigo');
 });
+
+/* ---------------- K-65 · murchar 702.80 e decaída 702.147 ---------------- */
+test('CR 702.80b · murchar (Sickle Ripper, texto oficial): o dano dela a criatura vira marcadores −1/−1 (não dano marcado); ao jogador, perda de vida normal', () => {
+  const SR = { ...oficial('Sickle Ripper'), keywords: ['Wither'] };
+  const GRANDE = { name: 'Grande', type_line: 'Creature — Beast', mana_cost: '{3}', cmc: 3, colors: [], power: '0', toughness: '4', keywords: [], oracle_text: '' };
+  let s = partida({ 'Sickle Ripper': SR, Grande: GRANDE }); const a = s.turn.active, d = 1 - a;
+  let r, g; [s, r] = poe(s, a, 'Sickle Ripper'); [s, g] = poe(s, d, 'Grande');
+  const combateK65 = (st, blocks) => { st = act(ateK35(st, a, 'combat_attackers'), { t: 'attack', p: a, attackers: [r] });
+    for (let i = 0; i < 6 && !(st.pending && st.pending.kind === 'blockers'); i++) st = st.pending ? act(st, E.legalActions(st, st.pending.p)[0]) : act(st, { t: 'pass', p: st.turn.priority });
+    st = act(st, { t: 'block', p: d, blocks }); for (let i = 0; i < 10 && st.turn.step !== 'main2'; i++) st = st.pending ? act(st, E.legalActions(st, st.pending.p)[0]) : act(st, { t: 'pass', p: st.turn.priority }); return st; };
+  const t = combateK65(s, [[g, r]]);
+  assert.equal(t.objects[g].counters.m1m1, 2, 'dois marcadores −1/−1'); assert.equal(t.objects[g].damage || 0, 0, 'nenhum dano marcado'); assert.equal(E.stats(t, t.objects[g]).toughness, 2);
+  const v = combateK65(s, []); assert.equal(v.players[d].life, s.players[d].life - 2, 'no jogador, perda de vida');
+});
+
+test('CR 702.147a · decaída: não bloqueia; ao atacar, é sacrificada no fim do combate', () => {
+  const ZUMBI = { name: 'Zumbi', type_line: 'Creature — Zombie', mana_cost: '{B}', cmc: 1, colors: ['B'], power: '2', toughness: '2', keywords: ['Decayed'], oracle_text: 'Decayed' };
+  let s = partida({ Zumbi: ZUMBI, Urso: URSO }); const a = s.turn.active, d = 1 - a;
+  let z, u; [s, z] = poe(s, a, 'Zumbi'); [s, u] = poe(s, d, 'Urso');
+  let t = act(ateK35(s, a, 'combat_attackers'), { t: 'attack', p: a, attackers: [z] });
+  for (let i = 0; i < 6 && !(t.pending && t.pending.kind === 'blockers'); i++) t = t.pending ? act(t, E.legalActions(t, t.pending.p)[0]) : act(t, { t: 'pass', p: t.turn.priority });
+  t = act(t, { t: 'block', p: d, blocks: [] }); for (let i = 0; i < 12 && t.turn.step !== 'main2'; i++) t = t.pending ? act(t, E.legalActions(t, t.pending.p)[0]) : act(t, { t: 'pass', p: t.turn.priority });
+  assert.equal(t.players[d].life, s.players[d].life - 2); assert.equal(t.objects[z].zone, 'graveyard', 'sacrificada no fim do combate');
+  let b = ateK35(s, d, 'combat_attackers'); b = act(b, { t: 'attack', p: d, attackers: [u] });
+  for (let i = 0; i < 6 && !(b.pending && b.pending.kind === 'blockers'); i++) b = b.pending ? act(b, E.legalActions(b, b.pending.p)[0]) : act(b, { t: 'pass', p: b.turn.priority });
+  assert.throws(() => act(b, { t: 'block', p: a, blocks: [[z, u]] }), /./, 'a decaída não bloqueia');
+});

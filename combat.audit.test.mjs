@@ -935,6 +935,16 @@ test('K-63 · equitação (702.31): o Urso não bloqueia a cavalaria, que causa 
   assert.throws(() => combate(s, [c], [[u, c]]), /./);
   assert.equal(combate(s, [c]).players[d].life, 18);
 });
+test('K-65 · murchar e decaída (702.80, 702.147): o Urso com murchar bloqueado por uma 1/4 deixa dois −1/−1; a decaída ataca e é sacrificada', () => {
+  cobre('wither'); cobre('decayed');
+  const cartas = { ...CARDS, Murcha: cre('Murcha', 2, 2, ['Wither'], { oracle_text: 'Wither' }), Muro: cre('Muro', 1, 4), Decaida: cre('Decaida', 2, 2, ['Decayed'], { oracle_text: 'Decayed' }) };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 84, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a; let m, w, z; [s, m] = poe(s, a, 'Murcha'); [s, w] = poe(s, d, 'Muro'); [s, z] = poe(s, a, 'Decaida');
+  const t = combate(s, [m, z], [[w, m]]);
+  assert.equal(t.objects[w].counters.m1m1, 2); assert.equal(t.players[d].life, 18); assert.equal(vivo(t, z), false);
+});
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));
