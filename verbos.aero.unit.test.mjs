@@ -28,12 +28,12 @@ test('CR 701.65a · aerobender exila a permanente; enquanto exilada, o DONO pode
   assert.equal(E.invariants(y).length, 0);
 });
 
-test('CR 701.65a · o {2} é custo alternativo: o tempo de conjuração continua o da carta (criatura só no seu principal), X e outros custos não entram; a permissão acaba se a carta sair do exílio', () => {
+test('CR 701.65a · o {2} é custo alternativo: o tempo de conjuração continua o da carta (criatura só no seu principal), X e outros custos alternativos não entram; a permissão acaba se a carta sair do exílio', () => {
   let s = mesa([URSO], [URSO]), u; [s, u] = poe(s, 0, URSO); [s] = aero(s, u);
   s = J(s); s.turn.priority = 0;
   assert.ok(legais(comMana(s, 'GG'), 0, a => a.t === 'cast' && a.oid === u && a.aerobend).length > 0, 'no seu principal');
   const acao = legais(comMana(s, 'GG'), 0, a => a.t === 'cast' && a.oid === u && a.aerobend)[0];
-  assert.throws(() => E.apply(comMana(s, 'GG'), { ...acao, kick: 1 }), /aerobender/); assert.throws(() => E.apply(comMana(s, 'GG'), { ...acao, x: 2 }), /aerobender/);
+  assert.throws(() => E.apply(comMana(s, 'GG'), { ...acao, kick: 1 }), /não tem reforço/); // V-31 · expectativa ajustada: reforço vale com o aerobender (118.9d); carta sem reforço é recusada pela conferência geral assert.throws(() => E.apply(comMana(s, 'GG'), { ...acao, x: 2 }), /aerobender/);
   assert.throws(() => E.apply(comMana(s, 'GG'), { t: 'cast', p: 0, oid: u }), /conjura/, 'sem a marca de aerobender não conjura do exílio pelo custo normal');
   let fora = J(s); E.moveObject(fora, u, 'graveyard'); E.moveObject(fora, u, 'exile');
   assert.equal(E.aerobendidaV(fora, 0, fora.objects[u]), false, '400.7: saiu e voltou ao exílio, a permissão acabou');

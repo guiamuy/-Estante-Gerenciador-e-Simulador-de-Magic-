@@ -20374,7 +20374,7 @@ const HANDLERS = {
     else if (a.omen) { const om = omenOf(s, { name: o.frontName || o.name }); if (s.manaCheck && !a.free) payCost(s, a.p, parseCost((om || {}).mana || '{0}')); }
     else if (a.bestow) { const bc = parseCost(bestowOf(s, o).mana); if (s.manaCheck && !a.free) payCost(s, a.p, bc, (a.x || 0) * (bc.x || 0) - reducaoNoCusto(s, a.p, o, a.targets || [], bc)); } // M-259
     else if (a.faceDown) { if (s.manaCheck && !a.free) payCost(s, a.p, parseCost('{3}')); } // S54 · virada para baixo custa {3}
-    else if (a.aerobend) { if (s.manaCheck && !a.free) payCost(s, a.p, parseCost('{2}')); } // V-30 · 701.65a: {2} em vez do custo de mana (Toca ponto comum: HANDLERS.cast)
+    else if (a.aerobend) { if (s.manaCheck && !a.free) { const c = custoAerobendV(s, a.p, o, a.kick || 0, a.targets || []); payCost(s, a.p, c.custo, c.extra); } } // V-30/V-31 · 701.65a, 118.9d: {2} em vez do custo de mana, mais reforço, menos reduções (Toca ponto comum: HANDLERS.cast)
     else if (a.plotted) { /* S53 · plot: o mana já foi pago quando a carta foi plotada */ }
     else if (s.manaCheck && !a.free) { if (f.semCusto) throw new RuleError('custo', 'esta carta não tem custo de mana: não pode ser conjurada assim');
       let custo = a.kick ? somaCusto(f.cost, parseCost(reforco.mana), a.kick) : f.cost;
@@ -21601,7 +21601,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
     for (const c of mao) casts(o).forEach(x => out.push({ ...x, recomecarK: true, pay: { ...(x.pay || {}), discard: [c] } }));
   }
   /* ↓ V · ofertas de legalActions da trilha verbos (out.push) */
-  if (!s.pending) for (const oid of s.zones[p].exile) { const o = s.objects[oid], f = o && s.facts[o.name]; if (!aerobendidaV(s, p, o) || f.types.includes('land') || !(canSorcery || !isSorcerySpeed(f)) || (s.manaCheck && !canPay(s, p, parseCost('{2}')))) continue; casts(o).forEach(x => out.push({ ...x, aerobend: true })); } // V-30 · 701.65a: a carta aerobendida, por {2}
+  if (!s.pending) ofertasAerobendV(s, p, out, casts, canSorcery); // V-30/V-31 · 701.65a, 118.9d: a carta aerobendida, por {2} (com reforço e reduções)
   for (let i = out.length - 1; i >= 0; i--) if (acaoDeDetidaV(s, out[i])) out.splice(i, 1); // V-21 · 701.35a: habilidade ativada de permanente detida não é oferecida
   if (!s.pending) for (const o of battlefield(s)) if (o.controller === p && podeVirarManifestada(s, o) && (!s.manaCheck || canPay(s, p, s.facts[o.name].cost))) out.push({ t: 'unmorph', p, oid: o.oid, manifest: true }); // V-17 · 701.40b
   /* ↓ T · ofertas de legalActions da trilha tipos (out.push) */
@@ -22649,10 +22649,31 @@ function aerobenderV(s, src, o, ctrl, events) {
 function aerobendNoCastV(s, a, o) {
   if (!a.aerobend) return;
   if (!aerobendidaV(s, a.p, o)) throw new RuleError('aerobender', 'esta carta não foi exilada por aerobender, ou não é sua');
-  if (a.alt != null || a.flashback || a.escape || a.disturb || a.omen || a.bestow || a.faceDown || a.plotted || a.kick || a.x || a.vida != null || (a.emenda || []).length) throw new RuleError('aerobender', 'pelo aerobender a carta custa {2}: sem outro custo alternativo, reforço ou X');
+  if (a.alt != null || a.flashback || a.escape || a.disturb || a.omen || a.bestow || a.faceDown || a.plotted || a.x || a.vida != null || (a.emenda || []).length) throw new RuleError('aerobender', 'pelo aerobender a carta custa {2}: sem outro custo alternativo nem X'); // V-31 · 118.9a/107.3b; reforço é custo adicional e vale (118.9d)
   o.playableFromExile = a.p;
 }
-Object.assign(EXPORTS_V, { aerobendidaV, aerobenderV });
+/* V-31 · 118.9d / 601.2f: custos adicionais (reforço) somam ao custo alternativo {2} e reduções (afinidade, desconto por condição,
+   "custa {N} a menos" por alvo) tiram do genérico dele — o teto da redução é o genérico do custo total ({2} mais o do reforço). */
+function custoAerobendV(s, p, o, kick, alvos) {
+  const f = s.facts[o.name], k = kick && (f.script || {}).kicker;
+  const custo = k ? somaCusto(parseCost('{2}'), parseCost(k.mana), kick) : parseCost('{2}');
+  const teto = custo.generic || 0, red = affinityDiscount(s, p, o, teto - (f.cost.generic || 0)) + reducaoPorAlvo(s, p, o, alvos);
+  return { custo, extra: -Math.min(teto, red) };
+}
+/** Chamada só por legalActions (abaixo da âncora V): uma conjuração por forma (sem reforço; com 1 a 5 reforços se a carta tiver), com os alvos de `casts`. */
+function ofertasAerobendV(s, p, out, casts, canSorcery) {
+  for (const oid of s.zones[p].exile) {
+    const o = s.objects[oid], f = o && s.facts[o.name];
+    if (!aerobendidaV(s, p, o) || f.types.includes('land') || !(canSorcery || !isSorcerySpeed(f))) continue;
+    const k = (f.script || {}).kicker, kicks = [0, ...(k ? Array.from({ length: k.multi ? 5 : 1 }, (_, i) => i + 1) : [])];
+    for (const x of casts(o)) for (const n of kicks) {
+      const c = custoAerobendV(s, p, o, n, x.targets || []);
+      if (s.manaCheck && !canPay(s, p, c.custo, c.extra)) continue;
+      out.push({ ...x, aerobend: true, ...(n ? { kick: n } : {}) });
+    }
+  }
+}
+Object.assign(EXPORTS_V, { aerobendidaV, aerobenderV, custoAerobendV });
 /* V-29 · 701.71 Empower Jace N: "If you don't control a Jace planeswalker token, create a blue Jace planeswalker token with 0 loyalty,
    '[−1]: Surveil 1,' and '[−3]: Draw a card.' Choose a Jace planeswalker token you control. Put N loyalty counters on it" (a). Conta qualquer
    ficha de planeswalker com o subtipo Jace que você controla (não só a criada por este verbo); com mais de uma, quem empodera escolhe

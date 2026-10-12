@@ -6618,17 +6618,20 @@
    "regra": "Keyword Actions",
    "titulo": "Airbend",
    "status": "parcial",
-   "falta": "aerobender uma mágica na pilha (Aang, Swift Savior) e \"whenever you airbend\" (b) não têm forma; reduções de custo não se aplicam ao {2}",
+   "falta": "aerobender uma mágica na pilha (Aang, Swift Savior) e \"whenever you airbend\" (b) não têm forma; com Killian (redução por alvo) no campo a oferta some pelo filtro \"otimista\" do legalActions (M-259, pendência da trilha motor), embora a ação seja aceita",
    "esforco": "M",
    "depende": [
     "118.9 custo alternativo"
    ],
    "cartas": "uma coleção só (14 cartas no acervo do Forge, 12/10/2026)",
-   "evidencia": "V-30 · efeito `airbend` (aerobenderV, aerobendidaV e aerobendNoCastV em core.js, abaixo da âncora ↓ V): exila a permanente pelo caminho de mover e marca a encarnação exilada; enquanto ela ficar no exílio, o DONO pode conjurá-la pagando {2} em vez do custo de mana (ação `cast` com `aerobend`, oferecida em legalActions abaixo da âncora V; tempo de conjuração da carta; sem X, reforço nem outro custo alternativo); terreno fica no exílio; ficha deixa de existir. A folha da carta no Exílio diz \"Conjurar por aerobender · {2}\". Cartas: Airbending Lesson (biblioteca); Aang, Airbending Master (primeira frase, validada no teste) · texto oficial em .listas/oficiais-verbos.json",
+   "evidencia": "V-30 · efeito `airbend` (aerobenderV, aerobendidaV e aerobendNoCastV em core.js, abaixo da âncora ↓ V): exila a permanente pelo caminho de mover e marca a encarnação exilada; enquanto ela ficar no exílio, o DONO pode conjurá-la pagando {2} em vez do custo de mana (ação `cast` com `aerobend`, oferecida em legalActions abaixo da âncora V; tempo de conjuração da carta; sem X nem outro custo alternativo; V-31: reforço soma e reduções tiram do {2}, 118.9d); terreno fica no exílio; ficha deixa de existir. A folha da carta no Exílio diz \"Conjurar por aerobender · {2}\". Cartas: Airbending Lesson (biblioteca); Aang, Airbending Master (primeira frase, validada no teste) · texto oficial em .listas/oficiais-verbos.json",
    "testes": [
     "CR 701.65a · aerobender exila a permanente; enquanto exilada, o DONO pode conjurá-la por {2} em vez do custo de mana — o outro jogador não",
-    "CR 701.65a · o {2} é custo alternativo: o tempo de conjuração continua o da carta (criatura só no seu principal), X e outros custos não entram; a permissão acaba se a carta sair do exílio",
-    "CR 701.65a · terreno aerobendido fica no exílio (não se conjura terreno); ficha aerobendida deixa de existir"
+    "CR 701.65a · o {2} é custo alternativo: o tempo de conjuração continua o da carta (criatura só no seu principal), X e outros custos alternativos não entram; a permissão acaba se a carta sair do exílio",
+    "CR 701.65a · terreno aerobendido fica no exílio (não se conjura terreno); ficha aerobendida deixa de existir",
+    "V-31 · auditoria A9 (118.9d): reforço é custo adicional e soma ao {2} do aerobender — Benalish Sleeper oferece {2} e {2}+{B}, e cobra os dois",
+    "V-31 · auditoria A10 (118.9d, 601.2f): reduções tiram do {2} — Salt Road Packbeast com duas criaturas suas custa {0} pelo aerobender",
+    "V-31 · auditoria A10b (118.9d): \"custa {2} a menos se mira uma criatura\" (Killian) também tira do {2} — Rancor aerobendida sai de graça mirando uma criatura"
    ]
   },
   {
