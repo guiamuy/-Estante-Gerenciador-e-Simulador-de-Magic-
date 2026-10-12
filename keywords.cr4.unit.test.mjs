@@ -1762,3 +1762,35 @@ test('CR 702.107a · perdurar (Salt Road Patrol, texto oficial): "{1}{W}, {T}: u
   let t = J(s); t.objects[p].tapped = false; for (const x of t.zones[a].battlefield) t.objects[x].tapped = false; t.turn.step = 'combat_begin';
   assert.ok(!E.legalActions(t, a).some(x => x.t === 'activate' && x.oid === p), 'fora da fase principal com a pilha vazia, não');
 });
+
+/* ---------------- K-43 · devorar 702.82 e amplificar 702.38 ---------------- */
+const escolhaPickK43 = s => { for (let i = 0; i < 8 && !(s.pending && s.pending.kind === 'pick') && s.stack.length; i++) s = act(s, { t: 'pass', p: s.turn.priority }); return s; };
+const pegaK43 = (s, p, oids) => { for (const oid of oids) s = act(s, { t: 'pick', p, oid }); return s.pending && s.pending.kind === 'pick' ? act(s, { t: 'pick_done', p }) : s; };
+
+test('CR 702.82a · devorar (Gorger Wurm, texto oficial): ao entrar, sacrifica quantas criaturas suas quiser (ela não) e entra com N +1/+1 por sacrificada; zero também vale', () => {
+  let s = partida({ 'Gorger Wurm': oficial('Gorger Wurm'), Urso: URSO }); const a = s.turn.active, d = 1 - a;
+  let w, u1, u2, u3; [s, w] = poe(s, a, 'Gorger Wurm', 'hand'); [s, u1] = poe(s, a, 'Urso'); [s, u2] = poe(s, a, 'Urso'); [s, u3] = poe(s, d, 'Urso');
+  s = escolhaPickK43(act(s, { t: 'cast', p: a, oid: w }));
+  assert.equal((s.pending || {}).kind, 'pick'); assert.equal(s.pending.p, a); assert.equal(s.pending.min, 0);
+  assert.deepEqual(J(s.pending.from).sort(), [u1, u2].sort(), 'só as criaturas suas, e não ela mesma');
+  const t = pegaK43(s, a, [u1, u2]);
+  assert.equal(t.objects[w].counters.p1p1, 2); assert.equal(t.objects[u1].zone, 'graveyard'); assert.equal(t.objects[u2].zone, 'graveyard'); assert.equal(t.objects[u3].zone, 'battlefield');
+  const z = pegaK43(s, a, []); assert.ok(!z.objects[w].counters.p1p1); assert.equal(z.objects[u1].zone, 'battlefield');
+});
+
+test('CR 702.82c · devorar com qualidade (Caprichrome, texto oficial: "Devour artifact 1"): só artefatos (ela, artefato, não)', () => {
+  let s = partida({ Caprichrome: oficial('Caprichrome'), Toptero: TOPTERO, Urso: URSO, 'Peça': ART_K34 }); const a = s.turn.active;
+  let c, t, u, pc; [s, c] = poe(s, a, 'Caprichrome', 'hand'); [s, t] = poe(s, a, 'Toptero'); [s, u] = poe(s, a, 'Urso'); [s, pc] = poe(s, a, 'Peça');
+  s = escolhaPickK43(act(s, { t: 'cast', p: a, oid: c }));
+  assert.deepEqual(J(s.pending.from).sort(), [t, pc].sort(), 'o Tóptero e a Peça (artefatos), não o Urso');
+  s = pegaK43(s, a, [t, pc]); assert.equal(s.objects[c].counters.p1p1, 2);
+});
+
+test('CR 702.38a · amplificar (Glowering Rogon, texto oficial): revela cartas da mão que compartilham tipo de criatura com ela; entra com N +1/+1 por revelada; as cartas ficam na mão', () => {
+  const FERA = { name: 'Fera', type_line: 'Creature — Beast', mana_cost: '{2}{G}', cmc: 3, colors: ['G'], power: '3', toughness: '3', keywords: [], oracle_text: '' };
+  let s = partida({ 'Glowering Rogon': oficial('Glowering Rogon'), Fera: FERA, Urso: URSO }); const a = s.turn.active;
+  let g, f1, f2, u; [s, g] = poe(s, a, 'Glowering Rogon', 'hand'); [s, f1] = poe(s, a, 'Fera', 'hand'); [s, f2] = poe(s, a, 'Fera', 'hand'); [s, u] = poe(s, a, 'Urso', 'hand');
+  s = escolhaPickK43(act(s, { t: 'cast', p: a, oid: g }));
+  assert.deepEqual(J(s.pending.from).sort(), J(s.zones[a].hand.filter(x => ['Fera', 'Glowering Rogon'].includes(s.objects[x].name))).sort(), 'só as Feras da mão (o Urso não compartilha tipo)'); assert.ok(!s.pending.from.includes(u));
+  s = pegaK43(s, a, [f1, f2]); assert.equal(s.objects[g].counters.p1p1, 2); assert.equal(s.objects[f1].zone, 'hand'); assert.equal(s.objects[f2].zone, 'hand');
+});

@@ -5225,6 +5225,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'annihilator', 'poisonous', 'renown', 'ingest', // K-40 · 702.86, 702.70, 702.112, 702.115: gatilhos de ataque e de dano de combate a jogador (GATILHOS_DE_PALAVRA_K)
   'modular', 'soulshift', // K-41 · 702.43 e 702.46: "entra com N" e gatilhos de morte com alvo, que olham para trás (603.10a)
   'dethrone', 'frenzy', 'outlast', // K-42 · 702.105 e 702.68 (gatilhos de ataque) e 702.107 (habilidade ativada gerada pela palavra, só como feitiço)
+  'devour', 'amplify', // K-43 · 702.82 e 702.38: escolha logo depois de entrar (sacrificar / revelar) e N +1/+1 por escolhida (entrarComPickK)
   'afflict', 'melee', 'mentor', 'training', // K-31 · 702.130, 702.121, 702.134, 702.149: gatilhos de ataque gerados pela palavra, um por instância
   'battle cry', 'rampage', 'flanking', 'bushido', // K-30 · 702.91, 702.23, 702.25, 702.45: gatilhos de combate gerados pela palavra (GATILHOS_DE_PALAVRA_K), um por instância
   /* ↓ V · palavras-chave da trilha verbos */
@@ -8215,6 +8216,7 @@ function palavraNaLinhaK(k) {
   if (k === 'annihilator' || k === 'poisonous' || k === 'renown') return `${k} \\d+`; // K-40
   if (k === 'modular' || k === 'soulshift') return `${k} \\d+`; // K-41 · Modular—Sunburst fica de fora (o motor não guarda as cores gastas)
   if (k === 'frenzy') return 'frenzy \\d+'; if (k === 'outlast') return 'outlast\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-42
+  if (k === 'devour') return 'devour(?: (?:artifact|creature|land|enchantment))? \\d+'; if (k === 'amplify') return 'amplify \\d+'; // K-43
   if (k === 'dash') return 'dash\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-9
   if (k === 'evoke') return 'evoke(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*exile an? (?:white|blue|black|red|green) card from your hand\\.?)'; // K-8 · só as formas que o motor paga
   return ['afterlife', 'rampage', 'bushido', 'afflict'].includes(k) ? `${k} \\d+` : k; // K-30 · alvoroço N e bushido N
@@ -15878,6 +15880,7 @@ function cardFacts(card) {
     ricocheteK: ricocheteImpressoK(card), // K-35 · 702.88: linha "Rebound" (undefined quando não tem)
     ecoK: custoDaLinhaK(card, 'Echo'), // K-36 · 702.30: "Echo {2}{R}" (undefined quando não tem)
     perdurarK: custoDaLinhaK(card, 'Outlast'), // K-42 · 702.107a: "Outlast {1}{W}" (undefined quando não tem)
+    devorarK: devorarImpressoK(card), // K-43 · 702.82: [{ n, tipo }] por linha "Devour [qualidade] N" (undefined quando não tem)
     suspenderK: suspenderImpressoK(card), // K-22 · 702.62a: "Suspend N—{custo}" (undefined quando não tem)
     equipesK: equipesImpressosK(card), // K-28 · 702.6c: "Equip [qualidade] {custo}" (undefined quando não tem)
     jogadorK: jogadorImpressoK(card), // K-26 · 702.11c / 702.18a: "You have hexproof." / "You have shroud." (undefined quando não tem)
@@ -19052,6 +19055,7 @@ function concluiPick(s, events) {
     else if (where === 'exile-playable-turn') { moveObject(s, oid, 'exile'); s.objects[oid].playableFromExile = pk.p; s.objects[oid].jogavelSoNesteTurno = true; } // M-267
     else if (where === 'proliferar') escolhaDoVerbo(s, oid); // V-2 · Toca ponto comum: concluiPick (a escolha só é anotada; o verbo aplica no fim)
     else if (where === 'desvira') { if (s.objects[oid] && s.objects[oid].zone === 'battlefield') desvira(s, s.objects[oid]); } // M-250 · CR2g.6
+    else if (where === 'entrarComK') entrarComPickK(s, oid, pk); // K-43 · devorar / amplificar (Toca ponto comum: concluiPick)
     else if (where === 'descarta-ou-sacrifica') { if (s.objects[oid].zone === 'hand') descartaCarta(s, oid); else sacrifice(s, oid); }
     else moveObject(s, oid, where);
   };
@@ -22068,6 +22072,7 @@ MARCAS_DA_CONJURACAO.push('espetaculoK', 'surtoK'); // K-32
 MARCAS_DA_CONJURACAO.push('recompraK'); // K-33 · 702.27a: some ao sair da pilha (400.7)
 MARCAS_DA_CONJURACAO.push('ricocheteK'); // K-35 · 702.88a: o gatilho atrasado vale para este objeto no exílio; saiu de lá, acabou (400.7)
 MARCAS_DA_CONJURACAO.push('renomadaK'); // K-40 · 702.112b: renomada até sair do campo (400.7)
+MARCAS_DA_CONJURACAO.push('devorouK'); // K-43 · 702.82b: "it devoured" vale para esta permanente
 const COR_DO_NOME_K = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
 const COR_PT_K = { W: 'branca', U: 'azul', B: 'preta', R: 'vermelha', G: 'verde' };
 /** O custo de evocar impresso na face da frente: { mana: '{2}{U}' } ou { exileHandColor: 'G' } ("Evoke—Exile a green card from your
@@ -22642,6 +22647,8 @@ function entraComPalavrasK(s, o) {
   const f = o && s.facts[o.name], out = {}; if (!f || o.faceDown) return out;
   for (const [k, tipo] of [['fading', 'fade'], ['vanishing', 'time']]) if ((f.kw || []).includes(k)) for (const n of ((f.numerosK || {})[k] || [])) out[tipo] = (out[tipo] || 0) + n;
   if ((f.kw || []).includes('modular')) for (const n of ((f.numerosK || {}).modular || [])) out.p1p1 = (out.p1p1 || 0) + n; // K-41 · 702.43a/b
+  for (const d of (f.devorarK || [])) s.queuedChoices = (s.queuedChoices || []).concat([{ kind: 'devorar_k', oid: o.oid, p: o.controller, n: d.n, tipo: d.tipo }]); // K-43 · 702.82a/c
+  if ((f.kw || []).includes('amplify')) for (const n of ((f.numerosK || {}).amplify || [])) s.queuedChoices = (s.queuedChoices || []).concat([{ kind: 'amplificar_k', oid: o.oid, p: o.controller, n }]); // K-43 · 702.38a/b
   if ((f.kw || []).includes('riot')) for (let i = 0; i < Math.max(1, ((f.numerosK || {}).riot || []).length); i++) { out.p1p1 = (out.p1p1 || 0) + 1; s.queuedChoices = (s.queuedChoices || []).concat([{ kind: 'tumulto_k', oid: o.oid, p: o.controller, name: o.name }]); } // K-38 · 702.136a/b: entra com o marcador e pergunta em seguida (como a terra de choque, M-330)
   return out;
 }
@@ -22651,9 +22658,10 @@ Object.assign(EXPORTS_K, { entraComPalavrasK });
    gatilho ou prioridade, como a terra de choque da M-330: o resultado é o mesmo) e pelo fabricar (702.123a, na resolução do gatilho). */
 const SERVO_K = { name: 'Servo', types: ['artifact', 'creature'], subtypes: ['Servo'], colors: [], power: 1, toughness: 1 };
 function escolhaDeEntradaK(s) {
-  while (!s.pending && (s.queuedChoices || []).length && s.queuedChoices[0].kind === 'tumulto_k') {
+  while (!s.pending && (s.queuedChoices || []).length && ['tumulto_k', 'devorar_k', 'amplificar_k'].includes(s.queuedChoices[0].kind)) {
     const c = s.queuedChoices.shift(), t = s.objects[c.oid];
     if (!t || t.zone !== 'battlefield' || !s.players[c.p] || s.players[c.p].lost) continue;
+    if (c.kind !== 'tumulto_k') { if (escolhaDeEntrarComK(s, c, t)) return true; continue; } // K-43
     s.pending = { kind: 'choose_mode', p: c.p, name: `Tumulto de ${t.name}`, options: ['Entrar com um marcador +1/+1', 'Entrar sem o marcador, com ímpeto'],
       opcoesK: [{ effects: [] }, { effects: [{ do: 'tumulto_k', z: t.zc || 0 }] }], fonteK: { oid: t.oid, name: t.name, controller: c.p } };
     return true;
@@ -22686,6 +22694,33 @@ function castExtraK(s, p, o, x, alvos, adic) {
   return base - af - Math.min(teto, reducaoPorAlvo(s, p, o, alvos));
 }
 Object.assign(EXPORTS_K, { sobControleDesdeK, genericoAdicionalK, castExtraK });
+/* K-43 · 702.82 devorar ("As this object enters, you may sacrifice any number of creatures [of the quality]. This permanent enters with N +1/+1
+   counters on it for each creature sacrificed this way") e 702.38 amplificar ("… reveal any number of cards from your hand that share a creature
+   type with it … N +1/+1 counters … for each card revealed"). Como o tumulto: ela entra e a escolha (pick) vem logo depois, antes de gatilho ou
+   prioridade; cada escolhida sacrificada (devorar) ou revelada (amplificar, fica na mão) põe os N marcadores. 702.82b: `devorouK` guarda quantas. */
+function devorarImpressoK(card) {
+  const txt = String((card && (card.oracle_text || (card.faces && card.faces[0] && card.faces[0].oracle_text))) || ''), out = [];
+  for (const l0 of txt.split('\n')) { const m = l0.replace(/\s*\([^)]*\)/g, '').trim().match(/^Devour(?: (artifact|creature|land|enchantment))? (\d+)$/i); if (m) out.push({ n: +m[2], tipo: (m[1] || 'creature').toLowerCase() }); }
+  return out.length ? out : undefined;
+}
+const tiposDeCriaturaDaCartaK = (s, o) => { const linha = (o.zone === 'battlefield' ? linhaDeTipo(s, o) : (s.facts[o.name] || {}).typeText) || ''; const sub = (linha.split(/—|-/)[1] || '').trim().toLowerCase().split(/\s+/).filter(Boolean); return sub.filter(x => SC.TIPOS_DE_CRIATURA_SCK.has(x)); }; // a lista (205.3m) é em minúsculas
+const compartilhaTipoK = (s, a, b) => metamorfoK(s, a, 'Elf') || metamorfoK(s, b, 'Elf') ? (tiposDeCriaturaDaCartaK(s, a).length || metamorfoK(s, a, 'Elf')) && (tiposDeCriaturaDaCartaK(s, b).length || metamorfoK(s, b, 'Elf')) : tiposDeCriaturaDaCartaK(s, a).some(x => tiposDeCriaturaDaCartaK(s, b).includes(x));
+function escolhaDeEntrarComK(s, c, t) {
+  const cands = c.kind === 'devorar_k'
+    ? battlefield(s).filter(x => x.oid !== t.oid && x.controller === c.p && (c.tipo === 'creature' ? isCreature(s, x) : tiposDe(s, x).includes(c.tipo))).map(x => x.oid)
+    : s.zones[c.p].hand.filter(x => compartilhaTipoK(s, s.objects[x], t));
+  if (!cands.length) return false;
+  startPick(s, { p: c.p, from: cands, min: 0, max: cands.length, to: 'entrarComK', rest: 'stay', source: t.name,
+    label: c.kind === 'devorar_k' ? `Devorar ${c.n}: sacrifique ${c.tipo === 'creature' ? 'criaturas' : 'permanentes'} suas para ${t.name} (${c.n} marcador(es) +1/+1 por uma)` : `Amplificar ${c.n}: revele cartas que compartilham tipo com ${t.name} (${c.n} marcador(es) +1/+1 por uma)` }, []);
+  s.pending.entrarComK = { oid: t.oid, z: t.zc || 0, n: c.n, devorar: c.kind === 'devorar_k' };
+  return true;
+}
+function entrarComPickK(s, oid, pk) {
+  const e = pk.entrarComK, t = s.objects[e.oid], x = s.objects[oid]; if (!x) return;
+  if (e.devorar) { if (x.zone !== 'battlefield') return; sacrifice(s, oid); }
+  if (t && t.zone === 'battlefield' && (t.zc || 0) === e.z) { poeMarcadores(s, t, 'p1p1', e.n); if (e.devorar) t.devorouK = (t.devorouK || 0) + 1; }
+}
+Object.assign(EXPORTS_K, { devorarImpressoK, escolhaDeEntrarComK, entrarComPickK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-30 · 701.65 aerobender: "that player exiles those objects. For each card exiled this way, for as long as it remains exiled, its owner
    may cast it by paying {2} rather than paying its mana cost" (a). A permissão é do DONO e da encarnação exilada (400.7: se a carta sair do
@@ -26570,6 +26605,7 @@ Object.assign(PALAVRA_PT, { riot: 'tumulto', fabricate: 'fabricar' }); // K-38
 Object.assign(PALAVRA_PT, { annihilator: 'aniquilador', poisonous: 'venenoso', renown: 'renome', ingest: 'ingerir' }); // K-40
 Object.assign(PALAVRA_PT, { modular: 'modular', soulshift: 'transmigrar' }); // K-41
 Object.assign(PALAVRA_PT, { dethrone: 'destronar', frenzy: 'frenesi', outlast: 'perdurar' }); // K-42
+Object.assign(PALAVRA_PT, { devour: 'devorar', amplify: 'amplificar' }); // K-43
 Object.assign(PALAVRA_PT, { afflict: 'aflição', melee: 'refrega', mentor: 'mentor', training: 'treinamento' }); // K-31
 Object.assign(PALAVRA_PT, { 'battle cry': 'grito de guerra', rampage: 'alvoroço', flanking: 'flanquear', bushido: 'bushido' }); // K-30
 const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consultadas por descreveEfeito; antes a pilha mostrava "proeza k")

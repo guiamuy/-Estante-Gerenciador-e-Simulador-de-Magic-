@@ -7279,13 +7279,17 @@
    "n": "702.38",
    "regra": "Keyword Abilities",
    "titulo": "Amplify",
-   "status": "ausente",
-   "falta": "Sem \"ao entrar, revele cartas da mão que compartilham tipo e entre com marcadores\" (702.38a)",
+   "status": "coberta",
    "esforco": "M",
    "depende": [
     "614.1c entra com marcadores"
    ],
-   "cartas": "uma coleção só (Legions)"
+   "cartas": "uma coleção só (Legions)",
+   "evidencia": "K-43: \"Amplify N\" faz a escolha logo depois de entrar: revelar de 0 a todas as cartas da mão que compartilham um tipo de criatura com ela (metamorfo conta); cada revelada põe N +1/+1 nela e fica na mão; uma escolha por instância (702.38b).",
+   "testes": [
+    "CR 702.38a · amplificar (Glowering Rogon, texto oficial): revela cartas da mão que compartilham tipo de criatura com ela; entra com N +1/+1 por revelada; as cartas ficam na mão",
+    "K-43 · devorar e amplificar (702.82, 702.38): a de devorar come o Urso e entra maior; a de amplificar revela a irmã da mão; as duas atacam maiores"
+   ]
   },
   {
    "n": "702.39",
@@ -7946,14 +7950,19 @@
    "n": "702.82",
    "regra": "Keyword Abilities",
    "titulo": "Devour",
-   "status": "ausente",
-   "falta": "Sem \"ao entrar, sacrifique quantas criaturas quiser; entra com N marcadores por cada\" nem o valor \"devorou\" lido por outras habilidades (702.82a-c).",
+   "status": "coberta",
    "esforco": "M",
    "depende": [
     "614.1c",
     "607"
    ],
-   "cartas": "rara"
+   "cartas": "rara",
+   "evidencia": "K-43: \"Devour [qualidade] N\" (devorarImpressoK) faz a escolha logo depois de entrar, antes de gatilho ou prioridade (escolhaDeEntradaK → escolhaDeEntrarComK: pick de 0 a todas as criaturas — ou permanentes da qualidade — suas, menos ela); cada escolhida é sacrificada e põe N +1/+1 nela (concluiPick → entrarComPickK); 702.82b: devorouK conta quantas. O resultado é o mesmo do \"as this enters\" (como a terra de choque da M-330).",
+   "testes": [
+    "CR 702.82a · devorar (Gorger Wurm, texto oficial): ao entrar, sacrifica quantas criaturas suas quiser (ela não) e entra com N +1/+1 por sacrificada; zero também vale",
+    "CR 702.82c · devorar com qualidade (Caprichrome, texto oficial: \"Devour artifact 1\"): só artefatos (ela, artefato, não)",
+    "K-43 · devorar e amplificar (702.82, 702.38): a de devorar come o Urso e entra maior; a de amplificar revela a irmã da mão; as duas atacam maiores"
+   ]
   },
   {
    "n": "702.83",

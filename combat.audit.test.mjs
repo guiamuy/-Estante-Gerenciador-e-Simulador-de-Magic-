@@ -718,6 +718,22 @@ test('K-42 · destronar, frenesi e perdurar (702.105, 702.68, 702.107): o empate
   s = combate(s, [r, f]); for (let i = 0; i < 30 && s.turn.step !== 'main2'; i++) s = s.pending ? act(s, E.legalActions(s, s.pending.p)[0]) : act(s, { t: 'pass', p: s.turn.priority });
   assert.equal(s.objects[r].counters.p1p1, 1, 'destronar'); assert.equal(s.players[d].life, 15, '(2 + 1) + (1 + 1)');
 });
+test('K-43 · devorar e amplificar (702.82, 702.38): a de devorar come o Urso e entra maior; a de amplificar revela a irmã da mão; as duas atacam maiores', () => {
+  cobre('devour'); cobre('amplify');
+  const cartas = { ...CARDS, Glutao: cre('Glutao', 1, 1, ['Devour', 'Haste'], { oracle_text: 'Haste\nDevour 2' }),
+    Fera: { name: 'Fera', type_line: 'Creature — Beast', mana_cost: '{1}', cmc: 1, colors: ['G'], power: '1', toughness: '1', keywords: ['Amplify', 'Haste'], oracle_text: 'Haste\nAmplify 1' } };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 66, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a; let g, u, f, f2; [s, g] = poe(s, a, 'Glutao', { zone: 'hand' }); [s, u] = poe(s, a, 'Urso'); [s, f] = poe(s, a, 'Fera', { zone: 'hand' }); [s, f2] = poe(s, a, 'Fera', { zone: 'hand' });
+  s = act(s, { t: 'cast', p: a, oid: g }); for (let i = 0; i < 6 && !s.pending && s.stack.length; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  s = act(s, { t: 'pick', p: a, oid: u }); if (s.pending && s.pending.kind === 'pick') s = act(s, { t: 'pick_done', p: a });
+  assert.equal(s.objects[g].counters.p1p1, 2); assert.equal(vivo(s, u), false);
+  s = act(s, { t: 'cast', p: a, oid: f }); for (let i = 0; i < 6 && !s.pending && s.stack.length; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  s = act(s, { t: 'pick', p: a, oid: f2 }); if (s.pending && s.pending.kind === 'pick') s = act(s, { t: 'pick_done', p: a });
+  assert.equal(s.objects[f].counters.p1p1, 1); assert.equal(s.objects[f2].zone, 'hand');
+  assert.equal(combate(s, [g, f]).players[d].life, 15, '3 + 2');
+});
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));

@@ -4394,6 +4394,11 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Aceite:** com 20 a 20 o destronar dá o marcador; com o defensor em 15, não; frenesi 2 sem bloqueio causa 3; bloqueada, só 1; o perdurar aparece na principal e põe o marcador, e não aparece fora da principal.
 - **Toca ponto comum:** nenhum (gatilhos e a habilidade ativada vêm de `habilidadesDePalavraK`).
 - **Testes:** `keywords.cr4.unit` (3, falham sem a leva), `combat.audit` (1 cenário). Texto oficial: Enraged Revolutionary, Salt Road Patrol (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
+**K-43 · Devorar e amplificar (devour 702.82, amplify 702.38)** 🟡 (leva K-43)
+- **Valor:** ao entrar, a criatura com "Devour N" pergunta quais criaturas suas sacrificar (ou permanentes da qualidade, "Devour artifact"), e a com "Amplify N" quais cartas da mão revelar; cada uma vale N marcadores +1/+1. A escolha usa a lista de cartas que a mesa já desenha.
+- **Aceite:** Gorger Wurm: só as suas criaturas, não ela; dois Ursos sacrificados, dois marcadores; zero também vale. Caprichrome: só artefatos. Glowering Rogon: só as cartas de Fera da mão; reveladas ficam na mão.
+- **Toca ponto comum:** `concluiPick` (uma linha: o destino `entrarComK`). Ela entra e a escolha vem logo depois, antes de gatilho ou prioridade (como o tumulto).
+- **Testes:** `keywords.cr4.unit` (3, falham sem a leva), `combat.audit` (1 cenário). Texto oficial: Gorger Wurm, Caprichrome, Glowering Rogon (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.
