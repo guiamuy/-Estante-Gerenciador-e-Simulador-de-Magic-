@@ -8715,6 +8715,9 @@ dono criar o segredo `FIREBASE_SERVICE_ACCOUNT`)
   mesmo job regrava a tabela do ramo `relatos` (registro criado pelo `GITHUB_TOKEN` não dispara o fluxo Relatos), na mesma
   fila de execução (`concurrency: relatos`).
 - **Sem o segredo:** o fluxo termina sem fazer nada (é o estado até o dono criar a chave).
+- **Aviso de ligada (leva I-290):** na primeira rodada com o segredo, o fluxo grava `fila.json` (`{ versao: 1, ligada: true,
+  desde }`) no ramo `relatos`, uma vez só. É por ele que o app passa a enviar pela fila (T6e-2); se o segredo for tirado
+  depois, o aviso fica (resíduo: relatos ficariam na fila até o segredo voltar).
 - **Segurança:** o que vem da fila é dado de terceiro (qualquer conta da Estante escreve na própria fila): limite de 3 por
   conta e 20 por rodada; "@conta" e "#123" do texto viram texto (o robô não menciona ninguém nem liga a outro registro);
   a tabela aceita registro do robô só com a etiqueta `relato-fila` (`relatos-tabela.mjs`, `confiavel`); permissões do job

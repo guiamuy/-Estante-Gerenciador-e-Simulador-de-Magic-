@@ -26,14 +26,7 @@ jobs:
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444   # v5 (fixada por SHA; roda em Node 24)
         with:
           node-version: 22
-      - name: Criar os registros da fila
-        id: fila
-        env:
-          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node relatos-fila.mjs
       - name: Trazer a tabela publicada
-        if: steps.fila.outputs.criados && steps.fila.outputs.criados != '0'
         run: |
           if git ls-remote --exit-code --heads origin relatos > /dev/null; then
             git fetch --depth 1 origin relatos
@@ -44,13 +37,19 @@ jobs:
             git -C saida switch --orphan relatos
             printf '%s\n' '# Estante · relatos' '' 'Ramo gerado pelo fluxo "Relatos" (`relatos-tabela.mjs`, no `main`). Não edite à mão.' > saida/README.md
           fi
+      - name: Criar os registros da fila
+        id: fila
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node relatos-fila.mjs --saida saida
       - name: Etiquetar e montar a tabela
         if: steps.fila.outputs.criados && steps.fila.outputs.criados != '0'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node relatos-tabela.mjs --saida saida
       - name: Publicar no ramo relatos
-        if: steps.fila.outputs.criados && steps.fila.outputs.criados != '0'
+        if: (steps.fila.outputs.criados && steps.fila.outputs.criados != '0') || steps.fila.outputs.ligou == '1'
         run: |
           cd saida
           git add -A

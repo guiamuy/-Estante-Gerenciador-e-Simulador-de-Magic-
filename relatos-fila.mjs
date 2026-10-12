@@ -8,7 +8,8 @@
 // `relato-fila`, que só um fluxo deste repositório consegue pôr. Limite: 3 por conta e 20 por rodada (o resto fica para
 // a rodada seguinte).
 import { createSign } from 'node:crypto';
-import { readFileSync, appendFileSync } from 'node:fs';
+import { readFileSync, appendFileSync, existsSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 export const POR_CONTA = 3, POR_RODADA = 20;
@@ -103,6 +104,15 @@ export async function rodada({ conta, banco, repo, githubToken, busca = globalTh
   return out;
 }
 
+/** I-290 · o aviso de que a fila está ligada: `fila.json` no ramo `relatos`, gravado uma vez, na primeira rodada com o
+    segredo. É por ele que o app passa a enviar pela fila (antes disso, o Enviar continua abrindo o GitHub). */
+export function avisoDeLigada(pasta, agora = Date.now()) {
+  const arq = join(pasta, 'fila.json');
+  if (existsSync(arq)) return false;
+  writeFileSync(arq, JSON.stringify({ versao: 1, ligada: true, desde: new Date(agora).toISOString() }) + '\n');
+  return true;
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const segredo = process.env.FIREBASE_SERVICE_ACCOUNT || '';
   if (!segredo) { console.log('sem segredo FIREBASE_SERVICE_ACCOUNT: nada a fazer'); process.exit(0); }
@@ -112,6 +122,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   if (!repo || !githubToken) { console.error('uso: GITHUB_TOKEN=… GITHUB_REPOSITORY=dono/repo FIREBASE_SERVICE_ACCOUNT=… node relatos-fila.mjs'); process.exit(2); }
   const { loadModules } = await import('./_load.mjs'); const M = loadModules();
   const r = await rodada({ conta, banco, repo, githubToken, R: M.relatos, remoto: M.remoto, log: m => console.log(m) });
+  const i = process.argv.indexOf('--saida'), ligou = i > 0 ? avisoDeLigada(process.argv[i + 1]) : false;
+  if (ligou) console.log('fila ligada: fila.json gravado no ramo relatos');
   console.log(`fila: ${r.criados.length} registro(s) criado(s), ${r.repetidos} já existiam, ${r.invalidos} fora da regra, ${r.ficaram} para a próxima rodada`);
-  if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `criados=${r.criados.length + r.repetidos + r.invalidos}\n`);
+  if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `criados=${r.criados.length + r.repetidos + r.invalidos}\nligou=${ligou ? 1 : 0}\n`);
 }

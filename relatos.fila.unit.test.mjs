@@ -138,8 +138,22 @@ test('I-289 · fluxo: segredo só no passo que lê a fila, permissões mínimas,
   assert.match(yml, /^permissions:\n  contents: write\n  issues: write\n/m);
   assert.match(yml, /cron: '\*\/10 \* \* \* \*'/); assert.match(yml, /^concurrency:\n  group: relatos\n/m, 'não disputa o ramo relatos com o fluxo Relatos');
   assert.equal((yml.match(/secrets\.FIREBASE_SERVICE_ACCOUNT/g) || []).length, 1, 'o segredo aparece num passo só');
-  const passo = yml.split('- name:').find(p => p.includes('secrets.FIREBASE_SERVICE_ACCOUNT')); assert.match(passo, /run: node relatos-fila\.mjs\s*$/);
+  const passo = yml.split('- name:').find(p => p.includes('secrets.FIREBASE_SERVICE_ACCOUNT')); assert.match(passo, /run: node relatos-fila\.mjs --saida saida\s*$/);
+  assert.ok(yml.indexOf('Trazer a tabela publicada') < yml.indexOf('Criar os registros da fila'), 'o ramo relatos já está em saida quando o script grava o aviso');
   assert.doesNotMatch(yml, /pull_request|issues:\n\s+types/, 'não roda por evento de terceiro');
   const relatos = readFileSync(new URL('./.github/workflows/relatos.yml', import.meta.url), 'utf8');
   assert.match(relatos, /^concurrency:\n  group: relatos\n/m);
+});
+
+test('I-290 · aviso de fila ligada: gravado uma vez no ramo relatos, na primeira rodada com o segredo', async () => {
+  const { mkdtempSync, readFileSync: le, rmSync } = await import('node:fs'); const { tmpdir } = await import('node:os'); const { join } = await import('node:path');
+  const pasta = mkdtempSync(join(tmpdir(), 'fila-'));
+  try {
+    assert.equal(F.avisoDeLigada(pasta, AGORA), true);
+    assert.deepEqual(JSON.parse(le(join(pasta, 'fila.json'), 'utf8')), { versao: 1, ligada: true, desde: '2026-10-12T20:00:00.000Z' });
+    assert.equal(F.avisoDeLigada(pasta, AGORA + 1e6), false, 'não regrava: sem commit a cada rodada');
+    assert.equal(JSON.parse(le(join(pasta, 'fila.json'), 'utf8')).desde, '2026-10-12T20:00:00.000Z');
+  } finally { rmSync(pasta, { recursive: true, force: true }); }
+  const yml = readFileSync(new URL('./.github/workflows/relatos-fila.yml', import.meta.url), 'utf8');
+  assert.match(yml, /Publicar no ramo relatos\n\s+if: .*steps\.fila\.outputs\.ligou == '1'/);
 });
