@@ -17979,7 +17979,8 @@ function payAlt(s, p, cost, pay, selfOid) {
   if (cost.returnLand) {
     const oid = (pay && pay.land) || (defaultPayment(s, p, cost, selfOid).land);
     const land = oid && s.objects[oid];
-    if (!land || land.zone !== 'battlefield' || land.controller !== p || land.name !== cost.returnLand) throw new RuleError('custo', `devolva um ${cost.returnLand} que você controla`);
+    // H-2 · 205.3i/305.6: "an Island" é qualquer terreno com o tipo Ilha (Tundra, Snow-Covered Island), como a oferta (defaultPayment) já conferia; antes o pagamento exigia o NOME e recusava a ação oferecida
+    if (!land || land.zone !== 'battlefield' || land.controller !== p || !s.facts[land.name].types.includes('land') || !new RegExp('\\b' + cost.returnLand + '\\b', 'i').test(s.facts[land.name].typeText || land.name)) throw new RuleError('custo', `devolva um ${cost.returnLand} que você controla`);
     moveObject(s, oid, 'hand');
   }
 }
