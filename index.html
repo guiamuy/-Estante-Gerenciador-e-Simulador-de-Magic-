@@ -5680,6 +5680,8 @@ const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield
   'you-gain-life',
   // CR2b.8 · heroico (palavra de habilidade, 207.2c): "whenever you cast a spell that targets this creature"
   'heroic',
+  // CR2g.5 · 508.3d / 509.3c / 509.3f(e) · "whenever you attack", "whenever ~ becomes blocked", "whenever ~ attacks and isn't blocked"
+  'you-attack', 'becomes-blocked', 'attacks-unblocked',
   /* ↓ K · gatilhos da trilha keywords */
   /* ↓ V · gatilhos da trilha verbos */
   'becomes-monstrous', // V-6 · "When ~ becomes monstrous" (o valor do gatilho é o N da monstruosidade, 701.37c)
@@ -5707,14 +5709,14 @@ const GATILHO_ZONA = {
 const PASSOS_DO_GATILHO = ['upkeep', 'draw', 'main1', 'combat_begin', 'combat_end', 'main2', 'end'];
 /* CR2-G R2c · os oito últimos nomes: descartar e comprar (de um jogador), sacrificar outra, receber marcadores, receber dano,
  * causar dano (`a`: qualquer/jogador/oponente) e virar — com a Aura ou o Equipamento observando a permanente anexada. */
-const EVENTOS_DE_OBJETO = ['conjurar', 'ataca', 'bloqueia', 'dano-combate', 'marcadores', 'recebe-dano', 'causa-dano', 'vira', 'sacrifica'];
-const EVENTOS_DE_JOGADOR = ['descarta', 'compra', 'ganha-vida']; // CR2b.7 · 119.9
+const EVENTOS_DE_OBJETO = ['conjurar', 'ataca', 'bloqueia', 'dano-combate', 'marcadores', 'recebe-dano', 'causa-dano', 'vira', 'sacrifica', 'bloqueada', 'nao-bloqueada']; // CR2g.5
+const EVENTOS_DE_JOGADOR = ['descarta', 'compra', 'ganha-vida', 'atacou']; // CR2b.7 · 119.9 · CR2g.5 · 508.3d
 /** M-258 · 603.2c · evento em lote: "whenever one or more <criaturas suas> deal damage to your opponents" dispara uma vez por golpe simultâneo. */
 const EVENTOS_DE_LOTE = ['causam-dano'];
 /** De quem o gatilho observa o evento, por evento (o primeiro é o padrão). */
 const OBJETOS_DO_EVENTO = { zona: ['self', 'outra', 'anexada'], conjurar: ['self', 'outra'], ataca: ['self', 'outra'], bloqueia: ['self', 'outra'],
   'dano-combate': ['self', 'outra'], marcadores: ['self', 'outra'], 'recebe-dano': ['self', 'anexada'], 'causa-dano': ['self', 'anexada'],
-  vira: ['self', 'anexada'], sacrifica: ['outra'] };
+  vira: ['self', 'anexada'], sacrifica: ['outra'], bloqueada: ['self', 'outra'], 'nao-bloqueada': ['self', 'outra'] }; // CR2g.5
 const GATILHO_EVENTO = {
   upkeep: { evento: 'passo', passo: 'upkeep', turno: 'seu' },
   'each-upkeep': { evento: 'passo', passo: 'upkeep', turno: 'qualquer' },
@@ -5730,6 +5732,9 @@ const GATILHO_EVENTO = {
   'you-discard': { evento: 'descarta', quem: 'voce' },
   'third-draw': { evento: 'compra', n: 3, quem: 'voce' },
   'you-gain-life': { evento: 'ganha-vida', quem: 'voce' }, // CR2b.7
+  'you-attack': { evento: 'atacou', quem: 'voce' }, // CR2g.5 · uma vez por combate em que você ataca (508.3d)
+  'becomes-blocked': { evento: 'bloqueada', objeto: 'self' }, // CR2g.5 · uma vez por combate, com um ou mais bloqueadores (509.3c)
+  'attacks-unblocked': { evento: 'nao-bloqueada', objeto: 'self' }, // CR2g.5
   'other-sacrificed': { evento: 'sacrifica', objeto: 'outra', quem: 'voce' },
   'counters-added': { evento: 'marcadores', objeto: 'self' },
   'dealt-damage': { evento: 'recebe-dano', objeto: 'self' },
@@ -5746,7 +5751,7 @@ const falaDe = (d, evento) => !!d && (Array.isArray(d.evento) ? d.evento.include
 /** O descritor de zona de um gatilho; null se não for de zona. */
 const gatilhoDeZona = w => { const d = gatilhoDoEvento(w); return d && d.evento === 'zona' ? d : null; };
 const CHAVES_DO_EVENTO = { zona: ['evento', 'de', 'para', 'objeto', 'quem', 'donoVoce'], passo: ['evento', 'passo', 'turno'],
-  descarta: ['evento', 'quem'], compra: ['evento', 'n', 'quem'], 'ganha-vida': ['evento', 'quem'], 'causam-dano': ['evento', 'a'], 'recebe-dano': ['evento', 'objeto'], vira: ['evento', 'objeto'], 'causa-dano': ['evento', 'objeto', 'a'] };
+  descarta: ['evento', 'quem'], compra: ['evento', 'n', 'quem'], 'ganha-vida': ['evento', 'quem'], atacou: ['evento', 'quem'], 'causam-dano': ['evento', 'a'], 'recebe-dano': ['evento', 'objeto'], vira: ['evento', 'objeto'], 'causa-dano': ['evento', 'objeto', 'a'] };
 for (const e of EVENTOS_DE_OBJETO) CHAVES_DO_EVENTO[e] = CHAVES_DO_EVENTO[e] || ['evento', 'objeto', 'quem', 'donoVoce'];
 function gatilhoErros(w, tag) {
   if (typeof w === 'string') return TRIGGERS.includes(w) ? [] : [`${tag}: gatilho "${w}" desconhecido`];
@@ -5806,7 +5811,7 @@ function descreveGatilho(w) {
     if (ev.evento === 'conjurar') return ev.objeto !== 'outra' ? 'quando você conjura esta mágica' : `quando ${jogador} conjura uma mágica`;
     const a = { jogador: ' a um jogador', oponente: ' a um oponente' }[ev.a] || '';
     const verbo = [].concat(ev.evento).map(e => ({ ataca: 'ataca', bloqueia: 'bloqueia', 'dano-combate': 'causa dano de combate a um jogador', marcadores: 'recebe marcadores +1/+1',
-      'recebe-dano': 'recebe dano', 'causa-dano': 'causa dano' + a, vira: 'vira' })[e]).join(' ou ');
+      'recebe-dano': 'recebe dano', 'causa-dano': 'causa dano' + a, vira: 'vira', bloqueada: 'é bloqueada', 'nao-bloqueada': 'ataca e não é bloqueada' })[e]).join(' ou ');
     if (ev.objeto === 'anexada') return `quando a criatura encantada ${verbo}`;
     if (ev.objeto !== 'outra') return `quando ${verbo}`;
     return `quando ${ev.quem === 'qualquer' ? 'outra criatura' : ev.quem === 'oponente' ? 'uma criatura de um oponente' : 'outra criatura sua'} ${verbo}`;
@@ -5836,7 +5841,7 @@ const STATIC_RULES = ['flagbearer', 'exile-instead-of-graveyard', 'opponent-crea
 const TRIGGER_PT = { etb: 'quando entra no campo', dies: 'quando morre', upkeep: 'na sua manutenção', attacks: 'quando ataca', blocks: 'quando bloqueia',
   'other-etb': 'quando outra criatura sua entra', 'other-dies': 'quando outra criatura sua morre',
   'combat-damage': 'quando causa dano de combate a um jogador', 'end-step': 'no início do seu passo final', 'each-upkeep': 'no início de cada manutenção', 'begin-combat': 'no início do combate no seu turno',
-  'enchanted-damages-opponent': 'quando a criatura encantada causa dano a um oponente', 'you-discard': 'quando você descarta uma carta', 'you-gain-life': 'sempre que você ganha vida', heroic: 'heroico: quando você conjura uma mágica que mira esta criatura', 'dealt-damage': 'quando recebe dano', 'attached-dies': 'quando a criatura anexada morre', 'attached-dies-or-exiled': 'quando a permanente encantada morre ou é exilada',
+  'enchanted-damages-opponent': 'quando a criatura encantada causa dano a um oponente', 'you-discard': 'quando você descarta uma carta', 'you-gain-life': 'sempre que você ganha vida', heroic: 'heroico: quando você conjura uma mágica que mira esta criatura', 'you-attack': 'sempre que você ataca', 'becomes-blocked': 'quando é bloqueada', 'attacks-unblocked': 'quando ataca e não é bloqueada', 'dealt-damage': 'quando recebe dano', 'attached-dies': 'quando a criatura anexada morre', 'attached-dies-or-exiled': 'quando a permanente encantada morre ou é exilada',
   'other-sacrificed': 'quando você sacrifica outra permanente',
   'leaves-battlefield': 'quando sai do campo de batalha', 'other-leaves-battlefield': 'quando outra criatura sua sai do campo', 'enchanted-deals-damage': 'quando a criatura encantada causa dano',
   'counters-added': 'quando recebe marcadores +1/+1', 'third-draw': 'quando você compra a terceira carta do turno',
@@ -7503,7 +7508,8 @@ const RAW_SCRIPTS = [
     { kind: 'activated', cost: { mana: '{1}', sacrifice: true }, effects: [{ do: 'draw', amount: 1 }] }],
     example: { action: 'activate:0', target: 'enemy-creature', expect: { bounced: true } } },
   { name: 'Mind Stone', abilities: [{ kind: 'activated', cost: { mana: '{1}', tap: true, sacrifice: true }, effects: [{ do: 'draw', amount: 1 }] }],
-    example: { action: 'activate:0', target: 'none', expect: { handDelta: 1 } } }
+    example: { action: 'activate:0', target: 'none', expect: { handDelta: 1 } } },
+  /* ↓ M · scripts de carta da trilha motor (alicerces CR2; texto oficial em .listas/oficiais-motor.json). Fica no fim da lista, longe das âncoras das paralelas (M-313: dois rebases da M-311/M-312 colidiram com a trilha tipos logo abaixo da âncora T) */
 ];
 const SCRIPTS = {};
 const SCRIPT_ERRORS = {};
@@ -14740,6 +14746,9 @@ const __m42 = (function () {
     [/^whenever another creature enters(?: the battlefield)? under your control$/i, 'other-etb'],
     [/^whenever you gain life$/i, 'you-gain-life'], // CR2b.7 · 119.9
     [/^(?:heroic — )?whenever you cast a spell that targets (this creature|~)$/i, 'heroic'], // CR2b.8
+    [/^whenever you attack$/i, 'you-attack'], // CR2g.5
+    [/^whenever (this creature|~) becomes blocked$/i, 'becomes-blocked'],
+    [/^whenever (this creature|~) attacks and isn't blocked$/i, 'attacks-unblocked'],
     [/^when enchanted creature becomes tapped or is dealt damage$/i, 'enchanted-tapped-or-damaged']
   ];
   const CONTAGENS = { 'enchantment you control': 'enchantments-you-control', 'other enchantment on the battlefield': 'other-enchantments', 'aura on the battlefield': 'auras-on-battlefield',
@@ -16343,7 +16352,7 @@ function gatilhosDeJogador(s, evento, p, n) {
   const ordem = [p, ...s.players.map((_, i) => i).filter(i => i !== p)];
   for (const q of ordem) {
     // descarte: o campo na ordem de sempre (battlefield), uma passada só; compra: cemitério e campo de cada jogador
-    if ((evento === 'descarta' || evento === 'ganha-vida') && q !== p) break; // CR2b.7 · ganho de vida: o campo uma vez só
+    if ((evento === 'descarta' || evento === 'ganha-vida' || evento === 'atacou') && q !== p) break; // CR2b.7 · ganho de vida: o campo uma vez só (CR2g.5 · atacar também)
     const lugares = evento === 'compra' ? [...s.zones[q].graveyard, ...s.zones[q].battlefield] : battlefield(s).map(w => w.oid);
     for (const oid of lugares) {
       const w = s.objects[oid]; if (!w || isAbility(w) || !s.facts[w.name]) continue;
@@ -16353,7 +16362,7 @@ function gatilhosDeJogador(s, evento, p, n) {
         if (!SC.falaDe(d, evento) || (evento === 'compra' && d.n !== n) || !quemCasa(d, c, p)) continue;
         if (w.zone === 'graveyard' && !ab.fromGraveyard) continue; // S33 · do cemitério só o que diz que funciona de lá
         if (!triggerConditionMet(s, w, ab.condition)) continue;
-        s.queued.push({ source: w.oid, name: w.name, controller: c, effects: ab.effects, when: ab.when, ...((d.quem || 'voce') !== 'voce' ? { jogador: p } : {}), ...(evento === 'ganha-vida' ? { value: n } : {}), ...marcasDaHabilidade(ab) });
+        s.queued.push({ source: w.oid, name: w.name, controller: c, effects: ab.effects, when: ab.when, ...((d.quem || 'voce') !== 'voce' ? { jogador: p } : {}), ...(evento === 'ganha-vida' || evento === 'atacou' ? { value: n } : {}), ...marcasDaHabilidade(ab) });
       }
     }
   }
@@ -16420,6 +16429,7 @@ function enterStep(s, step) {
   if (step === 'combat_blockers') {
     const d = s.combat.defender;
     if (eligibleBlockers(s, d).length) s.pending = { kind: 'blockers', p: d };
+    else fimDosBloqueios(s); // CR2g.5 · ninguém pode bloquear: todas as atacantes "não são bloqueadas"
   }
   if (step === 'combat_damage') { dealCombatDamage(s); }
   if (step === 'cleanup') {
@@ -18389,6 +18399,14 @@ const disparaZona = (s, o, de, para, ctrlAntes, ultima) => naSombra(s, `${o.name
   () => gatilhosDeZonaLegado(s, o, de, para, ctrlAntes, ultima), () => gatilhosDeZona(s, o, de, para, ctrlAntes, ultima));
 /** CR2-G R2b · o evento acontece com cada objeto da lista (conjurar, atacar, bloquear, dano de combate). */
 const NOME_DO_EVENTO = { conjurar: 'cast-self', ataca: 'attacks', bloqueia: 'blocks', 'dano-combate': 'combat-damage' };
+/** CR2g.5 · 509.3c/509.3f · depois da declaração de bloqueadores: "é bloqueada" (uma vez, com um ou mais bloqueadores) e "ataca e não é
+    bloqueada", para as atacantes ainda no combate. */
+function fimDosBloqueios(s) {
+  if (!s.combat) return;
+  const atk = s.combat.attackers.map(oid => s.objects[oid]).filter(o => o && o.zone === 'battlefield' && o.attacking != null);
+  gatilhosDoObjeto(s, 'bloqueada', atk.filter(o => o.blocked));
+  gatilhosDoObjeto(s, 'nao-bloqueada', atk.filter(o => !o.blocked));
+}
 /** CR2b.8 · heroico: ao conjurar, cada criatura sua mirada pela mágica dispara uma vez (mesmo mirada duas vezes); cópia e troca de alvo
     não disparam (rulings da Akroan Skyguard). Aura conjurada também mira. */
 function disparaHeroico(s, magia) {
@@ -19323,6 +19341,7 @@ const HANDLERS = {
     for (const oid of list) (s.atacaramNoTurno = s.atacaramNoTurno || []).push({ oid, z: s.objects[oid].zc || 0 }); // CR2g.4 · "creatures that attacked this turn"
     if (list.length) s.players[a.p].atacouCom = (s.players[a.p].atacouCom || 0) + list.length; // M-248 · "se você atacou neste turno" (508.1; pôr no campo atacando não é atacar)
     disparaEvento(s, 'ataca', list.map(oid => s.objects[oid]));
+    if (list.length) gatilhosDeJogador(s, 'atacou', a.p, list.length); // CR2g.5 · 508.3d: "whenever you attack" — uma vez, com quantas atacaram
     exaltadoK(s, a.p, list); // K-5 · 702.83a: exaltado, quando uma só ataca
     s.pending = null; s.turn.priority = s.turn.active; s.turn.passes = 0;
   },
@@ -19345,6 +19364,7 @@ const HANDLERS = {
       const A = s.objects[atk]; A.blocked = true; (A.blockedBy = A.blockedBy || []).push(b);
     }
     disparaEvento(s, 'bloqueia', blocks.map(([b]) => s.objects[b])); // CR2d.3 · "whenever this creature blocks"
+    fimDosBloqueios(s); // CR2g.5
     s.pending = null; s.turn.priority = s.turn.active; s.turn.passes = 0;
   },
   /** M9 · ativa uma habilidade da permanente; vai para a pilha como objeto próprio. */

@@ -3894,13 +3894,16 @@
    "regra": "Declare Attackers Step",
    "titulo": "Condições de gatilho de ataque",
    "status": "parcial",
-   "evidencia": "gatilho 'attacks' da própria criatura declarada (508.3a): index.html:12341, sonda t3.mjs G1; não dispara para quem entra atacando (N1: ninja entrou e a vida do gatilho não mudou)",
-   "falta": "Só existe \"quando ESTA criatura ataca\". Faltam 508.3b (\"sempre que [jogador/planeswalker] for atacado\"), 508.3c/d (\"sempre que você atacar\", \"sempre que uma criatura que você controla atacar\") e 508.3e; 508.3f (\"ataca e não é bloqueada\") também.",
+   "evidencia": "gatilho 'attacks' da própria criatura declarada (508.3a): index.html:12341, sonda t3.mjs G1; não dispara para quem entra atacando (N1: ninja entrou e a vida do gatilho não mudou) · M-313 (CR2g.5): 508.3c 'outra criatura sua ataca' (descritor ataca/outra, agora com teste) e 508.3d 'whenever you attack' (you-attack, uma vez, valor = atacantes)",
+   "falta": "508.3b 'sempre que [jogador/planeswalker] for atacado', 508.3e",
    "esforco": "M",
    "depende": [
     "603"
    ],
-   "cartas": "muito comum"
+   "cartas": "muito comum",
+   "testes": [
+    "CR 508.3c/d · \"sempre que você ataca\" dispara uma vez com o número de atacantes; \"sempre que outra criatura sua ataca\", uma vez por criatura"
+   ]
   },
   {
    "n": "508.4",
@@ -3982,13 +3985,17 @@
    "regra": "Declare Blockers Step",
    "titulo": "Gatilhos de bloquear e de ser bloqueada",
    "status": "parcial",
-   "falta": "faltam \"é bloqueada\", \"bloqueia uma criatura\" com a criatura bloqueada e \"ataca e não é bloqueada\"",
-   "esforco": "M",
+   "falta": "'bloqueia uma criatura' lembrando a bloqueada",
+   "esforco": "P",
    "depende": [
     "603"
    ],
    "cartas": "muito comum",
-   "evidencia": "auditoria CR2g/CR2b: gatilho \"quando bloqueia\" dispara e vai para a pilha no passo de bloqueadores"
+   "evidencia": "auditoria CR2g/CR2b: gatilho \"quando bloqueia\" dispara e vai para a pilha no passo de bloqueadores · M-313 (CR2g.5): 'é bloqueada' (uma vez com um ou mais bloqueadores) e 'ataca e não é bloqueada' (também quando ninguém pode bloquear)",
+   "testes": [
+    "CR 509.3c · \"quando é bloqueada\": uma vez, mesmo com dois bloqueadores; não bloqueada, não dispara",
+    "CR 509.3 · \"ataca e não é bloqueada\": dispara sem bloqueio declarado e quando ninguém pode bloquear; bloqueada, não"
+   ]
   },
   {
    "n": "509.4",

@@ -3688,6 +3688,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (mapa 115.9 parcial):** "quando se torna alvo de uma mágica ou habilidade" (valente), restrições "mágica que só mira…".
 - **Teste:** `heroico.unit` (2 testes).
 
+**M-313 · CR2g.5 · Gatilhos de combate: "sempre que você ataca", "é bloqueada", "ataca e não é bloqueada"** ✅ (leva M-313, motor v110 sem mudança de forma; goldens intactos).
+- **Valor:** três gatilhos muito comuns no Commander passam a existir no vocabulário: "whenever you attack" (uma vez por combate, com o número de atacantes como valor), "whenever ~ becomes blocked" (uma vez, mesmo com vários bloqueadores) e "whenever ~ attacks and isn't blocked" (também quando o defensor não tem quem possa bloquear). "Sempre que outra criatura sua ataca" (508.3c) já funcionava pelo descritor e ganhou teste. O leitor lê as três aberturas.
+- **Script:** `when: 'you-attack' | 'becomes-blocked' | 'attacks-unblocked'` (eventos `atacou`, `bloqueada`, `nao-bloqueada`, também como descritor com `objeto: 'outra'`).
+- **Fora (mapa 508.3/509.3 parcial):** "sempre que [jogador/planeswalker] é atacado", "bloqueia uma criatura" lembrando a bloqueada. Cartas reais com esses gatilhos entram pelas trilhas e pelo leitor.
+- **Âncora nova:** `/* ↓ M · scripts de carta da trilha motor */` no fim de RAW_SCRIPTS — os scripts de carta da trilha motor vão para lá, longe das âncoras das paralelas (a M-311 e a M-312 colidiram duas vezes com a trilha tipos logo abaixo da âncora T; resolvido no rebase mantendo os dois lados).
+- **Teste:** `combate.gatilhos.unit` (3 testes, falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
