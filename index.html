@@ -22048,6 +22048,7 @@ function sagasNaPrincipal(s) {
 function sagaOfertas(s, p, out) {
   if (s.pending && s.pending.kind === 'saga_capitulo' && s.pending.p === p) for (let n = 1; n <= s.pending.max; n++) out.push({ t: 'saga_capitulo', p, n, label: 'Capítulo ' + (ROMANOS[n] || n) });
   tripularPendentes(s, p, out); // T-3 · CR 702.122a · a mesma chamada serve às decisões da trilha tipos
+  faceGratisOfertasT(s, p, out); // T-11 · CR 709.3 / 712.11b · "conjure sem pagar": as duas metades da dividida e a face de trás da modal
 }
 PENDING_ACTIONS.saga_capitulo = ['saga_capitulo', 'concede'];
 /* ---------------- T-3 · CR 702.122 · tripular (com 301.7 e 208.3a) ----------------
@@ -22339,7 +22340,8 @@ function nomesDe(s, o) { const md = !o.frontName && metadesDe(s, o); return md ?
 function divididasPorInteiroT(setup, scripts) {
   const troca = {}, porMetade = {};
   for (const sc of Object.values(scripts || {})) if (sc && sc.self && sc.self.dividida && sc.back) { porMetade[esquerdaT(sc)] = sc.name; porMetade[sc.back.name] = sc.name; }
-  for (const k of Object.keys(setup.cards || {})) { const inteira = porMetade[k]; if (inteira && k !== inteira) troca[k] = inteira; }
+  const nomes = new Set([...Object.keys(setup.cards || {}), ...(setup.players || []).flatMap(pl => (pl.deck || []).map(e => e.name))]); // T-11 · também o nome do baralho sem dado próprio
+  for (const k of nomes) { const inteira = porMetade[k]; if (inteira && k !== inteira) troca[k] = inteira; }
   if (!Object.keys(troca).length) return setup;
   const cards = {}; for (const [k, c] of Object.entries(setup.cards)) { const n = troca[k] || k; if (!cards[n] || n === k) cards[n] = c; }
   return { ...setup, cards, players: setup.players.map(pl => ({ ...pl, deck: (pl.deck || []).map(e => (troca[e.name] ? { ...e, name: troca[e.name] } : e)) })) };
@@ -22376,6 +22378,41 @@ function divididaOfertas(s, p, out) {
     finally { DENTRO_DAS_MODAIS = false; }
   }
 }
+/** T-11 · CR 709.3 / 712.11b · na decisão "você pode conjurar sem pagar" (free_cast) quem conjura também escolhe a metade da carta
+ * dividida (a oferta sem `face` dá lugar a uma por metade) e a face de trás da modal (que não seja terreno), cada uma com os alvos
+ * dela: as ofertas saem de `legalActions` numa cópia do estado com as cartas viradas, como nas ofertas da mão. */
+function faceGratisOfertasT(s, p, out) {
+  if (DENTRO_DAS_MODAIS || !s.pending || s.pending.kind !== 'free_cast' || s.pending.p !== p) return;
+  const ops = (s.pending.options || []).filter(oid => s.objects[oid] && !s.objects[oid].frontName);
+  const div = ops.filter(oid => metadesDe(s, oid));
+  const mod = ops.filter(oid => { const o = s.objects[oid], fv = !div.includes(oid) && faceDeTras(s, oid); return fv && (o.zone === 'hand' || (o.zone === 'exile' && jogavelDoExilio(s, p, o))) && !((s.facts[fv.nome] || {}).types || []).includes('land'); }); // a mesma conferência de faceEscolhidaT
+  if (!div.length && !mod.length) return;
+  for (let i = out.length - 1; i >= 0; i--) if (out[i].t === 'cast_free' && div.includes(out[i].oid) && out[i].face == null) out.splice(i, 1); // a carta inteira não é conjurada (709.3)
+  const vira = { esquerda: oid => esquerdaT(divididaScriptT(s, s.objects[oid])), direita: oid => direitaT(divididaScriptT(s, s.objects[oid])), verso: oid => faceDeTras(s, oid).nome };
+  for (const [face, quais] of [['esquerda', div], ['direita', div], ['verso', mod]]) {
+    if (!quais.length) continue;
+    const s2 = cloneEstado(s); for (const oid of quais) flipTo(s2, s2.objects[oid], vira[face](oid));
+    DENTRO_DAS_MODAIS = true;
+    try { for (const x of legalActions(s2, p)) if (x.t === 'cast_free' && quais.includes(x.oid)) out.push({ ...x, face }); }
+    finally { DENTRO_DAS_MODAIS = false; }
+  }
+}
+/** T-11 · a folha de "conjurar sem pagar" agrupa as ofertas por carta e por face, na ordem em que vêm: `nome` é o da metade ou do
+ * verso escolhido (null sem face: a tela usa o nome da carta). */
+function gruposGratisT(s, opts) {
+  const gs = [];
+  for (const a of opts) {
+    const k = a.oid + '|' + (a.face || ''); let g = gs.find(x => x.k === k);
+    if (!g) { const md = (a.face === 'esquerda' || a.face === 'direita') && metadesDe(s, a.oid), fv = a.face === 'verso' && faceDeTras(s, a.oid);
+      g = { k, oid: a.oid, face: a.face || null, nome: md ? md[a.face === 'direita' ? 1 : 0].nome : fv ? fv.nome : null, da: [] }; gs.push(g); }
+    g.da.push(a);
+  }
+  return gs;
+}
+Object.assign(EXPORTS_T, { gruposGratisT });
+/** T-11 · a escolha de face entra na chave das ações do bot: as duas metades (ou as duas faces) com os mesmos alvos são jogadas diferentes. Sem `face`, a chave não muda. */
+const chaveDeFaceT = a => (a && a.face != null ? '|face:' + a.face : '');
+Object.assign(EXPORTS_T, { chaveDeFaceT });
 Object.assign(EXPORTS_T, { metadesDe, nomesDe });
 Object.assign(EXPORTS_T, { faceDeTras });
 Object.assign(EXPORTS_T, { parDuplaFaceT, transformada, transformaT });
@@ -22531,7 +22568,7 @@ function simula(estado, acao) {
     ordem em que `legalActions` as produziu. */
 const chaveAcao = a => [a.t, a.oid || '', a.index != null ? a.index : '', a.p,
   (a.targets || []).map(x => x.oid || 'p' + x.player).join('+'),
-  (a.attackers || []).join('+'), a.mode != null ? a.mode : '', a.x != null ? a.x : ''].join('|');
+  (a.attackers || []).join('+'), a.mode != null ? a.mode : '', a.x != null ? a.x : ''].join('|') + E.chaveDeFaceT(a); // T-11 · a face escolhida (metade da dividida, verso da modal)
 
 /** B2 · escolhe a melhor candidata com orçamento de tempo.
     `nota(acao)` devolve um número; empate fica com a primeira em ordem estável.
@@ -23086,7 +23123,7 @@ function jogadaProfissional(s, p, opts = {}) {
     const avR = opts.av || avalia;
     // cópias iguais dão a mesma jogada: fica uma de cada (mesma carta, mesma habilidade, mesmos alvos pelo nome)
     const nomeDe = oid => { const o = s.objects[oid]; return o ? o.name + (o.tapped ? '*' : '') + (o.sick ? '~' : '') + JSON.stringify(o.counters || '') + (o.attachedTo ? '@' : '') : oid; };
-    const igual = a => [a.t, a.oid ? nomeDe(a.oid) : '', a.index != null ? a.index : '', (a.targets || []).map(x => x.oid ? nomeDe(x.oid) : 'p' + x.player).join('+'), a.mode != null ? a.mode : '', a.x != null ? a.x : '', a.alt || '', JSON.stringify(a.tapOther || a.sacrifice || a.pay || '')].join('|');
+    const igual = a => [a.t, a.oid ? nomeDe(a.oid) : '', a.index != null ? a.index : '', (a.targets || []).map(x => x.oid ? nomeDe(x.oid) : 'p' + x.player).join('+'), a.mode != null ? a.mode : '', a.x != null ? a.x : '', a.alt || '', JSON.stringify(a.tapOther || a.sacrifice || a.pay || '')].join('|') + E.chaveDeFaceT(a); // T-11 · metades e faces não são cópias iguais
     const unicas = []; const jaVi = new Set();
     for (const a of [...candidatas].sort((x, y) => chaveAcao(x) < chaveAcao(y) ? -1 : 1)) { const k = igual(a); if (!jaVi.has(k)) { jaVi.add(k); unicas.push(a); } }
     const t0 = opts.agora ? opts.agora() : 0, teto = (opts.orcamentoMs || 400) / 2;
@@ -27238,8 +27275,8 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
         hint: susp ? (opts.length ? 'Se não conjurar agora, ela continua exilada. Criatura conjurada assim tem ímpeto.' : 'Ela não pode ser conjurada agora e continua exilada.') : esc ? (opts.length ? 'Se não jogar agora, ela continua escondida.' : 'A carta escondida não pode ser jogada agora (terreno: só no seu turno, se ainda não jogou terreno).')
           : opts.length ? 'Vale só para uma das cartas que você acabou de comprar.' : 'Nenhuma das compradas pode ser conjurada agora.',
         // Leva 110 · um botão por carta; os alvos abrem a folha completa
-        actions: [...[...new Set(opts.map(x => x.oid))].map((oid, i) => { const da = opts.filter(x => x.oid === oid);
-          return Button(da.length > 1 ? `${nameOf(s, oid)}…` : nameOf(s, oid), { variant: i ? undefined : 'primary', id: i ? undefined : 'tb-cast-free', onClick: () => escolherAlvo(`Conjurar ${nameOf(s, oid)}`, da) }); }),
+        actions: [...E.gruposGratisT(s, opts).map(({ oid, nome: nf, da }, i) => { const nm = nf || nameOf(s, oid); // T-11 · um botão por carta e por face (metade da dividida, verso da modal)
+          return Button(da.length > 1 ? `${nm}…` : nm, { variant: i ? undefined : 'primary', id: i ? undefined : 'tb-cast-free', onClick: () => escolherAlvo(`Conjurar ${nm}`, da) }); }),
           Button(esc ? 'Não jogar' : 'Não conjurar', { id: 'tb-decline-free', onClick: () => act({ t: 'decline_free', p: v }) })] });
     } else if (s.pending && s.pending.kind === 'unless' && s.pending.p === v) {
       // S60 · "perde 2 a menos que descarte/sacrifique"

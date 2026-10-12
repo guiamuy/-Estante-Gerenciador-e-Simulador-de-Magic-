@@ -9927,10 +9927,11 @@
    "regra": "Split Cards",
    "titulo": "Carta dividida é uma carta só",
    "status": "definicao",
-   "evidencia": "T-10: a partida usa sempre a carta inteira (\"Wax // Wane\"), também quando a lista traz o nome de uma metade; comprar, descartar e ir ao cemitério movem uma carta só.",
+   "evidencia": "T-10: a partida usa sempre a carta inteira (\"Wax // Wane\"), também quando a lista traz o nome de uma metade; comprar, descartar e ir ao cemitério movem uma carta só. T-11 (12/10/2026) · auditoria independente (12 arquivos de sonda, 259 conferências, fuzz de 120 partidas, 1.364.904 pedidos diretos): a lista com o nome de uma metade sem dado próprio no mapa de cartas também vira a carta inteira (antes criava a metade avulsa).",
    "testes": [
     "CR 709.3 · a metade escolhida resolve só o efeito dela e a carta vai ao cemitério com as duas metades",
-    "CR 709 · a lista pode trazer a carta pelo nome de uma metade (\"Wax\") ou pelo nome completo (\"Wax // Wane\"), com o dado no formato da Scryfall: a partida usa sempre a carta inteira"
+    "CR 709 · a lista pode trazer a carta pelo nome de uma metade (\"Wax\") ou pelo nome completo (\"Wax // Wane\"), com o dado no formato da Scryfall: a partida usa sempre a carta inteira",
+    "CR 709.2 · lista com o nome de uma metade sem dado próprio (só \"Assault // Battery\" no mapa de cartas): a partida usa a carta inteira (D2)"
    ]
   },
   {
@@ -9941,14 +9942,16 @@
    "falta": "709.3c: cópia de carta dividida conjurada (707.12) não existe no motor. Fundir (702.102) e Consequência (702.127) não existem: as cartas com essas palavras-chave ficam manuais.",
    "esforco": "M",
    "cartas": "comum",
-   "evidencia": "T-10: a ação de conjurar leva `face: 'esquerda' | 'direita'`; legalActions oferece uma conjuração por metade (custo, tempo e alvos dela) e nunca a carta inteira; na pilha só a metade conjurada existe.",
+   "evidencia": "T-10: a ação de conjurar leva `face: 'esquerda' | 'direita'`; legalActions oferece uma conjuração por metade (custo, tempo e alvos dela) e nunca a carta inteira; na pilha só a metade conjurada existe. T-11 (12/10/2026) · auditoria independente (12 arquivos de sonda, 259 conferências, fuzz de 120 partidas, 1.364.904 pedidos diretos): na decisão \"conjurar sem pagar\" a dividida oferece as duas metades (antes só a esquerda; a direita era aceita sem ser oferecida) e a tela tem um botão por metade; o bot distingue as metades.",
    "testes": [
     "CR 709.3 · 709.3a · o jogador escolhe a metade antes de conjurar: uma oferta por metade, cada uma com o custo, o tempo e os alvos dela; não há oferta da carta inteira",
     "CR 709.3b · na pilha só existem as características da metade conjurada: nome, tipo, custo e valor de mana dela; \"anule a mágica instantânea alvo\" alcança a Cura e não a Festa",
     "CR 709.3 · a metade escolhida resolve só o efeito dela e a carta vai ao cemitério com as duas metades",
     "S8 · Wax // Wane, Assault // Battery e Dead // Gone: cada metade com o efeito dela",
     "CR 709.3 · mesa: um botão por metade (\"Conjurar Cura · {W}\", \"Conjurar Festa · {2}{G}\") e o registro diz a metade",
-    "CR 709 · partida sem a carta não ganha nada no estado; passeio aleatório com divididas: nada oferecido é recusado e fora da pilha a carta é sempre a inteira"
+    "CR 709 · partida sem a carta não ganha nada no estado; passeio aleatório com divididas: nada oferecido é recusado e fora da pilha a carta é sempre a inteira",
+    "CR 709.3 · conjurar sem pagar (D1): a decisão oferece as duas metades, cada uma com os alvos dela, e nunca a carta inteira; oferta = aceito",
+    "Bot · as duas metades com os mesmos alvos são jogadas diferentes para o bot (D3): chaves distintas e empate estável nas duas ordens; sem `face` a chave não muda"
    ],
    "depende": [
     "601.2a"
@@ -10218,7 +10221,7 @@
    "titulo": "Conjurar dupla face: frente por padrão",
    "status": "parcial",
    "evidencia": "T-8 (11/10/2026) · src/engine/core.js, bloco \"T-8 · CR 712.3 … dupla face modal\" (cartas `self: { modal: true }`): 712.11 — a frente por padrão. 712.11b–c — faceEscolhidaT põe a face escolhida para cima antes de qualquer conferência de `cast`: só ela é avaliada (custo, tempo, alvos) e só ela vai à pilha; as ofertas saem do próprio legalActions sobre uma cópia do estado com as modais da mão viradas (modalOfertas). 712.11a/d seguem no caminho do disturb (trilha motor).",
-   "falta": "712.11a/d: conjurar \"transformada\" só existe no disturb antigo, com valor de mana 0 na pilha (712.8c); cópia de carta modal conjurada (\"or a copy of\") não tem efeito no vocabulário. Na decisão \"você pode conjurar sem pagar\" (free_cast), pedir a face de trás é aceito mas não é oferecido.",
+   "falta": "712.11a/d: conjurar \"transformada\" só existe no disturb antigo, com valor de mana 0 na pilha (712.8c); cópia de carta modal conjurada (\"or a copy of\") não tem efeito no vocabulário.",
    "esforco": "P",
    "depende": [
     "712.3"
@@ -10226,7 +10229,8 @@
    "testes": [
     "CR 712.11b–c · dupla face modal: da mão o jogador escolhe a face que conjura; só a face escolhida conta — custo, tempo e alvos dela",
     "CR 712.11b · face de trás que não é permanente: resolve e vai ao cemitério como a carta da frente; anulada, também; 712.9 · a modal não transforma",
-    "CR 107.3 · pedido da face de trás com X numa face sem X é recusado (D10)"
+    "CR 107.3 · pedido da face de trás com X numa face sem X é recusado (D10)",
+    "CR 712.11b · conjurar sem pagar: a decisão oferece também a face de trás da modal (com os alvos dela), e o pedido do verso é o oferecido; terreno do verso não é conjurado"
    ]
   },
   {

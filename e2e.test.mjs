@@ -10736,3 +10736,39 @@ test('e2e · T-10 · CR 709.3 · carta dividida: a folha oferece uma conjuraçã
   if (linhas.length) assert.ok(linhas.some(l => /Battery \(metade de Assault \/\/ Battery\)/.test(l)), 'registro: ' + JSON.stringify(linhas.slice(-6)));
   assert.deepEqual(M.errors, []);
 });
+
+test('e2e · T-11 · CR 709.3 · conjurar sem pagar com carta dividida: a decisão tem um botão por metade, com o nome dela', { skip }, async t => {
+  // Texto oficial: Assault // Battery em .listas/oficiais-tipos.json, Windbrisk Heights em .listas/oficiais-commander.json.
+  const L = n => JSON.parse(readFileSync(join(ROOT, '.listas', n), 'utf8')).cartas;
+  const extras = [...L('oficiais-tipos.json').filter(c => c.name === 'Assault // Battery'), ...L('oficiais-commander.json').filter(c => c.name === 'Windbrisk Heights')];
+  const M = await comLista125(t, '12 Plains\n8 Forest\n10 Assault // Battery\n10 Windbrisk Heights', ['Plains', 'Forest', 'Assault // Battery', 'Windbrisk Heights'], '4', { extras });
+  const { page } = M;
+  const ids = await page.evaluate(() => { const s = window.__estanteMesa.estado(), z = s.zones[0];
+    const tira = (nome, ...de) => { for (const d of de) { const i = z[d].findIndex(o => s.objects[o].name === nome); if (i >= 0) return z[d].splice(i, 1)[0]; } return null; };
+    const wb = tira('Windbrisk Heights', 'hand', 'library'); z.hand.push(wb); s.objects[wb].zone = 'hand';
+    const ab = tira('Assault // Battery', 'library', 'hand'); z.library.unshift(ab); s.objects[ab].zone = 'library';
+    const pl = tira('Plains', 'library'); Object.assign(s.objects[pl], { zone: 'battlefield', controller: 0, tapped: false, sick: false, damage: 0, counters: {} }); z.battlefield.push(pl);
+    s.players[0].landsPlayed = 0; return { wb, ab }; });
+  assert.equal(await M.act({ t: 'play_land', p: 0, oid: ids.wb }), true);
+  let e = await M.resolve(); assert.ok(e.pend, 'esconderijo: escolher a carta');
+  assert.equal(await M.act({ t: 'pick', p: 0, oid: ids.ab }), true);
+  const pd = await M.legal("a.t === 'pick_done'"); if (pd.length) assert.equal(await M.act(pd[0]), true);
+  await M.resolve();
+  await page.evaluate(wb => { const s = window.__estanteMesa.estado(); s.objects[wb].tapped = false; s.players[0].atacouCom = 3; }, ids.wb);
+  const at = await M.legal(`a.t === 'activate' && a.oid === '${ids.wb}'`); assert.ok(at.length, 'ativar a Windbrisk');
+  assert.equal(await M.act(at[0]), true);
+  e = await M.resolve(); assert.ok(e.pend, 'decisão de jogar a escondida');
+  await page.waitForSelector('#tb-cast-free');
+  const faixa = page.locator('#tb-cast-free').locator('xpath=..'); // a faixa da decisão (PriorityBanner)
+  const botoes = (await faixa.locator('button').allInnerTexts()).map(x => x.replace(/\s+/g, ' ').trim());
+  assert.ok(botoes.includes('Assault…') && botoes.includes('Battery'), 'um botão por metade: ' + JSON.stringify(botoes));
+  assert.ok(!botoes.some(b => /Assault \/\/ Battery/.test(b)), 'nunca a carta inteira: ' + JSON.stringify(botoes));
+  for (const b of await faixa.locator('button').all()) { const cx = await b.boundingBox(); assert.ok(cx && cx.height >= 44, 'botão com 44 px de altura ou mais: ' + JSON.stringify(cx)); }
+  await auditaTela(page, 'decisão de conjurar sem pagar com carta dividida');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/t11-gratis.png' });
+  await faixa.locator('button', { hasText: /^Battery$/ }).click(); await page.waitForTimeout(300);
+  await page.waitForFunction(ab => { const s = window.__estanteMesa.estado(); return s.objects[ab].zone === 'graveyard'; }, ids.ab, { timeout: 5000 });
+  const fim = await page.evaluate(ab => { const s = window.__estanteMesa.estado(); return { nome: s.objects[ab].name, elefantes: Object.values(s.objects).filter(x => x.token && x.zone === 'battlefield' && x.name === 'Elephant').length }; }, ids.ab);
+  assert.deepEqual(fim, { nome: 'Assault // Battery', elefantes: 1 });
+  assert.deepEqual(M.errors, []);
+});

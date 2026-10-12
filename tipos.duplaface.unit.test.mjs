@@ -442,3 +442,26 @@ test('CR 107.3 · pedido da face de trás com X numa face sem X é recusado (D10
   let s, m; [s, m] = naMao(mesa(['Mago']), 0, 'Mago'); s = mana(s, 0);
   assert.throws(() => act(s, { t: 'cast', p: 0, oid: m, face: 'verso', x: 3 }), /X/);
 });
+
+/* ================= T-11 · conjurar sem pagar com a dupla face modal (era limite declarado na T-9, D7) ================= */
+Object.assign(SCRIPTS, { 'Covil': { name: 'Covil', effects: [{ do: 'draw_free_cast', amount: 1 }], ...EX } }); // "compre uma carta; você pode conjurá-la sem pagar"
+carta('Covil', 'Sorcery');
+
+test('CR 712.11b · conjurar sem pagar: a decisão oferece também a face de trás da modal (com os alvos dela), e o pedido do verso é o oferecido; terreno do verso não é conjurado', () => {
+  let s = mesa(['Covil', 'Batedora', 'Urso']), cv; [s, cv] = naMao(s, 0, 'Covil'); s = J(s);
+  const L = s.zones[0].library, b = L.find(x => s.objects[x].name === 'Batedora'); L.splice(L.indexOf(b), 1); L.unshift(b);
+  let u; [s, u] = campo(s, 1, 'Urso');
+  s = mana(s, 0); s = act(s, legais(s, 0, a => a.t === 'cast' && a.oid === cv)[0]); s = passaAte(s, x => !!x.pending);
+  assert.equal(s.pending && s.pending.kind, 'free_cast');
+  const of = legais(s, 0, a => a.t === 'cast_free' && a.oid === b);
+  assert.ok(of.some(a => a.face == null), 'a frente (Batedora)');
+  const raios = of.filter(a => a.face === 'verso');
+  assert.ok(raios.some(alvo(u)) && raios.some(a => a.targets[0].player === 1), 'o Raio do verso, com os alvos dele: ' + JSON.stringify(raios));
+  const t = act(s, raios.find(alvo(u)));
+  eq([zona(t, b), nome(t, b)], ['stack', 'Raio']);
+  assert.equal(zona(esvazia(t), u), 'graveyard', 'o Raio sem pagar mata o Urso');
+  let s2 = mesa(['Covil', 'Tangled Florahedron']), c2; [s2, c2] = naMao(s2, 0, 'Covil'); s2 = J(s2);
+  const L2 = s2.zones[0].library, f = L2.find(x => s2.objects[x].name === 'Tangled Florahedron'); L2.splice(L2.indexOf(f), 1); L2.unshift(f);
+  s2 = mana(s2, 0); s2 = act(s2, legais(s2, 0, a => a.t === 'cast' && a.oid === c2)[0]); s2 = passaAte(s2, x => !!x.pending);
+  assert.ok(!legais(s2, 0, a => a.t === 'cast_free' && a.oid === f).some(a => a.face === 'verso'), 'Tangled Vale é terreno: não se conjura');
+});

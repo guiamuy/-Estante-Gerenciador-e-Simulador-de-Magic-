@@ -4,6 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { loadModules } from './_load.mjs';
 import { E, S, T, J, act, poe, legais, passaAte, resolveUm, palavrasDoTexto, valorDeMana } from './listas.mjs';
 
 const L = n => JSON.parse(readFileSync(new URL('./.listas/' + n, import.meta.url), 'utf8')).cartas;
@@ -165,4 +166,51 @@ test('CR 709 · partida sem a carta não ganha nada no estado; passeio aleatóri
     }
   }
   assert.ok(metades > 15, 'metades conjuradas no passeio: ' + metades);
+});
+
+/* ================= T-11 · correções da auditoria independente das divididas ================= */
+Object.assign(SCRIPTS, { 'Covil': { name: 'Covil', effects: [{ do: 'draw_free_cast', amount: 1 }], ...EX } }); // "compre uma carta; você pode conjurá-la sem pagar"
+carta('Covil', 'Sorcery');
+/** Resolve o Covil com `nome` no topo do grimório de A: para na decisão "conjurar sem pagar" com a carta comprada. */
+function covilCom(nomes, nome) {
+  let s = mesa(['Covil', ...nomes]), cv; [s, cv] = naMao(s, 0, 'Covil'); s = J(s);
+  const L = s.zones[0].library, o = L.find(x => s.objects[x].name === nome); L.splice(L.indexOf(o), 1); L.unshift(o);
+  s = mana(s, 0); s = act(s, legais(s, 0, a => a.t === 'cast' && a.oid === cv)[0]); s = passaAte(s, x => !!x.pending);
+  assert.equal(s.pending && s.pending.kind, 'free_cast'); return [s, o];
+}
+
+test('CR 709.3 · conjurar sem pagar (D1): a decisão oferece as duas metades, cada uma com os alvos dela, e nunca a carta inteira; oferta = aceito', () => {
+  let [s, c] = covilCom(['Assault // Battery'], 'Assault // Battery');
+  const of = legais(s, 0, a => a.t === 'cast_free' && a.oid === c);
+  eq([...new Set(of.map(a => a.face))].sort(), ['direita', 'esquerda'], 'Assault ou Battery: ' + JSON.stringify(of));
+  assert.ok(of.filter(a => a.face === 'esquerda').every(a => a.targets && a.targets.length === 1), 'Assault tem alvo');
+  assert.ok(of.filter(a => a.face === 'direita').every(a => !a.targets || !a.targets.length), 'Battery não tem');
+  const t = esvazia(act(s, of.find(a => a.face === 'direita')));
+  eq([zona(t, c), nome(t, c), Object.values(t.objects).filter(o => o.token && o.name === 'Elephant' && o.zone === 'battlefield').length], ['graveyard', 'Assault // Battery', 1], 'Battery sem pagar: o Elefante');
+  let u; [s, c] = covilCom(['Wax // Wane', 'Urso', 'Aura Teste'], 'Wax // Wane'); [s, u] = poe(s, 0, 'Urso', 'battlefield');
+  eq([...new Set(legais(s, 0, a => a.t === 'cast_free' && a.oid === c).map(a => a.face))], ['esquerda'], 'sem encantamento, a Wane não tem alvo');
+  let au; [s, au] = poe(s, 1, 'Aura Teste', 'battlefield'); s = J(s); s.objects[au].attachedTo = u;
+  const w = legais(s, 0, a => a.t === 'cast_free' && a.oid === c && a.face === 'direita');
+  assert.ok(w.length && w.every(alvo(au)), 'com encantamento, a Wane é oferecida e mira só ele');
+  assert.equal(zona(esvazia(act(s, w[0])), au), 'graveyard');
+});
+
+test('CR 709.2 · lista com o nome de uma metade sem dado próprio (só "Assault // Battery" no mapa de cartas): a partida usa a carta inteira (D2)', () => {
+  const cards = { 'Assault // Battery': CARTAS['Assault // Battery'], Urso: CARTAS.Urso }; for (const n of ['Plains', 'Forest', 'Island', 'Mountain']) cards[n] = CARTAS[n];
+  for (const chave of ['Battery', 'Assault']) {
+    const s = E.createGame({ format: 'livre', seed: 1, mode: 'full', cards, scripts: {}, players: [{ name: 'A', deck: [{ name: chave, qty: 20, zone: 'main' }, { name: 'Mountain', qty: 20, zone: 'main' }] }, { name: 'B', deck: [{ name: 'Urso', qty: 20, zone: 'main' }, { name: 'Island', qty: 20, zone: 'main' }] }] });
+    const meus = Object.values(s.objects).filter(o => o.owner === 0 && o.name !== 'Mountain');
+    eq([meus.length, [...new Set(meus.map(o => o.name))]], [20, ['Assault // Battery']], chave);
+    eq([s.facts['Assault // Battery'].cmc, J(s.facts['Assault // Battery'].types).sort()], [5, ['sorcery']], chave);
+  }
+});
+
+test('Bot · as duas metades com os mesmos alvos são jogadas diferentes para o bot (D3): chaves distintas e empate estável nas duas ordens; sem `face` a chave não muda', () => {
+  const B = loadModules().bot;
+  const c = [{ t: 'cast', p: 0, oid: 'o1', face: 'esquerda', targets: [{ oid: 'o9' }] }, { t: 'cast', p: 0, oid: 'o1', face: 'direita', targets: [{ oid: 'o9' }] }];
+  assert.notEqual(B.chaveAcao(c[0]), B.chaveAcao(c[1]));
+  assert.equal(B.chaveAcao({ t: 'cast', p: 0, oid: 'o1' }), B.chaveAcao({ t: 'cast', p: 0, oid: 'o1', face: null }));
+  assert.equal(E.chaveDeFaceT({ t: 'cast', oid: 'o1' }), '');
+  eq([B.escolhe(c, () => 1).acao.face, B.escolhe([...c].reverse(), () => 1).acao.face], ['direita', 'direita'], 'mesmo empate, mesma escolha');
+  eq([B.escolhe(c, x => (x.face === 'direita' ? 2 : 1)).acao.face, B.escolhe([...c].reverse(), x => (x.face === 'esquerda' ? 2 : 1)).acao.face], ['direita', 'esquerda']);
 });
