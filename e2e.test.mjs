@@ -8459,6 +8459,110 @@ test('e2e · Y3 relatos para fora: situação e filtros (tipo, urgência, área)
   assert.deepEqual(errors, []);
 });
 
+/* ---------------- T6e-2 · relato #13: Enviar sem sair do app ---------------- */
+test('e2e · T6e-2 relato enviado sem sair do app: com a conta conectada e a fila ligada, Enviar põe o relato na fila da conta (sem abrir o GitHub), o cartão diz "Na fila" e, quando o registro aparece, mostra o número; sem a fila ligada, Enviar abre o GitHub como antes', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  const banco = {}, pedidos = [];
+  await page.route('https://teste.firebaseio.com/**', async r => {
+    const u = new URL(r.request().url()), seg = u.pathname.replace(/\.json$/, '').split('/').filter(Boolean), metodo = r.request().method();
+    pedidos.push(metodo + ' /' + seg.join('/'));
+    if (u.searchParams.get('auth') !== 'id-e2e') return r.fulfill({ status: 401, json: { error: 'Permission denied' } });
+    const desce = () => seg.reduce((o, k) => (o && typeof o === 'object' ? o[k] : undefined), banco);
+    const poe = (caminho, v) => { let o = banco; for (const k of caminho.slice(0, -1)) o = o[k] = o[k] && typeof o[k] === 'object' ? o[k] : {}; if (v === null) delete o[caminho.at(-1)]; else o[caminho.at(-1)] = v; };
+    const corpo = r.request().postData() ? JSON.parse(r.request().postData()) : null;
+    if (metodo === 'PUT') poe(seg, corpo);
+    if (metodo === 'PATCH') for (const [k, v] of Object.entries(corpo)) poe([...seg, ...k.split('/')], v);
+    return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(metodo === 'GET' ? (desce() ?? null) : corpo) });
+  });
+  let ligada = true, situacao = { versao: 1, geradoEm: '2026-10-12T20:00:00Z', relatos: [] };
+  await page.route(/^https:\/\/raw\.githubusercontent\.com\/.*\/relatos\/(fila|situacao)\.json/, r => r.request().url().includes('fila.json')
+    ? (ligada ? r.fulfill({ json: { versao: 1, ligada: true, desde: '2026-10-12T20:00:00.000Z' }, headers: { 'access-control-allow-origin': '*' } }) : r.fulfill({ status: 404, body: '' }))
+    : r.fulfill({ json: situacao, headers: { 'access-control-allow-origin': '*' } }));
+  await page.route('https://www.googleapis.com/**', r => r.request().url().includes('/oauth2/v3/userinfo') ? r.fulfill({ json: { name: 'Gui', email: 'gui@example.com' } }) : r.fulfill({ status: 404, json: {} }));
+  await page.addInitScript(() => {
+    window.__FIREBASE_DB_URL = 'https://teste.firebaseio.com';
+    window.__GOOGLE_CLIENT_ID = 'e2e.apps.googleusercontent.com'; window.__FIREBASE_API_KEY = 'chave-e2e';
+    window.__FIREBASE_FETCH = async url => new Response(JSON.stringify(url.includes('securetoken') ? { id_token: 'id-e2e', refresh_token: 'ref-e2e', expires_in: '3600', user_id: 'uidE2E' } : { localId: 'uidE2E', idToken: 'id-e2e', refreshToken: 'ref-e2e', expiresIn: '3600' }), { headers: { 'content-type': 'application/json' } });
+    window.__GOOGLE_FALSO = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+    window.EventSource = class { constructor() {} addEventListener() {} close() {} };
+  });
+  // 1 · conectar a conta e escrever um relato
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#conta-entrar:not([disabled])');
+  await page.click('#conta-entrar'); await page.waitForSelector('#conta-sincronia[data-estado="sincronizado"]', { timeout: 10000 });
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/listas'); await page.waitForSelector('#decks-fab-abrir');
+  await acaoJ6(page, 'decks-fab', '#decks-fab-relatar'); await page.waitForSelector('#relato-form');
+  await page.selectOption('#relato-tipo', 'erro'); await page.selectOption('#relato-urgencia', 'alta');
+  await page.fill('#relato-descricao', 'A lista de @fulano não abre no celular.'); await page.click('#relato-salvar'); await page.waitForSelector('#relato-form', { state: 'detached' });
+  // 2 · com a fila ligada, Enviar não abre o GitHub
+  await page.goto(base + '#/perfil/relatos'); await page.waitForSelector('#relatos-lista .relato-item');
+  await page.evaluate(() => { window.__abertos = []; window.open = u => { window.__abertos.push(u); return null; }; });
+  await page.waitForSelector('.relato-item [data-acao="enviar"][data-via="fila"]');
+  assert.equal(await page.innerText('.relato-item [data-acao="enviar"]'), 'Enviar');
+  assert.equal(await page.getAttribute('.relato-item [data-acao="enviar"]', 'title'), 'Enviar para a correção sem sair do app');
+  await page.click('.relato-item [data-acao="enviar"]');
+  await page.waitForFunction(() => /Relato enviado/.test(document.querySelector('#ds-toast').textContent));
+  assert.deepEqual(await page.evaluate(() => window.__abertos), [], 'o GitHub não foi aberto');
+  const id = await page.getAttribute('.relato-item', 'id').then(x => x.replace(/^relato-/, ''));
+  const no = banco.relatos.fila.uidE2E[id];
+  assert.equal(no.kind, 'estante.relato'); assert.equal(no.version, 1);
+  const enviado = JSON.parse(no.dado); assert.equal(enviado.id, id); assert.equal(enviado.descricao, 'A lista de @fulano não abre no celular.'); assert.equal(enviado.partida, null);
+  assert.ok(pedidos.includes(`PUT /relatos/fila/uidE2E/${id}`) && pedidos.includes(`GET /relatos/fila/uidE2E/${id}`), 'escreve e lê de volta: ' + pedidos.join(', '));
+  await page.waitForSelector('.relato-item .relato-item__enviado[data-fila="sim"]');
+  assert.equal(await page.innerText('.relato-item .relato-item__enviado'), 'Na fila');
+  for (const tema of ['dark', 'light']) { await page.evaluate(x => document.documentElement.setAttribute('data-theme', x), tema); for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await auditaTela(page, `relatos na fila ${w} ${tema}`); } }
+  await page.setViewportSize({ width: 360, height: 780 }); await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  if (process.env.CAPTURA) await page.screenshot({ path: process.env.CAPTURA + '/t6e2-na-fila.png' });
+  // 3 · o fluxo criou o registro: a situação de sempre traz o número e o selo "Na fila" sai
+  situacao = { versao: 1, geradoEm: '2026-10-12T20:10:00Z', relatos: [{ id, numero: 77, url: 'x', situacao: 'aberto', resolvidoEm: null, reenvios: [] }] };
+  await page.reload(); await page.waitForSelector('#relatos-lista .relato-item'); // a situação é buscada ao abrir o app (no máximo a cada 10 min)
+  await page.waitForSelector('.relato-item .relato-item__numero', { timeout: 10000 });
+  assert.equal(await page.innerText('.relato-item .relato-item__numero'), '#77'); assert.equal(await page.locator('.relato-item .relato-item__enviado').count(), 0);
+  assert.equal(await page.getAttribute('.relato-item [data-acao="enviar"]', 'data-via'), 'github', 'com registro, Reenviar abre o GitHub (a fila não cria um segundo)');
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · T6e-2 sem a fila ligada (o segredo ainda não existe), Enviar com a conta conectada continua abrindo o GitHub', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  const banco = {};
+  await page.route('https://teste.firebaseio.com/**', async r => {
+    const u = new URL(r.request().url()), seg = u.pathname.replace(/\.json$/, '').split('/').filter(Boolean), metodo = r.request().method();
+    if (u.searchParams.get('auth') !== 'id-e2e') return r.fulfill({ status: 401, json: {} });
+    const poe = (caminho, v) => { let o = banco; for (const k of caminho.slice(0, -1)) o = o[k] = o[k] && typeof o[k] === 'object' ? o[k] : {}; if (v === null) delete o[caminho.at(-1)]; else o[caminho.at(-1)] = v; };
+    const corpo = r.request().postData() ? JSON.parse(r.request().postData()) : null;
+    if (metodo === 'PUT') poe(seg, corpo);
+    if (metodo === 'PATCH') for (const [k, v] of Object.entries(corpo)) poe([...seg, ...k.split('/')], v);
+    return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(metodo === 'GET' ? (seg.reduce((o, k) => (o && typeof o === 'object' ? o[k] : undefined), banco) ?? null) : corpo) });
+  });
+  await page.route(/^https:\/\/raw\.githubusercontent\.com\/.*\/relatos\/fila\.json/, r => r.fulfill({ status: 404, body: '' }));
+  await page.route('https://www.googleapis.com/**', r => r.request().url().includes('/oauth2/v3/userinfo') ? r.fulfill({ json: { name: 'Gui', email: 'gui@example.com' } }) : r.fulfill({ status: 404, json: {} }));
+  await page.addInitScript(() => {
+    window.__FIREBASE_DB_URL = 'https://teste.firebaseio.com';
+    window.__GOOGLE_CLIENT_ID = 'e2e.apps.googleusercontent.com'; window.__FIREBASE_API_KEY = 'chave-e2e';
+    window.__FIREBASE_FETCH = async url => new Response(JSON.stringify(url.includes('securetoken') ? { id_token: 'id-e2e', refresh_token: 'ref-e2e', expires_in: '3600', user_id: 'uidE2E' } : { localId: 'uidE2E', idToken: 'id-e2e', refreshToken: 'ref-e2e', expiresIn: '3600' }), { headers: { 'content-type': 'application/json' } });
+    window.__GOOGLE_FALSO = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+    window.EventSource = class { constructor() {} addEventListener() {} close() {} };
+  });
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#conta-entrar:not([disabled])');
+  await page.click('#conta-entrar'); await page.waitForSelector('#conta-sincronia[data-estado="sincronizado"]', { timeout: 10000 });
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/listas'); await page.waitForSelector('#decks-fab-abrir');
+  await acaoJ6(page, 'decks-fab', '#decks-fab-relatar'); await page.waitForSelector('#relato-form');
+  await page.selectOption('#relato-tipo', 'erro'); await page.selectOption('#relato-urgencia', 'alta');
+  await page.fill('#relato-descricao', 'Relato com a fila ainda desligada.'); await page.click('#relato-salvar'); await page.waitForSelector('#relato-form', { state: 'detached' });
+  await page.goto(base + '#/perfil/relatos'); await page.waitForSelector('#relatos-lista .relato-item');
+  await page.evaluate(() => { window.__abertos = []; window.open = u => { window.__abertos.push(u); return null; }; });
+  await page.waitForTimeout(400);
+  assert.equal(await page.getAttribute('.relato-item [data-acao="enviar"]', 'data-via'), 'github');
+  await page.click('.relato-item [data-acao="enviar"]');
+  await page.waitForFunction(() => /Submit new issue/.test(document.querySelector('#ds-toast').textContent));
+  assert.equal((await page.evaluate(() => window.__abertos)).length, 1);
+  assert.equal(banco.relatos, undefined, 'nada foi para a fila');
+  assert.deepEqual(errors.filter(e => !/status of 404/.test(e)), [], 'o 404 do aviso da fila (ainda não gravado) é o estado esperado, não erro do app');
+});
+
 /* ---------------- Y5 · relatos chegam à correção ---------------- */
 test('e2e · G-243 relato resolvido sozinho (relato #11): o número do registro aparece e abre o GitHub; o registro fechado marca o relato como resolvido, com a data e um aviso; sem a tabela nada muda', { skip }, async t => {
   const { page, errors, base } = await open(t);

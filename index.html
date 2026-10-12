@@ -12316,8 +12316,8 @@ const DESTINOS = [
   { id: 'firebase', nome: 'Conta da Estante e partida online', icone: 'pessoas', liga: 'firebase',
     origens: ['https://identitytoolkit.googleapis.com', 'https://securetoken.googleapis.com', 'https://*.firebaseio.com', 'wss://*.firebaseio.com', 'https://*.firebasedatabase.app'],
     // P-15 · a sincronia do perfil (A-263) e a lista de bloqueados também vão para a conta: a lista diz isso agora
-    vai: 'Na sala: o código, seu nome e foto do perfil, a lista que você escolheu, as jogadas e as mensagens da conversa. Cada assento leva o código da conta da Estante de quem sentou, para que ninguém jogue no seu lugar. Com a conta da Estante conectada, também vão para ela, e só você lê: o seu perfil (nome, foto e preferências), para os seus outros aparelhos, e as contas que você bloqueou (código e nome).',
-    quando: 'Ao criar ou entrar numa sala online. Com a conta conectada, também ao abrir o app, ao mudar uma preferência, ao abrir o Perfil e ao bloquear ou desbloquear alguém.',
+    vai: 'Na sala: o código, seu nome e foto do perfil, a lista que você escolheu, as jogadas e as mensagens da conversa. Cada assento leva o código da conta da Estante de quem sentou, para que ninguém jogue no seu lugar. Com a conta da Estante conectada, também vão para ela, e só você lê: o seu perfil (nome, foto e preferências), para os seus outros aparelhos, e as contas que você bloqueou (código e nome). Ao enviar um relato com a conta conectada, o relato (texto, tela e contexto, sem a partida anexada) vai para a fila da conta, de onde o repositório cria o registro público no GitHub e o tira da fila.',
+    quando: 'Ao criar ou entrar numa sala online. Com a conta conectada, também ao abrir o app, ao mudar uma preferência, ao abrir o Perfil, ao bloquear ou desbloquear alguém e ao tocar em Enviar num relato.',
     evitar: 'Jogar contra o bot ou a dois no mesmo aparelho e não conectar a conta da Estante: nada sai. O que já foi sai em Perfil › Dados › Apagar tudo, com "Apagar também da nuvem".' }
 ];
 /** Endereços que o app só abre numa aba quando você toca: nada vai além do endereço. */
@@ -12717,9 +12717,56 @@ function partidaAbrivel(r, motor) {
 
 /* ---------------- Perfil › Relatos ---------------- */
 let filtroAtual = { ...FILTRO_VAZIO }, filtrosAbertos = false; // ficam enquanto o app está aberto
-function createRelatosScreen({ relatos, share, files = null, partidas = null }) {
+/* ---------------- T6e-2 · relato #13 · Enviar sem sair do app ----------------
+   Com a conta da Estante conectada e a fila ligada (o fluxo "Relatos pela fila" grava `fila.json` no ramo `relatos` na
+   primeira rodada com a conta de serviço), Enviar põe o relato na fila do Firebase (`relatos/fila/<conta>/<id>`, A-262)
+   e o fluxo do repositório cria o registro em até alguns minutos; o número volta pela situação de sempre (G-243). Sem
+   conta, sem rede ou com a fila desligada, Enviar abre o GitHub como antes. */
+const URL_FILA_LIGADA = `https://raw.githubusercontent.com/${REPOSITORIO}/relatos/fila.json`;
+const FILA_MEMORIA_MS = 10 * 60 * 1000;
+/** O aviso publicado pelo fluxo vale? Puro. */
+const filaLigada = d => !!(d && d.versao === 1 && d.ligada === true && typeof d.desde === 'string' && !isNaN(Date.parse(d.desde)));
+/** O que vai para a fila: o relato sem a partida inteira anexada (não vai pelo GitHub também) e sem o que só o aparelho sabe. Puro. */
+function relatoParaFila(r) {
+  const { partida, registro, enviadoEm, pelaFila, resolvidoPeloRegistro, ...resto } = r || {};
+  return { ...resto, partida: null };
+}
+/** `filaDe()` devolve a fila da conta conectada (createFilaDeRelatos) ou null. A resposta "a fila está ligada?" fica
+    guardada na memória por 10 minutos; sem rede, a fila conta como desligada (o GitHub também pede rede). */
+function createEnvioPelaFila({ filaDe = () => null, busca = typeof fetch !== 'undefined' ? fetch.bind(globalThis) : null, agora = () => Date.now() } = {}) {
+  let ligada = null, em = 0;
+  async function estaLigada() {
+    if (ligada !== null && agora() - em < FILA_MEMORIA_MS) return ligada;
+    if (!busca) return false;
+    try { const r = await busca(URL_FILA_LIGADA, { cache: 'no-cache' }); ligada = r.ok ? filaLigada(await r.json()) : false; em = agora(); } catch (e) { return false; }
+    return ligada;
+  }
+  return {
+    async disponivel() { return !!filaDe() && await estaLigada(); },
+    /** Põe na fila e lê de volta: { ok, enviadoEm } ou { ok: false, motivo: 'sem-conta' | 'sem-rede' | 'grande' | 'erro' }. */
+    async envia(r) {
+      const f = filaDe(); if (!f) return { ok: false, motivo: 'sem-conta' };
+      try { const x = await f.enfileira(relatoParaFila(r)); return x.conferido ? { ok: true, enviadoEm: x.enviadoEm } : { ok: false, motivo: 'erro' }; }
+      catch (e) { return { ok: false, motivo: e && e.message === 'sem-rede' ? 'sem-rede' : e && e.message === 'relato-grande' ? 'grande' : 'erro' }; }
+    }
+  };
+}
+
+function createRelatosScreen({ relatos, share, files = null, partidas = null, fila = null }) {
   const root = Stack({ class: 'ds-wrap', style: { paddingTop: 'var(--space-5)' } }, __m3.Carregando('Abrindo relatos…', { tamanho: 'tela' }));
   const motor = typeof __m16 !== 'undefined' ? __m16.ENGINE_VERSION : null;
+  // T6e-2 · a fila decide como o Enviar funciona; sem resposta ainda, o Enviar de sempre (abre o GitHub)
+  let pelaFila = false;
+  if (fila) fila.disponivel().then(sim => { if (sim !== pelaFila) { pelaFila = sim; if (root.isConnected) pinta(); } }).catch(() => {});
+  async function envia(r) {
+    const abreGitHub = async () => { try { window.open(enderecoDoRegistro(r), '_blank', 'noopener'); } catch (e) { /* bloqueado: o aviso diz */ }
+      await relatos.muda(r.id, { enviadoEm: new Date().toISOString() }); pinta(); toast('No GitHub, toque em "Submit new issue" para confirmar'); };
+    if (!pelaFila || r.registro) return abreGitHub(); // já tem registro: Reenviar abre o GitHub (a fila não cria um segundo)
+    const x = await fila.envia(r);
+    if (x.ok) { await relatos.muda(r.id, { enviadoEm: x.enviadoEm, pelaFila: true }); pinta(); return toast('Relato enviado · o número do registro aparece aqui em alguns minutos', 4200); }
+    toast(x.motivo === 'sem-rede' ? 'Sem internet: o relato fica aqui e você envia depois' : x.motivo === 'grande' ? 'Relato grande demais para a fila' : 'Não foi possível enviar agora', 5000,
+      x.motivo === 'sem-rede' ? undefined : { acao: { rotulo: 'Pelo GitHub', icone: 'externo', onClick: abreGitHub } });
+  }
   const opcoes = (lista, vazio) => [{ value: '', label: vazio }, ...lista.map(([v, l]) => ({ value: v, label: l }))];
   function abrePartida(r) {
     if (!partidas) return;
@@ -12756,7 +12803,8 @@ function createRelatosScreen({ relatos, share, files = null, partidas = null }) 
           Badge(rotuloDe(URGENCIAS, r.urgencia), { tone: r.urgencia === 'bloqueia' || r.urgencia === 'alta' ? 'negative' : r.urgencia === 'media' ? 'accent' : undefined }),
           Badge(rotuloDe(TIPOS, r.tipo)),
           h('span', { class: 'relato-item__quando' }, `${quando(r.criadoEm)} · ${nomeDaTela(r)}`),
-          !r.registro && r.enviadoEm ? h('span', { class: 'relato-item__enviado', title: `Enviado ao GitHub em ${quando(r.enviadoEm)}` }, Icone('externo', { tamanho: 14 }), 'Enviado') : null),
+          !r.registro && r.enviadoEm ? (r.pelaFila ? h('span', { class: 'relato-item__enviado', dataset: { fila: 'sim' }, title: `Enviado de dentro do app em ${quando(r.enviadoEm)}: o registro aparece em alguns minutos` }, Icone('subir', { tamanho: 14 }), 'Na fila')
+            : h('span', { class: 'relato-item__enviado', title: `Enviado ao GitHub em ${quando(r.enviadoEm)}` }, Icone('externo', { tamanho: 14 }), 'Enviado')) : null),
         h('p', { class: 'relato-item__texto' }, r.descricao),
         // G-243 · o registro achado no GitHub: o número (abre o registro) e a situação que voltou de lá
         r.registro ? h('div', { class: 'relato-item__registro', dataset: { situacao: r.status === 'resolvido' && r.resolvidoPeloRegistro ? 'resolvido' : 'aberto' } },
@@ -12770,9 +12818,9 @@ function createRelatosScreen({ relatos, share, files = null, partidas = null }) 
           Button(r.status === 'resolvido' ? 'Reabrir' : 'Resolvido', { variant: 'ghost', icone: r.status === 'resolvido' ? 'desfazer' : 'marcar', dataset: { acao: 'status' }, onClick: async () => { await relatos.muda(r.id, { status: r.status === 'resolvido' ? 'aberto' : 'resolvido' }); pinta(); } }),
           Button('Copiar', { variant: 'ghost', icone: 'copiar', dataset: { acao: 'copiar' }, onClick: async e => { const ok = await share.copy(textoDoRelato(r)); if (ok) __m3.confirmaBotao(e.currentTarget, { texto: 'Copiado' }); toast(ok ? 'Relato copiado' : 'Não foi possível copiar'); } }),
           // Y5 · Enviar: abre o registro no GitHub já preenchido (quem relata confirma lá); fica marcado como enviado
-          Button(r.enviadoEm || r.registro ? 'Reenviar' : 'Enviar', { variant: 'ghost', icone: 'externo', dataset: { acao: 'enviar' }, title: 'Abrir o registro no GitHub, já preenchido, para a correção',
-            onClick: async () => { try { window.open(enderecoDoRegistro(r), '_blank', 'noopener'); } catch (e) { /* bloqueado: o aviso diz */ }
-              await relatos.muda(r.id, { enviadoEm: new Date().toISOString() }); pinta(); toast('No GitHub, toque em "Submit new issue" para confirmar'); } }),
+          // T6e-2 · com a fila ligada e a conta conectada, Enviar manda sem sair do app; senão, abre o GitHub já preenchido
+          Button(r.enviadoEm || r.registro ? 'Reenviar' : 'Enviar', { variant: 'ghost', icone: pelaFila && !r.registro ? 'subir' : 'externo', dataset: { acao: 'enviar', via: pelaFila && !r.registro ? 'fila' : 'github' },
+            title: pelaFila && !r.registro ? 'Enviar para a correção sem sair do app' : 'Abrir o registro no GitHub, já preenchido, para a correção', onClick: () => envia(r) }),
           IconButton('lixeira', 'Excluir relato', { variant: 'ghost', classe: 'ds-btn--perigo', dataset: { acao: 'excluir' }, onClick: async () => {
             const tirado = await relatos.remove(r.id); pinta();
             toast('Relato excluído', 4200, { acao: { rotulo: 'Desfazer', icone: 'desfazer', onClick: async () => { await relatos.restaura(tirado); pinta(); } } }); } }))); };
@@ -12810,7 +12858,7 @@ function createRelatosScreen({ relatos, share, files = null, partidas = null }) 
   return root;
 }
 
-return { AREAS, URL_SITUACAO, BUSCA_SITUACAO_MS, urlDoRegistro, situacaoDosRegistros, concilia, EDITAR_JANELA_MS, podeEditar, editavelAte, editaRelato, REPOSITORIO, MARCA, dadosDoRelato, enderecoDoRegistro, limpaTela, nomeDaTela, FILTRO_VAZIO, filtra, contaFiltros, areasDe, csvDosRelatos, jsonDosRelatos, partidaAbrivel, contextoDaPartida, CHAVE, TIPOS, URGENCIAS, DESCRICAO_MIN, DESCRICAO_MAX, RELATOS_MAX, areaDaRota, confere, novoRelato, ordena, textoDoRelato, textoDosRelatos, createRelatos, usa, usaContexto, abreRelato, BotaoRelatar, createRelatosScreen, rotuloDe };
+return { URL_FILA_LIGADA, FILA_MEMORIA_MS, filaLigada, relatoParaFila, createEnvioPelaFila, AREAS, URL_SITUACAO, BUSCA_SITUACAO_MS, urlDoRegistro, situacaoDosRegistros, concilia, EDITAR_JANELA_MS, podeEditar, editavelAte, editaRelato, REPOSITORIO, MARCA, dadosDoRelato, enderecoDoRegistro, limpaTela, nomeDaTela, FILTRO_VAZIO, filtra, contaFiltros, areasDe, csvDosRelatos, jsonDosRelatos, partidaAbrivel, contextoDaPartida, CHAVE, TIPOS, URGENCIAS, DESCRICAO_MIN, DESCRICAO_MAX, RELATOS_MAX, areaDaRota, confere, novoRelato, ordena, textoDoRelato, textoDosRelatos, createRelatos, usa, usaContexto, abreRelato, BotaoRelatar, createRelatosScreen, rotuloDe };
 })();
 
 /* ==== src/app/catalogo.js ==== */
@@ -33150,6 +33198,8 @@ setTimeout(() => { relatos.todos().then(l => { if (l.some(r => (r.enviadoEm || r
 const som = __m33.createSom({ store: platform.store }); som.init(); // G4 · som da partida
 /* A-263 · T6d · PERFIL SINCRONIZADO: com a conta da Estante conectada e o banco ligado, as preferências, o nome e a foto
    vão e voltam entre aparelhos (árvore v1 da A-262, regras da P-4). O que desce é reaplicado como na restauração do backup. */
+// T6e-2 · relato #13 · a fila de relatos da conta conectada (a mesma conta e o mesmo transporte da sincronia do perfil)
+const envioPelaFila = __m38.createEnvioPelaFila({ filaDe: () => { if (online.modo !== 'firebase' || conta.estante().estado !== 'conectada') return null; const uid = conta.sessao.uid(); return uid ? __m40.createFilaDeRelatos({ transporte: online.transporte, uid }) : null; } });
 const sincronia = __m40.createSincronia({
   remotoDe: () => { if (online.modo !== 'firebase' || conta.estante().estado !== 'conectada') return null; const uid = conta.sessao.uid(); return uid ? __m40.createPerfilRemoto({ transporte: online.transporte, uid }) : null; },
   perfil,
@@ -33200,7 +33250,7 @@ const ROUTES = [
   { path: '/noticias/guardadas', title: 'Guardadas', render: () => __m37.createGuardadasScreen({ noticias, share: platform.share }) }, // N4
   { path: '/perfil/partidas', title: 'Partidas', render: () => createPartidasScreen({ partidas }) }, // I5
   { path: '/perfil/saida', title: 'O que sai do aparelho', render: () => __m41.createSaidaScreen({ config: { google: !!((typeof window !== 'undefined' && window.__GOOGLE_CLIENT_ID) || GOOGLE_CLIENT_ID), firebase: !!((typeof window !== 'undefined' && window.__FIREBASE_DB_URL) || FIREBASE_DB_URL) } }) }, // P-6 · SEG5
-  { path: '/perfil/relatos', title: 'Relatos', render: () => __m38.createRelatosScreen({ relatos, share: platform.share, files: platform.files,
+  { path: '/perfil/relatos', title: 'Relatos', render: () => __m38.createRelatosScreen({ relatos, share: platform.share, files: platform.files, fila: envioPelaFila, // T6e-2
     // Y3 · abrir a partida anexada: entra no lugar da salva (sem a parte online) e a série em curso sai
     partidas: { temSalva: async () => { try { const d = await platform.store.get(__m18.SAVE_KEY); return !!(d && d.kind === 'estante.match'); } catch (e) { return false; } },
       abre: async p => { const { online: _fora, ...opcoes } = p.options || {}; await platform.store.set(__m18.SAVE_KEY, { ...p, options: opcoes, savedAt: Date.now() }); await platform.store.remove(__m18.SERIE_KEY).catch(() => {}); location.hash = '#/partida'; } } }) }, // Y1 · Y3

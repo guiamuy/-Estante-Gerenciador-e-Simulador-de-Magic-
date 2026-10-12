@@ -523,6 +523,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-eb ✅ | SEG8b bloqueio no banco: `bloqueios/<conta>` só da dona; a regra da sala recusa o bloqueado nos dois sentidos; a lista vale nos aparelhos da conta e sai com "Apagar também da nuvem"; "O que sai do aparelho" passa a dizer o perfil sincronizado e a lista (leva P-15) | SEG | 1 | regras publicadas no console |
 | 16º-ec ✅ | SEG9 código de sala com 6 símbolos (≈ 1 bilhão de códigos, era ≈ 1 milhão); entrar aceita 6 e 4; com as regras antigas no console, a sala nasce com 4 (leva P-16) | SEG | 1 | regras publicadas no console |
 | 16º-ed ✅ | SEG10 relato só de quem tem acesso ao repositório: registro de outra conta não ganha etiqueta nem entra na tabela, a não ser que o dono o aceite com `relato-aceito` (leva P-17) | SEG | ½ | — |
+| 16º-ee ✅ | T6e-2 Enviar relato sem sair do app: com a conta conectada e a fila ligada, o relato vai para a fila do Firebase e o cartão mostra "Na fila" até o número do registro (relato #13, leva G-255) | T | 1 | — |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -8730,6 +8731,27 @@ dono criar o segredo `FIREBASE_SERVICE_ACCOUNT`)
   duplica e descarta o inválido; GitHub fora do ar mantém na fila e chave errada não lê o banco; tabela com o robô; o
   fluxo com o segredo num passo só).
 - **Fora:** o botão Enviar pela fila no app (T6e-2, leva seguinte).
+
+**T6e-2 · Enviar relato sem sair do app** ✅ (leva G-255, trilha `geral`; relato #13 — vale quando o fluxo da T6e-1 gravar
+o aviso de fila ligada, o que acontece na primeira rodada depois de o dono criar o segredo `FIREBASE_SERVICE_ACCOUNT`)
+- **Valor:** com a conta da Estante conectada, Enviar manda o relato para a correção sem abrir o GitHub.
+- **Como:** `createEnvioPelaFila` (`src/app/relatos.js`) pergunta se a fila está ligada (`fila.json` no ramo `relatos`,
+  guardado na memória por 10 minutos) e se há conta conectada; com as duas, Enviar põe o relato em
+  `relatos/fila/<conta>/<id>` (`createFilaDeRelatos`, A-262) e lê de volta; o cartão mostra "Na fila" (ícone subir) e,
+  quando a situação de sempre (G-243) traz o registro, o número. O relato vai sem a partida inteira anexada (como pelo
+  GitHub) e sem o que só o aparelho sabe. Sem conta, sem rede ou com a fila desligada, Enviar abre o GitHub como antes;
+  relato que já tem registro: Reenviar abre o GitHub (a fila não cria um segundo).
+- **Erros:** sem internet, o relato fica no aparelho ("você envia depois"); relato grande demais ou falha do banco dizem o
+  motivo e oferecem "Pelo GitHub". Limite conhecido: relato editado depois de enviado e ainda na fila não é trocado (a regra
+  do banco não deixa mudar o texto de um relato na fila); a mensagem oferece o GitHub.
+- **O que sai do aparelho:** o item "Conta da Estante e partida online" passa a dizer que o relato vai para a fila da conta
+  e de lá vira registro público.
+- **Testes:** U `relatos.envio.unit` (4: aviso de fila ligada; o que vai para a fila e cabe no limite; disponível só com
+  conta e fila ligada, 10 minutos na memória, sem rede não; enviar com leitura de volta, sem rede, grande, falha, sem
+  conta, idempotente); e2e "T6e-2" (conectado com a fila ligada: Enviar não abre o GitHub, o nó vai para a fila da conta,
+  "Na fila" nas quatro medidas e nos dois temas, o número aparece quando o registro existe; fila desligada: abre o GitHub
+  e nada vai para a fila).
+- **Fora:** apagar da fila um relato excluído no aparelho antes de virar registro.
 
 ### Z · Catálogo de listas (E61, pedido de 08/10/2026)
 
