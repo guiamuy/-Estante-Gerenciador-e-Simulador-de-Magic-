@@ -14938,6 +14938,9 @@ const __m42 = (function () {
     [new RegExp(`^you gain ${N} life$`, 'i'), m => [{ do: 'gain', amount: num(m[1]) }]],
     [new RegExp(`^(each opponent|target opponent|target player) loses ${N} life and you gain ${N} life$`, 'i'), m => [com({ do: 'lose', amount: num(m[2]) }, alvo(m[1])), { do: 'gain', amount: num(m[3]) }]],
     [new RegExp(`^(each opponent|target opponent|target player) loses ${N} life$`, 'i'), m => [com({ do: 'lose', amount: num(m[2]) }, alvo(m[1]))]],
+    [/^(target creature you control|target creature or enchantment you control) gains protection from the color of your choice until end of turn$/i, m => [{ do: 'protection', target: /enchantment/i.test(m[1]) ? 'creature-enchantment-you-control' : 'creature-you-control' }]], // M-324 · 702.16
+    [/^(creatures you control|another target creature you control) gains? ([a-z]+)(?: and ([a-z]+))? until end of turn$/i, m => { const alvo2 = /^another/i.test(m[1]) ? 'other-creature-you-control' : 'each-own-creature'; const ks = [m[2], m[3]].filter(Boolean).map(k => k.toLowerCase()); return ks.every(k => KW.has(k)) ? ks.map(k => ({ do: 'keyword', keyword: k, target: alvo2 })) : null; }], // M-324
+    [new RegExp(`^untap up to ${N} lands$`, 'i'), m => [{ do: 'untap_chosen', amount: num(m[1]), filter: { types: ['land'] } }]], // M-324 · Frantic Search
     [/^~ deals damage equal to its power to (each opponent|any target|target creature|target player|target opponent)$/i, m => [com({ do: 'damage', amount: { per: 'power-of-source' } }, alvo(m[1]))]], // M-323 · CR2b.10 (608.2h: o poder como era no campo, se ela saiu)
     [/^~ deals X damage to each creature and each player$/i, () => [{ do: 'damage', amount: { per: 'x' }, target: 'each-creature' }, { do: 'damage', amount: { per: 'x' }, jogadores: 'cada' }]], // LT13 · CR2c.7 (Crypt Rats)
     [new RegExp(`^~ deals ${N} damage to (.+)$`, 'i'), m => [com({ do: 'damage', amount: num(m[1]) }, alvo(m[2]))]],
@@ -15023,7 +15026,11 @@ const __m42 = (function () {
     [/^at the beginning of combat on your turn$/i, 'begin-combat'],
     [/^whenever enchanted creature deals damage$/i, 'enchanted-deals-damage'],
     [/^whenever enchanted creature deals damage to an opponent$/i, 'enchanted-damages-opponent'],
-    [/^whenever another creature enters(?: the battlefield)? under your control$/i, 'other-etb'],
+    [/^whenever another creature enters(?: the battlefield)? under your control$/i, 'other-etb', () => ({ filter: { types: ['creature'] } })], // M-324 · o filtro de criatura (sem ele, qualquer permanente sua dispararia)
+    [/^whenever another creature you control enters(?: the battlefield)?$/i, 'other-etb', () => ({ filter: { types: ['creature'] } })], // M-324
+    [/^whenever another creature you control dies$/i, 'other-dies', () => ({ filter: { types: ['creature'] } })], // M-324
+    [/^whenever (this creature|~) is dealt damage$/i, 'dealt-damage'], // M-324 · CR2b.3
+    [/^whenever equipped creature dies$/i, 'attached-dies'], // M-324 · CR2b.3
     [/^whenever you gain life$/i, 'you-gain-life'], // CR2b.7 · 119.9
     [/^whenever you sacrifice another permanent$/i, 'other-sacrificed'], // LT10
     [/^[Ww]henever you cast an? ([A-Z][a-z]+) spell$/, 'other-cast', m => ({ filter: { subtype: m[1] } })], // LT11 · "whenever you cast an Elf spell"
@@ -15179,6 +15186,8 @@ const __m42 = (function () {
         if (etu) { topo.entersTappedUnless = { controlsSubtype: [etu[1], etu[2]] }; frases.push({ texto: linha, lida: true }); continue; }
         const etv = lp.match(/^(?:this land|~) enters(?: the battlefield)? tapped unless a player has (\d+) or less life$/i); // LT13 · Razortrap Gorge
         if (etv) { topo.entersTappedUnless = { anyPlayerLifeAtMost: +etv[1] }; frases.push({ texto: linha, lida: true }); continue; }
+        const om = lp.match(/^whenever (?:this creature|~) or another creature( or planeswalker)? you control dies, (.+)$/i); // M-324 · ela ou outra sua morre: dois gatilhos (outra · ela)
+        if (om) { const g1 = leGatilho(`Whenever another creature you control dies, ${om[2]}`, nome, frases), g2 = leGatilho(`When ~ dies, ${om[2]}`, nome, []); if (g1 && g2) { if (om[1]) g1.filter = { anyTypes: ['creature', 'planeswalker'] }; (topo.abilities = topo.abilities || []).push(g1, g2); } continue; }
         const ed = lp.match(/^when ~ enters(?: the battlefield)? or is put into a graveyard from the battlefield, (.+)$/i); // LT11 · entra ou morre: dois gatilhos com o mesmo efeito
         if (ed) { const g1 = leGatilho(`When ~ enters, ${ed[1]}`, nome, frases), g2 = leGatilho(`When ~ dies, ${ed[1]}`, nome, []); if (g1 && g2) (topo.abilities = topo.abilities || []).push(g1, g2); continue; }
         if (GATILHOS.some(([re]) => re.test(lp.split(', ')[0]))) { const g = leGatilho(lp, nome, frases); if (g) (topo.abilities = topo.abilities || []).push(g); continue; } // gatilho (as frases do corpo já ficaram anotadas)

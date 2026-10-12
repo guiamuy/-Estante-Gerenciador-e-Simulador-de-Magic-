@@ -3756,6 +3756,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Aviso à trilha verbos:** com a M-319, "Monstrosity X" com {X} no custo já pode existir — o validador da V-6 ainda recusa (`monstrosity` com X).
 - **Teste:** `poder.fonte.unit` (2 testes; o primeiro falha no motor anterior, o segundo é de guarda).
 
+**M-324 · LT14 · Leitor de texto: 153 cartas lidas por inteiro** ✅ (leva M-324, motor v110 sem mudança de jogo) — eram 140, zero divergência.
+- **Valor:** o leitor passa a entender "whenever another creature you control enters/dies", "whenever this creature or another creature [or planeswalker] you control dies" (dois gatilhos), "whenever this creature is dealt damage", "whenever equipped creature dies", "target creature [or enchantment] you control gains protection from the color of your choice until end of turn", "creatures you control gain <palavra> [and <palavra>] until end of turn", "another target creature you control gains indestructible…" e "untap up to three lands". Entram Mother of Runes, Benevolent Bodyguard, Alseid of Life's Bounty, Selfless Savior, Selfless Spirit, Vault of the Archangel, Skullclamp, Frantic Search, High Priest of Penance, Corpse Knight, Zulaport Cutthroat, Cruel Celebrant e Elas il-Kor.
+- **Correção (latente):** "whenever another creature enters the battlefield under your control" saía do leitor sem o filtro de criatura — lido assim, qualquer permanente sua dispararia. Nenhuma carta lida dependia disso ainda (o Lunarch Veteran para na linha do Disturb).
+- **Comparador:** passa a comparar `keyword`; "cada oponente" escrito como alvo antigo (`each-opponent`) ou como quantificador (`jogadores`) conta como o mesmo (é o mesmo para o motor).
+- **Teste:** fidelidade (filtro de criatura, "ela ou outra morre", palavras-chave, palavra fora do vocabulário fica não lida); piso da concordância 153.
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

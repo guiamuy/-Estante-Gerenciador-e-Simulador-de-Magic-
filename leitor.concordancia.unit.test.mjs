@@ -9,7 +9,7 @@ import { loadModules } from './_load.mjs';
 const { leitor: L, scripts: S } = loadModules();
 const CARTAS = [...JSON.parse(readFileSync(new URL('./.listas/oficiais.json', import.meta.url), 'utf8')).cartas, ...JSON.parse(readFileSync(new URL('./.listas/oficiais-commander.json', import.meta.url), 'utf8')).cartas, ...JSON.parse(readFileSync(new URL('./.listas/oficiais-motor.json', import.meta.url), 'utf8')).cartas]; // M-305 · também as cartas dos alicerces
 // o que conta para a regra: efeitos (com os campos que o motor lê), modos e as palavras-chave com custo do topo; rótulos não contam
-const CAMPOS = ['do', 'amount', 'power', 'toughness', 'target', 'unless', 'token', 'targetNotLegendary', 'targetNotColor', 'optional', 'filter', 'to', 'ate', 'anyColor', 'exceptSubtype', 'types', 'nontoken', 'semRegenerar', 'targetNotLand', 'targetMv', 'targetMvMax', 'targetTypes', 'symbols', 'jogadores']; // LT13 · alvos com restrição e mana de símbolos fixos // LT5 · M-304: duração de mudança de zona · busca: filtro, destino e "pode"
+const CAMPOS = ['do', 'amount', 'power', 'toughness', 'target', 'unless', 'token', 'targetNotLegendary', 'targetNotColor', 'optional', 'filter', 'to', 'ate', 'anyColor', 'exceptSubtype', 'types', 'nontoken', 'semRegenerar', 'targetNotLand', 'targetMv', 'targetMvMax', 'targetTypes', 'symbols', 'jogadores', 'keyword']; // LT13 · alvos com restrição e mana de símbolos fixos // LT5 · M-304: duração de mudança de zona · busca: filtro, destino e "pode"
 const TOPO = ['flashback', 'madness', 'cycling', 'storm', 'delve', 'transmute', 'escape', 'additional', 'affinity', 'aura', 'equip', 'grants', 'grantsAll', 'self', 'entersTapped', 'ninjutsu', 'produces', 'entersTappedUnless'];
 // `self.keywords` repete a linha de palavras-chave impressa (o motor já a lê da carta): não é regra a mais
 const SO_REPETE = (h, c) => Object.keys(h).every(k => k !== 'self' || (Object.keys(h.self).join() === 'keywords' && h.self.keywords.every(k2 => new RegExp('\\b' + k2 + '\\b', 'i').test(c.oracle_text || ''))));
@@ -17,7 +17,9 @@ const SO_REPETE = (h, c) => Object.keys(h).every(k => k !== 'self' || (Object.ke
 // M-322 · o texto guardado do Sagu Wildling já traz a face Omen (`verso`) e o leitor agora a vê: a carta deixou de contar como lida (ela não era — a face não é lida)
 const TEXTO_INCOMPLETO = {};
 const ordena = v => Array.isArray(v) ? v.map(ordena) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map(k => [k, ordena(v[k])])) : v;
-const efs = l => (l || []).map(e => Object.fromEntries(CAMPOS.filter(k => e[k] != null).map(k => [k, e[k]])));
+// M-324 · "cada oponente/cada jogador" escrito como alvo antigo (each-opponent) ou como quantificador (jogadores) é o mesmo para o motor (SC.jogadoresDe)
+const comoJogadores = e => { const q = S.jogadoresDe(e); if (!q || e.jogadores) return e; const { target, ...resto } = e; return { ...resto, jogadores: q }; };
+const efs = l => (l || []).map(comoJogadores).map(e => Object.fromEntries(CAMPOS.filter(k => e[k] != null).map(k => [k, e[k]])));
 // "you may <efeito único>": à mão às vezes está no efeito (search optional), no leitor fica na habilidade; para o motor é a mesma pergunta — normaliza para a habilidade
 const abs = l => (l || []).map(a => { const es = efs(a.effects); const opt = !!a.optional || (es.length === 1 && !!es[0].optional); if (es.length === 1) delete es[0].optional; return { kind: a.kind, when: a.when, optional: opt, cost: a.cost || null, sorceryOnly: !!a.sorceryOnly, filter: a.filter || null, anyController: !!a.anyController, condition: a.condition || null, alvoDe: a.alvoDe || null, alvoDoControlador: !!a.alvoDoControlador, primeiraVezNoTurno: !!a.primeiraVezNoTurno, effects: es }; }); // LT10 · M-322: filtros de "se torna alvo" · LT10 · filtro, "de qualquer jogador" e condição do gatilho também contam
 // `produces` só conta quando o script à mão o declara (o motor lê a mana do texto da carta; o leitor também anota, por completude)
@@ -25,7 +27,7 @@ const limpaSelf = sc => sc.self && Object.keys(sc.self).some(k => k !== 'keyword
 const efeitos = (sc, ref) => JSON.stringify(ordena({ self: limpaSelf(sc), effects: efs(sc.effects), modes: (sc.modes || []).map(m => efs(m.effects)), abilities: abs(sc.abilities), ...Object.fromEntries(TOPO.filter(k => k !== 'self' && sc[k] != null && sc[k] !== false && (k !== 'produces' || (ref || sc).produces != null)).map(k => [k, sc[k]])) }));
 const SO_EFEITOS = ['name', 'effects', 'modes', 'abilities', 'example', 'covers', 'note', ...TOPO];
 
-test('LT1 · concordância (piso M-323: 140): toda carta lida por inteiro dá o mesmo script escrito à mão (nenhuma divergência)', () => {
+test('LT1 · concordância (piso M-324: 153): toda carta lida por inteiro dá o mesmo script escrito à mão (nenhuma divergência)', () => {
   const lidas = [], divergentes = [];
   for (const c of CARTAS) {
     const r = L.ler(c); if (!r.completa) continue;
@@ -44,7 +46,7 @@ test('LT1 · concordância (piso M-323: 140): toda carta lida por inteiro dá o 
   assert.deepEqual(divergentes, []);
   // M-322 · expectativa ajustada com justificativa: 140 → 139. O Sagu Wildling contava como lido sem a face Omen (texto incompleto no acervo);
   // com o verso no texto guardado, o leitor vê a segunda face, não a lê, e a carta deixa de contar. Nenhuma carta lida de verdade saiu.
-  assert.ok(lidas.length >= 140, // M-323 · Heartfire Hero
+  assert.ok(lidas.length >= 153, // M-323 · Heartfire Hero · M-324: 153
      'cartas lidas por inteiro: ' + lidas.length + ' (' + lidas.join(', ') + ')');
 });
 
@@ -75,6 +77,14 @@ test('LT1 · fidelidade: frase sem padrão fica não lida, com o texto dela, e a
   assert.deepEqual(JSON.parse(JSON.stringify(b3.script.effects)), [{ do: 'search', amount: 1, filter: { types: ['instant', 'sorcery'] }, to: 'library-top' }], 'LT5: "shuffle and put that card on top" vai ao topo do grimório');
   const l5 = L.ler({ name: 'Terra', type_line: 'Land', oracle_text: '{T}: Add {C}.\nCycling {R}{G}{W}' });
   // LT13 · terreno de dor: a cobertura por texto ainda trata a linha como mana; lida pelo leitor, a carta sem script à mão deixaria de jogar (decisão 11)
+  // M-324 · "outra criatura sua entra" leva o filtro de criatura (antes saía sem filtro: qualquer permanente dispararia); "ela ou outra sua morre" são dois gatilhos
+  const ok = L.ler({ name: 'Cavaleiro', type_line: 'Creature — Knight', oracle_text: 'Whenever another creature enters the battlefield under your control, you gain 1 life.' });
+  assert.deepEqual(JSON.parse(JSON.stringify(ok.script.abilities[0].filter)), { types: ['creature'] }, 'M-324: filtro de criatura');
+  const zu = L.ler({ name: 'Zulu', type_line: 'Creature — Human', oracle_text: 'Whenever this creature or another creature you control dies, you gain 1 life.' });
+  assert.deepEqual(Array.from(zu.script.abilities, a => a.when), ['other-dies', 'dies'], 'M-324: ela ou outra sua morre');
+  const vt = L.ler({ name: 'Cofre', type_line: 'Land', oracle_text: '{2}{W}{B}, {T}: Creatures you control gain deathtouch and lifelink until end of turn.' });
+  assert.deepEqual(Array.from(vt.script.abilities[0].effects, e => e.keyword), ['deathtouch', 'lifelink']);
+  assert.equal(L.ler({ name: 'Cofre', type_line: 'Land', oracle_text: '{T}: Creatures you control gain moonglow until end of turn.' }).completa, false, 'palavra-chave fora do vocabulário: não lida');
   // M-322 · "se torna alvo" (valente) e segunda face: o leitor para em "//" e a carta não sai completa
   const va = L.ler({ name: 'Herói', type_line: 'Creature — Mouse', oracle_text: 'Valiant — Whenever Herói becomes the target of a spell or ability you control for the first time each turn, put a +1/+1 counter on it.' });
   assert.deepEqual(JSON.parse(JSON.stringify(va.script.abilities)), [{ kind: 'triggered', when: 'becomes-target', alvoDoControlador: true, primeiraVezNoTurno: true, effects: [{ do: 'counters', amount: 1, target: 'self-source' }] }], 'M-322: valente');
