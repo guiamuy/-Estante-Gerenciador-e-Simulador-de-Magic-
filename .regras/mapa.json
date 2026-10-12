@@ -2728,100 +2728,110 @@
    "n": "310.4",
    "regra": "Battles",
    "titulo": "Defesa",
-   "status": "ausente",
-   "falta": "sonda: a batalha entra sem marcadores de defesa (310.4b).",
-   "esforco": "M",
-   "depende": [
-    "614.1c"
+   "status": "coberta",
+   "evidencia": "T-14 (12/10/2026): a defesa impressa vem do dado da carta (`defense`, carta ou face da frente, levado por normalizeCard e cardFacts) ou de `self.defesa` no script; a batalha entra com esse número de marcadores de defesa pelo mesmo `marcadoresAoPor` de quem entra com marcadores (614.1c), como carta, ficha ou ficha cópia (`batalhaEntrouT`); no campo a defesa é o número de marcadores.",
+   "testes": [
+    "CR 310.4b / 310.4c · a batalha entra com marcadores de defesa iguais à defesa impressa (do dado da carta; sem o dado, da defesa do script) e a defesa no campo é o número de marcadores",
+    "CR 707.2 / 310.4b / 310.12a · a ficha cópia de um Cerco entra com a defesa impressa e um oponente de quem a controla como protetor"
    ]
   },
   {
    "n": "310.5",
    "regra": "Battles",
    "titulo": "Batalha pode ser atacada",
-   "status": "ausente",
-   "falta": "ataque só mira jogador (10696).",
-   "esforco": "M",
-   "depende": [
-    "508.1b"
+   "status": "coberta",
+   "evidencia": "T-14 (12/10/2026): `batalhasAtacaveisT` entra em `pwsAtacaveis`: as batalhas protegidas por outro jogador que ainda joga são oferecidas como alvo do ataque (ação attack com `alvos`), aceitas pelo handler e pela mesa (\"Alvo:\" na faixa de ataque), pelo mesmo caminho do planeswalker atacado (`atacandoPw`).",
+   "testes": [
+    "CR 310.5 / 310.9b / 508.1b · a batalha pode ser atacada por quem tem o protetor como jogador defensor (o Cerco, pelo próprio controlador); o protetor nunca a ataca e o pedido é recusado"
    ]
   },
   {
    "n": "310.6",
    "regra": "Battles",
    "titulo": "Dano tira marcadores de defesa",
-   "status": "ausente",
-   "falta": "batalha não é alvo de dano (\"any\" só criatura, planeswalker e jogador, 10931) nem tem defesa.",
-   "esforco": "P",
-   "depende": [
-    "310.4"
+   "status": "coberta",
+   "evidencia": "T-14 (12/10/2026): `danoEmBatalhaT` tira marcadores de defesa no dano de combate (dealCombatDamage, inclusive o excesso do atropelar) e no de efeito (applyEffect damage); \"qualquer alvo\" inclui batalha (ALVO_SELETOR.any); vínculo com a vida e prevenção seguem o caminho comum.",
+   "testes": [
+    "CR 310.6 / 120.3h / 510.1b · o dano de combate à batalha tira marcadores de defesa; o vínculo com a vida conta; nenhum jogador recebe o dano",
+    "CR 115.4 / 120.1 / 120.3h · \"qualquer alvo\" inclui a batalha e o dano fora de combate tira defesa; \"criatura alvo\" não a inclui"
    ]
   },
   {
    "n": "310.7",
    "regra": "Battles",
    "titulo": "Cerco com defesa 0 vai ao cemitério",
-   "status": "ausente",
-   "falta": "sem ação de estado para batalha.",
-   "esforco": "P",
-   "depende": [
-    "704.5v",
-    "310.4"
+   "status": "coberta",
+   "evidencia": "T-14 (12/10/2026): ação de estado `batalhasDeEstadoT`: o Cerco com defesa 0 fica no campo enquanto é fonte de habilidade disparada que não saiu da pilha (fila, decisão pendente que segura o gatilho, ou habilidade na pilha marcada com a encarnação da batalha); depois vai ao cemitério do dono.",
+   "testes": [
+    "CR 310.12b / 310.7 / 704.5v · tirado o último marcador de defesa, o Cerco dispara; fica no campo enquanto o gatilho não sai da pilha; ao resolver, é exilado e pode ser conjurado transformado, sem pagar"
    ]
   },
   {
    "n": "310.8",
    "regra": "Battles",
    "titulo": "Batalha não-Cerco com defesa 0",
-   "status": "ausente",
-   "falta": "sem ação de estado para batalha.",
-   "esforco": "P",
-   "depende": [
-    "704.5v",
-    "310.4"
+   "status": "coberta",
+   "evidencia": "T-14 (12/10/2026): ação de estado `batalhasDeEstadoT`: batalha que não é Cerco com defesa 0 vai ao cemitério do dono (registro \"ficou sem defesa e foi para o cemitério\").",
+   "testes": [
+    "CR 310.8 / 704.5w · batalha que não é Cerco com defesa 0 vai para o cemitério do dono, sem gatilho nem conjuração"
    ]
   },
   {
    "n": "310.9",
    "regra": "Battles",
    "titulo": "Protetor da batalha",
-   "status": "ausente",
-   "falta": "não há protetor (310.9a-g).",
-   "esforco": "M",
+   "status": "parcial",
    "depende": [
     "310.5"
+   ],
+   "evidencia": "T-14 (12/10/2026): protetor `o.protetorT`, escolhido ao entrar (Cerco: um oponente; sem tipo: o controlador); o protetor nunca ataca a batalha (310.9b); na mesa de dois quem bloqueia é o protetor (310.9c); o \"jogador defensor\" de quem ataca a batalha é o protetor (310.9d / 508.5, em defensorDeK); um protetor por vez, que não muda se a permanente deixa de ser batalha (310.9f-g).",
+   "falta": "Com três ou mais jogadores, o protetor é o primeiro candidato, sem escolha (a mesa é de dois; CR6).",
+   "esforco": "P",
+   "testes": [
+    "CR 310.9a / 310.12a · ao entrar, o Cerco é protegido por um oponente de quem o controla; a batalha sem tipo de batalha, pelo próprio controlador",
+    "CR 310.5 / 310.9b / 508.1b · a batalha pode ser atacada por quem tem o protetor como jogador defensor (o Cerco, pelo próprio controlador); o protetor nunca a ataca e o pedido é recusado",
+    "CR 508.5 / 310.9d · o \"jogador defensor\" de quem ataca a batalha é o protetor dela (aflição: quem perde vida é B, que protege o Cerco de A)"
    ]
   },
   {
    "n": "310.10",
    "regra": "Battles",
    "titulo": "Batalha não pode ser anexada",
-   "status": "ausente",
-   "falta": "sem regra; inalcançável hoje.",
-   "esforco": "P"
+   "status": "coberta",
+   "evidencia": "T-14 (12/10/2026): ação de estado `batalhasDeEstadoT`: batalha anexada a uma permanente se solta (evento \"unattached\").",
+   "testes": [
+    "CR 310.10 · batalha anexada a uma permanente se solta (ação de estado)"
+   ]
   },
   {
    "n": "310.11",
    "regra": "Battles",
    "titulo": "Batalha sem protetor válido",
-   "status": "ausente",
-   "falta": "sem protetor nem ação de estado.",
-   "esforco": "P",
-   "depende": [
-    "310.9"
+   "status": "coberta",
+   "evidencia": "T-14 (12/10/2026): ação de estado `batalhasDeEstadoT` (704.5x / 704.5y): batalha sem protetor (e não atacada) ou com protetor que não pode ser recebe o candidato válido; sem candidato, vai ao cemitério; protetor que muda tira a batalha do combate (506.4).",
+   "testes": [
+    "CR 310.11 / 704.5y / 310.12a · quando o protetor passa a controlar o Cerco, ele deixa de poder protegê-lo: o protetor vira o outro jogador, e agora quem o controla pode atacá-lo",
+    "CR 506.4 / 506.4c · o protetor da batalha atacada muda no meio do combate: ela sai do combate e quem a atacava não causa dano a ninguém"
    ]
   },
   {
    "n": "310.12",
    "regra": "Battles",
    "titulo": "Cerco: protetor oponente e conjurar transformada",
-   "status": "ausente",
-   "falta": "sem a habilidade intrínseca de exilar e conjurar a face de trás (310.12b).",
-   "esforco": "G",
+   "status": "parcial",
    "depende": [
     "310.4",
     "310.9",
     "712"
+   ],
+   "evidencia": "T-14 (12/10/2026): 310.12a — o protetor do Cerco é um oponente de quem o controla (ao entrar e na ação de estado). 310.12b — tirado o último marcador de defesa (dano), a habilidade intrínseca dispara (`cerco-derrotado`, perde-se com \"perde todas as habilidades\"); ao resolver, exila o Cerco desta encarnação (400.7) e abre a decisão \"conjurar transformado sem pagar\" (`free_cast` com a face `transformada` como única oferta; recusar deixa a carta exilada sem permissão). Mesa: \"X foi derrotada: conjurar <verso> sem pagar?\", um botão pelo nome do verso. Carta exemplo completa: Invasion of Dominaria // Serra Faithkeeper.",
+   "falta": "Cerco de outro dono (controle trocado) não é conjurado pelo controlador: fica exilado (o motor só conjura carta do próprio dono).",
+   "esforco": "P",
+   "testes": [
+    "CR 310.12b / 310.7 / 704.5v · tirado o último marcador de defesa, o Cerco dispara; fica no campo enquanto o gatilho não sai da pilha; ao resolver, é exilado e pode ser conjurado transformado, sem pagar",
+    "CR 310.12b · \"you may\": recusar deixa o Cerco no exílio, e ele não pode ser conjurado depois",
+    "CR 400.7 / 310.12b · o Cerco que sai do campo em resposta ao gatilho não é exilado nem conjurado (o gatilho não acha o objeto)",
+    "CR 310.9a / 310.12a · ao entrar, o Cerco é protegido por um oponente de quem o controla; a batalha sem tipo de batalha, pelo próprio controlador"
    ]
   },
   {

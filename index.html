@@ -3918,6 +3918,7 @@ function normalizeCard(c) {
     power: c.power ?? (faces[0] ? faces[0].power : null),
     toughness: c.toughness ?? (faces[0] ? faces[0].toughness : null),
     loyalty: c.loyalty ?? null,
+    ...((c.defense ?? (Array.isArray(c.card_faces) && c.card_faces[0] ? c.card_faces[0].defense : null)) != null ? { defense: c.defense ?? c.card_faces[0].defense } : {}), // T-14 · CR 310.4a · a defesa impressa da batalha (na Scryfall, na carta ou na face da frente)
     colors: c.colors || (faces[0] ? faces[0].colors : []) || [],
     color_identity: c.color_identity || [],
     keywords: c.keywords || [], layout: c.layout || 'normal',
@@ -5430,6 +5431,7 @@ const EFFECTS = {
   lutador: { fields: [], targets: ['creature', 'creature-you-control'] },
   fight: { fields: [], targets: ['creature', 'creature-opponent-controls', 'creature-you-control'] }, // quem: 'self-source' (a permanente fonte luta) | 'primeiro-alvo' (luta a criatura anotada pelo `lutador` anterior)
   /* ↓ T · efeitos da trilha tipos */
+  cerco_derrotado: { fields: [], targets: ['self'] }, // T-14 · CR 310.12b · a habilidade intrínseca do Cerco: "exile it, then you may cast it transformed without paying its mana cost" (o motor a dispara quando sai o último marcador de defesa; o script não a escreve)
   nivel_classe: { fields: [], targets: ['self'] }, // T-12 · CR 716.2a · "o nível desta Classe vira N" (o efeito da barra de nível; o motor o monta a partir de `self.classe`, o script não o escreve)
   transformar: { fields: [], targets: ['self'] }, // T-7 · CR 701.27 · "transform ~": a permanente fonte vira a outra face (nos dois sentidos), se for carta ou ficha de dupla face (712.9) e a outra face for de permanente (701.27d), uma vez por habilidade (701.27f)
   tripulada: { fields: [], targets: ['self'] }, // T-3/T-4 · CR 702.122a/e · o efeito da habilidade de tripular: "esta permanente vira criatura artefato até o fim do turno" (só o mesmo objeto, 400.7) e, sendo Veículo, "fica tripulado"; depois de um `animate` (forma antiga) só avisa
@@ -6114,7 +6116,7 @@ function validateScript(sc) {
   if (sc && sc.replicate != null && sc.kicker) errs.push('replicar e reforço na mesma carta não são aceitos (os dois usam o pagamento repetido)');
   if (sc && sc.modeCount != null && !(Number.isInteger(sc.modeCount) && sc.modeCount >= 2 && (sc.modes || []).length && (sc.modeRepeat || sc.modeCount <= sc.modes.length))) errs.push('número de modos inválido');
   if (sc && sc.cumulativeUpkeep && !/\{/.test(String(sc.cumulativeUpkeep.mana || ''))) errs.push('manutenção cumulativa precisa de um custo de mana');
-  errs.push(...sagaErros(sc), ...tripularErros(sc), ...aventuraErros(sc), ...duplaFaceErros(sc), ...modalErros(sc), ...divididaErros(sc), ...classeErros(sc)); // T-12 · CR 716 · Classe (mesma chamada) // T-10 · CR 709 · carta dividida (mesma chamada) // T-8 · CR 712.3 · dupla face modal (mesma chamada) // T-7 · CR 712 · dupla face (mesma chamada) // T-5 · CR 715 · aventura (mesma chamada) // T-3 · CR 702.122 · tripular (mesma chamada da T-1) // T-1 · CR 714 · Saga: capítulos, read ahead e o marcador de entrada (função abaixo da âncora T das exportações)
+  errs.push(...sagaErros(sc), ...tripularErros(sc), ...aventuraErros(sc), ...duplaFaceErros(sc), ...modalErros(sc), ...divididaErros(sc), ...classeErros(sc), ...batalhaErros(sc)); // T-14 · CR 310.4 · defesa da batalha (mesma chamada) // T-12 · CR 716 · Classe (mesma chamada) // T-10 · CR 709 · carta dividida (mesma chamada) // T-8 · CR 712.3 · dupla face modal (mesma chamada) // T-7 · CR 712 · dupla face (mesma chamada) // T-5 · CR 715 · aventura (mesma chamada) // T-3 · CR 702.122 · tripular (mesma chamada da T-1) // T-1 · CR 714 · Saga: capítulos, read ahead e o marcador de entrada (função abaixo da âncora T das exportações)
   return errs.concat(exampleErrors(sc));
 }
 const ATRASOS = ['next-upkeep', 'next-end-step', 'end-of-combat']; // CR2b.1 · momentos de gatilho atrasado que o motor conhece
@@ -6478,6 +6480,13 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-14 · CR 310 · batalha (Oracle do Forge, consulta de 12/10/2026). Cerco = dupla face que transforma (`self.duplaFace` + `back`, a face
+  // conjurada quando ele é derrotado) com a defesa impressa em `self.defesa` (o dado da carta, quando tem, diz o mesmo). A habilidade
+  // intrínseca do Cerco (310.12b) e o protetor (310.12a) são do motor; o lembrete entre parênteses não é escrito.
+  { name: 'Invasion of Dominaria', self: { duplaFace: true, defesa: 5 }, // "Defense:5"
+    abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'gain', amount: 4 }, { do: 'draw', amount: 1 }] }], // "When Invasion of Dominaria enters, you gain 4 life and draw a card."
+    back: { name: 'Serra Faithkeeper', types: ['creature'], subtypes: ['Angel'], colors: ['W'], power: 4, toughness: 4, keywords: ['flying', 'vigilance'] }, // "Flying, vigilance" · 4/4 · Colors: white
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor): o cenário de verdade (defesa, protetor, ganhar 4 e comprar 1, derrota e verso) está em tipos.batalhas.unit
   // T-12 · CR 716 · Classe (Oracle do Forge, clone de 11/10/2026). Nível 1 no script comum; `self.classe` = [nível 2, nível 3].
   { name: "Stormchaser's Talent", abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'token', amount: 1, token: { name: 'Otter', types: ['creature'], subtypes: ['Otter'], colors: ['U', 'R'], power: 1, toughness: 1, keywords: ['prowess'] } }] }], // "When Stormchaser's Talent enters, create a 1/1 blue and red Otter creature token with prowess."
     self: { classe: [
@@ -8182,6 +8191,19 @@ EVENTOS_DE_OBJETO.push('exaurida'); OBJETOS_DO_EVENTO.exaurida = ['self']; GATIL
 // V-6 · evento "ficou monstruosa" (701.37): da própria permanente
 EVENTOS_DE_OBJETO.push('monstruosa'); OBJETOS_DO_EVENTO.monstruosa = ['self']; GATILHO_EVENTO['becomes-monstrous'] = { evento: 'monstruosa', objeto: 'self' }; TRIGGER_PT['becomes-monstrous'] = 'quando fica monstruosa';
 /* ↓ T · exportações de scripts.js da trilha tipos */
+/* ---------------- T-14 · CR 310 · batalhas (forma do script) ----------------
+   A defesa impressa (310.4a) vem do dado da carta (`defense`, como a Scryfall dá) e, sem ele, de `self.defesa` no script (o mesmo
+   número, do texto oficial): a partida sem rede ou com dado antigo continua sabendo a defesa. O Cerco é uma dupla face que transforma
+   (`self.duplaFace` + `back`, a face que se conjura ao derrotá-lo). A habilidade intrínseca do Cerco (310.12b) é do motor:
+   o script não a escreve. */
+function batalhaErros(sc) {
+  const d = sc && sc.self && sc.self.defesa;
+  return d == null || (Number.isInteger(d) && d >= 0) ? [] : ['batalha: self.defesa é a defesa impressa, um número inteiro (0 ou mais)'];
+}
+TRIGGER_PT['cerco-derrotado'] = 'quando sai o último marcador de defesa'; // T-14 · CR 310.12b (gatilho do motor, não de script)
+MARCADOR_PT.defense = 'de defesa'; // T-14 · CR 310.4b
+ALVO_SELETOR.any = { ...ALVO_SELETOR.any, tipos: [...ALVO_SELETOR.any.tipos, 'battle'] }; // T-14 · CR 115.4 / 120.1: "any target" é criatura, jogador, planeswalker ou batalha
+Object.assign(EXPORTS_T_SC, { batalhaErros });
 /* ---------------- T-10 · CR 709 · carta dividida (forma do script) ----------------
    O script mora no nome da carta inteira ("Wax // Wane"): `self: { dividida: true, mana: '{G}', types: ['instant'] }` e `effects` são a esquerda;
    `back: { name, types, mana, colors, effects }` é a direita. Salas (709.5) e fundir/aftermath ficam fora desta forma. */
@@ -15821,6 +15843,7 @@ function cardFacts(card) {
     hexK: resistenciaQualidadesK(card), // K-18 · 702.11d: "Hexproof from black", "from monocolored"… impressos (undefined quando não tem)
     protK: protecaoQualidadesK(card), // K-17 · 702.16a: qualidades que não são cor ("from creatures", "from Demons", "from everything"…) (undefined quando não tem)
     evocarK: evocarImpressoK(card), // K-8 · 702.74: "Evoke {2}{U}" / "Evoke—Exile a green card from your hand." (undefined quando não tem)
+    defesaT: defesaImpressaT(card), // T-14 · CR 310.4a · a defesa impressa da batalha (undefined quando o dado não tem; o script pode dizer em self.defesa)
     numerosK: numerosDaPalavraK(card), // K-6 · "Afterlife 2", "Modular 1"…: o N de cada palavra-chave numerada impressa (undefined quando não tem)
     // CR 202.1b / 118.6: carta sem custo de mana (Living End, Lotus Bloom) tem custo impagável, não custo zero
     // (só quando o dado diz valor de mana 0: registro sem o campo de custo mas com valor de mana conhecido não é "sem custo")
@@ -17346,7 +17369,7 @@ function mustAttack(s, p) {
   return battlefield(s).filter(o => o.controller === p && (o.goaded || exigePw(s, o)) && podem.has(o.oid)).map(o => o.oid);
 }
 /** M-228 · 506.3 / 508.1b: planeswalkers que p pode atacar (os dos oponentes que ainda jogam). */
-const pwsAtacaveis = (s, p) => battlefield(s).filter(o => o.controller !== p && !s.players[o.controller].lost && tiposDe(s, o).includes('planeswalker')).map(o => o.oid);
+const pwsAtacaveis = (s, p) => battlefield(s).filter(o => o.controller !== p && !s.players[o.controller].lost && tiposDe(s, o).includes('planeswalker')).map(o => o.oid).concat(batalhasAtacaveisT(s, p)); // T-14 · CR 310.5 / 508.1b · e as batalhas que p pode atacar · Toca ponto comum: pwsAtacaveis
 /** M-228 · "attacks <planeswalker> during its controller's next turn if able" (Gideon +2): o planeswalker exigido, se ainda dá para atacá-lo. */
 const exigePw = (s, o) => { const e = o.exigeAtacarPw; if (!e || e.turno !== s.turn.number || o.controller !== s.turn.active) return null;
   const pw = s.objects[e.pw]; return pw && pw.zone === 'battlefield' && (pw.zc || 0) === e.z && pwsAtacaveis(s, o.controller).includes(pw.oid) ? pw.oid : null; };
@@ -17469,7 +17492,7 @@ function dealCombatDamage(s) {
       // CR2-G R5b · prevenção num caminho só (S30 cor; S11b prevenção e proteção, Leva 106: Flaring Pain vale para a proteção)
       amt = danoSubstituido(s, src, obj ? { obj } : { player }, amt, true); // CR2-G R5d · "causa N a mais / o dobro" vem antes da prevenção
       amt = danoAposPrevencao(s, src, obj ? { obj } : { player }, amt, true); if (!amt) continue;
-      if (ehPw) { // M-228 · 120.3c: dano ao planeswalker tira lealdade; se ele também é criatura (Gideon no 0), o dano fica marcado (120.3e)
+      if (ehPw && danoEmBatalhaT(s, src, obj, amt)) { /* T-14 · CR 310.6 / 120.3h · Toca ponto comum: dealCombatDamage */ } else if (ehPw) { // M-228 · 120.3c: dano ao planeswalker tira lealdade; se ele também é criatura (Gideon no 0), o dano fica marcado (120.3e)
         obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - amt); if (isCreature(s, obj)) marcaDanoEmCriatura(s, src, obj, amt); noteDamaged(s, obj);
       } else if (obj && amt > 0) { marcaDanoEmCriatura(s, src, obj, amt); noteEnchantedEvent(s, obj, 'recebe-dano'); noteDamaged(s, obj); if (has(s, fonteDoDano(s, src), 'deathtouch')) obj.deathtouched = true; }
       else {
@@ -18021,6 +18044,7 @@ function applyEffect(s, src, eff, tgt, events) {
         if (n > 0 ? !resto : prevencaoLegado(s, src, obj)) { ganhaVida(n); note({ amount: n, prevented: true }); break; } // dano 0 prevenido continua no registro, como antes
         if (resto < n) ganhaVida(n - resto);
         n = resto;
+        if (obj && danoEmBatalhaT(s, src, obj, n)) { causouDano(s, src, n); note({ amount: n }); break; } // T-14 · CR 310.6 / 120.3h · dano à batalha tira defesa · Toca ponto comum: applyEffect damage (uma linha)
         if (obj && !obj.faceDown && s.facts[obj.name].types.includes('planeswalker')) { obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - n); causouDano(s, src, n); note({ amount: n }); break; } // V-19 · virado para baixo recebe dano como criatura · Toca ponto comum: applyEffect damage
         if (obj && n > 0) { marcaDanoEmCriatura(s, src, obj, n); noteEnchantedEvent(s, obj, 'recebe-dano'); noteDamaged(s, obj); if (has(s, fonteDoDano(s, src), 'deathtouch')) obj.deathtouched = true; } // CR2a.9 // CR 120.8: dano 0 não é dano
         else danoEmJogador(s, src, playerOf(), n);
@@ -18827,6 +18851,7 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'lutador': if (obj) s.lutadorV = { fonte: src.oid, fz: encarnacaoV(s, src), oid: obj.oid, z: obj.zc || 0 }; break; // V-1/V-5 · anota quem luta; a luta é o `fight` seguinte, que apaga a anotação
     case 'fight': lutar(s, src, eff, tgt, events); break; // V-1 · 701.14
     /* ↓ T · casos de applyEffect da trilha tipos */
+    case 'cerco_derrotado': cercoDerrotadoT(s, src, eff, events); break; // T-14 · CR 310.12b · exila o Cerco e abre "conjurar transformado sem pagar"
     case 'nivel_classe': nivelDaClasseSobeT(s, src, eff, events); break; // T-12 · CR 716.2a · o nível da Classe vira N e dispara "When this Class becomes level N"
     case 'transformar': transformaT(s, src.ability ? s.objects[src.source] : src, src, events); break; // T-7 · CR 701.27 · "transform ~"
     case 'tripulada': tripulada(s, src, events); break; // T-3 · CR 702.122e · a habilidade de tripular resolveu: "Whenever ~ becomes crewed"
@@ -20080,6 +20105,7 @@ function stateBased(s, events) {
       for (const oid of morrem) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield') continue; moveObject(s, oid, 'graveyard'); changed = true; events.push({ kind: 'died', oid, name: o.name }); }
       delete s.saindoJuntas;
     }
+    if (batalhasDeEstadoT(s, events)) changed = true; // T-14 · CR 310.7 / 310.8 / 310.10 / 310.11 / 704.5v–y · batalhas (função abaixo da âncora T das exportações)
     if (sagasDeEstado(s, events)) changed = true; // T-1 · CR 714.2b (capítulos disparam), 714.3b (read ahead) e 714.4 / 704.5s (sacrifício); função abaixo da âncora T das exportações
     if (!changed) break;
   }
@@ -20556,6 +20582,7 @@ const HANDLERS = {
     if (!s.pending || s.pending.kind !== 'free_cast' || s.pending.p !== a.p) throw new RuleError('tempo', 'nada para recusar');
     if (s.pending.escondida || s.pending.suspensa) for (const oid of s.pending.options || []) if (s.objects[oid]) delete s.objects[oid].playableFromExile; // M-268/M-269 · continua exilada
     if (s.pending.cascataK) { for (const oid of s.pending.options || []) if (s.objects[oid]) delete s.objects[oid].playableFromExile; cascataAoFundoK(s, a.p, s.pending.cascataK.exiladas); } // K-7 · recusou: todas para o fundo, em ordem aleatória
+    cercoRecusadoT(s, s.pending); // T-14 · CR 310.12b · recusou: o Cerco continua exilado, sem permissão · Toca ponto comum: decline_free (uma linha)
     s.pending = null;
     if (!continueUnless(s, ev)) resumeEffects(s, ev);
   },
@@ -22232,7 +22259,7 @@ function condicaoDoAltK(s, p, when) {
 }
 Object.assign(EXPORTS_K, { custoDaLinhaK, contaMagiaK, magiasDoTurnoK, condicaoDoAltK });
 /** K-31 · o jogador defensor de uma atacante (506.2: o jogador atacado, ou quem controla o planeswalker ou protege a batalha atacada). */
-function defensorDeK(s, o) { if (!o || o.attacking == null) return null; const pw = o.atacandoPw != null ? s.objects[o.atacandoPw] : null; return pw ? pw.controller : o.attacking; }
+function defensorDeK(s, o) { if (!o || o.attacking == null) return null; const pw = o.atacandoPw != null ? s.objects[o.atacandoPw] : null; return pw ? protetorQueDefendeT(s, pw) ?? pw.controller : o.attacking; } // T-14 · CR 508.5: de quem ataca a batalha, o protetor · Toca ponto comum: defensorDeK
 /** K-31 · restrições de alvo da trilha keywords, conferidas na escolha e de novo na resolução (608.2b): `alvoAtacandoK` (criatura atacante)
     e `alvoPoderMenorK` (poder menor que o da fonte agora — mentor, 702.134a). */
 function alvoPermitidoK(s, eff, o, src) {
@@ -22976,6 +23003,150 @@ function lutar(s, src, eff, tgt, events) {
 }
 Object.assign(EXPORTS_V, { lutar });
 /* ↓ T · exportações de core.js da trilha tipos */
+/* ---------------- T-14 · CR 310 · batalhas ----------------
+   - 310.4 · defesa: a impressa vem do dado da carta (`facts.defesaT`) ou do script (`self.defesa`); a batalha ENTRA com esse número de
+     marcadores de defesa (`batalhaEntrouT`, chamada de `sagaEntrou`: moveObject e createToken — carta, ficha e ficha cópia), pelo mesmo
+     `marcadoresAoPor` de quem entra com marcadores (614.1c). No campo, a defesa é o número de marcadores (310.4c).
+   - 310.9 · protetor: `o.protetorT` (índice do jogador), escolhido ao entrar: Cerco → um oponente de quem controla (310.12a); batalha sem
+     tipo de batalha → o controlador (310.9a). Numa mesa de dois a escolha tem um candidato só (automática); com três ou mais, o
+     primeiro candidato (declarado). O campo só existe em batalha: partida sem batalha não muda de estado (goldens idênticos).
+   - 310.5 / 310.9b / 508.1b · atacar: `batalhasAtacaveisT` entra na lista de `pwsAtacaveis` (o que pode ser atacado além do jogador),
+     então oferta, recusa, exigência de ataque, ninjutsu e mesa usam o mesmo caminho do planeswalker atacado (`atacandoPw`). Atacável por
+     quem não é o protetor (o Cerco, pelo próprio controlador). 310.9c · na mesa de dois quem bloqueia é sempre o protetor.
+   - 310.6 / 120.3h · dano: `danoEmBatalhaT` tira marcadores de defesa — combate (dealCombatDamage) e efeito (applyEffect damage);
+     115.4: "qualquer alvo" inclui batalha (ALVO_SELETOR.any). Vínculo com a vida e prevenção seguem o caminho de sempre.
+   - 310.12b · o último marcador de defesa que sai dispara a habilidade intrínseca do Cerco (`cerco-derrotado`): exila o Cerco desta
+     encarnação (400.7) e abre "você pode conjurá-lo transformado sem pagar" (decisão `free_cast` com `cercoT`; a única oferta é a face
+     `transformada`, que vira o verso antes de qualquer conferência). Recusar deixa a carta no exílio, sem permissão.
+   - 310.7 / 310.8 / 704.5v–y / 310.10 / 310.11 · ação de estado (`batalhasDeEstadoT`): batalha anexada se solta; protetor ausente ou que
+     não pode ser vira o candidato válido (sem candidato: cemitério); defesa 0 → cemitério, salvo o Cerco que é fonte de gatilho que ainda
+     não saiu da pilha (fila, decisão pendente ou pilha: `gatilhoPendenteDaBatalhaT`).
+   - 506.4 / 506.4c · a batalha atacada cujo protetor muda, ou que deixa de ser batalha, sai do combate: quem a atacava continua atacando,
+     mas sem alvo (`atacandoPw = FORA_DE_COMBATE_T`) e não causa dano. 508.5 · o "jogador defensor" de quem ataca a batalha é o protetor
+     (`protetorQueDefendeT`, em defensorDeK).
+   - Limites declarados: carta de batalha de outro dono (controle trocado) não é conjurada pelo controlador — fica no exílio; excesso de
+     dano numa batalha (120.4a) não é calculado (nenhum efeito do vocabulário o lê). */
+const FORA_DE_COMBATE_T = 'fora-de-combate';
+function defesaImpressaT(card) {
+  const f0 = c => (Array.isArray(c) && c[0] ? c[0].defense : undefined);
+  const v = card ? (card.defense ?? f0(card.faces) ?? f0(card.card_faces)) : undefined, n = parseInt(v, 10);
+  return v == null || isNaN(n) ? undefined : n;
+}
+const ehBatalhaT = (s, o) => !!o && !o.ability && o.zone === 'battlefield' && !o.faceDown && !!s.facts[o.name] && tiposDe(s, o).includes('battle');
+const ehCercoT = (s, o) => /\bSiege\b/.test(linhaDeTipo(s, o));
+const defesaDaBatalhaT = (s, o) => (ehBatalhaT(s, o) ? (o.counters.defense || 0) : 0);
+const protetorDaBatalhaT = (s, o) => (o && o.protetorT != null ? o.protetorT : null);
+/** 508.5 · o jogador defensor de quem ataca a batalha `pw` é o protetor dela (null quando `pw` não é batalha: vale quem controla). */
+const protetorQueDefendeT = (s, pw) => (ehBatalhaT(s, pw) && pw.protetorT != null ? pw.protetorT : null);
+function defesaInicialT(s, o) { const f = s.facts[o.name] || {}, sf = (f.script && f.script.self) || {}; return f.defesaT ?? sf.defesa ?? 0; }
+/** 310.9a / 310.12a · quem pode proteger a batalha agora. */
+function candidatosAProtetorT(s, o) {
+  return ehCercoT(s, o) ? s.players.map((pl, i) => (i !== o.controller && !pl.lost ? i : -1)).filter(i => i >= 0) : (s.players[o.controller] && !s.players[o.controller].lost ? [o.controller] : []);
+}
+/** 310.4b / 310.9a · a batalha entrou no campo (carta ou ficha): marcadores de defesa e protetor. Quem entra sem ser batalha (o verso
+ * de um Cerco conjurado transformado) não carrega protetor de uma vida anterior (400.7). */
+function batalhaEntrouT(s, o) {
+  if (!o) return;
+  delete o.protetorT; delete o.cercoT;
+  if (!ehBatalhaT(s, o)) return;
+  const n = defesaInicialT(s, o);
+  if (n > 0) { const k = marcadoresAoPor(s, o, 'defense', n, true); if (k > 0) o.counters.defense = (o.counters.defense || 0) + k; }
+  const c = candidatosAProtetorT(s, o); if (c.length) o.protetorT = c[0];
+}
+/** 310.5 / 310.9b / 508.1b · batalhas que p pode atacar: as protegidas por outro jogador que ainda joga (planeswalker-batalha já está na lista). */
+function batalhasAtacaveisT(s, p) {
+  return battlefield(s).filter(o => ehBatalhaT(s, o) && o.protetorT != null && o.protetorT !== p && s.players[o.protetorT] && !s.players[o.protetorT].lost && !tiposDe(s, o).includes('planeswalker')).map(o => o.oid);
+}
+/** 310.6 / 120.3h · dano à batalha tira marcadores de defesa (120.3c/e: sendo também planeswalker ou criatura, vale o dela também).
+ * Devolve true quando `obj` é batalha (o dano foi tratado aqui). */
+function danoEmBatalhaT(s, src, obj, n) {
+  if (!ehBatalhaT(s, obj)) return false;
+  if (!(n > 0)) return true;
+  const antes = obj.counters.defense || 0, depois = Math.max(0, antes - n);
+  if (depois) obj.counters.defense = depois; else delete obj.counters.defense;
+  if (tiposDe(s, obj).includes('planeswalker')) obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - n);
+  if (isCreature(s, obj)) marcaDanoEmCriatura(s, src, obj, n);
+  noteDamaged(s, obj);
+  if (antes > 0 && !depois && ehCercoT(s, obj) && !semImpressas(s, obj)) // 310.12b · habilidade intrínseca do Cerco (perde-se com "perde todas as habilidades")
+    s.queued.push({ source: obj.oid, name: obj.name, controller: obj.controller, effects: [{ do: 'cerco_derrotado', z: obj.zc || 0 }], when: 'cerco-derrotado', batalhaZ: obj.zc || 0 });
+  return true;
+}
+/** 310.7 · a habilidade disparada da batalha que ainda não saiu da pilha leva a encarnação da fonte. */
+function batalhaMarcaNaPilhaT(s, q, oid) { const f = s.objects[q.source]; if (ehBatalhaT(s, f) && s.objects[oid]) s.objects[oid].gatilhoDaBatalhaT = f.zc || 0; }
+/** 310.7 / 704.5v · `o` é fonte de uma habilidade que disparou e ainda não saiu da pilha (fila, decisão pendente que segura o gatilho, pilha)? */
+function gatilhoPendenteDaBatalhaT(s, o) {
+  const z = o.zc || 0, dela = q => !!q && q.source === o.oid && (q.batalhaZ == null || q.batalhaZ === z);
+  if ((s.queued || []).some(dela) || (s.pending && dela(s.pending.trigger))) return true;
+  return s.stack.some(x => { const a = s.objects[x]; return !!a && isAbility(a) && a.source === o.oid && a.gatilhoDaBatalhaT === z; });
+}
+/** 310.12b · "exile it, then you may cast it transformed without paying its mana cost". */
+function cercoDerrotadoT(s, src, eff, events) {
+  const o = s.objects[src.source], ctrl = src.controller;
+  if (!o || o.zone !== 'battlefield' || (o.zc || 0) !== eff.z) { events.push({ kind: 'effect', do: 'cerco_derrotado', name: src.name, failed: true }); return; } // 400.7
+  const nome = o.name;
+  moveObject(s, o.oid, 'exile');
+  const x = s.objects[o.oid];
+  if (!x || x.zone !== 'exile') { events.push({ kind: 'effect', do: 'cerco_derrotado', name: nome, failed: true }); return; }
+  const par = parDuplaFaceT(s, x);
+  events.push({ kind: 'effect', do: 'cerco_derrotado', name: nome, target: par ? par.verso : null });
+  if (!par || x.token || x.owner !== ctrl) return; // sem verso conhecido não há o que conjurar; ficha não é conjurada; carta de outro dono: limite declarado
+  x.playableFromExile = ctrl; x.cercoT = par.verso;
+  s.pending = { kind: 'free_cast', p: ctrl, options: [x.oid], name: nome, cercoT: par.verso };
+}
+/** 310.12b · a conjuração do Cerco derrotado: só transformado (`face: 'transformada'`), só pelo efeito dele. Vira o verso antes das conferências. */
+function cercoEscolhaT(s, a, o) {
+  const cerco = !!o && !!o.cercoT && o.zone === 'exile';
+  if (a.face === 'transformada') {
+    if (!cerco || !a.free || !a.granted) throw new RuleError('face', 'só o Cerco derrotado é conjurado transformado, pelo efeito dele');
+    const verso = o.cercoT; delete o.cercoT; flipTo(s, o, verso); return true;
+  }
+  if (cerco && a.granted) throw new RuleError('face', 'o Cerco derrotado só é conjurado transformado');
+  return false;
+}
+/** 310.12b · ofertas da decisão: a face transformada no lugar da carta (calculadas numa cópia do estado com o verso para cima). */
+function cercoGratisOfertasT(s, p, out) {
+  const cercos = (s.pending.options || []).filter(oid => s.objects[oid] && s.objects[oid].cercoT && s.objects[oid].zone === 'exile');
+  if (!cercos.length) return;
+  for (let i = out.length - 1; i >= 0; i--) if (out[i].t === 'cast_free' && cercos.includes(out[i].oid) && out[i].face == null) out.splice(i, 1);
+  const s2 = cloneEstado(s); for (const oid of cercos) flipTo(s2, s2.objects[oid], s.objects[oid].cercoT);
+  DENTRO_DAS_MODAIS = true;
+  try { for (const x of legalActions(s2, p)) if (x.t === 'cast_free' && cercos.includes(x.oid)) out.push({ ...x, face: 'transformada' }); }
+  finally { DENTRO_DAS_MODAIS = false; }
+}
+/** Recusou conjurar o Cerco derrotado: ele continua exilado, sem permissão. */
+function cercoRecusadoT(s, pk) { if (pk && pk.cercoT) for (const oid of pk.options || []) if (s.objects[oid]) { delete s.objects[oid].playableFromExile; delete s.objects[oid].cercoT; } }
+/** 506.4 · a batalha sai do combate: quem a atacava continua atacando, sem alvo (506.4c), e não causa dano. */
+function tiraBatalhaDoCombateT(s, o) { for (const a of battlefield(s)) if (a.atacandoPw === o.oid) a.atacandoPw = FORA_DE_COMBATE_T; }
+/** 310.7 / 310.8 / 310.10 / 310.11 / 704.5v–y / 506.4 · ação de estado das batalhas. Devolve true se algo mudou. */
+function batalhasDeEstadoT(s, events) {
+  let mudou = false;
+  if (s.combat) for (const a of battlefield(s)) { // 506.4 · a batalha atacada que deixou de ser batalha (e não é planeswalker) sai do combate
+    const b = a.atacandoPw != null && a.atacandoPw !== FORA_DE_COMBATE_T ? s.objects[a.atacandoPw] : null;
+    if (b && b.zone === 'battlefield' && b.protetorT != null && !ehBatalhaT(s, b) && !tiposDe(s, b).includes('planeswalker')) { a.atacandoPw = FORA_DE_COMBATE_T; mudou = true; }
+  }
+  const vao = [];
+  for (const o of battlefield(s)) {
+    if (!ehBatalhaT(s, o)) continue;
+    if (o.attachedTo) { delete o.attachedTo; events.push({ kind: 'unattached', oid: o.oid, name: o.name }); mudou = true; } // 310.10
+    const cand = candidatosAProtetorT(s, o), atual = o.protetorT;
+    const ausente = atual == null || !s.players[atual] || s.players[atual].lost;
+    const atacada = battlefield(s).some(x => x.atacandoPw === o.oid);
+    if ((ausente && !atacada) || (!ausente && !cand.includes(atual))) { // 704.5x / 704.5y
+      if (!cand.length) { vao.push(o.oid); continue; }
+      o.protetorT = cand[0]; mudou = true;
+      events.push({ kind: 'effect', do: 'protetor_batalha', name: o.name, target: s.players[cand[0]].name });
+      if (!ausente) tiraBatalhaDoCombateT(s, o); // 506.4 · o protetor mudou
+    }
+    if ((o.counters.defense || 0) <= 0 && !(ehCercoT(s, o) && gatilhoPendenteDaBatalhaT(s, o))) vao.push(o.oid); // 704.5v / 704.5w
+  }
+  if (vao.length) {
+    s.saindoJuntas = vao;
+    for (const oid of vao) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield') continue; const nome = o.name; moveObject(s, oid, 'graveyard'); events.push({ kind: 'effect', do: 'batalha_cemiterio', name: nome }); mudou = true; }
+    delete s.saindoJuntas;
+  }
+  return mudou;
+}
+Object.assign(EXPORTS_T, { ehBatalhaT, defesaDaBatalhaT, protetorDaBatalhaT, batalhasAtacaveisT, FORA_DE_COMBATE_T });
 /* ---------------- T-1 / T-2 · CR 714 · Sagas ----------------
    Tudo o que a regra pede sai dos marcadores de lore e das habilidades de capítulo do script (when: 'chapter', chapters: [N…]).
    - 714.2b / 603.2 · o capítulo dispara NO ATO de pôr o marcador ("era menor que N e passou a ser pelo menos N"): `sagaMarcou` é
@@ -23038,6 +23209,7 @@ function sagaPoeLore(s, o, n) {
  * disparam aqui. Com read ahead e sem marcador, o registro guarda `escolhe`: a conferência seguinte abre a decisão do capítulo.
  * Quem já estava no campo e vira Saga não passa por aqui — "as this Saga enters" não vale para ela. */
 function sagaEntrou(s, o) {
+  batalhaEntrouT(s, o); // T-14 · CR 310.4b / 310.9a · a batalha que entra: marcadores de defesa e protetor (mesmo ponto de entrada: moveObject e createToken)
   if (o && parDuplaFaceT(s, o)) o.transformouEm = s.nextAbility; // T-9 · 400.7 / 701.27f: habilidade criada antes de a dupla face entrar no campo é do objeto antigo e não a transforma
   if (!o || !ehSaga(s, o)) return;
   (s.sagas = s.sagas || {})[o.oid] = { z: o.zc || 0, n: 0 };
@@ -23047,7 +23219,7 @@ function sagaEntrou(s, o) {
 /** T-2 · 714.3b · a escolha do read ahead foi feita: a Saga "entra com esse número de marcadores" e o capítulo de mesmo número dispara. */
 function sagaEscolheu(s, o) { const reg = (s.sagas || {})[o.oid]; if (reg) delete reg.escolhe; sagaMarcou(s, o, 0); }
 /** T-2 · 714.4 / 400.7 · a marca que faz da habilidade na pilha um capítulo: número e encarnação da Saga no disparo. */
-function sagaMarcaNaPilha(s, q, oid) { if (q.when === 'chapter' && s.objects[oid]) s.objects[oid].capituloDe = { n: q.capitulo, z: q.sagaZ }; }
+function sagaMarcaNaPilha(s, q, oid) { batalhaMarcaNaPilhaT(s, q, oid); /* T-14 · CR 310.7 */ if (q.when === 'chapter' && s.objects[oid]) s.objects[oid].capituloDe = { n: q.capitulo, z: q.sagaZ }; }
 /** T-2 · 514.3a · na limpeza, com os efeitos do turno já encerrados: há Saga que a ação de estado vai sacrificar (a que recuperou
  * as habilidades com marcadores ≥ capítulo final)? Então os jogadores recebem prioridade; o sacrifício acontece na conferência
  * do `apply`, que entrega o evento ao registro, e depois vem outra limpeza. */
@@ -23358,6 +23530,7 @@ function faceDeTras(s, x) {
 }
 const costStringT = c => (c.x ? '{X}'.repeat(c.x) : '') + (c.generic ? `{${c.generic}}` : '') + (c.hybrid || []).map(h => `{${h}}`).join('') + COLORS.map(k => `{${k}}`.repeat((c.colored || {})[k] || 0)).join('');
 function faceEscolhidaT(s, a, o) {
+  if (cercoEscolhaT(s, a, o)) return; // T-14 · CR 310.12b · o Cerco derrotado é conjurado transformado
   if (divididaEscolhidaT(s, a, o)) return; // T-10 · CR 709.3 · a metade da carta dividida
   if (a.face == null) return;
   const fv = o && faceDeTras(s, o);
@@ -23441,6 +23614,7 @@ function divididaOfertas(s, p, out) {
  * dela: as ofertas saem de `legalActions` numa cópia do estado com as cartas viradas, como nas ofertas da mão. */
 function faceGratisOfertasT(s, p, out) {
   if (DENTRO_DAS_MODAIS || !s.pending || s.pending.kind !== 'free_cast' || s.pending.p !== p) return;
+  cercoGratisOfertasT(s, p, out); // T-14 · CR 310.12b · o Cerco derrotado: só a face transformada
   const ops = (s.pending.options || []).filter(oid => s.objects[oid] && !s.objects[oid].frontName);
   const div = ops.filter(oid => metadesDe(s, oid));
   const mod = ops.filter(oid => { const o = s.objects[oid], fv = !div.includes(oid) && faceDeTras(s, oid); return fv && (o.zone === 'hand' || (o.zone === 'exile' && jogavelDoExilio(s, p, o))) && !((s.facts[fv.nome] || {}).types || []).includes('land'); }); // a mesma conferência de faceEscolhidaT
@@ -23462,7 +23636,7 @@ function gruposGratisT(s, opts) {
   for (const a of opts) {
     const k = a.oid + '|' + (a.face || ''); let g = gs.find(x => x.k === k);
     if (!g) { const md = (a.face === 'esquerda' || a.face === 'direita') && metadesDe(s, a.oid), fv = a.face === 'verso' && faceDeTras(s, a.oid);
-      g = { k, oid: a.oid, face: a.face || null, nome: md ? md[a.face === 'direita' ? 1 : 0].nome : fv ? fv.nome : null, da: [] }; gs.push(g); }
+      g = { k, oid: a.oid, face: a.face || null, nome: md ? md[a.face === 'direita' ? 1 : 0].nome : fv ? fv.nome : a.face === 'transformada' ? ((s.objects[a.oid] || {}).cercoT || null) : null, da: [] }; gs.push(g); } // T-14 · face 'transformada': o nome é o do verso do Cerco
     g.da.push(a);
   }
   return gs;
@@ -25243,6 +25417,7 @@ function describe(before, a, events, after) {
   }
   if (a.t === 'cast' && a.free) L[L.length - 1] += ' (sem pagar)';
   if (a.face === 'verso' && L.length) { const fv = E.faceDeTras(before, a.oid), n0 = nameOf(before, a.oid); if (fv) L[L.length - 1] = L[L.length - 1].replace(n0, `${fv.nome} (a outra face de ${n0})`); } // T-8 · CR 712.11b / 712.12 · o registro diz a face jogada
+  if (a.face === 'transformada' && L.length) { const o0 = before.objects[a.oid], n0 = nameOf(before, a.oid); if (o0 && o0.cercoT) L[L.length - 1] = L[L.length - 1].replace(n0, `${o0.cercoT} (${n0} transformada)`); } // T-14 · CR 310.12b · o registro diz a face conjurada
   if ((a.face === 'esquerda' || a.face === 'direita') && L.length) { const hs = E.metadesDe(before, a.oid), n0 = nameOf(before, a.oid); if (hs) L[L.length - 1] = L[L.length - 1].replace(n0, `${hs[a.face === 'direita' ? 1 : 0].nome} (metade de ${n0})`); } // T-10 · CR 709.3 · o registro diz a metade
   // dano de combate e mortes que acontecem ao passar
   if (a.t === 'pass' || a.t === 'block' || a.t === 'attack') {
@@ -25669,6 +25844,7 @@ function estadoDaCarta(s, o, plano = null) {
   if (plano && plano.attack && plano.attack.has(o.oid)) anel = 'ataca';
   for (const [k, v] of Object.entries(o.counters || {})) { if (!v) continue; marcas.push({ k: 'marcador', texto: k === 'p1p1' ? `+${v}/+${v}` : k === 'm1m1' ? `−${v}/−${v}` : k === 'loyalty' ? `lealdade ${v}` : k === 'age' ? `idade ${v}` : `${k} ${v}` }); }
   if ((o.counters || {}).lore) { const m = marcas.find(x => x.k === 'marcador' && x.texto === `lore ${o.counters.lore}`); if (m) { m.texto = 'capítulo ' + (['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'][o.counters.lore] || o.counters.lore); m.rotulo = `${o.counters.lore} marcador(es) de saga`; } } // T-1 · CR 714 · a Saga diz em que capítulo está
+  if (o.protetorT != null || (o.counters || {}).defense) { const m = marcas.find(x => x.k === 'marcador' && x.texto === `defense ${(o.counters || {}).defense}`); if (m) { m.texto = `defesa ${o.counters.defense}`; m.rotulo = `${o.counters.defense} marcador(es) de defesa`; } if (o.protetorT != null && s.players[o.protetorT] && (s.facts[o.name].types || []).includes('battle')) marcas.push({ k: 'protetor', texto: `protegida por ${s.players[o.protetorT].name}`, rotulo: `Batalha protegida por ${s.players[o.protetorT].name}: quem não é o protetor pode atacá-la` }); } // T-14 · CR 310.4c / 310.9 · a batalha diz a defesa e quem a protege
   if (o.damage) marcas.push({ k: 'dano', texto: `${o.damage} dano` });
   // T4 · habilidades ganhas (verde) e perdidas (tachada): uma pílula para cada lado; o nome inteiro fica no rótulo
   const mod = modificacoesDaCarta(s, o, pt);
@@ -26029,6 +26205,8 @@ const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas
 const EFEITO_PT_T = { nivel_classe: e => `a Classe sobe para o nível ${e.n}`, tripulada: () => 'vira criatura artefato até o fim do turno', transformar: () => 'transforma (vira a outra face)' }; // T-7 · 701.27
 /** T-7 · linhas do registro para os eventos da trilha tipos. */
 const LINHA_T = { nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
+Object.assign(EFEITO_PT_T, { cerco_derrotado: () => 'exila o Cerco; você pode conjurá-lo transformado, sem pagar' }); // T-14 · CR 310.12b
+Object.assign(LINHA_T, { cerco_derrotado: ev => (ev.failed ? `${ev.name}: o Cerco já tinha saído do campo, nada a exilar` : `${ev.name} foi derrotada e exilada${ev.target ? ` (pode virar ${ev.target})` : ''}`), protetor_batalha: ev => `${ev.target} passa a proteger ${ev.name}`, batalha_cemiterio: ev => `${ev.name} ficou sem defesa e foi para o cemitério` }); // T-14 · CR 310.12b / 310.11 / 310.8
 function descreveEfeito(e) {
   if (!e || !e.do) return '';
   if (EFEITO_PT_V[e.do]) return EFEITO_PT_V[e.do](e); // V-1 · Toca ponto comum: descreveEfeito (frases da trilha verbos)
@@ -28423,8 +28601,8 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       // S61 · Covil do Mago Louco: uma das cartas compradas pode ser conjurada sem pagar
       const opts = E.legalActions(s, v).filter(x => x.t === 'cast_free');
       const esc = !!s.pending.escondida, susp = !!s.pending.suspensa; // M-268 · esconderijo; M-269 · suspender
-      banner = PriorityBanner({ title: esc ? `${s.pending.name}: jogar a carta escondida sem pagar?` : susp ? `${s.pending.name}: saiu o último marcador de tempo. Conjurar sem pagar?` : `${s.pending.name}: conjurar uma sem pagar?`, tone: 'warning',
-        hint: susp ? (opts.length ? 'Se não conjurar agora, ela continua exilada. Criatura conjurada assim tem ímpeto.' : 'Ela não pode ser conjurada agora e continua exilada.') : esc ? (opts.length ? 'Se não jogar agora, ela continua escondida.' : 'A carta escondida não pode ser jogada agora (terreno: só no seu turno, se ainda não jogou terreno).')
+      banner = PriorityBanner({ title: s.pending.cercoT ? `${s.pending.name} foi derrotada: conjurar ${s.pending.cercoT} sem pagar?` /* T-14 · CR 310.12b */ : esc ? `${s.pending.name}: jogar a carta escondida sem pagar?` : susp ? `${s.pending.name}: saiu o último marcador de tempo. Conjurar sem pagar?` : `${s.pending.name}: conjurar uma sem pagar?`, tone: 'warning',
+        hint: s.pending.cercoT ? (opts.length ? 'É a outra face da carta, conjurada transformada. Se não conjurar agora, ela continua exilada.' : 'Ela não pode ser conjurada agora e continua exilada.') /* T-14 · Toca ponto comum: table.js (aviso de conjurar sem pagar) */ : susp ? (opts.length ? 'Se não conjurar agora, ela continua exilada. Criatura conjurada assim tem ímpeto.' : 'Ela não pode ser conjurada agora e continua exilada.') : esc ? (opts.length ? 'Se não jogar agora, ela continua escondida.' : 'A carta escondida não pode ser jogada agora (terreno: só no seu turno, se ainda não jogou terreno).')
           : opts.length ? 'Vale só para uma das cartas que você acabou de comprar.' : 'Nenhuma das compradas pode ser conjurada agora.',
         // Leva 110 · um botão por carta; os alvos abrem a folha completa
         actions: [...E.gruposGratisT(s, opts).map(({ oid, nome: nf, da }, i) => { const nm = nf || nameOf(s, oid); // T-11 · um botão por carta e por face (metade da dividida, verso da modal)

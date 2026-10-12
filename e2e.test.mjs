@@ -10852,3 +10852,40 @@ test('e2e · T-12 · CR 716.2a · Classe: a folha da Classe no campo oferece "Su
   if (linhas.length) assert.ok(linhas.some(l => /Stormchaser's Talent subiu para o nível 2/.test(l)), 'registro: ' + JSON.stringify(linhas.slice(-6)));
   assert.deepEqual(M.errors, []);
 });
+
+test('e2e · T-14 · CR 310.4c / 310.9 / 310.12b · batalha: a carta mostra a defesa e quem a protege; derrotado, o Cerco pergunta se conjura a outra face sem pagar, com um botão pelo nome dela', { skip }, async t => {
+  // Texto oficial em .listas/oficiais-tipos.json (Oracle do Forge, 12/10/2026): Invasion of Dominaria // Serra Faithkeeper. O Cerco é
+  // posto no campo por dado (como o motor o põe: marcadores de defesa e protetor) e o gatilho de derrota entra na fila por dado; o que
+  // se testa aqui é a tela (o motor é provado em tipos.batalhas.unit).
+  const extras = JSON.parse(readFileSync(join(ROOT, '.listas', 'oficiais-tipos.json'), 'utf8')).cartas.filter(c => c.name === 'Invasion of Dominaria');
+  const M = await comLista125(t, '24 Plains\n16 Invasion of Dominaria', ['Plains', 'Invasion of Dominaria'], '4', { extras });
+  const { page } = M;
+  const cerco = await page.evaluate(() => { const s = window.__estanteMesa.estado(), z = s.zones[0];
+    const i = z.library.findIndex(o => s.objects[o].name === 'Invasion of Dominaria'); const oid = z.library.splice(i, 1)[0];
+    Object.assign(s.objects[oid], { zone: 'battlefield', controller: 0, tapped: false, sick: false, damage: 0, counters: { defense: 2 }, protetorT: 1 }); z.battlefield.push(oid); return oid; });
+  let terra = await M.oid('Plains'); assert.equal(await M.act({ t: 'play_land', p: 0, oid: terra }), true); await page.waitForTimeout(250);
+  const pilulas = (await page.locator(`.tb-side--me .tb-card[data-oid="${cerco}"] .tb-pill`).allInnerTexts()).map(x => x.trim());
+  assert.ok(pilulas.includes('defesa 2'), 'a defesa na carta: ' + JSON.stringify(pilulas));
+  assert.ok(pilulas.some(x => /^protegida por /.test(x)), 'quem protege: ' + JSON.stringify(pilulas));
+  // o último marcador saiu: a habilidade intrínseca do Cerco (310.12b) vai à pilha e, ao resolver, abre a decisão
+  await page.evaluate(oid => { const s = window.__estanteMesa.estado(), o = s.objects[oid]; o.counters = {};
+    s.queued.push({ source: oid, name: o.name, controller: 0, effects: [{ do: 'cerco_derrotado', z: o.zc || 0 }], when: 'cerco-derrotado', batalhaZ: o.zc || 0 }); }, cerco);
+  await page.evaluate(() => { const s = window.__estanteMesa.estado(); s.players[0].landsPlayed = 0; });
+  terra = await M.oid('Plains'); assert.equal(await M.act({ t: 'play_land', p: 0, oid: terra }), true); await page.waitForTimeout(250);
+  let e = await M.resolve();
+  assert.equal(e.pend, 'free_cast', 'a mesa pergunta: ' + JSON.stringify(e));
+  assert.match(await M.decisao(), /^Invasion of Dominaria foi derrotada: conjurar Serra Faithkeeper sem pagar\? \| É a outra face da carta, conjurada transformada\. Se não conjurar agora, ela continua exilada\./);
+  const botoes = (await page.locator('.tb-banner button').allInnerTexts()).map(x => x.trim()).filter(Boolean); // o botão só de ícone (recolher a faixa) fica de fora
+  assert.deepEqual(botoes, ['Serra Faithkeeper', 'Não conjurar'], 'um botão pela face e o de recusar');
+  for (const b of await page.locator('.tb-banner button', { hasText: /^(Serra Faithkeeper|Não conjurar)$/ }).all()) { const cx = await b.boundingBox(); assert.ok(cx && cx.height >= 44, 'botão com 44 px de altura ou mais: ' + JSON.stringify(cx)); }
+  await auditaTela(page, 'Cerco derrotado: conjurar a outra face');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/t14-cerco.png' });
+  await page.locator('#tb-cast-free').click(); await page.waitForTimeout(250);
+  if (await page.locator('.ds-dialog').count()) { await page.locator('.ds-dialog .tb-sheet__actions button').first().click(); await page.waitForTimeout(250); }
+  e = await M.resolve();
+  const fim = await page.evaluate(oid => { const s = window.__estanteMesa.estado(), o = s.objects[oid]; return { zona: o.zone, nome: o.name, pend: s.pending && s.pending.kind }; }, cerco);
+  assert.deepEqual(fim, { zona: 'battlefield', nome: 'Serra Faithkeeper', pend: null });
+  const linhas = await page.evaluate(() => (window.__estanteMesa.registro ? window.__estanteMesa.registro() : []).map(String));
+  if (linhas.length) assert.ok(linhas.some(l => /Invasion of Dominaria foi derrotada e exilada/.test(l)) && linhas.some(l => /Serra Faithkeeper \(Invasion of Dominaria transformada\)/.test(l)), 'registro: ' + JSON.stringify(linhas.slice(-8)));
+  assert.deepEqual(M.errors, []);
+});
