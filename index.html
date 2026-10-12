@@ -15216,6 +15216,22 @@ function parseCost(str) {
   return cost;
 }
 const BASIC = { plains: 'W', island: 'U', swamp: 'B', mountain: 'R', forest: 'G', wastes: 'C' };
+/** M-321 · 106.12 · a regra impressa na linha de mana, para carta sem script: "{T}: Add {R} or {W}. <Esta carta> deals 1 damage to you." (terreno
+ * de dor, talismã) e "{T}: Add {U} or {B}. Activate only if you control a Swamp." (Tainted Isle). O motor já lê a mana do texto
+ * (parseProduction) e a cobertura conta a linha como mana; sem isto a cor saía sem o dano e sem a condição. undefined quando não há. */
+function regraDeManaDoTexto(card) {
+  const nome = String(card && card.name || '').split(' // ')[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  for (const linha of String(card && card.oracle_text || '').replace(/\([^)]*\)/g, '').split('\n')) {
+    const l = linha.trim();
+    let m = l.match(new RegExp(`^\\{T\\}: Add \\{([WUBRG])\\}(?: or \\{([WUBRG])\\})?\\. (?:This (?:land|artifact|creature)|${nome || '\u0000'}) deals 1 damage to you\\.?$`, 'i'));
+    if (m) return { colors: m[1] + (m[2] || ''), damage: 1 };
+    m = l.match(/^\{T\}: Add \{([WUBRG])\}(?: or \{([WUBRG])\})?\. Activate only if you control an? (Plains|Island|Swamp|Mountain|Forest)\.?$/);
+    if (m) return { colors: m[1] + (m[2] || ''), needsSubtype: m[3] };
+  }
+  return undefined;
+}
+/** M-321 · a regra de mana: a do script (R11.2) ou, sem ela, a impressa na linha de mana. */
+const manaRuleDe = f => ((f && f.script) || {}).manaRule || (f && f.manaRuleTexto) || null;
 /** Opções de mana de uma fonte ({T}: Add …). Cada opção é uma lista de símbolos. */
 function parseProduction(card) {
   const opts = [];
@@ -15274,6 +15290,7 @@ function cardFacts(card) {
     types, legendary: tl.includes('legendary'), flash: kw.includes('flash'), kw,
     power: num(card && card.power), toughness: num(card && card.toughness), loyalty: num(card && card.loyalty),
     cmc: (card && card.cmc) || 0, prot: protecaoImpressa(card),
+    manaRuleTexto: regraDeManaDoTexto(card), // M-321 · dano ou condição impressos na linha de mana (undefined quando não tem)
     wardImpresso: wardImpressoK(card), // K-2 · 702.21: "Ward {N}" / "Ward—Pay N life." / descarte / sacrifício, da face da frente (undefined quando não tem)
     tapaK: tapaImpressoK(card), // K-13 · 702.51/702.126: "Convoke" / "Improvise" impressos (undefined quando não tem)
     recomecarK: recomecarImpressoK(card), // K-10 · 702.133: linha "Jump-start" (undefined quando não tem)
@@ -16172,7 +16189,7 @@ function productions(s, o, visto) {
     }
   }
   // R11.2 · cor que só sai com uma condição de campo (Tainted Field: um Swamp; Spire of Industry: um artefato)
-  const regra = perde ? null : (s.facts[o.name].script || {}).manaRule;
+  const regra = perde ? null : manaRuleDe(s.facts[o.name]); // M-321 · também a impressa, sem script
   if (regra && (regra.needsSubtype || regra.needsType) && !battlefield(s).some(x => x.controller === o.controller &&
     (regra.needsSubtype ? new RegExp('\\b' + regra.needsSubtype + '\\b').test(linhaDeTipo(s, x)) : s.facts[x.name].types.includes(regra.needsType))))
     opts = opts.filter(x => !x.some(c => regra.colors.includes(c)));
@@ -16367,7 +16384,7 @@ function tapForMana(s, oid, option, mana) {
   const aoGastar = (s.facts[o.name].script || {}).aoGastarMana; // M-273 · Path of Ancestry: "when that mana is spent to cast …" — a mana leva a marca de quem a gerou
   if (aoGastar) { const pl = s.players[o.controller]; pl.manaMarcada = [...(pl.manaMarcada || []), ...opt.map(c => ({ cor: c, fonte: o.oid, name: o.name }))]; }
   // R11.2 · "This land deals 1 damage to you" (terrenos de dor, Talismãs) e "Pay 1 life" (Spire of Industry) ao gerar cor
-  const regra = (s.facts[o.name].script || {}).manaRule;
+  const regra = manaRuleDe(s.facts[o.name]); // M-321 · também a impressa, sem script
   if (regra && (regra.damage || regra.life) && opt.some(c => regra.colors.includes(c))) perdeVida(s, o.controller, regra.damage || regra.life);
 }
 /** Paga o custo (tocando fontes se preciso) ou lança RuleError. */
@@ -26871,7 +26888,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   }
   /** R11.2 · o que gerar aquela cor custa além de virar: terreno de dor e Talismã ("1 de dano em você"), Spire of Industry ("paga 1 de vida"). */
   function custoDaMana(f, opt) {
-    const r = (f.script || {}).manaRule; if (!r || !(r.damage || r.life) || !opt.some(c => r.colors.includes(c))) return '';
+    const r = (f.script || {}).manaRule || f.manaRuleTexto; if (!r || !(r.damage || r.life) || !opt.some(c => r.colors.includes(c))) return ''; // M-321
     return r.damage ? ` (${r.damage} de dano em você)` : ` (paga ${r.life} de vida)`;
   }
   function custoDaHabilidade(ab) {

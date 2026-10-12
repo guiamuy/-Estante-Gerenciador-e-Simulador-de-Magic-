@@ -3734,6 +3734,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **De fora, de propósito (decisão 11):** a linha de terreno de dor e de talismã ("{T}: Add {W} or {B}. This land deals 1 damage to you.") e a do Tainted Field ("Activate only if you control a Swamp") ficam não lidas: a cobertura por texto já conta essas linhas como mana, e uma carta assim sem script à mão passaria de "completo" a "em revisão" e a lista deixaria de jogar. **Achado:** essa mesma cobertura por texto deixa um terreno de dor sem script à mão jogar sem o dano (silenciosamente errado) — próxima leva do motor.
 - **Teste:** fidelidade (dor fica não lida, "Create" com maiúscula, Signet, "Spend only black mana on X" só com {X} no custo); piso da concordância 140.
 
+**M-321 · Terreno de dor e "Activate only if you control a Swamp" sem script: a regra impressa vale (106.12)** ✅ (leva M-321, motor v110 sem mudança de forma; goldens intactos).
+- **Correção (carta silenciosamente errada):** a cobertura por texto conta "{T}: Add {R} or {W}. Battlefield Forge deals 1 damage to you." como linha de mana, e um terreno de dor ou talismã sem script à mão jogava gerando a cor sem o dano; o "Tainted" sem script dava a cor sem controlar um Pântano. Agora o motor lê da linha de mana impressa o dano (as duas redações: o nome da carta ou "This land/artifact") e a condição de subtipo, como já lia a mana. Script à mão continua vencendo.
+- **Achado de onde veio:** a leitura da M-320 (o leitor ficou de fora dessas linhas para não tirar cartas de jogo).
+- **Fora:** outras frases depois de "{T}: Add …" que a cobertura por texto também aceita sem ler ("Spend this mana only…", "Activate only if you control an artifact" etc.) — pendência para decidir com o dono (corrigir a cobertura tira de jogo listas que hoje jogam com a carta errada).
+- **Teste:** `dor.texto.unit` (2 testes, falham no motor anterior; texto oficial do Battlefield Forge e do Tainted Isle: Oracle do Forge, 12/10/2026).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
