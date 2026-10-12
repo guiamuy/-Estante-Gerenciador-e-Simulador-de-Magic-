@@ -1737,3 +1737,28 @@ test('CR 702.46a · transmigrar (Torii Watchward, texto oficial): ao morrer, voc
   assert.deepEqual(J((gat.targets || []).map(x => x.oid)), [k], 'o único alvo legal é o Kami (Espírito de valor 4)');
   s = resolveSimK41(s); assert.equal(s.objects[k].zone, 'hand'); assert.equal(s.objects[u].zone, 'graveyard'); assert.equal(s.objects[w].zone, 'graveyard');
 });
+
+/* ---------------- K-42 · destronar 702.105, frenesi 702.68, perdurar (outlast) 702.107 ---------------- */
+test('CR 702.105a · destronar (Enraged Revolutionary, texto oficial): ao atacar o jogador com mais vida (ou empatado), +1 marcador +1/+1; com menos vida que você, não', () => {
+  let s = partida({ 'Enraged Revolutionary': oficial('Enraged Revolutionary') }); const a = s.turn.active, d = 1 - a;
+  let r; [s, r] = poe(s, a, 'Enraged Revolutionary');
+  const empate = ateODano(s, [r]); assert.equal(empate.objects[r].counters.p1p1, 1, '20 a 20: empatado em mais vida');
+  let t = J(s); t.players[d].life = 15; t = ateODano(t, [r]); assert.ok(!t.objects[r].counters.p1p1, 'o defensor tem menos vida que você: nada');
+});
+
+test('CR 702.68a · frenesi: ao atacar e não ser bloqueada, +N/+0 até o fim do turno; bloqueada, nada', () => {
+  const FURIA = { name: 'Furia', type_line: 'Creature — Goblin', mana_cost: '{R}', cmc: 1, colors: ['R'], power: '1', toughness: '1', keywords: ['Frenzy'], oracle_text: 'Frenzy 2' };
+  let s = partida({ Furia: FURIA, Urso: URSO }); const a = s.turn.active, d = 1 - a;
+  let f; [s, f] = poe(s, a, 'Furia');
+  assert.equal(ateODano(s, [f]).players[d].life, 17, '1 + 2');
+  let u; [s, u] = poe(s, d, 'Urso'); const b = ateODano(s, [f], [[u, f]]); assert.equal(b.players[d].life, 20); assert.equal(b.objects[u].damage || 0, 1, 'bloqueada: o Urso leva só 1 (sem o frenesi)');
+});
+
+test('CR 702.107a · perdurar (Salt Road Patrol, texto oficial): "{1}{W}, {T}: um marcador +1/+1 nela", só como feitiço', () => {
+  let s = comManaK33({ 'Salt Road Patrol': { ...oficial('Salt Road Patrol'), keywords: ['Outlast'] }, Plains: terra('Plains') }); const a = s.turn.active; // a Scryfall lista "Outlast"
+  let p; [s, p] = poe(s, a, 'Salt Road Patrol'); s = J(s); s.objects[p].sick = false; s = terrenos(s, a, 'Forest', 1); [s] = poe(s, a, 'Plains');
+  const ativ = E.legalActions(s, a).filter(x => x.t === 'activate' && x.oid === p); assert.equal(ativ.length, 1, 'a habilidade do perdurar');
+  s = resolve(act(s, ativ[0])); assert.equal(s.objects[p].counters.p1p1, 1); assert.equal(s.objects[p].tapped, true);
+  let t = J(s); t.objects[p].tapped = false; for (const x of t.zones[a].battlefield) t.objects[x].tapped = false; t.turn.step = 'combat_begin';
+  assert.ok(!E.legalActions(t, a).some(x => x.t === 'activate' && x.oid === p), 'fora da fase principal com a pilha vazia, não');
+});

@@ -705,6 +705,19 @@ test('K-41 · modular e transmigrar (702.43, 702.46): o 0/0 artefato com "Modula
   assert.equal(vivo(s, km), false, 'o Kami morreu bloqueando'); assert.equal(s.objects[fa].zone, 'hand', 'transmigrar: o Espírito voltou para a mão');
   assert.equal(s.players[d].life, 19, 'a Peça 1/1 passou');
 });
+test('K-42 · destronar, frenesi e perdurar (702.105, 702.68, 702.107): o empate em vida dá o marcador, o frenesi soma ao dano sem bloqueio, e o perdurar cresce a criatura antes do combate', () => {
+  cobre('dethrone'); cobre('frenzy'); cobre('outlast');
+  const cartas = { ...CARDS, Rebelde: cre('Rebelde', 2, 1, ['Dethrone'], { oracle_text: 'Dethrone' }), Furia: cre('Furia', 1, 1, ['Frenzy'], { oracle_text: 'Frenzy 1' }),
+    Paciente: cre('Paciente', 1, 1, ['Outlast'], { oracle_text: 'Outlast {1}' }) };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 65, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a; let r, f, pa; [s, r] = poe(s, a, 'Rebelde'); [s, f] = poe(s, a, 'Furia'); [s, pa] = poe(s, a, 'Paciente'); [s] = poe(s, a, 'Plains');
+  s = act(s, E.legalActions(s, a).find(x => x.t === 'activate' && x.oid === pa)); for (let i = 0; i < 4 && s.stack.length; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  assert.equal(s.objects[pa].counters.p1p1, 1, 'perdurar');
+  s = combate(s, [r, f]); for (let i = 0; i < 30 && s.turn.step !== 'main2'; i++) s = s.pending ? act(s, E.legalActions(s, s.pending.p)[0]) : act(s, { t: 'pass', p: s.turn.priority });
+  assert.equal(s.objects[r].counters.p1p1, 1, 'destronar'); assert.equal(s.players[d].life, 15, '(2 + 1) + (1 + 1)');
+});
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));

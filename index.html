@@ -5224,6 +5224,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'riot', 'fabricate', // K-38 · 702.136 (escolha ao entrar: marcador ou ímpeto) e 702.123 (gatilho de entrada: marcadores ou Servos), pela escolha opcoesK
   'annihilator', 'poisonous', 'renown', 'ingest', // K-40 · 702.86, 702.70, 702.112, 702.115: gatilhos de ataque e de dano de combate a jogador (GATILHOS_DE_PALAVRA_K)
   'modular', 'soulshift', // K-41 · 702.43 e 702.46: "entra com N" e gatilhos de morte com alvo, que olham para trás (603.10a)
+  'dethrone', 'frenzy', 'outlast', // K-42 · 702.105 e 702.68 (gatilhos de ataque) e 702.107 (habilidade ativada gerada pela palavra, só como feitiço)
   'afflict', 'melee', 'mentor', 'training', // K-31 · 702.130, 702.121, 702.134, 702.149: gatilhos de ataque gerados pela palavra, um por instância
   'battle cry', 'rampage', 'flanking', 'bushido', // K-30 · 702.91, 702.23, 702.25, 702.45: gatilhos de combate gerados pela palavra (GATILHOS_DE_PALAVRA_K), um por instância
   /* ↓ V · palavras-chave da trilha verbos */
@@ -8213,6 +8214,7 @@ function palavraNaLinhaK(k) {
   if (k === 'fabricate') return 'fabricate \\d+'; // K-38
   if (k === 'annihilator' || k === 'poisonous' || k === 'renown') return `${k} \\d+`; // K-40
   if (k === 'modular' || k === 'soulshift') return `${k} \\d+`; // K-41 · Modular—Sunburst fica de fora (o motor não guarda as cores gastas)
+  if (k === 'frenzy') return 'frenzy \\d+'; if (k === 'outlast') return 'outlast\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-42
   if (k === 'dash') return 'dash\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-9
   if (k === 'evoke') return 'evoke(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*exile an? (?:white|blue|black|red|green) card from your hand\\.?)'; // K-8 · só as formas que o motor paga
   return ['afterlife', 'rampage', 'bushido', 'afflict'].includes(k) ? `${k} \\d+` : k; // K-30 · alvoroço N e bushido N
@@ -15875,6 +15877,7 @@ function cardFacts(card) {
     entrelacarK: entrelacarImpressoK(card), // K-34 · 702.42: "Entwine {2}" / "Entwine—Sacrifice three lands." (undefined quando não tem)
     ricocheteK: ricocheteImpressoK(card), // K-35 · 702.88: linha "Rebound" (undefined quando não tem)
     ecoK: custoDaLinhaK(card, 'Echo'), // K-36 · 702.30: "Echo {2}{R}" (undefined quando não tem)
+    perdurarK: custoDaLinhaK(card, 'Outlast'), // K-42 · 702.107a: "Outlast {1}{W}" (undefined quando não tem)
     suspenderK: suspenderImpressoK(card), // K-22 · 702.62a: "Suspend N—{custo}" (undefined quando não tem)
     equipesK: equipesImpressosK(card), // K-28 · 702.6c: "Equip [qualidade] {custo}" (undefined quando não tem)
     jogadorK: jogadorImpressoK(card), // K-26 · 702.11c / 702.18a: "You have hexproof." / "You have shroud." (undefined quando não tem)
@@ -18762,6 +18765,12 @@ function applyEffect(s, src, eff, tgt, events) {
       break;
     }
     /* ↓ K · casos de applyEffect da trilha keywords */
+    case 'frenesi_k': { // K-42 · 702.68a
+      const perm = s.objects[src.ability ? src.source : src.oid];
+      if (!perm || perm.zone !== 'battlefield' || (perm.zc || 0) !== eff.z) { events.push({ kind: 'effect', do: 'frenesi_k', name: src.name, failed: true }); break; }
+      aplicaTemporario(s, perm, { poder: eff.n || 1, resistencia: 0 }, perm.controller); events.push({ kind: 'effect', do: 'frenesi_k', name: perm.name, amount: eff.n || 1 });
+      break;
+    }
     case 'aniquilador_k': { // K-40 · 702.86a: o defensor escolhe N permanentes diferentes; saem juntas (édito, 701.21)
       const d = eff.defensor; if (d == null || !s.players[d] || s.players[d].lost) { events.push({ kind: 'effect', do: 'aniquilador_k', name: src.name, failed: true }); break; }
       const tipos = ['artifact', 'creature', 'enchantment', 'land', 'planeswalker', 'battle'], n = Math.min(eff.n || 1, sacrificeOptions(s, d, tipos).length);
@@ -21874,6 +21883,13 @@ Object.assign(EXPORTS_K, { wardsDeK, wardImpressoK, custoDaSalvaguardaK });
 /* K-3 · palavras-chave que são habilidades disparadas (702.108 proeza…): o motor gera a habilidade a partir da palavra-chave que a
    permanente tem agora (impressa, concedida, de marcador ou de mutação), uma por instância (702.108b), em abilitiesOf. */
 const GATILHOS_DE_PALAVRA_K = {
+  // K-42 · 702.105a · "Whenever this creature attacks the player with the most life or tied for most life, put a +1/+1 counter on this creature." (b: por instância)
+  dethrone: (s, o) => { const d = o && defensorDeK(s, o); const vivos = s.players.filter(p => !p.lost); return d != null && o.atacandoPw == null && s.players[d] && vivos.every(p => p.life <= s.players[d].life)
+    ? ({ kind: 'triggered', when: 'attacks', palavraK: 'dethrone', effects: [{ do: 'counters', amount: 1, target: 'self-source' }] }) : []; },
+  // K-42 · 702.68a · "Whenever this creature attacks and isn't blocked, it gets +N/+0 until end of turn." (b: por instância)
+  frenzy: (s, o, i) => ({ kind: 'triggered', when: 'attacks-unblocked', palavraK: 'frenzy', effects: [{ do: 'frenesi_k', n: numeroDaPalavraK(s, o, 'frenzy', i), z: (o && o.zc) || 0 }] }),
+  // K-42 · 702.107a · "[Cost], {T}: Put a +1/+1 counter on this creature. Activate only as a sorcery." (habilidade ativada, não gatilho)
+  outlast: (s, o) => { const f = o && s.facts[o.name]; return f && f.perdurarK ? ({ kind: 'activated', palavraK: 'outlast', cost: { mana: f.perdurarK.mana, tap: true }, sorceryOnly: true, effects: [{ do: 'counters', amount: 1, target: 'self-source' }] }) : []; },
   // K-41 · 702.43a · "When this permanent is put into a graveyard from the battlefield, you may put a +1/+1 counter on target artifact creature for each
   // +1/+1 counter on this permanent." A contagem é a do campo (603.10a: foto ao sair, p1p1K); um gatilho por instância (b)
   modular: (s, o) => ({ kind: 'triggered', when: 'dies', palavraK: 'modular', optional: true, effects: [{ do: 'counters', amount: ((o && o.ultima) || {}).p1p1K || 0, target: 'artifact-creature' }] }),
@@ -26553,9 +26569,11 @@ Object.assign(PALAVRA_PT, { fading: 'desvanecer', vanishing: 'sumir' }); // K-37
 Object.assign(PALAVRA_PT, { riot: 'tumulto', fabricate: 'fabricar' }); // K-38
 Object.assign(PALAVRA_PT, { annihilator: 'aniquilador', poisonous: 'venenoso', renown: 'renome', ingest: 'ingerir' }); // K-40
 Object.assign(PALAVRA_PT, { modular: 'modular', soulshift: 'transmigrar' }); // K-41
+Object.assign(PALAVRA_PT, { dethrone: 'destronar', frenzy: 'frenesi', outlast: 'perdurar' }); // K-42
 Object.assign(PALAVRA_PT, { afflict: 'aflição', melee: 'refrega', mentor: 'mentor', training: 'treinamento' }); // K-31
 Object.assign(PALAVRA_PT, { 'battle cry': 'grito de guerra', rampage: 'alvoroço', flanking: 'flanquear', bushido: 'bushido' }); // K-30
 const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consultadas por descreveEfeito; antes a pilha mostrava "proeza k")
+  frenesi_k: e => `esta criatura recebe +${e.n || 1}/+0 até o fim do turno (frenesi)`, // K-42
   aniquilador_k: e => `o jogador defensor sacrifica ${e.n || 1} permanente(s) à escolha dele (aniquilador)`, // K-40
   venenoso_k: e => `o jogador atingido recebe ${e.n || 1} marcador(es) de veneno (venenoso)`, // K-40
   renome_k: e => `se ainda não é renomada, recebe ${e.n || 1} marcador(es) +1/+1 e fica renomada (renome)`, // K-40

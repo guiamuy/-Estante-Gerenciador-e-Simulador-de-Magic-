@@ -7723,13 +7723,17 @@
    "n": "702.68",
    "regra": "Keyword Abilities",
    "titulo": "Frenzy",
-   "status": "ausente",
-   "falta": "Sem gatilho \"ataca e não é bloqueada\" com +N/+0 (702.68a).",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "509.1h"
    ],
-   "cartas": "uma carta (Frenzy Sliver)"
+   "cartas": "uma carta (Frenzy Sliver)",
+   "evidencia": "K-42: \"Frenzy N\" gera o gatilho \"ataca e não é bloqueada\" (attacks-unblocked) que dá +N/+0 até o fim do turno (frenesi_k, mesma encarnação); um por instância (b).",
+   "testes": [
+    "CR 702.68a · frenesi: ao atacar e não ser bloqueada, +N/+0 até o fim do turno; bloqueada, nada",
+    "K-42 · destronar, frenesi e perdurar (702.105, 702.68, 702.107): o empate em vida dá o marcador, o frenesi soma ao dano sem bloqueio, e o perdurar cresce a criatura antes do combate"
+   ]
   },
   {
    "n": "702.69",
@@ -8288,13 +8292,17 @@
    "n": "702.105",
    "regra": "Keyword Abilities",
    "titulo": "Dethrone",
-   "status": "ausente",
-   "falta": "Sem gatilho \"ataca o jogador com mais vida ou empatado em mais vida: ponha um marcador +1/+1\" (702.105a). Em dois jogadores vira comparação de vida do defensor com a do atacante; o gatilho `attacks` já existe, falta a condição.",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "508 gatilho de ataque com condição de vida"
    ],
-   "cartas": "rara (Conspiracy; algumas em Commander)"
+   "cartas": "rara (Conspiracy; algumas em Commander)",
+   "evidencia": "K-42: \"Dethrone\" gera o gatilho de ataque só quando o jogador atacado tem a maior vida ou está empatado nela (defensorDeK; atacar planeswalker não dispara); põe um +1/+1 nela; um por instância (b).",
+   "testes": [
+    "CR 702.105a · destronar (Enraged Revolutionary, texto oficial): ao atacar o jogador com mais vida (ou empatado), +1 marcador +1/+1; com menos vida que você, não",
+    "K-42 · destronar, frenesi e perdurar (702.105, 702.68, 702.107): o empate em vida dá o marcador, o frenesi soma ao dano sem bloqueio, e o perdurar cresce a criatura antes do combate"
+   ]
   },
   {
    "n": "702.106",
@@ -8308,10 +8316,14 @@
    "n": "702.107",
    "regra": "Keyword Abilities",
    "titulo": "Outlast",
-   "status": "ausente",
-   "falta": "Palavra-chave não reconhecida: \"[custo], {T}: marcador +1/+1 nesta criatura, só como feitiço\" (702.107a). As peças existem (habilidade ativada com mana+virar, `sorceryOnly`, efeito de marcador); falta só o atalho/roteiro.",
+   "status": "coberta",
    "esforco": "P",
-   "cartas": "rara (Khans of Tarkir)"
+   "cartas": "rara (Khans of Tarkir)",
+   "evidencia": "K-42: \"Outlast {custo}\" (custoDaLinhaK → perdurarK) gera a habilidade ativada \"{custo}, {T}: um +1/+1 nela\", só como feitiço (sorceryOnly), em habilidadesDePalavraK; a mesa a desenha como as outras ativadas.",
+   "testes": [
+    "CR 702.107a · perdurar (Salt Road Patrol, texto oficial): \"{1}{W}, {T}: um marcador +1/+1 nela\", só como feitiço",
+    "K-42 · destronar, frenesi e perdurar (702.105, 702.68, 702.107): o empate em vida dá o marcador, o frenesi soma ao dano sem bloqueio, e o perdurar cresce a criatura antes do combate"
+   ]
   },
   {
    "n": "702.108",

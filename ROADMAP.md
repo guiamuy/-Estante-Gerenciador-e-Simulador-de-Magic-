@@ -4389,6 +4389,11 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** nenhum novo (entrada com marcadores e restrição de alvo pelas funções da trilha: `entraComPalavrasK`, `alvoPermitidoK`).
 - **Testes:** `keywords.cr4.unit` (2, falham sem a leva), `combat.audit` (1 cenário). Texto oficial: Arcbound Prototype, Torii Watchward, Kami of Empty Graves (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
 - **Parcial declarado:** "Modular—Sunburst" (o motor não guarda as cores gastas).
+**K-42 · Destronar, frenesi e perdurar (dethrone 702.105, frenzy 702.68, outlast 702.107)** 🟡 (leva K-42)
+- **Valor:** "Dethrone" dá o marcador ao atacar quem tem mais vida (ou empatado); "Frenzy N" dá +N/+0 a quem ataca e não é bloqueada; "Outlast {custo}" vira o botão "{custo}, virar: um marcador +1/+1", só como feitiço. Enraged Revolutionary e Salt Road Patrol jogam pelo texto.
+- **Aceite:** com 20 a 20 o destronar dá o marcador; com o defensor em 15, não; frenesi 2 sem bloqueio causa 3; bloqueada, só 1; o perdurar aparece na principal e põe o marcador, e não aparece fora da principal.
+- **Toca ponto comum:** nenhum (gatilhos e a habilidade ativada vêm de `habilidadesDePalavraK`).
+- **Testes:** `keywords.cr4.unit` (3, falham sem a leva), `combat.audit` (1 cenário). Texto oficial: Enraged Revolutionary, Salt Road Patrol (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.
