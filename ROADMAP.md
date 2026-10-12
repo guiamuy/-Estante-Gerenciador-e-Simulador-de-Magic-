@@ -3990,6 +3990,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Pedido à mesa (não bloqueia):** a pergunta usa "Quais criaturas viram para pagar?" também para artefatos do improvisar.
 - **Achado para a trilha `motor` (não bloqueia, vale para K, V e T):** as âncoras de ofertas de `legalActions` (`↓ K/V/T`, M-299) ficam **depois** do `if (OTIMISTA) return out.filter(…)` (M-259); com redução de custo por alvo no campo, a função sai antes e as ofertas das três trilhas não aparecem (aqui: recomeçar, convocar, improvisar). Correção: as âncoras sobem para antes desse filtro (uma leva da trilha `motor`, que é dona das âncoras).
 
+**K-14 · Auditoria independente da onda 1 — palavras-chave disparadas: correções** 🟡 (leva K-14)
+- **Auditoria:** dois revisores independentes (sem acesso à implementação; texto oficial das regras e das cartas e o motor), 50 sondas executadas sobre as 16 palavras-chave da onda 1. Dez divergências reproduzidas; cada uma virou teste antes da correção. Esta leva corrige as quatro das palavras-chave disparadas; a K-15, as de custo.
+- **Corrigido:** (1) proeza que resolve depois de a criatura sair e voltar dava +1/+1 ao objeto novo (400.7); (2) persistir, imortal e pós-vida concedidos por quem morre junto ("destruir todas") ou concedidos a si mesmo não contavam: a foto das palavras-chave passa a ser tirada antes de sair do campo, e a das que saem no mesmo evento antes da primeira sair (603.10a); (3) Clone copiando a Sidisi's Faithful que sacrifica a si mesmo não explorava; (4) cópia de mágica que mira a permanente com salvaguarda não disparava a salvaguarda (707.10).
+- **Toca ponto comum:** `moveObject` (uma linha a mais antes de tirar do campo: `palavrasAoSairK`; a linha da K-4 passa a usar essa foto); cópia de mágica na pilha (uma linha a mais: `chargeWard` quando a cópia mira).
+- **Pedido à trilha `motor` (não bloqueia):** Clone que volta pelo persistir/imortal deveria escolher de novo o que copiar (`entraComoCopia` só vale na resolução da mágica, não em toda entrada no campo; 614.1c/707.5). Declarado no mapa (702.79 e 702.93 voltam a parcial).
+- **Testes:** `keywords.cr4.unit` (4, falham sem a leva). Goldens idênticos; motor v109.
+
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

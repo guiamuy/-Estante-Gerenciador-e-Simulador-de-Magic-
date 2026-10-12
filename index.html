@@ -5375,6 +5375,7 @@ const EFFECTS = {
   evocar_sacrifica: { fields: ['z'], targets: [] }, // K-8 · 702.74a · "its controller sacrifices it" (gerado pelo motor)
   evoluir: { fields: ['entrou'], targets: [] }, // K-11 · 702.100a · gerado pelo motor
   explorar_k: { fields: ['fase'], targets: [] }, // K-12 · 702.110 · gerado pelo motor (antes e depois do sacrifício)
+  proeza_k: { fields: ['z'], targets: [] }, // K-14 · 702.108a · +1/+1 até o fim do turno, só na mesma encarnação (gerado pelo motor)
   /* ↓ V · efeitos da trilha verbos */
   // V-18 · 701.58 encobrir (como manifestar, com salvaguarda {2}; `look: N` = "look at the top N cards, cloak `amount` of them, the rest on the bottom in a random order") e 701.62 manifestar pavor (olha duas, manifesta uma, a outra vai para o cemitério)
   cloak: { fields: [], targets: ['self'] },
@@ -15637,6 +15638,7 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
   if (fromZone === 'stack' && o.flashback && to !== 'exile') to = 'exile';
   const voltaAFrente = to !== 'battlefield' && to !== 'stack';
   if (voltaAFrente && fromZone !== 'battlefield') flipToFront(s, o); // CR2b.5 · saindo do campo, só depois dos gatilhos (603.10a)
+  const palavrasK = fromZone === 'battlefield' && to !== 'battlefield' ? palavrasAoSairK(s, o) : null; // K-14 · 603.10a: a foto antes de ela (e as que saem junto) deixar o campo
   const from = zoneList(s, o, o.zone);
   const i = from.indexOf(oid); if (i >= 0) from.splice(i, 1);
   if (to !== fromZone) o.zc = (o.zc || 0) + 1; // CR 400.7 · "encarnação": o alvo que mirou a anterior não vale para esta (mesmaEncarnacao)
@@ -15650,7 +15652,7 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
     ...(isCreature(s, o) ? { power: power(s, o), toughness: toughness(s, o) } : {}),
     tipos: tiposDe(s, o).slice(), linha: linhaDeTipo(s, o), // CR2b.6 · 603.10a: o observador vê o que ela era no campo (terreno animado é criatura)
     ...((c => c.length ? { concedidas: c } : {})(grantedAbilities(s, o).filter(a => a.kind === 'triggered'))) } : null; // CR2b.6 · 603.10a: a habilidade disparada concedida também olha para trás
-  if (ultima) Object.assign(ultima, ultimaPalavrasK(s, o)); // K-4 · 603.10a: persistir/imortal olham como ela era no campo
+  if (ultima) Object.assign(ultima, palavrasK || {}); // K-4 · 603.10a: persistir/imortal olham como ela era no campo (K-14: foto tirada antes de sair)
   delete o.ultima; delete o.naoDesviraProximo; // CR2g.6 · 400.7
   const segurava = fromZone === 'battlefield' ? o.holding : null;
   delete o.holding; delete o.devolverAoSair;
@@ -17934,12 +17936,19 @@ function applyEffect(s, src, eff, tgt, events) {
       break;
     }
     /* ↓ K · casos de applyEffect da trilha keywords */
+    case 'proeza_k': { // K-14 · 702.108a + 400.7: "this creature gets +1/+1 until end of turn" — a criatura que disparou, não um objeto novo
+      const c = s.objects[src.ability ? src.source : src.oid];
+      if (!c || c.zone !== 'battlefield' || (c.zc || 0) !== eff.z) { note({ failed: true }); break; }
+      applyEffect(s, src, { do: 'continuo', target: 'self-source', poder: 1, resistencia: 1, ate: 'fim-do-turno' }, tgt, events); break;
+    }
     case 'explorar_k': { // K-12 · 702.110b: "exploits a creature" = quem controla a habilidade sacrifica uma criatura enquanto ela resolve
-      if (eff.fase === 'antes') { s.explorandoK = { ab: src.oid, campo: battlefield(s).filter(x => x.controller === ctrl && isCreature(s, x)).map(x => ({ oid: x.oid, z: x.zc || 0 })) }; break; }
-      const antes = s.explorandoK && s.explorandoK.ab === src.oid ? s.explorandoK.campo : []; delete s.explorandoK;
+      if (eff.fase === 'antes') { const w0 = s.objects[src.ability ? src.source : src.oid]; // K-14 · as habilidades "quando explora" como ela é agora (a cópia inclusive)
+        const habs = w0 && w0.zone === 'battlefield' && (w0.zc || 0) === eff.z ? abilitiesOf(s, w0).filter(ab => ab.kind === 'triggered' && ab.when === 'exploits') : [];
+        s.explorandoK = { ab: src.oid, campo: battlefield(s).filter(x => x.controller === ctrl && isCreature(s, x)).map(x => ({ oid: x.oid, z: x.zc || 0 })), habs }; break; }
+      const antes = s.explorandoK && s.explorandoK.ab === src.oid ? s.explorandoK.campo : [], habsAntes = (s.explorandoK && s.explorandoK.ab === src.oid && s.explorandoK.habs) || []; delete s.explorandoK;
       const saiu = antes.filter(x => { const y = s.objects[x.oid]; return !y || y.zone !== 'battlefield' || (y.zc || 0) !== x.z; });
       if (!saiu.length) break; // não sacrificou (recusou, ou não havia criatura)
-      explorouK(s, src, eff.z, saiu, ctrl); break;
+      explorouK(s, src, eff.z, saiu, ctrl, habsAntes); break;
     }
     case 'evoluir': { // K-11 · 702.100a: a condição é conferida de novo na resolução (603.4); 702.100c: sem ser criatura, não evolui
       const w = s.objects[src.ability ? src.source : src.oid];
@@ -18768,6 +18777,7 @@ function putTriggerOnStack(s, q, events) {
     const oid = 'k' + (s.proximaCopia = (s.proximaCopia || 0) + 1);
     s.objects[oid] = { oid, name: q.name, owner: q.controller, controller: q.controller, zone: 'stack', copiaDeMagia: true, tapped: false, damage: 0, counters: {}, ...(q.marcasMagia || {}), ...(targets.length ? { targets: carimbaAlvos(s, targets) } : {}) };
     s.stack.push(oid);
+    if (targets.length) chargeWard(s, q.controller, oid, targets); // K-14 · 702.21a: a cópia é uma mágica que mira — a salvaguarda dispara (Toca ponto comum: cópia de mágica na pilha)
     events.push({ kind: 'copy', name: q.name, oid });
     return true;
   }
@@ -20781,7 +20791,7 @@ Object.assign(EXPORTS_K, { wardsDeK, wardImpressoK, custoDaSalvaguardaK });
    permanente tem agora (impressa, concedida, de marcador ou de mutação), uma por instância (702.108b), em abilitiesOf. */
 const GATILHOS_DE_PALAVRA_K = {
   // 702.108a · "Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn."
-  prowess: () => ({ kind: 'triggered', when: 'other-cast', filter: { noncreature: true }, palavraK: 'prowess', effects: [{ do: 'continuo', target: 'self-source', poder: 1, resistencia: 1, ate: 'fim-do-turno' }] }),
+  prowess: (s, o) => ({ kind: 'triggered', when: 'other-cast', filter: { noncreature: true }, palavraK: 'prowess', effects: [{ do: 'proeza_k', z: (o && o.zc) || 0 }] }), // K-14 · 400.7: só a mesma encarnação
   // 702.79a · "When this permanent is put into a graveyard from the battlefield, if it had no -1/-1 counters on it, return it to the
   // battlefield under its owner's control with a -1/-1 counter on it." 702.93a: o mesmo com +1/+1. A condição olha para trás (603.10a):
   // conferida no campo, na hora de sair (ultimaPalavrasK); `z` é a encarnação no cemitério (a carta que saiu de lá é outra, 400.7).
@@ -20847,6 +20857,19 @@ function ultimaPalavrasK(s, o) {
   return Object.keys(out).length ? { palavrasK: out } : {};
 }
 Object.assign(EXPORTS_K, { ultimaPalavrasK });
+/** K-14 · 603.10a · a foto de quem sai do campo é tirada antes de ela sair; quando várias saem no mesmo evento (s.saindoJuntas: destruir
+    todas, ações de estado, sacrifício de cada jogador), a de todas é tirada antes da primeira sair — cada uma vê as outras ainda no campo
+    (quem concede persistir e morre junto conta). Guardada fora do estado (WeakMap pela lista do evento), refeita a cada evento. */
+const FOTOS_JUNTAS_K = new WeakMap();
+function palavrasAoSairK(s, o) {
+  const j = s.saindoJuntas;
+  if (Array.isArray(j) && j.includes(o.oid)) {
+    let fotos = FOTOS_JUNTAS_K.get(j);
+    if (!fotos) { fotos = {}; for (const x of j) { const y = s.objects[x]; if (y && y.zone === 'battlefield') fotos[x] = ultimaPalavrasK(s, y); } FOTOS_JUNTAS_K.set(j, fotos); }
+    if (fotos[o.oid]) return fotos[o.oid];
+  }
+  return ultimaPalavrasK(s, o);
+}
 /** K-5 · 702.83a · "Whenever a creature you control attacks alone, that creature gets +1/+1 until end of turn." 702.83b/506.5: ataca
     sozinha quem é a única declarada atacante neste combate. Cada permanente de quem ataca, com cada instância de exaltado
     (impressa, concedida, de marcador), dispara uma vez; a habilidade lembra a criatura (e a encarnação) que atacou. */
@@ -20984,11 +21007,11 @@ Object.assign(EXPORTS_K, { evoluirK });
    opcional); ao resolver, se quem a controla sacrificou uma criatura, a criatura com explorar "explora uma criatura" (b) e as habilidades
    "When ~ exploits a creature" dela disparam — também quando ela sacrificou a si mesma (olha como era no campo, 603.10a). Se ela saiu do
    campo antes de a habilidade resolver, o sacrifício acontece, mas ela não explora (é outro objeto, 400.7). */
-function explorouK(s, src, z, saiu, ctrl) {
+function explorouK(s, src, z, saiu, ctrl, habsAntes = []) {
   const w = s.objects[src.ability ? src.source : src.oid]; if (!w) return;
   const noCampo = w.zone === 'battlefield' && (w.zc || 0) === z, aSiMesma = saiu.some(x => x.oid === w.oid && x.z === z);
   if (!noCampo && !aSiMesma) return;
-  const habs = noCampo ? abilitiesOf(s, w) : ((w.ultima || {}).faceDown || (w.ultima || {}).semHabilidades) ? [] : ((s.facts[w.name].script || {}).abilities || []).concat((w.ultima || {}).concedidas || []);
+  const habs = noCampo ? abilitiesOf(s, w) : habsAntes; // K-14 · sacrificou a si mesma: as habilidades como era no campo, tiradas antes do sacrifício (a cópia, 603.10a)
   for (const ab of habs) if (ab.kind === 'triggered' && ab.when === 'exploits')
     s.queued.push({ source: w.oid, name: w.name, controller: ctrl, effects: ab.effects, when: 'exploits', ...marcasDaHabilidade(ab) });
 }

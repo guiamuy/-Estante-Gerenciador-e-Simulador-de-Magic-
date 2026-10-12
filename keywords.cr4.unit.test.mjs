@@ -610,6 +610,7 @@ test('CR 702.100d · cada instância de evoluir dispara à parte, e cada uma con
 
 /* ---------------- K-12 · 702.110 explorar ---------------- */
 const FAITHFUL = () => ({ ...oficial("Sidisi's Faithful"), keywords: ['Exploit'] });
+const SC_FAITHFUL_MAP = () => ({ "Sidisi's Faithful": SC_FAITHFUL });
 const SC_FAITHFUL = { name: "Sidisi's Faithful", abilities: [{ kind: 'triggered', when: 'exploits', effects: [{ do: 'bounce', target: 'creature' }] }], example: { action: 'etb', target: 'enemy-creature', expect: { bounced: true } } };
 /** Resolve a pilha respondendo cada pendência com `escolhe(acoes, pendencia)` (ou a primeira ação). */
 function resolveCom(s, escolhe) {
@@ -707,4 +708,70 @@ test('CR 702.126a · improvisar (Metallic Rebuke, texto oficial): artefatos paga
 test('CR 702.51a / 702.126a · as linhas "Convoke" e "Improvise" contam como palavra-chave na cobertura', () => {
   assert.equal(S.coverage(oficial('Siege Wurm')).level, 'completo');
   assert.equal(S.coverage(oficial('Metallic Rebuke')).level, 'completo', 'Metallic Rebuke tem script');
+});
+
+/* ---------------- K-14 · correções da auditoria independente da onda 1 (palavras-chave disparadas) ---------------- */
+const IRA = { name: 'Ira', type_line: 'Sorcery', mana_cost: '{2}{W}{W}', cmc: 4, colors: ['W'], keywords: [], oracle_text: 'Destroy all creatures.' };
+const SC_IRA = { Ira: { name: 'Ira', effects: [{ do: 'destroy_all', types: ['creature'] }], example: { target: 'none', expect: { selfLife: 0 } } } };
+const LORDE = k => ({ name: 'Lorde', type_line: 'Creature — Zombie Cleric', mana_cost: '{1}{B}', cmc: 2, colors: ['B'], power: '2', toughness: '2', keywords: [], oracle_text: `Creatures you control have ${k}.` });
+const SC_LORDE = k => ({ Lorde: { name: 'Lorde', grantsAll: { keywords: [k] }, example: { action: 'etb', target: 'none', expect: { attached: false } } } });
+const CLONE = { name: 'Clone', type_line: 'Creature — Shapeshifter', mana_cost: '{3}{U}', cmc: 4, colors: ['U'], power: '0', toughness: '0', keywords: [], oracle_text: 'You may have Clone enter as a copy of any creature on the battlefield.' };
+const SC_CLONE = { Clone: { name: 'Clone', entraComoCopia: { de: { tipos: ['creature'] } }, example: { action: 'etb', target: 'none', expect: { attached: false } } } };
+
+test('CR 702.108a / 400.7 · auditoria K-14: a proeza que resolve depois de a criatura sair e voltar não dá +1/+1 ao objeto novo', () => {
+  const PZ = { name: 'Monge', type_line: 'Creature — Human Monk', mana_cost: '{R}', cmc: 1, colors: ['R'], power: '1', toughness: '2', keywords: ['Flash', 'Prowess'], oracle_text: 'Flash\nProwess' };
+  let s = partida({ Monge: PZ, Raio: RAIO, Volta: BOUNCE }, { ...SC_RAIO, Volta: SC_BOUNCE }); const a = s.turn.active, d = 1 - a;
+  let m, r, v; [s, m] = poe(s, a, 'Monge'); [s, r] = poe(s, a, 'Raio', 'hand'); [s, v] = poe(s, a, 'Volta', 'hand');
+  s = act(s, { t: 'cast', p: a, oid: r, targets: [{ player: d }] }); // a proeza dispara (fica acima do Raio)
+  s = act(s, { t: 'cast', p: a, oid: v, targets: [{ oid: m }] }); // e o Monge volta para a mão antes de ela resolver
+  for (let i = 0; i < 10 && s.objects[m].zone === 'battlefield'; i++) s = s.pending ? act(s, E.legalActions(s, s.pending.p)[0]) : act(s, { t: 'pass', p: s.turn.priority });
+  s = J(s); s.turn.priority = a; s = act(s, { t: 'cast', p: a, oid: m }); // conjurado de novo, com lampejo, por cima da proeza antiga
+  s = resolve(s);
+  assert.equal(s.objects[m].zone, 'battlefield'); assert.equal(E.stats(s, s.objects[m]).power, 1, 'o Monge novo não ganhou o +1/+1 da proeza do antigo');
+});
+
+test('CR 702.93a / 702.79a / 702.135a / 603.10a · auditoria K-14: a palavra-chave concedida conta como era no campo — quem a concede morrendo sozinho ou junto', () => {
+  for (const k of ['undying', 'persist', 'afterlife']) {
+    // sozinho: o Lorde ("suas criaturas têm …") também a tem
+    let s = partida({ Lorde: LORDE(k), Mata: MATA }, { ...SC_MATA, ...SC_LORDE(k) }); const a = s.turn.active;
+    let l, mt; [s, l] = poe(s, a, 'Lorde'); [s, mt] = poe(s, a, 'Mata', 'hand');
+    s = resolve(act(s, { t: 'cast', p: a, oid: mt, targets: [{ oid: l }] }));
+    if (k === 'afterlife') assert.equal(s.zones[a].battlefield.filter(x => s.objects[x].token).length, 1, `${k}: o Lorde sozinho deixa a ficha`);
+    else assert.equal(s.objects[l].zone, 'battlefield', `${k}: o Lorde sozinho volta`);
+    for (const ordem of ['lorde-primeiro', 'urso-primeiro']) { // juntos: cada uma vê o Lorde como era (603.10a)
+      let t = partida({ Lorde: LORDE(k), Urso: URSO, Ira: IRA }, { ...SC_IRA, ...SC_LORDE(k) }); const b = t.turn.active;
+      let lo, u, ira;
+      if (ordem === 'lorde-primeiro') { [t, lo] = poe(t, b, 'Lorde'); [t, u] = poe(t, b, 'Urso'); } else { [t, u] = poe(t, b, 'Urso'); [t, lo] = poe(t, b, 'Lorde'); }
+      [t, ira] = poe(t, b, 'Ira', 'hand');
+      t = resolve(act(t, { t: 'cast', p: b, oid: ira }));
+      if (k === 'afterlife') assert.equal(t.zones[b].battlefield.filter(x => t.objects[x].token).length, 2, `${k} (${ordem}): duas fichas`);
+      else { assert.equal(t.objects[lo].zone, 'battlefield', `${k} (${ordem}): o Lorde volta`); assert.equal(t.objects[u].zone, 'battlefield', `${k} (${ordem}): o Urso volta`); }
+    }
+  }
+});
+
+test('CR 702.110b / 603.10a · auditoria K-14: o Clone copiando a Sidisi’s Faithful que sacrifica a si mesmo explora', () => {
+  let s = partida({ "Sidisi's Faithful": FAITHFUL(), Clone: CLONE, Urso: URSO }, { ...SC_FAITHFUL_MAP(), ...SC_CLONE }); const a = s.turn.active, d = 1 - a;
+  let f, c, uo; [s, f] = poe(s, a, "Sidisi's Faithful"); [s, uo] = poe(s, d, 'Urso'); [s, c] = poe(s, a, 'Clone', 'hand');
+  s = act(s, { t: 'cast', p: a, oid: c });
+  s = resolveCom(s, (la, pk, st) => la.find(x => JSON.stringify(x).includes(`"${f}"`) && pk.kind !== 'sacrifice' && pk.kind !== 'pick_target') && pk.kind !== 'may_pay' ? la.find(x => JSON.stringify(x).includes(`"${f}"`))
+    : pk.kind === 'may_pay' ? la.find(x => x.t === 'pay') : pk.kind === 'sacrifice' ? la.find(x => x.oid === c)
+    : pk.kind === 'pick_target' ? la.find(x => JSON.stringify((st.pending.options || [])[x.index] || '').includes(uo)) : null);
+  assert.equal(s.objects[c].zone, 'graveyard', 'o Clone sacrificou a si mesmo'); assert.equal(s.objects[uo].zone, 'hand', 'e explorou: o Urso do oponente voltou');
+});
+
+test('CR 702.21a / 707.10 · auditoria K-14: a cópia de mágica que mira a permanente com salvaguarda também dispara a salvaguarda', () => {
+  const CRAB = { name: 'Crab', type_line: 'Creature — Crab', mana_cost: '{3}{U}', cmc: 4, colors: ['U'], power: '2', toughness: '5', keywords: ['Ward'], oracle_text: 'Ward {2}' };
+  const ECO = { name: 'Eco', type_line: 'Sorcery', mana_cost: '{R}', cmc: 1, colors: ['R'], keywords: [], oracle_text: 'Eco deals 1 damage to any target. You may copy this spell. You may choose a new target for the copy.' };
+  const SC_ECO = { Eco: { name: 'Eco', effects: [{ do: 'damage', amount: 1, target: 'any' }, { do: 'copiar_esta' }], example: { target: 'opponent', expect: { opponentLife: 19 } } } };
+  let s = partida({ Crab: CRAB, Eco: ECO }, SC_ECO, 5); const a = s.turn.active, d = 1 - a;
+  let crab, e; [s, crab] = poe(s, d, 'Crab'); [s, e] = poe(s, a, 'Eco', 'hand');
+  s = act(s, { t: 'cast', p: a, oid: e, targets: [{ player: d }] });
+  let viu = false;
+  for (let i = 0; i < 30 && (s.stack.length || s.pending); i++) {
+    if (s.pending) { const la = E.legalActions(s, s.pending.p); s = act(s, la.find(y => JSON.stringify(y).includes(crab)) || la.find(y => y.t === 'decline') || la[0]); }
+    else s = act(s, { t: 'pass', p: s.turn.priority });
+    if (s.stack.some(x => s.objects[x].ability && s.objects[x].name === 'Crab') || s.queued.some(q => q.name === 'Crab')) viu = true;
+  }
+  assert.ok(viu, 'a salvaguarda do Crab disparou contra a cópia');
 });
