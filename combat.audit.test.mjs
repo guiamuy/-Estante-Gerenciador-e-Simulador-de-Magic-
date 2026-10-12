@@ -627,6 +627,21 @@ test('K-35 · ricochete (702.88): o +2/+2 da mão faz o Urso causar 4 e a carta 
   assert.equal(s.objects[v].zone, 'exile');
   assert.equal(combate(s, [u]).players[d].life, 16);
 });
+test('K-36 · eco (702.30): a criatura com eco que entrou neste turno, sem o eco pago na sua manutenção seguinte, é sacrificada e não ataca', () => {
+  cobre('echo');
+  const cartas = { ...CARDS, Gargula: cre('Gargula', 3, 2, ['Echo'], { oracle_text: 'Echo {2}{R}' }) };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 60, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active; let g; [s, g] = poe(s, a, 'Gargula', { zone: 'hand' });
+  s = act(s, { t: 'cast', p: a, oid: g }); for (let i = 0; i < 4 && s.stack.length; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  let pago = false;
+  for (let i = 0; i < 300 && !(s.turn.active === a && s.turn.step === 'main1' && s.turn.number > 1); i++) {
+    if (s.pending && s.pending.kind === 'may_pay') { s = act(s, { t: 'decline', p: s.pending.p }); pago = true; continue; }
+    s = s.pending ? act(s, E.legalActions(s, s.pending.p)[0]) : act(s, { t: 'pass', p: s.turn.priority });
+  }
+  assert.ok(pago, 'a pergunta do eco veio'); assert.equal(vivo(s, g), false, 'recusou: sacrificada');
+});
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));

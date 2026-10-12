@@ -4331,6 +4331,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Aceite:** Staggershock da mão causa 2 e vai para o exílio; na manutenção do oponente, nada; na sua, conjurar sem pagar causa 2 de novo e ela vai para o cemitério; recusar deixa a carta no exílio sem permissão de jogar depois; anulada ou sem alvo legal, cemitério.
 - **Toca ponto comum:** `enterStep` (uma linha na manutenção: `ricocheteNaManutencaoK`) e `decline_free` (uma linha: recusou, sem permissão). A troca de destino usa a linha da K-33 em `resolveTop` (agora `destinoAoResolverK`).
 - **Testes:** `keywords.cr4.unit` (3, falham sem a leva), `combat.audit` (1 cenário), S8 das duas cartas. Texto oficial: Staggershock, Prey's Vengeance (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v109.
+**K-36 · Eco (echo, 702.30)** 🟡 (leva K-36)
+- **Valor:** permanente com "Echo {custo}" pergunta, na sua primeira manutenção depois de entrar, "pague {custo} ou sacrifique"; pago, não pergunta mais. Pouncing Jaguar joga pelo texto (a linha conta como palavra-chave na cobertura).
+- **Aceite:** Pouncing Jaguar: na manutenção do oponente, nada; na sua, "pague {G}"; pago, fica, e na manutenção seguinte não pergunta; recusou, sacrificada; sem mana, sacrificada sem perguntar.
+- **Toca ponto comum:** a linha da K-35 em `enterStep` passa a chamar `manutencaoK` (ricochete e o relógio do eco). O relógio só é guardado numa partida com carta de eco (as partidas-referência não mudam).
+- **Testes:** `keywords.cr4.unit` (2, falham sem a leva), `combat.audit` (1 cenário). Texto oficial: Pouncing Jaguar (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v109.
+- **Parcial declarado:** só eco de mana; "veio para o seu controle" conta pela entrada no campo (permanente roubada não dispara; a que transforma depois dispara de novo).
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

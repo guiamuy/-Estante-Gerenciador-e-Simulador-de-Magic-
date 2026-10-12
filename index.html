@@ -5219,6 +5219,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'buyback', // K-33 · 702.27: custo adicional opcional lido da linha (recompraImpressaK); pago, a mágica volta para a mão ao resolver
   'entwine', // K-34 · 702.42: o modo "todos os modos" com custo adicional (modoEntrelacadoK), lido da linha (entrelacarImpressoK)
   'rebound', // K-35 · 702.88: conjurada da mão, vai para o exílio ao resolver e volta na sua próxima manutenção (ricocheteNaManutencaoK)
+  'echo', // K-36 · 702.30: gatilho da sua manutenção "sacrifique a menos que pague" para a permanente que chegou desde a sua última manutenção (GATILHOS_DE_PALAVRA_K)
   'afflict', 'melee', 'mentor', 'training', // K-31 · 702.130, 702.121, 702.134, 702.149: gatilhos de ataque gerados pela palavra, um por instância
   'battle cry', 'rampage', 'flanking', 'bushido', // K-30 · 702.91, 702.23, 702.25, 702.45: gatilhos de combate gerados pela palavra (GATILHOS_DE_PALAVRA_K), um por instância
   /* ↓ V · palavras-chave da trilha verbos */
@@ -8188,6 +8189,7 @@ function palavraNaLinhaK(k) {
   if (k === 'spectacle' || k === 'surge') return `${k}\\s+(?:\\{[0-9WUBRGC]+\\})+`; // K-32
   if (k === 'buyback') return 'buyback(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*(?:sacrifice an? (?:land|creature|artifact|enchantment)|discard (?:a|one|two|three) cards?|pay \\d+ life)\\.?)'; // K-33 · só as formas que recompraImpressaK lê
   if (k === 'entwine') return 'entwine(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*(?:sacrifice (?:an?|one|two|three) (?:lands?|creatures?|artifacts?|enchantments?)|discard (?:a|one|two|three) cards?|pay \\d+ life)\\.?)'; // K-34
+  if (k === 'echo') return 'echo\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-36 · só custo de mana (o que o "pague" da mesa paga)
   if (k === 'dash') return 'dash\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-9
   if (k === 'evoke') return 'evoke(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*exile an? (?:white|blue|black|red|green) card from your hand\\.?)'; // K-8 · só as formas que o motor paga
   return ['afterlife', 'rampage', 'bushido', 'afflict'].includes(k) ? `${k} \\d+` : k; // K-30 · alvoroço N e bushido N
@@ -15849,6 +15851,7 @@ function cardFacts(card) {
     recompraK: recompraImpressaK(card), // K-33 · 702.27: "Buyback {3}" / "Buyback—Sacrifice a land." (undefined quando não tem)
     entrelacarK: entrelacarImpressoK(card), // K-34 · 702.42: "Entwine {2}" / "Entwine—Sacrifice three lands." (undefined quando não tem)
     ricocheteK: ricocheteImpressoK(card), // K-35 · 702.88: linha "Rebound" (undefined quando não tem)
+    ecoK: custoDaLinhaK(card, 'Echo'), // K-36 · 702.30: "Echo {2}{R}" (undefined quando não tem)
     suspenderK: suspenderImpressoK(card), // K-22 · 702.62a: "Suspend N—{custo}" (undefined quando não tem)
     equipesK: equipesImpressosK(card), // K-28 · 702.6c: "Equip [qualidade] {custo}" (undefined quando não tem)
     jogadorK: jogadorImpressoK(card), // K-26 · 702.11c / 702.18a: "You have hexproof." / "You have shroud." (undefined quando não tem)
@@ -17278,7 +17281,7 @@ function enterStep(s, step) {
   // CR2-G R2b · 603.2b · começo do passo: na manutenção, os do jogador ativo vêm antes dos atrasados (como antes)
   if (step === 'upkeep') disparaPasso(s, step, 'seu');
   if (step === 'upkeep') for (const oid of s.zones[a].exile) { const x = s.objects[oid]; if (x && x.suspensa && (x.counters.time || 0) > 0) s.queued.push({ source: oid, name: x.name, controller: a, effects: [{ do: 'tirar_tempo' }], when: 'suspender' }); } // M-269 · 702.62a
-  if (step === 'upkeep') ricocheteNaManutencaoK(s, a); // K-35 · 702.88a: "at the beginning of your next upkeep" (Toca ponto comum: enterStep)
+  if (step === 'upkeep') manutencaoK(s, a); // K-35 · 702.88a ricochete; K-36 · 702.30a eco: o relógio do começo da manutenção (Toca ponto comum: enterStep)
   // CR 603.7 · gatilhos atrasados: disparam uma vez, no próximo começo do passo pedido, e somem. A manutenção é "do próximo
   // turno"; o passo final e o fim do combate são os próximos a começar (criado dentro do próprio passo, espera o seguinte)
   const momento = { upkeep: 'next-upkeep', end: 'next-end-step', combat_end: 'end-of-combat' }[step];
@@ -18735,6 +18738,14 @@ function applyEffect(s, src, eff, tgt, events) {
       break;
     }
     /* ↓ K · casos de applyEffect da trilha keywords */
+    case 'eco_k': { // K-36 · 702.30a: confere de novo a condição (603.4) e pergunta "pague ou sacrifique"
+      const perm = s.objects[src.ability ? src.source : src.oid];
+      if (!perm || perm.zone !== 'battlefield' || (perm.zc || 0) !== eff.z || !((perm.ts || 0) > eff.desde)) { events.push({ kind: 'effect', do: 'eco_k', name: src.name, failed: true }); break; }
+      const senao = { sacrifica: perm.oid, name: perm.name, controller: ctrl };
+      if (!s.manaCheck || canPay(s, ctrl, parseCost(eff.mana))) { s.pending = { kind: 'may_pay', p: ctrl, cost: eff.mana, name: `eco de ${perm.name}`, senao }; events.push({ kind: 'choice', what: 'pagar o eco', name: perm.name }); }
+      else aplicaSenao(s, senao, events);
+      break;
+    }
     case 'ricochete_k': { // K-35 · 702.88a: "you may cast this card from exile without paying its mana cost" (601.2b: custo alternativo)
       const carta = s.objects[src.ability ? src.source : src.oid];
       if (!carta || carta.zone !== 'exile' || (carta.zc || 0) !== eff.zc || s.facts[carta.name].types.includes('land')) { events.push({ kind: 'effect', do: 'ricochete_k', name: src.name, failed: true }); break; }
@@ -21787,6 +21798,10 @@ Object.assign(EXPORTS_K, { wardsDeK, wardImpressoK, custoDaSalvaguardaK });
 /* K-3 · palavras-chave que são habilidades disparadas (702.108 proeza…): o motor gera a habilidade a partir da palavra-chave que a
    permanente tem agora (impressa, concedida, de marcador ou de mutação), uma por instância (702.108b), em abilitiesOf. */
 const GATILHOS_DE_PALAVRA_K = {
+  // K-36 · 702.30a · "At the beginning of your upkeep, if this permanent came under your control since the beginning of your last upkeep, sacrifice it
+  // unless you pay [cost]." A condição (603.4) compara o carimbo de entrada (o.ts) com o relógio guardado no começo da sua última manutenção.
+  echo: (s, o) => { const f = o && s.facts[o.name], desde = o ? ((s.players[o.controller] || {}).relogioManutencaoK || 0) : 0;
+    return f && f.ecoK && (o.ts || 0) > desde ? ({ kind: 'triggered', when: 'upkeep', palavraK: 'echo', effects: [{ do: 'eco_k', mana: f.ecoK.mana, desde, z: o.zc || 0 }] }) : []; },
   // K-31 · 702.130a · "Whenever this creature becomes blocked, defending player loses N life." (o defensor de quando foi bloqueada)
   afflict: (s, o, i) => ({ kind: 'triggered', when: 'becomes-blocked', palavraK: 'afflict', effects: [{ do: 'aflicao_k', n: numeroDaPalavraK(s, o, 'afflict', i), defensor: defensorDeK(s, o) }] }),
   // K-31 · 702.121a · "Whenever this creature attacks, it gets +1/+1 until end of turn for each opponent you attacked with a creature this combat."
@@ -22484,6 +22499,14 @@ function ricocheteImpressoK(card) {
   const txt = String((card && (card.oracle_text || (card.faces && card.faces[0] && card.faces[0].oracle_text))) || '');
   return txt.split('\n').some(l => /^rebound$/i.test(l.replace(/\s*\([^)]*\)/g, '').trim())) || undefined;
 }
+/** K-36 · enterStep, começo da manutenção de `a` (depois dos gatilhos da manutenção): ricochete e o relógio que o eco usa na próxima.
+    O relógio só é guardado numa partida com carta de eco (o estado das outras, e o das partidas-referência, não muda). */
+function manutencaoK(s, a) {
+  ricocheteNaManutencaoK(s, a);
+  if (partidaTemK(s, 'ecoK')) s.players[a].relogioManutencaoK = s.relogio || 0;
+}
+const TEM_K = new WeakMap(); // por fato: quais campos da trilha ele tem (o fato não muda depois de criado)
+const partidaTemK = (s, campo) => Object.values(s.facts).some(f => { if (!f || typeof f !== 'object') return false; let m = TEM_K.get(f); if (!m) TEM_K.set(f, m = {}); if (!(campo in m)) m[campo] = !!f[campo]; return m[campo]; });
 function ricocheteNaManutencaoK(s, a) {
   for (const oid of s.zones[a].exile) {
     const x = s.objects[oid]; if (!x || !x.ricocheteK || x.owner !== a || !(s.turn.number > x.ricocheteK.turno)) continue;
@@ -22491,7 +22514,7 @@ function ricocheteNaManutencaoK(s, a) {
     s.queued.push({ source: oid, name: x.name, controller: a, effects: [{ do: 'ricochete_k', zc: x.zc || 0 }], when: 'ricochete' });
   }
 }
-Object.assign(EXPORTS_K, { ricocheteImpressoK, ricocheteNaManutencaoK });
+Object.assign(EXPORTS_K, { ricocheteImpressoK, ricocheteNaManutencaoK, manutencaoK, partidaTemK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-28 · 701.66 terrabender N: "Target land you control becomes a 0/0 land creature with haste in addition to its other types. Put N
    +1/+1 counters on it. When that land dies or is put into exile, return it to the battlefield tapped under your control" (a). A
@@ -26255,9 +26278,11 @@ Object.assign(PALAVRA_PT, { spectacle: 'espetáculo', surge: 'surto' }); // K-32
 Object.assign(PALAVRA_PT, { buyback: 'recompra' }); // K-33
 Object.assign(PALAVRA_PT, { entwine: 'entrelaçar' }); // K-34
 Object.assign(PALAVRA_PT, { rebound: 'ricochete' }); // K-35
+Object.assign(PALAVRA_PT, { echo: 'eco' }); // K-36
 Object.assign(PALAVRA_PT, { afflict: 'aflição', melee: 'refrega', mentor: 'mentor', training: 'treinamento' }); // K-31
 Object.assign(PALAVRA_PT, { 'battle cry': 'grito de guerra', rampage: 'alvoroço', flanking: 'flanquear', bushido: 'bushido' }); // K-30
 const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consultadas por descreveEfeito; antes a pilha mostrava "proeza k")
+  eco_k: e => `sacrifique esta permanente a menos que pague ${e.mana} (eco)`, // K-36
   ricochete_k: () => 'você pode conjurar esta carta do exílio sem pagar o custo de mana (ricochete)', // K-35
   tempestade_k: e => e.n ? `copia esta mágica ${e.n === 1 ? 'uma vez' : e.n + ' vezes'} (tempestade; cada cópia pode ter alvo novo)` : 'copia esta mágica para cada mágica conjurada antes dela neste turno (nenhuma)',
   proeza_k: () => 'esta criatura recebe +1/+1 até o fim do turno (proeza)',

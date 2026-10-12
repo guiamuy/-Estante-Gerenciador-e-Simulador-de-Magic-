@@ -1508,3 +1508,41 @@ test('CR 702.88a · ricochete com o alvo ilegal (608.2b): não resolve, cemitér
   s = J(s); const z = s.zones[a].battlefield; z.splice(z.indexOf(u), 1); s.zones[a].graveyard.push(u); s.objects[u].zone = 'graveyard';
   s = resolve(s); assert.equal(s.objects[k].zone, 'graveyard');
 });
+
+/* ---------------- K-36 · eco 702.30 ---------------- */
+const JAGUAR = () => ({ ...oficial('Pouncing Jaguar'), keywords: ['Echo'] }); // a Scryfall lista "Echo" nas palavras-chave
+/** Avança até a manutenção de `quem` e para no "pague ou sacrifique" (ou no começo da principal, se não houver). */
+function ateEcoK36(s, quem) {
+  s = ateK35(s, quem, 'upkeep');
+  for (let i = 0; i < 8 && !(s.pending && s.pending.kind === 'may_pay') && !(s.turn.active === quem && s.turn.step === 'main1'); i++) s = s.pending ? act(s, E.legalActions(s, s.pending.p)[0]) : act(s, { t: 'pass', p: s.turn.priority });
+  return s;
+}
+
+test('CR 702.30a · eco (Pouncing Jaguar, texto oficial): na sua manutenção seguinte, "sacrifique a menos que pague {G}"; pago, fica e não pergunta de novo na outra; a manutenção do oponente não conta', () => {
+  assert.deepEqual(J(E.custoDaLinhaK(JAGUAR(), 'Echo')), { mana: '{G}' });
+  let s = partida({ 'Pouncing Jaguar': JAGUAR() }); const a = s.turn.active, d = 1 - a;
+  let j; [s] = poe(s, a, 'Forest'); [s, j] = poe(s, a, 'Pouncing Jaguar', 'hand');
+  s = resolve(act(s, { t: 'cast', p: a, oid: j }));
+  assert.equal(s.objects[j].zone, 'battlefield');
+  s = ateK35(s, d, 'upkeep'); s = act(s, { t: 'pass', p: s.turn.priority });
+  assert.ok(!(s.pending && s.pending.kind === 'may_pay'), 'na manutenção do oponente, nada');
+  s = ateEcoK36(s, a);
+  assert.equal((s.pending || {}).kind, 'may_pay', 'na sua: pague o eco'); assert.equal(s.pending.cost, '{G}');
+  s = act(s, { t: 'pay', p: a });
+  assert.equal(s.objects[j].zone, 'battlefield', 'pagou: fica');
+  s = ateK35(s, d, 'upkeep'); s = ateEcoK36(s, a);
+  assert.ok(!(s.pending && s.pending.kind === 'may_pay'), 'está sob seu controle desde antes da última manutenção: o eco não dispara de novo');
+  assert.equal(s.objects[j].zone, 'battlefield');
+});
+
+test('CR 702.30a · eco: recusar sacrifica; sem mana para pagar, sacrifica sem perguntar', () => {
+  let s = partida({ 'Pouncing Jaguar': JAGUAR() }); const a = s.turn.active, d = 1 - a;
+  let j; [s, j] = poe(s, a, 'Pouncing Jaguar', 'hand');
+  s = resolve(act(s, { t: 'cast', p: a, oid: j }));
+  s = ateK35(s, d, 'upkeep'); s = ateEcoK36(s, a);
+  let t = act(s, { t: 'decline', p: a });
+  assert.equal(t.objects[j].zone, 'graveyard', 'não pagou: sacrificada');
+  let v = comManaK33({ 'Pouncing Jaguar': JAGUAR() }); const av = v.turn.active; let j2; [v, j2] = poe(v, av, 'Pouncing Jaguar');
+  v = J(v); v.objects[j2].ts = (v.relogio || 0) + 1; v.relogio = v.objects[j2].ts; v = ateK35(v, 1 - av, 'upkeep'); v = ateEcoK36(v, av);
+  assert.equal(v.objects[j2].zone, 'graveyard', 'sem terreno para pagar {G}: sacrificada direto');
+});
