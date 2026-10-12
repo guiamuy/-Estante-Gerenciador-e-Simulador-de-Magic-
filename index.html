@@ -5235,6 +5235,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'offspring', // K-53 · 702.175: custo adicional opcional; paga, a permanente cria ao entrar uma ficha que é cópia dela, só que 1/1 (proleK)
   'spree', // K-54 · 702.172: escolha um ou mais modos, cada um com o custo adicional dele ("+ {1} — …"); cada combinação é um modo do script (modosSpreeK)
   'harmonize', // K-55 · 702.180: conjurar do cemitério pelo custo de harmonizar, virando até uma criatura sua para reduzir o genérico pelo poder dela; depois, exílio (harmonizarK)
+  'gift', // K-56 · 702.174: custo adicional opcional de escolher um oponente; o presente vem antes dos outros efeitos da mágica (modo "prometendo o presente") ou num gatilho de entrada da permanente
   'afflict', 'melee', 'mentor', 'training', // K-31 · 702.130, 702.121, 702.134, 702.149: gatilhos de ataque gerados pela palavra, um por instância
   'battle cry', 'rampage', 'flanking', 'bushido', // K-30 · 702.91, 702.23, 702.25, 702.45: gatilhos de combate gerados pela palavra (GATILHOS_DE_PALAVRA_K), um por instância
   /* ↓ V · palavras-chave da trilha verbos */
@@ -5405,6 +5406,7 @@ const EFFECTS = {
   mobilizar_k: { fields: ['n'], targets: [] }, // K-52 · 702.181a (gerado pelo motor)
   mobilizar_ataca_k: { fields: [], targets: [] }, // K-52 · 508.4: as fichas atacam o que o controlador escolheu (gerado pelo motor)
   prole_k: { fields: ['z'], targets: [] }, // K-53 · 702.175a (gerado pelo motor)
+  presente_k: { fields: ['tipo', 'jogador'], targets: [] }, // K-56 · 702.174d-i (gerado pelo motor)
   salvaguarda: { fields: [], targets: [] }, // K-2 · 702.21a · gerado pelo motor quando uma permanente com salvaguarda vira alvo (não vai em script)
   volta_com_marcador: { fields: ['marcador'], targets: [] }, // K-4 · persistir e imortal (gerado pelo motor)
   exaltado: { fields: ['criatura'], targets: [] }, // K-5 · exaltado (gerado pelo motor)
@@ -6443,6 +6445,7 @@ const RAW_SCRIPTS = [
   { name: 'Staggershock', effects: [{ do: 'damage', amount: 2, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: -2 } } }, // K-35 · "deals 2 damage to any target. / Rebound"
   { name: "Prey's Vengeance", effects: [{ do: 'pump', power: 2, toughness: 2, target: 'creature' }], example: { target: 'own-creature', expect: { pump: [2, 2] } } }, // K-35 · "Target creature gets +2/+2 until end of turn. / Rebound" 
   { name: 'Wild Ride', effects: [{ do: 'pump', power: 3, toughness: 0, target: 'creature' }, { do: 'keyword', keyword: 'haste', target: 'first-target' }], example: { target: 'own-creature', expect: { pump: [3, 0] } } }, // K-55 · "Target creature gets +3/+0 and gains haste until end of turn. / Harmonize {4}{R}"
+  { name: 'Into the Flood Maw', effects: [{ do: 'bounce', target: { tipos: ['creature'], de: 'opponent' } }], presenteK: { effects: [{ do: 'bounce', target: { semTipos: ['land'], de: 'opponent' } }] }, example: { action: 'mode:0', target: 'enemy-creature', expect: { bounced: true } } }, // K-56 · "Gift a tapped Fish / Return target creature an opponent controls to its owner's hand. If the gift was promised, instead return target nonland permanent an opponent controls to its owner's hand."
   { name: 'Borrowed Malevolence', modes: [{ label: '+1/+1 numa criatura', effects: [{ do: 'pump', power: 1, toughness: 1, target: 'creature' }] }, { label: '−1/−1 numa criatura', effects: [{ do: 'pump', power: -1, toughness: -1, target: 'creature' }] }], // K-48 · "Escalate {2} / Choose one or both — • Target creature gets +1/+1 until end of turn. • Target creature gets -1/-1 until end of turn."
     example: { action: 'mode:0', target: 'own-creature', expect: { pump: [1, 1] } } },
   { name: 'Borrowed Hostility', modes: [{ label: '+3/+0 numa criatura', effects: [{ do: 'pump', power: 3, toughness: 0, target: 'creature' }] }, { label: 'Iniciativa a uma criatura', effects: [{ do: 'keyword', keyword: 'first strike', target: 'creature' }] }], // K-48 · "Escalate {3} / Choose one or both — • Target creature gets +3/+0 until end of turn. • Target creature gains first strike until end of turn."
@@ -8359,6 +8362,7 @@ function palavraNaLinhaK(k) {
   if (k === 'offspring') return 'offspring\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-53
   if (k === 'spree') return 'spree'; // K-54 · as linhas "+ {custo} — efeito" são os modos do script
   if (k === 'harmonize') return 'harmonize\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-55 · "Harmonize {X}…" fica de fora
+  if (k === 'gift') return 'gift (?:a card|a tapped fish|an extra turn|a food|a treasure|an octopus)'; // K-56
   if (k === 'dash') return 'dash\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-9
   if (k === 'evoke') return 'evoke(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*exile an? (?:white|blue|black|red|green) card from your hand\\.?)'; // K-8 · só as formas que o motor paga
   return ['afterlife', 'rampage', 'bushido', 'afflict'].includes(k) ? `${k} \\d+` : k; // K-30 · alvoroço N e bushido N
@@ -16063,6 +16067,7 @@ function cardFacts(card) {
     proleK: custoDaLinhaK(card, 'Offspring'), // K-53 · 702.175: "Offspring {2}" (undefined quando não tem)
     spreeK: spreeImpressoK(card), // K-54 · 702.172: os custos "+ {1} — …" de cada modo, na ordem (undefined quando não tem)
     harmonizarK: custoDaLinhaK(card, 'Harmonize'), // K-55 · 702.180: "Harmonize {4}{R}" (undefined quando não tem)
+    presenteK: presenteImpressoK(card), // K-56 · 702.174: 'card' | 'fish' | 'turn' | 'food' | 'treasure' | 'octopus' (undefined quando não tem)
     campeaoK: campeaoImpressoK(card), // K-44 · 702.72: "Champion a creature" → 'creature'; "Champion an Elf" → 'Elf' (undefined quando não tem)
     suspenderK: suspenderImpressoK(card), // K-22 · 702.62a: "Suspend N—{custo}" (undefined quando não tem)
     equipesK: equipesImpressosK(card), // K-28 · 702.6c: "Equip [qualidade] {custo}" (undefined quando não tem)
@@ -16398,6 +16403,7 @@ function createGame(setup) {
     if (f.entrelacarK && (f.script.modes || []).length > 1 && !f.script.modeCount) f.script.modes = f.script.modes.concat([modoEntrelacadoK(f.script.modes, f.entrelacarK)]); // K-34 · 702.42a: "choose all modes" é mais um modo, com custo adicional
     if (f.escalarK && (f.script.modes || []).length > 1 && !f.script.modeCount) f.script.modes = f.script.modes.concat(modosEscaladosK(f.script.modes, f.escalarK)); // K-48 · 702.120a: cada combinação de modos é mais um modo, com custo por modo além do primeiro
     if (f.spreeK && (f.script.modes || []).length === f.spreeK.length && !f.script.modeCount) f.script.modes = modosSpreeK(f.script.modes, f.spreeK); // K-54 · 702.172a: cada combinação de modos, com a soma dos custos dela
+    if (f.presenteK && !(f.script.modes || []).length && (f.types.includes('instant') || f.types.includes('sorcery'))) f.script.modes = modosDoPresenteK(f, sc, setup.players || []); // K-56 · 702.174a/b/j/m: sem presente, ou prometendo a cada oponente possível (o presente antes do resto)
     if (sc.flashback) f.script.flashback = sc.flashback;
     if (sc.escape) f.script.escape = sc.escape; // S48 · fuga
     if (sc.discount) f.script.discount = sc.discount; // S49 · desconto por condição de campo
@@ -18976,6 +18982,15 @@ function applyEffect(s, src, eff, tgt, events) {
       break;
     }
     /* ↓ K · casos de applyEffect da trilha keywords */
+    case 'presente_k': { // K-56 · 702.174d-i: o jogador escolhido recebe o presente
+      const q = eff.jogador; if (q == null || !s.players[q] || s.players[q].lost) { note({ failed: true }); break; }
+      const t = eff.tipo;
+      if (t === 'card') draw(s, q, 1);
+      else if (t === 'turn') (s.turnosExtras = s.turnosExtras || []).push(q);
+      else { const def = FICHAS_DO_PRESENTE_K[t]; if (def) { const n = fichasAoCriar(s, q, 1); for (let i = 0; i < n; i++) { const oid = createToken(s, def, q, events); if (t === 'fish' && s.objects[oid]) s.objects[oid].tapped = true; } } }
+      events.push({ kind: 'effect', do: 'presente_k', name: src.name, target: s.players[q].name, tipo: t });
+      break;
+    }
     case 'prole_k': { // K-53 · 702.175a: a ficha copia a permanente (se saiu do campo, a última informação: o nome que ela tinha, 608.2h)
       const perm = s.objects[src.ability ? src.source : src.oid];
       const nome = perm && perm.zone === 'battlefield' && (perm.zc || 0) === eff.z ? nomeCopiavel(s, perm) : perm && perm.name; // saiu do campo: o nome impresso (a última informação de cópia não fica guardada)
@@ -20617,6 +20632,7 @@ const HANDLERS = {
     if (a.retrace && !(s.facts[o.name].script || {}).retrace) throw new RuleError('retraçar', 'esta carta não tem retraçar'); // M-222 · 702.81
     if (a.recomecarK) pagaRecomecarK(s, a, o); // K-10 · 702.133a: confere e descarta a carta escolhida (custo adicional)
     confereHarmonizarK(s, a, o); // K-55 · 702.180a: harmonizar só do cemitério, e só pelo custo de harmonizar (Toca ponto comum: HANDLERS.cast)
+    conferePresenteK(s, a, o); // K-56 · 702.174a: o presente só a um oponente (Toca ponto comum: HANDLERS.cast)
     if (a.permissao != null) { // M-256 · conjurar do cemitério pela permissão de uma permanente (uma vez por turno, por permanente)
       const perm = permissoesDoCemiterio(s, a.p).find(x => x.oid === a.permissao);
       if (!perm || !permissaoServe(s, a.p, perm, o) || s.facts[o.name].types.includes('land')) throw new RuleError('permissão', 'nenhuma permanente sua deixa conjurar esta carta do cemitério agora');
@@ -21898,6 +21914,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
   });
   /* ↓ K · ofertas de legalActions da trilha keywords (out.push) */
   ofertasHarmonizarK(s, p, out, casts); // K-55 · 702.180a: do cemitério, uma oferta por criatura a virar (ou nenhuma); da mão, a opção some
+  ofertasPresenteK(s, p, out); // K-56 · 702.174a: os modos de presente para si mesmo saem; a permanente com presente ganha a variante por oponente
   alvosPorModoK(s, p, out); // K-48 · 115.3: nos modos somados de entrelaçar e escalar, cada modo escolhe os alvos dele (o mesmo objeto pode voltar em outro modo)
   ofertasEmergirK(s, p, out); // K-47 · 702.119a: só as sacrificadas que fecham o custo reduzido
   // K-34 · 702.42a · entrelaçar: a conjuração no modo de todos os modos fica só se o custo a mais fecha (custo extra: uma ação por forma)
@@ -22208,6 +22225,8 @@ const GATILHOS_DE_PALAVRA_K = {
   mobilize: (s, o, i) => ({ kind: 'triggered', when: 'attacks', palavraK: 'mobilize', effects: [{ do: 'mobilizar_k', n: numeroDaPalavraK(s, o, 'mobilize', i) }] }),
   // K-53 · 702.175a · "When this permanent enters, if its offspring cost was paid, create a token that's a copy of it, except it's 1/1."
   offspring: (s, o) => o && o.proleK ? ({ kind: 'triggered', when: 'etb', palavraK: 'offspring', effects: [{ do: 'prole_k', z: o.zc || 0 }] }) : [],
+  // K-56 · 702.174b · "When this permanent enters, if its gift cost was paid, [effect]."
+  gift: (s, o) => o && o.presenteK != null ? ({ kind: 'triggered', when: 'etb', palavraK: 'gift', effects: [{ do: 'presente_k', tipo: s.facts[o.name].presenteK, jogador: o.presenteK }] }) : [],
   // K-40 · 702.70a · "Whenever this creature deals combat damage to a player, that player gets N poison counters." (o jogador atingido é o que ela atacava)
   poisonous: (s, o, i) => ({ kind: 'triggered', when: 'combat-damage', palavraK: 'poisonous', effects: [{ do: 'venenoso_k', n: numeroDaPalavraK(s, o, 'poisonous', i), jogador: defensorDeK(s, o) }] }),
   // K-40 · 702.112a · "When this creature deals combat damage to a player, if it isn't renowned, put N +1/+1 counters on it and it becomes renowned." (603.4)
@@ -22383,6 +22402,7 @@ MARCAS_DA_CONJURACAO.push('emergiuK'); // K-47
 MARCAS_DA_CONJURACAO.push('dobradaK', 'dobraK'); // K-51 · a marca da carta exilada (702.185b) some quando ela muda de zona (400.7)
 MARCAS_DA_CONJURACAO.push('proleK'); // K-53 · a marca de prole paga vai da pilha ao campo e some depois (400.7)
 MARCAS_DA_CONJURACAO.push('harmonizadaK'); // K-55
+MARCAS_DA_CONJURACAO.push('presenteK'); // K-56 · o oponente prometido vai da pilha ao campo
 MARCAS_DA_CONJURACAO.push('campeaoDeK', 'campeaoNesteK'); // K-44 · a ligação é deste objeto (400.7)
 const COR_DO_NOME_K = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
 const COR_PT_K = { W: 'branca', U: 'azul', B: 'preta', R: 'vermelha', G: 'verde' };
@@ -23434,6 +23454,48 @@ function ofertasHarmonizarK(s, p, out, casts) {
   }
 }
 Object.assign(EXPORTS_K, { altHarmonizarK, ofertasHarmonizarK });
+/* K-56 · 702.174 presente (gift): "As an additional cost to cast this spell, you may choose an opponent" e o presente do tipo impresso (d-i).
+   Mágica instantânea ou feitiço: o script traz os efeitos de sempre (`effects`) e, se o texto muda com o presente prometido, `presenteK:
+   { effects }`; em createGame vira modos — "sem presente" e "prometendo o presente a <jogador>" (um por jogador; o próprio é recusado na
+   conjuração) —, com o presente antes dos outros efeitos (702.174j) e os alvos só do modo prometido (702.174m). Permanente: a conjuração ganha
+   a variante `presenteK: <oponente>`; a marca vai ao campo e a palavra gera o gatilho de entrada (702.174b). Fora: "sempre que um jogador dá um
+   presente" (702.174c). */
+const FICHAS_DO_PRESENTE_K = {
+  fish: { name: 'Fish', types: ['creature'], subtypes: ['Fish'], colors: ['U'], power: 1, toughness: 1 },
+  octopus: { name: 'Octopus', types: ['creature'], subtypes: ['Octopus'], colors: ['U'], power: 8, toughness: 8 },
+  treasure: { name: 'Treasure', types: ['artifact'], subtypes: ['Treasure'], colors: [], abilities: [{ kind: 'activated', cost: { tap: true, sacrifice: true }, effects: [{ do: 'add_mana', anyColor: true }] }] },
+  food: { name: 'Food', types: ['artifact'], subtypes: ['Food'], colors: [], abilities: [{ kind: 'activated', cost: { mana: '{2}', tap: true, sacrifice: true }, effects: [{ do: 'gain', amount: 3 }] }] },
+};
+function presenteImpressoK(card) {
+  const txt = String((card && (card.oracle_text || (card.faces && card.faces[0] && card.faces[0].oracle_text))) || '');
+  const T = { 'a card': 'card', 'a tapped fish': 'fish', 'an extra turn': 'turn', 'a food': 'food', 'a treasure': 'treasure', 'an octopus': 'octopus' };
+  for (const l0 of txt.split('\n')) { const m = l0.replace(/\s*\([^)]*\)/g, '').trim().match(/^Gift (a card|a tapped fish|an extra turn|a food|a treasure|an octopus)$/i); if (m) return T[m[1].toLowerCase()]; }
+  return undefined;
+}
+function modosDoPresenteK(f, sc, jogadores) {
+  const base = (sc && sc.effects) || [], prometido = (sc && sc.presenteK && sc.presenteK.effects) || base;
+  const rot = { card: 'uma carta', fish: 'um Peixe virado', turn: 'um turno extra', food: 'uma Comida', treasure: 'um Tesouro', octopus: 'um Polvo 8/8' }[f.presenteK];
+  return [{ label: 'Sem presente', effects: base }].concat(jogadores.map((j, q) => ({ label: `Prometendo ${rot} a ${(j && j.name) || 'jogador ' + (q + 1)}`, presenteK: q,
+    effects: [{ do: 'presente_k', tipo: f.presenteK, jogador: q }, ...prometido] })));
+}
+const modoDoPresenteK = (s, a, o) => (a.mode != null && o && s.facts[o.name] && s.facts[o.name].presenteK) ? ((((s.facts[o.name].script || {}).modes) || [])[a.mode] || {}).presenteK : undefined;
+const presenteServeK = (s, p, q) => q != null && q !== p && !!s.players[q] && !s.players[q].lost;
+function conferePresenteK(s, a, o) {
+  const m = modoDoPresenteK(s, a, o);
+  if (m != null && !presenteServeK(s, a.p, m)) throw new RuleError('custo', 'o presente é para um oponente');
+  if (a.presenteK != null) {
+    const f = s.facts[o.name];
+    if (!f.presenteK || f.types.includes('instant') || f.types.includes('sorcery')) throw new RuleError('custo', 'esta carta não tem presente');
+    if (!presenteServeK(s, a.p, a.presenteK)) throw new RuleError('custo', 'o presente é para um oponente');
+    s.objects[a.oid].presenteK = a.presenteK;
+  }
+}
+function ofertasPresenteK(s, p, out) {
+  for (let i = out.length - 1; i >= 0; i--) { const x = out[i]; if (x.t === 'cast' && s.objects[x.oid]) { const m = modoDoPresenteK(s, x, s.objects[x.oid]); if (m != null && !presenteServeK(s, p, m)) out.splice(i, 1); } }
+  const base = out.filter(x => x.t === 'cast' && x.presenteK == null && !x.faceDown && s.objects[x.oid] && (s.facts[s.objects[x.oid].name] || {}).presenteK && !['instant', 'sorcery'].some(t => s.facts[s.objects[x.oid].name].types.includes(t)));
+  for (const x of base) for (const q of s.players.keys()) if (presenteServeK(s, p, q)) out.push({ ...x, presenteK: q });
+}
+Object.assign(EXPORTS_K, { presenteImpressoK, modosDoPresenteK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-30 · 701.65 aerobender: "that player exiles those objects. For each card exiled this way, for as long as it remains exiled, its owner
    may cast it by paying {2} rather than paying its mana cost" (a). A permissão é do DONO e da encarnação exilada (400.7: se a carta sair do
@@ -27351,6 +27413,7 @@ Object.assign(PALAVRA_PT, { mobilize: 'mobilizar' }); // K-52
 Object.assign(PALAVRA_PT, { offspring: 'prole' }); // K-53
 Object.assign(PALAVRA_PT, { spree: 'farra' }); // K-54
 Object.assign(PALAVRA_PT, { harmonize: 'harmonizar' }); // K-55
+Object.assign(PALAVRA_PT, { gift: 'presente' }); // K-56
 Object.assign(PALAVRA_PT, { afflict: 'aflição', melee: 'refrega', mentor: 'mentor', training: 'treinamento' }); // K-31
 Object.assign(PALAVRA_PT, { 'battle cry': 'grito de guerra', rampage: 'alvoroço', flanking: 'flanquear', bushido: 'bushido' }); // K-30
 const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consultadas por descreveEfeito; antes a pilha mostrava "proeza k")
@@ -27371,6 +27434,7 @@ const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consulta
   ricochete_k: () => 'você pode conjurar esta carta do exílio sem pagar o custo de mana (ricochete)', // K-35
   dobra_k: () => 'exila esta permanente; o dono pode conjurá-la do exílio a partir do próximo turno (dobra)', // K-51
   prole_k: () => 'cria uma ficha que é cópia desta permanente, só que 1/1 (prole)', // K-53
+  presente_k: e => `${({ card: 'o oponente escolhido compra uma carta', fish: 'o oponente escolhido cria uma ficha de Peixe 1/1 azul virada', turn: 'o oponente escolhido joga um turno extra depois deste', food: 'o oponente escolhido cria uma ficha de Comida', treasure: 'o oponente escolhido cria uma ficha de Tesouro', octopus: 'o oponente escolhido cria uma ficha de Polvo 8/8 azul' })[e.tipo] || 'o oponente escolhido recebe o presente'} (presente)`, // K-56
   mobilizar_k: e => `cria ${e.n === 1 ? 'uma ficha' : e.n + ' fichas'} de Guerreiro 1/1 vermelho viradas e atacando; na próxima etapa final elas são sacrificadas (mobilizar)`, mobilizar_ataca_k: () => '', // K-52
   tempestade_k: e => e.n ? `copia esta mágica ${e.n === 1 ? 'uma vez' : e.n + ' vezes'} (tempestade; cada cópia pode ter alvo novo)` : 'copia esta mágica para cada mágica conjurada antes dela neste turno (nenhuma)',
   proeza_k: () => 'esta criatura recebe +1/+1 até o fim do turno (proeza)',

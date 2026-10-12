@@ -2109,3 +2109,35 @@ test('CR 702.180a/b · harmonizar (Wild Ride, texto oficial: "Harmonize {4}{R}")
   assert.throws(() => E.apply(m, { t: 'cast', p: a, oid: w, alt: ia, harmonizarK: true, targets: [{ oid: u }] }), /cemitério/);
   assert.throws(() => E.apply(s, { t: 'cast', p: a, oid: w, alt: ia, harmonizarK: true, targets: [{ oid: u }] }), /mana/, 'sem virar, {4}{R} não fecha');
 });
+
+/* ---------------- K-56 · presente (gift) 702.174 ---------------- */
+test('CR 702.174a/j/m · presente (Into the Flood Maw, texto oficial: "Gift a tapped Fish"): sem presente, só criatura do oponente; prometendo, o oponente cria o Peixe virado antes e o alvo passa a ser permanente não terreno; prometer a si mesmo é recusado', () => {
+  assert.equal(E.presenteImpressoK(oficial('Into the Flood Maw')), 'fish');
+  assert.equal(E.presenteImpressoK(oficial("Cruelclaw's Heist")), 'card');
+  let s = partida({ 'Into the Flood Maw': oficial('Into the Flood Maw'), Urso: URSO, Peça: ART_K34 }, { 'Into the Flood Maw': S.SCRIPTS['Into the Flood Maw'] }); const a = s.turn.active, d = 1 - a;
+  let f, u, pc; [s, f] = poe(s, a, 'Into the Flood Maw', 'hand'); [s, u] = poe(s, d, 'Urso'); [s, pc] = poe(s, d, 'Peça');
+  const modos = s.facts['Into the Flood Maw'].script.modes; assert.equal(modos.length, 3, 'sem presente e um por jogador');
+  const iSem = modos.findIndex(m => m.presenteK == null), iD = modos.findIndex(m => m.presenteK === d), iA = modos.findIndex(m => m.presenteK === a);
+  const ofs = E.legalActions(s, a).filter(x => x.t === 'cast' && x.oid === f);
+  assert.ok(!ofs.some(x => x.mode === iA), 'prometer a si mesmo não é oferecido');
+  assert.ok(!ofs.some(x => x.mode === iSem && x.targets[0].oid === pc), 'sem presente, o artefato não é alvo');
+  const comPresente = ofs.find(x => x.mode === iD && x.targets[0].oid === pc); assert.ok(comPresente, 'prometendo, o artefato é alvo');
+  const t = resolve(act(s, comPresente));
+  assert.equal(t.objects[pc].zone, 'hand', 'o artefato voltou para a mão');
+  const peixe = t.zones[d].battlefield.map(x => t.objects[x]).find(o => o.token && o.name === 'Fish');
+  assert.ok(peixe && peixe.tapped && E.stats(t, peixe).power === 1, 'o oponente criou o Peixe 1/1 virado');
+  assert.throws(() => E.apply(s, { t: 'cast', p: a, oid: f, mode: iA, targets: [{ oid: pc }] }), /oponente/);
+});
+
+test('CR 702.174b · presente na permanente: a conjuração com o presente prometido marca a permanente; ao entrar, o oponente recebe o presente (Gift a card: compra)', () => {
+  const RAPOSA = { name: 'Raposa', type_line: 'Creature — Fox', mana_cost: '{1}{W}', cmc: 2, colors: ['W'], power: '2', toughness: '2', keywords: ['Gift'], oracle_text: 'Gift a card' };
+  let s = partida({ Raposa: RAPOSA }); const a = s.turn.active, d = 1 - a;
+  let r; [s, r] = poe(s, a, 'Raposa', 'hand');
+  const ofs = E.legalActions(s, a).filter(x => x.t === 'cast' && x.oid === r);
+  assert.ok(ofs.some(x => x.presenteK === d) && ofs.some(x => x.presenteK == null) && !ofs.some(x => x.presenteK === a));
+  const mao = s.zones[d].hand.length;
+  let t = resolve(act(s, ofs.find(x => x.presenteK === d)));
+  assert.equal(t.objects[r].zone, 'battlefield'); assert.equal(t.zones[d].hand.length, mao + 1, 'o oponente comprou');
+  let v = resolve(act(s, ofs.find(x => x.presenteK == null)));
+  assert.equal(v.zones[d].hand.length, mao, 'sem prometer, nada');
+});

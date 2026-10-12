@@ -844,6 +844,17 @@ test('K-55 · harmonizar (702.180): Wild Ride do cemitério, virando outro Urso,
   assert.equal(s.objects[w].zone, 'exile');
   assert.equal(combate(s, [u]).players[d].life, 15);
 });
+test('K-56 · presente (702.174): a Raposa com "Gift a tapped Fish" prometido dá ao oponente um Peixe virado, que não bloqueia o Urso', () => {
+  cobre('gift');
+  const cartas = { ...CARDS, Raposa: cre('Raposa', 2, 2, ['Gift'], { oracle_text: 'Gift a tapped Fish' }) };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 76, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a; let u, r; [s, u] = poe(s, a, 'Urso'); [s, r] = poe(s, a, 'Raposa', { zone: 'hand' });
+  s = act(s, E.legalActions(s, a).find(x => x.oid === r && x.presenteK === d)); for (let i = 0; i < 8 && (s.stack.length || s.pending); i++) s = s.pending ? act(s, E.legalActions(s, s.pending.p)[0]) : act(s, { t: 'pass', p: s.turn.priority });
+  const peixe = s.zones[d].battlefield.find(x => s.objects[x].name === 'Fish'); assert.ok(peixe && s.objects[peixe].tapped);
+  assert.equal(combate(s, [u]).players[d].life, 18);
+});
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));

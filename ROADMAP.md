@@ -4491,6 +4491,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `HANDLERS.cast` (a condição "do cemitério" ganha `a.harmonizarK`, na linha do recomeçar, K-10; mais três linhas: conferir, pagar e exilar).
 - **Testes:** `keywords.cr4.unit` (1, falha sem a leva), `combat.audit` (1 cenário). Texto oficial: Nature's Rhythm, Winternight Stories, Wild Ride (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
 - **Parcial declarado:** "Harmonize {X}…" (Nature's Rhythm) não é lido; reduções de outras fontes não valem sobre o custo de harmonizar; com redução por alvo no campo (filtro OTIMISTA) a oferta não aparece.
+**K-56 · Presente (gift, 702.174)** 🟡 (leva K-56) — onda 4 (167 cópias em 110 listas: Into the Flood Maw, Cruelclaw's Heist)
+- **Valor:** mágicas e permanentes com "Gift a …" ganham o botão "prometendo o presente" ao oponente. Na mágica, o oponente recebe o presente antes do resto e o texto "se o presente foi prometido" vale (inclusive o alvo); na permanente, o presente vem ao entrar.
+- **Aceite:** Into the Flood Maw sem presente só devolve criatura do oponente; prometendo, o oponente cria um Peixe 1/1 virado e o alvo pode ser um artefato. Criatura com "Gift a card" prometido faz o oponente comprar ao entrar.
+- **Toca ponto comum:** `HANDLERS.cast` (uma linha: `conferePresenteK`), `createGame` (uma linha: `modosDoPresenteK`).
+- **Testes:** `keywords.cr4.unit` (2, falham sem a leva), `combat.audit` (1 cenário). Texto oficial: Into the Flood Maw, Cruelclaw's Heist, Sazacap's Brew, Scrapshooter, Dawn's Truce (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
+- **Parcial declarado:** "sempre que um jogador dá um presente" não existe; condição "se o presente foi prometido" em gatilho de permanente (Scrapshooter) espera condição de script nova (ponto comum do validador); Cruelclaw's Heist, Sazacap's Brew e Dawn's Truce sem script.
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

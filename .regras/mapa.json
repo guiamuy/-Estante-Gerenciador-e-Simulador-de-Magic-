@@ -9335,15 +9335,21 @@
    "n": "702.174",
    "regra": "Keyword Abilities",
    "titulo": "Gift",
-   "status": "ausente",
-   "falta": "Sem implementação (grep sem ocorrência no motor nem nos scripts). Falta custo adicional de escolher o oponente (presente prometido), o efeito do presente antes do resto da mágica ou como gatilho de entrada (174b, 174j), os seis tipos de presente (174d-i), \"quando você dá um presente\" (174c) e alvos condicionais (174m).",
+   "status": "parcial",
+   "falta": "\"Sempre que um jogador dá um presente\" (702.174c) não existe. Na permanente, o texto \"se o presente foi prometido\" fora do próprio presente (Scrapshooter) precisa de condição de script que o validador não tem (ponto comum). Cruelclaw's Heist, Sazacap's Brew e Dawn's Truce sem script (efeitos fora do vocabulário). Mágica com presente e modos próprios não é lida.",
    "esforco": "M",
    "depende": [
     "601.2b custo adicional",
     "601.2c alvos condicionais",
     "500.7 turno extra (para 174g)"
    ],
-   "cartas": "uma coleção só (Bloomburrow)"
+   "cartas": "uma coleção só (Bloomburrow)",
+   "evidencia": "K-56: \"Gift a card/a tapped Fish/an extra turn/a Food/a Treasure/an Octopus\" (presenteImpressoK). Mágica instantânea ou feitiço: em createGame o script vira modos \"sem presente\" e \"prometendo a <jogador>\" (modosDoPresenteK), com presente_k antes dos outros efeitos (702.174j) e, se o script traz presenteK.effects, os efeitos (e alvos, 702.174m) do texto com o presente; prometer a si mesmo é recusado (conferePresenteK em HANDLERS.cast) e não é oferecido. Permanente: a conjuração ganha a variante presenteK por oponente (ofertasPresenteK); a marca vai ao campo e a palavra gera o gatilho de entrada com o presente (702.174b). Into the Flood Maw em RAW_SCRIPTS (S8).",
+   "testes": [
+    "CR 702.174a/j/m · presente (Into the Flood Maw, texto oficial: \"Gift a tapped Fish\"): sem presente, só criatura do oponente; prometendo, o oponente cria o Peixe virado antes e o alvo passa a ser permanente não terreno; prometer a si mesmo é recusado",
+    "CR 702.174b · presente na permanente: a conjuração com o presente prometido marca a permanente; ao entrar, o oponente recebe o presente (Gift a card: compra)",
+    "K-56 · presente (702.174): a Raposa com \"Gift a tapped Fish\" prometido dá ao oponente um Peixe virado, que não bloqueia o Urso"
+   ]
   },
   {
    "n": "702.175",
