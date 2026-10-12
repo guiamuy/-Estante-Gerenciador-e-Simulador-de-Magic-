@@ -2073,3 +2073,21 @@ test('CR 702.175a · prole (Pawpatch Recruit, texto oficial: "Offspring {2}"): c
   let v = resolve(act(s, ofs.find(x => !x.proleK)));
   assert.equal(v.zones[a].battlefield.filter(x => v.objects[x].token).length, 0, 'sem pagar a prole, sem ficha');
 });
+
+/* ---------------- K-54 · spree 702.172 ---------------- */
+test('CR 702.172a · spree (Three Steps Ahead, texto oficial): um botão por combinação de modos, com a soma dos custos "+ {…}" dos modos escolhidos; oferecido só quando o total fecha; resolve os modos na ordem impressa', () => {
+  assert.deepEqual(J(E.spreeImpressoK(oficial('Three Steps Ahead'))), ['{1}{U}', '{3}', '{2}']);
+  let s = comManaK33({ 'Three Steps Ahead': oficial('Three Steps Ahead'), Urso: URSO }, { 'Three Steps Ahead': S.SCRIPTS['Three Steps Ahead'] }); const a = s.turn.active;
+  s = terrenos(s, a, 'Island', 6); let t3, u; [s, t3] = poe(s, a, 'Three Steps Ahead', 'hand'); [s, u] = poe(s, a, 'Urso');
+  const modos = s.facts['Three Steps Ahead'].script.modes; assert.equal(modos.length, 7, 'três modos sozinhos e quatro combinações');
+  const i23 = modos.findIndex(m => J(m.modosK).join() === '1,2'), i3 = modos.findIndex(m => J(m.modosK).join() === '2');
+  const ofertas = (st, i) => E.legalActions(st, a).filter(x => x.t === 'cast' && x.oid === t3 && x.mode === i);
+  let cinco = J(s); cinco.objects[cinco.zones[a].battlefield.find(x => cinco.objects[x].name === 'Island')].tapped = true;
+  assert.equal(ofertas(cinco, i23).length, 0, '{U} + {3} + {2} não fecha com cinco Ilhas');
+  assert.ok(ofertas(cinco, i3).length, 'só comprar: {U} + {2}');
+  const mao = s.zones[a].hand.length;
+  let t = resolve(act(s, ofertas(s, i23).find(x => x.targets[0].oid === u)));
+  assert.equal(t.zones[a].battlefield.filter(x => t.objects[x].tapped).length, 6, 'pagou {U}{3}{2}');
+  assert.equal(t.zones[a].battlefield.filter(x => t.objects[x].token && t.objects[x].name === 'Urso').length, 1, 'a ficha cópia do Urso');
+  assert.equal(t.zones[a].hand.length, mao - 1 + 2 - 1, 'comprou duas e descartou uma');
+});

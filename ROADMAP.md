@@ -4480,6 +4480,11 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Aceite:** Pawpatch Recruit com três Florestas: conjurar com prole paga {G}+{2} e cria a ficha 1/1 com atropelar; sem prole, nenhuma ficha.
 - **Testes:** `keywords.cr4.unit` (1, falha sem a leva), `combat.audit` (1 cenário). Texto oficial: Coruscation Mage, Iridescent Vinelasher, Flowerfoot Swordmaster, Pawpatch Recruit (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
 - **Parcial declarado:** várias instâncias contam como uma; o 1/1 é efeito de camada 7b na ficha, não valor copiável (uma cópia da ficha sai no tamanho original); prole com custo que não é mana não é lida.
+**K-54 · Spree (702.172)** 🟡 (leva K-54) — onda 4 (220 cópias em 111 listas: Lively Dirge, Three Steps Ahead)
+- **Valor:** as mágicas "Spree" mostram um botão por combinação de modos, com a soma dos custos "+ {…}" dos modos escolhidos; só aparecem as que dá para pagar.
+- **Aceite:** Three Steps Ahead com seis Ilhas: "ficha cópia + comprar duas e descartar uma" paga {U}{3}{2} e faz as duas coisas; com cinco, essa combinação some e "só comprar" ({U}{2}) continua.
+- **Testes:** `keywords.cr4.unit` (1, falha sem a leva), `combat.audit` (1 cenário). Texto oficial: Lively Dirge, Three Steps Ahead, Return the Favor, Requisition Raid (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
+- **Parcial declarado:** só pelo custo normal (ou sem pagar o custo de mana); Lively Dirge, Return the Favor e Requisition Raid sem script (efeitos fora do vocabulário do motor).
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

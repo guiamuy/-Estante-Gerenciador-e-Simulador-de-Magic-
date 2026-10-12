@@ -9304,14 +9304,19 @@
    "n": "702.172",
    "regra": "Keyword Abilities",
    "titulo": "Spree",
-   "status": "ausente",
-   "falta": "Sem implementação (grep sem ocorrência no motor nem nos scripts). Os modos do motor são \"escolha um\" (script.modes, a.mode único): falta escolher um ou mais modos e somar o custo adicional de cada um.",
+   "status": "parcial",
+   "falta": "Custos de modo que não são mana não são lidos. A conjuração com spree só é oferecida pelo custo normal ou sem pagar o custo de mana (não com custo alternativo, convocar ou lampejo do passado). Com redução por alvo no campo (filtro OTIMISTA, M-259), a âncora ↓ K não confere o custo somado. Lively Dirge, Return the Favor e Requisition Raid sem script (efeitos fora do vocabulário).",
    "esforco": "M",
    "depende": [
     "700.2 mágica modal com vários modos",
     "601.2b custo adicional"
    ],
-   "cartas": "uma coleção só (Outlaws of Thunder Junction)"
+   "cartas": "uma coleção só (Outlaws of Thunder Junction)",
+   "evidencia": "K-54: \"Spree\" e as linhas \"+ {custo} — efeito\" (spreeImpressoK) dão o custo de cada modo do script. Em createGame cada combinação de um ou mais modos vira um modo, na ordem impressa, com a marca spreeK = soma dos custos (modosSpreeK); cada modo é instância própria de \"alvo\" (115.3: modosCombinadosK, alvosPorModoK). O custo soma ao custo total no caminho normal (custoTapadoK, genericoAdicionalK; 601.2f) e é pago à parte nos outros (pagaSpreeK, também sem pagar o custo de mana, 118.9d); ofertasSpreeK tira as combinações que não fecham. Three Steps Ahead em RAW_SCRIPTS (S8).",
+   "testes": [
+    "CR 702.172a · spree (Three Steps Ahead, texto oficial): um botão por combinação de modos, com a soma dos custos \"+ {…}\" dos modos escolhidos; oferecido só quando o total fecha; resolve os modos na ordem impressa",
+    "K-54 · spree (702.172): +2/+0 e iniciativa no mesmo Urso (os dois modos), que mata o bloqueador antes"
+   ]
   },
   {
    "n": "702.173",

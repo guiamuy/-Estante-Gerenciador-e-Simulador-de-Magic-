@@ -817,6 +817,20 @@ test('K-53 · prole (702.175): pagando a prole, a ficha cópia 1/1 com atropelar
   s = JSON.parse(JSON.stringify(s)); s.objects[f].sick = false;
   assert.equal(combate(s, [f]).players[d].life, 19, 'a cópia é 1/1');
 });
+test('K-54 · spree (702.172): +2/+0 e iniciativa no mesmo Urso (os dois modos), que mata o bloqueador antes', () => {
+  cobre('spree');
+  const cartas = { ...CARDS, Farra: { name: 'Farra', type_line: 'Instant', mana_cost: '{R}', cmc: 1, colors: ['R'], keywords: ['Spree'], oracle_text: 'Spree\n+ {1} — Target creature gets +2/+0 until end of turn.\n+ {1} — Target creature gains first strike until end of turn.' } };
+  const scripts = { ...SCRIPTS, Farra: { name: 'Farra', modes: [{ label: '+2/+0', effects: [{ do: 'pump', power: 2, toughness: 0, target: 'creature' }] }, { label: 'Iniciativa', effects: [{ do: 'keyword', keyword: 'first strike', target: 'creature' }] }], example: { action: 'mode:0', target: 'own-creature', expect: { pump: [2, 0] } } } };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 74, mode: 'assisted', manaCheck: false, cards: cartas, scripts, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a; let u, b, h; [s, u] = poe(s, a, 'Urso'); [s, b] = poe(s, d, 'Urso'); [s, h] = poe(s, a, 'Farra', { zone: 'hand' });
+  const ie = s.facts.Farra.script.modes.findIndex(m => (m.modosK || []).length === 2);
+  const of = E.legalActions(s, a).find(x => x.oid === h && x.mode === ie && x.targets.every(t => t.oid === u)); assert.ok(of);
+  s = act(s, of); for (let i = 0; i < 4 && s.stack.length; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const t = combate(s, [u], [[b, u]]);
+  assert.equal(vivo(t, u), true); assert.equal(vivo(t, b), false);
+});
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));
