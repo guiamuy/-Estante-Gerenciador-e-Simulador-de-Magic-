@@ -2544,11 +2544,10 @@
    "n": "306.4",
    "regra": "Planeswalkers",
    "titulo": "Planeswalker segue a regra de lenda",
-   "status": "ausente",
-   "falta": "a regra de lenda não existe (sonda com dois Kytheon lendários); dois planeswalkers iguais convivem.",
-   "esforco": "M",
-   "depende": [
-    "704.5j"
+   "status": "coberta",
+   "evidencia": "T-18 (12/10/2026): a regra das lendas (704.5j, `lendasRepetidas`) vale para planeswalker lendário: dois de mesmo nome sob o mesmo controlador abrem a escolha; o mapa de 06/10 dizia que ela não existia.",
+   "testes": [
+    "CR 306.4 / 704.5j · dois planeswalkers lendários de mesmo nome sob o mesmo controlador: a regra das lendas pergunta qual fica"
    ]
   },
   {
@@ -2556,18 +2555,21 @@
    "regra": "Planeswalkers",
    "titulo": "Lealdade",
    "status": "coberta",
-   "evidencia": "entra com marcadores iguais à lealdade impressa (index.html:10301), lealdade = marcadores (index.html:11985), habilidades uma por turno em tempo de feitiço (index.html:10906, 12008); testes S21 (rules.unit:956 e 968). Feito direto na entrada, não como efeito de substituição."
+   "evidencia": "entra com marcadores iguais à lealdade impressa (index.html:10301), lealdade = marcadores (index.html:11985), habilidades uma por turno em tempo de feitiço (index.html:10906, 12008); testes S21 (rules.unit:956 e 968). Feito direto na entrada, não como efeito de substituição. T-18 (12/10/2026): a lealdade impressa soma ao marcador extra posto na entrada (614.1c, Oath of Gideon), em vez de sobrescrevê-lo; habilidade de lealdade só no seu turno, principal, pilha vazia, uma por turno (606.3).",
+   "testes": [
+    "CR 306.5b / 306.5c · o planeswalker entra com marcadores de lealdade iguais à lealdade impressa; no campo, a lealdade é o número de marcadores",
+    "CR 306.5b / 614.1c · \"cada planeswalker seu entra com um marcador de lealdade adicional\" soma à lealdade impressa (antes a impressa sobrescrevia o marcador extra)",
+    "CR 306.5d / 606.3 · habilidade de lealdade: só no seu turno, na fase principal, com a pilha vazia e uma por turno por planeswalker"
+   ]
   },
   {
    "n": "306.6",
    "regra": "Planeswalkers",
    "titulo": "Planeswalker pode ser atacado",
-   "status": "ausente",
-   "falta": "sonda: com Narset do oponente no campo, as ações de ataque não têm alvo; o defensor é sempre o jogador (10696, 12339).",
-   "esforco": "M",
-   "depende": [
-    "508.1b",
-    "506.4"
+   "status": "coberta",
+   "evidencia": "T-18 (12/10/2026): planeswalker do oponente atacável desde a M-228 (`pwsAtacaveis`, ação attack com `alvos`, mesa \"Alvo:\"); dano de combate tira lealdade, não vida. O mapa de 06/10 dizia que não era atacável.",
+   "testes": [
+    "CR 306.6 / 508.1b / 306.8 · o planeswalker do oponente pode ser atacado e o dano de combate tira lealdade, não vida"
    ]
   },
   {
@@ -2575,20 +2577,25 @@
    "regra": "Planeswalkers",
    "titulo": "Regra antiga de redirecionar dano",
    "status": "definicao",
-   "evidencia": "\"qualquer alvo\" já inclui planeswalker (index.html:10931)"
+   "evidencia": "\"qualquer alvo\" já inclui planeswalker (index.html:10931)",
+   "testes": [
+    "CR 306.7 · sem redirecionamento: o dano \"ao oponente\" vai ao jogador, nunca ao planeswalker dele"
+   ]
   },
   {
    "n": "306.8",
    "regra": "Planeswalkers",
    "titulo": "Dano tira marcadores de lealdade",
    "status": "coberta",
-   "evidencia": "dano de mágica/habilidade tira lealdade (index.html:11123); teste \"S21 · ... dano tira lealdade\" · M-228 (v95): cada atacante ataca o jogador ou um planeswalker dele (ação attack com alvos; o.atacandoPw); dano de combate sem bloqueio vai para o planeswalker e tira lealdade (criatura-planeswalker também marca dano); planeswalker que saiu não recebe nada; exigência \"ataca X se puder\" (Gideon +2)",
+   "evidencia": "dano de mágica/habilidade tira lealdade (index.html:11123); teste \"S21 · ... dano tira lealdade\" · M-228 (v95): cada atacante ataca o jogador ou um planeswalker dele (ação attack com alvos; o.atacandoPw); dano de combate sem bloqueio vai para o planeswalker e tira lealdade (criatura-planeswalker também marca dano); planeswalker que saiu não recebe nada; exigência \"ataca X se puder\" (Gideon +2) T-18 (12/10/2026): planeswalker que também é criatura recebe os dois resultados (120.3e): lealdade e dano marcado, −1/−1 com infectar, toque mortífero destrói — de efeito e de combate (`danoEmPwCriaturaT`).",
    "esforco": "P",
    "depende": [
     "306.6"
    ],
    "testes": [
-    "M-228 · atacar planeswalker: a criatura escolhe atacar o planeswalker do oponente; o dano de combate sem bloqueio tira lealdade, não vida"
+    "M-228 · atacar planeswalker: a criatura escolhe atacar o planeswalker do oponente; o dano de combate sem bloqueio tira lealdade, não vida",
+    "CR 306.8 / 120.3c / 306.9 / 704.5i · dano de efeito tira lealdade; com lealdade 0 o planeswalker vai para o cemitério do DONO (mesmo roubado)",
+    "CR 120.3c / 120.3e / 120.3d · dano de efeito num planeswalker-criatura tira lealdade E fica marcado; com infectar, tira lealdade e põe −1/−1; com toque mortífero, ele é destruído"
    ]
   },
   {
@@ -2596,7 +2603,10 @@
    "regra": "Planeswalkers",
    "titulo": "Lealdade 0 vai ao cemitério",
    "status": "coberta",
-   "evidencia": "ação baseada em estado (index.html:12125)"
+   "evidencia": "ação baseada em estado (index.html:12125)",
+   "testes": [
+    "CR 306.8 / 120.3c / 306.9 / 704.5i · dano de efeito tira lealdade; com lealdade 0 o planeswalker vai para o cemitério do DONO (mesmo roubado)"
+   ]
   },
   {
    "n": "307.1",

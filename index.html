@@ -16459,7 +16459,7 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
   if (to === 'battlefield') { const r = entradaModificada(s, o, xPago); if (r.virada != null) o.tapped = r.virada; if (r.pagaVida) s.queuedChoices = (s.queuedChoices || []).concat([{ kind: 'paga_vida_entrada', oid: o.oid, z: o.zc || 0, p: o.controller, n: r.pagaVida, name: o.name }]); for (const [k, n] of Object.entries(r.marcadores)) o.counters[k] = (o.counters[k] || 0) + marcadoresAoPor(s, o, k, n, true); } // CR2e.2 · 614.16: entrar com marcadores também é pôr marcadores
   if (to === 'battlefield') sagaEntrou(s, o); // T-2 · CR 714.3a / 122.6 / 714.3b · Saga que ENTRA no campo: o marcador de entrada dispara o capítulo aqui; com read ahead, fica anotada para a escolha (função abaixo da âncora T das exportações)
   // S21 · planeswalker entra com sua lealdade inicial
-  if (to === 'battlefield' && s.facts[o.name].types.includes('planeswalker') && s.facts[o.name].loyalty != null) o.counters.loyalty = marcadoresAoPor(s, o, 'loyalty', s.facts[o.name].loyalty, true); // CR2e.2 · ruling: entra com o dobro da lealdade
+  if (to === 'battlefield' && s.facts[o.name].types.includes('planeswalker') && s.facts[o.name].loyalty != null) o.counters.loyalty = (o.counters.loyalty || 0) + marcadoresAoPor(s, o, 'loyalty', s.facts[o.name].loyalty, true); /* T-18 · CR 306.5b / 614.1c: soma ao marcador extra posto na entrada (Oath of Gideon) · Toca ponto comum: moveObject (S21) */ // CR2e.2 · ruling: entra com o dobro da lealdade
   // S39 · vínculo de alma: ao entrar, emparelha com uma criatura sua ainda sozinha
   if (to === 'battlefield') pairSoulbond(s, o);
   // M9 · gatilhos de mudança de zona
@@ -17543,7 +17543,7 @@ function dealCombatDamage(s) {
       // CR2-G R5b · prevenção num caminho só (S30 cor; S11b prevenção e proteção, Leva 106: Flaring Pain vale para a proteção)
       amt = danoSubstituido(s, src, obj ? { obj } : { player }, amt, true); // CR2-G R5d · "causa N a mais / o dobro" vem antes da prevenção
       amt = danoAposPrevencao(s, src, obj ? { obj } : { player }, amt, true); if (!amt) continue;
-      if (ehPw && danoEmBatalhaT(s, src, obj, amt)) { /* T-14 · CR 310.6 / 120.3h · Toca ponto comum: dealCombatDamage */ } else if (ehPw) { // M-228 · 120.3c: dano ao planeswalker tira lealdade; se ele também é criatura (Gideon no 0), o dano fica marcado (120.3e)
+      if (ehPw && (danoEmBatalhaT(s, src, obj, amt) || danoEmPwCriaturaT(s, src, obj, amt))) { /* T-18 · CR 120.3e / 702.2b */ /* T-14 · CR 310.6 / 120.3h · Toca ponto comum: dealCombatDamage */ } else if (ehPw) { // M-228 · 120.3c: dano ao planeswalker tira lealdade; se ele também é criatura (Gideon no 0), o dano fica marcado (120.3e)
         obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - amt); if (isCreature(s, obj)) marcaDanoEmCriatura(s, src, obj, amt); noteDamaged(s, obj);
       } else if (obj && amt > 0) { marcaDanoEmCriatura(s, src, obj, amt); noteEnchantedEvent(s, obj, 'recebe-dano'); noteDamaged(s, obj); if (has(s, fonteDoDano(s, src), 'deathtouch')) obj.deathtouched = true; }
       else {
@@ -18095,7 +18095,7 @@ function applyEffect(s, src, eff, tgt, events) {
         if (n > 0 ? !resto : prevencaoLegado(s, src, obj)) { ganhaVida(n); note({ amount: n, prevented: true }); break; } // dano 0 prevenido continua no registro, como antes
         if (resto < n) ganhaVida(n - resto);
         n = resto;
-        if (obj && danoEmBatalhaT(s, src, obj, n)) { causouDano(s, src, n); note({ amount: n }); break; } // T-14 · CR 310.6 / 120.3h · dano à batalha tira defesa · Toca ponto comum: applyEffect damage (uma linha)
+        if (obj && (danoEmBatalhaT(s, src, obj, n) || danoEmPwCriaturaT(s, src, obj, n))) { causouDano(s, src, n); note({ amount: n }); break; } // T-18 · CR 120.3e: planeswalker-criatura // T-14 · CR 310.6 / 120.3h · dano à batalha tira defesa · Toca ponto comum: applyEffect damage (uma linha)
         if (obj && !obj.faceDown && s.facts[obj.name].types.includes('planeswalker')) { obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - n); causouDano(s, src, n); note({ amount: n }); break; } // V-19 · virado para baixo recebe dano como criatura · Toca ponto comum: applyEffect damage
         if (obj && n > 0) { marcaDanoEmCriatura(s, src, obj, n); noteEnchantedEvent(s, obj, 'recebe-dano'); noteDamaged(s, obj); if (has(s, fonteDoDano(s, src), 'deathtouch')) obj.deathtouched = true; } // CR2a.9 // CR 120.8: dano 0 não é dano
         else danoEmJogador(s, src, playerOf(), n);
@@ -23459,6 +23459,21 @@ function lutar(s, src, eff, tgt, events) {
 }
 Object.assign(EXPORTS_V, { lutar });
 /* ↓ T · exportações de core.js da trilha tipos */
+/* ---------------- T-18 · CR 306 · planeswalker ----------------
+   306.1–306.9 já valiam (conjurar, lealdade, habilidades de lealdade, regra das lendas, ataque, dano, lealdade 0; 306.7 não existe
+   mais): a T-18 os prova em tipos.planeswalkers.unit e corrige o que a auditoria achou no tipo:
+   - 306.5b / 614.1c · a lealdade impressa SOMA ao marcador de lealdade extra posto na entrada (antes sobrescrevia).
+   - 120.3c / 120.3d / 120.3e / 702.2b · dano (de efeito ou de combate) num planeswalker que também é criatura: tira lealdade E vale
+     como dano à criatura — marcado, ou −1/−1 com infectar, e toque mortífero destrói (`danoEmPwCriaturaT`). Planeswalker que não é
+     criatura segue pelo caminho de sempre. */
+function danoEmPwCriaturaT(s, src, obj, n) {
+  if (!obj || obj.faceDown || !tiposDe(s, obj).includes('planeswalker') || !isCreature(s, obj)) return false;
+  if (!(n > 0)) return true;
+  obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - n);
+  marcaDanoEmCriatura(s, src, obj, n); noteEnchantedEvent(s, obj, 'recebe-dano'); noteDamaged(s, obj);
+  if (has(s, fonteDoDano(s, src), 'deathtouch')) obj.deathtouched = true;
+  return true;
+}
 /* ---------------- T-16 · CR 301.5 · Equipamento ----------------
    - Quem é Equipamento: a linha de tipo de agora (com efeitos que mudam tipo) tem "Equipment"; sem linha de tipo no dado, o `equip`
      do script. 301.5c: o Equipamento que é criatura (reconfigurar não existe no motor), que perdeu o subtipo ou que mira a si mesmo
