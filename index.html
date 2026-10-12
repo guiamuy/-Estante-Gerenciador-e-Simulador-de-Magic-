@@ -5232,6 +5232,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'escalate', // K-48 · 702.120: cada combinação de dois ou mais modos é mais um modo, com o custo de escalar por modo além do primeiro (modosEscaladosK)
   'warp', // K-51 · 702.185: custo alternativo da mão; a permanente é exilada no começo da próxima etapa final e o dono pode conjurá-la do exílio a partir do turno seguinte (dobrouK)
   'mobilize', // K-52 · 702.181: gatilho de ataque que cria N Guerreiros 1/1 vermelhos virados e atacando, sacrificados na próxima etapa final (mobilizar_k)
+  'offspring', // K-53 · 702.175: custo adicional opcional; paga, a permanente cria ao entrar uma ficha que é cópia dela, só que 1/1 (proleK)
   'afflict', 'melee', 'mentor', 'training', // K-31 · 702.130, 702.121, 702.134, 702.149: gatilhos de ataque gerados pela palavra, um por instância
   'battle cry', 'rampage', 'flanking', 'bushido', // K-30 · 702.91, 702.23, 702.25, 702.45: gatilhos de combate gerados pela palavra (GATILHOS_DE_PALAVRA_K), um por instância
   /* ↓ V · palavras-chave da trilha verbos */
@@ -5401,6 +5402,7 @@ const EFFECTS = {
   dobra_k: { fields: [], targets: [] }, // K-51 · 702.185a · exila a permanente dobrada no começo da próxima etapa final (gerado pelo motor)
   mobilizar_k: { fields: ['n'], targets: [] }, // K-52 · 702.181a (gerado pelo motor)
   mobilizar_ataca_k: { fields: [], targets: [] }, // K-52 · 508.4: as fichas atacam o que o controlador escolheu (gerado pelo motor)
+  prole_k: { fields: ['z'], targets: [] }, // K-53 · 702.175a (gerado pelo motor)
   salvaguarda: { fields: [], targets: [] }, // K-2 · 702.21a · gerado pelo motor quando uma permanente com salvaguarda vira alvo (não vai em script)
   volta_com_marcador: { fields: ['marcador'], targets: [] }, // K-4 · persistir e imortal (gerado pelo motor)
   exaltado: { fields: ['criatura'], targets: [] }, // K-5 · exaltado (gerado pelo motor)
@@ -8349,6 +8351,7 @@ function palavraNaLinhaK(k) {
   if (k === 'escalate') return 'escalate(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*(?:sacrifice (?:an?|one|two|three) (?:lands?|creatures?|artifacts?|enchantments?)|discard (?:a|one|two|three) cards?|tap an untapped creature you control|pay \\d+ life)\\.?)'; // K-48
   if (k === 'warp') return 'warp(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*(?:\\{[0-9WUBRGC]+\\})+, pay \\d+ life\\.?)'; // K-51
   if (k === 'mobilize') return 'mobilize \\d+'; // K-52 · "Mobilize X" fica de fora
+  if (k === 'offspring') return 'offspring\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-53
   if (k === 'dash') return 'dash\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-9
   if (k === 'evoke') return 'evoke(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*exile an? (?:white|blue|black|red|green) card from your hand\\.?)'; // K-8 · só as formas que o motor paga
   return ['afterlife', 'rampage', 'bushido', 'afflict'].includes(k) ? `${k} \\d+` : k; // K-30 · alvoroço N e bushido N
@@ -16050,6 +16053,7 @@ function cardFacts(card) {
     emergirK: emergirImpressoK(card), // K-47 · 702.119: { mana, tipo } (undefined quando não tem)
     escalarK: escalarImpressoK(card), // K-48 · 702.120: "Escalate {1}" / "Escalate—Discard a card." (undefined quando não tem)
     dobraK: dobraImpressaK(card), // K-51 · 702.185: "Warp {1}{U}" / "Warp—{B}, Pay 2 life." (undefined quando não tem)
+    proleK: custoDaLinhaK(card, 'Offspring'), // K-53 · 702.175: "Offspring {2}" (undefined quando não tem)
     campeaoK: campeaoImpressoK(card), // K-44 · 702.72: "Champion a creature" → 'creature'; "Champion an Elf" → 'Elf' (undefined quando não tem)
     suspenderK: suspenderImpressoK(card), // K-22 · 702.62a: "Suspend N—{custo}" (undefined quando não tem)
     equipesK: equipesImpressosK(card), // K-28 · 702.6c: "Equip [qualidade] {custo}" (undefined quando não tem)
@@ -18962,6 +18966,15 @@ function applyEffect(s, src, eff, tgt, events) {
       break;
     }
     /* ↓ K · casos de applyEffect da trilha keywords */
+    case 'prole_k': { // K-53 · 702.175a: a ficha copia a permanente (se saiu do campo, a última informação: o nome que ela tinha, 608.2h)
+      const perm = s.objects[src.ability ? src.source : src.oid];
+      const nome = perm && perm.zone === 'battlefield' && (perm.zc || 0) === eff.z ? nomeCopiavel(s, perm) : perm && perm.name; // saiu do campo: o nome impresso (a última informação de cópia não fica guardada)
+      if (!nome || !s.facts[nome]) { note({ failed: true }); break; }
+      const n = fichasAoCriar(s, ctrl, 1);
+      for (let i = 0; i < n; i++) { const t = createToken(s, { name: nome }, ctrl, events); const ft = s.objects[t]; if (ft) aplicaTemporario(s, ft, { vira: { base: [1, 1] }, ate: 'sempre' }, ctrl); } // "except it's 1/1"
+      note({ name: nome, amount: n });
+      break;
+    }
     case 'mobilizar_k': { // K-52 · 702.181a: as fichas entram viradas e atacando; 508.4: o controlador escolhe quem elas atacam
       const fichas = [];
       for (let i = 0; i < (eff.n || 0); i++) { const t = createToken(s, GUERREIRO_K, ctrl, events); if (t && s.objects[t]) { s.objects[t].tapped = true; fichas.push(t); } }
@@ -20675,6 +20688,7 @@ const HANDLERS = {
       } else payCost(s, a.p, ...custoTapadoK(s, a, o, custo, extraPago), { criaturaDoComandante: true, oid: a.oid }); } // K-13 · convocar/improvisar (Toca ponto comum: o pagamento do custo normal) // M-273 // M-259 · a redução por alvo usa os alvos escolhidos
     if (a.kick && reforco && s.manaCheck && !a.free && (alt || a.flashback || a.escape || a.disturb || a.omen || a.bestow || a.plotted)) payCost(s, a.p, somaCusto(parseCost('{0}'), parseCost(reforco.mana), a.kick)); // CR2c.6 · 601.2f: o reforço soma ao custo alternativo
     if (a.recompraK) pagaRecompraK(s, a, o, alt); // K-33 · 702.27a: o custo de recompra, 601.2b/601.2f–h (Toca ponto comum: HANDLERS.cast)
+    if (a.proleK) pagaProleK(s, a, o, alt); // K-53 · 702.175a: o custo de prole, 601.2b/601.2f–h (Toca ponto comum: HANDLERS.cast)
     if (alt && alt.emergirK) pagaEmergirK(s, a, o, alt); // K-47 · 702.119a: o custo de emergir menos o valor de mana da sacrificada (Toca ponto comum: HANDLERS.cast)
     if (a.mode != null && ((((f.script || {}).modes) || [])[a.mode] || {}).entrelacarK) pagaEntrelacarK(s, a, o, alt); // K-34 · 702.42a: o custo de entrelaçar (Toca ponto comum: HANDLERS.cast)
     if (a.kick && reforco && s.manaCheck && a.free) payCost(s, a.p, somaCusto(parseCost('{0}'), parseCost(reforco.mana), a.kick)); // M-337 · 118.9d: conjurada sem pagar (cascata, Covil), o reforço é custo adicional e é pago — antes era de graça
@@ -21876,6 +21890,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
   ofertasEscalarK(s, p, out); // K-48 · 702.120a: idem para cada combinação escalada (o custo vezes os modos além do primeiro)
   // K-33 · 702.27a · recompra: cada conjuração pelo custo normal ganha a variante que paga também o custo de recompra (opcional: as duas ficam)
   ofertasRecompraK(s, p, out);
+  ofertasProleK(s, p, out); // K-53 · 702.175a · prole: cada conjuração pelo custo normal ganha a variante que paga também o custo de prole
   // K-22 · 702.62a · suspender: a oferta mora em ofertasSuspenderK até a mesa ter o botão (K-24; pedido à trilha mesa)
   // K-27 · 702.49d · ninjutsu de comandante, da zona de comando (da mão, pelo caminho de sempre)
   for (const oid of s.zones[p].command) {
@@ -22175,6 +22190,8 @@ const GATILHOS_DE_PALAVRA_K = {
   // K-52 · 702.181a · "Whenever this creature attacks, create N 1/1 red Warrior creature tokens. Those tokens enter tapped and attacking.
   // Sacrifice them at the beginning of the next end step." (um gatilho por instância)
   mobilize: (s, o, i) => ({ kind: 'triggered', when: 'attacks', palavraK: 'mobilize', effects: [{ do: 'mobilizar_k', n: numeroDaPalavraK(s, o, 'mobilize', i) }] }),
+  // K-53 · 702.175a · "When this permanent enters, if its offspring cost was paid, create a token that's a copy of it, except it's 1/1."
+  offspring: (s, o) => o && o.proleK ? ({ kind: 'triggered', when: 'etb', palavraK: 'offspring', effects: [{ do: 'prole_k', z: o.zc || 0 }] }) : [],
   // K-40 · 702.70a · "Whenever this creature deals combat damage to a player, that player gets N poison counters." (o jogador atingido é o que ela atacava)
   poisonous: (s, o, i) => ({ kind: 'triggered', when: 'combat-damage', palavraK: 'poisonous', effects: [{ do: 'venenoso_k', n: numeroDaPalavraK(s, o, 'poisonous', i), jogador: defensorDeK(s, o) }] }),
   // K-40 · 702.112a · "When this creature deals combat damage to a player, if it isn't renowned, put N +1/+1 counters on it and it becomes renowned." (603.4)
@@ -22348,6 +22365,7 @@ MARCAS_DA_CONJURACAO.push('renomadaK'); // K-40 · 702.112b: renomada até sair 
 MARCAS_DA_CONJURACAO.push('devorouK', 'entrarComEscolhasK'); // K-43 · 702.82b: "it devoured" vale para esta permanente
 MARCAS_DA_CONJURACAO.push('emergiuK'); // K-47
 MARCAS_DA_CONJURACAO.push('dobradaK', 'dobraK'); // K-51 · a marca da carta exilada (702.185b) some quando ela muda de zona (400.7)
+MARCAS_DA_CONJURACAO.push('proleK'); // K-53 · a marca de prole paga vai da pilha ao campo e some depois (400.7)
 MARCAS_DA_CONJURACAO.push('campeaoDeK', 'campeaoNesteK'); // K-44 · a ligação é deste objeto (400.7)
 const COR_DO_NOME_K = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
 const COR_PT_K = { W: 'branca', U: 'azul', B: 'preta', R: 'vermelha', G: 'verde' };
@@ -22512,6 +22530,7 @@ function gruposParaTaparK(s, p, o, custo, extra) {
 /** HANDLERS.cast · o custo normal a pagar com mana depois de virar o grupo escolhido (sem `tapaK`, o mesmo de antes). */
 function custoTapadoK(s, a, o, custo, extra) {
   if (a.recompraK && (s.facts[o.name].recompraK || {}).mana) custo = somaCusto(custo, parseCost(s.facts[o.name].recompraK.mana), 1); // K-33
+  if (a.proleK && (s.facts[o.name].proleK || {}).mana) custo = somaCusto(custo, parseCost(s.facts[o.name].proleK.mana), 1); // K-53 · 601.2f
   if (entrelacadoNaAcaoK(s, a, o) && (s.facts[o.name].entrelacarK || {}).mana) custo = somaCusto(custo, parseCost(s.facts[o.name].entrelacarK.mana), 1); // K-34 · idem
   { const n = escaladoNaAcaoK(s, a, o); if (n && (s.facts[o.name].escalarK || {}).mana) custo = somaCusto(custo, parseCost(s.facts[o.name].escalarK.mana), n); } // K-48 · 601.2f: o escalar soma ao custo total
   { const adic = genericoAdicionalK(s, a, o); if (adic) extra += castExtraK(s, a.p, o, a.x || 0, a.targets || [], adic) - castExtra(s, a.p, o, a.x || 0, a.targets || []); } // K-39 · 601.2f: as reduções valem sobre o genérico somado · 601.2f: a recompra soma ao custo total (reduções valem sobre a soma)
@@ -22969,6 +22988,7 @@ const sobControleDesdeK = o => Math.max(o.ts || 0, ...((o.controles || []).filte
 function genericoAdicionalK(s, a, o) {
   const f = s.facts[o.name]; let n = 0;
   if (a.recompraK && (f.recompraK || {}).mana) n += parseCost(f.recompraK.mana).generic || 0;
+  if (a.proleK && (f.proleK || {}).mana) n += parseCost(f.proleK.mana).generic || 0; // K-53
   if (entrelacadoNaAcaoK(s, a, o) && (f.entrelacarK || {}).mana) n += parseCost(f.entrelacarK.mana).generic || 0;
   if ((f.escalarK || {}).mana) n += escaladoNaAcaoK(s, a, o) * (parseCost(f.escalarK.mana).generic || 0); // K-48
   return n;
@@ -23290,6 +23310,31 @@ function mobilizaAtacaK(s, fichas, alvo) {
   }
 }
 Object.assign(EXPORTS_K, { alvosDoMobilizarK });
+/* K-53 · 702.175 prole (offspring): "You may pay an additional [cost] as you cast this spell" e "When this permanent enters, if its offspring
+   cost was paid, create a token that's a copy of it, except it's 1/1." O custo segue o caminho da recompra (soma ao custo total, 601.2f;
+   variante oferecida para cada conjuração pelo custo normal). A marca `proleK` vai da pilha ao campo; o gatilho de entrada só existe com
+   ela. O 1/1 entra como P/T base fixado na ficha (camada 7b, com o carimbo da criação), não como valor copiável (707.9b). */
+function pagaProleK(s, a, o, alt) {
+  const pk = s.facts[o.name].proleK;
+  if (!pk) throw new RuleError('custo', 'esta mágica não tem prole');
+  if (a.faceDown) throw new RuleError('custo', 'virada para baixo não tem prole'); // 708.4
+  const viaNormal = s.manaCheck && !a.free && !alt && !a.flashback && !a.escape && !a.disturb && !a.omen && !a.bestow && !a.plotted && a.vida == null;
+  if (pk.mana && s.manaCheck && !viaNormal) payCost(s, a.p, parseCost(pk.mana));
+  s.objects[a.oid].proleK = true;
+}
+function ofertasProleK(s, p, out) {
+  const base = out.filter(x => x.t === 'cast' && !x.proleK && x.alt == null && !x.flashback && !x.escape && !x.disturb && !x.omen && !x.bestow && !x.faceDown && !x.plotted && !x.free && !x.tapaK && !x.recomecarK && !x.retrace && !x.emenda && x.vida == null && x.face == null && x.permissao == null && s.objects[x.oid] && (s.facts[s.objects[x.oid].name] || {}).proleK);
+  for (const x of base) {
+    const o = s.objects[x.oid], f = s.facts[o.name], pk = f.proleK;
+    if (s.manaCheck && pk.mana) {
+      let custo = x.kick ? somaCusto(f.cost, parseCost(f.script.kicker.mana), x.kick) : f.cost;
+      custo = somaCusto(custo, parseCost(pk.mana), 1);
+      if (!canPay(s, p, custo, castExtraK(s, p, o, x.x || 0, x.targets || [], parseCost(pk.mana).generic || 0) - (x.delve || 0))) continue;
+    }
+    out.push({ ...x, proleK: true });
+  }
+}
+Object.assign(EXPORTS_K, { pagaProleK, ofertasProleK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-30 · 701.65 aerobender: "that player exiles those objects. For each card exiled this way, for as long as it remains exiled, its owner
    may cast it by paying {2} rather than paying its mana cost" (a). A permissão é do DONO e da encarnação exilada (400.7: se a carta sair do
@@ -27204,6 +27249,7 @@ Object.assign(PALAVRA_PT, { emerge: 'emergir' }); // K-47
 Object.assign(PALAVRA_PT, { escalate: 'escalar' }); // K-48
 Object.assign(PALAVRA_PT, { warp: 'dobra' }); // K-51
 Object.assign(PALAVRA_PT, { mobilize: 'mobilizar' }); // K-52
+Object.assign(PALAVRA_PT, { offspring: 'prole' }); // K-53
 Object.assign(PALAVRA_PT, { afflict: 'aflição', melee: 'refrega', mentor: 'mentor', training: 'treinamento' }); // K-31
 Object.assign(PALAVRA_PT, { 'battle cry': 'grito de guerra', rampage: 'alvoroço', flanking: 'flanquear', bushido: 'bushido' }); // K-30
 const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consultadas por descreveEfeito; antes a pilha mostrava "proeza k")
@@ -27223,6 +27269,7 @@ const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consulta
   eco_k: e => `sacrifique esta permanente a menos que pague ${e.mana} (eco)`, // K-36
   ricochete_k: () => 'você pode conjurar esta carta do exílio sem pagar o custo de mana (ricochete)', // K-35
   dobra_k: () => 'exila esta permanente; o dono pode conjurá-la do exílio a partir do próximo turno (dobra)', // K-51
+  prole_k: () => 'cria uma ficha que é cópia desta permanente, só que 1/1 (prole)', // K-53
   mobilizar_k: e => `cria ${e.n === 1 ? 'uma ficha' : e.n + ' fichas'} de Guerreiro 1/1 vermelho viradas e atacando; na próxima etapa final elas são sacrificadas (mobilizar)`, mobilizar_ataca_k: () => '', // K-52
   tempestade_k: e => e.n ? `copia esta mágica ${e.n === 1 ? 'uma vez' : e.n + ' vezes'} (tempestade; cada cópia pode ter alvo novo)` : 'copia esta mágica para cada mágica conjurada antes dela neste turno (nenhuma)',
   proeza_k: () => 'esta criatura recebe +1/+1 até o fim do turno (proeza)',

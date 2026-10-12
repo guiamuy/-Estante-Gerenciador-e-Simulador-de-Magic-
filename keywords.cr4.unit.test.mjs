@@ -2053,3 +2053,23 @@ test('CR 508.4 · as fichas do mobilizar atacam o que o controlador escolher: co
   for (let k = 0; k < 20 && s.turn.step !== 'main2'; k++) s = s.pending ? (s.pending.kind === 'blockers' ? act(s, { t: 'block', p: s.pending.p, blocks: [] }) : act(s, E.legalActions(s, s.pending.p)[0])) : act(s, { t: 'pass', p: s.turn.priority });
   assert.equal(s.objects[pw].counters.loyalty, 3, 'os dois Guerreiros causaram 2 ao planeswalker');
 });
+
+/* ---------------- K-53 · prole (offspring) 702.175 ---------------- */
+test('CR 702.175a · prole (Pawpatch Recruit, texto oficial: "Offspring {2}"): custo adicional opcional; pago, ao entrar cria uma ficha que é cópia dela, só que 1/1 (com atropelar); sem pagar, nada; a ficha não cria outra', () => {
+  const PR = { ...oficial('Pawpatch Recruit'), keywords: ['Offspring', 'Trample'] };
+  let s = comManaK33({ 'Pawpatch Recruit': PR }); const a = s.turn.active;
+  s = terrenos(s, a, 'Forest', 3); let r; [s, r] = poe(s, a, 'Pawpatch Recruit', 'hand');
+  const ofs = E.legalActions(s, a).filter(x => x.t === 'cast' && x.oid === r);
+  assert.ok(ofs.some(x => x.proleK) && ofs.some(x => !x.proleK), 'as duas conjurações');
+  let pouco = J(s); pouco.objects[pouco.zones[a].battlefield[0]].tapped = true;
+  assert.ok(!E.legalActions(pouco, a).some(x => x.t === 'cast' && x.oid === r && x.proleK), 'com dois terrenos, {G} + {2} não fecha');
+  let t = resolve(act(s, ofs.find(x => x.proleK)));
+  assert.equal(t.zones[a].battlefield.filter(x => t.objects[x].tapped).length, 3, 'pagou {G} + {2}');
+  const copias = t.zones[a].battlefield.filter(x => t.objects[x].token && t.objects[x].name === 'Pawpatch Recruit');
+  assert.equal(copias.length, 1, 'uma ficha cópia');
+  const c = t.objects[copias[0]]; assert.equal(E.stats(t, c).power, 1); assert.equal(E.stats(t, c).toughness, 1);
+  assert.ok(E.hasKeyword(t, c, 'trample'), 'a cópia tem as habilidades');
+  assert.equal(E.stats(t, t.objects[r]).power, 2, 'a original continua 2/1');
+  let v = resolve(act(s, ofs.find(x => !x.proleK)));
+  assert.equal(v.zones[a].battlefield.filter(x => v.objects[x].token).length, 0, 'sem pagar a prole, sem ficha');
+});

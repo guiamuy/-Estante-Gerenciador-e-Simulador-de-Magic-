@@ -9344,14 +9344,19 @@
    "n": "702.175",
    "regra": "Keyword Abilities",
    "titulo": "Offspring",
-   "status": "ausente",
-   "falta": "Sem implementação (grep sem ocorrência no motor nem nos scripts). Falta custo adicional opcional e o gatilho de entrada que cria ficha cópia 1/1; o motor não tem ficha cópia de permanente.",
+   "status": "parcial",
+   "falta": "Várias instâncias de prole (702.175b) contam como uma. O 1/1 é P/T base fixado na ficha (camada 7b) e não valor copiável (707.9b): uma cópia da ficha sai no tamanho original. \"Offspring—<custo que não é mana>\" não é lido. Se a permanente sair do campo antes de o gatilho resolver, a ficha copia a carta impressa (a última informação de cópia não fica guardada).",
    "esforco": "G",
    "depende": [
     "707 cópia de objeto (ficha cópia com exceção)",
     "601.2b custo adicional"
    ],
-   "cartas": "uma coleção só (Bloomburrow)"
+   "cartas": "uma coleção só (Bloomburrow)",
+   "evidencia": "K-53: \"Offspring {custo}\" (custoDaLinhaK) é custo adicional opcional: a variante proleK é oferecida para cada conjuração pelo custo normal (ofertasProleK), o mana soma ao custo total (custoTapadoK, genericoAdicionalK; 601.2f) ou é pago à parte com custo alternativo (pagaProleK em HANDLERS.cast). A marca proleK vai da pilha ao campo; com ela, a palavra gera o gatilho de entrada (GATILHOS_DE_PALAVRA_K.offspring) que cria a ficha cópia (prole_k: nomeCopiavel) com P/T base 1/1.",
+   "testes": [
+    "CR 702.175a · prole (Pawpatch Recruit, texto oficial: \"Offspring {2}\"): custo adicional opcional; pago, ao entrar cria uma ficha que é cópia dela, só que 1/1 (com atropelar); sem pagar, nada; a ficha não cria outra",
+    "K-53 · prole (702.175): pagando a prole, a ficha cópia 1/1 com atropelar entra e ataca por 1"
+   ]
   },
   {
    "n": "702.176",

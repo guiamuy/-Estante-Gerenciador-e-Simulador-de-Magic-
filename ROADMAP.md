@@ -4475,6 +4475,11 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Aceite:** Voice of Victory atacando sozinha causa 3; na etapa final os dois Guerreiros somem. Com um planeswalker do oponente, a escolha aparece e o planeswalker perde 2 de lealdade.
 - **Testes:** `keywords.cr4.unit` (2, falham sem a leva), `combat.audit` (1 cenário). Texto oficial: Voice of Victory, Zurgo's Vanguard, Mardu Thunderkite (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
 - **Parcial declarado:** "Mobilize X" não é lido; as fichas do mesmo gatilho atacam todas o mesmo alvo (uma escolha por gatilho).
+**K-53 · Prole (offspring, 702.175)** 🟡 (leva K-53) — onda 4 (248 cópias em 86 listas: Bloomburrow)
+- **Valor:** a carta com "Offspring {2}" tem dois botões de conjurar, com e sem prole. Paga, ao entrar ela cria uma ficha que é cópia dela, só que 1/1.
+- **Aceite:** Pawpatch Recruit com três Florestas: conjurar com prole paga {G}+{2} e cria a ficha 1/1 com atropelar; sem prole, nenhuma ficha.
+- **Testes:** `keywords.cr4.unit` (1, falha sem a leva), `combat.audit` (1 cenário). Texto oficial: Coruscation Mage, Iridescent Vinelasher, Flowerfoot Swordmaster, Pawpatch Recruit (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
+- **Parcial declarado:** várias instâncias contam como uma; o 1/1 é efeito de camada 7b na ficha, não valor copiável (uma cópia da ficha sai no tamanho original); prole com custo que não é mana não é lida.
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.
