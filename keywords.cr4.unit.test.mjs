@@ -824,3 +824,37 @@ test('CR 702.73a / 702.114a · auditoria K-15: metamorfo e desprovido valem pela
   const t = partida({ Desprovida: DESP });
   assert.deepEqual(J(t.facts.Desprovida.colors), [], 'a desprovida só com o texto é incolor');
 });
+
+/* ---------------- K-16 · 702.29 ciclar ---------------- */
+test('CR 702.29a · ciclar é habilidade ativada: o descarte é custo e a compra vai para a pilha (o oponente pode responder antes)', () => {
+  let s = partida({ 'Renewed Faith': oficial('Renewed Faith') }); const a = s.turn.active, d = 1 - a;
+  let r; [s, r] = poe(s, a, 'Renewed Faith', 'hand');
+  const mao = s.zones[a].hand.length;
+  s = act(s, { t: 'cycle', p: a, oid: r });
+  assert.equal(s.objects[r].zone, 'graveyard', 'descartada no custo'); assert.equal(s.zones[a].hand.length, mao - 1, 'ainda não comprou');
+  assert.ok(s.stack.some(x => s.objects[x].ability && s.objects[x].name === 'Renewed Faith'), 'a compra está na pilha');
+  s = act(s, { t: 'pass', p: a }); assert.equal(s.turn.priority, d, 'o oponente recebe a prioridade com a compra na pilha');
+});
+
+test('CR 702.29c · "When you cycle Renewed Faith, you may gain 2 life" (texto oficial) dispara do cemitério; recusando, nada', () => {
+  let s = partida({ 'Renewed Faith': oficial('Renewed Faith') }); const a = s.turn.active;
+  let r; [s, r] = poe(s, a, 'Renewed Faith', 'hand'); const vida = s.players[a].life, mao = s.zones[a].hand.length;
+  const sim = resolveCom(act(s, { t: 'cycle', p: a, oid: r }), (la, pk) => pk.kind === 'may_pay' ? la.find(x => x.t === 'pay') : null);
+  assert.equal(sim.players[a].life, vida + 2, 'ganhou 2'); assert.equal(sim.zones[a].hand.length, mao, 'e comprou uma');
+  const nao = resolveCom(act(s, { t: 'cycle', p: a, oid: r }), (la, pk) => pk.kind === 'may_pay' ? la.find(x => x.t === 'decline') : null);
+  assert.equal(nao.players[a].life, vida, 'recusou: não ganha');
+});
+
+test('CR 702.29e · tipociclar (Ash Barrens, texto oficial: "Basic landcycling {1}"): procura um terreno básico, põe na mão e embaralha; terreno não básico não serve', () => {
+  const ASH = { ...oficial('Ash Barrens'), cmc: 0 };
+  const DESERTO = { name: 'Deserto', type_line: 'Land — Desert', mana_cost: '', cmc: 0, colors: [], keywords: [], oracle_text: '' };
+  const SC_ASH = { 'Ash Barrens': { name: 'Ash Barrens', produces: [['C']], cycling: { mana: '{1}', busca: { types: ['land'], basic: true } }, example: { action: 'etb', target: 'none', expect: { attached: false } } } };
+  let s = partida({ 'Ash Barrens': ASH, Deserto: DESERTO }, SC_ASH); const a = s.turn.active;
+  let ab; [s, ab] = poe(s, a, 'Ash Barrens', 'hand');
+  s = resolveCom(act(s, { t: 'cycle', p: a, oid: ab }), (la, pk, st) => pk.kind === 'pick' ? la.find(x => x.oid && st.objects[x.oid].name === 'Forest') : null);
+  assert.equal(s.objects[ab].zone, 'graveyard');
+  assert.ok(s.zones[a].hand.some(x => s.objects[x].name === 'Forest'), 'a Floresta veio para a mão');
+  let t = partida({ 'Ash Barrens': ASH, Deserto: DESERTO }, SC_ASH); const b = t.turn.active; let ab2; [t, ab2] = poe(t, b, 'Ash Barrens', 'hand');
+  t = act(t, { t: 'cycle', p: b, oid: ab2 }); t = act(act(t, { t: 'pass', p: b }), { t: 'pass', p: 1 - b });
+  assert.ok(t.pending && t.pending.kind === 'pick'); assert.ok(t.pending.from.every(x => t.objects[x].name === 'Forest'), 'só os básicos são opções (o Deserto não)');
+});

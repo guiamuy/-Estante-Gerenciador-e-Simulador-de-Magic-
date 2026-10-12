@@ -7033,13 +7033,18 @@
    "regra": "Keyword Abilities",
    "titulo": "Cycling",
    "status": "parcial",
-   "evidencia": "ação cycle (index.html:12637-12648) paga o custo, descarta (com insanidade, exila) e compra; oferecida da mão a qualquer momento com prioridade (13002-13005); rules.unit S22 (1019); sonda sonda2-702a.mjs: vale no turno do oponente",
-   "falta": "Não usa a pilha (sonda sonda2-702a.mjs: pilha 0 e a compra já aconteceu) — é habilidade ativada e deveria poder ser respondida (702.29a). Faltam gatilhos \"quando você cicla\" (702.29c-d) e toda a variante typecycling/landcycling (702.29e-f)",
+   "evidencia": "K-16: HANDLERS.cycle paga o custo (mana e o descarte, com insanidade) e chama cicloK, que põe na pilha a habilidade \"compre uma carta\" (ou, no tipociclar, a busca de uma carta do tipo, revelada, para a mão, e embaralha: cycling.busca = { types, subtypes, basic }) — pode ser respondida (702.29a, e, f); \"When you cycle this card\" (gatilho novo 'cycled') dispara da zona onde a carta foi parar (702.29c). Cartas exemplo: Renewed Faith (script novo na biblioteca), Ash Barrens (Oracle do Forge, 11/10/2026).",
+   "falta": "702.29d: gatilho de observador \"sempre que você cicla outra carta\" não existe (\"cicla ou descarta\" já vê um descarte só, pelo caminho do descarte). 702.29b: a habilidade de ciclar não conta como habilidade ativada fora da mão para efeitos que perguntam isso. O leitor de texto (trilha motor) ainda não lê \"<Tipo>cycling {custo}\" — a forma no script existe (cycling.busca).",
    "esforco": "M",
    "depende": [
     "602"
    ],
-   "cartas": "muito comum"
+   "cartas": "muito comum",
+   "testes": [
+    "CR 702.29a · ciclar é habilidade ativada: o descarte é custo e a compra vai para a pilha (o oponente pode responder antes)",
+    "CR 702.29c · \"When you cycle Renewed Faith, you may gain 2 life\" (texto oficial) dispara do cemitério; recusando, nada",
+    "CR 702.29e · tipociclar (Ash Barrens, texto oficial: \"Basic landcycling {1}\"): procura um terreno básico, põe na mão e embaralha; terreno não básico não serve"
+   ]
   },
   {
    "n": "702.30",

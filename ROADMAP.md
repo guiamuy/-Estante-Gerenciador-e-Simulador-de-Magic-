@@ -4042,6 +4042,16 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `cardFacts` (`textoK`, uma linha a mais; a linha de cores da K-1 passa a somar as palavras-chave do texto); `metamorfoK` (K-1) lê também `textoK`.
 - **Testes:** `keywords.cr4.unit` (4, falham sem a leva). Goldens idênticos; motor v109.
 
+**CR4 · onda 2 (completar as parciais)** ▶ — ordem: ciclar → proteção, resistência e manto → atropelar → reforço → insanidade → tempestade → afinidade → manutenção cumulativa → primeiro golpe e golpe duplo → travessia → metamorfose → equipar → encaixar → ninjutsu → suspender → vínculo de alma → parceiro → fase. Auditoria independente ao fim da onda.
+
+**K-16 · Ciclar na pilha, "quando você a cicla" e tipociclar (702.29)** 🟡 (leva K-16)
+- **Valor:** ciclar passa a usar a pilha (o oponente pode responder antes da compra); cartas com "When you cycle …" disparam; tipociclar ("Basic landcycling", "Plainscycling") busca a carta do tipo.
+- **Aceite:** Renewed Faith (texto oficial; script novo na biblioteca) ciclada: descartada no custo, a compra na pilha e o oponente recebe a prioridade; "you may gain 2 life" dispara do cemitério (aceitar ganha, recusar não); Ash Barrens (texto oficial) traz um básico e o Deserto não é opção.
+- **Toca ponto comum:** `HANDLERS.cycle` (a linha da compra imediata vira `cicloK`). **Expectativa ajustada com justificativa:** `rules.unit` S22 (a compra resolve depois de os dois passarem).
+- **Vocabulário:** gatilho `cycled`; no script, `cycling: { mana, busca: { types, subtypes, basic } }` para o tipociclar.
+- **Testes:** `keywords.cr4.unit` (3, falham sem a leva), `scripts.unit` S8 (Renewed Faith). Textos oficiais: Renewed Faith, Ash Barrens (Oracle do Forge, 11/10/2026). Goldens idênticos (nenhuma partida-referência cicla); motor v109.
+- **Parcial declarado (702.29):** "sempre que você cicla outra carta" não existe; 702.29b; o leitor (trilha `motor`) ainda não lê "<Tipo>cycling {custo}" — **pedido**.
+
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

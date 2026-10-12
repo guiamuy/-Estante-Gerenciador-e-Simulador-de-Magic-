@@ -1029,6 +1029,9 @@ test('S22 · ciclar troca a carta por outra e cobra o custo', () => {
   const hand = s.zones[a].hand.length;
   s = act(s, { t: 'cycle', p: a, oid: cycler });
   assert.equal(s.objects[cycler].zone, 'graveyard');
+  // K-16 · expectativa ajustada com justificativa: 702.29a — ciclar é habilidade ativada; a compra é o efeito dela, na pilha (dá para responder)
+  assert.equal(s.zones[a].hand.length, hand - 1, 'o descarte é custo: já saiu'); assert.equal(s.stack.length, 1, 'a compra está na pilha');
+  s = act(act(s, { t: 'pass', p: a }), { t: 'pass', p: 1 - a });
   assert.equal(s.zones[a].hand.length, hand, 'saiu uma, entrou outra');
   assert.equal(s.objects[land].tapped, true, 'pagou o custo com o terreno');
 });

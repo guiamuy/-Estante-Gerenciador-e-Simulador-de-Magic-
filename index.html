@@ -5700,6 +5700,7 @@ const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield
   // CR2g.5 · 508.3d / 509.3c / 509.3f(e) · "whenever you attack", "whenever ~ becomes blocked", "whenever ~ attacks and isn't blocked"
   'you-attack', 'becomes-blocked', 'attacks-unblocked',
   /* ↓ K · gatilhos da trilha keywords */
+  'cycled', // K-16 · 702.29c · "When you cycle this card" (dispara da zona onde a carta foi parar)
   'exploits', // K-12 · 702.110b · "When ~ exploits a creature" (disparado pelo motor quando a habilidade de explorar sacrifica)
   /* ↓ V · gatilhos da trilha verbos */
   'exerted', // V-20 · "You may exert ~ as it attacks. When you do, …" (701.43d): dispara quando a permanente é exaurida
@@ -6346,6 +6347,8 @@ const RAW_SCRIPTS = [
   /* ↓ K · scripts de carta da trilha keywords (texto oficial em .listas/oficiais-keywords.json) */
   // K-10 · 702.133: o recomeçar vem da linha impressa ("Jump-start"); o script só diz o efeito
   // K-13 · 702.126: o improvisar vem da linha impressa; o script só diz o efeito
+  // K-16 · 702.29a/c: ciclar na pilha e "quando você a cicla"
+  { name: 'Renewed Faith', effects: [{ do: 'gain', amount: 6 }], cycling: { mana: '{1}{W}' }, abilities: [{ kind: 'triggered', when: 'cycled', optional: true, effects: [{ do: 'gain', amount: 2 }] }], example: { target: 'none', expect: { selfLife: 6 } } }, // "You gain 6 life. / Cycling {1}{W} / When you cycle Renewed Faith, you may gain 2 life."
   { name: 'Metallic Rebuke', effects: [{ do: 'counter', target: 'spell', unless: { mana: '{3}' } }], example: { target: 'enemy-spell', expect: { countered: true } } }, // "Improvise / Counter target spell unless its controller pays {3}."
   { name: 'Radical Idea', effects: [{ do: 'draw', amount: 1 }], example: { target: 'none', expect: { handDelta: 1 } } }, // "Draw a card. / Jump-start"
   /* ↓ V · scripts de carta da trilha verbos (texto oficial em .listas/oficiais-verbos.json) */
@@ -7706,6 +7709,7 @@ Object.assign(EXPORTS_K_SC, { wardCustoErrosK });
 /** K-6 · palavras-chave de KEYWORDS que levam número na linha impressa ("Afterlife 2"): na cobertura, a linha conta como palavra-chave
     com o número. Declaração de função (vale antes da linha, no KW_LINE). */
 TRIGGER_PT.exploits = 'quando explora uma criatura'; // K-12 · 702.110b
+TRIGGER_PT.cycled = 'quando você a cicla'; // K-16 · 702.29c
 function palavraNaLinhaK(k) {
   if (k === 'dash') return 'dash\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-9
   if (k === 'evoke') return 'evoke(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*exile an? (?:white|blue|black|red|green) card from your hand\\.?)'; // K-8 · só as formas que o motor paga
@@ -19885,7 +19889,7 @@ const HANDLERS = {
     const madness = madnessOf(s, o);
     if (madness) { moveObject(s, o.oid, 'exile'); s.pendingAfterMadness = null; s.pending = { kind: 'madness', p: a.p, oid: o.oid, cost: madness.mana }; }
     else moveObject(s, o.oid, 'graveyard');
-    draw(s, a.p, 1);
+    cicloK(s, a, o, cy); // K-16 · 702.29a: "Draw a card" é o efeito de uma habilidade ativada — vai para a pilha (Toca ponto comum: HANDLERS.cycle)
     s.turn.passes = 0;
   },
   /** S18 · ninjutsu: troca um atacante não bloqueado pelo ninja da mão. */
@@ -21130,6 +21134,19 @@ function palavrasDoTextoK(card) {
   return out.length ? out : undefined;
 }
 Object.assign(EXPORTS_K, { tapaImpressoK, gruposParaTaparK, palavrasDoTextoK });
+/* K-16 · 702.29 ciclar. "Cycling [cost]" = "[Cost], Discard this card: Draw a card." — habilidade ativada (a): o custo (mana e o descarte)
+   é pago na ativação e o efeito vai para a pilha, onde pode ser respondido. Tipociclar (e, f): "[Type]cycling [cost]" = "…: Search your
+   library for a [type] card, reveal it, and put it into your hand. Then shuffle." — no script, `cycling: { mana, busca: filtro }`.
+   "When you cycle this card" (c) dispara da zona onde a carta foi parar (cemitério, ou exílio com insanidade). Ciclar é descartar (d):
+   os gatilhos de descarte veem um descarte só. */
+function cicloK(s, a, o, cy) {
+  const b = cy.busca && typeof cy.busca === 'object' ? Object.fromEntries(Object.entries(cy.busca).filter(([k]) => ['types', 'subtypes', 'basic'].includes(k))) : null; // filtro de carta: types, subtypes, basic
+  const efeito = b ? { do: 'search', amount: 1, filter: b, to: 'hand' } : { do: 'draw', amount: 1 };
+  makeAbility(s, { oid: o.oid, name: o.name, controller: a.p }, { effects: [efeito] }, []);
+  for (const ab of abilitiesOf(s, o)) if (ab.kind === 'triggered' && ab.when === 'cycled')
+    s.queued.push({ source: o.oid, name: o.name, controller: a.p, effects: ab.effects, when: 'cycled', ...marcasDaHabilidade(ab) });
+}
+Object.assign(EXPORTS_K, { cicloK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-22 · 701.68 afligir N: "put N −1/−1 counters on a creature you control" (a) — a criatura é escolhida por quem aflige (não mira);
    sem criatura sua, nada acontece (b); com uma só, é ela. Os marcadores passam pelas substituições de pôr marcadores (614.16).
