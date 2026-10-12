@@ -5967,7 +5967,7 @@ function validateScript(sc) {
     if (!parts.length) errs.push(`custo alternativo ${i + 1}: sem custo`);
     for (const k of parts) if (!ALT_COST_PARTS.includes(k)) errs.push(`custo alternativo ${i + 1}: parte "${k}" desconhecida`);
     if (alt.effects) errs.push(...effectErrors(alt.effects, `custo alternativo ${i + 1}`)); // Q11 · sobrecarga tem efeitos próprios
-    if (alt.when && !Object.keys(alt.when).every(k => ['opponentControlsSubtype', 'youControlSubtype'].includes(k))) errs.push(`custo alternativo ${i + 1}: condição desconhecida`);
+    if (alt.when && !Object.keys(alt.when).every(k => ['opponentControlsSubtype', 'youControlSubtype', 'naoSeuTurno'].includes(k))) errs.push(`custo alternativo ${i + 1}: condição desconhecida`);
     if (alt.cost && alt.cost.discardSubtype && !alt.cost.discard) errs.push(`custo alternativo ${i + 1}: "descartar uma <subtipo>" precisa do número de descartes`);
     if (alt.cost && alt.cost.exileHandColor && !'WUBRG'.includes(alt.cost.exileHandColor)) errs.push(`custo alternativo ${i + 1}: exilar da mão precisa de uma cor WUBRG`);
   }
@@ -8148,6 +8148,22 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Innocent Blood': { texto: 'vfzqpx', leva: 'M-337' },
   'Merciless Executioner': { texto: '1q5cw1k', leva: 'M-337' },
   'Josu Vess, Lich Knight': { texto: '116n3y7', leva: 'M-337' },
+  // M-338 · revisão por lote XII (custos alternativos de exilar da mão, anular exilando, evocar exilando), revisor independente com sondas: 13 de 15 na primeira rodada; Solitude e Syncopate passaram depois da correção (up to one sem alvo em gatilho; X do a menos que)
+  'Force of Will': { texto: '50tsnx', leva: 'M-338' },
+  'Force of Negation': { texto: 'h4a7pp', leva: 'M-338' },
+  'Solitude': { texto: '1jo4eg6', leva: 'M-338' },
+  'No More Lies': { texto: '1kove1p', leva: 'M-338' },
+  'Unmask': { texto: 'vp4ddo', leva: 'M-338' },
+  'Raise the Alarm': { texto: '1yxuctm', leva: 'M-338' },
+  'Grief': { texto: '183bknt', leva: 'M-338' },
+  'Mogg Alarm': { texto: 'jw1l0x', leva: 'M-338' },
+  'Void Shatter': { texto: '9tny6k', leva: 'M-338' },
+  'Spell Shrivel': { texto: '2rngzp', leva: 'M-338' },
+  'Syncopate': { texto: 'hed2k6', leva: 'M-338' },
+  'Assert Authority': { texto: '17jv8ml', leva: 'M-338' },
+  'Rouse': { texto: '1qy53l', leva: 'M-338' },
+  'Dissipate': { texto: 'zckltf', leva: 'M-338' },
+  'Deny Existence': { texto: 'u0rj5c', leva: 'M-338' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -15338,6 +15354,7 @@ const __m42 = (function () {
   const N = '(a|an|one|two|three|four|five|six|seven|eight|nine|ten|\\d+)';
   const num = t => (/^\d+$/.test(t) ? +t : NUMEROS[String(t).toLowerCase()]);
   const CORES = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
+  const COR_NOME_PT = { white: 'branca', blue: 'azul', black: 'preta', red: 'vermelha', green: 'verde' }; // M-338
   // "target X" → alvo do vocabulário; o que não está aqui fica não lido (o validador também confere o alvo de cada verbo)
   const ALVOS = {
     'any target': 'any', 'target creature': 'creature', 'target player': 'player', 'target opponent': 'opponent', 'target planeswalker': 'planeswalker',
@@ -15478,6 +15495,8 @@ const __m42 = (function () {
     [/^each opponent sacrifices an? (creature|artifact|enchantment|planeswalker)(?: of their choice)?$/i, m => [{ do: 'sacrificar', tipos: [m[1].toLowerCase()], jogadores: 'cada-oponente' }]], // M-337 · 701.21a
     [/^target creature can't be blocked this turn$/i, () => [{ do: 'imbloqueavel', target: 'creature' }]], // M-336 · Rogue's Passage
     [new RegExp(`^you lose ${N} life$`, 'i'), m => [{ do: 'lose', amount: num(m[1]) }]], // M-335 · Thoughtseize (sem alvo: quem controla perde, como nos scripts à mão)
+    [/^exile up to one other target creature$/i, () => [{ do: 'exile', target: { tipos: ['creature'], outra: true }, upTo: true }]], // M-338 · Solitude
+    [/^that creature's controller gains life equal to its power$/i, () => [{ do: 'gain', amount: { per: 'power-of-target' }, target: 'target-controller' }]], // M-338 · Solitude (608.2h)
     [/^its controller gains life equal to its power$/i, () => [{ do: 'gain', amount: { per: 'power-of-target' }, target: 'target-controller' }]], // M-335 · Swords to Plowshares (608.2h: o poder como era no campo)
     [/^it doesn't untap during its controller's next untap step$/i, () => [{ do: 'nao_desvira', target: 'first-target' }]], // M-334 · LT18 · 502.3 (Sleep of the Dead)
     [/^add ((?:\{[WUBRGC]\})+)$/i, m => [{ do: 'add_mana', symbols: m[1].match(/[WUBRGC]/g) }]], // M-334 · LT18 · mágica ou gatilho que adiciona mana (Seething Song, Burning-Tree Emissary)
@@ -15510,7 +15529,11 @@ const __m42 = (function () {
     [/^as an additional cost to cast this spell, sacrifice an? (land|creature|artifact|enchantment)$/i, m => ({ additional: { sacrificeOther: { types: [m[1].toLowerCase()] } } })], // M-334 · LT18 · 601.2b (Crop Rotation)
     [/^kicker (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ kicker: { mana: m[1] } })], // M-337 · 702.33 (o motor reforça desde a S-série)
     [/^splice onto arcane (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ splice: { subtipo: 'Arcane', mana: m[1] } })], // M-334 · LT18 · 702.47 (o motor encaixa desde a M-273)
-    [/^(?:evoke|dash|spectacle|surge) (?:\{[0-9WUBRGC]+\})+$/i, () => ({})] // M-334 · LT18 · 702.74 / 702.109 / 702.137 / 702.117: o motor lê a linha impressa da carta (K-8, K-9, K-32)
+    [/^(?:evoke|dash|spectacle|surge) (?:\{[0-9WUBRGC]+\})+$/i, () => ({})], // (o motor lê da carta)
+    [/^evoke\s*[—-]\s*exile an? (?:white|blue|black|red|green) card from your hand$/i, () => ({})], // M-338 · 702.74: o motor lê o evocar de exilar da carta (K-8)
+    [/^you may pay (\d+) life and exile an? (white|blue|black|red|green) card from your hand rather than pay this spell's mana cost$/i, m => ({ alt: [{ label: `Pagar ${m[1]} de vida e exilar uma carta ${COR_NOME_PT[m[2].toLowerCase()]} da mão`, cost: { life: +m[1], exileHandColor: CORES[m[2].toLowerCase()] } }] })], // M-338 · Force of Will
+    [/^(if it's not your turn, )?you may exile an? (white|blue|black|red|green) card from your hand rather than pay this spell's mana cost$/i, m => ({ alt: [{ label: `Exilar uma carta ${COR_NOME_PT[m[2].toLowerCase()]} da mão${m[1] ? ' (fora do seu turno)' : ''}`, cost: { exileHandColor: CORES[m[2].toLowerCase()] }, ...(m[1] ? { when: { naoSeuTurno: true } } : {}) }] })], // M-338 · Force of Negation, Snapback, Misdirection
+    [/^you may return an? (Plains|Island|Swamp|Mountain|Forest) you control to its owner's hand rather than pay this spell's mana cost$/i, m => ({ alt: [{ label: `Devolver ${{ Plains: 'uma Planície', Island: 'uma Ilha', Swamp: 'um Pântano', Mountain: 'uma Montanha', Forest: 'uma Floresta' }[m[1][0].toUpperCase() + m[1].slice(1).toLowerCase()]} sua para a mão`, cost: { returnLand: m[1][0].toUpperCase() + m[1].slice(1).toLowerCase() } }] })] // M-334 · LT18 · 702.74 / 702.109 / 702.137 / 702.117: o motor lê a linha impressa da carta (K-8, K-9, K-32)
   ];
   /** Abertura de habilidade disparada → `when` do vocabulário (os que o motor executa com esse nome). */
   const GATILHOS = [
@@ -15673,6 +15696,7 @@ const __m42 = (function () {
     const partes = texto.replace(/, then shuffle and put that card on top(\.?)$/i, ', put that card on top of your library, then shuffle$1').split(/\.\s+|,\s+then\s+|\.$/).map(x => x.replace(/\.$/, '').trim()).filter(Boolean);
     let ok = true;
     for (const p of partes) {
+      if (/^if that spell is countered this way, exile it instead of putting it into its owner's graveyard$/i.test(p) && efeitos.length && efeitos[efeitos.length - 1].do === 'counter') { efeitos[efeitos.length - 1].exila = true; frases.push({ texto: p, lida: true }); continue; } // M-338 · Force of Negation
       const ik = p.match(new RegExp(`^if this spell was kicked, (?:it|~) deals ${N} damage(?: to that (?:creature|player|permanent|planeswalker))? instead$`, 'i')); // M-337 · 702.33d · Burst Lightning
       if (ik && efeitos.length && efeitos[efeitos.length - 1].do === 'damage' && Number.isInteger(efeitos[efeitos.length - 1].amount)) { const ult = efeitos[efeitos.length - 1]; ult.amount = { per: 'se', se: 'kicked', sim: num(ik[1]), nao: ult.amount }; frases.push({ texto: p, lida: true }); continue; }
       const ig = p.match(new RegExp(`^if this spell was cast from a graveyard, draw ${N} cards instead$`, 'i')); // M-331 · Plunder the Trollshaws
@@ -17220,6 +17244,7 @@ function condicaoDoAlt(s, p, when) {
   const terreno = (o, sub) => s.facts[o.name].types.includes('land') && !o.faceDown && new RegExp('\\b' + sub + '\\b').test(linhaDeTipo(s, o));
   if (when.opponentControlsSubtype && !battlefield(s).some(o => o.controller !== p && !s.players[o.controller].lost && terreno(o, when.opponentControlsSubtype))) return false;
   if (when.youControlSubtype && !battlefield(s).some(o => o.controller === p && terreno(o, when.youControlSubtype))) return false;
+  if (when.naoSeuTurno && s.turn.active === p) return false; // M-338 · "If it's not your turn, you may … rather than pay" (Force of Negation)
   if (!condicaoDoAltK(s, p, when)) return false; // K-32 · espetáculo e surto (Toca ponto comum: condicaoDoAlt)
   return true;
 }
@@ -18003,6 +18028,7 @@ function amountOf(s, src, v) {
     if (v.per === 'x') return (src.xPaid || 0) * (v.times || 1); // CR2c.3 · 107.3a: o X escolhido ao conjurar, o mesmo em todo o texto
     // CR2a.4 · 608.2h/113.7a: a resistência que a criatura sacrificada no custo tinha no campo
     if (v.per === 'sacrificed-toughness') return (src.sacrificados || []).reduce((n, x) => n + Math.max(0, x.toughness || 0), 0) * (v.times || 1);
+    if (v.per === 'power-of-target') return countFor(s, src, 'power-of-target') * (v.times || 1); // M-338 · numa habilidade, os alvos moram na habilidade, não na permanente (Solitude)
     const base = src.ability ? (s.objects[src.source] || src) : src;
     return countFor(s, base, v.subtype ? v : v.per) * (v.times || 1);
   }
@@ -18198,13 +18224,15 @@ function applyEffect(s, src, eff, tgt, events) {
     }
     case 'bounce': moverObjeto(s, src, obj, { para: 'hand' }, ctrl); note({}); break; // CR2-G R4a · atalho de mover
     case 'counter':
-      if (eff.unless && s.manaCheck && canPay(s, obj.controller, parseCost(eff.unless.mana))) {
+      const custoUnless = eff.unless ? String(eff.unless.mana).replace(/\{X\}/g, `{${src.xPaid || 0}}`) : null; // M-338 · 107.3a: o X anunciado (Syncopate)
+      if (eff.unless && s.manaCheck && canPay(s, obj.controller, parseCost(custoUnless))) {
         // S16 · o controlador da mágica decide se paga para salvá-la
-        s.pending = { kind: 'may_pay', p: obj.controller, cost: eff.unless.mana, target: obj.oid, name: src.name };
+        s.pending = { kind: 'may_pay', p: obj.controller, cost: custoUnless, target: obj.oid, name: src.name, ...(eff.exila ? { exila: true } : {}) }; // M-338 · No More Lies
         note({ pending: true }); break;
       }
       if (eff.suspende && s.objects[obj.oid]) { // M-269 · Delay: "exile it with three time counters on it instead … If it doesn't have suspend, it gains suspend"
         moveObject(s, obj.oid, 'exile'); obj.counters.time = eff.suspende; obj.suspensa = true; note({ suspensa: eff.suspende }); break; }
+      if (eff.exila && !obj.ability) { moveObject(s, obj.oid, 'exile'); note({ exilada: true }); break; } // M-338 · Force of Negation: anulada assim, vai para o exílio
       moveObject(s, obj.oid, 'graveyard'); note({}); break;
     case 'draw': { const n = amountOf(s, src, eff.amount); draw(s, playerOf(), n); note({ amount: n }); } break;
     case 'gain': { const n = amountOf(s, src, eff.amount); const who = playerOf(); const g = ganhaVidaJogador(s, who, n); note({ amount: g, ...(g < n ? { failed: true } : {}) }); } break; // CR2d.10
@@ -19906,8 +19934,8 @@ function putTriggerOnStack(s, q, events) {
     const eff = targeted[i];
     const opts = legalTargets(s, q.controller, eff.target, q.source, eff.targetColor)
       .filter(x => targetAllowed(s, eff, x, src) && !targets.some(y => y && sameChoice(x, y))); // 601.2c: alvos diferentes
-    if (!opts.length) { events.push({ kind: 'trigger-fizzled', name: q.name, when: q.when }); return false; }
-    if (opts.length > 1) { s.pending = { kind: 'pick_target', p: q.controller, trigger: { ...q, alvos: targets }, options: opts, name: q.name, ...(targeted.length > 1 ? { qual: i + 1, de: targeted.length } : {}) }; return false; }
+    if (!opts.length) { if (eff.upTo) { targets.push(null); continue; } events.push({ kind: 'trigger-fizzled', name: q.name, when: q.when }); return false; } // M-338 · "up to one": sem alvo legal, segue sem alvo
+    if (opts.length > 1 || eff.upTo) { s.pending = { kind: 'pick_target', p: q.controller, trigger: { ...q, alvos: targets }, options: opts, name: q.name, ...(targeted.length > 1 ? { qual: i + 1, de: targeted.length } : {}), ...(eff.upTo ? { semAlvo: true } : {}) }; return false; } // M-338 · "up to one": pergunta mesmo com uma opção (pode ser nenhuma)
     targets.push(opts[0]);
   }
   if (q.copiaDeMagia) { // CR2f.3 · 707.10: a cópia de uma mágica é uma mágica na pilha (pode ser anulada, é alvo de "mágica"), não é conjurada
@@ -20757,7 +20785,7 @@ const HANDLERS = {
     if (pk.senao) { aplicaSenao(s, pk.senao, ev); if (!s.pending) resumeEffects(s, ev); return; } // CR2b.5 · não pagou
     if (pk.then) return resumeEffects(s, ev); // S47 · não pagou: o gatilho não faz nada
     const obj = s.objects[pk.target];
-    if (obj && obj.zone === 'stack') { moveObject(s, obj.oid, 'graveyard'); ev.push({ kind: 'effect', do: 'counter', name: pk.name, target: obj.name }); }
+    if (obj && obj.zone === 'stack') { const exila = pk.exila && !obj.ability; moveObject(s, obj.oid, exila ? 'exile' : 'graveyard'); ev.push({ kind: 'effect', do: 'counter', name: pk.name, target: obj.name, ...(exila ? { exilada: true } : {}) }); } // M-338 · "if that spell is countered this way, exile it"
     resumeEffects(s, ev);
   },
   /** S15 · escolhe o alvo de um gatilho. */
@@ -20882,8 +20910,9 @@ const HANDLERS = {
   pick_target(s, a, ev) {
     if (!s.pending || s.pending.kind !== 'pick_target' || s.pending.p !== a.p) throw new RuleError('tempo', 'nenhum gatilho esperando alvo');
     const pk = s.pending;
-    const tgt = pk.options[a.index || 0];
-    if (!tgt) throw new RuleError('alvo', 'alvo inválido');
+    if (a.nenhum && !pk.semAlvo) throw new RuleError('alvo', 'este gatilho precisa de um alvo');
+    const tgt = a.nenhum ? null : pk.options[a.index || 0]; // M-338 · "up to one": nenhum alvo
+    if (!tgt && !a.nenhum) throw new RuleError('alvo', 'alvo inválido');
     s.pending = null;
     putTriggerOnStack(s, { ...pk.trigger, alvos: [...(pk.trigger.alvos || []), tgt] }, ev); // CR 603.3d · pode haver outro alvo a escolher
   },
@@ -21300,7 +21329,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
     }
     if (k === 'choose_color') ['W', 'U', 'B', 'R', 'G'].forEach(color => out.push({ t: 'choose_color', p, color }));
     if (k === 'commander_zone') { out.push({ t: 'commander_zone', p, yes: true }); out.push({ t: 'commander_zone', p, yes: false }); }
-    if (k === 'pick_target') s.pending.options.forEach((o, index) => out.push({ t: 'pick_target', p, index }));
+    if (k === 'pick_target') { s.pending.options.forEach((o, index) => out.push({ t: 'pick_target', p, index })); if (s.pending.semAlvo) out.push({ t: 'pick_target', p, nenhum: true }); } // M-338
     if (k === 'madness') {
       const o = s.objects[s.pending.oid];
       const need = (s.facts[o.name].script.effects || []).filter(SC.isTargeted);
@@ -21804,7 +21833,8 @@ function resolveAbility(s, o, events) {
   }
   // R9 · 608.2b: com todos os alvos ilegais a habilidade sai da pilha antes de qualquer pergunta ou pagamento
   if (!o.mayPayAsked) { const comAlvo = (o.effects || []).filter(SC.isTargeted); const esc = o.targets || [];
-    if (comAlvo.length && comAlvo.every((eff, i) => !targetStillLegal(s, o.controller, eff.target, esc[i], o.oid, eff.targetColor, eff, o))) { events.push({ kind: 'fizzled', oid: o.oid, name: o.name }); return; } }
+    const vazio = (eff, i) => esc[i] == null && eff.upTo; // M-338 · "up to one" sem alvo escolhido
+    if (comAlvo.length && !comAlvo.every(vazio) && comAlvo.every((eff, i) => vazio(eff, i) || !targetStillLegal(s, o.controller, eff.target, esc[i], o.oid, eff.targetColor, eff, o))) { events.push({ kind: 'fizzled', oid: o.oid, name: o.name }); return; } }
   // S47 · "você pode pagar {X}. Se fizer, ...": a decisão vem antes dos efeitos
   if ((o.mayPay || o.optionalTrigger) && !o.mayPayAsked) {
     o.mayPayAsked = true;
@@ -21828,13 +21858,14 @@ function resolveAbility(s, o, events) {
   const targeted = (o.effects || []).filter(SC.isTargeted);
   const chosen = o.targets || [];
   const ok = targeted.map((eff, i) => targetStillLegal(s, o.controller, eff.target, chosen[i], o.oid, eff.targetColor, eff, o));
-  if (targeted.length && ok.every(x => !x)) { events.push({ kind: 'fizzled', oid: o.oid, name: o.name }); return; }
-  let ti = 0, primeiro = null, donoDoPrimeiro = null; // M-327 · 608.2h: o controlador do alvo é o de antes do efeito
+  const semNenhum = targeted.length && targeted.every((eff, i) => chosen[i] == null && eff.upTo); // M-338 · todos os "up to" vazios: resolve sem alvo
+  if (targeted.length && !semNenhum && ok.every((x, i) => !x && !(chosen[i] == null && targeted[i].upTo))) { events.push({ kind: 'fizzled', oid: o.oid, name: o.name }); return; }
+  let ti = 0, primeiro = null, donoDoPrimeiro = null, primeiroVazio = false; // M-327 · 608.2h: o controlador do alvo é o de antes do efeito
   const fonte = s.objects[o.source];
   for (const eff of o.effects || []) {
     if (!effectAllowed(s, fonte, eff)) continue; // S49 · condição do próprio efeito
-    if (SC.isTargeted(eff)) { const t = chosen[ti]; const legal = ok[ti]; ti++; if (!primeiro) { primeiro = t; donoDoPrimeiro = t && t.oid != null && s.objects[t.oid] ? s.objects[t.oid].controller : null; } if (legal) applyEffect(s, o, eff, t, events); }
-    else if (eff.target === 'target-controller') { const t = primeiro; applyEffect(s, o, eff, { player: t && t.player != null ? t.player : donoDoPrimeiro != null ? donoDoPrimeiro : o.controller }, events); } // M-327 · "its controller" também em habilidade (Ghost Quarter: quem busca é o dono do terreno destruído; antes era quem ativou)
+    if (SC.isTargeted(eff)) { const t = chosen[ti]; const legal = ok[ti]; ti++; if (ti === 1 && t == null && eff.upTo) primeiroVazio = true; if (!primeiro) { primeiro = t; donoDoPrimeiro = t && t.oid != null && s.objects[t.oid] ? s.objects[t.oid].controller : null; } if (legal) applyEffect(s, o, eff, t, events); }
+    else if (eff.target === 'target-controller') { if (primeiroVazio) continue; const t = primeiro; applyEffect(s, o, eff, { player: t && t.player != null ? t.player : donoDoPrimeiro != null ? donoDoPrimeiro : o.controller }, events); } // M-327 · "its controller" também em habilidade (Ghost Quarter: quem busca é o dono do terreno destruído; antes era quem ativou)
     else if (eff.target === 'first-target') { if (primeiro) applyEffect(s, o, eff, primeiro, events); } // S42 · o mesmo alvo
     else if (porJogador(eff)) aplicaPorJogador(s, o, eff, events); // CR2-G R4b
     else if (eff.target === 'each-opponent' || eff.target === 'each-player') applyEffect(s, o, eff, null, events); // S47 · jogadores, não criaturas (CR2b.1: "cada jogador" caía na varredura de criaturas e sumia sem criatura na mesa)
@@ -26008,7 +26039,7 @@ function effectLine(ev) {
     case 'destroy': return ev.failed ? `${ev.name} não destruiu ${t}${ev.why ? ` (${ev.why})` : ': sem efeito'}` : `${ev.name} destruiu ${t}`; // R9b · Hydroblast em permanente que não é vermelha dizia "(indestrutível)"
     case 'exile': return `${ev.name} exilou ${t}`;
     case 'bounce': return `${ev.name} devolveu ${t} à mão do dono`;
-    case 'counter': if (ev.suspensa) return `${ev.name} anulou ${t} e a exilou com ${ev.suspensa} marcadores de tempo (suspender)`; return ev.paid ? `${t} escapou de ${ev.name}: o custo foi pago` : ev.pending ? `${ev.name} espera o pagamento de ${t}` : ev.failed ? `${ev.name} não anulou ${t}: sem efeito` : `${ev.name} anulou ${t}`; // R9b · dizia "anulou" com a mágica ainda na pilha
+    case 'counter': if (ev.exilada) return `${ev.name} anulou ${t} e a exilou`; if (ev.suspensa) return `${ev.name} anulou ${t} e a exilou com ${ev.suspensa} marcadores de tempo (suspender)`; return ev.paid ? `${t} escapou de ${ev.name}: o custo foi pago` : ev.pending ? `${ev.name} espera o pagamento de ${t}` : ev.failed ? `${ev.name} não anulou ${t}: sem efeito` : `${ev.name} anulou ${t}`; // R9b · dizia "anulou" com a mágica ainda na pilha
     case 'counters': return ev.tipo ? `${ev.name} recebeu ${plural(n, 'marcador ' + (MARCADOR_PT[ev.tipo] || ev.tipo), 'marcadores ' + (MARCADOR_PT[ev.tipo] || ev.tipo))}` : `${ev.name} recebeu ${plural(n, 'marcador +1/+1', 'marcadores +1/+1')}`;
     case 'adapt': return n ? `${ev.name} adaptou: ${plural(n, 'marcador +1/+1', 'marcadores +1/+1')}` : `${ev.name} não adaptou: já tinha marcador +1/+1`;
     case 'return_chosen': return `${ev.name}: ${t} devolveu uma permanente à mão`;
@@ -26066,7 +26097,7 @@ function describe(before, a, events, after) {
     case 'discard': L.push(`${P} descartou ${nameOf(before, a.oid)}`); break;
     case 'pick': L.push(`${P} escolheu ${nameOf(before, a.oid)}`); break;
     case 'pick_target': { const op = ((before.pending || {}).options || [])[a.index]; const nome = op ? (op.player != null ? who(before, op.player) : nameOf(before, op.oid)) : null;
-      L.push(nome ? `${P} escolheu ${nome} como alvo de ${(before.pending || {}).name || 'o gatilho'}` : `${P} escolheu o alvo de ${(before.pending || {}).name || 'o gatilho'}`); break; }
+      L.push(a.nenhum ? `${P} não escolheu alvo para ${(before.pending || {}).name || 'o gatilho'}` : nome ? `${P} escolheu ${nome} como alvo de ${(before.pending || {}).name || 'o gatilho'}` : `${P} escolheu o alvo de ${(before.pending || {}).name || 'o gatilho'}`); break; }
     case 'plot': L.push(`${P} tramou ${nameOf(before, a.oid)} (plot): fica no exílio para conjurar sem pagar num turno seguinte`); break; // Leva 121
     case 'unmorph': L.push(`${P} virou ${nameOf(after, a.oid)} para cima`); break; // Leva 121
     case 'transmute': L.push(`${P} transmutou ${nameOf(before, a.oid)}`); break;
@@ -26949,7 +26980,7 @@ function descreveEfeito(e) {
     case 'damage': return e.amount && IGUAL_A[e.amount.per] ? `causa dano igual ${IGUAL_A[e.amount.per]} a ${alvo || 'um alvo'}` : `causa ${n} de dano a ${alvo || 'um alvo'}`; // CR2b.10
     case 'gain': return e.amount && IGUAL_A[e.amount.per] ? `ganha vida igual ${IGUAL_A[e.amount.per]}` : `ganha ${n} de vida`;
     case 'lose': return `${alvo === 'cada oponente' ? 'cada oponente perde' : 'perde'} ${n} de vida`;
-    case 'counter': return `anula ${alvo || 'uma mágica'}${e.suspende ? ` e a exila com ${e.suspende} marcadores de tempo, com suspender` : ''}`; // M-269
+    case 'counter': return `anula ${alvo || 'uma mágica'}${e.suspende ? ` e a exila com ${e.suspende} marcadores de tempo, com suspender` : ''}${e.exila ? ' e a exila' : ''}`; // M-269 · M-338
     case 'destroy': return `destrói ${alvo || 'uma permanente'}`;
     case 'destroy_all': { const nomes = { artifact: 'artefatos', enchantment: 'encantamentos', creature: 'criaturas', land: 'terrenos', planeswalker: 'planeswalkers' }; // CR2c.2
       const vm = e.mvMax != null ? ` de valor de mana ${e.mvMax} ou menos` : e.mvMin != null ? ` de valor de mana ${e.mvMin} ou mais` : '';
@@ -29392,8 +29423,9 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
           const ops = s.pending.options, rot = T.rotulosDeAlvos(s, v, ops), vistos = new Set();
           const unicos = ops.map((o, index) => ({ o, index, r: rot[index] })).filter(x => !vistos.has(x.r) && vistos.add(x.r));
           const botao = x => Button(x.r, { id: x.index ? undefined : 'tb-pick-target', dataset: { alvo: String(x.index) }, onClick: () => act({ t: 'pick_target', p: v, index: x.index }) });
-          if (unicos.length <= T.LIMITE_DE_ALVOS) return unicos.map(botao);
-          return [...unicos.slice(0, T.LIMITE_DE_ALVOS - 1).map(botao), Button('Mais alvos', { id: 'tb-pick-target-mais', variant: 'ghost',
+          const nenhum = s.pending.semAlvo ? [Button('Nenhum alvo', { id: 'tb-pick-target-nenhum', variant: 'ghost', onClick: () => act({ t: 'pick_target', p: v, nenhum: true }) })] : []; // M-338 · "up to one": pode não mirar nada
+          if (unicos.length <= T.LIMITE_DE_ALVOS) return [...unicos.map(botao), ...nenhum];
+          return [...nenhum, ...unicos.slice(0, T.LIMITE_DE_ALVOS - 1).map(botao), Button('Mais alvos', { id: 'tb-pick-target-mais', variant: 'ghost',
             onClick: () => escolherAlvo(`${s.pending.name}: escolha o alvo`, unicos.map(x => ({ t: 'pick_target', p: v, index: x.index, targets: [x.o] })), { acao: a => ({ t: a.t, p: a.p, index: a.index }) }) })];
         })() });
     } else if (s.pending && s.pending.kind === 'pick' && s.pending.p === v) {
