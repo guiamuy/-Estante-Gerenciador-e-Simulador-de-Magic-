@@ -642,6 +642,20 @@ test('K-36 · eco (702.30): a criatura com eco que entrou neste turno, sem o eco
   }
   assert.ok(pago, 'a pergunta do eco veio'); assert.equal(vivo(s, g), false, 'recusou: sacrificada');
 });
+test('K-37 · desvanecer e sumir (702.32, 702.63): a 5/5 com "Fading 1" e a 3/3 com "Vanishing 1" atacam no turno em que entram; na sua manutenção seguinte a de sumir sai, e na outra a de desvanecer', () => {
+  cobre('fading'); cobre('vanishing');
+  const cartas = { ...CARDS, Bola: cre('Bola', 5, 5, ['Fading', 'Haste'], { oracle_text: 'Haste\nFading 1' }), Fenda: cre('Fenda', 3, 3, ['Vanishing', 'Haste'], { oracle_text: 'Haste\nVanishing 1' }) };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 61, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a; let b, f; [s, b] = poe(s, a, 'Bola', { zone: 'hand' }); [s, f] = poe(s, a, 'Fenda', { zone: 'hand' });
+  for (const x of [b, f]) { s = act(s, { t: 'cast', p: a, oid: x }); for (let i = 0; i < 4 && s.stack.length; i++) s = act(s, { t: 'pass', p: s.turn.priority }); }
+  assert.equal(s.objects[b].counters.fade, 1); assert.equal(s.objects[f].counters.time, 1);
+  s = combate(s, [b, f]); assert.equal(s.players[d].life, 12);
+  const proxima = st => { const t0 = st.turn.number; for (let i = 0; i < 300 && !(st.turn.active === a && st.turn.step === 'main1' && st.turn.number > t0); i++) st = st.pending ? act(st, E.legalActions(st, st.pending.p)[0]) : act(st, { t: 'pass', p: st.turn.priority }); return st; };
+  s = proxima(s); assert.equal(vivo(s, f), false, 'sumir: saiu o último, sacrificada'); assert.equal(vivo(s, b), true, 'desvanecer: tirou o último, ainda fica');
+  s = proxima(s); assert.equal(vivo(s, b), false, 'desvanecer: não deu para tirar, sacrificada');
+});
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));

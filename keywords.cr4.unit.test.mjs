@@ -1546,3 +1546,34 @@ test('CR 702.30a · eco: recusar sacrifica; sem mana para pagar, sacrifica sem p
   v = J(v); v.objects[j2].ts = (v.relogio || 0) + 1; v.relogio = v.objects[j2].ts; v = ateK35(v, 1 - av, 'upkeep'); v = ateEcoK36(v, av);
   assert.equal(v.objects[j2].zone, 'graveyard', 'sem terreno para pagar {G}: sacrificada direto');
 });
+
+/* ---------------- K-37 · desvanecer 702.32 e sumir 702.63 ---------------- */
+const SC_AVEN = { 'Aven Riftwatcher': { name: 'Aven Riftwatcher', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'gain', amount: 2 }] }, { kind: 'triggered', when: 'leaves-battlefield', effects: [{ do: 'gain', amount: 2 }] }], example: { action: 'etb', target: 'none', expect: { selfLife: 2 } } } };
+/** Passa as manutenções do jogador `quem`, n vezes, respondendo às decisões pelo padrão; devolve o estado no começo da principal. */
+function manutencoesK37(s, quem, n) { for (let k = 0; k < n; k++) { const t0 = s.turn.number; for (let i = 0; i < 300 && !(s.turn.active === quem && s.turn.step === 'main1' && s.turn.number > t0); i++) s = s.pending ? act(s, E.legalActions(s, s.pending.p)[0]) : act(s, { t: 'pass', p: s.turn.priority }); } return s; }
+
+test('CR 702.32a · desvanecer (Blastoderm, texto oficial): entra com 3 marcadores de desvanecer; tira um em cada manutenção sua; quando não dá, é sacrificado', () => {
+  let s = partida({ Blastoderm: oficial('Blastoderm') }); const a = s.turn.active;
+  let b; [s, b] = poe(s, a, 'Blastoderm', 'hand');
+  s = resolve(act(s, { t: 'cast', p: a, oid: b }));
+  assert.equal(s.objects[b].counters.fade, 3, 'entra com três');
+  s = manutencoesK37(s, a, 1); assert.equal(s.objects[b].counters.fade, 2);
+  s = manutencoesK37(s, a, 2); assert.equal(s.objects[b].counters.fade || 0, 0); assert.equal(s.objects[b].zone, 'battlefield', 'com zero ainda fica');
+  s = manutencoesK37(s, a, 1); assert.equal(s.objects[b].zone, 'graveyard', 'não deu para tirar: sacrificado');
+});
+
+test('CR 702.63a · sumir (Aven Riftwatcher, texto oficial): entra com 3 marcadores de tempo e ganha 2; tira um por manutenção; quando sai o último, é sacrificado (e ganha 2 ao sair)', () => {
+  let s = partida({ 'Aven Riftwatcher': oficial('Aven Riftwatcher') }, SC_AVEN); const a = s.turn.active;
+  let r; [s, r] = poe(s, a, 'Aven Riftwatcher', 'hand'); const v = s.players[a].life;
+  s = resolve(act(s, { t: 'cast', p: a, oid: r }));
+  assert.equal(s.objects[r].counters.time, 3); assert.equal(s.players[a].life, v + 2);
+  s = manutencoesK37(s, a, 2); assert.equal(s.objects[r].counters.time, 1); assert.equal(s.objects[r].zone, 'battlefield');
+  s = manutencoesK37(s, a, 1); assert.equal(s.objects[r].zone, 'graveyard', 'saiu o último: sacrificada'); assert.equal(s.players[a].life, v + 4, 'e ganhou 2 ao sair');
+});
+
+test('CR 702.63a · sumir: sem marcador de tempo (tirados por outro meio) o gatilho da manutenção não dispara e nada é sacrificado', () => {
+  let s = partida({ 'Aven Riftwatcher': oficial('Aven Riftwatcher') }, SC_AVEN); const a = s.turn.active;
+  let r; [s, r] = poe(s, a, 'Aven Riftwatcher', 'hand');
+  s = resolve(act(s, { t: 'cast', p: a, oid: r })); s = J(s); s.objects[r].counters = {};
+  s = manutencoesK37(s, a, 2); assert.equal(s.objects[r].zone, 'battlefield');
+});

@@ -4337,6 +4337,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** a linha da K-35 em `enterStep` passa a chamar `manutencaoK` (ricochete e o relógio do eco). O relógio só é guardado numa partida com carta de eco (as partidas-referência não mudam).
 - **Testes:** `keywords.cr4.unit` (2, falham sem a leva), `combat.audit` (1 cenário). Texto oficial: Pouncing Jaguar (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v109.
 - **Parcial declarado:** só eco de mana; "veio para o seu controle" conta pela entrada no campo (permanente roubada não dispara; a que transforma depois dispara de novo).
+**K-37 · Desvanecer e sumir (fading 702.32, vanishing 702.63)** 🟡 (leva K-37)
+- **Valor:** "Fading N" e "Vanishing N" fazem a permanente entrar com os marcadores e contar o tempo sozinha a cada manutenção sua: o desvanecer sacrifica quando não dá mais para tirar; o sumir, quando sai o último. Blastoderm (Pauper) joga pelo texto; o "entra ou sai: ganhe 2" do Aven Riftwatcher depende do leitor ou de script (pedido à trilha motor: `PERM_TYPES` para o S8).
+- **Aceite:** Blastoderm entra com 3, fica com 2, 1, 0 e é sacrificado na quarta manutenção; Aven Riftwatcher entra com 3 de tempo e ganha 2, é sacrificada na terceira manutenção e ganha 2 ao sair; sem marcador de tempo, nada dispara.
+- **Toca ponto comum:** `entradaModificada` (uma linha: os marcadores de `entraComPalavrasK`).
+- **Testes:** `keywords.cr4.unit` (3; os dois primeiros falham sem a leva), `combat.audit` (1 cenário). Texto oficial: Blastoderm, Aven Riftwatcher (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
+- **Parcial declarado:** o "sacrifique quando sai o último" do sumir só dispara quando o próprio sumir tira o marcador.
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

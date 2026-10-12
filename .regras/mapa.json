@@ -7160,13 +7160,17 @@
    "n": "702.32",
    "regra": "Keyword Abilities",
    "titulo": "Fading",
-   "status": "ausente",
-   "falta": "Sem marcadores de fade nem o gatilho de manutenção que remove/sacrifica (702.32a)",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "614.1c entra com marcadores"
    ],
-   "cartas": "rara"
+   "cartas": "rara",
+   "evidencia": "K-37: \"Fading N\" faz a permanente entrar com N marcadores de desvanecer (entraComPalavrasK, somado em entradaModificada: substituição 614.1c, uma soma por instância impressa) e gera o gatilho da sua manutenção (GATILHOS_DE_PALAVRA_K.fading → desvanecer_k): tira um; se não der, sacrifica. Face para baixo não tem a palavra.",
+   "testes": [
+    "CR 702.32a · desvanecer (Blastoderm, texto oficial): entra com 3 marcadores de desvanecer; tira um em cada manutenção sua; quando não dá, é sacrificado",
+    "K-37 · desvanecer e sumir (702.32, 702.63): a 5/5 com \"Fading 1\" e a 3/3 com \"Vanishing 1\" atacam no turno em que entram; na sua manutenção seguinte a de sumir sai, e na outra a de desvanecer"
+   ]
   },
   {
    "n": "702.33",
@@ -7611,14 +7615,20 @@
    "n": "702.63",
    "regra": "Keyword Abilities",
    "titulo": "Vanishing",
-   "status": "ausente",
-   "falta": "Sem marcadores de tempo: entrar com N, remover um na manutenção e sacrificar quando sai o último (702.63a); variante sem número (702.63b).",
+   "status": "parcial",
+   "falta": "\"When the last time counter is removed\" só dispara quando quem tira o marcador é o próprio sumir (tirado por outro efeito, como o de um proliferar ao contrário ou um custo, não dispara).",
    "esforco": "P",
    "depende": [
     "122 (marcador nomeado)",
     "614.1c"
    ],
-   "cartas": "rara"
+   "cartas": "rara",
+   "evidencia": "K-37: \"Vanishing N\" (e sem número, 702.63b) entra com N marcadores de tempo (entraComPalavrasK; 702.63c, cada instância à parte) e gera o gatilho da sua manutenção só com marcador de tempo (603.4; GATILHOS_DE_PALAVRA_K.vanishing → sumir_k), que tira um; tirado o último, o gatilho \"sacrifique\" vai à pilha (sacrifica_se_k). O script do Aven Riftwatcher fica no teste (criatura em RAW_SCRIPTS precisa de PERM_TYPES em fixtures.mjs, da trilha motor: pedido).",
+   "testes": [
+    "CR 702.63a · sumir (Aven Riftwatcher, texto oficial): entra com 3 marcadores de tempo e ganha 2; tira um por manutenção; quando sai o último, é sacrificado (e ganha 2 ao sair)",
+    "CR 702.63a · sumir: sem marcador de tempo (tirados por outro meio) o gatilho da manutenção não dispara e nada é sacrificado",
+    "K-37 · desvanecer e sumir (702.32, 702.63): a 5/5 com \"Fading 1\" e a 3/3 com \"Vanishing 1\" atacam no turno em que entram; na sua manutenção seguinte a de sumir sai, e na outra a de desvanecer"
+   ]
   },
   {
    "n": "702.64",

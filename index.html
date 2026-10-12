@@ -5220,6 +5220,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'entwine', // K-34 · 702.42: o modo "todos os modos" com custo adicional (modoEntrelacadoK), lido da linha (entrelacarImpressoK)
   'rebound', // K-35 · 702.88: conjurada da mão, vai para o exílio ao resolver e volta na sua próxima manutenção (ricocheteNaManutencaoK)
   'echo', // K-36 · 702.30: gatilho da sua manutenção "sacrifique a menos que pague" para a permanente que chegou desde a sua última manutenção (GATILHOS_DE_PALAVRA_K)
+  'fading', 'vanishing', // K-37 · 702.32 e 702.63: entram com marcadores (entraComPalavrasK) e tiram um a cada manutenção sua (GATILHOS_DE_PALAVRA_K)
   'afflict', 'melee', 'mentor', 'training', // K-31 · 702.130, 702.121, 702.134, 702.149: gatilhos de ataque gerados pela palavra, um por instância
   'battle cry', 'rampage', 'flanking', 'bushido', // K-30 · 702.91, 702.23, 702.25, 702.45: gatilhos de combate gerados pela palavra (GATILHOS_DE_PALAVRA_K), um por instância
   /* ↓ V · palavras-chave da trilha verbos */
@@ -8178,6 +8179,7 @@ function pluraisDeCriaturaSCK() {
   return (pluraisDaProtecaoSCK = [...formas].sort((a, b) => b.length - a.length).map(f => f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'));
 }
 Object.assign(EXPORTS_K_SC, { TIPOS_DE_CRIATURA_SCK: tiposDeCriaturaSCK(), PROTECAO_NAO_CRIATURA_SCK: protecaoNaoCriaturaSCK() });
+Object.assign(MARCADOR_PT, { fade: 'de desvanecer' }); // K-37 · 702.32a
 TRIGGER_PT.cycled = 'quando você a cicla'; // K-16 · 702.29c
 TRIGGER_PT['storm-gatilho'] = 'quando você a conjura (tempestade)'; // K-25 · 702.40a
 function palavraNaLinhaK(k) {
@@ -8190,6 +8192,7 @@ function palavraNaLinhaK(k) {
   if (k === 'buyback') return 'buyback(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*(?:sacrifice an? (?:land|creature|artifact|enchantment)|discard (?:a|one|two|three) cards?|pay \\d+ life)\\.?)'; // K-33 · só as formas que recompraImpressaK lê
   if (k === 'entwine') return 'entwine(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*(?:sacrifice (?:an?|one|two|three) (?:lands?|creatures?|artifacts?|enchantments?)|discard (?:a|one|two|three) cards?|pay \\d+ life)\\.?)'; // K-34
   if (k === 'echo') return 'echo\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-36 · só custo de mana (o que o "pague" da mesa paga)
+  if (k === 'fading') return 'fading \\d+'; if (k === 'vanishing') return 'vanishing(?: \\d+)?'; // K-37 · 702.63b: sumir sem número
   if (k === 'dash') return 'dash\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-9
   if (k === 'evoke') return 'evoke(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*exile an? (?:white|blue|black|red|green) card from your hand\\.?)'; // K-8 · só as formas que o motor paga
   return ['afterlife', 'rampage', 'bushido', 'afflict'].includes(k) ? `${k} \\d+` : k; // K-30 · alvoroço N e bushido N
@@ -16333,6 +16336,7 @@ function entradaModificada(s, o, xPago) {
     for (const [k, v] of Object.entries(r.marcadores || {})) { const n = v === 'x' ? xPago : v === 'kicked' ? (o.kicked || 0) : v; if (n) marcadores[k] = (marcadores[k] || 0) + n; }
   }
   for (const [k, n] of Object.entries(o.entraComK || {})) marcadores[k] = (marcadores[k] || 0) + n; delete o.entraComK; // K-4 · "volta com um marcador" (persistir, imortal): entra com ele
+  for (const [k, n] of Object.entries(entraComPalavrasK(s, o))) marcadores[k] = (marcadores[k] || 0) + n; // K-37 · 702.32a/702.63a: "enters with N fade/time counters" (Toca ponto comum: entradaModificada)
   return { virada, marcadores, ...(pagaVida ? { pagaVida } : {}) };
 }
 /** CR2-G R5a · o caminho antigo das modificações de entrada, tal como era no moveObject (só para o teste de equivalência). */
@@ -18738,6 +18742,16 @@ function applyEffect(s, src, eff, tgt, events) {
       break;
     }
     /* ↓ K · casos de applyEffect da trilha keywords */
+    case 'desvanecer_k': case 'sumir_k': case 'sacrifica_se_k': { // K-37 · 702.32a / 702.63a
+      const perm = s.objects[src.ability ? src.source : src.oid];
+      if (!perm || perm.zone !== 'battlefield' || (perm.zc || 0) !== eff.z) { events.push({ kind: 'effect', do: eff.do, name: src.name, failed: true }); break; }
+      if (eff.do === 'sacrifica_se_k') { sacrifice(s, perm.oid, events); events.push({ kind: 'effect', do: 'sacrifice_own', name: perm.name, target: perm.name }); break; }
+      const tipo = eff.do === 'desvanecer_k' ? 'fade' : 'time', tem = (perm.counters || {})[tipo] || 0;
+      if (tem > 0) { perm.counters[tipo] = tem - 1; if (!perm.counters[tipo]) delete perm.counters[tipo]; events.push({ kind: 'effect', do: 'remove_counters', name: perm.name, tipo, amount: 1 }); }
+      if (eff.do === 'desvanecer_k' && !tem) { sacrifice(s, perm.oid, events); events.push({ kind: 'effect', do: 'sacrifice_own', name: perm.name, target: perm.name }); } // "If you can't, sacrifice"
+      if (eff.do === 'sumir_k' && tem === 1) s.queued.push({ source: perm.oid, name: perm.name, controller: perm.controller, effects: [{ do: 'sacrifica_se_k', z: perm.zc || 0 }], when: 'sumir' }); // "When the last time counter is removed"
+      break;
+    }
     case 'eco_k': { // K-36 · 702.30a: confere de novo a condição (603.4) e pergunta "pague ou sacrifique"
       const perm = s.objects[src.ability ? src.source : src.oid];
       if (!perm || perm.zone !== 'battlefield' || (perm.zc || 0) !== eff.z || !((perm.ts || 0) > eff.desde)) { events.push({ kind: 'effect', do: 'eco_k', name: src.name, failed: true }); break; }
@@ -21798,6 +21812,11 @@ Object.assign(EXPORTS_K, { wardsDeK, wardImpressoK, custoDaSalvaguardaK });
 /* K-3 · palavras-chave que são habilidades disparadas (702.108 proeza…): o motor gera a habilidade a partir da palavra-chave que a
    permanente tem agora (impressa, concedida, de marcador ou de mutação), uma por instância (702.108b), em abilitiesOf. */
 const GATILHOS_DE_PALAVRA_K = {
+  // K-37 · 702.32a · "At the beginning of your upkeep, remove a fade counter from this permanent. If you can't, sacrifice the permanent."
+  fading: (s, o) => ({ kind: 'triggered', when: 'upkeep', palavraK: 'fading', effects: [{ do: 'desvanecer_k', z: (o && o.zc) || 0 }] }),
+  // K-37 · 702.63a · "At the beginning of your upkeep, if this permanent has a time counter on it, remove a time counter from it" (603.4: só dispara
+  // com marcador) e "When the last time counter is removed from this permanent, sacrifice it" (disparado em sumir_k)
+  vanishing: (s, o) => o && ((o.counters || {}).time || 0) > 0 ? ({ kind: 'triggered', when: 'upkeep', palavraK: 'vanishing', effects: [{ do: 'sumir_k', z: o.zc || 0 }] }) : [],
   // K-36 · 702.30a · "At the beginning of your upkeep, if this permanent came under your control since the beginning of your last upkeep, sacrifice it
   // unless you pay [cost]." A condição (603.4) compara o carimbo de entrada (o.ts) com o relógio guardado no começo da sua última manutenção.
   echo: (s, o) => { const f = o && s.facts[o.name], desde = o ? ((s.players[o.controller] || {}).relogioManutencaoK || 0) : 0;
@@ -22515,6 +22534,15 @@ function ricocheteNaManutencaoK(s, a) {
   }
 }
 Object.assign(EXPORTS_K, { ricocheteImpressoK, ricocheteNaManutencaoK, manutencaoK, partidaTemK });
+/* K-37 · 702.32a desvanecer ("This permanent enters with N fade counters on it") e 702.63a sumir ("… N time counters"): o "entra com" é
+   substituição (614.1c), somada em entradaModificada; cada instância impressa traz o seu N (702.63c). Os gatilhos da manutenção estão em
+   GATILHOS_DE_PALAVRA_K. Face para baixo não tem a palavra. */
+function entraComPalavrasK(s, o) {
+  const f = o && s.facts[o.name], out = {}; if (!f || o.faceDown) return out;
+  for (const [k, tipo] of [['fading', 'fade'], ['vanishing', 'time']]) if ((f.kw || []).includes(k)) for (const n of ((f.numerosK || {})[k] || [])) out[tipo] = (out[tipo] || 0) + n;
+  return out;
+}
+Object.assign(EXPORTS_K, { entraComPalavrasK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-28 · 701.66 terrabender N: "Target land you control becomes a 0/0 land creature with haste in addition to its other types. Put N
    +1/+1 counters on it. When that land dies or is put into exile, return it to the battlefield tapped under your control" (a). A
@@ -26279,9 +26307,13 @@ Object.assign(PALAVRA_PT, { buyback: 'recompra' }); // K-33
 Object.assign(PALAVRA_PT, { entwine: 'entrelaçar' }); // K-34
 Object.assign(PALAVRA_PT, { rebound: 'ricochete' }); // K-35
 Object.assign(PALAVRA_PT, { echo: 'eco' }); // K-36
+Object.assign(PALAVRA_PT, { fading: 'desvanecer', vanishing: 'sumir' }); // K-37
 Object.assign(PALAVRA_PT, { afflict: 'aflição', melee: 'refrega', mentor: 'mentor', training: 'treinamento' }); // K-31
 Object.assign(PALAVRA_PT, { 'battle cry': 'grito de guerra', rampage: 'alvoroço', flanking: 'flanquear', bushido: 'bushido' }); // K-30
 const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consultadas por descreveEfeito; antes a pilha mostrava "proeza k")
+  desvanecer_k: () => 'tira um marcador de desvanecer desta permanente; se não der, ela é sacrificada (desvanecer)', // K-37
+  sumir_k: () => 'tira um marcador de tempo desta permanente; quando sai o último, ela é sacrificada (sumir)', // K-37
+  sacrifica_se_k: () => 'saiu o último marcador de tempo: esta permanente é sacrificada (sumir)', // K-37
   eco_k: e => `sacrifique esta permanente a menos que pague ${e.mana} (eco)`, // K-36
   ricochete_k: () => 'você pode conjurar esta carta do exílio sem pagar o custo de mana (ricochete)', // K-35
   tempestade_k: e => e.n ? `copia esta mágica ${e.n === 1 ? 'uma vez' : e.n + ' vezes'} (tempestade; cada cópia pode ter alvo novo)` : 'copia esta mágica para cada mágica conjurada antes dela neste turno (nenhuma)',
