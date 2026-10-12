@@ -10072,14 +10072,21 @@
    "n": "712.3",
    "regra": "Double-Faced Cards",
    "titulo": "Dupla face modal (MDFC)",
-   "status": "ausente",
-   "falta": "não há como conjurar ou jogar a face de trás por escolha (só disturb e presságio usam `back`; grep mdfc/modal: nada).",
+   "status": "coberta",
    "esforco": "M",
    "depende": [
     "712.11",
     "712.12"
    ],
-   "cartas": "comum (Zendikar Rising em diante)"
+   "cartas": "comum (Zendikar Rising em diante)",
+   "testes": [
+    "CR 712.11b–c · dupla face modal: da mão o jogador escolhe a face que conjura; só a face escolhida conta — custo, tempo e alvos dela",
+    "S8 · Skyclave Cleric // Skyclave Basilica e Zof Consumption // Zof Bloodbog: a mágica da frente ou o terreno do verso (que entra virado e gera a cor)",
+    "CR 712.3 · com os dados da carta como a Scryfall entrega (nome \"A // B\", duas faces, sem custo no nível de cima): pelo nome da lista ou pelo nome completo, as duas faces jogam",
+    "CR 712.3 · validador da modal e mesa: `self.modal` pede face de trás; face de trás que não é terreno pede custo (`back.mana`); a folha diz o nome da face (\"Jogar Tangled Vale\", \"Conjurar Torre · {3}\") e o registro também",
+    "CR 712.3 · partida sem a carta modal não ganha nada no estado, e o passeio aleatório com modais nos dois lados não recusa ação oferecida nem deixa o verso para cima fora do campo e da pilha"
+   ],
+   "evidencia": "T-8 (11/10/2026) · src/engine/core.js, bloco \"T-8 · CR 712.3 … dupla face modal\" (cartas `self: { modal: true }`): as duas faces são independentes; da mão o jogador escolhe a face (`cast` ou `play_land` com `face: 'verso'`), com custo, tempo, alvos e tipo da face escolhida; a modal não transforma. 712.3a–c são desenho da carta. Cartas: Tangled Florahedron // Tangled Vale, Skyclave Cleric // Skyclave Basilica, Zof Consumption // Zof Bloodbog, Brightclimb Pathway // Grimclimb Pathway. Limite declarado: face modal que \"transforma\" ou \"converte\" por habilidade (última frase da 712.3) não existe."
   },
   {
    "n": "712.4",
@@ -10122,15 +10129,16 @@
    "regra": "Double-Faced Cards",
    "titulo": "Cada face com suas características; fora do campo vale a frente",
    "status": "parcial",
-   "evidencia": "T-7 (11/10/2026) · src/engine/core.js, bloco \"T-7 · CR 701.27 / 712 / 707.8a\" (cartas marcadas `self: { duplaFace: true }`, efeito `transformar`): 712.8a — fora do campo e da pilha vale a frente (flipToFront em toda mudança de zona). 712.8d–e — com a frente para cima só a frente; com o verso para cima só o verso (nome, tipos, subtipos, cor, P/T, palavras-chave e habilidades), com o valor de mana da frente.",
-   "falta": "712.8c (conjurada transformada, disturb) e as faces de trás antigas têm valor de mana 0 (trilha motor); a permanente que COPIA um verso deveria ter valor de mana 0 (712.8e) e fica com o da frente (os fatos são por nome); 712.8f é da dupla face modal (próxima leva).",
+   "evidencia": "T-7 (11/10/2026) · src/engine/core.js, bloco \"T-7 · CR 701.27 / 712 / 707.8a\" (cartas marcadas `self: { duplaFace: true }`, efeito `transformar`): 712.8a — fora do campo e da pilha vale a frente (flipToFront em toda mudança de zona). 712.8d–e — com a frente para cima só a frente; com o verso para cima só o verso (nome, tipos, subtipos, cor, P/T, palavras-chave e habilidades), com o valor de mana da frente. T-8 (11/10/2026) · src/engine/core.js, bloco \"T-8 · CR 712.3 … dupla face modal\" (cartas `self: { modal: true }`): 712.8f — na pilha e no campo a modal tem só as características da face de cima, com o custo e o valor de mana da própria face (fatosDeDuasPartesT).",
+   "falta": "712.8c (conjurada transformada, disturb) e as faces de trás antigas têm valor de mana 0 (trilha motor); a permanente que COPIA um verso deveria ter valor de mana 0 (712.8e) e fica com o da frente (os fatos são por nome);",
    "esforco": "P",
    "depende": [
     "202.3b"
    ],
    "testes": [
     "CR 701.27a · 712.18 · transformar vira a outra face para cima, nos dois sentidos, e a permanente continua o mesmo objeto: marcadores, dano e virada ficam; nome, tipo, cor, P/T e habilidades passam a ser os da face de cima",
-    "CR 712.8a · 712.14 · fora do campo a carta tem só a frente, e de outra zona entra com a frente para cima; 712.8e · com o verso para cima, o valor de mana é o da frente"
+    "CR 712.8a · 712.14 · fora do campo a carta tem só a frente, e de outra zona entra com a frente para cima; 712.8e · com o verso para cima, o valor de mana é o da frente",
+    "CR 712.13 · 712.8f · a face conjurada é a que entra no campo, e a permanente tem só as características dela (valor de mana próprio); 712.8a · fora do campo e da pilha volta a ser a frente"
    ]
   },
   {
@@ -10160,34 +10168,46 @@
    "regra": "Double-Faced Cards",
    "titulo": "Conjurar dupla face: frente por padrão",
    "status": "parcial",
-   "evidencia": "cast normal usa a frente (rules.unit \"S24 · conjurada normalmente, a carta usa a face da frente\"); disturb conjura a de trás com o custo da frente (index.html:12227-12229, 12264)",
-   "falta": "só disturb conjura transformada; legalidade e valor de mana da mágica transformada (712.11b-c) não verificados; sem MDFC.",
+   "evidencia": "T-8 (11/10/2026) · src/engine/core.js, bloco \"T-8 · CR 712.3 … dupla face modal\" (cartas `self: { modal: true }`): 712.11 — a frente por padrão. 712.11b–c — faceEscolhidaT põe a face escolhida para cima antes de qualquer conferência de `cast`: só ela é avaliada (custo, tempo, alvos) e só ela vai à pilha; as ofertas saem do próprio legalActions sobre uma cópia do estado com as modais da mão viradas (modalOfertas). 712.11a/d seguem no caminho do disturb (trilha motor).",
+   "falta": "712.11a/d: conjurar \"transformada\" só existe no disturb antigo, com valor de mana 0 na pilha (712.8c); cópia de carta modal conjurada (\"or a copy of\") não tem efeito no vocabulário.",
    "esforco": "P",
    "depende": [
     "712.3"
+   ],
+   "testes": [
+    "CR 712.11b–c · dupla face modal: da mão o jogador escolhe a face que conjura; só a face escolhida conta — custo, tempo e alvos dela",
+    "CR 712.11b · face de trás que não é permanente: resolve e vai ao cemitério como a carta da frente; anulada, também; 712.9 · a modal não transforma"
    ]
   },
   {
    "n": "712.12",
    "regra": "Double-Faced Cards",
    "titulo": "Jogar MDFC como terreno escolhe a face",
-   "status": "ausente",
-   "falta": "play_land não escolhe face.",
+   "status": "coberta",
    "esforco": "M",
    "depende": [
     "712.3"
-   ]
+   ],
+   "testes": [
+    "CR 712.12 · jogar a dupla face modal como terreno: o jogador escolhe uma face que seja terreno; conta como o terreno do turno; a outra face continua conjurável",
+    "CR 712.12 · terreno // terreno (Brightclimb Pathway // Grimclimb Pathway): as duas faces são oferecidas e o terreno que entra gera só a cor da face escolhida; face que não é terreno não é jogada como terreno",
+    "CR 712.12 · com rede: terreno // terreno com as duas faces no dado (texto junto \"{T}: Add {W}. // {T}: Add {B}.\") — a frente gera só {W} e o verso só {B}"
+   ],
+   "evidencia": "T-8 (11/10/2026) · src/engine/core.js, bloco \"T-8 · CR 712.3 … dupla face modal\" (cartas `self: { modal: true }`): `play_land` com `face: 'verso'`: a face escolhida precisa ser terreno (senão \"não é terreno\"), entra com ela para cima, conta como o terreno do turno e segue o tempo de terreno; terreno // terreno oferece as duas faces e cada uma gera só a própria mana, também com o dado da rede (as duas faces no texto)."
   },
   {
    "n": "712.13",
    "regra": "Double-Faced Cards",
    "titulo": "Mágica de dupla face entra com a face que estava na pilha",
    "status": "parcial",
-   "evidencia": "a marca de face (frontName) atravessa pilha→campo (moveObject 10259); rules.unit \"S24 · disturb\"",
+   "evidencia": "T-8 (11/10/2026) · src/engine/core.js, bloco \"T-8 · CR 712.3 … dupla face modal\" (cartas `self: { modal: true }`): a face que estava na pilha é a que entra no campo (moveObject não desvira da pilha para o campo); a face de trás que não é permanente vai ao cemitério como a frente.",
    "falta": "712.13a (cópia de mágica de permanente transformada) depende de cópia.",
    "esforco": "P",
    "depende": [
     "707.10"
+   ],
+   "testes": [
+    "CR 712.13 · 712.8f · a face conjurada é a que entra no campo, e a permanente tem só as características dela (valor de mana próprio); 712.8a · fora do campo e da pilha volta a ser a frente"
    ]
   },
   {
@@ -10196,7 +10216,7 @@
    "titulo": "Dupla face posta no campo por outra zona",
    "status": "parcial",
    "evidencia": "entra com a frente (flipToFront ao mudar de zona, 10259)",
-   "falta": "712.14a (\"entra transformada\" vinda de outra zona) só existe no efeito antigo `exile_return_transformed` (Sorin, Kytheon: objeto novo de verdade, 17803); carta sem verso mandada entrar transformada deveria ser exilada e ficar no exílio. 712.14b é da dupla face modal.",
+   "falta": "712.14a (\"entra transformada\" vinda de outra zona) só existe no efeito antigo `exile_return_transformed` (Sorin, Kytheon); carta sem verso mandada entrar transformada deveria ser exilada e ficar no exílio. 712.14b (modal com frente que não é permanente, mandada ao campo por um efeito, fica onde está): os efeitos que põem carta no campo olham os tipos da frente, mas não há teste por efeito.",
    "esforco": "M",
    "depende": [
     "400.7"

@@ -219,3 +219,169 @@ test('CR 701.27 · passeio aleatório com cartas de dupla face nos dois lados: t
   }
   assert.ok(viradas > 20, 'transformações no passeio: ' + viradas);
 });
+
+/* ================= T-8 · dupla face modal (712.3, 712.8f, 712.11b–c, 712.12, 712.13) ================= */
+Object.assign(SCRIPTS, {
+  // modal permanente // permanente: Mago 1/1 ({1}) // Torre, artefato ({3}) que ao entrar dá 7 de vida
+  'Mago': { name: 'Mago', self: { modal: true }, abilities: [{ kind: 'triggered', when: 'etb', effects: ganha(1) }],
+    back: { name: 'Torre', types: ['artifact'], mana: '{3}', abilities: [{ kind: 'triggered', when: 'etb', effects: ganha(7) }] }, ...EX },
+  // modal criatura // instantânea: Batedora 2/2 ({1}) // Raio ({R}): 2 de dano a qualquer alvo
+  'Batedora': { name: 'Batedora', self: { modal: true }, abilities: [VIRA], back: { name: 'Raio', types: ['instant'], mana: '{R}', effects: [{ do: 'damage', amount: 2, target: 'any' }] }, ...EX },
+  'Anula': { name: 'Anula', effects: [{ do: 'counter', target: 'spell' }], ...EX },
+});
+carta('Mago', 'Creature — Human Wizard', { power: '1', toughness: '1' });
+carta('Batedora', 'Creature — Human Scout', { power: '2', toughness: '2' });
+carta('Anula', 'Instant');
+const naMao = (s, p, nome) => { let oid; [s, oid] = poe(s, p, nome, 'hand'); return [s, oid]; };
+const semMana = (s, p) => { s = J(s); for (const c of 'WUBRGC') s.players[p].pool[c] = 0; for (const oid of s.zones[p].battlefield) s.objects[oid].tapped = true; return s; };
+const doObjeto = (s, p, oid) => legais(s, p, a => a.oid === oid && (a.t === 'cast' || a.t === 'play_land'));
+const frente = (s, p, oid) => doObjeto(s, p, oid).filter(a => a.face !== 'verso');
+const verso = (s, p, oid) => doObjeto(s, p, oid).filter(a => a.face === 'verso');
+const zona = (s, oid) => s.objects[oid].zone;
+
+test('CR 712.11b–c · dupla face modal: da mão o jogador escolhe a face que conjura; só a face escolhida conta — custo, tempo e alvos dela', () => {
+  let s, m; [s, m] = naMao(mesa(['Mago']), 0, 'Mago'); s = mana(s, 0);
+  eq([frente(s, 0, m).length, verso(s, 0, m).length], [1, 1], 'Mago ou Torre');
+  let t = semMana(s, 0); t.players[0].pool.C = 1;
+  eq([frente(t, 0, m).length, verso(t, 0, m).length], [1, 0], 'com {1}: só o Mago; a Torre custa {3}');
+  // criatura // instantânea: no turno do oponente só a face instantânea, com os alvos dela
+  let u, b; [u, b] = naMao(mesa(['Batedora']), 0, 'Batedora');
+  u = passaAte(u, x => x.turn.active === 1 && x.turn.step === 'main1' && x.turn.priority === 1); u = act(u, { t: 'pass', p: 1 }); u = mana(u, 0);
+  assert.equal(frente(u, 0, b).length, 0, 'a criatura não tem lampejo'); assert.ok(verso(u, 0, b).length >= 2, 'o Raio, com alvos');
+  assert.throws(() => act(u, { t: 'cast', p: 0, oid: b }), /fase principal|tempo/);
+});
+
+test('CR 712.13 · 712.8f · a face conjurada é a que entra no campo, e a permanente tem só as características dela (valor de mana próprio); 712.8a · fora do campo e da pilha volta a ser a frente', () => {
+  let s, m, x; [s, m] = naMao(mesa(['Mago', 'Sopro']), 0, 'Mago'); s = mana(s, 0);
+  s = act(s, verso(s, 0, m)[0]);
+  eq([zona(s, m), nome(s, m), J(s.facts[nome(s, m)].types), s.facts[nome(s, m)].cmc], ['stack', 'Torre', ['artifact'], 3], '712.8f: na pilha é a Torre, valor de mana 3');
+  s = esvazia(s);
+  eq([zona(s, m), nome(s, m), E.isCreature(s, s.objects[m]), vida(s)], ['battlefield', 'Torre', false, 7], 'entrou a Torre (gatilho dela), não o Mago');
+  assert.equal(E.transformada(s, s.objects[m]), false, 'verso modal para cima não é "permanente transformada" de carta que transforma');
+  s = J(s); s.zones[0].battlefield.splice(s.zones[0].battlefield.indexOf(m), 1); s.zones[0].hand.push(m); Object.assign(s.objects[m], { zone: 'hand', name: 'Mago' }); delete s.objects[m].frontName;
+  let t, n; [t, n] = naMao(mesa(['Mago']), 0, 'Mago'); t = mana(t, 0); t = esvazia(act(t, frente(t, 0, n)[0]));
+  eq([nome(t, n), vida(t)], ['Mago', 1], 'conjurada pela frente, entra o Mago');
+});
+
+test('CR 712.11b · face de trás que não é permanente: resolve e vai ao cemitério como a carta da frente; anulada, também; 712.9 · a modal não transforma', () => {
+  let s, b, x; [s, b] = naMao(mesa(['Batedora', 'Anula']), 0, 'Batedora'); s = mana(s, 0);
+  let t = esvazia(act(s, verso(s, 0, b).find(a => a.targets[0].player === 1)));
+  eq([t.players[1].life, zona(t, b), nome(t, b), t.objects[b].frontName], [18, 'graveyard', 'Batedora', undefined]);
+  let u = act(s, verso(s, 0, b).find(a => a.targets[0].player === 1));
+  [u, x] = naMao(u, 1, 'Anula'); u = mana(u, 1); u = act(u, { t: 'pass', p: 0 });
+  u = esvazia(act(u, legais(u, 1, a => a.t === 'cast' && a.oid === x && a.targets[0].oid === b)[0]));
+  eq([u.players[1].life, zona(u, b), nome(u, b)], [20, 'graveyard', 'Batedora'], 'anulada: cemitério, como a frente');
+  // 712.9: a Batedora no campo com "transforme" não vira o Raio nem coisa alguma
+  let v, c; [v, c] = campo(mesa(['Batedora']), 0, 'Batedora'); v = esvazia(ativa(v, c)); assert.equal(nome(v, c), 'Batedora');
+});
+
+test('CR 712.12 · jogar a dupla face modal como terreno: o jogador escolhe uma face que seja terreno; conta como o terreno do turno; a outra face continua conjurável', () => {
+  let s, f; [s, f] = naMao(mesa(['Tangled Florahedron']), 0, 'Tangled Florahedron'); s = mana(s, 0);
+  eq([frente(s, 0, f).map(a => a.t), verso(s, 0, f).map(a => a.t)], [['cast'], ['play_land']], 'conjurar a criatura ou jogar o Tangled Vale');
+  let t = act(s, verso(s, 0, f)[0]);
+  eq([zona(t, f), nome(t, f), J(t.facts[nome(t, f)].types), t.objects[f].tapped, t.players[0].landsPlayed, t.stack.length], ['battlefield', 'Tangled Vale', ['land'], true, 1, 0], 'entra o terreno, virado, sem usar a pilha');
+  let f2; [t, f2] = naMao(t, 0, 'Tangled Florahedron'); t = mana(t, 0);
+  eq([frente(t, 0, f2).length, verso(t, 0, f2).length], [1, 0], 'já jogou terreno: a outra cópia só pode ser conjurada');
+  t = J(t); t.objects[f].tapped = false;
+  eq(J(E.productions(t, t.objects[f])), [['G']], 'o Tangled Vale gera {G}');
+  // conjurada pela frente é a criatura 1/1 que gera {G}
+  let u = esvazia(act(s, frente(s, 0, f)[0]));
+  eq([nome(u, f), pt(u, f), J(E.productions(u, u.objects[f]))], ['Tangled Florahedron', [1, 1], [['G']]]);
+  // fora do tempo de terreno, nada de jogar o verso
+  let w = passaAte(s, x => x.turn.active === 1 && x.turn.step === 'main1'); w = mana(J(w), 0);
+  assert.equal(verso(w, 0, f).length, 0);
+  assert.throws(() => act(w, { t: 'play_land', p: 0, oid: f, face: 'verso' }), /fase principal|tempo|prioridade/);
+});
+
+test('CR 712.12 · terreno // terreno (Brightclimb Pathway // Grimclimb Pathway): as duas faces são oferecidas e o terreno que entra gera só a cor da face escolhida; face que não é terreno não é jogada como terreno', () => {
+  let s, p; [s, p] = naMao(mesa(['Brightclimb Pathway', 'Mago']), 0, 'Brightclimb Pathway');
+  eq([frente(s, 0, p).map(a => a.t), verso(s, 0, p).map(a => a.t)], [['play_land'], ['play_land']]);
+  const a = act(s, frente(s, 0, p)[0]), b = act(s, verso(s, 0, p)[0]);
+  eq([nome(a, p), J(E.productions(a, a.objects[p])), nome(b, p), J(E.productions(b, b.objects[p])), b.objects[p].tapped], ['Brightclimb Pathway', [['W']], 'Grimclimb Pathway', [['B']], false]);
+  let m; [s, m] = naMao(s, 0, 'Mago');
+  assert.throws(() => act(s, { t: 'play_land', p: 0, oid: m, face: 'verso' }), /não é terreno/);
+  assert.throws(() => act(s, { t: 'cast', p: 0, oid: p, face: 'verso' }), /terreno é jogado/);
+});
+
+test('S8 · Skyclave Cleric // Skyclave Basilica e Zof Consumption // Zof Bloodbog: a mágica da frente ou o terreno do verso (que entra virado e gera a cor)', () => {
+  let s, c; [s, c] = naMao(mesa(['Skyclave Cleric']), 0, 'Skyclave Cleric'); s = mana(s, 0);
+  let t = esvazia(act(s, frente(s, 0, c)[0])); eq([nome(t, c), pt(t, c), vida(t)], ['Skyclave Cleric', [1, 3], 2]);
+  t = act(s, verso(s, 0, c)[0]); eq([nome(t, c), t.objects[c].tapped, vida(t)], ['Skyclave Basilica', true, 0]);
+  t = J(t); t.objects[c].tapped = false; eq(J(E.productions(t, t.objects[c])), [['W']]);
+  let u, z; [u, z] = naMao(mesa(['Zof Consumption']), 0, 'Zof Consumption'); u = mana(u, 0);
+  let v = esvazia(act(u, frente(u, 0, z)[0])); eq([vida(v, 0), vida(v, 1), zona(v, z), nome(v, z)], [4, -4, 'graveyard', 'Zof Consumption']);
+  v = act(u, verso(u, 0, z)[0]); eq([nome(v, z), v.objects[z].tapped], ['Zof Bloodbog', true]);
+  v = J(v); v.objects[z].tapped = false; eq(J(E.productions(v, v.objects[z])), [['B']]);
+  for (const n of ['Tangled Florahedron', 'Skyclave Cleric', 'Zof Consumption', 'Brightclimb Pathway']) { const sc = S.SCRIPTS[n]; assert.ok(sc && sc.example, n); eq([...S.validateScript(sc)], [], n); }
+});
+
+test('CR 712.3 · com os dados da carta como a Scryfall entrega (nome "A // B", duas faces, sem custo no nível de cima): pelo nome da lista ou pelo nome completo, as duas faces jogam', () => {
+  const scry = { name: 'Tangled Florahedron // Tangled Vale', layout: 'modal_dfc', mana_cost: '{1}{G}', cmc: 2, type_line: 'Creature — Elemental // Land', oracle_text: '{T}: Add {G}.\n//\nTangled Vale enters tapped.\n{T}: Add {G}.', keywords: [], colors: ['G'], power: '1', toughness: '1', // como o app normaliza o dado da Scryfall (normalizeCard)
+    faces: [{ name: 'Tangled Florahedron', mana_cost: '{1}{G}', type_line: 'Creature — Elemental', oracle_text: '{T}: Add {G}.', power: '1', toughness: '1', colors: ['G'] },
+      { name: 'Tangled Vale', mana_cost: '', type_line: 'Land', oracle_text: 'Tangled Vale enters tapped.\n{T}: Add {G}.', colors: [] }] };
+  for (const chave of ['Tangled Florahedron', 'Tangled Florahedron // Tangled Vale']) {
+    const cards = { [chave]: scry }; for (const n of ['Plains', 'Forest', 'Island', 'Mountain']) cards[n] = CARTAS[n];
+    let s = E.createGame({ format: 'livre', seed: 1, mode: 'full', cards, scripts: {}, players: [{ name: 'A', deck: [{ name: chave, qty: 20, zone: 'main' }, { name: 'Forest', qty: 20, zone: 'main' }] }, { name: 'B', deck: [{ name: 'Island', qty: 40, zone: 'main' }] }] });
+    for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+    s = passaAte(s, x => x.turn.active === 0 && x.turn.step === 'main1' && !x.stack.length && !x.pending);
+    let c; [s, c] = poe(s, 0, chave, 'hand'); s = mana(s, 0);
+    assert.ok(s.facts[chave].script, chave + ': tem script na partida');
+    eq([frente(s, 0, c).map(a => a.t), verso(s, 0, c).map(a => a.t)], [['cast'], ['play_land']], chave);
+    eq(s.facts[chave].cost.colored, { G: 1 }, chave + ': custo da frente');
+    const t = act(s, verso(s, 0, c)[0]); eq([nome(t, c), t.objects[c].tapped], ['Tangled Vale', true]);
+    const u = esvazia(act(s, frente(s, 0, c)[0])); eq([zona(u, c), pt(u, c)], ['battlefield', [1, 1]], chave + ': a criatura');
+  }
+});
+
+test('CR 712.12 · com rede: terreno // terreno com as duas faces no dado (texto junto "{T}: Add {W}. // {T}: Add {B}.") — a frente gera só {W} e o verso só {B}', () => {
+  const scry = { name: 'Brightclimb Pathway // Grimclimb Pathway', layout: 'modal_dfc', mana_cost: '', cmc: 0, type_line: 'Land // Land', oracle_text: '{T}: Add {W}.\n//\n{T}: Add {B}.', keywords: [], colors: [],
+    faces: [{ name: 'Brightclimb Pathway', mana_cost: '', type_line: 'Land', oracle_text: '{T}: Add {W}.', colors: [] }, { name: 'Grimclimb Pathway', mana_cost: '', type_line: 'Land', oracle_text: '{T}: Add {B}.', colors: [] }] };
+  const chave = 'Brightclimb Pathway // Grimclimb Pathway', cards = { [chave]: scry }; for (const n of ['Plains', 'Forest', 'Island', 'Mountain']) cards[n] = CARTAS[n];
+  let s = E.createGame({ format: 'livre', seed: 1, mode: 'full', cards, scripts: {}, players: [{ name: 'A', deck: [{ name: chave, qty: 20, zone: 'main' }, { name: 'Forest', qty: 20, zone: 'main' }] }, { name: 'B', deck: [{ name: 'Island', qty: 40, zone: 'main' }] }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  s = passaAte(s, x => x.turn.active === 0 && x.turn.step === 'main1' && !x.stack.length && !x.pending);
+  let c; [s, c] = poe(s, 0, chave, 'hand');
+  const a = act(s, frente(s, 0, c)[0]), b = act(s, verso(s, 0, c)[0]);
+  eq([J(E.productions(a, a.objects[c])), nome(b, c), J(E.productions(b, b.objects[c]))], [[['W']], 'Grimclimb Pathway', [['B']]]);
+});
+
+test('CR 712.3 · validador da modal e mesa: `self.modal` pede face de trás; face de trás que não é terreno pede custo (`back.mana`); a folha diz o nome da face ("Jogar Tangled Vale", "Conjurar Torre · {3}") e o registro também', () => {
+  const v = sc => S.validateScript({ name: 'X', ...sc, ...EX }).join(' | ');
+  assert.equal(v(SCRIPTS['Mago']), ''); assert.equal(v(SCRIPTS['Batedora']), '');
+  assert.match(v({ self: { modal: true }, abilities: [VIRA] }), /modal.*face de trás/);
+  assert.match(v({ self: { modal: true }, abilities: [VIRA], back: { name: 'Y', types: ['artifact'] } }), /modal.*custo/);
+  assert.match(v({ self: { modal: true, duplaFace: true }, abilities: [VIRA], back: { name: 'Y', types: ['land'] } }), /não as duas/);
+  let s, f, m; [s, f] = naMao(mesa(['Tangled Florahedron', 'Mago']), 0, 'Tangled Florahedron'); [s, m] = naMao(s, 0, 'Mago'); s = mana(s, 0);
+  eq(E.faceDeTras(s, f), { nome: 'Tangled Vale', terreno: true, mana: null }); eq(E.faceDeTras(s, m), { nome: 'Torre', terreno: false, mana: '{3}' });
+  const a1 = verso(s, 0, f)[0], a2 = verso(s, 0, m)[0];
+  assert.match(T.describe(s, a1, [], act(s, a1)).join(' | '), /A jogou Tangled Vale \(a outra face de Tangled Florahedron\)/);
+  assert.match(T.describe(s, a2, [], act(s, a2)).join(' | '), /A conjurou Torre \(a outra face de Mago\)/);
+  const src = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+  assert.match(src, /`Jogar \$\{fv\.nome\}`/); assert.match(src, /`Conjurar \$\{fv\.nome\}/);
+});
+
+test('CR 712.3 · partida sem a carta modal não ganha nada no estado, e o passeio aleatório com modais nos dois lados não recusa ação oferecida nem deixa o verso para cima fora do campo e da pilha', () => {
+  const jogo = nomes => { const cards = Object.fromEntries(['Plains', 'Forest', 'Island', 'Mountain', ...nomes].map(n => [n, CARTAS[n]]));
+    return E.createGame({ format: 'livre', seed: 1, mode: 'full', cards, scripts: {}, players: [{ name: 'A', deck: baralho([...nomes, 'Plains', 'Forest']) }, { name: 'B', deck: baralho([...nomes, 'Island', 'Mountain']) }] }); };
+  const sem = jogo(['Urso']);
+  for (const n of ['Tangled Vale', 'Skyclave Basilica', 'Zof Bloodbog', 'Grimclimb Pathway']) assert.equal(sem.facts[n], undefined, n);
+  let pelaFace = 0;
+  for (let seed = 1; seed <= 5; seed++) {
+    let s = mesa(['Tangled Florahedron', 'Skyclave Cleric', 'Zof Consumption', 'Brightclimb Pathway', 'Mago', 'Batedora', 'Urso'], undefined, seed), r = seed * 32452843;
+    for (let i = 0; i < 350 && s.status !== 'over'; i++) {
+      const p = s.pending ? s.pending.p : s.turn.priority;
+      if (i % 9 === 0 && !s.pending) s = mana(s, p, 2);
+      const acoes = E.legalActions(s, p).filter(a => a.t !== 'concede');
+      assert.ok(acoes.length, `semente ${seed}, passo ${i}: sem ação`);
+      r = (r * 1103515245 + 12345) & 0x7fffffff;
+      const pref = acoes.filter(a => a.face === 'verso' || a.t === 'cast' || a.t === 'play_land');
+      const a = pref.length && r % 3 ? pref[r % pref.length] : acoes[r % acoes.length];
+      if (a.face === 'verso') pelaFace++;
+      let out; try { out = E.apply(s, a); } catch (e) { assert.fail(`semente ${seed}, passo ${i}: ação oferecida recusada ${JSON.stringify(a)} — ${e.message}`); }
+      s = out.state;
+      eq(E.invariants(s).filter(x => !/parado em passo sem prioridade/.test(x)), [], `semente ${seed}, passo ${i}, depois de ${a.t}`);
+      for (const o of Object.values(s.objects)) if (!o.ability && o.zone !== 'stack' && o.zone !== 'battlefield') assert.ok(!o.frontName, `semente ${seed}, passo ${i}: ${o.name} com o verso para cima em ${o.zone}`);
+    }
+  }
+  assert.ok(pelaFace > 15, 'jogadas pela face de trás no passeio: ' + pelaFace);
+});

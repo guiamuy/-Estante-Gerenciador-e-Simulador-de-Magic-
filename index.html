@@ -6084,7 +6084,7 @@ function validateScript(sc) {
   if (sc && sc.replicate != null && sc.kicker) errs.push('replicar e reforço na mesma carta não são aceitos (os dois usam o pagamento repetido)');
   if (sc && sc.modeCount != null && !(Number.isInteger(sc.modeCount) && sc.modeCount >= 2 && (sc.modes || []).length && (sc.modeRepeat || sc.modeCount <= sc.modes.length))) errs.push('número de modos inválido');
   if (sc && sc.cumulativeUpkeep && !/\{/.test(String(sc.cumulativeUpkeep.mana || ''))) errs.push('manutenção cumulativa precisa de um custo de mana');
-  errs.push(...sagaErros(sc), ...tripularErros(sc), ...aventuraErros(sc), ...duplaFaceErros(sc)); // T-7 · CR 712 · dupla face (mesma chamada) // T-5 · CR 715 · aventura (mesma chamada) // T-3 · CR 702.122 · tripular (mesma chamada da T-1) // T-1 · CR 714 · Saga: capítulos, read ahead e o marcador de entrada (função abaixo da âncora T das exportações)
+  errs.push(...sagaErros(sc), ...tripularErros(sc), ...aventuraErros(sc), ...duplaFaceErros(sc), ...modalErros(sc)); // T-8 · CR 712.3 · dupla face modal (mesma chamada) // T-7 · CR 712 · dupla face (mesma chamada) // T-5 · CR 715 · aventura (mesma chamada) // T-3 · CR 702.122 · tripular (mesma chamada da T-1) // T-1 · CR 714 · Saga: capítulos, read ahead e o marcador de entrada (função abaixo da âncora T das exportações)
   return errs.concat(exampleErrors(sc));
 }
 const ATRASOS = ['next-upkeep', 'next-end-step', 'end-of-combat']; // CR2b.1 · momentos de gatilho atrasado que o motor conhece
@@ -6416,6 +6416,17 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-8 · CR 712.3 / 712.11b / 712.12 · dupla face modal (Oracle do Forge, clone de 11/10/2026). `self: { modal: true }` + `back`: a face de
+  // trás é conjurada (`back.mana`) ou, sendo terreno, jogada como o terreno do turno (`back.produces`, `back.entersTapped`). O que a
+  // frente faz vem do script e do texto da carta, como em qualquer carta ("{T}: Add {G}." da Tangled Florahedron e da Brightclimb Pathway).
+  { name: 'Tangled Florahedron', self: { modal: true }, back: { name: 'Tangled Vale', types: ['land'], entersTapped: true, produces: [['G']] }, // "Tangled Vale enters tapped. {T}: Add {G}."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Skyclave Cleric', self: { modal: true }, abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'gain', amount: 2 }] }], // "When Skyclave Cleric enters, you gain 2 life."
+    back: { name: 'Skyclave Basilica', types: ['land'], entersTapped: true, produces: [['W']] }, example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o cenário de verdade (linha de tipo real) está em tipos.duplaface.unit
+  { name: 'Zof Consumption', self: { modal: true }, effects: [{ do: 'lose', amount: 4, target: 'each-opponent' }, { do: 'gain', amount: 4 }], // "Each opponent loses 4 life and you gain 4 life."
+    back: { name: 'Zof Bloodbog', types: ['land'], entersTapped: true, produces: [['B']] }, example: { target: 'none', expect: { opponentLife: -4, selfLife: 4 } } },
+  { name: 'Brightclimb Pathway', self: { modal: true }, back: { name: 'Grimclimb Pathway', types: ['land'], produces: [['B']] }, // "{T}: Add {B}."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // T-7 · CR 701.27 / 712 · dupla face que transforma (Oracle do Forge, clone de 11/10/2026). `self: { duplaFace: true }` + `back` (a face de
   // trás, sempre de permanente) e o efeito `transformar`. Defensor, voar e vínculo com a vida da frente vêm do texto da carta; os do
   // verso, de `back.keywords`. A cor do verso é a do indicador de cor da carta (`back.colors`).
@@ -7723,6 +7734,23 @@ EVENTOS_DE_OBJETO.push('exaurida'); OBJETOS_DO_EVENTO.exaurida = ['self']; GATIL
 // V-6 · evento "ficou monstruosa" (701.37): da própria permanente
 EVENTOS_DE_OBJETO.push('monstruosa'); OBJETOS_DO_EVENTO.monstruosa = ['self']; GATILHO_EVENTO['becomes-monstrous'] = { evento: 'monstruosa', objeto: 'self' }; TRIGGER_PT['becomes-monstrous'] = 'quando fica monstruosa';
 /* ↓ T · exportações de scripts.js da trilha tipos */
+/* ---------------- T-8 · CR 712.3 · dupla face modal (forma do script) ----------------
+   `self: { modal: true }` + `back: { name, types, … }`. A face de trás que não é terreno tem custo próprio (`back.mana`) e é
+   conjurada por ela; a que é terreno é jogada como terreno (`back.produces: [['G']]`, `back.entersTapped: true`). As duas faces
+   são independentes: a modal não transforma (712.9 vale só para quem tem `self.duplaFace`). */
+function modalErros(sc) {
+  const errs = [], md = sc && sc.self && sc.self.modal;
+  if (md == null) return errs;
+  if (md !== true) errs.push('dupla face modal: self.modal só vale como true');
+  if (sc.self.duplaFace || sc.self.aventura) errs.push('dupla face modal: a carta é modal, de transformar ou de aventura, não as duas');
+  const b = sc.back; if (!b) { errs.push('dupla face modal: falta a face de trás (back)'); return errs; }
+  const terreno = (b.types || []).includes('land');
+  if (!terreno && !(typeof b.mana === 'string' && /\{/.test(b.mana))) errs.push('dupla face modal: a face de trás que não é terreno precisa do custo (back.mana)');
+  if (b.produces != null && !(Array.isArray(b.produces) && b.produces.every(x => Array.isArray(x) && x.length))) errs.push('dupla face modal: back.produces é uma lista de opções de mana, como [[\'G\']]');
+  if (b.entersTapped != null && typeof b.entersTapped !== 'boolean') errs.push('dupla face modal: back.entersTapped precisa ser verdadeiro ou falso');
+  return errs;
+}
+Object.assign(EXPORTS_T_SC, { modalErros });
 /* ---------------- T-7 · CR 712 / 701.27 · dupla face que transforma (forma do script) ----------------
    `self: { duplaFace: true }` marca a carta de dupla face desta trilha; `back` é a face de trás (sempre de permanente: 712.10 trata
    de quem tem face instantânea ou feitiço, que não transforma). O efeito `transformar` vira a face da permanente fonte; o gatilho
@@ -7755,7 +7783,7 @@ function aventuraErros(sc) {
 }
 /** As faces de trás desta trilha só viram fatos na partida que tem a carta (createGame): script novo com `back` na biblioteca não
  * muda o estado das partidas que não o usam. Cada tipo de carta da trilha acrescenta a sua marca aqui. */
-const versoSoNaPartida = sc => !!(sc && sc.self && (sc.self.aventura || sc.self.duplaFace)); // T-7 · dupla face que transforma
+const versoSoNaPartida = sc => !!(sc && sc.self && (sc.self.aventura || sc.self.duplaFace || sc.self.modal)); // T-7 · dupla face que transforma · T-8 · modal
 Object.assign(EXPORTS_T_SC, { aventuraErros, versoSoNaPartida });
 /* ---------------- T-3 · CR 702.122 · tripular (forma do script) ----------------
    Tripular é a habilidade ativada de custo `{ crew: N }` (CR2d.3). Esta leva acrescenta:
@@ -19314,6 +19342,7 @@ const HANDLERS = {
     const exilada = s.objects[a.oid];
     const doExilio = jogavelDoExilio(s, a.p, exilada) && exilada.owner === a.p; // M-270
     const o = doExilio ? exilada : owns(s, a.p, a.oid, 'hand');
+    faceEscolhidaT(s, a, o); // T-8 · CR 712.12 · dupla face modal jogada como terreno: a face escolhida vai para cima antes da conferência de tipo
     if (!s.facts[o.name].types.includes('land')) throw new RuleError('tipo', 'não é terreno');
     if (s.turn.active !== a.p || (!a.granted && (!isMain(s) || s.stack.length))) throw new RuleError('tempo', 'terreno só na sua fase principal, com a pilha vazia'); // M-268 · por efeito: só no seu turno (305.2)
     if (s.players[a.p].landsPlayed >= terrenosPorTurno(s, a.p)) throw new RuleError('limite', 'já jogou terreno neste turno'); // CR2d.10 · 305.2
@@ -19349,6 +19378,7 @@ const HANDLERS = {
     if (a.omen && !omenOf(s, o)) throw new RuleError('presságio', 'esta carta não tem presságio');
     aventuraNaConjuracao(s, a, o); // T-5 · CR 715.3d · carta em aventura no exílio: só a carta normal, nunca como Aventura (função abaixo da âncora T das exportações)
     if (a.disturb || a.omen) flipTo(s, o, backOf(s, o)); // conjura com a face de trás
+    faceEscolhidaT(s, a, o); // T-8 · CR 712.11b–c · dupla face modal: a face escolhida vai para cima antes de qualquer conferência (custo, tempo e alvos são os dela); função abaixo da âncora T das exportações
     const f = s.facts[o.name];
     if (a.faceDown && !(f.script || {}).morph) throw new RuleError('metamorfose', 'esta carta não tem metamorfose');
     if (f.types.includes('land')) throw new RuleError('tipo', 'terreno é jogado, não conjurado');
@@ -20597,6 +20627,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
   if (!s.pending) for (const o of battlefield(s)) if (o.controller === p && podeVirarManifestada(s, o) && (!s.manaCheck || canPay(s, p, s.facts[o.name].cost))) out.push({ t: 'unmorph', p, oid: o.oid, manifest: true }); // V-17 · 701.40b
   /* ↓ T · ofertas de legalActions da trilha tipos (out.push) */
   tripularOfertas(s, p, out); // T-3 · CR 702.122a · "qualquer número de outras criaturas": além dos grupos mínimos, a escolha de quem tripula (função abaixo da âncora T das exportações)
+  modalOfertas(s, p, out); // T-8 · CR 712.11b / 712.12 · dupla face modal na mão: conjurar ou jogar a face de trás (função abaixo da âncora T das exportações)
   return out;
   })());
 }
@@ -21971,6 +22002,13 @@ function fatosDeDuasPartesT(s, sc, setup) {
     fb.cost = parseCost(sc.omen.mana); fb.cmc = valorDoCustoT(fb.cost); fb.semCusto = false;
     if (!(sc.back.colors || []).length) fb.colors = coresDoCustoT(fb.cost);
   }
+  if (fb && sc.self && sc.self.modal) { // T-8 · 712.8f: a face de trás modal tem as características dela — custo, valor de mana, cor, mana que gera, entrar virada
+    const b = sc.back, terreno = (b.types || []).includes('land');
+    fb.cost = parseCost(b.mana || ''); fb.cmc = valorDoCustoT(fb.cost); fb.semCusto = !terreno && !b.mana;
+    if (!(b.colors || []).length) fb.colors = coresDoCustoT(fb.cost);
+    if (b.produces) fb.produces = b.produces.map(x => x.slice());
+    if (b.entersTapped) fb.script.entersTapped = true;
+  }
   if (fb && sc.self && sc.self.duplaFace) { // T-7 · 712.8e: com o verso para cima, o valor de mana é o da frente
     const frente = Object.keys(setup.cards || {}).find(n => n === sc.name || n.split(' // ')[0] === sc.name);
     if (frente && s.facts[frente]) fb.cmc = s.facts[frente].cmc || 0;
@@ -21979,6 +22017,9 @@ function fatosDeDuasPartesT(s, sc, setup) {
     if (n !== sc.name && n.split(' // ')[0] !== sc.name) continue;
     const mc = String((card && card.mana_cost) || '');
     if (s.facts[n] && mc.includes(' // ')) s.facts[n].cost = parseCost(mc.split(' // ')[0]);
+    // T-8 · com as duas faces no dado (rede), a mana que a FRENTE gera sai só do texto da frente (o texto junto daria {W} e {B} à Brightclimb Pathway)
+    const f0 = card && Array.isArray(card.faces) && card.faces.length > 1 ? card.faces[0] : null;
+    if (s.facts[n] && f0) s.facts[n].produces = parseProduction({ type_line: f0.type_line || '', oracle_text: f0.oracle_text || '' });
   }
 }
 /* ---------------- T-7 · CR 701.27 / 712 / 707.8a · dupla face que transforma ----------------
@@ -22025,6 +22066,39 @@ function fichaDeDuplaFaceT(s, ft, modelo) {
   ft.duplaFace = { frente: par.frente, verso: par.verso };
   if (modelo.frontName) ft.frontName = par.frente; // o modelo está com o verso para cima: a ficha também
 }
+/* ---------------- T-8 · CR 712.3 / 712.8f / 712.11b–c / 712.12 / 712.13 · dupla face modal ----------------
+   A carta modal (`self.modal`) tem duas faces independentes. Da mão, o jogador escolhe a face: a ação leva `face: 'verso'`
+   (`cast` ou `play_land`) e a face de trás vai para cima ANTES de qualquer conferência — custo, tempo, alvos e tipo passam a ser
+   os dela (712.11c). A face que estava na pilha é a que entra no campo (712.13), e fora do campo e da pilha vale a frente (712.8a,
+   pelo `flipToFront` de toda mudança de zona). Jogada como terreno, a face escolhida precisa ser terreno (712.12).
+   As ofertas saem do próprio `legalActions`: numa cópia do estado com as modais da mão viradas, o que ele oferece para elas é
+   exatamente o que vale para a face de trás (mesmas regras de custo, tempo, alvo e terreno do turno, sem repetir código). */
+function faceDeTras(s, x) {
+  const o = typeof x === 'string' ? s.objects[x] : x; if (!o || o.ability) return null;
+  const f = s.facts[o.frontName || o.name], sc = f && f.script;
+  if (!(sc && sc.self && sc.self.modal && sc.back && s.facts[sc.back])) return null;
+  const fb = s.facts[sc.back], terreno = (fb.types || []).includes('land');
+  return { nome: sc.back, terreno, mana: terreno ? null : (costStringT(fb.cost) || '{0}') };
+}
+const costStringT = c => (c.x ? '{X}'.repeat(c.x) : '') + (c.generic ? `{${c.generic}}` : '') + (c.hybrid || []).map(h => `{${h}}`).join('') + COLORS.map(k => `{${k}}`.repeat((c.colored || {})[k] || 0)).join('');
+function faceEscolhidaT(s, a, o) {
+  if (a.face == null) return;
+  const fv = o && faceDeTras(s, o);
+  if (a.face !== 'verso' || !fv || o.zone !== 'hand' || o.frontName) throw new RuleError('face', 'só a carta de dupla face modal, na mão, escolhe a face');
+  if (a.omen || a.disturb || a.flashback || a.escape || a.plotted || a.faceDown || a.bestow || a.retrace || a.permissao != null || a.alt != null || a.kick) throw new RuleError('face', 'a face de trás é jogada pelo custo dela');
+  flipTo(s, o, fv.nome);
+}
+let DENTRO_DAS_MODAIS = false;
+function modalOfertas(s, p, out) {
+  if (DENTRO_DAS_MODAIS || s.pending) return;
+  const modais = s.zones[p].hand.filter(oid => !s.objects[oid].frontName && faceDeTras(s, oid));
+  if (!modais.length) return;
+  const s2 = cloneEstado(s); for (const oid of modais) flipTo(s2, s2.objects[oid], faceDeTras(s, oid).nome);
+  DENTRO_DAS_MODAIS = true;
+  try { for (const a of legalActions(s2, p)) if (modais.includes(a.oid) && (a.t === 'cast' || a.t === 'play_land') && !a.omen && !a.disturb && !a.faceDown && !a.bestow && a.alt == null && !a.kick) out.push({ ...a, face: 'verso' }); }
+  finally { DENTRO_DAS_MODAIS = false; }
+}
+Object.assign(EXPORTS_T, { faceDeTras });
 Object.assign(EXPORTS_T, { parDuplaFaceT, transformada, transformaT });
 Object.assign(EXPORTS_T, { aventuraDe });
 Object.assign(EXPORTS_T, { capitulosDe, capituloFinal, capituloPendente, ROMANOS });
@@ -23736,6 +23810,7 @@ function describe(before, a, events, after) {
     default: break;
   }
   if (a.t === 'cast' && a.free) L[L.length - 1] += ' (sem pagar)';
+  if (a.face === 'verso' && L.length) { const fv = E.faceDeTras(before, a.oid), n0 = nameOf(before, a.oid); if (fv) L[L.length - 1] = L[L.length - 1].replace(n0, `${fv.nome} (a outra face de ${n0})`); } // T-8 · CR 712.11b / 712.12 · o registro diz a face jogada
   // dano de combate e mortes que acontecem ao passar
   if (a.t === 'pass' || a.t === 'block' || a.t === 'attack') {
     after.players.forEach((pl, i) => { if (pl.life !== before.players[i].life) L.push(linhaDeVida(pl.name, before.players[i].life, pl.life)); });
@@ -26565,6 +26640,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     for (const x of E.legalActions(s, v).filter(y => y.t === 'cast' && y.oid === oid && (y.disturb || y.omen)))
       legal.push(doBtn(x.disturb ? `Perturbar · ${(f.script.disturb || {}).mana || ''}` : `Presságio · ${(f.script.omen || {}).mana || ''}`, x, { variant: 'primary' }));
     { const av = E.aventuraDe(s, oid); if (av) for (const b of legal) if (b.action && b.action.t === 'cast' && b.action.omen) b.label = `Aventura · ${av.nome} · ${av.mana}`; } // T-5 · CR 715.3 · a escolha "carta normal ou Aventura": o botão diz Aventura, o nome e o custo
+    { const fv = E.faceDeTras(s, oid); if (fv) for (const b of legal) { const ac = b.action; if (!ac) continue; if (ac.face === 'verso') b.label = ac.t === 'play_land' ? `Jogar ${fv.nome}` : `Conjurar ${fv.nome} · ${fv.mana}`; else if (ac.t === 'play_land' && ac.revela == null) b.label = `Jogar ${o.name}`; } } // T-8 · CR 712.11b / 712.12 · dupla face modal: cada botão diz a face
     // S34: conceder
     for (const bw of E.legalActions(s, v).filter(x => x.t === 'cast' && x.oid === oid && x.bestow))
       legal.push(doBtn(`Conceder · ${(f.script.bestow || {}).mana || ''} → ${targetName(s, bw.targets[0])}`, bw, { variant: 'primary' }));

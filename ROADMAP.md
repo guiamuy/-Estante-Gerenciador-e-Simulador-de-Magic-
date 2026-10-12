@@ -4146,6 +4146,19 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum (uma linha inserida em cada):** `applyEffect` (âncora), `ficha_copia` (`fichaDeDuplaFaceT`), `effectLine` do registro (`LINHA_T`: "X transformou em Y" e a linha do exílio da aventura). Linhas alteradas: só as da própria trilha.
 - **Próximo:** CR5-T8 — dupla face modal (712.3, 712.11b, 712.12): conjurar ou jogar como terreno a face escolhida.
 
+**CR5-T8 · Dupla face modal (712.3, 712.8f, 712.11b–c, 712.12, 712.13)** ✅ (leva T-8, sem mudança de versão do motor) — 10 testes novos em `tipos.duplaface.unit` (23 no arquivo; os 10 falham sem a leva) e 1 de tela.
+- **Valor:** lista com carta de dupla face modal joga: da mão você escolhe a face — conjura a frente, conjura o verso ou joga o terreno do verso —, e cada botão diz o nome da face.
+- **Regra:** **712.11b–c** — a ação (`cast` ou `play_land`) leva `face: 'verso'` e a face de trás vai para cima antes de qualquer conferência: custo, tempo e alvos são os dela. **712.12** — jogada como terreno, a face escolhida precisa ser terreno; conta como o terreno do turno; terreno // terreno oferece as duas faces. **712.13 / 712.8f** — entra no campo a face que estava na pilha, com as características, o custo e o valor de mana dela. **712.8a** — fora do campo e da pilha vale a frente (face de trás que é mágica vai ao cemitério como a frente; anulada, também). A modal não transforma.
+- **Como as ofertas são feitas:** `legalActions` é chamado sobre uma cópia do estado com as modais da mão viradas; o que ele oferece para elas é o que vale para a face de trás (mesmas regras de custo, tempo, alvo e terreno do turno, sem repetir código). Custa uma chamada a mais só quando há modal na mão.
+- **Forma do script:** `self: { modal: true }` e `back: { name, types, mana | produces, entersTapped, effects, abilities }` (face de trás que não é terreno pede `back.mana`).
+- **Cartas exemplo** (texto oficial em `.listas/oficiais-tipos.json`, Oracle do Forge, 11/10/2026), completas: Tangled Florahedron // Tangled Vale, Skyclave Cleric // Skyclave Basilica, Zof Consumption // Zof Bloodbog, Brightclimb Pathway // Grimclimb Pathway.
+- **Com rede × sem rede:** com as duas faces no dado, o texto junto ("{T}: Add {W}. // {T}: Add {B}.") dava as duas cores à frente da Pathway; a mana da frente passa a sair só do texto da frente (só para as cartas desta trilha). Teste com o dado no formato que o app guarda, pelo nome da lista e pelo nome completo.
+- **Mesa:** "Conjurar · custo" (frente), "Conjurar <verso> · custo", "Jogar <frente>" e "Jogar <verso>"; o registro diz "jogou Tangled Vale (a outra face de Tangled Florahedron)".
+- **Limites declarados (mapa):** 712.14b (modal com frente que não é permanente mandada ao campo por um efeito) sem teste por efeito; cópia conjurável de carta modal; face modal que transforma. O bot escolhe entre as faces pelas ações oferecidas, sem critério próprio para "terreno agora ou mágica depois".
+- **Versão e goldens:** a versão não sobe; goldens idênticos.
+- **Toca ponto comum (uma linha inserida em cada):** `cast` e `play_land` (`faceEscolhidaT`), `legalActions` (âncora); table.js / table-model: rótulos em `acoesDe` e a linha do registro (`E.faceDeTras`). Linhas alteradas: só as da própria trilha.
+- **Próximo:** auditoria independente da dupla face (T-7 e T-8); depois CR5-T9 — cartas divididas (709).
+
 **CR6 · Multijogador e variantes** ○ — mesa de três e quatro (800–803, 806), Commander de mesa (903.2), Brawl (903.12); as variantes hoje "fora" só entram por decisão. 10 a 14 levas.
 
 **CR7 · Consolidação** ○ (em paralelo a partir da CR2) — a cada fase: fuzz em modo completo com listas reais, homologação por revisor independente relendo a seção das regras contra o motor, e rodada de simulação do dono do produto. 6 a 8 levas ao todo.

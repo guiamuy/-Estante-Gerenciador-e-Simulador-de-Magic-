@@ -10646,3 +10646,29 @@ test('e2e · T-5 · CR 715.3 · carta de aventura: a folha oferece a carta norma
   if (linhas.length) assert.ok(linhas.some(l => /conjurou Foulmire Knight como a aventura Profane Insight/.test(l)), 'registro: ' + JSON.stringify(linhas.slice(-6)));
   assert.deepEqual(M.errors, []);
 });
+
+test('e2e · T-8 · CR 712.11b / 712.12 · dupla face modal: a folha oferece conjurar a frente ou jogar o terreno do verso, cada botão com o nome da face; jogado, entra o terreno do verso', { skip }, async t => {
+  // Texto oficial em .listas/oficiais-tipos.json (Oracle do Forge, 11/10/2026): Tangled Florahedron // Tangled Vale.
+  const extras = JSON.parse(readFileSync(join(ROOT, '.listas', 'oficiais-tipos.json'), 'utf8')).cartas.filter(c => c.name === 'Tangled Florahedron');
+  const M = await comLista125(t, '20 Forest\n20 Tangled Florahedron', ['Forest', 'Tangled Florahedron'], '4', { extras });
+  const { page } = M;
+  const ids = await page.evaluate(() => { const s = window.__estanteMesa.estado(), out = {};
+    const tira = (nome, de) => { const z = s.zones[0][de], i = z.findIndex(o => s.objects[o].name === nome); if (i < 0) return null; return z.splice(i, 1)[0]; };
+    for (let i = 0; i < 2; i++) { const oid = tira('Forest', 'library'); Object.assign(s.objects[oid], { zone: 'battlefield', controller: 0, tapped: false, sick: false, damage: 0, counters: {} }); s.zones[0].battlefield.push(oid); }
+    out.fl = s.zones[0].hand.find(o => s.objects[o].name === 'Tangled Florahedron') || null;
+    return out; });
+  assert.ok(ids.fl, 'uma Tangled Florahedron na mão inicial (semente 4)');
+  await page.locator(`#tb-hand .tb-card[aria-label^="Tangled Florahedron"]`).first().click(); await page.waitForSelector('.ds-dialog'); await page.waitForTimeout(400);
+  const botoes = (await page.locator('.ds-dialog .tb-sheet__actions button').allInnerTexts()).map(x => x.replace(/\s+/g, ' ').trim());
+  assert.ok(botoes.some(b => /^Conjurar · \{1\}\{G\}$/.test(b)), 'a frente: ' + JSON.stringify(botoes));
+  assert.ok(botoes.includes('Jogar Tangled Vale'), 'o terreno do verso, pelo nome: ' + JSON.stringify(botoes));
+  for (const b of await page.locator('.ds-dialog .tb-sheet__actions button', { hasText: /^(Conjurar|Jogar)/ }).all()) { const cx = await b.boundingBox(); assert.ok(cx && cx.height >= 44, 'botão com 44 px de altura ou mais: ' + JSON.stringify(cx)); }
+  await auditaTela(page, 'folha da carta de dupla face modal');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/t8-modal.png' });
+  await page.locator('.ds-dialog .tb-sheet__actions button', { hasText: /^Jogar Tangled Vale$/ }).click(); await page.waitForTimeout(300);
+  const fim = await page.evaluate(fl => { const s = window.__estanteMesa.estado(), o = s.objects[fl]; return { zona: o.zone, nome: o.name, virada: !!o.tapped, terrenos: s.players[0].landsPlayed }; }, ids.fl);
+  assert.deepEqual(fim, { zona: 'battlefield', nome: 'Tangled Vale', virada: true, terrenos: 1 });
+  const linhas = await page.evaluate(() => (window.__estanteMesa.registro ? window.__estanteMesa.registro() : []).map(String));
+  if (linhas.length) assert.ok(linhas.some(l => /jogou Tangled Vale \(a outra face de Tangled Florahedron\)/.test(l)), 'registro: ' + JSON.stringify(linhas.slice(-6)));
+  assert.deepEqual(M.errors, []);
+});
