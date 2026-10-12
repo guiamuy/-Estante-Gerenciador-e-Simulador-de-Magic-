@@ -3780,6 +3780,10 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Revisão:** as duas cartas recusadas no lote 1 foram revistas por um revisor independente com sondas no motor e aprovadas (171 aprovadas no total).
 - **Teste:** `controlador.habilidade.unit` (2 testes, falham no motor anterior).
 
+**M-328 · LT16 · Leitor: tipociclar, custo alternativo, gatilhos de conjurar — e revisão por lote II (34 cartas passam a jogar)** ✅ (leva M-328, motor v110 sem mudança de jogo para as cartas que já jogavam).
+- **Valor:** o leitor passa a entender "Islandcycling/Forestcycling/… {N}" e "Basic landcycling {N}" (o tipociclar da trilha K), "If you control a Swamp, you may pay 4 life rather than pay this spell's mana cost", "You may sacrifice two Mountains rather than pay…", "Whenever you cast an instant or sorcery spell" e "Whenever you cast a noncreature spell", e monta script para permanente que só tem afinidade impressa. Um revisor independente, com sondas no motor, aprovou 34 das 35 cartas do catálogo que isso destravou: Lórien Revealed (185 listas), Snuff Out, Ash Barrens, Murmuring Mystic, Guttersnipe, Generous Ent, Fireblast, Kessig Flamebreather, Myr Enforcer, Utrom Monitor, Frogmite, Lingering Souls, Magma Jet, Tendrils of Agony, Explosive Vegetation, Prophetic Prism e outras. **Recusada:** Agony Warp — o motor não deixa escolher a mesma criatura nas duas palavras "target" (a 115.3 permite); vai para a próxima leva.
+- **Teste:** fidelidade do leitor (tipociclar, custo alternativo de sacrifício, filtro de instantânea/feitiço); `--confere` com 205 aprovadas.
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

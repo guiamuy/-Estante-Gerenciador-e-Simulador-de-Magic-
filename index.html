@@ -7918,6 +7918,41 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   // M-327 · as duas recusadas do lote 1, depois das correções (motor e leitor), aprovadas por um revisor independente com sondas
   'Ghost Quarter': { texto: '1edscb4', leva: 'M-327' },
   'Viscera Seer': { texto: '1ktupzu', leva: 'M-327' },
+  // M-328 · lote 2: 34 cartas (tipociclar, custo alternativo, gatilhos de conjurar, afinidade…), revisor independente com sondas (1 recusada: Agony Warp, regra 115.3 no motor)
+  'Lórien Revealed': { texto: '10u2zef', leva: 'M-328' },
+  'Snuff Out': { texto: '39pjsn', leva: 'M-328' },
+  'Ash Barrens': { texto: '1pd1hrm', leva: 'M-328' },
+  'Murmuring Mystic': { texto: '113pz16', leva: 'M-328' },
+  'Guttersnipe': { texto: 'l8ehxc', leva: 'M-328' },
+  'Generous Ent': { texto: 'egt9m4', leva: 'M-328' },
+  'Fireblast': { texto: '1cy7xxp', leva: 'M-328' },
+  'Kessig Flamebreather': { texto: 'm37r9g', leva: 'M-328' },
+  'Utrom Monitor': { texto: '8d61c8', leva: 'M-328' },
+  'Myr Enforcer': { texto: 'l4ed69', leva: 'M-328' },
+  'Frogmite': { texto: 'l4ed69', leva: 'M-328' },
+  'Selesnya Guildmage': { texto: '1qzdbqx', leva: 'M-328' },
+  'Contaminated Landscape': { texto: '1ldrdol', leva: 'M-328' },
+  'Violent Outburst': { texto: '4g0kcu', leva: 'M-328' },
+  'Grim Bauble': { texto: 'zy8pwk', leva: 'M-328' },
+  'Graypelt Refuge': { texto: '2hmh06', leva: 'M-328' },
+  'Stone Quarry': { texto: '1o4zxov', leva: 'M-328' },
+  'Angel of Finality': { texto: 'p41jjh', leva: 'M-328' },
+  'Marble Diamond': { texto: 'ygrom', leva: 'M-328' },
+  'Spine of Ish Sah': { texto: 'klt4ky', leva: 'M-328' },
+  'Jwar Isle Refuge': { texto: '966rv5', leva: 'M-328' },
+  'Indrik Stomphowler': { texto: 'dzkbu7', leva: 'M-328' },
+  'Magma Jet': { texto: '1kys9m0', leva: 'M-328' },
+  'Migratory Route': { texto: '1lhk3c', leva: 'M-328' },
+  'Lingering Souls': { texto: '118t1py', leva: 'M-328' },
+  'Viridescent Bog': { texto: '2l7798', leva: 'M-328' },
+  'Sunscorched Divide': { texto: 'cc3058', leva: 'M-328' },
+  'Explosive Vegetation': { texto: '1e7timq', leva: 'M-328' },
+  'Repulse': { texto: 'pfiw8x', leva: 'M-328' },
+  'Fetid Pools': { texto: '10j1aep', leva: 'M-328' },
+  'Kabira Crossroads': { texto: '4qaz7t', leva: 'M-328' },
+  'Prophetic Prism': { texto: '1b0flcg', leva: 'M-328' },
+  'Foreboding Landscape': { texto: 't8mrk5', leva: 'M-328' },
+  'Tendrils of Agony': { texto: '1ddity3', leva: 'M-328' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -15225,6 +15260,10 @@ const __m42 = (function () {
     [/^flashback (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ flashback: { mana: m[1] } })],
     [/^madness (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ madness: { mana: m[1] } })],
     [/^cycling (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ cycling: { mana: m[1] } })],
+    [/^if you control an? (Plains|Island|Swamp|Mountain|Forest), you may pay (\d+) life rather than pay this spell's mana cost$/i, m => ({ alt: [{ label: `Pagar ${m[2]} de vida em vez do custo (você controla ${{ Plains: 'uma Planície', Island: 'uma Ilha', Swamp: 'um Pântano', Mountain: 'uma Montanha', Forest: 'uma Floresta' }[m[1]]})`, cost: { life: +m[2] }, when: { youControlSubtype: m[1] } }] })], // M-328 · 118.9 (Snuff Out)
+    [/^you may sacrifice two (Plains|Islands|Swamps|Mountains|Forests) rather than pay this spell's mana cost$/i, m => { const sub = m[1].replace(/s$/, ''); return { alt: [{ label: `Sacrificar duas ${{ Plain: 'Planícies', Island: 'Ilhas', Swamp: 'Pântanos', Mountain: 'Montanhas', Forest: 'Florestas' }[sub]} em vez do custo`, cost: { sacrificeOther: { types: ['land'], subtype: sub, amount: 2 } } }] }; }], // M-328 · 118.9 (Fireblast)
+    [/^basic landcycling (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ cycling: { mana: m[1], busca: { basic: true, types: ['land'] } } })], // M-328 · 702.29e
+    [/^(Plains|Island|Swamp|Mountain|Forest|Desert)cycling (\{[^}]+\}(?:\{[^}]+\})*)$/, m => ({ cycling: { mana: m[2], busca: { subtypes: [m[1]] } } })], // M-328 · 702.29e (tipociclar de terreno)
     [/^storm$/i, () => ({ storm: true })],
     [/^delve$/i, () => ({ delve: true })],
     [/^affinity for (artifacts|creatures)$/i, m => ({ affinity: m[1].toLowerCase().replace(/s$/, '') })], // LT11 · 702.41
@@ -15252,6 +15291,8 @@ const __m42 = (function () {
     [/^whenever equipped creature dies$/i, 'attached-dies'], // M-324 · CR2b.3
     [/^whenever you gain life$/i, 'you-gain-life'], // CR2b.7 · 119.9
     [/^whenever you sacrifice another permanent$/i, 'other-sacrificed'], // LT10
+    [/^whenever you cast an instant or sorcery spell$/i, 'other-cast', () => ({ filter: { anyTypes: ['instant', 'sorcery'] } })], // M-328
+    [/^whenever you cast a noncreature spell$/i, 'other-cast', () => ({ filter: { noncreature: true } })], // M-328
     [/^[Ww]henever you cast an? ([A-Z][a-z]+) spell$/, 'other-cast', m => ({ filter: { subtype: m[1] } })], // LT11 · "whenever you cast an Elf spell"
     [/^[Ww]henever another ([A-Z][a-z]+) enters(?: the battlefield)?$/, 'other-etb', m => ({ anyController: true, filter: { types: ['creature'], subtype: m[1] } })], // LT10 · "another Elf enters" (de qualquer jogador)
     [/^(?:heroic — )?whenever you cast a spell that targets (this creature|~)$/i, 'heroic'], // CR2b.8
@@ -15429,7 +15470,7 @@ const __m42 = (function () {
     let script = null;
     if (modos && modos.length && !efeitos.length) script = { name: nome, modes: modos.filter(Boolean), ...topo };
     else if (efeitos.length && !modos) script = { name: nome, effects: efeitos, ...topo };
-    else if (!magica && (topo.abilities || topo.aura || topo.equip || topo.entersTapped || topo.grants || topo.grantsAll || topo.self || topo.produces || topo.cycling || topo.transmute || topo.escape || topo.entersTappedUnless)) script = { name: nome, ...topo }; // LT3/LT5
+    else if (!magica && (topo.abilities || topo.aura || topo.equip || topo.entersTapped || topo.grants || topo.grantsAll || topo.self || topo.produces || topo.cycling || topo.transmute || topo.escape || topo.entersTappedUnless || topo.affinity || topo.ninjutsu)) script = { name: nome, ...topo }; // LT3/LT5
     const permanenteSemTexto = !magica && !linhas.length; // criatura sem texto: não precisa de script (o motor joga pelos dados da carta)
     const erros = script ? SC.validateScript({ ...script, example: { target: 'none', expect: {} } }).filter(e => !/cenário|example|exemplo/i.test(e)) : ['sem efeito'];
     const completa = !!(lidas && ((script && !erros.length) || permanenteSemTexto || (!magica && frases.length && frases.every(f => f.palavras))));

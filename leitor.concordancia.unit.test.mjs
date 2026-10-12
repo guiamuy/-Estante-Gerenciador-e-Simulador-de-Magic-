@@ -77,6 +77,13 @@ test('LT1 · fidelidade: frase sem padrão fica não lida, com o texto dela, e a
   assert.deepEqual(JSON.parse(JSON.stringify(b3.script.effects)), [{ do: 'search', amount: 1, filter: { types: ['instant', 'sorcery'] }, to: 'library-top' }], 'LT5: "shuffle and put that card on top" vai ao topo do grimório');
   const l5 = L.ler({ name: 'Terra', type_line: 'Land', oracle_text: '{T}: Add {C}.\nCycling {R}{G}{W}' });
   // LT13 · terreno de dor: a cobertura por texto ainda trata a linha como mana; lida pelo leitor, a carta sem script à mão deixaria de jogar (decisão 11)
+  // M-328 · tipociclar, custo alternativo de vida/sacrifício e gatilhos de conjurar
+  assert.deepEqual(JSON.parse(JSON.stringify(L.ler({ name: 'Lorien', type_line: 'Sorcery', oracle_text: 'Draw three cards.\nIslandcycling {1}' }).script.cycling)), { mana: '{1}', busca: { subtypes: ['Island'] } });
+  assert.deepEqual(JSON.parse(JSON.stringify(L.ler({ name: 'Cinza', type_line: 'Land', oracle_text: '{T}: Add {C}.\nBasic landcycling {1}' }).script.cycling)), { mana: '{1}', busca: { basic: true, types: ['land'] } });
+  const fb = L.ler({ name: 'Rajada', type_line: 'Instant', oracle_text: 'You may sacrifice two Mountains rather than pay this spell\'s mana cost.\nRajada deals 4 damage to any target.' });
+  assert.deepEqual(JSON.parse(JSON.stringify(fb.script.alt[0].cost)), { sacrificeOther: { types: ['land'], subtype: 'Mountain', amount: 2 } });
+  const gs = L.ler({ name: 'Gato', type_line: 'Creature — Goblin', oracle_text: 'Whenever you cast an instant or sorcery spell, Gato deals 2 damage to each opponent.' });
+  assert.deepEqual(JSON.parse(JSON.stringify(gs.script.abilities[0].filter)), { anyTypes: ['instant', 'sorcery'] });
   // M-324 · "outra criatura sua entra" leva o filtro de criatura (antes saía sem filtro: qualquer permanente dispararia); "ela ou outra sua morre" são dois gatilhos
   const ok = L.ler({ name: 'Cavaleiro', type_line: 'Creature — Knight', oracle_text: 'Whenever another creature enters the battlefield under your control, you gain 1 life.' });
   assert.deepEqual(JSON.parse(JSON.stringify(ok.script.abilities[0].filter)), { types: ['creature'] }, 'M-324: filtro de criatura');
