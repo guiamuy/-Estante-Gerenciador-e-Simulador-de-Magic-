@@ -5571,7 +5571,7 @@ const ONLY_IF = ['discarded-nonland', 'source-entered-earlier', 'paid-additional
 const ALT_COST_PARTS = ['mana', 'life', 'discard', 'returnLand', 'exileGraveyard', 'tapOther', 'sacrificeOther', 'discardSubtype', 'exileHandColor', 'free']; // CR2c.4 · Ilha entre as descartadas (Foil), exilar carta da cor da mão (Snapback), de graça (Mogg Salvage)
 /** S48 · fuga: conjura do cemitério pagando o custo, e a carta fica em jogo. */
 /** S20 · custos adicionais de ativação e de conjuração. */
-const EXTRA_COST_PARTS = ['sacrificeOther', 'tapOther', 'discard', 'returnLand', 'revealColor', 'exileFromGraveyard', 'discardSelf'];
+const EXTRA_COST_PARTS = ['sacrificeOther', 'tapOther', 'discard', 'returnLand', 'revealColor', 'exileFromGraveyard', 'discardSelf', 'pagarVida']; // M-346 · pagarVida: "or pay 3 life" (Bitter Triumph)
 /* ---------------- M-229 · R1 · seletor único de objetos (gramática escalável) ----------------
    Um alvo é descrito por um seletor, não por um nome: zona, de quem é, tipos, subtipos, "outra", valor de mana, cor,
    se inclui jogadores. Os nomes antigos continuam valendo e são atalhos para um seletor (ALVO_SELETOR); o teste de
@@ -8349,6 +8349,14 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Graven Cairns': { texto: '68s00i', leva: 'M-345' },
   'Fire-Lit Thicket': { texto: '18dk7gy', leva: 'M-345' },
   'March of the Returned': { texto: '151e469', leva: 'M-345' },
+  // M-346 · revisão por lote XIX (mana gasta na conjuração: Vexing Bauble, Void Mirror; custo adicional à escolha: Bitter Triumph), revisor independente com 218 verificações: 7 de 7 aprovadas
+  'Vexing Bauble': { texto: 'rs71k7', leva: 'M-346' },
+  'Bitter Triumph': { texto: '148gkpp', leva: 'M-346' },
+  'Void Mirror': { texto: '1do8q08', leva: 'M-346' },
+  'Cinder Barrens': { texto: '1pc3zmi', leva: 'M-346' },
+  'Gruul Signet': { texto: 'cc3crw', leva: 'M-346' },
+  'Chemister\'s Insight': { texto: '6ity9x', leva: 'M-346' },
+  'Serra\'s Embrace': { texto: '10nnsrb', leva: 'M-346' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -15847,6 +15855,7 @@ const __m42 = (function () {
     [/^affinity for (artifacts|creatures)$/i, m => ({ affinity: m[1].toLowerCase().replace(/s$/, '') })], // LT11 · 702.41
     [/^transmute (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ transmute: { mana: m[1] } })], // LT10 · 702.53
     [new RegExp(`^escape—(\\{[^}]+\\}(?:\\{[^}]+\\})*), exile ${N} other cards from your graveyard$`, 'i'), m => ({ escape: { mana: m[1], exileGraveyard: num(m[2]) } })], // LT10 · 702.138
+    [/^as an additional cost to cast this spell, discard a card or pay (\d+) life$/i, m => ({ additional: [{ discard: 1 }, { pagarVida: +m[1] }] })], // M-346 · Bitter Triumph (601.2b: um ou outro)
     [/^as an additional cost to cast this spell, sacrifice an artifact or creature$/i, () => ({ additional: { sacrificeOther: { types: ['artifact', 'creature'] } } })], // LT10 · 601.2b
     [/^as an additional cost to cast this spell, sacrifice an? (land|creature|artifact|enchantment)$/i, m => ({ additional: { sacrificeOther: { types: [m[1].toLowerCase()] } } })], // M-334 · LT18 · 601.2b (Crop Rotation)
     [/^cycling—pay (\d+) life$/i, m => ({ cycling: { life: +m[1] } })], // M-341 · Street Wraith
@@ -16105,6 +16114,8 @@ const __m42 = (function () {
         if (/^(?:this land|~) enters(?: the battlefield)? tapped unless it[’']s your first, second, or third turn of the game$/i.test(lp)) { topo.entersTappedUnless = { ateTurnoProprio: 3 }; frases.push({ texto: linha, lida: true }); continue; } // M-342 · Starting Town
         const mox = lp.match(/^Metalcraft — \{T\}: Add one mana of any color\. Activate only if you control three or more artifacts$/i); // M-342 · Mox Opal (602.5b)
         if (mox) { (topo.abilities = topo.abilities || []).push({ kind: 'activated', cost: { tap: true }, onlyIfMetalcraft: true, effects: [{ do: 'add_mana', anyColor: true }] }); frases.push({ texto: linha, lida: true }); continue; }
+        const vb = lp.match(/^whenever a player casts a spell, if no (colored )?mana was spent to cast it, counter that spell$/i); // M-346 · Vexing Bauble, Void Mirror (603.4)
+        if (vb) { (topo.abilities = topo.abilities || []).push({ kind: 'triggered', when: 'other-cast', anyController: true, filter: { semManaGasta: vb[1] ? 'colorida' : 'total' }, effects: [{ do: 'counter', target: 'remembered' }] }); frases.push({ texto: linha, lida: true }); continue; }
         const fl = lp.match(/^(\{[WUBRG]\/[WUBRG]\}), \{T\}: Add (\{[WUBRG]\}\{[WUBRG]\}), (\{[WUBRG]\}\{[WUBRG]\}), or (\{[WUBRG]\}\{[WUBRG]\})$/); // M-345 · terras-filtro (Shadowmoor/Eventide)
         if (fl) { (topo.abilities = topo.abilities || []).push(...[fl[2], fl[3], fl[4]].map(x => ({ kind: 'activated', cost: { mana: fl[1], tap: true }, effects: [{ do: 'add_mana', symbols: x.match(/[WUBRG]/g) }] }))); frases.push({ texto: linha, lida: true }); continue; }
         const tri = lp.match(/^\{T\}: Add (\{[WUBRGC]\}), (\{[WUBRGC]\}), or (\{[WUBRGC]\})$/); if (tri) { topo.produces = [...(topo.produces || []), ...tri.slice(1, 4).map(x => x.match(/[WUBRGC]/g))]; frases.push({ texto: linha, lida: true }); continue; } // M-340 · tri-terras
@@ -17523,6 +17534,14 @@ function serveGasto(s, g, ctx) {
     return true; };
   return ctx.magia != null ? casa(g.magia, s.objects[ctx.magia]) : ctx.habilidade != null ? casa(g.habilidade, s.objects[ctx.habilidade]) : false;
 }
+/** M-346 · 601.2h · a mana gasta para conjurar fica na mágica ({ total, colorida }), só quando alguma carta da partida pergunta por ela. */
+const MANA_GASTA_NA_PARTIDA = new WeakMap();
+const partidaContaManaGasta = s => { if (!MANA_GASTA_NA_PARTIDA.has(s.facts)) MANA_GASTA_NA_PARTIDA.set(s.facts, Object.values(s.facts).some(f => f && ((f.script || {}).abilities || []).some(ab => ab && ab.filter && ab.filter.semManaGasta))); return MANA_GASTA_NA_PARTIDA.get(s.facts); };
+function anotaManaGasta(s, antes, depois) {
+  if (!GASTO || GASTO.magia == null || !s.objects[GASTO.magia] || !partidaContaManaGasta(s)) return;
+  let total = 0, colorida = 0; for (const c of COLORS) { const g = Math.max(0, (antes[c] || 0) - (depois[c] || 0)); total += g; if (c !== 'C') colorida += g; }
+  const o = s.objects[GASTO.magia], m = o.manaGasta || { total: 0, colorida: 0 }; o.manaGasta = { total: m.total + total, colorida: m.colorida + colorida };
+}
 /** M-345 · a reserva que paga o que está sendo pago: a comum mais a restrita que serve. */
 function poolUsavel(s, p) {
   const P = { ...s.players[p].pool };
@@ -17604,6 +17623,7 @@ function payCost(s, p, cost, extra = 0, paraQue) {
   const antes = { ...s.players[p].pool }; // M-273 · para saber quanto de cada cor foi gasto
   if ((s.players[p].manaRestrita || []).length) return pagaComRestrita(s, p, cost, extra, paraQue, antes); // M-345
   const r = payFrom(s.players[p].pool, cost, extra, 0) || payFrom(s.players[p].pool, cost, extra, s.players[p].life);
+  anotaManaGasta(s, s.players[p].pool, r.pool); // M-346
   s.players[p].pool = r.pool; perdeVida(s, p, r.life);
   if ((s.players[p].manaMarcada || []).length) gastaMarcada(s, p, antes, paraQue); // M-273
 }
@@ -17615,6 +17635,7 @@ function pagaComRestrita(s, p, cost, extra, paraQue, antes) {
   const P = { ...pl.pool }; for (const [c, n] of Object.entries(U)) P[c] = (P[c] || 0) + n;
   const r = payFrom(P, cost, extra, 0) || payFrom(P, cost, extra, pl.life);
   if (!r) throw new RuleError('mana', 'mana insuficiente');
+  anotaManaGasta(s, P, r.pool); // M-346
   const novo = { ...r.pool }, gastas = new Set();
   for (const c of COLORS) { const u = U[c] || 0; if (!u) continue; const gasto = (P[c] || 0) - (r.pool[c] || 0), consumidas = Math.min(u, gasto); novo[c] = (r.pool[c] || 0) - (u - consumidas);
     for (const t of usaveis.filter(x => x.cor === c).slice(0, consumidas)) gastas.add(t); }
@@ -18754,7 +18775,8 @@ function applyEffect(s, src, eff, tgt, events) {
     }
     case 'bounce': moverObjeto(s, src, obj, { para: 'hand' }, ctrl); note({}); break; // CR2-G R4a · atalho de mover
     case 'counter':
-      if (obj && obj.naoAnulavel && obj.zone === 'stack') { note({ failed: true, naoAnulavel: true }); break; } // M-345 · Delighted Halfling: "that spell can't be countered" (101.2)
+      if (obj && obj.naoAnulavel && obj.zone === 'stack') { note({ failed: true, naoAnulavel: true }); break; }
+      if (eff.target === 'remembered' && (!obj || obj.zone !== 'stack')) { note({ failed: true }); break; } // M-346 · "counter that spell": a mágica já saiu da pilha // M-345 · Delighted Halfling: "that spell can't be countered" (101.2)
       const custoUnless = eff.unless ? String(eff.unless.mana).replace(/\{X\}/g, `{${src.xPaid || 0}}`) : null; // M-338 · 107.3a: o X anunciado (Syncopate)
       if (eff.unless && s.manaCheck && canPay(s, obj.controller, parseCost(custoUnless))) {
         // S16 · o controlador da mágica decide se paga para salvá-la
@@ -20202,6 +20224,7 @@ function matchesTriggerFilter(s, o, filter) {
   if ((filter.types || []).some(x => !tipos.includes(x))) return false;
   if (filter.anyTypes && !filter.anyTypes.some(x => tipos.includes(x))) return false; // R11 · "creature or planeswalker" (Cruel Celebrant)
   if (filter.noncreature && tipos.includes('creature')) return false;
+  if (filter.semManaGasta && (!s.manaCheck || ((o.manaGasta || {})[filter.semManaGasta === 'colorida' ? 'colorida' : 'total'] || 0) > 0)) return false; // M-346 · Vexing Bauble, Void Mirror (603.4)
   if ((lki ? lki.faceDown : o.faceDown) && !filter.subtype) return true; // V-19 · 708.2a: a virada para baixo é criatura (os tipos acima já são os de agora); só o subtipo ela não tem · Toca ponto comum: matchesTriggerFilter (uma linha antes da regra da S54)
   if (lki ? lki.faceDown : o.faceDown) return false; // S54 · virada para baixo não combina com filtro de carta
   if (filter.subtype && !isChangeling(s, o, filter.subtype) && !new RegExp('\\b' + filter.subtype + '\\b', 'i').test(lki ? lki.linha : linhaDeTipo(s, o))) return false; // CR2d.12 · CR2b.6
@@ -20352,7 +20375,7 @@ const disparaPasso = (s, passo, fase) => naSombra(s, `passo ${passo} (${fase})`,
   const l = PASSO_LEGADO[passo + '/' + fase]; if (l) queueTriggersLegado(s, l[0], battlefield(s).filter(o => !l[1] || o.controller === s.turn.active));
 }, () => gatilhosDoPasso(s, passo, fase));
 /** CR2b.3 · 603.2: os gatilhos de "outra" em quem observa o objeto `o`. `casa(d)` diz se o descritor é deste evento. */
-function quemObserva(s, o, ctrl, lista, casa, saiu) {
+function quemObserva(s, o, ctrl, lista, casa, saiu, conjurar = false) { // M-346 · conjurar: "that spell" é a mágica
   for (const w of lista) {
     if (w.oid === o.oid) continue;
     const wCtrl = w.zone === 'battlefield' ? w.controller : w.ultima.controller;
@@ -20364,7 +20387,7 @@ function quemObserva(s, o, ctrl, lista, casa, saiu) {
       if ((d.donoVoce || ab.ownerIsYou) ? o.owner !== wCtrl : quem === 'oponente' ? wCtrl === ctrl : (quem === 'voce' && wCtrl !== ctrl)) continue;
       if (!matchesTriggerFilter(s, o, ab.filter)) continue;
       if (!triggerConditionMet(s, w, ab.condition)) continue; // CR 603.4
-      s.queued.push({ source: w.oid, name: w.name, controller: wCtrl, effects: ab.effects, when: ab.when, jogador: ctrl, ...(saiu ? { lembrada: { oid: o.oid, z: o.zc || 0 } } : {}), ...marcasDaHabilidade(ab) });
+      s.queued.push({ source: w.oid, name: w.name, controller: wCtrl, effects: ab.effects, when: ab.when, jogador: ctrl, ...(saiu || (conjurar && (ab.effects || []).some(e => e.target === 'remembered')) ? { lembrada: { oid: o.oid, z: o.zc || 0 } } : {}), ...marcasDaHabilidade(ab) });
     }
   }
 }
@@ -20379,7 +20402,7 @@ function gatilhosDoObjeto(s, evento, objects, controller) {
       if (!triggerConditionMet(s, o, ab.condition)) continue; // S25 · condição do gatilho
       s.queued.push({ source: o.oid, name: o.name, controller: ctrl, effects: ab.effects, when: ab.when, ...marcasDaHabilidade(ab) });
     }
-    quemObserva(s, o, ctrl, battlefield(s), d => d.evento === evento, false);
+    quemObserva(s, o, ctrl, battlefield(s), d => d.evento === evento, false, evento === 'conjurar');
   }
 }
 /** CR2-G R2b · 603.2b · despachante do começo de passo: cada permanente no campo com gatilho daquele passo, conforme de quem é o turno. */
@@ -20489,7 +20512,7 @@ function queueTriggersLegado(s, when, objects, controller) {
         if (!triggerConditionMet(s, w, ab.condition)) continue; // CR 603.4 · o "se" vale também no gatilho de outra permanente
         // S66 · o gatilho de "outra permanente" carrega as mesmas marcas do gatilho
         // próprio: sem isto, "você pode" virava obrigatório e o custo opcional sumia
-        s.queued.push({ source: w.oid, name: w.name, controller: wCtrl, effects: ab.effects, when: other, jogador: ctrl, ...(saiu ? { lembrada: { oid: o.oid, z: o.zc || 0 } } : {}), ...(ab.condition ? { condition: ab.condition } : {}),
+        s.queued.push({ source: w.oid, name: w.name, controller: wCtrl, effects: ab.effects, when: other, jogador: ctrl, ...(saiu || (other === 'other-cast' && (ab.effects || []).some(e => e.target === 'remembered')) ? { lembrada: { oid: o.oid, z: o.zc || 0 } } : {}), ...(ab.condition ? { condition: ab.condition } : {}),
           ...(ab.cost ? { cost: ab.cost } : {}), ...(ab.mayPay ? { mayPay: ab.mayPay } : {}),
           ...(ab.optional ? { optional: true } : {}), ...((ab.modes || []).length ? { modes: ab.modes } : {}) });
       }
@@ -21912,7 +21935,10 @@ const HANDLERS = {
 };
 { const c0 = HANDLERS.cast, a0 = HANDLERS.activate; // M-345 · 106.6: conjurar e ativar pagam sabendo o que pagam (a mágica, a fonte da habilidade)
   HANDLERS.cast = function (s, a, ev) { return comGasto({ magia: a.oid }, () => c0.call(HANDLERS, s, a, ev)); };
-  HANDLERS.activate = function (s, a, ev) { return comGasto({ habilidade: a.oid }, () => a0.call(HANDLERS, s, a, ev)); }; }
+  HANDLERS.activate = function (s, a, ev) { return comGasto({ habilidade: a.oid }, () => a0.call(HANDLERS, s, a, ev)); };
+  const m0 = HANDLERS.cast_madness, n0 = HANDLERS.ninjutsu; // M-346 · achado da revisão do lote XIX: conjurar pela insanidade e esgueirar-se também anotam a mana gasta
+  HANDLERS.cast_madness = function (s, a, ev) { return comGasto({ magia: s.pending && s.pending.oid }, () => m0.call(HANDLERS, s, a, ev)); };
+  HANDLERS.ninjutsu = function (s, a, ev) { return comGasto(a.sneak ? { magia: a.oid } : { habilidade: a.oid }, () => n0.call(HANDLERS, s, a, ev)); }; }
 function assisted(s) { if (s.mode !== 'assisted') throw new RuleError('modo', 'controle direto só existe na mesa assistida'); }
 function onField(s, oid) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield') throw new RuleError('objeto', 'objeto fora do campo'); return o; }
 
@@ -30211,7 +30237,8 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const pergunta = unico ? unico[1] : () => 'Como você paga o custo?';
     const rotulos = opcoes.map(a => {
       const partes = CAMPOS_PAGAMENTO.filter(([c]) => a.pay && a.pay[c] != null).map(([c, , verbo]) => c === 'revelar' ? `${verbo} ${a.pay[c]}` : `${verbo} ${nomesDe(s, a.pay[c])}`);
-      return partes.length ? partes.join(' e ') : a.add === null ? 'Não pagar o custo opcional' : 'Sem custo extra';
+      const op = a.add != null && s.objects[a.oid] ? [].concat(((s.facts[s.objects[a.oid].name] || {}).script || {}).additional || [])[a.add] : null; // M-346
+      return partes.length ? partes.join(' e ') : a.add === null ? 'Não pagar o custo opcional' : op && op.pagarVida ? `Pagar ${op.pagarVida} de vida` : 'Sem custo extra';
     });
     // nomes repetidos (duas Llanowar Elves) ganham um número para não parecerem a mesma opção
     const vistos = {}; const finais = rotulos.map(r => (rotulos.filter(x => x === r).length > 1 ? `${r} (${(vistos[r] = (vistos[r] || 0) + 1)})` : r));
