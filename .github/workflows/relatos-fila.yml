@@ -1,0 +1,59 @@
+# I-289 · T6e (relato #13) · Relatos pela fila. A cada 10 minutos lê a fila de relatos do Realtime Database com a conta de
+# serviço do Firebase (segredo FIREBASE_SERVICE_ACCOUNT, só no passo que precisa), cria o registro (issue) de cada relato
+# enviado de dentro do app e regrava a tabela do ramo `relatos` (registro criado pelo GITHUB_TOKEN não dispara o fluxo
+# Relatos). Sem o segredo, termina sem fazer nada. O `main` não recebe commit daqui. Trilha: infra.
+name: Relatos pela fila
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: relatos
+  cancel-in-progress: false
+
+jobs:
+  fila:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09   # v5 (fixada por SHA; roda em Node 24)
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444   # v5 (fixada por SHA; roda em Node 24)
+        with:
+          node-version: 22
+      - name: Criar os registros da fila
+        id: fila
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node relatos-fila.mjs
+      - name: Trazer a tabela publicada
+        if: steps.fila.outputs.criados && steps.fila.outputs.criados != '0'
+        run: |
+          if git ls-remote --exit-code --heads origin relatos > /dev/null; then
+            git fetch --depth 1 origin relatos
+            git worktree add saida FETCH_HEAD
+            git -C saida switch -c relatos
+          else
+            git worktree add --detach saida
+            git -C saida switch --orphan relatos
+            printf '%s\n' '# Estante · relatos' '' 'Ramo gerado pelo fluxo "Relatos" (`relatos-tabela.mjs`, no `main`). Não edite à mão.' > saida/README.md
+          fi
+      - name: Etiquetar e montar a tabela
+        if: steps.fila.outputs.criados && steps.fila.outputs.criados != '0'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node relatos-tabela.mjs --saida saida
+      - name: Publicar no ramo relatos
+        if: steps.fila.outputs.criados && steps.fila.outputs.criados != '0'
+        run: |
+          cd saida
+          git add -A
+          if git diff --cached --quiet; then echo "sem mudança"; exit 0; fi
+          git -c user.name="estante-relatos" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit --quiet -m "Relatos · tabela de $(date -u +%Y-%m-%dT%H:%MZ) (fila)"
+          git push origin relatos

@@ -543,6 +543,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ih ✅ | Q21 ações do GitHub nas versões que rodam em Node 24 (`checkout` v5, `setup-node` v5, `upload-artifact` v6), fixadas por SHA em todos os fluxos (leva I-286) | Q | ½ | — |
 | 16º-ii ✅ | Q17 a fila apaga a cada rodada o aviso de recusa de leva que já está no `main`; o `--esperar` ignora aviso de envio anterior (leva I-287) | Q | ½ | Q17 |
 | 16º-ij ✅ | Q21 Playwright 1.56.1, a versão do Chromium que as sessões de nuvem já têm (1194); versão exata no `package.json` (leva I-288) | Q | ½ | — |
+| 16º-ik ✅ | T6e-1 relato da fila do Firebase vira registro no GitHub: fluxo a cada 10 min com a conta de serviço, limite por conta, sem menção, tabela regravada (relato #13, leva I-289; liga com o segredo `FIREBASE_SERVICE_ACCOUNT`) | T | 1 | segredo do dono |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -8689,6 +8690,32 @@ prontas.
   tema sobe sozinho; Sincronizar sem novidade = uma leitura; todo pedido com token; axe).
 - **Fora:** listas e coleção pela conta (conteúdo, história própria: hoje vão pelo backup no Drive); apagar o perfil da
   nuvem pelo app (o `apagarTudo` existe; a tela entra junto da T6e); escolher o que sincronizar.
+
+**T6e-1 · Relato da fila vira registro no GitHub** ✅ (leva I-289, trilha `infra`; relato #13, primeira parte — liga quando o
+dono criar o segredo `FIREBASE_SERVICE_ACCOUNT`)
+- **Valor:** o relato enviado de dentro do app chega à conversa de correção sem a pessoa abrir o GitHub.
+- **Como:** fluxo "Relatos pela fila" (`.github/workflows/relatos-fila.yml`, a cada 10 minutos e à mão) roda
+  `relatos-fila.mjs`: conta de serviço do Firebase (segredo do repositório, só no passo que lê a fila) → asserção RS256 →
+  token do Google (escopos `userinfo.email` e `firebase.database`) → lê `relatos/fila` no Realtime Database (URL da
+  constante `FIREBASE_DB_URL` do `index.html`) → valida cada nó com `relatoDaFila` e com a regra do app (`confere`) →
+  cria o registro com o mesmo título e corpo do Enviar de antes, mais a linha "Enviado de dentro do app, pela fila da
+  Estante (conta …final do uid)" e as etiquetas `relato` e `relato-fila` → **só então** tira o nó da fila. Relato que já
+  tem registro (rodada que caiu entre criar e tirar) não duplica; fora da regra é tirado da fila sem registro. Depois, o
+  mesmo job regrava a tabela do ramo `relatos` (registro criado pelo `GITHUB_TOKEN` não dispara o fluxo Relatos), na mesma
+  fila de execução (`concurrency: relatos`).
+- **Sem o segredo:** o fluxo termina sem fazer nada (é o estado até o dono criar a chave).
+- **Segurança:** o que vem da fila é dado de terceiro (qualquer conta da Estante escreve na própria fila): limite de 3 por
+  conta e 20 por rodada; "@conta" e "#123" do texto viram texto (o robô não menciona ninguém nem liga a outro registro);
+  a tabela aceita registro do robô só com a etiqueta `relato-fila` (`relatos-tabela.mjs`, `confiavel`); permissões do job
+  `contents: write` e `issues: write`; ações fixadas por SHA. **Resíduo:** uma conta pode encher a própria fila até o
+  limite do banco (24 KB por relato); o registro sai público como os de antes (decisão de 09/10/2026).
+- **Custo:** ~144 rodadas por dia de ~20 s ≈ 50 min de Actions por dia (repositório público: sem custo; privado: ~1.500
+  min/mês, perto da franquia gratuita de 2.000 — rever a frequência se o repositório fechar).
+- **Testes:** U `relatos.fila.unit` (8: chave e asserção conferida com chave gerada no teste; URL do banco da constante;
+  limite e ordem; registro igual ao de antes, regra do app, sonda de texto e menções; rodada que cria antes de tirar, não
+  duplica e descarta o inválido; GitHub fora do ar mantém na fila e chave errada não lê o banco; tabela com o robô; o
+  fluxo com o segredo num passo só).
+- **Fora:** o botão Enviar pela fila no app (T6e-2, leva seguinte).
 
 ### Z · Catálogo de listas (E61, pedido de 08/10/2026)
 

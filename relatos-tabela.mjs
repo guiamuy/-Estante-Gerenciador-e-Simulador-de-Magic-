@@ -21,9 +21,14 @@ const COR_TIPO = 'c5a15a', COR_URGENCIA = { bloqueia: 'b60205', alta: 'd93f0b', 
     Sem o campo `author_association` (a API sempre manda; os testes antigos não), vale como antes. */
 export const ACEITO = 'relato-aceito';
 const VINCULOS = ['OWNER', 'MEMBER', 'COLLABORATOR'];
+/** I-289 · registro criado pelo fluxo "Relatos pela fila" (relato enviado de dentro do app): autor é o robô deste
+    repositório e a etiqueta é `relato-fila`, que só quem tem acesso (ou um fluxo daqui) põe. */
+export const FILA = 'relato-fila', ROBO = 'github-actions[bot]';
+const daFila = issue => issue.user && issue.user.login === ROBO && issue.user.type === 'Bot' && (issue.labels || []).some(l => (typeof l === 'string' ? l : l && l.name) === FILA);
 export function confiavel(issue) {
   if (!issue) return false;
   if ((issue.labels || []).some(l => (typeof l === 'string' ? l : l && l.name) === ACEITO)) return true;
+  if (daFila(issue)) return true;
   return issue.author_association == null || VINCULOS.includes(issue.author_association);
 }
 /** Os dados do relato no corpo do registro, ou null quando o registro não veio do app. */
