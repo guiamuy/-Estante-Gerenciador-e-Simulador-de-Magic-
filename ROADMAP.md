@@ -3909,6 +3909,14 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Pedido à mesa (não bloqueia):** marca "detida" na carta.
 - **Testes:** `verbos.deter.unit` (4).
 
+**V-22 · CR3 · Afligir (701.68), recrutar (701.70) e converter (701.28)** 🟡 (leva V-22, motor v110 sem subir: só acrescenta ações; partidas-referência idênticas) — 701.70 passa de ausente a coberta; 701.68 e 701.28, de ausentes a **parciais**.
+- **Valor:** "blight N" (você escolhe a sua criatura que recebe os marcadores −1/−1), "recruit" (compra, descarta e, se não descartou terreno, ganha um Soldado Humano 1/1) e "convert" (cartas de duas faces dos Transformers) passam a existir como efeitos.
+- **Vocabulário:** efeitos `blight` (`amount`), `recruit`, `convert`.
+- **Cartas (texto oficial em `.listas/oficiais-verbos.json`, Oracle do Forge, clone de 12/10/2026):** Sinister Gnarlbark e Patient Instructor — scripts validados no teste, fora da biblioteca (permanentes de exemplo).
+- **Parcial, declarado:** afligir como custo pede parte de custo nova; converter herda os limites de transformar (701.27). **Avaliados e deixados ausentes, com o motivo no mapa:** escolha vilanesca 701.55 e viagem no tempo 701.56 (pedem decisão de duas ou três opções com rótulo, que a mesa não desenha).
+- **Ferramenta nova da conversa:** cópia local da pasta de cartas do Forge (clone raso só de `forge-gui/res/cardsfolder`), que permite contar no acervo oficial inteiro quantas cartas usam cada verbo — vidência 457, regenerar 425, vigiar 282, "não desvira" 253, ao acaso 242, lutar 151, investigar 143, proliferar 103, manifestar 77, amontoar 72, explorar 56, o Anel 54, conspirar 53.
+- **Testes:** `verbos.afligir.unit` (5).
+
 **CR4 · Habilidades de palavra-chave (702)** ○ — 150 ausentes e 21 parciais, em ondas pela frequência em cartas anotada no mapa: (1) fechar as evergreen e as parciais; (2) "muito comum" (proeza, tripular, reforço, convocar, cascata, evocar, persistir, imortal, fração de segundo, infectar e tóxico…); (3) "comum"; (4) "rara" e "uma coleção só". 50 a 65 levas.
 
 **CR4 · andamento (trilha `keywords`, levas `K-N`)** ▶ — ordem de 11/10/2026: primeiro as palavras-chave do acervo que o medidor do leitor (LT6) acusa fora do vocabulário, depois a onda 1 (proeza, convocar, cascata, evocar, persistir, imortal, exaltado, explorar, arremeter, improvisar, recomeçar, pós-vida, evoluir), a onda 2 (completar as parciais), a 3 (raras, da mais citada à menos) e a 4 (o resto de 702, com o que fica fora declarado no mapa). Auditoria independente por subagente ao fim de cada onda. Palavra-chave com parâmetro ("Ward {3}", "Kicker {B}", "Crew 1") também depende de o leitor ler a forma: isso é da trilha `motor` (leitor), avisada a cada leva.

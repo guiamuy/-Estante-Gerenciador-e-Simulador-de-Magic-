@@ -5377,6 +5377,10 @@ const EFFECTS = {
   explorar_k: { fields: ['fase'], targets: [] }, // K-12 · 702.110 · gerado pelo motor (antes e depois do sacrifício)
   proeza_k: { fields: ['z'], targets: [] }, // K-14 · 702.108a · +1/+1 até o fim do turno, só na mesma encarnação (gerado pelo motor)
   /* ↓ V · efeitos da trilha verbos */
+  // V-22 · 701.28 converter (a mesma ação de transformar, com outro nome: cartas de duas faces "Convert ~") · 701.68 afligir N (N marcadores −1/−1 numa criatura sua, à sua escolha) · 701.70 recrutar (compra, descarta; se a descartada não é terreno, cria um Soldado Humano 1/1 branco)
+  convert: { fields: [], targets: ['self-source'] },
+  blight: { fields: ['amount'], targets: ['self'] },
+  recruit: { fields: [], targets: ['self'] },
   // V-21 · 701.35 deter: até o próximo turno de quem controla a mágica ou habilidade, a permanente não ataca, não bloqueia e as habilidades ativadas dela não podem ser ativadas
   detain: { fields: [], targets: ['creature', 'permanent', 'creature-opponent-controls', 'permanent-opponent-controls', 'first-target'] },
   // V-20 · 502.3 "doesn't untap during its controller's next untap step" (`vira: true` = "Tap … It doesn't untap…") e 701.43 exaurir ("não desvira no SEU próximo passo de desvirar": de quem exauriu)
@@ -6237,6 +6241,10 @@ function effectErrors(effects, label, opcional) {
   });
   /* ↓ K · validação da trilha keywords */
   /* ↓ V · validação da trilha verbos */
+  effects.forEach((e, i) => { // V-22
+    if (e.do === 'blight' && typeof e.amount === 'number' && !(Number.isInteger(e.amount) && e.amount > 0)) errs.push(`${label} ${i + 1} (blight): amount precisa ser inteiro positivo`);
+    if (['blight', 'recruit'].includes(e.do) && effects.slice(i + 1).some(isTargeted)) errs.push(`${label} ${i + 1} (${e.do}): efeito com alvo depois de uma escolha`);
+  });
   effects.forEach((e, i) => { if (e.do === 'nao_desvira' && e.vira != null && e.vira !== true) errs.push(`${label} ${i + 1} (nao_desvira): "vira" só vale como true`); }); // V-20
   effects.forEach((e, i) => { // V-18 · 701.58, 701.62
     if (e.do === 'cloak') {
@@ -18015,6 +18023,9 @@ function applyEffect(s, src, eff, tgt, events) {
       note({ pending: true }); break;
     }
     /* ↓ V · casos de applyEffect da trilha verbos */
+    case 'convert': applyEffect(s, src, { ...eff, do: 'transform' }, tgt, events); break; // V-22 · 701.28a: segue as regras de transformar (701.27)
+    case 'blight': afligir(s, src, eff, events); break; // V-22 · 701.68
+    case 'recruit': recrutar(s, src, events); break; // V-22 · 701.70
     case 'detain': { const o = objetoDoVerbo(s, src, eff, tgt); if (!deter(s, o, src.controller, events)) note({ failed: true }); break; } // V-21 · 701.35
     case 'nao_desvira': { const o = objetoDoVerbo(s, src, eff.target === 'enchanted' ? { target: 'x' } : eff, eff.target === 'enchanted' ? (criaturaEncantada(s, src) ? { oid: criaturaEncantada(s, src).oid } : null) : tgt); // V-20 · 502.3
       if (!o || o.zone !== 'battlefield') { note({ failed: true }); break; }
@@ -21127,6 +21138,39 @@ function palavrasDoTextoK(card) {
 }
 Object.assign(EXPORTS_K, { tapaImpressoK, gruposParaTaparK, palavrasDoTextoK });
 /* ↓ V · exportações de core.js da trilha verbos */
+/* V-22 · 701.68 afligir N: "put N −1/−1 counters on a creature you control" (a) — a criatura é escolhida por quem aflige (não mira);
+   sem criatura sua, nada acontece (b); com uma só, é ela. Os marcadores passam pelas substituições de pôr marcadores (614.16).
+   701.70 recrutar: "Draw a card, then discard a card. If you discarded a nonland card this way, create a 1/1 white Human Soldier
+   creature token" — o descarte é escolha do jogador e é descarte de verdade; a ficha só vem se a descartada não era terreno. */
+function afligir(s, src, eff, events) {
+  const p = src.controller, nome = src.name, n = amountOf(s, src, eff.amount);
+  const suas = battlefield(s).filter(o => o.controller === p && isCreature(s, o)).map(o => o.oid);
+  if (!suas.length || !(n > 0)) return void events.push({ kind: 'effect', do: 'blight', name: nome, target: s.players[p].name, amount: 0 });
+  s.verbo = [...(s.verbo || []), { passo: 'afligir-aplica', p, nome, n }];
+  if (suas.length === 1) { s.escolhaV = suas.slice(); return void continuaVerbo(s, events); }
+  startPick(s, { p, from: suas, min: 1, max: 1, to: 'proliferar', rest: 'stay', label: 'afligir', source: `${nome} — afligir ${n}: escolha a sua criatura que recebe ${n === 1 ? 'o marcador' : 'os ' + n + ' marcadores'} −1/−1` }, events);
+}
+function passoAfligirAplica(s, passo, events) {
+  const oid = (s.escolhaV || [])[0]; delete s.escolhaV; const o = oid && s.objects[oid];
+  if (!o || o.zone !== 'battlefield') return void events.push({ kind: 'effect', do: 'blight', name: passo.nome, target: s.players[passo.p].name, amount: 0 });
+  const postos = poeMarcadores(s, o, 'm1m1', passo.n);
+  events.push({ kind: 'effect', do: 'blight', name: passo.nome, target: o.name, amount: postos });
+}
+function recrutar(s, src, events) {
+  const p = src.controller, nome = src.name;
+  draw(s, p, 1); events.push({ kind: 'effect', do: 'draw', name: nome, target: s.players[p].name, amount: 1 });
+  if (!s.zones[p].hand.length) return void events.push({ kind: 'effect', do: 'recruit', name: nome, target: s.players[p].name, amount: 0 });
+  s.verbo = [...(s.verbo || []), { passo: 'recrutar-ficha', p, nome, mao: s.zones[p].hand.slice() }];
+  s.pending = { kind: 'discard', p, n: 1, reason: 'effect', source: nome };
+}
+function passoRecrutarFicha(s, passo, events) {
+  const saiu = passo.mao.find(oid => !s.zones[passo.p].hand.includes(oid)), carta = saiu && s.objects[saiu];
+  const naoTerreno = !!carta && !((s.facts[carta.name] || {}).types || []).includes('land');
+  if (naoTerreno) { const n = fichasAoCriar(s, passo.p, 1); for (let i = 0; i < n; i++) createToken(s, SOLDADO_V, passo.p, events); }
+  events.push({ kind: 'effect', do: 'recruit', name: passo.nome, target: s.players[passo.p].name, amount: naoTerreno ? 1 : 0 });
+}
+const SOLDADO_V = { name: 'Human Soldier', types: ['creature'], subtypes: ['Human', 'Soldier'], colors: ['W'], power: 1, toughness: 1 };
+Object.assign(EXPORTS_V, { afligir, recrutar });
 /* V-21 · 701.35 deter: "Until the next turn of the controller of that spell or ability, that permanent can't attack or block and its
    activated abilities can't be activated" (a). A marca é da permanente (leva a encarnação) e guarda quem deteve: acaba no começo do
    próximo turno desse jogador (junto do passo de desvirar, em presasNoDesvirarV), mesmo que a permanente mude de controlador. Não
@@ -21502,6 +21546,7 @@ function proliferar(s, src, events) {
   else continuaVerbo(s, events);
 }
 const PASSOS_V = {
+  'afligir-aplica': (s, passo, events) => passoAfligirAplica(s, passo, events), 'recrutar-ficha': (s, passo, events) => passoRecrutarFicha(s, passo, events), // V-22
   'exaurir-pergunta': (s, passo, events) => passoExaurirPergunta(s, passo, events), // V-20
   'virar-escolhidas': (s, passo, events) => passoVirarEscolhidas(s, passo, events), // V-18
   'aprender-descarta': (s, passo, events) => passoAprenderDescarta(s, passo, events), 'aprender-compra': (s, passo, events) => passoAprenderCompra(s, passo, events), // V-16
@@ -24341,6 +24386,9 @@ Object.assign(PALAVRA_PT, { convoke: 'convocar', improvise: 'improvisar' }); // 
 /* ↓ V · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha verbos */
 const MARCADOR_PT_V = { p1p1: '+1/+1', m1m1: '−1/−1', loyalty: 'de lealdade', poison: 'de veneno' }; // V-7
 const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas por descreveEfeito)
+  convert: () => 'converte esta permanente (vira para a outra face)', // V-22
+  blight: e => `aflige ${qtd(e.amount)} (põe ${qtd(e.amount) === 1 ? '1 marcador' : qtd(e.amount) + ' marcadores'} −1/−1 numa criatura sua, à sua escolha)`, // V-22
+  recruit: () => 'recruta (compra uma carta e descarta uma; se a descartada não for terreno, cria um Soldado Humano 1/1 branco)', // V-22
   detain: e => `detém ${ALVO_PT[e.target] || descreveAlvo(e.target)} (até o seu próximo turno ela não ataca, não bloqueia e as habilidades ativadas dela não podem ser ativadas)`, // V-21
   nao_desvira: e => { const a = e.target === 'self-source' ? 'esta permanente' : ALVO_PT[e.target] || descreveAlvo(e.target); return e.vira ? `vira ${a}; ela não desvira no próximo passo de desvirar de quem a controla` : `${a} não desvira no próximo passo de desvirar de quem a controla`; }, // V-20
   exert: e => `exaure ${e.target === 'self-source' ? 'esta permanente' : ALVO_PT[e.target] || descreveAlvo(e.target)} (não desvira no seu próximo passo de desvirar)`, // V-20

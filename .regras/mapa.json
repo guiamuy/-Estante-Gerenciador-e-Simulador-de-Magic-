@@ -6079,14 +6079,18 @@
    "n": "701.28",
    "regra": "Keyword Actions",
    "titulo": "Convert",
-   "status": "ausente",
-   "falta": "não há \"converter\" (mesma mecânica de transformar, cartas Transformers); poderia reaproveitar o efeito transform",
+   "status": "parcial",
+   "falta": "herda o que falta em transformar (701.27): só a própria fonte converte; não confere se já converteu desde que a habilidade foi para a pilha (e); não barra verso instantânea/feitiço (d). \"More Than Meets the Eye\" (conjurar convertida) e \"living metal\" são de 702.",
    "esforco": "P",
    "depende": [
     "701.27",
     "712"
    ],
-   "cartas": "uma coleção só"
+   "cartas": "uma coleção só",
+   "evidencia": "V-22 · efeito `convert` (caso de applyEffect abaixo da âncora ↓ V): é a mesma ação de transformar, com outro nome (a) — a permanente de duas faces vira para a outra face; a de uma face só não muda (c).",
+   "testes": [
+    "CR 701.28 · converter segue as regras de transformar: a permanente de duas faces vira para a outra face; a de uma face só não muda"
+   ]
   },
   {
    "n": "701.29",
@@ -6439,7 +6443,7 @@
    "regra": "Keyword Actions",
    "titulo": "Face a Villainous Choice",
    "status": "ausente",
-   "falta": "não há escolha entre duas opções feita por outro jogador com execução da opção escolhida mesmo se impossível",
+   "falta": "não há escolha entre duas opções feita por outro jogador com execução da opção escolhida mesmo se impossível · Avaliado na V-22 (12/10/2026): só existe em cartas de Commander de Doctor Who (14 no acervo oficial); com as decisões que a mesa já desenha viraria um sim/não para escolher entre dois efeitos — fica para quando houver decisão de duas opções com rótulo (mesa).",
    "esforco": "M",
    "cartas": "rara"
   },
@@ -6448,7 +6452,7 @@
    "regra": "Keyword Actions",
    "titulo": "Time Travel",
    "status": "ausente",
-   "falta": "não há marcadores de tempo nem suspender",
+   "falta": "não há marcadores de tempo nem suspender · Avaliado na V-22 (12/10/2026): suspender já existe (M-269), mas a viagem no tempo pede, por objeto, escolher entre pôr, tirar ou não mexer — três opções que a mesa não desenha; 4 cartas no acervo oficial.",
    "esforco": "M",
    "depende": [
     "702.62",
@@ -6608,13 +6612,18 @@
    "n": "701.68",
    "regra": "Keyword Actions",
    "titulo": "Blight",
-   "status": "ausente",
-   "falta": "não há pôr N marcadores -1/-1 numa criatura sua por escolha (addCounters só conhece +1/+1), nem a referência \"criatura afligida\"",
+   "status": "parcial",
+   "falta": "afligir como custo (\"{T}, Blight 1: …\", \"As an additional cost … blight 1 or pay {3}\") pede parte de custo nova (trilha motor); a referência \"a criatura afligida\" (c) e o gatilho \"sempre que você afligir\" (d) não têm forma de script",
    "esforco": "P",
    "depende": [
     "122"
    ],
-   "cartas": "não sei"
+   "cartas": "não sei",
+   "evidencia": "V-22 · efeito `blight` (afligir e passoAfligirAplica em core.js, abaixo da âncora ↓ V): quem aflige escolhe uma criatura sua (decisão pick obrigatória; com uma só, é ela; não mira) e ela recebe N marcadores −1/−1 pelo caminho comum de pôr marcadores (a); sem criatura sua, nada acontece (b). Carta: Sinister Gnarlbark, script validado no teste (.listas/oficiais-verbos.json)",
+   "testes": [
+    "CR 701.68 · afligir (a): quem aflige escolhe uma criatura SUA para receber os N marcadores −1/−1 (não mira; a do oponente não é opção); com uma só, é ela",
+    "CR 701.68 · afligir (b): sem criatura sua, nada acontece; a afligida que chega a resistência zero morre"
+   ]
   },
   {
    "n": "701.69",
@@ -6629,10 +6638,12 @@
    "n": "701.70",
    "regra": "Keyword Actions",
    "titulo": "Recruit",
-   "status": "ausente",
-   "falta": "não há efeito pronto; seria comprar, descartar e criar Soldado 1/1 se a descartada não for terreno (o descarte já sabe marcar discardedNonland só como custo)",
-   "esforco": "P",
-   "cartas": "não sei"
+   "status": "coberta",
+   "cartas": "não sei",
+   "evidencia": "V-22 · efeito `recruit` (recrutar e passoRecrutarFicha em core.js, abaixo da âncora ↓ V): compra uma carta, descarta uma à escolha do jogador (descarte comum) e, se a descartada não é terreno, cria um Soldado Humano 1/1 branco pelo caminho comum de fichas (dobradores valem). Carta: Patient Instructor, script validado no teste (.listas/oficiais-verbos.json)",
+   "testes": [
+    "CR 701.70 · recrutar: compra uma, descarta uma à escolha; descartando carta que não é terreno cria um Soldado Humano 1/1 branco; descartando terreno, não"
+   ]
   },
   {
    "n": "701.71",
