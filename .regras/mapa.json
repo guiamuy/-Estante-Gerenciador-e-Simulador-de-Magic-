@@ -8155,14 +8155,18 @@
    "n": "702.92",
    "regra": "Keyword Abilities",
    "titulo": "Living Weapon",
-   "status": "ausente",
-   "falta": "Sem \"ao entrar, crie ficha Germe 0/0 preta e anexe este equipamento a ela\" (702.92a); ficha e equipar existem, falta a ligação.",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "111",
     "301.5"
    ],
-   "cartas": "rara"
+   "cartas": "rara",
+   "evidencia": "K-60: a palavra gera o gatilho de entrada do Equipamento (GATILHOS_DE_PALAVRA_K) que cria a ficha (FICHAS_DO_EQUIPAMENTO_K: Germe 0/0 preto Phyrexian Germ, Rebelde 2/2 vermelho, Herói 1/1 incolor) e anexa o Equipamento a ela (equipa_ficha_k → attachTo), um gatilho por instância. Se o Equipamento saiu do campo antes, a ficha fica sem ele.",
+   "testes": [
+    "CR 702.92a · arma viva (Batterskull, texto oficial): ao entrar, cria um Germe 0/0 preto e se anexa a ele (o Germe vira 4/4); sem o bônus, o Germe morreria",
+    "K-60 · arma viva, Por Mirrodin! e escolha de classe (702.92, 702.163, 702.182): o Equipamento cria a ficha e se anexa; o Rebelde equipado ataca por 3"
+   ]
   },
   {
    "n": "702.93",
@@ -9198,14 +9202,18 @@
    "n": "702.163",
    "regra": "Keyword Abilities",
    "titulo": "For Mirrodin!",
-   "status": "ausente",
-   "falta": "Sem implementação (grep sem ocorrência no motor nem nos scripts). Falta gatilho de entrada do Equipamento: criar ficha Rebel 2/2 vermelha e anexar o equipamento a ela (createToken e equip existem, falta anexar à ficha recém-criada).",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "301.5 equipamento",
     "111 fichas"
    ],
-   "cartas": "uma coleção só (Phyrexia: All Will Be One)"
+   "cartas": "uma coleção só (Phyrexia: All Will Be One)",
+   "evidencia": "K-60: a palavra gera o gatilho de entrada do Equipamento (GATILHOS_DE_PALAVRA_K) que cria a ficha (FICHAS_DO_EQUIPAMENTO_K: Germe 0/0 preto Phyrexian Germ, Rebelde 2/2 vermelho, Herói 1/1 incolor) e anexa o Equipamento a ela (equipa_ficha_k → attachTo), um gatilho por instância. Se o Equipamento saiu do campo antes, a ficha fica sem ele.",
+   "testes": [
+    "CR 702.163a · 702.182a · Por Mirrodin! e escolha de classe: Rebelde 2/2 vermelho e Herói 1/1 incolor, com o Equipamento anexado",
+    "K-60 · arma viva, Por Mirrodin! e escolha de classe (702.92, 702.163, 702.182): o Equipamento cria a ficha e se anexa; o Rebelde equipado ataca por 3"
+   ]
   },
   {
    "n": "702.164",
@@ -9479,14 +9487,18 @@
    "n": "702.182",
    "regra": "Keyword Abilities",
    "titulo": "Job Select",
-   "status": "ausente",
-   "falta": "Sem implementação (grep sem ocorrência no motor nem nos scripts). Falta gatilho de entrada do Equipamento: criar ficha Hero 1/1 incolor e anexar o equipamento a ela (mesma primitiva de For Mirrodin!).",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "702.163",
     "301.5 equipamento"
    ],
-   "cartas": "uma coleção só (Final Fantasy)"
+   "cartas": "uma coleção só (Final Fantasy)",
+   "evidencia": "K-60: a palavra gera o gatilho de entrada do Equipamento (GATILHOS_DE_PALAVRA_K) que cria a ficha (FICHAS_DO_EQUIPAMENTO_K: Germe 0/0 preto Phyrexian Germ, Rebelde 2/2 vermelho, Herói 1/1 incolor) e anexa o Equipamento a ela (equipa_ficha_k → attachTo), um gatilho por instância. Se o Equipamento saiu do campo antes, a ficha fica sem ele.",
+   "testes": [
+    "CR 702.163a · 702.182a · Por Mirrodin! e escolha de classe: Rebelde 2/2 vermelho e Herói 1/1 incolor, com o Equipamento anexado",
+    "K-60 · arma viva, Por Mirrodin! e escolha de classe (702.92, 702.163, 702.182): o Equipamento cria a ficha e se anexa; o Rebelde equipado ataca por 3"
+   ]
   },
   {
    "n": "702.183",

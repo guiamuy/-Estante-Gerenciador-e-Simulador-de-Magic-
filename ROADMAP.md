@@ -4515,6 +4515,10 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `triggerConditionMet` (uma linha: `condicaoK`) e o validador de condições de gatilho (a lista ganha `...condicoesK()`, sem tirar nada).
 - **Testes:** `keywords.cr4.unit` (2, falham sem a leva), `combat.audit` (1 cenário). Texto oficial: Ocelot Pride, Wayward Swordtooth, Golden Demise (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
 - **Parcial declarado:** chegar a dez por ganhar o controle de uma permanente não dá a bênção na hora; "se você tem a bênção, em vez disso…" em efeito de mágica (Golden Demise) não existe; Ocelot Pride sem script.
+**K-60 · Arma viva, "Por Mirrodin!" e escolha de classe (702.92, 702.163, 702.182)** ✅ (leva K-60) — onda 4 (living weapon 50 cópias em 27 listas; job select 50 em 16)
+- **Valor:** Batterskull, Mortarpod e os Equipamentos de "Por Mirrodin!" e de escolha de classe entram criando a ficha (Germe 0/0, Rebelde 2/2, Herói 1/1) já equipada.
+- **Aceite:** Batterskull entra e o Germe vira 4/4 com vigilância e vínculo com a vida; o Rebelde de "Por Mirrodin!" equipado com +1/+0 ataca por 3.
+- **Testes:** `keywords.cr4.unit` (2, falham sem a leva), `combat.audit` (1 cenário para as três). Texto oficial: Batterskull, Mortarpod (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

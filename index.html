@@ -5239,6 +5239,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'dredge', // K-57 · 702.52: substituição da compra — no lugar de comprar, moer N e devolver a carta do cemitério à mão (escolha do jogador a cada compra)
   'impending', // K-58 · 702.176: custo alternativo; entra com N marcadores de tempo e não é criatura enquanto tiver algum; na sua etapa final tira um (iminenteK)
   'ascend', // K-59 · 702.131: com dez permanentes ou mais, o jogador ganha a bênção da cidade pelo resto do jogo (ascensaoK); condição de gatilho bencaoK
+  'living weapon', 'for mirrodin!', 'job select', // K-60 · 702.92, 702.163, 702.182: o Equipamento entra, cria a ficha (Germe 0/0 preto, Rebelde 2/2 vermelho, Herói 1/1 incolor) e se anexa a ela (FICHAS_DO_EQUIPAMENTO_K)
   'afflict', 'melee', 'mentor', 'training', // K-31 · 702.130, 702.121, 702.134, 702.149: gatilhos de ataque gerados pela palavra, um por instância
   'battle cry', 'rampage', 'flanking', 'bushido', // K-30 · 702.91, 702.23, 702.25, 702.45: gatilhos de combate gerados pela palavra (GATILHOS_DE_PALAVRA_K), um por instância
   /* ↓ V · palavras-chave da trilha verbos */
@@ -5414,6 +5415,7 @@ const EFFECTS = {
   dragar_k: { fields: ['jogador', 'carta', 'n', 'resto'], targets: [] }, // K-57 · 702.52a (gerado pelo motor)
   iminente_k: { fields: ['z'], targets: [] }, // K-58 · 702.176a (gerado pelo motor)
   ascender_k: { fields: [], targets: [] }, // K-59 · 702.131a (gerado pelo motor na mágica com ascensão)
+  equipa_ficha_k: { fields: ['ficha'], targets: [] }, // K-60 (gerado pelo motor)
   salvaguarda: { fields: [], targets: [] }, // K-2 · 702.21a · gerado pelo motor quando uma permanente com salvaguarda vira alvo (não vai em script)
   volta_com_marcador: { fields: ['marcador'], targets: [] }, // K-4 · persistir e imortal (gerado pelo motor)
   exaltado: { fields: ['criatura'], targets: [] }, // K-5 · exaltado (gerado pelo motor)
@@ -8375,6 +8377,7 @@ function palavraNaLinhaK(k) {
   if (k === 'dredge') return 'dredge \\d+'; // K-57
   if (k === 'impending') return 'impending \\d+\\s*[—-]\\s*(?:\\{[0-9WUBRGC]+\\})+'; // K-58
   if (k === 'ascend') return 'ascend'; // K-59
+  if (k === 'living weapon' || k === 'for mirrodin!' || k === 'job select') return k.replace('!', '\\!'); // K-60
   if (k === 'dash') return 'dash\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-9
   if (k === 'evoke') return 'evoke(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*exile an? (?:white|blue|black|red|green) card from your hand\\.?)'; // K-8 · só as formas que o motor paga
   return ['afterlife', 'rampage', 'bushido', 'afflict'].includes(k) ? `${k} \\d+` : k; // K-30 · alvoroço N e bushido N
@@ -18999,6 +19002,13 @@ function applyEffect(s, src, eff, tgt, events) {
       break;
     }
     /* ↓ K · casos de applyEffect da trilha keywords */
+    case 'equipa_ficha_k': { // K-60 · cria a ficha e anexa este Equipamento a ela (se ele ainda está no campo)
+      const eq = s.objects[src.ability ? src.source : src.oid], def = FICHAS_DO_EQUIPAMENTO_K[eff.ficha];
+      if (!def) { note({ failed: true }); break; }
+      const t = createToken(s, def, ctrl, events);
+      if (eq && eq.zone === 'battlefield' && s.objects[t] && s.objects[t].zone === 'battlefield') attachTo(s, eq, t, events);
+      note({ name: def.name }); break;
+    }
     case 'ascender_k': { const ganhou = ascensaoK(s, ctrl, true); note({ failed: !ganhou }); break; } // K-59 · 702.131a
     case 'iminente_k': { // K-58 · 702.176a: tira um marcador de tempo (se ainda paga e com marcador: "if" interveniente, 603.4); sem marcador, volta a ser criatura
       const perm = s.objects[src.ability ? src.source : src.oid];
@@ -22268,6 +22278,10 @@ const GATILHOS_DE_PALAVRA_K = {
   offspring: (s, o) => o && o.proleK ? ({ kind: 'triggered', when: 'etb', palavraK: 'offspring', effects: [{ do: 'prole_k', z: o.zc || 0 }] }) : [],
   // K-56 · 702.174b · "When this permanent enters, if its gift cost was paid, [effect]."
   gift: (s, o) => o && o.presenteK != null ? ({ kind: 'triggered', when: 'etb', palavraK: 'gift', effects: [{ do: 'presente_k', tipo: s.facts[o.name].presenteK, jogador: o.presenteK }] }) : [],
+  // K-60 · 702.92a/163a/182a · "When this Equipment enters, create a … token, then attach this Equipment to it." (um gatilho por instância)
+  'living weapon': () => ({ kind: 'triggered', when: 'etb', palavraK: 'living weapon', effects: [{ do: 'equipa_ficha_k', ficha: 'germe' }] }),
+  'for mirrodin!': () => ({ kind: 'triggered', when: 'etb', palavraK: 'for mirrodin!', effects: [{ do: 'equipa_ficha_k', ficha: 'rebelde' }] }),
+  'job select': () => ({ kind: 'triggered', when: 'etb', palavraK: 'job select', effects: [{ do: 'equipa_ficha_k', ficha: 'heroi' }] }),
   // K-58 · 702.176a · "At the beginning of your end step, if this permanent's impending cost was paid and it has a time counter on it, remove a time counter from it."
   impending: (s, o) => o && o.iminenteK && ((o.counters || {}).time || 0) > 0 ? ({ kind: 'triggered', when: 'end-step', palavraK: 'impending', effects: [{ do: 'iminente_k', z: o.zc || 0 }] }) : [],
   // K-40 · 702.70a · "Whenever this creature deals combat damage to a player, that player gets N poison counters." (o jogador atingido é o que ela atacava)
@@ -23600,6 +23614,13 @@ function condicaoK(s, o, cond) {
   return true;
 }
 Object.assign(EXPORTS_K, { ascensaoK, condicaoK });
+/* K-60 · 702.92 arma viva, 702.163 "Por Mirrodin!", 702.182 escolha de classe: gatilho de entrada do Equipamento que cria a ficha e anexa o
+   Equipamento a ela (attachTo, sem pagar equipar). Se o Equipamento já saiu do campo, a ficha é criada e fica sem ele. */
+const FICHAS_DO_EQUIPAMENTO_K = {
+  germe: { name: 'Phyrexian Germ', types: ['creature'], subtypes: ['Phyrexian', 'Germ'], colors: ['B'], power: 0, toughness: 0 },
+  rebelde: { name: 'Rebel', types: ['creature'], subtypes: ['Rebel'], colors: ['R'], power: 2, toughness: 2 },
+  heroi: { name: 'Hero', types: ['creature'], subtypes: ['Hero'], colors: [], power: 1, toughness: 1 },
+};
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-30 · 701.65 aerobender: "that player exiles those objects. For each card exiled this way, for as long as it remains exiled, its owner
    may cast it by paying {2} rather than paying its mana cost" (a). A permissão é do DONO e da encarnação exilada (400.7: se a carta sair do
@@ -27521,6 +27542,7 @@ Object.assign(PALAVRA_PT, { gift: 'presente' }); // K-56
 Object.assign(PALAVRA_PT, { dredge: 'dragar' }); // K-57
 Object.assign(PALAVRA_PT, { impending: 'iminente' }); // K-58
 Object.assign(PALAVRA_PT, { ascend: 'ascensão' }); // K-59
+Object.assign(PALAVRA_PT, { 'living weapon': 'arma viva', 'for mirrodin!': 'por Mirrodin!', 'job select': 'escolha de classe' }); // K-60
 Object.assign(PALAVRA_PT, { afflict: 'aflição', melee: 'refrega', mentor: 'mentor', training: 'treinamento' }); // K-31
 Object.assign(PALAVRA_PT, { 'battle cry': 'grito de guerra', rampage: 'alvoroço', flanking: 'flanquear', bushido: 'bushido' }); // K-30
 const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consultadas por descreveEfeito; antes a pilha mostrava "proeza k")
@@ -27543,6 +27565,7 @@ const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consulta
   prole_k: () => 'cria uma ficha que é cópia desta permanente, só que 1/1 (prole)', // K-53
   presente_k: e => `${({ card: 'o oponente escolhido compra uma carta', fish: 'o oponente escolhido cria uma ficha de Peixe 1/1 azul virada', turn: 'o oponente escolhido joga um turno extra depois deste', food: 'o oponente escolhido cria uma ficha de Comida', treasure: 'o oponente escolhido cria uma ficha de Tesouro', octopus: 'o oponente escolhido cria uma ficha de Polvo 8/8 azul' })[e.tipo] || 'o oponente escolhido recebe o presente'} (presente)`, // K-56
   compra_k: () => 'compra a carta', dragar_k: e => `mói ${e.n} e devolve esta carta do cemitério à mão no lugar de comprar (dragar)`, // K-57
+  equipa_ficha_k: e => `cria uma ficha de ${({ germe: 'Germe 0/0 preto', rebelde: 'Rebelde 2/2 vermelho', heroi: 'Herói 1/1 incolor' })[e.ficha] || 'criatura'} e anexa este Equipamento a ela`, // K-60
   ascender_k: () => 'se você controla dez ou mais permanentes, ganha a bênção da cidade (ascensão)', // K-59
   iminente_k: () => 'tira um marcador de tempo desta permanente; sem marcador, ela volta a ser criatura (iminente)', // K-58
   mobilizar_k: e => `cria ${e.n === 1 ? 'uma ficha' : e.n + ' fichas'} de Guerreiro 1/1 vermelho viradas e atacando; na próxima etapa final elas são sacrificadas (mobilizar)`, mobilizar_ataca_k: () => '', // K-52

@@ -890,6 +890,18 @@ test('K-59 · ascensão (702.131): com o Gato de ascensão e mais nove permanent
   assert.equal(s.players[a].bencaoK, true, 'onze permanentes: bênção');
   assert.equal(combate(s, [g]).players[d].life, 18);
 });
+test('K-60 · arma viva, Por Mirrodin! e escolha de classe (702.92, 702.163, 702.182): o Equipamento cria a ficha e se anexa; o Rebelde equipado ataca por 3', () => {
+  cobre('living weapon'); cobre('for mirrodin!'); cobre('job select');
+  const cartas = { ...CARDS, Lamina: { name: 'Lamina', type_line: 'Artifact — Equipment', mana_cost: '{2}', cmc: 2, colors: [], keywords: ['For Mirrodin!', 'Equip'], oracle_text: 'For Mirrodin!\nEquip {2}' } };
+  const scripts = { ...SCRIPTS, Lamina: { name: 'Lamina', equip: { enchant: 'creature', cost: { mana: '{2}' } }, grants: { power: 1, toughness: 0 }, example: { action: 'etb', target: 'none', expect: { attached: false } } } };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 80, mode: 'assisted', manaCheck: false, cards: cartas, scripts, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a; let e; [s, e] = poe(s, a, 'Lamina', { zone: 'hand' });
+  s = act(s, { t: 'cast', p: a, oid: e }); for (let i = 0; i < 8 && (s.stack.length || s.pending); i++) s = s.pending ? act(s, E.legalActions(s, s.pending.p)[0]) : act(s, { t: 'pass', p: s.turn.priority });
+  const r = s.objects[e].attachedTo; assert.ok(r); s = JSON.parse(JSON.stringify(s)); s.objects[r].sick = false;
+  assert.equal(combate(s, [r]).players[d].life, 17);
+});
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));

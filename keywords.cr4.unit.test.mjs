@@ -2226,3 +2226,28 @@ test('CR 702.131a/c e 702.174b · condições de gatilho: "if you have the city\
   assert.equal(resolve(act(r, ofs.find(x => x.presenteK != null))).players[ra].life, v0 + 2, 'prometido: o gatilho condicionado vale');
   assert.equal(resolve(act(r, ofs.find(x => x.presenteK == null))).players[ra].life, v0, 'sem prometer, não');
 });
+
+/* ---------------- K-60 · arma viva 702.92, Por Mirrodin! 702.163, escolha de classe 702.182 ---------------- */
+test('CR 702.92a · arma viva (Batterskull, texto oficial): ao entrar, cria um Germe 0/0 preto e se anexa a ele (o Germe vira 4/4); sem o bônus, o Germe morreria', () => {
+  const BS = { ...oficial('Batterskull'), keywords: ['Living weapon', 'Equip'] };
+  const SC = { Batterskull: { name: 'Batterskull', equip: { enchant: 'creature', cost: { mana: '{5}' } }, grants: { power: 4, toughness: 4, keywords: ['vigilance', 'lifelink'] }, example: { action: 'etb', target: 'none', expect: { attached: false } } } };
+  let s = partida({ Batterskull: BS }, SC); const a = s.turn.active;
+  let b; [s, b] = poe(s, a, 'Batterskull', 'hand');
+  let t = resolve(act(s, { t: 'cast', p: a, oid: b }));
+  const germe = t.zones[a].battlefield.map(x => t.objects[x]).find(o => o.token && o.name === 'Phyrexian Germ');
+  assert.ok(germe, 'o Germe'); assert.equal(t.objects[b].attachedTo, germe.oid, 'o Equipamento anexado ao Germe');
+  assert.equal(E.stats(t, germe).power, 4); assert.equal(E.stats(t, germe).toughness, 4);
+  assert.ok(t.facts['Phyrexian Germ'].colors.includes('B'));
+});
+
+test('CR 702.163a · 702.182a · Por Mirrodin! e escolha de classe: Rebelde 2/2 vermelho e Herói 1/1 incolor, com o Equipamento anexado', () => {
+  const EQ = (n, kw) => ({ name: n, type_line: 'Artifact — Equipment', mana_cost: '{2}', cmc: 2, colors: [], keywords: [kw, 'Equip'], oracle_text: `${kw}\nEquip {2}` });
+  const SC = n => ({ [n]: { name: n, equip: { enchant: 'creature', cost: { mana: '{2}' } }, grants: { power: 1, toughness: 0 }, example: { action: 'etb', target: 'none', expect: { attached: false } } } });
+  for (const [n, kw, ficha, pt] of [['Lâmina', 'For Mirrodin!', 'Rebel', [3, 2]], ['Cajado', 'Job select', 'Hero', [2, 1]]]) {
+    let s = partida({ [n]: EQ(n, kw) }, SC(n)); const a = s.turn.active;
+    let e; [s, e] = poe(s, a, n, 'hand');
+    const t = resolve(act(s, { t: 'cast', p: a, oid: e }));
+    const f = t.zones[a].battlefield.map(x => t.objects[x]).find(o => o.token && o.name === ficha);
+    assert.ok(f, ficha); assert.equal(t.objects[e].attachedTo, f.oid); assert.deepEqual([E.stats(t, f).power, E.stats(t, f).toughness], pt);
+  }
+});
