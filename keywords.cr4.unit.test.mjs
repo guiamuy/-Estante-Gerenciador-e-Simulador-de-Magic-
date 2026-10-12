@@ -775,3 +775,52 @@ test('CR 702.21a / 707.10 · auditoria K-14: a cópia de mágica que mira a perm
   }
   assert.ok(viu, 'a salvaguarda do Crab disparou contra a cópia');
 });
+
+/* ---------------- K-15 · correções da auditoria independente da onda 1 (custos e característica) ---------------- */
+test('CR 702.51a · auditoria K-15: a criatura de duas cores paga o símbolo de qualquer uma das cores dela (o motor acha a forma que fecha o custo)', () => {
+  const JUNTOS = { name: 'Juntos', type_line: 'Instant', mana_cost: '{G}{W}', cmc: 2, colors: ['G', 'W'], keywords: ['Convoke'], oracle_text: 'Convoke\nYou gain 1 life.' };
+  const SC_J = { Juntos: { name: 'Juntos', effects: [{ do: 'gain', amount: 1 }], example: { target: 'none', expect: { selfLife: 1 } } } };
+  for (const [terreno, cores] of [['Forest', ['G', 'W']], ['Plains', ['G', 'W']], ['Forest', ['W', 'G']]]) {
+    const DUPLA = { name: 'Dupla', type_line: 'Creature — Elf Soldier', mana_cost: '{G}{W}', cmc: 2, colors: cores, power: '2', toughness: '2', keywords: [], oracle_text: '' };
+    let s = comMana({ Juntos: JUNTOS, Dupla: DUPLA, Plains: terra('Plains') }, SC_J); const a = s.turn.active;
+    let m, d; [s, m] = poe(s, a, 'Juntos', 'hand'); [s, d] = poe(s, a, 'Dupla'); [s] = poe(s, a, terreno);
+    const of = E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === m && x.tapaK);
+    assert.ok(of, `${terreno} + criatura ${cores.join('')}: oferecido`);
+    const r = resolve(act(s, of)); assert.equal(r.players[a].life, s.players[a].life + 1, `${terreno} + ${cores.join('')}: conjurada`);
+  }
+});
+
+test('CR 702.51a / 702.126a · auditoria K-15: convocar vale fora da mão — comandante na zona de comando e carta no exílio com permissão de jogar', () => {
+  const RESG = { name: 'Resgatador', type_line: 'Legendary Creature — Human Samurai', mana_cost: '{3}{W}{W}', cmc: 5, colors: ['W'], color_identity: ['W'], power: '3', toughness: '2', keywords: ['Convoke'], oracle_text: 'Convoke' };
+  const cards = { Plains: terra('Plains'), Branco: BRANCO, Resgatador: RESG };
+  const deck = [{ name: 'Resgatador', qty: 1, zone: 'commander' }, { name: 'Plains', qty: 60, zone: 'main' }, { name: 'Branco', qty: 39, zone: 'main' }];
+  let s = E.createGame({ format: 'commander', seed: 3, mode: 'assisted', manaCheck: true, cards, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  s = J(s); const a = s.turn.active;
+  for (let p = 0; p < 2; p++) { s.zones[p].library.push(...s.zones[p].hand.splice(0)); for (const x of s.zones[p].library) s.objects[x].zone = 'library'; }
+  const cr = []; for (let i = 0; i < 5; i++) { let x; [s, x] = poe(s, a, 'Branco'); cr.push(x); }
+  const cmd = s.zones[a].command[0];
+  assert.ok(E.legalActions(s, a).some(x => x.t === 'cast' && x.oid === cmd && x.tapaK && x.tapaK.length === 5), 'da zona de comando, as cinco criaturas pagam');
+  let t = J(s); t.zones[a].command.splice(t.zones[a].command.indexOf(cmd), 1); t.zones[a].exile.push(cmd); Object.assign(t.objects[cmd], { zone: 'exile', playableFromExile: a });
+  assert.ok(E.legalActions(t, a).some(x => x.t === 'cast' && x.oid === cmd && x.tapaK), 'do exílio com permissão de jogar também');
+});
+
+test('CR 702.51a · auditoria K-15: com muitas criaturas, cada tamanho de grupo é oferecido — inclusive virar todas e deixar os terrenos desvirados', () => {
+  let s = comMana({ 'Siege Wurm': oficial('Siege Wurm'), Urso: URSO, Branco: BRANCO }); const a = s.turn.active;
+  let w; [s, w] = poe(s, a, 'Siege Wurm', 'hand');
+  for (let i = 0; i < 4; i++) [s] = poe(s, a, 'Forest');
+  for (const n of ['Urso', 'Urso', 'Urso', 'Branco', 'Branco', 'Branco', 'Branco']) [s] = poe(s, a, n);
+  const tamanhos = new Set(E.legalActions(s, a).filter(x => x.t === 'cast' && x.oid === w && x.tapaK).map(x => x.tapaK.length));
+  assert.deepEqual([...tamanhos].sort((x, y) => x - y), [3, 4, 5, 6, 7], 'de 3 (o mínimo com 4 Florestas) a 7 (todas)');
+});
+
+test('CR 702.73a / 702.114a · auditoria K-15: metamorfo e desprovido valem pela linha do texto também quando o dado da carta vem sem a lista de palavras-chave', () => {
+  let s = partida({ Muda: { ...MUDA, keywords: [] }, Chefe: CHEFE }, { Chefe: SC_CHEFE }); const a = s.turn.active;
+  let muda; [s] = poe(s, a, 'Chefe'); [s, muda] = poe(s, a, 'Muda', 'hand');
+  const vida = s.players[a].life; s = resolve(act(s, { t: 'cast', p: a, oid: muda }));
+  assert.equal(s.players[a].life, vida + 1, 'o metamorfo só com o texto conta como Elfo');
+  const DESP = { name: 'Desprovida', type_line: 'Creature — Eldrazi', mana_cost: '{1}{G}', cmc: 2, colors: ['G'], power: '2', toughness: '2', keywords: [], oracle_text: 'Devoid' };
+  const t = partida({ Desprovida: DESP });
+  assert.deepEqual(J(t.facts.Desprovida.colors), [], 'a desprovida só com o texto é incolor');
+});

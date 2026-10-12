@@ -7304,19 +7304,22 @@
    "regra": "Keyword Abilities",
    "titulo": "Convoke",
    "status": "parcial",
-   "falta": "702.51c (\"convocou\") não fica guardado para as cartas que perguntam quem convocou; símbolo híbrido não é pago por criatura (vai para a mana); custo com {X} não oferece convocar; mais de 8 criaturas desviradas: só as 8 primeiras entram nas combinações.",
+   "falta": "702.51c (\"convocou\") não fica guardado; símbolo híbrido não é pago por criatura; custo com {X} não oferece; acima de 8 permanentes que servem, só as 8 primeiras entram (todo tamanho de grupo aparece, até 24 formas, até 24 conferências por tamanho). Com redução de custo por alvo no campo (M-259, filtro OTIMISTA), as ofertas das âncoras ↓ K de legalActions não aparecem (a função sai antes): pedido à trilha motor, dona das âncoras.",
    "esforco": "M",
    "depende": [
     "601.2h",
     "601.2f"
    ],
    "cartas": "comum (volta em várias coleções)",
-   "evidencia": "K-13: 'convoke' em KEYWORDS; tapaImpressoK lê a linha (cardFacts.tapaK); gruposParaTaparK (oferta na âncora ↓ K de legalActions) e restaDoCustoK: cada criatura desvirada sua (com enjoo também: não é habilidade {T}) paga um símbolo de uma cor dela, senão um genérico; criatura que não pagaria nada não entra. O grupo é escolha de quem paga: uma ação por grupo que deixa o resto pagável, do menor ao maior, até 24 formas (LIMITE_PAGAMENTOS) e entre as 8 primeiras permanentes que servem; a mesa pergunta quais virar. A conta do resto vira o grupo só durante a conferência (legalActions não muda o estado). No pagamento (custoTapadoK, chamado no pagamento do custo normal): o custo total já fechado (aumentos e reduções, 601.2f/702.51b), cada permanente paga um símbolo e vira; o resto vai para a mana. Carta exemplo: Siege Wurm (Oracle do Forge, 11/10/2026).",
+   "evidencia": "K-13: 'convoke' em KEYWORDS; tapaImpressoK lê a linha (cardFacts.tapaK); gruposParaTaparK (oferta na âncora ↓ K de legalActions) e restaDoCustoK: cada criatura desvirada sua (com enjoo também: não é habilidade {T}) paga um símbolo de uma cor dela, senão um genérico; criatura que não pagaria nada não entra. O grupo é escolha de quem paga: uma ação por grupo que deixa o resto pagável, do menor ao maior, até 24 formas (LIMITE_PAGAMENTOS) e entre as 8 primeiras permanentes que servem; a mesa pergunta quais virar. A conta do resto vira o grupo só durante a conferência (legalActions não muda o estado). No pagamento (custoTapadoK, chamado no pagamento do custo normal): o custo total já fechado (aumentos e reduções, 601.2f/702.51b), cada permanente paga um símbolo e vira; o resto vai para a mana. Carta exemplo: Siege Wurm (Oracle do Forge, 11/10/2026). K-15 (auditoria): restosDoCustoK procura a forma de pagar (cada criatura paga uma das cores dela ou o genérico) que deixa o resto pagável, com um teto barato antes de planejar; oferta também da zona de comando e do exílio com permissão; todo tamanho de grupo é oferecido (rodadas por tamanho).",
    "testes": [
     "CR 702.51a · convocar (Siege Wurm, texto oficial, sem script): três Florestas e quatro criaturas pagam {5}{G}{G}; as verdes pagam {G}, as outras o genérico; com enjoo também serve",
     "CR 702.51a · convocar: criatura que não paga nada (cor errada, sem genérico) não entra no grupo; só a da cor",
     "CR 702.51a / 702.126a · as linhas \"Convoke\" e \"Improvise\" contam como palavra-chave na cobertura",
-    "K-13 · convocar e improvisar (702.51, 702.126): quem virou para pagar a mágica não ataca neste turno"
+    "K-13 · convocar e improvisar (702.51, 702.126): quem virou para pagar a mágica não ataca neste turno",
+    "CR 702.51a · auditoria K-15: a criatura de duas cores paga o símbolo de qualquer uma das cores dela (o motor acha a forma que fecha o custo)",
+    "CR 702.51a / 702.126a · auditoria K-15: convocar vale fora da mão — comandante na zona de comando e carta no exílio com permissão de jogar",
+    "CR 702.51a · auditoria K-15: com muitas criaturas, cada tamanho de grupo é oferecido — inclusive virar todas e deixar os terrenos desvirados"
    ]
   },
   {
@@ -7604,7 +7607,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Changeling",
    "status": "coberta",
-   "evidencia": "K-1: metamorfoK (core.js, abaixo da âncora ↓ K das exportações) lê a palavra-chave impressa (Scryfall `keywords`, ficha com `keywords`) ou a marca do script (sem rede); 'changeling' em KEYWORDS (o leitor lê a linha). isChangeling(s, o, sub) passa o subtipo em cada teste (contagem por subtipo, gatilho, alvo, seletor, varredura que poupa, custo, desconto, escolha de tipo) e só aceita tipo de criatura (205.3m, 324 tipos da edição de 25/09/2026); vale em toda zona (busca no grimório, mágica na pilha, comandante na zona de comando: Path of Ancestry); 205.3d (só criatura ou kindred); 708.2 (virada para baixo não tem); perder as habilidades não tira os tipos e um tipo de criatura definido depois sobrepõe (rulings da Masked Vandal, 05/02/2021). Concedido por outro efeito (camada 6) não dá tipo, como manda 613.1d/604.3a (só impresso, da ficha ou de cópia).",
+   "evidencia": "K-1: metamorfoK (core.js, abaixo da âncora ↓ K das exportações) lê a palavra-chave impressa (Scryfall `keywords`, ficha com `keywords`) ou a marca do script (sem rede); 'changeling' em KEYWORDS (o leitor lê a linha). isChangeling(s, o, sub) passa o subtipo em cada teste (contagem por subtipo, gatilho, alvo, seletor, varredura que poupa, custo, desconto, escolha de tipo) e só aceita tipo de criatura (205.3m, 324 tipos da edição de 25/09/2026); vale em toda zona (busca no grimório, mágica na pilha, comandante na zona de comando: Path of Ancestry); 205.3d (só criatura ou kindred); 708.2 (virada para baixo não tem); perder as habilidades não tira os tipos e um tipo de criatura definido depois sobrepõe (rulings da Masked Vandal, 05/02/2021). Concedido por outro efeito (camada 6) não dá tipo, como manda 613.1d/604.3a (só impresso, da ficha ou de cópia). K-15 (auditoria): também pela linha do texto quando o dado da carta vem sem a lista de palavras-chave (palavrasDoTextoK).",
    "esforco": "P",
    "depende": [
     "604.3",
@@ -7619,7 +7622,8 @@
     "CR 702.73a · metamorfo concedido pela carta da ficha conta; a palavra-chave entra no vocabulário do motor",
     "K-1 · metamorfo (702.73) e desprovido (702.114): lidos da palavra-chave impressa, definem tipo e cor",
     "CR 702.73a · comandante com metamorfo compartilha tipo com qualquer criatura (Faerie Seer com a mana da Path dispara)",
-    "CR 702.73a · metamorfo na pilha compartilha tipo com o comandante (Masked Vandal com a mana da Path of Ancestry dispara a vidência)"
+    "CR 702.73a · metamorfo na pilha compartilha tipo com o comandante (Masked Vandal com a mana da Path of Ancestry dispara a vidência)",
+    "CR 702.73a / 702.114a · auditoria K-15: metamorfo e desprovido valem pela linha do texto também quando o dado da carta vem sem a lista de palavras-chave"
    ]
   },
   {
@@ -8208,11 +8212,12 @@
    "regra": "Keyword Abilities",
    "titulo": "Devoid",
    "status": "coberta",
-   "evidencia": "K-1: além da marca `self.devoid` do script (sem rede), a palavra-chave impressa 'devoid' zera as cores no fato da carta (coresImpressasK em cardFacts), valendo em toda zona; 'devoid' em KEYWORDS (o leitor lê a linha). Sonda sonda-702c.mjs: Writhing Chrysalis ({2}{R}{G}) fica com colors [].",
+   "evidencia": "K-1: além da marca `self.devoid` do script (sem rede), a palavra-chave impressa 'devoid' zera as cores no fato da carta (coresImpressasK em cardFacts), valendo em toda zona; 'devoid' em KEYWORDS (o leitor lê a linha). Sonda sonda-702c.mjs: Writhing Chrysalis ({2}{R}{G}) fica com colors []. K-15 (auditoria): também pela linha do texto quando o dado da carta vem sem a lista de palavras-chave (palavrasDoTextoK).",
    "cartas": "comum (Eldrazi; uma carta nas listas: Writhing Chrysalis)",
    "testes": [
     "CR 702.114a · desprovido lido da palavra-chave impressa: incolor mesmo com mana colorida no custo, em qualquer zona",
-    "K-1 · metamorfo (702.73) e desprovido (702.114): lidos da palavra-chave impressa, definem tipo e cor"
+    "K-1 · metamorfo (702.73) e desprovido (702.114): lidos da palavra-chave impressa, definem tipo e cor",
+    "CR 702.73a / 702.114a · auditoria K-15: metamorfo e desprovido valem pela linha do texto também quando o dado da carta vem sem a lista de palavras-chave"
    ]
   },
   {
@@ -8390,18 +8395,19 @@
    "regra": "Keyword Abilities",
    "titulo": "Improvise",
    "status": "parcial",
-   "falta": "Custo com {X} não oferece improvisar; mais de 8 artefatos desvirados: só os 8 primeiros entram nas combinações.",
+   "falta": "Custo com {X} não oferece improvisar; acima de 8 artefatos desvirados, só os 8 primeiros entram. Com redução de custo por alvo no campo (M-259, filtro OTIMISTA), as ofertas das âncoras ↓ K de legalActions não aparecem (a função sai antes): pedido à trilha motor, dona das âncoras.",
    "esforco": "M",
    "depende": [
     "601.2h pagamento de custo total",
     "pagamento por virar permanentes (como 702.51 convocar)"
    ],
    "cartas": "comum (Aether Revolt, reedições; relevante em Pauper de artefatos)",
-   "evidencia": "K-13: 'improvise' em KEYWORDS; mesmo caminho do convocar (tapaImpressoK, gruposParaTaparK, restaDoCustoK, custoTapadoK), só com artefatos desvirados seus e só para o genérico. O grupo é escolha de quem paga: uma ação por grupo que deixa o resto pagável, do menor ao maior, até 24 formas (LIMITE_PAGAMENTOS) e entre as 8 primeiras permanentes que servem; a mesa pergunta quais virar. A conta do resto vira o grupo só durante a conferência (legalActions não muda o estado). No pagamento (custoTapadoK, chamado no pagamento do custo normal): o custo total já fechado (aumentos e reduções, 601.2f/702.51b), cada permanente paga um símbolo e vira; o resto vai para a mana. Carta exemplo: Metallic Rebuke (script novo na biblioteca; Oracle do Forge, 11/10/2026).",
+   "evidencia": "K-13: 'improvise' em KEYWORDS; mesmo caminho do convocar (tapaImpressoK, gruposParaTaparK, restaDoCustoK, custoTapadoK), só com artefatos desvirados seus e só para o genérico. O grupo é escolha de quem paga: uma ação por grupo que deixa o resto pagável, do menor ao maior, até 24 formas (LIMITE_PAGAMENTOS) e entre as 8 primeiras permanentes que servem; a mesa pergunta quais virar. A conta do resto vira o grupo só durante a conferência (legalActions não muda o estado). No pagamento (custoTapadoK, chamado no pagamento do custo normal): o custo total já fechado (aumentos e reduções, 601.2f/702.51b), cada permanente paga um símbolo e vira; o resto vai para a mana. Carta exemplo: Metallic Rebuke (script novo na biblioteca; Oracle do Forge, 11/10/2026). K-15 (auditoria): oferta também da zona de comando e do exílio com permissão; todo tamanho de grupo é oferecido.",
    "testes": [
     "CR 702.126a · improvisar (Metallic Rebuke, texto oficial): artefatos pagam só o genérico; Ilha + dois artefatos pagam {2}{U}; três artefatos sem Ilha, não",
     "CR 702.51a / 702.126a · as linhas \"Convoke\" e \"Improvise\" contam como palavra-chave na cobertura",
-    "K-13 · convocar e improvisar (702.51, 702.126): quem virou para pagar a mágica não ataca neste turno"
+    "K-13 · convocar e improvisar (702.51, 702.126): quem virou para pagar a mágica não ataca neste turno",
+    "CR 702.51a / 702.126a · auditoria K-15: convocar vale fora da mão — comandante na zona de comando e carta no exílio com permissão de jogar"
    ]
   },
   {
@@ -8493,7 +8499,7 @@
     "702.34 lampejo do passado"
    ],
    "cartas": "comum (Guilds of Ravnica; algumas em Pauper)",
-   "evidencia": "K-10: 'jump-start' em KEYWORDS; recomecarImpressoK lê a linha \"Jump-start\" (cardFacts.recomecarK). Oferta (legalActions, âncora ↓ K): do cemitério, só mágica instantânea ou feitiço, no momento certo, com o custo de mana normal pagável (com aumentos e reduções, 601.2f), uma ação por carta da mão a descartar (a escolha é de quem paga; a mesa pergunta \"Qual carta você descarta?\"). HANDLERS.cast: pagaRecomecarK confere e descarta (custo adicional: é descarte, dispara insanidade); a marca de exílio ao sair da pilha é a do lampejo (702.34a, o mesmo texto): resolvida ou anulada, vai para o exílio. Carta exemplo: Radical Idea (Oracle do Forge, 11/10/2026).",
+   "evidencia": "K-10: 'jump-start' em KEYWORDS; recomecarImpressoK lê a linha \"Jump-start\" (cardFacts.recomecarK). Oferta (legalActions, âncora ↓ K): do cemitério, só mágica instantânea ou feitiço, no momento certo, com o custo de mana normal pagável (com aumentos e reduções, 601.2f), uma ação por carta da mão a descartar (a escolha é de quem paga; a mesa pergunta \"Qual carta você descarta?\"). HANDLERS.cast: pagaRecomecarK confere e descarta (custo adicional: é descarte, dispara insanidade); a marca de exílio ao sair da pilha é a do lampejo (702.34a, o mesmo texto): resolvida ou anulada, vai para o exílio. Carta exemplo: Radical Idea (Oracle do Forge, 11/10/2026). Limite fora da regra, declarado (auditoria K-15): Com redução de custo por alvo no campo (M-259, filtro OTIMISTA), as ofertas das âncoras ↓ K de legalActions não aparecem (a função sai antes): pedido à trilha motor, dona das âncoras.",
    "testes": [
     "CR 702.133a · recomeçar (Radical Idea, texto oficial): do cemitério, descartando uma carta escolhida; a mágica resolve e é exilada",
     "CR 702.133a · recomeçada anulada também vai para o exílio; sem carta na mão, não há oferta; carta sem recomeçar não sai do cemitério",

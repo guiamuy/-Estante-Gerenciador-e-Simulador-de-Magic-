@@ -15142,7 +15142,8 @@ function cardFacts(card) {
     // CR 202.1b / 118.6: carta sem custo de mana (Living End, Lotus Bloom) tem custo impagável, não custo zero
     // (só quando o dado diz valor de mana 0: registro sem o campo de custo mas com valor de mana conhecido não é "sem custo")
     semCusto: !tl.includes('land') && !((card && card.cmc) > 0) && !String((card && (card.mana_cost || (card.faces && card.faces[0] && card.faces[0].mana_cost))) || '').trim(),
-    colors: coresImpressasK(kw, ((card && (card.colors || card.color_identity)) || []).map(c => String(c).toUpperCase())), // K-1 · 702.114a desprovido
+    textoK: palavrasDoTextoK(card), // K-15 · palavras-chave das linhas só de palavra-chave do texto (dado sem a lista da Scryfall)
+    colors: coresImpressasK(kw.concat(palavrasDoTextoK(card) || []), ((card && (card.colors || card.color_identity)) || []).map(c => String(c).toUpperCase())), // K-1 · 702.114a desprovido
     typeText: String(card && card.type_line || ''),
     cost: parseCost(card && (card.mana_cost || (card.faces && card.faces[0] && card.faces[0].mana_cost))),
     produces: parseProduction(card),
@@ -20531,11 +20532,13 @@ function legalActions(s, p, { adjudication = false } = {}) {
   /* ↓ K · ofertas de legalActions da trilha keywords (out.push) */
   // K-13 · 702.51/702.126 · convocar e improvisar: a mesma conjuração, virando criaturas (artefatos) suas para pagar parte do custo total;
   // quais virar é escolha de quem paga (uma ação por grupo, do menor ao maior, até o limite de formas de pagar)
-  if (s.manaCheck) for (const oid of s.zones[p].hand) {
+  const gruposDaChamadaK = new Map();
+  if (s.manaCheck) for (const oid of s.zones[p].hand.concat(s.zones[p].command.filter(x => s.objects[x].commander), s.zones[p].exile.filter(x => jogavelDoExilio(s, p, s.objects[x])))) { // K-15 · da mão, da zona de comando e do exílio com permissão
     const o = s.objects[oid], f = s.facts[o.name];
     if (!f.tapaK || f.types.includes('land') || f.semCusto || (f.cost.x || 0) || !(canSorcery || !isSorcerySpeed(f))) continue;
-    const extra = castExtra(s, p, o, 0);
-    for (const grupo of gruposParaTaparK(s, p, o, f.cost, extra)) casts(o).forEach(x => out.push({ ...x, tapaK: grupo, pay: { ...(x.pay || {}), tapOther: grupo } }));
+    const extra = castExtra(s, p, o, 0), chave = o.name + '|' + extra; // K-15 · cópias da mesma carta com o mesmo custo: os grupos são os mesmos (contados uma vez por chamada)
+    const grupos = gruposDaChamadaK.get(chave) || gruposParaTaparK(s, p, o, f.cost, extra); gruposDaChamadaK.set(chave, grupos);
+    for (const grupo of grupos) casts(o).forEach(x => out.push({ ...x, tapaK: grupo, pay: { ...(x.pay || {}), tapOther: grupo } }));
   }
   // K-10 · 702.133a · recomeçar: do cemitério, mágica instantânea ou feitiço, pagando o custo e descartando uma carta (a escolha é de quem paga)
   for (const oid of s.zones[p].graveyard) {
@@ -20731,7 +20734,7 @@ function ehTipoDeCriaturaK(sub) { return TIPOS_DE_CRIATURA_K.has(String(sub || '
 function metamorfoK(s, o, sub) {
   if (!o || o.faceDown || !s.facts[o.name]) return false;
   const f = s.facts[o.name];
-  if (!((f.kw || []).includes('changeling') || (f.script || {}).changeling)) return false;
+  if (!((f.kw || []).includes('changeling') || (f.textoK || []).includes('changeling') || (f.script || {}).changeling)) return false; // K-15 · também a linha do texto
   if (!/\b(creature|kindred|tribal)\b/i.test(o.zone === 'battlefield' ? linhaDeTipo(s, o) : (f.typeText || ''))) return false;
   if ((mutacao(s, o) || {}).subtiposDefinidos) return false;
   return sub == null || ehTipoDeCriaturaK(sub);
@@ -21030,44 +21033,71 @@ function tapaImpressoK(card) {
 function viraveisK(s, p, f) {
   return battlefield(s).filter(x => x.controller === p && !x.tapped && ((f.tapaK.includes('convoke') && isCreature(s, x)) || (f.tapaK.includes('improvise') && tiposDe(s, x).includes('artifact'))));
 }
-/** O custo que sobra depois de virar `grupo`: o genérico do custo total (com `extra`) e os símbolos coloridos; null se alguma permanente
-    do grupo não paga nada (não se vira a mais) ou não serve. Cada uma paga primeiro um símbolo de cor dela (convocar), senão o genérico. */
-function restaDoCustoK(s, p, f, custo, extra, grupo) {
-  const colored = { ...custo.colored }; let generic = Math.max(0, (custo.generic || 0) + (extra || 0));
+/** K-15 · os custos que podem sobrar depois de virar `grupo` (sem repetir): cada permanente paga um símbolo — de uma cor dela (convocar,
+    a escolha de qual é de quem paga) ou o genérico; nenhuma é virada sem pagar nada. Lista vazia: o grupo não serve. */
+function restosDoCustoK(s, p, f, custo, extra, grupo) {
   const serve = new Set(viraveisK(s, p, f).map(x => x.oid));
-  for (const oid of grupo) {
-    const x = s.objects[oid]; if (!x || !serve.has(oid)) return null;
-    const conv = f.tapaK.includes('convoke') && isCreature(s, x);
-    const cor = conv ? coresDe(s, x).find(c => (colored[c] || 0) > 0) : null;
-    if (cor) colored[cor]--; else if (generic > 0 && (conv || tiposDe(s, x).includes('artifact'))) generic--; else return null;
-  }
-  return { ...custo, generic, colored, x: 0 };
+  if (grupo.some(oid => !serve.has(oid))) return [];
+  const membros = grupo.map(oid => { const x = s.objects[oid], conv = f.tapaK.includes('convoke') && isCreature(s, x);
+    return { cores: conv ? coresDe(s, x) : [], generico: conv || tiposDe(s, x).includes('artifact') }; });
+  const out = new Map();
+  const passo = (i, colored, generic) => {
+    if (out.size >= 32) return;
+    if (i === membros.length) { const r = { ...custo, generic, colored: { ...colored }, x: 0 }; out.set(JSON.stringify([generic, colored]), r); return; }
+    const m = membros[i];
+    for (const c of new Set(m.cores)) if ((colored[c] || 0) > 0) passo(i + 1, { ...colored, [c]: colored[c] - 1 }, generic);
+    if (m.generico && generic > 0) passo(i + 1, colored, generic - 1);
+  };
+  passo(0, { ...custo.colored }, Math.max(0, (custo.generic || 0) + (extra || 0)));
+  return [...out.values()];
 }
-/** Os grupos que dá para virar e pagar o resto com mana: do menor ao maior, até LIMITE_PAGAMENTOS. A conferência do resto vira o grupo
-    só durante a conta (e desvira em seguida: legalActions não muda o estado). */
+/** Com o grupo virado só durante a conta (legalActions não muda o estado), o resto que dá para pagar com mana, ou null. */
+function restoPagavelK(s, p, f, custo, extra, grupo, teto = Infinity) {
+  const tam = r => r.generic + Object.values(r.colored || {}).reduce((a, b) => a + b, 0) + (r.hybrid || []).length;
+  const restos = restosDoCustoK(s, p, f, custo, extra, grupo).filter(r => tam(r) <= teto); if (!restos.length) return null; // teto: o máximo de mana que as outras fontes dão (corte barato antes de planejar)
+  const antes = grupo.map(x => s.objects[x].tapped); for (const x of grupo) s.objects[x].tapped = true;
+  try { return restos.find(r => canPay(s, p, r, 0)) || null; } finally { grupo.forEach((x, i) => { s.objects[x].tapped = antes[i]; }); }
+}
+/** Os grupos que dá para virar e pagar o resto com mana. K-15: todo tamanho de grupo que serve aparece (do menor ao maior, um de cada
+    tamanho por rodada) até LIMITE_PAGAMENTOS — virar todas e deixar os terrenos desvirados também é oferecido. */
 function gruposParaTaparK(s, p, o, custo, extra) {
-  const f = s.facts[o.name], cands = viraveisK(s, p, f).map(x => x.oid).slice(0, 8), out = [];
+  const f = s.facts[o.name], cands = viraveisK(s, p, f).map(x => x.oid).slice(0, 8);
   const total = (custo.generic || 0) + (extra || 0) + Object.values(custo.colored || {}).reduce((a, b) => a + b, 0) + (custo.hybrid || []).length;
-  for (let k = 1; k <= Math.min(cands.length, total) && out.length < LIMITE_PAGAMENTOS; k++)
-    for (const g of combinacoes(cands, k)) {
-      if (out.length >= LIMITE_PAGAMENTOS) break;
-      const r = restaDoCustoK(s, p, f, custo, extra, g); if (!r) continue;
-      for (const x of g) s.objects[x].tapped = true;
-      try { if (canPay(s, p, r, 0)) out.push(g); } finally { for (const x of g) s.objects[x].tapped = false; }
-    }
-  return out;
+  const porTamanho = [], tamanhos = Math.min(cands.length, total), cota = Math.ceil(LIMITE_PAGAMENTOS / Math.max(1, tamanhos));
+  const daFonte = new Map(sources(s, p).map(x => [x.oid, Math.max(0, ...productions(s, x).map(op => op.length))]));
+  const naReserva = Object.values(s.players[p].pool || {}).reduce((a, b) => a + b, 0), todas = [...daFonte.values()].reduce((a, b) => a + b, 0);
+  const teto = g => naReserva + todas - g.reduce((n, x) => n + (daFonte.get(x) || 0), 0);
+  for (let k = 1; k <= tamanhos; k++) { // custo limitado: no máximo 24 conferências de pagamento por tamanho
+    const l = []; let tentados = 0;
+    for (const g of combinacoes(cands, k, 64)) { if (l.length >= cota || tentados++ >= 24) break; if (restoPagavelK(s, p, f, custo, extra, g, teto(g))) l.push(g); }
+    porTamanho.push(l);
+  }
+  const out = [];
+  for (let rodada = 0; out.length < LIMITE_PAGAMENTOS && porTamanho.some(l => l.length > rodada); rodada++)
+    for (const l of porTamanho) if (l[rodada] && out.length < LIMITE_PAGAMENTOS) out.push(l[rodada]);
+  return out.sort((x, y) => x.length - y.length);
 }
 /** HANDLERS.cast · o custo normal a pagar com mana depois de virar o grupo escolhido (sem `tapaK`, o mesmo de antes). */
 function custoTapadoK(s, a, o, custo, extra) {
   if (!a.tapaK) return [custo, extra];
   const f = s.facts[o.name], g = [].concat(a.tapaK);
   if (!f.tapaK || !g.length || new Set(g).size !== g.length) throw new RuleError('custo', 'esta mágica não tem convocar nem improvisar');
-  const r = restaDoCustoK(s, a.p, f, custo, extra, g);
-  if (!r) throw new RuleError('custo', 'vire só criaturas (artefatos) desviradas suas que paguem parte do custo');
+  if (!restosDoCustoK(s, a.p, f, custo, extra, g).length) throw new RuleError('custo', 'vire só criaturas (artefatos) desviradas suas que paguem parte do custo');
+  const r = restoPagavelK(s, a.p, f, custo, extra, g);
+  if (!r) throw new RuleError('mana', 'mana insuficiente');
   for (const x of g) { noteEnchantedEvent(s, s.objects[x]); s.objects[x].tapped = true; }
   return [r, 0];
 }
-Object.assign(EXPORTS_K, { tapaImpressoK, gruposParaTaparK });
+/** K-15 · palavras-chave das linhas do texto que só têm palavra-chave ("Changeling", "Flying, devoid"), como a Scryfall as lista. */
+function palavrasDoTextoK(card) {
+  const txt = String((card && (card.oracle_text || (card.faces && card.faces[0] && card.faces[0].oracle_text))) || ''), out = [];
+  for (const l0 of txt.split('\n')) {
+    const ps = l0.replace(/\s*\([^)]*\)/g, '').split(/,\s*/).map(x => x.trim().toLowerCase()).filter(Boolean);
+    if (ps.length && ps.every(x => SC.KEYWORDS.includes(x))) for (const x of ps) if (!out.includes(x)) out.push(x);
+  }
+  return out.length ? out : undefined;
+}
+Object.assign(EXPORTS_K, { tapaImpressoK, gruposParaTaparK, palavrasDoTextoK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-18 · 701.58 encobrir: como manifestar, mas a permanente virada para baixo tem salvaguarda {2} enquanto ficar virada (a); vira para
    cima do mesmo jeito (b–d, g) e as cartas vão uma de cada vez (e). 701.62 manifestar pavor: "Look at the top two cards of your

@@ -3997,6 +3997,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Pedido à trilha `motor` (não bloqueia):** Clone que volta pelo persistir/imortal deveria escolher de novo o que copiar (`entraComoCopia` só vale na resolução da mágica, não em toda entrada no campo; 614.1c/707.5). Declarado no mapa (702.79 e 702.93 voltam a parcial).
 - **Testes:** `keywords.cr4.unit` (4, falham sem a leva). Goldens idênticos; motor v109.
 
+**K-15 · Auditoria independente da onda 1 — custos e característica: correções** 🟡 (leva K-15)
+- **Corrigido:** (1) convocar com criatura de duas cores escolhia sempre a primeira cor e recusava pagamentos possíveis: o motor procura a forma que fecha o custo; (2) convocar e improvisar só eram oferecidos da mão: agora também da zona de comando e do exílio com permissão de jogar; (3) com muitas criaturas, as 24 formas eram todas do menor tamanho: todo tamanho de grupo aparece (virar todas e guardar os terrenos também); (4) metamorfo e desprovido só valiam pela lista da Scryfall: valem pela linha do texto também.
+- **Desempenho (revisão de escala por dentro):** `legalActions` com duas Siege Wurm na mão e 8 criaturas: 4,3 ms sem convocar → 4,9 ms com (teto barato de mana antes de planejar, até 24 conferências por tamanho, grupos contados uma vez por carta em cada chamada); medido em 50 chamadas.
+- **Declarado no mapa:** com redução de custo por alvo no campo (M-259), as ofertas das âncoras ↓ K somem (ver o achado para a trilha `motor` na K-13): linha em `falta` no 702.51 e no 702.126 e na evidência do 702.133, que fica coberta — a regra está inteira e o defeito é da posição das âncoras, compartilhada com V e T; baixá-la derrubaria o piso do mapa, que é da trilha `motor`. **Pedido à trilha `motor`:** subir as âncoras de ofertas para antes do filtro `OTIMISTA`.
+- **Toca ponto comum:** `cardFacts` (`textoK`, uma linha a mais; a linha de cores da K-1 passa a somar as palavras-chave do texto); `metamorfoK` (K-1) lê também `textoK`.
+- **Testes:** `keywords.cr4.unit` (4, falham sem a leva). Goldens idênticos; motor v109.
+
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.
