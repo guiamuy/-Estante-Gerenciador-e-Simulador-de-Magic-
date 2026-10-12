@@ -5437,7 +5437,8 @@ const EFFECTS = {
   // V-8 · 701.12 trocar. `trocar_com` anota o primeiro lado (permanente ou jogador alvo); `trocar` mira o segundo e faz a troca: `o`: 'controle' | 'vida' | 'vida-resistencia' | 'vida-poder'
   trocar_com: { fields: [], targets: ['creature', 'permanent', 'artifact', 'creature-you-control', 'player', 'opponent'] },
   trocar: { fields: [], targets: ['self', 'creature', 'permanent', 'artifact', 'creature-opponent-controls', 'creature-you-control', 'player', 'opponent'] },
-  embaralha_esta: { fields: [], targets: ['self'] }, // V-7 · "Shuffle ~ into its owner's library": a própria mágica, ao terminar de resolver (701.24)
+  embaralha_esta: { fields: [], targets: ['self'] },
+  embaralhar_grimorio: { fields: [], targets: ['self'] }, // M-339 · "You may shuffle" (Ponder): com optional, a mesa pergunta // V-7 · "Shuffle ~ into its owner's library": a própria mágica, ao terminar de resolver (701.24)
   // V-7 · 701.10 dobrar e 701.11 triplicar. `o`: 'poder' | 'resistencia' | 'poder-resistencia' (efeito contínuo, `ate`) | 'vida' | 'marcadores' (`tipo`) | 'mana' (`cor`); `vezes`: 2 ou 3
   dobrar: { fields: [], targets: ['self', 'self-source', 'first-target', 'creature', 'creature-you-control', 'permanent', 'player', 'opponent', 'each-own-creature', 'each-creature'] },
   monstrosity: { fields: ['amount'], targets: ['self'] }, // V-6 · 701.37 monstruosidade N: se a permanente fonte não é monstruosa, N marcadores +1/+1 e ela fica monstruosa
@@ -8164,6 +8165,25 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Rouse': { texto: '1qy53l', leva: 'M-338' },
   'Dissipate': { texto: 'zckltf', leva: 'M-338' },
   'Deny Existence': { texto: 'u0rj5c', leva: 'M-338' },
+  // M-339 · revisão por lote XIII (reordenar o topo e embaralhar opcional, várias manas de uma cor), revisor independente com sondas: 17 de 18 na primeira rodada; Crystal Seer passou depois da correção do leitor (Return ~ to its owner s hand numa ativada volta do campo)
+  'Ponder': { texto: '6pqhc1', leva: 'M-339' },
+  'Black Lotus': { texto: '1dtxshk', leva: 'M-339' },
+  'Gilded Lotus': { texto: '1jwgi1', leva: 'M-339' },
+  'Index': { texto: 'tszhi5', leva: 'M-339' },
+  'Implements of Sacrifice': { texto: '1r7qpc1', leva: 'M-339' },
+  'Inkfathom Divers': { texto: '1nfiro4', leva: 'M-339' },
+  'Mirri\'s Guile': { texto: '1xq38hi', leva: 'M-339' },
+  'Transdimensional Bovine': { texto: '1hqjawi', leva: 'M-339' },
+  'Omen': { texto: '6pqhc1', leva: 'M-339' },
+  'Halimar Depths': { texto: 'mhxzvd', leva: 'M-339' },
+  'Pondering Mage': { texto: '1mqh0ja', leva: 'M-339' },
+  'Crystal Seer': { texto: '1gyoxkq', leva: 'M-339' },
+  'Gilt-Leaf Seer': { texto: '1epgceg', leva: 'M-339' },
+  'Sage Owl': { texto: '1ndik2z', leva: 'M-339' },
+  'Sage Aven': { texto: '1ndik2z', leva: 'M-339' },
+  'Sage of Epityr': { texto: 'ozx39u', leva: 'M-339' },
+  'Spire Owl': { texto: '1ndik2z', leva: 'M-339' },
+  'Aven Fateshaper': { texto: 'a79rw0', leva: 'M-339' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -15460,7 +15480,7 @@ const __m42 = (function () {
     [/^untap enchanted creature$/i, () => [{ do: 'untap', target: 'enchanted' }]],
     [/^return this aura to its owner's hand$/i, () => [{ do: 'to_hand', target: 'self-source', from: 'battlefield' }]],
     [new RegExp(`^target player loses ${N} life and you gain ${N} life$`, 'i'), m => [{ do: 'lose', amount: num(m[1]), target: 'player' }, { do: 'gain', amount: num(m[2]) }]],
-    [/^return ~ to its owner's hand$/i, () => [{ do: 'to_hand', target: 'self-source' }]],
+    [/^return ~ to its owner's hand$/i, () => [{ do: 'to_hand', target: 'self-source', from: 'battlefield' }]], // M-339 · achado da revisão: numa ativada (Crystal Seer) a permanente volta do campo; no "dies" o gatilho tira o `from` (volta do cemitério, Rancor)
     [/^(target creature|target creature an opponent controls|target creature you control) gets ([+-]\d+)\/([+-]\d+) until end of turn$/i, m => [com({ do: 'pump', power: SINAL(m[2]), toughness: SINAL(m[3]) }, alvo(m[1]))]],
     [/^you gain that much life$/i, () => [{ do: 'gain', amount: { per: 'trigger-value' } }]],
     [/^untap (target [a-z ']+)$/i, m => [com({ do: 'untap' }, alvo(m[1]))]],
@@ -15497,6 +15517,7 @@ const __m42 = (function () {
     [new RegExp(`^you lose ${N} life$`, 'i'), m => [{ do: 'lose', amount: num(m[1]) }]], // M-335 · Thoughtseize (sem alvo: quem controla perde, como nos scripts à mão)
     [/^exile up to one other target creature$/i, () => [{ do: 'exile', target: { tipos: ['creature'], outra: true }, upTo: true }]], // M-338 · Solitude
     [/^that creature's controller gains life equal to its power$/i, () => [{ do: 'gain', amount: { per: 'power-of-target' }, target: 'target-controller' }]], // M-338 · Solitude (608.2h)
+    [/^you may shuffle$/i, () => [{ do: 'embaralhar_grimorio', optional: true }]], // M-339 · Ponder (701.24)
     [/^its controller gains life equal to its power$/i, () => [{ do: 'gain', amount: { per: 'power-of-target' }, target: 'target-controller' }]], // M-335 · Swords to Plowshares (608.2h: o poder como era no campo)
     [/^it doesn't untap during its controller's next untap step$/i, () => [{ do: 'nao_desvira', target: 'first-target' }]], // M-334 · LT18 · 502.3 (Sleep of the Dead)
     [/^add ((?:\{[WUBRGC]\})+)$/i, m => [{ do: 'add_mana', symbols: m[1].match(/[WUBRGC]/g) }]], // M-334 · LT18 · mágica ou gatilho que adiciona mana (Seething Song, Burning-Tree Emissary)
@@ -15630,6 +15651,8 @@ const __m42 = (function () {
     if (/\.\s*Activate only as a sorcery$/i.test(corpo)) { corpo = corpo.replace(/\.\s*Activate only as a sorcery$/i, ''); extra.sorceryOnly = true; }
     if (/\.\s*Activate only once each turn$/i.test(corpo)) { corpo = corpo.replace(/\.\s*Activate only once each turn$/i, ''); extra.oncePerTurn = true; } // M-334 · LT18 · 602.5b (Barrels of Blasting Jelly)
     if (/^Add one mana of any color$/i.test(corpo) && !(cost.tap && Object.keys(cost).length === 1)) { frases.push({ texto: m[1], lida: true }, { texto: corpo, lida: true }); return { kind: 'activated', cost, ...extra, effects: [{ do: 'add_mana', anyColor: true }] }; } // LT11 · mana de qualquer cor com custo além de {T}
+    const tres = corpo.match(/^Add (two|three|four|five) mana of any one color$/i); // M-339 · Black Lotus, Lion's Eye Diamond
+    if (tres) { frases.push({ texto: m[1], lida: true }, { texto: corpo, lida: true }); return { kind: 'activated', cost, ...extra, effects: [{ do: 'add_mana', anyColor: true, vezes: num(tres[1]) }] }; }
     const sim = corpo.match(/^Add ((?:\{[WUBRGC]\})+)$/); // LT13 · "{1}, {T}: Add {U}{R}" (Signets), "{T}, Sacrifice this land: Add {R}{R}"
     if (sim) { frases.push({ texto: m[1], lida: true }, { texto: corpo, lida: true }); return { kind: 'activated', cost, ...extra, effects: [{ do: 'add_mana', symbols: sim[1].match(/[WUBRGC]/g) }] }; }
     const qc = corpo.match(/^Add one mana of any color\.\s+(.+)$/i); // LT13 · Chromatic Sphere: "Add one mana of any color. Draw a card."
@@ -15659,6 +15682,7 @@ const __m42 = (function () {
     if (/(this creature|~)/i.test(cab) && !/\btarget\b/i.test(corpo)) corpo = corpo.replace(/ on it$/i, ' on ~'); // M-322 · "put a +1/+1 counter on it": "it" é a própria permanente da abertura
     const sub = [];
     const e = leParagrafo(corpo, nome, sub);
+    if (e && g[1] === 'dies') for (const x of e) if (x.do === 'to_hand' && x.target === 'self-source' && x.from === 'battlefield') delete x.from; // M-339 · "when ~ is put into a graveyard…, return ~ to its owner's hand": do cemitério
     frases.push({ texto: cab, lida: true }, ...sub);
     return e ? { kind: 'triggered', when: g[1], ...extra, ...(condicao ? { condition: condicao } : {}), ...(opcional ? { optional: true } : {}), effects: e } : null;
   }
@@ -15677,6 +15701,7 @@ const __m42 = (function () {
   const FILTRO_DESCARTE = { 'nonland card': { notTypes: ['land'] }, 'noncreature, nonland card': { notTypes: ['creature', 'land'] }, 'nonland, noncreature card': { notTypes: ['creature', 'land'] } };
   const FILTRO_TOPO = { 'instant or sorcery': { types: ['instant', 'sorcery'] }, creature: { types: ['creature'] }, artifact: { types: ['artifact'] }, land: { types: ['land'] }, 'creature or land': { types: ['creature', 'land'] } };
   const PRE_PARAGRAFO = [
+    [new RegExp(`^look at the top ${N} cards of your library, then put them back in any order(?:\\.\\s*|$)`, 'i'), m => { const c = num(m[1]); return c ? [{ do: 'look', count: c, amount: c, min: c, to: 'library-top', rest: 'stay', ordena: true }] : null; }], // M-339 · Ponder
     [/^(target player|target opponent) reveals (?:their|his or her) hand\. you choose an? (.+?) from it(?: with mana value (\d+) or less)?\. (?:that player|they) discards? that card(?:\.\s*|$)/i, m => {
       const k = m[2].toLowerCase(), base = FILTRO_DESCARTE[k], filtro = base && (m[3] ? { ...base, mvMax: +m[3] } : base); // Inquisition of Kozilek: "a nonland card from it with mana value 3 or less" 
       if (!filtro) return null; // achado da revisão do lote IX: filtro fora do vocabulário (Coercion, Divest) deixa a carta sem leitura, sem quebrar
@@ -18356,7 +18381,7 @@ function applyEffect(s, src, eff, tgt, events) {
       if (eff.revela) events.push({ kind: 'effect', do: 'reveal', name: src.name, target: from.map(x => s.objects[x].name).join(', ') });
       startPick(s, { p: who, from, min: Math.min(eff.min || 0, servem), max: eff.amount, to: eff.to || 'hand',
         rest: eff.rest || 'library-bottom', shuffle: !!eff.shuffle, filter: eff.filter, onPicked: eff.onPicked || null, revelaEscolhida: !!eff.revelaEscolhida,
-        label: 'olhar o topo', source: src.name }, events);
+        label: eff.ordena ? 'ordenar o topo' : 'olhar o topo', source: src.name }, events);
       // Leva 136 · "put ALL cards of the chosen type into your hand" (Winding Way): não há o que escolher. Antes a mesa
       // pedia um toque em cada carta obrigatória; agora todas as que servem vão sozinhas e o resto segue o destino.
       if (eff.todas) { s.pending.picked = from.filter(oid => matchesFilter(s, s.objects[oid], eff.filter)); concluiPick(s, events); }
@@ -18507,6 +18532,7 @@ function applyEffect(s, src, eff, tgt, events) {
       const restritas = coresPermitidas(s, ctrl, eff); // M13/M13b · identidade ou terrenos dos oponentes
       let syms = eff.symbols || (restritas ? (eff.color && restritas.includes(eff.color) ? [eff.color] : []) : eff.anyColor ? [eff.color || 'C'] : []);
       if (eff.perCounter) { const dono = src.ability ? s.objects[src.source] : src; const n = ((dono && dono.counters) || {})[eff.perCounter] || 0; syms = Array.from({ length: n }, () => syms).flat(); } // CR2c.1 · "for each charge counter"
+      if (Number.isInteger(eff.vezes) && eff.vezes > 1) syms = syms.flatMap(c => Array(eff.vezes).fill(c)); // M-339 · "Add three mana of any one color" (Black Lotus, Lion's Eye Diamond)
       syms.forEach(c => { s.players[ctrl].pool[c] = (s.players[ctrl].pool[c] || 0) + 1; });
       note({ amount: syms.length }); break;
     }
@@ -19088,6 +19114,10 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'investigate': applyEffect(s, src, { do: 'token', amount: eff.amount == null ? 1 : eff.amount, token: PISTA_V }, tgt, events); break; // V-9 · 701.16a: pelo mesmo caminho de criar ficha (substituições de 701.7 valem)
     case 'trocar_com': s.trocaV = { fonte: src.oid, fz: encarnacaoV(s, src), ...(obj ? { oid: obj.oid, z: obj.zc || 0 } : { player: playerOf() }) }; break; // V-8 · anota o primeiro lado; `trocar` apaga
     case 'trocar': trocar(s, src, eff, tgt, events); break; // V-8 · 701.12
+    case 'embaralhar_grimorio': { // M-339 · "You may shuffle" (Ponder): opcional vira pergunta; aceita, embaralha (701.24)
+      if (eff.optional) { s.pending = { kind: 'may_pay', p: ctrl, cost: null, name: src.name, then: { effects: [{ do: 'embaralhar_grimorio' }], source: src.oid, name: src.name, controller: ctrl, targets: [] } }; note({ pending: true }); break; }
+      shuffle(s, s.zones[ctrl].library); note({}); break;
+    }
     case 'embaralha_esta': { // V-7 · a mágica sai da pilha para o grimório do dono, que é embaralhado; não vai para o cemitério
       if (!src.ability && s.objects[src.oid] && s.objects[src.oid].zone === 'stack') { const dono = s.objects[src.oid].owner; moveObject(s, src.oid, 'library'); shuffle(s, s.zones[dono].library); note({ target: src.name }); }
       break;
@@ -20719,6 +20749,7 @@ const HANDLERS = {
       if (!a.color) throw new RuleError('mana', 'escolha uma cor que um terreno de um oponente poderia produzir');
       if (!cores.includes(a.color)) throw new RuleError('mana', 'essa cor nenhum terreno dos oponentes poderia produzir');
     }
+    if (a.color == null && (base.effects || []).some(e => e.do === 'add_mana' && e.anyColor && !e.identity && !e.opponentLands)) throw new RuleError('cor', 'escolha a cor da mana'); // M-339 · achado da revisão (105.1): "any one color" não é incolor — antes, sem cor, dava {C}
     const ab = { ...base, effects: expandeAlvos(s, o, base.effects || []).map(e => e.do === 'add_mana' && e.anyColor ? { ...e, color: (e.identity || e.opponentLands) ? (a.color || null) : (a.color || 'C') } : e) };
     if (ab.sorceryOnly && !canSorceryNow(s, a.p)) throw new RuleError('tempo', 'só quando você poderia conjurar um feitiço');
     const need = (ab.effects || []).filter(SC.isTargeted);
@@ -27097,6 +27128,7 @@ function descreveEfeito(e) {
       return `devolve uma criatura${e.targetMvMax != null ? ` de valor de mana ${qtd(e.targetMvMax)} ou menos` : ''} do cemitério ao campo`;
     case 'fog': return 'previne todo o dano de combate deste turno';
     case 'attach': return 'anexa';
+    case 'embaralhar_grimorio': return e.optional ? 'você pode embaralhar o seu grimório' : 'embaralha o seu grimório'; // M-339
     case 'venture': return e.into === 'Undercity' ? 'aventura-se na Cidade Baixa' : 'aventura na masmorra';
     case 'monarch': return e.quemDe ? 'quem controla a criatura que causou o dano se torna o monarca' : 'você se torna o monarca'; // M-332
     case 'initiative': return e.quemDe ? 'quem controla as criaturas que causaram o dano toma a iniciativa' : 'você toma a iniciativa'; // M-332
@@ -29431,7 +29463,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     } else if (s.pending && s.pending.kind === 'pick' && s.pending.p === v) {
       const pk = s.pending;
       const done = pk.picked.length >= pk.min;
-      const LABEL = { 'colher provas': 'Colher provas: exile do cemitério', desvirar: 'Escolha o que desvirar', delve: 'Delve: escolha o que exilar do cemitério', 'descartar ou sacrificar': 'Descartar ou sacrificar um terreno?', 'escolher o descarte': 'Escolha o descarte do oponente', 'devolver para a mão': 'Escolha o que volta para a mão', 'scry': 'Vidência: escolha o que fica no topo', 'surveil': 'Vigiar: escolha o que fica no topo', 'vasculhar': 'Vasculhar o grimório', 'olhar o topo': 'Olhar o topo do grimório', 'devolver ao topo': 'Devolver ao topo', 'embaralhar no grimório': 'Escolha do seu cemitério o que embaralhar no grimório', 'exilar da mão': 'Escolha as cartas da mão a exilar', 'esconder': 'Esconderijo: escolha a carta a exilar virada para baixo', 'copiar ao entrar': 'Escolha o que ela copia ao entrar (ou confirme sem escolher)', 'repartir hand': 'Escolha a que vai para a mão', 'repartir library-bottom': 'Escolha a que vai para o fundo do grimório', 'repartir exile-playable-turn': 'Escolha a que vai para o exílio (pode jogar neste turno)' }; // M-265
+      const LABEL = { 'colher provas': 'Colher provas: exile do cemitério', desvirar: 'Escolha o que desvirar', delve: 'Delve: escolha o que exilar do cemitério', 'descartar ou sacrificar': 'Descartar ou sacrificar um terreno?', 'escolher o descarte': 'Escolha o descarte do oponente', 'devolver para a mão': 'Escolha o que volta para a mão', 'scry': 'Vidência: escolha o que fica no topo', 'surveil': 'Vigiar: escolha o que fica no topo', 'vasculhar': 'Vasculhar o grimório', 'olhar o topo': 'Olhar o topo do grimório', 'ordenar o topo': 'Ponha de volta na ordem: a primeira escolhida fica em cima', 'devolver ao topo': 'Devolver ao topo', 'embaralhar no grimório': 'Escolha do seu cemitério o que embaralhar no grimório', 'exilar da mão': 'Escolha as cartas da mão a exilar', 'esconder': 'Esconderijo: escolha a carta a exilar virada para baixo', 'copiar ao entrar': 'Escolha o que ela copia ao entrar (ou confirme sem escolher)', 'repartir hand': 'Escolha a que vai para a mão', 'repartir library-bottom': 'Escolha a que vai para o fundo do grimório', 'repartir exile-playable-turn': 'Escolha a que vai para o exílio (pode jogar neste turno)' }; // M-265
       const REST = { 'library-bottom': 'vai para o fundo', 'graveyard': 'vai para o cemitério', 'stay': 'fica onde está', 'library-top': 'fica no topo' };
       // Leva 125 · o título diz de qual carta é a escolha; a contagem só aparece quando se escolhe mais de uma
       const tituloPk = LABEL[pk.label] || 'Escolha cartas';
