@@ -5355,7 +5355,7 @@ const EFFECTS = {
   // no grimório e pôr no fundo viraram atalhos dele
   mover: { fields: [], targets: ['self-source', 'creature', 'spell', 'spell-or-creature', 'permanent', 'permanent-you-control', 'land-you-control', 'artifact', 'artifact-creature', 'permanent-you-own',
     'creature-you-control', 'card-in-any-graveyard', 'card-in-your-graveyard', 'creature-in-your-graveyard', 'permanent-in-your-graveyard', 'creature-land-in-any-graveyard'] },
-  sacrifice_it: { fields: [], targets: ['permanent'] },
+  sacrifice_it: { fields: [], targets: ['permanent', 'self-source'] }, // M-342 · self-source: "sacrifice ~" (sem alvo)
   exile_self: { fields: [], targets: ['self'] },
   counter_choice: { fields: [], targets: ['self'] },
   edict: { fields: [], targets: ['opponent', 'player'] },
@@ -5681,7 +5681,7 @@ function substituiErros(r, tag) {
   if (q.objeto != null && q.objeto !== 'self') { if (typeof q.objeto !== 'object') errs.push(`${tag}: "quando.objeto" precisa ser self ou um seletor`); else errs.push(...seletorErros(q.objeto, `${tag}: objeto`)); }
   return errs;
 }
-const CONDICOES_ENTRA = ['anyPlayerLifeAtMost', 'controlsSubtype', 'revelaSubtipo', 'pagaVida', 'maxOutrasTerras', 'minOutrasTerras', 'minBasicos']; // M-252 · "you may reveal a Plains or Swamp card from your hand"
+const CONDICOES_ENTRA = ['anyPlayerLifeAtMost', 'controlsSubtype', 'revelaSubtipo', 'pagaVida', 'maxOutrasTerras', 'minOutrasTerras', 'minBasicos', 'ateTurnoProprio']; // M-252 · "you may reveal a Plains or Swamp card from your hand"
 function entraErros(r, tag) {
   if (!r || typeof r !== 'object') return [`${tag}: precisa ser um objeto`];
   const errs = [];
@@ -5770,6 +5770,8 @@ const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield
   'you-attack', 'becomes-blocked', 'attacks-unblocked',
   // CR2b.9 · 603.2 / 115.9 · "whenever ~ becomes the target of a spell [or ability] [you control] [for the first time each turn]" (valente)
   'becomes-target',
+  // M-342 · "When you play another land" (City of Traitors): só a ação especial de jogar terreno (305.1), não "pôr no campo"
+  'you-play-land',
   /* ↓ K · gatilhos da trilha keywords */
   'cycled', // K-16 · 702.29c · "When you cycle this card" (dispara da zona onde a carta foi parar)
   'exploits', // K-12 · 702.110b · "When ~ exploits a creature" (disparado pelo motor quando a habilidade de explorar sacrifica)
@@ -5804,7 +5806,7 @@ const PASSOS_DO_GATILHO = ['upkeep', 'draw', 'main1', 'combat_begin', 'combat_en
 /* CR2-G R2c · os oito últimos nomes: descartar e comprar (de um jogador), sacrificar outra, receber marcadores, receber dano,
  * causar dano (`a`: qualquer/jogador/oponente) e virar — com a Aura ou o Equipamento observando a permanente anexada. */
 const EVENTOS_DE_OBJETO = ['conjurar', 'ataca', 'bloqueia', 'dano-combate', 'marcadores', 'recebe-dano', 'causa-dano', 'vira', 'sacrifica', 'bloqueada', 'nao-bloqueada']; // CR2g.5
-const EVENTOS_DE_JOGADOR = ['descarta', 'compra', 'ganha-vida', 'atacou']; // CR2b.7 · 119.9 · CR2g.5 · 508.3d
+const EVENTOS_DE_JOGADOR = ['descarta', 'compra', 'ganha-vida', 'atacou', 'joga-terreno']; // CR2b.7 · 119.9 · CR2g.5 · 508.3d
 /** M-258 · 603.2c · evento em lote: "whenever one or more <criaturas suas> deal damage to your opponents" dispara uma vez por golpe simultâneo. */
 const EVENTOS_DE_LOTE = ['causam-dano'];
 /** De quem o gatilho observa o evento, por evento (o primeiro é o padrão). */
@@ -5826,6 +5828,7 @@ const GATILHO_EVENTO = {
   'you-discard': { evento: 'descarta', quem: 'voce' },
   'third-draw': { evento: 'compra', n: 3, quem: 'voce' },
   'you-gain-life': { evento: 'ganha-vida', quem: 'voce' }, // CR2b.7
+  'you-play-land': { evento: 'joga-terreno', quem: 'voce' }, // M-342
   'you-attack': { evento: 'atacou', quem: 'voce' }, // CR2g.5 · uma vez por combate em que você ataca (508.3d)
   'becomes-blocked': { evento: 'bloqueada', objeto: 'self' }, // CR2g.5 · uma vez por combate, com um ou mais bloqueadores (509.3c)
   'attacks-unblocked': { evento: 'nao-bloqueada', objeto: 'self' }, // CR2g.5
@@ -5845,7 +5848,7 @@ const falaDe = (d, evento) => !!d && (Array.isArray(d.evento) ? d.evento.include
 /** O descritor de zona de um gatilho; null se não for de zona. */
 const gatilhoDeZona = w => { const d = gatilhoDoEvento(w); return d && d.evento === 'zona' ? d : null; };
 const CHAVES_DO_EVENTO = { zona: ['evento', 'de', 'para', 'objeto', 'quem', 'donoVoce'], passo: ['evento', 'passo', 'turno'],
-  descarta: ['evento', 'quem'], compra: ['evento', 'n', 'quem'], 'ganha-vida': ['evento', 'quem'], atacou: ['evento', 'quem'], 'causam-dano': ['evento', 'a'], 'recebe-dano': ['evento', 'objeto'], vira: ['evento', 'objeto'], 'causa-dano': ['evento', 'objeto', 'a'] };
+  descarta: ['evento', 'quem'], compra: ['evento', 'n', 'quem'], 'ganha-vida': ['evento', 'quem'], atacou: ['evento', 'quem'], 'joga-terreno': ['evento', 'quem'], 'causam-dano': ['evento', 'a'], 'recebe-dano': ['evento', 'objeto'], vira: ['evento', 'objeto'], 'causa-dano': ['evento', 'objeto', 'a'] };
 for (const e of EVENTOS_DE_OBJETO) CHAVES_DO_EVENTO[e] = CHAVES_DO_EVENTO[e] || ['evento', 'objeto', 'quem', 'donoVoce'];
 function gatilhoErros(w, tag) {
   if (typeof w === 'string') return TRIGGERS.includes(w) ? [] : [`${tag}: gatilho "${w}" desconhecido`];
@@ -5939,7 +5942,7 @@ const STATIC_RULES = ['flagbearer', 'exile-instead-of-graveyard', 'opponent-crea
 const TRIGGER_PT = { etb: 'quando entra no campo', dies: 'quando morre', upkeep: 'na sua manutenção', attacks: 'quando ataca', blocks: 'quando bloqueia',
   'other-etb': 'quando outra criatura sua entra', 'other-dies': 'quando outra criatura sua morre',
   'combat-damage': 'quando causa dano de combate a um jogador', 'end-step': 'no início do seu passo final', 'each-upkeep': 'no início de cada manutenção', 'begin-combat': 'no início do combate no seu turno',
-  'enchanted-damages-opponent': 'quando a criatura encantada causa dano a um oponente', 'you-discard': 'quando você descarta uma carta', 'you-gain-life': 'sempre que você ganha vida', heroic: 'heroico: quando você conjura uma mágica que mira esta criatura', 'becomes-target': 'quando se torna alvo', 'you-attack': 'sempre que você ataca', 'becomes-blocked': 'quando é bloqueada', 'attacks-unblocked': 'quando ataca e não é bloqueada', 'dealt-damage': 'quando recebe dano', 'attached-dies': 'quando a criatura anexada morre', 'attached-dies-or-exiled': 'quando a permanente encantada morre ou é exilada',
+  'enchanted-damages-opponent': 'quando a criatura encantada causa dano a um oponente', 'you-discard': 'quando você descarta uma carta', 'you-gain-life': 'sempre que você ganha vida', 'you-play-land': 'quando você joga outro terreno', heroic: 'heroico: quando você conjura uma mágica que mira esta criatura', 'becomes-target': 'quando se torna alvo', 'you-attack': 'sempre que você ataca', 'becomes-blocked': 'quando é bloqueada', 'attacks-unblocked': 'quando ataca e não é bloqueada', 'dealt-damage': 'quando recebe dano', 'attached-dies': 'quando a criatura anexada morre', 'attached-dies-or-exiled': 'quando a permanente encantada morre ou é exilada',
   'other-sacrificed': 'quando você sacrifica outra permanente',
   'leaves-battlefield': 'quando sai do campo de batalha', 'other-leaves-battlefield': 'quando outra criatura sua sai do campo', 'enchanted-deals-damage': 'quando a criatura encantada causa dano',
   'counters-added': 'quando recebe marcadores +1/+1', 'third-draw': 'quando você compra a terceira carta do turno',
@@ -5963,7 +5966,7 @@ function validateScript(sc) {
       if (cost.mana != null && typeof cost.mana !== 'string') errs.push(`${tag}: custo de mana inválido`);
       if (cost.xCor != null && !(typeof cost.xCor === 'string' && cost.xCor.length === 1 && 'WUBRG'.includes(cost.xCor) && /\{X\}/i.test(cost.mana || ''))) errs.push(`${tag}: "gaste só mana de uma cor em X" precisa de uma cor WUBRG e de {X} no custo`); // CR2c.7
       if (cost.crew != null && !(Number.isInteger(cost.crew) && cost.crew >= 0)) errs.push(`${tag}: tripular precisa de um número`); // CR2d.3
-      if (cost.crew == null && !cost.mana && !cost.tap && !cost.sacrifice && !cost.sacrificeOther && !cost.tapOther && !cost.life && !cost.discard && !cost.returnLand && !cost.revealColor && !cost.discardSelf && !cost.exileSelf && !cost.removeCounters) errs.push(`${tag}: habilidade ativada sem custo`);
+      if (cost.crew == null && !cost.mana && !cost.tap && !cost.sacrifice && !cost.sacrificeOther && !cost.tapOther && !cost.life && !cost.discard && !cost.returnLand && !cost.revealColor && !cost.discardSelf && !cost.exileSelf && !cost.discardHand && !cost.removeCounters) errs.push(`${tag}: habilidade ativada sem custo`);
       if (ab.semMarcadorSacrifica != null && !(cost.removeCounters && cost.removeCounters.tipo === ab.semMarcadorSacrifica && (ab.effects || []).length && ab.effects.every(e => e.do === 'add_mana'))) errs.push(`${tag}: "sem marcador, sacrifique" só vale em habilidade de mana que remove esse marcador`); // M-250
       if (cost.removeCounters != null && !(cost.removeCounters && /^[a-z][a-z0-9]*$/.test(cost.removeCounters.tipo || '') && Number.isInteger(cost.removeCounters.n || 1) && (cost.removeCounters.n || 1) > 0)) errs.push(`${tag}: remover marcadores precisa do tipo e de uma quantidade inteira`); // M-249 · 122.6 / 602.1
       if (cost.revealColor && !'WUBRG'.includes(cost.revealColor)) errs.push(`${tag}: revelar precisa de uma cor WUBRG`);
@@ -6007,7 +6010,7 @@ function validateScript(sc) {
   if (sc && sc.additionalOptional && !sc.additional) errs.push('custo adicional opcional sem custo');
   if (sc && sc.plot && !sc.plot.mana) errs.push('plot sem custo de mana');
   if (sc && sc.morph && !sc.morph.mana) errs.push('metamorfose sem custo de mana');
-  if (sc && sc.entersTappedUnless && sc.entersTappedUnless.anyPlayerLifeAtMost == null && !Array.isArray(sc.entersTappedUnless.controlsSubtype) && !(Number.isInteger(sc.entersTappedUnless.pagaVida) && sc.entersTappedUnless.pagaVida > 0) && !Number.isInteger(sc.entersTappedUnless.maxOutrasTerras) && !Number.isInteger(sc.entersTappedUnless.minOutrasTerras) && !Number.isInteger(sc.entersTappedUnless.minBasicos)) errs.push('entra virado a menos que: condição desconhecida');
+  if (sc && sc.entersTappedUnless && sc.entersTappedUnless.anyPlayerLifeAtMost == null && !Array.isArray(sc.entersTappedUnless.controlsSubtype) && !(Number.isInteger(sc.entersTappedUnless.pagaVida) && sc.entersTappedUnless.pagaVida > 0) && !Number.isInteger(sc.entersTappedUnless.maxOutrasTerras) && !Number.isInteger(sc.entersTappedUnless.minOutrasTerras) && !Number.isInteger(sc.entersTappedUnless.minBasicos) && !(Number.isInteger(sc.entersTappedUnless.ateTurnoProprio) && sc.entersTappedUnless.ateTurnoProprio > 0)) errs.push('entra virado a menos que: condição desconhecida');
   if (sc && sc.manaRule && !(/^[WUBRG]+$/.test(sc.manaRule.colors || '') && (sc.manaRule.damage || sc.manaRule.life || sc.manaRule.needsSubtype || sc.manaRule.needsType))) errs.push('regra de mana: precisa das cores e de dano, vida ou condição');
   for (const k of ((sc && sc.grantsAll) || {}).keywords || []) if (!KEYWORDS.includes(String(k).toLowerCase())) errs.push(`dá a todas: palavra-chave "${k}" não é resolvida pelo motor`);
   // CR2-G R3a · efeitos contínuos estáticos: quem afeta e o que muda (camadas 6 e 7c)
@@ -8278,6 +8281,19 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Goblin Tunneler': { texto: '1lclffl', leva: 'M-341' },
   'Access Tunnel': { texto: '1ud207l', leva: 'M-341' },
   'Geistwave': { texto: '1hrcltv', leva: 'M-341' },
+  // M-342 · revisão por lote XVI (aceleração de mana: terras de horizonte, Starting Town, Mox Opal, Spirit Guides, Lion's Eye Diamond, City of Traitors), revisor independente com 240 verificações: 12 de 12 aprovadas
+  'Mox Opal': { texto: '1of8lhf', leva: 'M-342' },
+  'Starting Town': { texto: 'gcnwyc', leva: 'M-342' },
+  'City of Traitors': { texto: '1id4pfs', leva: 'M-342' },
+  'Lion\'s Eye Diamond': { texto: 'vvsxsn', leva: 'M-342' },
+  'Simian Spirit Guide': { texto: '9sbj7', leva: 'M-342' },
+  'Fiery Islet': { texto: '10wcz6g', leva: 'M-342' },
+  'Sunbaked Canyon': { texto: '16gauey', leva: 'M-342' },
+  'Elvish Spirit Guide': { texto: '9s186', leva: 'M-342' },
+  'Nurturing Peatland': { texto: 'v9enay', leva: 'M-342' },
+  'Horizon Canopy': { texto: 'yw4fv3', leva: 'M-342' },
+  'Waterlogged Grove': { texto: '2n2y4t', leva: 'M-342' },
+  'Infernal Plunge': { texto: '17z7ie0', leva: 'M-342' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -15650,6 +15666,7 @@ const __m42 = (function () {
     [/^venture into the dungeon$/i, () => [{ do: 'venture' }]], // LT9 · 701.49
     [/^(target player|target opponent) sacrifices an? (creature|artifact|enchantment|planeswalker)(?: of their choice)?$/i, m => [{ do: 'edict', types: [m[2].toLowerCase()], target: m[1].toLowerCase() === 'target player' ? 'player' : 'opponent' }]], // M-337 · 701.21a (Diabolic Edict, Gatekeeper of Malakir)
     [/^each player sacrifices an? (creature|artifact|enchantment|planeswalker)(?: of their choice)?$/i, m => [{ do: 'sacrifice_each', types: [m[1].toLowerCase()] }]], // M-337 · 701.21a (a mesma forma dos scripts à mão: Benalish Sleeper)
+    [/^sacrifice (?:~|this (?:land|creature|artifact|enchantment|permanent))$/i, () => [{ do: 'sacrifice_it', target: 'self-source' }]], // M-342 · City of Traitors (sem alvo)
     [/^each opponent sacrifices an? (creature|artifact|enchantment|planeswalker)(?: of their choice)?$/i, m => [{ do: 'sacrificar', tipos: [m[1].toLowerCase()], jogadores: 'cada-oponente' }]], // M-337 · 701.21a
     [/^target creature with power (\d+) or less can't be blocked this turn$/i, m => [{ do: 'imbloqueavel', target: 'creature', targetPowerMax: +m[1] }]], // M-341 · Goblin Tunneler, Access Tunnel
     [/^target creature can't be blocked this turn$/i, () => [{ do: 'imbloqueavel', target: 'creature' }]], // M-336 · Rogue's Passage
@@ -15718,6 +15735,7 @@ const __m42 = (function () {
     [/^whenever (this creature|~) is dealt damage$/i, 'dealt-damage'], // M-324 · CR2b.3
     [/^whenever equipped creature dies$/i, 'attached-dies'], // M-324 · CR2b.3
     [/^whenever you gain life$/i, 'you-gain-life'], // CR2b.7 · 119.9
+    [/^when you play another land$/i, 'you-play-land'], // M-342 · City of Traitors (305.1: jogar, não pôr no campo)
     [/^whenever you sacrifice another permanent$/i, 'other-sacrificed'], // LT10
     [/^whenever you cast an instant or sorcery spell$/i, 'other-cast', () => ({ filter: { anyTypes: ['instant', 'sorcery'] } })], // M-328
     [/^whenever you cast a noncreature spell$/i, 'other-cast', () => ({ filter: { noncreature: true } })], // M-328
@@ -15777,6 +15795,8 @@ const __m42 = (function () {
       else if (/^sacrifice a creature$/i.test(parte)) cost.sacrificeOther = { types: ['creature'], ...(/\bcreature\b/i.test(tipoAtual) ? { includeSelf: true } : {}) }; // LT13 · Phyrexian Tower · M-327: a criatura com esse custo pode se sacrificar (Viscera Seer)
       else if (/^sacrifice another creature$/i.test(parte)) cost.sacrificeOther = { types: ['creature'], outra: true };
       else if (/^discard a card$/i.test(parte)) cost.discard = 1;
+      else if (/^discard your hand$/i.test(parte)) cost.discardHand = true; // M-342 · Lion's Eye Diamond (602.1: o custo descarta a mão inteira)
+      else if (/^exile ~ from your hand$/i.test(parte)) { cost.exileSelf = true; cost.fromHand = true; } // M-342 · Spirit Guides (113.6: habilidade que funciona da mão)
       else if (/^pay (\d+) life$/i.test(parte)) cost.life = +parte.match(/\d+/)[0]; // M-329 · 119.4 · fetchlands ("{T}, Pay 1 life, Sacrifice ~")
       else return null;
     }
@@ -15784,7 +15804,7 @@ const __m42 = (function () {
   }
   /** Uma linha de habilidade ativada ("custo: efeito. Activate only as a sorcery.") → { ab, frases } ou null. */
   function leAtivada(linha, nome, frases) {
-    const m = linha.match(/^((?:(?:\{[^}]+\})+|Sacrifice [^:,]+|Discard a card|Pay \d+ life)(?:,\s*(?:(?:\{[^}]+\})+|Sacrifice [^:,]+|Discard a card|Pay \d+ life))*): (.+)$/i); // M-329 · também "Pay N life" // LT9 · {2}{U} seguidos
+    const m = linha.match(/^((?:(?:\{[^}]+\})+|Sacrifice [^:,]+|Discard a card|Discard your hand|Exile ~ from your hand|Pay \d+ life)(?:,\s*(?:(?:\{[^}]+\})+|Sacrifice [^:,]+|Discard a card|Discard your hand|Pay \d+ life))*): (.+)$/i); // M-342 · também "Exile ~ from your hand" e "Discard your hand" // M-329 · também "Pay N life" // LT9 · {2}{U} seguidos
     if (!m) { frases.push({ texto: linha, lida: false, motivo: 'habilidade ativada sem padrão conhecido' }); return null; }
     const cost = leCusto(m[1].replace(new RegExp(escapa(nome), 'g'), '~')); if (!cost) { frases.push({ texto: linha, lida: false, motivo: 'custo de ativação sem padrão conhecido' }); return null; }
     let corpo = m[2].replace(/\.$/, ''); const extra = {};
@@ -15792,10 +15812,11 @@ const __m42 = (function () {
     const fraseSo = so && /\{X\}/.test(cost.mana || '') ? { texto: so[0].replace(/^\.\s*/, ''), lida: true } : null;
     if (fraseSo) { corpo = corpo.slice(0, so.index); cost.xCor = CORES[so[1].toLowerCase()]; }
     if (/\.\s*Activate only as a sorcery$/i.test(corpo)) { corpo = corpo.replace(/\.\s*Activate only as a sorcery$/i, ''); extra.sorceryOnly = true; }
+    const instante = /^Add (two|three|four|five) mana of any one color\.\s*Activate only as an instant$/i.test(corpo); if (instante) corpo = corpo.replace(/\.\s*Activate only as an instant$/i, ''); // M-342 · Lion's Eye Diamond: ativar exige prioridade, como toda ativação nesta mesa (602.5d não muda nada aqui)
     if (/\.\s*Activate only once each turn$/i.test(corpo)) { corpo = corpo.replace(/\.\s*Activate only once each turn$/i, ''); extra.oncePerTurn = true; } // M-334 · LT18 · 602.5b (Barrels of Blasting Jelly)
     if (/^Add one mana of any color$/i.test(corpo) && !(cost.tap && Object.keys(cost).length === 1)) { frases.push({ texto: m[1], lida: true }, { texto: corpo, lida: true }); return { kind: 'activated', cost, ...extra, effects: [{ do: 'add_mana', anyColor: true }] }; } // LT11 · mana de qualquer cor com custo além de {T}
     const tres = corpo.match(/^Add (two|three|four|five) mana of any one color$/i); // M-339 · Black Lotus, Lion's Eye Diamond
-    if (tres) { frases.push({ texto: m[1], lida: true }, { texto: corpo, lida: true }); return { kind: 'activated', cost, ...extra, effects: [{ do: 'add_mana', anyColor: true, vezes: num(tres[1]) }] }; }
+    if (tres) { frases.push({ texto: m[1], lida: true }, { texto: corpo, lida: true }, ...(instante ? [{ texto: 'Activate only as an instant', lida: true }] : [])); return { kind: 'activated', cost, ...extra, effects: [{ do: 'add_mana', anyColor: true, vezes: num(tres[1]) }] }; }
     const sim = corpo.match(/^Add ((?:\{[WUBRGC]\})+)$/); // LT13 · "{1}, {T}: Add {U}{R}" (Signets), "{T}, Sacrifice this land: Add {R}{R}"
     if (sim) { frases.push({ texto: m[1], lida: true }, { texto: corpo, lida: true }); return { kind: 'activated', cost, ...extra, effects: [{ do: 'add_mana', symbols: sim[1].match(/[WUBRGC]/g) }] }; }
     const qc = corpo.match(/^Add one mana of any color\.\s+(.+)$/i); // LT13 · Chromatic Sphere: "Add one mana of any color. Draw a card."
@@ -15890,7 +15911,7 @@ const __m42 = (function () {
     const linhas = semLembrete(texto).split('\n').map(x => x.trim()).filter(Boolean);
     const frases = [], efeitos = [], topo = {};
     const magica = /\b(Instant|Sorcery)\b/.test(tipo);
-    let modos = null;
+    let modos = null; const coresVida = []; // M-342
     for (const linha of linhas) {
       if (linha === '//') { frases.push({ texto: linha, lida: false, motivo: 'segunda face (aventura, dupla face): o leitor ainda não lê' }); break; } // M-322
       if (linhaDePalavras(linha)) { frases.push({ texto: linha, lida: true, palavras: true }); continue; }
@@ -15922,6 +15943,11 @@ const __m42 = (function () {
         if (/^(?:this land|~) enters(?: the battlefield)? tapped unless you control two or more other lands$/i.test(lp)) { topo.entersTappedUnless = { minOutrasTerras: 2 }; frases.push({ texto: linha, lida: true }); continue; } // M-340 · terras lentas
         if (/^(?:this land|~) enters(?: the battlefield)? tapped unless you control two or more basic lands$/i.test(lp)) { topo.entersTappedUnless = { minBasicos: 2 }; frases.push({ texto: linha, lida: true }); continue; } // M-340 · terras de batalha
         if (/^~ can't block$/i.test(lp)) { topo.self = { ...(topo.self || {}), naoBloqueia: true }; frases.push({ texto: linha, lida: true }); continue; } // M-340 · 509.1a
+        const hz = lp.match(/^\{T\}, Pay (\d+) life: Add (?:(\{[WUBRG]\})(?: or (\{[WUBRG]\}))?|(one mana of any color))$/); // M-342 · 106.12 / 119.4: Horizon lands, Starting Town
+        if (hz && !topo.manaRule) { const cs = hz[4] ? ['W', 'U', 'B', 'R', 'G'] : [hz[2], hz[3]].filter(Boolean).map(x => x[1]); topo.produces = [...(topo.produces || []), ...cs.map(c => [c])]; topo.manaRule = { colors: cs.join(''), life: +hz[1] }; coresVida.push(...cs); frases.push({ texto: linha, lida: true }); continue; }
+        if (/^(?:this land|~) enters(?: the battlefield)? tapped unless it[’']s your first, second, or third turn of the game$/i.test(lp)) { topo.entersTappedUnless = { ateTurnoProprio: 3 }; frases.push({ texto: linha, lida: true }); continue; } // M-342 · Starting Town
+        const mox = lp.match(/^Metalcraft — \{T\}: Add one mana of any color\. Activate only if you control three or more artifacts$/i); // M-342 · Mox Opal (602.5b)
+        if (mox) { (topo.abilities = topo.abilities || []).push({ kind: 'activated', cost: { tap: true }, onlyIfMetalcraft: true, effects: [{ do: 'add_mana', anyColor: true }] }); frases.push({ texto: linha, lida: true }); continue; }
         const tri = lp.match(/^\{T\}: Add (\{[WUBRGC]\}), (\{[WUBRGC]\}), or (\{[WUBRGC]\})$/); if (tri) { topo.produces = [...(topo.produces || []), ...tri.slice(1, 4).map(x => x.match(/[WUBRGC]/g))]; frases.push({ texto: linha, lida: true }); continue; } // M-340 · tri-terras
         if (/^(?:this land|~) enters(?: the battlefield)? tapped unless you control two or fewer other lands$/i.test(lp)) { topo.entersTappedUnless = { maxOutrasTerras: 2 }; frases.push({ texto: linha, lida: true }); continue; } // M-336 · terras rápidas
         const ech = lp.match(/^as (?:~|this land) enters(?: the battlefield)?, you may pay (\d+) life\. if you don't, it enters(?: the battlefield)? tapped$/i); // M-330 · 614.12 (terras de choque)
@@ -15933,7 +15959,7 @@ const __m42 = (function () {
         const ed = lp.match(/^when ~ enters(?: the battlefield)? or is put into a graveyard from the battlefield, (.+)$/i); // LT11 · entra ou morre: dois gatilhos com o mesmo efeito
         if (ed) { const g1 = leGatilho(`When ~ enters, ${ed[1]}`, nome, frases), g2 = leGatilho(`When ~ dies, ${ed[1]}`, nome, []); if (g1 && g2) (topo.abilities = topo.abilities || []).push(g1, g2); continue; }
         if (GATILHOS.some(([re]) => re.test(lp.split(', ')[0]))) { const g = leGatilho(lp, nome, frases); if (g) (topo.abilities = topo.abilities || []).push(g); continue; } // gatilho (as frases do corpo já ficaram anotadas)
-        if (/^(\{[^}]+\}|Sacrifice |Discard a card)/.test(lp) && lp.includes(': ')) { const a = leAtivada(lp, nome, frases); if (a) (topo.abilities = topo.abilities || []).push(a); continue; } // LT4 · ativada
+        if (/^(\{[^}]+\}|Sacrifice |Discard a card|Discard your hand|Exile ~ from your hand)/.test(lp) && lp.includes(': ')) { const a = leAtivada(lp, nome, frases); if (a) (topo.abilities = topo.abilities || []).push(a); continue; } // LT4 · ativada
         const c = concessao(lp); if (c) { topo.grants = { ...(topo.grants || {}), ...c, ...(c.keywords && topo.grants && topo.grants.keywords ? { keywords: [...topo.grants.keywords, ...c.keywords] } : {}) }; frases.push({ texto: linha, lida: true }); continue; }
         frases.push({ texto: linha, lida: false, motivo: 'habilidade de permanente sem padrão conhecido' }); continue;
       }
@@ -15949,6 +15975,8 @@ const __m42 = (function () {
       if (bala && modos) { const e = leParagrafo(bala[1], nome, frases); modos.push(e ? { label: bala[1].replace(/\.$/, ''), effects: e } : null); continue; }
       const e = leParagrafo(linha, nome, frases); if (e) efeitos.push(...e);
     }
+    if (coresVida.length && (topo.produces || []).some(x => x.length && !x.every(c => coresVida.includes(c)) && x.some(c => coresVida.includes(c)))) frases.push({ texto: 'mana com e sem vida na mesma cor', lida: false, motivo: 'regra de mana por cor (M-342)' });
+    if (coresVida.length && (topo.produces || []).filter(x => x.length === 1 && coresVida.includes(x[0])).length > new Set(coresVida).size) frases.push({ texto: 'mana com e sem vida na mesma cor', lida: false, motivo: 'regra de mana por cor (M-342)' });
     const lidas = frases.every(f => f.lida) && (!modos || (modos.length >= 2 && modos.every(Boolean)));
     let script = null;
     if (modos && modos.length && !efeitos.length) script = { name: nome, modes: modos.filter(Boolean), ...topo };
@@ -16628,7 +16656,8 @@ function entradaModificada(s, o, xPago) {
         // R11.2 · "a menos que você controle um Plains ou um Swamp": a própria carta, entrando, não conta
         (c.controlsSubtype && battlefield(s).some(x => x.oid !== o.oid && x.controller === o.controller && s.facts[x.name].types.includes('land') && c.controlsSubtype.some(k => new RegExp('\\b' + k + '\\b').test(linhaDeTipo(s, x))))) ||
         (c.maxOutrasTerras != null && outrasTerras(s, o) <= c.maxOutrasTerras) || // M-336 · terras rápidas: "unless you control two or fewer other lands"
-        (c.minOutrasTerras != null && outrasTerras(s, o) >= c.minOutrasTerras) || (c.minBasicos != null && outrasTerras(s, o, true) >= c.minBasicos); // M-340 · terras lentas e de batalha
+        (c.minOutrasTerras != null && outrasTerras(s, o) >= c.minOutrasTerras) || (c.minBasicos != null && outrasTerras(s, o, true) >= c.minBasicos) || // M-340 · terras lentas e de batalha
+        (c.ateTurnoProprio != null && noTurnoProprioAte(s, o.controller, c.ateTurnoProprio)); // M-342 · Starting Town
       virada = !(livre || (c.revelaSubtipo && !!o.revelaAoEntrar)); // M-252 · revelou ao jogar (a escolha vem na ação)
       if (c.pagaVida) { if (jaVirada) virada = true; else pagaVida = c.pagaVida; } // M-330 · "As ~ enters, you may pay 2 life. If you don't, it enters tapped." (outra permanente já a faz entrar virada: pagar não adianta)
     }
@@ -16638,6 +16667,10 @@ function entradaModificada(s, o, xPago) {
   for (const [k, n] of Object.entries(entraComPalavrasK(s, o))) marcadores[k] = (marcadores[k] || 0) + n; // K-37 · 702.32a/702.63a: "enters with N fade/time counters" (Toca ponto comum: entradaModificada)
   return { virada, marcadores, ...(pagaVida ? { pagaVida } : {}) };
 }
+/** M-342 · "it's your first, second, or third turn of the game": é o turno de `p` e ele teve no máximo `n` turnos (este incluído).
+ * Contagem em s.contaTurnos (só nas partidas com a carta; turno extra conta, 500.7); sem ela, a conta da rotação simples. */
+const noTurnoProprioAte = (s, p, n) => s.turn.active === p && (s.contaTurnos ? (s.contaTurnos[p] || 0) : Math.ceil((s.turn.number || 1) / s.players.length)) <= n;
+const partidaContaTurnos = s => Object.values(s.facts).some(f => f && ((f.script || {}).entersTappedUnless || {}).ateTurnoProprio != null);
 /** M-336 · quantos outros terrenos o controlador de `o` tem no campo (a própria carta, entrando, não conta). */
 const outrasTerras = (s, o, basicos = false) => battlefield(s).filter(x => x.oid !== o.oid && x.controller === o.controller && tiposDe(s, x).includes('land') && (!basicos || /^\s*basic\b/i.test(linhaDeTipo(s, x)))).length; // M-340 · basicos: "two or more basic lands"
 /** CR2-G R5a · o caminho antigo das modificações de entrada, tal como era no moveObject (só para o teste de equivalência). */
@@ -16654,7 +16687,8 @@ function entradaLegado(s, o, xPago) {
       // R11.2 · "a menos que você controle um Plains ou um Swamp" (Isolated Chapel, Sulfur Falls): a própria carta, entrando, não conta
       (semVirar.controlsSubtype && battlefield(s).some(x => x.oid !== o.oid && x.controller === o.controller && s.facts[x.name].types.includes('land') && semVirar.controlsSubtype.some(k => new RegExp('\\b' + k + '\\b').test(linhaDeTipo(s, x))))) ||
       (semVirar.maxOutrasTerras != null && outrasTerras(s, o) <= semVirar.maxOutrasTerras) || // M-336
-      (semVirar.minOutrasTerras != null && outrasTerras(s, o) >= semVirar.minOutrasTerras) || (semVirar.minBasicos != null && outrasTerras(s, o, true) >= semVirar.minBasicos); // M-340
+      (semVirar.minOutrasTerras != null && outrasTerras(s, o) >= semVirar.minOutrasTerras) || (semVirar.minBasicos != null && outrasTerras(s, o, true) >= semVirar.minBasicos) || // M-340
+      (semVirar.ateTurnoProprio != null && noTurnoProprioAte(s, o.controller, semVirar.ateTurnoProprio)); // M-342
     o.tapped = !livre;
   }
   // S34 · permanente que entra com marcadores +1/+1
@@ -17529,10 +17563,11 @@ function gatilhosDeJogador(s, evento, p, n) {
   const ordem = [p, ...s.players.map((_, i) => i).filter(i => i !== p)];
   for (const q of ordem) {
     // descarte: o campo na ordem de sempre (battlefield), uma passada só; compra: cemitério e campo de cada jogador
-    if ((evento === 'descarta' || evento === 'ganha-vida' || evento === 'atacou') && q !== p) break; // CR2b.7 · ganho de vida: o campo uma vez só (CR2g.5 · atacar também)
+    if ((evento === 'descarta' || evento === 'ganha-vida' || evento === 'atacou' || evento === 'joga-terreno') && q !== p) break; // CR2b.7 · ganho de vida: o campo uma vez só (CR2g.5 · atacar também)
     const lugares = evento === 'compra' ? [...s.zones[q].graveyard, ...s.zones[q].battlefield] : battlefield(s).map(w => w.oid);
     for (const oid of lugares) {
       const w = s.objects[oid]; if (!w || isAbility(w) || !s.facts[w.name]) continue;
+      if (evento === 'joga-terreno' && oid === n) continue; // M-342 · "another land": o terreno jogado não dispara a si mesmo
       const c = w.zone === 'battlefield' ? w.controller : q;
       for (const ab of abilitiesOf(s, w)) {
         const d = ab.kind === 'triggered' && SC.gatilhoDoEvento(ab.when);
@@ -17654,6 +17689,7 @@ function finishCleanup(s) {
   s.turn.firstTurn = false;
   s.turn.number++;
   s.turn.active = proximoTurno(s); // CR2g.2 · 500.7: turnos extras antes do próximo jogador
+  if (s.contaTurnos) s.contaTurnos[s.turn.active] = (s.contaTurnos[s.turn.active] || 0) + 1; // M-342
   // S57 · "até o seu próximo turno" termina quando esse turno começa
   for (const pl of s.players) if (pl.efeitos) { pl.efeitos = pl.efeitos.filter(e => !(e.ate === 'seu-proximo-turno' && e.by === s.turn.active)); if (!pl.efeitos.length) delete pl.efeitos; } // CR2d.10
   for (const o of campoInteiro(s)) { // CR2g.1 · 702.26d: "até o seu próximo turno" também acaba fora de fase
@@ -18654,7 +18690,8 @@ function applyEffect(s, src, eff, tgt, events) {
       break;
     }
     case 'sacrifice_it': { // M-222 · "Target permanent's controller sacrifices it"
-      if (obj && obj.zone === 'battlefield') { const nome = obj.name; sacrifice(s, obj.oid, events); note({ name: nome }); } else note({ failed: true });
+      const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj; // M-342 · "sacrifice ~" (City of Traitors)
+      if (alvo && alvo.zone === 'battlefield') { const nome = alvo.name; sacrifice(s, alvo.oid, events); note({ name: nome }); } else note({ failed: true });
       break;
     }
     case 'reveal_until': { // M-222 · 701.20: revela do topo até achar a carta pedida; a referência é o primeiro alvo, pela última informação conhecida (608.2h)
@@ -20320,6 +20357,7 @@ function payExtraCosts(s, p, cost, pay, selfOid) {
   }
   if (cost.discardSelf) moveObject(s, selfOid, 'graveyard');
   if (cost.exileSelf) moveObject(s, selfOid, 'exile');
+  if (cost.discardHand) s.zones[p].hand.filter(x => x !== selfOid).forEach(x => descartaCarta(s, x)); // M-342 · "Discard your hand" (Lion's Eye Diamond): a mão inteira, mesmo vazia; insanidade vale
   if (cost.revealColor) {
     // revelar é custo sem perda de carta: conta o que há na mão e guarda no objeto
     const tem = s.zones[p].hand.filter(x => x !== selfOid && (s.facts[s.objects[x].name].colors || []).includes(cost.revealColor)).length;
@@ -20467,6 +20505,7 @@ const canPayAbility = (s, p, source, ab) => {
   if (ab.oncePerTurn && source.usedThisTurn) return false;
   if (ab.onlyIfLifeOverStart != null && !vidaAcimaDaInicial(s, p, ab.onlyIfLifeOverStart)) return false; // CR 602.5 · "Activate only if…"
   if (ab.onlyIfAttacking && source.attacking == null) return false; // "Activate only if this creature is attacking"
+  if (ab.onlyIfMetalcraft && !condicaoDoEfeito(s, source, 'metalcraft')) return false; // M-342 · Mox Opal (602.5b)
   if (ab.onlyIfGraveyardAtLeast != null && s.zones[p].graveyard.length < ab.onlyIfGraveyardAtLeast) return false; // M-249 · limiar (702.25 Threshold)
   if (cost.life && s.players[p].life < cost.life) return false;
   return !(cost.mana && s.manaCheck) || semAFonte(cost.tap ? source.oid : null, () => canPay(s, p, custoAtivadaComX(cost, 0))); // CR2c.6 · CR2c.7: com X, basta X = 0
@@ -20715,7 +20754,7 @@ const HANDLERS = {
       // isto, "quando você compra a terceira carta do turno" já tinha disparado antes
       // do jogo começar e nunca disparava no primeiro turno
       s.players.forEach(x => { x.drawnThisTurn = 0; });
-      s.status = 'playing'; s.turn.number = 1; enterStep(s, 'untap');
+      s.status = 'playing'; s.turn.number = 1; if (partidaContaTurnos(s)) s.contaTurnos = s.players.map((_, i) => i === s.turn.active ? 1 : 0); enterStep(s, 'untap'); // M-342
     }
   },
   pass(s, a, ev) {
@@ -20743,6 +20782,7 @@ const HANDLERS = {
     moveObject(s, a.oid, 'battlefield');
     delete s.objects[a.oid].revelaAoEntrar;
     s.players[a.p].landsPlayed++;
+    gatilhosDeJogador(s, 'joga-terreno', a.p, a.oid); // M-342 · "When you play another land" (City of Traitors)
     s.turn.passes = 0;
   },
   cast(s, a, events = []) { // M-265 · recebe o registro (o replicar anota as cópias)
@@ -21007,7 +21047,8 @@ const HANDLERS = {
       if (!a.color) throw new RuleError('mana', 'escolha uma cor que um terreno de um oponente poderia produzir');
       if (!cores.includes(a.color)) throw new RuleError('mana', 'essa cor nenhum terreno dos oponentes poderia produzir');
     }
-    if (a.color == null && (base.effects || []).some(e => e.do === 'add_mana' && e.anyColor && !e.identity && !e.opponentLands)) throw new RuleError('cor', 'escolha a cor da mana'); // M-339 · achado da revisão (105.1): "any one color" não é incolor — antes, sem cor, dava {C}
+    if (a.color == null && (base.effects || []).some(e => e.do === 'add_mana' && e.anyColor && !e.identity && !e.opponentLands)) throw new RuleError('cor', 'escolha a cor da mana');
+    if (a.color != null && !['W', 'U', 'B', 'R', 'G'].includes(a.color) && (base.effects || []).some(e => e.do === 'add_mana' && e.anyColor)) throw new RuleError('cor', 'a cor precisa ser branco, azul, preto, vermelho ou verde'); // M-342 · achado da revisão do lote XVI (105.1): {C} ou outra letra numa ação montada // M-339 · achado da revisão (105.1): "any one color" não é incolor — antes, sem cor, dava {C}
     const ab = { ...base, effects: expandeAlvos(s, o, base.effects || []).map(e => e.do === 'add_mana' && e.anyColor ? { ...e, color: (e.identity || e.opponentLands) ? (a.color || null) : (a.color || 'C') } : e) };
     if (ab.sorceryOnly && !canSorceryNow(s, a.p)) throw new RuleError('tempo', 'só quando você poderia conjurar um feitiço');
     const need = (ab.effects || []).filter(SC.isTargeted);
@@ -21020,6 +21061,7 @@ const HANDLERS = {
     if (violaPortaEstandarte(s, a.p, need, chosen, a.oid)) throw new RuleError('alvo', 'um dos alvos precisa ser um porta-estandarte');
     if (base.onlyIfLifeOverStart != null && !vidaAcimaDaInicial(s, a.p, base.onlyIfLifeOverStart)) throw new RuleError('vida', `só ativa com pelo menos ${base.onlyIfLifeOverStart} de vida acima da inicial`);
     if (base.onlyIfAttacking && o.attacking == null) throw new RuleError('tempo', 'só ativa enquanto esta criatura está atacando');
+    if (base.onlyIfMetalcraft && !condicaoDoEfeito(s, o, 'metalcraft')) throw new RuleError('tempo', 'só ativa se você controla três ou mais artefatos'); // M-342 · 602.5b
     if (base.onlyIfGraveyardAtLeast != null && s.zones[a.p].graveyard.length < base.onlyIfGraveyardAtLeast) throw new RuleError('tempo', `só ativa com ${base.onlyIfGraveyardAtLeast} ou mais cartas no seu cemitério`);
     delete s.sacrificadosNoCusto;
     const bloqueavaAntes = o.blocking; // Q11 · o custo pode sacrificar a fonte (Tinder Wall): a habilidade nasce sabendo quem ela bloqueava
@@ -27939,7 +27981,7 @@ function descreveEfeito(e) {
     case 'animate': { const b = e.becomes || {}; return `vira uma criatura ${b.base ? b.base.join('/') : ''}${(b.keywords || []).length ? ' com ' + b.keywords.map(k => PALAVRA_PT[k] || k).join(', ') : ''} até o fim do turno${b.addTypes ? ' (continua terreno)' : ''}`; } // CR2d.2
     case 'reveal_until': return `${e.who === 'self' ? 'você revela' : 'o controlador dela revela'} cartas do topo até ${e.match === 'creature' ? 'uma criatura' : e.match === 'creature-greater-mv' ? 'uma criatura de valor de mana maior' : `uma carta${e.permanentOnly ? ' de permanente' : ''} que divida um tipo com ela`}, põe no campo e ${e.rest === 'shuffle' ? 'embaralha as outras' : 'põe as outras no fundo em ordem aleatória'}`; // M-222
     case 'to_bottom': return 'põe a sua permanente alvo no fundo do grimório';
-    case 'sacrifice_it': return 'o controlador sacrifica a permanente alvo';
+    case 'sacrifice_it': return e.target === 'self-source' ? 'sacrifica esta permanente' : 'o controlador sacrifica a permanente alvo'; // M-342
     case 'reanimate_all': return `devolve ao campo todas as ${(e.types || []).map(x => ({ creature: 'criaturas', planeswalker: 'planeswalkers' }[x] || x)).join(' e ')}${e.mvMax != null ? ` de valor de mana ${qtd(e.mvMax)} ou menos` : ''} do seu cemitério`; // CR2c.5
     case 'exile_self': return 'exila esta mágica';
     case 'counter_choice': return `põe um marcador de ${PALAVRA_PT[e.kind] || e.kind} em uma delas`;
@@ -29805,7 +29847,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   function custoDaHabilidade(ab) {
     const c = ab.cost || {};
     return [c.mana, c.tap ? '{T}' : null, c.discard ? (c.discard > 1 ? `descartar ${c.discard} cartas` : 'descartar uma carta') : null,
-      c.sacrifice ? 'sacrificar' : null, c.removeCounters ? `remover ${plural(c.removeCounters.n || 1, 'marcador ' + (MARCADOR_PT[c.removeCounters.tipo] || c.removeCounters.tipo), 'marcadores ' + (MARCADOR_PT[c.removeCounters.tipo] || c.removeCounters.tipo))}` : null, c.exileSelf ? 'exilar esta' : null, c.discardSelf ? 'descartar esta carta' : null, c.returnLand ? `devolver ${c.returnLand === true ? 'terreno' : c.returnLand} à mão` : null, c.sacrificeOther ? sacrificioPorExtenso(c.sacrificeOther) : null, c.tapOther ? 'virar outra' : null].filter(Boolean).join(', ');
+      c.sacrifice ? 'sacrificar' : null, c.removeCounters ? `remover ${plural(c.removeCounters.n || 1, 'marcador ' + (MARCADOR_PT[c.removeCounters.tipo] || c.removeCounters.tipo), 'marcadores ' + (MARCADOR_PT[c.removeCounters.tipo] || c.removeCounters.tipo))}` : null, c.exileSelf ? (c.fromHand ? 'exilar esta carta da mão' : 'exilar esta') : null, c.discardSelf ? 'descartar esta carta' : null, c.discardHand ? 'descartar a mão' : null, c.returnLand ? `devolver ${c.returnLand === true ? 'terreno' : c.returnLand} à mão` : null, c.sacrificeOther ? sacrificioPorExtenso(c.sacrificeOther) : null, c.tapOther ? 'virar outra' : null].filter(Boolean).join(', ');
   }
   /** R6 · custo do lampejo do passado por extenso: mana, ou "virar 3 criaturas brancas" (Battle Screech, Prismatic Strands). Antes o botão saía com o custo vazio. */
   function custoDoLampejo(fb) {
