@@ -4597,6 +4597,14 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `HANDLERS.cast` (uma linha: `pagaEquipeK`), `createGame` (uma linha: os modos).
 - **Testes:** `keywords.cr4.unit` (1, falha sem a leva), `combat.audit` (1 cenário). Texto oficial: Beast Mode, Timeline Inquiry, We Say Thee Nay! (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
 - **Parcial declarado:** "como se tivesse lampejo" e "escolha os dois modos" com trabalho em equipe não são lidos; fonte de mana virada pelo trabalho em equipe não paga mana na mesma conjuração.
+**K-71 · O que fica fora da trilha keywords, declarado no mapa (onda 4)** ✅ (leva K-71, só mapa e ROADMAP)
+- **Valor:** cada palavra-chave de 702 ainda ausente diz no mapa de regras por que não entrou e de quem é o próximo passo.
+- **Trilha tipos (CR5):** fundir, aftermath, nivelar, mutação, dia e noite, protótipo, metal vivo, "mais do que os olhos veem", criar, disfarce, resolvido, selar, estação, reconfigurar, completado. Read ahead passa a "coberta" pela CR5-T1.
+- **Trilha mesa (ação nova):** carniçar, embalsamar, eternizar, bis, prever, reforçar, predizer, trocar de Aura.
+- **Trilha motor (ponto comum):** bando, provocar, raio de sol (cores gastas), oferenda, épico, assombrar, recuperar, ondular, absorver, tempestade de túmulo, rondar, conspirar, milagre, cifrar, tributo, despertar, destemido, assistir, demonstrar, alistar, corrida livre, velocidade máxima e "acelerem os motores", caos.
+- **Trilha verbos:** ∞ (depende de arrear, 701.64).
+- **Fora por custo e pouca carta:** vangloriar, exaurir e energizar (são a habilidade da própria carta, vêm com o script dela), teia, dobra de fogo, incremento, paradigma, história, transfigurar, fortificar.
+- **Testes:** `regras.mapa.unit` (o mapa continua válido). Nenhuma linha do motor mudou.
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

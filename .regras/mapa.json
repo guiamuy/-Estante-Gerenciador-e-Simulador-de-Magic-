@@ -7037,7 +7037,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Banding",
    "status": "ausente",
-   "falta": "Sem implementação: bandos de ataque, bloqueio em bando e o defensor/atacante dividindo o dano (702.22c-m)",
+   "falta": "Precisa de mudança num ponto comum do motor (pedido à trilha motor): bando muda quem divide o dano de combate (510.1c-d).",
    "esforco": "G",
    "depende": [
     "508",
@@ -7316,7 +7316,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Provoke",
    "status": "ausente",
-   "falta": "Sem gatilho de ataque que obriga uma criatura do defensor a bloquear e a desvira (702.39a); o motor não tem exigência de bloqueio",
+   "falta": "Precisa de mudança num ponto comum do motor (pedido à trilha motor): provocar cria exigência de bloqueio (509.1c), que o motor não tem.",
    "esforco": "M",
    "depende": [
     "509.1c exigências de bloqueio"
@@ -7397,7 +7397,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Sunburst",
    "status": "ausente",
-   "falta": "Sem marcador por cor de mana gasta: o motor não guarda as cores usadas no pagamento (702.44a-c)",
+   "falta": "Precisa de mudança num ponto comum do motor (pedido à trilha motor): raio de sol conta as cores de mana gastas; o motor paga escolhendo as fontes (planTaps) e não guarda as cores.",
    "esforco": "M",
    "depende": [
     "601.2h cores de mana gasta"
@@ -7455,7 +7455,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Offering",
    "status": "ausente",
-   "falta": "Sem conjurar a tempo de instantânea sacrificando permanente do tipo com desconto do custo dela (702.48a-b)",
+   "falta": "Precisa de mudança num ponto comum do motor (pedido à trilha motor): oferenda é custo alternativo com sacrifício, desconto do valor de mana do sacrificado e tempo de instantânea.",
    "esforco": "M",
    "depende": [
     "601.2b",
@@ -7488,7 +7488,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Epic",
    "status": "ausente",
-   "falta": "Sem \"não pode conjurar mágicas pelo resto do jogo\" nem a cópia a cada manutenção (702.50a-b)",
+   "falta": "Precisa de mudança num ponto comum do motor (pedido à trilha motor): épico proíbe conjurar pelo resto do jogo e copia a cada manutenção.",
    "esforco": "M",
    "depende": [
     "707.10 cópia de mágica",
@@ -7570,7 +7570,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Haunt",
    "status": "ausente",
-   "falta": "Sem exílio \"assombrando\" uma criatura alvo ao morrer/resolver (702.55a), sem vínculo carta exilada-criatura (702.55b) nem o gatilho que dispara do exílio quando a criatura assombrada morre (702.55c).",
+   "falta": "Precisa de mudança num ponto comum do motor (pedido à trilha motor): assombrar liga a carta exilada a uma criatura.",
    "esforco": "M",
    "depende": [
     "603.6",
@@ -7600,7 +7600,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Forecast",
    "status": "ausente",
-   "falta": "Sem habilidade ativada da mão que revela a carta, só na manutenção do dono e uma vez por turno (702.57a-b).",
+   "falta": "Precisa de ação nova na mesa (o botão é da trilha mesa; pedido aberto desde a onda 3): prever ativa da mão, só na manutenção.",
    "esforco": "P",
    "depende": [
     "602",
@@ -7630,7 +7630,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Recover",
    "status": "ausente",
-   "falta": "Sem gatilho que funciona do cemitério quando uma criatura sua morre, com \"pague o custo: devolve à mão; senão exila\" (702.59a).",
+   "falta": "Precisa de mudança num ponto comum do motor (pedido à trilha motor): recuperar é gatilho que funciona do cemitério (\"outra criatura sua morre\"); o motor só tem gatilho de cemitério para a terceira compra.",
    "esforco": "P",
    "depende": [
     "603.6",
@@ -7643,7 +7643,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Ripple",
    "status": "ausente",
-   "falta": "Sem gatilho de conjuração que revela N do topo, conjura sem pagar as de mesmo nome e põe o resto no fundo (702.60a-b).",
+   "falta": "Precisa de mudança num ponto comum do motor (pedido à trilha motor): ondular revela e conjura de graça as de mesmo nome.",
    "esforco": "M",
    "depende": [
     "601 (conjurar sem pagar)",
@@ -7713,7 +7713,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Absorb",
    "status": "ausente",
-   "falta": "Sem prevenção fixa de N de dano de cada fonte à criatura (702.64a-c).",
+   "falta": "Precisa de mudança num ponto comum do motor (pedido à trilha motor): absorver é prevenção por fonte, antes do dano.",
    "esforco": "P",
    "depende": [
     "615"
@@ -7725,7 +7725,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Aura Swap",
    "status": "ausente",
-   "falta": "Sem a ativada que troca a aura em campo por uma aura da mão (702.65a-b).",
+   "falta": "Precisa de ação nova na mesa (o botão é da trilha mesa; pedido aberto desde a onda 3): trocar de Aura troca a do campo por uma da mão.",
    "esforco": "P",
    "depende": [
     "303.4",
@@ -7753,7 +7753,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Fortify",
    "status": "ausente",
-   "falta": "Sem tipo Fortificação nem a ativada \"anexe a terreno seu, tempo de feitiço\" (702.67a); equipar existe e é o molde.",
+   "falta": "Fora da onda 4 da trilha keywords por custo e pouca carta: fortificar (uma carta, Fortificação).",
    "esforco": "P",
    "depende": [
     "301.6"
@@ -7781,7 +7781,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Gravestorm",
    "status": "ausente",
-   "falta": "Sem contagem de permanentes postos no cemitério no turno nem as cópias por ela (702.69a); a tempestade existe e é o molde.",
+   "falta": "Precisa de mudança num ponto comum do motor (pedido à trilha motor): tempestade de túmulo conta permanentes postos no cemitério no turno.",
    "esforco": "P",
    "depende": [
     "707.10",
@@ -7812,7 +7812,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Transfigure",
    "status": "ausente",
-   "falta": "Sem a ativada \"custo, sacrifique: busque criatura de mesmo valor de mana e ponha em campo\" (702.71a); transmutar é o molde.",
+   "falta": "Fora da onda 4 da trilha keywords por custo e pouca carta: transfigurar (uma carta).",
    "esforco": "P",
    "depende": [
     "701.23"
@@ -7905,7 +7905,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Prowl",
    "status": "ausente",
-   "falta": "Sem custo alternativo condicionado a \"um jogador sofreu dano de combate neste turno de fonte sua com tipo em comum\" (702.76a).",
+   "falta": "Precisa de mudança num ponto comum do motor (pedido à trilha motor): rondar precisa do tipo da fonte do dano de combate no turno (pedido à trilha motor desde a onda 3).",
    "esforco": "M",
    "depende": [
     "118.9",
@@ -7918,7 +7918,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Reinforce",
    "status": "ausente",
-   "falta": "Sem a ativada da mão \"custo, descarte: N marcadores +1/+1 na criatura alvo\" (702.77a-b).",
+   "falta": "Precisa de ação nova na mesa (o botão é da trilha mesa; pedido aberto desde a onda 3): reforçar ativa da mão.",
    "esforco": "P",
    "depende": [
     "602"
@@ -7930,7 +7930,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Conspire",
    "status": "ausente",
-   "falta": "Sem custo adicional opcional de virar duas criaturas que compartilham cor com a mágica, nem o gatilho que a copia (702.78a-b).",
+   "falta": "Precisa de mudança num ponto comum do motor (pedido à trilha motor): conspirar vira duas criaturas que compartilham cor e copia.",
    "esforco": "M",
    "depende": [
     "707.10",
@@ -8088,7 +8088,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Level Up",
    "status": "ausente",
-   "falta": "Sem marcador de nível, sem a ativada de tempo de feitiço e sem as faixas de nível que mudam P/R e habilidades (702.87a-c, 711).",
+   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): nivelar (Level Up) muda P/R e habilidades por faixa de marcadores de nível — a forma de carta de nível.",
    "esforco": "M",
    "depende": [
     "711",
@@ -8210,7 +8210,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Miracle",
    "status": "ausente",
-   "falta": "Sem revelar a primeira carta comprada no turno e o gatilho de conjurá-la pelo custo de milagre (702.94a-b).",
+   "falta": "Precisa de mudança num ponto comum do motor (pedido à trilha motor): milagre revela a primeira carta comprada e a conjura pelo custo de milagre no gatilho (a compra não guarda \"primeira do turno revelada\").",
    "esforco": "M",
    "depende": [
     "603.11",
@@ -8245,7 +8245,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Scavenge",
    "status": "ausente",
-   "falta": "Sem a ativada do cemitério \"custo, exile esta carta: marcadores +1/+1 iguais à força dela na criatura alvo, tempo de feitiço\" (702.97a).",
+   "falta": "Precisa de ação nova na mesa (o botão é da trilha mesa; pedido aberto desde a onda 3): carniçar ativa do cemitério.",
    "esforco": "P",
    "depende": [
     "602",
@@ -8275,7 +8275,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Cipher",
    "status": "ausente",
-   "falta": "Sem exilar a mágica codificada numa criatura ao resolver, nem o gatilho de dano de combate que copia a carta e conjura a cópia sem pagar (702.99a-c).",
+   "falta": "Precisa de mudança num ponto comum do motor (pedido à trilha motor): cifrar exila a mágica codificada numa criatura e a copia no dano de combate.",
    "esforco": "M",
    "depende": [
     "707.12",
@@ -8324,7 +8324,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Fuse",
    "status": "ausente",
-   "falta": "Não há cartas divididas no motor (709): conjurar as duas metades juntas da mão (702.102a-b), custo somado (702.102c) e resolução esquerda depois direita (702.102d) não existem.",
+   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): cartas divididas sem fundir (T-10 deixou fundir e aftermath fora da forma de carta dividida).",
    "esforco": "M",
    "depende": [
     "709 cartas divididas"
@@ -8345,7 +8345,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Tribute",
    "status": "ausente",
-   "falta": "Sem a escolha do oponente ao entrar (\"pode pôr N marcadores +1/+1\") nem a condição \"se o tributo não foi pago\" para o gatilho ligado (702.104a-b).",
+   "falta": "Precisa de mudança num ponto comum do motor (pedido à trilha motor): tributo: o oponente decide ao entrar e a condição \"se o tributo não foi pago\" (condicaoK já existe; falta a decisão do oponente na entrada).",
    "esforco": "M",
    "depende": [
     "614.1c entra com marcadores",
@@ -8481,7 +8481,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Awaken",
    "status": "ausente",
-   "falta": "Sem o custo alternativo que, na resolução, põe N marcadores num terreno alvo seu e o transforma em criatura Elemental 0/0 com ímpeto (702.113a-b). O motor não tem efeito de mudança de tipo de terreno.",
+   "falta": "Precisa de mudança num ponto comum do motor (pedido à trilha motor): despertar é custo alternativo que, na resolução, anima um terreno alvo (efeito novo de \"torna-se criatura com ímpeto e marcadores\").",
    "esforco": "M",
    "depende": [
     "601.2b custo alternativo",
@@ -8698,7 +8698,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Undaunted",
    "status": "ausente",
-   "falta": "Sem redução de custo \"custa {1} a menos por oponente\" (702.125a-c). Em dois jogadores é desconto fixo de {1}; a chave `discount` existe mas não com essa contagem.",
+   "falta": "Precisa de mudança num ponto comum do motor (pedido à trilha motor): destemido reduz o custo por oponente (redução no caminho comum).",
    "esforco": "P",
    "depende": [
     "601.2f redução de custo"
@@ -8730,7 +8730,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Aftermath",
    "status": "ausente",
-   "falta": "Sem cartas divididas: conjurar a metade só do cemitério, não de outra zona, e exilar ao sair da pilha (702.127a).",
+   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): aftermath é metade de carta dividida conjurável só do cemitério (T-10 deixou fora).",
    "esforco": "M",
    "depende": [
     "709 cartas divididas",
@@ -8743,7 +8743,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Embalm",
    "status": "ausente",
-   "falta": "Sem habilidade ativada do cemitério \"[custo], exile esta carta: crie ficha cópia, branca, sem custo, Zumbi adicional, só como feitiço\" (702.128a-b). O motor não tem ficha-cópia.",
+   "falta": "Precisa de ação nova na mesa (o botão é da trilha mesa; pedido aberto desde a onda 3): embalsamar ativa do cemitério.",
    "esforco": "M",
    "depende": [
     "707 cópia",
@@ -8757,7 +8757,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Eternalize",
    "status": "ausente",
-   "falta": "Igual a embalsamar, com ficha preta 4/4 Zumbi (702.129a-b). Sem ficha-cópia no motor.",
+   "falta": "Precisa de ação nova na mesa (o botão é da trilha mesa; pedido aberto desde a onda 3): eternizar ativa do cemitério.",
    "esforco": "M",
    "depende": [
     "707 cópia",
@@ -8807,7 +8807,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Assist",
    "status": "ausente",
-   "falta": "Sem outro jogador pagar o genérico do custo total (702.132a). Em dois jogadores só o oponente poderia ajudar, o que quase nunca ocorre; fora de multijogador a habilidade é irrelevante.",
+   "falta": "Precisa de mudança num ponto comum do motor (pedido à trilha motor): assistir: outro jogador paga parte do custo.",
    "esforco": "P",
    "depende": [
     "601.2g-h pagamento por outro jogador",
@@ -8931,7 +8931,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Mutate",
    "status": "ausente",
-   "falta": "Sem permanentes fundidas: custo alternativo com alvo criatura não Humana sua, escolha de por cima ou por baixo, características da de cima com habilidades de todas, gatilho \"sempre que sofrer mutação\" (702.140a-f).",
+   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): mutação (permanentes fundidas, 721).",
    "esforco": "G",
    "depende": [
     "729 permanentes fundidas",
@@ -8945,7 +8945,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Encore",
    "status": "ausente",
-   "falta": "Sem habilidade do cemitério que exila a carta e cria, por oponente, ficha-cópia com ímpeto que ataca aquele oponente e é sacrificada na etapa final (702.141a-b). Sem ficha-cópia no motor.",
+   "falta": "Precisa de ação nova na mesa (o botão é da trilha mesa; pedido aberto desde a onda 3): bis ativa do cemitério.",
    "esforco": "M",
    "depende": [
     "707 cópia",
@@ -8959,7 +8959,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Boast",
    "status": "ausente",
-   "falta": "Sem habilidade ativada que só pode ser usada se a criatura atacou no turno e uma vez por turno (702.142a-b). `oncePerTurn` existe; falta a condição \"atacou neste turno\".",
+   "falta": "Fora da onda 4 da trilha keywords por custo e pouca carta: vangloriar é a habilidade da própria carta, com condição de ter atacado; vem com o script de cada carta.",
    "esforco": "P",
    "depende": [
     "602.5 restrição de ativação"
@@ -8971,7 +8971,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Foretell",
    "status": "ausente",
-   "falta": "Sem a ação especial de {2} que exila a carta da mão virada para baixo no seu turno e permite conjurá-la em turno posterior pelo custo de profetizar (702.143a-f). O motor tem mecanismo parecido para tramar (carta `plotted` no exílio, index.html:12220), que serve de base.",
+   "falta": "Precisa de ação nova na mesa (o botão é da trilha mesa; pedido aberto desde a onda 3): predizer é ação especial da mão; a conjuração do exílio em turno seguinte também.",
    "esforco": "M",
    "depende": [
     "116.2h ação especial",
@@ -8985,7 +8985,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Demonstrate",
    "status": "ausente",
-   "falta": "Sem gatilho de conjuração \"pode copiar; se copiar, escolha um oponente, que também copia\" (702.144a). Só há cópia de mágica na tempestade.",
+   "falta": "Precisa de mudança num ponto comum do motor (pedido à trilha motor): demonstrar copia a mágica e o oponente escolhido também copia.",
    "esforco": "M",
    "depende": [
     "707.10 cópia de mágica com novos alvos"
@@ -8997,7 +8997,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Daybound and Nightbound",
    "status": "ausente",
-   "falta": "Sem o estado de dia/noite da partida: virar dia ao entrar permanente diurna, transformar todas conforme dia/noite, proibir outras transformações, e a troca na etapa de desvirar pela contagem de mágicas do jogador ativo no turno anterior (702.145a-j). O motor tem cartas de duas faces (flipTo) mas não a designação.",
+   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): dia e noite (designação da partida e transformação das dupla face).",
    "esforco": "M",
    "depende": [
     "730 dia e noite",
@@ -9069,7 +9069,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Compleated",
    "status": "ausente",
-   "falta": "Sem a regra \"se pagou vida por mana phyrexiano, o planeswalker entra com dois marcadores de lealdade a menos por símbolo pago com vida\" (702.150a).",
+   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): completado muda a lealdade inicial do planeswalker conforme o mana phyrexiano pago (T-18).",
    "esforco": "P",
    "depende": [
     "107.4f mana phyrexiano",
@@ -9082,7 +9082,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Reconfigure",
    "status": "ausente",
-   "falta": "Sem implementação (grep sem ocorrência no motor nem nos scripts). Faltam as duas habilidades ativadas (anexar/desanexar, tempo de feitiço) e o equipamento deixar de ser criatura enquanto anexado (151b).",
+   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): reconfigurar é Equipamento-criatura que se anexa e desanexa (T-16).",
    "esforco": "M",
    "depende": [
     "301.5 equipamento",
@@ -9131,7 +9131,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Enlist",
    "status": "ausente",
-   "falta": "Sem implementação (grep sem ocorrência no motor nem nos scripts). Falta o custo opcional de ataque (virar criatura não atacante sem enjoo) e o gatilho reflexivo +X/+0 (154a-d).",
+   "falta": "Precisa de mudança num ponto comum do motor (pedido à trilha motor): alistar é custo opcional na declaração de ataque.",
    "esforco": "M",
    "depende": [
     "508.1g custo opcional para atacar",
@@ -9143,14 +9143,18 @@
    "n": "702.155",
    "regra": "Keyword Abilities",
    "titulo": "Read Ahead",
-   "status": "ausente",
-   "falta": "Sem implementação (grep sem ocorrência no motor nem nos scripts). O motor não tem Sagas (714): faltam marcadores de conhecimento, capítulos, e a escolha do capítulo inicial com supressão dos anteriores no turno de entrada.",
+   "status": "coberta",
    "esforco": "G",
    "depende": [
     "714 Sagas",
     "614 substituição (entra com marcadores)"
    ],
-   "cartas": "rara (Dominaria United e poucas depois)"
+   "cartas": "rara (Dominaria United e poucas depois)",
+   "evidencia": "Coberta pela trilha tipos (CR5-T1, Sagas com read ahead: 714.3b e 702.155; o motor pergunta o capítulo de entrada).",
+   "testes": [
+    "CR 714.3b · read ahead: no turno em que entrou só dispara o capítulo de número igual aos marcadores (702.155a); do turno seguinte em diante vale a regra normal",
+    "CR 714.3b · 702.155b · \"as this Saga enters\": a permanente que já estava no campo e vira cópia de uma Saga com read ahead não escolhe capítulo; fica sem marcador e ganha o primeiro na próxima fase principal do controlador"
+   ]
   },
   {
    "n": "702.156",
@@ -9208,7 +9212,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Prototype",
    "status": "ausente",
-   "falta": "Sem implementação (grep sem ocorrência no motor nem nos scripts). Falta escolher conjurar \"prototipada\" com o segundo conjunto de custo/poder/resistência/cor, que vale na pilha e no campo e some nas outras zonas (718).",
+   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): protótipo (características alternativas da carta, 718).",
    "esforco": "M",
    "depende": [
     "718 cartas com protótipo",
@@ -9221,7 +9225,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Living Metal",
    "status": "ausente",
-   "falta": "Sem implementação (grep sem ocorrência no motor nem nos scripts). O motor não tem Veículos nem tripular; falta \"no seu turno é criatura artefato\".",
+   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): metal vivo é de Veículo dupla face (Transformers).",
    "esforco": "M",
    "depende": [
     "301.7 Veículos",
@@ -9234,7 +9238,7 @@
    "regra": "Keyword Abilities",
    "titulo": "More Than Meets the Eye",
    "status": "ausente",
-   "falta": "Sem implementação (grep sem ocorrência no motor nem nos scripts). Falta custo alternativo que conjura a carta já convertida (face de trás); existe conjurar a face de trás só para disturb/presságio.",
+   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): \"mais do que os olhos veem\" conjura a face de trás (dupla face).",
    "esforco": "M",
    "depende": [
     "701.28 converter",
@@ -9309,7 +9313,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Craft",
    "status": "ausente",
-   "falta": "Sem implementação (grep sem ocorrência no motor nem nos scripts). Falta habilidade ativada que exila a permanente e os materiais (campo e/ou cemitério, 167b), devolve transformada e lembra os exilados (167c).",
+   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): criar (craft) exila materiais e transforma a dupla face.",
    "esforco": "M",
    "depende": [
     "712 dupla face",
@@ -9323,7 +9327,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Disguise",
    "status": "ausente",
-   "falta": "Sem implementação (grep sem ocorrência no motor nem nos scripts). Existe metamorfose (script.morph, faceDown, ação unmorph), mas não disfarce: falta a chave de script, a 2/2 virada para baixo ter salvaguarda {2} (168a-b) e o X do custo de virar (168e).",
+   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): disfarce é face para baixo com proteção (708, face para baixo completa).",
    "esforco": "P",
    "depende": [
     "702.37 metamorfose (existe)",
@@ -9337,7 +9341,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Solved",
    "status": "ausente",
-   "falta": "Sem implementação (grep sem ocorrência no motor nem nos scripts). O motor não tem cartas de Caso (719): falta a designação resolvido, o gatilho \"para resolver\" no passo final e as habilidades condicionadas a estar resolvido (169b-d).",
+   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): resolvido é designação de Caso (719).",
    "esforco": "M",
    "depende": [
     "719 Casos"
@@ -9358,7 +9362,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Saddle",
    "status": "ausente",
-   "falta": "Sem implementação (grep sem ocorrência no motor nem nos scripts). Falta a habilidade ativada de virar outras criaturas com poder total N+ (tempo de feitiço), a marca \"selada\" até o fim do turno e os gatilhos \"ataca enquanto selada\".",
+   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): selar (saddle) é a montaria, irmã do tripular (T-3).",
    "esforco": "M",
    "depende": [
     "602 custo de virar várias criaturas"
@@ -9389,7 +9393,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Freerunning",
    "status": "ausente",
-   "falta": "Sem implementação (grep sem ocorrência no motor nem nos scripts). Falta custo alternativo condicionado a \"um Assassino ou comandante seu causou dano de combate a um jogador neste turno\" (o motor não registra esse fato do turno).",
+   "falta": "Precisa de mudança num ponto comum do motor (pedido à trilha motor): corrida livre depende de dano de combate por Assassino ou comandante no turno.",
    "esforco": "P",
    "depende": [
     "601.2b custo alternativo (script.alt existe)",
@@ -9462,7 +9466,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Exhaust",
    "status": "ausente",
-   "falta": "Sem implementação (grep sem ocorrência no motor nem nos scripts). Só existe oncePerTurn em habilidade ativada; falta \"ative só uma vez\" por permanência no campo (nova entrada zera) e o registro de \"ativou exaurir neste turno\" (177b).",
+   "falta": "Fora da onda 4 da trilha keywords por custo e pouca carta: exaurir é \"ative só uma vez\" na habilidade da carta; vem com o script de cada carta.",
    "esforco": "P",
    "depende": [
     "602.5 restrição de ativação"
@@ -9474,7 +9478,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Max Speed",
    "status": "ausente",
-   "falta": "Sem implementação (grep sem ocorrência no motor nem nos scripts). Depende de velocidade do jogador (702.179), que não existe; falta a habilidade estática condicionada a velocidade 4, inclusive fora do campo (178b).",
+   "falta": "Precisa de mudança num ponto comum do motor (pedido à trilha motor): velocidade máxima depende da velocidade do jogador (702.179).",
    "esforco": "P",
    "depende": [
     "702.179"
@@ -9486,7 +9490,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Start Your Engines!",
    "status": "ausente",
-   "falta": "Sem implementação (grep sem ocorrência no motor nem nos scripts). Falta o atributo velocidade no jogador, a ação baseada em estado que a põe em 1 (179a), o gatilho inerente sem fonte \"oponente perdeu vida no seu turno, uma vez por turno\" até 4 (179d) e as leituras de velocidade (179e-f).",
+   "falta": "Precisa de mudança num ponto comum do motor (pedido à trilha motor): a velocidade do jogador (sobe uma vez por turno quando um oponente perde vida).",
    "esforco": "M",
    "depende": [
     "704 ações baseadas em estado",
@@ -9570,7 +9574,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Station",
    "status": "ausente",
-   "falta": "Sem implementação (grep sem ocorrência no motor nem nos scripts). Falta a habilidade ativada (virar outra criatura: marcadores de carga iguais ao poder, tempo de feitiço) e o leiaute de carta estação com limiares que ligam habilidades e viram criatura (721); 184c troca poder por outra característica.",
+   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): estação é do tipo Espaçonave.",
    "esforco": "G",
    "depende": [
     "721 cartas estação",
@@ -9603,7 +9607,7 @@
    "regra": "Keyword Abilities",
    "titulo": "∞ (Infinity)",
    "status": "ausente",
-   "falta": "Sem implementação (grep sem ocorrência no motor nem nos scripts). Falta a ação arrear (701.64) e a habilidade estática \"enquanto arreada, tem [habilidade]\".",
+   "falta": "Depende de arrear (701.64, trilha verbos).",
    "esforco": "P",
    "depende": [
     "701.64 Harness"
@@ -9615,7 +9619,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Mayhem",
    "status": "ausente",
-   "falta": "Sem implementação (grep sem ocorrência no motor nem nos scripts). Falta registrar \"descartada neste turno\" na carta do cemitério e permitir conjurá-la (ou jogá-la, 187c) de lá por custo alternativo; insanidade existe mas é outro caminho.",
+   "falta": "Precisa de mudança num ponto comum do motor (pedido à trilha motor): caos (mayhem) conjura do cemitério a carta descartada neste turno (marca de descarte no turno).",
    "esforco": "P",
    "depende": [
     "601.2b custo alternativo",
@@ -9628,7 +9632,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Web-slinging",
    "status": "ausente",
-   "falta": "Sem implementação (grep sem ocorrência no motor nem nos scripts). Falta custo alternativo de mana + devolver uma criatura virada sua para a mão (script.alt aceita custos não-mana; conferir se há \"devolver criatura virada\").",
+   "falta": "Fora da onda 4 da trilha keywords por custo e pouca carta: teia (web-slinging) é custo alternativo que devolve uma criatura virada sua à mão.",
    "esforco": "P",
    "depende": [
     "601.2b custo alternativo (script.alt existe)"
@@ -9640,7 +9644,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Firebending",
    "status": "ausente",
-   "falta": "Sem implementação (grep sem ocorrência no motor nem nos scripts). Falta o gatilho de ataque que gera N {R} e a mana que não se esvazia até o fim do combate; \"quando você dobra fogo\" (189b).",
+   "falta": "Fora da onda 4 da trilha keywords por custo e pouca carta: dobra de fogo gera {R} que dura até o fim do combate.",
    "esforco": "M",
    "depende": [
     "500.5 esvaziar a reserva de mana",
@@ -9662,7 +9666,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Increment",
    "status": "ausente",
-   "falta": "Sem implementação (grep sem ocorrência no motor nem nos scripts). Falta gatilho \"quando você conjura uma mágica\" que compara a mana gasta com o poder ou a resistência da criatura e põe +1/+1 (o motor tem other-cast, mas não guarda a mana gasta na mágica).",
+   "falta": "Fora da onda 4 da trilha keywords por custo e pouca carta: incremento (coleção de 2026).",
    "esforco": "P",
    "depende": [
     "601.2h mana gasta na mágica"
@@ -9674,7 +9678,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Paradigm",
    "status": "ausente",
-   "falta": "Sem implementação (grep sem ocorrência no motor nem nos scripts). Falta registrar a primeira resolução por nome no jogo, exilar a mágica, e o gatilho atrasado de cada fase principal pré-combate que cria cópia no exílio conjurável sem pagar.",
+   "falta": "Fora da onda 4 da trilha keywords por custo e pouca carta: paradigma cria cópia da mágica no exílio a cada fase principal pelo resto do jogo.",
    "esforco": "G",
    "depende": [
     "707.10 cópia de mágica/carta",
@@ -9687,7 +9691,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Power-up",
    "status": "ausente",
-   "falta": "Sem implementação (grep sem ocorrência no motor nem nos scripts). Falta \"ative só uma vez\" e a redução do custo de ativação pelo custo de mana da permanente no turno em que entrou, com casamento de cores (193b).",
+   "falta": "Fora da onda 4 da trilha keywords por custo e pouca carta: energizar (power-up) muda a habilidade da carta conforme ela entrou no turno; vem com o script.",
    "esforco": "P",
    "depende": [
     "702.177 (mesma restrição de uma vez)",
@@ -9718,7 +9722,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Storied",
    "status": "ausente",
-   "falta": "Sem implementação (grep sem ocorrência no motor nem nos scripts). Falta a designação de jogador \"história duradoura\" (permanente no jogo) obtida ao controlar três permanentes artefato/Saga/lendária, e as leituras dela por outros efeitos.",
+   "falta": "Fora da onda 4 da trilha keywords por custo e pouca carta: história (storied, coleção de 2026).",
    "esforco": "P",
    "depende": [
     "704 checagem de estado"
