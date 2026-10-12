@@ -17609,7 +17609,7 @@ function applyEffect(s, src, eff, tgt, events) {
     }
     case 'ninjutsu_entra': { // Leva 107 · resolução do ninjutsu
       const ninja = s.objects[eff.ninja];
-      if (ninja && ninja.zone === 'hand' && s.combat && ['combat_blockers', 'combat_damage', 'combat_end'].includes(s.turn.step)) {
+      if (ninja && (ninja.zone === 'hand' || ninjaNoComandoK(s, ninja)) && s.combat && ['combat_blockers', 'combat_damage', 'combat_end'].includes(s.turn.step)) { // K-27 · 702.49d (Toca ponto comum: ninjutsu_entra)
         moveObject(s, ninja.oid, 'battlefield');
         Object.assign(ninja, { controller: ctrl, tapped: true, attacking: eff.defensor });
         const pw = pwAindaAtacavel(s, eff); if (pw) ninja.atacandoPw = pw; // CR2g.1
@@ -20141,7 +20141,7 @@ const HANDLERS = {
   /** S18 · ninjutsu: troca um atacante não bloqueado pelo ninja da mão. */
   ninjutsu(s, a) {
     noPending(s); holder(s, a.p); semFracao(s);
-    const ninja = owns(s, a.p, a.oid, 'hand');
+    const ninja = owns(s, a.p, a.oid, zonaDoNinjaK(s, a)); // K-27 · 702.49d: o ninjutsu de comandante também sai da zona de comando (Toca ponto comum: HANDLERS.ninjutsu)
     // S54 · esgueirar-se entra pelo mesmo caminho: devolve um atacante sem bloqueio e entra virada e atacando
     const nj = a.sneak ? (s.facts[ninja.name].script || {}).sneak : ninjutsuOf(s, ninja);
     if (!nj) throw new RuleError(a.sneak ? 'esgueirar-se' : 'ninjutsu', a.sneak ? 'esta carta não tem esgueirar-se' : 'esta carta não tem ninjutsu');
@@ -20826,6 +20826,11 @@ function legalActions(s, p, { adjudication = false } = {}) {
   });
   /* ↓ K · ofertas de legalActions da trilha keywords (out.push) */
   // K-22 · 702.62a · suspender: a oferta mora em ofertasSuspenderK até a mesa ter o botão (K-24; pedido à trilha mesa)
+  // K-27 · 702.49d · ninjutsu de comandante, da zona de comando (da mão, pelo caminho de sempre)
+  for (const oid of s.zones[p].command) {
+    const nj = ninjutsuOf(s, s.objects[oid]);
+    if (nj && nj.comandante && ninjaNoComandoK(s, s.objects[oid]) && (!s.manaCheck || canPay(s, p, parseCost(nj.mana)))) unblockedAttackers(s, p).forEach(attacker => out.push({ t: 'ninjutsu', p, oid, attacker }));
+  }
   // K-13 · 702.51/702.126 · convocar e improvisar: a mesma conjuração, virando criaturas (artefatos) suas para pagar parte do custo total;
   // quais virar é escolha de quem paga (uma ação por grupo, do menor ao maior, até o limite de formas de pagar)
   const gruposDaChamadaK = new Map();
@@ -21547,6 +21552,11 @@ Object.assign(EXPORTS_K, { opcoesAtropelarUmK });
    poder 0 no 1º passo, que ganha poder entre os passos, não causa dano no 2º. */
 function iniciativaNoComecoK(s, combatentes) { for (const o of combatentes) if (has(s, o, 'first strike') || has(s, o, 'double strike')) o.struck = true; }
 Object.assign(EXPORTS_K, { iniciativaNoComecoK });
+/* K-27 · 702.49d · "Commander ninjutsu [cost]" = ninjutsu que também funciona na zona de comando: no script, `ninjutsu: { mana, comandante: true }`.
+   Não é conjurar: o imposto de comandante não sobe. Revelar (702.49b) é informação: a carta já está à vista na zona de comando. */
+function ninjaNoComandoK(s, o) { const nj = o && ninjutsuOf(s, o); return !!(nj && nj.comandante && o.zone === 'command'); }
+function zonaDoNinjaK(s, a) { const o = s.objects[a.oid]; return !a.sneak && ninjaNoComandoK(s, o) ? 'command' : 'hand'; }
+Object.assign(EXPORTS_K, { ninjaNoComandoK, zonaDoNinjaK });
 /* K-26 · 702.11c / 702.18a · resistência a magia e manto do jogador, de habilidade estática de permanente ("You have hexproof." /
    "You have shroud.", lidas da linha impressa). Resistência: o jogador não é alvo de mágica ou habilidade de oponente; manto: de
    ninguém. Vale enquanto a permanente está no campo sob o controle dele, virada para cima e sem ter perdido as habilidades; junta-se

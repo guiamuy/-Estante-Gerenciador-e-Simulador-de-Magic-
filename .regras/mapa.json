@@ -7327,9 +7327,8 @@
    "n": "702.49",
    "regra": "Keyword Abilities",
    "titulo": "Ninjutsu",
-   "status": "parcial",
-   "evidencia": "ação ninjutsu (index.html:12651-12678): paga o custo, devolve um atacante não bloqueado como custo e põe uma habilidade na pilha; na resolução (ninjutsu_entra, 11211-11217) o ninja entra virado e atacando o mesmo defensor (702.49c), e nada acontece se ele saiu da mão; janela só depois dos bloqueadores (10670-10676); rules.unit S18, faeries.regras Leva 131 (Moon-Circuit Hacker, Ninja of the Deep Hours) · M-284 (CR2g.1): ninjutsu vale no passo de fim do combate e o ninja ataca o mesmo planeswalker",
-   "falta": "702.49d: ninjutsu de comandante (da zona de comando, Yuriko) não existe, e o modo Commander existe. 702.49b (carta revelada) é só informação",
+   "status": "coberta",
+   "evidencia": "ação ninjutsu (index.html:12651-12678): paga o custo, devolve um atacante não bloqueado como custo e põe uma habilidade na pilha; na resolução (ninjutsu_entra, 11211-11217) o ninja entra virado e atacando o mesmo defensor (702.49c), e nada acontece se ele saiu da mão; janela só depois dos bloqueadores (10670-10676); rules.unit S18, faeries.regras Leva 131 (Moon-Circuit Hacker, Ninja of the Deep Hours) · M-284 (CR2g.1): ninjutsu vale no passo de fim do combate e o ninja ataca o mesmo planeswalker · K-27: 702.49d ninjutsu de comandante (`ninjutsu: { mana, comandante: true }`): oferecido também da zona de comando (ofertas da trilha keywords), o HANDLERS.ninjutsu tira a carta de lá e o ninjutsu_entra a põe no campo virada e atacando; não é conjurar, o imposto não sobe. 702.49b: a carta fica à vista como fonte da habilidade na pilha (informação, sem efeito de regra). O leitor ainda não lê a linha \"Commander ninjutsu {custo}\" (pedido à trilha motor).",
    "esforco": "P",
    "depende": [
     "903 zona de comando"
@@ -7340,7 +7339,8 @@
     "CR2g.1 · 511.3: no passo de fim do combate as criaturas ainda estão atacando, e o ninjutsu é oferecido ali; saem do combate quando o passo termina",
     "CR2g.1 · 514.3a: gatilho de descarte na limpeza vai para a pilha, os jogadores recebem prioridade e depois vem outra limpeza (antes o turno passava com o gatilho na pilha)",
     "CR2g.1 · 702.26d: efeito \"até o fim do turno\" acaba mesmo com a permanente fora de fase",
-    "CR2g.1 · 702.26g: a Aura de outro jogador que saiu de fase junto só volta com a criatura (antes voltava sozinha no desvirar do dono da Aura)"
+    "CR2g.1 · 702.26g: a Aura de outro jogador que saiu de fase junto só volta com a criatura (antes voltava sozinha no desvirar do dono da Aura)",
+    "CR 702.49d · ninjutsu de comandante (Yuriko, texto oficial): da zona de comando, devolvendo um atacante sem bloqueio — entra virada e atacando, e o imposto de comandante não sobe"
    ]
   },
   {

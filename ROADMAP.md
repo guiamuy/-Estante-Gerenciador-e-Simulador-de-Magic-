@@ -4160,6 +4160,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Testes:** `keywords.cr4.unit` (2, falham sem a leva). Texto oficial: True Believer, Aegis of the Gods (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v109.
 - **Parcial declarado (702.11):** Shalai ("You, planeswalkers you control, and other creatures you control have hexproof"), Leyline of Sanctity (a abertura com ela no campo) e 702.11g ficam de fora. 702.18 passa a coberta.
 
+**K-27 · Ninjutsu de comandante (702.49d)** 🟡 (leva K-27)
+- **Valor:** comandante com "Commander ninjutsu" (Yuriko) entra em combate da zona de comando, devolvendo um atacante sem bloqueio, sem pagar o imposto de comandante (não é conjurado). Da mão, o caminho de sempre.
+- **Aceite:** Yuriko (texto oficial) na zona de comando; o Urso ataca sem bloqueio; a mesa oferece ninjutsu da zona de comando; o Urso volta para a mão, Yuriko entra virada e atacando; o imposto continua o mesmo. Sem `comandante`, nada sai da zona de comando.
+- **Toca ponto comum:** `HANDLERS.ninjutsu` (a zona de onde a carta sai: `zonaDoNinjaK`) e o efeito `ninjutsu_entra` (aceita a carta na zona de comando). No script: `ninjutsu: { mana, comandante: true }`.
+- **Testes:** `keywords.cr4.unit` (1, falha sem a leva). Texto oficial: Yuriko, the Tiger's Shadow (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v109. 702.49 passa a coberta.
+- **Pedido à trilha `motor`:** o leitor ler "Commander ninjutsu {custo}" (hoje só "Ninjutsu {custo}"); a Yuriko inteira (o gatilho de dano dos Ninjas) precisa de script.
+
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

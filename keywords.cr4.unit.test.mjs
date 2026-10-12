@@ -1185,3 +1185,25 @@ test('CR 702.11c · "You have hexproof." (Aegis of the Gods, texto oficial): o o
   assert.ok(!E.legalActions(t, e).some(x => x.targets && x.targets.some(y => y.player === b)), 'e o oponente não mira mais');
   assert.equal(S.coverage(oficial('Aegis of the Gods')).level, 'completo');
 });
+
+/* ---------------- K-27 · 702.49d ninjutsu de comandante ---------------- */
+test('CR 702.49d · ninjutsu de comandante (Yuriko, texto oficial): da zona de comando, devolvendo um atacante sem bloqueio — entra virada e atacando, e o imposto de comandante não sobe', () => {
+  const YU = { ...oficial("Yuriko, the Tiger's Shadow"), keywords: ['Commander ninjutsu'] };
+  const SC_YU = { "Yuriko, the Tiger's Shadow": { name: "Yuriko, the Tiger's Shadow", ninjutsu: { mana: '{U}{B}', comandante: true }, self: {}, covers: 'partial', note: 'só o ninjutsu de comandante (teste)', example: { action: 'ninjutsu', target: 'none', expect: { attacked: true } } } };
+  let s = partida({ "Yuriko, the Tiger's Shadow": YU, Urso: URSO }, SC_YU); const a = s.turn.active, d = 1 - a;
+  let y, u; [s, y] = poe(s, a, "Yuriko, the Tiger's Shadow", 'command'); [s, u] = poe(s, a, 'Urso');
+  s = J(s); s.objects[y].commander = true;
+  const imposto = E.commanderTax(s, a, y);
+  for (let i = 0; i < 6 && s.turn.step !== 'combat_attackers'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  s = act(s, { t: 'attack', p: a, attackers: [u] });
+  const ofertaDe = st => st.turn.priority === a && E.legalActions(st, a).find(x => x.t === 'ninjutsu' && x.oid === y && x.attacker === u);
+  for (let i = 0; i < 8 && !ofertaDe(s); i++) s = s.pending && s.pending.kind === 'blockers' ? act(s, { t: 'block', p: d, blocks: [] }) : act(s, { t: 'pass', p: s.turn.priority });
+  const of = ofertaDe(s); assert.ok(of, 'oferecido da zona de comando'); assert.equal(s.turn.step, 'combat_blockers');
+  s = act(s, of); assert.equal(s.objects[u].zone, 'hand', 'o atacante volta (custo)');
+  s = act(act(s, { t: 'pass', p: a }), { t: 'pass', p: d });
+  assert.equal(s.objects[y].zone, 'battlefield'); assert.equal(s.objects[y].tapped, true); assert.ok(s.objects[y].attacking != null, 'atacando');
+  assert.equal(E.commanderTax(s, a, y), imposto, 'não foi conjurada: o imposto não sobe');
+  const sem = { ...SC_YU["Yuriko, the Tiger's Shadow"], ninjutsu: { mana: '{U}{B}' } };
+  let t = partida({ "Yuriko, the Tiger's Shadow": YU, Urso: URSO }, { "Yuriko, the Tiger's Shadow": sem }); let y2; [t, y2] = poe(t, t.turn.active, "Yuriko, the Tiger's Shadow", 'command');
+  assert.ok(!E.legalActions(t, t.turn.active).some(x => x.t === 'ninjutsu' && x.oid === y2), 'ninjutsu comum não sai da zona de comando');
+});
