@@ -16409,6 +16409,7 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
   }
   // S24 · fora do campo e da pilha, a carta volta para a face da frente
   // S52 · "se fosse para o cemitério, exile em vez disso" (Luminous Phantom)
+  if (to === 'battlefield' && fromZone !== 'battlefield' && fromZone !== 'stack' && magiaNaoEntraT(s, o)) return; // T-19 · CR 304.4 / 307.4: instantânea e feitiço não entram no campo (ficam onde estavam; a mágica que resolve segue o caminho da resolução) · Toca ponto comum: moveObject (uma linha)
   to = destinoSubstituido(s, o, fromZone, to); // CR2-G R5a · 614.6 · "em vez disso" (Luminous Phantom e substituições escritas como dado)
   // Leva 105 · 702.34a: conjurada com lampejo, sai da pilha para o exílio seja qual for o destino (anulada também)
   if (fromZone === 'stack' && o.flashback && to !== 'exile') to = 'exile';
@@ -23459,6 +23460,14 @@ function lutar(s, src, eff, tgt, events) {
 }
 Object.assign(EXPORTS_V, { lutar });
 /* ↓ T · exportações de core.js da trilha tipos */
+/* ---------------- T-19 · CR 304.4 / 307.4 · restos de 3xx ----------------
+   Instantânea e feitiço não entram no campo: o efeito que os poria lá os deixa na zona em que estavam (a mágica que resolve não passa
+   por aqui: vai ao cemitério). Vale pela face de cima (a de fora do campo é a frente, 712.14). */
+function magiaNaoEntraT(s, o) {
+  if (!o || o.ability || o.copiaDeMagia) return false;
+  const tipos = ((s.facts[o.name] || {}).types) || [];
+  return (tipos.includes('instant') || tipos.includes('sorcery')) && !tipos.some(t => PERMANENT.includes(t));
+}
 /* ---------------- T-18 · CR 306 · planeswalker ----------------
    306.1–306.9 já valiam (conjurar, lealdade, habilidades de lealdade, regra das lendas, ataque, dano, lealdade 0; 306.7 não existe
    mais): a T-18 os prova em tipos.planeswalkers.unit e corrige o que a auditoria achou no tipo:

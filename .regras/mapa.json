@@ -2274,7 +2274,7 @@
    "regra": "Artifacts",
    "titulo": "Fortificação",
    "status": "ausente",
-   "falta": "sem fortify nem anexo a terreno por artefato.",
+   "falta": "sem fortify nem anexo a terreno por artefato. T-19 (12/10/2026): fica fora desta trilha por decisão do pedido (\"fortify fica fora\"); ~6 cartas, nenhuma nas listas.",
    "esforco": "P",
    "depende": [
     "702.67"
@@ -2347,14 +2347,10 @@
    "n": "302.7",
    "regra": "Creatures",
    "titulo": "Dano marcado e dano letal",
-   "status": "parcial",
-   "evidencia": "dano marcado (index.html:10804, 11123), letal nas ações de estado (index.html:12131-12132), removido na limpeza (index.html:10720); teste engine.unit \"M5 · criatura com dano letal vai para o cemitério\"",
-   "falta": "sem murchar/infectar (dano vira marcador -1/-1; Phyresis sem script) e sem regenerar.",
-   "esforco": "M",
-   "depende": [
-    "702.80",
-    "702.90",
-    "701.19"
+   "status": "coberta",
+   "evidencia": "dano marcado (index.html:10804, 11123), letal nas ações de estado (index.html:12131-12132), removido na limpeza (index.html:10720); teste engine.unit \"M5 · criatura com dano letal vai para o cemitério\" T-19 (12/10/2026): o retrato de 06/10 estava antigo — infectar/−1/−1 (M-254) e regenerar (CR2-G R5c, 701.19c) existem.",
+   "testes": [
+    "M-254 · Phyresis: a criatura encantada tem infectar; o dano que ela causa vira −1/−1 numa criatura e veneno num jogador; sem a Aura, dano comum"
    ]
   },
   {
@@ -2383,11 +2379,14 @@
    "titulo": "Auras",
    "status": "parcial",
    "evidencia": "alvo na conjuração (index.html:12241, 12950), conferido de novo ao resolver e anulada se ilegal (index.html:12055-12068), aura sem hospedeiro vai ao cemitério (index.html:12110-12122); testes \"S11 · aura entra anexada\", \"S11 · a criatura encantada some\", \"S11 · aura cujo alvo some antes de resolver\", \"S34 · conceder\" · CR2d.4 (v93): Aura que encanta carta em cemitério (\"Enchant creature card in a graveyard\", Animate Dead): entra presa à carta, o gatilho de entrada a devolve sob o controle de quem controla a Aura e anexa; a ação de estado a tolera presa à carta até o gatilho resolver (commander.regras \"CR2d.4 · Animate Dead…\")",
-   "falta": "303.4f/g/i: aura que entra sem ser conjurada fica no campo solta e não cai — sonda: Sevinne's Reclamation devolvendo Ethereal Armor deixa a aura no campo com attachedTo indefinido (a ação de estado só olha aura com attachedTo, 12112). Sem aura em jogador (Curse), sem 303.4d, e a legalidade só é revista por saída/proteção/\"que você controla\".",
+   "falta": "303.4f: Aura que entra no campo sem ser conjurada (reanimada, devolvida, posta por efeito) devia deixar quem a controla ESCOLHER o que encantar; hoje, sem anexo, ela vai ao cemitério pela 704.5m (o 303.4g, sem nada legal, está certo). Aura em jogador (Curse, 303.4b) não existe. T-19 (12/10/2026): fica para depois — decisão nova (escolher o que encantar ao entrar) com tela; poucas cartas das listas.",
    "esforco": "M",
    "depende": [
     "704.5m",
     "702.5"
+   ],
+   "testes": [
+    "CR 704.5 · Aura no campo sem estar anexada, ou anexada a algo que ela não pode encantar, vai para o cemitério (704.5m)"
    ]
   },
   {
@@ -2409,7 +2408,7 @@
    "regra": "Enchantments",
    "titulo": "Papéis (Role)",
    "status": "ausente",
-   "falta": "sem fichas de Papel nem a ação de estado 303.7a.",
+   "falta": "sem fichas de Papel nem a ação de estado 303.7a. T-19 (12/10/2026): fica para depois — Papéis (Wilds of Eldraine) aparecem em comuns jogadas no Pauper; é o próximo resto de maior valor (1 a 2 levas: fichas de Papel, Aura com a 303.7a).",
    "esforco": "M",
    "depende": [
     "704.5y",
@@ -2440,10 +2439,11 @@
    "n": "304.4",
    "regra": "Instants",
    "titulo": "Instantânea não entra no campo",
-   "status": "parcial",
-   "evidencia": "efeitos que põem no campo filtram permanente (alvo 'permanent-in-your-graveyard', index.html:10993)",
-   "falta": "moveObject (10244) não tem guarda: \"olhar/buscar\" com destino campo dependem do filtro do script.",
-   "esforco": "P"
+   "status": "coberta",
+   "evidencia": "efeitos que põem no campo filtram permanente (alvo 'permanent-in-your-graveyard', index.html:10993) T-19 (12/10/2026): guarda em moveObject (`magiaNaoEntraT`): efeito que poria instantânea ou feitiço no campo (de cemitério, mão, exílio, grimório) os deixa na zona em que estavam; a mágica que resolve segue o caminho da resolução.",
+   "testes": [
+    "CR 304.4 / 307.4 · instantânea e feitiço não entram no campo: o efeito que os poria lá os deixa na zona em que estavam"
+   ]
   },
   {
    "n": "304.5",
@@ -2463,10 +2463,11 @@
    "n": "305.2",
    "regra": "Lands",
    "titulo": "Um terreno por turno",
-   "status": "parcial",
-   "evidencia": "landsPlayed >= 1 recusa (index.html:12210, 12957); teste \"M4 · um terreno por turno\"",
-   "falta": "limite fixo em 1: não há efeito que aumente (Exploration, Azusa, Explore) — 305.2a com número variável.",
-   "esforco": "P"
+   "status": "coberta",
+   "evidencia": "landsPlayed >= 1 recusa (index.html:12210, 12957); teste \"M4 · um terreno por turno\" T-19 (12/10/2026): o retrato de 06/10 estava antigo — terreno adicional por efeito existe (regra de jogador `terrenosExtras`, CR2d.10; também por nível de Classe, T-12).",
+   "testes": [
+    "CR 613.11 · \"você pode jogar um terreno a mais neste turno\" e \"sem tamanho máximo de mão\" (de resolução, até o fim do turno)"
+   ]
   },
   {
    "n": "305.3",
@@ -2500,7 +2501,7 @@
    "regra": "Lands",
    "titulo": "Mudar o tipo básico de um terreno",
    "status": "ausente",
-   "falta": "não há efeito que troque ou acrescente tipo de terreno (Blood Moon, Spreading Seas, Urborg).",
+   "falta": "não há efeito que troque ou acrescente tipo de terreno (Blood Moon, Spreading Seas, Urborg). T-19 (12/10/2026): fica com a trilha motor — mudar tipo de terreno é camada 4 (613) e mexe na produção de mana; não é tipo de carta.",
    "esforco": "M",
    "depende": [
     "613"
@@ -2632,10 +2633,11 @@
    "n": "307.4",
    "regra": "Sorceries",
    "titulo": "Feitiço não entra no campo",
-   "status": "parcial",
-   "evidencia": "alvos de reanimar filtram permanente (index.html:10993)",
-   "falta": "sem guarda em moveObject (10244), como em 304.4.",
-   "esforco": "P"
+   "status": "coberta",
+   "evidencia": "alvos de reanimar filtram permanente (index.html:10993) T-19 (12/10/2026): guarda em moveObject (`magiaNaoEntraT`): efeito que poria instantânea ou feitiço no campo (de cemitério, mão, exílio, grimório) os deixa na zona em que estavam; a mágica que resolve segue o caminho da resolução.",
+   "testes": [
+    "CR 304.4 / 307.4 · instantânea e feitiço não entram no campo: o efeito que os poria lá os deixa na zona em que estavam"
+   ]
   },
   {
    "n": "307.5",
@@ -10201,7 +10203,7 @@
    "regra": "Split Cards",
    "titulo": "Divididas permanentes de linha de tipo única (Salas)",
    "status": "ausente",
-   "falta": "Salas (Duskmourn) não existem: sem portas, destrancar nem designação de metade. A carta dividida de mágica (709.3/709.4) já joga (T-10); a Sala fica para os restos de 7xx do CR5.",
+   "falta": "Salas (Duskmourn) não existem: sem portas, destrancar nem designação de metade. A carta dividida de mágica (709.3/709.4) já joga (T-10); a Sala fica para os restos de 7xx do CR5. T-19 (12/10/2026): fica para depois — Salas (Duskmourn): portas, destrancar e designação de metade (2 levas); nenhuma carta das listas.",
    "esforco": "G",
    "depende": [
     "709.3"
@@ -10213,7 +10215,7 @@
    "regra": "Flip Cards",
    "titulo": "Cartas de virar (flip): duas partes",
    "status": "ausente",
-   "falta": "não há estado \"flipped\"; o `flipTo` do motor é troca de face de carta dupla (index.html:10590), outra coisa.",
+   "falta": "não há estado \"flipped\"; o `flipTo` do motor é troca de face de carta dupla (index.html:10590), outra coisa. T-19 (12/10/2026): fica para depois — cartas de virar (Kamigawa, ~40 cartas, nenhuma nas listas): 1 leva.",
    "esforco": "M",
    "cartas": "rara (Kamigawa)"
   },
@@ -10222,7 +10224,7 @@
    "regra": "Flip Cards",
    "titulo": "Antes de virar, só as características normais",
    "status": "ausente",
-   "falta": "sem cartas de virar.",
+   "falta": "sem cartas de virar. T-19: ver 710.1.",
    "esforco": "P",
    "depende": [
     "710.1"
@@ -10240,7 +10242,7 @@
    "regra": "Flip Cards",
    "titulo": "Virar é sem volta",
    "status": "ausente",
-   "falta": "sem cartas de virar.",
+   "falta": "sem cartas de virar. T-19: ver 710.1.",
    "esforco": "P",
    "depende": [
     "710.1"
@@ -10251,7 +10253,7 @@
    "regra": "Flip Cards",
    "titulo": "Escolher o nome alternativo de carta de virar",
    "status": "ausente",
-   "falta": "não há efeito de escolher nome de carta.",
+   "falta": "não há efeito de escolher nome de carta. T-19: ver 710.1 e o efeito de escolher nome de carta, que não existe.",
    "esforco": "P",
    "depende": [
     "201.4"
@@ -10268,7 +10270,7 @@
    "regra": "Leveler Cards",
    "titulo": "Símbolo de nível: habilidade estática por faixa",
    "status": "ausente",
-   "falta": "sem level up nem marcador de nível (grep level no motor: só cobertura de script).",
+   "falta": "sem level up nem marcador de nível (grep level no motor: só cobertura de script). T-19 (12/10/2026): fica para depois — subir de nível (Rise of the Eldrazi, ~30 cartas, nenhuma nas listas): 1 leva (o molde da Classe serve).",
    "esforco": "M",
    "depende": [
     "702.87",
@@ -10293,7 +10295,7 @@
    "regra": "Leveler Cards",
    "titulo": "Abaixo do primeiro nível, P/R base",
    "status": "ausente",
-   "falta": "sem cartas de nível.",
+   "falta": "sem cartas de nível. T-19: ver 711.2.",
    "esforco": "P",
    "depende": [
     "711.2"
@@ -10304,7 +10306,7 @@
    "regra": "Leveler Cards",
    "titulo": "Fora do campo, P/R do topo",
    "status": "ausente",
-   "falta": "sem cartas de nível.",
+   "falta": "sem cartas de nível. T-19: ver 711.2.",
    "esforco": "P",
    "depende": [
     "711.2"
@@ -10365,7 +10367,7 @@
    "regra": "Double-Faced Cards",
    "titulo": "Cartas de fundir (meld)",
    "status": "ausente",
-   "falta": "sem meld.",
+   "falta": "sem meld. T-19 (12/10/2026): fica para depois — fundir (7 pares, nenhum nas listas): 2 levas.",
    "esforco": "G",
    "depende": [
     "701.36"
@@ -10377,7 +10379,7 @@
    "regra": "Double-Faced Cards",
    "titulo": "Os sete pares de meld",
    "status": "ausente",
-   "falta": "sem meld.",
+   "falta": "sem meld. T-19 (12/10/2026): ver 712.4.",
    "esforco": "G",
    "depende": [
     "712.4"
@@ -10518,7 +10520,7 @@
    "regra": "Double-Faced Cards",
    "titulo": "Dupla face não pode ser virada para baixo",
    "status": "ausente",
-   "falta": "não há efeito que vire permanente para baixo no campo, nem a trava.",
+   "falta": "não há efeito que vire permanente para baixo no campo, nem a trava. T-19 (12/10/2026): fica para depois — não há efeito que vire permanente para baixo no campo.",
    "esforco": "P",
    "depende": [
     "708"
@@ -10547,7 +10549,7 @@
    "regra": "Double-Faced Cards",
    "titulo": "Escolher nome: qualquer face",
    "status": "ausente",
-   "falta": "não há efeito de escolher nome de carta.",
+   "falta": "não há efeito de escolher nome de carta. T-19 (12/10/2026): fica para depois — não há efeito de escolher nome de carta.",
    "esforco": "P",
    "depende": [
     "201.4"
@@ -10558,7 +10560,7 @@
    "regra": "Double-Faced Cards",
    "titulo": "\"Ao transformar\" aplicado na transformação",
    "status": "ausente",
-   "falta": "sem habilidades \"as this transforms\"; transform só troca a face (e põe lealdade da face de trás, 11434).",
+   "falta": "sem habilidades \"as this transforms\"; transform só troca a face (e põe lealdade da face de trás, 11434). T-19 (12/10/2026): fica para depois — nenhuma carta das listas tem \"as this transforms\".",
    "esforco": "P"
   },
   {
@@ -10566,7 +10568,7 @@
    "regra": "Double-Faced Cards",
    "titulo": "Permanente fundida ao sair do campo",
    "status": "ausente",
-   "falta": "sem meld.",
+   "falta": "sem meld. T-19 (12/10/2026): ver 712.4.",
    "esforco": "G",
    "depende": [
     "712.4"

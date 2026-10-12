@@ -4593,6 +4593,14 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `moveObject` (S21: a lealdade soma, na mesma linha), `applyEffect` damage e `dealCombatDamage` (a condição da trilha nas linhas da T-14 ganha `danoEmPwCriaturaT`).
 - **Próximo:** CR5-T19 — restos de 3xx/7xx de tipo: conferir no mapa cada item de 301–310 e 709–717 e declarar o que fica fora e por quê.
 
+**CR5-T19 · Restos de 3xx/7xx de tipo: instantânea e feitiço não entram no campo, e o mapa dos tipos conferido** ✅ (leva T-19, sem mudança de versão do motor) — 1 teste novo em `tipos.restos.unit` (falha sem a leva).
+- **Corrigido:** **304.4 / 307.4** — um efeito que põe "uma carta do seu cemitério" no campo punha uma instantânea ou um feitiço lá; agora eles ficam na zona em que estavam (guarda em `moveObject`; a mágica que resolve segue o caminho da resolução).
+- **Mapa conferido (o retrato de 06/10 estava antigo):** 302.7 (infectar e regenerar existem), 305.2 (terreno adicional por efeito existe) e 304.4/307.4 passam a "coberta", com teste citado; 303.4 continua parcial com a falta reescrita (303.4f: Aura que entra sem ser conjurada devia escolher o que encantar — hoje vai ao cemitério; Aura em jogador não existe).
+- **O que fica para depois, e por quê (escrito no mapa, item a item):** Papéis (303.7, Wilds of Eldraine — comuns do Pauper: o resto de maior valor, 1 a 2 levas); Aura que entra sem ser conjurada (303.4f, decisão nova com tela, 1 leva); Salas (709.5, Duskmourn, 2 levas); cartas de virar (710, Kamigawa, 1 leva); subir de nível (711, Rise of the Eldrazi, 1 leva, molde da Classe); fundir (712.4/712.5/712.21, 7 pares, 2 levas); 712.16/712.19/712.20 (sem efeito no vocabulário que os exercite); Fortificação (301.6) fora por decisão do pedido; mudar tipo de terreno (305.7) é camada 4 e fica com a trilha `motor`. Nenhuma dessas cartas está nas listas do acervo (medição da M-301).
+- **Versão e goldens:** a versão não sobe; goldens idênticos.
+- **Toca ponto comum:** `moveObject` (uma linha inserida antes do destino substituído).
+- **Próximo:** decisão do dono — Papéis (303.7) é o próximo resto de maior valor; o épico CR5 fecha a lista do pedido com esta leva.
+
 **CR6 · Multijogador e variantes** ○ — mesa de três e quatro (800–803, 806), Commander de mesa (903.2), Brawl (903.12); as variantes hoje "fora" só entram por decisão. 10 a 14 levas.
 
 **CR7 · Consolidação** ○ (em paralelo a partir da CR2) — a cada fase: fuzz em modo completo com listas reais, homologação por revisor independente relendo a seção das regras contra o motor, e rodada de simulação do dono do produto. 6 a 8 levas ao todo.
