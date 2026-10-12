@@ -8294,6 +8294,19 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Horizon Canopy': { texto: 'yw4fv3', leva: 'M-342' },
   'Waterlogged Grove': { texto: '2n2y4t', leva: 'M-342' },
   'Infernal Plunge': { texto: '17z7ie0', leva: 'M-342' },
+  // M-343 · revisão por lote XVII (dano X, jogador ou planeswalker, criatura lendária, Fabled Passage, duas ações numa frase), revisor independente com 208 verificações: 12 de 12 aprovadas
+  'Karakas': { texto: 'rz92i7', leva: 'M-343' },
+  'Fabled Passage': { texto: '1u1syvy', leva: 'M-343' },
+  'Greedy Freebooter': { texto: '1hbn8pm', leva: 'M-343' },
+  'Traumatic Critique': { texto: 'k933qc', leva: 'M-343' },
+  'Lava Axe': { texto: '1389w9f', leva: 'M-343' },
+  'Candy Trail': { texto: '8j874j', leva: 'M-343' },
+  'Blaze': { texto: '17mbvp', leva: 'M-343' },
+  'Starstorm': { texto: '148bauc', leva: 'M-343' },
+  'Volcanic Geyser': { texto: '17mbvp', leva: 'M-343' },
+  'Wall of Omens': { texto: 'tlbxva', leva: 'M-343' },
+  'Radiant Grove': { texto: '1amo2my', leva: 'M-343' },
+  'Tranquil Expanse': { texto: '13s60q', leva: 'M-343' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -15548,6 +15561,9 @@ const __m42 = (function () {
     if (k === 'target creature or planeswalker') return { target: { tipos: ['creature', 'planeswalker'] } }; // M-337 · seletor (Erode, Sear)
     if (k === 'target nonland permanent an opponent controls') return { target: { de: 'opponent' }, targetNotLand: true }; // M-341 · Banishing Light, Cast Out
     if (k === 'target creature, enchantment, or planeswalker') return { target: { tipos: ['creature', 'enchantment', 'planeswalker'] } }; // M-341 · Get Lost
+    if (k === 'target player or planeswalker') return { target: { tipos: ['planeswalker'], jogadores: 'any' } }; // M-343 · Lava Axe (seletor)
+    if (k === 'target opponent or planeswalker') return { target: { tipos: ['planeswalker'], jogadores: 'opponent' } }; // M-343
+    if (k === 'target legendary creature') return { target: { tipos: ['creature'], lendaria: true } }; // M-343 · Karakas (205.4)
     if (k === 'target instant or sorcery spell') return { target: 'spell', targetTypes: ['instant', 'sorcery'] }; // LT13
     return null;
   }
@@ -15610,6 +15626,7 @@ const __m42 = (function () {
     [/^(target player|target opponent) loses the game$/i, m => [com({ do: 'perde' }, alvo(m[1]))]], // M-325 · 104.3e
     [/^put X ([a-z]+) counters on (this [a-z]+|~)$/i, m => [{ do: 'counters', tipo: m[1].toLowerCase(), amount: { per: 'x' }, target: 'self-source' }]], // M-325 · Helix Pinnacle (o X da habilidade, CR2c.7)
     [/^~ deals damage equal to its power to (each opponent|any target|target creature|target player|target opponent)$/i, m => [com({ do: 'damage', amount: { per: 'power-of-source' } }, alvo(m[1]))]], // M-323 · CR2b.10 (608.2h: o poder como era no campo, se ela saiu)
+    [/^~ deals X damage to (.+)$/i, m => { const a = alvo(m[1]); return a ? [{ do: 'damage', amount: { per: 'x' }, ...a }] : null; }], // M-343 · Volcanic Geyser, Blaze (o X pago, 107.3a)
     [/^~ deals X damage to each creature and each player$/i, () => [{ do: 'damage', amount: { per: 'x' }, target: 'each-creature' }, { do: 'damage', amount: { per: 'x' }, jogadores: 'cada' }]], // LT13 · CR2c.7 (Crypt Rats)
     [new RegExp(`^~ deals ${N} damage to (.+)$`, 'i'), m => [com({ do: 'damage', amount: num(m[1]) }, alvo(m[2]))]],
     [/^destroy target creature with total power and toughness (\d+) or less$/i, m => [{ do: 'destroy', target: 'creature', targetPTTotalMax: +m[1] }]], // M-331 · Cut Down
@@ -15876,6 +15893,16 @@ const __m42 = (function () {
     [new RegExp(`^look at the top ${N} cards of your library\\. you may reveal an? (instant or sorcery|creature|artifact|land|creature or land) card from among them and put it into your hand\\. put the rest on the bottom of your library in (any|a random) order(?:\\.\\s*|$)`, 'i'), m => {
       const c = num(m[1]); return c ? [{ do: 'look', count: c, amount: 1, min: 0, to: 'hand', rest: /random/i.test(m[3]) ? 'library-bottom-random' : 'library-bottom', revelaEscolhida: true, filter: FILTRO_TOPO[m[2].toLowerCase()] }] : null; }]
   ];
+  /** M-343 · "scry 1 and create a Treasure token": duas ações em sequência. Só quando as duas metades são lidas sozinhas e a segunda não
+      tem pronome (it, its, them, that…) que dependa da primeira — senão a frase fica não lida. */
+  function divideE(p) {
+    for (let i = p.indexOf(' and '); i > 0; i = p.indexOf(' and ', i + 1)) {
+      const a = p.slice(0, i).trim(), b = p.slice(i + 5).trim();
+      if (!/^(scry|surveil|draw|create|you gain|gain|mill|investigate|proliferate)\b/i.test(b) || /\b(it|its|they|them|their|that|those|this|~)\b/i.test(b)) continue;
+      const ea = leFrase(a), eb = leFrase(b); if (ea && eb) return [a, b, ea, eb];
+    }
+    return null;
+  }
   function leParagrafo(texto0, nome, frases) {
     const efeitos = [];
     let texto = texto0.replace(new RegExp(escapa(nome), 'g'), '~').trim();
@@ -15891,8 +15918,12 @@ const __m42 = (function () {
       if (ik && efeitos.length && efeitos[efeitos.length - 1].do === 'damage' && Number.isInteger(efeitos[efeitos.length - 1].amount)) { const ult = efeitos[efeitos.length - 1]; ult.amount = { per: 'se', se: 'kicked', sim: num(ik[1]), nao: ult.amount }; frases.push({ texto: p, lida: true }); continue; }
       const ig = p.match(new RegExp(`^if this spell was cast from a graveyard, draw ${N} cards instead$`, 'i')); // M-331 · Plunder the Trollshaws
       if (ig && efeitos.length && efeitos[efeitos.length - 1].do === 'draw' && Number.isInteger(efeitos[efeitos.length - 1].amount)) { const ult = efeitos[efeitos.length - 1]; ult.amount = { per: 'se', se: 'cast-from-graveyard', sim: num(ig[1]), nao: ult.amount }; frases.push({ texto: p, lida: true }); continue; }
+      const dv = p.match(new RegExp(`^then if you control ${N} or more lands, untap that land$`, 'i')); // M-343 · Fabled Passage
+      if (dv && efeitos.length && efeitos[efeitos.length - 1].do === 'search' && efeitos[efeitos.length - 1].to === 'battlefield-tapped' && efeitos[efeitos.length - 1].amount === 1) { efeitos[efeitos.length - 1].desviraSeTerrenos = num(dv[1]); frases.push({ texto: p, lida: true }); continue; }
       if (/^it can't be regenerated$/i.test(p) && efeitos.length && efeitos[efeitos.length - 1].do === 'destroy') { efeitos[efeitos.length - 1].semRegenerar = true; frases.push({ texto: p, lida: true }); continue; } // M-317 · 701.19c
       const e = leFrase(p);
+      const du = !e && divideE(p); // M-343
+      if (du) { frases.push({ texto: du[0], lida: true }, { texto: du[1], lida: true }); efeitos.push(...du[2], ...du[3]); continue; }
       if (e) { frases.push({ texto: p, lida: true }); efeitos.push(...e); } else { frases.push({ texto: p, lida: false, motivo: 'frase sem padrão conhecido' }); ok = false; }
     }
     return ok ? efeitos : null;
@@ -15977,6 +16008,10 @@ const __m42 = (function () {
     }
     if (coresVida.length && (topo.produces || []).some(x => x.length && !x.every(c => coresVida.includes(c)) && x.some(c => coresVida.includes(c)))) frases.push({ texto: 'mana com e sem vida na mesma cor', lida: false, motivo: 'regra de mana por cor (M-342)' });
     if (coresVida.length && (topo.produces || []).filter(x => x.length === 1 && coresVida.includes(x[0])).length > new Set(coresVida).size) frases.push({ texto: 'mana com e sem vida na mesma cor', lida: false, motivo: 'regra de mana por cor (M-342)' });
+    { const usaX = es => JSON.stringify(es || []).includes('"per":"x"');
+      const xMagica = usaX(efeitos) || (modos || []).some(m => m && usaX(m.effects)), temX = /\{X\}/.test(String((card && card.mana_cost) || ''));
+      const abX = (topo.abilities || []).some(a => usaX(a.effects) && !(a.kind === 'activated' && /\{X\}/.test((a.cost || {}).mana || '')));
+      if ((xMagica && !(magica && temX)) || abX) frases.push({ texto: 'X sem {X} no custo', lida: false, motivo: 'o X precisa vir do custo pago (107.3), M-343' }); }
     const lidas = frases.every(f => f.lida) && (!modos || (modos.length >= 2 && modos.every(Boolean)));
     let script = null;
     if (modos && modos.length && !efeitos.length) script = { name: nome, modes: modos.filter(Boolean), ...topo };
@@ -18529,7 +18564,7 @@ function applyEffect(s, src, eff, tgt, events) {
       if (!from.length) { shuffle(s, s.zones[who].library); note({ amount: 0 }); break; }
       // CR 701.23b: busca por uma qualidade em zona oculta não obriga a achar; sem filtro ("a card"), é obrigatória
       const qualidade = eff.filter && Object.keys(eff.filter).length > 0;
-      startPick(s, { p: who, from, min: eff.optional || qualidade ? 0 : eff.amount, max: eff.amount, to: eff.to || 'hand', rest: 'stay', shuffle: true, filter: eff.filter, label: 'vasculhar', source: src.name }, events);
+      startPick(s, { p: who, from, min: eff.optional || qualidade ? 0 : eff.amount, max: eff.amount, to: eff.to || 'hand', rest: 'stay', shuffle: true, filter: eff.filter, label: 'vasculhar', source: src.name, ...(eff.desviraSeTerrenos ? { onPicked: { desviraSeTerrenos: eff.desviraSeTerrenos } } : {}) }, events); // M-343
       break;
     }
     case 'transmute_busca': { // Leva 107 · resolução do transmutar: procura uma carta de mesmo valor e embaralha
@@ -19519,6 +19554,7 @@ function concluiPick(s, events) {
   if (pk.onPicked) for (const oid of pk.picked) {
     const c = s.objects[oid]; if (!c || c.zone !== 'battlefield') continue;
     if (pk.onPicked.counters) addCounters(s, c, pk.onPicked.counters);
+    if (pk.onPicked.desviraSeTerrenos != null && battlefield(s).filter(x => x.controller === pk.p && tiposDe(s, x).includes('land')).length >= pk.onPicked.desviraSeTerrenos) desvira(s, c); // M-343 · Fabled Passage (608.2c: confere ao fim da resolução)
     if (pk.onPicked.keyword) {
       aplicaTemporario(s, c, { palavras: [pk.onPicked.keyword], ate: pk.onPicked.until === 'your-next-turn' ? 'seu-proximo-turno' : 'fim-do-turno' }, pk.p); // CR2-G R3b
     }
@@ -27895,7 +27931,7 @@ function descreveEfeito(e) {
     case 'token': { const t = e.token || {}; const pt = t.power != null ? ` ${t.power}/${t.toughness}` : ''; return `cria ${plural(n, 'ficha', 'fichas')}${t.name ? ` de ${t.name}` : ''}${pt}`; }
     case 'pump': { const p = e.power || 0, t = e.toughness || 0; const sinal = v => (v && v.per ? ((v.times || 1) < 0 ? '−X' : '+X') : v >= 0 ? `+${v}` : `−${Math.abs(v)}`); return `${alvo || 'a criatura'} recebe ${sinal(p)}/${sinal(t)}${e.until === 'your-next-turn' ? ' até o seu próximo turno' : ' até o fim do turno'}`; }
     case 'add_mana': return e.identity ? 'adiciona mana de uma cor da identidade do seu comandante' : e.opponentLands ? 'adiciona mana de uma cor que um terreno de um oponente poderia produzir' : e.anyColor ? 'adiciona mana de qualquer cor' : 'adiciona mana';
-    case 'search': return `procura ${plural(n, 'carta', 'cartas')} no grimório`;
+    case 'search': return `procura ${plural(n, 'carta', 'cartas')} no grimório${e.desviraSeTerrenos ? ` (desvira a terra achada se você tiver ${e.desviraSeTerrenos} terrenos ou mais)` : ''}`; // M-343
     case 'scry': return `vidência ${n}: olha ${plural(n, 'carta', 'cartas')} de cima e decide o que fica no topo`;
     case 'surveil': return `vigia ${n}`;
     case 'look': return `olha as ${n} cartas de cima`;
