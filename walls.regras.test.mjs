@@ -99,6 +99,7 @@ test('R8 · cemitério: Pulse of Murasa devolve criatura ou terreno de qualquer 
   s = desvira(ate(conjura(s, 0, q))); s = comMana(s, { B: 1 });
   assert.ok(acoes(s, rg).every(x => [c1, c2].includes(x.targets[0].oid)), 'só criatura do SEU cemitério');
   let r = act(s, acoes(s, rg, x => x.targets[0].oid === c1)[0]);
+  r = act(act(r, { t: 'pass', p: 0 }), { t: 'pass', p: 1 }); // K-25 · 702.40a: a tempestade é um gatilho só, que cria as cópias ao resolver — os dois passam e ele resolve (Toca teste de outra trilha)
   assert.equal(r.pending.kind, 'pick_target', 'a cópia da tempestade pode escolher outro alvo');
   r = ate(act(r, { t: 'pick_target', p: 0, index: r.pending.options.findIndex(o => o.oid === c2) }));
   assert.equal(zona(r, c1), 'hand'); assert.equal(zona(r, c2), 'hand');

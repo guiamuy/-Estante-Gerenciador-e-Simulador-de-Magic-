@@ -525,6 +525,7 @@ test('Leva 106 · tempestade: cópias vão para a pilha, cada uma com alvo próp
   [s, i2] = poe(s, a, 'Llanowar Elves', 'hand'); s = resolve(act(s, { t: 'cast', p: a, oid: i2 }));
   [s, rg] = poe(s, a, 'Reaping the Graves', 'hand');
   s = act(s, { t: 'cast', p: a, oid: rg, targets: [{ oid: c1 }] });
+  s = act(act(s, { t: 'pass', p: a }), { t: 'pass', p: d }); // K-25 · 702.40a: a tempestade é um gatilho só, que cria as cópias ao resolver — os dois passam e ele resolve (Toca teste de outra trilha)
   assert.equal(s.pending && s.pending.kind, 'pick_target', 'a cópia pede alvo novo');
   s = act(s, { t: 'pick_target', p: a, index: J(s.pending.options).findIndex(o => o.oid === c2) });
   s = passaAte(s, x => !x.stack.length);

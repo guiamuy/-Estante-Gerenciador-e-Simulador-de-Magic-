@@ -7207,14 +7207,16 @@
    "n": "702.40",
    "regra": "Keyword Abilities",
    "titulo": "Storm",
-   "status": "parcial",
-   "evidencia": "ao conjurar, enfileira uma cópia por mágica já conjurada no turno por qualquer jogador (s.spellsThisTurn global; index.html:12292-12294), cada uma na pilha por cima da original e com alvo próprio; a contagem zera na limpeza (10716); rules.unit S34 (1750, 1766), commander.regras R11 Flusterstorm, pauper.regras R7 Weather the Storm",
-   "falta": "As cópias são habilidades na pilha, não cópias de mágica (707.10): não podem ser alvo de \"anule a mágica alvo\", e copiam só script.effects — não levam modo nem X da original. O próprio gatilho de tempestade não existe como objeto único (702.40a)",
+   "status": "coberta",
+   "evidencia": "K-25: tempestade é um gatilho só (tempestadeNaPilhaK, Toca ponto comum: HANDLERS.cast) — vai para a pilha por cima da mágica, pode ser respondido e, ao resolver (efeito tempestade_k), cria uma cópia por mágica conjurada antes dela no turno, por qualquer jogador; as cópias são mágicas na pilha (707.10, CR2f.3: podem ser anuladas, levam modo, X e reforço da original, cada uma com alvo próprio) e saem mesmo que a original já tenha saído da pilha (pela última informação); a contagem zera na limpeza. Testes: keywords.cr4.unit (K-25), rules.unit S34, commander.regras R11 Flusterstorm, pauper.regras Leva 106 (Weather the Storm, Reaping the Graves), walls.regras R8. 702.40b: uma instância por carta — nenhuma carta imprime duas, e tempestade concedida por outro efeito não existe no motor.",
    "esforco": "M",
    "depende": [
     "707.10 cópia de mágica"
    ],
-   "cartas": "comum"
+   "cartas": "comum",
+   "testes": [
+    "CR 702.40a · tempestade é UM gatilho (Weather the Storm, texto oficial): vai para a pilha por cima da mágica e as cópias saem quando ele resolve; tirado da pilha, nenhuma cópia"
+   ]
   },
   {
    "n": "702.41",

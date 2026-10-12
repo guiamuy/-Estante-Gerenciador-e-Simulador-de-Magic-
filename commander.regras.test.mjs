@@ -31,6 +31,7 @@ test('R11 · Flusterstorm: mira instantânea OU feitiço, cobra {1}, e tem rajad
   s = comMana(s, 'RRU'); s = act(s, legais(s, 0, x => x.t === 'cast' && x.oid === l)[0]); s = act(s, legais(s, 0, x => x.t === 'cast' && x.oid === b && x.targets[0].player === 1)[0]);
   assert.deepEqual(alvos(s, 0, f), ['Faithless Looting', 'Lightning Bolt']);
   const antes = s.stack.length; s = act(s, legais(s, 0, x => x.oid === f && x.targets[0].oid === b)[0]);
+  s = act(act(s, { t: 'pass', p: 0 }), { t: 'pass', p: 1 }); // K-25 · 702.40a: a tempestade é um gatilho só, que cria as cópias ao resolver — os dois passam e ele resolve (Toca teste de outra trilha)
   for (let i = 0; i < 6 && s.pending; i++) s = act(s, legais(s, s.pending.p)[0]); // cada cópia escolhe o próprio alvo
   assert.equal(s.stack.length - antes, 3, 'a Flusterstorm e duas cópias (duas mágicas antes dela no turno)');
 });

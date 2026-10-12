@@ -1767,6 +1767,7 @@ test('S34 · tempestade copia a mágica uma vez por mágica conjurada antes no t
   // Leva 106 · expectativa ajustada no mecanismo: as cópias agora são itens próprios na pilha (resolvem antes e
   // independentes da original), então é preciso esvaziar a pilha, não resolver um item só
   s = act(s, { t: 'cast', p: a, oid: storm });
+  s = act(act(s, { t: 'pass', p: a }), { t: 'pass', p: 1 - a }); // K-25 · 702.40a: a tempestade é um gatilho só, que cria as cópias ao resolver — os dois passam e ele resolve (Toca teste de outra trilha)
   assert.equal(s.stack.length, 3, 'a original e duas cópias na pilha');
   s = settle(s);
   assert.equal(s.players[a].life, vida + 9, 'duas cópias mais a original: 3 vezes 3 de vida');

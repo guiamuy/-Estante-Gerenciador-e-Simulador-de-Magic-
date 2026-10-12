@@ -121,7 +121,7 @@ test('R7 · Twisted Landscape busca Pântano, Montanha ou Floresta básica; Weat
   let ws, w1, w2; [s, ws] = poe(s, 0, 'Weather the Storm', 'hand'); [s, w1] = poe(s, 0, 'Ichor Wellspring', 'hand'); [s, w2] = poe(s, 0, 'Nihil Spellbomb', 'hand');
   const sozinha = ate(conjura(s, 0, ws)); assert.equal(sozinha.players[0].life, 23, 'primeira mágica do turno: sem cópia');
   s = ate(conjura(s, 0, w1)); s = desvira(ate(conjura(desvira(s), 0, w2)));
-  let t = conjura(s, 0, ws); assert.equal(t.stack.length, 3, 'duas mágicas antes: a original e duas cópias');
+  let t = conjura(s, 0, ws); t = act(act(t, { t: 'pass', p: 0 }), { t: 'pass', p: 1 }); assert.equal(t.stack.length, 3, 'duas mágicas antes: a original e duas cópias'); // K-25 · 702.40a: a tempestade é um gatilho só, que cria as cópias ao resolver — os dois passam e ele resolve (Toca teste de outra trilha)
   t = ate(t); assert.equal(t.players[0].life, 29);
 });
 

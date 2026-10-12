@@ -7772,6 +7772,7 @@ function pluraisDeCriaturaSCK() {
 }
 Object.assign(EXPORTS_K_SC, { TIPOS_DE_CRIATURA_SCK: tiposDeCriaturaSCK(), PROTECAO_NAO_CRIATURA_SCK: protecaoNaoCriaturaSCK() });
 TRIGGER_PT.cycled = 'quando você a cicla'; // K-16 · 702.29c
+TRIGGER_PT['storm-gatilho'] = 'quando você a conjura (tempestade)'; // K-25 · 702.40a
 function palavraNaLinhaK(k) {
   if (k === 'suspend') return 'suspend \\d+\\s*[—-]\\s*(?:\\{[0-9WUBRGC]+\\})+'; // K-22
   if (k === 'landwalk') return '(?:(?:non)?(?:basic|legendary|snow|artifact) )?(?:land|desert|island|swamp|forest|mountain|plains|gate|cave|lair|locus|sphere|urza\'s)walk'; // K-21
@@ -18156,6 +18157,11 @@ function applyEffect(s, src, eff, tgt, events) {
       break;
     }
     /* ↓ K · casos de applyEffect da trilha keywords */
+    case 'tempestade_k': { // K-25 · 702.40a: "copy it for each other spell that was cast before it this turn" — as cópias (707.10, mágicas na pilha, com alvo próprio) saem na resolução do gatilho, mesmo que a original já tenha saído da pilha (707.10: copia pela última informação)
+      for (let i = 0; i < (eff.n || 0); i++) s.queued.push({ source: src.source, name: src.name, controller: ctrl, effects: eff.efeitos || [], when: 'storm', copia: true, copiaDeMagia: true, marcasMagia: eff.marcas || {} });
+      events.push({ kind: 'storm', name: src.name, amount: eff.n || 0 });
+      break;
+    }
     case 'proeza_k': { // K-14 · 702.108a + 400.7: "this creature gets +1/+1 until end of turn" — a criatura que disparou, não um objeto novo
       const c = s.objects[src.ability ? src.source : src.oid];
       if (!c || c.zone !== 'battlefield' || (c.zc || 0) !== eff.z) { note({ failed: true }); break; }
@@ -19670,8 +19676,7 @@ const HANDLERS = {
     if (a.x) s.objects[a.oid].xPaid = a.x; // S50 · quanto de X foi pago
     // Leva 106 · tempestade (702.40): as cópias vão para a pilha por cima da original, cada uma com alvo próprio
     // ("you may choose new targets"), e resolvem mesmo se a original for anulada. Antes resolviam junto com ela.
-    if ((f.script || {}).storm) for (let i = 0; i < (s.spellsThisTurn || 0); i++)
-      s.queued.push({ source: a.oid, name: o.name, controller: a.p, effects: spellEffects(s, s.objects[a.oid]), when: 'storm', copia: true, copiaDeMagia: true, marcasMagia: marcasDaMagia(s.objects[a.oid]) }); // CR2f.3
+    if ((f.script || {}).storm) tempestadeNaPilhaK(s, a, o); // K-25 · 702.40a: um gatilho só, que copia na resolução (Toca ponto comum: HANDLERS.cast)
     // M-265 · replicar (702.56b): "when you cast this spell, copy it for each time you paid its replicate cost" — como a tempestade, cópias
     // com alvo próprio por cima da original, que existem mesmo se a original for anulada; não são conjuradas
     if (a.kick && reforco && reforco.replicar) { for (let i = 0; i < a.kick; i++) s.queued.push({ source: a.oid, name: o.name, controller: a.p, effects: spellEffects(s, s.objects[a.oid]), when: 'replicar', copia: true, copiaDeMagia: true, marcasMagia: marcasDaMagia(s.objects[a.oid]) }); events.push({ kind: 'replicar', name: o.name, amount: a.kick }); }
@@ -21538,6 +21543,11 @@ Object.assign(EXPORTS_K, { opcoesAtropelarUmK });
    poder 0 no 1º passo, que ganha poder entre os passos, não causa dano no 2º. */
 function iniciativaNoComecoK(s, combatentes) { for (const o of combatentes) if (has(s, o, 'first strike') || has(s, o, 'double strike')) o.struck = true; }
 Object.assign(EXPORTS_K, { iniciativaNoComecoK });
+/* K-25 · 702.40a · tempestade é UM gatilho ("When you cast this spell, copy it for each other spell that was cast before it this turn"):
+   vai para a pilha por cima da mágica, pode ser respondido (e anulado, sem cópia nenhuma) e, na resolução, cria as cópias. A contagem é a
+   das mágicas conjuradas antes desta no turno (as conjuradas depois não são "antes dela"); a cópia leva modo, X e reforço da original. */
+function tempestadeNaPilhaK(s, a, o) { s.queued.push({ source: a.oid, name: o.name, controller: a.p, effects: [{ do: 'tempestade_k', n: s.spellsThisTurn || 0, efeitos: spellEffects(s, s.objects[a.oid]), marcas: marcasDaMagia(s.objects[a.oid]) }], when: 'storm-gatilho' }); }
+Object.assign(EXPORTS_K, { tempestadeNaPilhaK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-22 · 701.68 afligir N: "put N −1/−1 counters on a creature you control" (a) — a criatura é escolhida por quem aflige (não mira);
    sem criatura sua, nada acontece (b); com uma só, é ela. Os marcadores passam pelas substituições de pôr marcadores (614.16).
@@ -24998,6 +25008,17 @@ Object.assign(PALAVRA_PT, { convoke: 'convocar', improvise: 'improvisar' }); // 
 Object.assign(PALAVRA_PT, { protection: 'proteção' }); // K-17
 Object.assign(PALAVRA_PT, { landwalk: 'travessia' }); // K-21
 Object.assign(PALAVRA_PT, { suspend: 'suspender' }); // K-22
+const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consultadas por descreveEfeito; antes a pilha mostrava "proeza k")
+  tempestade_k: e => e.n ? `copia esta mágica ${e.n === 1 ? 'uma vez' : e.n + ' vezes'} (tempestade; cada cópia pode ter alvo novo)` : 'copia esta mágica para cada mágica conjurada antes dela neste turno (nenhuma)',
+  proeza_k: () => 'esta criatura recebe +1/+1 até o fim do turno (proeza)',
+  explorar_k: () => '', // o sacrifício já se descreve; esta é só a foto de antes e de depois
+  evoluir: () => 'põe um marcador +1/+1 nesta criatura, se a que entrou ainda tiver poder ou resistência maior (evoluir)',
+  evocar_sacrifica: () => 'sacrifica esta criatura (foi evocada)',
+  cascata: () => 'exila cartas do topo do seu grimório até uma que não seja terreno e custe menos; você pode conjurá-la sem pagar, e as outras vão para o fundo em ordem aleatória (cascata)',
+  exaltado: () => 'a criatura que ataca sozinha recebe +1/+1 até o fim do turno (exaltado)',
+  volta_com_marcador: e => `devolve a carta ao campo com um marcador ${e.marcador === 'm1m1' ? '−1/−1 (persistir)' : '+1/+1 (imortal)'}`,
+  salvaguarda: () => 'anula aquela mágica ou habilidade, a menos que quem a controla pague o custo da salvaguarda',
+};
 /* ↓ V · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha verbos */
 const MARCADOR_PT_V = { p1p1: '+1/+1', m1m1: '−1/−1', loyalty: 'de lealdade', poison: 'de veneno' }; // V-7
 const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas por descreveEfeito)
@@ -25041,6 +25062,7 @@ function descreveEfeito(e) {
   if (!e || !e.do) return '';
   if (EFEITO_PT_V[e.do]) return EFEITO_PT_V[e.do](e); // V-1 · Toca ponto comum: descreveEfeito (frases da trilha verbos)
   if (EFEITO_PT_T[e.do]) return EFEITO_PT_T[e.do](e); // T-3 · Toca ponto comum: descreveEfeito (frases da trilha tipos)
+  if (EFEITO_PT_K[e.do]) return EFEITO_PT_K[e.do](e); // K-25 · Toca ponto comum: descreveEfeito (frases da trilha keywords)
   if (e.jogadores && e.do !== 'sacrificar') { // CR2-G R4b · "cada jogador compra 1 carta", "cada oponente perde 2 de vida", "causa 1 de dano a cada jogador"
     const { jogadores, ...base } = e, quem = { cada: 'cada jogador', 'cada-oponente': 'cada oponente', voce: 'você' }[jogadores] || 'cada jogador';
     if (e.do === 'damage') return `causa ${qtd(e.amount)} de dano a ${quem}`;

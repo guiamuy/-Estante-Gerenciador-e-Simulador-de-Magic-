@@ -1129,3 +1129,30 @@ test('CR 702.19b · auditoria K-24: atacando um planeswalker, a opção do exced
   s = J(s); s.objects[at].atacandoPw = pw;
   assert.match(E.opcoesAtropelarUmK(s, s.objects[at], s.objects[u], 4)[0].rotulo, /2 no planeswalker/);
 });
+
+/* ---------------- K-25 · 702.40 tempestade: um gatilho só ---------------- */
+const OFICIAIS_PAUPER = JSON.parse(readFileSync(new URL('./.listas/oficiais.json', import.meta.url), 'utf8')).cartas;
+const WTS = () => { const c = OFICIAIS_PAUPER.find(x => x.name === 'Weather the Storm'); return { name: c.name, type_line: c.type_line, mana_cost: c.mana_cost, cmc: 2, colors: ['G'], keywords: ['Storm'], oracle_text: c.oracle_text }; };
+test('CR 702.40a · tempestade é UM gatilho (Weather the Storm, texto oficial): vai para a pilha por cima da mágica e as cópias saem quando ele resolve; tirado da pilha, nenhuma cópia', () => {
+  let s = partida({ 'Weather the Storm': WTS(), Raio: RAIO }, SC_RAIO); const a = s.turn.active, d = 1 - a;
+  let r1, r2, w; [s, r1] = poe(s, a, 'Raio', 'hand'); [s, r2] = poe(s, a, 'Raio', 'hand'); [s, w] = poe(s, a, 'Weather the Storm', 'hand');
+  s = resolve(act(s, { t: 'cast', p: a, oid: r1, targets: [{ player: d }] })); s = resolve(act(s, { t: 'cast', p: a, oid: r2, targets: [{ player: d }] }));
+  const vida = s.players[a].life;
+  s = act(s, { t: 'cast', p: a, oid: w });
+  assert.equal(s.stack.length, 2, 'a mágica e o gatilho'); const topo = s.objects[s.stack[1]];
+  assert.ok(topo.ability && !topo.copiaDeMagia, 'no topo, a habilidade (não uma cópia)');
+  const anulado = J(s); anulado.stack.pop();
+  assert.equal(resolve(anulado).players[a].life, vida + 3, 'sem o gatilho, só a original');
+  const t = act(act(s, { t: 'pass', p: a }), { t: 'pass', p: d });
+  assert.equal(t.stack.filter(x => t.objects[x].copiaDeMagia).length, 2, 'resolveu: duas cópias, mágicas na pilha (707.10)');
+  assert.equal(resolve(t).players[a].life, vida + 9);
+  const semOriginal = J(s); E.moveObject(semOriginal, w, 'graveyard');
+  assert.equal(resolve(semOriginal).players[a].life, vida + 6, 'a original saiu da pilha antes: as cópias saem do mesmo jeito (pela última informação)');
+});
+
+test('CR 702.40a · a mesa descreve o gatilho e os efeitos da trilha (antes a pilha mostrava "tempestade k", "proeza k")', () => {
+  const { table: TM } = loadModules();
+  assert.match(TM.descreveEfeito({ do: 'tempestade_k', n: 2 }), /^copia esta mágica 2 vezes/);
+  assert.match(TM.descreveEfeito({ do: 'proeza_k' }), /\+1\/\+1 até o fim do turno \(proeza\)/);
+  assert.equal(S.TRIGGER_PT['storm-gatilho'], 'quando você a conjura (tempestade)');
+});

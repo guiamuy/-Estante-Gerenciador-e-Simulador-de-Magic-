@@ -4145,6 +4145,14 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Testes:** `keywords.cr4.unit` (5 novos; 2 da K-22 ajustados para ler `ofertasSuspenderK`, com a justificativa no teste). Goldens idênticos; motor v109.
 - **Fora (riscos anotados pela auditoria):** 702.62b — carta exilada com marcador de tempo sem a marca de suspensa não perde marcador (nenhum caminho do motor cria esse estado hoje); criatura virada para baixo com habilidade concedida por Aura (708.2) — `abilitiesOf` devolve vazio, da trilha `motor`.
 
+**K-25 · Tempestade é um gatilho só (702.40a)** 🟡 (leva K-25)
+- **Valor:** a tempestade passa a ser como a regra diz: um gatilho que vai para a pilha por cima da mágica e, ao resolver, cria as cópias (uma por mágica conjurada antes dela no turno). Dá para responder ao gatilho; as cópias continuam sendo mágicas na pilha (707.10), com alvo próprio, e saem mesmo que a original tenha sido anulada. A pilha da mesa passa a descrever em português os efeitos da trilha (antes: "proeza k", "tempestade k").
+- **Aceite:** Weather the Storm (texto oficial) com duas mágicas antes: na pilha, a mágica e o gatilho; os dois passam, saem duas cópias; vida +9. Tirado o gatilho da pilha, só +3. Original fora da pilha antes do gatilho: +6.
+- **Toca ponto comum:** `HANDLERS.cast` (a linha da tempestade chama `tempestadeNaPilhaK`) e `descreveEfeito` (uma linha: `EFEITO_PT_K`, como a V-1 e a T-3).
+- **Toca teste de outra trilha:** cinco testes ganharam os dois passes (nenhuma linha apagada) para os dois jogadores passarem e o gatilho resolver antes de conferir as cópias: `rules.unit` S34, `commander.regras` R11 Flusterstorm, `pauper.regras` Leva 106, `walls.regras` R8, `jund.regras` R7 (nesta, a linha só ganhou os dois passes) — expectativa muda pela regra (702.40a), comentada no teste.
+- **Testes:** `keywords.cr4.unit` (2, falham sem a leva). Goldens idênticos; motor v109.
+- **Medido e não feito (decisão do dono):** insanidade como gatilho na pilha (702.35a). A troca é de três linhas no motor, mas muda 13 testes em 7 arquivos de outras trilhas (motor, verbos, o executor do S8) e o fluxo da mesa (a decisão aparece depois de o gatilho resolver, não no descarte). Proposta: fazer numa leva combinada com a trilha `motor`, ou o dono autoriza a trilha `keywords` a ajustar esses testes.
+
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.
