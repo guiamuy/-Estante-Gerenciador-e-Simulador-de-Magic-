@@ -5874,6 +5874,10 @@ const ATTACH_KINDS = ['creature', 'permanent', 'land', 'creature-you-control', '
 const PER_COUNTS = ['enchantments-you-control', 'other-enchantments', 'auras-on-battlefield',
   'creatures-you-control', 'other-creatures-you-control', 'elves-you-control', 'elves-on-battlefield', 'defenders-you-control', 'permanents-you-control', 'nonland-permanents-you-control', 'life-gained-this-turn', 'life-lost-this-turn',
   'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G', 'counters-on-source', 'opponents-empty-hand', 'trigger-value', 'chosen-type-permanents', 'sacrificed-toughness', 'x', 'power-of-source', 'se'];
+/** M-333 · 601.2f · "This spell costs {N} less to cast for each …": o que a redução conta (chave `reduzPor: { generic, per }` no topo do script). */
+const REDUZ_POR = ['instants-sorceries-in-your-graveyard', 'creature-cards-in-your-graveyard', 'land-cards-in-your-graveyard', 'creatures-on-battlefield',
+  'creatures-opponents-control', 'basic-land-types-you-control', 'attacking-creatures', 'attacking-creatures-you-control', 'cards-drawn-this-turn',
+  'creatures-attacked-this-turn', 'creatures-you-attacked-with-this-turn'];
 /** S19 · um valor pode ser um número ou uma contagem do campo. */
 const isCount = v => v && typeof v === 'object' && (typeof v.per === 'string' || typeof v.subtype === 'string');
 const valueErrors = (v, label) => isCount(v) ? (v.per === 'se' && !(['metalcraft', 'cast-from-graveyard'].includes(v.se) && Number.isInteger(v.sim) && Number.isInteger(v.nao)) ? [`${label}: "se" precisa da condição (metalcraft, cast-from-graveyard) e dos valores sim/não`] : v.subtype || PER_COUNTS.includes(v.per) ? [] : [`${label}: contagem "${v.per}" desconhecida`]) // M-331
@@ -5898,7 +5902,7 @@ function validateScript(sc) {
   const errs = [];
   if (!sc || typeof sc.name !== 'string' || !sc.name.trim()) errs.push('script sem nome');
   const abilities = (sc && sc.abilities) || [];
-  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || sc.staticRule || sc.cumulativeUpkeep || sc.affinity || sc.storm || sc.changeling || sc.bestow || sc.bargain || sc.soulbond || sc.evidence || sc.escape || sc.discount || sc.morph || sc.sneak || sc.entersTapped || sc.entersTappedUnless || sc.grantsAll || (sc.continuo || []).length || (sc.substitui || []).length || (sc.entra || []).length || sc.armaduraTotem || (sc.dano || []).length || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length || sc.semEfeito || sc.permiteConjurar || (sc.regraJogador || []).length || sc.entraComoCopia))) return errs.concat('script sem efeitos');
+  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || sc.staticRule || sc.cumulativeUpkeep || sc.affinity || sc.storm || sc.changeling || sc.bestow || sc.bargain || sc.soulbond || sc.evidence || sc.escape || sc.discount || sc.reduzPor || sc.morph || sc.sneak || sc.entersTapped || sc.entersTappedUnless || sc.grantsAll || (sc.continuo || []).length || (sc.substitui || []).length || (sc.entra || []).length || sc.armaduraTotem || (sc.dano || []).length || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length || sc.semEfeito || sc.permiteConjurar || (sc.regraJogador || []).length || sc.entraComoCopia))) return errs.concat('script sem efeitos');
   // M-246 · carta cujo texto não muda nada na mesa de dois jogadores ("each other opponent"): o motivo é obrigatório e exclui efeitos
   if (sc && sc.semEfeito != null && (typeof sc.semEfeito !== 'string' || !sc.semEfeito.trim() || (sc.effects || []).length || abilities.length)) errs.push('"semEfeito" precisa do motivo e não convive com efeitos ou habilidades');
   // M9 · habilidades da permanente
@@ -5968,6 +5972,8 @@ function validateScript(sc) {
   if (sc && sc.sneak && !sc.sneak.mana) errs.push('esgueirar-se sem custo de mana');
   if (sc && sc.self && sc.self.entersWithCountersX != null && typeof sc.self.entersWithCountersX !== 'boolean') errs.push('entra com X marcadores precisa ser verdadeiro ou falso');
   if (sc && sc.discount && !(Number.isInteger(sc.discount.amount) && sc.discount.amount > 0 && (sc.discount.needs || []).length)) errs.push('desconto precisa de valor e de exigências');
+  if (sc && sc.reduzPor && !(Number.isInteger(sc.reduzPor.generic) && sc.reduzPor.generic > 0 && REDUZ_POR.includes(sc.reduzPor.per))) errs.push('redução por contagem precisa de valor e de uma contagem conhecida'); // M-333
+  if (sc && sc.reduzPor && (sc.discount || sc.affinity)) errs.push('redução por contagem não se soma a desconto ou afinidade no mesmo script'); // M-333
   // S18 · ninjutsu e insanidade
   // S21 · habilidades de lealdade
   for (const ab of (sc && sc.abilities) || []) if (ab.condition && !['lifeGained', 'attackersAtLeast', 'controlsOtherNamed', 'bargained', 'evidenced', 'kicked', 'opponentMoreLands', 'atacaSozinha', 'vidaPeloMenos', 'marcadoresNaFonte'].includes(Object.keys(ab.condition)[0] || '')) errs.push('condição de gatilho desconhecida');
@@ -8011,6 +8017,22 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Staunch Throneguard': { texto: '1yeagth', leva: 'M-332' },
   'Underdark Explorer': { texto: 'u5as5c', leva: 'M-332' },
   'Aarakocra Sneak': { texto: '1yc86uq', leva: 'M-332' },
+  // M-333 · revisão por lote VII (redução de custo por contagem e salvaguarda impressa), revisor independente com sondas: 10 de 15 na primeira rodada; as 5 recusadas (Search Party Captain, The Mary Janes, Witchstalker Frenzy, Rowdy Research pelo combate extra; The Mary Janes também pelo imposto) passaram depois da correção dos dois achados, com as sondas do revisor de novo
+  'Blasphemous Act': { texto: '1ggunrl', leva: 'M-333' },
+  'Tolarian Terror': { texto: 'mdsy9r', leva: 'M-333' },
+  'Cryptic Serpent': { texto: '508mo1', leva: 'M-333' },
+  'Search Party Captain': { texto: '1daggth', leva: 'M-333' },
+  'Stratadon': { texto: 'tcdmcr', leva: 'M-333' },
+  'Writhing Necromass': { texto: 'v2kpu', leva: 'M-333' },
+  'The Mary Janes': { texto: 'n5v5m2', leva: 'M-333' },
+  'Witchstalker Frenzy': { texto: '1ol2jpv', leva: 'M-333' },
+  'Inspired Fire': { texto: 'aatkgs', leva: 'M-333' },
+  'Rowdy Research': { texto: 'vo9qng', leva: 'M-333' },
+  'Toadstool Admirer': { texto: '10nz1m7', leva: 'M-333' },
+  'Pharaoh Rama-Tut': { texto: '1dh6ufz', leva: 'M-333' },
+  'Lionheart Glimmer': { texto: '1zwbvi', leva: 'M-333' },
+  'Unflinching Hortimancer': { texto: '1n5xo2i', leva: 'M-333' },
+  'Archive Dragon': { texto: '1w3q660', leva: 'M-333' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -15481,6 +15503,11 @@ const __m42 = (function () {
   }
   /** A carta → { script, frases: [{ texto, lida, motivo? }], completa }. Só mágicas instantâneas e feitiços (LT1–LT2): linhas de
       permanente (habilidades ativadas, disparadas, estáticas) ficam não lidas até o LT3/LT4. */
+  /** M-333 · 601.2f · "This spell costs {N} less to cast for each …" → a contagem do motor (REDUZ_POR). */
+  const REDUZ_POR_TEXTO = { 'instant and sorcery card in your graveyard': 'instants-sorceries-in-your-graveyard', 'creature card in your graveyard': 'creature-cards-in-your-graveyard',
+    'land card in your graveyard': 'land-cards-in-your-graveyard', 'creature on the battlefield': 'creatures-on-battlefield', 'creature your opponents control': 'creatures-opponents-control',
+    'basic land type among lands you control': 'basic-land-types-you-control', 'attacking creature': 'attacking-creatures', 'attacking creature you control': 'attacking-creatures-you-control',
+    "card you've drawn this turn": 'cards-drawn-this-turn', 'creature that attacked this turn': 'creatures-attacked-this-turn', 'creature you attacked with this turn': 'creatures-you-attacked-with-this-turn' };
   let nomeAtual = '', tipoAtual = ''; // M-327 · o tipo da carta lida (custo "Sacrifice a creature" inclui a própria criatura)
   function ler(card) {
     const nome = (card && card.name) || ''; nomeAtual = nome; const tipo = String((card && card.type_line) || ''); tipoAtual = tipo;
@@ -15492,7 +15519,10 @@ const __m42 = (function () {
     for (const linha of linhas) {
       if (linha === '//') { frases.push({ texto: linha, lida: false, motivo: 'segunda face (aventura, dupla face): o leitor ainda não lê' }); break; } // M-322
       if (linhaDePalavras(linha)) { frases.push({ texto: linha, lida: true, palavras: true }); continue; }
+      if (!magica && /^ward \{\d+\}$/i.test(linha.replace(/\.$/, ''))) { frases.push({ texto: linha, lida: true, palavras: true }); continue; } // M-333 · 702.21: o motor lê "Ward {N}" impresso da carta (K-2)
       const kc0 = !magica && COM_CUSTO.map(([re, faz]) => { const m = linha.replace(/\.$/, '').match(re); return m && faz(m); }).find(Boolean); // LT5 · reciclagem em terreno
+      { const rp = linha.replace(/\.$/, '').match(/^(?:domain — )?this spell costs \{(\d+)\} less to cast for each (.+)$/i), per = rp && REDUZ_POR_TEXTO[rp[2].toLowerCase()]; // M-333 · 601.2f
+        if (per) { topo.reduzPor = { generic: +rp[1], per }; frases.push({ texto: linha, lida: true }); continue; } }
       if (kc0) { Object.assign(topo, kc0); frases.push({ texto: linha, lida: true }); continue; }
       if (!magica) { // LT3 · permanentes
         const lp = linha.replace(/\.$/, '').replace(new RegExp(escapa(nome || '\u0000'), 'g'), '~'); // LT6 · o nome impresso vale como "~"
@@ -15543,7 +15573,7 @@ const __m42 = (function () {
     let script = null;
     if (modos && modos.length && !efeitos.length) script = { name: nome, modes: modos.filter(Boolean), ...topo };
     else if (efeitos.length && !modos) script = { name: nome, effects: efeitos, ...topo };
-    else if (!magica && (topo.abilities || topo.aura || topo.equip || topo.entersTapped || topo.grants || topo.grantsAll || topo.self || topo.produces || topo.cycling || topo.transmute || topo.escape || topo.entersTappedUnless || topo.affinity || topo.ninjutsu)) script = { name: nome, ...topo }; // LT3/LT5
+    else if (!magica && (topo.abilities || topo.aura || topo.equip || topo.entersTapped || topo.grants || topo.grantsAll || topo.self || topo.produces || topo.cycling || topo.transmute || topo.escape || topo.entersTappedUnless || topo.affinity || topo.ninjutsu || topo.reduzPor)) script = { name: nome, ...topo }; // LT3/LT5
     const permanenteSemTexto = !magica && !linhas.length; // criatura sem texto: não precisa de script (o motor joga pelos dados da carta)
     const erros = script ? SC.validateScript({ ...script, example: { target: 'none', expect: {} } }).filter(e => !/cenário|example|exemplo/i.test(e)) : ['sem efeito'];
     const completa = !!(lidas && ((script && !erros.length) || permanenteSemTexto || (!magica && frases.length && frases.every(f => f.palavras))));
@@ -16047,6 +16077,7 @@ function createGame(setup) {
     if (sc.flashback) f.script.flashback = sc.flashback;
     if (sc.escape) f.script.escape = sc.escape; // S48 · fuga
     if (sc.discount) f.script.discount = sc.discount; // S49 · desconto por condição de campo
+    if (sc.reduzPor) f.script.reduzPor = sc.reduzPor; // M-333 · 601.2f
     if (sc.ninjutsu) f.script.ninjutsu = sc.ninjutsu;
     if (sc.madness) f.script.madness = sc.madness;
     if (sc.produces) f.script.produces = sc.produces;
@@ -16886,7 +16917,7 @@ const jogavelDoExilio = (s, p, o) => !!o && o.zone === 'exile' && o.playableFrom
 const exilaveisParaDesconto = (s, p, o) => { const em = ((s.facts[o.name] || {}).script || {}).exilaDaMao; return em ? exilaveisDaMao(s, p, em.cor, o.oid) : []; };
 const descontoExilaMao = (s, o, k, extra) => { const em = ((s.facts[o.name] || {}).script || {}).exilaDaMao; if (!em || !k) return 0;
   return Math.min(Math.max(0, (s.facts[o.name].cost.generic || 0) + extra), k * em.reduz); };
-const castExtra = (s, p, o, x = 0, alvos) => { const base = (o.zone === 'command' ? commanderTax(s, p, o.oid) : 0) + x * (s.facts[o.name].cost.x || 0), af = affinityDiscount(s, p, o); // S33 · afinidade reduz o custo genérico
+const castExtra = (s, p, o, x = 0, alvos) => { const base = (o.zone === 'command' ? commanderTax(s, p, o.oid) : 0) + x * (s.facts[o.name].cost.x || 0), af = affinityDiscount(s, p, o, base); // S33 · afinidade reduz o custo genérico
   const teto = Math.max(0, (s.facts[o.name].cost.generic || 0) + base - af); return base - af - Math.min(teto, reducaoPorAlvo(s, p, o, alvos)); };
 /** M-259 · 601.2f · "Spells you cast that target a creature cost {2} less" (Killian): reduções de permanentes suas que dependem do alvo.
  * `alvos`: os alvos escolhidos; 'otimista' na oferta (assume que a mágica mira uma criatura se puder mirar), corrigida depois pelos alvos reais. */
@@ -16906,9 +16937,10 @@ function reducaoPorAlvo(s, p, o, alvos) {
 const reducaoNoCusto = (s, p, o, alvos, custo) => Math.min(custo.generic || 0, reducaoPorAlvo(s, p, o, alvos));
 const temReducaoPorAlvo = (s, p) => battlefield(s).some(x => x.controller === p && !x.faceDown && (((s.facts[x.name] || {}).script || {}).self || {}).reduzSeMira);
 /** Quantas permanentes do tipo pedido você controla (limitado ao custo genérico). */
-function affinityDiscount(s, p, o) {
+function affinityDiscount(s, p, o, acrescimo = 0) {
   const sc = s.facts[o.name].script || {};
-  const teto = s.facts[o.name].cost.generic || 0;
+  const teto = Math.max(0, (s.facts[o.name].cost.generic || 0) + acrescimo); // M-333 · 601.2f: o genérico do custo total (imposto de comandante e X inclusos; achado da revisão do lote VII)
+  if (sc.reduzPor) return Math.min(teto, sc.reduzPor.generic * contaParaReducao(s, p, sc.reduzPor.per)); // M-333 · 601.2f: só tira do genérico
   // S49 · desconto por condição de campo: cada exigência precisa de uma criatura sua diferente
   if (sc.discount) {
     const usadas = new Set();
@@ -16925,6 +16957,27 @@ function affinityDiscount(s, p, o) {
   // R9 · criatura concedida é Aura (não conta como criatura); virada para baixo é só criatura
   const n = battlefield(s).filter(x => x.controller === p && (tipo === 'creature' ? isCreature(s, x) : !x.faceDown && s.facts[x.name].types.includes(tipo))).length;
   return Math.min(n, teto);
+}
+/** M-333 · 601.2f · a contagem da redução, na hora de conjurar (a própria carta está na mão ou na pilha: não conta como carta no cemitério). */
+function contaParaReducao(s, p, per) {
+  const cem = (s.zones[p].graveyard || []).map(oid => s.objects[oid]).filter(Boolean), tipos = x => (s.facts[x.name] || {}).types || [];
+  const atacando = () => ((s.combat && s.combat.attackers) || []).map(oid => s.objects[oid]).filter(x => x && x.zone === 'battlefield' && !x.phasedOut);
+  switch (per) {
+    case 'instants-sorceries-in-your-graveyard': return cem.filter(x => tipos(x).some(t => t === 'instant' || t === 'sorcery')).length;
+    case 'creature-cards-in-your-graveyard': return cem.filter(x => tipos(x).includes('creature')).length;
+    case 'land-cards-in-your-graveyard': return cem.filter(x => tipos(x).includes('land')).length;
+    case 'creatures-on-battlefield': return battlefield(s).filter(x => isCreature(s, x)).length;
+    case 'creatures-opponents-control': return battlefield(s).filter(x => x.controller !== p && isCreature(s, x)).length;
+    case 'basic-land-types-you-control': { const vistos = new Set(); // domínio (305.6)
+      for (const x of battlefield(s)) if (x.controller === p && !x.faceDown && tipos(x).includes('land')) for (const b of ['Plains', 'Island', 'Swamp', 'Mountain', 'Forest']) if (new RegExp('\\b' + b + '\\b').test(linhaDeTipo(s, x))) vistos.add(b);
+      return vistos.size; }
+    case 'attacking-creatures': return atacando().length;
+    case 'attacking-creatures-you-control': return atacando().filter(x => x.controller === p).length;
+    case 'cards-drawn-this-turn': return s.players[p].drawnThisTurn || 0;
+    case 'creatures-attacked-this-turn': return (s.atacaramNoTurno || []).length;
+    case 'creatures-you-attacked-with-this-turn': return s.players[p].atacouCom || 0;
+    default: return 0;
+  }
 }
 /** S49 · exigência de criatura para desconto: subtipo, ou "que não seja daquele subtipo". */
 function matchesCreatureReq(s, o, req) {
@@ -20244,8 +20297,10 @@ const HANDLERS = {
       else if (alvos[oid] !== ex) throw new RuleError('ataque', `${s.objects[oid].name} precisa atacar ${s.objects[ex].name}`); }
     for (const oid of list) { const o = s.objects[oid]; o.attacking = s.combat.defender; if (alvos[oid]) o.atacandoPw = alvos[oid]; else delete o.atacandoPw; if (!has(s, o, 'vigilance')) { if (!o.tapped) noteEnchantedEvent(s, o); o.tapped = true; } } // Leva 106 · atacar vira
     s.combat.attackers = list.slice();
-    for (const oid of list) (s.atacaramNoTurno = s.atacaramNoTurno || []).push({ oid, z: s.objects[oid].zc || 0 }); // CR2g.4 · "creatures that attacked this turn"
-    if (list.length) s.players[a.p].atacouCom = (s.players[a.p].atacouCom || 0) + list.length; // M-248 · "se você atacou neste turno" (508.1; pôr no campo atacando não é atacar)
+    // M-333 · "creatures that attacked this turn" / "you attacked with" contam criaturas, não declarações: no combate extra, quem ataca de novo não conta outra vez (achado da revisão do lote VII)
+    const novosAtacantes = list.filter(oid => !(s.atacaramNoTurno || []).some(x => x.oid === oid && x.z === (s.objects[oid].zc || 0)));
+    for (const oid of novosAtacantes) (s.atacaramNoTurno = s.atacaramNoTurno || []).push({ oid, z: s.objects[oid].zc || 0 }); // CR2g.4 · "creatures that attacked this turn"
+    if (list.length) s.players[a.p].atacouCom = (s.players[a.p].atacouCom || 0) + novosAtacantes.length; // M-248 · "se você atacou neste turno" (508.1; pôr no campo atacando não é atacar)
     disparaEvento(s, 'ataca', list.map(oid => s.objects[oid]));
     if (list.length) gatilhosDeJogador(s, 'atacou', a.p, list.length); // CR2g.5 · 508.3d: "whenever you attack" — uma vez, com quantas atacaram
     exaltadoK(s, a.p, list); // K-5 · 702.83a: exaltado, quando uma só ataca
