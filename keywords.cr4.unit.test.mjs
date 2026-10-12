@@ -2468,3 +2468,13 @@ test('CR 702.80b · murchar concedido e última informação: a criatura que gan
   const t = resolve(act(s, E.legalActions(s, a).find(x => x.t === 'activate' && x.oid === p && x.targets && x.targets[0].oid === w)));
   assert.equal(t.objects[w].counters.m1m1, 2); assert.equal(t.objects[w].damage || 0, 0);
 });
+
+/* ---------------- K-73 · botão Suspender (decisão D2 do dono) ---------------- */
+test('CR 702.62a · K-73 · suspender entra no legalActions (a mesa tem o botão): Rift Bolt na mão oferece suspender na fase principal; o registro diz o que aconteceu', () => {
+  const { table: T } = loadModules();
+  let s = partida({ 'Rift Bolt': oficial('Rift Bolt') }); const a = s.turn.active;
+  let r; [s, r] = poe(s, a, 'Rift Bolt', 'hand');
+  const of = E.legalActions(s, a).find(x => x.t === 'suspender_k' && x.oid === r); assert.ok(of, 'o botão Suspender tem ação');
+  const t = act(s, of); assert.equal(t.objects[r].zone, 'exile');
+  assert.match(T.describe(s, of, [], t).join(' '), /suspendeu Rift Bolt/);
+});

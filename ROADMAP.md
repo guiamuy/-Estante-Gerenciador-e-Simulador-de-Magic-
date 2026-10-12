@@ -4609,6 +4609,11 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Auditoria:** 76 sondas caixa-preta (murchar, decaída, blitz, voraz, esquadrão, baixa, escalonado, trabalho em equipe); 1 divergência, corrigida com teste antes.
 - **Correção:** murchar concedido por outra permanente vale pela última informação quando a fonte já saiu do campo (702.80b): a criatura que ganhou murchar e se sacrifica para causar dano ainda põe marcadores −1/−1.
 - **Testes:** `keywords.cr4.unit` (1, falha sem a leva). Goldens idênticos; motor v110.
+**K-73 · Botão Suspender na mesa (decisão D2 do dono)** ✅ (leva K-73)
+- **Valor:** cartas com "Suspend N—{custo}" (Rift Bolt, Lotus Bloom…) ganham na mão o botão "Suspender · {custo} (N marcadores de tempo)"; a mesa, o bot e o goldfish passam a suspender.
+- **Aceite:** Rift Bolt na mão, na fase principal: o botão aparece; tocar exila a carta com 1 marcador e o registro diz "suspendeu Rift Bolt"; na manutenção seguinte ela é conjurada sem pagar.
+- **Toca ponto comum:** `src/app/table.js` (uma linha do botão, autorizada na D2), `src/app/table-model.js` (uma linha do registro), `legalActions` (a oferta volta).
+- **Testes:** `keywords.cr4.unit` (1, falha sem a leva); `tela.acoes.unit` e a sonda de alcance da tela (R0, listas Pauper reais) verdes. Goldens idênticos; motor v110.
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

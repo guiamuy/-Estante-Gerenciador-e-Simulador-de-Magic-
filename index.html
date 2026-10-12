@@ -22355,7 +22355,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
   ofertasEsquadraoK(s, p, out); // K-67 · 702.157a: uma variante por quantidade de vezes que fecha o custo
   ofertasBaixaK(s, p, out); // K-68 · 702.153a: uma variante por criatura sua com poder N ou mais
   ofertasEquipeK(s, p, out); // K-70 · 702.194a: uma variante por grupo mínimo de criaturas a virar
-  // K-22 · 702.62a · suspender: a oferta mora em ofertasSuspenderK até a mesa ter o botão (K-24; pedido à trilha mesa)
+  if (!s.pending) out.push(...ofertasSuspenderK(s, p)); // K-73 · 702.62a · suspender da mão, com o botão na mesa (decisão D2 do dono, 12/10/2026)
   // K-27 · 702.49d · ninjutsu de comandante, da zona de comando (da mão, pelo caminho de sempre)
   for (const oid of s.zones[p].command) {
     const nj = ninjutsuOf(s, s.objects[oid]);
@@ -23167,7 +23167,7 @@ function suspenderImpressoK(card) {
 /** "If you could begin to cast this card": no tempo de conjurá-la (instantânea ou lampejo: com a prioridade; senão, tempo de feitiço). */
 function podeSuspenderAgoraK(s, p, f) { return !f.types.includes('land') && s.turn.priority === p && !s.pending && !fracaoDeSegundo(s) && (!isSorcerySpeed(f) || canSorceryNow(s, p)); } // K-24 · 702.61a: com fração de segundo ninguém conjura, então não suspende
 /** K-24 · 702.62a · as ações de suspender que o jogador `p` tem agora (da mão, quando poderia conjurar a carta, pagando o custo).
-    Fora do legalActions até a mesa (src/app/table.js) desenhar o botão: o guarda-corpo tela.acoes cobra botão para toda ação oferecida. */
+    Desde a K-73 (decisão D2 do dono) entra no legalActions e a mesa desenha o botão "Suspender" (src/app/table.js). */
 function ofertasSuspenderK(s, p) {
   const out = [];
   for (const oid of s.zones[p].hand) {
@@ -27378,6 +27378,7 @@ function describe(before, a, events, after) {
     case 'pick_target': { const op = ((before.pending || {}).options || [])[a.index]; const nome = op ? (op.player != null ? who(before, op.player) : nameOf(before, op.oid)) : null;
       L.push(a.nenhum ? `${P} não escolheu alvo para ${(before.pending || {}).name || 'o gatilho'}` : nome ? `${P} escolheu ${nome} como alvo de ${(before.pending || {}).name || 'o gatilho'}` : `${P} escolheu o alvo de ${(before.pending || {}).name || 'o gatilho'}`); break; }
     case 'plot': L.push(`${P} tramou ${nameOf(before, a.oid)} (plot): fica no exílio para conjurar sem pagar num turno seguinte`); break; // Leva 121
+    case 'suspender_k': L.push(`${P} suspendeu ${nameOf(before, a.oid)}: vai para o exílio com marcadores de tempo e, quando sair o último, é conjurada sem pagar`); break; // K-73
     case 'unmorph': L.push(`${P} virou ${nameOf(after, a.oid)} para cima`); break; // Leva 121
     case 'transmute': L.push(`${P} transmutou ${nameOf(before, a.oid)}`); break;
     case 'unearth': L.push(`${P} desenterrou ${nameOf(before, a.oid)}`); break; // M-257
@@ -30316,6 +30317,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
         : a.t === 'unmorph' ? doBtn(`Virar para cima · ${a.manifest ? costLabel(f.cost) || '{0}' : ((f.script || {}).morph || {}).mana || ''}`, a, { variant: 'primary' }) // V-17 · manifestada vira pelo custo de mana da carta (toque autorizado pelo dono em 11/10/2026)
         : a.t === 'cast' && a.faceDown ? doBtn('Conjurar virada para baixo · {3}', a)
         : a.t === 'cast' && a.aerobend ? doBtn('Conjurar por aerobender · {2}' + ((a.targets || []).length ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : ''), a, { variant: 'primary' }) // V-30 · 701.65a: {2} em vez do custo impresso (Toca ponto comum: table.js, uma linha)
+        : a.t === 'suspender_k' ? doBtn(`Suspender · ${(f.suspenderK || {}).mana || ''} (${(f.suspenderK || {}).n || 0} ${((f.suspenderK || {}).n || 0) === 1 ? 'marcador' : 'marcadores'} de tempo)`, a) // K-73 · 702.62a: suspender da mão (decisão D2 do dono, 12/10/2026; Toca ponto comum: table.js)
         : a.t === 'cast' && a.plotted ? doBtn('Conjurar sem pagar' + ((a.targets || []).length ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : ''), a, { variant: 'primary' })
         : a.t === 'cast' ? doBtn(((a.alt != null && f.script && f.script.alt && f.script.alt[a.alt]) ? ((f.script.alt[a.alt].cost || {}).mana ? `Custo alternativo · ${f.script.alt[a.alt].label}` : `Conjurar sem pagar mana · ${f.script.alt[a.alt].label}`) : a.flashback ? `Lampejo do passado · ${custoDoLampejo(f.script.flashback)}` : a.retrace ? 'Retraçar · descartando um terreno' : Array.isArray(a.modes) ? a.modes.map(m => (f.script.modes[m] || {}).label || 'modo').join(' + ') : (f.script && f.script.modes && f.script.modes[a.mode || 0]) ? f.script.modes[a.mode || 0].label : a.permissao != null ? `Conjurar do cemitério (${(s.objects[a.permissao] || {}).name || 'permissão'})` : a.delve ? `Conjurar com delve (exila ${a.delve} do cemitério)` : a.exilaMao ? `Conjurar exilando ${a.exilaMao} ${a.exilaMao > 1 ? 'cartas' : 'carta'} da mão` : (o.zone === 'command' ? `Conjurar da zona de comando (imposto ${E.commanderTax(s, v, oid)})` : a.evidence ? `Conjurar com provas ${(f.script || {}).evidence || ''}`.trim() : 'Conjurar')) + ((a.targets || []).length ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : '')
           // Leva 125 · lampejo e custo alternativo já dizem o que se paga: o custo impresso da carta não entra ("{2}{R} · {R}" confundia)
