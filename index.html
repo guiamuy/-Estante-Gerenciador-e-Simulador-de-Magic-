@@ -7805,7 +7805,7 @@ Object.assign(EXPORTS_T_SC, { divididaErros });
    existem numa Classe: o validador recusa, para o motor não ter dois caminhos de efeito contínuo. */
 function classeErros(sc) {
   const errs = [], sf = sc && sc.self, cl = sf && sf.classe;
-  if (cl == null) return errs;
+  if (cl == null) return !(sf && sf.barraT) && ((sc && sc.abilities) || []).some(ab => ab && ab.when === 'becomes-level') ? ['classe: o gatilho "becomes-level" só existe numa barra de nível de Classe (self.classe)'] : errs; // T-13 · D4 (a barra é validada como um script com `self.barraT`, onde o gatilho vale)
   if (!Array.isArray(cl) || !cl.length) return ['classe: self.classe é a lista das barras de nível (a primeira é o nível 2)'];
   if (sf.dividida || sf.modal || sf.duplaFace || sf.aventura) errs.push('classe: a Classe não é dividida, modal, de transformar nem de aventura');
   if (sc.grants || sc.grantsAll || sf.per || sc.aura || sc.back) errs.push('classe: grants, grantsAll, self.per, aura e face de trás não existem numa Classe (use continuo)');
@@ -7816,7 +7816,7 @@ function classeErros(sc) {
     for (const k of Object.keys(b)) if (!['mana', 'abilities', 'continuo', 'regraJogador'].includes(k)) errs.push(`${tag}: chave "${k}" desconhecida`);
     if (!(typeof b.mana === 'string' && /\{/.test(b.mana))) errs.push(`${tag}: falta o custo de subir de nível (mana)`);
     if (!(b.abilities || []).length && !(b.continuo || []).length && !(b.regraJogador || []).length) errs.push(`${tag}: a barra não dá nada`);
-    const v = validateScript({ name: `${sc.name} (${tag})`, abilities: b.abilities || [], continuo: b.continuo, regraJogador: b.regraJogador, self: {}, example: sc.example || { target: 'none', expect: { selfLife: 0 } } });
+    const v = validateScript({ name: `${sc.name} (${tag})`, abilities: b.abilities || [], continuo: b.continuo, regraJogador: b.regraJogador, self: { barraT: true }, example: sc.example || { target: 'none', expect: { selfLife: 0 } } });
     errs.push(...v.map(e => `${tag}: ${e}`));
   });
   return errs;
@@ -22481,7 +22481,7 @@ Object.assign(EXPORTS_T, { metadesDe, nomesDe });
    - "When this Class becomes level N" (`becomes-level` dentro da barra N) dispara quando o efeito de subir resolve. */
 function nivelDaClasseT(s, o) { const r = o && s.classes && s.classes[o.oid]; return r && r.z === (o.zc || 0) ? r.n : 1; }
 function classeHabilidadesT(s, o, sc, list) {
-  if (!o || o.zone !== 'battlefield') return;
+  if (!o || o.zone !== 'battlefield' || o.phasedOut) return; // T-13 · 702.26b: fora de fase a permanente é tratada como se não existisse (D1)
   const n = nivelDaClasseT(s, o), barras = sc.self.classe;
   barras.forEach((b, i) => { if (n >= i + 2) for (const ab of b.abilities || []) list.push({ ...ab, nivelT: i + 2 }); });
   const prox = barras[n - 1];
@@ -22489,7 +22489,7 @@ function classeHabilidadesT(s, o, sc, list) {
 }
 function nivelDaClasseSobeT(s, src, eff, events) {
   const o = src.ability ? s.objects[src.source] : src;
-  if (!o || o.zone !== 'battlefield' || (eff.z != null && (o.zc || 0) !== eff.z)) { events.push({ kind: 'effect', do: 'nivel_classe', name: src.name, failed: true }); return; }
+  if (!o || o.zone !== 'battlefield' || o.phasedOut || (eff.z != null && (o.zc || 0) !== eff.z)) { events.push({ kind: 'effect', do: 'nivel_classe', name: src.name, failed: true }); return; } // T-13 · 702.26b: fora de fase não sobe (D2)
   (s.classes = s.classes || {})[o.oid] = { z: o.zc || 0, n: eff.n };
   events.push({ kind: 'effect', do: 'nivel_classe', name: o.name, target: o.name, amount: eff.n });
   for (const ab of abilitiesOf(s, o)) {
@@ -22520,7 +22520,7 @@ function rotulosDaClasseT(s, oid, legal, custo) {
     const i = a.index || 0, ab = abs[i]; if (!ab || i < impressas) continue;
     const resto = (b.label || '').includes(' → ') ? b.label.slice(b.label.indexOf(' → ')) : '';
     if (ab.classeNivelT) b.label = `Subir para o nível ${ab.classeNivelT} · ${ab.cost.mana}`;
-    else { const c = custo(ab); b.label = `Ativar${c ? ` (${c})` : ''}${resto}`; }
+    else { const c = custo(ab); b.label = `${ab.label || 'Ativar'}${c ? ` (${c})` : ''}${resto}`; } // T-13 · o rótulo que o script dá à ativada da barra (D3)
   }
 }
 Object.assign(EXPORTS_T, { nivelDaClasseT, rotulosDaClasseT });
@@ -24996,7 +24996,7 @@ const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas
 /* ↓ T · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha tipos */
 const EFEITO_PT_T = { nivel_classe: e => `a Classe sobe para o nível ${e.n}`, tripulada: () => 'vira criatura artefato até o fim do turno', transformar: () => 'transforma (vira a outra face)' }; // T-7 · 701.27
 /** T-7 · linhas do registro para os eventos da trilha tipos. */
-const LINHA_T = { nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe não está mais no campo, não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
+const LINHA_T = { nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
 function descreveEfeito(e) {
   if (!e || !e.do) return '';
   if (EFEITO_PT_V[e.do]) return EFEITO_PT_V[e.do](e); // V-1 · Toca ponto comum: descreveEfeito (frases da trilha verbos)

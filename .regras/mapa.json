@@ -10556,7 +10556,7 @@
     "613"
    ],
    "cartas": "rara",
-   "evidencia": "T-12 (12/10/2026): 716.2a — `abilitiesOf` dá as habilidades das barras alcançadas e, no campo, a ativada da barra seguinte (custo da barra, só como feitiço, só no nível N−1); o efeito `nivel_classe` sobe o nível e dispara \"When this Class becomes level N\" (`becomes-level`); `continuo` e `regraJogador` da barra valem a partir do nível dela. 716.2b/716.2d — o nível é designação do objeto (`s.classes[oid]` com a encarnação), não copiável, nível 1 sem registro. Mesa: \"Subir para o nível N · custo\"; registro \"X subiu para o nível N\".",
+   "evidencia": "T-12 (12/10/2026): 716.2a — `abilitiesOf` dá as habilidades das barras alcançadas e, no campo, a ativada da barra seguinte (custo da barra, só como feitiço, só no nível N−1); o efeito `nivel_classe` sobe o nível e dispara \"When this Class becomes level N\" (`becomes-level`); `continuo` e `regraJogador` da barra valem a partir do nível dela. 716.2b/716.2d — o nível é designação do objeto (`s.classes[oid]` com a encarnação), não copiável, nível 1 sem registro. Mesa: \"Subir para o nível N · custo\"; registro \"X subiu para o nível N\". T-13 (12/10/2026) · auditoria independente (204 conferências, fuzz de 220 partidas, 807.060 pedidos diretos de ativar): Classe fora de fase não sobe (nem pela subida que já estava na pilha) e não oferece a barra; o validador recusa `becomes-level` fora de Classe; a folha mostra o rótulo e o custo da ativada de uma barra.",
    "testes": [
     "CR 716.2a · subir de nível: só a barra seguinte (nível atual + 1), pelo custo dela, e só como feitiço — fora disso não é oferecida e o pedido é recusado",
     "CR 716.2a · \"só como feitiço\": no turno do oponente, com a pilha ocupada ou na etapa de combate a barra não é oferecida",
@@ -10567,7 +10567,9 @@
     "S8 · Stormchaser’s Talent: ao entrar, uma Lontra 1/1 azul e vermelha com proeza; nível 2 devolve uma instantânea ou feitiço do cemitério à mão; nível 3 cria uma Lontra a cada instantânea ou feitiço que você conjura",
     "CR 716 · validador: barra sem custo, chave desconhecida, barra vazia, \"becomes-level\" fora da barra e grants numa Classe são recusados; erros dentro da barra dizem o nível",
     "CR 716 · mesa e registro: o botão diz \"Subir para o nível 2 · {1}\" e a ativada de um nível diz o custo dela; a pilha explica e o registro diz que a Classe subiu",
-    "CR 716 · partida sem Classe não ganha nada no estado; passeio aleatório com Classes: nada oferecido é recusado e o nível nunca passa de 3 nem pula"
+    "CR 716 · partida sem Classe não ganha nada no estado; passeio aleatório com Classes: nada oferecido é recusado e o nível nunca passa de 3 nem pula",
+    "CR 702.26b · 716.2a · Classe fora de fase: não sobe — a subida não é oferecida nem aceita, e a que já estava na pilha resolve sem subir e sem disparar (D1, D2)",
+    "CR 716 · mesa: a ativada de uma barra com `label` no script mostra o rótulo e o custo (D3); validador: \"becomes-level\" fora de Classe é recusado (D4)"
    ]
   },
   {

@@ -207,3 +207,31 @@ test('CR 716 · partida sem Classe não ganha nada no estado; passeio aleatório
   }
   assert.ok(subidas > 5, 'subidas de nível no passeio: ' + subidas);
 });
+
+/* ================= T-13 · correções da auditoria independente das Classes ================= */
+Object.assign(SCRIPTS, { 'Pisca': { name: 'Pisca', effects: [{ do: 'sai_de_fase', target: 'permanent' }], ...EX } }); // "a permanente alvo sai de fase"
+carta('Pisca', 'Instant');
+
+test('CR 702.26b · 716.2a · Classe fora de fase: não sobe — a subida não é oferecida nem aceita, e a que já estava na pilha resolve sem subir e sem disparar (D1, D2)', () => {
+  let [s, c] = conjuraClasse(mesa(['Escola', 'Pisca']), 0, 'Escola'); s = mana(s, 0);
+  const idx = E.abilitiesOf(s, s.objects[c]).filter(x => x.kind === 'activated').findIndex(x => x.classeNivelT);
+  let t = act(s, subir(s, 0, c)[0]);
+  let pi; [t, pi] = poe(t, 0, 'Pisca', 'hand'); t = mana(t, 0);
+  t = act(t, legais(t, 0, a => a.t === 'cast' && a.oid === pi && (a.targets || [])[0] && a.targets[0].oid === c)[0]);
+  const v0 = vida(t);
+  t = esvazia(t);
+  eq([!!t.objects[c].phasedOut, nivel(t, c), vida(t) - v0], [true, 1, 0], 'fora de fase: a subida resolve sem subir, e o "virou nível 2" não dispara');
+  t = mana(t, 0);
+  assert.equal(subir(t, 0, c).length, 0);
+  assert.throws(() => E.apply(t, { t: 'activate', p: 0, oid: c, index: idx }), RegExp(''), 'pedido direto recusado');
+});
+
+test('CR 716 · mesa: a ativada de uma barra com `label` no script mostra o rótulo e o custo (D3); validador: "becomes-level" fora de Classe é recusado (D4)', () => {
+  const sc = { name: 'Rotulada', abilities: [{ kind: 'triggered', when: 'etb', effects: ganha(1) }], self: { classe: [{ mana: '{1}', abilities: [{ kind: 'activated', label: 'Rezar', cost: { tap: true }, effects: ganha(2) }] }] }, ...EX };
+  eq([...S.validateScript(sc)], []);
+  SCRIPTS.Rotulada = sc; carta('Rotulada', 'Enchantment — Class');
+  let [s, c] = conjuraClasse(mesa(['Rotulada']), 0, 'Rotulada'); s = sobe(s, 0, c);
+  const legal = legais(s, 0, a => a.t === 'activate' && a.oid === c).map(action => ({ label: 'Ativar', action }));
+  E.rotulosDaClasseT(s, c, legal, ab => (ab.cost.tap ? '{T}' : '')); eq(legal.map(b => b.label), ['Rezar ({T})']);
+  assert.match(S.validateScript({ name: 'Y', abilities: [{ kind: 'triggered', when: 'becomes-level', effects: ganha(1) }], ...EX }).join(' | '), /só existe numa barra de nível/);
+});
