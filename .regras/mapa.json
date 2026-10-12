@@ -7979,15 +7979,21 @@
    "n": "702.88",
    "regra": "Keyword Abilities",
    "titulo": "Rebound",
-   "status": "ausente",
-   "falta": "Sem exilar em vez de ir ao cemitério quando conjurada da mão, nem o gatilho atrasado da próxima manutenção para conjurar sem pagar (702.88a-c).",
+   "status": "coberta",
    "esforco": "M",
    "depende": [
     "614",
     "603.7",
     "601 (conjurar sem pagar)"
    ],
-   "cartas": "rara (Ephemerate é peça de Pauper)"
+   "cartas": "rara (Ephemerate é peça de Pauper)",
+   "evidencia": "K-35: a linha \"Rebound\" (ricocheteImpressoK) faz a mágica conjurada da mão do dono ir para o exílio ao resolver (destinoAoResolverK, chamado de resolveTop; anulada, tirada da pilha ou sem alvo legal, 608.2b, vai ao cemitério) com a marca ricocheteK (MARCAS_DA_CONJURACAO: sai do exílio, acabou). Na próxima manutenção do dono (ricocheteNaManutencaoK, de enterStep; a do oponente não conta), o gatilho atrasado vai para a pilha e abre a decisão \"conjurar sem pagar\" (free_cast, que a mesa já desenha); conjurada do exílio, vai para o cemitério; recusou, continua exilada sem permissão (decline_free). 702.88c: uma marca só. Staggershock e Prey's Vengeance em RAW_SCRIPTS (S8).",
+   "testes": [
+    "CR 702.88a · ricochete (Staggershock, texto oficial): conjurada da mão, vai para o exílio ao resolver; na SUA próxima manutenção (não na do oponente) você pode conjurá-la sem pagar, e aí vai para o cemitério",
+    "CR 702.88a · ricochete: recusar deixa a carta no exílio (sem permissão de jogar depois); tirada da pilha sem resolver, cemitério",
+    "CR 702.88a · ricochete com o alvo ilegal (608.2b): não resolve, cemitério",
+    "K-35 · ricochete (702.88): o +2/+2 da mão faz o Urso causar 4 e a carta vai para o exílio, não para o cemitério"
+   ]
   },
   {
    "n": "702.89",

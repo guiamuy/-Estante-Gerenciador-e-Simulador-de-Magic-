@@ -615,6 +615,18 @@ test('K-34 · entrelaçar (702.42): Dream’s Grip com os dois modos vira o bloq
   assert.equal(s.objects[b].tapped, true); assert.equal(s.objects[u].tapped, false);
   assert.equal(combate(s, [u], [[b, u]]).players[d].life, 18, 'o bloqueador virado não bloqueia');
 });
+test('K-35 · ricochete (702.88): o +2/+2 da mão faz o Urso causar 4 e a carta vai para o exílio, não para o cemitério', () => {
+  cobre('rebound');
+  const cartas = { ...CARDS, Vinganca: { name: 'Vinganca', type_line: 'Instant', mana_cost: '{G}', cmc: 1, colors: ['G'], keywords: ['Rebound'], oracle_text: 'Target creature gets +2/+2 until end of turn.\nRebound' } };
+  const scripts = { ...SCRIPTS, Vinganca: { name: 'Vinganca', effects: [{ do: 'pump', power: 2, toughness: 2, target: 'creature' }], example: { target: 'own-creature', expect: { pump: [2, 2] } } } };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 59, mode: 'assisted', manaCheck: false, cards: cartas, scripts, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a; let u, v; [s, u] = poe(s, a, 'Urso'); [s, v] = poe(s, a, 'Vinganca', { zone: 'hand' });
+  s = act(s, { t: 'cast', p: a, oid: v, targets: [{ oid: u }] }); for (let i = 0; i < 4 && s.stack.length; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  assert.equal(s.objects[v].zone, 'exile');
+  assert.equal(combate(s, [u]).players[d].life, 16);
+});
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));

@@ -1463,3 +1463,48 @@ test('CR 702.42a · entrelaçar que não é mana (Betrayal of Flesh, texto ofici
   let v = J(s); for (const x of v.zones[a].battlefield.filter(x => v.objects[x].name === 'Forest').slice(0, 2)) { const z = v.zones[a].battlefield; z.splice(z.indexOf(x), 1); v.zones[a].graveyard.push(x); v.objects[x].zone = 'graveyard'; }
   assert.equal(E.legalActions(v, a).filter(x => x.t === 'cast' && x.oid === b && x.mode === ie).length, 0, 'com dois terrenos, sem entrelaçar');
 });
+
+/* ---------------- K-35 · ricochete 702.88 ---------------- */
+const SC_STAGGER = { Staggershock: { name: 'Staggershock', effects: [{ do: 'damage', amount: 2, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: -2 } } } };
+/** Passa até o começo do passo `passo` do turno do jogador `quem` (ou até uma decisão pendente aparecer). */
+function ateK35(s, quem, passo) { for (let i = 0; i < 200 && !(s.turn.active === quem && s.turn.step === passo) && !(s.pending && s.pending.kind === 'free_cast'); i++) s = s.pending ? act(s, E.legalActions(s, s.pending.p)[0]) : act(s, { t: 'pass', p: s.turn.priority }); return s; }
+
+test('CR 702.88a · ricochete (Staggershock, texto oficial): conjurada da mão, vai para o exílio ao resolver; na SUA próxima manutenção (não na do oponente) você pode conjurá-la sem pagar, e aí vai para o cemitério', () => {
+  let s = partida({ Staggershock: oficial('Staggershock') }, SC_STAGGER); const a = s.turn.active, d = 1 - a;
+  let k; [s, k] = poe(s, a, 'Staggershock', 'hand');
+  const v = s.players[d].life;
+  s = resolve(act(s, { t: 'cast', p: a, oid: k, targets: [{ player: d }] }));
+  assert.equal(s.players[d].life, v - 2); assert.equal(s.objects[k].zone, 'exile', 'ricocheteou: exílio, não cemitério');
+  s = ateK35(s, d, 'upkeep'); s = act(s, { t: 'pass', p: s.turn.priority });
+  assert.ok(!(s.pending && s.pending.kind === 'free_cast'), 'na manutenção do oponente, nada');
+  s = ateK35(s, a, 'upkeep');
+  for (let i = 0; i < 6 && !s.pending; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  assert.equal((s.pending || {}).kind, 'free_cast', 'na sua manutenção: pode conjurar sem pagar'); assert.deepEqual(J(s.pending.options), [k]);
+  const of = E.legalActions(s, a).find(x => x.t === 'cast_free' && x.oid === k); assert.ok(of, 'a mesa oferece conjurar');
+  const v2 = s.players[d].life;
+  s = act(s, { ...of, targets: [{ player: d }] }); s = resolve(s);
+  assert.equal(s.players[d].life, v2 - 2); assert.equal(s.objects[k].zone, 'graveyard', 'conjurada do exílio: não ricocheteia de novo');
+});
+
+test('CR 702.88a · ricochete: recusar deixa a carta no exílio (sem permissão de jogar depois); tirada da pilha sem resolver, cemitério', () => {
+  let s = partida({ Staggershock: oficial('Staggershock') }, SC_STAGGER); const a = s.turn.active, d = 1 - a;
+  let k; [s, k] = poe(s, a, 'Staggershock', 'hand');
+  s = resolve(act(s, { t: 'cast', p: a, oid: k, targets: [{ player: d }] }));
+  s = ateK35(s, a, 'upkeep'); for (let i = 0; i < 6 && !s.pending; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  s = act(s, E.legalActions(s, a).find(x => x.t === 'decline_free'));
+  assert.equal(s.objects[k].zone, 'exile'); assert.ok(!s.objects[k].playableFromExile, 'recusou: continua exilada, sem permissão');
+  s = ateK35(s, a, 'main1');
+  assert.ok(!E.legalActions(s, a).some(x => x.t === 'cast' && x.oid === k), 'não conjura depois');
+  let u = partida({ Staggershock: oficial('Staggershock') }, SC_STAGGER); const au = u.turn.active; let k3; [u, k3] = poe(u, au, 'Staggershock', 'hand');
+  u = act(u, { t: 'cast', p: au, oid: k3, targets: [{ player: 1 - au }] }); u = act(u, { t: 'move', p: au, oid: k3, to: 'graveyard' });
+  assert.equal(u.objects[k3].zone, 'graveyard', 'tirada da pilha sem resolver: cemitério');
+});
+
+test('CR 702.88a · ricochete com o alvo ilegal (608.2b): não resolve, cemitério', () => {
+  const SC = { "Prey's Vengeance": { name: "Prey's Vengeance", effects: [{ do: 'pump', power: 2, toughness: 2, target: 'creature' }], example: { target: 'own-creature', expect: {} } } };
+  let s = partida({ "Prey's Vengeance": oficial("Prey's Vengeance"), Urso: URSO }, SC); const a = s.turn.active;
+  let k, u; [s, k] = poe(s, a, "Prey's Vengeance", 'hand'); [s, u] = poe(s, a, 'Urso');
+  s = act(s, { t: 'cast', p: a, oid: k, targets: [{ oid: u }] });
+  s = J(s); const z = s.zones[a].battlefield; z.splice(z.indexOf(u), 1); s.zones[a].graveyard.push(u); s.objects[u].zone = 'graveyard';
+  s = resolve(s); assert.equal(s.objects[k].zone, 'graveyard');
+});

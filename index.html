@@ -5218,6 +5218,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'spectacle', 'surge', // K-32 · 702.137 e 702.117: custo alternativo impresso com condição (altsImpressosK, condicaoDoAltK)
   'buyback', // K-33 · 702.27: custo adicional opcional lido da linha (recompraImpressaK); pago, a mágica volta para a mão ao resolver
   'entwine', // K-34 · 702.42: o modo "todos os modos" com custo adicional (modoEntrelacadoK), lido da linha (entrelacarImpressoK)
+  'rebound', // K-35 · 702.88: conjurada da mão, vai para o exílio ao resolver e volta na sua próxima manutenção (ricocheteNaManutencaoK)
   'afflict', 'melee', 'mentor', 'training', // K-31 · 702.130, 702.121, 702.134, 702.149: gatilhos de ataque gerados pela palavra, um por instância
   'battle cry', 'rampage', 'flanking', 'bushido', // K-30 · 702.91, 702.23, 702.25, 702.45: gatilhos de combate gerados pela palavra (GATILHOS_DE_PALAVRA_K), um por instância
   /* ↓ V · palavras-chave da trilha verbos */
@@ -6408,6 +6409,8 @@ const RAW_SCRIPTS = [
     example: { action: 'mode:0', target: 'enemy-creature', expect: { tapped: true } } },
   { name: 'Betrayal of Flesh', modes: [{ label: 'Destruir uma criatura', effects: [{ do: 'destroy', target: 'creature' }] }, { label: 'Criatura do seu cemitério ao campo', effects: [{ do: 'reanimate', target: 'creature-in-your-graveyard' }] }], // K-34 · "Choose one — • Destroy target creature. • Return target creature card from your graveyard to the battlefield. / Entwine—Sacrifice three lands."
     example: { action: 'mode:0', target: 'enemy-creature', expect: { gone: true } } },
+  { name: 'Staggershock', effects: [{ do: 'damage', amount: 2, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: -2 } } }, // K-35 · "deals 2 damage to any target. / Rebound"
+  { name: "Prey's Vengeance", effects: [{ do: 'pump', power: 2, toughness: 2, target: 'creature' }], example: { target: 'own-creature', expect: { pump: [2, 2] } } }, // K-35 · "Target creature gets +2/+2 until end of turn. / Rebound" 
   /* ↓ V · scripts de carta da trilha verbos (texto oficial em .listas/oficiais-verbos.json) */
   // V-28 · 701.66 terrabender
   { name: 'Earthbending Lesson', effects: [{ do: 'earthbend', amount: 4, target: 'land-you-control' }], // "Earthbend 4."
@@ -15845,6 +15848,7 @@ function cardFacts(card) {
     espetaculoK: custoDaLinhaK(card, 'Spectacle'), surtoK: custoDaLinhaK(card, 'Surge'), // K-32 · 702.137 e 702.117
     recompraK: recompraImpressaK(card), // K-33 · 702.27: "Buyback {3}" / "Buyback—Sacrifice a land." (undefined quando não tem)
     entrelacarK: entrelacarImpressoK(card), // K-34 · 702.42: "Entwine {2}" / "Entwine—Sacrifice three lands." (undefined quando não tem)
+    ricocheteK: ricocheteImpressoK(card), // K-35 · 702.88: linha "Rebound" (undefined quando não tem)
     suspenderK: suspenderImpressoK(card), // K-22 · 702.62a: "Suspend N—{custo}" (undefined quando não tem)
     equipesK: equipesImpressosK(card), // K-28 · 702.6c: "Equip [qualidade] {custo}" (undefined quando não tem)
     jogadorK: jogadorImpressoK(card), // K-26 · 702.11c / 702.18a: "You have hexproof." / "You have shroud." (undefined quando não tem)
@@ -17274,6 +17278,7 @@ function enterStep(s, step) {
   // CR2-G R2b · 603.2b · começo do passo: na manutenção, os do jogador ativo vêm antes dos atrasados (como antes)
   if (step === 'upkeep') disparaPasso(s, step, 'seu');
   if (step === 'upkeep') for (const oid of s.zones[a].exile) { const x = s.objects[oid]; if (x && x.suspensa && (x.counters.time || 0) > 0) s.queued.push({ source: oid, name: x.name, controller: a, effects: [{ do: 'tirar_tempo' }], when: 'suspender' }); } // M-269 · 702.62a
+  if (step === 'upkeep') ricocheteNaManutencaoK(s, a); // K-35 · 702.88a: "at the beginning of your next upkeep" (Toca ponto comum: enterStep)
   // CR 603.7 · gatilhos atrasados: disparam uma vez, no próximo começo do passo pedido, e somem. A manutenção é "do próximo
   // turno"; o passo final e o fim do combate são os próximos a começar (criado dentro do próprio passo, espera o seguinte)
   const momento = { upkeep: 'next-upkeep', end: 'next-end-step', combat_end: 'end-of-combat' }[step];
@@ -18730,6 +18735,14 @@ function applyEffect(s, src, eff, tgt, events) {
       break;
     }
     /* ↓ K · casos de applyEffect da trilha keywords */
+    case 'ricochete_k': { // K-35 · 702.88a: "you may cast this card from exile without paying its mana cost" (601.2b: custo alternativo)
+      const carta = s.objects[src.ability ? src.source : src.oid];
+      if (!carta || carta.zone !== 'exile' || (carta.zc || 0) !== eff.zc || s.facts[carta.name].types.includes('land')) { events.push({ kind: 'effect', do: 'ricochete_k', name: src.name, failed: true }); break; }
+      carta.playableFromExile = carta.owner;
+      s.pending = { kind: 'free_cast', p: carta.owner, options: [carta.oid], name: carta.name, ricocheteK: true };
+      events.push({ kind: 'effect', do: 'ricochete_k', name: carta.name });
+      break;
+    }
     case 'aflicao_k': { // K-31 · 702.130a: o jogador defensor perde N (perder vida não é dano)
       if (eff.defensor == null || !s.players[eff.defensor] || s.players[eff.defensor].lost) { note({ failed: true }); break; }
       perdeVida(s, eff.defensor, eff.n || 0); note({ target: s.players[eff.defensor].name, amount: eff.n || 0 }); break;
@@ -20021,7 +20034,7 @@ function resolveTop(s, events = []) {
     if (m && m.zone === 'battlefield' && s.facts[m.name]) { const exc = excecaoCopiavel(s, m, { somaTipos: f.script.entraComoCopia.somaTipos }); o.nomeImpresso = o.name; o.copias = [{ ...(exc ? { excecao: exc } : {}), nome: nomeCopiavel(s, m), ate: 'sempre', by: controller, ts: relogio(s), turno: s.turn.number }]; o.name = m.name; } }
   if (scripted && !comoCopia) resolveScript(s, o, events);
   { const av = aventuraResolveu(s, item, o, controller, events); if (av) return { kind: 'resolved', oid: item, name: av, to: (s.objects[item] || {}).zone || 'exile', scripted: true, adjudicate: false }; } // T-5 · CR 715.3d · a Aventura que resolve é exilada pelo controlador, que pode conjurar a carta de lá (função abaixo da âncora T das exportações)
-  { const rk = recompraAoResolverK(s, item, o, dest, events); if (rk) return { kind: 'resolved', oid: item, name: o.name, to: rk, scripted, adjudicate: s.mode === 'assisted' && !scripted }; } // K-33 · 702.27a (Toca ponto comum: resolveTop)
+  { const rk = destinoAoResolverK(s, item, o, dest, events); if (rk) return { kind: 'resolved', oid: item, name: o.name, to: rk, scripted, adjudicate: s.mode === 'assisted' && !scripted }; } // K-33 · 702.27a recompra · K-35 · 702.88a ricochete (Toca ponto comum: resolveTop)
   if (s.objects[item].zone === 'stack' && o.omen) { // S24 · presságio volta embaralhado para o grimório
     moveObject(s, item, 'library');
     shuffle(s, s.zones[s.objects[item].owner].library);
@@ -20595,6 +20608,7 @@ const HANDLERS = {
     if (s.pending.escondida || s.pending.suspensa) for (const oid of s.pending.options || []) if (s.objects[oid]) delete s.objects[oid].playableFromExile; // M-268/M-269 · continua exilada
     if (s.pending.cascataK) { for (const oid of s.pending.options || []) if (s.objects[oid]) delete s.objects[oid].playableFromExile; cascataAoFundoK(s, a.p, s.pending.cascataK.exiladas); } // K-7 · recusou: todas para o fundo, em ordem aleatória
     cercoRecusadoT(s, s.pending); // T-14 · CR 310.12b · recusou: o Cerco continua exilado, sem permissão · Toca ponto comum: decline_free (uma linha)
+    if (s.pending.ricocheteK) for (const oid of s.pending.options || []) if (s.objects[oid]) delete s.objects[oid].playableFromExile; // K-35 · 702.88a: recusou, continua exilada (Toca ponto comum: decline_free)
     s.pending = null;
     if (!continueUnless(s, ev)) resumeEffects(s, ev);
   },
@@ -21922,6 +21936,7 @@ Object.assign(EXPORTS_K, { valorDaMagicaK });
 MARCAS_DA_CONJURACAO.push('evocadaK', 'arremetidaK'); // K-9 · arremeter usa o mesmo caminho
 MARCAS_DA_CONJURACAO.push('espetaculoK', 'surtoK'); // K-32
 MARCAS_DA_CONJURACAO.push('recompraK'); // K-33 · 702.27a: some ao sair da pilha (400.7)
+MARCAS_DA_CONJURACAO.push('ricocheteK'); // K-35 · 702.88a: o gatilho atrasado vale para este objeto no exílio; saiu de lá, acabou (400.7)
 const COR_DO_NOME_K = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
 const COR_PT_K = { W: 'branca', U: 'azul', B: 'preta', R: 'vermelha', G: 'verde' };
 /** O custo de evocar impresso na face da frente: { mana: '{2}{U}' } ou { exileHandColor: 'G' } ("Evoke—Exile a green card from your
@@ -22379,12 +22394,17 @@ function pagaRecompraK(s, a, o, alt) {
   s.objects[a.oid].recompraK = true;
 }
 /** resolveTop · "as it resolves": a mágica com recompra paga vai para a mão do dono em vez do cemitério. Devolve a zona final, ou null. */
-function recompraAoResolverK(s, item, o, dest, events) {
+function destinoAoResolverK(s, item, o, dest, events) {
   const x = s.objects[item];
-  if (!x || x.zone !== 'stack' || !x.recompraK || dest !== 'graveyard' || x.copiaDeMagia || x.omen) return null;
+  if (!x || x.zone !== 'stack' || dest !== 'graveyard' || x.copiaDeMagia || x.omen) return null;
   if (events.some(e => e.kind === 'fizzled' && e.oid === item)) return null; // 608.2b · não resolveu
-  moveObject(s, item, 'hand'); // lampejo do passado: moveObject manda ao exílio (702.34a)
-  return (s.objects[item] || {}).zone || 'hand';
+  if (x.recompraK) { moveObject(s, item, 'hand'); return (s.objects[item] || {}).zone || 'hand'; } // lampejo do passado: moveObject manda ao exílio (702.34a)
+  if (s.facts[x.name].ricocheteK && x.castFrom === 'hand' && !x.flashback) { // K-35 · 702.88a: "if this spell was cast from your hand, … exile it"
+    moveObject(s, item, 'exile'); const e = s.objects[item];
+    if (e && e.zone === 'exile') e.ricocheteK = { turno: s.turn.number }; // o gatilho atrasado da próxima manutenção do dono (ricocheteNaManutencaoK)
+    return (e || {}).zone || 'exile';
+  }
+  return null;
 }
 /** legalActions · a variante com recompra de cada conjuração pelo custo normal (sem custo alternativo, lampejo, conceder, convocar, vida
     phyrexiana): a mesma conferência que HANDLERS.cast fará (custo + recompra, com as reduções); custo extra, uma ação por forma de pagar. */
@@ -22403,7 +22423,7 @@ function ofertasRecompraK(s, p, out) {
     for (const pg of formas.slice(0, LIMITE_PAGAMENTOS)) out.push({ ...x, recompraK: true, ...(Object.keys(pg).length ? { pay: { ...(x.pay || {}), recompraK: pg } } : {}) });
   }
 }
-Object.assign(EXPORTS_K, { recompraImpressaK, pagaRecompraK, recompraAoResolverK, ofertasRecompraK });
+Object.assign(EXPORTS_K, { recompraImpressaK, pagaRecompraK, destinoAoResolverK, ofertasRecompraK });
 /* K-34 · 702.42 entrelaçar: "Entwine [cost]" = "You may choose all modes of this spell instead of just the number specified. If you do, you
    pay an additional [cost]" (601.2b, 601.2f–h); 702.42b: pago, segue o texto de cada modo na ordem impressa. O "escolher todos" vira mais um
    modo do script (modoEntrelacadoK: os efeitos de cada modo, na ordem, cada um com a marca do seu modo, para "o mesmo alvo" valer dentro dele),
@@ -22455,6 +22475,23 @@ function ofertasEntrelacarK(s, p, out) {
   }
 }
 Object.assign(EXPORTS_K, { entrelacarImpressoK, modoEntrelacadoK, pagaEntrelacarK, ofertasEntrelacarK });
+/* K-35 · 702.88 ricochete: "If this spell was cast from your hand, instead of putting it into your graveyard as it resolves, exile it and, at
+   the beginning of your next upkeep, you may cast this card from exile without paying its mana cost." A troca de destino mora em
+   destinoAoResolverK (só se resolver: anulada ou sem alvo legal, 608.2b, vai ao cemitério); a marca `ricocheteK` no objeto exilado é o
+   gatilho atrasado, que dispara na próxima manutenção do dono (não na do oponente) e some; a conjuração usa a decisão "conjurar sem pagar"
+   (free_cast), que a mesa já desenha. 702.88c: várias instâncias são redundantes (uma marca só). */
+function ricocheteImpressoK(card) {
+  const txt = String((card && (card.oracle_text || (card.faces && card.faces[0] && card.faces[0].oracle_text))) || '');
+  return txt.split('\n').some(l => /^rebound$/i.test(l.replace(/\s*\([^)]*\)/g, '').trim())) || undefined;
+}
+function ricocheteNaManutencaoK(s, a) {
+  for (const oid of s.zones[a].exile) {
+    const x = s.objects[oid]; if (!x || !x.ricocheteK || x.owner !== a || !(s.turn.number > x.ricocheteK.turno)) continue;
+    delete x.ricocheteK;
+    s.queued.push({ source: oid, name: x.name, controller: a, effects: [{ do: 'ricochete_k', zc: x.zc || 0 }], when: 'ricochete' });
+  }
+}
+Object.assign(EXPORTS_K, { ricocheteImpressoK, ricocheteNaManutencaoK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-28 · 701.66 terrabender N: "Target land you control becomes a 0/0 land creature with haste in addition to its other types. Put N
    +1/+1 counters on it. When that land dies or is put into exile, return it to the battlefield tapped under your control" (a). A
@@ -26217,9 +26254,11 @@ Object.assign(PALAVRA_PT, { suspend: 'suspender' }); // K-22
 Object.assign(PALAVRA_PT, { spectacle: 'espetáculo', surge: 'surto' }); // K-32
 Object.assign(PALAVRA_PT, { buyback: 'recompra' }); // K-33
 Object.assign(PALAVRA_PT, { entwine: 'entrelaçar' }); // K-34
+Object.assign(PALAVRA_PT, { rebound: 'ricochete' }); // K-35
 Object.assign(PALAVRA_PT, { afflict: 'aflição', melee: 'refrega', mentor: 'mentor', training: 'treinamento' }); // K-31
 Object.assign(PALAVRA_PT, { 'battle cry': 'grito de guerra', rampage: 'alvoroço', flanking: 'flanquear', bushido: 'bushido' }); // K-30
 const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consultadas por descreveEfeito; antes a pilha mostrava "proeza k")
+  ricochete_k: () => 'você pode conjurar esta carta do exílio sem pagar o custo de mana (ricochete)', // K-35
   tempestade_k: e => e.n ? `copia esta mágica ${e.n === 1 ? 'uma vez' : e.n + ' vezes'} (tempestade; cada cópia pode ter alvo novo)` : 'copia esta mágica para cada mágica conjurada antes dela neste turno (nenhuma)',
   proeza_k: () => 'esta criatura recebe +1/+1 até o fim do turno (proeza)',
   explorar_k: () => '', // o sacrifício já se descreve; esta é só a foto de antes e de depois
