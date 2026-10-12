@@ -9361,6 +9361,21 @@ segredo do repositório. O `main` não recebe commit do coletor.
 
 ---
 
+## Trilha homologacao · prova de partida do catálogo (H)
+
+O que a cobertura não mede: se a lista que **pode** jogar no modo completo **joga** do começo ao fim. A prova faz partidas inteiras com as listas reais do catálogo (ramo `catalogo`), com ações sorteadas de `legalActions`, e devolve a carta culpada de cada falha para a trilha dona. Não entra no portão (leva minutos); o que ela acha vira teste em `homologacao.catalogo.unit` antes da correção.
+
+**H-1 · Prova de partida do catálogo** 🟡 (leva H-1, motor v110 sem mudança)
+- **Valor:** o objetivo "todas as listas de Pauper jogáveis" passa a ter régua de verdade: lista por lista, joga / falha (com a carta) / cobertura incompleta (com o que falta) / sem dados.
+- **Aceite:** `node catalogo.prova.mjs --forge <cardsfolder do Forge> [--formato pauper] [--partidas 2] [--todas]` lê o catálogo, mede a cobertura com `deckCoverage` (a mesma função da tela), joga as listas cobertas umas contra as outras no modo completo e confere a cada ação que `apply` aceita o que `legalActions` ofereceu, as invariantes e que a partida não trava; `--todas` também joga as listas que não jogam no app (estresse: a falha só aponta o motor quando todas as cartas citadas estão cobertas). Saída: placar no terminal e detalhe em `.tmp/prova-<formato>.json` (cartas culpadas, o que mais impede listas de jogar, nível de cada carta pendente).
+- **Dados das cartas:** Oracle do Forge convertido para a forma da Scryfall e passado pelo `normalizeCard` do app (custo híbrido, phyrexiano e {2/R}, linha de tipo, faces de dupla face, dividida e aventura). Diferenças declaradas: a Scryfall também põe ações de palavra-chave em `keywords` (aqui só as palavras-chave que o texto escreve); o Forge escreve o nome da carta onde a Scryfall atual escreve "this creature".
+- **Primeiro placar (12/10/2026, motor v110, Forge `6c1810d`, 1 a 2 partidas por lista, até 1.000 ações):**
+  - **Pauper, 341 listas:** 41 jogam de verdade (82 partidas, 71 até o fim, nenhuma falha); 297 com cobertura incompleta; 3 sem dados da carta (Darval, Whose Web Protects; Elite Interceptor // Rejoinder). 35 listas estão a uma carta de jogar (Kruphix's Insight 7, Sazacap's Brew 6, Melded Moxite 4, Gingerbread Cabin 3).
+  - **Estresse (`--todas`), 1.311 listas de Pauper, Modern, Legacy, Vintage, Pioneer e Standard:** dois achados, os dois só com cartas cobertas — (1) Daze devolvendo terreno com o tipo Ilha que não se chama Island (Tundra, Snow-Covered Island): oferecido e recusado, 78 listas de Legacy/Vintage → **H-2**; (2) a invariante de contagem de cartas conta a cópia de mágica na pilha (replicar, tempestade: Lose Focus, Weather the Storm, Reaping the Graves) → pedido à trilha `motor` (`invariants`, core.js: excluir `copiaDeMagia`, 707.10); a prova refaz a conta sem as cópias e registra aviso.
+  - **Fora da divisão do Pauper (cartas/listas):** Blood Fountain (34 listas), Militia Bugler, Rancid Earth e Vision of Love estão manuais e não aparecem em nenhuma das duas listas de cartas das trilhas `cartas` (A–L) e `listas` (M–Z); outras 60 pendentes são "lidas pelo motor, em revisão" (trilha `motor`).
+- **Testes:** `catalogo.prova.unit` (5): custo, linha de tipo, uma face com palavra-chave impressa × regra interna do Forge, dupla face e dividida, e uma partida do acervo que anda sem falha.
+- **Fora:** carta que nunca é jogada nas partidas (oferta que some) e partidas Shark × Shark ficam para a H-3; Commander com o comandante na zona de comando a conferir na H-3.
+
 ## 8. Como publicar e verificar
 
 ### Publicar a partir de uma conversa (padrão desde a leva 124)
@@ -9384,6 +9399,7 @@ Regras completas em `CLAUDE.md`. Trilhas em uso (o nome vai no rodapé `Trilha:`
 | `verbos` | CR3 · ações de palavra-chave (701); só abaixo das âncoras `↓ V` (levas `V-N`) |
 | `tipos` | CR5 · tipos e formatos de carta (Sagas, Veículos, aventuras, dupla face, batalhas, Classes); só abaixo das âncoras `↓ T` (levas `T-N`) |
 | `cartas` | Pauper, cartas de A a L: scripts à mão com texto oficial em `.listas/oficiais-cartas.json`; só abaixo da âncora `↓ C` dos scripts (levas `C-N`) |
+| `homologacao` | prova de partida do catálogo (`catalogo.prova.mjs`, fora do portão) e correção dos achados com teste antes (levas `H-N`) |
 
 ### Publicar pela interface web
 
