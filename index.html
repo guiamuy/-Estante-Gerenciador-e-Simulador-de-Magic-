@@ -6547,7 +6547,7 @@ const RAW_SCRIPTS = [
   { name: 'Twiddle', effects: [{ do: 'tap', target: 'permanent' }], example: { target: 'enemy-creature', expect: { tapped: true } } },
   { name: 'Sleep Spell', effects: [{ do: 'tap', target: 'creature' }], example: { target: 'enemy-creature', expect: { tapped: true } } },
   // cartas das listas do usuário (E11)
-  { name: 'Terminate', effects: [{ do: 'destroy', target: 'creature' }], example: { target: 'enemy-creature', expect: { gone: true } } },
+  { name: 'Terminate', effects: [{ do: 'destroy', target: 'creature', semRegenerar: true }], example: { target: 'enemy-creature', expect: { gone: true } } }, // M-317 · "It can't be regenerated" (o script ignorava a frase desde que a regeneração existe, CR2-G R5c)
   // R11 · conferida contra .listas/oficiais-commander.json (consultas de 05/10/2026)
   // R11 · estes três eram contados como completos só pelo texto de mana; falta uma frase que muda a partida (primitivas na R11.2)
   // R11.2 · texto em .listas/oficiais-commander.json (consultas de 05/10/2026)
@@ -14945,6 +14945,7 @@ const __m42 = (function () {
     const partes = texto.replace(new RegExp(escapa(nome), 'g'), '~').replace(/, then shuffle and put that card on top(\.?)$/i, ', put that card on top of your library, then shuffle$1').split(/\.\s+|,\s+then\s+|\.$/).map(x => x.replace(/\.$/, '').trim()).filter(Boolean);
     let ok = true;
     for (const p of partes) {
+      if (/^it can't be regenerated$/i.test(p) && efeitos.length && efeitos[efeitos.length - 1].do === 'destroy') { efeitos[efeitos.length - 1].semRegenerar = true; frases.push({ texto: p, lida: true }); continue; } // M-317 · 701.19c
       const e = leFrase(p);
       if (e) { frases.push({ texto: p, lida: true }); efeitos.push(...e); } else { frases.push({ texto: p, lida: false, motivo: 'frase sem padrão conhecido' }); ok = false; }
     }

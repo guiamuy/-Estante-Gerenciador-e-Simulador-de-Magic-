@@ -9,7 +9,7 @@ import { loadModules } from './_load.mjs';
 const { leitor: L, scripts: S } = loadModules();
 const CARTAS = [...JSON.parse(readFileSync(new URL('./.listas/oficiais.json', import.meta.url), 'utf8')).cartas, ...JSON.parse(readFileSync(new URL('./.listas/oficiais-commander.json', import.meta.url), 'utf8')).cartas, ...JSON.parse(readFileSync(new URL('./.listas/oficiais-motor.json', import.meta.url), 'utf8')).cartas]; // M-305 · também as cartas dos alicerces
 // o que conta para a regra: efeitos (com os campos que o motor lê), modos e as palavras-chave com custo do topo; rótulos não contam
-const CAMPOS = ['do', 'amount', 'power', 'toughness', 'target', 'unless', 'token', 'targetNotLegendary', 'targetNotColor', 'optional', 'filter', 'to', 'ate', 'anyColor', 'exceptSubtype', 'types', 'nontoken']; // LT5 · M-304: duração de mudança de zona · busca: filtro, destino e "pode"
+const CAMPOS = ['do', 'amount', 'power', 'toughness', 'target', 'unless', 'token', 'targetNotLegendary', 'targetNotColor', 'optional', 'filter', 'to', 'ate', 'anyColor', 'exceptSubtype', 'types', 'nontoken', 'semRegenerar']; // LT5 · M-304: duração de mudança de zona · busca: filtro, destino e "pode"
 const TOPO = ['flashback', 'madness', 'cycling', 'storm', 'delve', 'transmute', 'escape', 'additional', 'affinity', 'aura', 'equip', 'grants', 'grantsAll', 'self', 'entersTapped', 'ninjutsu', 'produces'];
 // `self.keywords` repete a linha de palavras-chave impressa (o motor já a lê da carta): não é regra a mais
 const SO_REPETE = (h, c) => Object.keys(h).every(k => k !== 'self' || (Object.keys(h.self).join() === 'keywords' && h.self.keywords.every(k2 => new RegExp('\\b' + k2 + '\\b', 'i').test(c.oracle_text || ''))));

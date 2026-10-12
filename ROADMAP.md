@@ -3712,6 +3712,11 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Comparador mais rigoroso:** a concordância passa a comparar também `anyColor`, `exceptSubtype`, `types`, `nontoken` dos efeitos e a afinidade (nenhuma divergência apareceu).
 - **Teste:** piso da concordância 112.
 
+**M-317 · Terminate não pode ser regenerada + leitor lê "It can't be regenerated"** ✅ (leva M-317, motor v110 sem mudança de forma; goldens intactos).
+- **Correção (bug de carta):** o script do Terminate ignorava "It can't be regenerated." desde que a regeneração passou a existir no motor (CR2-G R5c): uma criatura com escudo de regeneração sobrevivia ao Terminate. Agora a destruição não deixa regenerar (701.19c). O Polymorph já estava certo.
+- **Leitor:** "It can't be regenerated." depois de um "destroy" vira a mesma destruição sem regeneração; a concordância passa a comparar `semRegenerar`. O erro do script à mão apareceu na lista de cartas "a uma frase de serem lidas" do leitor.
+- **Teste:** `terminate.regenerar.unit` (2 testes; o primeiro falha no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
