@@ -5386,6 +5386,8 @@ const EFFECTS = {
   explorar_k: { fields: ['fase'], targets: [] }, // K-12 · 702.110 · gerado pelo motor (antes e depois do sacrifício)
   proeza_k: { fields: ['z'], targets: [] }, // K-14 · 702.108a · +1/+1 até o fim do turno, só na mesma encarnação (gerado pelo motor)
   /* ↓ V · efeitos da trilha verbos */
+  // V-28 · 701.66 terrabender N (earthbend): o terreno seu alvo vira criatura-terreno 0/0 com ímpeto, recebe N marcadores +1/+1 e volta ao campo virado quando morrer ou for exilado
+  earthbend: { fields: ['amount'], targets: ['land-you-control'] },
   // V-27 · 701.53 incubar N: cria uma ficha Incubadora (dupla face, 111.10i) que entra com N marcadores +1/+1; `vezes` = "incubate N twice"
   incubate: { fields: ['amount'], targets: ['self'] },
   // V-25 · 701.54 o Anel tenta você: quem é tentado ganha o emblema O Anel (701.54c) se ainda não tem e escolhe uma criatura sua para Portador do Anel (a)
@@ -6260,6 +6262,9 @@ function effectErrors(effects, label, opcional) {
   });
   /* ↓ K · validação da trilha keywords */
   /* ↓ V · validação da trilha verbos */
+  effects.forEach((e, i) => { // V-28
+    if (e.do === 'earthbend' && typeof e.amount === 'number' && !(Number.isInteger(e.amount) && e.amount > 0)) errs.push(`${label} ${i + 1} (earthbend): amount precisa ser inteiro positivo`);
+  });
   effects.forEach((e, i) => { // V-27
     if (e.do === 'incubate' && typeof e.amount === 'number' && !(Number.isInteger(e.amount) && e.amount > 0)) errs.push(`${label} ${i + 1} (incubate): amount precisa ser inteiro positivo`);
     if (e.do === 'incubate' && e.vezes != null && !(Number.isInteger(e.vezes) && e.vezes > 1)) errs.push(`${label} ${i + 1} (incubate): vezes precisa ser inteiro maior que 1`);
@@ -6382,6 +6387,9 @@ const RAW_SCRIPTS = [
   { name: 'Skewer the Critics', effects: [{ do: 'damage', amount: 3, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: -3 } } }, // K-32 · "Spectacle {R} / deals 3 damage to any target"
   { name: 'Comparative Analysis', effects: [{ do: 'draw', amount: 2, target: 'player' }], example: { target: 'self-player', expect: { handDelta: 2 } } }, // K-32 · "Surge {2}{U} / Target player draws two cards"
   /* ↓ V · scripts de carta da trilha verbos (texto oficial em .listas/oficiais-verbos.json) */
+  // V-28 · 701.66 terrabender
+  { name: 'Earthbending Lesson', effects: [{ do: 'earthbend', amount: 4, target: 'land-you-control' }], // "Earthbend 4."
+    example: { target: 'own-land', expect: { handDelta: 0 } } }, // o cenário S8 mede a criatura de exemplo, não o terreno: os 4/4 do terreno são provados em verbos.terra.unit
   // V-27 · 701.53 incubar
   { name: 'Eyes of Gitaxias', effects: [{ do: 'incubate', amount: 3 }, { do: 'draw', amount: 1 }], // "Incubate 3. Draw a card."
     example: { target: 'none', expect: { handDelta: 1 } } },
@@ -15932,6 +15940,7 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
   const voltaAFrente = to !== 'battlefield' && to !== 'stack';
   if (voltaAFrente && fromZone !== 'battlefield') flipToFront(s, o); // CR2b.5 · saindo do campo, só depois dos gatilhos (603.10a)
   const palavrasK = fromZone === 'battlefield' && to !== 'battlefield' ? palavrasAoSairK(s, o) : null; // K-14 · 603.10a: a foto antes de ela (e as que saem junto) deixar o campo
+  terraSaiV(s, o, fromZone, to); // V-28 · 701.66a: o terreno terrabendido que morre ou é exilado volta (Toca ponto comum: moveObject)
   const from = zoneList(s, o, o.zone);
   const i = from.indexOf(oid); if (i >= 0) from.splice(i, 1);
   if (to !== fromZone) o.zc = (o.zc || 0) + 1; // CR 400.7 · "encarnação": o alvo que mirou a anterior não vale para esta (mesmaEncarnacao)
@@ -18345,6 +18354,7 @@ function applyEffect(s, src, eff, tgt, events) {
       note({ pending: true }); break;
     }
     /* ↓ V · casos de applyEffect da trilha verbos */
+    case 'earthbend': terraDobraV(s, src, eff, objetoDoVerbo(s, src, eff, tgt), events); break; // V-28 · 701.66
     case 'incubate': incubar(s, src, eff, events); break; // V-27 · 701.53
     case 'ring_tempts': anelTentaV(s, src, events); break; // V-25 · 701.54
     case 'convert': applyEffect(s, src, { ...eff, do: 'transform' }, tgt, events); break; // V-22 · 701.28a: segue as regras de transformar (701.27)
@@ -21792,6 +21802,32 @@ Object.assign(EXPORTS_K, { semPalavraDoJogadorK });
 function tempestadeNaPilhaK(s, a, o) { s.queued.push({ source: a.oid, name: o.name, controller: a.p, effects: [{ do: 'tempestade_k', n: s.spellsThisTurn || 0, efeitos: spellEffects(s, s.objects[a.oid]), marcas: marcasDaMagia(s.objects[a.oid]) }], when: 'storm-gatilho' }); }
 Object.assign(EXPORTS_K, { tempestadeNaPilhaK });
 /* ↓ V · exportações de core.js da trilha verbos */
+/* V-28 · 701.66 terrabender N: "Target land you control becomes a 0/0 land creature with haste in addition to its other types. Put N
+   +1/+1 counters on it. When that land dies or is put into exile, return it to the battlefield tapped under your control" (a). A
+   redefinição (613, camadas 4, 6 e 7b) não tem prazo: vale enquanto o terreno ficar no campo (sai junto com ele, 400.7). O gatilho
+   atrasado (603.7) guarda o terreno e a encarnação: dispara quando ESSE objeto morre ou é exilado, uma vez por terrabender, e o
+   terreno volta virado, sob o controle de quem terrabendeu, pelo caminho de mover (a ficha que deixou de existir não volta). Para
+   outra zona (mão, grimório) o gatilho não dispara e é descartado. "Whenever you earthbend" (b) fica fora. */
+function terraDobraV(s, src, eff, o, events) {
+  const p = src.controller, n = Math.max(0, amountOf(s, src, eff.amount) || 0);
+  if (!o || o.zone !== 'battlefield' || o.controller !== p || !tiposDe(s, o).includes('land')) return void events.push({ kind: 'effect', do: 'earthbend', name: src.name, failed: true });
+  aplicaTemporario(s, o, { vira: { types: ['creature'], base: [0, 0], keywords: ['haste'], addTypes: true, terraV: true }, ate: 'sempre' }, p);
+  if (n > 0) poeMarcadores(s, o, 'p1p1', n);
+  const fonte = src.ability ? s.objects[src.source] : src;
+  (s.terraV = s.terraV || []).push({ oid: o.oid, z: o.zc || 0, p, nome: src.name, fonte: fonte ? fonte.oid : src.oid });
+  events.push({ kind: 'effect', do: 'earthbend', name: src.name, target: o.name, amount: n });
+}
+/** Chamada só por moveObject, antes de a encarnação mudar: o terreno terrabendido que sai do campo perde a redefinição e, se morreu ou foi exilado, dispara a volta. */
+function terraSaiV(s, o, de, para) {
+  if (de !== 'battlefield' || para === 'battlefield') return;
+  if (o.vira && o.vira.some(v => v.terraV)) { o.vira = o.vira.filter(v => !v.terraV); if (!o.vira.length) delete o.vira; }
+  const minhas = (s.terraV || []).filter(m => m.oid === o.oid && m.z === (o.zc || 0)); if (!minhas.length) return;
+  s.terraV = s.terraV.filter(m => !minhas.includes(m)); if (!s.terraV.length) delete s.terraV;
+  if (para !== 'graveyard' && para !== 'exile') return;
+  for (const m of minhas) s.queued.push({ source: m.fonte, name: m.nome, controller: m.p, lembrada: { oid: o.oid, z: (o.zc || 0) + 1 }, when: 'earthbend-return',
+    effects: [{ do: 'mover', target: 'remembered', de: ['graveyard', 'exile'], para: 'battlefield', virada: true }] });
+}
+Object.assign(EXPORTS_V, { terraDobraV });
 /* V-27 · 701.53 incubar N: "create an Incubator token that enters the battlefield with N +1/+1 counters on it" (a). A Incubadora é ficha de
    dupla face (b, 111.10i): a frente é um artefato incolor Incubadora com "{2}: Transform this token"; o verso é a criatura artefato incolor
    0/0 Phyrexian Token. Os marcadores vêm na entrada (614.1c: passam pelas substituições de "entra com marcadores") e ficam ao
@@ -25390,6 +25426,7 @@ const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consulta
 /* ↓ V · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha verbos */
 const MARCADOR_PT_V = { p1p1: '+1/+1', m1m1: '−1/−1', loyalty: 'de lealdade', poison: 'de veneno' }; // V-7
 const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas por descreveEfeito)
+  earthbend: e => `terrabende ${qtd(e.amount)}: ${ALVO_PT[e.target] || descreveAlvo(e.target)} vira uma criatura 0/0 com ímpeto que continua sendo terreno e recebe ${qtd(e.amount) === 1 ? '1 marcador' : qtd(e.amount) + ' marcadores'} +1/+1; quando ele morrer ou for exilado, volta ao campo virado`, // V-28
   incubate: e => `incuba ${qtd(e.amount)}${e.vezes ? ` ${e.vezes === 2 ? 'duas' : e.vezes} vezes` : ''} (cria uma ficha de Incubadora com ${qtd(e.amount) === 1 ? '1 marcador' : qtd(e.amount) + ' marcadores'} +1/+1; por {2} ela vira uma criatura artefato Firexiana 0/0)`, // V-27
   ring_tempts: () => 'o Anel tenta você (escolha uma criatura sua para ser o Portador do Anel)', // V-25
   convert: () => 'converte esta permanente (vira para a outra face)', // V-22

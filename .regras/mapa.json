@@ -6606,14 +6606,21 @@
    "n": "701.66",
    "regra": "Keyword Actions",
    "titulo": "Earthbend",
-   "status": "ausente",
-   "falta": "não há terreno virando criatura 0/0 com ímpeto, com gatilho atrasado de volta ao campo",
+   "status": "parcial",
+   "falta": "\"Whenever you earthbend\" (b, Avatar Aang) não tem forma de script; as cartas permanentes com terrabender da biblioteca do Forge têm outras frases fora do vocabulário",
    "esforco": "M",
    "depende": [
     "613",
     "603.7"
    ],
-   "cartas": "uma coleção só"
+   "cartas": "uma coleção só",
+   "evidencia": "V-28 · efeito `earthbend` (terraDobraV e terraSaiV em core.js, abaixo da âncora ↓ V): o terreno seu alvo ganha a redefinição \"criatura 0/0 com ímpeto, além dos outros tipos\" (camadas 4, 6 e 7b, sem prazo: sai com ele, 400.7) e N marcadores +1/+1; o gatilho atrasado guarda o terreno e a encarnação e, quando ESSE objeto morre ou é exilado, ele volta virado sob o controle de quem terrabendeu (um gatilho por terrabender; para mão ou grimório não dispara). Carta: Earthbending Lesson (biblioteca) · texto oficial em .listas/oficiais-verbos.json",
+   "testes": [
+    "CR 701.66a · terrabender N: o terreno seu alvo vira criatura 0/0 com ímpeto que continua terreno, com N marcadores +1/+1 — ataca no mesmo turno e ainda dá mana",
+    "CR 701.66a · só terreno que você controla é alvo; terreno do oponente e criatura não",
+    "CR 701.66a · quando o terreno morre ou é exilado, volta ao campo virado sob o seu controle — como terreno comum (objeto novo), uma vez",
+    "CR 701.66a · para a mão o terreno não volta (o gatilho fala de morrer ou ser exilado); terrabender duas vezes soma os marcadores e o terreno volta uma vez só"
+   ]
   },
   {
    "n": "701.67",
