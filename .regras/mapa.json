@@ -7349,20 +7349,21 @@
    "regra": "Keyword Abilities",
    "titulo": "Entwine",
    "status": "parcial",
-   "falta": "Só mágica de \"choose one\" (com \"choose two\", modeCount, o entrelaçar não é oferecido). A conjuração entrelaçada não é oferecida com custo alternativo, convocar/improvisar, phyrexiano pago com vida ou lampejo do passado (o motor aceita a ação; só não a oferece). O mesmo objeto não pode ser alvo de dois modos entrelaçados (601.2c: a conferência de alvos repetidos do motor só separa modos em \"choose two\"; pedido à trilha motor, achado da auditoria K-39). Com redução de custo por alvo no campo (filtro OTIMISTA, M-259), a âncora ↓ K não confere o custo a mais (pedido à trilha motor).",
+   "falta": "Só mágica de \"choose one\" (com \"choose two\", modeCount, o entrelaçar não é oferecido). A conjuração entrelaçada não é oferecida com custo alternativo, convocar/improvisar, phyrexiano pago com vida ou lampejo do passado (o motor aceita a ação; só não a oferece). Com redução de custo por alvo no campo (filtro OTIMISTA, M-259), a âncora ↓ K não confere o custo a mais (pedido à trilha motor).",
    "esforco": "P",
    "depende": [
     "700.2 modal",
     "601.2b"
    ],
    "cartas": "rara",
-   "evidencia": "K-34: \"Entwine {custo}\" e \"Entwine—<custo>\" (sacrificar N terrenos/criaturas/artefatos/encantamentos, descartar N, pagar N de vida) lidos da linha (entrelacarImpressoK). Em createGame o script ganha mais um modo, \"Entrelaçar (custo): modo A + modo B\" (modoEntrelacadoK), com os efeitos de cada modo na ordem impressa (702.42b) e a marca de cada modo; a mesa já desenha o modo como botão. HANDLERS.cast cobra o custo a mais (pagaEntrelacarK; no caminho normal ele soma ao custo total em custoTapadoK, 601.2f); legalActions tira a conjuração entrelaçada que não fecha o custo e abre uma por forma de pagar o custo extra (ofertasEntrelacarK). Rain of Rust, Dream's Grip e Betrayal of Flesh em RAW_SCRIPTS (S8). K-39 (auditoria): idem para o entrelaçar (601.2f e 601.2h).",
+   "evidencia": "K-34: \"Entwine {custo}\" e \"Entwine—<custo>\" (sacrificar N terrenos/criaturas/artefatos/encantamentos, descartar N, pagar N de vida) lidos da linha (entrelacarImpressoK). Em createGame o script ganha mais um modo, \"Entrelaçar (custo): modo A + modo B\" (modoEntrelacadoK), com os efeitos de cada modo na ordem impressa (702.42b) e a marca de cada modo; a mesa já desenha o modo como botão. HANDLERS.cast cobra o custo a mais (pagaEntrelacarK; no caminho normal ele soma ao custo total em custoTapadoK, 601.2f); legalActions tira a conjuração entrelaçada que não fecha o custo e abre uma por forma de pagar o custo extra (ofertasEntrelacarK). Rain of Rust, Dream's Grip e Betrayal of Flesh em RAW_SCRIPTS (S8). K-39 (auditoria): idem para o entrelaçar (601.2f e 601.2h). K-48: 115.3 — o mesmo objeto pode ser alvo de dois modos entrelaçados (modosCombinadosK, alvosPorModoK; achado da auditoria K-39 resolvido).",
    "testes": [
     "CR 702.42a · entrelaçar (Rain of Rust, texto oficial): \"Entwine {3}{R}\" vira a opção de escolher os dois modos pagando {3}{R} a mais, oferecida só quando o total fecha; resolve os dois, na ordem impressa (702.42b)",
     "CR 702.42a · sem pagar o entrelaçar não há os dois modos: o motor recusa o modo entrelaçado sem mana para o custo a mais",
     "CR 702.42a · entrelaçar que não é mana (Betrayal of Flesh, texto oficial: \"Entwine—Sacrifice three lands\"): uma oferta por trio de terrenos; destrói e devolve",
     "K-34 · entrelaçar (702.42): Dream’s Grip com os dois modos vira o bloqueador do oponente e desvira o Urso virado, que ataca sem bloqueio",
-    "K-39 · CR 601.2f · a redução de custo vale sobre o custo total, com a recompra ou o entrelaçar somados"
+    "K-39 · CR 601.2f · a redução de custo vale sobre o custo total, com a recompra ou o entrelaçar somados",
+    "CR 115.3 · o mesmo vale para o entrelaçar (achado da auditoria K-39): Dream’s Grip entrelaçado vira e desvira a mesma permanente"
    ]
   },
   {
@@ -8552,14 +8553,22 @@
    "n": "702.120",
    "regra": "Keyword Abilities",
    "titulo": "Escalate",
-   "status": "ausente",
-   "falta": "Mágicas modais do motor escolhem um modo só (a.mode único); falta escolher vários modos e cobrar o custo de escalar por modo além do primeiro (702.120a).",
+   "status": "parcial",
+   "falta": "Só mágica de \"choose one or more\"/\"choose one or both\" sem modeCount no script. A conjuração escalada não é oferecida com custo alternativo, convocar/improvisar, phyrexiano pago com vida ou lampejo do passado (o motor aceita a ação; só não a oferece). Com redução de custo por alvo no campo (filtro OTIMISTA, M-259), a âncora ↓ K não confere o custo a mais (pedido à trilha motor). Collective Defiance, Savage Alliance, Blessed Alliance e Collective Resistance sem script (efeitos fora do vocabulário: \"descarta a mão e compra outro tanto\", \"oponente ou planeswalker\", \"sacrifica uma criatura atacante\").",
    "esforco": "M",
    "depende": [
     "700.2 modos múltiplos",
     "601.2f custo adicional"
    ],
-   "cartas": "rara (Eldritch Moon)"
+   "cartas": "rara (Eldritch Moon)",
+   "evidencia": "K-48: \"Escalate {custo}\" e \"Escalate—<custo>\" (descartar N, virar uma criatura sua, sacrificar N, pagar N de vida) lidos da linha (escalarImpressoK). Em createGame cada combinação de dois ou mais modos vira mais um modo do script, na ordem impressa, com a marca escalarK = modos além do primeiro (modosEscaladosK); o custo de escalar vezes essa conta soma ao custo total no caminho normal (custoTapadoK, 601.2f) e é pago à parte nos outros caminhos (pagaEscalarK em HANDLERS.cast); custo que não é mana multiplica (extraVezesK) e pede a escolha do jogador quando há mais de uma forma (601.2h). 115.3: cada modo é instância própria de \"alvo\" (modosCombinadosK na conferência de alvos repetidos de HANDLERS.cast; alvosPorModoK refaz as ofertas). Borrowed Malevolence, Borrowed Hostility e Collective Brutality em RAW_SCRIPTS (S8).",
+   "testes": [
+    "CR 702.120a · escalar (Borrowed Malevolence, texto oficial): \"Escalate {2}\" vira a opção dos dois modos pagando {2} a mais, oferecida só quando o total fecha; resolve os dois na ordem impressa",
+    "CR 702.120a · o custo de escalar é por modo além do primeiro (Collective Brutality, texto oficial: \"Escalate—Discard a card\"): dois modos, um descarte; três modos, dois descartes, à escolha de quem conjura",
+    "CR 115.3 · nos modos escalados, o mesmo jogador (ou objeto) pode ser alvo de dois modos: Collective Brutality com o 1º e o 3º modo contra o único oponente",
+    "CR 702.120a · \"Escalate—Tap an untapped creature you control\" (Collective Effort, texto oficial) é lido como custo de virar criatura",
+    "K-48 · escalar (702.120): Borrowed Hostility com os dois modos dá +3/+0 e iniciativa ao Urso, que mata o bloqueador antes de levar dano"
+   ]
   },
   {
    "n": "702.121",

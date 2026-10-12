@@ -4440,6 +4440,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `HANDLERS.cast` (uma linha: `pagaEmergirK`).
 - **Testes:** `keywords.cr4.unit` (1, falha sem a leva), `combat.audit` (1 cenário). Texto oficial: Wretched Gryff (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
 - **Parcial declarado:** reduções de outras fontes não valem sobre o custo de emergir (o caminho comum do custo alternativo não aplica reduções; pedido à trilha motor).
+**K-48 · Escalar (escalate, 702.120)** 🟡 (leva K-48)
+- **Valor:** as mágicas "escolha um ou mais" com escalar mostram um botão por combinação de modos, com o custo a mais por modo além do primeiro. Collective Brutality (Modern, Pauper) joga inteira: o descarte do custo é escolhido por quem conjura, e o oponente pode ser alvo do 1º e do 3º modo ao mesmo tempo.
+- **Aceite:** Borrowed Malevolence com três Ilhas oferece os dois modos (+1/+1 e −1/−1) pagando {2} a mais; com duas, não. Collective Brutality com duas cartas na mão oferece os três modos descartando as duas; com uma, só combinações de dois.
+- **Correção junto (achado da auditoria K-39):** nos modos somados de entrelaçar e escalar, o mesmo objeto ou jogador pode ser alvo de dois modos (115.3), como em "choose two". Dream's Grip entrelaçado vira e desvira a mesma permanente.
+- **Toca ponto comum:** `HANDLERS.cast` (uma linha: `pagaEscalarK`; e a conferência de alvos repetidos chama `modosCombinadosK`), `createGame` (uma linha: `modosEscaladosK`).
+- **Testes:** `keywords.cr4.unit` (5, falham sem a leva), `combat.audit` (1 cenário). Texto oficial: Borrowed Malevolence, Borrowed Hostility, Collective Brutality, Collective Defiance, Collective Effort, Savage Alliance, Blessed Alliance (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
+- **Parcial declarado:** a conjuração escalada só é oferecida pelo custo normal (não com custo alternativo, convocar ou lampejo do passado). Collective Defiance, Savage Alliance, Blessed Alliance e Collective Resistance ficam sem script: têm efeitos fora do vocabulário do motor.
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

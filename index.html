@@ -5229,6 +5229,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'champion', // K-44 · 702.72: os dois gatilhos ligados (exilar outra ao entrar ou sacrificar; ao sair, a exilada volta)
   'graft', // K-46 · 702.58: entra com N +1/+1 e, quando outra criatura entra, pode mover um para ela (enxertoK, junto do evoluir)
   'emerge', // K-47 · 702.119: custo alternativo "[custo] e sacrifique uma criatura", reduzido pelo valor de mana dela (altsImpressosK, pagaEmergirK)
+  'escalate', // K-48 · 702.120: cada combinação de dois ou mais modos é mais um modo, com o custo de escalar por modo além do primeiro (modosEscaladosK)
   'afflict', 'melee', 'mentor', 'training', // K-31 · 702.130, 702.121, 702.134, 702.149: gatilhos de ataque gerados pela palavra, um por instância
   'battle cry', 'rampage', 'flanking', 'bushido', // K-30 · 702.91, 702.23, 702.25, 702.45: gatilhos de combate gerados pela palavra (GATILHOS_DE_PALAVRA_K), um por instância
   /* ↓ V · palavras-chave da trilha verbos */
@@ -6432,6 +6433,12 @@ const RAW_SCRIPTS = [
     example: { action: 'mode:0', target: 'enemy-creature', expect: { gone: true } } },
   { name: 'Staggershock', effects: [{ do: 'damage', amount: 2, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: -2 } } }, // K-35 · "deals 2 damage to any target. / Rebound"
   { name: "Prey's Vengeance", effects: [{ do: 'pump', power: 2, toughness: 2, target: 'creature' }], example: { target: 'own-creature', expect: { pump: [2, 2] } } }, // K-35 · "Target creature gets +2/+2 until end of turn. / Rebound" 
+  { name: 'Borrowed Malevolence', modes: [{ label: '+1/+1 numa criatura', effects: [{ do: 'pump', power: 1, toughness: 1, target: 'creature' }] }, { label: '−1/−1 numa criatura', effects: [{ do: 'pump', power: -1, toughness: -1, target: 'creature' }] }], // K-48 · "Escalate {2} / Choose one or both — • Target creature gets +1/+1 until end of turn. • Target creature gets -1/-1 until end of turn."
+    example: { action: 'mode:0', target: 'own-creature', expect: { pump: [1, 1] } } },
+  { name: 'Borrowed Hostility', modes: [{ label: '+3/+0 numa criatura', effects: [{ do: 'pump', power: 3, toughness: 0, target: 'creature' }] }, { label: 'Iniciativa a uma criatura', effects: [{ do: 'keyword', keyword: 'first strike', target: 'creature' }] }], // K-48 · "Escalate {3} / Choose one or both — • Target creature gets +3/+0 until end of turn. • Target creature gains first strike until end of turn."
+    example: { action: 'mode:0', target: 'own-creature', expect: { pump: [3, 0] } } },
+  { name: 'Collective Brutality', modes: [{ label: 'Olhar a mão do oponente e descartar uma mágica instantânea ou feitiço', effects: [{ do: 'discard_chosen', amount: 1, target: 'opponent', filter: { types: ['instant', 'sorcery'] } }] }, { label: '−2/−2 numa criatura', effects: [{ do: 'pump', power: -2, toughness: -2, target: 'creature' }] }, { label: 'Oponente perde 2 de vida e você ganha 2', effects: [{ do: 'lose', amount: 2, target: 'opponent' }, { do: 'gain', amount: 2 }] }], // K-48 · "Escalate—Discard a card. / Choose one or more — • Target opponent reveals their hand. You choose an instant or sorcery card from it. That player discards that card. • Target creature gets -2/-2 until end of turn. • Target opponent loses 2 life and you gain 2 life."
+    example: { action: 'mode:2', target: 'opponent', expect: { opponentLife: -2, selfLife: 2 } } },
   /* ↓ V · scripts de carta da trilha verbos (texto oficial em .listas/oficiais-verbos.json) */
   // V-30 · 701.65 aerobender
   { name: 'Airbending Lesson', effects: [{ do: 'airbend', target: { semTipos: ['land'] } }, { do: 'draw', amount: 1 }], // "Airbend target nonland permanent. Draw a card."
@@ -8298,6 +8305,7 @@ function palavraNaLinhaK(k) {
   if (k === 'champion') return 'champion an? [a-z]+'; // K-44 · "Champion a creature", "Champion a Faerie"
   if (k === 'graft') return 'graft \\d+'; // K-46
   if (k === 'emerge') return 'emerge(?: from an? [a-z]+)?\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-47
+  if (k === 'escalate') return 'escalate(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*(?:sacrifice (?:an?|one|two|three) (?:lands?|creatures?|artifacts?|enchantments?)|discard (?:a|one|two|three) cards?|tap an untapped creature you control|pay \\d+ life)\\.?)'; // K-48
   if (k === 'dash') return 'dash\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-9
   if (k === 'evoke') return 'evoke(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*exile an? (?:white|blue|black|red|green) card from your hand\\.?)'; // K-8 · só as formas que o motor paga
   return ['afterlife', 'rampage', 'bushido', 'afflict'].includes(k) ? `${k} \\d+` : k; // K-30 · alvoroço N e bushido N
@@ -15990,6 +15998,7 @@ function cardFacts(card) {
     perdurarK: custoDaLinhaK(card, 'Outlast'), // K-42 · 702.107a: "Outlast {1}{W}" (undefined quando não tem)
     devorarK: devorarImpressoK(card), // K-43 · 702.82: [{ n, tipo }] por linha "Devour [qualidade] N" (undefined quando não tem)
     emergirK: emergirImpressoK(card), // K-47 · 702.119: { mana, tipo } (undefined quando não tem)
+    escalarK: escalarImpressoK(card), // K-48 · 702.120: "Escalate {1}" / "Escalate—Discard a card." (undefined quando não tem)
     campeaoK: campeaoImpressoK(card), // K-44 · 702.72: "Champion a creature" → 'creature'; "Champion an Elf" → 'Elf' (undefined quando não tem)
     suspenderK: suspenderImpressoK(card), // K-22 · 702.62a: "Suspend N—{custo}" (undefined quando não tem)
     equipesK: equipesImpressosK(card), // K-28 · 702.6c: "Equip [qualidade] {custo}" (undefined quando não tem)
@@ -16323,6 +16332,7 @@ function createGame(setup) {
     if (sc.alt) f.script.alt = sc.alt;
     if (altsImpressosK(f).length) f.script.alt = (f.script.alt || []).concat(altsImpressosK(f)); // K-8/K-9 · evocar e arremeter são mais custos alternativos, depois dos do script
     if (f.entrelacarK && (f.script.modes || []).length > 1 && !f.script.modeCount) f.script.modes = f.script.modes.concat([modoEntrelacadoK(f.script.modes, f.entrelacarK)]); // K-34 · 702.42a: "choose all modes" é mais um modo, com custo adicional
+    if (f.escalarK && (f.script.modes || []).length > 1 && !f.script.modeCount) f.script.modes = f.script.modes.concat(modosEscaladosK(f.script.modes, f.escalarK)); // K-48 · 702.120a: cada combinação de modos é mais um modo, com custo por modo além do primeiro
     if (sc.flashback) f.script.flashback = sc.flashback;
     if (sc.escape) f.script.escape = sc.escape; // S48 · fuga
     if (sc.discount) f.script.discount = sc.discount; // S49 · desconto por condição de campo
@@ -20549,7 +20559,7 @@ const HANDLERS = {
     if (chosen.length < minAlvos || chosen.length > need.length) throw new RuleError('alvo', `escolha ${minAlvos === need.length ? need.length : `de ${minAlvos} a ${need.length}`} alvo(s)`);
     // 601.2c · dois alvos da mesma mágica ou habilidade precisam ser diferentes
     // CR 115.3 · em modos diferentes, cada "alvo" é uma instância própria: o mesmo objeto pode ser escolhido de novo
-    if (chosen.some((x, i) => chosen.some((y, j) => j > i && sameChoice(x, y) && (!nModos || need[i].__modo === need[j].__modo)))) throw new RuleError('alvo', 'escolha alvos diferentes');
+    if (chosen.some((x, i) => chosen.some((y, j) => j > i && sameChoice(x, y) && (!nModos && !modosCombinadosK(need) || need[i].__modo === need[j].__modo)))) throw new RuleError('alvo', 'escolha alvos diferentes'); // K-48 · 115.3 também nos modos somados de entrelaçar e escalar (Toca ponto comum: modosCombinadosK)
     need.forEach((eff, i) => { if (chosen[i] == null && eff.upTo) return; if (!targetStillLegal(s, a.p, eff.target, chosen[i], a.oid, eff.targetColor, eff, { controller: a.p, xPaid: a.x || 0 })) throw new RuleError('alvo', 'alvo ilegal'); }); // CR2c.3 · "valor de mana X ou menos" com o X desta conjuração
     if (violaPortaEstandarte(s, a.p, need, chosen, a.oid)) throw new RuleError('alvo', 'um dos alvos precisa ser um porta-estandarte');
     if (excedeSoma(s, need, chosen)) throw new RuleError('alvo', 'os alvos passam do valor de mana total permitido'); // CR2c.5
@@ -20594,6 +20604,7 @@ const HANDLERS = {
     if (alt && alt.emergirK) pagaEmergirK(s, a, o, alt); // K-47 · 702.119a: o custo de emergir menos o valor de mana da sacrificada (Toca ponto comum: HANDLERS.cast)
     if (a.mode != null && ((((f.script || {}).modes) || [])[a.mode] || {}).entrelacarK) pagaEntrelacarK(s, a, o, alt); // K-34 · 702.42a: o custo de entrelaçar (Toca ponto comum: HANDLERS.cast)
     if (a.kick && reforco && s.manaCheck && a.free) payCost(s, a.p, somaCusto(parseCost('{0}'), parseCost(reforco.mana), a.kick)); // M-337 · 118.9d: conjurada sem pagar (cascata, Covil), o reforço é custo adicional e é pago — antes era de graça
+    if (escaladoNaAcaoK(s, a, o)) pagaEscalarK(s, a, o, alt); // K-48 · 702.120a: o custo de escalar, uma vez por modo além do primeiro (Toca ponto comum: HANDLERS.cast)
     if (a.retrace) { // M-222 · 702.81a: "discarding a land card in addition to paying its other costs"
       const l = a.pay && a.pay.retrace, lo = l && s.objects[l];
       if (!lo || !s.zones[a.p].hand.includes(l) || !(s.facts[lo.name].types || []).includes('land')) throw new RuleError('custo', 'descarte um terreno da mão para retraçar');
@@ -21783,9 +21794,11 @@ function legalActions(s, p, { adjudication = false } = {}) {
     return canPay(s, p, custo, castExtra(s, p, o, a.x || 0, a.targets || []));
   });
   /* ↓ K · ofertas de legalActions da trilha keywords (out.push) */
+  alvosPorModoK(s, p, out); // K-48 · 115.3: nos modos somados de entrelaçar e escalar, cada modo escolhe os alvos dele (o mesmo objeto pode voltar em outro modo)
   ofertasEmergirK(s, p, out); // K-47 · 702.119a: só as sacrificadas que fecham o custo reduzido
   // K-34 · 702.42a · entrelaçar: a conjuração no modo de todos os modos fica só se o custo a mais fecha (custo extra: uma ação por forma)
   ofertasEntrelacarK(s, p, out);
+  ofertasEscalarK(s, p, out); // K-48 · 702.120a: idem para cada combinação escalada (o custo vezes os modos além do primeiro)
   // K-33 · 702.27a · recompra: cada conjuração pelo custo normal ganha a variante que paga também o custo de recompra (opcional: as duas ficam)
   ofertasRecompraK(s, p, out);
   // K-22 · 702.62a · suspender: a oferta mora em ofertasSuspenderK até a mesa ter o botão (K-24; pedido à trilha mesa)
@@ -22420,6 +22433,7 @@ function gruposParaTaparK(s, p, o, custo, extra) {
 function custoTapadoK(s, a, o, custo, extra) {
   if (a.recompraK && (s.facts[o.name].recompraK || {}).mana) custo = somaCusto(custo, parseCost(s.facts[o.name].recompraK.mana), 1); // K-33
   if (entrelacadoNaAcaoK(s, a, o) && (s.facts[o.name].entrelacarK || {}).mana) custo = somaCusto(custo, parseCost(s.facts[o.name].entrelacarK.mana), 1); // K-34 · idem
+  { const n = escaladoNaAcaoK(s, a, o); if (n && (s.facts[o.name].escalarK || {}).mana) custo = somaCusto(custo, parseCost(s.facts[o.name].escalarK.mana), n); } // K-48 · 601.2f: o escalar soma ao custo total
   { const adic = genericoAdicionalK(s, a, o); if (adic) extra += castExtraK(s, a.p, o, a.x || 0, a.targets || [], adic) - castExtra(s, a.p, o, a.x || 0, a.targets || []); } // K-39 · 601.2f: as reduções valem sobre o genérico somado · 601.2f: a recompra soma ao custo total (reduções valem sobre a soma)
   if (!a.tapaK) return [custo, extra];
   const f = s.facts[o.name], g = [].concat(a.tapaK);
@@ -22692,6 +22706,7 @@ function extraDaFraseK(t) {
   let m = x.match(/^sacrifice (an?|one|two|three) (land|creature|artifact|enchantment)s?$/); if (m) return { sacrificeOther: { types: [m[2]], ...(N[m[1]] > 1 ? { amount: N[m[1]] } : {}) } }; // K-34 · "Sacrifice three lands"
   m = x.match(/^discard (a|one|two|three) cards?$/); if (m) return { discard: N[m[1]] };
   m = x.match(/^pay (\d+) life$/); if (m) return { pagarVida: +m[1] };
+  if (x === 'tap an untapped creature you control') return { tapOther: { types: ['creature'] } }; // K-48 · "Escalate—Tap an untapped creature you control" (Collective Effort)
   return undefined;
 }
 function recompraImpressaK(card) {
@@ -22874,6 +22889,7 @@ function genericoAdicionalK(s, a, o) {
   const f = s.facts[o.name]; let n = 0;
   if (a.recompraK && (f.recompraK || {}).mana) n += parseCost(f.recompraK.mana).generic || 0;
   if (entrelacadoNaAcaoK(s, a, o) && (f.entrelacarK || {}).mana) n += parseCost(f.entrelacarK.mana).generic || 0;
+  if ((f.escalarK || {}).mana) n += escaladoNaAcaoK(s, a, o) * (parseCost(f.escalarK.mana).generic || 0); // K-48
   return n;
 }
 function castExtraK(s, p, o, x, alvos, adic) {
@@ -22997,6 +23013,129 @@ function ofertasEmergirK(s, p, out) {
   }
 }
 Object.assign(EXPORTS_K, { emergirImpressoK, pagaEmergirK, ofertasEmergirK });
+/* K-48 · 702.120 escalar: "Escalate [cost]" = "For each mode you choose beyond the first as you cast this spell, you pay an additional [cost]"
+   (601.2f–h). As mágicas com escalar são "Choose one or more —" / "Choose one or both —": o script traz os modos impressos e, em createGame,
+   cada combinação de dois ou mais modos (na ordem impressa, 608.2c, cada modo uma vez só, 700.2) vira mais um modo do script, com a marca
+   `escalarK` = quantos modos além do primeiro (modosEscaladosK); a mesa já desenha cada modo como botão. O custo a mais, vezes essa conta,
+   soma ao custo total no caminho normal (custoTapadoK) e é pago à parte com custo alternativo (pagaEscalarK); custo que não é mana
+   ("Discard a card", "Tap an untapped creature you control") vai pelos custos extras, multiplicado, com a escolha em `pay.escalarK`. */
+function escalarImpressoK(card) {
+  const txt = String((card && (card.oracle_text || (card.faces && card.faces[0] && card.faces[0].oracle_text))) || '');
+  for (const l0 of txt.split('\n')) {
+    const l = l0.replace(/\s*\([^)]*\)/g, '').trim();
+    let m = l.match(/^Escalate\s+((?:\{[0-9WUBRGC]+\})+)$/); if (m) return { mana: m[1] };
+    m = l.match(/^Escalate\s*[—-]\s*(.+?)\.?$/); if (m) { const extra = extraDaFraseK(m[1]); if (extra) return { extra }; }
+  }
+  return undefined;
+}
+/** O custo extra de escalar pago `n` vezes (descartar 1 → descartar n; virar uma criatura → virar n). */
+function extraVezesK(extra, n) {
+  const o = {};
+  for (const [k, v] of Object.entries(extra)) o[k] = (k === 'sacrificeOther' || k === 'tapOther') ? { ...v, amount: (v.amount || 1) * n } : (k === 'discard' || k === 'pagarVida') ? v * n : v;
+  return o;
+}
+function textoEscalarK(ek, n) {
+  if (ek.mana) return n > 1 ? `${n}× ${ek.mana}` : ek.mana;
+  const x = ek.extra;
+  if (x.discard) return x.discard * n === 1 ? 'descartar uma carta' : `descartar ${x.discard * n} cartas`;
+  if (x.tapOther) return (x.tapOther.amount || 1) * n === 1 ? 'virar uma criatura' : `virar ${(x.tapOther.amount || 1) * n} criaturas`;
+  if (x.sacrificeOther) return `sacrificar ${(x.sacrificeOther.amount || 1) * n} ${({ land: 'terreno', creature: 'criatura', artifact: 'artefato', enchantment: 'encantamento' })[x.sacrificeOther.types[0]]}(s)`;
+  return `pagar ${x.pagarVida * n} de vida`;
+}
+function modosEscaladosK(modes, ek) {
+  const out = [], n = modes.length;
+  for (let mask = 1; mask < (1 << n); mask++) {
+    const idx = modes.map((_, k) => k).filter(k => mask & (1 << k)); if (idx.length < 2) continue;
+    out.push({ label: `Escalar (${textoEscalarK(ek, idx.length - 1)}): ${idx.map(k => modes[k].label || 'modo').join(' + ')}`, escalarK: idx.length - 1, modosK: idx,
+      effects: idx.flatMap(k => (modes[k].effects || []).map(e => ({ ...e, __modo: `escalar-${k}` }))) });
+  }
+  return out.sort((a, b) => a.escalarK - b.escalarK);
+}
+/** Quantos modos além do primeiro a conjuração escolheu (0 = um modo só). */
+const escaladoNaAcaoK = (s, a, o) => a.mode != null && o && s.facts[o.name] && ((((s.facts[o.name].script || {}).modes) || [])[a.mode] || {}).escalarK || 0;
+/** HANDLERS.cast · o custo de escalar (a parte de mana só fora do caminho normal, onde custoTapadoK já a somou). */
+function pagaEscalarK(s, a, o, alt) {
+  const ek = s.facts[o.name].escalarK, n = escaladoNaAcaoK(s, a, o);
+  if (!ek) throw new RuleError('custo', 'esta mágica não tem escalar');
+  const viaNormal = s.manaCheck && !a.free && !alt && !a.flashback && !a.escape && !a.disturb && !a.omen && !a.bestow && !a.plotted && a.vida == null;
+  if (ek.mana && s.manaCheck && !viaNormal) payCost(s, a.p, somaCusto(parseCost('{0}'), parseCost(ek.mana), n));
+  if (ek.extra) {
+    const extra = extraVezesK(ek.extra, n);
+    if (extra.pagarVida != null && s.players[a.p].life < extra.pagarVida) throw new RuleError('custo', 'vida insuficiente para escalar');
+    if (!canPayExtra(s, a.p, extra, a.oid)) throw new RuleError('custo', 'não dá para pagar o escalar');
+    if (!(a.pay || {}).escalarK && pagamentosDe(s, a.p, extra, a.oid).length > 1) throw new RuleError('custo', 'escolha o que pagar no escalar'); // 601.2h: o motor não escolhe pelo jogador
+    payExtraCosts(s, a.p, extra, (a.pay || {}).escalarK, a.oid);
+  }
+}
+/** legalActions · tira a conjuração escalada que não fecha o custo a mais (e as que não são pelo custo normal, que o motor não confere aqui);
+    custo extra: uma ação por forma de pagar. */
+function ofertasEscalarK(s, p, out) {
+  for (let i = out.length - 1; i >= 0; i--) {
+    const x = out[i]; if (x.t !== 'cast' || x.pay && x.pay.escalarK || !s.objects[x.oid]) continue;
+    const o = s.objects[x.oid], n = escaladoNaAcaoK(s, x, o); if (!n) continue;
+    const f = s.facts[o.name], ek = f.escalarK;
+    out.splice(i, 1);
+    if (x.alt != null || x.flashback || x.escape || x.disturb || x.omen || x.bestow || x.faceDown || x.plotted || x.tapaK || x.recomecarK || x.retrace || x.emenda || x.vida != null || x.face != null || x.permissao != null) continue;
+    if (s.manaCheck && !x.free && ek.mana) {
+      let custo = x.kick ? somaCusto(f.cost, parseCost(f.script.kicker.mana), x.kick) : f.cost;
+      custo = somaCusto(custo, parseCost(ek.mana), n);
+      if (!canPay(s, p, custo, castExtraK(s, p, o, x.x || 0, x.targets || [], n * (parseCost(ek.mana).generic || 0)) - (x.delve || 0))) continue; // 601.2f
+    } else if (s.manaCheck && x.free && ek.mana && !canPay(s, p, somaCusto(parseCost('{0}'), parseCost(ek.mana), n))) continue;
+    if (!ek.extra) { out.push(x); continue; }
+    const extra = extraVezesK(ek.extra, n);
+    if (extra.pagarVida != null && s.players[p].life < extra.pagarVida || !canPayExtra(s, p, extra, x.oid)) continue;
+    const usados = new Set(Object.values(x.pay || {}).flat().filter(v => typeof v === 'string'));
+    for (const pg of pagamentosDe(s, p, extra, x.oid).filter(pg => !Object.values(pg).flat().some(v => usados.has(v))).slice(0, LIMITE_PAGAMENTOS)) out.push({ ...x, pay: { ...(x.pay || {}), escalarK: pg } });
+  }
+}
+/* K-48 · 601.2c com 115.3: "the same object can be chosen once for each instance of the word 'target'" — nos modos somados (entrelaçar,
+   escalar), cada modo é uma instância própria, como em "choose two" (achado da auditoria K-39 para o entrelaçar). modosCombinadosK diz ao
+   HANDLERS.cast que a conferência de alvos repetidos separa por modo; alvosPorModoK refaz as ofertas desses modos com os alvos por modo. */
+const modosCombinadosK = need => need.some(e => typeof e.__modo === 'string' && /^(?:escalar|entrelacar)-/.test(e.__modo));
+function combosPorModoK(s, p, oid, need, xv) {
+  const comX = xv != null ? { controller: p, xPaid: xv } : undefined;
+  let combos = [[]];
+  for (const [k, eff] of need.entries()) {
+    const opts = limitaAlvos(legalTargets(s, p, eff.target, oid, eff.targetColor).filter(x => targetAllowed(s, eff, x, comX)), need.length);
+    if (eff.upTo) {
+      const grupo = k > 0 && need[k - 1].upTo && need[k - 1].__modo === eff.__modo;
+      combos = combos.flatMap(c => { if (c.length < k) return [c];
+        const ant = grupo ? opts.findIndex(y => sameChoice(y, c[k - 1])) : -1;
+        return [c, ...opts.filter((x, i) => i > ant && !c.some((y, j) => sameChoice(x, y) && need[j].__modo === eff.__modo)).map(x => c.concat([x]))]; }).slice(0, COMBO_LIMIT);
+      continue;
+    }
+    if (!opts.length) return []; // 700.2b
+    combos = combos.flatMap(c => opts.filter(x => !c.some((y, j) => sameChoice(x, y) && need[j].__modo === eff.__modo)).map(x => c.concat([x]))).slice(0, COMBO_LIMIT);
+  }
+  return combos.filter(c => !violaPortaEstandarte(s, p, need, c, oid));
+}
+function alvosPorModoK(s, p, out) {
+  const temK = new Map(), modelos = new Map(); // escala (revisão da onda 3): uma passada, sem splice dentro do laço; o oid que não tem modo somado é lembrado
+  const combinado = x => {
+    if (x.t !== 'cast' || x.mode == null || x.pay) return false;
+    let ms = temK.get(x.oid);
+    if (ms === undefined) { const o = s.objects[x.oid], m0 = o && (((s.facts[o.name] || {}).script || {}).modes); ms = m0 && m0.some(m => m.escalarK || m.entrelacarK) ? m0 : null; temK.set(x.oid, ms); }
+    if (!ms) return false;
+    const { targets, mode, ...resto } = x, k = JSON.stringify(resto);
+    if (!modelos.has(x.oid)) modelos.set(x.oid, new Map());
+    if (!modelos.get(x.oid).has(k)) modelos.get(x.oid).set(k, resto);
+    return !!(ms[mode] && (ms[mode].escalarK || ms[mode].entrelacarK));
+  };
+  let w = 0; for (const x of out) if (!combinado(x)) out[w++] = x; out.length = w;
+  for (const [oid, rs] of modelos) {
+    temK.get(oid).forEach((m, i) => {
+      if (!(m.escalarK || m.entrelacarK)) return;
+      const porX = new Map();
+      for (const r of rs.values()) {
+        const need = expandeAlvos(s, { xPaid: r.x || 0 }, m.effects || []).filter(SC.isTargeted);
+        if (!need.length) { out.push({ ...r, mode: i }); continue; }
+        const kx = r.x == null ? '' : r.x; if (!porX.has(kx)) porX.set(kx, combosPorModoK(s, p, oid, need, r.x)); // as mesmas escolhas de alvo para cada variante do mesmo X
+        for (const t of porX.get(kx)) out.push({ ...r, mode: i, targets: t });
+      }
+    });
+  }
+}
+Object.assign(EXPORTS_K, { escalarImpressoK, modosEscaladosK, pagaEscalarK, ofertasEscalarK, extraVezesK, modosCombinadosK, alvosPorModoK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-30 · 701.65 aerobender: "that player exiles those objects. For each card exiled this way, for as long as it remains exiled, its owner
    may cast it by paying {2} rather than paying its mana cost" (a). A permissão é do DONO e da encarnação exilada (400.7: se a carta sair do
@@ -26908,6 +27047,7 @@ Object.assign(PALAVRA_PT, { devour: 'devorar', amplify: 'amplificar' }); // K-43
 Object.assign(PALAVRA_PT, { champion: 'campeão' }); // K-44
 Object.assign(PALAVRA_PT, { graft: 'enxerto' }); // K-46
 Object.assign(PALAVRA_PT, { emerge: 'emergir' }); // K-47
+Object.assign(PALAVRA_PT, { escalate: 'escalar' }); // K-48
 Object.assign(PALAVRA_PT, { afflict: 'aflição', melee: 'refrega', mentor: 'mentor', training: 'treinamento' }); // K-31
 Object.assign(PALAVRA_PT, { 'battle cry': 'grito de guerra', rampage: 'alvoroço', flanking: 'flanquear', bushido: 'bushido' }); // K-30
 const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consultadas por descreveEfeito; antes a pilha mostrava "proeza k")

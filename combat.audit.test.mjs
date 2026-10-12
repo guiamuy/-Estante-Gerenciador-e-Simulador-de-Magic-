@@ -769,6 +769,20 @@ test('K-47 · emergir (702.119): sacrificando o Urso, a 5/5 voadora sai pelo cus
   s = act(s, of); for (let i = 0; i < 4 && s.stack.length; i++) s = act(s, { t: 'pass', p: s.turn.priority });
   assert.equal(vivo(s, g), true); assert.equal(s.objects[u].zone, 'graveyard');
 });
+test('K-48 · escalar (702.120): Borrowed Hostility com os dois modos dá +3/+0 e iniciativa ao Urso, que mata o bloqueador antes de levar dano', () => {
+  cobre('escalate');
+  const cartas = { ...CARDS, Hostil: { name: 'Hostil', type_line: 'Instant', mana_cost: '{R}', cmc: 1, colors: ['R'], keywords: ['Escalate'], oracle_text: 'Escalate {3} (Pay this cost for each mode chosen beyond the first.)\nChoose one or both —\n• Target creature gets +3/+0 until end of turn.\n• Target creature gains first strike until end of turn.' } };
+  const scripts = { ...SCRIPTS, Hostil: { ...S.SCRIPTS['Borrowed Hostility'], name: 'Hostil' } };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 70, mode: 'assisted', manaCheck: false, cards: cartas, scripts, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a; let u, b, h; [s, u] = poe(s, a, 'Urso'); [s, b] = poe(s, d, 'Urso'); [s, h] = poe(s, a, 'Hostil', { zone: 'hand' });
+  const ie = s.facts.Hostil.script.modes.findIndex(m => m.escalarK);
+  const of = E.legalActions(s, a).find(x => x.oid === h && x.mode === ie && x.targets.every(t => t.oid === u)); assert.ok(of, 'os dois modos no mesmo Urso (115.3)');
+  s = act(s, of); for (let i = 0; i < 4 && s.stack.length; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const t = combate(s, [u], [[b, u]]);
+  assert.equal(vivo(t, u), true, 'iniciativa: o bloqueador morre antes'); assert.equal(vivo(t, b), false);
+});
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));

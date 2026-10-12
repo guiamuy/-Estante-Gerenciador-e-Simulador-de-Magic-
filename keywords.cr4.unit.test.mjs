@@ -1888,3 +1888,71 @@ test('CR 702.119a · emergir (Wretched Gryff, texto oficial): custo alternativo 
   const comUrso = alt(s).find(x => [].concat(x.pay.sacrifice)[0] === u); let v = act(s, comUrso);
   assert.equal(v.zones[a].battlefield.filter(x => v.objects[x].tapped).length, 4, '{5}{U} − 2 = {3}{U}');
 });
+
+/* ---------------- K-48 · escalar 702.120 ---------------- */
+const scK48 = (...ns) => Object.fromEntries(ns.map(n => [n, S.SCRIPTS[n]]));
+
+test('CR 702.120a · escalar (Borrowed Malevolence, texto oficial): "Escalate {2}" vira a opção dos dois modos pagando {2} a mais, oferecida só quando o total fecha; resolve os dois na ordem impressa', () => {
+  assert.deepEqual(J(E.escalarImpressoK(oficial('Borrowed Malevolence'))), { mana: '{2}' });
+  let s = comManaK33({ 'Borrowed Malevolence': oficial('Borrowed Malevolence'), Urso: URSO }, scK48('Borrowed Malevolence')); const a = s.turn.active, d = 1 - a;
+  s = terrenos(s, a, 'Island', 3); let b, u1, u2; [s, b] = poe(s, a, 'Borrowed Malevolence', 'hand'); [s, u1] = poe(s, a, 'Urso'); [s, u2] = poe(s, d, 'Urso');
+  s = J(s); s.facts['Borrowed Malevolence'].cost = { generic: 0, colored: { U: 1 }, hybrid: [], x: 0 }; // o {B} pago com Ilha: o teste é do custo a mais
+  const modos = s.facts['Borrowed Malevolence'].script.modes; assert.equal(modos.length, 3, 'os dois impressos e "os dois"');
+  assert.equal(modos[2].escalarK, 1); assert.match(modos[2].label, /Escalar \(\{2\}\)/);
+  const ofertas = st => E.legalActions(st, a).filter(x => x.t === 'cast' && x.oid === b && x.mode === 2);
+  let pouco = J(s); pouco.objects[pouco.zones[a].battlefield.find(x => pouco.objects[x].name === 'Island')].tapped = true;
+  assert.equal(ofertas(pouco).length, 0, 'com duas Ilhas desviradas, {U} + {2} não fecha');
+  const of = ofertas(s).find(x => x.targets[0].oid === u1 && x.targets[1].oid === u2); assert.ok(of, 'com três: +1/+1 no seu Urso e −1/−1 no do oponente');
+  const t = resolve(act(s, of));
+  assert.equal(E.stats(t, t.objects[u1]).power, 3); assert.equal(E.stats(t, t.objects[u2]).power, 1);
+  assert.equal(t.zones[a].battlefield.filter(x => t.objects[x].tapped).length, 3, 'pagou {U} + {2}');
+  assert.throws(() => E.apply(pouco, { t: 'cast', p: a, oid: b, mode: 2, targets: [{ oid: u1 }, { oid: u2 }] }), /mana|custo/, 'sem o custo de escalar, o motor recusa');
+});
+
+test('CR 702.120a · o custo de escalar é por modo além do primeiro (Collective Brutality, texto oficial: "Escalate—Discard a card"): dois modos, um descarte; três modos, dois descartes, à escolha de quem conjura', () => {
+  assert.deepEqual(J(E.escalarImpressoK(oficial('Collective Brutality'))), { extra: { discard: 1 } });
+  let s = partida({ 'Collective Brutality': oficial('Collective Brutality'), Urso: URSO }, scK48('Collective Brutality')); const a = s.turn.active, d = 1 - a;
+  let cb, u, h1, h2; [s, cb] = poe(s, a, 'Collective Brutality', 'hand'); [s, u] = poe(s, d, 'Urso');
+  s = J(s); s.zones[a].library.push(...s.zones[a].hand.filter(x => x !== cb)); s.zones[a].hand = [cb]; for (const x of s.zones[a].library) s.objects[x].zone = 'library';
+  [s, h1] = poe(s, a, 'Urso', 'hand'); [s, h2] = poe(s, a, 'Forest', 'hand');
+  const modos = s.facts['Collective Brutality'].script.modes; assert.equal(modos.length, 7, 'três impressos + quatro combinações');
+  const i23 = modos.findIndex(m => m.escalarK && J(m.modosK).join() === '1,2'), i123 = modos.findIndex(m => m.escalarK === 2);
+  assert.ok(i23 > 2 && i123 > 2);
+  const of2 = E.legalActions(s, a).filter(x => x.t === 'cast' && x.oid === cb && x.mode === i23 && x.targets[0].oid === u);
+  assert.equal(of2.length, 2, 'dois modos: uma oferta por carta da mão a descartar');
+  const of3 = E.legalActions(s, a).filter(x => x.t === 'cast' && x.oid === cb && x.mode === i123);
+  assert.ok(of3.length >= 1 && of3.every(x => J([].concat(x.pay.escalarK.discard)).sort().join() === [h1, h2].sort().join()), 'três modos: as duas cartas');
+  const vida = [s.players[a].life, s.players[d].life];
+  let t = resolve(act(s, of2.find(x => [].concat(x.pay.escalarK.discard)[0] === h2)));
+  assert.equal(t.objects[h2].zone, 'graveyard'); assert.equal(t.objects[h1].zone, 'hand', 'descartou só a escolhida');
+  assert.equal(t.objects[u].zone, 'graveyard', '−2/−2 no Urso'); assert.deepEqual([t.players[a].life, t.players[d].life], [vida[0] + 2, vida[1] - 2]);
+  let um = J(s); um.zones[a].hand = [cb, h1]; um.zones[a].library.push(h2); um.objects[h2].zone = 'library';
+  assert.equal(E.legalActions(um, a).filter(x => x.t === 'cast' && x.oid === cb && x.mode === i123).length, 0, 'com uma carta só na mão, três modos não fecham');
+  assert.throws(() => E.apply(s, { t: 'cast', p: a, oid: cb, mode: i23, targets: [{ oid: u }, { player: d }] }), /escolha o que pagar/, '601.2h: o motor não escolhe o descarte');
+});
+
+test('CR 115.3 · nos modos escalados, o mesmo jogador (ou objeto) pode ser alvo de dois modos: Collective Brutality com o 1º e o 3º modo contra o único oponente', () => {
+  let s = partida({ 'Collective Brutality': oficial('Collective Brutality'), Urso: URSO }, scK48('Collective Brutality')); const a = s.turn.active, d = 1 - a;
+  let cb, h; [s, cb] = poe(s, a, 'Collective Brutality', 'hand'); [s, h] = poe(s, a, 'Urso', 'hand');
+  const i13 = s.facts['Collective Brutality'].script.modes.findIndex(m => m.escalarK && J(m.modosK).join() === '0,2');
+  const of = E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === cb && x.mode === i13 && [].concat(x.pay.escalarK.discard)[0] === h);
+  assert.ok(of, 'oferecido: o oponente é alvo dos dois modos'); assert.deepEqual(J(of.targets), [{ player: d }, { player: d }]);
+  const vida = s.players[d].life;
+  let t = resolve(act(s, of));
+  assert.equal(t.players[d].life, vida - 2);
+});
+
+test('CR 115.3 · o mesmo vale para o entrelaçar (achado da auditoria K-39): Dream’s Grip entrelaçado vira e desvira a mesma permanente', () => {
+  const SC = { "Dream's Grip": S.SCRIPTS["Dream's Grip"] };
+  let s = comManaK33({ "Dream's Grip": oficial("Dream's Grip"), Urso: URSO }, SC); const a = s.turn.active, d = 1 - a;
+  s = terrenos(s, a, 'Island', 2); let g, u; [s, g] = poe(s, a, "Dream's Grip", 'hand'); [s, u] = poe(s, d, 'Urso');
+  const ie = s.facts["Dream's Grip"].script.modes.findIndex(m => m.entrelacarK);
+  const of = E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === g && x.mode === ie && x.targets.every(t => t.oid === u));
+  assert.ok(of, 'o Urso nos dois modos');
+  const t = resolve(act(s, of)); assert.equal(t.objects[u].tapped, false, 'virou e desvirou, na ordem impressa');
+});
+
+test('CR 702.120a · "Escalate—Tap an untapped creature you control" (Collective Effort, texto oficial) é lido como custo de virar criatura', () => {
+  assert.deepEqual(J(E.escalarImpressoK(oficial('Collective Effort'))), { extra: { tapOther: { types: ['creature'] } } });
+  assert.deepEqual(J(E.extraVezesK({ tapOther: { types: ['creature'] } }, 2)), { tapOther: { types: ['creature'], amount: 2 } });
+});
