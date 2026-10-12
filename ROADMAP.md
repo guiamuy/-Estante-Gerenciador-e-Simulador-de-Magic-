@@ -4108,6 +4108,14 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Testes:** `keywords.cr4.unit` (2, falham sem a leva), `combat.audit` K-21. Textos oficiais: Dryad Sophisticate, Desert Nomads (Oracle do Forge, 11/10/2026). Goldens idênticos; motor v109.
 - **Parcial declarado (702.14):** "perde a travessia"/efeitos que a ignoram; travessia com qualidade concedida por efeito.
 
+**K-22 · Suspender da mão (702.62a)** 🟡 (leva K-22)
+- **Valor:** "Suspend N—{custo}" vira ação: pagar o custo e exilar a carta da mão com N marcadores, sem usar a pilha; quando sai o último, você conjura sem pagar (criatura com ímpeto) — o resto da mecânica já existia (M-269). Rift Bolt joga.
+- **Aceite:** Rift Bolt (texto oficial; script novo na biblioteca) é suspensa por {R}, fica no exílio com 1 marcador e na manutenção seguinte é conjurada sem pagar (3 de dano); com o Raio na pilha não suspende; criatura suspensa volta com ímpeto e ataca.
+- **Toca ponto comum:** nenhum fora das âncoras (`cardFacts` ganha `suspenderK`, uma linha).
+- **Pedido à mesa (não bloqueia o motor, mas o jogador humano ainda não vê o botão):** desenhar a ação `suspender_k` na folha da carta ("Suspender · {custo}"), como `plot`.
+- **Testes:** `keywords.cr4.unit` (2, falham sem a leva), `combat.audit` K-22, `scripts.unit` S8 (Rift Bolt). Goldens idênticos; motor v109.
+- **Parcial declarado (702.62):** 702.62c (proibições de conjurar não são conferidas antes de suspender).
+
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

@@ -5210,6 +5210,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'jump-start', // K-10 · 702.133: conjurar do cemitério pagando o custo e descartando uma carta; exilada ao sair da pilha
   'evolve', // K-11 · 702.100: "sempre que uma criatura sua entra com poder ou resistência maior, +1/+1" (evoluirK), uma por instância
   'exploit', // K-12 · 702.110: "quando entra, você pode sacrificar uma criatura"; o script diz o que acontece "quando ~ explora" (gatilho 'exploits')
+  'suspend', // K-22 · 702.62: "Suspend N—{custo}" (suspender_k, ação especial)
   'landwalk', // K-21 · 702.14: travessias com qualidade ("Nonbasic landwalk", "Desertwalk", "Snow swampwalk"…), lidas da linha (travessiasK)
   'protection', // K-17 · 702.16: a qualidade vem da linha "Protection from …" (cores, tipos, subtipos, multicolorido, tudo); a palavra sozinha não protege
   'convoke', 'improvise', // K-13 · 702.51 e 702.126: virar criaturas (artefatos) para pagar parte do custo total (tapaParaPagarK)
@@ -6350,6 +6351,8 @@ const RAW_SCRIPTS = [
   /* ↓ K · scripts de carta da trilha keywords (texto oficial em .listas/oficiais-keywords.json) */
   // K-10 · 702.133: o recomeçar vem da linha impressa ("Jump-start"); o script só diz o efeito
   // K-13 · 702.126: o improvisar vem da linha impressa; o script só diz o efeito
+  // K-22 · 702.62: o suspender vem da linha impressa ("Suspend 1—{R}"); o script só diz o efeito
+  { name: 'Rift Bolt', effects: [{ do: 'damage', amount: 3, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: -3 } } }, // "Rift Bolt deals 3 damage to any target. / Suspend 1—{R}"
   // K-16 · 702.29a/c: ciclar na pilha e "quando você a cicla"
   { name: 'Renewed Faith', effects: [{ do: 'gain', amount: 6 }], cycling: { mana: '{1}{W}' }, abilities: [{ kind: 'triggered', when: 'cycled', optional: true, effects: [{ do: 'gain', amount: 2 }] }], example: { target: 'none', expect: { selfLife: 6 } } }, // "You gain 6 life. / Cycling {1}{W} / When you cycle Renewed Faith, you may gain 2 life."
   { name: 'Metallic Rebuke', effects: [{ do: 'counter', target: 'spell', unless: { mana: '{3}' } }], example: { target: 'enemy-spell', expect: { countered: true } } }, // "Improvise / Counter target spell unless its controller pays {3}."
@@ -7739,6 +7742,7 @@ Object.assign(EXPORTS_K_SC, { wardCustoErrosK });
 TRIGGER_PT.exploits = 'quando explora uma criatura'; // K-12 · 702.110b
 TRIGGER_PT.cycled = 'quando você a cicla'; // K-16 · 702.29c
 function palavraNaLinhaK(k) {
+  if (k === 'suspend') return 'suspend \\d+\\s*[—-]\\s*(?:\\{[0-9WUBRGC]+\\})+'; // K-22
   if (k === 'landwalk') return '(?:(?:non)?(?:basic|legendary|snow|artifact) )?(?:land|desert|island|swamp|forest|mountain|plains|gate|cave|lair|locus|sphere|urza\'s)walk'; // K-21
   if (k === 'hexproof') return 'hexproof(?: from (?:white|blue|black|red|green|everything|multicolored|monocolored|colorless|creatures|artifacts|enchantments|instants|sorceries|planeswalkers|lands)(?: and from (?:white|blue|black|red|green|multicolored|monocolored|colorless|creatures|artifacts|enchantments|instants|sorceries|planeswalkers|lands))*)?'; // K-18 · 702.11d
   if (k === 'protection') { const q = '(?:white|blue|black|red|green|everything|multicolored|monocolored|colorless|all colors|creatures|artifacts|enchantments|instants|sorceries|planeswalkers|lands|(?!players\\b|opponents\\b)[a-z]+s)'; return `protection from ${q}(?: and from ${q})*`; } // K-17 · só as qualidades que o motor confere (protecaoImpressa e protecaoQualidadesK)
@@ -15259,6 +15263,7 @@ function cardFacts(card) {
     tapaK: tapaImpressoK(card), // K-13 · 702.51/702.126: "Convoke" / "Improvise" impressos (undefined quando não tem)
     recomecarK: recomecarImpressoK(card), // K-10 · 702.133: linha "Jump-start" (undefined quando não tem)
     arremeterK: arremeterImpressoK(card), // K-9 · 702.109: "Dash {1}{R}" (undefined quando não tem)
+    suspenderK: suspenderImpressoK(card), // K-22 · 702.62a: "Suspend N—{custo}" (undefined quando não tem)
     travK: travessiasImpressasK(card), // K-21 · 702.14a/c: "Nonbasic landwalk", "Desertwalk"… (undefined quando não tem)
     hexK: resistenciaQualidadesK(card), // K-18 · 702.11d: "Hexproof from black", "from monocolored"… impressos (undefined quando não tem)
     protK: protecaoQualidadesK(card), // K-17 · 702.16a: qualidades que não são cor ("from creatures", "from Demons", "from everything"…) (undefined quando não tem)
@@ -20113,6 +20118,16 @@ const HANDLERS = {
     if (!s.pending) { stateBased(s, ev); if (!continueUnless(s, ev)) resumeEffects(s, ev); }
   },
   /* ↓ K · ações (HANDLERS) da trilha keywords */
+  /** K-22 · 702.62a · suspender: ação especial (não usa a pilha) — paga o custo de suspender e exila a carta da mão com N marcadores de tempo. */
+  suspender_k(s, a) {
+    noPending(s); holder(s, a.p); semFracao(s);
+    const o = owns(s, a.p, a.oid, 'hand'), f = s.facts[o.name], sp = f.suspenderK;
+    if (!sp) throw new RuleError('suspender', 'esta carta não tem suspender');
+    if (!podeSuspenderAgoraK(s, a.p, f)) throw new RuleError('tempo', 'só quando você poderia conjurá-la (feitiço: na sua fase principal, com a pilha vazia)');
+    if (s.manaCheck && !a.free) payCost(s, a.p, parseCost(sp.mana));
+    moveObject(s, o.oid, 'exile'); o.counters.time = sp.n; o.suspensa = true; // 702.62b: no exílio, com suspender e com marcador de tempo
+    s.turn.passes = 0;
+  },
   /* ↓ V · ações (HANDLERS) da trilha verbos */
   /* ↓ T · ações (HANDLERS) da trilha tipos */
   /** T-3 · CR 702.122a · "vire qualquer número de outras criaturas": abre a escolha de quem tripula, criatura a criatura (os grupos
@@ -20689,6 +20704,11 @@ function legalActions(s, p, { adjudication = false } = {}) {
     return canPay(s, p, custo, castExtra(s, p, o, a.x || 0, a.targets || []));
   });
   /* ↓ K · ofertas de legalActions da trilha keywords (out.push) */
+  // K-22 · 702.62a · suspender da mão, quando a carta poderia ser conjurada (ação especial)
+  for (const oid of s.zones[p].hand) {
+    const f = s.facts[s.objects[oid].name], sp = f.suspenderK;
+    if (sp && podeSuspenderAgoraK(s, p, f) && (!s.manaCheck || canPay(s, p, parseCost(sp.mana)))) out.push({ t: 'suspender_k', p, oid });
+  }
   // K-13 · 702.51/702.126 · convocar e improvisar: a mesma conjuração, virando criaturas (artefatos) suas para pagar parte do custo total;
   // quais virar é escolha de quem paga (uma ação por grupo, do menor ao maior, até o limite de formas de pagar)
   const gruposDaChamadaK = new Map();
@@ -21364,6 +21384,17 @@ function travessiaQueBarraK(s, a, b) {
   return null;
 }
 Object.assign(EXPORTS_K, { travessiasImpressasK, travessiaQueBarraK });
+/* K-22 · 702.62 suspender. "Suspend N—[cost]": se você poderia começar a conjurar a carta da mão, pode pagar [custo] e exilá-la com N
+   marcadores de tempo; a ação não usa a pilha. As outras duas habilidades (tirar um marcador na manutenção; quando sai o último, conjurar
+   sem pagar, com ímpeto se for criatura) já existem (M-269, a mesma marca `suspensa`). */
+function suspenderImpressoK(card) {
+  const txt = String((card && (card.oracle_text || (card.faces && card.faces[0] && card.faces[0].oracle_text))) || '');
+  for (const l0 of txt.split('\n')) { const m = l0.replace(/\s*\([^)]*\)/g, '').trim().match(/^Suspend (\d+)\s*[—-]\s*((?:\{[0-9WUBRGC]+\})+)$/i); if (m) return { n: +m[1], mana: m[2] }; }
+  return undefined;
+}
+/** "If you could begin to cast this card": no tempo de conjurá-la (instantânea ou lampejo: com a prioridade; senão, tempo de feitiço). */
+function podeSuspenderAgoraK(s, p, f) { return !f.types.includes('land') && s.turn.priority === p && !s.pending && (!isSorcerySpeed(f) || canSorceryNow(s, p)); }
+Object.assign(EXPORTS_K, { suspenderImpressoK, podeSuspenderAgoraK });
 /* K-19 · 702.19b · atropelar com um bloqueador só: depois do letal no bloqueador, o excedente vai como quem ataca escolher, entre o
    bloqueador e o jogador (ou planeswalker/batalha atacado). A mesa oferece as duas pontas — o letal no bloqueador e o resto no jogador
    (a de antes, primeira opção) e tudo no bloqueador — pelo mesmo caminho da divisão entre bloqueadores (CR2g.2). Divisões no meio não são
@@ -24742,6 +24773,7 @@ Object.assign(PALAVRA_PT, { exploit: 'explorar' }); // K-12
 Object.assign(PALAVRA_PT, { convoke: 'convocar', improvise: 'improvisar' }); // K-13
 Object.assign(PALAVRA_PT, { protection: 'proteção' }); // K-17
 Object.assign(PALAVRA_PT, { landwalk: 'travessia' }); // K-21
+Object.assign(PALAVRA_PT, { suspend: 'suspender' }); // K-22
 /* ↓ V · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha verbos */
 const MARCADOR_PT_V = { p1p1: '+1/+1', m1m1: '−1/−1', loyalty: 'de lealdade', poison: 'de veneno' }; // V-7
 const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas por descreveEfeito)

@@ -7502,7 +7502,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Suspend",
    "status": "parcial",
-   "falta": "A ação especial de suspender da mão pagando o custo de suspender (702.62a-b) não existe — nenhuma carta das listas tem suspender impresso; só o Delay põe cartas em suspensão.",
+   "falta": "702.62c: efeitos que proíbem conjurar a carta não são conferidos antes de suspender; a mesa ainda não desenha o botão da ação suspender_k (pedido à mesa) — o bot e o goldfish a veem.",
    "esforco": "P",
    "depende": [
     "116.2",
@@ -7511,9 +7511,12 @@
     "702.63"
    ],
    "cartas": "comum em poucas coleções (Time Spiral, Modern Horizons)",
-   "evidencia": "M-269 (v97): carta exilada com marcadores de tempo e suspender (Delay: counter com suspende); na manutenção do dono, um gatilho na pilha tira um marcador; tirado o último, outro gatilho oferece conjurar sem pagar (recusar deixa exilada, sem permissão); criatura conjurada assim tem ímpeto enquanto o dono a controlar. suspender.unit.",
+   "evidencia": "M-269 (v97): carta exilada com marcadores de tempo e suspender (Delay: counter com suspende); na manutenção do dono, um gatilho na pilha tira um marcador; tirado o último, outro gatilho oferece conjurar sem pagar (recusar deixa exilada, sem permissão); criatura conjurada assim tem ímpeto enquanto o dono a controlar. suspender.unit. K-22: ação especial suspender_k (702.62a): da mão, quando a carta poderia ser conjurada (com a prioridade; feitiço só no tempo de feitiço), paga o custo de suspender e exila com N marcadores de tempo, sem usar a pilha; a marca `suspensa` liga as outras duas habilidades que já existiam (M-269). suspenderImpressoK lê \"Suspend N—{custo}\" (cardFacts.suspenderK). Carta exemplo: Rift Bolt (script novo na biblioteca; Oracle do Forge, 11/10/2026).",
    "testes": [
-    "M-269 · suspender: um marcador por manutenção do dono (gatilho na pilha); no último, o dono conjura sem pagar e a criatura tem ímpeto"
+    "M-269 · suspender: um marcador por manutenção do dono (gatilho na pilha); no último, o dono conjura sem pagar e a criatura tem ímpeto",
+    "CR 702.62a · suspender (Rift Bolt, texto oficial): da mão, pagando {R}, exila com 1 marcador sem usar a pilha; na manutenção seguinte sai o marcador e você conjura sem pagar",
+    "CR 702.62a · suspender só quando a carta poderia ser conjurada: feitiço não suspende no turno do oponente nem com a pilha ocupada",
+    "K-22 · suspender (702.62): a criatura suspensa volta no turno seguinte com ímpeto e ataca"
    ]
   },
   {

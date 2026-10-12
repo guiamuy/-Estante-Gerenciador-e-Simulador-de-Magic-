@@ -1010,3 +1010,27 @@ test('CR 702.14a/c · travessia de deserto (Desert Nomads, texto oficial) olha o
   assert.equal(podeBloquear(s, x, u), false, 'com Deserto: não bloqueia');
   s = J(s); s.objects[x].faceDown = true; assert.equal(podeBloquear(s, x, u), true, 'virada para baixo não tem a habilidade');
 });
+
+/* ---------------- K-22 · 702.62 suspender (a ação especial) ---------------- */
+test('CR 702.62a · suspender (Rift Bolt, texto oficial): da mão, pagando {R}, exila com 1 marcador sem usar a pilha; na manutenção seguinte sai o marcador e você conjura sem pagar', () => {
+  assert.deepEqual(J(E.suspenderImpressoK(oficial('Rift Bolt'))), { n: 1, mana: '{R}' });
+  let s = partida({ 'Rift Bolt': oficial('Rift Bolt') }); const a = s.turn.active, d = 1 - a;
+  let r; [s, r] = poe(s, a, 'Rift Bolt', 'hand');
+  const of = E.legalActions(s, a).find(x => x.t === 'suspender_k' && x.oid === r); assert.ok(of, 'a mesa oferece suspender');
+  s = act(s, of);
+  assert.equal(s.objects[r].zone, 'exile'); assert.equal(s.objects[r].counters.time, 1); assert.equal(s.stack.length, 0, 'não usa a pilha');
+  for (let i = 0; i < 200 && !(s.pending && s.pending.kind === 'free_cast'); i++) s = s.pending ? act(s, E.legalActions(s, s.pending.p).find(x => x.t !== 'concede') || E.legalActions(s, s.pending.p)[0]) : act(s, { t: 'pass', p: s.turn.priority });
+  assert.equal(s.turn.active, a, 'no próximo turno de quem suspendeu'); assert.equal(s.turn.step, 'upkeep');
+  const v = s.players[d].life;
+  s = resolve(act(s, { t: 'cast_free', p: a, oid: r, targets: [{ player: d }] }));
+  assert.equal(s.players[d].life, v - 3, 'conjurada sem pagar: 3 de dano');
+});
+
+test('CR 702.62a · suspender só quando a carta poderia ser conjurada: feitiço não suspende no turno do oponente nem com a pilha ocupada', () => {
+  let s = partida({ 'Rift Bolt': oficial('Rift Bolt'), Raio: RAIO }, SC_RAIO); const a = s.turn.active, d = 1 - a;
+  let r, ra; [s, r] = poe(s, a, 'Rift Bolt', 'hand'); [s, ra] = poe(s, a, 'Raio', 'hand');
+  s = act(s, { t: 'cast', p: a, oid: ra, targets: [{ player: d }] });
+  assert.ok(!E.legalActions(s, a).some(x => x.t === 'suspender_k'), 'com o Raio na pilha, não');
+  assert.throws(() => act(s, { t: 'suspender_k', p: a, oid: r }), /só quando/);
+  assert.equal(S.coverage(oficial('Rift Bolt')).level, 'completo', 'Rift Bolt tem script; a linha do suspender conta como palavra-chave');
+});

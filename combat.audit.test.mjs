@@ -468,6 +468,22 @@ test('K-21 · travessia com qualidade (702.14): a travessia de não básico pass
   const r = combate(s, [x]); assert.equal(r.players[d].life, 18);
 });
 
+test('K-22 · suspender (702.62): a criatura suspensa volta no turno seguinte com ímpeto e ataca', () => {
+  cobre('suspend');
+  const cartas = { ...CARDS, Suspensa: cre('Suspensa', 3, 3, ['Suspend'], { mana_cost: '{3}{G}{G}', cmc: 5, oracle_text: 'Suspend 1—{G}' }) };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 47, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a; let c; [s, c] = poe(s, a, 'Suspensa', { zone: 'hand' });
+  s = act(s, { t: 'suspender_k', p: a, oid: c });
+  for (let i = 0; i < 200 && !(s.pending && s.pending.kind === 'free_cast'); i++) s = s.pending ? act(s, E.legalActions(s, s.pending.p).find(x => x.t !== 'concede') || E.legalActions(s, s.pending.p)[0]) : act(s, { t: 'pass', p: s.turn.priority });
+  s = act(s, { t: 'cast_free', p: a, oid: c }); for (let i = 0; i < 4 && s.stack.length; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  for (let i = 0; i < 20 && s.turn.step !== 'main1'; i++) s = s.pending ? act(s, E.legalActions(s, s.pending.p)[0]) : act(s, { t: 'pass', p: s.turn.priority });
+  assert.ok(vivo(s, c) && E.hasKeyword(s, s.objects[c], 'haste'), 'no campo, com ímpeto');
+  const vida = s.players[d].life; const r = combate(s, [c]);
+  assert.equal(r.players[d].life, vida - 3, 'atacou no turno em que voltou');
+});
+
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));
