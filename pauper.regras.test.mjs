@@ -313,7 +313,7 @@ test('Leva 104 · Nyxborn Hydra com conceder: o jogador escolhe X, paga {X}{G}{G
 
 /* ---------------- Leva 105 · auditoria texto × script das listas Pauper ----------------
  * Textos oficiais em .listas/oficiais.json (coletados em 30/09/2026); cada teste falha no motor anterior. */
-const passaAte = (s, fim) => { for (let i = 0; i < 400 && !fim(s); i++) { if (s.pending && s.pending.kind === 'discard') s = act(s, { t: 'discard', p: s.pending.p, oid: s.zones[s.pending.p].hand[0] }); else if (s.pending && s.pending.kind === 'attackers') s = act(s, { t: 'attack', p: s.pending.p, attackers: [] }); else if (s.pending && s.pending.kind === 'blockers') s = act(s, { t: 'block', p: s.pending.p, blocks: [] }); else s = act(s, { t: 'pass', p: s.turn.priority }); } return s; };
+const passaAte = (s, fim) => { for (let i = 0; i < 400 && !fim(s); i++) { if (s.pending && s.pending.kind === 'discard') s = act(s, { t: 'discard', p: s.pending.p, oid: s.zones[s.pending.p].hand[0] }); else if (s.pending && s.pending.kind === 'madness') s = act(s, { t: 'decline_madness', p: s.pending.p }); /* K-13 · o baralho de teste muda com a biblioteca: a descartada na limpeza pode ter insanidade */ else if (s.pending && s.pending.kind === 'attackers') s = act(s, { t: 'attack', p: s.pending.p, attackers: [] }); else if (s.pending && s.pending.kind === 'blockers') s = act(s, { t: 'block', p: s.pending.p, blocks: [] }); else s = act(s, { t: 'pass', p: s.turn.priority }); } return s; };
 
 test('Leva 105 · 400.7: carta que muda de zona vira objeto novo — X pago, conceder, provas, face para baixo e lampejo não sobrevivem', () => {
   let [s, a] = jogoComMana(4); let hid;

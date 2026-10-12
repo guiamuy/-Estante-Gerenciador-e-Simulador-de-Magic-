@@ -3964,6 +3964,15 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Testes:** `keywords.cr4.unit` (3, falham sem a leva), `combat.audit` K-12. Textos oficiais: Sidisi's Faithful, Silumgar Butcher (Oracle do Forge, 11/10/2026). Goldens idênticos; motor v109.
 - **Pedido à trilha `motor` (não bloqueia):** Sidisi's Faithful e Silumgar Butcher na biblioteca precisam de `PERM_TYPES` em `fixtures.mjs`.
 
+**K-13 · Convocar e improvisar (702.51, 702.126)** 🟡 (leva K-13)
+- **Valor:** mágica com "Convoke" pode ser paga virando criaturas suas (cada uma paga {1} ou um símbolo da cor dela); com "Improvise", virando artefatos (só o genérico). Você escolhe quais virar; o resto sai dos terrenos. Siege Wurm joga sem script.
+- **Aceite:** Siege Wurm (texto oficial) com três Florestas e quatro criaturas (duas verdes) é conjurado; as quatro viram (a com enjoo também); duas brancas não pagam o {G}{G}; criatura que não pagaria nada não entra no grupo; Metallic Rebuke (texto oficial; script novo na biblioteca) com Ilha e dois artefatos; sem Ilha, os artefatos não pagam o {U}; as duas linhas contam como palavra-chave.
+- **Toca ponto comum:** o pagamento do custo normal em `HANDLERS.cast` (`payCost` recebe `custoTapadoK`, que devolve o mesmo custo quando a ação não vira nada); `cardFacts` (`tapaK`, uma linha a mais).
+- **Testes:** `keywords.cr4.unit` (4, falham sem a leva), `combat.audit` K-13, `scripts.unit` S8 (Metallic Rebuke). Textos oficiais: Siege Wurm, Metallic Rebuke (Oracle do Forge, 11/10/2026). Goldens idênticos; motor v109.
+- **Parcial declarado:** "convocou" (702.51c) não fica guardado; híbrido não é pago por criatura; custo com {X} não oferece; acima de 8 permanentes que servem, só as 8 primeiras entram nas combinações (até 24 formas).
+- **Pedido à mesa (não bloqueia):** a pergunta usa "Quais criaturas viram para pagar?" também para artefatos do improvisar.
+- **Achado para a trilha `motor` (não bloqueia, vale para K, V e T):** as âncoras de ofertas de `legalActions` (`↓ K/V/T`, M-299) ficam **depois** do `if (OTIMISTA) return out.filter(…)` (M-259); com redução de custo por alvo no campo, a função sai antes e as ofertas das três trilhas não aparecem (aqui: recomeçar, convocar, improvisar). Correção: as âncoras sobem para antes desse filtro (uma leva da trilha `motor`, que é dona das âncoras).
+
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

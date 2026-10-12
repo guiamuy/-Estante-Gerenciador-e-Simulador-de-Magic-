@@ -7298,14 +7298,21 @@
    "n": "702.51",
    "regra": "Keyword Abilities",
    "titulo": "Convoke",
-   "status": "ausente",
-   "falta": "Nenhuma chave de script nem ação: virar criaturas para pagar mana genérica ou da cor delas (702.51a-b), em quantidade livre, na hora de pagar o custo total. O que existe é só tapOther de quantidade fixa em custo alternativo/lampejo (index.html:4521, 11913), que não é convocar.",
+   "status": "parcial",
+   "falta": "702.51c (\"convocou\") não fica guardado para as cartas que perguntam quem convocou; símbolo híbrido não é pago por criatura (vai para a mana); custo com {X} não oferece convocar; mais de 8 criaturas desviradas: só as 8 primeiras entram nas combinações.",
    "esforco": "M",
    "depende": [
     "601.2h",
     "601.2f"
    ],
-   "cartas": "comum (volta em várias coleções)"
+   "cartas": "comum (volta em várias coleções)",
+   "evidencia": "K-13: 'convoke' em KEYWORDS; tapaImpressoK lê a linha (cardFacts.tapaK); gruposParaTaparK (oferta na âncora ↓ K de legalActions) e restaDoCustoK: cada criatura desvirada sua (com enjoo também: não é habilidade {T}) paga um símbolo de uma cor dela, senão um genérico; criatura que não pagaria nada não entra. O grupo é escolha de quem paga: uma ação por grupo que deixa o resto pagável, do menor ao maior, até 24 formas (LIMITE_PAGAMENTOS) e entre as 8 primeiras permanentes que servem; a mesa pergunta quais virar. A conta do resto vira o grupo só durante a conferência (legalActions não muda o estado). No pagamento (custoTapadoK, chamado no pagamento do custo normal): o custo total já fechado (aumentos e reduções, 601.2f/702.51b), cada permanente paga um símbolo e vira; o resto vai para a mana. Carta exemplo: Siege Wurm (Oracle do Forge, 11/10/2026).",
+   "testes": [
+    "CR 702.51a · convocar (Siege Wurm, texto oficial, sem script): três Florestas e quatro criaturas pagam {5}{G}{G}; as verdes pagam {G}, as outras o genérico; com enjoo também serve",
+    "CR 702.51a · convocar: criatura que não paga nada (cor errada, sem genérico) não entra no grupo; só a da cor",
+    "CR 702.51a / 702.126a · as linhas \"Convoke\" e \"Improvise\" contam como palavra-chave na cobertura",
+    "K-13 · convocar e improvisar (702.51, 702.126): quem virou para pagar a mágica não ataca neste turno"
+   ]
   },
   {
    "n": "702.52",
@@ -8371,14 +8378,20 @@
    "n": "702.126",
    "regra": "Keyword Abilities",
    "titulo": "Improvise",
-   "status": "ausente",
-   "falta": "Sem pagar genérico virando artefatos desvirados (702.126a-b). O motor não tem convocar nem pagamento por virar permanentes; só afinidade.",
+   "status": "parcial",
+   "falta": "Custo com {X} não oferece improvisar; mais de 8 artefatos desvirados: só os 8 primeiros entram nas combinações.",
    "esforco": "M",
    "depende": [
     "601.2h pagamento de custo total",
     "pagamento por virar permanentes (como 702.51 convocar)"
    ],
-   "cartas": "comum (Aether Revolt, reedições; relevante em Pauper de artefatos)"
+   "cartas": "comum (Aether Revolt, reedições; relevante em Pauper de artefatos)",
+   "evidencia": "K-13: 'improvise' em KEYWORDS; mesmo caminho do convocar (tapaImpressoK, gruposParaTaparK, restaDoCustoK, custoTapadoK), só com artefatos desvirados seus e só para o genérico. O grupo é escolha de quem paga: uma ação por grupo que deixa o resto pagável, do menor ao maior, até 24 formas (LIMITE_PAGAMENTOS) e entre as 8 primeiras permanentes que servem; a mesa pergunta quais virar. A conta do resto vira o grupo só durante a conferência (legalActions não muda o estado). No pagamento (custoTapadoK, chamado no pagamento do custo normal): o custo total já fechado (aumentos e reduções, 601.2f/702.51b), cada permanente paga um símbolo e vira; o resto vai para a mana. Carta exemplo: Metallic Rebuke (script novo na biblioteca; Oracle do Forge, 11/10/2026).",
+   "testes": [
+    "CR 702.126a · improvisar (Metallic Rebuke, texto oficial): artefatos pagam só o genérico; Ilha + dois artefatos pagam {2}{U}; três artefatos sem Ilha, não",
+    "CR 702.51a / 702.126a · as linhas \"Convoke\" e \"Improvise\" contam como palavra-chave na cobertura",
+    "K-13 · convocar e improvisar (702.51, 702.126): quem virou para pagar a mágica não ataca neste turno"
+   ]
   },
   {
    "n": "702.127",

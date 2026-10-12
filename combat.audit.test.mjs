@@ -422,6 +422,30 @@ test('K-12 · explorar (702.110): sacrificar o Urso ao entrar deixa o oponente s
   assert.equal(r.players[d].life, 16, 'o Grande passou sem bloqueio');
 });
 
+test('K-13 · convocar e improvisar (702.51, 702.126): quem virou para pagar a mágica não ataca neste turno', () => {
+  cobre('convoke'); cobre('improvise');
+  const terra = n => ({ name: n, type_line: `Basic Land — ${n}`, mana_cost: '', cmc: 0, colors: [], keywords: [], oracle_text: '' });
+  const cartas = { ...CARDS, Forest: terra('Forest'), Convocada: cre('Convocada', 4, 4, ['Convoke'], { mana_cost: '{2}{G}{G}', cmc: 4, colors: ['G'], oracle_text: 'Convoke' }),
+    Improvisada: cre('Improvisada', 3, 3, ['Improvise'], { mana_cost: '{3}', cmc: 3, colors: [], oracle_text: 'Improvise' }), Peca: { name: 'Peca', type_line: 'Artifact', mana_cost: '{1}', cmc: 1, colors: [], keywords: [], oracle_text: '' },
+    Verde: cre('Verde', 2, 2, [], { colors: ['G'] }) };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 44, mode: 'assisted', manaCheck: true, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active; let c, im, v1, v2, f1, f2, p1, p2, p3;
+  [s, v1] = poe(s, a, 'Verde'); [s, v2] = poe(s, a, 'Verde'); [s, f1] = poe(s, a, 'Forest'); [s, f2] = poe(s, a, 'Forest');
+  [s, p1] = poe(s, a, 'Peca'); [s, p2] = poe(s, a, 'Peca'); [s, p3] = poe(s, a, 'Peca');
+  [s, c] = poe(s, a, 'Convocada', { zone: 'hand' }); [s, im] = poe(s, a, 'Improvisada', { zone: 'hand' });
+  const conv = E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === c && x.tapaK && x.tapaK.length === 2 && x.tapaK.includes(v1) && x.tapaK.includes(v2));
+  assert.ok(conv, 'as duas Verdes pagam {G}{G}; as Florestas, o {2}');
+  s = act(s, conv); for (let i = 0; i < 4 && s.stack.length; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const imp = E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === im && x.tapaK && x.tapaK.length === 3);
+  assert.ok(imp, 'os três artefatos pagam o {3}'); s = act(s, imp);
+  for (let i = 0; i < 6 && s.turn.step !== 'combat_attackers'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const atacantes = E.legalActions(s, a).filter(x => x.t === 'attack').flatMap(x => x.attackers || [x.oid]).filter(Boolean);
+  assert.ok(s.objects[v1].tapped && s.objects[v2].tapped && [p1, p2, p3].every(x => s.objects[x].tapped), 'quem pagou ficou virado');
+  assert.ok(!atacantes.includes(v1) && !atacantes.includes(v2), 'as Verdes viraram para convocar e não atacam');
+});
+
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));

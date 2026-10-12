@@ -647,3 +647,64 @@ test('CR 702.110a · explorar sem script: a carta com só "Exploit" joga, e a pa
   assert.equal(S.coverage({ name: 'Z', type_line: 'Creature — Zombie', oracle_text: 'Exploit (When this creature enters, you may sacrifice a creature.)' }).level, 'completo');
   assert.equal(S.coverage(oficial('Silumgar Butcher')).level, 'parcial', 'a habilidade "quando explora" continua pedindo script');
 });
+
+/* ---------------- K-13 · 702.51 convocar e 702.126 improvisar ---------------- */
+const BRANCO = { name: 'Branco', type_line: 'Creature — Soldier', mana_cost: '{W}', cmc: 1, colors: ['W'], power: '1', toughness: '1', keywords: [], oracle_text: '' };
+const PECA = { name: 'Peca', type_line: 'Artifact', mana_cost: '{1}', cmc: 1, colors: [], keywords: [], oracle_text: '' };
+/** Partida com o mana conferido: só as cartas pedidas no grimório (mais terrenos básicos), parada na 1ª fase principal. */
+function comMana(cards, scripts = {}) {
+  const all = { Forest: terra('Forest'), Island: terra('Island'), ...cards };
+  const deck = Object.keys(all).map(name => ({ name, qty: 4, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 7, mode: 'assisted', manaCheck: true, cards: all, scripts, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  s = J(s); for (let p = 0; p < 2; p++) { s.zones[p].library.push(...s.zones[p].hand.splice(0)); for (const x of s.zones[p].library) s.objects[x].zone = 'library'; }
+  return s;
+}
+
+test('CR 702.51a · convocar (Siege Wurm, texto oficial, sem script): três Florestas e quatro criaturas pagam {5}{G}{G}; as verdes pagam {G}, as outras o genérico; com enjoo também serve', () => {
+  assert.deepEqual(J(E.tapaImpressoK(oficial('Siege Wurm'))), ['convoke']);
+  let s = comMana({ 'Siege Wurm': oficial('Siege Wurm'), Urso: URSO, Branco: BRANCO }); const a = s.turn.active;
+  let w; [s, w] = poe(s, a, 'Siege Wurm', 'hand');
+  for (let i = 0; i < 3; i++) [s] = poe(s, a, 'Forest');
+  const cr = []; for (const n of ['Urso', 'Urso', 'Branco', 'Branco']) { let x; [s, x] = poe(s, a, n); cr.push(x); }
+  s = J(s); s.objects[cr[0]].sick = true; // 702.51: virar para convocar não é habilidade {T}
+  const of = E.legalActions(s, a).filter(x => x.t === 'cast' && x.oid === w);
+  assert.ok(of.length && of.every(x => x.tapaK), 'sem convocar não paga');
+  const todas = of.find(x => x.tapaK.length === 4); assert.ok(todas, 'as quatro criaturas pagam GG + 2');
+  const r = act(s, todas);
+  assert.equal(r.objects[w].zone, 'stack'); assert.ok(cr.every(x => r.objects[x].tapped), 'as quatro viraram');
+  assert.equal(r.zones[a].battlefield.filter(x => r.objects[x].name === 'Forest' && r.objects[x].tapped).length, 3, 'e as três Florestas pagaram o resto');
+  assert.throws(() => act(s, { ...todas, tapaK: [cr[2], cr[3]], pay: { tapOther: [cr[2], cr[3]] } }), /mana insuficiente/, 'duas brancas não pagam o {G}{G}');
+});
+
+test('CR 702.51a · convocar: criatura que não paga nada (cor errada, sem genérico) não entra no grupo; só a da cor', () => {
+  const VERDINHO = { name: 'Verdinho', type_line: 'Instant', mana_cost: '{G}', cmc: 1, colors: ['G'], keywords: ['Convoke'], oracle_text: 'Convoke\nYou gain 1 life.' };
+  const SC_V = { name: 'Verdinho', effects: [{ do: 'gain', amount: 1 }], example: { target: 'none', expect: { selfLife: 1 } } };
+  let s = comMana({ Verdinho: VERDINHO, Urso: URSO, Branco: BRANCO }, { Verdinho: SC_V }); const a = s.turn.active;
+  let v, b, u; [s, v] = poe(s, a, 'Verdinho', 'hand'); [s, b] = poe(s, a, 'Branco');
+  assert.ok(!E.legalActions(s, a).some(x => x.t === 'cast' && x.oid === v), 'a branca não paga {G}');
+  [s, u] = poe(s, a, 'Urso');
+  const of = E.legalActions(s, a).filter(x => x.t === 'cast' && x.oid === v);
+  assert.deepEqual(J(of.map(x => x.tapaK)), [[u]], 'só o Urso verde');
+  const r = resolve(act(s, of[0])); assert.equal(r.players[a].life, s.players[a].life + 1);
+});
+
+test('CR 702.126a · improvisar (Metallic Rebuke, texto oficial): artefatos pagam só o genérico; Ilha + dois artefatos pagam {2}{U}; três artefatos sem Ilha, não', () => {
+  assert.deepEqual(J(E.tapaImpressoK(oficial('Metallic Rebuke'))), ['improvise']);
+  let s = comMana({ 'Metallic Rebuke': oficial('Metallic Rebuke'), Peca: PECA, Raio: RAIO }, SC_RAIO); const a = s.turn.active, d = 1 - a;
+  let m; [s, m] = poe(s, a, 'Metallic Rebuke', 'hand');
+  const ps = []; for (let i = 0; i < 3; i++) { let x; [s, x] = poe(s, a, 'Peca'); ps.push(x); }
+  let ro; [s, ro] = poe(s, d, 'Raio', 'hand'); s = J(s); s.manaCheck = false; s.turn.priority = d; s = act(s, { t: 'cast', p: d, oid: ro, targets: [{ player: a }] }); s = J(s); s.manaCheck = true;
+  s = J(s); s.turn.priority = a;
+  assert.ok(!E.legalActions(s, a).some(x => x.t === 'cast' && x.oid === m), 'sem Ilha: o {U} não sai de artefato');
+  [s] = poe(s, a, 'Island'); s = J(s); s.turn.priority = a;
+  const of = E.legalActions(s, a).filter(x => x.t === 'cast' && x.oid === m);
+  assert.ok(of.length && of.every(x => x.tapaK.length === 2), 'dois artefatos pagam o {2}');
+  const r = act(s, of[0]); assert.equal(r.objects[m].zone, 'stack');
+});
+
+test('CR 702.51a / 702.126a · as linhas "Convoke" e "Improvise" contam como palavra-chave na cobertura', () => {
+  assert.equal(S.coverage(oficial('Siege Wurm')).level, 'completo');
+  assert.equal(S.coverage(oficial('Metallic Rebuke')).level, 'completo', 'Metallic Rebuke tem script');
+});

@@ -5210,6 +5210,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'jump-start', // K-10 · 702.133: conjurar do cemitério pagando o custo e descartando uma carta; exilada ao sair da pilha
   'evolve', // K-11 · 702.100: "sempre que uma criatura sua entra com poder ou resistência maior, +1/+1" (evoluirK), uma por instância
   'exploit', // K-12 · 702.110: "quando entra, você pode sacrificar uma criatura"; o script diz o que acontece "quando ~ explora" (gatilho 'exploits')
+  'convoke', 'improvise', // K-13 · 702.51 e 702.126: virar criaturas (artefatos) para pagar parte do custo total (tapaParaPagarK)
   /* ↓ V · palavras-chave da trilha verbos */
   /* ↓ T · palavras-chave da trilha tipos */
 ];
@@ -6325,6 +6326,8 @@ const isTargeted = e => TARGETED.has(e.target) || (!!e.target && typeof e.target
 const RAW_SCRIPTS = [
   /* ↓ K · scripts de carta da trilha keywords (texto oficial em .listas/oficiais-keywords.json) */
   // K-10 · 702.133: o recomeçar vem da linha impressa ("Jump-start"); o script só diz o efeito
+  // K-13 · 702.126: o improvisar vem da linha impressa; o script só diz o efeito
+  { name: 'Metallic Rebuke', effects: [{ do: 'counter', target: 'spell', unless: { mana: '{3}' } }], example: { target: 'enemy-spell', expect: { countered: true } } }, // "Improvise / Counter target spell unless its controller pays {3}."
   { name: 'Radical Idea', effects: [{ do: 'draw', amount: 1 }], example: { target: 'none', expect: { handDelta: 1 } } }, // "Draw a card. / Jump-start"
   /* ↓ V · scripts de carta da trilha verbos (texto oficial em .listas/oficiais-verbos.json) */
   // V-18 · 701.58 encobrir
@@ -15052,6 +15055,7 @@ function cardFacts(card) {
     power: num(card && card.power), toughness: num(card && card.toughness), loyalty: num(card && card.loyalty),
     cmc: (card && card.cmc) || 0, prot: protecaoImpressa(card),
     wardImpresso: wardImpressoK(card), // K-2 · 702.21: "Ward {N}" / "Ward—Pay N life." / descarte / sacrifício, da face da frente (undefined quando não tem)
+    tapaK: tapaImpressoK(card), // K-13 · 702.51/702.126: "Convoke" / "Improvise" impressos (undefined quando não tem)
     recomecarK: recomecarImpressoK(card), // K-10 · 702.133: linha "Jump-start" (undefined quando não tem)
     arremeterK: arremeterImpressoK(card), // K-9 · 702.109: "Dash {1}{R}" (undefined quando não tem)
     evocarK: evocarImpressoK(card), // K-8 · 702.74: "Evoke {2}{U}" / "Evoke—Exile a green card from your hand." (undefined quando não tem)
@@ -19265,7 +19269,7 @@ const HANDLERS = {
         if (!(Number.isInteger(a.vida) && a.vida >= 0 && a.vida <= nPhyrexianos(custo))) throw new RuleError('custo', 'escolha quantos símbolos phyrexianos pagar com vida');
         if (s.players[a.p].life < 2 * a.vida) throw new RuleError('custo', 'vida insuficiente para pagar o phyrexiano'); // 119.4
         payCost(s, a.p, custoPhyrexiano(custo, a.vida), extraPago, { criaturaDoComandante: true, oid: a.oid }); perdeVida(s, a.p, 2 * a.vida);
-      } else payCost(s, a.p, custo, extraPago, { criaturaDoComandante: true, oid: a.oid }); } // M-273 // M-259 · a redução por alvo usa os alvos escolhidos
+      } else payCost(s, a.p, ...custoTapadoK(s, a, o, custo, extraPago), { criaturaDoComandante: true, oid: a.oid }); } // K-13 · convocar/improvisar (Toca ponto comum: o pagamento do custo normal) // M-273 // M-259 · a redução por alvo usa os alvos escolhidos
     if (a.kick && reforco && s.manaCheck && !a.free && (alt || a.flashback || a.escape || a.disturb || a.omen || a.bestow || a.plotted)) payCost(s, a.p, somaCusto(parseCost('{0}'), parseCost(reforco.mana), a.kick)); // CR2c.6 · 601.2f: o reforço soma ao custo alternativo
     if (a.retrace) { // M-222 · 702.81a: "discarding a land card in addition to paying its other costs"
       const l = a.pay && a.pay.retrace, lo = l && s.objects[l];
@@ -20422,6 +20426,14 @@ function legalActions(s, p, { adjudication = false } = {}) {
     return canPay(s, p, custo, castExtra(s, p, o, a.x || 0, a.targets || []));
   });
   /* ↓ K · ofertas de legalActions da trilha keywords (out.push) */
+  // K-13 · 702.51/702.126 · convocar e improvisar: a mesma conjuração, virando criaturas (artefatos) suas para pagar parte do custo total;
+  // quais virar é escolha de quem paga (uma ação por grupo, do menor ao maior, até o limite de formas de pagar)
+  if (s.manaCheck) for (const oid of s.zones[p].hand) {
+    const o = s.objects[oid], f = s.facts[o.name];
+    if (!f.tapaK || f.types.includes('land') || f.semCusto || (f.cost.x || 0) || !(canSorcery || !isSorcerySpeed(f))) continue;
+    const extra = castExtra(s, p, o, 0);
+    for (const grupo of gruposParaTaparK(s, p, o, f.cost, extra)) casts(o).forEach(x => out.push({ ...x, tapaK: grupo, pay: { ...(x.pay || {}), tapOther: grupo } }));
+  }
   // K-10 · 702.133a · recomeçar: do cemitério, mágica instantânea ou feitiço, pagando o custo e descartando uma carta (a escolha é de quem paga)
   for (const oid of s.zones[p].graveyard) {
     const o = s.objects[oid], f = s.facts[o.name];
@@ -20888,6 +20900,58 @@ function explorouK(s, src, z, saiu, ctrl) {
     s.queued.push({ source: w.oid, name: w.name, controller: ctrl, effects: ab.effects, when: 'exploits', ...marcasDaHabilidade(ab) });
 }
 Object.assign(EXPORTS_K, { explorouK });
+/* K-13 · 702.51 convocar e 702.126 improvisar. "For each colored mana in this spell's total cost, you may tap an untapped creature of that
+   color you control rather than pay that mana. For each generic mana …, you may tap an untapped creature you control" (improvisar: só o
+   genérico, com artefatos). Não é custo alternativo nem adicional (b): vale depois de o custo total estar fechado (aumentos e reduções,
+   601.2f). Virar assim não é habilidade {T}: criatura com enjoo serve. Cada criatura paga um símbolo (o de uma cor dela, ou o genérico);
+   o resto se paga com mana. Instâncias repetidas são redundantes (702.51d, 702.126c). */
+function tapaImpressoK(card) {
+  const txt = String((card && (card.oracle_text || (card.faces && card.faces[0] && card.faces[0].oracle_text))) || ''), out = [];
+  for (const l0 of txt.split('\n')) for (const p of l0.replace(/\s*\([^)]*\)/g, '').split(/,\s*/)) { const k = p.trim().toLowerCase(); if ((k === 'convoke' || k === 'improvise') && !out.includes(k)) out.push(k); }
+  return out.length ? out : undefined;
+}
+/** As permanentes de `p` que podem ser viradas para pagar a mágica `f` (desviradas; criaturas para convocar, artefatos para improvisar). */
+function viraveisK(s, p, f) {
+  return battlefield(s).filter(x => x.controller === p && !x.tapped && ((f.tapaK.includes('convoke') && isCreature(s, x)) || (f.tapaK.includes('improvise') && tiposDe(s, x).includes('artifact'))));
+}
+/** O custo que sobra depois de virar `grupo`: o genérico do custo total (com `extra`) e os símbolos coloridos; null se alguma permanente
+    do grupo não paga nada (não se vira a mais) ou não serve. Cada uma paga primeiro um símbolo de cor dela (convocar), senão o genérico. */
+function restaDoCustoK(s, p, f, custo, extra, grupo) {
+  const colored = { ...custo.colored }; let generic = Math.max(0, (custo.generic || 0) + (extra || 0));
+  const serve = new Set(viraveisK(s, p, f).map(x => x.oid));
+  for (const oid of grupo) {
+    const x = s.objects[oid]; if (!x || !serve.has(oid)) return null;
+    const conv = f.tapaK.includes('convoke') && isCreature(s, x);
+    const cor = conv ? coresDe(s, x).find(c => (colored[c] || 0) > 0) : null;
+    if (cor) colored[cor]--; else if (generic > 0 && (conv || tiposDe(s, x).includes('artifact'))) generic--; else return null;
+  }
+  return { ...custo, generic, colored, x: 0 };
+}
+/** Os grupos que dá para virar e pagar o resto com mana: do menor ao maior, até LIMITE_PAGAMENTOS. A conferência do resto vira o grupo
+    só durante a conta (e desvira em seguida: legalActions não muda o estado). */
+function gruposParaTaparK(s, p, o, custo, extra) {
+  const f = s.facts[o.name], cands = viraveisK(s, p, f).map(x => x.oid).slice(0, 8), out = [];
+  const total = (custo.generic || 0) + (extra || 0) + Object.values(custo.colored || {}).reduce((a, b) => a + b, 0) + (custo.hybrid || []).length;
+  for (let k = 1; k <= Math.min(cands.length, total) && out.length < LIMITE_PAGAMENTOS; k++)
+    for (const g of combinacoes(cands, k)) {
+      if (out.length >= LIMITE_PAGAMENTOS) break;
+      const r = restaDoCustoK(s, p, f, custo, extra, g); if (!r) continue;
+      for (const x of g) s.objects[x].tapped = true;
+      try { if (canPay(s, p, r, 0)) out.push(g); } finally { for (const x of g) s.objects[x].tapped = false; }
+    }
+  return out;
+}
+/** HANDLERS.cast · o custo normal a pagar com mana depois de virar o grupo escolhido (sem `tapaK`, o mesmo de antes). */
+function custoTapadoK(s, a, o, custo, extra) {
+  if (!a.tapaK) return [custo, extra];
+  const f = s.facts[o.name], g = [].concat(a.tapaK);
+  if (!f.tapaK || !g.length || new Set(g).size !== g.length) throw new RuleError('custo', 'esta mágica não tem convocar nem improvisar');
+  const r = restaDoCustoK(s, a.p, f, custo, extra, g);
+  if (!r) throw new RuleError('custo', 'vire só criaturas (artefatos) desviradas suas que paguem parte do custo');
+  for (const x of g) { noteEnchantedEvent(s, s.objects[x]); s.objects[x].tapped = true; }
+  return [r, 0];
+}
+Object.assign(EXPORTS_K, { tapaImpressoK, gruposParaTaparK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-18 · 701.58 encobrir: como manifestar, mas a permanente virada para baixo tem salvaguarda {2} enquanto ficar virada (a); vira para
    cima do mesmo jeito (b–d, g) e as cartas vão uma de cada vez (e). 701.62 manifestar pavor: "Look at the top two cards of your
@@ -23949,6 +24013,7 @@ Object.assign(PALAVRA_PT, { dash: 'arremeter' }); // K-9
 Object.assign(PALAVRA_PT, { 'jump-start': 'recomeçar' }); // K-10
 Object.assign(PALAVRA_PT, { evolve: 'evoluir' }); // K-11
 Object.assign(PALAVRA_PT, { exploit: 'explorar' }); // K-12
+Object.assign(PALAVRA_PT, { convoke: 'convocar', improvise: 'improvisar' }); // K-13
 /* ↓ V · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha verbos */
 const MARCADOR_PT_V = { p1p1: '+1/+1', m1m1: '−1/−1', loyalty: 'de lealdade', poison: 'de veneno' }; // V-7
 const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas por descreveEfeito)
