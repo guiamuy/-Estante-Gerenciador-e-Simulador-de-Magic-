@@ -9,8 +9,8 @@ import { loadModules } from './_load.mjs';
 const { leitor: L, scripts: S } = loadModules();
 const CARTAS = [...JSON.parse(readFileSync(new URL('./.listas/oficiais.json', import.meta.url), 'utf8')).cartas, ...JSON.parse(readFileSync(new URL('./.listas/oficiais-commander.json', import.meta.url), 'utf8')).cartas, ...JSON.parse(readFileSync(new URL('./.listas/oficiais-motor.json', import.meta.url), 'utf8')).cartas]; // M-305 · também as cartas dos alicerces
 // o que conta para a regra: efeitos (com os campos que o motor lê), modos e as palavras-chave com custo do topo; rótulos não contam
-const CAMPOS = ['do', 'amount', 'power', 'toughness', 'target', 'unless', 'token', 'targetNotLegendary', 'targetNotColor', 'optional', 'filter', 'to', 'ate', 'anyColor', 'exceptSubtype', 'types', 'nontoken', 'semRegenerar']; // LT5 · M-304: duração de mudança de zona · busca: filtro, destino e "pode"
-const TOPO = ['flashback', 'madness', 'cycling', 'storm', 'delve', 'transmute', 'escape', 'additional', 'affinity', 'aura', 'equip', 'grants', 'grantsAll', 'self', 'entersTapped', 'ninjutsu', 'produces'];
+const CAMPOS = ['do', 'amount', 'power', 'toughness', 'target', 'unless', 'token', 'targetNotLegendary', 'targetNotColor', 'optional', 'filter', 'to', 'ate', 'anyColor', 'exceptSubtype', 'types', 'nontoken', 'semRegenerar', 'targetNotLand', 'targetMv', 'targetMvMax', 'targetTypes', 'symbols', 'jogadores']; // LT13 · alvos com restrição e mana de símbolos fixos // LT5 · M-304: duração de mudança de zona · busca: filtro, destino e "pode"
+const TOPO = ['flashback', 'madness', 'cycling', 'storm', 'delve', 'transmute', 'escape', 'additional', 'affinity', 'aura', 'equip', 'grants', 'grantsAll', 'self', 'entersTapped', 'ninjutsu', 'produces', 'entersTappedUnless'];
 // `self.keywords` repete a linha de palavras-chave impressa (o motor já a lê da carta): não é regra a mais
 const SO_REPETE = (h, c) => Object.keys(h).every(k => k !== 'self' || (Object.keys(h.self).join() === 'keywords' && h.self.keywords.every(k2 => new RegExp('\\b' + k2 + '\\b', 'i').test(c.oracle_text || ''))));
 // texto oficial incompleto no acervo (falta a face Omen do Sagu Wildling em .listas/oficiais.json): o leitor não tem como ver; registrado como pendência de dados
@@ -24,13 +24,15 @@ const limpaSelf = sc => sc.self && Object.keys(sc.self).some(k => k !== 'keyword
 const efeitos = (sc, ref) => JSON.stringify(ordena({ self: limpaSelf(sc), effects: efs(sc.effects), modes: (sc.modes || []).map(m => efs(m.effects)), abilities: abs(sc.abilities), ...Object.fromEntries(TOPO.filter(k => k !== 'self' && sc[k] != null && sc[k] !== false && (k !== 'produces' || (ref || sc).produces != null)).map(k => [k, sc[k]])) }));
 const SO_EFEITOS = ['name', 'effects', 'modes', 'abilities', 'example', 'covers', 'note', ...TOPO];
 
-test('LT1 · concordância (piso M-318: 118): toda carta lida por inteiro dá o mesmo script escrito à mão (nenhuma divergência)', () => {
+test('LT1 · concordância (piso LT13: 140): toda carta lida por inteiro dá o mesmo script escrito à mão (nenhuma divergência)', () => {
   const lidas = [], divergentes = [];
   for (const c of CARTAS) {
     const r = L.ler(c); if (!r.completa) continue;
     const h = S.SCRIPTS[c.name];
     lidas.push(c.name);
     if (!h && !r.script) continue; // permanente que o motor joga pelos dados da carta (palavras-chave, mana): nada a comparar
+    // só mana e palavras-chave impressas: o motor lê da carta e a cobertura nem consulta o leitor (SC.leitura devolve null) — Sol Ring, "{T}: Add {C}{C}"
+    if (!h && Object.keys(r.script).every(k => k === 'name' || k === 'produces' || (k === 'self' && Object.keys(r.script.self).every(k2 => k2 === 'keywords')))) continue;
     if (!h) { divergentes.push(`${c.name}: sem script à mão para comparar`); continue; }
     if (TEXTO_INCOMPLETO[c.name]) continue;
     const aMais = Object.keys(h).filter(k => !SO_EFEITOS.includes(k) && !(k === 'self' && SO_REPETE(h, c)));
@@ -39,7 +41,7 @@ test('LT1 · concordância (piso M-318: 118): toda carta lida por inteiro dá o 
     else if (efeitos(h, h) !== efeitos(r.script, h)) divergentes.push(`${c.name}: leitor ${efeitos(r.script, h)} × à mão ${efeitos(h, h)}`);
   }
   assert.deepEqual(divergentes, []);
-  assert.ok(lidas.length >= 118, 'cartas lidas por inteiro: ' + lidas.length + ' (' + lidas.join(', ') + ')');
+  assert.ok(lidas.length >= 140, 'cartas lidas por inteiro: ' + lidas.length + ' (' + lidas.join(', ') + ')');
 });
 
 test('LT1 · fidelidade: frase sem padrão fica não lida, com o texto dela, e a carta não sai completa; permanente ainda não é lida', () => {
@@ -68,6 +70,16 @@ test('LT1 · fidelidade: frase sem padrão fica não lida, com o texto dela, e a
   const b3 = L.ler({ name: 'Tutor', type_line: 'Instant', oracle_text: 'Search your library for an instant or sorcery card, reveal it, then shuffle and put that card on top.' });
   assert.deepEqual(JSON.parse(JSON.stringify(b3.script.effects)), [{ do: 'search', amount: 1, filter: { types: ['instant', 'sorcery'] }, to: 'library-top' }], 'LT5: "shuffle and put that card on top" vai ao topo do grimório');
   const l5 = L.ler({ name: 'Terra', type_line: 'Land', oracle_text: '{T}: Add {C}.\nCycling {R}{G}{W}' });
+  // LT13 · terreno de dor: a cobertura por texto ainda trata a linha como mana; lida pelo leitor, a carta sem script à mão deixaria de jogar (decisão 11)
+  assert.equal(L.ler({ name: 'Dor', type_line: 'Land', oracle_text: '{T}: Add {C}.\n{T}: Add {W} or {B}. This land deals 1 damage to you.' }).completa, false, 'LT13: dor fica não lida');
+  const fi = L.ler({ name: 'Fichas', type_line: 'Sorcery', oracle_text: 'Create two 1/1 red Goblin creature tokens.' });
+  assert.equal(fi.completa, true, 'LT13: "Create" com maiúscula'); assert.equal(fi.script.effects[0].amount, 2);
+  const sig = L.ler({ name: 'Sinete', type_line: 'Artifact', oracle_text: '{1}, {T}: Add {U}{R}.' });
+  assert.deepEqual(JSON.parse(JSON.stringify(sig.script.abilities)), [{ kind: 'activated', cost: { mana: '{1}', tap: true }, effects: [{ do: 'add_mana', symbols: ['U', 'R'] }] }], 'LT13: mana de símbolos fixos com custo');
+  const so = L.ler({ name: 'Rato', type_line: 'Creature — Rat', oracle_text: '{X}: Rato deals X damage to each creature and each player. Spend only black mana on X.' });
+  assert.equal(so.completa, true); assert.equal(so.script.abilities[0].cost.xCor, 'B', 'LT13: "Spend only black mana on X" (CR2c.7)');
+  const so2 = L.ler({ name: 'Rato', type_line: 'Creature — Rat', oracle_text: '{2}: Rato deals 1 damage to each creature. Spend only black mana on X.' });
+  assert.equal(so2.completa, false, 'sem {X} no custo, a frase do X não se lê');
   assert.equal(l5.completa, true, 'LT5: reciclagem em terreno'); assert.deepEqual(JSON.parse(JSON.stringify(l5.script.cycling)), { mana: '{R}{G}{W}' });
 });
 

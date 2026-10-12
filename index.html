@@ -14790,6 +14790,8 @@ const __m42 = (function () {
     const k = String(t).toLowerCase(); if (ALVOS[k]) return { target: ALVOS[k] };
     let m = k.match(/^target nonlegendary (creature)$/); if (m) return { target: 'creature', targetNotLegendary: true };
     m = k.match(/^target non(white|blue|black|red|green) creature$/); if (m) return { target: 'creature', targetNotColor: CORES[m[1]] };
+    if (k === 'target nonland permanent') return { target: 'permanent', targetNotLand: true }; // LT13
+    if (k === 'target instant or sorcery spell') return { target: 'spell', targetTypes: ['instant', 'sorcery'] }; // LT13
     return null;
   }
   const SINAL = t => (t.startsWith('-') ? -1 : 1) * +t.replace(/^[+-]/, '');
@@ -14844,11 +14846,13 @@ const __m42 = (function () {
     [new RegExp(`^you gain ${N} life$`, 'i'), m => [{ do: 'gain', amount: num(m[1]) }]],
     [new RegExp(`^(each opponent|target opponent|target player) loses ${N} life and you gain ${N} life$`, 'i'), m => [com({ do: 'lose', amount: num(m[2]) }, alvo(m[1])), { do: 'gain', amount: num(m[3]) }]],
     [new RegExp(`^(each opponent|target opponent|target player) loses ${N} life$`, 'i'), m => [com({ do: 'lose', amount: num(m[2]) }, alvo(m[1]))]],
+    [/^~ deals X damage to each creature and each player$/i, () => [{ do: 'damage', amount: { per: 'x' }, target: 'each-creature' }, { do: 'damage', amount: { per: 'x' }, jogadores: 'cada' }]], // LT13 · CR2c.7 (Crypt Rats)
     [new RegExp(`^~ deals ${N} damage to (.+)$`, 'i'), m => [com({ do: 'damage', amount: num(m[1]) }, alvo(m[2]))]],
     [/^destroy (target [a-z ']+)$/i, m => [com({ do: 'destroy' }, alvo(m[1]))]],
     [/^exile (target [a-z ']+) until ~ leaves the battlefield$/i, m => [com({ do: 'exile', ate: 'fonte-sair' }, alvo(m[1]))]], // CR2d.1 · 610.3
     [/^exile (target [a-z ']+)$/i, m => [com({ do: 'exile' }, alvo(m[1]))]],
     [/^counter (target [a-z ']+) unless its controller pays (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => [com({ do: 'counter', unless: { mana: m[2] } }, alvo(m[1]))]],
+    [/^counter target spell with mana value (\d+)$/i, m => [{ do: 'counter', target: 'spell', targetMv: +m[1] }]], // LT13
     [/^counter (target [a-z ']+)$/i, m => [com({ do: 'counter' }, alvo(m[1]))]],
     [/^return (target [a-z ']+) to its owner's hand$/i, m => [com({ do: 'bounce' }, alvo(m[1]))]],
     [/^(target creature|target creature you control|creatures you control|creatures your opponents control|all creatures) gets? ([+-]\d+)\/([+-]\d+) until end of turn$/i, m => [com({ do: 'pump', power: SINAL(m[2]), toughness: SINAL(m[3]) }, alvo(m[1]))]],
@@ -14882,6 +14886,7 @@ const __m42 = (function () {
     [/^prevent all combat damage that would be dealt this turn$/i, () => [{ do: 'fog' }]], // LT9
     [/^exile all cards from target player's graveyard$/i, () => [{ do: 'exile_graveyard', target: 'player' }]], // LT9
     [/^return target creature card from your graveyard to your hand$/i, () => [{ do: 'to_hand', target: 'creature-in-your-graveyard' }]], // LT9
+    [/^return target creature card with mana value (\d+) or less from your graveyard to the battlefield$/i, m => [{ do: 'reanimate', target: 'creature-in-your-graveyard', targetMvMax: +m[1] }]], // LT13
     [/^return target creature or land card from a graveyard to its owner's hand$/i, () => [{ do: 'to_hand', target: 'creature-land-in-any-graveyard' }]], // LT9
     [/^~ connives$/i, () => [{ do: 'connive', amount: 1 }]], // LT9 · 701.50
     [new RegExp(`^~ deals ${N} damage to each creature without flying$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'each-nonflying-creature' }]], // LT10
@@ -14897,7 +14902,7 @@ const __m42 = (function () {
     [/^untap all creatures that attacked this turn$/i, () => [{ do: 'desvira_atacantes' }]], // CR2g.4
     [/^(target opponent|each opponent) loses that much life$/i, m => [com({ do: 'lose', amount: { per: 'trigger-value' } }, alvo(m[1]))]], // CR2b.7 · "that much": o valor do gatilho
     [/^after this main phase, there is an additional combat phase followed by an additional main phase$/i, () => [{ do: 'combate_extra' }]], // LT5 · o "then shuffle" da busca: o motor embaralha ao fim dela
-    [new RegExp(`^create ${N} (\\d+/\\d+) ((?:white|blue|black|red|green|colorless)(?: and (?:white|blue|black|red|green))?) ${TIPO_CRIATURA} creature tokens?(?: with ([a-z ,]+))?$`), m => ficha(m[1], m[2], m[3], m[4], m[5])]
+    [new RegExp(`^[Cc]reate ${N} (\\d+/\\d+) ((?:white|blue|black|red|green|colorless)(?: and (?:white|blue|black|red|green))?) ${TIPO_CRIATURA} creature tokens?(?: with ([a-z ,]+))?$`), m => ficha(m[1], m[2], m[3], m[4], m[5])]
   ];
   /** Linha de palavra-chave com custo, no topo do script ("Flashback {2}{R}" → flashback: { mana }). Só as que o motor executa assim. */
   const COM_CUSTO = [
@@ -14975,6 +14980,7 @@ const __m42 = (function () {
       else if (/^sacrifice (this (creature|artifact|land|permanent)|~)$/i.test(parte)) cost.sacrifice = true;
       else if (/^sacrifice an artifact or creature$/i.test(parte)) cost.sacrificeOther = { types: ['artifact', 'creature'] };
       else if (/^sacrifice an artifact$/i.test(parte)) cost.sacrificeOther = { types: ['artifact'] };
+      else if (/^sacrifice a creature$/i.test(parte)) cost.sacrificeOther = { types: ['creature'] }; // LT13 · Phyrexian Tower
       else if (/^sacrifice another creature$/i.test(parte)) cost.sacrificeOther = { types: ['creature'], outra: true };
       else if (/^discard a card$/i.test(parte)) cost.discard = 1;
       else return null;
@@ -14987,11 +14993,18 @@ const __m42 = (function () {
     if (!m) { frases.push({ texto: linha, lida: false, motivo: 'habilidade ativada sem padrão conhecido' }); return null; }
     const cost = leCusto(m[1].replace(new RegExp(escapa(nome), 'g'), '~')); if (!cost) { frases.push({ texto: linha, lida: false, motivo: 'custo de ativação sem padrão conhecido' }); return null; }
     let corpo = m[2].replace(/\.$/, ''); const extra = {};
+    const so = corpo.match(/\.\s*Spend only (white|blue|black|red|green) mana on X$/i); // LT13 · CR2c.7 · 107.3k: X pago só com mana da cor
+    const fraseSo = so && /\{X\}/.test(cost.mana || '') ? { texto: so[0].replace(/^\.\s*/, ''), lida: true } : null;
+    if (fraseSo) { corpo = corpo.slice(0, so.index); cost.xCor = CORES[so[1].toLowerCase()]; }
     if (/\.\s*Activate only as a sorcery$/i.test(corpo)) { corpo = corpo.replace(/\.\s*Activate only as a sorcery$/i, ''); extra.sorceryOnly = true; }
     if (/^Add one mana of any color$/i.test(corpo) && !(cost.tap && Object.keys(cost).length === 1)) { frases.push({ texto: m[1], lida: true }, { texto: corpo, lida: true }); return { kind: 'activated', cost, ...extra, effects: [{ do: 'add_mana', anyColor: true }] }; } // LT11 · mana de qualquer cor com custo além de {T}
+    const sim = corpo.match(/^Add ((?:\{[WUBRGC]\})+)$/); // LT13 · "{1}, {T}: Add {U}{R}" (Signets), "{T}, Sacrifice this land: Add {R}{R}"
+    if (sim) { frases.push({ texto: m[1], lida: true }, { texto: corpo, lida: true }); return { kind: 'activated', cost, ...extra, effects: [{ do: 'add_mana', symbols: sim[1].match(/[WUBRGC]/g) }] }; }
+    const qc = corpo.match(/^Add one mana of any color\.\s+(.+)$/i); // LT13 · Chromatic Sphere: "Add one mana of any color. Draw a card."
+    if (qc) { const sub = []; const e = leParagrafo(qc[1], nome, sub); frases.push({ texto: m[1], lida: true }, { texto: 'Add one mana of any color', lida: true }, ...sub); return e ? { kind: 'activated', cost, ...extra, effects: [{ do: 'add_mana', anyColor: true }, ...e] } : null; }
     if (/^Add /.test(corpo)) { frases.push({ texto: linha, lida: false, motivo: 'habilidade de mana com custo além de {T} (LT5)' }); return null; }
     const sub = []; const e = leParagrafo(corpo.replace(/^it /i, '~ '), nome, sub);
-    frases.push({ texto: m[1], lida: true }, ...sub);
+    frases.push({ texto: m[1], lida: true }, ...sub, ...(fraseSo ? [fraseSo] : []));
     return e ? { kind: 'activated', cost, ...extra, effects: e } : null;
   }
   /** Uma linha de habilidade disparada → { ab, frases } ou null. "you may" vira optional; "it" na frase vira "~" (a própria permanente). */
@@ -15062,7 +15075,11 @@ const __m42 = (function () {
         if (mu) { topo.self = { ...(topo.self || {}), multiplica: [...((topo.self || {}).multiplica || []), mu[1]] }; frases.push({ texto: linha, lida: true }); continue; }
         if (/^(this land|this creature|~) enters(?: the battlefield)? tapped$/i.test(lp)) { topo.entersTapped = true; frases.push({ texto: linha, lida: true }); continue; }
         const nj = lp.match(/^ninjutsu (\{[^}]+\}(?:\{[^}]+\})*)$/i); if (nj) { topo.ninjutsu = { mana: nj[1] }; frases.push({ texto: linha, lida: true }); continue; }
-        const mana = lp.match(/^\{T\}: Add (\{[WUBRGC]\}(?: or \{[WUBRGC]\})*)$/); if (mana) { topo.produces = mana[1].split(' or ').map(x => [x.replace(/[{}]/g, '')]); frases.push({ texto: linha, lida: true }); continue; } // produção de mana
+        const mana = lp.match(/^\{T\}: Add ((?:\{[WUBRGC]\})+(?: or (?:\{[WUBRGC]\})+)*)$/); if (mana) { topo.produces = [...(topo.produces || []), ...mana[1].split(' or ').map(x => x.match(/[WUBRGC]/g))]; frases.push({ texto: linha, lida: true }); continue; } // produção de mana (LT13: também "{T}: Add {B}{R}")
+        const etu = lp.match(/^(?:this land|~) enters(?: the battlefield)? tapped unless you control an? (Plains|Island|Swamp|Mountain|Forest) or an? (Plains|Island|Swamp|Mountain|Forest)$/i); // LT13 · 305.7 · "check lands"
+        if (etu) { topo.entersTappedUnless = { controlsSubtype: [etu[1], etu[2]] }; frases.push({ texto: linha, lida: true }); continue; }
+        const etv = lp.match(/^(?:this land|~) enters(?: the battlefield)? tapped unless a player has (\d+) or less life$/i); // LT13 · Razortrap Gorge
+        if (etv) { topo.entersTappedUnless = { anyPlayerLifeAtMost: +etv[1] }; frases.push({ texto: linha, lida: true }); continue; }
         const ed = lp.match(/^when ~ enters(?: the battlefield)? or is put into a graveyard from the battlefield, (.+)$/i); // LT11 · entra ou morre: dois gatilhos com o mesmo efeito
         if (ed) { const g1 = leGatilho(`When ~ enters, ${ed[1]}`, nome, frases), g2 = leGatilho(`When ~ dies, ${ed[1]}`, nome, []); if (g1 && g2) (topo.abilities = topo.abilities || []).push(g1, g2); continue; }
         if (GATILHOS.some(([re]) => re.test(lp.split(', ')[0]))) { const g = leGatilho(lp, nome, frases); if (g) (topo.abilities = topo.abilities || []).push(g); continue; } // gatilho (as frases do corpo já ficaram anotadas)
@@ -15081,7 +15098,7 @@ const __m42 = (function () {
     let script = null;
     if (modos && modos.length && !efeitos.length) script = { name: nome, modes: modos.filter(Boolean), ...topo };
     else if (efeitos.length && !modos) script = { name: nome, effects: efeitos, ...topo };
-    else if (!magica && (topo.abilities || topo.aura || topo.equip || topo.entersTapped || topo.grants || topo.grantsAll || topo.self || topo.produces || topo.cycling || topo.transmute || topo.escape)) script = { name: nome, ...topo }; // LT3/LT5
+    else if (!magica && (topo.abilities || topo.aura || topo.equip || topo.entersTapped || topo.grants || topo.grantsAll || topo.self || topo.produces || topo.cycling || topo.transmute || topo.escape || topo.entersTappedUnless)) script = { name: nome, ...topo }; // LT3/LT5
     const permanenteSemTexto = !magica && !linhas.length; // criatura sem texto: não precisa de script (o motor joga pelos dados da carta)
     const erros = script ? SC.validateScript({ ...script, example: { target: 'none', expect: {} } }).filter(e => !/cenário|example|exemplo/i.test(e)) : ['sem efeito'];
     const completa = !!(lidas && ((script && !erros.length) || permanenteSemTexto || (!magica && frases.length && frases.every(f => f.palavras))));
