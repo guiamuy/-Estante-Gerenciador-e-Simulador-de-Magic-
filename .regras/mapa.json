@@ -9699,14 +9699,19 @@
    "n": "702.194",
    "regra": "Keyword Abilities",
    "titulo": "Teamwork",
-   "status": "ausente",
-   "falta": "Sem implementação (grep sem ocorrência no motor nem nos scripts). Falta custo adicional opcional de virar criaturas com poder total N+, a marca \"usou trabalho em equipe\" e alvos condicionais (194c).",
+   "status": "parcial",
+   "falta": "\"Pode conjurar como se tivesse lampejo se usou trabalho em equipe\" (Quantum Reduction) e \"escolha os dois modos se usou\" (Widow's Bite, Murdock's Crusade) não são lidos. Criatura que é fonte de mana virada pelo trabalho em equipe não paga mana na mesma conjuração.",
    "esforco": "M",
    "depende": [
     "601.2b custo adicional",
     "601.2c alvos condicionais"
    ],
-   "cartas": "não sei (coleção de 2026)"
+   "cartas": "não sei (coleção de 2026)",
+   "evidencia": "K-70: \"Teamwork N\" (equipeK). O script traz os efeitos de sempre e os do texto com trabalho em equipe (equipeK.effects); em createGame viram os modos \"sem\" e \"com\" (os alvos do segundo só com ele, 702.194c). O modo com trabalho em equipe pede as criaturas a virar (pay.equipeK; ofertasEquipeK: uma oferta por grupo mínimo de criaturas desviradas com poder total N, também na conjuração sem pagar), conferidas e viradas em pagaEquipeK (HANDLERS.cast). We Say Thee Nay! em RAW_SCRIPTS (S8).",
+   "testes": [
+    "CR 702.194a/c · trabalho em equipe: o modo com trabalho em equipe vira um grupo mínimo de criaturas com poder total N; o texto \"se usou\" só vale nele",
+    "K-70 · trabalho em equipe (702.194): virando um Urso, o outro recebe +2/+2 e um marcador e ataca por 5"
+   ]
   },
   {
    "n": "702.195",

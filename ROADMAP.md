@@ -4591,6 +4591,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Aceite:** Thunder Magic com quatro Montanhas oferece "2 de dano" ({R}) e "4 de dano" ({R}+{3}), não "8 de dano" ({R}+{5}{R}).
 - **Toca ponto comum:** `createGame` (uma linha: os custos nos modos).
 - **Testes:** `keywords.cr4.unit` (1, falha sem a leva), `combat.audit` (1 cenário). Texto oficial: Fire Magic, Thunder Magic (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
+**K-70 · Trabalho em equipe (teamwork, 702.194)** 🟡 (leva K-70) — onda 4 (80 cópias em 34 listas: We Say Thee Nay!, Crossover Collaboration)
+- **Valor:** a mágica com "Teamwork N" ganha o botão "com trabalho em equipe", um por grupo de criaturas suas a virar (poder total N ou mais); o texto "se usou trabalho em equipe" vale nele.
+- **Aceite:** com dois Ursos e uma 1/1, "Teamwork 3" oferece os três grupos mínimos; com trabalho em equipe, a criatura alvo ganha o marcador e as do grupo ficam viradas; sem, não.
+- **Toca ponto comum:** `HANDLERS.cast` (uma linha: `pagaEquipeK`), `createGame` (uma linha: os modos).
+- **Testes:** `keywords.cr4.unit` (1, falha sem a leva), `combat.audit` (1 cenário). Texto oficial: Beast Mode, Timeline Inquiry, We Say Thee Nay! (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
+- **Parcial declarado:** "como se tivesse lampejo" e "escolha os dois modos" com trabalho em equipe não são lidos; fonte de mana virada pelo trabalho em equipe não paga mana na mesma conjuração.
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

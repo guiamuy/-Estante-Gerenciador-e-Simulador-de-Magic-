@@ -990,6 +990,18 @@ test('K-69 · escalonado (702.183): o modo de 2 de dano mata o bloqueador antes 
   s = act(s, E.legalActions(s, a).find(x => x.oid === r && x.mode === 1 && x.targets[0].oid === b)); for (let i = 0; i < 4 && s.stack.length; i++) s = act(s, { t: 'pass', p: s.turn.priority });
   assert.equal(vivo(s, b), false); assert.equal(combate(s, [u]).players[d].life, 18);
 });
+test('K-70 · trabalho em equipe (702.194): virando um Urso, o outro recebe +2/+2 e um marcador e ataca por 5', () => {
+  cobre('teamwork');
+  const cartas = { ...CARDS, Fera: { name: 'Fera', type_line: 'Instant', mana_cost: '{1}{G}', cmc: 2, colors: ['G'], keywords: ['Teamwork'], oracle_text: 'Teamwork 1\nTarget creature gets +2/+2 until end of turn. Also put a +1/+1 counter on that creature if this spell was cast using teamwork.' } };
+  const scripts = { ...SCRIPTS, Fera: { name: 'Fera', effects: [{ do: 'pump', power: 2, toughness: 2, target: 'creature' }], equipeK: { effects: [{ do: 'pump', power: 2, toughness: 2, target: 'creature' }, { do: 'counters', amount: 1, target: 'first-target' }] }, example: { action: 'mode:0', target: 'own-creature', expect: { pump: [2, 2] } } } };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 89, mode: 'assisted', manaCheck: false, cards: cartas, scripts, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a; let u, v, f; [s, u] = poe(s, a, 'Urso'); [s, v] = poe(s, a, 'Urso'); [s, f] = poe(s, a, 'Fera', { zone: 'hand' });
+  const ie = s.facts.Fera.script.modes.findIndex(m => m.equipeK);
+  s = act(s, E.legalActions(s, a).find(x => x.oid === f && x.mode === ie && x.targets[0].oid === u && x.pay.equipeK.includes(v))); for (let i = 0; i < 4 && s.stack.length; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  assert.equal(combate(s, [u]).players[d].life, 15);
+});
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));

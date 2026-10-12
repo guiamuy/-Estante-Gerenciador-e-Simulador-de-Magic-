@@ -2439,3 +2439,20 @@ test('CR 702.183a · escalonado (Thunder Magic, texto oficial): um modo só, com
   const r = resolve(act(s, E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === t && x.mode === 1)));
   assert.equal(r.zones[a].battlefield.filter(x => r.objects[x].tapped).length, 4, 'pagou {R} + {3}'); assert.equal(r.objects[u].zone, 'graveyard');
 });
+
+/* ---------------- K-70 · trabalho em equipe (teamwork) 702.194 ---------------- */
+test('CR 702.194a/c · trabalho em equipe: o modo com trabalho em equipe vira um grupo mínimo de criaturas com poder total N; o texto "se usou" só vale nele', () => {
+  const BM = { name: 'Fera', type_line: 'Instant', mana_cost: '{1}{G}', cmc: 2, colors: ['G'], keywords: ['Teamwork'], oracle_text: 'Teamwork 3\nTarget creature gets +2/+2 until end of turn. Also put a +1/+1 counter on that creature if this spell was cast using teamwork.' };
+  const SC = { Fera: { name: 'Fera', effects: [{ do: 'pump', power: 2, toughness: 2, target: 'creature' }], equipeK: { effects: [{ do: 'pump', power: 2, toughness: 2, target: 'creature' }, { do: 'counters', amount: 1, target: 'first-target' }] }, example: { action: 'mode:0', target: 'own-creature', expect: { pump: [2, 2] } } } };
+  const UM = { name: 'Um', type_line: 'Creature — Elf', mana_cost: '{G}', cmc: 1, colors: ['G'], power: '1', toughness: '1', keywords: [], oracle_text: '' };
+  let s = partida({ Fera: BM, Urso: URSO, Um: UM }, SC); const a = s.turn.active;
+  let f, u1, u2, um; [s, f] = poe(s, a, 'Fera', 'hand'); [s, u1] = poe(s, a, 'Urso'); [s, u2] = poe(s, a, 'Urso'); [s, um] = poe(s, a, 'Um');
+  const ie = s.facts.Fera.script.modes.findIndex(m => m.equipeK);
+  const grupos = E.legalActions(s, a).filter(x => x.t === 'cast' && x.oid === f && x.mode === ie && x.targets[0].oid === u1).map(x => J(x.pay.equipeK).sort().join());
+  assert.deepEqual(J(grupos).sort(), [[u1, u2].sort().join(), [u1, um].sort().join(), [u2, um].sort().join()].sort(), 'grupos mínimos com poder 3: dois Ursos, ou Urso e Um');
+  const t = resolve(act(s, E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === f && x.mode === ie && x.targets[0].oid === u1 && x.pay.equipeK.includes(um))));
+  assert.equal(t.objects[u1].counters.p1p1, 1, 'com trabalho em equipe, o marcador'); assert.ok(t.objects[um].tapped && t.objects[u1].tapped);
+  const n = resolve(act(s, E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === f && x.mode !== ie && x.targets[0].oid === u1)));
+  assert.equal((n.objects[u1].counters || {}).p1p1 || 0, 0, 'sem, nada de marcador');
+  assert.throws(() => E.apply(s, { t: 'cast', p: a, oid: f, mode: ie, targets: [{ oid: u1 }], pay: { equipeK: [um] } }), /poder total 3/);
+});

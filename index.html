@@ -5248,6 +5248,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'ravenous', 'squad', // K-67 · 702.156 (entra com X marcadores +1/+1; com X 5 ou mais, compra ao entrar) e 702.157 (custo adicional pago quantas vezes quiser; ao entrar, uma ficha cópia por vez)
   'casualty', // K-68 · 702.153: sacrificar uma criatura com poder N ou mais ao conjurar; se sacrificou, o gatilho copia a mágica (casualtyK)
   'tiered', // K-69 · 702.183: escolha um modo e pague o custo adicional dele (o caminho do spree, sem combinações)
+  'teamwork', // K-70 · 702.194: custo adicional opcional de virar criaturas suas com poder total N ou mais; o texto "se usou trabalho em equipe" é um modo do script (modosDeEquipeK)
   'afflict', 'melee', 'mentor', 'training', // K-31 · 702.130, 702.121, 702.134, 702.149: gatilhos de ataque gerados pela palavra, um por instância
   'battle cry', 'rampage', 'flanking', 'bushido', // K-30 · 702.91, 702.23, 702.25, 702.45: gatilhos de combate gerados pela palavra (GATILHOS_DE_PALAVRA_K), um por instância
   /* ↓ V · palavras-chave da trilha verbos */
@@ -6470,6 +6471,7 @@ const RAW_SCRIPTS = [
   { name: "Prey's Vengeance", effects: [{ do: 'pump', power: 2, toughness: 2, target: 'creature' }], example: { target: 'own-creature', expect: { pump: [2, 2] } } }, // K-35 · "Target creature gets +2/+2 until end of turn. / Rebound" 
   { name: 'Wild Ride', effects: [{ do: 'pump', power: 3, toughness: 0, target: 'creature' }, { do: 'keyword', keyword: 'haste', target: 'first-target' }], example: { target: 'own-creature', expect: { pump: [3, 0] } } }, // K-55 · "Target creature gets +3/+0 and gains haste until end of turn. / Harmonize {4}{R}"
   { name: 'Into the Flood Maw', effects: [{ do: 'bounce', target: { tipos: ['creature'], de: 'opponent' } }], presenteK: { effects: [{ do: 'bounce', target: { semTipos: ['land'], de: 'opponent' } }] }, example: { action: 'mode:0', target: 'enemy-creature', expect: { bounced: true } } }, // K-56 · "Gift a tapped Fish / Return target creature an opponent controls to its owner's hand. If the gift was promised, instead return target nonland permanent an opponent controls to its owner's hand."
+  { name: 'We Say Thee Nay!', effects: [{ do: 'counter', target: 'spell', unless: { mana: '{2}' } }], equipeK: { effects: [{ do: 'counter', target: 'spell', unless: { mana: '{4}' } }] }, example: { action: 'mode:0', target: 'enemy-spell', expect: { countered: true } } }, // K-70 · "Teamwork 2 / Counter target spell unless its controller pays {2}. Counter that spell unless its controller pays {4} instead if this spell was cast using teamwork."
   { name: 'Borrowed Malevolence', modes: [{ label: '+1/+1 numa criatura', effects: [{ do: 'pump', power: 1, toughness: 1, target: 'creature' }] }, { label: '−1/−1 numa criatura', effects: [{ do: 'pump', power: -1, toughness: -1, target: 'creature' }] }], // K-48 · "Escalate {2} / Choose one or both — • Target creature gets +1/+1 until end of turn. • Target creature gets -1/-1 until end of turn."
     example: { action: 'mode:0', target: 'own-creature', expect: { pump: [1, 1] } } },
   { name: 'Borrowed Hostility', modes: [{ label: '+3/+0 numa criatura', effects: [{ do: 'pump', power: 3, toughness: 0, target: 'creature' }] }, { label: 'Iniciativa a uma criatura', effects: [{ do: 'keyword', keyword: 'first strike', target: 'creature' }] }], // K-48 · "Escalate {3} / Choose one or both — • Target creature gets +3/+0 until end of turn. • Target creature gains first strike until end of turn."
@@ -8450,6 +8452,7 @@ function palavraNaLinhaK(k) {
   if (k === 'ravenous') return 'ravenous'; if (k === 'squad') return 'squad\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-67 · esquadrão com custo que não é mana fica de fora
   if (k === 'casualty') return 'casualty \\d+'; // K-68 · "Casualty X" (Ob Nixilis) fica de fora
   if (k === 'tiered') return 'tiered'; // K-69 · as linhas "• Nome — {custo} — efeito" são os modos do script
+  if (k === 'teamwork') return 'teamwork \\d+'; // K-70
   if (k === 'dash') return 'dash\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-9
   if (k === 'evoke') return 'evoke(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*exile an? (?:white|blue|black|red|green) card from your hand\\.?)'; // K-8 · só as formas que o motor paga
   return ['afterlife', 'rampage', 'bushido', 'afflict'].includes(k) ? `${k} \\d+` : k; // K-30 · alvoroço N e bushido N
@@ -16310,6 +16313,7 @@ function cardFacts(card) {
     proleK: custoDaLinhaK(card, 'Offspring'), // K-53 · 702.175: "Offspring {2}" (undefined quando não tem)
     spreeK: spreeImpressoK(card), // K-54 · 702.172: os custos "+ {1} — …" de cada modo, na ordem (undefined quando não tem)
     tieredK: tieredImpressoK(card), // K-69 · 702.183: os custos de cada modo, na ordem (undefined quando não tem)
+    equipeK: (String((card && card.oracle_text) || '').match(/(?:^|\n)Teamwork (\d+)/) || [])[1] ? +String(card.oracle_text).match(/(?:^|\n)Teamwork (\d+)/)[1] : undefined, // K-70 · 702.194: o N de "Teamwork N"
     harmonizarK: custoDaLinhaK(card, 'Harmonize'), // K-55 · 702.180: "Harmonize {4}{R}" (undefined quando não tem)
     presenteK: presenteImpressoK(card), // K-56 · 702.174: 'card' | 'fish' | 'turn' | 'food' | 'treasure' | 'octopus' (undefined quando não tem)
     iminenteK: iminenteImpressoK(card), // K-58 · 702.176: { n, mana } de "Impending 5—{1}{B}" (undefined quando não tem)
@@ -16652,6 +16656,7 @@ function createGame(setup) {
     if (f.escalarK && (f.script.modes || []).length > 1 && !f.script.modeCount) f.script.modes = f.script.modes.concat(modosEscaladosK(f.script.modes, f.escalarK)); // K-48 · 702.120a: cada combinação de modos é mais um modo, com custo por modo além do primeiro
     if (f.spreeK && (f.script.modes || []).length === f.spreeK.length && !f.script.modeCount) f.script.modes = modosSpreeK(f.script.modes, f.spreeK); // K-54 · 702.172a: cada combinação de modos, com a soma dos custos dela
     if (f.tieredK && (f.script.modes || []).length === f.tieredK.length && !f.script.modeCount) f.script.modes = f.script.modes.map((m, k) => ({ ...m, label: `${m.label || 'modo'} (+${f.tieredK[k]})`, spreeK: parseCost(f.tieredK[k]) })); // K-69 · 702.183a: cada modo com o custo dele (pago pelo caminho do spree)
+    if (f.equipeK && sc.equipeK && !(f.script.modes || []).length) f.script.modes = [{ label: 'Sem trabalho em equipe', effects: sc.effects || [] }, { label: `Trabalho em equipe (virar criaturas com poder total ${f.equipeK} ou mais)`, equipeK: f.equipeK, effects: sc.equipeK.effects || [] }]; // K-70 · 702.194a/c: o texto com trabalho em equipe é o segundo modo (os alvos dele só com ele)
     if (f.presenteK && !(f.script.modes || []).length && (f.types.includes('instant') || f.types.includes('sorcery'))) f.script.modes = modosDoPresenteK(f, sc, setup.players || []); // K-56 · 702.174a/b/j/m: sem presente, ou prometendo a cada oponente possível (o presente antes do resto)
     if (f.ascenderK && (f.types.includes('instant') || f.types.includes('sorcery'))) f.script.effects = [{ do: 'ascender_k' }].concat(f.script.effects || []); // K-59 · 702.131a: na mágica, a ascensão é a primeira habilidade
     if (sc.flashback) f.script.flashback = sc.flashback;
@@ -21160,6 +21165,7 @@ const HANDLERS = {
     // ("you may choose new targets"), e resolvem mesmo se a original for anulada. Antes resolviam junto com ela.
     if ((f.script || {}).storm) tempestadeNaPilhaK(s, a, o); // K-25 · 702.40a: um gatilho só, que copia na resolução (Toca ponto comum: HANDLERS.cast)
     if (a.casualtyK != null) baixaNaPilhaK(s, a, o); // K-68 · 702.153a: sacrifica a criatura e põe na pilha o gatilho que copia (Toca ponto comum: HANDLERS.cast)
+    if (modoDeEquipeK(s, a, o)) pagaEquipeK(s, a, o); // K-70 · 702.194a: vira as criaturas escolhidas (Toca ponto comum: HANDLERS.cast)
     // M-265 · replicar (702.56b): "when you cast this spell, copy it for each time you paid its replicate cost" — como a tempestade, cópias
     // com alvo próprio por cima da original, que existem mesmo se a original for anulada; não são conjuradas
     if (a.kick && reforco && reforco.replicar) { for (let i = 0; i < a.kick; i++) s.queued.push({ source: a.oid, name: o.name, controller: a.p, effects: spellEffects(s, s.objects[a.oid]), when: 'replicar', copia: true, copiaDeMagia: true, marcasMagia: marcasDaMagia(s.objects[a.oid]) }); events.push({ kind: 'replicar', name: o.name, amount: a.kick }); }
@@ -22348,6 +22354,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
   ofertasProleK(s, p, out); // K-53 · 702.175a · prole: cada conjuração pelo custo normal ganha a variante que paga também o custo de prole
   ofertasEsquadraoK(s, p, out); // K-67 · 702.157a: uma variante por quantidade de vezes que fecha o custo
   ofertasBaixaK(s, p, out); // K-68 · 702.153a: uma variante por criatura sua com poder N ou mais
+  ofertasEquipeK(s, p, out); // K-70 · 702.194a: uma variante por grupo mínimo de criaturas a virar
   // K-22 · 702.62a · suspender: a oferta mora em ofertasSuspenderK até a mesa ter o botão (K-24; pedido à trilha mesa)
   // K-27 · 702.49d · ninjutsu de comandante, da zona de comando (da mão, pelo caminho de sempre)
   for (const oid of s.zones[p].command) {
@@ -24037,6 +24044,7 @@ function ofertasSemPagarK(s, p, out) {
     const o = s.objects[x.oid], f = o && s.facts[o.name]; if (!f) continue;
     if (f.proleK && !x.proleK && (!s.manaCheck || canPay(s, p, parseCost(f.proleK.mana)))) tmp.push({ ...x, proleK: true });
     if (f.esquadraoK && !x.esquadraoK) for (let n = 1; n <= LIMITE_ESQUADRAO_K && (!s.manaCheck || canPay(s, p, somaCusto(parseCost('{0}'), parseCost(f.esquadraoK.mana), n))); n++) tmp.push({ ...x, esquadraoK: n }); // K-67 · 118.9d
+    if (modoDeEquipeK(s, x, o) && !(x.pay || {}).equipeK) { tmp.splice(tmp.indexOf(x), 1); for (const g of gruposDeEquipeK(s, p, modoDeEquipeK(s, x, o))) tmp.push({ ...x, pay: { ...(x.pay || {}), equipeK: g } }); continue; } // K-70 · 118.9d
     if (f.numerosK && (f.numerosK.casualty || [])[0] && x.casualtyK == null && (f.types.includes('instant') || f.types.includes('sorcery'))) for (const c of criaturasDaBaixaK(s, p, f.numerosK.casualty[0])) tmp.push({ ...x, casualtyK: c }); // K-68 · 118.9d
     if (f.recompraK && !x.recompraK && (!f.recompraK.mana || !s.manaCheck || canPay(s, p, parseCost(f.recompraK.mana)))) {
       if (!f.recompraK.extra) tmp.push({ ...x, recompraK: true });
@@ -24111,6 +24119,39 @@ function tieredImpressoK(card) {
   return custos.length ? custos : undefined;
 }
 Object.assign(EXPORTS_K, { tieredImpressoK });
+/* K-70 · 702.194 trabalho em equipe (teamwork): "As an additional cost to cast this spell, you may tap any number of creatures you control
+   with total power N or more." O script traz os efeitos de sempre (`effects`) e os do texto com trabalho em equipe (`equipeK: { effects }`);
+   em createGame vira dois modos (como o presente), e o segundo pede as criaturas a virar em `pay.equipeK` (uma oferta por grupo mínimo:
+   nenhuma criatura sobra; poder 0 ou menos não ajuda). Criatura com enjoo pode ser virada (é custo de mágica, não {T}). */
+const modoDeEquipeK = (s, a, o) => (a.mode != null && o && s.facts[o.name] && s.facts[o.name].equipeK) ? ((((s.facts[o.name].script || {}).modes) || [])[a.mode] || {}).equipeK || 0 : 0;
+function gruposDeEquipeK(s, p, n) {
+  const cs = battlefield(s).filter(c => c.controller === p && !c.tapped && isCreature(s, c) && power(s, c) > 0).map(c => ({ oid: c.oid, pw: power(s, c) }));
+  const out = [];
+  const anda = (i, grupo, soma) => {
+    if (out.length >= LIMITE_PAGAMENTOS) return;
+    if (soma >= n) { if (grupo.every(g => soma - g.pw < n)) out.push(grupo.map(g => g.oid)); return; }
+    for (let k = i; k < cs.length; k++) anda(k + 1, grupo.concat([cs[k]]), soma + cs[k].pw);
+  };
+  anda(0, [], 0);
+  return out;
+}
+function pagaEquipeK(s, a, o) {
+  const n = modoDeEquipeK(s, a, o), g = [].concat((a.pay || {}).equipeK || []);
+  if (new Set(g).size !== g.length) throw new RuleError('custo', 'a mesma criatura não vira duas vezes');
+  const cs = g.map(x => s.objects[x]);
+  if (cs.some(c => !c || c.zone !== 'battlefield' || c.controller !== a.p || c.tapped || !isCreature(s, c))) throw new RuleError('custo', 'vire criaturas desviradas suas');
+  if (cs.reduce((t, c) => t + power(s, c), 0) < n) throw new RuleError('custo', `vire criaturas com poder total ${n} ou mais`);
+  for (const c of cs) { noteEnchantedEvent(s, c); c.tapped = true; }
+}
+function ofertasEquipeK(s, p, out) {
+  for (let i = out.length - 1; i >= 0; i--) {
+    const x = out[i]; if (x.t !== 'cast' || !s.objects[x.oid] || (x.pay || {}).equipeK) continue;
+    const n = modoDeEquipeK(s, x, s.objects[x.oid]); if (!n) continue;
+    out.splice(i, 1);
+    for (const g of gruposDeEquipeK(s, p, n)) out.push({ ...x, pay: { ...(x.pay || {}), equipeK: g } });
+  }
+}
+Object.assign(EXPORTS_K, { gruposDeEquipeK, ofertasEquipeK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-30 · 701.65 aerobender: "that player exiles those objects. For each card exiled this way, for as long as it remains exiled, its owner
    may cast it by paying {2} rather than paying its mana cost" (a). A permissão é do DONO e da encarnação exilada (400.7: se a carta sair do
@@ -28132,6 +28173,7 @@ Object.assign(PALAVRA_PT, { blitz: 'blitz' }); // K-66
 Object.assign(PALAVRA_PT, { ravenous: 'voraz', squad: 'esquadrão' }); // K-67
 Object.assign(PALAVRA_PT, { casualty: 'baixa' }); // K-68
 Object.assign(PALAVRA_PT, { tiered: 'escalonado' }); // K-69
+Object.assign(PALAVRA_PT, { teamwork: 'trabalho em equipe' }); // K-70
 Object.assign(PALAVRA_PT, { afflict: 'aflição', melee: 'refrega', mentor: 'mentor', training: 'treinamento' }); // K-31
 Object.assign(PALAVRA_PT, { 'battle cry': 'grito de guerra', rampage: 'alvoroço', flanking: 'flanquear', bushido: 'bushido' }); // K-30
 const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consultadas por descreveEfeito; antes a pilha mostrava "proeza k")
