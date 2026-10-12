@@ -6696,14 +6696,19 @@
    "n": "701.71",
    "regra": "Keyword Actions",
    "titulo": "Empower Jace",
-   "status": "ausente",
-   "falta": "não há ficha de planeswalker nem marcadores de lealdade postos por efeito",
+   "status": "coberta",
    "esforco": "M",
    "depende": [
     "111",
     "306"
    ],
-   "cartas": "não sei"
+   "cartas": "uma coleção só (35 cartas no acervo do Forge, 12/10/2026)",
+   "evidencia": "V-29 · efeito `empower_jace` (empoderaJaceV e passoJaceAplica em core.js, abaixo da âncora ↓ V): sem ficha de planeswalker Jace sua, cria a ficha azul \"Jace\" (Planeswalker — Jace) com \"[−1]: Surveil 1\" e \"[−3]: Draw a card\" e lealdade 0; escolhe uma ficha Jace sua (pick com duas ou mais; a do oponente não conta) e põe N marcadores de lealdade pelas substituições de pôr marcadores; as habilidades de lealdade seguem o caminho de sempre (uma por turno, velocidade de feitiço). Cartas: Protege's Awakening (biblioteca); Mindseeker Oculus e Keeper of the Quiet Hour (scripts validados no teste) · texto oficial em .listas/oficiais-verbos.json",
+   "testes": [
+    "CR 701.71a · sem ficha Jace, empoderar cria a ficha azul de planeswalker Jace e põe os N marcadores de lealdade nela; ela não morre por ter nascido com 0",
+    "CR 701.71a · com uma ficha Jace sua, os marcadores vão para ela (não cria outra); com duas, quem empodera escolhe; a do oponente não conta",
+    "CR 701.71a · a ficha Jace usa \"[−1]: Surveil 1\" e \"[−3]: Draw a card\" como planeswalker: uma habilidade por turno, em velocidade de feitiço, com lealdade suficiente"
+   ]
   },
   {
    "n": "702.1",

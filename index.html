@@ -5396,6 +5396,8 @@ const EFFECTS = {
   explorar_k: { fields: ['fase'], targets: [] }, // K-12 · 702.110 · gerado pelo motor (antes e depois do sacrifício)
   proeza_k: { fields: ['z'], targets: [] }, // K-14 · 702.108a · +1/+1 até o fim do turno, só na mesma encarnação (gerado pelo motor)
   /* ↓ V · efeitos da trilha verbos */
+  // V-29 · 701.71 Empower Jace N: sem ficha de planeswalker Jace sua, cria a ficha azul Jace com lealdade 0, "[−1]: Surveil 1" e "[−3]: Draw a card"; escolhe uma ficha Jace sua e põe N marcadores de lealdade nela
+  empower_jace: { fields: ['amount'], targets: ['self'] },
   // V-28 · 701.66 terrabender N (earthbend): o terreno seu alvo vira criatura-terreno 0/0 com ímpeto, recebe N marcadores +1/+1 e volta ao campo virado quando morrer ou for exilado
   earthbend: { fields: ['amount'], targets: ['land-you-control'] },
   // V-27 · 701.53 incubar N: cria uma ficha Incubadora (dupla face, 111.10i) que entra com N marcadores +1/+1; `vezes` = "incubate N twice"
@@ -6279,6 +6281,10 @@ function effectErrors(effects, label, opcional) {
   });
   /* ↓ K · validação da trilha keywords */
   /* ↓ V · validação da trilha verbos */
+  effects.forEach((e, i) => { // V-29
+    if (e.do === 'empower_jace' && typeof e.amount === 'number' && !(Number.isInteger(e.amount) && e.amount > 0)) errs.push(`${label} ${i + 1} (empower_jace): amount precisa ser inteiro positivo`);
+    if (e.do === 'empower_jace' && effects.slice(i + 1).some(isTargeted)) errs.push(`${label} ${i + 1} (empower_jace): efeito com alvo depois de uma escolha`);
+  });
   effects.forEach((e, i) => { // V-28
     if (e.do === 'earthbend' && typeof e.amount === 'number' && !(Number.isInteger(e.amount) && e.amount > 0)) errs.push(`${label} ${i + 1} (earthbend): amount precisa ser inteiro positivo`);
   });
@@ -6415,6 +6421,9 @@ const RAW_SCRIPTS = [
   { name: 'Staggershock', effects: [{ do: 'damage', amount: 2, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: -2 } } }, // K-35 · "deals 2 damage to any target. / Rebound"
   { name: "Prey's Vengeance", effects: [{ do: 'pump', power: 2, toughness: 2, target: 'creature' }], example: { target: 'own-creature', expect: { pump: [2, 2] } } }, // K-35 · "Target creature gets +2/+2 until end of turn. / Rebound" 
   /* ↓ V · scripts de carta da trilha verbos (texto oficial em .listas/oficiais-verbos.json) */
+  // V-29 · 701.71 Empower Jace
+  { name: "Protege's Awakening", effects: [{ do: 'empower_jace', amount: 6 }, { do: 'draw', amount: 1 }], // "Empower Jace 6. Draw a card."
+    example: { target: 'none', expect: { handDelta: 1 } } },
   // V-28 · 701.66 terrabender
   { name: 'Earthbending Lesson', effects: [{ do: 'earthbend', amount: 4, target: 'land-you-control' }], // "Earthbend 4."
     example: { target: 'own-land', expect: { handDelta: 0 } } }, // o cenário S8 mede a criatura de exemplo, não o terreno: os 4/4 do terreno são provados em verbos.terra.unit
@@ -18882,6 +18891,7 @@ function applyEffect(s, src, eff, tgt, events) {
       note({ pending: true }); break;
     }
     /* ↓ V · casos de applyEffect da trilha verbos */
+    case 'empower_jace': empoderaJaceV(s, src, eff, events); break; // V-29 · 701.71
     case 'earthbend': terraDobraV(s, src, eff, objetoDoVerbo(s, src, eff, tgt), events); break; // V-28 · 701.66
     case 'incubate': incubar(s, src, eff, events); break; // V-27 · 701.53
     case 'ring_tempts': anelTentaV(s, src, events); break; // V-25 · 701.54
@@ -22610,6 +22620,36 @@ function castExtraK(s, p, o, x, alvos, adic) {
 }
 Object.assign(EXPORTS_K, { sobControleDesdeK, genericoAdicionalK, castExtraK });
 /* ↓ V · exportações de core.js da trilha verbos */
+/* V-29 · 701.71 Empower Jace N: "If you don't control a Jace planeswalker token, create a blue Jace planeswalker token with 0 loyalty,
+   '[−1]: Surveil 1,' and '[−3]: Draw a card.' Choose a Jace planeswalker token you control. Put N loyalty counters on it" (a). Conta qualquer
+   ficha de planeswalker com o subtipo Jace que você controla (não só a criada por este verbo); com mais de uma, quem empodera escolhe
+   (decisão pick). A ficha nasce com 0 de lealdade e recebe os N marcadores na mesma resolução, antes de qualquer ação de estado (704.5i).
+   Os marcadores passam pelas substituições de pôr marcadores (614.16). Fatos por nome: a ficha se chama "Jace" (111.4, sem carta com esse
+   nome exato). */
+const JACE_V = 'Jace';
+const JACE_LEALDADE_V = [
+  { cost: -1, label: '−1: Vigia 1', effects: [{ do: 'surveil', amount: 1 }] },
+  { cost: -3, label: '−3: Compra uma carta', effects: [{ do: 'draw', amount: 1 }] }];
+const fichaJaceV = (s, o, p) => !!o && o.zone === 'battlefield' && o.controller === p && o.token && !o.faceDown && tiposDe(s, o).includes('planeswalker') && /\bJace\b/.test(linhaDeTipo(s, o));
+function empoderaJaceV(s, src, eff, events) {
+  const p = src.controller, nome = src.name, n = Math.max(0, amountOf(s, src, eff.amount) || 0);
+  let jaces = battlefield(s).filter(o => fichaJaceV(s, o, p)).map(o => o.oid);
+  if (!jaces.length) {
+    if (!s.facts[JACE_V]) s.facts[JACE_V] = { ...cardFacts({ name: JACE_V, type_line: 'Planeswalker — Jace', keywords: [], colors: ['U'], oracle_text: '[−1]: Surveil 1.\n[−3]: Draw a card.' }),
+      script: { name: JACE_V, effects: [], abilities: [], loyalty: JACE_LEALDADE_V } };
+    jaces = [createToken(s, { name: JACE_V }, p, events)];
+  }
+  s.verbo = [...(s.verbo || []), { passo: 'jace-aplica', p, nome, n }];
+  if (jaces.length > 1) return void startPick(s, { p, from: jaces, min: 1, max: 1, to: 'proliferar', rest: 'stay', label: 'empoderar Jace', source: `${nome} — empoderar Jace ${n}: escolha a ficha Jace que recebe os marcadores de lealdade` }, events);
+  s.escolhaV = jaces.slice(); continuaVerbo(s, events);
+}
+function passoJaceAplica(s, passo, events) {
+  const oid = (s.escolhaV || [])[0]; delete s.escolhaV; const o = oid && s.objects[oid];
+  if (!fichaJaceV(s, o, passo.p)) return void events.push({ kind: 'effect', do: 'empower_jace', name: passo.nome, target: s.players[passo.p].name, amount: 0 });
+  const postos = passo.n > 0 ? poeMarcadores(s, o, 'loyalty', passo.n) : 0;
+  events.push({ kind: 'effect', do: 'empower_jace', name: passo.nome, target: o.name, amount: postos });
+}
+Object.assign(EXPORTS_V, { empoderaJaceV, fichaJaceV });
 /* V-28 · 701.66 terrabender N: "Target land you control becomes a 0/0 land creature with haste in addition to its other types. Put N
    +1/+1 counters on it. When that land dies or is put into exile, return it to the battlefield tapped under your control" (a). A
    redefinição (613, camadas 4, 6 e 7b) não tem prazo: vale enquanto o terreno ficar no campo (sai junto com ele, 400.7). O gatilho
@@ -23165,6 +23205,7 @@ function proliferar(s, src, events) {
   else continuaVerbo(s, events);
 }
 const PASSOS_V = {
+  'jace-aplica': (s, passo, events) => passoJaceAplica(s, passo, events), // V-29
   'anel-portador': (s, passo, events) => passoAnelPortador(s, passo, events), // V-25
   'afligir-aplica': (s, passo, events) => passoAfligirAplica(s, passo, events), 'recrutar-ficha': (s, passo, events) => passoRecrutarFicha(s, passo, events), // V-22
   'exaurir-pergunta': (s, passo, events) => passoExaurirPergunta(s, passo, events), // V-20
@@ -26439,6 +26480,7 @@ const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consulta
 /* ↓ V · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha verbos */
 const MARCADOR_PT_V = { p1p1: '+1/+1', m1m1: '−1/−1', loyalty: 'de lealdade', poison: 'de veneno' }; // V-7
 const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas por descreveEfeito)
+  empower_jace: e => `empodera Jace ${qtd(e.amount)} (põe ${qtd(e.amount) === 1 ? '1 marcador' : qtd(e.amount) + ' marcadores'} de lealdade numa ficha Jace sua; sem nenhuma, primeiro cria a ficha azul de planeswalker Jace com "−1: vigia 1" e "−3: compra uma carta")`, // V-29
   earthbend: e => `terrabende ${qtd(e.amount)}: ${ALVO_PT[e.target] || descreveAlvo(e.target)} vira uma criatura 0/0 com ímpeto que continua sendo terreno e recebe ${qtd(e.amount) === 1 ? '1 marcador' : qtd(e.amount) + ' marcadores'} +1/+1; quando ele morrer ou for exilado, volta ao campo virado`, // V-28
   incubate: e => `incuba ${qtd(e.amount)}${e.vezes ? ` ${e.vezes === 2 ? 'duas' : e.vezes} vezes` : ''} (cria uma ficha de Incubadora com ${qtd(e.amount) === 1 ? '1 marcador' : qtd(e.amount) + ' marcadores'} +1/+1; por {2} ela vira uma criatura artefato Firexiana 0/0)`, // V-27
   ring_tempts: () => 'o Anel tenta você (escolha uma criatura sua para ser o Portador do Anel)', // V-25
