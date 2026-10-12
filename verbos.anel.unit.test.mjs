@@ -121,3 +121,71 @@ test('Claim the Precious, Birthday Escape e Ranger\'s Firebrand: os scripts, a o
   assert.equal(S.validateScript({ name: 'X', effects: [{ do: 'ring_tempts' }, { do: 'destroy', target: 'creature' }], example: { target: 'enemy-creature', expect: { gone: true } } }).some(e => /ring_tempts/.test(e)), true, 'nada com alvo depois da escolha');
   assert.equal(T.descreveEfeitos([{ do: 'draw', amount: 1 }, { do: 'ring_tempts' }]).includes('o Anel tenta você'), true);
 });
+
+// V-26 · CR 701.54c (3) e (4) e Call of the Ring — "At the beginning of your upkeep, the Ring tempts you. Whenever you choose a creature as
+// your Ring-bearer, you may pay 2 life. If you do, draw a card." (Oracle do Forge, clone de 12/10/2026; script provado aqui)
+const MURALHA = criatura('Muralha de Teste 1/5', 1, 5), TARTARUGA = criatura('Tartaruga de Teste 1/4', 1, 4);
+const CALL = { name: 'Call of the Ring', abilities: [{ kind: 'triggered', when: 'upkeep', effects: [{ do: 'ring_tempts' }] },
+  { kind: 'triggered', when: 'ring-bearer-chosen', mayPay: { pagarVida: 2 }, effects: [{ do: 'draw', amount: 1 }] }], example: { action: 'etb', target: 'none', expect: { handDelta: 0 } } };
+const ateAtacar = s => { for (let i = 0; i < 80 && !(s.pending && s.pending.kind === 'attackers' && s.pending.p === 0); i++) s = s.pending ? act(s, legais(s, s.pending.p)[0]) : act(s, { t: 'pass', p: s.turn.priority }); assert.equal(s.pending.kind, 'attackers'); return s; };
+const ateBloquear = s => { for (let i = 0; i < 40 && !(s.pending && s.pending.kind === 'blockers'); i++) s = s.pending ? act(s, legais(s, s.pending.p)[0]) : act(s, { t: 'pass', p: s.turn.priority }); assert.equal(s.pending.kind, 'blockers'); return s; };
+const ateFimDoCombate = s => { for (let i = 0; i < 80 && !(s.turn.step === 'main2' && !s.stack.length && !s.pending && !(s.queued || []).length); i++) s = s.pending ? act(s, legais(s, s.pending.p)[0]) : act(s, { t: 'pass', p: s.turn.priority }); assert.equal(s.turn.step, 'main2'); return s; };
+const montaCombate = (vezes, defensores) => {
+  let s = mesa([MURALHA, URSO, URSO, URSO, URSO], defensores), port, d = []; [s, port] = poe(s, 0, MURALHA);
+  for (const n of defensores) { let o; [s, o] = poe(s, 1, n); d.push(o); }
+  s = J(s); s.objects[port].sick = false; for (let i = 0; i < vezes; i++) s = tenta(s, port); return [s, port, d];
+};
+
+test('CR 701.54c (3) · com três tentações, cada criatura que bloquear o Portador é sacrificada no fim do combate; com duas, não', () => {
+  for (const vezes of [2, 3]) {
+    let [s, port, [t1, t2]] = montaCombate(vezes, [TARTARUGA, TARTARUGA]);
+    s = act(ateAtacar(s), { t: 'attack', p: 0, attackers: [port] }); s = ateBloquear(s);
+    s = act(s, { t: 'block', p: 1, blocks: [[t1, port], [t2, port]] });
+    const doAnel = () => s.stack.map(oid => s.objects[oid]).filter(o => o.name === 'The Ring');
+    for (let i = 0; i < 6 && s.pending && s.pending.kind === 'triggers'; i++) s = act(s, legais(s, s.pending.p)[0]);
+    assert.equal(doAnel().length, vezes >= 3 ? 2 : 0, `${vezes} tentações: um gatilho por bloqueador`);
+    s = ateFimDoCombate(s);
+    for (const t of [t1, t2]) assert.equal(s.objects[t].zone, vezes >= 3 ? 'graveyard' : 'battlefield');
+    assert.equal(s.objects[port].zone, 'battlefield'); assert.equal(E.invariants(s).length, 0);
+  }
+});
+
+test('CR 701.54c (3) · o bloqueador que sai do campo antes do fim do combate não é achado (603.7c); quem bloqueia outra atacante não é sacrificado', () => {
+  let [s, port, [t1, t2]] = montaCombate(3, [TARTARUGA, TARTARUGA]); let outro; [s, outro] = poe(s, 0, URSO); s = J(s); s.objects[outro].sick = false;
+  s = act(ateAtacar(s), { t: 'attack', p: 0, attackers: [port, outro] }); s = ateBloquear(s);
+  s = act(s, { t: 'block', p: 1, blocks: [[t1, port], [t2, outro]] });
+  for (let i = 0; i < 6 && s.pending && s.pending.kind === 'triggers'; i++) s = act(s, legais(s, s.pending.p)[0]);
+  assert.equal(s.stack.map(oid => s.objects[oid]).filter(o => o.name === 'The Ring').length, 1, 'só o bloqueador do Portador');
+  s = tudo(s); // o gatilho resolve: o atrasado está criado
+  s = J(s); E.moveObject(s, t1, 'hand'); E.moveObject(s, t1, 'battlefield');
+  s = ateFimDoCombate(s);
+  assert.equal(s.objects[t1].zone, 'battlefield', 'voltou como objeto novo: não é mais "aquela criatura"');
+  assert.equal(s.objects[t2].zone, 'battlefield', 'quem bloqueou a outra atacante não é sacrificado pelo Anel');
+});
+
+test('CR 701.54c (4) · com quatro tentações, o Portador que causa dano de combate a um jogador faz cada oponente perder 3 de vida; com três, não', () => {
+  for (const vezes of [3, 4]) {
+    let [s, port] = montaCombate(vezes, []); const vida = s.players[1].life;
+    s = act(ateAtacar(s), { t: 'attack', p: 0, attackers: [port] }); s = ateFimDoCombate(s);
+    assert.equal(s.players[1].life, vida - 1 - (vezes >= 4 ? 3 : 0), `${vezes} tentações`); assert.equal(s.players[0].life, 20, 'quem tem o Anel não perde vida');
+  }
+});
+
+test('Call of the Ring · na manutenção o Anel tenta você; ao escolher o Portador você pode pagar 2 de vida para comprar uma carta — e com 1 de vida não pode', () => {
+  assert.equal(S.validateScript(CALL).join(), '', 'o custo opcional "pagar N de vida" é aceito');
+  assert.match(S.validateScript({ ...CALL, abilities: [{ ...CALL.abilities[1], mayPay: { pagarVida: 0 } }] }).join(), /custo opcional/);
+  for (const [vida, paga] of [[20, true], [20, false], [1, true]]) {
+    let s = mesa([URSO, 'Call of the Ring'], []), u, c; [s, u] = poe(s, 0, URSO); [s, c] = poe(s, 0, 'Call of the Ring'); s = comScript(s, CALL); s.players[0].life = vida;
+    let [x] = faz(s, { do: 'ring_tempts' }); x = act(x, { t: 'pass', p: x.turn.priority });
+    const mao = x.zones[0].hand.length;
+    for (let i = 0; i < 10 && (x.stack.length || x.pending); i++) {
+      if (x.pending && x.pending.kind === 'may_pay') { const pagar = legais(x, 0, a => a.t === 'pay'); if (vida < 2) assert.equal(pagar.length, 0); x = act(x, paga && pagar.length ? pagar[0] : { t: 'decline', p: 0 }); }
+      else x = x.pending ? act(x, legais(x, x.pending.p)[0]) : act(x, { t: 'pass', p: x.turn.priority });
+    }
+    const pagou = paga && vida >= 2;
+    assert.equal(x.players[0].life, vida - (pagou ? 2 : 0)); assert.equal(x.zones[0].hand.length, mao + (pagou ? 1 : 0));
+  }
+  let s = mesa([URSO, 'Call of the Ring'], []), c; [s, c] = poe(s, 0, 'Call of the Ring'); s = comScript(s, CALL);
+  for (let i = 0; i < 300 && !(s.turn.active === 0 && s.turn.number > 1 && s.turn.step === 'draw'); i++) s = s.pending ? act(s, legais(s, s.pending.p)[0]) : act(s, { t: 'pass', p: s.turn.priority });
+  assert.equal(E.vezesDoAnelV(s, 0), 1, 'a manutenção do próximo turno tentou');
+});

@@ -6433,22 +6433,24 @@
    "n": "701.54",
    "regra": "Keyword Actions",
    "titulo": "The Ring Tempts You",
-   "status": "parcial",
-   "falta": "as habilidades de três tentações (\"a criatura que bloquear o Portador é sacrificada no fim do combate\") e de quatro (\"cada oponente perde 3 de vida\") ficam para a V-26; condição \"if you chose a creature other than ~\" (Gandalf, Galadriel, Faramir) e referências a \"your Ring-bearer\" no texto de outras cartas não têm forma de script; o emblema e a marca do Portador não aparecem desenhados na mesa (o registro diz \"resolveu\")",
+   "status": "coberta",
    "esforco": "G",
    "depende": [
     "114 emblemas",
     "613"
    ],
    "cartas": "uma coleção só (LTR), comum em Commander",
-   "evidencia": "V-25 · efeito `ring_tempts` (anelTentaV, passoAnelPortador, emblemaDoAnelV, portadorDoAnelV, gatilhosDoAnelV, anelBarraBloqueioV e anelAoAtacarV em core.js, abaixo da âncora ↓ V): quem é tentado ganha o emblema O Anel na zona de comando antes de escolher (c) e escolhe uma criatura sua (decisão pick; com uma só, é ela; sem nenhuma, o Anel tenta assim mesmo e a conta sobe, d); o Portador é do jogador, não da carta (b), e deixa de ser ao sair do campo, quando outra criatura vira o Portador ou quando outro jogador ganha o controle dele (a, recalculaControle). Habilidades do emblema: (1) o Portador é lendário (seletor \"lendária\" e \"nonlegendary\") e não é bloqueado por criatura de poder maior (porQueNaoBloqueia); (2) com duas tentações, \"Whenever your Ring-bearer attacks, draw a card, then discard a card\" com o emblema como fonte. Gatilhos `ring-tempts` (701.54d) e `ring-bearer-chosen`. Cartas: Claim the Precious, Birthday Escape, Ranger's Firebrand (biblioteca); Nazgûl e Took Reaper (scripts validados no teste) · texto oficial em .listas/oficiais-verbos.json",
+   "evidencia": "V-25 · efeito `ring_tempts` (anelTentaV, passoAnelPortador, emblemaDoAnelV, portadorDoAnelV, gatilhosDoAnelV, anelBarraBloqueioV e anelAoAtacarV em core.js, abaixo da âncora ↓ V): quem é tentado ganha o emblema O Anel na zona de comando antes de escolher (c) e escolhe uma criatura sua (decisão pick; com uma só, é ela; sem nenhuma, o Anel tenta assim mesmo e a conta sobe, d); o Portador é do jogador, não da carta (b), e deixa de ser ao sair do campo, quando outra criatura vira o Portador ou quando outro jogador ganha o controle dele (a, recalculaControle). Habilidades do emblema: (1) o Portador é lendário (seletor \"lendária\" e \"nonlegendary\") e não é bloqueado por criatura de poder maior (porQueNaoBloqueia); (2) com duas tentações, \"Whenever your Ring-bearer attacks, draw a card, then discard a card\"; V-26: (3) com três, cada criatura que bloquear o Portador é sacrificada no fim do combate (gatilho por bloqueador + gatilho atrasado que guarda a encarnação, anelBloqueadoV); (4) com quatro, dano de combate do Portador a um jogador faz cada oponente perder 3 de vida (anelDanoV) — o emblema é a fonte de todas. Gatilhos `ring-tempts` (701.54d) e `ring-bearer-chosen`. Cartas: Claim the Precious, Birthday Escape, Ranger's Firebrand (biblioteca); Nazgûl, Took Reaper e Call of the Ring (\"you may pay 2 life\": custo opcional de gatilho `mayPay.pagarVida`, V-26) — scripts validados no teste. Fora da regra, nas cartas: a condição \"if you chose a creature other than ~ as your Ring-bearer\" (Gandalf, Galadriel, Faramir, Aragorn) e \"your Ring-bearer\" no texto de outras cartas não têm forma de script; a mesa não desenha o emblema nem a marca do Portador · texto oficial em .listas/oficiais-verbos.json",
    "testes": [
     "CR 701.54a/c · o Anel tenta você: ganha o emblema O Anel na zona de comando antes de escolher; escolhe uma criatura SUA como Portador",
     "CR 701.54a/d · com uma criatura só ela vira o Portador sem pergunta; sem nenhuma, o Anel tenta assim mesmo (a conta sobe)",
     "CR 701.54a/e · o Portador deixa de ser ao sair do campo (volta como objeto novo) e quando outro jogador ganha o controle dele — mesmo que o controle volte",
     "CR 701.54c (1) · o Portador não pode ser bloqueado por criatura com poder maior; as outras atacantes seguem normais",
     "CR 701.54c (1) · o Portador é lendário: conta para \"lendária\" e deixa de ser alvo de \"nonlegendary\"",
-    "CR 701.54c (2) · com duas tentações ou mais, quando o Portador ataca o emblema dispara: compre uma carta e descarte uma; com uma tentação, não"
+    "CR 701.54c (2) · com duas tentações ou mais, quando o Portador ataca o emblema dispara: compre uma carta e descarte uma; com uma tentação, não",
+    "CR 701.54c (3) · com três tentações, cada criatura que bloquear o Portador é sacrificada no fim do combate; com duas, não",
+    "CR 701.54c (3) · o bloqueador que sai do campo antes do fim do combate não é achado (603.7c); quem bloqueia outra atacante não é sacrificado",
+    "CR 701.54c (4) · com quatro tentações, o Portador que causa dano de combate a um jogador faz cada oponente perder 3 de vida; com três, não"
    ]
   },
   {

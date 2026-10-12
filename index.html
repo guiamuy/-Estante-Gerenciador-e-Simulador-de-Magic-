@@ -5963,7 +5963,7 @@ function validateScript(sc) {
   for (const ab of (sc && sc.abilities) || []) if (ab.condition && !['lifeGained', 'attackersAtLeast', 'controlsOtherNamed', 'bargained', 'evidenced', 'kicked', 'opponentMoreLands', 'atacaSozinha'].includes(Object.keys(ab.condition)[0] || '')) errs.push('condição de gatilho desconhecida');
   if (sc && sc.bargain != null && sc.bargain !== true) errs.push('barganha é uma marca, sem valor');
   if (sc && sc.evidence != null && !(Number.isInteger(sc.evidence) && sc.evidence > 0)) errs.push('colher provas precisa de um número inteiro positivo');
-  for (const ab of (sc && sc.abilities) || []) if (ab.mayPay && !ab.mayPay.mana && !ab.mayPay.exileFromGraveyard && !ab.mayPay.sacrificeSelf) errs.push('custo opcional do gatilho sem custo');
+  for (const ab of (sc && sc.abilities) || []) if (ab.mayPay && !ab.mayPay.mana && !ab.mayPay.exileFromGraveyard && !ab.mayPay.sacrificeSelf && !(Number.isInteger(ab.mayPay.pagarVida) && ab.mayPay.pagarVida > 0)) errs.push('custo opcional do gatilho sem custo'); // V-26 · "you may pay N life" (Toca ponto comum)
   for (const [i, ab] of ((sc && sc.loyalty) || []).entries()) {
     if (!Number.isInteger(ab.cost) && ab.cost !== '-X') errs.push(`lealdade ${i + 1}: custo precisa ser inteiro (pode ser negativo) ou '-X'`); // CR2c.7 · [−X]
     if (!ab.label) errs.push(`lealdade ${i + 1}: falta o rótulo`);
@@ -17015,6 +17015,7 @@ function dealCombatDamage(s) {
       if (has(s, src, 'lifelink')) vinculo.set(src.oid, { quem: src.controller, n: ((vinculo.get(src.oid) || {}).n || 0) + amt }); // CR2d.10 · CR2b.7
       noteEnchantedDealt(s, src, amt, obj ? null : player); // S48 · Armadillo Cloak: a aura de quem causou o dano é avisada
       if (player != null && !obj) disparaEvento(s, 'dano-combate', [src]); // S18 · dano de combate ao jogador
+      if (player != null && !obj) anelDanoV(s, src); // V-26 · 701.54c (4) (Toca ponto comum: dano de combate)
     }
     for (const v of vinculo.values()) ganhaVidaJogador(s, v.quem, v.n); // CR2b.7 · um ganho por criatura com vínculo vital
     disparaLoteDeDano(s, golpesEmJogador); // M-258
@@ -18860,6 +18861,7 @@ function fimDosBloqueios(s) {
   if (!s.combat) return;
   const atk = s.combat.attackers.map(oid => s.objects[oid]).filter(o => o && o.zone === 'battlefield' && o.attacking != null);
   gatilhosDoObjeto(s, 'bloqueada', atk.filter(o => o.blocked));
+  anelBloqueadoV(s, atk); // V-26 · 701.54c (3): o Portador do Anel bloqueado (Toca ponto comum: fimDosBloqueios)
   gatilhosDoObjeto(s, 'nao-bloqueada', atk.filter(o => !o.blocked));
 }
 /** CR2b.8 · heroico: ao conjurar, cada criatura sua mirada pela mágica dispara uma vez (mesmo mirada duas vezes); cópia e troca de alvo
@@ -21759,7 +21761,7 @@ Object.assign(EXPORTS_K, { tempestadeNaPilhaK });
    assim mesmo (d): a conta sobe e "Whenever the Ring tempts you" dispara. Escolher a mesma criatura de novo vale como escolha. O
    emblema mora na zona de comando de quem foi tentado (114.1) e é a fonte das habilidades dele. O Anel dá ao Portador: (1) lendário e
    "não pode ser bloqueado por criaturas com poder maior"; (2) com duas tentações ou mais, "Whenever your Ring-bearer attacks, draw a
-   card, then discard a card". As habilidades de três e quatro tentações ficam para a V-26. O Portador não é valor copiável (b): mora
+   card, then discard a card"; (3) e (4) estão logo abaixo (V-26). O Portador não é valor copiável (b): mora
    no jogador, não na carta. */
 const ANEL_V = 'The Ring';
 const vezesDoAnelV = (s, p) => (s.players[p] && s.players[p].anelV) || 0;
@@ -21822,7 +21824,26 @@ function anelAoAtacarV(s, p, list) {
   const emb = emblemaDoAnelV(s, p);
   s.queued.push({ source: emb.oid, name: ANEL_V, controller: p, effects: [{ do: 'draw', amount: 1 }, { do: 'discard', amount: 1, target: 'self' }], when: 'ring-bearer-attacks' });
 }
-Object.assign(EXPORTS_V, { vezesDoAnelV, portadorDoAnelV, ehPortadorV, anelTentaV, emblemaDoAnelV });
+/** V-26 · habilidade (3) do Anel, chamada só por fimDosBloqueios: com três tentações ou mais, "Whenever your Ring-bearer becomes blocked
+    by a creature, that creature's controller sacrifices it at end of combat" — um gatilho por bloqueador (509.3d), que lembra o bloqueador
+    e a encarnação; ao resolver cria o gatilho atrasado do fim do combate (603.7), que só acha a criatura se ela não mudou de zona. */
+function anelBloqueadoV(s, atacantes) {
+  for (const a of atacantes) {
+    const p = a.controller; if (!a.blocked || vezesDoAnelV(s, p) < 3 || !ehPortadorV(s, a)) continue;
+    const emb = emblemaDoAnelV(s, p);
+    for (const b of (a.blockedBy || []).map(oid => s.objects[oid]).filter(b => b && b.zone === 'battlefield'))
+      s.queued.push({ source: emb.oid, name: ANEL_V, controller: p, lembrada: { oid: b.oid, z: b.zc || 0 }, when: 'ring-bearer-blocked',
+        effects: [{ do: 'delayed', when: 'end-of-combat', target: 'remembered', effects: [{ do: 'sacrifice_it', target: 'delayed-object' }] }] });
+  }
+}
+/** V-26 · habilidade (4) do Anel, chamada só no dano de combate a jogador: com quatro tentações ou mais, "Whenever your Ring-bearer deals
+    combat damage to a player, each opponent loses 3 life" — uma vez por dano (golpe duplo dispara duas). */
+function anelDanoV(s, fonte) {
+  const p = fonte && fonte.controller; if (p == null || vezesDoAnelV(s, p) < 4 || !ehPortadorV(s, fonte)) return;
+  const emb = emblemaDoAnelV(s, p);
+  s.queued.push({ source: emb.oid, name: ANEL_V, controller: p, when: 'ring-bearer-damage', effects: [{ do: 'lose', amount: 3, target: 'each-opponent' }] });
+}
+Object.assign(EXPORTS_V, { vezesDoAnelV, portadorDoAnelV, ehPortadorV, anelTentaV, emblemaDoAnelV, anelBloqueadoV, anelDanoV });
 /* V-22 · 701.68 afligir N: "put N −1/−1 counters on a creature you control" (a) — a criatura é escolhida por quem aflige (não mira);
    sem criatura sua, nada acontece (b); com uma só, é ela. Os marcadores passam pelas substituições de pôr marcadores (614.16).
    701.70 recrutar: "Draw a card, then discard a card. If you discarded a nonland card this way, create a 1/1 white Human Soldier
@@ -27707,6 +27728,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       const titulo = senao ? (senao.sacrifica ? `${s.pending.name}: pagar ${s.pending.cost} de manutenção cumulativa?` : `${s.pending.name}: pagar ${s.pending.cost}?`)
         : !efeito ? `Pagar ${s.pending.cost} para ${alvo ? alvo.name : 'sua mágica'} não ser anulada?`
         : extra && extra.sacrificeSelf ? `Sacrificar ${s.pending.name} para o efeito acontecer?` // CR2b.3 · Angelic Renewal
+        : extra && extra.pagarVida != null ? `${s.pending.name}: pagar ${extra.pagarVida} de vida para o efeito acontecer?` // V-26 · Call of the Ring (Toca ponto comum: pergunta do custo opcional)
         : extra ? `${s.pending.name}: exilar uma carta de criatura do seu cemitério para o efeito acontecer?`
         : s.pending.cost ? `${s.pending.name}: pagar ${s.pending.cost}?`
         : `${s.pending.name}: fazer o efeito?`;

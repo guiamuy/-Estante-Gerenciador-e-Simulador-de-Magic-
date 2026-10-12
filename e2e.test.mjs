@@ -10541,6 +10541,37 @@ test('e2e · CR2c.7 · habilidade com X no custo (Crypt Rats): a folha abre o se
 
 /* ↓ K · testes de tela da trilha keywords (só test(nome, { skip }, fn) no nível do arquivo) */
 /* ↓ V · testes de tela da trilha verbos (só test(nome, { skip }, fn) no nível do arquivo) */
+test('e2e · V-26 · Call of the Ring: ao escolher o Portador do Anel, a mesa pergunta se você paga 2 de vida para comprar uma carta, e pagar tira a vida e compra', { skip }, async t => {
+  // Montagem por dado: Call of the Ring não tem script na biblioteca (permanente de exemplo da trilha; texto oficial em
+  // .listas/oficiais-verbos.json, Oracle do Forge, 12/10/2026). Um Pântano do grimório vira a Call of the Ring no campo, com o script da
+  // carta, e um Kitchen Imp entra no campo; o Anel tenta o jogador direto pelo motor. O que se testa é a pergunta na tela (o motor é
+  // provado em verbos.anel.unit).
+  const M = await comLista125(t, '24 Swamp\n16 Kitchen Imp', ['Swamp', 'Kitchen Imp'], '4');
+  const { page } = M;
+  const antes = await page.evaluate(() => { const s = window.__estanteMesa.estado(), z = s.zones[0].library;
+    const tira = nome => { const i = z.findIndex(o => s.objects[o].name === nome); if (i < 0) throw new Error('sem ' + nome); return z.splice(i, 1)[0]; };
+    const poe = oid => { const o = s.objects[oid]; o.zc = (o.zc || 0) + 1; Object.assign(o, { zone: 'battlefield', controller: 0, tapped: false, sick: false, damage: 0, counters: {}, entrouNoTurno: s.turn.number }); s.zones[0].battlefield.push(oid); return oid; };
+    const cr = poe(tira('Swamp')); s.objects[cr].name = 'Call of the Ring';
+    s.facts['Call of the Ring'] = { ...__m16.cardFacts({ name: 'Call of the Ring', type_line: 'Enchantment', mana_cost: '{1}{B}', cmc: 2, colors: ['B'], keywords: [],
+      oracle_text: 'At the beginning of your upkeep, the Ring tempts you.\nWhenever you choose a creature as your Ring-bearer, you may pay 2 life. If you do, draw a card.' }),
+      script: { name: 'Call of the Ring', abilities: [{ kind: 'triggered', when: 'upkeep', effects: [{ do: 'ring_tempts' }] }, { kind: 'triggered', when: 'ring-bearer-chosen', mayPay: { pagarVida: 2 }, effects: [{ do: 'draw', amount: 1 }] }] } };
+    poe(tira('Kitchen Imp'));
+    __m16.applyEffect(s, { oid: 'teste', name: 'Teste', controller: 0, ability: true, source: null }, { do: 'ring_tempts' }, null, []);
+    return { vida: s.players[0].life, mao: s.zones[0].hand.length, fila: s.queued.length }; });
+  assert.equal(antes.fila, 1, 'o gatilho da Call of the Ring disparou ao escolher o Portador');
+  const terra = await M.oid('Swamp'); assert.ok(terra, 'um Pântano na mão');
+  assert.equal(await M.act({ t: 'play_land', p: 0, oid: terra }), true); await page.waitForTimeout(250);
+  const e = await M.resolve();
+  assert.equal(e.pend, 'may_pay', 'a decisão de pagar: ' + JSON.stringify(e));
+  assert.match(await M.decisao(), /^Call of the Ring: pagar 2 de vida para o efeito acontecer\?/);
+  await auditaTela(page, 'Call of the Ring: pagar 2 de vida');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/v26-call-of-the-ring.png' });
+  const pagar = await M.legal("a.t === 'pay'"); assert.equal(pagar.length >= 1, true, 'pagar é oferecido');
+  assert.equal(await M.act(pagar[0]), true); await page.waitForTimeout(250); await M.resolve();
+  const fim = await page.evaluate(() => { const s = window.__estanteMesa.estado(); return { vida: s.players[0].life, mao: s.zones[0].hand.length, pend: s.pending && s.pending.kind }; });
+  assert.deepEqual(fim, { vida: antes.vida - 2, mao: antes.mao, pend: null }, 'pagou 2 de vida e comprou uma (o Pântano jogado saiu da mão)');
+  assert.deepEqual(M.errors, []);
+});
 test('e2e · V-17 · CR 701.40b · manifestada: a folha da carta virada para baixo oferece "Virar para cima" com o custo de mana da carta de criatura; terreno manifestado fica entre as criaturas e não vira', { skip }, async t => {
   // A montagem é por dado (como no teste da Saga): um Kitchen Imp e um Pântano do grimório postos no campo virados para baixo, com a marca de
   // manifestada. O que se testa aqui é a tela (o motor é provado em verbos.manifestar.unit). Kitchen Imp: {3}{B} (texto oficial em .listas/oficiais.json).
