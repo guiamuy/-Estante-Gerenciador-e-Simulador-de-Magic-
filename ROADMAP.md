@@ -4195,6 +4195,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Testes:** `keywords.cr4.unit` (4, falham sem a leva), `combat.audit` (4 cenários). Texto oficial: Khenra Eternal, Wings of the Guard, Sunhome Stalwart, Gryff Rider (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v109.
 - **Parcial declarado:** "sempre que ~ mentora" (702.134c) e "quando ~ treina" (702.149c) não existem. **Provocar (702.39) fica de fora desta classe:** precisa da exigência "bloqueia se puder" no bloqueio (509.1c), que o motor não tem — pedido à trilha motor.
 
+**K-32 · Espetáculo e surto (702.137, 702.117)** 🟡 (leva K-32)
+- **Valor:** "Spectacle {custo}" e "Surge {custo}" impressos viram custo alternativo, oferecido só quando a condição vale: um oponente perdeu vida neste turno (espetáculo) ou você já conjurou outra mágica neste turno (surto). Skewer the Critics (Pauper) e Comparative Analysis passam a ter script.
+- **Aceite:** Skewer the Critics: sem perda de vida do oponente, só o custo normal; depois do Raio no oponente, sai por {R} e causa 3; a vida que você mesmo perdeu não conta. Comparative Analysis: sem mágica antes, nada; a do oponente não conta; depois do seu Raio, sai por {2}{U}.
+- **Toca ponto comum:** `condicaoDoAlt` (uma linha: `condicaoDoAltK`) e a contagem por jogador das mágicas do turno (`contaMagiaK`, uma linha depois de cada `spellsThisTurn` em `HANDLERS.cast`, esgueirar-se e `cast_madness`). A contagem só é guardada numa partida com alguma carta de surto: as outras (e as partidas-referência) ficam com o estado de antes.
+- **Testes:** `keywords.cr4.unit` (2, falham sem a leva), `combat.audit` (1 cenário, cobre as duas), S8 das duas cartas. Texto oficial: Skewer the Critics, Comparative Analysis (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v109.
+
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

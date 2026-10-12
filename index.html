@@ -5214,6 +5214,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'landwalk', // K-21 · 702.14: travessias com qualidade ("Nonbasic landwalk", "Desertwalk", "Snow swampwalk"…), lidas da linha (travessiasK)
   'protection', // K-17 · 702.16: a qualidade vem da linha "Protection from …" (cores, tipos, subtipos, multicolorido, tudo); a palavra sozinha não protege
   'convoke', 'improvise', // K-13 · 702.51 e 702.126: virar criaturas (artefatos) para pagar parte do custo total (tapaParaPagarK)
+  'spectacle', 'surge', // K-32 · 702.137 e 702.117: custo alternativo impresso com condição (altsImpressosK, condicaoDoAltK)
   'afflict', 'melee', 'mentor', 'training', // K-31 · 702.130, 702.121, 702.134, 702.149: gatilhos de ataque gerados pela palavra, um por instância
   'battle cry', 'rampage', 'flanking', 'bushido', // K-30 · 702.91, 702.23, 702.25, 702.45: gatilhos de combate gerados pela palavra (GATILHOS_DE_PALAVRA_K), um por instância
   /* ↓ V · palavras-chave da trilha verbos */
@@ -6363,6 +6364,8 @@ const RAW_SCRIPTS = [
   { name: 'Renewed Faith', effects: [{ do: 'gain', amount: 6 }], cycling: { mana: '{1}{W}' }, abilities: [{ kind: 'triggered', when: 'cycled', optional: true, effects: [{ do: 'gain', amount: 2 }] }], example: { target: 'none', expect: { selfLife: 6 } } }, // "You gain 6 life. / Cycling {1}{W} / When you cycle Renewed Faith, you may gain 2 life."
   { name: 'Metallic Rebuke', effects: [{ do: 'counter', target: 'spell', unless: { mana: '{3}' } }], example: { target: 'enemy-spell', expect: { countered: true } } }, // "Improvise / Counter target spell unless its controller pays {3}."
   { name: 'Radical Idea', effects: [{ do: 'draw', amount: 1 }], example: { target: 'none', expect: { handDelta: 1 } } }, // "Draw a card. / Jump-start"
+  { name: 'Skewer the Critics', effects: [{ do: 'damage', amount: 3, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: -3 } } }, // K-32 · "Spectacle {R} / deals 3 damage to any target"
+  { name: 'Comparative Analysis', effects: [{ do: 'draw', amount: 2, target: 'player' }], example: { target: 'self-player', expect: { handDelta: 2 } } }, // K-32 · "Surge {2}{U} / Target player draws two cards"
   /* ↓ V · scripts de carta da trilha verbos (texto oficial em .listas/oficiais-verbos.json) */
   // V-23 · 502.3 pela primitiva da M-314: virar o alvo e prendê-lo no próximo passo de desvirar
   { name: 'Crippling Chill', effects: [{ do: 'tap', target: 'creature' }, { do: 'nao_desvira', target: 'first-target' }, { do: 'draw', amount: 1 }], // "Tap target creature. It doesn't untap during its controller's next untap step. Draw a card."
@@ -7781,6 +7784,7 @@ function palavraNaLinhaK(k) {
   if (k === 'hexproof') return 'hexproof(?: from (?:white|blue|black|red|green|everything|multicolored|monocolored|colorless|creatures|artifacts|enchantments|instants|sorceries|planeswalkers|lands)(?: and from (?:white|blue|black|red|green|multicolored|monocolored|colorless|creatures|artifacts|enchantments|instants|sorceries|planeswalkers|lands))*)?|you have hexproof\\.?'; // K-18 · 702.11d · K-26 · 702.11c: "You have hexproof."
   if (k === 'shroud') return 'shroud|you have shroud\\.?'; // K-26 · 702.18a: "You have shroud."
   if (k === 'protection') { const q = '(?:white|blue|black|red|green|everything|multicolored|monocolored|colorless|all colors|creatures|artifacts|enchantments|instants|sorceries|planeswalkers|lands|' + Object.keys(protecaoNaoCriaturaSCK()).join('|') + '|' + pluraisDeCriaturaSCK() + ')'; return `protection from ${q}(?: and from ${q})*`; } // K-24 · sem palavra solta: só fichas, subtipos que se anexam e tipos de criatura // K-17 · só as qualidades que o motor confere (protecaoImpressa e protecaoQualidadesK)
+  if (k === 'spectacle' || k === 'surge') return `${k}\\s+(?:\\{[0-9WUBRGC]+\\})+`; // K-32
   if (k === 'dash') return 'dash\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-9
   if (k === 'evoke') return 'evoke(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*exile an? (?:white|blue|black|red|green) card from your hand\\.?)'; // K-8 · só as formas que o motor paga
   return ['afterlife', 'rampage', 'bushido', 'afflict'].includes(k) ? `${k} \\d+` : k; // K-30 · alvoroço N e bushido N
@@ -15348,6 +15352,7 @@ function cardFacts(card) {
     tapaK: tapaImpressoK(card), // K-13 · 702.51/702.126: "Convoke" / "Improvise" impressos (undefined quando não tem)
     recomecarK: recomecarImpressoK(card), // K-10 · 702.133: linha "Jump-start" (undefined quando não tem)
     arremeterK: arremeterImpressoK(card), // K-9 · 702.109: "Dash {1}{R}" (undefined quando não tem)
+    espetaculoK: custoDaLinhaK(card, 'Spectacle'), surtoK: custoDaLinhaK(card, 'Surge'), // K-32 · 702.137 e 702.117
     suspenderK: suspenderImpressoK(card), // K-22 · 702.62a: "Suspend N—{custo}" (undefined quando não tem)
     equipesK: equipesImpressosK(card), // K-28 · 702.6c: "Equip [qualidade] {custo}" (undefined quando não tem)
     jogadorK: jogadorImpressoK(card), // K-26 · 702.11c / 702.18a: "You have hexproof." / "You have shroud." (undefined quando não tem)
@@ -16577,6 +16582,7 @@ function condicaoDoAlt(s, p, when) {
   const terreno = (o, sub) => s.facts[o.name].types.includes('land') && !o.faceDown && new RegExp('\\b' + sub + '\\b').test(linhaDeTipo(s, o));
   if (when.opponentControlsSubtype && !battlefield(s).some(o => o.controller !== p && !s.players[o.controller].lost && terreno(o, when.opponentControlsSubtype))) return false;
   if (when.youControlSubtype && !battlefield(s).some(o => o.controller === p && terreno(o, when.youControlSubtype))) return false;
+  if (!condicaoDoAltK(s, p, when)) return false; // K-32 · espetáculo e surto (Toca ponto comum: condicaoDoAlt)
   return true;
 }
 /** Uma sugestão de pagamento para o custo alternativo (a mesa pode trocar depois). */
@@ -19724,6 +19730,7 @@ const HANDLERS = {
     // com alvo próprio por cima da original, que existem mesmo se a original for anulada; não são conjuradas
     if (a.kick && reforco && reforco.replicar) { for (let i = 0; i < a.kick; i++) s.queued.push({ source: a.oid, name: o.name, controller: a.p, effects: spellEffects(s, s.objects[a.oid]), when: 'replicar', copia: true, copiaDeMagia: true, marcasMagia: marcasDaMagia(s.objects[a.oid]) }); events.push({ kind: 'replicar', name: o.name, amount: a.kick }); }
     s.spellsThisTurn = (s.spellsThisTurn || 0) + 1;
+    contaMagiaK(s, a.p); // K-32 · 702.117a: quantas mágicas cada jogador conjurou no turno (Toca ponto comum: HANDLERS.cast)
     if (a.flashback) s.objects[a.oid].flashback = true; // exila em vez de voltar ao cemitério
     if (a.recomecarK) s.objects[a.oid].flashback = true; // K-10 · 702.133a: "exile this card instead of putting it anywhere else any time it would leave the stack" (o mesmo caminho do lampejo, 702.34a)
     if (a.omen) s.objects[a.oid].omen = true; // volta embaralhado para o grimório
@@ -20198,6 +20205,7 @@ const HANDLERS = {
       moveObject(s, a.oid, 'stack');
       Object.assign(s.objects[a.oid], { controller: a.p, sneakAtaque: defender, ...(pwAtacado.pw ? { sneakPw: pwAtacado } : {}) });
       s.spellsThisTurn = (s.spellsThisTurn || 0) + 1;
+      contaMagiaK(s, a.p); // K-32 (Toca ponto comum: esgueirar-se)
       disparaEvento(s, 'conjurar', [s.objects[a.oid]]);
       s.turn.passes = 0;
       return;
@@ -20226,6 +20234,7 @@ const HANDLERS = {
     if (need.length) s.objects[oid].targets = carimbaAlvos(s, chosen);
     // Leva 108 · conjurar pela insanidade é conjurar: conta para tempestade, dispara "quando você conjura" e cobra ward
     s.spellsThisTurn = (s.spellsThisTurn || 0) + 1;
+    contaMagiaK(s, a.p); // K-32 (Toca ponto comum: cast_madness)
     disparaEvento(s, 'conjurar', [s.objects[oid]]);
     disparaHeroico(s, s.objects[oid]); // CR2b.8
     afterMadness(s);
@@ -21282,6 +21291,7 @@ Object.assign(EXPORTS_K, { valorDaMagicaK });
    entra, se o custo de evocar foi pago, quem a controla a sacrifica". O custo segue 601.2b/601.2f–h pelo caminho dos custos alternativos
    (payAlt); a marca `evocadaK` é da conjuração (MARCAS_DA_CONJURACAO): vai da pilha para o campo e some em qualquer outra mudança de zona. */
 MARCAS_DA_CONJURACAO.push('evocadaK', 'arremetidaK'); // K-9 · arremeter usa o mesmo caminho
+MARCAS_DA_CONJURACAO.push('espetaculoK', 'surtoK'); // K-32
 const COR_DO_NOME_K = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
 const COR_PT_K = { W: 'branca', U: 'azul', B: 'preta', R: 'vermelha', G: 'verde' };
 /** O custo de evocar impresso na face da frente: { mana: '{2}{U}' } ou { exileHandColor: 'G' } ("Evoke—Exile a green card from your
@@ -21311,6 +21321,8 @@ function altsImpressosK(f) {
   const out = [];
   if (f.evocarK) out.push(altDoEvocarK(f.evocarK));
   if (f.arremeterK) out.push({ label: `Arremeter ${f.arremeterK.mana}`, cost: { ...f.arremeterK }, marcaK: 'arremetidaK' });
+  if (f.espetaculoK) out.push({ label: `Espetáculo ${f.espetaculoK.mana}`, cost: { ...f.espetaculoK }, when: { espetaculoK: true }, marcaK: 'espetaculoK' }); // K-32 · 702.137a
+  if (f.surtoK) out.push({ label: `Surto ${f.surtoK.mana}`, cost: { ...f.surtoK }, when: { surtoK: true }, marcaK: 'surtoK' }); // K-32 · 702.117a
   return out;
 }
 /** K-9 · 702.109a · a permanente arremetida entra: "as long as this permanent's dash cost was paid, it has haste" (habilidade dela,
@@ -21609,6 +21621,26 @@ Object.assign(EXPORTS_K, { opcoesAtropelarUmK });
    poder 0 no 1º passo, que ganha poder entre os passos, não causa dano no 2º. */
 function iniciativaNoComecoK(s, combatentes) { for (const o of combatentes) if (has(s, o, 'first strike') || has(s, o, 'double strike')) o.struck = true; }
 Object.assign(EXPORTS_K, { iniciativaNoComecoK });
+/* K-32 · 702.137a espetáculo ("You may pay [cost] rather than pay this spell's mana cost if an opponent lost life this turn") e 702.117a
+   surto ("… if you or one of your teammates has cast another spell this turn"; numa mesa de dois, só você). Lidos da linha impressa
+   ("Spectacle {R}", "Surge {2}{U}") e oferecidos pelo caminho do custo alternativo (altsImpressosK), com a condição em condicaoDoAltK.
+   A marca (espetaculoK, surtoK) fica na mágica e na permanente, para um script ler "if its spectacle/surge cost was paid". */
+function custoDaLinhaK(card, palavra) {
+  const txt = String((card && (card.oracle_text || (card.faces && card.faces[0] && card.faces[0].oracle_text))) || '');
+  for (const l0 of txt.split('\n')) { const m = l0.replace(/\s*\([^)]*\)/g, '').trim().match(new RegExp('^' + palavra + '\\s+((?:\\{[0-9WUBRGC]+\\})+)$')); if (m) return { mana: m[1] }; }
+  return undefined;
+}
+const TEM_SURTO_K = new WeakMap(); // por fato (não muda depois de criado)
+const partidaTemSurtoK = s => Object.values(s.facts).some(f => { if (!f || typeof f !== 'object') return false; if (!TEM_SURTO_K.has(f)) TEM_SURTO_K.set(f, !!f.surtoK); return TEM_SURTO_K.get(f); });
+/** Só guarda a contagem numa partida com alguma carta de surto (o estado das outras partidas, e o das partidas-referência, não muda). */
+function contaMagiaK(s, p) { if (!partidaTemSurtoK(s)) return; const m = s.players[p].magiasK; s.players[p].magiasK = m && m.turno === s.turn.number ? { turno: m.turno, n: m.n + 1 } : { turno: s.turn.number, n: 1 }; }
+const magiasDoTurnoK = (s, p) => { const m = s.players[p].magiasK; return m && m.turno === s.turn.number ? m.n : 0; };
+function condicaoDoAltK(s, p, when) {
+  if (when.espetaculoK && !s.players.some((pl, i) => i !== p && !pl.lost && (pl.lifeLost || 0) > 0)) return false;
+  if (when.surtoK && magiasDoTurnoK(s, p) < 1) return false;
+  return true;
+}
+Object.assign(EXPORTS_K, { custoDaLinhaK, contaMagiaK, magiasDoTurnoK, condicaoDoAltK });
 /** K-31 · o jogador defensor de uma atacante (506.2: o jogador atacado, ou quem controla o planeswalker ou protege a batalha atacada). */
 function defensorDeK(s, o) { if (!o || o.attacking == null) return null; const pw = o.atacandoPw != null ? s.objects[o.atacandoPw] : null; return pw ? pw.controller : o.attacking; }
 /** K-31 · restrições de alvo da trilha keywords, conferidas na escolha e de novo na resolução (608.2b): `alvoAtacandoK` (criatura atacante)
@@ -25138,6 +25170,7 @@ Object.assign(PALAVRA_PT, { convoke: 'convocar', improvise: 'improvisar' }); // 
 Object.assign(PALAVRA_PT, { protection: 'proteção' }); // K-17
 Object.assign(PALAVRA_PT, { landwalk: 'travessia' }); // K-21
 Object.assign(PALAVRA_PT, { suspend: 'suspender' }); // K-22
+Object.assign(PALAVRA_PT, { spectacle: 'espetáculo', surge: 'surto' }); // K-32
 Object.assign(PALAVRA_PT, { afflict: 'aflição', melee: 'refrega', mentor: 'mentor', training: 'treinamento' }); // K-31
 Object.assign(PALAVRA_PT, { 'battle cry': 'grito de guerra', rampage: 'alvoroço', flanking: 'flanquear', bushido: 'bushido' }); // K-30
 const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consultadas por descreveEfeito; antes a pilha mostrava "proeza k")

@@ -8330,14 +8330,18 @@
    "n": "702.117",
    "regra": "Keyword Abilities",
    "titulo": "Surge",
-   "status": "ausente",
-   "falta": "Sem custo alternativo condicionado a \"você ou um companheiro de equipe conjurou outra mágica neste turno\" (702.117a). O contador s.spellsThisTurn existe mas é global, não por jogador.",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "601.2b custo alternativo",
     "contagem de mágicas por jogador no turno"
    ],
-   "cartas": "rara (Oath of the Gatewatch)"
+   "cartas": "rara (Oath of the Gatewatch)",
+   "evidencia": "K-32: \"Surge {custo}\" lido da linha vira custo alternativo que só vale se você conjurou outra mágica neste turno (contaMagiaK: conta por jogador em HANDLERS.cast, esgueirar-se e insanidade; numa mesa de dois não há colega de equipe); a marca surtoK vai com a mágica e a permanente. Comparative Analysis em RAW_SCRIPTS (S8). \"If its surge cost was paid\" precisa de condição no script (nenhuma carta das listas).",
+   "testes": [
+    "CR 702.117a · surto (Comparative Analysis, texto oficial): o custo {2}{U} só depois que você conjurou outra mágica no turno; a do oponente não conta",
+    "K-32 · espetáculo e surto (702.137, 702.117): depois do Urso passar, a criatura sai pelo custo menor e bloqueia no turno do oponente"
+   ]
   },
   {
    "n": "702.118",
@@ -8650,14 +8654,18 @@
    "n": "702.137",
    "regra": "Keyword Abilities",
    "titulo": "Spectacle",
-   "status": "ausente",
-   "falta": "Sem custo alternativo condicionado a \"um oponente perdeu vida neste turno\" (702.137a); o motor não registra vida perdida por jogador no turno.",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "601.2b custo alternativo",
     "registro de vida perdida no turno"
    ],
-   "cartas": "comum (Ravnica Allegiance; Skewer the Critics e Light Up the Stage em Pauper)"
+   "cartas": "comum (Ravnica Allegiance; Skewer the Critics e Light Up the Stage em Pauper)",
+   "evidencia": "K-32: \"Spectacle {custo}\" lido da linha (custoDaLinhaK) vira custo alternativo (altsImpressosK) que só é oferecido e aceito se um oponente perdeu vida neste turno (condicaoDoAltK, chamado de condicaoDoAlt; a vida perdida por você mesmo não conta); a marca espetaculoK vai com a mágica e a permanente (MARCAS_DA_CONJURACAO). Skewer the Critics em RAW_SCRIPTS (S8).",
+   "testes": [
+    "CR 702.137a · espetáculo (Skewer the Critics, texto oficial): o custo {R} só aparece depois que um oponente perdeu vida no turno",
+    "K-32 · espetáculo e surto (702.137, 702.117): depois do Urso passar, a criatura sai pelo custo menor e bloqueia no turno do oponente"
+   ]
   },
   {
    "n": "702.138",

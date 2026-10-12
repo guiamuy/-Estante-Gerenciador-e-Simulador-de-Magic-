@@ -1323,3 +1323,32 @@ test('CR 702.149a · treinamento (Gryff Rider, texto oficial): atacando junto de
   assert.ok(!ateODano(s, [gr, u]).objects[gr].counters.p1p1, 'com o 2/2 (igual): não');
   assert.ok(!ateODano(s, [gr]).objects[gr].counters.p1p1, 'sozinha: não');
 });
+
+/* ---------------- K-32 · custos alternativos com condição: espetáculo 702.137 e surto 702.117 ---------------- */
+test('CR 702.137a · espetáculo (Skewer the Critics, texto oficial): o custo {R} só aparece depois que um oponente perdeu vida no turno', () => {
+  let s = partida({ 'Skewer the Critics': oficial('Skewer the Critics'), Raio: RAIO }, SC_RAIO); const a = s.turn.active, d = 1 - a;
+  let k, r; [s, k] = poe(s, a, 'Skewer the Critics', 'hand'); [s, r] = poe(s, a, 'Raio', 'hand');
+  const alt = st => E.legalActions(st, a).filter(x => x.t === 'cast' && x.oid === k && x.alt != null);
+  assert.equal(alt(s).length, 0, 'ninguém perdeu vida: só o custo normal');
+  s = resolve(act(s, { t: 'cast', p: a, oid: r, targets: [{ player: d }] }));
+  const of = alt(s); assert.ok(of.length, 'depois do Raio no oponente: espetáculo');
+  assert.equal(s.facts['Skewer the Critics'].script.alt[of[0].alt].cost.mana, '{R}');
+  const v = s.players[d].life; s = resolve(act(s, { ...of.find(x => x.targets[0].player === d) }));
+  assert.equal(s.players[d].life, v - 3); assert.equal(s.objects[k].zone, 'graveyard');
+  let t = partida({ 'Skewer the Critics': oficial('Skewer the Critics') }); let k2; [t, k2] = poe(t, t.turn.active, 'Skewer the Critics', 'hand'); t = J(t); t.players[t.turn.active].lifeLost = 3;
+  assert.equal(E.legalActions(t, t.turn.active).filter(x => x.oid === k2 && x.alt != null).length, 0, 'a vida perdida por você mesmo não conta');
+});
+
+test('CR 702.117a · surto (Comparative Analysis, texto oficial): o custo {2}{U} só depois que você conjurou outra mágica no turno; a do oponente não conta', () => {
+  let s = partida({ 'Comparative Analysis': oficial('Comparative Analysis'), Raio: RAIO }, SC_RAIO); const a = s.turn.active, d = 1 - a;
+  let c, r, r2; [s, c] = poe(s, a, 'Comparative Analysis', 'hand'); [s, r] = poe(s, a, 'Raio', 'hand'); [s, r2] = poe(s, d, 'Raio', 'hand');
+  const alt = st => E.legalActions(st, a).filter(x => x.t === 'cast' && x.oid === c && x.alt != null);
+  assert.equal(alt(s).length, 0, 'nenhuma mágica antes');
+  let t = J(s); t.turn.priority = d; t = resolve(act(t, { t: 'cast', p: d, oid: r2, targets: [{ player: a }] })); t = J(t); t.turn.priority = a;
+  assert.equal(alt(t).length, 0, 'a mágica do oponente não conta');
+  s = resolve(act(s, { t: 'cast', p: a, oid: r, targets: [{ player: d }] }));
+  const of = alt(s); assert.ok(of.length, 'depois do Raio: surto');
+  assert.equal(s.facts['Comparative Analysis'].script.alt[of[0].alt].cost.mana, '{2}{U}');
+  const mao = s.zones[a].hand.length; s = resolve(act(s, of.find(x => x.targets[0].player === a)));
+  assert.equal(s.zones[a].hand.length, mao - 1 + 2, 'comprou duas');
+});

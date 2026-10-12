@@ -572,6 +572,21 @@ test('K-31 · treinamento (702.149): a 1/1 que ataca com um 2/2 ganha o marcador
   assert.equal(combate(s, [r, u]).players[d].life, 16, '(1+1) + 2');
 });
 
+test('K-32 · espetáculo e surto (702.137, 702.117): depois do Urso passar, a criatura sai pelo custo menor e bloqueia no turno do oponente', () => {
+  cobre('spectacle'); cobre('surge');
+  const cartas = { ...CARDS, Acrobata: cre('Acrobata', 3, 3, ['Spectacle'], { mana_cost: '{4}{R}', cmc: 5, oracle_text: 'Spectacle {R}' }), Surfista: cre('Surfista', 2, 2, ['Surge'], { mana_cost: '{3}{U}', cmc: 4, oracle_text: 'Surge {U}' }) };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 56, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a; let u, ac, su; [s, u] = poe(s, a, 'Urso'); [s, ac] = poe(s, a, 'Acrobata', { zone: 'hand' }); [s, su] = poe(s, a, 'Surfista', { zone: 'hand' });
+  assert.ok(!E.legalActions(s, a).some(x => x.oid === ac && x.alt != null), 'antes do dano, sem espetáculo');
+  s = combate(s, [u]); assert.equal(s.players[d].life, 18);
+  const esp = E.legalActions(s, a).find(x => x.oid === ac && x.alt != null); assert.ok(esp, 'o oponente perdeu vida: espetáculo');
+  s = act(s, esp); for (let i = 0; i < 4 && s.stack.length; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  assert.equal(vivo(s, ac), true);
+  const sur = E.legalActions(s, a).find(x => x.oid === su && x.alt != null); assert.ok(sur, 'já conjurou outra mágica: surto');
+});
+
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));
