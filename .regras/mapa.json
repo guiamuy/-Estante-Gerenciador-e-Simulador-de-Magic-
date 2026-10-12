@@ -3663,10 +3663,14 @@
    "regra": "Untap Step",
    "titulo": "Jogador ativo desvira suas permanentes",
    "status": "parcial",
-   "evidencia": "enterStep('untap'): desvira tudo que o ativo controla de uma vez (index.html:10685); sonda p5/t7.mjs: na manutenção do oponente só as dele desviraram; na do jogador A, criatura e terreno dele desviraram",
-   "falta": "Não há efeito que impeça de desvirar (\"doesn't untap during its controller's untap step\", marcador de atordoamento, Frozen/Claustrophobia) nem escolha do que desvirar (\"you may choose not to untap\").",
+   "evidencia": "enterStep('untap'): desvira tudo que o ativo controla de uma vez (index.html:10685); sonda p5/t7.mjs: na manutenção do oponente só as dele desviraram; na do jogador A, criatura e terreno dele desviraram · M-314 (CR2g.6): 'não desvira no passo de desvirar' por estática própria (self.naoDesvira), por Aura (grants.naoDesvira, Claustrophobia) e por efeito 'no próximo passo de desvirar' (nao_desvira, consumido nesse passo); marcador de atordoamento (122.1d) em todo desvirar",
+   "falta": "escolha de não desvirar ('you may choose not to untap')",
    "esforco": "P",
-   "cartas": "comum"
+   "cartas": "comum",
+   "testes": [
+    "CR 502.3 · Claustrophobia: vira a criatura ao entrar e ela não desvira nos passos de desvirar do controlador (mas desvira por efeito)",
+    "CR 502.3 · \"não desvira no próximo passo de desvirar\": fica virada um passo e desvira no seguinte"
+   ]
   },
   {
    "n": "502.4",

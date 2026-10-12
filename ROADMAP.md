@@ -3695,6 +3695,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Âncora nova:** `/* ↓ M · scripts de carta da trilha motor */` no fim de RAW_SCRIPTS — os scripts de carta da trilha motor vão para lá, longe das âncoras das paralelas (a M-311 e a M-312 colidiram duas vezes com a trilha tipos logo abaixo da âncora T; resolvido no rebase mantendo os dois lados).
 - **Teste:** `combate.gatilhos.unit` (3 testes, falham no motor anterior).
 
+**M-314 · CR2g.6 · "Não desvira" (502.3) e marcador de atordoamento (122.1d)** ✅ (leva M-314, motor v110 sem mudança de forma; goldens intactos) — Claustrophobia joga no modo completo.
+- **Valor:** "Enchanted creature doesn't untap during its controller's untap step" (Aura), "~ doesn't untap during your untap step" (estática própria) e "doesn't untap during its controller's next untap step" (efeito, consumido no próximo passo de desvirar daquele jogador) funcionam; a criatura ainda desvira por outros efeitos (ruling da Claustrophobia). Marcador de atordoamento: em vez de desvirar (no passo ou por efeito), tira um marcador. A marca "no próximo" some se a permanente muda de zona (400.7).
+- **Script:** `grants.naoDesvira`, `self.naoDesvira`, `{ do: 'nao_desvira', target }`; marcadores `tipo: 'stun'`. Leitor lê a frase da Aura (78 lidas, zero divergência). Texto oficial em `.listas/oficiais-motor.json` (mtg.wtf, 11/10/2026). Primeiro script de carta na âncora nova "↓ M".
+- **Fora (mapa 502.3 parcial):** "você pode escolher não desvirar".
+- **Teste:** `naodesvira.unit` (3 testes, falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

@@ -5231,6 +5231,7 @@ const EFFECTS = {
   pump: { fields: ['power', 'toughness'], targets: ['creature', 'creature-you-control', 'creature-opponent-controls', 'each-creature', 'each-opponent-creature', 'each-own-creature'] },
   tap: { fields: [], targets: ['self-source', 'enchanted', 'creature', 'permanent', 'permanent-opponent-controls'] },
   untap: { fields: [], targets: ['self-source', 'enchanted', 'creature', 'permanent'] },
+  nao_desvira: { fields: [], targets: ['creature', 'permanent', 'enchanted', 'first-target'] }, // CR2g.6 · 502.3: "doesn't untap during its controller's next untap step"
   // Leva 131 · "tap or untap target creature" (Sewer-veillance Cam): o alvo é da pilha, virar ou desvirar se escolhe na resolução;
   // com `optional` ("you may"), recusar é a terceira saída da mesma pergunta
   tap_or_untap: { fields: [], targets: ['creature', 'permanent'] },
@@ -5994,6 +5995,7 @@ function validateScript(sc) {
     for (const opt of g.produces || []) if (!Array.isArray(opt) && !(opt && (opt.symbol || opt.anyColor) && PER_COUNTS.includes(opt.per))) errs.push('bônus: opção de mana inválida');
     if ((g.perPower != null || g.perToughness != null) && !PER_COUNTS.includes(g.per)) errs.push(`bônus: contagem "${g.per}" desconhecida`);
     for (const k of g.keywords || []) if (!KEYWORDS.includes(String(k).toLowerCase())) errs.push(`bônus: palavra-chave "${k}" não é resolvida pelo motor`);
+    if (g.naoDesvira != null && g.naoDesvira !== true) errs.push('bônus: naoDesvira só vale como true'); // CR2g.6
     for (const cor of [].concat(g.protection || []))
       if (cor !== 'chosen' && !'WUBRG'.includes(cor)) errs.push('bônus: proteção precisa ser "chosen" ou cores WUBRG');
     if (g.produces && !Array.isArray(g.produces)) errs.push('bônus: produces precisa ser lista de opções de mana');
@@ -6031,6 +6033,7 @@ function validateScript(sc) {
       if (!Array.isArray(self.substituiCompra) || !self.substituiCompra.length || self.substituiCompra.some(x => !x || !((x.seVazia === 'vence' && Object.keys(x).length === 1) || (x.oponente === 'voce-compra' && (x.exceto == null || x.exceto === 'primeira-do-passo') && Object.keys(x).every(k => k === 'oponente' || k === 'exceto')))))
         errs.push('bônus próprio: substituiCompra é [{ seVazia: "vence" }] ou [{ oponente: "voce-compra", exceto?: "primeira-do-passo" }]');
     }
+    if (self.naoDesvira != null && self.naoDesvira !== true) errs.push('bônus próprio: naoDesvira só vale como true'); // CR2g.6
     if (self.multiplica != null) { // CR2e.2 · 614.16: "cria o dobro de fichas" / "põe o dobro de marcadores" / "esse número mais um"
       if (!Array.isArray(self.multiplica) || !self.multiplica.length) errs.push('bônus próprio: multiplica precisa ser uma lista');
       else for (const m of self.multiplica) {
@@ -7521,6 +7524,8 @@ const RAW_SCRIPTS = [
   { name: 'Mind Stone', abilities: [{ kind: 'activated', cost: { mana: '{1}', tap: true, sacrifice: true }, effects: [{ do: 'draw', amount: 1 }] }],
     example: { action: 'activate:0', target: 'none', expect: { handDelta: 1 } } },
   /* ↓ M · scripts de carta da trilha motor (alicerces CR2; texto oficial em .listas/oficiais-motor.json). Fica no fim da lista, longe das âncoras das paralelas (M-313: dois rebases da M-311/M-312 colidiram com a trilha tipos logo abaixo da âncora T) */
+  // CR2g.6 · 502.3 · não desvira (texto oficial em .listas/oficiais-motor.json, mtg.wtf, 2026-10-11)
+  { name: 'Claustrophobia', aura: { enchant: 'creature' }, grants: { naoDesvira: true }, abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'tap', target: 'enchanted' }] }], example: { action: 'aura', target: 'own-creature', expect: { attached: true } } },
 ];
 const SCRIPTS = {};
 const SCRIPT_ERRORS = {};
@@ -14782,6 +14787,7 @@ const __m42 = (function () {
   const PROT = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
   /** "Enchanted creature gets +2/+0 and has trample." / "Enchanted creature has flying." / "… has protection from black and from red." */
   function concessao(l) {
+    if (/^enchanted creature doesn't untap during its controller's untap step$/i.test(l)) return { naoDesvira: true }; // CR2g.6 · 502.3
     let m = l.match(/^enchanted creature gets ([+-]\d+)\/([+-]\d+) for each (.+?)(?: and has ([a-z ,]+))?$/i);
     if (m) { const per = contagem(m[3]); if (!per) return null; const kws = m[4] ? m[4].split(/,\s*|\s+and\s+/).map(x => x.trim().toLowerCase()) : []; if (kws.some(k => !KW.has(k))) return null; return { perPower: SINAL(m[1]), perToughness: SINAL(m[2]), per, ...(kws.length ? { keywords: kws } : {}) }; } // LT5
     m = l.match(/^(?:enchanted|equipped) (?:creature|permanent|land) gets ([+-]\d+)\/([+-]\d+)(?: and has ([a-z ,]+))?$/i);
@@ -15571,7 +15577,7 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
     tipos: tiposDe(s, o).slice(), linha: linhaDeTipo(s, o), // CR2b.6 · 603.10a: o observador vê o que ela era no campo (terreno animado é criatura)
     ...((c => c.length ? { concedidas: c } : {})(grantedAbilities(s, o).filter(a => a.kind === 'triggered'))) } : null; // CR2b.6 · 603.10a: a habilidade disparada concedida também olha para trás
   if (ultima) Object.assign(ultima, ultimaPalavrasK(s, o)); // K-4 · 603.10a: persistir/imortal olham como ela era no campo
-  delete o.ultima;
+  delete o.ultima; delete o.naoDesviraProximo; // CR2g.6 · 400.7
   const segurava = fromZone === 'battlefield' ? o.holding : null;
   delete o.holding; delete o.devolverAoSair;
   if (segurava) o.devolverAoSair = segurava;
@@ -16406,6 +16412,16 @@ function unblockedAttackers(s, p) {
 }
 
 /* ---------------- M3 · passos e turnos ---------------- */
+/** CR2g.6 · desvirar uma permanente: com marcador de atordoamento, em vez disso tira um (122.1d). Devolve se desvirou. */
+function desvira(s, o) {
+  if (!o || !o.tapped) return false;
+  if ((o.counters.stun || 0) > 0) { o.counters.stun -= 1; if (!o.counters.stun) delete o.counters.stun; return false; }
+  o.tapped = false; return true;
+}
+/** CR2g.6 · 502.3: a permanente não desvira no passo de desvirar do controlador — por estática própria, por Aura ("enchanted creature doesn't
+    untap…") ou por efeito "no próximo passo de desvirar" (consumido nesse passo, desvirasse ou não). */
+const naoDesviraNoPasso = (s, o) => !!o.naoDesviraProximo || (!semImpressas(s, o) && !!((((s.facts[o.name] || {}).script || {}).self || {}).naoDesvira))
+  || attachedTo(s, o).some(x => !semImpressas(s, x) && !!((((s.facts[x.name] || {}).script || {}).grants || {}).naoDesvira));
 function enterStep(s, step) {
   emptyPools(s); // 500.4: reserva esvazia entre passos
   s.turn.step = step; s.turn.passes = 0; s.turn.priority = s.turn.active;
@@ -16414,7 +16430,7 @@ function enterStep(s, step) {
     const voltam = new Set(); // M-261 · 502.1: entra em fase antes de desvirar · CR2g.1 · 702.26g: o que saiu indiretamente volta com o que o levou, e só com ele
     for (const o of campoInteiro(s)) if (o.phasedOut && o.faseCom == null && o.controller === a) { delete o.phasedOut; voltam.add(o.oid); }
     for (const o of campoInteiro(s)) if (o.phasedOut && o.faseCom != null && voltam.has(o.faseCom)) { delete o.phasedOut; delete o.faseCom; }
-    for (const o of battlefield(s)) if (o.controller === a) { o.tapped = false; o.sick = false; }
+    for (const o of battlefield(s)) if (o.controller === a) { o.sick = false; if (naoDesviraNoPasso(s, o)) { delete o.naoDesviraProximo; continue; } desvira(s, o); } // CR2g.6 · 502.3 / 122.1d
     return enterStep(s, 'upkeep');
   }
   // CR2-G R2b · 603.2b · começo do passo: na manutenção, os do jogador ativo vêm antes dos atrasados (como antes)
@@ -17541,7 +17557,7 @@ function applyEffect(s, src, eff, tgt, events) {
       if (s.turn.step !== 'main1' && s.turn.step !== 'main2') { note({ failed: true }); break; }
       s.combatesExtras = (s.combatesExtras || 0) + 1; note({}); break;
     }
-    case 'desvira_atacantes': { let n = 0; for (const a of s.atacaramNoTurno || []) { const o = s.objects[a.oid]; if (o && o.zone === 'battlefield' && (o.zc || 0) === a.z && o.tapped) { o.tapped = false; n++; } } note({ amount: n }); break; } // CR2g.4 · o mesmo objeto (400.7)
+    case 'desvira_atacantes': { let n = 0; for (const a of s.atacaramNoTurno || []) { const o = s.objects[a.oid]; if (o && o.zone === 'battlefield' && (o.zc || 0) === a.z && o.tapped && desvira(s, o)) n++; } note({ amount: n }); break; } // CR2g.4 · o mesmo objeto (400.7)
     case 'turno_extra': { const quem = playerOf(); (s.turnosExtras = s.turnosExtras || []).push(quem); note({}); break; } // CR2g.2 · 500.7: o turno extra criado por último é jogado primeiro
     case 'efeito_jogador': { // CR2d.10 · efeito contínuo de resolução sobre jogadores, com duração
       const e = {}; for (const k of REGRAS_JOGADOR) if (eff[k] != null) e[k] = eff[k];
@@ -17921,7 +17937,8 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'fight': lutar(s, src, eff, tgt, events); break; // V-1 · 701.14
     /* ↓ T · casos de applyEffect da trilha tipos */
     case 'tripulada': tripulada(s, src, events); break; // T-3 · CR 702.122e · a habilidade de tripular resolveu: "Whenever ~ becomes crewed"
-    case 'untap': { const alvo = eff.target === 'enchanted' ? criaturaEncantada(s, src) : eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj; if (alvo) alvo.tapped = false; note({}); break; }
+    case 'untap': { const alvo = eff.target === 'enchanted' ? criaturaEncantada(s, src) : eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj; if (alvo) desvira(s, alvo); note({}); break; } // CR2g.6 · atordoamento
+    case 'nao_desvira': { const alvo = eff.target === 'enchanted' ? criaturaEncantada(s, src) : obj; if (alvo && alvo.zone === 'battlefield') { alvo.naoDesviraProximo = true; note({ name: alvo.name }); } else note({ failed: true }); break; } // CR2g.6
     default: break;
   }
 }
@@ -18001,7 +18018,7 @@ function concluiPick(s, events) {
     else if (where === 'esconder') { moveObject(s, oid, 'exile'); s.objects[oid].faceDown = true; const f = pk.esconde && s.objects[pk.esconde]; if (f && f.zone === 'battlefield') f.escondida = oid; } // M-268 · 702.75a
     else if (where === 'exile-playable-turn') { moveObject(s, oid, 'exile'); s.objects[oid].playableFromExile = pk.p; s.objects[oid].jogavelSoNesteTurno = true; } // M-267
     else if (where === 'proliferar') escolhaDoVerbo(s, oid); // V-2 · Toca ponto comum: concluiPick (a escolha só é anotada; o verbo aplica no fim)
-    else if (where === 'desvira') { if (s.objects[oid] && s.objects[oid].zone === 'battlefield') s.objects[oid].tapped = false; } // M-250
+    else if (where === 'desvira') { if (s.objects[oid] && s.objects[oid].zone === 'battlefield') desvira(s, s.objects[oid]); } // M-250 · CR2g.6
     else if (where === 'descarta-ou-sacrifica') { if (s.objects[oid].zone === 'hand') descartaCarta(s, oid); else sacrifice(s, oid); }
     else moveObject(s, oid, where);
   };
@@ -19511,7 +19528,7 @@ const HANDLERS = {
       s.pending = null;
       if (!a.decline && alvo && alvo.zone === 'battlefield') {
         if (a.index === 0) { if (!alvo.tapped) { alvo.tapped = true; noteEnchantedEvent(s, alvo); } }
-        else alvo.tapped = false;
+        else desvira(s, alvo); // CR2g.6
         ev.push({ kind: 'effect', do: a.index === 0 ? 'tap' : 'untap', name: pk.name, target: alvo.name });
       }
       stateBased(s, ev);
@@ -23177,6 +23194,7 @@ function effectLine(ev) {
     case 'damage': return ev.failed ? `${ev.name} não causou dano: alvo ilegal` : `${ev.name} causou ${n} de dano a ${t}`;
     case 'reveal': return `${ev.name} revelou: ${t}`; // Leva 108
     case 'turno_extra': return `${t} vai jogar um turno extra depois deste (${ev.name})`; // CR2g.2
+    case 'nao_desvira': return ev.failed ? `${ev.name}: o alvo já não estava no campo` : `${t || ev.name}: não desvira no próximo passo de desvirar`;
     case 'combate_extra': return ev.failed ? `${ev.name}: fora da fase principal, sem combate adicional` : `${ev.name}: depois desta fase principal vem um combate adicional e outra fase principal`; // CR2g.4
     case 'desvira_atacantes': return `${ev.name} desvirou ${n} criatura(s) que atacaram neste turno`;
     case 'animate': return `${t} virou criatura até o fim do turno`; // CR2d.2
@@ -24133,6 +24151,7 @@ function descreveEfeito(e) {
     case 'escolhe_copiadora': return `escolhe ${alvo || 'uma permanente'} para virar cópia`; // CR2f.1
     case 'torna_copia': return `ela vira uma cópia de ${alvo || 'outra permanente'}${(e.somaTipos || []).length ? ', além de ' + e.somaTipos.map(x => TIPO_PT[x] || x).join(' e ') : ''}${e.ate && e.ate !== 'sempre' ? ' ' + duracaoPT(e.ate) : ''}`; // CR2f.1
     case 'turno_extra': return alvo ? `${alvo} joga um turno extra depois deste` : 'você joga um turno extra depois deste'; // CR2g.2
+    case 'nao_desvira': return `${alvo || 'a criatura'} não desvira no próximo passo de desvirar de quem a controla`; // CR2g.6
     case 'combate_extra': return 'depois desta fase principal, um combate adicional e outra fase principal'; // CR2g.4
     case 'desvira_atacantes': return 'desvira as criaturas que atacaram neste turno';
     case 'efeito_jogador': { const q = { voce: 'você', oponentes: 'cada oponente', todos: 'cada jogador' }[e.quem || 'voce']; const partes = []; if (e.naoGanhaVida) partes.push('não pode ganhar vida'); if (e.terrenosExtras) partes.push(`pode jogar ${e.terrenosExtras} terreno${e.terrenosExtras > 1 ? 's' : ''} a mais`); if (e.semLimiteDeMao) partes.push('não tem tamanho máximo de mão'); return `${q} ${partes.join(' e ')} ${duracaoPT(e.ate)}`; } // CR2d.10
