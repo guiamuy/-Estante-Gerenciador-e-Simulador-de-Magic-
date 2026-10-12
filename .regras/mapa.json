@@ -6894,8 +6894,8 @@
    "regra": "Keyword Abilities",
    "titulo": "Trample",
    "status": "parcial",
-   "evidencia": "dealCombatDamage (index.html:10784-10792): letal a cada bloqueador (descontando dano já marcado; 1 com toque mortífero) e o resto ao jogador; bloqueador que saiu = tudo ao jogador (702.19d); combat.audit K2; sondas sonda-702a.mjs: 5/5 x 2/2 passa 3, x 3/3 já ferido passa 4, x dois bloqueadores passa 2, atropelar+toque passa 4 · M-285 (CR2g.2): com atropelar, o jogador só recebe o que passa do letal de todos os bloqueadores, na divisão escolhida por quem ataca",
-   "falta": "pôr mais que o letal num bloqueador único com atropelar não é oferecido (a mesa só pergunta com dois ou mais bloqueadores)",
+   "evidencia": "dealCombatDamage (index.html:10784-10792): letal a cada bloqueador (descontando dano já marcado; 1 com toque mortífero) e o resto ao jogador; bloqueador que saiu = tudo ao jogador (702.19d); combat.audit K2; sondas sonda-702a.mjs: 5/5 x 2/2 passa 3, x 3/3 já ferido passa 4, x dois bloqueadores passa 2, atropelar+toque passa 4 · M-285 (CR2g.2): com atropelar, o jogador só recebe o que passa do letal de todos os bloqueadores, na divisão escolhida por quem ataca K-19: opcoesDeDivisao chama opcoesAtropelarUmK com um bloqueador só: com atropelar e excedente, a pendência dividir_dano (a mesma da CR2g.2, com botão na mesa e resposta do goldfish e do bot) oferece o letal no bloqueador e o resto no jogador (a de antes) ou tudo no bloqueador.",
+   "falta": "Com um bloqueador só, a mesa oferece as duas pontas (letal no bloqueador e o resto no jogador, ou tudo no bloqueador), não as divisões do meio (a mesma simplificação da CR2g.2); o letal não desconta o dano que outra atacante atribui ao mesmo bloqueador no mesmo passo; atropelar sobre planeswalkers (702.19c-e) não existe.",
    "esforco": "M",
    "depende": [
     "510.1c",
@@ -6903,7 +6903,9 @@
    ],
    "cartas": "evergreen",
    "testes": [
-    "CR2g.2 · 702.19b: com atropelar, o jogador só recebe o que passa do letal de todos os bloqueadores"
+    "CR2g.2 · 702.19b: com atropelar, o jogador só recebe o que passa do letal de todos os bloqueadores",
+    "CR 702.19b · atropelar bloqueado por uma criatura: quem ataca escolhe entre o letal no bloqueador (e o resto no jogador) e tudo no bloqueador",
+    "CR 702.19b · sem excedente (o atacante não passa do letal) ou sem atropelar, um bloqueador não abre pergunta"
    ]
   },
   {

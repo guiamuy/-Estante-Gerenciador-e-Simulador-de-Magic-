@@ -925,3 +925,30 @@ test('CR 702.11d/f · resistência a magia contra monocolorida: a mágica monoco
   let r2; [s, r2] = poe(s, a, 'Raio', 'hand');
   assert.equal(resolve(act(s, { t: 'cast', p: a, oid: r2, targets: [{ oid: x }] })).objects[x].zone, 'graveyard', 'o Raio de quem a controla mira');
 });
+
+/* ---------------- K-19 · 702.19b atropelar com um bloqueador ---------------- */
+test('CR 702.19b · atropelar bloqueado por uma criatura: quem ataca escolhe entre o letal no bloqueador (e o resto no jogador) e tudo no bloqueador', () => {
+  const ATR = { name: 'Atropela', type_line: 'Creature — Beast', mana_cost: '{3}{G}', cmc: 4, colors: ['G'], power: '4', toughness: '4', keywords: ['Trample'], oracle_text: 'Trample' };
+  const fim = (s, escolha) => { const a = s.turn.active;
+    for (let i = 0; i < 6 && s.turn.step !== 'combat_attackers'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+    return s; };
+  let s = partida({ Atropela: ATR, Urso: URSO }); const a = s.turn.active, d = 1 - a;
+  let at, u; [s, at] = poe(s, a, 'Atropela'); [s, u] = poe(s, d, 'Urso');
+  s = fim(s); s = act(s, { t: 'attack', p: a, attackers: [at] });
+  for (let i = 0; i < 6 && !(s.pending && s.pending.kind === 'blockers'); i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  s = act(s, { t: 'block', p: d, blocks: [[u, at]] });
+  for (let i = 0; i < 6 && !(s.pending && s.pending.kind === 'dividir_dano'); i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  assert.equal(s.pending && s.pending.kind, 'dividir_dano', 'a mesa pergunta'); assert.equal(s.pending.opcoes.length, 2);
+  const vida = s.players[d].life;
+  const padrao = act(s, { t: 'dividir_dano', p: a, index: 0 }), tudo = act(s, { t: 'dividir_dano', p: a, index: 1 });
+  assert.equal(padrao.players[d].life, vida - 2, '2 no Urso, 2 no jogador'); assert.equal(padrao.objects[u].zone, 'graveyard');
+  assert.equal(tudo.players[d].life, vida, 'tudo no Urso'); assert.equal(tudo.objects[u].zone, 'graveyard');
+});
+
+test('CR 702.19b · sem excedente (o atacante não passa do letal) ou sem atropelar, um bloqueador não abre pergunta', () => {
+  const PEQ = { name: 'Pequeno', type_line: 'Creature — Beast', mana_cost: '{G}', cmc: 1, colors: ['G'], power: '2', toughness: '2', keywords: ['Trample'], oracle_text: 'Trample' };
+  let s = partida({ Pequeno: PEQ, Urso: URSO }); const a = s.turn.active, d = 1 - a;
+  let at, u; [s, at] = poe(s, a, 'Pequeno'); [s, u] = poe(s, d, 'Urso');
+  assert.equal(E.opcoesAtropelarUmK(s, s.objects[at], s.objects[u], 2), null, '2 contra um 2/2: nada passa');
+  assert.equal(E.opcoesAtropelarUmK(s, s.objects[u], s.objects[at], 3), null, 'sem atropelar');
+});

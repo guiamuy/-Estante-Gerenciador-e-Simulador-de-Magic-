@@ -168,6 +168,8 @@ test('M6 · atropelar com bloqueio e dano de comandante', () => {
   s = J(s); s.objects[ids['Raging Hound']].commander = true; // trata o atacante como comandante
   const life = s.players[d].life;
   s = passTo(s, 'combat_damage');
+  // K-19 · expectativa ajustada com justificativa: 702.19b — com um bloqueador e excedente, quem ataca escolhe a divisão; a primeira opção é a de antes
+  if (s.pending && s.pending.kind === 'dividir_dano') s = act(s, { t: 'dividir_dano', p: a, index: 0 });
   assert.equal(s.players[d].life, life - 2, '3 de poder, 1 letal no bloqueador, 2 atropelam');
   assert.equal(s.players[d].commanderDamage[ids['Raging Hound']], 2, 'dano de comandante contado');
   assert.equal(s.objects[ids['Raging Hound']].zone, 'graveyard', 'toque mortífero do bloqueador');

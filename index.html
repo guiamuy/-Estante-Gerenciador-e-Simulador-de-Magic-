@@ -16748,6 +16748,7 @@ function distribuiDano(s, a, blockers, amt, tudo) {
 function permutacoes(xs) { if (xs.length <= 1) return [xs.slice()]; const out = []; xs.forEach((x, i) => { for (const r of permutacoes(xs.filter((_, j) => j !== i))) out.push([x, ...r]); }); return out; }
 function opcoesDeDivisao(s, a) {
   const blockers = bloqueadoresVivos(s, a), amt = power(s, a);
+  if (blockers.length === 1 && amt > 0) return opcoesAtropelarUmK(s, a, blockers[0], amt); // K-19 · 702.19b: um bloqueador e atropelar (Toca ponto comum: opcoesDeDivisao)
   if (blockers.length < 2 || amt <= 0) return null;
   const ordens = blockers.length <= 4 ? permutacoes(blockers.map(b => b.oid)) : [blockers.map(b => b.oid)];
   const out = [], vistas = new Set();
@@ -21261,6 +21262,17 @@ function resistenteAK(s, o, src) {
   return f.hexK.some(q => casaProtecaoK(s, q, src));
 }
 Object.assign(EXPORTS_K, { resistenciaQualidadesK, resistenteAK });
+/* K-19 · 702.19b · atropelar com um bloqueador só: depois do letal no bloqueador, o excedente vai como quem ataca escolher, entre o
+   bloqueador e o jogador (ou planeswalker/batalha atacado). A mesa oferece as duas pontas — o letal no bloqueador e o resto no jogador
+   (a de antes, primeira opção) e tudo no bloqueador — pelo mesmo caminho da divisão entre bloqueadores (CR2g.2). Divisões no meio não são
+   oferecidas (a mesma simplificação declarada da CR2g.2). Sem atropelar, ou sem excedente, nada a perguntar. */
+function opcoesAtropelarUmK(s, a, b, amt) {
+  if (!has(s, a, 'trample')) return null;
+  const letal = has(s, a, 'deathtouch') ? 1 : Math.max(0, toughness(s, b) - b.damage);
+  if (amt <= letal) return null;
+  return [{ ordem: [b.oid], rotulo: `${letal} em ${b.name} · ${amt - letal} no jogador` }, { ordem: [b.oid], tudo: true, rotulo: `${amt} em ${b.name}` }];
+}
+Object.assign(EXPORTS_K, { opcoesAtropelarUmK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-22 · 701.68 afligir N: "put N −1/−1 counters on a creature you control" (a) — a criatura é escolhida por quem aflige (não mira);
    sem criatura sua, nada acontece (b); com uma só, é ela. Os marcadores passam pelas substituições de pôr marcadores (614.16).

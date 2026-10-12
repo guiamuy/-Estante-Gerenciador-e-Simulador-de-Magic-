@@ -4077,6 +4077,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Testes:** `keywords.cr4.unit` (2, falham sem a leva). Texto oficial: Knight of Grace (Oracle do Forge, 11/10/2026). Goldens idênticos; motor v109.
 - **Parcial declarado (702.11):** jogador com resistência por habilidade estática; "hexproof from" concedido continua só de cor; 702.11g.
 
+**K-19 · Atropelar com um bloqueador: quem ataca escolhe (702.19b)** 🟡 (leva K-19)
+- **Valor:** com atropelar bloqueado por uma criatura só, a mesa pergunta se o excedente vai para o jogador ou fica no bloqueador (antes, sempre no jogador).
+- **Aceite:** 4/4 com atropelar bloqueado pelo Urso 2/2: a pergunta tem duas opções; a primeira (a de antes) dá 2 no Urso e 2 no jogador; a segunda, 4 no Urso; sem excedente ou sem atropelar, não pergunta.
+- **Toca ponto comum:** `opcoesDeDivisao` (uma linha a mais: `opcoesAtropelarUmK`). Usa a pendência `dividir_dano` que a mesa, o goldfish e o bot já respondem — nenhuma decisão nova. **Expectativa ajustada com justificativa:** `rules.unit` M6 (responde à divisão com a primeira opção, o resultado é o mesmo).
+- **Testes:** `keywords.cr4.unit` (2, falham sem a leva). Goldens idênticos; motor v109.
+- **Parcial declarado (702.19):** só as duas pontas (as divisões do meio não são oferecidas, como na CR2g.2); o letal não desconta o dano de outra atacante no mesmo bloqueador; atropelar sobre planeswalkers.
+
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.
