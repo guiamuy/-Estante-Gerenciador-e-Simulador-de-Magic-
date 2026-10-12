@@ -126,3 +126,40 @@ test('Mesa · a folha da carta diz "Subir de nível · custo"', () => {
   E.rotulosDaClasseT(s, b, legal, () => '');
   eq(legal.map(x => x.label), ['Subir de nível · {2}{G}']);
 });
+
+/* ---------------- T-25 · correções da auditoria independente ---------------- */
+test('CR 400.7 · a subida de nível que estava na pilha resolve depois que a criatura saiu e voltou: o objeto novo não recebe o marcador', () => {
+  let s = mesa(); let b; [s, b] = poe(s, 0, BB); s = mana(s);
+  const r = E.apply(s, sobe(s, 0, b)[0]); let t = J(r.state);
+  E.moveObject(t, b, 'hand'); E.moveObject(t, b, 'battlefield', { controller: 0 });
+  const r1 = E.apply(t, { t: 'pass', p: 0 }), r2 = E.apply(r1.state, { t: 'pass', p: 1 });
+  eq([nivel(r2.state, b), pt(r2.state, b), r2.events.some(e => e.do === 'nivel_sobe' && e.failed)], [0, [2, 2], true]);
+});
+
+test('CR 613.4a / 613.4b · a base de P/R da barra (camada 7b) vence o P/R definido por habilidade da própria carta (7a)', () => {
+  const sc = { name: 'Asterisco', self: { ptDefinido: { poder: 7, resistencia: 7 }, nivelar: { mana: '{1}', faixas: [{ de: 1, ate: 1, base: [3, 3] }, { de: 2, base: [5, 5] }] } }, ...EX };
+  eq(SC.validateScript(sc), [], 'script válido');
+  C.Asterisco = { name: 'Asterisco', type_line: 'Creature — Test', mana_cost: '{1}', cmc: 1, keywords: [], oracle_text: '', colors: [], power: '*', toughness: '*' };
+  let s = E.createGame({ format: 'livre', seed: 1, mode: 'full', cards: C, scripts: { ...SCRIPTS, Asterisco: sc }, players: [0, 1].map(i => ({ name: 'AB'[i], deck: [{ name: 'Asterisco', qty: 20, zone: 'main' }, { name: 'Forest', qty: 20, zone: 'main' }] })) });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  let a; [s, a] = poe(s, 0, 'Asterisco');
+  eq([pt(s, a), pt(comNivel(s, a, 1), a), pt(comNivel(s, a, 2), a)], [[7, 7], [3, 3], [5, 5]]);
+  delete C.Asterisco;
+});
+
+test('Validador · subir de nível só com custo de mana; exatamente duas barras (711.1); nivelar nulo é recusado', () => {
+  const f2 = [{ de: 1, ate: 2, base: [1, 1] }, { de: 3, base: [2, 2] }];
+  const com = nv => SC.validateScript({ name: 'X', ...EX, self: { nivelar: nv } });
+  assert.ok(com({ mana: 'abc{', faixas: f2 }).some(e => /nivelar/.test(e)), 'custo que não é de mana');
+  assert.ok(com({ mana: '{T}', faixas: f2 }).some(e => /nivelar/.test(e)), 'virar não é custo de subir de nível');
+  assert.ok(com({ mana: '{1}', faixas: [{ de: 1, base: [1, 1] }] }).some(e => /nivelar/.test(e)), 'uma barra só');
+  assert.ok(com(null).some(e => /nivelar/.test(e)), 'nulo');
+  eq(com({ mana: '{2}{G}', faixas: f2 }), []);
+});
+
+test('Registro · a subida de nível diz o nível novo', () => {
+  let s = mesa(); let b; [s, b] = poe(s, 0, BB); s = mana(comNivel(s, b, 3));
+  const r1 = E.apply(act(s, sobe(s, 0, b)[0]), { t: 'pass', p: 0 }), r2 = E.apply(r1.state, { t: 'pass', p: 1 });
+  const ev = r2.events.find(e => e.do === 'nivel_sobe');
+  eq([ev && ev.nivel, nivel(r2.state, b), pt(r2.state, b)], [4, 4, [6, 6]]);
+});

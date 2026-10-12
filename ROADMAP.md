@@ -4873,6 +4873,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `basePT` (um termo na mesma linha), `continuosDaFonte` e `abilitiesOf` (uma linha cada, ao lado da linha da Classe), `createGame` (uma linha: as palavras das barras saem dos fatos).
 - **Próximo:** auditoria independente da T-24; depois, decisão do dono — Salas (709.5), cartas de virar (710), fundir (712.4).
 
+**CR5-T25 · Subir de nível: correções da auditoria independente** ✅ (leva T-25, sem mudança de versão do motor) — revisor sem acesso à implementação rodou ~100 conferências, um fuzz de 40 partidas (12.000 ações, 321 subidas de nível; toda ação oferecida aceita) e 10 partidas Shark × Shark; 4 divergências, 3 da implementação. 4 testes novos em `tipos.nivelar.unit` (15 no arquivo; falham sem a leva).
+- **Corrigido:** **400.7 (D1)** — a subida que estava na pilha punha o marcador no objeto novo quando a criatura saía e voltava; agora o efeito `nivel_sobe` leva a encarnação, como a subida da Classe (fora de fase também não sobe). **613.4a/b (D2)** — a base da barra (7b) perdia para P/R definido por habilidade (7a); a ordem em `basePT` inverteu (nenhuma carta oficial tem os dois). **Validador (D3, D4)** — custo que não é de mana e uma barra só eram aceitos; agora só custo de mana e exatamente as duas barras da 711.1. Registro: "X subiu de nível (nível N)".
+- **Conferido e correto pela auditoria:** custo, "só como feitiço" também por pedido direto, limites exatos das barras, marcador de outras fontes e remoção descendo de barra, bônus e "base 0/1" por cima, trocar P/R, perder habilidades, 711.6 em todas as zonas, cópias (barras sim, marcadores não), virada para baixo, troca de controle, palavras em combate e o rótulo da folha.
+- **Pendência para a trilha `motor` (caminho anterior):** o efeito `counters` com `target: 'self-source'` não confere a encarnação da fonte (400.7): qualquer "ponha um marcador nesta" que estava na pilha marca o objeto novo se a permanente saiu e voltou.
+- **Versão e goldens:** a versão não sobe; goldens idênticos.
+- **Próximo:** decisão do dono — restos com custo no mapa: Salas (709.5), cartas de virar (710), fundir (712.4).
+
 **CR6 · Multijogador e variantes** ○ — mesa de três e quatro (800–803, 806), Commander de mesa (903.2), Brawl (903.12); as variantes hoje "fora" só entram por decisão. 10 a 14 levas.
 
 **CR7 · Consolidação** ○ (em paralelo a partir da CR2) — a cada fase: fuzz em modo completo com listas reais, homologação por revisor independente relendo a seção das regras contra o motor, e rodada de simulação do dono do produto. 6 a 8 levas ao todo.

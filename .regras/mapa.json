@@ -8102,11 +8102,13 @@
     "122 (marcador nomeado)"
    ],
    "cartas": "uma coleção só (Rise of the Eldrazi) e poucas",
-   "evidencia": "Delegada pela trilha keywords (K-71): «Fica com a trilha tipos (CR5, tipos e formatos de carta): nivelar (Level Up) muda P/R e habilidades por faixa de marcadores de nível — a forma de carta de nível.» T-24 (12/10/2026): \"Level up [custo]\" é a ativada \"Subir de nível\" de toda carta com self.nivelar — custo do script, só como feitiço, põe um marcador de nível (122.1, MARCADOR_PT.level) — e vale em qualquer nível (711.4). Mesa: \"Subir de nível · custo\". Cartas exemplo completas: Beastbreaker of Bala Ged e Knight of Cliffhaven (Oracle do Forge, consulta de 12/10/2026).",
+   "evidencia": "Delegada pela trilha keywords (K-71): «Fica com a trilha tipos (CR5, tipos e formatos de carta): nivelar (Level Up) muda P/R e habilidades por faixa de marcadores de nível — a forma de carta de nível.» T-24 (12/10/2026): \"Level up [custo]\" é a ativada \"Subir de nível\" de toda carta com self.nivelar — custo do script, só como feitiço, põe um marcador de nível (122.1, MARCADOR_PT.level) — e vale em qualquer nível (711.4). Mesa: \"Subir de nível · custo\". Cartas exemplo completas: Beastbreaker of Bala Ged e Knight of Cliffhaven (Oracle do Forge, consulta de 12/10/2026). T-25 (12/10/2026) · auditoria independente (~100 conferências, fuzz de 40 partidas / 12.000 ações com 321 subidas, 10 partidas Shark × Shark): a subida que estava na pilha não põe o marcador no objeto novo se a criatura saiu e voltou (400.7; efeito nivel_sobe com a encarnação); o validador exige custo de mana e as duas barras da 711.1.",
    "testes": [
     "CR 702.87a · subir de nível: paga o custo e põe um marcador de nível; só como feitiço (na sua fase principal, com a pilha vazia)",
     "CR 711.4 · a habilidade de subir de nível vale sempre, com qualquer número de marcadores (até acima da última barra)",
-    "Mesa · a folha da carta diz \"Subir de nível · custo\""
+    "Mesa · a folha da carta diz \"Subir de nível · custo\"",
+    "CR 400.7 · a subida de nível que estava na pilha resolve depois que a criatura saiu e voltou: o objeto novo não recebe o marcador",
+    "Validador · subir de nível só com custo de mana; exatamente duas barras (711.1); nivelar nulo é recusado"
    ]
   },
   {
@@ -10439,14 +10441,15 @@
     "613"
    ],
    "cartas": "uma coleção só (Rise of the Eldrazi)",
-   "evidencia": "T-24 (12/10/2026): self.nivelar.faixas = barras { de, ate, base, palavras, abilities, continuo } (a última, \"N+\", sem ate; o validador exige barras contíguas e em ordem). Na barra alcançada pelo número de marcadores de nível (de qualquer fonte), basePT dá a base de P/R da barra (bônus da camada 7c por cima) e continuosDaFonte/abilitiesOf dão as palavras, habilidades e contínuos dela; as palavras das barras saem dos fatos da carta (só valem pela barra). As barras são habilidades: a criatura que perde todas as habilidades (ou virada para baixo) volta ao P/R de cima.",
+   "evidencia": "T-24 (12/10/2026): self.nivelar.faixas = barras { de, ate, base, palavras, abilities, continuo } (a última, \"N+\", sem ate; o validador exige barras contíguas e em ordem). Na barra alcançada pelo número de marcadores de nível (de qualquer fonte), basePT dá a base de P/R da barra (bônus da camada 7c por cima) e continuosDaFonte/abilitiesOf dão as palavras, habilidades e contínuos dela; as palavras das barras saem dos fatos da carta (só valem pela barra). As barras são habilidades: a criatura que perde todas as habilidades (ou virada para baixo) volta ao P/R de cima. T-25 (12/10/2026): a base da barra (camada 7b) vence o P/R definido por habilidade da própria carta (7a, 613.4a/b).",
    "testes": [
     "CR 711.2a / 711.2b · Beastbreaker of Bala Ged (texto oficial): nível 1 a 3 é 4/4; nível 4 ou mais é 6/6 com atropelar",
     "CR 711.2a / 711.2b · Knight of Cliffhaven (texto oficial): nível 1 a 3 é 2/3 com voar; nível 4 ou mais é 4/4 com voar e vigilância",
     "CR 711.2 / 613.4 · o P/R da barra é a base: marcadores +1/+1 e outros bônus somam por cima dela",
     "CR 711.2 · o marcador de nível de qualquer fonte conta (não só o da habilidade de subir)",
     "CR 711.2 (as barras são habilidades) · a criatura que perde todas as habilidades fica com o P/R de cima, sem as palavras das barras e sem subir de nível",
-    "Validador · a forma de self.nivelar: custo, barras em ordem crescente, a última aberta (\"N+\"), P/R inteiro, palavras conhecidas"
+    "Validador · a forma de self.nivelar: custo, barras em ordem crescente, a última aberta (\"N+\"), P/R inteiro, palavras conhecidas",
+    "CR 613.4a / 613.4b · a base de P/R da barra (camada 7b) vence o P/R definido por habilidade da própria carta (7a)"
    ]
   },
   {

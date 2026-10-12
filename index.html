@@ -5486,6 +5486,7 @@ const EFFECTS = {
   /* ↓ T · efeitos da trilha tipos */
   papel: { fields: [], targets: ['creature', 'creature-you-control', 'first-target'] }, // T-20 · CR 111.10j–r / 303.7 · "create a <Papel> Role token attached to <alvo>": a ficha de Papel (definida pela regra) entra anexada
   cerco_derrotado: { fields: [], targets: ['self'] }, // T-14 · CR 310.12b · a habilidade intrínseca do Cerco: "exile it, then you may cast it transformed without paying its mana cost" (o motor a dispara quando sai o último marcador de defesa; o script não a escreve)
+  nivel_sobe: { fields: [], targets: ['self'] }, // T-25 · CR 702.87a · "ponha um marcador de nível nesta" (o motor o monta a partir de `self.nivelar`, o script não o escreve)
   nivel_classe: { fields: [], targets: ['self'] }, // T-12 · CR 716.2a · "o nível desta Classe vira N" (o efeito da barra de nível; o motor o monta a partir de `self.classe`, o script não o escreve)
   transformar: { fields: [], targets: ['self'] }, // T-7 · CR 701.27 · "transform ~": a permanente fonte vira a outra face (nos dois sentidos), se for carta ou ficha de dupla face (712.9) e a outra face for de permanente (701.27d), uma vez por habilidade (701.27f)
   tripulada: { fields: [], targets: ['self'] }, // T-3/T-4 · CR 702.122a/e · o efeito da habilidade de tripular: "esta permanente vira criatura artefato até o fim do turno" (só o mesmo objeto, 400.7) e, sendo Veículo, "fica tripulado"; depois de um `animate` (forma antiga) só avisa
@@ -8511,15 +8512,15 @@ EVENTOS_DE_OBJETO.push('monstruosa'); OBJETOS_DO_EVENTO.monstruosa = ['self']; G
    `self: { nivelar: { mana: '{2}{G}', faixas: [{ de: 1, ate: 3, base: [4, 4] }, { de: 4, base: [6, 6], palavras: ['trample'] }] } }`.
    As barras são contíguas e em ordem; a última é a "N+" (sem `ate`). Cada barra pode ter `palavras`, `abilities` e `continuo`. */
 function nivelarErros(sc) {
-  const sf = sc && sc.self, nv = sf && sf.nivelar; if (nv == null) return [];
+  const sf = sc && sc.self, nv = sf && sf.nivelar; if (!sf || !('nivelar' in sf)) return []; // T-25 · `nivelar: null` também é recusado
   if (!nv || typeof nv !== 'object') return ['nivelar: self.nivelar = { mana, faixas }'];
   const errs = [];
   for (const k of Object.keys(nv)) if (!['mana', 'faixas'].includes(k)) errs.push(`nivelar: chave "${k}" desconhecida`);
-  if (!(typeof nv.mana === 'string' && /\{/.test(nv.mana))) errs.push('nivelar: falta o custo de subir de nível (mana)');
+  if (!(typeof nv.mana === 'string' && /^(\{[^}]+\})+$/.test(nv.mana) && !/\{[TQ]\}/.test(nv.mana))) errs.push('nivelar: falta o custo de subir de nível (mana, como "{2}{G}")'); // T-25 · só custo de mana
   if (sf.classe || sf.dividida || sf.modal || sf.duplaFace || sf.aventura) errs.push('nivelar: a carta de subir de nível não é Classe, dividida, modal, de transformar nem de aventura');
   if (sc.grants || sc.grantsAll || sf.per || sc.aura || sc.back) errs.push('nivelar: grants, grantsAll, self.per, aura e face de trás não existem numa carta de subir de nível (use continuo)');
   const fx = nv.faixas;
-  if (!Array.isArray(fx) || !fx.length) return errs.concat('nivelar: faixas é a lista das barras LEVEL ({ de, ate, base })');
+  if (!Array.isArray(fx) || fx.length !== 2) return errs.concat('nivelar: faixas são as duas barras LEVEL ({ de, ate, base } e { de, base }), 711.1'); // T-25 · 711.1: duas barras
   let fim = 0;
   fx.forEach((f, i) => {
     const tag = `nivelar, barra ${i + 1}`, ult = i === fx.length - 1;
@@ -17249,7 +17250,7 @@ const pumpT = o => ((o.pump && o.pump.t) || 0) + ((o.pumpNext && o.pumpNext.t) |
  * com inteiro ou contagem; 7b: o fixado por efeito (mutação) vence o 7a; sem nenhum, o impresso. */
 const ptDefinido = (s, o) => { const d = ((s.facts[o.name].script || {}).self || {}).ptDefinido; if (!d || o.faceDown || semImpressas(s, o)) return null;
   return [d.poder != null ? amountOf(s, o, d.poder) : (s.facts[o.name].power || 0), d.resistencia != null ? amountOf(s, o, d.resistencia) : (s.facts[o.name].toughness || 0)]; };
-const basePT = (s, o) => { const m = mutacao(s, o); if (m && m.base) return m.base; if (o.faceDown) return [2, 2]; return ptDefinido(s, o) || ptDoNivelT(s, o) || [s.facts[o.name].power || 0, s.facts[o.name].toughness || 0]; }; // T-24 · CR 711.2 · a base de P/R da barra alcançada (Toca ponto comum: basePT)
+const basePT = (s, o) => { const m = mutacao(s, o); if (m && m.base) return m.base; if (o.faceDown) return [2, 2]; return ptDoNivelT(s, o) || ptDefinido(s, o) || [s.facts[o.name].power || 0, s.facts[o.name].toughness || 0]; }; // T-24 · CR 711.2 · a base de P/R da barra alcançada (Toca ponto comum: basePT) · T-25 · 613.4a/b: a barra (7b) vence o P/R definido por habilidade (7a)
 /** CR2d.9 · 613.4d · 7d: "troque o poder e a resistência" — depois de todo o resto; um número ímpar de trocas troca. */
 let TROCA_ESTATICA = null;
 const trocaEstatica = () => (TROCA_ESTATICA ??= Object.values(SC.SCRIPTS || {}).some(sc => (sc.continuo || []).some(c => c.troca)));
@@ -19758,6 +19759,7 @@ function applyEffect(s, src, eff, tgt, events) {
     /* ↓ T · casos de applyEffect da trilha tipos */
     case 'papel': criaPapelT(s, src, eff, obj, events); break; // T-20 · CR 111.10j–r / 303.7 · a ficha de Papel entra anexada ao alvo
     case 'cerco_derrotado': cercoDerrotadoT(s, src, eff, events); break; // T-14 · CR 310.12b · exila o Cerco e abre "conjurar transformado sem pagar"
+    case 'nivel_sobe': nivelSobeT(s, src, eff, events); break; // T-25 · CR 702.87a / 400.7 · subir de nível
     case 'nivel_classe': nivelDaClasseSobeT(s, src, eff, events); break; // T-12 · CR 716.2a · o nível da Classe vira N e dispara "When this Class becomes level N"
     case 'transformar': transformaT(s, src.ability ? s.objects[src.source] : src, src, events); break; // T-7 · CR 701.27 · "transform ~"
     case 'tripulada': tripulada(s, src, events); break; // T-3 · CR 702.122e · a habilidade de tripular resolveu: "Whenever ~ becomes crewed"
@@ -24975,6 +24977,13 @@ function faixaDoNivelarT(s, o) {
   const n = (o.counters || {}).level || 0;
   return nv.faixas.find(f => n >= f.de && (f.ate == null || n <= f.ate)) || null;
 }
+/** T-25 · 702.87a / 400.7 / 702.26b · resolve "ponha um marcador de nível nesta": a fonte que saiu do campo (e voltou: outro objeto) ou está fora de fase não recebe. */
+function nivelSobeT(s, src, eff, events) {
+  const o = src.ability ? s.objects[src.source] : src;
+  if (!o || o.zone !== 'battlefield' || o.phasedOut || (eff.z != null && (o.zc || 0) !== eff.z)) { events.push({ kind: 'effect', do: 'nivel_sobe', name: src.name, failed: true }); return; }
+  const k = poeMarcadores(s, o, 'level', 1);
+  events.push({ kind: 'effect', do: 'nivel_sobe', name: o.name, target: o.name, amount: k, nivel: (o.counters || {}).level || 0 });
+}
 function ptDoNivelT(s, o) { const f = faixaDoNivelarT(s, o); return f ? [f.base[0], f.base[1]] : null; }
 function continuosDoNivelarT(s, x, sc) {
   const f = faixaDoNivelarT(s, x);
@@ -24984,7 +24993,7 @@ function continuosDoNivelarT(s, x, sc) {
 }
 function nivelarHabilidadesT(s, o, sc, list) {
   const nv = sc.self.nivelar;
-  list.push({ kind: 'activated', cost: { mana: nv.mana }, sorceryOnly: true, label: 'Subir de nível', nivelarT: true, effects: [{ do: 'counters', amount: 1, tipo: 'level', target: 'self-source' }] }); // 702.87a
+  list.push({ kind: 'activated', cost: { mana: nv.mana }, sorceryOnly: true, label: 'Subir de nível', nivelarT: true, effects: [{ do: 'nivel_sobe', z: o.zc || 0 }] }); // 702.87a · T-25 · 400.7: a subida leva a encarnação (`z`), como a da Classe
   const f = faixaDoNivelarT(s, o); if (f) for (const ab of f.abilities || []) list.push({ ...ab, nivelarFaixaT: f.de });
 }
 /** Os fatos da carta (palavras lidas do texto inteiro) perdem as palavras que só existem dentro de uma barra; `self.keywords` fica. */
@@ -28418,9 +28427,9 @@ const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas
   fight: e => `${e.quem === 'self-source' ? 'esta criatura luta' : 'ela luta'} com ${ALVO_PT[e.target] || descreveAlvo(e.target)} (cada uma causa dano igual ao próprio poder à outra)`,
 };
 /* ↓ T · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha tipos */
-const EFEITO_PT_T = { nivel_classe: e => `a Classe sobe para o nível ${e.n}`, tripulada: () => 'vira criatura artefato até o fim do turno', transformar: () => 'transforma (vira a outra face)' }; // T-7 · 701.27
+const EFEITO_PT_T = { nivel_sobe: () => 'põe um marcador de nível nela', nivel_classe: e => `a Classe sobe para o nível ${e.n}`, tripulada: () => 'vira criatura artefato até o fim do turno', transformar: () => 'transforma (vira a outra face)' }; // T-7 · 701.27
 /** T-7 · linhas do registro para os eventos da trilha tipos. */
-const LINHA_T = { nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
+const LINHA_T = { nivel_sobe: ev => (ev.failed ? `${ev.name}: saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu de nível (nível ${ev.nivel})`), nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
 Object.assign(EFEITO_PT_T, { cerco_derrotado: () => 'exila o Cerco; você pode conjurá-lo transformado, sem pagar', papel: e => `cria um Papel de ${e.papel} anexado à criatura` }); // T-14 · CR 310.12b
 Object.assign(LINHA_T, { cerco_derrotado: ev => (ev.failed ? `${ev.name}: o Cerco já tinha saído do campo, nada a exilar` : `${ev.name} foi derrotada e exilada${ev.target ? ` (pode virar ${ev.target})` : ''}`), protetor_batalha: ev => `${ev.target} passa a proteger ${ev.name}`, anexo_barrado: ev => `${ev.name} não pode equipar${ev.target ? ' ' + ev.target : ''} e fica onde está`, papel: ev => (ev.failed ? `${ev.name}: sem criatura para o Papel de ${ev.target}` : `Papel de ${ev.target || ev.name}`), papel_substituido: ev => `o Papel ${ev.name} foi substituído e vai para o cemitério`, batalha_cemiterio: ev => `${ev.name} ficou sem defesa e foi para o cemitério` }); // T-14 · CR 310.12b / 310.11 / 310.8
 function descreveEfeito(e) {
