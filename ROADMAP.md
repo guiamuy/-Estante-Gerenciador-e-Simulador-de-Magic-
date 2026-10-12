@@ -4503,6 +4503,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `draw` (uma linha: `dragarK`).
 - **Testes:** `keywords.cr4.unit` (2, falham sem a leva), `combat.audit` (1 cenário). Texto oficial: Life from the Loam, Stinkweed Imp, Golgari Thug (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
 - **Parcial declarado:** com outra substituição da compra ao mesmo tempo, a ordem não é escolhida (616.1); efeito do motor que compra e descarta num passo só descarta antes da compra adiada.
+**K-58 · Iminente (impending, 702.176)** 🟡 (leva K-58) — onda 4 (119 cópias em 34 listas: Overlord of the Balemurk, Overlord of the Mistmoors)
+- **Valor:** "Impending N—{custo}" vira o botão de custo alternativo: a permanente entra com N marcadores de tempo e não é criatura até o último sair; na sua etapa final, sai um.
+- **Aceite:** com "Impending 2", a permanente entra como encantamento só; depois de duas etapas finais suas, é uma criatura 5/5. Pelo custo normal, entra criatura.
+- **Toca ponto comum:** `moveObject` (uma linha: `iminenteEntrouK`).
+- **Testes:** `keywords.cr4.unit` (1, falha sem a leva), `combat.audit` (1 cenário). Texto oficial: Overlord of the Balemurk, Overlord of the Mistmoors (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
+- **Parcial declarado:** marcadores de tempo mexidos por outros efeitos não atualizam o "não é criatura"; reduções de outras fontes não valem sobre o custo iminente; os gatilhos de "entra ou ataca" dos Overlords ficam sem script.
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

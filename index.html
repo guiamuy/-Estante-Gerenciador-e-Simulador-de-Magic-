@@ -5237,6 +5237,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'harmonize', // K-55 · 702.180: conjurar do cemitério pelo custo de harmonizar, virando até uma criatura sua para reduzir o genérico pelo poder dela; depois, exílio (harmonizarK)
   'gift', // K-56 · 702.174: custo adicional opcional de escolher um oponente; o presente vem antes dos outros efeitos da mágica (modo "prometendo o presente") ou num gatilho de entrada da permanente
   'dredge', // K-57 · 702.52: substituição da compra — no lugar de comprar, moer N e devolver a carta do cemitério à mão (escolha do jogador a cada compra)
+  'impending', // K-58 · 702.176: custo alternativo; entra com N marcadores de tempo e não é criatura enquanto tiver algum; na sua etapa final tira um (iminenteK)
   'afflict', 'melee', 'mentor', 'training', // K-31 · 702.130, 702.121, 702.134, 702.149: gatilhos de ataque gerados pela palavra, um por instância
   'battle cry', 'rampage', 'flanking', 'bushido', // K-30 · 702.91, 702.23, 702.25, 702.45: gatilhos de combate gerados pela palavra (GATILHOS_DE_PALAVRA_K), um por instância
   /* ↓ V · palavras-chave da trilha verbos */
@@ -5410,6 +5411,7 @@ const EFFECTS = {
   presente_k: { fields: ['tipo', 'jogador'], targets: [] }, // K-56 · 702.174d-i (gerado pelo motor)
   compra_k: { fields: ['jogador', 'resto'], targets: [] }, // K-57 · comprar em vez de dragar (gerado pelo motor)
   dragar_k: { fields: ['jogador', 'carta', 'n', 'resto'], targets: [] }, // K-57 · 702.52a (gerado pelo motor)
+  iminente_k: { fields: ['z'], targets: [] }, // K-58 · 702.176a (gerado pelo motor)
   salvaguarda: { fields: [], targets: [] }, // K-2 · 702.21a · gerado pelo motor quando uma permanente com salvaguarda vira alvo (não vai em script)
   volta_com_marcador: { fields: ['marcador'], targets: [] }, // K-4 · persistir e imortal (gerado pelo motor)
   exaltado: { fields: ['criatura'], targets: [] }, // K-5 · exaltado (gerado pelo motor)
@@ -8367,6 +8369,7 @@ function palavraNaLinhaK(k) {
   if (k === 'harmonize') return 'harmonize\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-55 · "Harmonize {X}…" fica de fora
   if (k === 'gift') return 'gift (?:a card|a tapped fish|an extra turn|a food|a treasure|an octopus)'; // K-56
   if (k === 'dredge') return 'dredge \\d+'; // K-57
+  if (k === 'impending') return 'impending \\d+\\s*[—-]\\s*(?:\\{[0-9WUBRGC]+\\})+'; // K-58
   if (k === 'dash') return 'dash\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-9
   if (k === 'evoke') return 'evoke(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*exile an? (?:white|blue|black|red|green) card from your hand\\.?)'; // K-8 · só as formas que o motor paga
   return ['afterlife', 'rampage', 'bushido', 'afflict'].includes(k) ? `${k} \\d+` : k; // K-30 · alvoroço N e bushido N
@@ -16072,6 +16075,7 @@ function cardFacts(card) {
     spreeK: spreeImpressoK(card), // K-54 · 702.172: os custos "+ {1} — …" de cada modo, na ordem (undefined quando não tem)
     harmonizarK: custoDaLinhaK(card, 'Harmonize'), // K-55 · 702.180: "Harmonize {4}{R}" (undefined quando não tem)
     presenteK: presenteImpressoK(card), // K-56 · 702.174: 'card' | 'fish' | 'turn' | 'food' | 'treasure' | 'octopus' (undefined quando não tem)
+    iminenteK: iminenteImpressoK(card), // K-58 · 702.176: { n, mana } de "Impending 5—{1}{B}" (undefined quando não tem)
     campeaoK: campeaoImpressoK(card), // K-44 · 702.72: "Champion a creature" → 'creature'; "Champion an Elf" → 'Elf' (undefined quando não tem)
     suspenderK: suspenderImpressoK(card), // K-22 · 702.62a: "Suspend N—{custo}" (undefined quando não tem)
     equipesK: equipesImpressosK(card), // K-28 · 702.6c: "Equip [qualidade] {custo}" (undefined quando não tem)
@@ -16645,6 +16649,7 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
   delete o.loyaltyTurn; delete o.usedThisTurn; delete o.alvejadoNoTurno; // CR2c.6 · 400.7: o objeto novo não carrega o uso da habilidade do anterior (606.3, 602.5b) nem o "primeira vez no turno" do valente (CR2b.9)
   if (to === 'battlefield' && fromZone === 'stack' && o.arremetidaK) arremeteuK(s, o); // K-9 · 702.109a: a permanente que a mágica arremetida vira
   if (to === 'battlefield' && fromZone === 'stack' && o.dobradaK) dobrouK(s, o); // K-51 · 702.185a: a permanente que a mágica dobrada vira (Toca ponto comum: moveObject)
+  if (to === 'battlefield' && fromZone === 'stack' && o.iminenteK) iminenteEntrouK(s, o); // K-58 · 702.176a: "it's not a creature" enquanto tiver marcador de tempo (Toca ponto comum: moveObject)
   if (to === 'battlefield' && fromZone === 'stack' && o.suspensaImpeto) { delete o.suspensaImpeto; aplicaTemporario(s, o, { palavras: ['haste'], ate: { enquanto: 'controlar-fonte' } }, o.controller, o); } // M-269 · "if it's a creature, it has haste"
   if (to === 'battlefield') o.ts = relogio(s); // CR2d.1 · 613.7d: carimbo de tempo de quem entra no campo
   o.sick = to === 'battlefield' && s.facts[o.name].types.includes('creature');
@@ -18987,6 +18992,13 @@ function applyEffect(s, src, eff, tgt, events) {
       break;
     }
     /* ↓ K · casos de applyEffect da trilha keywords */
+    case 'iminente_k': { // K-58 · 702.176a: tira um marcador de tempo (se ainda paga e com marcador: "if" interveniente, 603.4); sem marcador, volta a ser criatura
+      const perm = s.objects[src.ability ? src.source : src.oid];
+      if (!perm || perm.zone !== 'battlefield' || (perm.zc || 0) !== eff.z || !perm.iminenteK || !((perm.counters || {}).time > 0)) { note({ failed: true }); break; }
+      perm.counters.time -= 1; if (!perm.counters.time) delete perm.counters.time;
+      iminenteConfereK(s, perm);
+      note({ name: perm.name }); break;
+    }
     case 'compra_k': { // K-57 · a compra que o jogador escolheu fazer (sem perguntar de novo por ela) e as que faltam
       s.semDragarK = true; draw(s, eff.jogador, 1, { primeiraDoPasso: !!eff.primeira }); delete s.semDragarK;
       if (eff.resto > 1) draw(s, eff.jogador, eff.resto - 1);
@@ -22247,6 +22259,8 @@ const GATILHOS_DE_PALAVRA_K = {
   offspring: (s, o) => o && o.proleK ? ({ kind: 'triggered', when: 'etb', palavraK: 'offspring', effects: [{ do: 'prole_k', z: o.zc || 0 }] }) : [],
   // K-56 · 702.174b · "When this permanent enters, if its gift cost was paid, [effect]."
   gift: (s, o) => o && o.presenteK != null ? ({ kind: 'triggered', when: 'etb', palavraK: 'gift', effects: [{ do: 'presente_k', tipo: s.facts[o.name].presenteK, jogador: o.presenteK }] }) : [],
+  // K-58 · 702.176a · "At the beginning of your end step, if this permanent's impending cost was paid and it has a time counter on it, remove a time counter from it."
+  impending: (s, o) => o && o.iminenteK && ((o.counters || {}).time || 0) > 0 ? ({ kind: 'triggered', when: 'end-step', palavraK: 'impending', effects: [{ do: 'iminente_k', z: o.zc || 0 }] }) : [],
   // K-40 · 702.70a · "Whenever this creature deals combat damage to a player, that player gets N poison counters." (o jogador atingido é o que ela atacava)
   poisonous: (s, o, i) => ({ kind: 'triggered', when: 'combat-damage', palavraK: 'poisonous', effects: [{ do: 'venenoso_k', n: numeroDaPalavraK(s, o, 'poisonous', i), jogador: defensorDeK(s, o) }] }),
   // K-40 · 702.112a · "When this creature deals combat damage to a player, if it isn't renowned, put N +1/+1 counters on it and it becomes renowned." (603.4)
@@ -22423,6 +22437,7 @@ MARCAS_DA_CONJURACAO.push('dobradaK', 'dobraK'); // K-51 · a marca da carta exi
 MARCAS_DA_CONJURACAO.push('proleK'); // K-53 · a marca de prole paga vai da pilha ao campo e some depois (400.7)
 MARCAS_DA_CONJURACAO.push('harmonizadaK'); // K-55
 MARCAS_DA_CONJURACAO.push('presenteK'); // K-56 · o oponente prometido vai da pilha ao campo
+MARCAS_DA_CONJURACAO.push('iminenteK'); // K-58 · "if this permanent's impending cost was paid": da pilha ao campo; some ao sair (400.7)
 MARCAS_DA_CONJURACAO.push('campeaoDeK', 'campeaoNesteK'); // K-44 · a ligação é deste objeto (400.7)
 const COR_DO_NOME_K = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
 const COR_PT_K = { W: 'branca', U: 'azul', B: 'preta', R: 'vermelha', G: 'verde' };
@@ -22455,6 +22470,7 @@ function altsImpressosK(f) {
   if (f.arremeterK) out.push({ label: `Arremeter ${f.arremeterK.mana}`, cost: { ...f.arremeterK }, marcaK: 'arremetidaK' });
   if (f.espetaculoK) out.push({ label: `Espetáculo ${f.espetaculoK.mana}`, cost: { ...f.espetaculoK }, when: { espetaculoK: true }, marcaK: 'espetaculoK' }); // K-32 · 702.137a
   if (f.emergirK) out.push({ label: `Emergir ${f.emergirK.mana}, sacrificando ${f.emergirK.tipo === 'creature' ? 'uma criatura' : 'um ' + f.emergirK.tipo} (menos o valor dela)`, cost: { mana: '{0}', sacrificeOther: { types: [f.emergirK.tipo] } }, emergirK: { ...f.emergirK }, marcaK: 'emergiuK' }); // K-47 · 702.119a/b
+  if (f.iminenteK) out.push({ label: `Iminente ${f.iminenteK.mana} (entra com ${f.iminenteK.n} marcadores de tempo)`, cost: { mana: f.iminenteK.mana }, marcaK: 'iminenteK' }); // K-58 · 702.176a
   if (f.harmonizarK) out.push({ label: `Harmonizar ${f.harmonizarK.mana}`, cost: { mana: '{0}' }, harmonizarK: { ...f.harmonizarK }, marcaK: 'harmonizadaK', doCemiterioK: true }); // K-55 · 702.180a: só do cemitério (conferido em confereHarmonizarK)
   if (f.dobraK) out.push({ label: `Dobra ${f.dobraK.mana}${f.dobraK.life ? ` e ${f.dobraK.life} de vida` : ''}`, cost: { ...f.dobraK }, marcaK: 'dobradaK' }); // K-51 · 702.185a
   if (f.surtoK) out.push({ label: `Surto ${f.surtoK.mana}`, cost: { ...f.surtoK }, when: { surtoK: true }, marcaK: 'surtoK' }); // K-32 · 702.117a
@@ -23008,6 +23024,7 @@ function entraComPalavrasK(s, o) {
   for (const [k, tipo] of [['fading', 'fade'], ['vanishing', 'time']]) if ((f.kw || []).includes(k)) for (const n of ((f.numerosK || {})[k] || [])) out[tipo] = (out[tipo] || 0) + n;
   if ((f.kw || []).includes('modular')) for (const n of ((f.numerosK || {}).modular || [])) out.p1p1 = (out.p1p1 || 0) + n; // K-41 · 702.43a/b
   if ((f.kw || []).includes('graft')) for (const n of ((f.numerosK || {}).graft || [])) out.p1p1 = (out.p1p1 || 0) + n; // K-46 · 702.58a/b
+  if (o.iminenteK && f.iminenteK) out.time = (out.time || 0) + f.iminenteK.n; // K-58 · 702.176a: "it enters with N time counters"
   if (o.entrarComEscolhasK) { for (const e of o.entrarComEscolhasK) out.p1p1 = (out.p1p1 || 0) + e.n; const dv = o.entrarComEscolhasK.reduce((t, e) => t + (e.devorou || 0), 0); if (dv) o.devorouK = dv; } // K-45 · escolhido antes de entrar (conjurada)
   else for (const d of (f.devorarK || [])) s.queuedChoices = (s.queuedChoices || []).concat([{ kind: 'devorar_k', oid: o.oid, p: o.controller, n: d.n, tipo: d.tipo }]); // K-43 · 702.82a/c
   if (!o.entrarComEscolhasK && (f.kw || []).includes('amplify')) for (const n of ((f.numerosK || {}).amplify || [])) s.queuedChoices = (s.queuedChoices || []).concat([{ kind: 'amplificar_k', oid: o.oid, p: o.controller, n }]); // K-43 · 702.38a/b
@@ -23536,6 +23553,24 @@ function numeroDragarK(s, c) {
   return (f && f.numerosK && (f.numerosK.dredge || [])[0]) || 0;
 }
 Object.assign(EXPORTS_K, { dragarK, numeroDragarK });
+/* K-58 · 702.176 iminente (impending): "Impending N—[cost]" = custo alternativo; paga, a permanente entra com N marcadores de tempo
+   (entraComPalavrasK), "as long as this permanent's impending cost was paid and it has a time counter on it, it's not a creature" (camada 4:
+   uma redefinição na permanente, sem o tipo criatura e sem os subtipos de criatura, que sai quando o último marcador sai pelo gatilho) e o
+   gatilho da sua etapa final que tira um marcador. */
+function iminenteImpressoK(card) {
+  const txt = String((card && (card.oracle_text || (card.faces && card.faces[0] && card.faces[0].oracle_text))) || '');
+  for (const l0 of txt.split('\n')) { const m = l0.replace(/\s*\([^)]*\)/g, '').trim().match(/^Impending (\d+)\s*[—-]\s*((?:\{[0-9WUBRGC]+\})+)$/); if (m) return { n: +m[1], mana: m[2] }; }
+  return undefined;
+}
+function iminenteEntrouK(s, o) {
+  const f = s.facts[o.name]; if (!f || !f.iminenteK || !(f.iminenteK.n > 0)) return; // os marcadores entram pela substituição de entrada, logo depois desta linha
+  aplicaTemporario(s, o, { vira: { types: (f.types || []).filter(t => t !== 'creature'), subtypes: [], iminenteK: true }, ate: 'sempre' }, o.controller);
+}
+function iminenteConfereK(s, o) {
+  if ((o.counters || {}).time > 0 || !o.vira) return;
+  o.vira = o.vira.filter(v => !v.iminenteK); if (!o.vira.length) delete o.vira;
+}
+Object.assign(EXPORTS_K, { iminenteImpressoK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-30 · 701.65 aerobender: "that player exiles those objects. For each card exiled this way, for as long as it remains exiled, its owner
    may cast it by paying {2} rather than paying its mana cost" (a). A permissão é do DONO e da encarnação exilada (400.7: se a carta sair do
@@ -27455,6 +27490,7 @@ Object.assign(PALAVRA_PT, { spree: 'farra' }); // K-54
 Object.assign(PALAVRA_PT, { harmonize: 'harmonizar' }); // K-55
 Object.assign(PALAVRA_PT, { gift: 'presente' }); // K-56
 Object.assign(PALAVRA_PT, { dredge: 'dragar' }); // K-57
+Object.assign(PALAVRA_PT, { impending: 'iminente' }); // K-58
 Object.assign(PALAVRA_PT, { afflict: 'aflição', melee: 'refrega', mentor: 'mentor', training: 'treinamento' }); // K-31
 Object.assign(PALAVRA_PT, { 'battle cry': 'grito de guerra', rampage: 'alvoroço', flanking: 'flanquear', bushido: 'bushido' }); // K-30
 const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consultadas por descreveEfeito; antes a pilha mostrava "proeza k")
@@ -27477,6 +27513,7 @@ const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consulta
   prole_k: () => 'cria uma ficha que é cópia desta permanente, só que 1/1 (prole)', // K-53
   presente_k: e => `${({ card: 'o oponente escolhido compra uma carta', fish: 'o oponente escolhido cria uma ficha de Peixe 1/1 azul virada', turn: 'o oponente escolhido joga um turno extra depois deste', food: 'o oponente escolhido cria uma ficha de Comida', treasure: 'o oponente escolhido cria uma ficha de Tesouro', octopus: 'o oponente escolhido cria uma ficha de Polvo 8/8 azul' })[e.tipo] || 'o oponente escolhido recebe o presente'} (presente)`, // K-56
   compra_k: () => 'compra a carta', dragar_k: e => `mói ${e.n} e devolve esta carta do cemitério à mão no lugar de comprar (dragar)`, // K-57
+  iminente_k: () => 'tira um marcador de tempo desta permanente; sem marcador, ela volta a ser criatura (iminente)', // K-58
   mobilizar_k: e => `cria ${e.n === 1 ? 'uma ficha' : e.n + ' fichas'} de Guerreiro 1/1 vermelho viradas e atacando; na próxima etapa final elas são sacrificadas (mobilizar)`, mobilizar_ataca_k: () => '', // K-52
   tempestade_k: e => e.n ? `copia esta mágica ${e.n === 1 ? 'uma vez' : e.n + ' vezes'} (tempestade; cada cópia pode ter alvo novo)` : 'copia esta mágica para cada mágica conjurada antes dela neste turno (nenhuma)',
   proeza_k: () => 'esta criatura recebe +1/+1 até o fim do turno (proeza)',

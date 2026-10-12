@@ -9379,15 +9379,20 @@
    "n": "702.176",
    "regra": "Keyword Abilities",
    "titulo": "Impending",
-   "status": "ausente",
-   "falta": "Sem implementação (grep sem ocorrência no motor nem nos scripts). Falta custo alternativo, entrar com N marcadores de tempo, \"não é criatura enquanto tiver marcador de tempo\" e o gatilho do seu passo final que remove um marcador.",
+   "status": "parcial",
+   "falta": "Marcadores de tempo tirados ou postos por outros efeitos não atualizam o \"não é criatura\" (a redefinição só sai pelo gatilho da etapa final). Aumentos e reduções não valem sobre o custo iminente (caminho comum do custo alternativo). Overlords sem script dos gatilhos de \"entra ou ataca\" (criatura em RAW_SCRIPTS sem PERM_TYPES).",
    "esforco": "M",
    "depende": [
     "601.2b custo alternativo",
     "613 camadas (tipo)",
     "614.12 entra com marcadores"
    ],
-   "cartas": "uma coleção só (Duskmourn)"
+   "cartas": "uma coleção só (Duskmourn)",
+   "evidencia": "K-58: \"Impending N—{custo}\" (iminenteImpressoK) vira custo alternativo da mão (altsImpressosK, marca iminenteK, que vai da pilha ao campo). Paga, a permanente entra com N marcadores de tempo (entraComPalavrasK, substituição de entrada) e ganha uma redefinição de camada 4 sem o tipo criatura e sem subtipos de criatura (iminenteEntrouK em moveObject). A palavra gera o gatilho da sua etapa final, com \"if\" interveniente (603.4), que tira um marcador (iminente_k); sem marcador, a redefinição sai e ela volta a ser criatura.",
+   "testes": [
+    "CR 702.176a · iminente (Overlord of the Balemurk, texto oficial: \"Impending 5—{1}{B}\"): custo alternativo; entra com N marcadores de tempo e não é criatura; na sua etapa final tira um; sem marcador, é criatura",
+    "K-58 · iminente (702.176): o Senhor pelo custo iminente entra sem ser criatura e não bloqueia o Urso"
+   ]
   },
   {
    "n": "702.177",

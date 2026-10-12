@@ -2171,3 +2171,22 @@ test('CR 121.2 com 702.52a · "compre duas": cada compra é substituída à part
   assert.equal(s.objects[im].zone, 'hand'); assert.ok(!s.pending, 'o Imp saiu do cemitério: a segunda compra é normal');
   assert.equal(s.zones[a].hand.length, mao + 2, 'o Imp e a carta comprada'); assert.equal(s.objects[du].zone, 'graveyard');
 });
+
+/* ---------------- K-58 · iminente 702.176 ---------------- */
+test('CR 702.176a · iminente (Overlord of the Balemurk, texto oficial: "Impending 5—{1}{B}"): custo alternativo; entra com N marcadores de tempo e não é criatura; na sua etapa final tira um; sem marcador, é criatura', () => {
+  assert.deepEqual(J(E.iminenteImpressoK(oficial('Overlord of the Balemurk'))), { n: 5, mana: '{1}{B}' });
+  const SENHOR = { name: 'Senhor', type_line: 'Enchantment Creature — Avatar Horror', mana_cost: '{3}{B}{B}', cmc: 5, colors: ['B'], power: '5', toughness: '5', keywords: ['Impending'], oracle_text: 'Impending 2—{1}{B}' };
+  let s = partida({ Senhor: SENHOR }); const a = s.turn.active, d = 1 - a;
+  let o; [s, o] = poe(s, a, 'Senhor', 'hand');
+  const alt = E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === o && x.alt != null); assert.ok(alt, 'o custo iminente é oferecido');
+  let t = resolve(act(s, alt));
+  assert.equal(t.objects[o].zone, 'battlefield'); assert.equal(t.objects[o].counters.time, 2);
+  assert.ok(!E.isCreature(t, t.objects[o]), 'com marcador de tempo, não é criatura'); assert.deepEqual(J(E.tiposDe(t, t.objects[o])), ['enchantment']);
+  const fimDoTurno = (st, quem) => { st = ateK35(st, quem, 'end'); for (let i = 0; i < 8 && (st.turn.step === 'end' || st.stack.length || st.pending) && st.turn.active === quem; i++) st = st.pending ? act(st, E.legalActions(st, st.pending.p)[0]) : act(st, { t: 'pass', p: st.turn.priority }); return st; };
+  t = fimDoTurno(t, a); assert.equal(t.objects[o].counters.time, 1, 'tirou um na sua etapa final');
+  t = fimDoTurno(t, d); assert.equal(t.objects[o].counters.time, 1, 'na do oponente, não');
+  t = fimDoTurno(t, a); assert.equal((t.objects[o].counters || {}).time || 0, 0);
+  assert.ok(E.isCreature(t, t.objects[o]), 'sem marcador, é criatura 5/5'); assert.equal(E.stats(t, t.objects[o]).power, 5);
+  const normal = resolve(act(s, E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === o && x.alt == null)));
+  assert.ok(E.isCreature(normal, normal.objects[o]) && !(normal.objects[o].counters || {}).time, 'pelo custo normal, criatura sem marcador');
+});

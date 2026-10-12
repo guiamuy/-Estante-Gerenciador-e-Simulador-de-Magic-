@@ -866,6 +866,18 @@ test('K-57 · dragar (702.52): no passo de compra, dragar 2 devolve a criatura d
   s = act(s, { t: 'choose_mode', p: a, index: 1 });
   assert.equal(s.objects[g].zone, 'hand');
 });
+test('K-58 · iminente (702.176): o Senhor pelo custo iminente entra sem ser criatura e não bloqueia o Urso', () => {
+  cobre('impending');
+  const cartas = { ...CARDS, Senhor: { name: 'Senhor', type_line: 'Enchantment Creature — Avatar Horror', mana_cost: '{3}{B}{B}', cmc: 5, colors: ['B'], power: '5', toughness: '5', keywords: ['Impending'], oracle_text: 'Impending 2—{1}{B}' } };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 78, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a; let u, g; [s, u] = poe(s, a, 'Urso'); [s, g] = poe(s, a, 'Senhor', { zone: 'hand' });
+  s = act(s, E.legalActions(s, a).find(x => x.oid === g && x.alt != null)); for (let i = 0; i < 4 && s.stack.length; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  assert.equal(s.objects[g].counters.time, 2);
+  assert.throws(() => combate(s, [u, g]), /./, 'o Senhor não é criatura: não ataca');
+  assert.equal(combate(s, [u]).players[d].life, 18);
+});
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));
