@@ -1960,3 +1960,36 @@ test('CR 702.120a · "Escalate—Tap an untapped creature you control" (Collecti
   assert.deepEqual(J(E.escalarImpressoK(oficial('Collective Effort'))), { extra: { tapOther: { types: ['creature'] } } });
   assert.deepEqual(J(E.extraVezesK({ tapOther: { types: ['creature'] } }, 2)), { tapOther: { types: ['creature'], amount: 2 } });
 });
+
+/* ---------------- K-50 · achados da auditoria 3c ---------------- */
+const MORFO_K50 = { name: 'Morfo', type_line: 'Creature — Beast', mana_cost: '{4}{G}{G}', cmc: 6, colors: ['G'], power: '6', toughness: '6', keywords: ['Morph'], oracle_text: 'Morph {G}' };
+const ELFO_K50 = { name: 'Llanowar Elves', type_line: 'Creature — Elf Druid', mana_cost: '{G}', cmc: 1, colors: ['G'], power: '1', toughness: '1', keywords: [], oracle_text: '{T}: Add {G}.' };
+const baseK50 = () => {
+  let s = comManaK33({ 'Wretched Gryff': GRYFF(), Morfo: MORFO_K50, 'Llanowar Elves': ELFO_K50 }, { ...SC_GRYFF, 'Llanowar Elves': S.SCRIPTS['Llanowar Elves'], Morfo: { name: 'Morfo', morph: { mana: '{G}' }, example: { action: 'etb', target: 'none', expect: { attached: false } } } });
+  const a = s.turn.active; let g; [s, g] = poe(s, a, 'Wretched Gryff', 'hand'); return [s, a, g];
+};
+const emergeK50 = (s, a, g, sac) => E.legalActions(s, a).filter(x => x.t === 'cast' && x.oid === g && x.alt != null && [].concat((x.pay || {}).sacrifice || [])[0] === sac);
+
+test('CR 702.119a com 708.2a · emergir sacrificando uma criatura virada para baixo não reduz nada (valor de mana 0): {5}{U} cheio', () => {
+  let [s, a, g] = baseK50(); let m; [s, m] = poe(s, a, 'Morfo'); s = J(s); s.objects[m].faceDown = true;
+  s = terrenos(s, a, 'Island', 1);
+  assert.equal(emergeK50(s, a, g, m).length, 0, 'com uma Ilha não fecha (a carta vale 6, a virada vale 0)');
+  s = terrenos(s, a, 'Island', 5);
+  const t = act(s, emergeK50(s, a, g, m)[0]);
+  assert.equal(t.zones[a].battlefield.filter(x => t.objects[x].tapped).length, 6, 'pagou {5}{U}');
+});
+
+test('CR 601.2g/h · emergir: a oferta não conta a mana da criatura que vai ser sacrificada (o motor sacrifica antes de pagar); virando o Elfo antes, fecha', () => {
+  let [s, a, g] = baseK50(); let el; [s, el] = poe(s, a, 'Llanowar Elves'); s = terrenos(s, a, 'Island', 4);
+  for (const x of emergeK50(s, a, g, el)) assert.doesNotThrow(() => act(s, x), 'o que é oferecido aplica');
+  assert.equal(emergeK50(s, a, g, el).length, 0, '{4}{U} com quatro Ilhas e o Elfo sacrificado: não oferecido');
+  const tap = E.legalActions(s, a).find(x => x.t === 'tap_mana' && x.oid === el); assert.ok(tap);
+  const v = act(s, tap); assert.equal(emergeK50(v, a, g, el).length, 1, 'com o {G} já na reserva, fecha');
+});
+
+test('CR 601.2h · a forma de pagar "descarte duas cartas" com a mesma carta duas vezes é recusada (Collective Brutality, três modos)', () => {
+  let s = partida({ 'Collective Brutality': oficial('Collective Brutality'), Urso: URSO }, scK48('Collective Brutality')); const a = s.turn.active, d = 1 - a;
+  let cb, u, h; [s, cb] = poe(s, a, 'Collective Brutality', 'hand'); [s, u] = poe(s, d, 'Urso'); [s, h] = poe(s, a, 'Urso', 'hand');
+  const i = s.facts['Collective Brutality'].script.modes.findIndex(m => m.escalarK === 2);
+  assert.throws(() => E.apply(s, { t: 'cast', p: a, oid: cb, mode: i, targets: [{ player: d }, { oid: u }, { player: d }], pay: { escalarK: { discard: [h, h] } } }), /duas vezes/);
+});

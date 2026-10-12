@@ -7121,7 +7121,7 @@
     "601.2b custo adicional opcional"
    ],
    "cartas": "rara",
-   "evidencia": "K-33: \"Buyback {custo}\" e \"Buyback—<custo>\" (sacrificar terreno/criatura/artefato/encantamento, descartar N, pagar N de vida) lidos da linha (recompraImpressaK). legalActions oferece, ao lado de cada conjuração pelo custo normal, a variante com recompra (ofertasRecompraK; custo extra: uma ação por forma de pagar). HANDLERS.cast: o mana soma ao custo total no caminho normal (custoTapadoK, reduções valem sobre a soma, 601.2f) e é pago à parte com custo alternativo (pagaRecompraK); a marca recompraK fica na mágica (MARCAS_DA_CONJURACAO). resolveTop: ao resolver, vai para a mão do dono em vez do cemitério (recompraAoResolverK); anulada ou sem alvo legal (608.2b), cemitério; com lampejo do passado, exílio (702.34a). Capsize, Whispers of the Muse e Constant Mists em RAW_SCRIPTS (S8). K-39 (auditoria): reduções do genérico valem sobre o custo total com a recompra somada (castExtraK, 601.2f); com custo de sacrifício e mais de uma opção, a ação sem a escolha é recusada (601.2h). K-49: custo \"descarte N cartas\" com mais de uma forma vira uma oferta só e a escolha de cartas logo depois da conjuração (adiaDescarteK, descarteDoCustoK; como o delve).",
+   "evidencia": "K-33: \"Buyback {custo}\" e \"Buyback—<custo>\" (sacrificar terreno/criatura/artefato/encantamento, descartar N, pagar N de vida) lidos da linha (recompraImpressaK). legalActions oferece, ao lado de cada conjuração pelo custo normal, a variante com recompra (ofertasRecompraK; custo extra: uma ação por forma de pagar). HANDLERS.cast: o mana soma ao custo total no caminho normal (custoTapadoK, reduções valem sobre a soma, 601.2f) e é pago à parte com custo alternativo (pagaRecompraK); a marca recompraK fica na mágica (MARCAS_DA_CONJURACAO). resolveTop: ao resolver, vai para a mão do dono em vez do cemitério (recompraAoResolverK); anulada ou sem alvo legal (608.2b), cemitério; com lampejo do passado, exílio (702.34a). Capsize, Whispers of the Muse e Constant Mists em RAW_SCRIPTS (S8). K-39 (auditoria): reduções do genérico valem sobre o custo total com a recompra somada (castExtraK, 601.2f); com custo de sacrifício e mais de uma opção, a ação sem a escolha é recusada (601.2h). K-49: custo \"descarte N cartas\" com mais de uma forma vira uma oferta só e a escolha de cartas logo depois da conjuração (adiaDescarteK, descarteDoCustoK; como o delve). K-50: a forma de pagar com a mesma carta repetida é recusada (semRepetidoK).",
    "testes": [
     "CR 702.27a · recompra (Capsize, texto oficial): \"Buyback {3}\" é custo adicional opcional; pago, a mágica volta para a mão do dono ao resolver; sem pagar, cemitério",
     "CR 702.27a · a recompra só vale \"as it resolves\": com o alvo ilegal a mágica não resolve (608.2b) e vai para o cemitério; anulada também",
@@ -8536,17 +8536,19 @@
    "regra": "Keyword Abilities",
    "titulo": "Emerge",
    "status": "parcial",
-   "falta": "Reduções e aumentos de custo de outras fontes não se aplicam ao custo de emergir (caminho comum do custo alternativo, payAlt; pedido à trilha motor). Com redução por alvo no campo (filtro OTIMISTA, M-259), a âncora ↓ K não confere o custo reduzido.",
+   "falta": "Reduções e aumentos de custo de outras fontes não se aplicam ao custo de emergir (caminho comum do custo alternativo, payAlt; pedido à trilha motor). Com redução por alvo no campo (filtro OTIMISTA, M-259), a âncora ↓ K não confere o custo reduzido. A mana da própria criatura sacrificada (Llanowar Elves, Dryad Arbor) só vale se for gerada antes de conjurar: o caminho comum sacrifica antes de pagar o mana (601.2g permite gerar antes; pedido à trilha motor); a oferta não conta essa mana.",
    "esforco": "M",
    "depende": [
     "601.2b/601.2f custo alternativo com redução",
     "202.3 valor de mana"
    ],
    "cartas": "rara (Eldritch Moon, Modern Horizons 3)",
-   "evidencia": "K-47: \"Emerge {custo}\" e \"Emerge from a/an [qualidade] {custo}\" (emergirImpressoK) viram custo alternativo (altsImpressosK) com o sacrifício escolhido na oferta (uma por permanente, 702.119c); o mana é o de emergir menos o valor de mana da sacrificada no genérico (pagaEmergirK em HANDLERS.cast; ofertasEmergirK tira as sacrificadas que não fecham). Marca emergiuK.",
+   "evidencia": "K-47: \"Emerge {custo}\" e \"Emerge from a/an [qualidade] {custo}\" (emergirImpressoK) viram custo alternativo (altsImpressosK) com o sacrifício escolhido na oferta (uma por permanente, 702.119c); o mana é o de emergir menos o valor de mana da sacrificada no genérico (pagaEmergirK em HANDLERS.cast; ofertasEmergirK tira as sacrificadas que não fecham). Marca emergiuK. K-50 (auditoria 3c): virada para baixo vale 0 (708.2a, também pela última informação da já sacrificada); a oferta confere o custo sem a mana da sacrificada (semFonteK).",
    "testes": [
     "CR 702.119a · emergir (Wretched Gryff, texto oficial): custo alternativo \"{5}{U} e sacrifique uma criatura\", reduzido no genérico pelo valor de mana da sacrificada; uma oferta por criatura que fecha o custo",
-    "K-47 · emergir (702.119): sacrificando o Urso, a 5/5 voadora sai pelo custo alternativo"
+    "K-47 · emergir (702.119): sacrificando o Urso, a 5/5 voadora sai pelo custo alternativo",
+    "CR 702.119a com 708.2a · emergir sacrificando uma criatura virada para baixo não reduz nada (valor de mana 0): {5}{U} cheio",
+    "CR 601.2g/h · emergir: a oferta não conta a mana da criatura que vai ser sacrificada (o motor sacrifica antes de pagar); virando o Elfo antes, fecha"
    ]
   },
   {
@@ -8561,13 +8563,14 @@
     "601.2f custo adicional"
    ],
    "cartas": "rara (Eldritch Moon)",
-   "evidencia": "K-48: \"Escalate {custo}\" e \"Escalate—<custo>\" (descartar N, virar uma criatura sua, sacrificar N, pagar N de vida) lidos da linha (escalarImpressoK). Em createGame cada combinação de dois ou mais modos vira mais um modo do script, na ordem impressa, com a marca escalarK = modos além do primeiro (modosEscaladosK); o custo de escalar vezes essa conta soma ao custo total no caminho normal (custoTapadoK, 601.2f) e é pago à parte nos outros caminhos (pagaEscalarK em HANDLERS.cast); custo que não é mana multiplica (extraVezesK) e pede a escolha do jogador quando há mais de uma forma (601.2h). 115.3: cada modo é instância própria de \"alvo\" (modosCombinadosK na conferência de alvos repetidos de HANDLERS.cast; alvosPorModoK refaz as ofertas). Borrowed Malevolence, Borrowed Hostility e Collective Brutality em RAW_SCRIPTS (S8). K-49: custo \"descarte N cartas\" com mais de uma forma vira uma oferta só e a escolha de cartas logo depois da conjuração (adiaDescarteK, descarteDoCustoK; como o delve).",
+   "evidencia": "K-48: \"Escalate {custo}\" e \"Escalate—<custo>\" (descartar N, virar uma criatura sua, sacrificar N, pagar N de vida) lidos da linha (escalarImpressoK). Em createGame cada combinação de dois ou mais modos vira mais um modo do script, na ordem impressa, com a marca escalarK = modos além do primeiro (modosEscaladosK); o custo de escalar vezes essa conta soma ao custo total no caminho normal (custoTapadoK, 601.2f) e é pago à parte nos outros caminhos (pagaEscalarK em HANDLERS.cast); custo que não é mana multiplica (extraVezesK) e pede a escolha do jogador quando há mais de uma forma (601.2h). 115.3: cada modo é instância própria de \"alvo\" (modosCombinadosK na conferência de alvos repetidos de HANDLERS.cast; alvosPorModoK refaz as ofertas). Borrowed Malevolence, Borrowed Hostility e Collective Brutality em RAW_SCRIPTS (S8). K-49: custo \"descarte N cartas\" com mais de uma forma vira uma oferta só e a escolha de cartas logo depois da conjuração (adiaDescarteK, descarteDoCustoK; como o delve). K-50: a forma de pagar com a mesma carta repetida é recusada (semRepetidoK, 601.2h).",
    "testes": [
     "CR 702.120a · escalar (Borrowed Malevolence, texto oficial): \"Escalate {2}\" vira a opção dos dois modos pagando {2} a mais, oferecida só quando o total fecha; resolve os dois na ordem impressa",
     "CR 702.120a · o custo de escalar é por modo além do primeiro (Collective Brutality, texto oficial: \"Escalate—Discard a card\"): dois modos, um descarte; três modos, dois descartes, à escolha de quem conjura",
     "CR 115.3 · nos modos escalados, o mesmo jogador (ou objeto) pode ser alvo de dois modos: Collective Brutality com o 1º e o 3º modo contra o único oponente",
     "CR 702.120a · \"Escalate—Tap an untapped creature you control\" (Collective Effort, texto oficial) é lido como custo de virar criatura",
-    "K-48 · escalar (702.120): Borrowed Hostility com os dois modos dá +3/+0 e iniciativa ao Urso, que mata o bloqueador antes de levar dano"
+    "K-48 · escalar (702.120): Borrowed Hostility com os dois modos dá +3/+0 e iniciativa ao Urso, que mata o bloqueador antes de levar dano",
+    "CR 601.2h · a forma de pagar \"descarte duas cartas\" com a mesma carta duas vezes é recusada (Collective Brutality, três modos)"
    ]
   },
   {

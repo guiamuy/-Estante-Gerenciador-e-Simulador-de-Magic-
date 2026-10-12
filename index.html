@@ -22730,7 +22730,7 @@ function pagaRecompraK(s, a, o, alt) {
     if (rk.extra.pagarVida != null && s.players[a.p].life < rk.extra.pagarVida) throw new RuleError('custo', 'vida insuficiente para a recompra');
     if (!canPayExtra(s, a.p, rk.extra, a.oid)) throw new RuleError('custo', 'não dá para pagar a recompra');
     if (!(a.pay || {}).recompraK && pagamentosDe(s, a.p, rk.extra, a.oid).length > 1) { if (!adiaDescarteK(s, a, rk.extra)) throw new RuleError('custo', 'escolha o que pagar na recompra'); } // K-49 · só descarte: quem conjura escolhe as cartas logo depois (descarteDoCustoK)
-    else payExtraCosts(s, a.p, rk.extra, (a.pay || {}).recompraK, a.oid); // K-39 · 601.2h: o motor não escolhe pelo jogador
+    else { semRepetidoK((a.pay || {}).recompraK); payExtraCosts(s, a.p, rk.extra, (a.pay || {}).recompraK, a.oid); } // K-50 · 601.2h: a mesma carta não paga duas vezes // K-39 · 601.2h: o motor não escolhe pelo jogador
   }
   s.objects[a.oid].recompraK = true;
 }
@@ -22794,7 +22794,7 @@ function pagaEntrelacarK(s, a, o, alt) {
   if (ek.extra) {
     if (!canPayExtra(s, a.p, ek.extra, a.oid)) throw new RuleError('custo', 'não dá para pagar o entrelaçar');
     if (!(a.pay || {}).entrelacarK && pagamentosDe(s, a.p, ek.extra, a.oid).length > 1) { if (!adiaDescarteK(s, a, ek.extra)) throw new RuleError('custo', 'escolha o que pagar no entrelaçar'); } // K-49 · só descarte: quem conjura escolhe as cartas logo depois (descarteDoCustoK)
-    else payExtraCosts(s, a.p, ek.extra, (a.pay || {}).entrelacarK, a.oid); // K-39 · 601.2h
+    else { semRepetidoK((a.pay || {}).entrelacarK); payExtraCosts(s, a.p, ek.extra, (a.pay || {}).entrelacarK, a.oid); } // K-50 · 601.2h: a mesma carta não paga duas vezes // K-39 · 601.2h
   }
 }
 /** legalActions · tira a conjuração entrelaçada que não fecha o custo a mais (e as que não são pelo custo normal, que o motor não confere aqui);
@@ -22996,7 +22996,7 @@ function emergirImpressoK(card) {
   return undefined;
 }
 function custoEmergidoK(s, alt, sacrificada) {
-  const c = parseCost(alt.emergirK.mana), mv = sacrificada ? ((s.facts[sacrificada.name] || {}).cmc || 0) : 0;
+  const c = parseCost(alt.emergirK.mana), mv = sacrificada && !viradaParaBaixoK(sacrificada) ? ((s.facts[sacrificada.name] || {}).cmc || 0) : 0; // K-50 · 708.2a: virada para baixo tem valor de mana 0, também pela última informação da já sacrificada (achado da auditoria 3c)
   return { ...c, generic: Math.max(0, (c.generic || 0) - mv) };
 }
 function pagaEmergirK(s, a, o, alt) {
@@ -23010,7 +23010,7 @@ function ofertasEmergirK(s, p, out) {
     const x = out[i]; if (x.t !== 'cast' || x.alt == null || !s.objects[x.oid]) continue;
     const alt = altCosts(s, s.objects[x.oid])[x.alt]; if (!alt || !alt.emergirK) continue;
     const sac = [].concat((x.pay || {}).sacrifice || [])[0];
-    if (!sac || !canPay(s, p, custoEmergidoK(s, alt, s.objects[sac]))) out.splice(i, 1);
+    if (!sac || !canPay(semFonteK(s, sac), p, custoEmergidoK(s, alt, s.objects[sac]))) out.splice(i, 1); // K-50 · a sacrificada não paga mana na mesma ação (o caminho comum sacrifica antes de pagar; achado da auditoria 3c)
   }
 }
 Object.assign(EXPORTS_K, { emergirImpressoK, pagaEmergirK, ofertasEmergirK });
@@ -23065,7 +23065,7 @@ function pagaEscalarK(s, a, o, alt) {
     if (extra.pagarVida != null && s.players[a.p].life < extra.pagarVida) throw new RuleError('custo', 'vida insuficiente para escalar');
     if (!canPayExtra(s, a.p, extra, a.oid)) throw new RuleError('custo', 'não dá para pagar o escalar');
     if (!(a.pay || {}).escalarK && pagamentosDe(s, a.p, extra, a.oid).length > 1) { if (!adiaDescarteK(s, a, extra)) throw new RuleError('custo', 'escolha o que pagar no escalar'); } // K-49 · só descarte: quem conjura escolhe as cartas logo depois (descarteDoCustoK)
-    else payExtraCosts(s, a.p, extra, (a.pay || {}).escalarK, a.oid); // 601.2h: o motor não escolhe pelo jogador
+    else { semRepetidoK((a.pay || {}).escalarK); payExtraCosts(s, a.p, extra, (a.pay || {}).escalarK, a.oid); } // K-50 · 601.2h: a mesma carta não paga duas vezes // 601.2h: o motor não escolhe pelo jogador
   }
 }
 /** legalActions · tira a conjuração escalada que não fecha o custo a mais (e as que não são pelo custo normal, que o motor não confere aqui);
@@ -23158,6 +23158,16 @@ function descarteDoCustoK(s, o) {
 /** ofertas · formas de pagar o custo extra: só descarte com mais de uma forma vira uma oferta sem `pay` (a escolha vem depois). */
 const formasDoExtraK = (s, p, extra, oid, formas) => soDescarteK(extra) && formas.length > 1 ? [null] : formas;
 Object.assign(EXPORTS_K, { adiaDescarteK, soDescarteK });
+/* K-50 · achados da auditoria independente 3c (K-46 a K-49): (1) emergir com criatura virada para baixo reduz 0 (708.2a); (2) a oferta de
+   emergir não conta a mana da própria sacrificada (o caminho comum do custo alternativo sacrifica antes de pagar o mana; 601.2g permitiria
+   gerar a mana antes: pedido à trilha motor; quem quiser vira a fonte antes de conjurar); (3) a forma de pagar com cartas repetidas
+   ("descarte duas" com a mesma carta duas vezes) é recusada nos custos da trilha (recompra, entrelaçar, escalar). */
+const viradaParaBaixoK = o => !!(o.faceDown || (o.zone !== 'battlefield' && o.ultima && o.ultima.faceDown));
+const semFonteK = (s, oid) => ({ ...s, objects: { ...s.objects, [oid]: { ...s.objects[oid], tapped: true } } });
+function semRepetidoK(pg) {
+  for (const v of Object.values(pg || {})) if (Array.isArray(v) && new Set(v).size !== v.length) throw new RuleError('custo', 'a mesma carta não paga o custo duas vezes');
+}
+Object.assign(EXPORTS_K, { semRepetidoK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-30 · 701.65 aerobender: "that player exiles those objects. For each card exiled this way, for as long as it remains exiled, its owner
    may cast it by paying {2} rather than paying its mana cost" (a). A permissão é do DONO e da encarnação exilada (400.7: se a carta sair do
