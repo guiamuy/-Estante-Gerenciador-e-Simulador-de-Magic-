@@ -25,7 +25,7 @@ const limpaSelf = sc => sc.self && Object.keys(sc.self).some(k => k !== 'keyword
 const efeitos = (sc, ref) => JSON.stringify(ordena({ self: limpaSelf(sc), effects: efs(sc.effects), modes: (sc.modes || []).map(m => efs(m.effects)), abilities: abs(sc.abilities), ...Object.fromEntries(TOPO.filter(k => k !== 'self' && sc[k] != null && sc[k] !== false && (k !== 'produces' || (ref || sc).produces != null)).map(k => [k, sc[k]])) }));
 const SO_EFEITOS = ['name', 'effects', 'modes', 'abilities', 'example', 'covers', 'note', ...TOPO];
 
-test('LT1 · concordância (piso M-322: 139): toda carta lida por inteiro dá o mesmo script escrito à mão (nenhuma divergência)', () => {
+test('LT1 · concordância (piso M-323: 140): toda carta lida por inteiro dá o mesmo script escrito à mão (nenhuma divergência)', () => {
   const lidas = [], divergentes = [];
   for (const c of CARTAS) {
     const r = L.ler(c); if (!r.completa) continue;
@@ -44,7 +44,8 @@ test('LT1 · concordância (piso M-322: 139): toda carta lida por inteiro dá o 
   assert.deepEqual(divergentes, []);
   // M-322 · expectativa ajustada com justificativa: 140 → 139. O Sagu Wildling contava como lido sem a face Omen (texto incompleto no acervo);
   // com o verso no texto guardado, o leitor vê a segunda face, não a lê, e a carta deixa de contar. Nenhuma carta lida de verdade saiu.
-  assert.ok(lidas.length >= 139, 'cartas lidas por inteiro: ' + lidas.length + ' (' + lidas.join(', ') + ')');
+  assert.ok(lidas.length >= 140, // M-323 · Heartfire Hero
+     'cartas lidas por inteiro: ' + lidas.length + ' (' + lidas.join(', ') + ')');
 });
 
 test('LT1 · fidelidade: frase sem padrão fica não lida, com o texto dela, e a carta não sai completa; permanente ainda não é lida', () => {

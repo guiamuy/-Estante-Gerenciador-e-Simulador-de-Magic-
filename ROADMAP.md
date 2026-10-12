@@ -3748,6 +3748,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Correção no caminho:** o portão (R9b, pilha explicada sem inglês) recusou a primeira rodada: "causa 2 de dano a that player" — o alvo `that-player` não tinha frase; agora "quem controla a mágica que disparou".
 - **Teste:** `alvo.gatilhos.unit` (4 testes; os três de gatilho falham no motor anterior) e fidelidade do leitor.
 
+**M-323 · CR2b.10 · "Dano igual ao poder dela" com a última informação conhecida (608.2h)** ✅ (leva M-323, motor v110 sem mudança de forma; goldens intactos) — Heartfire Hero joga no modo completo.
+- **Valor:** "When ~ dies, it deals damage equal to its power to each opponent" passa a existir: o valor é o poder da fonte agora ou, se ela já saiu do campo, o poder que tinha lá (marcadores e aumentos até o fim do turno contam); poder negativo não causa dano. Com o valente da M-322, o Heartfire Hero fica completo.
+- **Script:** contagem `{ per: 'power-of-source' }`; a pilha explicada diz "causa dano igual ao poder dela". Leitor lê "~ deals damage equal to its power to <each opponent | any target | target creature/player/opponent>" (piso da concordância 140). Texto oficial em `.listas/oficiais-motor.json` (Oracle do Forge, 12/10/2026).
+- **Fora:** se a fonte morre e volta ao campo antes de o gatilho resolver, vale o poder do objeto novo (raro; o motor não guarda qual objeto disparou para esta contagem); "damage equal to its power" de outra criatura (morder/lutar) segue os verbos da trilha V.
+- **Aviso à trilha verbos:** com a M-319, "Monstrosity X" com {X} no custo já pode existir — o validador da V-6 ainda recusa (`monstrosity` com X).
+- **Teste:** `poder.fonte.unit` (2 testes; o primeiro falha no motor anterior, o segundo é de guarda).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

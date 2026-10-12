@@ -4652,7 +4652,7 @@
    "titulo": "Resolução de instantânea, feitiço ou habilidade",
    "status": "parcial",
    "evidencia": "resolveScript (index.html:11666-11707) e resolveAbility (:13185-13235): \"se\" do gatilho reconferido (:13187), alvos reconferidos e mágica anulada só se todos ficaram ilegais, efeito parcial com alvo ilegal pulado (:11686-11688), instruções na ordem, escolhas na resolução com retomada (resume/resumeEffects :11531), conjurar durante a resolução (cast_free :12461), controlador do alvo por última informação (:11689), mágica ao cemitério no fim (resolveTop :12080). Testes: rules.unit \"M9 · habilidade com alvo que some é anulada\", \"S38 · até dois alvos\", \"S47 · mágica de até dois alvos … resolve sem anular\", \"S38 · destruir o artefato e o dano vai para quem o controlava\", \"S60 · correção: descarte pedido por um efeito retoma o resto do efeito\", \"S61 · Covil do Mago Louco: compra três e conjura uma sem pagar\"; scripts.unit:213 (608.2b) · CR2a.1/CR2a.4 (v75, v78): 608.2c — nenhuma ação de estado entre os efeitos de uma resolução, nem quando ela para numa escolha; 608.2h — \"X = resistência da criatura sacrificada\" lê a foto da permanente (Ayli) · auditoria independente CR2a/CR2h (11/10/2026): 608.2e \"cada jogador sacrifica\" em APNAP (CR2a.4); 608.2n por objeto (M-291)",
-   "falta": "lose_unless começa pelo controlador; 608.2g, h e p como estão",
+   "falta": "lose_unless começa pelo controlador; 608.2g e p como estão; 608.2h: \"dano igual ao poder\" usa o retrato do campo (M-323), mas não confere se a fonte voltou ao campo como objeto novo",
    "esforco": "M",
    "depende": [
     "704.3",

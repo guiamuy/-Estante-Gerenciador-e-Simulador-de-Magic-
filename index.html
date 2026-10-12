@@ -5860,7 +5860,7 @@ function descreveGatilho(w) {
 const ATTACH_KINDS = ['creature', 'permanent', 'land', 'creature-you-control', 'creature-or-planeswalker-you-control', 'creature-card-in-graveyard']; // CR2d.4 · "Enchant creature card in a graveyard" // Q11 · Setessan Training
 const PER_COUNTS = ['enchantments-you-control', 'other-enchantments', 'auras-on-battlefield',
   'creatures-you-control', 'other-creatures-you-control', 'elves-you-control', 'elves-on-battlefield', 'defenders-you-control', 'permanents-you-control', 'nonland-permanents-you-control', 'life-gained-this-turn', 'life-lost-this-turn',
-  'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G', 'counters-on-source', 'opponents-empty-hand', 'trigger-value', 'chosen-type-permanents', 'sacrificed-toughness', 'x'];
+  'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G', 'counters-on-source', 'opponents-empty-hand', 'trigger-value', 'chosen-type-permanents', 'sacrificed-toughness', 'x', 'power-of-source'];
 /** S19 · um valor pode ser um número ou uma contagem do campo. */
 const isCount = v => v && typeof v === 'object' && (typeof v.per === 'string' || typeof v.subtype === 'string');
 const valueErrors = (v, label) => isCount(v) ? (v.subtype || PER_COUNTS.includes(v.per) ? [] : [`${label}: contagem "${v.per}" desconhecida`])
@@ -7609,6 +7609,10 @@ const RAW_SCRIPTS = [
   { name: 'Mind Stone', abilities: [{ kind: 'activated', cost: { mana: '{1}', tap: true, sacrifice: true }, effects: [{ do: 'draw', amount: 1 }] }],
     example: { action: 'activate:0', target: 'none', expect: { handDelta: 1 } } },
   /* ↓ M · scripts de carta da trilha motor (alicerces CR2; texto oficial em .listas/oficiais-motor.json). Fica no fim da lista, longe das âncoras das paralelas (M-313: dois rebases da M-311/M-312 colidiram com a trilha tipos logo abaixo da âncora T) */
+  // CR2b.10 · valente e "damage equal to its power" ao morrer (texto oficial em .listas/oficiais-motor.json, Oracle do Forge, 2026-10-12)
+  { name: 'Heartfire Hero', abilities: [{ kind: 'triggered', when: 'becomes-target', alvoDoControlador: true, primeiraVezNoTurno: true, effects: [{ do: 'counters', amount: 1, target: 'self-source' }] },
+    { kind: 'triggered', when: 'dies', effects: [{ do: 'damage', amount: { per: 'power-of-source' }, target: 'each-opponent' }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // CR2b.9 · "becomes the target of a spell" e Aventura (texto oficial em .listas/oficiais-motor.json, Oracle do Forge, 2026-10-12)
   { name: 'Bonecrusher Giant', self: { aventura: true }, omen: { mana: '{1}{R}' },
     abilities: [{ kind: 'triggered', when: 'becomes-target', alvoDe: 'magia', effects: [{ do: 'damage', amount: 2, target: 'that-player' }] }],
@@ -14917,6 +14921,7 @@ const __m42 = (function () {
     [new RegExp(`^you gain ${N} life$`, 'i'), m => [{ do: 'gain', amount: num(m[1]) }]],
     [new RegExp(`^(each opponent|target opponent|target player) loses ${N} life and you gain ${N} life$`, 'i'), m => [com({ do: 'lose', amount: num(m[2]) }, alvo(m[1])), { do: 'gain', amount: num(m[3]) }]],
     [new RegExp(`^(each opponent|target opponent|target player) loses ${N} life$`, 'i'), m => [com({ do: 'lose', amount: num(m[2]) }, alvo(m[1]))]],
+    [/^~ deals damage equal to its power to (each opponent|any target|target creature|target player|target opponent)$/i, m => [com({ do: 'damage', amount: { per: 'power-of-source' } }, alvo(m[1]))]], // M-323 · CR2b.10 (608.2h: o poder como era no campo, se ela saiu)
     [/^~ deals X damage to each creature and each player$/i, () => [{ do: 'damage', amount: { per: 'x' }, target: 'each-creature' }, { do: 'damage', amount: { per: 'x' }, jogadores: 'cada' }]], // LT13 · CR2c.7 (Crypt Rats)
     [new RegExp(`^~ deals ${N} damage to (.+)$`, 'i'), m => [com({ do: 'damage', amount: num(m[1]) }, alvo(m[2]))]],
     [/^destroy (target [a-z ']+)$/i, m => [com({ do: 'destroy' }, alvo(m[1]))]],
@@ -15568,6 +15573,12 @@ function countFor(s, src, per) {
     return battlefield(s).filter(o => o.controller === src.controller && !o.faceDown && (isChangeling(s, o, tipo) || rx.test(linhaDeTipo(s, o)))).length; // R9 · virada para baixo não tem tipo
   }
   if (per === 'counters-on-source') return (src.counters || {}).p1p1 || 0;
+  if (per === 'power-of-source') { // CR2b.10 · "damage equal to its power": o poder da fonte agora, ou como era no campo se ela saiu (608.2h, última informação conhecida)
+    const f = src.ability ? s.objects[src.source] : src;
+    if (!f) return 0;
+    const pw = f.zone === 'battlefield' ? power(s, f) : (f.ultima && f.ultima.power != null ? f.ultima.power : 0);
+    return Math.max(0, pw || 0);
+  }
   const ench = s.zones.flatMap(z => z.battlefield).map(oid => s.objects[oid]).filter(o => s.facts[o.name].types.includes('enchantment'));
   if (per === 'enchantments-you-control') return ench.filter(o => o.controller === src.controller).length;
   if (per === 'other-enchantments') return ench.filter(o => o.oid !== src.oid).length;
@@ -25085,7 +25096,7 @@ function descreveSeletor(sel) {
 /** CR2-G R3a · efeito contínuo estático em português: quem é afetado, o +N/+N (fixo ou por contagem) e as palavras-chave. */
 const PER_PT = { 'creatures-you-control': 'criatura que você controla', 'other-creatures-you-control': 'outra criatura que você controla', 'enchantments-you-control': 'encantamento que você controla',
   'other-enchantments': 'outro encantamento', 'auras-on-battlefield': 'Aura no campo', 'permanents-you-control': 'permanente que você controla', 'elves-you-control': 'Elfo que você controla',
-  'counters-on-source': 'marcador +1/+1 nela' };
+  'counters-on-source': 'marcador +1/+1 nela', 'power-of-source': 'ponto de poder dela' };
 /** CR2-G R3c · "torna-se uma criatura artefato Inseto 0/1 com indestrutível e perde as outras habilidades". */
 const TIPO_PT = { artifact: 'artefato', creature: 'criatura', enchantment: 'encantamento', land: 'terreno', planeswalker: 'planeswalker', battle: 'batalha', kindred: 'tribal', instant: 'instantânea', sorcery: 'feitiço' };
 function descreveTorna(r) {
@@ -25151,7 +25162,7 @@ ALVO_PT['that-player'] = 'quem controla a mágica que disparou'; // M-322 · CR2
 const PALAVRA_PT = { infect: 'infectar', indestructible: 'indestrutível', hexproof: 'resistência a magia', flying: 'voar', haste: 'ímpeto', trample: 'atropelar', lifelink: 'vínculo com a vida', deathtouch: 'toque mortífero', vigilance: 'vigilância', reach: 'alcance', menace: 'ameaçar', 'first strike': 'iniciativa', 'double strike': 'golpe duplo',
   fear: 'medo', intimidate: 'intimidar', shadow: 'sombra', skulk: 'esgueirar', islandwalk: 'travessia de ilha', swampwalk: 'travessia de pântano', forestwalk: 'travessia de floresta', mountainwalk: 'travessia de montanha', plainswalk: 'travessia de planície' };
 const qtd = v => (typeof v === 'number' ? v : (v && v.per) ? 'X' : 1);
-const IGUAL_A = { 'life-lost-this-turn': 'à vida que você perdeu neste turno', 'life-gained-this-turn': 'à vida que você ganhou neste turno' }; // M-248
+const IGUAL_A = { 'life-lost-this-turn': 'à vida que você perdeu neste turno', 'life-gained-this-turn': 'à vida que você ganhou neste turno', 'power-of-source': 'ao poder dela' }; // M-248 · CR2b.10
 const plural = (n, um, muitos) => (n === 1 ? `${n} ${um}` : `${n} ${muitos}`);
 /** Uma frase por efeito. O que o dicionário não conhece vira o nome do efeito, nunca some. */
 /* ↓ K · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha keywords */
@@ -25249,7 +25260,7 @@ function descreveEfeito(e) {
     case 'draw': return `compra ${plural(n, 'carta', 'cartas')}`;
     case 'adapt': return `adapta ${e.amount}`;
     case 'return_chosen': return 'devolve uma permanente sua para a mão';
-    case 'damage': return `causa ${n} de dano a ${alvo || 'um alvo'}`;
+    case 'damage': return e.amount && IGUAL_A[e.amount.per] ? `causa dano igual ${IGUAL_A[e.amount.per]} a ${alvo || 'um alvo'}` : `causa ${n} de dano a ${alvo || 'um alvo'}`; // CR2b.10
     case 'gain': return e.amount && IGUAL_A[e.amount.per] ? `ganha vida igual ${IGUAL_A[e.amount.per]}` : `ganha ${n} de vida`;
     case 'lose': return `${alvo === 'cada oponente' ? 'cada oponente perde' : 'perde'} ${n} de vida`;
     case 'counter': return `anula ${alvo || 'uma mágica'}${e.suspende ? ` e a exila com ${e.suspende} marcadores de tempo, com suspender` : ''}`; // M-269
