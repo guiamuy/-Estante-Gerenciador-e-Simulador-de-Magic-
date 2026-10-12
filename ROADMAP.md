@@ -524,6 +524,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ec ✅ | SEG9 código de sala com 6 símbolos (≈ 1 bilhão de códigos, era ≈ 1 milhão); entrar aceita 6 e 4; com as regras antigas no console, a sala nasce com 4 (leva P-16) | SEG | 1 | regras publicadas no console |
 | 16º-ed ✅ | SEG10 relato só de quem tem acesso ao repositório: registro de outra conta não ganha etiqueta nem entra na tabela, a não ser que o dono o aceite com `relato-aceito` (leva P-17) | SEG | ½ | — |
 | 16º-ef ✅ | SEG11 licença: `LICENSE` com todos os direitos reservados ao autor (Guilherme de Aguiar Schmidt Amuy), separando o que é de terceiros (Wizards, Scryfall, MTGJSON, Tesseract) (leva P-18) | SEG | ½ | nome do dono |
+| 16º-eg ✅ | SEG9b sala nova sempre com 6 símbolos: o recuo para 4 ao criar saiu depois que o dono publicou as regras da P-16 no console; banco que recusa vira erro, nunca código curto (leva P-19) | SEG | ½ | regras publicadas (dono, 12/10) |
 | 16º-ee ✅ | T6e-2 Enviar relato sem sair do app: com a conta conectada e a fila ligada, o relato vai para a fila do Firebase e o cartão mostra "Na fila" até o número do registro (relato #13, leva G-255) | T | 1 | — |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
@@ -9276,6 +9277,19 @@ segredo do repositório. O `main` não recebe commit do coletor.
 - **Resíduo:** o fluxo continua rodando a cada registro de qualquer conta (só o código do `main`, sem nada do registro
   como comando; minutos de Actions por registro de estranho: < 1 min). Se o app ganhar outros usuários, os relatos deles
   precisam do `relato-aceito` posto pelo dono.
+
+**SEG9b · Sem recuo para código curto** ✅ (leva P-19, 12/10/2026)
+- **Valor:** toda sala nova sai com o código longo; o app nunca volta sozinho para um código fácil de adivinhar.
+- **Ameaça e camada:** com o recuo da P-16, um console com regras antigas (ou republicado por engano) fazia o app criar
+  salas de 4 símbolos (≈ 1 milhão de códigos) sem ninguém perceber. Camada: código (`createSala.criar`).
+- **Entregue:** `criar` sempre gera 6 símbolos; se o banco recusar, o erro sobe e a tela diz "Não foi possível criar a
+  sala." Entrar continua aceitando 4 (sala criada antes das regras novas vive até 6 h).
+- **Testes:** U `seguranca.codigo.unit` (o teste do recuo virou "banco recusa → erro, nenhuma tentativa com código curto";
+  falhava antes). `online.unit`, `regras.unit`, `firebase.unit`, `online.conta.unit`, `seguranca.bloqueio.unit` verdes.
+- **Fora do repositório (dono):** feito em 12/10/2026 — regras da P-16 publicadas no console.
+- **Resíduo:** a regra do banco ainda aceita código de 4 (comprimento 9 ou 11): um cliente alterado pode criar a própria
+  sala curta, o que só expõe a sala dele. Tirar o 9 da regra (e o 4 de `normalizaCodigo`) fica para a próxima vez que o
+  `database.rules.json` mudar por outro motivo, para o dono colar no console uma vez só.
 
 **SEG11 · Licença do código** ✅ (leva P-18, 12/10/2026)
 - **Valor:** fica escrito que o código e os textos da Estante são seus e que ninguém pode copiar ou reaproveitar sem

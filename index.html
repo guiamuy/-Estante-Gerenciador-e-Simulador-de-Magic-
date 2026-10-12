@@ -10404,7 +10404,8 @@ const RAIZ = 'salas';
 const VALIDADE_MS = 6 * 3600 * 1000; // sala parada há mais que isso é lixo
 
 /** P-16 · SEG9 · tamanhos de código aceitos: 6 é o de hoje (32^6 ≈ 1,07 bilhão: varrer as salas esperando fica
-    impraticável); 4 (≈ 1 milhão) é o antigo, ainda aceito para entrar e usado só no recuo de `criar` (regras antigas). */
+    impraticável); 4 (≈ 1 milhão) é o antigo, ainda aceito só para entrar (sala criada antes das regras novas; vive 6 h).
+    P-19 · `criar` sempre usa 6: o recuo para 4 saiu depois que o dono publicou as regras da P-16 no console (12/10/2026). */
 const TAMANHO_CODIGO = 6, TAMANHOS_CODIGO = [6, 4];
 /** Código de sala legível: ESTA-XXXXXX. `aleatorio` entre 0 e 1. */
 function gerarCodigo(aleatorio = Math.random, tamanho = TAMANHO_CODIGO) { let c = PREFIXO; for (let i = 0; i < tamanho; i++) c += ALFABETO[Math.floor(aleatorio() * ALFABETO.length) % ALFABETO.length]; return c; }
@@ -10563,13 +10564,11 @@ function createSala({ transporte, agora = () => Date.now(), aleatorio = Math.ran
     gerarCodigo: () => gerarCodigo(aleatorio), normalizaCodigo,
     /** Anfitrião: cria a sala com a própria lista e espera o convidado. Tenta outro código se o sorteado já existir. */
     async criar({ nome, avatar = null, deck, formato, melhorDe = 1 }) {
-      // P-16 · tenta o código de 6; se o banco recusar (regras antigas no console só aceitam 4), cria com 4, uma vez só
-      let tamanho = TAMANHO_CODIGO;
+      // P-19 · SEG9b · sempre 6; se o banco recusar, o erro sobe (nunca volta sozinho para um código curto)
       for (let tent = 0; tent < 8; tent++) {
-        const codigo = gerarCodigo(aleatorio, tamanho);
+        const codigo = gerarCodigo(aleatorio, TAMANHO_CODIGO);
         if (await transporte.ler(caminho(codigo))) continue;
-        try { await transporte.escrever(caminho(codigo), { criadaEm: agora(), estado: 'esperando', formato, melhorDe: melhorDe === 3 ? 3 : 1, anfitriao: comUid({ nome, avatar, deck }), convidado: null, acoes: {}, presenca: { 0: agora() } }); }
-        catch (e) { if (tamanho !== 4 && e && (e.status === 401 || e.status === 403)) { tamanho = 4; continue; } throw e; }
+        await transporte.escrever(caminho(codigo), { criadaEm: agora(), estado: 'esperando', formato, melhorDe: melhorDe === 3 ? 3 : 1, anfitriao: comUid({ nome, avatar, deck }), convidado: null, acoes: {}, presenca: { 0: agora() } });
         return codigo;
       }
       throw new Error('sem-codigo-livre');
