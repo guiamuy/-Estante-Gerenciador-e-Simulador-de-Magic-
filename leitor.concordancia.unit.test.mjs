@@ -14,17 +14,18 @@ const TOPO = ['flashback', 'madness', 'cycling', 'storm', 'delve', 'transmute', 
 // `self.keywords` repete a linha de palavras-chave impressa (o motor já a lê da carta): não é regra a mais
 const SO_REPETE = (h, c) => Object.keys(h).every(k => k !== 'self' || (Object.keys(h.self).join() === 'keywords' && h.self.keywords.every(k2 => new RegExp('\\b' + k2 + '\\b', 'i').test(c.oracle_text || ''))));
 // texto oficial incompleto no acervo (falta a face Omen do Sagu Wildling em .listas/oficiais.json): o leitor não tem como ver; registrado como pendência de dados
-const TEXTO_INCOMPLETO = { 'Sagu Wildling': 'falta a face Omen (Roost Seek) no texto oficial guardado' };
+// M-322 · o texto guardado do Sagu Wildling já traz a face Omen (`verso`) e o leitor agora a vê: a carta deixou de contar como lida (ela não era — a face não é lida)
+const TEXTO_INCOMPLETO = {};
 const ordena = v => Array.isArray(v) ? v.map(ordena) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map(k => [k, ordena(v[k])])) : v;
 const efs = l => (l || []).map(e => Object.fromEntries(CAMPOS.filter(k => e[k] != null).map(k => [k, e[k]])));
 // "you may <efeito único>": à mão às vezes está no efeito (search optional), no leitor fica na habilidade; para o motor é a mesma pergunta — normaliza para a habilidade
-const abs = l => (l || []).map(a => { const es = efs(a.effects); const opt = !!a.optional || (es.length === 1 && !!es[0].optional); if (es.length === 1) delete es[0].optional; return { kind: a.kind, when: a.when, optional: opt, cost: a.cost || null, sorceryOnly: !!a.sorceryOnly, filter: a.filter || null, anyController: !!a.anyController, condition: a.condition || null, effects: es }; }); // LT10 · filtro, "de qualquer jogador" e condição do gatilho também contam
+const abs = l => (l || []).map(a => { const es = efs(a.effects); const opt = !!a.optional || (es.length === 1 && !!es[0].optional); if (es.length === 1) delete es[0].optional; return { kind: a.kind, when: a.when, optional: opt, cost: a.cost || null, sorceryOnly: !!a.sorceryOnly, filter: a.filter || null, anyController: !!a.anyController, condition: a.condition || null, alvoDe: a.alvoDe || null, alvoDoControlador: !!a.alvoDoControlador, primeiraVezNoTurno: !!a.primeiraVezNoTurno, effects: es }; }); // LT10 · M-322: filtros de "se torna alvo" · LT10 · filtro, "de qualquer jogador" e condição do gatilho também contam
 // `produces` só conta quando o script à mão o declara (o motor lê a mana do texto da carta; o leitor também anota, por completude)
 const limpaSelf = sc => sc.self && Object.keys(sc.self).some(k => k !== 'keywords') ? Object.fromEntries(Object.entries(sc.self).filter(([k]) => k !== 'keywords')) : undefined;
 const efeitos = (sc, ref) => JSON.stringify(ordena({ self: limpaSelf(sc), effects: efs(sc.effects), modes: (sc.modes || []).map(m => efs(m.effects)), abilities: abs(sc.abilities), ...Object.fromEntries(TOPO.filter(k => k !== 'self' && sc[k] != null && sc[k] !== false && (k !== 'produces' || (ref || sc).produces != null)).map(k => [k, sc[k]])) }));
 const SO_EFEITOS = ['name', 'effects', 'modes', 'abilities', 'example', 'covers', 'note', ...TOPO];
 
-test('LT1 · concordância (piso LT13: 140): toda carta lida por inteiro dá o mesmo script escrito à mão (nenhuma divergência)', () => {
+test('LT1 · concordância (piso M-322: 139): toda carta lida por inteiro dá o mesmo script escrito à mão (nenhuma divergência)', () => {
   const lidas = [], divergentes = [];
   for (const c of CARTAS) {
     const r = L.ler(c); if (!r.completa) continue;
@@ -41,7 +42,9 @@ test('LT1 · concordância (piso LT13: 140): toda carta lida por inteiro dá o m
     else if (efeitos(h, h) !== efeitos(r.script, h)) divergentes.push(`${c.name}: leitor ${efeitos(r.script, h)} × à mão ${efeitos(h, h)}`);
   }
   assert.deepEqual(divergentes, []);
-  assert.ok(lidas.length >= 140, 'cartas lidas por inteiro: ' + lidas.length + ' (' + lidas.join(', ') + ')');
+  // M-322 · expectativa ajustada com justificativa: 140 → 139. O Sagu Wildling contava como lido sem a face Omen (texto incompleto no acervo);
+  // com o verso no texto guardado, o leitor vê a segunda face, não a lê, e a carta deixa de contar. Nenhuma carta lida de verdade saiu.
+  assert.ok(lidas.length >= 139, 'cartas lidas por inteiro: ' + lidas.length + ' (' + lidas.join(', ') + ')');
 });
 
 test('LT1 · fidelidade: frase sem padrão fica não lida, com o texto dela, e a carta não sai completa; permanente ainda não é lida', () => {
@@ -71,6 +74,11 @@ test('LT1 · fidelidade: frase sem padrão fica não lida, com o texto dela, e a
   assert.deepEqual(JSON.parse(JSON.stringify(b3.script.effects)), [{ do: 'search', amount: 1, filter: { types: ['instant', 'sorcery'] }, to: 'library-top' }], 'LT5: "shuffle and put that card on top" vai ao topo do grimório');
   const l5 = L.ler({ name: 'Terra', type_line: 'Land', oracle_text: '{T}: Add {C}.\nCycling {R}{G}{W}' });
   // LT13 · terreno de dor: a cobertura por texto ainda trata a linha como mana; lida pelo leitor, a carta sem script à mão deixaria de jogar (decisão 11)
+  // M-322 · "se torna alvo" (valente) e segunda face: o leitor para em "//" e a carta não sai completa
+  const va = L.ler({ name: 'Herói', type_line: 'Creature — Mouse', oracle_text: 'Valiant — Whenever Herói becomes the target of a spell or ability you control for the first time each turn, put a +1/+1 counter on it.' });
+  assert.deepEqual(JSON.parse(JSON.stringify(va.script.abilities)), [{ kind: 'triggered', when: 'becomes-target', alvoDoControlador: true, primeiraVezNoTurno: true, effects: [{ do: 'counters', amount: 1, target: 'self-source' }] }], 'M-322: valente');
+  const av = L.ler({ name: 'Gigante', type_line: 'Creature — Giant', oracle_text: 'Whenever Gigante becomes the target of a spell, Gigante deals 2 damage to that spell\'s controller.\n//\nDamage can\'t be prevented this turn. Stomp deals 2 damage to any target.' });
+  assert.equal(av.completa, false, 'M-322: a Aventura (depois de "//") não é lida'); assert.equal(av.frases.at(-1).texto, '//');
   assert.equal(L.ler({ name: 'Dor', type_line: 'Land', oracle_text: '{T}: Add {C}.\n{T}: Add {W} or {B}. This land deals 1 damage to you.' }).completa, false, 'LT13: dor fica não lida');
   const fi = L.ler({ name: 'Fichas', type_line: 'Sorcery', oracle_text: 'Create two 1/1 red Goblin creature tokens.' });
   assert.equal(fi.completa, true, 'LT13: "Create" com maiúscula'); assert.equal(fi.script.effects[0].amount, 2);

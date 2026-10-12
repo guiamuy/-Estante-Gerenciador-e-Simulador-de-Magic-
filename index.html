@@ -5703,6 +5703,8 @@ const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield
   'heroic',
   // CR2g.5 · 508.3d / 509.3c / 509.3f(e) · "whenever you attack", "whenever ~ becomes blocked", "whenever ~ attacks and isn't blocked"
   'you-attack', 'becomes-blocked', 'attacks-unblocked',
+  // CR2b.9 · 603.2 / 115.9 · "whenever ~ becomes the target of a spell [or ability] [you control] [for the first time each turn]" (valente)
+  'becomes-target',
   /* ↓ K · gatilhos da trilha keywords */
   'cycled', // K-16 · 702.29c · "When you cycle this card" (dispara da zona onde a carta foi parar)
   'exploits', // K-12 · 702.110b · "When ~ exploits a creature" (disparado pelo motor quando a habilidade de explorar sacrifica)
@@ -5867,7 +5869,7 @@ const STATIC_RULES = ['flagbearer', 'exile-instead-of-graveyard', 'opponent-crea
 const TRIGGER_PT = { etb: 'quando entra no campo', dies: 'quando morre', upkeep: 'na sua manutenção', attacks: 'quando ataca', blocks: 'quando bloqueia',
   'other-etb': 'quando outra criatura sua entra', 'other-dies': 'quando outra criatura sua morre',
   'combat-damage': 'quando causa dano de combate a um jogador', 'end-step': 'no início do seu passo final', 'each-upkeep': 'no início de cada manutenção', 'begin-combat': 'no início do combate no seu turno',
-  'enchanted-damages-opponent': 'quando a criatura encantada causa dano a um oponente', 'you-discard': 'quando você descarta uma carta', 'you-gain-life': 'sempre que você ganha vida', heroic: 'heroico: quando você conjura uma mágica que mira esta criatura', 'you-attack': 'sempre que você ataca', 'becomes-blocked': 'quando é bloqueada', 'attacks-unblocked': 'quando ataca e não é bloqueada', 'dealt-damage': 'quando recebe dano', 'attached-dies': 'quando a criatura anexada morre', 'attached-dies-or-exiled': 'quando a permanente encantada morre ou é exilada',
+  'enchanted-damages-opponent': 'quando a criatura encantada causa dano a um oponente', 'you-discard': 'quando você descarta uma carta', 'you-gain-life': 'sempre que você ganha vida', heroic: 'heroico: quando você conjura uma mágica que mira esta criatura', 'becomes-target': 'quando se torna alvo', 'you-attack': 'sempre que você ataca', 'becomes-blocked': 'quando é bloqueada', 'attacks-unblocked': 'quando ataca e não é bloqueada', 'dealt-damage': 'quando recebe dano', 'attached-dies': 'quando a criatura anexada morre', 'attached-dies-or-exiled': 'quando a permanente encantada morre ou é exilada',
   'other-sacrificed': 'quando você sacrifica outra permanente',
   'leaves-battlefield': 'quando sai do campo de batalha', 'other-leaves-battlefield': 'quando outra criatura sua sai do campo', 'enchanted-deals-damage': 'quando a criatura encantada causa dano',
   'counters-added': 'quando recebe marcadores +1/+1', 'third-draw': 'quando você compra a terceira carta do turno',
@@ -7602,6 +7604,11 @@ const RAW_SCRIPTS = [
   { name: 'Mind Stone', abilities: [{ kind: 'activated', cost: { mana: '{1}', tap: true, sacrifice: true }, effects: [{ do: 'draw', amount: 1 }] }],
     example: { action: 'activate:0', target: 'none', expect: { handDelta: 1 } } },
   /* ↓ M · scripts de carta da trilha motor (alicerces CR2; texto oficial em .listas/oficiais-motor.json). Fica no fim da lista, longe das âncoras das paralelas (M-313: dois rebases da M-311/M-312 colidiram com a trilha tipos logo abaixo da âncora T) */
+  // CR2b.9 · "becomes the target of a spell" e Aventura (texto oficial em .listas/oficiais-motor.json, Oracle do Forge, 2026-10-12)
+  { name: 'Bonecrusher Giant', self: { aventura: true }, omen: { mana: '{1}{R}' },
+    abilities: [{ kind: 'triggered', when: 'becomes-target', alvoDe: 'magia', effects: [{ do: 'damage', amount: 2, target: 'that-player' }] }],
+    back: { name: 'Stomp', types: ['instant'], colors: ['R'], effects: [{ do: 'no_prevention' }, { do: 'damage', amount: 2, target: 'any' }] }, // "Damage can't be prevented this turn. Stomp deals 2 damage to any target."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // CR2c.7 · 107.3k · X no custo de habilidade ativada, pago só com mana preta (texto oficial em .listas/oficiais-motor.json, Oracle do Forge, 2026-10-12)
   { name: 'Crypt Rats', abilities: [{ kind: 'activated', cost: { mana: '{X}', xCor: 'B' }, effects: [{ do: 'damage', amount: { per: 'x' }, target: 'each-creature' }, { do: 'damage', amount: { per: 'x' }, jogadores: 'cada' }] }],
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
@@ -14949,6 +14956,7 @@ const __m42 = (function () {
     [/^damage can't be prevented this turn$/i, () => [{ do: 'no_prevention' }]], // LT10 · 615.12
     [/^return an? (permanent|land|creature) you control to its owner's hand$/i, m => [{ do: 'return_chosen', target: 'self', ...(m[1].toLowerCase() !== 'permanent' ? { filter: { types: [m[1].toLowerCase()] } } : {}) }]], // LT12
     [new RegExp(`^~ deals ${N} damage to that (artifact|creature|permanent|enchantment)'s controller$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'target-controller' }]], // LT12
+    [new RegExp(`^~ deals ${N} damage to that spell's controller$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'that-player' }]], // M-322 · quem controla a mágica que disparou
     [new RegExp(`^~ deals ${N} damage to each opponent and each creature and planeswalker they control$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'each-opponent' }, { do: 'damage', amount: num(m[1]), target: 'each-opponent-creature-planeswalker' }]], // LT12
     [new RegExp(`^~ deals ${N} damage to each creature with flying$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'each-flying-creature' }]], // LT9
     [/^venture into the dungeon$/i, () => [{ do: 'venture' }]], // LT9 · 701.49
@@ -14993,6 +15001,8 @@ const __m42 = (function () {
     [/^(?:heroic — )?whenever you cast a spell that targets (this creature|~)$/i, 'heroic'], // CR2b.8
     [/^whenever you attack$/i, 'you-attack'], // CR2g.5
     [/^whenever (this creature|~) becomes blocked$/i, 'becomes-blocked'],
+    [/^whenever (this creature|~) becomes the target of a spell$/i, 'becomes-target', () => ({ alvoDe: 'magia' })], // M-322 · CR2b.9
+    [/^(?:valiant — )?whenever (this creature|~) becomes the target of a spell or ability you control for the first time each turn$/i, 'becomes-target', () => ({ alvoDoControlador: true, primeiraVezNoTurno: true })],
     [/^whenever (this creature|~) attacks and isn't blocked$/i, 'attacks-unblocked'],
     [/^when enchanted creature becomes tapped or is dealt damage$/i, 'enchanted-tapped-or-damaged']
   ];
@@ -15073,7 +15083,8 @@ const __m42 = (function () {
     const se = resto2.match(/^if you control another creature named ~, (.+)$/i); // LT12 · 603.4 "if" intermediário (Faerie Miscreant)
     if (se) { condicao = { controlsOtherNamed: true }; resto2 = se[1]; }
     const opcional = /^you may /i.test(resto2);
-    const corpo = resto2.replace(/^you may /i, '').replace(/^it /i, '~ ');
+    let corpo = resto2.replace(/^you may /i, '').replace(/^it /i, '~ ');
+    if (/(this creature|~)/i.test(cab) && !/\btarget\b/i.test(corpo)) corpo = corpo.replace(/ on it$/i, ' on ~'); // M-322 · "put a +1/+1 counter on it": "it" é a própria permanente da abertura
     const sub = [];
     const e = leParagrafo(corpo, nome, sub);
     frases.push({ texto: cab, lida: true }, ...sub);
@@ -15106,11 +15117,13 @@ const __m42 = (function () {
   let nomeAtual = '';
   function ler(card) {
     const nome = (card && card.name) || ''; nomeAtual = nome; const tipo = String((card && card.type_line) || '');
-    const linhas = semLembrete(card && card.oracle_text).split('\n').map(x => x.trim()).filter(Boolean);
+    const texto = card && card.verso ? [card.oracle_text, '//', card.verso.oracle_text].join('\n') : card && card.oracle_text; // M-322 · a Aventura guardada à parte (.listas): mesma forma do app ("frente\n//\nverso")
+    const linhas = semLembrete(texto).split('\n').map(x => x.trim()).filter(Boolean);
     const frases = [], efeitos = [], topo = {};
     const magica = /\b(Instant|Sorcery)\b/.test(tipo);
     let modos = null;
     for (const linha of linhas) {
+      if (linha === '//') { frases.push({ texto: linha, lida: false, motivo: 'segunda face (aventura, dupla face): o leitor ainda não lê' }); break; } // M-322
       if (linhaDePalavras(linha)) { frases.push({ texto: linha, lida: true, palavras: true }); continue; }
       const kc0 = !magica && COM_CUSTO.map(([re, faz]) => { const m = linha.replace(/\.$/, '').match(re); return m && faz(m); }).find(Boolean); // LT5 · reciclagem em terreno
       if (kc0) { Object.assign(topo, kc0); frases.push({ texto: linha, lida: true }); continue; }
@@ -15866,7 +15879,7 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
   delete o.tempToxico; delete o.tempResguardoCor; delete o.tempNaoBloqueadaPor; delete o.tempHabilidades; delete o.permissaoUsada; if (fromZone !== to) delete o.desenterrada; // M-255/M-256/M-257 · 400.7
   delete o.attacking; delete o.atacandoPw; delete o.exigeAtacarPw; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.pumpNext; delete o.goaded; delete o.keywordsNext; delete o.cantAttackNext; delete o.targets; delete o.attachedTo; delete o.tempKeywords; delete o.tempTs; delete o.anexadaEm; delete o.mutavel; delete o.vira; delete o.prevenirDano; delete o.regenerar; delete o.temporarios; delete o.tempProtection; delete o.paired; // S39 · o vínculo de alma se desfaz ao sair do campo
   if (fromZone !== 'stack') { delete o.chosenColor; delete o.chosenType; delete o.damagePrevented; delete o.preventGainTo; delete o.devolvidas; } // CR2a.9 · 400.7 / 608.2n: a marca da resolução fica onde a carta caiu; ao sair de lá, o objeto é novo
-  delete o.loyaltyTurn; delete o.usedThisTurn; // CR2c.6 · 400.7: o objeto novo não carrega o uso da habilidade do anterior (606.3, 602.5b)
+  delete o.loyaltyTurn; delete o.usedThisTurn; delete o.alvejadoNoTurno; // CR2c.6 · 400.7: o objeto novo não carrega o uso da habilidade do anterior (606.3, 602.5b) nem o "primeira vez no turno" do valente (CR2b.9)
   if (to === 'battlefield' && fromZone === 'stack' && o.arremetidaK) arremeteuK(s, o); // K-9 · 702.109a: a permanente que a mágica arremetida vira
   if (to === 'battlefield' && fromZone === 'stack' && o.suspensaImpeto) { delete o.suspensaImpeto; aplicaTemporario(s, o, { palavras: ['haste'], ate: { enquanto: 'controlar-fonte' } }, o.controller, o); } // M-269 · "if it's a creature, it has haste"
   if (to === 'battlefield') o.ts = relogio(s); // CR2d.1 · 613.7d: carimbo de tempo de quem entra no campo
@@ -18765,6 +18778,27 @@ function disparaHeroico(s, magia) {
       s.queued.push({ source: o.oid, name: o.name, controller: o.controller, effects: ab.effects, when: 'heroic', ...marcasDaHabilidade(ab) });
   }
 }
+/** CR2b.9 · 603.2 / 115.9 · "whenever ~ becomes the target of …": dispara quando a mágica ou habilidade que a mira acaba de ir para a pilha
+ * (601.2c, 602.2b; também a cópia de mágica e o gatilho com alvo), uma vez por mágica ou habilidade mesmo que a mire duas vezes.
+ * Filtros da habilidade: `alvoDe: 'magia'` (só mágica, não habilidade); `alvoDoControlador: true` ("you control"); `primeiraVezNoTurno: true`
+ * (valente: só a primeira vez em cada turno que uma mágica ou habilidade sua a mira — a do oponente não conta nem gasta). O jogador daquela
+ * mágica ou habilidade é o `that-player` do gatilho ("deals 2 damage to that spell's controller"). */
+function disparaAlvejado(s, itemOid, alvos) {
+  const item = s.objects[itemOid]; if (!item || !Array.isArray(alvos)) return;
+  const vistos = new Set();
+  for (const t of alvos) {
+    const o = t && t.oid != null ? s.objects[t.oid] : null;
+    if (!o || o.zone !== 'battlefield' || vistos.has(o.oid) || !s.facts[o.name]) continue;
+    vistos.add(o.oid);
+    for (const ab of abilitiesOf(s, o)) {
+      if (ab.kind !== 'triggered' || ab.when !== 'becomes-target' || !triggerConditionMet(s, o, ab.condition)) continue;
+      if (ab.alvoDe === 'magia' && item.ability) continue;
+      if (ab.alvoDoControlador && item.controller !== o.controller) continue;
+      if (ab.primeiraVezNoTurno) { if (o.alvejadoNoTurno === s.turn.number) continue; o.alvejadoNoTurno = s.turn.number; }
+      s.queued.push({ source: o.oid, name: o.name, controller: o.controller, effects: ab.effects, when: 'becomes-target', jogador: item.controller, ...marcasDaHabilidade(ab) });
+    }
+  }
+}
 const disparaEvento = (s, evento, objects) => naSombra(s, `${evento}: ${objects.map(o => o && o.name).join(', ')}`,
   () => queueTriggersLegado(s, NOME_DO_EVENTO[evento], objects), () => gatilhosDoObjeto(s, evento, objects));
 /** CR2-G R2b · começo de passo. `fase` 'seu' = gatilhos do jogador ativo; 'todos' = de cada jogador e dos oponentes. */
@@ -18954,6 +18988,7 @@ function marcasDoGatilho(s, q, oid) {
   if (q.jogador != null) s.objects[oid].jogadorAtrasado = q.jogador; // CR2b.1 · o "jogador daquela mágica" do gatilho atrasado
   if (q.host) s.objects[oid].hostOid = q.host; // Leva 108 · a criatura encantada no momento do disparo
   chargeWard(s, q.controller, oid, s.objects[oid].targets); // Leva 107 · proteção (ward) vale contra gatilho também
+  disparaAlvejado(s, oid, s.objects[oid].targets); // CR2b.9 · o gatilho com alvo também faz a permanente "se tornar alvo"
 }
 /** CR 700.2b · índices dos modos do gatilho que têm alvo legal para cada efeito com alvo. */
 function modosLegais(s, q) {
@@ -18994,6 +19029,7 @@ function putTriggerOnStack(s, q, events) {
     s.objects[oid] = { oid, name: q.name, owner: q.controller, controller: q.controller, zone: 'stack', copiaDeMagia: true, tapped: false, damage: 0, counters: {}, ...(q.marcasMagia || {}), ...(targets.length ? { targets: carimbaAlvos(s, targets) } : {}) };
     s.stack.push(oid);
     if (targets.length) chargeWard(s, q.controller, oid, targets); // K-14 · 702.21a: a cópia é uma mágica que mira — a salvaguarda dispara (Toca ponto comum: cópia de mágica na pilha)
+    if (targets.length) disparaAlvejado(s, oid, targets); // CR2b.9 · a cópia de mágica é uma mágica que mira
     events.push({ kind: 'copy', name: q.name, oid });
     return true;
   }
@@ -19670,6 +19706,7 @@ const HANDLERS = {
     if (delveN) { const cemiterio = s.zones[a.p].graveyard.filter(x => x !== a.oid); // M-263 · as cartas do delve: quem conjura escolhe
       startPick(s, { p: a.p, from: cemiterio, min: delveN, max: delveN, to: 'exile', rest: 'stay', label: 'delve', source: o.name }, []); }
     chargeWard(s, a.p, a.oid, chosen); // S41 · vigilância do alvo
+    disparaAlvejado(s, a.oid, chosen); // CR2b.9
     s.turn.passes = 0;
   },
   /** M7 · habilidade de mana: não usa a pilha. */
@@ -19782,6 +19819,7 @@ const HANDLERS = {
       if (nX) s.objects[abOid].xPaid = a.x || 0; // CR2c.7 · 107.3a: o mesmo X em todo o texto da habilidade, até ela resolver
       if (s.sacrificadosNoCusto) s.objects[abOid].sacrificados = s.sacrificadosNoCusto;
       chargeWard(s, a.p, abOid, chosen);
+      disparaAlvejado(s, abOid, chosen); // CR2b.9
     }
     delete s.sacrificadosNoCusto;
     s.turn.passes = 0;
@@ -20144,6 +20182,7 @@ const HANDLERS = {
     disparaHeroico(s, s.objects[oid]); // CR2b.8
     afterMadness(s);
     chargeWard(s, a.p, oid, chosen);
+    disparaAlvejado(s, oid, chosen); // CR2b.9
     s.turn.passes = 0;
   },
   decline_madness(s, a) {
@@ -24936,6 +24975,7 @@ const ALVO_PT = { 'each-opponent-creature': 'cada criatura dos oponentes', 'each
   'creature-enchantment-you-control': 'uma criatura ou encantamento seu', 'other-creature-you-control': 'outra criatura sua', 'creature-you-control': 'uma criatura sua', 'creature-opponent-controls': 'uma criatura de um oponente',
   'first-target': 'o mesmo alvo', 'spell-or-creature': 'uma mágica ou criatura', 'spell-or-ability': 'uma mágica ou habilidade', 'target-controller': 'quem controlava o alvo', 'self-source': 'esta permanente', self: 'você',
   'creature-blocked-by-source': 'a criatura que ela bloqueia', all: 'tudo', enchanted: 'a criatura encantada', any: 'qualquer alvo', 'artifact-creature': 'um artefato ou criatura', player: 'um jogador', creature: 'uma criatura', permanent: 'uma permanente', spell: 'uma mágica', 'each-creature': 'cada criatura', 'each-opponent': 'cada oponente', opponent: 'um oponente', 'creature-or-player': 'criatura ou jogador', land: 'um terreno', artifact: 'um artefato', enchantment: 'um encantamento' };
+ALVO_PT['that-player'] = 'quem controla a mágica que disparou'; // M-322 · CR2b.9 (Bonecrusher Giant: "that spell's controller"); o portão R9b pegou a frase em inglês
 const PALAVRA_PT = { infect: 'infectar', indestructible: 'indestrutível', hexproof: 'resistência a magia', flying: 'voar', haste: 'ímpeto', trample: 'atropelar', lifelink: 'vínculo com a vida', deathtouch: 'toque mortífero', vigilance: 'vigilância', reach: 'alcance', menace: 'ameaçar', 'first strike': 'iniciativa', 'double strike': 'golpe duplo',
   fear: 'medo', intimidate: 'intimidar', shadow: 'sombra', skulk: 'esgueirar', islandwalk: 'travessia de ilha', swampwalk: 'travessia de pântano', forestwalk: 'travessia de floresta', mountainwalk: 'travessia de montanha', plainswalk: 'travessia de planície' };
 const qtd = v => (typeof v === 'number' ? v : (v && v.per) ? 'X' : 1);
