@@ -8383,13 +8383,17 @@
    "n": "702.121",
    "regra": "Keyword Abilities",
    "titulo": "Melee",
-   "status": "ausente",
-   "falta": "Sem gatilho \"ao atacar, +1/+1 até o fim do turno para cada oponente que você atacou neste combate\" (702.121a-b). Em dois jogadores vale +1/+1 se o ataque foi a um jogador.",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "508 gatilho de ataque"
    ],
-   "cartas": "rara (Conspiracy 2, Commander)"
+   "cartas": "rara (Conspiracy 2, Commander)",
+   "evidencia": "K-31: gatilho \"attacks\" (um por instância, 702.121b); na resolução +1/+1 até o fim do turno por oponente atacado por alguma criatura neste combate (refrega_k; numa mesa de dois, 1)",
+   "testes": [
+    "CR 702.121a · refrega (Wings of the Guard, texto oficial): ao atacar, +1/+1 por oponente atacado neste combate",
+    "K-31 · refrega (702.121): a 1/1 que ataca bate 2"
+   ]
   },
   {
    "n": "702.122",
@@ -8537,13 +8541,17 @@
    "n": "702.130",
    "regra": "Keyword Abilities",
    "titulo": "Afflict",
-   "status": "ausente",
-   "falta": "Sem gatilho \"quando fica bloqueada, o jogador defensor perde N de vida\" (702.130a-b). Não há gatilho de \"fica bloqueada\" em TRIGGERS (index.html:4534).",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "509.3 gatilho \"fica bloqueada\""
    ],
-   "cartas": "rara (Hour of Devastation)"
+   "cartas": "rara (Hour of Devastation)",
+   "evidencia": "K-31: \"Afflict N\" gera o gatilho \"becomes blocked\" (N da linha; um por instância, 702.130b); na resolução o jogador defensor daquele ataque (o atacado, ou quem controla o planeswalker atacado) perde N de vida (aflicao_k; perda de vida, não dano)",
+   "testes": [
+    "CR 702.130a · aflição 1 (Khenra Eternal, texto oficial): bloqueada, o jogador defensor perde 1; sem bloqueio, nada além do dano",
+    "K-31 · aflição (702.130): bloqueada pelo Urso, o defensor perde 2 mesmo sem dano passar"
+   ]
   },
   {
    "n": "702.131",
@@ -8594,14 +8602,19 @@
    "n": "702.134",
    "regra": "Keyword Abilities",
    "titulo": "Mentor",
-   "status": "ausente",
-   "falta": "Sem gatilho \"ao atacar, marcador +1/+1 em criatura atacante alvo de poder menor\" com checagem de poder na resolução (702.134a-b).",
+   "status": "parcial",
+   "falta": "702.134c: o gatilho \"sempre que ~ mentora outra criatura\" não existe (nenhuma carta das listas usa).",
    "esforco": "P",
    "depende": [
     "508 gatilho de ataque",
     "alvo \"criatura atacante\" com filtro de poder"
    ],
-   "cartas": "rara (Guilds of Ravnica)"
+   "cartas": "rara (Guilds of Ravnica)",
+   "evidencia": "K-31: gatilho \"attacks\" com alvo — criatura atacante com poder menor que o da fonte (alvoPermitidoK em targetAllowed: conferido na escolha e na resolução, 608.2b); marcador +1/+1; um por instância (702.134b)",
+   "testes": [
+    "CR 702.134a · mentor (Sunhome Stalwart, texto oficial): ao atacar, um marcador +1/+1 na criatura atacante alvo de poder menor; com poder igual, sem alvo",
+    "K-31 · mentor (702.134): a 1/1 que ataca junto da mentora 2/2 ganha o marcador e bate 2"
+   ]
   },
   {
    "n": "702.135",
@@ -8789,13 +8802,18 @@
    "n": "702.149",
    "regra": "Keyword Abilities",
    "titulo": "Training",
-   "status": "ausente",
-   "falta": "Sem gatilho \"ao atacar com outra criatura de poder maior, marcador +1/+1\" (702.149a) nem o evento \"treinou\" para habilidades que o citam (702.149c).",
+   "status": "parcial",
+   "falta": "702.149c: \"quando esta criatura treina\" (gatilho de quem treinou) não existe.",
    "esforco": "P",
    "depende": [
     "508 gatilho de ataque com comparação de poder"
    ],
-   "cartas": "rara (Innistrad: Crimson Vow)"
+   "cartas": "rara (Innistrad: Crimson Vow)",
+   "evidencia": "K-31: o gatilho \"attacks\" só nasce com outra criatura atacante de poder maior (a condição é do disparo); marcador +1/+1 nela na resolução (treino_k); um por instância (702.149b)",
+   "testes": [
+    "CR 702.149a · treinamento (Gryff Rider, texto oficial): atacando junto de outra criatura de poder maior, ganha um marcador +1/+1; com poder igual ou sozinha, não",
+    "K-31 · treinamento (702.149): a 1/1 que ataca com um 2/2 ganha o marcador e bate 2"
+   ]
   },
   {
    "n": "702.150",

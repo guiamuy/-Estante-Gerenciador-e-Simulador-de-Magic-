@@ -528,6 +528,50 @@ test('K-30 · bushido (702.45): bloqueando, a 1/1 com bushido 1 vira 2/2 e mata 
   const r = combate(s, [u], [[sa, u]]); assert.equal(vivo(r, u), false, '2 de dano no Urso'); assert.equal(vivo(r, sa), false, 'e os 2 do Urso matam a 2/2');
 });
 
+test('K-31 · aflição (702.130): bloqueada pelo Urso, o defensor perde 2 mesmo sem dano passar', () => {
+  cobre('afflict');
+  const cartas = { ...CARDS, Chacal: cre('Chacal', 2, 2, ['Afflict'], { oracle_text: 'Afflict 2' }) };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 52, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a;
+  let c, u; [s, c] = poe(s, a, 'Chacal'); [s, u] = poe(s, d, 'Urso');
+  assert.equal(combate(s, [c], [[u, c]]).players[d].life, 18);
+});
+
+test('K-31 · refrega (702.121): a 1/1 que ataca bate 2', () => {
+  cobre('melee');
+  const cartas = { ...CARDS, Ave: cre('Ave', 1, 1, ['Melee'], { oracle_text: 'Melee' }) };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 53, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a;
+  let v; [s, v] = poe(s, a, 'Ave');
+  assert.equal(combate(s, [v]).players[d].life, 18);
+});
+
+test('K-31 · mentor (702.134): a 1/1 que ataca junto da mentora 2/2 ganha o marcador e bate 2', () => {
+  cobre('mentor');
+  const cartas = { ...CARDS, Mestra: cre('Mestra', 2, 2, ['Mentor'], { oracle_text: 'Mentor' }), Aprendiz: cre('Aprendiz', 1, 1) };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 54, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a;
+  let m, ap; [s, m] = poe(s, a, 'Mestra'); [s, ap] = poe(s, a, 'Aprendiz');
+  assert.equal(combate(s, [m, ap]).players[d].life, 16, '2 + (1+1)');
+});
+
+test('K-31 · treinamento (702.149): a 1/1 que ataca com um 2/2 ganha o marcador e bate 2', () => {
+  cobre('training');
+  const cartas = { ...CARDS, Recruta: cre('Recruta', 1, 1, ['Training'], { oracle_text: 'Training' }) };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 55, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a;
+  let r, u; [s, r] = poe(s, a, 'Recruta'); [s, u] = poe(s, a, 'Urso');
+  assert.equal(combate(s, [r, u]).players[d].life, 16, '(1+1) + 2');
+});
+
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));

@@ -5214,6 +5214,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'landwalk', // K-21 · 702.14: travessias com qualidade ("Nonbasic landwalk", "Desertwalk", "Snow swampwalk"…), lidas da linha (travessiasK)
   'protection', // K-17 · 702.16: a qualidade vem da linha "Protection from …" (cores, tipos, subtipos, multicolorido, tudo); a palavra sozinha não protege
   'convoke', 'improvise', // K-13 · 702.51 e 702.126: virar criaturas (artefatos) para pagar parte do custo total (tapaParaPagarK)
+  'afflict', 'melee', 'mentor', 'training', // K-31 · 702.130, 702.121, 702.134, 702.149: gatilhos de ataque gerados pela palavra, um por instância
   'battle cry', 'rampage', 'flanking', 'bushido', // K-30 · 702.91, 702.23, 702.25, 702.45: gatilhos de combate gerados pela palavra (GATILHOS_DE_PALAVRA_K), um por instância
   /* ↓ V · palavras-chave da trilha verbos */
   /* ↓ T · palavras-chave da trilha tipos */
@@ -7782,7 +7783,7 @@ function palavraNaLinhaK(k) {
   if (k === 'protection') { const q = '(?:white|blue|black|red|green|everything|multicolored|monocolored|colorless|all colors|creatures|artifacts|enchantments|instants|sorceries|planeswalkers|lands|' + Object.keys(protecaoNaoCriaturaSCK()).join('|') + '|' + pluraisDeCriaturaSCK() + ')'; return `protection from ${q}(?: and from ${q})*`; } // K-24 · sem palavra solta: só fichas, subtipos que se anexam e tipos de criatura // K-17 · só as qualidades que o motor confere (protecaoImpressa e protecaoQualidadesK)
   if (k === 'dash') return 'dash\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-9
   if (k === 'evoke') return 'evoke(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*exile an? (?:white|blue|black|red|green) card from your hand\\.?)'; // K-8 · só as formas que o motor paga
-  return ['afterlife', 'rampage', 'bushido'].includes(k) ? `${k} \\d+` : k; // K-30 · alvoroço N e bushido N
+  return ['afterlife', 'rampage', 'bushido', 'afflict'].includes(k) ? `${k} \\d+` : k; // K-30 · alvoroço N e bushido N
 }
 /* ↓ V · exportações de scripts.js da trilha verbos */
 // V-20 · evento "foi exaurida" (701.43): da própria permanente
@@ -17324,6 +17325,7 @@ function targetAllowed(s, eff, tgt, src) {
     const limite = amountOf(s, src || { controller: o.controller }, eff.targetMvMax);
     if (vm > limite) return false;
   }
+  if (!alvoPermitidoK(s, eff, o, src)) return false; // K-31 · "target attacking creature with power less than this creature's" (Toca ponto comum: targetAllowed)
   return true;
 }
 const sameTarget = (a, b) => a && b && a.oid === b.oid && a.player === b.player;
@@ -18165,6 +18167,22 @@ function applyEffect(s, src, eff, tgt, events) {
       break;
     }
     /* ↓ K · casos de applyEffect da trilha keywords */
+    case 'aflicao_k': { // K-31 · 702.130a: o jogador defensor perde N (perder vida não é dano)
+      if (eff.defensor == null || !s.players[eff.defensor] || s.players[eff.defensor].lost) { note({ failed: true }); break; }
+      perdeVida(s, eff.defensor, eff.n || 0); note({ target: s.players[eff.defensor].name, amount: eff.n || 0 }); break;
+    }
+    case 'refrega_k': { // K-31 · 702.121a: +1/+1 por oponente atacado por alguma criatura neste combate (contado agora)
+      const c = s.objects[src.ability ? src.source : src.oid];
+      if (!c || c.zone !== 'battlefield' || (c.zc || 0) !== eff.z) { note({ failed: true }); break; }
+      const atacados = new Set(((s.combat || {}).attackers || []).map(x => s.objects[x]).filter(x => x && x.attacking != null).map(x => defensorDeK(s, x)).filter(p => p != null && p !== ctrl));
+      const n = atacados.size; if (n) aplicaTemporario(s, c, { poder: n, resistencia: n, ate: 'fim-do-turno' }, ctrl);
+      note({ target: c.name, power: n, toughness: n }); break;
+    }
+    case 'treino_k': { // K-31 · 702.149a: um marcador +1/+1 nela (a mesma)
+      const c = s.objects[src.ability ? src.source : src.oid];
+      if (!c || c.zone !== 'battlefield' || (c.zc || 0) !== eff.z) { note({ failed: true }); break; }
+      note({ amount: addCounters(s, c, 1), name: c.name }); break;
+    }
     case 'grito_k': { // K-30 · 702.91a: cada outra criatura atacante, na resolução
       const eu = src.ability ? src.source : src.oid; let n = 0;
       for (const c of battlefield(s)) if (c.attacking != null && c.oid !== eu && isCreature(s, c)) { aplicaTemporario(s, c, { poder: 1, resistencia: 0, ate: 'fim-do-turno' }, ctrl); n++; }
@@ -21117,6 +21135,15 @@ Object.assign(EXPORTS_K, { wardsDeK, wardImpressoK, custoDaSalvaguardaK });
 /* K-3 · palavras-chave que são habilidades disparadas (702.108 proeza…): o motor gera a habilidade a partir da palavra-chave que a
    permanente tem agora (impressa, concedida, de marcador ou de mutação), uma por instância (702.108b), em abilitiesOf. */
 const GATILHOS_DE_PALAVRA_K = {
+  // K-31 · 702.130a · "Whenever this creature becomes blocked, defending player loses N life." (o defensor de quando foi bloqueada)
+  afflict: (s, o, i) => ({ kind: 'triggered', when: 'becomes-blocked', palavraK: 'afflict', effects: [{ do: 'aflicao_k', n: numeroDaPalavraK(s, o, 'afflict', i), defensor: defensorDeK(s, o) }] }),
+  // K-31 · 702.121a · "Whenever this creature attacks, it gets +1/+1 until end of turn for each opponent you attacked with a creature this combat."
+  melee: (s, o) => ({ kind: 'triggered', when: 'attacks', palavraK: 'melee', effects: [{ do: 'refrega_k', z: (o && o.zc) || 0 }] }),
+  // K-31 · 702.134a · "Whenever this creature attacks, put a +1/+1 counter on target attacking creature with power less than this creature's power."
+  mentor: (s, o) => ({ kind: 'triggered', when: 'attacks', palavraK: 'mentor', effects: [{ do: 'counters', amount: 1, target: 'creature', alvoAtacandoK: true, alvoPoderMenorK: true }] }),
+  // K-31 · 702.149a · "Whenever this creature and at least one other creature with power greater than this creature's power attack, put a +1/+1 counter on this creature." (só dispara com a outra atacando)
+  training: (s, o) => o && o.attacking != null && battlefield(s).some(c => c.oid !== o.oid && c.attacking != null && isCreature(s, c) && power(s, c) > power(s, o))
+    ? ({ kind: 'triggered', when: 'attacks', palavraK: 'training', effects: [{ do: 'treino_k', z: o.zc || 0 }] }) : [],
   // K-30 · 702.91a · "Whenever this creature attacks, each other attacking creature gets +1/+0 until end of turn."
   'battle cry': (s, o) => ({ kind: 'triggered', when: 'attacks', palavraK: 'battle cry', effects: [{ do: 'grito_k', z: (o && o.zc) || 0 }] }),
   // K-30 · 702.23a · "Whenever this creature becomes blocked, it gets +N/+N until end of turn for each creature blocking it beyond the first." (b: contado na resolução)
@@ -21582,6 +21609,16 @@ Object.assign(EXPORTS_K, { opcoesAtropelarUmK });
    poder 0 no 1º passo, que ganha poder entre os passos, não causa dano no 2º. */
 function iniciativaNoComecoK(s, combatentes) { for (const o of combatentes) if (has(s, o, 'first strike') || has(s, o, 'double strike')) o.struck = true; }
 Object.assign(EXPORTS_K, { iniciativaNoComecoK });
+/** K-31 · o jogador defensor de uma atacante (506.2: o jogador atacado, ou quem controla o planeswalker ou protege a batalha atacada). */
+function defensorDeK(s, o) { if (!o || o.attacking == null) return null; const pw = o.atacandoPw != null ? s.objects[o.atacandoPw] : null; return pw ? pw.controller : o.attacking; }
+/** K-31 · restrições de alvo da trilha keywords, conferidas na escolha e de novo na resolução (608.2b): `alvoAtacandoK` (criatura atacante)
+    e `alvoPoderMenorK` (poder menor que o da fonte agora — mentor, 702.134a). */
+function alvoPermitidoK(s, eff, o, src) {
+  if (eff.alvoAtacandoK && (o.zone !== 'battlefield' || o.attacking == null)) return false;
+  if (eff.alvoPoderMenorK) { const f = src && (src.ability ? s.objects[src.source] : s.objects[src.oid]); if (!f || f.zone !== 'battlefield' || power(s, o) >= power(s, f)) return false; }
+  return true;
+}
+Object.assign(EXPORTS_K, { defensorDeK, alvoPermitidoK });
 /* K-28 · 702.6c-d · "Equip [qualidade] [custo]" = "[Custo]: anexe a criatura alvo sua com [qualidade]. Só como feitiço." Uma permanente
    pode ter várias habilidades de equipar, e qualquer uma pode ser ativada (d). Lidas da linha impressa ao lado do `equip` do script (que
    continua sendo o "Equip {N}" sem qualidade): "legendary creature" e tipo de criatura ("Knight", "Knight creature"). A qualidade só
@@ -25101,6 +25138,7 @@ Object.assign(PALAVRA_PT, { convoke: 'convocar', improvise: 'improvisar' }); // 
 Object.assign(PALAVRA_PT, { protection: 'proteção' }); // K-17
 Object.assign(PALAVRA_PT, { landwalk: 'travessia' }); // K-21
 Object.assign(PALAVRA_PT, { suspend: 'suspender' }); // K-22
+Object.assign(PALAVRA_PT, { afflict: 'aflição', melee: 'refrega', mentor: 'mentor', training: 'treinamento' }); // K-31
 Object.assign(PALAVRA_PT, { 'battle cry': 'grito de guerra', rampage: 'alvoroço', flanking: 'flanquear', bushido: 'bushido' }); // K-30
 const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consultadas por descreveEfeito; antes a pilha mostrava "proeza k")
   tempestade_k: e => e.n ? `copia esta mágica ${e.n === 1 ? 'uma vez' : e.n + ' vezes'} (tempestade; cada cópia pode ter alvo novo)` : 'copia esta mágica para cada mágica conjurada antes dela neste turno (nenhuma)',
@@ -25113,6 +25151,9 @@ const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consulta
   volta_com_marcador: e => `devolve a carta ao campo com um marcador ${e.marcador === 'm1m1' ? '−1/−1 (persistir)' : '+1/+1 (imortal)'}`,
   salvaguarda: () => 'anula aquela mágica ou habilidade, a menos que quem a controla pague o custo da salvaguarda',
   grito_k: () => 'cada outra criatura atacante recebe +1/+0 até o fim do turno (grito de guerra)', // K-30
+  aflicao_k: e => `o jogador defensor perde ${e.n} de vida (aflição)`, // K-31
+  refrega_k: () => 'esta criatura recebe +1/+1 até o fim do turno para cada oponente atacado neste combate (refrega)',
+  treino_k: () => 'põe um marcador +1/+1 nesta criatura (treinamento)',
   alvoroco_k: e => `esta criatura recebe +${e.n}/+${e.n} até o fim do turno para cada criatura que a bloqueia além da primeira (alvoroço)`,
   bushido_k: e => `esta criatura recebe +${e.n}/+${e.n} até o fim do turno (bushido)`,
   flanquear_k: () => 'a criatura que bloqueia recebe -1/-1 até o fim do turno (flanquear)',

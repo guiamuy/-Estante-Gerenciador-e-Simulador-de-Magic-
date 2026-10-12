@@ -1290,3 +1290,36 @@ test('CR 702.45a · bushido 1 (Devoted Retainer, texto oficial): ao bloquear ou 
   assert.equal(bloqueou.objects[r2].zone, 'battlefield', 'bloqueando: 2/2 sobrevive ao Goblin'); assert.equal(bloqueou.objects[u2].zone, 'graveyard');
   const fora = ateODano(t, [u2]); assert.equal(E.stats(fora, fora.objects[r2]).power, 1, 'sem combate, sem bônus');
 });
+
+/* ---------------- K-31 · gatilhos de ataque: aflição 702.130, refrega 702.121, mentor 702.134, treinamento 702.149 ---------------- */
+const GRANDE = { name: 'Grande', type_line: 'Creature — Giant', mana_cost: '{3}{R}', cmc: 4, colors: ['R'], power: '3', toughness: '3', keywords: [], oracle_text: '' };
+test('CR 702.130a · aflição 1 (Khenra Eternal, texto oficial): bloqueada, o jogador defensor perde 1; sem bloqueio, nada além do dano', () => {
+  let s = partida({ 'Khenra Eternal': oficial('Khenra Eternal'), Urso: URSO }); const a = s.turn.active, d = 1 - a;
+  let k, u; [s, k] = poe(s, a, 'Khenra Eternal'); [s, u] = poe(s, d, 'Urso');
+  const v = s.players[d].life;
+  assert.equal(ateODano(s, [k], [[u, k]]).players[d].life, v - 1, 'bloqueada: perde 1');
+  assert.equal(ateODano(s, [k]).players[d].life, v - 2, 'sem bloqueio: só os 2 de dano');
+});
+
+test('CR 702.121a · refrega (Wings of the Guard, texto oficial): ao atacar, +1/+1 por oponente atacado neste combate', () => {
+  let s = partida({ 'Wings of the Guard': oficial('Wings of the Guard') }); const a = s.turn.active, d = 1 - a;
+  let w; [s, w] = poe(s, a, 'Wings of the Guard');
+  const v = s.players[d].life, r = ateODano(s, [w]);
+  assert.equal(r.players[d].life, v - 2, '1/1 vira 2/2'); assert.equal(E.stats(r, r.objects[w]).power, 2);
+});
+
+test('CR 702.134a · mentor (Sunhome Stalwart, texto oficial): ao atacar, um marcador +1/+1 na criatura atacante alvo de poder menor; com poder igual, sem alvo', () => {
+  let s = partida({ 'Sunhome Stalwart': oficial('Sunhome Stalwart'), Goblin: GOBLIN, Urso: URSO }); const a = s.turn.active;
+  let st, g, u; [s, st] = poe(s, a, 'Sunhome Stalwart'); [s, g] = poe(s, a, 'Goblin'); [s, u] = poe(s, a, 'Urso');
+  const r = ateODano(s, [st, g, u]);
+  assert.equal(r.objects[g].counters.p1p1, 1, 'o Goblin (1) ganha o marcador'); assert.ok(!r.objects[u].counters.p1p1, 'o Urso (2, igual) não é alvo');
+  const t = ateODano(s, [st, u]); assert.ok(!t.objects[u].counters.p1p1 && !t.objects[st].counters.p1p1, 'sem alvo de poder menor, nada');
+});
+
+test('CR 702.149a · treinamento (Gryff Rider, texto oficial): atacando junto de outra criatura de poder maior, ganha um marcador +1/+1; com poder igual ou sozinha, não', () => {
+  let s = partida({ 'Gryff Rider': oficial('Gryff Rider'), Urso: URSO, Grande: GRANDE }); const a = s.turn.active;
+  let gr, u, gd; [s, gr] = poe(s, a, 'Gryff Rider'); [s, u] = poe(s, a, 'Urso'); [s, gd] = poe(s, a, 'Grande');
+  assert.equal(ateODano(s, [gr, gd]).objects[gr].counters.p1p1, 1, 'com o 3/3: treina');
+  assert.ok(!ateODano(s, [gr, u]).objects[gr].counters.p1p1, 'com o 2/2 (igual): não');
+  assert.ok(!ateODano(s, [gr]).objects[gr].counters.p1p1, 'sozinha: não');
+});

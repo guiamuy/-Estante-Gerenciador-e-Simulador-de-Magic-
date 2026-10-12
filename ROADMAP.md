@@ -4188,6 +4188,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Aceite:** Goblin Wardriver + Urso atacam: 2 + 3; dois Wardrivers: 3 + 3. Wolverine Pack bloqueada por três Ursos vira 6/8 e sobrevive; por um, 2/4. Mtenda Herder bloqueada por dois Ursos: os dois viram 1/1; bloqueada por outra com flanquear, nada. Devoted Retainer vira 2/2 bloqueando ou bloqueada.
 - **Testes:** `keywords.cr4.unit` (4, falham sem a leva), `combat.audit` (4 cenários, um por palavra; o K12 cobra). Texto oficial: Goblin Wardriver, Wolverine Pack, Mtenda Herder, Devoted Retainer (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v109. 702.91, 702.23, 702.25 e 702.45 passam a cobertas.
 
+**K-31 · Gatilhos de ataque: aflição, refrega, mentor e treinamento (702.130, 702.121, 702.134, 702.149)** 🟡 (leva K-31)
+- **Valor:** aflição N faz o defensor perder N quando a criatura é bloqueada; refrega dá +1/+1 por oponente atacado; mentor põe um marcador +1/+1 na criatura atacante alvo de poder menor (conferido na escolha e na resolução); treinamento põe um marcador nela quando ataca junto de outra de poder maior.
+- **Aceite:** Khenra Eternal bloqueada: o defensor perde 1; sem bloqueio, só o dano. Wings of the Guard ataca como 2/2. Sunhome Stalwart ataca com Goblin e Urso: só o Goblin (poder menor) ganha o marcador. Gryff Rider com o 3/3 treina; com o 2/2 ou sozinha, não.
+- **Toca ponto comum:** `targetAllowed` (uma linha nova: `alvoPermitidoK`, restrições de alvo da trilha).
+- **Testes:** `keywords.cr4.unit` (4, falham sem a leva), `combat.audit` (4 cenários). Texto oficial: Khenra Eternal, Wings of the Guard, Sunhome Stalwart, Gryff Rider (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v109.
+- **Parcial declarado:** "sempre que ~ mentora" (702.134c) e "quando ~ treina" (702.149c) não existem. **Provocar (702.39) fica de fora desta classe:** precisa da exigência "bloqueia se puder" no bloqueio (509.1c), que o motor não tem — pedido à trilha motor.
+
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.
