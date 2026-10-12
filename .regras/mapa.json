@@ -6617,13 +6617,19 @@
    "n": "701.65",
    "regra": "Keyword Actions",
    "titulo": "Airbend",
-   "status": "ausente",
-   "falta": "não há exilar permanente/mágica com permissão do dono de conjurar por {2} enquanto exilada",
+   "status": "parcial",
+   "falta": "aerobender uma mágica na pilha (Aang, Swift Savior) e \"whenever you airbend\" (b) não têm forma; reduções de custo não se aplicam ao {2}",
    "esforco": "M",
    "depende": [
     "118.9 custo alternativo"
    ],
-   "cartas": "uma coleção só"
+   "cartas": "uma coleção só (14 cartas no acervo do Forge, 12/10/2026)",
+   "evidencia": "V-30 · efeito `airbend` (aerobenderV, aerobendidaV e aerobendNoCastV em core.js, abaixo da âncora ↓ V): exila a permanente pelo caminho de mover e marca a encarnação exilada; enquanto ela ficar no exílio, o DONO pode conjurá-la pagando {2} em vez do custo de mana (ação `cast` com `aerobend`, oferecida em legalActions abaixo da âncora V; tempo de conjuração da carta; sem X, reforço nem outro custo alternativo); terreno fica no exílio; ficha deixa de existir. A folha da carta no Exílio diz \"Conjurar por aerobender · {2}\". Cartas: Airbending Lesson (biblioteca); Aang, Airbending Master (primeira frase, validada no teste) · texto oficial em .listas/oficiais-verbos.json",
+   "testes": [
+    "CR 701.65a · aerobender exila a permanente; enquanto exilada, o DONO pode conjurá-la por {2} em vez do custo de mana — o outro jogador não",
+    "CR 701.65a · o {2} é custo alternativo: o tempo de conjuração continua o da carta (criatura só no seu principal), X e outros custos não entram; a permissão acaba se a carta sair do exílio",
+    "CR 701.65a · terreno aerobendido fica no exílio (não se conjura terreno); ficha aerobendida deixa de existir"
+   ]
   },
   {
    "n": "701.66",

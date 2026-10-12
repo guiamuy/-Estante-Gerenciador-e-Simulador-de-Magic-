@@ -4085,6 +4085,15 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Nenhum ponto comum tocado:** a ficha usa createToken, poeMarcadores e as habilidades de lealdade como estão. Fora: "Whenever you put loyalty counters on a planeswalker" (Inspired Tethermage) e as concessões "Planeswalkers you control have …" (outras cartas da coleção).
 - **Testes:** `verbos.jace.unit` (4).
 
+**V-30 · CR3 · Aerobender (701.65)** 🟡 (leva V-30, motor v110 sem subir: só acrescenta ações; partidas-referência idênticas) — 701.65 passa de ausente a **parcial**.
+- **Valor:** "Airbend" (Avatar: The Last Airbender, 14 cartas no acervo) funciona: a permanente vai para o exílio e o dono pode conjurá-la de lá pagando {2}; a folha da carta no Exílio diz "Conjurar por aerobender · {2}".
+- **Regra inteira (a):** a permissão é do dono e da carta naquela passagem pelo exílio (saiu e voltou, acabou); {2} é custo alternativo — o tempo é o da carta, X é 0 e não se soma reforço nem outro custo alternativo; terreno aerobendido fica no exílio; ficha deixa de existir.
+- **Vocabulário:** efeito `airbend`; ação `cast` com `aerobend`.
+- **Cartas (texto oficial em `.listas/oficiais-verbos.json`, Oracle do Forge, clone de 12/10/2026; segunda fonte pendente):** Airbending Lesson (na biblioteca); Aang, Airbending Master — só "airbend another target creature", validada no teste.
+- **Toca ponto comum (uma linha cada):** `HANDLERS.cast` (antes da conferência de zona, e uma linha no encadeamento do pagamento: {2} em vez do custo de mana) e `table.js` (rótulo do botão; sem ela a folha mostraria o custo impresso).
+- **Parcial, declarado:** aerobender uma mágica na pilha (Aang, Swift Savior) e "whenever you airbend" (b); reduções de custo (Killian, afinidade) não se aplicam ao {2}.
+- **Testes:** `verbos.aero.unit` (4) e `e2e · V-30` (a folha da carta no Exílio, conjurar pagando {2}).
+
 **CR4 · Habilidades de palavra-chave (702)** ○ — 150 ausentes e 21 parciais, em ondas pela frequência em cartas anotada no mapa: (1) fechar as evergreen e as parciais; (2) "muito comum" (proeza, tripular, reforço, convocar, cascata, evocar, persistir, imortal, fração de segundo, infectar e tóxico…); (3) "comum"; (4) "rara" e "uma coleção só". 50 a 65 levas.
 
 **CR4 · andamento (trilha `keywords`, levas `K-N`)** ▶ — ordem de 11/10/2026: primeiro as palavras-chave do acervo que o medidor do leitor (LT6) acusa fora do vocabulário, depois a onda 1 (proeza, convocar, cascata, evocar, persistir, imortal, exaltado, explorar, arremeter, improvisar, recomeçar, pós-vida, evoluir), a onda 2 (completar as parciais), a 3 (raras, da mais citada à menos) e a 4 (o resto de 702, com o que fica fora declarado no mapa). Auditoria independente por subagente ao fim de cada onda. Palavra-chave com parâmetro ("Ward {3}", "Kicker {B}", "Crew 1") também depende de o leitor ler a forma: isso é da trilha `motor` (leitor), avisada a cada leva.

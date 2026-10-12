@@ -10560,6 +10560,31 @@ test('e2e · M-330 · terra de choque: ao jogar Steam Vents a mesa pergunta se p
 
 /* ↓ K · testes de tela da trilha keywords (só test(nome, { skip }, fn) no nível do arquivo) */
 /* ↓ V · testes de tela da trilha verbos (só test(nome, { skip }, fn) no nível do arquivo) */
+test('e2e · V-30 · aerobender: a carta aerobendida, no Exílio, oferece "Conjurar por aerobender · {2}" (não o custo impresso) e conjurar paga só {2}', { skip }, async t => {
+  // Montagem por dado: um Kitchen Imp ({3}{B}, texto oficial em .listas/oficiais.json) do grimório vai ao exílio com a marca de aerobender
+  // desta encarnação, e três Pântanos entram no campo. O que se testa é a folha da carta no Exílio (o motor é provado em verbos.aero.unit).
+  const M = await comLista125(t, '24 Swamp\n16 Kitchen Imp', ['Swamp', 'Kitchen Imp'], '4');
+  const { page } = M;
+  const imp = await page.evaluate(() => { const s = window.__estanteMesa.estado(), z = s.zones[0].library;
+    const tira = nome => { const i = z.findIndex(o => s.objects[o].name === nome); if (i < 0) throw new Error('sem ' + nome); return z.splice(i, 1)[0]; };
+    const poe = oid => { const o = s.objects[oid]; o.zc = (o.zc || 0) + 1; Object.assign(o, { zone: 'battlefield', controller: 0, tapped: false, sick: false, damage: 0, counters: {}, entrouNoTurno: s.turn.number }); s.zones[0].battlefield.push(oid); };
+    for (let i = 0; i < 2; i++) poe(tira('Swamp'));
+    const oid = tira('Kitchen Imp'), o = s.objects[oid]; o.zc = (o.zc || 0) + 1; o.zone = 'exile'; s.zones[0].exile.push(oid); o.aerobendidaV = { z: o.zc };
+    return oid; });
+  const terra = await M.oid('Swamp'); assert.ok(terra, 'um Pântano na mão');
+  assert.equal(await M.act({ t: 'play_land', p: 0, oid: terra }), true); await page.waitForTimeout(250);
+  await page.locator('#tb-exilio-me').click(); await page.waitForSelector('.ds-dialog .tb-zonegrid');
+  await page.locator(`.ds-dialog .tb-zonegrid [data-oid="${imp}"]`).first().click(); await page.waitForSelector('.ds-dialog .tb-sheet__actions');
+  const botao = page.locator('.ds-dialog .tb-sheet__actions button', { hasText: /^Conjurar/ });
+  assert.equal(await botao.count(), 1); assert.equal((await botao.innerText()).trim(), 'Conjurar por aerobender · {2}');
+  const alto = await botao.evaluate(el => el.offsetHeight); assert.ok(alto >= 44, 'botão com 44 px de altura ou mais: ' + alto);
+  await auditaTela(page, 'folha da carta aerobendida no Exílio');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/v30-aerobender.png' });
+  await botao.click(); await page.waitForTimeout(250); await M.resolve();
+  const fim = await page.evaluate(oid => { const s = window.__estanteMesa.estado(); return { zona: s.objects[oid].zone, virados: s.zones[0].battlefield.filter(o => s.objects[o].tapped).length }; }, imp);
+  assert.deepEqual(fim, { zona: 'battlefield', virados: 2 }, 'o Kitchen Imp entrou pagando {2}: dois Pântanos virados, um sobrando');
+  assert.deepEqual(M.errors, []);
+});
 test('e2e · V-26 · Call of the Ring: ao escolher o Portador do Anel, a mesa pergunta se você paga 2 de vida para comprar uma carta, e pagar tira a vida e compra', { skip }, async t => {
   // Montagem por dado: Call of the Ring não tem script na biblioteca (permanente de exemplo da trilha; texto oficial em
   // .listas/oficiais-verbos.json, Oracle do Forge, 12/10/2026). Um Pântano do grimório vira a Call of the Ring no campo, com o script da

@@ -5396,6 +5396,8 @@ const EFFECTS = {
   explorar_k: { fields: ['fase'], targets: [] }, // K-12 · 702.110 · gerado pelo motor (antes e depois do sacrifício)
   proeza_k: { fields: ['z'], targets: [] }, // K-14 · 702.108a · +1/+1 até o fim do turno, só na mesma encarnação (gerado pelo motor)
   /* ↓ V · efeitos da trilha verbos */
+  // V-30 · 701.65 aerobender: exila a permanente alvo; enquanto a carta ficar exilada, o dono pode conjurá-la pagando {2} em vez do custo de mana
+  airbend: { fields: [], targets: ['creature', 'permanent', 'creature-you-control', 'permanent-you-control'] },
   // V-29 · 701.71 Empower Jace N: sem ficha de planeswalker Jace sua, cria a ficha azul Jace com lealdade 0, "[−1]: Surveil 1" e "[−3]: Draw a card"; escolhe uma ficha Jace sua e põe N marcadores de lealdade nela
   empower_jace: { fields: ['amount'], targets: ['self'] },
   // V-28 · 701.66 terrabender N (earthbend): o terreno seu alvo vira criatura-terreno 0/0 com ímpeto, recebe N marcadores +1/+1 e volta ao campo virado quando morrer ou for exilado
@@ -6421,6 +6423,9 @@ const RAW_SCRIPTS = [
   { name: 'Staggershock', effects: [{ do: 'damage', amount: 2, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: -2 } } }, // K-35 · "deals 2 damage to any target. / Rebound"
   { name: "Prey's Vengeance", effects: [{ do: 'pump', power: 2, toughness: 2, target: 'creature' }], example: { target: 'own-creature', expect: { pump: [2, 2] } } }, // K-35 · "Target creature gets +2/+2 until end of turn. / Rebound" 
   /* ↓ V · scripts de carta da trilha verbos (texto oficial em .listas/oficiais-verbos.json) */
+  // V-30 · 701.65 aerobender
+  { name: 'Airbending Lesson', effects: [{ do: 'airbend', target: { semTipos: ['land'] } }, { do: 'draw', amount: 1 }], // "Airbend target nonland permanent. Draw a card."
+    example: { target: 'enemy-creature', expect: { gone: true, handDelta: 1 } } },
   // V-29 · 701.71 Empower Jace
   { name: "Protege's Awakening", effects: [{ do: 'empower_jace', amount: 6 }, { do: 'draw', amount: 1 }], // "Empower Jace 6. Draw a card."
     example: { target: 'none', expect: { handDelta: 1 } } },
@@ -18891,6 +18896,7 @@ function applyEffect(s, src, eff, tgt, events) {
       note({ pending: true }); break;
     }
     /* ↓ V · casos de applyEffect da trilha verbos */
+    case 'airbend': { const o = objetoDoVerbo(s, src, eff, tgt); if (!aerobenderV(s, src, o, ctrl, events)) note({ failed: true }); break; } // V-30 · 701.65
     case 'empower_jace': empoderaJaceV(s, src, eff, events); break; // V-29 · 701.71
     case 'earthbend': terraDobraV(s, src, eff, objetoDoVerbo(s, src, eff, tgt), events); break; // V-28 · 701.66
     case 'incubate': incubar(s, src, eff, events); break; // V-27 · 701.53
@@ -20293,6 +20299,7 @@ const HANDLERS = {
     const fromPlot = a.plotted && o && o.zone === 'exile' && o.plotted != null && o.plotted < s.turn.number;
     if (a.plotted && !fromPlot) throw new RuleError('plot', 'esta carta não está plotada para um turno anterior');
     // S61 · Cavernas das Runas: conjura do exílio pagando o custo normal
+    aerobendNoCastV(s, a, o); // V-30 · 701.65a: conjurar a carta aerobendida por {2} (Toca ponto comum: HANDLERS.cast)
     const fromExile = jogavelDoExilio(s, a.p, o); // M-270
     if (!o || o.owner !== a.p || !(o.zone === 'hand' || fromGraveyard || fromPlot || fromExile || (o.zone === 'command' && o.commander))) throw new RuleError('objeto', 'só conjura da mão ou da zona de comando');
     if (a.flashback && !flashbackOf(s, o)) throw new RuleError('lampejo', 'esta carta não tem lampejo do passado');
@@ -20367,6 +20374,7 @@ const HANDLERS = {
     else if (a.omen) { const om = omenOf(s, { name: o.frontName || o.name }); if (s.manaCheck && !a.free) payCost(s, a.p, parseCost((om || {}).mana || '{0}')); }
     else if (a.bestow) { const bc = parseCost(bestowOf(s, o).mana); if (s.manaCheck && !a.free) payCost(s, a.p, bc, (a.x || 0) * (bc.x || 0) - reducaoNoCusto(s, a.p, o, a.targets || [], bc)); } // M-259
     else if (a.faceDown) { if (s.manaCheck && !a.free) payCost(s, a.p, parseCost('{3}')); } // S54 · virada para baixo custa {3}
+    else if (a.aerobend) { if (s.manaCheck && !a.free) payCost(s, a.p, parseCost('{2}')); } // V-30 · 701.65a: {2} em vez do custo de mana (Toca ponto comum: HANDLERS.cast)
     else if (a.plotted) { /* S53 · plot: o mana já foi pago quando a carta foi plotada */ }
     else if (s.manaCheck && !a.free) { if (f.semCusto) throw new RuleError('custo', 'esta carta não tem custo de mana: não pode ser conjurada assim');
       let custo = a.kick ? somaCusto(f.cost, parseCost(reforco.mana), a.kick) : f.cost;
@@ -21593,6 +21601,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
     for (const c of mao) casts(o).forEach(x => out.push({ ...x, recomecarK: true, pay: { ...(x.pay || {}), discard: [c] } }));
   }
   /* ↓ V · ofertas de legalActions da trilha verbos (out.push) */
+  if (!s.pending) for (const oid of s.zones[p].exile) { const o = s.objects[oid], f = o && s.facts[o.name]; if (!aerobendidaV(s, p, o) || f.types.includes('land') || !(canSorcery || !isSorcerySpeed(f)) || (s.manaCheck && !canPay(s, p, parseCost('{2}')))) continue; casts(o).forEach(x => out.push({ ...x, aerobend: true })); } // V-30 · 701.65a: a carta aerobendida, por {2}
   for (let i = out.length - 1; i >= 0; i--) if (acaoDeDetidaV(s, out[i])) out.splice(i, 1); // V-21 · 701.35a: habilidade ativada de permanente detida não é oferecida
   if (!s.pending) for (const o of battlefield(s)) if (o.controller === p && podeVirarManifestada(s, o) && (!s.manaCheck || canPay(s, p, s.facts[o.name].cost))) out.push({ t: 'unmorph', p, oid: o.oid, manifest: true }); // V-17 · 701.40b
   /* ↓ T · ofertas de legalActions da trilha tipos (out.push) */
@@ -22620,6 +22629,30 @@ function castExtraK(s, p, o, x, alvos, adic) {
 }
 Object.assign(EXPORTS_K, { sobControleDesdeK, genericoAdicionalK, castExtraK });
 /* ↓ V · exportações de core.js da trilha verbos */
+/* V-30 · 701.65 aerobender: "that player exiles those objects. For each card exiled this way, for as long as it remains exiled, its owner
+   may cast it by paying {2} rather than paying its mana cost" (a). A permissão é do DONO e da encarnação exilada (400.7: se a carta sair do
+   exílio e voltar, acabou). O {2} é custo alternativo (118.9): o tempo de conjuração continua o da carta, X é 0 (107.3b) e reforço ou outro
+   custo alternativo não se somam a ele (a oferta é só a conjuração simples, com os alvos). Terreno exilado assim fica no exílio (não se
+   conjura terreno). Ficha exilada deixa de existir (111.7). O exílio passa pelo caminho de mover (substituições de 614 valem). Fora:
+   aerobender uma mágica na pilha (Aang, Swift Savior) e "whenever you airbend" (b). */
+const aerobendidaV = (s, p, o) => !!o && o.zone === 'exile' && !o.token && o.owner === p && !!o.aerobendidaV && o.aerobendidaV.z === (o.zc || 0);
+function aerobenderV(s, src, o, ctrl, events) {
+  if (!o || o.zone !== 'battlefield') return false;
+  const nome = o.name;
+  if (!moverObjeto(s, src, o, { para: 'exile', de: 'battlefield', semRegistro: true }, ctrl)) return false;
+  const x = s.objects[o.oid]; if (x && x.zone === 'exile' && !x.token) x.aerobendidaV = { z: x.zc || 0 };
+  events.push({ kind: 'effect', do: 'airbend', name: src.name, target: nome });
+  return true;
+}
+/** Chamada só por HANDLERS.cast, antes da conferência de zona: a conjuração por aerobender (`a.aerobend`) vale só para a carta aerobendida do
+    dono e sem outra forma de custo; aí ela passa pela conferência como carta jogável do exílio (a marca de conjuração some ao sair da pilha). */
+function aerobendNoCastV(s, a, o) {
+  if (!a.aerobend) return;
+  if (!aerobendidaV(s, a.p, o)) throw new RuleError('aerobender', 'esta carta não foi exilada por aerobender, ou não é sua');
+  if (a.alt != null || a.flashback || a.escape || a.disturb || a.omen || a.bestow || a.faceDown || a.plotted || a.kick || a.x || a.vida != null || (a.emenda || []).length) throw new RuleError('aerobender', 'pelo aerobender a carta custa {2}: sem outro custo alternativo, reforço ou X');
+  o.playableFromExile = a.p;
+}
+Object.assign(EXPORTS_V, { aerobendidaV, aerobenderV });
 /* V-29 · 701.71 Empower Jace N: "If you don't control a Jace planeswalker token, create a blue Jace planeswalker token with 0 loyalty,
    '[−1]: Surveil 1,' and '[−3]: Draw a card.' Choose a Jace planeswalker token you control. Put N loyalty counters on it" (a). Conta qualquer
    ficha de planeswalker com o subtipo Jace que você controla (não só a criada por este verbo); com mais de uma, quem empodera escolhe
@@ -26485,6 +26518,7 @@ const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consulta
 /* ↓ V · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha verbos */
 const MARCADOR_PT_V = { p1p1: '+1/+1', m1m1: '−1/−1', loyalty: 'de lealdade', poison: 'de veneno' }; // V-7
 const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas por descreveEfeito)
+  airbend: e => `aerobende ${ALVO_PT[e.target] || descreveAlvo(e.target)} (exila; enquanto estiver exilada, o dono pode conjurá-la pagando {2} em vez do custo de mana)`, // V-30
   empower_jace: e => `empodera Jace ${qtd(e.amount)} (põe ${qtd(e.amount) === 1 ? '1 marcador' : qtd(e.amount) + ' marcadores'} de lealdade numa ficha Jace sua; sem nenhuma, primeiro cria a ficha azul de planeswalker Jace com "−1: vigia 1" e "−3: compra uma carta")`, // V-29
   earthbend: e => `terrabende ${qtd(e.amount)}: ${ALVO_PT[e.target] || descreveAlvo(e.target)} vira uma criatura 0/0 com ímpeto que continua sendo terreno e recebe ${qtd(e.amount) === 1 ? '1 marcador' : qtd(e.amount) + ' marcadores'} +1/+1; quando ele morrer ou for exilado, volta ao campo virado`, // V-28
   incubate: e => `incuba ${qtd(e.amount)}${e.vezes ? ` ${e.vezes === 2 ? 'duas' : e.vezes} vezes` : ''} (cria uma ficha de Incubadora com ${qtd(e.amount) === 1 ? '1 marcador' : qtd(e.amount) + ' marcadores'} +1/+1; por {2} ela vira uma criatura artefato Firexiana 0/0)`, // V-27
@@ -28565,6 +28599,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
         : a.t === 'plot' ? doBtn(`Tramar · ${(f.script.plot || {}).mana || ''}`, a)
         : a.t === 'unmorph' ? doBtn(`Virar para cima · ${a.manifest ? costLabel(f.cost) || '{0}' : ((f.script || {}).morph || {}).mana || ''}`, a, { variant: 'primary' }) // V-17 · manifestada vira pelo custo de mana da carta (toque autorizado pelo dono em 11/10/2026)
         : a.t === 'cast' && a.faceDown ? doBtn('Conjurar virada para baixo · {3}', a)
+        : a.t === 'cast' && a.aerobend ? doBtn('Conjurar por aerobender · {2}' + ((a.targets || []).length ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : ''), a, { variant: 'primary' }) // V-30 · 701.65a: {2} em vez do custo impresso (Toca ponto comum: table.js, uma linha)
         : a.t === 'cast' && a.plotted ? doBtn('Conjurar sem pagar' + ((a.targets || []).length ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : ''), a, { variant: 'primary' })
         : a.t === 'cast' ? doBtn(((a.alt != null && f.script && f.script.alt && f.script.alt[a.alt]) ? ((f.script.alt[a.alt].cost || {}).mana ? `Custo alternativo · ${f.script.alt[a.alt].label}` : `Conjurar sem pagar mana · ${f.script.alt[a.alt].label}`) : a.flashback ? `Lampejo do passado · ${custoDoLampejo(f.script.flashback)}` : a.retrace ? 'Retraçar · descartando um terreno' : Array.isArray(a.modes) ? a.modes.map(m => (f.script.modes[m] || {}).label || 'modo').join(' + ') : (f.script && f.script.modes && f.script.modes[a.mode || 0]) ? f.script.modes[a.mode || 0].label : a.permissao != null ? `Conjurar do cemitério (${(s.objects[a.permissao] || {}).name || 'permissão'})` : a.delve ? `Conjurar com delve (exila ${a.delve} do cemitério)` : a.exilaMao ? `Conjurar exilando ${a.exilaMao} ${a.exilaMao > 1 ? 'cartas' : 'carta'} da mão` : (o.zone === 'command' ? `Conjurar da zona de comando (imposto ${E.commanderTax(s, v, oid)})` : a.evidence ? `Conjurar com provas ${(f.script || {}).evidence || ''}`.trim() : 'Conjurar')) + ((a.targets || []).length ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : '')
           // Leva 125 · lampejo e custo alternativo já dizem o que se paga: o custo impresso da carta não entra ("{2}{R} · {R}" confundia)
