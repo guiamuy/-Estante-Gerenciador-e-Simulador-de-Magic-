@@ -6281,14 +6281,20 @@
    "n": "701.43",
    "regra": "Keyword Actions",
    "titulo": "Exert",
-   "status": "ausente",
-   "falta": "não há \"exaurida\" (não desvira no seu próximo passo de desvirar), nem \"doesn't untap during its controller's next untap step\" em geral (o passo de desvirar desvira tudo). Avaliado na V-15: a forma comum (\"you may exert as it attacks\", 701.43d) é custo opcional do ataque — decisão nova na mesa (table.js, vedado à trilha) — e a outra é custo de habilidade (parte de custo nova em quatro pontos comuns do motor).",
-   "esforco": "M",
+   "status": "parcial",
+   "falta": "exaurir como custo de habilidade ativada (\"{T}, Exert ~: …\", Oasis Ritualist) pede parte de custo nova (região da trilha motor); a mesa não marca a carta exaurida nem a presa (o registro diz); o Shark responde o padrão à pergunta de exaurir",
+   "esforco": "P",
    "depende": [
     "508.1g",
     "502.3"
    ],
-   "cartas": "uma coleção só (Amonkhet)"
+   "cartas": "uma coleção só (Amonkhet)",
+   "evidencia": "V-20 · efeito `exert` e gatilho `exerted` (exaurir, prendeNoDesvirarV, presasNoDesvirarV, exaurirAoAtacarV em core.js, abaixo da âncora ↓ V; duas linhas em enterStep e uma em HANDLERS.attack): a permanente exaurida não desvira no próximo passo de desvirar de quem a exauriu (a); pode ser exaurida desvirada e mais de uma vez, e todas as marcas acabam no mesmo passo (b); fora do campo não se exaure (c); \"You may exert ~ as it attacks\" (`self.exaurirAoAtacar`) pergunta ao declarar o ataque, antes de qualquer prioridade, e \"when you do\" é gatilho na pilha (d). A mesma marca serve a \"doesn't untap during its controller's next untap step\" (efeito `nao_desvira`, 502.3). Cartas: Crippling Chill, Frost Breath; Hooded Brawler provada no teste (.listas/oficiais-verbos.json)",
+   "testes": [
+    "CR 701.43 · exaurir (a, b, c): não desvira no próximo passo de desvirar de QUEM EXAURIU; pode exaurir desvirada e duas vezes — tudo acaba no mesmo passo; fora do campo não se exaure",
+    "CR 701.43 · exaurir (a): se a exaurida está com outro jogador, ela desvira no passo dele — a marca era do passo de quem exauriu",
+    "CR 701.43 · \"You may exert ~ as it attacks. When you do…\" (d): a pergunta vem ao declarar o ataque, antes da prioridade; \"sim\" exaure e põe o gatilho na pilha; \"não\" não faz nada"
+   ]
   },
   {
    "n": "701.44",

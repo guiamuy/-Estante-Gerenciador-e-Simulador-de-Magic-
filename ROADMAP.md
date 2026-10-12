@@ -3890,6 +3890,16 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Não sondado, declarado:** cópia de manifestada; carta de duas faces manifestada; as outras leituras de tipo direto na carta.
 - **Testes:** `verbos.auditoria4.unit` (7).
 
+**V-20 · CR3 · Exaurir (701.43) e "não desvira no próximo passo de desvirar" (502.3)** 🟡 (leva V-20, motor v110 sem subir: só acrescenta ações; partidas-referência idênticas) — 701.43 passa de ausente a **parcial**. Retomada da trilha por ordem do dono ("siga", 11/10/2026): os verbos que pediam toque fora da âncora entram com cada toque declarado.
+- **Valor:** cartas de congelar funcionam ("Tap target creature. It doesn't untap during its controller's next untap step") e a criatura com "You may exert ~ as it attacks" pergunta ao atacar se você a exaure.
+- **Regra:** a presa não desvira no próximo passo de desvirar de quem a controla e desvira no seguinte; a exaurida, no de quem a exauriu (com outro jogador, desvira normalmente); exaurir desvirada e mais de uma vez vale, e tudo acaba no mesmo passo; fora do campo não se exaure; a pergunta de exaurir vem na declaração do ataque, antes da prioridade, e "when you do" é gatilho na pilha.
+- **Vocabulário:** efeitos `nao_desvira` (`vira: true` para "Tap … It doesn't untap…") e `exert`; gatilho `exerted`; `self.exaurirAoAtacar`.
+- **Cartas (texto oficial em `.listas/oficiais-verbos.json`, Oracle do Forge, 11/10/2026; segunda fonte pendente):** Crippling Chill, Frost Breath (na biblioteca); Hooded Brawler — script provado no teste; Gust Walker só texto.
+- **Mesa:** nenhuma decisão de tipo novo (a pergunta usa o sim/não que já existe). **Pedido à mesa (não bloqueia):** marca de "não desvira" na carta e título próprio da pergunta.
+- **Toca ponto comum:** `enterStep` (uma linha antes e uma depois do laço de desvirar) · `HANDLERS.attack` (uma linha).
+- **Parcial, declarado:** exaurir como custo de habilidade ativada (Oasis Ritualist) pede parte de custo nova.
+- **Testes:** `verbos.exaurir.unit` (6).
+
 **CR4 · Habilidades de palavra-chave (702)** ○ — 150 ausentes e 21 parciais, em ondas pela frequência em cartas anotada no mapa: (1) fechar as evergreen e as parciais; (2) "muito comum" (proeza, tripular, reforço, convocar, cascata, evocar, persistir, imortal, fração de segundo, infectar e tóxico…); (3) "comum"; (4) "rara" e "uma coleção só". 50 a 65 levas.
 
 **CR4 · andamento (trilha `keywords`, levas `K-N`)** ▶ — ordem de 11/10/2026: primeiro as palavras-chave do acervo que o medidor do leitor (LT6) acusa fora do vocabulário, depois a onda 1 (proeza, convocar, cascata, evocar, persistir, imortal, exaltado, explorar, arremeter, improvisar, recomeçar, pós-vida, evoluir), a onda 2 (completar as parciais), a 3 (raras, da mais citada à menos) e a 4 (o resto de 702, com o que fica fora declarado no mapa). Auditoria independente por subagente ao fim de cada onda. Palavra-chave com parâmetro ("Ward {3}", "Kicker {B}", "Crew 1") também depende de o leitor ler a forma: isso é da trilha `motor` (leitor), avisada a cada leva.

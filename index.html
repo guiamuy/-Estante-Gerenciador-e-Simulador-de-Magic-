@@ -5377,6 +5377,9 @@ const EFFECTS = {
   explorar_k: { fields: ['fase'], targets: [] }, // K-12 · 702.110 · gerado pelo motor (antes e depois do sacrifício)
   proeza_k: { fields: ['z'], targets: [] }, // K-14 · 702.108a · +1/+1 até o fim do turno, só na mesma encarnação (gerado pelo motor)
   /* ↓ V · efeitos da trilha verbos */
+  // V-20 · 502.3 "doesn't untap during its controller's next untap step" (`vira: true` = "Tap … It doesn't untap…") e 701.43 exaurir ("não desvira no SEU próximo passo de desvirar": de quem exauriu)
+  nao_desvira: { fields: [], targets: ['self-source', 'first-target', 'creature', 'permanent', 'creature-opponent-controls', 'permanent-opponent-controls', 'enchanted'] },
+  exert: { fields: [], targets: ['self-source', 'first-target', 'creature-you-control'] },
   // V-18 · 701.58 encobrir (como manifestar, com salvaguarda {2}; `look: N` = "look at the top N cards, cloak `amount` of them, the rest on the bottom in a random order") e 701.62 manifestar pavor (olha duas, manifesta uma, a outra vai para o cemitério)
   cloak: { fields: [], targets: ['self'] },
   manifest_dread: { fields: [], targets: ['self'] },
@@ -5694,6 +5697,7 @@ const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield
   /* ↓ K · gatilhos da trilha keywords */
   'exploits', // K-12 · 702.110b · "When ~ exploits a creature" (disparado pelo motor quando a habilidade de explorar sacrifica)
   /* ↓ V · gatilhos da trilha verbos */
+  'exerted', // V-20 · "You may exert ~ as it attacks. When you do, …" (701.43d): dispara quando a permanente é exaurida
   'becomes-monstrous', // V-6 · "When ~ becomes monstrous" (o valor do gatilho é o N da monstruosidade, 701.37c)
   /* ↓ T · gatilhos da trilha tipos */
   'transforms', // T-7 · CR 701.27e · "When ~ transforms (into …)": dispara na face que ficou para cima depois de a permanente transformar
@@ -6231,6 +6235,7 @@ function effectErrors(effects, label, opcional) {
   });
   /* ↓ K · validação da trilha keywords */
   /* ↓ V · validação da trilha verbos */
+  effects.forEach((e, i) => { if (e.do === 'nao_desvira' && e.vira != null && e.vira !== true) errs.push(`${label} ${i + 1} (nao_desvira): "vira" só vale como true`); }); // V-20
   effects.forEach((e, i) => { // V-18 · 701.58, 701.62
     if (e.do === 'cloak') {
       for (const k of ['amount', 'look']) if (e[k] != null && !(Number.isInteger(e[k]) && e[k] > 0)) errs.push(`${label} ${i + 1} (cloak): ${k} precisa ser inteiro positivo`);
@@ -6336,6 +6341,11 @@ const RAW_SCRIPTS = [
   { name: 'Metallic Rebuke', effects: [{ do: 'counter', target: 'spell', unless: { mana: '{3}' } }], example: { target: 'enemy-spell', expect: { countered: true } } }, // "Improvise / Counter target spell unless its controller pays {3}."
   { name: 'Radical Idea', effects: [{ do: 'draw', amount: 1 }], example: { target: 'none', expect: { handDelta: 1 } } }, // "Draw a card. / Jump-start"
   /* ↓ V · scripts de carta da trilha verbos (texto oficial em .listas/oficiais-verbos.json) */
+  // V-20 · 502.3 não desvira no próximo passo de desvirar
+  { name: 'Crippling Chill', effects: [{ do: 'nao_desvira', vira: true, target: 'creature' }, { do: 'draw', amount: 1 }], // "Tap target creature. It doesn't untap during its controller's next untap step. Draw a card."
+    example: { target: 'enemy-creature', expect: { tapped: true, handDelta: 1 } } },
+  { name: 'Frost Breath', effects: [{ do: 'nao_desvira', vira: true, target: 'creature', upTo: true }, { do: 'nao_desvira', vira: true, target: 'creature', upTo: true }], // "Tap up to two target creatures. Those creatures don't untap during their controller's next untap step."
+    example: { target: 'enemy-creature', expect: { tapped: true } } },
   // V-18 · 701.58 encobrir
   { name: 'Hide in Plain Sight', effects: [{ do: 'cloak', look: 5, amount: 2 }], // "Look at the top five cards of your library, cloak two of them, and put the rest on the bottom of your library in a random order."
     example: { target: 'none', expect: { picked: true } } },
@@ -7693,6 +7703,8 @@ function palavraNaLinhaK(k) {
   return ['afterlife'].includes(k) ? `${k} \\d+` : k;
 }
 /* ↓ V · exportações de scripts.js da trilha verbos */
+// V-20 · evento "foi exaurida" (701.43): da própria permanente
+EVENTOS_DE_OBJETO.push('exaurida'); OBJETOS_DO_EVENTO.exaurida = ['self']; GATILHO_EVENTO['exerted'] = { evento: 'exaurida', objeto: 'self' }; TRIGGER_PT['exerted'] = 'quando é exaurida';
 // V-6 · evento "ficou monstruosa" (701.37): da própria permanente
 EVENTOS_DE_OBJETO.push('monstruosa'); OBJETOS_DO_EVENTO.monstruosa = ['self']; GATILHO_EVENTO['becomes-monstrous'] = { evento: 'monstruosa', objeto: 'self' }; TRIGGER_PT['becomes-monstrous'] = 'quando fica monstruosa';
 /* ↓ T · exportações de scripts.js da trilha tipos */
@@ -16507,7 +16519,9 @@ function enterStep(s, step) {
     const voltam = new Set(); // M-261 · 502.1: entra em fase antes de desvirar · CR2g.1 · 702.26g: o que saiu indiretamente volta com o que o levou, e só com ele
     for (const o of campoInteiro(s)) if (o.phasedOut && o.faseCom == null && o.controller === a) { delete o.phasedOut; voltam.add(o.oid); }
     for (const o of campoInteiro(s)) if (o.phasedOut && o.faseCom != null && voltam.has(o.faseCom)) { delete o.phasedOut; delete o.faseCom; }
+    const presasV = presasNoDesvirarV(s, a); // V-20 · 502.3 / 701.43: quem não desvira neste passo · Toca ponto comum: enterStep (uma linha antes e uma depois do laço)
     for (const o of battlefield(s)) if (o.controller === a) { o.sick = false; if (naoDesviraNoPasso(s, o)) { delete o.naoDesviraProximo; continue; } desvira(s, o); } // CR2g.6 · 502.3 / 122.1d
+    for (const oid of presasV) if (s.objects[oid] && s.objects[oid].zone === 'battlefield') s.objects[oid].tapped = true;
     return enterStep(s, 'upkeep');
   }
   // CR2-G R2b · 603.2b · começo do passo: na manutenção, os do jogador ativo vêm antes dos atrasados (como antes)
@@ -17996,6 +18010,11 @@ function applyEffect(s, src, eff, tgt, events) {
       note({ pending: true }); break;
     }
     /* ↓ V · casos de applyEffect da trilha verbos */
+    case 'nao_desvira': { const o = objetoDoVerbo(s, src, eff.target === 'enchanted' ? { target: 'x' } : eff, eff.target === 'enchanted' ? (criaturaEncantada(s, src) ? { oid: criaturaEncantada(s, src).oid } : null) : tgt); // V-20 · 502.3
+      if (!o || o.zone !== 'battlefield') { note({ failed: true }); break; }
+      if (eff.vira) o.tapped = true; prendeNoDesvirarV(s, o, null); note({ target: o.name }); break; }
+    case 'exert': { const o = objetoDoVerbo(s, src, eff, tgt); if (!exaurir(s, o, src.controller, events)) note({ failed: true }); break; } // V-20 · 701.43
+    case 'exert_sim': { const o = s.objects[eff.oid]; if (o && (o.zc || 0) === eff.z) exaurir(s, o, eff.p, events); break; } // V-20 · o "sim" da pergunta ao atacar (efeito interno, sem script)
     case 'cloak': if (eff.look) olhaEViraV(s, src, { count: eff.look, amount: eff.amount || 1, modo: 'cloak', rest: 'library-bottom-random' }, events); else viraDoTopoV(s, src, eff.amount || 1, 'cloak', events); break; // V-18 · 701.58
     case 'manifest_dread': olhaEViraV(s, src, { count: 2, amount: 1, modo: 'manifest', rest: 'graveyard', pavor: true }, events); break; // V-18 · 701.62
     case 'manifest': manifestar(s, src, eff, events); break; // V-17 · 701.40
@@ -19477,6 +19496,7 @@ const HANDLERS = {
     if (list.length) gatilhosDeJogador(s, 'atacou', a.p, list.length); // CR2g.5 · 508.3d: "whenever you attack" — uma vez, com quantas atacaram
     exaltadoK(s, a.p, list); // K-5 · 702.83a: exaltado, quando uma só ataca
     s.pending = null; s.turn.priority = s.turn.active; s.turn.passes = 0;
+    exaurirAoAtacarV(s, a.p, list, []); // V-20 · 701.43d: "you may exert ~ as it attacks" · Toca ponto comum: HANDLERS.attack (uma linha)
   },
   /** M6 · declaração de bloqueadores. blocks = [[bloqueador, atacante], …] */
   block(s, a) {
@@ -21099,6 +21119,49 @@ function palavrasDoTextoK(card) {
 }
 Object.assign(EXPORTS_K, { tapaImpressoK, gruposParaTaparK, palavrasDoTextoK });
 /* ↓ V · exportações de core.js da trilha verbos */
+/* V-20 · 502.3 e 701.43. "Doesn't untap during its controller's next untap step": a permanente fica presa até o próximo passo de
+   desvirar de quem a controlar nessa hora — a marca é gasta nesse passo. Exaurir (701.43a): quem exaure escolhe que ela não desvire no
+   SEU próximo passo de desvirar; pode exaurir desvirada ou já exaurida, e toda marca desse jogador acaba no mesmo passo de desvirar dele
+   (b), mesmo que a permanente esteja com outro jogador (aí ela desvira normalmente no passo de quem a controla). Fora do campo não se
+   exaure (c). "You may exert ~ as it attacks" (d) é custo opcional do ataque: a pergunta vem na declaração dos atacantes, antes de
+   alguém receber prioridade, e "when you do" é gatilho (`exerted`) que vai à pilha com os gatilhos de ataque. */
+function prendeNoDesvirarV(s, o, p) { o.presaV = [...(o.presaV || []), { z: o.zc || 0, ...(p != null ? { p } : {}) }]; }
+const presasValidasV = o => (o.presaV || []).filter(m => m.z === (o.zc || 0));
+/** Chamada só por enterStep, antes de desvirar: devolve as permanentes de `a` que NÃO desviram neste passo e gasta as marcas. */
+function presasNoDesvirarV(s, a) {
+  const ficam = [];
+  for (const o of campoInteiro(s)) {
+    if (!o.presaV) continue;
+    const marcas = presasValidasV(o), segura = o.controller === a && marcas.some(m => m.p == null || m.p === a);
+    if (segura && o.tapped) ficam.push(o.oid);
+    const resto = marcas.filter(m => m.p == null ? o.controller !== a : m.p !== a); // gasta: as "do controlador" no passo dele; as de exaurir no passo de quem exauriu
+    if (resto.length) o.presaV = resto; else delete o.presaV;
+  }
+  return ficam;
+}
+const estaExaurida = (s, o) => !!o && o.zone === 'battlefield' && presasValidasV(o).some(m => m.p != null);
+const estaPresaNoDesvirar = (s, o) => !!o && o.zone === 'battlefield' && presasValidasV(o).length > 0;
+function exaurir(s, o, p, events) {
+  if (!o || o.zone !== 'battlefield') return false; // 701.43c
+  prendeNoDesvirarV(s, o, p);
+  events.push({ kind: 'effect', do: 'exert', name: o.name, target: o.name });
+  gatilhosDaPermanente(s, 'exaurida', o, ['self'], {}, () => true, false);
+  return true;
+}
+/** 701.43d · chamada só por HANDLERS.attack, depois de declarar: uma pergunta por atacante que diz "you may exert ~ as it attacks". */
+function exaurirAoAtacarV(s, p, list, events) {
+  const podem = list.map(oid => s.objects[oid]).filter(o => o && o.zone === 'battlefield' && !o.faceDown && !semImpressas(s, o) && (((s.facts[o.name] || {}).script || {}).self || {}).exaurirAoAtacar);
+  if (!podem.length) return;
+  s.verbo = [...(s.verbo || []), ...podem.map(o => ({ passo: 'exaurir-pergunta', p, oid: o.oid, z: o.zc || 0 }))];
+  continuaVerbo(s, events);
+}
+function passoExaurirPergunta(s, passo, events) {
+  const o = s.objects[passo.oid]; if (!o || o.zone !== 'battlefield' || (o.zc || 0) !== passo.z || !o.attacking) return;
+  s.pending = { kind: 'may_pay', p: passo.p, cost: null, name: `${o.name}: exaurir ao atacar (não desvira no seu próximo passo de desvirar)`,
+    then: { effects: [{ do: 'exert_sim', oid: o.oid, z: passo.z, p: passo.p }], source: o.oid, name: o.name, controller: passo.p, targets: [] } };
+  events.push({ kind: 'choice', what: 'exaurir', name: o.name, amount: 1 });
+}
+Object.assign(EXPORTS_V, { presasNoDesvirarV, prendeNoDesvirarV, estaExaurida, estaPresaNoDesvirar, exaurir, exaurirAoAtacarV });
 /* V-18 · 701.58 encobrir: como manifestar, mas a permanente virada para baixo tem salvaguarda {2} enquanto ficar virada (a); vira para
    cima do mesmo jeito (b–d, g) e as cartas vão uma de cada vez (e). 701.62 manifestar pavor: "Look at the top two cards of your
    library. Manifest one of them, then put the cards you looked at that were not manifested this way into your graveyard" (a) — quem
@@ -21406,6 +21469,7 @@ function proliferar(s, src, events) {
   else continuaVerbo(s, events);
 }
 const PASSOS_V = {
+  'exaurir-pergunta': (s, passo, events) => passoExaurirPergunta(s, passo, events), // V-20
   'virar-escolhidas': (s, passo, events) => passoVirarEscolhidas(s, passo, events), // V-18
   'aprender-descarta': (s, passo, events) => passoAprenderDescarta(s, passo, events), 'aprender-compra': (s, passo, events) => passoAprenderCompra(s, passo, events), // V-16
   'descobrir-fim': (s, passo, events) => passoDescobrirFim(s, passo, events), // V-10
@@ -24244,6 +24308,9 @@ Object.assign(PALAVRA_PT, { convoke: 'convocar', improvise: 'improvisar' }); // 
 /* ↓ V · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha verbos */
 const MARCADOR_PT_V = { p1p1: '+1/+1', m1m1: '−1/−1', loyalty: 'de lealdade', poison: 'de veneno' }; // V-7
 const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas por descreveEfeito)
+  nao_desvira: e => { const a = e.target === 'self-source' ? 'esta permanente' : ALVO_PT[e.target] || descreveAlvo(e.target); return e.vira ? `vira ${a}; ela não desvira no próximo passo de desvirar de quem a controla` : `${a} não desvira no próximo passo de desvirar de quem a controla`; }, // V-20
+  exert: e => `exaure ${e.target === 'self-source' ? 'esta permanente' : ALVO_PT[e.target] || descreveAlvo(e.target)} (não desvira no seu próximo passo de desvirar)`, // V-20
+  exert_sim: () => 'exaure a atacante (não desvira no seu próximo passo de desvirar)',
   cloak: e => e.look ? `olha as ${e.look} cartas do topo do seu grimório, encobre ${(e.amount || 1) === 1 ? 'uma' : e.amount} delas (entram viradas para baixo como criaturas 2/2 com salvaguarda {2}) e põe o resto no fundo em ordem aleatória` : `encobre ${(e.amount || 1) === 1 ? 'a carta do topo' : 'as ' + e.amount + ' cartas do topo'} do seu grimório (entra virada para baixo como criatura 2/2 com salvaguarda {2})`, // V-18
   manifest_dread: () => 'manifesta pavor (olha as duas cartas do topo do seu grimório: uma entra virada para baixo como criatura 2/2, a outra vai para o cemitério)', // V-18
   manifest: e => `manifesta ${e.amount == null || e.amount === 1 ? 'a carta do topo' : 'as ' + qtd(e.amount) + ' cartas do topo'} do seu grimório (entra virada para baixo como criatura 2/2)${e.marcadores ? ` e põe ${e.marcadores === 1 ? '1 marcador' : e.marcadores + ' marcadores'} +1/+1 nela` : ''}`, // V-17
