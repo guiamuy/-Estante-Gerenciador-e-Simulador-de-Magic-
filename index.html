@@ -5210,6 +5210,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'jump-start', // K-10 · 702.133: conjurar do cemitério pagando o custo e descartando uma carta; exilada ao sair da pilha
   'evolve', // K-11 · 702.100: "sempre que uma criatura sua entra com poder ou resistência maior, +1/+1" (evoluirK), uma por instância
   'exploit', // K-12 · 702.110: "quando entra, você pode sacrificar uma criatura"; o script diz o que acontece "quando ~ explora" (gatilho 'exploits')
+  'protection', // K-17 · 702.16: a qualidade vem da linha "Protection from …" (cores, tipos, subtipos, multicolorido, tudo); a palavra sozinha não protege
   'convoke', 'improvise', // K-13 · 702.51 e 702.126: virar criaturas (artefatos) para pagar parte do custo total (tapaParaPagarK)
   /* ↓ V · palavras-chave da trilha verbos */
   /* ↓ T · palavras-chave da trilha tipos */
@@ -7711,6 +7712,7 @@ Object.assign(EXPORTS_K_SC, { wardCustoErrosK });
 TRIGGER_PT.exploits = 'quando explora uma criatura'; // K-12 · 702.110b
 TRIGGER_PT.cycled = 'quando você a cicla'; // K-16 · 702.29c
 function palavraNaLinhaK(k) {
+  if (k === 'protection') { const q = '(?:white|blue|black|red|green|everything|multicolored|monocolored|colorless|all colors|creatures|artifacts|enchantments|instants|sorceries|planeswalkers|lands|(?!players\\b|opponents\\b)[a-z]+s)'; return `protection from ${q}(?: and from ${q})*`; } // K-17 · só as qualidades que o motor confere (protecaoImpressa e protecaoQualidadesK)
   if (k === 'dash') return 'dash\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-9
   if (k === 'evoke') return 'evoke(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*exile an? (?:white|blue|black|red|green) card from your hand\\.?)'; // K-8 · só as formas que o motor paga
   return ['afterlife'].includes(k) ? `${k} \\d+` : k;
@@ -15163,6 +15165,7 @@ function cardFacts(card) {
     tapaK: tapaImpressoK(card), // K-13 · 702.51/702.126: "Convoke" / "Improvise" impressos (undefined quando não tem)
     recomecarK: recomecarImpressoK(card), // K-10 · 702.133: linha "Jump-start" (undefined quando não tem)
     arremeterK: arremeterImpressoK(card), // K-9 · 702.109: "Dash {1}{R}" (undefined quando não tem)
+    protK: protecaoQualidadesK(card), // K-17 · 702.16a: qualidades que não são cor ("from creatures", "from Demons", "from everything"…) (undefined quando não tem)
     evocarK: evocarImpressoK(card), // K-8 · 702.74: "Evoke {2}{U}" / "Evoke—Exile a green card from your hand." (undefined quando não tem)
     numerosK: numerosDaPalavraK(card), // K-6 · "Afterlife 2", "Modular 1"…: o N de cada palavra-chave numerada impressa (undefined quando não tem)
     // CR 202.1b / 118.6: carta sem custo de mana (Living End, Lotus Bloom) tem custo impagável, não custo zero
@@ -16062,7 +16065,7 @@ function productions(s, o, visto) {
   return opts.filter(x => { const k = x.join(''); if (seen.has(k)) return false; seen.add(k); return true; });
 }
 /** Proteção concedida por auras: lista de cores. */
-const protImpressa = (s, o) => (o && !semImpressas(s, o) && s.facts[o.name] && s.facts[o.name].prot) || []; // CR 702.16 · a da própria carta
+const protImpressa = (s, o) => ((o && !semImpressas(s, o) && s.facts[o.name] && s.facts[o.name].prot) || []).concat((o && !semImpressas(s, o) && s.facts[o.name] && s.facts[o.name].protK) || []); // CR 702.16 · a da própria carta (K-17: com as qualidades que não são cor)
 const protections = (s, o) => protImpressa(s, o).concat(o.tempProtection || [], attachedTo(s, o).flatMap(x => {
   const g = grantsOf(s, x); if (!g || !g.protection) return [];
   return [].concat(g.protection).flatMap(c => c === 'chosen' ? (x.chosenColor ? [x.chosenColor] : []) : [c]);
@@ -16085,7 +16088,7 @@ function coresDe(s, o) {
   } finally { calculandoCor = false; }
 }
 const colorsOf = (s, src) => coresDe(s, src); // CR2d.8 · a cor de agora (camada 5)
-const protectedFrom = (s, o, src) => protections(s, o).some(c => colorsOf(s, src).includes(c));
+const protectedFrom = (s, o, src) => protections(s, o).some(c => casaProtecaoK(s, c, src)); // K-17 · 702.16a: cor ou outra qualidade (Toca ponto comum)
 /** Leva 108 · proteção que derruba anexos (702.16c), menos a que diz "não remove as auras e equipamentos que você
  * controla e que já estavam anexados" (Benevolent Blessing) quando o anexo é do mesmo controlador da fonte. */
 const protecaoDerruba = (s, host, anexo) => protImpressa(s, host).concat(host.tempProtection || [], attachedTo(s, host).flatMap(x => {
@@ -16093,7 +16096,7 @@ const protecaoDerruba = (s, host, anexo) => protImpressa(s, host).concat(host.te
   if (g.mantemOsSeus && x.controller === anexo.controller) return [];
   if (g.mantemASi && x.oid === anexo.oid) return []; // R11 · Flickering Ward: "This effect doesn't remove this Aura"
   return [].concat(g.protection).flatMap(c => c === 'chosen' ? (x.chosenColor ? [x.chosenColor] : []) : [c]);
-})).some(c => colorsOf(s, anexo).includes(c));
+})).some(c => casaProtecaoK(s, c, anexo)); // K-17 · 702.16c com qualquer qualidade (Toca ponto comum)
 /** CR2-G R5d · 614.1a · quanto dano a fonte `src` causaria a `alvo` depois das substituições "causa N a mais / o dobro" das
  * permanentes no campo (as que têm as habilidades). Antes da prevenção. 616 simplificado: todas as somas primeiro, depois
  * todos os multiplicadores, sem o afetado escolher a ordem. Dano 0 não é causado e nada o substitui. */
@@ -16667,7 +16670,7 @@ function porQueNaoBloqueia(s, blocker, attacker) {
   const ev = evasionOf(s, a); // S11b · evasão estática
   if (ev === 'flying-only' && !has(s, b, 'flying')) return 'só criaturas com voar bloqueiam';
   if (ev === 'power-less' && power(s, b) < power(s, a)) return 'poder menor que o da atacante';
-  if (protections(s, a).some(c => colorsOf(s, b).includes(c))) return 'proteção contra a cor do bloqueador';
+  if (protections(s, a).some(c => casaProtecaoK(s, c, b))) return 'proteção contra o bloqueador'; // K-17 · 702.16f: qualquer qualidade (Toca ponto comum)
   // CR1b · evasões por palavra-chave
   const artefato = !b.faceDown && s.facts[b.name].types.includes('artifact');
   if (has(s, a, 'fear') && !artefato && !colorsOf(s, b).includes('B')) return 'medo: só criatura artefato ou preta bloqueia'; // 702.36b
@@ -21147,6 +21150,47 @@ function cicloK(s, a, o, cy) {
     s.queued.push({ source: o.oid, name: o.name, controller: a.p, effects: ab.effects, when: 'cycled', ...marcasDaHabilidade(ab) });
 }
 Object.assign(EXPORTS_K, { cicloK });
+/* K-17 · 702.16 proteção com qualquer qualidade (a). As cores continuam na lista de sempre (protecaoImpressa); as outras qualidades vêm
+   como texto curto: 'tudo' (702.16k, "from everything"), 'multicolorida', 'monocolorida', 'incolor', 'tipo:<tipo de carta>',
+   'sub:<subtipo>'. Uma qualidade casa com a fonte (mágica, habilidade — pela permanente que a gerou —, criatura que bloqueia, Aura ou
+   Equipamento) pelo que ela é agora. */
+const TIPOS_DA_PROTECAO_K = { creatures: 'creature', artifacts: 'artifact', enchantments: 'enchantment', instants: 'instant', sorceries: 'sorcery', planeswalkers: 'planeswalker', lands: 'land' };
+function subtipoDaProtecaoK(q) {
+  const cands = [q, q.replace(/s$/, ''), q.replace(/es$/, ''), q.replace(/ves$/, 'f'), q.replace(/ies$/, 'y')];
+  return cands.find(c => c && ehTipoDeCriaturaK(c)) || null;
+}
+function protecaoQualidadesK(card) {
+  const txt = String((card && (card.oracle_text || (card.faces && card.faces[0] && card.faces[0].oracle_text))) || ''), out = [];
+  for (const linha of txt.split('\n')) for (const parte of linha.replace(/\([^)]*\)/g, '').split(/[,;]/)) {
+    const m = /^\s*protection from (.+?)\.?\s*$/i.exec(parte.trim()); if (!m) continue;
+    for (const q0 of m[1].split(/\s+and\s+(?:from\s+)?/i)) {
+      const q = q0.replace(/^from\s+/i, '').trim(), ql = q.toLowerCase();
+      if (!q || ['white', 'blue', 'black', 'red', 'green'].includes(ql)) continue; // cor: já está em protecaoImpressa
+      if (ql === 'everything') out.push('tudo'); else if (ql === 'multicolored') out.push('multicolorida'); else if (ql === 'monocolored') out.push('monocolorida');
+      else if (ql === 'colorless') out.push('incolor'); else if (ql === 'all colors') out.push('W', 'U', 'B', 'R', 'G');
+      else if (TIPOS_DA_PROTECAO_K[ql]) out.push('tipo:' + TIPOS_DA_PROTECAO_K[ql]);
+      else { const sub = subtipoDaProtecaoK(q); if (sub) out.push('sub:' + sub); }
+    }
+  }
+  return out.length ? [...new Set(out)] : undefined;
+}
+/** A qualidade `q` da proteção casa com a fonte `src`? (cor de uma letra, ou uma das qualidades acima) */
+function casaProtecaoK(s, q, src) {
+  if (!src) return false;
+  if (q && q.length === 1) return colorsOf(s, src).includes(q);
+  const fonte = src.ability ? s.objects[src.source] || src : src, cores = colorsOf(s, src);
+  if (q === 'tudo') return true;
+  if (q === 'multicolorida') return cores.length > 1;
+  if (q === 'monocolorida') return cores.length === 1;
+  if (q === 'incolor') return cores.length === 0;
+  if (!fonte || !s.facts[fonte.name]) return false;
+  const tipos = fonte.zone === 'battlefield' ? tiposDe(s, fonte) : (s.facts[fonte.name].types || []);
+  if (q.startsWith('tipo:')) return tipos.includes(q.slice(5));
+  if (q.startsWith('sub:')) { const sub = q.slice(4), linha = fonte.zone === 'battlefield' ? linhaDeTipo(s, fonte) : (s.facts[fonte.name].typeText || '');
+    return new RegExp('\\b' + sub + '\\b', 'i').test(linha) || metamorfoK(s, fonte, sub); }
+  return false;
+}
+Object.assign(EXPORTS_K, { protecaoQualidadesK, casaProtecaoK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-22 · 701.68 afligir N: "put N −1/−1 counters on a creature you control" (a) — a criatura é escolhida por quem aflige (não mira);
    sem criatura sua, nada acontece (b); com uma só, é ela. Os marcadores passam pelas substituições de pôr marcadores (614.16).
@@ -24394,6 +24438,7 @@ Object.assign(PALAVRA_PT, { 'jump-start': 'recomeçar' }); // K-10
 Object.assign(PALAVRA_PT, { evolve: 'evoluir' }); // K-11
 Object.assign(PALAVRA_PT, { exploit: 'explorar' }); // K-12
 Object.assign(PALAVRA_PT, { convoke: 'convocar', improvise: 'improvisar' }); // K-13
+Object.assign(PALAVRA_PT, { protection: 'proteção' }); // K-17
 /* ↓ V · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha verbos */
 const MARCADOR_PT_V = { p1p1: '+1/+1', m1m1: '−1/−1', loyalty: 'de lealdade', poison: 'de veneno' }; // V-7
 const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas por descreveEfeito)

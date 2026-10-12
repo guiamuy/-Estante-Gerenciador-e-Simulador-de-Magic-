@@ -4052,6 +4052,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Testes:** `keywords.cr4.unit` (3, falham sem a leva), `scripts.unit` S8 (Renewed Faith). Textos oficiais: Renewed Faith, Ash Barrens (Oracle do Forge, 11/10/2026). Goldens idênticos (nenhuma partida-referência cicla); motor v109.
 - **Parcial declarado (702.29):** "sempre que você cicla outra carta" não existe; 702.29b; o leitor (trilha `motor`) ainda não lê "<Tipo>cycling {custo}" — **pedido**.
 
+**K-17 · Proteção com qualquer qualidade (702.16)** 🟡 (leva K-17)
+- **Valor:** "Protection from creatures", "from Goblins", "from multicolored", "from everything", "from all colors" passam a valer como a regra manda (alvo, dano, bloqueio, anexos), não só proteção de cor; carta só com essas linhas é completa na cobertura (antes até "Protection from black" sem script era manual).
+- **Aceite:** Beloved Chaplain (texto oficial) não é bloqueada por criatura, leva dano zero do Urso que ela bloqueia, e o Raio a mira; "from Goblins" barra o Goblin e não o Urso; "from multicolored" barra a mágica vermelha e verde e não o Raio; "from everything" barra alvo e bloqueio; "Protection from the chosen player" não conta como coberta.
+- **Toca ponto comum:** `protImpressa` (soma `protK`), `protectedFrom`, o teste de bloqueio e `protecaoDerruba` (a comparação de cor vira `casaProtecaoK`, que compara a cor como antes); `cardFacts` (`protK`, uma linha a mais).
+- **Testes:** `keywords.cr4.unit` (3, falham sem a leva), `combat.audit` K-17. Texto oficial: Beloved Chaplain (Oracle do Forge, 11/10/2026). Goldens idênticos; motor v109.
+- **Parcial declarado (702.16):** proteção de jogador e contra jogador; proteção concedida por efeito continua só de cor; face de trás.
+
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

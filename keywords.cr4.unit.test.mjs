@@ -858,3 +858,49 @@ test('CR 702.29e · tipociclar (Ash Barrens, texto oficial: "Basic landcycling {
   t = act(t, { t: 'cycle', p: b, oid: ab2 }); t = act(act(t, { t: 'pass', p: b }), { t: 'pass', p: 1 - b });
   assert.ok(t.pending && t.pending.kind === 'pick'); assert.ok(t.pending.from.every(x => t.objects[x].name === 'Forest'), 'só os básicos são opções (o Deserto não)');
 });
+
+/* ---------------- K-17 · 702.16 proteção com qualquer qualidade ---------------- */
+const CHAPLAIN = () => ({ ...oficial('Beloved Chaplain'), keywords: ['Protection'] });
+const GOBLIN = { name: 'Goblin', type_line: 'Creature — Goblin', mana_cost: '{R}', cmc: 1, colors: ['R'], power: '1', toughness: '1', keywords: [], oracle_text: '' };
+/** Declara o ataque de `atk` e devolve se `blk` pode bloqueá-lo (pela lista de bloqueios legais da mesa). */
+function podeBloquear(s, atk, blk) {
+  const a = s.turn.active; let t = s;
+  for (let i = 0; i < 6 && t.turn.step !== 'combat_attackers'; i++) t = act(t, { t: 'pass', p: t.turn.priority });
+  t = act(t, { t: 'attack', p: a, attackers: [atk] });
+  for (let i = 0; i < 6 && !(t.pending && t.pending.kind === 'blockers'); i++) t = act(t, { t: 'pass', p: t.turn.priority });
+  try { act(t, { t: 'block', p: 1 - a, blocks: [[blk, atk]] }); return true; } catch (e) { return false; }
+}
+
+test('CR 702.16a/f · proteção contra criaturas (Beloved Chaplain, texto oficial): não é bloqueada por criatura; mágica que não é criatura mira normalmente', () => {
+  assert.deepEqual(J(E.protecaoQualidadesK(oficial('Beloved Chaplain'))), ['tipo:creature']);
+  let s = partida({ 'Beloved Chaplain': CHAPLAIN(), Urso: URSO, Raio: RAIO }, SC_RAIO); const a = s.turn.active, d = 1 - a;
+  let c, u; [s, c] = poe(s, a, 'Beloved Chaplain'); [s, u] = poe(s, d, 'Urso');
+  assert.equal(podeBloquear(s, c, u), false, 'o Urso não bloqueia');
+  let r; [s, r] = poe(s, d, 'Raio', 'hand'); s = J(s); s.turn.priority = d;
+  s = resolve(act(s, { t: 'cast', p: d, oid: r, targets: [{ oid: c }] }));
+  assert.equal(s.objects[c].zone, 'graveyard', 'o Raio (instantânea) mira e mata');
+});
+
+test('CR 702.16 · proteção contra subtipo, multicolorido e tudo: bloqueio e alvo conferem a qualidade', () => {
+  const cre = (nome, txt) => ({ name: nome, type_line: 'Creature — Soldier', mana_cost: '{W}', cmc: 1, colors: ['W'], power: '2', toughness: '2', keywords: ['Protection'], oracle_text: txt });
+  const OURO = { name: 'Ouro', type_line: 'Instant', mana_cost: '{R}{G}', cmc: 2, colors: ['R', 'G'], keywords: [], oracle_text: 'Ouro deals 3 damage to any target.' };
+  const SC_OURO = { Ouro: { name: 'Ouro', effects: [{ do: 'damage', amount: 3, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: 17 } } } };
+  let s = partida({ AntiGoblin: cre('AntiGoblin', 'Protection from Goblins'), Goblin: GOBLIN, Urso: URSO }); const a = s.turn.active, d = 1 - a;
+  let x, g, u; [s, x] = poe(s, a, 'AntiGoblin'); [s, g] = poe(s, d, 'Goblin'); [s, u] = poe(s, d, 'Urso');
+  assert.equal(podeBloquear(s, x, g), false, 'o Goblin não bloqueia'); assert.equal(podeBloquear(s, x, u), true, 'o Urso bloqueia');
+  let t = partida({ AntiOuro: cre('AntiOuro', 'Protection from multicolored'), Ouro: OURO, Raio: RAIO }, { ...SC_RAIO, ...SC_OURO }); const b = t.turn.active;
+  let y; [t, y] = poe(t, b, 'AntiOuro');
+  let o; [t, o] = poe(t, b, 'Ouro', 'hand'); assert.throws(() => act(t, { t: 'cast', p: b, oid: o, targets: [{ oid: y }] }), /alvo/, 'a multicolorida não mira');
+  let r; [t, r] = poe(t, b, 'Raio', 'hand'); const rr = resolve(act(t, { t: 'cast', p: b, oid: r, targets: [{ oid: y }] }));
+  assert.equal(rr.objects[y].zone, 'graveyard', 'a monocolorida mira');
+  let w = partida({ Tudo: cre('Tudo', 'Protection from everything'), Raio: RAIO, Urso: URSO }, SC_RAIO); const c0 = w.turn.active, d0 = 1 - c0;
+  let z, u2; [w, z] = poe(w, c0, 'Tudo'); [w, u2] = poe(w, d0, 'Urso');
+  let r2; [w, r2] = poe(w, c0, 'Raio', 'hand'); assert.throws(() => act(w, { t: 'cast', p: c0, oid: r2, targets: [{ oid: z }] }), /alvo/, 'nada mira');
+  assert.equal(podeBloquear(w, z, u2), false, 'nada bloqueia');
+});
+
+test('CR 702.16a · a linha "Protection from <qualidade>" conta como palavra-chave na cobertura só quando o motor confere a qualidade', () => {
+  const c = t => S.coverage({ name: 'Z', type_line: 'Creature — Human', oracle_text: t }).level;
+  assert.equal(c('Protection from creatures'), 'completo'); assert.equal(c('Flying, protection from Humans'), 'completo'); assert.equal(c('Protection from white and from blue'), 'completo');
+  assert.equal(c('Protection from the chosen player'), 'manual');
+});

@@ -6849,15 +6849,19 @@
    "regra": "Keyword Abilities",
    "titulo": "Protection",
    "status": "parcial",
-   "evidencia": "Só proteção contra COR vinda de aura/equipamento (grants.protection) ou efeito temporário (tempProtection): protections/protectedFrom (index.html:10423-10429) valem em alvo (10916), bloqueio (10766), dano de combate (10803) e fora dele (11122), e derrubam anexos (protecaoDerruba 10432, SBA 12114) com as exceções de 702.16n/p; protecao.regras.test.mjs, pauper.regras Leva 108 (Benevolent Blessing), R11 Flickering Ward · CR1b (motor v74): proteção IMPRESSA contra cor é lida da linha de palavra-chave do texto (protecaoImpressa em cardFacts → protImpressa), vale em alvo, bloqueio, dano e anexos, e some com a carta virada para baixo; teste de conformidade em cr.conformidade",
-   "falta": "Qualidades que não são cor (tipo de carta, subtipo, \"tudo\", multicolorido, monocolorido, jogador — 702.16a, j, k) e proteção de jogador (702.16b-e); proteção impressa na face de trás de carta dupla",
+   "evidencia": "Só proteção contra COR vinda de aura/equipamento (grants.protection) ou efeito temporário (tempProtection): protections/protectedFrom (index.html:10423-10429) valem em alvo (10916), bloqueio (10766), dano de combate (10803) e fora dele (11122), e derrubam anexos (protecaoDerruba 10432, SBA 12114) com as exceções de 702.16n/p; protecao.regras.test.mjs, pauper.regras Leva 108 (Benevolent Blessing), R11 Flickering Ward · CR1b (motor v74): proteção IMPRESSA contra cor é lida da linha de palavra-chave do texto (protecaoImpressa em cardFacts → protImpressa), vale em alvo, bloqueio, dano e anexos, e some com a carta virada para baixo; teste de conformidade em cr.conformidade K-17: qualidades que não são cor lidas da linha impressa (protecaoQualidadesK em cardFacts.protK: tipo de carta, subtipo, multicolorida, monocolorida, incolor, todas as cores, tudo) e conferidas por casaProtecaoK nos três pontos que conferiam só a cor — alvo e dano (protectedFrom), bloqueio, anexos (protecaoDerruba); a linha conta como palavra-chave na cobertura só com as qualidades que o motor confere. Carta exemplo: Beloved Chaplain (Oracle do Forge, 11/10/2026).",
+   "falta": "Proteção de jogador (702.16b-e, \"you have protection from …\") e contra jogador (702.16j \"from [a player]\", \"from each of your opponents\") não existem; proteção concedida por efeito (Aura, \"gains protection\") continua só de cor; proteção impressa na face de trás de carta dupla.",
    "esforco": "M",
    "depende": [
     "613"
    ],
    "cartas": "evergreen",
    "testes": [
-    "CR 702.16 · proteção impressa na carta: não é alvo, não é bloqueada e não recebe dano de fonte daquela cor; outra cor passa"
+    "CR 702.16 · proteção impressa na carta: não é alvo, não é bloqueada e não recebe dano de fonte daquela cor; outra cor passa",
+    "CR 702.16a/f · proteção contra criaturas (Beloved Chaplain, texto oficial): não é bloqueada por criatura; mágica que não é criatura mira normalmente",
+    "CR 702.16 · proteção contra subtipo, multicolorido e tudo: bloqueio e alvo conferem a qualidade",
+    "CR 702.16a · a linha \"Protection from <qualidade>\" conta como palavra-chave na cobertura só quando o motor confere a qualidade",
+    "K-17 · proteção contra criaturas (702.16): bloqueia o Urso e não leva dano dele"
    ]
   },
   {

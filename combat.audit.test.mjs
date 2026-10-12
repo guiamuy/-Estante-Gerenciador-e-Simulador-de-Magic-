@@ -446,6 +446,17 @@ test('K-13 · convocar e improvisar (702.51, 702.126): quem virou para pagar a m
   assert.ok(!atacantes.includes(v1) && !atacantes.includes(v2), 'as Verdes viraram para convocar e não atacam');
 });
 
+test('K-17 · proteção contra criaturas (702.16): bloqueia o Urso e não leva dano dele', () => {
+  cobre('protection');
+  const cartas = { ...CARDS, Capelao: cre('Capelao', 1, 1, ['Protection'], { oracle_text: 'Protection from creatures' }) };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 45, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a; let u, c; [s, u] = poe(s, a, 'Urso'); [s, c] = poe(s, d, 'Capelao');
+  const r = combate(s, [u], [[c, u]]);
+  assert.ok(vivo(r, c), 'o dano do Urso foi prevenido'); assert.equal(r.objects[u].damage, 1, 'e o Capelão causou o dele');
+});
+
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));
