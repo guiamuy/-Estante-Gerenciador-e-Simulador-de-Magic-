@@ -5386,6 +5386,8 @@ const EFFECTS = {
   explorar_k: { fields: ['fase'], targets: [] }, // K-12 · 702.110 · gerado pelo motor (antes e depois do sacrifício)
   proeza_k: { fields: ['z'], targets: [] }, // K-14 · 702.108a · +1/+1 até o fim do turno, só na mesma encarnação (gerado pelo motor)
   /* ↓ V · efeitos da trilha verbos */
+  // V-27 · 701.53 incubar N: cria uma ficha Incubadora (dupla face, 111.10i) que entra com N marcadores +1/+1; `vezes` = "incubate N twice"
+  incubate: { fields: ['amount'], targets: ['self'] },
   // V-25 · 701.54 o Anel tenta você: quem é tentado ganha o emblema O Anel (701.54c) se ainda não tem e escolhe uma criatura sua para Portador do Anel (a)
   ring_tempts: { fields: [], targets: ['self'] },
   // V-22 · 701.28 converter (a mesma ação de transformar, com outro nome: cartas de duas faces "Convert ~") · 701.68 afligir N (N marcadores −1/−1 numa criatura sua, à sua escolha) · 701.70 recrutar (compra, descarta; se a descartada não é terreno, cria um Soldado Humano 1/1 branco)
@@ -6258,6 +6260,10 @@ function effectErrors(effects, label, opcional) {
   });
   /* ↓ K · validação da trilha keywords */
   /* ↓ V · validação da trilha verbos */
+  effects.forEach((e, i) => { // V-27
+    if (e.do === 'incubate' && typeof e.amount === 'number' && !(Number.isInteger(e.amount) && e.amount > 0)) errs.push(`${label} ${i + 1} (incubate): amount precisa ser inteiro positivo`);
+    if (e.do === 'incubate' && e.vezes != null && !(Number.isInteger(e.vezes) && e.vezes > 1)) errs.push(`${label} ${i + 1} (incubate): vezes precisa ser inteiro maior que 1`);
+  });
   effects.forEach((e, i) => { // V-25 · a escolha do Portador abre uma decisão no meio da resolução: nada com alvo depois dela
     if (e.do === 'ring_tempts' && effects.slice(i + 1).some(isTargeted)) errs.push(`${label} ${i + 1} (ring_tempts): efeito com alvo depois de uma escolha`);
   });
@@ -6376,6 +6382,11 @@ const RAW_SCRIPTS = [
   { name: 'Skewer the Critics', effects: [{ do: 'damage', amount: 3, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: -3 } } }, // K-32 · "Spectacle {R} / deals 3 damage to any target"
   { name: 'Comparative Analysis', effects: [{ do: 'draw', amount: 2, target: 'player' }], example: { target: 'self-player', expect: { handDelta: 2 } } }, // K-32 · "Surge {2}{U} / Target player draws two cards"
   /* ↓ V · scripts de carta da trilha verbos (texto oficial em .listas/oficiais-verbos.json) */
+  // V-27 · 701.53 incubar
+  { name: 'Eyes of Gitaxias', effects: [{ do: 'incubate', amount: 3 }, { do: 'draw', amount: 1 }], // "Incubate 3. Draw a card."
+    example: { target: 'none', expect: { handDelta: 1 } } },
+  { name: 'Merciless Repurposing', effects: [{ do: 'exile', target: 'creature' }, { do: 'incubate', amount: 3 }], // "Exile target creature. Incubate 3."
+    example: { target: 'enemy-creature', expect: { gone: true } } },
   // V-25 · 701.54 o Anel tenta você
   { name: 'Claim the Precious', effects: [{ do: 'destroy', target: 'creature' }, { do: 'ring_tempts' }], // "Destroy target creature. The Ring tempts you."
     example: { target: 'enemy-creature', expect: { gone: true } } },
@@ -18334,6 +18345,7 @@ function applyEffect(s, src, eff, tgt, events) {
       note({ pending: true }); break;
     }
     /* ↓ V · casos de applyEffect da trilha verbos */
+    case 'incubate': incubar(s, src, eff, events); break; // V-27 · 701.53
     case 'ring_tempts': anelTentaV(s, src, events); break; // V-25 · 701.54
     case 'convert': applyEffect(s, src, { ...eff, do: 'transform' }, tgt, events); break; // V-22 · 701.28a: segue as regras de transformar (701.27)
     case 'blight': afligir(s, src, eff, events); break; // V-22 · 701.68
@@ -21780,6 +21792,28 @@ Object.assign(EXPORTS_K, { semPalavraDoJogadorK });
 function tempestadeNaPilhaK(s, a, o) { s.queued.push({ source: a.oid, name: o.name, controller: a.p, effects: [{ do: 'tempestade_k', n: s.spellsThisTurn || 0, efeitos: spellEffects(s, s.objects[a.oid]), marcas: marcasDaMagia(s.objects[a.oid]) }], when: 'storm-gatilho' }); }
 Object.assign(EXPORTS_K, { tempestadeNaPilhaK });
 /* ↓ V · exportações de core.js da trilha verbos */
+/* V-27 · 701.53 incubar N: "create an Incubator token that enters the battlefield with N +1/+1 counters on it" (a). A Incubadora é ficha de
+   dupla face (b, 111.10i): a frente é um artefato incolor Incubadora com "{2}: Transform this token"; o verso é a criatura artefato incolor
+   0/0 Phyrexian Token. Os marcadores vêm na entrada (614.1c: passam pelas substituições de "entra com marcadores") e ficam ao
+   transformar (712.18): a Firexiana sai N/N. A transformação é a da trilha tipos (transformaT, pela ficha de dupla face, 707.8a). Dobrar
+   fichas dobra as Incubadoras, cada uma com os N marcadores. Enjoo (302.6): a Incubadora nasce marcada como recém-chegada, para que a
+   Firexiana transformada no mesmo turno não ataque nem use {T} (o enjoo do motor olha os tipos de agora). */
+const INCUBADORA_V = { name: 'Incubator', types: ['artifact'], subtypes: ['Incubator'], colors: [], abilities: [{ kind: 'activated', cost: { mana: '{2}' }, effects: [{ do: 'transformar' }] }] };
+const FIREXIANA_V = 'Phyrexian Token';
+function incubar(s, src, eff, events) {
+  const p = src.controller, n = Math.max(0, amountOf(s, src, eff.amount) || 0);
+  if (!s.facts[FIREXIANA_V]) s.facts[FIREXIANA_V] = cardFacts({ name: FIREXIANA_V, type_line: 'Artifact Creature — Phyrexian', power: '0', toughness: '0', keywords: [], colors: [], oracle_text: '' });
+  for (let v = 0; v < (eff.vezes || 1); v++) {
+    const k = fichasAoCriar(s, p, 1);
+    for (let i = 0; i < k; i++) {
+      const t = s.objects[createToken(s, INCUBADORA_V, p, events)];
+      t.duplaFace = { frente: INCUBADORA_V.name, verso: FIREXIANA_V }; t.sick = true;
+      if (n > 0) t.counters.p1p1 = (t.counters.p1p1 || 0) + marcadoresAoPor(s, t, 'p1p1', n, true);
+    }
+  }
+  events.push({ kind: 'effect', do: 'incubate', name: src.name, target: s.players[p].name, amount: n });
+}
+Object.assign(EXPORTS_V, { incubar });
 /* V-25 · 701.54 o Anel tenta você. Cada vez que o Anel tenta um jogador: sem o emblema O Anel ele ganha o emblema (c, antes de
    escolher); escolhe uma criatura que controla e ela vira o Portador do Anel (a) até outra criatura virar o Portador ou ela sair do
    seu controle (o objeto novo, ao voltar ao campo, não é mais o Portador — 400.7). Sem criatura, nada é escolhido, mas o Anel tentou
@@ -25356,6 +25390,7 @@ const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consulta
 /* ↓ V · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha verbos */
 const MARCADOR_PT_V = { p1p1: '+1/+1', m1m1: '−1/−1', loyalty: 'de lealdade', poison: 'de veneno' }; // V-7
 const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas por descreveEfeito)
+  incubate: e => `incuba ${qtd(e.amount)}${e.vezes ? ` ${e.vezes === 2 ? 'duas' : e.vezes} vezes` : ''} (cria uma ficha de Incubadora com ${qtd(e.amount) === 1 ? '1 marcador' : qtd(e.amount) + ' marcadores'} +1/+1; por {2} ela vira uma criatura artefato Firexiana 0/0)`, // V-27
   ring_tempts: () => 'o Anel tenta você (escolha uma criatura sua para ser o Portador do Anel)', // V-25
   convert: () => 'converte esta permanente (vira para a outra face)', // V-22
   blight: e => `aflige ${qtd(e.amount)} (põe ${qtd(e.amount) === 1 ? '1 marcador' : qtd(e.amount) + ' marcadores'} −1/−1 numa criatura sua, à sua escolha)`, // V-22

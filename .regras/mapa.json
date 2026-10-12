@@ -6420,14 +6420,19 @@
    "n": "701.53",
    "regra": "Keyword Actions",
    "titulo": "Incubate",
-   "status": "ausente",
-   "falta": "não há ficha de duas faces (Incubadora que vira Phyrexiano 0/0) nem ficha entrando com marcadores",
+   "status": "coberta",
    "esforco": "M",
    "depende": [
     "111.10i",
     "712"
    ],
-   "cartas": "uma coleção só"
+   "cartas": "uma coleção só",
+   "evidencia": "V-27 · efeito `incubate` (`amount` número ou contagem; `vezes` para \"incubate N twice\") — incubar em core.js, abaixo da âncora ↓ V: cria a ficha Incubadora de dupla face (111.10i: frente artefato incolor Incubadora com \"{2}: Transform this token\"; verso criatura artefato incolor 0/0 Phyrexian Token) que entra com N marcadores +1/+1 pelas substituições de entrada (614.1c); a transformação é a da trilha tipos (transformaT, ficha de dupla face 707.8a) e os marcadores ficam (712.18); dobrar fichas dobra as Incubadoras. A Incubadora nasce marcada como recém-chegada para a Firexiana transformada no mesmo turno não atacar (302.6). Cartas: Eyes of Gitaxias e Merciless Repurposing (biblioteca); Converter Beast e Infected Defector (scripts validados no teste) · texto oficial em .listas/oficiais-verbos.json",
+   "testes": [
+    "CR 701.53a/b · incubar N: uma ficha Incubadora, artefato incolor (não criatura), que entra com N marcadores +1/+1 e tem \"{2}: Transform this token\"",
+    "CR 701.53b · pagando {2} a Incubadora transforma: vira a Phyrexian Token, criatura artefato 0/0 que fica N/N com os marcadores; não ataca no turno em que nasceu",
+    "CR 701.53a · incubar 0 cria a Incubadora sem marcador (transformada, a 0/0 morre); \"incubate N twice\" cria duas, cada uma com N"
+   ]
   },
   {
    "n": "701.54",
