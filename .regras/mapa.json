@@ -8094,15 +8094,20 @@
    "n": "702.87",
    "regra": "Keyword Abilities",
    "titulo": "Level Up",
-   "status": "ausente",
-   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): nivelar (Level Up) muda P/R e habilidades por faixa de marcadores de nível — a forma de carta de nível.",
+   "status": "coberta",
    "esforco": "M",
    "depende": [
     "711",
     "613",
     "122 (marcador nomeado)"
    ],
-   "cartas": "uma coleção só (Rise of the Eldrazi) e poucas"
+   "cartas": "uma coleção só (Rise of the Eldrazi) e poucas",
+   "evidencia": "Delegada pela trilha keywords (K-71): «Fica com a trilha tipos (CR5, tipos e formatos de carta): nivelar (Level Up) muda P/R e habilidades por faixa de marcadores de nível — a forma de carta de nível.» T-24 (12/10/2026): \"Level up [custo]\" é a ativada \"Subir de nível\" de toda carta com self.nivelar — custo do script, só como feitiço, põe um marcador de nível (122.1, MARCADOR_PT.level) — e vale em qualquer nível (711.4). Mesa: \"Subir de nível · custo\". Cartas exemplo completas: Beastbreaker of Bala Ged e Knight of Cliffhaven (Oracle do Forge, consulta de 12/10/2026).",
+   "testes": [
+    "CR 702.87a · subir de nível: paga o custo e põe um marcador de nível; só como feitiço (na sua fase principal, com a pilha vazia)",
+    "CR 711.4 · a habilidade de subir de nível vale sempre, com qualquer número de marcadores (até acima da última barra)",
+    "Mesa · a folha da carta diz \"Subir de nível · custo\""
+   ]
   },
   {
    "n": "702.88",
@@ -10427,14 +10432,22 @@
    "n": "711.2",
    "regra": "Leveler Cards",
    "titulo": "Símbolo de nível: habilidade estática por faixa",
-   "status": "ausente",
-   "falta": "sem level up nem marcador de nível (grep level no motor: só cobertura de script). T-19 (12/10/2026): fica para depois — subir de nível (Rise of the Eldrazi, ~30 cartas, nenhuma nas listas): 1 leva (o molde da Classe serve).",
+   "status": "coberta",
    "esforco": "M",
    "depende": [
     "702.87",
     "613"
    ],
-   "cartas": "uma coleção só (Rise of the Eldrazi)"
+   "cartas": "uma coleção só (Rise of the Eldrazi)",
+   "evidencia": "T-24 (12/10/2026): self.nivelar.faixas = barras { de, ate, base, palavras, abilities, continuo } (a última, \"N+\", sem ate; o validador exige barras contíguas e em ordem). Na barra alcançada pelo número de marcadores de nível (de qualquer fonte), basePT dá a base de P/R da barra (bônus da camada 7c por cima) e continuosDaFonte/abilitiesOf dão as palavras, habilidades e contínuos dela; as palavras das barras saem dos fatos da carta (só valem pela barra). As barras são habilidades: a criatura que perde todas as habilidades (ou virada para baixo) volta ao P/R de cima.",
+   "testes": [
+    "CR 711.2a / 711.2b · Beastbreaker of Bala Ged (texto oficial): nível 1 a 3 é 4/4; nível 4 ou mais é 6/6 com atropelar",
+    "CR 711.2a / 711.2b · Knight of Cliffhaven (texto oficial): nível 1 a 3 é 2/3 com voar; nível 4 ou mais é 4/4 com voar e vigilância",
+    "CR 711.2 / 613.4 · o P/R da barra é a base: marcadores +1/+1 e outros bônus somam por cima dela",
+    "CR 711.2 · o marcador de nível de qualquer fonte conta (não só o da habilidade de subir)",
+    "CR 711.2 (as barras são habilidades) · a criatura que perde todas as habilidades fica com o P/R de cima, sem as palavras das barras e sem subir de nível",
+    "Validador · a forma de self.nivelar: custo, barras em ordem crescente, a última aberta (\"N+\"), P/R inteiro, palavras conhecidas"
+   ]
   },
   {
    "n": "711.3",
@@ -10452,22 +10465,28 @@
    "n": "711.5",
    "regra": "Leveler Cards",
    "titulo": "Abaixo do primeiro nível, P/R base",
-   "status": "ausente",
-   "falta": "sem cartas de nível. T-19: ver 711.2.",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "711.2"
+   ],
+   "evidencia": "T-24 (12/10/2026): abaixo da primeira barra nenhuma faixa casa — P/R impresso (o de cima) e nada das barras, nem as palavras impressas dentro delas.",
+   "testes": [
+    "CR 711.5 · com menos marcadores que o primeiro número da primeira barra, a criatura tem o P/R de cima e nenhuma habilidade das barras"
    ]
   },
   {
    "n": "711.6",
    "regra": "Leveler Cards",
    "titulo": "Fora do campo, P/R do topo",
-   "status": "ausente",
-   "falta": "sem cartas de nível. T-19: ver 711.2.",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "711.2"
+   ],
+   "evidencia": "T-24 (12/10/2026): a faixa só vale no campo; fora dele, P/R impresso. A carta que volta ao campo é objeto novo, sem marcadores (400.7).",
+   "testes": [
+    "CR 711.6 / 400.7 · fora do campo a carta tem o P/R de cima; voltando ao campo é um objeto novo, sem os marcadores de nível"
    ]
   },
   {

@@ -6173,7 +6173,7 @@ function validateScript(sc) {
   if (sc && sc.replicate != null && sc.kicker) errs.push('replicar e reforço na mesma carta não são aceitos (os dois usam o pagamento repetido)');
   if (sc && sc.modeCount != null && !(Number.isInteger(sc.modeCount) && sc.modeCount >= 2 && (sc.modes || []).length && (sc.modeRepeat || sc.modeCount <= sc.modes.length))) errs.push('número de modos inválido');
   if (sc && sc.cumulativeUpkeep && !/\{/.test(String(sc.cumulativeUpkeep.mana || ''))) errs.push('manutenção cumulativa precisa de um custo de mana');
-  errs.push(...sagaErros(sc), ...tripularErros(sc), ...aventuraErros(sc), ...duplaFaceErros(sc), ...modalErros(sc), ...divididaErros(sc), ...classeErros(sc), ...batalhaErros(sc), ...papelErros(sc)); // T-20 · CR 111.10 · papel conhecido (mesma chamada) // T-14 · CR 310.4 · defesa da batalha (mesma chamada) // T-12 · CR 716 · Classe (mesma chamada) // T-10 · CR 709 · carta dividida (mesma chamada) // T-8 · CR 712.3 · dupla face modal (mesma chamada) // T-7 · CR 712 · dupla face (mesma chamada) // T-5 · CR 715 · aventura (mesma chamada) // T-3 · CR 702.122 · tripular (mesma chamada da T-1) // T-1 · CR 714 · Saga: capítulos, read ahead e o marcador de entrada (função abaixo da âncora T das exportações)
+  errs.push(...sagaErros(sc), ...tripularErros(sc), ...aventuraErros(sc), ...duplaFaceErros(sc), ...modalErros(sc), ...divididaErros(sc), ...classeErros(sc), ...batalhaErros(sc), ...papelErros(sc), ...nivelarErros(sc)); // T-24 · CR 711 · barras de nível (mesma chamada) // T-20 · CR 111.10 · papel conhecido (mesma chamada) // T-14 · CR 310.4 · defesa da batalha (mesma chamada) // T-12 · CR 716 · Classe (mesma chamada) // T-10 · CR 709 · carta dividida (mesma chamada) // T-8 · CR 712.3 · dupla face modal (mesma chamada) // T-7 · CR 712 · dupla face (mesma chamada) // T-5 · CR 715 · aventura (mesma chamada) // T-3 · CR 702.122 · tripular (mesma chamada da T-1) // T-1 · CR 714 · Saga: capítulos, read ahead e o marcador de entrada (função abaixo da âncora T das exportações)
   return errs.concat(exampleErrors(sc));
 }
 const ATRASOS = ['next-upkeep', 'next-end-step', 'end-of-combat']; // CR2b.1 · momentos de gatilho atrasado que o motor conhece
@@ -6570,6 +6570,11 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-24 · CR 702.87 / 711 · subir de nível (Oracle do Forge, consulta de 12/10/2026). O lembrete entre parênteses não se escreve.
+  { name: 'Beastbreaker of Bala Ged', self: { nivelar: { mana: '{2}{G}', faixas: [{ de: 1, ate: 3, base: [4, 4] }, { de: 4, base: [6, 6], palavras: ['trample'] }] } }, // "Level up {2}{G} · LEVEL 1-3 4/4 · LEVEL 4+ 6/6 Trample"
+    example: { action: 'activate:0', target: 'none', expect: { selfStats: [4, 4] } } },
+  { name: 'Knight of Cliffhaven', self: { nivelar: { mana: '{3}', faixas: [{ de: 1, ate: 3, base: [2, 3], palavras: ['flying'] }, { de: 4, base: [4, 4], palavras: ['flying', 'vigilance'] }] } }, // "Level up {3} · LEVEL 1-3 2/3 Flying · LEVEL 4+ 4/4 Flying, vigilance"
+    example: { action: 'activate:0', target: 'none', expect: { selfStats: [2, 3] } } },
   // T-20 · CR 303.7 · Papéis (Oracle do Forge, consulta de 12/10/2026). A ficha de Papel é a da regra 111.10 (PAPEIS_T); o lembrete entre parênteses não se escreve.
   { name: 'Monstrous Rage', effects: [{ do: 'pump', power: 2, toughness: 0, target: 'creature' }, { do: 'papel', papel: 'Monster', target: 'first-target' }], // "Target creature gets +2/+0 until end of turn. Create a Monster Role token attached to it."
     example: { target: 'own-creature', expect: { pump: [2, 0] } } },
@@ -8468,6 +8473,35 @@ EVENTOS_DE_OBJETO.push('exaurida'); OBJETOS_DO_EVENTO.exaurida = ['self']; GATIL
 // V-6 · evento "ficou monstruosa" (701.37): da própria permanente
 EVENTOS_DE_OBJETO.push('monstruosa'); OBJETOS_DO_EVENTO.monstruosa = ['self']; GATILHO_EVENTO['becomes-monstrous'] = { evento: 'monstruosa', objeto: 'self' }; TRIGGER_PT['becomes-monstrous'] = 'quando fica monstruosa';
 /* ↓ T · exportações de scripts.js da trilha tipos */
+/* ---------------- T-24 · CR 702.87 / 711 · cartas de subir de nível (forma) ----------------
+   `self: { nivelar: { mana: '{2}{G}', faixas: [{ de: 1, ate: 3, base: [4, 4] }, { de: 4, base: [6, 6], palavras: ['trample'] }] } }`.
+   As barras são contíguas e em ordem; a última é a "N+" (sem `ate`). Cada barra pode ter `palavras`, `abilities` e `continuo`. */
+function nivelarErros(sc) {
+  const sf = sc && sc.self, nv = sf && sf.nivelar; if (nv == null) return [];
+  if (!nv || typeof nv !== 'object') return ['nivelar: self.nivelar = { mana, faixas }'];
+  const errs = [];
+  for (const k of Object.keys(nv)) if (!['mana', 'faixas'].includes(k)) errs.push(`nivelar: chave "${k}" desconhecida`);
+  if (!(typeof nv.mana === 'string' && /\{/.test(nv.mana))) errs.push('nivelar: falta o custo de subir de nível (mana)');
+  if (sf.classe || sf.dividida || sf.modal || sf.duplaFace || sf.aventura) errs.push('nivelar: a carta de subir de nível não é Classe, dividida, modal, de transformar nem de aventura');
+  if (sc.grants || sc.grantsAll || sf.per || sc.aura || sc.back) errs.push('nivelar: grants, grantsAll, self.per, aura e face de trás não existem numa carta de subir de nível (use continuo)');
+  const fx = nv.faixas;
+  if (!Array.isArray(fx) || !fx.length) return errs.concat('nivelar: faixas é a lista das barras LEVEL ({ de, ate, base })');
+  let fim = 0;
+  fx.forEach((f, i) => {
+    const tag = `nivelar, barra ${i + 1}`, ult = i === fx.length - 1;
+    if (!f || typeof f !== 'object') { errs.push(`${tag}: precisa ser um objeto`); return; }
+    for (const k of Object.keys(f)) if (!['de', 'ate', 'base', 'palavras', 'abilities', 'continuo'].includes(k)) errs.push(`${tag}: chave "${k}" desconhecida`);
+    if (!(Number.isInteger(f.de) && (i === 0 ? f.de >= 1 : f.de === fim + 1))) errs.push(`${tag}: "de" precisa ser ${i === 0 ? 'inteiro a partir de 1' : `${fim + 1} (logo depois da barra anterior)`}`);
+    if (ult ? f.ate != null : !(Number.isInteger(f.ate) && f.ate >= f.de)) errs.push(ult ? `${tag}: a última barra é a "N+", sem "ate"` : `${tag}: "ate" precisa ser inteiro, no mínimo igual a "de"`);
+    if (!(Array.isArray(f.base) && f.base.length === 2 && f.base.every(Number.isInteger))) errs.push(`${tag}: base é o P/R da barra, [poder, resistência]`);
+    if (f.palavras != null && !(Array.isArray(f.palavras) && f.palavras.every(k => KEYWORDS.includes(String(k).toLowerCase())))) errs.push(`${tag}: palavra-chave desconhecida em "palavras"`);
+    if ((f.abilities || []).length || (f.continuo || []).length) errs.push(...validateScript({ name: `${sc.name} (${tag})`, abilities: f.abilities || [], continuo: f.continuo, self: { barraT: true }, example: sc.example || { target: 'none', expect: { selfLife: 0 } } }).map(e => `${tag}: ${e}`));
+    fim = Number.isInteger(f.ate) ? f.ate : fim;
+  });
+  return errs;
+}
+Object.assign(EXPORTS_T_SC, { nivelarErros });
+MARCADOR_PT.level = 'de nível'; // T-24 · CR 122.1 / 702.87a
 /* ---------------- T-20 · CR 303.7 / 111.10j–r · Papéis (forma) ----------------
    As sete fichas de Papel, como a regra 111.10 as define (CR de 25/09/2026): encantamento Aura Role incolor, "enchant creature", e o
    que cada uma dá à criatura encantada. O efeito `papel` (`{ do: 'papel', papel: 'Monster', target }`) cria a ficha anexada ao alvo.
@@ -16476,6 +16510,7 @@ const SEM_CONTINUOS = Object.freeze([]);
 function continuosDaFonte(s, x) {
   const sc = s.facts[x.name].script;
   if (sc && sc.self && sc.self.classe) return continuosDaClasseT(s, x, sc); // T-12 · CR 716.2a · os contínuos do nível 1 e dos níveis alcançados
+  if (sc && sc.self && sc.self.nivelar) return continuosDoNivelarT(s, x, sc); // T-24 · CR 711.2 · as palavras e os contínuos da barra alcançada (Toca ponto comum: continuosDaFonte)
   if (!sc || !(sc.grants || sc.grantsAll || (sc.self && sc.self.per) || sc.continuo || (sc.aura && sc.aura.becomes))) return SEM_CONTINUOS; // atalho: quase toda permanente não concede nada
   const out = [];
   if (sc.aura && sc.aura.becomes) out.push({ afetados: 'anexada', redefine: sc.aura.becomes }); // CR2d.1 · atalho: Aura que redefine a criatura
@@ -16636,6 +16671,7 @@ function createGame(setup) {
     // palavras-chave impressas na carta, declaradas no script: valem mesmo quando o dado da carta veio sem elas (sem rede)
     if (sc.self && sc.self.devoid) f.colors = []; // R7 · desprovido de cor (702.114): incolor mesmo com mana colorida no custo
     if (sc.self && Array.isArray(sc.self.keywords)) { for (const k of sc.self.keywords) if (!f.kw.includes(k)) f.kw.push(k); if (f.kw.includes('flash')) f.flash = true; }
+    if (sc.self && sc.self.nivelar) fatosDoNivelarT(f, sc); // T-24 · CR 711.5 · as palavras das barras só valem pela barra (Toca ponto comum: createGame)
     if (sc.choose) f.script.choose = sc.choose;
     if (sc.staticRule) f.script.staticRule = sc.staticRule;
     if (sc.cumulativeUpkeep) f.script.cumulativeUpkeep = sc.cumulativeUpkeep; // CR 702.24
@@ -17171,7 +17207,7 @@ const pumpT = o => ((o.pump && o.pump.t) || 0) + ((o.pumpNext && o.pumpNext.t) |
  * com inteiro ou contagem; 7b: o fixado por efeito (mutação) vence o 7a; sem nenhum, o impresso. */
 const ptDefinido = (s, o) => { const d = ((s.facts[o.name].script || {}).self || {}).ptDefinido; if (!d || o.faceDown || semImpressas(s, o)) return null;
   return [d.poder != null ? amountOf(s, o, d.poder) : (s.facts[o.name].power || 0), d.resistencia != null ? amountOf(s, o, d.resistencia) : (s.facts[o.name].toughness || 0)]; };
-const basePT = (s, o) => { const m = mutacao(s, o); if (m && m.base) return m.base; if (o.faceDown) return [2, 2]; return ptDefinido(s, o) || [s.facts[o.name].power || 0, s.facts[o.name].toughness || 0]; };
+const basePT = (s, o) => { const m = mutacao(s, o); if (m && m.base) return m.base; if (o.faceDown) return [2, 2]; return ptDefinido(s, o) || ptDoNivelT(s, o) || [s.facts[o.name].power || 0, s.facts[o.name].toughness || 0]; }; // T-24 · CR 711.2 · a base de P/R da barra alcançada (Toca ponto comum: basePT)
 /** CR2d.9 · 613.4d · 7d: "troque o poder e a resistência" — depois de todo o resto; um número ímpar de trocas troca. */
 let TROCA_ESTATICA = null;
 const trocaEstatica = () => (TROCA_ESTATICA ??= Object.values(SC.SCRIPTS || {}).some(sc => (sc.continuo || []).some(c => c.troca)));
@@ -18225,6 +18261,7 @@ const abilitiesOf = (s, o) => {
   // S11 · equipar é uma habilidade ativada com alvo, só no tempo de feitiço
   if (sc.equip) list.push({ kind: 'activated', cost: sc.equip.cost || {}, sorceryOnly: true, equip: true, effects: [{ do: 'attach', target: 'creature-you-control' }] });
   if (sc.self && sc.self.classe) classeHabilidadesT(s, o, sc, list); // T-12 · CR 716.2a · as habilidades dos níveis alcançados e a ativada do próximo nível
+  if (sc.self && sc.self.nivelar) nivelarHabilidadesT(s, o, sc, list); // T-24 · CR 702.87a / 711.4 · a ativada de subir de nível e as habilidades da barra alcançada (Toca ponto comum: abilitiesOf)
   if (sc.equip) list.push(...equipesK(s, o)); // K-28 · 702.6c-d: as outras habilidades de equipar impressas, com qualidade (Toca ponto comum: abilitiesOf)
   return list.concat(grantedAbilities(s, o), habilidadesDePalavraK(s, o)); // K-3 · palavra-chave que é habilidade disparada (proeza…)
 };
@@ -24859,6 +24896,40 @@ function lutar(s, src, eff, tgt, events) {
 }
 Object.assign(EXPORTS_V, { lutar });
 /* ↓ T · exportações de core.js da trilha tipos */
+/* ---------------- T-24 · CR 702.87 / 711 · cartas de subir de nível ----------------
+   Forma no script: `self: { nivelar: { mana, faixas: [{ de, ate, base: [P, R], palavras?, abilities?, continuo? }, …, { de, base, … }] } }`
+   (a última barra é a "N+", sem `ate`). O nível é o número de marcadores `level` da permanente (122.1), de qualquer fonte.
+   - 702.87a / 711.4: a ativada "Subir de nível" (custo `mana`, só como feitiço, põe um marcador de nível) vale sempre, em qualquer nível.
+   - 711.2a / 711.2b: na barra alcançada, a criatura tem a base de P/R da barra (`basePT`, antes dos bônus da camada 7c) e as palavras,
+     ativadas/disparadas e contínuos dela. As palavras das barras impressas saem dos fatos (`fatosDoNivelarT`): só valem pela barra.
+   - 711.5: abaixo da primeira barra, o P/R de cima (o impresso) e nada das barras. 711.6: fora do campo, o P/R de cima.
+   - As barras são habilidades (711.2): a permanente que perde todas as habilidades (ou virada para baixo) volta ao P/R de cima e não
+     sobe de nível; os marcadores ficam. A cópia copia as barras, não os marcadores (400.7 / 707.2). */
+function faixaDoNivelarT(s, o) {
+  if (!o || o.zone !== 'battlefield' || semImpressas(s, o)) return null;
+  const sc = (s.facts[o.name] || {}).script, nv = sc && sc.self && sc.self.nivelar; if (!nv) return null;
+  const n = (o.counters || {}).level || 0;
+  return nv.faixas.find(f => n >= f.de && (f.ate == null || n <= f.ate)) || null;
+}
+function ptDoNivelT(s, o) { const f = faixaDoNivelarT(s, o); return f ? [f.base[0], f.base[1]] : null; }
+function continuosDoNivelarT(s, x, sc) {
+  const f = faixaDoNivelarT(s, x);
+  const cs = (sc.continuo || []).concat(f ? (f.continuo || []) : [], f && (f.palavras || []).length ? [{ afetados: 'self', palavras: f.palavras }] : []);
+  if (!cs.length) return SEM_CONTINUOS;
+  return cs.map(c => ({ ...c, palavras: c.palavras ? c.palavras.map(w => String(w).toLowerCase()) : undefined, ...(c.torna ? { redefine: SC.tornaParaBecomes(c.torna) } : {}) })); // como o laço do `continuo` em continuosDaFonte
+}
+function nivelarHabilidadesT(s, o, sc, list) {
+  const nv = sc.self.nivelar;
+  list.push({ kind: 'activated', cost: { mana: nv.mana }, sorceryOnly: true, label: 'Subir de nível', nivelarT: true, effects: [{ do: 'counters', amount: 1, tipo: 'level', target: 'self-source' }] }); // 702.87a
+  const f = faixaDoNivelarT(s, o); if (f) for (const ab of f.abilities || []) list.push({ ...ab, nivelarFaixaT: f.de });
+}
+/** Os fatos da carta (palavras lidas do texto inteiro) perdem as palavras que só existem dentro de uma barra; `self.keywords` fica. */
+function fatosDoNivelarT(f, sc) {
+  const fixas = ((sc.self && sc.self.keywords) || []).map(k => String(k).toLowerCase());
+  const dasBarras = new Set(sc.self.nivelar.faixas.flatMap(b => (b.palavras || []).map(k => String(k).toLowerCase())));
+  f.kw = f.kw.filter(k => !dasBarras.has(k) || fixas.includes(k)); f.flash = f.kw.includes('flash');
+}
+Object.assign(EXPORTS_T, { faixaDoNivelarT });
 /* ---------------- T-22 · CR 303.4f / 303.4g · Aura que entra sem ser conjurada ----------------
    - 303.4g: sem nada que ela possa encantar, a Aura não entra no campo (fica na zona em que estava): guarda em `moveObject`.
    - 303.4f: ao entrar (por efeito: reanimar, devolver, pôr no campo), quem a controla escolhe o que ela encanta — sem mirar (resistência
@@ -25705,13 +25776,14 @@ function regrasDosNiveisT(s, p, out) {
 /** T-12 · rótulos da folha para as ativadas de uma Classe: a folha conhece só as ativadas impressas do script; as dos níveis e a de
  * subir vêm de `abilitiesOf`. A de subir diz "Subir para o nível N · custo"; as de um nível, "Ativar (custo)" (com o alvo, se houver). */
 function rotulosDaClasseT(s, oid, legal, custo) {
-  const o = s.objects[oid], sc = o && ((s.facts[o.name] || {}).script || {}); if (!sc || !sc.self || !sc.self.classe) return;
+  const o = s.objects[oid], sc = o && ((s.facts[o.name] || {}).script || {}); if (!sc || !sc.self || !(sc.self.classe || sc.self.nivelar)) return; // T-24 · também a carta de subir de nível
   const abs = abilitiesOf(s, o).filter(x => x.kind === 'activated'), impressas = (sc.abilities || []).filter(x => x.kind === 'activated').length;
   for (const b of legal) {
     const a = b && b.action; if (!a || a.t !== 'activate' || a.oid !== oid) continue;
     const i = a.index || 0, ab = abs[i]; if (!ab || i < impressas) continue;
     const resto = (b.label || '').includes(' → ') ? b.label.slice(b.label.indexOf(' → ')) : '';
     if (ab.classeNivelT) b.label = `Subir para o nível ${ab.classeNivelT} · ${ab.cost.mana}`;
+    else if (ab.nivelarT) b.label = `Subir de nível · ${ab.cost.mana}`; // T-24 · CR 702.87a
     else { const c = custo(ab); b.label = `${ab.label || 'Ativar'}${c ? ` (${c})` : ''}${resto}`; } // T-13 · o rótulo que o script dá à ativada da barra (D3)
   }
 }

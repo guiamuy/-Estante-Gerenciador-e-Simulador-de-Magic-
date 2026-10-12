@@ -4854,6 +4854,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `moverObjeto` (uma linha), caminho antigo do `reanimate`/`reanimate_tapped` (uma condição na mesma linha, para o teste de equivalência M-237 seguir valendo).
 - **Próximo:** decisão do dono — restos com custo no mapa: Salas (709.5), cartas de virar (710), subir de nível (711), fundir (712.4).
 
+**CR5-T24 · Cartas de subir de nível (702.87, 711)** ✅ (leva T-24, sem mudança de versão do motor) — **Valor:** as ~30 criaturas de Rise of the Eldrazi com "Level up" jogam inteiras: sobem de nível pela mesa e mudam P/R e habilidades por barra. **Aceite:** "Subir de nível · custo" só como feitiço e em qualquer nível (702.87a, 711.4); na barra alcançada, base de P/R da barra e as palavras, habilidades e contínuos dela (711.2a/b); abaixo da primeira barra e fora do campo, o P/R de cima (711.5, 711.6); quem perde todas as habilidades volta ao P/R de cima e não sobe. **Testes:** `tipos.nivelar.unit` (11; falham sem a leva) e os cenários S8 de Beastbreaker of Bala Ged e Knight of Cliffhaven (Oracle do Forge, consulta de 12/10/2026, em `.listas/oficiais-tipos.json`). **Depende de:** CR5-T12 (molde da Classe), M-249 (marcador nomeado).
+- **Forma do script:** `self.nivelar = { mana, faixas: [{ de, ate, base, palavras, abilities, continuo }, …] }` (barras contíguas; a última, "N+", sem `ate`); marcador `level` ("de nível"). As palavras das barras saem dos fatos da carta: só valem pela barra (a leitura do texto inteiro dava atropelar ao Beastbreaker no nível 0).
+- **Fora:** carta de subir de nível sem script continua manual (a leitura automática não monta as barras); a palavra "Level up" não entra em KEYWORDS (sem script a carta não pode parecer coberta).
+- **Versão e goldens:** a versão não sobe; goldens idênticos.
+- **Toca ponto comum:** `basePT` (um termo na mesma linha), `continuosDaFonte` e `abilitiesOf` (uma linha cada, ao lado da linha da Classe), `createGame` (uma linha: as palavras das barras saem dos fatos).
+- **Próximo:** auditoria independente da T-24; depois, decisão do dono — Salas (709.5), cartas de virar (710), fundir (712.4).
+
 **CR6 · Multijogador e variantes** ○ — mesa de três e quatro (800–803, 806), Commander de mesa (903.2), Brawl (903.12); as variantes hoje "fora" só entram por decisão. 10 a 14 levas.
 
 **CR7 · Consolidação** ○ (em paralelo a partir da CR2) — a cada fase: fuzz em modo completo com listas reais, homologação por revisor independente relendo a seção das regras contra o motor, e rodada de simulação do dono do produto. 6 a 8 levas ao todo.
