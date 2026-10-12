@@ -6166,10 +6166,14 @@
    "n": "701.35",
    "regra": "Keyword Actions",
    "titulo": "Detain",
-   "status": "ausente",
-   "falta": "não há \"detida\" (não ataca, não bloqueia, habilidades ativadas não podem ser ativadas até o próximo turno de quem deteve). Avaliado na V-15: atacar e bloquear têm ponto único, mas \"não pode ativar\" hoje é conferido em sete lugares (ação de ativar, ofertas, lealdade, equipar, produção de mana e pagamento automático) — pede antes um portão único de ativação na trilha motor.",
-   "esforco": "P",
-   "cartas": "rara"
+   "status": "coberta",
+   "cartas": "rara",
+   "evidencia": "V-21 · efeito `detain` (deter, ehDetida, acaoDeDetidaV, barraDetidaV e soltaDetidasV em core.js, abaixo da âncora ↓ V): até o próximo turno de quem controla a mágica ou habilidade, a permanente não ataca (cantAttackNext), não bloqueia (eligibleBlockers) e as habilidades ativadas dela — inclusive as de mana — não são oferecidas, não entram no pagamento automático (productions) e são recusadas no apply (a); a marca leva a encarnação, segue a permanente se o controle mudar e acaba no começo do turno de quem deteve; habilidades disparadas e estáticas continuam. Cartas: Inaction Injunction; Azorius Arrester provada no teste (.listas/oficiais-verbos.json). A mesa ainda não marca a carta detida (o registro diz).",
+   "testes": [
+    "CR 701.35 · deter (a): as habilidades ativadas da detida não são oferecidas nem aceitas — as de mana também; as outras permanentes seguem normais",
+    "CR 701.35 · deter (a): a detida não ataca nem bloqueia até o próximo turno de quem deteve; nesse turno volta tudo — e as habilidades disparadas nunca pararam",
+    "CR 701.35 · deter: a marca segue a permanente se o controle mudar e acaba ao sair do campo (de volta, é objeto novo)"
+   ]
   },
   {
    "n": "701.36",

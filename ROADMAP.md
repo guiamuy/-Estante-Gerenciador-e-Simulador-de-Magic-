@@ -3900,6 +3900,15 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Parcial, declarado:** exaurir como custo de habilidade ativada (Oasis Ritualist) pede parte de custo nova.
 - **Testes:** `verbos.exaurir.unit` (6).
 
+**V-21 · CR3 · Deter (701.35)** 🟡 (leva V-21, motor v110 sem subir: só acrescenta ações; partidas-referência idênticas) — 701.35 passa de ausente a coberta.
+- **Valor:** "Detain target creature an opponent controls": até o seu próximo turno ela não ataca, não bloqueia e as habilidades ativadas dela ficam travadas.
+- **Regra inteira:** vale também para habilidade de mana (a detida não paga custos) e de lealdade; habilidades disparadas e estáticas continuam; a marca segue a permanente se o controle mudar, acaba no começo do próximo turno de quem deteve e some ao sair do campo.
+- **Vocabulário:** efeito `detain` (criatura ou permanente, de um oponente ou qualquer).
+- **Cartas (texto oficial em `.listas/oficiais-verbos.json`, Oracle do Forge, 11/10/2026; segunda fonte pendente):** Inaction Injunction (na biblioteca); Azorius Arrester — script provado no teste.
+- **Toca ponto comum:** `apply` (uma linha antes do tratador: recusa ativar habilidade de detida). O resto mora em funções da própria trilha (`productions`, bloqueio e passo de desvirar já tinham chamada da trilha).
+- **Pedido à mesa (não bloqueia):** marca "detida" na carta.
+- **Testes:** `verbos.deter.unit` (4).
+
 **CR4 · Habilidades de palavra-chave (702)** ○ — 150 ausentes e 21 parciais, em ondas pela frequência em cartas anotada no mapa: (1) fechar as evergreen e as parciais; (2) "muito comum" (proeza, tripular, reforço, convocar, cascata, evocar, persistir, imortal, fração de segundo, infectar e tóxico…); (3) "comum"; (4) "rara" e "uma coleção só". 50 a 65 levas.
 
 **CR4 · andamento (trilha `keywords`, levas `K-N`)** ▶ — ordem de 11/10/2026: primeiro as palavras-chave do acervo que o medidor do leitor (LT6) acusa fora do vocabulário, depois a onda 1 (proeza, convocar, cascata, evocar, persistir, imortal, exaltado, explorar, arremeter, improvisar, recomeçar, pós-vida, evoluir), a onda 2 (completar as parciais), a 3 (raras, da mais citada à menos) e a 4 (o resto de 702, com o que fica fora declarado no mapa). Auditoria independente por subagente ao fim de cada onda. Palavra-chave com parâmetro ("Ward {3}", "Kicker {B}", "Crew 1") também depende de o leitor ler a forma: isso é da trilha `motor` (leitor), avisada a cada leva.

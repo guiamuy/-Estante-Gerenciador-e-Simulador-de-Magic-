@@ -5377,6 +5377,8 @@ const EFFECTS = {
   explorar_k: { fields: ['fase'], targets: [] }, // K-12 · 702.110 · gerado pelo motor (antes e depois do sacrifício)
   proeza_k: { fields: ['z'], targets: [] }, // K-14 · 702.108a · +1/+1 até o fim do turno, só na mesma encarnação (gerado pelo motor)
   /* ↓ V · efeitos da trilha verbos */
+  // V-21 · 701.35 deter: até o próximo turno de quem controla a mágica ou habilidade, a permanente não ataca, não bloqueia e as habilidades ativadas dela não podem ser ativadas
+  detain: { fields: [], targets: ['creature', 'permanent', 'creature-opponent-controls', 'permanent-opponent-controls', 'first-target'] },
   // V-20 · 502.3 "doesn't untap during its controller's next untap step" (`vira: true` = "Tap … It doesn't untap…") e 701.43 exaurir ("não desvira no SEU próximo passo de desvirar": de quem exauriu)
   nao_desvira: { fields: [], targets: ['self-source', 'first-target', 'creature', 'permanent', 'creature-opponent-controls', 'permanent-opponent-controls', 'enchanted'] },
   exert: { fields: [], targets: ['self-source', 'first-target', 'creature-you-control'] },
@@ -6341,6 +6343,9 @@ const RAW_SCRIPTS = [
   { name: 'Metallic Rebuke', effects: [{ do: 'counter', target: 'spell', unless: { mana: '{3}' } }], example: { target: 'enemy-spell', expect: { countered: true } } }, // "Improvise / Counter target spell unless its controller pays {3}."
   { name: 'Radical Idea', effects: [{ do: 'draw', amount: 1 }], example: { target: 'none', expect: { handDelta: 1 } } }, // "Draw a card. / Jump-start"
   /* ↓ V · scripts de carta da trilha verbos (texto oficial em .listas/oficiais-verbos.json) */
+  // V-21 · 701.35 deter
+  { name: 'Inaction Injunction', effects: [{ do: 'detain', target: 'creature-opponent-controls' }, { do: 'draw', amount: 1 }], // "Detain target creature an opponent controls. Draw a card."
+    example: { target: 'enemy-creature', expect: { handDelta: 1 } } },
   // V-20 · 502.3 não desvira no próximo passo de desvirar
   { name: 'Crippling Chill', effects: [{ do: 'nao_desvira', vira: true, target: 'creature' }, { do: 'draw', amount: 1 }], // "Tap target creature. It doesn't untap during its controller's next untap step. Draw a card."
     example: { target: 'enemy-creature', expect: { tapped: true, handDelta: 1 } } },
@@ -16022,7 +16027,7 @@ function coresPermitidas(s, p, eff) {
   return null;
 }
 function productions(s, o, visto) {
-  if (o.faceDown) return []; // V-17 · 708.2: virada para baixo não tem habilidade de mana (terreno manifestado não dá mana) · Toca ponto comum: productions (uma linha)
+  if (o.faceDown || ehDetida(s, o)) return []; // V-21 · 701.35a: a detida não ativa habilidade de mana · V-17 · 708.2: virada para baixo não tem habilidade de mana (terreno manifestado não dá mana) · Toca ponto comum: productions (uma linha)
   const mu = mutacao(s, o), perde = !!(mu && mu.perde); // CR2d.1 · perdeu as habilidades: inclusive as de mana
   const spec = perde ? [] : ((s.facts[o.name].script || {}).produces) || [];
   // quando o script declara a produção, ela substitui o que foi lido do texto
@@ -18010,6 +18015,7 @@ function applyEffect(s, src, eff, tgt, events) {
       note({ pending: true }); break;
     }
     /* ↓ V · casos de applyEffect da trilha verbos */
+    case 'detain': { const o = objetoDoVerbo(s, src, eff, tgt); if (!deter(s, o, src.controller, events)) note({ failed: true }); break; } // V-21 · 701.35
     case 'nao_desvira': { const o = objetoDoVerbo(s, src, eff.target === 'enchanted' ? { target: 'x' } : eff, eff.target === 'enchanted' ? (criaturaEncantada(s, src) ? { oid: criaturaEncantada(s, src).oid } : null) : tgt); // V-20 · 502.3
       if (!o || o.zone !== 'battlefield') { note({ failed: true }); break; }
       if (eff.vira) o.tapped = true; prendeNoDesvirarV(s, o, null); note({ target: o.name }); break; }
@@ -20083,6 +20089,7 @@ function apply(state, action) {
   }
   const s = cloneEstado(state); // desempenho · fatos compartilhados
   const events = [];
+  barraDetidaV(s, action); // V-21 · 701.35a: habilidade ativada de permanente detida · Toca ponto comum: apply (uma linha)
   HANDLERS[action.t](s, action, events);
   if (!s.pending && s.resume) resumeEffects(s, events); // CR 704.4 · a decisão acabou: o resto da resolução vem antes de qualquer ação de estado
   stateBased(s, events);
@@ -20568,6 +20575,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
     for (const c of mao) casts(o).forEach(x => out.push({ ...x, recomecarK: true, pay: { ...(x.pay || {}), discard: [c] } }));
   }
   /* ↓ V · ofertas de legalActions da trilha verbos (out.push) */
+  for (let i = out.length - 1; i >= 0; i--) if (acaoDeDetidaV(s, out[i])) out.splice(i, 1); // V-21 · 701.35a: habilidade ativada de permanente detida não é oferecida
   if (!s.pending) for (const o of battlefield(s)) if (o.controller === p && podeVirarManifestada(s, o) && (!s.manaCheck || canPay(s, p, s.facts[o.name].cost))) out.push({ t: 'unmorph', p, oid: o.oid, manifest: true }); // V-17 · 701.40b
   /* ↓ T · ofertas de legalActions da trilha tipos (out.push) */
   tripularOfertas(s, p, out); // T-3 · CR 702.122a · "qualquer número de outras criaturas": além dos grupos mínimos, a escolha de quem tripula (função abaixo da âncora T das exportações)
@@ -21119,6 +21127,29 @@ function palavrasDoTextoK(card) {
 }
 Object.assign(EXPORTS_K, { tapaImpressoK, gruposParaTaparK, palavrasDoTextoK });
 /* ↓ V · exportações de core.js da trilha verbos */
+/* V-21 · 701.35 deter: "Until the next turn of the controller of that spell or ability, that permanent can't attack or block and its
+   activated abilities can't be activated" (a). A marca é da permanente (leva a encarnação) e guarda quem deteve: acaba no começo do
+   próximo turno desse jogador (junto do passo de desvirar, em presasNoDesvirarV), mesmo que a permanente mude de controlador. Não
+   ataca: reaproveita "não pode atacar até o próximo turno de quem lançou" (cantAttackNext, S61). Não bloqueia: eligibleBlockers.
+   Habilidades ativadas — inclusive as de mana (605.1a) e as de lealdade — não são oferecidas, não entram no pagamento automático
+   (productions) e são recusadas no apply. Habilidades disparadas e estáticas continuam valendo. */
+const ehDetida = (s, o) => !!o && o.zone === 'battlefield' && !!o.detidaV && o.detidaV.z === (o.zc || 0);
+function deter(s, o, p, events) {
+  if (!o || o.zone !== 'battlefield') return false;
+  o.detidaV = { by: p, z: o.zc || 0 }; o.cantAttackNext = { by: p };
+  events.push({ kind: 'effect', do: 'detain', name: o.name, target: o.name });
+  return true;
+}
+/** A ação é ativar habilidade (de mana ou não) de uma permanente detida? */
+function acaoDeDetidaV(s, a) {
+  if (!a || !(a.t === 'activate' || a.t === 'tap_mana') || a.fromHand || a.oid == null) return false;
+  return ehDetida(s, s.objects[a.oid]);
+}
+/** Chamada só por apply, antes do tratador da ação. */
+function barraDetidaV(s, a) { if (acaoDeDetidaV(s, a)) throw new RuleError('detida', 'esta permanente está detida: as habilidades ativadas dela não podem ser ativadas até o próximo turno de quem a deteve'); }
+/** Chamada no começo do turno de `a` (pelo passo de desvirar): o que `a` deteve deixa de estar detido. */
+function soltaDetidasV(s, a) { for (const o of campoInteiro(s)) if (o.detidaV && o.detidaV.by === a) delete o.detidaV; }
+Object.assign(EXPORTS_V, { ehDetida, deter, acaoDeDetidaV });
 /* V-20 · 502.3 e 701.43. "Doesn't untap during its controller's next untap step": a permanente fica presa até o próximo passo de
    desvirar de quem a controlar nessa hora — a marca é gasta nesse passo. Exaurir (701.43a): quem exaure escolhe que ela não desvire no
    SEU próximo passo de desvirar; pode exaurir desvirada ou já exaurida, e toda marca desse jogador acaba no mesmo passo de desvirar dele
@@ -21129,6 +21160,7 @@ function prendeNoDesvirarV(s, o, p) { o.presaV = [...(o.presaV || []), { z: o.zc
 const presasValidasV = o => (o.presaV || []).filter(m => m.z === (o.zc || 0));
 /** Chamada só por enterStep, antes de desvirar: devolve as permanentes de `a` que NÃO desviram neste passo e gasta as marcas. */
 function presasNoDesvirarV(s, a) {
+  soltaDetidasV(s, a); // V-21 · começo do turno de quem deteve
   const ficam = [];
   for (const o of campoInteiro(s)) {
     if (!o.presaV) continue;
@@ -21294,6 +21326,7 @@ function absolver(s, src, eff, tgt, events) {
 }
 /** 701.60c · "This creature can't block" da suspeita (chamada só por eligibleBlockers): vale enquanto a habilidade valer. */
 function suspeitaNaoBloqueia(s, o) {
+  if (ehDetida(s, o)) return true; // V-21 · 701.35a: a detida não bloqueia (mesmo ponto de eligibleBlockers)
   if (!ehSuspeita(s, o)) return false;
   const m = mutacao(s, o); return !(m && m.perde) || o.suspeita.ts > m.corte;
 }
@@ -24308,6 +24341,7 @@ Object.assign(PALAVRA_PT, { convoke: 'convocar', improvise: 'improvisar' }); // 
 /* ↓ V · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha verbos */
 const MARCADOR_PT_V = { p1p1: '+1/+1', m1m1: '−1/−1', loyalty: 'de lealdade', poison: 'de veneno' }; // V-7
 const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas por descreveEfeito)
+  detain: e => `detém ${ALVO_PT[e.target] || descreveAlvo(e.target)} (até o seu próximo turno ela não ataca, não bloqueia e as habilidades ativadas dela não podem ser ativadas)`, // V-21
   nao_desvira: e => { const a = e.target === 'self-source' ? 'esta permanente' : ALVO_PT[e.target] || descreveAlvo(e.target); return e.vira ? `vira ${a}; ela não desvira no próximo passo de desvirar de quem a controla` : `${a} não desvira no próximo passo de desvirar de quem a controla`; }, // V-20
   exert: e => `exaure ${e.target === 'self-source' ? 'esta permanente' : ALVO_PT[e.target] || descreveAlvo(e.target)} (não desvira no seu próximo passo de desvirar)`, // V-20
   exert_sim: () => 'exaure a atacante (não desvira no seu próximo passo de desvirar)',
