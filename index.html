@@ -20672,6 +20672,7 @@ const HANDLERS = {
     if (exilaMaoN) startPick(s, { p: a.p, from: exilaveisParaDesconto(s, a.p, o), min: exilaMaoN, max: exilaMaoN, to: 'exile', rest: 'stay', label: 'exilar da mão', source: o.name }, []); // M-267 · as cartas, quem conjura escolhe
     if (delveN) { const cemiterio = s.zones[a.p].graveyard.filter(x => x !== a.oid); // M-263 · as cartas do delve: quem conjura escolhe
       startPick(s, { p: a.p, from: cemiterio, min: delveN, max: delveN, to: 'exile', rest: 'stay', label: 'delve', source: o.name }, []); }
+    if (s.descarteDoCustoK) descarteDoCustoK(s, o); // K-49 · o descarte do custo de recompra, entrelaçar ou escalar: quem conjura escolhe (Toca ponto comum: HANDLERS.cast)
     chargeWard(s, a.p, a.oid, chosen); // S41 · vigilância do alvo
     disparaAlvejado(s, a.oid, chosen); // CR2b.9
     s.turn.passes = 0;
@@ -22728,8 +22729,8 @@ function pagaRecompraK(s, a, o, alt) {
   if (rk.extra) {
     if (rk.extra.pagarVida != null && s.players[a.p].life < rk.extra.pagarVida) throw new RuleError('custo', 'vida insuficiente para a recompra');
     if (!canPayExtra(s, a.p, rk.extra, a.oid)) throw new RuleError('custo', 'não dá para pagar a recompra');
-    if (!(a.pay || {}).recompraK && pagamentosDe(s, a.p, rk.extra, a.oid).length > 1) throw new RuleError('custo', 'escolha o que pagar na recompra'); // K-39 · 601.2h: o motor não escolhe pelo jogador
-    payExtraCosts(s, a.p, rk.extra, (a.pay || {}).recompraK, a.oid);
+    if (!(a.pay || {}).recompraK && pagamentosDe(s, a.p, rk.extra, a.oid).length > 1) { if (!adiaDescarteK(s, a, rk.extra)) throw new RuleError('custo', 'escolha o que pagar na recompra'); } // K-49 · só descarte: quem conjura escolhe as cartas logo depois (descarteDoCustoK)
+    else payExtraCosts(s, a.p, rk.extra, (a.pay || {}).recompraK, a.oid); // K-39 · 601.2h: o motor não escolhe pelo jogador
   }
   s.objects[a.oid].recompraK = true;
 }
@@ -22760,7 +22761,7 @@ function ofertasRecompraK(s, p, out) {
     if (rk.extra && rk.extra.pagarVida != null && s.players[p].life < rk.extra.pagarVida) continue;
     const usados = new Set(Object.values(x.pay || {}).flat().filter(v => typeof v === 'string'));
     const formas = rk.extra ? pagamentosDe(s, p, rk.extra, x.oid).filter(pg => !Object.values(pg).flat().some(v => usados.has(v))) : [{}];
-    for (const pg of formas.slice(0, LIMITE_PAGAMENTOS)) out.push({ ...x, recompraK: true, ...(Object.keys(pg).length ? { pay: { ...(x.pay || {}), recompraK: pg } } : {}) });
+    for (const pg of formasDoExtraK(s, p, rk.extra, x.oid, formas).slice(0, LIMITE_PAGAMENTOS)) out.push({ ...x, recompraK: true, ...(pg && Object.keys(pg).length ? { pay: { ...(x.pay || {}), recompraK: pg } } : {}) }); // K-49 · só descarte: uma oferta
   }
 }
 Object.assign(EXPORTS_K, { recompraImpressaK, pagaRecompraK, destinoAoResolverK, ofertasRecompraK });
@@ -22792,8 +22793,8 @@ function pagaEntrelacarK(s, a, o, alt) {
   if (ek.mana && s.manaCheck && !viaNormal) payCost(s, a.p, parseCost(ek.mana));
   if (ek.extra) {
     if (!canPayExtra(s, a.p, ek.extra, a.oid)) throw new RuleError('custo', 'não dá para pagar o entrelaçar');
-    if (!(a.pay || {}).entrelacarK && pagamentosDe(s, a.p, ek.extra, a.oid).length > 1) throw new RuleError('custo', 'escolha o que pagar no entrelaçar'); // K-39 · 601.2h
-    payExtraCosts(s, a.p, ek.extra, (a.pay || {}).entrelacarK, a.oid);
+    if (!(a.pay || {}).entrelacarK && pagamentosDe(s, a.p, ek.extra, a.oid).length > 1) { if (!adiaDescarteK(s, a, ek.extra)) throw new RuleError('custo', 'escolha o que pagar no entrelaçar'); } // K-49 · só descarte: quem conjura escolhe as cartas logo depois (descarteDoCustoK)
+    else payExtraCosts(s, a.p, ek.extra, (a.pay || {}).entrelacarK, a.oid); // K-39 · 601.2h
   }
 }
 /** legalActions · tira a conjuração entrelaçada que não fecha o custo a mais (e as que não são pelo custo normal, que o motor não confere aqui);
@@ -22812,7 +22813,7 @@ function ofertasEntrelacarK(s, p, out) {
     if (!ek.extra) { out.push(x); continue; }
     if (!canPayExtra(s, p, ek.extra, x.oid)) continue;
     const usados = new Set(Object.values(x.pay || {}).flat().filter(v => typeof v === 'string'));
-    for (const pg of pagamentosDe(s, p, ek.extra, x.oid).filter(pg => !Object.values(pg).flat().some(v => usados.has(v))).slice(0, LIMITE_PAGAMENTOS)) out.push({ ...x, pay: { ...(x.pay || {}), entrelacarK: pg } });
+    for (const pg of formasDoExtraK(s, p, ek.extra, x.oid, pagamentosDe(s, p, ek.extra, x.oid).filter(pg => !Object.values(pg).flat().some(v => usados.has(v)))).slice(0, LIMITE_PAGAMENTOS)) out.push(pg ? { ...x, pay: { ...(x.pay || {}), entrelacarK: pg } } : x); // K-49 · só descarte: uma oferta
   }
 }
 Object.assign(EXPORTS_K, { entrelacarImpressoK, modoEntrelacadoK, pagaEntrelacarK, ofertasEntrelacarK });
@@ -23063,8 +23064,8 @@ function pagaEscalarK(s, a, o, alt) {
     const extra = extraVezesK(ek.extra, n);
     if (extra.pagarVida != null && s.players[a.p].life < extra.pagarVida) throw new RuleError('custo', 'vida insuficiente para escalar');
     if (!canPayExtra(s, a.p, extra, a.oid)) throw new RuleError('custo', 'não dá para pagar o escalar');
-    if (!(a.pay || {}).escalarK && pagamentosDe(s, a.p, extra, a.oid).length > 1) throw new RuleError('custo', 'escolha o que pagar no escalar'); // 601.2h: o motor não escolhe pelo jogador
-    payExtraCosts(s, a.p, extra, (a.pay || {}).escalarK, a.oid);
+    if (!(a.pay || {}).escalarK && pagamentosDe(s, a.p, extra, a.oid).length > 1) { if (!adiaDescarteK(s, a, extra)) throw new RuleError('custo', 'escolha o que pagar no escalar'); } // K-49 · só descarte: quem conjura escolhe as cartas logo depois (descarteDoCustoK)
+    else payExtraCosts(s, a.p, extra, (a.pay || {}).escalarK, a.oid); // 601.2h: o motor não escolhe pelo jogador
   }
 }
 /** legalActions · tira a conjuração escalada que não fecha o custo a mais (e as que não são pelo custo normal, que o motor não confere aqui);
@@ -23085,7 +23086,7 @@ function ofertasEscalarK(s, p, out) {
     const extra = extraVezesK(ek.extra, n);
     if (extra.pagarVida != null && s.players[p].life < extra.pagarVida || !canPayExtra(s, p, extra, x.oid)) continue;
     const usados = new Set(Object.values(x.pay || {}).flat().filter(v => typeof v === 'string'));
-    for (const pg of pagamentosDe(s, p, extra, x.oid).filter(pg => !Object.values(pg).flat().some(v => usados.has(v))).slice(0, LIMITE_PAGAMENTOS)) out.push({ ...x, pay: { ...(x.pay || {}), escalarK: pg } });
+    for (const pg of formasDoExtraK(s, p, extra, x.oid, pagamentosDe(s, p, extra, x.oid).filter(pg => !Object.values(pg).flat().some(v => usados.has(v)))).slice(0, LIMITE_PAGAMENTOS)) out.push(pg ? { ...x, pay: { ...(x.pay || {}), escalarK: pg } } : x); // K-49 · só descarte: uma oferta
   }
 }
 /* K-48 · 601.2c com 115.3: "the same object can be chosen once for each instance of the word 'target'" — nos modos somados (entrelaçar,
@@ -23136,6 +23137,27 @@ function alvosPorModoK(s, p, out) {
   }
 }
 Object.assign(EXPORTS_K, { escalarImpressoK, modosEscaladosK, pagaEscalarK, ofertasEscalarK, extraVezesK, modosCombinadosK, alvosPorModoK });
+/* K-49 · revisão de escala da onda 3: o custo "descarte N cartas" de recompra, entrelaçar e escalar abria uma oferta por combinação de cartas da
+   mão (Collective Brutality com dez cartas e oito criaturas: 345 ofertas de uma carta só). Como no delve (M-263), a conjuração é uma ação só e
+   as cartas são escolhidas por quem conjura logo depois, numa decisão de escolher (601.2h: o motor continua não escolhendo pelo jogador; a
+   ação com `pay` também vale). Só descarte: sacrificar e virar continuam na ação, porque mudam o campo que os alvos já olharam. */
+const soDescarteK = extra => !!extra && Object.keys(extra).length === 1 && Number.isInteger(extra.discard) && extra.discard > 0;
+/** pagaX · sem `pay` e com mais de uma forma: guarda o descarte para depois (true) ou recusa (false). */
+function adiaDescarteK(s, a, extra) {
+  if (!soDescarteK(extra)) return false;
+  s.descarteDoCustoK = { p: a.p, n: ((s.descarteDoCustoK || {}).n || 0) + extra.discard };
+  return true;
+}
+function descarteDoCustoK(s, o) {
+  const d = s.descarteDoCustoK; delete s.descarteDoCustoK;
+  if (s.pending) throw new RuleError('custo', 'escolha as cartas a descartar na própria conjuração'); // outra escolha da conjuração já está aberta (delve)
+  const mao = s.zones[d.p].hand.slice();
+  if (mao.length < d.n) throw new RuleError('custo', 'cartas insuficientes na mão');
+  startPick(s, { p: d.p, from: mao, min: d.n, max: d.n, to: 'graveyard', rest: 'stay', discard: true, label: d.n === 1 ? 'descartar uma carta (custo)' : `descartar ${d.n} cartas (custo)`, source: o.name }, []);
+}
+/** ofertas · formas de pagar o custo extra: só descarte com mais de uma forma vira uma oferta sem `pay` (a escolha vem depois). */
+const formasDoExtraK = (s, p, extra, oid, formas) => soDescarteK(extra) && formas.length > 1 ? [null] : formas;
+Object.assign(EXPORTS_K, { adiaDescarteK, soDescarteK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-30 · 701.65 aerobender: "that player exiles those objects. For each card exiled this way, for as long as it remains exiled, its owner
    may cast it by paying {2} rather than paying its mana cost" (a). A permissão é do DONO e da encarnação exilada (400.7: se a carta sair do

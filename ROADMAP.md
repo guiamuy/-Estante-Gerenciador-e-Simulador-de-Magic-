@@ -4447,6 +4447,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `HANDLERS.cast` (uma linha: `pagaEscalarK`; e a conferência de alvos repetidos chama `modosCombinadosK`), `createGame` (uma linha: `modosEscaladosK`).
 - **Testes:** `keywords.cr4.unit` (5, falham sem a leva), `combat.audit` (1 cenário). Texto oficial: Borrowed Malevolence, Borrowed Hostility, Collective Brutality, Collective Defiance, Collective Effort, Savage Alliance, Blessed Alliance (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
 - **Parcial declarado:** a conjuração escalada só é oferecida pelo custo normal (não com custo alternativo, convocar ou lampejo do passado). Collective Defiance, Savage Alliance, Blessed Alliance e Collective Resistance ficam sem script: têm efeitos fora do vocabulário do motor.
+**K-49 · Revisão de escala da onda 3: descarte do custo escolhido depois** 🟡 (leva K-49)
+- **Valor:** Collective Brutality na mão deixa de abrir centenas de botões (um por combinação de cartas a descartar): a conjuração é um botão por modo e alvo, e logo depois a mesa pede as cartas a descartar, como no delve. Vale para recompra, entrelaçar e escalar com custo "descarte N cartas".
+- **Medida (Node, 12/10/2026, mão de 10 mágicas e 8 criaturas, modo assistido):** ofertas de `legalActions` 511 → 191; tempo 6,0 → 4,9 ms por chamada. A reconstrução dos alvos por modo (`alvosPorModoK`, K-48) custa ~1,2 ms nesse cenário: refaz o que o laço comum de alvos já calculou para os modos somados (dívida declarada; some se o laço comum separar alvos por `__modo`, pedido à trilha motor).
+- **Aceite:** Collective Brutality com dois modos tem uma oferta por alvo; ao conjurar, a escolha de uma carta da mão abre; a ação com as cartas já escolhidas (`pay`) continua valendo.
+- **Toca ponto comum:** `HANDLERS.cast` (uma linha: `descarteDoCustoK`, ao lado do delve).
+- **Testes:** `keywords.cr4.unit` (o de Collective Brutality reescrito; falha sem a leva: duas ofertas em vez de uma). Goldens idênticos; motor v110.
+- **Fora:** sacrificar e virar continuam escolhidos na própria ação (mudam o campo que os alvos já olharam).
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

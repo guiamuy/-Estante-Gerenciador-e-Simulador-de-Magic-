@@ -1919,23 +1919,27 @@ test('CR 702.120a · o custo de escalar é por modo além do primeiro (Collectiv
   const i23 = modos.findIndex(m => m.escalarK && J(m.modosK).join() === '1,2'), i123 = modos.findIndex(m => m.escalarK === 2);
   assert.ok(i23 > 2 && i123 > 2);
   const of2 = E.legalActions(s, a).filter(x => x.t === 'cast' && x.oid === cb && x.mode === i23 && x.targets[0].oid === u);
-  assert.equal(of2.length, 2, 'dois modos: uma oferta por carta da mão a descartar');
-  const of3 = E.legalActions(s, a).filter(x => x.t === 'cast' && x.oid === cb && x.mode === i123);
-  assert.ok(of3.length >= 1 && of3.every(x => J([].concat(x.pay.escalarK.discard)).sort().join() === [h1, h2].sort().join()), 'três modos: as duas cartas');
+  assert.equal(of2.length, 1, 'uma oferta só: as cartas a descartar vêm logo depois (K-49)'); assert.equal(of2[0].pay, undefined);
+  assert.ok(E.legalActions(s, a).some(x => x.t === 'cast' && x.oid === cb && x.mode === i123), 'três modos: duas cartas na mão bastam');
   const vida = [s.players[a].life, s.players[d].life];
-  let t = resolve(act(s, of2.find(x => [].concat(x.pay.escalarK.discard)[0] === h2)));
+  let t = act(s, of2[0]);
+  assert.equal((t.pending || {}).kind, 'pick', '601.2h: quem conjura escolhe o descarte'); assert.equal(t.pending.min, 1); assert.deepEqual(J(t.pending.from).sort(), [h1, h2].sort());
+  t = pegaK43(t, a, [h2]);
+  t = resolve(t);
   assert.equal(t.objects[h2].zone, 'graveyard'); assert.equal(t.objects[h1].zone, 'hand', 'descartou só a escolhida');
   assert.equal(t.objects[u].zone, 'graveyard', '−2/−2 no Urso'); assert.deepEqual([t.players[a].life, t.players[d].life], [vida[0] + 2, vida[1] - 2]);
   let um = J(s); um.zones[a].hand = [cb, h1]; um.zones[a].library.push(h2); um.objects[h2].zone = 'library';
   assert.equal(E.legalActions(um, a).filter(x => x.t === 'cast' && x.oid === cb && x.mode === i123).length, 0, 'com uma carta só na mão, três modos não fecham');
-  assert.throws(() => E.apply(s, { t: 'cast', p: a, oid: cb, mode: i23, targets: [{ oid: u }, { player: d }] }), /escolha o que pagar/, '601.2h: o motor não escolhe o descarte');
+  assert.throws(() => E.apply(um, { t: 'cast', p: a, oid: cb, mode: i123, targets: [{ player: d }, { oid: u }, { player: d }] }), /pagar o escalar/);
+  const comPay = act(s, { t: 'cast', p: a, oid: cb, mode: i123, targets: [{ player: d }, { oid: u }, { player: d }], pay: { escalarK: { discard: [h1, h2] } } });
+  assert.equal(comPay.objects[h1].zone, 'graveyard'); assert.equal(comPay.objects[h2].zone, 'graveyard', 'a ação com as cartas escolhidas também vale');
 });
 
 test('CR 115.3 · nos modos escalados, o mesmo jogador (ou objeto) pode ser alvo de dois modos: Collective Brutality com o 1º e o 3º modo contra o único oponente', () => {
   let s = partida({ 'Collective Brutality': oficial('Collective Brutality'), Urso: URSO }, scK48('Collective Brutality')); const a = s.turn.active, d = 1 - a;
-  let cb, h; [s, cb] = poe(s, a, 'Collective Brutality', 'hand'); [s, h] = poe(s, a, 'Urso', 'hand');
+  let cb; [s, cb] = poe(s, a, 'Collective Brutality', 'hand');
   const i13 = s.facts['Collective Brutality'].script.modes.findIndex(m => m.escalarK && J(m.modosK).join() === '0,2');
-  const of = E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === cb && x.mode === i13 && [].concat(x.pay.escalarK.discard)[0] === h);
+  const of = E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === cb && x.mode === i13);
   assert.ok(of, 'oferecido: o oponente é alvo dos dois modos'); assert.deepEqual(J(of.targets), [{ player: d }, { player: d }]);
   const vida = s.players[d].life;
   let t = resolve(act(s, of));
