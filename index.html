@@ -7688,6 +7688,7 @@ function aventuraErros(sc) {
   if (!(sc.omen && sc.omen.mana && sc.back)) errs.push('aventura: falta o custo (omen.mana) ou a Aventura (back)');
   const tipos = (sc.back && sc.back.types) || [];
   if (!(tipos.length && tipos.every(t => t === 'instant' || t === 'sorcery'))) errs.push('aventura: a Aventura (face de trás) é instantânea ou feitiço');
+  if (sc.omen && /\{X\}/i.test(String(sc.omen.mana))) errs.push('aventura: X no custo da Aventura ainda não existe no motor (a oferta do presságio não enumera X; a carta fica manual)'); // T-6 · 107.3
   return errs;
 }
 /** As faces de trás desta trilha só viram fatos na partida que tem a carta (createGame): script novo com `back` na biblioteca não
@@ -15346,6 +15347,7 @@ function createGame(setup) {
   };
   const scripts = { ...SC.SCRIPTS };
   for (const [name, sc] of Object.entries(setup.scripts || {})) if (!SC.validateScript(sc).length) scripts[name] = sc;
+  apelidosDeDuasPartesT(scripts, setup.cards); // T-6 · carta de duas partes da trilha tipos listada pelo nome completo ("A // B"): o script da frente vale para ela (função abaixo da âncora T das exportações)
   for (const [name, card] of Object.entries(setup.cards || {})) if (!scripts[name]) { const li = SC.scriptLido(card); if (li) scripts[name] = li; } // LT7 · lida e revisada: joga pelo script lido (validado na leitura)
   for (const [name, card] of Object.entries(setup.cards || {})) s.facts[name] = cardFacts(card);
   // o estado guarda só o que o motor executa; o cenário de teste (S8) fica fora
@@ -15360,6 +15362,7 @@ function createGame(setup) {
     if (b.staticRule) s.facts[b.name].script.staticRule = b.staticRule; // S52 · regra estática na face de trás
     if (b.loyalty != null) s.facts[b.name].loyalty = b.loyalty;
     s.facts[b.name].backOf = sc.name;
+    if (SC.versoSoNaPartida(sc)) fatosDeDuasPartesT(s, sc, setup); // T-6 · CR 202.3 / 715.3b · custo, valor de mana e cor da face de trás das cartas da trilha tipos, e o custo da frente quando o dado traz "{A} // {B}"
   }
   for (const [name, f] of Object.entries(s.facts)) if (scripts[name]) {
     const sc = scripts[name];
@@ -21622,7 +21625,13 @@ function aventuraDe(s, x) {
   const f = s.facts[o.frontName || o.name], sc = f && f.script;
   return sc && sc.self && sc.self.aventura && sc.omen && sc.back ? { nome: sc.back, mana: sc.omen.mana } : null;
 }
-function aventuraNaConjuracao(s, a, o) { if (a.omen && o && o.zone !== 'hand' && aventuraDe(s, o)) throw new RuleError('aventura', 'fora da mão esta carta não é conjurada como Aventura (do exílio, só a carta normal)'); }
+function aventuraNaConjuracao(s, a, o) {
+  if (!a.omen || !o || !aventuraDe(s, o)) return;
+  if (o.zone !== 'hand') throw new RuleError('aventura', 'fora da mão esta carta não é conjurada como Aventura (do exílio, só a carta normal)');
+  // T-6 · 601.2e: o que o motor não oferece para a Aventura é recusado aqui, com mensagem (antes, algumas combinações davam erro interno)
+  if (a.flashback || a.escape || a.disturb || a.plotted || a.faceDown || a.bestow || a.retrace || a.permissao != null) throw new RuleError('aventura', 'a Aventura é conjurada da mão, pelo custo dela');
+  if (a.x != null && a.x !== 0) throw new RuleError('aventura', 'esta Aventura não tem X no custo');
+}
 /** Devolve o nome da Aventura que acabou de ser exilada, ou null quando a mágica que resolveu não é uma Aventura na pilha. */
 function aventuraResolveu(s, item, o, controller, events) {
   if (!o || o.zone !== 'stack' || !o.omen || !aventuraDe(s, o)) return null;
@@ -21632,6 +21641,30 @@ function aventuraResolveu(s, item, o, controller, events) {
   const c = s.objects[item];
   if (c && c.zone === 'exile') { c.playableFromExile = controller; events.push({ kind: 'effect', do: 'aventura', name: nome, target: c.name }); }
   return nome;
+}
+/** T-6 · o valor de mana de um custo já lido (202.3): genérico + um por símbolo de cor ou híbrido; X conta 0 fora da pilha. */
+const valorDoCustoT = c => (c.generic || 0) + Object.values(c.colored || {}).reduce((n, x) => n + x, 0) + (c.hybrid || []).length;
+const coresDoCustoT = c => COLORS.filter(k => k !== 'C' && ((c.colored || {})[k] || (c.hybrid || []).some(h => String(h).toUpperCase().includes(k))));
+/** T-6 · a lista pode trazer a carta pelo nome completo ("Foulmire Knight // Profane Insight"): o script, que mora no nome da frente,
+ * vale para ela. Só para os scripts desta trilha (`versoSoNaPartida`), para não mudar o que as outras partidas já eram. */
+function apelidosDeDuasPartesT(scripts, cards) {
+  for (const n of Object.keys(cards || {})) { if (scripts[n] || !n.includes(' // ')) continue; const sc = scripts[n.split(' // ')[0]]; if (sc && SC.versoSoNaPartida(sc)) scripts[n] = sc; }
+}
+/** T-6 · fatos que o laço das faces de trás não preenche, só para as cartas desta trilha presentes na partida:
+ * - a Aventura tem o custo dela (`omen.mana`), o valor de mana desse custo (202.3, 715.3b) e, sem `colors` no script, a cor dele (202.2);
+ * - quando o dado da carta traz o custo das duas partes junto ("{B} // {2}{B}", como a Scryfall entrega), a carta normal custa só a
+ *   primeira (antes o motor somava as duas). */
+function fatosDeDuasPartesT(s, sc, setup) {
+  const fb = s.facts[sc.back.name];
+  if (fb && sc.self && sc.self.aventura && sc.omen) {
+    fb.cost = parseCost(sc.omen.mana); fb.cmc = valorDoCustoT(fb.cost); fb.semCusto = false;
+    if (!(sc.back.colors || []).length) fb.colors = coresDoCustoT(fb.cost);
+  }
+  for (const [n, card] of Object.entries(setup.cards || {})) {
+    if (n !== sc.name && n.split(' // ')[0] !== sc.name) continue;
+    const mc = String((card && card.mana_cost) || '');
+    if (s.facts[n] && mc.includes(' // ')) s.facts[n].cost = parseCost(mc.split(' // ')[0]);
+  }
 }
 Object.assign(EXPORTS_T, { aventuraDe });
 Object.assign(EXPORTS_T, { capitulosDe, capituloFinal, capituloPendente, ROMANOS });

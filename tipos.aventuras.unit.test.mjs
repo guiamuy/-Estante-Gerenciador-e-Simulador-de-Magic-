@@ -248,3 +248,59 @@ test('CR 715 · passeio aleatório com aventuras nos dois lados: toda ação ofe
   }
   assert.ok(exiladas > 0 && doExilio > 0, `aventuras exiladas (${exiladas}) e conjuradas do exílio (${doExilio}) no passeio`);
 });
+
+/* ---------------- T-6 · correções da auditoria independente (166 sondas e fuzz de 300 partidas; cada divergência nasceu aqui como teste que falhava) ---------------- */
+Object.assign(SCRIPTS, {
+  // Aventura {3}{R} sem `colors` no script: a cor sai do custo (202.2)
+  'Batedor': { name: 'Batedor', self: { aventura: true }, omen: { mana: '{3}{R}' }, back: { name: 'Emboscada', types: ['instant'], effects: ganha(1) }, ...EX },
+  'Anula Quatro': { name: 'Anula Quatro', effects: [{ do: 'counter', target: 'spell', targetMv: 4 }], ...EX },
+});
+carta('Batedor', 'Creature — Goblin Scout', { power: '1', toughness: '1' }); carta('Anula Quatro', 'Instant');
+
+test('CR 202.3 · 715.3b · o valor de mana e o custo da Aventura na pilha são os dela (D1): Profane Insight 3, Dizzying Swoop 2, Usher to Safety 1; a carta normal segue com o dela', () => {
+  let s = mesa(['Foulmire Knight', 'Ardenvale Tactician', 'Shepherd of the Flock', 'Batedor']);
+  eq(['Profane Insight', 'Dizzying Swoop', 'Usher to Safety', 'Emboscada'].map(n => s.facts[n].cmc), [3, 2, 1, 4]);
+  eq(['Foulmire Knight', 'Ardenvale Tactician', 'Shepherd of the Flock'].map(n => s.facts[n].cmc), [1, 3, 2]);
+  assert.equal(s.facts['Profane Insight'].semCusto, false, 'a Aventura tem custo de mana');
+  eq(s.facts['Profane Insight'].cost.colored, { B: 1 }); assert.equal(s.facts['Profane Insight'].cost.generic, 2);
+});
+
+test('CR 202.2 · a cor da Aventura sai do custo dela quando o script não declara (D7): Aventura {3}{R} é vermelha na pilha', () => {
+  let s, c; [s, c] = naMao(mesa(['Batedor']), 0, 'Batedor'); s = mana(s, 0);
+  s = act(s, aventura(s, 0, c)[0]);
+  assert.equal(nome(s, c), 'Emboscada'); eq(E.coresDe(s, s.objects[c]), ['R']);
+});
+
+test('CR 107.3 · 601.2e · pedidos que o motor não oferece são recusados com mensagem, sem erro interno (D3, D6): X numa Aventura, e Aventura junto de lampejo, fuga ou outra forma de conjurar', () => {
+  let s, c; [s, c] = naMao(mesa(['Andarilho']), 0, 'Andarilho'); s = mana(s, 0);
+  for (const extra of [{ x: 3 }, { flashback: true }, { escape: true }, { disturb: true }, { plotted: true }, { faceDown: true }, { bestow: true }]) {
+    assert.throws(() => act(s, { t: 'cast', p: 0, oid: c, omen: true, ...extra }), e => e.name === 'RuleError' || (e.code != null && typeof e.message === 'string' && !/Cannot read|undefined/.test(e.message)), 'recusa limpa para ' + JSON.stringify(extra));
+  }
+  const v = sc => S.validateScript({ name: 'X', ...sc, ...EX }).join(' | ');
+  assert.match(v({ self: { aventura: true }, omen: { mana: '{X}{R}' }, back: { name: 'Y', types: ['sorcery'], effects: ganha(1) } }), /X no custo da Aventura/);
+});
+
+test('CR 715 · com os dados da carta como a Scryfall entrega (nome "A // B", custo "{B} // {2}{B}", duas faces): a carta normal custa {B}, a Aventura {2}{B}, pelo nome da lista ou pelo nome completo', () => {
+  const scry = { name: 'Foulmire Knight // Profane Insight', layout: 'adventure', mana_cost: '{B} // {2}{B}', cmc: 1, type_line: 'Creature — Zombie Knight // Instant — Adventure',
+    oracle_text: 'Deathtouch\n//\nYou draw a card and you lose 1 life. (Then exile this card. You may cast the creature later from exile.)', keywords: ['Deathtouch'], colors: ['B'], power: '1', toughness: '1',
+    faces: [{ name: 'Foulmire Knight', mana_cost: '{B}', type_line: 'Creature — Zombie Knight', oracle_text: 'Deathtouch', power: '1', toughness: '1', colors: ['B'] },
+      { name: 'Profane Insight', mana_cost: '{2}{B}', type_line: 'Instant — Adventure', oracle_text: 'You draw a card and you lose 1 life.', colors: ['B'] }] };
+  for (const chave of ['Foulmire Knight', 'Foulmire Knight // Profane Insight']) {
+    const cards = { [chave]: scry }; for (const n of ['Plains', 'Forest', 'Island', 'Mountain', 'Swamp']) cards[n] = CARTAS[n] || { name: n, type_line: 'Basic Land — Swamp', mana_cost: '', cmc: 0, keywords: [], oracle_text: '({T}: Add {B}.)', colors: [] };
+    let s = E.createGame({ format: 'livre', seed: 1, mode: 'full', cards, scripts: {}, players: [{ name: 'A', deck: [{ name: chave, qty: 20, zone: 'main' }, { name: 'Swamp', qty: 20, zone: 'main' }] }, { name: 'B', deck: [{ name: 'Island', qty: 40, zone: 'main' }] }] });
+    for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+    s = passaAte(s, x => x.turn.active === 0 && x.turn.step === 'main1' && !x.stack.length && !x.pending);
+    const c = s.zones[0].hand.find(o => s.objects[o].name === chave) || (() => { let o; [s, o] = poe(s, 0, chave, 'hand'); return o; })();
+    assert.ok(s.facts[chave].script, chave + ': a carta tem script na partida');
+    eq(s.facts[chave].cost.colored, { B: 1 }, chave + ': custo da carta normal'); assert.equal(s.facts[chave].cost.generic, 0);
+    eq(E.aventuraDe(s, c), { nome: 'Profane Insight', mana: '{2}{B}' });
+    let t = semMana(s, 0); t.players[0].pool.B = 1;
+    assert.equal(normal(t, 0, c).length, 1, chave + ': com {B}, a criatura'); assert.equal(aventura(t, 0, c).length, 0, chave + ': a Aventura custa {2}{B}');
+    t.players[0].pool.B = 3;
+    assert.equal(aventura(t, 0, c).length, 1);
+    t = esvazia(act(t, aventura(t, 0, c)[0]));
+    assert.equal(zona(t, c), 'exile'); assert.equal(nome(t, c), chave); assert.equal(vida(t), -1);
+    t = mana(t, 0); t = esvazia(act(t, normal(t, 0, c)[0]));
+    assert.equal(zona(t, c), 'battlefield'); assert.ok(E.hasKeyword(t, t.objects[c], 'deathtouch'));
+  }
+});
