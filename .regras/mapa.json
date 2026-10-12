@@ -7187,13 +7187,17 @@
    "n": "702.31",
    "regra": "Keyword Abilities",
    "titulo": "Horsemanship",
-   "status": "ausente",
-   "falta": "Sem implementação da evasão (702.31b)",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "509.1b"
    ],
-   "cartas": "uma coleção só (Portal Three Kingdoms)"
+   "cartas": "uma coleção só (Portal Three Kingdoms)",
+   "evidencia": "K-63: em porQueNaoBloqueia, pela linha da trilha (travessiaQueBarraK, K-21): a atacante com equitação só é bloqueada por criatura com equitação (702.31b); quem tem equitação bloqueia qualquer criatura. Instâncias repetidas não mudam nada (702.31c).",
+   "testes": [
+    "CR 702.31b · equitação (Shu Cavalry, texto oficial): só criatura com equitação bloqueia; a criatura com equitação bloqueia qualquer uma",
+    "K-63 · equitação (702.31): o Urso não bloqueia a cavalaria, que causa 2"
+   ]
   },
   {
    "n": "702.32",

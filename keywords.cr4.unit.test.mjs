@@ -2284,3 +2284,15 @@ test('CR 702.98a · desencadear (Gore-House Chainwalker, texto oficial): ao entr
   assert.equal(bloqueia(com), false, 'com o marcador +1/+1, não bloqueia');
   assert.equal(bloqueia(sem), true, 'sem o marcador, bloqueia');
 });
+
+/* ---------------- K-63 · equitação 702.31 ---------------- */
+test('CR 702.31b · equitação (Shu Cavalry, texto oficial): só criatura com equitação bloqueia; a criatura com equitação bloqueia qualquer uma', () => {
+  const SC_ = { ...oficial('Shu Cavalry'), keywords: ['Horsemanship'] };
+  let s = partida({ 'Shu Cavalry': SC_, Urso: URSO }); const a = s.turn.active, d = 1 - a;
+  let c, u, c2, u2; [s, c] = poe(s, a, 'Shu Cavalry'); [s, u] = poe(s, d, 'Urso'); [s, c2] = poe(s, d, 'Shu Cavalry'); [s, u2] = poe(s, a, 'Urso');
+  const ataque = (st, quem) => { st = act(ateK35(st, a, 'combat_attackers'), { t: 'attack', p: a, attackers: [quem] }); for (let i = 0; i < 6 && !(st.pending && st.pending.kind === 'blockers'); i++) st = st.pending ? act(st, E.legalActions(st, st.pending.p)[0]) : act(st, { t: 'pass', p: st.turn.priority }); return st; };
+  const bloq = (st, b, at) => { try { act(st, { t: 'block', p: d, blocks: [[b, at]] }); return true; } catch (e) { return false; } };
+  let t = ataque(s, c);
+  assert.equal(bloq(t, u, c), false, 'o Urso não bloqueia a cavalaria'); assert.equal(bloq(t, c2, c), true, 'a outra cavalaria bloqueia');
+  t = ataque(s, u2); assert.equal(bloq(t, c2, u2), true, 'a cavalaria bloqueia o Urso');
+});

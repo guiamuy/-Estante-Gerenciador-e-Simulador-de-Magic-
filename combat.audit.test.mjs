@@ -925,6 +925,16 @@ test('K-62 · desencadear (702.98): entrando com o marcador, a criatura ataca 3/
   s = act(s, { t: 'choose_mode', p: a, index: 0 }); s = JSON.parse(JSON.stringify(s)); s.objects[g].sick = false;
   assert.equal(combate(s, [g]).players[d].life, 17);
 });
+test('K-63 · equitação (702.31): o Urso não bloqueia a cavalaria, que causa 2', () => {
+  cobre('horsemanship');
+  const cartas = { ...CARDS, Cavalaria: cre('Cavalaria', 2, 2, ['Horsemanship'], { oracle_text: 'Horsemanship' }) };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 83, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a; let c, u; [s, c] = poe(s, a, 'Cavalaria'); [s, u] = poe(s, d, 'Urso');
+  assert.throws(() => combate(s, [c], [[u, c]]), /./);
+  assert.equal(combate(s, [c]).players[d].life, 18);
+});
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));

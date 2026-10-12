@@ -5242,6 +5242,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'living weapon', 'for mirrodin!', 'job select', // K-60 · 702.92, 702.163, 702.182: o Equipamento entra, cria a ficha (Germe 0/0 preto, Rebelde 2/2 vermelho, Herói 1/1 incolor) e se anexa a ela (FICHAS_DO_EQUIPAMENTO_K)
   'bloodthirst', // K-61 · 702.54: entra com N marcadores +1/+1 se um oponente sofreu dano neste turno (danoNoTurnoK)
   'unleash', // K-62 · 702.98: escolha de entrar com um marcador +1/+1 a mais; com marcador +1/+1, não bloqueia (naoBloqueiaK)
+  'horsemanship', // K-63 · 702.31: só criatura com equitação bloqueia a criatura com equitação (horsemanshipBarraK)
   'afflict', 'melee', 'mentor', 'training', // K-31 · 702.130, 702.121, 702.134, 702.149: gatilhos de ataque gerados pela palavra, um por instância
   'battle cry', 'rampage', 'flanking', 'bushido', // K-30 · 702.91, 702.23, 702.25, 702.45: gatilhos de combate gerados pela palavra (GATILHOS_DE_PALAVRA_K), um por instância
   /* ↓ V · palavras-chave da trilha verbos */
@@ -8397,6 +8398,7 @@ function palavraNaLinhaK(k) {
   if (k === 'living weapon' || k === 'for mirrodin!' || k === 'job select') return k.replace('!', '\\!'); // K-60
   if (k === 'bloodthirst') return 'bloodthirst \\d+'; // K-61 · "Bloodthirst X" fica de fora
   if (k === 'unleash') return 'unleash'; // K-62
+  if (k === 'horsemanship') return 'horsemanship'; // K-63
   if (k === 'dash') return 'dash\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-9
   if (k === 'evoke') return 'evoke(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*exile an? (?:white|blue|black|red|green) card from your hand\\.?)'; // K-8 · só as formas que o motor paga
   return ['afterlife', 'rampage', 'bushido', 'afflict'].includes(k) ? `${k} \\d+` : k; // K-30 · alvoroço N e bushido N
@@ -22788,6 +22790,7 @@ function terrenoDaTravessiaK(s, l, t) {
 }
 /** Texto para a mesa quando uma travessia com qualidade impede o bloqueio, ou null. */
 function travessiaQueBarraK(s, a, b) {
+  if (has(s, a, 'horsemanship') && !has(s, b, 'horsemanship')) return 'equitação: só criatura com equitação bloqueia'; // K-63 · 702.31b (a outra direção não vale: quem tem equitação bloqueia qualquer uma)
   const f = s.facts[a.name]; if (!f || !f.travK || a.faceDown || semImpressas(s, a)) return null;
   for (const t of f.travK) if (battlefield(s).some(l => l.controller === b.controller && !l.faceDown && tiposDe(s, l).includes('land') && terrenoDaTravessiaK(s, l, t)))
     return `travessia (${t.nao ? 'não ' : ''}${t.qualidade ? { basic: 'básico', legendary: 'lendário', snow: 'da neve', artifact: 'artefato' }[t.qualidade] + ' ' : ''}${t.subtipo || 'terreno'})`;
@@ -27593,6 +27596,7 @@ Object.assign(PALAVRA_PT, { ascend: 'ascensão' }); // K-59
 Object.assign(PALAVRA_PT, { 'living weapon': 'arma viva', 'for mirrodin!': 'por Mirrodin!', 'job select': 'escolha de classe' }); // K-60
 Object.assign(PALAVRA_PT, { bloodthirst: 'sede de sangue' }); // K-61
 Object.assign(PALAVRA_PT, { unleash: 'desencadear' }); // K-62
+Object.assign(PALAVRA_PT, { horsemanship: 'equitação' }); // K-63
 Object.assign(PALAVRA_PT, { afflict: 'aflição', melee: 'refrega', mentor: 'mentor', training: 'treinamento' }); // K-31
 Object.assign(PALAVRA_PT, { 'battle cry': 'grito de guerra', rampage: 'alvoroço', flanking: 'flanquear', bushido: 'bushido' }); // K-30
 const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consultadas por descreveEfeito; antes a pilha mostrava "proeza k")
