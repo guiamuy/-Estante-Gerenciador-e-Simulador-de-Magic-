@@ -2456,3 +2456,15 @@ test('CR 702.194a/c · trabalho em equipe: o modo com trabalho em equipe vira um
   assert.equal((n.objects[u1].counters || {}).p1p1 || 0, 0, 'sem, nada de marcador');
   assert.throws(() => E.apply(s, { t: 'cast', p: a, oid: f, mode: ie, targets: [{ oid: u1 }], pay: { equipeK: [um] } }), /poder total 3/);
 });
+
+/* ---------------- K-72 · achado da auditoria 4c ---------------- */
+test('CR 702.80b · murchar concedido e última informação: a criatura que ganhou murchar de outra e se sacrifica para causar dano ainda causa marcadores −1/−1', () => {
+  const C = (n, p, t, kw, tx) => ({ name: n, type_line: 'Creature — Zombie', mana_cost: '{1}', cmc: 1, colors: ['B'], power: String(p), toughness: String(t), keywords: kw, oracle_text: tx });
+  const SC = { Lorde: { name: 'Lorde', grantsAll: { keywords: ['wither'] }, example: { action: 'etb', target: 'none', expect: { attached: false } } },
+    Sacp: { name: 'Sacp', abilities: [{ kind: 'activated', cost: { sacrifice: true }, effects: [{ do: 'damage', amount: 2, target: 'creature' }] }], example: { action: 'activate:0', target: 'enemy-creature', expect: { gone: true } } } };
+  let s = partida({ Lorde: C('Lorde', 0, 1, [], 'Creatures you control have wither.'), Sacp: C('Sacp', 1, 1, [], 'Sacrifice Sacp: It deals 2 damage to target creature.'), Parede: C('Parede', 0, 4, [], '') }, SC); const a = s.turn.active, d = 1 - a;
+  let p, w; [s] = poe(s, a, 'Lorde'); [s, p] = poe(s, a, 'Sacp'); [s, w] = poe(s, d, 'Parede');
+  assert.ok(E.hasKeyword(s, s.objects[p], 'wither'), 'no campo, tem murchar pelo Lorde');
+  const t = resolve(act(s, E.legalActions(s, a).find(x => x.t === 'activate' && x.oid === p && x.targets && x.targets[0].oid === w)));
+  assert.equal(t.objects[w].counters.m1m1, 2); assert.equal(t.objects[w].damage || 0, 0);
+});

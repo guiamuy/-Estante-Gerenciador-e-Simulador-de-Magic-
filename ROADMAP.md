@@ -4605,6 +4605,10 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Trilha verbos:** ∞ (depende de arrear, 701.64).
 - **Fora por custo e pouca carta:** vangloriar, exaurir e energizar (são a habilidade da própria carta, vêm com o script dela), teia, dobra de fogo, incremento, paradigma, história, transfigurar, fortificar.
 - **Testes:** `regras.mapa.unit` (o mapa continua válido). Nenhuma linha do motor mudou.
+**K-72 · Auditoria independente da onda 4c (K-65 a K-70)** 🟡 (leva K-72)
+- **Auditoria:** 76 sondas caixa-preta (murchar, decaída, blitz, voraz, esquadrão, baixa, escalonado, trabalho em equipe); 1 divergência, corrigida com teste antes.
+- **Correção:** murchar concedido por outra permanente vale pela última informação quando a fonte já saiu do campo (702.80b): a criatura que ganhou murchar e se sacrifica para causar dano ainda põe marcadores −1/−1.
+- **Testes:** `keywords.cr4.unit` (1, falha sem a leva). Goldens idênticos; motor v110.
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

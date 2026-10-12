@@ -7971,10 +7971,11 @@
     "704.5q"
    ],
    "cartas": "rara (Shadowmoor/Eventide)",
-   "evidencia": "K-65: marcaDanoEmCriatura (Toca ponto comum) marca −1/−1 em vez de dano quando a fonte do dano (o objeto de onde a habilidade veio, fonteDoDano) tem murchar (murchaK), pelo caminho do infectar; dano a jogador fica como era.",
+   "evidencia": "K-65: marcaDanoEmCriatura (Toca ponto comum) marca −1/−1 em vez de dano quando a fonte do dano (o objeto de onde a habilidade veio, fonteDoDano) tem murchar (murchaK), pelo caminho do infectar; dano a jogador fica como era. K-72 (auditoria 4c): fora do campo vale a última informação — a foto de quem sai guarda se tinha murchar (concedido também; ultimaPalavrasK).",
    "testes": [
     "CR 702.80b · murchar (Sickle Ripper, texto oficial): o dano dela a criatura vira marcadores −1/−1 (não dano marcado); ao jogador, perda de vida normal",
-    "K-65 · murchar e decaída (702.80, 702.147): o Urso com murchar bloqueado por uma 1/4 deixa dois −1/−1; a decaída ataca e é sacrificada"
+    "K-65 · murchar e decaída (702.80, 702.147): o Urso com murchar bloqueado por uma 1/4 deixa dois −1/−1; a decaída ataca e é sacrificada",
+    "CR 702.80b · murchar concedido e última informação: a criatura que ganhou murchar de outra e se sacrifica para causar dano ainda causa marcadores −1/−1"
    ]
   },
   {

@@ -22769,6 +22769,10 @@ Object.assign(EXPORTS_K, { instanciasK, habilidadesDePalavraK });
 const PALAVRAS_DE_SAIDA_K = { persist: 'm1m1', undying: 'p1p1', afterlife: null }; // K-6 · pós-vida não tem condição
 /** K-4 · na hora de sair do campo (a permanente ainda é como era): quantas instâncias de cada uma ela tinha e se a condição vale. */
 function ultimaPalavrasK(s, o) {
+  if (has(s, o, 'wither')) return { ...ultimaPalavrasSemMurcharK(s, o), murchaK: true }; // K-72 · 702.80b: a foto guarda se tinha murchar (concedido também)
+  return ultimaPalavrasSemMurcharK(s, o);
+}
+function ultimaPalavrasSemMurcharK(s, o) {
   const out = {};
   for (const [k, m] of Object.entries(PALAVRAS_DE_SAIDA_K)) { if (m && ((o.counters || {})[m] || 0) > 0) continue; const n = instanciasK(s, o, k); if (n) out[k] = n; }
   return Object.keys(out).length ? { palavrasK: out, ...(out.modular ? { p1p1K: (o.counters || {}).p1p1 || 0 } : {}), ...(out.champion && o.campeaoDeK ? { campeaoDeK: o.campeaoDeK } : {}), ...(out.blitz && o.blitzadaK ? { blitzadaK: true } : {}) } : {}; // K-66 // K-41 · 702.43a: quantos +1/+1 ela tinha; K-44 · a exilada pelo campeão
@@ -24058,7 +24062,7 @@ Object.assign(EXPORTS_K, { ofertasSemPagarK });
    controller to put that many -1/-1 counters on that creature" (b); o caminho do infectar (marcaDanoEmCriatura; Toca ponto comum), com a
    fonte do dano de uma habilidade sendo o objeto de onde ela veio. 702.147 decaída: não bloqueia (naoBloqueiaK) e, ao atacar, é
    sacrificada no fim do combate (gatilho atrasado). */
-const murchaK = (s, src0) => { const src = fonteDoDano(s, src0); return !!src && !!s.facts[src.name] && has(s, src, 'wither'); };
+const murchaK = (s, src0) => { const src = fonteDoDano(s, src0); if (!src || !s.facts[src.name]) return false; if (src.zone !== 'battlefield' && src.ultima && !src.ability) return !!src.ultima.murchaK; return has(s, src, 'wither'); }; // K-72 · 702.80b: fora do campo, a última informação (murchar concedido conta; o impresso perdido não) — achado da auditoria 4c
 /* K-66 · 702.152 blitz: "Blitz [cost]" = custo alternativo (altsImpressosK, marca blitzadaK) e, paga: "it has haste" (enquanto estiver no
    campo), "When this permanent is put into a graveyard from the battlefield, draw a card" (gatilho da palavra, pela foto de quem sai) e
    "At the beginning of the end step, sacrifice it" (gatilho atrasado preso à encarnação). */
