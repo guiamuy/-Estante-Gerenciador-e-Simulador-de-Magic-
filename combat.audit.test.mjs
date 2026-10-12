@@ -878,6 +878,18 @@ test('K-58 · iminente (702.176): o Senhor pelo custo iminente entra sem ser cri
   assert.throws(() => combate(s, [u, g]), /./, 'o Senhor não é criatura: não ataca');
   assert.equal(combate(s, [u]).players[d].life, 18);
 });
+test('K-59 · ascensão (702.131): com o Gato de ascensão e mais nove permanentes, o jogador tem a bênção da cidade; o Gato ataca normalmente', () => {
+  cobre('ascend');
+  const cartas = { ...CARDS, Gato: cre('Gato', 2, 2, ['Ascend'], { oracle_text: 'Ascend' }) };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 12, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 79, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a; let g; [s, g] = poe(s, a, 'Gato'); for (let i = 0; i < 9; i++) [s] = poe(s, a, 'Urso');
+  assert.ok(!s.players[a].bencaoK);
+  let h; [s, h] = poe(s, a, 'Urso', { zone: 'hand' }); s = act(s, { t: 'cast', p: a, oid: h }); for (let i = 0; i < 4 && s.stack.length; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  assert.equal(s.players[a].bencaoK, true, 'onze permanentes: bênção');
+  assert.equal(combate(s, [g]).players[d].life, 18);
+});
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));

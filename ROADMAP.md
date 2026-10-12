@@ -4509,6 +4509,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `moveObject` (uma linha: `iminenteEntrouK`).
 - **Testes:** `keywords.cr4.unit` (1, falha sem a leva), `combat.audit` (1 cenário). Texto oficial: Overlord of the Balemurk, Overlord of the Mistmoors (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
 - **Parcial declarado:** marcadores de tempo mexidos por outros efeitos não atualizam o "não é criatura"; reduções de outras fontes não valem sobre o custo iminente; os gatilhos de "entra ou ataca" dos Overlords ficam sem script.
+**K-59 · Ascensão (ascend, 702.131) e condições de gatilho da trilha** 🟡 (leva K-59) — onda 4 (175 cópias em 51 listas: Ocelot Pride, Wayward Swordtooth)
+- **Valor:** quem controla uma permanente com ascensão e chega a dez permanentes ganha a bênção da cidade para o resto do jogo; a mágica com ascensão confere ao resolver. Scripts passam a poder dizer "se você tem a bênção da cidade" e "se o presente foi prometido" em gatilhos.
+- **Aceite:** Wayward Swordtooth e oito Florestas: jogar a décima permanente dá a bênção, que fica mesmo perdendo permanentes. Um gatilho com a condição da bênção só ganha vida depois dela; o gatilho de entrada condicionado ao presente só vale prometendo.
+- **Toca ponto comum:** `triggerConditionMet` (uma linha: `condicaoK`) e o validador de condições de gatilho (a lista ganha `...condicoesK()`, sem tirar nada).
+- **Testes:** `keywords.cr4.unit` (2, falham sem a leva), `combat.audit` (1 cenário). Texto oficial: Ocelot Pride, Wayward Swordtooth, Golden Demise (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
+- **Parcial declarado:** chegar a dez por ganhar o controle de uma permanente não dá a bênção na hora; "se você tem a bênção, em vez disso…" em efeito de mágica (Golden Demise) não existe; Ocelot Pride sem script.
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

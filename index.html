@@ -5238,6 +5238,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'gift', // K-56 · 702.174: custo adicional opcional de escolher um oponente; o presente vem antes dos outros efeitos da mágica (modo "prometendo o presente") ou num gatilho de entrada da permanente
   'dredge', // K-57 · 702.52: substituição da compra — no lugar de comprar, moer N e devolver a carta do cemitério à mão (escolha do jogador a cada compra)
   'impending', // K-58 · 702.176: custo alternativo; entra com N marcadores de tempo e não é criatura enquanto tiver algum; na sua etapa final tira um (iminenteK)
+  'ascend', // K-59 · 702.131: com dez permanentes ou mais, o jogador ganha a bênção da cidade pelo resto do jogo (ascensaoK); condição de gatilho bencaoK
   'afflict', 'melee', 'mentor', 'training', // K-31 · 702.130, 702.121, 702.134, 702.149: gatilhos de ataque gerados pela palavra, um por instância
   'battle cry', 'rampage', 'flanking', 'bushido', // K-30 · 702.91, 702.23, 702.25, 702.45: gatilhos de combate gerados pela palavra (GATILHOS_DE_PALAVRA_K), um por instância
   /* ↓ V · palavras-chave da trilha verbos */
@@ -5412,6 +5413,7 @@ const EFFECTS = {
   compra_k: { fields: ['jogador', 'resto'], targets: [] }, // K-57 · comprar em vez de dragar (gerado pelo motor)
   dragar_k: { fields: ['jogador', 'carta', 'n', 'resto'], targets: [] }, // K-57 · 702.52a (gerado pelo motor)
   iminente_k: { fields: ['z'], targets: [] }, // K-58 · 702.176a (gerado pelo motor)
+  ascender_k: { fields: [], targets: [] }, // K-59 · 702.131a (gerado pelo motor na mágica com ascensão)
   salvaguarda: { fields: [], targets: [] }, // K-2 · 702.21a · gerado pelo motor quando uma permanente com salvaguarda vira alvo (não vai em script)
   volta_com_marcador: { fields: ['marcador'], targets: [] }, // K-4 · persistir e imortal (gerado pelo motor)
   exaltado: { fields: ['criatura'], targets: [] }, // K-5 · exaltado (gerado pelo motor)
@@ -6014,7 +6016,7 @@ function validateScript(sc) {
   if (sc && sc.reduzPor && (sc.discount || sc.affinity)) errs.push('redução por contagem não se soma a desconto ou afinidade no mesmo script'); // M-333
   // S18 · ninjutsu e insanidade
   // S21 · habilidades de lealdade
-  for (const ab of (sc && sc.abilities) || []) if (ab.condition && !['lifeGained', 'attackersAtLeast', 'controlsOtherNamed', 'bargained', 'evidenced', 'kicked', 'opponentMoreLands', 'atacaSozinha', 'vidaPeloMenos', 'marcadoresNaFonte'].includes(Object.keys(ab.condition)[0] || '')) errs.push('condição de gatilho desconhecida');
+  for (const ab of (sc && sc.abilities) || []) if (ab.condition && !['lifeGained', 'attackersAtLeast', 'controlsOtherNamed', 'bargained', 'evidenced', 'kicked', 'opponentMoreLands', 'atacaSozinha', 'vidaPeloMenos', 'marcadoresNaFonte', ...condicoesK()].includes(Object.keys(ab.condition)[0] || '')) errs.push('condição de gatilho desconhecida'); // K-59 · condições da trilha keywords (Toca ponto comum: validador de condições)
   if (sc && sc.bargain != null && sc.bargain !== true) errs.push('barganha é uma marca, sem valor');
   if (sc && sc.evidence != null && !(Number.isInteger(sc.evidence) && sc.evidence > 0)) errs.push('colher provas precisa de um número inteiro positivo');
   for (const ab of (sc && sc.abilities) || []) if (ab.mayPay && !ab.mayPay.mana && !ab.mayPay.exileFromGraveyard && !ab.mayPay.sacrificeSelf && !(Number.isInteger(ab.mayPay.pagarVida) && ab.mayPay.pagarVida > 0)) errs.push('custo opcional do gatilho sem custo'); // V-26 · "you may pay N life" (Toca ponto comum)
@@ -8304,6 +8306,8 @@ function deckCoverage(entries, cards, scripts = SCRIPTS) {
 
 const EXPORTS_K_SC = {}, EXPORTS_V_SC = {}, EXPORTS_T_SC = {}; // ↓ cada trilha preenche o seu (Object.assign) logo abaixo da sua âncora
 /* ↓ K · exportações de scripts.js da trilha keywords */
+/** K-59 · condições de gatilho da trilha keywords (conferidas em condicaoK, core.js): bênção da cidade (702.131) e presente prometido (702.174b). */
+function condicoesK() { return ['bencaoK', 'presenteK']; }
 /** K-2 · 702.21 · custo da salvaguarda: "{3}" (mana), ou { mana, pagarVida, discard, sacrificeOther: { types }, x } (702.21b: {X} decidido
     na resolução, pela contagem `x`); com `varias`, também uma lista (cada instância dispara à parte). */
 function wardCustoErrosK(c, varias) {
@@ -8370,6 +8374,7 @@ function palavraNaLinhaK(k) {
   if (k === 'gift') return 'gift (?:a card|a tapped fish|an extra turn|a food|a treasure|an octopus)'; // K-56
   if (k === 'dredge') return 'dredge \\d+'; // K-57
   if (k === 'impending') return 'impending \\d+\\s*[—-]\\s*(?:\\{[0-9WUBRGC]+\\})+'; // K-58
+  if (k === 'ascend') return 'ascend'; // K-59
   if (k === 'dash') return 'dash\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-9
   if (k === 'evoke') return 'evoke(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*exile an? (?:white|blue|black|red|green) card from your hand\\.?)'; // K-8 · só as formas que o motor paga
   return ['afterlife', 'rampage', 'bushido', 'afflict'].includes(k) ? `${k} \\d+` : k; // K-30 · alvoroço N e bushido N
@@ -16076,6 +16081,7 @@ function cardFacts(card) {
     harmonizarK: custoDaLinhaK(card, 'Harmonize'), // K-55 · 702.180: "Harmonize {4}{R}" (undefined quando não tem)
     presenteK: presenteImpressoK(card), // K-56 · 702.174: 'card' | 'fish' | 'turn' | 'food' | 'treasure' | 'octopus' (undefined quando não tem)
     iminenteK: iminenteImpressoK(card), // K-58 · 702.176: { n, mana } de "Impending 5—{1}{B}" (undefined quando não tem)
+    ascenderK: (card && /(^|\n)Ascend( \(|\s*$|\n)/.test(String(card.oracle_text || ''))) || undefined, // K-59 · 702.131: linha "Ascend"
     campeaoK: campeaoImpressoK(card), // K-44 · 702.72: "Champion a creature" → 'creature'; "Champion an Elf" → 'Elf' (undefined quando não tem)
     suspenderK: suspenderImpressoK(card), // K-22 · 702.62a: "Suspend N—{custo}" (undefined quando não tem)
     equipesK: equipesImpressosK(card), // K-28 · 702.6c: "Equip [qualidade] {custo}" (undefined quando não tem)
@@ -16412,6 +16418,7 @@ function createGame(setup) {
     if (f.escalarK && (f.script.modes || []).length > 1 && !f.script.modeCount) f.script.modes = f.script.modes.concat(modosEscaladosK(f.script.modes, f.escalarK)); // K-48 · 702.120a: cada combinação de modos é mais um modo, com custo por modo além do primeiro
     if (f.spreeK && (f.script.modes || []).length === f.spreeK.length && !f.script.modeCount) f.script.modes = modosSpreeK(f.script.modes, f.spreeK); // K-54 · 702.172a: cada combinação de modos, com a soma dos custos dela
     if (f.presenteK && !(f.script.modes || []).length && (f.types.includes('instant') || f.types.includes('sorcery'))) f.script.modes = modosDoPresenteK(f, sc, setup.players || []); // K-56 · 702.174a/b/j/m: sem presente, ou prometendo a cada oponente possível (o presente antes do resto)
+    if (f.ascenderK && (f.types.includes('instant') || f.types.includes('sorcery'))) f.script.effects = [{ do: 'ascender_k' }].concat(f.script.effects || []); // K-59 · 702.131a: na mágica, a ascensão é a primeira habilidade
     if (sc.flashback) f.script.flashback = sc.flashback;
     if (sc.escape) f.script.escape = sc.escape; // S48 · fuga
     if (sc.discount) f.script.discount = sc.discount; // S49 · desconto por condição de campo
@@ -18992,6 +18999,7 @@ function applyEffect(s, src, eff, tgt, events) {
       break;
     }
     /* ↓ K · casos de applyEffect da trilha keywords */
+    case 'ascender_k': { const ganhou = ascensaoK(s, ctrl, true); note({ failed: !ganhou }); break; } // K-59 · 702.131a
     case 'iminente_k': { // K-58 · 702.176a: tira um marcador de tempo (se ainda paga e com marcador: "if" interveniente, 603.4); sem marcador, volta a ser criatura
       const perm = s.objects[src.ability ? src.source : src.oid];
       if (!perm || perm.zone !== 'battlefield' || (perm.zc || 0) !== eff.z || !perm.iminenteK || !((perm.counters || {}).time > 0)) { note({ failed: true }); break; }
@@ -19730,6 +19738,7 @@ function triggerConditionMet(s, o, cond) {
     if (!alive(s).some(q => q !== o.controller && terrenos(q) > terrenos(o.controller))) return false;
   }
   if (cond.atacaSozinha && !(s.combat && (s.combat.attackers || []).length === 1 && s.combat.attackers[0] === o.oid)) return false; // M-251 · 506.5 "attacks alone"
+  if (!condicaoK(s, o, cond)) return false; // K-59 · bênção da cidade e presente prometido (Toca ponto comum: triggerConditionMet)
   if (cond.attackersAtLeast != null) {
     const list = (s.combat && s.combat.attackers) || [];
     if (list.length < cond.attackersAtLeast || !list.includes(o.oid)) return false;
@@ -22511,6 +22520,7 @@ Object.assign(EXPORTS_K, { recomecarImpressoK });
    parte (d); a condição é intermediária (603.4): conferida ao disparar e de novo na resolução, com o poder e a resistência de agora — da
    que entrou, se saiu do campo, como ela era (608.2h); 702.100c: quem não é criatura não evolui. */
 function evoluirK(s, o) {
+  if (o && o.zone === 'battlefield' && partidaTemK(s, 'ascenderK')) ascensaoK(s, o.controller); // K-59 · 702.131b: a permanente que entra pode fazer o controlador chegar a dez
   if (!o || o.zone !== 'battlefield' || !isCreature(s, o)) return;
   enxertoK(s, o); // K-46 · o enxerto também olha a criatura que entra
   for (const w of battlefield(s)) {
@@ -23571,6 +23581,25 @@ function iminenteConfereK(s, o) {
   o.vira = o.vira.filter(v => !v.iminenteK); if (!o.vira.length) delete o.vira;
 }
 Object.assign(EXPORTS_K, { iminenteImpressoK });
+/* K-59 · 702.131 ascensão: na permanente, "any time you control ten or more permanents and you don't have the city's blessing, you get the
+   city's blessing for the rest of the game" (b); na mágica, a mesma coisa ao resolver (a). A bênção (c) é a marca `bencaoK` do jogador,
+   para sempre. A conferência da permanente roda quando uma permanente entra no campo (a contagem só sobe assim; ganhar o controle de uma
+   permanente fica de fora). A condição de gatilho `bencaoK` ("if you have the city's blessing") e `presenteK` ("if the gift was promised",
+   702.174b) moram em condicaoK. */
+function ascensaoK(s, p, daMagica) {
+  const pl = s.players[p]; if (!pl || pl.lost || pl.bencaoK) return false;
+  const minhas = battlefield(s).filter(x => x.controller === p && !x.phasedOut);
+  if (minhas.length < 10) return false;
+  if (!daMagica && !minhas.some(x => !x.faceDown && !semImpressas(s, x) && (s.facts[x.name] || {}).ascenderK)) return false;
+  pl.bencaoK = true;
+  return true;
+}
+function condicaoK(s, o, cond) {
+  if (cond.bencaoK && !(s.players[o.controller] || {}).bencaoK) return false;
+  if (cond.presenteK && o.presenteK == null) return false;
+  return true;
+}
+Object.assign(EXPORTS_K, { ascensaoK, condicaoK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-30 · 701.65 aerobender: "that player exiles those objects. For each card exiled this way, for as long as it remains exiled, its owner
    may cast it by paying {2} rather than paying its mana cost" (a). A permissão é do DONO e da encarnação exilada (400.7: se a carta sair do
@@ -27491,6 +27520,7 @@ Object.assign(PALAVRA_PT, { harmonize: 'harmonizar' }); // K-55
 Object.assign(PALAVRA_PT, { gift: 'presente' }); // K-56
 Object.assign(PALAVRA_PT, { dredge: 'dragar' }); // K-57
 Object.assign(PALAVRA_PT, { impending: 'iminente' }); // K-58
+Object.assign(PALAVRA_PT, { ascend: 'ascensão' }); // K-59
 Object.assign(PALAVRA_PT, { afflict: 'aflição', melee: 'refrega', mentor: 'mentor', training: 'treinamento' }); // K-31
 Object.assign(PALAVRA_PT, { 'battle cry': 'grito de guerra', rampage: 'alvoroço', flanking: 'flanquear', bushido: 'bushido' }); // K-30
 const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consultadas por descreveEfeito; antes a pilha mostrava "proeza k")
@@ -27513,6 +27543,7 @@ const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consulta
   prole_k: () => 'cria uma ficha que é cópia desta permanente, só que 1/1 (prole)', // K-53
   presente_k: e => `${({ card: 'o oponente escolhido compra uma carta', fish: 'o oponente escolhido cria uma ficha de Peixe 1/1 azul virada', turn: 'o oponente escolhido joga um turno extra depois deste', food: 'o oponente escolhido cria uma ficha de Comida', treasure: 'o oponente escolhido cria uma ficha de Tesouro', octopus: 'o oponente escolhido cria uma ficha de Polvo 8/8 azul' })[e.tipo] || 'o oponente escolhido recebe o presente'} (presente)`, // K-56
   compra_k: () => 'compra a carta', dragar_k: e => `mói ${e.n} e devolve esta carta do cemitério à mão no lugar de comprar (dragar)`, // K-57
+  ascender_k: () => 'se você controla dez ou mais permanentes, ganha a bênção da cidade (ascensão)', // K-59
   iminente_k: () => 'tira um marcador de tempo desta permanente; sem marcador, ela volta a ser criatura (iminente)', // K-58
   mobilizar_k: e => `cria ${e.n === 1 ? 'uma ficha' : e.n + ' fichas'} de Guerreiro 1/1 vermelho viradas e atacando; na próxima etapa final elas são sacrificadas (mobilizar)`, mobilizar_ataca_k: () => '', // K-52
   tempestade_k: e => e.n ? `copia esta mágica ${e.n === 1 ? 'uma vez' : e.n + ' vezes'} (tempestade; cada cópia pode ter alvo novo)` : 'copia esta mágica para cada mágica conjurada antes dela neste turno (nenhuma)',

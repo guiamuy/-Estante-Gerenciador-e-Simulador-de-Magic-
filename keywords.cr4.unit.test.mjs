@@ -2190,3 +2190,39 @@ test('CR 702.176a · iminente (Overlord of the Balemurk, texto oficial: "Impendi
   const normal = resolve(act(s, E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === o && x.alt == null)));
   assert.ok(E.isCreature(normal, normal.objects[o]) && !(normal.objects[o].counters || {}).time, 'pelo custo normal, criatura sem marcador');
 });
+
+/* ---------------- K-59 · ascensão 702.131 e condições da trilha ---------------- */
+test('CR 702.131b/c · ascensão na permanente (Wayward Swordtooth, texto oficial): com dez permanentes, o controlador ganha a bênção da cidade para sempre; sem a carta com ascensão, não', () => {
+  const WS = { ...oficial('Wayward Swordtooth'), keywords: ['Ascend'] };
+  let s = partida({ 'Wayward Swordtooth': WS }); const a = s.turn.active, d = 1 - a;
+  [s] = poe(s, a, 'Wayward Swordtooth'); for (let i = 0; i < 8; i++) [s] = poe(s, a, 'Forest');
+  assert.ok(!s.players[a].bencaoK, 'nove permanentes');
+  let f; [s, f] = poe(s, a, 'Forest', 'hand');
+  s = act(s, { t: 'play_land', p: a, oid: f });
+  assert.equal(s.players[a].bencaoK, true, 'a décima entrou: bênção');
+  s = J(s); const z = s.zones[a].battlefield; for (const x of z.splice(0, 5)) { s.zones[a].graveyard.push(x); s.objects[x].zone = 'graveyard'; }
+  assert.equal(s.players[a].bencaoK, true, 'para o resto do jogo');
+  let t = partida({ 'Wayward Swordtooth': WS }); for (let i = 0; i < 9; i++) [t] = poe(t, a, 'Forest');
+  let g; [t, g] = poe(t, a, 'Forest', 'hand'); t = act(t, { t: 'play_land', p: a, oid: g });
+  assert.ok(!t.players[a].bencaoK, 'sem permanente com ascensão, nada');
+});
+
+test('CR 702.131a/c e 702.174b · condições de gatilho: "if you have the city\'s blessing" (bencaoK) e "if the gift was promised" (presenteK)', () => {
+  const CIDADE = { name: 'Cidade', type_line: 'Enchantment', mana_cost: '{1}', cmc: 1, colors: [], keywords: [], oracle_text: '' };
+  const SC = { Cidade: { name: 'Cidade', abilities: [{ kind: 'triggered', when: 'end-step', condition: { bencaoK: true }, effects: [{ do: 'gain', amount: 3 }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } } };
+  assert.deepEqual(J(S.validateScript(SC.Cidade)), []);
+  let s = partida({ Cidade: CIDADE }, SC); const a = s.turn.active;
+  [s] = poe(s, a, 'Cidade');
+  const vida = s.players[a].life;
+  let t = ateK35(s, a, 'end'); for (let i = 0; i < 6 && (t.stack.length || t.pending || t.turn.step === 'end'); i++) t = t.pending ? act(t, E.legalActions(t, t.pending.p)[0]) : act(t, { t: 'pass', p: t.turn.priority });
+  assert.equal(t.players[a].life, vida, 'sem bênção, nada');
+  let b = J(s); b.players[a].bencaoK = true;
+  b = ateK35(b, a, 'end'); for (let i = 0; i < 6 && (b.stack.length || b.pending || b.turn.step === 'end'); i++) b = b.pending ? act(b, E.legalActions(b, b.pending.p)[0]) : act(b, { t: 'pass', p: b.turn.priority });
+  assert.equal(b.players[a].life, vida + 3, 'com a bênção, ganha 3');
+  const RAPOSA = { name: 'Raposa', type_line: 'Creature — Fox', mana_cost: '{1}{W}', cmc: 2, colors: ['W'], power: '2', toughness: '2', keywords: ['Gift'], oracle_text: 'Gift a card' };
+  const SCR = { Raposa: { name: 'Raposa', abilities: [{ kind: 'triggered', when: 'etb', condition: { presenteK: true }, effects: [{ do: 'gain', amount: 2 }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } } };
+  let r = partida({ Raposa: RAPOSA }, SCR); const ra = r.turn.active; let ro; [r, ro] = poe(r, ra, 'Raposa', 'hand');
+  const v0 = r.players[ra].life, ofs = E.legalActions(r, ra).filter(x => x.t === 'cast' && x.oid === ro);
+  assert.equal(resolve(act(r, ofs.find(x => x.presenteK != null))).players[ra].life, v0 + 2, 'prometido: o gatilho condicionado vale');
+  assert.equal(resolve(act(r, ofs.find(x => x.presenteK == null))).players[ra].life, v0, 'sem prometer, não');
+});

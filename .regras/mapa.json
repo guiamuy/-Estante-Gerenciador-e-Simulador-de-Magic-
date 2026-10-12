@@ -8761,14 +8761,20 @@
    "n": "702.131",
    "regra": "Keyword Abilities",
    "titulo": "Ascend",
-   "status": "ausente",
-   "falta": "Sem a designação \"bênção da cidade\" do jogador: checagem contínua de dez permanentes para permanente (702.131b, não usa a pilha) e na resolução para mágica (702.131a), que nunca mais se perde (702.131c).",
+   "status": "parcial",
+   "falta": "A conferência da permanente roda quando uma permanente entra no campo; chegar a dez ganhando o controle de uma permanente não dá a bênção na hora. Efeito de mágica \"if you have the city's blessing, instead …\" (Golden Demise) não tem condição de efeito; Ocelot Pride sem script (cópia das fichas que entraram no turno).",
    "esforco": "P",
    "depende": [
     "designação de jogador",
     "704 checagem contínua"
    ],
-   "cartas": "rara (Ixalan)"
+   "cartas": "rara (Ixalan)",
+   "evidencia": "K-59: linha \"Ascend\" (ascenderK). Permanente: quando uma permanente entra (gancho em evoluirK, chamado por disparaZona), se o controlador tem dez ou mais permanentes e uma com ascensão, ganha a bênção (ascensaoK; marca bencaoK do jogador, para sempre, 702.131c). Mágica: em createGame a ascensão vira a primeira habilidade da mágica (ascender_k, 702.131a). Condição de gatilho bencaoK (\"if you have the city's blessing\") em condicaoK, ligada a triggerConditionMet e ao validador (Toca ponto comum).",
+   "testes": [
+    "CR 702.131b/c · ascensão na permanente (Wayward Swordtooth, texto oficial): com dez permanentes, o controlador ganha a bênção da cidade para sempre; sem a carta com ascensão, não",
+    "CR 702.131a/c e 702.174b · condições de gatilho: \"if you have the city\\",
+    "K-59 · ascensão (702.131): com o Gato de ascensão e mais nove permanentes, o jogador tem a bênção da cidade; o Gato ataca normalmente"
+   ]
   },
   {
    "n": "702.132",
@@ -9342,7 +9348,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Gift",
    "status": "parcial",
-   "falta": "\"Sempre que um jogador dá um presente\" (702.174c) não existe. Na permanente, o texto \"se o presente foi prometido\" fora do próprio presente (Scrapshooter) precisa de condição de script que o validador não tem (ponto comum). Cruelclaw's Heist, Sazacap's Brew e Dawn's Truce sem script (efeitos fora do vocabulário). Mágica com presente e modos próprios não é lida.",
+   "falta": "\"Sempre que um jogador dá um presente\" (702.174c) não existe. Cruelclaw's Heist, Sazacap's Brew e Dawn's Truce sem script (efeitos fora do vocabulário). Mágica com presente e modos próprios não é lida.",
    "esforco": "M",
    "depende": [
     "601.2b custo adicional",
@@ -9350,11 +9356,12 @@
     "500.7 turno extra (para 174g)"
    ],
    "cartas": "uma coleção só (Bloomburrow)",
-   "evidencia": "K-56: \"Gift a card/a tapped Fish/an extra turn/a Food/a Treasure/an Octopus\" (presenteImpressoK). Mágica instantânea ou feitiço: em createGame o script vira modos \"sem presente\" e \"prometendo a <jogador>\" (modosDoPresenteK), com presente_k antes dos outros efeitos (702.174j) e, se o script traz presenteK.effects, os efeitos (e alvos, 702.174m) do texto com o presente; prometer a si mesmo é recusado (conferePresenteK em HANDLERS.cast) e não é oferecido. Permanente: a conjuração ganha a variante presenteK por oponente (ofertasPresenteK); a marca vai ao campo e a palavra gera o gatilho de entrada com o presente (702.174b). Into the Flood Maw em RAW_SCRIPTS (S8).",
+   "evidencia": "K-56: \"Gift a card/a tapped Fish/an extra turn/a Food/a Treasure/an Octopus\" (presenteImpressoK). Mágica instantânea ou feitiço: em createGame o script vira modos \"sem presente\" e \"prometendo a <jogador>\" (modosDoPresenteK), com presente_k antes dos outros efeitos (702.174j) e, se o script traz presenteK.effects, os efeitos (e alvos, 702.174m) do texto com o presente; prometer a si mesmo é recusado (conferePresenteK em HANDLERS.cast) e não é oferecido. Permanente: a conjuração ganha a variante presenteK por oponente (ofertasPresenteK); a marca vai ao campo e a palavra gera o gatilho de entrada com o presente (702.174b). Into the Flood Maw em RAW_SCRIPTS (S8). K-59: condição de gatilho presenteK (\"if the gift was promised\", em gatilho de permanente) em condicaoK.",
    "testes": [
     "CR 702.174a/j/m · presente (Into the Flood Maw, texto oficial: \"Gift a tapped Fish\"): sem presente, só criatura do oponente; prometendo, o oponente cria o Peixe virado antes e o alvo passa a ser permanente não terreno; prometer a si mesmo é recusado",
     "CR 702.174b · presente na permanente: a conjuração com o presente prometido marca a permanente; ao entrar, o oponente recebe o presente (Gift a card: compra)",
-    "K-56 · presente (702.174): a Raposa com \"Gift a tapped Fish\" prometido dá ao oponente um Peixe virado, que não bloqueia o Urso"
+    "K-56 · presente (702.174): a Raposa com \"Gift a tapped Fish\" prometido dá ao oponente um Peixe virado, que não bloqueia o Urso",
+    "CR 702.131a/c e 702.174b · condições de gatilho: \"if you have the city\\"
    ]
   },
   {
