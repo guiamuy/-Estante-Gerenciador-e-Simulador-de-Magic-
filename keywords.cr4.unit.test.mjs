@@ -2024,3 +2024,32 @@ test('CR 702.185a · a dobra vale para a encarnação: a permanente dobrada que 
   t = ateK35(t, d, 'upkeep'); t = act(t, { t: 'pass', p: t.turn.priority });
   assert.equal(t.objects[c].playableFromExile, undefined, 'exilada por outro caminho: sem permissão');
 });
+
+/* ---------------- K-52 · mobilizar 702.181 ---------------- */
+const PW_K52 = { name: 'Andarilho', type_line: 'Legendary Planeswalker — Teste', mana_cost: '{3}', cmc: 3, colors: [], keywords: [], oracle_text: '', loyalty: '5' };
+const warriorsK52 = s => Object.values(s.objects).filter(o => o.token && o.name === 'Warrior' && o.zone === 'battlefield');
+test('CR 702.181a · mobilizar (Voice of Victory, texto oficial: "Mobilize 2"): ao atacar, duas fichas de Guerreiro 1/1 vermelho entram viradas e atacando e causam dano; na etapa final são sacrificadas', () => {
+  let s = partida({ 'Voice of Victory': oficial('Voice of Victory') }); const a = s.turn.active, d = 1 - a;
+  let v; [s, v] = poe(s, a, 'Voice of Victory');
+  const vida = s.players[d].life;
+  s = ataqueAteDecisaoK40(s, [v], -1);
+  assert.equal(s.turn.step, 'main2');
+  assert.equal(s.players[d].life, vida - 3, '1 do Voice + 1 de cada Guerreiro');
+  const ws = warriorsK52(s); assert.equal(ws.length, 2);
+  assert.ok(ws.every(o => o.tapped && s.facts[o.name].colors.includes('R') && E.stats(s, o).power === 1));
+  for (let i = 0; i < 20 && warriorsK52(s).length && s.turn.active === a; i++) s = s.pending ? act(s, E.legalActions(s, s.pending.p)[0]) : act(s, { t: 'pass', p: s.turn.priority });
+  assert.equal(warriorsK52(s).length, 0, 'sacrificadas na etapa final');
+  assert.equal(s.objects[v].zone, 'battlefield');
+});
+
+test('CR 508.4 · as fichas do mobilizar atacam o que o controlador escolher: com um planeswalker do oponente, a escolha é do jogador (jogador ou planeswalker)', () => {
+  let s = partida({ 'Voice of Victory': oficial('Voice of Victory'), Andarilho: PW_K52 }); const a = s.turn.active, d = 1 - a;
+  let v, pw; [s, v] = poe(s, a, 'Voice of Victory'); [s, pw] = poe(s, d, 'Andarilho'); s = J(s); s.objects[pw].counters = { loyalty: 5 };
+  s = ataqueAteDecisaoK40(s, [v], a);
+  assert.equal((s.pending || {}).kind, 'choose_mode'); assert.equal(s.pending.options.length, 2);
+  const i = s.pending.options.indexOf('Andarilho'); assert.ok(i >= 0);
+  s = act(s, { t: 'choose_mode', p: a, index: i });
+  const ws = warriorsK52(s); assert.equal(ws.length, 2); assert.ok(ws.every(o => o.atacandoPw === pw && o.attacking === d));
+  for (let k = 0; k < 20 && s.turn.step !== 'main2'; k++) s = s.pending ? (s.pending.kind === 'blockers' ? act(s, { t: 'block', p: s.pending.p, blocks: [] }) : act(s, E.legalActions(s, s.pending.p)[0])) : act(s, { t: 'pass', p: s.turn.priority });
+  assert.equal(s.objects[pw].counters.loyalty, 3, 'os dois Guerreiros causaram 2 ao planeswalker');
+});

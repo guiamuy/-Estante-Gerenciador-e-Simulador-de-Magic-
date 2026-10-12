@@ -796,6 +796,15 @@ test('K-51 · dobra (702.185): a 4/4 com ímpeto entra pela dobra, ataca por 4 e
   let v = t; for (let i = 0; i < 40 && v.objects[g].zone === 'battlefield' && v.turn.active === a; i++) v = v.pending ? act(v, E.legalActions(v, v.pending.p)[0]) : act(v, { t: 'pass', p: v.turn.priority });
   assert.equal(v.objects[g].zone, 'exile');
 });
+test('K-52 · mobilizar (702.181): o Urso com "Mobilize 1" ataca e traz um Guerreiro 1/1 atacando: 3 de dano', () => {
+  cobre('mobilize');
+  const cartas = { ...CARDS, Mobil: cre('Mobil', 2, 2, ['Mobilize'], { oracle_text: 'Mobilize 1' }) };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 72, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a; let m; [s, m] = poe(s, a, 'Mobil');
+  assert.equal(combate(s, [m]).players[d].life, 17);
+});
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));

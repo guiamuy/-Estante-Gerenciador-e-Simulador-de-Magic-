@@ -4465,6 +4465,11 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `moveObject` (uma linha: `dobrouK`, ao lado do arremeter).
 - **Testes:** `keywords.cr4.unit` (2, falham sem a leva), `combat.audit` (1 cenário). Texto oficial: Quantum Riddler, Nova Hellkite, Timeline Culler, Bygone Colossus (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
 - **Parcial declarado:** "a spell was warped this turn" (702.185c) não fica registrado; conjurar do cemitério pela dobra (Timeline Culler) não é lido; aumentos e reduções de custo não valem sobre o custo da dobra (o mesmo limite do arremeter).
+**K-52 · Mobilizar (mobilize, 702.181)** 🟡 (leva K-52) — onda 4 (313 cópias em 117 listas: Voice of Victory, Zurgo's Vanguard, Mardu Thunderkite)
+- **Valor:** ao atacar, a criatura com "Mobilize N" traz N Guerreiros 1/1 vermelhos virados e atacando; eles são sacrificados na etapa final. Com planeswalker do oponente no campo, a mesa pergunta o que as fichas atacam.
+- **Aceite:** Voice of Victory atacando sozinha causa 3; na etapa final os dois Guerreiros somem. Com um planeswalker do oponente, a escolha aparece e o planeswalker perde 2 de lealdade.
+- **Testes:** `keywords.cr4.unit` (2, falham sem a leva), `combat.audit` (1 cenário). Texto oficial: Voice of Victory, Zurgo's Vanguard, Mardu Thunderkite (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
+- **Parcial declarado:** "Mobilize X" não é lido; as fichas do mesmo gatilho atacam todas o mesmo alvo (uma escolha por gatilho).
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

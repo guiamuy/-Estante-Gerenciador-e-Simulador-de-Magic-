@@ -9421,14 +9421,20 @@
    "n": "702.181",
    "regra": "Keyword Abilities",
    "titulo": "Mobilize",
-   "status": "ausente",
-   "falta": "Sem implementação (grep sem ocorrência no motor nem nos scripts). Falta o gatilho de ataque que cria N fichas Guerreiro 1/1 viradas e atacando e as sacrifica no próximo passo final; não há ficha entrando atacante nem gatilho atrasado.",
+   "status": "parcial",
+   "falta": "\"Mobilize X\" (com X definido por outra frase) não é lido. As fichas do mesmo gatilho atacam todas o mesmo jogador, planeswalker ou batalha (uma escolha por gatilho, não por ficha).",
    "esforco": "M",
    "depende": [
     "506.3a entra atacando",
     "603.7 gatilho atrasado"
    ],
-   "cartas": "uma coleção só (Tarkir: Dragonstorm)"
+   "cartas": "uma coleção só (Tarkir: Dragonstorm)",
+   "evidencia": "K-52: gatilho de ataque gerado pela palavra (GATILHOS_DE_PALAVRA_K.mobilize, um por instância, N da linha). mobilizar_k cria N fichas Guerreiro 1/1 vermelhas viradas (GUERREIRO_K) e as põe atacando sem declarar (508.4: \"sempre que atacar\" não dispara). Com planeswalker ou batalha atacável, o controlador escolhe o que elas atacam (choose_mode com opcoesK; alvosDoMobilizarK). Cada ficha ganha o gatilho atrasado \"sacrifique-a no começo da próxima etapa final\", preso à encarnação.",
+   "testes": [
+    "CR 702.181a · mobilizar (Voice of Victory, texto oficial: \"Mobilize 2\"): ao atacar, duas fichas de Guerreiro 1/1 vermelho entram viradas e atacando e causam dano; na etapa final são sacrificadas",
+    "CR 508.4 · as fichas do mobilizar atacam o que o controlador escolher: com um planeswalker do oponente, a escolha é do jogador (jogador ou planeswalker)",
+    "K-52 · mobilizar (702.181): o Urso com \"Mobilize 1\" ataca e traz um Guerreiro 1/1 atacando: 3 de dano"
+   ]
   },
   {
    "n": "702.182",

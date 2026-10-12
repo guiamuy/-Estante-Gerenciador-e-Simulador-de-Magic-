@@ -5231,6 +5231,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'emerge', // K-47 · 702.119: custo alternativo "[custo] e sacrifique uma criatura", reduzido pelo valor de mana dela (altsImpressosK, pagaEmergirK)
   'escalate', // K-48 · 702.120: cada combinação de dois ou mais modos é mais um modo, com o custo de escalar por modo além do primeiro (modosEscaladosK)
   'warp', // K-51 · 702.185: custo alternativo da mão; a permanente é exilada no começo da próxima etapa final e o dono pode conjurá-la do exílio a partir do turno seguinte (dobrouK)
+  'mobilize', // K-52 · 702.181: gatilho de ataque que cria N Guerreiros 1/1 vermelhos virados e atacando, sacrificados na próxima etapa final (mobilizar_k)
   'afflict', 'melee', 'mentor', 'training', // K-31 · 702.130, 702.121, 702.134, 702.149: gatilhos de ataque gerados pela palavra, um por instância
   'battle cry', 'rampage', 'flanking', 'bushido', // K-30 · 702.91, 702.23, 702.25, 702.45: gatilhos de combate gerados pela palavra (GATILHOS_DE_PALAVRA_K), um por instância
   /* ↓ V · palavras-chave da trilha verbos */
@@ -5398,6 +5399,8 @@ const EFFECTS = {
   draw_free_cast: { fields: ['amount'], targets: ['self'] },
   /* ↓ K · efeitos da trilha keywords */
   dobra_k: { fields: [], targets: [] }, // K-51 · 702.185a · exila a permanente dobrada no começo da próxima etapa final (gerado pelo motor)
+  mobilizar_k: { fields: ['n'], targets: [] }, // K-52 · 702.181a (gerado pelo motor)
+  mobilizar_ataca_k: { fields: [], targets: [] }, // K-52 · 508.4: as fichas atacam o que o controlador escolheu (gerado pelo motor)
   salvaguarda: { fields: [], targets: [] }, // K-2 · 702.21a · gerado pelo motor quando uma permanente com salvaguarda vira alvo (não vai em script)
   volta_com_marcador: { fields: ['marcador'], targets: [] }, // K-4 · persistir e imortal (gerado pelo motor)
   exaltado: { fields: ['criatura'], targets: [] }, // K-5 · exaltado (gerado pelo motor)
@@ -8309,6 +8312,7 @@ function palavraNaLinhaK(k) {
   if (k === 'emerge') return 'emerge(?: from an? [a-z]+)?\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-47
   if (k === 'escalate') return 'escalate(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*(?:sacrifice (?:an?|one|two|three) (?:lands?|creatures?|artifacts?|enchantments?)|discard (?:a|one|two|three) cards?|tap an untapped creature you control|pay \\d+ life)\\.?)'; // K-48
   if (k === 'warp') return 'warp(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*(?:\\{[0-9WUBRGC]+\\})+, pay \\d+ life\\.?)'; // K-51
+  if (k === 'mobilize') return 'mobilize \\d+'; // K-52 · "Mobilize X" fica de fora
   if (k === 'dash') return 'dash\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-9
   if (k === 'evoke') return 'evoke(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*exile an? (?:white|blue|black|red|green) card from your hand\\.?)'; // K-8 · só as formas que o motor paga
   return ['afterlife', 'rampage', 'bushido', 'afflict'].includes(k) ? `${k} \\d+` : k; // K-30 · alvoroço N e bushido N
@@ -18913,6 +18917,19 @@ function applyEffect(s, src, eff, tgt, events) {
       break;
     }
     /* ↓ K · casos de applyEffect da trilha keywords */
+    case 'mobilizar_k': { // K-52 · 702.181a: as fichas entram viradas e atacando; 508.4: o controlador escolhe quem elas atacam
+      const fichas = [];
+      for (let i = 0; i < (eff.n || 0); i++) { const t = createToken(s, GUERREIRO_K, ctrl, events); if (t && s.objects[t]) { s.objects[t].tapped = true; fichas.push(t); } }
+      for (const t of fichas) (s.atrasados = s.atrasados || []).push({ when: 'next-end-step', turno: s.turn.number, controller: ctrl, jogador: ctrl, objeto: { oid: t, z: s.objects[t].zc || 0 },
+        name: s.objects[t].name, source: t, effects: [{ do: 'sacrifice_it', target: 'delayed-object' }] });
+      if (!fichas.length || !s.combat) break;
+      const opcoes = alvosDoMobilizarK(s, ctrl);
+      if (opcoes.length === 1) { mobilizaAtacaK(s, fichas, opcoes[0]); break; }
+      if (opcoes.length) s.pending = { kind: 'choose_mode', p: ctrl, name: `Mobilizar de ${src.name}: as fichas atacam`, options: opcoes.map(x => x.pw != null ? s.objects[x.pw].name : s.players[x.jogador].name),
+        opcoesK: opcoes.map(x => ({ effects: [{ do: 'mobilizar_ataca_k', fichas, alvo: x }] })), fonteK: { oid: src.ability ? src.source : src.oid, name: src.name, controller: ctrl } };
+      break;
+    }
+    case 'mobilizar_ataca_k': mobilizaAtacaK(s, eff.fichas || [], eff.alvo || {}); break; // K-52
     case 'dobra_k': { // K-51 · 702.185a: "exile the permanent this spell becomes at the beginning of the next end step"
       if (!obj || obj.zone !== 'battlefield') { note({ failed: true }); break; }
       const nome = obj.name;
@@ -22110,6 +22127,9 @@ const GATILHOS_DE_PALAVRA_K = {
   soulshift: (s, o, i) => ({ kind: 'triggered', when: 'dies', palavraK: 'soulshift', optional: true, effects: [{ do: 'to_hand', target: 'card-in-your-graveyard', targetMvMax: numeroDaPalavraK(s, o, 'soulshift', i), alvoSubtipoCartaK: 'Spirit' }] }),
   // K-40 · 702.86a · "Whenever this creature attacks, defending player sacrifices N permanents." (um gatilho por instância, b)
   annihilator: (s, o, i) => ({ kind: 'triggered', when: 'attacks', palavraK: 'annihilator', effects: [{ do: 'aniquilador_k', n: numeroDaPalavraK(s, o, 'annihilator', i), defensor: defensorDeK(s, o) }] }),
+  // K-52 · 702.181a · "Whenever this creature attacks, create N 1/1 red Warrior creature tokens. Those tokens enter tapped and attacking.
+  // Sacrifice them at the beginning of the next end step." (um gatilho por instância)
+  mobilize: (s, o, i) => ({ kind: 'triggered', when: 'attacks', palavraK: 'mobilize', effects: [{ do: 'mobilizar_k', n: numeroDaPalavraK(s, o, 'mobilize', i) }] }),
   // K-40 · 702.70a · "Whenever this creature deals combat damage to a player, that player gets N poison counters." (o jogador atingido é o que ela atacava)
   poisonous: (s, o, i) => ({ kind: 'triggered', when: 'combat-damage', palavraK: 'poisonous', effects: [{ do: 'venenoso_k', n: numeroDaPalavraK(s, o, 'poisonous', i), jogador: defensorDeK(s, o) }] }),
   // K-40 · 702.112a · "When this creature deals combat damage to a player, if it isn't renowned, put N +1/+1 counters on it and it becomes renowned." (603.4)
@@ -23208,6 +23228,23 @@ function dobraNaManutencaoK(s) {
   }
 }
 Object.assign(EXPORTS_K, { dobraImpressaK });
+/* K-52 · 702.181 mobilizar. As fichas entram viradas e atacando (não foram declaradas atacantes: "sempre que atacar" não dispara, 508.4);
+   o controlador escolhe quem elas atacam entre os oponentes e os planeswalkers e batalhas que poderia atacar (uma escolha para as fichas
+   do mesmo gatilho). Cada ficha tem o gatilho atrasado "sacrifique-a no começo da próxima etapa final", preso à encarnação (603.7c). */
+const GUERREIRO_K = { name: 'Warrior', types: ['creature'], subtypes: ['Warrior'], colors: ['R'], power: 1, toughness: 1 };
+function alvosDoMobilizarK(s, p) {
+  const jogadores = [...s.players.keys()].filter(q => q !== p && !s.players[q].lost).map(q => ({ jogador: q }));
+  return jogadores.concat(pwsAtacaveis(s, p).map(pw => ({ pw, jogador: protetorQueDefendeT(s, s.objects[pw]) ?? s.objects[pw].controller })));
+}
+function mobilizaAtacaK(s, fichas, alvo) {
+  if (!s.combat) return;
+  for (const t of fichas) {
+    const o = s.objects[t]; if (!o || o.zone !== 'battlefield') continue;
+    o.tapped = true; o.attacking = alvo.jogador; if (alvo.pw != null) o.atacandoPw = alvo.pw; else delete o.atacandoPw;
+    if (!s.combat.attackers.includes(t)) s.combat.attackers.push(t);
+  }
+}
+Object.assign(EXPORTS_K, { alvosDoMobilizarK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-30 · 701.65 aerobender: "that player exiles those objects. For each card exiled this way, for as long as it remains exiled, its owner
    may cast it by paying {2} rather than paying its mana cost" (a). A permissão é do DONO e da encarnação exilada (400.7: se a carta sair do
@@ -27121,6 +27158,7 @@ Object.assign(PALAVRA_PT, { graft: 'enxerto' }); // K-46
 Object.assign(PALAVRA_PT, { emerge: 'emergir' }); // K-47
 Object.assign(PALAVRA_PT, { escalate: 'escalar' }); // K-48
 Object.assign(PALAVRA_PT, { warp: 'dobra' }); // K-51
+Object.assign(PALAVRA_PT, { mobilize: 'mobilizar' }); // K-52
 Object.assign(PALAVRA_PT, { afflict: 'aflição', melee: 'refrega', mentor: 'mentor', training: 'treinamento' }); // K-31
 Object.assign(PALAVRA_PT, { 'battle cry': 'grito de guerra', rampage: 'alvoroço', flanking: 'flanquear', bushido: 'bushido' }); // K-30
 const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consultadas por descreveEfeito; antes a pilha mostrava "proeza k")
@@ -27140,6 +27178,7 @@ const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consulta
   eco_k: e => `sacrifique esta permanente a menos que pague ${e.mana} (eco)`, // K-36
   ricochete_k: () => 'você pode conjurar esta carta do exílio sem pagar o custo de mana (ricochete)', // K-35
   dobra_k: () => 'exila esta permanente; o dono pode conjurá-la do exílio a partir do próximo turno (dobra)', // K-51
+  mobilizar_k: e => `cria ${e.n === 1 ? 'uma ficha' : e.n + ' fichas'} de Guerreiro 1/1 vermelho viradas e atacando; na próxima etapa final elas são sacrificadas (mobilizar)`, mobilizar_ataca_k: () => '', // K-52
   tempestade_k: e => e.n ? `copia esta mágica ${e.n === 1 ? 'uma vez' : e.n + ' vezes'} (tempestade; cada cópia pode ter alvo novo)` : 'copia esta mágica para cada mágica conjurada antes dela neste turno (nenhuma)',
   proeza_k: () => 'esta criatura recebe +1/+1 até o fim do turno (proeza)',
   explorar_k: () => '', // o sacrifício já se descreve; esta é só a foto de antes e de depois
