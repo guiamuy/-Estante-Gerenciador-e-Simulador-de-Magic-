@@ -134,3 +134,8 @@ export const PERM_TYPES = { "Smuggler's Copter": 'Artifact — Vehicle', // CR2d
   'Mother of Runes': 'Creature — Human Cleric', 'Benevolent Bodyguard': 'Creature — Human Cleric',
   "Alseid of Life's Bounty": 'Enchantment Creature — Nymph', 'Selfless Savior': 'Creature — Dog',
   'Selfless Spirit': 'Creature — Spirit Cleric', 'Kami of False Hope': 'Creature — Spirit' };
+// ↓ C · trilha cartas: a linha de tipo real das permanentes de .listas/oficiais-cartas.json (Oracle com fonte e data), para o S8 montar
+// a permanente como ela é; não sobrepõe linha já escrita acima
+import { readFileSync as lerOficiaisC } from 'node:fs';
+for (const c of JSON.parse(lerOficiaisC(new URL('./.listas/oficiais-cartas.json', import.meta.url), 'utf8')).cartas)
+  if (!/\b(Instant|Sorcery)\b/.test(c.type_line) && !(c.name in PERM_TYPES)) PERM_TYPES[c.name] = c.type_line;

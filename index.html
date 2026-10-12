@@ -7767,6 +7767,86 @@ const RAW_SCRIPTS = [
     example: { action: 'activate:0', target: 'enemy-creature', expect: { bounced: true } } },
   { name: 'Mind Stone', abilities: [{ kind: 'activated', cost: { mana: '{1}', tap: true, sacrifice: true }, effects: [{ do: 'draw', amount: 1 }] }],
     example: { action: 'activate:0', target: 'none', expect: { handDelta: 1 } } },
+  /* ↓ C · scripts da trilha cartas (Pauper de A a L; texto oficial em .listas/oficiais-cartas.json) */
+  // C-1 · "When Archaeomancer enters, return target instant or sorcery card from your graveyard to your hand."
+  { name: 'Archaeomancer', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'to_hand', target: { zona: 'graveyard', de: 'you', tipos: ['instant', 'sorcery'] } }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // C-1 · "Job select · Equipped creature gets +1/+0, has 'Whenever you cast a noncreature spell, this creature deals 1 damage to each opponent,' and is a Wizard in addition to its other types. · Equip {3}" (a escolha de classe vem da linha impressa)
+  { name: "Black Mage's Rod", equip: { enchant: 'creature', cost: { mana: '{3}' } },
+    grants: { power: 1, toughness: 0, triggered: [{ kind: 'triggered', when: 'other-cast', filter: { noncreature: true }, effects: [{ do: 'damage', amount: 1, target: 'each-opponent' }] }] },
+    continuo: [{ afetados: 'anexada', torna: { tipos: ['creature'], somaTipos: true, subtipos: ['Wizard'] } }],
+    example: { action: 'equip', target: 'own-creature', expect: { stats: [3, 2] } } },
+  // C-1 · "Hickory Woodlot enters tapped with two depletion counters on it. · {T}, Remove a depletion counter from Hickory Woodlot: Add {G}{G}. If there are no depletion counters on Hickory Woodlot, sacrifice it."
+  { name: 'Hickory Woodlot', entra: [{ afetados: 'self', virada: true, marcadores: { depletion: 2 } }],
+    abilities: [{ kind: 'activated', cost: { tap: true, removeCounters: { tipo: 'depletion', n: 1 } }, semMarcadorSacrifica: 'depletion', effects: [{ do: 'add_mana', symbols: ['G', 'G'] }] }],
+    note: 'a mana sai pela habilidade da terra (ative antes de conjurar); o pagamento automático ainda não usa habilidades de mana com custo além de {T}',
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // C-1 · "Kicker {R} · When Goblin Bushwhacker enters, if it was kicked, creatures you control get +1/+0 and gain haste until end of turn."
+  { name: 'Goblin Bushwhacker', kicker: { mana: '{R}' }, abilities: [{ kind: 'triggered', when: 'etb', condition: { kicked: true },
+    effects: [{ do: 'continuo', target: 'each-own-creature', poder: 1, resistencia: 0, palavras: ['haste'] }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // C-1 · "Reveal the top six cards of your library. Put up to three enchantment cards from among them into your hand and the rest of the revealed cards into your graveyard."
+  { name: "Kruphix's Insight", effects: [{ do: 'look', count: 6, amount: 3, min: 0, filter: { types: ['enchantment'] }, to: 'hand', rest: 'graveyard', revela: true }],
+    example: { target: 'none', expect: { picked: true } } },
+  // C-1 · "Return target creature card from your graveyard to the battlefield. · Flashback—Sacrifice three creatures."
+  { name: 'Dread Return', effects: [{ do: 'reanimate', target: 'creature-in-your-graveyard' }], flashback: { sacrificeOther: { types: ['creature'], amount: 3 } },
+    example: { target: 'own-graveyard-creature', expect: { reanimated: true } } },
+  // C-1 · "{T}: Untap target Forest."
+  { name: 'Arbor Elf', abilities: [{ kind: 'activated', cost: { tap: true }, effects: [{ do: 'untap', target: { tipos: ['land'], subtipos: ['Forest'] } }] }],
+    example: { action: 'activate:0', target: 'own-forest', expect: { tapped: false } } },
+  // C-1 · "As an additional cost to cast this spell, discard a card. · Draw two cards and create two Treasure tokens."
+  { name: 'Big Score', additional: { discard: 1 }, effects: [{ do: 'draw', amount: 2 },
+    { do: 'token', amount: 2, token: { name: 'Treasure', types: ['artifact'], subtypes: ['Treasure'], colors: [], abilities: [{ kind: 'activated', cost: { tap: true, sacrifice: true }, effects: [{ do: 'add_mana', anyColor: true }] }] } }],
+    example: { target: 'none', expect: { tokens: 2 } } },
+  // C-1 · "Devoid · When you cast this spell and when Eldrazi Repurposer dies, create a 0/1 colorless Eldrazi Spawn creature token with 'Sacrifice this creature: Add {C}.'"
+  { name: 'Eldrazi Repurposer', self: { devoid: true }, abilities: [
+    { kind: 'triggered', when: 'cast-self', effects: [{ do: 'token', amount: 1, token: { name: 'Eldrazi Spawn', types: ['creature'], subtypes: ['Eldrazi', 'Spawn'], colors: [], power: 0, toughness: 1,
+      abilities: [{ kind: 'activated', cost: { sacrifice: true }, effects: [{ do: 'add_mana', symbols: ['C'] }] }] } }] },
+    { kind: 'triggered', when: 'dies', effects: [{ do: 'token', amount: 1, token: { name: 'Eldrazi Spawn', types: ['creature'], subtypes: ['Eldrazi', 'Spawn'], colors: [], power: 0, toughness: 1,
+      abilities: [{ kind: 'activated', cost: { sacrifice: true }, effects: [{ do: 'add_mana', symbols: ['C'] }] }] } }] }],
+    example: { target: 'none', expect: { tokens: 1 } } },
+  // C-1 · "White creatures you control get +2/+2 until end of turn."
+  { name: "Guardians' Pledge", effects: [{ do: 'continuo', cada: { tipos: ['creature'], de: 'you', cor: 'W' }, poder: 2, resistencia: 2 }],
+    example: { target: 'none', expect: { opponentLife: 0 } } },
+  // C-1 · "As an additional cost to cast this spell, discard a card. · Draw two cards. · Flashback {3}{R}"
+  { name: 'Laughing Mad', additional: { discard: 1 }, effects: [{ do: 'draw', amount: 2 }], flashback: { mana: '{3}{R}' },
+    example: { target: 'none', expect: { handDelta: 1 } } },
+  { name: 'Electric Revelation', additional: { discard: 1 }, effects: [{ do: 'draw', amount: 2 }], flashback: { mana: '{3}{R}' },
+    example: { target: 'none', expect: { handDelta: 1 } } },
+  // C-1 · "Destroy target artifact or creature. You gain 1 life."
+  { name: 'Grapple with Death', effects: [{ do: 'destroy', target: { tipos: ['artifact', 'creature'] } }, { do: 'gain', amount: 1 }],
+    example: { target: 'enemy-creature', expect: { gone: true, selfLife: 1 } } },
+  // C-1 · "Delve"
+  { name: 'Gurmag Angler', delve: true, semEfeito: 'criatura 5/5 sem habilidade além de delve (pago pela chave delve na conjuração)', example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // C-1 · "Affinity for artifacts · {5}{U}: Gearseeker Serpent can't be blocked this turn."
+  { name: 'Gearseeker Serpent', affinity: 'artifact', abilities: [{ kind: 'activated', cost: { mana: '{5}{U}' }, effects: [{ do: 'imbloqueavel', target: 'self-source' }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // C-1 · "{T}: Add {C}. · {T}, Tap an untapped creature you control: Add one mana of any color."
+  { name: 'Holdout Settlement', produces: [['C']], abilities: [{ kind: 'activated', cost: { tap: true, tapOther: { types: ['creature'] } }, effects: [{ do: 'add_mana', anyColor: true }] }],
+    example: { action: 'activate:0', target: 'none', expect: { poolAdded: 1 } } },
+  // C-1 · "Switch target creature's power and toughness until end of turn. · Draw a card."
+  { name: 'Inside Out', effects: [{ do: 'continuo', target: 'creature', troca: true }, { do: 'draw', amount: 1 }],
+    example: { target: 'own-creature', expect: { handDelta: 1 } } },
+  // C-1 · "Target artifact or creature gains hexproof and indestructible until end of turn. Scry 1."
+  { name: "Loran's Escape", effects: [{ do: 'continuo', target: { tipos: ['artifact', 'creature'] }, palavras: ['hexproof', 'indestructible'] }, { do: 'scry', amount: 1 }],
+    example: { target: 'own-creature', expect: { keyword: 'indestructible' } } },
+  // C-1 · "When this creature dies, create a 1/1 black and green Insect token with flying."
+  { name: 'Infestation Sage', abilities: [{ kind: 'triggered', when: 'dies', effects: [{ do: 'token', amount: 1, token: { name: 'Insect', types: ['creature'], subtypes: ['Insect'], colors: ['B', 'G'], power: 1, toughness: 1, keywords: ['flying'] } }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // C-1 · "Look at the top three cards of your library. Put one of them into your hand and rest on the bottom of your library in any order. Proliferate."
+  { name: 'Experimental Augury', effects: [{ do: 'look', count: 3, amount: 1, min: 1, to: 'hand', rest: 'library-bottom' }, { do: 'proliferate' }],
+    example: { target: 'none', expect: { picked: true } } },
+  // C-1 · "Whenever you cast an artifact spell, you may put a charge counter on Golem Foundry. · Remove three charge counters from Golem Foundry: Create a 3/3 colorless Golem artifact creature token."
+  { name: 'Golem Foundry', abilities: [
+    { kind: 'triggered', when: 'other-cast', filter: { types: ['artifact'] }, optional: true, effects: [{ do: 'counters', amount: 1, tipo: 'charge', target: 'self-source' }] },
+    { kind: 'activated', cost: { removeCounters: { tipo: 'charge', n: 3 } }, effects: [{ do: 'token', amount: 1, token: { name: 'Golem', types: ['artifact', 'creature'], subtypes: ['Golem'], colors: [], power: 3, toughness: 3 } }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // C-1 · "Look at the top four cards of your library. You may reveal an enchantment or land card from among them and put it into your hand. Put the rest on the bottom of your library in a random order."
+  { name: 'Commune with Spirits', effects: [{ do: 'look', count: 4, amount: 1, min: 0, filter: { types: ['enchantment', 'land'] }, to: 'hand', rest: 'library-bottom-random', revelaEscolhida: true }],
+    example: { target: 'none', expect: { picked: true } } },
+  // C-1 · "Proliferate. · Draw a card."
+  { name: 'Contentious Plan', effects: [{ do: 'proliferate' }, { do: 'draw', amount: 1 }],
+    example: { target: 'none', expect: { handDelta: 1 } } },
   /* ↓ M · scripts de carta da trilha motor (alicerces CR2; texto oficial em .listas/oficiais-motor.json). Fica no fim da lista, longe das âncoras das paralelas (M-313: dois rebases da M-311/M-312 colidiram com a trilha tipos logo abaixo da âncora T) */
   // CR2h.6 · vencer e perder por efeito (texto oficial em .listas/oficiais-motor.json, Oracle do Forge, 2026-10-12)
   { name: 'Felidar Sovereign', abilities: [{ kind: 'triggered', when: 'upkeep', condition: { vidaPeloMenos: 40 }, effects: [{ do: 'vence' }] }],

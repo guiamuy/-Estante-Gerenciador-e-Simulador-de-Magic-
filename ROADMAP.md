@@ -4898,6 +4898,18 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 
 **Total estimado:** 8 a 10 levas até o fim das Pauper; 14 a 22 para as Commander; o mapa em mais 1. A recomendação de testar no aparelho a cada três levas continua valendo.
 
+### PA · Pauper de A a L carta a carta (trilha `cartas`, pedido do dono de 12/10/2026)
+
+Objetivo do dono: as 325 listas de Pauper do catálogo jogáveis no modo completo. Esta trilha cobre as 125 cartas distintas de A a L que faltavam (medição das 19h de 12/10), em lotes do mais usado ao menos, com script à mão só no vocabulário que o motor já executa; a carta que precisa de primitiva nova fica **manual declarada** com a primitiva e a regra, para a trilha `motor` criar. Texto oficial: Oracle do Forge (GitHub, 12/10/2026), fonte única — Scryfall e mtg.wtf recusados neste ambiente.
+
+**C-1 · Lote 1: 23 cartas que cabem no vocabulário atual** ✅ (leva C-1, sem mudança de versão do motor)
+- **Valor:** 23 cartas de Pauper deixam de travar listas: Archaeomancer (15 listas), Black Mage's Rod (11), Hickory Woodlot (10), Goblin Bushwhacker (10), Kruphix's Insight (9), Dread Return (9), Arbor Elf (7), Big Score (7), Eldrazi Repurposer (6), Guardians' Pledge (5), Laughing Mad (3), Grapple with Death (3), Gurmag Angler (3), Gearseeker Serpent (3), Holdout Settlement (3), Inside Out (3), Loran's Escape (3), Electric Revelation (2), Infestation Sage (2), Experimental Augury (2), Golem Foundry (2), Commune with Spirits (2), Contentious Plan (1).
+- **Aceite:** script validado e cenário S8 em cada uma; texto oficial com fonte e data em `.listas/oficiais-cartas.json` (as 123 cartas localizadas da trilha); `cartas.unit` com um teste de regra por carta, cada um falhando sem o script; as permanentes ganham a linha de tipo real no S8 (`fixtures.mjs` lê o arquivo oficial, sem sobrepor linha existente).
+- **Simplificação declarada:** Hickory Woodlot dá {G}{G} pela habilidade (ative antes de conjurar; o pagamento automático não usa habilidade de mana com custo além de {T}, como Saprazzan Skerry). Black Mage's Rod: a escolha de classe sai da lista de palavras-chave da carta (K-60); sem os dados da carta, o Equipamento entra sem criar o Herói.
+- **Manuais declaradas no lote (falta primitiva; lista completa com a regra no adendo da trilha):** Campfire, Extract a Confession, Bonder's Ornament, Land Grant, Glint Hawk, Cryogen Relic, Gingerbread Cabin, Deep Analysis, Bramble Wurm, Deem Inferior, Ephemerate, Arms of Hadar, Clockwork Percussionist, Delver of Secrets, Goblin Tomb Raider, Experimental Synthesizer, Crossover Collaboration, First Day of Class, Glimpse the Impossible, Goblin Anarchomancer, Ghostly Flicker, Bender's Waterskin, Balustrade Spy, Lotleth Giant, Inventor's Axe, Gatecreeper Vine, Kaervek's Torch, Ancient Stirrings — e Darval, Whose Web Protects e Feral Deathgorger, sem texto oficial localizável.
+- **Fora por dívida da mesa (achado do portão, R9b):** Defile e Basilisk Gate jogam certo no motor com a contagem por subtipo (`{ subtype: 'Swamp', times: -1 }`, `{ subtype: 'Gate' }`), mas a pilha explicada mostra "−NaN/−NaN": o dicionário de efeitos (`qtd`/`sinal` do `continuo` e do `pump`) só conhece `per`. Ficam manuais até a trilha dona da mesa/motor descrever `subtype`.
+- **Testes:** `cartas.unit` (23). **Fora:** primitivas novas (trilha `motor`). **Próximo:** C-2 com as demais do balde A.
+
 ### B · Bot adversário
 
 **B1 · Política aleatória legal** ✅
@@ -9363,6 +9375,7 @@ Regras completas em `CLAUDE.md`. Trilhas em uso (o nome vai no rodapé `Trilha:`
 | `keywords` | CR4 · habilidades de palavra-chave (702), em ondas pela frequência nas listas; só abaixo das âncoras `↓ K` (levas `K-N`) |
 | `verbos` | CR3 · ações de palavra-chave (701); só abaixo das âncoras `↓ V` (levas `V-N`) |
 | `tipos` | CR5 · tipos e formatos de carta (Sagas, Veículos, aventuras, dupla face, batalhas, Classes); só abaixo das âncoras `↓ T` (levas `T-N`) |
+| `cartas` | Pauper, cartas de A a L: scripts à mão com texto oficial em `.listas/oficiais-cartas.json`; só abaixo da âncora `↓ C` dos scripts (levas `C-N`) |
 
 ### Publicar pela interface web
 
