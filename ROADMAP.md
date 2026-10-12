@@ -4523,6 +4523,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Valor:** Batterskull, Mortarpod e os Equipamentos de "Por Mirrodin!" e de escolha de classe entram criando a ficha (Germe 0/0, Rebelde 2/2, Herói 1/1) já equipada.
 - **Aceite:** Batterskull entra e o Germe vira 4/4 com vigilância e vínculo com a vida; o Rebelde de "Por Mirrodin!" equipado com +1/+0 ataca por 3.
 - **Testes:** `keywords.cr4.unit` (2, falham sem a leva), `combat.audit` (1 cenário para as três). Texto oficial: Batterskull, Mortarpod (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
+**K-61 · Sede de sangue (bloodthirst, 702.54)** 🟡 (leva K-61) — onda 4 (50 cópias em 10 listas)
+- **Valor:** "Bloodthirst N": se um oponente sofreu dano neste turno, a criatura entra com N marcadores +1/+1.
+- **Aceite:** Gorehorn Minotaurs entra 3/3 sem dano no oponente; depois de um Raio no oponente, 5/5; só "perder vida" não conta.
+- **Toca ponto comum:** `danoEmJogador` (a linha ganha `danoNoTurnoK` no começo, sem tirar nada).
+- **Testes:** `keywords.cr4.unit` (1, falha sem a leva), `combat.audit` (1 cenário). Texto oficial: Gorehorn Minotaurs, Stormblood Berserker (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
+- **Parcial declarado:** "Bloodthirst X" não é lido.
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

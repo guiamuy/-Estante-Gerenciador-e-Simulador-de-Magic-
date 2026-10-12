@@ -7544,14 +7544,19 @@
    "n": "702.54",
    "regra": "Keyword Abilities",
    "titulo": "Bloodthirst",
-   "status": "ausente",
-   "falta": "Sem \"entra com N marcadores +1/+1 se um oponente sofreu dano neste turno\" (702.54a) nem a variante X = dano sofrido (702.54b); o motor não guarda o dano sofrido por jogador no turno como condição de script.",
+   "status": "parcial",
+   "falta": "\"Bloodthirst X\" (702.54b, X = dano causado aos oponentes no turno) não é lido.",
    "esforco": "P",
    "depende": [
     "614.1c",
     "614.12"
    ],
-   "cartas": "rara"
+   "cartas": "rara",
+   "evidencia": "K-61: o dano a jogador (danoEmJogador, de combate ou não; com infectar também) carimba o turno no jogador (danoNoTurnoK; Toca ponto comum: danoEmJogador). \"Bloodthirst N\" é substituição de entrada em entraComPalavrasK: com um oponente carimbado neste turno, a permanente entra com N marcadores +1/+1 por instância (702.54c). Perder vida sem dano não conta.",
+   "testes": [
+    "CR 702.54a · sede de sangue (Gorehorn Minotaurs, texto oficial: \"Bloodthirst 2\"): entra com dois marcadores +1/+1 só se um oponente sofreu dano neste turno; perder vida sem dano não conta",
+    "K-61 · sede de sangue (702.54): depois que o Urso causa dano de combate, a criatura com \"Bloodthirst 2\" entra com dois marcadores"
+   ]
   },
   {
    "n": "702.55",

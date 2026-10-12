@@ -5240,6 +5240,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'impending', // K-58 · 702.176: custo alternativo; entra com N marcadores de tempo e não é criatura enquanto tiver algum; na sua etapa final tira um (iminenteK)
   'ascend', // K-59 · 702.131: com dez permanentes ou mais, o jogador ganha a bênção da cidade pelo resto do jogo (ascensaoK); condição de gatilho bencaoK
   'living weapon', 'for mirrodin!', 'job select', // K-60 · 702.92, 702.163, 702.182: o Equipamento entra, cria a ficha (Germe 0/0 preto, Rebelde 2/2 vermelho, Herói 1/1 incolor) e se anexa a ela (FICHAS_DO_EQUIPAMENTO_K)
+  'bloodthirst', // K-61 · 702.54: entra com N marcadores +1/+1 se um oponente sofreu dano neste turno (danoNoTurnoK)
   'afflict', 'melee', 'mentor', 'training', // K-31 · 702.130, 702.121, 702.134, 702.149: gatilhos de ataque gerados pela palavra, um por instância
   'battle cry', 'rampage', 'flanking', 'bushido', // K-30 · 702.91, 702.23, 702.25, 702.45: gatilhos de combate gerados pela palavra (GATILHOS_DE_PALAVRA_K), um por instância
   /* ↓ V · palavras-chave da trilha verbos */
@@ -8392,6 +8393,7 @@ function palavraNaLinhaK(k) {
   if (k === 'impending') return 'impending \\d+\\s*[—-]\\s*(?:\\{[0-9WUBRGC]+\\})+'; // K-58
   if (k === 'ascend') return 'ascend'; // K-59
   if (k === 'living weapon' || k === 'for mirrodin!' || k === 'job select') return k.replace('!', '\\!'); // K-60
+  if (k === 'bloodthirst') return 'bloodthirst \\d+'; // K-61 · "Bloodthirst X" fica de fora
   if (k === 'dash') return 'dash\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-9
   if (k === 'evoke') return 'evoke(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*exile an? (?:white|blue|black|red|green) card from your hand\\.?)'; // K-8 · só as formas que o motor paga
   return ['afterlife', 'rampage', 'bushido', 'afflict'].includes(k) ? `${k} \\d+` : k; // K-30 · alvoroço N e bushido N
@@ -16767,7 +16769,7 @@ const fonteDoDano = (s, src) => (src && src.ability && s.objects[src.source]) ||
 const infecta = (s, src0) => { const src = fonteDoDano(s, src0); return !!src && !!s.facts[src.name] && has(s, src, 'infect'); }; // fonte sem carta (efeito sintético) não infecta
 function marcaDanoEmCriatura(s, src, obj, n) { if (infecta(s, src)) obj.counters.m1m1 = (obj.counters.m1m1 || 0) + n; else obj.damage += n; }
 /** M-254 · 702.90b · dano num jogador: de fonte com infectar vira veneno, sem perda de vida. */
-function danoEmJogador(s, src, p, n) { if (infecta(s, src)) darVeneno(s, p, n, null, src.name); else perdeVida(s, p, n); }
+function danoEmJogador(s, src, p, n) { danoNoTurnoK(s, p, n); if (infecta(s, src)) darVeneno(s, p, n, null, src.name); else perdeVida(s, p, n); }
 function darVeneno(s, p, n, events, fonte) { if (!(n > 0) || !s.players[p]) return; s.players[p].poison = (s.players[p].poison || 0) + n; (events || []).push({ kind: 'effect', do: 'poison', name: fonte || '', target: s.players[p].name, amount: n }); }
 /** M-252 · cartas da mão que a terra aceita revelar ao entrar (Snarl); `distintas`: uma por nome, para a oferta. */
 function revelaveisAoEntrar(s, p, o, distintas) {
@@ -23072,7 +23074,8 @@ function entraComPalavrasK(s, o) {
   for (const [k, tipo] of [['fading', 'fade'], ['vanishing', 'time']]) if ((f.kw || []).includes(k)) for (const n of ((f.numerosK || {})[k] || [])) out[tipo] = (out[tipo] || 0) + n;
   if ((f.kw || []).includes('modular')) for (const n of ((f.numerosK || {}).modular || [])) out.p1p1 = (out.p1p1 || 0) + n; // K-41 · 702.43a/b
   if ((f.kw || []).includes('graft')) for (const n of ((f.numerosK || {}).graft || [])) out.p1p1 = (out.p1p1 || 0) + n; // K-46 · 702.58a/b
-  if (o.iminenteK && f.iminenteK) out.time = (out.time || 0) + f.iminenteK.n; // K-58 · 702.176a: "it enters with N time counters"
+  if (o.iminenteK && f.iminenteK) out.time = (out.time || 0) + f.iminenteK.n; // K-58
+  if ((f.kw || []).includes('bloodthirst') && s.players.some((pl, q) => q !== o.controller && !pl.lost && pl.danoNoTurnoK === s.turn.number)) for (const n of ((f.numerosK || {}).bloodthirst || [])) out.p1p1 = (out.p1p1 || 0) + n; // K-61 · 702.54a/c · 702.176a: "it enters with N time counters"
   if (o.entrarComEscolhasK) { for (const e of o.entrarComEscolhasK) out.p1p1 = (out.p1p1 || 0) + e.n; const dv = o.entrarComEscolhasK.reduce((t, e) => t + (e.devorou || 0), 0); if (dv) o.devorouK = dv; } // K-45 · escolhido antes de entrar (conjurada)
   else for (const d of (f.devorarK || [])) s.queuedChoices = (s.queuedChoices || []).concat([{ kind: 'devorar_k', oid: o.oid, p: o.controller, n: d.n, tipo: d.tipo }]); // K-43 · 702.82a/c
   if (!o.entrarComEscolhasK && (f.kw || []).includes('amplify')) for (const n of ((f.numerosK || {}).amplify || [])) s.queuedChoices = (s.queuedChoices || []).concat([{ kind: 'amplificar_k', oid: o.oid, p: o.controller, n }]); // K-43 · 702.38a/b
@@ -23645,6 +23648,12 @@ const FICHAS_DO_EQUIPAMENTO_K = {
   rebelde: { name: 'Rebel', types: ['creature'], subtypes: ['Rebel'], colors: ['R'], power: 2, toughness: 2 },
   heroi: { name: 'Hero', types: ['creature'], subtypes: ['Hero'], colors: [], power: 1, toughness: 1 },
 };
+/* K-61 · 702.54 sede de sangue: "If an opponent was dealt damage this turn, this permanent enters with N +1/+1 counters on it" (a; c: várias
+   instâncias somam). O dano a jogador (danoEmJogador, de combate ou não, com infectar também) carimba o turno no jogador (danoNoTurnoK; Toca
+   ponto comum: danoEmJogador). Perder vida sem dano não conta. */
+const TEM_SEDE_K = new WeakMap(); // por fato: tem sede de sangue? (só partidas com a palavra guardam o carimbo: o estado das outras não muda)
+const partidaTemSedeK = s => Object.values(s.facts).some(f => { if (!f || typeof f !== 'object') return false; if (!TEM_SEDE_K.has(f)) TEM_SEDE_K.set(f, (f.kw || []).includes('bloodthirst')); return TEM_SEDE_K.get(f); });
+function danoNoTurnoK(s, p, n) { if (n > 0 && s.players[p] && partidaTemSedeK(s)) s.players[p].danoNoTurnoK = s.turn.number; }
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-30 · 701.65 aerobender: "that player exiles those objects. For each card exiled this way, for as long as it remains exiled, its owner
    may cast it by paying {2} rather than paying its mana cost" (a). A permissão é do DONO e da encarnação exilada (400.7: se a carta sair do
@@ -27567,6 +27576,7 @@ Object.assign(PALAVRA_PT, { dredge: 'dragar' }); // K-57
 Object.assign(PALAVRA_PT, { impending: 'iminente' }); // K-58
 Object.assign(PALAVRA_PT, { ascend: 'ascensão' }); // K-59
 Object.assign(PALAVRA_PT, { 'living weapon': 'arma viva', 'for mirrodin!': 'por Mirrodin!', 'job select': 'escolha de classe' }); // K-60
+Object.assign(PALAVRA_PT, { bloodthirst: 'sede de sangue' }); // K-61
 Object.assign(PALAVRA_PT, { afflict: 'aflição', melee: 'refrega', mentor: 'mentor', training: 'treinamento' }); // K-31
 Object.assign(PALAVRA_PT, { 'battle cry': 'grito de guerra', rampage: 'alvoroço', flanking: 'flanquear', bushido: 'bushido' }); // K-30
 const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consultadas por descreveEfeito; antes a pilha mostrava "proeza k")

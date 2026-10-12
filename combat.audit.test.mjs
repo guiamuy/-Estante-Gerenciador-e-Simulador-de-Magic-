@@ -902,6 +902,18 @@ test('K-60 · arma viva, Por Mirrodin! e escolha de classe (702.92, 702.163, 702
   const r = s.objects[e].attachedTo; assert.ok(r); s = JSON.parse(JSON.stringify(s)); s.objects[r].sick = false;
   assert.equal(combate(s, [r]).players[d].life, 17);
 });
+test('K-61 · sede de sangue (702.54): depois que o Urso causa dano de combate, a criatura com "Bloodthirst 2" entra com dois marcadores', () => {
+  cobre('bloodthirst');
+  const cartas = { ...CARDS, Sedenta: cre('Sedenta', 1, 1, ['Bloodthirst'], { oracle_text: 'Bloodthirst 2' }) };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 81, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a; let u, g; [s, u] = poe(s, a, 'Urso'); [s, g] = poe(s, a, 'Sedenta', { zone: 'hand' });
+  let t = combate(s, [u]); assert.equal(t.players[d].life, 18);
+  for (let i = 0; i < 10 && t.turn.step !== 'main2'; i++) t = act(t, { t: 'pass', p: t.turn.priority });
+  t = act(t, { t: 'cast', p: a, oid: g }); for (let i = 0; i < 4 && t.stack.length; i++) t = act(t, { t: 'pass', p: t.turn.priority });
+  assert.equal(t.objects[g].counters.p1p1, 2);
+});
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));

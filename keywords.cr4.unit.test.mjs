@@ -2251,3 +2251,20 @@ test('CR 702.163a · 702.182a · Por Mirrodin! e escolha de classe: Rebelde 2/2 
     assert.ok(f, ficha); assert.equal(t.objects[e].attachedTo, f.oid); assert.deepEqual([E.stats(t, f).power, E.stats(t, f).toughness], pt);
   }
 });
+
+/* ---------------- K-61 · sede de sangue 702.54 ---------------- */
+test('CR 702.54a · sede de sangue (Gorehorn Minotaurs, texto oficial: "Bloodthirst 2"): entra com dois marcadores +1/+1 só se um oponente sofreu dano neste turno; perder vida sem dano não conta', () => {
+  const GM = { ...oficial('Gorehorn Minotaurs'), keywords: ['Bloodthirst'] };
+  const SC = { Raio: { name: 'Raio', effects: [{ do: 'damage', amount: 1, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: -1 } } }, Sangria: { name: 'Sangria', effects: [{ do: 'lose', amount: 1, target: 'opponent' }], example: { target: 'opponent', expect: { opponentLife: -1 } } } };
+  const RAIO = { name: 'Raio', type_line: 'Instant', mana_cost: '{R}', cmc: 1, colors: ['R'], keywords: [], oracle_text: 'Raio deals 1 damage to any target.' };
+  const SANGRIA = { name: 'Sangria', type_line: 'Instant', mana_cost: '{B}', cmc: 1, colors: ['B'], keywords: [], oracle_text: 'Target opponent loses 1 life.' };
+  let s = partida({ 'Gorehorn Minotaurs': GM, Raio: RAIO, Sangria: SANGRIA }, SC); const a = s.turn.active, d = 1 - a;
+  let g, r, sg; [s, g] = poe(s, a, 'Gorehorn Minotaurs', 'hand'); [s, r] = poe(s, a, 'Raio', 'hand'); [s, sg] = poe(s, a, 'Sangria', 'hand');
+  const sem = resolve(act(s, { t: 'cast', p: a, oid: g }));
+  assert.equal((sem.objects[g].counters || {}).p1p1 || 0, 0, 'sem dano no oponente: 3/3');
+  let v = resolve(act(s, { t: 'cast', p: a, oid: sg, targets: [{ player: d }] }));
+  v = resolve(act(v, { t: 'cast', p: a, oid: g })); assert.equal((v.objects[g].counters || {}).p1p1 || 0, 0, 'só perder vida não conta');
+  let t = resolve(act(s, { t: 'cast', p: a, oid: r, targets: [{ player: d }] }));
+  t = resolve(act(t, { t: 'cast', p: a, oid: g }));
+  assert.equal(t.objects[g].counters.p1p1, 2); assert.equal(E.stats(t, t.objects[g]).power, 5);
+});
