@@ -106,7 +106,7 @@
       "$codigo": {
         ".read": "auth != null && (!data.child('convidado/uid').exists() || data.child('anfitriao/uid').val() === auth.uid || data.child('convidado/uid').val() === auth.uid)",
         ".write": "auth != null && ((!data.exists() && newData.child('anfitriao/uid').val() === auth.uid) || (data.exists() && !newData.exists() && (data.child('anfitriao/uid').val() === auth.uid || data.child('convidado/uid').val() === auth.uid)))",
-        ".validate": "$codigo.matches(/^ESTA-[A-HJ-NP-Z2-9]+$/) && $codigo.length === 9 && newData.hasChildren(['criadaEm', 'estado', 'formato', 'anfitriao'])",
+        ".validate": "$codigo.matches(/^ESTA-[A-HJ-NP-Z2-9]+$/) && ($codigo.length === 11 || $codigo.length === 9) && newData.hasChildren(['criadaEm', 'estado', 'formato', 'anfitriao'])",
         "criadaEm": {
           ".validate": "newData.isNumber() && (data.exists() ? newData.val() === data.val() : (newData.val() > now - 600000 && newData.val() < now + 600000))"
         },

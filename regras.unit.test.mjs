@@ -324,6 +324,17 @@ test('P-15 · sala: o banco recusa a entrada do bloqueado nos dois sentidos, mes
   assert.equal(await entraComo(BETO, c2), c2);
 });
 
+test('P-16 · sala: as regras aceitam o código de 6 (o de hoje) e o de 4 (salas antigas); outro tamanho é recusado', async () => {
+  const agora = () => 1_000_000_000; const b = bancoComRegras({ agora });
+  const deck = { a: 1 };
+  const codigo = await O.createSala({ transporte: transporte(b, ANA), agora, quem: () => ANA.uid }).criar({ nome: 'Ana', deck, formato: 'pauper' });
+  assert.match(codigo, /^ESTA-[A-HJ-NP-Z2-9]{6}$/, 'com as regras do repositório, nasce com 6 (sem recuo)');
+  assert.equal(await O.createSala({ transporte: transporte(b, BETO), agora, quem: () => BETO.uid }).entrar(codigo, { nome: 'Beto', deck, formato: 'pauper' }), codigo);
+  const sala = (c) => ({ criadaEm: agora(), estado: 'esperando', formato: 'pauper', anfitriao: { nome: 'A', deck: 1, uid: ANA.uid } });
+  await transporte(b, ANA).escrever('salas/ESTA-ABCD', sala());
+  for (const ruim of ['ESTA-ABCDE', 'ESTA-ABCDEFG', 'ESTA-ABC']) await recusa(transporte(b, ANA).escrever(`salas/${ruim}`, sala()), ruim);
+});
+
 test('P-4 · o resto do banco é negado (ler a raiz, escrever fora dos três ramos)', async () => {
   const b = bancoComRegras();
   await recusa(transporte(b, ANA).ler(''), 'ler a raiz');

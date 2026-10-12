@@ -12,7 +12,7 @@ const criaMesa = setup => T.createTable(setup, { options: { autoPass: true } });
 
 test('Leva 130 · código de sala: ESTA-XXXX sem letras ambíguas; o digitado é normalizado (minúsculas, espaço, 0/1)', () => {
   let n = 0; const cod = O.gerarCodigo(() => (n++ % 7) / 7);
-  assert.match(cod, /^ESTA-[A-HJ-NP-Z2-9]{4}$/);
+  assert.match(cod, /^ESTA-[A-HJ-NP-Z2-9]{6}$/); // P-16 · 6 símbolos (era 4: ≈ 1 milhão de códigos, varrível)
   assert.equal(O.normalizaCodigo(' esta-4k7q '), 'ESTA-4K7Q');
   assert.equal(O.normalizaCodigo('4k7q'), 'ESTA-4K7Q', 'o prefixo é opcional');
   assert.equal(O.normalizaCodigo('ESTA-4K7'), null, 'curto demais');

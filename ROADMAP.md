@@ -521,6 +521,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-dz ✅ | SEG6b apagar também da nuvem: com a conta no ar, opção na confirmação que tira perfil e foto da conta da Estante antes de apagar o aparelho; se a nuvem não confirmar, nada é apagado (leva P-13) | SEG | 1 | — |
 | 16º-ea ✅ | SEG8 bloquear uma conta na partida online: na Conversa, Bloquear guarda a conta e silencia; quem você bloqueou não entra nas suas salas e você não entra nas dele; Perfil › Dados lista e desbloqueia; vale no aparelho e no backup (leva P-14) | SEG | 1 | — |
 | 16º-eb ✅ | SEG8b bloqueio no banco: `bloqueios/<conta>` só da dona; a regra da sala recusa o bloqueado nos dois sentidos; a lista vale nos aparelhos da conta e sai com "Apagar também da nuvem"; "O que sai do aparelho" passa a dizer o perfil sincronizado e a lista (leva P-15) | SEG | 1 | regras publicadas no console |
+| 16º-ec ✅ | SEG9 código de sala com 6 símbolos (≈ 1 bilhão de códigos, era ≈ 1 milhão); entrar aceita 6 e 4; com as regras antigas no console, a sala nasce com 4 (leva P-16) | SEG | 1 | regras publicadas no console |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -8467,6 +8468,26 @@ segredo do repositório. O `main` não recebe commit do coletor.
   publicar; até lá o banco recusa `bloqueios/` e tudo funciona como na P-14 (lista no aparelho). **Resíduo:** o banco
   não limita quantos bloqueios uma conta guarda (regra não conta filhos; o app corta em 200); quem bloqueou durante uma
   partida em curso não expulsa o outro da sala já montada (sair é por Desistir).
+
+**SEG9 · Código de sala mais longo** ✅ (leva P-16, 11/10/2026)
+- **Valor:** quem cria uma sala online não tem o código adivinhado: com 6 símbolos a varredura das salas esperando fica
+  impraticável, e ninguém de fora lê os nomes e as listas de quem está esperando nem toma o lugar do convidado.
+- **Ameaça e camada:** quem tem conta da Estante e a URL do banco (pública) varre `salas/ESTA-XXXX` — a sala esperando é
+  legível por qualquer conta para o convidado poder entrar (P-8). Com 4 símbolos são 32^4 ≈ 1 milhão de códigos (minutos de
+  pedidos); com 6, 32^6 ≈ 1,07 bilhão. Camada: código (gerador e normalização) e regra do banco (tamanho aceito).
+- **Entregue:** sala nova sai `ESTA-XXXXXX`; Entrar aceita 6 e 4 (salas antigas); o campo e a mensagem de código
+  incompleto dizem 6. **Recuo:** enquanto o console tiver as regras antigas (só aceitam 4), o banco recusa o código de
+  6 e o app cria com 4, uma vez só — nada quebra antes de o dono publicar. **Correção achada no caminho:** quem digitava
+  sem o prefixo um código que começa com as letras E S T A tinha essas letras cortadas como se fossem o prefixo (o código
+  `ESTA-ESTA` não entrava); agora o prefixo só sai quando sobra um código inteiro.
+- **Testes:** U `seguranca.codigo.unit` (3: 6 símbolos e entropia; normalização de 6, 4 e do código que começa com
+  ESTA; recuo para 4 com o banco recusando e erro de rede que sobe — os três falhavam antes); `online.unit` (o gerador
+  passou de 4 para 6: expectativa mudada por causa desta história); `regras.unit` +1 (6 e 4 aceitos, 3, 5 e 7 recusados,
+  sem recuo com as regras do repositório); e2e "Leva 133" (código de 6 e a linha do código sem transbordar em 360 px).
+- **Fora do repositório (dono):** publicar o `database.rules.json` do `main` no console (Realtime Database › Regras).
+- **Resíduo:** salas de 4 continuam aceitas até uma leva futura tirar o recuo (depois das regras publicadas); a sala
+  esperando continua legível por quem tem o código (é assim que o convidado entra); o banco não limita tentativas por
+  conta (o Realtime Database não tem limite de taxa nas regras).
 
 ### P · Plataforma
 

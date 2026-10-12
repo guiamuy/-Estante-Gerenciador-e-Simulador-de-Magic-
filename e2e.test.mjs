@@ -5945,7 +5945,8 @@ test('e2e · Leva 133 partida online: criar sala, entrar com o código em outra 
   await auditaTela(A, 'preparar online (criar)');
   await A.click('#online-criar'); await A.waitForSelector('#online-codigo');
   const codigo = (await A.innerText('#online-codigo')).trim();
-  assert.match(codigo, /^ESTA-[A-HJ-NP-Z2-9]{4}$/);
+  assert.match(codigo, /^ESTA-[A-HJ-NP-Z2-9]{6}$/); // P-16
+  assert.ok(await A.evaluate(() => { const l = document.querySelector('.online-sala__linha'); return l.scrollWidth <= l.clientWidth && document.documentElement.scrollWidth <= innerWidth; }), 'P-16 · o código de 6 cabe na linha, sem rolagem lateral (' + await A.evaluate(() => innerWidth) + ' px)');
   assert.match(await A.innerText('#online-espera'), /Esperando o outro jogador/);
   await auditaTela(A, 'sala criada (escuro)');
   await A.evaluate(() => document.documentElement.setAttribute('data-theme', 'light')); await auditaTela(A, 'sala criada (claro)');

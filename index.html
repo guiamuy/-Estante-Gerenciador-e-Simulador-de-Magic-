@@ -9529,14 +9529,18 @@ const PREFIXO = 'ESTA-';
 const RAIZ = 'salas';
 const VALIDADE_MS = 6 * 3600 * 1000; // sala parada há mais que isso é lixo
 
-/** Código de sala legível: ESTA-XXXX. `aleatorio` entre 0 e 1. */
-function gerarCodigo(aleatorio = Math.random) { let c = PREFIXO; for (let i = 0; i < 4; i++) c += ALFABETO[Math.floor(aleatorio() * ALFABETO.length) % ALFABETO.length]; return c; }
-/** Normaliza o que a pessoa digitou: maiúsculas, sem espaço, prefixo opcional, 0→O e 1→I desfeitos para o alfabeto. */
+/** P-16 · SEG9 · tamanhos de código aceitos: 6 é o de hoje (32^6 ≈ 1,07 bilhão: varrer as salas esperando fica
+    impraticável); 4 (≈ 1 milhão) é o antigo, ainda aceito para entrar e usado só no recuo de `criar` (regras antigas). */
+const TAMANHO_CODIGO = 6, TAMANHOS_CODIGO = [6, 4];
+/** Código de sala legível: ESTA-XXXXXX. `aleatorio` entre 0 e 1. */
+function gerarCodigo(aleatorio = Math.random, tamanho = TAMANHO_CODIGO) { let c = PREFIXO; for (let i = 0; i < tamanho; i++) c += ALFABETO[Math.floor(aleatorio() * ALFABETO.length) % ALFABETO.length]; return c; }
+/** Normaliza o que a pessoa digitou: maiúsculas, sem espaço, prefixo opcional, 0→O e 1→I desfeitos para o alfabeto.
+    P-16 · o prefixo só sai quando sobra um código inteiro: "ESTAB2" é o código ESTA-ESTAB2 digitado sem prefixo. */
 function normalizaCodigo(txt) {
   let t = String(txt || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-  if (t.startsWith('ESTA')) t = t.slice(4);
+  if (t.startsWith('ESTA') && TAMANHOS_CODIGO.includes(t.length - 4)) t = t.slice(4);
   t = t.replace(/0/g, 'O').replace(/1/g, 'I').replace(/O/g, 'Q').replace(/I/g, 'L'); // O e I não existem no alfabeto: vira o mais parecido
-  return t.length === 4 && [...t].every(ch => ALFABETO.includes(ch)) ? PREFIXO + t : null;
+  return TAMANHOS_CODIGO.includes(t.length) && [...t].every(ch => ALFABETO.includes(ch)) ? PREFIXO + t : null;
 }
 
 /* ---------- transporte em memória: um processo, vários "aparelhos" ---------- */
@@ -9685,10 +9689,13 @@ function createSala({ transporte, agora = () => Date.now(), aleatorio = Math.ran
     gerarCodigo: () => gerarCodigo(aleatorio), normalizaCodigo,
     /** Anfitrião: cria a sala com a própria lista e espera o convidado. Tenta outro código se o sorteado já existir. */
     async criar({ nome, avatar = null, deck, formato, melhorDe = 1 }) {
+      // P-16 · tenta o código de 6; se o banco recusar (regras antigas no console só aceitam 4), cria com 4, uma vez só
+      let tamanho = TAMANHO_CODIGO;
       for (let tent = 0; tent < 8; tent++) {
-        const codigo = gerarCodigo(aleatorio);
+        const codigo = gerarCodigo(aleatorio, tamanho);
         if (await transporte.ler(caminho(codigo))) continue;
-        await transporte.escrever(caminho(codigo), { criadaEm: agora(), estado: 'esperando', formato, melhorDe: melhorDe === 3 ? 3 : 1, anfitriao: comUid({ nome, avatar, deck }), convidado: null, acoes: {}, presenca: { 0: agora() } });
+        try { await transporte.escrever(caminho(codigo), { criadaEm: agora(), estado: 'esperando', formato, melhorDe: melhorDe === 3 ? 3 : 1, anfitriao: comUid({ nome, avatar, deck }), convidado: null, acoes: {}, presenca: { 0: agora() } }); }
+        catch (e) { if (tamanho !== 4 && e && (e.status === 401 || e.status === 403)) { tamanho = 4; continue; } throw e; }
         return codigo;
       }
       throw new Error('sem-codigo-livre');
@@ -9909,7 +9916,7 @@ function mesaOnline(sinc, online) {
   return api;
 }
 
-return { gerarCodigo, normalizaCodigo, transporteMemoria, transporteLocal, transporteFirebase, createSala, criaSincronizador, mesaOnline, limpaMensagem, mensagensDe, naoLidas, visiveisDaConversa, BLOQUEIOS_KEY, BLOQUEIOS_MAX, bloqueiosDe, bloqueiosAtivos, estaBloqueado, bloquear, desbloquear, encontraBloqueios, createBloqueiosRemoto, outroDaSala, MENSAGEM_MAX, FRASES, ALFABETO, PREFIXO, RAIZ, VALIDADE_MS };
+return { gerarCodigo, normalizaCodigo, TAMANHO_CODIGO, TAMANHOS_CODIGO, transporteMemoria, transporteLocal, transporteFirebase, createSala, criaSincronizador, mesaOnline, limpaMensagem, mensagensDe, naoLidas, visiveisDaConversa, BLOQUEIOS_KEY, BLOQUEIOS_MAX, bloqueiosDe, bloqueiosAtivos, estaBloqueado, bloquear, desbloquear, encontraBloqueios, createBloqueiosRemoto, outroDaSala, MENSAGEM_MAX, FRASES, ALFABETO, PREFIXO, RAIZ, VALIDADE_MS };
 })();
 
 const __m27 = (function () {
@@ -25381,7 +25388,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
       : state.opponent === 'online' ? painelOnline() : null);
     /* ---- Leva 133 · partida online: criar sala ou entrar com código; a sala monta a mesa nos dois aparelhos ---- */
     const on = { modo: 'criar', codigo: null, digitado: '', esperando: false, erro: null, parar: null, publiquei: false };
-    const ERROS_SALA = { 'codigo-invalido': 'Código incompleto: são 4 letras ou números depois de ESTA-.', 'sala-inexistente': 'Não há sala com esse código.', 'sala-cheia': 'Essa sala já tem dois jogadores.', 'sala-velha': 'Essa sala já acabou.', 'formato-diferente': 'A sala é de outro formato.', 'sala-bloqueada': 'Você bloqueou quem criou essa sala. Para jogar com essa conta, desbloqueie em Perfil › Dados.', 'sem-codigo-livre': 'Não consegui sortear um código. Tente de novo.' };
+    const ERROS_SALA = { 'codigo-invalido': 'Código incompleto: são 6 letras ou números depois de ESTA- (salas antigas: 4).', 'sala-inexistente': 'Não há sala com esse código.', 'sala-cheia': 'Essa sala já tem dois jogadores.', 'sala-velha': 'Essa sala já acabou.', 'formato-diferente': 'A sala é de outro formato.', 'sala-bloqueada': 'Você bloqueou quem criou essa sala. Para jogar com essa conta, desbloqueie em Perfil › Dados.', 'sem-codigo-livre': 'Não consegui sortear um código. Tente de novo.' };
     const meuNome = (papel = 'criar') => state.meuNome || (state.me.trim() && state.me.trim() !== 'Você' ? state.me.trim() : '') || (papel === 'criar' ? 'Jogador 1' : 'Jogador 2');
     const cobertaOnline = () => DEV || state.coverage === 100; // online é motor completo: a lista precisa jogar sozinha
     async function cartasDe(entries) {
@@ -25483,7 +25490,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
         on.modo === 'criar'
           ? Row({ class: 'ds-row--wrap' }, Button('Criar sala', { variant: 'primary', id: 'online-criar', icone: 'mais', disabled: on.esperando || !state.mine || !cobertaOnline(), title: cobertaOnline() ? null : 'A sala precisa de uma lista 100% coberta pelo motor', onClick: criarSala }))
           : Row({ class: 'ds-row--wrap online-entrar' },
-            Field('Código da sala', Input({ id: 'online-codigo-input', value: on.digitado, placeholder: 'ESTA-XXXX', autocapitalize: 'characters', autocomplete: 'off', spellcheck: 'false', maxlength: '9',
+            Field('Código da sala', Input({ id: 'online-codigo-input', value: on.digitado, placeholder: 'ESTA-XXXXXX', autocapitalize: 'characters', autocomplete: 'off', spellcheck: 'false', maxlength: '11',
               onInput: e => { on.digitado = e.target.value.toUpperCase(); e.target.value = on.digitado; const b = root.querySelector('#online-entrar'); if (b) b.disabled = !__m30.normalizaCodigo(on.digitado); } })),
             Button('Entrar', { variant: 'primary', id: 'online-entrar', icone: 'seguir', disabled: !__m30.normalizaCodigo(on.digitado) || !cobertaOnline(), title: cobertaOnline() ? null : 'A sala precisa de uma lista 100% coberta pelo motor', onClick: entrarSala })),
         erro);
