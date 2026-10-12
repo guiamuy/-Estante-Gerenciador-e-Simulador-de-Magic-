@@ -4789,6 +4789,15 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** nenhum novo.
 - **Próximo:** decisão do dono — o épico CR5 desta trilha está fechado; os restos (303.4f, Salas, virar, subir de nível, fundir) estão no mapa com custo.
 
+**CR5-T22 · Aura que entra sem ser conjurada (303.4f, 303.4g)** ✅ (leva T-22, sem mudança de versão do motor; "segue" do dono em 12/10/2026: o próximo resto de maior valor) — 4 testes em `tipos.auras.unit` (falham sem a leva) e 1 de tela.
+- **Valor:** Aura devolvida ao campo por efeito (Sevinne's Reclamation, "ponha no campo") deixa de ir direto ao cemitério: com uma criatura possível, ela se anexa sozinha; com várias, a mesa pergunta "Ethereal Armor entrou: o que ela encanta?" e você escolhe (pode ser criatura do oponente, mesmo com resistência a magia, porque não mira).
+- **Regra:** **303.4f** — quem controla a Aura escolhe, ao entrar, o que ela encanta, sem mirar; proteção impede. Uma opção só: anexa sem perguntar (armadilha 21). Várias: a Aura espera marcada (fora da 704.5m) e a conferência seguinte abre a decisão `aura_anexo`. **303.4g** — sem opção, ela não entra: fica na zona em que estava.
+- **Mesa:** faixa "X entrou: o que ela encanta?" com um botão "Escolher (N)" que abre a folha, uma linha de 44 px por permanente ("(oponente)" marcado) e "Voltar"; registro "A anexou X a Y"; o goldfish encanta a primeira opção; o Shark escolhe pelas ofertas.
+- **Fora (mapa):** Aura em jogador (Curse); "Enchant creature card in a graveyard" posta no campo por outro efeito segue o caminho antigo.
+- **Versão e goldens:** a versão não sobe; goldens idênticos.
+- **Toca ponto comum:** `moveObject` (a guarda da T-19 ganha a Aura sem opção, na mesma linha), `stateBased` 704.5m (`|| o.escolheAnexoT` na condição da mesma linha); table.js (faixa da decisão nova) e table-model (resposta do goldfish e linha do registro), no padrão da M-285.
+- **Próximo:** auditoria independente da 303.4f.
+
 **CR6 · Multijogador e variantes** ○ — mesa de três e quatro (800–803, 806), Commander de mesa (903.2), Brawl (903.12); as variantes hoje "fora" só entram por decisão. 10 a 14 levas.
 
 **CR7 · Consolidação** ○ (em paralelo a partir da CR2) — a cada fase: fuzz em modo completo com listas reais, homologação por revisor independente relendo a seção das regras contra o motor, e rodada de simulação do dono do produto. 6 a 8 levas ao todo.

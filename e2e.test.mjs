@@ -11018,3 +11018,32 @@ test('e2e · T-14 · CR 310.4c / 310.9 / 310.12b · batalha: a carta mostra a de
   if (linhas.length) assert.ok(linhas.some(l => /Invasion of Dominaria foi derrotada e exilada/.test(l)) && linhas.some(l => /Serra Faithkeeper \(Invasion of Dominaria transformada\)/.test(l)), 'registro: ' + JSON.stringify(linhas.slice(-8)));
   assert.deepEqual(M.errors, []);
 });
+
+test('e2e · T-22 · CR 303.4f · Aura que entra sem ser conjurada: a mesa pergunta o que ela encanta (uma linha por criatura, a do oponente marcada), e ela não cai enquanto espera', { skip }, async t => {
+  // Textos oficiais de oficiais.json (Bogles): Ethereal Armor e Gladecover Scout. A Aura entra no campo por dado, marcada como o motor
+  // a marca quando entra por efeito com mais de uma opção (o motor é provado em tipos.auras.unit); o que se testa aqui é a decisão na tela.
+  const M = await comLista125(t, '20 Plains\n10 Ethereal Armor\n10 Gladecover Scout', ['Plains', 'Ethereal Armor', 'Gladecover Scout'], '4');
+  const { page } = M;
+  const ids = await page.evaluate(() => { const s = window.__estanteMesa.estado();
+    const tira = nome => { const z = s.zones[0]; const i = z.library.findIndex(o => s.objects[o].name === nome); return z.library.splice(i, 1)[0]; };
+    const poe = (p, nome) => { const oid = tira(nome); Object.assign(s.objects[oid], { zone: 'battlefield', owner: p, controller: p, tapped: false, sick: false, damage: 0, counters: {} }); s.zones[p].battlefield.push(oid); return oid; }; // o oponente joga outra lista: a criatura dele sai da biblioteca de A e passa a ser dele
+    const meu = poe(0, 'Gladecover Scout'), dele = poe(1, 'Gladecover Scout');
+    const au = tira('Ethereal Armor'); Object.assign(s.objects[au], { zone: 'battlefield', controller: 0, tapped: false, sick: false, damage: 0, counters: {}, escolheAnexoT: true }); s.zones[0].battlefield.push(au);
+    return { meu, dele, au }; });
+  const terra = await M.oid('Plains'); assert.equal(await M.act({ t: 'play_land', p: 0, oid: terra }), true); await page.waitForTimeout(250);
+  const e = await M.est();
+  assert.equal(e.pend, 'aura_anexo', 'a mesa pergunta: ' + JSON.stringify(e));
+  assert.match(await M.decisao(), /^Ethereal Armor entrou: o que ela encanta\? \| Ela não mira: vale também criatura com resistência a magia\./);
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/t22-aura.png' });
+  await auditaTela(page, 'Aura que entrou sem ser conjurada: o que ela encanta');
+  await page.locator('#tb-aura_anexo').click(); await page.waitForSelector('.ds-dialog'); await page.waitForTimeout(250);
+  const botoes = (await page.locator('.ds-dialog .tb-sheet__actions button').allInnerTexts()).map(x => x.replace(/\s+/g, ' ').trim());
+  assert.deepEqual(botoes.sort(), ['Gladecover Scout', 'Gladecover Scout (oponente)'].sort(), 'uma linha por criatura: ' + JSON.stringify(botoes));
+  for (const b of await page.locator('.ds-dialog .tb-sheet__actions button').all()) { const cx = await b.boundingBox(); assert.ok(cx && cx.height >= 44, 'botão com 44 px de altura ou mais: ' + JSON.stringify(cx)); }
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/t22-aura-folha.png' });
+  await auditaTela(page, 'folha: o que a Aura encanta');
+  await page.locator('.ds-dialog .tb-sheet__actions button', { hasText: /\(oponente\)/ }).click(); await page.waitForTimeout(250);
+  const fim = await page.evaluate(ids => { const s = window.__estanteMesa.estado(); return { anexo: s.objects[ids.au].attachedTo, zona: s.objects[ids.au].zone, pend: s.pending && s.pending.kind }; }, ids);
+  assert.deepEqual(fim, { anexo: ids.dele, zona: 'battlefield', pend: null });
+  assert.deepEqual(M.errors, []);
+});

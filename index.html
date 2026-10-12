@@ -16845,7 +16845,7 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
   }
   // S24 · fora do campo e da pilha, a carta volta para a face da frente
   // S52 · "se fosse para o cemitério, exile em vez disso" (Luminous Phantom)
-  if (to === 'battlefield' && fromZone !== 'battlefield' && fromZone !== 'stack' && magiaNaoEntraT(s, o)) return; // T-19 · CR 304.4 / 307.4: instantânea e feitiço não entram no campo (ficam onde estavam; a mágica que resolve segue o caminho da resolução) · Toca ponto comum: moveObject (uma linha)
+  if (to === 'battlefield' && fromZone !== 'battlefield' && fromZone !== 'stack' && (magiaNaoEntraT(s, o) || auraNaoEntraT(s, o, controller))) return; // T-22 · CR 303.4g: Aura sem nada que possa encantar não entra // T-19 · CR 304.4 / 307.4: instantânea e feitiço não entram no campo (ficam onde estavam; a mágica que resolve segue o caminho da resolução) · Toca ponto comum: moveObject (uma linha)
   to = destinoSubstituido(s, o, fromZone, to); // CR2-G R5a · 614.6 · "em vez disso" (Luminous Phantom e substituições escritas como dado)
   // Leva 105 · 702.34a: conjurada com lampejo, sai da pilha para o exílio seja qual for o destino (anulada também)
   if (fromZone === 'stack' && o.flashback && to !== 'exile') to = 'exile';
@@ -20868,7 +20868,7 @@ function stateBased(s, events) {
     for (const o of battlefield(s)) { const n = Math.min(o.counters.p1p1 || 0, o.counters.m1m1 || 0); if (n > 0) { o.counters.p1p1 -= n; o.counters.m1m1 -= n; changed = true; } }
     // CR 704.5m: Aura no campo sem estar anexada (entrou sem ser conjurada), ou anexada a algo que ela não pode encantar
     for (const o of battlefield(s)) {
-      const au = (s.facts[o.name].script || {}).aura; if (!au || o.faceDown || (s.facts[o.name].script || {}).bestow) continue; // V-19 · 708.2a: virada para baixo não é Aura · Toca ponto comum: stateBased (704.5m)
+      const au = (s.facts[o.name].script || {}).aura; if (!au || o.faceDown || (s.facts[o.name].script || {}).bestow || o.escolheAnexoT) continue; /* T-22 · CR 303.4f: a Aura esperando a escolha do que encanta não cai · Toca ponto comum: stateBased 704.5m */ // V-19 · 708.2a: virada para baixo não é Aura · Toca ponto comum: stateBased (704.5m)
       const host = o.attachedTo ? s.objects[o.attachedTo] : null;
       if (host && host.zone === 'battlefield' && auraPodeEncantar(s, au, host)) continue;
       if (host && host.zone === 'battlefield' ? true : !o.attachedTo) { moveObject(s, o.oid, 'graveyard'); events.push({ kind: 'unattached', oid: o.oid, name: o.name, died: true }); changed = true; }
@@ -20895,7 +20895,7 @@ function stateBased(s, events) {
       for (const oid of morrem) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield') continue; moveObject(s, oid, 'graveyard'); changed = true; events.push({ kind: 'died', oid, name: o.name }); }
       delete s.saindoJuntas;
     }
-    if (batalhasDeEstadoT(s, events) | equipamentosDeEstadoT(s, events) | papeisDeEstadoT(s, events)) changed = true; // T-20 · CR 303.7a / 704.5z // T-16 · CR 301.5c / 704.5n · Equipamento que não pode equipar se solta // T-14 · CR 310.7 / 310.8 / 310.10 / 310.11 / 704.5v–y · batalhas (função abaixo da âncora T das exportações)
+    if (batalhasDeEstadoT(s, events) | equipamentosDeEstadoT(s, events) | papeisDeEstadoT(s, events) | auraAnexoDeEstadoT(s, events)) changed = true; // T-22 · CR 303.4f // T-20 · CR 303.7a / 704.5z // T-16 · CR 301.5c / 704.5n · Equipamento que não pode equipar se solta // T-14 · CR 310.7 / 310.8 / 310.10 / 310.11 / 704.5v–y · batalhas (função abaixo da âncora T das exportações)
     if (sagasDeEstado(s, events)) changed = true; // T-1 · CR 714.2b (capítulos disparam), 714.3b (read ahead) e 714.4 / 704.5s (sacrifício); função abaixo da âncora T das exportações
     if (!changed) break;
   }
@@ -21721,6 +21721,16 @@ const HANDLERS = {
   },
   /* ↓ V · ações (HANDLERS) da trilha verbos */
   /* ↓ T · ações (HANDLERS) da trilha tipos */
+  /** T-22 · CR 303.4f · quem controla a Aura que entrou sem ser conjurada escolhe o que ela encanta (não mira). */
+  aura_anexo(s, a, ev) {
+    const pd = s.pending;
+    if (!pd || pd.kind !== 'aura_anexo' || pd.p !== a.p) throw new RuleError('tempo', 'nenhuma Aura esperando o que encantar');
+    const o = s.objects[pd.oid];
+    if (!o || o.zone !== 'battlefield') { s.pending = null; return; }
+    if (!candidatosDaAuraT(s, o, o.controller).some(x => x.oid === a.oid)) throw new RuleError('aura', 'a Aura não pode encantar essa permanente');
+    s.pending = null; delete o.escolheAnexoT;
+    attachTo(s, o, a.oid, ev);
+  },
   /** T-3 · CR 702.122a · "vire qualquer número de outras criaturas": abre a escolha de quem tripula, criatura a criatura (os grupos
    * mínimos continuam oferecidos direto em `activate`). Nada é pago até `tripular_pronto`. */
   tripular(s, a) {
@@ -24704,6 +24714,46 @@ function lutar(s, src, eff, tgt, events) {
 }
 Object.assign(EXPORTS_V, { lutar });
 /* ↓ T · exportações de core.js da trilha tipos */
+/* ---------------- T-22 · CR 303.4f / 303.4g · Aura que entra sem ser conjurada ----------------
+   - 303.4g: sem nada que ela possa encantar, a Aura não entra no campo (fica na zona em que estava): guarda em `moveObject`.
+   - 303.4f: ao entrar (por efeito: reanimar, devolver, pôr no campo), quem a controla escolhe o que ela encanta — sem mirar (resistência
+     a magia não impede; proteção, sim). Uma opção só: anexa sem perguntar. Mais de uma: a Aura fica marcada (`escolheAnexoT`, fora da
+     704.5m enquanto espera) e a conferência seguinte abre a decisão `aura_anexo` (uma oferta por permanente; mesa, goldfish e bot).
+   - Fica de fora: "Enchant creature card in a graveyard" (Animate Dead posta no campo por outro efeito) e Aura em jogador. */
+function candidatosDaAuraT(s, o, ctrl) {
+  const sc = (s.facts[o.name] || {}).script || {}, au = sc.aura;
+  if (!au || o.faceDown || sc.bestow || au.enchant === 'creature-card-in-graveyard') return null;
+  const soSua = /you-control$/.test(String(au.enchant || '')), eu = { ...o, controller: ctrl };
+  return battlefield(s).filter(x => x.oid !== o.oid && !x.phasedOut && auraPodeEncantar(s, au, x) && (!soSua || x.controller === ctrl) && !protecaoDerruba(s, x, eu));
+}
+/** 303.4g · a Aura que entraria sem ser conjurada e não tem o que encantar não entra. Com opções, anota a entrada para `auraEntrouT`. */
+function auraNaoEntraT(s, o, controller) {
+  if (!o || o.ability || o.attachedTo) return false;
+  const c = candidatosDaAuraT(s, o, controller != null ? controller : o.owner);
+  if (!c) return false;
+  if (!c.length) return true;
+  s.auraEntrandoT = o.oid; return false;
+}
+function auraEntrouT(s, o) {
+  if (!o || s.auraEntrandoT !== o.oid) return;
+  delete s.auraEntrandoT;
+  const c = candidatosDaAuraT(s, o, o.controller) || [];
+  if (c.length === 1) attachTo(s, o, c[0].oid, []);
+  else if (c.length > 1) o.escolheAnexoT = true;
+}
+/** 303.4f · abre a escolha (uma por vez) da Aura que espera; sem opção restante, deixa a 704.5m agir. */
+function auraAnexoDeEstadoT(s, events) {
+  let mudou = false;
+  for (const o of battlefield(s)) {
+    if (!o.escolheAnexoT) continue;
+    const c = candidatosDaAuraT(s, o, o.controller) || [];
+    if (!c.length) { delete o.escolheAnexoT; mudou = true; continue; }
+    if (c.length === 1) { delete o.escolheAnexoT; attachTo(s, o, c[0].oid, events); mudou = true; continue; }
+    if (!s.pending && s.status === 'playing') s.pending = { kind: 'aura_anexo', p: o.controller, oid: o.oid, name: o.name, options: c.map(x => x.oid) };
+  }
+  return mudou;
+}
+Object.assign(EXPORTS_T, { candidatosDaAuraT });
 /* ---------------- T-20 · CR 303.7 / 704.5z / 111.10j–r · Papéis ----------------
    - `criaPapelT`: a ficha de Papel (fatos e script de SC.PAPEIS_T, linha "Enchantment — Aura Role", incolor) entra sob o controle de
      quem conjura, anexada ao alvo. Sem alvo que a Aura possa encantar (criatura no campo), a ficha não é criada (303.4i).
@@ -25025,6 +25075,7 @@ function sagaPoeLore(s, o, n) {
  * Quem já estava no campo e vira Saga não passa por aqui — "as this Saga enters" não vale para ela. */
 function sagaEntrou(s, o) {
   if (o && ehEquipamentoImpressoT(s, o)) o.entrouEmAbT = s.nextAbility; // T-17 · CR 400.7: a habilidade de equipar criada antes de o Equipamento entrar é do objeto anterior
+  auraEntrouT(s, o); // T-22 · CR 303.4f · Aura que entrou sem ser conjurada: anexa à única opção ou abre a escolha
   batalhaEntrouT(s, o); // T-14 · CR 310.4b / 310.9a · a batalha que entra: marcadores de defesa e protetor (mesmo ponto de entrada: moveObject e createToken)
   if (o && parDuplaFaceT(s, o)) o.transformouEm = s.nextAbility; // T-9 · 400.7 / 701.27f: habilidade criada antes de a dupla face entrar no campo é do objeto antigo e não a transforma
   if (!o || !ehSaga(s, o)) return;
@@ -25044,7 +25095,7 @@ function sagasNaLimpeza(s) {
   s.turn.passes = 0; s.turn.priority = s.turn.active; return true;
 }
 /** T-2 · 714.3b · outra ação com a escolha do capítulo aberta: a recusa fala da decisão certa. */
-function sagaRecusa(k) { if (k === 'saga_capitulo') throw new RuleError('pendente', 'escolha o capítulo da Saga primeiro'); if (k === 'tripular') throw new RuleError('pendente', 'escolha quem tripula o Veículo primeiro'); } // T-3 · a mesma chamada serve às decisões da trilha tipos
+function sagaRecusa(k) { if (k === 'saga_capitulo') throw new RuleError('pendente', 'escolha o capítulo da Saga primeiro'); if (k === 'tripular') throw new RuleError('pendente', 'escolha quem tripula o Veículo primeiro'); if (k === 'aura_anexo') throw new RuleError('pendente', 'escolha o que a Aura encanta primeiro'); /* T-22 */ } // T-3 · a mesma chamada serve às decisões da trilha tipos
 /** 714.3b · abre a escolha do read ahead de quem entrou; 714.2b · rede de segurança do disparo (T-2: o disparo de verdade é no
  * ato de pôr o marcador, em `sagaMarcou`); e o aviso, no registro, do marcador que a ação de turno pôs. */
 function sagaConfere(s, events) {
@@ -25094,9 +25145,11 @@ function sagasNaPrincipal(s) {
 function sagaOfertas(s, p, out) {
   if (s.pending && s.pending.kind === 'saga_capitulo' && s.pending.p === p) for (let n = 1; n <= s.pending.max; n++) out.push({ t: 'saga_capitulo', p, n, label: 'Capítulo ' + (ROMANOS[n] || n) });
   tripularPendentes(s, p, out); // T-3 · CR 702.122a · a mesma chamada serve às decisões da trilha tipos
+  if (s.pending && s.pending.kind === 'aura_anexo' && s.pending.p === p) for (const oid of s.pending.options || []) out.push({ t: 'aura_anexo', p, oid }); // T-22 · CR 303.4f · uma oferta por permanente que ela pode encantar
   faceGratisOfertasT(s, p, out); // T-11 · CR 709.3 / 712.11b · "conjure sem pagar": as duas metades da dividida e a face de trás da modal
 }
 PENDING_ACTIONS.saga_capitulo = ['saga_capitulo', 'concede'];
+PENDING_ACTIONS.aura_anexo = ['aura_anexo', 'concede']; // T-22 · CR 303.4f
 /* ---------------- T-3 · CR 702.122 · tripular (com 301.7 e 208.3a) ----------------
    A habilidade de tripular é a ativada de custo `{ crew: N }` do script (CR2d.3: vira criatura artefato até o fim do turno, com o
    P/T impresso — 301.7a–b). Esta leva completa a regra:
@@ -27209,6 +27262,7 @@ function describe(before, a, events, after) {
     case 'commander_zone': { const o = before.objects[a.oid || (before.pending || {}).oid]; const onde = { graveyard: 'no cemitério', exile: 'no exílio', hand: 'na mão', library: 'no grimório' }[(before.pending || {}).from] || 'onde caiu';
       L.push(a.yes ? `${P} levou ${o ? o.name : 'o comandante'} para a zona de comando` : `${P} deixou ${o ? o.name : 'o comandante'} ${onde}`); break; }
     // Leva 131 · escolha de modo: o que foi escolhido, ou que preferiu não fazer
+    case 'aura_anexo': L.push(`${P} anexou ${(before.pending || {}).name || 'a Aura'} a ${nameOf(before, a.oid)}`); break; // T-22 · CR 303.4f
     case 'saga_capitulo': L.push(`${P} começou ${(before.pending || {}).name || 'a Saga'} no capítulo ${['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'][a.n] || a.n}`); break; // T-1 · CR 714.3b
     case 'tripular': L.push(`${P} vai escolher quem tripula ${nameOf(before, a.oid)}`); break; // T-3 · CR 702.122a
     case 'tripulante': L.push(`${P} escolheu ${nameOf(before, a.oid)} para tripular`); break;
@@ -27448,6 +27502,7 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
           : pd.kind === 'choose_dungeon' ? { t: 'choose_dungeon', p: pd.p, index: 0 }
           : pd.kind === 'choose_room' ? { t: 'choose_room', p: pd.p, index: 0 }
           : pd.kind === 'topo_fundo' ? { t: 'topo_fundo', p: pd.p, topo: true } // M-264
+          : pd.kind === 'aura_anexo' ? { t: 'aura_anexo', p: pd.p, oid: pd.options[0] } // T-22 · CR 303.4f · o goldfish encanta a primeira opção
           : pd.kind === 'saga_capitulo' ? { t: 'saga_capitulo', p: pd.p, n: 1 } // T-1 · CR 714.3b · o goldfish começa a Saga pelo capítulo I
           : pd.kind === 'tripular' ? E.tripulacaoPadrao(s) // T-3 · CR 702.122a · o goldfish fecha a tripulação assim que a soma chega
           : pd.kind === 'dividir_dano' ? { t: 'dividir_dano', p: pd.p, index: 0 } // CR2g.2 · o goldfish mata na ordem do bloqueio
@@ -30511,6 +30566,14 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       banner = PriorityBanner({ title: 'Em qual masmorra se aventurar?', hint: 'Você entra na primeira sala dela.', tone: 'warning',
         actions: (s.pending.labels || s.pending.options || []).slice(0, 4).map((rot, index) =>
           Button(rot, { variant: index ? undefined : 'primary', id: index ? undefined : 'tb-choose-dungeon', onClick: () => act({ t: 'choose_dungeon', p: v, index }) })) });
+    } else if (s.pending && s.pending.kind === 'aura_anexo' && s.pending.p === v) { // T-22 · CR 303.4f · o que a Aura encanta (sem mirar) · Toca ponto comum: table.js
+      const ops = s.pending.options || [];
+      const rotulo = oid => `${nameOf(s, oid)}${s.objects[oid] && s.objects[oid].controller !== v ? ' (oponente)' : ''}`;
+      // nomes de carta são longos: a faixa tem um botão só, e a folha lista uma opção por linha (44 px cada)
+      banner = PriorityBanner({ title: `${s.pending.name} entrou: o que ela encanta?`, hint: 'Ela não mira: vale também criatura com resistência a magia.', tone: 'warning',
+        actions: [Button(`Escolher (${ops.length})`, { variant: 'primary', id: 'tb-aura_anexo', onClick: () => Dialog({ title: `O que ${s.pending.name} encanta?`,
+          body: h('div', { class: 'tb-sheet__actions' }, ...ops.map((oid, i) => Button(rotulo(oid), { block: true, variant: i ? undefined : 'primary', onClick: () => { closeDialog(); act({ t: 'aura_anexo', p: v, oid }); } }))),
+          actions: [Button('Voltar', { onClick: closeDialog })] }) })] });
     } else if (s.pending && s.pending.kind === 'saga_capitulo' && s.pending.p === v) { // T-1 · CR 714.3b · read ahead
       banner = PriorityBanner({ title: `${s.pending.name}: em que capítulo começar?`, hint: 'Ela entra com esse número de marcadores. Os capítulos anteriores não acontecem.', tone: 'warning',
         actions: Array.from({ length: Math.min(s.pending.max, 8) }, (_, i) => Button('Capítulo ' + (['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'][i] || i + 1), { variant: i ? undefined : 'primary', id: i ? undefined : 'tb-saga_capitulo', onClick: () => act({ t: 'saga_capitulo', p: v, n: i + 1 }) })) });
