@@ -5294,6 +5294,9 @@ const EFFECTS = {
   put_back: { fields: ['amount'], targets: ['self'] },
   // S57 · aventurar-se na masmorra: entra na primeira sala, ou avança para a próxima
   venture: { fields: [], targets: ['self'] },
+  // M-332 · CR 725 "you become the monarch" e CR 726 "you take the initiative": designações do jogador (estado `monarca` / `iniciativa`)
+  monarch: { fields: [], targets: ['self'] },
+  initiative: { fields: [], targets: ['self'] },
   // S59 · provocar: até o seu próximo turno, ela ataca se puder
   goad: { fields: [], targets: ['creature'] },
   // S60 · "cada jogador perde N a menos que ..." e "sacrifique uma permanente do tipo"
@@ -7996,6 +7999,18 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Remove Soul': { texto: '1281o17', leva: 'M-331' },
   'Kor Cartographer': { texto: '1gytz6s', leva: 'M-331' },
   'Bonesplitter': { texto: '11tvggc', leva: 'M-331' },
+  // M-332 · revisão por lote VI (monarca e iniciativa), revisor independente com sondas: 11 de 11 aprovadas
+  'Thorn of the Black Rose': { texto: '1hato4o', leva: 'M-332' },
+  'Avenging Hunter': { texto: 'puvdbm', leva: 'M-332' },
+  'Seal of Cleansing': { texto: '1ug3hkl', leva: 'M-332' },
+  'Throne of the High City': { texto: 'nj8g89', leva: 'M-332' },
+  'Feast of Succession': { texto: '12jk1bl', leva: 'M-332' },
+  'Palace Sentinels': { texto: '1qay9q3', leva: 'M-332' },
+  'Crimson Fleet Commodore': { texto: 'yek1ia', leva: 'M-332' },
+  'Goliath Paladin': { texto: 'eytdw5', leva: 'M-332' },
+  'Staunch Throneguard': { texto: '1yeagth', leva: 'M-332' },
+  'Underdark Explorer': { texto: 'u5as5c', leva: 'M-332' },
+  'Aarakocra Sneak': { texto: '1yc86uq', leva: 'M-332' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -15292,6 +15307,8 @@ const __m42 = (function () {
     [new RegExp(`^~ deals ${N} damage to each opponent and each creature and planeswalker they control$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'each-opponent' }, { do: 'damage', amount: num(m[1]), target: 'each-opponent-creature-planeswalker' }]], // LT12
     [new RegExp(`^~ deals ${N} damage to each creature with flying$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'each-flying-creature' }]], // LT9
     [/^venture into the dungeon$/i, () => [{ do: 'venture' }]], // LT9 · 701.49
+    [/^you become the monarch$/i, () => [{ do: 'monarch' }]], // M-332 · CR 725
+    [/^you take the initiative$/i, () => [{ do: 'initiative' }]], // M-332 · CR 726
     [/^exile two target (artifact|creature|enchantment)s$/i, m => [com({ do: 'exile' }, alvo('target ' + m[1])), com({ do: 'exile' }, alvo('target ' + m[1]))]], // LT9
     [/^target player takes an extra turn after this one$/i, () => [{ do: 'turno_extra', target: 'player' }]], // CR2g.2 · 500.7
     [/^take an extra turn after this one$/i, () => [{ do: 'turno_extra' }]],
@@ -17112,6 +17129,7 @@ function enterStep(s, step) {
   // CR2-G R2b · nos outros passos, os atrasados vêm antes; depois os do jogador ativo e os de cada jogador / dos oponentes
   // (CR2b.5 · 603.2b; CR 511.2: o fim do combate é de todos os jogadores, não só do ativo)
   if (SC.PASSOS_DO_GATILHO.includes(step)) { if (step !== 'upkeep') disparaPasso(s, step, 'seu'); disparaPasso(s, step, 'todos'); }
+  designacoesNoPasso(s, step); // M-332 · CR 725.2 / 726.2 · monarca no passo final, iniciativa na manutenção
   if (step === 'main1') sagasNaPrincipal(s); // T-1 · CR 714.3c / 703.4f · marcador de lore em cada Saga do jogador ativo, antes da prioridade (função abaixo da âncora T das exportações)
   if (step === 'draw') {
     const skip = s.turn.firstTurn && s.players.length === 2; // 103.8a
@@ -17343,6 +17361,7 @@ function dealCombatDamage(s) {
     }
     for (const v of vinculo.values()) ganhaVidaJogador(s, v.quem, v.n); // CR2b.7 · um ganho por criatura com vínculo vital
     disparaLoteDeDano(s, golpesEmJogador); // M-258
+    designacoesNoDano(s, golpesEmJogador); // M-332 · CR 725.2 / 726.2
     for (const [src] of hits) src.struck = true;
     c.passosFeitos = [...(c.passosFeitos || []), pass]; for (const oid of c.attackers) if (s.objects[oid]) delete s.objects[oid].divisaoDano; // CR2g.2 · a escolha vale para este passo
     stateBased(s, []);
@@ -18441,6 +18460,8 @@ function applyEffect(s, src, eff, tgt, events) {
       const fonte = src.ability ? src.source : src.oid;
       venture(s, ctrl, fonte, events, eff.into || null); note({}); break; // Leva 108 · "venture into Undercity" (iniciativa)
     }
+    case 'monarch': { const p = eff.quemDe ? controladorNaResolucao(s, eff.quemDe) : ctrl; if (!s.players[p]) break; note({ target: s.players[p].name, failed: !tornaMonarca(s, p) }); break; } // M-332 · CR 725
+    case 'initiative': { const p = eff.quemDe ? controladorNaResolucao(s, eff.quemDe) : ctrl; if (!s.players[p]) break; tomaIniciativa(s, p); note({ target: s.players[p].name }); break; } // M-332 · CR 726
     case 'choose_type': { // S50 · abre a escolha do tipo, entre os tipos que você controla
       const fonte = src.ability ? (s.objects[src.source] || src) : src;
       // S55 · lista os tipos de criatura presentes no campo, dos dois lados
@@ -19176,6 +19197,44 @@ function enterRoom(s, p, roomId, srcOid, events) {
   // 309.6 · com o marcador na última sala, a masmorra está completa
   if (!(sala.next || []).length) { pl.dungeon.done = true; pl.dungeonsDone = (pl.dungeonsDone || 0) + 1; }
 }
+/** M-332 · CR 725 · o monarca é uma designação de jogador; só um por vez (725.3). Devolve se mudou (tornar-se o monarca sendo já o monarca
+ * não faz nada). As duas habilidades inerentes (725.2) não têm fonte e são controladas por quem era o monarca ao disparar:
+ * "At the beginning of the monarch's end step, that player draws a card" (designacoesNoPasso) e "Whenever a creature deals combat damage
+ * to the monarch, its controller becomes the monarch" (designacoesNoDano). 725.4 (o monarca sai do jogo) não acontece na mesa de dois. */
+function tornaMonarca(s, p) {
+  if (p == null || !s.players[p] || s.players[p].lost || s.monarca === p) return false;
+  s.monarca = p; return true;
+}
+/** M-332 · CR 726 · a iniciativa: só um jogador por vez (726.3). "Whenever a player takes the initiative, that player ventures into Undercity"
+ * dispara mesmo se ele já a tinha (726.5). As três habilidades inerentes (726.2) não têm fonte. */
+function tomaIniciativa(s, p) {
+  if (p == null || !s.players[p] || s.players[p].lost) return;
+  s.iniciativa = p;
+  s.queued.push({ source: null, name: 'Iniciativa', controller: p, effects: [{ do: 'venture', into: 'Undercity' }], when: 'iniciativa' });
+}
+/** M-332 · 725.2 / 726.2 · começo do passo: na manutenção de quem tem a iniciativa, ele se aventura na Cidade Baixa; no passo final do monarca, ele compra. */
+function designacoesNoPasso(s, step) {
+  const a = s.turn.active;
+  if (step === 'upkeep' && s.iniciativa === a) s.queued.push({ source: null, name: 'Iniciativa', controller: a, effects: [{ do: 'venture', into: 'Undercity' }], when: 'iniciativa' });
+  if (step === 'end' && s.monarca === a) s.queued.push({ source: null, name: 'Monarca', controller: a, effects: [{ do: 'draw', amount: 1 }], when: 'monarca' });
+}
+/** M-332 · 725.2 / 726.2 · dano de combate: cada criatura que causa dano ao monarca dispara "its controller becomes the monarch"; uma ou mais
+ * criaturas de um jogador que causam dano a quem tem a iniciativa disparam uma vez "the controller of those creatures takes the initiative".
+ * O monarca e a iniciativa são os do momento do dano (o lote é simultâneo); os gatilhos são controlados por quem os tinha. */
+function designacoesNoDano(s, golpes) {
+  if (s.monarca != null) for (const g of golpes) if (g.jogador === s.monarca && g.fonte)
+    s.queued.push({ source: null, name: 'Monarca', controller: s.monarca, effects: [{ do: 'monarch', quemDe: [retratoDaCriatura(g.fonte)] }], when: 'monarca' });
+  if (s.iniciativa != null) for (const c of new Set(golpes.filter(g => g.jogador === s.iniciativa && g.fonte).map(g => g.fonte.controller)))
+    s.queued.push({ source: null, name: 'Iniciativa', controller: s.iniciativa, when: 'iniciativa',
+      effects: [{ do: 'initiative', quemDe: golpes.filter(g => g.jogador === s.iniciativa && g.fonte && g.fonte.controller === c).map(g => retratoDaCriatura(g.fonte)) }] });
+}
+/** M-332 · 608.2h (achado da revisão independente): "its controller" / "the controller of those creatures" é lido na resolução — o controlador
+ * atual da criatura, ou o último conhecido se ela saiu do campo. O gatilho guarda a encarnação (zc) e o controlador do disparo. */
+const retratoDaCriatura = o => ({ oid: o.oid, zc: o.zc || 0, controller: o.controller });
+function controladorNaResolucao(s, retratos) {
+  for (const r of retratos || []) { const o = s.objects[r.oid]; if (o && o.zone === 'battlefield' && (o.zc || 0) === r.zc) return o.controller; }
+  return (retratos || [])[0] ? retratos[0].controller : null;
+}
 /** CR2-G R2a · modo sombra (só nos testes): cada mudança de zona calcula a fila pelos dois caminhos e anota a diferença. */
 let sombraGatilhos = null;
 function sombraDosGatilhos(liga) { const r = sombraGatilhos; sombraGatilhos = liga ? { total: 0, comFila: 0, porGatilho: {}, diferencas: [] } : null; return r; }
@@ -19413,7 +19472,8 @@ function flushTriggers(s, events) {
     // Leva 106 · cópias de tempestade da mesma mágica são iguais: não há ordem a escolher
     // v69 · gatilhos idênticos da mesma fonte (Lunarch Veteran com dois Pássaros entrando juntos) também não têm ordem a
     // escolher: antes a mesa perguntava "qual entra primeiro" entre duas opções iguais
-    const cara = q => JSON.stringify([q.source, q.when, q.effects || null, q.modes || null, q.value ?? null, q.mayPay || null, !!q.optional, q.condition || null, q.cost || null, q.lembrada || null, q.jogador ?? null, q.objeto || null, q.host || null, q.targets || null]); // CR2b.5 · o que o gatilho lembra também o distingue
+    // M-332 · gatilhos do monarca de criaturas diferentes do mesmo jogador fazem a mesma coisa: a ordem não é perguntada (o retrato da criatura não conta)
+    const cara = q => JSON.stringify([q.source, q.when, (q.effects || null) && q.effects.map(e => e && e.quemDe ? { ...e, quemDe: e.quemDe.map(r => r.controller) } : e), q.modes || null, q.value ?? null, q.mayPay || null, !!q.optional, q.condition || null, q.cost || null, q.lembrada || null, q.jogador ?? null, q.objeto || null, q.host || null, q.targets || null]); // CR2b.5 · o que o gatilho lembra também o distingue
     const soCopias = mine.every(q => q.copia && q.source === mine[0].source) || mine.every(q => cara(q) === cara(mine[0]));
     if (mine.length > 1 && !soCopias) { s.pending = { kind: 'triggers', p }; return; }
     if (soCopias && mine.length > 1) { for (const q of mine) { if (s.pending) break; putTriggerOnStack(s, q, events); } if (s.pending) return; continue; } // CR2b.5
@@ -24862,6 +24922,8 @@ function effectLine(ev) {
     case 'vence': return `${ev.name}: o controlador venceu o jogo`; // CR2h.6
     case 'perde': return `${ev.name}: ${t} perdeu o jogo`; // CR2h.6
     case 'turno_extra': return `${t} vai jogar um turno extra depois deste (${ev.name})`; // CR2g.2
+    case 'monarch': return ev.failed ? `${t} continua o monarca (${ev.name})` : `${t} se tornou o monarca (${ev.name})`; // M-332
+    case 'initiative': return `${t} tomou a iniciativa (${ev.name})`; // M-332
     case 'nao_desvira': return ev.failed ? `${ev.name}: o alvo já não estava no campo` : `${t || ev.name}: não desvira no próximo passo de desvirar`;
     case 'combate_extra': return ev.failed ? `${ev.name}: fora da fase principal, sem combate adicional` : `${ev.name}: depois desta fase principal vem um combate adicional e outra fase principal`; // CR2g.4
     case 'desvira_atacantes': return `${ev.name} desvirou ${n} criatura(s) que atacaram neste turno`;
@@ -25907,7 +25969,9 @@ function descreveEfeito(e) {
       return `devolve uma criatura${e.targetMvMax != null ? ` de valor de mana ${qtd(e.targetMvMax)} ou menos` : ''} do cemitério ao campo`;
     case 'fog': return 'previne todo o dano de combate deste turno';
     case 'attach': return 'anexa';
-    case 'venture': return 'aventura na masmorra';
+    case 'venture': return e.into === 'Undercity' ? 'aventura-se na Cidade Baixa' : 'aventura na masmorra';
+    case 'monarch': return e.quemDe ? 'quem controla a criatura que causou o dano se torna o monarca' : 'você se torna o monarca'; // M-332
+    case 'initiative': return e.quemDe ? 'quem controla as criaturas que causaram o dano toma a iniciativa' : 'você toma a iniciativa'; // M-332
     case 'mill': return `põe ${plural(n, 'carta', 'cartas')} do grimório no cemitério`;
     case 'explore': return 'explora: revela o topo; terreno vai para a mão, senão +1/+1 e a carta pode ir para o cemitério';
     case 'goad': return `provoca ${alvo || 'uma criatura'}`;
@@ -28050,8 +28114,9 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const sala = masm ? (roomById(masm, pl.dungeon.room) || {}) : null;
     const subMasm = masm ? `${masm.pt || masm.name}: ${pl.dungeon.done ? 'completa' : (sala.pt || '—')}` : null;
     const veneno = pl.poison ? `Veneno ${pl.poison} de 10` : null; // M-253 · marcadores de veneno à vista
+    const designacao = [s.monarca === p ? 'Monarca' : null, s.iniciativa === p ? 'Iniciativa' : null].filter(Boolean).join(' · ') || null; // M-332 · CR 725 / 726
     const life = LifeCounter({ name: pl.name + (pl.lost ? ' (fora)' : ''), life: pl.life, active: s.turn.active === p,
-      sub: [subMasm, veneno].filter(Boolean).join(' · ') || null, onClick: () => openLife(p), id: mine ? 'tb-life-me' : 'tb-life-opp' });
+      sub: [designacao, subMasm, veneno].filter(Boolean).join(' · ') || null, onClick: () => openLife(p), id: mine ? 'tb-life-me' : 'tb-life-opp' });
     // D6 · relance: sem nada em campo, uma linha só ("Campo vazio"); com uma das duas zonas vazia, ela vira uma linha fina
     // D6 · relance: "Terrenos" e "Permanentes" só quando há; com o campo vazio o lado é só a linha de vida e zonas
     const campoVazio = !others.length && !lands.length;
