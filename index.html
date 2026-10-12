@@ -17227,7 +17227,7 @@ function abreInsanidadeDaFila(s) {
   if (s.objects[m.oid] && s.objects[m.oid].zone === 'exile') { s.pendingAfterMadness = null; s.pending = { kind: 'madness', p: m.p, oid: m.oid, cost: m.cost }; }
 }
 /** CR2g.1 · o planeswalker que o atacante devolvido atacava, se continua no campo (o mesmo objeto), em fase e do jogador defensor; senão o ninja ataca o jogador. */
-const pwAindaAtacavel = (s, e) => { const pw = e.pw != null && s.objects[e.pw]; return pw && pw.zone === 'battlefield' && !pw.phasedOut && (pw.zc || 0) === e.pwZ && pw.controller === e.defensor ? pw.oid : null; };
+const pwAindaAtacavel = (s, e) => { const pw = e.pw != null && s.objects[e.pw]; return pw && pw.zone === 'battlefield' && !pw.phasedOut && (pw.zc || 0) === e.pwZ && (pw.controller === e.defensor || protetorQueDefendeT(s, pw) === e.defensor) ? pw.oid : null; }; // T-15 · CR 702.49c: a batalha que o defensor protege (o Cerco do próprio atacante) · Toca ponto comum: pwAindaAtacavel
 /** 702.49: depois dos bloqueadores, devolve um atacante não bloqueado e entra virado e atacando. */
 function unblockedAttackers(s, p) {
   // Leva 107 · ninjutsu vale depois dos bloqueadores declarados: bloqueio, dano e fim do combate (esgueirar-se só no bloqueio)
@@ -17374,12 +17374,12 @@ const pwsAtacaveis = (s, p) => battlefield(s).filter(o => o.controller !== p && 
 const exigePw = (s, o) => { const e = o.exigeAtacarPw; if (!e || e.turno !== s.turn.number || o.controller !== s.turn.active) return null;
   const pw = s.objects[e.pw]; return pw && pw.zone === 'battlefield' && (pw.zc || 0) === e.z && pwsAtacaveis(s, o.controller).includes(pw.oid) ? pw.oid : null; };
 function eligibleAttackers(s, p) {
-  return battlefield(s).filter(o => o.controller === p && isCreature(s, o) && !o.tapped &&
+  return battlefield(s).filter(o => o.controller === p && !ehBatalhaT(s, o) && isCreature(s, o) && !o.tapped && // T-15 · CR 508.1a: quem ataca não pode ser também batalha · Toca ponto comum: eligibleAttackers
     !o.cantAttackNext && // S61 · Cavernas Retorcidas: não pode atacar até o próximo turno de quem lançou
     (!enjoado(s, o) || has(s, o, 'haste')) && !has(s, o, 'defender')).map(o => o.oid);
 }
 function eligibleBlockers(s, p) {
-  return battlefield(s).filter(o => o.controller === p && isCreature(s, o) && !o.tapped && !naoBloqueia(s, o) && !suspeitaNaoBloqueia(s, o)).map(o => o.oid); // V-12 · 701.60c
+  return battlefield(s).filter(o => o.controller === p && !ehBatalhaT(s, o) && isCreature(s, o) && !o.tapped && !naoBloqueia(s, o) && !suspeitaNaoBloqueia(s, o)).map(o => o.oid); // V-12 · 701.60c
 }
 const TRAVESSIAS = [['islandwalk', 'Island'], ['swampwalk', 'Swamp'], ['forestwalk', 'Forest'], ['mountainwalk', 'Mountain'], ['plainswalk', 'Plains']];
 /** M-253 · "This creature can't block" (509.1a), impressa ou da ficha. */
@@ -18727,7 +18727,7 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'refrega_k': { // K-31 · 702.121a: +1/+1 por oponente atacado por alguma criatura neste combate (contado agora)
       const c = s.objects[src.ability ? src.source : src.oid];
       if (!c || c.zone !== 'battlefield' || (c.zc || 0) !== eff.z) { note({ failed: true }); break; }
-      const atacados = new Set(((s.combat || {}).attackers || []).map(x => s.objects[x]).filter(x => x && x.attacking != null).map(x => defensorDeK(s, x)).filter(p => p != null && p !== ctrl));
+      const atacados = new Set(((s.combat || {}).attackers || []).map(x => s.objects[x]).filter(x => x && x.attacking != null && !atacaBatalhaT(s, x)).map(x => defensorDeK(s, x)) /* T-15 · CR 702.121a / 508.6: atacar a batalha não é atacar o jogador · Toca ponto comum: refrega (K-31) */.filter(p => p != null && p !== ctrl));
       const n = atacados.size; if (n) aplicaTemporario(s, c, { poder: n, resistencia: n, ate: 'fim-do-turno' }, ctrl);
       note({ target: c.name, power: n, toughness: n }); break;
     }
@@ -19781,6 +19781,7 @@ function payExtraCosts(s, p, cost, pay, selfOid) {
     const o = s.objects[selfOid], k = cost.removeCounters.tipo, n = cost.removeCounters.n || 1;
     if (!o || ((o.counters || {})[k] || 0) < n) throw new RuleError('custo', `remova ${n} marcador(es) ${SC.MARCADOR_PT[k] || k}`);
     o.counters[k] -= n; if (!o.counters[k]) delete o.counters[k];
+    if (k === 'defense' && !o.counters.defense) ultimoMarcadorDeDefesaT(s, o); // T-15 · CR 310.12b: tirar o último marcador de defesa como custo também dispara · Toca ponto comum: payExtraCosts (uma linha)
   }
   if (cost.discardSelf) moveObject(s, selfOid, 'graveyard');
   if (cost.exileSelf) moveObject(s, selfOid, 'exile');
@@ -23067,10 +23068,17 @@ function danoEmBatalhaT(s, src, obj, n) {
   if (tiposDe(s, obj).includes('planeswalker')) obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - n);
   if (isCreature(s, obj)) marcaDanoEmCriatura(s, src, obj, n);
   noteDamaged(s, obj);
-  if (antes > 0 && !depois && ehCercoT(s, obj) && !semImpressas(s, obj)) // 310.12b · habilidade intrínseca do Cerco (perde-se com "perde todas as habilidades")
-    s.queued.push({ source: obj.oid, name: obj.name, controller: obj.controller, effects: [{ do: 'cerco_derrotado', z: obj.zc || 0 }], when: 'cerco-derrotado', batalhaZ: obj.zc || 0 });
+  if (antes > 0 && !depois) ultimoMarcadorDeDefesaT(s, obj);
   return true;
 }
+/** 310.12b · "When the last defense counter is removed from this permanent": seja qual for o caminho (dano, custo de remover marcadores). A habilidade
+ * intrínseca do Cerco perde-se com "perde todas as habilidades". */
+function ultimoMarcadorDeDefesaT(s, obj) {
+  if (!ehBatalhaT(s, obj) || !ehCercoT(s, obj) || semImpressas(s, obj)) return;
+  s.queued.push({ source: obj.oid, name: obj.name, controller: obj.controller, effects: [{ do: 'cerco_derrotado', z: obj.zc || 0 }], when: 'cerco-derrotado', batalhaZ: obj.zc || 0 });
+}
+/** 508.6 · o atacante declarado contra uma batalha não "atacou um jogador" (refrega e afins contam só quem atacou o jogador). */
+const atacaBatalhaT = (s, x) => x.atacandoPw != null && (x.atacandoPw === FORA_DE_COMBATE_T || (!!s.objects[x.atacandoPw] && s.objects[x.atacandoPw].protetorT != null));
 /** 310.7 · a habilidade disparada da batalha que ainda não saiu da pilha leva a encarnação da fonte. */
 function batalhaMarcaNaPilhaT(s, q, oid) { const f = s.objects[q.source]; if (ehBatalhaT(s, f) && s.objects[oid]) s.objects[oid].gatilhoDaBatalhaT = f.zc || 0; }
 /** 310.7 / 704.5v · `o` é fonte de uma habilidade que disparou e ainda não saiu da pilha (fila, decisão pendente que segura o gatilho, pilha)? */

@@ -23,16 +23,24 @@ const SCRIPTS = {
   'Volta': { name: 'Volta', effects: [{ do: 'bounce', target: 'permanent' }], ...EX },
   'Roubo': { name: 'Roubo', effects: [{ do: 'ganhar_controle', target: 'permanent' }], ...EX },
   'Imitação': { name: 'Imitação', effects: [{ do: 'ficha_copia', amount: 1, target: 'permanent' }], ...EX },
+  // T-15 · cartas das divergências da auditoria
+  'Batalha Viva': { name: 'Batalha Viva', self: { defesa: 3 }, ...EX }, // criatura que também é batalha (508.1a / 509.1a)
+  'Cerco Pedágio': { name: 'Cerco Pedágio', self: { duplaFace: true }, abilities: [{ kind: 'activated', cost: { mana: '{1}', removeCounters: { tipo: 'defense', n: 1 } }, effects: [{ do: 'gain', amount: 1 }] }],
+    back: { name: 'Verso do Pedágio', types: ['creature'], subtypes: ['Angel'], colors: ['W'], power: 2, toughness: 2 }, ...EX }, // "{1}, remova um marcador de defesa: ganhe 1"
+  'Ninja': { name: 'Ninja', ninjutsu: { mana: '{U}' }, abilities: [{ kind: 'triggered', when: 'combat-damage', effects: [{ do: 'gain', amount: 1 }] }], ...EX }, // "Ninjutsu {U}" + "sempre que causar dano de combate a um jogador, ganhe 1" (mostra que o gatilho de jogador não dispara)
 };
 carta('Cerco', 'Battle — Siege', { defense: '3' }); carta('Fronteira', 'Battle');
 carta('Raio', 'Instant'); carta('Golpe', 'Instant'); carta('Volta', 'Instant'); carta('Roubo', 'Instant'); carta('Imitação', 'Sorcery');
 carta('Urso', 'Creature — Bear', { power: '2', toughness: '2' });
+carta('Batalha Viva', 'Battle Creature — Siege', { power: '2', toughness: '2', defense: '3' }); carta('Cerco Pedágio', 'Battle — Siege', { defense: '1' });
+carta('Ninja', 'Creature — Ninja', { power: '2', toughness: '2', oracle_text: 'Ninjutsu {U}\nWhenever this creature deals combat damage to a player, you gain 1 life.' });
+carta('Refregador', 'Creature — Knight', { power: '2', toughness: '2', keywords: ['Melee'], oracle_text: 'Melee (Whenever this creature attacks, it gets +1/+1 until end of turn for each opponent you attacked this combat.)' });
 carta('Vinculado', 'Creature — Cleric', { power: '2', toughness: '2', keywords: ['Lifelink'], oracle_text: 'Lifelink' });
 carta('Pisoteador', 'Creature — Beast', { power: '4', toughness: '4', keywords: ['Trample'], oracle_text: 'Trample' });
 carta('Aflito', 'Creature — Horror', { power: '1', toughness: '1', keywords: ['Afflict'], oracle_text: 'Afflict 2 (Whenever this creature becomes blocked, defending player loses 2 life.)' });
 
 const baralho = nomes => { const u = [...new Set(nomes)]; return u.map(name => ({ name, qty: Math.max(4, Math.ceil(40 / u.length)), zone: 'main' })); };
-const TODAS = ['Cerco', 'Fronteira', 'Raio', 'Golpe', 'Volta', 'Roubo', 'Imitação', 'Urso', 'Vinculado', 'Pisoteador', 'Aflito', 'Invasion of Dominaria'];
+const TODAS = ['Cerco', 'Fronteira', 'Raio', 'Golpe', 'Volta', 'Roubo', 'Imitação', 'Urso', 'Vinculado', 'Pisoteador', 'Aflito', 'Invasion of Dominaria', 'Batalha Viva', 'Cerco Pedágio', 'Ninja', 'Refregador'];
 function mesa(cartas = CARTAS, seed = 1) {
   let s = E.createGame({ format: 'livre', seed, mode: 'full', cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck: baralho([...TODAS, 'Plains']) }, { name: 'B', deck: baralho([...TODAS, 'Mountain']) }] });
   for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
@@ -270,4 +278,49 @@ test("Invasion of Dominaria (texto oficial, Oracle do Forge, 12/10/2026) · comp
   assert.ok(E.hasKeyword(s, o, 'flying') && E.hasKeyword(s, o, 'vigilance'), 'voar e vigilância');
   assert.ok(E.isCreature(s, o));
   const sc = S.SCRIPTS['Invasion of Dominaria']; assert.ok(sc && sc.covers !== 'partial', 'script completo');
+});
+
+/* ---------------- T-15 · correções da auditoria independente ---------------- */
+test('CR 508.1a / 509.1a · a criatura que também é batalha não ataca nem bloqueia (não é oferecida e o pedido é recusado)', () => {
+  let [s, v] = conjura(mesa(), 0, 'Batalha Viva'); s = J(s); s.objects[v].sick = false;
+  let w; [s, w] = poe(s, 1, 'Batalha Viva', 'battlefield', { counters: { defense: 3 }, protetorT: 0 });
+  let u; [s, u] = poe(s, 0, 'Urso');
+  s = passaAte(s, x => x.pending && x.pending.kind === 'attackers' && x.pending.p === 0);
+  assert.equal(legais(s, 0, a => a.t === 'attack' && a.attackers.includes(v)).length, 0, 'não é oferecida para atacar');
+  assert.throws(() => E.apply(s, { t: 'attack', p: 0, attackers: [v] }), /atacante inválido/);
+  s = act(s, { t: 'attack', p: 0, attackers: [u] });
+  s = passaAte(s, x => x.pending && x.pending.kind === 'blockers');
+  assert.ok(!J(E.eligibleBlockers(s, 1)).includes(w), 'não bloqueia');
+  assert.throws(() => E.apply(s, { t: 'block', p: 1, blocks: [[w, u]] }));
+});
+
+test('CR 310.12b · "quando o último marcador de defesa é removido": tirá-lo como custo de uma habilidade também dispara (exila e oferece conjurar transformado)', () => {
+  let [s, c] = conjura(mesa(), 0, 'Cerco Pedágio');
+  assert.equal(defesa(s, c), 1);
+  s = mana(s, 0);
+  const a = legais(s, 0, x => x.t === 'activate' && x.oid === c)[0]; assert.ok(a, 'a habilidade de remover o marcador');
+  s = passaAte(act(s, a), x => !!x.pending);
+  eq([s.objects[c].zone, s.pending && s.pending.kind], ['exile', 'free_cast']);
+  assert.ok(legais(s, 0, x => x.t === 'cast_free').every(x => x.face === 'transformada'));
+});
+
+test('CR 702.49c · ninjutsu no lugar de quem atacava o próprio Cerco: o ninja entra atacando o mesmo Cerco (não o jogador)', () => {
+  let [s, c] = conjura(mesa(), 0, 'Cerco'); let u; [s, u] = poe(s, 0, 'Urso'); let n; [s, n] = poe(s, 0, 'Ninja', 'hand');
+  const vidas = s.players.map(p => p.life);
+  s = ataca(s, [u], c);
+  s = passaAte(s, x => x.turn.step === 'combat_blockers' && x.turn.priority === 0 && !x.pending); // sem bloqueador possível, a mesa não pergunta
+  s = mana(s, 0);
+  const a = legais(s, 0, x => x.t === 'ninjutsu' && x.oid === n)[0]; assert.ok(a, 'ninjutsu oferecido');
+  s = esvazia(act(s, a));
+  assert.equal(s.objects[n].atacandoPw, c, 'o ninja ataca o Cerco');
+  s = aposDano(s);
+  eq([defesa(s, c), s.players.map(p => p.life)], [1, vidas], 'o dano vai para o Cerco; nenhum jogador perde vida');
+});
+
+test('CR 702.121a / 508.6 · refrega: atacar a batalha não é atacar o jogador (atacando só o próprio Cerco, nenhum bônus; atacando o jogador, +1/+1)', () => {
+  let [s, c] = conjura(mesa(), 0, 'Cerco'); let r; [s, r] = poe(s, 0, 'Refregador');
+  let t = esvazia(ataca(s, [r], c));
+  let st = E.stats(t, t.objects[r]); eq([st.power, st.toughness], [2, 2], 'atacando o Cerco: +0');
+  t = esvazia(ataca(s, [r]));
+  st = E.stats(t, t.objects[r]); eq([st.power, st.toughness], [3, 3], 'atacando o jogador: +1/+1');
 });

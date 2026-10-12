@@ -2740,9 +2740,11 @@
    "regra": "Battles",
    "titulo": "Batalha pode ser atacada",
    "status": "coberta",
-   "evidencia": "T-14 (12/10/2026): `batalhasAtacaveisT` entra em `pwsAtacaveis`: as batalhas protegidas por outro jogador que ainda joga são oferecidas como alvo do ataque (ação attack com `alvos`), aceitas pelo handler e pela mesa (\"Alvo:\" na faixa de ataque), pelo mesmo caminho do planeswalker atacado (`atacandoPw`).",
+   "evidencia": "T-14 (12/10/2026): `batalhasAtacaveisT` entra em `pwsAtacaveis`: as batalhas protegidas por outro jogador que ainda joga são oferecidas como alvo do ataque (ação attack com `alvos`), aceitas pelo handler e pela mesa (\"Alvo:\" na faixa de ataque), pelo mesmo caminho do planeswalker atacado (`atacandoPw`). T-15: a criatura que também é batalha não ataca nem bloqueia (508.1a / 509.1a); ninjutsu mantém a batalha atacada (702.49c); a refrega não conta a batalha como jogador atacado (508.6).",
    "testes": [
-    "CR 310.5 / 310.9b / 508.1b · a batalha pode ser atacada por quem tem o protetor como jogador defensor (o Cerco, pelo próprio controlador); o protetor nunca a ataca e o pedido é recusado"
+    "CR 310.5 / 310.9b / 508.1b · a batalha pode ser atacada por quem tem o protetor como jogador defensor (o Cerco, pelo próprio controlador); o protetor nunca a ataca e o pedido é recusado",
+    "CR 508.1a / 509.1a · a criatura que também é batalha não ataca nem bloqueia (não é oferecida e o pedido é recusado)",
+    "CR 702.49c · ninjutsu no lugar de quem atacava o próprio Cerco: o ninja entra atacando o mesmo Cerco (não o jogador)"
    ]
   },
   {
@@ -2824,14 +2826,15 @@
     "310.9",
     "712"
    ],
-   "evidencia": "T-14 (12/10/2026): 310.12a — o protetor do Cerco é um oponente de quem o controla (ao entrar e na ação de estado). 310.12b — tirado o último marcador de defesa (dano), a habilidade intrínseca dispara (`cerco-derrotado`, perde-se com \"perde todas as habilidades\"); ao resolver, exila o Cerco desta encarnação (400.7) e abre a decisão \"conjurar transformado sem pagar\" (`free_cast` com a face `transformada` como única oferta; recusar deixa a carta exilada sem permissão). Mesa: \"X foi derrotada: conjurar <verso> sem pagar?\", um botão pelo nome do verso. Carta exemplo completa: Invasion of Dominaria // Serra Faithkeeper.",
+   "evidencia": "T-14 (12/10/2026): 310.12a — o protetor do Cerco é um oponente de quem o controla (ao entrar e na ação de estado). 310.12b — tirado o último marcador de defesa (dano), a habilidade intrínseca dispara (`cerco-derrotado`, perde-se com \"perde todas as habilidades\"); ao resolver, exila o Cerco desta encarnação (400.7) e abre a decisão \"conjurar transformado sem pagar\" (`free_cast` com a face `transformada` como única oferta; recusar deixa a carta exilada sem permissão). Mesa: \"X foi derrotada: conjurar <verso> sem pagar?\", um botão pelo nome do verso. Carta exemplo completa: Invasion of Dominaria // Serra Faithkeeper. T-15 (12/10/2026) · auditoria independente: o último marcador de defesa tirado como custo também dispara; o ninja no lugar de quem atacava o Cerco ataca o mesmo Cerco.",
    "falta": "Cerco de outro dono (controle trocado) não é conjurado pelo controlador: fica exilado (o motor só conjura carta do próprio dono).",
    "esforco": "P",
    "testes": [
     "CR 310.12b / 310.7 / 704.5v · tirado o último marcador de defesa, o Cerco dispara; fica no campo enquanto o gatilho não sai da pilha; ao resolver, é exilado e pode ser conjurado transformado, sem pagar",
     "CR 310.12b · \"you may\": recusar deixa o Cerco no exílio, e ele não pode ser conjurado depois",
     "CR 400.7 / 310.12b · o Cerco que sai do campo em resposta ao gatilho não é exilado nem conjurado (o gatilho não acha o objeto)",
-    "CR 310.9a / 310.12a · ao entrar, o Cerco é protegido por um oponente de quem o controla; a batalha sem tipo de batalha, pelo próprio controlador"
+    "CR 310.9a / 310.12a · ao entrar, o Cerco é protegido por um oponente de quem o controla; a batalha sem tipo de batalha, pelo próprio controlador",
+    "CR 310.12b · \"quando o último marcador de defesa é removido\": tirá-lo como custo de uma habilidade também dispara (exila e oferece conjurar transformado)"
    ]
   },
   {
