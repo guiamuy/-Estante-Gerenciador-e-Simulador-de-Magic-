@@ -5418,7 +5418,7 @@ const EFFECTS = {
   dragar_k: { fields: ['jogador', 'carta', 'n', 'resto'], targets: [] }, // K-57 · 702.52a (gerado pelo motor)
   iminente_k: { fields: ['z'], targets: [] }, // K-58 · 702.176a (gerado pelo motor)
   ascender_k: { fields: [], targets: [] }, // K-59 · 702.131a (gerado pelo motor na mágica com ascensão)
-  equipa_ficha_k: { fields: ['ficha'], targets: [] }, // K-60 (gerado pelo motor)
+  equipa_ficha_k: { fields: ['ficha', 'z'], targets: [] }, // K-60 (gerado pelo motor)
   desencadear_k: { fields: ['z'], targets: [] }, // K-62 · tira o marcador do desencadear (gerado pelo motor)
   salvaguarda: { fields: [], targets: [] }, // K-2 · 702.21a · gerado pelo motor quando uma permanente com salvaguarda vira alvo (não vai em script)
   volta_com_marcador: { fields: ['marcador'], targets: [] }, // K-4 · persistir e imortal (gerado pelo motor)
@@ -19040,7 +19040,7 @@ function applyEffect(s, src, eff, tgt, events) {
       const eq = s.objects[src.ability ? src.source : src.oid], def = FICHAS_DO_EQUIPAMENTO_K[eff.ficha];
       if (!def) { note({ failed: true }); break; }
       const t = createToken(s, def, ctrl, events);
-      if (eq && eq.zone === 'battlefield' && s.objects[t] && s.objects[t].zone === 'battlefield') attachTo(s, eq, t, events);
+      if (eq && eq.zone === 'battlefield' && (eff.z == null || (eq.zc || 0) === eff.z) && s.objects[t] && s.objects[t].zone === 'battlefield') attachTo(s, eq, t, events); // K-64 · 400.7
       note({ name: def.name }); break;
     }
     case 'ascender_k': { const ganhou = ascensaoK(s, ctrl, true); note({ failed: !ganhou }); break; } // K-59 · 702.131a
@@ -21628,6 +21628,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
         }
       }
     }
+    if (k === 'free_cast') ofertasSemPagarK(s, p, out); // K-64 · 118.9d: na conjuração sem pagar, os custos adicionais da trilha (prole, presente, recompra, spree, escalar, entrelaçar) e os alvos por modo — achado da auditoria 4a (Toca ponto comum: legalActions free_cast)
     // S60 · perder ou pagar, e escolher o que sacrificar
     if (k === 'unless') { out.push({ t: 'take_loss', p }); out.push({ t: 'pay_unless', p }); }
     if (k === 'sacrifice') (s.pending.options || []).forEach(oid => out.push({ t: 'sacrifice', p, oid }));
@@ -22315,9 +22316,9 @@ const GATILHOS_DE_PALAVRA_K = {
   // K-56 · 702.174b · "When this permanent enters, if its gift cost was paid, [effect]."
   gift: (s, o) => o && o.presenteK != null ? ({ kind: 'triggered', when: 'etb', palavraK: 'gift', effects: [{ do: 'presente_k', tipo: s.facts[o.name].presenteK, jogador: o.presenteK }] }) : [],
   // K-60 · 702.92a/163a/182a · "When this Equipment enters, create a … token, then attach this Equipment to it." (um gatilho por instância)
-  'living weapon': () => ({ kind: 'triggered', when: 'etb', palavraK: 'living weapon', effects: [{ do: 'equipa_ficha_k', ficha: 'germe' }] }),
-  'for mirrodin!': () => ({ kind: 'triggered', when: 'etb', palavraK: 'for mirrodin!', effects: [{ do: 'equipa_ficha_k', ficha: 'rebelde' }] }),
-  'job select': () => ({ kind: 'triggered', when: 'etb', palavraK: 'job select', effects: [{ do: 'equipa_ficha_k', ficha: 'heroi' }] }),
+  'living weapon': (s, o) => ({ kind: 'triggered', when: 'etb', palavraK: 'living weapon', effects: [{ do: 'equipa_ficha_k', ficha: 'germe', z: (o && o.zc) || 0 }] }),
+  'for mirrodin!': (s, o) => ({ kind: 'triggered', when: 'etb', palavraK: 'for mirrodin!', effects: [{ do: 'equipa_ficha_k', ficha: 'rebelde', z: (o && o.zc) || 0 }] }),
+  'job select': (s, o) => ({ kind: 'triggered', when: 'etb', palavraK: 'job select', effects: [{ do: 'equipa_ficha_k', ficha: 'heroi', z: (o && o.zc) || 0 }] }), // K-64 · 400.7: só o mesmo Equipamento (achado da auditoria 4b)
   // K-58 · 702.176a · "At the beginning of your end step, if this permanent's impending cost was paid and it has a time counter on it, remove a time counter from it."
   impending: (s, o) => o && o.iminenteK && ((o.counters || {}).time || 0) > 0 ? ({ kind: 'triggered', when: 'end-step', palavraK: 'impending', effects: [{ do: 'iminente_k', z: o.zc || 0 }] }) : [],
   // K-40 · 702.70a · "Whenever this creature deals combat damage to a player, that player gets N poison counters." (o jogador atingido é o que ela atacava)
@@ -22570,7 +22571,6 @@ Object.assign(EXPORTS_K, { recomecarImpressoK });
    parte (d); a condição é intermediária (603.4): conferida ao disparar e de novo na resolução, com o poder e a resistência de agora — da
    que entrou, se saiu do campo, como ela era (608.2h); 702.100c: quem não é criatura não evolui. */
 function evoluirK(s, o) {
-  if (o && o.zone === 'battlefield' && partidaTemK(s, 'ascenderK')) ascensaoK(s, o.controller); // K-59 · 702.131b: a permanente que entra pode fazer o controlador chegar a dez
   if (!o || o.zone !== 'battlefield' || !isCreature(s, o)) return;
   enxertoK(s, o); // K-46 · o enxerto também olha a criatura que entra
   for (const w of battlefield(s)) {
@@ -23100,6 +23100,7 @@ Object.assign(EXPORTS_K, { entraComPalavrasK });
    gatilho ou prioridade, como a terra de choque da M-330: o resultado é o mesmo) e pelo fabricar (702.123a, na resolução do gatilho). */
 const SERVO_K = { name: 'Servo', types: ['artifact', 'creature'], subtypes: ['Servo'], colors: [], power: 1, toughness: 1 };
 function escolhaDeEntradaK(s) {
+  if (partidaTemK(s, 'ascenderK')) for (const q of s.players.keys()) ascensaoK(s, q); // K-64 · 702.131b "any time": conferida antes de cada leva de gatilhos, com os efeitos já aplicados (Aura anexada, fase, controle) — achado da auditoria 4b
   while (!s.pending && (s.queuedChoices || []).length && ['tumulto_k', 'devorar_k', 'amplificar_k', 'desencadear_k'].includes(s.queuedChoices[0].kind)) { // K-62 · desencadear também
     const c = s.queuedChoices.shift(), t = s.objects[c.oid];
     if (!t || t.zone !== 'battlefield' || !s.players[c.p] || s.players[c.p].lost) continue;
@@ -23672,6 +23673,26 @@ function danoNoTurnoK(s, p, n) { if (n > 0 && s.players[p] && partidaTemSedeK(s)
    com o marcador e a escolha logo depois pode tirá-lo) e "This permanent can't block as long as it has a +1/+1 counter on it" (qualquer
    marcador +1/+1, não só o do desencadear). */
 const naoBloqueiaK = (s, o) => !!o && !o.faceDown && ((o.counters || {}).p1p1 || 0) > 0 && !semImpressas(s, o) && ((s.facts[o.name] || {}).kw || []).includes('unleash');
+/* K-64 · achados das auditorias 4a e 4b. (1) 118.9d: a conjuração sem pagar o custo de mana (cascata, descobrir) oferece os custos
+   adicionais da trilha: as ofertas `cast_free` passam pelas mesmas funções das conjurações normais (como `cast` com `free`), e prole e
+   recompra ganham a variante que paga só o adicional. (2) 702.131b: a bênção é conferida antes de cada leva de gatilhos (escolhaDeEntradaK).
+   (3) 400.7: o gatilho de arma viva (e as outras duas) só anexa o mesmo Equipamento que o disparou. */
+function ofertasSemPagarK(s, p, out) {
+  const livres = out.filter(x => x.t === 'cast_free' && s.objects[x.oid] && !(s.facts[s.objects[x.oid].name].types || []).includes('land')); if (!livres.length) return;
+  const outros = out.filter(x => !livres.includes(x));
+  const tmp = livres.map(x => ({ ...x, t: 'cast', free: true }));
+  alvosPorModoK(s, p, tmp); ofertasEntrelacarK(s, p, tmp); ofertasEscalarK(s, p, tmp); ofertasSpreeK(s, p, tmp); ofertasPresenteK(s, p, tmp);
+  for (const x of tmp.slice()) {
+    const o = s.objects[x.oid], f = o && s.facts[o.name]; if (!f) continue;
+    if (f.proleK && !x.proleK && (!s.manaCheck || canPay(s, p, parseCost(f.proleK.mana)))) tmp.push({ ...x, proleK: true });
+    if (f.recompraK && !x.recompraK && (!f.recompraK.mana || !s.manaCheck || canPay(s, p, parseCost(f.recompraK.mana)))) {
+      if (!f.recompraK.extra) tmp.push({ ...x, recompraK: true });
+      else if (canPayExtra(s, p, f.recompraK.extra, x.oid)) for (const pg of formasDoExtraK(s, p, f.recompraK.extra, x.oid, pagamentosDe(s, p, f.recompraK.extra, x.oid)).slice(0, LIMITE_PAGAMENTOS)) tmp.push(pg ? { ...x, recompraK: true, pay: { ...(x.pay || {}), recompraK: pg } } : { ...x, recompraK: true });
+    }
+  }
+  out.length = 0; out.push(...outros, ...tmp.map(({ t, free, ...r }) => ({ ...r, t: 'cast_free' })));
+}
+Object.assign(EXPORTS_K, { ofertasSemPagarK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-30 · 701.65 aerobender: "that player exiles those objects. For each card exiled this way, for as long as it remains exiled, its owner
    may cast it by paying {2} rather than paying its mana cost" (a). A permissão é do DONO e da encarnação exilada (400.7: se a carta sair do

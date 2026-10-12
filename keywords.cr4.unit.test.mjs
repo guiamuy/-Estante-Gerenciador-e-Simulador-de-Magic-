@@ -2296,3 +2296,47 @@ test('CR 702.31b · equitação (Shu Cavalry, texto oficial): só criatura com e
   assert.equal(bloq(t, u, c), false, 'o Urso não bloqueia a cavalaria'); assert.equal(bloq(t, c2, c), true, 'a outra cavalaria bloqueia');
   t = ataque(s, u2); assert.equal(bloq(t, c2, u2), true, 'a cavalaria bloqueia o Urso');
 });
+
+/* ---------------- K-64 · achados das auditorias 4a e 4b ---------------- */
+test('CR 118.9d · conjurar sem pagar o custo de mana (cascata, descobrir): prole e presente são oferecidos pagando só o adicional; combinação de spree que não fecha não é oferecida', () => {
+  const PR = { ...oficial('Pawpatch Recruit'), keywords: ['Offspring', 'Trample'] };
+  let s = comManaK33({ 'Pawpatch Recruit': PR, 'Three Steps Ahead': oficial('Three Steps Ahead'), Urso: URSO }, { 'Three Steps Ahead': S.SCRIPTS['Three Steps Ahead'] }); const a = s.turn.active;
+  s = terrenos(s, a, 'Island', 2); let r, t3, u; [s, r] = poe(s, a, 'Pawpatch Recruit', 'hand'); [s, t3] = poe(s, a, 'Three Steps Ahead', 'hand'); [s, u] = poe(s, a, 'Urso');
+  s = J(s); s.pending = { kind: 'free_cast', p: a, options: [r, t3], name: 'teste' };
+  const ofs = E.legalActions(s, a);
+  assert.ok(ofs.some(x => x.t === 'cast_free' && x.oid === r && x.proleK), 'prole oferecida pagando {2}');
+  const modos = s.facts['Three Steps Ahead'].script.modes, i12 = modos.findIndex(m => J(m.modosK).join() === '1,2'), i2 = modos.findIndex(m => J(m.modosK).join() === '2');
+  assert.ok(!ofs.some(x => x.t === 'cast_free' && x.oid === t3 && x.mode === i12), '{3}{2} não fecha com duas Ilhas');
+  assert.ok(ofs.some(x => x.t === 'cast_free' && x.oid === t3 && x.mode === i2), '{2} fecha');
+  const t = resolve(act(s, ofs.find(x => x.t === 'cast_free' && x.oid === r && x.proleK)));
+  assert.equal(t.zones[a].battlefield.filter(x => t.objects[x].token).length, 1, 'a ficha da prole');
+  const RAPOSA = { name: 'Raposa', type_line: 'Creature — Fox', mana_cost: '{1}{W}', cmc: 2, colors: ['W'], power: '2', toughness: '2', keywords: ['Gift'], oracle_text: 'Gift a card' };
+  let g = partida({ Raposa: RAPOSA }); const ga = g.turn.active; let ro; [g, ro] = poe(g, ga, 'Raposa', 'hand'); g = J(g); g.pending = { kind: 'free_cast', p: ga, options: [ro], name: 'teste' };
+  assert.ok(E.legalActions(g, ga).some(x => x.t === 'cast_free' && x.oid === ro && x.presenteK === 1 - ga), 'a promessa do presente é oferecida');
+});
+
+test('CR 702.131b com 611.3c · a décima permanente é uma Aura que tira as habilidades do Swordtooth: nunca houve dez permanentes com a ascensão funcionando, sem bênção', () => {
+  const WS = { ...oficial('Wayward Swordtooth'), keywords: ['Ascend'] };
+  const MUDEZ = { name: 'Mudez', type_line: 'Enchantment — Aura', mana_cost: '{1}{W}', cmc: 2, colors: ['W'], keywords: [], oracle_text: 'Enchant creature\nEnchanted creature loses all abilities and is a 0/1 Coward creature.' };
+  const SC = { Mudez: { name: 'Mudez', aura: { enchant: 'creature', becomes: { types: ['creature'], subtypes: ['Coward'], base: [0, 1], loseAbilities: true } }, example: { action: 'aura', target: 'own-creature', expect: { stats: [0, 1] } } } };
+  let s = partida({ 'Wayward Swordtooth': WS, Mudez: MUDEZ }, SC); const a = s.turn.active;
+  let sw, m; [s, sw] = poe(s, a, 'Wayward Swordtooth'); for (let i = 0; i < 8; i++) [s] = poe(s, a, 'Forest');
+  [s, m] = poe(s, a, 'Mudez', 'hand'); s = resolve(act(s, { t: 'cast', p: a, oid: m, targets: [{ oid: sw }] }));
+  assert.equal(s.objects[m].attachedTo, sw); assert.ok(!s.players[a].bencaoK, 'a Aura chegou tirando a ascensão');
+  let f; [s, f] = poe(s, a, 'Forest', 'hand'); s = act(s, { t: 'play_land', p: a, oid: f });
+  assert.ok(!s.players[a].bencaoK, 'onze permanentes, a ascensão continua sem efeito');
+});
+
+test('CR 400.7 com 702.92a · o gatilho de arma viva do Batterskull que saiu e voltou não anexa o objeto novo: o primeiro Germe fica sem Equipamento', () => {
+  const BS = { ...oficial('Batterskull'), keywords: ['Living weapon', 'Equip'] };
+  const SC = { Batterskull: { name: 'Batterskull', equip: { enchant: 'creature', cost: { mana: '{5}' } }, grants: { power: 4, toughness: 4 }, example: { action: 'etb', target: 'none', expect: { attached: false } } } };
+  let s = partida({ Batterskull: BS }, SC); const a = s.turn.active;
+  let b; [s, b] = poe(s, a, 'Batterskull', 'hand');
+  s = act(s, { t: 'cast', p: a, oid: b }); for (let i = 0; i < 6 && s.objects[b].zone !== 'battlefield'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  assert.equal(s.stack.length, 1, 'o gatilho de arma viva na pilha');
+  s = J(s); const z = s.zones[a].battlefield; z.splice(z.indexOf(b), 1); s.zones[a].exile.push(b); s.objects[b].zone = 'exile'; s.objects[b].zc = (s.objects[b].zc || 0) + 1;
+  s.zones[a].exile.splice(s.zones[a].exile.indexOf(b), 1); s.zones[a].battlefield.push(b); s.objects[b].zone = 'battlefield'; s.objects[b].zc += 1;
+  s = resolve(s);
+  const germes = Object.values(s.objects).filter(o => o.token && o.name === 'Phyrexian Germ');
+  assert.ok(germes.every(o => s.objects[b].attachedTo !== o.oid), 'o Batterskull novo não é anexado pelo gatilho do antigo');
+});

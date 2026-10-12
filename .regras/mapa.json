@@ -8171,10 +8171,11 @@
     "301.5"
    ],
    "cartas": "rara",
-   "evidencia": "K-60: a palavra gera o gatilho de entrada do Equipamento (GATILHOS_DE_PALAVRA_K) que cria a ficha (FICHAS_DO_EQUIPAMENTO_K: Germe 0/0 preto Phyrexian Germ, Rebelde 2/2 vermelho, Herói 1/1 incolor) e anexa o Equipamento a ela (equipa_ficha_k → attachTo), um gatilho por instância. Se o Equipamento saiu do campo antes, a ficha fica sem ele.",
+   "evidencia": "K-60: a palavra gera o gatilho de entrada do Equipamento (GATILHOS_DE_PALAVRA_K) que cria a ficha (FICHAS_DO_EQUIPAMENTO_K: Germe 0/0 preto Phyrexian Germ, Rebelde 2/2 vermelho, Herói 1/1 incolor) e anexa o Equipamento a ela (equipa_ficha_k → attachTo), um gatilho por instância. Se o Equipamento saiu do campo antes, a ficha fica sem ele. K-64 (auditoria 4b): o gatilho só anexa a mesma encarnação do Equipamento (400.7).",
    "testes": [
     "CR 702.92a · arma viva (Batterskull, texto oficial): ao entrar, cria um Germe 0/0 preto e se anexa a ele (o Germe vira 4/4); sem o bônus, o Germe morreria",
-    "K-60 · arma viva, Por Mirrodin! e escolha de classe (702.92, 702.163, 702.182): o Equipamento cria a ficha e se anexa; o Rebelde equipado ataca por 3"
+    "K-60 · arma viva, Por Mirrodin! e escolha de classe (702.92, 702.163, 702.182): o Equipamento cria a ficha e se anexa; o Rebelde equipado ataca por 3",
+    "CR 400.7 com 702.92a · o gatilho de arma viva do Batterskull que saiu e voltou não anexa o objeto novo: o primeiro Germe fica sem Equipamento"
    ]
   },
   {
@@ -8779,18 +8780,19 @@
    "regra": "Keyword Abilities",
    "titulo": "Ascend",
    "status": "parcial",
-   "falta": "A conferência da permanente roda quando uma permanente entra no campo; chegar a dez ganhando o controle de uma permanente não dá a bênção na hora. Efeito de mágica \"if you have the city's blessing, instead …\" (Golden Demise) não tem condição de efeito; Ocelot Pride sem script (cópia das fichas que entraram no turno).",
+   "falta": "Mágica com ascensão sem script (Golden Demise) não ganha a bênção: a ascensão entra como primeira habilidade só do script. \"Se você tem a bênção, em vez disso…\" em efeito de mágica não existe; Ocelot Pride sem script.",
    "esforco": "P",
    "depende": [
     "designação de jogador",
     "704 checagem contínua"
    ],
    "cartas": "rara (Ixalan)",
-   "evidencia": "K-59: linha \"Ascend\" (ascenderK). Permanente: quando uma permanente entra (gancho em evoluirK, chamado por disparaZona), se o controlador tem dez ou mais permanentes e uma com ascensão, ganha a bênção (ascensaoK; marca bencaoK do jogador, para sempre, 702.131c). Mágica: em createGame a ascensão vira a primeira habilidade da mágica (ascender_k, 702.131a). Condição de gatilho bencaoK (\"if you have the city's blessing\") em condicaoK, ligada a triggerConditionMet e ao validador (Toca ponto comum).",
+   "evidencia": "K-59: linha \"Ascend\" (ascenderK). Permanente: antes de cada leva de gatilhos (escolhaDeEntradaK, no começo de flushTriggers; K-64, auditoria 4b: Aura que tira a ascensão ao entrar, fase, controle), se o controlador tem dez ou mais permanentes e uma com ascensão, ganha a bênção (ascensaoK; marca bencaoK do jogador, para sempre, 702.131c). Mágica: em createGame a ascensão vira a primeira habilidade da mágica (ascender_k, 702.131a). Condição de gatilho bencaoK (\"if you have the city's blessing\") em condicaoK, ligada a triggerConditionMet e ao validador (Toca ponto comum).",
    "testes": [
     "CR 702.131b/c · ascensão na permanente (Wayward Swordtooth, texto oficial): com dez permanentes, o controlador ganha a bênção da cidade para sempre; sem a carta com ascensão, não",
     "CR 702.131a/c e 702.174b · condições de gatilho: \"if you have the city\\",
-    "K-59 · ascensão (702.131): com o Gato de ascensão e mais nove permanentes, o jogador tem a bênção da cidade; o Gato ataca normalmente"
+    "K-59 · ascensão (702.131): com o Gato de ascensão e mais nove permanentes, o jogador tem a bênção da cidade; o Gato ataca normalmente",
+    "CR 702.131b com 611.3c · a décima permanente é uma Aura que tira as habilidades do Swordtooth: nunca houve dez permanentes com a ascensão funcionando, sem bênção"
    ]
   },
   {
@@ -9222,7 +9224,7 @@
     "111 fichas"
    ],
    "cartas": "uma coleção só (Phyrexia: All Will Be One)",
-   "evidencia": "K-60: a palavra gera o gatilho de entrada do Equipamento (GATILHOS_DE_PALAVRA_K) que cria a ficha (FICHAS_DO_EQUIPAMENTO_K: Germe 0/0 preto Phyrexian Germ, Rebelde 2/2 vermelho, Herói 1/1 incolor) e anexa o Equipamento a ela (equipa_ficha_k → attachTo), um gatilho por instância. Se o Equipamento saiu do campo antes, a ficha fica sem ele.",
+   "evidencia": "K-60: a palavra gera o gatilho de entrada do Equipamento (GATILHOS_DE_PALAVRA_K) que cria a ficha (FICHAS_DO_EQUIPAMENTO_K: Germe 0/0 preto Phyrexian Germ, Rebelde 2/2 vermelho, Herói 1/1 incolor) e anexa o Equipamento a ela (equipa_ficha_k → attachTo), um gatilho por instância. Se o Equipamento saiu do campo antes, a ficha fica sem ele. K-64 (auditoria 4b): o gatilho só anexa a mesma encarnação do Equipamento (400.7).",
    "testes": [
     "CR 702.163a · 702.182a · Por Mirrodin! e escolha de classe: Rebelde 2/2 vermelho e Herói 1/1 incolor, com o Equipamento anexado",
     "K-60 · arma viva, Por Mirrodin! e escolha de classe (702.92, 702.163, 702.182): o Equipamento cria a ficha e se anexa; o Rebelde equipado ataca por 3"
@@ -9345,10 +9347,11 @@
     "601.2b custo adicional"
    ],
    "cartas": "uma coleção só (Outlaws of Thunder Junction)",
-   "evidencia": "K-54: \"Spree\" e as linhas \"+ {custo} — efeito\" (spreeImpressoK) dão o custo de cada modo do script. Em createGame cada combinação de um ou mais modos vira um modo, na ordem impressa, com a marca spreeK = soma dos custos (modosSpreeK); cada modo é instância própria de \"alvo\" (115.3: modosCombinadosK, alvosPorModoK). O custo soma ao custo total no caminho normal (custoTapadoK, genericoAdicionalK; 601.2f) e é pago à parte nos outros (pagaSpreeK, também sem pagar o custo de mana, 118.9d); ofertasSpreeK tira as combinações que não fecham. Three Steps Ahead em RAW_SCRIPTS (S8).",
+   "evidencia": "K-54: \"Spree\" e as linhas \"+ {custo} — efeito\" (spreeImpressoK) dão o custo de cada modo do script. Em createGame cada combinação de um ou mais modos vira um modo, na ordem impressa, com a marca spreeK = soma dos custos (modosSpreeK); cada modo é instância própria de \"alvo\" (115.3: modosCombinadosK, alvosPorModoK). O custo soma ao custo total no caminho normal (custoTapadoK, genericoAdicionalK; 601.2f) e é pago à parte nos outros (pagaSpreeK, também sem pagar o custo de mana, 118.9d); ofertasSpreeK tira as combinações que não fecham. Three Steps Ahead em RAW_SCRIPTS (S8). K-64 (auditoria 4a): também na conjuração sem pagar o custo de mana (cascata, descobrir; 118.9d), em ofertasSemPagarK.",
    "testes": [
     "CR 702.172a · spree (Three Steps Ahead, texto oficial): um botão por combinação de modos, com a soma dos custos \"+ {…}\" dos modos escolhidos; oferecido só quando o total fecha; resolve os modos na ordem impressa",
-    "K-54 · spree (702.172): +2/+0 e iniciativa no mesmo Urso (os dois modos), que mata o bloqueador antes"
+    "K-54 · spree (702.172): +2/+0 e iniciativa no mesmo Urso (os dois modos), que mata o bloqueador antes",
+    "CR 118.9d · conjurar sem pagar o custo de mana (cascata, descobrir): prole e presente são oferecidos pagando só o adicional; combinação de spree que não fecha não é oferecida"
    ]
   },
   {
@@ -9377,12 +9380,13 @@
     "500.7 turno extra (para 174g)"
    ],
    "cartas": "uma coleção só (Bloomburrow)",
-   "evidencia": "K-56: \"Gift a card/a tapped Fish/an extra turn/a Food/a Treasure/an Octopus\" (presenteImpressoK). Mágica instantânea ou feitiço: em createGame o script vira modos \"sem presente\" e \"prometendo a <jogador>\" (modosDoPresenteK), com presente_k antes dos outros efeitos (702.174j) e, se o script traz presenteK.effects, os efeitos (e alvos, 702.174m) do texto com o presente; prometer a si mesmo é recusado (conferePresenteK em HANDLERS.cast) e não é oferecido. Permanente: a conjuração ganha a variante presenteK por oponente (ofertasPresenteK); a marca vai ao campo e a palavra gera o gatilho de entrada com o presente (702.174b). Into the Flood Maw em RAW_SCRIPTS (S8). K-59: condição de gatilho presenteK (\"if the gift was promised\", em gatilho de permanente) em condicaoK.",
+   "evidencia": "K-56: \"Gift a card/a tapped Fish/an extra turn/a Food/a Treasure/an Octopus\" (presenteImpressoK). Mágica instantânea ou feitiço: em createGame o script vira modos \"sem presente\" e \"prometendo a <jogador>\" (modosDoPresenteK), com presente_k antes dos outros efeitos (702.174j) e, se o script traz presenteK.effects, os efeitos (e alvos, 702.174m) do texto com o presente; prometer a si mesmo é recusado (conferePresenteK em HANDLERS.cast) e não é oferecido. Permanente: a conjuração ganha a variante presenteK por oponente (ofertasPresenteK); a marca vai ao campo e a palavra gera o gatilho de entrada com o presente (702.174b). Into the Flood Maw em RAW_SCRIPTS (S8). K-59: condição de gatilho presenteK (\"if the gift was promised\", em gatilho de permanente) em condicaoK. K-64 (auditoria 4a): também na conjuração sem pagar o custo de mana (cascata, descobrir; 118.9d), em ofertasSemPagarK.",
    "testes": [
     "CR 702.174a/j/m · presente (Into the Flood Maw, texto oficial: \"Gift a tapped Fish\"): sem presente, só criatura do oponente; prometendo, o oponente cria o Peixe virado antes e o alvo passa a ser permanente não terreno; prometer a si mesmo é recusado",
     "CR 702.174b · presente na permanente: a conjuração com o presente prometido marca a permanente; ao entrar, o oponente recebe o presente (Gift a card: compra)",
     "K-56 · presente (702.174): a Raposa com \"Gift a tapped Fish\" prometido dá ao oponente um Peixe virado, que não bloqueia o Urso",
-    "CR 702.131a/c e 702.174b · condições de gatilho: \"if you have the city\\"
+    "CR 702.131a/c e 702.174b · condições de gatilho: \"if you have the city\\",
+    "CR 118.9d · conjurar sem pagar o custo de mana (cascata, descobrir): prole e presente são oferecidos pagando só o adicional; combinação de spree que não fecha não é oferecida"
    ]
   },
   {
@@ -9397,10 +9401,11 @@
     "601.2b custo adicional"
    ],
    "cartas": "uma coleção só (Bloomburrow)",
-   "evidencia": "K-53: \"Offspring {custo}\" (custoDaLinhaK) é custo adicional opcional: a variante proleK é oferecida para cada conjuração pelo custo normal (ofertasProleK), o mana soma ao custo total (custoTapadoK, genericoAdicionalK; 601.2f) ou é pago à parte com custo alternativo (pagaProleK em HANDLERS.cast). A marca proleK vai da pilha ao campo; com ela, a palavra gera o gatilho de entrada (GATILHOS_DE_PALAVRA_K.offspring) que cria a ficha cópia (prole_k: nomeCopiavel) com P/T base 1/1.",
+   "evidencia": "K-53: \"Offspring {custo}\" (custoDaLinhaK) é custo adicional opcional: a variante proleK é oferecida para cada conjuração pelo custo normal (ofertasProleK), o mana soma ao custo total (custoTapadoK, genericoAdicionalK; 601.2f) ou é pago à parte com custo alternativo (pagaProleK em HANDLERS.cast). A marca proleK vai da pilha ao campo; com ela, a palavra gera o gatilho de entrada (GATILHOS_DE_PALAVRA_K.offspring) que cria a ficha cópia (prole_k: nomeCopiavel) com P/T base 1/1. K-64 (auditoria 4a): também na conjuração sem pagar o custo de mana (cascata, descobrir; 118.9d), em ofertasSemPagarK.",
    "testes": [
     "CR 702.175a · prole (Pawpatch Recruit, texto oficial: \"Offspring {2}\"): custo adicional opcional; pago, ao entrar cria uma ficha que é cópia dela, só que 1/1 (com atropelar); sem pagar, nada; a ficha não cria outra",
-    "K-53 · prole (702.175): pagando a prole, a ficha cópia 1/1 com atropelar entra e ataca por 1"
+    "K-53 · prole (702.175): pagando a prole, a ficha cópia 1/1 com atropelar entra e ataca por 1",
+    "CR 118.9d · conjurar sem pagar o custo de mana (cascata, descobrir): prole e presente são oferecidos pagando só o adicional; combinação de spree que não fecha não é oferecida"
    ]
   },
   {
@@ -9507,7 +9512,7 @@
     "301.5 equipamento"
    ],
    "cartas": "uma coleção só (Final Fantasy)",
-   "evidencia": "K-60: a palavra gera o gatilho de entrada do Equipamento (GATILHOS_DE_PALAVRA_K) que cria a ficha (FICHAS_DO_EQUIPAMENTO_K: Germe 0/0 preto Phyrexian Germ, Rebelde 2/2 vermelho, Herói 1/1 incolor) e anexa o Equipamento a ela (equipa_ficha_k → attachTo), um gatilho por instância. Se o Equipamento saiu do campo antes, a ficha fica sem ele.",
+   "evidencia": "K-60: a palavra gera o gatilho de entrada do Equipamento (GATILHOS_DE_PALAVRA_K) que cria a ficha (FICHAS_DO_EQUIPAMENTO_K: Germe 0/0 preto Phyrexian Germ, Rebelde 2/2 vermelho, Herói 1/1 incolor) e anexa o Equipamento a ela (equipa_ficha_k → attachTo), um gatilho por instância. Se o Equipamento saiu do campo antes, a ficha fica sem ele. K-64 (auditoria 4b): o gatilho só anexa a mesma encarnação do Equipamento (400.7).",
    "testes": [
     "CR 702.163a · 702.182a · Por Mirrodin! e escolha de classe: Rebelde 2/2 vermelho e Herói 1/1 incolor, com o Equipamento anexado",
     "K-60 · arma viva, Por Mirrodin! e escolha de classe (702.92, 702.163, 702.182): o Equipamento cria a ficha e se anexa; o Rebelde equipado ataca por 3"

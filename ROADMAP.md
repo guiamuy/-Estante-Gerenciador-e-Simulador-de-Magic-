@@ -4538,6 +4538,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Valor:** a criatura com equitação só é bloqueada por criatura com equitação.
 - **Aceite:** Shu Cavalry não é bloqueada pelo Urso, é bloqueada por outra com equitação, e bloqueia o Urso normalmente.
 - **Testes:** `keywords.cr4.unit` (1, falha sem a leva), `combat.audit` (1 cenário). Texto oficial: Shu Cavalry, Wei Night Raiders (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
+**K-64 · Auditorias independentes da onda 4 (4a: K-51 a K-56; 4b: K-57 a K-63)** 🟡 (leva K-64)
+- **Auditorias:** 88 + 76 sondas caixa-preta; 6 divergências, 5 corrigidas com teste antes e 1 declarada no mapa.
+- **Correções:** (1) na conjuração sem pagar o custo de mana (cascata, descobrir), prole e presente são oferecidos pagando só o adicional e a combinação de spree que não fecha não aparece (118.9d; vale também para recompra, escalar e entrelaçar); (2) a bênção da cidade é conferida antes de cada leva de gatilhos, com os efeitos já aplicados — Aura que tira a ascensão ao entrar não dá a bênção; voltar de fase ou ganhar o controle dá; (3) o gatilho de arma viva (e de "Por Mirrodin!" e escolha de classe) só anexa o mesmo Equipamento (400.7).
+- **Declarado:** mágica com ascensão sem script (Golden Demise) não dá a bênção.
+- **Toca ponto comum:** `legalActions` (uma linha no `free_cast`: `ofertasSemPagarK`).
+- **Testes:** `keywords.cr4.unit` (3, falham sem a leva). Goldens idênticos; motor v110.
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.
