@@ -4574,6 +4574,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `moveObject` (uma linha: `blitzouK`).
 - **Testes:** `keywords.cr4.unit` (1, falha sem a leva), `combat.audit` (1 cenário). Texto oficial: Mezzio Mugger, Workshop Warchief (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
 - **Parcial declarado:** reduções de outras fontes não valem sobre o custo da blitz (o mesmo limite do arremeter).
+**K-67 · Voraz (ravenous, 702.156) e esquadrão (squad, 702.157)** 🟡 (leva K-67) — onda 4 (Warhammer 40.000 Commander)
+- **Valor:** a criatura voraz entra com X marcadores +1/+1 e, com X 5 ou mais, compra ao entrar. O esquadrão vira botões "pagar o esquadrão 1, 2… vezes": ao entrar, uma ficha cópia por vez paga.
+- **Aceite:** voraz com X 2 entra com dois marcadores e não compra; com X 5, cinco marcadores e compra. Vanguard Suppressor com oito Ilhas oferece 0, 1 ou 2 vezes; pagando 2, entram duas cópias com voar.
+- **Toca ponto comum:** `HANDLERS.cast` (uma linha: `pagaEsquadraoK`); `entradaModificada` (a linha da trilha passa o X pago para `entraComPalavrasK`).
+- **Testes:** `keywords.cr4.unit` (2, falham sem a leva), `combat.audit` (1 cenário). Texto oficial: Broodlord, Wasteland Raider, Thrill-Kill Disciple, Vanguard Suppressor (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
+- **Parcial declarado:** esquadrão com custo que não é mana não é lido; a oferta vai até 6 vezes.
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

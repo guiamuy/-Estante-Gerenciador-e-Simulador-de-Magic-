@@ -5245,6 +5245,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'horsemanship', // K-63 · 702.31: só criatura com equitação bloqueia a criatura com equitação (horsemanshipBarraK)
   'wither', 'decayed', // K-65 · 702.80 (dano a criatura vira marcadores −1/−1, murchaK) e 702.147 (não bloqueia; ao atacar, sacrificada no fim do combate)
   'blitz', // K-66 · 702.152: custo alternativo; paga, ímpeto, "ao morrer, compre um card" e sacrificada no começo da etapa final (blitzouK)
+  'ravenous', 'squad', // K-67 · 702.156 (entra com X marcadores +1/+1; com X 5 ou mais, compra ao entrar) e 702.157 (custo adicional pago quantas vezes quiser; ao entrar, uma ficha cópia por vez)
   'afflict', 'melee', 'mentor', 'training', // K-31 · 702.130, 702.121, 702.134, 702.149: gatilhos de ataque gerados pela palavra, um por instância
   'battle cry', 'rampage', 'flanking', 'bushido', // K-30 · 702.91, 702.23, 702.25, 702.45: gatilhos de combate gerados pela palavra (GATILHOS_DE_PALAVRA_K), um por instância
   /* ↓ V · palavras-chave da trilha verbos */
@@ -5423,6 +5424,7 @@ const EFFECTS = {
   equipa_ficha_k: { fields: ['ficha', 'z'], targets: [] }, // K-60 (gerado pelo motor)
   desencadear_k: { fields: ['z'], targets: [] }, // K-62 · tira o marcador do desencadear (gerado pelo motor)
   decaida_k: { fields: ['z'], targets: [] }, // K-65 · 702.147a (gerado pelo motor)
+  esquadrao_k: { fields: ['n', 'z'], targets: [] }, // K-67 (gerado pelo motor)
   salvaguarda: { fields: [], targets: [] }, // K-2 · 702.21a · gerado pelo motor quando uma permanente com salvaguarda vira alvo (não vai em script)
   volta_com_marcador: { fields: ['marcador'], targets: [] }, // K-4 · persistir e imortal (gerado pelo motor)
   exaltado: { fields: ['criatura'], targets: [] }, // K-5 · exaltado (gerado pelo motor)
@@ -8439,6 +8441,7 @@ function palavraNaLinhaK(k) {
   if (k === 'horsemanship') return 'horsemanship'; // K-63
   if (k === 'wither' || k === 'decayed') return k; // K-65
   if (k === 'blitz') return 'blitz\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-66
+  if (k === 'ravenous') return 'ravenous'; if (k === 'squad') return 'squad\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-67 · esquadrão com custo que não é mana fica de fora
   if (k === 'dash') return 'dash\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-9
   if (k === 'evoke') return 'evoke(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*exile an? (?:white|blue|black|red|green) card from your hand\\.?)'; // K-8 · só as formas que o motor paga
   return ['afterlife', 'rampage', 'bushido', 'afflict'].includes(k) ? `${k} \\d+` : k; // K-30 · alvoroço N e bushido N
@@ -16303,6 +16306,7 @@ function cardFacts(card) {
     iminenteK: iminenteImpressoK(card), // K-58 · 702.176: { n, mana } de "Impending 5—{1}{B}" (undefined quando não tem)
     ascenderK: (card && /(^|\n)Ascend( \(|\s*$|\n)/.test(String(card.oracle_text || ''))) || undefined, // K-59 · 702.131: linha "Ascend"
     blitzK: custoDaLinhaK(card, 'Blitz'), // K-66 · 702.152: "Blitz {2}{B}" (undefined quando não tem)
+    esquadraoK: custoDaLinhaK(card, 'Squad'), // K-67 · 702.157: "Squad {2}" (undefined quando não tem)
     campeaoK: campeaoImpressoK(card), // K-44 · 702.72: "Champion a creature" → 'creature'; "Champion an Elf" → 'Elf' (undefined quando não tem)
     suspenderK: suspenderImpressoK(card), // K-22 · 702.62a: "Suspend N—{custo}" (undefined quando não tem)
     equipesK: equipesImpressosK(card), // K-28 · 702.6c: "Equip [qualidade] {custo}" (undefined quando não tem)
@@ -16792,7 +16796,7 @@ function entradaModificada(s, o, xPago) {
     for (const [k, v] of Object.entries(r.marcadores || {})) { const n = v === 'x' ? xPago : v === 'kicked' ? (o.kicked || 0) : v; if (n) marcadores[k] = (marcadores[k] || 0) + n; }
   }
   for (const [k, n] of Object.entries(o.entraComK || {})) marcadores[k] = (marcadores[k] || 0) + n; delete o.entraComK; // K-4 · "volta com um marcador" (persistir, imortal): entra com ele
-  for (const [k, n] of Object.entries(entraComPalavrasK(s, o))) marcadores[k] = (marcadores[k] || 0) + n; // K-37 · 702.32a/702.63a: "enters with N fade/time counters" (Toca ponto comum: entradaModificada)
+  for (const [k, n] of Object.entries(entraComPalavrasK(s, o, xPago))) marcadores[k] = (marcadores[k] || 0) + n; // K-37 · 702.32a/702.63a: "enters with N fade/time counters" (Toca ponto comum: entradaModificada)
   return { virada, marcadores, ...(pagaVida ? { pagaVida } : {}) };
 }
 /** M-342 · "it's your first, second, or third turn of the game": é o turno de `p` e ele teve no máximo `n` turnos (este incluído).
@@ -19316,6 +19320,13 @@ function applyEffect(s, src, eff, tgt, events) {
       break;
     }
     /* ↓ K · casos de applyEffect da trilha keywords */
+    case 'esquadrao_k': { // K-67 · 702.157a: uma ficha cópia por vez paga (a cópia não tem o custo pago: não cria outras)
+      const perm = s.objects[src.ability ? src.source : src.oid];
+      const nome = perm && perm.zone === 'battlefield' && (perm.zc || 0) === eff.z ? nomeCopiavel(s, perm) : perm && perm.name;
+      if (!nome || !s.facts[nome]) { note({ failed: true }); break; }
+      const n = fichasAoCriar(s, ctrl, eff.n || 0); for (let i = 0; i < n; i++) createToken(s, { name: nome }, ctrl, events);
+      note({ name: nome, amount: n }); break;
+    }
     case 'decaida_k': { // K-65 · 702.147a: o sacrifício no fim do combate é um gatilho atrasado preso à encarnação (603.7c)
       const perm = s.objects[src.ability ? src.source : src.oid];
       if (perm && perm.zone === 'battlefield' && (perm.zc || 0) === eff.z) (s.atrasados = s.atrasados || []).push({ when: 'end-of-combat', turno: s.turn.number, controller: ctrl, jogador: ctrl, objeto: { oid: perm.oid, z: perm.zc || 0 }, name: perm.name, source: perm.oid, effects: [{ do: 'sacrifice_it', target: 'delayed-object' }] });
@@ -21098,6 +21109,7 @@ const HANDLERS = {
     if (a.kick && reforco && s.manaCheck && !a.free && (alt || a.flashback || a.escape || a.disturb || a.omen || a.bestow || a.plotted)) payCost(s, a.p, somaCusto(parseCost('{0}'), parseCost(reforco.mana), a.kick)); // CR2c.6 · 601.2f: o reforço soma ao custo alternativo
     if (a.recompraK) pagaRecompraK(s, a, o, alt); // K-33 · 702.27a: o custo de recompra, 601.2b/601.2f–h (Toca ponto comum: HANDLERS.cast)
     if (a.proleK) pagaProleK(s, a, o, alt); // K-53 · 702.175a: o custo de prole, 601.2b/601.2f–h (Toca ponto comum: HANDLERS.cast)
+    if (a.esquadraoK) pagaEsquadraoK(s, a, o, alt); // K-67 · 702.157a: o custo de esquadrão, N vezes (Toca ponto comum: HANDLERS.cast)
     if (alt && alt.emergirK) pagaEmergirK(s, a, o, alt); // K-47 · 702.119a: o custo de emergir menos o valor de mana da sacrificada (Toca ponto comum: HANDLERS.cast)
     if (alt && alt.harmonizarK) pagaHarmonizarK(s, a, o, alt); // K-55 · 702.180a/b: vira a criatura escolhida e paga o custo reduzido pelo poder dela (Toca ponto comum: HANDLERS.cast)
     if (a.mode != null && ((((f.script || {}).modes) || [])[a.mode] || {}).entrelacarK) pagaEntrelacarK(s, a, o, alt); // K-34 · 702.42a: o custo de entrelaçar (Toca ponto comum: HANDLERS.cast)
@@ -22323,6 +22335,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
   // K-33 · 702.27a · recompra: cada conjuração pelo custo normal ganha a variante que paga também o custo de recompra (opcional: as duas ficam)
   ofertasRecompraK(s, p, out);
   ofertasProleK(s, p, out); // K-53 · 702.175a · prole: cada conjuração pelo custo normal ganha a variante que paga também o custo de prole
+  ofertasEsquadraoK(s, p, out); // K-67 · 702.157a: uma variante por quantidade de vezes que fecha o custo
   // K-22 · 702.62a · suspender: a oferta mora em ofertasSuspenderK até a mesa ter o botão (K-24; pedido à trilha mesa)
   // K-27 · 702.49d · ninjutsu de comandante, da zona de comando (da mão, pelo caminho de sempre)
   for (const oid of s.zones[p].command) {
@@ -22631,6 +22644,9 @@ const GATILHOS_DE_PALAVRA_K = {
   decayed: (s, o) => ({ kind: 'triggered', when: 'attacks', palavraK: 'decayed', effects: [{ do: 'decaida_k', z: (o && o.zc) || 0 }] }),
   // K-66 · 702.152a · "When this permanent is put into a graveyard from the battlefield, draw a card" (só a blitzada; 603.10a: como era no campo)
   blitz: (s, o) => (o && (o.zone === 'battlefield' ? o.blitzadaK : (o.ultima || {}).blitzadaK)) ? ({ kind: 'triggered', when: 'dies', palavraK: 'blitz', effects: [{ do: 'draw', amount: 1 }] }) : [],
+  // K-67 · 702.156a · "When this permanent enters, if X is 5 or more, draw a card." · 702.157a · "When this creature enters, if its squad cost was paid, create a token that's a copy of it for each time its squad cost was paid."
+  ravenous: (s, o) => o && (o.vorazXK || 0) >= 5 ? ({ kind: 'triggered', when: 'etb', palavraK: 'ravenous', effects: [{ do: 'draw', amount: 1 }] }) : [],
+  squad: (s, o) => o && o.esquadraoK > 0 ? ({ kind: 'triggered', when: 'etb', palavraK: 'squad', effects: [{ do: 'esquadrao_k', n: o.esquadraoK, z: o.zc || 0 }] }) : [],
   // K-60 · 702.92a/163a/182a · "When this Equipment enters, create a … token, then attach this Equipment to it." (um gatilho por instância)
   'living weapon': (s, o) => ({ kind: 'triggered', when: 'etb', palavraK: 'living weapon', effects: [{ do: 'equipa_ficha_k', ficha: 'germe', z: (o && o.zc) || 0 }] }),
   'for mirrodin!': (s, o) => ({ kind: 'triggered', when: 'etb', palavraK: 'for mirrodin!', effects: [{ do: 'equipa_ficha_k', ficha: 'rebelde', z: (o && o.zc) || 0 }] }),
@@ -22815,6 +22831,7 @@ MARCAS_DA_CONJURACAO.push('harmonizadaK'); // K-55
 MARCAS_DA_CONJURACAO.push('presenteK'); // K-56 · o oponente prometido vai da pilha ao campo
 MARCAS_DA_CONJURACAO.push('iminenteK'); // K-58 · "if this permanent's impending cost was paid": da pilha ao campo; some ao sair (400.7)
 MARCAS_DA_CONJURACAO.push('blitzadaK'); // K-66
+MARCAS_DA_CONJURACAO.push('esquadraoK', 'vorazXK'); // K-67
 MARCAS_DA_CONJURACAO.push('campeaoDeK', 'campeaoNesteK'); // K-44 · a ligação é deste objeto (400.7)
 const COR_DO_NOME_K = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
 const COR_PT_K = { W: 'branca', U: 'azul', B: 'preta', R: 'vermelha', G: 'verde' };
@@ -22983,6 +23000,7 @@ function gruposParaTaparK(s, p, o, custo, extra) {
 function custoTapadoK(s, a, o, custo, extra) {
   if (a.recompraK && (s.facts[o.name].recompraK || {}).mana) custo = somaCusto(custo, parseCost(s.facts[o.name].recompraK.mana), 1); // K-33
   if (a.proleK && (s.facts[o.name].proleK || {}).mana) custo = somaCusto(custo, parseCost(s.facts[o.name].proleK.mana), 1); // K-53 · 601.2f
+  if (a.esquadraoK && (s.facts[o.name].esquadraoK || {}).mana) custo = somaCusto(custo, parseCost(s.facts[o.name].esquadraoK.mana), a.esquadraoK); // K-67
   if (entrelacadoNaAcaoK(s, a, o) && (s.facts[o.name].entrelacarK || {}).mana) custo = somaCusto(custo, parseCost(s.facts[o.name].entrelacarK.mana), 1); // K-34 · idem
   { const n = escaladoNaAcaoK(s, a, o); if (n && (s.facts[o.name].escalarK || {}).mana) custo = somaCusto(custo, parseCost(s.facts[o.name].escalarK.mana), n); } // K-48 · 601.2f: o escalar soma ao custo total
   { const sk = spreeNaAcaoK(s, a, o); if (sk) custo = somaCusto(custo, sk, 1); } // K-54 · 601.2f: os custos do spree somam ao custo total
@@ -23398,12 +23416,14 @@ Object.assign(EXPORTS_K, { ricocheteImpressoK, ricocheteNaManutencaoK, manutenca
 /* K-37 · 702.32a desvanecer ("This permanent enters with N fade counters on it") e 702.63a sumir ("… N time counters"): o "entra com" é
    substituição (614.1c), somada em entradaModificada; cada instância impressa traz o seu N (702.63c). Os gatilhos da manutenção estão em
    GATILHOS_DE_PALAVRA_K. Face para baixo não tem a palavra. */
-function entraComPalavrasK(s, o) {
+function entraComPalavrasK(s, o, xPago = 0) {
+  { const f0 = o && s.facts[o.name]; if (f0 && !o.faceDown && (f0.kw || []).includes('ravenous')) o.vorazXK = xPago || 0; } // K-67 · 702.156a: o X da mágica, para os marcadores e o gatilho
   const f = o && s.facts[o.name], out = {}; if (!f || o.faceDown) return out;
   for (const [k, tipo] of [['fading', 'fade'], ['vanishing', 'time']]) if ((f.kw || []).includes(k)) for (const n of ((f.numerosK || {})[k] || [])) out[tipo] = (out[tipo] || 0) + n;
   if ((f.kw || []).includes('modular')) for (const n of ((f.numerosK || {}).modular || [])) out.p1p1 = (out.p1p1 || 0) + n; // K-41 · 702.43a/b
   if ((f.kw || []).includes('graft')) for (const n of ((f.numerosK || {}).graft || [])) out.p1p1 = (out.p1p1 || 0) + n; // K-46 · 702.58a/b
   if (o.iminenteK && f.iminenteK) out.time = (out.time || 0) + f.iminenteK.n; // K-58
+  if ((f.kw || []).includes('ravenous') && o.vorazXK) out.p1p1 = (out.p1p1 || 0) + o.vorazXK; // K-67 · 702.156a: "enters with X +1/+1 counters"
   if ((f.kw || []).includes('bloodthirst') && s.players.some((pl, q) => q !== o.controller && !pl.lost && pl.danoNoTurnoK === s.turn.number)) for (const n of ((f.numerosK || {}).bloodthirst || [])) out.p1p1 = (out.p1p1 || 0) + n; // K-61 · 702.54a/c · 702.176a: "it enters with N time counters"
   if (o.entrarComEscolhasK) { for (const e of o.entrarComEscolhasK) out.p1p1 = (out.p1p1 || 0) + e.n; const dv = o.entrarComEscolhasK.reduce((t, e) => t + (e.devorou || 0), 0); if (dv) o.devorouK = dv; } // K-45 · escolhido antes de entrar (conjurada)
   else for (const d of (f.devorarK || [])) s.queuedChoices = (s.queuedChoices || []).concat([{ kind: 'devorar_k', oid: o.oid, p: o.controller, n: d.n, tipo: d.tipo }]); // K-43 · 702.82a/c
@@ -23449,6 +23469,7 @@ function genericoAdicionalK(s, a, o) {
   const f = s.facts[o.name]; let n = 0;
   if (a.recompraK && (f.recompraK || {}).mana) n += parseCost(f.recompraK.mana).generic || 0;
   if (a.proleK && (f.proleK || {}).mana) n += parseCost(f.proleK.mana).generic || 0; // K-53
+  if (a.esquadraoK && (f.esquadraoK || {}).mana) n += a.esquadraoK * (parseCost(f.esquadraoK.mana).generic || 0); // K-67
   if (entrelacadoNaAcaoK(s, a, o) && (f.entrelacarK || {}).mana) n += parseCost(f.entrelacarK.mana).generic || 0;
   if ((f.escalarK || {}).mana) n += escaladoNaAcaoK(s, a, o) * (parseCost(f.escalarK.mana).generic || 0); // K-48
   { const sk = spreeNaAcaoK(s, a, o); if (sk) n += sk.generic || 0; } // K-54
@@ -24003,6 +24024,7 @@ function ofertasSemPagarK(s, p, out) {
   for (const x of tmp.slice()) {
     const o = s.objects[x.oid], f = o && s.facts[o.name]; if (!f) continue;
     if (f.proleK && !x.proleK && (!s.manaCheck || canPay(s, p, parseCost(f.proleK.mana)))) tmp.push({ ...x, proleK: true });
+    if (f.esquadraoK && !x.esquadraoK) for (let n = 1; n <= LIMITE_ESQUADRAO_K && (!s.manaCheck || canPay(s, p, somaCusto(parseCost('{0}'), parseCost(f.esquadraoK.mana), n))); n++) tmp.push({ ...x, esquadraoK: n }); // K-67 · 118.9d
     if (f.recompraK && !x.recompraK && (!f.recompraK.mana || !s.manaCheck || canPay(s, p, parseCost(f.recompraK.mana)))) {
       if (!f.recompraK.extra) tmp.push({ ...x, recompraK: true });
       else if (canPayExtra(s, p, f.recompraK.extra, x.oid)) for (const pg of formasDoExtraK(s, p, f.recompraK.extra, x.oid, pagamentosDe(s, p, f.recompraK.extra, x.oid)).slice(0, LIMITE_PAGAMENTOS)) tmp.push(pg ? { ...x, recompraK: true, pay: { ...(x.pay || {}), recompraK: pg } } : { ...x, recompraK: true });
@@ -24024,6 +24046,29 @@ function blitzouK(s, o) {
   (s.atrasados = s.atrasados || []).push({ when: 'next-end-step', turno: s.turn.number, controller: o.controller, jogador: o.controller, objeto: { oid: o.oid, z: o.zc || 0 },
     name: o.name, source: o.oid, effects: [{ do: 'sacrifice_it', target: 'delayed-object' }] });
 }
+/* K-67 · 702.156 voraz: "This permanent enters with X +1/+1 counters on it" e "When this permanent enters, if X is 5 or more, draw a card"
+   (o X da mágica chega pela entrada, em vorazXK). 702.157 esquadrão: "As an additional cost to cast this spell, you may pay [cost] any number
+   of times" e "When this creature enters, if its squad cost was paid, create a token that's a copy of it for each time its squad cost was
+   paid". A ação diz quantas vezes (`esquadraoK`); a oferta vai de 1 até o que fecha o custo (no máximo LIMITE_ESQUADRAO_K). */
+const LIMITE_ESQUADRAO_K = 6;
+function pagaEsquadraoK(s, a, o, alt) {
+  const ek = s.facts[o.name].esquadraoK, n = a.esquadraoK;
+  if (!ek || !Number.isInteger(n) || n < 0) throw new RuleError('custo', 'esta mágica não tem esquadrão');
+  const viaNormal = s.manaCheck && !a.free && !alt && !a.flashback && !a.escape && !a.disturb && !a.omen && !a.bestow && !a.plotted && a.vida == null;
+  if (ek.mana && s.manaCheck && !viaNormal && n) payCost(s, a.p, somaCusto(parseCost('{0}'), parseCost(ek.mana), n));
+  s.objects[a.oid].esquadraoK = n;
+}
+function ofertasEsquadraoK(s, p, out) {
+  const base = out.filter(x => x.t === 'cast' && !x.esquadraoK && x.alt == null && !x.flashback && !x.escape && !x.disturb && !x.omen && !x.bestow && !x.faceDown && !x.plotted && !x.free && !x.tapaK && !x.recomecarK && !x.retrace && !x.emenda && x.vida == null && x.face == null && x.permissao == null && s.objects[x.oid] && (s.facts[s.objects[x.oid].name] || {}).esquadraoK);
+  for (const x of base) {
+    const o = s.objects[x.oid], f = s.facts[o.name], ek = parseCost(f.esquadraoK.mana);
+    for (let n = 1; n <= LIMITE_ESQUADRAO_K; n++) {
+      if (s.manaCheck) { const custo = somaCusto(x.kick ? somaCusto(f.cost, parseCost(f.script.kicker.mana), x.kick) : f.cost, ek, n); if (!canPay(s, p, custo, castExtraK(s, p, o, x.x || 0, x.targets || [], n * (ek.generic || 0)) - (x.delve || 0))) break; }
+      out.push({ ...x, esquadraoK: n });
+    }
+  }
+}
+Object.assign(EXPORTS_K, { pagaEsquadraoK, ofertasEsquadraoK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-30 · 701.65 aerobender: "that player exiles those objects. For each card exiled this way, for as long as it remains exiled, its owner
    may cast it by paying {2} rather than paying its mana cost" (a). A permissão é do DONO e da encarnação exilada (400.7: se a carta sair do
@@ -28042,6 +28087,7 @@ Object.assign(PALAVRA_PT, { unleash: 'desencadear' }); // K-62
 Object.assign(PALAVRA_PT, { horsemanship: 'equitação' }); // K-63
 Object.assign(PALAVRA_PT, { wither: 'murchar', decayed: 'decaída' }); // K-65
 Object.assign(PALAVRA_PT, { blitz: 'blitz' }); // K-66
+Object.assign(PALAVRA_PT, { ravenous: 'voraz', squad: 'esquadrão' }); // K-67
 Object.assign(PALAVRA_PT, { afflict: 'aflição', melee: 'refrega', mentor: 'mentor', training: 'treinamento' }); // K-31
 Object.assign(PALAVRA_PT, { 'battle cry': 'grito de guerra', rampage: 'alvoroço', flanking: 'flanquear', bushido: 'bushido' }); // K-30
 const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consultadas por descreveEfeito; antes a pilha mostrava "proeza k")
@@ -28064,6 +28110,7 @@ const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consulta
   prole_k: () => 'cria uma ficha que é cópia desta permanente, só que 1/1 (prole)', // K-53
   presente_k: e => `${({ card: 'o oponente escolhido compra uma carta', fish: 'o oponente escolhido cria uma ficha de Peixe 1/1 azul virada', turn: 'o oponente escolhido joga um turno extra depois deste', food: 'o oponente escolhido cria uma ficha de Comida', treasure: 'o oponente escolhido cria uma ficha de Tesouro', octopus: 'o oponente escolhido cria uma ficha de Polvo 8/8 azul' })[e.tipo] || 'o oponente escolhido recebe o presente'} (presente)`, // K-56
   compra_k: () => 'compra a carta', dragar_k: e => `mói ${e.n} e devolve esta carta do cemitério à mão no lugar de comprar (dragar)`, // K-57
+  esquadrao_k: e => `cria ${e.n === 1 ? 'uma ficha que é cópia' : e.n + ' fichas que são cópias'} desta criatura (esquadrão)`, // K-67
   decaida_k: () => 'esta criatura é sacrificada no fim do combate (decaída)', // K-65
   desencadear_k: () => 'entra sem o marcador +1/+1 do desencadear', // K-62
   equipa_ficha_k: e => `cria uma ficha de ${({ germe: 'Germe 0/0 preto', rebelde: 'Rebelde 2/2 vermelho', heroi: 'Herói 1/1 incolor' })[e.ficha] || 'criatura'} e anexa este Equipamento a ela`, // K-60

@@ -2384,3 +2384,27 @@ test('CR 702.152a · blitz: custo alternativo; paga, a criatura tem ímpeto, é 
   assert.ok(!E.hasKeyword(n, n.objects[b], 'haste'));
   n = ateK35(n, d, 'upkeep'); assert.equal(n.objects[b].zone, 'battlefield', 'pelo custo normal, fica');
 });
+
+/* ---------------- K-67 · voraz 702.156 e esquadrão 702.157 ---------------- */
+test('CR 702.156a · voraz: entra com X marcadores +1/+1; com X 5 ou mais, compra ao entrar', () => {
+  const FAM = { name: 'Faminto', type_line: 'Creature — Tyranid', mana_cost: '{X}{G}', cmc: 1, colors: ['G'], power: '0', toughness: '0', keywords: ['Ravenous'], oracle_text: 'Ravenous' };
+  let s = partida({ Faminto: FAM }); const a = s.turn.active;
+  s = J(s); s.zones[a].library.push(...s.zones[a].hand.splice(0)); for (const x of s.zones[a].library) s.objects[x].zone = 'library';
+  let f; [s, f] = poe(s, a, 'Faminto', 'hand');
+  const dois = resolve(act(s, { t: 'cast', p: a, oid: f, x: 2 }));
+  assert.equal(dois.objects[f].counters.p1p1, 2); assert.equal(dois.zones[a].hand.length, 0, 'X 2: não compra');
+  const cinco = resolve(act(s, { t: 'cast', p: a, oid: f, x: 5 }));
+  assert.equal(cinco.objects[f].counters.p1p1, 5); assert.equal(cinco.zones[a].hand.length, 1, 'X 5: compra');
+});
+
+test('CR 702.157a · esquadrão (Vanguard Suppressor, texto oficial: "Squad {2}"): o custo pago N vezes cria N fichas cópia ao entrar; a oferta vai até o que fecha o custo', () => {
+  const VS = { ...oficial('Vanguard Suppressor'), keywords: ['Squad', 'Flying'] };
+  let s = comManaK33({ 'Vanguard Suppressor': VS }); const a = s.turn.active;
+  s = terrenos(s, a, 'Island', 8); let v; [s, v] = poe(s, a, 'Vanguard Suppressor', 'hand');
+  const ofs = E.legalActions(s, a).filter(x => x.t === 'cast' && x.oid === v);
+  assert.deepEqual(J(ofs.map(x => x.esquadraoK || 0)).sort(), [0, 1, 2], 'com oito Ilhas: 0, 1 ou 2 vezes');
+  const t = resolve(act(s, ofs.find(x => x.esquadraoK === 2)));
+  const fichas = t.zones[a].battlefield.filter(x => t.objects[x].token && t.objects[x].name === 'Vanguard Suppressor');
+  assert.equal(fichas.length, 2); assert.equal(t.zones[a].battlefield.filter(x => t.objects[x].tapped).length, 8, '{3}{U} + {2}{2}');
+  assert.ok(fichas.every(x => E.hasKeyword(t, t.objects[x], 'flying')));
+});

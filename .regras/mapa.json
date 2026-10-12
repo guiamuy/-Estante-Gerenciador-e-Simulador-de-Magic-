@@ -9151,27 +9151,36 @@
    "n": "702.156",
    "regra": "Keyword Abilities",
    "titulo": "Ravenous",
-   "status": "ausente",
-   "falta": "Sem implementação (grep sem ocorrência no motor nem nos scripts). Falta entrar com X marcadores +1/+1 e o gatilho \"se X for 5 ou mais, compre\" (X pago já é lembrado em xPaid).",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "107.3m X na permanente",
     "614.12 entra com marcadores"
    ],
-   "cartas": "rara (Warhammer 40k Commander e poucas)"
+   "cartas": "rara (Warhammer 40k Commander e poucas)",
+   "evidencia": "K-67: o X pago chega à entrada (entraComPalavrasK recebe o xPago de entradaModificada, linha da trilha) e fica em vorazXK; a permanente entra com X marcadores +1/+1 e, com X 5 ou mais, a palavra gera o gatilho de entrada que compra.",
+   "testes": [
+    "CR 702.156a · voraz: entra com X marcadores +1/+1; com X 5 ou mais, compra ao entrar",
+    "K-67 · voraz e esquadrão (702.156, 702.157): o voraz com X 3 entra 3/3; o esquadrão pago uma vez traz uma cópia"
+   ]
   },
   {
    "n": "702.157",
    "regra": "Keyword Abilities",
    "titulo": "Squad",
-   "status": "ausente",
-   "falta": "Sem implementação (grep sem ocorrência no motor nem nos scripts). Falta custo adicional pago N vezes e o gatilho que cria N fichas cópia; o motor não tem ficha cópia de permanente.",
+   "status": "parcial",
+   "falta": "\"Squad—<custo que não é mana>\" (Thrill-Kill Disciple) não é lido. A oferta vai até 6 vezes (LIMITE_ESQUADRAO_K); a ação aceita qualquer número.",
    "esforco": "G",
    "depende": [
     "707 cópia de objeto (ficha cópia)",
     "601.2b custo adicional repetível"
    ],
-   "cartas": "rara (Warhammer 40k, alguns Commander)"
+   "cartas": "rara (Warhammer 40k, alguns Commander)",
+   "evidencia": "K-67: \"Squad {custo}\" (custoDaLinhaK) é custo adicional pago N vezes: a ação traz esquadraoK = N (ofertasEsquadraoK: uma variante por N que fecha o custo; também na conjuração sem pagar, 118.9d); o mana soma ao custo total N vezes (custoTapadoK, genericoAdicionalK) ou é pago à parte (pagaEsquadraoK em HANDLERS.cast). A marca vai da pilha ao campo; a palavra gera o gatilho de entrada que cria N fichas cópia (esquadrao_k).",
+   "testes": [
+    "CR 702.157a · esquadrão (Vanguard Suppressor, texto oficial: \"Squad {2}\"): o custo pago N vezes cria N fichas cópia ao entrar; a oferta vai até o que fecha o custo",
+    "K-67 · voraz e esquadrão (702.156, 702.157): o voraz com X 3 entra 3/3; o esquadrão pago uma vez traz uma cópia"
+   ]
   },
   {
    "n": "702.158",

@@ -955,6 +955,18 @@ test('K-66 · blitz (702.152): pela blitz, a 3/3 ataca no mesmo turno (ímpeto) 
   s = act(s, E.legalActions(s, a).find(x => x.oid === b && x.alt != null)); for (let i = 0; i < 4 && s.stack.length; i++) s = act(s, { t: 'pass', p: s.turn.priority });
   assert.equal(combate(s, [b]).players[d].life, 17);
 });
+test('K-67 · voraz e esquadrão (702.156, 702.157): o voraz com X 3 entra 3/3; o esquadrão pago uma vez traz uma cópia', () => {
+  cobre('ravenous'); cobre('squad');
+  const cartas = { ...CARDS, Voraz: cre('Voraz', 0, 0, ['Ravenous'], { mana_cost: '{X}{G}', cmc: 1, oracle_text: 'Ravenous' }), Esq: cre('Esq', 2, 2, ['Squad'], { mana_cost: '{1}{W}', cmc: 2, oracle_text: 'Squad {2}' }) };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 86, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active; let v, q; [s, v] = poe(s, a, 'Voraz', { zone: 'hand' }); [s, q] = poe(s, a, 'Esq', { zone: 'hand' });
+  s = act(s, { t: 'cast', p: a, oid: v, x: 3 }); for (let i = 0; i < 6 && (s.stack.length || s.pending); i++) s = s.pending ? act(s, E.legalActions(s, s.pending.p)[0]) : act(s, { t: 'pass', p: s.turn.priority });
+  assert.equal(s.objects[v].counters.p1p1, 3);
+  s = act(s, E.legalActions(s, a).find(x => x.oid === q && x.esquadraoK === 1)); for (let i = 0; i < 6 && (s.stack.length || s.pending); i++) s = s.pending ? act(s, E.legalActions(s, s.pending.p)[0]) : act(s, { t: 'pass', p: s.turn.priority });
+  assert.equal(s.zones[a].battlefield.filter(x => s.objects[x].token && s.objects[x].name === 'Esq').length, 1);
+});
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));
