@@ -1207,3 +1207,21 @@ test('CR 702.49d · ninjutsu de comandante (Yuriko, texto oficial): da zona de c
   let t = partida({ "Yuriko, the Tiger's Shadow": YU, Urso: URSO }, { "Yuriko, the Tiger's Shadow": sem }); let y2; [t, y2] = poe(t, t.turn.active, "Yuriko, the Tiger's Shadow", 'command');
   assert.ok(!E.legalActions(t, t.turn.active).some(x => x.t === 'ninjutsu' && x.oid === y2), 'ninjutsu comum não sai da zona de comando');
 });
+
+/* ---------------- K-28 · 702.6c-d equipar com qualidade e mais de uma habilidade de equipar ---------------- */
+test('CR 702.6c-d · Blackblade Reforged (texto oficial: "Equip legendary creature {3}" e "Equip {7}"): as duas habilidades existem; a de {3} só mira criatura lendária sua', () => {
+  const BB = { ...oficial('Blackblade Reforged'), keywords: ['Equip'] };
+  const LENDA = { name: 'Lenda', type_line: 'Legendary Creature — Human Knight', mana_cost: '{1}{W}', cmc: 2, colors: ['W'], power: '2', toughness: '2', keywords: [], oracle_text: '' };
+  const SC_BB = { 'Blackblade Reforged': { name: 'Blackblade Reforged', equip: { enchant: 'creature', cost: { mana: '{7}' } }, self: {}, covers: 'partial', note: 'sem o +1/+1 por terreno (teste)', example: { action: 'equip', target: 'own-creature', expect: { attached: true } } } };
+  assert.deepEqual(J(E.equipesImpressosK(BB)), [{ mana: '{3}', qualidade: 'legendary creature', sel: { lendaria: true } }]);
+  let s = partida({ 'Blackblade Reforged': BB, Lenda: LENDA, Urso: URSO }, SC_BB); const a = s.turn.active;
+  let bb, l, u; [s, bb] = poe(s, a, 'Blackblade Reforged'); [s, l] = poe(s, a, 'Lenda'); [s, u] = poe(s, a, 'Urso');
+  const eqs = E.legalActions(s, a).filter(x => x.t === 'activate' && x.oid === bb);
+  const porIndice = {}; for (const x of eqs) (porIndice[x.index || 0] = porIndice[x.index || 0] || []).push(x.targets[0].oid);
+  const ks = Object.keys(porIndice); assert.equal(ks.length, 2, 'duas habilidades de equipar');
+  const lend = ks.find(k => porIndice[k].length === 1), todas = ks.find(k => porIndice[k].length === 2);
+  assert.deepEqual(porIndice[lend], [l], 'a de {3}: só a lendária'); assert.deepEqual(porIndice[todas].sort(), [l, u].sort(), 'a de {7}: qualquer criatura sua');
+  s = resolve(act(s, eqs.find(x => String(x.index || 0) === lend)));
+  assert.equal(s.objects[bb].attachedTo, l, 'equipou a lendária');
+  const c = J(E.cardFacts({ ...oficial('Blackblade Reforged') }).equipesK || []); assert.equal(c.length, 1);
+});

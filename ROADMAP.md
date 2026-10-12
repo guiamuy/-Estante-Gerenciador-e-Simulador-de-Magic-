@@ -4167,6 +4167,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Testes:** `keywords.cr4.unit` (1, falha sem a leva). Texto oficial: Yuriko, the Tiger's Shadow (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v109. 702.49 passa a coberta.
 - **Pedido à trilha `motor`:** o leitor ler "Commander ninjutsu {custo}" (hoje só "Ninjutsu {custo}"); a Yuriko inteira (o gatilho de dano dos Ninjas) precisa de script.
 
+**K-28 · Equipar com qualidade e várias habilidades de equipar (702.6c-d)** 🟡 (leva K-28)
+- **Valor:** Equipamento com "Equip legendary creature {3}" e "Equip {7}" (Blackblade Reforged) tem as duas habilidades; a mais barata só mira criatura lendária sua (ou do tipo impresso, como "Equip Knight").
+- **Aceite:** Blackblade Reforged (texto oficial): duas habilidades de equipar; a de {3} só oferece a criatura lendária; a de {7}, as duas; equipar pela de {3} anexa à lendária.
+- **Toca ponto comum:** `abilitiesOf` (uma linha nova depois do equipar do script: `equipesK`); `cardFacts` ganha `equipesK`.
+- **Testes:** `keywords.cr4.unit` (1, falha sem a leva). Texto oficial: Blackblade Reforged (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v109.
+- **Parcial declarado (702.6):** "Equip planeswalker" (702.6e) e qualidades compostas ("Dwarf or Elf") ficam de fora; o +1/+1 por terreno da Blackblade precisa de script (contagem por terreno no `grants`).
+
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

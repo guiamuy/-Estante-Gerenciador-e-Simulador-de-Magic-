@@ -6730,13 +6730,16 @@
    "regra": "Keyword Abilities",
    "titulo": "Equip",
    "status": "parcial",
-   "evidencia": "abilitiesOf (index.html:10908) cria a ativada \"anexar a criatura sua, só como feitiço\"; rules.unit S11 (364, 373); sonda sonda2-702a.mjs: usa a pilha, só mira criaturas suas, reequipa movendo, não aparece no turno do oponente",
-   "falta": "702.6c (\"Equip [qualidade]\"), 702.6d (várias habilidades de equipar; o script aceita um só equip) e 702.6e (equipar planeswalker) não existem",
+   "evidencia": "abilitiesOf (index.html:10908) cria a ativada \"anexar a criatura sua, só como feitiço\"; rules.unit S11 (364, 373); sonda sonda2-702a.mjs: usa a pilha, só mira criaturas suas, reequipa movendo, não aparece no turno do oponente · K-28: 702.6c-d — \"Equip [qualidade] {custo}\" impresso (criatura lendária, tipo de criatura) vira mais uma habilidade de equipar ao lado do `equip` do script (equipesImpressosK em cardFacts.equipesK; equipesK em abilitiesOf), cada uma com o próprio custo, e a qualidade só restringe o alvo",
+   "falta": "702.6e (\"Equip planeswalker\") não existe; qualidades além de lendária e tipo de criatura (ex.: \"Equip Dwarf or Elf\") não são lidas; Equipamento só com equipar qualificado e sem `equip` no script não ganha a habilidade.",
    "esforco": "P",
    "depende": [
     "301.5"
    ],
-   "cartas": "evergreen"
+   "cartas": "evergreen",
+   "testes": [
+    "CR 702.6c-d · Blackblade Reforged (texto oficial: \"Equip legendary creature {3}\" e \"Equip {7}\"): as duas habilidades existem; a de {3} só mira criatura lendária sua"
+   ]
   },
   {
    "n": "702.7",

@@ -15346,6 +15346,7 @@ function cardFacts(card) {
     recomecarK: recomecarImpressoK(card), // K-10 · 702.133: linha "Jump-start" (undefined quando não tem)
     arremeterK: arremeterImpressoK(card), // K-9 · 702.109: "Dash {1}{R}" (undefined quando não tem)
     suspenderK: suspenderImpressoK(card), // K-22 · 702.62a: "Suspend N—{custo}" (undefined quando não tem)
+    equipesK: equipesImpressosK(card), // K-28 · 702.6c: "Equip [qualidade] {custo}" (undefined quando não tem)
     jogadorK: jogadorImpressoK(card), // K-26 · 702.11c / 702.18a: "You have hexproof." / "You have shroud." (undefined quando não tem)
     travK: travessiasImpressasK(card), // K-21 · 702.14a/c: "Nonbasic landwalk", "Desertwalk"… (undefined quando não tem)
     hexK: resistenciaQualidadesK(card), // K-18 · 702.11d: "Hexproof from black", "from monocolored"… impressos (undefined quando não tem)
@@ -17083,6 +17084,7 @@ const abilitiesOf = (s, o) => {
   // S11 · equipar é uma habilidade ativada com alvo, só no tempo de feitiço
   if (sc.equip) list.push({ kind: 'activated', cost: sc.equip.cost || {}, sorceryOnly: true, equip: true, effects: [{ do: 'attach', target: 'creature-you-control' }] });
   if (sc.self && sc.self.classe) classeHabilidadesT(s, o, sc, list); // T-12 · CR 716.2a · as habilidades dos níveis alcançados e a ativada do próximo nível
+  if (sc.equip) list.push(...equipesK(s, o)); // K-28 · 702.6c-d: as outras habilidades de equipar impressas, com qualidade (Toca ponto comum: abilitiesOf)
   return list.concat(grantedAbilities(s, o), habilidadesDePalavraK(s, o)); // K-3 · palavra-chave que é habilidade disparada (proeza…)
 };
 /** Uma permanente pode ser alvo? Protegida e maldição de véu respondem aqui. */
@@ -21552,6 +21554,26 @@ Object.assign(EXPORTS_K, { opcoesAtropelarUmK });
    poder 0 no 1º passo, que ganha poder entre os passos, não causa dano no 2º. */
 function iniciativaNoComecoK(s, combatentes) { for (const o of combatentes) if (has(s, o, 'first strike') || has(s, o, 'double strike')) o.struck = true; }
 Object.assign(EXPORTS_K, { iniciativaNoComecoK });
+/* K-28 · 702.6c-d · "Equip [qualidade] [custo]" = "[Custo]: anexe a criatura alvo sua com [qualidade]. Só como feitiço." Uma permanente
+   pode ter várias habilidades de equipar, e qualquer uma pode ser ativada (d). Lidas da linha impressa ao lado do `equip` do script (que
+   continua sendo o "Equip {N}" sem qualidade): "legendary creature" e tipo de criatura ("Knight", "Knight creature"). A qualidade só
+   restringe o alvo, não onde o Equipamento pode ficar (c). "Equip planeswalker" (702.6e) não é lido. */
+function equipesImpressosK(card) {
+  const txt = String((card && (card.oracle_text || (card.faces && card.faces[0] && card.faces[0].oracle_text))) || '').replace(/\([^)]*\)/g, ''), out = [];
+  for (const l of txt.split('\n')) {
+    const m = /^\s*equip (.+?) ((?:\{[^}]+\})+)\s*$/i.exec(l); if (!m) continue;
+    const q = m[1].trim(), ql = q.toLowerCase(); let sel = null;
+    if (ql === 'legendary creature') sel = { lendaria: true };
+    else { const sub = q.replace(/\s+creature$/i, ''); if (!/\s/.test(sub) && ehTipoDeCriaturaK(sub)) sel = { subtipos: [sub.charAt(0).toUpperCase() + sub.slice(1)] }; }
+    if (sel) out.push({ mana: m[2], qualidade: q, sel });
+  }
+  return out.length ? out : undefined;
+}
+function equipesK(s, o) {
+  return ((s.facts[o.name] || {}).equipesK || []).map(eq => ({ kind: 'activated', cost: { mana: eq.mana }, sorceryOnly: true, equip: true, label: `Equipar (${eq.qualidade}) · ${eq.mana}`,
+    effects: [{ do: 'attach', target: { tipos: ['creature'], de: 'you', ...eq.sel } }] }));
+}
+Object.assign(EXPORTS_K, { equipesImpressosK, equipesK });
 /* K-27 · 702.49d · "Commander ninjutsu [cost]" = ninjutsu que também funciona na zona de comando: no script, `ninjutsu: { mana, comandante: true }`.
    Não é conjurar: o imposto de comandante não sobe. Revelar (702.49b) é informação: a carta já está à vista na zona de comando. */
 function ninjaNoComandoK(s, o) { const nj = o && ninjutsuOf(s, o); return !!(nj && nj.comandante && o.zone === 'command'); }
