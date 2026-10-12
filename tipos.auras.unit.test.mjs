@@ -15,14 +15,18 @@ const SCRIPTS = {
   'Escudo': { name: 'Escudo', aura: { enchant: 'creature-you-control' }, grants: { power: 1, toughness: 1 }, ...EX },
   // "Ponha no campo, sob seu controle, uma carta alvo do seu cemitério."
   'Retorno': { name: 'Retorno', effects: [{ do: 'mover', target: { zona: 'graveyard', de: 'you' }, para: 'battlefield' }], ...EX },
+  // T-23 · cartas das divergências da auditoria
+  'RetornaEVarre': { name: 'RetornaEVarre', effects: [{ do: 'mover', target: { zona: 'graveyard', de: 'you' }, para: 'battlefield' }, { do: 'destroy_all', types: ['enchantment'] }], ...EX },
+  'RetornaEMata': { name: 'RetornaEMata', effects: [{ do: 'mover', target: { zona: 'graveyard', de: 'you' }, para: 'battlefield' }, { do: 'destroy', target: 'creature' }], ...EX },
+  'Necromancia': { name: 'Necromancia', effects: [{ do: 'mover', target: { zona: 'graveyard' }, para: 'battlefield' }], ...EX },
 };
-carta('Armadura', 'Enchantment — Aura'); carta('Escudo', 'Enchantment — Aura'); carta('Retorno', 'Sorcery');
+carta('Armadura', 'Enchantment — Aura'); carta('Escudo', 'Enchantment — Aura'); carta('Retorno', 'Sorcery'); carta('RetornaEVarre', 'Sorcery'); carta('RetornaEMata', 'Sorcery'); carta('Necromancia', 'Sorcery');
 carta('Urso', 'Creature — Bear', { power: '2', toughness: '2' });
 carta('Lobo', 'Creature — Wolf', { power: '3', toughness: '3' });
 carta('Sombra', 'Creature — Shade', { power: '1', toughness: '1', keywords: ['Hexproof'], oracle_text: 'Hexproof' });
 carta('Muralha', 'Creature — Wall', { power: '0', toughness: '4', oracle_text: 'Protection from enchantments' });
 
-const TODAS = ['Armadura', 'Escudo', 'Retorno', 'Urso', 'Lobo', 'Sombra', 'Muralha'];
+const TODAS = ['Armadura', 'Escudo', 'Retorno', 'RetornaEVarre', 'RetornaEMata', 'Necromancia', 'Urso', 'Lobo', 'Sombra', 'Muralha'];
 function mesa() {
   const deck = [...TODAS.map(name => ({ name, qty: 4, zone: 'main' })), { name: 'Plains', qty: 12, zone: 'main' }];
   let s = E.createGame({ format: 'livre', seed: 1, mode: 'full', cards: C, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
@@ -68,4 +72,37 @@ test('CR 303.4f · "Enchant creature you control": só as criaturas de quem cont
   let s = mesa(); let u; [s, u] = poe(s, 0, 'Urso'); let l; [s, l] = poe(s, 1, 'Lobo');
   let au; [s, au] = retorna(s, 'Escudo');
   eq([s.objects[au].attachedTo, s.pending, pt(s, u)], [u, null, [3, 3]], 'uma opção só (o Urso): sem perguntar');
+});
+
+/* ---------------- T-23 · correções da auditoria independente ---------------- */
+test('CR 400.7 · a Aura que esperava a escolha e saiu do campo não leva a espera para a próxima vida: conjurada depois, entra no alvo dela, sem nova escolha', () => {
+  let s = mesa(); let u; [s, u] = poe(s, 0, 'Urso'); let l; [s, l] = poe(s, 1, 'Lobo');
+  let au; [s, au] = poe(s, 0, 'Armadura', 'graveyard'); let r; [s, r] = poe(s, 0, 'RetornaEVarre', 'hand'); s = mana(s);
+  s = passaAte(act(s, legais(s, 0, x => x.t === 'cast' && x.oid === r && (x.targets || []).some(t => t.oid === au))[0]), x => !!x.pending || !x.stack.length);
+  eq([s.objects[au].zone, s.pending], ['graveyard', null], 'a Aura foi varrida na mesma resolução');
+  s = J(s); const g = s.zones[0].graveyard; g.splice(g.indexOf(au), 1); s.zones[0].hand.push(au); s.objects[au].zone = 'hand'; s = mana(s);
+  s = passaAte(act(s, legais(s, 0, x => x.t === 'cast' && x.oid === au && (x.targets || []).some(t => t.oid === l))[0]), x => !!x.pending || !x.stack.length);
+  eq([s.objects[au].attachedTo, s.pending], [l, null]);
+});
+
+test('CR 303.4f · a escolha é feita com as opções de quando a Aura entrou: a criatura destruída depois, na mesma resolução, continua opção (e a Aura cai se for a escolhida)', () => {
+  const monta = () => { let s = mesa(); let u; [s, u] = poe(s, 0, 'Urso'); let l; [s, l] = poe(s, 1, 'Lobo');
+    let au; [s, au] = poe(s, 0, 'Armadura', 'graveyard'); let r; [s, r] = poe(s, 0, 'RetornaEMata', 'hand'); s = mana(s);
+    const a = legais(s, 0, x => x.t === 'cast' && x.oid === r && (x.targets || []).some(t => t.oid === au) && (x.targets || []).some(t => t.oid === l))[0]; assert.ok(a, 'oferta');
+    return [passaAte(act(s, a), x => !!x.pending || !x.stack.length), u, l, au]; };
+  let [s, u, l, au] = monta();
+  eq([s.objects[l].zone, s.pending && s.pending.kind, J(s.pending.options).sort()], ['graveyard', 'aura_anexo', [u, l].sort()]);
+  let t = act(s, { t: 'aura_anexo', p: 0, oid: l });
+  assert.equal(t.objects[au].zone, 'graveyard', 'escolheu o Lobo, que já não está: a Aura cai (704.5m)');
+  t = act(s, { t: 'aura_anexo', p: 0, oid: u });
+  eq([t.objects[au].attachedTo, pt(t, u)], [u, [4, 4]]);
+});
+
+test('CR 303.4g · a Aura que não entra fica como estava: o efeito não muda quem a controla nem diz que a moveu', () => {
+  let s = mesa(); let au; [s, au] = poe(s, 1, 'Armadura', 'graveyard'); let r; [s, r] = poe(s, 0, 'Necromancia', 'hand'); s = mana(s);
+  const a = legais(s, 0, x => x.t === 'cast' && x.oid === r && (x.targets || []).some(t => t.oid === au))[0]; assert.ok(a, 'Necromancia mira a Aura do cemitério de B');
+  const r1 = E.apply(act(s, a), { t: 'pass', p: 0 }), r2 = E.apply(r1.state, { t: 'pass', p: 1 });
+  s = r2.state;
+  eq([s.objects[au].zone, s.objects[au].controller], ['graveyard', 1]);
+  assert.ok(!r2.events.some(e => e.do === 'mover' && !e.failed), 'nenhum evento de "foi para o campo": ' + JSON.stringify(r2.events.filter(e => e.do === 'mover')));
 });

@@ -2378,8 +2378,8 @@
    "regra": "Enchantments",
    "titulo": "Auras",
    "status": "parcial",
-   "evidencia": "alvo na conjuração (index.html:12241, 12950), conferido de novo ao resolver e anulada se ilegal (index.html:12055-12068), aura sem hospedeiro vai ao cemitério (index.html:12110-12122); testes \"S11 · aura entra anexada\", \"S11 · a criatura encantada some\", \"S11 · aura cujo alvo some antes de resolver\", \"S34 · conceder\" · CR2d.4 (v93): Aura que encanta carta em cemitério (\"Enchant creature card in a graveyard\", Animate Dead): entra presa à carta, o gatilho de entrada a devolve sob o controle de quem controla a Aura e anexa; a ação de estado a tolera presa à carta até o gatilho resolver (commander.regras \"CR2d.4 · Animate Dead…\") T-22 (12/10/2026): 303.4f — Aura que entra sem ser conjurada é anexada à única permanente que pode encantar ou abre a decisão `aura_anexo` (quem a controla escolhe, sem mirar: resistência a magia não impede, proteção sim; mesa \"X entrou: o que ela encanta?\" com uma linha por permanente); enquanto espera, não cai pela 704.5m. 303.4g — sem nada que possa encantar, não entra (fica na zona em que estava).",
-   "falta": "Aura em jogador (Curse, 303.4b) não existe. 303.4f com \"Enchant creature card in a graveyard\" (Animate Dead posta no campo por outro efeito) segue o caminho antigo.",
+   "evidencia": "alvo na conjuração (index.html:12241, 12950), conferido de novo ao resolver e anulada se ilegal (index.html:12055-12068), aura sem hospedeiro vai ao cemitério (index.html:12110-12122); testes \"S11 · aura entra anexada\", \"S11 · a criatura encantada some\", \"S11 · aura cujo alvo some antes de resolver\", \"S34 · conceder\" · CR2d.4 (v93): Aura que encanta carta em cemitério (\"Enchant creature card in a graveyard\", Animate Dead): entra presa à carta, o gatilho de entrada a devolve sob o controle de quem controla a Aura e anexa; a ação de estado a tolera presa à carta até o gatilho resolver (commander.regras \"CR2d.4 · Animate Dead…\") T-22 (12/10/2026): 303.4f — Aura que entra sem ser conjurada é anexada à única permanente que pode encantar ou abre a decisão `aura_anexo` (quem a controla escolhe, sem mirar: resistência a magia não impede, proteção sim; mesa \"X entrou: o que ela encanta?\" com uma linha por permanente); enquanto espera, não cai pela 704.5m. 303.4g — sem nada que possa encantar, não entra (fica na zona em que estava). T-23 (12/10/2026) · auditoria independente (63 conferências, fuzz de 60 partidas / 15.600 ações, 90 decisões): as opções são as da entrada (a destruída depois continua opção e, escolhida, a Aura cai); a espera não atravessa mudança de zona (400.7) nem uma entrada desviada por substituição; a Aura que não entra não muda de controle nem é registrada como movida.",
+   "falta": "Aura em jogador (Curse, 303.4b) não existe. 303.4f com \"Enchant creature card in a graveyard\" segue o caminho antigo. Objetos que entram no mesmo efeito entram um de cada vez (a ordem do efeito decide quem já está no campo). Caminho anterior (trilha motor): ficha cópia de Aura e \"entra como cópia\" de Aura não passam pela 303.4f/g; 303.4j (anexar Aura já no campo a algo ilegal) move a Aura.",
    "esforco": "M",
    "depende": [
     "704.5m",
@@ -2389,7 +2389,10 @@
     "CR 704.5 · Aura no campo sem estar anexada, ou anexada a algo que ela não pode encantar, vai para o cemitério (704.5m)",
     "CR 303.4f · Aura que entra sem ser conjurada, com uma só permanente que ela pode encantar: entra anexada a ela, sem perguntar",
     "CR 303.4f · com mais de uma, quem a controla escolhe o que ela encanta (sem mirar: a criatura com resistência a magia do oponente vale; a com proteção contra encantamentos, não) — e ela não cai enquanto a escolha está aberta",
-    "CR 303.4g · sem nada que ela possa encantar, a Aura não entra: fica na zona em que estava"
+    "CR 303.4g · sem nada que ela possa encantar, a Aura não entra: fica na zona em que estava",
+    "CR 400.7 · a Aura que esperava a escolha e saiu do campo não leva a espera para a próxima vida: conjurada depois, entra no alvo dela, sem nova escolha",
+    "CR 303.4f · a escolha é feita com as opções de quando a Aura entrou: a criatura destruída depois, na mesma resolução, continua opção (e a Aura cai se for a escolhida)",
+    "CR 303.4g · a Aura que não entra fica como estava: o efeito não muda quem a controla nem diz que a moveu"
    ]
   },
   {

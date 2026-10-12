@@ -18562,6 +18562,7 @@ function moverObjeto(s, src, alvo, m, ctrl) {
     m = { ...m, guardaEm: fonte, de0: alvo.zone };
   }
   moveObject(s, alvo.oid, m.para, { ...(m.posicao === 'fundo' ? { top: false } : {}), ...(m.para === 'battlefield' ? { controller: m.controle === 'dono' ? alvo.owner : ctrl } : {}) }); // CR2b.5 · 603.3a: entra já sob quem a pôs
+  if (m.para === 'battlefield' && alvo.zone !== 'battlefield') return false; // T-23 · CR 303.4g / 304.4: não entrou (ficou onde estava) — nada de controle, registro ou "devolvidas" · Toca ponto comum: moverObjeto (uma linha)
   if (m.guardaEm && alvo.zone === m.para) m.guardaEm.ate = [...(m.guardaEm.ate || []), { oid: alvo.oid, de: m.de0, z: alvo.zc || 0 }]; // CR2d.1 · auditoria M-308: a encarnação no exílio (400.7)
   if (m.posicao === 'embaralhado') shuffle(s, s.zones[alvo.owner].library);
   if (m.para === 'battlefield') {
@@ -18596,9 +18597,9 @@ function moverLegado(s, src, eff, obj, ctrl) {
     case 'to_hand': { const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
       if (alvo && eff.target === 'self-source' && alvo.zone !== (eff.from || 'graveyard')) return false;
       if (alvo) moveObject(s, alvo.oid, 'hand'); return !!alvo; }
-    case 'reanimate': moveObject(s, obj.oid, 'battlefield', { controller: ctrl }); s.objects[obj.oid].controller = ctrl; if (!src.ability && s.objects[src.oid] === src) (src.devolvidas = src.devolvidas || []).push(obj.oid); return true;
+    case 'reanimate': moveObject(s, obj.oid, 'battlefield', { controller: ctrl }); if (s.objects[obj.oid].zone !== 'battlefield') return false; /* T-23 · 303.4g / 304.4: o caminho antigo igual ao novo */ s.objects[obj.oid].controller = ctrl; if (!src.ability && s.objects[src.oid] === src) (src.devolvidas = src.devolvidas || []).push(obj.oid); return true;
     case 'reanimate_tapped': { const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
-      if (alvo && alvo.zone === 'graveyard') { moveObject(s, alvo.oid, 'battlefield', { controller: ctrl }); alvo.controller = ctrl; entraViradaPorEfeito(s, alvo); return true; } return false; } // M-330
+      if (alvo && alvo.zone === 'graveyard') { moveObject(s, alvo.oid, 'battlefield', { controller: ctrl }); if (alvo.zone !== 'battlefield') return false; /* T-23 */ alvo.controller = ctrl; entraViradaPorEfeito(s, alvo); return true; } return false; } // M-330
     case 'to_library_shuffled': { const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
       const saiu = eff.target === 'self-source' && alvo && !['graveyard', 'battlefield'].includes(alvo.zone);
       if (alvo && alvo.zone !== 'library' && !saiu) { moveObject(s, alvo.oid, 'library'); shuffle(s, s.zones[alvo.owner].library); return true; } return false; }
@@ -21758,9 +21759,10 @@ const HANDLERS = {
     if (!pd || pd.kind !== 'aura_anexo' || pd.p !== a.p) throw new RuleError('tempo', 'nenhuma Aura esperando o que encantar');
     const o = s.objects[pd.oid];
     if (!o || o.zone !== 'battlefield') { s.pending = null; return; }
-    if (!candidatosDaAuraT(s, o, o.controller).some(x => x.oid === a.oid)) throw new RuleError('aura', 'a Aura não pode encantar essa permanente');
+    if (!(pd.options || []).includes(a.oid)) throw new RuleError('aura', 'a Aura não pode encantar essa permanente');
     s.pending = null; delete o.escolheAnexoT;
-    attachTo(s, o, a.oid, ev);
+    if ((candidatosDaAuraT(s, o, o.controller) || []).some(x => x.oid === a.oid)) attachTo(s, o, a.oid, ev); // T-23 · a escolhida já não pode (saiu, deixou de ser criatura): a Aura fica solta e cai (704.5m)
+    else ev.push({ kind: 'effect', do: 'anexo_barrado', name: o.name, target: s.objects[a.oid] ? s.objects[a.oid].name : null });
   },
   /** T-3 · CR 702.122a · "vire qualquer número de outras criaturas": abre a escolha de quem tripula, criatura a criatura (os grupos
    * mínimos continuam oferecidos direto em `activate`). Nada é pago até `tripular_pronto`. */
@@ -24875,24 +24877,26 @@ function auraNaoEntraT(s, o, controller) {
   const c = candidatosDaAuraT(s, o, controller != null ? controller : o.owner);
   if (!c) return false;
   if (!c.length) return true;
-  s.auraEntrandoT = o.oid; return false;
+  s.auraEntrandoT = { oid: o.oid, zc: o.zc || 0 }; return false; // T-23 · com a encarnação: se uma substituição desviar a entrada, a marca não vale para a próxima
 }
 function auraEntrouT(s, o) {
-  if (!o || s.auraEntrandoT !== o.oid) return;
+  if (!o) return;
+  delete o.escolheAnexoT; // T-23 · 400.7: a espera da vida anterior não vem junto (a Aura conjurada entra no alvo dela)
+  const m = s.auraEntrandoT; if (!m) return;
   delete s.auraEntrandoT;
+  if (m.oid !== o.oid || (o.zc || 0) !== m.zc + 1) return;
   const c = candidatosDaAuraT(s, o, o.controller) || [];
   if (c.length === 1) attachTo(s, o, c[0].oid, []);
-  else if (c.length > 1) o.escolheAnexoT = true;
+  else if (c.length > 1) o.escolheAnexoT = c.map(x => x.oid); // T-23 · 303.4f "as the Aura enters": as opções são as de agora
 }
 /** 303.4f · abre a escolha (uma por vez) da Aura que espera; sem opção restante, deixa a 704.5m agir. */
 function auraAnexoDeEstadoT(s, events) {
   let mudou = false;
   for (const o of battlefield(s)) {
     if (!o.escolheAnexoT) continue;
-    const c = candidatosDaAuraT(s, o, o.controller) || [];
-    if (!c.length) { delete o.escolheAnexoT; mudou = true; continue; }
-    if (c.length === 1) { delete o.escolheAnexoT; attachTo(s, o, c[0].oid, events); mudou = true; continue; }
-    if (!s.pending && s.status === 'playing') s.pending = { kind: 'aura_anexo', p: o.controller, oid: o.oid, name: o.name, options: c.map(x => x.oid) };
+    const ops = Array.isArray(o.escolheAnexoT) ? o.escolheAnexoT : (candidatosDaAuraT(s, o, o.controller) || []).map(x => x.oid); // T-23 · as opções da entrada
+    if (!ops.length) { delete o.escolheAnexoT; mudou = true; continue; }
+    if (!s.pending && s.status === 'playing') s.pending = { kind: 'aura_anexo', p: o.controller, oid: o.oid, name: o.name, options: ops.slice() };
   }
   return mudou;
 }
@@ -27646,7 +27650,7 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
           : pd.kind === 'choose_dungeon' ? { t: 'choose_dungeon', p: pd.p, index: 0 }
           : pd.kind === 'choose_room' ? { t: 'choose_room', p: pd.p, index: 0 }
           : pd.kind === 'topo_fundo' ? { t: 'topo_fundo', p: pd.p, topo: true } // M-264
-          : pd.kind === 'aura_anexo' ? { t: 'aura_anexo', p: pd.p, oid: pd.options[0] } // T-22 · CR 303.4f · o goldfish encanta a primeira opção
+          : pd.kind === 'aura_anexo' ? { t: 'aura_anexo', p: pd.p, oid: ((s.objects[pd.oid] && E.candidatosDaAuraT(s, s.objects[pd.oid], pd.p) || []).map(x => x.oid).find(x => pd.options.includes(x))) || pd.options[0] } // T-22 · CR 303.4f · o goldfish encanta a primeira opção que ainda vale (T-23)
           : pd.kind === 'saga_capitulo' ? { t: 'saga_capitulo', p: pd.p, n: 1 } // T-1 · CR 714.3b · o goldfish começa a Saga pelo capítulo I
           : pd.kind === 'tripular' ? E.tripulacaoPadrao(s) // T-3 · CR 702.122a · o goldfish fecha a tripulação assim que a soma chega
           : pd.kind === 'dividir_dano' ? { t: 'dividir_dano', p: pd.p, index: 0 } // CR2g.2 · o goldfish mata na ordem do bloqueio
