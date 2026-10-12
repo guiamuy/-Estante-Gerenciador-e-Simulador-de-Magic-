@@ -5477,6 +5477,7 @@ const EFFECTS = {
   lutador: { fields: [], targets: ['creature', 'creature-you-control'] },
   fight: { fields: [], targets: ['creature', 'creature-opponent-controls', 'creature-you-control'] }, // quem: 'self-source' (a permanente fonte luta) | 'primeiro-alvo' (luta a criatura anotada pelo `lutador` anterior)
   /* ↓ T · efeitos da trilha tipos */
+  papel: { fields: [], targets: ['creature', 'creature-you-control', 'first-target'] }, // T-20 · CR 111.10j–r / 303.7 · "create a <Papel> Role token attached to <alvo>": a ficha de Papel (definida pela regra) entra anexada
   cerco_derrotado: { fields: [], targets: ['self'] }, // T-14 · CR 310.12b · a habilidade intrínseca do Cerco: "exile it, then you may cast it transformed without paying its mana cost" (o motor a dispara quando sai o último marcador de defesa; o script não a escreve)
   nivel_classe: { fields: [], targets: ['self'] }, // T-12 · CR 716.2a · "o nível desta Classe vira N" (o efeito da barra de nível; o motor o monta a partir de `self.classe`, o script não o escreve)
   transformar: { fields: [], targets: ['self'] }, // T-7 · CR 701.27 · "transform ~": a permanente fonte vira a outra face (nos dois sentidos), se for carta ou ficha de dupla face (712.9) e a outra face for de permanente (701.27d), uma vez por habilidade (701.27f)
@@ -6025,7 +6026,7 @@ function validateScript(sc) {
   if (sc && sc.reduzPor && (sc.discount || sc.affinity)) errs.push('redução por contagem não se soma a desconto ou afinidade no mesmo script'); // M-333
   // S18 · ninjutsu e insanidade
   // S21 · habilidades de lealdade
-  for (const ab of (sc && sc.abilities) || []) if (ab.condition && !['lifeGained', 'attackersAtLeast', 'controlsOtherNamed', 'bargained', 'evidenced', 'kicked', 'opponentMoreLands', 'atacaSozinha', 'vidaPeloMenos', 'marcadoresNaFonte', ...condicoesK()].includes(Object.keys(ab.condition)[0] || '')) errs.push('condição de gatilho desconhecida'); // K-59 · condições da trilha keywords (Toca ponto comum: validador de condições)
+  for (const ab of (sc && sc.abilities) || []) if (ab.condition && !['lifeGained', 'attackersAtLeast', 'controlsOtherNamed', 'bargained', 'evidenced', 'kicked', 'opponentMoreLands', 'atacaSozinha', 'vidaPeloMenos', 'marcadoresNaFonte', ...condicoesK(), ...condicoesT()].includes(Object.keys(ab.condition)[0] || '')) errs.push('condição de gatilho desconhecida'); // K-59 · condições da trilha keywords (Toca ponto comum: validador de condições)
   if (sc && sc.bargain != null && sc.bargain !== true) errs.push('barganha é uma marca, sem valor');
   if (sc && sc.evidence != null && !(Number.isInteger(sc.evidence) && sc.evidence > 0)) errs.push('colher provas precisa de um número inteiro positivo');
   for (const ab of (sc && sc.abilities) || []) if (ab.mayPay && !ab.mayPay.mana && !ab.mayPay.exileFromGraveyard && !ab.mayPay.sacrificeSelf && !(Number.isInteger(ab.mayPay.pagarVida) && ab.mayPay.pagarVida > 0)) errs.push('custo opcional do gatilho sem custo'); // V-26 · "you may pay N life" (Toca ponto comum)
@@ -6141,7 +6142,7 @@ function validateScript(sc) {
   // M-251 · habilidade disparada concedida pela aura ou equipamento: quem controla a criatura é quem controla o gatilho
   for (const [i, ab] of ((((sc && sc.grants) || {}).triggered) || []).entries()) {
     if (!ab || !ab.when || !gatilhoDoEvento(ab.when)) errs.push(`bônus: gatilho concedido ${i + 1} desconhecido`);
-    if (ab && ab.condition && !['atacaSozinha', 'lifeGained', 'attackersAtLeast'].includes(Object.keys(ab.condition)[0] || '')) errs.push(`bônus: condição do gatilho concedido ${i + 1} desconhecida`);
+    if (ab && ab.condition && !['atacaSozinha', 'lifeGained', 'attackersAtLeast', ...condicoesT()].includes(Object.keys(ab.condition)[0] || '')) errs.push(`bônus: condição do gatilho concedido ${i + 1} desconhecida`);
     errs.push(...effectErrors(ab.effects, `bônus: gatilho concedido ${i + 1}`));
   }
   // S39 · habilidades ativadas concedidas por aura ou por vínculo de alma
@@ -6163,7 +6164,7 @@ function validateScript(sc) {
   if (sc && sc.replicate != null && sc.kicker) errs.push('replicar e reforço na mesma carta não são aceitos (os dois usam o pagamento repetido)');
   if (sc && sc.modeCount != null && !(Number.isInteger(sc.modeCount) && sc.modeCount >= 2 && (sc.modes || []).length && (sc.modeRepeat || sc.modeCount <= sc.modes.length))) errs.push('número de modos inválido');
   if (sc && sc.cumulativeUpkeep && !/\{/.test(String(sc.cumulativeUpkeep.mana || ''))) errs.push('manutenção cumulativa precisa de um custo de mana');
-  errs.push(...sagaErros(sc), ...tripularErros(sc), ...aventuraErros(sc), ...duplaFaceErros(sc), ...modalErros(sc), ...divididaErros(sc), ...classeErros(sc), ...batalhaErros(sc)); // T-14 · CR 310.4 · defesa da batalha (mesma chamada) // T-12 · CR 716 · Classe (mesma chamada) // T-10 · CR 709 · carta dividida (mesma chamada) // T-8 · CR 712.3 · dupla face modal (mesma chamada) // T-7 · CR 712 · dupla face (mesma chamada) // T-5 · CR 715 · aventura (mesma chamada) // T-3 · CR 702.122 · tripular (mesma chamada da T-1) // T-1 · CR 714 · Saga: capítulos, read ahead e o marcador de entrada (função abaixo da âncora T das exportações)
+  errs.push(...sagaErros(sc), ...tripularErros(sc), ...aventuraErros(sc), ...duplaFaceErros(sc), ...modalErros(sc), ...divididaErros(sc), ...classeErros(sc), ...batalhaErros(sc), ...papelErros(sc)); // T-20 · CR 111.10 · papel conhecido (mesma chamada) // T-14 · CR 310.4 · defesa da batalha (mesma chamada) // T-12 · CR 716 · Classe (mesma chamada) // T-10 · CR 709 · carta dividida (mesma chamada) // T-8 · CR 712.3 · dupla face modal (mesma chamada) // T-7 · CR 712 · dupla face (mesma chamada) // T-5 · CR 715 · aventura (mesma chamada) // T-3 · CR 702.122 · tripular (mesma chamada da T-1) // T-1 · CR 714 · Saga: capítulos, read ahead e o marcador de entrada (função abaixo da âncora T das exportações)
   return errs.concat(exampleErrors(sc));
 }
 const ATRASOS = ['next-upkeep', 'next-end-step', 'end-of-combat']; // CR2b.1 · momentos de gatilho atrasado que o motor conhece
@@ -6555,6 +6556,11 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-20 · CR 303.7 · Papéis (Oracle do Forge, consulta de 12/10/2026). A ficha de Papel é a da regra 111.10 (PAPEIS_T); o lembrete entre parênteses não se escreve.
+  { name: 'Monstrous Rage', effects: [{ do: 'pump', power: 2, toughness: 0, target: 'creature' }, { do: 'papel', papel: 'Monster', target: 'first-target' }], // "Target creature gets +2/+0 until end of turn. Create a Monster Role token attached to it."
+    example: { target: 'own-creature', expect: { pump: [2, 0] } } },
+  { name: 'Embereth Veteran', abilities: [{ kind: 'activated', cost: { mana: '{1}', sacrifice: true }, effects: [{ do: 'papel', papel: 'Young Hero', target: { tipos: ['creature'], outra: true } }] }], // "{1}, Sacrifice Embereth Veteran: Create a Young Hero Role token attached to another target creature."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o cenário de verdade está em tipos.papeis.unit
   // T-14 · CR 310 · batalha (Oracle do Forge, consulta de 12/10/2026). Cerco = dupla face que transforma (`self.duplaFace` + `back`, a face
   // conjurada quando ele é derrotado) com a defesa impressa em `self.defesa` (o dado da carta, quando tem, diz o mesmo). A habilidade
   // intrínseca do Cerco (310.12b) e o protetor (310.12a) são do motor; o lembrete entre parênteses não é escrito.
@@ -8418,6 +8424,28 @@ EVENTOS_DE_OBJETO.push('exaurida'); OBJETOS_DO_EVENTO.exaurida = ['self']; GATIL
 // V-6 · evento "ficou monstruosa" (701.37): da própria permanente
 EVENTOS_DE_OBJETO.push('monstruosa'); OBJETOS_DO_EVENTO.monstruosa = ['self']; GATILHO_EVENTO['becomes-monstrous'] = { evento: 'monstruosa', objeto: 'self' }; TRIGGER_PT['becomes-monstrous'] = 'quando fica monstruosa';
 /* ↓ T · exportações de scripts.js da trilha tipos */
+/* ---------------- T-20 · CR 303.7 / 111.10j–r · Papéis (forma) ----------------
+   As sete fichas de Papel, como a regra 111.10 as define (CR de 25/09/2026): encantamento Aura Role incolor, "enchant creature", e o
+   que cada uma dá à criatura encantada. O efeito `papel` (`{ do: 'papel', papel: 'Monster', target }`) cria a ficha anexada ao alvo.
+   Condição nova de gatilho: `resistenciaAte: N` ("if its toughness is N or less", conferida ao disparar e ao resolver, 603.4). */
+function condicoesT() { return ['resistenciaAte']; } // função (içada): o validador roda na carga do módulo, antes desta linha
+var PAPEIS_DEF_T; // idem: criado na primeira chamada de papeisT()
+function papeisT() { const AURA_PAPEL_T = { enchant: 'creature' }; return PAPEIS_DEF_T || (PAPEIS_DEF_T = {
+  Cursed: { name: 'Cursed', aura: AURA_PAPEL_T, continuo: [{ afetados: 'anexada', torna: { base: [1, 1] } }], example: { target: 'none', expect: { selfLife: 0 } } }, // 111.10j "Enchanted creature has base power and toughness 1/1."
+  Monster: { name: 'Monster', aura: AURA_PAPEL_T, continuo: [{ afetados: 'anexada', poder: 1, resistencia: 1, palavras: ['trample'] }], example: { target: 'none', expect: { selfLife: 0 } } }, // 111.10k "+1/+1 and has trample."
+  Royal: { name: 'Royal', aura: AURA_PAPEL_T, continuo: [{ afetados: 'anexada', poder: 1, resistencia: 1, ward: '{1}' }], example: { target: 'none', expect: { selfLife: 0 } } }, // 111.10m "+1/+1 and has ward {1}."
+  Sorcerer: { name: 'Sorcerer', aura: AURA_PAPEL_T, continuo: [{ afetados: 'anexada', poder: 1, resistencia: 1 }], grants: { triggered: [{ kind: 'triggered', when: 'attacks', effects: [{ do: 'scry', amount: 1 }] }] }, example: { target: 'none', expect: { selfLife: 0 } } }, // 111.10n "+1/+1 and has 'Whenever this creature attacks, scry 1.'"
+  Virtuous: { name: 'Virtuous', aura: AURA_PAPEL_T, continuo: [{ afetados: 'anexada', per: 'enchantments-you-control', perPoder: 1, perResistencia: 1 }], example: { target: 'none', expect: { selfLife: 0 } } }, // 111.10p "+1/+1 for each enchantment you control."
+  Wicked: { name: 'Wicked', aura: AURA_PAPEL_T, continuo: [{ afetados: 'anexada', poder: 1, resistencia: 1 }], abilities: [{ kind: 'triggered', when: 'dies', effects: [{ do: 'lose', amount: 1, target: 'each-opponent' }] }], example: { target: 'none', expect: { selfLife: 0 } } }, // 111.10q "+1/+1" e "When this token is put into a graveyard from the battlefield, each opponent loses 1 life."
+  'Young Hero': { name: 'Young Hero', aura: AURA_PAPEL_T, grants: { triggered: [{ kind: 'triggered', when: 'attacks', condition: { resistenciaAte: 3 }, effects: [{ do: 'counters', amount: 1, target: 'self-source' }] }] }, example: { target: 'none', expect: { selfLife: 0 } } }, // 111.10r "has 'Whenever this creature attacks, if its toughness is 3 or less, put a +1/+1 counter on it.'"
+}); }
+function papelErros(sc) {
+  const errs = [];
+  const todos = [...((sc && sc.effects) || []), ...((sc && sc.abilities) || []).flatMap(ab => ab.effects || [])];
+  for (const e of todos) if (e && e.do === 'papel' && !papeisT()[e.papel]) errs.push(`papel: "${e.papel}" não é uma ficha de Papel (111.10j–r: ${Object.keys(papeisT()).join(', ')})`);
+  return errs;
+}
+Object.assign(EXPORTS_T_SC, { PAPEIS_T: papeisT(), papelErros, CONDICOES_T: condicoesT() });
 /* ---------------- T-14 · CR 310 · batalhas (forma do script) ----------------
    A defesa impressa (310.4a) vem do dado da carta (`defense`, como a Scryfall dá) e, sem ele, de `self.defesa` no script (o mesmo
    número, do texto oficial): a partida sem rede ou com dado antigo continua sabendo a defesa. O Cerco é uma dupla face que transforma
@@ -19349,6 +19377,7 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'lutador': if (obj) s.lutadorV = { fonte: src.oid, fz: encarnacaoV(s, src), oid: obj.oid, z: obj.zc || 0 }; break; // V-1/V-5 · anota quem luta; a luta é o `fight` seguinte, que apaga a anotação
     case 'fight': lutar(s, src, eff, tgt, events); break; // V-1 · 701.14
     /* ↓ T · casos de applyEffect da trilha tipos */
+    case 'papel': criaPapelT(s, src, eff, obj, events); break; // T-20 · CR 111.10j–r / 303.7 · a ficha de Papel entra anexada ao alvo
     case 'cerco_derrotado': cercoDerrotadoT(s, src, eff, events); break; // T-14 · CR 310.12b · exila o Cerco e abre "conjurar transformado sem pagar"
     case 'nivel_classe': nivelDaClasseSobeT(s, src, eff, events); break; // T-12 · CR 716.2a · o nível da Classe vira N e dispara "When this Class becomes level N"
     case 'transformar': transformaT(s, src.ability ? s.objects[src.source] : src, src, events); break; // T-7 · CR 701.27 · "transform ~"
@@ -19795,6 +19824,7 @@ function triggerConditionMet(s, o, cond) {
     if (!alive(s).some(q => q !== o.controller && terrenos(q) > terrenos(o.controller))) return false;
   }
   if (cond.atacaSozinha && !(s.combat && (s.combat.attackers || []).length === 1 && s.combat.attackers[0] === o.oid)) return false; // M-251 · 506.5 "attacks alone"
+  if (cond.resistenciaAte != null && !(o.zone === 'battlefield' && toughness(s, o) <= cond.resistenciaAte)) return false; // T-20 · CR 111.10r / 603.4: "if its toughness is N or less" · Toca ponto comum: triggerConditionMet (uma linha)
   if (!condicaoK(s, o, cond)) return false; // K-59 · bênção da cidade e presente prometido (Toca ponto comum: triggerConditionMet)
   if (cond.attackersAtLeast != null) {
     const list = (s.combat && s.combat.attackers) || [];
@@ -20612,7 +20642,7 @@ function stateBased(s, events) {
       for (const oid of morrem) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield') continue; moveObject(s, oid, 'graveyard'); changed = true; events.push({ kind: 'died', oid, name: o.name }); }
       delete s.saindoJuntas;
     }
-    if (batalhasDeEstadoT(s, events) | equipamentosDeEstadoT(s, events)) changed = true; // T-16 · CR 301.5c / 704.5n · Equipamento que não pode equipar se solta // T-14 · CR 310.7 / 310.8 / 310.10 / 310.11 / 704.5v–y · batalhas (função abaixo da âncora T das exportações)
+    if (batalhasDeEstadoT(s, events) | equipamentosDeEstadoT(s, events) | papeisDeEstadoT(s, events)) changed = true; // T-20 · CR 303.7a / 704.5z // T-16 · CR 301.5c / 704.5n · Equipamento que não pode equipar se solta // T-14 · CR 310.7 / 310.8 / 310.10 / 310.11 / 704.5v–y · batalhas (função abaixo da âncora T das exportações)
     if (sagasDeEstado(s, events)) changed = true; // T-1 · CR 714.2b (capítulos disparam), 714.3b (read ahead) e 714.4 / 704.5s (sacrifício); função abaixo da âncora T das exportações
     if (!changed) break;
   }
@@ -24414,6 +24444,42 @@ function lutar(s, src, eff, tgt, events) {
 }
 Object.assign(EXPORTS_V, { lutar });
 /* ↓ T · exportações de core.js da trilha tipos */
+/* ---------------- T-20 · CR 303.7 / 704.5z / 111.10j–r · Papéis ----------------
+   - `criaPapelT`: a ficha de Papel (fatos e script de SC.PAPEIS_T, linha "Enchantment — Aura Role", incolor) entra sob o controle de
+     quem conjura, anexada ao alvo. Sem alvo que a Aura possa encantar (criatura no campo), a ficha não é criada (303.4i).
+   - 303.7a / 704.5z (`papeisDeEstadoT`): dois ou mais Papéis do mesmo controlador na mesma permanente → todos menos o de anexo mais
+     recente vão para o cemitério do dono (a ficha deixa de existir pela 704.5d; o "vai para o cemitério" do Wicked dispara).
+   - Os fatos da ficha são postos uma vez por partida, pelo nome da regra; uma carta de mesmo nome já nos fatos não é sobrescrita. */
+function fatosDoPapelT(s, nome) {
+  const sc = SC.PAPEIS_T[nome]; if (!sc) return false;
+  if (s.facts[nome] && !(s.facts[nome].script || {}).papelT) return /\bRole\b/.test(s.facts[nome].typeText || '');
+  if (s.facts[nome]) return true;
+  const f = cardFacts({ name: nome, type_line: 'Enchantment — Aura Role', keywords: [], colors: [], oracle_text: '' });
+  f.colors = [];
+  f.script = { name: nome, effects: [], abilities: sc.abilities || [], aura: sc.aura, papelT: true, ...(sc.continuo ? { continuo: sc.continuo } : {}), ...(sc.grants ? { grants: sc.grants } : {}) };
+  s.facts[nome] = f;
+  return true;
+}
+function criaPapelT(s, src, eff, obj, events) {
+  const nome = eff.papel;
+  if (!obj || obj.zone !== 'battlefield' || !isCreature(s, obj) || !fatosDoPapelT(s, nome)) { events.push({ kind: 'effect', do: 'papel', name: src.name, target: nome, failed: true }); return; } // 303.4i
+  const oid = createToken(s, { name: nome, types: ['enchantment'], subtypes: ['Aura', 'Role'] }, src.controller, events);
+  attachTo(s, s.objects[oid], obj.oid, events);
+}
+function papeisDeEstadoT(s, events) {
+  const grupos = new Map();
+  for (const o of battlefield(s)) {
+    if (!o.attachedTo || o.faceDown || !/\bRole\b/.test(linhaDeTipo(s, o))) continue;
+    const k = o.attachedTo + '|' + o.controller; (grupos.get(k) || grupos.set(k, []).get(k)).push(o);
+  }
+  const vao = [];
+  for (const g of grupos.values()) if (g.length > 1) { const novo = g.reduce((a, b) => ((b.anexadaEm || 0) > (a.anexadaEm || 0) ? b : a)); for (const o of g) if (o !== novo) vao.push(o.oid); }
+  if (!vao.length) return false;
+  s.saindoJuntas = vao;
+  for (const oid of vao) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield') continue; const nome = o.name; moveObject(s, oid, 'graveyard'); events.push({ kind: 'effect', do: 'papel_substituido', name: nome }); }
+  delete s.saindoJuntas;
+  return true;
+}
 /* ---------------- T-19 · CR 304.4 / 307.4 · restos de 3xx ----------------
    Instantânea e feitiço não entram no campo: o efeito que os poria lá os deixa na zona em que estavam (a mágica que resolve não passa
    por aqui: vai ao cemitério). Vale pela face de cima (a de fora do campo é a frente, 712.14). */
@@ -27740,8 +27806,8 @@ const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas
 const EFEITO_PT_T = { nivel_classe: e => `a Classe sobe para o nível ${e.n}`, tripulada: () => 'vira criatura artefato até o fim do turno', transformar: () => 'transforma (vira a outra face)' }; // T-7 · 701.27
 /** T-7 · linhas do registro para os eventos da trilha tipos. */
 const LINHA_T = { nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
-Object.assign(EFEITO_PT_T, { cerco_derrotado: () => 'exila o Cerco; você pode conjurá-lo transformado, sem pagar' }); // T-14 · CR 310.12b
-Object.assign(LINHA_T, { cerco_derrotado: ev => (ev.failed ? `${ev.name}: o Cerco já tinha saído do campo, nada a exilar` : `${ev.name} foi derrotada e exilada${ev.target ? ` (pode virar ${ev.target})` : ''}`), protetor_batalha: ev => `${ev.target} passa a proteger ${ev.name}`, anexo_barrado: ev => `${ev.name} não pode equipar${ev.target ? ' ' + ev.target : ''} e fica onde está`, batalha_cemiterio: ev => `${ev.name} ficou sem defesa e foi para o cemitério` }); // T-14 · CR 310.12b / 310.11 / 310.8
+Object.assign(EFEITO_PT_T, { cerco_derrotado: () => 'exila o Cerco; você pode conjurá-lo transformado, sem pagar', papel: e => `cria um Papel de ${e.papel} anexado à criatura` }); // T-14 · CR 310.12b
+Object.assign(LINHA_T, { cerco_derrotado: ev => (ev.failed ? `${ev.name}: o Cerco já tinha saído do campo, nada a exilar` : `${ev.name} foi derrotada e exilada${ev.target ? ` (pode virar ${ev.target})` : ''}`), protetor_batalha: ev => `${ev.target} passa a proteger ${ev.name}`, anexo_barrado: ev => `${ev.name} não pode equipar${ev.target ? ' ' + ev.target : ''} e fica onde está`, papel: ev => (ev.failed ? `${ev.name}: sem criatura para o Papel de ${ev.target}` : `Papel de ${ev.target || ev.name}`), papel_substituido: ev => `o Papel ${ev.name} foi substituído e vai para o cemitério`, batalha_cemiterio: ev => `${ev.name} ficou sem defesa e foi para o cemitério` }); // T-14 · CR 310.12b / 310.11 / 310.8
 function descreveEfeito(e) {
   if (!e || !e.do) return '';
   if (EFEITO_PT_V[e.do]) return EFEITO_PT_V[e.do](e); // V-1 · Toca ponto comum: descreveEfeito (frases da trilha verbos)

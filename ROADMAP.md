@@ -4752,6 +4752,16 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `moveObject` (uma linha inserida antes do destino substituído).
 - **Próximo:** decisão do dono — Papéis (303.7) é o próximo resto de maior valor; o épico CR5 fecha a lista do pedido com esta leva.
 
+**CR5-T20 · Papéis (303.7, 704.5z, fichas 111.10j–r)** ✅ (leva T-20, sem mudança de versão do motor; "segue" do dono em 12/10/2026 sobre a recomendação da T-19) — 11 testes em `tipos.papeis.unit` (10 falham sem a leva).
+- **Valor:** lista com Papel joga: Monstrous Rage dá +2/+0 e um Papel de Monster (+1/+1 e atropelar) que fica; Embereth Veteran dá um Papel de Young Hero a outra criatura. Um Papel novo do mesmo jogador na mesma criatura substitui o antigo.
+- **Regra:** **111.10j–r** — as sete fichas de Papel como a regra as define (Cursed: P/R base 1/1; Monster: +1/+1 e atropelar; Royal: +1/+1 e salvaguarda {1}; Sorcerer: +1/+1 e "ataca → vidência 1"; Virtuous: +1/+1 por encantamento seu; Wicked: +1/+1 e, ao ir para o cemitério, cada oponente perde 1; Young Hero: "ataca, se a resistência for 3 ou menos → +1/+1"). **303.7a / 704.5z** — dois ou mais do mesmo controlador na mesma permanente: só o de anexo mais recente fica (o Wicked trocado faz o oponente perder 1). **303.4i** — sem criatura para encantar, a ficha não é criada.
+- **Forma do script:** efeito `{ do: 'papel', papel: '<nome da ficha>', target }`; o validador recusa papel que não seja uma das sete. Condição nova de gatilho: `resistenciaAte: N` (603.4, conferida ao disparar e ao resolver).
+- **Cartas exemplo** (texto oficial em `.listas/oficiais-tipos.json`, Oracle do Forge, 12/10/2026; as fichas pela regra 111.10, CR de 25/09/2026 — o texto da ficha no Forge difere em Cursed e Virtuous, e vale a regra), completas: Monstrous Rage, Embereth Veteran.
+- **Limites declarados:** a imagem das fichas de Papel não entra no guardião sem rede (a mesa mostra a ficha em texto); Lord Skitter's Blessing e as demais cartas que criam Papel ficam para quando forem pedidas (cada uma com o seu texto oficial).
+- **Versão e goldens:** a versão não sobe; goldens idênticos.
+- **Toca ponto comum:** `triggerConditionMet` (uma linha: `resistenciaAte`), validador de condições de gatilho e de gatilho concedido (`...condicoesT()` nas listas). Funções novas abaixo das âncoras T; a ação de estado entra pela linha da trilha em `stateBased`.
+- **Próximo:** auditoria independente dos Papéis.
+
 **CR6 · Multijogador e variantes** ○ — mesa de três e quatro (800–803, 806), Commander de mesa (903.2), Brawl (903.12); as variantes hoje "fora" só entram por decisão. 10 a 14 levas.
 
 **CR7 · Consolidação** ○ (em paralelo a partir da CR2) — a cada fase: fuzz em modo completo com listas reais, homologação por revisor independente relendo a seção das regras contra o motor, e rodada de simulação do dono do produto. 6 a 8 levas ao todo.
