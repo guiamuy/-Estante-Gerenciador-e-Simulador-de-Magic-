@@ -5231,7 +5231,7 @@ const EFFECTS = {
   bounce: { fields: [], targets: ['creature', 'spell-or-creature', 'permanent', 'permanent-you-control', 'land-you-control', 'artifact'] },
   counter: { fields: [], targets: ['spell', 'spell-or-ability', 'creature-spell', 'noncreature-spell', 'instant-spell', 'artifact-enchantment-spell', 'artifact-spell'] },
   draw: { fields: ['amount'], targets: ['player', 'self'] },
-  gain: { fields: ['amount'], targets: ['player', 'self'] },
+  gain: { fields: ['amount'], targets: ['player', 'self', 'target-controller'] }, // M-335 · "Its controller gains life equal to its power" (Swords to Plowshares)
   lose: { fields: ['amount'], targets: ['player', 'opponent', 'self', 'target-controller', 'each-opponent'] },
   counters: { fields: ['amount'], targets: ['self-source', 'creature', 'first-target'] }, // M-272 · first-target: o alvo de um efeito anterior
   pump: { fields: ['power', 'toughness'], targets: ['creature', 'creature-you-control', 'creature-opponent-controls', 'each-creature', 'each-opponent-creature', 'each-own-creature'] },
@@ -5873,7 +5873,7 @@ function descreveGatilho(w) {
 const ATTACH_KINDS = ['creature', 'permanent', 'land', 'creature-you-control', 'creature-or-planeswalker-you-control', 'creature-card-in-graveyard']; // CR2d.4 · "Enchant creature card in a graveyard" // Q11 · Setessan Training
 const PER_COUNTS = ['enchantments-you-control', 'other-enchantments', 'auras-on-battlefield',
   'creatures-you-control', 'other-creatures-you-control', 'elves-you-control', 'elves-on-battlefield', 'defenders-you-control', 'permanents-you-control', 'nonland-permanents-you-control', 'life-gained-this-turn', 'life-lost-this-turn',
-  'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G', 'counters-on-source', 'opponents-empty-hand', 'trigger-value', 'chosen-type-permanents', 'sacrificed-toughness', 'x', 'power-of-source', 'se'];
+  'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G', 'counters-on-source', 'opponents-empty-hand', 'trigger-value', 'chosen-type-permanents', 'sacrificed-toughness', 'x', 'power-of-source', 'se', 'power-of-target'];
 /** M-333 · 601.2f · "This spell costs {N} less to cast for each …": o que a redução conta (chave `reduzPor: { generic, per }` no topo do script). */
 const REDUZ_POR = ['instants-sorceries-in-your-graveyard', 'creature-cards-in-your-graveyard', 'land-cards-in-your-graveyard', 'creatures-on-battlefield',
   'creatures-opponents-control', 'basic-land-types-you-control', 'attacking-creatures', 'attacking-creatures-you-control', 'cards-drawn-this-turn',
@@ -8050,11 +8050,24 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Shrapnel Blast': { texto: '1cw9ev1', leva: 'M-334' },
   'Bone Splinters': { texto: 'egwhr1', leva: 'M-334' },
   'Doomed Traveler': { texto: '11oheon', leva: 'M-334' },
+  // M-335 · revisão por lote IX (staples: descarte escolhido com filtro, poder do alvo, terreno não básico, olhar o topo), revisor independente com sondas: 10 de 11 na primeira rodada; o Augur of Bolas passou depois da correção (olhar não revela)
+  'Thoughtseize': { texto: '1dqm748', leva: 'M-335' },
+  'Wasteland': { texto: 'os5ul7', leva: 'M-335' },
+  'Swords to Plowshares': { texto: '1jdkc22', leva: 'M-335' },
+  'Stock Up': { texto: '1eyw4ka', leva: 'M-335' },
+  'Augur of Bolas': { texto: '1qkfm1b', leva: 'M-335' },
+  'Inquisition of Kozilek': { texto: '1tjyoa1', leva: 'M-335' },
+  'Infernal Grasp': { texto: '1kz7uuv', leva: 'M-335' },
+  'Prismatic Lens': { texto: '1cy03dg', leva: 'M-335' },
+  'Read the Bones': { texto: '1baoc0u', leva: 'M-335' },
+  'Firebolt': { texto: '1t4ojh4', leva: 'M-335' },
+  'Seal of Fire': { texto: '1p28i5n', leva: 'M-335' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
   if (!LEITOR || !card || !card.oracle_text) return null;
-  const r = LEITOR(card); if (!r || !r.completa || !r.script) return null;
+  let r = null; try { r = LEITOR(card); } catch (e) { return null; } // M-335 · achado da revisão do lote IX: um erro do leitor numa carta deixa a carta sem leitura, nunca impede a partida (decisão 11)
+  if (!r || !r.completa || !r.script) return null;
   if (Object.keys(r.script).every(k => k === 'name' || k === 'produces' || (k === 'self' && Object.keys(r.script.self).every(k2 => k2 === 'keywords')))) return null; // só mana e palavras-chave: o motor já lê da carta (básicos, criaturas simples)
   const ass = APROVADAS[card.name];
   return { script: r.script, aprovada: !!ass && ass.texto === assinaturaRevisao(card) }; // M-326
@@ -15231,6 +15244,7 @@ const __m42 = (function () {
     let m = k.match(/^target nonlegendary (creature)$/); if (m) return { target: 'creature', targetNotLegendary: true };
     m = k.match(/^target non(white|blue|black|red|green) creature$/); if (m) return { target: 'creature', targetNotColor: CORES[m[1]] };
     if (k === 'target nonland permanent') return { target: 'permanent', targetNotLand: true }; // LT13
+    if (k === 'target nonbasic land') return { target: 'land', targetNotBasic: true }; // M-335 · Wasteland
     if (k === 'target instant or sorcery spell') return { target: 'spell', targetTypes: ['instant', 'sorcery'] }; // LT13
     return null;
   }
@@ -15346,6 +15360,8 @@ const __m42 = (function () {
     [new RegExp(`^~ deals ${N} damage to each opponent and each creature and planeswalker they control$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'each-opponent' }, { do: 'damage', amount: num(m[1]), target: 'each-opponent-creature-planeswalker' }]], // LT12
     [new RegExp(`^~ deals ${N} damage to each creature with flying$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'each-flying-creature' }]], // LT9
     [/^venture into the dungeon$/i, () => [{ do: 'venture' }]], // LT9 · 701.49
+    [new RegExp(`^you lose ${N} life$`, 'i'), m => [{ do: 'lose', amount: num(m[1]) }]], // M-335 · Thoughtseize (sem alvo: quem controla perde, como nos scripts à mão)
+    [/^its controller gains life equal to its power$/i, () => [{ do: 'gain', amount: { per: 'power-of-target' }, target: 'target-controller' }]], // M-335 · Swords to Plowshares (608.2h: o poder como era no campo)
     [/^it doesn't untap during its controller's next untap step$/i, () => [{ do: 'nao_desvira', target: 'first-target' }]], // M-334 · LT18 · 502.3 (Sleep of the Dead)
     [/^add ((?:\{[WUBRGC]\})+)$/i, m => [{ do: 'add_mana', symbols: m[1].match(/[WUBRGC]/g) }]], // M-334 · LT18 · mágica ou gatilho que adiciona mana (Seething Song, Burning-Tree Emissary)
     [/^you become the monarch$/i, () => [{ do: 'monarch' }]], // M-332 · CR 725
@@ -15511,9 +15527,27 @@ const __m42 = (function () {
   }
   const escapa = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   /** Um parágrafo de efeito de mágica → { efeitos, frases }. */
-  function leParagrafo(texto, nome, frases) {
+  /** M-335 · orações em sequência que formam um efeito só (no começo do parágrafo): revelar a mão e escolher o descarte; olhar o topo e pegar. */
+  const FILTRO_DESCARTE = { 'nonland card': { notTypes: ['land'] }, 'noncreature, nonland card': { notTypes: ['creature', 'land'] }, 'nonland, noncreature card': { notTypes: ['creature', 'land'] } };
+  const FILTRO_TOPO = { 'instant or sorcery': { types: ['instant', 'sorcery'] }, creature: { types: ['creature'] }, artifact: { types: ['artifact'] }, land: { types: ['land'] }, 'creature or land': { types: ['creature', 'land'] } };
+  const PRE_PARAGRAFO = [
+    [/^(target player|target opponent) reveals (?:their|his or her) hand\. you choose an? (.+?) from it(?: with mana value (\d+) or less)?\. (?:that player|they) discards? that card(?:\.\s*|$)/i, m => {
+      const k = m[2].toLowerCase(), base = FILTRO_DESCARTE[k], filtro = base && (m[3] ? { ...base, mvMax: +m[3] } : base); // Inquisition of Kozilek: "a nonland card from it with mana value 3 or less" 
+      if (!filtro) return null; // achado da revisão do lote IX: filtro fora do vocabulário (Coercion, Divest) deixa a carta sem leitura, sem quebrar
+      const padrao = !filtro.mvMax && (filtro.notTypes || []).length === 2; // o filtro do Duress é o padrão do motor: não precisa ir no script
+      return [{ do: 'discard_chosen', amount: 1, target: m[1].toLowerCase() === 'target player' ? 'player' : 'opponent', ...(padrao ? {} : { filter: filtro }) }]; }],
+    [new RegExp(`^look at the top ${N} cards of your library\\. put ${N} of them into your hand and the rest on the bottom of your library in (any|a random) order(?:\\.\\s*|$)`, 'i'), m => {
+      const c = num(m[1]), k = num(m[2]); return c && k && k < c ? [{ do: 'look', count: c, amount: k, min: k, to: 'hand', rest: /random/i.test(m[3]) ? 'library-bottom-random' : 'library-bottom' }] : null; }],
+    [new RegExp(`^look at the top ${N} cards of your library\\. you may reveal an? (instant or sorcery|creature|artifact|land|creature or land) card from among them and put it into your hand\\. put the rest on the bottom of your library in (any|a random) order(?:\\.\\s*|$)`, 'i'), m => {
+      const c = num(m[1]); return c ? [{ do: 'look', count: c, amount: 1, min: 0, to: 'hand', rest: /random/i.test(m[3]) ? 'library-bottom-random' : 'library-bottom', revelaEscolhida: true, filter: FILTRO_TOPO[m[2].toLowerCase()] }] : null; }]
+  ];
+  function leParagrafo(texto0, nome, frases) {
     const efeitos = [];
-    const partes = texto.replace(new RegExp(escapa(nome), 'g'), '~').replace(/, then shuffle and put that card on top(\.?)$/i, ', put that card on top of your library, then shuffle$1').split(/\.\s+|,\s+then\s+|\.$/).map(x => x.replace(/\.$/, '').trim()).filter(Boolean);
+    let texto = texto0.replace(new RegExp(escapa(nome), 'g'), '~').trim();
+    for (let achou = true; achou && texto;) { achou = false; // M-335
+      for (const [re, faz] of PRE_PARAGRAFO) { const m = texto.match(re); const e = m && faz(m); if (!e) continue; efeitos.push(...e); frases.push({ texto: m[0].trim().replace(/\.$/, ''), lida: true }); texto = texto.slice(m[0].length).trim(); achou = true; break; } }
+    if (!texto) return efeitos;
+    const partes = texto.replace(/, then shuffle and put that card on top(\.?)$/i, ', put that card on top of your library, then shuffle$1').split(/\.\s+|,\s+then\s+|\.$/).map(x => x.replace(/\.$/, '').trim()).filter(Boolean);
     let ok = true;
     for (const p of partes) {
       const ig = p.match(new RegExp(`^if this spell was cast from a graveyard, draw ${N} cards instead$`, 'i')); // M-331 · Plunder the Trollshaws
@@ -15989,6 +16023,13 @@ function countFor(s, src, per) {
     return battlefield(s).filter(o => o.controller === src.controller && !o.faceDown && (isChangeling(s, o, tipo) || rx.test(linhaDeTipo(s, o)))).length; // R9 · virada para baixo não tem tipo
   }
   if (per === 'counters-on-source') return (src.counters || {}).p1p1 || 0;
+  if (per === 'power-of-target') { // M-335 · 608.2h · "equal to its power" (Swords to Plowshares): o poder do primeiro alvo agora, ou como era no campo se o efeito anterior o tirou de lá
+    const t = (src.targets || [])[0], o = t && t.oid != null ? s.objects[t.oid] : null;
+    if (!o) return 0;
+    const mesma = (o.zc || 0) === (t.z != null ? t.z : (o.zc || 0));
+    const pw = o.zone === 'battlefield' && mesma ? power(s, o) : (o.ultima && o.ultima.power != null && (o.zc || 0) === (t.z || 0) + 1 ? o.ultima.power : 0);
+    return Math.max(0, pw || 0);
+  }
   if (per === 'power-of-source') { // CR2b.10 · "damage equal to its power": o poder da fonte agora, ou como era no campo se ela saiu (608.2h, última informação conhecida)
     const f = src.ability ? s.objects[src.source] : src;
     if (!f) return 0;
@@ -17781,6 +17822,7 @@ function targetAllowed(s, eff, tgt, src) {
   const f = s.facts[o.name] || {};
   if (eff.targetNotLegendary && portadorLendarioV(s, o)) return false; // V-25 · 701.54c (1) (Toca ponto comum: targetAllowed)
   if (eff.targetNotLegendary && f.legendary) return false;
+  if (eff.targetNotBasic && /^\s*basic\b/i.test((o.zone === 'battlefield' ? linhaDeTipo(s, o) : f.typeText) || '')) return false; // M-335 · "target nonbasic land" (Wasteland)
   if (eff.targetNotFromHand && o.zone === 'stack' && o.castFrom === 'hand') return false;
   if (eff.targetSubtype && !(o.zone === 'battlefield' && (isChangeling(s, o, eff.targetSubtype) || new RegExp('\\b' + eff.targetSubtype + '\\b').test(linhaDeTipo(s, o))))) return false; // CR2d.2 · "target Assembly-Worker creature" // CR2c.4 · "that wasn't cast from its owner's hand" (Wash Away)
   if (eff.targetNotLand && (f.types || []).includes('land')) return false; // R11 · "nonland permanent"
@@ -18136,7 +18178,7 @@ function applyEffect(s, src, eff, tgt, events) {
       // Leva 108 · "Reveal the top N": a linha do tempo mostra as cartas para os dois jogadores
       if (eff.revela) events.push({ kind: 'effect', do: 'reveal', name: src.name, target: from.map(x => s.objects[x].name).join(', ') });
       startPick(s, { p: who, from, min: Math.min(eff.min || 0, servem), max: eff.amount, to: eff.to || 'hand',
-        rest: eff.rest || 'library-bottom', shuffle: !!eff.shuffle, filter: eff.filter, onPicked: eff.onPicked || null,
+        rest: eff.rest || 'library-bottom', shuffle: !!eff.shuffle, filter: eff.filter, onPicked: eff.onPicked || null, revelaEscolhida: !!eff.revelaEscolhida,
         label: 'olhar o topo', source: src.name }, events);
       // Leva 136 · "put ALL cards of the chosen type into your hand" (Winding Way): não há o que escolher. Antes a mesa
       // pedia um toque em cada carta obrigatória; agora todas as que servem vão sozinhas e o resto segue o destino.
@@ -18186,7 +18228,7 @@ function applyEffect(s, src, eff, tgt, events) {
     }
     case 'discard_chosen': { // S45 · o oponente revela a mão e VOCÊ escolhe o que ele descarta
       const who = playerOf();
-      const filtro = { notTypes: ['creature', 'land'] };
+      const filtro = eff.filter || { notTypes: ['creature', 'land'] }; // M-335 · o filtro da carta ("a nonland card", "with mana value 3 or less"); sem filtro, o do Duress
       const mao = s.zones[who].hand.filter(x => matchesFilter(s, s.objects[x], filtro));
       // Leva 108 · a mão é revelada mesmo sem carta que sirva: quem conjurou vê e confirma
       if (!mao.length) {
@@ -18826,6 +18868,7 @@ function matchesFilter(s, o, filter) {
   if (filter.basic && !/^\s*basic\b/i.test(f.typeText || '')) return false;
   if ((filter.subtypes || []).length && !filter.subtypes.some(x => isChangeling(s, o, x) || new RegExp('\\b' + x + '\\b', 'i').test(f.typeText || ''))) return false; // K-1 · 702.73a: o metamorfo vale também no grimório e na mão
   if ((filter.notTypes || []).some(x => (f.types || []).includes(x))) return false; // S45 · "que não seja criatura nem terreno"
+  if (filter.mvMax != null && (f.cmc || 0) > filter.mvMax) return false; // M-335 · "with mana value N or less"
   const types = filter.types || [];
   return !types.length || types.some(x => (f.types || []).includes(x));
 }
@@ -18834,6 +18877,7 @@ function startPick(s, spec, events) {
     to: spec.to, rest: spec.rest || 'stay', shuffle: !!spec.shuffle, filter: spec.filter || null, label: spec.label, source: spec.source,
     ...(spec.needMv ? { needMv: spec.needMv } : {}),
     ...(spec.discard ? { discard: true } : {}), // Leva 105 · escolha que é descarte (insanidade)
+    ...(spec.revelaEscolhida ? { revelaEscolhida: true } : {}), // M-335 · 701.20a: revela só a carta escolhida
     ...(spec.mostrar ? { mostrar: spec.mostrar } : {}), // Leva 107 · mão revelada inteira (Duress)
     ...(spec.depois ? { depois: spec.depois } : {}), // Leva 107 · "se fizer, compre duas" (Highway Robbery)
     ...(spec.onPicked ? { onPicked: spec.onPicked } : {}), // S59 · o que a carta escolhida recebe
@@ -18867,6 +18911,7 @@ function concluiPick(s, events) {
     else if (where === 'descarta-ou-sacrifica') { if (s.objects[oid].zone === 'hand') descartaCarta(s, oid); else sacrifice(s, oid); }
     else moveObject(s, oid, where);
   };
+  if (pk.revelaEscolhida && pk.picked.length) events.push({ kind: 'effect', do: 'reveal', name: pk.source, target: pk.picked.map(oid => s.objects[oid].name).join(', ') }); // M-335 · 701.20a
   [...pk.picked].reverse().forEach(oid => dest(oid, pk.to)); // o primeiro escolhido termina no topo
   { const resto = pk.from.filter(oid => !pk.picked.includes(oid)); if (pk.rest === 'library-bottom-random') { shuffle(s, resto); resto.forEach(oid => dest(oid, 'library-bottom')); } else resto.forEach(oid => dest(oid, pk.rest)); } // M-262
   if (pk.shuffle) { shuffle(s, s.zones[pk.p].library);
@@ -25827,7 +25872,7 @@ ALVO_PT['that-player'] = 'quem controla a mágica que disparou'; // M-322 · CR2
 const PALAVRA_PT = { infect: 'infectar', indestructible: 'indestrutível', hexproof: 'resistência a magia', flying: 'voar', haste: 'ímpeto', trample: 'atropelar', lifelink: 'vínculo com a vida', deathtouch: 'toque mortífero', vigilance: 'vigilância', reach: 'alcance', menace: 'ameaçar', 'first strike': 'iniciativa', 'double strike': 'golpe duplo',
   fear: 'medo', intimidate: 'intimidar', shadow: 'sombra', skulk: 'esgueirar', islandwalk: 'travessia de ilha', swampwalk: 'travessia de pântano', forestwalk: 'travessia de floresta', mountainwalk: 'travessia de montanha', plainswalk: 'travessia de planície' };
 const qtd = v => (typeof v === 'number' ? v : (v && v.per === 'se') ? `${v.nao} (${v.sim} ${({ metalcraft: 'com três artefatos ou mais', 'cast-from-graveyard': 'se veio do cemitério' })[v.se] || 'com a condição'})` : (v && v.per) ? 'X' : 1); // M-331
-const IGUAL_A = { 'life-lost-this-turn': 'à vida que você perdeu neste turno', 'life-gained-this-turn': 'à vida que você ganhou neste turno', 'power-of-source': 'ao poder dela' }; // M-248 · CR2b.10
+const IGUAL_A = { 'life-lost-this-turn': 'à vida que você perdeu neste turno', 'life-gained-this-turn': 'à vida que você ganhou neste turno', 'power-of-source': 'ao poder dela', 'power-of-target': 'ao poder do alvo' }; // M-248 · CR2b.10
 const plural = (n, um, muitos) => (n === 1 ? `${n} ${um}` : `${n} ${muitos}`);
 /** Uma frase por efeito. O que o dicionário não conhece vira o nome do efeito, nunca some. */
 /* ↓ K · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha keywords */
