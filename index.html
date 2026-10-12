@@ -7808,11 +7808,6 @@ const RAW_SCRIPTS = [
   // C-1 · "White creatures you control get +2/+2 until end of turn."
   { name: "Guardians' Pledge", effects: [{ do: 'continuo', cada: { tipos: ['creature'], de: 'you', cor: 'W' }, poder: 2, resistencia: 2 }],
     example: { target: 'none', expect: { opponentLife: 0 } } },
-  // C-1 · "As an additional cost to cast this spell, discard a card. · Draw two cards. · Flashback {3}{R}"
-  { name: 'Laughing Mad', additional: { discard: 1 }, effects: [{ do: 'draw', amount: 2 }], flashback: { mana: '{3}{R}' },
-    example: { target: 'none', expect: { handDelta: 1 } } },
-  { name: 'Electric Revelation', additional: { discard: 1 }, effects: [{ do: 'draw', amount: 2 }], flashback: { mana: '{3}{R}' },
-    example: { target: 'none', expect: { handDelta: 1 } } },
   // C-1 · "Destroy target artifact or creature. You gain 1 life."
   { name: 'Grapple with Death', effects: [{ do: 'destroy', target: { tipos: ['artifact', 'creature'] } }, { do: 'gain', amount: 1 }],
     example: { target: 'enemy-creature', expect: { gone: true, selfLife: 1 } } },
@@ -7847,6 +7842,65 @@ const RAW_SCRIPTS = [
   // C-1 · "Proliferate. · Draw a card."
   { name: 'Contentious Plan', effects: [{ do: 'proliferate' }, { do: 'draw', amount: 1 }],
     example: { target: 'none', expect: { handDelta: 1 } } },
+  // C-2 · "Target player draws two cards. · Flashback—{1}{U}, Pay 3 life."
+  { name: 'Deep Analysis', effects: [{ do: 'draw', amount: 2, target: 'player' }], flashback: { mana: '{1}{U}', pagarVida: 3 },
+    note: 'o botão do lampejo mostra só {1}{U}; os 3 de vida são cobrados (e conferidos) junto',
+    example: { target: 'self-player', expect: { handDelta: 2 } } },
+  // C-2 · "Create two 1/1 green Squirrel creature tokens. · Flashback—{1}{G}, Pay 3 life."
+  { name: 'Acorn Harvest', effects: [{ do: 'token', amount: 2, token: { name: 'Squirrel', types: ['creature'], subtypes: ['Squirrel'], colors: ['G'], power: 1, toughness: 1 } }],
+    flashback: { mana: '{1}{G}', pagarVida: 3 }, note: 'o botão do lampejo mostra só {1}{G}; os 3 de vida são cobrados (e conferidos) junto',
+    example: { target: 'none', expect: { tokens: 2 } } },
+  // C-2 · "Target creature gets +1/+0 until end of turn and can't be blocked this turn. · Rebound" (o ricochete vem da linha impressa)
+  { name: 'Distortion Strike', effects: [{ do: 'continuo', target: 'creature', poder: 1, resistencia: 0 }, { do: 'imbloqueavel', target: 'first-target' }],
+    example: { target: 'own-creature', expect: { tapped: false } } },
+  // C-2 · "Target creature gains double strike until end of turn."
+  { name: 'Assault Strobe', effects: [{ do: 'continuo', target: 'creature', palavras: ['double strike'] }],
+    example: { target: 'own-creature', expect: { keyword: 'double strike' } } },
+  // C-2 · "Flying · When Eagles of the North enters, creatures you control get +1/+0 and gain first strike until end of turn. · Plainscycling {1}"
+  { name: 'Eagles of the North', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'continuo', target: 'each-own-creature', poder: 1, resistencia: 0, palavras: ['first strike'] }] }],
+    cycling: { mana: '{1}', busca: { subtypes: ['Plains'] } },
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // C-2 · "Vigilance · When you cast or cycle Drownyard Lurker, create a 0/1 colorless Eldrazi Spawn creature token with 'Sacrifice this creature: Add {C}.' · Cycling {2}{U}"
+  { name: 'Drownyard Lurker', cycling: { mana: '{2}{U}' }, abilities: [
+    { kind: 'triggered', when: 'cast-self', effects: [{ do: 'token', amount: 1, token: { name: 'Eldrazi Spawn', types: ['creature'], subtypes: ['Eldrazi', 'Spawn'], colors: [], power: 0, toughness: 1,
+      abilities: [{ kind: 'activated', cost: { sacrifice: true }, effects: [{ do: 'add_mana', symbols: ['C'] }] }] } }] },
+    { kind: 'triggered', when: 'cycled', effects: [{ do: 'token', amount: 1, token: { name: 'Eldrazi Spawn', types: ['creature'], subtypes: ['Eldrazi', 'Spawn'], colors: [], power: 0, toughness: 1,
+      abilities: [{ kind: 'activated', cost: { sacrifice: true }, effects: [{ do: 'add_mana', symbols: ['C'] }] }] } }] }],
+    example: { target: 'none', expect: { tokens: 1 } } },
+  // C-2 · "{T}: Add {C}. · {1}, {T}: Add one mana of any color. · {1}, {T}, Tap an untapped Gate you control: Create a Treasure token."
+  { name: 'Heap Gate', produces: [['C']], abilities: [
+    { kind: 'activated', cost: { mana: '{1}', tap: true }, effects: [{ do: 'add_mana', anyColor: true }] },
+    { kind: 'activated', cost: { mana: '{1}', tap: true, tapOther: { types: ['land'], subtype: 'Gate' } }, effects: [{ do: 'token', amount: 1, token: { name: 'Treasure', types: ['artifact'], subtypes: ['Treasure'], colors: [],
+      abilities: [{ kind: 'activated', cost: { tap: true, sacrifice: true }, effects: [{ do: 'add_mana', anyColor: true }] }] } }] }],
+    note: 'a mana de qualquer cor sai pela habilidade (ative antes de conjurar); o pagamento automático ainda não usa habilidades de mana com custo além de {T}',
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // C-2 · "Flame Rift deals 4 damage to each player."
+  { name: 'Flame Rift', effects: [{ do: 'damage', amount: 4, jogadores: 'cada' }],
+    example: { target: 'none', expect: { opponentLife: -4, selfLife: -4 } } },
+  // C-2 · "When Clockwork Fox leaves the battlefield, you draw two cards and each opponent draws a card."
+  { name: 'Clockwork Fox', abilities: [{ kind: 'triggered', when: 'leaves-battlefield', effects: [{ do: 'draw', amount: 2 }, { do: 'draw', amount: 1, jogadores: 'cada-oponente' }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // C-2 · "{4}{G}: Look at the top three cards of your library. You may reveal a permanent card from among them and put it into your hand. Put the rest on the bottom of your library in any order."
+  { name: 'Beastrider Vanguard', abilities: [{ kind: 'activated', cost: { mana: '{4}{G}' }, effects: [{ do: 'look', count: 3, amount: 1, min: 0,
+    filter: { types: ['artifact', 'creature', 'enchantment', 'land', 'planeswalker', 'battle'] }, to: 'hand', rest: 'library-bottom', revelaEscolhida: true }] }],
+    example: { action: 'activate:0', target: 'none', expect: { picked: true } } },
+  // C-2 · "Put a +1/+1 counter on target creature you control. It gains vigilance until end of turn. · Flashback {W}"
+  { name: 'Dig Site Inventory', effects: [{ do: 'counters', amount: 1, target: { tipos: ['creature'], de: 'you' } }, { do: 'continuo', target: 'first-target', palavras: ['vigilance'] }],
+    flashback: { mana: '{W}' },
+    example: { target: 'own-creature', expect: { keyword: 'vigilance' } } },
+  // C-2 · "Enchant creature · Enchanted creature gets +1/+1 and has first strike. · Umbra armor"
+  { name: 'Hyena Umbra', aura: { enchant: 'creature' }, grants: { power: 1, toughness: 1, keywords: ['first strike'] }, armaduraTotem: true,
+    example: { action: 'aura', target: 'own-creature', expect: { stats: [3, 3], keyword: 'first strike' } } },
+  // C-2 · "Put a +1/+1 counter, a reach counter, and a deathtouch counter on target creature. Untap it."
+  { name: 'Gift of the Viper', effects: [{ do: 'counters', amount: 1, target: 'creature' }, { do: 'counters', amount: 1, tipo: 'reach', target: 'first-target' },
+    { do: 'counters', amount: 1, tipo: 'deathtouch', target: 'first-target' }, { do: 'untap', target: 'first-target' }],
+    example: { target: 'own-creature', expect: { keyword: 'deathtouch' } } },
+  // C-2 · "Whenever you cycle or discard another card, Horror of the Broken Lands gets +2/+1 until end of turn. · Cycling {B}"
+  { name: 'Horror of the Broken Lands', cycling: { mana: '{B}' }, abilities: [{ kind: 'triggered', when: 'you-discard', effects: [{ do: 'continuo', target: 'self-source', poder: 2, resistencia: 1 }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // C-2 · "Flame Jab deals 1 damage to any target. · Retrace"
+  { name: 'Flame Jab', effects: [{ do: 'damage', amount: 1, target: 'any' }], retrace: true,
+    example: { target: 'opponent', expect: { opponentLife: -1 } } },
   /* ↓ M · scripts de carta da trilha motor (alicerces CR2; texto oficial em .listas/oficiais-motor.json). Fica no fim da lista, longe das âncoras das paralelas (M-313: dois rebases da M-311/M-312 colidiram com a trilha tipos logo abaixo da âncora T) */
   // CR2h.6 · vencer e perder por efeito (texto oficial em .listas/oficiais-motor.json, Oracle do Forge, 2026-10-12)
   { name: 'Felidar Sovereign', abilities: [{ kind: 'triggered', when: 'upkeep', condition: { vidaPeloMenos: 40 }, effects: [{ do: 'vence' }] }],

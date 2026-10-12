@@ -16,10 +16,10 @@ const zona = (s, oid) => s.objects[oid].zone;
 const pt = (s, oid) => { const x = E.stats(s, s.objects[oid]); return [x.power, x.toughness]; };
 const fichas = (s, p, nome) => Object.values(s.objects).filter(o => o.token && o.zone === 'battlefield' && o.controller === p && (!nome || o.name === nome));
 const C1 = ['Archaeomancer', "Black Mage's Rod", 'Hickory Woodlot', 'Goblin Bushwhacker', "Kruphix's Insight", 'Dread Return', 'Arbor Elf', 'Big Score',
-  'Eldrazi Repurposer', "Guardians' Pledge", 'Laughing Mad', 'Electric Revelation', 'Grapple with Death', 'Gurmag Angler', 'Gearseeker Serpent',
+  'Eldrazi Repurposer', "Guardians' Pledge", 'Grapple with Death', 'Gurmag Angler', 'Gearseeker Serpent',
   'Holdout Settlement', 'Inside Out', "Loran's Escape", 'Infestation Sage', 'Experimental Augury', 'Golem Foundry', 'Commune with Spirits', 'Contentious Plan'];
 
-test('C-1 · as 23 cartas do lote têm script validado, texto oficial com fonte e data, e jogam no modo completo', () => {
+test('C-1 · as 21 cartas do lote (Laughing Mad e Electric Revelation saíram na C-2, achado da auditoria) têm script validado, texto oficial com fonte e data, e jogam no modo completo', () => {
   for (const n of C1) {
     const sc = S.SCRIPTS[n]; assert.ok(sc, n + ' tem script'); assert.deepEqual([...S.validateScript(sc)], [], n);
     const of = oficiaisCartas.find(c => c.name === n); assert.ok(of && of.fonte && of.consulta, n + ': texto oficial com fonte e data');
@@ -136,16 +136,6 @@ test("C-1 · Guardians' Pledge: só as criaturas brancas que você controla ganh
   assert.deepEqual(pt(s, b), [4, 4]); assert.deepEqual(pt(s, n), [2, 2], 'não branca'); assert.deepEqual(pt(s, o), [2, 2], 'do oponente');
 });
 
-test('C-1 · Laughing Mad e Electric Revelation: descarte adicional, compra duas; o lampejo do passado ({3}{R}) também cobra o descarte (601.2b)', () => {
-  for (const n of ['Laughing Mad', 'Electric Revelation']) {
-    let s = mesa([n, URSO]), c, u;
-    [s, c] = poe(s, 0, n, 'graveyard'); [s, u] = poe(s, 0, URSO, 'hand');
-    const mao = s.zones[0].hand.length;
-    s = tudo(faz(comMana(s, ['R', 'R', 'R', 'R']), 0, x => x.t === 'cast' && x.oid === c && x.flashback, n + ' lampejo'));
-    assert.equal(s.zones[0].hand.length, mao - 1 + 2, n + ': descartou uma, comprou duas'); assert.equal(zona(s, c), 'exile');
-  }
-});
-
 test('C-1 · Grapple with Death: destrói artefato ou criatura alvo e você ganha 1 de vida; encantamento não é alvo', () => {
   let s = mesa(['Grapple with Death'], [ARTEFATO, ENC]), g, a, e;
   [s, g] = poe(s, 0, 'Grapple with Death', 'hand'); [s, a] = poe(s, 1, ARTEFATO); [s, e] = poe(s, 1, ENC);
@@ -240,4 +230,143 @@ test('C-1 · Contentious Plan: prolifera e compra uma', () => {
   const mao = s.zones[0].hand.length;
   s = tudo(faz(comMana(s, ['U', 'U']), 0, x => x.t === 'cast' && x.oid === c), decide(a => JSON.stringify(a).includes(u)));
   assert.equal(s.objects[u].counters.p1p1, 2, 'o marcador +1/+1 ganhou outro'); assert.equal(s.zones[0].hand.length, mao - 1 + 1);
+});
+
+/* ---------------- C-2 ---------------- */
+// Auditoria independente da C-1 e da C-2 (12/10/2026, revisor sem acesso à implementação, 38 cartas, ~240 sondas): 2 divergências.
+// (A) lampejo do passado de mágica com custo adicional de descarte: a mesa oferece uma ação só, sem `pay`, e o motor descarta a primeira
+// carta da mão (601.2b/601.2h, 702.34a) — Laughing Mad e Electric Revelation saem da biblioteca e ficam manuais até a trilha motor corrigir
+// a oferta (legalActions, ramo do lampejo). (B) "on the bottom of your library in any order" sem escolha de ordem (Experimental Augury,
+// Beastrider Vanguard): é a simplificação já declarada pelo motor para todo "any order" no fundo; continua declarada.
+// Achado da C-2 (para a trilha motor): mágica com `choose: 'color'` e `protection` (Emerge Unscathed) pergunta a cor, mas a proteção não chega
+// à criatura — a retomada depois da escolha aplica o efeito com uma fonte sem a cor. A carta fica manual (e a leitura do leitor dela tem o mesmo
+// caminho). Sondado em 12/10/2026: protections() vazio depois de escolher a cor.
+const C2 = ['Deep Analysis', 'Acorn Harvest', 'Distortion Strike', 'Assault Strobe', 'Eagles of the North', 'Drownyard Lurker', 'Heap Gate', 'Flame Rift', 'Clockwork Fox',
+  'Beastrider Vanguard', 'Dig Site Inventory', 'Hyena Umbra', 'Gift of the Viper', 'Horror of the Broken Lands', 'Flame Jab'];
+
+test('C-2 · as 15 cartas do lote têm script validado, texto oficial com fonte e data, e jogam no modo completo', () => {
+  for (const n of C2) {
+    const sc = S.SCRIPTS[n]; assert.ok(sc, n + ' tem script'); assert.deepEqual([...S.validateScript(sc)], [], n);
+    const of = oficiaisCartas.find(c => c.name === n); assert.ok(of && of.fonte && of.consulta, n + ': texto oficial com fonte e data');
+    assert.equal(S.coverage(CARTAS[n]).level, 'completo', n);
+  }
+});
+
+test('C-2 · Deep Analysis e Acorn Harvest: o lampejo do passado cobra a mana e 3 de vida; com menos de 3, não é oferecido (119.4)', () => {
+  let s = mesa(['Deep Analysis']), d;
+  [s, d] = poe(s, 0, 'Deep Analysis', 'graveyard');
+  const mao = s.zones[0].hand.length, vida = s.players[0].life;
+  s = tudo(faz(comMana(s, ['U', 'U']), 0, x => x.t === 'cast' && x.oid === d && x.flashback && x.targets[0].player === 0, 'lampejo'));
+  assert.equal(s.players[0].life, vida - 3, 'pagou 3 de vida'); assert.equal(s.zones[0].hand.length, mao + 2, 'compra duas'); assert.equal(zona(s, d), 'exile');
+  let t = mesa(['Acorn Harvest']), a; [t, a] = poe(t, 0, 'Acorn Harvest', 'graveyard'); t = J(t); t.players[0].life = 2;
+  assert.equal(legais(comMana(t, ['G', 'G']), 0, x => x.t === 'cast' && x.oid === a && x.flashback).length, 0, 'com 2 de vida não paga 3');
+  t.players[0].life = 4;
+  t = tudo(faz(comMana(t, ['G', 'G']), 0, x => x.t === 'cast' && x.oid === a && x.flashback, 'lampejo com 4 de vida'));
+  assert.equal(fichas(t, 0, 'Squirrel').length, 2); assert.equal(t.players[0].life, 1);
+});
+
+test('C-2 · Distortion Strike: +1/+0 e imbloqueável neste turno; ricochete da mão (volta na próxima manutenção)', () => {
+  let s = mesa(['Distortion Strike', URSO], [URSO]), d, u, v;
+  [s, d] = poe(s, 0, 'Distortion Strike', 'hand'); [s, u] = poe(s, 0, URSO); [s, v] = poe(s, 1, URSO);
+  s = tudo(faz(comMana(s, ['U']), 0, x => x.t === 'cast' && x.oid === d && x.targets[0].oid === u));
+  assert.deepEqual(pt(s, u), [3, 2]); assert.equal(E.canBlock(s, v, u), false); assert.equal(zona(s, d), 'exile', 'ricochete');
+});
+
+test('C-2 · Assault Strobe: golpe duplo até o fim do turno', () => {
+  let s = mesa(['Assault Strobe', URSO]), a, u;
+  [s, a] = poe(s, 0, 'Assault Strobe', 'hand'); [s, u] = poe(s, 0, URSO);
+  s = tudo(faz(comMana(s, ['R']), 0, x => x.t === 'cast' && x.oid === a && x.targets[0].oid === u));
+  assert.equal(E.hasKeyword(s, s.objects[u], 'double strike'), true);
+});
+
+test('C-2 · Eagles of the North: ao entrar, suas criaturas +1/+0 e iniciativa; ciclar Planícies {1} busca uma Planície', () => {
+  let s = mesa(['Eagles of the North', URSO]), e, u;
+  [s, e] = poe(s, 0, 'Eagles of the North', 'hand'); [s, u] = poe(s, 0, URSO);
+  s = tudo(faz(comMana(s, ['W', 'W', 'W', 'W', 'W', 'W']), 0, x => x.t === 'cast' && x.oid === e));
+  assert.deepEqual(pt(s, u), [3, 2]); assert.equal(E.hasKeyword(s, s.objects[u], 'first strike'), true);
+  let t = mesa(['Eagles of the North']), e2; [t, e2] = poe(t, 0, 'Eagles of the North', 'hand');
+  t = tudo(faz(comMana(t, ['W']), 0, x => x.oid === e2 && x.t !== 'cast', 'ciclar'), y => { const op = legais(y, y.pending.p); return op.find(a => a.t === 'pick') || op[0]; });
+  assert.equal(zona(t, e2), 'graveyard'); assert.ok(t.zones[0].hand.some(o => t.objects[o].name === 'Plains'), 'uma Planície na mão');
+});
+
+test('C-2 · Drownyard Lurker: ao conjurar e ao ciclar cria uma Cria Eldrazi', () => {
+  let s = mesa(['Drownyard Lurker']), d;
+  [s, d] = poe(s, 0, 'Drownyard Lurker', 'hand');
+  let c = tudo(faz(comMana(s, ['C', 'C', 'C', 'C', 'C', 'C', 'C']), 0, x => x.t === 'cast' && x.oid === d));
+  assert.equal(fichas(c, 0, 'Eldrazi Spawn').length, 1, 'ao conjurar'); assert.equal(E.hasKeyword(c, c.objects[d], 'vigilance'), true);
+  let y = tudo(faz(comMana(s, ['U', 'U', 'U']), 0, x => x.oid === d && x.t !== 'cast', 'ciclar'));
+  assert.equal(fichas(y, 0, 'Eldrazi Spawn').length, 1, 'ao ciclar'); assert.equal(zona(y, d), 'graveyard');
+});
+
+test('C-2 · Heap Gate: {1},{T}: uma mana de qualquer cor; {1},{T} e virar outro Portão seu: um Tesouro', () => {
+  let s = mesa(['Heap Gate']), h, g;
+  [s, h] = poe(s, 0, 'Heap Gate'); [s, g] = poe(s, 0, 'Heap Gate');
+  s = tudo(faz(comMana(s, ['C']), 0, x => x.t === 'activate' && x.oid === h && x.index === 1, 'Tesouro'));
+  assert.equal(s.objects[g].tapped, true, 'virou o outro Portão'); assert.equal(fichas(s, 0, 'Treasure').length, 1);
+  let t = mesa(['Heap Gate']), h1; [t, h1] = poe(t, 0, 'Heap Gate');
+  assert.equal(legais(comMana(t, ['C']), 0, x => x.t === 'activate' && x.oid === h1 && x.index === 1).length, 0, 'sem outro Portão, não');
+});
+
+test('C-2 · Flame Rift: 4 de dano a cada jogador', () => {
+  let s = mesa(['Flame Rift']), f; [s, f] = poe(s, 0, 'Flame Rift', 'hand');
+  s = tudo(faz(comMana(s, ['R', 'R']), 0, x => x.t === 'cast' && x.oid === f));
+  assert.deepEqual([...s.players.map(p => p.life)], [16, 16]);
+});
+
+test('C-2 · Clockwork Fox: ao sair do campo, você compra duas e cada oponente compra uma', () => {
+  let s = mesa(['Clockwork Fox']), c; [s, c] = poe(s, 0, 'Clockwork Fox');
+  const m0 = s.zones[0].hand.length, m1 = s.zones[1].hand.length;
+  s = J(s); s.objects[c].damage = 5; s = tudo(act(s, { t: 'pass', p: s.turn.priority }));
+  assert.equal(s.zones[0].hand.length, m0 + 2); assert.equal(s.zones[1].hand.length, m1 + 1);
+});
+
+test('C-2 · Beastrider Vanguard: {4}{G}: pode revelar uma carta de permanente das três do topo para a mão; o resto no fundo', () => {
+  let s = mesa(['Beastrider Vanguard', URSO]), b; [s, b] = poe(s, 0, 'Beastrider Vanguard');
+  const topo = s.zones[0].library.slice(0, 3);
+  s = tudo(faz(comMana(s, ['G', 'G', 'G', 'G', 'G']), 0, x => x.t === 'activate' && x.oid === b), y => { const op = legais(y, y.pending.p); return op.find(a => a.t === 'pick') || op[0]; });
+  assert.equal(topo.filter(o => zona(s, o) === 'hand').length, 1);
+});
+
+test('C-2 · Dig Site Inventory: marcador +1/+1 na sua criatura alvo e vigilância; lampejo do passado {W}', () => {
+  let s = mesa(['Dig Site Inventory', URSO], [URSO]), d, u, v;
+  [s, d] = poe(s, 0, 'Dig Site Inventory', 'graveyard'); [s, u] = poe(s, 0, URSO); [s, v] = poe(s, 1, URSO);
+  assert.ok(!legais(comMana(s, ['W']), 0, x => x.oid === d).some(x => x.targets[0].oid === v), 'criatura do oponente não é alvo');
+  s = tudo(faz(comMana(s, ['W']), 0, x => x.t === 'cast' && x.oid === d && x.flashback && x.targets[0].oid === u));
+  assert.equal(s.objects[u].counters.p1p1, 1); assert.equal(E.hasKeyword(s, s.objects[u], 'vigilance'), true); assert.equal(zona(s, d), 'exile');
+});
+
+test('C-2 · Hyena Umbra: +1/+1 e iniciativa; armadura de umbra: em vez de destruída, a criatura fica e a Aura é destruída', () => {
+  let s = mesa(['Hyena Umbra', URSO, 'Lightning Bolt'], ['Lightning Bolt']), h, u, r;
+  [s, h] = poe(s, 0, 'Hyena Umbra', 'hand'); [s, u] = poe(s, 0, URSO);
+  s = tudo(faz(comMana(s, ['W']), 0, x => x.t === 'cast' && x.oid === h && x.targets[0].oid === u));
+  assert.deepEqual(pt(s, u), [3, 3]); assert.equal(E.hasKeyword(s, s.objects[u], 'first strike'), true);
+  [s, r] = poe(s, 1, 'Lightning Bolt', 'hand'); s = J(s); s.turn.priority = 1;
+  s = tudo(faz(comMana(s, ['R'], 1), 1, x => x.t === 'cast' && x.oid === r && x.targets[0].oid === u, 'raio na criatura'));
+  assert.equal(zona(s, u), 'battlefield', 'a criatura fica'); assert.equal(zona(s, h), 'graveyard', 'a umbra vai');
+});
+
+test('C-2 · Gift of the Viper: marcadores +1/+1, alcance e toque mortal na criatura alvo, e a desvira', () => {
+  let s = mesa(['Gift of the Viper', URSO]), g, u;
+  [s, g] = poe(s, 0, 'Gift of the Viper', 'hand'); [s, u] = poe(s, 0, URSO, 'battlefield', { tapped: true });
+  s = tudo(faz(comMana(s, ['G']), 0, x => x.t === 'cast' && x.oid === g && x.targets[0].oid === u));
+  assert.deepEqual(pt(s, u), [3, 3]); assert.equal(s.objects[u].tapped, false);
+  assert.equal(E.hasKeyword(s, s.objects[u], 'reach'), true); assert.equal(E.hasKeyword(s, s.objects[u], 'deathtouch'), true);
+});
+
+test('C-2 · Horror of the Broken Lands: ciclar ou descartar outra carta dá +2/+1 até o fim do turno', () => {
+  let s = mesa(['Horror of the Broken Lands', 'Big Score', URSO]), h, b, u;
+  [s, h] = poe(s, 0, 'Horror of the Broken Lands'); [s, b] = poe(s, 0, 'Big Score', 'hand'); [s, u] = poe(s, 0, URSO, 'hand');
+  s = tudo(faz(comMana(s, ['R', 'R', 'R', 'R']), 0, x => x.t === 'cast' && x.oid === b, 'descarte como custo'));
+  assert.deepEqual(pt(s, h), [6, 5], 'descartou uma');
+});
+
+test('C-2 · Flame Jab: 1 de dano a qualquer alvo; retraçar do cemitério descartando um terreno', () => {
+  let s = mesa(['Flame Jab', 'Mountain']), f, m;
+  [s, f] = poe(s, 0, 'Flame Jab', 'graveyard'); [s, m] = poe(s, 0, 'Mountain', 'hand');
+  const a = legais(comMana(s, ['R']), 0, x => x.t === 'cast' && x.oid === f && x.retrace && x.pay.retrace === m && x.targets[0].player === 1)[0]; assert.ok(a, 'retraçar oferecido');
+  s = tudo(act(comMana(s, ['R']), a));
+  assert.equal(s.players[1].life, 19); assert.equal(zona(s, m), 'graveyard', 'descartou o terreno'); assert.equal(zona(s, f), 'graveyard', 'volta ao cemitério');
+  let t = mesa(['Flame Jab']), f2; [t, f2] = poe(t, 0, 'Flame Jab', 'graveyard'); t = J(t);
+  for (const o of t.zones[0].hand.filter(x => /Land/.test(CARTAS[t.objects[x].name].type_line))) { t.zones[0].hand.splice(t.zones[0].hand.indexOf(o), 1); t.zones[0].library.push(o); t.objects[o].zone = 'library'; }
+  assert.equal(legais(comMana(t, ['R']), 0, x => x.oid === f2 && x.retrace).length, 0, 'sem terreno na mão, sem retraçar');
 });
