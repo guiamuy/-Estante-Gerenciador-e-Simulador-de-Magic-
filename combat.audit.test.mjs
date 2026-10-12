@@ -945,6 +945,16 @@ test('K-65 · murchar e decaída (702.80, 702.147): o Urso com murchar bloqueado
   const t = combate(s, [m, z], [[w, m]]);
   assert.equal(t.objects[w].counters.m1m1, 2); assert.equal(t.players[d].life, 18); assert.equal(vivo(t, z), false);
 });
+test('K-66 · blitz (702.152): pela blitz, a 3/3 ataca no mesmo turno (ímpeto) e causa 3', () => {
+  cobre('blitz');
+  const cartas = { ...CARDS, Blitzer: cre('Blitzer', 3, 3, ['Blitz'], { mana_cost: '{3}{R}', cmc: 4, oracle_text: 'Blitz {1}{R}' }) };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 85, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a; let b; [s, b] = poe(s, a, 'Blitzer', { zone: 'hand' });
+  s = act(s, E.legalActions(s, a).find(x => x.oid === b && x.alt != null)); for (let i = 0; i < 4 && s.stack.length; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  assert.equal(combate(s, [b]).players[d].life, 17);
+});
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));

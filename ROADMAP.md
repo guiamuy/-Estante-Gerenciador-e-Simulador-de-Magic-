@@ -4549,6 +4549,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Aceite:** Sickle Ripper bloqueada por uma 0/4 deixa dois −1/−1 e nenhum dano; no jogador, 2 de vida. A decaída ataca, causa 2 e vai para o cemitério no fim do combate; não consegue bloquear.
 - **Toca ponto comum:** `marcaDanoEmCriatura` (a condição ganha `|| murchaK(s, src)`, sem tirar nada).
 - **Testes:** `keywords.cr4.unit` (2, falham sem a leva), `combat.audit` (1 cenário). Texto oficial: Boggart Ram-Gang, Sickle Ripper (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
+**K-66 · Blitz (702.152)** 🟡 (leva K-66) — onda 4
+- **Valor:** "Blitz {custo}" vira o botão de custo alternativo: a criatura entra com ímpeto, é sacrificada no começo da etapa final e, ao morrer, o controlador compra um card.
+- **Aceite:** pela blitz, a criatura ataca no turno em que entrou; na etapa final vai para o cemitério e o controlador compra; pelo custo normal, fica no campo e não tem ímpeto.
+- **Toca ponto comum:** `moveObject` (uma linha: `blitzouK`).
+- **Testes:** `keywords.cr4.unit` (1, falha sem a leva), `combat.audit` (1 cenário). Texto oficial: Mezzio Mugger, Workshop Warchief (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
+- **Parcial declarado:** reduções de outras fontes não valem sobre o custo da blitz (o mesmo limite do arremeter).
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.

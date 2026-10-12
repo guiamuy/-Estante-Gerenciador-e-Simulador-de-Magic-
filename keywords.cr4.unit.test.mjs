@@ -2367,3 +2367,20 @@ test('CR 702.147a · decaída: não bloqueia; ao atacar, é sacrificada no fim d
   for (let i = 0; i < 6 && !(b.pending && b.pending.kind === 'blockers'); i++) b = b.pending ? act(b, E.legalActions(b, b.pending.p)[0]) : act(b, { t: 'pass', p: b.turn.priority });
   assert.throws(() => act(b, { t: 'block', p: a, blocks: [[z, u]] }), /./, 'a decaída não bloqueia');
 });
+
+/* ---------------- K-66 · blitz 702.152 ---------------- */
+test('CR 702.152a · blitz: custo alternativo; paga, a criatura tem ímpeto, é sacrificada no começo da etapa final e, ao morrer, o controlador compra; pelo custo normal, nada disso', () => {
+  const BZ = { name: 'Blitzer', type_line: 'Creature — Devil', mana_cost: '{3}{R}', cmc: 4, colors: ['R'], power: '3', toughness: '3', keywords: ['Blitz'], oracle_text: 'Blitz {1}{R}' };
+  let s = partida({ Blitzer: BZ }); const a = s.turn.active, d = 1 - a;
+  s = J(s); s.zones[a].library.push(...s.zones[a].hand.splice(0)); for (const x of s.zones[a].library) s.objects[x].zone = 'library'; // mão vazia: a compra não esbarra no limite da limpeza
+  let b; [s, b] = poe(s, a, 'Blitzer', 'hand');
+  const alt = E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === b && x.alt != null); assert.ok(alt);
+  let t = resolve(act(s, alt));
+  assert.ok(E.hasKeyword(t, t.objects[b], 'haste'), 'ímpeto');
+  const mao = t.zones[a].hand.length;
+  t = ateK35(t, a, 'end'); for (let i = 0; i < 10 && t.turn.active === a && (t.turn.step === 'end' || t.stack.length || t.pending); i++) t = t.pending ? act(t, E.legalActions(t, t.pending.p)[0]) : act(t, { t: 'pass', p: t.turn.priority });
+  assert.equal(t.objects[b].zone, 'graveyard', 'sacrificada na etapa final'); assert.equal(t.zones[a].hand.length, mao + 1, 'comprou ao morrer');
+  let n = resolve(act(s, E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === b && x.alt == null)));
+  assert.ok(!E.hasKeyword(n, n.objects[b], 'haste'));
+  n = ateK35(n, d, 'upkeep'); assert.equal(n.objects[b].zone, 'battlefield', 'pelo custo normal, fica');
+});

@@ -5244,6 +5244,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'unleash', // K-62 · 702.98: escolha de entrar com um marcador +1/+1 a mais; com marcador +1/+1, não bloqueia (naoBloqueiaK)
   'horsemanship', // K-63 · 702.31: só criatura com equitação bloqueia a criatura com equitação (horsemanshipBarraK)
   'wither', 'decayed', // K-65 · 702.80 (dano a criatura vira marcadores −1/−1, murchaK) e 702.147 (não bloqueia; ao atacar, sacrificada no fim do combate)
+  'blitz', // K-66 · 702.152: custo alternativo; paga, ímpeto, "ao morrer, compre um card" e sacrificada no começo da etapa final (blitzouK)
   'afflict', 'melee', 'mentor', 'training', // K-31 · 702.130, 702.121, 702.134, 702.149: gatilhos de ataque gerados pela palavra, um por instância
   'battle cry', 'rampage', 'flanking', 'bushido', // K-30 · 702.91, 702.23, 702.25, 702.45: gatilhos de combate gerados pela palavra (GATILHOS_DE_PALAVRA_K), um por instância
   /* ↓ V · palavras-chave da trilha verbos */
@@ -8402,6 +8403,7 @@ function palavraNaLinhaK(k) {
   if (k === 'unleash') return 'unleash'; // K-62
   if (k === 'horsemanship') return 'horsemanship'; // K-63
   if (k === 'wither' || k === 'decayed') return k; // K-65
+  if (k === 'blitz') return 'blitz\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-66
   if (k === 'dash') return 'dash\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-9
   if (k === 'evoke') return 'evoke(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*exile an? (?:white|blue|black|red|green) card from your hand\\.?)'; // K-8 · só as formas que o motor paga
   return ['afterlife', 'rampage', 'bushido', 'afflict'].includes(k) ? `${k} \\d+` : k; // K-30 · alvoroço N e bushido N
@@ -16116,6 +16118,7 @@ function cardFacts(card) {
     presenteK: presenteImpressoK(card), // K-56 · 702.174: 'card' | 'fish' | 'turn' | 'food' | 'treasure' | 'octopus' (undefined quando não tem)
     iminenteK: iminenteImpressoK(card), // K-58 · 702.176: { n, mana } de "Impending 5—{1}{B}" (undefined quando não tem)
     ascenderK: (card && /(^|\n)Ascend( \(|\s*$|\n)/.test(String(card.oracle_text || ''))) || undefined, // K-59 · 702.131: linha "Ascend"
+    blitzK: custoDaLinhaK(card, 'Blitz'), // K-66 · 702.152: "Blitz {2}{B}" (undefined quando não tem)
     campeaoK: campeaoImpressoK(card), // K-44 · 702.72: "Champion a creature" → 'creature'; "Champion an Elf" → 'Elf' (undefined quando não tem)
     suspenderK: suspenderImpressoK(card), // K-22 · 702.62a: "Suspend N—{custo}" (undefined quando não tem)
     equipesK: equipesImpressosK(card), // K-28 · 702.6c: "Equip [qualidade] {custo}" (undefined quando não tem)
@@ -16691,6 +16694,7 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
   if (to === 'battlefield' && fromZone === 'stack' && o.arremetidaK) arremeteuK(s, o); // K-9 · 702.109a: a permanente que a mágica arremetida vira
   if (to === 'battlefield' && fromZone === 'stack' && o.dobradaK) dobrouK(s, o); // K-51 · 702.185a: a permanente que a mágica dobrada vira (Toca ponto comum: moveObject)
   if (to === 'battlefield' && fromZone === 'stack' && o.iminenteK) iminenteEntrouK(s, o); // K-58 · 702.176a: "it's not a creature" enquanto tiver marcador de tempo (Toca ponto comum: moveObject)
+  if (to === 'battlefield' && fromZone === 'stack' && o.blitzadaK) blitzouK(s, o); // K-66 · 702.152a: ímpeto e o sacrifício na etapa final (Toca ponto comum: moveObject)
   if (to === 'battlefield' && fromZone === 'stack' && o.suspensaImpeto) { delete o.suspensaImpeto; aplicaTemporario(s, o, { palavras: ['haste'], ate: { enquanto: 'controlar-fonte' } }, o.controller, o); } // M-269 · "if it's a creature, it has haste"
   if (to === 'battlefield') o.ts = relogio(s); // CR2d.1 · 613.7d: carimbo de tempo de quem entra no campo
   o.sick = to === 'battlefield' && s.facts[o.name].types.includes('creature');
@@ -22325,6 +22329,8 @@ const GATILHOS_DE_PALAVRA_K = {
   gift: (s, o) => o && o.presenteK != null ? ({ kind: 'triggered', when: 'etb', palavraK: 'gift', effects: [{ do: 'presente_k', tipo: s.facts[o.name].presenteK, jogador: o.presenteK }] }) : [],
   // K-65 · 702.147a · "When this creature attacks, sacrifice it at end of combat."
   decayed: (s, o) => ({ kind: 'triggered', when: 'attacks', palavraK: 'decayed', effects: [{ do: 'decaida_k', z: (o && o.zc) || 0 }] }),
+  // K-66 · 702.152a · "When this permanent is put into a graveyard from the battlefield, draw a card" (só a blitzada; 603.10a: como era no campo)
+  blitz: (s, o) => (o && (o.zone === 'battlefield' ? o.blitzadaK : (o.ultima || {}).blitzadaK)) ? ({ kind: 'triggered', when: 'dies', palavraK: 'blitz', effects: [{ do: 'draw', amount: 1 }] }) : [],
   // K-60 · 702.92a/163a/182a · "When this Equipment enters, create a … token, then attach this Equipment to it." (um gatilho por instância)
   'living weapon': (s, o) => ({ kind: 'triggered', when: 'etb', palavraK: 'living weapon', effects: [{ do: 'equipa_ficha_k', ficha: 'germe', z: (o && o.zc) || 0 }] }),
   'for mirrodin!': (s, o) => ({ kind: 'triggered', when: 'etb', palavraK: 'for mirrodin!', effects: [{ do: 'equipa_ficha_k', ficha: 'rebelde', z: (o && o.zc) || 0 }] }),
@@ -22430,14 +22436,14 @@ const PALAVRAS_DE_SAIDA_K = { persist: 'm1m1', undying: 'p1p1', afterlife: null 
 function ultimaPalavrasK(s, o) {
   const out = {};
   for (const [k, m] of Object.entries(PALAVRAS_DE_SAIDA_K)) { if (m && ((o.counters || {})[m] || 0) > 0) continue; const n = instanciasK(s, o, k); if (n) out[k] = n; }
-  return Object.keys(out).length ? { palavrasK: out, ...(out.modular ? { p1p1K: (o.counters || {}).p1p1 || 0 } : {}), ...(out.champion && o.campeaoDeK ? { campeaoDeK: o.campeaoDeK } : {}) } : {}; // K-41 · 702.43a: quantos +1/+1 ela tinha; K-44 · a exilada pelo campeão
+  return Object.keys(out).length ? { palavrasK: out, ...(out.modular ? { p1p1K: (o.counters || {}).p1p1 || 0 } : {}), ...(out.champion && o.campeaoDeK ? { campeaoDeK: o.campeaoDeK } : {}), ...(out.blitz && o.blitzadaK ? { blitzadaK: true } : {}) } : {}; // K-66 // K-41 · 702.43a: quantos +1/+1 ela tinha; K-44 · a exilada pelo campeão
 }
 Object.assign(EXPORTS_K, { ultimaPalavrasK });
 /** K-14 · 603.10a · a foto de quem sai do campo é tirada antes de ela sair; quando várias saem no mesmo evento (s.saindoJuntas: destruir
     todas, ações de estado, sacrifício de cada jogador), a de todas é tirada antes da primeira sair — cada uma vê as outras ainda no campo
     (quem concede persistir e morre junto conta). Guardada fora do estado (WeakMap pela lista do evento), refeita a cada evento. */
 const FOTOS_JUNTAS_K = new WeakMap();
-PALAVRAS_DE_SAIDA_K.modular = null; PALAVRAS_DE_SAIDA_K.soulshift = null; PALAVRAS_DE_SAIDA_K.champion = null; // K-44 // K-41 · 603.10a: contam como eram no campo
+PALAVRAS_DE_SAIDA_K.modular = null; PALAVRAS_DE_SAIDA_K.soulshift = null; PALAVRAS_DE_SAIDA_K.champion = null; PALAVRAS_DE_SAIDA_K.blitz = null; // K-66 · a blitzada conta como era no campo // K-44 // K-41 · 603.10a: contam como eram no campo
 function palavrasAoSairK(s, o) {
   const j = s.saindoJuntas;
   if (Array.isArray(j) && j.includes(o.oid)) {
@@ -22508,6 +22514,7 @@ MARCAS_DA_CONJURACAO.push('proleK'); // K-53 · a marca de prole paga vai da pil
 MARCAS_DA_CONJURACAO.push('harmonizadaK'); // K-55
 MARCAS_DA_CONJURACAO.push('presenteK'); // K-56 · o oponente prometido vai da pilha ao campo
 MARCAS_DA_CONJURACAO.push('iminenteK'); // K-58 · "if this permanent's impending cost was paid": da pilha ao campo; some ao sair (400.7)
+MARCAS_DA_CONJURACAO.push('blitzadaK'); // K-66
 MARCAS_DA_CONJURACAO.push('campeaoDeK', 'campeaoNesteK'); // K-44 · a ligação é deste objeto (400.7)
 const COR_DO_NOME_K = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
 const COR_PT_K = { W: 'branca', U: 'azul', B: 'preta', R: 'vermelha', G: 'verde' };
@@ -22540,6 +22547,7 @@ function altsImpressosK(f) {
   if (f.arremeterK) out.push({ label: `Arremeter ${f.arremeterK.mana}`, cost: { ...f.arremeterK }, marcaK: 'arremetidaK' });
   if (f.espetaculoK) out.push({ label: `Espetáculo ${f.espetaculoK.mana}`, cost: { ...f.espetaculoK }, when: { espetaculoK: true }, marcaK: 'espetaculoK' }); // K-32 · 702.137a
   if (f.emergirK) out.push({ label: `Emergir ${f.emergirK.mana}, sacrificando ${f.emergirK.tipo === 'creature' ? 'uma criatura' : 'um ' + f.emergirK.tipo} (menos o valor dela)`, cost: { mana: '{0}', sacrificeOther: { types: [f.emergirK.tipo] } }, emergirK: { ...f.emergirK }, marcaK: 'emergiuK' }); // K-47 · 702.119a/b
+  if (f.blitzK) out.push({ label: `Blitz ${f.blitzK.mana}`, cost: { ...f.blitzK }, marcaK: 'blitzadaK' }); // K-66 · 702.152a
   if (f.iminenteK) out.push({ label: `Iminente ${f.iminenteK.mana} (entra com ${f.iminenteK.n} marcadores de tempo)`, cost: { mana: f.iminenteK.mana }, marcaK: 'iminenteK' }); // K-58 · 702.176a
   if (f.harmonizarK) out.push({ label: `Harmonizar ${f.harmonizarK.mana}`, cost: { mana: '{0}' }, harmonizarK: { ...f.harmonizarK }, marcaK: 'harmonizadaK', doCemiterioK: true }); // K-55 · 702.180a: só do cemitério (conferido em confereHarmonizarK)
   if (f.dobraK) out.push({ label: `Dobra ${f.dobraK.mana}${f.dobraK.life ? ` e ${f.dobraK.life} de vida` : ''}`, cost: { ...f.dobraK }, marcaK: 'dobradaK' }); // K-51 · 702.185a
@@ -23708,6 +23716,14 @@ Object.assign(EXPORTS_K, { ofertasSemPagarK });
    fonte do dano de uma habilidade sendo o objeto de onde ela veio. 702.147 decaída: não bloqueia (naoBloqueiaK) e, ao atacar, é
    sacrificada no fim do combate (gatilho atrasado). */
 const murchaK = (s, src0) => { const src = fonteDoDano(s, src0); return !!src && !!s.facts[src.name] && has(s, src, 'wither'); };
+/* K-66 · 702.152 blitz: "Blitz [cost]" = custo alternativo (altsImpressosK, marca blitzadaK) e, paga: "it has haste" (enquanto estiver no
+   campo), "When this permanent is put into a graveyard from the battlefield, draw a card" (gatilho da palavra, pela foto de quem sai) e
+   "At the beginning of the end step, sacrifice it" (gatilho atrasado preso à encarnação). */
+function blitzouK(s, o) {
+  aplicaTemporario(s, o, { palavras: ['haste'], ate: 'enquanto-arremetida' }, o.controller, o);
+  (s.atrasados = s.atrasados || []).push({ when: 'next-end-step', turno: s.turn.number, controller: o.controller, jogador: o.controller, objeto: { oid: o.oid, z: o.zc || 0 },
+    name: o.name, source: o.oid, effects: [{ do: 'sacrifice_it', target: 'delayed-object' }] });
+}
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-30 · 701.65 aerobender: "that player exiles those objects. For each card exiled this way, for as long as it remains exiled, its owner
    may cast it by paying {2} rather than paying its mana cost" (a). A permissão é do DONO e da encarnação exilada (400.7: se a carta sair do
@@ -27634,6 +27650,7 @@ Object.assign(PALAVRA_PT, { bloodthirst: 'sede de sangue' }); // K-61
 Object.assign(PALAVRA_PT, { unleash: 'desencadear' }); // K-62
 Object.assign(PALAVRA_PT, { horsemanship: 'equitação' }); // K-63
 Object.assign(PALAVRA_PT, { wither: 'murchar', decayed: 'decaída' }); // K-65
+Object.assign(PALAVRA_PT, { blitz: 'blitz' }); // K-66
 Object.assign(PALAVRA_PT, { afflict: 'aflição', melee: 'refrega', mentor: 'mentor', training: 'treinamento' }); // K-31
 Object.assign(PALAVRA_PT, { 'battle cry': 'grito de guerra', rampage: 'alvoroço', flanking: 'flanquear', bushido: 'bushido' }); // K-30
 const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consultadas por descreveEfeito; antes a pilha mostrava "proeza k")

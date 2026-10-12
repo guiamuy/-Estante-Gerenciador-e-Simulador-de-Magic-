@@ -9091,14 +9091,19 @@
    "n": "702.152",
    "regra": "Keyword Abilities",
    "titulo": "Blitz",
-   "status": "ausente",
-   "falta": "Sem implementação (grep sem ocorrência no motor nem nos scripts). Falta custo alternativo com marca na permanente, ímpeto + \"quando morrer, compre\" condicionais e o gatilho atrasado de sacrificar no próximo passo final (não há gatilho atrasado no motor).",
+   "status": "parcial",
+   "falta": "Aumentos e reduções de custo não valem sobre o custo da blitz (caminho comum do custo alternativo, payAlt; o mesmo pedido de arremeter, emergir e dobra à trilha motor). Blitz só da mão.",
    "esforco": "M",
    "depende": [
     "601.2b custo alternativo",
     "603.7 gatilho atrasado"
    ],
-   "cartas": "uma coleção só (Streets of New Capenna)"
+   "cartas": "uma coleção só (Streets of New Capenna)",
+   "evidencia": "K-66: \"Blitz {custo}\" (custoDaLinhaK) vira custo alternativo (altsImpressosK, marca blitzadaK). A permanente que a mágica blitzada vira (blitzouK em moveObject) ganha ímpeto enquanto estiver no campo e o gatilho atrasado \"sacrifique-a no começo da etapa final\", preso à encarnação; \"quando vai para o cemitério vinda do campo, compre um card\" é gatilho da palavra, só da blitzada, pela foto de quem sai (PALAVRAS_DE_SAIDA_K.blitz, 603.10a).",
+   "testes": [
+    "CR 702.152a · blitz: custo alternativo; paga, a criatura tem ímpeto, é sacrificada no começo da etapa final e, ao morrer, o controlador compra; pelo custo normal, nada disso",
+    "K-66 · blitz (702.152): pela blitz, a 3/3 ataca no mesmo turno (ímpeto) e causa 3"
+   ]
   },
   {
    "n": "702.153",
