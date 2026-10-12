@@ -6828,15 +6828,18 @@
    "regra": "Keyword Abilities",
    "titulo": "Landwalk",
    "status": "parcial",
-   "falta": "Travessia de terreno não básico, lendário, da neve, do deserto e de outros tipos (702.14a com qualquer qualidade); \"perde a travessia\" e efeitos que a ignoram",
+   "falta": "\"Perde a travessia\" de uma qualidade e efeitos que mandam ignorar a travessia não existem; travessia com qualidade concedida por efeito (Aura, \"gains …walk\") não existe — só as cinco básicas como palavra-chave concedida.",
    "esforco": "P",
    "depende": [
     "509.1b"
    ],
    "cartas": "comum (antiga, descontinuada)",
-   "evidencia": "canBlock + TRAVESSIAS: travessia de ilha, pântano, floresta, montanha e planície tornam a criatura imbloqueável quando o defensor controla terreno daquele tipo · teste de conformidade em cr.conformidade (leva CR1b, motor v74)",
+   "evidencia": "canBlock + TRAVESSIAS: travessia de ilha, pântano, floresta, montanha e planície tornam a criatura imbloqueável quando o defensor controla terreno daquele tipo · teste de conformidade em cr.conformidade (leva CR1b, motor v74) K-21: travessias com qualidade lidas da linha (travessiasImpressasK em cardFacts.travK: \"Nonbasic landwalk\", \"Legendary landwalk\", \"Snow swampwalk\", \"Artifact landwalk\", \"Desertwalk\"…, 702.14a) e conferidas no bloqueio (travessiaQueBarraK em porQueNaoBloqueia, 702.14c: terreno do defensor com a qualidade, sem ela, ou com a qualidade e o subtipo); virada para baixo ou sem as habilidades impressas não tem. Cartas exemplo: Dryad Sophisticate, Desert Nomads (Oracle do Forge, 11/10/2026).",
    "testes": [
-    "CR 702.14 · travessia: não pode ser bloqueada se o defensor controla terreno daquele tipo"
+    "CR 702.14 · travessia: não pode ser bloqueada se o defensor controla terreno daquele tipo",
+    "CR 702.14c · travessia de terreno não básico (Dryad Sophisticate, texto oficial): só com terreno não básico do defensor ela não é bloqueada",
+    "CR 702.14a/c · travessia de deserto (Desert Nomads, texto oficial) olha o subtipo do terreno do defensor; virada para baixo é bloqueada",
+    "K-21 · travessia com qualidade (702.14): a travessia de não básico passa pelo Urso quando o defensor tem um terreno não básico"
    ]
   },
   {

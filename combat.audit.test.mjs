@@ -457,6 +457,17 @@ test('K-17 · proteção contra criaturas (702.16): bloqueia o Urso e não leva 
   assert.ok(vivo(r, c), 'o dano do Urso foi prevenido'); assert.equal(r.objects[u].damage, 1, 'e o Capelão causou o dele');
 });
 
+test('K-21 · travessia com qualidade (702.14): a travessia de não básico passa pelo Urso quando o defensor tem um terreno não básico', () => {
+  cobre('landwalk');
+  const cartas = { ...CARDS, Driade: cre('Driade', 2, 1, [], { oracle_text: 'Nonbasic landwalk' }), Ermo: { name: 'Ermo', type_line: 'Land', mana_cost: '', cmc: 0, colors: [], keywords: [], oracle_text: '' } };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 46, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a; let x, u; [s, x] = poe(s, a, 'Driade'); [s, u] = poe(s, d, 'Urso'); [s] = poe(s, d, 'Ermo');
+  assert.throws(() => combate(s, [x], [[u, x]]), /travessia|bloque/i, 'o bloqueio é recusado');
+  const r = combate(s, [x]); assert.equal(r.players[d].life, 18);
+});
+
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));

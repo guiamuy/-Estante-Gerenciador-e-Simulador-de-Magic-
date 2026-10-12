@@ -990,3 +990,23 @@ test('CR 702.4c-d · perder o golpe duplo no primeiro passo tira o segundo dano;
   const com = entrePassos(s, [r], t => ganha(t, t.objects[r], 'double strike'));
   assert.equal(com.players[d].life, v - 2, '702.4d: o Rápido ganhou golpe duplo e causa no segundo passo também');
 });
+
+/* ---------------- K-21 · 702.14 travessia com qualidade ---------------- */
+const ERMO = { name: 'Ermo', type_line: 'Land', mana_cost: '', cmc: 0, colors: [], keywords: [], oracle_text: '{T}: Add {C}.' };
+const DESERTO_K = { name: 'Deserto', type_line: 'Land — Desert', mana_cost: '', cmc: 0, colors: [], keywords: [], oracle_text: '' };
+test('CR 702.14c · travessia de terreno não básico (Dryad Sophisticate, texto oficial): só com terreno não básico do defensor ela não é bloqueada', () => {
+  const DS = { ...oficial('Dryad Sophisticate'), keywords: ['Nonbasic landwalk'] };
+  let s = partida({ 'Dryad Sophisticate': DS, Urso: URSO, Ermo: ERMO }); const a = s.turn.active, d = 1 - a;
+  let x, u; [s, x] = poe(s, a, 'Dryad Sophisticate'); [s, u] = poe(s, d, 'Urso'); [s] = poe(s, d, 'Forest');
+  assert.equal(podeBloquear(s, x, u), true, 'só Floresta (básica): bloqueia');
+  [s] = poe(s, d, 'Ermo');
+  assert.equal(podeBloquear(s, x, u), false, 'com o Ermo (não básico): não bloqueia');
+});
+test('CR 702.14a/c · travessia de deserto (Desert Nomads, texto oficial) olha o subtipo do terreno do defensor; virada para baixo é bloqueada', () => {
+  let s = partida({ 'Desert Nomads': oficial('Desert Nomads'), Urso: URSO, Deserto: DESERTO_K }); const a = s.turn.active, d = 1 - a;
+  let x, u; [s, x] = poe(s, a, 'Desert Nomads'); [s, u] = poe(s, d, 'Urso');
+  assert.equal(podeBloquear(s, x, u), true, 'sem Deserto: bloqueia');
+  [s] = poe(s, d, 'Deserto');
+  assert.equal(podeBloquear(s, x, u), false, 'com Deserto: não bloqueia');
+  s = J(s); s.objects[x].faceDown = true; assert.equal(podeBloquear(s, x, u), true, 'virada para baixo não tem a habilidade');
+});

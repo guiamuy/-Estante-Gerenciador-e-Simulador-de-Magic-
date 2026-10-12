@@ -5210,6 +5210,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'jump-start', // K-10 · 702.133: conjurar do cemitério pagando o custo e descartando uma carta; exilada ao sair da pilha
   'evolve', // K-11 · 702.100: "sempre que uma criatura sua entra com poder ou resistência maior, +1/+1" (evoluirK), uma por instância
   'exploit', // K-12 · 702.110: "quando entra, você pode sacrificar uma criatura"; o script diz o que acontece "quando ~ explora" (gatilho 'exploits')
+  'landwalk', // K-21 · 702.14: travessias com qualidade ("Nonbasic landwalk", "Desertwalk", "Snow swampwalk"…), lidas da linha (travessiasK)
   'protection', // K-17 · 702.16: a qualidade vem da linha "Protection from …" (cores, tipos, subtipos, multicolorido, tudo); a palavra sozinha não protege
   'convoke', 'improvise', // K-13 · 702.51 e 702.126: virar criaturas (artefatos) para pagar parte do custo total (tapaParaPagarK)
   /* ↓ V · palavras-chave da trilha verbos */
@@ -7738,6 +7739,7 @@ Object.assign(EXPORTS_K_SC, { wardCustoErrosK });
 TRIGGER_PT.exploits = 'quando explora uma criatura'; // K-12 · 702.110b
 TRIGGER_PT.cycled = 'quando você a cicla'; // K-16 · 702.29c
 function palavraNaLinhaK(k) {
+  if (k === 'landwalk') return '(?:(?:non)?(?:basic|legendary|snow|artifact) )?(?:land|desert|island|swamp|forest|mountain|plains|gate|cave|lair|locus|sphere|urza\'s)walk'; // K-21
   if (k === 'hexproof') return 'hexproof(?: from (?:white|blue|black|red|green|everything|multicolored|monocolored|colorless|creatures|artifacts|enchantments|instants|sorceries|planeswalkers|lands)(?: and from (?:white|blue|black|red|green|multicolored|monocolored|colorless|creatures|artifacts|enchantments|instants|sorceries|planeswalkers|lands))*)?'; // K-18 · 702.11d
   if (k === 'protection') { const q = '(?:white|blue|black|red|green|everything|multicolored|monocolored|colorless|all colors|creatures|artifacts|enchantments|instants|sorceries|planeswalkers|lands|(?!players\\b|opponents\\b)[a-z]+s)'; return `protection from ${q}(?: and from ${q})*`; } // K-17 · só as qualidades que o motor confere (protecaoImpressa e protecaoQualidadesK)
   if (k === 'dash') return 'dash\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-9
@@ -15257,6 +15259,7 @@ function cardFacts(card) {
     tapaK: tapaImpressoK(card), // K-13 · 702.51/702.126: "Convoke" / "Improvise" impressos (undefined quando não tem)
     recomecarK: recomecarImpressoK(card), // K-10 · 702.133: linha "Jump-start" (undefined quando não tem)
     arremeterK: arremeterImpressoK(card), // K-9 · 702.109: "Dash {1}{R}" (undefined quando não tem)
+    travK: travessiasImpressasK(card), // K-21 · 702.14a/c: "Nonbasic landwalk", "Desertwalk"… (undefined quando não tem)
     hexK: resistenciaQualidadesK(card), // K-18 · 702.11d: "Hexproof from black", "from monocolored"… impressos (undefined quando não tem)
     protK: protecaoQualidadesK(card), // K-17 · 702.16a: qualidades que não são cor ("from creatures", "from Demons", "from everything"…) (undefined quando não tem)
     evocarK: evocarImpressoK(card), // K-8 · 702.74: "Evoke {2}{U}" / "Evoke—Exile a green card from your hand." (undefined quando não tem)
@@ -16773,6 +16776,7 @@ function porQueNaoBloqueia(s, blocker, attacker) {
   if (has(s, a, 'skulk') && power(s, b) > power(s, a)) return 'esgueirar: poder maior que o da atacante'; // 702.118b
   for (const [k, tipo] of TRAVESSIAS) // 702.14c · o defensor controla um terreno daquele tipo
     if (has(s, a, k) && battlefield(s).some(l => l.controller === b.controller && !l.faceDown && s.facts[l.name].types.includes('land') && new RegExp('\\b' + tipo + '\\b', 'i').test(linhaDeTipo(s, l)))) return PALAVRA_DA_TRAVESSIA[k];
+  { const tv = travessiaQueBarraK(s, a, b); if (tv) return tv; } // K-21 · 702.14c com qualidade (Toca ponto comum: porQueNaoBloqueia)
   return null;
 }
 const PALAVRA_DA_TRAVESSIA = { islandwalk: 'travessia de ilha', swampwalk: 'travessia de pântano', forestwalk: 'travessia de floresta', mountainwalk: 'travessia de montanha', plainswalk: 'travessia de planície' };
@@ -21331,6 +21335,35 @@ function resistenteAK(s, o, src) {
   return f.hexK.some(q => casaProtecaoK(s, q, src));
 }
 Object.assign(EXPORTS_K, { resistenciaQualidadesK, resistenteAK });
+/* K-21 · 702.14 travessia com qualidade. "[tipo]walk": não pode ser bloqueada enquanto o defensor controlar um terreno com a qualidade
+   (c): com o subtipo ("Desertwalk"), com o tipo ou supertipo ("artifact landwalk", "legendary landwalk", "snow landwalk"), sem ele
+   ("nonbasic landwalk"), ou com os dois ("snow swampwalk"). As cinco básicas sem qualidade seguem pela lista de sempre (TRAVESSIAS). */
+function travessiasImpressasK(card) {
+  const txt = String((card && (card.oracle_text || (card.faces && card.faces[0] && card.faces[0].oracle_text))) || ''), out = [];
+  const BASICAS = ['island', 'swamp', 'forest', 'mountain', 'plains'];
+  for (const l0 of txt.split('\n')) for (const p of l0.replace(/\s*\([^)]*\)/g, '').split(/,\s*/)) {
+    const m = p.trim().match(/^(?:(non)?(basic|legendary|snow|artifact) )?([a-z']+)walk$/i); if (!m) continue;
+    const sub = m[3].toLowerCase(), q = m[2] && m[2].toLowerCase();
+    if (!q && BASICAS.includes(sub)) continue; // islandwalk e as outras: já são palavras-chave
+    out.push({ ...(q ? { qualidade: q, nao: !!m[1] } : {}), ...(sub !== 'land' ? { subtipo: sub[0].toUpperCase() + sub.slice(1) } : {}) });
+  }
+  return out.length ? out : undefined;
+}
+/** O terreno `l` tem a travessia `t`? (qualidade: supertipo ou tipo de carta; com `nao`, sem ele; subtipo na linha de tipo) */
+function terrenoDaTravessiaK(s, l, t) {
+  const linha = linhaDeTipo(s, l);
+  if (t.subtipo && !new RegExp('\\b' + t.subtipo.replace(/'/g, '.') + '\\b', 'i').test(linha)) return false;
+  if (t.qualidade) { const tem = t.qualidade === 'artifact' ? tiposDe(s, l).includes('artifact') : new RegExp('\\b' + t.qualidade + '\\b', 'i').test(linha); if (tem === t.nao) return false; }
+  return true;
+}
+/** Texto para a mesa quando uma travessia com qualidade impede o bloqueio, ou null. */
+function travessiaQueBarraK(s, a, b) {
+  const f = s.facts[a.name]; if (!f || !f.travK || a.faceDown || semImpressas(s, a)) return null;
+  for (const t of f.travK) if (battlefield(s).some(l => l.controller === b.controller && !l.faceDown && tiposDe(s, l).includes('land') && terrenoDaTravessiaK(s, l, t)))
+    return `travessia (${t.nao ? 'não ' : ''}${t.qualidade ? { basic: 'básico', legendary: 'lendário', snow: 'da neve', artifact: 'artefato' }[t.qualidade] + ' ' : ''}${t.subtipo || 'terreno'})`;
+  return null;
+}
+Object.assign(EXPORTS_K, { travessiasImpressasK, travessiaQueBarraK });
 /* K-19 · 702.19b · atropelar com um bloqueador só: depois do letal no bloqueador, o excedente vai como quem ataca escolher, entre o
    bloqueador e o jogador (ou planeswalker/batalha atacado). A mesa oferece as duas pontas — o letal no bloqueador e o resto no jogador
    (a de antes, primeira opção) e tudo no bloqueador — pelo mesmo caminho da divisão entre bloqueadores (CR2g.2). Divisões no meio não são
@@ -24708,6 +24741,7 @@ Object.assign(PALAVRA_PT, { evolve: 'evoluir' }); // K-11
 Object.assign(PALAVRA_PT, { exploit: 'explorar' }); // K-12
 Object.assign(PALAVRA_PT, { convoke: 'convocar', improvise: 'improvisar' }); // K-13
 Object.assign(PALAVRA_PT, { protection: 'proteção' }); // K-17
+Object.assign(PALAVRA_PT, { landwalk: 'travessia' }); // K-21
 /* ↓ V · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha verbos */
 const MARCADOR_PT_V = { p1p1: '+1/+1', m1m1: '−1/−1', loyalty: 'de lealdade', poison: 'de veneno' }; // V-7
 const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas por descreveEfeito)
