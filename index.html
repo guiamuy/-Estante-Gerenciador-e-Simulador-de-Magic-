@@ -6084,7 +6084,7 @@ function validateScript(sc) {
   if (sc && sc.replicate != null && sc.kicker) errs.push('replicar e reforço na mesma carta não são aceitos (os dois usam o pagamento repetido)');
   if (sc && sc.modeCount != null && !(Number.isInteger(sc.modeCount) && sc.modeCount >= 2 && (sc.modes || []).length && (sc.modeRepeat || sc.modeCount <= sc.modes.length))) errs.push('número de modos inválido');
   if (sc && sc.cumulativeUpkeep && !/\{/.test(String(sc.cumulativeUpkeep.mana || ''))) errs.push('manutenção cumulativa precisa de um custo de mana');
-  errs.push(...sagaErros(sc), ...tripularErros(sc), ...aventuraErros(sc), ...duplaFaceErros(sc), ...modalErros(sc)); // T-8 · CR 712.3 · dupla face modal (mesma chamada) // T-7 · CR 712 · dupla face (mesma chamada) // T-5 · CR 715 · aventura (mesma chamada) // T-3 · CR 702.122 · tripular (mesma chamada da T-1) // T-1 · CR 714 · Saga: capítulos, read ahead e o marcador de entrada (função abaixo da âncora T das exportações)
+  errs.push(...sagaErros(sc), ...tripularErros(sc), ...aventuraErros(sc), ...duplaFaceErros(sc), ...modalErros(sc), ...divididaErros(sc)); // T-10 · CR 709 · carta dividida (mesma chamada) // T-8 · CR 712.3 · dupla face modal (mesma chamada) // T-7 · CR 712 · dupla face (mesma chamada) // T-5 · CR 715 · aventura (mesma chamada) // T-3 · CR 702.122 · tripular (mesma chamada da T-1) // T-1 · CR 714 · Saga: capítulos, read ahead e o marcador de entrada (função abaixo da âncora T das exportações)
   return errs.concat(exampleErrors(sc));
 }
 const ATRASOS = ['next-upkeep', 'next-end-step', 'end-of-combat']; // CR2b.1 · momentos de gatilho atrasado que o motor conhece
@@ -6416,6 +6416,17 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-10 · CR 709 · cartas divididas (Oracle do Forge, clone de 11/10/2026). O script mora no nome da carta inteira ("Wax // Wane");
+  // `self: { dividida: true, mana, types }` e `effects` são a metade esquerda, `back` é a direita (com `mana`). A partida usa sempre a carta inteira.
+  { name: 'Wax // Wane', self: { dividida: true, mana: '{G}', types: ['instant'] }, effects: [{ do: 'pump', power: 2, toughness: 2, target: 'creature' }], // "Target creature gets +2/+2 until end of turn."
+    back: { name: 'Wane', types: ['instant'], mana: '{W}', effects: [{ do: 'destroy', target: 'enchantment' }] }, // "Destroy target enchantment."
+    example: { target: 'own-creature', expect: { pump: [2, 2] } } },
+  { name: 'Assault // Battery', self: { dividida: true, mana: '{R}', types: ['sorcery'] }, effects: [{ do: 'damage', amount: 2, target: 'any' }], // "Assault deals 2 damage to any target."
+    back: { name: 'Battery', types: ['sorcery'], mana: '{3}{G}', effects: [{ do: 'token', amount: 1, token: { name: 'Elephant', types: ['creature'], subtypes: ['Elephant'], colors: ['G'], power: 3, toughness: 3 } }] }, // "Create a 3/3 green Elephant creature token."
+    example: { target: 'opponent', expect: { opponentLife: -2 } } },
+  { name: 'Dead // Gone', self: { dividida: true, mana: '{R}', types: ['instant'] }, effects: [{ do: 'damage', amount: 2, target: 'creature' }], // "Dead deals 2 damage to target creature."
+    back: { name: 'Gone', types: ['instant'], mana: '{2}{R}', effects: [{ do: 'bounce', target: { tipos: ['creature'], de: 'opponent' } }] }, // "Return target creature you don't control to its owner's hand."
+    example: { target: 'enemy-creature', expect: { gone: true } } }, // a criatura do cenário é 2/2: os 2 de dano da Dead a destroem
   // T-8 · CR 712.3 / 712.11b / 712.12 · dupla face modal (Oracle do Forge, clone de 11/10/2026). `self: { modal: true }` + `back`: a face de
   // trás é conjurada (`back.mana`) ou, sendo terreno, jogada como o terreno do turno (`back.produces`, `back.entersTapped`). O que a
   // frente faz vem do script e do texto da carta, como em qualquer carta ("{T}: Add {G}." da Tangled Florahedron e da Brightclimb Pathway).
@@ -7735,6 +7746,23 @@ EVENTOS_DE_OBJETO.push('exaurida'); OBJETOS_DO_EVENTO.exaurida = ['self']; GATIL
 // V-6 · evento "ficou monstruosa" (701.37): da própria permanente
 EVENTOS_DE_OBJETO.push('monstruosa'); OBJETOS_DO_EVENTO.monstruosa = ['self']; GATILHO_EVENTO['becomes-monstrous'] = { evento: 'monstruosa', objeto: 'self' }; TRIGGER_PT['becomes-monstrous'] = 'quando fica monstruosa';
 /* ↓ T · exportações de scripts.js da trilha tipos */
+/* ---------------- T-10 · CR 709 · carta dividida (forma do script) ----------------
+   O script mora no nome da carta inteira ("Wax // Wane"): `self: { dividida: true, mana: '{G}', types: ['instant'] }` e `effects` são a esquerda;
+   `back: { name, types, mana, colors, effects }` é a direita. Salas (709.5) e fundir/aftermath ficam fora desta forma. */
+function divididaErros(sc) {
+  const errs = [], sf = sc && sc.self, dv = sf && sf.dividida;
+  if (dv == null) return errs;
+  if (dv !== true) errs.push('dividida: self.dividida só vale como true');
+  if (sf.modal || sf.duplaFace || sf.aventura) errs.push('dividida: a carta é dividida, modal, de transformar ou de aventura, não as duas');
+  if (!(typeof sf.mana === 'string' && /\{/.test(sf.mana))) errs.push('dividida: falta o custo da metade esquerda (self.mana)');
+  const ok = ts => Array.isArray(ts) && ts.length && ts.every(t => t === 'instant' || t === 'sorcery');
+  if (!ok(sf.types)) errs.push('dividida: as metades são instantânea ou feitiço (self.types)');
+  if (!sc.back) { errs.push('dividida: falta a metade direita (back)'); return errs; }
+  if (!(typeof sc.back.mana === 'string' && /\{/.test(sc.back.mana))) errs.push('dividida: a metade direita precisa de custo (back.mana)');
+  if (!ok(sc.back.types)) errs.push('dividida: as metades são instantânea ou feitiço (back.types)');
+  return errs;
+}
+Object.assign(EXPORTS_T_SC, { divididaErros });
 /* ---------------- T-8 · CR 712.3 · dupla face modal (forma do script) ----------------
    `self: { modal: true }` + `back: { name, types, … }`. A face de trás que não é terreno tem custo próprio (`back.mana`) e é
    conjurada por ela; a que é terreno é jogada como terreno (`back.produces: [['G']]`, `back.entersTapped: true`). As duas faces
@@ -7784,7 +7812,7 @@ function aventuraErros(sc) {
 }
 /** As faces de trás desta trilha só viram fatos na partida que tem a carta (createGame): script novo com `back` na biblioteca não
  * muda o estado das partidas que não o usam. Cada tipo de carta da trilha acrescenta a sua marca aqui. */
-const versoSoNaPartida = sc => !!(sc && sc.self && (sc.self.aventura || sc.self.duplaFace || sc.self.modal)); // T-7 · dupla face que transforma · T-8 · modal
+const versoSoNaPartida = sc => !!(sc && sc.self && (sc.self.aventura || sc.self.duplaFace || sc.self.modal || sc.self.dividida)); // T-10 · dividida // T-7 · dupla face que transforma · T-8 · modal
 Object.assign(EXPORTS_T_SC, { aventuraErros, versoSoNaPartida });
 /* ---------------- T-3 · CR 702.122 · tripular (forma do script) ----------------
    Tripular é a habilidade ativada de custo `{ crew: N }` (CR2d.3). Esta leva acrescenta:
@@ -15466,6 +15494,7 @@ function createGame(setup) {
   };
   const scripts = { ...SC.SCRIPTS };
   for (const [name, sc] of Object.entries(setup.scripts || {})) if (!SC.validateScript(sc).length) scripts[name] = sc;
+  setup = divididasPorInteiroT(setup, scripts); // T-10 · CR 709 · carta dividida listada pelo nome de uma metade ("Wax"): a partida usa a carta inteira ("Wax // Wane"); cópia rasa do setup, sem mexer no de quem chamou
   apelidosDeDuasPartesT(scripts, setup.cards); // T-6 · carta de duas partes da trilha tipos listada pelo nome completo ("A // B"): o script da frente vale para ela (função abaixo da âncora T das exportações)
   for (const [name, card] of Object.entries(setup.cards || {})) if (!scripts[name]) { const li = SC.scriptLido(card); if (li) scripts[name] = li; } // LT7 · lida e revisada: joga pelo script lido (validado na leitura)
   for (const [name, card] of Object.entries(setup.cards || {})) s.facts[name] = cardFacts(card);
@@ -22047,6 +22076,7 @@ function fatosDeDuasPartesT(s, sc, setup) {
     fb.cost = parseCost(sc.omen.mana); fb.cmc = valorDoCustoT(fb.cost); fb.semCusto = false;
     if (!(sc.back.colors || []).length) fb.colors = coresDoCustoT(fb.cost);
   }
+  if (fb && sc.self && sc.self.dividida) fatosDaDivididaT(s, sc, setup, fb); // T-10 · CR 709.3b / 709.4
   if (fb && sc.self && sc.self.modal) { // T-8 · 712.8f: a face de trás modal tem as características dela — custo, valor de mana, cor, mana que gera, entrar virada
     const b = sc.back, terreno = (b.types || []).includes('land');
     fb.cost = parseCost(b.mana || ''); fb.cmc = valorDoCustoT(fb.cost); fb.semCusto = !terreno && !b.mana;
@@ -22059,7 +22089,7 @@ function fatosDeDuasPartesT(s, sc, setup) {
     if (frente && s.facts[frente]) fb.cmc = s.facts[frente].cmc || 0;
   }
   for (const [n, card] of Object.entries(setup.cards || {})) {
-    if (n !== sc.name && n.split(' // ')[0] !== sc.name) continue;
+    if ((n !== sc.name && n.split(' // ')[0] !== sc.name) || sc.self.dividida) continue; // T-10 · a dividida tem o custo das duas metades (fatosDaDivididaT)
     const mc = String((card && card.mana_cost) || '');
     if (s.facts[n] && mc.includes(' // ')) s.facts[n].cost = parseCost(mc.split(' // ')[0]);
     // T-8 · com as duas faces no dado (rede), a mana que a FRENTE gera sai só do texto da frente (o texto junto daria {W} e {B} à Brightclimb Pathway)
@@ -22128,6 +22158,7 @@ function faceDeTras(s, x) {
 }
 const costStringT = c => (c.x ? '{X}'.repeat(c.x) : '') + (c.generic ? `{${c.generic}}` : '') + (c.hybrid || []).map(h => `{${h}}`).join('') + COLORS.map(k => `{${k}}`.repeat((c.colored || {})[k] || 0)).join('');
 function faceEscolhidaT(s, a, o) {
+  if (divididaEscolhidaT(s, a, o)) return; // T-10 · CR 709.3 · a metade da carta dividida
   if (a.face == null) return;
   const fv = o && faceDeTras(s, o);
   if (a.face !== 'verso' || !fv || !(o.zone === 'hand' || (o.zone === 'exile' && jogavelDoExilio(s, a.p, o))) || o.frontName) throw new RuleError('face', 'só a carta de dupla face modal, na mão ou jogável do exílio, escolhe a face'); // T-9 · 712.11b/712.12 não limitam a escolha à mão
@@ -22138,6 +22169,7 @@ function faceEscolhidaT(s, a, o) {
 let DENTRO_DAS_MODAIS = false;
 function modalOfertas(s, p, out) {
   if (DENTRO_DAS_MODAIS || s.pending) return;
+  divididaOfertas(s, p, out); // T-10 · CR 709.3 · uma oferta por metade, no lugar da carta inteira
   const modais = s.zones[p].hand.concat(s.zones[p].exile.filter(oid => jogavelDoExilio(s, p, s.objects[oid]))).filter(oid => !s.objects[oid].frontName && faceDeTras(s, oid)); // T-9 · também a jogável do exílio
   if (!modais.length) return;
   const s2 = cloneEstado(s); for (const oid of modais) flipTo(s2, s2.objects[oid], faceDeTras(s, oid).nome);
@@ -22145,6 +22177,65 @@ function modalOfertas(s, p, out) {
   try { for (const a of legalActions(s2, p)) if (modais.includes(a.oid) && (a.t === 'cast' || a.t === 'play_land') && !a.omen && !a.disturb && !a.faceDown && !a.bestow && a.alt == null && !a.kick) out.push({ ...a, face: 'verso' }); }
   finally { DENTRO_DAS_MODAIS = false; }
 }
+/* ---------------- T-10 · CR 709 · cartas divididas ----------------
+   - A partida usa sempre a carta inteira ("Wax // Wane"), também quando a lista traz o nome de uma metade (divididasPorInteiroT).
+   - 709.4 / 709.4b–c: fora da pilha a carta tem os dois tipos, o custo somado e a cor e o valor de mana desse custo; cada metade
+     tem fatos próprios (nome, tipo, custo, cor, efeitos). 709.4a: `nomesDe` devolve os dois nomes.
+   - 709.3 / 709.3a–b: a ação de conjurar leva `face: 'esquerda' | 'direita'` (sem `face`, a esquerda) e a metade escolhida vai para
+     cima antes de qualquer conferência: só ela é avaliada e só ela existe na pilha. Ao sair da pilha volta a carta inteira.
+   - As ofertas são uma por metade, calculadas por `legalActions` numa cópia do estado com as divididas viradas para cada metade;
+     a oferta da carta inteira (custo somado) sai da lista. */
+const esquerdaT = sc => sc.name.split(' // ')[0]; // o nome da metade esquerda
+const direitaT = sc => (typeof sc.back === 'string' ? sc.back : sc.back.name); // o da direita (nos fatos, `back` é o nome)
+const divididaScriptT = (s, o) => { const f = o && s.facts[o.frontName || o.name], sc = f && f.script; return sc && sc.self && sc.self.dividida && sc.back ? sc : null; };
+function metadesDe(s, x) {
+  const o = typeof x === 'string' ? s.objects[x] : x; if (!o || o.ability) return null;
+  const sc = divididaScriptT(s, o), esq = sc && esquerdaT(sc); if (!sc || !s.facts[esq] || !s.facts[direitaT(sc)]) return null;
+  return [{ nome: esq, mana: costStringT(s.facts[esq].cost) }, { nome: direitaT(sc), mana: costStringT(s.facts[direitaT(sc)].cost) }];
+}
+/** 709.4a · os nomes do objeto: os das duas metades fora da pilha, o da metade conjurada na pilha. */
+function nomesDe(s, o) { const md = !o.frontName && metadesDe(s, o); return md ? md.map(x => x.nome) : [o.name]; }
+function divididasPorInteiroT(setup, scripts) {
+  const troca = {}, porMetade = {};
+  for (const sc of Object.values(scripts || {})) if (sc && sc.self && sc.self.dividida && sc.back) { porMetade[esquerdaT(sc)] = sc.name; porMetade[sc.back.name] = sc.name; }
+  for (const k of Object.keys(setup.cards || {})) { const inteira = porMetade[k]; if (inteira && k !== inteira) troca[k] = inteira; }
+  if (!Object.keys(troca).length) return setup;
+  const cards = {}; for (const [k, c] of Object.entries(setup.cards)) { const n = troca[k] || k; if (!cards[n] || n === k) cards[n] = c; }
+  return { ...setup, cards, players: setup.players.map(pl => ({ ...pl, deck: (pl.deck || []).map(e => (troca[e.name] ? { ...e, name: troca[e.name] } : e)) })) };
+}
+function fatosDaDivididaT(s, sc, setup, fd) {
+  const sf = sc.self, cd = parseCost(sf.mana), ce = sc.back.colors && sc.back.colors.length ? null : 1;
+  fd.cost = parseCost(sc.back.mana); fd.cmc = valorDoCustoT(fd.cost); fd.semCusto = false; if (ce) fd.colors = coresDoCustoT(fd.cost);
+  const esq = esquerdaT(sc), fe = s.facts[esq] = cardFacts({ name: esq, type_line: (sf.types || []).join(' '), colors: (sf.colors && sf.colors.length) ? sf.colors : coresDoCustoT(cd), keywords: [], oracle_text: '' });
+  fe.cost = cd; fe.cmc = valorDoCustoT(cd); fe.semCusto = false; fe.script = { name: esq, effects: sc.effects || [], abilities: [] }; fe.metadeDe = sc.name;
+  fd.metadeDe = fe.metadeDe;
+  const inteira = s.facts[fe.metadeDe];
+  if (inteira) {
+    inteira.cost = parseCost(sf.mana + sc.back.mana); inteira.cmc = valorDoCustoT(inteira.cost); inteira.semCusto = false;
+    inteira.types = [...new Set([...(fe.types || []), ...(fd.types || [])])];
+    inteira.colors = COLORS.filter(k => (fe.colors || []).includes(k) || (fd.colors || []).includes(k));
+  }
+}
+function divididaEscolhidaT(s, a, o) {
+  const sc = o && !o.frontName && divididaScriptT(s, o); if (!sc) return false;
+  const lado = a.face == null ? 'esquerda' : a.face;
+  if (lado !== 'esquerda' && lado !== 'direita') throw new RuleError('face', 'escolha a metade da carta dividida: esquerda ou direita');
+  if (a.omen || a.disturb || a.faceDown || a.bestow) throw new RuleError('face', 'a metade é conjurada pelo custo dela');
+  flipTo(s, o, lado === 'direita' ? direitaT(sc) : esquerdaT(sc));
+  return true;
+}
+function divididaOfertas(s, p, out) {
+  const aqui = s.zones[p].hand.concat(s.zones[p].exile.filter(oid => jogavelDoExilio(s, p, s.objects[oid])), s.zones[p].graveyard).filter(oid => !s.objects[oid].frontName && metadesDe(s, oid));
+  if (!aqui.length) return;
+  for (let i = out.length - 1; i >= 0; i--) if (out[i].t === 'cast' && aqui.includes(out[i].oid) && out[i].face == null) out.splice(i, 1); // a carta inteira não é conjurada (709.3)
+  for (const lado of ['esquerda', 'direita']) {
+    const s2 = cloneEstado(s); for (const oid of aqui) { const sc = divididaScriptT(s2, s2.objects[oid]); flipTo(s2, s2.objects[oid], lado === 'direita' ? direitaT(sc) : esquerdaT(sc)); }
+    DENTRO_DAS_MODAIS = true;
+    try { for (const a of legalActions(s2, p)) if (aqui.includes(a.oid) && a.t === 'cast' && !a.omen && !a.disturb && !a.faceDown && !a.bestow) out.push({ ...a, face: lado }); }
+    finally { DENTRO_DAS_MODAIS = false; }
+  }
+}
+Object.assign(EXPORTS_T, { metadesDe, nomesDe });
 Object.assign(EXPORTS_T, { faceDeTras });
 Object.assign(EXPORTS_T, { parDuplaFaceT, transformada, transformaT });
 Object.assign(EXPORTS_T, { aventuraDe });
@@ -23858,6 +23949,7 @@ function describe(before, a, events, after) {
   }
   if (a.t === 'cast' && a.free) L[L.length - 1] += ' (sem pagar)';
   if (a.face === 'verso' && L.length) { const fv = E.faceDeTras(before, a.oid), n0 = nameOf(before, a.oid); if (fv) L[L.length - 1] = L[L.length - 1].replace(n0, `${fv.nome} (a outra face de ${n0})`); } // T-8 · CR 712.11b / 712.12 · o registro diz a face jogada
+  if ((a.face === 'esquerda' || a.face === 'direita') && L.length) { const hs = E.metadesDe(before, a.oid), n0 = nameOf(before, a.oid); if (hs) L[L.length - 1] = L[L.length - 1].replace(n0, `${hs[a.face === 'direita' ? 1 : 0].nome} (metade de ${n0})`); } // T-10 · CR 709.3 · o registro diz a metade
   // dano de combate e mortes que acontecem ao passar
   if (a.t === 'pass' || a.t === 'block' || a.t === 'attack') {
     after.players.forEach((pl, i) => { if (pl.life !== before.players[i].life) L.push(linhaDeVida(pl.name, before.players[i].life, pl.life)); });
@@ -26688,6 +26780,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       legal.push(doBtn(x.disturb ? `Perturbar · ${(f.script.disturb || {}).mana || ''}` : `Presságio · ${(f.script.omen || {}).mana || ''}`, x, { variant: 'primary' }));
     { const av = E.aventuraDe(s, oid); if (av) for (const b of legal) if (b.action && b.action.t === 'cast' && b.action.omen) b.label = `Aventura · ${av.nome} · ${av.mana}`; } // T-5 · CR 715.3 · a escolha "carta normal ou Aventura": o botão diz Aventura, o nome e o custo
     { const fv = E.faceDeTras(s, oid); if (fv) for (const b of legal) { const ac = b.action; if (!ac) continue; if (ac.face === 'verso') b.label = ac.t === 'play_land' ? `Jogar ${fv.nome}` : `Conjurar ${fv.nome} · ${fv.mana}`; else if (ac.t === 'play_land' && ac.revela == null) b.label = `Jogar ${o.name}`; } } // T-8 · CR 712.11b / 712.12 · dupla face modal: cada botão diz a face
+    { const hs = E.metadesDe(s, oid); if (hs) for (const b of legal) { const ac = b.action; if (ac && ac.t === 'cast' && (ac.face === 'esquerda' || ac.face === 'direita')) { const md = hs[ac.face === 'direita' ? 1 : 0]; b.label = `Conjurar ${md.nome} · ${md.mana}`; } } } // T-10 · CR 709.3 · um botão por metade
     // S34: conceder
     for (const bw of E.legalActions(s, v).filter(x => x.t === 'cast' && x.oid === oid && x.bestow))
       legal.push(doBtn(`Conceder · ${(f.script.bestow || {}).mana || ''} → ${targetName(s, bw.targets[0])}`, bw, { variant: 'primary' }));

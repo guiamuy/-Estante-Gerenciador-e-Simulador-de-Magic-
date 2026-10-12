@@ -9901,35 +9901,58 @@
    "regra": "Split Cards",
    "titulo": "Carta dividida: duas faces numa carta",
    "status": "definicao",
-   "evidencia": "cardFacts lê só a parte antes de \"//\" do type_line (index.html:10026)"
+   "evidencia": "T-10 (11/10/2026): a carta dividida é um objeto só com duas metades; script da biblioteca com `self: { dividida: true }` (metade esquerda) e `back` (direita), no nome da carta inteira.",
+   "testes": [
+    "CR 709 · a lista pode trazer a carta pelo nome de uma metade (\"Wax\") ou pelo nome completo (\"Wax // Wane\"), com o dado no formato da Scryfall: a partida usa sempre a carta inteira"
+   ]
   },
   {
    "n": "709.2",
    "regra": "Split Cards",
    "titulo": "Carta dividida é uma carta só",
-   "status": "definicao"
+   "status": "definicao",
+   "evidencia": "T-10: a partida usa sempre a carta inteira (\"Wax // Wane\"), também quando a lista traz o nome de uma metade; comprar, descartar e ir ao cemitério movem uma carta só.",
+   "testes": [
+    "CR 709.3 · a metade escolhida resolve só o efeito dela e a carta vai ao cemitério com as duas metades",
+    "CR 709 · a lista pode trazer a carta pelo nome de uma metade (\"Wax\") ou pelo nome completo (\"Wax // Wane\"), com o dado no formato da Scryfall: a partida usa sempre a carta inteira"
+   ]
   },
   {
    "n": "709.3",
    "regra": "Split Cards",
    "titulo": "Escolher a metade ao conjurar",
-   "status": "ausente",
-   "falta": "não há escolha de metade: o script é por nome de carta e não existe ação de conjurar \"metade\" (grep split/fuse no motor: nada); a carta fica manual.",
+   "status": "parcial",
+   "falta": "709.3c: cópia de carta dividida conjurada (707.12) não existe no motor. Fundir (702.102) e Consequência (702.127) não existem: as cartas com essas palavras-chave ficam manuais.",
    "esforco": "M",
+   "cartas": "comum",
+   "evidencia": "T-10: a ação de conjurar leva `face: 'esquerda' | 'direita'`; legalActions oferece uma conjuração por metade (custo, tempo e alvos dela) e nunca a carta inteira; na pilha só a metade conjurada existe.",
+   "testes": [
+    "CR 709.3 · 709.3a · o jogador escolhe a metade antes de conjurar: uma oferta por metade, cada uma com o custo, o tempo e os alvos dela; não há oferta da carta inteira",
+    "CR 709.3b · na pilha só existem as características da metade conjurada: nome, tipo, custo e valor de mana dela; \"anule a mágica instantânea alvo\" alcança a Cura e não a Festa",
+    "CR 709.3 · a metade escolhida resolve só o efeito dela e a carta vai ao cemitério com as duas metades",
+    "S8 · Wax // Wane, Assault // Battery e Dead // Gone: cada metade com o efeito dela",
+    "CR 709.3 · mesa: um botão por metade (\"Conjurar Cura · {W}\", \"Conjurar Festa · {2}{G}\") e o registro diz a metade",
+    "CR 709 · partida sem a carta não ganha nada no estado; passeio aleatório com divididas: nada oferecido é recusado e fora da pilha a carta é sempre a inteira"
+   ],
    "depende": [
     "601.2a"
-   ],
-   "cartas": "comum"
+   ]
   },
   {
    "n": "709.4",
    "regra": "Split Cards",
    "titulo": "Fora da pilha, características somadas das metades",
-   "status": "ausente",
-   "falta": "fatos saem de um custo e um type_line só; valor de mana somado e duas cores não são calculados.",
+   "status": "parcial",
+   "falta": "709.4a: os efeitos de \"escolha um nome de carta\" do motor ainda comparam o nome do objeto, não E.nomesDe (trilha motor). 709.4b, última frase: o custo somado junta o genérico ({1}{R} + {1}{U} vira {2}{U}{R}). 709.4d: fundir não existe.",
    "esforco": "M",
    "depende": [
     "709.3"
+   ],
+   "evidencia": "T-10: fora da pilha a carta tem os dois tipos, o custo somado e a cor e o valor de mana desse custo (Assault // Battery: {3}{R}{G}, valor 5, vermelha e verde); E.nomesDe devolve os dois nomes.",
+   "testes": [
+    "CR 709.4 · 709.4b–c · 709.2 · fora da pilha a carta tem as duas metades: os dois tipos, o custo somado, a cor e o valor de mana desse custo; é uma carta só",
+    "CR 709.4a · a carta dividida tem os dois nomes: E.nomesDe devolve as duas metades",
+    "CR 709 · a lista pode trazer a carta pelo nome de uma metade (\"Wax\") ou pelo nome completo (\"Wax // Wane\"), com o dado no formato da Scryfall: a partida usa sempre a carta inteira"
    ]
   },
   {
@@ -9937,7 +9960,7 @@
    "regra": "Split Cards",
    "titulo": "Divididas permanentes de linha de tipo única (Salas)",
    "status": "ausente",
-   "falta": "Salas (Duskmourn) não existem: sem portas, destrancar nem designação de metade.",
+   "falta": "Salas (Duskmourn) não existem: sem portas, destrancar nem designação de metade. A carta dividida de mágica (709.3/709.4) já joga (T-10); a Sala fica para os restos de 7xx do CR5.",
    "esforco": "G",
    "depende": [
     "709.3"

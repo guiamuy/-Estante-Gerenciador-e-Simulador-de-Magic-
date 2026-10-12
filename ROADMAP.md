@@ -4185,6 +4185,19 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** nenhum novo; só linhas da própria trilha.
 - **Próximo:** CR5-T10 — cartas divididas (709).
 
+**CR5-T10 · Cartas divididas (709.1–709.4)** ✅ (leva T-10, sem mudança de versão do motor) — 10 testes novos em `tipos.divididas.unit` (os 10 falham sem a leva) e 1 de tela.
+- **Valor:** lista com carta dividida de mágica (Wax // Wane, Assault // Battery, Dead // Gone) joga: da mão você escolhe a metade e cada botão diz o nome e o custo dela; antes a carta ficava manual.
+- **Regra:** **709.3 / 709.3a** — a ação de conjurar leva `face: 'esquerda' | 'direita'` (sem `face`, a esquerda); a metade escolhida vai para cima antes de qualquer conferência, então custo, tempo e alvos são só os dela; a carta inteira nunca é oferecida. **709.3b** — na pilha só existem nome, tipo, custo, cor e valor de mana da metade ("anule a mágica instantânea alvo" alcança a metade instantânea e não a de feitiço). **709.2 / 709.4 / 709.4b–c** — fora da pilha a carta é uma só, com os dois tipos e o custo somado (Assault // Battery: {3}{R}{G}, valor de mana 5, vermelha e verde); `E.nomesDe` devolve os dois nomes (709.4a).
+- **Lista:** a carta pode vir pelo nome de uma metade ("Wax") ou pelo nome completo ("Wax // Wane"), com o dado no formato da Scryfall; a partida usa sempre a carta inteira.
+- **Como as ofertas são feitas:** como na modal (T-8): `legalActions` sobre uma cópia do estado com as divididas viradas para cada metade (mão, exílio jogável e cemitério); a oferta da carta inteira sai da lista.
+- **Forma do script:** no nome da carta inteira; `self: { dividida: true, mana, types }` e `effects` são a metade esquerda, `back: { name, types, mana, effects }` a direita. O validador pede os dois custos e metades instantânea ou feitiço.
+- **Cartas exemplo** (texto oficial em `.listas/oficiais-tipos.json`, Oracle do Forge, 11/10/2026), completas: Wax // Wane, Assault // Battery, Dead // Gone.
+- **Mesa:** "Conjurar Assault · {R}" e "Conjurar Battery · {3}{G}"; o registro diz "conjurou Battery (metade de Assault // Battery)".
+- **Limites declarados (mapa):** 709.3c (cópia conjurável de carta dividida); 709.4a nos efeitos de "escolha um nome" do motor (ainda comparam o nome do objeto — trilha motor); 709.4b, última frase (o custo somado junta o genérico: {1}{R} + {1}{U} vira {2}{U}{R}); fundir (702.102) e Consequência (702.127) não existem — cartas com essas palavras-chave ficam manuais; Salas (709.5) ficam para os restos de 7xx.
+- **Versão e goldens:** a versão não sobe; goldens idênticos (a metade só entra nos fatos da partida que tem a carta).
+- **Toca ponto comum (uma linha inserida em cada):** `createGame` (`divididasPorInteiroT`, cópia rasa do setup), `cast` (`divididaEscolhidaT`, dentro de `faceEscolhidaT`), `legalActions` (`divididaOfertas`, dentro de `modalOfertas`); table.js / table-model: rótulo em `acoesDe` e a linha do registro (`E.metadesDe`). Linhas alteradas: só as da própria trilha.
+- **Próximo:** auditoria independente das divididas; depois CR5-T11 — Classes (716).
+
 **CR6 · Multijogador e variantes** ○ — mesa de três e quatro (800–803, 806), Commander de mesa (903.2), Brawl (903.12); as variantes hoje "fora" só entram por decisão. 10 a 14 levas.
 
 **CR7 · Consolidação** ○ (em paralelo a partir da CR2) — a cada fase: fuzz em modo completo com listas reais, homologação por revisor independente relendo a seção das regras contra o motor, e rodada de simulação do dono do produto. 6 a 8 levas ao todo.
