@@ -18776,7 +18776,7 @@ function applyEffect(s, src, eff, tgt, events) {
       const perm = s.objects[src.ability ? src.source : src.oid];
       if (!perm || perm.zone !== 'battlefield' || (perm.zc || 0) !== eff.z) break;
       delete perm.campeaoNesteK;
-      const cands = battlefield(s).filter(x => x.oid !== perm.oid && x.controller === perm.controller && (eff.qualidade === 'creature' ? isCreature(s, x) : temSubtipo(s, x.oid, eff.qualidade))).map(x => x.oid);
+      const cands = battlefield(s).filter(x => x.oid !== perm.oid && x.controller === perm.controller && (eff.qualidade === 'creature' ? isCreature(s, x) : (temSubtipo(s, x.oid, eff.qualidade) || metamorfoK(s, x, eff.qualidade)))).map(x => x.oid);
       if (!cands.length) break;
       startPick(s, { p: perm.controller, from: cands, min: 0, max: 1, to: 'campeaoK', rest: 'stay', source: perm.name, label: `Campeão: exile outra ${eff.qualidade === 'creature' ? 'criatura' : eff.qualidade} sua, ou ${perm.name} é sacrificado` }, events);
       s.pending.campeaoK = { oid: perm.oid, z: perm.zc || 0 };
@@ -19103,6 +19103,7 @@ function concluiPick(s, events) {
     }
   }
   events.push({ kind: 'choice-done', what: pk.label, name: pk.source, amount: pk.picked.length });
+  if (pk.antesDeEntrarK) antesDeEntrarFeitoK(s, pk, events); // K-45 · retoma a resolução (Toca ponto comum: concluiPick)
   if (pk.copiaAoEntrar && s.objects[pk.copiaAoEntrar] && s.objects[pk.copiaAoEntrar].zone === 'stack' && s.stack[s.stack.length - 1] === pk.copiaAoEntrar) { // CR2f.2 · retoma a resolução
     s.objects[pk.copiaAoEntrar].copiaEscolhida = pk.picked[0] || null; events.push(resolveTop(s, events)); s.turn.priority = s.turn.active; }
   if (pk.repartir) iniciaRepartir(s, pk.p, pk.repartir.de.filter(oid => !pk.picked.includes(oid) && s.objects[oid].zone === 'library'), pk.repartir.destinos, pk.source, events); // M-267
@@ -20148,6 +20149,7 @@ function resolveTop(s, events = []) {
   }
   // CR2f.2 · 707.5 · "You may have this creature enter as a copy of …": a escolha vem ao entrar (antes dos gatilhos de entrada), pela
   // escolha de cartas que a mesa já conhece (0 ou 1); escolhido, a permanente entra já com os valores copiados
+  { const ch = escolhaAntesDeEntrarK(s, item, o, dest, controller, events); if (ch) return ch; } // K-45 · 702.82a/702.38a: "as this enters" (Toca ponto comum: resolveTop)
   const comoCopia = dest === 'battlefield' && scripted && f.script.entraComoCopia;
   if (comoCopia && o.copiaEscolhida === undefined) {
     const opcoes = selecionar(s, controller, { ...(f.script.entraComoCopia.de || { tipos: ['creature'] }), zona: 'battlefield' }, item).map(x => x.oid).filter(x => x && x !== item);
@@ -21930,7 +21932,7 @@ const GATILHOS_DE_PALAVRA_K = {
   outlast: (s, o) => { const f = o && s.facts[o.name]; return f && f.perdurarK ? ({ kind: 'activated', palavraK: 'outlast', cost: { mana: f.perdurarK.mana, tap: true }, sorceryOnly: true, effects: [{ do: 'counters', amount: 1, target: 'self-source' }] }) : []; },
   // K-41 · 702.43a · "When this permanent is put into a graveyard from the battlefield, you may put a +1/+1 counter on target artifact creature for each
   // +1/+1 counter on this permanent." A contagem é a do campo (603.10a: foto ao sair, p1p1K); um gatilho por instância (b)
-  modular: (s, o) => ({ kind: 'triggered', when: 'dies', palavraK: 'modular', optional: true, effects: [{ do: 'counters', amount: ((o && o.ultima) || {}).p1p1K || 0, target: 'artifact-creature' }] }),
+  modular: (s, o) => ({ kind: 'triggered', when: 'dies', palavraK: 'modular', optional: true, effects: [{ do: 'counters', amount: ((o && o.ultima) || {}).p1p1K || 0, target: 'artifact-creature', targetTypes: ['artifact'] }] }), // K-45 · só criatura artefato
   // K-41 · 702.46a · "When this permanent is put into a graveyard from the battlefield, you may return target Spirit card with mana value N or less from
   // your graveyard to your hand." (um gatilho por instância, b)
   soulshift: (s, o, i) => ({ kind: 'triggered', when: 'dies', palavraK: 'soulshift', optional: true, effects: [{ do: 'to_hand', target: 'card-in-your-graveyard', targetMvMax: numeroDaPalavraK(s, o, 'soulshift', i), alvoSubtipoCartaK: 'Spirit' }] }),
@@ -22070,7 +22072,7 @@ Object.assign(EXPORTS_K, { exaltadoK });
 const NUMERADAS_K = ['afterlife', 'annihilator', 'bushido', 'fading', 'vanishing', 'modular', 'rampage', 'absorb', 'amplify', 'bloodthirst', 'graft', 'frenzy', 'poisonous', 'renown', 'fabricate', 'afflict', 'tribute', 'soulshift', 'dredge', 'toxic', 'backup', 'crew', 'ravenous', 'casualty', 'squad', 'mobilize', 'ripple'];
 /** K-7 · palavras-chave sem número que o motor resolve por instância: as repetições impressas contam (702.85c, 702.108b…). */
 const POR_INSTANCIA_K = ['cascade', 'prowess', 'exalted', 'persist', 'undying', 'evolve'];
-POR_INSTANCIA_K.push('riot'); // K-39 · 702.136b: "Riot\nRiot" são duas escolhas
+POR_INSTANCIA_K.push('riot', 'dethrone', 'ingest'); // K-39 · 702.136b: "Riot\nRiot" são duas escolhas
 function numerosDaPalavraK(card) {
   const txt = String((card && (card.oracle_text || (card.faces && card.faces[0] && card.faces[0].oracle_text))) || ''), out = {};
   for (const l0 of txt.split('\n')) for (const p of l0.replace(/\s*\([^)]*\)/g, '').split(/,\s*/)) {
@@ -22106,7 +22108,7 @@ MARCAS_DA_CONJURACAO.push('espetaculoK', 'surtoK'); // K-32
 MARCAS_DA_CONJURACAO.push('recompraK'); // K-33 · 702.27a: some ao sair da pilha (400.7)
 MARCAS_DA_CONJURACAO.push('ricocheteK'); // K-35 · 702.88a: o gatilho atrasado vale para este objeto no exílio; saiu de lá, acabou (400.7)
 MARCAS_DA_CONJURACAO.push('renomadaK'); // K-40 · 702.112b: renomada até sair do campo (400.7)
-MARCAS_DA_CONJURACAO.push('devorouK'); // K-43 · 702.82b: "it devoured" vale para esta permanente
+MARCAS_DA_CONJURACAO.push('devorouK', 'entrarComEscolhasK'); // K-43 · 702.82b: "it devoured" vale para esta permanente
 MARCAS_DA_CONJURACAO.push('campeaoDeK', 'campeaoNesteK'); // K-44 · a ligação é deste objeto (400.7)
 const COR_DO_NOME_K = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
 const COR_PT_K = { W: 'branca', U: 'azul', B: 'preta', R: 'vermelha', G: 'verde' };
@@ -22682,8 +22684,9 @@ function entraComPalavrasK(s, o) {
   const f = o && s.facts[o.name], out = {}; if (!f || o.faceDown) return out;
   for (const [k, tipo] of [['fading', 'fade'], ['vanishing', 'time']]) if ((f.kw || []).includes(k)) for (const n of ((f.numerosK || {})[k] || [])) out[tipo] = (out[tipo] || 0) + n;
   if ((f.kw || []).includes('modular')) for (const n of ((f.numerosK || {}).modular || [])) out.p1p1 = (out.p1p1 || 0) + n; // K-41 · 702.43a/b
-  for (const d of (f.devorarK || [])) s.queuedChoices = (s.queuedChoices || []).concat([{ kind: 'devorar_k', oid: o.oid, p: o.controller, n: d.n, tipo: d.tipo }]); // K-43 · 702.82a/c
-  if ((f.kw || []).includes('amplify')) for (const n of ((f.numerosK || {}).amplify || [])) s.queuedChoices = (s.queuedChoices || []).concat([{ kind: 'amplificar_k', oid: o.oid, p: o.controller, n }]); // K-43 · 702.38a/b
+  if (o.entrarComEscolhasK) { for (const e of o.entrarComEscolhasK) out.p1p1 = (out.p1p1 || 0) + e.n; const dv = o.entrarComEscolhasK.reduce((t, e) => t + (e.devorou || 0), 0); if (dv) o.devorouK = dv; } // K-45 · escolhido antes de entrar (conjurada)
+  else for (const d of (f.devorarK || [])) s.queuedChoices = (s.queuedChoices || []).concat([{ kind: 'devorar_k', oid: o.oid, p: o.controller, n: d.n, tipo: d.tipo }]); // K-43 · 702.82a/c
+  if (!o.entrarComEscolhasK && (f.kw || []).includes('amplify')) for (const n of ((f.numerosK || {}).amplify || [])) s.queuedChoices = (s.queuedChoices || []).concat([{ kind: 'amplificar_k', oid: o.oid, p: o.controller, n }]); // K-43 · 702.38a/b
   if ((f.kw || []).includes('riot')) for (let i = 0; i < Math.max(1, ((f.numerosK || {}).riot || []).length); i++) { out.p1p1 = (out.p1p1 || 0) + 1; s.queuedChoices = (s.queuedChoices || []).concat([{ kind: 'tumulto_k', oid: o.oid, p: o.controller, name: o.name }]); } // K-38 · 702.136a/b: entra com o marcador e pergunta em seguida (como a terra de choque, M-330)
   return out;
 }
@@ -22770,6 +22773,43 @@ function campeaoExilaK(s, oid, pk) {
   perm.campeaoDeK = { oid, z: ex.zc || 0 }; perm.campeaoNesteK = true;
 }
 Object.assign(EXPORTS_K, { campeaoImpressoK, campeaoExilaK });
+/* K-45 · achado da auditoria 3b: devorar e amplificar são substituições "as this enters" (614.1c): a escolha vem antes de a permanente entrar,
+   sem ações de estado no meio (a 0/0 com "Devour 1" não morre). Para a mágica que resolve, como o "entra como cópia" (CR2f.2): a resolução para
+   numa escolha por instância (pick), sacrifica ou revela, e retoma; os marcadores entram com ela (entraComPalavrasK lê entrarComEscolhasK).
+   Entrada por outro caminho (reanimar, piscar) segue com a escolha logo depois de entrar (K-43). */
+function instanciasAntesDeEntrarK(s, o) {
+  const f = s.facts[o.name], out = [];
+  for (const d of (f.devorarK || [])) out.push({ devorar: true, n: d.n, tipo: d.tipo });
+  if ((f.kw || []).includes('amplify')) for (const n of ((f.numerosK || {}).amplify || [])) out.push({ devorar: false, n });
+  return out;
+}
+function escolhaAntesDeEntrarK(s, item, o, dest, controller, events) {
+  if (dest !== 'battlefield' || o.faceDown || o.copiaDeMagia) return null;
+  const lista = instanciasAntesDeEntrarK(s, o); if (!lista.length) return null;
+  o.entrarComEscolhasK = o.entrarComEscolhasK || [];
+  while (o.entrarComEscolhasK.length < lista.length) {
+    const e = lista[o.entrarComEscolhasK.length];
+    const cands = e.devorar
+      ? battlefield(s).filter(x => x.controller === controller && (e.tipo === 'creature' ? isCreature(s, x) : tiposDe(s, x).includes(e.tipo))).map(x => x.oid)
+      : s.zones[controller].hand.filter(x => compartilhaTipoK(s, s.objects[x], o));
+    if (!cands.length) { o.entrarComEscolhasK.push({ n: 0 }); continue; }
+    startPick(s, { p: controller, from: cands, min: 0, max: cands.length, to: 'stay', rest: 'stay', source: o.name,
+      label: e.devorar ? `Devorar ${e.n}: sacrifique ${e.tipo === 'creature' ? 'criaturas' : 'permanentes'} suas para ${o.name} (${e.n} marcador(es) +1/+1 por uma)` : `Amplificar ${e.n}: revele cartas que compartilham tipo com ${o.name} (${e.n} marcador(es) +1/+1 por uma)` }, events);
+    s.pending.antesDeEntrarK = { item, n: e.n, devorar: e.devorar };
+    return { kind: 'choice', what: e.devorar ? 'devorar' : 'amplificar', name: o.name, amount: cands.length };
+  }
+  return null;
+}
+function antesDeEntrarFeitoK(s, pk, events) {
+  const e = pk.antesDeEntrarK, o = s.objects[e.item];
+  if (!o || o.zone !== 'stack' || s.stack[s.stack.length - 1] !== e.item) return;
+  const escolhidas = pk.picked.filter(x => s.objects[x] && (e.devorar ? s.objects[x].zone === 'battlefield' : s.objects[x].zone === 'hand'));
+  if (e.devorar && escolhidas.length) { s.saindoJuntas = escolhidas.slice(); for (const x of escolhidas) { const nome = s.objects[x].name; sacrifice(s, x, events); events.push({ kind: 'effect', do: 'sacrifice_own', name: o.name, target: nome }); } delete s.saindoJuntas; }
+  if (!e.devorar && escolhidas.length) events.push({ kind: 'effect', do: 'reveal', name: o.name, target: escolhidas.map(x => s.objects[x].name).join(', ') });
+  (o.entrarComEscolhasK = o.entrarComEscolhasK || []).push({ n: e.n * escolhidas.length, ...(e.devorar ? { devorou: escolhidas.length } : {}) });
+  events.push(resolveTop(s, events)); s.turn.priority = s.turn.active;
+}
+Object.assign(EXPORTS_K, { escolhaAntesDeEntrarK, antesDeEntrarFeitoK });
 /* ↓ V · exportações de core.js da trilha verbos */
 /* V-30 · 701.65 aerobender: "that player exiles those objects. For each card exiled this way, for as long as it remains exiled, its owner
    may cast it by paying {2} rather than paying its mana cost" (a). A permissão é do DONO e da encarnação exilada (400.7: se a carta sair do

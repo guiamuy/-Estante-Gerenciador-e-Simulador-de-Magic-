@@ -7297,10 +7297,11 @@
     "614.1c entra com marcadores"
    ],
    "cartas": "uma coleção só (Legions)",
-   "evidencia": "K-43: \"Amplify N\" faz a escolha logo depois de entrar: revelar de 0 a todas as cartas da mão que compartilham um tipo de criatura com ela (metamorfo conta); cada revelada põe N +1/+1 nela e fica na mão; uma escolha por instância (702.38b).",
+   "evidencia": "K-43: \"Amplify N\" faz a escolha logo depois de entrar: revelar de 0 a todas as cartas da mão que compartilham um tipo de criatura com ela (metamorfo conta); cada revelada põe N +1/+1 nela e fica na mão; uma escolha por instância (702.38b). K-45 (auditoria): idem (antes de entrar, quando conjurada).",
    "testes": [
     "CR 702.38a · amplificar (Glowering Rogon, texto oficial): revela cartas da mão que compartilham tipo de criatura com ela; entra com N +1/+1 por revelada; as cartas ficam na mão",
-    "K-43 · devorar e amplificar (702.82, 702.38): a de devorar come o Urso e entra maior; a de amplificar revela a irmã da mão; as duas atacam maiores"
+    "K-43 · devorar e amplificar (702.82, 702.38): a de devorar come o Urso e entra maior; a de amplificar revela a irmã da mão; as duas atacam maiores",
+    "K-45 · CR 702.82a/702.38a · devorar e amplificar são \"as this enters\": a 0/0 com \"Devour 1\" escolhe antes de entrar e não morre"
    ]
   },
   {
@@ -7376,10 +7377,11 @@
     "última informação conhecida"
    ],
    "cartas": "rara (comum em Pauper/Modern Affinity)",
-   "evidencia": "K-41: \"Modular N\" entra com N marcadores +1/+1 por instância (entraComPalavrasK) e gera o gatilho de morte opcional com alvo (criatura artefato) que põe tantos +1/+1 quantos ela tinha no campo (603.10a: foto p1p1K em ultimaPalavrasK; PALAVRAS_DE_SAIDA_K); um gatilho por instância (702.43b).",
+   "evidencia": "K-41: \"Modular N\" entra com N marcadores +1/+1 por instância (entraComPalavrasK) e gera o gatilho de morte opcional com alvo (criatura artefato) que põe tantos +1/+1 quantos ela tinha no campo (603.10a: foto p1p1K em ultimaPalavrasK; PALAVRAS_DE_SAIDA_K); um gatilho por instância (702.43b). K-45 (auditoria): o alvo é só criatura artefato (targetTypes).",
    "testes": [
     "CR 702.43a · modular (Arcbound Prototype, texto oficial): entra com 2 marcadores +1/+1; ao morrer, você pode pôr um +1/+1 na criatura artefato alvo por marcador que ela tinha",
-    "K-41 · modular e transmigrar (702.43, 702.46): o 0/0 artefato com \"Modular 1\" entra 1/1 e ataca; o Espírito com \"Soulshift 2\" morre bloqueando e devolve o Espírito do cemitério"
+    "K-41 · modular e transmigrar (702.43, 702.46): o 0/0 artefato com \"Modular 1\" entra 1/1 e ataca; o Espírito com \"Soulshift 2\" morre bloqueando e devolve o Espírito do cemitério",
+    "K-45 · CR 702.43a · modular mira só criatura artefato: o Urso (não artefato) não é alvo; sem criatura artefato, o gatilho não tem alvo"
    ]
   },
   {
@@ -7805,11 +7807,12 @@
     "603.6"
    ],
    "cartas": "rara (Lorwyn/Morningtide)",
-   "evidencia": "K-44: \"Champion a creature\" / \"Champion an [subtipo]\" (campeaoImpressoK) gera os dois gatilhos ligados (702.72b/607): ao entrar, a escolha de outra permanente sua da qualidade para exilar (pick 0 ou 1; concluiPick → campeaoExilaK guarda a ligação em campeaoDeK); sem exilar (recusou ou não há), campeao_fim_k sacrifica; ao sair, a exilada — a mesma encarnação (400.7) — volta sob o controle do dono (a ligação entra na foto de quem sai, ultimaPalavrasK, 603.10a).",
+   "evidencia": "K-44: \"Champion a creature\" / \"Champion an [subtipo]\" (campeaoImpressoK) gera os dois gatilhos ligados (702.72b/607): ao entrar, a escolha de outra permanente sua da qualidade para exilar (pick 0 ou 1; concluiPick → campeaoExilaK guarda a ligação em campeaoDeK); sem exilar (recusou ou não há), campeao_fim_k sacrifica; ao sair, a exilada — a mesma encarnação (400.7) — volta sob o controle do dono (a ligação entra na foto de quem sai, ultimaPalavrasK, 603.10a). K-45 (auditoria): a qualidade aceita metamorfo (702.73a).",
    "testes": [
     "CR 702.72a · campeão (Changeling Hero, texto oficial): ao entrar, exile outra criatura sua ou sacrifique-o; ao sair do campo, a exilada volta sob o controle do dono",
     "CR 702.72a · campeão: sem exilar (recusou ou não tem outra), o campeão é sacrificado",
-    "K-44 · campeão (702.72): o campeão exila o Urso ao entrar e ataca; morto no bloqueio, o Urso volta"
+    "K-44 · campeão (702.72): o campeão exila o Urso ao entrar e ataca; morto no bloqueio, o Urso volta",
+    "K-45 · CR 702.72a + 702.73a · \"Champion a Goblin\" aceita a criatura com metamorfo (é Goblin)"
    ]
   },
   {
@@ -7974,11 +7977,12 @@
     "607"
    ],
    "cartas": "rara",
-   "evidencia": "K-43: \"Devour [qualidade] N\" (devorarImpressoK) faz a escolha logo depois de entrar, antes de gatilho ou prioridade (escolhaDeEntradaK → escolhaDeEntrarComK: pick de 0 a todas as criaturas — ou permanentes da qualidade — suas, menos ela); cada escolhida é sacrificada e põe N +1/+1 nela (concluiPick → entrarComPickK); 702.82b: devorouK conta quantas. O resultado é o mesmo do \"as this enters\" (como a terra de choque da M-330).",
+   "evidencia": "K-43: \"Devour [qualidade] N\" (devorarImpressoK) faz a escolha logo depois de entrar, antes de gatilho ou prioridade (escolhaDeEntradaK → escolhaDeEntrarComK: pick de 0 a todas as criaturas — ou permanentes da qualidade — suas, menos ela); cada escolhida é sacrificada e põe N +1/+1 nela (concluiPick → entrarComPickK); 702.82b: devorouK conta quantas. O resultado é o mesmo do \"as this enters\" (como a terra de choque da M-330). K-45 (auditoria): conjurada, a escolha vem antes de entrar (614.1c: a resolução para numa escolha por instância e retoma; escolhaAntesDeEntrarK/antesDeEntrarFeitoK) — a 0/0 com \"Devour 1\" entra 1/1; por outro caminho (reanimar), a escolha vem logo depois de entrar.",
    "testes": [
     "CR 702.82a · devorar (Gorger Wurm, texto oficial): ao entrar, sacrifica quantas criaturas suas quiser (ela não) e entra com N +1/+1 por sacrificada; zero também vale",
     "CR 702.82c · devorar com qualidade (Caprichrome, texto oficial: \"Devour artifact 1\"): só artefatos (ela, artefato, não)",
-    "K-43 · devorar e amplificar (702.82, 702.38): a de devorar come o Urso e entra maior; a de amplificar revela a irmã da mão; as duas atacam maiores"
+    "K-43 · devorar e amplificar (702.82, 702.38): a de devorar come o Urso e entra maior; a de amplificar revela a irmã da mão; as duas atacam maiores",
+    "K-45 · CR 702.82a/702.38a · devorar e amplificar são \"as this enters\": a 0/0 com \"Devour 1\" escolhe antes de entrar e não morre"
    ]
   },
   {
@@ -8324,10 +8328,11 @@
     "508 gatilho de ataque com condição de vida"
    ],
    "cartas": "rara (Conspiracy; algumas em Commander)",
-   "evidencia": "K-42: \"Dethrone\" gera o gatilho de ataque só quando o jogador atacado tem a maior vida ou está empatado nela (defensorDeK; atacar planeswalker não dispara); põe um +1/+1 nela; um por instância (b).",
+   "evidencia": "K-42: \"Dethrone\" gera o gatilho de ataque só quando o jogador atacado tem a maior vida ou está empatado nela (defensorDeK; atacar planeswalker não dispara); põe um +1/+1 nela; um por instância (b). K-45 (auditoria): \"Dethrone\" repetido dispara uma vez cada (POR_INSTANCIA_K).",
    "testes": [
     "CR 702.105a · destronar (Enraged Revolutionary, texto oficial): ao atacar o jogador com mais vida (ou empatado), +1 marcador +1/+1; com menos vida que você, não",
-    "K-42 · destronar, frenesi e perdurar (702.105, 702.68, 702.107): o empate em vida dá o marcador, o frenesi soma ao dano sem bloqueio, e o perdurar cresce a criatura antes do combate"
+    "K-42 · destronar, frenesi e perdurar (702.105, 702.68, 702.107): o empate em vida dá o marcador, o frenesi soma ao dano sem bloqueio, e o perdurar cresce a criatura antes do combate",
+    "K-45 · CR 702.105b e 702.115b · \"Dethrone\" e \"Ingest\" repetidos disparam uma vez cada"
    ]
   },
   {
@@ -8471,10 +8476,11 @@
     "510 gatilho de dano de combate"
    ],
    "cartas": "rara (Battle for Zendikar)",
-   "evidencia": "K-40: \"Ingest\" gera o gatilho de dano de combate a jogador (um por instância, 702.115b); ingerir_k exila a carta do topo do grimório do jogador atingido.",
+   "evidencia": "K-40: \"Ingest\" gera o gatilho de dano de combate a jogador (um por instância, 702.115b); ingerir_k exila a carta do topo do grimório do jogador atingido. K-45 (auditoria): idem para \"Ingest\".",
    "testes": [
     "CR 702.115a · ingerir (Culling Drone, texto oficial): dano de combate a um jogador exila a carta do topo do grimório dele",
-    "K-40 · aniquilador, venenoso, renome e ingerir (702.86, 702.70, 702.112, 702.115): um ataque sem bloqueio muda vida, veneno, marcadores, campo e grimório do defensor"
+    "K-40 · aniquilador, venenoso, renome e ingerir (702.86, 702.70, 702.112, 702.115): um ataque sem bloqueio muda vida, veneno, marcadores, campo e grimório do defensor",
+    "K-45 · CR 702.105b e 702.115b · \"Dethrone\" e \"Ingest\" repetidos disparam uma vez cada"
    ]
   },
   {

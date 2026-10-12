@@ -1818,3 +1818,41 @@ test('CR 702.72a · campeão: sem exilar (recusou ou não tem outra), o campeão
   let v = J(s); const z = v.zones[a].battlefield; z.splice(z.indexOf(u), 1); v.zones[a].graveyard.push(u); v.objects[u].zone = 'graveyard';
   v = ateEscolhaK44(act(v, { t: 'cast', p: a, oid: h })); v = resolve(v); assert.equal(v.objects[h].zone, 'graveyard', 'sem outra criatura: sacrificado');
 });
+
+/* ---------------- K-45 · auditoria independente da onda 3b (K-40 a K-44) ---------------- */
+test('K-45 · CR 702.43a · modular mira só criatura artefato: o Urso (não artefato) não é alvo; sem criatura artefato, o gatilho não tem alvo', () => {
+  let s = partida({ 'Arcbound Prototype': oficial('Arcbound Prototype'), Toptero: TOPTERO, Urso: URSO, Matar: MATAR_K41 }, SC_MATAR_K41); const a = s.turn.active;
+  let p, t, u, m; [s, p] = poe(s, a, 'Arcbound Prototype', 'hand'); [s, t] = poe(s, a, 'Toptero'); [s, u] = poe(s, a, 'Urso'); [s, m] = poe(s, a, 'Matar', 'hand');
+  s = resolve(act(s, { t: 'cast', p: a, oid: p }));
+  s = act(s, { t: 'cast', p: a, oid: m, targets: [{ oid: p }] });
+  for (let i = 0; i < 10 && !s.pending && !s.stack.some(x => (s.objects[x] || {}).ability); i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const ops = s.pending && s.pending.kind === 'pick_target' ? JSON.stringify(s.pending.options) : JSON.stringify(s.stack.map(x => (s.objects[x] || {}).targets));
+  assert.ok(!ops.includes(u), 'o Urso não é alvo: ' + ops); assert.ok(ops.includes(t), 'o Tóptero é');
+  s = resolveSimK41(s); assert.equal(s.objects[t].counters.p1p1, 2, 'o Tóptero recebe');
+});
+
+test('K-45 · CR 702.82a/702.38a · devorar e amplificar são "as this enters": a 0/0 com "Devour 1" escolhe antes de entrar e não morre', () => {
+  const ZERO = { name: 'Zero', type_line: 'Creature — Ooze', mana_cost: '{G}', cmc: 1, colors: ['G'], power: '0', toughness: '0', keywords: ['Devour'], oracle_text: 'Devour 1' };
+  let s = partida({ Zero: ZERO, Urso: URSO }); const a = s.turn.active;
+  let z, u; [s, z] = poe(s, a, 'Zero', 'hand'); [s, u] = poe(s, a, 'Urso');
+  s = escolhaPickK43(act(s, { t: 'cast', p: a, oid: z }));
+  assert.equal((s.pending || {}).kind, 'pick', 'a escolha vem'); s = pegaK43(s, a, [u]); s = resolve(s);
+  assert.equal(s.objects[z].zone, 'battlefield', 'entrou com o marcador: 1/1'); assert.equal(s.objects[z].counters.p1p1, 1); assert.equal(s.objects[u].zone, 'graveyard');
+});
+
+test('K-45 · CR 702.72a + 702.73a · "Champion a Goblin" aceita a criatura com metamorfo (é Goblin)', () => {
+  const CAMP = { name: 'Camp', type_line: 'Creature — Goblin', mana_cost: '{R}', cmc: 1, colors: ['R'], power: '2', toughness: '2', keywords: ['Champion'], oracle_text: 'Champion a Goblin' };
+  const MUDA2 = { name: 'Muda', type_line: 'Creature — Shapeshifter', mana_cost: '{1}', cmc: 1, colors: [], power: '1', toughness: '1', keywords: ['Changeling'], oracle_text: 'Changeling' };
+  let s = partida({ Camp: CAMP, Muda: MUDA2, Urso: URSO }); const a = s.turn.active;
+  let c, mu, u; [s, c] = poe(s, a, 'Camp', 'hand'); [s, mu] = poe(s, a, 'Muda'); [s, u] = poe(s, a, 'Urso');
+  s = ateEscolhaK44(act(s, { t: 'cast', p: a, oid: c }));
+  assert.deepEqual(J(s.pending.from), [mu], 'a Muda (metamorfo) sim, o Urso não');
+});
+
+test('K-45 · CR 702.105b e 702.115b · "Dethrone" e "Ingest" repetidos disparam uma vez cada', () => {
+  const DUPLO = { name: 'Duplo', type_line: 'Creature — Eldrazi', mana_cost: '{2}', cmc: 2, colors: [], power: '1', toughness: '1', keywords: ['Dethrone', 'Ingest'], oracle_text: 'Dethrone\nDethrone\nIngest\nIngest' };
+  let s = partida({ Duplo: DUPLO }); const a = s.turn.active, d = 1 - a;
+  let x; [s, x] = poe(s, a, 'Duplo'); const topo = s.zones[d].library.slice(0, 2);
+  s = ateODano(s, [x]);
+  assert.equal(s.objects[x].counters.p1p1, 2, 'dois destronar'); assert.deepEqual(topo.map(o => s.objects[o].zone), ['exile', 'exile'], 'dois ingerir');
+});

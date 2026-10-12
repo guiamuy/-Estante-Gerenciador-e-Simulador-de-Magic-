@@ -4404,6 +4404,11 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Aceite:** Changeling Hero: a lista mostra só outra criatura sua; o Urso vai para o exílio; o Herói morre e o Urso volta para o dono; recusando, ou sem outra criatura, o Herói é sacrificado.
 - **Toca ponto comum:** `concluiPick` (uma linha: o destino `campeaoK`).
 - **Testes:** `keywords.cr4.unit` (2, falham sem a leva), `combat.audit` (1 cenário). Texto oficial: Changeling Hero (Oracle do Forge, 12/10/2026). Goldens idênticos; motor v110.
+**K-45 · Auditoria independente da onda 3b (K-40 a K-44)** 🟡 (leva K-45)
+- **Valor:** um revisor sem acesso à implementação rodou 62 sondas nas onze palavras-chave (aniquilador, venenoso, renome, ingerir, modular, transmigrar, destronar, frenesi, perdurar, devorar/amplificar, campeão): 55 corretas, 5 divergências reproduzidas, todas corrigidas aqui com teste antes.
+- **Corrigido:** (1) o modular mirava qualquer criatura (702.43a: "target artifact creature"); (2) devorar e amplificar escolhiam depois de entrar — a 0/0 com "Devour 1" morria antes (614.1c: agora a mágica que resolve pergunta antes de a permanente entrar, como o "entra como cópia"); (3) "Champion a Goblin" não aceitava metamorfo (702.73a); (4–5) "Dethrone" e "Ingest" repetidos contavam uma vez só (b de cada regra).
+- **Toca ponto comum:** `resolveTop` (uma linha: a escolha antes de entrar) e `concluiPick` (uma linha: retoma a resolução).
+- **Testes:** `keywords.cr4.unit` (4, falham sem a leva); as 62 sondas do revisor verdes sobre a correção. Goldens idênticos; motor v110.
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.
