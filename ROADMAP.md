@@ -3762,6 +3762,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Comparador:** passa a comparar `keyword`; "cada oponente" escrito como alvo antigo (`each-opponent`) ou como quantificador (`jogadores`) conta como o mesmo (é o mesmo para o motor).
 - **Teste:** fidelidade (filtro de criatura, "ela ou outra morre", palavras-chave, palavra fora do vocabulário fica não lida); piso da concordância 153.
 
+**M-325 · CR2h.6 · Vencer e perder o jogo por efeito (104.2a, 104.3e)** ✅ (leva M-325, motor v110 sem mudança de forma; goldens intactos) — Felidar Sovereign, Test of Endurance, Door to Nothingness e Helix Pinnacle jogam no modo completo.
+- **Valor:** "you win the game" (os outros jogadores perdem) e "target player loses the game" passam a existir, com as condições "if you have N or more life" e "if there are N or more <tipo> counters on ~", conferidas ao disparar e de novo ao resolver (603.4: com a vida caindo antes da resolução, ninguém vence). O fim de jogo diz "perdeu o jogo por efeito de carta".
+- **Script:** efeitos `vence` e `perde` (alvo jogador); condições `vidaPeloMenos` e `marcadoresNaFonte: { tipo, n }`. Leitor lê as duas frases, as duas condições e "put X <tipo> counters on ~" (piso da concordância 157); a concordância passa a comparar o tipo do marcador. Texto oficial das quatro cartas em `.listas/oficiais-motor.json` (Oracle do Forge, 12/10/2026).
+- **Simplificação declarada:** a derrota por efeito (104.3e) é aplicada na verificação de ações de estado logo depois do efeito, não no instante exato; nada no jogo de dois jogadores muda com isso. "Can't win/can't lose" (Platinum Angel) não existe.
+- **Teste:** `vencer.perder.unit` (3 testes, falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

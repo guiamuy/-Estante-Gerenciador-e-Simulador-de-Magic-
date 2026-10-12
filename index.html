@@ -5345,6 +5345,9 @@ const EFFECTS = {
   ganhar_controle: { fields: [], targets: ['creature', 'permanent', 'artifact'] },
   efeito_jogador: { fields: [], targets: ['self'] },
   turno_extra: { fields: [], targets: ['self', 'player'] },
+  // CR2h.6 · 104.2a / 104.3e · "you win the game" e "<jogador> loses the game" por efeito
+  vence: { fields: [], targets: ['self'] },
+  perde: { fields: [], targets: ['self', 'player', 'opponent'] },
   combate_extra: { fields: [], targets: ['self'] }, // CR2g.4 · 500.8: "after this main phase, there is an additional combat phase followed by an additional main phase"
   desvira_atacantes: { fields: [], targets: ['self'] }, // CR2g.4 · "untap all creatures that attacked this turn"  // CR2g.2 · 500.7: "(target player) takes an extra turn after this one"
   escolhe_copiadora: { fields: [], targets: ['artifact', 'creature', 'permanent'] },
@@ -5960,7 +5963,7 @@ function validateScript(sc) {
   if (sc && sc.discount && !(Number.isInteger(sc.discount.amount) && sc.discount.amount > 0 && (sc.discount.needs || []).length)) errs.push('desconto precisa de valor e de exigências');
   // S18 · ninjutsu e insanidade
   // S21 · habilidades de lealdade
-  for (const ab of (sc && sc.abilities) || []) if (ab.condition && !['lifeGained', 'attackersAtLeast', 'controlsOtherNamed', 'bargained', 'evidenced', 'kicked', 'opponentMoreLands', 'atacaSozinha'].includes(Object.keys(ab.condition)[0] || '')) errs.push('condição de gatilho desconhecida');
+  for (const ab of (sc && sc.abilities) || []) if (ab.condition && !['lifeGained', 'attackersAtLeast', 'controlsOtherNamed', 'bargained', 'evidenced', 'kicked', 'opponentMoreLands', 'atacaSozinha', 'vidaPeloMenos', 'marcadoresNaFonte'].includes(Object.keys(ab.condition)[0] || '')) errs.push('condição de gatilho desconhecida');
   if (sc && sc.bargain != null && sc.bargain !== true) errs.push('barganha é uma marca, sem valor');
   if (sc && sc.evidence != null && !(Number.isInteger(sc.evidence) && sc.evidence > 0)) errs.push('colher provas precisa de um número inteiro positivo');
   for (const ab of (sc && sc.abilities) || []) if (ab.mayPay && !ab.mayPay.mana && !ab.mayPay.exileFromGraveyard && !ab.mayPay.sacrificeSelf && !(Number.isInteger(ab.mayPay.pagarVida) && ab.mayPay.pagarVida > 0)) errs.push('custo opcional do gatilho sem custo'); // V-26 · "you may pay N life" (Toca ponto comum)
@@ -7622,6 +7625,16 @@ const RAW_SCRIPTS = [
   { name: 'Mind Stone', abilities: [{ kind: 'activated', cost: { mana: '{1}', tap: true, sacrifice: true }, effects: [{ do: 'draw', amount: 1 }] }],
     example: { action: 'activate:0', target: 'none', expect: { handDelta: 1 } } },
   /* ↓ M · scripts de carta da trilha motor (alicerces CR2; texto oficial em .listas/oficiais-motor.json). Fica no fim da lista, longe das âncoras das paralelas (M-313: dois rebases da M-311/M-312 colidiram com a trilha tipos logo abaixo da âncora T) */
+  // CR2h.6 · vencer e perder por efeito (texto oficial em .listas/oficiais-motor.json, Oracle do Forge, 2026-10-12)
+  { name: 'Felidar Sovereign', abilities: [{ kind: 'triggered', when: 'upkeep', condition: { vidaPeloMenos: 40 }, effects: [{ do: 'vence' }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Test of Endurance', abilities: [{ kind: 'triggered', when: 'upkeep', condition: { vidaPeloMenos: 50 }, effects: [{ do: 'vence' }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Door to Nothingness', entersTapped: true, abilities: [{ kind: 'activated', cost: { mana: '{W}{W}{U}{U}{B}{B}{R}{R}{G}{G}', tap: true, sacrifice: true }, effects: [{ do: 'perde', target: 'player' }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Helix Pinnacle', abilities: [{ kind: 'activated', cost: { mana: '{X}' }, effects: [{ do: 'counters', tipo: 'tower', amount: { per: 'x' }, target: 'self-source' }] },
+    { kind: 'triggered', when: 'upkeep', condition: { marcadoresNaFonte: { tipo: 'tower', n: 100 } }, effects: [{ do: 'vence' }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // CR2b.10 · valente e "damage equal to its power" ao morrer (texto oficial em .listas/oficiais-motor.json, Oracle do Forge, 2026-10-12)
   { name: 'Heartfire Hero', abilities: [{ kind: 'triggered', when: 'becomes-target', alvoDoControlador: true, primeiraVezNoTurno: true, effects: [{ do: 'counters', amount: 1, target: 'self-source' }] },
     { kind: 'triggered', when: 'dies', effects: [{ do: 'damage', amount: { per: 'power-of-source' }, target: 'each-opponent' }] }],
@@ -14941,6 +14954,9 @@ const __m42 = (function () {
     [/^(target creature you control|target creature or enchantment you control) gains protection from the color of your choice until end of turn$/i, m => [{ do: 'protection', target: /enchantment/i.test(m[1]) ? 'creature-enchantment-you-control' : 'creature-you-control' }]], // M-324 · 702.16
     [/^(creatures you control|another target creature you control) gains? ([a-z]+)(?: and ([a-z]+))? until end of turn$/i, m => { const alvo2 = /^another/i.test(m[1]) ? 'other-creature-you-control' : 'each-own-creature'; const ks = [m[2], m[3]].filter(Boolean).map(k => k.toLowerCase()); return ks.every(k => KW.has(k)) ? ks.map(k => ({ do: 'keyword', keyword: k, target: alvo2 })) : null; }], // M-324
     [new RegExp(`^untap up to ${N} lands$`, 'i'), m => [{ do: 'untap_chosen', amount: num(m[1]), filter: { types: ['land'] } }]], // M-324 · Frantic Search
+    [/^you win the game$/i, () => [{ do: 'vence' }]], // M-325 · CR2h.6 · 104.2a
+    [/^(target player|target opponent) loses the game$/i, m => [com({ do: 'perde' }, alvo(m[1]))]], // M-325 · 104.3e
+    [/^put X ([a-z]+) counters on (this [a-z]+|~)$/i, m => [{ do: 'counters', tipo: m[1].toLowerCase(), amount: { per: 'x' }, target: 'self-source' }]], // M-325 · Helix Pinnacle (o X da habilidade, CR2c.7)
     [/^~ deals damage equal to its power to (each opponent|any target|target creature|target player|target opponent)$/i, m => [com({ do: 'damage', amount: { per: 'power-of-source' } }, alvo(m[1]))]], // M-323 · CR2b.10 (608.2h: o poder como era no campo, se ela saiu)
     [/^~ deals X damage to each creature and each player$/i, () => [{ do: 'damage', amount: { per: 'x' }, target: 'each-creature' }, { do: 'damage', amount: { per: 'x' }, jogadores: 'cada' }]], // LT13 · CR2c.7 (Crypt Rats)
     [new RegExp(`^~ deals ${N} damage to (.+)$`, 'i'), m => [com({ do: 'damage', amount: num(m[1]) }, alvo(m[2]))]],
@@ -15119,6 +15135,10 @@ const __m42 = (function () {
     let resto2 = resto, condicao = null;
     const se = resto2.match(/^if you control another creature named ~, (.+)$/i); // LT12 · 603.4 "if" intermediário (Faerie Miscreant)
     if (se) { condicao = { controlsOtherNamed: true }; resto2 = se[1]; }
+    const sv = !se && resto2.match(/^if you have (\d+) or more life, (.+)$/i); // M-325 · CR2h.6 · 603.4
+    if (sv) { condicao = { vidaPeloMenos: +sv[1] }; resto2 = sv[2]; }
+    const sm = !se && !sv && resto2.match(/^if there are (\d+) or more ([a-z]+) counters on (?:~|this [a-z]+), (.+)$/i); // M-325
+    if (sm) { condicao = { marcadoresNaFonte: { tipo: sm[2].toLowerCase(), n: +sm[1] } }; resto2 = sm[3]; }
     const opcional = /^you may /i.test(resto2);
     let corpo = resto2.replace(/^you may /i, '').replace(/^it /i, '~ ');
     if (/(this creature|~)/i.test(cab) && !/\btarget\b/i.test(corpo)) corpo = corpo.replace(/ on it$/i, ' on ~'); // M-322 · "put a +1/+1 counter on it": "it" é a própria permanente da abertura
@@ -17914,6 +17934,8 @@ function applyEffect(s, src, eff, tgt, events) {
       s.combatesExtras = (s.combatesExtras || 0) + 1; note({}); break;
     }
     case 'desvira_atacantes': { let n = 0; for (const a of s.atacaramNoTurno || []) { const o = s.objects[a.oid]; if (o && o.zone === 'battlefield' && (o.zc || 0) === a.z && o.tapped && desvira(s, o)) n++; } note({ amount: n }); break; } // CR2g.4 · o mesmo objeto (400.7)
+    case 'vence': { for (const [i, pl] of s.players.entries()) if (i !== ctrl && !pl.lost) pl.derrotadoPor = ctrl; note({}); break; } // CR2h.6 · 104.2a: os outros jogadores perdem (ação de estado logo em seguida)
+    case 'perde': { const quem = playerOf(); if (s.players[quem] && !s.players[quem].lost) s.players[quem].perdeuPorEfeito = true; note({}); break; } // CR2h.6 · 104.3e
     case 'turno_extra': { const quem = playerOf(); (s.turnosExtras = s.turnosExtras || []).push(quem); note({}); break; } // CR2g.2 · 500.7: o turno extra criado por último é jogado primeiro
     case 'efeito_jogador': { // CR2d.10 · efeito contínuo de resolução sobre jogadores, com duração
       const e = {}; for (const k of REGRAS_JOGADOR) if (eff[k] != null) e[k] = eff[k];
@@ -18774,6 +18796,8 @@ function triggerConditionMet(s, o, cond) {
   if (cond.evidenced && !o.evidenced) return false; // S41 · colher provas
   if (cond.kicked && !o.kicked) return false; // CR 702.33d · "if it was kicked"
   if (cond.controlsOtherNamed && !battlefield(s).some(x => x.oid !== o.oid && x.controller === o.controller && x.name === o.name)) return false;
+  if (cond.vidaPeloMenos != null && !(s.players[o.controller] && s.players[o.controller].life >= cond.vidaPeloMenos)) return false; // CR2h.6 · "if you have 40 or more life" (603.4: confere ao disparar e ao resolver)
+  if (cond.marcadoresNaFonte && !(((o.counters || {})[cond.marcadoresNaFonte.tipo] || 0) >= cond.marcadoresNaFonte.n)) return false; // CR2h.6 · "if there are 100 or more tower counters on ~"
   if (cond.opponentMoreLands) { // M-247 · "if an opponent controls more lands than you" (Knight of the White Orchid), conferida de novo na resolução (603.4)
     const terrenos = p => battlefield(s).filter(x => x.controller === p && tiposDe(s, x).includes('land')).length;
     if (!alive(s).some(q => q !== o.controller && terrenos(q) > terrenos(o.controller))) return false;
@@ -19483,6 +19507,7 @@ function stateBased(s, events) {
       if (pl.life <= 0) why = 'vida';
       else if (pl.drewFromEmpty) why = 'grimório vazio';
       else if (pl.derrotadoPor != null) why = 'o oponente venceu o jogo'; // CR2e.3 · 104.2a / Laboratory Maniac
+      else if (pl.perdeuPorEfeito) why = 'perdeu o jogo por efeito de carta'; // CR2h.6 · 104.3e (verificado aqui, logo depois do efeito)
       else if (s.format === 'commander' && Object.values(pl.commanderDamage).some(d => d >= FORMAT_RULES.commander.commanderDamage)) why = 'dano de comandante';
       else if ((pl.poison || 0) >= 10) why = 'veneno'; // M-253 · 704.5c
       if (why) { pl.lost = true; pl.lossReason = pl.lossReason === 'desistência' ? pl.lossReason : why; changed = true; events.push({ kind: 'lost', p: i, reason: why }); removePlayer(s, i); }
@@ -24460,6 +24485,8 @@ function effectLine(ev) {
   switch (ev.do) {
     case 'damage': return ev.failed ? `${ev.name} não causou dano: alvo ilegal` : `${ev.name} causou ${n} de dano a ${t}`;
     case 'reveal': return `${ev.name} revelou: ${t}`; // Leva 108
+    case 'vence': return `${ev.name}: o controlador venceu o jogo`; // CR2h.6
+    case 'perde': return `${ev.name}: ${t} perdeu o jogo`; // CR2h.6
     case 'turno_extra': return `${t} vai jogar um turno extra depois deste (${ev.name})`; // CR2g.2
     case 'nao_desvira': return ev.failed ? `${ev.name}: o alvo já não estava no campo` : `${t || ev.name}: não desvira no próximo passo de desvirar`;
     case 'combate_extra': return ev.failed ? `${ev.name}: fora da fase principal, sem combate adicional` : `${ev.name}: depois desta fase principal vem um combate adicional e outra fase principal`; // CR2g.4
@@ -25454,6 +25481,8 @@ function descreveEfeito(e) {
     case 'ficha_copia': return `cria ${qtd(e.amount || 1) > 1 ? qtd(e.amount) + ' fichas que são cópias' : 'uma ficha que é cópia'} de ${alvo || 'uma permanente'}${(e.palavras || []).length ? ', com ' + e.palavras.map(k => PALAVRA_PT[k] || k).join(' e ') : ''}`; // CR2f.2
     case 'escolhe_copiadora': return `escolhe ${alvo || 'uma permanente'} para virar cópia`; // CR2f.1
     case 'torna_copia': return `ela vira uma cópia de ${alvo || 'outra permanente'}${(e.somaTipos || []).length ? ', além de ' + e.somaTipos.map(x => TIPO_PT[x] || x).join(' e ') : ''}${e.ate && e.ate !== 'sempre' ? ' ' + duracaoPT(e.ate) : ''}`; // CR2f.1
+    case 'vence': return 'você vence o jogo'; // CR2h.6
+    case 'perde': return `${alvo || 'você'} perde o jogo`; // CR2h.6
     case 'turno_extra': return alvo ? `${alvo} joga um turno extra depois deste` : 'você joga um turno extra depois deste'; // CR2g.2
     case 'nao_desvira': return `${alvo || 'a criatura'} não desvira no próximo passo de desvirar de quem a controla`; // CR2g.6
     case 'combate_extra': return 'depois desta fase principal, um combate adicional e outra fase principal'; // CR2g.4
