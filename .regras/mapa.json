@@ -10827,8 +10827,8 @@
    "regra": "Double-Faced Cards",
    "titulo": "Cada face com suas características; fora do campo vale a frente",
    "status": "parcial",
-   "evidencia": "T-7 (11/10/2026) · src/engine/core.js, bloco \"T-7 · CR 701.27 / 712 / 707.8a\" (cartas marcadas `self: { duplaFace: true }`, efeito `transformar`): 712.8a — fora do campo e da pilha vale a frente (flipToFront em toda mudança de zona). 712.8d–e — com a frente para cima só a frente; com o verso para cima só o verso (nome, tipos, subtipos, cor, P/T, palavras-chave e habilidades), com o valor de mana da frente. T-8 (11/10/2026) · src/engine/core.js, bloco \"T-8 · CR 712.3 … dupla face modal\" (cartas `self: { modal: true }`): 712.8f — na pilha e no campo a modal tem só as características da face de cima, com o custo e o valor de mana da própria face (fatosDeDuasPartesT).",
-   "falta": "712.8c (conjurada transformada, disturb) e as faces de trás antigas têm valor de mana 0 (trilha motor); a permanente que COPIA um verso deveria ter valor de mana 0 (712.8e) e fica com o da frente (os fatos são por nome); Confirmado pela auditoria (T-9): Clone que copia um verso fica com o valor de mana da frente (202.3b manda 0).",
+   "evidencia": "T-7 (11/10/2026) · src/engine/core.js, bloco \"T-7 · CR 701.27 / 712 / 707.8a\" (cartas marcadas `self: { duplaFace: true }`, efeito `transformar`): 712.8a — fora do campo e da pilha vale a frente (flipToFront em toda mudança de zona). 712.8d–e — com a frente para cima só a frente; com o verso para cima só o verso (nome, tipos, subtipos, cor, P/T, palavras-chave e habilidades), com o valor de mana da frente. T-8 (11/10/2026) · src/engine/core.js, bloco \"T-8 · CR 712.3 … dupla face modal\" (cartas `self: { modal: true }`): 712.8f — na pilha e no campo a modal tem só as características da face de cima, com o custo e o valor de mana da própria face (fatosDeDuasPartesT). T-69: valorDaFaceT no gancho do valor de mana (valorDaSalaT); tipos.valordeface.unit.",
+   "falta": "T-69 (13/10/2026): 712.8c e 712.8e cobertas (verso para cima vale o custo da frente, também conjurada transformada pelo disturb; a cópia de um verso vale 0). Falta 712.8g (meld: espera a primitiva \"permanente de várias cartas\", decisão do dono). A ficha cópia de uma dupla face transformada (707.8a, ficha de dupla face com o verso para cima) vale o custo da frente.",
    "esforco": "P",
    "depende": [
     "202.3b"
@@ -10836,7 +10836,10 @@
    "testes": [
     "CR 701.27a · 712.18 · transformar vira a outra face para cima, nos dois sentidos, e a permanente continua o mesmo objeto: marcadores, dano e virada ficam; nome, tipo, cor, P/T e habilidades passam a ser os da face de cima",
     "CR 712.8a · 712.14 · fora do campo a carta tem só a frente, e de outra zona entra com a frente para cima; 712.8e · com o verso para cima, o valor de mana é o da frente",
-    "CR 712.13 · 712.8f · a face conjurada é a que entra no campo, e a permanente tem só as características dela (valor de mana próprio); 712.8a · fora do campo e da pilha volta a ser a frente"
+    "CR 712.13 · 712.8f · a face conjurada é a que entra no campo, e a permanente tem só as características dela (valor de mana próprio); 712.8a · fora do campo e da pilha volta a ser a frente",
+    "CR 712.8e · a dupla face transformada (verso para cima) vale o custo da frente: Insectile Aberration tem valor de mana 1",
+    "CR 712.8e / 202.3b · a permanente que copia o verso de uma dupla face tem valor de mana 0: o Clone de Insectile Aberration é alvo de \"valor de mana 0\"",
+    "CR 712.8c · conjurada transformada pelo \"disturb\": na pilha e no campo, Luminous Phantom vale o custo da frente (1), não 0"
    ]
   },
   {
@@ -10869,7 +10872,7 @@
    "titulo": "Conjurar dupla face: frente por padrão",
    "status": "parcial",
    "evidencia": "T-8 (11/10/2026) · src/engine/core.js, bloco \"T-8 · CR 712.3 … dupla face modal\" (cartas `self: { modal: true }`): 712.11 — a frente por padrão. 712.11b–c — faceEscolhidaT põe a face escolhida para cima antes de qualquer conferência de `cast`: só ela é avaliada (custo, tempo, alvos) e só ela vai à pilha; as ofertas saem do próprio legalActions sobre uma cópia do estado com as modais da mão viradas (modalOfertas). 712.11a/d seguem no caminho do disturb (trilha motor).",
-   "falta": "712.11a/d: conjurar convertida coberta na T-49 (More Than Meets the Eye: verso para cima na pilha, valor de mana da frente); conjurar \"transformada\" ainda só existe no disturb antigo, com valor de mana 0 na pilha (712.8c); cópia de carta modal conjurada (\"or a copy of\") não tem efeito no vocabulário.",
+   "falta": "712.11a/d: conjurar convertida coberta na T-49 (More Than Meets the Eye: verso para cima na pilha, valor de mana da frente); conjurar \"transformada\" só existe no disturb (desde a T-69 com o valor de mana da frente na pilha, 712.8c); cópia de carta modal conjurada (\"or a copy of\") não tem efeito no vocabulário.",
    "esforco": "P",
    "depende": [
     "712.3"

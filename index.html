@@ -27674,7 +27674,27 @@ function nomeDaPortaT(s, oid, lado) { const o = s.objects[oid], sc = o && salaSc
      Duas: a Sala fica anotada (`s.portaEsperaT`) e a conferência seguinte abre a decisão `porta_escolha` (uma oferta por porta; mesa,
      goldfish e bot) — o validador exige que `porta` seja o último efeito, então nada da mesma habilidade acontece entre a resolução e a escolha.
    - 709.5i: "When you fully unlock this Room" (`fully-unlock`) dispara quando a Sala tinha uma porta destrancada e ganha a outra. */
+/* T-69 · CR 712.8c / 712.8e / 202.3b · o valor de mana das faces de trás. A dupla face não modal com o verso para cima (transformada, ou
+   conjurada transformada pelo "disturb") vale o custo da FRENTE na pilha e no campo; a permanente que COPIA o verso de uma dupla face não
+   modal vale 0. "Dupla face não modal": carta com `back` que não é modal, Aventura, Presságio, preparação, carta de virar, dividida nem Sala. */
+const VERSOS_T = new WeakMap(); // por tabela de fatos: os nomes dos versos de dupla face não modal
+const scriptNaoModalT = sc => !!(sc && sc.back && !sc.omen && !(sc.self && (sc.self.modal || sc.self.aventura || sc.self.virar || sc.self.preparo || sc.self.dividida || sc.self.sala)));
+const nomeDoVersoT = sc => typeof sc.back === 'string' ? sc.back : sc.back && sc.back.name;
+function versoNaoModalT(s, nome) {
+  let v = VERSOS_T.get(s.facts);
+  if (!v) { v = new Set(Object.values(s.facts).filter(f => f && scriptNaoModalT(f.script)).map(f => nomeDoVersoT(f.script)).filter(Boolean)); VERSOS_T.set(s.facts, v); }
+  return v.has(nome);
+}
+function valorDaFaceT(s, o) {
+  if (!o || o.faceDown || (o.zone !== 'battlefield' && o.zone !== 'stack')) return null;
+  const r = o.zone === 'battlefield' ? copiaVigenteT(s, o) : null;
+  if (r && versoNaoModalT(s, r.nome)) return 0; // 712.8e: copia o verso
+  if (r || !o.frontName || o.omen || o.ability) return null;
+  const sc = (s.facts[o.frontName] || {}).script;
+  return scriptNaoModalT(sc) && nomeDoVersoT(sc) === o.name ? ((s.facts[o.frontName] || {}).cmc || 0) : null; // 712.8c/e: o custo da frente
+}
 function valorDaSalaT(s, o) {
+  { const vf = valorDaFaceT(s, o); if (vf != null) return vf; } // T-69 · CR 712.8c / 712.8e (o mesmo gancho do valor de mana)
   const pr = prototipoAtivoT(s, o); if (pr) return valorDoCustoT(parseCost(pr.mana)); // T-36 · CR 718.3b: o protótipo na pilha e no campo vale o custo alternativo (o mesmo gancho do valor de mana)
   const pt = o && o.zone === 'battlefield' && !o.faceDown ? portasDaSalaT(s, o) : null; if (!pt) return null;
   const sc = salaScriptT(s, o);
