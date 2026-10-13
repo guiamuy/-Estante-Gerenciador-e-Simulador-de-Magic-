@@ -5035,6 +5035,80 @@ test('e2e · P-7 conta da Estante: entrar com Google abre a conta da Estante; re
 });
 
 /* ---------------- P-8 · T6c-2b · sala pela internet pede a conta da Estante ---------------- */
+/* G-263 · T6f-1 · relato #18: criar conta e entrar com e-mail e senha (Identity Toolkit falso) */
+test('e2e · G-263 conta com e-mail: cria com erro na hora e sem fechar a folha, conecta a conta da Estante, guarda só o e-mail e a renovação, fica ao reabrir, sai e entra de novo', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.addInitScript(() => {
+    window.__GOOGLE_CLIENT_ID = 'e2e.apps.googleusercontent.com';
+    window.__FIREBASE_API_KEY = 'chave-e2e';
+    window.__firebaseLog = [];
+    const ok = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } });
+    window.__FIREBASE_FETCH = async (url, init) => {
+      const corpo = url.includes('securetoken') ? init.body : JSON.parse(init.body);
+      window.__firebaseLog.push({ url: url.split('?')[0], corpo });
+      if (url.includes('securetoken')) return ok({ id_token: 'id-renovado', refresh_token: 'ref-senha-e2e', expires_in: '3600', user_id: 'uidSenha_1' });
+      if (url.includes('accounts:signUp')) return corpo.email === 'ja@exemplo.com' ? ok({ error: { message: 'EMAIL_EXISTS' } }, 400)
+        : ok({ localId: 'uidSenha_1', email: corpo.email, idToken: 'id-senha-segredo', refreshToken: 'ref-senha-e2e', expiresIn: '3600' });
+      if (url.includes('accounts:signInWithPassword')) return corpo.password === 'senha-certa-1' ? ok({ localId: 'uidSenha_1', email: corpo.email, idToken: 'id-senha-segredo', refreshToken: 'ref-senha-e2e', expiresIn: '3600' })
+        : ok({ error: { message: 'INVALID_LOGIN_CREDENTIALS' } }, 400);
+      return ok({ error: { message: 'NOT_FOUND' } }, 404);
+    };
+  });
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#conta-email-abrir:not([disabled])');
+  // 1 · sem conta: as duas portas, Google e e-mail, com alvo de 44 px; a seção chama "Conta"
+  assert.equal(await page.innerText('#perfil-conta h2'), 'Conta');
+  for (const id of ['#conta-entrar', '#conta-email-abrir']) assert.ok((await page.locator(id).boundingBox()).height >= 44, id);
+  assert.match(await page.innerText('#conta-entrar'), /Continuar com Google/);
+  await page.click('#conta-email-abrir'); await page.waitForSelector('#conta-email-campo');
+  await page.click('#conta-email-modo [data-modo="criar"]');
+  assert.equal(await page.getAttribute('#conta-senha', 'autocomplete'), 'new-password');
+  assert.equal(await page.innerText('#conta-email-confirmar'), 'Criar conta');
+  await auditaTela(page, 'perfil · criar conta com e-mail');
+  // 2 · erros aparecem embaixo dos campos, sem fechar a folha: e-mail estranho, senha curta (sem rede) e e-mail que já tem conta
+  await page.fill('#conta-email-campo', 'sem-arroba'); await page.fill('#conta-senha', 'senha-certa-1'); await page.click('#conta-email-confirmar');
+  await page.waitForSelector('#conta-email-erro .ds-note'); assert.match(await page.innerText('#conta-email-erro'), /Confira o e-mail/);
+  await page.fill('#conta-email-campo', 'gui@exemplo.com'); await page.fill('#conta-senha', 'curta'); await page.click('#conta-email-confirmar');
+  await page.waitForFunction(() => /8 caracteres/.test(document.querySelector('#conta-email-erro').textContent));
+  assert.equal(await page.evaluate(() => window.__firebaseLog.length), 0, 'erro de digitação não vai para a rede');
+  await page.fill('#conta-email-campo', 'ja@exemplo.com'); await page.fill('#conta-senha', 'senha-certa-1'); await page.click('#conta-email-confirmar');
+  await page.waitForFunction(() => /já tem conta/.test(document.querySelector('#conta-email-erro').textContent));
+  assert.equal(await page.isDisabled('#conta-email-confirmar'), false, 'o botão volta depois do erro');
+  // 3 · mostrar a senha alterna o campo
+  await page.click('#conta-senha-mostrar'); assert.equal(await page.getAttribute('#conta-senha', 'type'), 'text');
+  await page.click('#conta-senha-mostrar'); assert.equal(await page.getAttribute('#conta-senha', 'type'), 'password');
+  // 4 · cria: e-mail em minúsculas e sem espaço vai para o accounts:signUp; a folha fecha e a conta da Estante conecta
+  await page.fill('#conta-email-campo', '  Gui@Exemplo.com '); await page.click('#conta-email-confirmar');
+  await page.waitForSelector('#perfil-conta[data-provedor="senha"] #conta-estante[data-estado="conectada"]');
+  const pedido = await page.evaluate(() => window.__firebaseLog.at(-1));
+  assert.equal(pedido.url, 'https://identitytoolkit.googleapis.com/v1/accounts:signUp');
+  assert.deepEqual(pedido.corpo, { email: 'gui@exemplo.com', password: 'senha-certa-1', returnSecureToken: true });
+  assert.equal(await page.innerText('#conta-email'), 'gui@exemplo.com');
+  assert.equal(await page.locator('#ds-overlay[data-open="true"]').count(), 0, 'a folha fechou');
+  assert.equal(await page.locator('#conta-usar, #conta-enviar, #conta-baixar').count(), 0, 'sem Google, sem Drive nem foto da conta');
+  await auditaTela(page, 'perfil · conta com e-mail conectada');
+  // 5 · no aparelho: o e-mail e o token de renovação; nunca a senha nem o token de acesso
+  const guardado = await page.evaluate(async () => {
+    const tudo = [JSON.stringify(localStorage), JSON.stringify(sessionStorage)];
+    const db = await new Promise(r => { const q = indexedDB.open('mtg'); q.onsuccess = () => r(q.result); q.onerror = () => r(null); });
+    if (db) for (const nome of db.objectStoreNames) tudo.push(JSON.stringify(await new Promise(r => { const q = db.transaction(nome).objectStore(nome).getAll(); q.onsuccess = () => r(q.result); q.onerror = () => r([]); })));
+    return tudo.join('|');
+  });
+  assert.ok(!/senha-certa-1|id-senha-segredo/.test(guardado), 'senha ou token de acesso no armazenamento');
+  assert.match(guardado, /ref-senha-e2e/);
+  // 6 · reabrir: continua conectada; sair volta às duas portas; entrar com senha errada avisa, com a certa conecta
+  await page.reload(); await page.goto(base + '#/perfil'); await page.waitForSelector('#conta-estante[data-estado="conectada"]');
+  await page.click('#conta-sair'); await page.waitForSelector('#conta-email-abrir');
+  await page.click('#conta-email-abrir'); await page.waitForSelector('#conta-email-campo');
+  assert.equal(await page.getAttribute('#conta-email-modo [data-modo="entrar"]', 'aria-pressed'), 'true', 'abre em Entrar');
+  await page.fill('#conta-email-campo', 'gui@exemplo.com'); await page.fill('#conta-senha', 'errada-123'); await page.press('#conta-senha', 'Enter');
+  await page.waitForFunction(() => /não conferem/.test(document.querySelector('#conta-email-erro').textContent));
+  await page.fill('#conta-senha', 'senha-certa-1'); await page.click('#conta-email-confirmar');
+  await page.waitForSelector('#conta-estante[data-estado="conectada"]');
+  assert.equal(await page.evaluate(() => window.__firebaseLog.at(-1).url), 'https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword');
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · P-8 sala pela internet: sem conta da Estante, Criar e Entrar dão lugar a Conectar; sem conta Google leva ao Perfil; conectada, a sala aparece; P-9 reabrir continua conectado; sem sessão, Conectar liga ali', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.setViewportSize({ width: 360, height: 780 });

@@ -172,3 +172,79 @@ test('P-9 · a sessão guardada é do aparelho: classe "aparelho" no registro, f
   assert.equal(PF.classeDe('conta.sessao'), 'aparelho');
   assert.ok(!PF.PREFERENCIAS.includes('conta.sessao') && !PF.DO_DOCUMENTO.includes('conta.sessao'));
 });
+
+/* G-263 · T6f-1 · relato #18: conta com e-mail e senha (Identity Toolkit accounts:signUp e accounts:signInWithPassword) */
+function senhaFalsa(respostas = {}) {
+  const pedidos = []; let n = 0;
+  const resp = (status, corpo) => ({ ok: status < 400, status, json: async () => corpo });
+  const fetch = async (url, init = {}) => {
+    pedidos.push({ url, corpo: init.body && init.body[0] === '{' ? JSON.parse(init.body) : init.body, tipo: init.headers && init.headers['Content-Type'] });
+    const rota = Object.keys(respostas).find(k => url.includes(k));
+    if (rota) return resp(400, { error: { message: respostas[rota] } });
+    if (url.includes('accounts:signUp') || url.includes('accounts:signInWithPassword')) { const c = JSON.parse(init.body); return resp(200, { localId: 'uidSenha_1', email: c.email, idToken: 'id-' + (++n), refreshToken: 'ref-' + n, expiresIn: '3600' }); }
+    if (url.includes('securetoken')) return resp(200, { id_token: 'id-' + (++n), refresh_token: 'ref-' + n, expires_in: '3600', user_id: 'uidSenha_1' });
+    return resp(404, {});
+  };
+  return { fetch, pedidos };
+}
+
+test('G-263 · criar e entrar com senha: pedido no formato do Identity Toolkit, uid da resposta, só uid e renovação guardados', async () => {
+  const F = senhaFalsa(); const guardado = [];
+  const s = C.createSessaoFirebase({ apiKey: 'chave-x', fetch: F.fetch, guarda: d => guardado.push(d) });
+  assert.deepEqual({ ...(await s.criarComSenha('ana@exemplo.com', 'segredo-123')) }, { uid: 'uidSenha_1', email: 'ana@exemplo.com' });
+  assert.equal(F.pedidos[0].url, 'https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=chave-x');
+  assert.equal(F.pedidos[0].tipo, 'application/json');
+  assert.deepEqual(F.pedidos[0].corpo, { email: 'ana@exemplo.com', password: 'segredo-123', returnSecureToken: true });
+  assert.equal(s.ativa(), true); assert.equal(s.uid(), 'uidSenha_1'); assert.equal(await s.token(), 'id-1');
+  assert.deepEqual({ ...guardado.at(-1) }, { uid: 'uidSenha_1', refreshToken: 'ref-1' });
+  s.sair();
+  await s.entrarComSenha('ana@exemplo.com', 'segredo-123');
+  assert.equal(F.pedidos.at(-1).url, 'https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=chave-x');
+  assert.equal(s.ativa(), true);
+});
+
+test('G-263 · cada recusa do Identity Toolkit vira um motivo de pessoa (sem firebase, token ou uid na frase)', async () => {
+  const casos = { EMAIL_EXISTS: 'email-em-uso', INVALID_EMAIL: 'email-invalido', 'WEAK_PASSWORD : Password should be at least 6 characters': 'senha-fraca',
+    INVALID_LOGIN_CREDENTIALS: 'senha-nao-confere', EMAIL_NOT_FOUND: 'senha-nao-confere', INVALID_PASSWORD: 'senha-nao-confere', USER_DISABLED: 'conta-desativada',
+    'TOO_MANY_ATTEMPTS_TRY_LATER : Access to this account has been temporarily disabled': 'muitas-tentativas', OPERATION_NOT_ALLOWED: 'sem-senha' };
+  for (const [mensagem, codigo] of Object.entries(casos)) {
+    const s = C.createSessaoFirebase({ apiKey: 'k', fetch: senhaFalsa({ accounts: mensagem }).fetch });
+    await assert.rejects(s.entrarComSenha('a@b.co', 'x'), e => e.message === codigo, mensagem);
+    assert.equal(s.ativa(), false);
+    assert.ok(C.MOTIVO[codigo] && !/firebase|token|uid/i.test(C.MOTIVO[codigo]), `frase de pessoa para ${codigo}`);
+  }
+  const outro = C.createSessaoFirebase({ apiKey: 'k', fetch: senhaFalsa({ accounts: 'ALGO_NOVO' }).fetch });
+  await assert.rejects(outro.entrarComSenha('a@b.co', 'x'), /firebase-recusou/, 'código desconhecido continua genérico');
+  await assert.rejects(C.createSessaoFirebase({ apiKey: '' }).criarComSenha('a@b.co', 'x'), /sem-firebase/);
+});
+
+test('G-263 · conta com e-mail: confere antes da rede, guarda só o e-mail (provedor senha), retoma ao reabrir, não pede o Google', async () => {
+  const F = senhaFalsa();
+  const { conta, gravados } = contaCom(C.createSessaoFirebase({ apiKey: 'k', fetch: F.fetch }));
+  assert.equal(conta.comEmailDisponivel(), true);
+  await assert.rejects(conta.criarComEmail('sem-arroba', 'segredo-123'), /email-invalido/);
+  await assert.rejects(conta.criarComEmail('ana@exemplo.com', 'curta'), /senha-curta/);
+  await assert.rejects(conta.entrarComEmail('ana@exemplo.com', ''), /senha-vazia/);
+  await assert.rejects(conta.criarComEmail('ana@exemplo.com', 'x'.repeat(129)), /senha-longa/);
+  assert.equal(F.pedidos.length, 0, 'erro de digitação não vai para a rede');
+  const c = await conta.criarComEmail('  Ana@Exemplo.com ', 'segredo-123');
+  assert.equal(F.pedidos[0].corpo.email, 'ana@exemplo.com');
+  assert.deepEqual({ email: c.email, provedor: c.provedor, nome: c.nome, foto: c.foto }, { email: 'ana@exemplo.com', provedor: 'senha', nome: '', foto: null });
+  assert.equal(conta.estante().estado, 'conectada');
+  assert.ok(!gravados.some(g => /segredo-123|id-1/.test(g)), 'nem senha nem token de acesso no armazenamento da conta');
+  // entrar com senha curta funciona (a regra dos 8 vale só para criar: contas antigas podem ter 6)
+  conta.sessao.sair(); await conta.entrarComEmail('ana@exemplo.com', 'seis66');
+  // conectar de novo uma conta de senha não abre o Google: pede a senha
+  conta.sessao.sair();
+  await assert.rejects(conta.conectarEstante(), /entre-de-novo/);
+  assert.deepEqual({ ...conta.estante() }, { estado: 'desconectada', motivo: 'entre-de-novo' });
+  assert.equal(await conta.retomaEstante({ uid: 'uidSenha_1', refreshToken: 'ref-9' }), true, 'reabrir retoma pela renovação guardada');
+  await conta.sair(); assert.equal(await conta.get(), null);
+  // sem conta da Estante configurada, não há e-mail
+  const { conta: semFirebase } = contaCom(C.createSessaoFirebase({ apiKey: '' }));
+  assert.equal(semFirebase.comEmailDisponivel(), false);
+  await assert.rejects(semFirebase.entrarComEmail('ana@exemplo.com', 'segredo-123'), /sem-firebase/);
+  // conta Google antiga (sem provedor guardado) continua Google
+  const { conta: g } = contaCom(C.createSessaoFirebase({ apiKey: 'k', fetch: googleFalso().fetch }));
+  assert.equal((await g.entrar()).provedor, 'google');
+});

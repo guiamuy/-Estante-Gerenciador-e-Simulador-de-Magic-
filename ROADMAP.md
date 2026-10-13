@@ -531,6 +531,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-el ✅ | N3b filtrar notícias pelas suas palavras: criar, ligar, desligar e apagar; com várias ligadas, só as que têm todas; fontes continuam (relato #19, leva G-260) | N | 1 | teste no aparelho |
 | 16º-em ✅ | T6e-3 relato enviado não muda mais: seções "Para enviar" e "Enviados", falha com o motivo e "Enviar de novo", sem editar, reenviar, excluir nem mudar a situação depois de enviado (relato #16, leva G-261) | T | 1 | teste no aparelho |
 | 16º-en ✅ | A12b sem listas próprias da Estante: Listas prontas só com o catálogo; as listas do dono vão por um arquivo de backup que ele importa uma vez (relato #17, leva G-262) | A | 1 | o dono importar o arquivo |
+| 16º-eo ✅ | T6f-1 conta com e-mail e senha: criar conta e entrar no Perfil, ao lado do Google; a sessão fica ao reabrir; erros na hora, sem fechar a folha (relato #18, fatia 1 de 6, leva G-263) | P | 1 | teste no aparelho |
 | 16º-ee ✅ | T6e-2 Enviar relato sem sair do app: com a conta conectada e a fila ligada, o relato vai para a fila do Firebase e o cartão mostra "Na fila" até o número do registro (relato #13, leva G-255) | T | 1 | — |
 | 16º-eh ✅ | T6e-2 prazo honesto do relato pela fila: o GitHub atrasa o agendamento em horas, a tela diz "de minutos a algumas horas" e a conversa que lê relatos roda a fila antes (relato #13, leva G-256) | T | 1 | 16º-ee |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
@@ -9484,6 +9485,35 @@ o aviso de fila ligada, o que acontece na primeira rodada depois de o dono criar
   resolve (Notícias, no minuto 17, atrasa igual): o agendamento fica como está. A fila ligou em 12/10/2026 22:28 UTC (`fila.json` no ramo `relatos`).
 - **Fora:** apagar da fila um relato excluído no aparelho antes de virar registro; prazo de minutos garantido (pediria um
   disparo externo com credencial do repositório guardada fora dele, ou função paga no Firebase).
+
+**T6f · Conta própria da Estante: e-mail e senha, Google vinculado, nome único (relato #18)** — em fatias
+- **Pedido (relato #18, infraestrutura · impede o uso):** criar conta com e-mail e senha, entrar e recuperar a senha;
+  entrar com Google direto ou criar a conta e vincular o Google depois (para o backup); e-mail e nome de usuário únicos;
+  manutenção de conta e LGPD; telas de entrada, carregamento, falha e sucesso; a conta guarda as configurações do perfil
+  (isso já vale pela A-261/A-263 por uid). O dono ligou o provedor E-mail/senha no Firebase em 13/10/2026 (modelo de
+  redefinição em pt-BR, uma conta por e-mail, criação ligada, proteção contra enumeração ligada).
+- **Fatias:** T6f-1 criar e entrar (G-263) ✅ · T6f-2 esqueci a senha · T6f-3 nome de usuário único (regras do banco; o
+  dono publica) · T6f-4 vincular o Google depois (com e-mail confirmado; senão o Google desfaz a senha) · T6f-5 trocar a
+  senha e excluir a conta (com os dados da nuvem) · T6f-6 transições de entrada e sucesso.
+
+**T6f-1 · Criar conta e entrar com e-mail e senha** ✅ (leva G-263, trilha `geral`, 13/10/2026)
+- **Como:** a sessão da Estante (`src/data/conta.js`, `createSessaoFirebase`) ganhou `criarComSenha` e `entrarComSenha`
+  pelo Identity Toolkit (`accounts:signUp`, `accounts:signInWithPassword`), com a mesma sessão guardada da P-9 (só uid e
+  token de renovação; a senha e o token de acesso nunca vão para o aparelho). `createConta` confere o e-mail e a senha
+  antes da rede (8 caracteres para criar; entrar aceita as antigas de 6), guarda só o e-mail com `provedor: 'senha'` e,
+  numa conta de senha desconectada, pede a senha em vez de abrir o Google. Cada recusa vira uma frase (e-mail já tem
+  conta, e-mail ou senha não conferem — sem dizer qual, como a proteção contra enumeração —, muitas tentativas,
+  desativada). Perfil: a seção virou "Conta", com "Continuar com Google" e "Entrar com e-mail"; a folha tem Entrar/Criar
+  conta, mostrar a senha, o erro embaixo dos campos e o botão em "Entrando…/Criando…". Conta de senha mostra e-mail,
+  conta da Estante, sincronização e Sair; o backup no Drive fica para o Google vinculado (T6f-4), dito na tela.
+- **Simplificação declarada:** o ícone do Google não é desenhado (a marca tem regras de uso): o botão usa o ícone de
+  externo e o nome "Continuar com Google".
+- **Testes:** U `conta.estante.unit` (G-263: formato dos pedidos, uid da resposta, só uid e renovação guardados; cada
+  recusa vira motivo de pessoa; conferência antes da rede, provedor senha, retoma, conectar de senha não abre o Google);
+  e2e "G-263" (as duas portas com 44 px, erros na hora sem fechar a folha e sem rede, mostrar senha, cria e conecta,
+  nada de senha nem token de acesso guardado, reabrir continua, sair, senha errada avisa, a certa entra). Leva 129, P-7 e
+  P-8 continuam verdes.
+- **Fora:** esqueci a senha, nome de usuário, vincular o Google, trocar senha e excluir conta (T6f-2 a T6f-5).
 
 **T6e-3 · Relato enviado não muda mais (relato #16)** ✅ (leva G-261, trilha `geral`, 13/10/2026)
 - **Pedido (relato #16, infraestrutura · impede o uso):** depois de enviado, o relato não se edita, não se reenvia, não se

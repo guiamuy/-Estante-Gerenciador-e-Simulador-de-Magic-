@@ -51,7 +51,7 @@ test('Leva 129 · entrar pede o token com os escopos certos, guarda nome/e-mail/
   const c = C.createConta({ clientId: 'id-1.apps.googleusercontent.com', store, fetch: R.fetch, google: G.g, agora: () => t });
   assert.equal(c.disponivel(), true);
   const u = await c.entrar();
-  assert.deepEqual(J(u), { nome: 'Gui Amuy', email: 'gui@example.com', foto: 'https://lh3.googleusercontent.com/a/x', entradaEm: 1000, backupEm: 0 });
+  assert.deepEqual(J(u), { nome: 'Gui Amuy', email: 'gui@example.com', foto: 'https://lh3.googleusercontent.com/a/x', entradaEm: 1000, backupEm: 0, provedor: 'google' }); // G-263 · a conta diz por onde entrou (google ou senha)
   assert.deepEqual(J(G.log[0]), ['pede', c.ESCOPOS, 'consent']);
   assert.match(c.ESCOPOS, /drive\.appdata/); assert.doesNotMatch(c.ESCOPOS, /auth\/drive(\s|$)/, 'nunca o Drive inteiro: só a pasta do app');
   assert.equal(c.autenticado(), true);

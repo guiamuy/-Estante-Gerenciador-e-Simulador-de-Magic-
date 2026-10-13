@@ -834,6 +834,12 @@ a { color: var(--accent); }
 @keyframes tb-online-pulso { 50% { opacity: .35; } }
 @media (prefers-reduced-motion: reduce) { .tb-online[data-ligado="false"] { animation: none; opacity: .6; } }
 .perfil-conta__texto { gap: 0; min-width: 0; }
+/* G-263 · T6f-1 · entrar com e-mail e senha: o erro aparece na hora, embaixo dos campos */
+.perfil-conta__opcoes { display: flex; flex-direction: column; gap: var(--space-2); }
+.perfil-conta__opcoes > .ds-btn { justify-content: flex-start; min-height: var(--tap-min); }
+.conta-email__erro:empty { display: none; }
+.conta-email__senha { display: flex; gap: var(--space-2); align-items: stretch; }
+.conta-email__senha > .ds-input { flex: 1; min-width: 0; }
 .perfil-conta__texto > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ---------------- campos ---------------- */
@@ -3058,6 +3064,8 @@ const ICONES = {
   vida: '<path d="M12 19.5s-7-4.4-7-9.7a3.9 3.9 0 0 1 7-2.3 3.9 3.9 0 0 1 7 2.3c0 5.3-7 9.7-7 9.7z"/>', // H4 · vida, no resumo do turno
   etiqueta: '<path d="M3.5 11.8V5.3a1.8 1.8 0 0 1 1.8-1.8h6.5a1.8 1.8 0 0 1 1.3.5l6.9 6.9a1.8 1.8 0 0 1 0 2.6l-6.5 6.5a1.8 1.8 0 0 1-2.6 0L4 13.1a1.8 1.8 0 0 1-.5-1.3z"/><circle cx="8.2" cy="8.2" r="1.3"/>', // G2 · etiquetas de cartas e listas
   cartaSai: '<path d="M15.5 10V5.3a1.8 1.8 0 0 0-1.8-1.8H6.3a1.8 1.8 0 0 0-1.8 1.8v11.9A1.8 1.8 0 0 0 6.3 19h5.2"/><path d="M17 20.5v-7"/><path d="M13.9 16.6 17 13.5l3.1 3.1"/>', // leva 160 · bloco Exportar da coleção: a carta que sai
+  email: '<rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="M4 7l8 6 8-6"/>', // G-263 · entrar com e-mail e senha
+  olho: '<path d="M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12s-3.5 6.5-9.5 6.5S2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.75"/>', // G-263 · mostrar a senha
   ampulheta: '<path d="M6.5 3.5h11M6.5 20.5h11"/><path d="M7.5 3.5c0 4.5 4.5 5.5 4.5 8.5s-4.5 4-4.5 8.5M16.5 3.5c0 4.5-4.5 5.5-4.5 8.5s4.5 4 4.5 8.5"/>'
 };
 function Icone(nome, { tamanho = 20, classe = '' } = {}) {
@@ -11055,18 +11063,39 @@ function createConta({ clientId = '', store, fetch: fetchFn = null, google: goog
     const r = await json(`${API}/drive/v3/files?spaces=appDataFolder&q=${q}&fields=files(id,modifiedTime,size)`, { headers: auth() });
     return (r && r.files && r.files[0]) || null;
   }
-  return {
+  async function comEmail(metodo, email, senha) {
+    if (!sessao || !sessao.disponivel() || !sessao[metodo]) throw erro('sem-firebase');
+    const e = String(email || '').trim().toLowerCase();
+    if (!EMAIL_OK.test(e) || e.length > 254) throw erro('email-invalido');
+    const p = String(senha || '');
+    if (!p) throw erro('senha-vazia');
+    if (metodo === 'criarComSenha' && p.length < SENHA_MIN) throw erro('senha-curta');
+    if (p.length > 128) throw erro('senha-longa');
+    if (!temRede()) throw erro('sem-rede');
+    erroEstante = null;
+    const r = await sessao[metodo](e, p);
+    const antes = await conta.get();
+    await store.set(KEY, { nome: '', email: r.email || e, foto: null, provedor: 'senha', entradaEm: agora(), backupEm: (antes && antes.email === (r.email || e) && antes.backupEm) || 0 });
+    return conta.get();
+  }
+  const conta = {
     ARQUIVO, ESCOPOS,
     /** Há Client ID? Sem ele a conta não existe na interface. */
     disponivel() { return !!clientId; },
-    async get() { let c = null; try { c = await store.get(KEY); } catch (e) { c = null; } return c && c.email ? { nome: String(c.nome || ''), email: String(c.email), foto: typeof c.foto === 'string' && /^https:\/\//.test(c.foto) ? c.foto : null, entradaEm: c.entradaEm || 0, backupEm: c.backupEm || 0 } : null; },
+    async get() { let c = null; try { c = await store.get(KEY); } catch (e) { c = null; } return c && c.email ? { nome: String(c.nome || ''), email: String(c.email), foto: typeof c.foto === 'string' && /^https:\/\//.test(c.foto) ? c.foto : null, entradaEm: c.entradaEm || 0, backupEm: c.backupEm || 0, provedor: c.provedor === 'senha' ? 'senha' : 'google' } : null; },
+    /** G-263 · T6f-1 · Dá para criar conta e entrar com e-mail e senha? (precisa só da conta da Estante configurada) */
+    comEmailDisponivel() { return !!(sessao && sessao.disponivel() && sessao.criarComSenha); },
+    /** G-263 · Cria a conta da Estante com e-mail e senha e guarda só o e-mail no aparelho (a senha nunca é guardada). */
+    criarComEmail(email, senha) { return comEmail('criarComSenha', email, senha); },
+    /** G-263 · Entra com e-mail e senha. */
+    entrarComEmail(email, senha) { return comEmail('entrarComSenha', email, senha); },
     /** Abre o consentimento do Google e guarda nome, e-mail e foto. */
     async entrar() {
       if (!clientId) throw erro('sem-client-id');
       if (!temRede()) throw erro('sem-rede');
       await pedeToken();
       const u = await json(`${API}/oauth2/v3/userinfo`, { headers: auth() });
-      const c = { nome: u.name || '', email: u.email || '', foto: u.picture || null, entradaEm: agora(), backupEm: ((await this.get()) || {}).backupEm || 0 };
+      const c = { nome: u.name || '', email: u.email || '', foto: u.picture || null, provedor: 'google', entradaEm: agora(), backupEm: ((await this.get()) || {}).backupEm || 0 };
       await store.set(KEY, c);
       await this.conectarEstante({ jaTemToken: true }).catch(() => {}); // P-7 · a conta Google vale mesmo se o Firebase falhar: a tela mostra
       return this.get();
@@ -11077,6 +11106,7 @@ function createConta({ clientId = '', store, fetch: fetchFn = null, google: goog
       if (!sessao || !sessao.disponivel()) return null;
       erroEstante = null;
       try {
+        if (!jaTemToken && ((await this.get()) || {}).provedor === 'senha') throw erro('entre-de-novo'); // G-263 · conta de senha volta pela senha, não pelo Google
         if (!jaTemToken) { if (!temRede()) throw erro('sem-rede'); await pedeToken({ silencioso: true }); }
         return await sessao.entrar(token);
       } catch (e) { erroEstante = e && e.message || 'api'; throw e; }
@@ -11125,7 +11155,10 @@ function createConta({ clientId = '', store, fetch: fetchFn = null, google: goog
     /** Só para testes e diagnóstico: o token atual existe? */
     autenticado() { return !!token && agora() < expira; }
   };
+  return conta;
 }
+const EMAIL_OK = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const SENHA_MIN = 8;
 /** Carrega um script externo uma vez (GIS). Rejeita sem rede ou se o navegador bloquear. */
 function carregaScriptWeb(src) {
   return new Promise((res, rej) => {
@@ -11148,6 +11181,12 @@ function carregaScriptWeb(src) {
    --------------------------------------------------------------------- */
 const IDT = 'https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp';
 const STK = 'https://securetoken.googleapis.com/v1/token';
+// G-263 · T6f-1 · relato #18: conta com e-mail e senha no mesmo Identity Toolkit (provedor ligado pelo dono em 13/10/2026).
+const SIGNUP = 'https://identitytoolkit.googleapis.com/v1/accounts:signUp';
+const SENHA = 'https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword';
+/** Código do Identity Toolkit (o começo da mensagem de erro) → motivo da tela. Com a proteção contra enumeração ligada,
+    e-mail sem conta e senha errada chegam iguais (INVALID_LOGIN_CREDENTIALS): a tela também não diferencia. */
+const ERRO_SENHA = { EMAIL_EXISTS: 'email-em-uso', INVALID_EMAIL: 'email-invalido', MISSING_EMAIL: 'email-invalido', WEAK_PASSWORD: 'senha-fraca', MISSING_PASSWORD: 'senha-vazia', INVALID_LOGIN_CREDENTIALS: 'senha-nao-confere', INVALID_PASSWORD: 'senha-nao-confere', EMAIL_NOT_FOUND: 'senha-nao-confere', USER_DISABLED: 'conta-desativada', TOO_MANY_ATTEMPTS_TRY_LATER: 'muitas-tentativas', OPERATION_NOT_ALLOWED: 'sem-senha', PASSWORD_LOGIN_DISABLED: 'sem-senha' };
 const UID_OK = /^[A-Za-z0-9_-]{1,128}$/;
 const RENOVA_ANTES_MS = 5 * 60000;
 function createSessaoFirebase({ apiKey = '', fetch: fetchFn = null, agora = () => Date.now(), origem = null, guarda = null } = {}) {
@@ -11168,6 +11207,21 @@ function createSessaoFirebase({ apiKey = '', fetch: fetchFn = null, agora = () =
     }
     return corpo || {};
   }
+  async function comSenha(url, email, senha) {
+    if (!apiKey) throw erro('sem-firebase');
+    let r;
+    try {
+      r = await pede(`${url}?key=${chave()}`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: String(email || ''), password: String(senha || ''), returnSecureToken: true }) });
+    } catch (e) {
+      const codigo = e.message === 'firebase-recusou' ? ERRO_SENHA[String(e.detalhe || '').split(/[\s:]/)[0]] : null;
+      throw codigo ? erro(codigo, { status: e.status }) : e;
+    }
+    if (!UID_OK.test(String(r.localId || '')) || typeof r.idToken !== 'string' || typeof r.refreshToken !== 'string') throw erro('firebase-recusou');
+    s = { uid: r.localId, idToken: r.idToken, refreshToken: r.refreshToken, expira: agora() + (Number(r.expiresIn) || 3600) * 1000 };
+    renovando = null; grava({ uid: s.uid, refreshToken: s.refreshToken });
+    return { uid: s.uid, email: String(r.email || email || '') };
+  }
   const requestUri = () => origem || (typeof location !== 'undefined' && /^https?:\/\//.test(String(location.origin || '')) ? location.origin : 'http://localhost');
   return {
     disponivel() { return !!apiKey; },
@@ -11182,6 +11236,10 @@ function createSessaoFirebase({ apiKey = '', fetch: fetchFn = null, agora = () =
       renovando = null; grava({ uid: s.uid, refreshToken: s.refreshToken });
       return { uid: s.uid };
     },
+    /** G-263 · Cria a conta da Estante com e-mail e senha. Devolve `{ uid, email }`. */
+    criarComSenha(email, senha) { return comSenha(SIGNUP, email, senha); },
+    /** G-263 · Entra na conta da Estante com e-mail e senha. Devolve `{ uid, email }`. */
+    entrarComSenha(email, senha) { return comSenha(SENHA, email, senha); },
     /** P-9 · Volta a sessão guardada neste aparelho: o primeiro `token()` renova. Dado estranho é ignorado. */
     retoma(d) {
       if (!apiKey || s || !d || !UID_OK.test(String(d.uid || '')) || typeof d.refreshToken !== 'string' || !d.refreshToken) return false;
@@ -11214,7 +11272,9 @@ function createSessaoFirebase({ apiKey = '', fetch: fetchFn = null, agora = () =
   };
 }
 /** Frase de interface para cada erro da conta. */
-const MOTIVO = { 'sem-client-id': 'Entrar com Google precisa de um Client ID configurado no app.', 'sem-firebase': 'Ainda não configurada neste app.', 'firebase-recusou': 'Entrada recusada. Saia e entre de novo.', 'firebase-fora': 'Sem resposta agora. Tente de novo em instantes.', 'sem-rede': 'Sem internet: a conta Google precisa de conexão.', 'sem-google': 'Não foi possível carregar o Google neste navegador.', recusado: 'Entrada cancelada ou recusada.', expirado: 'A sessão do Google expirou: entre de novo.', api: 'O Google não respondeu como esperado.' };
+const MOTIVO = { 'sem-client-id': 'Entrar com Google precisa de um Client ID configurado no app.', 'sem-firebase': 'Ainda não configurada neste app.', 'firebase-recusou': 'Entrada recusada. Saia e entre de novo.', 'firebase-fora': 'Sem resposta agora. Tente de novo em instantes.', 'sem-rede': 'Sem internet: a conta Google precisa de conexão.', 'sem-google': 'Não foi possível carregar o Google neste navegador.', recusado: 'Entrada cancelada ou recusada.', expirado: 'A sessão do Google expirou: entre de novo.', api: 'O Google não respondeu como esperado.',
+  // G-263 · T6f-1 · e-mail e senha
+  'email-invalido': 'Confira o e-mail: falta algo como nome@exemplo.com.', 'senha-vazia': 'Digite a senha.', 'senha-curta': 'A senha precisa de pelo menos 8 caracteres.', 'senha-longa': 'A senha pode ter no máximo 128 caracteres.', 'senha-fraca': 'Senha fraca demais: use pelo menos 8 caracteres.', 'email-em-uso': 'Este e-mail já tem conta. Toque em Entrar (se a conta foi criada com o Google, use Continuar com Google).', 'senha-nao-confere': 'E-mail ou senha não conferem.', 'conta-desativada': 'Esta conta foi desativada.', 'muitas-tentativas': 'Muitas tentativas em pouco tempo. Espere alguns minutos e tente de novo.', 'sem-senha': 'Entrar com e-mail ainda não está ligado neste app.', 'entre-de-novo': 'A conta saiu deste aparelho: entre de novo com e-mail e senha.' };
 const motivoDe = e => MOTIVO[e && e.message] || MOTIVO.api;
 return { createConta, createSessaoFirebase, carregaScriptWeb, motivoDe, MOTIVO, KEY, ARQUIVO };
 })();
@@ -14696,17 +14756,93 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
       Button('Sincronizar', { icone: 'atualizar', id: 'conta-sincronizar', variant: 'ghost', disabled: oc || e.estado === 'sincronizando', title: 'Sincronizar o perfil agora',
         onClick: async () => { await s.agora(); const f = s.estado(); if (f.estado === 'sincronizado') toast(f.desceu ? 'Perfil atualizado com a nuvem' : 'Perfil sincronizado'); } }));
   }
+  /** G-263 · T6f-1 · relato #18: criar conta ou entrar com e-mail e senha. A senha só vai para o Identity Toolkit;
+      no aparelho fica o e-mail. Erro aparece embaixo dos campos, sem fechar a folha. */
+  function abreEntrarComEmail(modo0 = 'entrar', email0 = '') {
+    let modo = modo0;
+    const erro = h('div', { class: 'conta-email__erro', id: 'conta-email-erro', role: 'alert' });
+    const email = h('input', { class: 'ds-input', type: 'email', id: 'conta-email-campo', value: email0, autocomplete: 'email', inputmode: 'email', autocapitalize: 'none', spellcheck: 'false', placeholder: 'nome@exemplo.com' });
+    const senha = h('input', { class: 'ds-input', type: 'password', id: 'conta-senha', autocomplete: 'current-password', placeholder: 'Senha' });
+    const olho = IconButton('olho', 'Mostrar senha', { id: 'conta-senha-mostrar', variant: 'ghost', onClick: () => {
+      const ver = senha.type === 'password'; senha.type = ver ? 'text' : 'password';
+      olho.setAttribute('aria-pressed', String(ver)); olho.setAttribute('aria-label', ver ? 'Esconder senha' : 'Mostrar senha'); senha.focus(); } });
+    olho.setAttribute('aria-pressed', 'false');
+    const dica = h('span', { class: 'ds-field__hint', id: 'conta-senha-dica' });
+    const vai = Button('', { variant: 'primary', icone: 'conferir', id: 'conta-email-confirmar', onClick: () => confirma() });
+    const rotulo = () => vai.querySelector('.ds-btn__rotulo');
+    const chips = [['entrar', 'Entrar'], ['criar', 'Criar conta']].map(([k, nome]) => Chip(nome, { pressed: k === modo, dataset: { modo: k }, onClick: () => { modo = k; pinta(); } }));
+    function pinta() {
+      chips.forEach(c => c.setAttribute('aria-pressed', String(c.dataset.modo === modo)));
+      senha.setAttribute('autocomplete', modo === 'criar' ? 'new-password' : 'current-password');
+      dica.textContent = modo === 'criar' ? 'Pelo menos 8 caracteres.' : '';
+      rotulo().textContent = modo === 'criar' ? 'Criar conta' : 'Entrar';
+      clear(erro);
+    }
+    async function confirma() {
+      if (vai.disabled) return;
+      clear(erro); vai.disabled = true; vai.setAttribute('aria-busy', 'true'); rotulo().textContent = modo === 'criar' ? 'Criando…' : 'Entrando…';
+      st.contaOcupada = true;
+      try {
+        await (modo === 'criar' ? conta.criarComEmail(email.value, senha.value) : conta.entrarComEmail(email.value, senha.value));
+        st.contaOcupada = false; try { st.conta = await conta.get(); } catch (e) { st.conta = null; }
+        if (haptics) haptics.evento('confirmacao');
+        closeDialog(); toast(modo === 'criar' ? 'Conta criada e conectada' : 'Conta conectada'); paint();
+      } catch (e) {
+        st.contaOcupada = false;
+        vai.disabled = false; vai.removeAttribute('aria-busy'); rotulo().textContent = modo === 'criar' ? 'Criar conta' : 'Entrar';
+        mount(erro, Note(__m29.motivoDe(e), 'negative'));
+        (/^email/.test(e && e.message) ? email : senha).focus();
+      }
+    }
+    const enter = ev => { if (ev.key === 'Enter') { ev.preventDefault(); confirma(); } };
+    email.addEventListener('keydown', enter); senha.addEventListener('keydown', enter);
+    Dialog({ title: 'Entrar com e-mail', body: Stack({},
+      h('div', { class: 'ds-segmentado', role: 'group', 'aria-label': 'Entrar ou criar conta', id: 'conta-email-modo' }, ...chips),
+      Field('E-mail', email),
+      h('label', { class: 'ds-field' }, h('span', { class: 'ds-field__label' }, 'Senha'), h('span', { class: 'conta-email__senha' }, senha, olho), dica),
+      Text('A senha não fica guardada no aparelho. A conta guarda o seu perfil na nuvem e o reconecta nos outros aparelhos.', { size: 'sm', tone: 'muted' }),
+      erro),
+      actions: [Button('Cancelar', { id: 'conta-email-cancelar', onClick: closeDialog }), vai] });
+    pinta();
+    (email0 ? senha : email).focus({ preventScroll: true });
+  }
   function secaoConta() {
     if (!conta) return null;
+    const comEmail = !!(conta.comEmailDisponivel && conta.comEmailDisponivel());
     const semId = !conta.disponivel();
     const c = st.conta, oc = st.contaOcupada;
-    const cabeca = Text('Conta Google', { size: 'sm', as: 'h2', display: true });
-    if (semId) return Surface({ class: 'ds-surface--pad', id: 'perfil-conta' }, Stack({}, cabeca,
+    const cabeca = Text(comEmail ? 'Conta' : 'Conta Google', { size: 'sm', as: 'h2', display: true });
+    // G-263 · sem conta: Google (quando há Client ID) e e-mail e senha (quando há conta da Estante), lado a lado
+    if (!c && comEmail) return Surface({ class: 'ds-surface--pad', id: 'perfil-conta' }, Stack({}, cabeca,
+      Text('Entre para levar o seu perfil para os outros aparelhos. Com o Google, o backup também vai para a pasta privada do app no seu Drive. Precisa de internet.', { size: 'sm', tone: 'muted' }),
+      semId ? Note(__m29.MOTIVO['sem-client-id'] + ' Até lá, o backup por arquivo acima guarda tudo.', 'warning') : null,
+      h('div', { class: 'perfil-conta__opcoes' },
+        // sem desenhar a marca do Google (o desenho oficial tem regras de uso): ícone genérico e o nome no rótulo
+        Button('Continuar com Google', { icone: 'externo', id: 'conta-entrar', block: true, disabled: oc || semId, title: semId ? __m29.MOTIVO['sem-client-id'] : null, onClick: () => acaoDaConta(async () => { await conta.entrar(); toast('Conta conectada'); }) }),
+        Button('Entrar com e-mail', { icone: 'email', id: 'conta-email-abrir', block: true, disabled: oc, onClick: () => abreEntrarComEmail() }))));
+    if (semId && !(c && c.provedor === 'senha')) return Surface({ class: 'ds-surface--pad', id: 'perfil-conta' }, Stack({}, cabeca,
       Note(__m29.MOTIVO['sem-client-id'] + ' Até lá, o backup por arquivo acima guarda tudo.', 'warning'),
       Row({}, Button('Entrar', { icone: 'externo', id: 'conta-entrar', disabled: true, title: __m29.MOTIVO['sem-client-id'] }))));
     if (!c) return Surface({ class: 'ds-surface--pad', id: 'perfil-conta' }, Stack({}, cabeca,
       Text('Entre para guardar o backup na pasta privada do app no seu Google Drive e trazer nome e foto da conta. Precisa de internet.', { size: 'sm', tone: 'muted' }),
       Row({}, Button('Entrar', { icone: 'externo', id: 'conta-entrar', disabled: oc, onClick: () => acaoDaConta(async () => { await conta.entrar(); toast('Conta conectada'); }) }))));
+    // G-263 · conta de e-mail e senha: e-mail, conta da Estante e sincronização; o backup no Drive chega com o Google vinculado (T6f-4)
+    if (c.provedor === 'senha') {
+      const e = conta.estante ? conta.estante() : { estado: 'desligada' };
+      return Surface({ class: 'ds-surface--pad', id: 'perfil-conta', dataset: { conectada: 'true', provedor: 'senha' } }, Stack({}, cabeca,
+        Row({ class: 'perfil-conta__quem' },
+          Avatar({ nome: st.nome || c.email, avatar: st.avatar }, { tamanho: 40 }),
+          Stack({ class: 'ds-grow perfil-conta__texto' }, h('b', { class: 'ds-text ds-text--md', id: 'conta-nome' }, st.nome || 'Conta com e-mail'), Text(c.email, { size: 'sm', tone: 'muted', attrs: { id: 'conta-email' } }))),
+        e.estado === 'desconectada'
+          ? Row({ class: 'ds-row--wrap perfil-conta__estante', id: 'conta-estante', dataset: { estado: 'desconectada' } },
+              Text('Conta da Estante desconectada' + (e.motivo ? ' · ' + __m29.motivoDe(new Error(e.motivo)) : ''), { size: 'sm', tone: 'muted', class: 'ds-grow' }),
+              Button('Entrar de novo', { icone: 'email', id: 'conta-estante-conectar', variant: 'ghost', disabled: oc, onClick: () => abreEntrarComEmail('entrar', c.email) }))
+          : linhaEstante(oc),
+        linhaSincronia(oc),
+        Text('Backup no Google Drive: chega quando der para ligar o Google a esta conta. Até lá, o backup por arquivo guarda tudo.', { size: 'sm', tone: 'muted', attrs: { id: 'conta-backup-quando' } }),
+        Row({ class: 'ds-row--wrap' },
+          Button('Sair', { icone: 'desistir', id: 'conta-sair', variant: 'ghost', disabled: oc, onClick: () => acaoDaConta(async () => { await conta.sair(); toast('Conta desconectada'); }) }))));
+    }
     return Surface({ class: 'ds-surface--pad', id: 'perfil-conta', dataset: { conectada: 'true' } }, Stack({}, cabeca,
       Row({ class: 'perfil-conta__quem' },
         Avatar({ nome: c.nome, avatar: c.foto }, { tamanho: 40 }),
