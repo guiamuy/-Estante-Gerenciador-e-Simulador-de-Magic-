@@ -526,6 +526,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ef ✅ | SEG11 licença: `LICENSE` com todos os direitos reservados ao autor (Guilherme de Aguiar Schmidt Amuy), separando o que é de terceiros (Wizards, Scryfall, MTGJSON, Tesseract) (leva P-18) | SEG | ½ | nome do dono |
 | 16º-eg ✅ | SEG9b sala nova sempre com 6 símbolos: o recuo para 4 ao criar saiu depois que o dono publicou as regras da P-16 no console; banco que recusa vira erro, nunca código curto (leva P-19) | SEG | ½ | regras publicadas (dono, 12/10) |
 | 16º-ee ✅ | T6e-2 Enviar relato sem sair do app: com a conta conectada e a fila ligada, o relato vai para a fila do Firebase e o cartão mostra "Na fila" até o número do registro (relato #13, leva G-255) | T | 1 | — |
+| 16º-eh ✅ | T6e-2 prazo honesto do relato pela fila: o GitHub atrasa o agendamento em horas, a tela diz "de minutos a algumas horas" e a conversa que lê relatos roda a fila antes (relato #13, leva G-256) | T | 1 | 16º-ee |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -8908,7 +8909,15 @@ o aviso de fila ligada, o que acontece na primeira rodada depois de o dono criar
   conta, idempotente); e2e "T6e-2" (conectado com a fila ligada: Enviar não abre o GitHub, o nó vai para a fila da conta,
   "Na fila" nas quatro medidas e nos dois temas, o número aparece quando o registro existe; fila desligada: abre o GitHub
   e nada vai para a fila).
-- **Fora:** apagar da fila um relato excluído no aparelho antes de virar registro.
+- **Prazo (G-256):** o fluxo é agendado a cada 10 minutos, mas o GitHub
+  atrasa os agendamentos deste repositório em horas (12/10/2026: uma rodada da fila em quase 4 horas; Notícias, de hora em
+  hora, roda a cada 4 a 7). A tela não promete minutos: o aviso de envio e o selo "Na fila" dizem "de minutos a algumas
+  horas" (`PRAZO_FILA`). Para o relato chegar a quem corrige, a conversa que lê relatos dispara a fila pela API e espera
+  terminar antes de ler (`CLAUDE.md`, "Relatos do dono: como ler"; ~30 s). Teste: U `relatos.envio.unit` (o prazo, o
+  texto sem "alguns minutos", o roteiro do `CLAUDE.md` pela API REST e antes da leitura). Sair do minuto cheio não
+  resolve (Notícias, no minuto 17, atrasa igual): o agendamento fica como está. A fila ligou em 12/10/2026 22:28 UTC (`fila.json` no ramo `relatos`).
+- **Fora:** apagar da fila um relato excluído no aparelho antes de virar registro; prazo de minutos garantido (pediria um
+  disparo externo com credencial do repositório guardada fora dele, ou função paga no Firebase).
 
 ### Z · Catálogo de listas (E61, pedido de 08/10/2026)
 

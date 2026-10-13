@@ -76,9 +76,12 @@ Relatório do que aconteceu no `main`: `node agregacao.mjs --auditar 40`.
 
 ## Relatos do dono: como ler
 
-Os relatos feitos no app chegam como registros (issues) com a etiqueta `relato`; o fluxo Relatos grava a tabela no ramo `relatos`:
+Os relatos feitos no app chegam como registros (issues) com a etiqueta `relato`; o fluxo Relatos grava a tabela no ramo `relatos`. O relato enviado de dentro do app espera na fila do Firebase até o fluxo "Relatos pela fila" rodar, e o GitHub atrasa esse agendamento em horas (G-256): antes de ler, rode a fila e espere terminar (a sessão não alcança o Firebase; o fluxo alcança):
 
 ```
+F=repos/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-/actions/workflows/relatos-fila.yml   # pela API REST: a sessão não alcança o GraphQL
+gh api -X POST "$F/dispatches" -f ref=main && sleep 15
+until [ "$(gh api "$F/runs?per_page=1" -q '.workflow_runs[0].status')" = completed ]; do sleep 10; done
 gh api "repos/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-/contents/relatos.json?ref=relatos" -H "Accept: application/vnd.github.raw"
 gh api "repos/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-/issues?labels=relato&state=open"
 ```

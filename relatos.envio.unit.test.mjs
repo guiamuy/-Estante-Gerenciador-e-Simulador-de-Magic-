@@ -50,3 +50,15 @@ test('T6e-2 · enviar: põe na fila da conta e confere; sem rede, relato grande 
   assert.deepEqual(J(await R.createEnvioPelaFila({ filaDe: () => null }).envia(RELATO)), { ok: false, motivo: 'sem-conta' });
   assert.deepEqual(J(await R.createEnvioPelaFila({ filaDe: () => ({ enfileira: async () => { throw new Error('api'); } }) }).envia(RELATO)), { ok: false, motivo: 'erro' });
 });
+
+test('G-256 · o prazo da fila é o real: a tela não promete minutos, e a conversa que lê relatos roda a fila antes', async () => {
+  const { readFileSync } = await import('node:fs');
+  assert.match(R.PRAZO_FILA, /algumas horas/);
+  const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+  const modulo = html.slice(html.indexOf('T6e-2 · relato #13 · Enviar sem sair do app'), html.indexOf('return { PRAZO_FILA, URL_FILA_LIGADA'));
+  assert.ok(modulo.length > 1000); assert.doesNotMatch(modulo, /em (até )?alguns minutos/, 'o GitHub atrasa o agendamento em horas');
+  assert.equal((modulo.match(/\$\{PRAZO_FILA\}|PRAZO_FILA\.slice/g) || []).length, 2, 'aviso de envio e selo "Na fila" usam o mesmo prazo');
+  const claude = readFileSync(new URL('./CLAUDE.md', import.meta.url), 'utf8');
+  const secao = claude.slice(claude.indexOf('## Relatos do dono'));
+  assert.match(secao, /workflows\/relatos-fila\.yml\b[\s\S]*-X POST "\$F\/dispatches"/); assert.doesNotMatch(secao, /gh (workflow|run) /, 'a sessão não usa GraphQL'); assert.ok(secao.indexOf('relatos-fila.yml') < secao.indexOf('issues?labels=relato'), 'roda a fila antes de ler os registros');
+});

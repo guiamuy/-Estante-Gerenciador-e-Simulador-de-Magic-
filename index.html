@@ -13119,8 +13119,11 @@ let filtroAtual = { ...FILTRO_VAZIO }, filtrosAbertos = false; // ficam enquanto
 /* ---------------- T6e-2 · relato #13 · Enviar sem sair do app ----------------
    Com a conta da Estante conectada e a fila ligada (o fluxo "Relatos pela fila" grava `fila.json` no ramo `relatos` na
    primeira rodada com a conta de serviço), Enviar põe o relato na fila do Firebase (`relatos/fila/<conta>/<id>`, A-262)
-   e o fluxo do repositório cria o registro em até alguns minutos; o número volta pela situação de sempre (G-243). Sem
-   conta, sem rede ou com a fila desligada, Enviar abre o GitHub como antes. */
+   e o fluxo do repositório cria o registro na rodada seguinte; o número volta pela situação de sempre (G-243). Sem
+   conta, sem rede ou com a fila desligada, Enviar abre o GitHub como antes.
+   G-256 · o fluxo é agendado a cada 10 minutos, mas o GitHub atrasa agendamentos deste repositório em horas (12/10/2026:
+   uma rodada em 4 horas); a tela diz o prazo real (PRAZO_FILA) e a conversa que lê relatos roda a fila antes (CLAUDE.md). */
+const PRAZO_FILA = 'O número do registro aparece aqui quando o GitHub processar a fila: de minutos a algumas horas';
 const URL_FILA_LIGADA = `https://raw.githubusercontent.com/${REPOSITORIO}/relatos/fila.json`;
 const FILA_MEMORIA_MS = 10 * 60 * 1000;
 /** O aviso publicado pelo fluxo vale? Puro. */
@@ -13162,7 +13165,7 @@ function createRelatosScreen({ relatos, share, files = null, partidas = null, fi
       await relatos.muda(r.id, { enviadoEm: new Date().toISOString() }); pinta(); toast('No GitHub, toque em "Submit new issue" para confirmar'); };
     if (!pelaFila || r.registro) return abreGitHub(); // já tem registro: Reenviar abre o GitHub (a fila não cria um segundo)
     const x = await fila.envia(r);
-    if (x.ok) { await relatos.muda(r.id, { enviadoEm: x.enviadoEm, pelaFila: true }); pinta(); return toast('Relato enviado · o número do registro aparece aqui em alguns minutos', 4200); }
+    if (x.ok) { await relatos.muda(r.id, { enviadoEm: x.enviadoEm, pelaFila: true }); pinta(); return toast(`Relato enviado · ${PRAZO_FILA.charAt(0).toLowerCase()}${PRAZO_FILA.slice(1)}`, 5200); }
     toast(x.motivo === 'sem-rede' ? 'Sem internet: o relato fica aqui e você envia depois' : x.motivo === 'grande' ? 'Relato grande demais para a fila' : 'Não foi possível enviar agora', 5000,
       x.motivo === 'sem-rede' ? undefined : { acao: { rotulo: 'Pelo GitHub', icone: 'externo', onClick: abreGitHub } });
   }
@@ -13202,7 +13205,7 @@ function createRelatosScreen({ relatos, share, files = null, partidas = null, fi
           Badge(rotuloDe(URGENCIAS, r.urgencia), { tone: r.urgencia === 'bloqueia' || r.urgencia === 'alta' ? 'negative' : r.urgencia === 'media' ? 'accent' : undefined }),
           Badge(rotuloDe(TIPOS, r.tipo)),
           h('span', { class: 'relato-item__quando' }, `${quando(r.criadoEm)} · ${nomeDaTela(r)}`),
-          !r.registro && r.enviadoEm ? (r.pelaFila ? h('span', { class: 'relato-item__enviado', dataset: { fila: 'sim' }, title: `Enviado de dentro do app em ${quando(r.enviadoEm)}: o registro aparece em alguns minutos` }, Icone('subir', { tamanho: 14 }), 'Na fila')
+          !r.registro && r.enviadoEm ? (r.pelaFila ? h('span', { class: 'relato-item__enviado', dataset: { fila: 'sim' }, title: `Enviado de dentro do app em ${quando(r.enviadoEm)}. ${PRAZO_FILA}` }, Icone('subir', { tamanho: 14 }), 'Na fila')
             : h('span', { class: 'relato-item__enviado', title: `Enviado ao GitHub em ${quando(r.enviadoEm)}` }, Icone('externo', { tamanho: 14 }), 'Enviado')) : null),
         h('p', { class: 'relato-item__texto' }, r.descricao),
         // G-243 · o registro achado no GitHub: o número (abre o registro) e a situação que voltou de lá
@@ -13257,7 +13260,7 @@ function createRelatosScreen({ relatos, share, files = null, partidas = null, fi
   return root;
 }
 
-return { URL_FILA_LIGADA, FILA_MEMORIA_MS, filaLigada, relatoParaFila, createEnvioPelaFila, AREAS, URL_SITUACAO, BUSCA_SITUACAO_MS, urlDoRegistro, situacaoDosRegistros, concilia, EDITAR_JANELA_MS, podeEditar, editavelAte, editaRelato, REPOSITORIO, MARCA, dadosDoRelato, enderecoDoRegistro, limpaTela, nomeDaTela, FILTRO_VAZIO, filtra, contaFiltros, areasDe, csvDosRelatos, jsonDosRelatos, partidaAbrivel, contextoDaPartida, CHAVE, TIPOS, URGENCIAS, DESCRICAO_MIN, DESCRICAO_MAX, RELATOS_MAX, areaDaRota, confere, novoRelato, ordena, textoDoRelato, textoDosRelatos, createRelatos, usa, usaContexto, abreRelato, BotaoRelatar, createRelatosScreen, rotuloDe };
+return { PRAZO_FILA, URL_FILA_LIGADA, FILA_MEMORIA_MS, filaLigada, relatoParaFila, createEnvioPelaFila, AREAS, URL_SITUACAO, BUSCA_SITUACAO_MS, urlDoRegistro, situacaoDosRegistros, concilia, EDITAR_JANELA_MS, podeEditar, editavelAte, editaRelato, REPOSITORIO, MARCA, dadosDoRelato, enderecoDoRegistro, limpaTela, nomeDaTela, FILTRO_VAZIO, filtra, contaFiltros, areasDe, csvDosRelatos, jsonDosRelatos, partidaAbrivel, contextoDaPartida, CHAVE, TIPOS, URGENCIAS, DESCRICAO_MIN, DESCRICAO_MAX, RELATOS_MAX, areaDaRota, confere, novoRelato, ordena, textoDoRelato, textoDosRelatos, createRelatos, usa, usaContexto, abreRelato, BotaoRelatar, createRelatosScreen, rotuloDe };
 })();
 
 /* ==== src/app/catalogo.js ==== */
