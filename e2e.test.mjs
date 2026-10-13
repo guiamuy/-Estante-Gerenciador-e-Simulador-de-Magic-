@@ -11703,3 +11703,67 @@ test('e2e · T-51 · CR 722 · preparação: Landscape Painter entra preparada; 
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/t51-preparo.png' });
   assert.deepEqual(M.errors, []);
 });
+
+/* ---------------- R-2 · BI1-1 · Painel Estante: entrar e a casca ---------------- */
+test('e2e · R-2 Painel Estante: outro e-mail é recusado e desconectado; o dono entra, a sessão volta ao reabrir; casca com as oito sub-abas em "em breve", carimbo do main com um pedido por atualização; sem rede mostra o guardado; sem sobreposição nas quatro medidas e dois temas; volta ao app', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  const painel = base.replace('index.html', 'painel.html');
+  await page.setViewportSize({ width: 360, height: 780 });
+  let pedidosGithub = 0, semRede = false;
+  await page.route('https://api.github.com/**', r => { if (semRede) return r.abort('internetdisconnected'); pedidosGithub++; r.fulfill({ json: [{ sha: 'abc1234def0', commit: { message: 'Leva G-264 · T6f-2 · Esqueci a senha', committer: { date: new Date(Date.now() - 7200000).toISOString() } } }], headers: { 'x-ratelimit-remaining': '57', 'x-ratelimit-limit': '60', etag: '"e1"', 'content-type': 'application/json', 'access-control-expose-headers': 'etag, x-ratelimit-remaining, x-ratelimit-limit, x-ratelimit-reset' } }); }); // o GitHub expõe esses cabeçalhos ao navegador
+  await page.addInitScript(() => {
+    const jwt = email => 'h.' + btoa(JSON.stringify({ email })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') + '.s';
+    window.__PAINEL_FETCH = async (url) => {
+      const email = localStorage.getItem('__e2e_email') || 'outra@gmail.com';
+      const corpo = url.includes('securetoken') ? { user_id: 'uidE2E', id_token: jwt(email), refresh_token: 'ref-e2e', expires_in: '3600' } : { localId: 'uidE2E', idToken: jwt(email), refreshToken: 'ref-e2e', expiresIn: '3600', email };
+      return new Response(JSON.stringify(corpo), { headers: { 'content-type': 'application/json' } });
+    };
+    window.__PAINEL_GOOGLE = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => { window.__revogados = (window.__revogados || 0) + 1; cb && cb(); } } } };
+  });
+  await page.goto(painel); await page.waitForSelector('#pn-entrar');
+  assert.equal(await page.locator('h2.ds-empty__titulo').innerText(), 'Painel Estante');
+  assert.equal(await page.locator('.ds-btn--primary:visible').count(), 1, 'um primário: Entrar com Google');
+  await auditaTela(page, 'painel entrar');
+  // outro e-mail: recusado, token revogado, nada guardado
+  await page.click('#pn-entrar'); await page.waitForSelector('#pn-recusado');
+  assert.match(await page.innerText('#pn-recusado'), /só do dono[\s\S]*outra@gmail\.com/);
+  assert.equal(await page.evaluate(() => [window.__revogados, localStorage.getItem('painel.sessao')].join('|')), '1|');
+  assert.equal(await page.locator('#pn-entrar').innerText(), 'Trocar de conta');
+  await auditaTela(page, 'painel recusado');
+  // o dono entra: casca, faixa com o main, oito sub-abas em breve, um pedido ao GitHub
+  await page.evaluate(() => localStorage.setItem('__e2e_email', 'gui.amuy@gmail.com'));
+  await page.click('#pn-entrar'); await page.waitForSelector('#pn-abas');
+  await page.waitForFunction(() => /main: G-264/.test(document.querySelector('#pn-main')?.innerText || ''));
+  assert.equal(pedidosGithub, 1, 'entrar lê o main uma vez');
+  assert.match(await page.innerText('#pn-carimbo'), /dados de hoje às \d\d:\d\d/);
+  assert.match(await page.innerText('#pn-main'), /main: G-264 · há 2 h/);
+  assert.equal(await page.getAttribute('#pn-carimbo', 'data-farol'), 'verde');
+  assert.match(await page.innerText('#pn-cota'), /57 de 60/);
+  assert.equal(await page.locator('#pn-abas .ds-tab').count(), 8);
+  assert.deepEqual(await page.$$eval('#pn-abas .ds-tab', es => es.map(e => e.dataset.tab)), ['pipeline', 'eficiencia', 'roadmap', 'motor', 'qualidade', 'curso', 'skills', 'modelos']);
+  assert.match(await page.innerText('#pn-em-breve'), /Pipeline de publicação · em breve[\s\S]*leva R-4/);
+  for (const id of ['#pn-atualizar', '#pn-sair', '#pn-tema', '#pn-voltar']) assert.ok((await page.locator(id).boundingBox()).height >= 44, id + ' com 44 px');
+  // abrir outra sub-aba: dentro do prazo do cache não há pedido novo; o conteúdo diz a leva dela
+  await page.click('#pn-abas [data-tab="motor"]'); await page.waitForFunction(() => /Motor de regras · em breve/.test(document.querySelector('#pn-em-breve')?.innerText || ''));
+  assert.equal(pedidosGithub, 1);
+  // Atualizar força um pedido só
+  await page.click('#pn-atualizar'); await page.waitForTimeout(300);
+  assert.equal(pedidosGithub, 2, 'Atualizar faz um pedido');
+  await emTodasAsMedidas(page, 'painel casca');
+  if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.screenshot({ path: process.env.SHOTS + '/r2-painel.png', fullPage: true }); }
+  // reabrir: a sessão volta sem o Google (Secure Token) e a sub-aba escolhida fica
+  await page.reload(); await page.waitForSelector('#pn-abas');
+  assert.equal(await page.getAttribute('#pn-abas [data-tab="motor"]', 'aria-selected'), 'true');
+  // sem rede: o carimbo e o main continuam do que estava guardado, com o aviso
+  semRede = true; await page.context().setOffline(true);
+  await page.click('#pn-atualizar'); await page.waitForSelector('#pn-aviso');
+  assert.match(await page.innerText('#pn-aviso'), /Sem internet/);
+  assert.match(await page.innerText('#pn-main'), /G-264/);
+  semRede = false; await page.context().setOffline(false);
+  await auditaTela(page, 'painel sem rede');
+  // sair apaga a sessão; voltar ao app leva ao index.html
+  await page.click('#pn-sair'); await page.waitForSelector('#pn-entrar');
+  assert.equal(await page.evaluate(() => localStorage.getItem('painel.sessao')), null);
+  await page.click('#pn-voltar'); await page.waitForURL(/index\.html/);
+  assert.deepEqual(errors, []);
+});
