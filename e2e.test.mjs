@@ -10038,12 +10038,13 @@ test('e2e · N2 Notícias: entra pela Início; linha do tempo com destaque, capa
 });
 
 /* ---------------- N3 · ler do seu jeito ---------------- */
-test('e2e · N3 Notícias do seu jeito: filtros por tema e fonte (guardados, com saída quando nada passa), marca de novas e contador na Início, atualizar pelo botão e puxando, e a volta à tela no mesmo ponto com aviso de novas', { skip }, async t => {
+test('e2e · N3 Notícias do seu jeito: filtros por palavra e fonte (guardados, com saída quando nada passa), marca de novas e contador na Início, atualizar pelo botão e puxando, e a volta à tela no mesmo ponto com aviso de novas', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.setViewportSize({ width: 360, height: 780 });
   const arquivos = ramoN2(); const pedidos = [];
   // temas no ramo de mentira: Commander a cada 5, Pauper a cada 7 (os objetos são os mesmos nas três séries)
-  for (const p of Object.values(arquivos)) for (const it of p.itens || []) { const n = Number(it.id.slice(1)); it.temas = [...(n % 5 === 0 ? ['commander'] : []), ...(n % 7 === 0 ? ['pauper'] : [])]; }
+  for (const p of Object.values(arquivos)) for (const it of p.itens || []) { const n = Number(it.id.slice(1)); it.temas = [...(n % 5 === 0 ? ['commander'] : []), ...(n % 7 === 0 ? ['pauper'] : [])];
+    if (!it._g260) { it._g260 = true; it.titulo += (n % 5 === 0 ? ' · Commander' : '') + (n % 7 === 0 ? ' · Pauper' : ''); } } // G-260 · o filtro é por palavra: a palavra está no título
   await page.route('https://raw.githubusercontent.com/**', r => { const nome = r.request().url().split('/').pop(); pedidos.push(nome); return nome in arquivos ? r.fulfill({ json: arquivos[nome], headers: { 'access-control-allow-origin': '*' } }) : r.abort('failed'); });
   await page.route('https://img.test/**', r => r.fulfill({ body: PNG_N2, contentType: 'image/png' }));
   const cartoes = () => page.locator('#noticias-lista .nt-cartao').count();
@@ -10058,14 +10059,29 @@ test('e2e · N3 Notícias do seu jeito: filtros por tema e fonte (guardados, com
   assert.deepEqual(f.map(b => [b.id, b.fala, b.icone]), [['noticias-guardadas', 'Guardadas', true], ['noticias-atualizar', 'Atualizar', true], ['noticias-filtros', 'Filtros', true]]); // N4 · Guardadas entrou assert.ok(f.every(b => b.h >= 44 && b.w >= 44), JSON.stringify(f));
   assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).overscrollBehaviorY), 'contain', 'puxar não recarrega a página na Início');
   await auditaTela(page, 'notícias · ferramentas');
-  // 2 · filtros: tema Commander → só Commander, buscando as páginas seguintes sozinho até o fim; mais a fonte EDHREC → interseção
+  // 2 · filtros: palavra "commander" (criada pela pessoa) → só Commander, buscando as páginas seguintes sozinho até o fim; mais a fonte EDHREC → interseção
+  // G-260 · relato #19: expectativa mudou de propósito — no lugar dos chips de tema prontos, palavras que a pessoa cria
   await page.click('#noticias-filtros'); await page.waitForSelector('#noticias-filtros-corpo'); await page.waitForTimeout(350); // o diálogo termina de abrir antes de medir
-  assert.deepEqual(await page.$$eval('#noticias-filtros-corpo [data-tema]', cs => cs.map(c => c.textContent)), ['Commander', 'Pauper', 'Lançamentos', 'Competitivo', 'Arena']);
+  assert.equal(await page.locator('#noticias-filtros-corpo [data-tema]').count(), 0, 'sem temas prontos');
+  assert.match(await page.innerText('#noticias-palavras-vazio'), /Nenhuma palavra ainda/);
   assert.deepEqual(await page.$$eval('#noticias-filtros-corpo [data-fonte]', cs => cs.map(c => c.textContent)), ['Cards Realm', 'MTGGoldfish', 'EDHREC']);
-  assert.ok(await page.$$eval('#noticias-filtros-corpo .ds-chip', cs => cs.every(c => c.getBoundingClientRect().height >= 44)));
+  assert.ok(await page.$$eval('#noticias-filtros-corpo .ds-chip, #noticias-palavra-nova, #noticias-palavra-criar', cs => cs.every(c => c.getBoundingClientRect().height >= 44)));
   assert.equal(await page.innerText('#noticias-filtros-conta'), 'Sem filtro: todas as notícias.'); await auditaTela(page, 'notícias · filtros');
+  // criar: vazia diz o motivo; criada nasce ligada; repetida (outra maiúscula) diz o motivo
+  await page.click('#noticias-palavra-criar'); await aviso(/Escreva uma palavra/);
+  await page.fill('#noticias-palavra-nova', 'commander'); await page.press('#noticias-palavra-nova', 'Enter');
+  await page.waitForSelector('[data-palavra-chip="commander"]'); assert.equal(await page.getAttribute('[data-palavra-chip="commander"]', 'aria-pressed'), 'true');
+  assert.equal(await page.inputValue('#noticias-palavra-nova'), '', 'o campo esvazia para a próxima');
+  await page.fill('#noticias-palavra-nova', 'Commander'); await page.click('#noticias-palavra-criar'); await aviso(/já está na lista/);
+  assert.equal(await page.locator('[data-palavra-chip]').count(), 1);
+  // apagar com desfazer
+  await page.fill('#noticias-palavra-nova', 'Cube'); await page.click('#noticias-palavra-criar'); await page.waitForSelector('[data-palavra-chip="Cube"]');
+  await page.click('[data-apaga-palavra="Cube"]'); await aviso(/"Cube" saiu do filtro/); assert.equal(await page.locator('[data-palavra-chip="Cube"]').count(), 0);
+  await page.click('#ds-toast .ds-toast__acao'); await page.waitForSelector('[data-palavra-chip="Cube"]');
+  await page.click('[data-palavra-chip="Cube"]'); assert.equal(await page.getAttribute('[data-palavra-chip="Cube"]', 'aria-pressed'), 'false', 'desligada não filtra');
+  const larguras = await page.$$eval('.nt-palavra', ps => ps.map(p => Math.round(p.getBoundingClientRect().right)));
+  assert.ok(larguras.every(r => r <= 360), 'as palavras cabem em 360: ' + larguras);
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/n3-filtros.png' });
-  await page.click('[data-tema="commander"]'); assert.equal(await page.getAttribute('[data-tema="commander"]', 'aria-pressed'), 'true');
   await page.click('#noticias-filtros-mostrar'); await page.waitForSelector('#noticias-fim'); assert.equal(await cartoes(), 12);
   assert.ok(await page.$$eval('.nt-cartao', cs => cs.every(c => Number(c.dataset.noticia.slice(1)) % 5 === 0))); assert.equal(await page.$eval('.nt-cartao', c => c.dataset.forma), 'destaque', 'a primeira que passa vira o destaque');
   assert.deepEqual(await page.$eval('#noticias-filtros', b => [b.dataset.ativos, b.getAttribute('aria-label'), b.querySelector('.ds-btn__conta').textContent]), ['1', 'Filtros, 1 ativo(s)', '1']);
@@ -10074,9 +10090,13 @@ test('e2e · N3 Notícias do seu jeito: filtros por tema e fonte (guardados, com
   // guardado: recarregar mantém os filtros
   await page.reload(); await page.waitForSelector('#noticias-fim'); assert.equal(await cartoes(), 3); assert.equal(await page.$eval('#noticias-filtros', b => b.dataset.ativos), '2');
   // nada passa: a tela diz e oferece limpar
-  await page.click('#noticias-filtros'); await page.click('[data-tema="commander"]'); await page.click('[data-tema="arena"]'); await page.click('#noticias-filtros-mostrar');
+  await page.click('#noticias-filtros'); await page.fill('#noticias-palavra-nova', 'Inexistente'); await page.click('#noticias-palavra-criar'); await page.waitForSelector('[data-palavra-chip="Inexistente"]');
+  await page.click('#noticias-filtros-mostrar'); // commander E inexistente: nenhuma tem as duas
   await page.waitForSelector('#noticias-sem-filtro'); assert.equal(await cartoes(), 0); assert.match(await page.innerText('#noticias-pe'), /Nenhuma notícia passa por esses filtros\./); await auditaTela(page, 'notícias · nada passa');
   await page.click('#noticias-limpar'); await quando(60); assert.equal(await page.$eval('#noticias-filtros', b => b.dataset.ativos), '0'); assert.equal(await page.locator('#noticias-filtros .ds-btn__conta').isVisible(), false);
+  await page.click('#noticias-filtros'); await page.waitForSelector('[data-palavra-chip="Inexistente"]'); // G-260 · limpar desliga; as palavras criadas ficam
+  assert.deepEqual(await page.$$eval('[data-palavra-chip]', cs => cs.map(c => [c.textContent, c.getAttribute('aria-pressed')])), [['commander', 'false'], ['Cube', 'false'], ['Inexistente', 'false']]);
+  await page.click('#noticias-filtros-mostrar');
   // 3 · sair e voltar: a linha do tempo e o ponto da leitura estão onde ficaram, sem buscar as páginas de novo
   await page.evaluate(() => window.scrollTo(0, 1500)); await page.waitForTimeout(200); pedidos.length = 0;
   // T2 · sair da Início e voltar: pela Início, o começo dela; pela rota das notícias, o ponto da leitura — sem buscar de novo

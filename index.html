@@ -1164,6 +1164,11 @@ a { color: var(--accent); }
 .nt-novas { flex: 1 1 auto; min-width: 0; text-align: right; font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--accent); font-weight: var(--weight-medium); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nt-nova { flex: none; margin-left: auto; padding: 0 var(--space-2); border-radius: var(--radius-full); background: var(--accent-soft); color: var(--accent); font-weight: var(--weight-bold); text-transform: uppercase; letter-spacing: .05em; }
 .nt-filtro__chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+/* G-260 · palavra do filtro: o chip liga e desliga, o X ao lado apaga */
+.nt-palavra { display: inline-flex; align-items: center; gap: var(--space-1); max-width: 100%; }
+.nt-palavra .ds-chip { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: calc(100vw - 2 * var(--space-4) - 64px); }
+.nt-palavra__nova { display: flex; gap: var(--space-2); align-items: center; }
+.nt-palavra__nova .ds-input { flex: 1 1 auto; min-width: 0; }
 .nt-puxar { display: flex; align-items: center; justify-content: center; gap: var(--space-2); height: 0; overflow: hidden; font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--fg-muted); transition: height var(--dur-2) var(--ease-out); }
 .nt-puxar[data-puxando="true"] { transition: none; }
 .nt-puxar[data-pronto="true"] { color: var(--accent); }
@@ -12602,10 +12607,10 @@ const __m37 = (function () {
    O que fica no aparelho é a escolha de idioma (`noticias.idiomas`, vai no backup).
    O modelo (`N.*`) é puro e tem teste sem navegador; a tela só desenha.
    ===================================================================== */
-const { h, mount, Stack, Row, Text, Button, IconButton, Field, Chip, Dialog, closeDialog, toast, Empty, Icone, Esqueleto, Bandeira, AvisoRede, levaAte } = __m3;
+const { h, mount, Stack, Row, Text, Button, IconButton, Field, Chip, Input, Dialog, closeDialog, toast, Empty, Icone, Esqueleto, Bandeira, AvisoRede, levaAte } = __m3;
 const BASE = 'https://raw.githubusercontent.com/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-/noticias/';
 const CHAVE_IDIOMAS = 'noticias.idiomas';
-const CHAVE_FILTRO = 'noticias.filtro'; // N3 · temas e fontes escolhidos (vai no backup)
+const CHAVE_FILTRO = 'noticias.filtro'; // N3 · fontes escolhidas; G-260 · palavras criadas pela pessoa e as ligadas (vai no backup)
 const CHAVE_VISTA = 'noticias.vista';   // N3 · data da notícia mais nova já mostrada neste aparelho (é o que separa as "novas")
 /** N3 · temas que o coletor marca, com o nome na tela. */
 const TEMAS = [['commander', 'Commander'], ['pauper', 'Pauper'], ['lancamentos', 'Lançamentos'], ['competitivo', 'Competitivo'], ['arena', 'Arena']];
@@ -12657,15 +12662,46 @@ function junta(lista, novos, { idiomas = null } = {}) {
   for (const cru of novos || []) { const it = limpaItem(cru); if (!it || vistos.has(it.id) || (idiomas && !idiomas.includes(it.idioma))) continue; vistos.add(it.id); out.push(it); }
   return out;
 }
-/** N3 · o filtro guardado, limpo: só temas conhecidos (na ordem da tela) e fontes como texto, sem repetir. */
+/* G-260 · relato #19: no lugar dos temas prontos, palavras que a pessoa cria e apaga. Ligar várias exige todas na notícia
+   (título, resumo ou autor), sem acento e sem maiúscula, como palavra inteira ("art" não casa com "start"). Os temas que
+   o coletor marca continuam no dado; o filtro guardado antes desta leva ({ temas, fontes }) é lido sem os temas. */
+const PALAVRAS_MAX = 20, PALAVRA_MAX = 40;
+const normPalavra = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+const escreveDaPessoa = t => String(t || '').replace(/\s+/g, ' ').trim().slice(0, PALAVRA_MAX);
+/** N3 · o filtro guardado, limpo: fontes como texto, sem repetir; G-260 · palavras sem repetir (sem acento e maiúscula),
+    no máximo 20, e as ligadas só entre elas, na ordem das palavras. Puro. */
 function filtroValido(v) {
-  const t = new Set(v && Array.isArray(v.temas) ? v.temas : []), f = v && Array.isArray(v.fontes) ? v.fontes : [];
-  return { temas: TEMAS.map(x => x[0]).filter(k => t.has(k)), fontes: [...new Set(f.filter(x => typeof x === 'string' && x))].slice(0, 30) };
+  const vistas = new Set(), palavras = [];
+  for (const p of (v && Array.isArray(v.palavras) ? v.palavras : [])) {
+    if (typeof p !== 'string') continue;
+    const t = escreveDaPessoa(p), k = normPalavra(t); if (!k || vistas.has(k)) continue;
+    vistas.add(k); palavras.push(t); if (palavras.length >= PALAVRAS_MAX) break;
+  }
+  const lig = new Set((v && Array.isArray(v.ligadas) ? v.ligadas : []).filter(x => typeof x === 'string').map(normPalavra));
+  const f = v && Array.isArray(v.fontes) ? v.fontes : [];
+  return { palavras, ligadas: palavras.filter(p => lig.has(normPalavra(p))), fontes: [...new Set(f.filter(x => typeof x === 'string' && x))].slice(0, 30) };
 }
-const filtroVazio = f => !f.temas.length && !f.fontes.length;
-const contaFiltro = f => f.temas.length + f.fontes.length;
-/** Passa quem tem algum dos temas ligados E é de alguma das fontes ligadas (grupo sem nada ligado não restringe). */
-const passa = (it, f) => (!f.temas.length || it.temas.some(t => f.temas.includes(t))) && (!f.fontes.length || f.fontes.includes(it.fonte));
+const filtroVazio = f => !f.ligadas.length && !f.fontes.length;
+const contaFiltro = f => f.ligadas.length + f.fontes.length;
+/** A palavra aparece inteira no texto já sem acento e sem maiúscula? Puro. */
+function temPalavra(texto, palavra) {
+  const k = normPalavra(palavra); if (!k) return true;
+  return new RegExp(`(^|[^a-z0-9])${k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^a-z0-9])`).test(texto);
+}
+const textoDaNoticia = it => normPalavra([it && it.titulo, it && it.resumo, it && it.autor].filter(Boolean).join(' '));
+/** Passa quem tem TODAS as palavras ligadas E é de alguma das fontes ligadas (grupo sem nada ligado não restringe). */
+const passa = (it, f) => (!f.ligadas.length || (t => f.ligadas.every(p => temPalavra(t, p)))(textoDaNoticia(it))) && (!f.fontes.length || f.fontes.includes(it.fonte));
+/** Criar uma palavra: já nasce ligada. Erros: 'vazia', 'repetida' (já existe, sem acento e maiúscula), 'cheia' (20). Puro. */
+function comPalavra(f, texto) {
+  const t = escreveDaPessoa(texto), k = normPalavra(t);
+  if (!k) return { filtro: f, erro: 'vazia' };
+  if (f.palavras.some(p => normPalavra(p) === k)) return { filtro: f, erro: 'repetida' };
+  if (f.palavras.length >= PALAVRAS_MAX) return { filtro: f, erro: 'cheia' };
+  return { filtro: filtroValido({ ...f, palavras: [...f.palavras, t], ligadas: [...f.ligadas, t] }) };
+}
+/** Ligar ou desligar; apagar (sai das palavras e das ligadas). Puros. */
+const alternaPalavra = (f, palavra) => filtroValido({ ...f, ligadas: f.ligadas.includes(palavra) ? f.ligadas.filter(p => p !== palavra) : [...f.ligadas, palavra] });
+const semPalavra = (f, palavra) => filtroValido({ ...f, palavras: f.palavras.filter(p => p !== palavra), ligadas: f.ligadas.filter(p => p !== palavra) });
 /** Quantas são mais novas que a última já mostrada. Sem visita anterior, nenhuma é "nova" (tudo seria). */
 function contaNovas(itens, vista) { const t = Date.parse(vista); return Number.isFinite(t) ? itens.filter(it => it.tipo !== 'colecao' && Date.parse(it.data) > t).length : 0; } // N5 · coleção não é notícia nova
 /** A data mais nova entre as notícias e a marca atual. */
@@ -12934,7 +12970,7 @@ function createNoticiasScreen({ noticias, share = null, gesto = null, ancora = f
     if (st.erro) return mount(pe, AvisoRede('Não deu para buscar mais notícias.', { id: 'noticias-erro' }), Button('Tentar de novo', { icone: 'atualizar', id: 'noticias-de-novo', onClick: () => mais() }));
     if (st.buscando) return mount(pe, Esqueleto({ linhas: 2, id: 'noticias-chegando', fala: 'Buscando mais notícias…' }));
     // os filtros não deixaram passar nada do que há: a tela diz e oferece a saída
-    if (acabou() && !st.nVis) return mount(pe, h('span', { class: 'nt-fim', id: 'noticias-sem-filtro', role: 'status' }, 'Nenhuma notícia passa por esses filtros.'), Button('Limpar filtros', { icone: 'fechar', id: 'noticias-limpar', onClick: () => mudaFiltro(filtroValido(null)) }));
+    if (acabou() && !st.nVis) return mount(pe, h('span', { class: 'nt-fim', id: 'noticias-sem-filtro', role: 'status' }, 'Nenhuma notícia passa por esses filtros.'), Button('Limpar filtros', { icone: 'fechar', id: 'noticias-limpar', onClick: () => mudaFiltro(filtroValido({ palavras: st.filtro.palavras })) }));
     if (acabou()) return mount(pe, h('span', { class: 'nt-fim', id: 'noticias-fim', role: 'status' }, Icone('marcar', { tamanho: 18 }), h('span', {}, 'Você está em dia')));
     // sem observador de rolagem (navegador antigo), o botão pede a página seguinte
     mount(pe, sentinela, typeof IntersectionObserver === 'function' ? null : Button('Mais notícias', { icone: 'descer', id: 'noticias-mais', onClick: () => mais() }));
@@ -13014,9 +13050,34 @@ function createNoticiasScreen({ noticias, share = null, gesto = null, ancora = f
     const fontes = ((st.indice && st.indice.fontes) || []).filter(f => st.idiomas.includes(f.idioma || 'en') && (f.itens == null || f.itens > 0)).map(f => [f.id, f.nome || f.id]);
     const contador = Text('', { size: 'sm', tone: 'muted', attrs: { id: 'noticias-filtros-conta', role: 'status' } });
     const conta = () => { contador.textContent = filtroVazio(st.filtro) ? 'Sem filtro: todas as notícias.' : `${st.nVis} notícia(s) na tela com esses filtros${acabou() ? '.' : ', e contando.'}`; };
-    conta();
-    Dialog({ title: 'Filtrar notícias', body: Stack({ id: 'noticias-filtros-corpo' }, contador, grupo('Tema', TEMAS, 'temas'), fontes.length ? grupo('Fonte', fontes, 'fontes') : null),
-      actions: [Button('Limpar', { id: 'noticias-filtros-limpar', onClick: () => { closeDialog(); mudaFiltro(filtroValido(null)); } }), Button('Mostrar', { variant: 'primary', id: 'noticias-filtros-mostrar', onClick: closeDialog })] });
+    // G-260 · relato #19: palavras da pessoa (criar, ligar e desligar, apagar com desfazer)
+    const ERROS_PALAVRA = { vazia: 'Escreva uma palavra', repetida: 'Essa palavra já está na lista', cheia: `Até ${PALAVRAS_MAX} palavras: apague uma para criar outra` };
+    const palavraIn = Input({ id: 'noticias-palavra-nova', placeholder: 'Ex.: Modern Horizons' });
+    palavraIn.setAttribute('aria-label', 'Nova palavra para filtrar'); palavraIn.setAttribute('maxlength', String(PALAVRA_MAX)); palavraIn.setAttribute('enterkeyhint', 'done');
+    const palavrasBox = h('div', { class: 'nt-filtro__chips', id: 'noticias-palavras', role: 'group', 'aria-label': 'Palavras' });
+    const pintaPalavras = () => {
+      while (palavrasBox.firstChild) palavrasBox.removeChild(palavrasBox.firstChild);
+      if (!st.filtro.palavras.length) { palavrasBox.appendChild(Text('Nenhuma palavra ainda. Crie uma acima: só aparecem as notícias que a têm.', { size: 'sm', tone: 'muted', attrs: { id: 'noticias-palavras-vazio' } })); return; }
+      for (const p of st.filtro.palavras) palavrasBox.appendChild(h('span', { class: 'nt-palavra', dataset: { palavra: p } },
+        Chip(p, { pressed: st.filtro.ligadas.includes(p), dataset: { palavraChip: p }, onClick: () => { mudaFiltro(alternaPalavra(st.filtro, p)); pintaPalavras(); conta(); } }),
+        IconButton('fechar', `Apagar a palavra ${p}`, { variant: 'ghost', dataset: { apagaPalavra: p }, onClick: () => {
+          const antes = st.filtro; mudaFiltro(semPalavra(st.filtro, p)); pintaPalavras(); conta();
+          toast(`"${p}" saiu do filtro`, 4000, { acao: { rotulo: 'Desfazer', onClick: () => { mudaFiltro(filtroValido(antes)); if (palavrasBox.isConnected) { pintaPalavras(); conta(); } } } });
+        } })));
+    };
+    const criaPalavra = () => {
+      const r = comPalavra(st.filtro, palavraIn.value);
+      if (r.erro) { toast(ERROS_PALAVRA[r.erro]); palavraIn.focus(); return; }
+      palavraIn.value = ''; mudaFiltro(r.filtro); pintaPalavras(); conta();
+    };
+    palavraIn.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); criaPalavra(); } });
+    pintaPalavras(); conta();
+    const blocoPalavras = Field('Palavras', Stack({},
+      h('div', { class: 'nt-palavra__nova' }, palavraIn, Button('Criar', { icone: 'mais', id: 'noticias-palavra-criar', onClick: criaPalavra })),
+      palavrasBox,
+      Text('Com várias ligadas, só aparecem as notícias que têm todas.', { size: 'xs', tone: 'subtle' })));
+    Dialog({ title: 'Filtrar notícias', body: Stack({ id: 'noticias-filtros-corpo' }, contador, blocoPalavras, fontes.length ? grupo('Fonte', fontes, 'fontes') : null),
+      actions: [Button('Limpar', { id: 'noticias-filtros-limpar', onClick: () => { closeDialog(); mudaFiltro(filtroValido({ palavras: st.filtro.palavras })); } }), Button('Mostrar', { variant: 'primary', id: 'noticias-filtros-mostrar', onClick: closeDialog })] });
   }
   /** N3 · atualizar: busca de novo, por cima da cópia do navegador, e diz quantas chegaram. */
   function atualiza() {
@@ -13102,7 +13163,7 @@ function createGuardadasScreen({ noticias, share = null }) {
   return root;
 }
 
-return { TIPOS_DE_COLECAO, lancamentosDe, mesclaLancamentos, quandoDaColecao, CartaoColecao, CHAVE_GUARDADAS, GUARDADAS_MAX, guardadasValidas, comGuardada, semGuardada, createGuardadasScreen, marcaGuardada, TEMAS, CHAVE_FILTRO, CHAVE_VISTA, filtroValido, filtroVazio, contaFiltro, passa, contaNovas, maisNova, rotuloNovas, BASE, IDIOMAS, CHAVE_IDIOMAS, idiomasValidos, alternaIdioma, planoDeLeitura, tempoRelativo, limpaItem, junta, formaDe, createNoticias, CartaoNoticia, createNoticiasScreen };
+return { PALAVRAS_MAX, PALAVRA_MAX, normPalavra, temPalavra, comPalavra, alternaPalavra, semPalavra, TIPOS_DE_COLECAO, lancamentosDe, mesclaLancamentos, quandoDaColecao, CartaoColecao, CHAVE_GUARDADAS, GUARDADAS_MAX, guardadasValidas, comGuardada, semGuardada, createGuardadasScreen, marcaGuardada, TEMAS, CHAVE_FILTRO, CHAVE_VISTA, filtroValido, filtroVazio, contaFiltro, passa, contaNovas, maisNova, rotuloNovas, BASE, IDIOMAS, CHAVE_IDIOMAS, idiomasValidos, alternaIdioma, planoDeLeitura, tempoRelativo, limpaItem, junta, formaDe, createNoticias, CartaoNoticia, createNoticiasScreen };
 })();
 
 /* ==== src/app/saida.js ==== */

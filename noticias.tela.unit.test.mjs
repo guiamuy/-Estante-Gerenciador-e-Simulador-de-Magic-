@@ -59,15 +59,37 @@ test('N2 · serviço: lê índice e páginas do ramo de notícias, recusa respos
 });
 
 /* ---------------- N3 · filtros, novas e atualizar ---------------- */
-test('N3 · filtro: o guardado é limpo (temas conhecidos na ordem da tela, fontes sem repetir); passa quem tem algum tema ligado E é de alguma fonte ligada', () => {
-  assert.deepEqual(lista(N.filtroValido({ temas: ['arena', 'xx', 'commander'], fontes: ['a', 'a', '', 7, 'b'] })), { temas: ['commander', 'arena'], fontes: ['a', 'b'] });
-  for (const ruim of [null, undefined, 'x', {}, { temas: 'commander' }]) assert.deepEqual(lista(N.filtroValido(ruim)), { temas: [], fontes: [] });
-  assert.equal(N.filtroVazio(N.filtroValido(null)), true); assert.equal(N.contaFiltro(N.filtroValido({ temas: ['pauper'], fontes: ['a', 'b'] })), 3);
-  const a = it(1, { temas: ['commander'], fonte: 'x' }), b = it(2, { temas: ['pauper', 'competitivo'], fonte: 'y' }), c = it(3, { temas: [], fonte: 'x' });
+// G-260 · relato #19: expectativa mudou de propósito — o filtro deixou de ser por temas prontos e passou a ser por palavras
+// que a pessoa cria (várias ligadas = a notícia precisa ter todas); fontes continuam iguais
+test('N3/G-260 · filtro: o guardado é limpo (palavras sem repetir, ligadas só entre elas, fontes sem repetir; o de temas é lido sem os temas); passa quem tem TODAS as palavras ligadas E é de alguma fonte ligada', () => {
+  assert.deepEqual(lista(N.filtroValido({ palavras: [' Modern  Horizons ', 'modern horizons', 'Pauper', '', 7], ligadas: ['PAUPER', 'xx'], fontes: ['a', 'a', '', 7, 'b'] })), { palavras: ['Modern Horizons', 'Pauper'], ligadas: ['Pauper'], fontes: ['a', 'b'] });
+  for (const ruim of [null, undefined, 'x', {}, { palavras: 'commander' }, { temas: ['commander'] }]) assert.deepEqual(lista(N.filtroValido(ruim)), { palavras: [], ligadas: [], fontes: [] });
+  assert.equal(N.filtroValido({ palavras: Array.from({ length: 30 }, (_, i) => 'p' + i) }).palavras.length, N.PALAVRAS_MAX);
+  assert.equal(N.filtroValido({ palavras: ['x'.repeat(90)] }).palavras[0].length, N.PALAVRA_MAX);
+  assert.equal(N.filtroVazio(N.filtroValido(null)), true); assert.equal(N.filtroVazio(N.filtroValido({ palavras: ['Pauper'] })), true, 'palavra desligada não filtra');
+  assert.equal(N.contaFiltro(N.filtroValido({ palavras: ['Pauper', 'Cube'], ligadas: ['Pauper'], fontes: ['a', 'b'] })), 3);
+  const a = it(1, { titulo: 'Novo Commander de Modern Horizons', fonte: 'x' }), b = it(2, { titulo: 'Pauper: o que mudou', resumo: 'Lista nova de Modern Horizons', fonte: 'y' }), c = it(3, { titulo: 'Arte nova', resumo: 'start', fonte: 'x', autor: 'Pauper Club' });
   const quem = f => [a, b, c].filter(i => N.passa(i, N.filtroValido(f))).map(i => i.id);
-  assert.deepEqual(quem(null), ['n1', 'n2', 'n3']); assert.deepEqual(quem({ temas: ['commander', 'pauper'] }), ['n1', 'n2']);
-  assert.deepEqual(quem({ fontes: ['x'] }), ['n1', 'n3']); assert.deepEqual(quem({ temas: ['competitivo'], fontes: ['x'] }), []); assert.deepEqual(quem({ temas: ['commander'], fontes: ['x'] }), ['n1']);
-  assert.deepEqual(lista(N.TEMAS.map(t => t[1])), ['Commander', 'Pauper', 'Lançamentos', 'Competitivo', 'Arena']);
+  assert.deepEqual(quem(null), ['n1', 'n2', 'n3']);
+  assert.deepEqual(quem({ palavras: ['Modern Horizons'], ligadas: ['Modern Horizons'] }), ['n1', 'n2'], 'no título ou no resumo');
+  assert.deepEqual(quem({ palavras: ['modern horizons', 'PAUPER'], ligadas: ['modern horizons', 'PAUPER'] }), ['n2'], 'várias ligadas: precisa de todas; sem maiúscula');
+  assert.deepEqual(quem({ palavras: ['Pauper'], ligadas: ['Pauper'] }), ['n2', 'n3'], 'o autor também conta');
+  assert.deepEqual(quem({ palavras: ['art'], ligadas: ['art'] }), [], 'pedaço de palavra não conta ("start", "Arte")');
+  assert.deepEqual(quem({ palavras: ['arte'], ligadas: ['arte'] }), ['n3']);
+  assert.deepEqual(quem({ palavras: ['comandante', 'Commander'], ligadas: ['Commander'] }), ['n1'], 'só as ligadas filtram');
+  assert.deepEqual(quem({ fontes: ['x'] }), ['n1', 'n3']); assert.deepEqual(quem({ palavras: ['Pauper'], ligadas: ['Pauper'], fontes: ['x'] }), ['n3']);
+  assert.deepEqual(quem({ palavras: ['Lançamento'], ligadas: ['Lançamento'] }), []); assert.equal(N.temPalavra(N.normPalavra('Pré-lançamento hoje'), 'lancamento'), true, 'sem acento dos dois lados');
+  assert.deepEqual(lista(N.TEMAS.map(t => t[1])), ['Commander', 'Pauper', 'Lançamentos', 'Competitivo', 'Arena'], 'os temas continuam no dado do coletor');
+});
+test('G-260 · criar, ligar, desligar e apagar palavra: nasce ligada; vazia, repetida (sem acento e maiúscula) e a 21ª dizem o motivo', () => {
+  let f = N.filtroValido({ fontes: ['a'] });
+  let r = N.comPalavra(f, '  Modern   Horizons '); assert.equal(r.erro, undefined); f = r.filtro;
+  assert.deepEqual(lista(f), { palavras: ['Modern Horizons'], ligadas: ['Modern Horizons'], fontes: ['a'] });
+  assert.equal(N.comPalavra(f, '   ').erro, 'vazia'); assert.equal(N.comPalavra(f, 'modern horizons').erro, 'repetida'); assert.equal(N.comPalavra(f, 'Módern Horizons').erro, 'repetida');
+  f = N.alternaPalavra(f, 'Modern Horizons'); assert.deepEqual(lista(f.ligadas), []); f = N.alternaPalavra(f, 'Modern Horizons'); assert.deepEqual(lista(f.ligadas), ['Modern Horizons']);
+  f = N.comPalavra(f, 'Pauper').filtro; f = N.semPalavra(f, 'Modern Horizons');
+  assert.deepEqual(lista(f), { palavras: ['Pauper'], ligadas: ['Pauper'], fontes: ['a'] });
+  let cheio = N.filtroValido({ palavras: Array.from({ length: N.PALAVRAS_MAX }, (_, i) => 'p' + i) }); assert.equal(N.comPalavra(cheio, 'outra').erro, 'cheia');
 });
 
 test('N3 · novas: conta o que é mais novo que a última visita (sem visita, nada é novo), acha a data mais nova e escreve "1 nova", "7 novas", "20+ novas"', () => {
@@ -88,7 +110,8 @@ test('N3 · serviço: filtro e última visita guardados e limpos; atualizar pede
   guardado.set('noticias.vista', 'lixo'); assert.equal(await s.vista(), ''); await s.guardaVista('2026-10-07T09:00:00Z');
   assert.deepEqual(lista(await s.novas()), { n: 2, mais: false }); assert.deepEqual(pedidos, [['indice.json', ''], ['pagina-1.json', '']]);
   await s.guardaIdiomas(['pt']); assert.deepEqual(lista(await s.novas()), { n: 1, mais: false }); assert.equal(pedidos.at(-1)[0], 'pt-pagina-1.json');
-  await s.guardaFiltro({ temas: ['commander', 'lixo'] }); assert.deepEqual(lista(await s.filtro()), { temas: ['commander'], fontes: [] }); assert.deepEqual(lista(await s.novas()), { n: 0, mais: false });
+  // G-260 · o filtro agora é por palavras (expectativa mudou de propósito: era por temas)
+  await s.guardaFiltro({ palavras: ['Inexistente', 'inexistente'], ligadas: ['Inexistente'] }); assert.deepEqual(lista(await s.filtro()), { palavras: ['Inexistente'], ligadas: ['Inexistente'], fontes: [] }); assert.deepEqual(lista(await s.novas()), { n: 0, mais: false });
   await s.guardaFiltro(null); await s.guardaIdiomas(['pt', 'en']); await s.guardaVista('2026-10-01T00:00:00Z'); assert.deepEqual(lista(await s.novas()), { n: 3, mais: true }, 'a página inteira é nova e há mais páginas: "3+"');
   pedidos.length = 0; await s.indice({ fresco: true }); await s.pagina('', 1, { fresco: true }); assert.deepEqual(pedidos, [['indice.json', 'no-store'], ['pagina-1.json', 'no-store']]);
 });

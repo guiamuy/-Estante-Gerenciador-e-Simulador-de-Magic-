@@ -528,6 +528,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ei ✅ | MON1 Apoiar a Estante: Pix (chave e copia e cola), Ko-fi, PayPal e GitHub Sponsors numa tela, a forma da região primeiro; prévia com dados de exemplo travada (leva P-20) | SEG | 1 | dados reais do dono |
 | 16º-ej ✅ | I4c a ficha com a arte dela: ficha de duas faces da Scryfall ("Dinosaur // Treasure") só vale pela face com o nome da ficha; arte errada já guardada deixa de valer (relato #20, leva G-257) | I | 1 | teste no aparelho |
 | 16º-ek ✅ | M13b dano de comandante à vista: "Comandante N de 21" no selo de vida e detalhe por comandante no motor completo; o motor já contava e tirava o jogador com 21 (relato #20, leva G-259) | M | 1 | teste no aparelho |
+| 16º-el ✅ | N3b filtrar notícias pelas suas palavras: criar, ligar, desligar e apagar; com várias ligadas, só as que têm todas; fontes continuam (relato #19, leva G-260) | N | 1 | teste no aparelho |
 | 16º-ee ✅ | T6e-2 Enviar relato sem sair do app: com a conta conectada e a fila ligada, o relato vai para a fila do Firebase e o cartão mostra "Na fila" até o número do registro (relato #13, leva G-255) | T | 1 | — |
 | 16º-eh ✅ | T6e-2 prazo honesto do relato pela fila: o GitHub atrasa o agendamento em horas, a tela diz "de minutos a algumas horas" e a conversa que lê relatos roda a fila antes (relato #13, leva G-256) | T | 1 | 16º-ee |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
@@ -8680,6 +8681,23 @@ Acrescentar fonte é uma linha em `FONTES` (`noticias.mjs`).
   atualizar pelo botão, puxar curto, puxar inteiro e puxar com a página rolada, visita seguinte sem novas;
   `auditaTela` nas quatro larguras, dois temas e fonte larga).
 - **Depende de:** N2.
+
+**N3b · Filtrar notícias pelas suas palavras (relato #19)** ✅ (leva G-260, trilha `geral`, 13/10/2026)
+- **Pedido (relato #19, melhoria · alta):** no lugar dos temas prontos, a pessoa escreve as palavras que quer filtrar, cria e
+  apaga cada uma, liga e desliga quando quiser; com várias ligadas, só aparecem as notícias que têm todas.
+- **Como:** em Filtrar notícias, o grupo Tema dá lugar a Palavras: campo + Criar (ou Enter), cada palavra é um chip que liga
+  e desliga, com um X ao lado que apaga e oferece Desfazer. A palavra nasce ligada; vazia, repetida (sem acento e maiúscula)
+  ou a 21ª dizem o motivo. Passa a notícia que tem **todas** as ligadas no título, no resumo ou no autor, sem acento e sem
+  maiúscula, como palavra inteira ("art" não casa com "start"). Fonte continua. "Limpar" desliga tudo e mantém as palavras.
+- **Formato guardado** (`noticias.filtro`, no backup): de `{ temas, fontes }` para `{ palavras, ligadas, fontes }` — a
+  troca é o pedido; o filtro antigo é lido sem os temas (quem tinha um tema ligado volta a ver tudo e cria a palavra). Os
+  temas continuam no dado do coletor (`noticias.mjs`), só saíram do filtro.
+- **Testes:** U `noticias.tela.unit` (N3/G-260: limpeza do guardado, o de temas lido sem eles, todas as ligadas, autor, palavra
+  inteira, acento; criar, repetida, cheia, ligar, desligar, apagar; o serviço guarda o filtro novo); e2e "N3" (sem chips de
+  tema, campo e chips com 44 px, criar por Enter e por botão, motivos, apagar com desfazer, palavras dentro de 360 px,
+  Commander filtra 12, com fonte 3, guardado ao recarregar, nada passa e Limpar mantém as palavras).
+- **Fora:** palavra como frase com aspas ou exclusão ("sem X"); procurar no texto completo da notícia (o app só tem título,
+  resumo e autor).
 
 **N4 · Guardar e compartilhar** ✅ (leva G-213, 08/10/2026)
 - **Valor:** separar o que ler depois.
