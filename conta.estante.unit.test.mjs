@@ -248,3 +248,22 @@ test('G-263 · conta com e-mail: confere antes da rede, guarda só o e-mail (pro
   const { conta: g } = contaCom(C.createSessaoFirebase({ apiKey: 'k', fetch: googleFalso().fetch }));
   assert.equal((await g.entrar()).provedor, 'google');
 });
+
+test('G-264 · esqueci a senha: pede o link (PASSWORD_RESET) com resposta igual com ou sem conta; e-mail estranho não vai para a rede', async () => {
+  const F = senhaFalsa();
+  const { conta } = contaCom(C.createSessaoFirebase({ apiKey: 'chave-x', fetch: async (url, init) => { F.pedidos.push({ url, corpo: JSON.parse(init.body) }); return { ok: true, status: 200, json: async () => ({ email: 'ana@exemplo.com' }) }; } }));
+  await assert.rejects(conta.redefinirSenha('sem-arroba'), /email-invalido/);
+  assert.equal(F.pedidos.length, 0);
+  assert.deepEqual({ ...(await conta.redefinirSenha('  Ana@Exemplo.com ')) }, { enviado: true });
+  assert.equal(F.pedidos[0].url, 'https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=chave-x');
+  assert.deepEqual(F.pedidos[0].corpo, { requestType: 'PASSWORD_RESET', email: 'ana@exemplo.com' });
+  assert.equal(conta.estante().estado, 'desconectada', 'pedir o link não entra na conta');
+  // sem conta nesse e-mail (sem a proteção contra enumeração ligada): a resposta é a mesma
+  const semConta = C.createSessaoFirebase({ apiKey: 'k', fetch: senhaFalsa({ sendOobCode: 'EMAIL_NOT_FOUND' }).fetch });
+  assert.deepEqual({ ...(await semConta.redefinirSenha('x@y.co')) }, { enviado: true });
+  for (const [msg, codigo] of [['RESET_PASSWORD_EXCEED_LIMIT', 'muitas-tentativas'], ['INVALID_EMAIL', 'email-invalido'], ['ALGO_NOVO', 'firebase-recusou']]) {
+    const s = C.createSessaoFirebase({ apiKey: 'k', fetch: senhaFalsa({ sendOobCode: msg }).fetch });
+    await assert.rejects(s.redefinirSenha('x@y.co'), e => e.message === codigo, msg);
+  }
+  await assert.rejects(C.createSessaoFirebase({ apiKey: '' }).redefinirSenha('x@y.co'), /sem-firebase/);
+});

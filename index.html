@@ -11089,6 +11089,14 @@ function createConta({ clientId = '', store, fetch: fetchFn = null, google: goog
     criarComEmail(email, senha) { return comEmail('criarComSenha', email, senha); },
     /** G-263 · Entra com e-mail e senha. */
     entrarComEmail(email, senha) { return comEmail('entrarComSenha', email, senha); },
+    /** G-264 · T6f-2 · Esqueci a senha: confere o e-mail antes da rede e pede o link. */
+    async redefinirSenha(email) {
+      if (!sessao || !sessao.disponivel() || !sessao.redefinirSenha) throw erro('sem-firebase');
+      const e = String(email || '').trim().toLowerCase();
+      if (!EMAIL_OK.test(e) || e.length > 254) throw erro('email-invalido');
+      if (!temRede()) throw erro('sem-rede');
+      return sessao.redefinirSenha(e);
+    },
     /** Abre o consentimento do Google e guarda nome, e-mail e foto. */
     async entrar() {
       if (!clientId) throw erro('sem-client-id');
@@ -11184,9 +11192,10 @@ const STK = 'https://securetoken.googleapis.com/v1/token';
 // G-263 · T6f-1 · relato #18: conta com e-mail e senha no mesmo Identity Toolkit (provedor ligado pelo dono em 13/10/2026).
 const SIGNUP = 'https://identitytoolkit.googleapis.com/v1/accounts:signUp';
 const SENHA = 'https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword';
+const OOB = 'https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode'; // G-264 · T6f-2 · link de senha nova
 /** Código do Identity Toolkit (o começo da mensagem de erro) → motivo da tela. Com a proteção contra enumeração ligada,
     e-mail sem conta e senha errada chegam iguais (INVALID_LOGIN_CREDENTIALS): a tela também não diferencia. */
-const ERRO_SENHA = { EMAIL_EXISTS: 'email-em-uso', INVALID_EMAIL: 'email-invalido', MISSING_EMAIL: 'email-invalido', WEAK_PASSWORD: 'senha-fraca', MISSING_PASSWORD: 'senha-vazia', INVALID_LOGIN_CREDENTIALS: 'senha-nao-confere', INVALID_PASSWORD: 'senha-nao-confere', EMAIL_NOT_FOUND: 'senha-nao-confere', USER_DISABLED: 'conta-desativada', TOO_MANY_ATTEMPTS_TRY_LATER: 'muitas-tentativas', OPERATION_NOT_ALLOWED: 'sem-senha', PASSWORD_LOGIN_DISABLED: 'sem-senha' };
+const ERRO_SENHA = { EMAIL_EXISTS: 'email-em-uso', INVALID_EMAIL: 'email-invalido', MISSING_EMAIL: 'email-invalido', WEAK_PASSWORD: 'senha-fraca', MISSING_PASSWORD: 'senha-vazia', INVALID_LOGIN_CREDENTIALS: 'senha-nao-confere', INVALID_PASSWORD: 'senha-nao-confere', EMAIL_NOT_FOUND: 'senha-nao-confere', USER_DISABLED: 'conta-desativada', TOO_MANY_ATTEMPTS_TRY_LATER: 'muitas-tentativas', RESET_PASSWORD_EXCEED_LIMIT: 'muitas-tentativas', OPERATION_NOT_ALLOWED: 'sem-senha', PASSWORD_LOGIN_DISABLED: 'sem-senha' };
 const UID_OK = /^[A-Za-z0-9_-]{1,128}$/;
 const RENOVA_ANTES_MS = 5 * 60000;
 function createSessaoFirebase({ apiKey = '', fetch: fetchFn = null, agora = () => Date.now(), origem = null, guarda = null } = {}) {
@@ -11240,6 +11249,20 @@ function createSessaoFirebase({ apiKey = '', fetch: fetchFn = null, agora = () =
     criarComSenha(email, senha) { return comSenha(SIGNUP, email, senha); },
     /** G-263 · Entra na conta da Estante com e-mail e senha. Devolve `{ uid, email }`. */
     entrarComSenha(email, senha) { return comSenha(SENHA, email, senha); },
+    /** G-264 · T6f-2 · Pede o e-mail com o link de senha nova (modelo em pt-BR no console). A resposta é a mesma com ou
+        sem conta nesse e-mail (proteção contra enumeração): só e-mail malformado, excesso de pedidos e rede mudam. */
+    async redefinirSenha(email) {
+      if (!apiKey) throw erro('sem-firebase');
+      try {
+        await pede(`${OOB}?key=${chave()}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ requestType: 'PASSWORD_RESET', email: String(email || '') }) });
+      } catch (e) {
+        if (e.message !== 'firebase-recusou') throw e;
+        const codigo = String(e.detalhe || '').split(/[\s:]/)[0];
+        if (codigo === 'EMAIL_NOT_FOUND') return { enviado: true }; // nunca diz se o e-mail tem conta
+        throw erro(ERRO_SENHA[codigo] || 'firebase-recusou', { status: e.status });
+      }
+      return { enviado: true };
+    },
     /** P-9 · Volta a sessão guardada neste aparelho: o primeiro `token()` renova. Dado estranho é ignorado. */
     retoma(d) {
       if (!apiKey || s || !d || !UID_OK.test(String(d.uid || '')) || typeof d.refreshToken !== 'string' || !d.refreshToken) return false;
@@ -14768,6 +14791,18 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
       olho.setAttribute('aria-pressed', String(ver)); olho.setAttribute('aria-label', ver ? 'Esconder senha' : 'Mostrar senha'); senha.focus(); } });
     olho.setAttribute('aria-pressed', 'false');
     const dica = h('span', { class: 'ds-field__hint', id: 'conta-senha-dica' });
+    // G-264 · T6f-2 · esqueci a senha: manda o link para o e-mail digitado; a resposta não diz se há conta nele
+    const aviso = h('div', { class: 'conta-email__erro', id: 'conta-email-aviso', role: 'status' });
+    const esqueci = Button('Esqueci a senha', { variant: 'ghost', icone: 'email', id: 'conta-senha-esqueci', onClick: async () => {
+      if (esqueci.disabled) return;
+      clear(erro); clear(aviso); esqueci.disabled = true; esqueci.setAttribute('aria-busy', 'true');
+      const r = esqueci.querySelector('.ds-btn__rotulo'); r.textContent = 'Enviando…';
+      try {
+        await conta.redefinirSenha(email.value);
+        mount(aviso, Note('Se houver conta com ' + email.value.trim().toLowerCase() + ', chega nele um link para criar uma senha nova. Confira também o spam.')); // texto puro (P-1)
+      } catch (e) { mount(erro, Note(__m29.motivoDe(e), 'negative')); email.focus(); }
+      finally { esqueci.disabled = false; esqueci.removeAttribute('aria-busy'); r.textContent = 'Esqueci a senha'; }
+    } });
     const vai = Button('', { variant: 'primary', icone: 'conferir', id: 'conta-email-confirmar', onClick: () => confirma() });
     const rotulo = () => vai.querySelector('.ds-btn__rotulo');
     const chips = [['entrar', 'Entrar'], ['criar', 'Criar conta']].map(([k, nome]) => Chip(nome, { pressed: k === modo, dataset: { modo: k }, onClick: () => { modo = k; pinta(); } }));
@@ -14776,11 +14811,12 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
       senha.setAttribute('autocomplete', modo === 'criar' ? 'new-password' : 'current-password');
       dica.textContent = modo === 'criar' ? 'Pelo menos 8 caracteres.' : '';
       rotulo().textContent = modo === 'criar' ? 'Criar conta' : 'Entrar';
-      clear(erro);
+      esqueci.classList.toggle('ds-hidden', modo === 'criar'); // .ds-btn é inline-flex: o atributo hidden sozinho não esconde
+      clear(erro); clear(aviso);
     }
     async function confirma() {
       if (vai.disabled) return;
-      clear(erro); vai.disabled = true; vai.setAttribute('aria-busy', 'true'); rotulo().textContent = modo === 'criar' ? 'Criando…' : 'Entrando…';
+      clear(erro); clear(aviso); vai.disabled = true; vai.setAttribute('aria-busy', 'true'); rotulo().textContent = modo === 'criar' ? 'Criando…' : 'Entrando…';
       st.contaOcupada = true;
       try {
         await (modo === 'criar' ? conta.criarComEmail(email.value, senha.value) : conta.entrarComEmail(email.value, senha.value));
@@ -14800,6 +14836,8 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
       h('div', { class: 'ds-segmentado', role: 'group', 'aria-label': 'Entrar ou criar conta', id: 'conta-email-modo' }, ...chips),
       Field('E-mail', email),
       h('label', { class: 'ds-field' }, h('span', { class: 'ds-field__label' }, 'Senha'), h('span', { class: 'conta-email__senha' }, senha, olho), dica),
+      Row({ class: 'ds-row--wrap' }, esqueci),
+      aviso,
       Text('A senha não fica guardada no aparelho. A conta guarda o seu perfil na nuvem e o reconecta nos outros aparelhos.', { size: 'sm', tone: 'muted' }),
       erro),
       actions: [Button('Cancelar', { id: 'conta-email-cancelar', onClick: closeDialog }), vai] });

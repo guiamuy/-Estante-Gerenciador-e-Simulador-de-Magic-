@@ -532,6 +532,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-em ✅ | T6e-3 relato enviado não muda mais: seções "Para enviar" e "Enviados", falha com o motivo e "Enviar de novo", sem editar, reenviar, excluir nem mudar a situação depois de enviado (relato #16, leva G-261) | T | 1 | teste no aparelho |
 | 16º-en ✅ | A12b sem listas próprias da Estante: Listas prontas só com o catálogo; as listas do dono vão por um arquivo de backup que ele importa uma vez (relato #17, leva G-262) | A | 1 | o dono importar o arquivo |
 | 16º-eo ✅ | T6f-1 conta com e-mail e senha: criar conta e entrar no Perfil, ao lado do Google; a sessão fica ao reabrir; erros na hora, sem fechar a folha (relato #18, fatia 1 de 6, leva G-263) | P | 1 | teste no aparelho |
+| 16º-ep ✅ | T6f-2 esqueci a senha: na folha de entrar, manda o link de senha nova para o e-mail digitado, sem dizer se há conta nele (relato #18, fatia 2 de 6, leva G-264) | P | 1 | teste no aparelho (e-mail de verdade) |
 | 16º-ee ✅ | T6e-2 Enviar relato sem sair do app: com a conta conectada e a fila ligada, o relato vai para a fila do Firebase e o cartão mostra "Na fila" até o número do registro (relato #13, leva G-255) | T | 1 | — |
 | 16º-eh ✅ | T6e-2 prazo honesto do relato pela fila: o GitHub atrasa o agendamento em horas, a tela diz "de minutos a algumas horas" e a conversa que lê relatos roda a fila antes (relato #13, leva G-256) | T | 1 | 16º-ee |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
@@ -9492,7 +9493,7 @@ o aviso de fila ligada, o que acontece na primeira rodada depois de o dono criar
   manutenção de conta e LGPD; telas de entrada, carregamento, falha e sucesso; a conta guarda as configurações do perfil
   (isso já vale pela A-261/A-263 por uid). O dono ligou o provedor E-mail/senha no Firebase em 13/10/2026 (modelo de
   redefinição em pt-BR, uma conta por e-mail, criação ligada, proteção contra enumeração ligada).
-- **Fatias:** T6f-1 criar e entrar (G-263) ✅ · T6f-2 esqueci a senha · T6f-3 nome de usuário único (regras do banco; o
+- **Fatias:** T6f-1 criar e entrar (G-263) ✅ · T6f-2 esqueci a senha (G-264) ✅ · T6f-3 nome de usuário único (regras do banco; o
   dono publica) · T6f-4 vincular o Google depois (com e-mail confirmado; senão o Google desfaz a senha) · T6f-5 trocar a
   senha e excluir a conta (com os dados da nuvem) · T6f-6 transições de entrada e sucesso.
 
@@ -9514,6 +9515,19 @@ o aviso de fila ligada, o que acontece na primeira rodada depois de o dono criar
   nada de senha nem token de acesso guardado, reabrir continua, sair, senha errada avisa, a certa entra). Leva 129, P-7 e
   P-8 continuam verdes.
 - **Fora:** esqueci a senha, nome de usuário, vincular o Google, trocar senha e excluir conta (T6f-2 a T6f-5).
+
+**T6f-2 · Esqueci a senha** ✅ (leva G-264, trilha `geral`, 13/10/2026)
+- **Como:** `redefinirSenha` na sessão (`accounts:sendOobCode`, `requestType: PASSWORD_RESET`; o e-mail sai no modelo
+  pt-BR que o dono ligou no console) e na conta (confere o e-mail antes da rede). A resposta é a mesma com ou sem conta
+  naquele e-mail (com a proteção contra enumeração ligada o Firebase já não diz; sem ela, `EMAIL_NOT_FOUND` também vira
+  "enviado"). Na folha "Entrar com e-mail", modo Entrar: "Esqueci a senha" (44 px) usa o e-mail digitado, mostra
+  "Enviando…" e depois "Se houver conta com …, chega nele um link para criar uma senha nova. Confira também o spam."; a
+  folha continua aberta para entrar com a senha nova. Em Criar conta o botão some.
+- **Testes:** U `conta.estante.unit` (G-264: formato do pedido, resposta neutra, e-mail estranho fora da rede, excesso de
+  pedidos e e-mail inválido com motivo, sem chave); e2e "G-264" (só em Entrar, aviso na hora, "Enviando…", frase neutra,
+  pedido certo, folha aberta, quatro medidas e dois temas).
+- **Fora:** a página que abre o link é a do Firebase (`estante-10102026.firebaseapp.com`), não uma tela da Estante;
+  trocar a senha de dentro do app fica para a T6f-5.
 
 **T6e-3 · Relato enviado não muda mais (relato #16)** ✅ (leva G-261, trilha `geral`, 13/10/2026)
 - **Pedido (relato #16, infraestrutura · impede o uso):** depois de enviado, o relato não se edita, não se reenvia, não se

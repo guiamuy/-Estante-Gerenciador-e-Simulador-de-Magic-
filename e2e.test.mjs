@@ -5109,6 +5109,42 @@ test('e2e · G-263 conta com e-mail: cria com erro na hora e sem fechar a folha,
   assert.deepEqual(errors, []);
 });
 
+/* G-264 · T6f-2 · relato #18: esqueci a senha */
+test('e2e · G-264 esqueci a senha: só em Entrar, confere o e-mail na hora, manda o link sem dizer se há conta, e a folha continua aberta para entrar', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.addInitScript(() => {
+    window.__GOOGLE_CLIENT_ID = 'e2e.apps.googleusercontent.com';
+    window.__FIREBASE_API_KEY = 'chave-e2e';
+    window.__firebaseLog = [];
+    window.__FIREBASE_FETCH = async (url, init) => {
+      window.__firebaseLog.push({ url: url.split('?')[0], corpo: JSON.parse(init.body) });
+      await new Promise(r => setTimeout(r, 150)); // dá tempo de ver o "Enviando…"
+      return new Response(JSON.stringify({ email: JSON.parse(init.body).email }), { headers: { 'content-type': 'application/json' } });
+    };
+  });
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#conta-email-abrir:not([disabled])');
+  await page.click('#conta-email-abrir'); await page.waitForSelector('#conta-email-campo');
+  assert.ok(await page.isVisible('#conta-senha-esqueci'));
+  assert.ok(await page.$eval('#conta-senha-esqueci', b => b.offsetHeight) >= 44, 'alvo de 44 px (medido sem a animação de abrir a folha)');
+  await page.click('#conta-email-modo [data-modo="criar"]'); assert.equal(await page.isVisible('#conta-senha-esqueci'), false, 'criar conta não tem "esqueci"');
+  await page.click('#conta-email-modo [data-modo="entrar"]');
+  // e-mail estranho: aviso na hora, nada vai para a rede
+  await page.fill('#conta-email-campo', 'gui'); await page.click('#conta-senha-esqueci');
+  await page.waitForFunction(() => /Confira o e-mail/.test(document.querySelector('#conta-email-erro').textContent));
+  assert.equal(await page.evaluate(() => window.__firebaseLog.length), 0);
+  // e-mail certo: "Enviando…" e depois a frase neutra; a folha continua aberta
+  await page.fill('#conta-email-campo', 'Gui@Exemplo.com'); await page.click('#conta-senha-esqueci');
+  await page.waitForFunction(() => /Enviando/.test(document.querySelector('#conta-senha-esqueci').textContent));
+  await page.waitForSelector('#conta-email-aviso .ds-note');
+  assert.match(await page.innerText('#conta-email-aviso'), /Se houver conta com gui@exemplo\.com, chega nele um link/);
+  assert.equal(await page.innerText('#conta-email-erro'), '');
+  assert.deepEqual(await page.evaluate(() => window.__firebaseLog[0]), { url: 'https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode', corpo: { requestType: 'PASSWORD_RESET', email: 'gui@exemplo.com' } });
+  assert.ok(await page.isVisible('#conta-email-confirmar'), 'a folha continua aberta para entrar com a senha nova');
+  await auditaTela(page, 'perfil · esqueci a senha');
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · P-8 sala pela internet: sem conta da Estante, Criar e Entrar dão lugar a Conectar; sem conta Google leva ao Perfil; conectada, a sala aparece; P-9 reabrir continua conectado; sem sessão, Conectar liga ali', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.setViewportSize({ width: 360, height: 780 });
