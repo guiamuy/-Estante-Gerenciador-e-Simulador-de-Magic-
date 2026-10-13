@@ -12142,3 +12142,41 @@ test('e2e · R-7 Painel · Motor: versão em uso pelo placar (mapa de outra vers
   if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.screenshot({ path: process.env.SHOTS + '/r7-motor.png', fullPage: true }); }
   assert.deepEqual(errors, []);
 });
+
+/* ---------- R-8 · BI1-6 · Qualidade ---------- */
+test('e2e · R-8 Painel · Qualidade: relatos abertos com o mais antigo no farol, criados e resolvidos no recorte, tempo até a correção, testes e instáveis da última leva, bugs achados; por área e por tipo filtram ao toque; sem sobreposição nas quatro medidas e dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  const painel = base.replace('index.html', 'painel.html');
+  await page.setViewportSize({ width: 360, height: 780 });
+  const json = (r, corpo) => r.fulfill({ json: corpo, headers: { 'content-type': 'application/json', 'x-ratelimit-remaining': '50', 'x-ratelimit-limit': '60', 'access-control-expose-headers': 'etag, x-ratelimit-remaining, x-ratelimit-limit' } });
+  await page.route('https://api.github.com/**', r => json(r, /commits\?sha=main&per_page=1/.test(r.request().url()) ? [{ sha: 'abc1234def0', commit: { message: 'Leva M-390 · x', committer: { date: new Date().toISOString() } } }] : []));
+  const h = n => new Date(Date.now() - n * 3600000).toISOString();
+  const relatos = { versao: 1, total: 3, abertos: 1, relatos: [
+    { numero: 18, situacao: 'aberto', tipoRotulo: 'Infraestrutura', urgenciaRotulo: 'Impede o uso', area: 'Início', criadoEm: h(9 * 24), resolvidoEm: null, motor: 110, descricao: 'Sistema de conta e login' },
+    { numero: 19, situacao: 'resolvido', tipoRotulo: 'Melhoria', urgenciaRotulo: 'Alta', area: 'Início', criadoEm: h(40), resolvidoEm: h(28), motor: 112, descricao: 'Filtro das notícias' },
+    { numero: 20, situacao: 'resolvido', tipoRotulo: 'Erro', urgenciaRotulo: 'Alta', area: 'Mesa', criadoEm: h(38), resolvidoEm: h(26), motor: 112, descricao: 'Fichas de tesouro' }] };
+  const levas = [`{"id":"R-5","trilha":"radar","conversa":"radar","situacao":"na-fila","fim":"${h(2)}","testes_depois":2771,"instaveis":0,"bugs_achados":1}`, `{"id":"M-390","trilha":"motor","conversa":"motor","situacao":"publicada","fim":"${h(5)}","testes_depois":2769,"instaveis":2,"bugs_achados":3}`].join('\n') + '\n';
+  await page.route('https://raw.githubusercontent.com/**', r => { const u = r.request().url(); r.fulfill({ body: /relatos\.json/.test(u) ? JSON.stringify(relatos) : /levas\.jsonl/.test(u) ? levas : '', headers: { 'content-type': 'text/plain', 'access-control-allow-origin': '*' } }); });
+  await page.addInitScript(() => {
+    const jwt = email => 'h.' + btoa(JSON.stringify({ email })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') + '.s';
+    window.__PAINEL_FETCH = async (url) => new Response(JSON.stringify(url.includes('securetoken') ? { user_id: 'uidE2E', id_token: jwt('gui.amuy@gmail.com'), refresh_token: 'ref-e2e', expires_in: '3600' } : { localId: 'uidE2E', idToken: jwt('gui.amuy@gmail.com'), refreshToken: 'ref-e2e', expiresIn: '3600' }), { headers: { 'content-type': 'application/json' } });
+    window.__PAINEL_GOOGLE = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+  });
+  await page.goto(painel + '#qualidade'); await page.waitForSelector('#pn-entrar'); await page.click('#pn-entrar');
+  await page.waitForSelector('#pn-visao-qualidade');
+  assert.match(await page.innerText('#pn-k-abertos'), /1\s*relato/); assert.equal(await page.getAttribute('#pn-k-abertos .pn-farol', 'data-farol'), 'vermelho', 'aberto há 9 dias');
+  assert.match(await page.innerText('#pn-k-relatos'), /3[\s\S]*2 resolvidos/);
+  assert.match(await page.innerText('#pn-k-correcao'), /12 h[\s\S]*mediana de 2/);
+  assert.match(await page.innerText('#pn-k-testes'), /2771[\s\S]*na R-5/); assert.equal(await page.getAttribute('#pn-k-testes .pn-farol', 'data-farol'), 'verde');
+  assert.match(await page.innerText('#pn-k-bugs'), /4\s*no recorte/);
+  assert.match(await page.innerText('#pn-abertos'), /#18 · Sistema de conta e login[\s\S]*Início · Infraestrutura · há 9 dias · motor v110[\s\S]*Impede o uso/);
+  assert.match(await page.innerText('#pn-g-area'), /Início[\s\S]*2[\s\S]*Mesa[\s\S]*1/);
+  await auditaTela(page, 'qualidade 360');
+  await page.click('#pn-g-area button[data-valor="Mesa"], #pn-g-area li[data-valor="Mesa"] button');
+  await page.waitForFunction(() => location.hash.includes('area=Mesa'));
+  assert.match(await page.innerText('#pn-k-relatos'), /1[\s\S]*1 resolvidos[\s\S]*\/\s*3/);
+  assert.match(await page.innerText('#pn-abertos'), /nenhum relato aberto/);
+  await emTodasAsMedidas(page, 'qualidade filtrada');
+  if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.screenshot({ path: process.env.SHOTS + '/r8-qualidade.png', fullPage: true }); }
+  assert.deepEqual(errors, []);
+});

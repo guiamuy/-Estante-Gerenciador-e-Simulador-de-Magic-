@@ -726,7 +726,7 @@ const __p2 = (function () {
     { id: 'eficiencia', rotulo: 'Eficiência', titulo: 'Eficiência', leva: 'R-5', pronta: true, traz: 'levas por dia e por semana por trilha, intervalo entre publicações, portão verde na primeira, duração do portão e retrabalho' },
     { id: 'roadmap', rotulo: 'Roadmap', titulo: 'Roadmap', leva: 'R-6', pronta: true, traz: 'histórias por status, por épico e por tema, % concluído por épico e o burn-up semanal' },
     { id: 'motor', rotulo: 'Motor', titulo: 'Motor de regras', leva: 'R-7', pronta: true, traz: 'versão, regras do mapa por status, listas que jogam por formato e a evolução' },
-    { id: 'qualidade', rotulo: 'Qualidade', titulo: 'Qualidade', leva: 'R-8', traz: 'relatos abertos e fechados por semana, tempo até a correção, testes e instáveis, bugs por leva' },
+    { id: 'qualidade', rotulo: 'Qualidade', titulo: 'Qualidade', leva: 'R-8', pronta: true, traz: 'relatos abertos e fechados por semana, tempo até a correção, testes e instáveis, bugs por leva' },
     { id: 'curso', rotulo: 'Em curso', titulo: 'Trabalho em curso', leva: 'R-9', traz: 'cada conversa ativa, a história, as skills, a última atualização, dependências e estimativa' },
     { id: 'skills', rotulo: 'Skills', titulo: 'Skills e rotinas', leva: 'R-10', traz: 'o catálogo de skills, uso por leva e em uso agora; fluxos do GitHub e rotinas do Claude com última e próxima execução' },
     { id: 'modelos', rotulo: 'Modelos', titulo: 'Modelos', leva: 'R-11', traz: 'levas, tempo e portão por modelo, e o consumo estimado do plano' }
@@ -795,7 +795,7 @@ const __p2 = (function () {
 
   /* ---------- R-4 · incremento 1 · filtros em tudo (puro) ---------- */
   /** Dimensões que toda linha normalizada pode carregar; o filtro só vale onde a dimensão existe. */
-  const DIMENSOES = ['periodo', 'trilha', 'conversa', 'historia', 'epico', 'tema', 'skill', 'modelo', 'situacao', 'portao', 'formato'];
+  const DIMENSOES = ['periodo', 'trilha', 'conversa', 'historia', 'epico', 'tema', 'skill', 'modelo', 'situacao', 'portao', 'formato', 'area', 'tipo', 'urgencia'];
   const PERIODOS = { '24h': 24 * 3600000, '7d': 7 * 86400000, '30d': 30 * 86400000, 'tudo': Infinity };
   /** Trilha pela letra da leva (prefixo do rodapé `Trilha:`; retrato de 13/10/2026). */
   const TRILHA_DA_LETRA = { M: 'motor', B: 'bot', G: 'geral', D: 'design', S: 'scanner', I: 'infra', P: 'protecao', A: 'armazem', K: 'keywords', V: 'verbos', T: 'tipos', L: 'listas', C: 'cartas', H: 'homologacao', R: 'radar', E: 'escala', J: 'jogabilidade' };
@@ -984,7 +984,23 @@ const __p2 = (function () {
   /** Placares da telemetria → linhas normalizadas (data = em). */
   const linhasDosPlacares = placares => (placares || []).map(p => ({ ...p, data: Date.parse(p.em || '') || null })).sort((a, b) => (a.data || 0) - (b.data || 0));
   Object.assign(LIMIARES, { mapaVersao: { verde: 1, amarelo: 0, unidade: 'igual', texto: 'auditoria do mapa na versão do motor em uso: igual · de outra versão' } });
+
+  /* ---------- R-8 · Qualidade (puro) ---------- */
+  /** `relatos.json` do ramo `relatos` (gravado pelo fluxo Relatos) → linhas normalizadas; texto do relato é dado, vira texto na tela. */
+  function linhasDosRelatos(tabela) {
+    const lista = (tabela && Array.isArray(tabela.relatos)) ? tabela.relatos : Array.isArray(tabela) ? tabela : [];
+    return lista.map(r => {
+      const criado = Date.parse(r.criadoEm || r.enviadoEm || '') || null, resolvido = Date.parse(r.resolvidoEm || '') || null;
+      return { numero: r.numero, titulo: String(r.titulo || r.descricao || '').slice(0, 90), data: criado, resolvido, situacao: resolvido || r.situacao === 'resolvido' ? 'resolvido' : 'aberto', tipo: r.tipoRotulo || r.tipo || null, urgencia: r.urgenciaRotulo || r.urgencia || null, area: r.area || null, motor: r.motor ?? null, app: r.app || null, duracao: criado && resolvido ? resolvido - criado : null };
+    }).sort((a, b) => (b.data || 0) - (a.data || 0));
+  }
+  Object.assign(LIMIARES, {
+    relatoAberto: { verde: 2 * 86400000, amarelo: 7 * 86400000, unidade: 'ms', texto: 'relato aberto há: ≤ 2 dias · ≤ 7 dias · mais' },
+    correcao: { verde: 2 * 86400000, amarelo: 5 * 86400000, unidade: 'ms', texto: 'tempo até a correção (mediana): ≤ 2 dias · ≤ 5 dias · mais' },
+    instaveis: { verde: 0, amarelo: 5, unidade: 'testes', texto: 'instáveis na última leva: 0 · até 5 · mais' }
+  });
   const FONTES = {
+    relatos: 'raw · relatos/relatos.json (tabela gravada pelo fluxo Relatos)',
     mapa: 'raw · main/.regras/mapa.json (resumo guardado por 10 min)',
     placares: 'ramo telemetria · placares.jsonl (prova de partida e mapa, escritos pelas conversas)',
     roadmap: 'raw · main/ROADMAP.md (seções 6 e 7; só o resumo fica guardado)',
@@ -995,7 +1011,7 @@ const __p2 = (function () {
     pages: 'API GitHub · actions/runs (fluxo "pages build and deployment")',
     levas: 'ramo telemetria · levas.jsonl (escrito pelas sessões)'
   };
-  return { SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
+  return { SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, linhasDosRelatos, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
 })();
 
 /* ==== src/painel/ui.js ==== */
@@ -1105,6 +1121,56 @@ const __p4 = (function () {
 
   /* ---------- visões (uma por sub-aba pronta): carrega(fonte, forcar) → dados; desenha(dados, filtros, api) → nós ---------- */
   const VISOES = {
+    qualidade: {
+      filtros: ['periodo', 'situacao', 'area', 'tipo', 'urgencia', 'trilha'], periodoPadrao: '30d',
+      linhas: d => [...M.linhasDosRelatos(d.relatos), ...M.linhasDasLevas(d.levas || [])],
+      async carrega(fonte, forcar) {
+        const avisos = [];
+        let relatos = null;
+        try { relatos = (await fonte.raw('relatos', 'relatos.json', { nome: 'relatos', ttl: 5 * 60000, forcar, transforma: txt => JSON.parse(txt) })).dado; } catch (e) { avisos.push('tabela de relatos indisponível (ramo relatos)'); }
+        let levas = [];
+        try { levas = lerJsonl((await fonte.raw('telemetria', 'levas.jsonl', { ttl: 2 * 60000, forcar })).dado); } catch (e) { avisos.push('telemetria indisponível (ramo telemetria)'); }
+        return { em: Date.now(), relatos, levas, avisos, sem: {} };
+      },
+      desenha(d, filtros, api) {
+        const agora = Date.now();
+        const periodo = filtros.periodo || '30d';
+        const relatos = M.linhasDosRelatos(d.relatos);
+        const rRel = recorte(relatos, { periodo, situacao: filtros.situacao, area: filtros.area, tipo: filtros.tipo, urgencia: filtros.urgencia }, agora);
+        const abertos = relatos.filter(r => r.situacao === 'aberto' && (!filtros.area || r.area === filtros.area) && (!filtros.tipo || r.tipo === filtros.tipo) && (!filtros.urgencia || r.urgencia === filtros.urgencia));
+        const maisVelho = Math.max(0, ...abertos.map(r => agora - (r.data || agora)));
+        const corr = rRel.linhas.map(r => r.duracao).filter(x => x != null);
+        const levas = M.linhasDasLevas(d.levas);
+        const rLev = recorte(levas, { periodo, trilha: filtros.trilha }, agora);
+        const ultimaComTestes = [...levas].filter(l => l.testes_depois != null && l.situacao !== 'editando').sort((a, b) => (b.data || 0) - (a.data || 0))[0] || null;
+        const bugs = rLev.linhas.reduce((n, l) => n + (l.bugs_achados || 0), 0);
+        const recorteTxt = fraseDoRecorte({ ...filtros, periodo });
+        const porSemana = M.porSemana(rRel.linhas).map(({ semana, itens }) => ({ chave: semana, rotulo: 'sem. ' + semana.slice(5).split('-').reverse().join('/'), valor: itens.length, dica: `${itens.length} relato(s) criados · ${itens.filter(r => r.resolvido).length} já resolvidos` }));
+        const porArea = valoresDe(rRel.linhas, 'area').map(v => ({ chave: v.valor, rotulo: v.valor, valor: v.n }));
+        const porTipo = valoresDe(rRel.linhas, 'tipo').map(v => ({ chave: v.valor, rotulo: v.valor, valor: v.n }));
+        const bugsSemana = M.porSemana(rLev.linhas.filter(l => l.bugs_achados)).map(({ semana, itens }) => ({ chave: semana, rotulo: 'sem. ' + semana.slice(5).split('-').reverse().join('/'), valor: itens.reduce((n, l) => n + l.bugs_achados, 0), dica: `${itens.length} leva(s) com bugs achados` }));
+        const notas = [];
+        if (!d.relatos) notas.push('sem a tabela de relatos: relatos abertos, por semana, por área e tempo até a correção ficam vazios');
+        if (!levas.length) notas.push('telemetria sem levas: testes, instáveis e bugs achados aparecem quando as conversas registrarem');
+        for (const a of d.avisos || []) notas.push(a);
+        return [
+          h('div', { class: 'pn-cartoes' },
+            Cartao({ id: 'pn-k-abertos', rotulo: 'Relatos abertos', valor: abertos.length, unidade: abertos.length === 1 ? 'relato' : 'relatos', farol: abertos.length ? farol(maisVelho, LIMIARES.relatoAberto) : 'verde', limiar: LIMIARES.relatoAberto, fonte: FONTES.relatos, formula: 'situação aberto · o mais antigo há ' + (abertos.length ? minutos(maisVelho).replace(/^(\d+) h$/, '$1 h') : '—'), em: d.em, semDados: !d.relatos }),
+            Cartao({ id: 'pn-k-relatos', rotulo: 'Relatos criados', valor: rRel.linhas.length, unidade: `· ${rRel.linhas.filter(r => r.resolvido).length} resolvidos`, fonte: FONTES.relatos, formula: 'criadoEm no recorte · ' + recorteTxt, em: d.em, semDados: !d.relatos, totalSemFiltro: Object.keys(filtros).some(k => k !== 'periodo' && filtros[k]) ? recorte(relatos, { periodo }, agora).linhas.length : null }),
+            Cartao({ id: 'pn-k-correcao', rotulo: 'Tempo até a correção', valor: corr.length ? (M.mediana(corr) >= 86400000 ? `${(M.mediana(corr) / 86400000).toFixed(1).replace('.', ',')} dias` : minutos(M.mediana(corr))) : '—', unidade: corr.length ? `mediana de ${corr.length}` : '', farol: corr.length ? farol(M.mediana(corr), LIMIARES.correcao) : 'cinza', limiar: LIMIARES.correcao, fonte: FONTES.relatos, formula: 'resolvidoEm − criadoEm · ' + recorteTxt, em: d.em, semDados: !corr.length }),
+            Cartao({ id: 'pn-k-testes', rotulo: 'Testes no portão', valor: ultimaComTestes ? ultimaComTestes.testes_depois : '—', unidade: ultimaComTestes ? `na ${ultimaComTestes.id}` : '', farol: ultimaComTestes ? farol(ultimaComTestes.instaveis || 0, LIMIARES.instaveis) : 'cinza', limiar: LIMIARES.instaveis, fonte: FONTES.levas, formula: 'testes_depois da última leva enviada · instáveis ' + (ultimaComTestes ? (ultimaComTestes.instaveis || 0) : '—'), em: ultimaComTestes ? ultimaComTestes.data : d.em, semDados: !ultimaComTestes }),
+            Cartao({ id: 'pn-k-bugs', rotulo: 'Bugs achados antes de publicar', valor: bugs, unidade: 'no recorte', fonte: FONTES.levas, formula: 'soma de bugs_achados (portão, revisor, golden) · ' + recorteTxt, em: d.em, semDados: !levas.length })),
+          h('section', { class: 'pn-bloco', id: 'pn-abertos' }, h('h3', { class: 'ds-text ds-text--md' }, 'Abertos agora'),
+            abertos.length ? h('ul', { class: 'pn-linhas', role: 'list' }, ...abertos.map(r => Linha({ principal: `#${r.numero} · ${r.titulo}`, selo: r.urgencia || r.tipo || '?', seloTom: /impede|alta/i.test(String(r.urgencia || '')) ? 'negative' : 'warning', detalhe: `${r.area || '—'} · ${r.tipo || '—'} · ${haQuanto(r.data, agora)}${r.motor != null ? ` · motor v${r.motor}` : ''}`, dataset: { numero: String(r.numero) } }))) : h('p', { class: 'ds-text ds-text--sm ds-text--muted' }, d.relatos ? 'nenhum relato aberto' : 'sem a tabela de relatos')),
+          h('div', { class: 'pn-graficos' },
+            Barras({ id: 'pn-g-relatos', titulo: `Relatos criados por semana · ${recorteTxt}`, itens: porSemana, vazio: 'sem relatos neste recorte' }),
+            Barras({ id: 'pn-g-area', titulo: 'Por área (toque filtra)', itens: porArea, onBarra: v => api.filtra('area', v), ativo: filtros.area || null, vazio: 'sem relatos neste recorte' }),
+            Barras({ id: 'pn-g-tipo', titulo: 'Por tipo (toque filtra)', itens: porTipo, onBarra: v => api.filtra('tipo', v), ativo: filtros.tipo || null, vazio: 'sem relatos neste recorte' }),
+            Barras({ id: 'pn-g-bugs', titulo: 'Bugs achados antes de publicar, por semana (telemetria)', itens: bugsSemana, vazio: levas.length ? 'nenhum bug registrado neste recorte' : 'pendente de telemetria' })),
+          notas.length ? h('ul', { class: 'pn-notas ds-text ds-text--sm ds-text--muted', id: 'pn-notas' }, ...notas.map(n => h('li', {}, n))) : null
+        ];
+      }
+    },
     motor: {
       filtros: ['periodo', 'formato', 'trilha'], periodoPadrao: 'tudo',
       linhas: d => M.linhasDosPlacares(d.placares),
