@@ -8195,6 +8195,10 @@ const RAW_SCRIPTS = [
   { name: 'Spinning Darkness', alt: [{ label: 'Exilar as 3 cartas pretas de cima do cemitério em vez de pagar o custo', cost: { exileGraveyardTopo: { n: 3, cor: 'B' } } }], // "You may exile the top three black cards of your graveyard rather than pay this spell's mana cost." (118.9, M-362)
     effects: [{ do: 'damage', amount: 3, target: 'creature', targetNotColor: 'B' }, { do: 'gain', amount: 3 }], // "Spinning Darkness deals 3 damage to target nonblack creature. You gain 3 life."
     example: { target: 'enemy-creature', expect: { selfLife: 3 } } },
+  // L-9 · Pauper de M a Z, lote 9: habilidade ativada concedida por Equipamento (`grants.activated`, M-251) (texto oficial em .listas/oficiais-listas.json, Oracle do Forge, 12/10/2026)
+  { name: 'Viridian Longbow', equip: { enchant: 'creature', cost: { mana: '{3}' } }, // "Equip {3}"
+    grants: { activated: [{ cost: { tap: true }, effects: [{ do: 'damage', amount: 1, target: 'any' }] }] }, // "Equipped creature has '{T}: This creature deals 1 damage to any target.'"
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor): o cenário de verdade está em listas.lote*.unit
   //
   //
   //

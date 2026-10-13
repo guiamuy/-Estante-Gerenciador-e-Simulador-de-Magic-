@@ -263,6 +263,10 @@ function runExample(sc) {
   // (antes dependia do sorteio da mão: um script novo na biblioteca mudava o embaralhamento e a Ilha sumia)
   const subDescarte = (sc.alt || []).map(x => (x.cost || {}).discardSubtype).find(Boolean);
   if (subDescarte) { s = J(s); s.objects.subdesc = { oid: 'subdesc', name: subDescarte, owner: a, controller: a, zone: 'hand', tapped: false, sick: false, damage: 0, counters: {} }; s.zones[a].hand.push('subdesc'); }
+  // L-9 · "reveal cards from the top until you reveal a card that shares a card type" (Reality Scramble): a carta achada era a primeira do topo que
+  // servisse, e isso dependia do embaralhamento (um script novo na biblioteca trouxe uma criatura com gatilho de entrada que devolvia a mágica à
+  // mão); põe um Grizzly Bear no topo do grimório de quem conjura, só neste cenário, sem mexer no resto do grimório
+  if ((sc.effects || []).some(e => e.do === 'reveal_until' && e.match === 'shares-type')) { let gb; [s, gb] = put(s, a, 'Grizzly Bear', 'library'); s.zones[a].library.splice(s.zones[a].library.indexOf(gb), 1); s.zones[a].library.unshift(gb); }
   if (ex.target === 'enemy-spell' || ex.target === 'enemy-instant') {
     // põe uma mágica do oponente na pilha (o cenário só precisa dela lá)
     // a mágica na pilha precisa combinar com o que o script mira
