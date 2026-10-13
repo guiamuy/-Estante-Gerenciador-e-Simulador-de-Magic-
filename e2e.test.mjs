@@ -12180,3 +12180,38 @@ test('e2e · R-8 Painel · Qualidade: relatos abertos com o mais antigo no farol
   if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.screenshot({ path: process.env.SHOTS + '/r8-qualidade.png', fullPage: true }); }
   assert.deepEqual(errors, []);
 });
+
+/* ---------- R-9 · BI1-7 · Trabalho em curso ---------- */
+test('e2e · R-9 Painel · Trabalho em curso: conversas do registro com situação, idade, estimativa e dependências (parada há 48 h fica vermelha), levas em edição com skills e modelo, skills atuando agora (toque filtra), na fila; sem sobreposição nas quatro medidas e dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  const painel = base.replace('index.html', 'painel.html');
+  await page.setViewportSize({ width: 360, height: 780 });
+  const json = (r, corpo) => r.fulfill({ json: corpo, headers: { 'content-type': 'application/json', 'x-ratelimit-remaining': '50', 'x-ratelimit-limit': '60', 'access-control-expose-headers': 'etag, x-ratelimit-remaining, x-ratelimit-limit' } });
+  await page.route('https://api.github.com/**', r => { const u = r.request().url(); json(r, /commits\?sha=main&per_page=1/.test(u) ? [{ sha: 'abc1234def0', commit: { message: 'Leva M-390 · x', committer: { date: new Date().toISOString() } } }] : /\/branches\?/.test(u) ? [{ name: 'fila/R-5', commit: { sha: 'a' } }, { name: 'main', commit: { sha: 'm' } }] : []); });
+  const h = n => new Date(Date.now() - n * 3600000).toISOString();
+  const trilhas = [{ conversa: 'motor · frases do Pauper · 11/10', trilha: 'motor', leva: 'M-391', historia: 'Jolted Awake e Searing Blaze', situacao: 'editando', estimativa: '2 levas', atualizado: h(1) }, { conversa: 'Pauper de M a Z · 12/10', trilha: 'listas', leva: 'L-10', historia: 'parada esperando primitiva do motor', situacao: 'editando', depende_de: 'trilha motor', atualizado: h(60) }, { conversa: 'radar · Painel Estante · 13/10', trilha: 'radar', leva: 'R-9', historia: 'Trabalho em curso', situacao: 'na-fila', atualizado: h(0.2) }];
+  const levas = [`{"id":"M-391","trilha":"motor","conversa":"motor · frases do Pauper · 11/10","historia":"Jolted Awake","situacao":"editando","inicio":"${h(1)}","modelo":"Fable 5.1","skills":["mtg-engine-architect","mtg-scale-architect"]}`, `{"id":"R-9","trilha":"radar","conversa":"radar · Painel Estante · 13/10","situacao":"editando","inicio":"${h(0.5)}","modelo":"Fable 5.1","skills":["mtg-bi-specialist","mtg-app-design-architect"]}`].join('\n') + '\n';
+  await page.route('https://raw.githubusercontent.com/**', r => { const u = r.request().url(); r.fulfill({ body: /trilhas\.json/.test(u) ? JSON.stringify(trilhas) : /levas\.jsonl/.test(u) ? levas : '', headers: { 'content-type': 'text/plain', 'access-control-allow-origin': '*' } }); });
+  await page.addInitScript(() => {
+    const jwt = email => 'h.' + btoa(JSON.stringify({ email })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') + '.s';
+    window.__PAINEL_FETCH = async (url) => new Response(JSON.stringify(url.includes('securetoken') ? { user_id: 'uidE2E', id_token: jwt('gui.amuy@gmail.com'), refresh_token: 'ref-e2e', expires_in: '3600' } : { localId: 'uidE2E', idToken: jwt('gui.amuy@gmail.com'), refreshToken: 'ref-e2e', expiresIn: '3600' }), { headers: { 'content-type': 'application/json' } });
+    window.__PAINEL_GOOGLE = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+  });
+  await page.goto(painel + '#curso'); await page.waitForSelector('#pn-entrar'); await page.click('#pn-entrar');
+  await page.waitForSelector('#pn-visao-curso');
+  assert.match(await page.innerText('#pn-k-conversas'), /3[\s\S]*1 editando/);
+  assert.match(await page.innerText('#pn-k-paradas'), /1\s*conversa/); assert.equal(await page.getAttribute('#pn-k-paradas .pn-farol', 'data-farol'), 'vermelho');
+  assert.match(await page.innerText('#pn-k-editando'), /2\s*levas/);
+  assert.match(await page.innerText('#pn-k-fila2'), /1\s*leva/);
+  assert.match(await page.innerText('#pn-conversas'), /Pauper de M a Z · 12\/10 · L-10[\s\S]*parada esperando primitiva do motor — há 3 dias · depende de trilha motor[\s\S]*parada/);
+  assert.match(await page.innerText('#pn-conversas'), /motor · frases do Pauper · 11\/10 · M-391[\s\S]*2 levas/);
+  assert.match(await page.innerText('#pn-editando'), /M-391 · Jolted Awake[\s\S]*Fable 5\.1[\s\S]*mtg-engine-architect, mtg-scale-architect/);
+  assert.match(await page.innerText('#pn-g-skills-agora'), /mtg-bi-specialist[\s\S]*mtg-engine-architect/);
+  await auditaTela(page, 'em curso 360');
+  await page.click('#pn-g-skills-agora button[data-valor="mtg-engine-architect"], #pn-g-skills-agora li[data-valor="mtg-engine-architect"] button');
+  await page.waitForFunction(() => location.hash.includes('skill=mtg-engine-architect'));
+  assert.match(await page.innerText('#pn-k-editando'), /1\s*leva/);
+  await emTodasAsMedidas(page, 'em curso filtrado');
+  if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.screenshot({ path: process.env.SHOTS + '/r9-curso.png', fullPage: true }); }
+  assert.deepEqual(errors, []);
+});

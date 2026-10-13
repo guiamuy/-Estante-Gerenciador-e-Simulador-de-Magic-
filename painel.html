@@ -727,7 +727,7 @@ const __p2 = (function () {
     { id: 'roadmap', rotulo: 'Roadmap', titulo: 'Roadmap', leva: 'R-6', pronta: true, traz: 'histórias por status, por épico e por tema, % concluído por épico e o burn-up semanal' },
     { id: 'motor', rotulo: 'Motor', titulo: 'Motor de regras', leva: 'R-7', pronta: true, traz: 'versão, regras do mapa por status, listas que jogam por formato e a evolução' },
     { id: 'qualidade', rotulo: 'Qualidade', titulo: 'Qualidade', leva: 'R-8', pronta: true, traz: 'relatos abertos e fechados por semana, tempo até a correção, testes e instáveis, bugs por leva' },
-    { id: 'curso', rotulo: 'Em curso', titulo: 'Trabalho em curso', leva: 'R-9', traz: 'cada conversa ativa, a história, as skills, a última atualização, dependências e estimativa' },
+    { id: 'curso', rotulo: 'Em curso', titulo: 'Trabalho em curso', leva: 'R-9', pronta: true, traz: 'cada conversa ativa, a história, as skills, a última atualização, dependências e estimativa' },
     { id: 'skills', rotulo: 'Skills', titulo: 'Skills e rotinas', leva: 'R-10', traz: 'o catálogo de skills, uso por leva e em uso agora; fluxos do GitHub e rotinas do Claude com última e próxima execução' },
     { id: 'modelos', rotulo: 'Modelos', titulo: 'Modelos', leva: 'R-11', traz: 'levas, tempo e portão por modelo, e o consumo estimado do plano' }
   ];
@@ -999,7 +999,20 @@ const __p2 = (function () {
     correcao: { verde: 2 * 86400000, amarelo: 5 * 86400000, unidade: 'ms', texto: 'tempo até a correção (mediana): ≤ 2 dias · ≤ 5 dias · mais' },
     instaveis: { verde: 0, amarelo: 5, unidade: 'testes', texto: 'instáveis na última leva: 0 · até 5 · mais' }
   });
+
+  /* ---------- R-9 · Trabalho em curso (puro) ---------- */
+  /** `trilhas.json` da telemetria (espelho do registro de check-in) → linhas com idade e situação; parada há 48 h fica como `parada`. */
+  function linhasDasTrilhas(trilhas, agora = Date.now()) {
+    return (trilhas || []).map(t => {
+      const atualizado = Date.parse(t.atualizado || '') || null;
+      const idade = atualizado ? agora - atualizado : null;
+      const parada = t.situacao === 'parada' || (idade != null && idade > 48 * 3600000 && t.situacao === 'editando');
+      return { ...t, data: atualizado, idade, situacaoEfetiva: parada ? 'parada' : t.situacao, situacao: t.situacao };
+    }).sort((a, b) => (b.data || 0) - (a.data || 0));
+  }
+  Object.assign(LIMIARES, { trilhaParada: { verde: 12 * 3600000, amarelo: 48 * 3600000, unidade: 'ms', texto: 'conversa sem atualização há: ≤ 12 h · ≤ 48 h · mais (parada)' } });
   const FONTES = {
+    trilhas: 'ramo telemetria · trilhas.json (espelho do registro de check-in, escrito pelas conversas)',
     relatos: 'raw · relatos/relatos.json (tabela gravada pelo fluxo Relatos)',
     mapa: 'raw · main/.regras/mapa.json (resumo guardado por 10 min)',
     placares: 'ramo telemetria · placares.jsonl (prova de partida e mapa, escritos pelas conversas)',
@@ -1011,7 +1024,7 @@ const __p2 = (function () {
     pages: 'API GitHub · actions/runs (fluxo "pages build and deployment")',
     levas: 'ramo telemetria · levas.jsonl (escrito pelas sessões)'
   };
-  return { SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, linhasDosRelatos, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
+  return { SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, linhasDosRelatos, linhasDasTrilhas, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
 })();
 
 /* ==== src/painel/ui.js ==== */
@@ -1121,6 +1134,49 @@ const __p4 = (function () {
 
   /* ---------- visões (uma por sub-aba pronta): carrega(fonte, forcar) → dados; desenha(dados, filtros, api) → nós ---------- */
   const VISOES = {
+    curso: {
+      filtros: ['periodo', 'trilha', 'situacao', 'conversa', 'skill'], periodoPadrao: 'tudo',
+      linhas: d => [...M.linhasDasTrilhas(d.trilhas), ...M.linhasDasLevas(d.levas || [])],
+      async carrega(fonte, forcar) {
+        const avisos = [];
+        let trilhas = [], levas = [];
+        try { trilhas = (await fonte.raw('telemetria', 'trilhas.json', { ttl: 2 * 60000, forcar, transforma: txt => JSON.parse(txt) })).dado || []; } catch (e) { avisos.push('telemetria indisponível (trilhas.json)'); }
+        try { levas = lerJsonl((await fonte.raw('telemetria', 'levas.jsonl', { ttl: 2 * 60000, forcar })).dado); } catch (e) { avisos.push('telemetria indisponível (levas.jsonl)'); }
+        const ramos = await fonte.api('/branches?per_page=100', { nome: 'ramos', ttl: 2 * 60000, forcar });
+        return { em: Date.now(), trilhas, levas, ramos: (ramos.dado || []).filter(r => M.levaDoRamo(r.name)), avisos, sem: { ramos: ramos.semRede || ramos.cotaEsgotada } };
+      },
+      desenha(d, filtros, api) {
+        const agora = Date.now();
+        const trilhas = M.linhasDasTrilhas(d.trilhas, agora);
+        const rTr = recorte(trilhas, { trilha: filtros.trilha, situacao: filtros.situacao, conversa: filtros.conversa }, agora);
+        const levas = M.linhasDasLevas(d.levas);
+        const editando = recorte(levas.filter(l => l.situacao === 'editando'), { trilha: filtros.trilha, conversa: filtros.conversa, skill: filtros.skill }, agora).linhas;
+        const naFila = d.ramos.filter(r => r.name.startsWith('fila/')).map(r => M.levaDoRamo(r.name)).filter(x => !filtros.trilha || x.trilha === filtros.trilha);
+        const paradas = rTr.linhas.filter(t => t.situacaoEfetiva === 'parada');
+        const maisVelha = Math.max(0, ...rTr.linhas.filter(t => t.situacaoEfetiva !== 'publicada').map(t => t.idade || 0));
+        const skillsAgora = valoresDe(editando, 'skill').map(v => ({ chave: v.valor, rotulo: v.valor, valor: v.n }));
+        const recorteTxt = fraseDoRecorte({ ...filtros, periodo: 'tudo' }).replace(/^tudo( · )?/, '') || 'tudo';
+        const notas = [];
+        if (!trilhas.length) notas.push('telemetria sem trilhas: as conversas aparecem quando registrarem o check-in (`node telemetria.mjs trilha …`)');
+        for (const a of d.avisos || []) notas.push(a);
+        const tomDa = t => t.situacaoEfetiva === 'parada' ? 'negative' : t.situacaoEfetiva === 'na-fila' ? 'accent' : t.situacaoEfetiva === 'publicada' ? 'positive' : 'warning';
+        return [
+          h('div', { class: 'pn-cartoes' },
+            Cartao({ id: 'pn-k-conversas', rotulo: 'Conversas registradas', valor: rTr.linhas.length, unidade: `· ${rTr.linhas.filter(t => t.situacaoEfetiva === 'editando').length} editando`, farol: rTr.linhas.length ? farol(maisVelha, LIMIARES.trilhaParada) : 'cinza', limiar: LIMIARES.trilhaParada, fonte: FONTES.trilhas, formula: 'uma por conversa · a mais antiga sem atualização há ' + (rTr.linhas.length ? minutos(maisVelha) : '—'), em: d.em, semDados: !trilhas.length, totalSemFiltro: Object.keys(filtros).some(k => k !== 'periodo' && filtros[k]) ? trilhas.length : null }),
+            Cartao({ id: 'pn-k-paradas', rotulo: 'Paradas', valor: paradas.length, unidade: paradas.length === 1 ? 'conversa' : 'conversas', farol: paradas.length ? 'vermelho' : 'verde', fonte: FONTES.trilhas, formula: 'situação parada, ou editando sem atualização há 48 h', em: d.em, semDados: !trilhas.length }),
+            Cartao({ id: 'pn-k-editando', rotulo: 'Levas em edição agora', valor: editando.length, unidade: editando.length === 1 ? 'leva' : 'levas', fonte: FONTES.levas, formula: 'situação editando · ' + recorteTxt, em: d.em, semDados: !levas.length }),
+            Cartao({ id: 'pn-k-fila2', rotulo: 'Na fila', valor: naFila.length, unidade: naFila.length === 1 ? 'leva' : 'levas', fonte: FONTES.ramos, formula: 'ramos fila/*', em: d.em })),
+          h('section', { class: 'pn-bloco', id: 'pn-conversas' }, h('h3', { class: 'ds-text ds-text--md' }, 'Conversas (registro de check-in)'),
+            rTr.linhas.length ? h('ul', { class: 'pn-linhas', role: 'list' }, ...rTr.linhas.map(t => Linha({ principal: `${t.conversa}${t.leva ? ' · ' + t.leva : ''}`, selo: t.situacaoEfetiva, seloTom: tomDa(t), detalhe: [t.historia ? String(t.historia).slice(0, 110) : null, `${haQuanto(t.data, agora)}${t.estimativa ? ' · ' + t.estimativa : ''}${t.depende_de ? ' · depende de ' + t.depende_de : ''}`].filter(Boolean).join(' — '), dataset: { conversa: t.conversa, trilha: t.trilha } }))) : h('p', { class: 'ds-text ds-text--sm ds-text--muted' }, trilhas.length ? 'nenhuma conversa neste recorte' : 'pendente de telemetria')),
+          editando.length ? h('section', { class: 'pn-bloco', id: 'pn-editando' }, h('h3', { class: 'ds-text ds-text--md' }, 'Levas em edição'),
+            h('ul', { class: 'pn-linhas', role: 'list' }, ...editando.map(l => Linha({ principal: `${l.id}${l.historia ? ' · ' + String(l.historia).slice(0, 60) : ''}`, selo: l.trilha, detalhe: `${l.conversa}${l.modelo ? ' · ' + l.modelo : ''}${l.inicio ? ' · desde ' + haQuanto(Date.parse(l.inicio), agora).replace('há ', '') : ''}${(l.skills || []).length ? ' · ' + l.skills.join(', ') : ''}`, dataset: { leva: l.id } })))) : null,
+          h('div', { class: 'pn-graficos' },
+            Barras({ id: 'pn-g-skills-agora', titulo: 'Skills atuando agora (levas em edição; toque filtra)', itens: skillsAgora, onBarra: v => api.filtra('skill', v), ativo: filtros.skill || null, vazio: levas.length ? 'nenhuma leva em edição' : 'pendente de telemetria' }),
+            Barras({ id: 'pn-g-situacao-trilhas', titulo: 'Conversas por situação (toque filtra)', itens: valoresDe(rTr.linhas, 'situacaoEfetiva').map(v => ({ chave: v.valor, rotulo: v.valor, valor: v.n, tom: v.valor === 'parada' ? 'negative' : 'accent' })), onBarra: v => api.filtra('situacao', v === 'parada' ? 'parada' : v), ativo: filtros.situacao || null, vazio: 'pendente de telemetria' })),
+          notas.length ? h('ul', { class: 'pn-notas ds-text ds-text--sm ds-text--muted', id: 'pn-notas' }, ...notas.map(n => h('li', {}, n))) : null
+        ];
+      }
+    },
     qualidade: {
       filtros: ['periodo', 'situacao', 'area', 'tipo', 'urgencia', 'trilha'], periodoPadrao: '30d',
       linhas: d => [...M.linhasDosRelatos(d.relatos), ...M.linhasDasLevas(d.levas || [])],

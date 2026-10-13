@@ -178,10 +178,10 @@ test('R-2 · fonte sem rede ou com a cota esgotada devolve o que havia guardado 
 });
 
 /* ---------- modelo puro ---------- */
-test('R-2 · modelo: oito sub-abas na ordem das fatias (Pipeline antes da Eficiência), todas com a leva e o que trazem; prontas: Pipeline (R-4), Eficiência (R-5), Roadmap (R-6), Motor (R-7) e Qualidade (R-8)', () => {
+test('R-2 · modelo: oito sub-abas na ordem das fatias (Pipeline antes da Eficiência), todas com a leva e o que trazem; prontas: Pipeline (R-4), Eficiência (R-5), Roadmap (R-6), Motor (R-7), Qualidade (R-8) e Em curso (R-9)', () => {
   const { modelo, app } = loadPainel();
   assert.deepEqual(modelo.SUBABAS.map(a => a.id), ['pipeline', 'eficiencia', 'roadmap', 'motor', 'qualidade', 'curso', 'skills', 'modelos']);
-  for (const a of modelo.SUBABAS) { assert.match(a.leva, /^R-\d+$/); assert.ok(a.traz.length > 20); assert.equal(!!a.pronta, ['pipeline', 'eficiencia', 'roadmap', 'motor', 'qualidade'].includes(a.id)); assert.equal(!!app.VISOES[a.id], !!a.pronta, 'toda sub-aba pronta tem a visão que a desenha'); }
+  for (const a of modelo.SUBABAS) { assert.match(a.leva, /^R-\d+$/); assert.ok(a.traz.length > 20); assert.equal(!!a.pronta, ['pipeline', 'eficiencia', 'roadmap', 'motor', 'qualidade', 'curso'].includes(a.id)); assert.equal(!!app.VISOES[a.id], !!a.pronta, 'toda sub-aba pronta tem a visão que a desenha'); }
   assert.deepEqual(modelo.SUBABAS.map(a => a.leva), ['R-4', 'R-5', 'R-6', 'R-7', 'R-8', 'R-9', 'R-10', 'R-11']);
 });
 
@@ -431,4 +431,19 @@ test('R-8 · linhasDosRelatos: a tabela do ramo relatos vira linhas com data, re
   assert.deepEqual(modelo.linhasDosRelatos(null), []); assert.equal(modelo.linhasDosRelatos([{ numero: 1, criadoEm: '2026-10-01T00:00:00Z' }]).length, 1);
   for (const dim of ['area', 'tipo', 'urgencia']) assert.ok(modelo.DIMENSOES.includes(dim), dim);
   assert.deepEqual(modelo.recorte(r, { area: 'Mesa' }).linhas.map(x => x.numero), [20]);
+});
+
+
+/* ---------- R-9 · Trabalho em curso ---------- */
+test('R-9 · linhasDasTrilhas: espelho do check-in com idade; editando sem atualização há 48 h vira parada; ordem pela atualização', () => {
+  const { modelo } = loadPainel();
+  const agora = Date.parse('2026-10-14T00:00:00Z');
+  const r = modelo.linhasDasTrilhas([
+    { conversa: 'a', trilha: 'motor', situacao: 'editando', atualizado: '2026-10-13T22:00:00Z' },
+    { conversa: 'b', trilha: 'listas', situacao: 'editando', atualizado: '2026-10-11T10:00:00Z' },
+    { conversa: 'c', trilha: 'geral', situacao: 'na-fila', atualizado: '2026-10-13T23:00:00Z' },
+    { conversa: 'd', trilha: 'tipos', situacao: 'parada', atualizado: '2026-10-13T23:30:00Z' }], agora);
+  assert.deepEqual(r.map(t => [t.conversa, t.situacaoEfetiva]), [['d', 'parada'], ['c', 'na-fila'], ['a', 'editando'], ['b', 'parada']]);
+  assert.equal(r[2].idade, 2 * 3600000);
+  assert.deepEqual(modelo.linhasDasTrilhas(null), []);
 });
