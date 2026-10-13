@@ -56,3 +56,16 @@ test('CR 712.8c · conjurada transformada pelo "disturb": na pilha e no campo, L
   s = J(s); s.turn.priority = 0; s = passaAte(s, x => !x.stack.length);
   eq([s.objects[d].zone, mv(s, d)], ['battlefield', 1]);
 });
+
+/* ---------------- T-71 · achado da auditoria (T-69): o Presságio na pilha ---------------- */
+test('CR 720.3b / 202.3 · Sagu Wildling conjurada como Presságio (Roost Seek, {G}): na pilha vale 1 e é verde', () => {
+  C['Sagu Wildling'] = { name: 'Sagu Wildling', type_line: 'Creature — Dragon', mana_cost: '{4}{G}', cmc: 5, keywords: [], oracle_text: '', colors: ['G'], power: '3', toughness: '3' };
+  C.Forest = { name: 'Forest', type_line: 'Basic Land — Forest', mana_cost: '', cmc: 0, keywords: [], oracle_text: '({T}: Add {G}.)', colors: [] };
+  const deck = [{ name: 'Sagu Wildling', qty: 4, zone: 'main' }, { name: 'Forest', qty: 20, zone: 'main' }];
+  let s = E.createGame({ format: 'livre', seed: 3, mode: 'full', cards: C, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  s = passaAte(s, x => x.turn.active === 0 && x.turn.step === 'main1' && !x.stack.length && !x.pending);
+  let w; [s, w] = poe(s, 0, 'Sagu Wildling', 'hand'); s = mana(s);
+  s = act(s, legais(s, 0, a => a.t === 'cast' && a.oid === w && a.omen)[0]);
+  eq([s.objects[w].name, mv(s, w), E.colorsOf(s, s.objects[w])], ['Roost Seek', 1, ['G']]);
+});

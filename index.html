@@ -24771,7 +24771,7 @@ function salvaguardaK(s, p, stackOid, chosen) {
     if (!t || t.oid == null || vistos.has(t.oid)) continue; vistos.add(t.oid); // a mesma permanente mirada duas vezes vira alvo uma vez
     const alvo = s.objects[t.oid];
     if (!alvo || alvo.controller === p) continue;
-    for (const custo of wardsDeK(s, alvo)) s.queued.push({ source: alvo.oid, name: alvo.name, controller: alvo.controller, effects: [{ do: 'salvaguarda', pilha: stackOid, custo }], when: 'ward' });
+    for (const custo of wardsDeK(s, alvo)) s.queued.push({ source: alvo.oid, name: alvo.faceDown ? 'Criatura virada para baixo' : alvo.name, controller: alvo.controller, /* T-71 · CR 708.2 · a salvaguarda da virada não diz o nome (Toca ponto comum: salvaguardaK) */ effects: [{ do: 'salvaguarda', pilha: stackOid, custo }], when: 'ward' });
   }
 }
 /** 702.21b · o custo na hora da resolução: { mana, extra (custos que não são mana), texto (para a pergunta) }. */
@@ -27514,7 +27514,9 @@ function versoNaoModalT(s, nome) {
   if (!v) { v = new Set(Object.values(s.facts).filter(f => f && scriptNaoModalT(f.script)).map(f => nomeDoVersoT(f.script)).filter(Boolean)); VERSOS_T.set(s.facts, v); }
   return v.has(nome);
 }
+const custoDoPressagioT = (s, o) => { if (!o || o.zone !== 'stack' || !o.omen || !o.frontName || o.ability) return null; const sc = (s.facts[o.frontName] || {}).script; return sc && sc.omen && sc.omen.mana && !(sc.self && sc.self.aventura) ? parseCost(sc.omen.mana) : null; }; // T-71 · CR 720.3b · na pilha como Presságio, só as características alternativas: o custo do presságio
 function valorDaFaceT(s, o) {
+  { const cp = custoDoPressagioT(s, o); if (cp) return valorDoCustoT(cp); } // T-71 · CR 720.3b / 202.3 · o valor de mana do Presságio na pilha (achado da auditoria da T-69)
   if (!o || o.faceDown || (o.zone !== 'battlefield' && o.zone !== 'stack')) return null;
   const r = o.zone === 'battlefield' ? copiaVigenteT(s, o) : null;
   if (r && versoNaoModalT(s, r.nome)) return 0; // 712.8e: copia o verso
@@ -27538,6 +27540,7 @@ function custoDaSalaT(s, o) {
 }
 /** T-28 · CR 709.5 / 202.2 · a cor da Sala no campo: a das portas destrancadas (nenhuma: incolor). Fora do campo, null. */
 function coresDaSalaT(s, o) {
+  { const cp = custoDoPressagioT(s, o); if (cp && !((((s.facts[o.name] || {}).colors) || []).length)) return coresDoCustoT(cp); } // T-71 · CR 720.3b / 105.2 · sem cor no script, a do custo do presságio
   const pr = prototipoAtivoT(s, o); if (pr) return coresDoCustoT(parseCost(pr.mana)); // T-36 · CR 718.3b / 105.2: a cor do protótipo é a do custo alternativo (o mesmo gancho da cor)
   const pt = o && o.zone === 'battlefield' && !o.faceDown ? portasDaSalaT(s, o) : null; if (!pt) return null;
   const sc = salaScriptT(s, o), de = l => (s.facts[l === 'esquerda' ? esquerdaT(sc) : direitaT(sc)] || {}).colors || [];
@@ -30528,7 +30531,23 @@ function describe(before, a, events, after) {
   }
   if (after.status === 'playing' && (before.status !== 'playing' || after.turn.number !== before.turn.number))
     L.push(`— Turno ${after.turn.number} · ${who(after, after.turn.active)} —`);
-  return L;
+  return mascaraViradasT(after, L); // T-71 · CR 708.2 / 708.4 / 406.3 · nenhuma linha diz o nome de quem continua escondido (Toca ponto comum: describe)
+}
+/** T-71 · CR 708.2 / 708.4 / 406.3 / 708.9 · o registro é de todos: o nome de uma carta que, depois da ação, continua virada para baixo (no
+ * campo, na pilha ou no exílio) não aparece em linha nenhuma — luta, salvaguarda, marcadores, regenerar, pagar, "escolheu" — a não ser que
+ * uma carta visível tenha o mesmo nome (aí o nome não identifica a escondida). Quem sai do campo é revelada (708.9) e deixa de estar virada. */
+function mascaraViradasT(after, L) {
+  if (!L.length || !after || !after.objects) return L;
+  const vis = new Set(), esc = new Map();
+  for (const o of Object.values(after.objects)) {
+    if (!o || o.ability || !o.name) continue;
+    if (o.faceDown && ['battlefield', 'stack', 'exile'].includes(o.zone)) esc.set(o.name, o.zone === 'exile' && esc.get(o.name) !== 'uma criatura virada para baixo' ? 'uma carta virada para baixo' : 'uma criatura virada para baixo');
+    else if (['battlefield', 'stack', 'graveyard'].includes(o.zone) || (o.zone === 'exile' && !o.faceDown)) vis.add(o.name);
+  }
+  const nomes = [...esc.keys()].filter(n => !vis.has(n)).sort((a, b) => b.length - a.length);
+  if (!nomes.length) return L;
+  const re = new RegExp(nomes.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'g');
+  return L.map(l => { const m = l.replace(re, n => esc.get(n)); return m !== l && /^uma /.test(m) ? 'U' + m.slice(1) : m; });
 }
 
 /** Revela informação oculta? Compra, mulligan e embaralhamento revelam. */
@@ -31607,10 +31626,12 @@ function resumoDosBloqueios(s, v) {
 /** A pilha do topo para baixo: quem, o que faz, alvos; quem tem a prioridade. `oracleDe(nome)` cobre carta sem script.
     E50 P6 · o que faz é o texto oficial da carta (inglês) sempre que ele estiver guardado; a descrição em português
     do script só entra sem o texto (offline sem dados), e `oficial` diz qual dos dois é. */
+const escondidaT = o => !!(o && !o.ability && o.faceDown && (o.zone === 'battlefield' || o.zone === 'stack')); // T-71 · CR 708.2 / 708.4
 function explicaPilha(s, { oracleDe = () => '' } = {}) {
-  const nomeDo = t => t == null ? '' : t.oid != null ? ((s.objects[t.oid] || {}).name || '?') : t.player != null ? ((s.players[t.player] || {}).name || `jogador ${t.player + 1}`) : '';
+  const nomeDo = t => t == null ? '' : t.oid != null ? (escondidaT(s.objects[t.oid]) ? 'uma criatura virada para baixo' : ((s.objects[t.oid] || {}).name || '?')) : t.player != null ? ((s.players[t.player] || {}).name || `jogador ${t.player + 1}`) : '';
   const itens = s.stack.slice().reverse().map((oid, i) => {
     const o = s.objects[oid]; if (!o) return null;
+    if (escondidaT(o)) return { oid, nome: 'Criatura virada para baixo', quem: (s.players[o.controller] || {}).name || '?', oQueFaz: 'entra no campo de batalha como uma criatura 2/2 sem nome, virada para baixo', oficial: false, alvos: [], topo: i === 0, habilidade: false, imagemDe: null, origem: oid }; // T-71 · CR 708.4 · a pilha não revela a mágica virada (Toca ponto comum: explicaPilha)
     const facts = (s.facts && s.facts[o.name]) || {};
     let oQueFaz = '', oficial = false;
     const oracle = String(oracleDe(o.name) || '');
