@@ -9419,6 +9419,13 @@ O que a cobertura não mede: se a lista que **pode** jogar no modo completo **jo
 - **Versão:** não sobe — a ação já era oferecida e só passa a ser aceita; nenhum registro antigo a contém.
 - **Testes:** `homologacao.catalogo.unit` (3): Daze devolvendo Tundra e Snow-Covered Island anula o raio (os dois falhavam); Plains não é oferecida nem aceita pela ação montada.
 
+**H-3 · Shark × Shark e oferta que some na prova de partida** 🟡 (leva H-3, motor v110 sem mudança; só a ferramenta)
+- **Valor:** a régua do Pauper passa a jogar também como o oponente do app joga (o Shark nos dois assentos) e a apontar carta coberta que a mesa nunca oferece — os dois jeitos de uma lista "100%" falhar na mão do jogador sem quebrar o fuzz.
+- **Aceite:** `--shark` repete a primeira partida de cada lista que joga com o Shark nos dois assentos (`--orcamento` em ms por decisão, padrão 60): falha quando o motor recusa a jogada do Shark, o Shark fica sem jogada ou uma invariante quebra. Em toda partida, a prova conta por carta quando ela **podia** ser paga na fase principal (pilha vazia, sem decisão pendente, `canPay` verdadeiro) e quando apareceu em **qualquer** ação oferecida; "oferta que some" = coberta, podia 3 vezes ou mais, nunca oferecida (pista a conferir: condição impressa também explica).
+- **Placar (12/10/2026 22h, `main` com C-1, C-2, H-2):** Pauper **51 de 341** listas jogam de verdade (eram 41 na H-1); 102 partidas aleatórias e **51 Shark × Shark, todas até o fim, nenhuma falha** (pior jogada do Shark 685 ms com orçamento de 20 ms). Estresse em Legacy, Modern e Commander depois da H-2: Daze some das falhas; nenhuma oferta que some nas 51 listas de Pauper que jogam nem no estresse de Legacy, Modern e Commander (816 listas) (conferido à parte: as menores taxas são anulações, que só aparecem com mágica na pilha).
+- **Testes:** `catalogo.prova.unit` +2 (a conta de "podia" e "oferecida" numa partida do acervo, sem terreno; Shark × Shark de 150 ações sem falha).
+- **Fora:** placar por lote das trilhas `cartas`/`listas`/`motor` (rodar a prova depois de cada lote no `main`); Shark × Shark nas listas que não jogam no app.
+
 ## 8. Como publicar e verificar
 
 ### Publicar a partir de uma conversa (padrão desde a leva 124)

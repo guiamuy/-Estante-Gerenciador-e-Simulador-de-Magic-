@@ -13,7 +13,8 @@
 //   git clone --depth 1 --filter=blob:none --sparse https://github.com/Card-Forge/forge <dir> && \
 //     git -C <dir> sparse-checkout set forge-gui/res/cardsfolder      (uma vez; texto oficial das cartas)
 //   node catalogo.prova.mjs --forge <dir>/forge-gui/res/cardsfolder [--formato pauper] [--partidas 2] [--acoes 1000]
-//        [--lista <trecho do nome>] [--saida .tmp/prova-pauper.json] [--semente 1] [--todas]
+//        [--lista <trecho do nome>] [--saida .tmp/prova-pauper.json] [--semente 1] [--todas] [--shark [--orcamento 60]]
+//   --shark: as listas que jogam também fazem a mesma partida com o Shark nos dois assentos (H-3)
 //   --todas: também joga as listas de cobertura incompleta (estresse do motor; a carta sem regra entra sem efeito)
 // Saída: placar no terminal (joga / falha / cobertura incompleta / sem dados) e o detalhe em JSON (padrão `.tmp/`).
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
@@ -146,7 +147,24 @@ function cartasDaAcao(s, a) {
 const resumoDaAcao = a => JSON.stringify(a).slice(0, 200);
 
 /** Uma partida com ações sorteadas. `comEstado`: devolve também o estado no ponto da falha (para reproduzir). */
-export function joga(setup, comEstado = false) {
+/** H-3 · oferta que some: na sua fase principal, com a pilha vazia e sem decisão pendente, a carta da mão (não terreno) cujo custo
+    `canPay` diz que dá para pagar conta como "podia"; a carta conta como "oferecida" quando QUALQUER ação de `legalActions`, em
+    qualquer momento, a usa (anular só aparece com mágica na pilha; remoção só com alvo). Carta que podia muitas vezes e nunca foi
+    oferecida é pista de oferta que sumiu (ex.: filtro otimista do legalActions, M-259) — pista, não veredito: a condição impressa
+    ("cast only if…", "sacrifique uma criatura como custo adicional") também a explica. */
+function observaOferta(s, l, p, setup, obs) {
+  if (!obs) return;
+  for (const x of l) if (x.oid != null && s.objects[x.oid] && s.objects[x.oid].controller === p && ['cast', 'play', 'activate'].includes(x.t)) { const n = s.objects[x.oid].name; (obs.get(n) || obs.set(n, { podia: 0, oferecida: 0 }).get(n)).oferecida++; }
+  if (s.pending || s.stack.length || s.turn.active !== p || !/^main/.test(s.turn.step)) return;
+  for (const oid of s.zones[p].hand) {
+    const n = s.objects[oid].name, c = setup.cards[n];
+    if (!c || /\bLand\b/.test(c.type_line || '') || !c.mana_cost || /\/\//.test(c.mana_cost)) continue;
+    let pode = false; try { pode = E.canPay(s, p, E.parseCost(c.mana_cost.replace(/\{X\}/g, ''))); } catch (e) { pode = false; }
+    if (pode) (obs.get(n) || obs.set(n, { podia: 0, oferecida: 0 }).get(n)).podia++;
+  }
+}
+
+export function joga(setup, comEstado = false, obs = null) {
   let s;
   try { s = E.createGame(setup); } catch (e) { return { erro: 'criar', mensagem: e.message, cartas: [] }; }
   try { for (let p = 0; p < 2 && s.status === 'mulligan'; p++) s = E.apply(s, { t: 'keep', p, bottom: [] }).state; } // as duas mãos ficam (como o fuzz das listas do acervo)
@@ -160,6 +178,7 @@ export function joga(setup, comEstado = false) {
     let l;
     try { l = E.legalActions(s, p).filter(x => x.t !== 'concede'); }
     catch (e) { return { erro: 'oferta', mensagem: e.message, acao: n, passo: s.turn.step, cartas: [...new Set(rastro.slice(-3).flatMap(x => x.cartas))], rastro: rastro.slice(-5) }; }
+    observaOferta(s, l, p, setup, obs);
     if (!l.length) return { erro: 'travou', mensagem: `sem ação legal (passo ${s.turn.step}, pendência ${s.pending && s.pending.kind})`, acao: n, cartas: [...new Set(rastro.slice(-3).flatMap(x => x.cartas))], rastro: rastro.slice(-5) };
     r = (Math.imul(r, 1103515245) + 12345) >>> 0;
     const x = l[(r >>> 8) % l.length];
@@ -182,6 +201,36 @@ export function joga(setup, comEstado = false) {
   return { fim: s.status !== 'playing', acoes: n, turnos: s.turn.number, vencedor: s.winner ?? null, ...(avisos.size ? { avisos: [...avisos] } : {}) };
 }
 
+/** H-3 · Shark × Shark: os dois assentos com o bot do app (informação justa), como o torneio das listas (torneio.listas.mjs).
+    Falha: o motor recusa a jogada que o Shark escolheu entre as legais, o Shark fica sem jogada, ou uma invariante quebra. */
+export function jogaShark(setup, max = 1500) {
+  const B = M.bot;
+  let s;
+  try { s = E.createGame(setup); } catch (e) { return { erro: 'criar', mensagem: e.message, cartas: [] }; }
+  const total = Object.keys(s.objects).length;
+  const bots = [0, 1].map(() => B.criaBot({ nivel: 'shark', orcamentoMs: +(ARGS.orcamento || 60) }));
+  let pior = 0, n = 0;
+  const rastro = [];
+  for (; n < max && s.status !== 'over'; n++) {
+    const quem = s.status === 'mulligan' ? s.players.findIndex(pl => !pl.kept) : s.pending ? s.pending.p : s.turn.priority;
+    if (quem < 0) break;
+    let acao;
+    try {
+      if (s.status === 'mulligan') acao = bots[quem].mulligan ? bots[quem].mulligan(s, quem).acao : { t: 'keep', p: quem, bottom: [] };
+      else { const t = Date.now(); const j = bots[quem].jogada(s, quem); pior = Math.max(pior, Date.now() - t); acao = j && j.acao; }
+    } catch (e) { return { erro: 'shark', mensagem: `o Shark quebrou ao decidir: ${e.message}`, acao: n, cartas: [...new Set(rastro.slice(-3).flatMap(x => x.cartas))], rastro: rastro.slice(-5) }; }
+    if (!acao) return { erro: 'shark', mensagem: `o Shark ficou sem jogada (pendência ${s.pending && s.pending.kind})`, acao: n, cartas: [...new Set(rastro.slice(-3).flatMap(x => x.cartas))], rastro: rastro.slice(-5) };
+    const cartas = cartasDaAcao(s, acao);
+    rastro.push({ acao: resumoDaAcao(acao), cartas }); if (rastro.length > 12) rastro.shift();
+    try { s = E.apply(s, acao).state; } catch (e) { return { erro: 'recusada', mensagem: `jogada do Shark: ${e.message}`, acao: n, cartas, rastro: rastro.slice(-5) }; }
+    if (s.status === 'mulligan') continue;
+    let errs; try { errs = E.invariants(s, total); } catch (e) { errs = ['invariantes quebraram: ' + e.message]; }
+    if (Object.values(s.objects).some(o => o.copiaDeMagia)) errs = errs.filter(e => !/^cartas \d+, esperadas/.test(e)); // achado H-1, pedido ao motor
+    if (errs.length) return { erro: 'invariante', mensagem: errs.join('; '), acao: n, cartas, rastro: rastro.slice(-5) };
+  }
+  return { fim: s.status === 'over', acoes: n, turnos: s.turn.number, vencedor: s.winner ?? null, piorMs: pior };
+}
+
 /* ---------- placar ---------- */
 function main() {
   if (!ARGS.forge || !existsSync(ARGS.forge)) { console.error('Informe --forge <pasta cardsfolder do Forge> (veja o cabeçalho deste arquivo).'); process.exit(2); }
@@ -200,6 +249,7 @@ function main() {
       cobertura: { completo: cv.completo, total: cv.total, pct: cv.pct, lida: cv.lida, pendentes: [...new Set(cv.pending.map(x => x.name))] },
       situacao: semDados.length ? 'sem dados' : cv.completo === cv.total ? 'a provar' : 'cobertura incompleta', partidas: [], falhas: [] });
   }
+  const oferta = new Map(); // H-3 · carta → { podia, oferecida }
   /** Cada lista do grupo joga PARTIDAS vezes contra outras do mesmo grupo, nos dois assentos. */
   const provar = (grupo, campo) => {
     for (let i = 0; i < grupo.length; i++) {
@@ -212,8 +262,14 @@ function main() {
         const doPar = Object.fromEntries(assentos.flatMap(x => x.entradas).map(e => [e.name, cartas.get(e.key)]));
         const setup = { format: FORMATO, seed: (SEMENTE * 7919 + i * 101 + k) >>> 0, mode: 'full', manaCheck: true, cards: doPar,
           players: assentos.map((x, j) => ({ name: j ? 'B' : 'A', deck: x.entradas.map(e => ({ name: e.name, qty: e.qty, zone: e.zone || 'main' })) })) };
-        const res = joga(setup);
+        const res = joga(setup, false, oferta);
         const reg = { contra: b2.nome, contraId: b2.id, assento: k % 2, semente: setup.seed, ...res };
+        if (ARGS.shark && campo === 'partidas' && k === 0) { // H-3 · a primeira partida de cada lista, de novo com o Shark nos dois assentos
+          const sh = jogaShark(setup);
+          const regS = { modo: 'shark', contra: b2.nome, contraId: b2.id, assento: k % 2, semente: setup.seed, ...sh };
+          (a.shark = a.shark || []).push(regS);
+          if (sh.erro) (a.falhas = a.falhas || []).push(regS);
+        }
         // no estresse a lista tem carta sem regra: a falha só aponta o motor quando todas as cartas citadas estão cobertas
         if (res.erro && campo === 'estresse') reg.soCobertas = (res.cartas || []).length > 0 && res.cartas.every(n => !nivelDe.has(n));
         (a[campo] = a[campo] || []).push(reg);
@@ -232,16 +288,20 @@ function main() {
     for (const n of new Set([...x.falhas, ...(x.falhasEstresse || []).filter(f => f.soCobertas)].flatMap(f => f.cartas || []))) culpadas.set(n, (culpadas.get(n) || 0) + 1);
     for (const n of new Set([...x.cobertura.pendentes, ...x.semDados])) faltantes.set(n, (faltantes.get(n) || 0) + 1);
   }
+  // H-3 · oferta que some: carta coberta que podia ser paga na fase principal (3 vezes ou mais) e nunca apareceu em ação nenhuma
+  const ofertaQueSome = [...oferta].filter(([n, o]) => o.podia >= 3 && o.oferecida === 0 && !nivelDe.has(n)).sort((a, b) => b[1].podia - a[1].podia).map(([carta, o]) => ({ carta, podia: o.podia }));
   const conta = s => resultado.filter(x => x.situacao === s).length;
   const placar = { formato: FORMATO, listas: resultado.length, joga: conta('joga'), falha: conta('falha'), coberturaIncompleta: conta('cobertura incompleta'), semDados: conta('sem dados'),
     ...(ARGS.todas ? { estresse: { listas: resultado.filter(x => x.estresse).length, falhas: resultado.filter(x => (x.falhasEstresse || []).length).length, falhasDoMotor: resultado.filter(x => (x.falhasEstresse || []).some(f => f.soCobertas)).length } } : {}),
     partidas: PARTIDAS, acoesMax: MAX_ACOES, semente: SEMENTE, motor: E.ENGINE_VERSION, segundos: Math.round((Date.now() - t0) / 1000) };
   const ordena = m => [...m].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([carta, listas]) => ({ carta, listas, ...(nivelDe.get(carta) || (resultado.some(x => x.semDados.includes(carta)) ? { nivel: 'sem dados' } : {})) }));
   mkdirSync(dirname(SAIDA), { recursive: true });
-  writeFileSync(SAIDA, JSON.stringify({ placar, culpadas: ordena(culpadas), faltantes: ordena(faltantes),
+  writeFileSync(SAIDA, JSON.stringify({ placar, culpadas: ordena(culpadas), faltantes: ordena(faltantes), ofertaQueSome,
     listas: resultado.map(({ entradas, ...x }) => x) }, null, 1));
   console.log(`Prova de partida · ${FORMATO} · motor v${placar.motor} · ${placar.listas} listas · ${PARTIDAS} partida(s) por lista, até ${MAX_ACOES} ações · ${placar.segundos} s`);
   console.log(`  joga de verdade: ${placar.joga} · falha na partida: ${placar.falha} · cobertura incompleta: ${placar.coberturaIncompleta} · sem dados da carta: ${placar.semDados}`);
+  if (ARGS.shark) { const sh = resultado.flatMap(x => x.shark || []); console.log(`  Shark × Shark: ${sh.length} partidas · ${sh.filter(x => x.fim).length} até o fim · ${sh.filter(x => x.erro).length} com falha · pior jogada ${Math.max(0, ...sh.map(x => x.piorMs || 0))} ms`); }
+  if (ofertaQueSome.length) console.log(`  oferta que some (podia pagar na fase principal e nunca foi oferecida; pista a conferir): ${ofertaQueSome.slice(0, 15).map(x => `${x.carta} (${x.podia})`).join(' · ')}`);
   if (placar.estresse) console.log(`  estresse (--todas, listas que não jogam no app): ${placar.estresse.listas} listas · ${placar.estresse.falhas} com falha · ${placar.estresse.falhasDoMotor} com falha só de cartas cobertas`);
   for (const x of resultado.filter(x => (x.falhasEstresse || []).some(f => f.soCobertas)).slice(0, 10)) { const f = x.falhasEstresse.find(f => f.soCobertas); console.log(`  ✗ (estresse) ${x.nome} × ${f.contra} (semente ${f.semente}): ${f.erro} — ${String(f.mensagem).slice(0, 160)} [${(f.cartas || []).join(', ')}]`); }
   if (culpadas.size) { console.log('  cartas nas falhas (listas):'); for (const { carta, listas } of ordena(culpadas).slice(0, 15)) console.log(`    ${listas} · ${carta}`); }

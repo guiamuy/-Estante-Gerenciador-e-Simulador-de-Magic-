@@ -2,7 +2,7 @@
 // Se a conversão errar custo, tipo ou face, a cobertura medida pela prova deixa de ser a mesma que o app mede.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { custoDoForge, valorDeMana, linhaDeTipo, cartaDoForge, joga } from './catalogo.prova.mjs';
+import { custoDoForge, valorDeMana, linhaDeTipo, cartaDoForge, joga, jogaShark } from './catalogo.prova.mjs';
 import { loadModules } from './_load.mjs';
 const { scryfall: SF, scripts: S, starter: ST, decks: D } = loadModules();
 
@@ -60,4 +60,28 @@ test('H-1 · a partida da prova anda: duas listas do acervo cobertas jogam turno
   const r = joga({ format: 'pauper', seed: 7, mode: 'full', manaCheck: true, cards, players: [{ name: 'A', deck: A }, { name: 'B', deck: B }] });
   assert.equal(r.erro, undefined, `${r.erro}: ${r.mensagem}`);
   assert.ok(r.turnos >= 3, `a partida passou de três turnos (${r.turnos})`);
+});
+
+test('H-3 · a prova conta, por carta, quando ela podia ser paga na fase principal e quando foi oferecida', async () => {
+  const { CARDS } = await import('./listas.mjs');
+  const lista = n => D.parseDeckText(ST.STARTER_DECKS.find(d => d.name === n).text).entries.filter(e => e.zone !== 'side');
+  const A = lista('Pauper Mono Blue Faeries'), B = lista('Pauper Boros Bully');
+  const cards = Object.fromEntries([...A, ...B].map(e => [e.name, CARDS[e.name]]));
+  const obs = new Map();
+  const r = joga({ format: 'pauper', seed: 11, mode: 'full', manaCheck: true, cards, players: [{ name: 'A', deck: A }, { name: 'B', deck: B }] }, false, obs);
+  assert.equal(r.erro, undefined, `${r.erro}: ${r.mensagem}`);
+  const podia = [...obs.values()].reduce((n, o) => n + o.podia, 0), ofertas = [...obs.values()].reduce((n, o) => n + o.oferecida, 0);
+  assert.ok(podia > 0 && ofertas > 0, `observou podia (${podia}) e oferecida (${ofertas})`);
+  assert.ok(![...obs.keys()].some(n => /^(Island|Mountain|Plains)$/.test(n) && obs.get(n).podia), 'terreno não entra na conta de "podia pagar"');
+  for (const [n, o] of obs) if (o.podia >= 3) assert.ok(o.oferecida > 0, `${n}: podia ${o.podia} vezes e nunca foi oferecida (as listas do acervo jogam inteiras)`);
+});
+
+test('H-3 · Shark × Shark com duas listas do acervo: o motor aceita toda jogada do Shark e as invariantes valem', async () => {
+  const { CARDS } = await import('./listas.mjs');
+  const lista = n => D.parseDeckText(ST.STARTER_DECKS.find(d => d.name === n).text).entries.filter(e => e.zone !== 'side');
+  const A = lista('Pauper GW Bogles'), B = lista('Pauper Rakdos Madness');
+  const cards = Object.fromEntries([...A, ...B].map(e => [e.name, CARDS[e.name]]));
+  const r = jogaShark({ format: 'pauper', seed: 5, mode: 'full', manaCheck: true, cards, players: [{ name: 'A', deck: A }, { name: 'B', deck: B }] }, 150);
+  assert.equal(r.erro, undefined, `${r.erro}: ${r.mensagem}`);
+  assert.ok(r.turnos >= 2, `a partida andou (${r.turnos} turnos, ${r.acoes} ações)`);
 });
