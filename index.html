@@ -6102,6 +6102,7 @@ function validateScript(sc) {
   if (sc && sc.reduzPor && (sc.discount || sc.affinity)) errs.push('redução por contagem não se soma a desconto ou afinidade no mesmo script'); // M-333
   // S18 · ninjutsu e insanidade
   // S21 · habilidades de lealdade
+  for (const ab of (sc && sc.abilities) || []) if (ab && ab.kind !== 'triggered' && (ab.effects || []).some(e => e && e.dividido)) errs.push('dano dividido: só em mágica e em habilidade disparada (a ativada ainda não divide — M-378)'); // M-378
   for (const ab of (sc && sc.abilities) || []) if (ab.condition && !['lifeGained', 'attackersAtLeast', 'controlsOtherNamed', 'bargained', 'evidenced', 'kicked', 'opponentMoreLands', 'atacaSozinha', 'vidaPeloMenos', 'marcadoresNaFonte', 'entrouDesvirada', 'semTerrenoVirado', ...condicoesK(), ...condicoesT()].includes(Object.keys(ab.condition)[0] || '')) errs.push('condição de gatilho desconhecida'); // K-59 · condições da trilha keywords (Toca ponto comum: validador de condições)
   if (sc && sc.bargain != null && sc.bargain !== true) errs.push('barganha é uma marca, sem valor');
   if (sc && sc.evidence != null && !(Number.isInteger(sc.evidence) && sc.evidence > 0)) errs.push('colher provas precisa de um número inteiro positivo');
@@ -8932,6 +8933,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Balustrade Spy': { texto: 'uhpqql', leva: 'M-377' },
   'Gatecreeper Vine': { texto: '1tx40s3', leva: 'M-377' },
   'Desert': { texto: 'vc8fuy', leva: 'M-377' },
+  // M-378 · revisão por lote XXXVII (dano dividido em gatilho: Inferno Titan), revisor independente com 80 verificações: 1 de 1 aprovada
+  'Inferno Titan': { texto: 'tekjd4', leva: 'M-378' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -17051,6 +17054,8 @@ const __m42 = (function () {
         if (etv) { topo.entersTappedUnless = { anyPlayerLifeAtMost: +etv[1] }; frases.push({ texto: linha, lida: true }); continue; }
         const om = lp.match(/^whenever (?:this creature|~) or another creature( or planeswalker)? you control dies, (.+)$/i); // M-324 · ela ou outra sua morre: dois gatilhos (outra · ela)
         if (om) { const g1 = leGatilho(`Whenever another creature you control dies, ${om[2]}`, nome, frases), g2 = leGatilho(`When ~ dies, ${om[2]}`, nome, []); if (g1 && g2) { if (om[1]) g1.filter = { anyTypes: ['creature', 'planeswalker'] }; (topo.abilities = topo.abilities || []).push(g1, g2); } continue; }
+        const ea = lp.match(/^whenever (?:~|this creature) enters or attacks, (.+)$/i); // M-378 · Inferno Titan: dois gatilhos com o mesmo efeito
+        if (ea) { const g1 = leGatilho(`When ~ enters, ${ea[1]}`, nome, frases), g2 = leGatilho(`Whenever ~ attacks, ${ea[1]}`, nome, []); if (g1 && g2) (topo.abilities = topo.abilities || []).push(g1, g2); continue; }
         const el2 = lp.match(/^when (?:~|this artifact|this creature|this permanent) enters or leaves the battlefield, (.+)$/i); // M-349 · Cryogen Relic: dois gatilhos
         if (el2) { const g1 = leGatilho(`When ~ enters, ${el2[1]}`, nome, frases), g2 = leGatilho(`When ~ leaves the battlefield, ${el2[1]}`, nome, []); if (g1 && g2) (topo.abilities = topo.abilities || []).push(g1, g2); continue; }
         if (/^~ can't be blocked except by three or more creatures$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'three-or-more' }; frases.push({ texto: linha, lida: true }); continue; } // M-349 · Troll of Khazad-dûm
@@ -19271,7 +19276,7 @@ function evidenceCards(s, p, n) {
 const wardOf = (s, o) => { if (!o || o.zone !== 'battlefield') return null; const proprio = (((s.facts[o.name] || {}).script || {}).self || {}).ward; if (proprio) return proprio;
   const c = continuosQueAfetam(s, o).find(e => e.ward); return c ? c.ward : null; }; // M-251 · ward concedido (Combat Research)
 /** M-376 · 601.2d · dano dividido ao conjurar. */
-function divisaoDaMagia(s, o) { if (!o) return null; return efeitosDaMagia(s, o).find(e => e && e.dividido) || null; }
+function divisaoDaMagia(s, o) { if (!o) return null; return (o.ability ? (o.effects || []) : efeitosDaMagia(s, o)).find(e => e && e.dividido) || null; } // M-378 · também a habilidade na pilha (o modelo mora em o.effects)
 function alvosDaDivisao(s, p, oid, e) { const src = s.objects[oid]; return legalTargets(s, p, e.target, oid, e.targetColor).filter(x => targetAllowed(s, e, x, src)); }
 /** A mágica pode ser conjurada dividindo: há ao menos 1 de dano e ao menos um alvo legal (cada alvo recebe pelo menos 1). */
 function divisaoPossivel(s, p, oid, x) {
@@ -19282,6 +19287,7 @@ function divisaoPossivel(s, p, oid, x) {
 function iniciaDivisao(s, oid, events) {
   const o = s.objects[oid], e = divisaoDaMagia(s, o); if (!e || o.divisao) return;
   const total = amountOf(s, o, e.amount), options = alvosDaDivisao(s, o.controller, oid, e);
+  if (o.ability && (!options.length || total < 1)) { s.stack = s.stack.filter(x => x !== oid); delete s.objects[oid]; events.push({ kind: 'trigger-fizzled', name: o.name, when: 'sem alvo' }); return; } // M-378 · 603.3d: sem alvo legal, a habilidade sai da pilha
   s.pending = { kind: 'dividir_magia', p: o.controller, oid, name: o.name, total, max: (e.dividido && e.dividido.max) || null, options, partes: options.map(() => 0) };
   if (options.length === 1) { s.pending.partes[0] = total; finalizaDivisao(s, events); } // um alvo só: todo o dano nele, sem perguntar
 }
@@ -19291,13 +19297,14 @@ function finalizaDivisao(s, events) {
   const idx = pd.options.map((t, i) => i).filter(i => pd.partes[i] > 0);
   const alvos = idx.map(i => pd.options[i]);
   o.targets = carimbaAlvos(s, alvos); o.divisao = idx.map(i => pd.partes[i]);
+  if (o.ability) o.effects = (o.effects || []).flatMap(e => e && e.dividido ? partesDivididas(o, e) : [e]); // M-378 · a habilidade guarda as partes como instâncias com alvo
   events.push({ kind: 'divisao', name: o.name, target: idx.map(i => `${pd.partes[i]} em ${effectTargetName(s, pd.options[i])}`).join(', ') });
   for (const q of s.queued) if (q.source === o.oid) { // M-376 · 707.10c: as cópias (tempestade, replicar) capturaram a mágica antes da divisão
     if (q.when === 'storm-gatilho') for (const e of q.effects || []) { if (e.do === 'tempestade_k') { e.efeitos = spellEffects(s, o); e.marcas = marcasDaMagia(o); } }
     else if (q.copiaDeMagia && Array.isArray(q.effects)) { q.effects = spellEffects(s, o); q.marcasMagia = marcasDaMagia(o); }
   }
   chargeWard(s, o.controller, o.oid, alvos); // 702.21a · a salvaguarda dispara quando vira alvo (601.2c, aqui no fim da divisão)
-  disparaHeroico(s, o); disparaAlvejado(s, o.oid, alvos); // CR2b.8 / CR2b.9
+  if (!o.ability) disparaHeroico(s, o); disparaAlvejado(s, o.oid, alvos); // CR2b.8 (heroico é de mágica) / CR2b.9
 }
 function chargeWard(s, p, stackOid, chosen) { salvaguardaK(s, p, stackOid, chosen); } // K-2 · 702.21a: a salvaguarda é habilidade disparada, vai para a pilha (salvaguardaK)
 /** Leva 107 · próxima cobrança de ward, se a mágica/habilidade ainda estiver na pilha. */
@@ -21837,6 +21844,7 @@ function putTriggerOnStack(s, q, events) {
   if (q.guarda !== undefined) s.objects[oid].guarda = q.guarda; // M-353 · 607.2a
   marcasDoGatilho(s, q, oid);
   events.push({ kind: 'trigger', name: q.name, when: q.when, oid });
+  if ((q.effects || []).some(e => e && e.dividido)) iniciaDivisao(s, oid, events); // M-378 · 603.3d / 601.2d: o gatilho que divide dano escolhe alvos e divisão ao ir para a pilha
   return true;
 }
 /** S20 · candidatos para os custos de sacrificar ou virar outra permanente. */

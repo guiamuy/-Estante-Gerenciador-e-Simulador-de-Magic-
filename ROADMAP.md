@@ -4135,6 +4135,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Cosmético registrado:** a pilha explicada da Desert diz "uma criatura" sem "atacante"; a da Vine diz só "procura 1 carta".
 - **Teste:** `lt60.unit` (3 testes, falham no motor anterior).
 
+**M-378 · LT46 · 603.3d / 601.2d · Dano dividido em habilidade disparada** ✅ (leva M-378, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** revisão por lote XXXVII — **Inferno Titan passa a jogar** (APROVADAS; Oracle do Forge, consulta de 12/10/2026; bloqueava 7 listas do catálogo). O gatilho que divide dano escolhe alvos e divisão ao ir para a pilha, com a mesma decisão da M-376 (um toque por ponto); sem alvo legal, sai da pilha. "Whenever ~ enters or attacks" vira dois gatilhos com o mesmo efeito (precedente: Cryogen Relic, M-349). A fonte que sai do campo com o gatilho na pilha ainda causa o dano (608.2h).
+- **Revisão independente:** 80 verificações, aprovada sem divergência de regra.
+- **Fora (declarado):** habilidade **ativada** com dano dividido (Skarrgan Hellkite) e de lealdade (Samut, the Tested) — o validador recusa por ora; próxima fatia.
+- **Observações para outras trilhas:** o Shark divide mal (com Urso 2/2 e Esquilo 1/1, pôs 1 no próprio Titã em vez de 2+1 que matava os dois) — trilha `bot`; a pilha explicada mostra as partes sem dizer que é divisão — cosmético.
+- **Teste:** `lt61.unit` (3 testes, falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
