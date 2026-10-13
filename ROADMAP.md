@@ -529,6 +529,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ej ✅ | I4c a ficha com a arte dela: ficha de duas faces da Scryfall ("Dinosaur // Treasure") só vale pela face com o nome da ficha; arte errada já guardada deixa de valer (relato #20, leva G-257) | I | 1 | teste no aparelho |
 | 16º-ek ✅ | M13b dano de comandante à vista: "Comandante N de 21" no selo de vida e detalhe por comandante no motor completo; o motor já contava e tirava o jogador com 21 (relato #20, leva G-259) | M | 1 | teste no aparelho |
 | 16º-el ✅ | N3b filtrar notícias pelas suas palavras: criar, ligar, desligar e apagar; com várias ligadas, só as que têm todas; fontes continuam (relato #19, leva G-260) | N | 1 | teste no aparelho |
+| 16º-em ✅ | T6e-3 relato enviado não muda mais: seções "Para enviar" e "Enviados", falha com o motivo e "Enviar de novo", sem editar, reenviar, excluir nem mudar a situação depois de enviado (relato #16, leva G-261) | T | 1 | teste no aparelho |
 | 16º-ee ✅ | T6e-2 Enviar relato sem sair do app: com a conta conectada e a fila ligada, o relato vai para a fila do Firebase e o cartão mostra "Na fila" até o número do registro (relato #13, leva G-255) | T | 1 | — |
 | 16º-eh ✅ | T6e-2 prazo honesto do relato pela fila: o GitHub atrasa o agendamento em horas, a tela diz "de minutos a algumas horas" e a conversa que lê relatos roda a fila antes (relato #13, leva G-256) | T | 1 | 16º-ee |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
@@ -9360,6 +9361,25 @@ o aviso de fila ligada, o que acontece na primeira rodada depois de o dono criar
   resolve (Notícias, no minuto 17, atrasa igual): o agendamento fica como está. A fila ligou em 12/10/2026 22:28 UTC (`fila.json` no ramo `relatos`).
 - **Fora:** apagar da fila um relato excluído no aparelho antes de virar registro; prazo de minutos garantido (pediria um
   disparo externo com credencial do repositório guardada fora dele, ou função paga no Firebase).
+
+**T6e-3 · Relato enviado não muda mais (relato #16)** ✅ (leva G-261, trilha `geral`, 13/10/2026)
+- **Pedido (relato #16, infraestrutura · impede o uso):** depois de enviado, o relato não se edita, não se reenvia, não se
+  exclui e não muda de situação pela pessoa (só o sistema); reenviar só quando o envio falhou, com aviso de falha e de
+  sucesso; enviados e não enviados em seções separadas, com nome claro.
+- **Como:** `situacaoDoEnvio` (`src/app/relatos.js`, pura): **enviados** são os com registro no GitHub e os que a fila da
+  Estante confirmou; **para enviar** são os novos, os que falharam (com o motivo: sem internet, grande demais, conta não
+  conectada, a fila não respondeu) e os abertos no GitHub sem registro ainda (só lá se confirma). A tela divide em "Para
+  enviar" (Editar, Copiar, Enviar ou "Enviar de novo", Excluir com desfazer) e "Enviados" (só Copiar e a partida). A falha
+  fica no cartão (`envioFalhou`, só no aparelho; não vai para a fila) e "Enviar de novo" vira o botão principal; o sucesso
+  tem o aviso de sempre e o cartão muda de seção. O botão Resolvido/Reabrir saiu: a situação vem só do registro (G-243).
+  Editar deixou de ter a janela de uma hora: vale até enviar (T1 mudou de propósito).
+- **Testes:** U `relatos.unit` (T1/G-261: editar até enviar, enviado recusa; situação do envio, enviados, motivos, o campo
+  local fora da fila); e2e "G-261" (falha com o motivo e "Enviar de novo" principal, ações de quem não foi enviado, sucesso
+  vai para Enviados só com Copiar, guardado, quatro medidas e dois temas); Y1, Y3, Y5, G-243 e T6e-2 ajustados (sem
+  Resolvido/Reabrir; Y3 resolve pelo registro; Y5 "Enviar de novo" depois de abrir o GitHub; com registro, sem Reenviar).
+- **Fora:** relato resolvido à mão antes desta leva continua resolvido (o dado não muda); o relato enviado pelo GitHub e
+  ainda sem registro pode duplicar se a pessoa confirmar lá e também enviar de novo pela fila (a conciliação G-243 mostra o
+  primeiro registro achado).
 
 ### Z · Catálogo de listas (E61, pedido de 08/10/2026)
 

@@ -8299,12 +8299,17 @@ test('e2e · Y1 relatar de qualquer tela: botão discreto onde não há botão d
   assert.match(await page.innerText('#relatos-lista .relato-item'), /Erro[\s\S]*\d{2}\/\d{2}\/\d{4} \d{2}:\d{2} · Início/);
   await auditaTela(page, 'relatos (escuro)');
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/y1-relatos.png' });
-  await page.click('#relatos-lista .relato-item [data-acao="status"]'); await page.waitForFunction(() => document.querySelector('#relatos-lista .relato-item:last-child').dataset.status === 'resolvido');
-  assert.deepEqual((await itens()).map(i => i[1]), ['aberto', 'resolvido'], 'resolvido desce para o fim');
+  // G-261 · relato #16: expectativa mudou de propósito — a pessoa não muda a situação (é do sistema, pelo registro no GitHub);
+  // os dois ainda não foram enviados e ficam em "Para enviar", com Editar, Enviar e Excluir
+  assert.equal(await page.locator('#relatos-lista [data-acao="status"]').count(), 0, 'sem Resolvido/Reabrir');
+  assert.equal(await page.locator('#relatos-para-enviar .relato-item').count(), 2); assert.equal(await page.locator('#relatos-enviados').count(), 0);
+  assert.equal(await page.locator('#relatos-para-enviar .relato-item [data-acao="editar"]').count(), 2);
   // o aviso de "Relato salvo" (com ação) atravessa as telas; o de copiar chega depois da área de transferência responder
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
-  await page.click('#relatos-copiar'); await page.waitForFunction(() => /1 relato\(s\) copiado\(s\)/.test(document.querySelector('#ds-toast').textContent), null, { timeout: 5000 });
-  assert.match(await page.evaluate(() => navigator.clipboard.readText()), /^### Ideia · Baixa · Lista · Delver\n- Quando: [\s\S]*\n- Tela: Lista · Delver \(\/lista\?id=[a-z0-9]+\)\n- Contexto: app de [^·]+ · motor v\d+ · tema escuro · 360×780\n\nMostrar o valor da reserva separado\.$/, 'só o aberto (o outro foi resolvido), no texto para colar');
+  await page.click('#relatos-copiar'); await page.waitForFunction(() => /2 relato\(s\) copiado\(s\)/.test(document.querySelector('#ds-toast').textContent), null, { timeout: 5000 });
+  const copiado = await page.evaluate(() => navigator.clipboard.readText());
+  assert.match(copiado, /### Ideia · Baixa · Lista · Delver\n- Quando: [\s\S]*\n- Tela: Lista · Delver \(\/lista\?id=[a-z0-9]+\)\n- Contexto: app de [^·]+ · motor v\d+ · tema escuro · 360×780\n\nMostrar o valor da reserva separado\./, 'os abertos, no texto para colar');
+  assert.match(copiado, /### Erro · Alta/);
   await page.click('#relatos-lista .relato-item [data-acao="excluir"]'); await page.waitForFunction(() => document.querySelectorAll('#relatos-lista .relato-item').length === 1);
   await page.click('#ds-toast button'); await page.waitForFunction(() => document.querySelectorAll('#relatos-lista .relato-item').length === 2);
   for (const tema of ['dark', 'light']) { await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema); for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await auditaTela(page, `relatos ${w} ${tema}`); } }
@@ -8411,7 +8416,11 @@ test('e2e · Y3 relatos para fora: situação e filtros (tipo, urgência, área)
   await page.goto(base + '#/listas'); await page.waitForSelector('#decks-fab-abrir');
   await relata(() => acaoJ6(page, 'decks-fab', '#decks-fab-relatar'), 'erro', 'media', 'Erro nas listas, já resolvido.');
   await page.goto(base + '#/perfil/relatos'); await page.waitForSelector('#relatos-lista');
-  await page.click('#relatos-lista .relato-item[data-tipo="erro"] [data-acao="status"]'); await page.waitForFunction(() => document.querySelector('.relato-item[data-tipo="erro"]').dataset.status === 'resolvido');
+  // G-261 · relato #16: expectativa mudou de propósito — a situação é do sistema; o erro fica resolvido pelo registro fechado no GitHub
+  const idErro = (await page.getAttribute('#relatos-lista .relato-item[data-tipo="erro"]', 'id')).replace(/^relato-/, '');
+  await page.route('**/relatos/situacao.json', r => r.fulfill({ json: { versao: 1, geradoEm: '2026-10-13T12:00:00Z', relatos: [{ id: idErro, numero: 90, situacao: 'resolvido', resolvidoEm: '2026-10-13T12:00:00Z', url: 'x', reenvios: [] }] }, headers: { 'access-control-allow-origin': '*' } }));
+  await page.reload(); await page.waitForFunction(() => { const e = document.querySelector('.relato-item[data-tipo="erro"]'); return e && e.dataset.status === 'resolvido'; }, null, { timeout: 10000 });
+  assert.equal(await page.locator('#relatos-enviados .relato-item[data-tipo="erro"]').count(), 1, 'com registro, vai para Enviados');
   const ids = () => page.$$eval('#relatos-lista .relato-item', is => is.map(i => i.dataset.tipo));
   // a tela relê os relatos do aparelho a cada filtro: espera o recorte novo aparecer
   const espera = esperado => page.waitForFunction(e => JSON.stringify([...document.querySelectorAll('#relatos-lista .relato-item')].map(i => i.dataset.tipo)) === e, JSON.stringify(esperado), { timeout: 4000 });
@@ -8520,7 +8529,7 @@ test('e2e · T6e-2 relato enviado sem sair do app: com a conta conectada e a fil
   await page.reload(); await page.waitForSelector('#relatos-lista .relato-item'); // a situação é buscada ao abrir o app (no máximo a cada 10 min)
   await page.waitForSelector('.relato-item .relato-item__numero', { timeout: 10000 });
   assert.equal(await page.innerText('.relato-item .relato-item__numero'), '#77'); assert.equal(await page.locator('.relato-item .relato-item__enviado').count(), 0);
-  assert.equal(await page.getAttribute('.relato-item [data-acao="enviar"]', 'data-via'), 'github', 'com registro, Reenviar abre o GitHub (a fila não cria um segundo)');
+  assert.equal(await page.locator('.relato-item [data-acao="enviar"]').count(), 0, 'G-261 · enviado (com registro) não se reenvia');
   assert.deepEqual(errors, []);
 });
 
@@ -8587,20 +8596,21 @@ test('e2e · G-243 relato resolvido sozinho (relato #11): o número do registro 
   assert.equal(await page.textContent('.relato-item__numero'), '#41'); assert.equal(await page.textContent('.relato-item__resolvido'), 'Registrado no GitHub');
   assert.equal(await page.getAttribute('.relato-item__numero', 'href'), 'https://github.com/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-/issues/41', 'o endereço é o do app, não o do arquivo');
   assert.equal(await page.getAttribute('.relato-item__numero', 'target'), '_blank'); assert.equal(await page.getAttribute('.relato-item__numero', 'rel'), 'noopener'); assert.equal(await page.getAttribute('.relato-item', 'data-status'), 'aberto');
-  assert.ok((await page.locator('.relato-item__numero').boundingBox()).height >= 44, 'alvo de 44 px'); assert.equal(await page.innerText('.relato-item [data-acao="enviar"]'), 'Reenviar');
+  assert.ok((await page.locator('.relato-item__numero').boundingBox()).height >= 44, 'alvo de 44 px');
+  // G-261 · relato #16: expectativa mudou de propósito — com registro, o relato está em Enviados: sem Reenviar, Editar nem Excluir
+  assert.deepEqual(await page.$$eval('#relatos-enviados .relato-item [data-acao]', bs => bs.map(b => b.dataset.acao)), ['copiar']);
   // fechado no GitHub: resolvido sozinho, com a data, e o aviso
   situacao = { ...situacao, relatos: [{ ...situacao.relatos[0], situacao: 'resolvido', resolvidoEm: '2026-10-10T16:20:00Z' }] };
   await page.reload(); await page.waitForSelector('.relato-item[data-status="resolvido"]');
   await page.waitForFunction(() => /1 relato resolvido no GitHub/.test(document.querySelector('#ds-toast').textContent));
   assert.match(await page.textContent('.relato-item__resolvido'), /^Resolvido em 10\/10\/2026 \d\d:20$/); assert.equal(await page.getAttribute('.relato-item__registro', 'data-situacao'), 'resolvido');
-  assert.equal(await page.innerText('.relato-item [data-acao="status"]'), 'Reabrir');
+  assert.equal(await page.locator('.relato-item [data-acao="status"]').count(), 0, 'G-261 · a situação é do sistema: sem Reabrir');
   assert.match(await page.textContent('#relatos-resumo'), /0 abertos/);
   await auditaTela(page, 'relatos · resolvido pelo registro');
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/g243-relatos.png' });
-  // reabrir no app é respeitado na próxima busca
-  await page.click('.relato-item [data-acao="status"]'); await page.waitForSelector('.relato-item[data-status="aberto"]');
+  // G-261 · reabrir no app saiu (a situação é do sistema): na próxima busca, segue resolvido
   await page.reload(); await page.waitForSelector('.relato-item__numero'); await page.waitForTimeout(400);
-  assert.equal(await page.getAttribute('.relato-item', 'data-status'), 'aberto');
+  assert.equal(await page.getAttribute('.relato-item', 'data-status'), 'resolvido');
   assert.ok(pedidos.filter(u => u.endsWith('/situacao.json')).length >= 3);
   assert.deepEqual(errors.filter(e => !/404|Failed to load resource/.test(e)), []);
 });
@@ -8629,20 +8639,23 @@ test('e2e · Y5 relatos chegam à correção: tipos Melhoria e Infraestrutura, E
   assert.match(corpo, /Guardar os relatos num banco para a correção ler\./);
   const d = JSON.parse(corpo.match(/<!-- estante-relato (\{[\s\S]*\}) -->/)[1]);
   assert.equal(d.tipo, 'infra'); assert.equal(d.urgencia, 'alta'); assert.equal(d.area, 'Listas'); assert.match(d.endereco, /^\/listas/); assert.equal(d.viewport, '360×780');
-  // marcado: o selo "Enviado" aparece e o botão passa a reenviar
+  // marcado: o selo "Enviado" aparece; G-261 · relato #16: sem o registro, só o GitHub confirma — o cartão diz isso, fica em
+  // "Para enviar" e oferece "Enviar de novo" (expectativa mudou de propósito: era "Reenviar" sempre)
   await page.waitForSelector('.relato-item .relato-item__enviado');
-  assert.equal(await page.innerText('.relato-item [data-acao="enviar"]'), 'Reenviar');
-  // T1 · editar dentro da hora: o formulário vem preenchido, a tela do relato fica, e o aviso lembra de reenviar
+  assert.equal(await page.innerText('.relato-item [data-acao="enviar"]'), 'Enviar de novo');
+  assert.match(await page.innerText('.relato-item [data-aviso="no-github"]'), /Aberto no GitHub\. Se você confirmou lá, o número aparece aqui/);
+  assert.equal(await page.locator('#relatos-para-enviar .relato-item').count(), 1);
+  // T1 · editar antes de enviar: o formulário vem preenchido, a tela do relato fica, e o aviso lembra de enviar de novo
   await page.click('.relato-item [data-acao="editar"]'); await page.waitForSelector('#relato-form');
   assert.equal(await page.inputValue('#relato-tipo'), 'infra'); assert.equal(await page.inputValue('#relato-urgencia'), 'alta');
   assert.equal(await page.inputValue('#relato-descricao'), 'Guardar os relatos num banco para a correção ler.');
   assert.match(await page.innerText('.ds-dialog__title'), /Editar relato/);
-  assert.match(await page.innerText('#relato-prazo'), /Dá para corrigir até \d{2}:\d{2}/);
+  assert.match(await page.innerText('#relato-prazo'), /Dá para corrigir até enviar\./);
   assert.match(await page.innerText('#relato-carimbo'), /Listas/);
   await auditaTela(page, 'relatos · editar');
   await page.selectOption('#relato-tipo', 'melhoria'); await page.fill('#relato-descricao', 'Guardar os relatos numa tabela que a correção lê.');
   await page.click('#relato-salvar'); await page.waitForSelector('#relato-form', { state: 'detached' });
-  await page.waitForFunction(() => /Reenviar/.test(document.querySelector('#ds-toast').textContent));
+  await page.waitForFunction(() => /Enviar de novo/.test(document.querySelector('#ds-toast').textContent));
   await page.waitForFunction(() => document.querySelector('.relato-item').dataset.tipo === 'melhoria');
   assert.match(await page.innerText('.relato-item .relato-item__texto'), /numa tabela que a correção lê/);
   for (const tema of ['dark', 'light']) { await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema); for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await auditaTela(page, `relatos enviado ${w} ${tema}`); } }
@@ -11337,4 +11350,66 @@ test('e2e · G-259 dano de comandante à vista: o selo de vida mostra "Comandant
   await page.click('#tb-life-opp');
   await page.waitForFunction(() => /Mock Commander/.test(document.body.innerText) && /12/.test(document.body.innerText));
   assert.deepEqual(errors, []);
+});
+
+/* ---------------- G-261 · relato #16: o envio que falhou avisa e oferece enviar de novo; o enviado não muda mais ---------------- */
+test('e2e · G-261 relato #16: o envio que falha fica em "Para enviar" com o motivo e "Enviar de novo"; quando dá certo, vai para "Enviados" sem Editar, Reenviar nem Excluir', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  const banco = {}, pedidos = []; let falha = true;
+  await page.route('https://teste.firebaseio.com/**', async r => {
+    const u = new URL(r.request().url()), seg = u.pathname.replace(/\.json$/, '').split('/').filter(Boolean), metodo = r.request().method();
+    pedidos.push(metodo + ' /' + seg.join('/'));
+    if (u.searchParams.get('auth') !== 'id-e2e') return r.fulfill({ status: 401, json: { error: 'Permission denied' } });
+    const desce = () => seg.reduce((o, k) => (o && typeof o === 'object' ? o[k] : undefined), banco);
+    const poe = (caminho, v) => { let o = banco; for (const k of caminho.slice(0, -1)) o = o[k] = o[k] && typeof o[k] === 'object' ? o[k] : {}; if (v === null) delete o[caminho.at(-1)]; else o[caminho.at(-1)] = v; };
+    const corpo = r.request().postData() ? JSON.parse(r.request().postData()) : null;
+    if (metodo === 'PUT' && falha) return r.fulfill({ status: 500, json: { error: 'falhou' } }); // G-261 · a primeira tentativa cai
+    if (metodo === 'PUT') poe(seg, corpo);
+    if (metodo === 'PATCH') for (const [k, v] of Object.entries(corpo)) poe([...seg, ...k.split('/')], v);
+    return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(metodo === 'GET' ? (desce() ?? null) : corpo) });
+  });
+  let ligada = true, situacao = { versao: 1, geradoEm: '2026-10-12T20:00:00Z', relatos: [] };
+  await page.route(/^https:\/\/raw\.githubusercontent\.com\/.*\/relatos\/(fila|situacao)\.json/, r => r.request().url().includes('fila.json')
+    ? (ligada ? r.fulfill({ json: { versao: 1, ligada: true, desde: '2026-10-12T20:00:00.000Z' }, headers: { 'access-control-allow-origin': '*' } }) : r.fulfill({ status: 404, body: '' }))
+    : r.fulfill({ json: situacao, headers: { 'access-control-allow-origin': '*' } }));
+  await page.route('https://www.googleapis.com/**', r => r.request().url().includes('/oauth2/v3/userinfo') ? r.fulfill({ json: { name: 'Gui', email: 'gui@example.com' } }) : r.fulfill({ status: 404, json: {} }));
+  await page.addInitScript(() => {
+    window.__FIREBASE_DB_URL = 'https://teste.firebaseio.com';
+    window.__GOOGLE_CLIENT_ID = 'e2e.apps.googleusercontent.com'; window.__FIREBASE_API_KEY = 'chave-e2e';
+    window.__FIREBASE_FETCH = async url => new Response(JSON.stringify(url.includes('securetoken') ? { id_token: 'id-e2e', refresh_token: 'ref-e2e', expires_in: '3600', user_id: 'uidE2E' } : { localId: 'uidE2E', idToken: 'id-e2e', refreshToken: 'ref-e2e', expiresIn: '3600' }), { headers: { 'content-type': 'application/json' } });
+    window.__GOOGLE_FALSO = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+    window.EventSource = class { constructor() {} addEventListener() {} close() {} };
+  });
+  // 1 · conectar a conta e escrever um relato
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#conta-entrar:not([disabled])');
+  await page.click('#conta-entrar'); await page.waitForSelector('#conta-sincronia[data-estado="sincronizado"]', { timeout: 10000 });
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/listas'); await page.waitForSelector('#decks-fab-abrir');
+  await acaoJ6(page, 'decks-fab', '#decks-fab-relatar'); await page.waitForSelector('#relato-form');
+  await page.selectOption('#relato-tipo', 'erro'); await page.selectOption('#relato-urgencia', 'alta');
+  await page.fill('#relato-descricao', 'A lista de @fulano não abre no celular.'); await page.click('#relato-salvar'); await page.waitForSelector('#relato-form', { state: 'detached' });
+  await page.goto(base + '#/perfil/relatos'); await page.waitForSelector('#relatos-para-enviar .relato-item [data-acao="enviar"][data-via="fila"]');
+  assert.match(await page.innerText('#relatos-para-enviar'), /Para enviar[\s\S]*Ainda não chegaram a quem corrige/);
+  // 1 · a fila não responde: o cartão diz o motivo, segue em "Para enviar" e o botão vira "Enviar de novo" (principal)
+  await page.click('.relato-item [data-acao="enviar"]');
+  await page.waitForSelector('.relato-item [data-aviso="falhou"]');
+  assert.match(await page.innerText('.relato-item [data-aviso="falhou"]'), /^Não foi enviado: a fila não respondeu\. Toque em Enviar de novo\.$/);
+  assert.equal(await page.innerText('.relato-item [data-acao="enviar"]'), 'Enviar de novo');
+  assert.match(await page.getAttribute('.relato-item [data-acao="enviar"]', 'class'), /ds-btn--primary/);
+  assert.deepEqual(await page.$$eval('#relatos-para-enviar .relato-item [data-acao]', bs => bs.map(b => b.dataset.acao)), ['editar', 'copiar', 'enviar', 'excluir']);
+  await auditaTela(page, 'relatos · envio que falhou');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/g261-falhou.png' });
+  // 2 · de novo, agora dá certo: vai para "Enviados", só com Copiar; o aviso de falha some
+  falha = false; await page.click('.relato-item [data-acao="enviar"]');
+  await page.waitForFunction(() => /Relato enviado/.test(document.querySelector('#ds-toast').textContent));
+  await page.waitForSelector('#relatos-enviados .relato-item[data-envio="na-fila"]');
+  assert.equal(await page.locator('#relatos-para-enviar').count(), 0); assert.equal(await page.locator('.relato-item [data-aviso]').count(), 0);
+  assert.deepEqual(await page.$$eval('#relatos-enviados .relato-item [data-acao]', bs => bs.map(b => b.dataset.acao)), ['copiar']);
+  assert.match(await page.innerText('#relatos-enviados'), /Enviados[\s\S]*Já chegaram\. Não mudam mais/);
+  // guardado: recarregar mantém onde está
+  await page.reload(); await page.waitForSelector('#relatos-enviados .relato-item[data-envio="na-fila"]');
+  for (const tema of ['dark', 'light']) { await page.evaluate(x => document.documentElement.setAttribute('data-theme', x), tema); for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await auditaTela(page, `relatos enviados ${w} ${tema}`); } }
+  if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.screenshot({ path: process.env.SHOTS + '/g261-enviados.png' }); }
+  assert.deepEqual(errors.filter(e => !/500|Failed to load resource/.test(e)), []);
 });

@@ -144,12 +144,15 @@ test('Y4 · a tela do relato: endereço inteiro, título da tela, diálogo abert
   assert.equal(R.limpaTela({ cabecalho: 'x'.repeat(300) }).cabecalho.length, 120);
 });
 
-test('T1 · editar até uma hora: tipo, urgência e texto mudam; data, tela, contexto e partida ficam; depois da hora, não', async () => {
+// G-261 · relato #16: expectativa mudou de propósito — editar valia por uma hora; agora vale enquanto o relato não foi
+// enviado (a hora não fecha mais), e nunca depois de enviado
+test('T1/G-261 · editar antes de enviar: tipo, urgência e texto mudam; data, tela, contexto e partida ficam; enviado, não', async () => {
   let agora = Date.UTC(2026, 9, 9, 20, 0);
   const store = P.memoryStore(), S = R.createRelatos({ store, agora: () => agora });
   const { relato: r } = await S.salva({ tipo: 'ideia', urgencia: 'baixa', descricao: 'Editar o relato depois', hash: '#/perfil/relatos', tela: { cabecalho: 'Relatos' }, contexto: { motor: 95 } });
-  assert.equal(R.podeEditar(r, agora + 59 * 60000), true);
-  assert.equal(R.podeEditar(r, agora + 60 * 60000), false, 'a hora fecha');
+  assert.equal(R.podeEditar(r), true); assert.equal(R.podeEditar({ ...r, enviadoEm: '2026-10-09T20:10:00Z' }), true, 'aberto no GitHub e sem registro: ainda dá');
+  assert.equal(R.podeEditar({ ...r, enviadoEm: '2026-10-09T20:10:00Z', pelaFila: true }), false, 'enviado pela fila: não');
+  assert.equal(R.podeEditar({ ...r, registro: { numero: 7 } }), false, 'com registro: não');
   assert.equal(R.editavelAte(r), '2026-10-09T21:00:00.000Z');
   agora += 30 * 60000;
   const ruim = await S.edita(r.id, { tipo: 'melhoria', urgencia: '', descricao: 'x' });
@@ -162,9 +165,11 @@ test('T1 · editar até uma hora: tipo, urgência e texto mudam; data, tela, con
   assert.match(R.textoDoRelato(g), /- Quando: .+ · editado /);
   assert.equal(R.dadosDoRelato(g).editadoEm, '2026-10-09T20:30:00.000Z');
   agora += 31 * 60000;
-  const tarde = await S.edita(r.id, { tipo: 'erro', urgencia: 'alta', descricao: 'Tarde demais para mudar' });
-  assert.equal(tarde.ok, false); assert.equal(tarde.prazo, true);
-  assert.equal((await S.todos())[0].tipo, 'melhoria', 'fora da hora nada muda');
+  assert.equal((await S.edita(r.id, { tipo: 'erro', urgencia: 'alta', descricao: 'Depois da hora ainda corrige' })).ok, true, 'a hora não fecha mais');
+  await S.muda(r.id, { enviadoEm: '2026-10-09T21:00:00.000Z', pelaFila: true });
+  const tarde = await S.edita(r.id, { tipo: 'visual', urgencia: 'alta', descricao: 'Enviado não muda mais' });
+  assert.equal(tarde.ok, false); assert.equal(tarde.enviado, true);
+  assert.equal((await S.todos())[0].tipo, 'erro', 'enviado: nada muda');
 });
 
 test('G-243 · relato #11: a situação dos registros volta do GitHub — resolvido sozinho uma vez por fechamento, reabrir no app é respeitado, reaberto no GitHub volta a aberto; arquivo inválido e endereço de fora ignorados; sem rede nada muda', async () => {
@@ -207,4 +212,15 @@ test('G-243 · relato #11: a situação dos registros volta do GitHub — resolv
   assert.deepEqual([(await um(a.id)).status, (await um(a.id)).resolvidoEm], ['aberto', undefined]); assert.equal((await um(b.id)).status, 'resolvido');
   // o que a conciliação guarda vai no backup com o relato (a chave é a mesma)
   assert.ok((await store.get(R.CHAVE)).every(x => x.registro && x.registro.numero));
+});
+
+test('G-261 · relato #16: onde está o envio — registrado e na fila são enviados; falha (com o motivo), GitHub sem confirmação e novo ficam para enviar', () => {
+  const base = { id: 'a', criadoEm: '2026-10-13T10:00:00Z' };
+  assert.deepEqual([{}, { enviadoEm: 'x' }, { envioFalhou: { motivo: 'sem-rede' } }, { enviadoEm: 'x', pelaFila: true }, { registro: { numero: 3 } }, { registro: { numero: 3 }, envioFalhou: { motivo: 'erro' } }]
+    .map(x => R.situacaoDoEnvio({ ...base, ...x })), ['nao-enviado', 'no-github', 'falhou', 'na-fila', 'registrado', 'registrado']);
+  assert.equal(R.situacaoDoEnvio(null), 'nao-enviado');
+  assert.deepEqual([{ registro: { numero: 1 } }, { enviadoEm: 'x', pelaFila: true }, { enviadoEm: 'x' }, {}].map(x => R.foiEnviado({ ...base, ...x })), [true, true, false, false]);
+  assert.deepEqual(['sem-rede', 'grande', 'sem-conta', 'erro', 'outro'].map(m => R.textoDaFalha({ envioFalhou: { motivo: m } })), ['sem internet', 'grande demais para a fila', 'a conta da Estante não está conectada', 'a fila não respondeu', 'não deu certo']);
+  // o que só o aparelho sabe não vai para a fila
+  assert.equal('envioFalhou' in R.relatoParaFila({ ...base, envioFalhou: { motivo: 'erro' } }), false);
 });

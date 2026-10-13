@@ -1453,6 +1453,11 @@ body:has(#outlet .ds-fab[data-acoes="1"]) #outlet { padding-bottom: calc(56px + 
 .relato-item { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border-radius: var(--radius-3); background: var(--bg-elev-1); border: 1px solid var(--border); }
 .relato-item[data-status="resolvido"] { background: var(--bg); } /* G-243 · resolvido recua sem opacidade: com .72 o texto pequeno caía abaixo de AA (3,1:1 no claro) */
 .relato-item[data-status="resolvido"] .relato-item__texto { color: var(--fg-muted); }
+.relatos-secao { display: flex; flex-direction: column; gap: var(--space-3); }
+.relatos-secao__titulo { display: flex; align-items: center; gap: var(--space-2); margin: 0; font-size: var(--text-lg); font-weight: var(--weight-bold); }
+.relatos-secao__conta { min-width: 24px; padding: 0 var(--space-2); border-radius: var(--radius-full); background: var(--bg-elev-2); color: var(--fg-muted); font-size: var(--text-sm); text-align: center; }
+.relato-item__aviso { display: flex; align-items: flex-start; gap: var(--space-2); margin: 0; font-size: var(--text-sm); color: var(--fg-muted); }
+.relato-item__aviso[data-aviso="falhou"] { color: var(--negative); }
 .relato-item__topo { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
 .relato-item__quando { font-size: var(--text-xs); color: var(--fg-muted); font-variant-numeric: tabular-nums; }
 .relato-item__enviado { display: inline-flex; align-items: center; gap: 2px; font-size: var(--text-xs); color: var(--positive); }
@@ -13425,17 +13430,29 @@ function novoRelato({ tipo, urgencia, descricao, hash = '', contexto = {}, parti
   return { ok: true, relato: { id: id || 'r' + agora.toString(36) + Math.random().toString(36).slice(2, 6), criadoEm: new Date(agora).toISOString(),
     tipo, urgencia, descricao: String(descricao).trim(), area: area.nome, rota: area.rota, endereco, tela: limpaTela(tela), contexto: { ...contexto }, partida: partida || null, status: 'aberto' } };
 }
-/** T1 · o relato pode ser corrigido (tipo, urgência e texto) até uma hora depois de salvo. */
-const EDITAR_JANELA_MS = 60 * 60 * 1000;
-function podeEditar(r, agora = Date.now()) {
-  const t = r && Date.parse(r.criadoEm);
-  return Number.isFinite(t) && agora - t < EDITAR_JANELA_MS;
+/** G-261 · relato #16: onde o envio do relato está. Enviados: 'registrado' (o registro existe no GitHub) e 'na-fila' (a fila
+    da Estante confirmou). Para enviar: 'falhou' (a última tentativa deu erro, com o motivo), 'no-github' (abriu o GitHub
+    preenchido e o registro ainda não apareceu: só lá se confirma) e 'nao-enviado'. Puro. */
+function situacaoDoEnvio(r) {
+  if (!r) return 'nao-enviado';
+  if (r.registro) return 'registrado';
+  if (r.pelaFila && r.enviadoEm) return 'na-fila';
+  if (r.envioFalhou) return 'falhou';
+  return r.enviadoEm ? 'no-github' : 'nao-enviado';
 }
+const foiEnviado = r => ['registrado', 'na-fila'].includes(situacaoDoEnvio(r));
+/** T1 · o relato podia ser corrigido até uma hora depois de salvo; G-261 · relato #16: agora pode enquanto não foi enviado,
+    e nunca depois (a hora deixou de valer; a constante fica para o carimbo antigo). */
+const EDITAR_JANELA_MS = 60 * 60 * 1000;
+function podeEditar(r) { return !!r && Number.isFinite(Date.parse(r.criadoEm)) && !foiEnviado(r); }
+/** G-261 · o motivo da falha do envio pela fila, em palavras da tela. Puro. */
+const MOTIVO_DA_FALHA = { 'sem-rede': 'sem internet', grande: 'grande demais para a fila', 'sem-conta': 'a conta da Estante não está conectada', erro: 'a fila não respondeu' };
+const textoDaFalha = r => (r && r.envioFalhou && MOTIVO_DA_FALHA[r.envioFalhou.motivo]) || 'não deu certo';
 /** Até quando o relato pode ser editado (ISO), para o carimbo. */
 const editavelAte = r => new Date(Date.parse(r.criadoEm) + EDITAR_JANELA_MS).toISOString();
 /** T1 · o relato corrigido: só tipo, urgência e texto mudam; data, tela, contexto e partida ficam. */
 function editaRelato(r, { tipo, urgencia, descricao }, agora = Date.now()) {
-  if (!podeEditar(r, agora)) return { ok: false, prazo: true, erros: {} };
+  if (!podeEditar(r)) return { ok: false, enviado: true, erros: {} }; // G-261 · enviado não muda mais
   const erros = confere({ tipo, urgencia, descricao });
   if (Object.keys(erros).length) return { ok: false, erros };
   return { ok: true, relato: { ...r, tipo, urgencia, descricao: String(descricao).trim(), editadoEm: new Date(agora).toISOString() } };
@@ -13640,16 +13657,16 @@ function abreRelato(editando = null) {
     campos.descricao,
     h('div', { class: 'relato__carimbo', id: 'relato-carimbo' }, Icone('historico', { tamanho: 18 }),
       h('span', {}, h('b', {}, quando(new Date(aberto).toISOString())), ` · ${nomeTela}`),
-      h('span', { class: 'relato__junto', id: editando ? 'relato-prazo' : null }, editando ? `Dá para corrigir até ${quando(editavelAte(editando)).split(' ')[1]}. A tela e o contexto ficam como estavam.` : extra && extra.anexavel ? 'Vão junto: o turno, a etapa, as últimas jogadas, a versão do motor e a tela.' : 'Vão junto: a tela, a versão do motor, o tema e o tamanho da tela.')),
+      h('span', { class: 'relato__junto', id: editando ? 'relato-prazo' : null }, editando ? 'Dá para corrigir até enviar. A tela e o contexto ficam como estavam.' : extra && extra.anexavel ? 'Vão junto: o turno, a etapa, as últimas jogadas, a versão do motor e a tela.' : 'Vão junto: a tela, a versão do motor, o tema e o tamanho da tela.')),
     // Y2 · na partida: a partida inteira (semente e jogadas) pode ir junto, para abrir igual na correção
     extra && extra.anexavel ? __m3.Chave('Anexar a partida', { ligada: rascunho.anexar, id: 'relato-anexar', detalhe: 'Para abrir a partida igual depois', onMuda: v => { rascunho.anexar = v; } }) : null);
   const salvar = Button('Salvar', { variant: 'primary', icone: 'marcar', id: 'relato-salvar', onClick: async () => {
     if (editando) {
       const r = await servico.edita(editando.id, { tipo: rascunho.tipo, urgencia: rascunho.urgencia, descricao: rascunho.descricao });
-      if (r.prazo) { closeDialog(); toast('Passou de uma hora: o relato não muda mais'); return; }
+      if (r.enviado) { closeDialog(); toast('Relato já enviado: ele não muda mais'); return; }
       if (!r.ok) { erros = r.erros; pintaCampos(); const prim = ['tipo', 'urgencia', 'descricao'].find(k => erros[k]); const el = document.getElementById('relato-' + prim); if (el) el.focus({ preventScroll: false }); return; }
       closeDialog();
-      toast(r.relato.enviadoEm ? 'Relato corrigido · o registro no GitHub não muda: toque em Reenviar' : 'Relato corrigido', 4200);
+      toast(r.relato.enviadoEm ? 'Relato corrigido · se você não confirmou no GitHub, toque em Enviar de novo' : 'Relato corrigido', 4200); // G-261
       return;
     }
     const agoraExtra = contextoExtra ? contextoExtra() : null;
@@ -13716,7 +13733,7 @@ const FILA_MEMORIA_MS = 10 * 60 * 1000;
 const filaLigada = d => !!(d && d.versao === 1 && d.ligada === true && typeof d.desde === 'string' && !isNaN(Date.parse(d.desde)));
 /** O que vai para a fila: o relato sem a partida inteira anexada (não vai pelo GitHub também) e sem o que só o aparelho sabe. Puro. */
 function relatoParaFila(r) {
-  const { partida, registro, enviadoEm, pelaFila, resolvidoPeloRegistro, ...resto } = r || {};
+  const { partida, registro, enviadoEm, pelaFila, resolvidoPeloRegistro, envioFalhou, ...resto } = r || {};
   return { ...resto, partida: null };
 }
 /** `filaDe()` devolve a fila da conta conectada (createFilaDeRelatos) ou null. A resposta "a fila está ligada?" fica
@@ -13748,10 +13765,12 @@ function createRelatosScreen({ relatos, share, files = null, partidas = null, fi
   if (fila) fila.disponivel().then(sim => { if (sim !== pelaFila) { pelaFila = sim; if (root.isConnected) pinta(); } }).catch(() => {});
   async function envia(r) {
     const abreGitHub = async () => { try { window.open(enderecoDoRegistro(r), '_blank', 'noopener'); } catch (e) { /* bloqueado: o aviso diz */ }
-      await relatos.muda(r.id, { enviadoEm: new Date().toISOString() }); pinta(); toast('No GitHub, toque em "Submit new issue" para confirmar'); };
-    if (!pelaFila || r.registro) return abreGitHub(); // já tem registro: Reenviar abre o GitHub (a fila não cria um segundo)
+      await relatos.muda(r.id, { enviadoEm: new Date().toISOString(), envioFalhou: null }); pinta(); toast('No GitHub, toque em "Submit new issue" para confirmar'); };
+    if (foiEnviado(r)) return toast('Este relato já foi enviado'); // G-261 · relato #16: enviado não se reenvia
+    if (!pelaFila) return abreGitHub();
     const x = await fila.envia(r);
-    if (x.ok) { await relatos.muda(r.id, { enviadoEm: x.enviadoEm, pelaFila: true }); pinta(); return toast(`Relato enviado · ${PRAZO_FILA.charAt(0).toLowerCase()}${PRAZO_FILA.slice(1)}`, 5200); }
+    if (x.ok) { await relatos.muda(r.id, { enviadoEm: x.enviadoEm, pelaFila: true, envioFalhou: null }); pinta(); return toast(`Relato enviado · ${PRAZO_FILA.charAt(0).toLowerCase()}${PRAZO_FILA.slice(1)}`, 5200); }
+    await relatos.muda(r.id, { envioFalhou: { em: new Date().toISOString(), motivo: x.motivo || 'erro' } }); pinta(); // G-261 · a falha fica no cartão, com o motivo
     toast(x.motivo === 'sem-rede' ? 'Sem internet: o relato fica aqui e você envia depois' : x.motivo === 'grande' ? 'Relato grande demais para a fila' : 'Não foi possível enviar agora', 5000,
       x.motivo === 'sem-rede' ? undefined : { acao: { rotulo: 'Pelo GitHub', icone: 'externo', onClick: abreGitHub } });
   }
@@ -13785,8 +13804,8 @@ function createRelatosScreen({ relatos, share, files = null, partidas = null, fi
     const recorte = filtra(lista, filtroAtual), abertosDoRecorte = recorte.filter(r => r.status !== 'resolvido');
     const abertos = lista.filter(r => r.status !== 'resolvido').length;
     const muda = patch => { filtroAtual = { ...filtroAtual, ...patch }; pinta(); };
-    const linha = r => { const pa = partidaAbrivel(r, motor);
-      return h('article', { class: 'relato-item', dataset: { urgencia: r.urgencia, status: r.status, tipo: r.tipo }, id: 'relato-' + r.id },
+    const linha = r => { const pa = partidaAbrivel(r, motor), envio = situacaoDoEnvio(r), enviado = foiEnviado(r);
+      return h('article', { class: 'relato-item', dataset: { urgencia: r.urgencia, status: r.status, tipo: r.tipo, envio }, id: 'relato-' + r.id },
         h('div', { class: 'relato-item__topo' },
           Badge(rotuloDe(URGENCIAS, r.urgencia), { tone: r.urgencia === 'bloqueia' || r.urgencia === 'alta' ? 'negative' : r.urgencia === 'media' ? 'accent' : undefined }),
           Badge(rotuloDe(TIPOS, r.tipo)),
@@ -13794,6 +13813,9 @@ function createRelatosScreen({ relatos, share, files = null, partidas = null, fi
           !r.registro && r.enviadoEm ? (r.pelaFila ? h('span', { class: 'relato-item__enviado', dataset: { fila: 'sim' }, title: `Enviado de dentro do app em ${quando(r.enviadoEm)}. ${PRAZO_FILA}` }, Icone('subir', { tamanho: 14 }), 'Na fila')
             : h('span', { class: 'relato-item__enviado', title: `Enviado ao GitHub em ${quando(r.enviadoEm)}` }, Icone('externo', { tamanho: 14 }), 'Enviado')) : null),
         h('p', { class: 'relato-item__texto' }, r.descricao),
+        // G-261 · relato #16: o que falta para chegar a quem corrige, no próprio cartão
+        envio === 'falhou' ? h('p', { class: 'relato-item__aviso', dataset: { aviso: 'falhou' }, role: 'status' }, Icone('alerta', { tamanho: 16 }), `Não foi enviado: ${textoDaFalha(r)}. Toque em Enviar de novo.`)
+          : envio === 'no-github' ? h('p', { class: 'relato-item__aviso', dataset: { aviso: 'no-github' } }, Icone('externo', { tamanho: 16 }), 'Aberto no GitHub. Se você confirmou lá, o número aparece aqui; se não, envie de novo.') : null,
         // G-243 · o registro achado no GitHub: o número (abre o registro) e a situação que voltou de lá
         r.registro ? h('div', { class: 'relato-item__registro', dataset: { situacao: r.status === 'resolvido' && r.resolvidoPeloRegistro ? 'resolvido' : 'aberto' } },
           h('a', { class: 'relato-item__numero', href: urlDoRegistro(r.registro.numero), target: '_blank', rel: 'noopener', title: `Abrir o registro #${r.registro.numero} no GitHub`, 'aria-label': `Registro ${r.registro.numero} no GitHub` }, Icone('externo', { tamanho: 14 }), `#${r.registro.numero}`),
@@ -13801,17 +13823,22 @@ function createRelatosScreen({ relatos, share, files = null, partidas = null, fi
         r.partida && !pa.ok && pa.motivo ? Text(pa.motivo, { size: 'xs', tone: 'subtle', attrs: { class: 'ds-text ds-text--xs relato-item__motivo' } }) : null,
         h('div', { class: 'relato-item__acoes' },
           r.partida ? Button('Partida', { variant: 'ghost', icone: 'jogar', disabled: !pa.ok, title: pa.ok ? 'Abrir a partida anexada, no ponto do relato' : pa.motivo, dataset: { acao: 'partida' }, onClick: () => abrePartida(r) }) : null,
-          // T1 · Editar até uma hora depois de salvo
-          podeEditar(r, relatos.agora()) ? Button('Editar', { variant: 'ghost', icone: 'editar', dataset: { acao: 'editar' }, title: `Corrigir tipo, urgência e texto (até ${quando(editavelAte(r)).split(' ')[1]})`, onClick: () => abreRelato(r) }) : null,
-          Button(r.status === 'resolvido' ? 'Reabrir' : 'Resolvido', { variant: 'ghost', icone: r.status === 'resolvido' ? 'desfazer' : 'marcar', dataset: { acao: 'status' }, onClick: async () => { await relatos.muda(r.id, { status: r.status === 'resolvido' ? 'aberto' : 'resolvido' }); pinta(); } }),
+          // T1 · Editar; G-261 · só enquanto não foi enviado
+          podeEditar(r) ? Button('Editar', { variant: 'ghost', icone: 'editar', dataset: { acao: 'editar' }, title: 'Corrigir tipo, urgência e texto antes de enviar', onClick: () => abreRelato(r) }) : null,
+          // G-261 · relato #16: a situação (aberto, resolvido) é do sistema, pelo registro no GitHub; a pessoa não muda
           Button('Copiar', { variant: 'ghost', icone: 'copiar', dataset: { acao: 'copiar' }, onClick: async e => { const ok = await share.copy(textoDoRelato(r)); if (ok) __m3.confirmaBotao(e.currentTarget, { texto: 'Copiado' }); toast(ok ? 'Relato copiado' : 'Não foi possível copiar'); } }),
           // Y5 · Enviar: abre o registro no GitHub já preenchido (quem relata confirma lá); fica marcado como enviado
           // T6e-2 · com a fila ligada e a conta conectada, Enviar manda sem sair do app; senão, abre o GitHub já preenchido
-          Button(r.enviadoEm || r.registro ? 'Reenviar' : 'Enviar', { variant: 'ghost', icone: pelaFila && !r.registro ? 'subir' : 'externo', dataset: { acao: 'enviar', via: pelaFila && !r.registro ? 'fila' : 'github' },
-            title: pelaFila && !r.registro ? 'Enviar para a correção sem sair do app' : 'Abrir o registro no GitHub, já preenchido, para a correção', onClick: () => envia(r) }),
-          IconButton('lixeira', 'Excluir relato', { variant: 'ghost', classe: 'ds-btn--perigo', dataset: { acao: 'excluir' }, onClick: async () => {
+          // G-261 · enviado não se reenvia nem se exclui; "Enviar de novo" só depois de falha ou do GitHub sem confirmação
+          enviado ? null : Button(envio === 'nao-enviado' ? 'Enviar' : 'Enviar de novo', { variant: envio === 'falhou' ? 'primary' : 'ghost', icone: pelaFila ? 'subir' : 'externo', dataset: { acao: 'enviar', via: pelaFila ? 'fila' : 'github' },
+            title: pelaFila ? 'Enviar para a correção sem sair do app' : 'Abrir o registro no GitHub, já preenchido, para a correção', onClick: () => envia(r) }),
+          enviado ? null : IconButton('lixeira', 'Excluir relato', { variant: 'ghost', classe: 'ds-btn--perigo', dataset: { acao: 'excluir' }, onClick: async () => {
             const tirado = await relatos.remove(r.id); pinta();
             toast('Relato excluído', 4200, { acao: { rotulo: 'Desfazer', icone: 'desfazer', onClick: async () => { await relatos.restaura(tirado); pinta(); } } }); } }))); };
+    // G-261 · relato #16: duas seções — o que ainda precisa ser enviado e o que já chegou
+    const secao = (id, titulo, nota, itens) => itens.length ? h('section', { class: 'relatos-secao', id, 'aria-labelledby': id + '-titulo' },
+      h('h2', { class: 'relatos-secao__titulo', id: id + '-titulo' }, titulo, h('span', { class: 'relatos-secao__conta' }, String(itens.length))),
+      nota ? Text(nota, { size: 'sm', tone: 'muted' }) : null, ...itens.map(linha)) : null;
     const n = contaFiltros({ ...filtroAtual, situacao: 'todos' });
     const filtros = lista.length ? __m3.Expansivel({ titulo: 'Filtros', icone: 'filtro', aberto: filtrosAbertos, id: 'relatos-filtros', toggleId: 'relatos-filtros-toggle', resumo: n ? `${n} ${n === 1 ? 'filtro' : 'filtros'}` : '',
       onToggle: () => { filtrosAbertos = !filtrosAbertos; pinta(); } },
@@ -13834,7 +13861,9 @@ function createRelatosScreen({ relatos, share, files = null, partidas = null, fi
           if (!txt) return toast('Nenhum relato aberto no recorte');
           const ok = await share.copy(txt); if (ok) __m3.confirmaBotao(e.currentTarget, { texto: 'Copiado' }); toast(ok ? `${abertosDoRecorte.length} relato(s) copiado(s)` : 'Não foi possível copiar'); } }),
         files ? Button('Exportar', { icone: 'exportar', id: 'relatos-exportar-abrir', onClick: () => exportar(recorte) }) : null) : null,
-      recorte.length ? Stack({ id: 'relatos-lista', style: { gap: 'var(--space-3)' } }, ...recorte.map(linha))
+      recorte.length ? Stack({ id: 'relatos-lista', style: { gap: 'var(--space-5)' } },
+        secao('relatos-para-enviar', 'Para enviar', 'Ainda não chegaram a quem corrige. Envie para valer.', recorte.filter(r => !foiEnviado(r))),
+        secao('relatos-enviados', 'Enviados', 'Já chegaram. Não mudam mais: a situação volta do registro no GitHub.', recorte.filter(foiEnviado)))
         : lista.length ? Empty('Nenhum relato com esses filtros.', Button('Ver todos', { icone: 'fechar', id: 'relatos-ver-todos', onClick: () => { filtroAtual = { ...FILTRO_VAZIO }; pinta(); } }), { icone: 'filtro', titulo: 'Nada aqui', id: 'relatos-recorte-vazio' })
         : Empty('Use Relatar em qualquer tela para guardar um erro, uma regra que não bateu ou uma ideia. A data e a tela vão junto.', null, { icone: 'relato', titulo: 'Nenhum relato', id: 'relatos-vazio' }),
       __m3.BotaoDeAcao([{ icone: 'relato', rotulo: 'Relatar', id: 'relatos-novo', onClick: () => abreRelato() }], { id: 'relatos-fab', rotulo: 'Relatar', relatar: false }));
@@ -13846,7 +13875,7 @@ function createRelatosScreen({ relatos, share, files = null, partidas = null, fi
   return root;
 }
 
-return { PRAZO_FILA, URL_FILA_LIGADA, FILA_MEMORIA_MS, filaLigada, relatoParaFila, createEnvioPelaFila, AREAS, URL_SITUACAO, BUSCA_SITUACAO_MS, urlDoRegistro, situacaoDosRegistros, concilia, EDITAR_JANELA_MS, podeEditar, editavelAte, editaRelato, REPOSITORIO, MARCA, dadosDoRelato, enderecoDoRegistro, limpaTela, nomeDaTela, FILTRO_VAZIO, filtra, contaFiltros, areasDe, csvDosRelatos, jsonDosRelatos, partidaAbrivel, contextoDaPartida, CHAVE, TIPOS, URGENCIAS, DESCRICAO_MIN, DESCRICAO_MAX, RELATOS_MAX, areaDaRota, confere, novoRelato, ordena, textoDoRelato, textoDosRelatos, createRelatos, usa, usaContexto, abreRelato, BotaoRelatar, createRelatosScreen, rotuloDe };
+return { situacaoDoEnvio, foiEnviado, textoDaFalha, PRAZO_FILA, URL_FILA_LIGADA, FILA_MEMORIA_MS, filaLigada, relatoParaFila, createEnvioPelaFila, AREAS, URL_SITUACAO, BUSCA_SITUACAO_MS, urlDoRegistro, situacaoDosRegistros, concilia, EDITAR_JANELA_MS, podeEditar, editavelAte, editaRelato, REPOSITORIO, MARCA, dadosDoRelato, enderecoDoRegistro, limpaTela, nomeDaTela, FILTRO_VAZIO, filtra, contaFiltros, areasDe, csvDosRelatos, jsonDosRelatos, partidaAbrivel, contextoDaPartida, CHAVE, TIPOS, URGENCIAS, DESCRICAO_MIN, DESCRICAO_MAX, RELATOS_MAX, areaDaRota, confere, novoRelato, ordena, textoDoRelato, textoDosRelatos, createRelatos, usa, usaContexto, abreRelato, BotaoRelatar, createRelatosScreen, rotuloDe };
 })();
 
 /* ==== src/app/catalogo.js ==== */
