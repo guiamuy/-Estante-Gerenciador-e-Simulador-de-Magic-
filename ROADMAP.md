@@ -4301,6 +4301,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nada além da regra.
 - **Teste:** `lt76.unit` (3 testes; falham no motor anterior).
 
+**M-394 · LT61 · 201.5 · O leitor lê "this creature/artifact/Equipment…" como a própria carta** ✅ (leva M-394, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** a redação Oracle desde 2024 troca o nome da carta por "this creature", "this artifact", "this Equipment"… O leitor passa a ler essas formas como "~" (fora das aspas — dentro delas, numa habilidade concedida a outro objeto, o "this …" é do outro objeto e fica). No corpus inteiro: **40 cartas passam a ser lidas por inteiro, nenhuma perde a leitura, nenhum script lido muda**. Revisão por lote LII: **Skateboard (bloqueava 42 listas), Meteor Sword e White Auracite passam a jogar** (APROVADAS; Oracle do Forge, consulta de 12/10/2026). As outras 37 ficam lidas e em revisão (não jogam até entrarem em APROVADAS).
+- **Revisão independente:** 84 asserções; as 40 cartas novas dão exatamente o mesmo script que o leitor anterior dá ao texto com o nome no lugar de "this …" (40/40); habilidades concedidas entre aspas intactas; Skateboard, Meteor Sword e White Auracite jogam (610.3c conferido); diferencial de 16 partidas sem diferença. Reprovou na primeira passada por erro meu no patch: um comentário no meio da linha desligava a guarda de "custo de ativação sem padrão conhecido" (4 cartas lançavam exceção no leitor e 205 saíam com custo vazio, sem efeito nas partidas) — corrigido com teste.
+- **Fora (declarado):** "this spell" continua com os padrões próprios (não vira "~").
+- **Teste:** `lt77.unit` (3 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

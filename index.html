@@ -9198,6 +9198,10 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Spider-Man, Web-Slinger': { texto: 'srwbp2', leva: 'M-392' },
   // M-393 · revisão por lote LI (Jolted Awake), revisor independente: reprovada na primeira passada por texto (pilha e registro), corrigida com teste; 83 verificações e diferencial sem diferença
   'Jolted Awake': { texto: '7glzc8', leva: 'M-393' },
+  // M-394 · revisão por lote LII ("this creature/artifact/Equipment" como ~: Skateboard, Meteor Sword, White Auracite), revisor independente: reprovada na primeira passada (comentário no meio da linha desligava a guarda de custo desconhecido), corrigida com teste; 84 asserções, leitor no corpus e diferencial sem diferença
+  'Skateboard': { texto: 'tgh34y', leva: 'M-394' },
+  'Meteor Sword': { texto: 'd154e4', leva: 'M-394' },
+  'White Auracite': { texto: '1wkxqxf', leva: 'M-394' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -17457,7 +17461,7 @@ const __m42 = (function () {
     [/^tap (target [a-z ']+)$/i, m => [com({ do: 'tap' }, alvo(m[1]))]],
     [/^tap enchanted creature$/i, () => [{ do: 'tap', target: 'enchanted' }]],
     [/^untap enchanted creature$/i, () => [{ do: 'untap', target: 'enchanted' }]],
-    [/^return this aura to its owner's hand$/i, () => [{ do: 'to_hand', target: 'self-source', from: 'battlefield' }]],
+    [/^return (?:this aura|~) to its owner's hand$/i, () => [{ do: 'to_hand', target: 'self-source', from: 'battlefield' }]],
     [new RegExp(`^target player loses ${N} life and you gain ${N} life$`, 'i'), m => [{ do: 'lose', amount: num(m[1]), target: 'player' }, { do: 'gain', amount: num(m[2]) }]],
     [/^return ~ to its owner's hand$/i, () => [{ do: 'to_hand', target: 'self-source', from: 'battlefield' }]], // M-339 · achado da revisão: numa ativada (Crystal Seer) a permanente volta do campo; no "dies" o gatilho tira o `from` (volta do cemitério, Rancor)
     [/^(target creature|target creature an opponent controls|target creature you control) gets ([+-]\d+)\/([+-]\d+) until end of turn$/i, m => [com({ do: 'pump', power: SINAL(m[2]), toughness: SINAL(m[3]) }, alvo(m[1]))]],
@@ -17696,7 +17700,7 @@ const __m42 = (function () {
   function leAtivada(linha, nome, frases) {
     const m = linha.match(/^((?:(?:\{[^}]+\})+|Sacrifice [^:,]+|Discard a card|Discard your hand|Exile ~ from your hand|Pay \d+ life|Remove an? [a-z]+ counter from ~|Put an? [+-]\d\/[+-]\d counter on ~)(?:,\s*(?:(?:\{[^}]+\})+|Sacrifice [^:,]+|Discard a card|Discard your hand|Pay \d+ life|Remove an? [a-z]+ counter from ~|Exile ~ from your graveyard|Exile ~))*): (.+)$/i); // M-352 · "Exile ~ from your graveyard" (Bramble Wurm) // M-348 · remover marcador, exilar ~ // M-342 · também "Exile ~ from your hand" e "Discard your hand" // M-329 · também "Pay N life" // LT9 · {2}{U} seguidos
     if (!m) { frases.push({ texto: linha, lida: false, motivo: 'habilidade ativada sem padrão conhecido' }); return null; }
-    const cost = leCusto(m[1].replace(new RegExp(escapa(nome), 'g'), '~')); if (!cost) { frases.push({ texto: linha, lida: false, motivo: 'custo de ativação sem padrão conhecido' }); return null; }
+    const cost = leCusto(til(m[1], nome)); /* M-394 */ if (!cost) { frases.push({ texto: linha, lida: false, motivo: 'custo de ativação sem padrão conhecido' }); return null; }
     let corpo = m[2].replace(/\.$/, ''); const extra = {};
     const so = corpo.match(/\.\s*Spend only (white|blue|black|red|green) mana on X$/i); // LT13 · CR2c.7 · 107.3k: X pago só com mana da cor
     const fraseSo = so && /\{X\}/.test(cost.mana || '') ? { texto: so[0].replace(/^\.\s*/, ''), lida: true } : null;
@@ -17756,6 +17760,9 @@ const __m42 = (function () {
     return null;
   }
   const escapa = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  /** M-394 · 201.5 · o nome impresso e "this creature/artifact/…" (redação Oracle desde 2024) valem como "~"; dentro de aspas (habilidade concedida a outro objeto) o "this …" é do outro objeto e fica. */
+  const ESTE_OBJETO = /\bthis (creature|artifact|enchantment|land|permanent|vehicle|equipment|aura)\b/gi;
+  const til = (t, nome) => String(t).replace(new RegExp(escapa(nome || '\u0000'), 'g'), '~').split('"').map((p, i) => i % 2 ? p : p.replace(ESTE_OBJETO, '~')).join('"');
   /** Um parágrafo de efeito de mágica → { efeitos, frases }. */
   /** M-335 · orações em sequência que formam um efeito só (no começo do parágrafo): revelar a mão e escolher o descarte; olhar o topo e pegar. */
   const FILTRO_DESCARTE = { 'nonland card': { notTypes: ['land'] }, 'noncreature, nonland card': { notTypes: ['creature', 'land'] }, 'nonland, noncreature card': { notTypes: ['creature', 'land'] } };
@@ -17784,7 +17791,7 @@ const __m42 = (function () {
   }
   function leParagrafo(texto0, nome, frases) {
     const efeitos = [];
-    let texto = texto0.replace(new RegExp(escapa(nome), 'g'), '~').trim();
+    let texto = til(texto0, nome).trim(); // M-394
     for (let achou = true; achou && texto;) { achou = false; // M-335
       for (const [re, faz] of PRE_PARAGRAFO) { const m = texto.match(re); const e = m && faz(m); if (!e) continue; efeitos.push(...e); frases.push({ texto: m[0].trim().replace(/\.$/, ''), lida: true }); texto = texto.slice(m[0].length).trim(); achou = true; break; } }
     if (!texto) return efeitos;
@@ -17851,7 +17858,7 @@ const __m42 = (function () {
         if (per) { topo.reduzPor = { generic: +rp[1], per }; frases.push({ texto: linha, lida: true }); continue; } }
       if (kc0) { Object.assign(topo, kc0); frases.push({ texto: linha, lida: true }); continue; }
       if (!magica) { // LT3 · permanentes
-        const lp = linha.replace(/\.$/, '').replace(new RegExp(escapa(nome || '\u0000'), 'g'), '~'); // LT6 · o nome impresso vale como "~"
+        const lp = til(linha.replace(/\.$/, ''), nome); // LT6 · o nome impresso vale como "~" · M-394: "this creature/artifact/…" também
 
         const en = ENCHANT[lp.toLowerCase()]; if (en) { topo.aura = { enchant: en }; frases.push({ texto: linha, lida: true }); continue; }
         const eqE = lp.match(/^Equip—Pay ((?:\{E\})+)$/); if (eqE) { topo.equip = { enchant: 'creature', cost: { energia: eqE[1].match(/\{E\}/g).length } }; frases.push({ texto: linha, lida: true }); continue; } // M-367 · Inventor's Axe
@@ -17920,7 +17927,7 @@ const __m42 = (function () {
       const kc = COM_CUSTO.map(([re, faz]) => { const m = linha.replace(/\.$/, '').match(re); return m && faz(m); }).find(Boolean); // LT10 · com ponto final
       if (kc) { Object.assign(topo, kc); frases.push({ texto: linha, lida: true }); continue; }
       if (/^choose one\s*—$/i.test(linha)) { modos = []; frases.push({ texto: linha, lida: true }); continue; }
-      const mc = linha.replace(/\.$/, '').replace(new RegExp(escapa(nome || '\u0000'), 'g'), '~'); // M-331 · metalurgia (palavra de habilidade)
+      const mc = til(linha.replace(/\.$/, ''), nome); // M-331 · M-394 · metalurgia (palavra de habilidade)
       const tq = mc.match(/^as long as ~ is on the stack, spells that target it cost \{(\d+)\} more to cast$/i); // M-364 · Kaervek's Torch (601.2f)
       if (tq) { topo.self = { ...(topo.self || {}), encareceQuemMira: +tq[1] }; frases.push({ texto: linha, lida: true }); continue; }
       if (/^at the beginning of the next end step, if any of those cards remain exiled, put them into your graveyard, then create a 0\/1 colorless eldrazi spawn creature token for each card put into your graveyard this way\. those tokens have "sacrifice this creature: add \{c\}\.?"\.?$/i.test(mc) && efeitos.length && efeitos[efeitos.length - 1].do === 'exile_top_playable') { // M-386 · Glimpse the Impossible (603.7c)
