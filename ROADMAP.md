@@ -9729,6 +9729,12 @@ O que a cobertura não mede: se a lista que **pode** jogar no modo completo **jo
 - **Placar da prova (13/10 03h, `main` com L-4):** Pauper **63 de 341** listas jogam; 64 partidas Shark × Shark, a única falha era esta.
 - **Testes:** `homologacao.catalogo.unit` +1 (o Shark decide o ataque com Sazacap's Brew na mão; falhava com a exceção). `bot.unit` e goldens intactos.
 
+**H-6 · Proliferar também dá energia ao jogador** 🟡 (leva H-6, motor sem mudança de versão) — pedido da trilha `motor` (M-367 trouxe a energia, 107.14). Pela 701.34a, quem prolifera escolhe permanentes **e jogadores** com marcador, e cada escolhido ganha mais um de cada tipo que já tem; o motor só perguntava pelo veneno, e um jogador só com energia ficava fora da escolha.
+- **Aceite:** jogador com energia entra na pergunta do proliferar; com veneno e energia, uma pergunta só ("mais um de veneno e um de energia em B"), e o "sim" dá um de cada; energia 0 não conta como marcador; o registro mostra "recebeu 1 marcador de energia".
+- **Toca:** `proliferar` e `PASSOS_V` (região V, `src/engine/core.js`); uma chave `energia` em `MARCADOR_PT` (nome do marcador no registro); texto da pilha explicada do `proliferate_jogador`.
+- **Testes:** `homologacao.proliferar.unit` (3; os dois de regra falham sem a correção); `verbos.proliferar.unit` intacto.
+- **Fora:** marcador de experiência e outros marcadores de jogador (o motor ainda não os tem); a decisão do Shark sobre proliferar a energia do oponente segue a avaliação genérica do "sim/não".
+
 ## 8. Como publicar e verificar
 
 ### Publicar a partir de uma conversa (padrão desde a leva 124)

@@ -5597,7 +5597,7 @@ const LOYALTY_PT = c => (c > 0 ? '+' : '') + c;
 const CHOICE_EFFECTS = ['terreno_da_mao', 'exila_da_mao', 'revela_topo_transforma', 'topo_ou_fundo_do_dono', 'untap_chosen', 'discard_or_sacrifice_land_draw', 'return_chosen', 'discard', 'discard_chosen', 'exile_chosen', 'connive', 'search', 'look', 'scry', 'surveil', 'put_back', 'choose_type'];
 /** S47 · condição do próprio efeito, olhando o que foi pago como custo. */
 /** M-249 · 122.1 · marcadores nomeados em português (o tipo é a chave em `counters`). */
-const MARCADOR_PT = { p1p1: '+1/+1', m0m1: '−0/−1', /* M-360 */ oil: 'de óleo', depletion: 'de esgotamento', charge: 'de carga', age: 'de idade', loyalty: 'de lealdade', time: 'de tempo', lore: 'de saga', poison: 'de veneno' };
+const MARCADOR_PT = { p1p1: '+1/+1', m0m1: '−0/−1', /* M-360 */ oil: 'de óleo', depletion: 'de esgotamento', charge: 'de carga', age: 'de idade', loyalty: 'de lealdade', time: 'de tempo', lore: 'de saga', poison: 'de veneno', energia: 'de energia' /* H-6 */ };
 const ONLY_IF = ['discarded-nonland', 'source-entered-earlier', 'paid-additional', 'kicked', 'not-attacked', 'metalcraft', 'cast-from-graveyard', 'alvo-era-seu', 'evidenced', 'not-evidenced']; // M-351 · "If evidence was collected, instead …" (Extract a Confession, 701.59 + 601.2b)
 /** S16 · custos que substituem o custo de mana, e o custo do lampejo do passado. */
 const ALT_COST_PARTS = ['mana', 'life', 'discard', 'returnLand', 'exileGraveyard', 'tapOther', 'sacrificeOther', 'discardSubtype', 'exileHandColor', 'free', 'revealHand', 'exileGraveyardTopo']; // M-362 · "exile the top three black cards of your graveyard" (Spinning Darkness) // M-351 · revealHand: "you may reveal your hand rather than pay" (Land Grant, 118.9) // CR2c.4 · Ilha entre as descartadas (Foil), exilar carta da cor da mão (Snapback), de graça (Mogg Salvage)
@@ -26045,12 +26045,14 @@ function continuaVerbo(s, events) {
 /** Escolha de permanentes que alimenta um verbo (destino `proliferar` da decisão pick): só anota; o verbo aplica tudo junto no fim. */
 function escolhaDoVerbo(s, oid) { const lista = s.proliferar ? s.proliferar.objetos : (s.escolhaV = s.escolhaV || []); if (!lista.includes(oid)) lista.push(oid); } // V-4 · sem proliferar em curso, a escolha fica em s.escolhaV para o passo seguinte
 /* V-2 · 701.34 proliferar. Quem controla o efeito escolhe qualquer número de permanentes e/ou jogadores que têm marcador (pode ser nenhum);
-   depois cada escolhido recebe mais um marcador de cada tipo que já tem, todos de uma vez. Marcador em jogador, neste motor, é veneno. */
+   depois cada escolhido recebe mais um marcador de cada tipo que já tem, todos de uma vez. Marcador em jogador, neste motor: veneno e energia (H-6). */
 const temMarcador = o => Object.values(o.counters || {}).some(n => n > 0);
+/** H-6 · 701.34a/122.1 · tipos de marcador que o jogador tem (veneno, energia de 107.14); o "sim" dá mais um de cada. */
+const marcadoresDoJogador = pl => [(pl.poison || 0) > 0 ? 'poison' : null, (pl.energia || 0) > 0 ? 'energia' : null].filter(Boolean);
 function proliferar(s, src, events) {
   const p = src.controller, nome = src.name;
   const objetos = battlefield(s).filter(temMarcador).map(o => o.oid);
-  const jogadores = s.players.map((_, i) => i).filter(i => !s.players[i].lost && (s.players[i].poison || 0) > 0);
+  const jogadores = s.players.map((_, i) => i).filter(i => !s.players[i].lost && marcadoresDoJogador(s.players[i]).length);
   if (!objetos.length && !jogadores.length) { events.push({ kind: 'effect', do: 'proliferate', name: nome, target: s.players[p].name, amount: 0 }); return; }
   s.proliferar = { p, nome, objetos: [], jogadores: [] };
   s.verbo = [...(s.verbo || []), ...jogadores.map(jogador => ({ passo: 'proliferar-jogador', p, nome, jogador, fonte: src.source || src.oid })), { passo: 'proliferar-aplica' }];
@@ -26066,9 +26068,10 @@ const PASSOS_V = {
   'aprender-descarta': (s, passo, events) => passoAprenderDescarta(s, passo, events), 'aprender-compra': (s, passo, events) => passoAprenderCompra(s, passo, events), // V-16
   'descobrir-fim': (s, passo, events) => passoDescobrirFim(s, passo, events), // V-10
   'povoar-cria': (s, passo, events) => passoPovoarCria(s, passo, events), // V-4
-  'proliferar-jogador'(s, passo, events) { // uma pergunta por jogador com veneno: "sim" anota o jogador
-    const pl = s.players[passo.jogador]; if (!pl || pl.lost || !(pl.poison > 0)) return;
-    s.pending = { kind: 'may_pay', p: passo.p, cost: null, name: `Proliferar: mais um marcador de veneno em ${pl.name}`,
+  'proliferar-jogador'(s, passo, events) { // uma pergunta por jogador com marcador (veneno e/ou energia, H-6): "sim" anota o jogador
+    const pl = s.players[passo.jogador], tipos = pl && !pl.lost ? marcadoresDoJogador(pl) : []; if (!tipos.length) return;
+    const quais = tipos.length === 2 ? 'um de veneno e um de energia' : `um marcador de ${tipos[0] === 'poison' ? 'veneno' : 'energia'}`;
+    s.pending = { kind: 'may_pay', p: passo.p, cost: null, name: `Proliferar: mais ${quais} em ${pl.name}`,
       then: { effects: [{ do: 'proliferate_jogador', jogador: passo.jogador }], source: passo.fonte, name: passo.nome, controller: passo.p, targets: [] } };
     events.push({ kind: 'choice', what: 'proliferar', name: passo.nome, amount: 1 });
   },
@@ -26079,7 +26082,9 @@ const PASSOS_V = {
       for (const [tipo, n] of Object.entries(o.counters)) { if (!(n > 0)) continue; dados++;
         const postos = poeMarcadores(s, o, tipo, 1); // V-11 · pelo caminho comum de pôr marcadores (substituições de 614.16)
         if (postos > 0) events.push({ kind: 'effect', do: 'counters', name: o.name, target: o.name, amount: postos, ...(tipo === 'p1p1' ? {} : { tipo }) }); } }
-    for (const i of pr.jogadores) { if (s.players[i] && !s.players[i].lost && s.players[i].poison > 0) { darVeneno(s, i, 1, events, pr.nome); dados++; } }
+    for (const i of pr.jogadores) { const pl = s.players[i]; if (!pl || pl.lost) continue; // H-6 · mais um de cada tipo que o jogador tem agora
+      if (pl.poison > 0) { darVeneno(s, i, 1, events, pr.nome); dados++; }
+      if (pl.energia > 0) { pl.energia += 1; dados++; events.push({ kind: 'effect', do: 'counters', name: pl.name, target: pl.name, amount: 1, tipo: 'energia' }); } }
     events.push({ kind: 'effect', do: 'proliferate', name: pr.nome, target: s.players[pr.p].name, amount: dados });
   },
 };
@@ -29977,7 +29982,7 @@ const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas
   unsuspect: e => e.target === 'each-creature' ? 'todas as criaturas suspeitas deixam de ser suspeitas' : `${e.target === 'self-source' ? 'esta permanente' : ALVO_PT[e.target] || descreveAlvo(e.target)} deixa de ser suspeita`,
   lutador: e => `escolhe ${ALVO_PT[e.target] || descreveAlvo(e.target)} para lutar`,
   proliferate: () => 'prolifera (escolhe permanentes e jogadores com marcador; cada um recebe mais um de cada tipo que já tem)', // V-2
-  proliferate_jogador: () => 'esse jogador recebe mais um marcador de veneno',
+  proliferate_jogador: () => 'esse jogador recebe mais um marcador de cada tipo que tem (veneno, energia)', // H-6
   bolster: e => `fortalece ${qtd(e.amount)} (põe ${qtd(e.amount) === 1 ? '1 marcador' : qtd(e.amount) + ' marcadores'} +1/+1 na sua criatura de menor resistência)`, // V-3
   populate: () => 'povoa (cria uma ficha que é cópia de uma ficha de criatura sua)', // V-4
   monstrosity: e => `monstruosidade ${qtd(e.amount)}: se ainda não é monstruosa, recebe ${qtd(e.amount) === 1 ? '1 marcador' : qtd(e.amount) + ' marcadores'} +1/+1 e fica monstruosa`, // V-6
