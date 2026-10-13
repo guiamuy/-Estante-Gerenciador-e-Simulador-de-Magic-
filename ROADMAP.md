@@ -530,6 +530,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ek ✅ | M13b dano de comandante à vista: "Comandante N de 21" no selo de vida e detalhe por comandante no motor completo; o motor já contava e tirava o jogador com 21 (relato #20, leva G-259) | M | 1 | teste no aparelho |
 | 16º-el ✅ | N3b filtrar notícias pelas suas palavras: criar, ligar, desligar e apagar; com várias ligadas, só as que têm todas; fontes continuam (relato #19, leva G-260) | N | 1 | teste no aparelho |
 | 16º-em ✅ | T6e-3 relato enviado não muda mais: seções "Para enviar" e "Enviados", falha com o motivo e "Enviar de novo", sem editar, reenviar, excluir nem mudar a situação depois de enviado (relato #16, leva G-261) | T | 1 | teste no aparelho |
+| 16º-en ✅ | A12b sem listas próprias da Estante: Listas prontas só com o catálogo; as listas do dono vão por um arquivo de backup que ele importa uma vez (relato #17, leva G-262) | A | 1 | o dono importar o arquivo |
 | 16º-ee ✅ | T6e-2 Enviar relato sem sair do app: com a conta conectada e a fila ligada, o relato vai para a fila do Firebase e o cartão mostra "Na fila" até o número do registro (relato #13, leva G-255) | T | 1 | — |
 | 16º-eh ✅ | T6e-2 prazo honesto do relato pela fila: o GitHub atrasa o agendamento em horas, a tela diz "de minutos a algumas horas" e a conversa que lê relatos roda a fila antes (relato #13, leva G-256) | T | 1 | 16º-ee |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
@@ -1157,6 +1158,21 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
   Commander, nenhuma passa de 4 cópias no Pauper) e integração headless (filtrar, adicionar, não
   adicionar duas vezes, ver o selo do formato na estante e escolher o modo na tela Jogar).
 - **Fora:** editar a lista pronta sem antes adicioná-la; separar a reserva automaticamente.
+
+**A12b · Sem listas próprias da Estante (relato #17)** ✅ (leva G-262, trilha `geral`, 13/10/2026 · decisão do dono: arquivo para importar)
+- **Pedido (relato #17, melhoria · alta):** as listas "Da Estante" eram as listas do dono; a Estante não deve oferecer listas
+  próprias — ou a pessoa adiciona as do catálogo (as integrações), ou escreve a lista. As que eram "Da Estante" ficam só dele.
+- **Como:** Listas prontas passa a mostrar só o catálogo (Z2): a seção "Da Estante", o "Adicionar" de cada uma e o "Adicionar
+  todas" saíram; sem catálogo, um estado vazio diz que as listas chegam pela internet. A pré-carga dessas listas para jogar sem
+  internet saiu junto (não baixa mais ~800 cartas que ninguém vê). As listas seguem no código (`STARTER_DECKS`) só como dado
+  de teste do motor e das auditorias, e para corrigir as já salvas (E51). O dono recebe o arquivo `estante-minhas-listas.json`
+  (gerado por `listas-do-dono.mjs`: backup v2 só com as nove listas, ids fixos) e importa uma vez em Perfil › Dados ›
+  Restaurar; as listas viram dele, a coleção não muda e importar de novo não duplica. Nada pessoal entra no código público.
+- **Testes:** U `listas-do-dono.unit` (nove listas, ids fixos, sem coleção; importar duas vezes: dez listas, coleção igual,
+  reserva 60 + 15); e2e A12 (sem lista da Estante na tela), Z2 (o catálogo sem as da Estante), e os testes que usavam a seção
+  para pôr uma lista na estante passam a escrever a lista pelo texto (`adicionaPronta`), como quem cola a lista.
+- **Fora:** quem já tinha adicionado uma lista "Da Estante" continua com ela (é uma lista dele); o arquivo não chega a outros
+  aparelhos sozinho (importe em cada um, ou use o backup na nuvem do Perfil).
 
 **A10 · Cobertura antes da partida** ✅
 - **Valor:** saber antes o que o motor resolve sozinho.

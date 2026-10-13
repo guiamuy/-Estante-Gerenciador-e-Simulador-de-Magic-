@@ -10292,7 +10292,9 @@ return { impressaoDe, opcoesDeImpressao, rotuloDaImpressao, comImpressao, herdaI
 const __m24 = (function () {
 /* =====================================================================
    A12 · LISTAS PRONTAS
-   As listas que já vêm com o app, no mesmo formato de texto que a leitura
+   G-262 · relato #17: não aparecem mais na tela (eram as listas do dono, que foram para a estante dele por um
+   arquivo de backup). Ficam aqui como dado de teste do motor e das auditorias, e para corrigir as já salvas (abaixo).
+   As listas que vinham com o app, no mesmo formato de texto que a leitura
    de lista entende. Não há um segundo caminho de dados: a lista pronta é
    lida pelo mesmo parseDeckText de uma lista colada à mão.
    E50 P5 / E51 · as sete do Pauper têm principal (60) e reserva (15) separados por "Sideboard",
@@ -14298,7 +14300,6 @@ const { h, mount, clear, Stack, Row, Surface, Text, Button, Field, Input, Textar
 const { norm } = __m7;
 const { opcoesDeImpressao, rotuloDaImpressao, comImpressao, herdaImpressoes, cartaNaImpressao, impressoesDaLista, IMPRESSOES_MAX, estatisticasDaLista, ajustaEntrada, sugereNomes, VERSOES_MAX, versoesDa, salvaVersao, rotuloDaVersao, diffListas, parseDeckText, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, isCompanionCard, coresDaLista } = __m14;
 const { coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE } = __m23;
-const { STARTER_DECKS } = __m24;
 const { openCardViewer } = __m12;
 const { onTaps, pulse } = __m20;
 
@@ -15117,50 +15118,17 @@ function createTerrenosScreen({ terrenos, decks }) {
 }
 
 /* ---------------- A12 · /listas/prontas ---------------- */
-/** Listas que vêm com o app. Um toque põe a lista na estante; o texto passa
-    pela mesma leitura de uma lista colada à mão. */
-function createStarterDecks({ decks, cardRepo = null, catalogo = null }) {
+/** G-262 · relato #17: as listas prontas são as do catálogo (torneios oficiais, Z2). A Estante não oferece listas próprias:
+    as que vinham com o app eram do dono e foram para a estante dele por um arquivo de backup; no código (`__m24`) elas
+    seguem só como dado de teste do motor. Um toque põe a lista do catálogo na estante, como qualquer outra. */
+function createStarterDecks({ decks, catalogo = null }) {
   const root = Stack(pad(), __m3.Carregando('Abrindo…', { tamanho: 'tela' }));
-  const state = { format: 'all', minhas: [], busy: false, erro: null, cartas: new Map() };
-  // Z2 · os formatos das listas oficiais entram nos mesmos chips (as da Estante são Pauper e Commander)
+  const state = { format: 'all', erro: null };
+  // Z2 · os formatos das listas oficiais nos chips
   const FILTROS = [['all', 'Todas'], ['pauper', 'Pauper'], ['commander', 'Commander'], ['modern', 'Modern'], ['standard', 'Standard'], ['pioneer', 'Pioneer'], ['legacy', 'Legacy'], ['vintage', 'Vintage'], ['brawl', 'Brawl'], ['construido', 'Desafio'], ['iniciante', 'Iniciante']]; // Z5 · formatos de torneio; G-241 · Vintage
-  const secaoOficial = catalogo ? __m39.SecaoCatalogo({ catalogo, decks, formato: state.format, aoImportar: async () => { try { state.minhas = await decks.list(); } catch (e) { /* fica a lista de antes */ } } }) : null;
-
-  // E50 P5 · principal e reserva contados separados
-  const contagem = texto => { const es = parseDeckText(texto).entries; const side = es.filter(e => e.zone === 'side').reduce((n, e) => n + e.qty, 0); const main = es.reduce((n, e) => n + e.qty, 0) - side; return { main, side, es }; };
-  const jaTenho = nome => state.minhas.some(d => norm(d.name) === norm(nome));
-
-  async function adicionar(item) {
-    if (state.busy || jaTenho(item.name)) return;
-    state.busy = true;
-    try {
-      const { entries } = parseDeckText(item.text);
-      await decks.save({ name: item.name, format: item.format, entries });
-      state.minhas = await decks.list();
-      toast(`${item.name} está na sua estante`);
-      paint();
-    } catch (e) { toast('Não foi possível adicionar: ' + (e.message || e)); }
-    finally { state.busy = false; }
-  }
-  async function adicionarTodas(lista) {
-    if (state.busy) return;
-    const faltando = lista.filter(x => !jaTenho(x.name));
-    if (!faltando.length) return toast('Essas listas já estão na sua estante');
-    state.busy = true;
-    try {
-      for (const item of faltando) {
-        const { entries } = parseDeckText(item.text);
-        await decks.save({ name: item.name, format: item.format, entries });
-      }
-      state.minhas = await decks.list();
-      toast(`${faltando.length} lista(s) adicionada(s)`);
-      paint();
-    } catch (e) { toast('Não foi possível adicionar: ' + (e.message || e)); }
-    finally { state.busy = false; }
-  }
+  const secaoOficial = catalogo ? __m39.SecaoCatalogo({ catalogo, decks, formato: state.format, aoImportar: () => {} }) : null;
 
   function paint() {
-    const visiveis = STARTER_DECKS.filter(x => state.format === 'all' || x.format === state.format);
     const chips = h('div', { class: 'ds-segmentado ds-segmentado--grade ds-segmentado--tres', role: 'group', 'aria-label': 'Formato', id: 'starter-formatos' }, ...FILTROS.map(([k, label]) => {
       const c = Chip(label, { pressed: state.format === k, dataset: { starterFormat: k } });
       c.addEventListener('click', () => { state.format = k; if (secaoOficial) secaoOficial.mudaFormato(k); paint(); });
@@ -15170,29 +15138,12 @@ function createStarterDecks({ decks, cardRepo = null, catalogo = null }) {
       // U2 · voltar fica acima do título, como em todo app de celular
       h('div', {}, Button('Minhas listas', { id: 'starter-back', icone: 'voltar', variant: 'ghost', classe: 'ds-btn--voltar', onClick: () => go('/listas') })),
       Text('Listas prontas', { size: '2xl', display: true, as: 'h1' }),
-      Text('Decks reais para você jogar agora. Um toque põe a lista na sua estante, e de lá você joga, edita ou exporta como qualquer outra.', { tone: 'muted' }),
+      Text('Listas de torneios oficiais para você jogar agora. Um toque põe a lista na sua estante, e de lá você joga, edita ou exporta como qualquer outra.', { tone: 'muted' }),
       chips,
       state.erro ? Note(state.erro, { tone: 'danger' }) : null,
-      // Z2 · duas fontes: as da Estante (jogam já, sem internet) e as oficiais da Wizards (catálogo)
-      visiveis.length && secaoOficial ? Text('Da Estante', { size: 'lg', display: true, as: 'h2', attrs: { id: 'starter-titulo' } }) : null,
-      visiveis.length ? h('div', { class: 'ds-list', id: 'starter-list' }, ...visiveis.map(item => {
-        const tenho = jaTenho(item.name);
-        const { main, side, es } = contagem(item.text);
-        return DeckLinha({ nome: item.name, formato: item.format, cores: coresDaLista(es, state.cartas), main, side,
-          fim: tenho ? h('span', { class: 'deck-item__ja', role: 'img', 'aria-label': 'Já na sua estante', title: 'Já na sua estante' }, Icone('marcar', { tamanho: 20 }))
-            : IconButton('mais', `Adicionar ${item.name}`, { variant: 'primary', classe: 'deck-item__add', dataset: { starterAdd: item.name }, onClick: () => adicionar(item) }) });
-      })) : secaoOficial ? null : Empty('Nenhuma lista pronta neste formato.'),
-      visiveis.length ? Row({ class: 'ds-row--wrap' },
-        Button(state.format === 'all' ? 'Adicionar todas' : `Adicionar as ${visiveis.length} de ${FORMATS[state.format] || state.format}`,
-          { id: 'starter-add-all', onClick: () => adicionarTodas(visiveis) })) : null,
-      secaoOficial);
+      secaoOficial || Empty('As listas prontas chegam pela internet. Sem conexão agora: tente de novo depois.', null, { icone: 'caixa', titulo: 'Sem listas prontas', id: 'starter-vazio' }));
   }
-
-  (async () => {
-    try { state.minhas = await decks.list(); } catch (e) { state.erro = 'Não foi possível ler as suas listas neste aparelho.'; }
-    try { if (cardRepo && cardRepo.cached) state.cartas = await cardRepo.cached(STARTER_DECKS.flatMap(x => parseDeckText(x.text).entries.map(e => e.name))); } catch (e) { /* sem cache: sem cores */ }
-    paint();
-  })();
+  paint();
   return root;
 }
 
@@ -35642,7 +35593,7 @@ const temRede = () => typeof navigator === 'undefined' || navigator.onLine !== f
 const envVivo = { get id() { return environment.id; }, get online() { return environment.online; }, get label() { return environment.label; }, get reason() { return environment.reason; }, get fix() { return environment.fix; } };
 // O1 · o que é seu fica no aparelho: listas e coleção guardadas sozinhas, com rede
 const keeper = createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr, store: platform.store, persistence: platform.persistence, online: temRede,
-  prontas: () => __m24.STARTER_DECKS.flatMap(d => (__m14.parseDeckText(d.text).entries || []).map(e => e.name).filter(Boolean)) }); // Q10 · listas prontas entram sozinhas
+  }); // G-262 · relato #17: as listas que vinham com o app saíram da tela; a pré-carga delas para jogar sem internet saiu junto
 keeper.vigiar();
 let environment = ENVIRONMENTS.online;
 const installer = createInstaller({ window: typeof window !== 'undefined' ? window : globalThis, navigator: typeof navigator !== 'undefined' ? navigator : null });

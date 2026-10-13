@@ -213,6 +213,14 @@ async function createDeck(page, base, name, text, format = 'pauper') {
   await page.waitForSelector('.deck-summary');
 }
 const PAUPER = '20 Island\n4 Delver of Secrets\n4 Preordain\n4 Counterspell';
+// G-262 · relato #17: a Estante não oferece mais listas próprias (Listas prontas é só o catálogo). As listas que vinham com
+// o app seguem no código como dado de teste: aqui elas entram na estante pelo texto, como quem cola a lista
+async function adicionaPronta(page, base, nome) {
+  if (!page.url().startsWith(base)) { await page.goto(base + '#/'); await page.waitForFunction(() => typeof __m24 !== 'undefined'); }
+  const sd = await page.evaluate(n => { const d = __m24.STARTER_DECKS.find(x => x.name === n); return d ? { text: d.text, format: d.format } : null; }, nome);
+  assert.ok(sd, 'lista de teste: ' + nome);
+  await createDeck(page, base, nome, sd.text, sd.format);
+}
 // leva 110: a lista da partida se escolhe numa folha com as linhas da estante (antes era um <select> de texto)
 async function escolheLista(page, id, qual) {
   await page.click('#' + id); await page.waitForSelector('.deck-picker__lista');
@@ -2204,23 +2212,17 @@ test('e2e · M9 gatilho de entrada e habilidade ativada na mesa', { skip }, asyn
   assert.deepEqual(errors, []);
 });
 
-test('e2e · A12 listas prontas: filtrar, adicionar e escolher o modo na tela de jogar', { skip }, async t => {
+// G-262 · relato #17: expectativa mudou de propósito — Listas prontas não tem mais a seção "Da Estante" (as listas que vinham
+// com o app eram do dono); o resto do teste (a lista escolhida no modo de jogar, 100% com os básicos) segue igual
+test('e2e · A12 listas prontas: sem listas próprias da Estante; a lista na estante aparece no modo de jogar', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.goto(base + '#/listas');
   await page.click('#decks-starter-empty'); // o estado vazio leva às listas prontas
-  await page.waitForSelector('#starter-list');
-  // a lista repinta depois do toque: espera a contagem assentar antes de conferir (falha intermitente na leva 84)
-  const itens = n => page.waitForFunction(k => document.querySelectorAll('#starter-list .ds-list__item').length === k, n, { timeout: 5000 }).catch(() => {});
-  await page.click('[data-starter-format="commander"]'); await itens(2);
-  assert.equal(await page.locator('#starter-list .ds-list__item').count(), 2, 'duas listas de Commander');
-  await page.click('[data-starter-format="pauper"]'); await itens(7);
-  assert.equal(await page.locator('#starter-list .ds-list__item').count(), 7, 'sete listas de Pauper');
-
-  await page.click('[data-starter-add="Pauper Elves"]');
-  // leva 110: "já na sua estante" virou o ícone de marcado, com o mesmo nome falado
-  await page.waitForSelector('#starter-list [aria-label="Já na sua estante"]');
-  assert.equal(await page.locator('[data-starter-add="Pauper Elves"]').count(), 0, 'não oferece adicionar de novo');
-
+  await page.waitForSelector('#starter-formatos');
+  assert.equal(await page.locator('#starter-list, #starter-titulo, [data-starter-add], #starter-add-all').count(), 0, 'nenhuma lista da Estante');
+  assert.doesNotMatch(await page.innerText('main'), /Da Estante/);
+  await adicionaPronta(page, base, 'Pauper Elves');
+  await page.goto(base + '#/listas/prontas'); await page.waitForSelector('#starter-back');
   await page.click('#starter-back');
   await page.waitForSelector('#decks-list .ds-list__item');   // espera a lista pintar (antes lia enquanto ainda carregava)
   const listas = await page.innerText('#decks-list');
@@ -2240,11 +2242,7 @@ test('e2e · A12 listas prontas: filtrar, adicionar e escolher o modo na tela de
   // mesmo sem a Scryfall responder (aqui ela não conhece nenhuma dessas cartas).
   // Antes desta leva os terrenos básicos entravam como "carta desconhecida" e a
   // mesma lista aparecia com 85%, trancando o modo motor completo.
-  await page.goto(base + '#/listas/prontas');
-  await page.waitForSelector('#starter-list');
-  await page.click('[data-starter-format="pauper"]');
-  await page.click('[data-starter-add="Pauper Boros Bully"]');
-  await page.waitForFunction(() => !document.querySelector('[data-starter-add="Pauper Boros Bully"]'), null, { timeout: 8000 });
+  await adicionaPronta(page, base, 'Pauper Boros Bully');
   await page.goto(base + '#/mesa');
   await page.click('[data-table-format="pauper"]');
   await page.waitForSelector('#mesa-mine');
@@ -2368,7 +2366,7 @@ test('e2e · HOMOLOGAÇÃO 1 · todas as telas, nos dois temas: sem rolagem late
   await page.waitForSelector('#col-csv-add'); await page.click('#col-csv-add');
   await page.waitForSelector('.col-row[data-name="Sol Ring"]');
   const telas = [
-    ['início', '#/', '#home-offline'], ['listas', '#/listas', '#decks-list'], ['listas prontas', '#/listas/prontas', '#starter-list'],
+    ['início', '#/', '#home-offline'], ['listas', '#/listas', '#decks-list'], ['listas prontas', '#/listas/prontas', '#starter-formatos'],
     ['editor de lista', '#/listas/editar', '#deck-text'], ['lista', deckUrl, '.deck-summary'], ['coleção · lista', '#/colecao', '.col-row'],
     ['cartas', '#/cartas', '#cards-q'], ['scanner', '#/scanner', '#scan-read'], ['preparar partida', '#/mesa', '#mesa-start'], ['catálogo', '#/ds', 'h1']
   ];
@@ -2641,9 +2639,7 @@ test('e2e · U2 ícones, profundidade e CTAs enxutos: barra, início e topo da m
   assert.equal(await page.locator('.ds-appbar [aria-current="page"]').count(), 1);
   await page.click('#nav-decks'); await page.waitForSelector('#nav-decks[aria-current="page"]');
   // mesa: prepara uma partida contra o goldfish
-  await page.goto(base + '#/listas/prontas'); await page.waitForSelector('#starter-list');
-  await page.click('[data-starter-format="pauper"]'); await page.click('[data-starter-add="Pauper Elves"]');
-  await page.waitForFunction(() => !document.querySelector('[data-starter-add="Pauper Elves"]'));
+  await adicionaPronta(page, base, 'Pauper Elves'); // G-262 · pelo texto (a Estante não oferece mais listas próprias)
   await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start');
   assert.equal(await page.getAttribute('#nav-play', 'aria-current'), 'page', 'preparar partida conta como Jogar');
   await page.fill('#mesa-seed', '7'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep');
@@ -2708,11 +2704,10 @@ test('e2e · U2 parte 2 listas e coleção: ícones, rótulos curtos, cabeçalho
   await page.goto(base + '#/listas'); await page.waitForSelector('#decks-starter-empty');
   await temIcone('#decks-starter-empty'); await audita('listas vazia');
   // prontas: voltar acima do título
-  await page.goto(base + '#/listas/prontas'); await page.waitForSelector('#starter-list');
+  await page.goto(base + '#/listas/prontas'); await page.waitForSelector('#starter-formatos');
   assert.ok((await caixa('#starter-back')).y + 20 < (await caixa('main h1')).y, 'voltar acima do título');
   await temIcone('#starter-back'); await audita('listas prontas');
-  await page.click('[data-starter-format="pauper"]'); await page.click('[data-starter-add="Pauper Elves"]');
-  await page.waitForFunction(() => !document.querySelector('[data-starter-add="Pauper Elves"]'));
+  await adicionaPronta(page, base, 'Pauper Elves'); // G-262 · pelo texto (a Estante não oferece mais listas próprias)
   // listas: Prontas e Nova na linha do título, com ícone; item com seta
   await page.goto(base + '#/listas'); await page.waitForSelector('#decks-list .ds-list__item');
   await temIcone('#deck-starter'); await temIcone('#deck-new'); // D5 · o backup saiu de Listas (vive em Perfil › Dados)
@@ -2826,9 +2821,7 @@ test('e2e · E50 balão da bandeja: texto cortado marca, um toque abre o balão 
   const { page, errors, base } = await open(t);
   await page.addInitScript(() => { window.__MTG_TEST = true; });
   await page.setViewportSize({ width: 360, height: 780 });
-  await page.goto(base + '#/listas/prontas'); await page.waitForSelector('#starter-list');
-  await page.click('[data-starter-format="pauper"]'); await page.click('[data-starter-add="Pauper Elves"]');
-  await page.waitForFunction(() => !document.querySelector('[data-starter-add="Pauper Elves"]'));
+  await adicionaPronta(page, base, 'Pauper Elves'); // G-262 · pelo texto (a Estante não oferece mais listas próprias)
   await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); await page.fill('#mesa-seed', '7'); await page.click('#mesa-start');
   await page.waitForSelector('#tb-keep'); await page.waitForTimeout(400);
   const texto = page.locator('.tb-dock__bar .tb-banner__text');
@@ -3034,9 +3027,7 @@ test('e2e · U2 parte 3 cartas, scanner, preparar partida e mesa: ícones, rótu
   assert.match(await page.innerText('#scan-lot'), /Pilha · 0/);
   await audita('scanner');
   // lista pronta: marcas de cobertura desenhadas, com nome falado
-  await page.goto(base + '#/listas/prontas'); await page.waitForSelector('#starter-list');
-  await page.click('[data-starter-format="pauper"]'); await page.click('[data-starter-add="Pauper Elves"]');
-  await page.waitForFunction(() => !document.querySelector('[data-starter-add="Pauper Elves"]'));
+  await adicionaPronta(page, base, 'Pauper Elves'); // G-262 · pelo texto (a Estante não oferece mais listas próprias)
   await page.goto(base + '#/listas'); await page.waitForSelector('#decks-list .ds-list__item'); await page.click('#decks-list .ds-list__item');
   await page.waitForSelector('.deck-slot');
   const marcas = await page.$$eval('.deck-slot__cov', els => els.map(e => ({ svg: !!e.querySelector('svg'), txt: e.textContent.trim(), nome: e.getAttribute('aria-label') })));
@@ -3069,7 +3060,7 @@ test('e2e · U2 parte 3 cartas, scanner, preparar partida e mesa: ícones, rótu
 test('e2e · E51 reserva nas listas já salvas: migração ao abrir, aviso com sugestão, mover carta, partida sem a reserva', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.addInitScript(() => { window.__MTG_TEST = true; });
-  await page.goto(base + '#/listas/prontas'); await page.waitForSelector('#starter-list');
+  await page.goto(base + '#/listas'); await page.waitForFunction(() => typeof __m24 !== 'undefined'); // G-262 · Listas prontas não tem mais as da Estante
   // grava duas listas "antigas" direto no banco: a Elves igual à pronta (75 no principal) e a Boros com uma carta a mais
   const textos = await page.evaluate(() => Object.fromEntries(__m24.STARTER_DECKS.map(d => [d.name, d.text])));
   const antiga = (nome, extra) => { const es = []; for (const l of textos[nome].split('\n')) { const m = l.match(/^(\d+) (.+)$/); if (m) es.push({ name: m[2], qty: Number(m[1]), zone: 'main' }); } if (extra) es.push(extra); return es; };
@@ -3158,17 +3149,14 @@ test('e2e · U8 disposições por aparelho: Galaxy S, S+, Ultra e iPhone sem rol
 test('e2e · sem sobreposição: todas as listas prontas na estante, listas e prontas nas quatro medidas', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.addInitScript(() => { window.__MTG_TEST = true; });
-  await page.goto(base + '#/listas/prontas'); await page.waitForSelector('#starter-list');
-  for (const nome of await page.$$eval('[data-starter-add]', bs => bs.map(b => b.dataset.starterAdd))) {
-    await page.click(`[data-starter-add="${nome}"]`);
-    await page.waitForFunction(n => !document.querySelector(`[data-starter-add="${n}"]`), nome);
-  }
+  await page.goto(base + '#/listas'); await page.waitForFunction(() => typeof __m24 !== 'undefined'); // G-262 · Listas prontas não tem mais as da Estante
+  for (const nome of await page.evaluate(() => __m24.STARTER_DECKS.map(d => d.name))) await adicionaPronta(page, base, nome);
   for (const [nome, w, h] of [['Galaxy S', 360, 780], ['S+ zoom', 384, 832], ['iPhone', 390, 844], ['S+/Ultra', 412, 891]]) {
     await page.setViewportSize({ width: w, height: h });
     await page.goto(base + '#/listas'); await page.waitForSelector('#decks-list .ds-list__item');
     assert.equal(await page.locator('#decks-list .ds-list__item').count(), 9);
     await auditaTela(page, `${nome} · listas com as nove prontas`);
-    await page.goto(base + '#/listas/prontas'); await page.waitForSelector('#starter-list');
+    await page.goto(base + '#/listas/prontas'); await page.waitForSelector('#starter-formatos');
     await auditaTela(page, `${nome} · listas prontas`);
     await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start');
     await auditaTela(page, `${nome} · preparar partida`);
@@ -3188,7 +3176,7 @@ test('e2e · sem sobreposição: todas as listas prontas na estante, listas e pr
 test('e2e · E51 corte errado da leva 95 corrigido ao abrir: Mono Blue Faeries passa de 62/13 para 60/15', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.addInitScript(() => { window.__MTG_TEST = true; });
-  await page.goto(base + '#/listas/prontas'); await page.waitForSelector('#starter-list');
+  await page.goto(base + '#/listas'); await page.waitForFunction(() => typeof __m24 !== 'undefined'); // G-262 · Listas prontas não tem mais as da Estante
   const velha = await page.evaluate(() => {
     const sd = __m24.STARTER_DECKS.find(d => d.name === 'Pauper Mono Blue Faeries');
     const total = {}; for (const e of __m14.parseDeckText(sd.text).entries) total[e.name] = (total[e.name] || 0) + e.qty;
@@ -3886,7 +3874,7 @@ test('e2e · leva 110 lista em símbolos: cores, formato, principal e reserva co
   await auditaTela(page, 'folha de escolher a lista');
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/escolher-lista.png' });
   await page.click('.ds-dialog >> text=Voltar');
-  await page.goto(base + '#/listas/prontas'); await page.waitForSelector('#starter-list .deck-item');
+  await page.goto(base + '#/listas/prontas'); await page.waitForSelector('#starter-formatos'); // G-262 · sem as da Estante
   await auditaTela(page, 'listas prontas em símbolos');
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/prontas.png' });
   assert.deepEqual(errors, []);
@@ -8690,13 +8678,14 @@ async function rotaCatalogo(page, { falha = () => false } = {}) {
     return r.fulfill({ json: { ...l, entradas: [{ name: 'Giada, Font of Hope', qty: 1, zone: 'commander' }, { name: 'Sol Ring', qty: 1, zone: 'main' }, { name: 'Plains', qty: 98, zone: 'main' }] }, headers: { 'access-control-allow-origin': '*' } }); });
   return pedidos;
 }
-test('e2e · Z2 catálogo de listas oficiais em Listas prontas: seis formatos em grade, as da Estante e as oficiais (arte, cores, formato, contagem, comandante), busca, lotes de 30, adicionar à estante com a origem, Pauper explicado, erro com Repetir', { skip }, async t => {
+test('e2e · Z2 catálogo de listas oficiais em Listas prontas: seis formatos em grade, as oficiais (arte, cores, formato, contagem, comandante), busca, lotes de 30, adicionar à estante com a origem, Pauper explicado, erro com Repetir', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.setViewportSize({ width: 360, height: 780 });
   let cai = true; const pedidos = await rotaCatalogo(page, { falha: () => cai });
-  // 1 · sem resposta: as da Estante continuam; o catálogo diz o erro e tem Repetir
-  await page.goto(base + '#/listas/prontas'); await page.waitForSelector('#starter-list'); await page.waitForSelector('#catalogo-erro');
-  assert.equal(await page.locator('#starter-list .ds-list__item').count(), 9, 'as nove da Estante, como antes');
+  // 1 · sem resposta: o catálogo diz o erro e tem Repetir; G-262 · relato #17: expectativa mudou de propósito — não há mais
+  // as listas da Estante (eram 9, e ficavam por baixo do erro)
+  await page.goto(base + '#/listas/prontas'); await page.waitForSelector('#catalogo-erro');
+  assert.equal(await page.locator('#starter-list').count(), 0, 'sem listas da Estante');
   cai = false; await page.click('#catalogo-de-novo'); await page.waitForSelector('#catalogo-lista');
   // 2 · seis formatos em grade de três, com 44 px
   const chips = await page.$$eval('#starter-formatos .ds-chip', cs => cs.map(c => [c.dataset.starterFormat, c.textContent.trim(), Math.round(c.getBoundingClientRect().height)]));
@@ -8730,20 +8719,18 @@ test('e2e · Z2 catálogo de listas oficiais em Listas prontas: seis formatos em
   await page.waitForFunction(() => [...document.querySelectorAll('#catalogo-lista .cat-item__arte img')].slice(0, 3).every(i => i.complete && i.naturalWidth > 0));
   await auditaTela(page, 'listas prontas com o catálogo');
   if (process.env.SHOTS) { await page.evaluate(() => document.querySelector('#catalogo').scrollIntoView()); await page.screenshot({ path: process.env.SHOTS + '/z2-catalogo.png' }); }
-  // 4 · formatos: Brawl esconde as da Estante; Pauper explica; texto longo quebra em duas linhas
+  // 4 · formatos: Pauper explica; texto longo quebra em duas linhas
   await page.click('[data-starter-format="brawl"]'); await page.waitForFunction(() => document.querySelectorAll('#catalogo-lista .cat-item').length === 1);
-  assert.equal(await page.locator('#starter-list').count(), 0);
   assert.ok(await page.$eval('#catalogo-lista .cat-item__nome', el => el.getBoundingClientRect().height <= parseFloat(getComputedStyle(el).lineHeight) * 2 + 1), 'nome em no máximo duas linhas');
-  // Z5 · Pauper: as sete da Estante e a de torneio do catálogo
+  // Z5 · Pauper: a de torneio do catálogo (G-262 · sem as sete da Estante)
   await page.click('[data-starter-format="pauper"]'); await page.waitForFunction(() => document.querySelectorAll('#catalogo-lista .cat-item').length === 1);
-  assert.equal(await page.locator('#catalogo-lista .cat-item[data-id="topdeck-copa-teste-1-1"]').count(), 1); assert.equal(await page.locator('#starter-list .ds-list__item').count(), 7);
+  assert.equal(await page.locator('#catalogo-lista .cat-item[data-id="topdeck-copa-teste-1-1"]').count(), 1); assert.equal(await page.locator('#starter-list').count(), 0);
   await page.click('[data-starter-format="pioneer"]'); await page.waitForSelector('#catalogo-recorte-vazio');
   assert.match(await page.innerText('#catalogo-recorte-vazio'), /Nenhuma lista de Pioneer no catálogo agora/);
   // G-241 · Vintage: a do Magic Online
   await page.click('[data-starter-format="vintage"]'); await page.waitForFunction(() => document.querySelectorAll('#catalogo-lista .cat-item').length === 1);
   assert.equal(await page.innerText('#catalogo-lista .cat-item__formato'), 'Vintage'); assert.equal(await page.innerText('.cat-item[data-id="mtgo-vintage-challenge-32-2026-10-0412855600-1"] .cat-item__sub'), 'ciclano · 04/10/2026');
   await page.click('[data-starter-format="commander"]'); await page.waitForFunction(() => document.querySelectorAll('#catalogo-lista .cat-item').length === 30);
-  assert.equal(await page.locator('#starter-list .ds-list__item').count(), 2);
   // 5 · busca
   await page.fill('#catalogo-busca', 'giada'); await page.waitForFunction(() => document.querySelectorAll('#catalogo-lista .cat-item').length === 1);
   await page.fill('#catalogo-busca', 'nada disso'); await page.waitForSelector('#catalogo-recorte-vazio');
