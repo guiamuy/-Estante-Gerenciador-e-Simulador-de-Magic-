@@ -5325,6 +5325,7 @@ const EFFECTS = {
   reanimate: { fields: [], targets: ['creature-in-your-graveyard', 'permanent-in-your-graveyard'] },
   reanimate_tapped: { fields: [], targets: ['self-source', 'creature-in-your-graveyard'] },
   add_mana: { fields: [], targets: ['self'] },
+  energia: { fields: ['amount'], targets: ['self'] }, // M-367 · 107.14 · "you get {E}{E}": marcadores de energia do jogador (122.1)
   mana_combinada: { fields: ['amount'], targets: ['self'] }, // M-357 · "Add two mana in any combination of colors" (Manamorphose): cada mana pede a cor na resolução
   token: { fields: ['amount'], targets: ['self', 'opponent', 'target-controller'] },
   discard: { fields: ['amount'], targets: ['self', 'player', 'opponent', 'target-controller', 'each-opponent'] },
@@ -6010,7 +6011,8 @@ function validateScript(sc) {
       if (cost.xCor != null && !(typeof cost.xCor === 'string' && cost.xCor.length === 1 && 'WUBRG'.includes(cost.xCor) && /\{X\}/i.test(cost.mana || ''))) errs.push(`${tag}: "gaste só mana de uma cor em X" precisa de uma cor WUBRG e de {X} no custo`); // CR2c.7
       if (cost.crew != null && !(Number.isInteger(cost.crew) && cost.crew >= 0)) errs.push(`${tag}: tripular precisa de um número`); // CR2d.3
       if (cost.fromGraveyard != null && !(cost.fromGraveyard === true && cost.exileSelf && !cost.fromHand && !cost.tap)) errs.push(`${tag}: habilidade do cemitério precisa exilar a própria carta como custo (e não usa {T})`); // M-352 · 113.6
-      if (cost.crew == null && !cost.mana && !cost.tap && !cost.sacrifice && !cost.sacrificeOther && !cost.tapOther && !cost.life && !cost.discard && !cost.returnLand && !cost.revealColor && !cost.discardSelf && !cost.exileSelf && !cost.discardHand && !cost.removeCounters && !cost.poeMarcador) errs.push(`${tag}: habilidade ativada sem custo`);
+      if (cost.crew == null && !cost.mana && !cost.tap && !cost.sacrifice && !cost.sacrificeOther && !cost.tapOther && !cost.life && !cost.discard && !cost.returnLand && !cost.revealColor && !cost.discardSelf && !cost.exileSelf && !cost.discardHand && !cost.removeCounters && !cost.poeMarcador && !cost.energia) errs.push(`${tag}: habilidade ativada sem custo`);
+      if (cost.energia != null && !(Number.isInteger(cost.energia) && cost.energia > 0)) errs.push(`${tag}: pagar energia precisa de uma quantidade inteira positiva`); // M-367
       if (cost.poeMarcador != null && !(cost.poeMarcador && /^[a-z][a-z0-9]*$/.test(cost.poeMarcador.tipo || '') && cost.poeMarcador.tipo !== 'lore' && Number.isInteger(cost.poeMarcador.n || 1) && (cost.poeMarcador.n || 1) > 0)) errs.push(`${tag}: pôr marcadores como custo precisa do tipo e de uma quantidade inteira`); // M-360 · 122.1 / 602.1
       if (ab.semMarcadorSacrifica != null && !(cost.removeCounters && cost.removeCounters.tipo === ab.semMarcadorSacrifica && (ab.effects || []).length && ab.effects.every(e => e.do === 'add_mana'))) errs.push(`${tag}: "sem marcador, sacrifique" só vale em habilidade de mana que remove esse marcador`); // M-250
       if (cost.removeCounters != null && !(cost.removeCounters && /^[a-z][a-z0-9]*$/.test(cost.removeCounters.tipo || '') && Number.isInteger(cost.removeCounters.n || 1) && (cost.removeCounters.n || 1) > 0)) errs.push(`${tag}: remover marcadores precisa do tipo e de uma quantidade inteira`); // M-249 · 122.6 / 602.1
@@ -6036,7 +6038,7 @@ function validateScript(sc) {
   const att = sc && (sc.aura || sc.equip || sc.bestow);
   if (att) {
     if (!ATTACH_KINDS.includes(att.enchant || 'creature')) errs.push(`anexar: tipo "${att.enchant}" desconhecido`);
-    if (sc.equip && !(sc.equip.cost && (sc.equip.cost.mana || sc.equip.cost.tap))) errs.push('equipar: falta o custo');
+    if (sc.equip && !(sc.equip.cost && (sc.equip.cost.mana || sc.equip.cost.tap || (Number.isInteger(sc.equip.cost.energia) && sc.equip.cost.energia > 0)))) errs.push('equipar: falta o custo'); // M-367 · "Equip—Pay {E}{E}"
   }
   // S16 · custos alternativos e lampejo do passado
   for (const [i, alt] of ((sc && sc.alt) || []).entries()) {
@@ -8843,6 +8845,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Chrome Courier': { texto: '1kz10co', leva: 'M-364' },
   // M-365 · revisão por lote XXIX (Pauper: Kaervek's Torch), revisor independente com 38 verificações: 1 de 1 (depois das correções; na primeira passada, reprovada) aprovadas
   'Kaervek\'s Torch': { texto: '1gdi2fl', leva: 'M-365' },
+  // M-367 · revisão por lote XXX (Pauper: Inventor's Axe), revisor independente com 93 verificações: 1 de 1 aprovadas
+  'Inventor\'s Axe': { texto: '1gpar0d', leva: 'M-367' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -16553,6 +16557,8 @@ const __m42 = (function () {
     [/^~ connives$/i, () => [{ do: 'connive', amount: 1 }]], // LT9 · 701.50
     [new RegExp(`^~ deals ${N} damage to each creature without flying$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'each-nonflying-creature' }]], // LT10
     [/^damage can't be prevented this turn$/i, () => [{ do: 'no_prevention' }]], // LT10 · 615.12
+    [/^you get ((?:\{E\})+)(?: \([a-z]+ energy counters?\))?$/i, m => [{ do: 'energia', amount: m[1].match(/\{E\}/gi).length }]], // M-367 · 107.14
+    [/^attach (?:it|~) to target creature you control$/i, () => [{ do: 'attach', target: 'creature-you-control' }]], // M-367 · Inventor's Axe
     [/^revela_dois_um_para_mao (artifact|creature|land|instant|sorcery|enchantment) (\d+)$/i, m => [{ do: 'look', count: 2, amount: 1, min: 1, to: 'hand', rest: 'graveyard', revela: true, onPicked: { vidaSeTipo: { tipo: m[1].toLowerCase(), vida: +m[2] } } }]], // M-364 · Chrome Courier
     [new RegExp(`^add ${N} mana in any combination of colors$`, 'i'), m => [{ do: 'mana_combinada', amount: num(m[1]) }]], // M-357 · 106.1a (Manamorphose)
     [/^return an? (permanent|land|creature) you control to its owner's hand$/i, m => [{ do: 'return_chosen', target: 'self', ...(m[1].toLowerCase() !== 'permanent' ? { filter: { types: [m[1].toLowerCase()] } } : {}) }]], // LT12
@@ -16863,6 +16869,7 @@ const __m42 = (function () {
         const lp = linha.replace(/\.$/, '').replace(new RegExp(escapa(nome || '\u0000'), 'g'), '~'); // LT6 · o nome impresso vale como "~"
 
         const en = ENCHANT[lp.toLowerCase()]; if (en) { topo.aura = { enchant: en }; frases.push({ texto: linha, lida: true }); continue; }
+        const eqE = lp.match(/^Equip—Pay ((?:\{E\})+)$/); if (eqE) { topo.equip = { enchant: 'creature', cost: { energia: eqE[1].match(/\{E\}/g).length } }; frases.push({ texto: linha, lida: true }); continue; } // M-367 · Inventor's Axe
         const eq = lp.match(/^Equip (\{[^}]+\}(?:\{[^}]+\})*)$/); if (eq) { topo.equip = { enchant: 'creature', cost: { mana: eq[1] } }; frases.push({ texto: linha, lida: true }); continue; } // LT5
         const ga = lp.match(/^creatures you control have ([a-z ,]+)$/i); // LT5 · "Creatures you control have haste"
         if (ga) { const kws = ga[1].split(/,\s*|\s+and\s+/).map(x => x.trim().toLowerCase()); if (kws.every(k => KW.has(k))) { topo.grantsAll = { ...(topo.grantsAll || {}), keywords: [...((topo.grantsAll || {}).keywords || []), ...kws] }; frases.push({ texto: linha, lida: true }); continue; } }
@@ -20024,6 +20031,7 @@ function applyEffect(s, src, eff, tgt, events) {
       syms.forEach(c => { s.players[ctrl].pool[c] = (s.players[ctrl].pool[c] || 0) + 1; });
       note({ amount: syms.length }); break;
     }
+    case 'energia': { const n = amountOf(s, src, eff.amount) || 0; if (n > 0) s.players[ctrl].energia = (s.players[ctrl].energia || 0) + n; note({ amount: n }); break; } // M-367 · 107.14 / 122.1
     case 'mana_combinada': { // M-357 · 106.1a/106.4: "Add N mana in any combination of colors" — a escolha é de quem controla, na resolução; uma mana por vez
       const n = amountOf(s, src, eff.amount) || 0;
       if (n > 0) s.pending = { kind: 'choose_color', p: ctrl, oid: src.oid, manaRestam: n, manaTotal: n };
@@ -21846,6 +21854,7 @@ function payAbilityCost(s, p, source, ab) {
     } else comVidaDepois(cost.life || 0, () => payCost(s, p, c)); // M-355 · 601.2h: a vida do custo sai do que sobra depois das fontes
   });
   if (cost.life) { if (s.players[p].life < cost.life) throw new RuleError('custo', 'vida insuficiente'); perdeVida(s, p, cost.life); }
+  if (cost.energia) { if ((s.players[p].energia || 0) < cost.energia) throw new RuleError('custo', 'energia insuficiente'); s.players[p].energia -= cost.energia; } // M-367 · 107.14: pagar {E} é tirar marcadores de energia
   if (ab.oncePerTurn) {
     if (source.usedThisTurn) throw new RuleError('custo', 'esta habilidade só pode ser usada uma vez por turno');
     source.usedThisTurn = true;
@@ -21898,6 +21907,7 @@ const canPayAbility = (s, p, source, ab) => {
   if (ab.onlyIfMetalcraft && !condicaoDoEfeito(s, source, 'metalcraft')) return false; // M-342 · Mox Opal (602.5b)
   if (ab.onlyIfGraveyardAtLeast != null && s.zones[p].graveyard.length < ab.onlyIfGraveyardAtLeast) return false; // M-249 · limiar (702.25 Threshold)
   if (cost.life && s.players[p].life < cost.life) return false;
+  if (cost.energia && (s.players[p].energia || 0) < cost.energia) return false; // M-367
   return !(cost.mana && s.manaCheck) || semAFonte(cost.tap ? source.oid : null, () => comVidaDepois(cost.life || 0, () => canPay(s, p, custoAtivadaComX(cost, 0)))); // M-355 · 601.2h // CR2c.6 · CR2c.7: com X, basta X = 0
 };
 
@@ -29931,6 +29941,7 @@ function descreveEfeito(e) {
     case 'token': { const t = e.token || {}; const pd = (t.self || {}).ptDefinido, contaPT = v => v && v.per === 'soma' ? (v.partes || []).map(x => X_PT[x.per] || x.per).join(' mais ') : (v && (X_PT[v.per] || v.per)) || v; /* M-358 · achado da revisão: a ficha de P/T por contagem e as palavras-chave dela */
       const pt = pd ? `, com poder e resistência iguais a ${contaPT(pd.poder != null ? pd.poder : pd.resistencia)}${(t.keywords || []).length ? ` e ${t.keywords.map(k => PALAVRA_PT[k] || k).join(', ')}` : ''},` : t.power != null ? ` ${t.power}/${t.toughness}` : ''; return `cria ${plural(n, 'ficha', 'fichas')}${t.name ? ` de ${t.name}` : ''}${pt}`; }
     case 'pump': { const p = e.power || 0, t = e.toughness || 0; const sinal = v => (v && (v.per || v.subtype) ? ((v.times || 1) < 0 ? '−X' : '+X') : v >= 0 ? `+${v}` : `−${Math.abs(v)}`); const quem = e.cada && e.cada.de === 'alvo' ? `cada criatura que ${e.target === 'opponent' ? 'o oponente alvo' : 'o jogador alvo'} controla` : (alvo || 'a criatura'); /* achado da revisão do lote XXIII: "cada criatura que cada criatura controla" */ return `${quem} recebe ${sinal(p)}/${sinal(t)}${e.until === 'your-next-turn' ? ' até o seu próximo turno' : ' até o fim do turno'}${p && p.subtype ? ` (X = ${p.subtype === 'Gate' ? 'Portões' : p.subtype === 'Swamp' ? 'Pântanos' : p.subtype + 's'} que você controla)` : ''}`; } // R9b (achado da C-1): contagem por subtipo mostrava "−NaN" (Defile, Basilisk Gate) · M-351 · "cada criatura do jogador alvo" (Arms of Hadar)
+    case 'energia': return `você ganha ${e.amount === 1 ? 'um marcador' : (e.amount || 1) + ' marcadores'} de energia`; // M-367
     case 'mana_combinada': return `adiciona ${e.amount === 1 ? 'uma mana' : (e.amount || 2) + ' manas'} das cores que você escolher (pode misturar)`; // M-357 · 106.1a
     case 'add_mana': return e.identity ? 'adiciona mana de uma cor da identidade do seu comandante' : e.opponentLands ? 'adiciona mana de uma cor que um terreno de um oponente poderia produzir' : e.anyColor ? 'adiciona mana de qualquer cor' : 'adiciona mana';
     case 'search': return `procura ${plural(n, 'carta', 'cartas')} no grimório${e.reparte ? ' (a primeira entra virada, a segunda vai para a mão)' : ''}${e.desviraSeTerrenos ? ` (desvira a terra achada se você tiver ${e.desviraSeTerrenos} terrenos ou mais)` : ''}`; // M-343
@@ -31924,7 +31935,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   function custoDaHabilidade(ab) {
     const c = ab.cost || {};
     return [c.mana, c.tap ? '{T}' : null, c.discard ? (c.discard > 1 ? `descartar ${c.discard} cartas` : 'descartar uma carta') : null,
-      c.sacrifice ? 'sacrificar' : null, c.removeCounters ? `remover ${plural(c.removeCounters.n || 1, 'marcador ' + (MARCADOR_PT[c.removeCounters.tipo] || c.removeCounters.tipo), 'marcadores ' + (MARCADOR_PT[c.removeCounters.tipo] || c.removeCounters.tipo))}` : null, c.exileSelf ? (c.fromHand ? 'exilar esta carta da mão' : 'exilar esta') : null, c.discardSelf ? 'descartar esta carta' : null, c.discardHand ? 'descartar a mão' : null, c.returnLand ? `devolver ${c.returnLand === true ? 'terreno' : c.returnLand} à mão` : null, c.sacrificeOther ? sacrificioPorExtenso(c.sacrificeOther) : null, c.tapOther ? 'virar outra' : null, c.craft ? (c.craft.amount > 1 ? `exilar ${c.craft.amount} materiais` : 'exilar um material') : null, c.poeMarcador ? `pôr ${plural(c.poeMarcador.n || 1, 'marcador ' + (MARCADOR_PT[c.poeMarcador.tipo] || c.poeMarcador.tipo), 'marcadores ' + (MARCADOR_PT[c.poeMarcador.tipo] || c.poeMarcador.tipo))} nesta` : null].filter(Boolean).join(', ');
+      c.sacrifice ? 'sacrificar' : null, c.removeCounters ? `remover ${plural(c.removeCounters.n || 1, 'marcador ' + (MARCADOR_PT[c.removeCounters.tipo] || c.removeCounters.tipo), 'marcadores ' + (MARCADOR_PT[c.removeCounters.tipo] || c.removeCounters.tipo))}` : null, c.exileSelf ? (c.fromHand ? 'exilar esta carta da mão' : 'exilar esta') : null, c.discardSelf ? 'descartar esta carta' : null, c.discardHand ? 'descartar a mão' : null, c.returnLand ? `devolver ${c.returnLand === true ? 'terreno' : c.returnLand} à mão` : null, c.sacrificeOther ? sacrificioPorExtenso(c.sacrificeOther) : null, c.tapOther ? 'virar outra' : null, c.craft ? (c.craft.amount > 1 ? `exilar ${c.craft.amount} materiais` : 'exilar um material') : null, c.energia ? `pagar ${'{E}'.repeat(c.energia)}` : null, c.poeMarcador ? `pôr ${plural(c.poeMarcador.n || 1, 'marcador ' + (MARCADOR_PT[c.poeMarcador.tipo] || c.poeMarcador.tipo), 'marcadores ' + (MARCADOR_PT[c.poeMarcador.tipo] || c.poeMarcador.tipo))} nesta` : null].filter(Boolean).join(', ');
   }
   /** R6 · custo do lampejo do passado por extenso: mana, ou "virar 3 criaturas brancas" (Battle Screech, Prismatic Strands). Antes o botão saía com o custo vazio. */
   function custoDoLampejo(fb) {
@@ -32217,9 +32228,10 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const sala = masm ? (roomById(masm, pl.dungeon.room) || {}) : null;
     const subMasm = masm ? `${masm.pt || masm.name}: ${pl.dungeon.done ? 'completa' : (sala.pt || '—')}` : null;
     const veneno = pl.poison ? `Veneno ${pl.poison} de 10` : null; // M-253 · marcadores de veneno à vista
+    const energiaTxt = pl.energia ? `Energia ${pl.energia}` : null; // M-367 · marcadores de energia à vista
     const designacao = [s.monarca === p ? 'Monarca' : null, s.iniciativa === p ? 'Iniciativa' : null].filter(Boolean).join(' · ') || null; // M-332 · CR 725 / 726
     const life = LifeCounter({ name: pl.name + (pl.lost ? ' (fora)' : ''), life: pl.life, active: s.turn.active === p,
-      sub: [designacao, subMasm, veneno].filter(Boolean).join(' · ') || null, onClick: () => openLife(p), id: mine ? 'tb-life-me' : 'tb-life-opp' });
+      sub: [designacao, subMasm, veneno, energiaTxt].filter(Boolean).join(' · ') || null, onClick: () => openLife(p), id: mine ? 'tb-life-me' : 'tb-life-opp' });
     // D6 · relance: sem nada em campo, uma linha só ("Campo vazio"); com uma das duas zonas vazia, ela vira uma linha fina
     // D6 · relance: "Terrenos" e "Permanentes" só quando há; com o campo vazio o lado é só a linha de vida e zonas
     const campoVazio = !others.length && !lands.length;

@@ -4047,6 +4047,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora:** a pergunta só aparece quando revelar transforma; recusar ainda conta ao oponente que o topo era instantânea ou feitiço (perguntar sempre custaria um toque a cada manutenção).
 - **Teste:** `lt49.unit` (4 testes; falham no motor anterior).
 
+**M-367 · LT39 · Energia (107.14 / 122.1) e "anexe-o à criatura alvo sua" — revisão por lote XXX** ✅ (leva M-367, motor v111 sem mudança de forma; goldens intactos).
+- **Valor:** Inventor's Axe (2 listas de Pauper esperavam só por ela, 7 a até duas cartas) passa a jogar pela leitura revisada (decisão A; texto do Oracle do Forge, consulta de 12/10/2026, em `.listas/oficiais-revisadas.json`).
+- **Motor:** marcadores de energia do jogador (`players[p].energia`, só existe depois do primeiro ganho); efeito `energia` ("you get {E}{E}"); custo `cost.energia` em habilidade ativada e em equipar ("Equip—Pay {E}{E}"); a energia aparece na linha de vida da mesa; o leitor lê "you get {E}…", "Equip—Pay {E}…" e "attach it to target creature you control".
+- **Revisão independente:** 93 verificações (inclusive 40 partidas aleatórias com 282 equipares pagos com energia), aprovada.
+- **Fora:** proliferar ainda não oferece somar energia ao jogador (701.34a; o código do verbo é da antiga trilha verbos — pedido registrado); "pay an amount of {E} equal to …" (Jolted Awake) não é lido.
+- **Teste:** `lt50.unit` (2 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
