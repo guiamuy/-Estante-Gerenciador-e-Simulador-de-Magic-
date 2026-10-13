@@ -5558,6 +5558,7 @@ const EFFECTS = {
   lutador: { fields: [], targets: ['creature', 'creature-you-control'] },
   fight: { fields: [], targets: ['creature', 'creature-opponent-controls', 'creature-you-control'] }, // quem: 'self-source' (a permanente fonte luta) | 'primeiro-alvo' (luta a criatura anotada pelo `lutador` anterior)
   /* ↓ T · efeitos da trilha tipos */
+  moeda: { fields: [], targets: ['self'] }, // T-65 · CR 705 · "flip a coin": `fixa` (705.3), `resultado: true` (só cara ou coroa), `ateperder` ("until you lose a flip")
   preparar: { fields: [], targets: ['self'] }, // T-51 · CR 722.3a · "this creature becomes prepared": ganha a designação e a cópia da mágica de preparação no exílio (722.3c); já preparada, nada
   despreparar: { fields: [], targets: ['self'] }, // T-51 · CR 722.3b · "becomes unprepared": perde a designação (a cópia deixa de existir)
   desanexar: { fields: [], targets: ['self'] }, // T-43 · CR 702.151a · "unattach this permanent" (o motor o monta a partir de `self.reconfigurar`)
@@ -6023,7 +6024,7 @@ const ATTACH_KINDS = ['creature', 'permanent', 'land', 'creature-you-control', '
 const PER_COUNTS = ['enchantments-you-control', 'other-enchantments', 'auras-on-battlefield',
   'creatures-you-control', 'other-creatures-you-control', 'elves-you-control', 'elves-on-battlefield', 'defenders-you-control', 'permanents-you-control', 'nonland-permanents-you-control', 'life-gained-this-turn', 'life-lost-this-turn',
   'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G', 'counters-on-source', 'opponents-empty-hand', 'trigger-value', 'chosen-type-permanents', 'sacrificed-toughness', 'sacrificed-mv', 'sacrificed-power', 'creature-cards-in-your-graveyard', 'cards-in-hand', 'x', 'power-of-source', 'se', 'power-of-target',
-  'instants-sorceries-in-your-graveyard', 'flashback-cards-you-own-in-exile', 'soma', 'party', 'movidas']; // M-386 · `movidas`: "for each card put into your graveyard this way" (o que o efeito anterior desta habilidade moveu) // T-59 · CR 700.8 · quantas criaturas há no seu grupo (0 a 4) // M-358 · Seize the Storm (604.3); `soma`: { per: 'soma', partes: [contagem, contagem, …] }
+  'instants-sorceries-in-your-graveyard', 'flashback-cards-you-own-in-exile', 'soma', 'party', 'movidas', ...perCountsT()]; // M-386 · `movidas`: "for each card put into your graveyard this way" (o que o efeito anterior desta habilidade moveu) // T-59 · CR 700.8 · quantas criaturas há no seu grupo (0 a 4) // M-358 · Seize the Storm (604.3); `soma`: { per: 'soma', partes: [contagem, contagem, …] }
 /** M-333 · 601.2f · "This spell costs {N} less to cast for each …": o que a redução conta (chave `reduzPor: { generic, per }` no topo do script). */
 const REDUZ_POR = ['instants-sorceries-in-your-graveyard', 'creature-cards-in-your-graveyard', 'land-cards-in-your-graveyard', 'creatures-on-battlefield',
   'creatures-opponents-control', 'basic-land-types-you-control', 'attacking-creatures', 'attacking-creatures-you-control', 'cards-drawn-this-turn',
@@ -6534,6 +6535,17 @@ function effectErrors(effects, label, opcional) {
     if (e.do === 'lutador' && !effects.slice(i + 1).some(x => x.do === 'fight' && x.quem === 'primeiro-alvo')) errs.push(`${label} ${i + 1} (lutador): precisa ser seguido da luta (fight, quem: primeiro-alvo)`);
   });
   /* ↓ T · validação da trilha tipos */
+  effects.forEach((e, i) => { // T-65 · CR 705 · a moeda e as condições do lance
+    if (e.do === 'moeda') {
+      if (e.fixa != null && !(e.resultado ? ['cara', 'coroa'] : ['ganha', 'perde', 'cara', 'coroa']).includes(e.fixa)) errs.push(`${label} ${i + 1} (moeda): "fixa" é ganha, perde, cara ou coroa (num lance só de resultado, cara ou coroa)`);
+      for (const k of ['resultado', 'ateperder']) if (e[k] != null && e[k] !== true) errs.push(`${label} ${i + 1} (moeda): "${k}" só vale como true`);
+      if (e.resultado && e.ateperder) errs.push(`${label} ${i + 1} (moeda): "até perder" precisa de lance de ganhar ou perder`);
+    }
+    const k = e.onlyIf || (e.amount && e.amount.per === 'se' ? e.amount.se : null), antes = effects.slice(0, i).filter(x => x.do === 'moeda');
+    if (['ganhou-moeda', 'perdeu-moeda', 'deu-cara', 'deu-coroa'].includes(k) && !antes.length) errs.push(`${label} ${i + 1}: a condição "${k}" precisa de uma moeda antes`);
+    if (['ganhou-moeda', 'perdeu-moeda'].includes(k) && antes.length && antes[antes.length - 1].resultado) errs.push(`${label} ${i + 1}: no lance só de resultado da moeda ninguém ganha nem perde (705.2): use deu-cara ou deu-coroa`);
+    if (e.amount && e.amount.per === 'moedas-ganhas' && !antes.some(x => x.ateperder)) errs.push(`${label} ${i + 1}: "moedas-ganhas" precisa de uma moeda "até perder" antes`);
+  });
   return errs;
 }
 /** M12 · validação da ficha declarada num efeito. */
@@ -6695,6 +6707,17 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-65 · CR 705 · jogar uma moeda (Oracle do Forge, clone de 13/10/2026).
+  { name: 'Stitch in Time', effects: [{ do: 'moeda' }, { do: 'turno_extra', target: 'self', onlyIf: 'ganhou-moeda' }], // "Flip a coin. If you win the flip, take an extra turn after this one."
+    example: { target: 'none', expect: { selfLife: 0 } } }, // o cenário de verdade está em tipos.moeda.unit
+  { name: 'Winter Sky', effects: [{ do: 'moeda' }, { do: 'damage', amount: 1, target: 'each-creature', onlyIf: 'ganhou-moeda' }, { do: 'damage', amount: 1, jogadores: 'cada', onlyIf: 'ganhou-moeda' }, { do: 'draw', amount: 1, jogadores: 'cada', onlyIf: 'perdeu-moeda' }], // "Flip a coin. If you win the flip, Winter Sky deals 1 damage to each creature and each player. If you lose the flip, each player draws a card."
+    example: { target: 'none', expect: { selfLife: 0 } } },
+  { name: 'Wild Wurm', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'moeda' }, { do: 'to_hand', target: 'self-source', from: 'battlefield', onlyIf: 'perdeu-moeda' }] }], // "When Wild Wurm enters, flip a coin. If you lose the flip, return Wild Wurm to its owner's hand."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Skyclaw Thrash', abilities: [{ kind: 'triggered', when: 'attacks', effects: [{ do: 'moeda' }, { do: 'continuo', target: 'self-source', poder: 1, resistencia: 1, palavras: ['flying'], onlyIf: 'ganhou-moeda' }] }], // "Whenever Skyclaw Thrash attacks, flip a coin. If you win the flip, Skyclaw Thrash gets +1/+1 and gains flying until end of turn."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Crazed Firecat', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'moeda', ateperder: true }, { do: 'counters', amount: { per: 'moedas-ganhas' }, target: 'self-source' }] }], // "When Crazed Firecat enters, flip a coin until you lose a flip. Put a +1/+1 counter on Crazed Firecat for each flip you won."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // T-62 · CR 725.5 · o monarca nas condições (Oracle do Forge, clone de 13/10/2026). Toque mortífero e ímpeto da rainha vêm do texto da carta.
   { name: 'Throne Warden', abilities: [{ kind: 'triggered', when: 'end-step', condition: { monarca: 'voce' }, effects: [{ do: 'counters', amount: 1, target: 'self-source' }] }], // "At the beginning of your end step, if you're the monarch, put a +1/+1 counter on Throne Warden."
     example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o cenário de verdade está em tipos.monarca.unit
@@ -9388,7 +9411,8 @@ function condicoesT() { return ['resistenciaAte', 'selada', 'preparada', 'monarc
    disparar e ao resolver, 603.4). Efeito: `onlyIf: 'monarca' | 'oponente-monarca'` e `amount: { per: 'se', se: 'monarca', sim, nao }`
    ("… instead if you're the monarch"). Efeito contínuo: `se: { monarca: 'voce' | 'oponente' }` ("as long as you're the monarch").
    Sem monarca no jogo, nenhuma das condições vale (725.5). */
-function onlyIfT() { return ['monarca', 'oponente-monarca']; } // função (içada): ONLY_IF e o validador do `per: 'se'` são montados antes desta linha
+function onlyIfT() { return ['monarca', 'oponente-monarca', 'ganhou-moeda', 'perdeu-moeda', 'deu-cara', 'deu-coroa']; } // T-65 · CR 705.2 · o lance da moeda
+function perCountsT() { return ['party', 'moedas-ganhas']; } // T-59 · CR 700.8 · grupo · T-65 · CR 705.2 · "for each flip you won" (função içada: PER_COUNTS é montada antes) // função (içada): ONLY_IF e o validador do `per: 'se'` são montados antes desta linha
 function seMonarcaT(se) { return !!se && Object.keys(se).length === 1 && ['voce', 'oponente'].includes(se.monarca); }
 function monarcaErrosT(sc) {
   const errs = [], abs = [...((sc && sc.abilities) || []), ...((sc && sc.back && sc.back.abilities) || [])];
@@ -20200,8 +20224,9 @@ function amountOf(s, src, v) {
     // S48 · o valor que o gatilho trouxe mora na habilidade, não na permanente que a gerou
     if (v.per === 'trigger-value') return (src.triggerValue || 0) * (v.times || 1);
     if (v.per === 'movidas') return (src.movidas || 0) * (v.times || 1); // M-386 · o que o efeito anterior desta habilidade pôs no cemitério
-    if (v.per === 'se') return condicaoDoEfeito(s, src.ability && !seDoMonarcaT(v.se) ? s.objects[src.source] : src, v.se) ? v.sim : v.nao; // T-64 · o monarca é visto do controlador da habilidade (109.5) // M-331 · "… instead if …" (Galvanic Blast, Plunder the Trollshaws)
+    if (v.per === 'se') return condicaoDoEfeito(s, src.ability && !doQueResolveT(v.se) ? s.objects[src.source] : src, v.se) ? v.sim : v.nao; // T-64 · o monarca é visto do controlador da habilidade (109.5) // M-331 · "… instead if …" (Galvanic Blast, Plunder the Trollshaws)
     if (v.per === 'soma') return (v.partes || []).reduce((n, x) => n + amountOf(s, src, x), 0) * (v.times || 1); // M-358 · "N, plus M" (Seize the Storm)
+    if (v.per === 'moedas-ganhas') return ((src.moedaT || {}).ganhas || 0) * (v.times || 1); // T-65 · CR 705.2 · "for each flip you won" (Toca ponto comum: amountOf)
     if (v.per === 'x') return (src.xPaid || 0) * (v.times || 1); // CR2c.3 · 107.3a: o X escolhido ao conjurar, o mesmo em todo o texto
     // CR2a.4 · 608.2h/113.7a: a resistência que a criatura sacrificada no custo tinha no campo
     if (v.per === 'sacrificed-power') return (src.sacrificados || []).reduce((n, x) => n + Math.max(0, x.power || 0), 0) * (v.times || 1); // M-354 · Fling: o poder da criatura sacrificada como ela era no campo (608.2h)
@@ -20223,7 +20248,8 @@ function condicaoDoEfeito(s, fonte, k) {
   if (k === 'cast-from-graveyard') return fonte.castFrom === 'graveyard';
   if (k === 'kicked') return !!fonte.kicked; // M-337
   if (k === 'bargained') return !!fonte.bargained; // M-384 · 702.166b
-  if (k === 'monarca' || k === 'oponente-monarca') return monarcaCondT(s, fonte.controller, k === 'monarca' ? 'voce' : 'oponente'); // T-62 · CR 725.5 · na resolução (Toca ponto comum: condicaoDoEfeito)
+  if (k === 'monarca' || k === 'oponente-monarca') return monarcaCondT(s, fonte.controller, k === 'monarca' ? 'voce' : 'oponente');
+  if (MOEDA_COND_T.includes(k)) return moedaCondT(fonte, k); // T-65 · CR 705.2 · o lance que este objeto jogou (Toca ponto comum: condicaoDoEfeito) // T-62 · CR 725.5 · na resolução (Toca ponto comum: condicaoDoEfeito)
   if (k === 'not-cast-from-hand') return fonte.castFrom !== 'hand'; // M-352 · Twinned Vision (a cópia não foi conjurada: também não veio da mão) · 702.33d · "If this spell was kicked, it deals 4 damage instead" (Burst Lightning)
   return false;
 }
@@ -20236,7 +20262,7 @@ function effectAllowed(s, fonte, eff) {
   if (eff.onlyIf === 'bargained') return !!fonte && !!fonte.bargained; // M-384 · 702.166b · "If this spell was bargained" (Torch the Tower)
   if (eff.onlyIf === 'kicked') return !!fonte && !!fonte.kicked; // CR 702.33d · "if this spell was kicked"
   if (eff.onlyIf === 'metalcraft' || eff.onlyIf === 'cast-from-graveyard') return condicaoDoEfeito(s, fonte, eff.onlyIf); // M-331
-  if (eff.onlyIf === 'monarca' || eff.onlyIf === 'oponente-monarca') return condicaoDoEfeito(s, fonte, eff.onlyIf); // T-62 · CR 725.5 (Toca ponto comum: effectAllowed)
+  if (doQueResolveT(eff.onlyIf)) return condicaoDoEfeito(s, fonte, eff.onlyIf); // T-65 · e as do lance da moeda // T-62 · CR 725.5 (Toca ponto comum: effectAllowed)
   if (eff.onlyIf === 'not-attacked') return !!fonte && !(s.players[fonte.controller] || {}).atacouCom; // M-248 · "unless you attacked this turn" (Chart a Course)
   if (eff.onlyIf === 'evidenced') return !!fonte && !!fonte.evidenced; // M-351 · 701.59 · "If evidence was collected" (Extract a Confession)
   if (eff.onlyIf === 'not-evidenced') return !!fonte && !fonte.evidenced; // M-351 · a frase substituída ("instead")
@@ -21524,6 +21550,7 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'lutador': if (obj) s.lutadorV = { fonte: src.oid, fz: encarnacaoV(s, src), oid: obj.oid, z: obj.zc || 0 }; break; // V-1/V-5 · anota quem luta; a luta é o `fight` seguinte, que apaga a anotação
     case 'fight': lutar(s, src, eff, tgt, events); break; // V-1 · 701.14
     /* ↓ T · casos de applyEffect da trilha tipos */
+    case 'moeda': moedaT(s, src, eff, events); break; // T-65 · CR 705 · jogar uma moeda
     case 'desanexar': desanexaT(s, src, events); break; // T-43 · CR 702.151a · a permanente se solta e fica no campo
     case 'caso_resolvido': casoResolveT(s, src, eff, events); break; // T-39 · CR 719.3a · o Caso fica resolvido, se a condição ainda vale (603.4)
     case 'estacao': estacaoResolveT(s, src, eff, events); break; // T-37 · CR 702.184a · marcadores de carga iguais ao poder da criatura virada
@@ -24560,7 +24587,7 @@ function resolveAbility(s, o, events) {
   for (const eff of o.effects || []) {
     if (eff.onlyIf === 'alvo-era-neve' && !neveDoPrimeiro) continue; // M-385
     if (eff.onlyIf === 'alvo-era-seu' && donoDoPrimeiro !== o.controller) continue; // M-341
-    if (!effectAllowed(s, seDoMonarcaT(eff.onlyIf) ? o : fonte, eff)) continue; // S49 · condição do próprio efeito · T-64 · o monarca é visto do controlador da habilidade (109.5; Toca ponto comum: resolveAbility)
+    if (!effectAllowed(s, doQueResolveT(eff.onlyIf) ? o : fonte, eff)) continue; // S49 · condição do próprio efeito · T-64 · o monarca é visto do controlador da habilidade (109.5; Toca ponto comum: resolveAbility)
     if (eff.target === 'self-source' && o.fonteZc != null && fonte && fonte.zone === 'battlefield' && (fonte.zc || 0) !== o.fonteZc) { events.push({ kind: 'effect', do: eff.do, name: o.name, failed: true }); continue; } // M-371 · 400.7: a permanente que saiu e voltou é outro objeto
     if (SC.isTargeted(eff)) { const t = chosen[ti]; const legal = ok[ti]; ti++; if (ti === 1 && t == null && eff.upTo) primeiroVazio = true; if (!primeiro) { primeiro = t; donoDoPrimeiro = t && t.oid != null && s.objects[t.oid] ? s.objects[t.oid].controller : null; neveDoPrimeiro = !!(t && t.oid != null && s.objects[t.oid] && s.objects[t.oid].zone === 'battlefield' && temSubtipo(s, t.oid, 'Snow')); } if (legal) applyEffect(s, o, eff, t, events); }
     else if (eff.target === 'target-controller') { if (primeiroVazio) continue; const t = primeiro; applyEffect(s, o, eff, { player: t && t.player != null ? t.player : donoDoPrimeiro != null ? donoDoPrimeiro : o.controller }, events); } // M-327 · "its controller" também em habilidade (Ghost Quarter: quem busca é o dono do terreno destruído; antes era quem ativou)
@@ -26994,9 +27021,28 @@ function lealdadeDaFichaT(s, o) {
 const completadoT = (s, o) => { const f = s.facts[o.name] || {}, tem = (f.kw || []).includes('compleated') || !!((f.script || {}).self || {}).completado; return tem && o.vidaPhyrexianaT ? 2 * o.vidaPhyrexianaT : 0; }; // T-42 · vai da mão para a pilha e da pilha para o campo; some em qualquer outra mudança de zona
 /** T-42 · CR 702.168a · a salvaguarda {2} da permanente conjurada pelo disfarce, enquanto virada para baixo (chamada só por wardsDeK). */
 const wardDoDisfarceT = (s, o) => (((o.faceDown && o.disfarcadaT) || (!o.faceDown && copiaComWardViradaT(s, o))) && !(mutacao(s, o) || {}).perde ? ['{2}'] : []); // T-57 · e a cópia de uma virada com salvaguarda (valor copiável)
+/** T-65 · CR 705 · jogar uma moeda. O acaso sai de s.rng (nextRand, como o embaralhar): a mesma semente dá o mesmo lance. 705.2: no lance
+ * de ganhar ou perder, quem joga pede "cara" (o pedido não muda a chance: 1/2 em qualquer caso; nenhuma escolha a fazer); no lance só de
+ * resultado (`resultado: true`, "if it comes up heads"), ninguém ganha nem perde. 705.3: `fixa` ('ganha' | 'perde' | 'cara' | 'coroa')
+ * ignora o resultado real. `ateperder`: joga até perder um lance (Crazed Firecat). O que saiu fica no objeto que resolve (`moedaT`) para
+ * as condições dos efeitos seguintes (`ganhou-moeda`, `perdeu-moeda`, `deu-cara`, `deu-coroa`) e a contagem `moedas-ganhas`. */
+const MOEDA_COND_T = ['ganhou-moeda', 'perdeu-moeda', 'deu-cara', 'deu-coroa'];
+function moedaT(s, src, eff, events) {
+  const p = src.controller; let ganhas = 0, r = null, ganhou = null;
+  for (let i = 0; i < 100; i++) { // "until you lose a flip": com o resultado fixado em ganhar, o laço para em 100 lances (não há carta que leve a isso)
+    r = eff.fixa === 'cara' || eff.fixa === 'ganha' ? 'cara' : eff.fixa === 'coroa' || eff.fixa === 'perde' ? 'coroa' : nextRand(s) < 0.5 ? 'cara' : 'coroa';
+    ganhou = eff.resultado ? null : r === 'cara';
+    events.push({ kind: 'effect', do: 'moeda', name: src.name, target: s.players[p] ? s.players[p].name : '', resultado: r, ganhou });
+    if (!eff.ateperder || !ganhou) break;
+    ganhas++;
+  }
+  const m = { r, ganhou, ganhas };
+  src.moedaT = m; if (src.oid != null && s.objects[src.oid] && s.objects[src.oid] !== src) s.objects[src.oid].moedaT = m;
+}
+const moedaCondT = (o, k) => { const m = o && o.moedaT; if (!m) return false; return k === 'ganhou-moeda' ? m.ganhou === true : k === 'perdeu-moeda' ? m.ganhou === false : k === 'deu-cara' ? m.r === 'cara' : m.r === 'coroa'; };
 /** T-62 · CR 725.5 · "if you're the monarch" ('voce') / "if an opponent is the monarch" ('oponente'), visto do jogador `p` agora.
  * Sem monarca no jogo, nenhuma das duas vale (o efeito não faz nada até alguém se tornar o monarca). */
-function seDoMonarcaT(k) { return k === 'monarca' || k === 'oponente-monarca'; } // T-64 · as condições de efeito do monarca (onlyIf e per: 'se')
+function doQueResolveT(k) { return k === 'monarca' || k === 'oponente-monarca' || MOEDA_COND_T.includes(k); } // T-64 · as condições de efeito vistas do objeto que resolve (monarca: o controlador da habilidade; T-65 · moeda: o lance que ele jogou), em onlyIf e per: 'se'
 function monarcaCondT(s, p, quem) { if (s.monarca == null || p == null) return false; return quem === 'oponente' ? s.monarca !== p : s.monarca === p; }
 /** T-42 · CR 708.8 · a permanente foi virada para cima: dispara "when ~ is turned face up". */
 function viradaParaCimaT(s, oid) { const o = s.objects[oid]; if (o && o.zone === 'battlefield' && !o.faceDown) gatilhosDaPermanente(s, 'virada-para-cima', o, ['self'], {}, () => true, false); }
@@ -30219,6 +30265,7 @@ function effectLine(ev) {
     case 'vence': return `${ev.name}: o controlador venceu o jogo`; // CR2h.6
     case 'perde': return `${ev.name}: ${t} perdeu o jogo`; // CR2h.6
     case 'turno_extra': return `${t} vai jogar um turno extra depois deste (${ev.name})`; // CR2g.2
+    case 'moeda': return `${t} jogou uma moeda: ${ev.resultado}${ev.ganhou == null ? '' : ev.ganhou ? ' · ganhou' : ' · perdeu'} (${ev.name})`; // T-65 · CR 705
     case 'monarch': return ev.failed ? `${t} continua o monarca (${ev.name})` : `${t} se tornou o monarca (${ev.name})`; // M-332
     case 'initiative': return `${t} tomou a iniciativa (${ev.name})`; // M-332
     case 'gatilho_no_turno': return `${ev.name}: neste turno, cada criatura sua que entrar ganha o efeito`; // M-389 · achado da revisão
@@ -31260,6 +31307,7 @@ function descreveEfeito(e) {
       const pt = pd ? `, com poder e resistência iguais a ${contaPT(pd.poder != null ? pd.poder : pd.resistencia)}${(t.keywords || []).length ? ` e ${t.keywords.map(k => PALAVRA_PT[k] || k).join(', ')}` : ''},` : t.power != null ? ` ${t.power}/${t.toughness}` : ''; return `cria ${plural(n, 'ficha', 'fichas')}${t.name ? ` de ${t.name}` : ''}${pt}`; }
     case 'pump': { const p = e.power || 0, t = e.toughness || 0; const sinal = v => (v && (v.per || v.subtype) ? ((v.times || 1) < 0 ? '−X' : '+X') : v >= 0 ? `+${v}` : `−${Math.abs(v)}`); const quem = e.cada && e.cada.de === 'alvo' ? `cada criatura que ${e.target === 'opponent' ? 'o oponente alvo' : 'o jogador alvo'} controla` : (alvo || 'a criatura'); /* achado da revisão do lote XXIII: "cada criatura que cada criatura controla" */ return `${quem} recebe ${sinal(p)}/${sinal(t)}${e.until === 'your-next-turn' ? ' até o seu próximo turno' : ' até o fim do turno'}${p && p.subtype ? ` (X = ${p.subtype === 'Gate' ? 'Portões' : p.subtype === 'Swamp' ? 'Pântanos' : p.subtype + 's'} que você controla)` : ''}`; } // R9b (achado da C-1): contagem por subtipo mostrava "−NaN" (Defile, Basilisk Gate) · M-351 · "cada criatura do jogador alvo" (Arms of Hadar)
     case 'volta_ao_acaso': return `uma carta${e.tipos ? ' de ' + ({ creature: 'criatura', artifact: 'artefato', land: 'terreno', instant: 'mágica instantânea', sorcery: 'feitiço', enchantment: 'encantamento' }[e.tipos[0]] || e.tipos[0]) : ''} do seu cemitério, escolhida ao acaso, volta para a sua mão`; // M-369
+    case 'moeda': return `jogue uma moeda${e.ateperder ? ' até perder um lance' : ''}`; // T-65 · CR 705
     case 'energia': return `você ganha ${e.amount === 1 ? 'um marcador' : (e.amount || 1) + ' marcadores'} de energia`; // M-367
     case 'mana_combinada': return `adiciona ${e.amount === 1 ? 'uma mana' : (e.amount || 2) + ' manas'} das cores que você escolher (pode misturar)`; // M-357 · 106.1a
     case 'add_mana': return e.identity ? 'adiciona mana de uma cor da identidade do seu comandante' : e.opponentLands ? 'adiciona mana de uma cor que um terreno de um oponente poderia produzir' : e.anyColor ? 'adiciona mana de qualquer cor' : 'adiciona mana';
@@ -31422,7 +31470,8 @@ function descreveEfeito(e) {
 // Leva 131 · a condição do efeito entra na frase (Moon-Circuit Hacker: o aviso dizia "descarta 1 carta" no turno em que ela entrou, quando não descarta)
 const CONDICAO_PT = { kicked: 'se tiver sido reforçada', bargained: 'se tiver sido barganhada', 'paid-additional': 'se o custo adicional foi pago', metalcraft: 'com metalurgia', 'cast-from-graveyard': 'se foi conjurada do cemitério', 'source-entered-earlier': 'só se ela não entrou neste turno', 'not-attacked': 'só se você não atacou neste turno', evidenced: 'se colheu provas', 'not-evidenced': 'se não colheu provas', 'alvo-era-neve': 'se o terreno era nevado', 'alvo-era-seu': 'se a permanente era sua' }; // M-385 // M-351 · Extract a Confession (achado da revisão do lote XXIII: as duas frases pareciam dois sacrifícios)
 const X_PT = { movidas: 'o número de cartas postas no cemitério assim', 'instants-sorceries-in-your-graveyard': 'mágicas instantâneas e feitiços no seu cemitério', 'flashback-cards-you-own-in-exile': 'cartas com lampejo do passado suas no exílio', /* M-358 */ 'cards-in-hand': 'cartas na sua mão', 'creature-cards-in-your-graveyard': 'cartas de criatura no seu cemitério', 'sacrificed-power': 'o poder da criatura sacrificada', 'sacrificed-toughness': 'a resistência da criatura sacrificada', 'sacrificed-mv': 'o valor de mana do que foi sacrificado' }; // M-354 · o que o X conta (achado da revisão do lote XXVI)
-Object.assign(CONDICAO_PT, { monarca: 'se você é o monarca', 'oponente-monarca': 'se um oponente é o monarca' }); // T-62 · CR 725.5
+Object.assign(X_PT, { 'moedas-ganhas': 'os lances ganhos' }); // T-65
+Object.assign(CONDICAO_PT, { monarca: 'se você é o monarca', 'oponente-monarca': 'se um oponente é o monarca', 'ganhou-moeda': 'se ganhar o lance', 'perdeu-moeda': 'se perder o lance', 'deu-cara': 'se der cara', 'deu-coroa': 'se der coroa' }); // T-62 · CR 725.5
 const descreveEfeitos = effects => (effects || []).map(e => { let f = descreveEfeito(e); const xp = e && e.amount && X_PT[e.amount.per]; if (f && xp && /\bX\b/.test(f)) f = `${f} (X = ${xp})`; return f && e.onlyIf && CONDICAO_PT[e.onlyIf] ? `${f} (${CONDICAO_PT[e.onlyIf]})` : f; }).filter(Boolean).join('; ');
 /** E50 P6 · a linha do texto oficial (inglês) que corresponde a uma habilidade na pilha.
     Gatilho: linhas "When/Whenever/At"; ativada: linhas com custo antes de ":". Entre as do mesmo tipo,

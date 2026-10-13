@@ -10035,22 +10035,34 @@
    "n": "705.2",
    "regra": "Flipping a Coin",
    "titulo": "Cara ou coroa: ganhar ou perder o lance",
-   "status": "ausente",
-   "falta": "nenhum efeito \"flip a coin\" em EFFECTS (grep coin/moeda em scripts.js e core.js: nada).",
+   "status": "coberta",
+   "falta": "T-65 (13/10/2026): coberta. Simplificação sem efeito no resultado: quem joga sempre pede cara (o pedido não muda a chance, 1/2). Faltam os gatilhos \"whenever you win (lose) a coin flip\" (Zndrsplt, Okaun, Chance Encounter) e a substituição \"flip two coins and ignore one\" (Krark's Thumb).",
    "esforco": "P",
-   "cartas": "rara"
+   "cartas": "rara",
+   "testes": [
+    "CR 705.2 · ganhar o lance: o efeito \"if you win the flip\" acontece e o \"if you lose\" não; perder, o contrário",
+    "CR 705.2 · \"if it comes up heads/tails\": o resultado decide; ninguém ganha nem perde o lance",
+    "CR 705.1 / 705.2 · sem resultado forçado, o lance sai do acaso da partida: a mesma semente dá o mesmo resultado; sementes diferentes dão os dois",
+    "CR 705.2 · Crazed Firecat: joga até perder; um marcador +1/+1 por lance ganho",
+    "CR 705.2 · Stitch in Time: ganhando o lance, um turno extra depois deste; perdendo, nada"
+   ],
+   "evidencia": "T-65 (13/10/2026): efeito `moeda` (moedaT, acaso de s.rng); condições `ganhou-moeda`/`perdeu-moeda` (lance de ganhar ou perder) e `deu-cara`/`deu-coroa` (lance só de resultado, `resultado: true`, sem ganhador); `ateperder` e a contagem `moedas-ganhas`. Cartas: Stitch in Time, Winter Sky, Wild Wurm, Skyclaw Thrash, Crazed Firecat (Oracle do Forge, 13/10/2026). tipos.moeda.unit."
   },
   {
    "n": "705.3",
    "regra": "Flipping a Coin",
    "titulo": "Efeito que fixa o resultado da moeda",
-   "status": "ausente",
-   "falta": "depende de 705.2; sem implementação.",
+   "status": "coberta",
+   "falta": "T-65 (13/10/2026): coberta no efeito da própria moeda; nenhuma carta do vocabulário fixa o lance de outro efeito.",
    "esforco": "P",
    "depende": [
     "705.2",
     "614"
-   ]
+   ],
+   "testes": [
+    "CR 705.2 · ganhar o lance: o efeito \"if you win the flip\" acontece e o \"if you lose\" não; perder, o contrário"
+   ],
+   "evidencia": "T-65 (13/10/2026): `fixa: 'ganha'|'perde'|'cara'|'coroa'` no efeito `moeda` ignora o resultado real (tipos.moeda.unit)."
   },
   {
    "n": "706.1",
