@@ -29287,6 +29287,21 @@ const { descreveGatilho, MARCADOR_PT } = __m23;
 const SAVE_KEY = 'match.current';
 const ZONE_PT = { library: 'grimório', hand: 'mão', battlefield: 'campo', graveyard: 'cemitério', exile: 'exílio', command: 'zona de comando', stack: 'pilha', companion: 'companheiro' };
 const REASON_PT = { 'veneno': 'dez marcadores de veneno', 'vida': 'vida zerada', 'grimório vazio': 'comprou com o grimório vazio', 'dano de comandante': '21 de dano de comandante', 'desistência': 'desistiu' };
+/** G-259 · relato #20: o dano de comandante que o jogador `p` levou na partida, por comandante (903.10a: dano de combate
+    do mesmo comandante, somado ao longo da partida; 704.6c: com 21, perde), do maior para o menor. Fora do Commander, nada. Puro. */
+const LIMITE_COMANDANTE = (E.FORMAT_RULES && E.FORMAT_RULES.commander && E.FORMAT_RULES.commander.commanderDamage) || 21;
+function danoDeComandante(s, p) {
+  const pl = s && s.players && s.players[p];
+  if (!pl || s.format !== 'commander') return [];
+  return Object.entries(pl.commanderDamage || {}).filter(([, d]) => d > 0)
+    .map(([oid, d]) => ({ oid, nome: (s.objects && s.objects[oid] && s.objects[oid].name) || 'Comandante', dano: d }))
+    .sort((a, b) => b.dano - a.dano || a.nome.localeCompare(b.nome));
+}
+/** A linha do selo de vida: o maior, "Comandante 12 de 21", e quantos outros comandantes já causaram dano. Puro. */
+function textoDoDanoDeComandante(s, p) {
+  const l = danoDeComandante(s, p); if (!l.length) return null;
+  return `Comandante ${l[0].dano} de ${LIMITE_COMANDANTE}` + (l.length > 1 ? ` (+${l.length - 1})` : '');
+}
 
 /** Monta o setup do motor a partir de listas salvas.
     seats = [{ name, deck?, dummy? }]; cards = { nome: carta completa }. */
@@ -30771,7 +30786,7 @@ function toquesDaContagem(grupos, conta) {
   for (const g of grupos) { let i = 0; (conta[g.chave] || []).forEach((n, k) => { for (let j = 0; j < n && i < g.oids.length; j++) out.push({ oid: g.oids[i++], option: k }); }); }
   return out;
 }
-return { GRUPOS_DE_PARADA, PARADAS_PADRAO, paradasValidas, grupoDoPasso, usaParadas, paradasAtuais, iconeDaLinhaDoRegistro, donoDaLinha, iconeDaFase, trocaLegitima, cartaDaMesa, fontesDeMana, conferePagamento, planoDePagamento, gruposDeFontes, contagemDosToques, toquesDaContagem, sinaisDoResumo, iconeDaLinhaDoResumo, repeticaoDoCombo, chaveDaRepeticao, linhasDoCampo, rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, modificacoesDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveContinuo, descreveDano, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
+return { LIMITE_COMANDANTE, danoDeComandante, textoDoDanoDeComandante, GRUPOS_DE_PARADA, PARADAS_PADRAO, paradasValidas, grupoDoPasso, usaParadas, paradasAtuais, iconeDaLinhaDoRegistro, donoDaLinha, iconeDaFase, trocaLegitima, cartaDaMesa, fontesDeMana, conferePagamento, planoDePagamento, gruposDeFontes, contagemDosToques, toquesDaContagem, sinaisDoResumo, iconeDaLinhaDoResumo, repeticaoDoCombo, chaveDaRepeticao, linhasDoCampo, rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, modificacoesDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveContinuo, descreveDano, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
 })();
 
 
@@ -32554,6 +32569,13 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
 
   function openLife(target) {
     const s = table.state, v = table.viewer();
+    // G-259 · no motor completo a vida não se ajusta à mão, mas o dano de comandante aparece por comandante
+    const porComandante = __m18.danoDeComandante(s, target);
+    if (s.mode === 'full' && porComandante.length) return Dialog({ title: `Vida de ${s.players[target].name}: ${s.players[target].life}`, body: Stack({},
+      Text(`Dano de comandante (com ${__m18.LIMITE_COMANDANTE} do mesmo comandante, perde):`, { size: 'sm', tone: 'muted' }),
+      h('div', { class: 'ds-list', id: 'tb-dano-comandante' }, ...porComandante.map(c => h('div', { class: 'ds-list__item', dataset: { oid: c.oid } }, `${c.nome}: ${c.dano} de ${__m18.LIMITE_COMANDANTE}`))),
+      Text('No motor completo quem ajusta a vida é o motor.', { size: 'xs', tone: 'subtle' })),
+      actions: [Button('Fechar', { onClick: closeDialog })] });
     if (s.mode === 'full') return toast(`${s.players[target].name}: ${s.players[target].life} de vida — no motor completo quem ajusta é o motor`);
     if (!hasPriority(v)) return toast('Espere sua prioridade para ajustar a vida');
     const btns = [[-1, '−1'], [-5, '−5'], [1, '+1'], [5, '+5']].map(([d, l]) => Button(l, { onClick: () => { closeDialog(); act({ t: 'life', p: v, target, delta: d }); } }));
@@ -32638,9 +32660,10 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const subMasm = masm ? `${masm.pt || masm.name}: ${pl.dungeon.done ? 'completa' : (sala.pt || '—')}` : null;
     const veneno = pl.poison ? `Veneno ${pl.poison} de 10` : null; // M-253 · marcadores de veneno à vista
     const energiaTxt = pl.energia ? `Energia ${pl.energia}` : null; // M-367 · marcadores de energia à vista
+    const comandanteTxt = __m18.textoDoDanoDeComandante(s, p); // G-259 · relato #20: dano de comandante à vista
     const designacao = [s.monarca === p ? 'Monarca' : null, s.iniciativa === p ? 'Iniciativa' : null].filter(Boolean).join(' · ') || null; // M-332 · CR 725 / 726
     const life = LifeCounter({ name: pl.name + (pl.lost ? ' (fora)' : ''), life: pl.life, active: s.turn.active === p,
-      sub: [designacao, subMasm, veneno, energiaTxt].filter(Boolean).join(' · ') || null, onClick: () => openLife(p), id: mine ? 'tb-life-me' : 'tb-life-opp' });
+      sub: [designacao, subMasm, veneno, energiaTxt, comandanteTxt].filter(Boolean).join(' · ') || null, onClick: () => openLife(p), id: mine ? 'tb-life-me' : 'tb-life-opp' });
     // D6 · relance: sem nada em campo, uma linha só ("Campo vazio"); com uma das duas zonas vazia, ela vira uma linha fina
     // D6 · relance: "Terrenos" e "Permanentes" só quando há; com o campo vazio o lado é só a linha de vida e zonas
     const campoVazio = !others.length && !lands.length;

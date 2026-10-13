@@ -11287,3 +11287,34 @@ test('e2e · M-376 · 601.2d · dano dividido: depois de conjurar a Arc Lightnin
   if (linhas.length) assert.ok(linhas.some(l => /Arc Lightning: dano dividido — 3 em/.test(l)), 'registro: ' + JSON.stringify(linhas.slice(-6)));
   assert.deepEqual(M.errors, []);
 });
+
+/* ---------------- G-259 · relato #20 (parte 2): dano de comandante à vista ---------------- */
+test('e2e · G-259 dano de comandante à vista: o selo de vida mostra "Comandante N de 21" e cabe no celular', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await createDeck(page, base, 'Cmd', 'Commander\n1 Mock Commander\n\nDeck\n99 Plains', 'commander');
+  await page.goto(base + '#/mesa');
+  await page.click('[data-table-format="commander"]').catch(() => {});
+  await page.click('[data-opponent="hotseat"]');
+  await page.fill('#mesa-seed', '3');
+  await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  await reveal(page); await page.click('#tb-keep');
+  await reveal(page);
+  for (let i = 0; i < 6 && !(await page.locator('#tb-pass').count()); i++) await reveal(page);
+  assert.doesNotMatch(await page.innerText('#tb-life-opp'), /Comandante/, 'sem dano, sem linha');
+  // o comandante de quem tem a prioridade causa 12 de dano de combate ao outro (o motor soma igual: 903.10a)
+  await page.evaluate(() => {
+    const M = window.__estanteMesa, s = M.estado(), p = s.turn.priority;
+    const c = Object.values(s.objects).find(o => o.commander && o.owner === p);
+    M.act({ t: 'commander_damage', p, target: 1 - p, source: c.oid, delta: 12 });
+  });
+  await page.waitForFunction(() => /Comandante 12 de 21/.test(document.querySelector('#tb-life-opp').textContent), null, { timeout: 4000 });
+  assert.doesNotMatch(await page.innerText('#tb-life-me'), /Comandante/, 'quem causou não leva');
+  const caixa = await page.locator('#tb-life-opp').boundingBox(), tela = page.viewportSize();
+  assert.ok(caixa.height >= 44 && caixa.x >= 0 && caixa.x + caixa.width <= tela.width + 1, 'o selo continua tocável e dentro da tela');
+  // tocar na vida detalha por comandante
+  await page.click('#tb-life-opp');
+  await page.waitForFunction(() => /Mock Commander/.test(document.body.innerText) && /12/.test(document.body.innerText));
+  assert.deepEqual(errors, []);
+});

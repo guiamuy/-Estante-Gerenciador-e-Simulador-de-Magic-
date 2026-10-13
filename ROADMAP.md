@@ -527,6 +527,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-eg ✅ | SEG9b sala nova sempre com 6 símbolos: o recuo para 4 ao criar saiu depois que o dono publicou as regras da P-16 no console; banco que recusa vira erro, nunca código curto (leva P-19) | SEG | ½ | regras publicadas (dono, 12/10) |
 | 16º-ei ✅ | MON1 Apoiar a Estante: Pix (chave e copia e cola), Ko-fi, PayPal e GitHub Sponsors numa tela, a forma da região primeiro; prévia com dados de exemplo travada (leva P-20) | SEG | 1 | dados reais do dono |
 | 16º-ej ✅ | I4c a ficha com a arte dela: ficha de duas faces da Scryfall ("Dinosaur // Treasure") só vale pela face com o nome da ficha; arte errada já guardada deixa de valer (relato #20, leva G-257) | I | 1 | teste no aparelho |
+| 16º-ek ✅ | M13b dano de comandante à vista: "Comandante N de 21" no selo de vida e detalhe por comandante no motor completo; o motor já contava e tirava o jogador com 21 (relato #20, leva G-259) | M | 1 | teste no aparelho |
 | 16º-ee ✅ | T6e-2 Enviar relato sem sair do app: com a conta conectada e a fila ligada, o relato vai para a fila do Firebase e o cartão mostra "Na fila" até o número do registro (relato #13, leva G-255) | T | 1 | — |
 | 16º-eh ✅ | T6e-2 prazo honesto do relato pela fila: o GitHub atrasa o agendamento em horas, a tela diz "de minutos a algumas horas" e a conversa que lê relatos roda a fila antes (relato #13, leva G-256) | T | 1 | 16º-ee |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
@@ -998,6 +999,21 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Testes:** U (`commander.unit.test.mjs`, 3 novos da M13b; `decks.unit.test.mjs`, 5 novos de parceria).
 - **Depende de:** M6, M10.
 - **Fora:** multiplayer com mais de 2 jogadores na interface.
+
+**M13b · Dano de comandante à vista (relato #20, parte 2)** ✅ (leva G-259, trilha `geral`, 13/10/2026)
+- **Pedido (relato #20, erro · alta):** no Commander, a contagem de dano de comandante não aparecia; quem toma 21 do mesmo
+  comandante tem de perder, como manda a regra.
+- **Diagnóstico:** o motor já somava o dano de combate de cada comandante (903.10a, `rules.unit` com o Raging Hound) e tirava
+  o jogador com 21 (704.6c, `engine.unit`); a soma sobrevive à volta do comandante à zona de comando (a mesma identidade
+  que conta a taxa). Faltava mostrar: no motor completo, tocar na vida só dava um aviso, e o número não estava em lugar nenhum.
+- **Como:** `danoDeComandante` e `textoDoDanoDeComandante` (`src/app/table-model.js`, puras); o selo de vida de quem levou
+  dano ganha "Comandante N de 21" (o maior, e "(+1)" com dois comandantes), ao lado de veneno e energia; no motor completo,
+  tocar na vida abre o detalhe por comandante (a vida continua só com o motor). Sem mudança de regra nem de versão do motor.
+- **Testes:** U `comandante.dano.unit` (por comandante, do maior para o menor; parceiros; com 21 o motor tira o jogador e a
+  linha diz 21 de 21; fora do Commander, nada); e2e "G-259" (a linha aparece no selo de quem levou, não no de quem causou;
+  o selo segue tocável e dentro da tela; tocar detalha).
+- **Fora:** o detalhe do motor completo é coberto pela unidade e pelo código do selo; o e2e usa a mesa assistida (a lista de
+  teste não joga no motor completo).
 
 **M14 · Companheiro na partida** ✅
 - **Entregue:** zona própria revelada desde o início; ação especial de {3} no tempo de feitiço, uma vez por partida, sem pilha; na mesa, o botão aparece na zona Companheiro dos dois jogadores.
@@ -8222,7 +8238,7 @@ mesmo padrão de design".
   opções de arte, opções, fila e escolha guardadas antes e a escolha na mesa).
 - **Fora:** a dupla face da ficha na mesa (virar a ficha) continua fora, como na G-244; conferência na Scryfall feita pelo
   dono no aparelho (a sessão não alcança a Scryfall; o formato de duas faces segue o que o coletor do catálogo já trata).
-- **Parte 2 do relato #20:** dano de comandante (leva própria, trilha do motor).
+- **Parte 2 do relato #20:** dano de comandante (M13b, leva G-259).
 
 **I5 · Histórico e estatísticas de partidas** ✅ (leva 188, 05/10/2026)
 - **Onde:** Perfil › **Partidas** (rota `/perfil/partidas`); o atalho no Perfil já diz "N · X% de vitória".
