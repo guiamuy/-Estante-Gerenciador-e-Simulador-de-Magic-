@@ -6036,7 +6036,7 @@ const valueErrors = (v, label) => isCount(v) && v.per === 'soma' ? (Array.isArra
   : isCount(v) ? (v.per === 'se' && !(['metalcraft', 'cast-from-graveyard', 'kicked', 'not-cast-from-hand', 'bargained', ...onlyIfT()].includes(v.se) && Number.isInteger(v.sim) && Number.isInteger(v.nao)) ? [`${label}: "se" precisa da condição (metalcraft, cast-from-graveyard, kicked, bargained, not-cast-from-hand, monarca, oponente-monarca) e dos valores sim/não`] : v.subtype || PER_COUNTS.includes(v.per) ? [] : [`${label}: contagem "${v.per}" desconhecida`]) // M-331
   : (Number.isInteger(v) ? [] : [`${label}: precisa ser inteiro ou contagem`]);
 /** S11b · evasão estática e escolhas feitas quando a permanente entra. */
-const EVASIONS = ['flying-only', 'power-less', 'three-or-more']; // M-349 · Troll of Khazad-dûm: "can't be blocked except by three or more creatures"
+const EVASIONS = ['flying-only', 'power-less', 'three-or-more', 'monarca']; // M-349 · Troll of Khazad-dûm: "can't be blocked except by three or more creatures"
 const CHOICES = ['color'];
 const STATIC_RULES = ['flagbearer', 'exile-instead-of-graveyard', 'opponent-creatures-enter-tapped'];
 const TRIGGER_PT = { etb: 'quando entra no campo', dies: 'quando morre', upkeep: 'na sua manutenção', attacks: 'quando ataca', blocks: 'quando bloqueia',
@@ -6739,13 +6739,20 @@ const RAW_SCRIPTS = [
   { name: 'Stitch in Time', effects: [{ do: 'moeda' }, { do: 'turno_extra', target: 'self', onlyIf: 'ganhou-moeda' }], // "Flip a coin. If you win the flip, take an extra turn after this one."
     example: { target: 'none', expect: { selfLife: 0 } } }, // o cenário de verdade está em tipos.moeda.unit
   { name: 'Winter Sky', effects: [{ do: 'moeda' }, { do: 'damage', amount: 1, target: 'each-creature', onlyIf: 'ganhou-moeda' }, { do: 'damage', amount: 1, jogadores: 'cada', onlyIf: 'ganhou-moeda' }, { do: 'draw', amount: 1, jogadores: 'cada', onlyIf: 'perdeu-moeda' }], // "Flip a coin. If you win the flip, Winter Sky deals 1 damage to each creature and each player. If you lose the flip, each player draws a card."
-    example: { target: 'none', expect: { selfLife: 0 } } },
+    example: { target: 'none', expect: { extraTurn: 0 } } }, // T-70 · o cenário não depende do lance (a vida e a mão dependem: ganhando, todo jogador leva 1; perdendo, todo jogador compra)
   { name: 'Wild Wurm', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'moeda' }, { do: 'to_hand', target: 'self-source', from: 'battlefield', onlyIf: 'perdeu-moeda' }] }], // "When Wild Wurm enters, flip a coin. If you lose the flip, return Wild Wurm to its owner's hand."
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Skyclaw Thrash', abilities: [{ kind: 'triggered', when: 'attacks', effects: [{ do: 'moeda' }, { do: 'continuo', target: 'self-source', poder: 1, resistencia: 1, palavras: ['flying'], onlyIf: 'ganhou-moeda' }] }], // "Whenever Skyclaw Thrash attacks, flip a coin. If you win the flip, Skyclaw Thrash gets +1/+1 and gains flying until end of turn."
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Crazed Firecat', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'moeda', ateperder: true }, { do: 'counters', amount: { per: 'moedas-ganhas' }, target: 'self-source' }] }], // "When Crazed Firecat enters, flip a coin until you lose a flip. Put a +1/+1 counter on Crazed Firecat for each flip you won."
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // T-70 · CR 725.5 · restrições ligadas ao monarca (Oracle do Forge, clone de 13/10/2026).
+  { name: 'Azure Fleet Admiral', self: { evasion: 'monarca' }, abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'monarch' }] }], // "When Azure Fleet Admiral enters, you become the monarch. Azure Fleet Admiral can't be blocked by creatures the monarch controls."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o cenário de verdade está em tipos.monarca.unit (Pauper: 2 listas)
+  { name: 'Crown-Hunter Hireling', self: { atacaSeMonarcaDefende: true }, abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'monarch' }] }], // "When Crown-Hunter Hireling enters, you become the monarch. Crown-Hunter Hireling can't attack unless defending player is the monarch."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Fall from Favor', aura: { enchant: 'creature' }, grants: { naoDesviraSalvoMonarca: true }, abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'tap', target: 'enchanted' }, { do: 'monarch' }] }], // "Enchant creature · When Fall from Favor enters, tap enchanted creature and you become the monarch. · Enchanted creature doesn't untap during its controller's untap step unless that player is the monarch."
+    example: { action: 'aura', target: 'own-creature', expect: { tapped: true } } },
   // T-62 · CR 725.5 · o monarca nas condições (Oracle do Forge, clone de 13/10/2026). Toque mortífero e ímpeto da rainha vêm do texto da carta.
   { name: 'Throne Warden', abilities: [{ kind: 'triggered', when: 'end-step', condition: { monarca: 'voce' }, effects: [{ do: 'counters', amount: 1, target: 'self-source' }] }], // "At the beginning of your end step, if you're the monarch, put a +1/+1 counter on Throne Warden."
     example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o cenário de verdade está em tipos.monarca.unit
@@ -9445,6 +9452,8 @@ function seMonarcaT(se) { return !!se && Object.keys(se).length === 1 && ['voce'
 function monarcaErrosT(sc) {
   const errs = [], abs = [...((sc && sc.abilities) || []), ...((sc && sc.back && sc.back.abilities) || [])];
   for (const ab of abs) if (ab && ab.condition && ab.condition.monarca != null && !['voce', 'oponente'].includes(ab.condition.monarca)) errs.push('condição "monarca" do gatilho: \'voce\' ou \'oponente\'');
+  if (sc && sc.self && sc.self.atacaSeMonarcaDefende != null && sc.self.atacaSeMonarcaDefende !== true) errs.push('self.atacaSeMonarcaDefende só vale como true'); // T-70
+  if (sc && sc.grants && sc.grants.naoDesviraSalvoMonarca != null && sc.grants.naoDesviraSalvoMonarca !== true) errs.push('bônus: naoDesviraSalvoMonarca só vale como true'); // T-70
   return errs;
 }
 Object.assign(EXPORTS_T_SC, { monarcaErrosT });
@@ -19534,7 +19543,8 @@ function desvira(s, o) {
 /** CR2g.6 · 502.3: a permanente não desvira no passo de desvirar do controlador — por estática própria, por Aura ("enchanted creature doesn't
     untap…") ou por efeito "no próximo passo de desvirar" (consumido nesse passo, desvirasse ou não). */
 const naoDesviraNoPasso = (s, o) => !!o.naoDesviraProximo || (!semImpressas(s, o) && !!((((s.facts[o.name] || {}).script || {}).self || {}).naoDesvira))
-  || attachedTo(s, o).some(x => !semImpressas(s, x) && !!((((s.facts[x.name] || {}).script || {}).grants || {}).naoDesvira));
+  || attachedTo(s, o).some(x => !semImpressas(s, x) && !!((((s.facts[x.name] || {}).script || {}).grants || {}).naoDesvira))
+  || naoDesviraPeloMonarcaT(s, o); // T-70 · CR 725.5 · "doesn't untap … unless that player is the monarch" (Toca ponto comum: naoDesviraNoPasso)
 function enterStep(s, step) {
   emptyPools(s); // 500.4: reserva esvazia entre passos
   s.turn.step = step; s.turn.passes = 0; s.turn.priority = s.turn.active;
@@ -19669,6 +19679,7 @@ function eligibleAttackers(s, p) {
   return battlefield(s).filter(o => o.controller === p && !ehBatalhaT(s, o) && isCreature(s, o) && !o.tapped && // T-15 · CR 508.1a: quem ataca não pode ser também batalha · Toca ponto comum: eligibleAttackers
     !o.cantAttackNext && // S61 · Cavernas Retorcidas: não pode atacar até o próximo turno de quem lançou
     !anexoProibe(s, o, 'naoAtaca') && // M-336 · Pacifism
+    !naoAtacaPeloMonarcaT(s, o) && // T-70 · CR 725.5 · "can't attack unless defending player is the monarch" (Toca ponto comum: eligibleAttackers)
     (!enjoado(s, o) || has(s, o, 'haste')) && !has(s, o, 'defender')).map(o => o.oid);
 }
 function eligibleBlockers(s, p) {
@@ -19690,6 +19701,7 @@ function porQueNaoBloqueia(s, blocker, attacker) {
   const ev = evasionOf(s, a); // S11b · evasão estática
   if (ev === 'flying-only' && !has(s, b, 'flying')) return 'só criaturas com voar bloqueiam';
   if (ev === 'power-less' && power(s, b) < power(s, a)) return 'poder menor que o da atacante';
+  if (ev === 'monarca' && s.monarca != null && b.controller === s.monarca) return 'as criaturas do monarca não a bloqueiam'; // T-70 · CR 725.5 · "can't be blocked by creatures the monarch controls" (Toca ponto comum: porQueNaoBloqueia)
   // 'three-or-more' (M-349): cada bloqueador pode, mas o grupo precisa de três — conferido na declaração
   if (protections(s, a).some(c => casaProtecaoK(s, c, b))) return 'proteção contra o bloqueador'; // K-17 · 702.16f: qualquer qualidade (Toca ponto comum)
   // CR1b · evasões por palavra-chave
@@ -27091,6 +27103,11 @@ const resolucaoT = o => ({ resolucaoT: { dadoT: (o && o.dadoT) || null, moedaT: 
 const comResolucaoT = (r, src) => r.resolucaoT ? { ...src, dadoT: r.resolucaoT.dadoT, moedaT: r.resolucaoT.moedaT } : src;
 const dadoNaFaixaT = (o, f) => { const d = o && o.dadoT; return !!d && d.resultado >= f[0] && (f[1] == null || d.resultado <= f[1]); };
 const moedaCondT = (o, k) => { const m = o && o.moedaT; if (!m) return false; return k === 'ganhou-moeda' ? m.ganhou === true : k === 'perdeu-moeda' ? m.ganhou === false : k === 'deu-cara' ? m.r === 'cara' : m.r === 'coroa'; };
+/** T-70 · CR 725.5 · restrições ligadas ao monarca. `self.atacaSeMonarcaDefende: true` ("can't attack unless defending player is the
+ * monarch": na mesa de dois, o defensor é o oponente); `grants.naoDesviraSalvoMonarca: true` (Aura: "enchanted creature doesn't untap during
+ * its controller's untap step unless that player is the monarch"); a evasão `self.evasion: 'monarca'` mora em porQueNaoBloqueia. */
+const naoAtacaPeloMonarcaT = (s, o) => !semImpressas(s, o) && !!((((s.facts[o.name] || {}).script || {}).self || {}).atacaSeMonarcaDefende) && !(s.monarca != null && s.monarca !== o.controller);
+const naoDesviraPeloMonarcaT = (s, o) => s.monarca !== o.controller && attachedTo(s, o).some(x => !semImpressas(s, x) && !!((((s.facts[x.name] || {}).script || {}).grants || {}).naoDesviraSalvoMonarca));
 /** T-62 · CR 725.5 · "if you're the monarch" ('voce') / "if an opponent is the monarch" ('oponente'), visto do jogador `p` agora.
  * Sem monarca no jogo, nenhuma das duas vale (o efeito não faz nada até alguém se tornar o monarca). */
 function doQueResolveT(k) { return k === 'monarca' || k === 'oponente-monarca' || k === 'dado-duplos' || MOEDA_COND_T.includes(k); } // T-64 · as condições de efeito vistas do objeto que resolve (monarca: o controlador da habilidade; T-65 · moeda: o lance que ele jogou), em onlyIf e per: 'se'
