@@ -3998,6 +3998,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora:** a imagem da ficha com chave própria cai no quadro genérico quando a busca de imagem é pelo nome exato (só acontece quando há duas definições diferentes na mesma partida).
 - **Teste:** `lt42.unit` (2 testes; os dois falham no motor anterior).
 
+**M-360 · Custo "pôr um marcador nesta" e o marcador −0/−1 (Wall of Roots)** ✅ (leva M-360, motor v110 sem mudança de forma; goldens intactos).
+- **Valor:** habilidade ativada pode ter como custo pôr marcadores na própria permanente (`cost.poeMarcador { tipo, n }`, 122.1/602.1); o marcador −0/−1 tira resistência (613.4c). O leitor lê "Put a -0/-1 counter on ~: Add {G}. Activate only once each turn." Destrava Wall of Roots (texto do Oracle do Forge em `.listas/oficiais-listas.json`, consulta de 12/10/2026; 9 listas de Pauper).
+- **Regra:** sem {T} no custo, a criatura com enjoo ativa (302.6); é habilidade de mana, sem pilha (605.1a), e vale no turno do oponente com prioridade; uma vez por turno; com resistência 0 a criatura morre (704.5f).
+- **Fora:** o pagamento automático não usa esta habilidade (limitação já registrada para habilidades de mana com custo além de {T}): o jogador ativa "Gerar {G}" antes de conjurar.
+- **Pedido à trilha `listas`:** script à mão de Wall of Roots com o que o leitor produz (modelo em `lt43.unit`).
+- **Teste:** `lt43.unit` (3 testes; todos falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
