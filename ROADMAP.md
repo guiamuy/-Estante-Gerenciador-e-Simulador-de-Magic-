@@ -4275,6 +4275,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nada além da regra.
 - **Teste:** `lt74.unit` (1 teste; falha no motor anterior).
 
+**M-392 · LT59 · 702.188 · Web-slinging (balançar na teia)** ✅ (leva M-392, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** revisão por lote L — **Spider-Man, Web-Slinger passa a jogar** (APROVADAS; Oracle do Forge, consulta de 12/10/2026; bloqueava 4 a 5 listas Pauper). Custo alternativo novo `returnTapped`: conjurar pelo custo de teia devolvendo uma criatura virada que você controla para a mão do dono (parte do custo, 601.2h); a mesa pergunta qual criatura volta (uma ação por criatura virada). O leitor lê "Web-slinging {custo}" e aceita criatura cujo único texto é o custo alternativo.
+- **Revisão independente:** lote conjunto com a M-391 — 35 asserções (ficha virada devolvida some; criatura roubada volta para a mão do dono; custo normal segue; redução por cor não tira o {W}; regra das lendas), diferencial dirigido dos outros custos alternativos (Daze, Snapback, Force of Will, Foil, Snuff Out, Mogg Salvage, Fireblast, Spinning Darkness: 178 comparações sem diferença), leitor comparado em 33.739 cartas (só Spider-Man, Vine Dryad e Amazing Spider-Girl passaram a ser lidas por inteiro — as duas últimas ficam em revisão, sem aprovação); aprovada.
+- **Fora (declarado):** virar para mana a própria criatura que será devolvida (601.2g→h) exige dois passos na mesa: gerar a mana dela antes e depois conjurar pela teia; "se o custo de teia foi pago" (cartas que olham isso) não existe ainda.
+- **Teste:** `lt75.unit` (1 teste; falha no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

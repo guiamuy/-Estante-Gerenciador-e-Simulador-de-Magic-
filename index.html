@@ -5653,7 +5653,7 @@ const CHOICE_EFFECTS = ['terreno_da_mao', 'exila_da_mao', 'revela_topo_transform
 const MARCADOR_PT = { p1p1: '+1/+1', m0m1: '−0/−1', /* M-360 */ oil: 'de óleo', depletion: 'de esgotamento', charge: 'de carga', age: 'de idade', loyalty: 'de lealdade', time: 'de tempo', lore: 'de saga', poison: 'de veneno', energia: 'de energia' /* H-6 */ };
 const ONLY_IF = ['discarded-nonland', 'source-entered-earlier', 'paid-additional', 'kicked', 'not-attacked', 'metalcraft', 'cast-from-graveyard', 'alvo-era-seu', 'evidenced', 'not-evidenced', 'bargained', 'alvo-era-neve', ...onlyIfT()]; // T-62 · "if you're the monarch" / "if an opponent is the monarch" (onlyIfT, função içada da trilha tipos) // M-385 · "If that land was a snow land" (Thermokarst, 608.2h) · M-384 · 702.166b "If this spell was bargained" (Torch the Tower) // M-351 · "If evidence was collected, instead …" (Extract a Confession, 701.59 + 601.2b)
 /** S16 · custos que substituem o custo de mana, e o custo do lampejo do passado. */
-const ALT_COST_PARTS = ['mana', 'life', 'discard', 'returnLand', 'exileGraveyard', 'tapOther', 'sacrificeOther', 'discardSubtype', 'exileHandColor', 'free', 'revealHand', 'exileGraveyardTopo']; // M-362 · "exile the top three black cards of your graveyard" (Spinning Darkness) // M-351 · revealHand: "you may reveal your hand rather than pay" (Land Grant, 118.9) // CR2c.4 · Ilha entre as descartadas (Foil), exilar carta da cor da mão (Snapback), de graça (Mogg Salvage)
+const ALT_COST_PARTS = ['returnTapped', 'mana', 'life', 'discard', 'returnLand', 'exileGraveyard', 'tapOther', 'sacrificeOther', 'discardSubtype', 'exileHandColor', 'free', 'revealHand', 'exileGraveyardTopo']; // M-362 · "exile the top three black cards of your graveyard" (Spinning Darkness) // M-351 · revealHand: "you may reveal your hand rather than pay" (Land Grant, 118.9) // CR2c.4 · Ilha entre as descartadas (Foil), exilar carta da cor da mão (Snapback), de graça (Mogg Salvage)
 /** S48 · fuga: conjura do cemitério pagando o custo, e a carta fica em jogo. */
 /** S20 · custos adicionais de ativação e de conjuração. */
 const CRAFT_TIPOS = ['creature', 'artifact', 'land', 'enchantment']; // M-356 · 702.167a: materiais de craft
@@ -6055,7 +6055,7 @@ function validateScript(sc) {
   const errs = [];
   if (!sc || typeof sc.name !== 'string' || !sc.name.trim()) errs.push('script sem nome');
   const abilities = (sc && sc.abilities) || [];
-  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || sc.staticRule || sc.cumulativeUpkeep || sc.affinity || sc.storm || sc.changeling || sc.bestow || sc.bargain || sc.soulbond || sc.evidence || sc.escape || sc.discount || sc.reduzPor || sc.cycling || sc.morph || sc.sneak || sc.entersTapped || sc.entersTappedUnless || sc.grantsAll || (sc.continuo || []).length || (sc.substitui || []).length || (sc.entra || []).length || sc.armaduraTotem || (sc.dano || []).length || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length || sc.semEfeito || sc.permiteConjurar || (sc.regraJogador || []).length || sc.entraComoCopia))) return errs.concat('script sem efeitos');
+  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || sc.staticRule || sc.cumulativeUpkeep || sc.affinity || sc.storm || sc.changeling || sc.bestow || sc.bargain || sc.soulbond || sc.evidence || sc.escape || sc.discount || sc.reduzPor || sc.cycling || sc.morph || sc.sneak || sc.entersTapped || sc.entersTappedUnless || sc.grantsAll || (sc.continuo || []).length || (sc.substitui || []).length || (sc.entra || []).length || sc.armaduraTotem || (sc.dano || []).length || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length || sc.semEfeito || sc.permiteConjurar || (sc.regraJogador || []).length || sc.entraComoCopia || (sc.alt || []).length))) return errs.concat('script sem efeitos'); // M-392 · criatura cujo único texto é o custo alternativo (web-slinging)
   // M-246 · carta cujo texto não muda nada na mesa de dois jogadores ("each other opponent"): o motivo é obrigatório e exclui efeitos
   if (sc && sc.semEfeito != null && (typeof sc.semEfeito !== 'string' || !sc.semEfeito.trim() || (sc.effects || []).length || abilities.length)) errs.push('"semEfeito" precisa do motivo e não convive com efeitos ou habilidades');
   // M9 · habilidades da permanente
@@ -9085,6 +9085,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Ethereal Haze': { texto: '16xsz8s', leva: 'M-390' },
   // M-391 · revisão por lote XLIX (Azure Fleet Admiral), revisor independente: lote conjunto com a M-392; aprovada (85 asserções, diferencial e fuzz sem diferença)
   'Azure Fleet Admiral': { texto: '1586jlv', leva: 'M-391' },
+  // M-392 · revisão por lote L (Spider-Man, Web-Slinger), revisor independente: lote conjunto com a M-391; aprovada (35 asserções, diferencial dos custos alternativos e leitor em 33.739 cartas)
+  'Spider-Man, Web-Slinger': { texto: 'srwbp2', leva: 'M-392' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -17379,6 +17381,7 @@ const __m42 = (function () {
     [/^as an additional cost to cast this spell, sacrifice an? (land|creature|artifact|enchantment)$/i, m => ({ additional: { sacrificeOther: { types: [m[1].toLowerCase()] } } })], // M-334 · LT18 · 601.2b (Crop Rotation)
     [/^cycling—pay (\d+) life$/i, m => ({ cycling: { life: +m[1] } })], // M-341 · Street Wraith
     [/^bargain$/i, () => ({ bargain: true })], // M-384 · 702.166 (o motor barganha desde a S37)
+    [/^web-slinging (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ alt: [{ label: `Balançar na teia · ${m[1]} e devolver uma criatura virada sua`, cost: { mana: m[1], returnTapped: true } }] })], // M-392 · 702.188
     [/^kicker (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ kicker: { mana: m[1] } })], // M-337 · 702.33 (o motor reforça desde a S-série)
     [/^splice onto arcane (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ splice: { subtipo: 'Arcane', mana: m[1] } })], // M-334 · LT18 · 702.47 (o motor encaixa desde a M-273)
     [/^(?:evoke|dash|spectacle|surge) (?:\{[0-9WUBRGC]+\})+$/i, () => ({})], // (o motor lê da carta)
@@ -17733,7 +17736,7 @@ const __m42 = (function () {
     let script = null;
     if (modos && modos.length && !efeitos.length) script = { name: nome, modes: modos.filter(Boolean), ...topo };
     else if (efeitos.length && !modos) script = { name: nome, effects: efeitos, ...topo };
-    else if (!magica && (topo.abilities || topo.aura || topo.equip || topo.entersTapped || topo.grants || topo.grantsAll || topo.self || topo.produces || topo.cycling || topo.transmute || topo.escape || topo.entersTappedUnless || topo.affinity || topo.ninjutsu || topo.reduzPor || topo.continuo)) script = { name: nome, ...topo }; // LT3/LT5 · M-351 · continuo
+    else if (!magica && (topo.abilities || topo.aura || topo.equip || topo.entersTapped || topo.grants || topo.grantsAll || topo.self || topo.produces || topo.cycling || topo.transmute || topo.escape || topo.entersTappedUnless || topo.affinity || topo.ninjutsu || topo.reduzPor || topo.continuo || topo.alt)) script = { name: nome, ...topo }; // LT3/LT5 · M-351 · continuo · M-392: o custo alternativo (web-slinging) também é texto lido de permanente
     if (script && (script.effects || []).some(e => e.do === 'protection') && !script.choose) script.choose = 'color'; // M-348 · "protection from the color of your choice": a mágica escolhe a cor na resolução (achado da revisão do lote XXI)
     if (script && (script.effects || []).some(e => e.__equipe)) { const todos = script.effects.map(e => { const c = { ...e }; delete c.__equipe; return c; }); script.equipeK = { effects: todos }; script.effects = todos.filter((e, i) => !script.effects[i].__equipe); } // M-379 · K-70: sem equipe, os efeitos de sempre; com equipe, eles e o que o texto acrescenta
     const permanenteSemTexto = !magica && !linhas.length; // criatura sem texto: não precisa de script (o motor joga pelos dados da carta)
@@ -19467,6 +19470,7 @@ function defaultPayment(s, p, cost, selfOid) {
   if (cost.discard) { const mao = s.zones[p].hand.filter(x => x !== selfOid); const sub = cost.discardSubtype ? mao.find(x => temSubtipo(s, x, cost.discardSubtype)) : null;
     pay.discard = sub ? [sub, ...mao.filter(x => x !== sub)].slice(0, cost.discard) : mao.slice(0, cost.discard); }
   if (cost.exileHandColor) pay.exileHand = exilaveisDaMao(s, p, cost.exileHandColor, selfOid)[0];
+  if (cost.returnTapped) { const c = viradasParaDevolverM(s, p, selfOid)[0]; if (c) pay.devolve = c; } // M-392 · 702.188a
   if (cost.returnLand) {
     const rx = new RegExp('\\b' + cost.returnLand + '\\b', 'i');
     const land = battlefield(s).find(x => x.controller === p && s.facts[x.name].types.includes('land') && rx.test(s.facts[x.name].typeText || x.name));
@@ -19474,6 +19478,8 @@ function defaultPayment(s, p, cost, selfOid) {
   }
   return pay;
 }
+/** M-392 · 702.188a · web-slinging: as criaturas viradas que você controla e podem voltar para a mão do dono. */
+const viradasParaDevolverM = (s, p, selfOid) => battlefield(s).filter(x => x.controller === p && x.oid !== selfOid && x.tapped && isCreature(s, x)).map(x => x.oid);
 /** M-362 · 404.2: o cemitério tem ordem (a carta posta por último fica em cima). "The top N <cor> cards" são as N dessa cor mais perto do topo, sem escolha. */
 const topoDoCemiterio = (s, p, t, selfOid) => s.zones[p].graveyard.filter(x => x !== selfOid && (t.cor == null || ((s.facts[s.objects[x].name] || {}).colors || []).includes(t.cor))).slice(-t.n).reverse();
 function canPayAlt(s, p, cost, selfOid) {
@@ -19486,6 +19492,7 @@ function canPayAlt(s, p, cost, selfOid) {
   if (cost.discard && !descarteServe(s, cost, defaultPayment(s, p, cost, selfOid).discard)) return false; // CR2c.4 · Foil sem Ilha na mão
   if (cost.exileHandColor && !exilaveisDaMao(s, p, cost.exileHandColor, selfOid).length) return false;
   if (cost.returnLand && !defaultPayment(s, p, cost, selfOid).land) return false;
+  if (cost.returnTapped && !viradasParaDevolverM(s, p, selfOid).length) return false; // M-392
   return true;
 }
 /** M-352 · 601.2f · a redução por cor (e a por alvo, otimista na oferta) também vale sobre o custo alternativo e a fuga — achado da revisão do lote XXIV. */
@@ -19519,6 +19526,11 @@ function payAlt(s, p, cost, pay, selfOid, alvos) {
     const land = oid && s.objects[oid];
     // H-2 · 205.3i/305.6: "an Island" é qualquer terreno com o tipo Ilha (Tundra, Snow-Covered Island), como a oferta (defaultPayment) já conferia; antes o pagamento exigia o NOME e recusava a ação oferecida
     if (!land || land.zone !== 'battlefield' || land.controller !== p || !s.facts[land.name].types.includes('land') || !new RegExp('\\b' + cost.returnLand + '\\b', 'i').test(s.facts[land.name].typeText || land.name)) throw new RuleError('custo', `devolva um ${cost.returnLand} que você controla`);
+    moveObject(s, oid, 'hand');
+  }
+  if (cost.returnTapped) { // M-392 · 702.188a · web-slinging: devolve uma criatura virada sua para a mão do dono (custo, 601.2h)
+    const oid = (pay && pay.devolve) || viradasParaDevolverM(s, p, selfOid)[0];
+    if (!oid || !viradasParaDevolverM(s, p, selfOid).includes(oid)) throw new RuleError('custo', 'devolva uma criatura virada que você controla');
     moveObject(s, oid, 'hand');
   }
 }
@@ -22633,7 +22645,7 @@ function combinacoes(lista, k, limite = LIMITE_PAGAMENTOS) {
 function pagamentosDe(s, p, cost, selfOid) {
   if (!cost) return [{}];
   let out = [{}];
-  const usados = pay => [].concat(pay.tapOther || [], pay.sacrifice || [], pay.land || [], pay.crew || [], pay.craft || []); // M-356
+  const usados = pay => [].concat(pay.tapOther || [], pay.sacrifice || [], pay.land || [], pay.crew || [], pay.craft || [], pay.devolve || []); // M-356 · M-392
   const multiplica = (opcoes, campo) => {
     const novo = [];
     for (const base of out) for (const v of opcoes) {
@@ -22652,6 +22664,7 @@ function pagamentosDe(s, p, cost, selfOid) {
     const rx = new RegExp('\\b' + cost.returnLand + '\\b', 'i');
     multiplica(battlefield(s).filter(x => x.controller === p && s.facts[x.name].types.includes('land') && rx.test(s.facts[x.name].typeText || x.name)).map(x => x.oid), 'land');
   }
+  if (cost.returnTapped) multiplica(viradasParaDevolverM(s, p, selfOid), 'devolve'); // M-392 · 702.188a: uma ação por criatura virada (quem paga escolhe)
   if (cost.exileFromGraveyard) multiplica(s.zones[p].graveyard.filter(x => x !== selfOid && matchesFilter(s, s.objects[x], cost.exileFromGraveyard)), 'exile');
   if (cost.craft) multiplica(combinacoes(materiaisDeCraft(s, p, cost.craft, selfOid), cost.craft.amount || 1), 'craft'); // M-356 · 702.167a: quem paga escolhe os materiais
   // Leva 107 · "Reveal X white cards" (Martyr of Sands): quem paga escolhe quantas revela, de 0 ao que tem
@@ -33211,6 +33224,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     ['sacrifice', () => 'O que você sacrifica para pagar?', 'Sacrificar'],
     ['discard', n => n > 1 ? 'Quais cartas você descarta?' : 'Qual carta você descarta?', 'Descartar'],
     ['land', () => 'Qual terreno volta para a mão?', 'Devolver'],
+    ['devolve', () => 'Qual criatura virada volta para a mão?', 'Devolver'], // M-392 · web-slinging
     ['exileHand', () => 'Qual carta da mão você exila para pagar?', 'Exilar'], // CR2c.4 · Snapback
     ['retrace', () => 'Qual terreno você descarta para retraçar?', 'Descartar'], // M-222
     ['crew', () => 'Quais criaturas tripulam?', 'Virar'], // CR2d.3
