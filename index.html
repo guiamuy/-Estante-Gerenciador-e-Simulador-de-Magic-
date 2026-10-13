@@ -6098,6 +6098,7 @@ function validateScript(sc) {
   if (sc && Array.isArray(sc.additional) && !sc.additional.length) errs.push('custo adicional com lista vazia');
   if (sc && sc.additionalOptional && !sc.additional) errs.push('custo adicional opcional sem custo');
   if (sc && sc.plot && !sc.plot.mana) errs.push('plot sem custo de mana');
+  if (sc && sc.foretell && !(sc.foretell.mana && /\{/.test(sc.foretell.mana))) errs.push('prenunciar sem custo de mana'); // M-382 · 702.143
   if (sc && sc.morph && !sc.morph.mana) errs.push('metamorfose sem custo de mana');
   if (sc && sc.entersTappedUnless && sc.entersTappedUnless.anyPlayerLifeAtMost == null && !Array.isArray(sc.entersTappedUnless.controlsSubtype) && !(Number.isInteger(sc.entersTappedUnless.pagaVida) && sc.entersTappedUnless.pagaVida > 0) && !Number.isInteger(sc.entersTappedUnless.maxOutrasTerras) && !Number.isInteger(sc.entersTappedUnless.minOutrasTerras) && !Number.isInteger(sc.entersTappedUnless.minBasicos) && !(Number.isInteger(sc.entersTappedUnless.ateTurnoProprio) && sc.entersTappedUnless.ateTurnoProprio > 0) && !(Array.isArray(sc.entersTappedUnless.minOutrosDoSubtipo) && typeof sc.entersTappedUnless.minOutrosDoSubtipo[0] === 'string' && Number.isInteger(sc.entersTappedUnless.minOutrosDoSubtipo[1]))) errs.push('entra virado a menos que: condição desconhecida');
   if (sc && sc.manaRule && !(/^[WUBRG]+$/.test(sc.manaRule.colors || '') && (sc.manaRule.damage || sc.manaRule.life || sc.manaRule.needsSubtype || sc.manaRule.needsType))) errs.push('regra de mana: precisa das cores e de dano, vida ou condição');
@@ -8976,6 +8977,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   // M-380 · revisão por lote XXXIX (Pauper: Fortress Kin-Guard — endure —, Eureka Moment), revisor independente com 75 verificações: 2 de 2 aprovadas
   'Fortress Kin-Guard': { texto: '17ouytg', leva: 'M-380' },
   'Eureka Moment': { texto: 'jwwwgk', leva: 'M-380' },
+  // M-382 · revisão por lote XL (prenunciar, 702.143: Behold the Multiverse), revisor independente com 75 verificações: 1 de 1 aprovada (depois da correção da redução por cor e do exílio virado para baixo à vista do oponente)
+  'Behold the Multiverse': { texto: 'yonfkj', leva: 'M-382' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -16831,6 +16834,7 @@ const __m42 = (function () {
   /** Linha de palavra-chave com custo, no topo do script ("Flashback {2}{R}" → flashback: { mana }). Só as que o motor executa assim. */
   const COM_CUSTO = [
     [/^flashback (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ flashback: { mana: m[1] } })],
+    [/^foretell (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ foretell: { mana: m[1] } })], // M-382 · 702.143
     [/^flashback—sacrifice an? (Plains|Island|Swamp|Mountain|Forest)$/i, m => ({ flashback: { sacrificeOther: { types: ['land'], subtype: m[1][0].toUpperCase() + m[1].slice(1).toLowerCase() } } })], // M-331 · Lava Dart
     [/^flashback—(\{[^}]+\}(?:\{[^}]+\})*), pay (\d+) life$/i, m => ({ flashback: { mana: m[1], pagarVida: +m[2] } })], // M-348
     [/^flashback—(\{[^}]+\}(?:\{[^}]+\})*), discard a card$/i, m => ({ flashback: { mana: m[1], discard: 1 } })], // M-352 · Twinned Vision (702.34a: o descarte faz parte do custo do lampejo) · Deep Analysis (702.34a + 119.4)
@@ -17805,6 +17809,7 @@ function createGame(setup) {
     if (sc.additional) f.script.additional = sc.additional;
     if (sc.additionalOptional) f.script.additionalOptional = true; // S53
     if (sc.plot) f.script.plot = sc.plot; // S53 · plot
+    if (sc.foretell) f.script.foretell = sc.foretell; // M-382 · 702.143 prenunciar
     if (sc.morph) f.script.morph = sc.morph; // S54 · metamorfose
     if (sc.sneak) f.script.sneak = sc.sneak; // S54 · esgueirar-se
     if (sc.loyalty) f.script.loyalty = sc.loyalty;
@@ -17863,7 +17868,7 @@ function createGame(setup) {
 function zoneList(s, obj, zone) { return zone === 'stack' ? s.stack : s.zones[obj.owner][zone]; }
 const VOLTA_COMANDO = ['graveyard', 'exile', 'hand', 'library'];
 /** Leva 105 · marcas que a conjuração põe na carta (e que não atravessam outra mudança de zona). */
-const MARCAS_DA_CONJURACAO = ['xPaid', 'bestowed', 'evidenced', 'faceDown', 'flashback', 'paidAdditional', 'discardedNonland', 'altIndex', 'mode',
+const MARCAS_DA_CONJURACAO = ['xPaid', 'bestowed', 'evidenced', 'faceDown', 'prevista', 'flashback', 'paidAdditional', 'discardedNonland', 'altIndex', 'mode',
   'bargained', 'omen', 'stormCopies', 'chosenColor', 'plotted', 'playableFromExile', 'jogavelSoNesteTurno', 'jogavelAte', 'escondida', 'suspensa', 'suspensaImpeto', 'jogavelSe', 'emendas', 'sneakAtaque', 'sneakPw', 'kicked', 'modes', 'castFrom', 'divisao']; // M-376 · 'revealed' fica: a habilidade do Martyr of Sands lê depois do sacrifício
 /* ---------------- CR2-G R5c · 701.8/614 · "se fosse destruída" ---------------- */
 /** O que acontece se `o` fosse destruída agora: 'indestrutivel' (não é destruída), { totem: aura } (702.89: a Aura com
@@ -19382,6 +19387,28 @@ function evidenceCards(s, p, n) {
     separado na pilha, então ninguém responde entre a vigilância e a mágica. */
 const wardOf = (s, o) => { if (!o || o.zone !== 'battlefield') return null; const proprio = (((s.facts[o.name] || {}).script || {}).self || {}).ward; if (proprio) return proprio;
   const c = continuosQueAfetam(s, o).find(e => e.ward); return c ? c.ward : null; }; // M-251 · ward concedido (Combat Research)
+/** M-382 · 702.143 prenunciar: a carta exilada virada para baixo pela ação especial; o dono a conjura num turno depois, pelo custo de prenunciar
+ * (custo alternativo, 118.9: sem outro custo alternativo nem X; reduções tiram do genérico dele). */
+const previstaM = (s, p, o) => !!o && o.zone === 'exile' && o.owner === p && !!o.prevista && o.prevista.z === (o.zc || 0) && !!((s.facts[o.name] || {}).script || {}).foretell;
+function previstaNoCastM(s, a, o) {
+  if (!a.prevista) return;
+  if (!previstaM(s, a.p, o)) throw new RuleError('prenunciar', 'esta carta não está prenunciada, ou não é sua');
+  if (o.prevista.turno >= s.turn.number) throw new RuleError('prenunciar', 'a carta prenunciada só pode ser conjurada num turno depois');
+  if (a.alt != null || a.flashback || a.escape || a.disturb || a.omen || a.bestow || a.faceDown || a.plotted || a.aerobend || a.x || a.kick || a.vida != null || (a.emenda || []).length) throw new RuleError('prenunciar', 'a prenunciada se conjura pelo custo de prenunciar, sem outro custo alternativo');
+  o.playableFromExile = a.p; o.faceDown = false; // revelada ao ser conjurada
+}
+function custoPrevistaM(s, p, o, alvos) {
+  const f = s.facts[o.name], custo = parseCost(f.script.foretell.mana);
+  const teto = custo.generic || 0, red = affinityDiscount(s, p, o, teto - (f.cost.generic || 0)) + reducaoPorAlvo(s, p, o, alvos) + reducaoPorCor(s, p, o); // achado da revisão: a redução por cor também (601.2f)
+  return { custo, extra: -Math.min(teto, red) };
+}
+function ofertasPrevistasM(s, p, out, casts, canSorcery) {
+  for (const oid of s.zones[p].exile) {
+    const o = s.objects[oid], f = o && s.facts[o.name];
+    if (!previstaM(s, p, o) || o.prevista.turno >= s.turn.number || f.types.includes('land') || !(canSorcery || !isSorcerySpeed(f))) continue;
+    for (const x of casts({ ...o, faceDown: false })) { const c = custoPrevistaM(s, p, o, x.targets || []); if (s.manaCheck && !canPay(s, p, c.custo, c.extra)) continue; out.push({ ...x, prevista: true }); }
+  }
+}
 /** M-380 · a ficha do "endure": Espírito branco N/N. */
 const espiritoDoEndure = n => ({ do: 'token', amount: 1, token: { name: 'Spirit', types: ['creature'], subtypes: ['Spirit'], colors: ['W'], power: n, toughness: n } });
 /** M-376 · 601.2d · dano dividido ao conjurar. */
@@ -22535,6 +22562,7 @@ const HANDLERS = {
     const fromPlot = a.plotted && o && o.zone === 'exile' && o.plotted != null && o.plotted < s.turn.number;
     if (a.plotted && !fromPlot) throw new RuleError('plot', 'esta carta não está plotada para um turno anterior');
     // S61 · Cavernas das Runas: conjura do exílio pagando o custo normal
+    previstaNoCastM(s, a, o); // M-382 · 702.143a: conjurar a carta prenunciada pelo custo de prenunciar, num turno depois
     aerobendNoCastV(s, a, o); // V-30 · 701.65a: conjurar a carta aerobendida por {2} (Toca ponto comum: HANDLERS.cast)
     const fromExile = jogavelDoExilio(s, a.p, o); // M-270
     if (!o || o.owner !== a.p || !(o.zone === 'hand' || fromGraveyard || fromPlot || fromExile || (o.zone === 'command' && o.commander))) throw new RuleError('objeto', 'só conjura da mão ou da zona de comando');
@@ -22598,7 +22626,7 @@ const HANDLERS = {
     const alt = a.alt != null ? altCosts(s, o)[a.alt] : null;
     if (a.alt != null && !alt) throw new RuleError('custo', 'custo alternativo inexistente');
     if (alt && !condicaoDoAlt(s, a.p, alt.when, a.oid)) throw new RuleError('custo', 'a condição do custo alternativo não vale agora');
-    const caminhoNormal = !alt && !a.flashback && !a.escape && !a.disturb && !a.omen && !a.bestow && !a.faceDown && !a.aerobend && !a.plotted && !a.free; // M-365
+    const caminhoNormal = !alt && !a.flashback && !a.escape && !a.disturb && !a.omen && !a.bestow && !a.faceDown && !a.aerobend && !a.prevista && !a.plotted && !a.free; // M-365 · M-382
     if (alt) { payAlt(s, a.p, alt.cost, a.pay, a.oid, a.targets || []); if (alt.cost && alt.cost.revealHand) events.push({ kind: 'reveal-hand', p: a.p, name: o.name, cards: s.zones[a.p].hand.filter(x => x !== a.oid).map(x => s.objects[x].name) }); } // M-351 · 701.20 · a mão revelada vai ao registro (Land Grant)
     else if (a.flashback) {
       const fb = flashbackOf(s, o);
@@ -22613,6 +22641,7 @@ const HANDLERS = {
     else if (a.omen) { const om = omenOf(s, { name: o.frontName || o.name }); if (s.manaCheck && !a.free) payCost(s, a.p, parseCost((om || {}).mana || '{0}')); }
     else if (a.bestow) { const bc = parseCost(bestowOf(s, o).mana); if (s.manaCheck && !a.free) payCost(s, a.p, bc, (a.x || 0) * (bc.x || 0) - reducaoNoCusto(s, a.p, o, a.targets || [], bc)); } // M-259
     else if (a.faceDown) { if (s.manaCheck && !a.free) payCost(s, a.p, parseCost('{3}')); } // S54 · virada para baixo custa {3}
+    else if (a.prevista) { if (s.manaCheck && !a.free) { const c = custoPrevistaM(s, a.p, o, a.targets || []); payCost(s, a.p, c.custo, c.extra); } } // M-382 · 702.143a: o custo de prenunciar em vez do custo de mana
     else if (a.aerobend) { if (s.manaCheck && !a.free) { const c = custoAerobendV(s, a.p, o, a.kick || 0, a.targets || []); payCost(s, a.p, c.custo, c.extra); } } // V-30/V-31 · 701.65a, 118.9d: {2} em vez do custo de mana, mais reforço, menos reduções (Toca ponto comum: HANDLERS.cast)
     else if (a.plotted) { /* S53 · plot: o mana já foi pago quando a carta foi plotada */ }
     if (!caminhoNormal && s.manaCheck) { const aum = aumentoPorAlvo(s, a.targets || []); if (aum > 0) payCost(s, a.p, parseCost('{0}'), aum); } // M-365 · 601.2f: a taxa de quem mira a Tocha soma ao custo alternativo, ao lampejo e ao "sem pagar" (achado da revisão: Daze e lampejo saíam sem a taxa)
@@ -23129,6 +23158,17 @@ const HANDLERS = {
     delete o.faceDown; o.ts = relogio(s); // CR2d.12 · 613.7f: virada para cima recebe carimbo novo
     megamorfoseK(s, o, mp); // K-23 · 702.37b: com o custo de megamorfose pago, entra o marcador +1/+1 ao virar (Toca ponto comum: HANDLERS.unmorph)
     viradaParaCimaT(s, o.oid); // T-42 · CR 708.8 · "when ~ is turned face up" (Toca ponto comum: HANDLERS.unmorph)
+    s.turn.passes = 0;
+  },
+  prever(s, a, ev) { // M-382 · 702.143a / 116.2h: no seu turno, com prioridade, pague {2} e exile esta carta da mão virada para baixo (ação especial, sem pilha)
+    noPending(s); holder(s, a.p);
+    if (s.turn.active !== a.p) throw new RuleError('tempo', 'prenunciar só no seu turno');
+    const o = owns(s, a.p, a.oid, 'hand');
+    if (!((s.facts[o.name].script || {}).foretell)) throw new RuleError('prenunciar', 'esta carta não tem prenunciar');
+    if (s.manaCheck) payCost(s, a.p, parseCost('{2}'));
+    moveObject(s, a.oid, 'exile');
+    const x = s.objects[a.oid]; x.faceDown = true; x.prevista = { turno: s.turn.number, z: x.zc || 0 };
+    ev.push({ kind: 'prevista', p: a.p });
     s.turn.passes = 0;
   },
   plot(s, a) { // S53 · paga o custo de plot e exila a carta da mão, para conjurar de graça depois
@@ -23663,6 +23703,11 @@ function legalActions(s, p, { adjudication = false } = {}) {
     const mp = (s.facts[o.name].script || {}).morph;
     if (mp && (!s.manaCheck || canPay(s, p, parseCost(mp.mana)))) out.push({ t: 'unmorph', p, oid: o.oid });
   }
+  // M-382 · 702.143a: prenunciar — no seu turno, com prioridade, pagando {2}
+  if (s.turn.active === p) for (const oid of s.zones[p].hand) {
+    const fr = (s.facts[s.objects[oid].name].script || {}).foretell;
+    if (fr && (!s.manaCheck || canPay(s, p, parseCost('{2}')))) out.push({ t: 'prever', p, oid });
+  }
   // S53 · plot: paga e exila da mão, no tempo de feitiço
   if (canSorcery) for (const oid of s.zones[p].hand) {
     const pl = (s.facts[s.objects[oid].name].script || {}).plot;
@@ -23957,6 +24002,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
     for (const c of mao) casts(o).forEach(x => out.push({ ...x, recomecarK: true, pay: { ...(x.pay || {}), discard: [c] } }));
   }
   /* ↓ V · ofertas de legalActions da trilha verbos (out.push) */
+  if (!s.pending) ofertasPrevistasM(s, p, out, casts, canSorcery); // M-382 · 702.143a
   if (!s.pending) ofertasAerobendV(s, p, out, casts, canSorcery); // V-30/V-31 · 701.65a, 118.9d: a carta aerobendida, por {2} (com reforço e reduções)
   for (let i = out.length - 1; i >= 0; i--) if (acaoDeDetidaV(s, out[i])) out.splice(i, 1); // V-21 · 701.35a: habilidade ativada de permanente detida não é oferecida
   if (!s.pending) for (const o of battlefield(s)) if (o.controller === p && podeVirarManifestada(s, o) && (!s.manaCheck || canPay(s, p, s.facts[o.name].cost))) out.push({ t: 'unmorph', p, oid: o.oid, manifest: true }); // V-17 · 701.40b
@@ -29724,7 +29770,7 @@ function describe(before, a, events, after) {
       const alvo = (a.targets || []).map(x => x.player != null ? who(before, x.player) : nameOf(before, x.oid)).join(', ');
       // Leva 121 · carta conjurada virada para baixo não diz o nome (708.2: é informação oculta)
       if (a.faceDown) { L.push(`${P} conjurou uma criatura virada para baixo`); break; }
-      const extra = a.plotted ? ' (tramada, sem pagar)' : a.alt != null ? ' (custo alternativo)' : a.flashback ? ' (lampejo do passado)' : a.retrace ? ' (retraçar)' : a.permissao != null ? ` (do cemitério, por ${nameOf(before, a.permissao)})` : a.delve ? ` (delve ${a.delve})` : a.disturb ? ' (disturb)' : a.omen ? ' (presságio)' : a.bestow ? ' (conceder)' : '';
+      const extra = a.prevista ? ' (prenunciada)' : a.plotted ? ' (tramada, sem pagar)' : a.alt != null ? ' (custo alternativo)' : a.flashback ? ' (lampejo do passado)' : a.retrace ? ' (retraçar)' : a.permissao != null ? ` (do cemitério, por ${nameOf(before, a.permissao)})` : a.delve ? ` (delve ${a.delve})` : a.disturb ? ' (disturb)' : a.omen ? ' (presságio)' : a.bestow ? ' (conceder)' : '';
       const comX = a.x != null ? ` com X = ${a.x}` : ''; // Leva 104
       // Leva 110 · "alvo:" no lugar da seta, que não dizia nada para quem não conhece o app
       L.push(extra ? `${P} conjurou ${o.name}${extra}${comX}${alvo ? ` · alvo: ${alvo}` : ''}` : (o.zone === 'command' ? `${P} conjurou ${o.name} da zona de comando (imposto ${E.commanderTax(after, a.p, a.oid)})` : `${P} conjurou ${o.name}${comX}`) + (alvo ? ` · alvo: ${alvo}` : ''));
@@ -29743,6 +29789,7 @@ function describe(before, a, events, after) {
     case 'pick': L.push(`${P} escolheu ${nameOf(before, a.oid)}`); break;
     case 'pick_target': { const op = ((before.pending || {}).options || [])[a.index]; const nome = op ? (op.player != null ? who(before, op.player) : nameOf(before, op.oid)) : null;
       L.push(a.nenhum ? `${P} não escolheu alvo para ${(before.pending || {}).name || 'o gatilho'}` : nome ? `${P} escolheu ${nome} como alvo de ${(before.pending || {}).name || 'o gatilho'}` : `${P} escolheu o alvo de ${(before.pending || {}).name || 'o gatilho'}`); break; }
+    case 'prever': L.push(`${P} prenunciou uma carta: fica virada para baixo no exílio`); break; // M-382 · a carta não é revelada (406.3)
     case 'plot': L.push(`${P} tramou ${nameOf(before, a.oid)} (plot): fica no exílio para conjurar sem pagar num turno seguinte`); break; // Leva 121
     case 'destrancar': L.push(`${P} destrancou ${E.nomeDaPortaT(before, a.oid, a.porta) || 'uma porta'} (${nameOf(before, a.oid)})`); break; // T-26 · CR 709.5e (Toca ponto comum: linhas do registro)
     case 'suspender_k': L.push(`${P} suspendeu ${nameOf(before, a.oid)}: vai para o exílio com marcadores de tempo e, quando sair o último, é conjurada sem pagar`); break; // K-73
@@ -32731,6 +32778,8 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
         : a.t === 'plot' ? doBtn(`Tramar · ${(f.script.plot || {}).mana || ''}`, a)
         : a.t === 'unmorph' ? doBtn(`Virar para cima · ${a.manifest ? costLabel(f.cost) || '{0}' : ((f.script || {}).morph || {}).mana || ''}`, a, { variant: 'primary' }) // V-17 · manifestada vira pelo custo de mana da carta (toque autorizado pelo dono em 11/10/2026)
         : a.t === 'cast' && a.faceDown ? doBtn('Conjurar virada para baixo · {3}', a)
+        : a.t === 'prever' ? doBtn(`Prenunciar · {2} (conjurar depois por ${((f.script || {}).foretell || {}).mana || ''})`, a) // M-382 · 702.143a
+        : a.t === 'cast' && a.prevista ? doBtn(`Conjurar prenunciada · ${((f.script || {}).foretell || {}).mana || ''}` + ((a.targets || []).length ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : ''), a, { variant: 'primary' }) // M-382
         : a.t === 'cast' && a.aerobend ? doBtn('Conjurar por aerobender · {2}' + ((a.targets || []).length ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : ''), a, { variant: 'primary' }) // V-30 · 701.65a: {2} em vez do custo impresso (Toca ponto comum: table.js, uma linha)
         : a.t === 'destrancar' ? (md => doBtn(`Destrancar ${md ? md.nome : 'a porta'} · ${md ? md.mana : ''}`, a, { variant: 'primary' }))((E.metadesDe(s, a.oid) || [])[a.porta === 'direita' ? 1 : 0]) // T-26 · CR 709.5e: uma por porta trancada (Toca ponto comum: folha da carta)
         : a.t === 'suspender_k' ? doBtn(`Suspender · ${(f.suspenderK || {}).mana || ''} (${(f.suspenderK || {}).n || 0} ${((f.suspenderK || {}).n || 0) === 1 ? 'marcador' : 'marcadores'} de tempo)`, a) // K-73 · 702.62a: suspender da mão (decisão D2 do dono, 12/10/2026; Toca ponto comum: table.js)
@@ -32892,7 +32941,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const s = table.state;
     const ids = s.zones[p][zone];
     Dialog({ title: `${label} de ${s.players[p].name}`, body: ids.length
-      ? h('div', { class: 'tb-zonegrid' }, ...ids.slice().reverse().map(oid => TableCard({ ...s.objects[oid], image: imgOf(s.objects[oid]), images: imagensOf(s.objects[oid]) }, { onClick: () => { closeDialog(); openObject(oid); }, ...comPeek(oid),
+      ? h('div', { class: 'tb-zonegrid' }, ...ids.slice().reverse().map(oid => ocultaDe(s, s.objects[oid]) ? TableCard({ ...s.objects[oid], name: VERSO_NOME, image: null, images: null }, { verso: true }) : TableCard({ ...s.objects[oid], image: imgOf(s.objects[oid]), images: imagensOf(s.objects[oid]) }, { onClick: () => { closeDialog(); openObject(oid); }, ...comPeek(oid),
         ...(zone === 'exile' && s.objects[oid].plotted != null ? { estado: T.estadoDaCarta(s, s.objects[oid]) } : {}) })))
       : Empty('Vazio.'), actions: [Button('Fechar', { onClick: closeDialog })] });
   }
@@ -32957,7 +33006,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       No combate, quem pode atacar ou bloquear sai do leque para ter o seu próprio toque. */
   const separaNoCombate = oid => plan.eligible.has(oid) || plan.attack.has(oid) || plan.blocks.has(oid) || [...plan.blocks.values()].includes(oid);
   // D7 · carta virada para baixo de quem não está olhando: o verso, sem nome nem imagem (hot-seat e online não vazam a carta)
-  const ocultaDe = (s, o) => !!(o && o.faceDown && o.zone === 'battlefield' && (o.controller != null ? o.controller : o.owner) !== table.viewer());
+  const ocultaDe = (s, o) => !!(o && o.faceDown && (o.zone === 'battlefield' ? (o.controller != null ? o.controller : o.owner) : o.zone === 'exile' ? o.owner : table.viewer()) !== table.viewer()); // M-382 · 406.3: no exílio virada para baixo (prenunciada, escondida), só o dono vê
   const VERSO_NOME = 'Carta virada para baixo';
   const landPiles = (s, ids, onClick) => T.agrupaLeque(s, ids, { separa: separaNoCombate }).map(pilha => {
     const alvo = pilha.primeiraDesvirada != null ? pilha.primeiraDesvirada : pilha.primeira;

@@ -11307,6 +11307,22 @@ test('e2e · M-376 · 601.2d · dano dividido: depois de conjurar a Arc Lightnin
   if (linhas.length) assert.ok(linhas.some(l => /Arc Lightning: dano dividido — 3 em/.test(l)), 'registro: ' + JSON.stringify(linhas.slice(-6)));
   assert.deepEqual(M.errors, []);
 });
+test('e2e · M-382 · 406.3 · a carta prenunciada do oponente aparece virada para baixo no exílio dele, sem nome nem imagem; a sua aparece aberta para você', { skip }, async t => {
+  const extras = JSON.parse(readFileSync(join(ROOT, '.listas', 'oficiais-revisadas.json'), 'utf8')).cartas.filter(c => c.name === 'Behold the Multiverse');
+  const M = await comLista125(t, '20 Island\n20 Behold the Multiverse', ['Island', 'Behold the Multiverse'], '4', { extras });
+  const { page } = M;
+  const ids = await page.evaluate(() => { const s = window.__estanteMesa.estado();
+    const exila = q => { const z = s.zones[q], de = s.zones[0].library, oid = de.find(o => s.objects[o].name !== 'Island') || de[0]; de.splice(de.indexOf(oid), 1); const o = s.objects[oid]; o.owner = q; o.controller = q; Object.assign(o, { zone: 'exile', faceDown: true, prevista: { turno: s.turn.number, z: o.zc || 0 } }); z.exile.push(oid); return { oid, nome: o.name }; };
+    return { dele: exila(1), minha: exila(0) }; });
+  await page.locator('button.tb-chip:not(#tb-exilio-me)', { hasText: 'Exílio' }).first().click(); await page.waitForSelector('.ds-dialog'); await page.waitForTimeout(300);
+  const dele = await page.locator('.ds-dialog').evaluate(el => el.innerText + ' ' + [...el.querySelectorAll('[aria-label]')].map(x => x.getAttribute('aria-label')).join(' ') + ' ' + [...el.querySelectorAll('img')].map(x => x.src).join(' '));
+  assert.ok(!dele.includes(ids.dele.nome), 'o nome da carta do oponente não aparece: ' + dele.slice(0, 300));
+  assert.match(dele, /Carta virada para baixo/);
+  await page.locator('.ds-dialog button', { hasText: 'Fechar' }).click(); await page.waitForTimeout(200);
+  await page.locator('#tb-exilio-me').click(); await page.waitForSelector('.ds-dialog'); await page.waitForTimeout(300);
+  const minha = await page.locator('.ds-dialog').evaluate(el => el.innerText + ' ' + [...el.querySelectorAll('[aria-label]')].map(x => x.getAttribute('aria-label')).join(' '));
+  assert.ok(minha.includes(ids.minha.nome), 'a minha eu vejo: ' + minha.slice(0, 300));
+});
 
 /* ---------------- G-259 · relato #20 (parte 2): dano de comandante à vista ---------------- */
 test('e2e · G-259 dano de comandante à vista: o selo de vida mostra "Comandante N de 21" e cabe no celular', { skip }, async t => {

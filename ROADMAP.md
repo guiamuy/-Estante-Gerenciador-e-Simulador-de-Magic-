@@ -4198,6 +4198,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Valor:** o símbolo phyrexiano híbrido se paga com qualquer das duas cores ou com 2 de vida. Antes, sem pagar vida, o motor só aceitava a primeira cor — a mesa não oferecia conjurar Tamiyo, Compleated Sage ou Ajani, Sleeper Agent com a outra cor. Pedido da trilha `tipos` (T-47).
 - **Teste:** `lt64.unit` (2 testes; o primeiro falha no motor anterior).
 
+**M-382 · LT49 · 702.143 · Prenunciar (foretell)** ✅ (leva M-382, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** revisão por lote XL — **Behold the Multiverse passa a jogar** (APROVADAS; Oracle do Forge, consulta de 12/10/2026; bloqueava 8 listas do catálogo). No seu turno, com prioridade, a folha da carta oferece "Prenunciar · {2}": a carta vai para o exílio virada para baixo (ação especial, 116.2h: não usa a pilha, não conta como mágica). Num turno depois, ela se conjura do exílio pelo custo de prenunciar, no tempo do tipo (a instantânea, também no turno do oponente), com as reduções de custo. O oponente vê só o verso, no exílio e na folha (406.3).
+- **Revisão independente:** 75 verificações. Reprovou na primeira passada (a redução por cor não valia na prenunciada; o nome da carta virada aparecia ao oponente no exílio) — corrigidos com teste antes; aprovada na segunda. M-381 aprovada no mesmo lote.
+- **Fora (declarado):** o bot não prenuncia; a visão do bot do oponente ainda conhece o nome da carta prenunciada (`visaoDe`, pedido à trilha `bot`); a redução por cor também falta no aerobender (`custoAerobendV`, região V — pedido à `homologacao`); reforço e X na prenunciada não são oferecidos. Mapa de regras: 702.143 parcial, 701.63 (endure, M-380) coberta.
+- **Teste:** `lt65.unit` (3 testes, falham no motor anterior) e um teste de tela no fim do `e2e.test.mjs` (o verso no exílio do oponente).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

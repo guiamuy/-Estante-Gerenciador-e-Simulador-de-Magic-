@@ -6628,10 +6628,10 @@
    "n": "701.63",
    "regra": "Keyword Actions",
    "titulo": "Endure",
-   "status": "ausente",
-   "falta": "não há o verbo (\"cria uma ficha Espírito N/N branca, a menos que ponha N marcadores +1/+1 nesta permanente\"). Adiado pela trilha verbos em 11/10/2026: a ficha é N/N com o mesmo nome \"Spirit\" para qualquer N (e o mesmo nome da ficha do pós-vida), e o motor guarda os fatos de ficha por nome — duas fichas diferentes com o mesmo nome colidem (pedido 5 à trilha motor). Implementar antes disso daria ficha de tamanho errado em silêncio.",
+   "status": "coberta",
    "esforco": "P",
-   "cartas": "uma coleção só"
+   "cartas": "uma coleção só",
+   "evidencia": "M-380 · efeito endure: N marcadores +1/+1 ou Espírito branco N/N à escolha do controlador; fora do campo (ou outro objeto, 400.7) só o Espírito; fichas homônimas não dividem fatos (M-359) — lt63.unit"
   },
   {
    "n": "701.64",
@@ -9012,15 +9012,16 @@
    "n": "702.143",
    "regra": "Keyword Abilities",
    "titulo": "Foretell",
-   "status": "ausente",
-   "falta": "Precisa de ação nova na mesa (o botão é da trilha mesa; pedido aberto desde a onda 3): predizer é ação especial da mão; a conjuração do exílio em turno seguinte também.",
+   "status": "parcial",
+   "falta": "o bot não prenuncia; a visão do bot do oponente ainda conhece o nome da carta prenunciada (visaoDe, trilha bot); reforço e X na prenunciada não são oferecidos",
    "esforco": "M",
    "depende": [
     "116.2h ação especial",
     "406 exílio virado para baixo",
     "601.2b custo alternativo"
    ],
-   "cartas": "comum (Kaldheim; Commander)"
+   "cartas": "comum (Kaldheim; Commander)",
+   "evidencia": "M-382 · ação especial prever (116.2h, {2}, exílio virado para baixo) e conjurar a prenunciada num turno depois pelo custo de prenunciar, com reduções — lt65.unit e e2e M-382 (406.3: o oponente vê o verso)"
   },
   {
    "n": "702.144",
