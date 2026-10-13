@@ -27200,11 +27200,12 @@ function danoDeLuta(s, fonte, alvo, n, events) {
   if (!(n > 0)) return 0; // 120.8 · dano 0 não é dano
   n = danoSubstituido(s, fonte, { obj: alvo }, n, false);
   const resto = danoAposPrevencao(s, fonte, { obj: alvo }, n, false);
-  if (!(resto > 0)) { events.push({ kind: 'effect', do: 'damage', name: fonte.name, target: alvo.name, amount: n, prevented: true }); return 0; }
+  const viradasT = { ...(fonte.faceDown ? { fonteVirada: true } : {}), ...(alvo.faceDown ? { alvoVirado: true } : {}) }; // T-74 · CR 708.2: a luta não revela quem está virada (Toca ponto comum: danoDeLuta)
+  if (!(resto > 0)) { events.push({ kind: 'effect', do: 'damage', name: fonte.name, target: alvo.name, amount: n, prevented: true, ...viradasT }); return 0; }
   marcaDanoEmCriatura(s, fonte, alvo, resto); noteEnchantedEvent(s, alvo, 'recebe-dano'); noteDamaged(s, alvo);
   if (has(s, fonte, 'deathtouch')) alvo.deathtouched = true;
   causouDano(s, fonte, resto, null);
-  events.push({ kind: 'effect', do: 'damage', name: fonte.name, target: alvo.name, amount: resto });
+  events.push({ kind: 'effect', do: 'damage', name: fonte.name, target: alvo.name, amount: resto, ...viradasT });
   return resto;
 }
 /** Quem luta: a permanente fonte, ou a criatura que o efeito `lutador` desta mesma mágica ou habilidade anotou. `lutador` só é aplicado
@@ -27286,7 +27287,7 @@ function viraParaBaixoT(s, src, o, events) {
   if (!o || o.zone !== 'battlefield') return falha('não está no campo');
   if (o.faceDown) return falha('já está virada para baixo'); // 708.2b
   if (o.frontName || o.duplaFace || parDuplaFaceT(s, o)) return falha('dupla face não pode ser virada para baixo'); // 712.16
-  const nome = o.name; o.faceDown = true; o.ts = relogio(s); // 613.7f
+  const nome = o.name; o.faceDown = true; o.ts = relogio(s); delete o.disfarcadaT; // 613.7f · T-74 · 708.2a: virada por efeito não tem a salvaguarda do disfarce
   events.push({ kind: 'effect', do: 'vira_para_baixo', name: src.name, target: nome });
 }
 /** T-73 · CR 708.8 · virar para cima por efeito (sem pagar): volta aos valores dela e dispara "quando é virada para cima". A carta que não é
@@ -27294,7 +27295,7 @@ function viraParaBaixoT(s, src, o, events) {
 function viraParaCimaPorEfeitoT(s, src, o, events) {
   const falha = motivo => events.push({ kind: 'effect', do: 'vira_para_cima', name: src.name, target: '', failed: true, motivo });
   if (!o || o.zone !== 'battlefield' || !o.faceDown) return falha('não está virada para baixo');
-  if (!isPermanent(s.facts[o.name] || {})) return falha('a carta não é de permanente: continua virada'); // 701.40g
+  if (!isPermanent(s.facts[o.name] || {})) { events.push({ kind: 'effect', do: 'vira_para_cima', name: src.name, target: o.name, failed: true, revelada: true }); return; } // 701.40g: revela e continua virada
   delete o.faceDown; o.ts = relogio(s); // 613.7f
   events.push({ kind: 'effect', do: 'vira_para_cima', name: src.name, target: o.name });
   viradaParaCimaT(s, o.oid); // 708.8
@@ -27362,7 +27363,7 @@ function predicadosDeTipoT(s, o, sel, lki = null) {
   if (sel.historico != null) { const h = !virada && (lki ? /\bLegendary\b/i.test(lki.linha || '') || !!f.legendary || (lki.tipos || []).includes('artifact') : (!!f.legendary || portadorLendarioV(s, o) || (o.zone === 'battlefield' ? tiposDe(s, o) : (f.types || [])).includes('artifact'))) || tem('Saga'); if (h !== sel.historico) return false; }
   if (sel.foraDaLei != null) { const fl = !virada && SUBTIPOS_FORA_DA_LEI_T.some(tem); if (fl !== sel.foraDaLei) return false; }
   if (sel.virada != null && virada !== sel.virada) return false; // T-73 · "face-down creature" (708)
-  if (sel.metamorfose != null && (!virada && !!((f.script || {}).morph)) !== sel.metamorfose) return false; // T-73 · "creature with a morph ability" (702.37; a virada para baixo não tem habilidade, 708.2)
+  if (sel.metamorfose != null && (!virada && !!((f.script || {}).morph) && !((f.script || {}).morph || {}).disfarceT) !== sel.metamorfose) return false; // T-74 · disfarce (702.168) não é metamorfose // T-73 · "creature with a morph ability" (702.37; a virada para baixo não tem habilidade, 708.2)
   if (sel.modificada != null) {
     const anexos = battlefield(s).filter(x => x.attachedTo === o.oid && (lki || o.zone === 'battlefield'));
     const dono = lki ? lki.controller : o.controller;
@@ -30567,6 +30568,7 @@ function who(s, p) { return s.players[p] ? s.players[p].name : '?'; }
 
 /** S4 · uma linha por efeito aplicado pelo script. */
 function effectLine(ev) {
+  if (ev.fonteVirada) ev = { ...ev, name: 'Uma criatura virada para baixo' }; // T-74 · CR 708.2: a fonte virada (luta)
   if (ev.alvoVirado) ev = { ...ev, target: 'uma criatura virada para baixo' }; // T-68 · CR 708.2 / 708.5 · o registro não revela a virada para baixo
   if (LINHA_T[ev.do]) return LINHA_T[ev.do](ev); // T-7 · Toca ponto comum: effectLine (linhas do registro da trilha tipos)
   const n = ev.amount, t = ev.target;
@@ -30752,23 +30754,36 @@ function describe(before, a, events, after) {
   }
   if (after.status === 'playing' && (before.status !== 'playing' || after.turn.number !== before.turn.number))
     L.push(`— Turno ${after.turn.number} · ${who(after, after.turn.active)} —`);
-  return mascaraViradasT(after, L); // T-71 · CR 708.2 / 708.4 / 406.3 · nenhuma linha diz o nome de quem continua escondido (Toca ponto comum: describe)
+  return mascaraViradasT(after, L, before); // T-71 · CR 708.2 / 708.4 / 406.3 · nenhuma linha diz o nome de quem continua escondido (Toca ponto comum: describe)
 }
 /** T-71 · CR 708.2 / 708.4 / 406.3 / 708.9 · o registro é de todos: o nome de uma carta que, depois da ação, continua virada para baixo (no
  * campo, na pilha ou no exílio) não aparece em linha nenhuma — luta, salvaguarda, marcadores, regenerar, pagar, "escolheu" — a não ser que
  * uma carta visível tenha o mesmo nome (aí o nome não identifica a escondida). Quem sai do campo é revelada (708.9) e deixa de estar virada. */
-function mascaraViradasT(after, L) {
+function mascaraViradasT(after, L, before = null) {
   if (!L.length || !after || !after.objects) return L;
   const vis = new Set(), esc = new Map();
+  const publica = o => !o.faceDown && (['battlefield', 'stack', 'graveyard', 'exile'].includes(o.zone)); // T-74 · 400.2
   for (const o of Object.values(after.objects)) {
     if (!o || o.ability || !o.name) continue;
     if (o.faceDown && ['battlefield', 'stack', 'exile'].includes(o.zone)) esc.set(o.name, o.zone === 'exile' && esc.get(o.name) !== 'uma criatura virada para baixo' ? 'uma carta virada para baixo' : 'uma criatura virada para baixo');
-    else if (['battlefield', 'stack', 'graveyard'].includes(o.zone) || (o.zone === 'exile' && !o.faceDown)) vis.add(o.name);
+    else if (publica(o)) vis.add(o.name);
   }
+  if (before && before.objects) for (const o of Object.values(before.objects)) if (o && !o.ability && o.name && publica(o)) vis.add(o.name); // T-74 · quem era visível antes da ação (a gêmea virada para cima que voltou para a mão) não é a escondida
   const nomes = [...esc.keys()].filter(n => !vis.has(n)).sort((a, b) => b.length - a.length);
-  if (!nomes.length) return L;
-  const re = new RegExp(nomes.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'g');
-  return L.map(l => { const m = l.replace(re, n => esc.get(n)); return m !== l && /^uma /.test(m) ? 'U' + m.slice(1) : m; });
+  if (!nomes.length) return L.map(l => l.replace(/\u2063/g, ''));
+  const ex = n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`(?<![\\p{L}\\p{N}])(?:${nomes.map(ex).join('|')})(?![\\p{L}\\p{N}])`, 'gu'); // T-74 · palavra inteira: "Lobo" não morde "Lobo Cinza"
+  // T-74 · nomes que contêm o escondido e são públicos (outra carta visível, um jogador) ficam protegidos
+  const protegidos = [...new Set([...vis, ...(after.players || []).map(p => p && p.name).filter(Boolean)])].filter(n => nomes.some(h => n !== h && n.includes(h))).sort((a, b) => b.length - a.length);
+  return L.map(l => {
+    if (l.startsWith('\u2063')) return l.slice(1); // T-74 · linha que revela de propósito (701.40g)
+    let m = l; const guard = [];
+    for (const p of protegidos) m = m.split(p).join(`\u0000${guard.push(p) - 1}\u0000`);
+    for (const pn of (after.players || []).map(x => x && x.name).filter(n => n && esc.has(n))) if (m.startsWith(pn + ' ')) m = `\u0000${guard.push(pn) - 1}\u0000` + m.slice(pn.length); // T-74 · o jogador que conjura tem o mesmo nome da escondida
+    m = m.replace(re, n => esc.get(n));
+    m = m.replace(/\u0000(\d+)\u0000/g, (_, k) => guard[+k]);
+    return m !== l && /^uma /.test(m) ? 'U' + m.slice(1) : m;
+  });
 }
 
 /** Revela informação oculta? Compra, mulligan e embaralhamento revelam. */
@@ -31599,7 +31614,7 @@ Object.assign(EFEITO_PT_T, { vira_para_baixo: () => 'vira a criatura alvo para b
 /** T-59 · CR 700.6 / 700.12 / 700.9 · os predicados de tipo na frase do seletor. */
 const predicadosPT_T = sel => (sel.historico ? ' histórica' : sel.historico === false ? ' que não é histórica' : '') + (sel.foraDaLei ? ' fora da lei' : sel.foraDaLei === false ? ' que não é fora da lei' : '') + /* T-60 */ (sel.modificada ? ' modificada' : sel.modificada === false ? ' que não está modificada' : '');
 const LINHA_T = { preparada: ev => (ev.failed ? `${ev.name}: ${ev.motivo || 'não ficou preparada'}, nada muda` : `${ev.name} está preparada (pode conjurar uma cópia de ${ev.target})`), despreparada: ev => `${ev.name} deixou de estar preparada`, ciclo: ev => `Virou ${ev.target}${ev.motivo ? ` (${ev.motivo})` : ''}`, masmorra_completa: ev => `${ev.target} completou a masmorra ${ev.name}`, caso_resolvido: ev => (ev.failed ? `${ev.name}: a condição não valia mais, o Caso não foi resolvido` : `${ev.name} foi resolvido`), estacao: ev => (ev.failed ? `${ev.name}: a nave saiu do campo, a estação não pôs marcadores` : `${ev.name} recebeu ${ev.amount} marcador${ev.amount === 1 ? '' : 'es'} de carga (estação)${ev.total != null ? ` · ${ev.total} no total` : ''}`), selada: ev => (ev.failed ? `${ev.name}: a montaria saiu do campo, não foi selada` : `${ev.name} foi selada`), virar_carta: ev => (ev.failed ? `${ev.name} não virou${ev.motivo ? ` (${ev.motivo})` : ''}` : `${ev.name} virou: agora é ${ev.target}`), porta: ev => (ev.failed ? `${ev.name}: nenhuma porta para trancar ou destrancar` : `${ev.name} ${ev.acao} ${ev.porta} (${ev.target})`), nivel_sobe: ev => (ev.failed ? `${ev.name}: saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu de nível (nível ${ev.nivel})`), nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, converter: ev => `${ev.name} converteu em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
-Object.assign(LINHA_T, { vira_para_baixo: ev => ev.failed ? `${ev.name}: ${ev.motivo || 'nada muda'}` : `${ev.name} virou uma criatura para baixo (fica 2/2, sem nome nem habilidades)`, vira_para_cima: ev => ev.failed ? `${ev.name}: ${ev.motivo || 'nada muda'}` : `${ev.name} virou ${ev.target} para cima` }); // T-73 · CR 708.2a / 708.8
+Object.assign(LINHA_T, { vira_para_baixo: ev => ev.failed ? `${ev.name}: ${ev.motivo || 'nada muda'}` : `${ev.name} virou uma criatura para baixo (fica 2/2, sem nome nem habilidades)`, vira_para_cima: ev => ev.revelada ? `\u2063${ev.name}: ${ev.target} foi revelada (instantânea ou feitiço manifestado: continua virada para baixo)` : ev.failed ? `${ev.name}: ${ev.motivo || 'nada muda'}` : `${ev.name} virou ${ev.target} para cima` }); // T-74 · 701.40g: a linha que revela não é mascarada // T-73 · CR 708.2a / 708.8
 Object.assign(EFEITO_PT_T, { cerco_derrotado: () => 'exila o Cerco; você pode conjurá-lo transformado, sem pagar', papel: e => `cria um Papel de ${e.papel} anexado à criatura` }); // T-14 · CR 310.12b
 Object.assign(LINHA_T, { cerco_derrotado: ev => (ev.failed ? `${ev.name}: o Cerco já tinha saído do campo, nada a exilar` : `${ev.name} foi derrotada e exilada${ev.target ? ` (pode virar ${ev.target})` : ''}`), protetor_batalha: ev => `${ev.target} passa a proteger ${ev.name}`, anexo_barrado: ev => `${ev.name} não pode equipar${ev.target ? ' ' + ev.target : ''} e fica onde está`, papel: ev => (ev.failed ? `${ev.name}: sem criatura para o Papel de ${ev.target}` : `Papel de ${ev.target || ev.name}`), papel_substituido: ev => `o Papel ${ev.name} foi substituído e vai para o cemitério`, batalha_cemiterio: ev => `${ev.name} ficou sem defesa e foi para o cemitério` }); // T-14 · CR 310.12b / 310.11 / 310.8
 function descreveEfeito(e) {
@@ -33926,7 +33941,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       No combate, quem pode atacar ou bloquear sai do leque para ter o seu próprio toque. */
   const separaNoCombate = oid => plan.eligible.has(oid) || plan.attack.has(oid) || plan.blocks.has(oid) || [...plan.blocks.values()].includes(oid);
   // D7 · carta virada para baixo de quem não está olhando: o verso, sem nome nem imagem (hot-seat e online não vazam a carta)
-  const ocultaDe = (s, o) => !!(o && o.faceDown && (o.zone === 'battlefield' ? (o.controller != null ? o.controller : o.owner) : o.zone === 'exile' ? o.owner : table.viewer()) !== table.viewer()); // M-382 · 406.3: no exílio virada para baixo (prenunciada, escondida), só o dono vê
+  const ocultaDe = (s, o) => !!(o && o.faceDown && ((o.zone === 'battlefield' || o.zone === 'stack') ? (o.controller != null ? o.controller : o.owner) : o.zone === 'exile' ? o.owner : table.viewer()) !== table.viewer()); // M-382 · 406.3: no exílio virada para baixo (prenunciada, escondida), só o dono vê · T-74 · 708.5: a mágica virada na pilha também só quem a controla vê (Toca ponto comum: ocultaDe da mesa)
   const VERSO_NOME = 'Carta virada para baixo';
   const landPiles = (s, ids, onClick) => T.agrupaLeque(s, ids, { separa: separaNoCombate }).map(pilha => {
     const alvo = pilha.primeiraDesvirada != null ? pilha.primeiraDesvirada : pilha.primeira;
