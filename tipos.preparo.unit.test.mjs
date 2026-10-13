@@ -151,3 +151,34 @@ test('CR 722 · passeio aleatório com cartas de preparação: nada oferecido é
   }
   assert.ok(conjuradas > 0, 'alguma cópia foi conjurada');
 });
+
+/* ---------------- T-52 · correções da auditoria independente ---------------- */
+test('CR 601.2b / 107.3 · a cópia (e toda carta jogável do exílio) com {X} no custo é oferecida com cada X que dá para pagar (D1)', () => {
+  const sc = { ...SCRIPTS, 'Aprendiz X': { name: 'Aprendiz X', self: { preparo: true, entraPreparada: true }, back: { name: 'Raio X', types: ['instant'], mana: '{X}{R}', effects: [{ do: 'damage', amount: { per: 'x' }, target: 'player' }] }, ...EX } };
+  C['Aprendiz X'] = { name: 'Aprendiz X', type_line: 'Creature — Human Wizard', mana_cost: '{R}', cmc: 1, keywords: [], oracle_text: '', colors: ['R'], power: '1', toughness: '1' };
+  const deck = deckCom([{ name: 'Aprendiz X', qty: 4, zone: 'main' }]);
+  const nomes = new Set(deck.map(d => d.name)), cards = Object.fromEntries(Object.entries(C).filter(([n]) => nomes.has(n)));
+  let s = E.createGame({ format: 'livre', seed: 2, mode: 'full', cards, scripts: sc, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  s = passaAte(s, x => x.turn.active === 0 && x.turn.step === 'main1' && !x.stack.length && !x.pending);
+  let a; [s, a] = conjura(s, 0, 'Aprendiz X');
+  s = J(s); for (const c of 'WUBRGC') s.players[0].pool[c] = 0; s.players[0].pool.R = 4;
+  const cp = copias(s)[0].oid;
+  const xs = [...new Set(legais(s, 0, x => x.t === 'cast' && x.oid === cp).map(x => x.x))].sort(); // um X por alvo (os dois jogadores)
+  eq(xs, [0, 1, 2, 3]);
+  const vida = s.players[1].life;
+  s = esvazia(act(s, legais(s, 0, x => x.t === 'cast' && x.oid === cp && x.x === 3 && x.targets[0].player === 1)[0]));
+  eq(vida - s.players[1].life, 3);
+});
+
+test('Registro · conjurar a cópia diz "uma cópia de <mágica> (mágica de preparação)"; preparar quem já está preparada diz "já estava preparada" (D2, achado menor)', () => {
+  let s = mesa(); let a; [s, a] = conjura(s, 0, 'Aprendiz'); s = ativa(s, a, 0); s = mana(s);
+  const cp = copias(s)[0].oid, ac = legais(s, 0, x => x.t === 'cast' && x.oid === cp && x.targets[0].player === 1)[0], r = E.apply(s, ac);
+  const ls = T.describe(s, ac, r.events, r.state).map(String);
+  assert.ok(ls.some(l => /uma cópia de Faisca Estudada \(mágica de preparação\)/.test(l)), JSON.stringify(ls));
+  let t = act(mana(r.state), legais(r.state, 0, x => x.t === 'activate' && x.oid === a && (x.index || 0) === 0)[0]); // em resposta: prepara de novo (cria outra cópia)
+  t = act(mana(t), legais(t, 0, x => x.t === 'activate' && x.oid === a && (x.index || 0) === 0)[0]); // e de novo: a segunda já encontra preparada
+  let linhas = [];
+  for (let i = 0; i < 8 && t.stack.length; i++) { const pa = { t: 'pass', p: t.turn.priority }, q = E.apply(t, pa); linhas = linhas.concat(T.describe(t, pa, q.events, q.state).map(String)); t = q.state; }
+  assert.ok(linhas.some(l => /Aprendiz: já estava preparada, nada muda/.test(l)), JSON.stringify(linhas));
+});
