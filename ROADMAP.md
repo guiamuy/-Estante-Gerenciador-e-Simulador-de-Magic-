@@ -4040,6 +4040,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Revisão independente:** na primeira passada (M-364) reprovou a Tocha por quatro desvios (lampejo, custo alternativo, ofertas das trilhas e taxa em dobro); com a correção, as 38 sondas do revisor passam.
 - **Teste:** `lt48.unit` (3 testes; todos falham no motor anterior).
 
+**M-366 · Delver of Secrets // Insectile Aberration por script à mão** ✅ (leva M-366, **motor v111**: goldens regravados).
+- **Valor:** Delver of Secrets passa a jogar — 11 listas de Pauper esperavam só por ela (mais 2 com o nome das duas faces). Texto do Oracle do Forge no GitHub, consulta de 13/10/2026, em `.listas/oficiais-revisadas.json` (as duas faces). A trilha `cartas` (dona de A a L) não tem linha no registro de trilhas: o motor assumiu a carta e avisou no registro.
+- **Revisão independente:** 66 verificações; o script confere frase a frase, e o revisor achou três desvios no efeito `revela_topo_transforma` (M-353), corrigidos com teste antes: a Delver transformada em resposta voltava a ser Delver ao aceitar (701.27f); a pergunta levava o nome da carta do topo e o registro o copiava ao recusar (401.2); olhar o topo não travava o desfazer na partida a dois.
+- **Versão do motor e goldens:** v110 → v111, porque partidas com Delver dão outro resultado (o gatilho da manutenção passa a existir). `pauper-42` muda a partir da ação 64 (o baralho azul de teste tem Delver: o gatilho entra na pilha e a partida segue outro caminho; na ação 108 o jogador revela e transforma); `commander-7`, `pauper-assistida-1234` e `combate-mana-21` regravados só pela versão — logs, situação e turnos idênticos, conferidos um a um. Partida salva na v110 não abre na v111.
+- **Fora:** a pergunta só aparece quando revelar transforma; recusar ainda conta ao oponente que o topo era instantânea ou feitiço (perguntar sempre custaria um toque a cada manutenção).
+- **Teste:** `lt49.unit` (4 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

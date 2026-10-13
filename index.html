@@ -5375,6 +5375,7 @@ const EFFECTS = {
     'creature-you-control', 'card-in-any-graveyard', 'card-in-your-graveyard', 'creature-in-your-graveyard', 'permanent-in-your-graveyard', 'creature-land-in-any-graveyard'] },
   sacrifice_it: { fields: [], targets: ['permanent', 'self-source'] },
   pisca: { fields: [], targets: ['creature', 'creature-you-control', 'permanent', 'permanent-you-control'] },
+  transformar_pela_habilidade: { fields: [], targets: ['self'] }, // M-366 · montado pelo motor (701.27f); o script não o escreve
   revela_topo_transforma: { fields: [], targets: ['self'] }, // M-353 · Delver of Secrets: olha o topo; se for do tipo pedido, pode revelá-lo e transformar a fonte (701.28)
   exila_da_mao: { fields: ['amount'], targets: ['opponent', 'player'] },
   terreno_da_mao: { fields: [], targets: ['self'] }, // M-354 · "You may put a land card from your hand onto the battlefield [tapped]" (Growth Spiral, Embrace the Paradox; 305.2: não é jogar terreno) // M-353 · Mesmeric Fiend: o jogador alvo revela a mão, você escolhe e exila; a fonte guarda a carta para devolver ao sair
@@ -6494,6 +6495,11 @@ const isTargeted = e => TARGETED.has(e.target) || (!!e.target && typeof e.target
 /** Biblioteca inicial: mágicas comuns de efeito direto, sem gatilho nem escolha
     além do alvo. Cada uma é exercitada pelos testes de cenário. */
 const RAW_SCRIPTS = [
+  // M-366 · Delver of Secrets (Oracle do Forge, GitHub, consulta de 13/10/2026): "At the beginning of your upkeep, look at the top card of your library. You may reveal
+  // that card. If an instant or sorcery card is revealed this way, transform Delver of Secrets." 1/1 Human Wizard {U} // Insectile Aberration: Creature — Human Insect, azul, 3/2, Flying.
+  { name: 'Delver of Secrets', self: { duplaFace: true }, abilities: [{ kind: 'triggered', when: 'upkeep', effects: [{ do: 'revela_topo_transforma', tipos: ['instant', 'sorcery'] }] }],
+    back: { name: 'Insectile Aberration', types: ['creature'], subtypes: ['Human', 'Insect'], colors: ['U'], power: 3, toughness: 2, keywords: ['flying'] },
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   /* ↓ K · scripts de carta da trilha keywords (texto oficial em .listas/oficiais-keywords.json) */
   // K-10 · 702.133: o recomeçar vem da linha impressa ("Jump-start"); o script só diz o efeito
   // K-13 · 702.126: o improvisar vem da linha impressa; o script só diz o efeito
@@ -16964,7 +16970,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 110; // CR2g.4 · combate e principal adicionais (500.8); o estado passa a guardar as criaturas que atacaram no turno ("untap all creatures that attacked this turn")
+const ENGINE_VERSION = 111; // M-366 · Delver of Secrets passa a ter script (transforma na manutenção): partidas com Delver dão outro resultado; goldens regravados · v110: CR2g.4 · combate e principal adicionais (500.8)
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -19906,10 +19912,11 @@ function applyEffect(s, src, eff, tgt, events) {
       if (!topo || !fonte || fonte.zone !== 'battlefield' || (src.ability && src.fonteZc != null && (fonte.zc || 0) !== src.fonteZc)) { note({ amount: 0 }); break; } // 400.7: a que saiu e voltou é outro objeto
       const c = s.objects[topo], tipos = eff.tipos || ['instant', 'sorcery'];
       if (!((s.facts[c.name] || { types: [] }).types || []).some(t => tipos.includes(t))) { note({ amount: 0 }); break; } // revelar outra carta não faz nada: a pergunta só aparece quando revelar transforma
-      s.pending = { kind: 'may_pay', p: ctrl, cost: null, name: `${fonte.name}: revelar ${c.name} do topo e transformar?`,
-        then: { effects: [{ do: 'revela_topo' }, { do: 'transformar' }], source: fonte.oid, name: src.name, controller: ctrl, targets: [] } };
+      s.pending = { kind: 'may_pay', p: ctrl, cost: null, name: `${fonte.name}: revelar a carta do topo e transformar?`, olhaTopo: true, // M-366 · 401.2: o nome da carta não vai para a pergunta (o registro a copiava ao recusar); a mesa trava o desfazer
+        then: { effects: [{ do: 'revela_topo' }, src.ability ? { do: 'transformar_pela_habilidade', hab: src.oid } : { do: 'transformar' }], source: fonte.oid, name: src.name, controller: ctrl, targets: [] } }; // M-366 · 701.27f: a habilidade só transforma se a permanente não transformou desde que ela foi para a pilha
       note({ pending: true }); break;
     }
+    case 'transformar_pela_habilidade': { const alvo = src.ability ? s.objects[src.source] : src; if (alvo) transformaT(s, alvo, { ability: true, oid: eff.hab, source: alvo.oid }, events); break; } // M-366 · 701.27f (achado da revisão da Delver)
     case 'revela_topo': { const topo = s.zones[ctrl].library[0]; if (topo) events.push({ kind: 'revealed', oid: topo, name: s.objects[topo].name, p: ctrl }); note({}); break; } // M-353 · 701.20a
     case 'terreno_da_mao': { // M-354 · você escolhe um terreno da mão (ou nenhum); entra pelo efeito, não conta como jogada de terreno (305.2)
       const terrenos = s.zones[ctrl].hand.filter(x => ((s.facts[s.objects[x].name] || {}).types || []).includes('land'));
@@ -29069,6 +29076,7 @@ function revealed(before, after) {
   if (before.status === 'mulligan') return true;
   // S13/S14: olhar o grimório revela informação oculta
   if ((before.pending && before.pending.kind === 'pick') || (after.pending && after.pending.kind === 'pick')) return true;
+  if ((before.pending && before.pending.olhaTopo) || (after.pending && after.pending.olhaTopo)) return true; // M-366 · olhar o topo (Delver) também trava o desfazer (achado da revisão)
   return before.zones.some((z, p) => after.zones[p].library.length < z.library.length);
 }
 
