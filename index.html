@@ -6348,6 +6348,7 @@ function effectErrors(effects, label, opcional) {
       if (e.onPicked.counters != null && !Number.isInteger(e.onPicked.counters)) errs.push(`${label} ${i + 1}: marcadores da carta escolhida precisam ser inteiros`);
       if (e.onPicked.keyword && !KEYWORDS.includes(String(e.onPicked.keyword).toLowerCase())) errs.push(`${label} ${i + 1}: palavra-chave "${e.onPicked.keyword}" não é resolvida pelo motor`);
       if (e.onPicked.until != null && e.onPicked.until !== 'your-next-turn') errs.push(`${label} ${i + 1}: duração "${e.onPicked.until}" desconhecida`);
+      if (e.onPicked.vidaSeTipo != null && !(e.onPicked.vidaSeTipo && TIPOS_DE_CARTA.includes(e.onPicked.vidaSeTipo.tipo) && Number.isInteger(e.onPicked.vidaSeTipo.vida) && e.onPicked.vidaSeTipo.vida > 0)) errs.push(`${label} ${i + 1}: vidaSeTipo precisa do tipo de carta e da vida`); // M-364
     }
     // efeito com escolha interrompe a resolução: o que vem depois não pode ter alvo
     if (CHOICE_EFFECTS.includes(e.do) && effects.slice(i + 1).some(isTargeted)) errs.push(`${label} ${i + 1} (${e.do}): efeito com alvo depois de uma escolha`);
@@ -8820,6 +8821,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Agony Warp': { texto: '1w9h0wf', leva: 'M-363' },
   'Ardent Recruit': { texto: '1hohwrh', leva: 'M-363' },
   'Bender\'s Waterskin': { texto: 'sa7u68', leva: 'M-363' },
+  // M-364 · revisão por lote XXVIII (Pauper: Chrome Courier), revisor independente com 16 verificações: 1 de 1 aprovadas
+  'Chrome Courier': { texto: '1kz10co', leva: 'M-364' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -16486,6 +16489,7 @@ const __m42 = (function () {
     [/^~ connives$/i, () => [{ do: 'connive', amount: 1 }]], // LT9 · 701.50
     [new RegExp(`^~ deals ${N} damage to each creature without flying$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'each-nonflying-creature' }]], // LT10
     [/^damage can't be prevented this turn$/i, () => [{ do: 'no_prevention' }]], // LT10 · 615.12
+    [/^revela_dois_um_para_mao (artifact|creature|land|instant|sorcery|enchantment) (\d+)$/i, m => [{ do: 'look', count: 2, amount: 1, min: 1, to: 'hand', rest: 'graveyard', revela: true, onPicked: { vidaSeTipo: { tipo: m[1].toLowerCase(), vida: +m[2] } } }]], // M-364 · Chrome Courier
     [new RegExp(`^add ${N} mana in any combination of colors$`, 'i'), m => [{ do: 'mana_combinada', amount: num(m[1]) }]], // M-357 · 106.1a (Manamorphose)
     [/^return an? (permanent|land|creature) you control to its owner's hand$/i, m => [{ do: 'return_chosen', target: 'self', ...(m[1].toLowerCase() !== 'permanent' ? { filter: { types: [m[1].toLowerCase()] } } : {}) }]], // LT12
     [new RegExp(`^~ deals ${N} damage to that (artifact|creature|permanent|enchantment)'s controller$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'target-controller' }]], // LT12
@@ -16745,6 +16749,7 @@ const __m42 = (function () {
     texto = texto.replace(/exile the top card of your library\. until end of turn, you may play that card/i, 'impulso one ate o fim do turno'); // M-352
     texto = texto.replace(/^(target opponent|target player) reveals their hand and you choose a nonland card from it\. exile that card/i, 'exila_da_mao $1'); // M-353 · Mesmeric Fiend · Experimental Synthesizer
     texto = texto.replace(/exile the top (card|two cards|three cards) of your library\. (?:you may play (?:it|them|those cards) until the end of your next turn|until the end of your next turn, you may play (?:it|them|those cards))/i, (m0, q) => `impulso ${q === 'card' ? 'one' : q.split(' ')[0]} ate o proximo turno`); // M-349 // M-348 · duas frases, um efeito (Pursue the Past, Melded Moxite)
+    texto = texto.replace(/reveal the top two cards of your library\. put one of them into your hand and the other into your graveyard\. if you put an? (artifact|creature|land|instant|sorcery|enchantment) card into your hand this way, you gain (\d+) life/i, 'revela_dois_um_para_mao $1 $2'); // M-364 · Chrome Courier
     const partes = texto.replace(/, then shuffle and put that card on top(\.|$)/i, ', put that card on top of your library, then shuffle$1').split(/\.\s+|,\s+then\s+|\.$/).map(x => x.replace(/\.$/, '').trim()).filter(Boolean);
     let ok = true;
     for (const p of partes) {
@@ -20764,6 +20769,7 @@ function concluiPick(s, events) {
   if (pk.depois && pk.depois.draw && pk.picked.length) draw(s, pk.p, pk.depois.draw); // Leva 107
   if (pk.segura && pk.picked.length) { const f = s.objects[pk.segura.oid]; if (f && f.zone === 'battlefield' && (f.zc || 0) === pk.segura.z) f.holding = pk.picked[0]; } // M-353 · a fonte que saiu antes não guarda nada (a carta fica exilada: 400.7)
   if (pk.senaoSacrifica && !pk.picked.length) { const f = s.objects[pk.senaoSacrifica.oid]; if (f && f.zone === 'battlefield' && (f.zc || 0) === pk.senaoSacrifica.z) sacrifice(s, f.oid, events); } // M-349 · Glint Hawk (400.7)
+  if (pk.onPicked && pk.onPicked.vidaSeTipo && pk.picked.some(oid => s.objects[oid] && s.objects[oid].zone === pk.to && ((s.facts[s.objects[oid].name] || {}).types || []).includes(pk.onPicked.vidaSeTipo.tipo))) { const g = ganhaVidaJogador(s, pk.p, pk.onPicked.vidaSeTipo.vida); events.push({ kind: 'effect', do: 'gain', name: pk.source, target: s.players[pk.p].name, amount: g }); } // M-364 · Chrome Courier: "if you put an artifact card into your hand this way"
   // S59 · Trono dos Três Mortos: a criatura escolhida entra com marcadores e ganha a palavra-chave
   if (pk.onPicked) for (const oid of pk.picked) {
     const c = s.objects[oid]; if (!c || c.zone !== 'battlefield') continue;

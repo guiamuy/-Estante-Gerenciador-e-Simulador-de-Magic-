@@ -4027,6 +4027,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora:** duas frases "Target …" no mesmo parágrafo continuam exigindo alvos diferentes (mais restritivo que a 115.3; nenhuma carta do acervo tem esse formato); habilidades ativadas e disparadas não usam `alvoLivre`.
 - **Teste:** `lt46.unit` (4 testes; todos falham no motor anterior).
 
+**M-364 · LT37 · Frase do Pauper: revelar as duas de cima, uma para a mão e a outra para o cemitério, com vida se a da mão for artefato — revisão por lote XXVIII** ✅ (leva M-364, motor v110 sem mudança de forma; goldens intactos).
+- **Valor:** Chrome Courier (3 listas de Pauper esperavam só por ela) passa a jogar pela leitura revisada (decisão A; texto do Oracle do Forge, consulta de 12/10/2026, em `.listas/oficiais-revisadas.json`).
+- **Motor:** `onPicked.vidaSeTipo { tipo, vida }` no efeito de olhar/revelar: a vida vem só se a carta escolhida chegou mesmo à mão e é do tipo pedido.
+- **Revisão independente:** 16 verificações, aprovada (escolha obrigatória só entre as reveladas, artefato-criatura e terreno artefato contam, biblioteca com 0 ou 1 carta). Kaervek's Torch, do mesmo lote, foi reprovada (a taxa não valia no lampejo do passado nem no custo alternativo) e vai para a M-365 com a correção.
+- **Teste:** `lt47.unit` (1 teste; falha no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
