@@ -5314,6 +5314,7 @@ const EFFECTS = {
   pump: { fields: ['power', 'toughness'], targets: ['creature', 'creature-you-control', 'creature-opponent-controls', 'each-creature', 'each-opponent-creature', 'each-own-creature'] },
   tap: { fields: [], targets: ['self-source', 'enchanted', 'creature', 'permanent', 'permanent-opponent-controls'] },
   untap: { fields: [], targets: ['self-source', 'enchanted', 'creature', 'permanent'] },
+  exila_se_morrer: { fields: [], targets: ['creature', 'first-target'] }, // M-384 · 614.1a: "If that creature would die this turn, exile it instead" (Suplex)
   nao_desvira: { fields: [], targets: ['creature', 'permanent', 'enchanted', 'first-target'] }, // CR2g.6 · 502.3: "doesn't untap during its controller's next untap step"
   // Leva 131 · "tap or untap target creature" (Sewer-veillance Cam): o alvo é da pilha, virar ou desvirar se escolhe na resolução;
   // com `optional` ("you may"), recusar é a terceira saída da mesma pergunta
@@ -5637,7 +5638,7 @@ const CHOICE_EFFECTS = ['terreno_da_mao', 'exila_da_mao', 'revela_topo_transform
 /** S47 · condição do próprio efeito, olhando o que foi pago como custo. */
 /** M-249 · 122.1 · marcadores nomeados em português (o tipo é a chave em `counters`). */
 const MARCADOR_PT = { p1p1: '+1/+1', m0m1: '−0/−1', /* M-360 */ oil: 'de óleo', depletion: 'de esgotamento', charge: 'de carga', age: 'de idade', loyalty: 'de lealdade', time: 'de tempo', lore: 'de saga', poison: 'de veneno', energia: 'de energia' /* H-6 */ };
-const ONLY_IF = ['discarded-nonland', 'source-entered-earlier', 'paid-additional', 'kicked', 'not-attacked', 'metalcraft', 'cast-from-graveyard', 'alvo-era-seu', 'evidenced', 'not-evidenced']; // M-351 · "If evidence was collected, instead …" (Extract a Confession, 701.59 + 601.2b)
+const ONLY_IF = ['discarded-nonland', 'source-entered-earlier', 'paid-additional', 'kicked', 'not-attacked', 'metalcraft', 'cast-from-graveyard', 'alvo-era-seu', 'evidenced', 'not-evidenced', 'bargained']; // M-384 · 702.166b "If this spell was bargained" (Torch the Tower) // M-351 · "If evidence was collected, instead …" (Extract a Confession, 701.59 + 601.2b)
 /** S16 · custos que substituem o custo de mana, e o custo do lampejo do passado. */
 const ALT_COST_PARTS = ['mana', 'life', 'discard', 'returnLand', 'exileGraveyard', 'tapOther', 'sacrificeOther', 'discardSubtype', 'exileHandColor', 'free', 'revealHand', 'exileGraveyardTopo']; // M-362 · "exile the top three black cards of your graveyard" (Spinning Darkness) // M-351 · revealHand: "you may reveal your hand rather than pay" (Land Grant, 118.9) // CR2c.4 · Ilha entre as descartadas (Foil), exilar carta da cor da mão (Snapback), de graça (Mogg Salvage)
 /** S48 · fuga: conjura do cemitério pagando o custo, e a carta fica em jogo. */
@@ -6018,7 +6019,7 @@ const REDUZ_POR = ['instants-sorceries-in-your-graveyard', 'creature-cards-in-yo
 /** S19 · um valor pode ser um número ou uma contagem do campo. */
 const isCount = v => v && typeof v === 'object' && (typeof v.per === 'string' || typeof v.subtype === 'string');
 const valueErrors = (v, label) => isCount(v) && v.per === 'soma' ? (Array.isArray(v.partes) && v.partes.length >= 2 && v.partes.every(x => isCount(x) && x.per !== 'soma') ? v.partes.flatMap((x, i) => valueErrors(x, `${label} (parte ${i + 1})`)) : [`${label}: "soma" precisa de duas ou mais contagens em "partes"`]) // M-358
-  : isCount(v) ? (v.per === 'se' && !(['metalcraft', 'cast-from-graveyard', 'kicked', 'not-cast-from-hand'].includes(v.se) && Number.isInteger(v.sim) && Number.isInteger(v.nao)) ? [`${label}: "se" precisa da condição (metalcraft, cast-from-graveyard, kicked) e dos valores sim/não`] : v.subtype || PER_COUNTS.includes(v.per) ? [] : [`${label}: contagem "${v.per}" desconhecida`]) // M-331
+  : isCount(v) ? (v.per === 'se' && !(['metalcraft', 'cast-from-graveyard', 'kicked', 'not-cast-from-hand', 'bargained'].includes(v.se) && Number.isInteger(v.sim) && Number.isInteger(v.nao)) ? [`${label}: "se" precisa da condição (metalcraft, cast-from-graveyard, kicked) e dos valores sim/não`] : v.subtype || PER_COUNTS.includes(v.per) ? [] : [`${label}: contagem "${v.per}" desconhecida`]) // M-331
   : (Number.isInteger(v) ? [] : [`${label}: precisa ser inteiro ou contagem`]);
 /** S11b · evasão estática e escolhas feitas quando a permanente entra. */
 const EVASIONS = ['flying-only', 'power-less', 'three-or-more']; // M-349 · Troll of Khazad-dûm: "can't be blocked except by three or more creatures"
@@ -6123,6 +6124,7 @@ function validateScript(sc) {
   for (const ab of (sc && sc.abilities) || []) if (ab && ab.kind !== 'triggered' && (ab.effects || []).some(e => e && e.dividido)) errs.push('dano dividido: só em mágica e em habilidade disparada (a ativada ainda não divide — M-378)'); // M-378
   for (const ab of (sc && sc.abilities) || []) if (ab.condition && !['lifeGained', 'attackersAtLeast', 'controlsOtherNamed', 'bargained', 'evidenced', 'kicked', 'opponentMoreLands', 'atacaSozinha', 'vidaPeloMenos', 'marcadoresNaFonte', 'entrouDesvirada', 'semTerrenoVirado', ...condicoesK(), ...condicoesT()].includes(Object.keys(ab.condition)[0] || '')) errs.push('condição de gatilho desconhecida'); // K-59 · condições da trilha keywords (Toca ponto comum: validador de condições)
   if (sc && sc.bargain != null && sc.bargain !== true) errs.push('barganha é uma marca, sem valor');
+  if (sc && !sc.bargain && [...(sc.effects || []), ...((sc.modes || []).flatMap(m => (m && m.effects) || []))].some(e => e && (e.onlyIf === 'bargained' || (e.amount && e.amount.se === 'bargained')))) errs.push('"se barganhada" sem a barganha na carta'); // M-384 · achado da revisão
   if (sc && sc.evidence != null && !(Number.isInteger(sc.evidence) && sc.evidence > 0)) errs.push('colher provas precisa de um número inteiro positivo');
   for (const ab of (sc && sc.abilities) || []) if (ab.mayPay && !ab.mayPay.mana && !ab.mayPay.exileFromGraveyard && !ab.mayPay.sacrificeSelf && !(Number.isInteger(ab.mayPay.pagarVida) && ab.mayPay.pagarVida > 0)) errs.push('custo opcional do gatilho sem custo'); // V-26 · "you may pay N life" (Toca ponto comum)
   for (const [i, ab] of ((sc && sc.loyalty) || []).entries()) {
@@ -6282,6 +6284,7 @@ function effectErrors(effects, label, opcional) {
     if (e.do === 'reflexive') errs.push(...effectErrors(e.effects, `${label} ${i + 1} (reflexivo)`));
     if (e.do === 'delayed') { if (!ATRASOS.includes(e.when)) errs.push(`${label} ${i + 1}: momento "${e.when}" desconhecido para gatilho atrasado`); errs.push(...effectErrors(e.effects, `${label} ${i + 1} (atrasado)`)); }
     if (e.do === 'tap_or_untap' && e.optional != null && typeof e.optional !== 'boolean') errs.push(`${label} ${i + 1}: "opcional" precisa ser verdadeiro ou falso`); // Leva 131
+    if (e.exilaSeMorrer != null && !(e.do === 'damage' && e.exilaSeMorrer === true)) errs.push(`${label} ${i + 1}: "exilaSeMorrer" é uma marca (true) do dano`); // M-384 · Torch the Tower
     if (e.dividido != null && !(e.do === 'damage' && typeof e.dividido === 'object' && (e.dividido.max == null || (Number.isInteger(e.dividido.max) && e.dividido.max >= 2)) && ['any', 'creature'].includes(e.target))) errs.push(`${label} ${i + 1}: "dividido" é dano dividido entre alvos (601.2d): { max: null | 2 ou mais }, alvo "any" ou "creature"`); // M-376
     if (e.do === 'descarta_e_compra' && e.descarta != null && !(Number.isInteger(e.descarta) && e.descarta >= 1)) errs.push(`${label} ${i + 1}: "descarta" é quantas cartas se descartam (inteiro, 1 ou mais)`); // M-373
     if (['search', 'look'].includes(e.do)) {
@@ -8982,6 +8985,9 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Behold the Multiverse': { texto: 'yonfkj', leva: 'M-382' },
   // M-383 · revisão por lote XLI (Pauper: Ride's End), revisor independente: 91 asserções e 7.224 comparações de ofertas, aprovada sem divergências
   'Ride\'s End': { texto: '1gesdum', leva: 'M-383' },
+  // M-384 · revisão por lote XLII (Torch the Tower, Suplex), revisor independente: 126 asserções, 4.000 comparações de ofertas e 4.000 de estado; aprovadas, três achados corrigidos com teste
+  'Torch the Tower': { texto: 'yg6mk5', leva: 'M-384' },
+  'Suplex': { texto: 'nfft0b', leva: 'M-384' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -16822,6 +16828,7 @@ const __m42 = (function () {
     [/^its controller gains life equal to its power$/i, () => [{ do: 'gain', amount: { per: 'power-of-target' }, target: 'target-controller' }]], // M-335 · Swords to Plowshares (608.2h: o poder como era no campo)
     [/^each attacking creature doesn't untap during its controller's next untap step$/i, () => [{ do: 'nao_desvira', cada: { tipos: ['creature'], atacando: true } }]], // M-361 · Tangle (502.3, 506.4)
     [/^put target creature card from your graveyard on top of your library$/i, () => [{ do: 'mover', para: 'library', posicao: 'topo', target: 'creature-in-your-graveyard' }]], // M-361 · Witch's Cottage, Mortuary Mire
+    [/^if that creature would die this turn, exile it instead$/i, () => [{ do: 'exila_se_morrer', target: 'first-target' }]], // M-384 · Suplex (614.1a)
     [/^it doesn't untap during its controller's next untap step$/i, () => [{ do: 'nao_desvira', target: 'first-target' }]], // M-334 · LT18 · 502.3 (Sleep of the Dead)
     [/^add ((?:\{[WUBRGC]\})+)$/i, m => [{ do: 'add_mana', symbols: m[1].match(/[WUBRGC]/g) }]], // M-334 · LT18 · mágica ou gatilho que adiciona mana (Seething Song, Burning-Tree Emissary)
     [/^you become the monarch$/i, () => [{ do: 'monarch' }]], // M-332 · CR 725
@@ -16862,6 +16869,7 @@ const __m42 = (function () {
     [/^as an additional cost to cast this spell, sacrifice an artifact or creature$/i, () => ({ additional: { sacrificeOther: { types: ['artifact', 'creature'] } } })], // LT10 · 601.2b
     [/^as an additional cost to cast this spell, sacrifice an? (land|creature|artifact|enchantment)$/i, m => ({ additional: { sacrificeOther: { types: [m[1].toLowerCase()] } } })], // M-334 · LT18 · 601.2b (Crop Rotation)
     [/^cycling—pay (\d+) life$/i, m => ({ cycling: { life: +m[1] } })], // M-341 · Street Wraith
+    [/^bargain$/i, () => ({ bargain: true })], // M-384 · 702.166 (o motor barganha desde a S37)
     [/^kicker (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ kicker: { mana: m[1] } })], // M-337 · 702.33 (o motor reforça desde a S-série)
     [/^splice onto arcane (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ splice: { subtipo: 'Arcane', mana: m[1] } })], // M-334 · LT18 · 702.47 (o motor encaixa desde a M-273)
     [/^(?:evoke|dash|spectacle|surge) (?:\{[0-9WUBRGC]+\})+$/i, () => ({})], // (o motor lê da carta)
@@ -17072,6 +17080,10 @@ const __m42 = (function () {
       if (/^if that spell is countered this way, exile it instead of putting it into its owner's graveyard$/i.test(p) && efeitos.length && efeitos[efeitos.length - 1].do === 'counter') { efeitos[efeitos.length - 1].exila = true; frases.push({ texto: p, lida: true }); continue; } // M-338 · Force of Negation
       if (/^if evidence was collected, instead each opponent sacrifices a creature with the greatest power among creatures they control$/i.test(p) && efeitos.length && !efeitos[efeitos.length - 1].onlyIf) { efeitos[efeitos.length - 1].onlyIf = 'not-evidenced'; efeitos.push({ do: 'sacrificar', tipos: ['creature'], jogadores: 'cada-oponente', maiorPoder: true, onlyIf: 'evidenced' }); frases.push({ texto: p, lida: true }); continue; } // M-351 · Extract a Confession (701.59; "instead" troca a frase anterior)
       if (/^if you controlled that permanent, draw a card$/i.test(p) && efeitos.length && SC_ALVEJA(efeitos[efeitos.length - 1])) { efeitos.push({ do: 'draw', amount: 1, onlyIf: 'alvo-era-seu' }); frases.push({ texto: p, lida: true }); continue; } // M-341 · Boomerang Basics
+      { const ib = p.match(new RegExp(`^if this spell was bargained, instead it deals ${N} damage to that (?:creature|permanent|planeswalker)( and you scry ${N})?$`, 'i')); // M-384 · 702.166b · Torch the Tower
+        const ult = efeitos[efeitos.length - 1];
+        if (ib && ult && ult.do === 'damage' && Number.isInteger(ult.amount)) { ult.amount = { per: 'se', se: 'bargained', sim: num(ib[1]), nao: ult.amount }; if (ib[2]) efeitos.push({ do: 'scry', amount: num(ib[3]), onlyIf: 'bargained' }); frases.push({ texto: p, lida: true }); continue; }
+      }
       const ik = p.match(new RegExp(`^if this spell was kicked, (?:it|~) deals ${N} damage(?: to that (?:creature|player|permanent|planeswalker))? instead$`, 'i')); // M-337 · 702.33d · Burst Lightning
       if (ik && efeitos.length && efeitos[efeitos.length - 1].do === 'damage' && Number.isInteger(efeitos[efeitos.length - 1].amount)) { const ult = efeitos[efeitos.length - 1]; ult.amount = { per: 'se', se: 'kicked', sim: num(ik[1]), nao: ult.amount }; frases.push({ texto: p, lida: true }); continue; }
       const ih = p.match(new RegExp(`^if this spell wasn't cast from your hand, draw ${N} cards instead$`, 'i')); // M-352 · Twinned Vision
@@ -17186,6 +17198,7 @@ const __m42 = (function () {
       const mc = linha.replace(/\.$/, '').replace(new RegExp(escapa(nome || '\u0000'), 'g'), '~'); // M-331 · metalurgia (palavra de habilidade)
       const tq = mc.match(/^as long as ~ is on the stack, spells that target it cost \{(\d+)\} more to cast$/i); // M-364 · Kaervek's Torch (601.2f)
       if (tq) { topo.self = { ...(topo.self || {}), encareceQuemMira: +tq[1] }; frases.push({ texto: linha, lida: true }); continue; }
+      if (/^if a permanent dealt damage by ~ would die this turn, exile it instead$/i.test(mc) && efeitos.some(e => e.do === 'damage')) { for (const e of efeitos) if (e.do === 'damage') e.exilaSeMorrer = true; frases.push({ texto: linha, lida: true }); continue; } // M-384 · 614.1a · Torch the Tower (parágrafo próprio: marca o dano da mágica)
       const mi = mc.match(/^metalcraft — ~ deals (\d+) damage instead if you control three or more artifacts$/i);
       if (mi && efeitos.length && efeitos[efeitos.length - 1].do === 'damage' && Number.isInteger(efeitos[efeitos.length - 1].amount)) { const ult = efeitos[efeitos.length - 1]; ult.amount = { per: 'se', se: 'metalcraft', sim: +mi[1], nao: ult.amount }; frases.push({ texto: linha, lida: true }); continue; }
       const ms = mc.match(/^metalcraft — if you control three or more artifacts, (.+)$/i);
@@ -17924,6 +17937,7 @@ function substituicoesPara(s, o, fromZone) {
 /** 614.6 · "se fosse para X, vai para Y em vez disso": a primeira substituição que casa (616: aqui sem escolha de ordem). */
 function destinoSubstituido(s, o, fromZone, to) {
   if (to === 'stack') return to;
+  if (o.exilaSeMorrerNoTurno != null && o.exilaSeMorrerNoTurno === s.turn.number && fromZone === 'battlefield' && to === 'graveyard') return 'exile'; // M-384 · 614.1a · 700.4: "would die this turn, exile it instead" (Torch the Tower, Suplex)
   if (o.desenterrada && fromZone === 'battlefield' && to !== 'exile') return 'exile'; // M-257 · 702.84a "if it would leave the battlefield"
   const sc = s.facts[o.name].script;
   if (!sc && !battlefield(s).length) return to;
@@ -18049,6 +18063,7 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
     for (const k of MARCAS_DA_CONJURACAO) delete o[k];
   }
   o.tapped = false; o.damage = 0; o.counters = {}; o.controller = to === 'battlefield' && controller != null ? controller : o.owner; delete o.controles; delete o.controladorBase; // CR2d.6 · 400.7 · CR2b.5 · 603.3a: entra já sob quem a pôs no campo
+  delete o.exilaSeMorrerNoTurno; // M-384 · 400.7
   delete o.tempToxico; delete o.tempResguardoCor; delete o.tempSemAlvoDe; delete o.tempNaoBloqueadaPor; delete o.tempImbloqueavel; delete o.tempImbloqueavelExceto; delete o.tempHabilidades; delete o.permissaoUsada; if (fromZone !== to) delete o.desenterrada; // M-255/M-256/M-257 · 400.7
   delete o.attacking; delete o.atacandoPw; delete o.exigeAtacarPw; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.pumpNext; delete o.goaded; delete o.keywordsNext; delete o.cantAttackNext; delete o.targets; delete o.attachedTo; delete o.tempKeywords; delete o.tempTs; delete o.anexadaEm; delete o.anexadaZ; delete o.mutavel; delete o.vira; delete o.prevenirDano; delete o.regenerar; delete o.temporarios; delete o.tempProtection; delete o.paired; // S39 · o vínculo de alma se desfaz ao sair do campo
   if (fromZone !== 'stack') { delete o.chosenColor; delete o.chosenType; delete o.damagePrevented; delete o.preventGainTo; delete o.devolvidas; } // CR2a.9 · 400.7 / 608.2n: a marca da resolução fica onde a carta caiu; ao sair de lá, o objeto é novo
@@ -19800,6 +19815,7 @@ function condicaoDoEfeito(s, fonte, k) {
   if (k === 'metalcraft') return battlefield(s).filter(x => x.controller === fonte.controller && tiposDe(s, x).includes('artifact')).length >= 3;
   if (k === 'cast-from-graveyard') return fonte.castFrom === 'graveyard';
   if (k === 'kicked') return !!fonte.kicked; // M-337
+  if (k === 'bargained') return !!fonte.bargained; // M-384 · 702.166b
   if (k === 'not-cast-from-hand') return fonte.castFrom !== 'hand'; // M-352 · Twinned Vision (a cópia não foi conjurada: também não veio da mão) · 702.33d · "If this spell was kicked, it deals 4 damage instead" (Burst Lightning)
   return false;
 }
@@ -19809,6 +19825,7 @@ function effectAllowed(s, fonte, eff) {
   if (eff.onlyIf === 'source-entered-earlier') return !!fonte && (fonte.entrouNoTurno != null ? fonte.entrouNoTurno !== s.turn.number : !fonte.sick);
   if (eff.onlyIf === 'discarded-nonland') return !!fonte && !!fonte.discardedNonland;
   if (eff.onlyIf === 'paid-additional') return !!fonte && !!fonte.paidAdditional; // S53 · "se você fizer"
+  if (eff.onlyIf === 'bargained') return !!fonte && !!fonte.bargained; // M-384 · 702.166b · "If this spell was bargained" (Torch the Tower)
   if (eff.onlyIf === 'kicked') return !!fonte && !!fonte.kicked; // CR 702.33d · "if this spell was kicked"
   if (eff.onlyIf === 'metalcraft' || eff.onlyIf === 'cast-from-graveyard') return condicaoDoEfeito(s, fonte, eff.onlyIf); // M-331
   if (eff.onlyIf === 'not-attacked') return !!fonte && !(s.players[fonte.controller] || {}).atacouCom; // M-248 · "unless you attacked this turn" (Chart a Course)
@@ -19952,6 +19969,7 @@ function applyEffect(s, src, eff, tgt, events) {
         if (n > 0 ? !resto : prevencaoLegado(s, src, obj)) { ganhaVida(n); note({ amount: n, prevented: true }); break; } // dano 0 prevenido continua no registro, como antes
         if (resto < n) ganhaVida(n - resto);
         n = resto;
+        if (eff.exilaSeMorrer && obj && n > 0) obj.exilaSeMorrerNoTurno = s.turn.number; // M-384 · 614.1a: "If a permanent dealt damage by ~ would die this turn, exile it instead" (só se o dano foi causado, depois da prevenção)
         if (obj && (danoEmBatalhaT(s, src, obj, n) || danoEmPwCriaturaT(s, src, obj, n))) { causouDano(s, src, n); note({ amount: n }); break; } // T-18 · CR 120.3e: planeswalker-criatura // T-14 · CR 310.6 / 120.3h · dano à batalha tira defesa · Toca ponto comum: applyEffect damage (uma linha)
         if (obj && !obj.faceDown && s.facts[obj.name].types.includes('planeswalker')) { obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - n); causouDano(s, src, n); note({ amount: n }); break; } // V-19 · virado para baixo recebe dano como criatura · Toca ponto comum: applyEffect damage
         if (obj && n > 0) { marcaDanoEmCriatura(s, src, obj, n); noteEnchantedEvent(s, obj, 'recebe-dano'); noteDamaged(s, obj); if (has(s, fonteDoDano(s, src), 'deathtouch')) obj.deathtouched = true; } // CR2a.9 // CR 120.8: dano 0 não é dano
@@ -21098,6 +21116,7 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'transformar': transformaT(s, src.ability ? s.objects[src.source] : src, src, events); break; // T-7 · CR 701.27 · "transform ~"
     case 'tripulada': tripulada(s, src, events); break; // T-3 · CR 702.122e · a habilidade de tripular resolveu: "Whenever ~ becomes crewed"
     case 'untap': { const alvo = eff.target === 'enchanted' ? criaturaEncantada(s, src) : eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj; if (alvo) desvira(s, alvo); note({}); break; } // CR2g.6 · atordoamento
+    case 'exila_se_morrer': { if (obj && obj.zone === 'battlefield') { obj.exilaSeMorrerNoTurno = s.turn.number; note({ name: obj.name }); } else note({ failed: true }); break; } // M-384 · 614.1a (Suplex)
     case 'nao_desvira': { const alvo = eff.target === 'enchanted' ? criaturaEncantada(s, src) : obj; if (alvo && alvo.zone === 'battlefield') { alvo.naoDesviraProximo = true; note({ name: alvo.name }); } else note({ failed: true }); break; } // CR2g.6
     default: break;
   }
@@ -22456,7 +22475,7 @@ function stateBased(s, events) {
     for (const o of campoInteiro(s)) delete o.deathtouched; // CR2a.9 · 704.5h: vale só para esta checagem (o indestrutível que perde a indestrutibilidade depois não morre)
     if (morrem.length) {
       s.saindoJuntas = morrem;
-      for (const oid of morrem) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield') continue; moveObject(s, oid, 'graveyard'); changed = true; events.push({ kind: 'died', oid, name: o.name }); }
+      for (const oid of morrem) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield') continue; moveObject(s, oid, 'graveyard'); changed = true; const para = (s.objects[oid] || {}).zone; events.push({ kind: 'died', oid, name: o.name, ...(para && para !== 'graveyard' ? { para } : {}) }); } // M-384 · achado da revisão: a substituição (exílio) aparece no registro
       delete s.saindoJuntas;
     }
     if (batalhasDeEstadoT(s, events) | equipamentosDeEstadoT(s, events) | papeisDeEstadoT(s, events) | auraAnexoDeEstadoT(s, events) | portaDeEstadoT(s, events) | masmorraDeEstadoT(s, events) | cicloDeEstadoT(s, events) | preparoDeEstadoT(s, events)) changed = true; // T-51 · CR 722.3c // T-48 · CR 702.145c/d/f/g // T-46 · CR 309.6 / 704.5t // T-27 · CR 709.5f // T-22 · CR 303.4f // T-20 · CR 303.7a / 704.5z // T-16 · CR 301.5c / 704.5n · Equipamento que não pode equipar se solta // T-14 · CR 310.7 / 310.8 / 310.10 / 310.11 / 704.5v–y · batalhas (função abaixo da âncora T das exportações)
@@ -23804,7 +23823,9 @@ function legalActions(s, p, { adjudication = false } = {}) {
     if (s.manaCheck && !canPay(s, p, s.facts[o.name].cost, castExtra(s, p, o, 0))) continue;
     const candidatos = battlefield(s).filter(x => x.controller === p && x.oid !== oid &&
       (x.token || ['artifact', 'enchantment'].some(y => s.facts[x.name].types.includes(y))));
-    candidatos.slice(0, LIMITE_PAGAMENTOS).forEach(c => out.push({ t: 'cast', p, oid, bargain: true, pay: { bargain: c.oid } }));
+    const formas = casts(o); // M-384 · 702.166a · a barganha com alvo (Torch the Tower): cada forma de conjurar (alvos, modo) ganha a variante barganhada — antes saía sem alvo e só servia à barganha sem alvo (Troublemaker Ouphe)
+    const vistosB = new Set(), distintos = candidatos.filter(c => { const k = [c.name, c.token ? 1 : 0, c.tapped ? 1 : 0, JSON.stringify(c.counters || {}), battlefield(s).some(y => y.attachedTo === c.oid) ? c.oid : ''].join('|'); if (vistosB.has(k)) return false; vistosB.add(k); return true; }); // M-384 · achado da revisão: alvos × candidatos crescia sem teto; sacrifícios equivalentes (mesmo nome, ficha, virada, marcadores, sem anexos) dão a mesma partida
+    distintos.slice(0, LIMITE_PAGAMENTOS).forEach(c => formas.forEach(x => out.push({ ...x, bargain: true, pay: { ...(x.pay || {}), bargain: c.oid } })));
   }
   // S41 · colher provas: a mesma conjuração, exilando cartas do seu cemitério
   for (const oid of s.zones[p].hand) {
@@ -29712,6 +29733,7 @@ function effectLine(ev) {
     case 'turno_extra': return `${t} vai jogar um turno extra depois deste (${ev.name})`; // CR2g.2
     case 'monarch': return ev.failed ? `${t} continua o monarca (${ev.name})` : `${t} se tornou o monarca (${ev.name})`; // M-332
     case 'initiative': return `${t} tomou a iniciativa (${ev.name})`; // M-332
+    case 'exila_se_morrer': return ev.failed ? `${ev.name}: o alvo já não estava no campo` : `${t || ev.name}: se fosse morrer neste turno, é exilada`; // M-384
     case 'nao_desvira': return ev.failed ? `${ev.name}: o alvo já não estava no campo` : `${t || ev.name}: não desvira no próximo passo de desvirar`;
     case 'combate_extra': return ev.failed ? `${ev.name}: fora da fase principal, sem combate adicional` : `${ev.name}: depois desta fase principal vem um combate adicional e outra fase principal`; // CR2g.4
     case 'desvira_atacantes': return `${ev.name} desvirou ${n} criatura(s) que atacaram neste turno`;
@@ -29869,7 +29891,8 @@ function describe(before, a, events, after) {
     if (ev.kind === 'resolved' && !ev.scripted) L.push(ev.to === 'battlefield' ? `${ev.name} entrou no campo` : `${ev.name} resolveu`);
     if (ev.kind === 'regenerated') L.push(`${ev.name} regenerou: virou, perdeu o dano e saiu do combate`); // CR2-G R5c
     if (ev.kind === 'totem') L.push(`${ev.aura} foi destruída no lugar de ${ev.name} (armadura de totem)`);
-    if (ev.kind === 'died') L.push(ev.why === 'regra das lendas' ? `${ev.name} foi para o cemitério pela regra das lendas` : `${ev.name} morreu`);
+    if (ev.kind === 'died' && ev.para === 'exile') L.push(`${ev.name} iria morrer e foi exilada em vez disso`); // M-384 · 614.1a
+    else if (ev.kind === 'died') L.push(ev.why === 'regra das lendas' ? `${ev.name} foi para o cemitério pela regra das lendas` : `${ev.name} morreu`);
     if (ev.kind === 'lost') L.push(`${who(after, ev.p)} perdeu a partida: ${REASON_PT[ev.reason] || ev.reason}`);
     if (ev.kind === 'over') L.push(ev.winner == null ? 'Fim da partida: empate' : `Fim da partida: ${who(after, ev.winner)} venceu`);
   }
@@ -30558,7 +30581,7 @@ const ALVO_PT = { 'each-opponent-creature': 'cada criatura dos oponentes', 'each
 ALVO_PT['that-player'] = 'quem controla a mágica que disparou'; // M-322 · CR2b.9 (Bonecrusher Giant: "that spell's controller"); o portão R9b pegou a frase em inglês
 const PALAVRA_PT = { defender: 'defensor', /* M-370 */ infect: 'infectar', indestructible: 'indestrutível', hexproof: 'resistência a magia', flying: 'voar', haste: 'ímpeto', trample: 'atropelar', lifelink: 'vínculo com a vida', deathtouch: 'toque mortífero', vigilance: 'vigilância', reach: 'alcance', menace: 'ameaçar', 'first strike': 'iniciativa', 'double strike': 'golpe duplo',
   fear: 'medo', intimidate: 'intimidar', shadow: 'sombra', skulk: 'esgueirar', islandwalk: 'travessia de ilha', swampwalk: 'travessia de pântano', forestwalk: 'travessia de floresta', mountainwalk: 'travessia de montanha', plainswalk: 'travessia de planície' };
-const qtd = v => (typeof v === 'number' ? v : (v && v.per === 'se') ? `${v.nao} (${v.sim} ${({ metalcraft: 'com três artefatos ou mais', 'cast-from-graveyard': 'se veio do cemitério', kicked: 'com reforço', 'not-cast-from-hand': 'se não foi conjurada da mão' })[v.se] || 'com a condição'})` : (v && v.per) ? 'X' : 1); // M-331
+const qtd = v => (typeof v === 'number' ? v : (v && v.per === 'se') ? `${v.nao} (${v.sim} ${({ metalcraft: 'com três artefatos ou mais', 'cast-from-graveyard': 'se veio do cemitério', kicked: 'com reforço', bargained: 'com barganha', 'not-cast-from-hand': 'se não foi conjurada da mão' })[v.se] || 'com a condição'})` : (v && v.per) ? 'X' : 1); // M-331
 const IGUAL_A = { 'life-lost-this-turn': 'à vida que você perdeu neste turno', 'life-gained-this-turn': 'à vida que você ganhou neste turno', 'power-of-source': 'ao poder dela', 'power-of-target': 'ao poder do alvo' }; // M-248 · CR2b.10
 const plural = (n, um, muitos) => (n === 1 ? `${n} ${um}` : `${n} ${muitos}`);
 /** Uma frase por efeito. O que o dicionário não conhece vira o nome do efeito, nunca some. */
@@ -30725,7 +30748,7 @@ function descreveEfeito(e) {
     case 'adapt': return `adapta ${e.amount}`;
     case 'return_chosen': return 'devolve uma permanente sua para a mão';
     case 'damage': if (e.dividido) { const q = e.target === 'creature' ? ['criaturas', 'quantas criaturas quiser'] : ['alvos', 'quantos alvos quiser']; return `causa ${n} de dano dividido como você quiser entre ${e.dividido.max ? `até ${e.dividido.max} ${q[0]}` : q[1]}`; } // M-376 · 601.2d
-      return e.amount && IGUAL_A[e.amount.per] ? `causa dano igual ${IGUAL_A[e.amount.per]} a ${alvo || 'um alvo'}` : `causa ${n} de dano a ${alvo || 'um alvo'}`; // CR2b.10
+      return e.amount && IGUAL_A[e.amount.per] ? `causa dano igual ${IGUAL_A[e.amount.per]} a ${alvo || 'um alvo'}` : `causa ${n} de dano a ${alvo || 'um alvo'}${e.exilaSeMorrer ? ' (se o que recebeu esse dano fosse morrer neste turno, é exilado)' : ''}`; // CR2b.10 · M-384
     case 'gain': return e.amount && IGUAL_A[e.amount.per] ? `ganha vida igual ${IGUAL_A[e.amount.per]}` : `ganha ${n} de vida`;
     case 'lose': return `${alvo === 'cada oponente' ? 'cada oponente perde' : 'perde'} ${n} de vida`;
     case 'counter': return `anula ${alvo || 'uma mágica'}${e.suspende ? ` e a exila com ${e.suspende} marcadores de tempo, com suspender` : ''}${e.exila ? ' e a exila' : ''}`; // M-269 · M-338
@@ -30807,6 +30830,7 @@ function descreveEfeito(e) {
     case 'vence': return 'você vence o jogo'; // CR2h.6
     case 'perde': return `${alvo || 'você'} perde o jogo`; // CR2h.6
     case 'turno_extra': return alvo ? `${alvo} joga um turno extra depois deste` : 'você joga um turno extra depois deste'; // CR2g.2
+    case 'exila_se_morrer': return `se ${alvo || 'a criatura'} fosse morrer neste turno, é exilada em vez disso`; // M-384
     case 'nao_desvira': return `${alvo || 'a criatura'} não desvira no próximo passo de desvirar de quem a controla`; // CR2g.6
     case 'combate_extra': return 'depois desta fase principal, um combate adicional e outra fase principal'; // CR2g.4
     case 'desvira_atacantes': return 'desvira as criaturas que atacaram neste turno';
@@ -30898,7 +30922,7 @@ function descreveEfeito(e) {
   }
 }
 // Leva 131 · a condição do efeito entra na frase (Moon-Circuit Hacker: o aviso dizia "descarta 1 carta" no turno em que ela entrou, quando não descarta)
-const CONDICAO_PT = { kicked: 'se tiver sido reforçada', 'paid-additional': 'se o custo adicional foi pago', metalcraft: 'com metalurgia', 'cast-from-graveyard': 'se foi conjurada do cemitério', 'source-entered-earlier': 'só se ela não entrou neste turno', 'not-attacked': 'só se você não atacou neste turno', evidenced: 'se colheu provas', 'not-evidenced': 'se não colheu provas' }; // M-351 · Extract a Confession (achado da revisão do lote XXIII: as duas frases pareciam dois sacrifícios)
+const CONDICAO_PT = { kicked: 'se tiver sido reforçada', bargained: 'se tiver sido barganhada', 'paid-additional': 'se o custo adicional foi pago', metalcraft: 'com metalurgia', 'cast-from-graveyard': 'se foi conjurada do cemitério', 'source-entered-earlier': 'só se ela não entrou neste turno', 'not-attacked': 'só se você não atacou neste turno', evidenced: 'se colheu provas', 'not-evidenced': 'se não colheu provas' }; // M-351 · Extract a Confession (achado da revisão do lote XXIII: as duas frases pareciam dois sacrifícios)
 const X_PT = { 'instants-sorceries-in-your-graveyard': 'mágicas instantâneas e feitiços no seu cemitério', 'flashback-cards-you-own-in-exile': 'cartas com lampejo do passado suas no exílio', /* M-358 */ 'cards-in-hand': 'cartas na sua mão', 'creature-cards-in-your-graveyard': 'cartas de criatura no seu cemitério', 'sacrificed-power': 'o poder da criatura sacrificada', 'sacrificed-toughness': 'a resistência da criatura sacrificada', 'sacrificed-mv': 'o valor de mana do que foi sacrificado' }; // M-354 · o que o X conta (achado da revisão do lote XXVI)
 const descreveEfeitos = effects => (effects || []).map(e => { let f = descreveEfeito(e); const xp = e && e.amount && X_PT[e.amount.per]; if (f && xp && /\bX\b/.test(f)) f = `${f} (X = ${xp})`; return f && e.onlyIf && CONDICAO_PT[e.onlyIf] ? `${f} (${CONDICAO_PT[e.onlyIf]})` : f; }).filter(Boolean).join('; ');
 /** E50 P6 · a linha do texto oficial (inglês) que corresponde a uma habilidade na pilha.

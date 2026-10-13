@@ -4210,6 +4210,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** a redução confere o alvo só na conjuração (como manda a 601.2f); o bot usa a mesma oferta, sem plano próprio para mirar virados.
 - **Teste:** `lt66.unit` (2 testes; o primeiro falha no motor anterior: com duas Planícies, a mesa não oferecia mirar o Urso virado).
 
+**M-384 · LT51 · 614.1a · "Would die this turn, exile it instead" e 702.166 · barganha com alvo** ✅ (leva M-384, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** revisão por lote XLII — **Torch the Tower** (bloqueava 28 listas do catálogo) e **Suplex** passam a jogar (APROVADAS; Oracle do Forge, consulta de 12/10/2026). A permanente que recebeu dano da Torch e morreria neste turno vai ao exílio; barganhada, ela causa 3 de dano e você vidência 1. No primeiro modo da Suplex, a criatura alvo que morreria neste turno vai ao exílio (com ou sem o dano ter sido causado). A barganha com alvo passa a ser oferecida (cada forma de conjurar ganha a variante barganhada; antes saía sem alvo e só servia à barganha sem alvo).
+- **Revisão independente:** 126 asserções em sondas, mais 4.000 comparações de ofertas e 4.000 de estado contra o motor anterior em 16 partidas com listas reais; as duas cartas aprovadas. Três achados corrigidos com teste antes de subir: o registro dizia "morreu" para a criatura exilada (a ação de estado passa a anotar o destino); o validador aceitava "se barganhada" em carta sem barganha; a oferta barganhada crescia como alvos × candidatos sem teto (sacrifícios equivalentes — mesmo nome, ficha, virada, marcadores, sem anexos — viram uma oferta só).
+- **Fora (declarado):** a marca vale até o fim do turno em que foi posta (vira outra permanente ao mudar de zona, 400.7); a ordem entre essa substituição e outras de "iria ao cemitério" segue o código (616.1, simplificação já declarada).
+- **Teste:** `lt67.unit` (5 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
