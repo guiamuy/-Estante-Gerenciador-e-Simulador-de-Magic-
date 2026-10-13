@@ -6179,6 +6179,7 @@ function validateScript(sc) {
     }
     if (self.naoDesvira != null && self.naoDesvira !== true) errs.push('bônus próprio: naoDesvira só vale como true'); // CR2g.6
     if (self.desviraNosOutros != null && self.desviraNosOutros !== true) errs.push('bônus próprio: desviraNosOutros só vale como true'); // M-363 · 502.3
+    if (self.encareceQuemMira != null && !(Number.isInteger(self.encareceQuemMira) && self.encareceQuemMira > 0)) errs.push('bônus próprio: encareceQuemMira é o {N} a mais, inteiro positivo'); // M-364 · 601.2f
     if (self.multiplica != null) { // CR2e.2 · 614.16: "cria o dobro de fichas" / "põe o dobro de marcadores" / "esse número mais um"
       if (!Array.isArray(self.multiplica) || !self.multiplica.length) errs.push('bônus próprio: multiplica precisa ser uma lista');
       else for (const m of self.multiplica) {
@@ -8823,6 +8824,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Bender\'s Waterskin': { texto: 'sa7u68', leva: 'M-363' },
   // M-364 · revisão por lote XXVIII (Pauper: Chrome Courier), revisor independente com 16 verificações: 1 de 1 aprovadas
   'Chrome Courier': { texto: '1kz10co', leva: 'M-364' },
+  // M-365 · revisão por lote XXIX (Pauper: Kaervek's Torch), revisor independente com 38 verificações: 1 de 1 (depois das correções; na primeira passada, reprovada) aprovadas
+  'Kaervek\'s Torch': { texto: '1gdi2fl', leva: 'M-365' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -16862,6 +16865,8 @@ const __m42 = (function () {
       if (kc) { Object.assign(topo, kc); frases.push({ texto: linha, lida: true }); continue; }
       if (/^choose one\s*—$/i.test(linha)) { modos = []; frases.push({ texto: linha, lida: true }); continue; }
       const mc = linha.replace(/\.$/, '').replace(new RegExp(escapa(nome || '\u0000'), 'g'), '~'); // M-331 · metalurgia (palavra de habilidade)
+      const tq = mc.match(/^as long as ~ is on the stack, spells that target it cost \{(\d+)\} more to cast$/i); // M-364 · Kaervek's Torch (601.2f)
+      if (tq) { topo.self = { ...(topo.self || {}), encareceQuemMira: +tq[1] }; frases.push({ texto: linha, lida: true }); continue; }
       const mi = mc.match(/^metalcraft — ~ deals (\d+) damage instead if you control three or more artifacts$/i);
       if (mi && efeitos.length && efeitos[efeitos.length - 1].do === 'damage' && Number.isInteger(efeitos[efeitos.length - 1].amount)) { const ult = efeitos[efeitos.length - 1]; ult.amount = { per: 'se', se: 'metalcraft', sim: +mi[1], nao: ult.amount }; frases.push({ texto: linha, lida: true }); continue; }
       const ms = mc.match(/^metalcraft — if you control three or more artifacts, (.+)$/i);
@@ -18465,7 +18470,11 @@ const jogavelDoExilio = (s, p, o) => !!o && o.zone === 'exile' && o.playableFrom
 const exilaveisParaDesconto = (s, p, o) => { const em = ((s.facts[o.name] || {}).script || {}).exilaDaMao; return em ? exilaveisDaMao(s, p, em.cor, o.oid) : []; };
 const descontoExilaMao = (s, o, k, extra) => { const em = ((s.facts[o.name] || {}).script || {}).exilaDaMao; if (!em || !k) return 0;
   return Math.min(Math.max(0, (s.facts[o.name].cost.generic || 0) + extra), k * em.reduz); };
-const castExtra = (s, p, o, x = 0, alvos) => { const base = (o.zone === 'command' ? commanderTax(s, p, o.oid) : 0) + x * (s.facts[o.name].cost.x || 0), af = affinityDiscount(s, p, o, base); // S33 · afinidade reduz o custo genérico
+/** M-364 · 601.2f · "As long as ~ is on the stack, spells that target it cost {2} more to cast" (Kaervek's Torch): soma pelos alvos escolhidos que são
+ * mágicas na pilha com `self.encareceQuemMira`. Na oferta otimista (alvos ainda não escolhidos) não soma: a oferta é filtrada depois com os alvos. */
+const aumentoPorAlvo = (s, alvos) => Array.isArray(alvos) ? [...new Set(alvos.filter(t => t && t.oid != null).map(t => t.oid))].map(oid => ({ oid })).reduce((n, t) => { const x = t && t.oid != null && s.objects[t.oid]; /* uma vez por mágica alvo, mesmo mirada duas vezes (achado da revisão) */ const k = x && x.zone === 'stack' && !x.ability ? ((((s.facts[x.name] || {}).script || {}).self || {}).encareceQuemMira || 0) : 0; /* a cópia também tem o texto (707.10) */ return n + k; }, 0) : 0;
+const temAumentoPorAlvo = s => s.stack.some(oid => { const x = s.objects[oid]; return x && !x.ability && ((((s.facts[x.name] || {}).script || {}).self || {}).encareceQuemMira); });
+const castExtra = (s, p, o, x = 0, alvos) => { const base = (o.zone === 'command' ? commanderTax(s, p, o.oid) : 0) + x * (s.facts[o.name].cost.x || 0) + aumentoPorAlvo(s, alvos) /* M-364 */, af = affinityDiscount(s, p, o, base); // S33 · afinidade reduz o custo genérico
   const teto = Math.max(0, (s.facts[o.name].cost.generic || 0) + base - af); return base - af - Math.min(teto, reducaoPorAlvo(s, p, o, alvos) + reducaoPorCor(s, p, o)); }; // M-352 · reducaoPorCor
 /** M-352 · 601.2f · o custo total com reforço: as reduções tiram também do genérico do reforço (Burst Lightning com {R}+{4} e Goblin Anarchomancer: {3}{R}) — achado da revisão do lote XXIV. */
 const castExtraComReforco = (s, p, o, x, alvos, kick) => { const k = kick && (s.facts[o.name].script || {}).kicker; return k ? castExtraK(s, p, o, x, alvos, (parseCost(k.mana).generic || 0) * kick) : castExtra(s, p, o, x, alvos); };
@@ -22172,6 +22181,7 @@ const HANDLERS = {
     const alt = a.alt != null ? altCosts(s, o)[a.alt] : null;
     if (a.alt != null && !alt) throw new RuleError('custo', 'custo alternativo inexistente');
     if (alt && !condicaoDoAlt(s, a.p, alt.when, a.oid)) throw new RuleError('custo', 'a condição do custo alternativo não vale agora');
+    const caminhoNormal = !alt && !a.flashback && !a.escape && !a.disturb && !a.omen && !a.bestow && !a.faceDown && !a.aerobend && !a.plotted && !a.free; // M-365
     if (alt) { payAlt(s, a.p, alt.cost, a.pay, a.oid, a.targets || []); if (alt.cost && alt.cost.revealHand) events.push({ kind: 'reveal-hand', p: a.p, name: o.name, cards: s.zones[a.p].hand.filter(x => x !== a.oid).map(x => s.objects[x].name) }); } // M-351 · 701.20 · a mão revelada vai ao registro (Land Grant)
     else if (a.flashback) {
       const fb = flashbackOf(s, o);
@@ -22188,6 +22198,7 @@ const HANDLERS = {
     else if (a.faceDown) { if (s.manaCheck && !a.free) payCost(s, a.p, parseCost('{3}')); } // S54 · virada para baixo custa {3}
     else if (a.aerobend) { if (s.manaCheck && !a.free) { const c = custoAerobendV(s, a.p, o, a.kick || 0, a.targets || []); payCost(s, a.p, c.custo, c.extra); } } // V-30/V-31 · 701.65a, 118.9d: {2} em vez do custo de mana, mais reforço, menos reduções (Toca ponto comum: HANDLERS.cast)
     else if (a.plotted) { /* S53 · plot: o mana já foi pago quando a carta foi plotada */ }
+    if (!caminhoNormal && s.manaCheck) { const aum = aumentoPorAlvo(s, a.targets || []); if (aum > 0) payCost(s, a.p, parseCost('{0}'), aum); } // M-365 · 601.2f: a taxa de quem mira a Tocha soma ao custo alternativo, ao lampejo e ao "sem pagar" (achado da revisão: Daze e lampejo saíam sem a taxa)
     else if (s.manaCheck && !a.free) { if (f.semCusto) throw new RuleError('custo', 'esta carta não tem custo de mana: não pode ser conjurada assim');
       let custo = a.kick ? somaCusto(custoDoPrototipoT(s, o) || f.cost, parseCost(reforco.mana), a.kick) : custoDoPrototipoT(s, o) || f.cost; // T-36 · CR 718.3a: como protótipo, o custo de mana é o alternativo (Toca ponto comum: HANDLERS.cast)
       for (const x of a.emenda || []) custo = somaCusto(custo, parseCost(s.facts[s.objects[x].name].script.splice.mana), 1); // M-274 · 702.47b: paga o custo de encaixar de cada uma
@@ -22984,8 +22995,17 @@ const fracaoDeSegundo = s => s.stack.some(oid => { const o = s.objects[oid]; ret
 const ehHabilidadeDeMana = ab => (ab.effects || []).length > 0 && ab.effects.every(e => e.do === 'add_mana') && !ab.effects.some(SC.isTargeted) && ab.adapt == null;
 const semFracao = s => { if (fracaoDeSegundo(s)) throw new RuleError('tempo', 'fração de segundo: enquanto essa mágica estiver na pilha, ninguém conjura mágicas nem ativa habilidades que não sejam de mana'); };
 const PARADAS_PELA_FRACAO = new Set(['cast', 'cycle', 'transmute', 'ninjutsu', 'cast_madness', 'cast_free']);
-const semAsParadasPelaFracao = (s, out) => (!out.length || !fracaoDeSegundo(s)) ? out
-  : out.filter(a => !PARADAS_PELA_FRACAO.has(a.t) && !(a.t === 'activate' && !ehHabilidadeDeMana((abilitiesOf(s, s.objects[a.oid]).filter(x => x.kind === 'activated')[a.index || 0]) || {})));
+/** M-365 · 601.2f · com uma mágica que encarece quem a mira na pilha, a conjuração que a mira é conferida no próprio motor (oferta = aceito em todos os
+ * caminhos de custo: normal, alternativo, lampejo, convocar…). Só essas ações passam pela conferência; o resto segue como estava. */
+let CONFERINDO_TAXA = false;
+function comTaxaDeQuemMira(s, out) {
+  if (CONFERINDO_TAXA || !s.manaCheck || !out.length || !temAumentoPorAlvo(s)) return out;
+  CONFERINDO_TAXA = true;
+  try { return out.filter(a => !(a.t === 'cast' && aumentoPorAlvo(s, a.targets || []) > 0) || (() => { try { apply(s, a); return true; } catch (e) { if (e instanceof RuleError) return false; throw e; } })()); }
+  finally { CONFERINDO_TAXA = false; }
+}
+const semAsParadasPelaFracao = (s, out0) => { const out = comTaxaDeQuemMira(s, out0); return (!out.length || !fracaoDeSegundo(s)) ? out
+  : out.filter(a => !PARADAS_PELA_FRACAO.has(a.t) && !(a.t === 'activate' && !ehHabilidadeDeMana((abilitiesOf(s, s.objects[a.oid]).filter(x => x.kind === 'activated')[a.index || 0]) || {}))); }; // M-365
 function legalActions(s, p, { adjudication = false } = {}) {
   if (!OFERTA_BASE) return ofertasComGasto(s, p, { adjudication }); // M-345 · 106.6
   return semAsParadasPelaFracao(s, (() => { // CR 702.61 · o filtro vale para todas as saídas abaixo
@@ -23103,7 +23123,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
   const canSorcery = canSorceryNow(s, p);
   const payable = (o, extra) => !s.manaCheck || canPay(s, p, s.facts[o.name].cost, extra);
   const terrenos = terrenosPorTurno(s, p); // CR2d.10 · 305.2: terrenos a mais por turno
-  const OTIMISTA = s.manaCheck && temReducaoPorAlvo(s, p) ? 'otimista' : undefined; // M-259 · só com redução por alvo no campo
+  const OTIMISTA = s.manaCheck && (temReducaoPorAlvo(s, p) || temAumentoPorAlvo(s)) ? 'otimista' : undefined; // M-259 · só com redução por alvo no campo · M-364 · ou mágica na pilha que encarece quem a mira
   const castWith = (o, need, mode, xv) => {
     const base = mode != null ? { t: 'cast', p, oid: o.oid, mode } : { t: 'cast', p, oid: o.oid };
     if (!need.length) return [base];
@@ -23446,14 +23466,14 @@ function legalActions(s, p, { adjudication = false } = {}) {
     out.push({ t: 'draw', p });
   }
   // M-259 · com redução por alvo, a oferta foi otimista: cada conjuração pelo custo de mana é conferida com os alvos dela
-  if (OTIMISTA) return out.filter(a => {
+  if (OTIMISTA) { const ok = out.filter(a => {
     if (a.t !== 'cast' || a.alt != null || a.escape || a.disturb || a.plotted || a.omen || a.faceDown || a.free) return true;
     const o = s.objects[a.oid], f = s.facts[o.name];
     if (a.flashback) { const fb = flashbackOf(s, o); if (!fb || !fb.mana) return true; const c = parseCost(fb.mana); return canPay(s, p, c, -reducaoNoCusto(s, p, o, a.targets || [], c)); }
     if (a.bestow) { const bc = parseCost(bestowOf(s, o).mana); return canPay(s, p, bc, (a.x || 0) * (bc.x || 0) - reducaoNoCusto(s, p, o, a.targets || [], bc)); }
     let custo = a.kick ? somaCusto(f.cost, parseCost(f.script.kicker.mana), a.kick) : f.cost; if (a.vida != null) custo = custoPhyrexiano(custo, a.vida);
-    return canPay(s, p, custo, castExtraComReforco(s, p, o, a.x || 0, a.targets || [], a.kick)); // M-352
-  });
+    { const ext = castExtraComReforco(s, p, o, a.x || 0, a.targets || [], a.kick); return canPay(s, p, custo, ext - (a.delve || 0) - descontoExilaMao(s, o, a.exilaMao || 0, ext)); } // M-352 · M-365: delve e exilar da mão (achado da revisão)
+  }); out.length = 0; out.push(...ok); } // M-365 · antes era `return`: as ofertas das trilhas abaixo sumiam (convocar, recomeçar, escalar…) — achado da revisão
   /* ↓ K · ofertas de legalActions da trilha keywords (out.push) */
   ofertasHarmonizarK(s, p, out, casts); // K-55 · 702.180a: do cemitério, uma oferta por criatura a virar (ou nenhuma); da mão, a opção some
   ofertasPresenteK(s, p, out); // K-56 · 702.174a: os modos de presente para si mesmo saem; a permanente com presente ganha a variante por oponente
@@ -24615,7 +24635,7 @@ function genericoAdicionalK(s, a, o) {
   return n;
 }
 function castExtraK(s, p, o, x, alvos, adic) {
-  const f = s.facts[o.name], base = (o.zone === 'command' ? commanderTax(s, p, o.oid) : 0) + x * (f.cost.x || 0), af = affinityDiscount(s, p, o, base + adic);
+  const f = s.facts[o.name], base = (o.zone === 'command' ? commanderTax(s, p, o.oid) : 0) + x * (f.cost.x || 0) + aumentoPorAlvo(s, alvos) /* M-364 */, af = affinityDiscount(s, p, o, base + adic);
   const teto = Math.max(0, (f.cost.generic || 0) + base + adic - af);
   return base - af - Math.min(teto, reducaoPorAlvo(s, p, o, alvos) + reducaoPorCor(s, p, o)); // M-352 · 601.2f: a redução por cor também tira do genérico adicional (reforço) — achado da revisão do lote XXIV (Toca ponto comum: castExtraK; a trilha keywords fechou)
 }

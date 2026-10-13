@@ -4033,6 +4033,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Revisão independente:** 16 verificações, aprovada (escolha obrigatória só entre as reveladas, artefato-criatura e terreno artefato contam, biblioteca com 0 ou 1 carta). Kaervek's Torch, do mesmo lote, foi reprovada (a taxa não valia no lampejo do passado nem no custo alternativo) e vai para a M-365 com a correção.
 - **Teste:** `lt47.unit` (1 teste; falha no motor anterior).
 
+**M-365 · LT38 · "Spells that target it cost {2} more" enquanto a mágica está na pilha (601.2f), em todos os caminhos de custo — revisão por lote XXIX** ✅ (leva M-365, motor v110 sem mudança de forma; goldens intactos).
+- **Valor:** Kaervek's Torch (5 listas de Pauper esperavam só por ela) passa a jogar pela leitura revisada (decisão A; texto do Oracle do Forge, consulta de 12/10/2026, em `.listas/oficiais-revisadas.json`).
+- **Motor:** `self.encareceQuemMira` — quem conjura uma mágica que mira a Tocha (ou uma cópia dela) na pilha paga {2} a mais, uma vez por mágica mesmo mirada duas vezes; vale no custo normal, no reforço, no lampejo do passado, no custo alternativo (Daze), na fuga, no conceder, no perturbar, no presságio, no aerobend, no planejar e no "sem pagar o custo de mana"; habilidades que miram não pagam. A conjuração que mira a Tocha é conferida no próprio motor antes de ser oferecida (oferta = aceito em qualquer caminho).
+- **Correção de passagem (achado da revisão, anterior à leva):** com redução por alvo no campo (M-259), a oferta otimista encerrava `legalActions` antes das ofertas das trilhas — convocar, recomeçar, escalar, spree, recompra, entrelaçar e as outras sumiam — e não contava delve nem "exilar da mão". Agora o filtro roda no lugar e segue.
+- **Revisão independente:** na primeira passada (M-364) reprovou a Tocha por quatro desvios (lampejo, custo alternativo, ofertas das trilhas e taxa em dobro); com a correção, as 38 sondas do revisor passam.
+- **Teste:** `lt48.unit` (3 testes; todos falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
