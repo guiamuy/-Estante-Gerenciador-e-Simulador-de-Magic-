@@ -324,3 +324,20 @@ test('CR 702.121a / 508.6 · refrega: atacar a batalha não é atacar o jogador 
   t = esvazia(ataca(s, [r]));
   st = E.stats(t, t.objects[r]); eq([st.power, st.toughness], [3, 3], 'atacando o jogador: +1/+1');
 });
+
+/* ---------------- T-72 · CR 310.12b · o Cerco de outro dono ---------------- */
+test('CR 310.12b / 108.3 · o Cerco de A que B passou a controlar: derrotado, quem controla o gatilho (B) pode conjurá-lo transformado sem pagar; entra sob o controle de B, A continua o dono', () => {
+  let [s, c] = conjura(mesa(), 0, 'Cerco');
+  s = passaAte(s, x => x.turn.active === 1 && x.turn.step === 'main1' && !x.stack.length && !x.pending);
+  s = esvazia(mira(s, 1, 'Roubo', c));
+  eq([s.objects[c].controller, s.objects[c].owner, protetor(s, c)], [1, 0, 0]);
+  s = J(s); s.objects[c].counters.defense = 2;
+  s = mira(s, 1, 'Raio', c);
+  s = passaAte(s, x => !!x.pending);
+  eq([s.objects[c].zone, s.pending && s.pending.kind, s.pending && s.pending.p], ['exile', 'free_cast', 1], 'o gatilho é de B: a decisão também');
+  const ofertas = legais(s, 1, a => a.t === 'cast_free');
+  assert.ok(ofertas.length && ofertas.every(a => a.face === 'transformada'), JSON.stringify(ofertas));
+  s = esvazia(act(s, ofertas[0]));
+  const o = s.objects[c];
+  eq([o.zone, o.name, o.controller, o.owner], ['battlefield', 'Verso do Cerco', 1, 0]);
+});

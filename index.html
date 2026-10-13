@@ -23285,7 +23285,7 @@ const HANDLERS = {
     previstaNoCastM(s, a, o); // M-382 · 702.143a: conjurar a carta prenunciada pelo custo de prenunciar, num turno depois
     aerobendNoCastV(s, a, o); // V-30 · 701.65a: conjurar a carta aerobendida por {2} (Toca ponto comum: HANDLERS.cast)
     const fromExile = jogavelDoExilio(s, a.p, o); // M-270
-    if (!o || o.owner !== a.p || !(o.zone === 'hand' || fromGraveyard || fromPlot || fromExile || (o.zone === 'command' && o.commander))) throw new RuleError('objeto', 'só conjura da mão ou da zona de comando');
+    if (!o || (o.owner !== a.p && !(fromExile && a.granted && o.cercoT)) || !(o.zone === 'hand' || fromGraveyard || fromPlot || fromExile || (o.zone === 'command' && o.commander))) throw new RuleError('objeto', 'só conjura da mão ou da zona de comando'); // T-72 · 310.12b: o Cerco derrotado de outro dono, pela decisão do gatilho de quem o controlava (Toca ponto comum: HANDLERS.cast)
     if (a.flashback && !flashbackOf(s, o) && !consequenciaT(s, a)) throw new RuleError('lampejo', 'esta carta não tem lampejo do passado'); // T-32 · CR 702.127a: a metade de consequência é conferida depois de virar para ela (Toca ponto comum: HANDLERS.cast)
     if (a.retrace && !(s.facts[o.name].script || {}).retrace) throw new RuleError('retraçar', 'esta carta não tem retraçar'); // M-222 · 702.81
     if (a.recomecarK) pagaRecomecarK(s, a, o); // K-10 · 702.133a: confere e descarta a carta escolhida (custo adicional)
@@ -23408,6 +23408,7 @@ const HANDLERS = {
     if (o.zone === 'command') s.players[a.p].commanderCasts[a.oid] = (s.players[a.p].commanderCasts[a.oid] || 0) + 1;
     const origem = o.zone; // CR2c.4 · de onde foi conjurada ("cast from its owner's hand")
     moveObject(s, a.oid, 'stack');
+    s.objects[a.oid].controller = a.p; // T-72 · CR 601.2a / 108.4: quem conjura controla a mágica (o Cerco derrotado de outro dono) (Toca ponto comum: HANDLERS.cast)
     s.objects[a.oid].castFrom = origem;
     if (need.length) s.objects[a.oid].targets = carimbaAlvos(s, chosen);
     if (modes.length && !nModos) s.objects[a.oid].mode = a.mode;
@@ -28125,7 +28126,7 @@ function cercoDerrotadoT(s, src, eff, events) {
   if (!x || x.zone !== 'exile') { events.push({ kind: 'effect', do: 'cerco_derrotado', name: nome, failed: true }); return; }
   const par = parDuplaFaceT(s, x);
   events.push({ kind: 'effect', do: 'cerco_derrotado', name: nome, target: par ? par.verso : null });
-  if (!par || x.token || x.owner !== ctrl) return; // sem verso conhecido não há o que conjurar; ficha não é conjurada; carta de outro dono: limite declarado
+  if (!par || x.token) return; // sem verso conhecido não há o que conjurar; ficha não é conjurada · T-72 · 310.12b: "you may cast it" é de quem controla o gatilho, mesmo sem ser o dono
   x.playableFromExile = ctrl; x.cercoT = par.verso;
   s.pending = { kind: 'free_cast', p: ctrl, options: [x.oid], name: nome, cercoT: par.verso };
 }
