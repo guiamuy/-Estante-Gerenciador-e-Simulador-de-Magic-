@@ -3922,6 +3922,11 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Parcial declarada:** Glint Hawk morta em resposta ao próprio gatilho não oferece devolver um artefato (118.12a permitiria); raro, fica como pendência.
 - **Teste:** `lt33.unit` (9 testes; os de regra falham no motor anterior); `--confere` com 549 aprovadas (seis do lote XXI — Archaeomancer, Hickory Woodlot, Big Score, Deep Analysis, Acorn Harvest, Assault Strobe — e a Distortion Strike saíram das aprovadas porque a C-1 e a C-2 publicaram script à mão para elas; o script à mão vence e elas seguem jogando). Laughing Mad e Electric Revelation, que a C-2 tirou da biblioteca pelo achado do lampejo com descarte adicional (601.2b), voltam a jogar pela leitura aprovada: a M-348 corrigiu esse caminho.
 
+**M-350 · Higiene · `node_modules` fora do git** ✅ (leva M-350, sem mudança de motor).
+- **Valor:** clonar ou atualizar o repositório volta a deixar as dependências no lugar; `npm test` e `npm run publicar` deixam de falhar com "o pacote playwright não está instalado" ou "alteração fora de commit".
+- **Causa:** a C-2 (379b59c) gravou por engano um link simbólico `node_modules` apontando para a pasta de outro ambiente; o `.gitignore` tinha `node_modules/` (com barra), que só casa pasta. Agora a linha é `node_modules` e o link saiu do índice. Toca `.gitignore` (região da infra): uma linha, com este motivo.
+- **Teste:** `repo.higiene.unit` (falhava antes: o link estava rastreado e a linha tinha barra).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
