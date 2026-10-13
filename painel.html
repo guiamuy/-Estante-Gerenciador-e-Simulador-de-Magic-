@@ -390,6 +390,14 @@ a { color: var(--accent); }
 .ds-badge--accent { color: var(--accent); border-color: var(--accent); }
 .ds-badge--warning { color: var(--warning); border-color: var(--warning); }
 .ds-badge--solid { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: var(--weight-medium); }
+.ds-chip {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1);
+  min-height: var(--tap-min); padding: 0 var(--space-3);
+  border: 1px solid var(--border); border-radius: var(--radius-full);
+  background: transparent; color: var(--fg-muted); font-size: var(--text-sm);
+  transition: background-color var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out);
+}
+.ds-chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: var(--weight-medium); }
 .ds-tabs { display: flex; gap: var(--space-1); border-bottom: 1px solid var(--border); }
 .ds-tab {
   min-height: var(--tap-min); padding: 0 var(--space-4);
@@ -496,6 +504,44 @@ body {
 @media (hover: hover) {
   .pn-tabs .ds-tab:hover { color: var(--fg); }
 }
+/* R-4 · filtros, cartões de KPI, barras e linhas */
+.pn-filtros { display: flex; flex-direction: column; gap: var(--space-2); }
+.pn-filtros__grupo { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.pn-filtros__grupo[data-dim="periodo"] .ds-chip { flex: 1 1 auto; }
+.pn-filtros__acoes { justify-content: flex-end; }
+.pn-cartoes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+@media (min-width: 600px) { .pn-cartoes { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.pn-cartao { padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+.pn-cartao__topo { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.pn-cartao__valor { color: var(--fg); overflow-wrap: anywhere; }
+.pn-cartao__unidade, .pn-cartao__total { font-family: var(--font-ui); font-weight: var(--weight-regular); }
+.pn-cartao__vazio { min-height: calc(var(--text-2xl) * var(--lh-2xl)); display: flex; align-items: center; }
+.pn-cartao__origem { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+.pn-visao { display: flex; flex-direction: column; gap: var(--space-4); }
+.pn-bloco { display: flex; flex-direction: column; gap: var(--space-2); }
+.pn-linhas { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-2); background: var(--bg-elev-1); overflow: hidden; }
+.pn-linha { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); min-height: var(--tap-min); padding: var(--space-2) var(--space-3); border-top: 1px solid var(--border); }
+.pn-linha:first-child { border-top: 0; }
+.pn-linha__texto { display: flex; flex-direction: column; min-width: 0; }
+.pn-linha__detalhe { overflow-wrap: anywhere; }
+.pn-linha .ds-badge { flex: none; }
+.pn-graficos { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
+@media (min-width: 720px) { .pn-graficos { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.pn-barras { display: flex; flex-direction: column; gap: var(--space-2); }
+.pn-barras__titulo { color: var(--fg); }
+.pn-barras__lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.pn-barras__linha { display: grid; grid-template-columns: minmax(72px, 30%) 1fr auto; align-items: center; gap: var(--space-2); width: 100%; min-height: var(--tap-min); padding: 0 var(--space-2); border-radius: var(--radius-1); text-align: left; color: inherit; }
+button.pn-barras__linha[aria-pressed="true"] { background: var(--accent-soft); }
+.pn-barras__rotulo { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pn-barras__trilho { display: block; height: 10px; border-radius: var(--radius-1); background: var(--bg-elev-2); overflow: hidden; }
+.pn-barras__barra { display: block; height: 100%; width: var(--pn-largura, 0%); min-width: 2px; border-radius: var(--radius-1); background: var(--accent); transition: width var(--dur-2) var(--ease-out); }
+.pn-barras__barra[data-tom="negative"] { background: var(--negative); }
+.pn-barras__barra[data-tom="positive"] { background: var(--positive); }
+.pn-barras__valor { text-align: right; font-variant-numeric: tabular-nums; }
+.pn-notas { margin: 0; padding-left: var(--space-4); }
+@media (hover: hover) {
+  button.pn-barras__linha:hover { background: var(--bg-elev-2); }
+}
 
 </style>
 </head>
@@ -537,27 +583,30 @@ const __p0 = (function () {
       orçamento por sub-aba (≤ 4 por atualização). A cota lida nos cabeçalhos vai para o rodapé. */
   function createFonte({ fetch: fetchFn = null, guarda, agora = () => Date.now(), ttl = 10 * 60000 } = {}) {
     const f = (...a) => (fetchFn || (typeof fetch !== 'undefined' ? fetch.bind(globalThis) : null))(...a);
-    let pedidos = 0, cota = null;
+    let pedidos = 0, brutos = 0, cota = null;
     const cab = (r, n) => (r && r.headers && typeof r.headers.get === 'function' ? r.headers.get(n) : null);
-    async function api(caminho, { nome = null, forcar = false } = {}) {
+    async function api(caminho, { nome = null, forcar = false, ttl: prazo = ttl, base = API, texto = false } = {}) {
       const chave = 'painel.cache.' + (nome || caminho);
       const cache = guarda.ler(chave);
-      if (cache && !forcar && agora() - cache.em < ttl) return { dado: cache.dado, em: cache.em, deCache: true };
-      const headers = { Accept: 'application/vnd.github+json' };
+      if (cache && !forcar && agora() - cache.em < prazo) return { dado: cache.dado, em: cache.em, deCache: true };
+      const headers = base === API ? { Accept: 'application/vnd.github+json' } : {};
       if (cache && cache.etag) headers['If-None-Match'] = cache.etag;
-      pedidos++;
+      if (base === API) pedidos++; else brutos++;
       let r;
-      try { r = await f(API + caminho, { headers }); } catch (e) { if (cache) return { dado: cache.dado, em: cache.em, deCache: true, semRede: true }; throw erro('sem-rede'); }
+      try { r = await f(base + caminho, { headers }); } catch (e) { if (cache) return { dado: cache.dado, em: cache.em, deCache: true, semRede: true }; throw erro('sem-rede'); }
       const restante = cab(r, 'x-ratelimit-remaining');
       if (restante != null) cota = { restante: Number(restante), limite: Number(cab(r, 'x-ratelimit-limit') || 60), reinicia: Number(cab(r, 'x-ratelimit-reset') || 0) * 1000 };
       if (r.status === 304 && cache) { const em = agora(); guarda.gravar(chave, { ...cache, em }); return { dado: cache.dado, em, deCache: false }; }
       if (r.status === 403 || r.status === 429) { if (cache) return { dado: cache.dado, em: cache.em, deCache: true, cotaEsgotada: true }; throw erro('cota'); }
       if (!r.ok) { if (cache) return { dado: cache.dado, em: cache.em, deCache: true, falhou: r.status }; throw erro('api', { status: r.status }); }
-      const dado = await r.json(); const em = agora();
+      const dado = texto ? await r.text() : await r.json(); const em = agora();
       guarda.gravar(chave, { dado, em, etag: cab(r, 'etag') || null });
       return { dado, em, deCache: false };
     }
-    return { api, get pedidos() { return pedidos; }, zerar() { pedidos = 0; }, get cota() { return cota; } };
+    /** Arquivo de um ramo pelo raw.githubusercontent (fora da cota da API; conta em `brutos`). */
+    const raw = (ramo, arquivo, opts = {}) => api(`/${ramo}/${arquivo}`, { nome: `raw.${ramo}.${arquivo}`, base: RAW, texto: true, ...opts });
+    const emCache = nome => !!guarda.ler('painel.cache.' + nome);
+    return { api, raw, emCache, get pedidos() { return pedidos; }, get brutos() { return brutos; }, zerar() { pedidos = 0; brutos = 0; }, get cota() { return cota; } };
   }
   return { REPO, API, RAW, erro, h, clear, createGuarda, createFonte };
 })();
@@ -672,7 +721,7 @@ const __p2 = (function () {
   /** Sub-abas da aba Evolução & Entrega, na ordem das fatias. `leva` diz quando cada uma chega; sem `pronta`, a tela mostra
       "em breve" com o que a visão vai trazer. Incremento 1 (13/10): Pipeline entra antes da Eficiência. */
   const SUBABAS = [
-    { id: 'pipeline', rotulo: 'Pipeline', titulo: 'Pipeline de publicação', leva: 'R-4', traz: 'a fila agora (levas na fila, recusadas e o motivo, rodada em curso), entregue, recusado e reprocessando por período, e o filtro que vale para todas as visões' },
+    { id: 'pipeline', rotulo: 'Pipeline', titulo: 'Pipeline de publicação', leva: 'R-4', pronta: true, traz: 'a fila agora (levas na fila, recusadas e o motivo, rodada em curso), entregue, recusado e reprocessando por período, e o filtro que vale para todas as visões' },
     { id: 'eficiencia', rotulo: 'Eficiência', titulo: 'Eficiência', leva: 'R-5', traz: 'levas por dia e por semana por trilha, intervalo entre publicações, portão verde na primeira, duração do portão e retrabalho' },
     { id: 'roadmap', rotulo: 'Roadmap', titulo: 'Roadmap', leva: 'R-6', traz: 'histórias por status, por épico e por tema, % concluído por épico e o burn-up semanal' },
     { id: 'motor', rotulo: 'Motor', titulo: 'Motor de regras', leva: 'R-7', traz: 'versão, regras do mapa por status, listas que jogam por formato e a evolução' },
@@ -742,7 +791,118 @@ const __p2 = (function () {
     'api': 'O GitHub não respondeu como esperado.'
   };
   const motivo = codigo => MOTIVO[codigo] || 'Algo não deu certo. Tente de novo.';
-  return { SUBABAS, LIMIARES, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
+
+  /* ---------- R-4 · incremento 1 · filtros em tudo (puro) ---------- */
+  /** Dimensões que toda linha normalizada pode carregar; o filtro só vale onde a dimensão existe. */
+  const DIMENSOES = ['periodo', 'trilha', 'conversa', 'historia', 'epico', 'tema', 'skill', 'modelo', 'situacao', 'portao', 'formato'];
+  const PERIODOS = { '24h': 24 * 3600000, '7d': 7 * 86400000, '30d': 30 * 86400000, 'tudo': Infinity };
+  /** Trilha pela letra da leva (prefixo do rodapé `Trilha:`; retrato de 13/10/2026). */
+  const TRILHA_DA_LETRA = { M: 'motor', B: 'bot', G: 'geral', D: 'design', S: 'scanner', I: 'infra', P: 'protecao', A: 'armazem', K: 'keywords', V: 'verbos', T: 'tipos', L: 'listas', C: 'cartas', H: 'homologacao', R: 'radar', E: 'escala', J: 'jogabilidade' };
+  const trilhaDaLeva = leva => TRILHA_DA_LETRA[String(leva || '').charAt(0)] || null;
+  /** Recorta as linhas pelos filtros ativos. `periodo` usa `data` (ms) e `agora`; os demais comparam valor (ou lista) por igualdade.
+      Linha sem a dimensão passa; o nome da dimensão volta em `naoAplica` para o cartão dizer "este filtro não se aplica aqui". */
+  function recorte(linhas, filtros = {}, agora = Date.now()) {
+    const ativos = Object.entries(filtros || {}).filter(([k, v]) => DIMENSOES.includes(k) && v != null && v !== '' && !(k === 'periodo' && v === 'tudo'));
+    const naoAplica = new Set();
+    const saida = (linhas || []).filter(l => ativos.every(([k, v]) => {
+      if (k === 'periodo') { if (l.data == null) { naoAplica.add(k); return true; } const janela = PERIODOS[v]; return janela == null || agora - l.data <= janela; }
+      const atual = l[k];
+      if (atual === undefined || atual === null) { naoAplica.add(k); return true; }
+      return Array.isArray(atual) ? atual.includes(v) : String(atual) === String(v);
+    }));
+    return { linhas: saida, naoAplica: [...naoAplica], total: (linhas || []).length };
+  }
+  /** `#pipeline?periodo=7d&trilha=motor` → { aba, filtros }; valores fora das dimensões são ignorados. */
+  function filtrosDaUrl(hash) {
+    const h = String(hash || '').replace(/^#/, '');
+    const [aba, consulta = ''] = h.split('?');
+    const filtros = {};
+    for (const par of consulta.split('&')) { if (!par) continue; const [k, v = ''] = par.split('='); const chave = decodeURIComponent(k); if (DIMENSOES.includes(chave) && v !== '') filtros[chave] = decodeURIComponent(v); }
+    return { aba: aba || null, filtros };
+  }
+  function urlDosFiltros(aba, filtros = {}) {
+    const pares = Object.entries(filtros || {}).filter(([k, v]) => DIMENSOES.includes(k) && v != null && v !== '' && !(k === 'periodo' && v === 'tudo')).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`);
+    return '#' + aba + (pares.length ? '?' + pares.join('&') : '');
+  }
+  /** Frase do recorte para o cartão: "7 dias · trilha motor" ou "tudo". */
+  const ROTULO_PERIODO = { '24h': '24 horas', '7d': '7 dias', '30d': '30 dias', 'tudo': 'tudo' };
+  function fraseDoRecorte(filtros = {}) {
+    const partes = [ROTULO_PERIODO[filtros.periodo || '7d'] || filtros.periodo];
+    for (const k of DIMENSOES) if (k !== 'periodo' && filtros[k]) partes.push(`${k} ${filtros[k]}`);
+    return partes.join(' · ');
+  }
+  /** Valores presentes numa dimensão, com contagem, para virar chips (mais frequentes primeiro). */
+  function valoresDe(linhas, dim, limite = 8) {
+    const cont = new Map();
+    for (const l of linhas || []) { const v = l[dim]; for (const x of (Array.isArray(v) ? v : [v])) if (x != null && x !== '') cont.set(x, (cont.get(x) || 0) + 1); }
+    return [...cont.entries()].sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0]))).slice(0, limite).map(([valor, n]) => ({ valor, n }));
+  }
+
+  /* ---------- R-4 · Pipeline (puro) ---------- */
+  /** Nome do ramo da fila ou da recusa → leva e trilha. */
+  function levaDoRamo(nome) {
+    const m = String(nome || '').match(/^(fila|recusada)\/([A-Z]-\d+)$/);
+    return m ? { tipo: m[1], leva: m[2], trilha: trilhaDaLeva(m[2]) } : null;
+  }
+  /** Motivo da recusa, lido da mensagem do commit vazio que a fila escreve (`fila.mjs`): classe + detalhe. */
+  function motivoDaRecusa(mensagem) {
+    const t = String(mensagem || '');
+    const corpo = t.replace(/^RECUSADA pela fila[^\n]*\n+/, '');
+    if (/^CONFLITO/i.test(corpo)) { const arquivos = ((corpo.match(/em:\s*(.+?)\.?\s*$/m) || [])[1] || '').split(',').map(x => x.trim()).filter(Boolean); return { classe: 'conflito', rotulo: 'conflito', detalhe: arquivos.join(', ') || 'arquivo não identificado', arquivos }; }
+    if (/^GUARDA DE AGREGA/i.test(corpo)) return { classe: 'guarda', rotulo: 'guarda de agregação', detalhe: (corpo.match(/(\d+) achado/) || [])[0] || '' };
+    if (/^CONFER/i.test(corpo)) return { classe: 'conferencia', rotulo: 'conferência antes do portão', detalhe: (corpo.match(/(\d+) achado/) || [])[0] || '' };
+    if (/^PORT[ÃA]O VERMELHO/i.test(corpo)) { const testes = [...corpo.matchAll(/^- (.+)$/gm)].map(m => m[1]); return { classe: 'portao', rotulo: 'portão vermelho', detalhe: testes.length ? `${testes.length} teste(s): ${testes.slice(0, 3).join('; ')}${testes.length > 3 ? '…' : ''}` : 'veja o log da rodada', testes }; }
+    return { classe: 'outro', rotulo: 'motivo não reconhecido', detalhe: corpo.split('\n')[0].slice(0, 80) };
+  }
+  /** Ramos da API `branches` + detalhes (`branches/<nome>`, por sha) → linhas da fila e das recusas, normalizadas. */
+  function linhasDaFila(ramos, detalhes = {}, agora = Date.now()) {
+    const saida = [];
+    for (const r of ramos || []) {
+      const info = levaDoRamo(r.name); if (!info) continue;
+      const d = detalhes[r.commit && r.commit.sha] || null;
+      const data = d ? Date.parse((d.commit && d.commit.committer && d.commit.committer.date) || '') || null : null;
+      const linha = { tipo: info.tipo, leva: info.leva, trilha: info.trilha, sha: String((r.commit && r.commit.sha) || '').slice(0, 7), data, espera: data ? agora - data : null, situacao: info.tipo === 'fila' ? 'na-fila' : 'recusada', detalhe: !!d };
+      if (info.tipo === 'recusada' && d) Object.assign(linha, { motivo: motivoDaRecusa(d.commit && d.commit.message) });
+      saida.push(linha);
+    }
+    return saida.sort((a, b) => (a.data || Infinity) - (b.data || Infinity));
+  }
+  /** Execuções do fluxo "Fila de publicação" → linhas normalizadas (uma por rodada). */
+  function linhasDasRodadas(execucoes) {
+    return (execucoes || []).map(e => {
+      const inicio = Date.parse(e.run_started_at || e.created_at || '') || null, fim = Date.parse(e.updated_at || '') || null;
+      const conclusao = e.status === 'completed' ? (e.conclusion || 'desconhecida') : e.status;
+      return { id: e.id, data: inicio, duracao: inicio && fim && e.status === 'completed' ? fim - inicio : null, status: e.status, conclusao, portao: conclusao === 'success' ? 'verde' : conclusao === 'failure' ? 'vermelho' : conclusao === 'cancelled' ? 'cancelada' : 'em-curso', titulo: String(e.display_title || e.name || '').slice(0, 80), url: e.html_url || null };
+    }).sort((a, b) => (b.data || 0) - (a.data || 0));
+  }
+  /** Linhas de `levas.jsonl` → normalizadas para o filtro (data = fim, ou início, ou carimbo). */
+  function linhasDasLevas(levas) {
+    return (levas || []).map(l => ({ ...l, data: Date.parse(l.fim || l.inicio || l.em || '') || null, skill: l.skills || [], historia: l.historia || null, reprocessando: (l.tentativas_fila || 0) > 1 || l.situacao === 'recusada' }));
+  }
+  const mediana = xs => { const v = (xs || []).filter(x => x != null).sort((a, b) => a - b); if (!v.length) return null; const m = Math.floor(v.length / 2); return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2; };
+  const p95 = xs => { const v = (xs || []).filter(x => x != null).sort((a, b) => a - b); return v.length ? v[Math.min(v.length - 1, Math.ceil(v.length * 0.95) - 1)] : null; };
+  /** Agrupa linhas por dia (chave AAAA-MM-DD, hora local) para as barras. */
+  function porDia(linhas, campo = 'data') {
+    const g = new Map();
+    for (const l of linhas || []) { if (!l[campo]) continue; const d = new Date(l[campo]); const k = `${d.getFullYear()}-${dois(d.getMonth() + 1)}-${dois(d.getDate())}`; g.set(k, [...(g.get(k) || []), l]); }
+    return [...g.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([dia, itens]) => ({ dia, itens }));
+  }
+  const minutos = ms => { if (ms == null) return '—'; if (ms < 60000) return `${Math.round(ms / 1000)} s`; if (ms < 3600000) return `${Math.round(ms / 60000)} min`; const horas = Math.round(ms / 360000) / 10; return `${Number.isInteger(horas) ? horas : horas.toFixed(1).replace('.', ',')} h`; };
+  Object.assign(LIMIARES, {
+    esperaFila: { verde: 30 * 60000, amarelo: 90 * 60000, unidade: 'ms', texto: 'pior espera na fila: ≤ 30 min · ≤ 90 min · mais' },
+    recusadas: { verde: 0, amarelo: 2, unidade: 'levas', texto: 'recusadas agora: 0 · até 2 · 3 ou mais' },
+    rodada: { verde: 25 * 60000, amarelo: 40 * 60000, unidade: 'ms', texto: 'rodada em curso: ≤ 25 min · ≤ 40 min · mais' },
+    portaoVerde: { verde: 80, amarelo: 60, unidade: '%', texto: 'rodadas verdes: ≥ 80 % · ≥ 60 % · menos' },
+    pages: { verde: 1, amarelo: 0, unidade: 'ok', texto: 'Pages: última publicação ok · sem execução · falhou' }
+  });
+  const FONTES = {
+    ramos: 'API GitHub · branches (+ branches/<nome> por sha, guardado para sempre)',
+    rodadas: 'API GitHub · actions/workflows/fila.yml/runs',
+    jobs: 'API GitHub · actions/runs/<id>/jobs (só com rodada em curso)',
+    pages: 'API GitHub · actions/runs (fluxo "pages build and deployment")',
+    levas: 'ramo telemetria · levas.jsonl (escrito pelas sessões)'
+  };
+  return { SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
 })();
 
 /* ==== src/painel/ui.js ==== */
@@ -793,16 +953,49 @@ const __p3 = (function () {
       ...items.map(it => h('button', { class: 'ds-tab', role: 'tab', type: 'button', 'aria-selected': String(it.id === active), 'aria-label': it.titulo || it.rotulo, dataset: { tab: it.id }, onClick: () => onSelect && onSelect(it.id) }, it.rotulo)));
   }
   const Farol = (situacao, texto, { id } = {}) => h('span', { class: 'pn-farol ds-text ds-text--sm ds-text--muted', dataset: { farol: situacao }, id: id || null }, texto);
-  return { ICONES, Icone, Button, IconButton, LinkBotao, Text, Empty, Note, AvisoRede, Spinner, Tabs, Farol };
+
+  /* ---------- R-4 · chips de filtro, cartão de KPI, barras ---------- */
+  const Chip = (rotulo, { ativo = false, onClick, id, dataset, title } = {}) => h('button', { class: 'ds-chip', type: 'button', 'aria-pressed': String(!!ativo), id, dataset, onClick, title }, rotulo);
+  /** Cartão de KPI: valor em destaque, rótulo, farol com o limiar no título, e a origem (fonte, fórmula, carimbo) em uma linha pequena.
+      `semDados` escreve "sem dados neste recorte" no lugar do valor; `totalSemFiltro` aparece em cinza quando há filtro. */
+  function Cartao({ id, rotulo, valor, unidade = '', farol: situacao = null, limiar = null, fonte = '', formula = '', em = null, semDados = false, totalSemFiltro = null, nota = null }) {
+    return h('article', { class: 'ds-surface pn-cartao', id, 'aria-label': rotulo },
+      h('div', { class: 'pn-cartao__topo' }, h('span', { class: 'ds-text ds-text--caps' }, rotulo), situacao ? Farol(situacao, situacao, { }) : null),
+      semDados ? h('p', { class: 'ds-text ds-text--md ds-text--muted pn-cartao__vazio' }, 'sem dados neste recorte')
+        : h('p', { class: 'ds-text ds-text--2xl ds-text--display pn-cartao__valor' }, String(valor), unidade ? h('span', { class: 'ds-text ds-text--sm ds-text--muted pn-cartao__unidade' }, ' ' + unidade) : null, totalSemFiltro != null ? h('span', { class: 'ds-text ds-text--sm ds-text--subtle pn-cartao__total', title: 'sem filtro' }, ` / ${totalSemFiltro}`) : null),
+      nota ? h('p', { class: 'ds-text ds-text--sm ds-text--muted' }, nota) : null,
+      h('p', { class: 'ds-text ds-text--xs ds-text--subtle pn-cartao__origem', title: [fonte, formula, limiar && limiar.texto].filter(Boolean).join(' · ') }, [formula, fonte].filter(Boolean).join(' · ') + (em ? ` · ${__p2.carimbo(em)}` : '')));
+  }
+  /** Barras horizontais em HTML (lê como tabela; sem cor por série: o rótulo carrega a identidade). `tom` é um token de situação opcional.
+      `onBarra(valor)` faz a barra filtrar (incremento 1). */
+  function Barras({ id, titulo, itens, maximo = null, formato = v => String(v), onBarra = null, ativo = null, vazio = 'sem dados neste recorte' }) {
+    const max = maximo || Math.max(1, ...(itens || []).map(i => i.valor || 0));
+    return h('section', { class: 'pn-barras', id, 'aria-label': titulo },
+      h('h3', { class: 'ds-text ds-text--md pn-barras__titulo' }, titulo),
+      !(itens && itens.length) ? h('p', { class: 'ds-text ds-text--sm ds-text--muted' }, vazio)
+        : h('ul', { class: 'pn-barras__lista', role: 'list' }, ...itens.map(i => h('li', { class: 'pn-barras__item', dataset: { valor: String(i.chave ?? i.rotulo) } },
+          h(onBarra ? 'button' : 'div', { class: 'pn-barras__linha', type: onBarra ? 'button' : null, 'aria-pressed': onBarra ? String(ativo != null && String(ativo) === String(i.chave ?? i.rotulo)) : null, onClick: onBarra ? () => onBarra(i.chave ?? i.rotulo) : null, title: i.dica || `${i.rotulo}: ${formato(i.valor)}` },
+            h('span', { class: 'pn-barras__rotulo ds-text ds-text--sm' }, i.rotulo),
+            h('span', { class: 'pn-barras__trilho' }, h('span', { class: 'pn-barras__barra', style: { '--pn-largura': `${Math.round(100 * (i.valor || 0) / max)}%` }, dataset: { tom: i.tom || 'accent' } })),
+            h('span', { class: 'pn-barras__valor ds-text ds-text--sm ds-text--muted' }, formato(i.valor)))))));
+  }
+  /** Lista simples de linhas (fila agora, recusas): texto principal, selo e detalhe, cada uma com 44 px. */
+  const Linha = ({ id, principal, selo = null, seloTom = null, detalhe = null, dataset }) => h('li', { class: 'pn-linha', id, dataset },
+    h('div', { class: 'pn-linha__texto' }, h('span', { class: 'ds-text ds-text--md' }, principal), detalhe ? h('span', { class: 'ds-text ds-text--sm ds-text--muted pn-linha__detalhe' }, detalhe) : null),
+    selo ? h('span', { class: ['ds-badge', seloTom ? `ds-badge--${seloTom}` : ''].filter(Boolean).join(' ') }, selo) : null);
+  return { ICONES, Icone, Button, IconButton, LinkBotao, Text, Empty, Note, AvisoRede, Spinner, Tabs, Farol, Chip, Cartao, Barras, Linha };
 })();
 
 /* ==== src/painel/app.js ==== */
-/* R-2 · A tela do painel: entrar, casca com a faixa de dados, as sub-abas (em breve até a leva de cada uma) e o rodapé com
-   a cota do GitHub e a volta ao app. Atualizar e abrir uma sub-aba leem o último commit do main (um pedido, com ETag). */
+/* R-2 · A tela do painel: entrar, casca com a faixa de dados, as sub-abas e o rodapé com a cota do GitHub e a volta ao app.
+   R-4 · incremento 1: o endereço carrega a sub-aba e os filtros (`#pipeline?periodo=7d&trilha=motor`); barra de chips por
+   sub-aba; filtro cruzado por toque numa barra; cada cartão diz o recorte; a sub-aba Pipeline lê a fila, as rodadas, o Pages e a
+   telemetria com orçamento de pedidos declarado. */
 const __p4 = (function () {
   const { h, clear, createGuarda, createFonte } = __p0;
-  const { SUBABAS, LIMIARES, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo } = __p2;
-  const { Icone, Button, IconButton, LinkBotao, Text, Empty, Note, AvisoRede, Spinner, Tabs, Farol } = __p3;
+  const M = __p2;
+  const { SUBABAS, LIMIARES, FONTES, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, minutos } = M;
+  const { Icone, Button, IconButton, LinkBotao, Text, Empty, Note, AvisoRede, Spinner, Tabs, Farol, Chip, Cartao, Barras, Linha } = __p3;
   const W = typeof window !== 'undefined' ? window : {};
   // Configuração pública (a mesma do app: Client ID e chave web não são segredo; a proteção são as regras do banco e a
   // origem autorizada). Nos testes, window.__PAINEL_* substitui cada peça.
@@ -810,16 +1003,101 @@ const __p4 = (function () {
   const FIREBASE_API_KEY = W.__PAINEL_API_KEY === '' ? '' : (W.__PAINEL_API_KEY || 'AIzaSyD6WvzlsJ4KZ9b5QZOEdQnd-liaNeJ0xRk');
   const PERMITIDOS = Array.isArray(W.__PAINEL_PERMITIDOS) ? W.__PAINEL_PERMITIDOS : ['gui.amuy@gmail.com'];
   const APP = './index.html';
+  /** Orçamento por atualização de sub-aba: pedidos fixos à API (≤ 4) e detalhes por sha ainda não guardados (≤ 4). */
+  const ORCAMENTO = { fixos: 4, detalhes: 4 };
   function carregaScript(src) {
     return new Promise((res, rej) => { const el = document.createElement('script'); el.src = src; el.async = true; el.onload = res; el.onerror = () => rej(new Error('sem-google')); document.head.appendChild(el); });
   }
+  const lerJsonl = txt => String(txt || '').split('\n').filter(l => l.trim()).map(l => { try { return JSON.parse(l); } catch (e) { return null; } }).filter(Boolean);
+
+  /* ---------- visões (uma por sub-aba pronta): carrega(fonte, forcar) → dados; desenha(dados, filtros, api) → nós ---------- */
+  const VISOES = {
+    pipeline: {
+      filtros: ['periodo', 'trilha', 'situacao', 'portao', 'conversa', 'modelo'],
+      async carrega(fonte, forcar) {
+        const avisos = [];
+        const ramos = await fonte.api('/branches?per_page=100', { nome: 'ramos', ttl: 2 * 60000, forcar });
+        const relevantes = (ramos.dado || []).filter(r => M.levaDoRamo(r.name));
+        const detalhes = {}; let novos = 0;
+        for (const r of relevantes) {
+          const sha = r.commit && r.commit.sha; if (!sha) continue;
+          const nome = 'ramo.' + sha;
+          if (!fonte.emCache(nome)) { if (novos >= ORCAMENTO.detalhes) { avisos.push('detalhes de alguns ramos ficam para a próxima atualização (orçamento de pedidos)'); continue; } novos++; }
+          try { detalhes[sha] = (await fonte.api('/branches/' + encodeURIComponent(r.name), { nome, ttl: Infinity })).dado; } catch (e) { /* sem detalhe: a linha aparece sem data e sem motivo */ }
+        }
+        const rodadas = await fonte.api('/actions/workflows/fila.yml/runs?per_page=50', { nome: 'rodadas', ttl: 2 * 60000, forcar });
+        const lista = (rodadas.dado && rodadas.dado.workflow_runs) || [];
+        const emCurso = lista.find(r => r.status === 'in_progress' || r.status === 'queued') || null;
+        let jobs = null;
+        if (emCurso) { try { jobs = (await fonte.api(`/actions/runs/${emCurso.id}/jobs`, { nome: 'jobs.' + emCurso.id, ttl: 60000, forcar })).dado; } catch (e) { avisos.push('não li os jobs da rodada em curso'); } }
+        let pages = null;
+        try { const p = await fonte.api('/actions/runs?per_page=20', { nome: 'pages', ttl: 5 * 60000, forcar }); pages = ((p.dado && p.dado.workflow_runs) || []).find(r => /pages build and deployment/i.test(r.name || '')) || null; } catch (e) { avisos.push('não li o estado do Pages'); }
+        let levas = [];
+        try { levas = lerJsonl((await fonte.raw('telemetria', 'levas.jsonl', { ttl: 2 * 60000, forcar })).dado); } catch (e) { avisos.push('telemetria indisponível (ramo telemetria)'); }
+        return { em: Date.now(), ramos: relevantes, detalhes, rodadas: lista, emCurso, jobs, pages, levas, avisos, sem: { ramos: ramos.semRede || ramos.cotaEsgotada, rodadas: rodadas.semRede || rodadas.cotaEsgotada } };
+      },
+      desenha(d, filtros, api) {
+        const agora = Date.now();
+        const fila = M.linhasDaFila(d.ramos, d.detalhes, agora);
+        const rodadas = M.linhasDasRodadas(d.rodadas);
+        const levas = M.linhasDasLevas(d.levas);
+        const rFila = recorte(fila, { trilha: filtros.trilha, situacao: filtros.situacao }, agora);
+        const rRod = recorte(rodadas.filter(r => r.status === 'completed'), { periodo: filtros.periodo || '7d', portao: filtros.portao }, agora);
+        const rLev = recorte(levas, filtros, agora);
+        const naFila = rFila.linhas.filter(l => l.tipo === 'fila'), recusadas = rFila.linhas.filter(l => l.tipo === 'recusada');
+        const piorEspera = Math.max(0, ...naFila.map(l => l.espera || 0));
+        const verdes = rRod.linhas.filter(r => r.portao === 'verde').length, total = rRod.linhas.length;
+        const pct = total ? Math.round(100 * verdes / total) : null;
+        const duracoes = rRod.linhas.map(r => r.duracao);
+        const jobAtual = d.jobs && d.jobs.jobs ? d.jobs.jobs.find(j => j.status === 'in_progress') || d.jobs.jobs[d.jobs.jobs.length - 1] : null;
+        const emCursoHa = d.emCurso ? agora - (Date.parse(d.emCurso.run_started_at || d.emCurso.created_at) || agora) : null;
+        const pagesOk = d.pages ? (d.pages.conclusion === 'success' ? 1 : 0) : null;
+        const recorteTxt = fraseDoRecorte(filtros);
+        const cartoes = h('div', { class: 'pn-cartoes' },
+          Cartao({ id: 'pn-k-fila', rotulo: 'Na fila agora', valor: naFila.length, unidade: naFila.length === 1 ? 'leva' : 'levas', farol: naFila.length ? farol(piorEspera, LIMIARES.esperaFila) : 'verde', limiar: LIMIARES.esperaFila, fonte: FONTES.ramos, formula: 'ramos fila/* · pior espera ' + (naFila.length ? minutos(piorEspera) : '—'), em: d.em, totalSemFiltro: filtros.trilha ? fila.filter(l => l.tipo === 'fila').length : null }),
+          Cartao({ id: 'pn-k-recusadas', rotulo: 'Recusadas agora', valor: recusadas.length, unidade: recusadas.length === 1 ? 'leva' : 'levas', farol: farol(recusadas.length, LIMIARES.recusadas), limiar: LIMIARES.recusadas, fonte: FONTES.ramos, formula: 'ramos recusada/*', em: d.em, totalSemFiltro: filtros.trilha ? fila.filter(l => l.tipo === 'recusada').length : null }),
+          Cartao({ id: 'pn-k-rodada', rotulo: 'Rodada em curso', valor: d.emCurso ? (jobAtual ? jobAtual.name : d.emCurso.status) : 'nenhuma', unidade: d.emCurso ? `· ${minutos(emCursoHa)}` : '', farol: d.emCurso ? farol(emCursoHa, LIMIARES.rodada) : 'verde', limiar: LIMIARES.rodada, fonte: FONTES.jobs, formula: 'fluxo Fila de publicação em in_progress', em: d.em }),
+          Cartao({ id: 'pn-k-verdes', rotulo: 'Rodadas verdes', valor: pct == null ? '—' : pct, unidade: pct == null ? '' : `% de ${total}`, farol: pct == null ? 'cinza' : farol(pct, LIMIARES.portaoVerde), limiar: LIMIARES.portaoVerde, fonte: FONTES.rodadas, formula: 'success ÷ concluídas · ' + recorteTxt, em: d.em, semDados: !total }),
+          Cartao({ id: 'pn-k-duracao', rotulo: 'Duração da rodada', valor: minutos(M.mediana(duracoes)), unidade: duracoes.length ? `p50 · p95 ${minutos(M.p95(duracoes))}` : '', farol: duracoes.length ? farol(M.mediana(duracoes), LIMIARES.rodada) : 'cinza', limiar: LIMIARES.rodada, fonte: FONTES.rodadas, formula: 'updated_at − run_started_at · ' + recorteTxt, em: d.em, semDados: !duracoes.length }),
+          Cartao({ id: 'pn-k-pages', rotulo: 'Pages', valor: pagesOk == null ? 'sem execução' : pagesOk ? 'publicado' : 'falhou', farol: pagesOk == null ? 'amarelo' : pagesOk ? 'verde' : 'vermelho', limiar: LIMIARES.pages, fonte: FONTES.pages, formula: 'última execução', em: d.pages ? Date.parse(d.pages.updated_at) : d.em }));
+        const listaFila = h('section', { class: 'pn-bloco', id: 'pn-fila-agora' }, h('h3', { class: 'ds-text ds-text--md' }, 'Fila agora'),
+          naFila.length ? h('ul', { class: 'pn-linhas', role: 'list' }, ...naFila.map((l, i) => Linha({ principal: `${i + 1}º · ${l.leva}`, selo: l.trilha || '?', detalhe: l.data ? `espera ${minutos(l.espera)} · ${l.sha}` : `${l.sha} · detalhe na próxima atualização`, dataset: { leva: l.leva } }))) : h('p', { class: 'ds-text ds-text--sm ds-text--muted' }, 'nenhuma leva na fila'));
+        const listaRecusadas = h('section', { class: 'pn-bloco', id: 'pn-recusadas' }, h('h3', { class: 'ds-text ds-text--md' }, 'Recusadas (o main não mudou)'),
+          recusadas.length ? h('ul', { class: 'pn-linhas', role: 'list' }, ...recusadas.map(l => Linha({ principal: l.leva, selo: l.motivo ? l.motivo.rotulo : 'motivo na próxima atualização', seloTom: 'negative', detalhe: l.motivo ? l.motivo.detalhe : l.sha, dataset: { leva: l.leva, classe: l.motivo ? l.motivo.classe : '' } }))) : h('p', { class: 'ds-text ds-text--sm ds-text--muted' }, 'nenhuma recusa'));
+        const dias = M.porDia(rRod.linhas).map(({ dia, itens }) => ({ chave: dia, rotulo: dia.slice(5).split('-').reverse().join('/'), valor: itens.length, dica: `${dia}: ${itens.filter(r => r.portao === 'verde').length} verde(s) · ${itens.filter(r => r.portao === 'vermelho').length} vermelha(s)` }));
+        const porMotivo = valoresDe(recusadas.map(l => ({ classe: l.motivo ? l.motivo.rotulo : 'motivo pendente' })), 'classe').map(v => ({ chave: v.valor, rotulo: v.valor, valor: v.n, tom: 'negative' }));
+        const porSituacao = valoresDe(rLev.linhas, 'situacao').map(v => ({ chave: v.valor, rotulo: v.valor, valor: v.n }));
+        const porTrilha = valoresDe([...rLev.linhas, ...rFila.linhas], 'trilha').map(v => ({ chave: v.valor, rotulo: v.valor, valor: v.n }));
+        const reproc = rLev.linhas.filter(l => l.reprocessando).length;
+        const notas = [];
+        if (rLev.naoAplica.length) notas.push(`o filtro ${rLev.naoAplica.join(', ')} não se aplica às levas sem essa informação`);
+        if (!levas.length) notas.push('telemetria ainda sem levas: entregue / recusado / reprocessando por leva aparecem quando as conversas registrarem');
+        for (const a of d.avisos || []) notas.push(a);
+        return [
+          cartoes,
+          listaFila, listaRecusadas,
+          h('div', { class: 'pn-graficos' },
+            Barras({ id: 'pn-g-rodadas', titulo: `Rodadas por dia · ${recorteTxt}`, itens: dias, vazio: 'sem rodadas neste recorte' }),
+            Barras({ id: 'pn-g-motivos', titulo: 'Recusas por motivo', itens: porMotivo, vazio: 'nenhuma recusa' }),
+            Barras({ id: 'pn-g-situacao', titulo: `Levas registradas por situação · ${recorteTxt}`, itens: porSituacao, onBarra: v => api.filtra('situacao', v), ativo: filtros.situacao || null, vazio: 'sem levas neste recorte' }),
+            Barras({ id: 'pn-g-trilha', titulo: 'Por trilha (fila + levas registradas)', itens: porTrilha, onBarra: v => api.filtra('trilha', v), ativo: filtros.trilha || null, vazio: 'sem dados neste recorte' })),
+          Cartao({ id: 'pn-k-reproc', rotulo: 'Reprocessando', valor: reproc, unidade: reproc === 1 ? 'leva' : 'levas', farol: reproc ? 'amarelo' : 'verde', fonte: FONTES.levas, formula: 'recusada ou tentativas_fila > 1 · ' + recorteTxt, em: d.em, semDados: !levas.length, totalSemFiltro: Object.keys(filtros).some(k => k !== 'periodo' && filtros[k]) ? levas.filter(l => l.reprocessando).length : null }),
+          notas.length ? h('ul', { class: 'pn-notas ds-text ds-text--sm ds-text--muted', id: 'pn-notas' }, ...notas.map(n => h('li', {}, n))) : null
+        ];
+      }
+    }
+  };
+
   function boot(raiz) {
     const guarda = createGuarda(typeof localStorage !== 'undefined' ? localStorage : null);
     const sessao = __p1.createSessao({ apiKey: FIREBASE_API_KEY, clientId: GOOGLE_CLIENT_ID, permitidos: PERMITIDOS, fetch: W.__PAINEL_FETCH || null, google: W.__PAINEL_GOOGLE || null, carregaScript, guarda });
     const fonte = createFonte({ fetch: W.__PAINEL_FETCH_GITHUB || null, guarda });
-    const est = { sessao: null, erro: null, carregando: false, aba: guarda.ler('painel.aba') || SUBABAS[0].id, main: null, em: null, aviso: null, atualizando: false, tema: guarda.ler('painel.tema') || 'dark' };
+    const inicial = filtrosDaUrl(typeof location !== 'undefined' ? location.hash : '');
+    const est = { sessao: null, erro: null, carregando: false, aba: (SUBABAS.find(a => a.id === inicial.aba) ? inicial.aba : null) || guarda.ler('painel.aba') || SUBABAS[0].id, filtros: inicial.filtros, maisFiltros: false, main: null, em: null, aviso: null, atualizando: false, dados: {}, pedidosDaVez: 0, tema: guarda.ler('painel.tema') || 'dark' };
     document.documentElement.setAttribute('data-theme', est.tema);
     const online = () => typeof navigator === 'undefined' || navigator.onLine !== false;
+    const visao = () => VISOES[est.aba] || null;
+    const gravaUrl = () => { if (typeof history !== 'undefined' && history.replaceState) history.replaceState(null, '', urlDosFiltros(est.aba, est.filtros)); };
 
     async function atualiza({ forcar = false } = {}) {
       est.atualizando = true; est.aviso = null; desenha();
@@ -830,9 +1108,12 @@ const __p4 = (function () {
         if (r.semRede) est.aviso = { tipo: 'rede', texto: 'Sem internet. Mostrando o que havia guardado.' };
         else if (r.cotaEsgotada) est.aviso = { tipo: 'cota', texto: motivo('cota') };
         else if (r.falhou) est.aviso = { tipo: 'api', texto: motivo('api') + ' Mostrando o que havia guardado.' };
+        const v = visao();
+        if (v) { est.dados[est.aba] = await v.carrega(fonte, forcar); if (est.dados[est.aba].sem && (est.dados[est.aba].sem.ramos || est.dados[est.aba].sem.rodadas) && !est.aviso) est.aviso = { tipo: 'rede', texto: 'Parte dos dados veio do que estava guardado (sem rede ou cota).' }; }
       } catch (e) {
         est.aviso = { tipo: e.message === 'sem-rede' ? 'rede' : 'api', texto: e.message === 'sem-rede' ? 'Sem internet. Nenhum dado guardado ainda.' : motivo(e.message) };
       }
+      est.pedidosDaVez = fonte.pedidos;
       est.atualizando = false; desenha();
     }
     async function entrar() {
@@ -843,7 +1124,11 @@ const __p4 = (function () {
     }
     async function sair() { await sessao.sair(); est.sessao = null; est.erro = null; desenha(); }
     function trocaTema() { est.tema = est.tema === 'dark' ? 'light' : 'dark'; guarda.gravar('painel.tema', est.tema); document.documentElement.setAttribute('data-theme', est.tema); desenha(); }
-    function abre(id) { est.aba = id; guarda.gravar('painel.aba', id); desenha(); atualiza(); }
+    function abre(id) { if (id === est.aba) return; est.aba = id; est.filtros = {}; est.maisFiltros = false; guarda.gravar('painel.aba', id); gravaUrl(); desenha(); atualiza(); }
+    /** Filtro cruzado: tocar de novo no mesmo valor desfaz. */
+    function filtra(dim, valor) { if (est.filtros[dim] === valor) delete est.filtros[dim]; else est.filtros[dim] = valor; gravaUrl(); desenha(); }
+    function limpaFiltros() { est.filtros = {}; gravaUrl(); desenha(); }
+    const api = { filtra };
 
     function telaEntrar() {
       const estado = estadoTela(est);
@@ -865,18 +1150,54 @@ const __p4 = (function () {
       if (est.atualizando) itens.push(h('span', { class: 'pn-faixa__item' }, Spinner()));
       return h('div', { class: 'pn-faixa', id: 'pn-faixa' }, ...itens);
     }
+    /** Barra de chips da sub-aba: período sempre; as outras dimensões com os valores presentes nos dados; "Mais" abre o resto. */
+    function barraDeFiltros(v, d) {
+      const linhasBase = d ? [...M.linhasDasLevas(d.levas || []), ...M.linhasDaFila(d.ramos || [], d.detalhes || {})] : [];
+      const grupos = [];
+      grupos.push({ dim: 'periodo', chips: Object.keys(M.ROTULO_PERIODO).map(k => ({ valor: k, rotulo: M.ROTULO_PERIODO[k] })), fixo: true });
+      for (const dim of v.filtros.filter(x => x !== 'periodo')) {
+        const vals = dim === 'portao' ? [{ valor: 'verde', rotulo: 'portão verde' }, { valor: 'vermelho', rotulo: 'portão vermelho' }] : valoresDe(linhasBase, dim).map(x => ({ valor: x.valor, rotulo: `${x.valor} (${x.n})` }));
+        if (est.filtros[dim] && !vals.some(x => x.valor === est.filtros[dim])) vals.unshift({ valor: est.filtros[dim], rotulo: est.filtros[dim] });
+        if (vals.length) grupos.push({ dim, chips: vals, fixo: dim === 'trilha' });
+      }
+      const ativos = Object.keys(est.filtros).filter(k => est.filtros[k]).length;
+      const periodoAtual = est.filtros.periodo || '7d';
+      const grupo = g => h('div', { class: 'pn-filtros__grupo', dataset: { dim: g.dim }, role: 'group', 'aria-label': g.dim },
+        ...g.chips.map(c => Chip(c.rotulo, { ativo: g.dim === 'periodo' ? periodoAtual === c.valor : est.filtros[g.dim] === c.valor, dataset: { dim: g.dim, valor: c.valor }, onClick: () => g.dim === 'periodo' ? (est.filtros.periodo = c.valor, gravaUrl(), desenha()) : filtra(g.dim, c.valor) })));
+      // No 360: período numa linha, trilha e as ações na segunda (até 5 trilhas à vista); o resto em "Mais filtros".
+      const fixos = grupos.filter(g => g.fixo && g.dim !== 'situacao');
+      const escondidos = grupos.filter(g => !fixos.includes(g));
+      for (const g of fixos) if (g.dim !== 'periodo') g.chips = g.chips.slice(0, 5);
+      const acoes = [
+        escondidos.length ? Chip(est.maisFiltros ? 'Menos filtros' : `Mais filtros (${escondidos.length})`, { id: 'pn-mais-filtros', onClick: () => { est.maisFiltros = !est.maisFiltros; desenha(); } }) : null,
+        ativos ? Chip(`Limpar (${ativos})`, { id: 'pn-limpar', onClick: limpaFiltros }) : null];
+      const segunda = fixos.find(g => g.dim !== 'periodo');
+      return h('div', { class: 'pn-filtros', id: 'pn-filtros' },
+        grupo(fixos[0]),
+        h('div', { class: 'pn-filtros__grupo', dataset: { dim: segunda ? segunda.dim : 'acoes' }, role: 'group', 'aria-label': segunda ? segunda.dim : 'ações' },
+          ...(segunda ? segunda.chips.map(c => Chip(c.rotulo, { ativo: est.filtros[segunda.dim] === c.valor, dataset: { dim: segunda.dim, valor: c.valor }, onClick: () => filtra(segunda.dim, c.valor) })) : []),
+          ...acoes),
+        est.maisFiltros ? escondidos.map(grupo) : null);
+    }
     function conteudo() {
       const aba = SUBABAS.find(a => a.id === est.aba) || SUBABAS[0];
+      const v = visao();
       const partes = [];
       if (est.aviso) partes.push(est.aviso.tipo === 'rede' ? AvisoRede(est.aviso.texto, { id: 'pn-aviso' }) : Note(est.aviso.texto, 'warning', { id: 'pn-aviso' }));
-      if (!aba.pronta) partes.push(Empty(`Esta visão chega na leva ${aba.leva} e vai trazer ${aba.traz}.`, null, { icone: 'ampulheta', titulo: `${aba.titulo} · em breve`, hero: true, id: 'pn-em-breve' }));
+      if (!aba.pronta || !v) partes.push(Empty(`Esta visão chega na leva ${aba.leva} e vai trazer ${aba.traz}.`, null, { icone: 'ampulheta', titulo: `${aba.titulo} · em breve`, hero: true, id: 'pn-em-breve' }));
+      else {
+        const d = est.dados[est.aba];
+        partes.push(barraDeFiltros(v, d));
+        if (!d) partes.push(est.atualizando ? h('div', { class: 'pn-carregando', id: 'pn-carregando' }, Spinner(), h('span', {}, 'Lendo a fila e as rodadas…')) : Empty('Toque em Atualizar para ler a fila e as rodadas.', null, { icone: 'atualizar', titulo: 'Sem dados ainda', id: 'pn-sem-dados' }));
+        else partes.push(h('div', { class: 'pn-visao', id: 'pn-visao-' + est.aba }, ...v.desenha(d, est.filtros, api)));
+      }
       return h('section', { class: 'pn-conteudo', id: 'pn-conteudo', role: 'tabpanel', 'aria-label': aba.titulo }, ...partes);
     }
     function rodape() {
       const c = fonte.cota;
       const texto = c ? `GitHub: ${c.restante} de ${c.limite} pedidos nesta hora` : 'GitHub: cota ainda não lida';
       return h('footer', { class: 'pn-rodape', id: 'pn-rodape' },
-        h('span', { class: 'pn-rodape__cota', title: LIMIARES.cotaGithub.texto }, Icone('globo', { tamanho: 16 }), Farol(c ? farol(c.restante, LIMIARES.cotaGithub) : 'cinza', texto, { id: 'pn-cota' })),
+        h('span', { class: 'pn-rodape__cota', title: LIMIARES.cotaGithub.texto + ` · ${est.pedidosDaVez} pedido(s) na última atualização` }, Icone('globo', { tamanho: 16 }), Farol(c ? farol(c.restante, LIMIARES.cotaGithub) : 'cinza', texto, { id: 'pn-cota' })),
         LinkBotao('Voltar ao app', APP, { id: 'pn-voltar', icone: 'voltar' }));
     }
     function telaPainel() {
@@ -896,17 +1217,20 @@ const __p4 = (function () {
     function desenha() { clear(raiz); if (est.sessao) raiz.append(...telaPainel()); else raiz.append(telaEntrar()); }
 
     desenha();
-    if (typeof window !== 'undefined') { window.addEventListener('online', desenha); window.addEventListener('offline', desenha); }
+    if (typeof window !== 'undefined') {
+      window.addEventListener('online', desenha); window.addEventListener('offline', desenha);
+      window.addEventListener('hashchange', () => { const u = filtrosDaUrl(location.hash); if (u.aba && SUBABAS.some(a => a.id === u.aba) && (u.aba !== est.aba || JSON.stringify(u.filtros) !== JSON.stringify(est.filtros))) { const mudouAba = u.aba !== est.aba; est.aba = u.aba; est.filtros = u.filtros; desenha(); if (mudouAba) atualiza(); } });
+    }
     est.carregando = true; desenha();
-    sessao.retomar().then(s => { est.sessao = s; est.carregando = false; desenha(); if (s) atualiza(); })
+    sessao.retomar().then(s => { est.sessao = s; est.carregando = false; desenha(); if (s) { gravaUrl(); atualiza(); } })
       .catch(e => { est.carregando = false; est.sessao = null; est.erro = e.message === 'nao-permitido' ? e.message : null; est.erroEmail = e.email || null; desenha(); });
-    return { estado: () => ({ ...est }), atualiza, entrar, sair, abre };
+    return { estado: () => ({ ...est, filtros: { ...est.filtros } }), atualiza, entrar, sair, abre, filtra, limpaFiltros };
   }
   if (typeof window !== 'undefined' && !W.__PAINEL_NO_AUTOBOOT && typeof document !== 'undefined') {
     const inicia = () => { window.__painel = boot(document.getElementById('painel')); };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', inicia); else inicia();
   }
-  return { boot, PERMITIDOS, GOOGLE_CLIENT_ID, FIREBASE_API_KEY };
+  return { boot, VISOES, ORCAMENTO, PERMITIDOS, GOOGLE_CLIENT_ID, FIREBASE_API_KEY };
 })();
 
 </script>

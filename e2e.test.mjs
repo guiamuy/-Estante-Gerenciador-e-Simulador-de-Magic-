@@ -11919,3 +11919,88 @@ test('e2e · R-2 Painel Estante: outro e-mail é recusado e desconectado; o dono
   await page.click('#pn-voltar'); await page.waitForURL(/index\.html/);
   assert.deepEqual(errors, []);
 });
+
+/* ---------- R-4 · BI1-2b · Pipeline + filtros em tudo (incremento 1) ---------- */
+test('e2e · R-4 Painel · Pipeline: fila agora com espera e recusas com motivo, rodada em curso, rodadas verdes e Pages; chips filtram tudo e vão para o endereço; toque numa barra filtra; recorte vazio diz "sem dados"; reabrir pelo endereço mantém o filtro; barra de filtros em até três linhas no 360; sem sobreposição nas quatro medidas e dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  const painel = base.replace('index.html', 'painel.html');
+  await page.setViewportSize({ width: 360, height: 780 });
+  const h = n => new Date(Date.now() - n * 3600000).toISOString();
+  const json = (r, corpo) => r.fulfill({ json: corpo, headers: { 'content-type': 'application/json', 'x-ratelimit-remaining': '55', 'x-ratelimit-limit': '60', 'access-control-expose-headers': 'etag, x-ratelimit-remaining, x-ratelimit-limit' } });
+  await page.route('https://api.github.com/**', r => {
+    const u = r.request().url();
+    if (/\/commits\?sha=main/.test(u)) return json(r, [{ sha: 'abc1234def0', commit: { message: 'Leva G-264 · T6f-2', committer: { date: h(2) } } }]);
+    if (/\/branches\?/.test(u)) return json(r, [{ name: 'main', commit: { sha: 'm' } }, { name: 'fila/T-62', commit: { sha: 'a1' } }, { name: 'fila/R-2', commit: { sha: 'b2' } }, { name: 'recusada/M-351', commit: { sha: 'c3' } }, { name: 'acumulado/x', commit: { sha: 'z' } }]);
+    if (/\/branches\/fila%2FT-62/.test(u)) return json(r, { commit: { message: 'Leva T-62 · monarca', committer: { date: h(1) } } });
+    if (/\/branches\/fila%2FR-2/.test(u)) return json(r, { commit: { message: 'Leva R-2', committer: { date: h(0.5) } } });
+    if (/\/branches\/recusada%2FM-351/.test(u)) return json(r, { commit: { message: 'RECUSADA pela fila · M-351\n\nCONFLITO ao pôr "Leva M-349" sobre o main, em: index.html.\n\nO main não mudou.', committer: { date: h(8) } } });
+    if (/fila\.yml\/runs/.test(u)) return json(r, { workflow_runs: [{ id: 9, status: 'in_progress', run_started_at: h(0.2), updated_at: h(0.1) }, { id: 8, status: 'completed', conclusion: 'success', run_started_at: h(3), updated_at: new Date(Date.now() - 3 * 3600000 + 18 * 60000).toISOString() }, { id: 7, status: 'completed', conclusion: 'failure', run_started_at: h(72), updated_at: new Date(Date.now() - 72 * 3600000 + 30 * 60000).toISOString() }] });
+    if (/\/runs\/9\/jobs/.test(u)) return json(r, { jobs: [{ name: 'monta', status: 'completed' }, { name: 'portao', status: 'in_progress' }] });
+    if (/actions\/runs\?/.test(u)) return json(r, { workflow_runs: [{ name: 'pages build and deployment', conclusion: 'success', updated_at: h(3) }] });
+    return json(r, []);
+  });
+  await page.route('https://raw.githubusercontent.com/**', r => r.fulfill({ body: ['{"id":"R-1","trilha":"radar","conversa":"radar · 13/10","situacao":"na-fila","fim":"' + h(4) + '","modelo":"Fable 5.1","skills":["mtg-bi-specialist"]}', '{"id":"M-351","trilha":"motor","conversa":"motor · 11/10","situacao":"recusada","em":"' + h(8) + '","tentativas_fila":2,"modelo":"Fable 5.1"}', '{"id":"M-388","trilha":"motor","conversa":"motor · 11/10","situacao":"publicada","fim":"' + h(60) + '","modelo":"Fable 5.1"}'].join('\n') + '\n', headers: { 'content-type': 'text/plain', 'access-control-allow-origin': '*' } }));
+  await page.addInitScript(() => {
+    const jwt = email => 'h.' + btoa(JSON.stringify({ email })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') + '.s';
+    window.__PAINEL_FETCH = async (url) => new Response(JSON.stringify(url.includes('securetoken') ? { user_id: 'uidE2E', id_token: jwt('gui.amuy@gmail.com'), refresh_token: 'ref-e2e', expires_in: '3600' } : { localId: 'uidE2E', idToken: jwt('gui.amuy@gmail.com'), refreshToken: 'ref-e2e', expiresIn: '3600' }), { headers: { 'content-type': 'application/json' } });
+    window.__PAINEL_GOOGLE = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+  });
+  await page.goto(painel); await page.waitForSelector('#pn-entrar'); await page.click('#pn-entrar');
+  await page.waitForSelector('#pn-visao-pipeline');
+  // cartões: fila (2 levas, pior espera 1 h → amarelo), recusadas (1), rodada em curso (portao), rodadas verdes (7 dias: 1 de 1 concluída no período... a falha tem 72 h → fora dos 7 dias? 72 h = 3 dias: dentro) → 50 %, Pages publicado
+  assert.match(await page.innerText('#pn-k-fila'), /2\s*levas/); assert.equal(await page.getAttribute('#pn-k-fila .pn-farol', 'data-farol'), 'amarelo');
+  assert.match(await page.innerText('#pn-k-recusadas'), /1\s*leva/);
+  assert.match(await page.innerText('#pn-k-rodada'), /portao/);
+  assert.match(await page.innerText('#pn-k-verdes'), /50\s*% de 2/);
+  assert.match(await page.innerText('#pn-k-pages'), /publicado/);
+  assert.match(await page.innerText('#pn-fila-agora'), /1º · T-62[\s\S]*espera 1 h[\s\S]*tipos[\s\S]*2º · R-2/);
+  assert.match(await page.innerText('#pn-recusadas'), /M-351[\s\S]*index\.html[\s\S]*conflito/);
+  assert.match(await page.innerText('#pn-k-reproc'), /1\s*leva/);
+  assert.match(await page.innerText('#pn-g-situacao'), /na-fila[\s\S]*recusada/);
+  // cada cartão diz a origem (fonte · fórmula · carimbo)
+  assert.match(await page.innerText('#pn-k-verdes .pn-cartao__origem'), /success ÷ concluídas · 7 dias · API GitHub/);
+  // barra de filtros no 360: período + trilha com as ações, até três linhas
+  const alt = (await page.locator('#pn-filtros').boundingBox()).height; assert.ok(alt <= 3 * 52, `filtros em até três linhas: ${alt}px`);
+  await auditaTela(page, 'pipeline 360');
+  // chip de trilha: tudo recorta, o endereço guarda, o total sem filtro aparece em cinza
+  await page.click('#pn-filtros [data-dim="trilha"][data-valor="motor"]');
+  await page.waitForFunction(() => location.hash.includes('trilha=motor'));
+  assert.match(await page.innerText('#pn-k-fila'), /0\s*levas\s*\/\s*2/, 'fila filtrada por motor: zero, com o total 2 em cinza');
+  assert.match(await page.innerText('#pn-recusadas'), /M-351/);
+  assert.match(await page.innerText('#pn-fila-agora'), /nenhuma leva na fila/);
+  assert.equal(await page.getAttribute('#pn-filtros [data-dim="trilha"][data-valor="motor"]', 'aria-pressed'), 'true');
+  assert.equal(await page.locator('#pn-limpar').count(), 1);
+  // tocar de novo desfaz
+  await page.click('#pn-filtros [data-dim="trilha"][data-valor="motor"]'); await page.waitForFunction(() => !location.hash.includes('trilha='));
+  assert.match(await page.innerText('#pn-k-fila'), /2\s*levas/);
+  // período 24 h: a rodada vermelha (3 dias) sai → 100 % de 1
+  await page.click('#pn-filtros [data-dim="periodo"][data-valor="24h"]'); await page.waitForFunction(() => location.hash.includes('periodo=24h'));
+  assert.match(await page.innerText('#pn-k-verdes'), /100\s*% de 1/);
+  // toque numa barra filtra (situação) e vira chip em "Mais filtros"
+  await page.click('#pn-g-situacao button[aria-pressed="false"] >> nth=0');
+  await page.waitForFunction(() => location.hash.includes('situacao='));
+  assert.equal(await page.locator('#pn-g-situacao button[aria-pressed="true"]').count(), 1);
+  await page.click('#pn-mais-filtros'); await page.waitForSelector('#pn-filtros [data-dim="situacao"]');
+  assert.equal(await page.locator('#pn-filtros [data-dim="situacao"] .ds-chip[aria-pressed="true"]').count(), 1);
+  // recorte vazio: trilha radar + situação recusada → levas vazias dizem "sem dados"
+  await page.click('#pn-filtros [data-dim="trilha"][data-valor="radar"]');
+  await page.waitForFunction(() => location.hash.includes('trilha=radar'));
+  if (!/situacao=recusada/.test(await page.evaluate(() => location.hash))) { await page.click('#pn-filtros [data-dim="situacao"] .ds-chip[aria-pressed="true"]'); await page.click('#pn-filtros [data-dim="situacao"][data-valor="recusada"]'); }
+  await page.waitForFunction(() => /trilha=radar/.test(location.hash) && /situacao=recusada/.test(location.hash));
+  assert.match(await page.innerText('#pn-g-situacao'), /sem levas neste recorte/);
+  assert.match(await page.innerText('#pn-k-reproc'), /0\s*levas\s*\/\s*1/);
+  await emTodasAsMedidas(page, 'pipeline filtrada');
+  if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.screenshot({ path: process.env.SHOTS + '/r4-pipeline.png', fullPage: true }); }
+  // reabrir pelo endereço: filtros voltam
+  await page.goto(painel + '#pipeline?periodo=24h&trilha=motor'); await page.waitForSelector('#pn-visao-pipeline');
+  assert.equal(await page.getAttribute('#pn-filtros [data-dim="trilha"][data-valor="motor"]', 'aria-pressed'), 'true');
+  assert.equal(await page.getAttribute('#pn-filtros [data-dim="periodo"][data-valor="24h"]', 'aria-pressed'), 'true');
+  assert.match(await page.innerText('#pn-k-verdes'), /100\s*% de 1/);
+  // Limpar volta ao recorte padrão e tira o filtro do endereço
+  await page.click('#pn-limpar'); await page.waitForFunction(() => location.hash === '#pipeline');
+  assert.match(await page.innerText('#pn-k-fila'), /2\s*levas/);
+  // outra sub-aba continua "em breve"; voltar à Pipeline reabre com os dados guardados
+  await page.click('#pn-abas [data-tab="motor"]'); await page.waitForSelector('#pn-em-breve');
+  await page.click('#pn-abas [data-tab="pipeline"]'); await page.waitForSelector('#pn-visao-pipeline');
+  assert.deepEqual(errors, []);
+});

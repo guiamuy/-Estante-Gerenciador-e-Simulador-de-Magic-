@@ -39,8 +39,9 @@ test('R-2 · o painel espelha o design system: o bloco de tokens é idêntico ao
 test('R-2 · CSS próprio do painel: só tokens (nenhuma cor literal), hover só em @media (hover: hover), todo token usado existe, z-index pelos tokens', () => {
   const linhas = proprio.split('\n').filter(l => !l.trim().startsWith('/*'));
   assert.deepEqual(linhas.filter(l => /#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i.test(l)), [], 'cor literal no CSS do painel');
-  assert.deepEqual(linhas.filter(l => /:hover/.test(l) && !/@media \(hover: hover\)/.test(l) && !/^\s+\./.test(l)), [], ':hover fora do @media (hover: hover)');
+  assert.deepEqual(linhas.filter(l => /:hover/.test(l) && !/@media \(hover: hover\)/.test(l) && !/^\s+\S/.test(l)), [], ':hover fora do @media (hover: hover)');
   const definidos = new Set([...cssPainel.matchAll(/(--[a-zA-Z0-9-]+)\s*:/g)].map(m => m[1]));
+  for (const m of script.matchAll(/['"`](--[a-zA-Z0-9-]+)['"`]/g)) definidos.add(m[1]); // atribuído pelo JS (ex.: --pn-largura)
   const usados = [...new Set([...proprio.matchAll(/var\((--[a-zA-Z0-9-]+)/g)].map(m => m[1]))];
   assert.deepEqual(usados.filter(t => !definidos.has(t)), [], 'token usado e nunca definido');
   assert.deepEqual(linhas.filter(l => { const m = l.match(/z-index:\s*(\d+)/); return m && Number(m[1]) > 5; }), []);
@@ -177,10 +178,10 @@ test('R-2 · fonte sem rede ou com a cota esgotada devolve o que havia guardado 
 });
 
 /* ---------- modelo puro ---------- */
-test('R-2 · modelo: oito sub-abas na ordem das fatias (Pipeline antes da Eficiência), todas com a leva e o que trazem; nenhuma pronta ainda', () => {
-  const { modelo } = loadPainel();
+test('R-2 · modelo: oito sub-abas na ordem das fatias (Pipeline antes da Eficiência), todas com a leva e o que trazem; só a Pipeline pronta (R-4)', () => {
+  const { modelo, app } = loadPainel();
   assert.deepEqual(modelo.SUBABAS.map(a => a.id), ['pipeline', 'eficiencia', 'roadmap', 'motor', 'qualidade', 'curso', 'skills', 'modelos']);
-  for (const a of modelo.SUBABAS) { assert.match(a.leva, /^R-\d+$/); assert.ok(a.traz.length > 20); assert.ok(!a.pronta); }
+  for (const a of modelo.SUBABAS) { assert.match(a.leva, /^R-\d+$/); assert.ok(a.traz.length > 20); assert.equal(!!a.pronta, a.id === 'pipeline'); assert.equal(!!app.VISOES[a.id], !!a.pronta, 'toda sub-aba pronta tem a visão que a desenha'); }
   assert.deepEqual(modelo.SUBABAS.map(a => a.leva), ['R-4', 'R-5', 'R-6', 'R-7', 'R-8', 'R-9', 'R-10', 'R-11']);
 });
 
@@ -219,4 +220,113 @@ test('R-2 · a lista de permitidos do painel é só o e-mail do dono, e a config
   assert.deepEqual(app.PERMITIDOS, ['gui.amuy@gmail.com']);
   assert.ok(INDEX.includes(app.GOOGLE_CLIENT_ID), 'o Client ID é o do app');
   assert.ok(INDEX.includes(app.FIREBASE_API_KEY), 'a chave web é a do app');
+});
+
+
+/* ---------- R-4 · incremento 1: filtros em tudo ---------- */
+test('R-4 · recorte(): cada dimensão filtra por valor ou lista; período usa a data; linha sem a dimensão passa e a dimensão volta em naoAplica; combinação vazia dá zero linhas', () => {
+  const { modelo } = loadPainel();
+  const agora = Date.parse('2026-10-13T20:00:00Z');
+  const h = n => agora - n * 3600000;
+  const linhas = [
+    { id: 1, data: h(1), trilha: 'motor', skill: ['mtg-engine-architect'], situacao: 'publicada' },
+    { id: 2, data: h(30), trilha: 'radar', skill: ['mtg-bi-specialist', 'mtg-app-design-architect'], situacao: 'na-fila' },
+    { id: 3, data: h(200), trilha: 'motor', situacao: 'recusada' },
+    { id: 4, trilha: 'geral', situacao: 'editando' }
+  ];
+  assert.deepEqual(modelo.recorte(linhas, {}, agora).linhas.map(l => l.id), [1, 2, 3, 4]);
+  assert.deepEqual(modelo.recorte(linhas, { periodo: '24h' }, agora).linhas.map(l => l.id), [1, 4], 'linha sem data passa pelo período');
+  assert.deepEqual(modelo.recorte(linhas, { periodo: '24h' }, agora).naoAplica, ['periodo']);
+  assert.deepEqual(modelo.recorte(linhas, { periodo: '7d' }, agora).linhas.map(l => l.id), [1, 2, 4]);
+  assert.deepEqual(modelo.recorte(linhas, { periodo: 'tudo' }, agora).linhas.length, 4);
+  assert.deepEqual(modelo.recorte(linhas, { trilha: 'motor' }, agora).linhas.map(l => l.id), [1, 3]);
+  const porSkill = modelo.recorte(linhas, { skill: 'mtg-bi-specialist' }, agora);
+  assert.deepEqual(porSkill.linhas.map(l => l.id), [2, 3, 4], 'lista contém o valor; linhas sem skill passam');
+  assert.deepEqual(porSkill.naoAplica, ['skill']);
+  assert.deepEqual(modelo.recorte(linhas, { trilha: 'motor', situacao: 'na-fila' }, agora).linhas, [], 'combinação vazia dá vazio, não zero inventado');
+  assert.deepEqual(modelo.recorte(linhas, { cor: 'azul', periodo: '' }, agora).linhas.length, 4, 'dimensão desconhecida ou vazia é ignorada');
+  assert.equal(modelo.recorte(linhas, { trilha: 'motor' }, agora).total, 4, 'o total sem filtro vem junto');
+});
+
+test('R-4 · o filtro vive no endereço: #aba?periodo=7d&trilha=motor vai e volta; valores fora das dimensões caem; período "tudo" não vai para a URL', () => {
+  const { modelo } = loadPainel();
+  assert.deepEqual(modelo.filtrosDaUrl('#pipeline?periodo=7d&trilha=motor&cor=azul&conversa=radar%20%C2%B7%2013%2F10'), { aba: 'pipeline', filtros: { periodo: '7d', trilha: 'motor', conversa: 'radar · 13/10' } });
+  assert.deepEqual(modelo.filtrosDaUrl(''), { aba: null, filtros: {} });
+  assert.deepEqual(modelo.filtrosDaUrl('#motor'), { aba: 'motor', filtros: {} });
+  assert.equal(modelo.urlDosFiltros('pipeline', { periodo: '7d', trilha: 'motor', vazio: '', cor: 'x' }), '#pipeline?periodo=7d&trilha=motor');
+  assert.equal(modelo.urlDosFiltros('pipeline', { periodo: 'tudo' }), '#pipeline');
+  assert.equal(modelo.fraseDoRecorte({ periodo: '7d', trilha: 'motor' }), '7 dias · trilha motor');
+  assert.equal(modelo.fraseDoRecorte({}), '7 dias');
+  assert.deepEqual(modelo.valoresDe([{ t: 'a' }, { t: 'b' }, { t: 'a' }, { t: ['c', 'a'] }, {}], 't'), [{ valor: 'a', n: 3 }, { valor: 'b', n: 1 }, { valor: 'c', n: 1 }]);
+});
+
+/* ---------- R-4 · Pipeline ---------- */
+test('R-4 · Pipeline: leva e trilha pelo nome do ramo; o motivo da recusa é lido da mensagem que a fila escreve (conflito com arquivos, guarda, conferência, portão vermelho com os testes)', () => {
+  const { modelo } = loadPainel();
+  assert.deepEqual(modelo.levaDoRamo('fila/M-351'), { tipo: 'fila', leva: 'M-351', trilha: 'motor' });
+  assert.deepEqual(modelo.levaDoRamo('recusada/R-2'), { tipo: 'recusada', leva: 'R-2', trilha: 'radar' });
+  assert.equal(modelo.levaDoRamo('main'), null); assert.equal(modelo.levaDoRamo('acumulado/bot-b16'), null);
+  assert.equal(modelo.trilhaDaLeva('X-1'), null);
+  const c = modelo.motivoDaRecusa('RECUSADA pela fila · M-351\n\nCONFLITO ao pôr "Leva M-349 · LT31" sobre o main somado a M-350, em: index.html, ROADMAP.md.\n\nO main não mudou. Corrija no seu clone e envie de novo: npm run publicar');
+  assert.deepEqual(c, { classe: 'conflito', rotulo: 'conflito', detalhe: 'index.html, ROADMAP.md', arquivos: ['index.html', 'ROADMAP.md'] });
+  assert.equal(modelo.motivoDaRecusa('RECUSADA pela fila · G-1\n\nGUARDA DE AGREGAÇÃO: 2 achado(s).\n- linha sumida').classe, 'guarda');
+  assert.equal(modelo.motivoDaRecusa('RECUSADA pela fila · G-1\n\nCONFERÊNCIA ANTES DO PORTÃO: 1 achado(s).\nid repetido').rotulo, 'conferência antes do portão');
+  const p = modelo.motivoDaRecusa('RECUSADA pela fila · T-9\n\nPORTÃO VERMELHO com esta leva sozinha sobre o main (abc1234).\nTestes que caíram (2):\n- e2e · P-12 silenciar\n- tipos.sagas.unit · capítulo 3\n\nO main não mudou.');
+  assert.equal(p.classe, 'portao'); assert.deepEqual(p.testes, ['e2e · P-12 silenciar', 'tipos.sagas.unit · capítulo 3']); assert.match(p.detalhe, /2 teste\(s\)/);
+  assert.equal(modelo.motivoDaRecusa('sei lá').classe, 'outro');
+});
+
+test('R-4 · Pipeline: ramos + detalhes viram linhas da fila (espera, posição por data, recusa com motivo; sem detalhe a linha fica sem data); rodadas viram linhas com portão e duração; levas da telemetria ganham data e reprocessando', () => {
+  const { modelo } = loadPainel();
+  const agora = Date.parse('2026-10-13T20:00:00Z');
+  const ramos = [{ name: 'main', commit: { sha: 'm' } }, { name: 'fila/T-62', commit: { sha: 'aaaa111' } }, { name: 'fila/R-2', commit: { sha: 'bbbb222' } }, { name: 'recusada/M-351', commit: { sha: 'cccc333' } }, { name: 'fila/H-12', commit: { sha: 'dddd444' } }];
+  const det = { aaaa111: { commit: { message: 'Leva T-62', committer: { date: '2026-10-13T19:00:00Z' } } }, bbbb222: { commit: { message: 'Leva R-2', committer: { date: '2026-10-13T19:30:00Z' } } }, cccc333: { commit: { message: 'RECUSADA pela fila · M-351\n\nCONFLITO ao pôr "x" sobre o main, em: index.html.\n', committer: { date: '2026-10-13T12:00:00Z' } } } };
+  const linhas = modelo.linhasDaFila(ramos, det, agora);
+  assert.deepEqual(linhas.map(l => l.leva), ['M-351', 'T-62', 'R-2', 'H-12'], 'por data; sem detalhe vai para o fim');
+  assert.equal(linhas[1].espera, 3600000); assert.equal(linhas[1].situacao, 'na-fila'); assert.equal(linhas[1].trilha, 'tipos');
+  assert.equal(linhas[0].motivo.classe, 'conflito'); assert.equal(linhas[0].situacao, 'recusada');
+  assert.equal(linhas[3].data, null); assert.equal(linhas[3].detalhe, false);
+  const rod = modelo.linhasDasRodadas([
+    { id: 1, status: 'completed', conclusion: 'success', run_started_at: '2026-10-13T18:00:00Z', updated_at: '2026-10-13T18:20:00Z', display_title: 'Fila' },
+    { id: 2, status: 'completed', conclusion: 'failure', run_started_at: '2026-10-13T19:00:00Z', updated_at: '2026-10-13T19:30:00Z' },
+    { id: 3, status: 'in_progress', run_started_at: '2026-10-13T19:50:00Z', updated_at: '2026-10-13T19:55:00Z' },
+    { id: 4, status: 'completed', conclusion: 'cancelled', run_started_at: '2026-10-13T17:00:00Z', updated_at: '2026-10-13T17:01:00Z' }]);
+  assert.deepEqual(rod.map(r => [r.id, r.portao, r.duracao]), [[3, 'em-curso', null], [2, 'vermelho', 1800000], [1, 'verde', 1200000], [4, 'cancelada', 60000]]);
+  assert.equal(modelo.mediana([1200000, 1800000]), 1500000); assert.equal(modelo.p95([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]), 10); assert.equal(modelo.mediana([]), null);
+  assert.equal(modelo.minutos(1500000), '25 min'); assert.equal(modelo.minutos(5400000), '1,5 h'); assert.equal(modelo.minutos(3600000), '1 h'); assert.equal(modelo.minutos(20000), '20 s'); assert.equal(modelo.minutos(null), '—');
+  const levas = modelo.linhasDasLevas([{ id: 'R-1', trilha: 'radar', situacao: 'na-fila', inicio: '2026-10-13T18:00:00Z', fim: '2026-10-13T18:30:00Z', skills: ['a'] }, { id: 'M-351', trilha: 'motor', situacao: 'recusada', em: '2026-10-13T12:00:00Z', tentativas_fila: 2 }]);
+  assert.equal(levas[0].data, Date.parse('2026-10-13T18:30:00Z')); assert.deepEqual(levas[0].skill, ['a']); assert.equal(levas[0].reprocessando, false);
+  assert.equal(levas[1].reprocessando, true);
+  assert.deepEqual(modelo.porDia([{ data: Date.parse('2026-10-13T12:00:00Z') }, { data: Date.parse('2026-10-13T20:00:00Z') }, { data: Date.parse('2026-10-12T12:00:00Z') }]).map(d => [d.dia, d.itens.length]), [['2026-10-12', 1], ['2026-10-13', 2]]);
+});
+
+test('R-4 · orçamento de pedidos da Pipeline: primeira abertura ≤ 4 fixos + ≤ 4 detalhes; a atualização seguinte ≤ 4 (detalhes guardados por sha para sempre); o raw da telemetria não entra na cota', async () => {
+  const { app, base } = loadPainel();
+  const guarda = base.createGuarda(null);
+  const chamadas = [];
+  const corpo = url => {
+    if (/\/branches\?/.test(url)) return Array.from({ length: 7 }, (_, i) => ({ name: `fila/M-${300 + i}`, commit: { sha: `sha${i}sha${i}` } }));
+    if (/\/branches\//.test(url)) return { commit: { message: 'Leva', committer: { date: '2026-10-13T19:00:00Z' } } };
+    if (/fila\.yml\/runs/.test(url)) return { workflow_runs: [{ id: 9, status: 'in_progress', run_started_at: '2026-10-13T19:50:00Z', updated_at: '2026-10-13T19:55:00Z' }, { id: 8, status: 'completed', conclusion: 'success', run_started_at: '2026-10-13T18:00:00Z', updated_at: '2026-10-13T18:20:00Z' }] };
+    if (/\/jobs/.test(url)) return { jobs: [{ name: 'portao', status: 'in_progress' }] };
+    if (/actions\/runs\?/.test(url)) return { workflow_runs: [{ name: 'pages build and deployment', conclusion: 'success', updated_at: '2026-10-13T18:25:00Z' }] };
+    return null;
+  };
+  const fetch = async url => { chamadas.push(url); const texto = /raw\.githubusercontent/.test(url); return { ok: true, status: 200, headers: { get: n => n === 'etag' ? '"e"' : null }, json: async () => corpo(url), text: async () => '{"id":"R-1","trilha":"radar","conversa":"c","situacao":"na-fila","fim":"2026-10-13T18:30:00Z"}\n' }; };
+  const fonte = base.createFonte({ fetch, guarda });
+  const d1 = await app.VISOES.pipeline.carrega(fonte, false);
+  const api1 = chamadas.filter(u => u.startsWith(base.API)).length, raw1 = chamadas.filter(u => u.startsWith(base.RAW)).length;
+  assert.equal(raw1, 1);
+  assert.equal(fonte.pedidos, api1);
+  assert.ok(api1 <= app.ORCAMENTO.fixos + app.ORCAMENTO.detalhes, `primeira abertura: ${api1} pedidos`);
+  assert.equal(Object.keys(d1.detalhes).length, 4, 'só 4 detalhes por atualização');
+  assert.match(d1.avisos.join(' '), /orçamento/);
+  // segunda atualização: fixos de novo (forçar) + os 3 detalhes que faltavam; terceira: só os fixos
+  fonte.zerar(); chamadas.length = 0;
+  await app.VISOES.pipeline.carrega(fonte, true);
+  assert.ok(fonte.pedidos <= app.ORCAMENTO.fixos + 3, `segunda: ${fonte.pedidos}`);
+  fonte.zerar(); chamadas.length = 0;
+  const d3 = await app.VISOES.pipeline.carrega(fonte, true);
+  assert.ok(fonte.pedidos <= app.ORCAMENTO.fixos, `em regime: ${fonte.pedidos} pedidos (≤ ${app.ORCAMENTO.fixos})`);
+  assert.equal(Object.keys(d3.detalhes).length, 7); assert.equal(d3.levas.length, 1); assert.equal(d3.emCurso.id, 9); assert.equal(d3.jobs.jobs[0].name, 'portao'); assert.match(d3.pages.name, /pages/);
 });
