@@ -5369,7 +5369,8 @@ const EFFECTS = {
   reanimate_tapped: { fields: [], targets: ['self-source', 'creature-in-your-graveyard'] },
   add_mana: { fields: [], targets: ['self'] },
   volta_ao_acaso: { fields: [], targets: ['self'] }, // M-369 · "Return a <tipo> card at random from your graveyard to your hand" (Haunted Fengraf); `tipos` filtra
-  energia: { fields: ['amount'], targets: ['self'] }, // M-367 · 107.14 · "you get {E}{E}": marcadores de energia do jogador (122.1)
+  energia: { fields: ['amount'], targets: ['self'] },
+  energia_reanima: { fields: [], targets: ['card-in-your-graveyard'] }, // M-393 · "you may pay an amount of {E} equal to that card's mana value. If you do, return it from your graveyard to the battlefield" (Jolted Awake) // M-367 · 107.14 · "you get {E}{E}": marcadores de energia do jogador (122.1)
   mana_combinada: { fields: ['amount'], targets: ['self'] }, // M-357 · "Add two mana in any combination of colors" (Manamorphose): cada mana pede a cor na resolução
   token: { fields: ['amount'], targets: ['self', 'opponent', 'target-controller'] },
   endure: { fields: ['amount'], targets: ['self'] }, // M-380 · "it endures N": põe N marcadores +1/+1 nela OU cria um Espírito branco N/N (quem controla escolhe; Tarkir: Dragonstorm, texto de lembrete)
@@ -9087,6 +9088,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Azure Fleet Admiral': { texto: '1586jlv', leva: 'M-391' },
   // M-392 · revisão por lote L (Spider-Man, Web-Slinger), revisor independente: lote conjunto com a M-391; aprovada (35 asserções, diferencial dos custos alternativos e leitor em 33.739 cartas)
   'Spider-Man, Web-Slinger': { texto: 'srwbp2', leva: 'M-392' },
+  // M-393 · revisão por lote LI (Jolted Awake), revisor independente: reprovada na primeira passada por texto (pilha e registro), corrigida com teste; 83 verificações e diferencial sem diferença
+  'Jolted Awake': { texto: '7glzc8', leva: 'M-393' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -17717,6 +17720,8 @@ const __m42 = (function () {
         efeitos[efeitos.length - 1].lembraExiladas = true;
         efeitos.push({ do: 'delayed', when: 'next-end-step', lembraExiladas: true, seRestar: true, effects: [{ do: 'lembradas_ao_cemiterio' }, { do: 'token', amount: { per: 'movidas' }, token: { name: 'Eldrazi Spawn', types: ['creature'], subtypes: ['Eldrazi', 'Spawn'], colors: [], power: 0, toughness: 1, abilities: [{ kind: 'activated', cost: { sacrifice: true }, effects: [{ do: 'add_mana', symbols: ['C'] }] }] } }] });
         frases.push({ texto: linha, lida: true }); continue; }
+      if (/^choose up to one target artifact or creature card in your graveyard\. you get \{e\}\{e\}(?: \(two energy counters\))?\. then you may pay an amount of \{e\} equal to that card's mana value\. if you do, return it from your graveyard to the battlefield$/i.test(mc)) { // M-393 · Jolted Awake
+        efeitos.push({ do: 'energia', amount: 2 }, { do: 'energia_reanima', target: 'card-in-your-graveyard', targetTypes: ['artifact', 'creature'], upTo: true }); frases.push({ texto: linha, lida: true }); continue; }
       if (/^if a permanent dealt damage by ~ would die this turn, exile it instead$/i.test(mc) && efeitos.some(e => e.do === 'damage')) { for (const e of efeitos) if (e.do === 'damage') e.exilaSeMorrer = true; frases.push({ texto: linha, lida: true }); continue; } // M-384 · 614.1a · Torch the Tower (parágrafo próprio: marca o dano da mágica)
       const mi = mc.match(/^metalcraft — ~ deals (\d+) damage instead if you control three or more artifacts$/i);
       if (mi && efeitos.length && efeitos[efeitos.length - 1].do === 'damage' && Number.isInteger(efeitos[efeitos.length - 1].amount)) { const ult = efeitos[efeitos.length - 1]; ult.amount = { per: 'se', se: 'metalcraft', sim: +mi[1], nao: ult.amount }; frases.push({ texto: linha, lida: true }); continue; }
@@ -19054,6 +19059,8 @@ function danoAposPrevencao(s, src, alvo, amt, combate) {
   }
   return amt;
 }
+/** M-393 · 202.3: o valor de mana da carta no cemitério ({X} vale 0). */
+const valorDeManaNoCemiterioM = (s, o) => (s.facts[o.name] || {}).cmc || 0;
 /** M-390 · a fonte do dano é uma criatura: no campo, como está; fora do campo, pela última informação (habilidade de criatura que já saiu). */
 function fonteEraCriaturaM(s, src) {
   const f = src && (src.ability ? s.objects[src.source] : src);
@@ -21643,7 +21650,16 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'discard_random': descartaAoAcaso(s, src, eff, tgt, events); break; // V-14 · 701.9b
     case 'learn': aprender(s, src, events); break; // V-13 · 701.48
     case 'gatilho_no_turno': (s.gatilhosDoTurno = (s.gatilhosDoTurno || []).filter(g => g.turno === s.turn.number)).push({ when: eff.when, turno: s.turn.number, controller: ctrl, name: src.name, source: src.ability ? src.source : src.oid, effects: eff.effects }); note({ amount: 1 }); break; // M-389 · 603.7c: quem controla é quem controlava a mágica (603.7d)
-    case 'learn_sim': s.aprendeV = true; break; // V-16 · o "sim" do aprender (efeito interno, sem script)
+    case 'learn_sim': s.aprendeV = true; break;
+    case 'energia_reanima': { // M-393 · 107.14 · a escolha é na resolução; sem energia bastante, não há o que pagar (608.2d: "you may")
+      if (!obj || obj.zone !== 'graveyard' || obj.owner !== ctrl) { note({ failed: true }); break; }
+      const n = valorDeManaNoCemiterioM(s, obj);
+      if ((s.players[ctrl].energia || 0) < n) { note({ amount: 0 }); break; }
+      s.pending = { kind: 'may_pay', p: ctrl, cost: null, name: `${src.name} — pagar ${n} de energia para devolver ${obj.name} ao campo`,
+        then: { effects: [{ do: 'gasta_energia', amount: n }, { do: 'reanimate', target: 'remembered' }], source: src.ability ? src.source : src.oid, name: src.name, controller: ctrl, targets: [], lembrada: { oid: obj.oid, z: obj.zc || 0 } } };
+      note({ pending: true }); break;
+    }
+    case 'gasta_energia': { const n = eff.amount || 0; if ((s.players[ctrl].energia || 0) < n) throw new RuleError('custo', 'energia insuficiente'); s.players[ctrl].energia -= n; note({ amount: n }); break; } // M-393 · interno (o "sim" do Jolted Awake) // V-16 · o "sim" do aprender (efeito interno, sem script)
     case 'suspect': suspeitar(s, src, eff, tgt, events); break; // V-12 · 701.60
     case 'unsuspect': absolver(s, src, eff, tgt, events); break; // V-12 · 701.60a "is no longer suspected"
     case 'discover': descobrir(s, src, eff, events); break; // V-10 · 701.57
@@ -30407,6 +30423,8 @@ function effectLine(ev) {
     case 'moeda': return `${t} jogou uma moeda: ${ev.resultado}${ev.ganhou == null ? '' : ev.ganhou ? ' · ganhou' : ' · perdeu'} (${ev.name})`; // T-65 · CR 705
     case 'monarch': return ev.failed ? `${t} continua o monarca (${ev.name})` : `${t} se tornou o monarca (${ev.name})`; // M-332
     case 'initiative': return `${t} tomou a iniciativa (${ev.name})`; // M-332
+    case 'energia_reanima': return ev.failed ? `${ev.name}: a carta já não estava no cemitério` : ev.pending ? `${ev.name}: pode pagar energia para devolver a carta` : `${ev.name}: sem energia bastante para devolver a carta`; // M-393 · achado da revisão: a linha da pergunta dizia "sem energia"
+    case 'gasta_energia': return `${ev.name}: pagou ${ev.amount} de energia`; // M-393
     case 'gatilho_no_turno': return `${ev.name}: neste turno, cada criatura sua que entrar ganha o efeito`; // M-389 · achado da revisão
     case 'exila_se_morrer': return ev.failed ? `${ev.name}: o alvo já não estava no campo` : `${t || ev.name}: se fosse morrer neste turno, é exilada`; // M-384
     case 'lembradas_ao_cemiterio': return `${ev.name}: ${ev.amount === 1 ? '1 carta exilada foi' : `${ev.amount || 0} cartas exiladas foram`} para o cemitério`; // M-386
@@ -31535,6 +31553,7 @@ function descreveEfeito(e) {
     case 'amass': return `amassa ${n} (${e.subtipo || 'Zombie'}): sem Exército, cria um 0/0; põe ${plural(n, 'marcador +1/+1', 'marcadores +1/+1')} nele`;
     case 'resistencia_jogador': return 'você ganha resistência a magia até o fim do turno';
     case 'desenterrar': return 'volta do cemitério para o campo com ímpeto; é exilada no início do próximo passo final ou se fosse sair do campo'; // M-257
+    case 'energia_reanima': return 'você pode pagar energia igual ao valor de mana da carta de artefato ou criatura alvo do seu cemitério; se pagar, ela volta para o campo'; // M-393 · achado da revisão: o alvo saía meio em inglês
     case 'gatilho_no_turno': return `neste turno, sempre que uma criatura sua entrar: ${descreveEfeitos(e.effects).replace(/ em essa permanente/g, ' nela').replace(/essa permanente ganha/g, 'ela ganha')}`; // M-389 (achado da revisão: "delayed object" em inglês)
     case 'delayed': return `${{ 'next-upkeep': 'no início da manutenção do próximo turno', 'next-end-step': 'no início do próximo passo final', 'end-of-combat': 'no fim do combate' }[e.when] || 'mais tarde'}: ${descreveEfeitos(e.effects)}`;
     case 'reflexive': return `quando fizer isso: ${descreveEfeitos(e.effects)}`;

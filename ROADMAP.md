@@ -4281,6 +4281,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** virar para mana a própria criatura que será devolvida (601.2g→h) exige dois passos na mesa: gerar a mana dela antes e depois conjurar pela teia; "se o custo de teia foi pago" (cartas que olham isso) não existe ainda.
 - **Teste:** `lt75.unit` (1 teste; falha no motor anterior).
 
+**M-393 · LT60 · 107.14 · "Pay an amount of {E} equal to that card's mana value. If you do, return it"** ✅ (leva M-393, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** revisão por lote LI — **Jolted Awake passa a jogar** (APROVADAS; Oracle do Forge, consulta de 12/10/2026; era a única carta faltando em 1 lista e bloqueava 3). Escolha até uma carta de artefato ou criatura do seu cemitério; você ganha {E}{E}; na resolução, se tiver energia igual ao valor de mana dela, a mesa pergunta se você paga — pagando, ela volta ao campo. Sem energia bastante, não há pergunta. Reciclar {2} vem do leitor.
+- **Revisão independente:** 83 verificações (alvos — inclusive artefato-terreno e recusa de ação forjada; 608.2b com Tormod's Crypt: alvo ilegal, a mágica não resolve e não dá energia; valores de mana 0, 1, 2, 4 e 5 com energia anterior; gatilhos de entrada da carta devolvida; energia de cada jogador; equipar com energia e proliferar iguais; reciclar; salvar durante a pergunta) e diferencial de 17 partidas sem diferença. Reprovou na primeira passada por texto: a pilha explicada dizia o alvo meio em inglês e o registro da pergunta dizia "sem energia bastante" — corrigidos com teste.
+- **Fora (declarado):** nada além da regra.
+- **Teste:** `lt76.unit` (3 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
