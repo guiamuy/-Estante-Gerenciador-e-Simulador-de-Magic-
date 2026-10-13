@@ -1,5 +1,35 @@
 ﻿numero,situacao,tipo,urgencia,area,titulo_da_tela,endereco,criado_em,resolvido_em,motor,app,viewport,descricao,url
+16,aberto,Infraestrutura,Impede o uso,Relatos,Relatos,/perfil/relatos,2026-10-13T01:37:50.173Z,,110,2026-10-13 00:16 UTC,360×697,"Depois de enviar um relato, o usuário não deve poder editá-lo.
+
+A mecânica de reenvio de um relato só deve ficar disponível para o usuário se o sistema identificar que seu relato não foi enviado com sucesso. Logo, o usuário poderá enxergar uma warning de insucesso orientando-o a tentar reenviar o relato, e quando ele tiver sucesso, deverá ver o warning de sucesso.
+
+A partir do momento que houver sucesso no envio do relato, o usuário não pode reenvíalo ou editar o relato.
+
+A atualização de status do relato também só poderá ser feita pelo próprio sistema/administrador do sistema Estante. O usuário que criou o relato não deverá poder atualizar o status por si só.
+
+O usuário só deverá poder excluir um relato que ainda não enviou. Uma vez enviado, ele deverá ficar em uma sessão/repartição de relatos enviados, enquanto os não enviados deverão ficar em uma sessão apartada e com name writing claro e ux/ui visuais e objetivo para o usuário saber que ele ainda precisa enviiar o relato.
+- Enviado de dentro do app, pela fila da Estante (conta …MNath1)",https://github.com/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-/issues/16
+18,aberto,Infraestrutura,Impede o uso,Início,"Olá, Guilherme Amuy",/,2026-10-13T01:20:28.232Z,,110,2026-10-13 00:16 UTC,360×697,"Precisamos ter um sistema de criação de conta, login de usuário e recuperação de senha. O usuário deverá poder logar via gmail diretamente ou criar uma conta do zero, vinculando o Gmail posteriormente para acessar a funcionalidade de backup se ele quiser pelas configurações.
+
+O sistema deve ser enxuto, pragmático, bem estruturado e funcional, com UX/UI sofisticados utilizando o melhor do design system, ícones flat design contextuais aos conceitos apresentados e ícone do Gmail/Google quando pertinente para indicar  qualquer coisa associada a feature de login ou integração via Gmail.
+
+Cada usuário deverá ter uma conta única, e o sistema não deve permitir que mais de um usuário tenha uma conta com o mesmo e-mail ou um memso nickname. Cada usuário deve ser único em relação ao e-mail e ao seu nickname simultaneamente. 
+
+Tudo deve ter estar bem estruturado em temos de armazenamento no banco de dados, manutenção de conta e servidor, e segurança dos dados (LGPD). 
+
+ A usabilidade para os usuários deve ser impecável em termos de UX/UI sofisticados.
+
+Devemos ter animações/telas de transição sofisticadas e bem elaboradas de loading, login, falha de login, sucesso de login e por aí vai.
+
+A conta do usuário deve armazenar todos os setups/configurações que ele faz no seu perfil.
+- Enviado de dentro do app, pela fila da Estante (conta …MNath1)",https://github.com/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-/issues/18
 13,aberto,Melhoria,Impede o uso,Relatos,Relatos,/perfil/relatos,2026-10-10T12:16:24.934Z,,96,2026-10-10 11:40 UTC,360×697,"O fluxo de envio de relato ficou ruim, uma vez que ele acessa o front do github pars registrar a issue. Isso precisa ser transparente para o usuário, ou seje, ele não deve ter que sair da aplicação para enviar uma issue.",https://github.com/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-/issues/13
+17,aberto,Melhoria,Alta,Listas,Listas prontas,/listas/prontas,2026-10-13T01:30:01.243Z,,110,2026-10-13 00:16 UTC,360×697,"Na área de listas prontas e no app como um todo, as listas Da Estante na verdade são as minhas listas (do usuário guiamuy de e-mail gui.amuy@​gmail.com).
+
+A Estante por si só não deve oferecer listas próprias para o usuário: ou usuário adiciona as listas que a Estante disponibiliza pelo crawling/captação através de suas integrações ou ele adiciona informando a lista de cartas.
+
+Faça esse ajuste de forma estrutural para garantir que as listas que hoje são Da Estante sejam só minhas (como se fossem listas que eu criei para mim como usuário).
+- Enviado de dentro do app, pela fila da Estante (conta …MNath1)",https://github.com/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-/issues/17
 14,resolvido,Melhoria,Impede o uso,Jogar,Jogar,/mesa,2026-10-10T17:50:39.574Z,2026-10-12T19:45:24Z,97,2026-10-10 17:37 UTC,360×697,"O percentual do motor mostrado para cada lista precisa refletir de fato o modelo/completude de arquitetura e aplicação automática de regras que aconteceram in game. Estou adicionando listas parecidas com listas contempladas anteriormente e sentindo que o percentual está aquém da realidade, mas não é uma certeza minha. Quero só garantir que as evoluções de motor que estou desenvolvendo com você estão de fato aumentando a completude de abrangências da lista, pois como eu disse: eu quero que praticante (99%) das listas e formatos de texto rodem de forma autónoma e fluida no modo de jogo.",https://github.com/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-/issues/14
 12,resolvido,Erro,Impede o uso,Mesa,Mesa,/partida,2026-10-10T03:30:33.056Z,2026-10-10T14:46:49Z,95,2026-10-10 02:40 UTC,360×697,"Lunarch Veteran esta conseguindo bloquear uma criatura com voar mesmo sem ter virado de face através do efeito ""disturb"". Isso está incorreto e impacta diretamente o jogo.",https://github.com/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-/issues/12
 15,resolvido,Melhoria,Alta,Listas,Listas prontas,/listas/prontas,2026-10-10T21:09:44.673Z,2026-10-10T23:48:35Z,97,2026-10-10 17:37 UTC,360×697,"Os títulos das listas estão repetidos pois estamos usando a sessão/categoria das listas como variável de nome (exemplo: nome do campeonato para qual ela foi criada). O nome da lista precisa ser a variável que simboliza a lista de fato (tribal de elfos, rakdos madness, etc), e devemos trazer essa variável de sessão/categoría/clustrer da listas como uma informação adicional na listagem e detalhamento da lista. Além disso, o valor somado das cartas deve ser trazido na listagem, e no detalhamento da lista, o valor acumulado da lista e de cada carta deve ser trazido também.",https://github.com/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-/issues/15
