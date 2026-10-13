@@ -10376,9 +10376,9 @@
    "n": "708.2",
    "regra": "Face-Down Spells and Permanents",
    "titulo": "Virada para baixo: 2/2 sem nome, tipo nem habilidade",
-   "status": "parcial",
-   "evidencia": "power/toughness = 2 (index.html:10340-10341), has() nega palavras-chave (10065), abilitiesOf vazio (10901), sem subtipo/custo (10089, 10118, 11742, 11876); rules.unit \"S54 · metamorfose: entra virada para baixo como 2/2 sem nada\"; elves.regras Leva 136 · teste de conformidade em cr.conformidade (leva CR1a) · M-288 (CR2d.12): a virada para baixo não tem subtipo nem cor, e efeitos posteriores valem por cima T-68: tipos.viradabaixo.unit.",
-   "falta": "T-57 (13/10/2026, conferência do mapa): disfarce (T-42), manifestar e encobrir (V-17/V-18) existem, e as características listadas viram valores copiáveis (a salvaguarda {2} da disfarçada e da encoberta passa para a cópia, T-57). Falta: 708.2a primeira frase e 708.2b — não há efeito que vire uma permanente para baixo no campo (Ixidron, Cyber Conversion). T-68/T-71 (13/10/2026): o registro da partida e a pilha explicada não dizem o nome da carta que continua virada para baixo (alvo, dano, ataque, luta, salvaguarda, marcadores, escolhas).",
+   "status": "coberta",
+   "evidencia": "power/toughness = 2 (index.html:10340-10341), has() nega palavras-chave (10065), abilitiesOf vazio (10901), sem subtipo/custo (10089, 10118, 11742, 11876); rules.unit \"S54 · metamorfose: entra virada para baixo como 2/2 sem nada\"; elves.regras Leva 136 · teste de conformidade em cr.conformidade (leva CR1a) · M-288 (CR2d.12): a virada para baixo não tem subtipo nem cor, e efeitos posteriores valem por cima T-68: tipos.viradabaixo.unit. T-73: viraParaBaixoT / viraParaCimaPorEfeitoT; seletor `virada` e `metamorfose`.",
+   "falta": "T-73 (13/10/2026): coberta — o efeito `vira_para_baixo` (Backslide) faz da permanente uma 2/2 sem nome, texto, subtipo nem custo (708.2a); quem já está virada não muda (708.2b). Ixidron e Cyber Conversion ainda não têm script (cartas manuais).",
    "esforco": "M",
    "depende": [
     "702.37",
@@ -10390,7 +10390,9 @@
     "CR 708.2 · virada para baixo não tem subtipo: o hino de Elfos não a alcança e \"exceto Elfos\" a alcança",
     "CR 702.168b · o Clone que copia uma disfarçada virada para baixo é 2/2 sem nome e com salvaguarda {2}",
     "CR 701.58a · o Clone que copia uma encoberta (virada para baixo) também tem salvaguarda {2}",
-    "CR 708.2 / 708.5 / 708.9 · o registro não revela a virada para baixo (alvo, dano, ataque); quando ela sai do campo, o nome aparece"
+    "CR 708.2 / 708.5 / 708.9 · o registro não revela a virada para baixo (alvo, dano, ataque); quando ela sai do campo, o nome aparece",
+    "CR 708.2a · Backslide vira para baixo a criatura com metamorfose: 2/2 sem nome nem tipo; marcadores ficam; quem a controla pode virá-la para cima pelo custo de metamorfose",
+    "CR 708.2b / 712.16 · virar para baixo quem já está virada, ou uma dupla face, não faz nada"
    ]
   },
   {
@@ -10958,12 +10960,16 @@
    "n": "712.16",
    "regra": "Double-Faced Cards",
    "titulo": "Dupla face não pode ser virada para baixo",
-   "status": "ausente",
-   "falta": "não há efeito que vire permanente para baixo no campo, nem a trava. T-19 (12/10/2026): fica para depois — não há efeito que vire permanente para baixo no campo.",
+   "status": "coberta",
+   "falta": "T-73 (13/10/2026): coberta. Meld (permanente fundida) não existe ainda.",
    "esforco": "P",
    "depende": [
     "708"
-   ]
+   ],
+   "testes": [
+    "CR 708.2b / 712.16 · virar para baixo quem já está virada, ou uma dupla face, não faz nada"
+   ],
+   "evidencia": "T-73 (13/10/2026): viraParaBaixoT recusa a dupla face (frontName, ficha de dupla face ou carta de dupla face): nada acontece (tipos.viradabaixo.unit)."
   },
   {
    "n": "712.17",

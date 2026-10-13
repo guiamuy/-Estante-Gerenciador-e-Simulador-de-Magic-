@@ -233,6 +233,11 @@ function runExample(sc) {
   let s = game(8); const a = s.turn.active, d = 1 - a;
   let mine, theirs, art, spellOid = null, oid;
   [s, theirs] = put(s, d, 'Grizzly Bear');
+  // T-73 · CR 708 · "turn target creature with a morph ability face down" / "turn target face-down creature face up": a criatura do oponente
+  // do cenário ganha a metamorfose ou fica virada para baixo, conforme o alvo do script (só neste cenário)
+  { const alvos73 = [...(sc.effects || [])].map(e => e.target).filter(x => x && typeof x === 'object');
+    if (alvos73.some(x => x.virada)) { s = J(s); s.objects[theirs].faceDown = true; }
+    if (alvos73.some(x => x.metamorfose)) { s = J(s); const f0 = s.facts['Grizzly Bear']; s.facts['Grizzly Bear'] = { ...f0, script: { ...(f0.script || { name: 'Grizzly Bear' }), morph: { mana: '{1}' } } }; } }
   [s, mine] = put(s, a, 'Grizzly Bear');
   [s, art] = put(s, d, 'Test Signet');
   let land; [s, land] = put(s, a, 'Island');
@@ -468,6 +473,7 @@ function runExample(sc) {
     if (check === 'preventedColor') assert.equal((s.preventedColors || []).length > 0, value, msg);
     if (check === 'counters') assert.equal((s.objects[oid].counters || {}).p1p1, value, msg);
     if (check === 'transformed') assert.equal(s.objects[oid].name !== sc.name, value, msg);
+    if (check === 'faceDown') assert.equal(!!o.faceDown, value, msg); // T-73 · CR 708
   }
 }
 
