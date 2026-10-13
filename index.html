@@ -5373,6 +5373,8 @@ const EFFECTS = {
     'creature-you-control', 'card-in-any-graveyard', 'card-in-your-graveyard', 'creature-in-your-graveyard', 'permanent-in-your-graveyard', 'creature-land-in-any-graveyard'] },
   sacrifice_it: { fields: [], targets: ['permanent', 'self-source'] },
   pisca: { fields: [], targets: ['creature', 'creature-you-control', 'permanent', 'permanent-you-control'] },
+  revela_topo_transforma: { fields: [], targets: ['self'] }, // M-353 · Delver of Secrets: olha o topo; se for do tipo pedido, pode revelá-lo e transformar a fonte (701.28)
+  exila_da_mao: { fields: ['amount'], targets: ['opponent', 'player'] }, // M-353 · Mesmeric Fiend: o jogador alvo revela a mão, você escolhe e exila; a fonte guarda a carta para devolver ao sair
   pisca_exila: { fields: [], targets: ['creature', 'creature-you-control', 'permanent', 'permanent-you-control'] }, // M-351 · Ghostly Flicker: "exile two target …, then return those cards" — a primeira metade (a mágica lembra o que exilou)
   pisca_volta: { fields: [], targets: ['self'] }, // M-351 · a segunda metade: devolve juntas as que exilou (`sob: 'voce'` = sob o seu controle; padrão: do dono); ficha não volta (111.8) // M-349 · Ephemerate: exila e devolve ao campo sob o controle do dono (objeto novo, 400.7)
   sacrifica_a_menos_que_devolva: { fields: [], targets: ['self'] }, // M-349 · Glint Hawk: "sacrifice it unless you return an artifact you control to its owner's hand"
@@ -5585,7 +5587,7 @@ const REGRAS_DO_JOGADOR = ['naoGanhaVida', 'terrenosExtras', 'semLimiteDeMao']; 
 const PICK_DESTS = ['hand', 'graveyard', 'battlefield', 'battlefield-tapped', 'library-top', 'library-bottom', 'library-bottom-random', 'stay']; // M-262 · "on the bottom in a random order"
 const FILTER_TYPES = ['creature', 'land', 'artifact', 'enchantment', 'instant', 'sorcery', 'planeswalker', 'battle']; // M-246 · "nonland permanent" inclui batalha
 const LOYALTY_PT = c => (c > 0 ? '+' : '') + c;
-const CHOICE_EFFECTS = ['topo_ou_fundo_do_dono', 'untap_chosen', 'discard_or_sacrifice_land_draw', 'return_chosen', 'discard', 'discard_chosen', 'exile_chosen', 'connive', 'search', 'look', 'scry', 'surveil', 'put_back', 'choose_type'];
+const CHOICE_EFFECTS = ['exila_da_mao', 'revela_topo_transforma', 'topo_ou_fundo_do_dono', 'untap_chosen', 'discard_or_sacrifice_land_draw', 'return_chosen', 'discard', 'discard_chosen', 'exile_chosen', 'connive', 'search', 'look', 'scry', 'surveil', 'put_back', 'choose_type'];
 /** S47 · condição do próprio efeito, olhando o que foi pago como custo. */
 /** M-249 · 122.1 · marcadores nomeados em português (o tipo é a chave em `counters`). */
 const MARCADOR_PT = { p1p1: '+1/+1', oil: 'de óleo', depletion: 'de esgotamento', charge: 'de carga', age: 'de idade', loyalty: 'de lealdade', time: 'de tempo', lore: 'de saga', poison: 'de veneno' };
@@ -8775,6 +8777,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Goblin Anarchomancer': { texto: 'mrkwwk', leva: 'M-352' },
   'Thornscape Familiar': { texto: '1suiohl', leva: 'M-352' },
   'Experimental Synthesizer': { texto: '1jdhkal', leva: 'M-352' },
+  // M-353 · revisão por lote XXV (Pauper: Mesmeric Fiend), revisor independente com 104 (+120 na reconferência) verificações: 1 de 1 aprovada
+  'Mesmeric Fiend': { texto: '420ufa', leva: 'M-353' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -16401,6 +16405,8 @@ const __m42 = (function () {
     [new RegExp(`^put ${N} ([a-z]+) counters? on (.+)$`, 'i'), m => { const a = alvo(m[3]); return a && !['target player', 'target opponent'].includes(m[3].toLowerCase()) ? [{ do: 'counters', tipo: m[2].toLowerCase(), amount: num(m[1]), ...a }] : null; }], // M-349 · Cryogen Relic ("a stun counter on up to one target tapped creature")
     [/^sacrifice (?:it|~) unless you return an artifact you control to its owner's hand$/i, () => [{ do: 'sacrifica_a_menos_que_devolva', tipos: ['artifact'] }]], // M-349 · Glint Hawk
     [/^target creature gets \+1\/\+0 until end of turn and can't be blocked this turn$/i, () => [{ do: 'pump', power: 1, toughness: 0, target: 'creature' }, { do: 'imbloqueavel', target: 'first-target' }]], // M-349 · Distortion Strike
+    [/^exila_da_mao (target opponent|target player)$/i, m => [{ do: 'exila_da_mao', amount: 1, target: /opponent/i.test(m[1]) ? 'opponent' : 'player', filter: { notTypes: ['land'] } }]], // M-353 · Mesmeric Fiend (frase juntada em leParagrafo)
+    [/^return the exiled card to its owner's hand$/i, () => [{ do: 'return_held', para: 'hand' }]], // M-353 · Mesmeric Fiend
     [new RegExp(`^impulso ${N} ate o fim do turno$`, 'i'), m => [{ do: 'exile_top_playable', amount: num(m[1]), ate: 'fim-do-turno' }]], // M-352 · Experimental Synthesizer (frase juntada em leParagrafo)
     [/^the owner of (target nonland permanent) puts it into their library second from the top or on the bottom$/i, m => { const a = alvo(m[1]); return a ? [{ do: 'topo_ou_fundo_do_dono', target: { semTipos: ['land'] }, segundo: true }] : null; }], // M-352 · Deem Inferior
     [/^the owner of (target nonland permanent) puts it on the top or bottom of their library$/i, m => { const a = alvo(m[1]); return a ? [{ do: 'topo_ou_fundo_do_dono', target: { semTipos: ['land'] } }] : null; }], // M-352 · a forma sem "segundo" (canalizar de Moonsnare Prototype e afins)
@@ -16671,7 +16677,8 @@ const __m42 = (function () {
     texto = texto.replace(/(?:you may )?discard a card\. if you do, draw (\w+) cards?/i, 'you may discard a card to draw $1 cards');
     texto = texto.replace(/^exile (target (?:creature|permanent)(?: you control)?), then return (?:it|that card) to the battlefield under its owner's control/i, 'pisca $1'); // M-349 · Ephemerate
     texto = texto.replace(/^exile two target (artifacts, creatures, and\/or lands you control), then return those cards to the battlefield under your control/i, 'pisca_dois $1'); // M-351 · Ghostly Flicker
-    texto = texto.replace(/exile the top card of your library\. until end of turn, you may play that card/i, 'impulso one ate o fim do turno'); // M-352 · Experimental Synthesizer
+    texto = texto.replace(/exile the top card of your library\. until end of turn, you may play that card/i, 'impulso one ate o fim do turno'); // M-352
+    texto = texto.replace(/^(target opponent|target player) reveals their hand and you choose a nonland card from it\. exile that card/i, 'exila_da_mao $1'); // M-353 · Mesmeric Fiend · Experimental Synthesizer
     texto = texto.replace(/exile the top (card|two cards|three cards) of your library\. (?:you may play (?:it|them|those cards) until the end of your next turn|until the end of your next turn, you may play (?:it|them|those cards))/i, (m0, q) => `impulso ${q === 'card' ? 'one' : q.split(' ')[0]} ate o proximo turno`); // M-349 // M-348 · duas frases, um efeito (Pursue the Past, Melded Moxite)
     const partes = texto.replace(/, then shuffle and put that card on top(\.|$)/i, ', put that card on top of your library, then shuffle$1').split(/\.\s+|,\s+then\s+|\.$/).map(x => x.replace(/\.$/, '').trim()).filter(Boolean);
     let ok = true;
@@ -17982,6 +17989,15 @@ function coresPermitidas(s, p, eff) {
   if (eff.identity) return identidade(s, p);
   if (eff.opponentLands) return coresDosTerrenosDosOponentes(s, p);
   return null;
+}
+/** M-353 · 106.12a / 605.1b · mana a mais de "whenever enchanted land is tapped for mana" (Wild Growth, Utopia Sprawl) e da Maré Alta, quando a terra
+ * é virada por uma habilidade de mana com custo além de {T} (a produção simples já soma isso em productions). */
+function manaExtraDeVirar(s, o, p) {
+  if (o.faceDown || !tiposDe(s, o).includes('land')) return;
+  const extra = [];
+  for (const x of attachedTo(s, o)) { const g = grantsOf(s, x); if (g && g.extraMana) extra.push(...(g.extraMana === 'chosen' ? (x.chosenColor ? [x.chosenColor] : []) : g.extraMana)); }
+  if (s.mareAlta && /\bIsland\b/.test(linhaDeTipo(s, o))) extra.push(...Array(s.mareAlta).fill('U'));
+  for (const c of extra) s.players[p].pool[c] = (s.players[p].pool[c] || 0) + 1;
 }
 function productions(s, o, visto) {
   if (o.faceDown || ehDetida(s, o)) return []; // V-21 · 701.35a: a detida não ativa habilidade de mana · V-17 · 708.2: virada para baixo não tem habilidade de mana (terreno manifestado não dá mana) · Toca ponto comum: productions (uma linha)
@@ -19330,7 +19346,7 @@ function sacrificarJogadores(s, src, spec, quem, events, note) {
  * guarda o que exilou (para devolver ao sair). Devolve true se moveu. */
 function moverObjeto(s, src, alvo, m, ctrl) {
   if (!alvo || (m.de != null && ![].concat(m.de).includes(alvo.zone)) || (m.para === 'library' && alvo.zone === 'library')) return false;
-  if (m.lembra) { const fonte = src.ability ? s.objects[src.source] : src; if (fonte && fonte.zone === 'battlefield') fonte.holding = alvo.oid; }
+  if (m.lembra) { const fonte = src.ability ? s.objects[src.source] : src; if (fonte && fonte.zone === 'battlefield' && !(src.ability && src.fonteZc != null && (fonte.zc || 0) !== src.fonteZc)) fonte.holding = alvo.oid; } // M-353 · 400.7: o gatilho da encarnação antiga não liga a carta à nova (achado da revisão do lote XXV)
   if (m.ate === 'fonte-sair') { // CR2d.1 · 610.3: "até ~ sair do campo"
     const fonte = src.ability ? s.objects[src.source] : src;
     if (!fonte || fonte.zone !== 'battlefield' || (src.ability && src.fonteZc != null && (fonte.zc || 0) !== src.fonteZc)) return false; // 610.3a · o evento já aconteceu: o objeto não se move
@@ -19366,7 +19382,7 @@ function sacrificioLegado(s, src, eff, playerOf, events, note) {
  * emite eventos; devolve se mexeu. */
 function moverLegado(s, src, eff, obj, ctrl) {
   switch (eff.do) {
-    case 'exile': if (eff.remember) { const fonte = src.ability ? s.objects[src.source] : src; if (fonte && fonte.zone === 'battlefield') fonte.holding = obj.oid; }
+    case 'exile': if (eff.remember) { const fonte = src.ability ? s.objects[src.source] : src; if (fonte && fonte.zone === 'battlefield' && !(src.ability && src.fonteZc != null && (fonte.zc || 0) !== src.fonteZc)) fonte.holding = obj.oid; } // M-353 · 400.7 (Journey to Nowhere piscada em resposta ao próprio gatilho)
       moveObject(s, obj.oid, 'exile'); return true;
     case 'bounce': moveObject(s, obj.oid, 'hand'); return true;
     case 'to_hand': { const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
@@ -19452,11 +19468,13 @@ function applyEffect(s, src, eff, tgt, events) {
     }
     case 'return_held': { // S48 · devolve ao campo a carta que esta permanente exilou
       const fonte = src.ability ? s.objects[src.source] : src;
-      const guarda = fonte && (fonte.devolverAoSair || fonte.holding);
+      const instantaneo = src.ability && Object.prototype.hasOwnProperty.call(src, 'guarda'); // M-353 · 603.10a / 607.2a: o que a fonte guardava quando saiu, fotografado no gatilho
+      const guarda = instantaneo ? src.guarda : fonte && (fonte.devolverAoSair || fonte.holding);
       const guardada = guarda ? s.objects[guarda] : null;
-      if (guardada && guardada.zone === 'exile') { moveObject(s, guardada.oid, 'battlefield', { controller: guardada.owner }); guardada.controller = guardada.owner; note({ target: guardada.name }); }
+      if (guardada && guardada.zone === 'exile' && eff.para === 'hand') { moveObject(s, guardada.oid, 'hand'); note({ target: guardada.name, para: 'hand' }); } // M-353 · Mesmeric Fiend: "return the exiled card to its owner's hand"
+      else if (guardada && guardada.zone === 'exile') { moveObject(s, guardada.oid, 'battlefield', { controller: guardada.owner }); guardada.controller = guardada.owner; note({ target: guardada.name }); }
       else note({ failed: true });
-      if (fonte) { delete fonte.holding; delete fonte.devolverAoSair; }
+      if (fonte && !instantaneo) { delete fonte.holding; delete fonte.devolverAoSair; } // o objeto novo (piscado) guarda a carta dele
       break;
     }
     case 'bounce': moverObjeto(s, src, obj, { para: 'hand' }, ctrl); note({}); break; // CR2-G R4a · atalho de mover
@@ -19710,6 +19728,24 @@ function applyEffect(s, src, eff, tgt, events) {
       if (ficha) { note({ name: nome, ficha: true }); break; } // revisão do lote XXII · 111.8: ficha que saiu do campo não volta (a SBA a apaga)
       if (s.objects[obj.oid] && s.objects[obj.oid].zone === 'exile') { const sob = eff.sob === 'voce' ? ctrl : dono; moveObject(s, obj.oid, 'battlefield', { controller: sob }); s.objects[obj.oid].controller = sob; } // M-351 · sob: 'voce' ("under your control")
       note({ name: nome }); break;
+    }
+    case 'revela_topo_transforma': { // M-353 · "look at the top card of your library. You may reveal that card. If an instant or sorcery card is revealed this way, transform ~"
+      const fonte = src.ability ? s.objects[src.source] : src, topo = s.zones[ctrl].library[0];
+      if (!topo || !fonte || fonte.zone !== 'battlefield' || (src.ability && src.fonteZc != null && (fonte.zc || 0) !== src.fonteZc)) { note({ amount: 0 }); break; } // 400.7: a que saiu e voltou é outro objeto
+      const c = s.objects[topo], tipos = eff.tipos || ['instant', 'sorcery'];
+      if (!((s.facts[c.name] || { types: [] }).types || []).some(t => tipos.includes(t))) { note({ amount: 0 }); break; } // revelar outra carta não faz nada: a pergunta só aparece quando revelar transforma
+      s.pending = { kind: 'may_pay', p: ctrl, cost: null, name: `${fonte.name}: revelar ${c.name} do topo e transformar?`,
+        then: { effects: [{ do: 'revela_topo' }, { do: 'transformar' }], source: fonte.oid, name: src.name, controller: ctrl, targets: [] } };
+      note({ pending: true }); break;
+    }
+    case 'revela_topo': { const topo = s.zones[ctrl].library[0]; if (topo) events.push({ kind: 'revealed', oid: topo, name: s.objects[topo].name, p: ctrl }); note({}); break; } // M-353 · 701.20a
+    case 'exila_da_mao': { // M-353 · Mesmeric Fiend: revela a mão; VOCÊ escolhe; a carta vai ao exílio e a fonte a guarda (se ainda estiver no campo)
+      const who = playerOf(), filtro = eff.filter || { notTypes: ['land'] };
+      const mao = s.zones[who].hand.filter(x => matchesFilter(s, s.objects[x], filtro));
+      const fonte = src.ability ? s.objects[src.source] : src;
+      if (!mao.length) { if (s.zones[who].hand.length) startPick(s, { p: ctrl, from: [], mostrar: s.zones[who].hand.slice(), min: 0, max: 0, to: 'exile', rest: 'stay', filter: filtro, label: 'escolher a carta', source: src.name }, events); note({ amount: 0 }); break; }
+      startPick(s, { p: ctrl, from: mao, mostrar: s.zones[who].hand.slice(), min: 1, max: 1, to: 'exile', rest: 'stay', filter: filtro, label: 'escolher a carta a exilar', source: src.name, ...(fonte && fonte.zone === 'battlefield' && !(src.ability && src.fonteZc != null && (fonte.zc || 0) !== src.fonteZc) ? { segura: { oid: fonte.oid, z: fonte.zc || 0 } } : {}) }, events); // 400.7: o gatilho do Fiend que saiu e voltou não liga a carta ao Fiend novo
+      note({ amount: 1, pending: true }); break;
     }
     case 'pisca_exila': { // M-351 · Ghostly Flicker: exila agora; quem devolve é pisca_volta, com todas juntas (400.7; 111.8 para fichas)
       if (!obj || obj.zone !== 'battlefield') { note({ failed: true }); break; }
@@ -20122,10 +20158,10 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'exile_return_transformed': { // CR2d.5 · 712/701.28: sai e volta como objeto novo, já com a face de trás, sob o controle do dono
       const alvo = src.ability ? s.objects[src.source] : src;
       const back = alvo && backOf(s, alvo);
-      if (!alvo || !back || alvo.zone !== 'battlefield') { note({ failed: true }); break; }
+      if (!alvo || !back || alvo.zone !== 'battlefield' || (src.ability && src.fonteZc != null && (alvo.zc || 0) !== src.fonteZc)) { note({ failed: true }); break; } // M-353 · 400.7 (achado da revisão do lote XXV)
       moveObject(s, alvo.oid, 'exile');
       if (alvo.zone !== 'exile') { note({ failed: true }); break; }
-      flipTo(s, alvo, back); moveObject(s, alvo.oid, 'battlefield', { controller: alvo.owner }); alvo.controller = alvo.owner; // a lealdade entra pelo moveObject
+      { const sob = eff.sob === 'voce' ? ctrl : alvo.owner; flipTo(s, alvo, back); moveObject(s, alvo.oid, 'battlefield', { controller: sob }); alvo.controller = sob; } // a lealdade entra pelo moveObject · M-353 · sob: 'voce' ("under your control", The Modern Age; pedido da L-3)
       note({ name: alvo.name }); break;
     }
     case 'must_attack_source': { // M-228 · Gideon +2: a criatura alvo ataca a fonte no próximo turno do controlador dela, se puder
@@ -20560,7 +20596,7 @@ function startPick(s, spec, events) {
     ...(spec.needMv ? { needMv: spec.needMv } : {}),
     ...(spec.discard ? { discard: true } : {}), // Leva 105 · escolha que é descarte (insanidade)
     ...(spec.reparte ? { reparte: spec.reparte } : {}), // M-345
-    ...(spec.senaoSacrifica ? { senaoSacrifica: spec.senaoSacrifica } : {}), // M-349 · Glint Hawk · Cultivate: um destino por ordem de escolha
+    ...(spec.senaoSacrifica ? { senaoSacrifica: spec.senaoSacrifica } : {}), ...(spec.segura ? { segura: spec.segura } : {}), // M-353 · Mesmeric Fiend // M-349 · Glint Hawk · Cultivate: um destino por ordem de escolha
     ...(spec.revelaEscolhida ? { revelaEscolhida: true } : {}), // M-335 · 701.20a: revela só a carta escolhida
     ...(spec.mostrar ? { mostrar: spec.mostrar } : {}), // Leva 107 · mão revelada inteira (Duress)
     ...(spec.depois ? { depois: spec.depois } : {}), // Leva 107 · "se fizer, compre duas" (Highway Robbery)
@@ -20605,6 +20641,7 @@ function concluiPick(s, events) {
     // CR 701.24b: "embaralhe e ponha a carta no topo" — a carta achada não entra no embaralhamento (Mystical Tutor)
     if (pk.to === 'library-top') { const lib = s.zones[pk.p].library; for (const oid of [...pk.picked].reverse()) { const i = lib.indexOf(oid); if (i >= 0) { lib.splice(i, 1); lib.unshift(oid); } } } }
   if (pk.depois && pk.depois.draw && pk.picked.length) draw(s, pk.p, pk.depois.draw); // Leva 107
+  if (pk.segura && pk.picked.length) { const f = s.objects[pk.segura.oid]; if (f && f.zone === 'battlefield' && (f.zc || 0) === pk.segura.z) f.holding = pk.picked[0]; } // M-353 · a fonte que saiu antes não guarda nada (a carta fica exilada: 400.7)
   if (pk.senaoSacrifica && !pk.picked.length) { const f = s.objects[pk.senaoSacrifica.oid]; if (f && f.zone === 'battlefield' && (f.zc || 0) === pk.senaoSacrifica.z) sacrifice(s, f.oid, events); } // M-349 · Glint Hawk (400.7)
   // S59 · Trono dos Três Mortos: a criatura escolhida entra com marcadores e ganha a palavra-chave
   if (pk.onPicked) for (const oid of pk.picked) {
@@ -20938,7 +20975,7 @@ function makeAbility(s, source, ab, targets, blockedAt = source.blocking) {
   s.objects[oid] = { oid, ability: true, name: source.name, source: source.oid, effects: ab.effects, owner: source.controller,
     controller: source.controller, zone: 'stack', tapped: false, sick: false, damage: 0, counters: {}, targets: carimbaAlvos(s, targets),
     ...(blockedAt ? { blockedAt } : {}) }; // Q11 · Tinder Wall: quem ela bloqueava, mesmo depois de sacrificada (última informação conhecida)
-  { const f = s.objects[source.oid]; if (f && !f.ability && (ab.effects || []).some(e => e && (e.ate === 'fonte-sair' || e.do === 'topo_do_dono'))) s.objects[oid].fonteZc = f.zc || 0; } // M-345 · também "put ~ on top" (achado da revisão) // CR2d.1 · 610.3a (auditoria M-308: também na ativada): se a fonte já saiu quando o efeito resolve, nada se move
+  { const f = s.objects[source.oid]; if (f && !f.ability && (ab.effects || []).some(e => e && (e.ate === 'fonte-sair' || (['topo_do_dono', 'exila_da_mao', 'revela_topo_transforma', 'exile_return_transformed'].includes(e.do) || e.remember || e.lembra)))) s.objects[oid].fonteZc = f.zc || 0; } // M-353 · a habilidade lembra a encarnação da fonte (achado da revisão do lote XXV) // M-345 · também "put ~ on top" (achado da revisão) // CR2d.1 · 610.3a (auditoria M-308: também na ativada): se a fonte já saiu quando o efeito resolve, nada se move
   s.stack.push(oid);
   return oid;
 }
@@ -21194,7 +21231,7 @@ function gatilhosDeZona(s, o, de, para, ctrlAntes, ultima) {
       const d = ab.kind === 'triggered' && SC.gatilhoDeZona(ab.when);
       if (!d || (d.objeto || 'self') !== 'self' || (d.para != null) !== comPara || !casaZona(d, de, para)) continue;
       if (!triggerConditionMet(s, o, ab.condition)) continue; // S25 · condição do gatilho
-      s.queued.push({ source: o.oid, name: o.name, controller: ctrl, effects: ab.effects, when: ab.when, ...marcasDaHabilidade(ab) });
+      s.queued.push({ source: o.oid, name: o.name, controller: ctrl, effects: ab.effects, when: ab.when, ...marcasDaHabilidade(ab), ...(saiu && (ab.effects || []).some(e => e.do === 'return_held') ? { guarda: o.devolverAoSair || null } : {}) }); // M-353 · 607.2a: a carta ligada a esta encarnação, fotografada na saída
     }
     quemObserva(s, o, ctrl, observadores, d => d.evento === 'zona' && (d.para != null) === comPara && casaZona(d, de, para), saiu);
   };
@@ -21245,7 +21282,7 @@ function queueTriggersLegado(s, when, objects, controller) {
     for (const ab of (saiu && o.ultima && (o.ultima.faceDown || o.ultima.semHabilidades) ? [] : abilitiesOf(s, o))) { // CR2d.1 · saiu sem habilidades (Reprobation)
       if (ab.kind !== 'triggered' || ab.when !== when) continue;
       if (!triggerConditionMet(s, o, ab.condition)) continue; // S25 · condição do gatilho
-      s.queued.push({ source: o.oid, name: o.name, controller: ctrl, effects: ab.effects, when, ...(ab.condition ? { condition: ab.condition } : {}), ...(ab.cost ? { cost: ab.cost } : {}), ...(ab.mayPay ? { mayPay: ab.mayPay } : {}), ...(ab.optional ? { optional: true } : {}), ...((ab.modes || []).length ? { modes: ab.modes } : {}) });
+      s.queued.push({ source: o.oid, name: o.name, controller: ctrl, effects: ab.effects, when, ...(when === 'leaves-battlefield' && (ab.effects || []).some(e => e.do === 'return_held') ? { guarda: o.devolverAoSair || null } : {}) /* M-353 · 607.2a: a carta ligada a esta encarnação */, ...(ab.condition ? { condition: ab.condition } : {}), ...(ab.cost ? { cost: ab.cost } : {}), ...(ab.mayPay ? { mayPay: ab.mayPay } : {}), ...(ab.optional ? { optional: true } : {}), ...((ab.modes || []).length ? { modes: ab.modes } : {}) });
     }
     // S15 · gatilhos de outras permanentes que você controla
     if (!['etb', 'dies', 'cast-self', 'leaves-battlefield'].includes(when)) continue;
@@ -21366,6 +21403,7 @@ function putTriggerOnStack(s, q, events) {
     return true;
   }
   const oid = makeAbility(s, { oid: q.source, name: q.name, controller: q.controller }, { effects: q.effects }, targets);
+  if (q.guarda !== undefined) s.objects[oid].guarda = q.guarda; // M-353 · 607.2a
   marcasDoGatilho(s, q, oid);
   events.push({ kind: 'trigger', name: q.name, when: q.when, oid });
   return true;
@@ -22179,6 +22217,7 @@ const HANDLERS = {
     // 605.1a · habilidade de mana não usa a pilha: resolve na hora
     if ((ab.effects || []).length && (ab.effects || []).every(e => e.do === 'add_mana') && !need.length) {
       (ab.effects || []).forEach(e => applyEffect(s, o, e, null, ev || []));
+      if ((ab.cost || {}).tap) manaExtraDeVirar(s, o, a.p); // M-353 · 106.12a: "tapped for mana" vale para toda habilidade de mana com {T} no custo (Wild Growth numa terra de esgotamento) — pedido da L-1
       // M-250 · "If there are no depletion counters on this land, sacrifice it" (Saprazzan Skerry): parte da própria habilidade de mana (605.1a)
       if (ab.semMarcadorSacrifica && o.zone === 'battlefield' && !(o.counters || {})[ab.semMarcadorSacrifica]) sacrifice(s, o.oid, ev || []);
     } else { // S41 · vigilância do alvo · S43 · a cor escolhida viaja com a habilidade
@@ -29549,7 +29588,10 @@ function descreveEfeito(e) {
     case 'imbloqueavel_cor': return `${alvo || 'a criatura'} não pode ser ${/^o /.test(alvo || '') ? 'bloqueado' : 'bloqueada'} por criaturas da cor escolhida neste turno`;
     case 'transform': return 'transforma';
     case 'animate_dead': return 'devolve a carta encantada ao campo sob o seu controle e se anexa a ela'; // CR2d.4
-    case 'exile_return_transformed': return 'é exilada e volta transformada, sob o controle do dono'; // CR2d.5
+    case 'exile_return_transformed': return `é exilada e volta transformada, sob o controle ${e.sob === 'voce' ? 'de quem a controlava' : 'do dono'}`; // CR2d.5 · M-353
+    case 'revela_topo_transforma': return 'olha a carta do topo; se for instantânea ou feitiço, pode revelá-la e transformar esta permanente'; // M-353
+    case 'revela_topo': return 'revela a carta do topo'; // M-353
+    case 'exila_da_mao': return `${alvo || 'o oponente alvo'} revela a mão e você escolhe uma carta que não seja terreno para exilar (volta à mão do dono quando esta permanente sair do campo)`; // M-353
     case 'must_attack_source': return 'até uma criatura alvo de um oponente ataca esta planeswalker no próximo turno de quem a controla, se puder'; // M-228
     case 'prevent_self': return 'previne todo dano que seria causado a ela neste turno';
     case 'sacrifice_reanimated': return 'quem controla a criatura a sacrifica';
@@ -29587,7 +29629,7 @@ function descreveEfeito(e) {
     case 'prevent_spell': case 'prevent_color': return 'previne dano';
     case 'discard_chosen': return 'olha a mão do alvo e escolhe uma carta para ele descartar';
     case 'exile_chosen': return 'o alvo exila uma carta do próprio cemitério';
-    case 'return_held': return 'devolve ao campo a carta que estava exilada';
+    case 'return_held': return e.para === 'hand' ? 'devolve à mão do dono a carta que estava exilada' : 'devolve ao campo a carta que estava exilada'; // M-353
     case 'connive': return 'maquina: compra uma carta e descarta uma; se não for terreno, ganha um marcador +1/+1';
     case 'no_prevention': return 'o dano não pode ser prevenido neste turno';
     case 'gain_per_revealed': return 'ganha 3 de vida para cada carta revelada';
