@@ -2253,12 +2253,13 @@
    "titulo": "Equipamento",
    "status": "parcial",
    "evidencia": "equipar é habilidade ativada de tempo de feitiço em criatura sua (index.html:10908); equipamento solta e fica no campo quando a criatura some (index.html:12110-12120); testes \"S11 · a criatura encantada some: ... o equipamento só desanexa\", \"S11 · equipar só na sua fase principal e só nas suas criaturas\", \"S11 · Skullclamp\" T-16 (12/10/2026): 301.5b — o efeito `attach` de Equipamento que não pode equipar o alvo (ou que já saiu do campo, 400.7) não o move (`anexoBarradoT`, registro \"X não pode equipar Y e fica onde está\"); 301.5c / 704.5n — o Equipamento que vira criatura, perde o subtipo Equipment ou está anexado a si mesmo se solta e fica no campo, e não equipa (`podeEquiparT`, `equipamentosDeEstadoT`); 301.5d — controles separados conferidos (a criatura roubada continua equipada; equipar só por quem controla o Equipamento; a habilidade concedida, só por quem controla a criatura). T-17 (12/10/2026) · auditoria independente (69 conferências, fuzz de 60 partidas, ~12.840 pedidos diretos de equipar): o Equipamento que sai e volta (lampejo) em resposta ao equipar não é anexado (400.7, `entrouEmAbT`); a ficha de Equipamento que deixa de existir com o equipar na pilha não derruba a partida; equipar de novo a mesma criatura não faz nada (701.3b).",
-   "falta": "Reconfigurar (702.151: Equipamento-criatura que equipa) não existe no motor — essas cartas ficam manuais; 301.5e não é alcançável (nenhum efeito do vocabulário põe Equipamento no campo anexado).",
+   "falta": "Reconfigurar (702.151: Equipamento-criatura que equipa) não existe no motor — essas cartas ficam manuais; 301.5e não é alcançável (nenhum efeito do vocabulário põe Equipamento no campo anexado). T-43 (13/10/2026): reconfigurar existe (702.151; o Equipamento-criatura com reconfigurar equipa, 301.5c).",
    "esforco": "P",
    "depende": [
     "704.5n"
    ],
    "testes": [
+    "CR 704.5n · a criatura equipada sai do campo: a lâmina fica solta no campo e volta a ser criatura",
     "CR 301.5b / 400.7 · a habilidade de equipar que resolve depois de o Equipamento sair do campo não anexa nada (o Equipamento \"não se move\")",
     "CR 301.5c / 704.5n · o Equipamento que vira criatura se solta (ação de estado) e fica no campo; a criatura deixa de ser equipada",
     "CR 301.5c · o Equipamento que é criatura não equipa ninguém (nem a si mesmo): a habilidade resolve sem anexar",
@@ -9112,8 +9113,14 @@
    "n": "702.151",
    "regra": "Keyword Abilities",
    "titulo": "Reconfigure",
-   "status": "ausente",
-   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): reconfigurar é Equipamento-criatura que se anexa e desanexa (T-16).",
+   "status": "coberta",
+   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): reconfigurar é Equipamento-criatura que se anexa e desanexa (T-16). T-43 (13/10/2026): coberta — nada falta da 702.151a–b.",
+   "evidencia": "T-43 (13/10/2026): self.reconfigurar = custo; o motor monta as duas ativadas (anexar a outra criatura sua, pelo efeito attach com a conferência do Equipamento; desanexar, só anexada), só como feitiço. Anexada, a permanente deixa de ser criatura e perde os subtipos de criatura (camada 4, pelo cálculo de camadas, 205.3d); solta — por desanexar ou quando a criatura sai —, volta a ser criatura. Mesa: \"Reconfigurar: anexar a <criatura> · {2}\" e \"Reconfigurar: desanexar · {2}\". Carta exemplo completa: Lizard Blades (Oracle do Forge, 13/10/2026).",
+   "testes": [
+    "CR 702.151a · reconfigurar: {2}, anexar a outra criatura sua, só como feitiço; anexada, a lâmina deixa de ser criatura (702.151b) e a criatura ganha golpe duplo",
+    "CR 702.151a · desanexar: só anexada e só como feitiço; desanexada volta a ser criatura",
+    "CR 702.151b · anexada ela não é criatura: \"destrua todas as criaturas\" leva o Urso e deixa a lâmina, que cai solta e vira criatura"
+   ],
    "esforco": "M",
    "depende": [
     "301.5 equipamento",

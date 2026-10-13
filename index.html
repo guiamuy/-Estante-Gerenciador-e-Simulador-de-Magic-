@@ -5510,6 +5510,7 @@ const EFFECTS = {
   lutador: { fields: [], targets: ['creature', 'creature-you-control'] },
   fight: { fields: [], targets: ['creature', 'creature-opponent-controls', 'creature-you-control'] }, // quem: 'self-source' (a permanente fonte luta) | 'primeiro-alvo' (luta a criatura anotada pelo `lutador` anterior)
   /* ↓ T · efeitos da trilha tipos */
+  desanexar: { fields: [], targets: ['self'] }, // T-43 · CR 702.151a · "unattach this permanent" (o motor o monta a partir de `self.reconfigurar`)
   caso_resolvido: { fields: [], targets: ['self'] }, // T-39 · CR 719.3a · "this Case becomes solved" (o motor o monta a partir de `self.caso`)
   estacao: { fields: [], targets: ['self'] }, // T-37 · CR 702.184a · "put charge counters equal to the tapped creature's power on this permanent" (o motor o monta a partir de `self.estacao`)
   selada: { fields: [], targets: ['self'] }, // T-31 · CR 702.171a · "this permanent becomes saddled until end of turn" (o motor o monta a partir de `self.selar`, o script não o escreve)
@@ -6135,7 +6136,7 @@ function validateScript(sc) {
   if (sc && sc.madness && !sc.madness.mana) errs.push('insanidade sem custo');
   const g = sc && sc.grants;
   if (g) {
-    if (!att) errs.push('bônus sem aura nem equipamento');
+    if (!att && !(sc.self && sc.self.reconfigurar)) errs.push('bônus sem aura nem equipamento'); // T-43 · CR 702.151: o Equipamento com reconfigurar se anexa pela ativada de reconfigurar (Toca ponto comum: validateScript)
     for (const f of ['power', 'toughness', 'perPower', 'perToughness']) if (g[f] != null && !Number.isInteger(g[f])) errs.push(`bônus: ${f} precisa ser inteiro`);
     for (const opt of g.produces || []) if (!Array.isArray(opt) && !(opt && (opt.symbol || opt.anyColor) && PER_COUNTS.includes(opt.per))) errs.push('bônus: opção de mana inválida');
     if ((g.perPower != null || g.perToughness != null) && !PER_COUNTS.includes(g.per)) errs.push(`bônus: contagem "${g.per}" desconhecida`);
@@ -6222,7 +6223,7 @@ function validateScript(sc) {
   if (sc && sc.replicate != null && sc.kicker) errs.push('replicar e reforço na mesma carta não são aceitos (os dois usam o pagamento repetido)');
   if (sc && sc.modeCount != null && !(Number.isInteger(sc.modeCount) && sc.modeCount >= 2 && (sc.modes || []).length && (sc.modeRepeat || sc.modeCount <= sc.modes.length))) errs.push('número de modos inválido');
   if (sc && sc.cumulativeUpkeep && !/\{/.test(String(sc.cumulativeUpkeep.mana || ''))) errs.push('manutenção cumulativa precisa de um custo de mana');
-  errs.push(...sagaErros(sc), ...tripularErros(sc), ...aventuraErros(sc), ...duplaFaceErros(sc), ...modalErros(sc), ...divididaErros(sc), ...classeErros(sc), ...batalhaErros(sc), ...papelErros(sc), ...nivelarErros(sc), ...salaErros(sc), ...virarErros(sc), ...selarErros(sc), ...prototipoErros(sc), ...estacaoErros(sc), ...casoErros(sc), ...disfarceErros(sc)); // T-42 · CR 702.168 · disfarce (mesma chamada) // T-39 · CR 719 · Caso (mesma chamada) // T-37 · CR 721 · estação (mesma chamada) // T-36 · CR 718 · protótipo (mesma chamada) // T-31 · CR 702.171 · selar (mesma chamada) // T-29 · CR 710 · carta de virar (mesma chamada) // T-26 · CR 709.5 · Sala (mesma chamada) // T-24 · CR 711 · barras de nível (mesma chamada) // T-20 · CR 111.10 · papel conhecido (mesma chamada) // T-14 · CR 310.4 · defesa da batalha (mesma chamada) // T-12 · CR 716 · Classe (mesma chamada) // T-10 · CR 709 · carta dividida (mesma chamada) // T-8 · CR 712.3 · dupla face modal (mesma chamada) // T-7 · CR 712 · dupla face (mesma chamada) // T-5 · CR 715 · aventura (mesma chamada) // T-3 · CR 702.122 · tripular (mesma chamada da T-1) // T-1 · CR 714 · Saga: capítulos, read ahead e o marcador de entrada (função abaixo da âncora T das exportações)
+  errs.push(...sagaErros(sc), ...tripularErros(sc), ...aventuraErros(sc), ...duplaFaceErros(sc), ...modalErros(sc), ...divididaErros(sc), ...classeErros(sc), ...batalhaErros(sc), ...papelErros(sc), ...nivelarErros(sc), ...salaErros(sc), ...virarErros(sc), ...selarErros(sc), ...prototipoErros(sc), ...estacaoErros(sc), ...casoErros(sc), ...disfarceErros(sc), ...reconfigurarErros(sc)); // T-43 · CR 702.151 · reconfigurar (mesma chamada) // T-42 · CR 702.168 · disfarce (mesma chamada) // T-39 · CR 719 · Caso (mesma chamada) // T-37 · CR 721 · estação (mesma chamada) // T-36 · CR 718 · protótipo (mesma chamada) // T-31 · CR 702.171 · selar (mesma chamada) // T-29 · CR 710 · carta de virar (mesma chamada) // T-26 · CR 709.5 · Sala (mesma chamada) // T-24 · CR 711 · barras de nível (mesma chamada) // T-20 · CR 111.10 · papel conhecido (mesma chamada) // T-14 · CR 310.4 · defesa da batalha (mesma chamada) // T-12 · CR 716 · Classe (mesma chamada) // T-10 · CR 709 · carta dividida (mesma chamada) // T-8 · CR 712.3 · dupla face modal (mesma chamada) // T-7 · CR 712 · dupla face (mesma chamada) // T-5 · CR 715 · aventura (mesma chamada) // T-3 · CR 702.122 · tripular (mesma chamada da T-1) // T-1 · CR 714 · Saga: capítulos, read ahead e o marcador de entrada (função abaixo da âncora T das exportações)
   return errs.concat(exampleErrors(sc));
 }
 const ATRASOS = ['next-upkeep', 'next-end-step', 'end-of-combat']; // CR2b.1 · momentos de gatilho atrasado que o motor conhece
@@ -6629,6 +6630,9 @@ const RAW_SCRIPTS = [
   { name: 'Spring // Mind', self: { dividida: true, mana: '{2}{G}', types: ['sorcery'] }, effects: [{ do: 'search', amount: 1, filter: { types: ['land'], basic: true }, to: 'battlefield-tapped' }], // "Search your library for a basic land card, put it onto the battlefield tapped, then shuffle."
     back: { name: 'Mind', types: ['instant'], mana: '{4}{U}{U}', effects: [{ do: 'draw', amount: 2 }], aftermath: true }, // "Aftermath · Draw two cards."
     example: { target: 'none', expect: { selfLife: 0 } } },
+  // T-43 · CR 702.151 · reconfigurar (Oracle do Forge, clone de 13/10/2026). `self.reconfigurar`: o custo; as duas ativadas o motor monta.
+  { name: 'Lizard Blades', self: { reconfigurar: '{2}' }, grants: { keywords: ['double strike'] }, // "Double strike · Equipped creature has double strike. · Reconfigure {2}"
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o cenário de verdade (anexar, deixar de ser criatura, desanexar) está em tipos.reconfigurar.unit
   // T-42 · CR 702.168 · disfarce (Oracle do Forge, clone de 13/10/2026). `self.disfarce`: o custo de virar para cima; virada para baixo por {3} com salvaguarda {2}.
   { name: 'Nervous Gardener', self: { disfarce: '{G}' }, // "Disguise {G}"
     abilities: [{ kind: 'triggered', when: 'turned-face-up', effects: [{ do: 'search', amount: 1, filter: { types: ['land'], subtypes: ['Plains', 'Island', 'Swamp', 'Mountain', 'Forest'] }, to: 'hand' }] }], // "When Nervous Gardener is turned face up, search your library for a land card with a basic land type, reveal it, put it into your hand, then shuffle."
@@ -9100,6 +9104,13 @@ function disfarceErros(sc) {
   return errs;
 }
 Object.assign(EXPORTS_T_SC, { disfarceErros });
+/* ---------------- T-43 · CR 702.151 · reconfigurar (forma do script) ----------------
+   `self: { reconfigurar: '{2}' }`: o motor monta as duas ativadas (anexar a outra criatura sua; desanexar), só como feitiço. */
+function reconfigurarErros(sc) {
+  const sf = sc && sc.self; if (!sf || sf.reconfigurar == null) return [];
+  return typeof sf.reconfigurar === 'string' && /\{/.test(sf.reconfigurar) ? [] : ['reconfigurar: self.reconfigurar é o custo ("{2}")'];
+}
+Object.assign(EXPORTS_T_SC, { reconfigurarErros });
 EVENTOS_DE_OBJETO.push('virada-para-cima'); OBJETOS_DO_EVENTO['virada-para-cima'] = ['self']; GATILHO_EVENTO['turned-face-up'] = { evento: 'virada-para-cima', objeto: 'self' }; TRIGGER_PT['turned-face-up'] = 'quando é virada para cima'; // T-42 · CR 708.8
 /* ---------------- T-31 · CR 702.171 · selar (forma do script) ----------------
    `self: { selar: N }` ("Saddle N"): o motor monta a ativada (custo de tripular N, só como feitiço, efeito `selada`). "Whenever ~ attacks
@@ -17326,16 +17337,16 @@ function redefinicoesDe(s, o) {
   const out = [];
   for (const x of attachedTo(s, o)) for (const e of continuosDaFonte(s, x)) if (e.afetados === 'anexada' && e.redefine) out.push({ ts: x.anexadaEm || 0, b: e.redefine });
   for (const v of o.vira || []) if (vigente(s, v)) out.push({ ts: v.ts || 0, b: v }); // CR2-G R6 · "torna" com duração
-  for (const b of redefinicoesDaEstacaoT(s, o)) out.push({ ts: -1, b }); // T-37 · CR 721.2b · a faixa de estação alcançada torna a permanente criatura com o P/R dela (habilidade estática própria: carimbo de quando entrou) (Toca ponto comum: redefinicoesDe)
+  for (const b of redefinicoesDaTrilhaT(s, o)) out.push({ ts: -1, b }); // T-43 · CR 702.151b · e a reconfigurada anexada deixa de ser criatura // T-37 · CR 721.2b · a faixa de estação alcançada torna a permanente criatura com o P/R dela (habilidade estática própria: carimbo de quando entrou) (Toca ponto comum: redefinicoesDe)
   return out.sort((x, y) => x.ts - y.ts);
 }
 /** CR2d.13 · 205.2: os tipos somados ficam na ordem da linha de tipo ("Artifact Creature", não "Creature Artifact"). */
 const ORDEM_DOS_TIPOS = ['kindred', 'tribal', 'artifact', 'enchantment', 'land', 'creature', 'planeswalker', 'battle', 'instant', 'sorcery'];
 const ordenaTipos = ts => ts.slice().sort((a, b) => (ORDEM_DOS_TIPOS.indexOf(a) + 1 || 99) - (ORDEM_DOS_TIPOS.indexOf(b) + 1 || 99));
 function mutacao(s, o) {
-  if (!o || o.zone !== 'battlefield' || (!o.mutavel && !o.faceDown && !estacaoMutaT(s, o))) return null; // T-37 · a nave com marcador de carga também (Toca ponto comum: mutacao) · atalho: só quem já recebeu uma Aura dessas, ou está virada para baixo (o cálculo é chamado a cada consulta de habilidade)
+  if (!o || o.zone !== 'battlefield' || (!o.mutavel && !o.faceDown && !mutaPelaTrilhaT(s, o))) return null; // T-43 · e a reconfigurada anexada // T-37 · a nave com marcador de carga também (Toca ponto comum: mutacao) · atalho: só quem já recebeu uma Aura dessas, ou está virada para baixo (o cálculo é chamado a cada consulta de habilidade)
   // CR2d.2 · também "this land becomes a N/N <tipo> creature until end of turn. It's still a land" (o.vira, com carimbo próprio)
-  const efeitos = o.mutavel || estacaoMutaT(s, o) ? redefinicoesDe(s, o) : []; // T-37
+  const efeitos = o.mutavel || mutaPelaTrilhaT(s, o) ? redefinicoesDe(s, o) : []; // T-37 · T-43
   if (!efeitos.length && !o.faceDown) return null;
   const f = s.facts[o.name], subImpressos = String(f.typeText || '').split('—')[1] ? String(f.typeText).split('—')[1].trim().split(/\s+/) : [];
   // CR2d.12 · 613.2b / 708.2: virada para baixo, a camada 1b dá uma criatura 2/2 sem subtipo; o que vem depois vale por cima
@@ -19240,7 +19251,7 @@ const abilitiesOf = (s, o) => {
   if (sc.self && sc.self.classe) classeHabilidadesT(s, o, sc, list); // T-12 · CR 716.2a · as habilidades dos níveis alcançados e a ativada do próximo nível
   if (sc.self && sc.self.craft) list.push(craftHabilidade(sc.self.craft)); // M-356 · CR 702.167a · a ativada de craft (só como feitiço)
   if (sc.self && sc.self.selar) list.push(selarHabilidadeT(sc)); // T-31 · CR 702.171a · a ativada de selar (Toca ponto comum: abilitiesOf)
-  if (sc.self && (sc.self.nivelar || sc.self.estacao || sc.self.caso)) nivelarHabilidadesT(s, o, sc, list); // T-39 · CR 719.3 · e o gatilho de resolver e as habilidades do Caso resolvido // T-37 · CR 702.184a / 721.2a / 721.4 · e a ativada de estação com as habilidades das faixas alcançadas // T-24 · CR 702.87a / 711.4 · a ativada de subir de nível e as habilidades da barra alcançada (Toca ponto comum: abilitiesOf)
+  if (sc.self && (sc.self.nivelar || sc.self.estacao || sc.self.caso || sc.self.reconfigurar)) nivelarHabilidadesT(s, o, sc, list); // T-43 · CR 702.151a · e as duas ativadas de reconfigurar // T-39 · CR 719.3 · e o gatilho de resolver e as habilidades do Caso resolvido // T-37 · CR 702.184a / 721.2a / 721.4 · e a ativada de estação com as habilidades das faixas alcançadas // T-24 · CR 702.87a / 711.4 · a ativada de subir de nível e as habilidades da barra alcançada (Toca ponto comum: abilitiesOf)
   if (sc.equip) list.push(...equipesK(s, o)); // K-28 · 702.6c-d: as outras habilidades de equipar impressas, com qualidade (Toca ponto comum: abilitiesOf)
   return list.concat(grantedAbilities(s, o), habilidadesDePalavraK(s, o)); // K-3 · palavra-chave que é habilidade disparada (proeza…)
 };
@@ -20779,6 +20790,7 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'lutador': if (obj) s.lutadorV = { fonte: src.oid, fz: encarnacaoV(s, src), oid: obj.oid, z: obj.zc || 0 }; break; // V-1/V-5 · anota quem luta; a luta é o `fight` seguinte, que apaga a anotação
     case 'fight': lutar(s, src, eff, tgt, events); break; // V-1 · 701.14
     /* ↓ T · casos de applyEffect da trilha tipos */
+    case 'desanexar': desanexaT(s, src, events); break; // T-43 · CR 702.151a · a permanente se solta e fica no campo
     case 'caso_resolvido': casoResolveT(s, src, eff, events); break; // T-39 · CR 719.3a · o Caso fica resolvido, se a condição ainda vale (603.4)
     case 'estacao': estacaoResolveT(s, src, eff, events); break; // T-37 · CR 702.184a · marcadores de carga iguais ao poder da criatura virada
     case 'selada': seladaT(s, src, events); break; // T-31 · CR 702.171a · a montaria fica selada até o fim do turno
@@ -26176,6 +26188,33 @@ function continuosDaEstacaoT(s, x, sc) {
   if (!cs.length) return SEM_CONTINUOS;
   return cs.map(c => ({ ...c, palavras: c.palavras ? c.palavras.map(w => String(w).toLowerCase()) : undefined, ...(c.torna ? { redefine: SC.tornaParaBecomes(c.torna) } : {}) })); // como o laço do `continuo` em continuosDaFonte
 }
+/* ---------------- T-43 · CR 702.151 / 301.5c · reconfigurar ----------------
+   - 702.151a: duas ativadas, só como feitiço, pelo custo de reconfigurar: anexar a OUTRA criatura sua (o efeito `attach`, que passa
+     pela conferência do Equipamento: `podeEquiparT` aceita o Equipamento-criatura com reconfigurar, 301.5c) e desanexar (só anexada).
+   - 702.151b: anexada a uma criatura, deixa de ser criatura até se soltar: a redefinição entra no cálculo de camadas (camada 4: tipos
+     sem "criatura" e subtipos sem os de criatura, 205.3d). Solta — por desanexar ou pela ação de estado quando a criatura sai —,
+     volta a ser criatura. */
+const reconfigurarDaCartaT = (s, o) => { const f = o && s.facts[o.name]; return !!(f && f.script && f.script.self && f.script.self.reconfigurar); };
+const reconfiguradaAnexadaT = (s, o) => !!(o && o.attachedTo && o.zone === 'battlefield' && reconfigurarDaCartaT(s, o) && s.objects[o.attachedTo] && s.objects[o.attachedTo].zone === 'battlefield');
+function reconfigurarHabilidadesT(s, o, sc, list) {
+  const c = sc.self.reconfigurar;
+  list.push({ kind: 'activated', cost: { mana: c }, sorceryOnly: true, label: 'Reconfigurar: anexar', reconfigurarT: 'anexar', effects: [{ do: 'attach', target: { tipos: ['creature'], de: 'you', outra: true } }] });
+  if (o && o.attachedTo) list.push({ kind: 'activated', cost: { mana: c }, sorceryOnly: true, label: 'Reconfigurar: desanexar', reconfigurarT: 'desanexar', effects: [{ do: 'desanexar' }] });
+}
+function desanexaT(s, src, events) {
+  const o = src.ability ? s.objects[src.source] : src;
+  if (!o || o.zone !== 'battlefield' || !o.attachedTo) { events.push({ kind: 'effect', do: 'desanexar', name: (o || src).name, failed: true }); return; }
+  delete o.attachedTo; events.push({ kind: 'unattached', oid: o.oid, name: o.name });
+}
+const mutaPelaTrilhaT = (s, o) => estacaoMutaT(s, o) || reconfiguradaAnexadaT(s, o);
+function redefinicoesDaTrilhaT(s, o) {
+  const out = redefinicoesDaEstacaoT(s, o);
+  if (reconfiguradaAnexadaT(s, o)) {
+    const f = s.facts[o.name], subs = String(f.typeText || '').split('—')[1] ? String(f.typeText).split('—')[1].trim().split(/\s+/) : [];
+    out.push({ types: (f.types || []).filter(t => t !== 'creature'), subtypes: subs.filter(x => !SC.TIPOS_DE_CRIATURA_SCK.has(x.toLowerCase())) }); // 205.3d: sem os subtipos de criatura (o conjunto é em minúsculas)
+  }
+  return out;
+}
 const estacaoMutaT = (s, o) => !!(o.counters && o.counters.charge && (((s.facts[o.name] || {}).script || {}).self || {}).estacao);
 function redefinicoesDaEstacaoT(s, o) {
   if (!estacaoMutaT(s, o)) return [];
@@ -26465,6 +26504,7 @@ function continuosDoNivelarT(s, x, sc) {
 function nivelarHabilidadesT(s, o, sc, list) {
   if (sc.self.estacao) return estacaoHabilidadesT(s, o, sc, list); // T-37
   if (sc.self.caso) return casoHabilidadesT(s, o, sc, list); // T-39
+  if (sc.self.reconfigurar) return reconfigurarHabilidadesT(s, o, sc, list); // T-43
   const nv = sc.self.nivelar;
   list.push({ kind: 'activated', cost: { mana: nv.mana }, sorceryOnly: true, label: 'Subir de nível', nivelarT: true, effects: [{ do: 'nivel_sobe', z: o.zc || 0 }] }); // 702.87a · T-25 · 400.7: a subida leva a encarnação (`z`), como a da Classe
   const f = faixaDoNivelarT(s, o); if (f) for (const ab of f.abilities || []) list.push({ ...ab, nivelarFaixaT: f.de });
@@ -26603,7 +26643,7 @@ function danoEmPwCriaturaT(s, src, obj, n) {
 const ehEquipamentoImpressoT = (s, o) => { const f = o && !o.ability && s.facts[o.name]; return !!f && (/\bEquipment\b/.test(f.typeText || '') || !!(f.script || {}).equip); };
 const ehEquipamentoT = (s, o) => { const f = o && !o.ability && s.facts[o.name]; return !!f && (f.typeText ? /\bEquipment\b/.test(linhaDeTipo(s, o)) : !!(f.script || {}).equip); };
 /** 301.5 / 301.5c · `eq` pode equipar `host` agora? */
-const podeEquiparT = (s, eq, host) => !!eq && eq.zone === 'battlefield' && !eq.phasedOut && ehEquipamentoT(s, eq) && !isCreature(s, eq) && !!host && host.oid !== eq.oid && host.zone === 'battlefield' && isCreature(s, host);
+const podeEquiparT = (s, eq, host) => !!eq && eq.zone === 'battlefield' && !eq.phasedOut && ehEquipamentoT(s, eq) && (!isCreature(s, eq) || reconfigurarDaCartaT(s, eq)) && !!host && host.oid !== eq.oid && host.zone === 'battlefield' && isCreature(s, host);
 /** 301.5b · o efeito `attach` de um Equipamento que não pode equipar o alvo não move nada. Devolve true quando barrou. */
 function anexoBarradoT(s, src, obj, events) {
   const eq = src && src.ability ? s.objects[src.source] : src;
@@ -27414,7 +27454,7 @@ function regrasDosNiveisT(s, p, out) {
 /** T-12 · rótulos da folha para as ativadas de uma Classe: a folha conhece só as ativadas impressas do script; as dos níveis e a de
  * subir vêm de `abilitiesOf`. A de subir diz "Subir para o nível N · custo"; as de um nível, "Ativar (custo)" (com o alvo, se houver). */
 function rotulosDaClasseT(s, oid, legal, custo) {
-  const o = s.objects[oid], sc = o && ((s.facts[o.name] || {}).script || {}); if (!sc || !sc.self || !(sc.self.classe || sc.self.nivelar || sc.self.estacao)) return; // T-24 · também a carta de subir de nível; T-37 · e a de estação
+  const o = s.objects[oid], sc = o && ((s.facts[o.name] || {}).script || {}); if (!sc || !sc.self || !(sc.self.classe || sc.self.nivelar || sc.self.estacao || sc.self.reconfigurar)) return; // T-43 · e a de reconfigurar // T-24 · também a carta de subir de nível; T-37 · e a de estação
   const abs = abilitiesOf(s, o).filter(x => x.kind === 'activated'), impressas = (sc.abilities || []).filter(x => x.kind === 'activated').length;
   for (const b of legal) {
     const a = b && b.action; if (!a || a.t !== 'activate' || a.oid !== oid) continue;
@@ -27422,6 +27462,7 @@ function rotulosDaClasseT(s, oid, legal, custo) {
     const resto = (b.label || '').includes(' → ') ? b.label.slice(b.label.indexOf(' → ')) : '';
     if (ab.classeNivelT) b.label = `Subir para o nível ${ab.classeNivelT} · ${ab.cost.mana}`;
     else if (ab.nivelarT) b.label = `Subir de nível · ${ab.cost.mana}`; // T-24 · CR 702.87a
+    else if (ab.reconfigurarT) b.label = ab.reconfigurarT === 'anexar' ? `Reconfigurar: anexar${resto ? resto.replace(' → ', ' a ') : ''} · ${ab.cost.mana}` : `Reconfigurar: desanexar · ${ab.cost.mana}`; // T-43 · CR 702.151a
     else if (ab.estacaoT) { const q = s.objects[[].concat((a.pay || {}).tapOther || [])[0]], n = q && isCreature(s, q) ? Math.max(0, power(s, q)) : 0; b.label = `Estação: virar ${q ? q.name : 'uma criatura'} (+${n} de carga)`; } // T-37 · CR 702.184a
     else { const c = custo(ab); b.label = `${ab.label || 'Ativar'}${c ? ` (${c})` : ''}${resto}`; } // T-13 · o rótulo que o script dá à ativada da barra (D3)
   }

@@ -5186,6 +5186,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `HANDLERS.unmorph` (dispara o gatilho, nas duas saídas), `wardsDeK` (a salvaguarda da disfarçada).
 - **Próximo:** auditoria independente de disfarce (com a próxima leva); 716.2 Classe; 309.6/309.7 masmorra.
 
+**CR5-T43 · Reconfigurar (702.151, 301.5c)** ✅ (leva T-43, sem mudança de versão do motor) — **Valor:** os Equipamentos-criatura de Kamigawa: Neon Dynasty (Lizard Blades, Lion Sash, Komainu Battle Armor…) têm forma de script; reconfigurar era palavra-chave delegada à trilha. **Aceite:** com `self.reconfigurar`, a permanente tem "anexar a outra criatura sua" e, anexada, "desanexar", só como feitiço, pelo custo de reconfigurar (702.151a); anexada, deixa de ser criatura e perde os subtipos de criatura (702.151b, 205.3d) — "destrua todas as criaturas" não a alcança; solta (por desanexar ou quando a criatura sai, 704.5n), volta a ser criatura; o bônus "equipped creature" vale para a criatura anexada. Mesa: "Reconfigurar: anexar a <criatura> · {2}" e "Reconfigurar: desanexar · {2}". **Testes:** `tipos.reconfigurar.unit` (8; falham sem a leva) e o teste de tela T-43 (com auditaTela). Carta: Lizard Blades (Oracle do Forge, clone de 13/10/2026). **Depende de:** CR5-T16/T-17 (Equipamentos).
+- **Mapa:** 702.151 (delegada à trilha) e 301.5.
+- **Versão e goldens:** a versão não sobe; goldens idênticos.
+- **Toca ponto comum:** `validateScript` (o bônus de Equipamento aceita o reconfigurar como forma de anexar); `redefinicoesDe`/`mutacao` (as linhas da T-37 passam a chamar a função da trilha que reúne estação e reconfigurar).
+- **Próximo:** auditoria independente de disfarce e reconfigurar (T-44); depois 716.2 Classe e 309.6/309.7 masmorra.
+
 **CR6 · Multijogador e variantes** ○ — mesa de três e quatro (800–803, 806), Commander de mesa (903.2), Brawl (903.12); as variantes hoje "fora" só entram por decisão. 10 a 14 levas.
 
 **CR7 · Consolidação** ○ (em paralelo a partir da CR2) — a cada fase: fuzz em modo completo com listas reais, homologação por revisor independente relendo a seção das regras contra o motor, e rodada de simulação do dono do produto. 6 a 8 levas ao todo.

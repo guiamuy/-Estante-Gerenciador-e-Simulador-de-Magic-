@@ -11230,3 +11230,29 @@ test('e2e · T-37 · CR 702.184 · estação: a folha da nave tem um botão por 
   if (linhas.length) assert.ok(linhas.some(l => /Pinnacle Kill-Ship recebeu 4 marcadores de carga \(estação\)/.test(l)), 'registro: ' + JSON.stringify(linhas.slice(-6)));
   assert.deepEqual(M.errors, []);
 });
+
+test('e2e · T-43 · CR 702.151 · reconfigurar: a folha da lâmina tem "Reconfigurar: anexar a <criatura> · {2}"; anexada, ela deixa de ser criatura e a folha passa a ter "desanexar"', { skip }, async t => {
+  // Texto oficial: Lizard Blades e Drover Grizzly em .listas/oficiais-tipos.json (Oracle do Forge, 13/10/2026).
+  const extras = JSON.parse(readFileSync(join(ROOT, '.listas', 'oficiais-tipos.json'), 'utf8')).cartas.filter(c => ['Lizard Blades', 'Drover Grizzly'].includes(c.name));
+  const M = await comLista125(t, '20 Mountain\n10 Lizard Blades\n10 Drover Grizzly', ['Mountain', 'Lizard Blades', 'Drover Grizzly'], '4', { extras });
+  const { page } = M;
+  const ids = await page.evaluate(() => { const s = window.__estanteMesa.estado(), z = s.zones[0];
+    const tira = (nome, ...de) => { for (const d of de) { const i = z[d].findIndex(o => s.objects[o].name === nome); if (i >= 0) return z[d].splice(i, 1)[0]; } return null; };
+    const campo = oid => { Object.assign(s.objects[oid], { zone: 'battlefield', controller: 0, tapped: false, sick: false, damage: 0, counters: {} }); z.battlefield.push(oid); return oid; };
+    for (let k = 0; k < 2; k++) campo(tira('Mountain', 'library', 'hand'));
+    return { l: campo(tira('Lizard Blades', 'library', 'hand')), g: campo(tira('Drover Grizzly', 'library', 'hand')) }; });
+  const terra = await M.oid('Mountain'); if (terra) { await M.act({ t: 'play_land', p: 0, oid: terra }); await page.waitForTimeout(250); } // a mesa redesenha com o que foi posto no campo
+  await page.locator(`.tb-side--me .tb-card[data-oid="${ids.l}"]`).first().click(); await page.waitForSelector('.ds-dialog'); await page.waitForTimeout(400);
+  const botoes = (await page.locator('.ds-dialog .tb-sheet__actions button').allInnerTexts()).map(x => x.replace(/\s+/g, ' ').trim());
+  assert.ok(botoes.includes('Reconfigurar: anexar a Drover Grizzly · {2}'), JSON.stringify(botoes));
+  const b = page.locator('.ds-dialog .tb-sheet__actions button', { hasText: /^Reconfigurar: anexar/ });
+  const cx = await b.boundingBox(); assert.ok(cx && cx.height >= 44, 'botão com 44 px de altura ou mais: ' + JSON.stringify(cx));
+  await auditaTela(page, 'folha da lâmina com reconfigurar');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/t43-reconfigurar.png' });
+  await b.click(); await page.waitForTimeout(300); await M.resolve();
+  await page.waitForFunction(i => window.__estanteMesa.estado().objects[i.l].attachedTo === i.g, ids, { timeout: 5000 });
+  await page.locator(`.tb-side--me .tb-card[data-oid="${ids.l}"]`).first().click().catch(() => {}); await page.waitForTimeout(400);
+  const depois = (await page.locator('.ds-dialog .tb-sheet__actions button').allInnerTexts().catch(() => [])).map(x => x.replace(/\s+/g, ' ').trim());
+  if (depois.length) assert.ok(depois.some(x => /^Reconfigurar: desanexar · \{2\}/.test(x)), JSON.stringify(depois));
+  assert.deepEqual(M.errors, []);
+});
