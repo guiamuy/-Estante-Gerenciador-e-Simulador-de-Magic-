@@ -21773,6 +21773,7 @@ const HANDLERS = {
     contaMagiaK(s, a.p); // K-32 · 702.117a: quantas mágicas cada jogador conjurou no turno (Toca ponto comum: HANDLERS.cast)
     if (a.flashback) s.objects[a.oid].flashback = true; // exila em vez de voltar ao cemitério
     if (a.recomecarK) s.objects[a.oid].flashback = true; // K-10 · 702.133a: "exile this card instead of putting it anywhere else any time it would leave the stack" (o mesmo caminho do lampejo, 702.34a)
+    if (fromGraveyard && a.face === 'direita' && consequenciaDaCartaT(s, s.objects[a.oid])) s.objects[a.oid].flashback = true; // T-33 · CR 702.127a: a metade de consequência conjurada do cemitério por qualquer caminho é exilada ao sair da pilha (Toca ponto comum: HANDLERS.cast)
     if (a.harmonizarK) s.objects[a.oid].flashback = true; // K-55 · 702.180a: "exile this card instead of putting it anywhere else any time it would leave the stack" (o caminho do lampejo)
     if (a.omen) s.objects[a.oid].omen = true; // volta embaralhado para o grimório
     if (a.bestow) s.objects[a.oid].bestowed = true; // entra como aura, não como criatura
@@ -22389,7 +22390,7 @@ const HANDLERS = {
     const pd = s.pending;
     if (!pd || pd.kind !== 'tripular' || pd.p !== a.p) throw new RuleError('tempo', 'nenhum Veículo esperando a tripulação');
     pd.escolhidas = escolhidasQueValem(s, pd);
-    if (forcaDoGrupo(s, pd.escolhidas) < pd.n) throw new RuleError('custo', `vire criaturas suas com poder total ${pd.n} ou mais`);
+    if (forcaDoGrupo(s, pd.escolhidas, ehVeiculo(s, s.objects[pd.oid])) < pd.n) throw new RuleError('custo', `vire criaturas suas com poder total ${pd.n} ou mais`);
     s.pending = null;
     HANDLERS.activate(s, { t: 'activate', p: a.p, oid: pd.oid, index: pd.index, pay: { crew: pd.escolhidas.slice() } }, ev);
   },
@@ -26162,13 +26163,14 @@ const selfT = (s, o) => (o && !o.faceDown && s.facts[o.name] && !semImpressas(s,
 /** 702.122d · a criatura não pode tripular: dito por ela mesma ou por quem está anexado a ela. */
 const naoTripula = (s, o) => !!selfT(s, o).naoTripula || attachedTo(s, o).some(x => !!selfT(s, x).anexadaNaoTripula);
 /** Com quanto a criatura conta para a soma de "poder total N ou mais" (pode ser negativo). */
-function forcaDeTripular(s, o) {
+function forcaDeTripular(s, o, veiculo = true) { // T-33 · os bônus de tripular ("crews Vehicles as though…") só valem para Veículo: selar uma montaria soma só o poder
   const eu = selfT(s, o), base = eu.tripulaPela === 'resistencia' ? toughness(s, o) : power(s, o);
   let mais = eu.tripulaMais || 0;
   for (const x of battlefield(s)) if (x.controller === o.controller) mais += selfT(s, x).suasTripulamMais || 0;
+  if (!veiculo) mais = 0; // T-33 · 702.171a: selar não é tripular
   return base + mais; // T-4 · 107.1b: poder negativo entra negativo na soma ("if a calculation or comparison needs to use a negative value, it does so")
 }
-const forcaDoGrupo = (s, lista) => lista.reduce((n, x) => n + forcaDeTripular(s, s.objects[x]), 0);
+const forcaDoGrupo = (s, lista, veiculo = true) => lista.reduce((n, x) => n + forcaDeTripular(s, s.objects[x], veiculo), 0); // T-33 · veiculo: o alvo da tripulação é Veículo
 /** 702.122a · quem pode ser virada para tripular o Veículo `selfOid`: outra criatura desvirada de `p` (enjoo não impede: o custo
  * não é o {T} dela), que possa tripular (702.122d). Um Veículo que já é criatura pode tripular outro. */
 const ehVeiculo = (s, o) => !!o && o.zone === 'battlefield' && /\bVehicle\b/.test(linhaDeTipo(s, o)); // T-4 · 702.122b–e falam de Veículo: habilidade de tripular em permanente de outro tipo paga o custo e mais nada
@@ -26177,7 +26179,7 @@ const candidatosATripular = (s, p, selfOid) => { const v = ehVeiculo(s, s.object
 function formasDeTripularT(s, p, n, selfOid) {
   // T-4 · sem teto de tamanho (o de cinco deixava "Tripular 6" com seis 1/1 sem ação). Só quem soma (força > 0) entra em grupo mínimo; em
   // ordem decrescente todo grupo que chega a N é mínimo, e o ramo que não alcança N com o que resta é cortado: a busca não explode.
-  const cands = candidatosATripular(s, p, selfOid).map(oid => ({ oid, f: forcaDeTripular(s, s.objects[oid]) })).filter(x => x.f > 0).sort((a, b) => b.f - a.f || (a.oid < b.oid ? -1 : 1));
+  const cands = candidatosATripular(s, p, selfOid).map(oid => ({ oid, f: forcaDeTripular(s, s.objects[oid], ehVeiculo(s, s.objects[selfOid])) })).filter(x => x.f > 0).sort((a, b) => b.f - a.f || (a.oid < b.oid ? -1 : 1));
   const resto = []; for (let i = cands.length - 1, acc = 0; i >= 0; i--) resto[i] = (acc += cands[i].f);
   const out = [];
   (function busca(i, escolhidos, soma) {
@@ -26194,7 +26196,7 @@ function tripulantesDe(s, v) { const t = v && v.tripulantes; return t && t.turno
  * (702.122c) e dispara "tripula um Veículo" de cada uma (702.122b). Devolve o custo sem a parte de tripular. */
 function pagaTripulacaoT(s, p, cost, pay, selfOid) {
   const n = cost.crew, lista = (pay && pay.crew) || formasDeTripularT(s, p, n, selfOid)[0] || [], cands = candidatosATripular(s, p, selfOid);
-  if (!Array.isArray(lista) || new Set(lista).size !== lista.length || !lista.every(x => cands.includes(x)) || forcaDoGrupo(s, lista) < n) throw new RuleError('custo', `vire criaturas suas com poder total ${n} ou mais`);
+  if (!Array.isArray(lista) || new Set(lista).size !== lista.length || !lista.every(x => cands.includes(x)) || forcaDoGrupo(s, lista, ehVeiculo(s, s.objects[selfOid])) < n) throw new RuleError('custo', `vire criaturas suas com poder total ${n} ou mais`);
   for (const x of lista) { const o = s.objects[x]; noteEnchantedEvent(s, o); o.tapped = true; }
   const v = s.objects[selfOid];
   if (v) {
@@ -26242,17 +26244,17 @@ const escolhidasQueValem = (s, pd) => { const c = candidatosATripular(s, pd.p, p
 function tripularPendentes(s, p, out) {
   const pd = s.pending; if (!pd || pd.kind !== 'tripular' || pd.p !== p) return;
   const valem = escolhidasQueValem(s, pd);
-  if (forcaDoGrupo(s, valem) >= pd.n) out.push({ t: 'tripular_pronto', p });
+  if (forcaDoGrupo(s, valem, ehVeiculo(s, s.objects[pd.oid])) >= pd.n) out.push({ t: 'tripular_pronto', p });
   for (const oid of candidatosATripular(s, p, pd.oid)) if (!valem.includes(oid)) out.push({ t: 'tripulante', p, oid });
 }
 PENDING_ACTIONS.tripular = ['tripulante', 'tripular_pronto', 'concede'];
 /** Para a mesa: o resumo da decisão pendente (nome, soma, quem falta) e a resposta de quem joga sem humano (goldfish). */
 function tripulacaoPendente(s) {
   const pd = s.pending; if (!pd || pd.kind !== 'tripular') return null;
-  const valem = escolhidasQueValem(s, pd), soma = forcaDoGrupo(s, valem);
+  const valem = escolhidasQueValem(s, pd), veic = ehVeiculo(s, s.objects[pd.oid]), soma = forcaDoGrupo(s, valem, veic);
   const ab = s.objects[pd.oid] && abilitiesOf(s, s.objects[pd.oid]).filter(x => x.kind === 'activated')[pd.index || 0]; // T-31 · selar usa a mesma decisão
   return { nome: pd.name, n: pd.n, soma, pronto: soma >= pd.n, selar: !!(ab && ab.selarT), escolhidas: valem.map(x => s.objects[x].name),
-    candidatos: candidatosATripular(s, pd.p, pd.oid).filter(x => !valem.includes(x)).map(oid => ({ oid, nome: s.objects[oid].name, forca: forcaDeTripular(s, s.objects[oid]) })) };
+    candidatos: candidatosATripular(s, pd.p, pd.oid).filter(x => !valem.includes(x)).map(oid => ({ oid, nome: s.objects[oid].name, forca: forcaDeTripular(s, s.objects[oid], veic) })) };
 }
 const tripulacaoPadrao = s => { const out = []; tripularPendentes(s, s.pending.p, out); return out[0] || { t: 'concede', p: s.pending.p }; };
 /** Para a folha da carta na mesa: as ações da trilha tipos que não são `activate`, com o rótulo do botão. */
@@ -28268,7 +28270,7 @@ function describe(before, a, events, after) {
     case 'saga_capitulo': L.push(`${P} começou ${(before.pending || {}).name || 'a Saga'} no capítulo ${['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'][a.n] || a.n}`); break; // T-1 · CR 714.3b
     case 'tripular': L.push(`${P} vai escolher quem tripula ${nameOf(before, a.oid)}`); break; // T-3 · CR 702.122a
     case 'tripulante': L.push(`${P} escolheu ${nameOf(before, a.oid)} para tripular`); break;
-    case 'tripular_pronto': { const pd = before.pending || {}; L.push(`${P} tripulou ${pd.name || 'o Veículo'} com ${(pd.escolhidas || []).map(x => nameOf(before, x)).join(' + ') || 'ninguém'}`); break; }
+    case 'tripular_pronto': { const pd = before.pending || {}; L.push(`${P} ${E.selarDaAcaoT(before, { t: 'activate', oid: pd.oid, index: pd.index }) ? 'selou' : 'tripulou'} ${pd.name || 'o Veículo'} com ${(pd.escolhidas || []).map(x => nameOf(before, x)).join(' + ') || 'ninguém'}`); break; }
     case 'dividir_dano': { const op = ((before.pending || {}).opcoes || [])[a.index]; L.push(`${P} dividiu o dano de ${nameOf(before, (before.pending || {}).oid)}: ${op ? op.rotulo : '?'}`); break; } // CR2g.2
     case 'choose_mode': { const pd = before.pending || {}; const alvo = pd.naResolucao && before.objects[pd.naResolucao.oid] ? before.objects[pd.naResolucao.oid].name : null;
       L.push(a.decline ? `${P} preferiu não usar o efeito de ${pd.name || 'o gatilho'}` : `${P} escolheu ${String((pd.options || [])[a.index || 0] || 'um modo').toLowerCase()}${alvo ? ' ' + alvo : ''} (${pd.name || 'gatilho'})`); break; }

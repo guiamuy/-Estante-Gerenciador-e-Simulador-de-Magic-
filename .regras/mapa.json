@@ -8751,12 +8751,13 @@
     "601.3 conjurar do cemitério"
    ],
    "cartas": "rara (Amonkhet)",
-   "evidencia": "T-32 (13/10/2026): back.aftermath na metade direita de carta dividida; ela só é conjurada do cemitério, pelo custo dela, e vai para o exílio ao sair da pilha (resolvida ou anulada) — caminho do lampejo com o custo da metade; da mão, do exílio ou sem pagar fora do cemitério, não. Mesa: \"Conjurar Mind do cemitério · {4}{U}{U}\"; registro \"do cemitério (consequência)\". Carta exemplo completa: Spring // Mind (Oracle do Forge, 13/10/2026).",
+   "evidencia": "T-32 (13/10/2026): back.aftermath na metade direita de carta dividida; ela só é conjurada do cemitério, pelo custo dela, e vai para o exílio ao sair da pilha (resolvida ou anulada) — caminho do lampejo com o custo da metade; da mão, do exílio ou sem pagar fora do cemitério, não. Mesa: \"Conjurar Mind do cemitério · {4}{U}{U}\"; registro \"do cemitério (consequência)\". Carta exemplo completa: Spring // Mind (Oracle do Forge, 13/10/2026). T-33 (13/10/2026) · auditoria independente (34 conferências): a metade de consequência conjurada do cemitério por outra permissão também vai para o exílio.",
    "testes": [
     "CR 702.127a · da mão, só a metade sem consequência (Spring); Mind não é conjurada da mão (nem por pedido direto)",
     "CR 702.127a · do cemitério, só a metade com consequência (Mind), pelo custo dela; Spring não",
     "CR 702.127a · Mind (instantânea) do cemitério: compra duas e vai para o exílio, não para o cemitério",
-    "CR 702.127a · Mind anulada também vai para o exílio"
+    "CR 702.127a · Mind anulada também vai para o exílio",
+    "CR 702.127a · a metade de consequência conjurada do cemitério por outra permissão também vai para o exílio"
    ]
   },
   {
@@ -9383,20 +9384,21 @@
    "regra": "Keyword Abilities",
    "titulo": "Saddle",
    "status": "parcial",
-   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): selar (saddle) é a montaria, irmã do tripular (T-3). T-31 (13/10/2026): falta só 702.171c — o gatilho \"whenever ~ saddles a Mount\" e \"não pode selar\" ainda não existem; quem tripula \"como se tivesse poder maior\" soma também para selar.",
+   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): selar (saddle) é a montaria, irmã do tripular (T-3). T-31 (13/10/2026): falta só 702.171c — o gatilho \"whenever ~ saddles a Mount\" e \"não pode selar\" ainda não existem; quem tripula \"como se tivesse poder maior\" soma também para selar. T-33: Veículo que também tem Selar conta a selagem como tripulação (gatilho \"crews\", \"não pode tripular\") — nenhuma carta oficial tem os dois.",
    "esforco": "M",
    "depende": [
     "602 custo de virar várias criaturas"
    ],
    "cartas": "uma coleção só (Outlaws of Thunder Junction)",
-   "evidencia": "T-31 (13/10/2026): self.selar = N monta a ativada de selar (custo de tripular N, só como feitiço, grupos mínimos e escolha livre de quem sela, efeito selada); selada até o fim do turno ou até sair do campo, não copiável (o.seladaT com turno e encarnação); a habilidade que resolve depois de a montaria sair e voltar não sela (400.7); \"attacks while saddled\" = gatilho attacks com condition { selada: true }. Mesa: \"Selar N\", \"Quem sela …?\", registro \"X foi selada\". Cartas exemplo completas: Bridled Bighorn, Trained Arynx, Drover Grizzly (Oracle do Forge, 13/10/2026).",
+   "evidencia": "T-31 (13/10/2026): self.selar = N monta a ativada de selar (custo de tripular N, só como feitiço, grupos mínimos e escolha livre de quem sela, efeito selada); selada até o fim do turno ou até sair do campo, não copiável (o.seladaT com turno e encarnação); a habilidade que resolve depois de a montaria sair e voltar não sela (400.7); \"attacks while saddled\" = gatilho attacks com condition { selada: true }. Mesa: \"Selar N\", \"Quem sela …?\", registro \"X foi selada\". Cartas exemplo completas: Bridled Bighorn, Trained Arynx, Drover Grizzly (Oracle do Forge, 13/10/2026). T-33 (13/10/2026) · auditoria independente (77 conferências, fuzz de 20 partidas / 5.000 ações, 222 selagens): os bônus de tripular (\"crews Vehicles as though…\") não somam para selar; o registro da escolha livre diz \"selou\".",
    "testes": [
     "CR 702.171a · selar N: virar outras criaturas suas com poder total N ou mais (enjoo não impede); só como feitiço; a montaria fica selada",
     "CR 702.171a · poder somado: dois 1/1 selam \"Selar 2\"; um 1/1 só, não",
     "CR 702.171b · selada até o fim do turno; no turno seguinte, não",
     "CR 702.171b / 400.7 · a montaria que sai do campo deixa de estar selada (objeto novo)",
     "CR 400.7 · a habilidade de selar que resolve depois de a montaria sair e voltar não sela o objeto novo",
-    "Bridled Bighorn (texto oficial) · atacando selada, cria uma Ovelha 1/1 branca; sem selar, nada"
+    "Bridled Bighorn (texto oficial) · atacando selada, cria uma Ovelha 1/1 branca; sem selar, nada",
+    "CR 702.171a · selar não é tripular: o bônus \"tripula Veículos como se tivesse poder maior\" não soma para selar (e soma para tripular)"
    ]
   },
   {

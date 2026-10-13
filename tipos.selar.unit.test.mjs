@@ -118,3 +118,27 @@ test('Mesa · a decisão de escolher quem sela fala em selar, e o registro diz q
   const linhas = T.describe(r2.state, { t: 'pass', p: 1 }, r3.events, r3.state);
   assert.ok(linhas.some(l => /Bridled Bighorn foi selada/.test(l)), JSON.stringify(linhas));
 });
+
+/* ---------------- T-33 · correções da auditoria independente ---------------- */
+test('CR 702.171a · selar não é tripular: o bônus "tripula Veículos como se tivesse poder maior" não soma para selar (e soma para tripular)', () => {
+  const cards = { ...C, 'Mecânico': { name: 'Mecânico', type_line: 'Creature — Human Artificer', mana_cost: '{1}', cmc: 1, keywords: [], oracle_text: '', colors: [], power: '2', toughness: '2' },
+    'Montaria4': { name: 'Montaria4', type_line: 'Creature — Horse Mount', mana_cost: '{1}', cmc: 1, keywords: [], oracle_text: '', colors: [], power: '5', toughness: '5' },
+    'Carroça': { name: 'Carroça', type_line: 'Artifact — Vehicle', mana_cost: '{1}', cmc: 1, keywords: [], oracle_text: '', colors: [], power: '5', toughness: '5' } };
+  const scripts = { ...SCRIPTS, 'Mecânico': { name: 'Mecânico', self: { tripulaMais: 2 }, ...EX }, 'Montaria4': { name: 'Montaria4', self: { selar: 4 }, ...EX },
+    'Carroça': { name: 'Carroça', abilities: [{ kind: 'activated', label: 'Tripular 4', cost: { crew: 4 }, effects: [{ do: 'tripulada' }] }], ...EX } };
+  const deck = ['Mecânico', 'Montaria4', 'Carroça'].map(name => ({ name, qty: 6, zone: 'main' })).concat([{ name: 'Plains', qty: 22, zone: 'main' }]);
+  let s = E.createGame({ format: 'livre', seed: 1, mode: 'full', cards, scripts, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  s = passaAte(s, x => x.turn.active === 0 && x.turn.step === 'main1' && !x.stack.length && !x.pending);
+  let m; [s, m] = poe(s, 0, 'Montaria4', 'battlefield', { sick: false }); let v; [s, v] = poe(s, 0, 'Carroça'); [s] = poe(s, 0, 'Mecânico');
+  eq([selas(s, 0, m).length, legais(s, 0, a => a.t === 'activate' && a.oid === v && a.pay && Array.isArray(a.pay.crew)).length > 0], [0, true], 'o Mecânico (2 + 2 para Veículo) tripula a Carroça 4, mas não sela a Montaria 4');
+});
+
+test('Registro · a escolha livre de quem sela diz "selou", não "tripulou"', () => {
+  let s = mesa(); let b; [s, b] = poe(s, 0, BB, 'battlefield', { sick: false }); let r1; [s, r1] = poe(s, 0, 'Rato'); let r2; [s, r2] = poe(s, 0, 'Rato'); let r3; [s, r3] = poe(s, 0, 'Rato');
+  const of = legais(s, 0, a => a.t === 'tripular' && a.oid === b); assert.ok(of.length, 'a escolha livre existe (três 1/1 para Selar 2)');
+  s = act(s, of[0]); s = act(s, { t: 'tripulante', p: 0, oid: r1 }); s = act(s, { t: 'tripulante', p: 0, oid: r2 }); s = act(s, { t: 'tripulante', p: 0, oid: r3 });
+  const a = { t: 'tripular_pronto', p: 0 }, r = E.apply(s, a);
+  const linhas = T.describe(s, a, r.events, r.state).join(' | ');
+  assert.ok(/selou Bridled Bighorn com Rato \+ Rato \+ Rato/.test(linhas), linhas);
+});

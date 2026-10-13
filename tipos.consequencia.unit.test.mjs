@@ -99,3 +99,18 @@ test('CR 709.4a / fatos por nome · uma carta com script próprio que tem o mesm
   const nomes = [...new Set(Object.values(s.objects).filter(o => o.owner === 0).map(o => o.name))].sort();
   eq(nomes, ['Island', 'Mind']);
 });
+
+/* ---------------- T-33 · correção da auditoria independente ---------------- */
+test('CR 702.127a · a metade de consequência conjurada do cemitério por outra permissão também vai para o exílio', () => {
+  const cards = { ...C, 'Biblioteca': { name: 'Biblioteca', type_line: 'Enchantment', mana_cost: '{1}', cmc: 1, keywords: [], oracle_text: '', colors: [] } };
+  const scripts = { ...SCRIPTS, 'Biblioteca': { name: 'Biblioteca', permiteConjurar: { de: 'graveyard', filtro: { tipos: ['instant'] }, porTurno: 1 }, ...EX } };
+  const deck = [{ name: SM, qty: 8, zone: 'main' }, { name: 'Biblioteca', qty: 4, zone: 'main' }, { name: 'Island', qty: 28, zone: 'main' }];
+  let s = E.createGame({ format: 'livre', seed: 1, mode: 'full', cards, scripts, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  s = passaAte(s, x => x.turn.active === 0 && x.turn.step === 'main1' && !x.stack.length && !x.pending);
+  let b; [s, b] = poe(s, 0, 'Biblioteca'); let c; [s, c] = poe(s, 0, SM, 'graveyard'); s = mana(s);
+  const a = legais(s, 0, x => x.t === 'cast' && x.oid === c && x.face === 'direita' && x.permissao != null)[0];
+  assert.ok(a, 'Mind pela permissão da Biblioteca');
+  s = esvazia(act(s, a));
+  eq(s.objects[c].zone, 'exile');
+});

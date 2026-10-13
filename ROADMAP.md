@@ -4957,6 +4957,14 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `HANDLERS.cast` (um termo na conferência do lampejo), linhas do registro (uma linha).
 - **Próximo:** T-33 fundir carta dividida (fuse, 702.102); T-34 auditoria independente de selar e consequência.
 
+**CR5-T33 · Selar e consequência: correções da auditoria independente** ✅ (leva T-33, sem mudança de versão do motor) — revisor sem acesso à implementação rodou 77 conferências e um fuzz de 20 partidas (5.000 ações, 222 selagens, 137 metades de carta dividida); 4 divergências. 3 testes novos (`tipos.selar.unit` 12, `tipos.consequencia.unit` 10; falham sem a leva).
+- **Corrigido:** **702.171a (D2)** — o bônus "tripula Veículos como se tivesse poder maior" (Hotshot Mechanic) somava para selar; agora os bônus de tripular só valem para Veículo. **Registro (D3)** — a escolha livre de quem sela dizia "tripulou". **702.127a (D4)** — a metade de consequência conjurada do cemitério por outra permissão ia para o cemitério; agora vai para o exílio por qualquer caminho do cemitério (a simplificação do lampejo declarada na T-32 deixou de ter exceção).
+- **Fora, declarado (D1):** Veículo que também tem Selar conta a selagem como tripulação (gatilho "crews", "não pode tripular"); nenhuma carta oficial tem os dois.
+- **Conferido e correto pela auditoria:** custo e tempo de selar (inclusive pedido direto e escolha livre), duração, cópia e troca de controle, "ataca selada", selar não anima; consequência só do cemitério pelo custo dela, exílio resolvida, anulada ou devolvida, características na pilha e fora dela, tempo de instantânea, registro.
+- **Versão e goldens:** a versão não sobe; goldens idênticos.
+- **Toca ponto comum:** `HANDLERS.cast` (uma linha: a marca de exílio da metade de consequência).
+- **Próximo:** T-34 fundir carta dividida (fuse, 702.102).
+
 **CR6 · Multijogador e variantes** ○ — mesa de três e quatro (800–803, 806), Commander de mesa (903.2), Brawl (903.12); as variantes hoje "fora" só entram por decisão. 10 a 14 levas.
 
 **CR7 · Consolidação** ○ (em paralelo a partir da CR2) — a cada fase: fuzz em modo completo com listas reais, homologação por revisor independente relendo a seção das regras contra o motor, e rodada de simulação do dono do produto. 6 a 8 levas ao todo.
