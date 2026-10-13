@@ -17492,7 +17492,7 @@ function aplicaTemporario(s, o, { poder, resistencia, palavras, ate = 'fim-do-tu
     nome, sem subtipo, sem habilidades e incolor (e a cópia fica virada para cima). No motor: fatos de nome próprio, criados uma vez. */
 const NOME_DA_VIRADA = 'Criatura virada para baixo';
 function nomeCopiavel(s, modelo) {
-  if (modelo && modelo.frontName && virarScriptT(s, modelo)) return modelo.frontName; // T-29 · CR 707.2 / 110.5: o status de virada não é copiado — a cópia é a parte normal (Toca ponto comum: nomeCopiavel)
+  { const pn = parteNormalT(s, modelo); if (pn) return pn; } // T-29/T-30 · CR 707.2 / 110.5: o status de virada não é copiado — a cópia é a parte normal (Toca ponto comum: nomeCopiavel)
   if (!modelo || !modelo.faceDown) return modelo && modelo.name;
   if (!s.facts[NOME_DA_VIRADA]) s.facts[NOME_DA_VIRADA] = cardFacts({ name: NOME_DA_VIRADA, type_line: 'Creature', power: '2', toughness: '2', colors: [], keywords: [], oracle_text: '' });
   return NOME_DA_VIRADA;
@@ -17521,7 +17521,7 @@ function aplicaCopia(s, o, modelo, ate = 'sempre', excecao) {
 function recalculaCopia(s, o) {
   if (!o.copias && o.nomeImpresso == null) return false;
   const vale = (o.copias || []).filter(t => vigente(s, t));
-  const nome = vale.length ? vale.reduce((a, b) => (b.ts > a.ts ? b : a)).nome : o.nomeImpresso;
+  const nome = nomeComStatusT(s, o, vale.length ? vale.reduce((a, b) => (b.ts > a.ts ? b : a)).nome : o.nomeImpresso); // T-30 · 110.5c: permanente virada que copia carta de virar fica com a alternativa (Toca ponto comum: recalculaCopia)
   if (vale.length) o.copias = vale; else { delete o.copias; delete o.nomeImpresso; }
   if (nome == null || nome === o.name) return false;
   o.name = nome; return true;
@@ -21284,7 +21284,7 @@ function resolveTop(s, events = []) {
     o.copiaEscolhida = null;
   }
   if (comoCopia && o.copiaEscolhida) { const m = s.objects[o.copiaEscolhida];
-    if (m && m.zone === 'battlefield' && s.facts[m.name]) { const exc = excecaoCopiavel(s, m, { somaTipos: f.script.entraComoCopia.somaTipos }); o.nomeImpresso = o.name; o.copias = [{ ...(exc ? { excecao: exc } : {}), nome: nomeCopiavel(s, m), ate: 'sempre', by: controller, ts: relogio(s), turno: s.turn.number }]; o.name = m.name; } }
+    if (m && m.zone === 'battlefield' && s.facts[m.name]) { const exc = excecaoCopiavel(s, m, { somaTipos: f.script.entraComoCopia.somaTipos }); o.nomeImpresso = o.name; o.copias = [{ ...(exc ? { excecao: exc } : {}), nome: nomeCopiavel(s, m), ate: 'sempre', by: controller, ts: relogio(s), turno: s.turn.number }]; o.name = o.copias[0].nome; } } // T-30 · 707.2: o nome copiado é o copiável (a carta virada copia a parte normal) (Toca ponto comum: entraComoCopia)
   if (scripted && !comoCopia) resolveScript(s, o, events);
   { const av = aventuraResolveu(s, item, o, controller, events); if (av) return { kind: 'resolved', oid: item, name: av, to: (s.objects[item] || {}).zone || 'exile', scripted: true, adjudicate: false }; } // T-5 · CR 715.3d · a Aventura que resolve é exilada pelo controlador, que pode conjurar a carta de lá (função abaixo da âncora T das exportações)
   { const rk = destinoAoResolverK(s, item, o, dest, events); if (rk) return { kind: 'resolved', oid: item, name: o.name, to: rk, scripted, adjudicate: s.mode === 'assisted' && !scripted }; } // K-33 · 702.27a recompra · K-35 · 702.88a ricochete (Toca ponto comum: resolveTop)
@@ -22456,7 +22456,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
     if (k === 'triggers') s.queued.filter(q => q.controller === p).forEach((q, i) => out.push({ t: 'order_trigger', p, index: i }));
     if (k === 'blockers') {
       out.push({ t: 'block', p, blocks: [] });
-      const el = eligibleBlockers(s, p), atk = s.combat.attackers.filter(x => s.objects[x].zone === 'battlefield');
+      const el = eligibleBlockers(s, p), atk = s.combat.attackers.filter(x => s.objects[x] && s.objects[x].zone === 'battlefield'); // T-30 · a ficha atacante que deixou de existir (704.5d) não quebra as ofertas (Toca ponto comum: legalActions, bloqueio)
       for (const b of el) for (const a of atk) if (canBlock(s, b, a) && !has(s, s.objects[a], 'menace')) out.push({ t: 'block', p, blocks: [[b, a]] });
       for (const a of atk) {
         const can = el.filter(b => canBlock(s, b, a));
@@ -25454,20 +25454,40 @@ Object.assign(EXPORTS_T, { portasDaSalaT, nomeDaPortaT, valorDaSalaT, rotuloDaPo
    - 710.4 / 110.5: virar é sem volta; saindo do campo, a carta perde o status (moveObject já volta à frente). A habilidade de virar
      criada antes de a carta entrar no campo não vira o objeto novo (400.7, `virarEmT`).
    - 707.2: o status não é copiado — a cópia de uma carta virada é a parte normal (`nomeCopiavel`). */
+/** T-30 · 110.5c · o nome que um efeito de cópia dá a uma permanente virada: se é uma carta de virar, a parte alternativa (exemplo de Tomoya). */
+function nomeComStatusT(s, o, nome) {
+  if (!o || !o.viradaT || nome == null || o.zone !== 'battlefield') return nome;
+  const sc = (s.facts[nome] || {}).script; if (!sc || !sc.self || !sc.self.virar || !sc.back) return nome;
+  return typeof sc.back === 'string' ? sc.back : sc.back.name;
+}
+/** T-30 · 707.2 · a parte normal da permanente virada (o status não é copiado), ou null. */
+function parteNormalT(s, o) {
+  if (!o || o.ability) return null;
+  if (o.viradaT && o.viradaDeT && (((s.facts[o.viradaDeT] || {}).script || {}).self || {}).virar) return o.viradaDeT;
+  return o.frontName && virarScriptT(s, o) ? o.frontName : null;
+}
 function virarScriptT(s, o) { const f = o && !o.ability && s.facts[o.frontName || o.name], sc = f && f.script; return sc && sc.self && sc.self.virar ? sc : null; }
 function fatosDaViradaT(s, sc, setup, fb) {
   const nome = Object.keys((setup && setup.cards) || {}).find(n => n === sc.name || n.startsWith(sc.name + ' // ')), f = (nome && s.facts[nome]) || s.facts[sc.name];
   if (f) { fb.cost = f.cost; fb.cmc = f.cmc; fb.colors = (f.colors || []).slice(); fb.semCusto = f.semCusto; }
   fb.legendary = !!sc.back.legendary;
+  if (f && f !== fb) { // T-30 · 710.2: a parte normal não tem o subtipo nem a palavra-chave da alternativa (o dado traz a linha de tipo e as palavras das duas partes)
+    f.typeText = String(f.typeText || '').split(' // ')[0];
+    const daAlt = (sc.back.keywords || []).map(k => String(k).toLowerCase()), fixas = ((sc.self && sc.self.keywords) || []).map(k => String(k).toLowerCase());
+    f.kw = (f.kw || []).filter(k => !daAlt.includes(k) || fixas.includes(k)); f.flash = f.kw.includes('flash');
+  }
 }
 function viraCartaT(s, src, eff, events) {
   const o = src.ability ? s.objects[src.source] : src, sc = virarScriptT(s, o);
   const falha = motivo => events.push({ kind: 'effect', do: 'virar_carta', name: (o && o.name) || src.name, failed: true, motivo });
   if (!o || !sc || o.zone !== 'battlefield' || o.faceDown || o.phasedOut) return falha();
-  if (o.frontName) return falha('já virada'); // 710.4
+  if (o.frontName || o.viradaT) return falha('já virada'); // 710.4
   if (src.ability && src.source === o.oid && o.virarEmT != null && parseInt(String(src.oid).slice(2), 10) < o.virarEmT) return falha(); // 400.7
   if (eff.se && eff.se.minCriaturas != null && battlefield(s).filter(x => x.controller === src.controller && isCreature(s, x)).length < eff.se.minCriaturas) return falha(`menos de ${eff.se.minCriaturas} criaturas`);
-  const de = o.name, ts = o.ts; flipTo(s, o, typeof sc.back === 'string' ? sc.back : sc.back.name); o.ts = ts; // nos fatos, `back` é o nome // virar não dá carimbo novo
+  const de = o.name, ts = o.ts, alt = typeof sc.back === 'string' ? sc.back : sc.back.name; // nos fatos, `back` é o nome
+  if (o.nomeImpresso != null) o.name = alt; // T-30 · cópia de carta de virar: o nome copiado vira o da alternativa, e o impresso (o Clone) fica para quando sair do campo (110.5d); o status mantém a alternativa no recálculo da cópia
+  else flipTo(s, o, alt);
+  o.ts = ts; o.viradaT = true; o.viradaDeT = de; // T-30 · 110.5: o status da permanente; virar não dá carimbo novo (a parte normal fica guardada para a cópia, 707.2)
   events.push({ kind: 'effect', do: 'virar_carta', name: de, target: o.name });
 }
 Object.assign(EXPORTS_T, { virarScriptT });
@@ -25878,6 +25898,7 @@ function sagaEntrou(s, o) {
   if (o && ehEquipamentoImpressoT(s, o)) o.entrouEmAbT = s.nextAbility; // T-17 · CR 400.7: a habilidade de equipar criada antes de o Equipamento entrar é do objeto anterior
   auraEntrouT(s, o); // T-22 · CR 303.4f · Aura que entrou sem ser conjurada: anexa à única opção ou abre a escolha
   batalhaEntrouT(s, o); // T-14 · CR 310.4b / 310.9a · a batalha que entra: marcadores de defesa e protetor (mesmo ponto de entrada: moveObject e createToken)
+  if (o) { delete o.viradaT; delete o.viradaDeT; } // T-30 · 110.5b: entra sem virar
   if (o && virarScriptT(s, o)) o.virarEmT = s.nextAbility; // T-29 · CR 400.7: a habilidade de virar criada antes de a carta entrar é do objeto anterior
   if (o && parDuplaFaceT(s, o)) o.transformouEm = s.nextAbility; // T-9 · 400.7 / 701.27f: habilidade criada antes de a dupla face entrar no campo é do objeto antigo e não a transforma
   if (!o || !ehSaga(s, o)) return;

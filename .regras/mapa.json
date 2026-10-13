@@ -10418,9 +10418,10 @@
    "depende": [
     "710.1"
    ],
-   "evidencia": "T-29 (13/10/2026): antes de virar e fora do campo a carta tem só as características normais (não é lendária para \"criatura lendária\"); virada, as alternativas (a regra das lendas vale).",
+   "evidencia": "T-29 (13/10/2026): antes de virar e fora do campo a carta tem só as características normais (não é lendária para \"criatura lendária\"); virada, as alternativas (a regra das lendas vale). T-30 (13/10/2026) · auditoria independente (86 conferências, fuzz de 30 partidas / 7.466 ações, 62 viradas): a parte normal não tem o subtipo nem a palavra-chave da alternativa (o dado traz a linha de tipo e as palavras das duas partes).",
    "testes": [
-    "CR 710.2 / 205.4 · \"criatura lendária\": a carta não virada não é lendária; virada, é (e a regra das lendas vale para duas viradas)"
+    "CR 710.2 / 205.4 · \"criatura lendária\": a carta não virada não é lendária; virada, é (e a regra das lendas vale para duas viradas)",
+    "CR 710.2 · antes de virar, o subtipo e a palavra-chave da parte alternativa não valem (a linha de tipo das duas partes vem junta no dado)"
    ]
   },
   {
@@ -10439,12 +10440,16 @@
    "depende": [
     "710.1"
    ],
-   "evidencia": "T-29 (13/10/2026): virar é sem volta (virar_carta numa virada não faz nada); saindo do campo a carta perde o status (110.5) e entra de novo sem virar; a habilidade de virar criada antes de a carta sair e voltar não vira o objeto novo (400.7). 707.2: a cópia de uma virada é a parte normal (nomeCopiavel).",
+   "evidencia": "T-29 (13/10/2026): virar é sem volta (virar_carta numa virada não faz nada); saindo do campo a carta perde o status (110.5) e entra de novo sem virar; a habilidade de virar criada antes de a carta sair e voltar não vira o objeto novo (400.7). 707.2: a cópia de uma virada é a parte normal (nomeCopiavel). T-30 (13/10/2026): o status de virada é da permanente (viradaT): a cópia de carta de virar que vira continua virada no recálculo da cópia e sai do campo como ela mesma (110.5c/d); o Clone que entra copiando uma virada é a parte normal (707.2); a permanente virada que vira cópia de uma carta de virar não virada fica com a alternativa (exemplo de Tomoya).",
    "testes": [
     "CR 710.4 · virar é sem volta: virada, \"flip\" de novo não faz nada",
     "CR 400.7 / 110.5 · a carta virada que sai do campo volta a ser só a parte normal; entra de novo sem virar",
     "CR 400.7 · a habilidade de virar ativada antes de a carta sair e voltar não vira o objeto novo",
-    "CR 707.2 / 110.5 · a cópia de uma carta virada não copia o status: é a parte normal, não virada"
+    "CR 707.2 / 110.5 · a cópia de uma carta virada não copia o status: é a parte normal, não virada",
+    "CR 707.2 · o Clone que entra copiando uma carta virada é a parte normal, não virada (já ao entrar)",
+    "CR 710.4 / 110.5c · a cópia de uma carta de virar que vira continua virada no fim do turno",
+    "CR 400.7 / 110.5d · a cópia que virou sai do campo como a carta que ela é (o Clone vai ao cemitério como Clone)",
+    "CR 110.5c / 707.2 (exemplo de Tomoya) · a permanente virada que vira cópia de uma carta de virar não virada fica com a parte alternativa dela"
    ]
   },
   {

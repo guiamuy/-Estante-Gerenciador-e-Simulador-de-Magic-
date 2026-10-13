@@ -21,13 +21,22 @@ const SCRIPTS = {
   'Espelho': { name: 'Espelho', effects: [{ do: 'ficha_copia', amount: 1, target: 'creature' }], ...EX },
   'Busca Lendária': { name: 'Busca Lendária', effects: [{ do: 'destroy', target: { tipos: ['creature'], lendaria: true } }], ...EX }, // "Destroy target legendary creature."
   'Sopro': { name: 'Sopro', effects: [{ do: 'gain', amount: 1 }], ...EX },
+  // T-30 · cartas das divergências da auditoria
+  'Pupilo': { name: 'Pupilo', self: { virar: true }, abilities: [{ kind: 'activated', cost: { tap: true }, effects: [{ do: 'virar_carta' }] }],
+    back: { name: 'Dragona', types: ['creature'], subtypes: ['Dragon'], legendary: true, power: 5, toughness: 5, keywords: ['flying'] }, ...EX },
+  'Mata Dragão': { name: 'Mata Dragão', effects: [{ do: 'destroy', target: { tipos: ['creature'], subtipos: ['Dragon'] } }], ...EX }, // "Destroy target Dragon."
+  'Clone': { name: 'Clone', entraComoCopia: { tipos: ['creature'] }, ...EX }, // "You may have Clone enter as a copy of any creature on the battlefield."
+  'Matar': { name: 'Matar', effects: [{ do: 'destroy', target: 'creature' }], ...EX },
 };
 carta('Aprendiz // Mestra', 'Creature — Human Monk // Legendary Creature — Human Monk', { mana_cost: '{1}{W}', cmc: 2, colors: ['W'], power: '1', toughness: '1', layout: 'flip' });
 carta('Rebote', 'Instant'); carta('Espelho', 'Sorcery'); carta('Busca Lendária', 'Instant'); carta('Sopro', 'Instant');
 carta('Urso', 'Creature — Bear', { power: '2', toughness: '2' });
+carta('Pupilo // Dragona', 'Creature — Human Wizard // Legendary Creature — Dragon', { mana_cost: '{2}{R}', cmc: 3, colors: ['R'], power: '1', toughness: '1', layout: 'flip', keywords: ['Flying'] }); // como sem `faces`: a palavra da parte alternativa vem junto
+carta('Mata Dragão', 'Instant'); carta('Clone', 'Creature — Shapeshifter', { power: '0', toughness: '0', mana_cost: '{3}{U}', cmc: 4 }); carta('Matar', 'Instant');
 
 const OE = 'Orochi Eggwatcher // Shidako, Broodmistress', AM = 'Aprendiz // Mestra';
-const TODAS = [OE, AM, 'Rebote', 'Espelho', 'Busca Lendária', 'Sopro', 'Urso'];
+const PD = 'Pupilo // Dragona';
+const TODAS = [OE, AM, PD, 'Rebote', 'Espelho', 'Busca Lendária', 'Sopro', 'Mata Dragão', 'Clone', 'Matar', 'Urso'];
 function mesa(seed = 1) {
   const deck = [...TODAS.map(name => ({ name, qty: name === 'Urso' ? 12 : 4, zone: 'main' })), { name: 'Forest', qty: 12, zone: 'main' }];
   let s = E.createGame({ format: 'livre', seed, mode: 'full', cards: C, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
@@ -156,4 +165,67 @@ test('CR 710 · passeio aleatório com cartas de virar: nada oferecido é recusa
     }
   }
   assert.ok(viradas > 3, `o passeio virou cartas (${viradas})`);
+});
+
+/* ---------------- T-30 · correções da auditoria independente ---------------- */
+test('CR 710.2 · antes de virar, o subtipo e a palavra-chave da parte alternativa não valem (a linha de tipo das duas partes vem junta no dado)', () => {
+  let s = mesa(); let p; [s, p] = poe(s, 1, PD, 'battlefield', { sick: false });
+  eq([E.linhaDeTipo(s, s.objects[p]), E.hasKeyword(s, s.objects[p], 'flying')], ['Creature — Human Wizard', false]);
+  let m; [s, m] = poe(s, 0, 'Mata Dragão', 'hand'); s = mana(s);
+  assert.equal(legais(s, 0, a => a.t === 'cast' && a.oid === m && (a.targets || []).some(t => t.oid === p)).length, 0, '"Dragão alvo" não mira o Pupilo');
+  s = J(s); s.objects[p].frontName = s.objects[p].name; s.objects[p].name = 'Dragona';
+  assert.ok(E.hasKeyword(s, s.objects[p], 'flying') && legais(s, 0, a => a.t === 'cast' && a.oid === m && (a.targets || []).some(t => t.oid === p)).length > 0, 'virada: Dragão que voa');
+});
+
+function clonaAprendiz(s) { // Clone entra copiando o Aprendiz (não virado): devolve [s, aprendiz, clone]
+  let a; [s, a] = poe(s, 0, AM, 'battlefield', { sick: false }); let c; [s, c] = poe(s, 0, 'Clone', 'hand'); s = mana(s);
+  s = act(s, legais(s, 0, x => x.t === 'cast' && x.oid === c)[0]); s = passaAte(s, x => !!x.pending || !x.stack.length);
+  if (s.pending && s.pending.kind === 'pick') s = act(s, legais(s, 0, x => x.t === 'pick' && x.oid === a)[0] || legais(s, 0, x => x.oid === a)[0]);
+  return [esvazia(s), a, c];
+}
+
+test('CR 707.2 · o Clone que entra copiando uma carta virada é a parte normal, não virada (já ao entrar)', () => {
+  let s = mesa(); let a; [s, a] = poe(s, 0, AM, 'battlefield', { sick: false }); s = ativa(s, 0, a);
+  let c; [s, c] = poe(s, 0, 'Clone', 'hand'); s = mana(s);
+  s = act(s, legais(s, 0, x => x.t === 'cast' && x.oid === c)[0]); s = passaAte(s, x => !!x.pending || !x.stack.length);
+  if (s.pending && s.pending.kind === 'pick') s = act(s, legais(s, 0, x => x.oid === a)[0]);
+  s = esvazia(s);
+  eq([s.objects[c].name, pt(s, c)], [AM, [1, 1]]);
+});
+
+test('CR 710.4 / 110.5c · a cópia de uma carta de virar que vira continua virada no fim do turno', () => {
+  let [s, a, c] = clonaAprendiz(mesa());
+  assert.equal(s.objects[c].name, AM, 'o Clone é o Aprendiz');
+  s = ativa(desvira(s, c), 0, c);
+  assert.equal(s.objects[c].name, 'Mestra');
+  s = passaAte(s, x => x.turn.active === 1 && x.turn.step === 'main1');
+  eq([s.objects[c].name, pt(s, c)], ['Mestra', [4, 4]]);
+});
+
+test('CR 400.7 / 110.5d · a cópia que virou sai do campo como a carta que ela é (o Clone vai ao cemitério como Clone)', () => {
+  let [s, a, c] = clonaAprendiz(mesa());
+  s = ativa(desvira(s, c), 0, c);
+  let m; [s, m] = poe(s, 0, 'Matar', 'hand'); s = mana(s);
+  s = esvazia(act(s, legais(s, 0, x => x.t === 'cast' && x.oid === m && (x.targets || []).some(t => t.oid === c))[0]));
+  eq([s.objects[c].zone, s.objects[c].name], ['graveyard', 'Clone']);
+});
+
+test('CR 110.5c / 707.2 (exemplo de Tomoya) · a permanente virada que vira cópia de uma carta de virar não virada fica com a parte alternativa dela', () => {
+  let s = mesa(); let a; [s, a] = poe(s, 0, AM, 'battlefield', { sick: false }); s = ativa(s, 0, a);
+  let p; [s, p] = poe(s, 1, PD, 'battlefield', { sick: false });
+  const r = J(s), src = { oid: 'h', name: 'Teste', controller: 0, ability: true }; // "vira cópia" pelo caminho do motor (escolhe_copiadora + torna_copia)
+  E.applyEffect(r, src, { do: 'escolhe_copiadora', target: 'creature' }, { oid: a }, []); E.applyEffect(r, src, { do: 'torna_copia', target: 'creature' }, { oid: p }, []);
+  eq([r.objects[a].name, pt(r, a)], ['Dragona', [5, 5]]);
+});
+
+test('Combate · a ficha atacante destruída antes dos bloqueios não quebra as ofertas do defensor', () => {
+  let s = mesa(); let u; [s, u] = poe(s, 1, 'Urso');
+  let e; [s, e] = poe(s, 0, 'Espelho', 'hand'); let alvo; [s, alvo] = poe(s, 0, 'Urso', 'battlefield', { sick: false }); s = mana(s);
+  s = esvazia(act(s, legais(s, 0, x => x.t === 'cast' && x.oid === e && (x.targets || []).some(t => t.oid === alvo))[0]));
+  const ficha = s.zones[0].battlefield.find(x => s.objects[x].token); s = J(s); s.objects[ficha].sick = false;
+  s = passaAte(s, x => x.pending && x.pending.kind === 'attackers' && x.pending.p === 0);
+  s = act(s, { t: 'attack', p: 0, attackers: [ficha] });
+  s = passaAte(s, x => !!(x.pending && x.pending.kind === 'blockers'));
+  s = J(s); s.zones[0].battlefield.splice(s.zones[0].battlefield.indexOf(ficha), 1); delete s.objects[ficha]; // a ficha deixou de existir (704.5d) com o combate aberto
+  assert.doesNotThrow(() => E.legalActions(s, 1));
 });

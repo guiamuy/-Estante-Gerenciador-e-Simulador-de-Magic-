@@ -4934,6 +4934,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `nomeCopiavel` (uma linha).
 - **Próximo:** T-30, auditoria independente das cartas de virar; depois fundir (712.4).
 
+**CR5-T30 · Cartas de virar: correções da auditoria independente** ✅ (leva T-30, sem mudança de versão do motor) — revisor sem acesso à implementação rodou 86 conferências e um fuzz de 30 partidas (7.466 ações, 62 viradas); 5 divergências de virar e 1 erro antigo de combate. 6 testes novos em `tipos.virar.unit` (18 no arquivo; falham sem a leva).
+- **Corrigido:** **710.2 (D1)** — antes de virar, o subtipo e a palavra-chave da parte alternativa valiam (o dado traz a linha de tipo e as palavras das duas partes: "Dragão alvo" mirava a carta não virada). **707.2 (D2)** — o Clone que entrava copiando uma virada era a alternativa até a limpeza. **110.5c/d (D3, D4)** — a cópia de carta de virar que virava desvirava na limpeza e saía do campo com o nome da carta copiada; agora o status de virada é da permanente. **Exemplo de Tomoya (D5)** — a permanente virada que vira cópia de uma carta de virar não virada fica com a alternativa dela. **Combate (D6, caminho anterior)** — a ficha atacante que deixava de existir antes dos bloqueios derrubava as ofertas do defensor (TypeError).
+- **Conferido e correto pela auditoria:** características antes e depois, só a parte normal fora do campo, cor e custo mantidos, efeitos externos continuam no mesmo objeto, sem volta, 400.7 com a habilidade na pilha, condição de dez criaturas na resolução, regra das lendas, Shidako se sacrificando, ficha cópia, troca de controle, virada para baixo e as linhas do registro.
+- **Versão e goldens:** a versão não sobe; goldens idênticos.
+- **Toca ponto comum:** `recalculaCopia` e `entraComoCopia` (um termo cada), oferta de bloqueio em `legalActions` (uma guarda).
+- **Próximo:** fundir (712.4), em duas levas.
+
 **CR6 · Multijogador e variantes** ○ — mesa de três e quatro (800–803, 806), Commander de mesa (903.2), Brawl (903.12); as variantes hoje "fora" só entram por decisão. 10 a 14 levas.
 
 **CR7 · Consolidação** ○ (em paralelo a partir da CR2) — a cada fase: fuzz em modo completo com listas reais, homologação por revisor independente relendo a seção das regras contra o motor, e rodada de simulação do dono do produto. 6 a 8 levas ao todo.
