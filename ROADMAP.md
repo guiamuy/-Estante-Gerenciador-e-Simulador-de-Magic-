@@ -5202,6 +5202,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** nenhum novo (a oferta do exílio entra na âncora T das ofertas).
 - **Próximo:** 716.2 Classe; 309.6/309.7 masmorra; demais palavras-chave delegadas (mutação, dia e noite, completado).
 
+**CR5-T45 · Completado (702.150)** ✅ (leva T-45, sem mudança de versão do motor) — **Valor:** a regra dos planeswalkers completados existe: pagar o símbolo phyrexiano com vida faz o planeswalker entrar com menos lealdade, como na carta. **Aceite:** a conjuração anota quantos símbolos phyrexianos foram pagos com vida; a permanente com "Compleated" entra com dois marcadores de lealdade a menos por símbolo pago assim (702.150a); pagando com mana, ou posta no campo sem ser conjurada, entra com a lealdade impressa; a anotação some quando a carta muda de zona (400.7). **Testes:** `tipos.completado.unit` (4; falham sem a leva; planeswalker sintético). **Depende de:** o pagamento phyrexiano com vida (CR2c.4, M-355). **Fora, declarado:** os sete planeswalkers completados reais (Jace, the Perfected Mind; Tamiyo, Compleated Sage; Vraska, Betrayal's Sting; Nissa, Ascended Animist; Nahiri, the Unforgiving; Lukka, Bound to Ruin; Ajani, Sleeper Agent) seguem manuais até as habilidades de lealdade deles terem script — a palavra "Compleated" já vale para eles pelos fatos da carta.
+- **Mapa:** 702.150 (delegada à trilha).
+- **Versão e goldens:** a versão não sobe; goldens idênticos.
+- **Toca ponto comum:** `moveObject` (a linha da lealdade de entrada desconta o completado).
+- **Próximo:** 716.2 Classe; 309.6/309.7 masmorra; mutação e dia e noite.
+
 **CR6 · Multijogador e variantes** ○ — mesa de três e quatro (800–803, 806), Commander de mesa (903.2), Brawl (903.12); as variantes hoje "fora" só entram por decisão. 10 a 14 levas.
 
 **CR7 · Consolidação** ○ (em paralelo a partir da CR2) — a cada fase: fuzz em modo completo com listas reais, homologação por revisor independente relendo a seção das regras contra o motor, e rodada de simulação do dono do produto. 6 a 8 levas ao todo.

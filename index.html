@@ -17906,7 +17906,7 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
   if (to === 'battlefield') { const r = entradaModificada(s, o, xPago); if (r.virada != null) o.tapped = r.virada; if (r.pagaVida) s.queuedChoices = (s.queuedChoices || []).concat([{ kind: 'paga_vida_entrada', oid: o.oid, z: o.zc || 0, p: o.controller, n: r.pagaVida, name: o.name }]); for (const [k, n] of Object.entries(r.marcadores)) o.counters[k] = (o.counters[k] || 0) + marcadoresAoPor(s, o, k, n, true); } // CR2e.2 · 614.16: entrar com marcadores também é pôr marcadores
   if (to === 'battlefield') sagaEntrou(s, o); // T-2 · CR 714.3a / 122.6 / 714.3b · Saga que ENTRA no campo: o marcador de entrada dispara o capítulo aqui; com read ahead, fica anotada para a escolha (função abaixo da âncora T das exportações)
   // S21 · planeswalker entra com sua lealdade inicial
-  if (to === 'battlefield' && s.facts[o.name].types.includes('planeswalker') && s.facts[o.name].loyalty != null) o.counters.loyalty = (o.counters.loyalty || 0) + marcadoresAoPor(s, o, 'loyalty', s.facts[o.name].loyalty, true); /* T-18 · CR 306.5b / 614.1c: soma ao marcador extra posto na entrada (Oath of Gideon) · Toca ponto comum: moveObject (S21) */ // CR2e.2 · ruling: entra com o dobro da lealdade
+  if (to === 'battlefield' && s.facts[o.name].types.includes('planeswalker') && s.facts[o.name].loyalty != null) o.counters.loyalty = (o.counters.loyalty || 0) + marcadoresAoPor(s, o, 'loyalty', Math.max(0, s.facts[o.name].loyalty - completadoT(s, o)), true); /* T-45 · CR 702.150a: completado entra com dois a menos por símbolo phyrexiano pago com vida (Toca ponto comum: moveObject) */ /* T-18 · CR 306.5b / 614.1c: soma ao marcador extra posto na entrada (Oath of Gideon) · Toca ponto comum: moveObject (S21) */ // CR2e.2 · ruling: entra com o dobro da lealdade
   // S39 · vínculo de alma: ao entrar, emparelha com uma criatura sua ainda sozinha
   if (to === 'battlefield') pairSoulbond(s, o);
   // M9 · gatilhos de mudança de zona
@@ -26182,7 +26182,11 @@ const prototipoDaCartaT = (s, o) => { const f = o && s.facts[o.frontName || o.na
 function prototipoAtivoT(s, o) { return o && o.prototipoT && !o.faceDown ? prototipoDaCartaT(s, o) : null; } // a marca só existe na pilha, no campo e, durante a conjuração, na zona de onde a carta sai (MARCAS_DA_CONJURACAO); T-38 · as reduções de custo leem a cor e o custo dela
 const custoDoPrototipoT = (s, o) => { const pr = o && o.prototipoT && prototipoDaCartaT(s, o); return pr ? parseCost(pr.mana) : null; }; // o custo pago na conjuração (a carta ainda está na mão ou no exílio)
 MARCAS_DA_CONJURACAO.push('prototipoT');
-MARCAS_DA_CONJURACAO.push('disfarcadaT'); // T-42 · vai da mão para a pilha e da pilha para o campo; some em qualquer outra mudança de zona
+MARCAS_DA_CONJURACAO.push('disfarcadaT');
+MARCAS_DA_CONJURACAO.push('vidaPhyrexianaT'); // T-45 · quantos símbolos phyrexianos foram pagos com vida (vai da mão para a pilha e da pilha para o campo)
+/** T-45 · CR 702.150a · completado: quantos marcadores de lealdade a menos na entrada (dois por símbolo phyrexiano pago com vida por
+ * quem a conjurou). A palavra vem dos fatos da carta ("Compleated") ou de `self.completado`. */
+const completadoT = (s, o) => { const f = s.facts[o.name] || {}, tem = (f.kw || []).includes('compleated') || !!((f.script || {}).self || {}).completado; return tem && o.vidaPhyrexianaT ? 2 * o.vidaPhyrexianaT : 0; }; // T-42 · vai da mão para a pilha e da pilha para o campo; some em qualquer outra mudança de zona
 /** T-42 · CR 702.168a · a salvaguarda {2} da permanente conjurada pelo disfarce, enquanto virada para baixo (chamada só por wardsDeK). */
 const wardDoDisfarceT = (s, o) => (o.faceDown && o.disfarcadaT && !(mutacao(s, o) || {}).perde ? ['{2}'] : []);
 /** T-42 · CR 708.8 · a permanente foi virada para cima: dispara "when ~ is turned face up". */
@@ -27270,6 +27274,7 @@ function faceDeTras(s, x) {
 }
 const costStringT = c => (c.x ? '{X}'.repeat(c.x) : '') + (c.generic ? `{${c.generic}}` : '') + (c.hybrid || []).map(h => `{${h}}`).join('') + COLORS.map(k => `{${k}}`.repeat((c.colored || {})[k] || 0)).join('');
 function faceEscolhidaT(s, a, o) {
+  if (o && a.t === 'cast' && Number.isInteger(a.vida) && a.vida > 0) o.vidaPhyrexianaT = a.vida; // T-45 · CR 702.150a: o pagamento com vida fica anotado na conjuração
   if (a.faceDown && o && ((s.facts[o.name] || {}).script || {}).morph && s.facts[o.name].script.morph.disfarceT) o.disfarcadaT = true; // T-42 · CR 702.168a: conjurada pelo disfarce (a salvaguarda {2} é só dela)
   if (prototipoEscolhidoT(s, a, o)) return; // T-36 · CR 718.3 · como protótipo: o custo, a cor e o tamanho alternativos valem desde a conjuração
   if (cercoEscolhaT(s, a, o)) return; // T-14 · CR 310.12b · o Cerco derrotado é conjurado transformado

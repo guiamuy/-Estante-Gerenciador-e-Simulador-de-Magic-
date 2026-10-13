@@ -9100,8 +9100,15 @@
    "n": "702.150",
    "regra": "Keyword Abilities",
    "titulo": "Compleated",
-   "status": "ausente",
-   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): completado muda a lealdade inicial do planeswalker conforme o mana phyrexiano pago (T-18).",
+   "status": "coberta",
+   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): completado muda a lealdade inicial do planeswalker conforme o mana phyrexiano pago (T-18). T-45 (13/10/2026): coberta — nada falta da 702.150a (as cartas ficam manuais pelas habilidades de lealdade, não pela palavra).",
+   "evidencia": "T-45 (13/10/2026): a conjuração anota quantos símbolos phyrexianos foram pagos com vida (`vidaPhyrexianaT`, marca da conjuração: some em qualquer outra mudança de zona); a permanente com \"Compleated\" nos fatos (ou self.completado) entra com dois marcadores de lealdade a menos por símbolo, pelo mesmo cálculo da lealdade de entrada (marcadoresAoPor, 614.1c). Os sete planeswalkers completados (Jace, the Perfected Mind; Tamiyo, Compleated Sage; Vraska, Betrayal's Sting; Nissa, Ascended Animist; Nahiri, the Unforgiving; Lukka, Bound to Ruin; Ajani, Sleeper Agent) ganham a regra quando tiverem script das habilidades de lealdade; até lá seguem manuais.",
+   "testes": [
+    "CR 702.150a · completado: pagando o símbolo phyrexiano com vida, entra com dois marcadores de lealdade a menos (5 → 3)",
+    "CR 702.150a · pagando com mana, entra com a lealdade impressa (5)",
+    "CR 702.150a · sem completado, pagar com vida não muda a lealdade",
+    "CR 702.150a · 400.7 · a marca do pagamento é da conjuração: devolvido à mão e conjurado de novo pagando com mana, entra com 5"
+   ],
    "esforco": "P",
    "depende": [
     "107.4f mana phyrexiano",
