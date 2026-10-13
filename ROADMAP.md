@@ -4230,6 +4230,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** na pilha explicada, o gatilho atrasado mostra o texto inteiro da carta (não só a frase do gatilho); o gatilho atrasado só lembra as cartas do exílio do topo marcado com `lembra` (a forma geral "as cartas exiladas com ~" de outras cartas não usa este caminho).
 - **Teste:** `lt69.unit` (3 testes; falham no motor anterior).
 
+**M-387 · LT54 · 107.3a · Alvo "with mana value X" numa habilidade com X** ✅ (leva M-387, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** revisão por lote XLV — **Gorilla Shaman passa a jogar** (APROVADAS; Oracle do Forge, consulta de 12/10/2026; carta da lista Pauper de M a Z). "{X}{X}{1}: destrua o artefato não criatura alvo com valor de mana X": a mesa oferece só os pares alvo × X em que o valor de mana do alvo é o X pago (com 3 terrenos, X = 1 alcança o artefato de valor 1); o motor recusa X que não casa com o alvo.
+- **Revisão independente:** lote conjunto com a M-388 — 67 asserções (pares alvo × X de 1 a 9 terrenos, custo {X}{X}{1}, artefato-criatura nunca, terreno-artefato de valor 0 sim; 608.2b com objeto novo ou valor mudado), fuzz com 202 ativações e diferencial de 15 partidas contra o motor anterior sem diferença; aprovada. Achado corrigido com teste: o validador só aceita "with mana value X" em habilidade ativada com {X} no custo (numa mágica, a oferta não casava o alvo com o X).
+- **Fora (declarado):** só o efeito "destroy" lê "with mana value X" pelo leitor; outras frases com a mesma condição entram quando aparecerem.
+- **Teste:** `lt70.unit` (2 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

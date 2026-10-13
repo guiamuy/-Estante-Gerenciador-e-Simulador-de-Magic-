@@ -6308,6 +6308,7 @@ function effectErrors(effects, label, opcional) {
       for (const t of (e.filter && e.filter.subtypes) || []) if (typeof t !== 'string' || !t.trim()) errs.push(`${label} ${i + 1}: filtro de subtipo inválido`);
     }
     if (e.targetMv != null && !Number.isInteger(e.targetMv)) errs.push(`${label} ${i + 1}: valor de mana do alvo precisa ser inteiro`);
+    if (e.targetMvIgualX != null && e.targetMvIgualX !== true) errs.push(`${label} ${i + 1}: "targetMvIgualX" é uma marca (true)`); // M-387 · "with mana value X" (Gorilla Shaman)
     // S38 · filtro de cor no alvo, varredura que poupa um subtipo e "até N alvos"
     if (e.targetNotColor != null && !'WUBRG'.includes(e.targetNotColor)) errs.push(`${label} ${i + 1}: cor excluída do alvo precisa ser WUBRG`);
     if (e.targetTypes != null && !(Array.isArray(e.targetTypes) && e.targetTypes.length && e.targetTypes.every(x => FILTER_TYPES.includes(x)))) errs.push(`${label} ${i + 1}: tipos do alvo precisam ser tipos de carta`);
@@ -9007,6 +9008,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Thermokarst': { texto: '15giz1r', leva: 'M-385' },
   // M-386 · revisão por lote XLIV (Glimpse the Impossible), revisor independente: reprovada na primeira passada (o `lembra` do mover), corrigida com teste; 47 asserções, 151 salvamentos com replay idêntico
   'Glimpse the Impossible': { texto: 'r0pnzy', leva: 'M-386' },
+  // M-387 · revisão por lote XLV (Pauper: Gorilla Shaman), revisor independente: lote conjunto com a M-388; aprovada (67 asserções, fuzz e diferencial sem diferença)
+  'Gorilla Shaman': { texto: 'kna41h', leva: 'M-387' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -16831,6 +16834,7 @@ const __m42 = (function () {
     if (k === 'target opponent or planeswalker') return { target: { tipos: ['planeswalker'], jogadores: 'opponent' } }; // M-343
     if (k === 'target legendary creature') return { target: { tipos: ['creature'], lendaria: true } }; // M-343 · Karakas (205.4)
     if (k === 'up to one target tapped creature') return { target: 'creature', upTo: true, targetTapped: true }; // M-349 · Cryogen Relic
+    if (k === 'target noncreature artifact') return { target: { tipos: ['artifact'], semTipos: ['creature'] } }; // M-387 · Gorilla Shaman
     if (k === 'target creature or vehicle') return { target: { ou: [{ tipos: ['creature'] }, { subtipos: ['Vehicle'] }] } }; // M-383 · Ride's End
     if (k === 'target attacking creature') return { target: { tipos: ['creature'], atacando: true } }; // M-377 · Desert (seletor atacando, M-361)
     if (k === 'up to one target card from a graveyard') return { target: 'card-in-any-graveyard', upTo: true }; // M-373 · Heritage Reclamation (115.3: aceita zero)
@@ -16900,7 +16904,8 @@ const __m42 = (function () {
     [/^(target player|target opponent) loses the game$/i, m => [com({ do: 'perde' }, alvo(m[1]))]], // M-325 · 104.3e
     [/^put X ([a-z]+) counters on (this [a-z]+|~)$/i, m => [{ do: 'counters', tipo: m[1].toLowerCase(), amount: { per: 'x' }, target: 'self-source' }]], // M-325 · Helix Pinnacle (o X da habilidade, CR2c.7)
     [/^~ deals damage equal to its power to (each opponent|any target|target creature|target player|target opponent)$/i, m => [com({ do: 'damage', amount: { per: 'power-of-source' } }, alvo(m[1]))]], // M-323 · CR2b.10 (608.2h: o poder como era no campo, se ela saiu)
-    [/^~ deals X damage to (.+)$/i, m => { const a = alvo(m[1]); return a ? [{ do: 'damage', amount: { per: 'x' }, ...a }] : null; }], // M-343 · Volcanic Geyser, Blaze (o X pago, 107.3a)
+    [/^~ deals X damage to (.+)$/i, m => { const a = alvo(m[1]); return a ? [{ do: 'damage', amount: { per: 'x' }, ...a }] : null; }],
+    [/^destroy (target .+) with mana value x$/i, m => { const a = alvo(m[1]); return a ? [{ do: 'destroy', ...a, targetMvIgualX: true }] : null; }], // M-387 · Gorilla Shaman (107.3a) // M-343 · Volcanic Geyser, Blaze (o X pago, 107.3a)
     [/^~ deals X damage to each creature and each player$/i, () => [{ do: 'damage', amount: { per: 'x' }, target: 'each-creature' }, { do: 'damage', amount: { per: 'x' }, jogadores: 'cada' }]], // LT13 · CR2c.7 (Crypt Rats)
     [new RegExp(`^~ deals ${N} damage to (.+)$`, 'i'), m => [com({ do: 'damage', amount: num(m[1]) }, alvo(m[2]))]],
     [/^destroy target creature with total power and toughness (\d+) or less$/i, m => [{ do: 'destroy', target: 'creature', targetPTTotalMax: +m[1] }]], // M-331 · Cut Down
@@ -19964,6 +19969,7 @@ function targetAllowed(s, eff, tgt, src) {
   if (eff.targetNotColor && coresDe(s, o).includes(eff.targetNotColor)) return false; // S38 · "criatura não-preta" · CR2d.8
   const vm = (valorDaSalaT(s, o) ?? (f.cmc || 0)) + (o.zone === 'stack' ? (o.xPaid || 0) * ((f.cost || {}).x || 0) : 0); // T-27 · CR 709.5: a Sala no campo vale as portas destrancadas (Toca ponto comum: valor de mana do alvo) · CR 202.3e: na pilha, X é o valor escolhido
   if (eff.targetMv != null && vm !== eff.targetMv) return false;
+  if (eff.targetMvIgualX && src && src.xPaid != null && vm !== src.xPaid) return false; // M-387 · 107.3a/601.2c: "with mana value X" — o X escolhido ao ativar; sem X ainda (oferta), o par alvo × X é filtrado depois
   if (eff.targetPTTotalMax != null && !(o.zone === 'battlefield' && isCreature(s, o) && power(s, o) + toughness(s, o) <= eff.targetPTTotalMax)) return false; // M-331 · "with total power and toughness 5 or less" (Cut Down)
   if (eff.targetMvMax != null) {
     const limite = amountOf(s, src || { controller: o.controller }, eff.targetMvMax);
@@ -23083,7 +23089,7 @@ const HANDLERS = {
     if (chosen.length < minAlvosAb || chosen.length > need.length) throw new RuleError('alvo', `escolha ${minAlvosAb === need.length ? need.length : `de ${minAlvosAb} a ${need.length}`} alvo(s)`);
     // 601.2c · dois alvos da mesma mágica ou habilidade precisam ser diferentes
     if (chosen.some((x, i) => chosen.some((y, j) => j > i && sameChoice(x, y)))) throw new RuleError('alvo', 'escolha alvos diferentes');
-    need.forEach((eff, i) => { if (chosen[i] == null && eff.upTo) return; if (!targetStillLegal(s, a.p, eff.target, chosen[i], a.oid, eff.targetColor, eff, o)) throw new RuleError('alvo', 'alvo ilegal'); });
+    need.forEach((eff, i) => { if (chosen[i] == null && eff.upTo) return; if (!targetStillLegal(s, a.p, eff.target, chosen[i], a.oid, eff.targetColor, eff, nX ? { ...o, xPaid: a.x || 0 } : o)) throw new RuleError('alvo', 'alvo ilegal'); }); // M-387 · o alvo que depende do X confere com o X desta ativação
     if (violaPortaEstandarte(s, a.p, need, chosen, a.oid)) throw new RuleError('alvo', 'um dos alvos precisa ser um porta-estandarte');
     if (base.onlyIfLifeOverStart != null && !vidaAcimaDaInicial(s, a.p, base.onlyIfLifeOverStart)) throw new RuleError('vida', `só ativa com pelo menos ${base.onlyIfLifeOverStart} de vida acima da inicial`);
     if (base.onlyIfAttacking && o.attacking == null) throw new RuleError('tempo', 'só ativa enquanto esta criatura está atacando');
@@ -24177,7 +24183,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
       }
       // S43 · proteção pede a cor junto do alvo
       const cores = (ab.effects || []).some(e => e.do === 'protection' || e.do === 'resistencia_cor' || e.do === 'imbloqueavel_cor') ? ['W', 'U', 'B', 'R', 'G'] : [null]; // M-255
-      combos.filter(targets => !violaPortaEstandarte(s, p, need, targets, o.oid)).forEach(targets => cores.forEach(color => pays.forEach(pay => xs.forEach(x => vidasDe(x).forEach(v => out.push({ t: 'activate', p, oid: o.oid, index, targets, ...(color ? { color } : {}), ...comPagamento(pay), ...(v != null ? { vida: v } : {}), ...comXA(x) }))))));
+      combos.filter(targets => !violaPortaEstandarte(s, p, need, targets, o.oid)).forEach(targets => cores.forEach(color => pays.forEach(pay => xs.filter(x => !need.some((e, i) => e.targetMvIgualX && targets[i] && !targetAllowed(s, e, targets[i], { ...o, xPaid: x || 0 }))).forEach(x => /* M-387 · só os pares alvo × X em que o valor de mana do alvo é X */ vidasDe(x).forEach(v => out.push({ t: 'activate', p, oid: o.oid, index, targets, ...(color ? { color } : {}), ...comPagamento(pay), ...(v != null ? { vida: v } : {}), ...comXA(x) }))))));
     });
   }
   if (adjudication && s.mode === 'assisted') {
