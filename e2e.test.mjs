@@ -11256,3 +11256,34 @@ test('e2e · T-43 · CR 702.151 · reconfigurar: a folha da lâmina tem "Reconfi
   if (depois.length) assert.ok(depois.some(x => /^Reconfigurar: desanexar · \{2\}/.test(x)), JSON.stringify(depois));
   assert.deepEqual(M.errors, []);
 });
+
+test('e2e · M-376 · 601.2d · dano dividido: depois de conjurar a Arc Lightning, o aviso pede para dividir 3 de dano, um toque por ponto, com botões de 44 px; ao completar, a mágica resolve com a divisão escolhida', { skip }, async t => {
+  // Texto oficial: Arc Lightning em .listas/oficiais-revisadas.json (Oracle do Forge, consulta de 12/10/2026); joga pela leitura revisada (APROVADAS, M-376).
+  const extras = JSON.parse(readFileSync(join(ROOT, '.listas', 'oficiais-revisadas.json'), 'utf8')).cartas.filter(c => c.name === 'Arc Lightning');
+  const M = await comLista125(t, '20 Mountain\n20 Arc Lightning', ['Mountain', 'Arc Lightning'], '4', { extras });
+  const { page } = M;
+  const ids = await page.evaluate(() => { const s = window.__estanteMesa.estado(), z = s.zones[0];
+    const tira = (nome, ...de) => { for (const d of de) { const i = z[d].findIndex(o => s.objects[o].name === nome); if (i >= 0) return z[d].splice(i, 1)[0]; } return null; };
+    for (let k = 0; k < 3; k++) { const oid = tira('Mountain', 'library', 'hand'); Object.assign(s.objects[oid], { zone: 'battlefield', controller: 0, tapped: false, sick: false, damage: 0, counters: {} }); z.battlefield.push(oid); }
+    let a = z.hand.find(o => s.objects[o].name === 'Arc Lightning'); if (!a) { a = tira('Arc Lightning', 'library'); z.hand.push(a); s.objects[a].zone = 'hand'; }
+    return { a, vida: s.players[1].life }; });
+  const c = (await M.legal(`a.t === 'cast' && a.oid === '${ids.a}'`))[0]; assert.ok(c, 'a mesa oferece conjurar');
+  assert.equal(await M.act(c), true);
+  await page.waitForSelector('#tb-dividir-magia', { timeout: 5000 });
+  assert.match(await M.decisao(), /Arc Lightning: divida 3 de dano/);
+  const cx = await page.locator('#tb-dividir-magia').boundingBox(); assert.ok(cx && cx.height >= 44, 'botão com 44 px de altura ou mais: ' + JSON.stringify(cx));
+  await auditaTela(page, 'aviso de dividir o dano');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/m376-dividir.png' });
+  for (let k = 0; k < 3; k++) {
+    const i = await page.evaluate(() => { const s = window.__estanteMesa.estado(); return s.pending && s.pending.kind === 'dividir_magia' ? s.pending.options.findIndex(o => o.player === 1) : -1; });
+    assert.ok(i >= 0, 'o oponente é um dos alvos');
+    await page.locator(`button[data-alvo="${i}"]`).first().click(); await page.waitForTimeout(200);
+  }
+  await page.waitForFunction(() => !window.__estanteMesa.estado().pending, null, { timeout: 5000 });
+  await M.resolve();
+  const vida = await page.evaluate(() => window.__estanteMesa.estado().players[1].life);
+  assert.equal(ids.vida - vida, 3, 'os 3 de dano no oponente');
+  const linhas = await page.evaluate(() => (window.__estanteMesa.registro ? window.__estanteMesa.registro() : []).map(String));
+  if (linhas.length) assert.ok(linhas.some(l => /Arc Lightning: dano dividido — 3 em/.test(l)), 'registro: ' + JSON.stringify(linhas.slice(-6)));
+  assert.deepEqual(M.errors, []);
+});
