@@ -9375,8 +9375,13 @@
    "n": "702.169",
    "regra": "Keyword Abilities",
    "titulo": "Solved",
-   "status": "ausente",
-   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): resolvido é designação de Caso (719).",
+   "status": "coberta",
+   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): resolvido é designação de Caso (719). T-39 (13/10/2026): coberta — nada falta da 702.169a–d.",
+   "evidencia": "T-39 (13/10/2026): self.caso = { resolver, resolvido }; \"To solve\" é o gatilho do seu passo final montado pelo motor (só aparece com a condição valendo e o Caso sem resolver; o efeito confere de novo ao resolver, 603.4); \"resolvido\" é designação fora do objeto (s.casosT, com a encarnação: some ao sair do campo, não é copiável); as habilidades, os contínuos e as regras de jogador de \"resolvido\" valem só com o Caso resolvido. Condição por contagem (per, min/max) ou por \"controla\" (seletor). Registro: \"<Caso> foi resolvido\". Carta exemplo completa: Case of the Filched Falcon (Oracle do Forge, 13/10/2026).",
+   "testes": [
+    "CR 719.3c / 702.169d · a habilidade \"Solved\" só existe com o Caso resolvido",
+    "CR 702.169b · habilidade estática \"Solved\": vale só com o Caso resolvido (condição por contagem: mão vazia)"
+   ],
    "esforco": "M",
    "depende": [
     "719 Casos"
@@ -11198,8 +11203,15 @@
    "n": "719.3",
    "regra": "Case Cards",
    "titulo": "\"To solve\" e \"Solved\"",
-   "status": "ausente",
-   "falta": "sem Casos: não há designação \"resolvido\" nem gatilho no passo final condicionado.",
+   "status": "coberta",
+   "falta": "T-39 (13/10/2026): nada falta. As condições de resolver que o vocabulário não tem (dano de três fontes no turno, três criaturas para cemitérios no turno…) deixam o Caso manual.",
+   "evidencia": "T-39 (13/10/2026): self.caso = { resolver, resolvido }; \"To solve\" é o gatilho do seu passo final montado pelo motor (só aparece com a condição valendo e o Caso sem resolver; o efeito confere de novo ao resolver, 603.4); \"resolvido\" é designação fora do objeto (s.casosT, com a encarnação: some ao sair do campo, não é copiável); as habilidades, os contínuos e as regras de jogador de \"resolvido\" valem só com o Caso resolvido. Condição por contagem (per, min/max) ou por \"controla\" (seletor). Registro: \"<Caso> foi resolvido\". Carta exemplo completa: Case of the Filched Falcon (Oracle do Forge, 13/10/2026).",
+   "testes": [
+    "CR 719.3a · \"To solve\": no início do seu passo final, com três ou mais artefatos, o Caso fica resolvido",
+    "CR 719.3a · sem a condição no passo final, o Caso continua sem resolver (e não resolve no turno do oponente)",
+    "CR 603.4 · a condição é conferida de novo na resolução: sem os artefatos quando a habilidade resolve, não resolve",
+    "CR 719.3b · 400.7 · resolvido até sair do campo: o Caso que volta é um objeto novo, sem resolver"
+   ],
    "esforco": "M",
    "cartas": "uma coleção só (Karlov Manor)"
   },

@@ -5508,6 +5508,7 @@ const EFFECTS = {
   lutador: { fields: [], targets: ['creature', 'creature-you-control'] },
   fight: { fields: [], targets: ['creature', 'creature-opponent-controls', 'creature-you-control'] }, // quem: 'self-source' (a permanente fonte luta) | 'primeiro-alvo' (luta a criatura anotada pelo `lutador` anterior)
   /* ↓ T · efeitos da trilha tipos */
+  caso_resolvido: { fields: [], targets: ['self'] }, // T-39 · CR 719.3a · "this Case becomes solved" (o motor o monta a partir de `self.caso`)
   estacao: { fields: [], targets: ['self'] }, // T-37 · CR 702.184a · "put charge counters equal to the tapped creature's power on this permanent" (o motor o monta a partir de `self.estacao`)
   selada: { fields: [], targets: ['self'] }, // T-31 · CR 702.171a · "this permanent becomes saddled until end of turn" (o motor o monta a partir de `self.selar`, o script não o escreve)
   virar_carta: { fields: [], targets: ['self'] }, // T-29 · CR 710 · "flip ~": vira esta carta de virar para a parte alternativa (sem volta, 710.4); `se: { minCriaturas: N }` confere "if you control N or more creatures" na resolução
@@ -6217,7 +6218,7 @@ function validateScript(sc) {
   if (sc && sc.replicate != null && sc.kicker) errs.push('replicar e reforço na mesma carta não são aceitos (os dois usam o pagamento repetido)');
   if (sc && sc.modeCount != null && !(Number.isInteger(sc.modeCount) && sc.modeCount >= 2 && (sc.modes || []).length && (sc.modeRepeat || sc.modeCount <= sc.modes.length))) errs.push('número de modos inválido');
   if (sc && sc.cumulativeUpkeep && !/\{/.test(String(sc.cumulativeUpkeep.mana || ''))) errs.push('manutenção cumulativa precisa de um custo de mana');
-  errs.push(...sagaErros(sc), ...tripularErros(sc), ...aventuraErros(sc), ...duplaFaceErros(sc), ...modalErros(sc), ...divididaErros(sc), ...classeErros(sc), ...batalhaErros(sc), ...papelErros(sc), ...nivelarErros(sc), ...salaErros(sc), ...virarErros(sc), ...selarErros(sc), ...prototipoErros(sc), ...estacaoErros(sc)); // T-37 · CR 721 · estação (mesma chamada) // T-36 · CR 718 · protótipo (mesma chamada) // T-31 · CR 702.171 · selar (mesma chamada) // T-29 · CR 710 · carta de virar (mesma chamada) // T-26 · CR 709.5 · Sala (mesma chamada) // T-24 · CR 711 · barras de nível (mesma chamada) // T-20 · CR 111.10 · papel conhecido (mesma chamada) // T-14 · CR 310.4 · defesa da batalha (mesma chamada) // T-12 · CR 716 · Classe (mesma chamada) // T-10 · CR 709 · carta dividida (mesma chamada) // T-8 · CR 712.3 · dupla face modal (mesma chamada) // T-7 · CR 712 · dupla face (mesma chamada) // T-5 · CR 715 · aventura (mesma chamada) // T-3 · CR 702.122 · tripular (mesma chamada da T-1) // T-1 · CR 714 · Saga: capítulos, read ahead e o marcador de entrada (função abaixo da âncora T das exportações)
+  errs.push(...sagaErros(sc), ...tripularErros(sc), ...aventuraErros(sc), ...duplaFaceErros(sc), ...modalErros(sc), ...divididaErros(sc), ...classeErros(sc), ...batalhaErros(sc), ...papelErros(sc), ...nivelarErros(sc), ...salaErros(sc), ...virarErros(sc), ...selarErros(sc), ...prototipoErros(sc), ...estacaoErros(sc), ...casoErros(sc)); // T-39 · CR 719 · Caso (mesma chamada) // T-37 · CR 721 · estação (mesma chamada) // T-36 · CR 718 · protótipo (mesma chamada) // T-31 · CR 702.171 · selar (mesma chamada) // T-29 · CR 710 · carta de virar (mesma chamada) // T-26 · CR 709.5 · Sala (mesma chamada) // T-24 · CR 711 · barras de nível (mesma chamada) // T-20 · CR 111.10 · papel conhecido (mesma chamada) // T-14 · CR 310.4 · defesa da batalha (mesma chamada) // T-12 · CR 716 · Classe (mesma chamada) // T-10 · CR 709 · carta dividida (mesma chamada) // T-8 · CR 712.3 · dupla face modal (mesma chamada) // T-7 · CR 712 · dupla face (mesma chamada) // T-5 · CR 715 · aventura (mesma chamada) // T-3 · CR 702.122 · tripular (mesma chamada da T-1) // T-1 · CR 714 · Saga: capítulos, read ahead e o marcador de entrada (função abaixo da âncora T das exportações)
   return errs.concat(exampleErrors(sc));
 }
 const ATRASOS = ['next-upkeep', 'next-end-step', 'end-of-combat']; // CR2b.1 · momentos de gatilho atrasado que o motor conhece
@@ -6619,6 +6620,11 @@ const RAW_SCRIPTS = [
   { name: 'Spring // Mind', self: { dividida: true, mana: '{2}{G}', types: ['sorcery'] }, effects: [{ do: 'search', amount: 1, filter: { types: ['land'], basic: true }, to: 'battlefield-tapped' }], // "Search your library for a basic land card, put it onto the battlefield tapped, then shuffle."
     back: { name: 'Mind', types: ['instant'], mana: '{4}{U}{U}', effects: [{ do: 'draw', amount: 2 }], aftermath: true }, // "Aftermath · Draw two cards."
     example: { target: 'none', expect: { selfLife: 0 } } },
+  // T-39 · CR 719 / 702.169 · Caso (Oracle do Forge, clone de 13/10/2026). `self.caso`: a condição de resolver e o que vale resolvido; o gatilho do passo final o motor monta.
+  { name: 'Case of the Filched Falcon', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'investigate' }] }], // "When this Case enters, investigate."
+    self: { caso: { resolver: { controla: { tipos: ['artifact'] }, min: 3 }, // "To solve — You control three or more artifacts."
+      resolvido: { abilities: [{ kind: 'activated', cost: { mana: '{2}{U}', sacrifice: true }, effects: [{ do: 'counters', target: { tipos: ['artifact'], semTipos: ['creature'] }, tipo: 'p1p1', amount: 4 }, { do: 'continuo', target: 'first-target', torna: { tipos: ['creature'], subtipos: ['Bird'], somaTipos: true, base: [0, 0], palavras: ['flying'] }, ate: 'sempre' }] }] } } }, // "Solved — {2}{U}, Sacrifice this Case: Put four +1/+1 counters on target noncreature artifact. It becomes a 0/0 Bird creature with flying in addition to its other types."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o cenário de verdade (investigar, resolver com três artefatos, a ativada resolvida) está em tipos.casos.unit
   // T-37 · CR 702.184 / 721 · estação (Oracle do Forge, clone de 13/10/2026). `self.estacao.faixas`: os símbolos {N+}; a ativada de estação o motor monta.
   { name: 'Pinnacle Kill-Ship', self: { estacao: { faixas: [{ n: 7, pt: [7, 7], palavras: ['flying'] }] } }, // "STATION 7+ · Flying · 7/7"
     abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'damage', amount: 10, target: 'creature', upTo: true }] }], // "When this Spacecraft enters, it deals 10 damage to up to one target creature."
@@ -9015,6 +9021,28 @@ function estacaoErros(sc) {
   return errs;
 }
 Object.assign(EXPORTS_T_SC, { estacaoErros });
+/* ---------------- T-39 · CR 719 / 702.169 · Caso (forma do script) ----------------
+   `self: { caso: { resolver, resolvido } }`. `resolver` ("To solve — [condição]") é `{ per: <contagem>, min?, max? }` ou
+   `{ controla: <seletor>, min?, max? }` (quantas permanentes suas casam com o seletor). `resolvido` ("Solved — …") tem `abilities`,
+   `continuo` e `regraJogador`, que só valem com o Caso resolvido (719.3c). O gatilho "no início do seu passo final" o motor monta. */
+function casoErros(sc) {
+  const sf = sc && sc.self, cs = sf && sf.caso; if (cs == null) return [];
+  if (!cs || typeof cs !== 'object') return ['caso: self.caso é { resolver, resolvido }'];
+  const errs = [], r = cs.resolver, rv = cs.resolvido;
+  if (!r || typeof r !== 'object') errs.push('caso: falta a condição de resolver (self.caso.resolver)');
+  else {
+    if ((r.per == null) === (r.controla == null)) errs.push('caso: a condição é por contagem (per) ou por "controla" (seletor), uma das duas');
+    if (r.per != null && !PER_COUNTS.includes(r.per)) errs.push(`caso: contagem "${r.per}" desconhecida`);
+    if (r.controla != null) { if (typeof r.controla !== 'object' || Array.isArray(r.controla)) errs.push('caso: "controla" precisa ser um seletor'); else errs.push(...seletorErros(r.controla, 'caso, controla')); }
+    if (r.min == null && r.max == null) errs.push('caso: a condição precisa de min ou max');
+    for (const k of ['min', 'max']) if (r[k] != null && !(Number.isInteger(r[k]) && r[k] >= 0)) errs.push(`caso: ${k} é um inteiro`);
+  }
+  if (!rv || typeof rv !== 'object' || (!(rv.abilities || []).length && !(rv.continuo || []).length && !(rv.regraJogador || []).length)) errs.push('caso: "resolvido" não dá nada (abilities, continuo ou regraJogador)');
+  else { const v = validateScript({ name: `${sc.name} (resolvido)`, abilities: rv.abilities || [], continuo: rv.continuo, regraJogador: rv.regraJogador, example: { target: 'none', expect: { selfLife: 0 } } }); errs.push(...v.map(e => `caso, resolvido: ${e}`)); }
+  if (sf.classe || sf.nivelar || sf.estacao) errs.push('caso: o Caso não tem barras de nível, de Classe nem de estação');
+  return errs;
+}
+Object.assign(EXPORTS_T_SC, { casoErros });
 /* ---------------- T-31 · CR 702.171 · selar (forma do script) ----------------
    `self: { selar: N }` ("Saddle N"): o motor monta a ativada (custo de tripular N, só como feitiço, efeito `selada`). "Whenever ~ attacks
    while saddled" é o gatilho `attacks` com `condition: { selada: true }`. */
@@ -17319,7 +17347,7 @@ function condicaoContinua(s, x, se) {
 function continuosDaFonte(s, x) {
   const sc = s.facts[x.name].script;
   if (sc && sc.self && sc.self.classe) return continuosDaClasseT(s, x, sc); // T-12 · CR 716.2a · os contínuos do nível 1 e dos níveis alcançados
-  if (sc && sc.self && (sc.self.nivelar || sc.self.estacao)) return continuosDoNivelarT(s, x, sc); // T-37 · CR 721.2 · e os das faixas de estação alcançadas // T-24 · CR 711.2 · as palavras e os contínuos da barra alcançada (Toca ponto comum: continuosDaFonte)
+  if (sc && sc.self && (sc.self.nivelar || sc.self.estacao || sc.self.caso)) return continuosDoNivelarT(s, x, sc); // T-39 · CR 719.3c · e os do Caso resolvido // T-37 · CR 721.2 · e os das faixas de estação alcançadas // T-24 · CR 711.2 · as palavras e os contínuos da barra alcançada (Toca ponto comum: continuosDaFonte)
   if (!sc || !(sc.grants || sc.grantsAll || (sc.self && sc.self.per) || sc.continuo || (sc.aura && sc.aura.becomes))) return SEM_CONTINUOS; // atalho: quase toda permanente não concede nada
   const out = [];
   if (sc.aura && sc.aura.becomes) out.push({ afetados: 'anexada', redefine: sc.aura.becomes }); // CR2d.1 · atalho: Aura que redefine a criatura
@@ -19150,7 +19178,7 @@ const abilitiesOf = (s, o) => {
   if (sc.self && sc.self.classe) classeHabilidadesT(s, o, sc, list); // T-12 · CR 716.2a · as habilidades dos níveis alcançados e a ativada do próximo nível
   if (sc.self && sc.self.craft) list.push(craftHabilidade(sc.self.craft)); // M-356 · CR 702.167a · a ativada de craft (só como feitiço)
   if (sc.self && sc.self.selar) list.push(selarHabilidadeT(sc)); // T-31 · CR 702.171a · a ativada de selar (Toca ponto comum: abilitiesOf)
-  if (sc.self && (sc.self.nivelar || sc.self.estacao)) nivelarHabilidadesT(s, o, sc, list); // T-37 · CR 702.184a / 721.2a / 721.4 · e a ativada de estação com as habilidades das faixas alcançadas // T-24 · CR 702.87a / 711.4 · a ativada de subir de nível e as habilidades da barra alcançada (Toca ponto comum: abilitiesOf)
+  if (sc.self && (sc.self.nivelar || sc.self.estacao || sc.self.caso)) nivelarHabilidadesT(s, o, sc, list); // T-39 · CR 719.3 · e o gatilho de resolver e as habilidades do Caso resolvido // T-37 · CR 702.184a / 721.2a / 721.4 · e a ativada de estação com as habilidades das faixas alcançadas // T-24 · CR 702.87a / 711.4 · a ativada de subir de nível e as habilidades da barra alcançada (Toca ponto comum: abilitiesOf)
   if (sc.equip) list.push(...equipesK(s, o)); // K-28 · 702.6c-d: as outras habilidades de equipar impressas, com qualidade (Toca ponto comum: abilitiesOf)
   return list.concat(grantedAbilities(s, o), habilidadesDePalavraK(s, o)); // K-3 · palavra-chave que é habilidade disparada (proeza…)
 };
@@ -20687,6 +20715,7 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'lutador': if (obj) s.lutadorV = { fonte: src.oid, fz: encarnacaoV(s, src), oid: obj.oid, z: obj.zc || 0 }; break; // V-1/V-5 · anota quem luta; a luta é o `fight` seguinte, que apaga a anotação
     case 'fight': lutar(s, src, eff, tgt, events); break; // V-1 · 701.14
     /* ↓ T · casos de applyEffect da trilha tipos */
+    case 'caso_resolvido': casoResolveT(s, src, eff, events); break; // T-39 · CR 719.3a · o Caso fica resolvido, se a condição ainda vale (603.4)
     case 'estacao': estacaoResolveT(s, src, eff, events); break; // T-37 · CR 702.184a · marcadores de carga iguais ao poder da criatura virada
     case 'selada': seladaT(s, src, events); break; // T-31 · CR 702.171a · a montaria fica selada até o fim do turno
     case 'virar_carta': viraCartaT(s, src, eff, events); break; // T-29 · CR 710 · "flip ~" (sem volta)
@@ -26086,6 +26115,44 @@ function estacaoResolveT(s, src, eff, events) {
   const k = n > 0 ? poeMarcadores(s, o, 'charge', n) : 0;
   events.push({ kind: 'effect', do: 'estacao', name: o.name, target: o.name, amount: k, total: (o.counters || {}).charge || 0 });
 }
+/* ---------------- T-39 · CR 719 / 702.169 · Casos ----------------
+   - 719.3a: "To solve" é o gatilho "no início do seu passo final, se [condição] e este Caso não está resolvido, ele fica resolvido".
+     Ele só aparece em `abilitiesOf` enquanto o Caso não está resolvido e a condição vale (conferência ao disparar); o efeito
+     `caso_resolvido` confere de novo ao resolver (603.4) e leva a encarnação (`z`).
+   - 719.3b: "resolvido" é designação, guardada fora do objeto em `s.casosT[oid] = { z }` (400.7: o Caso que sai e volta não está
+     resolvido; não é copiável). `s.casosT` só nasce quando um Caso é resolvido.
+   - 719.3c / 702.169b–d: as habilidades, os contínuos e as regras de jogador de `resolvido` valem só com o Caso resolvido. */
+const casoResolvidoT = (s, o) => { const r = o && o.zone === 'battlefield' && s.casosT && s.casosT[o.oid]; return !!(r && r.z === (o.zc || 0)); };
+function casoCondicaoT(s, o, r) {
+  const n = r.per != null ? countFor(s, o, r.per) : battlefield(s).filter(x => x.controller === o.controller && selCasa(s, o.controller, x, r.controla, o.oid)).length;
+  return (r.min == null || n >= r.min) && (r.max == null || n <= r.max);
+}
+function casoHabilidadesT(s, o, sc, list) {
+  if (!o || o.zone !== 'battlefield' || o.phasedOut) return;
+  const cs = sc.self.caso;
+  if (casoResolvidoT(s, o)) { for (const ab of cs.resolvido.abilities || []) list.push({ ...ab, casoT: true }); return; }
+  if (casoCondicaoT(s, o, cs.resolver)) list.push({ kind: 'triggered', when: 'end-step', label: 'Resolver o Caso', casoResolverT: true, effects: [{ do: 'caso_resolvido', z: o.zc || 0 }] });
+}
+function continuosDoCasoT(s, x, sc) {
+  const cs = (sc.continuo || []).concat(casoResolvidoT(s, x) ? (sc.self.caso.resolvido.continuo || []) : []);
+  if (!cs.length) return SEM_CONTINUOS;
+  return cs.map(c => ({ ...c, palavras: c.palavras ? c.palavras.map(w => String(w).toLowerCase()) : undefined, ...(c.torna ? { redefine: SC.tornaParaBecomes(c.torna) } : {}) })); // como o laço do `continuo` em continuosDaFonte
+}
+function regrasDosCasosT(s, p, out) {
+  if (!s.casosT) return;
+  for (const oid of Object.keys(s.casosT)) {
+    const o = s.objects[oid], sc = o && ((s.facts[o.name] || {}).script || {}); if (!sc || !sc.self || !sc.self.caso || !casoResolvidoT(s, o) || o.faceDown || semImpressas(s, o)) continue;
+    for (const e of sc.self.caso.resolvido.regraJogador || []) if (casaJogadores(e.quem || 'voce', o.controller, p)) out.push(e);
+  }
+}
+function casoResolveT(s, src, eff, events) {
+  const o = src.ability ? s.objects[src.source] : src, sc = o && ((s.facts[o.name] || {}).script || {});
+  const vale = o && o.zone === 'battlefield' && !o.phasedOut && (eff.z == null || (o.zc || 0) === eff.z) && sc.self && sc.self.caso && !casoResolvidoT(s, o) && casoCondicaoT(s, o, sc.self.caso.resolver);
+  if (!vale) { events.push({ kind: 'effect', do: 'caso_resolvido', name: (o || src).name, failed: true }); return; }
+  (s.casosT = s.casosT || {})[o.oid] = { z: o.zc || 0 };
+  events.push({ kind: 'effect', do: 'caso_resolvido', name: o.name, target: o.name });
+}
+Object.assign(EXPORTS_T, { casoResolvidoT });
 /** T-36 · o valor de mana do objeto, como os alvos o conferem (Sala no campo, protótipo, X na pilha). */
 function manaValueT(s, o) { const f = s.facts[o.name] || {}; return o.faceDown ? 0 : (valorDaSalaT(s, o) ?? (f.cmc || 0)) + (o.zone === 'stack' ? (o.xPaid || 0) * ((f.cost || {}).x || 0) : 0); }
 Object.assign(EXPORTS_T, { prototipoAtivoT, manaValueT });
@@ -26309,6 +26376,7 @@ function nivelSobeT(s, src, eff, events) {
 function ptDoNivelT(s, o) { const pr = prototipoAtivoT(s, o); if (pr) return [pr.power, pr.toughness]; const f = faixaDoNivelarT(s, o); return f ? [f.base[0], f.base[1]] : null; } // T-36 · CR 718.3b: o protótipo na pilha e no campo tem o poder e a resistência alternativos (o gancho do P/R base)
 function continuosDoNivelarT(s, x, sc) {
   if (sc.self.estacao) return continuosDaEstacaoT(s, x, sc); // T-37
+  if (sc.self.caso) return continuosDoCasoT(s, x, sc); // T-39
   const f = faixaDoNivelarT(s, x);
   const cs = (sc.continuo || []).concat(f ? (f.continuo || []) : [], f && (f.palavras || []).length ? [{ afetados: 'self', palavras: f.palavras }] : []);
   if (!cs.length) return SEM_CONTINUOS;
@@ -26316,6 +26384,7 @@ function continuosDoNivelarT(s, x, sc) {
 }
 function nivelarHabilidadesT(s, o, sc, list) {
   if (sc.self.estacao) return estacaoHabilidadesT(s, o, sc, list); // T-37
+  if (sc.self.caso) return casoHabilidadesT(s, o, sc, list); // T-39
   const nv = sc.self.nivelar;
   list.push({ kind: 'activated', cost: { mana: nv.mana }, sorceryOnly: true, label: 'Subir de nível', nivelarT: true, effects: [{ do: 'nivel_sobe', z: o.zc || 0 }] }); // 702.87a · T-25 · 400.7: a subida leva a encarnação (`z`), como a da Classe
   const f = faixaDoNivelarT(s, o); if (f) for (const ab of f.abilities || []) list.push({ ...ab, nivelarFaixaT: f.de });
@@ -27215,6 +27284,7 @@ function continuosDaClasseT(s, x, sc) {
   return cs.map(c => ({ ...c, palavras: c.palavras ? c.palavras.map(w => String(w).toLowerCase()) : undefined, ...(c.torna ? { redefine: SC.tornaParaBecomes(c.torna) } : {}) })); // como o laço do `continuo` em continuosDaFonte
 }
 function regrasDosNiveisT(s, p, out) {
+  regrasDosCasosT(s, p, out); // T-39 · CR 719.3c · regra de jogador do Caso resolvido
   if (!s.classes) return;
   for (const oid of Object.keys(s.classes)) {
     const o = s.objects[oid], sc = o && o.zone === 'battlefield' && ((s.facts[o.name] || {}).script || {}); if (!sc || !sc.self || !sc.self.classe || o.faceDown || semImpressas(s, o)) continue;
@@ -29813,9 +29883,9 @@ const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas
   fight: e => `${e.quem === 'self-source' ? 'esta criatura luta' : 'ela luta'} com ${ALVO_PT[e.target] || descreveAlvo(e.target)} (cada uma causa dano igual ao próprio poder à outra)`,
 };
 /* ↓ T · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha tipos */
-const EFEITO_PT_T = { selada: () => 'esta montaria fica selada até o fim do turno', virar_carta: e => (e.se && e.se.minCriaturas ? `se você controla ${e.se.minCriaturas} ou mais criaturas, vira esta carta` : 'vira esta carta'), porta: e => (e.acao === 'trancar' ? 'tranca uma porta destrancada de uma Sala sua' : e.acao === 'destrancar' ? 'destranca uma porta trancada de uma Sala sua' : 'tranca ou destranca uma porta de uma Sala sua'), nivel_sobe: () => 'põe um marcador de nível nela', nivel_classe: e => `a Classe sobe para o nível ${e.n}`, tripulada: () => 'vira criatura artefato até o fim do turno', transformar: () => 'transforma (vira a outra face)' }; // T-7 · 701.27
+const EFEITO_PT_T = { caso_resolvido: () => 'este Caso fica resolvido', estacao: () => 'põe nesta permanente marcadores de carga iguais ao poder da criatura virada', selada: () => 'esta montaria fica selada até o fim do turno', virar_carta: e => (e.se && e.se.minCriaturas ? `se você controla ${e.se.minCriaturas} ou mais criaturas, vira esta carta` : 'vira esta carta'), porta: e => (e.acao === 'trancar' ? 'tranca uma porta destrancada de uma Sala sua' : e.acao === 'destrancar' ? 'destranca uma porta trancada de uma Sala sua' : 'tranca ou destranca uma porta de uma Sala sua'), nivel_sobe: () => 'põe um marcador de nível nela', nivel_classe: e => `a Classe sobe para o nível ${e.n}`, tripulada: () => 'vira criatura artefato até o fim do turno', transformar: () => 'transforma (vira a outra face)' }; // T-7 · 701.27
 /** T-7 · linhas do registro para os eventos da trilha tipos. */
-const LINHA_T = { estacao: ev => (ev.failed ? `${ev.name}: a nave saiu do campo, a estação não pôs marcadores` : `${ev.name} recebeu ${ev.amount} marcador${ev.amount === 1 ? '' : 'es'} de carga (estação)${ev.total != null ? ` · ${ev.total} no total` : ''}`), selada: ev => (ev.failed ? `${ev.name}: a montaria saiu do campo, não foi selada` : `${ev.name} foi selada`), virar_carta: ev => (ev.failed ? `${ev.name} não virou${ev.motivo ? ` (${ev.motivo})` : ''}` : `${ev.name} virou: agora é ${ev.target}`), porta: ev => (ev.failed ? `${ev.name}: nenhuma porta para trancar ou destrancar` : `${ev.name} ${ev.acao} ${ev.porta} (${ev.target})`), nivel_sobe: ev => (ev.failed ? `${ev.name}: saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu de nível (nível ${ev.nivel})`), nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
+const LINHA_T = { caso_resolvido: ev => (ev.failed ? `${ev.name}: a condição não valia mais, o Caso não foi resolvido` : `${ev.name} foi resolvido`), estacao: ev => (ev.failed ? `${ev.name}: a nave saiu do campo, a estação não pôs marcadores` : `${ev.name} recebeu ${ev.amount} marcador${ev.amount === 1 ? '' : 'es'} de carga (estação)${ev.total != null ? ` · ${ev.total} no total` : ''}`), selada: ev => (ev.failed ? `${ev.name}: a montaria saiu do campo, não foi selada` : `${ev.name} foi selada`), virar_carta: ev => (ev.failed ? `${ev.name} não virou${ev.motivo ? ` (${ev.motivo})` : ''}` : `${ev.name} virou: agora é ${ev.target}`), porta: ev => (ev.failed ? `${ev.name}: nenhuma porta para trancar ou destrancar` : `${ev.name} ${ev.acao} ${ev.porta} (${ev.target})`), nivel_sobe: ev => (ev.failed ? `${ev.name}: saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu de nível (nível ${ev.nivel})`), nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
 Object.assign(EFEITO_PT_T, { cerco_derrotado: () => 'exila o Cerco; você pode conjurá-lo transformado, sem pagar', papel: e => `cria um Papel de ${e.papel} anexado à criatura` }); // T-14 · CR 310.12b
 Object.assign(LINHA_T, { cerco_derrotado: ev => (ev.failed ? `${ev.name}: o Cerco já tinha saído do campo, nada a exilar` : `${ev.name} foi derrotada e exilada${ev.target ? ` (pode virar ${ev.target})` : ''}`), protetor_batalha: ev => `${ev.target} passa a proteger ${ev.name}`, anexo_barrado: ev => `${ev.name} não pode equipar${ev.target ? ' ' + ev.target : ''} e fica onde está`, papel: ev => (ev.failed ? `${ev.name}: sem criatura para o Papel de ${ev.target}` : `Papel de ${ev.target || ev.name}`), papel_substituido: ev => `o Papel ${ev.name} foi substituído e vai para o cemitério`, batalha_cemiterio: ev => `${ev.name} ficou sem defesa e foi para o cemitério` }); // T-14 · CR 310.12b / 310.11 / 310.8
 function descreveEfeito(e) {

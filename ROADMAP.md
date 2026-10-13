@@ -5130,6 +5130,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `reducaoPorCor`, `castExtra` e `castExtraK` (a cor e o genérico do custo que está sendo pago, quando é protótipo).
 - **Próximo:** as parciais da CR5 e o próximo bloqueio de tipo no catálogo.
 
+**CR5-T39 · Casos (719, 702.169)** ✅ (leva T-39, sem mudança de versão do motor) — **Valor:** as cartas de Caso (Murders at Karlov Manor) têm a forma de script e o motor resolve o "To solve" sozinho; os bloqueios de tipo do Pauper se esgotaram (o que resta é de outras trilhas ou de uma lista só), e esta é a próxima fatia livre do escopo. **Aceite:** com `self.caso = { resolver, resolvido }`, no início do seu passo final, se a condição vale e o Caso não está resolvido, ele fica resolvido (719.3a; a condição é conferida ao disparar e de novo ao resolver, 603.4); "resolvido" dura até o Caso sair do campo e não é copiável (719.3b); as habilidades, os contínuos e as regras de jogador de "resolvido" só valem com ele resolvido (719.3c, 702.169b–d). Condição por contagem (`per` com `min`/`max`) ou por quantas permanentes suas casam com um seletor (`controla`). Registro: "<Caso> foi resolvido". **Testes:** `tipos.casos.unit` (10; falham sem a leva). Carta: Case of the Filched Falcon (Oracle do Forge, clone de 13/10/2026). **Depende de:** nada. **Fora:** condições que o vocabulário não tem (dano de três fontes no turno, criaturas para cemitérios no turno, Detetives…) deixam o Caso manual; a mesa ainda não mostra "resolvido" na carta (o que muda para quem joga é a ativada que aparece).
+- **Escopo do mapa:** a 702.169 já dizia "fica com a trilha tipos"; a leva atualiza 702.169 e 719.3.
+- **Versão e goldens:** a versão não sobe; goldens idênticos.
+- **Toca ponto comum:** nenhum novo (as linhas de `abilitiesOf` e `continuosDaFonte` são as da T-24, que ganharam o Caso).
+- **Próximo:** as parciais da CR5 (715.3 Aventura de outras zonas, 716.2 Classe, 309.6/309.7 masmorra).
+
 **CR6 · Multijogador e variantes** ○ — mesa de três e quatro (800–803, 806), Commander de mesa (903.2), Brawl (903.12); as variantes hoje "fora" só entram por decisão. 10 a 14 levas.
 
 **CR7 · Consolidação** ○ (em paralelo a partir da CR2) — a cada fase: fuzz em modo completo com listas reais, homologação por revisor independente relendo a seção das regras contra o motor, e rodada de simulação do dono do produto. 6 a 8 levas ao todo.
