@@ -5484,6 +5484,7 @@ const EFFECTS = {
   lutador: { fields: [], targets: ['creature', 'creature-you-control'] },
   fight: { fields: [], targets: ['creature', 'creature-opponent-controls', 'creature-you-control'] }, // quem: 'self-source' (a permanente fonte luta) | 'primeiro-alvo' (luta a criatura anotada pelo `lutador` anterior)
   /* ↓ T · efeitos da trilha tipos */
+  virar_carta: { fields: [], targets: ['self'] }, // T-29 · CR 710 · "flip ~": vira esta carta de virar para a parte alternativa (sem volta, 710.4); `se: { minCriaturas: N }` confere "if you control N or more creatures" na resolução
   porta: { fields: [], targets: ['permanent-you-control'] }, // T-27 · CR 709.5f/g · "unlock a locked door" / "lock a door" / "lock or unlock a door" de uma Sala (alvo: seletor de Sala sua); a porta é escolhida na resolução
   papel: { fields: [], targets: ['creature', 'creature-you-control', 'first-target'] }, // T-20 · CR 111.10j–r / 303.7 · "create a <Papel> Role token attached to <alvo>": a ficha de Papel (definida pela regra) entra anexada
   cerco_derrotado: { fields: [], targets: ['self'] }, // T-14 · CR 310.12b · a habilidade intrínseca do Cerco: "exile it, then you may cast it transformed without paying its mana cost" (o motor a dispara quando sai o último marcador de defesa; o script não a escreve)
@@ -6178,7 +6179,7 @@ function validateScript(sc) {
   if (sc && sc.replicate != null && sc.kicker) errs.push('replicar e reforço na mesma carta não são aceitos (os dois usam o pagamento repetido)');
   if (sc && sc.modeCount != null && !(Number.isInteger(sc.modeCount) && sc.modeCount >= 2 && (sc.modes || []).length && (sc.modeRepeat || sc.modeCount <= sc.modes.length))) errs.push('número de modos inválido');
   if (sc && sc.cumulativeUpkeep && !/\{/.test(String(sc.cumulativeUpkeep.mana || ''))) errs.push('manutenção cumulativa precisa de um custo de mana');
-  errs.push(...sagaErros(sc), ...tripularErros(sc), ...aventuraErros(sc), ...duplaFaceErros(sc), ...modalErros(sc), ...divididaErros(sc), ...classeErros(sc), ...batalhaErros(sc), ...papelErros(sc), ...nivelarErros(sc), ...salaErros(sc)); // T-26 · CR 709.5 · Sala (mesma chamada) // T-24 · CR 711 · barras de nível (mesma chamada) // T-20 · CR 111.10 · papel conhecido (mesma chamada) // T-14 · CR 310.4 · defesa da batalha (mesma chamada) // T-12 · CR 716 · Classe (mesma chamada) // T-10 · CR 709 · carta dividida (mesma chamada) // T-8 · CR 712.3 · dupla face modal (mesma chamada) // T-7 · CR 712 · dupla face (mesma chamada) // T-5 · CR 715 · aventura (mesma chamada) // T-3 · CR 702.122 · tripular (mesma chamada da T-1) // T-1 · CR 714 · Saga: capítulos, read ahead e o marcador de entrada (função abaixo da âncora T das exportações)
+  errs.push(...sagaErros(sc), ...tripularErros(sc), ...aventuraErros(sc), ...duplaFaceErros(sc), ...modalErros(sc), ...divididaErros(sc), ...classeErros(sc), ...batalhaErros(sc), ...papelErros(sc), ...nivelarErros(sc), ...salaErros(sc), ...virarErros(sc)); // T-29 · CR 710 · carta de virar (mesma chamada) // T-26 · CR 709.5 · Sala (mesma chamada) // T-24 · CR 711 · barras de nível (mesma chamada) // T-20 · CR 111.10 · papel conhecido (mesma chamada) // T-14 · CR 310.4 · defesa da batalha (mesma chamada) // T-12 · CR 716 · Classe (mesma chamada) // T-10 · CR 709 · carta dividida (mesma chamada) // T-8 · CR 712.3 · dupla face modal (mesma chamada) // T-7 · CR 712 · dupla face (mesma chamada) // T-5 · CR 715 · aventura (mesma chamada) // T-3 · CR 702.122 · tripular (mesma chamada da T-1) // T-1 · CR 714 · Saga: capítulos, read ahead e o marcador de entrada (função abaixo da âncora T das exportações)
   return errs.concat(exampleErrors(sc));
 }
 const ATRASOS = ['next-upkeep', 'next-end-step', 'end-of-combat']; // CR2b.1 · momentos de gatilho atrasado que o motor conhece
@@ -6575,6 +6576,12 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-29 · CR 710 · carta de virar (Oracle do Forge, consulta de 13/10/2026). A ficha é a g_1_1_snake do Forge.
+  { name: 'Orochi Eggwatcher', self: { virar: true },
+    abilities: [{ kind: 'activated', cost: { mana: '{2}{G}', tap: true }, effects: [{ do: 'token', amount: 1, token: { name: 'Snake', types: ['creature'], subtypes: ['Snake'], colors: ['G'], power: 1, toughness: 1 } }, { do: 'virar_carta', se: { minCriaturas: 10 } }] }], // "{2}{G}, {T}: Create a 1/1 green Snake creature token. If you control ten or more creatures, flip Orochi Eggwatcher."
+    back: { name: 'Shidako, Broodmistress', types: ['creature'], subtypes: ['Snake', 'Shaman'], legendary: true, power: 3, toughness: 3,
+      abilities: [{ kind: 'activated', cost: { mana: '{G}', sacrificeOther: { types: ['creature'], includeSelf: true } }, effects: [{ do: 'pump', power: 3, toughness: 3, target: 'creature' }] }] }, // "{G}, Sacrifice a creature: Target creature gets +3/+3 until end of turn."
+    example: { action: 'activate:0', target: 'none', expect: { tokens: 1 } } },
   // T-27 · CR 709.5f/g · destrancar e trancar por efeito (Oracle do Forge, consulta de 13/10/2026).
   { name: 'Ghostly Keybearer', abilities: [{ kind: 'triggered', when: 'combat-damage', effects: [{ do: 'porta', acao: 'destrancar', target: { tipos: ['enchantment'], subtipos: ['Room'], de: 'you' }, upTo: true }] }], // "Flying · Whenever Ghostly Keybearer deals combat damage to a player, unlock a locked door of up to one target Room you control." (voar vem da palavra-chave)
     example: { target: 'none', expect: { selfLife: 0 } } },
@@ -8791,6 +8798,28 @@ EVENTOS_DE_OBJETO.push('exaurida'); OBJETOS_DO_EVENTO.exaurida = ['self']; GATIL
 // V-6 · evento "ficou monstruosa" (701.37): da própria permanente
 EVENTOS_DE_OBJETO.push('monstruosa'); OBJETOS_DO_EVENTO.monstruosa = ['self']; GATILHO_EVENTO['becomes-monstrous'] = { evento: 'monstruosa', objeto: 'self' }; TRIGGER_PT['becomes-monstrous'] = 'quando fica monstruosa';
 /* ↓ T · exportações de scripts.js da trilha tipos */
+/* ---------------- T-29 · CR 710 · cartas de virar (forma do script) ----------------
+   O script mora no nome da parte normal (a carta listada como "A // B" usa o mesmo script, como as outras de duas partes):
+   `self: { virar: true }` + `back: { name, types, subtypes, legendary, power, toughness, keywords, abilities }` (a parte alternativa,
+   sem custo nem cor próprios: 710.1c). O efeito `virar_carta` ("flip ~") só existe na parte normal; `se: { minCriaturas: N }` é a
+   condição "if you control N or more creatures". */
+function virarErros(sc) {
+  const sf = sc && sc.self, temVirar = es => (es || []).some(e => e && e.do === 'virar_carta');
+  const usa = temVirar(sc && sc.effects) || ((sc && sc.abilities) || []).some(ab => ab && temVirar(ab.effects));
+  if (!sf || !sf.virar) return usa && !(sf && sf.barraT) ? ['virar: o efeito virar_carta só existe numa carta de virar (self.virar)'] : [];
+  const errs = [];
+  if (sf.virar !== true) errs.push('virar: self.virar só vale como true');
+  if (sf.dividida || sf.sala || sf.modal || sf.duplaFace || sf.aventura || sf.classe || sf.nivelar) errs.push('virar: a carta de virar não é dividida, Sala, modal, de transformar, de aventura, Classe nem de subir de nível');
+  for (const ab of (sc.abilities || [])) for (const e of (ab && ab.effects) || []) if (e && e.do === 'virar_carta' && e.se != null && !(e.se && Object.keys(e.se).length === 1 && Number.isInteger(e.se.minCriaturas) && e.se.minCriaturas > 0)) errs.push('virar: a condição de virar_carta é { minCriaturas: N }');
+  const b = sc.back;
+  if (!b || typeof b !== 'object') return errs.concat('virar: falta a parte alternativa (back)');
+  for (const k of Object.keys(b)) if (!['name', 'types', 'subtypes', 'legendary', 'power', 'toughness', 'keywords', 'abilities'].includes(k)) errs.push(`virar: chave "${k}" desconhecida na parte alternativa${k === 'mana' || k === 'colors' ? ' (710.1c: cor e custo não mudam ao virar)' : ''}`);
+  if (!(Array.isArray(b.types) && b.types.length && b.types.every(t => ['land', 'creature', 'artifact', 'enchantment', 'planeswalker', 'battle'].includes(t)))) errs.push('virar: a parte alternativa é de permanente (types)');
+  if ((b.abilities || []).some(ab => ab && temVirar(ab.effects))) errs.push('virar: a parte alternativa não vira de volta (710.4)');
+  errs.push(...validateScript({ name: `${sc.name} (parte alternativa)`, abilities: b.abilities || [], self: { barraT: true }, example: { target: 'none', expect: { selfLife: 0 } } }).map(e => `virar, parte alternativa: ${e}`));
+  return errs;
+}
+Object.assign(EXPORTS_T_SC, { virarErros });
 /* ---------------- T-26 · CR 709.5 · Salas (forma do script) ----------------
    A Sala é uma carta dividida de permanente com linha de tipo compartilhada: o script mora no nome inteiro ("A // B"), com
    `self: { dividida: true, sala: true, mana, types: ['enchantment'] }` e `abilities` da porta esquerda; `back: { name, types: ['enchantment'],
@@ -8980,7 +9009,7 @@ function aventuraErros(sc) {
 }
 /** As faces de trás desta trilha só viram fatos na partida que tem a carta (createGame): script novo com `back` na biblioteca não
  * muda o estado das partidas que não o usam. Cada tipo de carta da trilha acrescenta a sua marca aqui. */
-const versoSoNaPartida = sc => !!(sc && sc.self && (sc.self.aventura || sc.self.duplaFace || sc.self.modal || sc.self.dividida)); // T-10 · dividida // T-7 · dupla face que transforma · T-8 · modal
+const versoSoNaPartida = sc => !!(sc && sc.self && (sc.self.aventura || sc.self.duplaFace || sc.self.modal || sc.self.dividida || sc.self.virar)); // T-29 · carta de virar // T-10 · dividida // T-7 · dupla face que transforma · T-8 · modal
 Object.assign(EXPORTS_T_SC, { aventuraErros, versoSoNaPartida });
 /* ---------------- T-3 · CR 702.122 · tripular (forma do script) ----------------
    Tripular é a habilidade ativada de custo `{ crew: N }` (CR2d.3). Esta leva acrescenta:
@@ -17463,6 +17492,7 @@ function aplicaTemporario(s, o, { poder, resistencia, palavras, ate = 'fim-do-tu
     nome, sem subtipo, sem habilidades e incolor (e a cópia fica virada para cima). No motor: fatos de nome próprio, criados uma vez. */
 const NOME_DA_VIRADA = 'Criatura virada para baixo';
 function nomeCopiavel(s, modelo) {
+  if (modelo && modelo.frontName && virarScriptT(s, modelo)) return modelo.frontName; // T-29 · CR 707.2 / 110.5: o status de virada não é copiado — a cópia é a parte normal (Toca ponto comum: nomeCopiavel)
   if (!modelo || !modelo.faceDown) return modelo && modelo.name;
   if (!s.facts[NOME_DA_VIRADA]) s.facts[NOME_DA_VIRADA] = cardFacts({ name: NOME_DA_VIRADA, type_line: 'Creature', power: '2', toughness: '2', colors: [], keywords: [], oracle_text: '' });
   return NOME_DA_VIRADA;
@@ -20078,6 +20108,7 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'lutador': if (obj) s.lutadorV = { fonte: src.oid, fz: encarnacaoV(s, src), oid: obj.oid, z: obj.zc || 0 }; break; // V-1/V-5 · anota quem luta; a luta é o `fight` seguinte, que apaga a anotação
     case 'fight': lutar(s, src, eff, tgt, events); break; // V-1 · 701.14
     /* ↓ T · casos de applyEffect da trilha tipos */
+    case 'virar_carta': viraCartaT(s, src, eff, events); break; // T-29 · CR 710 · "flip ~" (sem volta)
     case 'porta': portaEfeitoT(s, src, eff, obj, events); break; // T-27 · CR 709.5f/g · destranca, tranca ou "tranca ou destranca" uma porta da Sala alvo
     case 'papel': criaPapelT(s, src, eff, obj, events); break; // T-20 · CR 111.10j–r / 303.7 · a ficha de Papel entra anexada ao alvo
     case 'cerco_derrotado': cercoDerrotadoT(s, src, eff, events); break; // T-14 · CR 310.12b · exila o Cerco e abre "conjurar transformado sem pagar"
@@ -25416,6 +25447,30 @@ function rotuloDaPortaT(s, pd, lado) {
   return `${tranca ? 'Trancar' : 'Destrancar'} ${nomeDaPortaT(s, pd.oid, lado) || lado}`;
 }
 Object.assign(EXPORTS_T, { portasDaSalaT, nomeDaPortaT, valorDaSalaT, rotuloDaPortaT });
+/* ---------------- T-29 · CR 710 · cartas de virar ----------------
+   - 710.1b / 710.2: virada, a permanente é a parte alternativa (o objeto passa a ter o nome dela, com `frontName` guardando a normal,
+     o mesmo mecanismo da dupla face); fora do campo e antes de virar, só a parte normal.
+   - 710.1c: a parte alternativa tem a cor, o custo e o valor de mana da normal (`fatosDaViradaT`).
+   - 710.4 / 110.5: virar é sem volta; saindo do campo, a carta perde o status (moveObject já volta à frente). A habilidade de virar
+     criada antes de a carta entrar no campo não vira o objeto novo (400.7, `virarEmT`).
+   - 707.2: o status não é copiado — a cópia de uma carta virada é a parte normal (`nomeCopiavel`). */
+function virarScriptT(s, o) { const f = o && !o.ability && s.facts[o.frontName || o.name], sc = f && f.script; return sc && sc.self && sc.self.virar ? sc : null; }
+function fatosDaViradaT(s, sc, setup, fb) {
+  const nome = Object.keys((setup && setup.cards) || {}).find(n => n === sc.name || n.startsWith(sc.name + ' // ')), f = (nome && s.facts[nome]) || s.facts[sc.name];
+  if (f) { fb.cost = f.cost; fb.cmc = f.cmc; fb.colors = (f.colors || []).slice(); fb.semCusto = f.semCusto; }
+  fb.legendary = !!sc.back.legendary;
+}
+function viraCartaT(s, src, eff, events) {
+  const o = src.ability ? s.objects[src.source] : src, sc = virarScriptT(s, o);
+  const falha = motivo => events.push({ kind: 'effect', do: 'virar_carta', name: (o && o.name) || src.name, failed: true, motivo });
+  if (!o || !sc || o.zone !== 'battlefield' || o.faceDown || o.phasedOut) return falha();
+  if (o.frontName) return falha('já virada'); // 710.4
+  if (src.ability && src.source === o.oid && o.virarEmT != null && parseInt(String(src.oid).slice(2), 10) < o.virarEmT) return falha(); // 400.7
+  if (eff.se && eff.se.minCriaturas != null && battlefield(s).filter(x => x.controller === src.controller && isCreature(s, x)).length < eff.se.minCriaturas) return falha(`menos de ${eff.se.minCriaturas} criaturas`);
+  const de = o.name, ts = o.ts; flipTo(s, o, typeof sc.back === 'string' ? sc.back : sc.back.name); o.ts = ts; // nos fatos, `back` é o nome // virar não dá carimbo novo
+  events.push({ kind: 'effect', do: 'virar_carta', name: de, target: o.name });
+}
+Object.assign(EXPORTS_T, { virarScriptT });
 /* ---------------- T-24 · CR 702.87 / 711 · cartas de subir de nível ----------------
    Forma no script: `self: { nivelar: { mana, faixas: [{ de, ate, base: [P, R], palavras?, abilities?, continuo? }, …, { de, base, … }] } }`
    (a última barra é a "N+", sem `ate`). O nível é o número de marcadores `level` da permanente (122.1), de qualquer fonte.
@@ -25823,6 +25878,7 @@ function sagaEntrou(s, o) {
   if (o && ehEquipamentoImpressoT(s, o)) o.entrouEmAbT = s.nextAbility; // T-17 · CR 400.7: a habilidade de equipar criada antes de o Equipamento entrar é do objeto anterior
   auraEntrouT(s, o); // T-22 · CR 303.4f · Aura que entrou sem ser conjurada: anexa à única opção ou abre a escolha
   batalhaEntrouT(s, o); // T-14 · CR 310.4b / 310.9a · a batalha que entra: marcadores de defesa e protetor (mesmo ponto de entrada: moveObject e createToken)
+  if (o && virarScriptT(s, o)) o.virarEmT = s.nextAbility; // T-29 · CR 400.7: a habilidade de virar criada antes de a carta entrar é do objeto anterior
   if (o && parDuplaFaceT(s, o)) o.transformouEm = s.nextAbility; // T-9 · 400.7 / 701.27f: habilidade criada antes de a dupla face entrar no campo é do objeto antigo e não a transforma
   if (!o || !ehSaga(s, o)) return;
   (s.sagas = s.sagas || {})[o.oid] = { z: o.zc || 0, n: 0 };
@@ -26066,6 +26122,7 @@ function fatosDeDuasPartesT(s, sc, setup) {
     if (!(sc.back.colors || []).length) fb.colors = coresDoCustoT(fb.cost);
   }
   if (fb && sc.self && sc.self.dividida) fatosDaDivididaT(s, sc, setup, fb); // T-10 · CR 709.3b / 709.4
+  if (fb && sc.self && sc.self.virar) fatosDaViradaT(s, sc, setup, fb); // T-29 · CR 710.1c
   if (fb && sc.self && sc.self.modal) { // T-8 · 712.8f: a face de trás modal tem as características dela — custo, valor de mana, cor, mana que gera, entrar virada
     const b = sc.back, terreno = (b.types || []).includes('land');
     fb.cost = parseCost(b.mana || ''); fb.cmc = valorDoCustoT(fb.cost); fb.semCusto = !terreno && !b.mana;
@@ -28887,9 +28944,9 @@ const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas
   fight: e => `${e.quem === 'self-source' ? 'esta criatura luta' : 'ela luta'} com ${ALVO_PT[e.target] || descreveAlvo(e.target)} (cada uma causa dano igual ao próprio poder à outra)`,
 };
 /* ↓ T · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha tipos */
-const EFEITO_PT_T = { porta: e => (e.acao === 'trancar' ? 'tranca uma porta destrancada de uma Sala sua' : e.acao === 'destrancar' ? 'destranca uma porta trancada de uma Sala sua' : 'tranca ou destranca uma porta de uma Sala sua'), nivel_sobe: () => 'põe um marcador de nível nela', nivel_classe: e => `a Classe sobe para o nível ${e.n}`, tripulada: () => 'vira criatura artefato até o fim do turno', transformar: () => 'transforma (vira a outra face)' }; // T-7 · 701.27
+const EFEITO_PT_T = { virar_carta: e => (e.se && e.se.minCriaturas ? `se você controla ${e.se.minCriaturas} ou mais criaturas, vira esta carta` : 'vira esta carta'), porta: e => (e.acao === 'trancar' ? 'tranca uma porta destrancada de uma Sala sua' : e.acao === 'destrancar' ? 'destranca uma porta trancada de uma Sala sua' : 'tranca ou destranca uma porta de uma Sala sua'), nivel_sobe: () => 'põe um marcador de nível nela', nivel_classe: e => `a Classe sobe para o nível ${e.n}`, tripulada: () => 'vira criatura artefato até o fim do turno', transformar: () => 'transforma (vira a outra face)' }; // T-7 · 701.27
 /** T-7 · linhas do registro para os eventos da trilha tipos. */
-const LINHA_T = { porta: ev => (ev.failed ? `${ev.name}: nenhuma porta para trancar ou destrancar` : `${ev.name} ${ev.acao} ${ev.porta} (${ev.target})`), nivel_sobe: ev => (ev.failed ? `${ev.name}: saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu de nível (nível ${ev.nivel})`), nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
+const LINHA_T = { virar_carta: ev => (ev.failed ? `${ev.name} não virou${ev.motivo ? ` (${ev.motivo})` : ''}` : `${ev.name} virou: agora é ${ev.target}`), porta: ev => (ev.failed ? `${ev.name}: nenhuma porta para trancar ou destrancar` : `${ev.name} ${ev.acao} ${ev.porta} (${ev.target})`), nivel_sobe: ev => (ev.failed ? `${ev.name}: saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu de nível (nível ${ev.nivel})`), nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
 Object.assign(EFEITO_PT_T, { cerco_derrotado: () => 'exila o Cerco; você pode conjurá-lo transformado, sem pagar', papel: e => `cria um Papel de ${e.papel} anexado à criatura` }); // T-14 · CR 310.12b
 Object.assign(LINHA_T, { cerco_derrotado: ev => (ev.failed ? `${ev.name}: o Cerco já tinha saído do campo, nada a exilar` : `${ev.name} foi derrotada e exilada${ev.target ? ` (pode virar ${ev.target})` : ''}`), protetor_batalha: ev => `${ev.target} passa a proteger ${ev.name}`, anexo_barrado: ev => `${ev.name} não pode equipar${ev.target ? ' ' + ev.target : ''} e fica onde está`, papel: ev => (ev.failed ? `${ev.name}: sem criatura para o Papel de ${ev.target}` : `Papel de ${ev.target || ev.name}`), papel_substituido: ev => `o Papel ${ev.name} foi substituído e vai para o cemitério`, batalha_cemiterio: ev => `${ev.name} ficou sem defesa e foi para o cemitério` }); // T-14 · CR 310.12b / 310.11 / 310.8
 function descreveEfeito(e) {

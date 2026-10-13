@@ -4927,6 +4927,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `coresDe`, devoção (`amountOf`) e `matchesFilter` (um termo em cada linha).
 - **Próximo:** decisão do dono — cartas de virar (710) e fundir (712.4); teste no aparelho das Salas.
 
+**CR5-T29 · Cartas de virar (710)** ✅ (leva T-29, sem mudança de versão do motor) — **Valor:** as cartas de virar de Kamigawa jogam: viram pela própria habilidade e passam a ser a parte alternativa, sem volta. **Decisão do dono (12/10 23:35):** seguir as recomendações — cartas de virar primeiro (1 leva), depois fundir (2 levas). **Aceite:** virada, a permanente tem nome, tipo (lendária), P/R e habilidades da parte alternativa; antes e fora do campo, só a normal (710.1b, 710.2); cor, custo e valor de mana não mudam (710.1c); virar é sem volta e a carta que sai do campo perde o status (710.4, 110.5); a habilidade de virar de antes de sair e voltar não vira o objeto novo (400.7); a cópia de uma virada é a parte normal (707.2). **Testes:** `tipos.virar.unit` (12; os 11 de regra falham sem a leva; passeio aleatório de 10 partidas). Carta exemplo: Orochi Eggwatcher // Shidako, Broodmistress (Oracle do Forge, consulta de 13/10/2026). **Depende de:** CR5-T7 (dupla face).
+- **Forma do script:** `self: { virar: true }` + `back` (parte alternativa sem `mana` nem `colors`, com `legendary`); efeito `virar_carta` com `se: { minCriaturas: N }`. O validador recusa custo ou cor na parte alternativa e `virar_carta` fora de carta de virar.
+- **Fora:** outras condições de virar (mão com N cartas, vida, gatilhos de estado como "quando tiver 30 ou mais de vida") ficam para quando houver carta pedindo; 710.5 (escolher o nome alternativo) depende do efeito de escolher nome, que o motor não tem; permanente que já está virada e vira cópia de outra carta de virar (exemplo de Tomoya, 707.2) não é tratada.
+- **Versão e goldens:** a versão não sobe; goldens idênticos.
+- **Toca ponto comum:** `nomeCopiavel` (uma linha).
+- **Próximo:** T-30, auditoria independente das cartas de virar; depois fundir (712.4).
+
 **CR6 · Multijogador e variantes** ○ — mesa de três e quatro (800–803, 806), Commander de mesa (903.2), Brawl (903.12); as variantes hoje "fora" só entram por decisão. 10 a 14 levas.
 
 **CR7 · Consolidação** ○ (em paralelo a partir da CR2) — a cada fase: fuzz em modo completo com listas reais, homologação por revisor independente relendo a seção das regras contra o motor, e rodada de simulação do dono do produto. 6 a 8 levas ao todo.
