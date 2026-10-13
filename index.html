@@ -7998,7 +7998,7 @@ const RAW_SCRIPTS = [
     example: { target: 'none', expect: { tokens: 2 } } },
   { name: 'Skred', effects: [{ do: 'damage', amount: { subtype: 'Snow' }, target: 'creature' }], // "Skred deals damage to target creature equal to the number of snow permanents you control." (o cenário não tem permanente da neve: 0 de dano)
     example: { target: 'enemy-creature', expect: { gone: false } } },
-  { name: 'Wild Growth', aura: { enchant: 'land' }, grants: { extraMana: ['G'] }, note: 'o {G} a mais vem com a mana de {T} simples; num terreno cuja mana sai de habilidade com custo além de {T} (terras de esgotamento) ele ainda não vem (106.12a, achado da auditoria do L-2: pedido ao motor)', // "Enchant land / Whenever enchanted land is tapped for mana, its controller adds an additional {G}."
+  { name: 'Wild Growth', aura: { enchant: 'land' }, grants: { extraMana: ['G'] }, // "Enchant land / Whenever enchanted land is tapped for mana, its controller adds an additional {G}."
     example: { action: 'aura', target: 'own-land', expect: { mana: true } } },
   { name: "Sazacap's Brew", additional: { discard: 1 }, effects: [{ do: 'draw', amount: 2, target: 'player' }], // "Gift a tapped Fish / As an additional cost to cast this spell, discard a card. / Target player draws two cards."
     presenteK: { effects: [{ do: 'draw', amount: 2, target: 'player' }, { do: 'pump', power: 2, toughness: 0, target: 'creature-you-control' }] }, // "If the gift was promised, target creature you control gets +2/+0 until end of turn." (702.174m: esse alvo só existe no modo prometido)
@@ -8065,9 +8065,8 @@ const RAW_SCRIPTS = [
   // "(As this Saga enters and after your draw step, add a lore counter.) / I, II — Draw a card, then discard a card. / III — Exile this Saga, then return it to the battlefield transformed under your control." · verso Vector Glider: Enchantment Creature — Spirit 2/3, azul (indicador de cor), "Flying"
   { name: 'The Modern Age', self: { duplaFace: true }, entra: [{ afetados: 'self', marcadores: { lore: 1 } }], abilities: [
     { kind: 'triggered', when: 'chapter', chapters: [1, 2], effects: [{ do: 'draw', amount: 1 }, { do: 'discard', amount: 1 }] },
-    { kind: 'triggered', when: 'chapter', chapters: [3], effects: [{ do: 'exile_return_transformed', target: 'self-source' }] }],
+    { kind: 'triggered', when: 'chapter', chapters: [3], effects: [{ do: 'exile_return_transformed', target: 'self-source', sob: 'voce' }] }], // "return it to the battlefield transformed under your control" (sob: 'voce', M-353)
     back: { name: 'Vector Glider', types: ['enchantment', 'creature'], subtypes: ['Spirit'], colors: ['U'], power: 2, toughness: 3, keywords: ['flying'] },
-    note: 'capítulo III: volta sob o controle do dono (o texto diz "your control"; só difere se outro jogador controlar a Saga)',
     example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor): o cenário de verdade está em listas.lote*.unit
   { name: 'Snakeskin Veil', effects: [{ do: 'counters', amount: 1, target: { tipos: ['creature'], de: 'you' } }, { do: 'keyword', keyword: 'hexproof', target: 'first-target' }], // "Put a +1/+1 counter on target creature you control. It gains hexproof until end of turn."
     example: { target: 'own-creature', expect: { keyword: 'hexproof' } } },

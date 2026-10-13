@@ -125,7 +125,7 @@ test('L-1 · Unfathomable Truths: "Devoid / Draw three cards and create a 0/1 co
   const m = act(r, sac[0]); assert.equal(m.players[0].pool.C, 1); assert.ok(!m.objects[cria.oid] || m.objects[cria.oid].zone !== 'battlefield', 'a ficha foi sacrificada');
 });
 
-test('L-1 · Wild Growth numa terra de esgotamento: "{T}, Remove a depletion counter: Add {R}{R}" também é "tapped for mana" → {R}{R}{G} (106.12a)', { todo: 'core.js: o mana extra de anexo só vale para a produção de {T} simples — pedido à trilha motor' }, () => {
+test('L-1 · Wild Growth numa terra de esgotamento: "{T}, Remove a depletion counter: Add {R}{R}" também é "tapped for mana" → {R}{R}{G} (106.12a)', () => {
   let t = mesa(['Wild Growth', 'Sandstone Needle']); let w2, nd; [t, w2] = poe(t, 0, 'Wild Growth', 'hand'); [t, nd] = poe(t, 0, 'Sandstone Needle', 'battlefield', { counters: { depletion: 2 } });
   t = tudo(act(comMana(t, 'G'), legais(comMana(t, 'G'), 0, a => a.t === 'cast' && a.oid === w2 && a.targets && a.targets[0].oid === nd)[0]));
   t = J(t); for (const k in t.players[0].pool) t.players[0].pool[k] = 0;

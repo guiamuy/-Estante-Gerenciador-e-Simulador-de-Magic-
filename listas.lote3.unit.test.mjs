@@ -141,8 +141,8 @@ test('L-3 · Thrummingbird: "Whenever Thrummingbird deals combat damage to a pla
 });
 
 // Achado da auditoria independente do L-4: "return it to the battlefield transformed under your control" — sob o controle de quem controla a
-// habilidade do capítulo, não do dono. O efeito `exile_return_transformed` (core.js) devolve sob o dono; simplificação declarada, pedido à trilha motor.
-test('L-3 · The Modern Age sob controle do oponente: o capítulo III devolve Vector Glider sob o controle de quem controlava a Saga', { todo: 'core.js: exile_return_transformed devolve sob o dono — pedido à trilha motor' }, () => {
+// habilidade do capítulo, não do dono. A M-353 deu `sob: 'voce'` ao `exile_return_transformed`; o script usa (L-6).
+test('L-3 · The Modern Age sob controle do oponente: o capítulo III devolve Vector Glider sob o controle de quem controlava a Saga', () => {
   let s = mesa(['The Modern Age']), ma; [s, ma] = poe(s, 0, 'The Modern Age', 'hand');
   let r = tudo(act(comMana(s, 'UU'), legais(comMana(s, 'UU'), 0, a => a.t === 'cast' && a.oid === ma)[0]));
   r = J(r); r.objects[ma].counters.lore = 2; r.objects[ma].controller = 1; r.zones[0].battlefield.splice(r.zones[0].battlefield.indexOf(ma), 1); r.zones[1].battlefield.push(ma);
