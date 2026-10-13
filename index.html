@@ -20405,7 +20405,7 @@ function applyEffect(s, src, eff, tgt, events) {
   const ctrl = src.controller;
   // S41 · guarda o nome do alvo antes de aplicar: anular uma habilidade a apaga do jogo
   const alvoNome = tgt ? effectTargetName(s, tgt) : s.players[ctrl].name;
-  const note = extra => events.push({ kind: 'effect', do: eff.do, name: src.name, target: alvoNome, ...extra });
+  const note = extra => events.push({ kind: 'effect', do: eff.do, name: src.name, target: alvoNome, ...(tgt && tgt.oid != null && s.objects[tgt.oid] && s.objects[tgt.oid].faceDown ? { alvoVirado: true } : {}), ...extra }); // T-68 · CR 708.5 · o alvo virado para baixo não tem nome no registro (Toca ponto comum: applyEffect)
   const obj = tgt && tgt.oid != null ? s.objects[tgt.oid] : null;
   const playerOf = () => tgt && tgt.player != null ? tgt.player : obj ? obj.controller : ctrl;
   // Leva 107 · "if it's red" (Hydroblast): a cor do alvo é conferida na resolução; se não for, o efeito não faz nada
@@ -30299,7 +30299,7 @@ function buildSetup({ format, seed, seats, cards, manaCheck = false, mode = 'ass
   };
 }
 
-function nameOf(s, oid) { const o = s.objects[oid]; return o ? o.name : '?'; }
+function nameOf(s, oid) { const o = s.objects[oid]; return o ? (o.faceDown && o.zone === 'battlefield' ? 'uma criatura virada para baixo' : o.name) : '?'; } // T-68 · CR 708.2 / 708.5 · o registro não revela a permanente virada para baixo (ao sair do campo ela é revelada, 708.9) (Toca ponto comum: nameOf do registro)
 // Leva 110 · registro: zona com preposição certa e vida como "perdeu 2 (20 → 18)"
 const DE_ZONA = { library: 'do grimório', hand: 'da mão', battlefield: 'do campo', graveyard: 'do cemitério', exile: 'do exílio', command: 'da zona de comando', stack: 'da pilha' };
 const PARA_ZONA = { library: 'para o grimório', hand: 'para a mão', battlefield: 'para o campo', graveyard: 'para o cemitério', exile: 'para o exílio', command: 'para a zona de comando', stack: 'para a pilha' };
@@ -30308,6 +30308,7 @@ function who(s, p) { return s.players[p] ? s.players[p].name : '?'; }
 
 /** S4 · uma linha por efeito aplicado pelo script. */
 function effectLine(ev) {
+  if (ev.alvoVirado) ev = { ...ev, target: 'uma criatura virada para baixo' }; // T-68 · CR 708.2 / 708.5 · o registro não revela a virada para baixo
   if (LINHA_T[ev.do]) return LINHA_T[ev.do](ev); // T-7 · Toca ponto comum: effectLine (linhas do registro da trilha tipos)
   const n = ev.amount, t = ev.target;
   switch (ev.do) {
