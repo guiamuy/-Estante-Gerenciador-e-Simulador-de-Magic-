@@ -21451,7 +21451,7 @@ function venture(s, p, srcOid, events, into = null) {
   }
   const sala = SC.roomById(atual, pl.dungeon.room);
   const proximas = (sala && sala.next) || [];
-  if (!proximas.length) return;
+  if (!proximas.length) { concluiMasmorraT(s, p, events); return venture(s, p, srcOid, events, into); } // T-46 · CR 309.5b: na última sala, aventurar-se completa esta masmorra e começa outra (Toca ponto comum: venture)
   if (proximas.length > 1) { s.pending = { kind: 'choose_room', p, options: proximas, labels: proximas.map(id => (SC.roomById(atual, id) || {}).pt || id), source: srcOid }; return; }
   enterRoom(s, p, proximas[0], srcOid, events);
 }
@@ -21467,8 +21467,7 @@ function enterRoom(s, p, roomId, srcOid, events) {
   pl.dungeon.room = sala.id;
   events.push({ kind: 'room', name: sala.pt, dungeon: d.pt, target: pl.name });
   s.queued.push({ source: srcOid, name: `${d.pt}: ${sala.pt}`, controller: p, effects: sala.effects, when: 'room' });
-  // 309.6 · com o marcador na última sala, a masmorra está completa
-  if (!(sala.next || []).length) { pl.dungeon.done = true; pl.dungeonsDone = (pl.dungeonsDone || 0) + 1; }
+  // 309.6 · com o marcador na última sala, a masmorra se completa como ação de estado, depois que a habilidade dessa sala sai da pilha (T-46 · masmorraDeEstadoT)
 }
 /** M-332 · CR 725 · o monarca é uma designação de jogador; só um por vez (725.3). Devolve se mudou (tornar-se o monarca sendo já o monarca
  * não faz nada). As duas habilidades inerentes (725.2) não têm fonte e são controladas por quem era o monarca ao disparar:
@@ -22272,7 +22271,7 @@ function stateBased(s, events) {
       for (const oid of morrem) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield') continue; moveObject(s, oid, 'graveyard'); changed = true; events.push({ kind: 'died', oid, name: o.name }); }
       delete s.saindoJuntas;
     }
-    if (batalhasDeEstadoT(s, events) | equipamentosDeEstadoT(s, events) | papeisDeEstadoT(s, events) | auraAnexoDeEstadoT(s, events) | portaDeEstadoT(s, events)) changed = true; // T-27 · CR 709.5f // T-22 · CR 303.4f // T-20 · CR 303.7a / 704.5z // T-16 · CR 301.5c / 704.5n · Equipamento que não pode equipar se solta // T-14 · CR 310.7 / 310.8 / 310.10 / 310.11 / 704.5v–y · batalhas (função abaixo da âncora T das exportações)
+    if (batalhasDeEstadoT(s, events) | equipamentosDeEstadoT(s, events) | papeisDeEstadoT(s, events) | auraAnexoDeEstadoT(s, events) | portaDeEstadoT(s, events) | masmorraDeEstadoT(s, events)) changed = true; // T-46 · CR 309.6 / 704.5t // T-27 · CR 709.5f // T-22 · CR 303.4f // T-20 · CR 303.7a / 704.5z // T-16 · CR 301.5c / 704.5n · Equipamento que não pode equipar se solta // T-14 · CR 310.7 / 310.8 / 310.10 / 310.11 / 704.5v–y · batalhas (função abaixo da âncora T das exportações)
     if (sagasDeEstado(s, events)) changed = true; // T-1 · CR 714.2b (capítulos disparam), 714.3b (read ahead) e 714.4 / 704.5s (sacrifício); função abaixo da âncora T das exportações
     if (!changed) break;
   }
@@ -26421,6 +26420,27 @@ function casoResolveT(s, src, eff, events) {
   events.push({ kind: 'effect', do: 'caso_resolvido', name: o.name, target: o.name });
 }
 Object.assign(EXPORTS_T, { casoResolvidoT });
+/* ---------------- T-46 · CR 309.5b / 309.6 / 309.7 · completar a masmorra ----------------
+   - 309.6 / 704.5t: com o marcador na última sala, a masmorra se completa como ação de estado quando nenhuma habilidade de sala dela
+     espera disparada ou na pilha (as de sala vão à pilha com o nome "Masmorra: Sala"). 309.7: completar = removê-la (aqui `done`).
+   - 309.5b: aventurar-se com o marcador na última sala completa a masmorra na hora e começa outra. */
+function concluiMasmorraT(s, p, events) {
+  const pl = s.players[p], d = pl && pl.dungeon; if (!d || d.done) return false;
+  d.done = true; pl.dungeonsDone = (pl.dungeonsDone || 0) + 1;
+  const dg = SC.dungeonByName(d.name); (events || []).push({ kind: 'effect', do: 'masmorra_completa', name: dg ? dg.pt : d.name, target: pl.name });
+  return true;
+}
+function masmorraDeEstadoT(s, events) {
+  let mudou = false;
+  s.players.forEach((pl, p) => {
+    const d = pl && pl.dungeon; if (!d || d.done || !d.room) return;
+    const dg = SC.dungeonByName(d.name), sala = dg && SC.roomById(dg, d.room); if (!sala || (sala.next || []).length) return;
+    const prefixo = `${dg.pt}: `, daMasmorra = x => x && x.controller === p && typeof x.name === 'string' && x.name.startsWith(prefixo);
+    if ((s.queued || []).some(q => q.when === 'room' && daMasmorra(q)) || s.stack.some(oid => { const x = s.objects[oid]; return x && x.ability && daMasmorra(x); })) return;
+    if (concluiMasmorraT(s, p, events)) mudou = true;
+  });
+  return mudou;
+}
 /** T-36 · o valor de mana do objeto, como os alvos o conferem (Sala no campo, protótipo, X na pilha). */
 function manaValueT(s, o) { const f = s.facts[o.name] || {}; return o.faceDown ? 0 : (valorDaSalaT(s, o) ?? (f.cmc || 0)) + (o.zone === 'stack' ? (o.xPaid || 0) * ((f.cost || {}).x || 0) : 0); }
 Object.assign(EXPORTS_T, { prototipoAtivoT, manaValueT });
@@ -30211,7 +30231,7 @@ const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas
 /* ↓ T · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha tipos */
 const EFEITO_PT_T = { caso_resolvido: () => 'este Caso fica resolvido', estacao: () => 'põe nesta permanente marcadores de carga iguais ao poder da criatura virada', selada: () => 'esta montaria fica selada até o fim do turno', virar_carta: e => (e.se && e.se.minCriaturas ? `se você controla ${e.se.minCriaturas} ou mais criaturas, vira esta carta` : 'vira esta carta'), porta: e => (e.acao === 'trancar' ? 'tranca uma porta destrancada de uma Sala sua' : e.acao === 'destrancar' ? 'destranca uma porta trancada de uma Sala sua' : 'tranca ou destranca uma porta de uma Sala sua'), nivel_sobe: () => 'põe um marcador de nível nela', nivel_classe: e => `a Classe sobe para o nível ${e.n}`, tripulada: () => 'vira criatura artefato até o fim do turno', transformar: () => 'transforma (vira a outra face)' }; // T-7 · 701.27
 /** T-7 · linhas do registro para os eventos da trilha tipos. */
-const LINHA_T = { caso_resolvido: ev => (ev.failed ? `${ev.name}: a condição não valia mais, o Caso não foi resolvido` : `${ev.name} foi resolvido`), estacao: ev => (ev.failed ? `${ev.name}: a nave saiu do campo, a estação não pôs marcadores` : `${ev.name} recebeu ${ev.amount} marcador${ev.amount === 1 ? '' : 'es'} de carga (estação)${ev.total != null ? ` · ${ev.total} no total` : ''}`), selada: ev => (ev.failed ? `${ev.name}: a montaria saiu do campo, não foi selada` : `${ev.name} foi selada`), virar_carta: ev => (ev.failed ? `${ev.name} não virou${ev.motivo ? ` (${ev.motivo})` : ''}` : `${ev.name} virou: agora é ${ev.target}`), porta: ev => (ev.failed ? `${ev.name}: nenhuma porta para trancar ou destrancar` : `${ev.name} ${ev.acao} ${ev.porta} (${ev.target})`), nivel_sobe: ev => (ev.failed ? `${ev.name}: saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu de nível (nível ${ev.nivel})`), nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
+const LINHA_T = { masmorra_completa: ev => `${ev.target} completou a masmorra ${ev.name}`, caso_resolvido: ev => (ev.failed ? `${ev.name}: a condição não valia mais, o Caso não foi resolvido` : `${ev.name} foi resolvido`), estacao: ev => (ev.failed ? `${ev.name}: a nave saiu do campo, a estação não pôs marcadores` : `${ev.name} recebeu ${ev.amount} marcador${ev.amount === 1 ? '' : 'es'} de carga (estação)${ev.total != null ? ` · ${ev.total} no total` : ''}`), selada: ev => (ev.failed ? `${ev.name}: a montaria saiu do campo, não foi selada` : `${ev.name} foi selada`), virar_carta: ev => (ev.failed ? `${ev.name} não virou${ev.motivo ? ` (${ev.motivo})` : ''}` : `${ev.name} virou: agora é ${ev.target}`), porta: ev => (ev.failed ? `${ev.name}: nenhuma porta para trancar ou destrancar` : `${ev.name} ${ev.acao} ${ev.porta} (${ev.target})`), nivel_sobe: ev => (ev.failed ? `${ev.name}: saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu de nível (nível ${ev.nivel})`), nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
 Object.assign(EFEITO_PT_T, { cerco_derrotado: () => 'exila o Cerco; você pode conjurá-lo transformado, sem pagar', papel: e => `cria um Papel de ${e.papel} anexado à criatura` }); // T-14 · CR 310.12b
 Object.assign(LINHA_T, { cerco_derrotado: ev => (ev.failed ? `${ev.name}: o Cerco já tinha saído do campo, nada a exilar` : `${ev.name} foi derrotada e exilada${ev.target ? ` (pode virar ${ev.target})` : ''}`), protetor_batalha: ev => `${ev.target} passa a proteger ${ev.name}`, anexo_barrado: ev => `${ev.name} não pode equipar${ev.target ? ' ' + ev.target : ''} e fica onde está`, papel: ev => (ev.failed ? `${ev.name}: sem criatura para o Papel de ${ev.target}` : `Papel de ${ev.target || ev.name}`), papel_substituido: ev => `o Papel ${ev.name} foi substituído e vai para o cemitério`, batalha_cemiterio: ev => `${ev.name} ficou sem defesa e foi para o cemitério` }); // T-14 · CR 310.12b / 310.11 / 310.8
 function descreveEfeito(e) {

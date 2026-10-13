@@ -4268,10 +4268,13 @@ test('S61 · a Masmorra do Mago Louco vai da primeira sala ao Covil, e a Secret 
     s = fechaEscolha(s);
   }
   assert.equal(s.players[a].dungeon.room, 'covil', 'cheguei ao Covil do Mago Louco');
-  assert.equal(s.players[a].dungeon.done, true, 'e a masmorra fechou');
+  // T-46 · expectativa mudou de lugar, com justificativa: CR 309.6 — a masmorra se completa como ação de estado depois que a
+  // habilidade da última sala sai da pilha; aqui a habilidade do Covil ainda espera a decisão de conjurar sem pagar
+  assert.equal(!!s.players[a].dungeon.done, false, 'com a habilidade do Covil ainda resolvendo, a masmorra não fechou (309.6)');
   // o Covil pergunta se quero conjurar uma das três sem pagar
   assert.ok(s.pending && s.pending.kind === 'free_cast', 'o Covil abriu a conjuração sem pagar');
   s = settle(act(s, { t: 'decline_free', p: a }));
+  assert.equal(s.players[a].dungeon.done, true, 'e a masmorra fechou');
   // Leva 108 · expectativa ajustada: aventurar-se oferece as três masmorras; a Cidade Baixa só por instrução (ruling da Scryfall)
   let outra = settle(act(s, { t: 'activate', p: a, oid: porta, index: 0 }));
   assert.equal(JSON.parse(JSON.stringify(outra.pending.options)).length, 3, 'as três masmorras (sem a Cidade Baixa) aparecem na escolha');

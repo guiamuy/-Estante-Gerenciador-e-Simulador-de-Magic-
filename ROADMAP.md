@@ -5264,6 +5264,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `moveObject` (a linha da lealdade de entrada desconta o completado).
 - **Próximo:** 716.2 Classe; 309.6/309.7 masmorra; mutação e dia e noite.
 
+**CR5-T46 · Masmorra: completar como ação de estado (309.5b, 309.6, 309.7)** ✅ (leva T-46, sem mudança de versão do motor) — **Valor:** a masmorra se completa no momento certo: antes contava como completa assim que o marcador entrava na última sala, com a habilidade dela ainda na pilha. **Aceite:** com o marcador na última sala, a masmorra se completa como ação de estado depois que a habilidade dessa sala sai da pilha — resolvida ou anulada (309.6, 704.5t); aventurar-se com o marcador na última sala completa a masmorra na hora e começa outra (309.5b), e a habilidade da última sala resolve depois sem contar de novo; o registro diz "<jogador> completou a masmorra <nome>". **Testes:** `tipos.masmorra.unit` (3; o primeiro falha sem a leva). **Depende de:** S57–S61.
+- **Expectativa ajustada com justificativa:** a S61 (`rules.unit`) conferia "a masmorra fechou" com a decisão do Covil ainda pendente; pela 309.6 ela fecha depois que a habilidade do Covil sai da pilha — a asserção foi para depois da decisão, e a de "ainda não fechou" entrou no lugar.
+- **Mapa:** 309.6 e 309.7 cobertas.
+- **Versão e goldens:** a versão não sobe; goldens idênticos.
+- **Toca ponto comum:** `venture` (309.5b) e `enterRoom` (a marca de completa saiu daqui para a ação de estado); o laço das ações de estado (a linha da trilha ganhou a da masmorra).
+- **Próximo:** auditoria independente de completado e masmorra (T-47); depois 716.2 Classe, mutação e dia e noite.
+
 **CR6 · Multijogador e variantes** ○ — mesa de três e quatro (800–803, 806), Commander de mesa (903.2), Brawl (903.12); as variantes hoje "fora" só entram por decisão. 10 a 14 levas.
 
 **CR7 · Consolidação** ○ (em paralelo a partir da CR2) — a cada fase: fuzz em modo completo com listas reais, homologação por revisor independente relendo a seção das regras contra o motor, e rodada de simulação do dono do produto. 6 a 8 levas ao todo.

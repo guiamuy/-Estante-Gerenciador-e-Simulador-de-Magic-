@@ -2713,9 +2713,13 @@
    "n": "309.6",
    "regra": "Dungeons",
    "titulo": "Masmorra concluída sai do jogo",
-   "status": "parcial",
-   "evidencia": "done marcado ao entrar na última sala (index.html:11779-11780); teste \"S57 · a masmorra fecha na última sala, e a próxima aventura começa outra\"",
-   "falta": "a conclusão acontece ao entrar na sala, não como ação de estado depois que a habilidade da última sala sai da pilha.",
+   "status": "coberta",
+   "evidencia": "T-46 (13/10/2026): masmorraDeEstadoT (ação de estado, 704.5t) e concluiMasmorraT; a habilidade de sala pendente é reconhecida pelo nome \"Masmorra: Sala\" na fila e na pilha; registro \"<jogador> completou a masmorra <nome>\".",
+   "testes": [
+    "CR 309.6 / 309.7 · com a habilidade da última sala na pilha a masmorra ainda não está completa; completa quando a habilidade sai da pilha",
+    "CR 309.6 · a habilidade da última sala anulada também deixa a masmorra completa (saiu da pilha)"
+   ],
+   "falta": "T-46 (13/10/2026): nada falta — a masmorra se completa como ação de estado depois que a habilidade da última sala sai da pilha (resolvida ou anulada); aventurar-se na última sala completa na hora e começa outra (309.5b).",
    "esforco": "P",
    "depende": [
     "704.5t"
@@ -2725,9 +2729,12 @@
    "n": "309.7",
    "regra": "Dungeons",
    "titulo": "Completar uma masmorra",
-   "status": "parcial",
-   "evidencia": "dungeonsDone++ (index.html:11780)",
-   "falta": "conta como completa antes de a habilidade da última sala resolver (deveria ser ao remover a masmorra).",
+   "status": "coberta",
+   "evidencia": "T-46 (13/10/2026): masmorraDeEstadoT (ação de estado, 704.5t) e concluiMasmorraT; a habilidade de sala pendente é reconhecida pelo nome \"Masmorra: Sala\" na fila e na pilha; registro \"<jogador> completou a masmorra <nome>\".",
+   "testes": [
+    "CR 309.5b · aventurar-se com o marcador na última sala completa a masmorra e começa outra; a habilidade da última sala resolve depois sem contar de novo"
+   ],
+   "falta": "T-46 (13/10/2026): nada falta — a masmorra se completa como ação de estado depois que a habilidade da última sala sai da pilha (resolvida ou anulada); aventurar-se na última sala completa na hora e começa outra (309.5b).",
    "esforco": "P",
    "depende": [
     "309.6"
