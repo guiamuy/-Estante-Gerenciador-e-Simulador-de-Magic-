@@ -12260,3 +12260,42 @@ test('e2e · R-9 Painel · Trabalho em curso: conversas do registro com situaç�
   if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.screenshot({ path: process.env.SHOTS + '/r9-curso.png', fullPage: true }); }
   assert.deepEqual(errors, []);
 });
+
+/* ---------- R-10 · BI1-8 · Skills & rotinas ---------- */
+test('e2e · R-10 Painel · Skills e rotinas: catálogo com papel e atalhos, uso por skill no recorte (toque filtra), atuando agora, fluxos do GitHub com agendamento lido do yml e última execução (falha fica vermelha), rotinas do Claude com atraso; sem sobreposição nas quatro medidas e dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  const painel = base.replace('index.html', 'painel.html');
+  await page.setViewportSize({ width: 360, height: 780 });
+  const json = (r, corpo) => r.fulfill({ json: corpo, headers: { 'content-type': 'application/json', 'x-ratelimit-remaining': '50', 'x-ratelimit-limit': '60', 'access-control-expose-headers': 'etag, x-ratelimit-remaining, x-ratelimit-limit' } });
+  const h = n => new Date(Date.now() - n * 3600000).toISOString();
+  await page.route('https://api.github.com/**', r => { const u = r.request().url();
+    if (/commits\?sha=main&per_page=1/.test(u)) return json(r, [{ sha: 'abc1234def0', commit: { message: 'Leva M-390 · x', committer: { date: h(1) } } }]);
+    if (/actions\/workflows\?/.test(u)) return json(r, { workflows: [{ id: 1, name: 'Fila de publicação', path: '.github/workflows/fila.yml', state: 'active' }, { id: 2, name: 'Notícias', path: '.github/workflows/noticias.yml', state: 'active' }, { id: 3, name: 'Catálogo', path: '.github/workflows/catalogo.yml', state: 'active' }] });
+    if (/actions\/runs\?/.test(u)) return json(r, { workflow_runs: [{ workflow_id: 2, name: 'Notícias', status: 'completed', conclusion: 'failure', run_started_at: h(2), updated_at: h(1.9) }, { workflow_id: 1, name: 'Fila de publicação', status: 'completed', conclusion: 'success', run_started_at: h(3), updated_at: h(2.7) }] });
+    return json(r, []); });
+  const skills = { kind: 'estante.telemetria.skills', version: 1, atualizado: h(5), skills: [{ nome: 'mtg-bi-specialist', papel: 'Visão de gestão', atalhos: ['/mtg-bi', '/mtg-bi-painel'], trilha: 'radar', prefixo: 'R' }, { nome: 'mtg-engine-architect', papel: 'Motor de regras', atalhos: ['/mtg-motor'], trilha: 'motor', prefixo: 'M' }, { nome: 'prompt-architect', papel: 'Engenharia de prompts', atalhos: ['/pa-skill'], trilha: null, prefixo: null }] };
+  const levas = [`{"id":"R-5","trilha":"radar","conversa":"radar","situacao":"na-fila","fim":"${h(2)}","skills":["mtg-bi-specialist","mtg-app-design-architect"]}`, `{"id":"M-391","trilha":"motor","conversa":"motor","situacao":"editando","inicio":"${h(1)}","skills":["mtg-engine-architect"]}`, `{"id":"M-390","trilha":"motor","conversa":"motor","situacao":"publicada","fim":"${h(5)}","skills":["mtg-engine-architect","mtg-scale-architect"]}`].join('\n') + '\n';
+  const rotinas = [{ id: 'trig_1', nome: 'Trilha listas: retomada', quando: h(1), status: 'agendada', periodicidade: 'a cada 45 min', conversa: 'Pauper de M a Z', atualizado: h(2) }, { id: 'trig_2', nome: 'Verificação da fila', quando: new Date(Date.now() + 3600000).toISOString(), status: 'agendada', atualizado: h(0.5) }];
+  await page.route('https://raw.githubusercontent.com/**', r => { const u = r.request().url(); r.fulfill({ body: /skills\.json/.test(u) ? JSON.stringify(skills) : /levas\.jsonl/.test(u) ? levas : /rotinas\.json/.test(u) ? JSON.stringify(rotinas) : /noticias\.yml/.test(u) ? "name: Notícias\non:\n  schedule:\n    - cron: '17 * * * *'\n  workflow_dispatch:\n" : /catalogo\.yml/.test(u) ? "name: Catálogo\non:\n  schedule:\n    - cron: '23 6 * * *'\n  workflow_dispatch:\n" : /fila\.yml/.test(u) ? "name: Fila de publicação\non:\n  push:\n  workflow_dispatch:\n" : '', headers: { 'content-type': 'text/plain', 'access-control-allow-origin': '*' } }); });
+  await page.addInitScript(() => {
+    const jwt = email => 'h.' + btoa(JSON.stringify({ email })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') + '.s';
+    window.__PAINEL_FETCH = async (url) => new Response(JSON.stringify(url.includes('securetoken') ? { user_id: 'uidE2E', id_token: jwt('gui.amuy@gmail.com'), refresh_token: 'ref-e2e', expires_in: '3600' } : { localId: 'uidE2E', idToken: jwt('gui.amuy@gmail.com'), refreshToken: 'ref-e2e', expiresIn: '3600' }), { headers: { 'content-type': 'application/json' } });
+    window.__PAINEL_GOOGLE = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+  });
+  await page.goto(painel + '#skills'); await page.waitForSelector('#pn-entrar'); await page.click('#pn-entrar');
+  await page.waitForSelector('#pn-visao-skills');
+  assert.match(await page.innerText('#pn-k-skills'), /3[\s\S]*4 usadas no recorte/);
+  assert.match(await page.innerText('#pn-k-agora'), /1\s*skill[\s\S]*mtg-engine-architect/);
+  assert.match(await page.innerText('#pn-k-fluxos'), /3[\s\S]*1 com falha/); assert.equal(await page.getAttribute('#pn-k-fluxos .pn-farol', 'data-farol'), 'amarelo');
+  assert.match(await page.innerText('#pn-k-rotinas'), /2[\s\S]*1 atrasada/);
+  assert.match(await page.innerText('#pn-catalogo'), /mtg-bi-specialist[\s\S]*Visão de gestão · \/mtg-bi \/mtg-bi-painel[\s\S]*1 leva\(s\)[\s\S]*prompt-architect[\s\S]*processo/);
+  assert.match(await page.innerText('#pn-fluxos'), /Notícias[\s\S]*de hora em hora \(minuto 17\) · última há 2 h[\s\S]*failure[\s\S]*Fila de publicação[\s\S]*push[\s\S]*success[\s\S]*Catálogo[\s\S]*todo dia às 06:23 UTC[\s\S]*sem execução/);
+  assert.match(await page.innerText('#pn-rotinas'), /Verificação da fila[\s\S]*agendada[\s\S]*Trilha listas: retomada[\s\S]*a cada 45 min[\s\S]*atrasada/); // ordem pela última atualização
+  await auditaTela(page, 'skills 360');
+  await page.click('#pn-g-uso button[data-valor="mtg-engine-architect"], #pn-g-uso li[data-valor="mtg-engine-architect"] button');
+  await page.waitForFunction(() => location.hash.includes('skill=mtg-engine-architect'));
+  assert.doesNotMatch(await page.innerText('#pn-catalogo'), /prompt-architect/);
+  await emTodasAsMedidas(page, 'skills filtrado');
+  if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.screenshot({ path: process.env.SHOTS + '/r10-skills.png', fullPage: true }); }
+  assert.deepEqual(errors, []);
+});

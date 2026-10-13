@@ -178,10 +178,10 @@ test('R-2 · fonte sem rede ou com a cota esgotada devolve o que havia guardado 
 });
 
 /* ---------- modelo puro ---------- */
-test('R-2 · modelo: oito sub-abas na ordem das fatias (Pipeline antes da Eficiência), todas com a leva e o que trazem; prontas: Pipeline (R-4), Eficiência (R-5), Roadmap (R-6), Motor (R-7), Qualidade (R-8) e Em curso (R-9)', () => {
+test('R-2 · modelo: oito sub-abas na ordem das fatias (Pipeline antes da Eficiência), todas com a leva e o que trazem; prontas: Pipeline (R-4), Eficiência (R-5), Roadmap (R-6), Motor (R-7), Qualidade (R-8), Em curso (R-9) e Skills (R-10)', () => {
   const { modelo, app } = loadPainel();
   assert.deepEqual(modelo.SUBABAS.map(a => a.id), ['pipeline', 'eficiencia', 'roadmap', 'motor', 'qualidade', 'curso', 'skills', 'modelos']);
-  for (const a of modelo.SUBABAS) { assert.match(a.leva, /^R-\d+$/); assert.ok(a.traz.length > 20); assert.equal(!!a.pronta, ['pipeline', 'eficiencia', 'roadmap', 'motor', 'qualidade', 'curso'].includes(a.id)); assert.equal(!!app.VISOES[a.id], !!a.pronta, 'toda sub-aba pronta tem a visão que a desenha'); }
+  for (const a of modelo.SUBABAS) { assert.match(a.leva, /^R-\d+$/); assert.ok(a.traz.length > 20); assert.equal(!!a.pronta, ['pipeline', 'eficiencia', 'roadmap', 'motor', 'qualidade', 'curso', 'skills'].includes(a.id)); assert.equal(!!app.VISOES[a.id], !!a.pronta, 'toda sub-aba pronta tem a visão que a desenha'); }
   assert.deepEqual(modelo.SUBABAS.map(a => a.leva), ['R-4', 'R-5', 'R-6', 'R-7', 'R-8', 'R-9', 'R-10', 'R-11']);
 });
 
@@ -446,4 +446,26 @@ test('R-9 · linhasDasTrilhas: espelho do check-in com idade; editando sem atual
   assert.deepEqual(r.map(t => [t.conversa, t.situacaoEfetiva]), [['d', 'parada'], ['c', 'na-fila'], ['a', 'editando'], ['b', 'parada']]);
   assert.equal(r[2].idade, 2 * 3600000);
   assert.deepEqual(modelo.linhasDasTrilhas(null), []);
+});
+
+
+/* ---------- R-10 · Skills & rotinas ---------- */
+test('R-10 · fluxos: o yml dá nome, crons e gatilhos; o cron vira frase; a lista da API + últimas execuções viram linhas por fluxo; rotinas atrasadas', () => {
+  const { modelo } = loadPainel();
+  const r = modelo.resumoDoFluxo("name: Notícias\n\non:\n  schedule:\n    - cron: '17 * * * *'   # de hora em hora\n  workflow_dispatch:\n", 'noticias.yml');
+  assert.deepEqual(r, { caminho: 'noticias.yml', nome: 'Notícias', crons: ['17 * * * *'], gatilhos: ['workflow_dispatch', 'schedule'] });
+  assert.equal(modelo.fraseDoCron('17 * * * *'), 'de hora em hora (minuto 17)');
+  assert.equal(modelo.fraseDoCron('*/10 * * * *'), 'a cada 10 min');
+  assert.equal(modelo.fraseDoCron('23 6 * * *'), 'todo dia às 06:23 UTC (03:23 em Brasília)');
+  assert.equal(modelo.fraseDoCron('0 */4 * * *'), 'a cada 4 h');
+  assert.equal(modelo.fraseDoCron('52 8 * * 1-5'), 'seg a sex às 08:52 UTC');
+  assert.equal(modelo.fraseDoCron('x'), 'x');
+  const fluxos = modelo.linhasDosFluxos([{ id: 1, name: 'Fila de publicação', path: '.github/workflows/fila.yml', state: 'active' }, { id: 2, name: 'Notícias', path: '.github/workflows/noticias.yml', state: 'active' }],
+    [{ workflow_id: 2, status: 'completed', conclusion: 'failure', run_started_at: '2026-10-13T20:00:00Z', updated_at: '2026-10-13T20:05:00Z' }, { workflow_id: 2, status: 'completed', conclusion: 'success', run_started_at: '2026-10-13T19:00:00Z', updated_at: '2026-10-13T19:05:00Z' }],
+    { 'noticias.yml': r, 'fila.yml': { caminho: 'fila.yml', nome: 'Fila de publicação', crons: [], gatilhos: ['workflow_dispatch', 'push'] } });
+  assert.deepEqual(fluxos.map(f => [f.nome, f.agendamento, f.conclusao, f.portao]), [['Notícias', 'de hora em hora (minuto 17)', 'failure', 'vermelho'], ['Fila de publicação', 'push', null, null]]);
+  assert.equal(fluxos[0].ultima, Date.parse('2026-10-13T20:05:00Z'), 'a execução mais recente de cada fluxo');
+  const rot = modelo.linhasDasRotinas([{ id: 'a', nome: 'x', quando: '2026-10-13T21:51:00Z', status: 'agendada', atualizado: '2026-10-13T21:05:00Z' }, { id: 'b', nome: 'y', quando: '2026-10-14T21:51:00Z', status: 'agendada', atualizado: '2026-10-13T22:00:00Z' }], Date.parse('2026-10-13T23:00:00Z'));
+  assert.deepEqual(rot.map(x => [x.id, x.atrasada]), [['b', false], ['a', true]]);
+  for (const f of ['catalogo.yml', 'fila.yml', 'gate.yml', 'noticias.yml', 'relatos-fila.yml', 'relatos.yml']) { const x = modelo.resumoDoFluxo(readFileSync(join(ROOT, '.github', 'workflows', f), 'utf8'), f); assert.ok(x.nome && x.gatilhos.length, f); }
 });

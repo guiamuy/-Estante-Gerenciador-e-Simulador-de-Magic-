@@ -728,7 +728,7 @@ const __p2 = (function () {
     { id: 'motor', rotulo: 'Motor', titulo: 'Motor de regras', leva: 'R-7', pronta: true, traz: 'versão, regras do mapa por status, listas que jogam por formato e a evolução' },
     { id: 'qualidade', rotulo: 'Qualidade', titulo: 'Qualidade', leva: 'R-8', pronta: true, traz: 'relatos abertos e fechados por semana, tempo até a correção, testes e instáveis, bugs por leva' },
     { id: 'curso', rotulo: 'Em curso', titulo: 'Trabalho em curso', leva: 'R-9', pronta: true, traz: 'cada conversa ativa, a história, as skills, a última atualização, dependências e estimativa' },
-    { id: 'skills', rotulo: 'Skills', titulo: 'Skills e rotinas', leva: 'R-10', traz: 'o catálogo de skills, uso por leva e em uso agora; fluxos do GitHub e rotinas do Claude com última e próxima execução' },
+    { id: 'skills', rotulo: 'Skills', titulo: 'Skills e rotinas', leva: 'R-10', pronta: true, traz: 'o catálogo de skills, uso por leva e em uso agora; fluxos do GitHub e rotinas do Claude com última e próxima execução' },
     { id: 'modelos', rotulo: 'Modelos', titulo: 'Modelos', leva: 'R-11', traz: 'levas, tempo e portão por modelo, e o consumo estimado do plano' }
   ];
   /** Limiares dos faróis (doc BI-painel-epicos.md, seção 3): editáveis aqui, exibidos em cada cartão. */
@@ -1011,7 +1011,51 @@ const __p2 = (function () {
     }).sort((a, b) => (b.data || 0) - (a.data || 0));
   }
   Object.assign(LIMIARES, { trilhaParada: { verde: 12 * 3600000, amarelo: 48 * 3600000, unidade: 'ms', texto: 'conversa sem atualização há: ≤ 12 h · ≤ 48 h · mais (parada)' } });
+
+  /* ---------- R-10 · Skills & rotinas (puro) ---------- */
+  /** Texto de um `.github/workflows/*.yml` → agendamento (crons), gatilhos e nome. Leitura por linha; sem parser de YAML. */
+  function resumoDoFluxo(yml, caminho = '') {
+    const linhas = String(yml || '').split('\n');
+    const nome = ((linhas.find(l => /^name:/.test(l)) || '').match(/^name:\s*(.+?)\s*(#.*)?$/) || [])[1] || caminho;
+    const crons = linhas.map(l => l.match(/^\s*-\s*cron:\s*['"]([^'"]+)['"]/)).filter(Boolean).map(m => m[1]);
+    const gatilhos = [];
+    for (const g of ['push', 'pull_request', 'workflow_dispatch', 'schedule', 'issues', 'workflow_run']) if (linhas.some(l => new RegExp(`^\\s{2}${g}:`).test(l))) gatilhos.push(g);
+    return { caminho, nome, crons, gatilhos };
+  }
+  /** Cron de 5 campos → frase curta, para os casos que o projeto usa; o resto volta como está. */
+  function fraseDoCron(cron) {
+    const c = String(cron || '').trim().split(/\s+/); if (c.length !== 5) return cron;
+    const [min, hora, dia, mes, sem] = c;
+    const dois = n => String(n).padStart(2, '0');
+    if (dia === '*' && mes === '*' && sem === '*') {
+      const mm = min.match(/^\*\/(\d+)$/); if (mm && hora === '*') return `a cada ${mm[1]} min`;
+      if (/^\d+$/.test(min) && hora === '*') return `de hora em hora (minuto ${min})`;
+      const hh = hora.match(/^\*\/(\d+)$/); if (hh && /^\d+$/.test(min)) return `a cada ${hh[1]} h`;
+      if (/^\d+$/.test(min) && /^\d+$/.test(hora)) { const brt = (Number(hora) + 21) % 24; return `todo dia às ${dois(hora)}:${dois(min)} UTC (${dois(brt)}:${dois(min)} em Brasília)`; }
+    }
+    if (dia === '*' && mes === '*' && /^\d/.test(sem) && /^\d+$/.test(min) && /^\d+$/.test(hora)) return `${sem.replace('1-5', 'seg a sex')} às ${dois(hora)}:${dois(min)} UTC`;
+    return cron;
+  }
+  /** Lista de fluxos (API `actions/workflows`) + execuções recentes (`actions/runs`) + resumos dos yml → linhas por fluxo. */
+  function linhasDosFluxos(fluxos, execucoes, resumos = {}) {
+    const ultimaPor = {};
+    for (const e of execucoes || []) { const k = e.workflow_id; if (k != null && !ultimaPor[k]) ultimaPor[k] = e; }
+    return (fluxos || []).map(f => {
+      const caminho = String(f.path || '').replace(/^\.github\/workflows\//, '');
+      const r = resumos[caminho] || null, e = ultimaPor[f.id] || null;
+      const conclusao = e ? (e.status === 'completed' ? e.conclusion || 'desconhecida' : e.status) : null;
+      return { id: f.id, nome: f.name || (r && r.nome) || caminho, caminho, estado: f.state, crons: r ? r.crons : [], agendamento: r && r.crons.length ? r.crons.map(fraseDoCron).join(' · ') : (r ? (r.gatilhos.filter(g => g !== 'workflow_dispatch').join(', ') || 'só à mão') : '—'), gatilhos: r ? r.gatilhos : [], ultima: e ? Date.parse(e.updated_at || e.run_started_at || '') || null : null, conclusao, portao: conclusao === 'success' ? 'verde' : conclusao === 'failure' ? 'vermelho' : conclusao ? 'em-curso' : null, data: e ? Date.parse(e.run_started_at || e.created_at || '') || null : null, url: e ? e.html_url : null };
+    }).sort((a, b) => (b.ultima || 0) - (a.ultima || 0));
+  }
+  /** `rotinas.json` da telemetria → linhas; `quando` em ISO no passado com status agendada = atrasada. */
+  function linhasDasRotinas(rotinas, agora = Date.now()) {
+    return (rotinas || []).map(r => { const quando = Date.parse(r.quando || '') || null; return { ...r, data: Date.parse(r.atualizado || '') || null, quandoMs: quando, atrasada: r.status === 'agendada' && quando != null && quando < agora - 15 * 60000 }; }).sort((a, b) => (b.data || 0) - (a.data || 0));
+  }
+  Object.assign(LIMIARES, { fluxos: { verde: 0, amarelo: 1, unidade: 'fluxos com a última execução vermelha', texto: 'fluxos do GitHub com a última execução vermelha: 0 · 1 · mais' } });
   const FONTES = {
+    skills: 'ramo telemetria · skills.json (catálogo gerado do registro do orquestrador)',
+    fluxos: 'API GitHub · actions/workflows + actions/runs (últimas 50) + raw dos .yml (agendamento)',
+    rotinas: 'ramo telemetria · rotinas.json (tarefas agendadas registradas pelas conversas)',
     trilhas: 'ramo telemetria · trilhas.json (espelho do registro de check-in, escrito pelas conversas)',
     relatos: 'raw · relatos/relatos.json (tabela gravada pelo fluxo Relatos)',
     mapa: 'raw · main/.regras/mapa.json (resumo guardado por 10 min)',
@@ -1024,7 +1068,7 @@ const __p2 = (function () {
     pages: 'API GitHub · actions/runs (fluxo "pages build and deployment")',
     levas: 'ramo telemetria · levas.jsonl (escrito pelas sessões)'
   };
-  return { SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, linhasDosRelatos, linhasDasTrilhas, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
+  return { SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, linhasDosRelatos, linhasDasTrilhas, resumoDoFluxo, fraseDoCron, linhasDosFluxos, linhasDasRotinas, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
 })();
 
 /* ==== src/painel/ui.js ==== */
@@ -1134,6 +1178,61 @@ const __p4 = (function () {
 
   /* ---------- visões (uma por sub-aba pronta): carrega(fonte, forcar) → dados; desenha(dados, filtros, api) → nós ---------- */
   const VISOES = {
+    skills: {
+      filtros: ['periodo', 'skill', 'trilha', 'conversa', 'situacao'], periodoPadrao: '7d',
+      linhas: d => M.linhasDasLevas(d.levas || []),
+      async carrega(fonte, forcar) {
+        const avisos = [];
+        let catalogo = null, levas = [], rotinas = [];
+        try { catalogo = (await fonte.raw('telemetria', 'skills.json', { ttl: 60 * 60000, forcar, transforma: txt => JSON.parse(txt) })).dado; } catch (e) { avisos.push('catálogo de skills indisponível (telemetria)'); }
+        try { levas = lerJsonl((await fonte.raw('telemetria', 'levas.jsonl', { ttl: 2 * 60000, forcar })).dado); } catch (e) { avisos.push('telemetria indisponível (levas.jsonl)'); }
+        try { rotinas = (await fonte.raw('telemetria', 'rotinas.json', { ttl: 2 * 60000, forcar, transforma: txt => JSON.parse(txt) })).dado || []; } catch (e) { avisos.push('rotinas indisponíveis (telemetria)'); }
+        const fluxos = await fonte.api('/actions/workflows?per_page=50', { nome: 'fluxos', ttl: 60 * 60000, forcar });
+        const execucoes = await fonte.api('/actions/runs?per_page=50', { nome: 'pages', ttl: 5 * 60000, forcar });
+        const resumos = {};
+        for (const f of (fluxos.dado && fluxos.dado.workflows) || []) {
+          const caminho = String(f.path || '').replace(/^\.github\/workflows\//, '');
+          try { resumos[caminho] = (await fonte.raw('main', '.github/workflows/' + caminho, { nome: 'fluxo.' + caminho, ttl: 24 * 3600000, forcar: false, transforma: txt => M.resumoDoFluxo(txt, caminho) })).dado; } catch (e) { /* sem agendamento legível */ }
+        }
+        return { em: Date.now(), catalogo, levas, rotinas, fluxos: (fluxos.dado && fluxos.dado.workflows) || [], execucoes: (execucoes.dado && execucoes.dado.workflow_runs) || [], resumos, avisos, sem: { fluxos: fluxos.semRede || fluxos.cotaEsgotada } };
+      },
+      desenha(d, filtros, api) {
+        const agora = Date.now();
+        const periodo = filtros.periodo || '7d';
+        const skills = (d.catalogo && d.catalogo.skills) || [];
+        const levas = M.linhasDasLevas(d.levas);
+        const rLev = recorte(levas, { periodo, trilha: filtros.trilha, conversa: filtros.conversa, skill: filtros.skill, situacao: filtros.situacao }, agora);
+        const uso = valoresDe(rLev.linhas, 'skill', 30);
+        const usoPor = Object.fromEntries(uso.map(u => [u.valor, u.n]));
+        const agoraEm = valoresDe(levas.filter(l => l.situacao === 'editando'), 'skill', 30);
+        const fluxos = M.linhasDosFluxos(d.fluxos, d.execucoes, d.resumos);
+        const vermelhos = fluxos.filter(f => f.portao === 'vermelho').length;
+        const rotinas = M.linhasDasRotinas(d.rotinas, agora);
+        const atrasadas = rotinas.filter(r => r.atrasada).length;
+        const recorteTxt = fraseDoRecorte({ ...filtros, periodo });
+        const notas = [];
+        if (!levas.length) notas.push('telemetria sem levas: o uso por skill aparece quando as conversas registrarem');
+        if (!rotinas.length) notas.push('nenhuma rotina do Claude registrada (as conversas registram com `node telemetria.mjs rotina …`)');
+        for (const a of d.avisos || []) notas.push(a);
+        const catalogoLista = skills.length ? h('ul', { class: 'pn-linhas', role: 'list' }, ...skills.filter(sk => !filtros.skill || sk.nome === filtros.skill).map(sk => Linha({ principal: sk.nome, selo: usoPor[sk.nome] ? `${usoPor[sk.nome]} leva(s)` : (sk.trilha ? `trilha ${sk.trilha}` : 'processo'), seloTom: usoPor[sk.nome] ? 'accent' : null, detalhe: `${sk.papel}${sk.atalhos && sk.atalhos.length ? ' · ' + sk.atalhos.slice(0, 3).join(' ') + (sk.atalhos.length > 3 ? '…' : '') : ''}`, dataset: { skill: sk.nome } }))) : h('p', { class: 'ds-text ds-text--sm ds-text--muted' }, 'pendente de telemetria (skills.json)');
+        return [
+          h('div', { class: 'pn-cartoes' },
+            Cartao({ id: 'pn-k-skills', rotulo: 'Skills no catálogo', valor: skills.length, unidade: `· ${uso.length} usadas no recorte`, fonte: FONTES.skills, formula: 'skills.json · uso = levas com a skill · ' + recorteTxt, em: d.catalogo ? Date.parse(d.catalogo.atualizado) || d.em : d.em, semDados: !skills.length }),
+            Cartao({ id: 'pn-k-agora', rotulo: 'Atuando agora', valor: agoraEm.length, unidade: agoraEm.length === 1 ? 'skill' : 'skills', fonte: FONTES.levas, formula: 'skills das levas em edição', em: d.em, semDados: !levas.length, nota: agoraEm.length ? agoraEm.slice(0, 4).map(x => x.valor).join(', ') : null }),
+            Cartao({ id: 'pn-k-fluxos', rotulo: 'Fluxos do GitHub', valor: fluxos.length, unidade: `· ${vermelhos} com falha`, farol: fluxos.length ? farol(vermelhos, LIMIARES.fluxos) : 'cinza', limiar: LIMIARES.fluxos, fonte: FONTES.fluxos, formula: 'última execução de cada fluxo', em: d.em, semDados: !fluxos.length }),
+            Cartao({ id: 'pn-k-rotinas', rotulo: 'Rotinas do Claude', valor: rotinas.length, unidade: `· ${atrasadas} atrasada(s)`, farol: rotinas.length ? (atrasadas ? 'amarelo' : 'verde') : 'cinza', fonte: FONTES.rotinas, formula: 'agendada com "quando" no passado = atrasada', em: d.em, semDados: !rotinas.length })),
+          h('div', { class: 'pn-graficos' },
+            Barras({ id: 'pn-g-uso', titulo: `Uso por skill (levas) · ${recorteTxt}`, itens: uso.slice(0, 12).map(u => ({ chave: u.valor, rotulo: u.valor.replace(/^mtg-/, ''), valor: u.n })), onBarra: v => api.filtra('skill', v), ativo: filtros.skill || null, vazio: levas.length ? 'nenhuma leva com skills neste recorte' : 'pendente de telemetria' }),
+            Barras({ id: 'pn-g-agora', titulo: 'Atuando agora (levas em edição)', itens: agoraEm.map(u => ({ chave: u.valor, rotulo: u.valor.replace(/^mtg-/, ''), valor: u.n })), vazio: levas.length ? 'nenhuma leva em edição' : 'pendente de telemetria' })),
+          h('section', { class: 'pn-bloco', id: 'pn-catalogo' }, h('h3', { class: 'ds-text ds-text--md' }, 'Catálogo de skills'), catalogoLista),
+          h('section', { class: 'pn-bloco', id: 'pn-fluxos' }, h('h3', { class: 'ds-text ds-text--md' }, 'Fluxos do GitHub'),
+            fluxos.length ? h('ul', { class: 'pn-linhas', role: 'list' }, ...fluxos.map(f => Linha({ principal: f.nome, selo: f.conclusao || 'sem execução', seloTom: f.portao === 'verde' ? 'positive' : f.portao === 'vermelho' ? 'negative' : 'warning', detalhe: `${f.agendamento}${f.ultima ? ' · última ' + haQuanto(f.ultima, agora) : ''}${f.estado && f.estado !== 'active' ? ' · ' + f.estado : ''}`, dataset: { fluxo: f.caminho } }))) : h('p', { class: 'ds-text ds-text--sm ds-text--muted' }, 'sem fluxos lidos')),
+          h('section', { class: 'pn-bloco', id: 'pn-rotinas' }, h('h3', { class: 'ds-text ds-text--md' }, 'Rotinas do Claude (tarefas agendadas)'),
+            rotinas.length ? h('ul', { class: 'pn-linhas', role: 'list' }, ...rotinas.map(r => Linha({ principal: r.nome, selo: r.atrasada ? 'atrasada' : r.status, seloTom: r.atrasada ? 'warning' : r.status === 'falhou' ? 'negative' : r.status === 'executou' ? 'positive' : null, detalhe: `${r.quandoMs ? 'quando: ' + new Date(r.quandoMs).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'quando: ' + r.quando}${r.periodicidade ? ' · ' + r.periodicidade : ''}${r.ultima_execucao ? ' · última ' + haQuanto(Date.parse(r.ultima_execucao), agora) : ''}${r.conversa ? ' · ' + r.conversa : ''}`, dataset: { rotina: r.id } }))) : h('p', { class: 'ds-text ds-text--sm ds-text--muted' }, 'nenhuma registrada')),
+          notas.length ? h('ul', { class: 'pn-notas ds-text ds-text--sm ds-text--muted', id: 'pn-notas' }, ...notas.map(n => h('li', {}, n))) : null
+        ];
+      }
+    },
     curso: {
       filtros: ['periodo', 'trilha', 'situacao', 'conversa', 'skill'], periodoPadrao: 'tudo',
       linhas: d => [...M.linhasDasTrilhas(d.trilhas), ...M.linhasDasLevas(d.levas || [])],
