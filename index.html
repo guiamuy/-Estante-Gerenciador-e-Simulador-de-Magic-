@@ -8227,6 +8227,10 @@ const RAW_SCRIPTS = [
   { name: 'Viridian Longbow', equip: { enchant: 'creature', cost: { mana: '{3}' } }, // "Equip {3}"
     grants: { activated: [{ cost: { tap: true }, effects: [{ do: 'damage', amount: 1, target: 'any' }] }] }, // "Equipped creature has '{T}: This creature deals 1 damage to any target.'"
     example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor): o cenário de verdade está em listas.lote*.unit
+  // L-10 · Pauper de M a Z, lote 10: "can't be blocked this turn except by creatures with defender" (M-370) (texto oficial em .listas/oficiais-listas.json, Oracle do Forge, 12/10/2026)
+  { name: 'Tin Street Dodger', self: { keywords: ['haste'] }, // "Haste"
+    abilities: [{ kind: 'activated', cost: { mana: '{R}' }, effects: [{ do: 'imbloqueavel', target: 'self-source', exceto: 'defender' }] }], // "{R}: Tin Street Dodger can't be blocked this turn except by creatures with defender."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor): o cenário de verdade está em listas.lote*.unit
   //
   //
   //
