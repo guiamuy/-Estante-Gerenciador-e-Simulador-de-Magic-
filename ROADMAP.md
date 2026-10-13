@@ -558,6 +558,17 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ik ✅ | T6e-1 relato da fila do Firebase vira registro no GitHub: fluxo a cada 10 min com a conta de serviço, limite por conta, sem menção, tabela regravada (relato #13, leva I-289; liga com o segredo `FIREBASE_SERVICE_ACCOUNT`) | T | 1 | segredo do dono |
 | 16º-il ✅ | Z8 vigia do catálogo: evento de teste e data futura da TopDeck.gg fora (e retirados do que já estava publicado); saúde por fonte no `coleta.json`; fonte parada deixa a execução vermelha e o GitHub avisa (leva G-258) | Z | ½ | — |
 | 16º-im ✅ | I-291 a fila de publicação dispara "Relatos pela fila" a cada avanço do `main` (o agendamento do GitHub não rodava): relato enviado pelo app vira registro na próxima publicação, sem permissão nova | I | ½ | segredo do dono (feito 12/10) |
+| 16º-ra ✅ | BI1-0 Painel Estante planejado: épico, 11 fatias, dicionário de KPIs (fórmula, fonte, farol) e manual do dono em `claude/BI-painel-epicos.md` (Projeto); trilha `radar` (leva R-1) | BI | ½ | — |
+| 16º-rb | BI1-1 entrar no painel: `painel.html` no mesmo Pages, só `gui.amuy@gmail.com` (Google → Identity Toolkit, mesma mecânica da conta), casca com as sete sub-abas, "dados de …", Atualizar, estados vazio/carregando/erro | BI | 1 | — |
+| 16º-rc | BI1-2 telemetria das sessões: `telemetria.mjs` grava leva, trilha, skills, modelo, tempos, testes e portão no ramo `telemetria` (fora da fila); `skills.json`; diretriz e mensagem para as conversas | BI | 1 | o dono cola a mensagem em cada conversa |
+| 16º-rd | BI1-3 Eficiência: levas por dia/semana por trilha, intervalo entre publicações, portão verde na primeira, duração do portão, recusadas; orçamento de ≤ 4 pedidos à API por atualização como teste | BI | 1 | 16º-rb |
+| 16º-re | BI1-4 Roadmap: histórias por status, épico e tema; % por épico; burn-up (lê `ROADMAP.md` com cache) | BI | 1 | 16º-rb |
+| 16º-rf | BI1-5 Motor: versão, regras do mapa por status, listas que jogam por formato e evolução (mapa de outra versão fica amarelo) | BI | 1 | 16º-rb, 16º-rc |
+| 16º-rg | BI1-6 Qualidade: relatos abertos/fechados por semana, tempo até correção, testes e instáveis, bugs por leva | BI | 1 | 16º-rb, 16º-rc |
+| 16º-rh | BI1-7 Trabalho em curso: conversas ativas (trilha, história, skills, última atualização, dependências, estimativa); parada há 48 h fica vermelha | BI | 1 | 16º-rb, 16º-rc |
+| 16º-ri | BI1-8 Skills & rotinas: catálogo, uso por leva, em uso agora; fluxos do GitHub e rotinas do Claude com última e próxima execução | BI | 1 | 16º-rb, 16º-rc |
+| 16º-rj | BI1-9 Modelos: levas, tempo e portão por modelo; plano e consumo estimado (campo manual no banco, nó `/painel`) | BI | 1 | 16º-rb, 16º-rc; regra no console (dono) |
+| 16º-rk | BI2 roadmap de evolução do BI: coleção, scanner, partidas e bot, usuários, receita, custo — doc e épico com Valor e Aceite | BI | ½ | 16º-rb…16º-rj |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -10178,6 +10189,19 @@ O que a cobertura não mede: se a lista que **pode** jogar no modo completo **jo
 **H-12 · A prova acha as cartas de preparação pelo nome da lista** 🟡 (leva H-12, só a ferramenta da prova) — pedido da trilha `tipos` (T-61): a lista do catálogo que escreve "Elite Interceptor // Rejoinder" ficava "sem dados da carta", porque a conversão do Oracle do Forge não conhecia `AlternateMode:Prepare` e só registrava o nome da permanente. Agora a carta de preparação vira a permanente com `layout: 'prepare'` e a mágica de preparação em `preparo` (a mesma forma de `.listas/oficiais-tipos.json`), e o nome "Permanente // Mágica" também acha a carta.
 - **Placar da prova (13/10 20h, `main` com M-381…M-384, H-11, motor v112): Pauper 272 de 341 listas jogam**, 0 falhas; **Shark × Shark: 272 partidas, todas até o fim, 0 falhas** (pior jogada 2,6 s).
 - **Testes:** `catalogo.prova.unit` +1 (Elite Interceptor // Rejoinder: forma da carta e busca pelo nome da lista; falha sem a correção).
+## Trilha radar · Painel Estante (BI)
+
+Visão de gestão do próprio projeto, para o dono: o que foi entregue, o que está em curso e o que está planejado, com cada número ligado à fonte, à fórmula e ao carimbo de hora. Detalhe (fatias, dicionário de KPIs, contrato da telemetria, manual do dono) em `claude/BI-painel-epicos.md` (Projeto). Pedido de 13/10/2026, refinado pela `prompt-architect`; dona: `mtg-bi-specialist`.
+
+**BI1 · Painel Estante** 🟡 planejado (leva R-1, 13/10/2026)
+- **Valor:** o dono conduz a evolução da Estante com dados em vez de impressão: ritmo de levas, portão verde na primeira, retrabalho, cobertura do motor, relatos, o que cada conversa está fazendo, quais skills e modelos atuam e rotinas agendadas — numa página que abre no celular.
+- **Aceite:** `painel.html` no mesmo GitHub Pages, só para `gui.amuy@gmail.com` (outro e-mail é recusado e deslogado); aba **Evolução & Entrega** com Roadmap · Motor · Eficiência · Qualidade · Trabalho em curso · Skills & rotinas · Modelos; cada cartão mostra fonte, fórmula e "dados de …"; atualiza ao abrir a sub-aba e pelo botão Atualizar; cota da API do GitHub (60/h sem token) nunca estoura em uso normal (orçamento por sub-aba como teste); KPI sem fonte aparece como lacuna, nunca como número; faróis só com limiar declarado.
+- **Arquitetura (decisões A1–A7 do doc):** segunda página sem build, módulos `__pN`, tokens `ds-*`; login pela mecânica da conta da Estante (sem SDK); fontes: API pública do GitHub e `raw.githubusercontent.com` → telemetria das sessões no ramo `telemetria` (`levas.jsonl`, `trilhas.json`, `rotinas.json`, `placares.jsonl`, `skills.json`, escritos por `telemetria.mjs`, fora da fila) → campos manuais no banco (`/painel/<uid>`); cache em IndexedDB com ETag.
+- **Fatias (uma leva cada):** R-1 planejamento ✅ · R-2 entrar no painel (`16º-rb`) · R-3 telemetria (`16º-rc`) · R-4 Eficiência · R-5 Roadmap · R-6 Motor · R-7 Qualidade · R-8 Trabalho em curso · R-9 Skills & rotinas · R-10 Modelos (regra nova no banco: o dono publica) · R-11 roadmap de evolução (BI2).
+- **Testes:** `painel.unit` (permitidos, sessão, cálculos sobre dados exportados, orçamento de pedidos), `telemetria.unit` (esquema, privacidade, acréscimo), teste de tela do painel (login falso, recusa, 44 px, quatro larguras, dois temas).
+- **Toca:** `painel.html` (novo), `telemetria.mjs` (novo), ramo `telemetria` (novo), testes novos, um teste de tela; `database.rules.json` só na R-10 (nó `/painel`). Não toca `index.html`, motor, goldens, fluxos.
+- **Fora:** uso do app por usuários (nada coletado; passa pela `mtg-security-architect`), força do bot, custo e receita (BI2); leitura direta do consumo do plano Claude (não existe API: campo manual rotulado "estimado"); token do GitHub no aparelho; link ao painel dentro do `index.html`; framework, bundler, backend ou serviço pago.
+- **Lacuna conhecida:** `.regras/mapa.json` declara `motor: 109` (auditoria de 06/10) com o `main` em v112; o painel mostra o mapa com farol amarelo "auditoria de outra versão" até a trilha dona o atualizar.
 
 ## 8. Como publicar e verificar
 
@@ -10204,6 +10228,7 @@ Regras completas em `CLAUDE.md`. Trilhas em uso (o nome vai no rodapé `Trilha:`
 | `listas` | Pauper de M a Z: scripts à mão com texto oficial (`.listas/oficiais-listas.json`), só abaixo da âncora `↓ L` (levas `L-N`) |
 | `cartas` | Pauper, cartas de A a L: scripts à mão com texto oficial em `.listas/oficiais-cartas.json`; só abaixo da âncora `↓ C` dos scripts (levas `C-N`) |
 | `homologacao` | prova de partida do catálogo (`catalogo.prova.mjs`, fora do portão) e correção dos achados com teste antes (levas `H-N`) |
+| `radar` | Painel Estante (BI do dono): `painel.html`, `telemetria.mjs` e o ramo `telemetria`; não toca `index.html` (levas `R-N`) |
 
 ### Publicar pela interface web
 
