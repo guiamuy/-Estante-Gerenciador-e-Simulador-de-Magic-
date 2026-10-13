@@ -4054,6 +4054,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora:** proliferar ainda não oferece somar energia ao jogador (701.34a; o código do verbo é da antiga trilha verbos — pedido registrado); "pay an amount of {E} equal to …" (Jolted Awake) não é lido.
 - **Teste:** `lt50.unit` (2 testes; falham no motor anterior).
 
+**M-368 · O valor de mana na foto de última informação (608.2h)** ✅ (leva M-368, motor v111 — vai junto da subida da M-366; goldens regravados).
+- **Valor:** "o valor de mana da permanente sacrificada" e "revela até uma criatura de valor maior" usam o valor que a permanente tinha no campo: o Boulderbranch Golem como protótipo vale 4 (antes contava 7), a Sala vale as portas destrancadas, a virada para baixo vale 0.
+- **Origem:** pedido da trilha `tipos` (T-38), que não mexe na foto porque ela entra no estado dos goldens.
+- **Goldens:** regravados pela foto nova (as partidas, logs, situação e turnos não mudam — só o estado guarda o campo `mv` de quem sai do campo).
+- **Fora:** emergir (custo menos o valor da sacrificada) ainda lê o valor impresso — é da trilha `keywords` (`emergirK`); pedido registrado.
+- **Teste:** `lt51.unit` (2 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

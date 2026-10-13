@@ -17780,6 +17780,7 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
   const ultima = fromZone === 'battlefield' && to !== 'battlefield' ? { controller: fromController, faceDown: !!o.faceDown, ...(semImpressas(s, o) && !o.faceDown ? { semHabilidades: true } : {}), tapped: !!o.tapped, counters: { ...(o.counters || {}) }, ...(o.attachedTo ? { anexadaA: o.attachedTo } : {}),
     ...(isCreature(s, o) ? { power: power(s, o), toughness: toughness(s, o) } : {}),
     tipos: tiposDe(s, o).slice(), linha: linhaDeTipo(s, o), // CR2b.6 · 603.10a: o observador vê o que ela era no campo (terreno animado é criatura)
+    mv: manaValueT(s, o), // M-368 · 608.2h: o valor de mana que ela tinha no campo (protótipo, Sala, virada para baixo) — pedido da trilha tipos
     ...((c => c.length ? { concedidas: c } : {})(grantedAbilities(s, o).filter(a => a.kind === 'triggered'))) } : null; // CR2b.6 · 603.10a: a habilidade disparada concedida também olha para trás
   if (ultima) Object.assign(ultima, palavrasK || {}); // K-4 · 603.10a: persistir/imortal olham como ela era no campo (K-14: foto tirada antes de sair)
   delete o.ultima; delete o.naoDesviraProximo; // CR2g.6 · 400.7
@@ -19461,7 +19462,7 @@ function amountOf(s, src, v) {
     // CR2a.4 · 608.2h/113.7a: a resistência que a criatura sacrificada no custo tinha no campo
     if (v.per === 'sacrificed-power') return (src.sacrificados || []).reduce((n, x) => n + Math.max(0, x.power || 0), 0) * (v.times || 1); // M-354 · Fling: o poder da criatura sacrificada como ela era no campo (608.2h)
     if (v.per === 'sacrificed-toughness') return (src.sacrificados || []).reduce((n, x) => n + Math.max(0, x.toughness || 0), 0) * (v.times || 1);
-    if (v.per === 'sacrificed-mv') return (src.sacrificados || []).reduce((n, x) => n + (((s.facts[(s.objects[x.oid] || {}).name] || {}).cmc) || 0), 0) * (v.times || 1); // M-348 · Reckoner's Bargain (608.2h: o valor que a permanente tinha)
+    if (v.per === 'sacrificed-mv') return (src.sacrificados || []).reduce((n, x) => n + (x.mv != null ? x.mv : (((s.facts[(s.objects[x.oid] || {}).name] || {}).cmc) || 0)), 0) * (v.times || 1); /* M-368 · 608.2h: pela foto */ // M-348 · Reckoner's Bargain (608.2h: o valor que a permanente tinha)
     if (v.per === 'power-of-target') return countFor(s, src, 'power-of-target') * (v.times || 1); // M-338 · numa habilidade, os alvos moram na habilidade, não na permanente (Solitude)
     const base = src.ability ? (s.objects[src.source] || src) : src;
     return countFor(s, base, v.subtype ? v : v.per) * (v.times || 1);
@@ -19987,7 +19988,7 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'reveal_until': { // M-222 · 701.20: revela do topo até achar a carta pedida; a referência é o primeiro alvo, pela última informação conhecida (608.2h)
       const ref = obj, fRef = ref ? (s.facts[ref.name] || {}) : {};
       const virada = !!ref && ((ref.zone === 'battlefield' && ref.faceDown) || (ref.zone !== 'battlefield' && ref.ultima && ref.ultima.faceDown));
-      const tiposRef = virada ? ['creature'] : (fRef.types || []), mvRef = virada ? 0 : (fRef.cmc || 0); // carta com {X} conta X = 0
+      const tiposRef = virada ? ['creature'] : (fRef.types || []), mvRef = virada ? 0 : ref && ref.zone !== 'battlefield' && ref.ultima && ref.ultima.mv != null ? ref.ultima.mv : ref && ref.zone === 'battlefield' ? manaValueT(s, ref) : (fRef.cmc || 0); // carta com {X} conta X = 0 · M-368 · 608.2h: o valor que ela tinha no campo (protótipo)
       const who = eff.who === 'self' ? ctrl : ref ? (ref.zone !== 'battlefield' && ref.ultima && ref.ultima.controller != null ? ref.ultima.controller : ref.controller) : ctrl;
       const PERMANENTES = ['artifact', 'creature', 'enchantment', 'land', 'planeswalker', 'battle'];
       const serve = oid => { const f = s.facts[s.objects[oid].name] || {}, tp = f.types || [];
