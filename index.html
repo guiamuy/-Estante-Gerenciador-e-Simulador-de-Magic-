@@ -7961,6 +7961,36 @@ const RAW_SCRIPTS = [
     abilities: [{ kind: 'activated', cost: { tap: true, removeCounters: { tipo: 'depletion', n: 1 } }, semMarcadorSacrifica: 'depletion', effects: [{ do: 'add_mana', symbols: ['R', 'R'] }] }],
     note: 'a mana sai pela habilidade da terra (ative antes de conjurar); o pagamento automático ainda não usa habilidades de mana com custo além de {T}',
     example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor): o cenário de verdade está em listas.lote*.unit
+  // L-2 · Pauper de M a Z, lote 2 (texto oficial em .listas/oficiais-listas.json, Oracle do Forge, 12/10/2026)
+  { name: 'Mysidian Elder', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'token', amount: 1, token: { name: 'Wizard', types: ['creature'], subtypes: ['Wizard'], colors: ['B'], power: 0, toughness: 1, // "When this creature enters, create a 0/1 black Wizard creature token with
+    abilities: [{ kind: 'triggered', when: 'other-cast', filter: { noncreature: true }, effects: [{ do: 'damage', amount: 1, target: 'each-opponent' }] }] } }] }], // "Whenever you cast a noncreature spell, this token deals 1 damage to each opponent.""
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor): o cenário de verdade está em listas.lote*.unit
+  { name: 'Trinket Mage', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'search', amount: 1, optional: true, filter: { types: ['artifact'], mvMax: 1 }, to: 'hand' }] }], // "When Trinket Mage enters, you may search your library for an artifact card with mana value 1 or less, reveal that card, put it into your hand, then shuffle."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor): o cenário de verdade está em listas.lote*.unit
+  { name: 'Warped Tusker', cycling: { mana: '{2}{G}' }, abilities: [ // "Reach / When you cast or cycle Warped Tusker, create a 0/1 colorless Eldrazi Spawn creature token with "Sacrifice this creature: Add {C}." / Cycling {2}{G}"
+    { kind: 'triggered', when: 'cast-self', effects: [{ do: 'token', amount: 1, token: { name: 'Eldrazi Spawn', types: ['creature'], subtypes: ['Eldrazi', 'Spawn'], colors: [], power: 0, toughness: 1, abilities: [{ kind: 'activated', cost: { sacrifice: true }, effects: [{ do: 'add_mana', symbols: ['C'] }] }] } }] },
+    { kind: 'triggered', when: 'cycled', effects: [{ do: 'token', amount: 1, token: { name: 'Eldrazi Spawn', types: ['creature'], subtypes: ['Eldrazi', 'Spawn'], colors: [], power: 0, toughness: 1, abilities: [{ kind: 'activated', cost: { sacrifice: true }, effects: [{ do: 'add_mana', symbols: ['C'] }] }] } }] }],
+    example: { action: 'cycling', target: 'none', expect: { tokens: 1 } } },
+  { name: 'Wellwisher', abilities: [{ kind: 'activated', cost: { tap: true }, effects: [{ do: 'gain', amount: { per: 'elves-on-battlefield' } }] }], // "{T}: You gain 1 life for each Elf on the battlefield."
+    example: { action: 'activate:0', target: 'none', expect: { selfLife: 0 } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor), então não há Elfo: o cenário de verdade está em listas.lote2.unit
+  { name: 'Rooftop Percher', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'exile', target: 'card-in-any-graveyard', upTo: true }, { do: 'exile', target: 'card-in-any-graveyard', upTo: true }, { do: 'gain', amount: 3 }] }], // "Changeling / Flying / When this creature enters, exile up to two target cards from graveyards. You gain 3 life."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor): o cenário de verdade está em listas.lote*.unit
+  { name: 'Mortuary Mire', entersTapped: true, produces: [['B']], abilities: [{ kind: 'triggered', when: 'etb', optional: true, effects: [{ do: 'mover', para: 'library', posicao: 'topo', target: 'creature-in-your-graveyard' }] }], // "Mortuary Mire enters tapped. / When Mortuary Mire enters, you may put target creature card from your graveyard on top of your library. / {T}: Add {B}."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor): o cenário de verdade está em listas.lote*.unit
+  { name: 'Myr Retriever', abilities: [{ kind: 'triggered', when: 'dies', effects: [{ do: 'to_hand', target: { zona: 'graveyard', dono: 'you', tipos: ['artifact'], outra: true } }] }], // "When Myr Retriever dies, return another target artifact card from your graveyard to your hand."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Nezumi Linkbreaker', abilities: [{ kind: 'triggered', when: 'dies', effects: [{ do: 'token', amount: 1, token: { name: 'Mercenary', types: ['creature'], subtypes: ['Mercenary'], colors: ['R'], power: 1, toughness: 1, // "When Nezumi Linkbreaker dies, create a 1/1 red Mercenary creature token with
+    abilities: [{ kind: 'activated', cost: { tap: true }, sorceryOnly: true, effects: [{ do: 'pump', power: 1, toughness: 0, target: 'creature-you-control' }] }] } }] }], // "{T}: Target creature you control gets +1/+0 until end of turn. Activate only as a sorcery.""
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Shambling Ghast', abilities: [{ kind: 'triggered', when: 'dies', modes: [ // "When Shambling Ghast dies, choose one —"
+    { label: 'Brave the Stench: −1/−1 numa criatura de um oponente', effects: [{ do: 'pump', power: -1, toughness: -1, target: 'creature-opponent-controls' }] }, // "Target creature an opponent controls gets -1/-1 until end of turn."
+    { label: 'Search the Body: um Tesouro', effects: [{ do: 'token', amount: 1, token: { name: 'Treasure', types: ['artifact'], subtypes: ['Treasure'], colors: [], abilities: [{ kind: 'activated', cost: { tap: true, sacrifice: true }, effects: [{ do: 'add_mana', anyColor: true }] }] } }] }] }], // "Create a Treasure token."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // "Remote Farm enters tapped with two depletion counters on it." · "{T}, Remove a depletion counter from Remote Farm: Add {W}{W}. If there are no depletion counters on Remote Farm, sacrifice it." (mesma forma da Saprazzan Skerry, M-250)
+  { name: 'Remote Farm', entra: [{ afetados: 'self', virada: true, marcadores: { depletion: 2 } }],
+    abilities: [{ kind: 'activated', cost: { tap: true, removeCounters: { tipo: 'depletion', n: 1 } }, semMarcadorSacrifica: 'depletion', effects: [{ do: 'add_mana', symbols: ['W', 'W'] }] }],
+    note: 'a mana sai pela habilidade da terra (ative antes de conjurar); o pagamento automático ainda não usa habilidades de mana com custo além de {T}',
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor): o cenário de verdade está em listas.lote*.unit
   //
   //
   //
