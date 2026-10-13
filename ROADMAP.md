@@ -3962,6 +3962,11 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Simplificação declarada:** "in any order" do fundo do grimório segue em ordem fixa (simplificação já declarada pelo motor).
 - **Teste:** `lt37.unit` (9 testes; os de regra falham no motor anterior); `--confere` com 564 aprovadas.
 
+**M-355 · Pedidos da homologacao: vida paga no pagamento de mana (ordem vida × dano, vida acumulada, phyrexiano depois da mana) e cópia de mágica nos invariantes** ✅ (leva M-355, motor v110 sem mudança de forma; goldens intactos).
+- **Valor:** com pouca vida, pagar com uma fonte que cobra vida ("{T}, Pay 1 life", Mana Confluence) e uma terra de dor no mesmo custo deixava a mesa oferecer a conjuração e o motor recusar ("essa fonte não produz essa mana"): a terra de dor virava primeiro e a vida não pagava mais a Confluence. Agora a fonte que cobra vida vira antes (119.4 / 601.2g: a ordem é de quem paga). A revisão independente achou mais dois casos da mesma família, corrigidos com teste antes: com 1 de vida e duas Confluence a mesa oferecia {G}{U} e o motor recusava (a vida cobrada por várias fontes se soma); e o phyrexiano pago com vida era conferido contra a vida de antes da Confluence (601.2g–h: a mana vem antes, e a vida do phyrexiano ou do "Pay N life" da habilidade sai do que sobra). O auditor de estado (`invariants`) deixa de contar cópia de mágica como carta (707.10), o que derrubava partidas longas com tempestade na prova do catálogo.
+- **Origem:** pedidos (1) e (2) da trilha `homologacao` em `claude/TRILHAS-ativas.md` (reprodução: Commander, Chord of Calling X=5, semente 12868).
+- **Teste:** `lt38.unit` (4 testes; os quatro falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

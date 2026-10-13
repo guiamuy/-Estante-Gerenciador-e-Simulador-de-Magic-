@@ -18200,6 +18200,12 @@ let fonteReservada = null;
 /** M-345 · 106.6 · o que o pagamento em curso paga: { magia: oid } (conjurar) ou { habilidade: oid } (ativar); null = outra coisa (custo de
  * "a menos que", proteção…), e aí a mana restrita não serve. */
 let GASTO = null;
+/** M-355 · 601.2h · vida que ainda precisa sobrar depois das fontes de mana para pagar a parte do custo paga com vida (phyrexiano escolhido,
+ * "Pay N life" de habilidade). O planejador só aceita o plano em que a vida depois das fontes cobre isso. */
+let VIDA_DEPOIS = 0;
+const comVidaDepois = (n, f) => { const antes = VIDA_DEPOIS; VIDA_DEPOIS = n || 0; try { return f(); } finally { VIDA_DEPOIS = antes; } };
+/** M-355 · 119.4 · quanto a opção da fonte cobra de vida ("{T}, Pay 1 life") e quanto dano causa a você (terra de dor). */
+function vidaDoToque(s, o, opt) { const regra = o && manaRuleDe(s.facts[o.name]); if (!regra || !opt || !opt.some(c => regra.colors.includes(c))) return [0, 0]; return [regra.life || 0, regra.life ? 0 : (regra.damage || 0)]; }
 const comGasto = (ctx, f) => { const antes = GASTO; GASTO = ctx; try { return f(); } finally { GASTO = antes; } };
 /** M-345 · a restrição de gasto da opção de mana desta fonte (a regra impressa), ou null. */
 const restricaoDaOpcao = (s, o, opt) => { const r = manaRuleDe(s.facts[o.name]); return r && r.gasto && (r.opcoes || []).includes(opt.join('')) ? r.gasto : null; };
@@ -18281,9 +18287,15 @@ function planoDePagamento(s, p, cost, extra, maxLife) {
   if (payFrom(P0, cost, extra, maxLife)) return [];
   const src = sources(s, p).sort((a, b) => productions(s, a).length - productions(s, b).length || (a.oid < b.oid ? -1 : 1));
   let budget = 4000, found = null;
+  // M-355 · 119.4 / 601.2g–h (achado da revisão): a vida cobrada pelas fontes se soma (duas Mana Confluence com 1 de vida não pagam) e o que se
+  // paga com vida depois da mana (phyrexiano) sai da vida que sobra depois delas (vida, depois dano)
+  const vidaOk = taps => { let v = 0, d = 0; for (const [oid, k, mana] of taps) { const o = s.objects[oid]; const [a, b] = vidaDoToque(s, o, mana || productions(s, o)[k]); v += a; d += b; }
+    const resta = pl.life - v - d; return v <= pl.life && (VIDA_DEPOIS <= 0 || resta >= VIDA_DEPOIS) ? (maxLife === Infinity ? Infinity : Math.max(0, Math.min(maxLife, resta))) : -1; };
+  const serve = (pool, taps) => { const m = taps.length ? vidaOk(taps) : (VIDA_DEPOIS <= 0 || pl.life >= VIDA_DEPOIS ? maxLife : -1); return m >= 0 && !!payFrom(pool, cost, extra, m); };
+  if (VIDA_DEPOIS > 0 && pl.life < VIDA_DEPOIS) return null;
   (function dfs(i, pool, taps) {
     if (found || budget-- <= 0) return;
-    if (payFrom(pool, cost, extra, maxLife)) { found = taps; return; }
+    if (serve(pool, taps)) { found = taps; return; }
     if (i === src.length) return;
     const o = src[i];
     const n = comboDe(s, o);
@@ -18308,7 +18320,7 @@ function planoDePagamento(s, p, cost, extra, maxLife) {
     const soma = taps => { const P = { ...P0 }; for (const [oid, k, mana] of taps) (mana || productions(s, s.objects[oid])[k] || []).forEach(c => { P[c]++; }); return P; };
     for (let i = found.length - 1; i >= 0 && found.length > 1; i--) {
       const sem = found.slice(0, i).concat(found.slice(i + 1));
-      if (payFrom(soma(sem), cost, extra, maxLife)) found = sem;
+      if (serve(soma(sem), sem)) found = sem; // M-355
     }
   }
   return found;
@@ -18334,11 +18346,18 @@ function tapForMana(s, oid, option, mana) {
   const regra = manaRuleDe(s.facts[o.name]); // M-321 · também a impressa, sem script
   if (regra && (regra.damage || regra.life) && opt.some(c => regra.colors.includes(c))) perdeVida(s, o.controller, regra.damage || regra.life);
 }
+/** M-355 · 119.4 / 601.2g · a ordem de ativar as habilidades de mana é do jogador: as que pedem "Pay N life" vêm antes das que causam dano
+ * (com 1 de vida, Yavimaya Coast antes de Mana Confluence zerava a vida e a Confluence deixava de produzir — a mesa oferecia e o motor recusava).
+ * O plano foi feito com a vida de antes; a opção de cada fonte é lida antes de virar qualquer uma. */
+function ordemDeVirar(s, taps) {
+  const pedeVida = ([oid, k, mana]) => { const o = s.objects[oid]; const regra = o && manaRuleDe(s.facts[o.name]); const opt = mana || (o ? productions(s, o)[k] : null); return !!(regra && regra.life && opt && opt.some(c => regra.colors.includes(c))); };
+  return taps.map((t, i) => [pedeVida(t) ? 0 : 1, i, t]).sort((a, b) => a[0] - b[0] || a[1] - b[1]).map(x => x[2]);
+}
 /** Paga o custo (tocando fontes se preciso) ou lança RuleError. */
 function payCost(s, p, cost, extra = 0, paraQue) {
   const taps = planTaps(s, p, cost, extra);
   if (!taps) throw new RuleError('mana', 'mana insuficiente');
-  taps.forEach(([oid, k, mana]) => tapForMana(s, oid, k, mana));
+  ordemDeVirar(s, taps).forEach(([oid, k, mana]) => tapForMana(s, oid, k, mana)); // M-355 · 119.4: a fonte que cobra vida vira antes da que causa dano (pedido da homologacao)
   const antes = { ...s.players[p].pool }; // M-273 · para saber quanto de cada cor foi gasto
   if ((s.players[p].manaRestrita || []).length) return pagaComRestrita(s, p, cost, extra, paraQue, antes); // M-345
   const r = payFrom(s.players[p].pool, cost, extra, 0) || payFrom(s.players[p].pool, cost, extra, s.players[p].life);
@@ -21647,8 +21666,10 @@ function payAbilityCost(s, p, source, ab) {
     if (ab.vida != null) { // M-255 · phyrexiano: quem ativa escolhe quantos símbolos paga com vida
       if (!(Number.isInteger(ab.vida) && ab.vida >= 0 && ab.vida <= nPhyrexianos(c))) throw new RuleError('custo', 'escolha quantos símbolos phyrexianos pagar com vida');
       if (s.players[p].life < 2 * ab.vida) throw new RuleError('custo', 'vida insuficiente para pagar o phyrexiano');
-      payCost(s, p, custoPhyrexiano(c, ab.vida)); perdeVida(s, p, 2 * ab.vida);
-    } else payCost(s, p, c);
+      comVidaDepois(2 * ab.vida + (cost.life || 0), () => payCost(s, p, custoPhyrexiano(c, ab.vida)));
+      if (s.players[p].life < 2 * ab.vida) throw new RuleError('custo', 'vida insuficiente para pagar o phyrexiano depois da mana'); // M-355 · 601.2g–h
+      perdeVida(s, p, 2 * ab.vida);
+    } else comVidaDepois(cost.life || 0, () => payCost(s, p, c)); // M-355 · 601.2h: a vida do custo sai do que sobra depois das fontes
   });
   if (cost.life) { if (s.players[p].life < cost.life) throw new RuleError('custo', 'vida insuficiente'); perdeVida(s, p, cost.life); }
   if (ab.oncePerTurn) {
@@ -21699,7 +21720,7 @@ const canPayAbility = (s, p, source, ab) => {
   if (ab.onlyIfMetalcraft && !condicaoDoEfeito(s, source, 'metalcraft')) return false; // M-342 · Mox Opal (602.5b)
   if (ab.onlyIfGraveyardAtLeast != null && s.zones[p].graveyard.length < ab.onlyIfGraveyardAtLeast) return false; // M-249 · limiar (702.25 Threshold)
   if (cost.life && s.players[p].life < cost.life) return false;
-  return !(cost.mana && s.manaCheck) || semAFonte(cost.tap ? source.oid : null, () => canPay(s, p, custoAtivadaComX(cost, 0))); // CR2c.6 · CR2c.7: com X, basta X = 0
+  return !(cost.mana && s.manaCheck) || semAFonte(cost.tap ? source.oid : null, () => comVidaDepois(cost.life || 0, () => canPay(s, p, custoAtivadaComX(cost, 0)))); // M-355 · 601.2h // CR2c.6 · CR2c.7: com X, basta X = 0
 };
 
 /* ---------------- M4 · prioridade e pilha ---------------- */
@@ -22071,7 +22092,9 @@ const HANDLERS = {
       if (a.vida != null) { // CR2c.4 · phyrexiano: quem conjura escolhe quantos símbolos paga com vida
         if (!(Number.isInteger(a.vida) && a.vida >= 0 && a.vida <= nPhyrexianos(custo))) throw new RuleError('custo', 'escolha quantos símbolos phyrexianos pagar com vida');
         if (s.players[a.p].life < 2 * a.vida) throw new RuleError('custo', 'vida insuficiente para pagar o phyrexiano'); // 119.4
-        payCost(s, a.p, custoPhyrexiano(custo, a.vida), extraPago, { criaturaDoComandante: true, oid: a.oid }); perdeVida(s, a.p, 2 * a.vida);
+        comVidaDepois(2 * a.vida, () => payCost(s, a.p, custoPhyrexiano(custo, a.vida), extraPago, { criaturaDoComandante: true, oid: a.oid }));
+        if (s.players[a.p].life < 2 * a.vida) throw new RuleError('custo', 'vida insuficiente para pagar o phyrexiano depois da mana'); // M-355 · 601.2g–h: a mana vem antes
+        perdeVida(s, a.p, 2 * a.vida);
       } else payCost(s, a.p, ...custoTapadoK(s, a, o, custo, extraPago), { criaturaDoComandante: true, oid: a.oid }); } // K-13 · convocar/improvisar (Toca ponto comum: o pagamento do custo normal) // M-273 // M-259 · a redução por alvo usa os alvos escolhidos
     if (a.kick && reforco && s.manaCheck && !a.free && (alt || a.flashback || a.escape || a.disturb || a.omen || a.bestow || a.plotted)) payCost(s, a.p, somaCusto(parseCost('{0}'), parseCost(reforco.mana), a.kick)); // CR2c.6 · 601.2f: o reforço soma ao custo alternativo
     if (a.recompraK) pagaRecompraK(s, a, o, alt); // K-33 · 702.27a: o custo de recompra, 601.2b/601.2f–h (Toca ponto comum: HANDLERS.cast)
@@ -23043,7 +23066,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
       const xs = valoresDeX(s, (f.cost.x || 0), x => payable(o, castExtra(s, p, o, x, OTIMISTA)));
       // CR2c.4 · phyrexiano: uma forma de conjurar por quantidade de símbolos pagos com vida (só quando a mesa cobra mana)
       const vidas = (c, x) => { const custo = c.kick ? somaCusto(f.cost, parseCost(f.script.kicker.mana), c.kick) : f.cost, k = nPhyrexianos(custo); if (!k || !s.manaCheck) return [null];
-        const ok = []; for (let v = 0; v <= k; v++) if (s.players[p].life >= 2 * v && canPay(s, p, custoPhyrexiano(custo, v), castExtra(s, p, o, x || 0, OTIMISTA))) ok.push(v); return ok; };
+        const ok = []; for (let v = 0; v <= k; v++) if (s.players[p].life >= 2 * v && comVidaDepois(2 * v, () => canPay(s, p, custoPhyrexiano(custo, v), castExtra(s, p, o, x || 0, OTIMISTA)))) ok.push(v); return ok; }; // M-355 · 601.2h
       const empurra = c => xs.forEach(x => vidas(c, x).forEach(v => out.push({ ...c, ...(x != null ? { x } : {}), ...(v != null ? { vida: v } : {}) })));
       // CR2c.3 · quando o X decide alvo ("valor de mana X ou menos") ou quantos alvos ("até X"), os alvos são montados para cada X
       if (xNoAlvo(f.script)) reforcos(o).forEach(n => adicionais(o).forEach(v => xs.forEach(xv => casts(o, xv).forEach(x => out.push({ ...x, ...v, ...(n ? { kick: n } : {}), x: xv })))));
@@ -23281,7 +23304,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
       ab = { ...ab, effects: expandeAlvos(s, o, ab.effects || []) }; // M-264 · "any number of target players": uma instância por alvo possível
       // M-255 · 107.4f/601.2f · phyrexiano no custo da habilidade: uma oferta por quantidade de símbolos pagos com 2 de vida
       const vidasDe = x => { const c = cost.mana ? custoAtivadaComX(cost, x || 0) : null, k = c ? nPhyrexianos(c) : 0; if (!k || !s.manaCheck) return [null];
-        const ok = []; for (let v = 0; v <= k; v++) if (s.players[p].life >= 2 * v && canPay(s, p, custoPhyrexiano(c, v))) ok.push(v); return ok; };
+        const ok = []; for (let v = 0; v <= k; v++) if (s.players[p].life >= 2 * v && comVidaDepois(2 * v, () => canPay(s, p, custoPhyrexiano(c, v)))) ok.push(v); return ok; }; // M-355 · 601.2h
       // CR2c.7 · 107.3k · X no custo: uma ação por valor pagável (0..máximo, teto LIMITE_X); [−X] vai até a lealdade atual
       const xs = xDaHabilidade(ab) ? valoresDeX(s, 1, x => ab.loyalty === '-X' ? x <= (o.counters.loyalty || 0) : (!(cost.mana && s.manaCheck) || semAFonte(cost.tap ? o.oid : null, () => canPay(s, p, custoAtivadaComX(cost, x))))) : [null];
       const comXA = x => (x != null ? { x } : {});
@@ -23518,7 +23541,7 @@ function invariants(s, expectedObjects) {
   s.stack.forEach(oid => { note(oid, 'stack'); if (s.objects[oid].zone !== 'stack') errs.push(`${oid} na pilha com zona ${s.objects[oid].zone}`); });
   const all = Object.values(s.objects);
   if (seen.size !== all.length) errs.push(`objetos ${all.length}, localizados ${seen.size}`);
-  const cards = all.filter(o => !o.ability && !o.token).length; // habilidades e fichas são objetos temporários
+  const cards = all.filter(o => !o.ability && !o.token && !o.copiaDeMagia).length; // habilidades, fichas e cópias de mágica (707.10) são objetos temporários · M-355 (pedido da homologacao)
   if (expectedObjects != null && cards !== expectedObjects) errs.push(`cartas ${cards}, esperadas ${expectedObjects}`);
   for (const o of all) if (o.ability && o.zone !== 'stack') errs.push(`${o.oid}: habilidade fora da pilha`);
   if (s.queued.length && !s.pending) errs.push('gatilho na fila sem ninguém para pôr na pilha');
