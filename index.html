@@ -6339,6 +6339,7 @@ function effectErrors(effects, label, opcional) {
       const L = `${label} ${i + 1}`;
       if (e.quantidade != null && !(Number.isInteger(e.quantidade) && e.quantidade > 0)) errs.push(`${L}: "quantidade" precisa ser inteiro positivo (sem ela, previne todo o dano)`);
       if (e.deCor != null && !'WUBRG'.includes(e.deCor)) errs.push(`${L}: "deCor" precisa ser WUBRG`);
+      if (e.deCriatura != null && !(e.deCriatura === true && e.todos)) errs.push(`${L}: "deCriatura" é uma marca (true) do escudo de todos`); // M-390 · Ethereal Haze
       if (e.target == null && e.cada == null && e.jogadores == null && !e.todos) errs.push(`${L}: prevenir precisa dizer a quem (alvo, "cada", "jogadores" ou "todos")`);
       if (e.jogadores != null && !JOGADORES_QUANT.includes(e.jogadores)) errs.push(`${L}: "jogadores" precisa ser cada, cada-oponente ou voce`);
     }
@@ -9021,6 +9022,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Navigator\'s Compass': { texto: '1b2nud0', leva: 'M-388' },
   // M-389 · revisão por lote XLVII (First Day of Class), revisor independente: aprovada (65 asserções, fuzz com sombra e diferencial sem diferença); três textos corrigidos
   'First Day of Class': { texto: 'kp0tqg', leva: 'M-389' },
+  // M-390 · revisão por lote XLVIII (Ethereal Haze), revisor independente: reprovada na primeira passada (habilidade de ficha que deixou de existir), corrigida com teste; 97 verificações e diferencial sem diferença
+  'Ethereal Haze': { texto: '16xsz8s', leva: 'M-390' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -17134,7 +17137,8 @@ const __m42 = (function () {
     [/^if that creature would die this turn, exile it instead$/i, () => [{ do: 'exila_se_morrer', target: 'first-target' }]], // M-384 · Suplex (614.1a)
     [/^until end of turn, target land you control becomes the basic land type of your choice in addition to its other types$/i, () => [{ do: 'tipo_basico', target: 'land-you-control' }]], // M-388 · Navigator's Compass (305.7)
     [/^whenever a creature you control enters this turn, put a \+1\/\+1 counter on it and it gains haste until end of turn$/i, () => [{ do: 'gatilho_no_turno', when: 'criatura-sua-entra', effects: [{ do: 'counters', tipo: 'p1p1', amount: 1, target: 'delayed-object' }, { do: 'keyword', keyword: 'haste', target: 'delayed-object' }] }]], // M-389 · First Day of Class (603.7c)
-    [/^learn$/i, () => [{ do: 'learn' }]], // M-389 · 701.48 (o motor aprende desde a V-13; a Lição de fora do jogo não existe no app — parcial declarada no vocabulário)
+    [/^learn$/i, () => [{ do: 'learn' }]],
+    [/^prevent all damage that would be dealt by creatures this turn$/i, () => [{ do: 'prevenir', todos: true, deCriatura: true }]], // M-390 · Ethereal Haze (615.1) // M-389 · 701.48 (o motor aprende desde a V-13; a Lição de fora do jogo não existe no app — parcial declarada no vocabulário)
     [/^it doesn't untap during its controller's next untap step$/i, () => [{ do: 'nao_desvira', target: 'first-target' }]], // M-334 · LT18 · 502.3 (Sleep of the Dead)
     [/^add ((?:\{[WUBRGC]\})+)$/i, m => [{ do: 'add_mana', symbols: m[1].match(/[WUBRGC]/g) }]], // M-334 · LT18 · mágica ou gatilho que adiciona mana (Seething Song, Burning-Tree Emissary)
     [/^you become the monarch$/i, () => [{ do: 'monarch' }]], // M-332 · CR 725
@@ -18837,6 +18841,7 @@ function danoAposPrevencao(s, src, alvo, amt, combate) {
   if (alvo.obj && (prevented(s, alvo.obj) || protegeDoDano(s, alvo.obj, src))) return 0;
   for (const p of s.prevencoes || []) {
     if (p.quantidade === 0 || (p.combate && !combate) || (p.cor && !colorsOf(s, src).includes(p.cor))) continue;
+    if (p.deCriatura && !fonteEraCriaturaM(s, src)) continue; // M-390 · 615.1 · "damage that would be dealt by creatures" (Ethereal Haze): a fonte, como é agora ou como era ao sair (113.7a)
     const casa = p.todos || (p.alvo.player != null ? alvo.player === p.alvo.player : alvo.obj && alvo.obj.oid === p.alvo.oid && mesmaEncarnacao(s, p.alvo));
     if (!casa) continue;
     if (p.quantidade == null) return 0;
@@ -18844,6 +18849,13 @@ function danoAposPrevencao(s, src, alvo, amt, combate) {
     if (!amt) return 0;
   }
   return amt;
+}
+/** M-390 · a fonte do dano é uma criatura: no campo, como está; fora do campo, pela última informação (habilidade de criatura que já saiu). */
+function fonteEraCriaturaM(s, src) {
+  const f = src && (src.ability ? s.objects[src.source] : src);
+  if (!f) return !!(src && src.ability && ((s.facts[src.name] || {}).types || []).includes('creature')); // achado da revisão: a ficha que deixou de existir (704.5d) conta pelo tipo da ficha
+  if (f.zone === 'battlefield') return isCreature(s, f);
+  return !!(f.ultima && f.ultima.power != null && (f.ultima.tipos || []).includes('creature'));
 }
 /** O caminho antigo da prevenção (sim/não), só para o teste de equivalência. */
 const prevencaoLegado = (s, src, obj) => colorPrevented(s, src) || !!(obj && (prevented(s, obj) || protegeDoDano(s, obj, src)));
@@ -21002,7 +21014,7 @@ function applyEffect(s, src, eff, tgt, events) {
       break;
     }
     case 'prevenir': { // CR2-G R5b · escudo até o fim do turno (a limpeza apaga s.prevencoes)
-      const escudo = { ...(eff.quantidade != null ? { quantidade: eff.quantidade } : {}), ...(eff.deCor ? { cor: eff.deCor } : {}), ...(eff.soCombate ? { combate: true } : {}) };
+      const escudo = { ...(eff.quantidade != null ? { quantidade: eff.quantidade } : {}), ...(eff.deCor ? { cor: eff.deCor } : {}), ...(eff.soCombate ? { combate: true } : {}), ...(eff.deCriatura ? { deCriatura: true } : {}) }; // M-390 · "dealt by creatures"
       if (eff.todos) { s.prevencoes = [...(s.prevencoes || []), { ...escudo, todos: true }]; note({ todos: true, quantidade: eff.quantidade }); break; }
       const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
       const quem = tgt && tgt.player != null ? { player: tgt.player } : alvo ? { oid: alvo.oid, z: alvo.zc || 0 } : null;
@@ -31197,7 +31209,7 @@ function descreveEfeito(e) {
       const quanto = e.quantidade ? `os próximos ${e.quantidade} de dano` : 'todo o dano';
       const fonte = e.deCor ? ` de fontes ${{ W: 'brancas', U: 'azuis', B: 'pretas', R: 'vermelhas', G: 'verdes' }[e.deCor]}` : '';
       const quem = e.todos ? '' : e.target === '__quem' ? ' a __quem' : e.target === 'self-source' ? ' a esta permanente' : ` a ${alvo || 'o alvo'}`;
-      return `previne ${quanto}${e.soCombate ? ' de combate' : ''}${fonte} que seria causado${quem} neste turno`;
+      return `previne ${quanto}${e.soCombate ? ' de combate' : ''}${fonte}${e.deCriatura ? ' que seria causado por criaturas' : ` que seria causado${quem}`} neste turno`; // M-390
     }
     case 'sacrificar': { // CR2-G R4c
       const nomes = { creature: 'uma criatura', artifact: 'um artefato', enchantment: 'um encantamento', land: 'um terreno', planeswalker: 'um planeswalker' };
