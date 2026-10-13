@@ -5025,6 +5025,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `createGame` (uma linha: a carta inteira com fundir resolve as instruções das duas metades).
 - **Próximo:** T-35 auditoria independente (correções da T-33 e fundir); depois as parciais da CR5 (712.x, 715.3, 716.2, 303.4, 309.x).
 
+**CR5-T35 · Fundir e selar: correções da auditoria independente** ✅ (leva T-35, sem mudança de versão do motor) — revisor sem acesso à implementação rodou 33 sondas (cerca de 90 conferências), um passeio de 12.000 ações (99 fundidas) e 28 partidas com bot (9 fundidas, 57 consequências, 1.179 selagens); 2 divergências. 2 testes novos (`tipos.fundir.unit` 11, `tipos.selar.unit` 13; falham sem a leva).
+- **Corrigido:** **115.3 (D1)** — a fundida pedia alvos diferentes nas duas metades; cada metade tem o seu "alvo", então o mesmo objeto vale uma vez por metade (Wear e Tear no mesmo artefato-encantamento; a jogada clássica de Turn // Burn). **702.171a (D2)** — quem tripula pela resistência (Giant Ox, 0/6) selava pela resistência; selar soma sempre o poder.
+- **Conferido e correto pela auditoria:** fundida só da mão (nem do cemitério com permissão, nem do exílio), custo exato das duas metades, valor de mana 3 e "mágica não criatura" na pilha, os dois nomes, uma mágica só, 608.2b nos dois sentidos, anulada ou devolvida volta inteira, sem pagar da mão, tempo de instantânea, pedidos inválidos recusados, determinismo e estado recebido intacto; correções da T-33 (consequência e bônus de tripular) confirmadas.
+- **Versão e goldens:** a versão não sobe; goldens idênticos.
+- **Toca ponto comum:** `modosCombinadosK` (o prefixo `fundir-` entra na lista dos modos somados: cada metade da fundida é uma instância própria de "alvo", como nos modos de entrelaçar e escalar).
+- **Próximo:** as parciais da CR5 (712.x, 715.3, 716.2, 303.4, 309.x).
+
 **CR6 · Multijogador e variantes** ○ — mesa de três e quatro (800–803, 806), Commander de mesa (903.2), Brawl (903.12); as variantes hoje "fora" só entram por decisão. 10 a 14 levas.
 
 **CR7 · Consolidação** ○ (em paralelo a partir da CR2) — a cada fase: fuzz em modo completo com listas reais, homologação por revisor independente relendo a seção das regras contra o motor, e rodada de simulação do dono do produto. 6 a 8 levas ao todo.

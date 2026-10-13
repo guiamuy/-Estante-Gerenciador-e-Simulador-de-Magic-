@@ -21,8 +21,8 @@ carta('Anula Mágica', 'Instant'); carta('Retorno', 'Sorcery');
 carta('Amuleto', 'Artifact'); carta('Encanto', 'Enchantment');
 
 const WT = 'Wear // Tear';
-function mesa(seed = 1) {
-  const deck = [{ name: WT, qty: 8, zone: 'main' }, { name: 'Anula Mágica', qty: 4, zone: 'main' }, { name: 'Amuleto', qty: 6, zone: 'main' }, { name: 'Encanto', qty: 6, zone: 'main' }, { name: 'Mountain', qty: 8, zone: 'main' }, { name: 'Plains', qty: 8, zone: 'main' }];
+function mesa(seed = 1, extra = []) {
+  const deck = [{ name: WT, qty: 8, zone: 'main' }, { name: 'Anula Mágica', qty: 4, zone: 'main' }, { name: 'Amuleto', qty: 6, zone: 'main' }, { name: 'Encanto', qty: 6, zone: 'main' }, { name: 'Mountain', qty: 8, zone: 'main' }, { name: 'Plains', qty: 8, zone: 'main' }, ...extra.map(name => ({ name, qty: 2, zone: 'main' }))];
   let s = E.createGame({ format: 'livre', seed, mode: 'full', cards: C, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
   for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
   return passaAte(s, x => x.turn.active === 0 && x.turn.step === 'main1' && !x.stack.length && !x.pending);
@@ -105,4 +105,18 @@ test('CR 702.102 · passeio aleatório com Wear // Tear: nada oferecido é recus
     }
   }
   assert.ok(fundiu > 0, 'a fundida foi jogada no passeio');
+});
+
+/* ---------------- T-35 · correção da auditoria independente ---------------- */
+test('CR 115.3 · cada metade da fundida tem o seu "alvo": o mesmo artefato-encantamento pode ser alvo de Wear e de Tear', () => {
+  carta('Relicário', 'Artifact Enchantment');
+  let s = mesa(1, ['Relicário']); let c; [s, c] = poe(s, 0, WT, 'hand'); let r; [s, r] = poe(s, 1, 'Relicário'); s = mana(s);
+  assert.ok(fundidas(s, 0, c).some(a => a.targets[0].oid === r && a.targets[1].oid === r), 'oferecida com o mesmo alvo nas duas metades');
+  const t = esvazia(act(s, { t: 'cast', p: 0, oid: c, face: 'fundida', targets: [{ oid: r }, { oid: r }] }));
+  eq([t.objects[r].zone, t.objects[c].zone], ['graveyard', 'graveyard']);
+});
+
+test('CR 115.3 · uma metade sozinha continua com um alvo só (dois alvos recusados)', () => {
+  let s = mesa(); let c; [s, c] = poe(s, 0, WT, 'hand'); let am; [s, am] = poe(s, 1, 'Amuleto'); s = mana(s);
+  assert.throws(() => E.apply(s, { t: 'cast', p: 0, oid: c, face: 'esquerda', targets: [{ oid: am }, { oid: am }] }));
 });

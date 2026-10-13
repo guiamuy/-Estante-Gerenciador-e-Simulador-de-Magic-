@@ -23,8 +23,8 @@ carta('Veículo', 'Artifact — Vehicle', { power: '4', toughness: '4' });
 
 const BB = 'Bridled Bighorn', TA = 'Trained Arynx', DG = 'Drover Grizzly';
 const TODAS = [BB, TA, DG, 'Sopro', 'Rebote', 'Urso', 'Rato'];
-function mesa(seed = 1) {
-  const deck = [...TODAS.map(name => ({ name, qty: name === 'Urso' || name === 'Rato' ? 8 : 4, zone: 'main' })), { name: 'Plains', qty: 12, zone: 'main' }];
+function mesa(seed = 1, extra = []) {
+  const deck = [...TODAS.map(name => ({ name, qty: name === 'Urso' || name === 'Rato' ? 8 : 4, zone: 'main' })), { name: 'Plains', qty: 12, zone: 'main' }, ...extra.map(name => ({ name, qty: 2, zone: 'main' }))];
   let s = E.createGame({ format: 'livre', seed, mode: 'full', cards: C, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
   for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
   return passaAte(s, x => x.turn.active === 0 && x.turn.step === 'main1' && !x.stack.length && !x.pending);
@@ -141,4 +141,12 @@ test('Registro · a escolha livre de quem sela diz "selou", não "tripulou"', ()
   const a = { t: 'tripular_pronto', p: 0 }, r = E.apply(s, a);
   const linhas = T.describe(s, a, r.events, r.state).join(' | ');
   assert.ok(/selou Bridled Bighorn com Rato \+ Rato \+ Rato/.test(linhas), linhas);
+});
+
+/* ---------------- T-35 · correção da auditoria independente ---------------- */
+test('CR 702.171a · selar soma o poder: quem tripula pela resistência (Giant Ox, 0/6) não sela "Selar 1"', () => {
+  C['Giant Ox'] = { name: 'Giant Ox', type_line: 'Creature — Ox', mana_cost: '{1}{W}', cmc: 2, keywords: [], oracle_text: '', colors: ['W'], power: '0', toughness: '6' };
+  let s = mesa(1, ['Giant Ox']); let g; [s, g] = poe(s, 0, DG, 'battlefield', { sick: false }); let ox; [s, ox] = poe(s, 0, 'Giant Ox');
+  eq(selas(s, 0, g).map(a => a.pay.crew), [], 'poder 0 não sela');
+  assert.throws(() => E.apply(s, { t: 'activate', p: 0, oid: g, index: 0, pay: { crew: [ox] } }));
 });

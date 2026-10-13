@@ -17402,7 +17402,7 @@ function createGame(setup) {
     if (sc.self && sc.self.devoid) f.colors = []; // R7 · desprovido de cor (702.114): incolor mesmo com mana colorida no custo
     if (sc.self && Array.isArray(sc.self.keywords)) { for (const k of sc.self.keywords) if (!f.kw.includes(k)) f.kw.push(k); if (f.kw.includes('flash')) f.flash = true; }
     if (sc.self && sc.self.nivelar) fatosDoNivelarT(f, sc); // T-24 · CR 711.5 · as palavras das barras só valem pela barra (Toca ponto comum: createGame)
-    if (sc.self && sc.self.fundir && sc.back) f.script.effects = (sc.effects || []).concat(sc.back.effects || []); // T-34 · CR 702.102d: a carta inteira (a fundida) resolve a esquerda e depois a direita; cada metade conjurada sozinha usa os fatos dela (Toca ponto comum: createGame)
+    if (sc.self && sc.self.fundir && sc.back) f.script.effects = (sc.effects || []).map(e => ({ ...e, __modo: 'fundir-0' })).concat((sc.back.effects || []).map(e => ({ ...e, __modo: 'fundir-1' }))); // T-34 · CR 702.102d: a carta inteira (a fundida) resolve a esquerda e depois a direita; cada metade conjurada sozinha usa os fatos dela. T-35 · cada metade é uma frase própria (115.3: o mesmo alvo vale uma vez por metade) (Toca ponto comum: createGame)
     if (sc.choose) f.script.choose = sc.choose;
     if (sc.staticRule) f.script.staticRule = sc.staticRule;
     if (sc.cumulativeUpkeep) f.script.cumulativeUpkeep = sc.cumulativeUpkeep; // CR 702.24
@@ -24665,7 +24665,7 @@ function ofertasEscalarK(s, p, out) {
 /* K-48 · 601.2c com 115.3: "the same object can be chosen once for each instance of the word 'target'" — nos modos somados (entrelaçar,
    escalar), cada modo é uma instância própria, como em "choose two" (achado da auditoria K-39 para o entrelaçar). modosCombinadosK diz ao
    HANDLERS.cast que a conferência de alvos repetidos separa por modo; alvosPorModoK refaz as ofertas desses modos com os alvos por modo. */
-const modosCombinadosK = need => need.some(e => typeof e.__modo === 'string' && /^(?:escalar|entrelacar|spree)-/.test(e.__modo)); // K-54 · spree também
+const modosCombinadosK = need => need.some(e => typeof e.__modo === 'string' && /^(?:escalar|entrelacar|spree|fundir)-/.test(e.__modo)); // K-54 · spree também
 function combosPorModoK(s, p, oid, need, xv) {
   const comX = xv != null ? { controller: p, xPaid: xv } : undefined;
   let combos = [[]];
@@ -25993,8 +25993,8 @@ Object.assign(EXPORTS_T, { virarScriptT });
      tripular (grupos mínimos em `activate` e a escolha livre `tripular`, T-3), num não-Veículo: paga o custo e mais nada.
    - 702.171b: "selada" é designação até o fim do turno ou até a montaria sair do campo (`o.seladaT = { turno, z }`); não é copiável.
      A habilidade que resolve depois de a montaria sair e voltar não sela o objeto novo (400.7, o registro da ativação em `s.tripulou`).
-   Fora: o gatilho "whenever ~ saddles" (702.171c) e "não pode selar" ainda não existem; quem tripula "como se tivesse poder maior"
-   (tripulaMais) soma também para selar. */
+   Fora: o gatilho "whenever ~ saddles" (702.171c) e "não pode selar" ainda não existem. Os bônus de tripular (tripulaMais,
+   suasTripulamMais) e o "tripula pela resistência" valem só para Veículo: selar soma o poder (T-33, T-35). */
 function selarHabilidadeT(sc) { const n = sc.self.selar; return { kind: 'activated', cost: { crew: n }, sorceryOnly: true, label: `Selar ${n}`, selarT: true, effects: [{ do: 'selada' }] }; }
 function seladaAgoraT(s, o) { const r = o && o.zone === 'battlefield' && o.seladaT; return !!(r && r.turno === s.turn.number && r.z === (o.zc || 0)); }
 function seladaT(s, src, events) {
@@ -26521,7 +26521,7 @@ const selfT = (s, o) => (o && !o.faceDown && s.facts[o.name] && !semImpressas(s,
 const naoTripula = (s, o) => !!selfT(s, o).naoTripula || attachedTo(s, o).some(x => !!selfT(s, x).anexadaNaoTripula);
 /** Com quanto a criatura conta para a soma de "poder total N ou mais" (pode ser negativo). */
 function forcaDeTripular(s, o, veiculo = true) { // T-33 · os bônus de tripular ("crews Vehicles as though…") só valem para Veículo: selar uma montaria soma só o poder
-  const eu = selfT(s, o), base = eu.tripulaPela === 'resistencia' ? toughness(s, o) : power(s, o);
+  const eu = selfT(s, o), base = veiculo && eu.tripulaPela === 'resistencia' ? toughness(s, o) : power(s, o); // T-35 · selar soma o poder, também de quem tripula pela resistência
   let mais = eu.tripulaMais || 0;
   for (const x of battlefield(s)) if (x.controller === o.controller) mais += selfT(s, x).suasTripulamMais || 0;
   if (!veiculo) mais = 0; // T-33 · 702.171a: selar não é tripular
@@ -26829,10 +26829,41 @@ function divididaEscolhidaT(s, a, o) {
 }
 /** T-34 · CR 702.102a · a oferta da carta inteira vira a fundida quando a carta tem fundir e está na mão (pelo custo das duas metades). */
 function fundidaOfertaT(s, a) { const o = s.objects[a.oid], sc = o && divididaScriptT(s, o); return !!(sc && sc.self.fundir && o.zone === 'hand' && !a.omen && !a.disturb && !a.faceDown && !a.bestow && !a.flashback); }
+/** T-35 · CR 115.3 · as ofertas comuns pedem alvos diferentes entre si; na fundida cada metade tem o seu "alvo", então o mesmo
+ * objeto vale uma vez por metade (nunca duas vezes na mesma metade). As ofertas-base (tempo, custo, custos adicionais) saem de
+ * `legalActions` numa cópia em que a carta não tem alvo; os alvos são combinados aqui. Na escolha "sem pagar", as ofertas que já
+ * existem ganham as combinações que repetem um alvo entre metades. */
+function alvosDaFundidaT(s, p, oid) {
+  const need = (s.facts[s.objects[oid].name].script.effects || []).filter(SC.isTargeted);
+  let combos = [[]];
+  for (const eff of need) {
+    const opts = limitaAlvos(legalTargets(s, p, eff.target, oid, eff.targetColor).filter(x => targetAllowed(s, eff, x)), need.length);
+    combos = combos.flatMap(c => opts.filter(x => !c.some((y, j) => sameChoice(x, y) && need[j].__modo === eff.__modo)).map(x => c.concat([x]))).slice(0, COMBO_LIMIT);
+  }
+  return combos;
+}
+function fundidaMesmoAlvoT(s, p, out, aqui) {
+  const fus = aqui.filter(oid => { const o = s.objects[oid]; return o.zone === 'hand' && divididaScriptT(s, o).self.fundir; });
+  if (!fus.length) return;
+  const chave = a => JSON.stringify(Object.keys(a).sort().map(k => [k, a[k]])), vistos = new Set(out.map(chave));
+  const poe = a => { const k = chave(a); if (!vistos.has(k)) { vistos.add(k); out.push(a); } };
+  if (s.pending && s.pending.kind === 'free_cast') {
+    for (const a of out.slice()) if (a.t === 'cast_free' && a.face === 'fundida' && fus.includes(a.oid)) { const { targets, ...base } = a; if (targets) for (const t of alvosDaFundidaT(s, p, a.oid)) poe({ ...base, targets: t }); }
+    return;
+  }
+  const s2 = cloneEstado(s);
+  for (const oid of fus) { const n = s2.objects[oid].name; s2.facts[n] = { ...s2.facts[n], script: { ...s2.facts[n].script, effects: [{ do: 'gain', amount: 0 }] } }; }
+  let base = [];
+  DENTRO_DAS_MODAIS = true;
+  try { base = legalActions(s2, p).filter(a => a.t === 'cast' && fus.includes(a.oid) && a.face == null && !a.targets && fundidaOfertaT(s, a)); }
+  finally { DENTRO_DAS_MODAIS = false; }
+  for (const a of base) for (const t of alvosDaFundidaT(s, p, a.oid)) if (t.length) poe({ ...a, targets: t, face: 'fundida' });
+}
 function divididaOfertas(s, p, out) {
   const aqui = s.zones[p].hand.concat(s.zones[p].exile.filter(oid => jogavelDoExilio(s, p, s.objects[oid])), s.zones[p].graveyard).filter(oid => !s.objects[oid].frontName && metadesDe(s, oid));
   if (!aqui.length) return;
   for (let i = out.length - 1; i >= 0; i--) if (out[i].t === 'cast' && aqui.includes(out[i].oid) && out[i].face == null) { if (fundidaOfertaT(s, out[i])) out[i] = { ...out[i], face: 'fundida' }; else out.splice(i, 1); } // a carta inteira não é conjurada (709.3), salvo a fundida da mão (T-34 · 702.102a)
+  fundidaMesmoAlvoT(s, p, out, aqui); // T-35 · CR 115.3
   for (const lado of ['esquerda', 'direita']) {
     const s2 = cloneEstado(s); for (const oid of aqui) { const sc = divididaScriptT(s2, s2.objects[oid]); flipTo(s2, s2.objects[oid], lado === 'direita' ? direitaT(sc) : esquerdaT(sc)); }
     DENTRO_DAS_MODAIS = true;
@@ -26851,6 +26882,7 @@ function faceGratisOfertasT(s, p, out) {
   const mod = ops.filter(oid => { const o = s.objects[oid], fv = !div.includes(oid) && faceDeTras(s, oid); return fv && (o.zone === 'hand' || (o.zone === 'exile' && jogavelDoExilio(s, p, o))) && !((s.facts[fv.nome] || {}).types || []).includes('land'); }); // a mesma conferência de faceEscolhidaT
   if (!div.length && !mod.length) return;
   for (let i = out.length - 1; i >= 0; i--) if (out[i].t === 'cast_free' && div.includes(out[i].oid) && out[i].face == null) { if (fundidaOfertaT(s, out[i])) out[i] = { ...out[i], face: 'fundida' }; else out.splice(i, 1); } // a carta inteira não é conjurada (709.3), salvo a fundida da mão (T-34)
+  fundidaMesmoAlvoT(s, p, out, div); // T-35 · CR 115.3
   const vira = { esquerda: oid => esquerdaT(divididaScriptT(s, s.objects[oid])), direita: oid => direitaT(divididaScriptT(s, s.objects[oid])), verso: oid => faceDeTras(s, oid).nome };
   for (const [face, quais] of [['esquerda', div], ['direita', div], ['verso', mod]]) {
     if (!quais.length) continue;
