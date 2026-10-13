@@ -5122,6 +5122,14 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `redefinicoesDe` e `mutacao` (a faixa de estação alcançada entra no cálculo de camadas, como a Aura que redefine), o custo `tapOther` (anota quem foi virada só para a estação) e `HANDLERS.activate` (a anotação vai com a habilidade).
 - **Próximo:** auditoria independente de protótipo e estação (T-38); depois as parciais da CR5.
 
+**CR5-T38 · Protótipo e estação: correções da auditoria independente** ✅ (leva T-38, sem mudança de versão do motor) — revisor sem acesso à implementação rodou 38 conferências e um fuzz de 10.100 ações (19 protótipos, 31 estações, 1.311 ações com o bot); 4 divergências, 3 corrigidas, 1 declarada. 3 testes novos (`tipos.prototipo.unit` 11, `tipos.estacao.unit` 13; falham sem a leva).
+- **Corrigido:** **601.2f/718.3b (D1)** — com "mágicas verdes custam {1} a menos" em campo, o protótipo era oferecido por {2}{G} e recusado ao conjurar; agora a redução e o teto dela leem a cor e o custo do protótipo. **608.2h (D3)** — a criatura virada para a estação que saiu do campo contava o poder do momento da ativação; agora conta o último poder que teve. **721.2c (D4)** — fora do campo a carta de estação tinha o P/R da faixa; agora não tem P/R.
+- **Fora, declarado (D2):** o valor de mana de um protótipo que já saiu do campo é lido como o normal pela última informação ("ganhe vida igual ao valor de mana da sacrificada", emergir, "revele até uma criatura de valor maior"). Corrigir pede guardar o valor de mana na foto `ultima`, o que muda o estado das partidas-referência: **pedido à trilha motor** (decisão do dono sobre os goldens).
+- **Conferido e correto pela auditoria:** ofertas e recusas do protótipo, devoção, ganho de vida pela última informação, volta ao normal em toda mudança de zona; custo e tempo da estação, poder negativo, proliferar ativando a faixa, criatura só com 7+, nave que estaciona outra, troca de controle, dano da Kill-Ship ao entrar, estado recebido intacto e determinismo.
+- **Versão e goldens:** a versão não sobe; goldens idênticos.
+- **Toca ponto comum:** `reducaoPorCor`, `castExtra` e `castExtraK` (a cor e o genérico do custo que está sendo pago, quando é protótipo).
+- **Próximo:** as parciais da CR5 e o próximo bloqueio de tipo no catálogo.
+
 **CR6 · Multijogador e variantes** ○ — mesa de três e quatro (800–803, 806), Commander de mesa (903.2), Brawl (903.12); as variantes hoje "fora" só entram por decisão. 10 a 14 levas.
 
 **CR7 · Consolidação** ○ (em paralelo a partir da CR2) — a cada fase: fuzz em modo completo com listas reais, homologação por revisor independente relendo a seção das regras contra o motor, e rodada de simulação do dono do produto. 6 a 8 levas ao todo.

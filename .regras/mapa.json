@@ -9621,8 +9621,9 @@
    "titulo": "Station",
    "status": "parcial",
    "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): estação é do tipo Espaçonave. T-37 (13/10/2026): falta só 702.184c (estacionar por outra característica, Tapestry Warden).",
-   "evidencia": "T-37 (13/10/2026): self.estacao.faixas = [{ n, pt?, palavras?, abilities? }]; o motor monta a ativada de estação (virar outra criatura sua desvirada, enjoo não impede, só como feitiço; marcadores de carga iguais ao poder dela na resolução, ou o último que teve se saiu, 608.2h), que existe sempre (721.4). Cada faixa {N+} alcançada dá palavras e habilidades e, com pt, torna a permanente criatura com esse P/R base além dos outros tipos (cálculo de camadas). Mesa: \"Estação: virar <criatura> (+N de carga)\"; registro \"recebeu N marcadores de carga (estação)\". Carta exemplo completa: Pinnacle Kill-Ship (Oracle do Forge, 13/10/2026).",
+   "evidencia": "T-37 (13/10/2026): self.estacao.faixas = [{ n, pt?, palavras?, abilities? }]; o motor monta a ativada de estação (virar outra criatura sua desvirada, enjoo não impede, só como feitiço; marcadores de carga iguais ao poder dela na resolução, ou o último que teve se saiu, 608.2h), que existe sempre (721.4). Cada faixa {N+} alcançada dá palavras e habilidades e, com pt, torna a permanente criatura com esse P/R base além dos outros tipos (cálculo de camadas). Mesa: \"Estação: virar <criatura> (+N de carga)\"; registro \"recebeu N marcadores de carga (estação)\". Carta exemplo completa: Pinnacle Kill-Ship (Oracle do Forge, 13/10/2026). T-38 (13/10/2026) · auditoria independente (38 conferências, fuzz de 10.100 ações): a criatura virada que saiu do campo conta o último poder que teve (antes, o do momento da ativação).",
    "testes": [
+    "CR 608.2h · a criatura recebe +3/+3 em resposta e depois sai do campo: vale o último poder que ela teve (5), não o da ativação (2)",
     "CR 702.184a · estação: vire outra criatura sua desvirada (enjoo não impede) e a nave recebe marcadores de carga iguais ao poder dela",
     "CR 702.184a · estação só como feitiço: não no turno do oponente nem com a pilha ocupada; criatura virada não serve",
     "CR 702.184a / 608.2h · o número de marcadores é o poder da criatura virada quando a estação resolve (Força em resposta: 5); criatura de poder 0 não põe nada"
@@ -11136,9 +11137,10 @@
    "regra": "Prototype Cards",
    "titulo": "Conjurar como protótipo",
    "status": "parcial",
-   "falta": "718.3c/d: cópia de mágica ou de permanente de protótipo não tem as características alternativas. Conjurar sem pagar o custo não oferece o protótipo (mais restritivo que a regra; nada ilegal é aceito).",
-   "evidencia": "T-36 (13/10/2026): self.prototipo = { mana, power, toughness }; a ação de conjurar leva `prototipo: true` (oferta própria, calculada numa cópia com o custo e o tamanho alternativos); a marca `prototipoT` é da conjuração: vale na pilha e no campo e some em qualquer outra mudança de zona. Mesa: \"Conjurar como protótipo · {3}{G} · 3/3\"; registro \"(como protótipo)\". Carta exemplo completa: Boulderbranch Golem (Oracle do Forge, 13/10/2026).",
+   "falta": "718.3c/d: cópia de mágica ou de permanente de protótipo não tem as características alternativas. Conjurar sem pagar o custo não oferece o protótipo (mais restritivo que a regra; nada ilegal é aceito). T-38 (13/10/2026) · auditoria: o valor de mana do protótipo que já saiu do campo é lido como o normal pela última informação (\"ganhe vida igual ao valor de mana da sacrificada\", emergir, \"revele até uma criatura de valor maior\"): a foto `ultima` não guarda o valor de mana — pedido à trilha motor (gravar o valor na foto muda o estado das partidas-referência).",
+   "evidencia": "T-36 (13/10/2026): self.prototipo = { mana, power, toughness }; a ação de conjurar leva `prototipo: true` (oferta própria, calculada numa cópia com o custo e o tamanho alternativos); a marca `prototipoT` é da conjuração: vale na pilha e no campo e some em qualquer outra mudança de zona. Mesa: \"Conjurar como protótipo · {3}{G} · 3/3\"; registro \"(como protótipo)\". Carta exemplo completa: Boulderbranch Golem (Oracle do Forge, 13/10/2026). T-38 (13/10/2026) · auditoria independente (38 conferências, fuzz de 10.100 ações): \"mágicas verdes custam {1} a menos\" vale para o protótipo conjurado (antes a oferta e a aceitação discordavam).",
    "testes": [
+    "CR 601.2f / 718.3b · \"mágicas verdes ou vermelhas custam {1} a menos\": o protótipo (verde) custa {2}{G}; oferta e aceitação concordam",
     "CR 718.3a/b · como protótipo: paga {3}{G}; na pilha e no campo é 3/3, verde, valor de mana 4; a entrada ganha 3 de vida",
     "CR 718.3b · na pilha, o protótipo é alvo de \"anule a mágica de valor de mana 4 ou menos\"; a normal (7), não",
     "CR 718.3b · no campo, o protótipo é verde: \"destrua a criatura verde alvo\" alcança só ele",
@@ -11261,8 +11263,9 @@
    "titulo": "Símbolo de estação: habilidades por carga",
    "status": "coberta",
    "falta": "T-37 (13/10/2026): nada falta.",
-   "evidencia": "T-37 (13/10/2026): self.estacao.faixas = [{ n, pt?, palavras?, abilities? }]; o motor monta a ativada de estação (virar outra criatura sua desvirada, enjoo não impede, só como feitiço; marcadores de carga iguais ao poder dela na resolução, ou o último que teve se saiu, 608.2h), que existe sempre (721.4). Cada faixa {N+} alcançada dá palavras e habilidades e, com pt, torna a permanente criatura com esse P/R base além dos outros tipos (cálculo de camadas). Mesa: \"Estação: virar <criatura> (+N de carga)\"; registro \"recebeu N marcadores de carga (estação)\". Carta exemplo completa: Pinnacle Kill-Ship (Oracle do Forge, 13/10/2026).",
+   "evidencia": "T-37 (13/10/2026): self.estacao.faixas = [{ n, pt?, palavras?, abilities? }]; o motor monta a ativada de estação (virar outra criatura sua desvirada, enjoo não impede, só como feitiço; marcadores de carga iguais ao poder dela na resolução, ou o último que teve se saiu, 608.2h), que existe sempre (721.4). Cada faixa {N+} alcançada dá palavras e habilidades e, com pt, torna a permanente criatura com esse P/R base além dos outros tipos (cálculo de camadas). Mesa: \"Estação: virar <criatura> (+N de carga)\"; registro \"recebeu N marcadores de carga (estação)\". Carta exemplo completa: Pinnacle Kill-Ship (Oracle do Forge, 13/10/2026). T-38 (13/10/2026) · auditoria independente (38 conferências, fuzz de 10.100 ações): fora do campo a carta de estação não tem P/R (721.2c).",
    "testes": [
+    "CR 721.2c · fora do campo a carta de estação não tem poder nem resistência",
     "CR 721.2b · abaixo de 7 marcadores a nave não é criatura nem voa; com 7 ou mais é criatura artefato 7/7 com voar",
     "CR 721.4 · a habilidade de estação existe sempre: com 7 ou mais marcadores ela continua oferecida",
     "CR 400.7 · a nave que sai e volta é um objeto novo: sem marcadores, não é criatura"

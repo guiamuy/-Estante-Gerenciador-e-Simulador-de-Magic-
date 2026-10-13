@@ -22,8 +22,9 @@ const SCRIPTS = {
 carta('Anula Quatro', 'Instant'); carta('Mata Verde', 'Instant'); carta('Volta', 'Instant'); carta('Reanima', 'Sorcery');
 
 const BG = 'Boulderbranch Golem';
-function mesa(seed = 1) {
-  const deck = [{ name: BG, qty: 8, zone: 'main' }, ...Object.keys(SCRIPTS).map(name => ({ name, qty: 3, zone: 'main' })), { name: 'Forest', qty: 10, zone: 'main' }, { name: 'Island', qty: 10, zone: 'main' }];
+const EXTRAS = ['Desconto Verde']; // só entram no baralho quando o teste pede (a semente das outras mesas não muda)
+function mesa(seed = 1, extra = []) {
+  const deck = [{ name: BG, qty: 8, zone: 'main' }, ...Object.keys(SCRIPTS).filter(n => !extra.includes(n) && !EXTRAS.includes(n)).map(name => ({ name, qty: 3, zone: 'main' })), { name: 'Forest', qty: 10, zone: 'main' }, { name: 'Island', qty: 10, zone: 'main' }, ...extra.map(name => ({ name, qty: 2, zone: 'main' }))];
   let s = E.createGame({ format: 'livre', seed, mode: 'full', cards: C, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
   for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
   return passaAte(s, x => x.turn.active === 0 && x.turn.step === 'main1' && !x.stack.length && !x.pending);
@@ -129,4 +130,16 @@ test('CR 718 · passeio aleatório com o Golem: nada oferecido é recusado e for
     }
   }
   assert.ok(protos > 0, 'o protótipo foi jogado no passeio');
+});
+
+/* ---------------- T-38 · correção da auditoria independente ---------------- */
+test('CR 601.2f / 718.3b · "mágicas verdes ou vermelhas custam {1} a menos": o protótipo (verde) custa {2}{G}; oferta e aceitação concordam', () => {
+  SCRIPTS['Desconto Verde'] = { name: 'Desconto Verde', self: { reduzCor: { generic: 1, cores: ['G', 'R'] } }, ...EX };
+  carta('Desconto Verde', 'Creature — Elf', { power: '1', toughness: '1' });
+  let s = mesa(1, ['Desconto Verde']); [s] = poe(s, 0, 'Desconto Verde'); let g; [s, g] = poe(s, 0, BG, 'hand'); s = mana(s, 0, { G: 1, C: 2 });
+  const of = proto(s, 0, g);
+  assert.equal(of.length, 1, 'oferecido com três manas');
+  s = act(s, of[0]);
+  eq([s.objects[g].zone, pool(s)], ['stack', 0]);
+  delete SCRIPTS['Desconto Verde'];
 });

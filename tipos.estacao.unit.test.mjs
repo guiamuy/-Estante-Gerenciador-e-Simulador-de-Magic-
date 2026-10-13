@@ -144,3 +144,22 @@ test('CR 702.184 · passeio aleatório com a nave: nada oferecido é recusado e 
   }
   assert.ok(feitas > 0, 'a estação foi ativada no passeio');
 });
+
+/* ---------------- T-38 · correção da auditoria independente ---------------- */
+test('CR 608.2h · a criatura recebe +3/+3 em resposta e depois sai do campo: vale o último poder que ela teve (5), não o da ativação (2)', () => {
+  let s = mesa(); let k; [s, k] = nave(s); let u; [s, u] = poe(s, 0, 'Urso');
+  let f; [s, f] = poe(s, 0, 'Força', 'hand'); let v; [s, v] = poe(s, 0, 'Volta', 'hand'); s = mana(s);
+  s = act(s, estacoes(s, 0, k).find(a => [].concat(a.pay.tapOther)[0] === u));
+  s = act(s, legais(s, 0, a => a.t === 'cast' && a.oid === f && a.targets[0].oid === u)[0]);
+  s = passaAte(s, x => x.stack.length === 1 && x.turn.priority === 0);
+  eq(E.stats(s, s.objects[u]).power, 5);
+  s = act(s, legais(s, 0, a => a.t === 'cast' && a.oid === v && a.targets[0].oid === u)[0]);
+  s = esvazia(s);
+  eq([s.objects[u].zone, carga(s, k)], ['hand', 5]);
+});
+
+test('CR 721.2c · fora do campo a carta de estação não tem poder nem resistência', () => {
+  let s = mesa(); let k; [s, k] = poe(s, 0, KS, 'hand');
+  const st = E.stats(s, s.objects[k]);
+  eq([st.power || 0, st.toughness || 0], [0, 0]);
+});

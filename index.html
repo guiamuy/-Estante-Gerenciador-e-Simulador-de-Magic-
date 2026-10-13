@@ -18503,12 +18503,12 @@ const descontoExilaMao = (s, o, k, extra) => { const em = ((s.facts[o.name] || {
 const aumentoPorAlvo = (s, alvos) => Array.isArray(alvos) ? [...new Set(alvos.filter(t => t && t.oid != null).map(t => t.oid))].map(oid => ({ oid })).reduce((n, t) => { const x = t && t.oid != null && s.objects[t.oid]; /* uma vez por mágica alvo, mesmo mirada duas vezes (achado da revisão) */ const k = x && x.zone === 'stack' && !x.ability ? ((((s.facts[x.name] || {}).script || {}).self || {}).encareceQuemMira || 0) : 0; /* a cópia também tem o texto (707.10) */ return n + k; }, 0) : 0;
 const temAumentoPorAlvo = s => s.stack.some(oid => { const x = s.objects[oid]; return x && !x.ability && ((((s.facts[x.name] || {}).script || {}).self || {}).encareceQuemMira); });
 const castExtra = (s, p, o, x = 0, alvos) => { const base = (o.zone === 'command' ? commanderTax(s, p, o.oid) : 0) + x * (s.facts[o.name].cost.x || 0) + aumentoPorAlvo(s, alvos) /* M-364 */, af = affinityDiscount(s, p, o, base); // S33 · afinidade reduz o custo genérico
-  const teto = Math.max(0, (s.facts[o.name].cost.generic || 0) + base - af); return base - af - Math.min(teto, reducaoPorAlvo(s, p, o, alvos) + reducaoPorCor(s, p, o)); }; // M-352 · reducaoPorCor
+  const teto = Math.max(0, ((custoDoPrototipoT(s, o) || s.facts[o.name].cost).generic || 0) + base - af); return base - af - Math.min(teto, reducaoPorAlvo(s, p, o, alvos) + reducaoPorCor(s, p, o)); }; // M-352 · reducaoPorCor
 /** M-352 · 601.2f · o custo total com reforço: as reduções tiram também do genérico do reforço (Burst Lightning com {R}+{4} e Goblin Anarchomancer: {3}{R}) — achado da revisão do lote XXIV. */
 const castExtraComReforco = (s, p, o, x, alvos, kick) => { const k = kick && (s.facts[o.name].script || {}).kicker; return k ? castExtraK(s, p, o, x, alvos, (parseCost(k.mana).generic || 0) * kick) : castExtra(s, p, o, x, alvos); };
 /** M-352 · 601.2f · "Each spell you cast that's red or green costs {1} less" / "Red spells and white spells you cast cost {1} less": permanentes suas com `self.reduzCor`; só o genérico. */
 function reducaoPorCor(s, p, o) {
-  const cores = (s.facts[o.name] || {}).colors || []; if (!cores.length) return 0;
+  const cores = coresDaSalaT(s, o) || (s.facts[o.name] || {}).colors || []; if (!cores.length) return 0; // T-38 · CR 718.3b: o protótipo conjurado é da cor do custo alternativo (Toca ponto comum: reducaoPorCor)
   let n = 0;
   for (const x of battlefield(s)) {
     if (x.controller !== p || x.faceDown || semImpressas(s, x)) continue;
@@ -24667,7 +24667,7 @@ function genericoAdicionalK(s, a, o) {
 }
 function castExtraK(s, p, o, x, alvos, adic) {
   const f = s.facts[o.name], base = (o.zone === 'command' ? commanderTax(s, p, o.oid) : 0) + x * (f.cost.x || 0) + aumentoPorAlvo(s, alvos) /* M-364 */, af = affinityDiscount(s, p, o, base + adic);
-  const teto = Math.max(0, (f.cost.generic || 0) + base + adic - af);
+  const teto = Math.max(0, ((custoDoPrototipoT(s, o) || f.cost).generic || 0) + base + adic - af); // T-38 · CR 718.3a: o teto da redução é o genérico do custo que está sendo pago (Toca ponto comum: castExtraK)
   return base - af - Math.min(teto, reducaoPorAlvo(s, p, o, alvos) + reducaoPorCor(s, p, o)); // M-352 · 601.2f: a redução por cor também tira do genérico adicional (reforço) — achado da revisão do lote XXIV (Toca ponto comum: castExtraK; a trilha keywords fechou)
 }
 Object.assign(EXPORTS_K, { sobControleDesdeK, genericoAdicionalK, castExtraK });
@@ -26030,7 +26030,7 @@ Object.assign(EXPORTS_V, { lutar });
    - As ofertas saem de `legalActions` numa cópia do estado em que os fatos da carta têm o custo e o tamanho alternativos.
    Fora: cópia de protótipo (718.3c/d) fica com as características normais; conjurar sem pagar não oferece o protótipo. */
 const prototipoDaCartaT = (s, o) => { const f = o && s.facts[o.frontName || o.name], pr = f && f.script && f.script.self && f.script.self.prototipo; return pr && typeof pr === 'object' ? pr : null; };
-function prototipoAtivoT(s, o) { return o && o.prototipoT && (o.zone === 'stack' || o.zone === 'battlefield') && !o.faceDown ? prototipoDaCartaT(s, o) : null; }
+function prototipoAtivoT(s, o) { return o && o.prototipoT && !o.faceDown ? prototipoDaCartaT(s, o) : null; } // a marca só existe na pilha, no campo e, durante a conjuração, na zona de onde a carta sai (MARCAS_DA_CONJURACAO); T-38 · as reduções de custo leem a cor e o custo dela
 const custoDoPrototipoT = (s, o) => { const pr = o && o.prototipoT && prototipoDaCartaT(s, o); return pr ? parseCost(pr.mana) : null; }; // o custo pago na conjuração (a carta ainda está na mão ou no exílio)
 MARCAS_DA_CONJURACAO.push('prototipoT');
 function prototipoEscolhidoT(s, a, o) {
@@ -26081,7 +26081,8 @@ function estacaoResolveT(s, src, eff, events) {
   const o = src.ability ? s.objects[src.source] : src, v = src.estacaoViradaT;
   if (!o || o.zone !== 'battlefield' || (eff.z != null && (o.zc || 0) !== eff.z)) { events.push({ kind: 'effect', do: 'estacao', name: src.name, failed: true }); return; }
   const x = v && s.objects[v.oid], agora = x && x.zone === 'battlefield' && (x.zc || 0) === v.z;
-  const n = Math.max(0, v ? (agora ? (isCreature(s, x) ? power(s, x) : 0) : v.power) : 0);
+  const saiu = x && !agora && (x.zc || 0) === v.z + 1 && x.ultima ? (x.ultima.power != null ? x.ultima.power : 0) : null; // T-38 · 608.2h: o último poder que ela teve no campo (a foto de quando saiu)
+  const n = Math.max(0, v ? (agora ? (isCreature(s, x) ? power(s, x) : 0) : saiu != null ? saiu : v.power) : 0);
   const k = n > 0 ? poeMarcadores(s, o, 'charge', n) : 0;
   events.push({ kind: 'effect', do: 'estacao', name: o.name, target: o.name, amount: k, total: (o.counters || {}).charge || 0 });
 }
@@ -26321,6 +26322,7 @@ function nivelarHabilidadesT(s, o, sc, list) {
 }
 /** Os fatos da carta (palavras lidas do texto inteiro) perdem as palavras que só existem dentro de uma barra; `self.keywords` fica. */
 function fatosDoNivelarT(f, sc) {
+  if (sc.self.estacao) { delete f.power; delete f.toughness; } // T-38 · CR 721.2c: fora do campo a carta de estação não tem P/R (o da faixa vem da faixa alcançada, 721.2b)
   const fixas = ((sc.self && sc.self.keywords) || []).map(k => String(k).toLowerCase());
   const dasBarras = new Set((sc.self.nivelar || sc.self.estacao).faixas.flatMap(b => (b.palavras || []).map(k => String(k).toLowerCase()))); // T-37 · as faixas de estação também
   f.kw = f.kw.filter(k => !dasBarras.has(k) || fixas.includes(k)); f.flash = f.kw.includes('flash');
