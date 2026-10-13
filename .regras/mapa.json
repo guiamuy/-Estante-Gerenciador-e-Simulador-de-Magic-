@@ -10458,12 +10458,13 @@
    "n": "708.9",
    "regra": "Face-Down Spells and Permanents",
    "titulo": "Revelar ao sair do campo ou da pilha",
-   "status": "parcial",
-   "evidencia": "moveObject apaga a marca faceDown em qualquer mudança que não seja pilha→campo (index.html:10242, 10266) e os eventos levam o nome real T-68: tipos.viradabaixo.unit.",
-   "falta": "T-68 (13/10/2026): o registro revela a carta quando ela sai do campo (morreu, voltou para a mão) e não antes. Falta: revelar as viradas para baixo no fim da partida (tela de fim de jogo).",
+   "status": "coberta",
+   "evidencia": "moveObject apaga a marca faceDown em qualquer mudança que não seja pilha→campo (index.html:10242, 10266) e os eventos levam o nome real T-68: tipos.viradabaixo.unit. T-75: linha \"As cartas viradas para baixo eram: …\" no evento de fim da partida.",
+   "falta": "T-75 (13/10/2026): coberta — ao sair do campo ou da pilha ela é revelada no registro, e no fim da partida o registro lista todas as viradas para baixo com o dono. Com mais de dois jogadores, quem sai do jogo (708.9, terceira frase) não acontece na mesa de dois.",
    "esforco": "P",
    "testes": [
-    "CR 708.2 / 708.5 / 708.9 · o registro não revela a virada para baixo (alvo, dano, ataque); quando ela sai do campo, o nome aparece"
+    "CR 708.2 / 708.5 / 708.9 · o registro não revela a virada para baixo (alvo, dano, ataque); quando ela sai do campo, o nome aparece",
+    "CR 708.9 · fim da partida: o registro revela as cartas viradas para baixo (no campo e no exílio), com o dono"
    ]
   },
   {

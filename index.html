@@ -30751,6 +30751,7 @@ function describe(before, a, events, after) {
     else if (ev.kind === 'died') L.push(ev.why === 'regra das lendas' ? `${ev.name} foi para o cemitério pela regra das lendas` : `${ev.name} morreu`);
     if (ev.kind === 'lost') L.push(`${who(after, ev.p)} perdeu a partida: ${REASON_PT[ev.reason] || ev.reason}`);
     if (ev.kind === 'over') L.push(ev.winner == null ? 'Fim da partida: empate' : `Fim da partida: ${who(after, ev.winner)} venceu`);
+    if (ev.kind === 'over') { const v = Object.values(after.objects || {}).filter(o => o && !o.ability && o.faceDown && ['battlefield', 'stack', 'exile'].includes(o.zone)); if (v.length) L.push(`\u2063As cartas viradas para baixo eram: ${v.map(o => `${o.name} (${who(after, o.owner)})`).join(', ')}`); } // T-75 · CR 708.9: no fim da partida, toda carta virada para baixo é revelada (Toca ponto comum: describe)
   }
   if (after.status === 'playing' && (before.status !== 'playing' || after.turn.number !== before.turn.number))
     L.push(`— Turno ${after.turn.number} · ${who(after, after.turn.active)} —`);

@@ -228,3 +228,11 @@ test('CR 708.5 · mesa: a mágica virada para baixo na pilha só é vista por qu
   const table = { viewer: () => 0 }; const ocultaDe = eval(m[1]); void table;
   eq([ocultaDe({}, { faceDown: true, zone: 'stack', controller: 1, owner: 1 }), ocultaDe({}, { faceDown: true, zone: 'stack', controller: 0, owner: 0 }), ocultaDe({}, { faceDown: true, zone: 'battlefield', controller: 1 })], [true, false, true]);
 });
+
+/* ---------------- T-75 · CR 708.9 · no fim da partida, as viradas para baixo são reveladas ---------------- */
+test('CR 708.9 · fim da partida: o registro revela as cartas viradas para baixo (no campo e no exílio), com o dono', () => {
+  let s = mesa(); let g; [s, g] = viradaBaixo(s, 'Entra Vida');
+  const r = E.apply(s, { t: 'concede', p: 1 }); const L = T.describe(s, { t: 'concede', p: 1 }, r.events, r.state).join(' | '); // B desiste: a partida acaba
+  assert.match(L, /Fim da partida/, L);
+  assert.match(L, /As cartas viradas para baixo eram: Entra Vida \(A\)/, L);
+});
