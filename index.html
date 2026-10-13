@@ -5339,6 +5339,7 @@ const EFFECTS = {
   fog: { fields: [], targets: ['self'] },
   // S50 · escolha um tipo de criatura; o que vem depois conta por esse tipo
   choose_type: { fields: [], targets: ['self'] },
+  tipo_basico: { fields: [], targets: ['land-you-control', 'land'] }, // M-388 · 305.7: "target land becomes the basic land type of your choice in addition to its other types" até o fim do turno (Navigator's Compass)
   discard_or_sacrifice_land_draw: { fields: ['amount'], targets: ['self'] }, // Leva 107 · Highway Robbery
   // Leva 106 · "devolva uma permanente (terreno) que você controla": escolha na resolução, sem alvo (Kor Skyfisher, carnários)
   return_chosen: { fields: [], targets: ['self'] },
@@ -6131,6 +6132,9 @@ function validateScript(sc) {
   if (sc && sc.reduzPor && (sc.discount || sc.affinity)) errs.push('redução por contagem não se soma a desconto ou afinidade no mesmo script'); // M-333
   // S18 · ninjutsu e insanidade
   // S21 · habilidades de lealdade
+  { const temMvX = es => (es || []).some(e => e && e.targetMvIgualX); // M-387 · achado da revisão: "with mana value X" só em habilidade ativada com {X} no custo (na mágica, a oferta não casa o alvo com o X)
+    if (sc && (temMvX(sc.effects) || (sc.modes || []).some(m => m && temMvX(m.effects)))) errs.push('"targetMvIgualX" só em habilidade ativada com {X} no custo');
+    for (const ab of (sc && sc.abilities) || []) if (ab && temMvX(ab.effects) && !(ab.kind === 'activated' && /\{X\}/.test((ab.cost || {}).mana || ''))) errs.push('"targetMvIgualX" só em habilidade ativada com {X} no custo'); }
   for (const ab of (sc && sc.abilities) || []) if (ab && ab.kind !== 'triggered' && (ab.effects || []).some(e => e && e.dividido)) errs.push('dano dividido: só em mágica e em habilidade disparada (a ativada ainda não divide — M-378)'); // M-378
   for (const ab of (sc && sc.abilities) || []) if (ab.condition && !['lifeGained', 'attackersAtLeast', 'controlsOtherNamed', 'bargained', 'evidenced', 'kicked', 'opponentMoreLands', 'atacaSozinha', 'vidaPeloMenos', 'marcadoresNaFonte', 'entrouDesvirada', 'semTerrenoVirado', ...condicoesK(), ...condicoesT()].includes(Object.keys(ab.condition)[0] || '')) errs.push('condição de gatilho desconhecida'); // K-59 · condições da trilha keywords (Toca ponto comum: validador de condições)
   if (sc && sc.bargain != null && sc.bargain !== true) errs.push('barganha é uma marca, sem valor');
@@ -6308,7 +6312,8 @@ function effectErrors(effects, label, opcional) {
       for (const t of (e.filter && e.filter.subtypes) || []) if (typeof t !== 'string' || !t.trim()) errs.push(`${label} ${i + 1}: filtro de subtipo inválido`);
     }
     if (e.targetMv != null && !Number.isInteger(e.targetMv)) errs.push(`${label} ${i + 1}: valor de mana do alvo precisa ser inteiro`);
-    if (e.targetMvIgualX != null && e.targetMvIgualX !== true) errs.push(`${label} ${i + 1}: "targetMvIgualX" é uma marca (true)`); // M-387 · "with mana value X" (Gorilla Shaman)
+    if (e.targetMvIgualX != null && !(e.targetMvIgualX === true && e.do === 'destroy')) errs.push(`${label} ${i + 1}: "targetMvIgualX" é uma marca (true) do destroy`);
+    if (e.do === 'tipo_basico' && !['land-you-control', 'land'].includes(e.target)) errs.push(`${label} ${i + 1}: tipo_basico mira um terreno`); // M-388 · achado da revisão // M-387 · "with mana value X" (Gorilla Shaman)
     // S38 · filtro de cor no alvo, varredura que poupa um subtipo e "até N alvos"
     if (e.targetNotColor != null && !'WUBRG'.includes(e.targetNotColor)) errs.push(`${label} ${i + 1}: cor excluída do alvo precisa ser WUBRG`);
     if (e.targetTypes != null && !(Array.isArray(e.targetTypes) && e.targetTypes.length && e.targetTypes.every(x => FILTER_TYPES.includes(x)))) errs.push(`${label} ${i + 1}: tipos do alvo precisam ser tipos de carta`);
@@ -9010,6 +9015,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Glimpse the Impossible': { texto: 'r0pnzy', leva: 'M-386' },
   // M-387 · revisão por lote XLV (Pauper: Gorilla Shaman), revisor independente: lote conjunto com a M-388; aprovada (67 asserções, fuzz e diferencial sem diferença)
   'Gorilla Shaman': { texto: 'kna41h', leva: 'M-387' },
+  // M-388 · revisão por lote XLVI (Pauper: Navigator's Compass), revisor independente: reprovada na primeira passada (205.4: a mudança de tipo tirava os supertipos), corrigida na classe com teste; 77 asserções e fuzz
+  'Navigator\'s Compass': { texto: '1b2nud0', leva: 'M-388' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -17019,6 +17026,7 @@ const __m42 = (function () {
     [/^each attacking creature doesn't untap during its controller's next untap step$/i, () => [{ do: 'nao_desvira', cada: { tipos: ['creature'], atacando: true } }]], // M-361 · Tangle (502.3, 506.4)
     [/^put target creature card from your graveyard on top of your library$/i, () => [{ do: 'mover', para: 'library', posicao: 'topo', target: 'creature-in-your-graveyard' }]], // M-361 · Witch's Cottage, Mortuary Mire
     [/^if that creature would die this turn, exile it instead$/i, () => [{ do: 'exila_se_morrer', target: 'first-target' }]], // M-384 · Suplex (614.1a)
+    [/^until end of turn, target land you control becomes the basic land type of your choice in addition to its other types$/i, () => [{ do: 'tipo_basico', target: 'land-you-control' }]], // M-388 · Navigator's Compass (305.7)
     [/^it doesn't untap during its controller's next untap step$/i, () => [{ do: 'nao_desvira', target: 'first-target' }]], // M-334 · LT18 · 502.3 (Sleep of the Dead)
     [/^add ((?:\{[WUBRGC]\})+)$/i, m => [{ do: 'add_mana', symbols: m[1].match(/[WUBRGC]/g) }]], // M-334 · LT18 · mágica ou gatilho que adiciona mana (Seething Song, Burning-Tree Emissary)
     [/^you become the monarch$/i, () => [{ do: 'monarch' }]], // M-332 · CR 725
@@ -17788,7 +17796,8 @@ const semImpressas = (s, o) => !!o && (!!o.faceDown || !!(mutacao(s, o) || {}).p
 const tiposDe = (s, o) => { const m = mutacao(s, o); return (m && m.types) || s.facts[o.name].types; };
 /** Linha de tipo agora, para subtipos (camada 4): "Artifact Creature — Insect". */
 const linhaDeTipo = (s, o) => { const m = mutacao(s, o); if (!m) return s.facts[o.name].typeText || '';
-  const cap = x => x.charAt(0).toUpperCase() + x.slice(1); return `${m.types.map(cap).join(' ')}${m.subtypes.length ? ' — ' + m.subtypes.join(' ') : ''}`; };
+  const cap = x => x.charAt(0).toUpperCase() + x.slice(1), sup = o.faceDown ? [] : (String(s.facts[o.name].typeText || '').split('—')[0].match(/\b(Basic|Legendary|Snow|World|Ongoing)\b/g) || []); // M-388 · 205.4a/205.1b: mudar o tipo não tira os supertipos (achado da revisão: a Montanha básica que ganhou Ilha deixava de ser básica — Wasteland a mirava)
+  return `${sup.length ? sup.join(' ') + ' ' : ''}${m.types.map(cap).join(' ')}${m.subtypes.length ? ' — ' + m.subtypes.join(' ') : ''}`; };
 /** CR2-G R3a · o caminho antigo do bônus de P/T (só para o teste de equivalência). */
 function bonusLegado(s, host) {
   let p = 0, tgh = 0;
@@ -18628,6 +18637,7 @@ function productions(s, o, visto) {
   const spec = perde ? [] : ((s.facts[o.name].script || {}).produces) || [];
   // quando o script declara a produção, ela substitui o que foi lido do texto
   let opts = perde ? [] : spec.length ? spec.flatMap(x => expandProduction(s, o, x, visto)) : (s.facts[o.name].produces || []).flatMap(x => expandProduction(s, o, x, visto));
+  if (mu && !perde && tiposDe(s, o).includes('land')) { const imp = String(s.facts[o.name].typeText || '').split('—')[1] || ''; const BAS = { Plains: 'W', Island: 'U', Swamp: 'B', Mountain: 'R', Forest: 'G' }; for (const t of mu.subtypes) if (BAS[t] && !new RegExp('\\b' + t + '\\b').test(imp) && !opts.some(x => x.length === 1 && x[0] === BAS[t])) opts.push([BAS[t]]); } // M-388 · 305.6/305.7: o tipo básico ganho traz a habilidade de mana dele
   // R9 · primeiro toda a produção concedida (Abundant Growth), depois o mana extra (Utopia Sprawl): ele vale
   // para qualquer mana que o terreno gere, não só para as opções que existiam quando a Aura entrou
   const anexos = attachedTo(s, o).filter(x => !perde || (x.anexadaEm || 0) > mu.corte).map(x => [x, grantsOf(s, x)]).filter(([, g]) => g);
@@ -20868,6 +20878,12 @@ function applyEffect(s, src, eff, tgt, events) {
       const rende = t => battlefield(s).filter(o => o.controller === ctrl && (isChangeling(s, o, t) || new RegExp('\\b' + t + '\\b', 'i').test(linhaDeTipo(s, o)))).length;
       const ordem = tipos.map(t => [t, rende(t)]).sort((x, y) => y[1] - x[1] || (x[0] < y[0] ? -1 : 1)).map(x => x[0]);
       s.pending = { kind: 'choose_type', p: ctrl, oid: fonte.oid, options: ordem };
+      note({ pending: true }); break;
+    }
+    case 'tipo_basico': { // M-388 · 305.7 · a escolha é na resolução; o terreno ganha o tipo (e a habilidade de mana intrínseca, 305.6) até o fim do turno
+      if (!obj || obj.zone !== 'battlefield' || !tiposDe(s, obj).includes('land')) { note({ failed: true }); break; }
+      const fonte = src.ability ? (s.objects[src.source] || src) : src;
+      s.pending = { kind: 'choose_type', p: ctrl, oid: fonte.oid, options: ['Plains', 'Island', 'Swamp', 'Mountain', 'Forest'], terreno: { oid: obj.oid, z: obj.zc || 0 } };
       note({ pending: true }); break;
     }
     case 'fog': s.fogged = true; note({}); break; // S29 · previne todo dano de combate no turno
@@ -23337,9 +23353,11 @@ const HANDLERS = {
     const pk = s.pending;
     const tipo = a.subtype != null ? a.subtype : pk.options[a.index || 0];
     if (!pk.options.includes(tipo)) throw new RuleError('escolha', 'tipo inválido');
-    const o = s.objects[pk.oid]; if (o) o.chosenType = tipo;
+    const o = s.objects[pk.oid];
+    if (pk.terreno) { const t = s.objects[pk.terreno.oid]; if (t && t.zone === 'battlefield' && (t.zc || 0) === pk.terreno.z) aplicaTemporario(s, t, { vira: { addTypes: true, types: ['land'], subtypes: [tipo] } }, pk.p); } // M-388 · 305.7 · até o fim do turno (a limpeza apaga o `vira`)
+    else if (o) o.chosenType = tipo;
     s.pending = null;
-    ev.push({ kind: 'choice-done', what: 'tipo de criatura', name: o ? o.name : '?', amount: 1 });
+    ev.push({ kind: 'choice-done', what: pk.terreno ? `tipo de terreno (${({ Plains: 'Planície', Island: 'Ilha', Swamp: 'Pântano', Mountain: 'Montanha', Forest: 'Floresta' })[tipo] || tipo})` : 'tipo de criatura', name: o ? o.name : '?', amount: 1 });
     resumeEffects(s, ev);
   },
   /** M13 · 903.9: comandante na zona de comando ou onde caiu. */
@@ -23684,7 +23702,7 @@ function apply(state, action) {
     throw new RuleError('pendente', k === 'discard' ? `descarte ${state.pending.n} carta(s) primeiro` : k === 'attackers' ? 'declare os atacantes primeiro'
       : k === 'triggers' ? 'escolha a ordem dos gatilhos primeiro' : k === 'choose_color' ? 'escolha a cor primeiro'
       : k === 'commander_zone' ? 'decida se o comandante volta para a zona de comando primeiro'
-      : k === 'choose_type' ? 'escolha o tipo de criatura primeiro'
+      : k === 'choose_type' ? (s.pending.terreno ? 'escolha o tipo básico de terreno primeiro' : 'escolha o tipo de criatura primeiro') // M-388
       : k === 'choose_pair' ? 'escolha o par do vínculo de alma primeiro'
       : k === 'legend' ? 'escolha qual lendária fica primeiro'
       : k === 'choose_mode' ? 'escolha o que o gatilho faz primeiro'
@@ -30136,6 +30154,7 @@ function describe(before, a, events, after) {
     if (ev.kind === 'resolved' && !ev.scripted) L.push(ev.to === 'battlefield' ? `${ev.name} entrou no campo` : `${ev.name} resolveu`);
     if (ev.kind === 'regenerated') L.push(`${ev.name} regenerou: virou, perdeu o dano e saiu do combate`); // CR2-G R5c
     if (ev.kind === 'totem') L.push(`${ev.aura} foi destruída no lugar de ${ev.name} (armadura de totem)`);
+    if (ev.kind === 'choice-done' && /^tipo de terreno/.test(ev.what || '')) L.push(`${ev.name}: escolheu o ${ev.what}`); // M-388 · achado da revisão
     if (ev.kind === 'died' && ev.para === 'exile') L.push(`${ev.name} iria morrer e foi exilada em vez disso`); // M-384 · 614.1a
     else if (ev.kind === 'died') L.push(ev.why === 'regra das lendas' ? `${ev.name} foi para o cemitério pela regra das lendas` : `${ev.name} morreu`);
     if (ev.kind === 'lost') L.push(`${who(after, ev.p)} perdeu a partida: ${REASON_PT[ev.reason] || ev.reason}`);
@@ -31165,6 +31184,7 @@ function descreveEfeito(e) {
     case 'to_library_shuffled': return 'é embaralhada no grimório do dono';
     case 'discard_or_sacrifice_land_draw': return 'pode descartar uma carta ou sacrificar um terreno; se fizer, compra 2 cartas';
     case 'choose_type': return 'escolhe um tipo de criatura';
+    case 'tipo_basico': return `${alvo || 'o terreno alvo'} ganha o tipo básico de terreno que você escolher (e a mana dele) até o fim do turno, além dos outros tipos`; // M-388
     case 'put_back': return `devolve ${plural(n, 'carta', 'cartas')} da mão ao topo do grimório`;
     default: return String(e.do).replace(/_/g, ' ');
   }
@@ -33419,11 +33439,12 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
           onClick: () => (pagamentos.length > 1 ? escolher(s.pending.name, pagamentos) : act(pagamentos[0] || { t: 'pay', p: v })) }),
           Button(pv ? 'Deixar virado' : efeito ? (s.pending.cost || extra ? 'Não pagar' : 'Não fazer') : 'Deixar anular', { id: 'tb-decline', onClick: () => act({ t: 'decline', p: v }) })] });
     } else if (s.pending && s.pending.kind === 'choose_type' && s.pending.p === v) {
-      banner = PriorityBanner({ title: `${s.objects[s.pending.oid] ? s.objects[s.pending.oid].name + ' · ' : ''}Escolha um tipo de criatura`, hint: 'O efeito conta as suas permanentes desse tipo. Os tipos vêm do que mais rende para o que menos rende.', tone: 'warning', // Leva 136 · diz de qual carta é a escolha
+      const ehTerreno = !!s.pending.terreno, PT_BAS = { Plains: 'Planície', Island: 'Ilha', Swamp: 'Pântano', Mountain: 'Montanha', Forest: 'Floresta' }; // M-388 · Navigator's Compass
+      banner = PriorityBanner({ title: `${s.objects[s.pending.oid] ? s.objects[s.pending.oid].name + ' · ' : ''}${ehTerreno ? 'Escolha um tipo básico de terreno' : 'Escolha um tipo de criatura'}`, hint: ehTerreno ? `${(s.objects[s.pending.terreno.oid] || {}).name || 'O terreno'} ganha esse tipo, e a mana dele, até o fim do turno.` : 'O efeito conta as suas permanentes desse tipo. Os tipos vêm do que mais rende para o que menos rende.', tone: 'warning', // Leva 136 · diz de qual carta é a escolha
         // Leva 106 · os tipos vêm do que mais rende para o menos; com muitos, "Outros tipos" abre a lista inteira
         actions: (() => {
           const ops = s.pending.options || [];
-          const botao = (subtype, index, extra = {}) => Button(subtype, { variant: index ? undefined : 'primary', id: index ? undefined : 'tb-choose-type', ...extra, onClick: () => { closeDialog(); act({ t: 'choose_type', p: v, index, subtype }); } });
+          const botao = (subtype, index, extra = {}) => Button(ehTerreno ? (PT_BAS[subtype] || subtype) : subtype, { variant: index ? undefined : 'primary', id: index ? undefined : 'tb-choose-type', ...extra, onClick: () => { closeDialog(); act({ t: 'choose_type', p: v, index, subtype }); } });
           if (ops.length <= 8) return ops.map((t, i) => botao(t, i));
           return [...ops.slice(0, 7).map((t, i) => botao(t, i)), Button(`Outros tipos (${ops.length - 7})`, { id: 'tb-choose-type-mais',
             onClick: () => Dialog({ title: 'Escolha um tipo de criatura', body: h('div', { class: 'tb-sheet__actions' }, ...ops.map((t, i) => botao(t, i, { block: true, id: undefined }))), actions: [Button('Voltar', { onClick: closeDialog })] }) })];

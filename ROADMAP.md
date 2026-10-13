@@ -4236,6 +4236,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** só o efeito "destroy" lê "with mana value X" pelo leitor; outras frases com a mesma condição entram quando aparecerem.
 - **Teste:** `lt70.unit` (2 testes; falham no motor anterior).
 
+**M-388 · LT55 · 305.7 · "Becomes the basic land type of your choice in addition to its other types"** ✅ (leva M-388, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** revisão por lote XLVI — **Navigator's Compass passa a jogar** (APROVADAS; Oracle do Forge, consulta de 12/10/2026; carta da lista Pauper de M a Z). Ao entrar, você ganha 3 de vida; "{T}": o terreno seu alvo ganha, até o fim do turno, o tipo básico que você escolher na resolução (a mesa pergunta: Planície, Ilha, Pântano, Montanha ou Floresta), além dos tipos que já tinha, e passa a gerar a mana desse tipo (305.6). Na limpeza, volta ao que era.
+- **Revisão independente:** lote conjunto com a M-387 — 77 asserções (mana do tipo ganho no pagamento automático, Tainted Field, travessia, domínio, terreno não básico, duas bússolas, limpeza) e fuzz com 199 ativações. Reprovou na primeira passada: **qualquer mudança de tipo tirava os supertipos da linha (205.4)** — a Montanha básica que ganhava Ilha deixava de ser básica (Wasteland a mirava; Prairie Stream e Dryad Sophisticate erravam). Corrigido na classe (`linhaDeTipo` preserva Basic, Legendary, Snow, World; virada para baixo continua sem supertipo), com teste; também o motivo da recusa durante a escolha, a linha do registro com o tipo escolhido e o validador do `tipo_basico`.
+- **Fora (declarado):** a escolha usa a mesma decisão pendente do "escolha um tipo de criatura" (`choose_type`, com o terreno marcado); só o efeito com "in addition" existe (o "becomes" que substitui os tipos, 305.7 sem "in addition", não está no vocabulário).
+- **Teste:** `lt71.unit` (2 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
