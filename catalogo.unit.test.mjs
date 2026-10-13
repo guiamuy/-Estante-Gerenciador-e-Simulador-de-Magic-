@@ -371,3 +371,80 @@ test('G-248 · publica: o índice sai com nome, evento e valor; sem lista nova s
     assert.ok(pedidos.every(p => p.length <= 75), 'a Scryfall recebe lotes de até 75 nomes');
   } finally { await rm(pasta, { recursive: true, force: true }); }
 });
+
+/* ---------------- G-258 · lixo da fonte e vigia do catálogo ---------------- */
+test('G-258 · evento de teste e data futura da TopDeck.gg não entram, e o que já tinha entrado sai na próxima coleta', async () => {
+  const agora = Date.UTC(2026, 9, 12);
+  assert.equal(C.ehEventoDeTeste('Test Event for Dan and Noam'), true);
+  assert.equal(C.ehEventoDeTeste('Copa Teste'), false, 'torneio em português chamado "Teste" é torneio');
+  assert.equal(C.ehEventoDeTeste('Pauper Showdown'), false);
+  const st = Array.from({ length: 8 }, (_, i) => ({ name: 'J' + i, deckObj: { Mainboard: { Ponder: 4, Island: 16 } } }));
+  const real = { TID: 'real', tournamentName: 'Liga Real', startDate: Date.UTC(2026, 9, 10) / 1000, standings: st };
+  const teste = { TID: 'teste', tournamentName: 'Test Event for Dan and Noam', startDate: Date.UTC(2026, 9, 10) / 1000, standings: st };
+  const futuro = { TID: 'futuro', tournamentName: 'Copa 2030', startDate: Date.UTC(2030, 9, 26) / 1000, standings: st };
+  const amanha = { TID: 'amanha', tournamentName: 'Copa de Amanhã', startDate: Date.UTC(2026, 9, 13) / 1000, standings: st };
+  assert.equal(C.torneioValido(real, agora), true); assert.equal(C.torneioValido(teste, agora), false); assert.equal(C.torneioValido(futuro, agora), false);
+  assert.equal(C.torneioValido(amanha, agora), true, 'fuso: o torneio de amanhã (UTC) ainda vale');
+  const busca = async (url, op) => {
+    if (url.includes('DeckList')) return { ok: true, status: 200, json: async () => ({ data: [] }) };
+    if (url.includes('scryfall')) return { ok: true, status: 200, json: async () => ({ data: [] }) };
+    return { ok: true, status: 200, json: async () => (JSON.parse(op.body).format === 'Pauper' ? [real, teste, futuro] : []) };
+  };
+  const r = await C.coletaTopdeck('chave', { busca, pausa: 0, agora });
+  assert.deepEqual([...new Set(r.listas.map(l => l.torneio))], ['Liga Real']);
+  assert.equal(r.porFormato[0].descartados, 2, 'o relatório conta o que foi descartado');
+  const pasta = await mkdtemp(join(tmpdir(), 'catalogo-g257-'));
+  try {
+    const { writeFile } = await import('node:fs/promises');
+    await writeFile(join(pasta, 'indice.json'), JSON.stringify(C.montaIndice([
+      { id: 'topdeck-test-event-for-dan-and-noam-5', nome: 'Kinnan', formato: 'commander', fonte: 'topdeck', data: '2030-10-26', torneio: 'Test Event for Dan and Noam' },
+      { id: 'topdeck-ontem-1', nome: 'Ontem', formato: 'pauper', fonte: 'topdeck', data: '2026-10-11', torneio: 'Copa Teste' },
+      { id: 'mtgo-futuro-1', nome: 'Futuro', formato: 'pauper', fonte: 'mtgo', data: '2031-01-01' }], { agora })));
+    // sem a chave: o que já estava publicado é limpo mesmo assim
+    const p = await C.publica(pasta, { busca, pausa: 0, agora, mtgo: false, fichas: false, completar: false });
+    assert.equal(p.gravou, true);
+    assert.deepEqual(p.indice.listas.map(l => l.id), ['topdeck-ontem-1'], 'evento de teste e data futura saíram; "Copa Teste" ficou');
+  } finally { await rm(pasta, { recursive: true, force: true }); }
+});
+
+test('G-258 · vigia: fonte lida e fresca passa; site que mudou, fonte parada, API que falhou ou chave perdida viram alerta; formato zerado é só aviso', () => {
+  const agora = Date.UTC(2026, 9, 12);
+  const mo = n => [{ formato: 'Pauper', eventos: n, colhidos: 0, listas: 0 }, { formato: 'Vintage', eventos: n ? 3 : 0, colhidos: 0, listas: 0 }];
+  const td = (torneios, erro) => [{ formato: 'Pauper', torneios, listas: 8 }, { formato: 'Pioneer', torneios: 0, listas: 0 }, ...(erro ? [{ formato: 'EDH', erro }] : [])];
+  const lista = data => ({ data });
+  const sa = C.saudeDaColeta({ agora, chaveTopdeck: 'k', topdeck: td(20), mtgo: mo(80), listasTd: [lista('2026-10-11')], listasMo: [lista('2026-10-12')], haviaTd: true });
+  assert.equal(sa.ok, true); assert.deepEqual(sa.alertas, []);
+  assert.ok(sa.avisos.includes('TopDeck.gg · Pioneer: zero torneios'), 'Pioneer zerado é aviso, não derruba');
+  assert.equal(sa.fontes.mtgo.dias, 0); assert.equal(sa.fontes.topdeck.maisNova, '2026-10-11');
+  const casos = [
+    [{ mtgo: mo(0), listasMo: [lista('2026-10-12')] }, /Magic Online: nenhum evento lido/],
+    [{ mtgo: mo(80), listasMo: [lista('2026-10-08')] }, /Magic Online: a lista mais nova tem 4 dia/],
+    [{ mtgo: mo(80), listasMo: [] }, /Magic Online: a lista mais nova tem \? dia/],
+    [{ chaveTopdeck: 'k', topdeck: [{ formato: 'Pauper', erro: 'HTTP 401' }, { formato: 'EDH', erro: 'HTTP 401' }] }, /TopDeck.gg: todas as consultas falharam/],
+    [{ chaveTopdeck: 'k', topdeck: td(0), listasTd: [lista('2026-10-11')] }, /TopDeck.gg: zero torneios em todos/],
+    [{ chaveTopdeck: 'k', topdeck: td(20), listasTd: [lista('2026-09-20')] }, /TopDeck.gg: a lista mais nova tem 22 dia/],
+    [{ chaveTopdeck: '', haviaTd: true }, /sem a chave/]];
+  for (const [entrada, re] of casos) { const s = C.saudeDaColeta({ agora, ...entrada }); assert.equal(s.ok, false, String(re)); assert.ok(s.alertas.some(a => re.test(a)), `${re} em ${s.alertas}`); }
+  assert.equal(C.saudeDaColeta({ agora, chaveTopdeck: 'k', topdeck: td(20, 'aborted'), listasTd: [lista('2026-10-11')] }).ok, true, 'uma consulta que falhou sozinha é aviso');
+  assert.equal(C.saudeDaColeta({ agora }).ok, true, 'coleta só das oficiais, sem chave e sem listas de torneio antes: nada a vigiar');
+  assert.equal(C.linhaDeLog('HTTP 500\n::add-mask::x\r\n::stop-commands::y'), 'HTTP 500 : :add-mask: :x : :stop-commands: :y', 'erro da rede nunca vira comando do Actions');
+});
+
+test('G-258 · publica grava a saúde no coleta.json; a linha de comando sai com erro depois de gravar quando uma fonte parou', async () => {
+  const agora = Date.UTC(2026, 9, 12);
+  const pasta = await mkdtemp(join(tmpdir(), 'catalogo-saude-'));
+  try {
+    const busca = async url => (url.includes('DeckList') ? { ok: true, status: 200, json: async () => ({ data: [] }) }
+      : url.includes('mtgo.com') ? { ok: true, status: 200, text: async () => '<html><body>site novo, sem lista</body></html>', json: async () => ({}) }
+      : { ok: true, status: 200, json: async () => ({ data: [] }) });
+    const p = await C.publica(pasta, { busca, pausa: 0, agora, fichas: false, completar: false });
+    const col = JSON.parse(await readFile(join(pasta, 'coleta.json'), 'utf8'));
+    assert.equal(col.saude.ok, false); assert.match(col.saude.alertas[0], /Magic Online: nenhum evento lido/);
+    assert.deepEqual(p.saude, col.saude);
+    const { readFileSync } = await import('node:fs');
+    const fonte = readFileSync(new URL('./catalogo.mjs', import.meta.url), 'utf8');
+    assert.match(fonte, /if \(r\.saude && !r\.saude\.ok\) process\.exit\(3\);\n\}\s*$/, 'a saída com erro é a última coisa da linha de comando, depois de tudo gravado');
+    const wf = readFileSync(new URL('./.github/workflows/catalogo.yml', import.meta.url), 'utf8');
+    assert.match(wf, /Publicar no ramo catalogo\n\s+if: always\(\)/, 'o passo de publicar roda mesmo com o vigia vermelho');
+  } finally { await rm(pasta, { recursive: true, force: true }); }
+});

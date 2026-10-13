@@ -129,6 +129,15 @@ export function leDeckObj(obj) {
   return out;
 }
 const slug = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60);
+/* G-258 · lixo da fonte: a TopDeck.gg devolve também eventos de teste dos próprios mantenedores (ex.: "Test Event for
+   Dan and Noam", com data em 2030). Evento de teste ou com data depois de amanhã não entra; o que já entrou sai na
+   próxima coleta (sem isso ficava no topo do formato e nunca vencia a retenção). Só inglês: "Copa Teste" é torneio. */
+export const ehEventoDeTeste = nome => /\btest(ing)?\b/i.test(String(nome || ''));
+export const amanhaDe = agora => new Date(agora + 86400e3).toISOString().slice(0, 10);
+export const torneioValido = (t, agora = Date.now()) => !!t && !ehEventoDeTeste(t.tournamentName)
+  && !(Number.isFinite(t.startDate) && new Date(t.startDate * 1000).toISOString().slice(0, 10) > amanhaDe(agora));
+/** Lista de torneio já publicada que continua valendo: dentro da janela, sem data futura e sem evento de teste. */
+export const listaDeTorneioValida = (l, limite, agora = Date.now()) => !!l && (l.data || '') >= limite && (l.data || '') <= amanhaDe(agora) && !ehEventoDeTeste(l.torneio);
 /** As oito primeiras de um torneio, no formato do catálogo (sem cores nem destaque: vêm da Scryfall depois). */
 export function listasDoTorneio(t, formato, { top = TOP_POR_TORNEIO } = {}) {
   if (!t || !t.TID || !Array.isArray(t.standings)) return [];
@@ -172,7 +181,7 @@ async function enviaJson(url, corpo, { busca, cabecalhos = {}, prazo = 30000 }) 
   } finally { clearTimeout(t); }
 }
 /** Busca os torneios recentes de cada formato e devolve as listas (já com cores e destaque). */
-export async function coletaTopdeck(chave, { busca = globalThis.fetch, pausa = 700, log = () => {}, prazos = PRAZOS_TOPDECK } = {}) {
+export async function coletaTopdeck(chave, { busca = globalThis.fetch, pausa = 700, log = () => {}, prazos = PRAZOS_TOPDECK, agora = Date.now() } = {}) {
   const listas = []; let falhas = 0; const porFormato = [];
   for (const [nomeTd, formato] of FORMATOS_TOPDECK) {
     try {
@@ -182,11 +191,12 @@ export async function coletaTopdeck(chave, { busca = globalThis.fetch, pausa = 7
       const ts = await pede().catch(async e => {
         if (/abort/i.test(e.message) && JANELA_RESERVA[nomeTd] && dias > JANELA_RESERVA[nomeTd]) { log(`  TopDeck · ${nomeTd}: prazo estourado com ${dias} dias, nova tentativa com ${JANELA_RESERVA[nomeTd]}`); dias = JANELA_RESERVA[nomeTd]; return pede(); }
         if (!/429/.test(e.message)) throw e; log(`  TopDeck · ${nomeTd}: limite de pedidos, nova tentativa`); if (pausa) await new Promise(r => setTimeout(r, 45000)); return pede(); });
-      const recentes = (Array.isArray(ts) ? ts : []).filter(t => t && Array.isArray(t.standings)).sort((a, b) => (b.startDate || 0) - (a.startDate || 0)).slice(0, TORNEIOS_POR_FORMATO);
+      const descartados = (Array.isArray(ts) ? ts : []).filter(t => t && !torneioValido(t, agora)).length;
+      const recentes = (Array.isArray(ts) ? ts : []).filter(t => t && Array.isArray(t.standings) && torneioValido(t, agora)).sort((a, b) => (b.startDate || 0) - (a.startDate || 0)).slice(0, TORNEIOS_POR_FORMATO);
       const deste = recentes.flatMap(t => listasDoTorneio(t, formato));
       log(`  TopDeck · ${nomeTd}: ${recentes.length} torneio(s), ${deste.length} lista(s)`);
       porFormato.push({ formato: nomeTd, torneios: (Array.isArray(ts) ? ts : []).length, recentes: recentes.length, listas: deste.length,
-        semLista: recentes.reduce((n, t) => n + t.standings.slice(0, TOP_POR_TORNEIO).filter(x => x && !leDeckObj(x.deckObj).length && !leDecklist(x.decklist).length).length, 0), ...(dias !== DIAS_TOPDECK ? { dias } : {}) });
+        semLista: recentes.reduce((n, t) => n + t.standings.slice(0, TOP_POR_TORNEIO).filter(x => x && !leDeckObj(x.deckObj).length && !leDecklist(x.decklist).length).length, 0), ...(dias !== DIAS_TOPDECK ? { dias } : {}), ...(descartados ? { descartados } : {}) });
       listas.push(...deste);
     } catch (e) { falhas++; porFormato.push({ formato: nomeTd, erro: e.message }); log(`✗ TopDeck · ${nomeTd}: ${e.message}`); }
     if (pausa) await new Promise(r => setTimeout(r, pausa));
@@ -484,6 +494,35 @@ export async function publicaFichas(pasta, { busca = globalThis.fetch, agora = D
   return { gravou: true, total: r.fichas.length };
 }
 
+/* G-258 · vigia do catálogo. A coleta roda sozinha todo dia; se um site muda e uma fonte passa a trazer zero, a execução
+   continuava verde e ninguém sabia. Aqui cada fonte de torneio é julgada pelo que a coleta viu: lida (a página ou a API
+   respondeu com eventos) e fresca (a lista mais nova no catálogo não envelheceu além do ritmo da fonte). Formato zerado
+   sozinho é aviso, não alerta (ex.: Pioneer na TopDeck.gg). Puro: o relatório entra, o veredito sai. */
+export const FRESCOR_DIAS = { mtgo: 3, topdeck: 14 };
+const maisNova = ls => ls.reduce((m, l) => ((l && l.data) || '') > m ? l.data : m, '');
+const diasDesde = (data, agora) => (data ? Math.floor((agora - Date.parse(data + 'T00:00:00Z')) / 86400e3) : null);
+export function saudeDaColeta({ agora = Date.now(), chaveTopdeck = '', topdeck = null, mtgo = null, listasTd = [], listasMo = [], haviaTd = false } = {}) {
+  const alertas = [], avisos = [], fontes = {};
+  if (mtgo) {
+    const eventos = mtgo.reduce((n, f) => n + (f.eventos || 0), 0), recente = maisNova(listasMo), idade = diasDesde(recente, agora);
+    fontes.mtgo = { eventos, listas: listasMo.length, maisNova: recente || null, dias: idade };
+    if (!eventos) alertas.push('Magic Online: nenhum evento lido nas páginas do mês (o site pode ter mudado de forma)');
+    else if (idade === null || idade > FRESCOR_DIAS.mtgo) alertas.push(`Magic Online: a lista mais nova tem ${idade === null ? '?' : idade} dia(s) (o site publica todo dia)`);
+    for (const f of mtgo) if (!f.eventos) avisos.push(`Magic Online · ${f.formato}: nenhum evento no mês`);
+  }
+  if (chaveTopdeck && topdeck) {
+    const torneios = topdeck.reduce((n, f) => n + (f.torneios || 0), 0), erros = topdeck.filter(f => f.erro).length, recente = maisNova(listasTd), idade = diasDesde(recente, agora);
+    fontes.topdeck = { torneios, erros, listas: listasTd.length, maisNova: recente || null, dias: idade };
+    if (erros === topdeck.length) alertas.push('TopDeck.gg: todas as consultas falharam (chave, limite ou API fora do ar)');
+    else if (!torneios) alertas.push('TopDeck.gg: zero torneios em todos os formatos (a API pode ter mudado)');
+    else if (idade === null || idade > FRESCOR_DIAS.topdeck) alertas.push(`TopDeck.gg: a lista mais nova tem ${idade === null ? '?' : idade} dia(s)`);
+    for (const f of topdeck) if (f.erro) avisos.push(`TopDeck.gg · ${f.formato}: ${f.erro}`); else if (!f.torneios) avisos.push(`TopDeck.gg · ${f.formato}: zero torneios`);
+  } else if (!chaveTopdeck && haviaTd) alertas.push('TopDeck.gg: coleta sem a chave (segredo TOPDECK_KEY) e o catálogo tinha listas dela');
+  return { ok: !alertas.length, alertas, avisos, fontes };
+}
+/** G-258 · texto que vai ao log do Actions numa linha só e sem "::" (o aviso pode levar mensagem de erro vinda da rede:
+    nunca vira comando de fluxo, como ::add-mask:: ou ::stop-commands::). */
+export const linhaDeLog = t => String(t ?? '').replace(/[\r\n\u2028\u2029]+/g, ' ').replace(/::/g, ': :').slice(0, 300);
 async function leJson(caminho) { try { return JSON.parse(await readFile(caminho, 'utf8')); } catch (e) { return null; } }
 async function baixa(url, { busca, prazo = 30000 }) {
   const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), prazo);
@@ -513,20 +552,20 @@ export async function publica(pasta, { busca = globalThis.fetch, agora = Date.no
   const pendentes = Math.max(0, todas.length - lote.length);
   // Z5 · torneios: as desta coleta somadas às de antes ainda dentro de 60 dias (uma falha da fonte não esvazia o catálogo)
   const tdAntes = anteriores.filter(l => l.fonte === FONTE_TOPDECK.id), limite = new Date(agora - DIAS_RETENCAO * 86400e3).toISOString().slice(0, 10);
-  let td = tdAntes.filter(l => (l.data || '') >= limite), novasTd = 0;
+  let td = tdAntes.filter(l => listaDeTorneioValida(l, limite, agora)), novasTd = 0;
   let relatorio = null;
   if (chaveTopdeck) {
-    const r = await coletaTopdeck(chaveTopdeck, { busca, log, pausa: pausa ? 700 : 0 });
+    const r = await coletaTopdeck(chaveTopdeck, { busca, log, pausa: pausa ? 700 : 0, agora });
     falhas += r.falhas; relatorio = r.porFormato;
     const porId = new Map(td.map(l => [l.id, l]));
     // G-248 · lista que já tinha nome dado fica com ele (e com o evento): a fonte devolve a mesma lista a cada coleta
     for (const l0 of r.listas) { const ant = porId.get(l0.id), l = ant && ant.nv ? { ...l0, nome: ant.nome, evento: ant.evento } : l0;
       await writeFile(join(pasta, 'listas', `${l.id}.json`), JSON.stringify(l) + '\n'); if (!ant) novasTd++; porId.set(l.id, { ...resumoDaLista(l), ...(ant && ant.nv ? { evento: ant.evento, nv: ant.nv } : {}) }); }
-    td = [...porId.values()].filter(l => (l.data || '') >= limite);
+    td = [...porId.values()].filter(l => listaDeTorneioValida(l, limite, agora));
   }
   // G-241 · Magic Online: só os eventos novos; as listas de antes ficam enquanto estão na janela
   const moAntes = anteriores.filter(l => l.fonte === FONTE_MTGO.id), limiteMo = new Date(agora - DIAS_MTGO * 86400e3).toISOString().slice(0, 10);
-  let mo = moAntes.filter(l => (l.data || '') >= limiteMo), novasMo = 0, relatorioMo = null;
+  let mo = moAntes.filter(l => (l.data || '') >= limiteMo && (l.data || '') <= amanhaDe(agora)), novasMo = 0, relatorioMo = null;
   if (mtgo) {
     const publicados = new Set(mo.map(l => l.id.replace(/^mtgo-/, '').replace(/-\d+$/, '')));
     const r = await coletaMtgo({ busca, agora, publicados, pausa: pausa ? 250 : 0, log });
@@ -539,16 +578,18 @@ export async function publica(pasta, { busca = globalThis.fetch, agora = Date.no
   if (fichas) { try { fichasR = await publicaFichas(pasta, { busca, agora, pausa, log }); } catch (e) { falhas++; log(`✗ fichas: ${e.message}`); } }
   // com a chave, as listas de torneio foram regravadas (podem ter mudado por dentro): o índice é regravado também
   const mesmasTd = !chaveTopdeck && tdAntes.length === td.length && tdAntes.every(l => td.some(x => x.id === l.id));
-  if (relatorio || relatorioMo) await writeFile(join(pasta, 'coleta.json'), JSON.stringify({ em: new Date(agora).toISOString(), topdeck: relatorio, mtgo: relatorioMo }, null, 1) + '\n');
+  // G-258 · vigia: a saúde de cada fonte vai junto do relatório; a linha de comando sai com erro quando alguma parou
+  const saude = saudeDaColeta({ agora, chaveTopdeck, topdeck: relatorio, mtgo: mtgo ? relatorioMo : null, listasTd: td, listasMo: mo, haviaTd: tdAntes.length > 0 });
+  await writeFile(join(pasta, 'coleta.json'), JSON.stringify({ em: new Date(agora).toISOString(), saude, topdeck: relatorio, mtgo: relatorioMo }, null, 1) + '\n');
   // G-248 · nome, evento e valor de todas as listas (o valor muda com o preço do dia: o índice é regravado quando muda)
   let todas2 = [...resumos, ...td, ...mo], comp = null;
   if (completar) { try { comp = await completa(pasta, todas2, { busca, pausa, log }); todas2 = comp.resumos; } catch (e) { falhas++; log(`✗ nomes e valores: ${e.message}`); } }
   const mesmoConteudo = comp ? JSON.stringify(montaIndice(todas2, { agora: 0, pendentes }).listas) === JSON.stringify(montaIndice(anteriores, { agora: 0, pendentes }).listas) : true;
-  if (!novas && mesmasTd && mesmasMo && mesmoConteudo && antes && antes.pendentes === pendentes) return { gravou: fichasR.gravou, novas, novasTd, novasMo, fichas: fichasR, falhas, indice: antes, completa: comp };
+  if (!novas && mesmasTd && mesmasMo && mesmoConteudo && antes && antes.pendentes === pendentes) return { gravou: fichasR.gravou, novas, novasTd, novasMo, fichas: fichasR, falhas, indice: antes, completa: comp, saude };
   const indice = montaIndice(todas2, { agora, pendentes });
   await writeFile(join(pasta, 'indice.json'), JSON.stringify(indice) + '\n');
 
-  return { gravou: true, novas, novasTd, novasMo, fichas: fichasR, falhas, indice, completa: comp };
+  return { gravou: true, novas, novasTd, novasMo, fichas: fichasR, falhas, indice, completa: comp, saude };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
@@ -562,5 +603,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   if (r.completa) console.log(`  nomes dados: ${r.completa.nomeadas} · com valor: ${r.completa.comValor} · arquivos regravados: ${r.completa.regravadas} · cartas consultadas: ${r.completa.cartas}`);
   if (r.fichas) console.log(`  fichas: ${r.fichas.total} tipo(s)${r.fichas.gravou ? ' (renovadas)' : ''}`);
   // só acusa quando nada veio de nenhuma fonte (uma fonte de torneio fora do ar não derruba a coleta)
+  if (r.saude) { for (const a of r.saude.avisos) console.log(`  aviso: ${linhaDeLog(a)}`); for (const a of r.saude.alertas) console.log(`::error::Catálogo · ${linhaDeLog(a)}`); }
+  // só acusa quando nada veio de nenhuma fonte (uma fonte de torneio fora do ar não derruba a coleta)
   if (r.falhas && !r.novas && !r.novasTd && !r.novasMo && !r.gravou) process.exit(1);
+  // G-258 · fonte parada: tudo já foi gravado (o passo de publicar roda mesmo assim); a execução fica vermelha e o GitHub avisa
+  if (r.saude && !r.saude.ok) process.exit(3);
 }

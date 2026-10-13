@@ -550,6 +550,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ii ✅ | Q17 a fila apaga a cada rodada o aviso de recusa de leva que já está no `main`; o `--esperar` ignora aviso de envio anterior (leva I-287) | Q | ½ | Q17 |
 | 16º-ij ✅ | Q21 Playwright 1.56.1, a versão do Chromium que as sessões de nuvem já têm (1194); versão exata no `package.json` (leva I-288) | Q | ½ | — |
 | 16º-ik ✅ | T6e-1 relato da fila do Firebase vira registro no GitHub: fluxo a cada 10 min com a conta de serviço, limite por conta, sem menção, tabela regravada (relato #13, leva I-289; liga com o segredo `FIREBASE_SERVICE_ACCOUNT`) | T | 1 | segredo do dono |
+| 16º-il ✅ | Z8 vigia do catálogo: evento de teste e data futura da TopDeck.gg fora (e retirados do que já estava publicado); saúde por fonte no `coleta.json`; fonte parada deixa a execução vermelha e o GitHub avisa (leva G-258) | Z | ½ | — |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -9408,6 +9409,20 @@ segredo do repositório. O `main` não recebe commit do coletor.
   detalhe pega nome, evento e valor pelo serviço do índice. Testes: U `catalogo.tela.unit` +2 (formato antigo; serviço
   com cópia antiga, nova, vencida, forçada e sem rede); e2e "G-249" (cópia antiga trocada ao reabrir, sem busca dentro da
   hora, Atualizar).
+
+- **Z8 · vigia do catálogo (leva G-258, 13/10/2026):** pergunta do dono — as listas novas dos sites aparecem sozinhas?
+  Sim: o fluxo "Catálogo" coleta todo dia (MTGJSON, TopDeck.gg, Magic Online) só o que é novo e o app renova o índice a
+  cada hora. Faltava garantia: (1) a TopDeck.gg devolveu um evento de teste ("Test Event for Dan and Noam", data em
+  26/10/2030), que ficava no topo do Commander e nunca vencia a retenção — evento de teste (nome em inglês com "test") e
+  data depois de amanhã não entram, e o que já entrou sai na coleta seguinte, com ou sem a chave; (2) se um site mudasse e
+  a fonte passasse a trazer zero, a execução ficava verde — `saudeDaColeta` julga cada fonte de torneio (Magic Online: lida
+  nas páginas e com lista de até 3 dias; TopDeck.gg: alguma consulta respondeu, algum torneio, lista de até 14 dias; chave
+  ausente quando o catálogo tinha listas dela), grava `saude` no `coleta.json` e, depois de tudo gravado, a linha de
+  comando sai com erro: o passo de publicar roda mesmo assim e a execução vermelha faz o GitHub avisar o dono. Formato
+  zerado sozinho é aviso (hoje: Pioneer na TopDeck.gg, coberto pelo Magic Online). Retrato real de 12/10 passado pelo
+  vigia: sem alerta. Testes: U `catalogo.unit` +3 (lixo da fonte e limpeza do publicado; sete alertas e os avisos; saúde no
+  `coleta.json` e saída com erro como último passo). Fora: segundo horário de coleta (o agendamento é da trilha infra) e
+  diagnóstico do Pioneer na TopDeck.gg (precisa da chave).
 
 ### SEG · Segurança e privacidade (trilha `protecao`, auditoria de 09/10/2026)
 
