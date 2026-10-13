@@ -21637,7 +21637,7 @@ function matchesTriggerFilter(s, o, filter) {
   if ((filter.types || []).some(x => !tipos.includes(x))) return false;
   if (filter.anyTypes && !filter.anyTypes.some(x => tipos.includes(x))) return false; // R11 · "creature or planeswalker" (Cruel Celebrant)
   if (filter.noncreature && tipos.includes('creature')) return false;
-  if ((filter.historico != null || filter.foraDaLei != null || filter.modificada != null) && !predicadosDeTipoT(s, o, filter)) return false; // T-59 · CR 700.6 / 700.12 / 700.9: "whenever you cast a historic spell" (Toca ponto comum: matchesTriggerFilter)
+  if ((filter.historico != null || filter.foraDaLei != null || filter.modificada != null) && !predicadosDeTipoT(s, o, filter, lki)) return false; // T-59 · CR 700.6 / 700.12 / 700.9: "whenever you cast a historic spell" · T-60 · 603.10a: quem saiu do campo, como era lá (Toca ponto comum: matchesTriggerFilter)
   if (filter.semManaGasta && (!s.manaCheck || ((o.manaGasta || {})[filter.semManaGasta === 'colorida' ? 'colorida' : 'total'] || 0) > 0)) return false; // M-346 · Vexing Bauble, Void Mirror (603.4)
   if ((lki ? lki.faceDown : o.faceDown) && !filter.subtype) return true; // V-19 · 708.2a: a virada para baixo é criatura (os tipos acima já são os de agora); só o subtipo ela não tem · Toca ponto comum: matchesTriggerFilter (uma linha antes da regra da S54)
   if (lki ? lki.faceDown : o.faceDown) return false; // S54 · virada para baixo não combina com filtro de carta
@@ -26587,24 +26587,28 @@ function prototipoOfertasT(s, p, out) {
      jeito que der mais (700.8b: emparelhamento máximo, por força bruta — são no máximo quatro papéis). Contagem `{ per: 'party' }`. */
 const SUBTIPOS_FORA_DA_LEI_T = ['Assassin', 'Mercenary', 'Pirate', 'Rogue', 'Warlock'];
 const temSubtipoT = (s, o, x) => isChangeling(s, o, x) || new RegExp('\\b' + x + '\\b').test(o.zone === 'battlefield' ? linhaDeTipo(s, o) : ((s.facts[o.name] || {}).typeText || ''));
-function predicadosDeTipoT(s, o, sel) {
-  const f = s.facts[o.name] || {}, virada = !!o.faceDown;
-  if (sel.historico != null) { const h = !virada && (!!f.legendary || portadorLendarioV(s, o) || (o.zone === 'battlefield' ? tiposDe(s, o) : (f.types || [])).includes('artifact') || temSubtipoT(s, o, 'Saga')); if (h !== sel.historico) return false; }
-  if (sel.foraDaLei != null) { const fl = !virada && SUBTIPOS_FORA_DA_LEI_T.some(x => temSubtipoT(s, o, x)); if (fl !== sel.foraDaLei) return false; }
+function predicadosDeTipoT(s, o, sel, lki = null) {
+  const f = s.facts[o.name] || {}, virada = lki ? !!lki.faceDown : !!o.faceDown; // T-60 · 603.10a: com `lki` (a foto de quando saiu do campo), vale como ela era lá
+  const tem = x => lki ? (isChangeling(s, o, x) || new RegExp('\\b' + x + '\\b').test(lki.linha || '')) : temSubtipoT(s, o, x);
+  if (sel.historico != null) { const h = !virada && (lki ? /\bLegendary\b/i.test(lki.linha || '') || !!f.legendary || (lki.tipos || []).includes('artifact') : (!!f.legendary || portadorLendarioV(s, o) || (o.zone === 'battlefield' ? tiposDe(s, o) : (f.types || [])).includes('artifact'))) || tem('Saga'); if (h !== sel.historico) return false; }
+  if (sel.foraDaLei != null) { const fl = !virada && SUBTIPOS_FORA_DA_LEI_T.some(tem); if (fl !== sel.foraDaLei) return false; }
   if (sel.modificada != null) {
-    const m = o.zone === 'battlefield' && (Object.values(o.counters || {}).some(n => n > 0) || attachedTo(s, o).some(x => ehEquipamentoT(s, x) || (x.controller === o.controller && ehAuraT(s, x))));
-    if (m !== sel.modificada) return false;
+    const anexos = battlefield(s).filter(x => x.attachedTo === o.oid && (lki || o.zone === 'battlefield'));
+    const dono = lki ? lki.controller : o.controller;
+    const m = (lki || o.zone === 'battlefield') && (Object.values((lki ? lki.counters : o.counters) || {}).some(n => n > 0) || anexos.some(x => ehEquipamentoT(s, x) || (x.controller === dono && ehAuraT(s, x))));
+    if (!!m !== sel.modificada) return false;
   }
   return true;
 }
 const ehAuraT = (s, x) => !!x.bestowed || /\bAura\b/.test(linhaDeTipo(s, x)) || !!((s.facts[x.name] || {}).script || {}).aura;
 function tamanhoDoGrupoT(s, p) {
+  // T-60 · 700.8b: emparelhamento máximo papel → criatura (caminhos de aumento, Kuhn): quatro papéis, tempo linear no número de criaturas (auditoria, D2)
   const papeis = ['Cleric', 'Rogue', 'Warrior', 'Wizard'];
   const cands = battlefield(s).filter(o => o.controller === p && !o.faceDown && isCreature(s, o)).map(o => papeis.filter(x => temSubtipoT(s, o, x))).filter(ps => ps.length);
-  let melhor = 0;
-  const busca = (i, usados, n) => { if (n > melhor) melhor = n; if (melhor === 4 || i >= cands.length) return; for (const r of cands[i]) if (!usados.has(r)) { usados.add(r); busca(i + 1, usados, n + 1); usados.delete(r); } busca(i + 1, usados, n); };
-  busca(0, new Set(), 0);
-  return melhor;
+  const dono = new Map(); // criatura (índice) → papel
+  const aumenta = (papel, vistos) => { for (let i = 0; i < cands.length; i++) { if (!cands[i].includes(papel) || vistos.has(i)) continue; vistos.add(i); if (!dono.has(i) || aumenta(dono.get(i), vistos)) { dono.set(i, papel); return true; } } return false; };
+  let n = 0; for (const papel of papeis) if (aumenta(papel, new Set())) n++;
+  return n;
 }
 Object.assign(EXPORTS_T, { tamanhoDoGrupoT });
 /* ---------------- T-53 · CR 712.14a · "entra transformada" vinda de outra zona ----------------
@@ -30759,7 +30763,7 @@ const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas
 const EFEITO_PT_T = { caso_resolvido: () => 'este Caso fica resolvido', estacao: () => 'põe nesta permanente marcadores de carga iguais ao poder da criatura virada (ou à resistência, quando um efeito manda estacionar por ela)', selada: () => 'esta montaria fica selada até o fim do turno', virar_carta: e => (e.se && e.se.minCriaturas ? `se você controla ${e.se.minCriaturas} ou mais criaturas, vira esta carta` : 'vira esta carta'), porta: e => (e.acao === 'trancar' ? 'tranca uma porta destrancada de uma Sala sua' : e.acao === 'destrancar' ? 'destranca uma porta trancada de uma Sala sua' : 'tranca ou destranca uma porta de uma Sala sua'), nivel_sobe: () => 'põe um marcador de nível nela', nivel_classe: e => `a Classe sobe para o nível ${e.n}`, tripulada: () => 'vira criatura artefato até o fim do turno', transformar: () => 'transforma (vira a outra face)', preparar: () => 'esta criatura fica preparada', despreparar: () => 'esta criatura deixa de estar preparada' }; // T-51 · 722.3 // T-7 · 701.27
 /** T-7 · linhas do registro para os eventos da trilha tipos. */
 /** T-59 · CR 700.6 / 700.12 / 700.9 · os predicados de tipo na frase do seletor. */
-const predicadosPT_T = sel => (sel.historico ? ' histórica' : sel.historico === false ? ' que não é histórica' : '') + (sel.foraDaLei ? ' fora da lei' : '') + (sel.modificada ? ' modificada' : sel.modificada === false ? ' que não está modificada' : '');
+const predicadosPT_T = sel => (sel.historico ? ' histórica' : sel.historico === false ? ' que não é histórica' : '') + (sel.foraDaLei ? ' fora da lei' : sel.foraDaLei === false ? ' que não é fora da lei' : '') + /* T-60 */ (sel.modificada ? ' modificada' : sel.modificada === false ? ' que não está modificada' : '');
 const LINHA_T = { preparada: ev => (ev.failed ? `${ev.name}: ${ev.motivo || 'não ficou preparada'}, nada muda` : `${ev.name} está preparada (pode conjurar uma cópia de ${ev.target})`), despreparada: ev => `${ev.name} deixou de estar preparada`, ciclo: ev => `Virou ${ev.target}${ev.motivo ? ` (${ev.motivo})` : ''}`, masmorra_completa: ev => `${ev.target} completou a masmorra ${ev.name}`, caso_resolvido: ev => (ev.failed ? `${ev.name}: a condição não valia mais, o Caso não foi resolvido` : `${ev.name} foi resolvido`), estacao: ev => (ev.failed ? `${ev.name}: a nave saiu do campo, a estação não pôs marcadores` : `${ev.name} recebeu ${ev.amount} marcador${ev.amount === 1 ? '' : 'es'} de carga (estação)${ev.total != null ? ` · ${ev.total} no total` : ''}`), selada: ev => (ev.failed ? `${ev.name}: a montaria saiu do campo, não foi selada` : `${ev.name} foi selada`), virar_carta: ev => (ev.failed ? `${ev.name} não virou${ev.motivo ? ` (${ev.motivo})` : ''}` : `${ev.name} virou: agora é ${ev.target}`), porta: ev => (ev.failed ? `${ev.name}: nenhuma porta para trancar ou destrancar` : `${ev.name} ${ev.acao} ${ev.porta} (${ev.target})`), nivel_sobe: ev => (ev.failed ? `${ev.name}: saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu de nível (nível ${ev.nivel})`), nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, converter: ev => `${ev.name} converteu em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
 Object.assign(EFEITO_PT_T, { cerco_derrotado: () => 'exila o Cerco; você pode conjurá-lo transformado, sem pagar', papel: e => `cria um Papel de ${e.papel} anexado à criatura` }); // T-14 · CR 310.12b
 Object.assign(LINHA_T, { cerco_derrotado: ev => (ev.failed ? `${ev.name}: o Cerco já tinha saído do campo, nada a exilar` : `${ev.name} foi derrotada e exilada${ev.target ? ` (pode virar ${ev.target})` : ''}`), protetor_batalha: ev => `${ev.target} passa a proteger ${ev.name}`, anexo_barrado: ev => `${ev.name} não pode equipar${ev.target ? ' ' + ev.target : ''} e fica onde está`, papel: ev => (ev.failed ? `${ev.name}: sem criatura para o Papel de ${ev.target}` : `Papel de ${ev.target || ev.name}`), papel_substituido: ev => `o Papel ${ev.name} foi substituído e vai para o cemitério`, batalha_cemiterio: ev => `${ev.name} ficou sem defesa e foi para o cemitério` }); // T-14 · CR 310.12b / 310.11 / 310.8

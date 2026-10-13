@@ -5440,6 +5440,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `SELETOR_CHAVES` e `seletorErros` (chaves novas), `selCasa`, `matchesFilter`, `matchesTriggerFilter` e `countFor` (uma linha cada, chamando `predicadosDeTipoT`/`tamanhoDoGrupoT`), `PER_COUNTS` e `IGUAL_A` (a contagem `party`), `descreveSeletor` (a frase).
 - **Próximo:** auditoria independente de T-59 com a próxima; mutação e meld esperam o dono.
 
+**CR5-T60 · Predicados de tipo: correções da auditoria independente** ✅ (leva T-60, sem mudança de versão do motor) — revisor sem acesso à implementação rodou 9 sondas (156 verificações), passeios de ~9,8 mil ações e medições do grupo com 10 a 150 criaturas; 4 achados: 3 corrigidos, 1 declarado. 3 testes novos (`tipos.predicados.unit` 11; falham sem a leva).
+- **Corrigido:** **603.10a (D1)** — "whenever a modified (historic, outlaw) creature dies" olhava a carta já no cemitério; agora vale como ela era no campo (marcadores, Aura própria, Equipamento, tipos e linha de tipo da foto de quando saiu). **700.8b (D2)** — o grupo era contado por força bruta (5 s com 150 criaturas de três papéis); agora é emparelhamento máximo, linear no número de criaturas. **Frase (D3):** "que não é fora da lei".
+- **Fora, declarado:** o Portador do Anel que morre não é visto como lendário pela última informação (a designação não fica na foto); o validador não confere o tipo dos valores das chaves de filtro de gatilho e de busca (como já era para as outras chaves); as frases de busca, "volta para a mão" e de gatilho não citam o predicado (como já era para `lendaria` e `types`).
+- **Conferido e correto pela auditoria:** histórico no campo, cemitério e pilha (Saga que vira criatura, artefato por efeito, quem perde o tipo artefato, Portador do Anel vivo), fora da lei com metamorfo, Kindred e quem ganha ou perde tipos, modificada com qualquer marcador (−1/−1, lealdade, lore, defesa), Equipamento de outro jogador, Aura do oponente e troca de controle, grupo de 0 a 4 maximizando, virada para baixo sem nenhum predicado (com marcador é modificada), gatilhos de conjurar e de entrar, invariantes.
+- **Toca ponto comum:** nenhum novo (a linha do `matchesTriggerFilter` passa a foto).
+- **Próximo:** placar do catálogo; mutação e meld esperam o dono.
+
 **CR6 · Multijogador e variantes** ○ — mesa de três e quatro (800–803, 806), Commander de mesa (903.2), Brawl (903.12); as variantes hoje "fora" só entram por decisão. 10 a 14 levas.
 
 **CR7 · Consolidação** ○ (em paralelo a partir da CR2) — a cada fase: fuzz em modo completo com listas reais, homologação por revisor independente relendo a seção das regras contra o motor, e rodada de simulação do dono do produto. 6 a 8 levas ao todo.

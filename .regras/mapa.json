@@ -5661,7 +5661,7 @@
    "depende": [
     "714 Sagas"
    ],
-   "evidencia": "T-59 (13/10/2026): `predicadosDeTipoT` — seletor (`selCasa`), filtro de busca (`matchesFilter`) e filtro de gatilho (`matchesTriggerFilter`) aceitam `historico`, `foraDaLei` e `modificada` (true/false); a contagem `{ per: 'party' }` (countFor) faz o emparelhamento máximo de Clérigo, Ladino, Guerreiro e Mago entre as criaturas de quem controla (metamorfo conta); virada para baixo não tem nenhum desses (708.2); a pilha explica \"histórica\", \"fora da lei\", \"modificada\" e \"o número de criaturas do seu grupo\".",
+   "evidencia": "T-59 (13/10/2026): `predicadosDeTipoT` — seletor (`selCasa`), filtro de busca (`matchesFilter`) e filtro de gatilho (`matchesTriggerFilter`) aceitam `historico`, `foraDaLei` e `modificada` (true/false); a contagem `{ per: 'party' }` (countFor) faz o emparelhamento máximo de Clérigo, Ladino, Guerreiro e Mago entre as criaturas de quem controla (metamorfo conta); virada para baixo não tem nenhum desses (708.2); a pilha explica \"histórica\", \"fora da lei\", \"modificada\" e \"o número de criaturas do seu grupo\". T-60 (13/10/2026) · auditoria independente (156 verificações): gatilho de morrer vê a foto de quando saiu (603.10a); grupo por emparelhamento máximo.",
    "testes": [
     "CR 700.6 · histórico: lendário, artefato ou Saga — o Urso não é",
     "CR 700.6 · \"whenever you cast a historic spell\": o gatilho dispara com o artefato e o lendário, não com o Urso"
@@ -5688,10 +5688,11 @@
     "205.3m tipos de criatura",
     "changeling 702.73"
    ],
-   "evidencia": "T-59 (13/10/2026): `predicadosDeTipoT` — seletor (`selCasa`), filtro de busca (`matchesFilter`) e filtro de gatilho (`matchesTriggerFilter`) aceitam `historico`, `foraDaLei` e `modificada` (true/false); a contagem `{ per: 'party' }` (countFor) faz o emparelhamento máximo de Clérigo, Ladino, Guerreiro e Mago entre as criaturas de quem controla (metamorfo conta); virada para baixo não tem nenhum desses (708.2); a pilha explica \"histórica\", \"fora da lei\", \"modificada\" e \"o número de criaturas do seu grupo\".",
+   "evidencia": "T-59 (13/10/2026): `predicadosDeTipoT` — seletor (`selCasa`), filtro de busca (`matchesFilter`) e filtro de gatilho (`matchesTriggerFilter`) aceitam `historico`, `foraDaLei` e `modificada` (true/false); a contagem `{ per: 'party' }` (countFor) faz o emparelhamento máximo de Clérigo, Ladino, Guerreiro e Mago entre as criaturas de quem controla (metamorfo conta); virada para baixo não tem nenhum desses (708.2); a pilha explica \"histórica\", \"fora da lei\", \"modificada\" e \"o número de criaturas do seu grupo\". T-60 (13/10/2026) · auditoria independente (156 verificações): gatilho de morrer vê a foto de quando saiu (603.10a); grupo por emparelhamento máximo.",
    "testes": [
     "CR 700.8 / 700.8b · o grupo conta até um Clérigo, um Ladino, um Guerreiro e um Mago, e quem tem dois tipos conta uma vez só, do jeito que dá mais",
-    "CR 700.8a · o grupo é só de quem controla: as criaturas do oponente não contam"
+    "CR 700.8a · o grupo é só de quem controla: as criaturas do oponente não contam",
+    "CR 700.8b · o grupo com muitas criaturas de vários tipos é contado na hora (emparelhamento, não força bruta) (D2)"
    ]
   },
   {
@@ -5706,9 +5707,10 @@
     "301.5",
     "303.4"
    ],
-   "evidencia": "T-59 (13/10/2026): `predicadosDeTipoT` — seletor (`selCasa`), filtro de busca (`matchesFilter`) e filtro de gatilho (`matchesTriggerFilter`) aceitam `historico`, `foraDaLei` e `modificada` (true/false); a contagem `{ per: 'party' }` (countFor) faz o emparelhamento máximo de Clérigo, Ladino, Guerreiro e Mago entre as criaturas de quem controla (metamorfo conta); virada para baixo não tem nenhum desses (708.2); a pilha explica \"histórica\", \"fora da lei\", \"modificada\" e \"o número de criaturas do seu grupo\".",
+   "evidencia": "T-59 (13/10/2026): `predicadosDeTipoT` — seletor (`selCasa`), filtro de busca (`matchesFilter`) e filtro de gatilho (`matchesTriggerFilter`) aceitam `historico`, `foraDaLei` e `modificada` (true/false); a contagem `{ per: 'party' }` (countFor) faz o emparelhamento máximo de Clérigo, Ladino, Guerreiro e Mago entre as criaturas de quem controla (metamorfo conta); virada para baixo não tem nenhum desses (708.2); a pilha explica \"histórica\", \"fora da lei\", \"modificada\" e \"o número de criaturas do seu grupo\". T-60 (13/10/2026) · auditoria independente (156 verificações): gatilho de morrer vê a foto de quando saiu (603.10a); grupo por emparelhamento máximo.",
    "testes": [
-    "CR 700.9 · modificada: com marcador, equipada, ou encantada por uma Aura de quem a controla — a Aura do oponente não conta"
+    "CR 700.9 · modificada: com marcador, equipada, ou encantada por uma Aura de quem a controla — a Aura do oponente não conta",
+    "CR 603.10a / 700.9 · \"whenever a modified creature dies\": vale como ela estava no campo — com marcador, ou encantada pela própria Aura (D1)"
    ]
   },
   {
@@ -5744,9 +5746,10 @@
    "depende": [
     "205.3m"
    ],
-   "evidencia": "T-59 (13/10/2026): `predicadosDeTipoT` — seletor (`selCasa`), filtro de busca (`matchesFilter`) e filtro de gatilho (`matchesTriggerFilter`) aceitam `historico`, `foraDaLei` e `modificada` (true/false); a contagem `{ per: 'party' }` (countFor) faz o emparelhamento máximo de Clérigo, Ladino, Guerreiro e Mago entre as criaturas de quem controla (metamorfo conta); virada para baixo não tem nenhum desses (708.2); a pilha explica \"histórica\", \"fora da lei\", \"modificada\" e \"o número de criaturas do seu grupo\".",
+   "evidencia": "T-59 (13/10/2026): `predicadosDeTipoT` — seletor (`selCasa`), filtro de busca (`matchesFilter`) e filtro de gatilho (`matchesTriggerFilter`) aceitam `historico`, `foraDaLei` e `modificada` (true/false); a contagem `{ per: 'party' }` (countFor) faz o emparelhamento máximo de Clérigo, Ladino, Guerreiro e Mago entre as criaturas de quem controla (metamorfo conta); virada para baixo não tem nenhum desses (708.2); a pilha explica \"histórica\", \"fora da lei\", \"modificada\" e \"o número de criaturas do seu grupo\". T-60 (13/10/2026) · auditoria independente (156 verificações): gatilho de morrer vê a foto de quando saiu (603.10a); grupo por emparelhamento máximo.",
    "testes": [
-    "CR 700.12 · fora da lei: Assassino, Mercenário, Pirata, Ladino ou Bruxo (metamorfo conta); o Urso e o Clérigo não"
+    "CR 700.12 · fora da lei: Assassino, Mercenário, Pirata, Ladino ou Bruxo (metamorfo conta); o Urso e o Clérigo não",
+    "CR 603.10a / 700.12 · \"whenever an outlaw dies\": o Ladino que morre dispara; o Urso não (D1)"
    ]
   },
   {

@@ -102,3 +102,47 @@ test('CR 700.6 · "whenever you cast a historic spell": o gatilho dispara com o 
   const v0 = s.players[0].life; s = conjura(s, 'Urso'); const v1 = s.players[0].life; s = conjura(s, 'Engenho'); const v2 = s.players[0].life; s = conjura(s, 'Rei');
   eq([v1 - v0, v2 - v1, s.players[0].life - v2], [0, 1, 1]);
 });
+
+/* ---------------- T-60 · correções da auditoria independente ---------------- */
+const comLuto = (filtro, seed = 3) => {
+  const sc = { ...SCRIPTS, 'Luto': { name: 'Luto', abilities: [{ kind: 'triggered', when: 'other-dies', filter: { types: ['creature'], ...filtro }, effects: [{ do: 'gain', amount: 1 }] }], ...EX },
+    'Mata': { name: 'Mata', effects: [{ do: 'destroy', target: 'creature' }], ...EX } };
+  C.Luto = { name: 'Luto', type_line: 'Creature — Human Cleric', mana_cost: '{1}', cmc: 1, keywords: [], oracle_text: '', colors: [], power: '1', toughness: '1' };
+  C.Mata = { name: 'Mata', type_line: 'Instant', mana_cost: '{1}', cmc: 1, keywords: [], oracle_text: '', colors: [] };
+  const deck = [...['Urso', 'Ladino', 'Bencao', 'Luto', 'Mata'].map(name => ({ name, qty: 4, zone: 'main' })), { name: 'Plains', qty: 20, zone: 'main' }];
+  let s = E.createGame({ format: 'livre', seed, mode: 'full', cards: C, scripts: sc, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  s = passaAte(s, x => x.turn.active === 0 && x.turn.step === 'main1' && !x.stack.length && !x.pending);
+  [s] = poe(s, 0, 'Luto', 'battlefield');
+  return s;
+};
+const mata = (s, alvo) => { let m; [s, m] = poe(s, 0, 'Mata', 'hand'); s = mana(s); return esvazia(act(s, legais(s, 0, a => a.t === 'cast' && a.oid === m && a.targets[0].oid === alvo)[0])); };
+
+test('CR 603.10a / 700.9 · "whenever a modified creature dies": vale como ela estava no campo — com marcador, ou encantada pela própria Aura (D1)', () => {
+  let s = comLuto({ modificada: true }); let u; [s, u] = poe(s, 0, 'Urso', 'battlefield');
+  s = J(s); s.objects[u].counters = { p1p1: 1 };
+  let v = s.players[0].life; s = mata(s, u); eq(s.players[0].life - v, 1, 'com marcador');
+  let w; [s, w] = poe(s, 0, 'Urso', 'battlefield'); let b; [s, b] = poe(s, 0, 'Bencao', 'battlefield'); s = J(s); s.objects[b].attachedTo = w;
+  v = s.players[0].life; s = mata(s, w); eq(s.players[0].life - v, 1, 'encantada pela própria Aura');
+  let x; [s, x] = poe(s, 0, 'Urso', 'battlefield');
+  v = s.players[0].life; s = mata(s, x); eq(s.players[0].life - v, 0, 'sem nada: não dispara');
+});
+
+test('CR 603.10a / 700.12 · "whenever an outlaw dies": o Ladino que morre dispara; o Urso não (D1)', () => {
+  let s = comLuto({ foraDaLei: true }); let l, u; [s, l] = poe(s, 0, 'Ladino', 'battlefield'); [s, u] = poe(s, 0, 'Urso', 'battlefield');
+  let v = s.players[0].life; s = mata(s, l); eq(s.players[0].life - v, 1);
+  v = s.players[0].life; s = mata(s, u); eq(s.players[0].life - v, 0);
+});
+
+test('CR 700.8b · o grupo com muitas criaturas de vários tipos é contado na hora (emparelhamento, não força bruta) (D2)', () => {
+  C['Trio'] = { name: 'Trio', type_line: 'Creature — Human Cleric Rogue Wizard', mana_cost: '{1}', cmc: 1, keywords: [], oracle_text: '', colors: [], power: '1', toughness: '1' };
+  let s = mesa(); s = J(s);
+  for (let i = 0; i < 150; i++) { const oid = 'trio' + i; s.objects[oid] = { oid, name: 'Trio', owner: 0, controller: 0, zone: 'battlefield', tapped: false, damage: 0, counters: {} }; s.zones[0].battlefield.push(oid); }
+  const t0 = Date.now(); const n = E.tamanhoDoGrupoT(s, 0); const ms = Date.now() - t0;
+  eq(n, 3, 'Clérigo, Ladino e Mago (nenhum Guerreiro)');
+  assert.ok(ms < 200, `levou ${ms} ms`);
+});
+
+test('Frases · "que não é fora da lei" (D3)', () => {
+  assert.match(T.descreveEfeitos([{ do: 'destroy', target: { tipos: ['creature'], foraDaLei: false } }]), /que não é fora da lei/);
+});
