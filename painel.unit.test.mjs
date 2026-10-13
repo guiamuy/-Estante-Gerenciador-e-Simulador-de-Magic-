@@ -178,10 +178,10 @@ test('R-2 · fonte sem rede ou com a cota esgotada devolve o que havia guardado 
 });
 
 /* ---------- modelo puro ---------- */
-test('R-2 · modelo: oito sub-abas na ordem das fatias (Pipeline antes da Eficiência), todas com a leva e o que trazem; prontas: Pipeline (R-4) e Eficiência (R-5)', () => {
+test('R-2 · modelo: oito sub-abas na ordem das fatias (Pipeline antes da Eficiência), todas com a leva e o que trazem; prontas: Pipeline (R-4), Eficiência (R-5) e Roadmap (R-6)', () => {
   const { modelo, app } = loadPainel();
   assert.deepEqual(modelo.SUBABAS.map(a => a.id), ['pipeline', 'eficiencia', 'roadmap', 'motor', 'qualidade', 'curso', 'skills', 'modelos']);
-  for (const a of modelo.SUBABAS) { assert.match(a.leva, /^R-\d+$/); assert.ok(a.traz.length > 20); assert.equal(!!a.pronta, ['pipeline', 'eficiencia'].includes(a.id)); assert.equal(!!app.VISOES[a.id], !!a.pronta, 'toda sub-aba pronta tem a visão que a desenha'); }
+  for (const a of modelo.SUBABAS) { assert.match(a.leva, /^R-\d+$/); assert.ok(a.traz.length > 20); assert.equal(!!a.pronta, ['pipeline', 'eficiencia', 'roadmap'].includes(a.id)); assert.equal(!!app.VISOES[a.id], !!a.pronta, 'toda sub-aba pronta tem a visão que a desenha'); }
   assert.deepEqual(modelo.SUBABAS.map(a => a.leva), ['R-4', 'R-5', 'R-6', 'R-7', 'R-8', 'R-9', 'R-10', 'R-11']);
 });
 
@@ -365,4 +365,41 @@ test('R-5 · orçamento da Eficiência: um pedido por dia do período, dias pass
   fonte.zerar(); const d4 = await app.VISOES.eficiencia.carrega(fonte, false, { periodo: 'tudo' });
   assert.match(d4.avisos.join(' '), /30 dias/); assert.ok(fonte.pedidos <= app.ORCAMENTO.fixos + app.ORCAMENTO.detalhes);
   assert.equal(chamadas.filter(u => /raw\.githubusercontent/.test(u)).length, 3, 'a telemetria é lida pelo raw (fora da cota): sem cache, e nas duas atualizações forçadas; a quarta vem do cache');
+});
+
+
+/* ---------- R-6 · Roadmap ---------- */
+test('R-6 · parseRoadmap: linhas da ordem (id, status, épico, leva, trilha) e histórias da seção 7 com épico, status, data e leva; o arquivo real do repositório lê com folga', () => {
+  const { modelo } = loadPainel();
+  const fx = [
+    '## 6. Ordem por dependência técnica', '', '| Ordem | História | Épico | Rodadas | Observação |', '|---|---|---|---|---|',
+    '| 1º ✅ | U1 tema em dois estados (leva 82) | E43 | 1 | — |',
+    '| 16º-rb ✅ | BI1-1 entrar no painel: `painel.html` (leva R-2) | BI | 1 | — |',
+    '| 16º-rl | BI1-2b Pipeline + filtros | BI | 1 a 2 | 16º-rb |',
+    '| 16º-ab 🟡 | GW Bogles carta a carta (leva 139) | R5 | 1 | teste no aparelho |',
+    '', '## 7. Épicos e histórias', '', '### Q · Qualidade', '',
+    '**Q17 · Fila com portão no CI** ✅ (leva I-282, 11/10/2026)', '- **Valor:** x', '',
+    '**Q22 · Portão leve** (ainda não)', '',
+    '## Trilha radar · Painel Estante (BI)', '',
+    '**BI1 · Painel Estante** 🟡 planejado (leva R-1, 13/10/2026)', '',
+    '**BI1-1 · Entrar no painel** ✅ (leva R-2, 13/10/2026)', ''
+  ].join('\n');
+  const r = modelo.parseRoadmap(fx);
+  assert.deepEqual(r.ordem.map(l => [l.id, l.situacao, l.epico, l.leva, l.trilha]), [['1º', 'entregue', 'E43', '82', null], ['16º-rb', 'entregue', 'BI', 'R-2', 'radar'], ['16º-rl', 'planejada', 'BI', null, null], ['16º-ab', 'parcial', 'R5', '139', null]]);
+  assert.deepEqual(r.historias.map(x => [x.id, x.situacao, x.epico, x.leva, x.data && new Date(x.data).toISOString().slice(0, 10)]), [['Q17', 'entregue', 'Q', 'I-282', '2026-10-11'], ['Q22', 'planejada', 'Q', null, null], ['BI1', 'parcial', 'BI', 'R-1', '2026-10-13'], ['BI1-1', 'entregue', 'BI', 'R-2', '2026-10-13']], 'a sigla entre parênteses do título da trilha casa com a coluna Épico da ordem');
+  const real = modelo.parseRoadmap(readFileSync(join(ROOT, 'ROADMAP.md'), 'utf8'));
+  assert.ok(real.ordem.length >= 150, `ordem: ${real.ordem.length} linhas`); assert.ok(real.historias.length >= 500, `histórias: ${real.historias.length}`);
+  assert.ok(real.ordem.some(l => l.id === '16º-rb' && l.situacao === 'entregue' && l.leva === 'R-2'));
+  assert.ok(real.historias.filter(x => x.data).length >= 100, 'histórias datadas para o burn-up');
+});
+
+test('R-6 · a fonte transforma o texto antes de guardar: o cache do ROADMAP guarda só o resumo, não o arquivo', async () => {
+  const { base, modelo } = loadPainel();
+  const guarda = base.createGuarda(null);
+  const fetch = async () => ({ ok: true, status: 200, headers: { get: () => null }, text: async () => '| 16º-rb ✅ | x (leva R-2) | BI | 1 | — |\n' });
+  const fonte = base.createFonte({ fetch, guarda });
+  const r = await fonte.raw('main', 'ROADMAP.md', { nome: 'roadmap', transforma: modelo.parseRoadmap });
+  assert.equal(r.dado.ordem.length, 1); assert.equal(fonte.brutos, 1); assert.equal(fonte.pedidos, 0, 'raw não conta na cota da API');
+  assert.equal(guarda.ler('painel.cache.roadmap').dado.ordem[0].id, '16º-rb');
+  assert.equal(typeof guarda.ler('painel.cache.roadmap').dado, 'object');
 });

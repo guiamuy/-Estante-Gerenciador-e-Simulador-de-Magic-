@@ -12063,3 +12063,45 @@ test('e2e · R-5 Painel · Eficiência: levas publicadas por dia e por trilha (t
   if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.screenshot({ path: process.env.SHOTS + '/r5-eficiencia.png', fullPage: true }); }
   assert.deepEqual(errors, []);
 });
+
+/* ---------- R-6 · BI1-4 · Roadmap ---------- */
+test('e2e · R-6 Painel · Roadmap: histórias por status e % concluído, entregues por épico (toque filtra), burn-up semanal pelas histórias datadas, últimas entregues; filtro no endereço; sem sobreposição nas quatro medidas e dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  const painel = base.replace('index.html', 'painel.html');
+  await page.setViewportSize({ width: 360, height: 780 });
+  const json = (r, corpo) => r.fulfill({ json: corpo, headers: { 'content-type': 'application/json', 'x-ratelimit-remaining': '50', 'x-ratelimit-limit': '60', 'access-control-expose-headers': 'etag, x-ratelimit-remaining, x-ratelimit-limit' } });
+  await page.route('https://api.github.com/**', r => json(r, /commits\?sha=main&per_page=1/.test(r.request().url()) ? [{ sha: 'abc1234def0', commit: { message: 'Leva M-390 · x', committer: { date: new Date().toISOString() } } }] : []));
+  const hoje = new Date(); const d = (n) => { const x = new Date(hoje.getTime() - n * 86400000); return `${String(x.getDate()).padStart(2, '0')}/${String(x.getMonth() + 1).padStart(2, '0')}/${x.getFullYear()}`; };
+  const roadmap = ['## 6. Ordem', '| Ordem | História | Épico | Rodadas | Observação |', '|---|---|---|---|---|',
+    '| 16º-rb ✅ | BI1-1 entrar (leva R-2) | BI | 1 | — |', '| 16º-rc ✅ | BI1-2 telemetria (leva R-3) | BI | 1 | — |', '| 16º-rl | BI1-2b Pipeline | BI | 1 | — |',
+    '| 16º-eq ✅ | T6f-3 nome de usuário (leva G-266) | T | 1 | — |', '| 16º-ab 🟡 | GW Bogles (leva 139) | R5 | 1 | — |',
+    '## 7. Épicos', '### T · Relatos do dono', `**T6f-3 · Nome de usuário único** ✅ (leva G-266, ${d(0)})`, `**T6f-4 · Vincular o Google** (depois)`,
+    '## Trilha radar · Painel Estante (BI)', `**BI1 · Painel Estante** 🟡 planejado (leva R-1, ${d(0)})`, `**BI1-1 · Entrar no painel** ✅ (leva R-2, ${d(0)})`, `**BI1-2 · Telemetria** ✅ (leva R-3, ${d(8)})`, ''].join('\n');
+  await page.route('https://raw.githubusercontent.com/**', r => r.fulfill({ body: /ROADMAP\.md/.test(r.request().url()) ? roadmap : '', headers: { 'content-type': 'text/plain', 'access-control-allow-origin': '*' } }));
+  await page.addInitScript(() => {
+    const jwt = email => 'h.' + btoa(JSON.stringify({ email })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') + '.s';
+    window.__PAINEL_FETCH = async (url) => new Response(JSON.stringify(url.includes('securetoken') ? { user_id: 'uidE2E', id_token: jwt('gui.amuy@gmail.com'), refresh_token: 'ref-e2e', expires_in: '3600' } : { localId: 'uidE2E', idToken: jwt('gui.amuy@gmail.com'), refreshToken: 'ref-e2e', expiresIn: '3600' }), { headers: { 'content-type': 'application/json' } });
+    window.__PAINEL_GOOGLE = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+  });
+  await page.goto(painel + '#roadmap'); await page.waitForSelector('#pn-entrar'); await page.click('#pn-entrar');
+  await page.waitForSelector('#pn-visao-roadmap');
+  assert.match(await page.innerText('#pn-k-hist'), /5\s*linhas/);
+  assert.match(await page.innerText('#pn-k-pct'), /60\s*%[\s\S]*3 entregues · 1 parciais · 1 planejadas/);
+  assert.match(await page.innerText('#pn-k-hist7'), /5[\s\S]*3 ✅ · 1 🟡/); // a trilha radar conta como épico BI (sigla entre parênteses)
+  assert.match(await page.innerText('#pn-g-epico'), /BI[\s\S]*2[\s\S]*T[\s\S]*1/);
+  assert.match(await page.innerText('#pn-g-burnup'), /sem\. /);
+  assert.match(await page.innerText('#pn-ultimas'), /T6f-3 · Nome de usuário único[\s\S]*leva G-266/);
+  await auditaTela(page, 'roadmap 360');
+  // toque no épico BI filtra: 3 linhas (2 entregues, 1 planejada) de 5; endereço guarda
+  await page.click('#pn-g-epico button[data-valor="BI"], #pn-g-epico li[data-valor="BI"] button');
+  await page.waitForFunction(() => location.hash.includes('epico=BI'));
+  assert.match(await page.innerText('#pn-k-hist'), /3\s*linhas\s*\/\s*5/);
+  assert.match(await page.innerText('#pn-k-pct'), /67\s*%/);
+  assert.doesNotMatch(await page.innerText('#pn-ultimas'), /T6f-3/);
+  // período 7 dias deixa só as histórias datadas desta semana no burn-up (a de 8 dias sai)
+  await page.click('#pn-filtros [data-dim="periodo"][data-valor="7d"]'); await page.waitForFunction(() => location.hash.includes('periodo=7d'));
+  assert.match(await page.innerText('#pn-g-burnup'), /7 dias/);
+  await emTodasAsMedidas(page, 'roadmap filtrado');
+  if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.screenshot({ path: process.env.SHOTS + '/r6-roadmap.png', fullPage: true }); }
+  assert.deepEqual(errors, []);
+});
