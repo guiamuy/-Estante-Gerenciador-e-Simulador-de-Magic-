@@ -12105,3 +12105,40 @@ test('e2e · R-6 Painel · Roadmap: histórias por status e % concluído, entreg
   if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.screenshot({ path: process.env.SHOTS + '/r6-roadmap.png', fullPage: true }); }
   assert.deepEqual(errors, []);
 });
+
+/* ---------- R-7 · BI1-5 · Motor ---------- */
+test('e2e · R-7 Painel · Motor: versão em uso pelo placar (mapa de outra versão fica amarelo), regras cobertas por status e por seção, listas que jogam por formato com evolução, cartas por estado; formato filtra; sem sobreposição nas quatro medidas e dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  const painel = base.replace('index.html', 'painel.html');
+  await page.setViewportSize({ width: 360, height: 780 });
+  const json = (r, corpo) => r.fulfill({ json: corpo, headers: { 'content-type': 'application/json', 'x-ratelimit-remaining': '50', 'x-ratelimit-limit': '60', 'access-control-expose-headers': 'etag, x-ratelimit-remaining, x-ratelimit-limit' } });
+  await page.route('https://api.github.com/**', r => json(r, /commits\?sha=main&per_page=1/.test(r.request().url()) ? [{ sha: 'abc1234def0', commit: { message: 'Leva M-390 · x', committer: { date: new Date().toISOString() } } }] : []));
+  const mapa = { motor: 109, cr: '2026-09-25', auditoria: '2026-10-06', itens: [{ n: '100.1', status: 'coberta' }, { n: '100.6', status: 'fora' }, { n: '702.9', status: 'parcial' }, { n: '702.10', status: 'ausente' }, { n: '702.11', status: 'coberta' }, { n: '708.1', status: 'definicao' }, { n: '302.1', status: 'coberta' }] };
+  const h = n => new Date(Date.now() - n * 3600000).toISOString();
+  const placares = [`{"trilha":"homologacao","motor":112,"formato":"pauper","listas_total":341,"listas_jogam":262,"falhas":0,"em":"${h(30)}"}`, `{"trilha":"homologacao","motor":112,"formato":"pauper","listas_total":341,"listas_jogam":272,"falhas":0,"em":"${h(3)}"}`, `{"trilha":"motor","motor":112,"formato":"commander","listas_total":120,"listas_jogam":40,"em":"${h(5)}"}`, `{"trilha":"listas","motor":112,"cartas_mao":58,"cartas_leitura":19,"cartas_tipos":1,"cartas_manual":38,"em":"${h(4)}"}`].join('\n') + '\n';
+  await page.route('https://raw.githubusercontent.com/**', r => { const u = r.request().url(); r.fulfill({ body: /mapa\.json/.test(u) ? JSON.stringify(mapa) : /placares/.test(u) ? placares : '', headers: { 'content-type': 'text/plain', 'access-control-allow-origin': '*' } }); });
+  await page.addInitScript(() => {
+    const jwt = email => 'h.' + btoa(JSON.stringify({ email })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') + '.s';
+    window.__PAINEL_FETCH = async (url) => new Response(JSON.stringify(url.includes('securetoken') ? { user_id: 'uidE2E', id_token: jwt('gui.amuy@gmail.com'), refresh_token: 'ref-e2e', expires_in: '3600' } : { localId: 'uidE2E', idToken: jwt('gui.amuy@gmail.com'), refreshToken: 'ref-e2e', expiresIn: '3600' }), { headers: { 'content-type': 'application/json' } });
+    window.__PAINEL_GOOGLE = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+  });
+  await page.goto(painel + '#motor'); await page.waitForSelector('#pn-entrar'); await page.click('#pn-entrar');
+  await page.waitForSelector('#pn-visao-motor');
+  assert.match(await page.innerText('#pn-k-versao'), /v112[\s\S]*último placar[\s\S]*mapa é de outra versão/);
+  assert.equal(await page.getAttribute('#pn-k-versao .pn-farol', 'data-farol'), 'amarelo');
+  assert.match(await page.innerText('#pn-k-regras'), /60\s*% de 5[\s\S]*3 cobertas · 1 parciais · 1 ausentes · 1 só definição · 1 fora/);
+  assert.match(await page.innerText('#pn-k-listas-pauper'), /272[\s\S]*de 341[\s\S]*v112 · 0 falha/);
+  assert.match(await page.innerText('#pn-k-listas-commander'), /40[\s\S]*de 120/);
+  assert.match(await page.innerText('#pn-k-cartas'), /78[\s\S]*58 à mão · 19 leitura · 1 tipos · 38 manuais/);
+  assert.match(await page.innerText('#pn-g-secoes'), /100 Conceitos do jogo[\s\S]*300 Tipos de carta[\s\S]*700 Regras adicionais/);
+  assert.match(await page.innerText('#pn-g-evolucao'), /262[\s\S]*272/);
+  await auditaTela(page, 'motor 360');
+  // formato pauper filtra a evolução e some o cartão do commander
+  await page.click('#pn-mais-filtros'); await page.waitForSelector('#pn-filtros [data-dim="formato"][data-valor="pauper"]');
+  await page.click('#pn-filtros [data-dim="formato"][data-valor="pauper"]'); await page.waitForFunction(() => location.hash.includes('formato=pauper'));
+  assert.equal(await page.locator('#pn-k-listas-commander').count(), 0);
+  assert.doesNotMatch(await page.innerText('#pn-g-evolucao'), /commander/);
+  await emTodasAsMedidas(page, 'motor filtrado');
+  if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.screenshot({ path: process.env.SHOTS + '/r7-motor.png', fullPage: true }); }
+  assert.deepEqual(errors, []);
+});

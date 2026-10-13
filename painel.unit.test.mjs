@@ -178,10 +178,10 @@ test('R-2 · fonte sem rede ou com a cota esgotada devolve o que havia guardado 
 });
 
 /* ---------- modelo puro ---------- */
-test('R-2 · modelo: oito sub-abas na ordem das fatias (Pipeline antes da Eficiência), todas com a leva e o que trazem; prontas: Pipeline (R-4), Eficiência (R-5) e Roadmap (R-6)', () => {
+test('R-2 · modelo: oito sub-abas na ordem das fatias (Pipeline antes da Eficiência), todas com a leva e o que trazem; prontas: Pipeline (R-4), Eficiência (R-5), Roadmap (R-6) e Motor (R-7)', () => {
   const { modelo, app } = loadPainel();
   assert.deepEqual(modelo.SUBABAS.map(a => a.id), ['pipeline', 'eficiencia', 'roadmap', 'motor', 'qualidade', 'curso', 'skills', 'modelos']);
-  for (const a of modelo.SUBABAS) { assert.match(a.leva, /^R-\d+$/); assert.ok(a.traz.length > 20); assert.equal(!!a.pronta, ['pipeline', 'eficiencia', 'roadmap'].includes(a.id)); assert.equal(!!app.VISOES[a.id], !!a.pronta, 'toda sub-aba pronta tem a visão que a desenha'); }
+  for (const a of modelo.SUBABAS) { assert.match(a.leva, /^R-\d+$/); assert.ok(a.traz.length > 20); assert.equal(!!a.pronta, ['pipeline', 'eficiencia', 'roadmap', 'motor'].includes(a.id)); assert.equal(!!app.VISOES[a.id], !!a.pronta, 'toda sub-aba pronta tem a visão que a desenha'); }
   assert.deepEqual(modelo.SUBABAS.map(a => a.leva), ['R-4', 'R-5', 'R-6', 'R-7', 'R-8', 'R-9', 'R-10', 'R-11']);
 });
 
@@ -402,4 +402,18 @@ test('R-6 · a fonte transforma o texto antes de guardar: o cache do ROADMAP gua
   assert.equal(r.dado.ordem.length, 1); assert.equal(fonte.brutos, 1); assert.equal(fonte.pedidos, 0, 'raw não conta na cota da API');
   assert.equal(guarda.ler('painel.cache.roadmap').dado.ordem[0].id, '16º-rb');
   assert.equal(typeof guarda.ler('painel.cache.roadmap').dado, 'object');
+});
+
+
+/* ---------- R-7 · Motor ---------- */
+test('R-7 · resumoDoMapa: contagem por status e por seção da CR; aplicáveis = coberta + parcial + ausente; o mapa real do repositório lê com folga; placares viram linhas por data', () => {
+  const { modelo } = loadPainel();
+  const r = modelo.resumoDoMapa({ motor: 109, cr: '2026-09-25', auditoria: '2026-10-06', itens: [{ n: '100.1', status: 'coberta' }, { n: '100.6', status: 'fora' }, { n: '702.9', status: 'parcial' }, { n: '702.10', status: 'ausente' }, { n: '708.1', status: 'definicao' }, { n: '702.11', status: 'coberta' }] });
+  assert.equal(r.total, 6); assert.deepEqual(r.porStatus, { coberta: 2, fora: 1, parcial: 1, ausente: 1, definicao: 1 }); assert.equal(r.aplicaveis, 4);
+  assert.deepEqual(r.secoes.map(s => [s.secao, s.nome, s.coberta, s.parcial, s.ausente]), [[1, 'Conceitos do jogo', 1, 0, 0], [7, 'Regras adicionais', 1, 1, 1]]);
+  assert.equal(r.motor, 109);
+  const real = modelo.resumoDoMapa(JSON.parse(readFileSync(join(ROOT, '.regras', 'mapa.json'), 'utf8')));
+  assert.ok(real.total >= 1000 && real.porStatus.coberta >= 300 && real.secoes.length === 9, `mapa real: ${real.total} itens, ${real.porStatus.coberta} cobertas, ${real.secoes.length} seções`);
+  const pl = modelo.linhasDosPlacares([{ trilha: 'homologacao', motor: 112, formato: 'pauper', listas_total: 341, listas_jogam: 272, em: '2026-10-13T23:00:00Z' }, { trilha: 'tipos', motor: 112, regras_cobertas: 382, em: '2026-10-13T20:25:00Z' }]);
+  assert.deepEqual(pl.map(p => p.trilha), ['tipos', 'homologacao']); assert.equal(pl[1].data, Date.parse('2026-10-13T23:00:00Z'));
 });

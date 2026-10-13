@@ -725,7 +725,7 @@ const __p2 = (function () {
     { id: 'pipeline', rotulo: 'Pipeline', titulo: 'Pipeline de publicação', leva: 'R-4', pronta: true, traz: 'a fila agora (levas na fila, recusadas e o motivo, rodada em curso), entregue, recusado e reprocessando por período, e o filtro que vale para todas as visões' },
     { id: 'eficiencia', rotulo: 'Eficiência', titulo: 'Eficiência', leva: 'R-5', pronta: true, traz: 'levas por dia e por semana por trilha, intervalo entre publicações, portão verde na primeira, duração do portão e retrabalho' },
     { id: 'roadmap', rotulo: 'Roadmap', titulo: 'Roadmap', leva: 'R-6', pronta: true, traz: 'histórias por status, por épico e por tema, % concluído por épico e o burn-up semanal' },
-    { id: 'motor', rotulo: 'Motor', titulo: 'Motor de regras', leva: 'R-7', traz: 'versão, regras do mapa por status, listas que jogam por formato e a evolução' },
+    { id: 'motor', rotulo: 'Motor', titulo: 'Motor de regras', leva: 'R-7', pronta: true, traz: 'versão, regras do mapa por status, listas que jogam por formato e a evolução' },
     { id: 'qualidade', rotulo: 'Qualidade', titulo: 'Qualidade', leva: 'R-8', traz: 'relatos abertos e fechados por semana, tempo até a correção, testes e instáveis, bugs por leva' },
     { id: 'curso', rotulo: 'Em curso', titulo: 'Trabalho em curso', leva: 'R-9', traz: 'cada conversa ativa, a história, as skills, a última atualização, dependências e estimativa' },
     { id: 'skills', rotulo: 'Skills', titulo: 'Skills e rotinas', leva: 'R-10', traz: 'o catálogo de skills, uso por leva e em uso agora; fluxos do GitHub e rotinas do Claude com última e próxima execução' },
@@ -965,7 +965,28 @@ const __p2 = (function () {
     }
     return { ordem, historias, lido: Date.now() };
   }
+
+  /* ---------- R-7 · Motor (puro) ---------- */
+  const SECOES_CR = { 1: 'Conceitos do jogo', 2: 'Partes da carta', 3: 'Tipos de carta', 4: 'Zonas', 5: 'Estrutura do turno', 6: 'Mágicas, habilidades e efeitos', 7: 'Regras adicionais', 8: 'Multijogador', 9: 'Variantes casuais' };
+  /** Resume o mapa regra × motor (`.regras/mapa.json`): contagem por status e por seção da CR. Só o resumo fica no cache. */
+  function resumoDoMapa(mapa) {
+    const itens = (mapa && mapa.itens) || [];
+    const porStatus = {}; const secoes = {};
+    for (const i of itens) {
+      porStatus[i.status] = (porStatus[i.status] || 0) + 1;
+      const sec = Number(String(i.n || '').charAt(0)) || 0;
+      secoes[sec] = secoes[sec] || { secao: sec, nome: SECOES_CR[sec] || `seção ${sec}`, coberta: 0, parcial: 0, ausente: 0, definicao: 0, fora: 0 };
+      if (secoes[sec][i.status] != null) secoes[sec][i.status]++;
+    }
+    const aplicaveis = (porStatus.coberta || 0) + (porStatus.parcial || 0) + (porStatus.ausente || 0);
+    return { motor: mapa && mapa.motor, cr: mapa && mapa.cr, auditoria: mapa && mapa.auditoria, total: itens.length, porStatus, aplicaveis, secoes: Object.values(secoes).sort((a, b) => a.secao - b.secao) };
+  }
+  /** Placares da telemetria → linhas normalizadas (data = em). */
+  const linhasDosPlacares = placares => (placares || []).map(p => ({ ...p, data: Date.parse(p.em || '') || null })).sort((a, b) => (a.data || 0) - (b.data || 0));
+  Object.assign(LIMIARES, { mapaVersao: { verde: 1, amarelo: 0, unidade: 'igual', texto: 'auditoria do mapa na versão do motor em uso: igual · de outra versão' } });
   const FONTES = {
+    mapa: 'raw · main/.regras/mapa.json (resumo guardado por 10 min)',
+    placares: 'ramo telemetria · placares.jsonl (prova de partida e mapa, escritos pelas conversas)',
     roadmap: 'raw · main/ROADMAP.md (seções 6 e 7; só o resumo fica guardado)',
     commits: 'API GitHub · commits?sha=main&since&until (um pedido por dia; dias passados guardados para sempre)',
     ramos: 'API GitHub · branches (+ branches/<nome> por sha, guardado para sempre)',
@@ -974,7 +995,7 @@ const __p2 = (function () {
     pages: 'API GitHub · actions/runs (fluxo "pages build and deployment")',
     levas: 'ramo telemetria · levas.jsonl (escrito pelas sessões)'
   };
-  return { SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, intervalos, diasDoPeriodo, porSemana, parseRoadmap, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
+  return { SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
 })();
 
 /* ==== src/painel/ui.js ==== */
@@ -1084,8 +1105,52 @@ const __p4 = (function () {
 
   /* ---------- visões (uma por sub-aba pronta): carrega(fonte, forcar) → dados; desenha(dados, filtros, api) → nós ---------- */
   const VISOES = {
+    motor: {
+      filtros: ['periodo', 'formato', 'trilha'], periodoPadrao: 'tudo',
+      linhas: d => M.linhasDosPlacares(d.placares),
+      async carrega(fonte, forcar) {
+        const avisos = [];
+        const mapa = await fonte.raw('main', '.regras/mapa.json', { nome: 'mapa', ttl: 10 * 60000, forcar, transforma: txt => M.resumoDoMapa(JSON.parse(txt)) });
+        let placares = [];
+        try { placares = lerJsonl((await fonte.raw('telemetria', 'placares.jsonl', { ttl: 2 * 60000, forcar })).dado); } catch (e) { avisos.push('telemetria indisponível (ramo telemetria)'); }
+        if (mapa.semRede) avisos.push('mapa lido do que estava guardado (sem rede)');
+        return { em: mapa.em, mapa: mapa.dado, placares, avisos, sem: {} };
+      },
+      desenha(d, filtros, api) {
+        const agora = Date.now();
+        const mapa = d.mapa || { porStatus: {}, secoes: [], aplicaveis: 0, total: 0 };
+        const placares = M.linhasDosPlacares(d.placares);
+        const rPl = recorte(placares, { periodo: filtros.periodo || 'tudo', formato: filtros.formato, trilha: filtros.trilha }, agora);
+        const comListas = rPl.linhas.filter(p => p.listas_jogam != null && p.listas_total);
+        const ultimoPorFormato = {}; for (const p of comListas) ultimoPorFormato[p.formato || '?'] = p;
+        const ultimo = placares.length ? placares[placares.length - 1] : null;
+        const versaoEmUso = ultimo ? ultimo.motor : null;
+        const mapaIgual = versaoEmUso != null && mapa.motor === versaoEmUso ? 1 : 0;
+        const pctRegras = mapa.aplicaveis ? Math.round(100 * (mapa.porStatus.coberta || 0) / mapa.aplicaveis) : null;
+        const recorteTxt = fraseDoRecorte({ ...filtros, periodo: filtros.periodo || 'tudo' });
+        const cartoes = [
+          Cartao({ id: 'pn-k-versao', rotulo: 'Motor em uso', valor: versaoEmUso != null ? `v${versaoEmUso}` : mapa.motor != null ? `v${mapa.motor}` : '—', unidade: versaoEmUso != null ? 'último placar' : 'do mapa', farol: versaoEmUso == null ? 'cinza' : farol(mapaIgual, LIMIARES.mapaVersao), limiar: LIMIARES.mapaVersao, fonte: versaoEmUso != null ? FONTES.placares : FONTES.mapa, formula: `mapa auditado na v${mapa.motor ?? '?'} (${mapa.auditoria || '?'}, CR ${mapa.cr || '?'})`, em: d.em, nota: versaoEmUso != null && !mapaIgual ? 'o mapa é de outra versão: a cobertura abaixo pode estar atrasada' : null }),
+          Cartao({ id: 'pn-k-regras', rotulo: 'Regras cobertas', valor: pctRegras == null ? '—' : pctRegras, unidade: pctRegras == null ? '' : `% de ${mapa.aplicaveis}`, fonte: FONTES.mapa, formula: `coberta ÷ (coberta + parcial + ausente)`, em: d.em, semDados: !mapa.total, nota: mapa.total ? `${mapa.porStatus.coberta || 0} cobertas · ${mapa.porStatus.parcial || 0} parciais · ${mapa.porStatus.ausente || 0} ausentes · ${mapa.porStatus.definicao || 0} só definição · ${mapa.porStatus.fora || 0} fora` : null }),
+          ...Object.entries(ultimoPorFormato).slice(0, 3).map(([f, p]) => Cartao({ id: 'pn-k-listas-' + f, rotulo: `Listas que jogam · ${f}`, valor: p.listas_jogam, unidade: `de ${p.listas_total}`, fonte: FONTES.placares, formula: `prova de partida · motor v${p.motor}${p.falhas != null ? ` · ${p.falhas} falha(s)` : ''}`, em: p.data, nota: p.nota ? String(p.nota).slice(0, 80) : null })),
+          Cartao({ id: 'pn-k-cartas', rotulo: 'Cartas por estado', valor: (() => { const c = [...rPl.linhas].reverse().find(p => p.cartas_mao != null || p.cartas_manual != null); return c ? `${(c.cartas_mao || 0) + (c.cartas_leitura || 0) + (c.cartas_tipos || 0)}` : '—'; })(), unidade: 'jogam', fonte: FONTES.placares, formula: 'script à mão + leitura revisada + tipos · manuais à parte', em: d.em, semDados: !rPl.linhas.some(p => p.cartas_mao != null || p.cartas_manual != null), nota: (() => { const c = [...rPl.linhas].reverse().find(p => p.cartas_mao != null || p.cartas_manual != null); return c ? `${c.cartas_mao || 0} à mão · ${c.cartas_leitura || 0} leitura · ${c.cartas_tipos || 0} tipos · ${c.cartas_manual || 0} manuais` : 'pendente de telemetria (placar com cartas)'; })() })
+        ];
+        const porSecao = mapa.secoes.map(sec => ({ chave: String(sec.secao), rotulo: `${sec.secao}00 ${sec.nome}`, valor: sec.coberta, dica: `${sec.nome}: ${sec.coberta} cobertas · ${sec.parcial} parciais · ${sec.ausente} ausentes · ${sec.definicao} definição · ${sec.fora} fora` }));
+        const evolucao = comListas.map(p => ({ chave: String(p.data), rotulo: `${new Date(p.data).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} ${p.formato || ''}`.trim(), valor: p.listas_jogam, dica: `${p.formato || ''} v${p.motor}: ${p.listas_jogam} de ${p.listas_total} · ${p.trilha}` })).slice(-12);
+        const notas = [];
+        if (!placares.length) notas.push('telemetria sem placares: versão em uso, listas que jogam e cartas por estado aparecem quando as conversas registrarem (`node telemetria.mjs placar …`)');
+        for (const a of d.avisos || []) notas.push(a);
+        return [
+          h('div', { class: 'pn-cartoes' }, ...cartoes),
+          h('div', { class: 'pn-graficos' },
+            Barras({ id: 'pn-g-secoes', titulo: 'Regras cobertas por seção da CR', itens: porSecao, vazio: 'mapa indisponível' }),
+            Barras({ id: 'pn-g-evolucao', titulo: `Listas que jogam · evolução · ${recorteTxt}`, itens: evolucao, vazio: 'sem placares neste recorte' })),
+          notas.length ? h('ul', { class: 'pn-notas ds-text ds-text--sm ds-text--muted', id: 'pn-notas' }, ...notas.map(n => h('li', {}, n))) : null
+        ];
+      }
+    },
     roadmap: {
-      filtros: ['periodo', 'epico', 'situacao', 'trilha'],
+      filtros: ['periodo', 'epico', 'situacao', 'trilha'], periodoPadrao: 'tudo',
+      linhas: d => [...((d.resumo && d.resumo.ordem) || []), ...((d.resumo && d.resumo.historias) || [])],
       async carrega(fonte, forcar) {
         const r = await fonte.raw('main', 'ROADMAP.md', { nome: 'roadmap', ttl: 10 * 60000, forcar, transforma: M.parseRoadmap });
         return { em: r.em, resumo: r.dado, avisos: r.semRede ? ['ROADMAP lido do que estava guardado (sem rede)'] : [], sem: {} };
@@ -1124,6 +1189,7 @@ const __p4 = (function () {
     },
     eficiencia: {
       filtros: ['periodo', 'trilha', 'conversa', 'modelo', 'portao', 'situacao'], porPeriodo: true,
+      linhas: d => [...M.linhasDosCommits(Object.values(d.commits || {}).flat()), ...M.linhasDasLevas(d.levas || [])],
       /** Commits por dia (dias passados são imutáveis: guardados para sempre; o dia de hoje volta a cada atualização), rodadas,
           ramos e telemetria compartilham o cache da Pipeline. Dias ainda não lidos ficam para a próxima atualização (orçamento). */
       async carrega(fonte, forcar, filtros = {}) {
@@ -1330,7 +1396,7 @@ const __p4 = (function () {
     }
     /** Barra de chips da sub-aba: período sempre; as outras dimensões com os valores presentes nos dados; "Mais" abre o resto. */
     function barraDeFiltros(v, d) {
-      const linhasBase = d ? [...M.linhasDasLevas(d.levas || []), ...M.linhasDaFila(d.ramos || [], d.detalhes || {})] : [];
+      const linhasBase = !d ? [] : v.linhas ? v.linhas(d) : [...M.linhasDasLevas(d.levas || []), ...M.linhasDaFila(d.ramos || [], d.detalhes || {})];
       const grupos = [];
       grupos.push({ dim: 'periodo', chips: Object.keys(M.ROTULO_PERIODO).map(k => ({ valor: k, rotulo: M.ROTULO_PERIODO[k] })), fixo: true });
       for (const dim of v.filtros.filter(x => x !== 'periodo')) {
@@ -1339,7 +1405,7 @@ const __p4 = (function () {
         if (vals.length) grupos.push({ dim, chips: vals, fixo: dim === 'trilha' });
       }
       const ativos = Object.keys(est.filtros).filter(k => est.filtros[k]).length;
-      const periodoAtual = est.filtros.periodo || '7d';
+      const periodoAtual = est.filtros.periodo || v.periodoPadrao || '7d';
       const grupo = g => h('div', { class: 'pn-filtros__grupo', dataset: { dim: g.dim }, role: 'group', 'aria-label': g.dim },
         ...g.chips.map(c => Chip(c.rotulo, { ativo: g.dim === 'periodo' ? periodoAtual === c.valor : est.filtros[g.dim] === c.valor, dataset: { dim: g.dim, valor: c.valor }, onClick: () => g.dim === 'periodo' ? mudaPeriodo(c.valor) : filtra(g.dim, c.valor) })));
       // No 360: período numa linha, trilha e as ações na segunda (até 5 trilhas à vista); o resto em "Mais filtros".
