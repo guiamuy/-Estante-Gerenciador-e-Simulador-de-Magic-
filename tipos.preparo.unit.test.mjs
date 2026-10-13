@@ -182,3 +182,27 @@ test('Registro · conjurar a cópia diz "uma cópia de <mágica> (mágica de pre
   for (let i = 0; i < 8 && t.stack.length; i++) { const pa = { t: 'pass', p: t.turn.priority }, q = E.apply(t, pa); linhas = linhas.concat(T.describe(t, pa, q.events, q.state).map(String)); t = q.state; }
   assert.ok(linhas.some(l => /Aprendiz: já estava preparada, nada muda/.test(l)), JSON.stringify(linhas));
 });
+
+/* ---------------- T-61 · Elite Interceptor // Rejoinder (Pauper) ---------------- */
+test('Carta · Elite Interceptor entra preparada; a cópia de Rejoinder ({1}{W}) vira (ou desvira) a criatura alvo, se quiser, e compra uma carta', () => {
+  const ei = L('oficiais-tipos.json').find(x => x.name === 'Elite Interceptor');
+  C['Elite Interceptor'] = { name: ei.name, type_line: ei.type_line, mana_cost: ei.mana_cost, cmc: valorDeMana(ei.mana_cost), keywords: [], oracle_text: ei.oracle_text, colors: ['W'], power: ei.power, toughness: ei.toughness };
+  C.Plains = { name: 'Plains', type_line: 'Basic Land — Plains', mana_cost: '', cmc: 0, keywords: [], oracle_text: '({T}: Add {W}.)', colors: [] };
+  const deck = [{ name: 'Elite Interceptor', qty: 8, zone: 'main' }, { name: 'Aprendiz', qty: 6, zone: 'main' }, { name: 'Plains', qty: 26, zone: 'main' }];
+  const nomes = new Set(deck.map(d => d.name)), cards = Object.fromEntries(Object.entries(C).filter(([n]) => nomes.has(n)));
+  let s = E.createGame({ format: 'livre', seed: 4, mode: 'full', cards, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  s = passaAte(s, x => x.turn.active === 0 && x.turn.step === 'main1' && !x.stack.length && !x.pending);
+  let e; [s, e] = poe(s, 0, 'Elite Interceptor', 'hand'); s = mana(s);
+  s = esvazia(act(s, legais(s, 0, a => a.t === 'cast' && a.oid === e)[0]));
+  const cp = copias(s)[0];
+  eq([E.preparadaT(s, s.objects[e]), cp && cp.name], [true, 'Rejoinder']);
+  let b; [s, b] = poe(s, 1, 'Aprendiz', 'battlefield');
+  s = mana(s); const mao = s.zones[0].hand.length;
+  s = act(s, legais(s, 0, a => a.t === 'cast' && a.oid === cp.oid && a.targets[0].oid === b)[0]);
+  s = passaAte(s, x => !!x.pending || !x.stack.length);
+  assert.equal(s.pending && s.pending.kind, 'choose_mode', 'a escolha: virar ou desvirar');
+  s = act(s, legais(s, 0, a => a.t === 'choose_mode' && a.index === 0)[0] || { t: 'choose_mode', p: 0, index: 0 });
+  s = esvazia(s);
+  eq([!!s.objects[b].tapped, s.zones[0].hand.length - mao, !!s.objects[cp.oid]], [true, 1, false]);
+});

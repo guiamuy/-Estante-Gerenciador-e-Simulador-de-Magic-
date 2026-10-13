@@ -5447,6 +5447,10 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** nenhum novo (a linha do `matchesTriggerFilter` passa a foto).
 - **Próximo:** placar do catálogo; mutação e meld esperam o dono.
 
+**CR5-T61 · Elite Interceptor // Rejoinder (Pauper)** ✅ (leva T-61, sem mudança de versão do motor) — **Valor:** a carta de preparação que aparece em 6 listas do Pauper (era o 5º maior bloqueio da prova do catálogo de 13/10, 273 de 355 listas jogando, 0 falhas) passa a jogar. **Aceite:** Elite Interceptor entra preparada; a cópia de Rejoinder ({1}{W}, feitiço) vira ou desvira a criatura alvo, se quiser, e compra uma carta; conjurar desprepara. **Testes:** `tipos.preparo.unit` +1. **Carta:** texto oficial do Forge (clone de 13/10/2026) em `.listas/oficiais-tipos.json`, completa. **Fora:** a lista do catálogo que escreve o nome como "Elite Interceptor // Rejoinder" não acha os dados da carta (nome com a mágica de preparação; conversão do catálogo, trilha `homologacao`).
+- **Versão e goldens:** a versão não sobe; goldens idênticos.
+- **Próximo:** placar depois da fila; mutação e meld esperam o dono.
+
 **CR6 · Multijogador e variantes** ○ — mesa de três e quatro (800–803, 806), Commander de mesa (903.2), Brawl (903.12); as variantes hoje "fora" só entram por decisão. 10 a 14 levas.
 
 **CR7 · Consolidação** ○ (em paralelo a partir da CR2) — a cada fase: fuzz em modo completo com listas reais, homologação por revisor independente relendo a seção das regras contra o motor, e rodada de simulação do dono do produto. 6 a 8 levas ao todo.

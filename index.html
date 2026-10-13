@@ -6676,6 +6676,9 @@ const RAW_SCRIPTS = [
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
   // T-51 · CR 722 · preparação (Oracle do Forge, clone de 13/10/2026). A mágica de preparação é o `back`; "This creature enters prepared" é `entraPreparada`.
+  { name: 'Elite Interceptor', self: { preparo: true, entraPreparada: true }, // "This creature enters prepared." (T-61 · Pauper: 6 listas)
+    back: { name: 'Rejoinder', types: ['sorcery'], mana: '{1}{W}', effects: [{ do: 'tap_or_untap', target: 'creature', optional: true }, { do: 'draw', amount: 1 }] }, // "Rejoinder {1}{W} · Sorcery · You may tap or untap target creature. Draw a card."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o cenário de verdade está em tipos.preparo.unit
   { name: 'Landscape Painter', self: { preparo: true, entraPreparada: true }, // "This creature enters prepared."
     back: { name: 'Vibrant Idea', types: ['sorcery'], mana: '{4}{U}', effects: [{ do: 'draw', amount: 2 }] }, // "Vibrant Idea {4}{U} · Sorcery · Draw two cards."
     example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o cenário de verdade (preparada, a cópia, conjurar e despreparar) está em tipos.preparo.unit
