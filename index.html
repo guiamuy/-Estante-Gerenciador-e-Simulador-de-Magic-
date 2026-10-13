@@ -23660,6 +23660,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
   salaOfertasT(s, p, out); // T-26 · CR 709.5e · destrancar uma porta (ação especial, tempo de feitiço)
   tripularOfertas(s, p, out); // T-3 · CR 702.122a · "qualquer número de outras criaturas": além dos grupos mínimos, a escolha de quem tripula (função abaixo da âncora T das exportações)
   modalOfertas(s, p, out); // T-8 · CR 712.11b / 712.12 · dupla face modal na mão: conjurar ou jogar a face de trás (função abaixo da âncora T das exportações)
+  disfarceOfertasT(s, p, out); // T-44 · CR 702.168a · virada para baixo pelo disfarce também do exílio jogável
   aventuraOfertasT(s, p, out); // T-40 · CR 715.3d · a Aventura da carta jogável do exílio por outro efeito
   prototipoOfertasT(s, p, out); // T-36 · CR 718.3 · conjurar como protótipo (custo, cor e tamanho alternativos)
   return out;
@@ -27099,6 +27100,17 @@ function aventuraDe(s, x) {
  * por outro efeito (não pela própria Aventura) e a decisão "conjure sem pagar" (cascata, descobrir, "compre e conjure"). */
 const aventuraExiladaPelaPropriaT = o => o.aventuraExiladaT != null && o.aventuraExiladaT === (o.zc || 0);
 const aventuraPorOutraPermissaoT = (s, a, o) => (a.free && a.granted) || (o.zone === 'exile' && jogavelDoExilio(s, a.p, o) && !aventuraExiladaPelaPropriaT(o));
+/** T-44 · CR 702.168a · "de qualquer zona de onde poderia jogá-la": a carta com disfarce jogável do exílio também é conjurada virada
+ * para baixo (as ofertas saem do caminho da mão, numa cópia com a carta na mão). */
+function disfarceOfertasT(s, p, out) {
+  if (DENTRO_DAS_MODAIS || s.pending) return;
+  const cand = s.zones[p].exile.filter(oid => { const o = s.objects[oid], mp = ((s.facts[o.name] || {}).script || {}).morph; return mp && mp.disfarceT && jogavelDoExilio(s, p, o); });
+  if (!cand.length) return;
+  const s2 = cloneEstado(s); for (const oid of cand) { const z = s2.zones[p]; z.exile.splice(z.exile.indexOf(oid), 1); z.hand.push(oid); s2.objects[oid].zone = 'hand'; }
+  DENTRO_DAS_MODAIS = true;
+  try { for (const a of legalActions(s2, p)) if (a.t === 'cast' && a.faceDown && cand.includes(a.oid)) out.push(a); }
+  finally { DENTRO_DAS_MODAIS = false; }
+}
 function aventuraOfertasT(s, p, out) {
   if (DENTRO_DAS_MODAIS || s.pending) return;
   const cand = s.zones[p].exile.filter(oid => { const o = s.objects[oid]; return aventuraDe(s, o) && jogavelDoExilio(s, p, o) && !aventuraExiladaPelaPropriaT(o); });

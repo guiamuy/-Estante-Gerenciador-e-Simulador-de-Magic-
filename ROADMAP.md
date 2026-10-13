@@ -5192,6 +5192,14 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `validateScript` (o bônus de Equipamento aceita o reconfigurar como forma de anexar); `redefinicoesDe`/`mutacao` (as linhas da T-37 passam a chamar a função da trilha que reúne estação e reconfigurar).
 - **Próximo:** auditoria independente de disfarce e reconfigurar (T-44); depois 716.2 Classe e 309.6/309.7 masmorra.
 
+**CR5-T44 · Disfarce e reconfigurar: correções da auditoria independente** ✅ (leva T-44, sem mudança de versão do motor) — revisor sem acesso à implementação rodou 41 conferências e um fuzz de 4.400 ações; 2 divergências de baixo impacto, 1 corrigida e 1 declarada; reconfigurar sem divergência. 1 teste novo que falha sem a leva (`tipos.disfarce.unit` 9).
+- **Corrigido:** **702.168a (D2)** — a carta com disfarce jogável do exílio não era oferecida virada para baixo (só a mão); agora é, "de qualquer zona de onde poderia jogá-la".
+- **Fora, declarado (D1):** a cópia de uma disfarçada virada para baixo deveria ter salvaguarda {2} (702.168b: a salvaguarda faz parte dos valores copiáveis da face para baixo) e entra sem; o mecanismo de cópia é comum à encoberta (701.58a): pedido à trilha dona da cópia.
+- **Conferido e correto pela auditoria:** face para baixo incolor, valor 0, sem subtipo; custo {3} genérico; salvaguarda que cobra só do oponente, continua na troca de controle e resolve mesmo se a carta virar em resposta; virar para cima sem pilha, no turno do oponente e em combate; virar não dispara "ao entrar"; a manifestada e a encoberta com disfarce; reconfigurar inteiro (anexar de novo, proteção, dano e marcadores ao soltar, enjoo, troca de controle, duas lâminas).
+- **Versão e goldens:** a versão não sobe; goldens idênticos.
+- **Toca ponto comum:** nenhum novo (a oferta do exílio entra na âncora T das ofertas).
+- **Próximo:** 716.2 Classe; 309.6/309.7 masmorra; demais palavras-chave delegadas (mutação, dia e noite, completado).
+
 **CR6 · Multijogador e variantes** ○ — mesa de três e quatro (800–803, 806), Commander de mesa (903.2), Brawl (903.12); as variantes hoje "fora" só entram por decisão. 10 a 14 levas.
 
 **CR7 · Consolidação** ○ (em paralelo a partir da CR2) — a cada fase: fuzz em modo completo com listas reais, homologação por revisor independente relendo a seção das regras contra o motor, e rodada de simulação do dono do produto. 6 a 8 levas ao todo.

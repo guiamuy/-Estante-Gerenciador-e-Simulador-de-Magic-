@@ -102,3 +102,19 @@ test('CR 702.168 · passeio aleatório com disfarces: nada oferecido é recusado
   }
   assert.ok(viradas > 0, 'alguma carta foi virada para cima');
 });
+
+/* ---------------- T-44 · correção da auditoria independente ---------------- */
+test('CR 702.168a · "de qualquer zona de onde poderia jogá-la": jogável do exílio, a carta também é conjurada virada para baixo por {3}', () => {
+  let s = mesa(); let g; [s, g] = poe(s, 0, NG, 'exile', { playableFromExile: 0 }); s = mana(s);
+  const of = disfarcada(s, 0, g);
+  assert.equal(of.length, 1, 'a oferta de virada para baixo do exílio');
+  s = esvazia(act(s, of[0]));
+  eq([s.objects[g].zone, !!s.objects[g].faceDown, !!s.objects[g].disfarcadaT], ['battlefield', true, true]);
+  assert.equal(E.wardsDeK(s, s.objects[g]).length, 1, 'com a salvaguarda {2}');
+});
+
+test('CR 702.168a · sem permissão, do exílio ou do cemitério não há virada para baixo (pedido direto recusado)', () => {
+  let s = mesa(); let g; [s, g] = poe(s, 0, NG, 'graveyard'); s = mana(s);
+  eq(disfarcada(s, 0, g).length, 0);
+  assert.throws(() => E.apply(s, { t: 'cast', p: 0, oid: g, faceDown: true }));
+});
