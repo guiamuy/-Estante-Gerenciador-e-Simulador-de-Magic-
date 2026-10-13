@@ -10376,8 +10376,8 @@
    "regra": "Face-Down Spells and Permanents",
    "titulo": "Virada para baixo: 2/2 sem nome, tipo nem habilidade",
    "status": "parcial",
-   "evidencia": "power/toughness = 2 (index.html:10340-10341), has() nega palavras-chave (10065), abilitiesOf vazio (10901), sem subtipo/custo (10089, 10118, 11742, 11876); rules.unit \"S54 · metamorfose: entra virada para baixo como 2/2 sem nada\"; elves.regras Leva 136 · teste de conformidade em cr.conformidade (leva CR1a) · M-288 (CR2d.12): a virada para baixo não tem subtipo nem cor, e efeitos posteriores valem por cima",
-   "falta": "T-57 (13/10/2026, conferência do mapa): disfarce (T-42), manifestar e encobrir (V-17/V-18) existem, e as características listadas viram valores copiáveis (a salvaguarda {2} da disfarçada e da encoberta passa para a cópia, T-57). Falta: 708.2a primeira frase e 708.2b — não há efeito que vire uma permanente para baixo no campo (Ixidron, Cyber Conversion).",
+   "evidencia": "power/toughness = 2 (index.html:10340-10341), has() nega palavras-chave (10065), abilitiesOf vazio (10901), sem subtipo/custo (10089, 10118, 11742, 11876); rules.unit \"S54 · metamorfose: entra virada para baixo como 2/2 sem nada\"; elves.regras Leva 136 · teste de conformidade em cr.conformidade (leva CR1a) · M-288 (CR2d.12): a virada para baixo não tem subtipo nem cor, e efeitos posteriores valem por cima T-68: tipos.viradabaixo.unit.",
+   "falta": "T-57 (13/10/2026, conferência do mapa): disfarce (T-42), manifestar e encobrir (V-17/V-18) existem, e as características listadas viram valores copiáveis (a salvaguarda {2} da disfarçada e da encoberta passa para a cópia, T-57). Falta: 708.2a primeira frase e 708.2b — não há efeito que vire uma permanente para baixo no campo (Ixidron, Cyber Conversion). T-68 (13/10/2026): o registro da partida não diz o nome da virada para baixo (alvo, dano, ataque).",
    "esforco": "M",
    "depende": [
     "702.37",
@@ -10388,19 +10388,23 @@
     "CR 708.2 · permanente virada para baixo é 2/2 incolor: a cor impressa não vale, e bônus de Aura valem",
     "CR 708.2 · virada para baixo não tem subtipo: o hino de Elfos não a alcança e \"exceto Elfos\" a alcança",
     "CR 702.168b · o Clone que copia uma disfarçada virada para baixo é 2/2 sem nome e com salvaguarda {2}",
-    "CR 701.58a · o Clone que copia uma encoberta (virada para baixo) também tem salvaguarda {2}"
+    "CR 701.58a · o Clone que copia uma encoberta (virada para baixo) também tem salvaguarda {2}",
+    "CR 708.2 / 708.5 / 708.9 · o registro não revela a virada para baixo (alvo, dano, ataque); quando ela sai do campo, o nome aparece"
    ]
   },
   {
    "n": "708.3",
    "regra": "Face-Down Spells and Permanents",
    "titulo": "Entrar no campo já virada para baixo",
-   "status": "parcial",
-   "evidencia": "esgueirar-se põe a carta virada e atacando (rules.unit \"S54 · esgueirar-se\"); abilitiesOf vazio impede gatilho de entrada (10901)",
-   "falta": "só por esgueirar-se; não há manifestar/camuflar nem \"exile and return face down\".",
+   "status": "coberta",
+   "evidencia": "esgueirar-se põe a carta virada e atacando (rules.unit \"S54 · esgueirar-se\"); abilitiesOf vazio impede gatilho de entrada (10901) T-68: tipos.viradabaixo.unit.",
+   "falta": "T-68 (13/10/2026, conferência): coberta — disfarce/metamorfose (conjurada virada), manifestar, encobrir e esgueirar-se põem a carta virada sem gatilho de entrada. Não há efeito \"exile and return face down\" no vocabulário.",
    "esforco": "M",
    "depende": [
     "701.40"
+   ],
+   "testes": [
+    "CR 708.3 / 708.4 · conjurada virada para baixo (disfarce) ou manifestada: o gatilho de entrada não dispara"
    ]
   },
   {
@@ -10435,12 +10439,16 @@
    "n": "708.8",
    "regra": "Face-Down Spells and Permanents",
    "titulo": "Ao virar, volta aos valores normais sem reentrar",
-   "status": "parcial",
-   "evidencia": "unmorph só apaga faceDown: marcadores, dano e anexos ficam, nenhum gatilho de entrada (12609)",
-   "falta": "não há gatilho \"when this is turned face up\" nem evento para ele.",
+   "status": "coberta",
+   "evidencia": "unmorph só apaga faceDown: marcadores, dano e anexos ficam, nenhum gatilho de entrada (12609) T-68: tipos.viradabaixo.unit.",
+   "falta": "T-68 (13/10/2026, conferência): coberta — virar para cima não dispara entrada, os efeitos e marcadores continuam, e o gatilho \"when ~ is turned face up\" existe desde a T-42.",
    "esforco": "P",
    "depende": [
     "603"
+   ],
+   "testes": [
+    "CR 708.8 · virada para cima: volta aos valores dela sem gatilho de entrada; o +1/+1 até o fim do turno, os marcadores e o dano continuam",
+    "CR 708.8 · gatilho \"quando é virada para cima\" de script: dispara ao virar e só então"
    ]
   },
   {
@@ -10448,39 +10456,47 @@
    "regra": "Face-Down Spells and Permanents",
    "titulo": "Revelar ao sair do campo ou da pilha",
    "status": "parcial",
-   "evidencia": "moveObject apaga a marca faceDown em qualquer mudança que não seja pilha→campo (index.html:10242, 10266) e os eventos levam o nome real",
-   "falta": "não vi revelação ao fim da partida nem aviso explícito de \"revelada\" para o oponente.",
-   "esforco": "P"
+   "evidencia": "moveObject apaga a marca faceDown em qualquer mudança que não seja pilha→campo (index.html:10242, 10266) e os eventos levam o nome real T-68: tipos.viradabaixo.unit.",
+   "falta": "T-68 (13/10/2026): o registro revela a carta quando ela sai do campo (morreu, voltou para a mão) e não antes. Falta: revelar as viradas para baixo no fim da partida (tela de fim de jogo).",
+   "esforco": "P",
+   "testes": [
+    "CR 708.2 / 708.5 / 708.9 · o registro não revela a virada para baixo (alvo, dano, ataque); quando ela sai do campo, o nome aparece"
+   ]
   },
   {
    "n": "708.10",
    "regra": "Face-Down Spells and Permanents",
    "titulo": "Virada para baixo que vira cópia",
-   "status": "parcial",
-   "falta": "a cópia não guarda um nome vazio (usa \"Criatura virada para baixo\")",
+   "status": "coberta",
+   "falta": "T-68 (13/10/2026, conferência): coberta — a cópia de uma virada para baixo continua com as características de virada (2/2, sem nome no registro nem na mesa, sem tipo de criatura) e só vira para cima pelo custo de metamorfose/disfarce do que copiou.",
    "esforco": "P",
    "depende": [
     "707.4"
    ],
-   "evidencia": "M-288 (CR2d.12): cópia de permanente virada para baixo copia os valores de virada para baixo",
+   "evidencia": "M-288 (CR2d.12): cópia de permanente virada para baixo copia os valores de virada para baixo T-68: tipos.viradabaixo.unit.",
    "testes": [
     "CR 613.2 · virada para baixo é a camada 1b: \"torna-se 0/1\" vale por cima do 2/2, e \"torna-se vermelha\" por cima do incolor",
     "CR 708.2 · virada para baixo não tem subtipo: o hino de Elfos não a alcança e \"exceto Elfos\" a alcança",
     "CR 613.3 · subtipo de agora: \"exceto Humanos\" alcança o Humano que virou Rã, e o metamorfo que virou Rã deixa de ser Elfo",
     "CR 613.7 · virada para cima recebe carimbo novo: a estática dela vence um \"perde voar\" aplicado antes",
-    "CR 707.2 · copiar uma permanente virada para baixo copia a 2/2 sem habilidades e incolor, não a carta escondida"
+    "CR 707.2 · copiar uma permanente virada para baixo copia a 2/2 sem habilidades e incolor, não a carta escondida",
+    "CR 708.10 · a virada para baixo que vira cópia continua 2/2 sem tipo de criatura; e só vira para cima se o que ela copiou tiver o custo para isso (702.37e)"
    ]
   },
   {
    "n": "708.11",
    "regra": "Face-Down Spells and Permanents",
    "titulo": "\"Ao ser virada para cima\" aplicado na virada",
-   "status": "ausente",
-   "falta": "não há habilidades \"as this is turned face up\".",
+   "status": "coberta",
+   "falta": "T-68 (13/10/2026, conferência): coberta para a megamorfose (o marcador entra enquanto vira, K-23). Outras habilidades \"As ~ is turned face up\" (Hooded Hydra, Vesuvan Shapeshifter) não têm forma de script: essas cartas ficam manuais.",
    "esforco": "P",
    "depende": [
     "708.8"
-   ]
+   ],
+   "testes": [
+    "CR 708.11 · megamorfose: o marcador +1/+1 entra enquanto ela vira — o gatilho \"quando é virada para cima\" já vê poder 4"
+   ],
+   "evidencia": " T-68: tipos.viradabaixo.unit."
   },
   {
    "n": "708.12",
