@@ -223,7 +223,7 @@ test('CR 715 · partida sem a carta não ganha nada no estado: a face da Aventur
   for (const n of ['Profane Insight', 'Dizzying Swoop', 'Usher to Safety']) assert.equal(sem.facts[n], undefined, n + ' fora da partida sem a carta');
   assert.ok(com.facts['Profane Insight'], 'na partida com o Foulmire Knight, a Aventura dele existe');
   assert.equal(com.facts['Dizzying Swoop'], undefined, 'e só a dele');
-  assert.ok(sem.facts['Roost Seek'], 'as faces de trás anteriores à trilha seguem em toda partida, como eram (contrato dos goldens)');
+  assert.equal(sem.facts['Roost Seek'], undefined, 'M-372 · desde a M-372 (pedido da trilha listas), também as faces de trás anteriores à trilha só entram na partida que tem a carta (Sagu Wildling); antes seguiam em toda partida');
 });
 
 test('CR 715 · passeio aleatório com aventuras nos dois lados: toda ação oferecida é aceita, as invariantes valem, e nenhuma carta fica com a face da Aventura fora da pilha', () => {

@@ -4091,6 +4091,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora:** os efeitos que olham a fonte fora do campo (voltar do cemitério para a mão, craft, exilar e voltar transformada) seguem com a conferência própria que já tinham.
 - **Teste:** `lt54.unit` (3 testes; os dois de piscar falham no motor anterior, o terceiro guarda o caso normal).
 
+**M-372 · A face de trás só entra na partida que tem a carta** ✅ (leva M-372, motor v111 sem mudança de versão; goldens regravados só pelo hash: logs, situação e turnos idênticos, conferidos um a um).
+- **Valor:** uma partida carrega só as cartas que estão nela. Antes, Sorin, Kytheon, Lunarch Veteran, Sagu Wildling e todo script com face de trás sem `self.duplaFace` punham o verso nos fatos de **toda** partida: 17% do estado inicial da partida-referência Pauper eram versos de cartas fora do jogo (20.960 → 17.491 bytes), copiados a cada jogada, e uma carta nova com verso mudava as partidas-referência sem estar em jogo.
+- **Origem:** pedido da trilha `listas` na L-8 (o modelo `lt39` do Tithing Blade sem `duplaFace` mudava os goldens). Generaliza a regra que a T-5 já aplicava às cartas da trilha `tipos`.
+- **Versão:** não sobe — as ações e os resultados são os mesmos para o mesmo registro (partida salva da v111 continua abrindo); só o hash do estado muda.
+- **Fora:** carta que entra na partida sem estar nas cartas do baralho (nenhum caminho hoje) não teria o verso.
+- **Teste:** `lt55.unit` (2 testes, falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

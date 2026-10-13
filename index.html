@@ -17592,9 +17592,10 @@ function createGame(setup) {
   for (const [name, card] of Object.entries(setup.cards || {})) s.facts[name] = cardFacts(card);
   // o estado guarda só o que o motor executa; o cenário de teste (S8) fica fora
   // S24 · a face de trás vira um conjunto de fatos próprio
+  const naPartida = new Set(Object.keys(setup.cards || {}).flatMap(n => [n, n.split(' // ')[0]])); // M-372 · as cartas da partida (e a frente de "A // B")
   for (const sc of Object.values(scripts)) {
     const b = sc.back; if (!b || s.facts[b.name]) continue;
-    if (SC.versoSoNaPartida(sc) && !Object.keys(setup.cards || {}).some(n => n === sc.name || n.split(' // ')[0] === sc.name)) continue; // T-5 · a face de trás das cartas da trilha tipos (aventura…) só entra nos fatos da partida que tem a carta: partida sem ela fica com o estado, e o hash, de antes
+    if (!naPartida.has(sc.name)) continue; // M-372 · a face de trás de QUALQUER script só entra nos fatos da partida que tem a carta (antes, só a dos scripts da trilha tipos — T-5): Sorin, Kytheon, Lunarch Veteran, Sagu Wildling e todo `back` sem `self.duplaFace` iam para os fatos de toda partida (pedido da trilha listas, L-8) // T-5 · a face de trás das cartas da trilha tipos (aventura…) só entra nos fatos da partida que tem a carta: partida sem ela fica com o estado, e o hash, de antes
     // Leva 107 · a face de trás tem subtipos e cor próprios (Luminous Phantom: Creature — Spirit Cleric, branca)
     const linhaTras = (b.types || []).join(' ') + ((b.subtypes || []).length ? ' — ' + b.subtypes.join(' ') : '');
     s.facts[b.name] = cardFacts({ name: b.name, type_line: linhaTras, power: b.power, toughness: b.toughness, keywords: b.keywords || [], colors: b.colors || [], oracle_text: '' });
