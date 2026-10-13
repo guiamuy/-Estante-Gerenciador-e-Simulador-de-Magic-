@@ -6100,7 +6100,7 @@ function validateScript(sc) {
   if (sc && sc.reduzPor && (sc.discount || sc.affinity)) errs.push('redução por contagem não se soma a desconto ou afinidade no mesmo script'); // M-333
   // S18 · ninjutsu e insanidade
   // S21 · habilidades de lealdade
-  for (const ab of (sc && sc.abilities) || []) if (ab.condition && !['lifeGained', 'attackersAtLeast', 'controlsOtherNamed', 'bargained', 'evidenced', 'kicked', 'opponentMoreLands', 'atacaSozinha', 'vidaPeloMenos', 'marcadoresNaFonte', 'entrouDesvirada', ...condicoesK(), ...condicoesT()].includes(Object.keys(ab.condition)[0] || '')) errs.push('condição de gatilho desconhecida'); // K-59 · condições da trilha keywords (Toca ponto comum: validador de condições)
+  for (const ab of (sc && sc.abilities) || []) if (ab.condition && !['lifeGained', 'attackersAtLeast', 'controlsOtherNamed', 'bargained', 'evidenced', 'kicked', 'opponentMoreLands', 'atacaSozinha', 'vidaPeloMenos', 'marcadoresNaFonte', 'entrouDesvirada', 'semTerrenoVirado', ...condicoesK(), ...condicoesT()].includes(Object.keys(ab.condition)[0] || '')) errs.push('condição de gatilho desconhecida'); // K-59 · condições da trilha keywords (Toca ponto comum: validador de condições)
   if (sc && sc.bargain != null && sc.bargain !== true) errs.push('barganha é uma marca, sem valor');
   if (sc && sc.evidence != null && !(Number.isInteger(sc.evidence) && sc.evidence > 0)) errs.push('colher provas precisa de um número inteiro positivo');
   for (const ab of (sc && sc.abilities) || []) if (ab.mayPay && !ab.mayPay.mana && !ab.mayPay.exileFromGraveyard && !ab.mayPay.sacrificeSelf && !(Number.isInteger(ab.mayPay.pagarVida) && ab.mayPay.pagarVida > 0)) errs.push('custo opcional do gatilho sem custo'); // V-26 · "you may pay N life" (Toca ponto comum)
@@ -6261,6 +6261,7 @@ function effectErrors(effects, label, opcional) {
     if (e.do === 'reflexive') errs.push(...effectErrors(e.effects, `${label} ${i + 1} (reflexivo)`));
     if (e.do === 'delayed') { if (!ATRASOS.includes(e.when)) errs.push(`${label} ${i + 1}: momento "${e.when}" desconhecido para gatilho atrasado`); errs.push(...effectErrors(e.effects, `${label} ${i + 1} (atrasado)`)); }
     if (e.do === 'tap_or_untap' && e.optional != null && typeof e.optional !== 'boolean') errs.push(`${label} ${i + 1}: "opcional" precisa ser verdadeiro ou falso`); // Leva 131
+    if (e.do === 'descarta_e_compra' && e.descarta != null && !(Number.isInteger(e.descarta) && e.descarta >= 1)) errs.push(`${label} ${i + 1}: "descarta" é quantas cartas se descartam (inteiro, 1 ou mais)`); // M-373
     if (['search', 'look'].includes(e.do)) {
       if (e.to && !PICK_DESTS.includes(e.to)) errs.push(`${label} ${i + 1}: destino "${e.to}" desconhecido`);
       if (e.rest && !PICK_DESTS.includes(e.rest)) errs.push(`${label} ${i + 1}: resto "${e.rest}" desconhecido`);
@@ -8911,6 +8912,11 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Haunted Fengraf': { texto: 'fcokt2', leva: 'M-369' },
   // M-370 · revisão por lote XXXII (Pauper: Gingerbrute), revisor independente com 48 verificações: 1 de 1 aprovadas
   'Gingerbrute': { texto: 'ecv8hp', leva: 'M-370' },
+  // M-373 · revisão por lote XXXIII (Pauper: Devoted Druid, Martyr's Soul, Heritage Reclamation, Thrilling Discovery), revisor independente com 114 verificações: 4 de 4 aprovadas
+  'Devoted Druid': { texto: 'digr3d', leva: 'M-373' },
+  'Martyr\'s Soul': { texto: '7xsnc6', leva: 'M-373' },
+  'Heritage Reclamation': { texto: 'j49872', leva: 'M-373' },
+  'Thrilling Discovery': { texto: 'u92ry7', leva: 'M-373' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -16510,6 +16516,7 @@ const __m42 = (function () {
     if (k === 'target opponent or planeswalker') return { target: { tipos: ['planeswalker'], jogadores: 'opponent' } }; // M-343
     if (k === 'target legendary creature') return { target: { tipos: ['creature'], lendaria: true } }; // M-343 · Karakas (205.4)
     if (k === 'up to one target tapped creature') return { target: 'creature', upTo: true, targetTapped: true }; // M-349 · Cryogen Relic
+    if (k === 'up to one target card from a graveyard') return { target: 'card-in-any-graveyard', upTo: true }; // M-373 · Heritage Reclamation (115.3: aceita zero)
     if (k === 'target instant or sorcery spell') return { target: 'spell', targetTypes: ['instant', 'sorcery'] }; // LT13
     return null;
   }
@@ -16623,6 +16630,9 @@ const __m42 = (function () {
     [/^exile all cards from target player's graveyard$/i, () => [{ do: 'exile_graveyard', target: 'player' }]], // LT9
     [/^return target creature card from your graveyard to your hand$/i, () => [{ do: 'to_hand', target: 'creature-in-your-graveyard' }]], // LT9
     [new RegExp(`^you may discard a card to draw ${N} cards?$`, 'i'), m => [{ do: 'descarta_e_compra', amount: num(m[1]) }]], // M-348
+    [new RegExp(`^you may discard (two|three) cards to draw ${N} cards?$`, 'i'), m => [{ do: 'descarta_e_compra', descarta: num(m[1]), amount: num(m[2]) }]], // M-373 · todas ou nenhuma
+    [/^untap ~$/i, () => [{ do: 'untap', target: 'self-source' }]], // M-373 · "Put a -1/-1 counter on ~: Untap ~" (Devoted Druid)
+    [/^exile (up to one target card from a graveyard)$/i, m => [com({ do: 'exile' }, alvo(m[1]))]], // M-373 · Heritage Reclamation
     [/^pisca (target (?:creature|permanent)(?: you control)?)$/i, m => { const a = alvo(m[1]); return a ? [{ do: 'pisca', ...a }] : null; }], // M-349 · Ephemerate (frase juntada em leParagrafo)
     [new RegExp(`^put ${N} ([a-z]+) counters? on (.+)$`, 'i'), m => { const a = alvo(m[3]); return a && !['target player', 'target opponent'].includes(m[3].toLowerCase()) ? [{ do: 'counters', tipo: m[2].toLowerCase(), amount: num(m[1]), ...a }] : null; }], // M-349 · Cryogen Relic ("a stun counter on up to one target tapped creature")
     [/^sacrifice (?:it|~) unless you return an artifact you control to its owner's hand$/i, () => [{ do: 'sacrifica_a_menos_que_devolva', tipos: ['artifact'] }]], // M-349 · Glint Hawk
@@ -16860,13 +16870,16 @@ const __m42 = (function () {
     if (sk) { condicao = { kicked: true }; resto2 = sk[1]; }
     const sm = !se && !sv && !sk && resto2.match(/^if there are (\d+) or more ([a-z]+) counters on (?:~|this [a-z]+), (.+)$/i); // M-325
     if (sm) { condicao = { marcadoresNaFonte: { tipo: sm[2].toLowerCase(), n: +sm[1] } }; resto2 = sm[3]; }
+    const sn = !condicao && resto2.match(/^if you control no tapped lands, (.+)$/i); // M-373 · 603.4 (Martyr's Soul)
+    if (sn) { condicao = { semTerrenoVirado: true }; resto2 = sn[1]; }
     const opcional = /^you may /i.test(resto2);
     let corpo = resto2.replace(/^you may /i, '').replace(/^it /i, '~ ');
     if (/(this creature|~)/i.test(cab) && !/\btarget\b/i.test(corpo)) corpo = corpo.replace(/ on it$/i, ' on ~'); // M-322 · "put a +1/+1 counter on it": "it" é a própria permanente da abertura
     const sub = [];
     const e = leParagrafo(corpo, nome, sub);
     if (e && g[1] === 'dies') for (const x of e) if (x.do === 'to_hand' && x.target === 'self-source' && x.from === 'battlefield') delete x.from; // M-339 · "when ~ is put into a graveyard…, return ~ to its owner's hand": do cemitério
-    frases.push({ texto: cab, lida: true }, ...sub);
+    const textoCond = condicao ? resto.slice(0, resto.length - resto2.length).replace(/,\s*$/, '') : ''; // M-373 · achado da revisão: a ficha mostra também a condição (603.4), não só o efeito
+    frases.push({ texto: cab, lida: true }, ...(textoCond ? [{ texto: textoCond, lida: true }] : []), ...sub);
     return e ? { kind: 'triggered', when: g[1], ...extra, ...(condicao ? { condition: condicao } : {}), ...(opcional ? { optional: true } : {}), effects: e } : null;
   }
   const semLembrete = t => String(t || '').replace(/\s*\([^)]*\)/g, '').trim();
@@ -16911,7 +16924,7 @@ const __m42 = (function () {
     for (let achou = true; achou && texto;) { achou = false; // M-335
       for (const [re, faz] of PRE_PARAGRAFO) { const m = texto.match(re); const e = m && faz(m); if (!e) continue; efeitos.push(...e); frases.push({ texto: m[0].trim().replace(/\.$/, ''), lida: true }); texto = texto.slice(m[0].length).trim(); achou = true; break; } }
     if (!texto) return efeitos;
-    texto = texto.replace(/(?:you may )?discard a card\. if you do, draw (\w+) cards?/i, 'you may discard a card to draw $1 cards');
+    texto = texto.replace(/(?:then )?(?:you may )?discard (a card|two cards|three cards)\. if you do, draw (\w+) cards?/i, 'you may discard $1 to draw $2 cards'); // M-373 · "Then you may discard two cards. If you do, draw three cards" (Thrilling Discovery)
     texto = texto.replace(/^exile (target (?:creature|permanent)(?: you control)?), then return (?:it|that card) to the battlefield under its owner's control/i, 'pisca $1'); // M-349 · Ephemerate
     texto = texto.replace(/^exile two target (artifacts, creatures, and\/or lands you control), then return those cards to the battlefield under your control/i, 'pisca_dois $1'); // M-351 · Ghostly Flicker
     texto = texto.replace(/exile the top card of your library\. until end of turn, you may play that card/i, 'impulso one ate o fim do turno'); // M-352
@@ -20076,9 +20089,9 @@ function applyEffect(s, src, eff, tgt, events) {
       note({ amount: quem.length }); break;
     }
     case 'descarta_e_compra': { // M-348 · "You may discard a card. If you do, draw N cards": o jogador escolhe a carta (ou nenhuma)
-      const mao = s.zones[ctrl].hand.slice();
-      if (!mao.length) { note({ amount: 0 }); break; }
-      startPick(s, { p: ctrl, from: mao, min: 0, max: 1, to: 'graveyard', rest: 'stay', discard: true, label: 'escolher o descarte', source: src.name, depois: { draw: amountOf(s, src, eff.amount) } }, events);
+      const mao = s.zones[ctrl].hand.slice(), nd = eff.descarta || 1; // M-373 · "you may discard two cards. If you do, draw three cards" (Thrilling Discovery): todas ou nenhuma
+      if (mao.length < nd) { note({ amount: 0 }); break; } // M-373 · sem cartas bastantes para descartar todas, não há o que oferecer (declarado)
+      startPick(s, { p: ctrl, from: mao, min: 0, max: nd, to: 'graveyard', rest: 'stay', discard: true, label: 'escolher o descarte', source: src.name, depois: { draw: amountOf(s, src, eff.amount) }, ...(nd > 1 ? { tudoOuNada: true } : {}) }, events);
       note({ pending: true }); break;
     }
     case 'sacrifice_it': { // M-222 · "Target permanent's controller sacrifices it"
@@ -20912,6 +20925,7 @@ function startPick(s, spec, events) {
     to: spec.to, rest: spec.rest || 'stay', shuffle: !!spec.shuffle, filter: spec.filter || null, label: spec.label, source: spec.source,
     ...(spec.needMv ? { needMv: spec.needMv } : {}),
     ...(spec.discard ? { discard: true } : {}), // Leva 105 · escolha que é descarte (insanidade)
+    ...(spec.tudoOuNada ? { tudoOuNada: true } : {}), // M-373 · ou escolhe o máximo (a escolha fecha sozinha), ou nenhuma
     ...(spec.reparte ? { reparte: spec.reparte } : {}), // M-345
     ...(spec.senaoSacrifica ? { senaoSacrifica: spec.senaoSacrifica } : {}), ...(spec.segura ? { segura: spec.segura } : {}), // M-353 · Mesmeric Fiend // M-349 · Glint Hawk · Cultivate: um destino por ordem de escolha
     ...(spec.revelaEscolhida ? { revelaEscolhida: true } : {}), // M-335 · 701.20a: revela só a carta escolhida
@@ -21330,6 +21344,7 @@ function triggerConditionMet(s, o, cond) {
   if (cond.evidenced && !o.evidenced) return false; // S41 · colher provas
   if (cond.kicked && !o.kicked) return false; // CR 702.33d · "if it was kicked"
   if (cond.controlsOtherNamed && !battlefield(s).some(x => x.oid !== o.oid && x.controller === o.controller && x.name === o.name)) return false;
+  if (cond.semTerrenoVirado && battlefield(s).some(x => x.controller === o.controller && x.tapped && tiposDe(s, x).includes('land'))) return false; // M-373 · "if you control no tapped lands" (603.4: ao disparar e ao resolver)
   if (cond.vidaPeloMenos != null && !(s.players[o.controller] && s.players[o.controller].life >= cond.vidaPeloMenos)) return false; // CR2h.6 · "if you have 40 or more life" (603.4: confere ao disparar e ao resolver)
   if (cond.marcadoresNaFonte && !(((o.counters || {})[cond.marcadoresNaFonte.tipo] || 0) >= cond.marcadoresNaFonte.n)) return false; // CR2h.6 · "if there are 100 or more tower counters on ~"
   if (cond.opponentMoreLands) { // M-247 · "if an opponent controls more lands than you" (Knight of the White Orchid), conferida de novo na resolução (603.4)
@@ -22790,6 +22805,7 @@ const HANDLERS = {
     if (!s.pending || s.pending.kind !== 'pick' || s.pending.p !== a.p) throw new RuleError('tempo', 'nada a escolher');
     if (s.pending.needMv && pickedMv(s, s.pending) < s.pending.needMv) throw new RuleError('escolha', `some ${s.pending.needMv} de valor de mana`);
     if (s.pending.picked.length < s.pending.min) throw new RuleError('escolha', `escolha ${s.pending.min} carta(s)`);
+    if (s.pending.tudoOuNada && s.pending.picked.length) throw new RuleError('escolha', `escolha ${s.pending.max} cartas ou nenhuma`); // M-373
     finishPick(s, ev);
   },
   /** M10/S11b · escolhe a cor que a permanente pediu ao entrar. */
@@ -23290,7 +23306,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
     if (k === 'pick') {
       const pk = s.pending;
       if (pk.picked.length < pk.max) pk.from.filter(oid => !pk.picked.includes(oid) && matchesFilter(s, s.objects[oid], pk.filter)).forEach(oid => out.push({ t: 'pick', p, oid }));
-      if (pk.picked.length >= pk.min && !(pk.needMv && pickedMv(s, pk) < pk.needMv)) out.push({ t: 'pick_done', p }); // M-310 · oferta = aceite: colher provas só confirma com o valor de mana somado (o fuzz com listas reais achou a oferta sem ele)
+      if (pk.picked.length >= pk.min && !(pk.needMv && pickedMv(s, pk) < pk.needMv) && !(pk.tudoOuNada && pk.picked.length)) out.push({ t: 'pick_done', p }); // M-373 · tudo ou nada: depois da primeira, só termina escolhendo o máximo // M-310 · oferta = aceite: colher provas só confirma com o valor de mana somado (o fuzz com listas reais achou a oferta sem ele)
     }
     if (k === 'triggers') s.queued.filter(q => q.controller === p).forEach((q, i) => out.push({ t: 'order_trigger', p, index: i }));
     if (k === 'blockers') {
@@ -30270,7 +30286,7 @@ function descreveEfeito(e) {
     case 'comandantes_para_mao': return 'põe os seus comandantes da zona de comando e do cemitério na sua mão'; // M-348
     case 'cemiterio_no_grimorio': return 'embaralha o seu cemitério no grimório';
     case 'compra_quem_controla_nome': return 'cada jogador que controla uma permanente com este nome compra uma carta';
-    case 'descarta_e_compra': return `pode descartar uma carta; se fizer, compra ${plural(n, 'carta', 'cartas')}`;
+    case 'descarta_e_compra': return `pode descartar ${(e.descarta || 1) > 1 ? `${e.descarta} cartas` : 'uma carta'}; se fizer, compra ${plural(n, 'carta', 'cartas')}`; // M-373
     case 'topo_do_dono': return 'põe esta permanente no topo do grimório do dono'; // M-345
     case 'sacrifice_it': return e.target === 'self-source' ? 'sacrifica esta permanente' : 'o controlador sacrifica a permanente alvo'; // M-342
     case 'reanimate_all': return `devolve ao campo todas as ${(e.types || []).map(x => ({ creature: 'criaturas', planeswalker: 'planeswalkers' }[x] || x)).join(' e ')}${e.mvMax != null ? ` de valor de mana ${qtd(e.mvMax)} ou menos` : ''} do seu cemitério`; // CR2c.5
@@ -32643,7 +32659,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
         })() });
     } else if (s.pending && s.pending.kind === 'pick' && s.pending.p === v) {
       const pk = s.pending;
-      const done = pk.picked.length >= pk.min;
+      const done = pk.tudoOuNada ? !pk.picked.length : pk.picked.length >= pk.min; // M-373 · tudo ou nada: o botão é "não descartar"
       const LABEL = { 'colher provas': 'Colher provas: exile do cemitério', desvirar: 'Escolha o que desvirar', delve: 'Delve: escolha o que exilar do cemitério', 'descartar ou sacrificar': 'Descartar ou sacrificar um terreno?', 'escolher o descarte': 'Escolha o descarte do oponente', 'devolver para a mão': 'Escolha o que volta para a mão', 'scry': 'Vidência: escolha o que fica no topo', 'surveil': 'Vigiar: escolha o que fica no topo', 'vasculhar': 'Vasculhar o grimório', 'olhar o topo': 'Olhar o topo do grimório', 'ordenar o topo': 'Ponha de volta na ordem: a primeira escolhida fica em cima', 'devolver ao topo': 'Devolver ao topo', 'embaralhar no grimório': 'Escolha do seu cemitério o que embaralhar no grimório', 'exilar da mão': 'Escolha as cartas da mão a exilar', 'esconder': 'Esconderijo: escolha a carta a exilar virada para baixo', 'copiar ao entrar': 'Escolha o que ela copia ao entrar (ou confirme sem escolher)', 'repartir hand': 'Escolha a que vai para a mão', 'repartir library-bottom': 'Escolha a que vai para o fundo do grimório', 'repartir exile-playable-turn': 'Escolha a que vai para o exílio (pode jogar neste turno)' }; // M-265
       const REST = { 'library-bottom': 'vai para o fundo', 'graveyard': 'vai para o cemitério', 'stay': 'fica onde está', 'library-top': 'fica no topo' };
       // Leva 125 · o título diz de qual carta é a escolha; a contagem só aparece quando se escolhe mais de uma
@@ -32652,6 +32668,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
         // Leva 136 · olhar o topo com filtro (Lead the Stampede): o aviso diz o que pode ser pego e para onde vai
         hint: (() => { const TIPO = { creature: 'criaturas', land: 'terrenos', artifact: 'artefatos', enchantment: 'encantamentos' }, PARA = { hand: 'para a mão', battlefield: 'para o campo' };
           if (pk.reparte) return `A primeira que você tocar entra no campo virada; a segunda vai para a mão · ${pk.picked.length} de até ${pk.max}`; // M-345 · Cultivate
+          if (pk.tudoOuNada) return `Toque em ${pk.max} cartas para descartar${(pk.depois || {}).draw ? ` e comprar ${pk.depois.draw}` : ''}, ou não descarte nenhuma`; // M-373 · Thrilling Discovery
           if (pk.needMv) return `Toque nas cartas até somar ${pk.needMv} de valor de mana: ${pk.picked.reduce((n, o) => n + ((s.facts[s.objects[o].name] || {}).cmc || 0), 0)} de ${pk.needMv}`; // colher provas
           const tipo = pk.label === 'olhar o topo' && pk.filter && (pk.filter.types || []).length === 1 && Object.keys(pk.filter).length === 1 ? TIPO[pk.filter.types[0]] : null;
           const UMA = { creature: 'uma criatura', land: 'um terreno', artifact: 'um artefato', enchantment: 'um encantamento' };
@@ -32663,7 +32680,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
           const NADA = { creature: 'Nenhuma criatura', land: 'Nenhum terreno', artifact: 'Nenhum artefato', enchantment: 'Nenhum encantamento' }[pk.filter.types[0]];
           return podem ? `Toque nas ${tipo} que vão ${PARA[pk.to]}: ${pk.picked.length} de ${Math.min(pk.max, podem)} · o resto ${REST[pk.rest] || ''}` : `${NADA} entre as cartas · tudo ${REST[pk.rest] || ''}`; })()
           || (pk.max > 1 ? `${pk.picked.length} de até ${pk.max} escolhida(s) · o resto ${REST[pk.rest] || ''}` : pk.min ? 'Toque na carta.' : pk.label === 'vasculhar' ? 'Toque na carta. Você pode confirmar sem pegar nenhuma.' : `Toque na carta, ou confirme sem escolher · o resto ${REST[pk.rest] || ''}`), // CR 701.23b: a busca pode não achar
-        actions: [done ? Button('Confirmar', { variant: 'primary', id: 'tb-pick-done', onClick: () => act({ t: 'pick_done', p: v }) }) : null].filter(Boolean) });
+        actions: [done ? Button(pk.tudoOuNada ? 'Não descartar' : 'Confirmar', { variant: pk.tudoOuNada ? 'secondary' : 'primary', id: 'tb-pick-done', onClick: () => act({ t: 'pick_done', p: v }) }) : null].filter(Boolean) });
     } else if (s.pending && s.pending.kind === 'commander_zone' && s.pending.p === v) {
       // M13 · 903.9: o dono escolhe; o padrão é voltar, que é o que quase todo mundo faz
       const cmd = s.objects[s.pending.oid];

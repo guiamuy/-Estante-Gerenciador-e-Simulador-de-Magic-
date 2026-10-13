@@ -4098,6 +4098,14 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora:** carta que entra na partida sem estar nas cartas do baralho (nenhum caminho hoje) não teria o verso.
 - **Teste:** `lt55.unit` (2 testes, falham no motor anterior).
 
+**M-373 · LT42 · Frases do Pauper: descartar duas para comprar três, "Untap ~", "se você não controla terreno virado", "até um alvo em um cemitério"** ✅ (leva M-373, motor v111 sem mudança de forma; goldens intactos).
+- **Valor:** revisão por lote XXXIII — **Devoted Druid, Martyr's Soul, Heritage Reclamation e Thrilling Discovery passam a jogar** (APROVADAS; texto do Oracle do Forge, consulta de 12/10/2026). O revisor independente fez 114 verificações e aprovou as quatro.
+- **Regras:** "you may discard two cards. If you do, draw three cards" é tudo ou nada — depois da primeira carta não dá para parar, e a segunda fecha a escolha (descarte conta para insanidade e para gatilhos de descarte); "if you control no tapped lands" é conferido ao disparar e de novo ao resolver (603.4: virar um terreno em resposta tira os marcadores); "up to one target card from a graveyard" aceita zero alvos (o modo compra mesmo assim). Na mesa, o botão da escolha vira "Não descartar" e o aviso diz quantas cartas descartar e quantas comprar.
+- **Simplificações declaradas:** com menos cartas na mão do que o pedido (uma só, para descartar duas), nada é oferecido — a 609.3 talvez permitisse descartar a única sem comprar (só mudaria algo com insanidade ou gatilho de descarte; nenhuma regra ou ruling encontrado decide).
+- **Limitação antiga registrada (achado da revisão):** a mágica com escolha no meio da resolução (descartar e comprar, M-348 e esta) vai para o cemitério antes da escolha; pela 608.2n deveria ficar por cima das cartas descartadas. Só muda a ordem do cemitério; vira leva própria.
+- **De passagem:** a ficha do leitor mostra também a condição do gatilho ("if you control no tapped lands"), não só o efeito.
+- **Teste:** `lt56.unit` (4 testes, falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
