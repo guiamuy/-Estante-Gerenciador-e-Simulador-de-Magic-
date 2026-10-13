@@ -9399,15 +9399,22 @@
    "n": "702.167",
    "regra": "Keyword Abilities",
    "titulo": "Craft",
-   "status": "ausente",
-   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): criar (craft) exila materiais e transforma a dupla face.",
+   "status": "parcial",
+   "falta": "T-54 (13/10/2026, conferência do mapa): 702.167a coberta pela trilha motor (M-356: `self.craft` + face de trás, só como feitiço, exila a carta e o material, volta transformada sob o controle do dono). Falta: 702.167b (\"cartas usadas no craft\", nenhuma carta das listas) e craft com quantidade variável de materiais.",
    "esforco": "M",
    "depende": [
     "712 dupla face",
     "607 habilidades ligadas",
     "602 custo com escolha de vários objetos"
    ],
-   "cartas": "uma coleção só (The Lost Caverns of Ixalan)"
+   "cartas": "uma coleção só (The Lost Caverns of Ixalan)",
+   "evidencia": "M-356 (motor) · ROADMAP: `self: { craft: { mana, types, amount } }` mais `back`; efeito `craft_volta`; revisão independente com 43 asserções.",
+   "testes": [
+    "M-356 · 702.167a: o validador aceita o craft com face de trás e recusa sem ela ou com material desconhecido",
+    "M-356 · 702.167a: quem paga escolhe o material entre criatura sua e carta de criatura do seu cemitério; sem material, não há oferta",
+    "M-356 · 702.167a: só como feitiço — não é oferecido nem aceito no turno do oponente",
+    "M-356 · 702.167a: paga {4}{B}, exila a Lâmina e o material; ao resolver, volta transformada sob o controle do DONO e a face de trás funciona"
+   ]
   },
   {
    "n": "702.168",
@@ -9461,14 +9468,14 @@
    "n": "702.171",
    "regra": "Keyword Abilities",
    "titulo": "Saddle",
-   "status": "parcial",
-   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): selar (saddle) é a montaria, irmã do tripular (T-3). T-31 (13/10/2026): falta só 702.171c — o gatilho \"whenever ~ saddles a Mount\" e \"não pode selar\" ainda não existem; quem tripula \"como se tivesse poder maior\" soma também para selar. T-33: Veículo que também tem Selar conta a selagem como tripulação (gatilho \"crews\", \"não pode tripular\") — nenhuma carta oficial tem os dois.",
+   "status": "coberta",
+   "falta": "T-54 (13/10/2026): coberta — 702.171c: quem é virada para pagar o selar \"sela\" a montaria (gatilho `saddles`, com a montaria como `remembered`). Fora: \"não pode selar\" (nenhuma carta); Veículo que também tem Selar (nenhuma carta oficial tem os dois, T-33).",
    "esforco": "M",
    "depende": [
     "602 custo de virar várias criaturas"
    ],
    "cartas": "uma coleção só (Outlaws of Thunder Junction)",
-   "evidencia": "T-31 (13/10/2026): self.selar = N monta a ativada de selar (custo de tripular N, só como feitiço, grupos mínimos e escolha livre de quem sela, efeito selada); selada até o fim do turno ou até sair do campo, não copiável (o.seladaT com turno e encarnação); a habilidade que resolve depois de a montaria sair e voltar não sela (400.7); \"attacks while saddled\" = gatilho attacks com condition { selada: true }. Mesa: \"Selar N\", \"Quem sela …?\", registro \"X foi selada\". Cartas exemplo completas: Bridled Bighorn, Trained Arynx, Drover Grizzly (Oracle do Forge, 13/10/2026). T-33 (13/10/2026) · auditoria independente (77 conferências, fuzz de 20 partidas / 5.000 ações, 222 selagens): os bônus de tripular (\"crews Vehicles as though…\") não somam para selar; o registro da escolha livre diz \"selou\". T-35 (13/10/2026) · auditoria independente (33 sondas, 28 partidas com bot): quem tripula pela resistência (Giant Ox) não sela pela resistência — selar soma o poder.",
+   "evidencia": "T-31 (13/10/2026): self.selar = N monta a ativada de selar (custo de tripular N, só como feitiço, grupos mínimos e escolha livre de quem sela, efeito selada); selada até o fim do turno ou até sair do campo, não copiável (o.seladaT com turno e encarnação); a habilidade que resolve depois de a montaria sair e voltar não sela (400.7); \"attacks while saddled\" = gatilho attacks com condition { selada: true }. Mesa: \"Selar N\", \"Quem sela …?\", registro \"X foi selada\". Cartas exemplo completas: Bridled Bighorn, Trained Arynx, Drover Grizzly (Oracle do Forge, 13/10/2026). T-33 (13/10/2026) · auditoria independente (77 conferências, fuzz de 20 partidas / 5.000 ações, 222 selagens): os bônus de tripular (\"crews Vehicles as though…\") não somam para selar; o registro da escolha livre diz \"selou\". T-35 (13/10/2026) · auditoria independente (33 sondas, 28 partidas com bot): quem tripula pela resistência (Giant Ox) não sela pela resistência — selar soma o poder. T-54 (13/10/2026): o custo do selar leva a marca `selaT`; ao pagar, cada criatura virada dispara `sela` (gatilho `saddles`, \"whenever ~ saddles a Mount\"), e não `tripula`.",
    "testes": [
     "CR 702.171a · selar soma o poder: quem tripula pela resistência (Giant Ox, 0/6) não sela \"Selar 1\"",
     "CR 702.171a · selar N: virar outras criaturas suas com poder total N ou mais (enjoo não impede); só como feitiço; a montaria fica selada",
@@ -9477,7 +9484,8 @@
     "CR 702.171b / 400.7 · a montaria que sai do campo deixa de estar selada (objeto novo)",
     "CR 400.7 · a habilidade de selar que resolve depois de a montaria sair e voltar não sela o objeto novo",
     "Bridled Bighorn (texto oficial) · atacando selada, cria uma Ovelha 1/1 branca; sem selar, nada",
-    "CR 702.171a · selar não é tripular: o bônus \"tripula Veículos como se tivesse poder maior\" não soma para selar (e soma para tripular)"
+    "CR 702.171a · selar não é tripular: o bônus \"tripula Veículos como se tivesse poder maior\" não soma para selar (e soma para tripular)",
+    "CR 702.171c · a criatura que é virada para pagar o selar \"sela\" a montaria: o gatilho \"whenever this creature saddles a Mount\" dispara (e não o de tripular)"
    ]
   },
   {
@@ -9684,14 +9692,15 @@
    "n": "702.184",
    "regra": "Keyword Abilities",
    "titulo": "Station",
-   "status": "parcial",
-   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): estação é do tipo Espaçonave. T-37 (13/10/2026): falta só 702.184c (estacionar por outra característica, Tapestry Warden).",
-   "evidencia": "T-37 (13/10/2026): self.estacao.faixas = [{ n, pt?, palavras?, abilities? }]; o motor monta a ativada de estação (virar outra criatura sua desvirada, enjoo não impede, só como feitiço; marcadores de carga iguais ao poder dela na resolução, ou o último que teve se saiu, 608.2h), que existe sempre (721.4). Cada faixa {N+} alcançada dá palavras e habilidades e, com pt, torna a permanente criatura com esse P/R base além dos outros tipos (cálculo de camadas). Mesa: \"Estação: virar <criatura> (+N de carga)\"; registro \"recebeu N marcadores de carga (estação)\". Carta exemplo completa: Pinnacle Kill-Ship (Oracle do Forge, 13/10/2026). T-38 (13/10/2026) · auditoria independente (38 conferências, fuzz de 10.100 ações): a criatura virada que saiu do campo conta o último poder que teve (antes, o do momento da ativação).",
+   "status": "coberta",
+   "falta": "T-54 (13/10/2026): coberta — 702.184c com `self.estacionaPelaResistencia` (\"each creature you control with toughness greater than its power stations permanents using its toughness\"). Tapestry Warden segue manual: a outra habilidade dela (dano de combate pela resistência) não existe no motor.",
+   "evidencia": "T-37 (13/10/2026): self.estacao.faixas = [{ n, pt?, palavras?, abilities? }]; o motor monta a ativada de estação (virar outra criatura sua desvirada, enjoo não impede, só como feitiço; marcadores de carga iguais ao poder dela na resolução, ou o último que teve se saiu, 608.2h), que existe sempre (721.4). Cada faixa {N+} alcançada dá palavras e habilidades e, com pt, torna a permanente criatura com esse P/R base além dos outros tipos (cálculo de camadas). Mesa: \"Estação: virar <criatura> (+N de carga)\"; registro \"recebeu N marcadores de carga (estação)\". Carta exemplo completa: Pinnacle Kill-Ship (Oracle do Forge, 13/10/2026). T-38 (13/10/2026) · auditoria independente (38 conferências, fuzz de 10.100 ações): a criatura virada que saiu do campo conta o último poder que teve (antes, o do momento da ativação). T-54 (13/10/2026): `valorDeEstacaoT` — o poder, ou a resistência quando quem controla a criatura tem uma permanente com `self.estacionaPelaResistencia` e a resistência é maior que o poder; vale na foto do custo, na resolução (também pela última informação, 608.2h) e no botão da folha.",
    "testes": [
     "CR 608.2h · a criatura recebe +3/+3 em resposta e depois sai do campo: vale o último poder que ela teve (5), não o da ativação (2)",
     "CR 702.184a · estação: vire outra criatura sua desvirada (enjoo não impede) e a nave recebe marcadores de carga iguais ao poder dela",
     "CR 702.184a · estação só como feitiço: não no turno do oponente nem com a pilha ocupada; criatura virada não serve",
-    "CR 702.184a / 608.2h · o número de marcadores é o poder da criatura virada quando a estação resolve (Força em resposta: 5); criatura de poder 0 não põe nada"
+    "CR 702.184a / 608.2h · o número de marcadores é o poder da criatura virada quando a estação resolve (Força em resposta: 5); criatura de poder 0 não põe nada",
+    "CR 702.184c · \"each creature you control with toughness greater than its power stations permanents using its toughness\": o Muro 0/4 põe 4; o Urso 2/2 segue pelo poder; a do oponente não vale"
    ],
    "esforco": "G",
    "depende": [

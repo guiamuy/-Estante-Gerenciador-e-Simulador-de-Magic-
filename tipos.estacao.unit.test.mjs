@@ -163,3 +163,22 @@ test('CR 721.2c · fora do campo a carta de estação não tem poder nem resist�
   const st = E.stats(s, s.objects[k]);
   eq([st.power || 0, st.toughness || 0], [0, 0]);
 });
+
+/* ---------------- T-54 · 702.184c · estacionar por outra característica ---------------- */
+test('CR 702.184c · "each creature you control with toughness greater than its power stations permanents using its toughness": o Muro 0/4 põe 4; o Urso 2/2 segue pelo poder; a do oponente não vale', () => {
+  const sc = { ...SCRIPTS, 'Guardiã': { name: 'Guardiã', self: { estacionaPelaResistencia: true }, ...EX } };
+  C['Guardiã'] = { name: 'Guardiã', type_line: 'Artifact Creature — Robot Soldier', mana_cost: '{1}', cmc: 1, keywords: [], oracle_text: '', colors: [], power: '3', toughness: '4' };
+  const deck = [{ name: KS, qty: 4, zone: 'main' }, { name: 'Guardiã', qty: 4, zone: 'main' }, ...['Urso', 'Muro'].map(name => ({ name, qty: 8, zone: 'main' })), { name: 'Plains', qty: 16, zone: 'main' }];
+  let s = E.createGame({ format: 'livre', seed: 5, mode: 'full', cards: C, scripts: sc, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  s = passaAte(s, x => x.turn.active === 0 && x.turn.step === 'main1' && !x.stack.length && !x.pending);
+  let k, m, u; [s, k] = nave(s); [s, m] = poe(s, 0, 'Muro'); [s, u] = poe(s, 0, 'Urso');
+  let g; [s, g] = poe(s, 1, 'Guardiã', 'battlefield');
+  let t = estaciona(s, k, m); eq(carga(t, k), 0, 'a Guardiã do oponente não vale: o Muro tem poder 0');
+  [s] = poe(s, 0, 'Guardiã', 'battlefield');
+  t = estaciona(s, k, m); eq(carga(t, k), 4, 'com a Guardiã: a resistência do Muro');
+  t = estaciona(s, k, u); eq(carga(t, k), 2, 'o Urso (resistência igual ao poder) segue pelo poder');
+  const legal = estacoes(s, 0, k).map(action => ({ label: 'Ativar', action }));
+  E.rotulosDaClasseT(s, k, legal, () => '');
+  assert.ok(legal.some(b => /Estação: virar Muro \(\+4 de carga\)/.test(b.label)), JSON.stringify(legal.map(b => b.label)));
+});

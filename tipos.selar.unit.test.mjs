@@ -150,3 +150,17 @@ test('CR 702.171a · selar soma o poder: quem tripula pela resistência (Giant O
   eq(selas(s, 0, g).map(a => a.pay.crew), [], 'poder 0 não sela');
   assert.throws(() => E.apply(s, { t: 'activate', p: 0, oid: g, index: 0, pay: { crew: [ox] } }));
 });
+
+/* ---------------- T-54 · 702.171c · "whenever ~ saddles a Mount" ---------------- */
+test('CR 702.171c · a criatura que é virada para pagar o selar "sela" a montaria: o gatilho "whenever this creature saddles a Mount" dispara (e não o de tripular)', () => {
+  const sc = { ...SCRIPTS, 'Escudeira': { name: 'Escudeira', abilities: [{ kind: 'triggered', when: 'saddles', effects: [{ do: 'gain', amount: 2 }] }, { kind: 'triggered', when: 'crews', effects: [{ do: 'gain', amount: 7 }] }], ...EX } };
+  C.Escudeira = { name: 'Escudeira', type_line: 'Creature — Human Knight', mana_cost: '{1}', cmc: 1, keywords: [], oracle_text: '', colors: [], power: '2', toughness: '2' };
+  const deck = [...TODAS.map(name => ({ name, qty: 4, zone: 'main' })), { name: 'Escudeira', qty: 4, zone: 'main' }, { name: 'Plains', qty: 12, zone: 'main' }];
+  let s = E.createGame({ format: 'livre', seed: 3, mode: 'full', cards: C, scripts: sc, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  s = passaAte(s, x => x.turn.active === 0 && x.turn.step === 'main1' && !x.stack.length && !x.pending);
+  let b, e; [s, b] = poe(s, 0, BB, 'battlefield', { sick: false }); [s, e] = poe(s, 0, 'Escudeira');
+  const vida = s.players[0].life;
+  s = esvazia(act(s, selas(s, 0, b).find(a => a.pay.crew.includes(e))));
+  eq([selada(s, b), s.players[0].life - vida], [true, 2]);
+});

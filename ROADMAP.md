@@ -5381,6 +5381,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `moverObjeto` (uma linha antes de mover e uma que limpa a marca), o validador e a frase do `mover` (a opção nova).
 - **Próximo:** auditoria independente de T-53 com a próxima; mutação espera o dono.
 
+**CR5-T54 · Selar e estação: o que faltava (702.171c, 702.184c)** ✅ (leva T-54, sem mudança de versão do motor) — **Valor:** fecham as duas palavras-chave da trilha que estavam parciais. **Aceite:** a criatura virada para pagar o selar "sela" a montaria — o gatilho "whenever ~ saddles a Mount" dispara (com a montaria lembrada) e o de tripular não (702.171c); com uma permanente que diz "each creature you control with toughness greater than its power stations permanents using its toughness", a criatura de resistência maior que o poder estaciona pela resistência — no custo, na resolução (também pela última informação) e no botão da folha; a do oponente não vale (702.184c). **Testes:** `tipos.selar.unit` +1 e `tipos.estacao.unit` +1 (falham sem a leva). Mapa: 702.171 e 702.184 cobertas; 702.167 (criar/craft) passa de ausente a parcial pela conferência do que a trilha motor publicou na M-356 (falta 702.167b e quantidade variável).
+- **Fora, declarado:** "não pode selar" (nenhuma carta); Tapestry Warden segue manual (a outra habilidade, dano de combate pela resistência, não existe no motor).
+- **Versão e goldens:** a versão não sobe; goldens idênticos.
+- **Toca ponto comum:** nenhum novo (custo de tripular/selar, estação e rótulo são código da trilha; `soTripular` aceita a marca do selar).
+- **Próximo:** auditoria independente de T-53 e T-54.
+
 **CR6 · Multijogador e variantes** ○ — mesa de três e quatro (800–803, 806), Commander de mesa (903.2), Brawl (903.12); as variantes hoje "fora" só entram por decisão. 10 a 14 levas.
 
 **CR7 · Consolidação** ○ (em paralelo a partir da CR2) — a cada fase: fuzz em modo completo com listas reais, homologação por revisor independente relendo a seção das regras contra o motor, e rodada de simulação do dono do produto. 6 a 8 levas ao todo.

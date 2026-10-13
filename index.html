@@ -5859,6 +5859,7 @@ const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield
   'exerted', // V-20 · "You may exert ~ as it attacks. When you do, …" (701.43d): dispara quando a permanente é exaurida
   'becomes-monstrous', // V-6 · "When ~ becomes monstrous" (o valor do gatilho é o N da monstruosidade, 701.37c)
   /* ↓ T · gatilhos da trilha tipos */
+  'saddles', // T-54 · CR 702.171c "Whenever ~ saddles a Mount" (a montaria é o `remembered` do gatilho)
   'turned-face-up', // T-42 · CR 708.8 · "When ~ is turned face up": dispara quando a permanente virada para baixo é virada para cima (custo de metamorfose ou disfarce, ou a manifestada)
   'fully-unlock', // T-27 · CR 709.5i · "When you fully unlock this Room": só numa porta de Sala
   'unlock-door', // T-26 · CR 709.5h · "When you unlock this door": só numa porta de Sala (o motor a dispara quando a porta recebe a designação de destrancada, ao entrar ou depois)
@@ -9477,6 +9478,7 @@ function tripularErros(sc) {
 EVENTOS_DE_OBJETO.push('tripula', 'tripulada'); OBJETOS_DO_EVENTO.tripula = ['self']; OBJETOS_DO_EVENTO.tripulada = ['self'];
 GATILHO_EVENTO['crews'] = { evento: 'tripula', objeto: 'self' }; GATILHO_EVENTO['becomes-crewed'] = { evento: 'tripulada', objeto: 'self' };
 TRIGGER_PT['crews'] = 'quando tripula um Veículo'; TRIGGER_PT['becomes-crewed'] = 'quando fica tripulado';
+EVENTOS_DE_OBJETO.push('sela'); OBJETOS_DO_EVENTO.sela = ['self']; GATILHO_EVENTO['saddles'] = { evento: 'sela', objeto: 'self' }; TRIGGER_PT['saddles'] = 'quando sela uma Montaria'; // T-54 · CR 702.171c
 Object.assign(EXPORTS_T_SC, { tripularErros });
 /* ---------------- T-1 · CR 714 · Sagas (forma do script) ----------------
    Capítulo = habilidade disparada `{ kind: 'triggered', when: 'chapter', chapters: [N…], effects | modes }` (714.2b; "I, II —" são
@@ -26665,13 +26667,21 @@ function estacaoHabilidadesT(s, o, sc, list) {
   list.push({ kind: 'activated', cost: { tapOther: { types: ['creature'] }, estacaoT: true }, sorceryOnly: true, label: 'Estação', estacaoT: true, effects: [{ do: 'estacao', z: o.zc || 0 }] });
   for (const f of faixasDaEstacaoT(s, o, sc)) for (const ab of f.abilities || []) list.push({ ...ab, estacaoFaixaT: f.n });
 }
-function estacaoFotoT(s, oid) { const x = s.objects[oid]; return x ? { oid, z: x.zc || 0, power: isCreature(s, x) ? power(s, x) : 0 } : null; }
+/** T-54 · CR 702.184c · quanto a criatura põe ao estacionar: o poder, ou a resistência quando quem a controla tem uma permanente com
+ * "each creature you control with toughness greater than its power stations permanents using its toughness" (`self.estacionaPelaResistencia`)
+ * e a resistência dela é maior que o poder. `ultima` (608.2h) usa os valores da foto. */
+const estacionaPelaResistenciaT = (s, p) => battlefield(s).some(x => x.controller === p && !x.faceDown && !semImpressas(s, x) && !!((((s.facts[x.name] || {}).script) || {}).self || {}).estacionaPelaResistencia);
+function valorDeEstacaoT(s, x, foto) {
+  const pw = foto ? foto.power : isCreature(s, x) ? power(s, x) : 0, tg = foto ? foto.toughness : isCreature(s, x) ? toughness(s, x) : 0;
+  return pw == null ? 0 : tg != null && tg > pw && estacionaPelaResistenciaT(s, x.controller) ? tg : pw;
+}
+function estacaoFotoT(s, oid) { const x = s.objects[oid]; return x ? { oid, z: x.zc || 0, power: valorDeEstacaoT(s, x) } : null; } // T-54 · 702.184c
 function estacaoResolveT(s, src, eff, events) {
   const o = src.ability ? s.objects[src.source] : src, v = src.estacaoViradaT;
   if (!o || o.zone !== 'battlefield' || (eff.z != null && (o.zc || 0) !== eff.z)) { events.push({ kind: 'effect', do: 'estacao', name: src.name, failed: true }); return; }
   const x = v && s.objects[v.oid], agora = x && x.zone === 'battlefield' && (x.zc || 0) === v.z;
-  const saiu = x && !agora && (x.zc || 0) === v.z + 1 && x.ultima ? (x.ultima.power != null ? x.ultima.power : 0) : null; // T-38 · 608.2h: o último poder que ela teve no campo (a foto de quando saiu)
-  const n = Math.max(0, v ? (agora ? (isCreature(s, x) ? power(s, x) : 0) : saiu != null ? saiu : v.power) : 0);
+  const saiu = x && !agora && (x.zc || 0) === v.z + 1 && x.ultima ? (x.ultima.power != null ? valorDeEstacaoT(s, x, x.ultima) : 0) : null; // T-54 · 702.184c: com a foto // T-38 · 608.2h: o último poder que ela teve no campo (a foto de quando saiu)
+  const n = Math.max(0, v ? (agora ? valorDeEstacaoT(s, x) : saiu != null ? saiu : v.power) : 0); // T-54 · 702.184c
   const k = n > 0 ? poeMarcadores(s, o, 'charge', n) : 0;
   events.push({ kind: 'effect', do: 'estacao', name: o.name, target: o.name, amount: k, total: (o.counters || {}).charge || 0 });
 }
@@ -26912,7 +26922,7 @@ Object.assign(EXPORTS_T, { virarScriptT });
      A habilidade que resolve depois de a montaria sair e voltar não sela o objeto novo (400.7, o registro da ativação em `s.tripulou`).
    Fora: o gatilho "whenever ~ saddles" (702.171c) e "não pode selar" ainda não existem. Os bônus de tripular (tripulaMais,
    suasTripulamMais) e o "tripula pela resistência" valem só para Veículo: selar soma o poder (T-33, T-35). */
-function selarHabilidadeT(sc) { const n = sc.self.selar; return { kind: 'activated', cost: { crew: n }, sorceryOnly: true, label: `Selar ${n}`, selarT: true, effects: [{ do: 'selada' }] }; }
+function selarHabilidadeT(sc) { const n = sc.self.selar; return { kind: 'activated', cost: { crew: n, selaT: true }, /* T-54 · 702.171c: quem paga "sela" */ sorceryOnly: true, label: `Selar ${n}`, selarT: true, effects: [{ do: 'selada' }] }; }
 function seladaAgoraT(s, o) { const r = o && o.zone === 'battlefield' && o.seladaT; return !!(r && r.turno === s.turn.number && r.z === (o.zc || 0)); }
 function seladaT(s, src, events) {
   const v = src.ability ? s.objects[src.source] : src, reg = (s.tripulou || {})[src.oid];
@@ -27490,12 +27500,14 @@ function pagaTripulacaoT(s, p, cost, pay, selfOid) {
     const vivos = {}; for (const k of Object.keys(s.tripulou || {})) if (s.stack.includes(k)) vivos[k] = s.tripulou[k];
     vivos['ab' + s.nextAbility] = { oids: lista.slice(), z: v.zc || 0 }; s.tripulou = vivos;
   }
+  if (v && cost.selaT) for (const x of lista) { const de = s.queued.length; gatilhosDaPermanente(s, 'sela', s.objects[x], ['self'], {}, () => true, false); // T-54 · CR 702.171c · "saddles a Mount"
+    for (let i = de; i < s.queued.length; i++) s.queued[i].lembrada = { oid: v.oid, z: v.zc || 0 }; }
   if (v && ehVeiculo(s, v)) { // T-4 · 702.122b–c: só Veículo é "tripulado"
     v.tripulantes = { turno: s.turn.number, z: v.zc || 0, oids: [...new Set(tripulantesDe(s, v).concat(lista))] };
     for (const x of lista) { const de = s.queued.length; gatilhosDaPermanente(s, 'tripula', s.objects[x], ['self'], {}, () => true, false);
       for (let i = de; i < s.queued.length; i++) s.queued[i].lembrada = { oid: v.oid, z: v.zc || 0 }; } // "that Vehicle"
   }
-  const { crew, ...resto } = cost; return resto;
+  const { crew, selaT, ...resto } = cost; return resto; // T-54 · a marca do selar não é custo
 }
 /** 702.122a/e · a habilidade de tripular resolveu. `tripulada` é a habilidade inteira na forma canônica (T-4): "esta permanente vira
  * criatura artefato até o fim do turno" e, se é Veículo, "fica tripulado". Vale só para o MESMO objeto que foi tripulado (400.7): se
@@ -27509,7 +27521,7 @@ function tripulada(s, src, events) {
   if (ehVeiculo(s, v)) gatilhosDaPermanente(s, 'tripulada', v, ['self'], { value: grupo.length }, () => true, false);
 }
 /** A escolha de quem tripula só existe para a habilidade cujo custo é só tripular e que não mira (a "Crew N" impressa). */
-const soTripular = ab => !!ab && ab.kind === 'activated' && !!ab.cost && Number.isInteger(ab.cost.crew) && Object.keys(ab.cost).every(k => k === 'crew') && !(ab.effects || []).some(SC.isTargeted);
+const soTripular = ab => !!ab && ab.kind === 'activated' && !!ab.cost && Number.isInteger(ab.cost.crew) && Object.keys(ab.cost).every(k => k === 'crew' || k === 'selaT') && !(ab.effects || []).some(SC.isTargeted); // T-54 · a marca do selar não é outro custo
 /** 702.122a · oferta da escolha livre de quem tripula: só quando existe grupo além dos mínimos (alguma criatura sobrando). */
 function tripularOfertas(s, p, out) {
   if (s.pending || fracaoDeSegundo(s)) return;
@@ -28006,7 +28018,7 @@ function rotulosDaClasseT(s, oid, legal, custo) {
     if (ab.classeNivelT) b.label = `Subir para o nível ${ab.classeNivelT} · ${ab.cost.mana}`;
     else if (ab.nivelarT) b.label = `Subir de nível · ${ab.cost.mana}`; // T-24 · CR 702.87a
     else if (ab.reconfigurarT) b.label = ab.reconfigurarT === 'anexar' ? `Reconfigurar: anexar${resto ? resto.replace(' → ', ' a ') : ''} · ${ab.cost.mana}` : `Reconfigurar: desanexar · ${ab.cost.mana}`; // T-43 · CR 702.151a
-    else if (ab.estacaoT) { const q = s.objects[[].concat((a.pay || {}).tapOther || [])[0]], n = q && isCreature(s, q) ? Math.max(0, power(s, q)) : 0; b.label = `Estação: virar ${q ? q.name : 'uma criatura'} (+${n} de carga)`; } // T-37 · CR 702.184a
+    else if (ab.estacaoT) { const q = s.objects[[].concat((a.pay || {}).tapOther || [])[0]], n = q ? Math.max(0, valorDeEstacaoT(s, q)) : 0; b.label = `Estação: virar ${q ? q.name : 'uma criatura'} (+${n} de carga)`; } // T-37 · CR 702.184a
     else { const c = custo(ab); b.label = `${ab.label || 'Ativar'}${c ? ` (${c})` : ''}${resto}`; } // T-13 · o rótulo que o script dá à ativada da barra (D3)
   }
 }
