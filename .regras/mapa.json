@@ -11377,34 +11377,53 @@
    "n": "722.2",
    "regra": "Preparation Cards",
    "titulo": "Características alternativas (prepare spell)",
-   "status": "ausente",
-   "falta": "sem cartas de preparação.",
+   "status": "coberta",
+   "falta": "T-51 (13/10/2026): coberta.",
    "esforco": "M",
    "depende": [
     "707.12"
    ],
-   "cartas": "uma coleção só"
+   "cartas": "uma coleção só",
+   "evidencia": "T-51 (13/10/2026): `self.preparo` + `back` (a mágica de preparação: instantânea ou feitiço com mana e efeitos; fatos próprios só na partida que tem a carta, custo/valor de mana/cor pela fatosDeDuasPartesT); designação em `s.preparadasT[oid] = { z, copia }` (só nasce quando alguém fica preparado); ao ficar preparada (efeito `preparar`, `self.entraPreparada`) cria no exílio de quem controla uma cópia com só as características da mágica (objeto `copiaPreparoT`, não carta: fora das contas de cartas do invariants), conjurável por quem controla a permanente; conjurar a cópia desprepara (601.2i); a cópia deixa de existir ao sair do exílio para outro lugar que não a pilha e ao sair da pilha (704.5e, moveObject) e quando a permanente sai do campo, sai de fase ou deixa de estar preparada (conferência com as ações de estado); volta de fase preparada recria a cópia; o controle da cópia acompanha o da permanente; condição `{ preparada }` nos gatilhos; registro \"X está preparada (pode conjurar uma cópia de Y)\" / \"X deixou de estar preparada\". Carta exemplo: Landscape Painter // Vibrant Idea (Oracle do Forge, 13/10/2026).",
+   "testes": [
+    "CR 722.3a / 722.3c · \"This creature enters prepared\": Landscape Painter entra preparada e uma cópia de Vibrant Idea fica no exílio de quem controla, conjurável",
+    "CR 722.4 / 722.2c · na mão e no grimório a carta só tem as características normais: é uma carta só, com o nome e o tipo da criatura"
+   ]
   },
   {
    "n": "722.3",
    "regra": "Preparation Cards",
    "titulo": "Designação \"preparada\" e conjurar a cópia",
-   "status": "ausente",
-   "falta": "sem designação prepared nem conjurar cópia.",
+   "status": "coberta",
+   "falta": "T-51 (13/10/2026): coberta. Fora, declarado: 722.3d (a cópia de uma mágica de preparação na pilha é uma cópia comum: não há regra ou efeito no vocabulário que pergunte \"conjurada como mágica de preparação\").",
    "esforco": "G",
    "depende": [
     "707.12"
+   ],
+   "evidencia": "T-51 (13/10/2026): `self.preparo` + `back` (a mágica de preparação: instantânea ou feitiço com mana e efeitos; fatos próprios só na partida que tem a carta, custo/valor de mana/cor pela fatosDeDuasPartesT); designação em `s.preparadasT[oid] = { z, copia }` (só nasce quando alguém fica preparado); ao ficar preparada (efeito `preparar`, `self.entraPreparada`) cria no exílio de quem controla uma cópia com só as características da mágica (objeto `copiaPreparoT`, não carta: fora das contas de cartas do invariants), conjurável por quem controla a permanente; conjurar a cópia desprepara (601.2i); a cópia deixa de existir ao sair do exílio para outro lugar que não a pilha e ao sair da pilha (704.5e, moveObject) e quando a permanente sai do campo, sai de fase ou deixa de estar preparada (conferência com as ações de estado); volta de fase preparada recria a cópia; o controle da cópia acompanha o da permanente; condição `{ preparada }` nos gatilhos; registro \"X está preparada (pode conjurar uma cópia de Y)\" / \"X deixou de estar preparada\". Carta exemplo: Landscape Painter // Vibrant Idea (Oracle do Forge, 13/10/2026).",
+   "testes": [
+    "CR 722.3a / 722.3c · \"This creature enters prepared\": Landscape Painter entra preparada e uma cópia de Vibrant Idea fica no exílio de quem controla, conjurável",
+    "CR 722.3c / 601.2i / 704.5e · conjurar a cópia ({4}{U}) desprepara a permanente; resolvida, a cópia deixa de existir (não vai ao cemitério)",
+    "CR 722.3c · a permanente que sai do campo leva a cópia junto: a cópia deixa de existir",
+    "CR 722.3a · \"becomes prepared\" de novo depois de conjurar cria outra cópia; já preparada, não cria uma segunda",
+    "CR 722.3b · \"becomes unprepared\": perde a designação e a cópia deixa de existir",
+    "CR 722.3c / 704.5e · a cópia conjurada e anulada também deixa de existir",
+    "CR 722.3a · \"if this creature is not prepared, it becomes prepared\": a condição olha a designação"
    ]
   },
   {
    "n": "722.4",
    "regra": "Preparation Cards",
    "titulo": "Em toda zona, só as características normais",
-   "status": "ausente",
-   "falta": "sem cartas de preparação.",
+   "status": "coberta",
+   "falta": "T-51 (13/10/2026): coberta.",
    "esforco": "P",
    "depende": [
     "722.2"
+   ],
+   "evidencia": "T-51 (13/10/2026): `self.preparo` + `back` (a mágica de preparação: instantânea ou feitiço com mana e efeitos; fatos próprios só na partida que tem a carta, custo/valor de mana/cor pela fatosDeDuasPartesT); designação em `s.preparadasT[oid] = { z, copia }` (só nasce quando alguém fica preparado); ao ficar preparada (efeito `preparar`, `self.entraPreparada`) cria no exílio de quem controla uma cópia com só as características da mágica (objeto `copiaPreparoT`, não carta: fora das contas de cartas do invariants), conjurável por quem controla a permanente; conjurar a cópia desprepara (601.2i); a cópia deixa de existir ao sair do exílio para outro lugar que não a pilha e ao sair da pilha (704.5e, moveObject) e quando a permanente sai do campo, sai de fase ou deixa de estar preparada (conferência com as ações de estado); volta de fase preparada recria a cópia; o controle da cópia acompanha o da permanente; condição `{ preparada }` nos gatilhos; registro \"X está preparada (pode conjurar uma cópia de Y)\" / \"X deixou de estar preparada\". Carta exemplo: Landscape Painter // Vibrant Idea (Oracle do Forge, 13/10/2026).",
+   "testes": [
+    "CR 722.4 / 722.2c · na mão e no grimório a carta só tem as características normais: é uma carta só, com o nome e o tipo da criatura"
    ]
   },
   {
@@ -11412,7 +11431,7 @@
    "regra": "Preparation Cards",
    "titulo": "Escolher o nome da mágica de preparação",
    "status": "ausente",
-   "falta": "não há efeito de escolher nome de carta.",
+   "falta": "não há efeito de escolher nome de carta. T-51 (13/10/2026): fica para quando houver efeito de escolher nome (o nome da mágica de preparação está nos fatos da partida).",
    "esforco": "P",
    "depende": [
     "201.4"

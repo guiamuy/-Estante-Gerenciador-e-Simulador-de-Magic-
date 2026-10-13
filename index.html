@@ -5546,6 +5546,8 @@ const EFFECTS = {
   lutador: { fields: [], targets: ['creature', 'creature-you-control'] },
   fight: { fields: [], targets: ['creature', 'creature-opponent-controls', 'creature-you-control'] }, // quem: 'self-source' (a permanente fonte luta) | 'primeiro-alvo' (luta a criatura anotada pelo `lutador` anterior)
   /* ↓ T · efeitos da trilha tipos */
+  preparar: { fields: [], targets: ['self'] }, // T-51 · CR 722.3a · "this creature becomes prepared": ganha a designação e a cópia da mágica de preparação no exílio (722.3c); já preparada, nada
+  despreparar: { fields: [], targets: ['self'] }, // T-51 · CR 722.3b · "becomes unprepared": perde a designação (a cópia deixa de existir)
   desanexar: { fields: [], targets: ['self'] }, // T-43 · CR 702.151a · "unattach this permanent" (o motor o monta a partir de `self.reconfigurar`)
   caso_resolvido: { fields: [], targets: ['self'] }, // T-39 · CR 719.3a · "this Case becomes solved" (o motor o monta a partir de `self.caso`)
   estacao: { fields: [], targets: ['self'] }, // T-37 · CR 702.184a · "put charge counters equal to the tapped creature's power on this permanent" (o motor o monta a partir de `self.estacao`)
@@ -6260,7 +6262,7 @@ function validateScript(sc) {
   if (sc && sc.replicate != null && sc.kicker) errs.push('replicar e reforço na mesma carta não são aceitos (os dois usam o pagamento repetido)');
   if (sc && sc.modeCount != null && !(Number.isInteger(sc.modeCount) && sc.modeCount >= 2 && (sc.modes || []).length && (sc.modeRepeat || sc.modeCount <= sc.modes.length))) errs.push('número de modos inválido');
   if (sc && sc.cumulativeUpkeep && !/\{/.test(String(sc.cumulativeUpkeep.mana || ''))) errs.push('manutenção cumulativa precisa de um custo de mana');
-  errs.push(...sagaErros(sc), ...tripularErros(sc), ...aventuraErros(sc), ...duplaFaceErros(sc), ...modalErros(sc), ...divididaErros(sc), ...classeErros(sc), ...batalhaErros(sc), ...papelErros(sc), ...nivelarErros(sc), ...salaErros(sc), ...virarErros(sc), ...selarErros(sc), ...prototipoErros(sc), ...estacaoErros(sc), ...casoErros(sc), ...disfarceErros(sc), ...reconfigurarErros(sc), ...maisQueOlhosErros(sc)); // T-49 · CR 702.162 · More Than Meets the Eye (mesma chamada) // T-43 · CR 702.151 · reconfigurar (mesma chamada) // T-42 · CR 702.168 · disfarce (mesma chamada) // T-39 · CR 719 · Caso (mesma chamada) // T-37 · CR 721 · estação (mesma chamada) // T-36 · CR 718 · protótipo (mesma chamada) // T-31 · CR 702.171 · selar (mesma chamada) // T-29 · CR 710 · carta de virar (mesma chamada) // T-26 · CR 709.5 · Sala (mesma chamada) // T-24 · CR 711 · barras de nível (mesma chamada) // T-20 · CR 111.10 · papel conhecido (mesma chamada) // T-14 · CR 310.4 · defesa da batalha (mesma chamada) // T-12 · CR 716 · Classe (mesma chamada) // T-10 · CR 709 · carta dividida (mesma chamada) // T-8 · CR 712.3 · dupla face modal (mesma chamada) // T-7 · CR 712 · dupla face (mesma chamada) // T-5 · CR 715 · aventura (mesma chamada) // T-3 · CR 702.122 · tripular (mesma chamada da T-1) // T-1 · CR 714 · Saga: capítulos, read ahead e o marcador de entrada (função abaixo da âncora T das exportações)
+  errs.push(...sagaErros(sc), ...tripularErros(sc), ...aventuraErros(sc), ...duplaFaceErros(sc), ...modalErros(sc), ...divididaErros(sc), ...classeErros(sc), ...batalhaErros(sc), ...papelErros(sc), ...nivelarErros(sc), ...salaErros(sc), ...virarErros(sc), ...selarErros(sc), ...prototipoErros(sc), ...estacaoErros(sc), ...casoErros(sc), ...disfarceErros(sc), ...reconfigurarErros(sc), ...maisQueOlhosErros(sc), ...preparoErros(sc)); // T-51 · CR 722 · preparação (mesma chamada) // T-49 · CR 702.162 · More Than Meets the Eye (mesma chamada) // T-43 · CR 702.151 · reconfigurar (mesma chamada) // T-42 · CR 702.168 · disfarce (mesma chamada) // T-39 · CR 719 · Caso (mesma chamada) // T-37 · CR 721 · estação (mesma chamada) // T-36 · CR 718 · protótipo (mesma chamada) // T-31 · CR 702.171 · selar (mesma chamada) // T-29 · CR 710 · carta de virar (mesma chamada) // T-26 · CR 709.5 · Sala (mesma chamada) // T-24 · CR 711 · barras de nível (mesma chamada) // T-20 · CR 111.10 · papel conhecido (mesma chamada) // T-14 · CR 310.4 · defesa da batalha (mesma chamada) // T-12 · CR 716 · Classe (mesma chamada) // T-10 · CR 709 · carta dividida (mesma chamada) // T-8 · CR 712.3 · dupla face modal (mesma chamada) // T-7 · CR 712 · dupla face (mesma chamada) // T-5 · CR 715 · aventura (mesma chamada) // T-3 · CR 702.122 · tripular (mesma chamada da T-1) // T-1 · CR 714 · Saga: capítulos, read ahead e o marcador de entrada (função abaixo da âncora T das exportações)
   return errs.concat(exampleErrors(sc));
 }
 const ATRASOS = ['next-upkeep', 'next-end-step', 'end-of-combat']; // CR2b.1 · momentos de gatilho atrasado que o motor conhece
@@ -6665,6 +6667,10 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-51 · CR 722 · preparação (Oracle do Forge, clone de 13/10/2026). A mágica de preparação é o `back`; "This creature enters prepared" é `entraPreparada`.
+  { name: 'Landscape Painter', self: { preparo: true, entraPreparada: true }, // "This creature enters prepared."
+    back: { name: 'Vibrant Idea', types: ['sorcery'], mana: '{4}{U}', effects: [{ do: 'draw', amount: 2 }] }, // "Vibrant Idea {4}{U} · Sorcery · Draw two cards."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o cenário de verdade (preparada, a cópia, conjurar e despreparar) está em tipos.preparo.unit
   // T-49 · CR 702.162 / 702.161 / 701.28 · Transformers (Oracle do Forge, clone de 13/10/2026). Voar da frente vem do texto da carta.
   { name: 'Jetfire, Ingenious Scientist', self: { duplaFace: true, maisQueOlhos: '{3}{U}' }, // "More Than Meets the Eye {3}{U}"
     covers: 'partial', note: 'falta a habilidade de mana da frente ("Remove one or more +1/+1 counters from among artifacts you control: Target player adds that much {C}. This mana can\'t be spent to cast nonartifact spells. Convert Jetfire."); o resto é completo',
@@ -9204,6 +9210,22 @@ function maisQueOlhosErros(sc) {
   return errs;
 }
 Object.assign(EXPORTS_T_SC, { maisQueOlhosErros });
+/* ---------------- T-51 · CR 722 · cartas de preparação (forma do script) ----------------
+   `self: { preparo: true, entraPreparada? }` + `back`: a mágica de preparação ("prepare spell", 722.2) — instantânea ou feitiço, com
+   `mana` e `effects`. Ela nunca é conjurada da carta (722.3): é a característica da cópia que a permanente preparada deixa no exílio.
+   `entraPreparada: true` é "This creature enters prepared"; os efeitos `preparar`/`despreparar` e a condição `{ preparada: true|false }`
+   dão o resto. */
+function preparoErros(sc) {
+  const sf = sc && sc.self; if (!sf || sf.preparo == null) return [];
+  const errs = [], b = sc.back, tipos = (b && b.types) || [];
+  if (sf.preparo !== true) errs.push('preparação: self.preparo só vale como true');
+  if (!b || !tipos.length || !tipos.every(x => x === 'instant' || x === 'sorcery')) errs.push('preparação: falta a mágica de preparação (back, instantânea ou feitiço)');
+  if (b && !(typeof b.mana === 'string' && /\{/.test(b.mana))) errs.push('preparação: a mágica de preparação precisa do custo (back.mana)');
+  if (sf.aventura || sf.duplaFace || sf.modal || sf.dividida || sf.virar) errs.push('preparação: a carta de preparação tem uma face só');
+  if (sf.entraPreparada != null && sf.entraPreparada !== true) errs.push('preparação: self.entraPreparada só vale como true');
+  return errs;
+}
+Object.assign(EXPORTS_T_SC, { preparoErros });
 EVENTOS_DE_OBJETO.push('virada-para-cima'); OBJETOS_DO_EVENTO['virada-para-cima'] = ['self']; GATILHO_EVENTO['turned-face-up'] = { evento: 'virada-para-cima', objeto: 'self' }; TRIGGER_PT['turned-face-up'] = 'quando é virada para cima'; // T-42 · CR 708.8
 /* ---------------- T-31 · CR 702.171 · selar (forma do script) ----------------
    `self: { selar: N }` ("Saddle N"): o motor monta a ativada (custo de tripular N, só como feitiço, efeito `selada`). "Whenever ~ attacks
@@ -9301,7 +9323,7 @@ MARCADOR_PT.level = 'de nível'; // T-24 · CR 122.1 / 702.87a
    As sete fichas de Papel, como a regra 111.10 as define (CR de 25/09/2026): encantamento Aura Role incolor, "enchant creature", e o
    que cada uma dá à criatura encantada. O efeito `papel` (`{ do: 'papel', papel: 'Monster', target }`) cria a ficha anexada ao alvo.
    Condição nova de gatilho: `resistenciaAte: N` ("if its toughness is N or less", conferida ao disparar e ao resolver, 603.4). */
-function condicoesT() { return ['resistenciaAte', 'selada']; } // T-31 · selada: "attacks while saddled" (702.171b) // função (içada): o validador roda na carga do módulo, antes desta linha
+function condicoesT() { return ['resistenciaAte', 'selada', 'preparada']; } // T-51 · preparada: "if this creature is (isn't) prepared" (722.3a) // T-31 · selada: "attacks while saddled" (702.171b) // função (içada): o validador roda na carga do módulo, antes desta linha
 var PAPEIS_DEF_T; // idem: criado na primeira chamada de papeisT()
 function papeisT() { const AURA_PAPEL_T = { enchant: 'creature' }; return PAPEIS_DEF_T || (PAPEIS_DEF_T = {
   Cursed: { name: 'Cursed', aura: AURA_PAPEL_T, continuo: [{ afetados: 'anexada', torna: { base: [1, 1] } }], example: { target: 'none', expect: { selfLife: 0 } } }, // 111.10j "Enchanted creature has base power and toughness 1/1."
@@ -9428,7 +9450,7 @@ function aventuraErros(sc) {
 }
 /** As faces de trás desta trilha só viram fatos na partida que tem a carta (createGame): script novo com `back` na biblioteca não
  * muda o estado das partidas que não o usam. Cada tipo de carta da trilha acrescenta a sua marca aqui. */
-const versoSoNaPartida = sc => !!(sc && sc.self && (sc.self.aventura || sc.self.duplaFace || sc.self.modal || sc.self.dividida || sc.self.virar)); // T-29 · carta de virar // T-10 · dividida // T-7 · dupla face que transforma · T-8 · modal
+const versoSoNaPartida = sc => !!(sc && sc.self && (sc.self.aventura || sc.self.duplaFace || sc.self.modal || sc.self.dividida || sc.self.virar || sc.self.preparo)); // T-51 · preparação // T-29 · carta de virar // T-10 · dividida // T-7 · dupla face que transforma · T-8 · modal
 Object.assign(EXPORTS_T_SC, { aventuraErros, versoSoNaPartida });
 /* ---------------- T-3 · CR 702.122 · tripular (forma do script) ----------------
    Tripular é a habilidade ativada de custo `{ crew: N }` (CR2d.3). Esta leva acrescenta:
@@ -17973,6 +17995,7 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
     delete s.objects[oid];
     return;
   }
+  if (o.copiaPreparoT && !(fromZone === 'exile' && to === 'stack')) { someCopiaPreparoT(s, o); return; } // T-51 · CR 722.3c / 704.5e · a cópia da mágica de preparação deixa de existir fora do exílio e da pilha (Toca ponto comum: moveObject)
   if (o.copiaDeMagia) { // CR2f.3 · 707.10a/704.5e: a cópia fora da pilha deixa de existir; 707.10c: a de mágica de permanente entra como ficha
     if (o.zone === 'stack' && to === 'battlefield') { delete o.copiaDeMagia; o.token = true; }
     else { const i = s.stack.indexOf(oid); if (i >= 0) s.stack.splice(i, 1); delete s.objects[oid]; return; }
@@ -21026,6 +21049,8 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'cerco_derrotado': cercoDerrotadoT(s, src, eff, events); break; // T-14 · CR 310.12b · exila o Cerco e abre "conjurar transformado sem pagar"
     case 'nivel_sobe': nivelSobeT(s, src, eff, events); break; // T-25 · CR 702.87a / 400.7 · subir de nível
     case 'nivel_classe': nivelDaClasseSobeT(s, src, eff, events); break; // T-12 · CR 716.2a · o nível da Classe vira N e dispara "When this Class becomes level N"
+    case 'preparar': preparaT(s, src.ability ? s.objects[src.source] : src, events); break; // T-51 · CR 722.3a
+    case 'despreparar': despreparaT(s, src.ability ? s.objects[src.source] : src, events); break; // T-51 · CR 722.3b
     case 'transformar': transformaT(s, src.ability ? s.objects[src.source] : src, src, events); break; // T-7 · CR 701.27 · "transform ~"
     case 'tripulada': tripulada(s, src, events); break; // T-3 · CR 702.122e · a habilidade de tripular resolveu: "Whenever ~ becomes crewed"
     case 'untap': { const alvo = eff.target === 'enchanted' ? criaturaEncantada(s, src) : eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj; if (alvo) desvira(s, alvo); note({}); break; } // CR2g.6 · atordoamento
@@ -21525,6 +21550,7 @@ function triggerConditionMet(s, o, cond) {
     if (!alive(s).some(q => q !== o.controller && terrenos(q) > terrenos(o.controller))) return false;
   }
   if (cond.atacaSozinha && !(s.combat && (s.combat.attackers || []).length === 1 && s.combat.attackers[0] === o.oid)) return false; // M-251 · 506.5 "attacks alone"
+  if (cond.preparada != null && preparadaT(s, o) !== !!cond.preparada) return false; // T-51 · CR 722.3a · "if this creature is (isn't) prepared" (Toca ponto comum: triggerConditionMet)
   if (cond.selada && !seladaAgoraT(s, o)) return false; // T-31 · CR 702.171b: "while saddled" (Toca ponto comum: triggerConditionMet)
   if (cond.resistenciaAte != null && !(o.zone === 'battlefield' && toughness(s, o) <= cond.resistenciaAte)) return false; // T-20 · CR 111.10r / 603.4: "if its toughness is N or less" · Toca ponto comum: triggerConditionMet (uma linha)
   if (!condicaoK(s, o, cond)) return false; // K-59 · bênção da cidade e presente prometido (Toca ponto comum: triggerConditionMet)
@@ -22389,7 +22415,7 @@ function stateBased(s, events) {
       for (const oid of morrem) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield') continue; moveObject(s, oid, 'graveyard'); changed = true; events.push({ kind: 'died', oid, name: o.name }); }
       delete s.saindoJuntas;
     }
-    if (batalhasDeEstadoT(s, events) | equipamentosDeEstadoT(s, events) | papeisDeEstadoT(s, events) | auraAnexoDeEstadoT(s, events) | portaDeEstadoT(s, events) | masmorraDeEstadoT(s, events) | cicloDeEstadoT(s, events)) changed = true; // T-48 · CR 702.145c/d/f/g // T-46 · CR 309.6 / 704.5t // T-27 · CR 709.5f // T-22 · CR 303.4f // T-20 · CR 303.7a / 704.5z // T-16 · CR 301.5c / 704.5n · Equipamento que não pode equipar se solta // T-14 · CR 310.7 / 310.8 / 310.10 / 310.11 / 704.5v–y · batalhas (função abaixo da âncora T das exportações)
+    if (batalhasDeEstadoT(s, events) | equipamentosDeEstadoT(s, events) | papeisDeEstadoT(s, events) | auraAnexoDeEstadoT(s, events) | portaDeEstadoT(s, events) | masmorraDeEstadoT(s, events) | cicloDeEstadoT(s, events) | preparoDeEstadoT(s, events)) changed = true; // T-51 · CR 722.3c // T-48 · CR 702.145c/d/f/g // T-46 · CR 309.6 / 704.5t // T-27 · CR 709.5f // T-22 · CR 303.4f // T-20 · CR 303.7a / 704.5z // T-16 · CR 301.5c / 704.5n · Equipamento que não pode equipar se solta // T-14 · CR 310.7 / 310.8 / 310.10 / 310.11 / 704.5v–y · batalhas (função abaixo da âncora T das exportações)
     if (sagasDeEstado(s, events)) changed = true; // T-1 · CR 714.2b (capítulos disparam), 714.3b (read ahead) e 714.4 / 704.5s (sacrifício); função abaixo da âncora T das exportações
     if (!changed) break;
   }
@@ -24083,7 +24109,7 @@ function invariants(s, expectedObjects) {
   s.stack.forEach(oid => { note(oid, 'stack'); if (s.objects[oid].zone !== 'stack') errs.push(`${oid} na pilha com zona ${s.objects[oid].zone}`); });
   const all = Object.values(s.objects);
   if (seen.size !== all.length) errs.push(`objetos ${all.length}, localizados ${seen.size}`);
-  const cards = all.filter(o => !o.ability && !o.token && !o.copiaDeMagia).length; // habilidades, fichas e cópias de mágica (707.10) são objetos temporários · M-355 (pedido da homologacao)
+  const cards = all.filter(o => !o.ability && !o.token && !o.copiaDeMagia && !o.copiaPreparoT).length; /* T-51 · CR 722.3c: a cópia da mágica de preparação no exílio também não é carta (Toca ponto comum: invariants) */ // habilidades, fichas e cópias de mágica (707.10) são objetos temporários · M-355 (pedido da homologacao)
   if (expectedObjects != null && cards !== expectedObjects) errs.push(`cartas ${cards}, esperadas ${expectedObjects}`);
   for (const o of all) if (o.ability && o.zone !== 'stack') errs.push(`${o.oid}: habilidade fora da pilha`);
   if (s.queued.length && !s.pending) errs.push('gatilho na fila sem ninguém para pôr na pilha');
@@ -26456,6 +26482,74 @@ function prototipoOfertasT(s, p, out) {
   try { for (const a of legalActions(s2, p)) if (a.t === 'cast' && cand.includes(a.oid) && a.face == null && !a.omen && !a.disturb && !a.faceDown && !a.bestow && a.alt == null && !a.plotted) out.push({ ...a, prototipo: true }); }
   finally { DENTRO_DAS_MODAIS = false; }
 }
+/* ---------------- T-51 · CR 722 · cartas de preparação ----------------
+   - 722.3a: "preparada" é uma designação da permanente, em `s.preparadasT[oid] = { z }` (z = encarnação, 400.7); só a ganha quem tem
+     mágica de preparação (`self.preparo`) e quem ainda não a tem. `s.preparadasT` só nasce quando alguma permanente fica preparada.
+   - 722.3c: ao ficar preparada, quem controla cria no exílio uma cópia que tem só as características da mágica de preparação (os fatos do
+     `back`); a cópia é um objeto, não uma carta (`copiaPreparoT: { de, z }`, oid "cp…"), conjurável por quem controla a permanente
+     (`playableFromExile`). Ela fica no exílio enquanto a permanente estiver no campo e preparada — a conferência das ações de estado
+     (`preparoDeEstadoT`) a tira quando isso deixa de valer (e quando a permanente sai de fase: 702.26b) e a recria quando a preparada
+     volta de fase; o controle da cópia acompanha o da permanente. Fora do exílio e da pilha, a cópia deixa de existir (704.5e, moveObject).
+   - 601.2i: conjurar a cópia tira a designação (no começo da conjuração; a jogada que falha não muda o estado).
+   - O registro: "<permanente> está preparada (pode conjurar uma cópia de <mágica>)" e "<permanente> deixou de estar preparada". As linhas
+     de quem entra preparada e de quem conjura a cópia esperam em `s.preparoEvT` e saem pela conferência das ações de estado.
+   Fora, declarado: 722.3d (cópia de uma mágica de preparação) e 722.5 (escolher o nome: não há efeito de escolher nome). */
+const temPreparoT = (s, o) => !!(o && !o.faceDown && ((((s.facts[o.frontName || o.name] || {}).script) || {}).self || {}).preparo && s.facts[(s.facts[o.name].script || {}).back]);
+const preparadaT = (s, o) => { const r = o && s.preparadasT && s.preparadasT[o.oid]; return !!r && r.z === (o.zc || 0) && o.zone === 'battlefield'; };
+function criaCopiaPreparoT(s, o) {
+  const nome = s.facts[o.name].script.back, oid = 'cp' + (s.nextToken++);
+  s.objects[oid] = { oid, name: nome, owner: o.controller, controller: o.controller, zone: 'exile', tapped: false, damage: 0, counters: {}, copiaPreparoT: { de: o.oid, z: o.zc || 0 }, playableFromExile: o.controller };
+  s.zones[o.controller].exile.push(oid);
+  s.preparadasT[o.oid].copia = oid;
+  return oid;
+}
+function someCopiaPreparoT(s, x) {
+  for (const z of s.zones) for (const k of Object.keys(z)) if (Array.isArray(z[k])) { const i = z[k].indexOf(x.oid); if (i >= 0) z[k].splice(i, 1); }
+  const i = s.stack.indexOf(x.oid); if (i >= 0) s.stack.splice(i, 1);
+  delete s.objects[x.oid];
+}
+function preparaT(s, o, events) {
+  if (!o || o.zone !== 'battlefield' || !temPreparoT(s, o) || preparadaT(s, o)) { events.push({ kind: 'effect', do: 'preparada', name: o ? o.name : '', failed: true }); return false; } // 722.3a
+  (s.preparadasT = s.preparadasT || {})[o.oid] = { z: o.zc || 0 };
+  if (!o.phasedOut) criaCopiaPreparoT(s, o);
+  events.push({ kind: 'effect', do: 'preparada', name: o.name, target: s.facts[o.name].script.back });
+  return true;
+}
+function despreparaT(s, o, events, conjurada = null) {
+  if (!o || !preparadaT(s, o)) return false;
+  const r = s.preparadasT[o.oid]; delete s.preparadasT[o.oid];
+  const x = r.copia && s.objects[r.copia]; if (x && x.zone === 'exile' && x.oid !== conjurada) someCopiaPreparoT(s, x); // a cópia que está sendo conjurada vai para a pilha
+  events.push({ kind: 'effect', do: 'despreparada', name: o.name });
+  return true;
+}
+function preparoNaEntradaT(s, o) {
+  if (!o || !temPreparoT(s, o) || !((s.facts[o.name].script || {}).self || {}).entraPreparada) return;
+  preparaT(s, o, (s.preparoEvT = s.preparoEvT || []));
+}
+function preparoNaConjuracaoT(s, a, o) {
+  if (!o || !o.copiaPreparoT) return;
+  const f = s.objects[o.copiaPreparoT.de];
+  if (o.zone !== 'exile' || !f || (f.zc || 0) !== o.copiaPreparoT.z || !preparadaT(s, f) || f.controller !== a.p) throw new RuleError('preparação', 'a permanente não está mais preparada');
+  if (a.face != null || a.omen || a.disturb || a.faceDown || a.bestow || a.alt != null || a.prototipo || a.flashback || a.escape || a.plotted) throw new RuleError('preparação', 'a cópia é conjurada pelo custo da mágica de preparação');
+  despreparaT(s, f, (s.preparoEvT = s.preparoEvT || []), o.oid);
+}
+/** 722.3c · conferência junto das ações de estado: a cópia existe só enquanto a permanente está no campo, em fase e preparada. */
+function preparoDeEstadoT(s, events) {
+  let mudou = false;
+  if (s.preparoEvT) { events.push(...s.preparoEvT); delete s.preparoEvT; mudou = true; }
+  if (!s.preparadasT) return mudou;
+  for (const [oid, r] of Object.entries(s.preparadasT)) {
+    const o = s.objects[oid], vale = !!o && o.zone === 'battlefield' && (o.zc || 0) === r.z && temPreparoT(s, o);
+    const x = r.copia && s.objects[r.copia];
+    if (!vale) { delete s.preparadasT[oid]; if (x && x.zone === 'exile') someCopiaPreparoT(s, x); mudou = true; continue; }
+    if (o.phasedOut) { if (x && x.zone === 'exile') { someCopiaPreparoT(s, x); delete r.copia; mudou = true; } continue; } // 702.26b
+    if (!x || x.zone !== 'exile') { criaCopiaPreparoT(s, o); mudou = true; continue; } // volta de fase preparada (722.3c)
+    if (x.controller !== o.controller) { const de = s.zones[x.owner].exile, i = de.indexOf(x.oid); if (i >= 0) de.splice(i, 1); x.owner = x.controller = x.playableFromExile = o.controller; s.zones[o.controller].exile.push(x.oid); mudou = true; }
+  }
+  for (const x of Object.values(s.objects)) if (x.copiaPreparoT && x.zone === 'exile') { const r = s.preparadasT[x.copiaPreparoT.de]; if (!r || r.copia !== x.oid) { someCopiaPreparoT(s, x); mudou = true; } }
+  return mudou;
+}
+Object.assign(EXPORTS_T, { preparadaT });
 /* ---------------- T-49 · CR 702.162 / 701.28 / 702.161 · Transformers ----------------
    - 702.162a / 712.11a: a ação de conjurar leva `face: 'convertida'`; o verso vai para cima antes de qualquer conferência (custo, tempo e
      alvos são os dele; 712.11d não muda nada aqui) e a marca `o.convertidaT` (da conjuração) faz o custo pago ser o de "More Than Meets
@@ -27227,6 +27321,7 @@ function sagaPoeLore(s, o, n) {
  * disparam aqui. Com read ahead e sem marcador, o registro guarda `escolhe`: a conferência seguinte abre a decisão do capítulo.
  * Quem já estava no campo e vira Saga não passa por aqui — "as this Saga enters" não vale para ela. */
 function sagaEntrou(s, o) {
+  preparoNaEntradaT(s, o); // T-51 · CR 722.3a · "This creature enters prepared"
   cicloNaEntradaT(s, o); // T-48 · CR 702.145b · de noite, a dupla face com daybound entra transformada (antes dos gatilhos de entrar)
   lealdadeDaFichaT(s, o); // T-47 · CR 306.5b · a ficha de planeswalker (ficha cópia) entra com a lealdade impressa
   salaEntrouT(s, o); // T-26 · CR 709.5d · a Sala entra inteira, com a porta conjurada destrancada
@@ -27503,6 +27598,7 @@ function fatosDeDuasPartesT(s, sc, setup) {
     fb.cost = parseCost(sc.omen.mana); fb.cmc = valorDoCustoT(fb.cost); fb.semCusto = false;
     if (!(sc.back.colors || []).length) fb.colors = coresDoCustoT(fb.cost);
   }
+  if (fb && sc.self && sc.self.preparo) { fb.cost = parseCost(sc.back.mana || ''); fb.cmc = valorDoCustoT(fb.cost); fb.semCusto = !sc.back.mana; if (!(sc.back.colors || []).length) fb.colors = coresDoCustoT(fb.cost); } // T-51 · CR 722.2 · a mágica de preparação tem custo, valor de mana e cor próprios
   if (fb && sc.self && sc.self.dividida) fatosDaDivididaT(s, sc, setup, fb); // T-10 · CR 709.3b / 709.4
   if (fb && sc.self && sc.self.virar) fatosDaViradaT(s, sc, setup, fb); // T-29 · CR 710.1c
   if (fb && sc.self && sc.self.modal) { // T-8 · 712.8f: a face de trás modal tem as características dela — custo, valor de mana, cor, mana que gera, entrar virada
@@ -27650,6 +27746,7 @@ const costStringT = c => (c.x ? '{X}'.repeat(c.x) : '') + (c.generic ? `{${c.gen
 function faceEscolhidaT(s, a, o) {
   if (o && a.t === 'cast' && Number.isInteger(a.vida) && a.vida > 0 && s.manaCheck && !a.free) o.vidaPhyrexianaT = a.vida; // T-47 · só quando a vida é cobrada // T-45 · CR 702.150a: o pagamento com vida fica anotado na conjuração
   if (a.faceDown && o && ((s.facts[o.name] || {}).script || {}).morph && s.facts[o.name].script.morph.disfarceT) o.disfarcadaT = true; // T-42 · CR 702.168a: conjurada pelo disfarce (a salvaguarda {2} é só dela)
+  preparoNaConjuracaoT(s, a, o); // T-51 · CR 722.3c / 601.2i · conjurar a cópia desprepara a permanente
   if (convertidaEscolhidaT(s, a, o)) return; // T-49 · CR 702.162a / 712.11a · convertida: o verso vai para cima antes de qualquer conferência
   if (prototipoEscolhidoT(s, a, o)) return; // T-36 · CR 718.3 · como protótipo: o custo, a cor e o tamanho alternativos valem desde a conjuração
   if (cercoEscolhaT(s, a, o)) return; // T-14 · CR 310.12b · o Cerco derrotado é conjurado transformado
@@ -30493,9 +30590,9 @@ const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas
   fight: e => `${e.quem === 'self-source' ? 'esta criatura luta' : 'ela luta'} com ${ALVO_PT[e.target] || descreveAlvo(e.target)} (cada uma causa dano igual ao próprio poder à outra)`,
 };
 /* ↓ T · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha tipos */
-const EFEITO_PT_T = { caso_resolvido: () => 'este Caso fica resolvido', estacao: () => 'põe nesta permanente marcadores de carga iguais ao poder da criatura virada', selada: () => 'esta montaria fica selada até o fim do turno', virar_carta: e => (e.se && e.se.minCriaturas ? `se você controla ${e.se.minCriaturas} ou mais criaturas, vira esta carta` : 'vira esta carta'), porta: e => (e.acao === 'trancar' ? 'tranca uma porta destrancada de uma Sala sua' : e.acao === 'destrancar' ? 'destranca uma porta trancada de uma Sala sua' : 'tranca ou destranca uma porta de uma Sala sua'), nivel_sobe: () => 'põe um marcador de nível nela', nivel_classe: e => `a Classe sobe para o nível ${e.n}`, tripulada: () => 'vira criatura artefato até o fim do turno', transformar: () => 'transforma (vira a outra face)' }; // T-7 · 701.27
+const EFEITO_PT_T = { caso_resolvido: () => 'este Caso fica resolvido', estacao: () => 'põe nesta permanente marcadores de carga iguais ao poder da criatura virada', selada: () => 'esta montaria fica selada até o fim do turno', virar_carta: e => (e.se && e.se.minCriaturas ? `se você controla ${e.se.minCriaturas} ou mais criaturas, vira esta carta` : 'vira esta carta'), porta: e => (e.acao === 'trancar' ? 'tranca uma porta destrancada de uma Sala sua' : e.acao === 'destrancar' ? 'destranca uma porta trancada de uma Sala sua' : 'tranca ou destranca uma porta de uma Sala sua'), nivel_sobe: () => 'põe um marcador de nível nela', nivel_classe: e => `a Classe sobe para o nível ${e.n}`, tripulada: () => 'vira criatura artefato até o fim do turno', transformar: () => 'transforma (vira a outra face)', preparar: () => 'esta criatura fica preparada', despreparar: () => 'esta criatura deixa de estar preparada' }; // T-51 · 722.3 // T-7 · 701.27
 /** T-7 · linhas do registro para os eventos da trilha tipos. */
-const LINHA_T = { ciclo: ev => `Virou ${ev.target}${ev.motivo ? ` (${ev.motivo})` : ''}`, masmorra_completa: ev => `${ev.target} completou a masmorra ${ev.name}`, caso_resolvido: ev => (ev.failed ? `${ev.name}: a condição não valia mais, o Caso não foi resolvido` : `${ev.name} foi resolvido`), estacao: ev => (ev.failed ? `${ev.name}: a nave saiu do campo, a estação não pôs marcadores` : `${ev.name} recebeu ${ev.amount} marcador${ev.amount === 1 ? '' : 'es'} de carga (estação)${ev.total != null ? ` · ${ev.total} no total` : ''}`), selada: ev => (ev.failed ? `${ev.name}: a montaria saiu do campo, não foi selada` : `${ev.name} foi selada`), virar_carta: ev => (ev.failed ? `${ev.name} não virou${ev.motivo ? ` (${ev.motivo})` : ''}` : `${ev.name} virou: agora é ${ev.target}`), porta: ev => (ev.failed ? `${ev.name}: nenhuma porta para trancar ou destrancar` : `${ev.name} ${ev.acao} ${ev.porta} (${ev.target})`), nivel_sobe: ev => (ev.failed ? `${ev.name}: saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu de nível (nível ${ev.nivel})`), nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, converter: ev => `${ev.name} converteu em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
+const LINHA_T = { preparada: ev => (ev.failed ? `${ev.name}: já estava preparada (ou não pode ficar), nada muda` : `${ev.name} está preparada (pode conjurar uma cópia de ${ev.target})`), despreparada: ev => `${ev.name} deixou de estar preparada`, ciclo: ev => `Virou ${ev.target}${ev.motivo ? ` (${ev.motivo})` : ''}`, masmorra_completa: ev => `${ev.target} completou a masmorra ${ev.name}`, caso_resolvido: ev => (ev.failed ? `${ev.name}: a condição não valia mais, o Caso não foi resolvido` : `${ev.name} foi resolvido`), estacao: ev => (ev.failed ? `${ev.name}: a nave saiu do campo, a estação não pôs marcadores` : `${ev.name} recebeu ${ev.amount} marcador${ev.amount === 1 ? '' : 'es'} de carga (estação)${ev.total != null ? ` · ${ev.total} no total` : ''}`), selada: ev => (ev.failed ? `${ev.name}: a montaria saiu do campo, não foi selada` : `${ev.name} foi selada`), virar_carta: ev => (ev.failed ? `${ev.name} não virou${ev.motivo ? ` (${ev.motivo})` : ''}` : `${ev.name} virou: agora é ${ev.target}`), porta: ev => (ev.failed ? `${ev.name}: nenhuma porta para trancar ou destrancar` : `${ev.name} ${ev.acao} ${ev.porta} (${ev.target})`), nivel_sobe: ev => (ev.failed ? `${ev.name}: saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu de nível (nível ${ev.nivel})`), nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, converter: ev => `${ev.name} converteu em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
 Object.assign(EFEITO_PT_T, { cerco_derrotado: () => 'exila o Cerco; você pode conjurá-lo transformado, sem pagar', papel: e => `cria um Papel de ${e.papel} anexado à criatura` }); // T-14 · CR 310.12b
 Object.assign(LINHA_T, { cerco_derrotado: ev => (ev.failed ? `${ev.name}: o Cerco já tinha saído do campo, nada a exilar` : `${ev.name} foi derrotada e exilada${ev.target ? ` (pode virar ${ev.target})` : ''}`), protetor_batalha: ev => `${ev.target} passa a proteger ${ev.name}`, anexo_barrado: ev => `${ev.name} não pode equipar${ev.target ? ' ' + ev.target : ''} e fica onde está`, papel: ev => (ev.failed ? `${ev.name}: sem criatura para o Papel de ${ev.target}` : `Papel de ${ev.target || ev.name}`), papel_substituido: ev => `o Papel ${ev.name} foi substituído e vai para o cemitério`, batalha_cemiterio: ev => `${ev.name} ficou sem defesa e foi para o cemitério` }); // T-14 · CR 310.12b / 310.11 / 310.8
 function descreveEfeito(e) {

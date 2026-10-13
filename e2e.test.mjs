@@ -11457,3 +11457,27 @@ test('e2e · T-49 · CR 702.162 · "More Than Meets the Eye": a folha da carta t
   await page.waitForFunction(o => { const x = window.__estanteMesa.estado().objects[o]; return x.zone === 'battlefield' && x.name === 'Jetfire, Air Guardian'; }, j, { timeout: 5000 });
   assert.deepEqual(M.errors, []);
 });
+
+test('e2e · T-51 · CR 722 · preparação: Landscape Painter entra preparada; o exílio mostra a cópia de Vibrant Idea como jogável e a folha dela conjura', { skip }, async t => {
+  // Texto oficial: Landscape Painter // Vibrant Idea em .listas/oficiais-tipos.json (Oracle do Forge, 13/10/2026).
+  const extras = JSON.parse(readFileSync(join(ROOT, '.listas', 'oficiais-tipos.json'), 'utf8')).cartas.filter(c => c.name === 'Landscape Painter');
+  const M = await comLista125(t, '24 Island\n16 Landscape Painter', ['Island', 'Landscape Painter'], '4', { extras });
+  const { page } = M;
+  const lp = await page.evaluate(() => { const s = window.__estanteMesa.estado(), z = s.zones[0];
+    const tira = (nome, ...de) => { for (const d of de) { const i = z[d].findIndex(o => s.objects[o].name === nome); if (i >= 0) return z[d].splice(i, 1)[0]; } return null; };
+    for (let k = 0; k < 8; k++) { const oid = tira('Island', 'library', 'hand'); Object.assign(s.objects[oid], { zone: 'battlefield', controller: 0, tapped: false, sick: false, damage: 0, counters: {} }); z.battlefield.push(oid); }
+    return z.hand.find(o => s.objects[o].name === 'Landscape Painter') || (() => { const x = tira('Landscape Painter', 'library'); z.hand.push(x); s.objects[x].zone = 'hand'; return x; })(); });
+  const of = await page.evaluate(o => window.__estanteMesa.legais().filter(a => a.t === 'cast' && a.oid === o), lp);
+  assert.ok(of.length, 'Landscape Painter conjurável');
+  assert.equal(await M.act(of[0]), true); await page.waitForTimeout(250); await M.resolve();
+  await page.waitForFunction(() => { const s = window.__estanteMesa.estado(); return s.zones[0].exile.some(o => (s.objects[o] || {}).name === 'Vibrant Idea'); }, null, { timeout: 5000 });
+  const chip = page.locator('#tb-exilio-me');
+  assert.equal(await chip.getAttribute('data-jogaveis'), '1', 'o exílio avisa que há uma carta jogável');
+  await chip.click(); await page.waitForTimeout(300);
+  await page.locator('.ds-dialog .tb-card', { hasText: 'Vibrant Idea' }).first().click().catch(() => {}); await page.waitForTimeout(300);
+  const botoes = (await page.locator('.ds-dialog .tb-sheet__actions button').allInnerTexts().catch(() => [])).map(x => x.replace(/\s+/g, ' ').trim());
+  assert.ok(botoes.some(x => /^Conjurar/.test(x)), 'a folha da cópia tem o botão de conjurar: ' + JSON.stringify(botoes));
+  await auditaTela(page, 'folha da cópia de preparação no exílio');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/t51-preparo.png' });
+  assert.deepEqual(M.errors, []);
+});
