@@ -5400,6 +5400,11 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `aplicaCopia` e o "entra como cópia" (o registro da cópia leva a marca do protótipo), `ficha_copia` (a ficha nasce protótipo), `marcasDaMagia` (a marca do protótipo vai para a cópia da mágica).
 - **Próximo:** auditoria independente de T-56 com a próxima; placar do catálogo.
 
+**CR5-T57 · A salvaguarda {2} da virada para baixo é valor copiável (702.168b, 701.58a)** ✅ (leva T-57, sem mudança de versão do motor) — **Valor:** fecha o disfarce (era o último ponto parcial) e atende o pedido que a trilha tinha deixado ao motor: a cópia de uma criatura disfarçada ou encoberta, virada para baixo, é 2/2 sem nome **com** salvaguarda {2}, como manda a regra. **Aceite:** o Clone que copia uma disfarçada ou uma encoberta virada para baixo e a ficha que a copia têm salvaguarda {2}; a cópia de uma metamorfose comum (sem disfarce) não tem; "perde todas as habilidades" tira a salvaguarda também da cópia. **Testes:** `tipos.disfarce.unit` +3 (falham sem a leva). Mapa: 702.168 coberta (378); 701.58 e 708.2 com o que falta atualizado (encobrir de outra zona; efeito que vire permanente para baixo).
+- **Versão e goldens:** a versão não sobe; goldens idênticos.
+- **Toca ponto comum:** `ficha_copia` (a ficha nasce com a salvaguarda), `wardDoDisfarceT` na linha da trilha do `wardsDeK` (já declarada na T-42); o registro de cópia usa o gancho da T-56. **Pedido retirado:** a trilha motor não precisa mais tratar a salvaguarda da cópia de disfarçada/encoberta.
+- **Próximo:** auditoria independente de T-56 e T-57; placar do catálogo.
+
 **CR6 · Multijogador e variantes** ○ — mesa de três e quatro (800–803, 806), Commander de mesa (903.2), Brawl (903.12); as variantes hoje "fora" só entram por decisão. 10 a 14 levas.
 
 **CR7 · Consolidação** ○ (em paralelo a partir da CR2) — a cada fase: fuzz em modo completo com listas reais, homologação por revisor independente relendo a seção das regras contra o motor, e rodada de simulação do dono do produto. 6 a 8 levas ao todo.

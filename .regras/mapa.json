@@ -6553,19 +6553,20 @@
    "regra": "Keyword Actions",
    "titulo": "Cloak",
    "status": "parcial",
-   "falta": "disfarce (d, 702.168) não existe; encobrir carta de outra zona (mão, cemitério, exílio) não tem forma de script; a mesa não mostra a salvaguarda {2} na carta virada (o motor a aplica); o Shark não vira a encoberta para cima",
+   "falta": "T-57 (13/10/2026): a salvaguarda {2} da encoberta passa para a cópia (701.58a). Falta: encobrir carta de outra zona (mão, cemitério, exílio) não tem forma de script; a mesa não mostra a salvaguarda {2} na carta virada (o motor a aplica); o Shark não vira a encoberta para cima.",
    "esforco": "P",
    "depende": [
     "708",
     "701.40"
    ],
    "cartas": "uma coleção só",
-   "evidencia": "V-18 · efeito `cloak` (viraDoTopoV, olhaEViraV, ehEncoberta e wardDaEncobertaV em core.js, abaixo da âncora ↓ V; mesma entrada virada para baixo do manifestar, V-17): a carta entra virada para baixo como criatura 2/2 com salvaguarda {2} enquanto ficar virada (a; wardsDeK lê a marca: a mágica do oponente que a mira é anulada se ele não pagar {2}); vira para cima pelo custo de mana da carta de criatura, sem pilha (b), ou pela metamorfose (c); uma de cada vez (e); terreno e instantânea ficam virados (g). `look: N` cobre \"look at the top N cards, cloak K of them, the rest on the bottom in a random order\". Carta: Hide in Plain Sight (.listas/oficiais-verbos.json) · V-19 (auditoria independente): a salvaguarda da encoberta é habilidade — some com \"perde todas as habilidades\" (613.1f)",
+   "evidencia": "V-18 · efeito `cloak` (viraDoTopoV, olhaEViraV, ehEncoberta e wardDaEncobertaV em core.js, abaixo da âncora ↓ V; mesma entrada virada para baixo do manifestar, V-17): a carta entra virada para baixo como criatura 2/2 com salvaguarda {2} enquanto ficar virada (a; wardsDeK lê a marca: a mágica do oponente que a mira é anulada se ele não pagar {2}); vira para cima pelo custo de mana da carta de criatura, sem pilha (b), ou pela metamorfose (c); uma de cada vez (e); terreno e instantânea ficam virados (g). `look: N` cobre \"look at the top N cards, cloak K of them, the rest on the bottom in a random order\". Carta: Hide in Plain Sight (.listas/oficiais-verbos.json) · V-19 (auditoria independente): a salvaguarda da encoberta é habilidade — some com \"perde todas as habilidades\" (613.1f) T-57 (13/10/2026): a salvaguarda {2} da virada para baixo disfarçada ou encoberta é valor copiável — o registro da cópia (aplicaCopia, entra como cópia) leva `wardViradaT`, a ficha cópia nasce com ela, e `wardDoDisfarceT` a dá à cópia virada para cima (2/2 sem nome).",
    "testes": [
     "CR 701.58 · encobrir (a): a carta do topo entra virada para baixo como criatura 2/2 com salvaguarda {2}; a manifestada não tem salvaguarda",
     "CR 701.58 · encobrir (a) e 702.21: a mágica do oponente que mira a encoberta dispara a salvaguarda — sem pagar {2}, é anulada",
     "CR 701.58 · encobrir (b): vira para cima pelo custo de mana da carta de criatura e deixa de ter salvaguarda",
-    "V-19 · auditoria D6 (701.58a, 613.1f): a encoberta que perde todas as habilidades perde a salvaguarda {2}"
+    "V-19 · auditoria D6 (701.58a, 613.1f): a encoberta que perde todas as habilidades perde a salvaguarda {2}",
+    "CR 701.58a · o Clone que copia uma encoberta (virada para baixo) também tem salvaguarda {2}"
    ]
   },
   {
@@ -9420,15 +9421,17 @@
    "n": "702.168",
    "regra": "Keyword Abilities",
    "titulo": "Disguise",
-   "status": "parcial",
-   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): disfarce é face para baixo com proteção (708, face para baixo completa). T-42 (13/10/2026): falta conjurar disfarçada de outra zona que não a mão (exílio jogável, cemitério com permissão): a oferta de virada para baixo é só da mão. T-44 (13/10/2026) · auditoria independente (41 conferências, fuzz de 4.400 ações): a carta jogável do exílio já é conjurada virada para baixo; falta só a cópia de uma disfarçada virada para baixo, que deveria ter salvaguarda {2} (702.168b: valores copiáveis) e entra sem — o mecanismo de cópia é comum à encoberta (701.58a), pedido à trilha dona da cópia.",
-   "evidencia": "T-42 (13/10/2026): self.disfarce = custo de disfarce; o motor usa o caminho da metamorfose (conjurar virada para baixo por {3}, 2/2 sem nome; virar para cima pelo custo de disfarce, ação especial) e dá salvaguarda {2} à permanente conjurada pelo disfarce enquanto virada para baixo (a marca `disfarcadaT`: a manifestada não tem). Gatilho novo `turned-face-up` (\"When ~ is turned face up\", 708.8), disparado ao virar pela metamorfose, pelo disfarce ou a manifestada. Carta exemplo completa: Nervous Gardener (Oracle do Forge, 13/10/2026). T-44 (13/10/2026): do exílio jogável, a oferta de virada para baixo sai do caminho da mão (cópia do estado com a carta na mão); conferido pela auditoria: face para baixo incolor, valor 0, sem subtipo; salvaguarda que cobra só do oponente e continua na troca de controle; virar para cima é ação especial (turno do oponente, combate); a manifestada com disfarce vira pelo custo de disfarce e dispara o gatilho; a encoberta com disfarce tem salvaguarda.",
+   "status": "coberta",
+   "falta": "Fica com a trilha tipos (CR5). T-57 (13/10/2026): coberta — a cópia de uma disfarçada virada para baixo tem a salvaguarda {2} (702.168b: valores copiáveis).",
+   "evidencia": "T-42 (13/10/2026): self.disfarce = custo de disfarce; o motor usa o caminho da metamorfose (conjurar virada para baixo por {3}, 2/2 sem nome; virar para cima pelo custo de disfarce, ação especial) e dá salvaguarda {2} à permanente conjurada pelo disfarce enquanto virada para baixo (a marca `disfarcadaT`: a manifestada não tem). Gatilho novo `turned-face-up` (\"When ~ is turned face up\", 708.8), disparado ao virar pela metamorfose, pelo disfarce ou a manifestada. Carta exemplo completa: Nervous Gardener (Oracle do Forge, 13/10/2026). T-44 (13/10/2026): do exílio jogável, a oferta de virada para baixo sai do caminho da mão (cópia do estado com a carta na mão); conferido pela auditoria: face para baixo incolor, valor 0, sem subtipo; salvaguarda que cobra só do oponente e continua na troca de controle; virar para cima é ação especial (turno do oponente, combate); a manifestada com disfarce vira pelo custo de disfarce e dispara o gatilho; a encoberta com disfarce tem salvaguarda. T-57 (13/10/2026): a salvaguarda {2} da virada para baixo disfarçada ou encoberta é valor copiável — o registro da cópia (aplicaCopia, entra como cópia) leva `wardViradaT`, a ficha cópia nasce com ela, e `wardDoDisfarceT` a dá à cópia virada para cima (2/2 sem nome).",
    "testes": [
     "CR 702.168a · \"de qualquer zona de onde poderia jogá-la\": jogável do exílio, a carta também é conjurada virada para baixo por {3}",
     "CR 702.168a · da mão, conjurar virada para baixo por {3}: entra 2/2 sem nome nem custo",
     "CR 702.168a / 702.21 · virada para baixo pelo disfarce ela tem salvaguarda {2}: a mágica do oponente que a mira dispara a salvaguarda",
     "CR 702.168d · com prioridade, virar para cima pelo custo de disfarce ({G}); a salvaguarda acaba; \"quando é virada para cima\" busca um terreno com tipo básico para a mão",
-    "CR 702.168a · conjurada normalmente (virada para cima) não tem salvaguarda nem o gatilho"
+    "CR 702.168a · conjurada normalmente (virada para cima) não tem salvaguarda nem o gatilho",
+    "CR 702.168b · o Clone que copia uma disfarçada virada para baixo é 2/2 sem nome e com salvaguarda {2}",
+    "CR 702.168b · a ficha que copia uma disfarçada virada para baixo também tem salvaguarda {2}; a cópia de uma metamorfose (sem disfarce) não tem"
    ],
    "esforco": "P",
    "depende": [
@@ -10306,7 +10309,7 @@
    "titulo": "Virada para baixo: 2/2 sem nome, tipo nem habilidade",
    "status": "parcial",
    "evidencia": "power/toughness = 2 (index.html:10340-10341), has() nega palavras-chave (10065), abilitiesOf vazio (10901), sem subtipo/custo (10089, 10118, 11742, 11876); rules.unit \"S54 · metamorfose: entra virada para baixo como 2/2 sem nada\"; elves.regras Leva 136 · teste de conformidade em cr.conformidade (leva CR1a) · M-288 (CR2d.12): a virada para baixo não tem subtipo nem cor, e efeitos posteriores valem por cima",
-   "falta": "só metamorfose; 708.2a (disfarce com ward {2}, manifestar, camuflar) não existe; o objeto guarda o nome real em o.name (a tela esconde). Cor e bônus de anexo corrigidos.",
+   "falta": "T-57 (13/10/2026, conferência do mapa): disfarce (T-42), manifestar e encobrir (V-17/V-18) existem, e as características listadas viram valores copiáveis (a salvaguarda {2} da disfarçada e da encoberta passa para a cópia, T-57). Falta: 708.2a primeira frase e 708.2b — não há efeito que vire uma permanente para baixo no campo (Ixidron, Cyber Conversion).",
    "esforco": "M",
    "depende": [
     "702.37",
@@ -10315,7 +10318,9 @@
    ],
    "testes": [
     "CR 708.2 · permanente virada para baixo é 2/2 incolor: a cor impressa não vale, e bônus de Aura valem",
-    "CR 708.2 · virada para baixo não tem subtipo: o hino de Elfos não a alcança e \"exceto Elfos\" a alcança"
+    "CR 708.2 · virada para baixo não tem subtipo: o hino de Elfos não a alcança e \"exceto Elfos\" a alcança",
+    "CR 702.168b · o Clone que copia uma disfarçada virada para baixo é 2/2 sem nome e com salvaguarda {2}",
+    "CR 701.58a · o Clone que copia uma encoberta (virada para baixo) também tem salvaguarda {2}"
    ]
   },
   {

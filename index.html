@@ -20384,6 +20384,7 @@ function applyEffect(s, src, eff, tgt, events) {
       const n = fichasAoCriar(s, ctrl, amountOf(s, src, eff.amount || 1)), novas = []; // CR2e.2 · 614.16
       const exc = excecaoCopiavel(s, obj, { somaTipos: eff.somaTipos, palavras: eff.palavras }); // CR2d.13 · 707.9b: a exceção do modelo vem junto
       for (let i = 0; i < n; i++) { const t = createToken(s, { name: nomeCopiavel(s, obj) }, ctrl, events); novas.push(t); const ft = s.objects[t]; // CR2d.12 · cópia da virada para baixo
+        if (viradaComWardT(s, obj)) ft.wardViradaT = true; // T-57 · CR 702.168b / 701.58a · a ficha que copia a virada disfarçada ou encoberta tem a salvaguarda {2}
         if (prototipoAtivoT(s, obj)) ft.prototipoT = true; // T-56 · CR 718.3d · a ficha que copia um protótipo também é protótipo (Toca ponto comum: ficha_copia)
         fichaDeDuplaFaceT(s, ft, obj); // T-7 · CR 707.8a · a ficha que copia uma permanente de dupla face é ficha de dupla face, com a mesma face para cima (função abaixo da âncora T das exportações)
         if (exc) { ft.nomeImpresso = ft.name; ft.copias = [{ nome: ft.name, ate: 'sempre', by: ctrl, ts: relogio(s), turno: s.turn.number, excecao: exc }]; aplicaExcecao(s, ft, exc, 'sempre'); } } // 707.9 · "except it has haste"
@@ -26458,7 +26459,11 @@ MARCAS_DA_CONJURACAO.push('prototipoT');
 /** T-56 · CR 718.2a / 718.3d · ser protótipo faz parte dos valores copiáveis: o efeito de cópia vigente mais novo diz se a cópia é protótipo. */
 function copiaDePrototipoT(s, o) { const vale = (o.copias || []).filter(t => vigente(s, t)); return vale.length ? !!vale.reduce((a, b) => (b.ts > a.ts ? b : a)).prototipoT : false; }
 /** T-56 · o que o registro de cópia leva da trilha (marcas copiáveis do modelo): `{ prototipoT: true }` quando o modelo é protótipo. */
-const copiavelDaTrilhaT = (s, modelo) => (modelo && prototipoAtivoT(s, modelo) ? { prototipoT: true } : {});
+const copiavelDaTrilhaT = (s, modelo) => ({ ...(modelo && prototipoAtivoT(s, modelo) ? { prototipoT: true } : {}), ...(viradaComWardT(s, modelo) ? { wardViradaT: true } : {}) }); // T-57 · 702.168b / 701.58a: a salvaguarda {2} da virada para baixo disfarçada ou encoberta também
+/** T-57 · a virada para baixo cuja salvaguarda {2} é valor copiável: a disfarçada (702.168b) e a encoberta (701.58a). */
+const viradaComWardT = (s, m) => !!m && !!m.faceDown && (!!m.disfarcadaT || ehEncoberta(s, m));
+/** T-57 · a cópia vigente mais nova de uma virada com salvaguarda (ou a ficha que nasceu assim). */
+function copiaComWardViradaT(s, o) { if (o.wardViradaT) return true; const vale = (o.copias || []).filter(t => vigente(s, t)); return vale.length ? !!vale.reduce((a, b) => (b.ts > a.ts ? b : a)).wardViradaT : false; }
 MARCAS_DA_CONJURACAO.push('convertidaT'); // T-49 · CR 702.162a · conjurada convertida (o custo alternativo vale na conjuração)
 MARCAS_DA_CONJURACAO.push('disfarcadaT');
 MARCAS_DA_CONJURACAO.push('vidaPhyrexianaT'); // T-45 · quantos símbolos phyrexianos foram pagos com vida (vai da mão para a pilha e da pilha para o campo)
@@ -26473,7 +26478,7 @@ function lealdadeDaFichaT(s, o) {
  * quem a conjurou). A palavra vem dos fatos da carta ("Compleated") ou de `self.completado`. */
 const completadoT = (s, o) => { const f = s.facts[o.name] || {}, tem = (f.kw || []).includes('compleated') || !!((f.script || {}).self || {}).completado; return tem && o.vidaPhyrexianaT ? 2 * o.vidaPhyrexianaT : 0; }; // T-42 · vai da mão para a pilha e da pilha para o campo; some em qualquer outra mudança de zona
 /** T-42 · CR 702.168a · a salvaguarda {2} da permanente conjurada pelo disfarce, enquanto virada para baixo (chamada só por wardsDeK). */
-const wardDoDisfarceT = (s, o) => (o.faceDown && o.disfarcadaT && !(mutacao(s, o) || {}).perde ? ['{2}'] : []);
+const wardDoDisfarceT = (s, o) => (((o.faceDown && o.disfarcadaT) || (!o.faceDown && copiaComWardViradaT(s, o))) && !(mutacao(s, o) || {}).perde ? ['{2}'] : []); // T-57 · e a cópia de uma virada com salvaguarda (valor copiável)
 /** T-42 · CR 708.8 · a permanente foi virada para cima: dispara "when ~ is turned face up". */
 function viradaParaCimaT(s, oid) { const o = s.objects[oid]; if (o && o.zone === 'battlefield' && !o.faceDown) gatilhosDaPermanente(s, 'virada-para-cima', o, ['self'], {}, () => true, false); }
 function prototipoEscolhidoT(s, a, o) {

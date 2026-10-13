@@ -118,3 +118,49 @@ test('CR 702.168a · sem permissão, do exílio ou do cemitério não há virada
   eq(disfarcada(s, 0, g).length, 0);
   assert.throws(() => E.apply(s, { t: 'cast', p: 0, oid: g, faceDown: true }));
 });
+
+/* ---------------- T-57 · CR 702.168b / 701.58a · a salvaguarda {2} da virada para baixo é valor copiável ---------------- */
+const comCopias57 = (seed = 3) => {
+  const sc = { ...SCRIPTS,
+    'Clone Teste': { name: 'Clone Teste', entraComoCopia: { de: { tipos: ['creature'] } }, ...EX },
+    'Espelho': { name: 'Espelho', effects: [{ do: 'ficha_copia', amount: 1, target: 'creature' }], ...EX },
+    'Mascara': { name: 'Mascara', morph: { mana: '{1}' }, ...EX },
+    'Capa': { name: 'Capa', effects: [{ do: 'cloak' }], ...EX } };
+  C['Clone Teste'] = { name: 'Clone Teste', type_line: 'Creature — Shapeshifter', mana_cost: '{3}', cmc: 3, keywords: [], oracle_text: '', colors: [], power: '0', toughness: '0' };
+  C['Espelho'] = { name: 'Espelho', type_line: 'Sorcery', mana_cost: '{2}', cmc: 2, keywords: [], oracle_text: '', colors: [] };
+  C['Mascara'] = { name: 'Mascara', type_line: 'Creature — Rogue', mana_cost: '{3}', cmc: 3, keywords: ['Morph'], oracle_text: '', colors: [], power: '3', toughness: '3' };
+  C['Capa'] = { name: 'Capa', type_line: 'Sorcery', mana_cost: '{1}', cmc: 1, keywords: [], oracle_text: '', colors: [] };
+  const deck = [{ name: NG, qty: 6, zone: 'main' }, ...['Clone Teste', 'Espelho', 'Mascara', 'Capa', 'Choque'].map(name => ({ name, qty: 3, zone: 'main' })), { name: 'Forest', qty: 14, zone: 'main' }, { name: 'Island', qty: 12, zone: 'main' }];
+  let s = E.createGame({ format: 'livre', seed, mode: 'full', cards: C, scripts: sc, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  return passaAte(s, x => x.turn.active === 0 && x.turn.step === 'main1' && !x.stack.length && !x.pending);
+};
+const clonaA = (s, alvo) => { let c; [s, c] = poe(s, 0, 'Clone Teste', 'hand'); s = mana(s);
+  s = act(s, legais(s, 0, a => a.t === 'cast' && a.oid === c)[0]); s = passaAte(s, x => !!x.pending || !x.stack.length);
+  if (s.pending && s.pending.kind === 'pick') s = act(s, { t: 'pick', p: 0, oid: alvo }); return [esvazia(s), c]; };
+
+test('CR 702.168b · o Clone que copia uma disfarçada virada para baixo é 2/2 sem nome e com salvaguarda {2}', () => {
+  let s = comCopias57(); let g; [s, g] = poe(s, 0, NG, 'hand'); s = mana(s); s = esvazia(act(s, disfarcada(s, 0, g)[0]));
+  let c; [s, c] = clonaA(s, g);
+  const o = s.objects[c];
+  eq([!!o.faceDown, E.stats(s, o).power, E.wardsDeK(s, o)], [false, 2, ['{2}']]);
+});
+
+test('CR 702.168b · a ficha que copia uma disfarçada virada para baixo também tem salvaguarda {2}; a cópia de uma metamorfose (sem disfarce) não tem', () => {
+  let s = comCopias57(); let g; [s, g] = poe(s, 0, NG, 'hand'); s = mana(s); s = esvazia(act(s, disfarcada(s, 0, g)[0]));
+  let m; [s, m] = poe(s, 0, 'Mascara', 'hand'); s = mana(s); s = esvazia(act(s, legais(s, 0, a => a.t === 'cast' && a.oid === m && a.faceDown)[0]));
+  let e; [s, e] = poe(s, 0, 'Espelho', 'hand'); s = mana(s);
+  s = esvazia(act(s, legais(s, 0, a => a.t === 'cast' && a.oid === e && ((a.targets || [])[0] || {}).oid === g)[0]));
+  [s, e] = poe(s, 0, 'Espelho', 'hand'); s = mana(s);
+  s = esvazia(act(s, legais(s, 0, a => a.t === 'cast' && a.oid === e && ((a.targets || [])[0] || {}).oid === m)[0]));
+  const fichas = s.zones[0].battlefield.map(x => s.objects[x]).filter(o => o.token).map(o => E.wardsDeK(s, o).length).sort();
+  eq(fichas, [0, 1]);
+});
+
+test('CR 701.58a · o Clone que copia uma encoberta (virada para baixo) também tem salvaguarda {2}', () => {
+  let s = comCopias57(); let k; [s, k] = poe(s, 0, 'Capa', 'hand'); s = mana(s); s = esvazia(act(s, legais(s, 0, a => a.t === 'cast' && a.oid === k)[0]));
+  const enc = s.zones[0].battlefield.find(x => s.objects[x].faceDown);
+  assert.ok(enc, 'uma encoberta no campo');
+  let c; [s, c] = clonaA(s, enc);
+  eq(E.wardsDeK(s, s.objects[c]), ['{2}']);
+});
