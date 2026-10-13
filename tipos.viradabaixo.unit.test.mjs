@@ -120,3 +120,59 @@ test('CR 708.9 · quem sai do campo é revelada: na luta em que a virada morre, 
   let L1; [s, L1] = resolveRegistrando(s);
   eq(s.objects[g].zone, 'graveyard'); assert.match([...L0, ...L1].join(' | '), /Entra Vida morreu/);
 });
+
+/* ---------------- T-73 · CR 708.2a / 708.2b / 712.16 · virar uma permanente para baixo (e para cima) por efeito ---------------- */
+import { readFileSync as lerT73 } from 'node:fs';
+const OF73 = JSON.parse(lerT73(new URL('./.listas/oficiais-tipos.json', import.meta.url), 'utf8')).cartas;
+for (const c of OF73.filter(x => ['Backslide', 'Break Open'].includes(x.name))) C[c.name] = { name: c.name, type_line: c.type_line, mana_cost: c.mana_cost, cmc: 2, keywords: c.name === 'Backslide' ? ['Cycling'] : [], oracle_text: c.oracle_text, colors: c.name === 'Backslide' ? ['U'] : ['R'] };
+for (const n of ['Backslide', 'Break Open']) if (SC.SCRIPTS[n]) SCRIPTS[n] = SC.SCRIPTS[n]; // as cartas exemplo (script abaixo da âncora ↓ T) entram no baralho da mesa
+SCRIPTS['Morfo Vira'] = { name: 'Morfo Vira', morph: { mana: '{1}' }, abilities: [{ kind: 'triggered', when: 'turned-face-up', effects: [{ do: 'gain', amount: 3 }] }], ...EX };
+carta('Morfo Vira', 'Creature — Beast', { power: '4', toughness: '4', mana_cost: '{4}', cmc: 4, keywords: ['Morph'] });
+SCRIPTS['Dupla'] = { name: 'Dupla', self: { duplaFace: true }, back: { name: 'Dupla Virada', types: ['creature'], power: 3, toughness: 3 }, ...EX };
+carta('Dupla', 'Creature — Human', { power: '1', toughness: '1' });
+const apT73 = (s, p, nome, alvo) => { let c; [s, c] = poe(s, p, nome, 'hand'); s = mana(s, p); s = J(s); s.turn.priority = p; const a = legais(s, p, x => x.t === 'cast' && x.oid === c && (x.targets || [])[0] && x.targets[0].oid === alvo)[0]; return [s, a]; };
+
+test('CR 708.2a · Backslide vira para baixo a criatura com metamorfose: 2/2 sem nome nem tipo; marcadores ficam; quem a controla pode virá-la para cima pelo custo de metamorfose', () => {
+  let s = mesa(); let m; [s, m] = poe(s, 0, 'Morfo Vira', 'battlefield'); s = J(s); s.objects[m].counters = { p1p1: 1 };
+  let u; [s, u] = poe(s, 0, 'Urso', 'battlefield');
+  let a; [s, a] = apT73(s, 1, 'Backslide', u); assert.equal(a, undefined, 'o Urso não tem metamorfose: não é alvo');
+  [s, a] = apT73(s, 1, 'Backslide', m); assert.ok(a, 'a criatura com metamorfose é alvo');
+  s = esvazia(act(s, a));
+  eq([!!s.objects[m].faceDown, pt(s, m), E.tiposDe(s, s.objects[m]), (s.objects[m].counters || {}).p1p1], [true, [3, 3], ['creature'], 1]);
+  s = J(s); s.turn.priority = 0; s = mana(s); const v = s.players[0].life;
+  const un = legais(s, 0, x => x.t === 'unmorph' && x.oid === m); assert.equal(un.length, 1, 'pode virar para cima pela metamorfose');
+  s = esvazia(act(s, un[0]));
+  eq([!!s.objects[m].faceDown, pt(s, m), s.players[0].life - v], [false, [5, 5], 3]);
+});
+
+test('CR 708.2b / 712.16 · virar para baixo quem já está virada, ou uma dupla face, não faz nada', () => {
+  let s = mesa(); let g; [s, g] = viradaBaixo(s, 'Entra Vida'); let d; [s, d] = poe(s, 0, 'Dupla', 'battlefield'); s = J(s);
+  const src = { oid: 'zz', name: 'Efeito', controller: 1, ability: true };
+  const ev1 = []; E.applyEffect(s, src, { do: 'vira_para_baixo', target: 'creature' }, { oid: g }, ev1);
+  const ev2 = []; E.applyEffect(s, src, { do: 'vira_para_baixo', target: 'creature' }, { oid: d }, ev2);
+  eq([!!s.objects[g].faceDown, !!s.objects[d].faceDown, ev1.some(e => e.failed), ev2.some(e => e.failed)], [true, false, true, true]);
+});
+
+test('CR 708.8 / 702.37b · Break Open vira para cima a criatura virada do oponente: o gatilho "quando é virada para cima" dispara; a carta manifestada que não é de permanente continua virada (701.40b)', () => {
+  let s = mesa(); let m; [s, m] = poe(s, 0, 'Morfo Vira', 'hand'); s = mana(s); s = esvazia(act(s, legais(s, 0, x => x.t === 'cast' && x.oid === m && x.faceDown)[0]));
+  const v = s.players[0].life;
+  let a; [s, a] = apT73(s, 1, 'Break Open', m); assert.ok(a, 'a virada do oponente é alvo');
+  s = esvazia(act(s, a));
+  eq([!!s.objects[m].faceDown, pt(s, m), s.players[0].life - v], [false, [4, 4], 3]);
+  let t = mesa(); let c; [t, c] = poe(t, 0, 'Choque', 'hand'); t = J(t); const z = t.zones[0]; z.hand.splice(z.hand.indexOf(c), 1); z.library.unshift(c); t.objects[c].zone = 'library';
+  let mf; [t, mf] = poe(t, 0, 'Manifesta', 'hand'); t = mana(t); t = esvazia(act(t, legais(t, 0, x => x.t === 'cast' && x.oid === mf)[0]));
+  eq([t.objects[c].zone, !!t.objects[c].faceDown], ['battlefield', true]);
+  let b; [t, b] = apT73(t, 1, 'Break Open', c); t = esvazia(act(t, b));
+  eq([t.objects[c].zone, !!t.objects[c].faceDown], ['battlefield', true], 'o Choque manifestado não vira');
+});
+
+test('Registro e frases · virar para baixo e para cima por efeito', () => {
+  assert.match(T.descreveEfeitos(SC.SCRIPTS['Backslide'].effects), /vira a criatura alvo para baixo/);
+  assert.match(T.descreveEfeitos(SC.SCRIPTS['Break Open'].effects), /vira para cima/);
+  let s = mesa(); let m; [s, m] = poe(s, 0, 'Morfo Vira', 'battlefield');
+  let c; [s, c] = poe(s, 1, 'Backslide', 'hand'); s = mana(s, 1); s = J(s); s.turn.priority = 1;
+  s = act(s, legais(s, 1, x => x.t === 'cast' && x.oid === c && x.targets[0].oid === m)[0]);
+  const r1 = E.apply(s, { t: 'pass', p: 1 }); const r2 = E.apply(r1.state, { t: 'pass', p: 0 });
+  const L = T.describe(r1.state, { t: 'pass', p: 0 }, r2.events, r2.state).join(' | ');
+  assert.match(L, /Backslide virou uma criatura para baixo/, L); assert.doesNotMatch(L, /Morfo Vira/, L);
+});
