@@ -80,3 +80,43 @@ test('CR 708.2 / 708.5 / 708.9 · o registro não revela a virada para baixo (al
   const at = { t: 'attack', p: 0, attackers: [h] }; const ra = E.apply(t, at);
   const La = T.describe(t, at, ra.events, ra.state).join(' | '); assert.doesNotMatch(La, /Entra Vida/, La);
 });
+
+/* ---------------- T-71 · correções da auditoria independente (T-68): nenhuma linha revela quem continua virada ---------------- */
+Object.assign(SCRIPTS, {
+  'Anula Criatura': { name: 'Anula Criatura', effects: [{ do: 'counter', target: 'creature-spell' }], ...EX },
+  'Caca': { name: 'Caca', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], ...EX },
+  'Murcha': { name: 'Murcha', effects: [{ do: 'counters', amount: 1, tipo: 'm1m1', target: 'creature' }], ...EX },
+});
+for (const n of ['Anula Criatura', 'Caca', 'Murcha']) carta(n, 'Instant');
+const registra = (s, a) => { const r = E.apply(s, a); return [r.state, T.describe(s, a, r.events, r.state)]; };
+const resolveRegistrando = s => { const L = []; for (let i = 0; i < 40 && s.stack.length && !s.pending; i++) { let l; [s, l] = registra(s, { t: 'pass', p: s.turn.priority }); L.push(...l); } return [s, L]; };
+const deB = (s, nome, f) => { let c; [s, c] = poe(s, 1, nome, 'hand'); s = mana(s, 1); s = J(s); s.turn.priority = 1; return [s, legais(s, 1, x => x.t === 'cast' && x.oid === c && f(x))[0]]; };
+const naoDiz = (L, ...nomes) => { const t = L.join(' | '); for (const n of nomes) assert.doesNotMatch(t, new RegExp(n), t); };
+
+test('CR 708.2 · luta, marcador -1/-1 e salvaguarda {2} com a virada para baixo que continua no campo: nenhuma linha (nem a decisão de pagar) diz o nome', () => {
+  let s = mesa(); let g; [s, g] = viradaBaixo(s, 'Entra Vida'); let u; [s, u] = poe(s, 1, 'Urso', 'battlefield'); s = J(s); s.objects[g].counters = { p1p1: 2 };
+  let c; [s, c] = poe(s, 0, 'Caca', 'hand'); s = mana(s);
+  let L0; [s, L0] = registra(s, legais(s, 0, x => x.t === 'cast' && x.oid === c && x.targets[0].oid === g && x.targets[1].oid === u)[0]);
+  let L1; [s, L1] = resolveRegistrando(s);
+  eq([s.objects[g].zone, !!s.objects[g].faceDown], ['battlefield', true]); naoDiz([...L0, ...L1], 'Entra Vida');
+  let a; [s, a] = deB(s, 'Murcha', x => x.targets[0].oid === g); let L2; [s, L2] = registra(s, a);
+  if (s.pending) { const j = s.pending; assert.doesNotMatch(JSON.stringify(j), /Entra Vida/, 'a salvaguarda pendente não leva o nome'); }
+  naoDiz(L2, 'Entra Vida');
+});
+
+test('CR 708.4 · a mágica virada para baixo na pilha: "alvo:" de quem a anula não diz o nome; a pilha explicada mostra "Criatura virada para baixo", sem imagem', () => {
+  let s = mesa(); let g; [s, g] = poe(s, 0, 'Entra Vida', 'hand'); s = mana(s);
+  s = act(s, legais(s, 0, x => x.t === 'cast' && x.oid === g && x.faceDown)[0]);
+  const p = T.explicaPilha(s); const it = p.itens.find(x => x.oid === g);
+  eq([it.nome, it.imagemDe], ['Criatura virada para baixo', null]); assert.doesNotMatch(JSON.stringify(p), /Entra Vida/);
+  let a; [s, a] = deB(s, 'Anula Criatura', x => x.targets[0].oid === g);
+  const [, L] = registra(s, a); naoDiz(L, 'Entra Vida'); assert.match(L.join(' | '), /alvo: uma criatura virada para baixo/);
+});
+
+test('CR 708.9 · quem sai do campo é revelada: na luta em que a virada morre, o registro diz o nome dela', () => {
+  let s = mesa(); let g; [s, g] = viradaBaixo(s, 'Entra Vida'); let u; [s, u] = poe(s, 1, 'Urso', 'battlefield');
+  let c; [s, c] = poe(s, 0, 'Caca', 'hand'); s = mana(s);
+  let L0; [s, L0] = registra(s, legais(s, 0, x => x.t === 'cast' && x.oid === c && x.targets[0].oid === g && x.targets[1].oid === u)[0]);
+  let L1; [s, L1] = resolveRegistrando(s);
+  eq(s.objects[g].zone, 'graveyard'); assert.match([...L0, ...L1].join(' | '), /Entra Vida morreu/);
+});

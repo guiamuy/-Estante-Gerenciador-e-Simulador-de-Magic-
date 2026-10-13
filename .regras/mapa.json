@@ -10377,7 +10377,7 @@
    "titulo": "Virada para baixo: 2/2 sem nome, tipo nem habilidade",
    "status": "parcial",
    "evidencia": "power/toughness = 2 (index.html:10340-10341), has() nega palavras-chave (10065), abilitiesOf vazio (10901), sem subtipo/custo (10089, 10118, 11742, 11876); rules.unit \"S54 · metamorfose: entra virada para baixo como 2/2 sem nada\"; elves.regras Leva 136 · teste de conformidade em cr.conformidade (leva CR1a) · M-288 (CR2d.12): a virada para baixo não tem subtipo nem cor, e efeitos posteriores valem por cima T-68: tipos.viradabaixo.unit.",
-   "falta": "T-57 (13/10/2026, conferência do mapa): disfarce (T-42), manifestar e encobrir (V-17/V-18) existem, e as características listadas viram valores copiáveis (a salvaguarda {2} da disfarçada e da encoberta passa para a cópia, T-57). Falta: 708.2a primeira frase e 708.2b — não há efeito que vire uma permanente para baixo no campo (Ixidron, Cyber Conversion). T-68 (13/10/2026): o registro da partida não diz o nome da virada para baixo (alvo, dano, ataque).",
+   "falta": "T-57 (13/10/2026, conferência do mapa): disfarce (T-42), manifestar e encobrir (V-17/V-18) existem, e as características listadas viram valores copiáveis (a salvaguarda {2} da disfarçada e da encoberta passa para a cópia, T-57). Falta: 708.2a primeira frase e 708.2b — não há efeito que vire uma permanente para baixo no campo (Ixidron, Cyber Conversion). T-68/T-71 (13/10/2026): o registro da partida e a pilha explicada não dizem o nome da carta que continua virada para baixo (alvo, dano, ataque, luta, salvaguarda, marcadores, escolhas).",
    "esforco": "M",
    "depende": [
     "702.37",
@@ -10828,7 +10828,7 @@
    "titulo": "Cada face com suas características; fora do campo vale a frente",
    "status": "parcial",
    "evidencia": "T-7 (11/10/2026) · src/engine/core.js, bloco \"T-7 · CR 701.27 / 712 / 707.8a\" (cartas marcadas `self: { duplaFace: true }`, efeito `transformar`): 712.8a — fora do campo e da pilha vale a frente (flipToFront em toda mudança de zona). 712.8d–e — com a frente para cima só a frente; com o verso para cima só o verso (nome, tipos, subtipos, cor, P/T, palavras-chave e habilidades), com o valor de mana da frente. T-8 (11/10/2026) · src/engine/core.js, bloco \"T-8 · CR 712.3 … dupla face modal\" (cartas `self: { modal: true }`): 712.8f — na pilha e no campo a modal tem só as características da face de cima, com o custo e o valor de mana da própria face (fatosDeDuasPartesT). T-69: valorDaFaceT no gancho do valor de mana (valorDaSalaT); tipos.valordeface.unit.",
-   "falta": "T-69 (13/10/2026): 712.8c e 712.8e cobertas (verso para cima vale o custo da frente, também conjurada transformada pelo disturb; a cópia de um verso vale 0). Falta 712.8g (meld: espera a primitiva \"permanente de várias cartas\", decisão do dono). A ficha cópia de uma dupla face transformada (707.8a, ficha de dupla face com o verso para cima) vale o custo da frente.",
+   "falta": "T-69 (13/10/2026): 712.8c e 712.8e cobertas (verso para cima vale o custo da frente, também conjurada transformada pelo disturb; a cópia de um verso vale 0). Falta 712.8g (meld: espera a primitiva \"permanente de várias cartas\", decisão do dono). A ficha cópia de uma dupla face transformada é ela mesma uma dupla face (707.8a) e vale o custo da frente (conferido na auditoria da T-69).",
    "esforco": "P",
    "depende": [
     "202.3b"
@@ -11427,10 +11427,13 @@
    "titulo": "Conjurar como Presságio e embaralhar ao resolver",
    "status": "parcial",
    "evidencia": "legalActions oferece o presságio com os alvos da face de trás (index.html:13055-13060); cast troca a face e cobra o custo do presságio (12228-12229, 12266, 12296); ao resolver, volta embaralhada (12071); rules.unit \"S24 · presságio: conjura a face de trás da mão e a carta volta embaralhada para o grimório\"",
-   "falta": "720.3c (cópia de Presságio) ausente; o presságio é modelado como \"face de trás\" da carta, não como características alternativas.",
+   "falta": "720.3c (cópia de Presságio) ausente; o presságio é modelado como \"face de trás\" da carta, não como características alternativas. T-71 (13/10/2026): na pilha como Presságio, o valor de mana e a cor são os do custo do presságio (720.3b).",
    "esforco": "P",
    "depende": [
     "707.10"
+   ],
+   "testes": [
+    "CR 720.3b / 202.3 · Sagu Wildling conjurada como Presságio (Roost Seek, {G}): na pilha vale 1 e é verde"
    ]
   },
   {
