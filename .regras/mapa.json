@@ -2856,21 +2856,22 @@
    "n": "310.12",
    "regra": "Battles",
    "titulo": "Cerco: protetor oponente e conjurar transformada",
-   "status": "parcial",
+   "status": "coberta",
    "depende": [
     "310.4",
     "310.9",
     "712"
    ],
-   "evidencia": "T-14 (12/10/2026): 310.12a — o protetor do Cerco é um oponente de quem o controla (ao entrar e na ação de estado). 310.12b — tirado o último marcador de defesa (dano), a habilidade intrínseca dispara (`cerco-derrotado`, perde-se com \"perde todas as habilidades\"); ao resolver, exila o Cerco desta encarnação (400.7) e abre a decisão \"conjurar transformado sem pagar\" (`free_cast` com a face `transformada` como única oferta; recusar deixa a carta exilada sem permissão). Mesa: \"X foi derrotada: conjurar <verso> sem pagar?\", um botão pelo nome do verso. Carta exemplo completa: Invasion of Dominaria // Serra Faithkeeper. T-15 (12/10/2026) · auditoria independente: o último marcador de defesa tirado como custo também dispara; o ninja no lugar de quem atacava o Cerco ataca o mesmo Cerco.",
-   "falta": "Cerco de outro dono (controle trocado) não é conjurado pelo controlador: fica exilado (o motor só conjura carta do próprio dono).",
+   "evidencia": "T-14 (12/10/2026): 310.12a — o protetor do Cerco é um oponente de quem o controla (ao entrar e na ação de estado). 310.12b — tirado o último marcador de defesa (dano), a habilidade intrínseca dispara (`cerco-derrotado`, perde-se com \"perde todas as habilidades\"); ao resolver, exila o Cerco desta encarnação (400.7) e abre a decisão \"conjurar transformado sem pagar\" (`free_cast` com a face `transformada` como única oferta; recusar deixa a carta exilada sem permissão). Mesa: \"X foi derrotada: conjurar <verso> sem pagar?\", um botão pelo nome do verso. Carta exemplo completa: Invasion of Dominaria // Serra Faithkeeper. T-15 (12/10/2026) · auditoria independente: o último marcador de defesa tirado como custo também dispara; o ninja no lugar de quem atacava o Cerco ataca o mesmo Cerco. T-72: cercoDerrotadoT sem a trava do dono; HANDLERS.cast aceita a carta de outro dono só por essa decisão e põe a mágica sob o controle de quem conjura (601.2a).",
+   "falta": "T-72 (13/10/2026): coberta — o Cerco de outro dono é conjurado por quem controla o gatilho, e entra sob o controle dele (o dono não muda).",
    "esforco": "P",
    "testes": [
     "CR 310.12b / 310.7 / 704.5v · tirado o último marcador de defesa, o Cerco dispara; fica no campo enquanto o gatilho não sai da pilha; ao resolver, é exilado e pode ser conjurado transformado, sem pagar",
     "CR 310.12b · \"you may\": recusar deixa o Cerco no exílio, e ele não pode ser conjurado depois",
     "CR 400.7 / 310.12b · o Cerco que sai do campo em resposta ao gatilho não é exilado nem conjurado (o gatilho não acha o objeto)",
     "CR 310.9a / 310.12a · ao entrar, o Cerco é protegido por um oponente de quem o controla; a batalha sem tipo de batalha, pelo próprio controlador",
-    "CR 310.12b · \"quando o último marcador de defesa é removido\": tirá-lo como custo de uma habilidade também dispara (exila e oferece conjurar transformado)"
+    "CR 310.12b · \"quando o último marcador de defesa é removido\": tirá-lo como custo de uma habilidade também dispara (exila e oferece conjurar transformado)",
+    "CR 310.12b / 108.3 · o Cerco de A que B passou a controlar: derrotado, quem controla o gatilho (B) pode conjurá-lo transformado sem pagar; entra sob o controle de B, A continua o dono"
    ]
   },
   {
