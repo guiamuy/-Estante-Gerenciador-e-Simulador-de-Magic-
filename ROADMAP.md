@@ -3948,6 +3948,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Simplificação declarada:** Delver só pergunta quando revelar transforma (revelar outra carta não muda nada na partida).
 - **Teste:** `lt36.unit` (9 testes; os de regra falham no motor anterior); `--confere` com 557 aprovadas.
 
+**M-354 · LT35 · Frases do Pauper: terreno da mão para o campo, vida por cartas na mão, dano por criaturas no cemitério, −1/−1 por Pântano, "revele uma incolor" e dano pelo poder sacrificado — revisão por lote XXVI (7 cartas)** ✅ (leva M-354, motor v110 sem mudança de forma; goldens intactos).
+- **Valor:** Growth Spiral e Embrace the Paradox ("you may put a land card from your hand onto the battlefield [tapped]", 305.2: não gasta a jogada de terreno), Union of the Third Path (vida igual às cartas na mão, contadas na resolução), Lotleth Giant (palavra de habilidade sem efeito de regra, 207.2c; 1 de dano por carta de criatura no seu cemitério), Defile (−1/−1 por Pântano seu), Ancient Stirrings ("reveal a colorless card from among them", 105.2c: terreno vale) e Fling (dano igual ao poder da criatura sacrificada como era no campo, 608.2h) passam a jogar. Um revisor independente aprovou 7 de 7 (89 verificações, nenhum desvio de regra).
+- **Achado da revisão, corrigido com teste antes:** a pilha explicada do "olhe as N de cima" dizia "olha as 1 cartas de cima" (contava o que vai para a mão) e não dizia o que pegar nem para onde vai o resto; os X de vida e de dano agora dizem o que contam.
+- **Simplificação declarada:** "in any order" do fundo do grimório segue em ordem fixa (simplificação já declarada pelo motor).
+- **Teste:** `lt37.unit` (9 testes; os de regra falham no motor anterior); `--confere` com 564 aprovadas.
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
