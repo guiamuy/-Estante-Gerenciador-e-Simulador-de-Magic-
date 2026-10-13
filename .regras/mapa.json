@@ -9431,7 +9431,9 @@
     "CR 702.168d · com prioridade, virar para cima pelo custo de disfarce ({G}); a salvaguarda acaba; \"quando é virada para cima\" busca um terreno com tipo básico para a mão",
     "CR 702.168a · conjurada normalmente (virada para cima) não tem salvaguarda nem o gatilho",
     "CR 702.168b · o Clone que copia uma disfarçada virada para baixo é 2/2 sem nome e com salvaguarda {2}",
-    "CR 702.168b · a ficha que copia uma disfarçada virada para baixo também tem salvaguarda {2}; a cópia de uma metamorfose (sem disfarce) não tem"
+    "CR 702.168b · a ficha que copia uma disfarçada virada para baixo também tem salvaguarda {2}; a cópia de uma metamorfose (sem disfarce) não tem",
+    "CR 707.3 · a cópia da cópia de uma disfarçada também tem salvaguarda {2} (Clone de Clone; ficha de Clone) (D1)",
+    "CR 707.2 · a ficha que copiou uma disfarçada e depois vira cópia de outra criatura (sem disfarce) perde a salvaguarda (D2)"
    ],
    "esforco": "P",
    "depende": [
@@ -11222,11 +11224,12 @@
    "titulo": "Características alternativas do protótipo",
    "status": "coberta",
    "falta": "T-56 (13/10/2026): coberta.",
-   "evidencia": "T-36 (13/10/2026): self.prototipo = { mana, power, toughness }; a ação de conjurar leva `prototipo: true` (oferta própria, calculada numa cópia com o custo e o tamanho alternativos); a marca `prototipoT` é da conjuração: vale na pilha e no campo e some em qualquer outra mudança de zona. Mesa: \"Conjurar como protótipo · {3}{G} · 3/3\"; registro \"(como protótipo)\". Carta exemplo completa: Boulderbranch Golem (Oracle do Forge, 13/10/2026). T-56 (13/10/2026): ser protótipo é valor copiável — o registro de cópia leva `prototipoT` do modelo (aplicaCopia, entra como cópia) e `prototipoAtivoT` olha também o efeito de cópia vigente mais novo; a ficha que copia um protótipo nasce protótipo; a cópia de uma mágica de protótipo (tempestade, 707.10) leva a marca pelas marcas da mágica e vira ficha de protótipo.",
+   "evidencia": "T-36 (13/10/2026): self.prototipo = { mana, power, toughness }; a ação de conjurar leva `prototipo: true` (oferta própria, calculada numa cópia com o custo e o tamanho alternativos); a marca `prototipoT` é da conjuração: vale na pilha e no campo e some em qualquer outra mudança de zona. Mesa: \"Conjurar como protótipo · {3}{G} · 3/3\"; registro \"(como protótipo)\". Carta exemplo completa: Boulderbranch Golem (Oracle do Forge, 13/10/2026). T-56 (13/10/2026): ser protótipo é valor copiável — o registro de cópia leva `prototipoT` do modelo (aplicaCopia, entra como cópia) e `prototipoAtivoT` olha também o efeito de cópia vigente mais novo; a ficha que copia um protótipo nasce protótipo; a cópia de uma mágica de protótipo (tempestade, 707.10) leva a marca pelas marcas da mágica e vira ficha de protótipo. T-58 (13/10/2026) · auditoria independente (123 verificações, 12.751 ações): o efeito de cópia vigente mais novo decide se é protótipo (também para o protótipo conjurado, interpretação declarada no ROADMAP).",
    "testes": [
     "CR 718.3a/b · como protótipo: paga {3}{G}; na pilha e no campo é 3/3, verde, valor de mana 4; a entrada ganha 3 de vida",
     "CR 718.3d · Clone que entra copiando um protótipo tem o tamanho e o valor de mana do protótipo (3/3, valor 4)",
-    "CR 718.3d · a ficha que copia um protótipo também é protótipo; copiando o Golem normal, 6/5"
+    "CR 718.3d · a ficha que copia um protótipo também é protótipo; copiando o Golem normal, 6/5",
+    "CR 707.2 / 718.2a · o efeito de cópia mais novo decide: a ficha de protótipo (e o protótipo conjurado) que vira cópia do Golem normal é 6/5; quando a cópia acaba, volta a 3/3 (D3)"
    ],
    "esforco": "M",
    "cartas": "uma coleção só (The Brothers' War)"

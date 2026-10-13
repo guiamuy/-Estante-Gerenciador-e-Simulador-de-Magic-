@@ -195,3 +195,23 @@ test('CR 718.3c · a cópia (tempestade) de uma mágica de protótipo também é
   const golens = s.zones[0].battlefield.map(o => s.objects[o]).filter(o => o.name === 'Golem Tempestade').map(o => [!!o.token, ...pt(s, o.oid)]).sort();
   eq(golens, [[false, 1, 1], [true, 1, 1]]);
 });
+
+/* ---------------- T-58 · correções da auditoria independente ---------------- */
+test('CR 707.2 / 718.2a · o efeito de cópia mais novo decide: a ficha de protótipo (e o protótipo conjurado) que vira cópia do Golem normal é 6/5; quando a cópia acaba, volta a 3/3 (D3)', () => {
+  const sc = { ...SCRIPTS, 'Espelho': { name: 'Espelho', effects: [{ do: 'ficha_copia', amount: 1, target: 'creature' }], ...EX },
+    'Molde': { name: 'Molde', effects: [{ do: 'escolhe_copiadora', target: 'creature-you-control' }, { do: 'torna_copia', target: 'creature', ate: 'fim-do-turno' }], ...EX } };
+  C['Espelho'] = { name: 'Espelho', type_line: 'Sorcery', mana_cost: '{2}', cmc: 2, keywords: [], oracle_text: '', colors: [] };
+  C['Molde'] = { name: 'Molde', type_line: 'Sorcery', mana_cost: '{1}', cmc: 1, keywords: [], oracle_text: '', colors: [] };
+  const deck = [{ name: BG, qty: 6, zone: 'main' }, ...['Espelho', 'Molde'].map(name => ({ name, qty: 3, zone: 'main' })), { name: 'Forest', qty: 14, zone: 'main' }, { name: 'Island', qty: 12, zone: 'main' }];
+  let s = E.createGame({ format: 'livre', seed: 6, mode: 'full', cards: C, scripts: sc, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  s = passaAte(s, x => x.turn.active === 0 && x.turn.step === 'main1' && !x.stack.length && !x.pending);
+  const muito = s => mana(s, 0, { G: 9, U: 9, C: 9 });
+  let g; [s, g] = poe(s, 0, BG, 'hand'); s = muito(s); s = esvazia(act(s, proto(s, 0, g)[0]));
+  let n; [s, n] = poe(s, 0, BG, 'battlefield'); // o Golem normal
+  s = J(s); const src = { oid: 'h', name: 'Molde', controller: 0, ability: true }; // "target creature you control becomes a copy of another target creature until end of turn"
+  E.applyEffect(s, src, { do: 'escolhe_copiadora', target: 'creature' }, { oid: g }, []); E.applyEffect(s, src, { do: 'torna_copia', target: 'creature', ate: 'fim-do-turno' }, { oid: n }, []);
+  eq(pt(s, g), [6, 5], 'a cópia mais nova decide: o normal');
+  s = passaAte(s, x => x.turn.active === 1 && x.turn.step === 'main1' && !x.stack.length && !x.pending);
+  eq(pt(s, g), [3, 3], 'a cópia acabou: volta ao protótipo');
+});

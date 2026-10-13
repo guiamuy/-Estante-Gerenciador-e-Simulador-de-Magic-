@@ -26453,17 +26453,17 @@ Object.assign(EXPORTS_V, { lutar });
    - As ofertas saem de `legalActions` numa cópia do estado em que os fatos da carta têm o custo e o tamanho alternativos.
    Fora: cópia de protótipo (718.3c/d) fica com as características normais; conjurar sem pagar não oferece o protótipo. */
 const prototipoDaCartaT = (s, o) => { const f = o && s.facts[o.frontName || o.name], pr = f && f.script && f.script.self && f.script.self.prototipo; return pr && typeof pr === 'object' ? pr : null; };
-function prototipoAtivoT(s, o) { return o && (o.prototipoT || copiaDePrototipoT(s, o)) && !o.faceDown ? prototipoDaCartaT(s, o) : null; } // T-56 · 718.3d: a cópia de um protótipo também é // a marca só existe na pilha, no campo e, durante a conjuração, na zona de onde a carta sai (MARCAS_DA_CONJURACAO); T-38 · as reduções de custo leem a cor e o custo dela
+function prototipoAtivoT(s, o) { if (!o || o.faceDown) return null; const r = copiaVigenteT(s, o); return (r ? r.prototipoT : o.prototipoT) ? prototipoDaCartaT(s, o) : null; } // T-56 · 718.3d: a cópia de um protótipo também é · T-58 · 707.2: o efeito de cópia vigente mais novo decide (auditoria, D3) // a marca só existe na pilha, no campo e, durante a conjuração, na zona de onde a carta sai (MARCAS_DA_CONJURACAO); T-38 · as reduções de custo leem a cor e o custo dela
 const custoDoPrototipoT = (s, o) => { const pr = o && o.prototipoT && prototipoDaCartaT(s, o); if (pr) return parseCost(pr.mana); const mq = o && o.convertidaT && maisQueOlhosDaCartaT(s, o); return mq ? parseCost(mq) : null; }; // o custo pago na conjuração (a carta ainda está na mão ou no exílio) · T-49 · CR 702.162a: e o de "More Than Meets the Eye" (custo alternativo)
 MARCAS_DA_CONJURACAO.push('prototipoT');
 /** T-56 · CR 718.2a / 718.3d · ser protótipo faz parte dos valores copiáveis: o efeito de cópia vigente mais novo diz se a cópia é protótipo. */
-function copiaDePrototipoT(s, o) { const vale = (o.copias || []).filter(t => vigente(s, t)); return vale.length ? !!vale.reduce((a, b) => (b.ts > a.ts ? b : a)).prototipoT : false; }
+function copiaVigenteT(s, o) { const vale = (o && o.copias || []).filter(t => vigente(s, t)); return vale.length ? vale.reduce((a, b) => (b.ts > a.ts ? b : a)) : null; }
 /** T-56 · o que o registro de cópia leva da trilha (marcas copiáveis do modelo): `{ prototipoT: true }` quando o modelo é protótipo. */
 const copiavelDaTrilhaT = (s, modelo) => ({ ...(modelo && prototipoAtivoT(s, modelo) ? { prototipoT: true } : {}), ...(viradaComWardT(s, modelo) ? { wardViradaT: true } : {}) }); // T-57 · 702.168b / 701.58a: a salvaguarda {2} da virada para baixo disfarçada ou encoberta também
 /** T-57 · a virada para baixo cuja salvaguarda {2} é valor copiável: a disfarçada (702.168b) e a encoberta (701.58a). */
-const viradaComWardT = (s, m) => !!m && !!m.faceDown && (!!m.disfarcadaT || ehEncoberta(s, m));
+const viradaComWardT = (s, m) => !!m && (m.faceDown ? (!!m.disfarcadaT || ehEncoberta(s, m)) : copiaComWardViradaT(s, m)); // T-58 · 707.3: a cópia de uma cópia herda (auditoria, D1)
 /** T-57 · a cópia vigente mais nova de uma virada com salvaguarda (ou a ficha que nasceu assim). */
-function copiaComWardViradaT(s, o) { if (o.wardViradaT) return true; const vale = (o.copias || []).filter(t => vigente(s, t)); return vale.length ? !!vale.reduce((a, b) => (b.ts > a.ts ? b : a)).wardViradaT : false; }
+function copiaComWardViradaT(s, o) { const r = copiaVigenteT(s, o); return r ? !!r.wardViradaT : !!o.wardViradaT; } // T-58 · 707.2: o efeito de cópia vigente mais novo decide (auditoria, D2)
 MARCAS_DA_CONJURACAO.push('convertidaT'); // T-49 · CR 702.162a · conjurada convertida (o custo alternativo vale na conjuração)
 MARCAS_DA_CONJURACAO.push('disfarcadaT');
 MARCAS_DA_CONJURACAO.push('vidaPhyrexianaT'); // T-45 · quantos símbolos phyrexianos foram pagos com vida (vai da mão para a pilha e da pilha para o campo)

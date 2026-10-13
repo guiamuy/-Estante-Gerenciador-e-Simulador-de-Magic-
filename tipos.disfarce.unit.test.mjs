@@ -164,3 +164,26 @@ test('CR 701.58a · o Clone que copia uma encoberta (virada para baixo) também 
   let c; [s, c] = clonaA(s, enc);
   eq(E.wardsDeK(s, s.objects[c]), ['{2}']);
 });
+
+/* ---------------- T-58 · correções da auditoria independente ---------------- */
+test('CR 707.3 · a cópia da cópia de uma disfarçada também tem salvaguarda {2} (Clone de Clone; ficha de Clone) (D1)', () => {
+  let s = comCopias57(); let g; [s, g] = poe(s, 0, NG, 'hand'); s = mana(s); s = esvazia(act(s, disfarcada(s, 0, g)[0]));
+  let c1; [s, c1] = clonaA(s, g);
+  let c2; [s, c2] = clonaA(s, c1);
+  let e; [s, e] = poe(s, 0, 'Espelho', 'hand'); s = mana(s);
+  s = esvazia(act(s, legais(s, 0, a => a.t === 'cast' && a.oid === e && ((a.targets || [])[0] || {}).oid === c1)[0]));
+  const ficha = s.zones[0].battlefield.map(x => s.objects[x]).find(o => o.token);
+  eq([E.wardsDeK(s, s.objects[c2]), E.wardsDeK(s, ficha)], [['{2}'], ['{2}']]);
+});
+
+test('CR 707.2 · a ficha que copiou uma disfarçada e depois vira cópia de outra criatura (sem disfarce) perde a salvaguarda (D2)', () => {
+  let s = comCopias57(); let g; [s, g] = poe(s, 0, NG, 'hand'); s = mana(s); s = esvazia(act(s, disfarcada(s, 0, g)[0]));
+  let m; [s, m] = poe(s, 0, 'Mascara', 'battlefield');
+  let e; [s, e] = poe(s, 0, 'Espelho', 'hand'); s = mana(s);
+  s = esvazia(act(s, legais(s, 0, a => a.t === 'cast' && a.oid === e && ((a.targets || [])[0] || {}).oid === g)[0]));
+  const f = s.zones[0].battlefield.find(x => s.objects[x].token);
+  eq(E.wardsDeK(s, s.objects[f]), ['{2}']);
+  s = J(s); const src = { oid: 'h', name: 'Molde', controller: 0, ability: true };
+  E.applyEffect(s, src, { do: 'escolhe_copiadora', target: 'creature' }, { oid: f }, []); E.applyEffect(s, src, { do: 'torna_copia', target: 'creature' }, { oid: m }, []);
+  eq([s.objects[f].name, E.wardsDeK(s, s.objects[f])], ['Mascara', []]);
+});
