@@ -3991,6 +3991,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Pedido à trilha `listas`:** script à mão de Seize the Storm com a ficha `self.ptDefinido` usando a soma (modelo em `lt41.unit`) e `flashback: { mana: '{6}{R}' }`.
 - **Teste:** `lt41.unit` (4 testes; todos falham no motor anterior).
 
+**M-359 · Fichas diferentes com o mesmo nome não dividem mais os fatos (111.4)** ✅ (leva M-359, motor v110 sem mudança de forma; goldens intactos).
+- **Valor:** as características de uma ficha são as do efeito que a criou. Antes, a segunda ficha com o mesmo nome (o Elemental 4/4 azul e vermelho do Resculpt, o Elemental 1/1 do Young Pyromancer, o Elemental de P/T por contagem da Seize the Storm) nascia com o P/T, a cor e as habilidades da primeira, e mudava o resultado da partida. Agora a definição que não bate ganha uma chave própria; o nome visível é o mesmo.
+- **Origem:** achado da revisão independente da M-358 (era a armadilha 27 do motor, "fatos são por nome").
+- **Regra de reaproveitamento:** fatos que batem com a definição (P/T, cores, tipos, subtipos, palavras-chave, `self`, habilidades quando os dois lados as têm) continuam valendo pelo nome — a carta da ficha trazida da Scryfall (Leva 111) segue funcionando.
+- **Fora:** a imagem da ficha com chave própria cai no quadro genérico quando a busca de imagem é pelo nome exato (só acontece quando há duas definições diferentes na mesma partida).
+- **Teste:** `lt42.unit` (2 testes; os dois falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

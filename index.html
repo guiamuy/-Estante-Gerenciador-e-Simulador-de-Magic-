@@ -20990,8 +20990,31 @@ function gatilhosDoSacrificio(s, o, dono) {
 }
 
 /** M12 · cria uma ficha: objeto sem carta, que deixa de existir fora do campo. */
+/** M-359 · 111.4 · as características de uma ficha são as do efeito que a criou: duas definições diferentes com o mesmo nome (o Elemental 4/4 azul
+ * e vermelho do Resculpt e o Elemental da Seize the Storm) dividiam os fatos, e a segunda nascia com o P/T, a cor e as habilidades da primeira.
+ * Fatos que já batem com a definição são reaproveitados; senão, a ficha ganha uma chave própria (o nome visível é o mesmo, com marcas invisíveis
+ * no fim). Habilidades só se comparam quando os dois lados as têm (a carta da ficha buscada vem sem script, Leva 111). */
+function fichaCompativel(f, def) {
+  const n = v => (v == null || v === '' ? null : Number(v)), lista = a => [...(a || [])].map(x => String(x).toLowerCase()).sort().join(',');
+  const sub = t => lista((String(t || '').split('—')[1] || '').trim().split(/\s+/).filter(Boolean));
+  const linha = (def.types || []).join(' ') + ((def.subtypes || []).length ? ' — ' + def.subtypes.join(' ') : '');
+  if (n(f.power) !== n(def.power) || n(f.toughness) !== n(def.toughness) || lista(f.colors) !== lista(def.colors) || lista(f.types) !== lista((def.types || []).filter(t => PERMANENT.concat(['instant', 'sorcery']).includes(t)))) return false;
+  if (sub(f.typeText) !== sub(linha) || lista(f.kw) !== lista(def.keywords)) return false;
+  if (!!f.legendary !== !!def.legendary) return false; // 704.5j: a lendária não divide fatos com a comum (achado da revisão)
+  const sc = f.script || {}, daCarta = /^Token\b/i.test(f.typeText || ''); // a carta da ficha buscada (Leva 111) chega sem script: as habilidades vêm da definição
+  if (JSON.stringify(sc.self || null) !== JSON.stringify(def.self || null)) return false;
+  const ha = (sc.abilities || []).length, hd = (def.abilities || []).length;
+  if (ha && hd && JSON.stringify(sc.abilities) !== JSON.stringify(def.abilities)) return false;
+  if (!daCarta && !!ha !== !!hd) return false; // habilidade em só um dos lados também separa (achado da revisão)
+  return true;
+}
+function chaveDaFichaNoJogo(s, def) {
+  if (['power', 'toughness', 'colors', 'keywords', 'abilities', 'self'].every(k => def[k] == null) && s.facts[def.name]) return def.name; // cópia, esquadrão, prole, Jace, Papel: a definição só aponta (nome, às vezes o tipo) e usa os fatos que já existem (achado da revisão: nasciam sem tipo e 0/0)
+  for (let k = 0; k < 16; k++) { const nome = def.name + '\u200b'.repeat(k), f = s.facts[nome]; if (!f || fichaCompativel(f, def)) return nome; }
+  return def.name;
+}
 function createToken(s, def, controller, events) {
-  const name = def.name;
+  const name = chaveDaFichaNoJogo(s, def);
   if (!s.facts[name]) {
     // S46 · a ficha carrega subtipo, senão gatilho por subtipo nunca a reconhece
     // S60 · ficha lendária (The Atropal)
