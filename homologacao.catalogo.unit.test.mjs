@@ -51,3 +51,13 @@ test('H-2 · Daze não aceita devolver terreno sem o tipo Ilha (Plains), nem pel
   const montada = { ...ofertas[0], pay: { land: plains } };
   assert.throws(() => E.apply(t, montada), /Island/);
 });
+
+// H-4 · a C-2 publicou por engano o atalho `node_modules` (link para a pasta da sessão que a gravou): em qualquer outro clone ele vira
+// um laço, o `npm install` não acha a pasta e o `npm run publicar` cai com ELOOP ao chamar o git. Nenhum arquivo do repositório é atalho.
+test('H-4 · o repositório não guarda atalho (symlink): node_modules nem nenhum outro', async () => {
+  const { execFileSync } = await import('node:child_process');
+  let saida;
+  try { saida = execFileSync('git', ['ls-files', '-s'], { encoding: 'utf8', maxBuffer: 1 << 26 }); } catch (e) { return; } // sem git (cópia solta do arquivo): nada a conferir
+  const atalhos = saida.split('\n').filter(l => l.startsWith('120000 ')).map(l => l.split('\t')[1]);
+  assert.deepEqual(atalhos, [], `atalhos versionados: ${atalhos.join(', ')}`);
+});

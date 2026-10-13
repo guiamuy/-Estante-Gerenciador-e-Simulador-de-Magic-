@@ -9426,6 +9426,10 @@ O que a cobertura não mede: se a lista que **pode** jogar no modo completo **jo
 - **Testes:** `catalogo.prova.unit` +2 (a conta de "podia" e "oferecida" numa partida do acervo, sem terreno; Shark × Shark de 150 ações sem falha).
 - **Fora:** placar por lote das trilhas `cartas`/`listas`/`motor` (rodar a prova depois de cada lote no `main`); Shark × Shark nas listas que não jogam no app.
 
+**H-4 · O atalho `node_modules` sai do repositório** 🟡 (leva H-4, motor v110 sem mudança) — a C-2 (`379b59c`) publicou por engano o atalho `node_modules`, que aponta para a pasta da sessão que o gravou. Em qualquer outro clone ele vira um laço: o `npm install` não recria a pasta e o `npm run publicar` cai com ELOOP ao chamar o git (achado ao enviar a H-3; afeta toda conversa que faz rebase sobre o `main` desde as 20h40 de 12/10). O atalho sai, o `.gitignore` passa a ignorar `node_modules` também como arquivo (antes só como pasta, `node_modules/`), e um teste barra qualquer atalho versionado.
+- **Testes:** `homologacao.catalogo.unit` +1 (falhava com o atalho no índice).
+- **Para quem já tem o laço no clone:** depois do rebase, `npm install` recria a pasta.
+
 ## 8. Como publicar e verificar
 
 ### Publicar a partir de uma conversa (padrão desde a leva 124)
