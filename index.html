@@ -25741,11 +25741,11 @@ function aerobendNoCastV(s, a, o) {
   o.playableFromExile = a.p;
 }
 /* V-31 · 118.9d / 601.2f: custos adicionais (reforço) somam ao custo alternativo {2} e reduções (afinidade, desconto por condição,
-   "custa {N} a menos" por alvo) tiram do genérico dele — o teto da redução é o genérico do custo total ({2} mais o do reforço). */
+   "custa {N} a menos" por alvo, por cor desde a H-10) tiram do genérico dele — o teto da redução é o genérico do custo total ({2} mais o do reforço). */
 function custoAerobendV(s, p, o, kick, alvos) {
   const f = s.facts[o.name], k = kick && (f.script || {}).kicker;
   const custo = k ? somaCusto(parseCost('{2}'), parseCost(k.mana), kick) : parseCost('{2}');
-  const teto = custo.generic || 0, red = affinityDiscount(s, p, o, teto - (f.cost.generic || 0)) + reducaoPorAlvo(s, p, o, alvos);
+  const teto = custo.generic || 0, red = affinityDiscount(s, p, o, teto - (f.cost.generic || 0)) + reducaoPorAlvo(s, p, o, alvos) + reducaoPorCor(s, p, o); // H-10 · redução por cor (M-352) também tira do {2}
   return { custo, extra: -Math.min(teto, red) };
 }
 /** Chamada só por legalActions (abaixo da âncora V): uma conjuração por forma (sem reforço; com 1 a 5 reforços se a carta tiver), com os alvos de `casts`. */

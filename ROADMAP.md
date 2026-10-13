@@ -10005,6 +10005,12 @@ O que a cobertura não mede: se a lista que **pode** jogar no modo completo **jo
 - **Testes:** `homologacao.catalogo.unit` +1 (o relógio do orçamento não é consultado com uma jogada só; falha sem a correção). `bot.unit`, `shark.unit`, goldens e `table.unit` intactos.
 - **Fora (pedido à trilha `bot`/`escala`):** com 80 a 150 jogadas legais (Elfos com 20 criaturas e habilidades de mana), a decisão de atacantes leva de 2 a 3,7 s e a fase principal ~1 s, acima do orçamento de 60 ms. Reprodução: `catalogo.prova.mjs --formato pauper --shark --lista "Priest of Titania"` (ou a partida `topdeck-rebound-samedi-7` × `topdeck-common-combat-3-2`, semente 21756).
 
+**H-10 · A redução por cor vale no aerobender** 🟡 (leva H-10, motor sem mudança de versão) — pedido da trilha `motor` (mesmo achado da prenunciada, M-382): o {2} do aerobender (701.65a) é custo alternativo, e pela 118.9d as reduções valem sobre ele; afinidade, desconto por condição e "custa {N} a menos" por alvo já tiravam do {2}, mas a redução por cor (M-352: Sunscape Familiar, Goblin Anarchomancer) não.
+- **Aceite:** com Sunscape Familiar no campo, a criatura verde aerobendida custa {1} (oferecida e paga com uma mana); a vermelha segue custando {2}.
+- **Toca:** `custoAerobendV` (região V), uma soma.
+- **Testes:** `homologacao.aero.unit` (2; o de regra falha sem a correção); `verbos.aero.unit` e `verbos.auditoria7.unit` intactos.
+- **Fora:** a taxa de quem mira (M-364, Kaervek's Torch) não entra no aerobender: só mágica que mira mágica paga a taxa, e o aerobender conjura permanentes, que não miram mágicas.
+
 ## 8. Como publicar e verificar
 
 ### Publicar a partir de uma conversa (padrão desde a leva 124)
