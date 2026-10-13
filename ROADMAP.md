@@ -3976,6 +3976,14 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Pedido à trilha `listas`:** script à mão de Tithing Blade com `self.craft` e a face de trás (o script de teste em `lt39.unit` segue o texto oficial).
 - **Teste:** `lt39.unit` (6 testes; todos falham no motor anterior).
 
+**M-357 · Mana em qualquer combinação de cores na resolução (Manamorphose)** ✅ (leva M-357, motor v110 sem mudança de forma; goldens intactos).
+- **Valor:** mágica com "Add two mana in any combination of colors" pergunta a cor de cada mana ao resolver (pode misturar ou repetir) e só depois segue com o resto do texto. O leitor lê a frase ("one", "two", "three"). Destrava Manamorphose (texto do Oracle do Forge em `.listas/oficiais-listas.json`, consulta de 12/10/2026; 10 listas de Pauper).
+- **Regra:** 106.1a/106.4 — a escolha é de quem controla a mágica, na resolução; a mana fica na reserva até o fim do passo. Na mesa, o aviso "Cor da mana 1 de 2" com as cinco cores; o registro diz "adicionou {G}".
+- **Revisão independente (M-357 e M-358 juntas):** nenhum desvio na M-357 (cópia por tempestade, resposta do oponente, bot e goldfish conferidos).
+- **Fora:** X ("Add X mana…"), mana com restrição de gasto e a habilidade de mana "{T}: Add two mana in any combination…" não são lidas por esta frase (ficam sem script, não aproximadas). O bot escolhe sempre branco (qualidade de jogada, não regra).
+- **Pedido à trilha `listas`:** script à mão de Manamorphose `[{ do: 'mana_combinada', amount: 2 }, { do: 'draw', amount: 1 }]` (é o que o leitor produz).
+- **Teste:** `lt40.unit` (4 testes; todos falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

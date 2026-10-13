@@ -5325,6 +5325,7 @@ const EFFECTS = {
   reanimate: { fields: [], targets: ['creature-in-your-graveyard', 'permanent-in-your-graveyard'] },
   reanimate_tapped: { fields: [], targets: ['self-source', 'creature-in-your-graveyard'] },
   add_mana: { fields: [], targets: ['self'] },
+  mana_combinada: { fields: ['amount'], targets: ['self'] }, // M-357 · "Add two mana in any combination of colors" (Manamorphose): cada mana pede a cor na resolução
   token: { fields: ['amount'], targets: ['self', 'opponent', 'target-controller'] },
   discard: { fields: ['amount'], targets: ['self', 'player', 'opponent', 'target-controller', 'each-opponent'] },
   // S40 · conluio: compra, descarta e ganha marcador se o descarte não foi terreno
@@ -16473,6 +16474,7 @@ const __m42 = (function () {
     [/^~ connives$/i, () => [{ do: 'connive', amount: 1 }]], // LT9 · 701.50
     [new RegExp(`^~ deals ${N} damage to each creature without flying$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'each-nonflying-creature' }]], // LT10
     [/^damage can't be prevented this turn$/i, () => [{ do: 'no_prevention' }]], // LT10 · 615.12
+    [new RegExp(`^add ${N} mana in any combination of colors$`, 'i'), m => [{ do: 'mana_combinada', amount: num(m[1]) }]], // M-357 · 106.1a (Manamorphose)
     [/^return an? (permanent|land|creature) you control to its owner's hand$/i, m => [{ do: 'return_chosen', target: 'self', ...(m[1].toLowerCase() !== 'permanent' ? { filter: { types: [m[1].toLowerCase()] } } : {}) }]], // LT12
     [new RegExp(`^~ deals ${N} damage to that (artifact|creature|permanent|enchantment)'s controller$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'target-controller' }]], // LT12
     [new RegExp(`^~ deals ${N} damage to that spell's controller$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'that-player' }]], // M-322 · quem controla a mágica que disparou
@@ -19916,6 +19918,11 @@ function applyEffect(s, src, eff, tgt, events) {
       syms.forEach(c => { s.players[ctrl].pool[c] = (s.players[ctrl].pool[c] || 0) + 1; });
       note({ amount: syms.length }); break;
     }
+    case 'mana_combinada': { // M-357 · 106.1a/106.4: "Add N mana in any combination of colors" — a escolha é de quem controla, na resolução; uma mana por vez
+      const n = amountOf(s, src, eff.amount) || 0;
+      if (n > 0) s.pending = { kind: 'choose_color', p: ctrl, oid: src.oid, manaRestam: n, manaTotal: n };
+      break;
+    }
     case 'cant_attack': { // S61 · não pode atacar até o seu próximo turno
       if (obj && obj.zone === 'battlefield') { obj.cantAttackNext = { by: ctrl }; note({ name: obj.name }); }
       break;
@@ -22570,6 +22577,11 @@ const HANDLERS = {
   choose_color(s, a, ev) {
     if (!s.pending || s.pending.kind !== 'choose_color' || s.pending.p !== a.p) throw new RuleError('tempo', 'nenhuma cor a escolher');
     if (!COLORS.includes(a.color) || a.color === 'C') throw new RuleError('cor', 'escolha uma cor');
+    if (s.pending.manaRestam) { // M-357 · a cor de uma das manas de "any combination of colors": entra na reserva agora; a próxima pede de novo
+      const pk = s.pending; s.players[pk.p].pool[a.color] = (s.players[pk.p].pool[a.color] || 0) + 1;
+      if (pk.manaRestam > 1) { s.pending = { ...pk, manaRestam: pk.manaRestam - 1 }; return; }
+      s.pending = null; resumeEffects(s, ev || []); return;
+    }
     const o = s.objects[s.pending.oid];
     if (o) o.chosenColor = a.color;
     if (s.resume && s.resume.oid === s.pending.oid) s.resume.chosenColor = a.color; // M-348 · a mágica já saiu da pilha: a cor viaja na retomada
@@ -28781,7 +28793,7 @@ function describe(before, a, events, after) {
     case 'dividir_dano': { const op = ((before.pending || {}).opcoes || [])[a.index]; L.push(`${P} dividiu o dano de ${nameOf(before, (before.pending || {}).oid)}: ${op ? op.rotulo : '?'}`); break; } // CR2g.2
     case 'choose_mode': { const pd = before.pending || {}; const alvo = pd.naResolucao && before.objects[pd.naResolucao.oid] ? before.objects[pd.naResolucao.oid].name : null;
       L.push(a.decline ? `${P} preferiu não usar o efeito de ${pd.name || 'o gatilho'}` : `${P} escolheu ${String((pd.options || [])[a.index || 0] || 'um modo').toLowerCase()}${alvo ? ' ' + alvo : ''} (${pd.name || 'gatilho'})`); break; }
-    case 'choose_color': L.push(`${P} escolheu ${{ W: 'branco', U: 'azul', B: 'preto', R: 'vermelho', G: 'verde' }[a.color]}`); break;
+    case 'choose_color': L.push(before.pending && before.pending.manaRestam ? `${P} adicionou {${a.color}}` : `${P} escolheu ${{ W: 'branco', U: 'azul', B: 'preto', R: 'vermelho', G: 'verde' }[a.color]}`); break; // M-357
     case 'concede': L.push(`${P} desistiu`); break;
     case 'attack': L.push(a.attackers.length ? `${P} atacou com ${a.attackers.map(o => nameOf(before, o) + (a.alvos && a.alvos[o] ? ` (em ${nameOf(before, a.alvos[o])})` : '')).join(', ')}` : `${P} não atacou`); break; // M-228 · "(em Lukka)": atacou o planeswalker
     case 'block': L.push(a.blocks.length ? `${P} bloqueou ${a.blocks.map(([b, x]) => `${nameOf(before, x)} com ${nameOf(before, b)}`).join('; ')}` : `${P} não bloqueou`); break;
@@ -29687,6 +29699,7 @@ function descreveEfeito(e) {
     case 'to_hand': return 'volta para a mão';
     case 'token': { const t = e.token || {}; const pt = t.power != null ? ` ${t.power}/${t.toughness}` : ''; return `cria ${plural(n, 'ficha', 'fichas')}${t.name ? ` de ${t.name}` : ''}${pt}`; }
     case 'pump': { const p = e.power || 0, t = e.toughness || 0; const sinal = v => (v && (v.per || v.subtype) ? ((v.times || 1) < 0 ? '−X' : '+X') : v >= 0 ? `+${v}` : `−${Math.abs(v)}`); const quem = e.cada && e.cada.de === 'alvo' ? `cada criatura que ${e.target === 'opponent' ? 'o oponente alvo' : 'o jogador alvo'} controla` : (alvo || 'a criatura'); /* achado da revisão do lote XXIII: "cada criatura que cada criatura controla" */ return `${quem} recebe ${sinal(p)}/${sinal(t)}${e.until === 'your-next-turn' ? ' até o seu próximo turno' : ' até o fim do turno'}${p && p.subtype ? ` (X = ${p.subtype === 'Gate' ? 'Portões' : p.subtype === 'Swamp' ? 'Pântanos' : p.subtype + 's'} que você controla)` : ''}`; } // R9b (achado da C-1): contagem por subtipo mostrava "−NaN" (Defile, Basilisk Gate) · M-351 · "cada criatura do jogador alvo" (Arms of Hadar)
+    case 'mana_combinada': return `adiciona ${e.amount === 1 ? 'uma mana' : (e.amount || 2) + ' manas'} das cores que você escolher (pode misturar)`; // M-357 · 106.1a
     case 'add_mana': return e.identity ? 'adiciona mana de uma cor da identidade do seu comandante' : e.opponentLands ? 'adiciona mana de uma cor que um terreno de um oponente poderia produzir' : e.anyColor ? 'adiciona mana de qualquer cor' : 'adiciona mana';
     case 'search': return `procura ${plural(n, 'carta', 'cartas')} no grimório${e.reparte ? ' (a primeira entra virada, a segunda vai para a mão)' : ''}${e.desviraSeTerrenos ? ` (desvira a terra achada se você tiver ${e.desviraSeTerrenos} terrenos ou mais)` : ''}`; // M-343
     case 'scry': return `vidência ${n}: olha ${plural(n, 'carta', 'cartas')} de cima e decide o que fica no topo`;
@@ -32201,6 +32214,11 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       banner = PriorityBanner({ title: `${cmd ? cmd.name : 'Seu comandante'} saiu do campo`, hint: 'Levar para a zona de comando? De lá você conjura de novo, pagando o imposto.', tone: 'warning',
         actions: [Button('Zona de comando', { variant: 'primary', id: 'tb-cmd-home', onClick: () => act({ t: 'commander_zone', p: v, yes: true }) }),
           Button(ONDE[s.pending.from] || 'Deixar onde está', { id: 'tb-cmd-stay', onClick: () => act({ t: 'commander_zone', p: v, yes: false }) })] });
+    } else if (s.pending && s.pending.kind === 'choose_color' && s.pending.p === v && s.pending.manaRestam) { // M-357 · uma mana por vez, cada uma da cor que quiser
+      const pk = s.pending, alvo = s.objects[pk.oid];
+      banner = PriorityBanner({ title: `Cor da mana ${pk.manaTotal - pk.manaRestam + 1} de ${pk.manaTotal}${alvo ? ` (${alvo.name})` : ''}`, hint: 'Cada mana pode ser de uma cor diferente.',
+        actions: [['W', 'Branco'], ['U', 'Azul'], ['B', 'Preto'], ['R', 'Vermelho'], ['G', 'Verde']].map(([c, label]) =>
+          Button(label, { dataset: { color: c }, onClick: () => act({ t: 'choose_color', p: v, color: c }) })) });
     } else if (s.pending && s.pending.kind === 'choose_color' && s.pending.p === v) {
       const alvo = s.objects[s.pending.oid];
       banner = PriorityBanner({ title: `Escolha uma cor para ${alvo ? alvo.name : 'a permanente'}`,
