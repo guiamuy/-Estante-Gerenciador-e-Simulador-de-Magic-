@@ -2,7 +2,7 @@
 // Se a conversão errar custo, tipo ou face, a cobertura medida pela prova deixa de ser a mesma que o app mede.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { custoDoForge, valorDeMana, linhaDeTipo, cartaDoForge, joga, jogaShark } from './catalogo.prova.mjs';
+import { custoDoForge, valorDeMana, linhaDeTipo, cartaDoForge, joga, jogaShark, alvoEMagica } from './catalogo.prova.mjs';
 import { loadModules } from './_load.mjs';
 const { scryfall: SF, scripts: S, starter: ST, decks: D } = loadModules();
 
@@ -74,6 +74,20 @@ test('H-3 · a prova conta, por carta, quando ela podia ser paga na fase princip
   assert.ok(podia > 0 && ofertas > 0, `observou podia (${podia}) e oferecida (${ofertas})`);
   assert.ok(![...obs.keys()].some(n => /^(Island|Mountain|Plains)$/.test(n) && obs.get(n).podia), 'terreno não entra na conta de "podia pagar"');
   for (const [n, o] of obs) if (o.podia >= 3) assert.ok(o.oferecida > 0, `${n}: podia ${o.podia} vezes e nunca foi oferecida (as listas do acervo jogam inteiras)`);
+});
+
+test('H-7 · mágica que só mira mágica (Counterspell, Annul) não conta como "podia pagar" com a pilha vazia: não é oferta que some', async () => {
+  assert.equal(alvoEMagica({ type_line: 'Instant', oracle_text: 'Counter target artifact or enchantment spell.' }), true);
+  assert.equal(alvoEMagica({ type_line: 'Instant', oracle_text: 'Counter target spell.\nDraw a card.' }), true);
+  assert.equal(alvoEMagica({ type_line: 'Creature — Snake', oracle_text: 'Flash\nWhen Mystic Snake enters, counter target spell.' }), false, 'a criatura se conjura sem alvo');
+  assert.equal(alvoEMagica({ type_line: 'Instant', oracle_text: 'Lightning Bolt deals 3 damage to any target.' }), false);
+  const { CARDS } = await import('./listas.mjs');
+  const lista = n => D.parseDeckText(ST.STARTER_DECKS.find(d => d.name === n).text).entries.filter(e => e.zone !== 'side');
+  const A = lista('Pauper Mono Blue Faeries'), B = lista('Pauper Boros Bully');
+  const cards = Object.fromEntries([...A, ...B].map(e => [e.name, CARDS[e.name]]));
+  const obs = new Map();
+  for (const seed of [11, 12, 13]) joga({ format: 'pauper', seed, mode: 'full', manaCheck: true, cards, players: [{ name: 'A', deck: A }, { name: 'B', deck: B }] }, false, obs);
+  for (const n of ['Counterspell', 'Annul']) assert.equal((obs.get(n) || { podia: 0 }).podia, 0, `${n} não entra na conta de "podia" (a pilha vazia não tem alvo)`);
 });
 
 test('H-3 · Shark × Shark com duas listas do acervo: o motor aceita toda jogada do Shark e as invariantes valem', async () => {

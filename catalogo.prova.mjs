@@ -152,13 +152,16 @@ const resumoDaAcao = a => JSON.stringify(a).slice(0, 200);
     qualquer momento, a usa (anular só aparece com mágica na pilha; remoção só com alvo). Carta que podia muitas vezes e nunca foi
     oferecida é pista de oferta que sumiu (ex.: filtro otimista do legalActions, M-259) — pista, não veredito: a condição impressa
     ("cast only if…", "sacrifique uma criatura como custo adicional") também a explica. */
-function observaOferta(s, l, p, setup, obs) {
+// H-7 · mágica cujo alvo é uma mágica ("Counter target artifact or enchantment spell", Annul) não tem como ser oferecida com a pilha
+// vazia; contá-la em "podia" fazia o Annul aparecer como oferta que some (10 listas, 13/10) sem desvio nenhum do motor.
+export const alvoEMagica = c => /\b(instant|sorcery)\b/i.test(String(c && c.type_line || '')) && /\btarget (?:[\w-]+ |or )*spell\b/i.test(String(c && c.oracle_text || ''));
+export function observaOferta(s, l, p, setup, obs) {
   if (!obs) return;
   for (const x of l) if (x.oid != null && s.objects[x.oid] && s.objects[x.oid].controller === p && ['cast', 'play', 'activate'].includes(x.t)) { const n = s.objects[x.oid].name; (obs.get(n) || obs.set(n, { podia: 0, oferecida: 0 }).get(n)).oferecida++; }
   if (s.pending || s.stack.length || s.turn.active !== p || !/^main/.test(s.turn.step)) return;
   for (const oid of s.zones[p].hand) {
     const n = s.objects[oid].name, c = setup.cards[n];
-    if (!c || /\bLand\b/.test(c.type_line || '') || !c.mana_cost || /\/\//.test(c.mana_cost)) continue;
+    if (!c || /\bLand\b/.test(c.type_line || '') || !c.mana_cost || /\/\//.test(c.mana_cost) || alvoEMagica(c)) continue;
     let pode = false; try { pode = E.canPay(s, p, E.parseCost(c.mana_cost.replace(/\{X\}/g, ''))); } catch (e) { pode = false; }
     if (pode) (obs.get(n) || obs.set(n, { podia: 0, oferecida: 0 }).get(n)).podia++;
   }

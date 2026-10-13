@@ -9745,6 +9745,11 @@ O que a cobertura não mede: se a lista que **pode** jogar no modo completo **jo
 - **Testes:** `homologacao.proliferar.unit` (3; os dois de regra falham sem a correção); `verbos.proliferar.unit` intacto.
 - **Fora:** marcador de experiência e outros marcadores de jogador (o motor ainda não os tem); a decisão do Shark sobre proliferar a energia do oponente segue a avaliação genérica do "sim/não".
 
+**H-7 · A prova não acusa mais contramágica como "oferta que some"** 🟡 (leva H-7, só a ferramenta da prova; motor v111 sem mudança) — na medição de 13/10 (`main` com L-8, M-366…M-368 e T-41), Annul apareceu em 10 listas como "podia pagar na fase principal e nunca foi oferecida". Conferido à mão: com uma mágica de artefato na pilha o motor oferece o Annul; a conta de "podia" é feita com a pilha vazia, onde mágica que só mira mágica nunca tem alvo. A pista era falsa.
+- **Aceite:** instantânea ou feitiço com "target … spell" (Counterspell, Annul, Spell Pierce) fica fora da conta de "podia"; criatura com o mesmo texto no gatilho (Mystic Snake) continua contando, porque se conjura sem alvo.
+- **Placar da prova (13/10 10h50, `main` com L-8, M-366…M-368, T-41): Pauper 226 de 341 listas jogam**, 0 falhas nas 226 partidas; estresse de Modern (264 listas) e Legacy (268) sem falha.
+- **Testes:** `catalogo.prova.unit` +1 (falha sem a correção).
+
 ## 8. Como publicar e verificar
 
 ### Publicar a partir de uma conversa (padrão desde a leva 124)
