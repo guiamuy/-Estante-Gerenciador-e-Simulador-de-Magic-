@@ -9242,8 +9242,12 @@
    "n": "702.160",
    "regra": "Keyword Abilities",
    "titulo": "Prototype",
-   "status": "ausente",
-   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): protótipo (características alternativas da carta, 718).",
+   "status": "coberta",
+   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): protótipo (características alternativas da carta, 718). T-36 (13/10/2026): coberta — nada falta da 702.160a (cópia de protótipo segue a 718.3c/d).",
+   "evidencia": "T-36 (13/10/2026): self.prototipo = { mana, power, toughness }; a ação de conjurar leva `prototipo: true` (oferta própria, calculada numa cópia com o custo e o tamanho alternativos); a marca `prototipoT` é da conjuração: vale na pilha e no campo e some em qualquer outra mudança de zona. Mesa: \"Conjurar como protótipo · {3}{G} · 3/3\"; registro \"(como protótipo)\". Carta exemplo completa: Boulderbranch Golem (Oracle do Forge, 13/10/2026).",
+   "testes": [
+    "CR 718.3 · 702.160a · da mão, conjurar normal ({7}) ou como protótipo ({3}{G}): com quatro manas, só o protótipo é oferecido"
+   ],
    "esforco": "M",
    "depende": [
     "718 cartas com protótipo",
@@ -11112,8 +11116,12 @@
    "n": "718.2",
    "regra": "Prototype Cards",
    "titulo": "Características alternativas do protótipo",
-   "status": "ausente",
-   "falta": "sem protótipo (grep prototype no motor: nada).",
+   "status": "parcial",
+   "falta": "718.2a: os valores alternativos não passam para a cópia (Clone de um protótipo fica com o tamanho normal; os fatos são por nome).",
+   "evidencia": "T-36 (13/10/2026): self.prototipo = { mana, power, toughness }; a ação de conjurar leva `prototipo: true` (oferta própria, calculada numa cópia com o custo e o tamanho alternativos); a marca `prototipoT` é da conjuração: vale na pilha e no campo e some em qualquer outra mudança de zona. Mesa: \"Conjurar como protótipo · {3}{G} · 3/3\"; registro \"(como protótipo)\". Carta exemplo completa: Boulderbranch Golem (Oracle do Forge, 13/10/2026).",
+   "testes": [
+    "CR 718.3a/b · como protótipo: paga {3}{G}; na pilha e no campo é 3/3, verde, valor de mana 4; a entrada ganha 3 de vida"
+   ],
    "esforco": "M",
    "cartas": "uma coleção só (The Brothers' War)"
   },
@@ -11121,8 +11129,15 @@
    "n": "718.3",
    "regra": "Prototype Cards",
    "titulo": "Conjurar como protótipo",
-   "status": "ausente",
-   "falta": "sem protótipo.",
+   "status": "parcial",
+   "falta": "718.3c/d: cópia de mágica ou de permanente de protótipo não tem as características alternativas. Conjurar sem pagar o custo não oferece o protótipo (mais restritivo que a regra; nada ilegal é aceito).",
+   "evidencia": "T-36 (13/10/2026): self.prototipo = { mana, power, toughness }; a ação de conjurar leva `prototipo: true` (oferta própria, calculada numa cópia com o custo e o tamanho alternativos); a marca `prototipoT` é da conjuração: vale na pilha e no campo e some em qualquer outra mudança de zona. Mesa: \"Conjurar como protótipo · {3}{G} · 3/3\"; registro \"(como protótipo)\". Carta exemplo completa: Boulderbranch Golem (Oracle do Forge, 13/10/2026).",
+   "testes": [
+    "CR 718.3a/b · como protótipo: paga {3}{G}; na pilha e no campo é 3/3, verde, valor de mana 4; a entrada ganha 3 de vida",
+    "CR 718.3b · na pilha, o protótipo é alvo de \"anule a mágica de valor de mana 4 ou menos\"; a normal (7), não",
+    "CR 718.3b · no campo, o protótipo é verde: \"destrua a criatura verde alvo\" alcança só ele",
+    "CR 718.3 · pedido direto: protótipo de carta sem protótipo é recusado; protótipo do cemitério (sem permissão) também"
+   ],
    "esforco": "M",
    "depende": [
     "718.2"
@@ -11132,8 +11147,13 @@
    "n": "718.4",
    "regra": "Prototype Cards",
    "titulo": "Fora da pilha/campo, só o normal",
-   "status": "ausente",
-   "falta": "sem protótipo.",
+   "status": "coberta",
+   "falta": "T-36 (13/10/2026): nada falta.",
+   "evidencia": "T-36 (13/10/2026): self.prototipo = { mana, power, toughness }; a ação de conjurar leva `prototipo: true` (oferta própria, calculada numa cópia com o custo e o tamanho alternativos); a marca `prototipoT` é da conjuração: vale na pilha e no campo e some em qualquer outra mudança de zona. Mesa: \"Conjurar como protótipo · {3}{G} · 3/3\"; registro \"(como protótipo)\". Carta exemplo completa: Boulderbranch Golem (Oracle do Forge, 13/10/2026).",
+   "testes": [
+    "CR 718.4 · conjurada normal: 6/5, incolor, valor de mana 7; a entrada ganha 6",
+    "CR 718.4 · 400.7 · fora da pilha e do campo a carta volta ao normal: devolvida à mão é 6/5 de valor 7"
+   ],
    "esforco": "P",
    "depende": [
     "718.2"
@@ -11143,8 +11163,12 @@
    "n": "718.5",
    "regra": "Prototype Cards",
    "titulo": "Demais características são as mesmas",
-   "status": "ausente",
-   "falta": "sem protótipo.",
+   "status": "coberta",
+   "falta": "T-36 (13/10/2026): nada falta.",
+   "evidencia": "T-36 (13/10/2026): self.prototipo = { mana, power, toughness }; a ação de conjurar leva `prototipo: true` (oferta própria, calculada numa cópia com o custo e o tamanho alternativos); a marca `prototipoT` é da conjuração: vale na pilha e no campo e some em qualquer outra mudança de zona. Mesa: \"Conjurar como protótipo · {3}{G} · 3/3\"; registro \"(como protótipo)\". Carta exemplo completa: Boulderbranch Golem (Oracle do Forge, 13/10/2026).",
+   "testes": [
+    "CR 718.3a/b · como protótipo: paga {3}{G}; na pilha e no campo é 3/3, verde, valor de mana 4; a entrada ganha 3 de vida"
+   ],
    "esforco": "P",
    "depende": [
     "718.2"

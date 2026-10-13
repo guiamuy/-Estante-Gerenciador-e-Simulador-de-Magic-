@@ -11173,3 +11173,30 @@ test('e2e · T-34 · CR 702.102 · fundir: a folha da carta dividida com fundir 
   if (linhas.length) assert.ok(linhas.some(l => /Wear \/\/ Tear \(fundida: Wear e Tear\)/.test(l)), 'registro: ' + JSON.stringify(linhas.slice(-6)));
   assert.deepEqual(M.errors, []);
 });
+
+test('e2e · T-36 · CR 718.3 · protótipo: a folha tem "Conjurar como protótipo" com o custo e o tamanho alternativos; conjurado assim, entra 3/3 e a entrada ganha 3', { skip }, async t => {
+  // Texto oficial: Boulderbranch Golem em .listas/oficiais-tipos.json (Oracle do Forge, clone de 13/10/2026).
+  const extras = JSON.parse(readFileSync(join(ROOT, '.listas', 'oficiais-tipos.json'), 'utf8')).cartas.filter(c => c.name === 'Boulderbranch Golem');
+  const M = await comLista125(t, '20 Forest\n20 Boulderbranch Golem', ['Forest', 'Boulderbranch Golem'], '4', { extras });
+  const { page } = M;
+  const ids = await page.evaluate(() => { const s = window.__estanteMesa.estado(), z = s.zones[0];
+    const tira = (nome, ...de) => { for (const d of de) { const i = z[d].findIndex(o => s.objects[o].name === nome); if (i >= 0) return z[d].splice(i, 1)[0]; } return null; };
+    for (let k = 0; k < 4; k++) { const oid = tira('Forest', 'library', 'hand'); Object.assign(s.objects[oid], { zone: 'battlefield', controller: 0, tapped: false, sick: false, damage: 0, counters: {} }); z.battlefield.push(oid); }
+    let g = z.hand.find(o => s.objects[o].name === 'Boulderbranch Golem'); if (!g) { g = tira('Boulderbranch Golem', 'library'); z.hand.push(g); s.objects[g].zone = 'hand'; }
+    return { g, vida: s.players[0].life }; });
+  await page.locator('#tb-hand .tb-card[aria-label^="Boulderbranch"]').first().click(); await page.waitForSelector('.ds-dialog'); await page.waitForTimeout(400);
+  const botoes = (await page.locator('.ds-dialog .tb-sheet__actions button').allInnerTexts()).map(x => x.replace(/\s+/g, ' ').trim());
+  assert.ok(botoes.includes('Conjurar como protótipo · {3}{G} · 3/3'), JSON.stringify(botoes));
+  const b = page.locator('.ds-dialog .tb-sheet__actions button', { hasText: /^Conjurar como protótipo/ });
+  const cx = await b.boundingBox(); assert.ok(cx && cx.height >= 44, 'botão com 44 px de altura ou mais: ' + JSON.stringify(cx));
+  await auditaTela(page, 'folha da carta de protótipo');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/t36-prototipo.png' });
+  await b.click(); await page.waitForTimeout(300);
+  await M.resolve();
+  await page.waitForFunction(g => window.__estanteMesa.estado().objects[g].zone === 'battlefield', ids.g, { timeout: 5000 });
+  const fim = await page.evaluate(i => { const s = window.__estanteMesa.estado(); return [s.players[0].life - i.vida, s.objects[i.g].prototipoT === true]; }, ids);
+  assert.deepEqual(fim, [3, true], 'entrou como protótipo e ganhou 3 (o poder dele)');
+  const linhas = await page.evaluate(() => (window.__estanteMesa.registro ? window.__estanteMesa.registro() : []).map(String));
+  if (linhas.length) assert.ok(linhas.some(l => /Boulderbranch Golem \(como protótipo\)/.test(l)), 'registro: ' + JSON.stringify(linhas.slice(-6)));
+  assert.deepEqual(M.errors, []);
+});

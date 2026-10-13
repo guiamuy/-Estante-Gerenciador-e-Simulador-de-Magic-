@@ -5032,6 +5032,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `modosCombinadosK` (o prefixo `fundir-` entra na lista dos modos somados: cada metade da fundida é uma instância própria de "alvo", como nos modos de entrelaçar e escalar).
 - **Próximo:** as parciais da CR5 (712.x, 715.3, 716.2, 303.4, 309.x).
 
+**CR5-T36 · Protótipo (702.160, 718)** ✅ (leva T-36, sem mudança de versão do motor) — **Valor:** as cartas de protótipo (The Brothers' War) jogam inteiras; Boulderbranch Golem deixa de faltar em 7 listas de Pauper (prova do catálogo de 13/10). **Aceite:** com `self.prototipo = { mana, power, toughness }`, a carta tem duas ofertas de conjurar: a normal e "como protótipo" (`prototipo: true`), pelo custo alternativo; como protótipo, na pilha e no campo tem o custo, o valor de mana, o poder e a resistência alternativos e a cor do custo alternativo (718.3a/b); fora da pilha e do campo, e conjurada normal, só as características normais (718.4); o resto da carta não muda (718.5). Pedido direto de protótipo em carta sem protótipo é recusado. Mesa: "Conjurar como protótipo · {3}{G} · 3/3"; registro "(como protótipo)". **Testes:** `tipos.prototipo.unit` (10; falham sem a leva) e o teste de tela T-36 (com auditaTela). Carta: Boulderbranch Golem (Oracle do Forge, clone de 13/10/2026). **Depende de:** nada. **Fora:** cópia de protótipo (718.3c/d, 718.2a) fica com as características normais; conjurar sem pagar não oferece o protótipo.
+- **Escopo do mapa:** a 702.160 já dizia "fica com a trilha tipos (… 718)"; a leva atualiza 702.160 e 718.2–718.5.
+- **Versão e goldens:** a versão não sobe; goldens idênticos.
+- **Toca ponto comum:** `HANDLERS.cast` (a linha do custo de mana: como protótipo, o custo é o alternativo).
+- **Próximo:** Estação (702.184, 721: Pinnacle Kill-Ship falta em 6 listas de Pauper); depois as parciais da CR5.
+
 **CR6 · Multijogador e variantes** ○ — mesa de três e quatro (800–803, 806), Commander de mesa (903.2), Brawl (903.12); as variantes hoje "fora" só entram por decisão. 10 a 14 levas.
 
 **CR7 · Consolidação** ○ (em paralelo a partir da CR2) — a cada fase: fuzz em modo completo com listas reais, homologação por revisor independente relendo a seção das regras contra o motor, e rodada de simulação do dono do produto. 6 a 8 levas ao todo.

@@ -6204,7 +6204,7 @@ function validateScript(sc) {
   if (sc && sc.replicate != null && sc.kicker) errs.push('replicar e reforço na mesma carta não são aceitos (os dois usam o pagamento repetido)');
   if (sc && sc.modeCount != null && !(Number.isInteger(sc.modeCount) && sc.modeCount >= 2 && (sc.modes || []).length && (sc.modeRepeat || sc.modeCount <= sc.modes.length))) errs.push('número de modos inválido');
   if (sc && sc.cumulativeUpkeep && !/\{/.test(String(sc.cumulativeUpkeep.mana || ''))) errs.push('manutenção cumulativa precisa de um custo de mana');
-  errs.push(...sagaErros(sc), ...tripularErros(sc), ...aventuraErros(sc), ...duplaFaceErros(sc), ...modalErros(sc), ...divididaErros(sc), ...classeErros(sc), ...batalhaErros(sc), ...papelErros(sc), ...nivelarErros(sc), ...salaErros(sc), ...virarErros(sc), ...selarErros(sc)); // T-31 · CR 702.171 · selar (mesma chamada) // T-29 · CR 710 · carta de virar (mesma chamada) // T-26 · CR 709.5 · Sala (mesma chamada) // T-24 · CR 711 · barras de nível (mesma chamada) // T-20 · CR 111.10 · papel conhecido (mesma chamada) // T-14 · CR 310.4 · defesa da batalha (mesma chamada) // T-12 · CR 716 · Classe (mesma chamada) // T-10 · CR 709 · carta dividida (mesma chamada) // T-8 · CR 712.3 · dupla face modal (mesma chamada) // T-7 · CR 712 · dupla face (mesma chamada) // T-5 · CR 715 · aventura (mesma chamada) // T-3 · CR 702.122 · tripular (mesma chamada da T-1) // T-1 · CR 714 · Saga: capítulos, read ahead e o marcador de entrada (função abaixo da âncora T das exportações)
+  errs.push(...sagaErros(sc), ...tripularErros(sc), ...aventuraErros(sc), ...duplaFaceErros(sc), ...modalErros(sc), ...divididaErros(sc), ...classeErros(sc), ...batalhaErros(sc), ...papelErros(sc), ...nivelarErros(sc), ...salaErros(sc), ...virarErros(sc), ...selarErros(sc), ...prototipoErros(sc)); // T-36 · CR 718 · protótipo (mesma chamada) // T-31 · CR 702.171 · selar (mesma chamada) // T-29 · CR 710 · carta de virar (mesma chamada) // T-26 · CR 709.5 · Sala (mesma chamada) // T-24 · CR 711 · barras de nível (mesma chamada) // T-20 · CR 111.10 · papel conhecido (mesma chamada) // T-14 · CR 310.4 · defesa da batalha (mesma chamada) // T-12 · CR 716 · Classe (mesma chamada) // T-10 · CR 709 · carta dividida (mesma chamada) // T-8 · CR 712.3 · dupla face modal (mesma chamada) // T-7 · CR 712 · dupla face (mesma chamada) // T-5 · CR 715 · aventura (mesma chamada) // T-3 · CR 702.122 · tripular (mesma chamada da T-1) // T-1 · CR 714 · Saga: capítulos, read ahead e o marcador de entrada (função abaixo da âncora T das exportações)
   return errs.concat(exampleErrors(sc));
 }
 const ATRASOS = ['next-upkeep', 'next-end-step', 'end-of-combat']; // CR2b.1 · momentos de gatilho atrasado que o motor conhece
@@ -6605,6 +6605,10 @@ const RAW_SCRIPTS = [
   { name: 'Spring // Mind', self: { dividida: true, mana: '{2}{G}', types: ['sorcery'] }, effects: [{ do: 'search', amount: 1, filter: { types: ['land'], basic: true }, to: 'battlefield-tapped' }], // "Search your library for a basic land card, put it onto the battlefield tapped, then shuffle."
     back: { name: 'Mind', types: ['instant'], mana: '{4}{U}{U}', effects: [{ do: 'draw', amount: 2 }], aftermath: true }, // "Aftermath · Draw two cards."
     example: { target: 'none', expect: { selfLife: 0 } } },
+  // T-36 · CR 702.160 / 718 · protótipo (Oracle do Forge, clone de 13/10/2026). `self.prototipo`: o custo, o poder e a resistência alternativos.
+  { name: 'Boulderbranch Golem', self: { prototipo: { mana: '{3}{G}', power: 3, toughness: 3 } }, // "Prototype {3}{G} — 3/3"
+    abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'gain', amount: { per: 'power-of-source' } }] }], // "When Boulderbranch Golem enters, you gain life equal to its power."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o cenário de verdade (normal 6/5, protótipo 3/3 verde) está em tipos.prototipo.unit
   // T-34 · CR 702.102 · fundir (Oracle do Forge, consulta de 13/10/2026). `self.fundir`: da mão, além de cada metade, as duas juntas.
   { name: 'Wear // Tear', self: { dividida: true, mana: '{1}{R}', types: ['instant'], fundir: true }, effects: [{ do: 'destroy', target: 'artifact' }], // "Destroy target artifact. · Fuse"
     back: { name: 'Tear', types: ['instant'], mana: '{W}', effects: [{ do: 'destroy', target: 'enchantment' }] }, // "Destroy target enchantment. · Fuse"
@@ -8948,6 +8952,18 @@ EVENTOS_DE_OBJETO.push('exaurida'); OBJETOS_DO_EVENTO.exaurida = ['self']; GATIL
 // V-6 · evento "ficou monstruosa" (701.37): da própria permanente
 EVENTOS_DE_OBJETO.push('monstruosa'); OBJETOS_DO_EVENTO.monstruosa = ['self']; GATILHO_EVENTO['becomes-monstrous'] = { evento: 'monstruosa', objeto: 'self' }; TRIGGER_PT['becomes-monstrous'] = 'quando fica monstruosa';
 /* ↓ T · exportações de scripts.js da trilha tipos */
+/* ---------------- T-36 · CR 702.160 / 718 · protótipo (forma do script) ----------------
+   `self: { prototipo: { mana, power, toughness } }` ("Prototype {3}{G} — 3/3"): o segundo conjunto de custo de mana, poder e resistência. */
+function prototipoErros(sc) {
+  const sf = sc && sc.self, pr = sf && sf.prototipo; if (pr == null) return [];
+  const errs = [];
+  if (!pr || typeof pr !== 'object') return ['protótipo: self.prototipo é { mana, power, toughness }'];
+  if (!(typeof pr.mana === 'string' && /\{/.test(pr.mana))) errs.push('protótipo: falta o custo de mana alternativo (self.prototipo.mana)');
+  if (!Number.isInteger(pr.power) || !Number.isInteger(pr.toughness) || pr.power < 0 || pr.toughness < 0) errs.push('protótipo: poder e resistência alternativos são inteiros (self.prototipo.power / toughness)');
+  if (sf.dividida || sf.modal || sf.duplaFace || sf.aventura || sf.virar) errs.push('protótipo: a carta de protótipo não é dividida, modal, de transformar, de aventura nem de virar');
+  return errs;
+}
+Object.assign(EXPORTS_T_SC, { prototipoErros });
 /* ---------------- T-31 · CR 702.171 · selar (forma do script) ----------------
    `self: { selar: N }` ("Saddle N"): o motor monta a ativada (custo de tripular N, só como feitiço, efeito `selada`). "Whenever ~ attacks
    while saddled" é o gatilho `attacks` com `condition: { selada: true }`. */
@@ -22049,7 +22065,7 @@ const HANDLERS = {
     else if (a.aerobend) { if (s.manaCheck && !a.free) { const c = custoAerobendV(s, a.p, o, a.kick || 0, a.targets || []); payCost(s, a.p, c.custo, c.extra); } } // V-30/V-31 · 701.65a, 118.9d: {2} em vez do custo de mana, mais reforço, menos reduções (Toca ponto comum: HANDLERS.cast)
     else if (a.plotted) { /* S53 · plot: o mana já foi pago quando a carta foi plotada */ }
     else if (s.manaCheck && !a.free) { if (f.semCusto) throw new RuleError('custo', 'esta carta não tem custo de mana: não pode ser conjurada assim');
-      let custo = a.kick ? somaCusto(f.cost, parseCost(reforco.mana), a.kick) : f.cost;
+      let custo = a.kick ? somaCusto(custoDoPrototipoT(s, o) || f.cost, parseCost(reforco.mana), a.kick) : custoDoPrototipoT(s, o) || f.cost; // T-36 · CR 718.3a: como protótipo, o custo de mana é o alternativo (Toca ponto comum: HANDLERS.cast)
       for (const x of a.emenda || []) custo = somaCusto(custo, parseCost(s.facts[s.objects[x].name].script.splice.mana), 1); // M-274 · 702.47b: paga o custo de encaixar de cada uma
       const extraBase = castExtraComReforco(s, a.p, o, a.x || 0, a.targets || [], a.kick), extraPago = extraBase - delveN - descontoExilaMao(s, o, exilaMaoN, extraBase); // M-267
       if (a.vida != null) { // CR2c.4 · phyrexiano: quem conjura escolhe quantos símbolos paga com vida
@@ -23353,6 +23369,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
   salaOfertasT(s, p, out); // T-26 · CR 709.5e · destrancar uma porta (ação especial, tempo de feitiço)
   tripularOfertas(s, p, out); // T-3 · CR 702.122a · "qualquer número de outras criaturas": além dos grupos mínimos, a escolha de quem tripula (função abaixo da âncora T das exportações)
   modalOfertas(s, p, out); // T-8 · CR 712.11b / 712.12 · dupla face modal na mão: conjurar ou jogar a face de trás (função abaixo da âncora T das exportações)
+  prototipoOfertasT(s, p, out); // T-36 · CR 718.3 · conjurar como protótipo (custo, cor e tamanho alternativos)
   return out;
   })());
 }
@@ -25823,6 +25840,37 @@ function lutar(s, src, eff, tgt, events) {
 }
 Object.assign(EXPORTS_V, { lutar });
 /* ↓ T · exportações de core.js da trilha tipos */
+/* ---------------- T-36 · CR 702.160 / 718 · protótipo ----------------
+   - 718.3: a ação de conjurar leva `prototipo: true`; a marca `o.prototipoT` é da conjuração (MARCAS_DA_CONJURACAO): vai da mão para a
+     pilha e da pilha para o campo, e some em qualquer outra mudança de zona (718.4, 400.7).
+   - 718.3a/b: com a marca, na pilha e no campo valem o custo, o poder e a resistência alternativos, e a cor do custo alternativo (os
+     ganchos de P/R base, valor de mana, custo no campo e cor das outras levas da trilha). O resto da carta não muda (718.5).
+   - As ofertas saem de `legalActions` numa cópia do estado em que os fatos da carta têm o custo e o tamanho alternativos.
+   Fora: cópia de protótipo (718.3c/d) fica com as características normais; conjurar sem pagar não oferece o protótipo. */
+const prototipoDaCartaT = (s, o) => { const f = o && s.facts[o.frontName || o.name], pr = f && f.script && f.script.self && f.script.self.prototipo; return pr && typeof pr === 'object' ? pr : null; };
+function prototipoAtivoT(s, o) { return o && o.prototipoT && (o.zone === 'stack' || o.zone === 'battlefield') && !o.faceDown ? prototipoDaCartaT(s, o) : null; }
+const custoDoPrototipoT = (s, o) => { const pr = o && o.prototipoT && prototipoDaCartaT(s, o); return pr ? parseCost(pr.mana) : null; }; // o custo pago na conjuração (a carta ainda está na mão ou no exílio)
+MARCAS_DA_CONJURACAO.push('prototipoT');
+function prototipoEscolhidoT(s, a, o) {
+  if (a.prototipo == null) return false;
+  if (a.prototipo !== true || !prototipoDaCartaT(s, o)) throw new RuleError('protótipo', 'esta carta não tem protótipo');
+  if (a.face != null || a.omen || a.disturb || a.faceDown || a.bestow || a.alt != null || a.plotted) throw new RuleError('protótipo', 'o protótipo é conjurado pelo custo alternativo dele');
+  o.prototipoT = true;
+  return true;
+}
+function prototipoOfertasT(s, p, out) {
+  if (DENTRO_DAS_MODAIS || s.pending) return;
+  const cand = Object.values(s.objects).filter(o => o.owner === p && !o.ability && o.zone !== 'battlefield' && o.zone !== 'stack' && !o.frontName && prototipoDaCartaT(s, o)).map(o => o.oid);
+  if (!cand.length) return;
+  const s2 = cloneEstado(s);
+  for (const oid of cand) { const n = s2.objects[oid].name, f = s.facts[n], pr = prototipoDaCartaT(s, s2.objects[oid]), c = parseCost(pr.mana); s2.facts[n] = { ...f, cost: c, cmc: valorDoCustoT(c), colors: coresDoCustoT(c), power: pr.power, toughness: pr.toughness, semCusto: false }; }
+  DENTRO_DAS_MODAIS = true;
+  try { for (const a of legalActions(s2, p)) if (a.t === 'cast' && cand.includes(a.oid) && a.face == null && !a.omen && !a.disturb && !a.faceDown && !a.bestow && a.alt == null && !a.plotted) out.push({ ...a, prototipo: true }); }
+  finally { DENTRO_DAS_MODAIS = false; }
+}
+/** T-36 · o valor de mana do objeto, como os alvos o conferem (Sala no campo, protótipo, X na pilha). */
+function manaValueT(s, o) { const f = s.facts[o.name] || {}; return o.faceDown ? 0 : (valorDaSalaT(s, o) ?? (f.cmc || 0)) + (o.zone === 'stack' ? (o.xPaid || 0) * ((f.cost || {}).x || 0) : 0); }
+Object.assign(EXPORTS_T, { prototipoAtivoT, manaValueT });
 /* ---------------- T-26 · CR 709.5 · Salas ----------------
    - 709.5 / 709.5a: a Sala é dividida de permanente (forma das divididas, T-10: cada porta é conjurada pelo custo dela) e, no campo, é a
      carta inteira. As designações "porta esquerda/direita destrancada" (709.5c) moram fora do objeto, em `s.salasT[oid] = { z, esquerda,
@@ -25897,18 +25945,21 @@ function nomeDaPortaT(s, oid, lado) { const o = s.objects[oid], sc = o && salaSc
      goldfish e bot) — o validador exige que `porta` seja o último efeito, então nada da mesma habilidade acontece entre a resolução e a escolha.
    - 709.5i: "When you fully unlock this Room" (`fully-unlock`) dispara quando a Sala tinha uma porta destrancada e ganha a outra. */
 function valorDaSalaT(s, o) {
+  const pr = prototipoAtivoT(s, o); if (pr) return valorDoCustoT(parseCost(pr.mana)); // T-36 · CR 718.3b: o protótipo na pilha e no campo vale o custo alternativo (o mesmo gancho do valor de mana)
   const pt = o && o.zone === 'battlefield' && !o.faceDown ? portasDaSalaT(s, o) : null; if (!pt) return null;
   const sc = salaScriptT(s, o);
   return (pt.esquerda ? (s.facts[esquerdaT(sc)] || {}).cmc || 0 : 0) + (pt.direita ? (s.facts[direitaT(sc)] || {}).cmc || 0 : 0);
 }
 /** T-28 · CR 709.5 · o custo de mana da Sala no campo: o das portas destrancadas (nenhuma: sem custo). Fora do campo, null. */
 function custoDaSalaT(s, o) {
+  const pr = prototipoAtivoT(s, o); if (pr) return parseCost(pr.mana); // T-36 · CR 718.3b (o mesmo gancho do custo no campo: devoção)
   const pt = o && o.zone === 'battlefield' && !o.faceDown ? portasDaSalaT(s, o) : null; if (!pt) return null;
   const sc = salaScriptT(s, o), txt = l => costStringT((s.facts[l === 'esquerda' ? esquerdaT(sc) : direitaT(sc)] || {}).cost || {}) || '';
   return parseCost((pt.esquerda ? txt('esquerda') : '') + (pt.direita ? txt('direita') : ''));
 }
 /** T-28 · CR 709.5 / 202.2 · a cor da Sala no campo: a das portas destrancadas (nenhuma: incolor). Fora do campo, null. */
 function coresDaSalaT(s, o) {
+  const pr = prototipoAtivoT(s, o); if (pr) return coresDoCustoT(parseCost(pr.mana)); // T-36 · CR 718.3b / 105.2: a cor do protótipo é a do custo alternativo (o mesmo gancho da cor)
   const pt = o && o.zone === 'battlefield' && !o.faceDown ? portasDaSalaT(s, o) : null; if (!pt) return null;
   const sc = salaScriptT(s, o), de = l => (s.facts[l === 'esquerda' ? esquerdaT(sc) : direitaT(sc)] || {}).colors || [];
   return COLORS.filter(k => (pt.esquerda && de('esquerda').includes(k)) || (pt.direita && de('direita').includes(k)));
@@ -26037,7 +26088,7 @@ function nivelSobeT(s, src, eff, events) {
   const k = poeMarcadores(s, o, 'level', 1);
   events.push({ kind: 'effect', do: 'nivel_sobe', name: o.name, target: o.name, amount: k, nivel: (o.counters || {}).level || 0 });
 }
-function ptDoNivelT(s, o) { const f = faixaDoNivelarT(s, o); return f ? [f.base[0], f.base[1]] : null; }
+function ptDoNivelT(s, o) { const pr = prototipoAtivoT(s, o); if (pr) return [pr.power, pr.toughness]; const f = faixaDoNivelarT(s, o); return f ? [f.base[0], f.base[1]] : null; } // T-36 · CR 718.3b: o protótipo na pilha e no campo tem o poder e a resistência alternativos (o gancho do P/R base)
 function continuosDoNivelarT(s, x, sc) {
   const f = faixaDoNivelarT(s, x);
   const cs = (sc.continuo || []).concat(f ? (f.continuo || []) : [], f && (f.palavras || []).length ? [{ afetados: 'self', palavras: f.palavras }] : []);
@@ -26751,6 +26802,7 @@ function faceDeTras(s, x) {
 }
 const costStringT = c => (c.x ? '{X}'.repeat(c.x) : '') + (c.generic ? `{${c.generic}}` : '') + (c.hybrid || []).map(h => `{${h}}`).join('') + COLORS.map(k => `{${k}}`.repeat((c.colored || {})[k] || 0)).join('');
 function faceEscolhidaT(s, a, o) {
+  if (prototipoEscolhidoT(s, a, o)) return; // T-36 · CR 718.3 · como protótipo: o custo, a cor e o tamanho alternativos valem desde a conjuração
   if (cercoEscolhaT(s, a, o)) return; // T-14 · CR 310.12b · o Cerco derrotado é conjurado transformado
   if (divididaEscolhidaT(s, a, o)) return; // T-10 · CR 709.3 · a metade da carta dividida
   if (a.face == null) return;
@@ -26906,7 +26958,7 @@ function gruposGratisT(s, opts) {
 }
 Object.assign(EXPORTS_T, { gruposGratisT });
 /** T-11 · a escolha de face entra na chave das ações do bot: as duas metades (ou as duas faces) com os mesmos alvos são jogadas diferentes. Sem `face`, a chave não muda. */
-const chaveDeFaceT = a => (a && a.face != null ? '|face:' + a.face : '') + (a && a.porta ? '|porta:' + a.porta : ''); // T-26 · a porta destrancada também
+const chaveDeFaceT = a => (a && a.face != null ? '|face:' + a.face : '') + (a && a.porta ? '|porta:' + a.porta : '') + (a && a.prototipo ? '|prototipo' : ''); // T-26 · a porta destrancada também; T-36 · o protótipo também
 Object.assign(EXPORTS_T, { chaveDeFaceT });
 Object.assign(EXPORTS_T, { metadesDe, nomesDe });
 /* ---------------- T-12 · CR 716 · Classes ----------------
@@ -28691,6 +28743,7 @@ function describe(before, a, events, after) {
   if (a.face === 'transformada' && L.length) { const o0 = before.objects[a.oid], n0 = nameOf(before, a.oid); if (o0 && o0.cercoT) L[L.length - 1] = L[L.length - 1].replace(n0, `${o0.cercoT} (${n0} transformada)`); } // T-14 · CR 310.12b · o registro diz a face conjurada
   if ((a.face === 'esquerda' || a.face === 'direita') && L.length) { const hs = E.metadesDe(before, a.oid), n0 = nameOf(before, a.oid); if (hs) L[L.length - 1] = L[L.length - 1].replace(n0, `${hs[a.face === 'direita' ? 1 : 0].nome} (metade de ${n0})`); } // T-10 · CR 709.3 · o registro diz a metade
   if (a.face === 'fundida' && L.length) { const hs = E.metadesDe(before, a.oid), n0 = nameOf(before, a.oid); if (hs) L[L.length - 1] = L[L.length - 1].replace(n0, `${n0} (fundida: ${hs[0].nome} e ${hs[1].nome})`); } // T-34 · CR 702.102 · o registro diz que as duas metades foram conjuradas
+  if (a.prototipo && a.t === 'cast' && L.length) { const n0 = nameOf(before, a.oid); L[L.length - 1] = L[L.length - 1].replace(n0, `${n0} (como protótipo)`); } // T-36 · CR 718.3
   // dano de combate e mortes que acontecem ao passar
   if (a.t === 'pass' || a.t === 'block' || a.t === 'attack') {
     after.players.forEach((pl, i) => { if (pl.life !== before.players[i].life) L.push(linhaDeVida(pl.name, before.players[i].life, pl.life)); });
@@ -31657,6 +31710,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     { const fv = E.faceDeTras(s, oid); if (fv) for (const b of legal) { const ac = b.action; if (!ac) continue; if (ac.face === 'verso') b.label = ac.t === 'play_land' ? `Jogar ${fv.nome}` : `Conjurar ${fv.nome} · ${fv.mana}`; else if (ac.t === 'play_land' && ac.revela == null) b.label = `Jogar ${o.name}`; } } // T-8 · CR 712.11b / 712.12 · dupla face modal: cada botão diz a face
     { const hs = E.metadesDe(s, oid); if (hs) for (const b of legal) { const ac = b.action; if (ac && ac.t === 'cast' && (ac.face === 'esquerda' || ac.face === 'direita')) { const md = hs[ac.face === 'direita' ? 1 : 0]; b.label = `Conjurar ${md.nome}${E.consequenciaT(s, ac) ? ' do cemitério' : ''} · ${md.mana}`; /* T-32 · CR 702.127a */ } } } // T-10 · CR 709.3 · um botão por metade
     { const hs = E.metadesDe(s, oid); if (hs) for (const b of legal) { const ac = b.action; if (ac && (ac.t === 'cast' || ac.t === 'cast_free') && ac.face === 'fundida') b.label = `Fundir: ${hs[0].nome} e ${hs[1].nome}${ac.t === 'cast' ? ` · ${hs[0].mana}${hs[1].mana}` : ''}`; } } // T-34 · CR 702.102 · o botão da fundida
+    { const o = s.objects[oid], f = o && s.facts[o.name], pr = f && f.script && f.script.self && f.script.self.prototipo; if (pr) for (const b of legal) { const ac = b.action; if (ac && ac.t === 'cast' && ac.prototipo) b.label = `Conjurar como protótipo · ${pr.mana} · ${pr.power}/${pr.toughness}`; } } // T-36 · CR 718.3 · o botão do protótipo
     // S34: conceder
     for (const bw of E.legalActions(s, v).filter(x => x.t === 'cast' && x.oid === oid && x.bestow))
       legal.push(doBtn(`Conceder · ${(f.script.bestow || {}).mana || ''} → ${targetName(s, bw.targets[0])}`, bw, { variant: 'primary' }));
