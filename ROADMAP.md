@@ -4142,6 +4142,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Observações para outras trilhas:** o Shark divide mal (com Urso 2/2 e Esquilo 1/1, pôs 1 no próprio Titã em vez de 2+1 que matava os dois) — trilha `bot`; a pilha explicada mostra as partes sem dizer que é divisão — cosmético.
 - **Teste:** `lt61.unit` (3 testes, falham no motor anterior).
 
+**M-379 · LT47 · Trabalho em equipe pelo leitor (702.194, K-70)** ✅ (leva M-379, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** revisão por lote XXXVIII — **Crossover Collaboration passa a jogar** (APROVADAS; Oracle do Forge, consulta de 12/10/2026; bloqueava 10 listas do catálogo, pela medição da `homologacao`). O leitor lê "Teamwork N" e "If this spell was cast using teamwork, <efeito>": sem equipe, os efeitos de sempre; com equipe (virar criaturas suas com poder total N ou mais, mecanismo da K-70), eles e o que o texto acrescenta.
+- **Revisão independente:** 59 verificações, aprovada (grupos mínimos, enjoo de invocação não impede virar para custo — 302.6, prazo do impulso até o fim do seu próximo turno, anulada não cria Tesouro e o custo fica pago).
+- **Fora:** as outras formas de trabalho em equipe ("choose both instead", "instead", "unless … teamwork" — 13 cartas do catálogo); o registro não diz quais criaturas viraram nem que as cartas foram exiladas (já era assim).
+- **Teste:** `lt62.unit` (falha no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

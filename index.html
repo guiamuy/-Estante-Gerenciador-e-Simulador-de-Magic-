@@ -8935,6 +8935,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Desert': { texto: 'vc8fuy', leva: 'M-377' },
   // M-378 · revisão por lote XXXVII (dano dividido em gatilho: Inferno Titan), revisor independente com 80 verificações: 1 de 1 aprovada
   'Inferno Titan': { texto: 'tekjd4', leva: 'M-378' },
+  // M-379 · revisão por lote XXXVIII (trabalho em equipe pelo leitor: Crossover Collaboration), revisor independente com 59 verificações: 1 de 1 aprovada
+  'Crossover Collaboration': { texto: 'd8nx38', leva: 'M-379' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -16971,6 +16973,7 @@ const __m42 = (function () {
       if (ig && efeitos.length && efeitos[efeitos.length - 1].do === 'draw' && Number.isInteger(efeitos[efeitos.length - 1].amount)) { const ult = efeitos[efeitos.length - 1]; ult.amount = { per: 'se', se: 'cast-from-graveyard', sim: num(ig[1]), nao: ult.amount }; frases.push({ texto: p, lida: true }); continue; }
       const dv = p.match(new RegExp(`^then if you control ${N} or more lands, untap that land$`, 'i')); // M-343 · Fabled Passage
       if (dv && efeitos.length && efeitos[efeitos.length - 1].do === 'search' && efeitos[efeitos.length - 1].to === 'battlefield-tapped' && efeitos[efeitos.length - 1].amount === 1) { efeitos[efeitos.length - 1].desviraSeTerrenos = num(dv[1]); frases.push({ texto: p, lida: true }); continue; }
+      { const tw = p.match(/^if this spell was cast using teamwork, (.+)$/i); const te = tw && leFrase(tw[1]); if (te) { efeitos.push(...te.map(x => ({ ...x, __equipe: true }))); frases.push({ texto: p, lida: true }); continue; } } // M-379 · 702.194: o que só acontece com trabalho em equipe vai para o modo de equipe (K-70)
       if (/^it can't be regenerated$/i.test(p) && efeitos.length && efeitos[efeitos.length - 1].do === 'destroy') { efeitos[efeitos.length - 1].semRegenerar = true; frases.push({ texto: p, lida: true }); continue; } // M-317 · 701.19c
       const e = leFrase(p);
       const du = !e && divideE(p); // M-343
@@ -16997,6 +17000,7 @@ const __m42 = (function () {
     for (const linha of linhas) {
       if (linha === '//') { frases.push({ texto: linha, lida: false, motivo: 'segunda face (aventura, dupla face): o leitor ainda não lê' }); break; } // M-322
       if (linhaDePalavras(linha)) { frases.push({ texto: linha, lida: true, palavras: true }); continue; }
+      if (magica && /^teamwork \d+$/i.test(linha.replace(/\.$/, ''))) { frases.push({ texto: linha, lida: true, palavras: true }); continue; } // M-379 · 702.194 (K-70): o N vem do texto da carta (fatos.equipeK)
       if (!magica && /^ward \{\d+\}$/i.test(linha.replace(/\.$/, ''))) { frases.push({ texto: linha, lida: true, palavras: true }); continue; } // M-333 · 702.21: o motor lê "Ward {N}" impresso da carta (K-2)
       const kc0 = !magica && COM_CUSTO.map(([re, faz]) => { const m = linha.replace(/\.$/, '').match(re); return m && faz(m); }).find(Boolean); // LT5 · reciclagem em terreno
       { const rp = linha.replace(/\.$/, '').match(/^(?:domain — )?this spell costs \{(\d+)\} less to cast for each (.+)$/i), per = rp && REDUZ_POR_TEXTO[rp[2].toLowerCase()]; // M-333 · 601.2f
@@ -17094,6 +17098,7 @@ const __m42 = (function () {
     else if (efeitos.length && !modos) script = { name: nome, effects: efeitos, ...topo };
     else if (!magica && (topo.abilities || topo.aura || topo.equip || topo.entersTapped || topo.grants || topo.grantsAll || topo.self || topo.produces || topo.cycling || topo.transmute || topo.escape || topo.entersTappedUnless || topo.affinity || topo.ninjutsu || topo.reduzPor || topo.continuo)) script = { name: nome, ...topo }; // LT3/LT5 · M-351 · continuo
     if (script && (script.effects || []).some(e => e.do === 'protection') && !script.choose) script.choose = 'color'; // M-348 · "protection from the color of your choice": a mágica escolhe a cor na resolução (achado da revisão do lote XXI)
+    if (script && (script.effects || []).some(e => e.__equipe)) { const todos = script.effects.map(e => { const c = { ...e }; delete c.__equipe; return c; }); script.equipeK = { effects: todos }; script.effects = todos.filter((e, i) => !script.effects[i].__equipe); } // M-379 · K-70: sem equipe, os efeitos de sempre; com equipe, eles e o que o texto acrescenta
     const permanenteSemTexto = !magica && !linhas.length; // criatura sem texto: não precisa de script (o motor joga pelos dados da carta)
     const erros = script ? SC.validateScript({ ...script, example: { target: 'none', expect: {} } }).filter(e => !/cenário|example|exemplo/i.test(e)) : ['sem efeito'];
     const completa = !!(lidas && ((script && !erros.length) || permanenteSemTexto || (!magica && frases.length && frases.every(f => f.palavras))));
