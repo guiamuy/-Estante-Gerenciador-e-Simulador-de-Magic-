@@ -526,6 +526,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ef ✅ | SEG11 licença: `LICENSE` com todos os direitos reservados ao autor (Guilherme de Aguiar Schmidt Amuy), separando o que é de terceiros (Wizards, Scryfall, MTGJSON, Tesseract) (leva P-18) | SEG | ½ | nome do dono |
 | 16º-eg ✅ | SEG9b sala nova sempre com 6 símbolos: o recuo para 4 ao criar saiu depois que o dono publicou as regras da P-16 no console; banco que recusa vira erro, nunca código curto (leva P-19) | SEG | ½ | regras publicadas (dono, 12/10) |
 | 16º-ei ✅ | MON1 Apoiar a Estante: Pix (chave e copia e cola), Ko-fi, PayPal e GitHub Sponsors numa tela, a forma da região primeiro; prévia com dados de exemplo travada (leva P-20) | SEG | 1 | dados reais do dono |
+| 16º-ej ✅ | I4c a ficha com a arte dela: ficha de duas faces da Scryfall ("Dinosaur // Treasure") só vale pela face com o nome da ficha; arte errada já guardada deixa de valer (relato #20, leva G-257) | I | 1 | teste no aparelho |
 | 16º-ee ✅ | T6e-2 Enviar relato sem sair do app: com a conta conectada e a fila ligada, o relato vai para a fila do Firebase e o cartão mostra "Na fila" até o número do registro (relato #13, leva G-255) | T | 1 | — |
 | 16º-eh ✅ | T6e-2 prazo honesto do relato pela fila: o GitHub atrasa o agendamento em horas, a tela diz "de minutos a algumas horas" e a conversa que lê relatos roda a fila antes (relato #13, leva G-256) | T | 1 | 16º-ee |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
@@ -8096,6 +8097,23 @@ mesmo padrão de design".
   pedir todas juntas (o mesmo vale para as cores da estante em Listas, que usam a mesma leitura). O índice nome → fichas
   ficou de fora: o que sobra (≈ 0,1–0,15 s com 2 000 nomes) não paga uma chave derivada a mais para manter em dia.
   Teste: `offline.unit` "G-250" (pico de leituras em voo ≥ 6; com a leitura em fila, 1).
+
+**I4c · A ficha com a arte dela (relato #20, parte 1)** ✅ (leva G-257, trilha `geral`, 13/10/2026)
+- **Pedido (relato #20, erro · alta):** fichas como o Tesouro apareciam com a arte de outra ficha (o Dinossauro verde 3/3),
+  na mesa e nas opções de Perfil › Fichas, e a ficha padrão também vinha errada.
+- **Causa:** a Scryfall tem fichas de duas faces ("Dinosaur // Treasure") e a busca exata "!Treasure t:token" também as
+  acha; o app usava a imagem da primeira face. A carta errada ficava fixada para sempre no aparelho.
+- **Como:** `faceDaFicha` (`src/data/cards.js`) diz qual carta a ficha mostra: de uma face, só com o mesmo nome (e P/T,
+  quando é criatura); de duas faces, só a face com o nome e o P/T da ficha, como carta de uma face. Vale na ficha padrão
+  (a de uma face vence), na carta guardada antes desta leva (com rede, busca a certa; sem rede, nada de arte errada), nas
+  opções de arte (uma face primeiro) e na escolha guardada: opção ou escolha de duas faces gravada antes some na leitura e
+  sai do aparelho na próxima gravação; na partida já começada, a escolha antiga também não vale (`cartaComFicha`).
+- **Testes:** U `fichas.unit` (3: a face certa, inclusive P/T diferente e opção antiga sem faces; a ficha padrão da mesa
+  com a busca devolvendo a de duas faces primeiro, só ela, a guardada antes da leva com e sem rede, e a escolha antiga;
+  opções de arte, opções, fila e escolha guardadas antes e a escolha na mesa).
+- **Fora:** a dupla face da ficha na mesa (virar a ficha) continua fora, como na G-244; conferência na Scryfall feita pelo
+  dono no aparelho (a sessão não alcança a Scryfall; o formato de duas faces segue o que o coletor do catálogo já trata).
+- **Parte 2 do relato #20:** dano de comandante (leva própria, trilha do motor).
 
 **I5 · Histórico e estatísticas de partidas** ✅ (leva 188, 05/10/2026)
 - **Onde:** Perfil › **Partidas** (rota `/perfil/partidas`); o atalho no Perfil já diz "N · X% de vitória".

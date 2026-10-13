@@ -4107,6 +4107,21 @@ const BASIC_CARDS = Object.fromEntries(Object.entries(BASIC_MANA).map(([k, c]) =
     collector_number: '', legalities: { pauper: 'legal', commander: 'legal', vintage: 'legal' }, prices: {},
     images: null, faces: [], uri: '', edhrec_rank: null, reserved: false, games: [], builtin: true }];
 }));
+/** G-257 · relato #20: a ficha que esta carta-ficha da Scryfall mostra para `def`. A Scryfall tem fichas de duas faces
+    ("Dinosaur // Treasure") e a busca exata "!Treasure" também as acha: a primeira face (o Dinossauro 3/3) emprestava a
+    arte ao Tesouro. Carta de uma face vale se tem o nome da ficha (e a mesma força e resistência, quando a ficha é
+    criatura); de duas faces, vale só a face com o nome e o P/T da ficha, como carta de uma face; opção de duas faces
+    guardada antes desta leva (sem as faces) não vale. Puro. */
+function faceDaFicha(carta, def) {
+  if (!carta || !def || !def.name) return null;
+  const alvo = norm(def.name);
+  const pt = x => def.power == null || (String(x.power) === String(def.power) && String(x.toughness) === String(def.toughness));
+  const faces = Array.isArray(carta.faces) ? carta.faces : [];
+  if (faces.length < 2 && !String(carta.name || '').includes(' // ')) return norm(carta.name) === alvo && pt(carta) ? carta : null;
+  const f = faces.find(x => x && norm(x.name) === alvo && pt(x) && x.images && x.images.normal);
+  return f ? { ...carta, name: f.name, type_line: f.type_line || '', oracle_text: f.oracle_text || '', power: f.power ?? null, toughness: f.toughness ?? null,
+    colors: f.colors || [], images: f.images, faces: [], layout: 'token' } : null;
+}
 function createCardRepo({ store, scryfall, local = null, ttlMs = 7 * 24 * 3600 * 1000, now = () => Date.now() }) {
   const mem = new Map();
   const stats = { hits: 0, misses: 0, fetched: 0, degraded: false };
@@ -4219,15 +4234,20 @@ function createCardRepo({ store, scryfall, local = null, ttlMs = 7 * 24 * 3600 *
       let escolhas = {}; if (!padrao) { try { escolhas = (await store.get('fichas.escolhas')) || {}; } catch (e) { /* sem armazenamento: sem escolhas */ } }
       for (const t of defs || []) {
         const chave = 'ficha:' + norm(t.name) + (t.power != null ? ` ${t.power}/${t.toughness}` : '');
-        if (escolhas[chave] && escolhas[chave].images) { out.set(chave, escolhas[chave]); continue; }
+        const escolhida = faceDaFicha(escolhas[chave], t); // G-257 · escolha antiga de duas faces não vale
+        if (escolhida && escolhida.images) { out.set(chave, escolhida); continue; }
         const rec = await readCache(chave);
-        if (rec && (rec.card || fresh(rec))) { out.set(chave, rec.card); continue; }
+        // G-257 · a carta guardada antes desta leva pode ser a de duas faces (fixada para sempre): vale a face certa ou busca de novo
+        const guardada = rec && rec.card ? faceDaFicha(rec.card, t) : null;
+        if (guardada || (rec && !rec.card && fresh(rec))) { out.set(chave, guardada); continue; }
         if (onlineOnly) { out.set(chave, null); continue; }
         try {
           const q = `!"${t.name}" t:token` + (t.power != null ? ` pow=${t.power} tou=${t.toughness}` : '') + ((t.colors || []).length ? ` c=${t.colors.join('').toLowerCase()}` : '');
           let achadas = await scryfall.search(q, { pages: 1, unique: 'prints' });
           if (!achadas.length && (t.colors || []).length) achadas = await scryfall.search(`!"${t.name}" t:token` + (t.power != null ? ` pow=${t.power} tou=${t.toughness}` : ''), { pages: 1, unique: 'prints' });
-          const card = achadas.find(c => c.images || (c.faces && c.faces[0] && c.faces[0].images)) || null;
+          // G-257 · a de uma face vence; a de duas faces só pela face com o nome da ficha
+          const boas = achadas.map(c => [c, faceDaFicha(c, t)]).filter(([, f]) => f && f.images);
+          const card = ((boas.find(([c, f]) => c === f) || boas[0]) || [])[1] || null;
           const novo = { ts: now(), card, pin: !!card };
           mem.set(chave, novo); await store.set(KEY(chave), novo);
           out.set(chave, card);
@@ -4339,7 +4359,7 @@ function createRulings({ store, scryfall, agora = () => Date.now(), prazo = RULI
     lembraAberto(v) { store.set(RULINGS_ABERTO, !!v).catch(() => {}); }
   };
 }
-return { createCardRepo, norm, BASIC_CARDS, limpaRulings, temRulings, createRulings, RULINGS_PRAZO_MS };
+return { createCardRepo, faceDaFicha, norm, BASIC_CARDS, limpaRulings, temRulings, createRulings, RULINGS_PRAZO_MS };
 })();
 
 /* ==== src/data/images.js ==== */
@@ -12348,9 +12368,11 @@ function consultaDaFicha(def, { comCor = true } = {}) {
 }
 /** Das cartas que a busca devolveu, as opções de arte: só as que têm imagem, uma por imagem (reimpressão com a mesma
     arte não repete), no máximo `max`. Sem preço nem legalidade: o que fica guardado é o que a mesa precisa. */
-function opcoesDeArte(cartas, max = OPCOES_MAX) {
+function opcoesDeArte(cartas, max = OPCOES_MAX, def = null) {
   const vistas = new Set(), out = [];
-  for (const c of cartas || []) {
+  // G-257 · com a ficha: só a face com o nome dela (a de duas faces emprestava a arte da outra face), uma face primeiro
+  const lista = !def ? (cartas || []) : (cartas || []).map(c => [c, __m7.faceDaFicha(c, def)]).filter(([, f]) => f).sort((a, b) => Number(a[0] !== a[1]) - Number(b[0] !== b[1])).map(([, f]) => f);
+  for (const c of lista) {
     const im = c && (c.images || (c.faces && c.faces[0] && c.faces[0].images)); if (!im || !im.normal) continue;
     const arte = String(im.art || im.normal).replace(/\?.*$/, '');
     if (vistas.has(arte)) continue; vistas.add(arte);
@@ -12374,9 +12396,19 @@ function proximoLote(baixadas, candidatas, { lote = LOTE, teto = OPCOES_MAX } = 
 }
 /** Uma galeria de artes escolhíveis (fichas, terrenos): estado guardado, lotes, escolha.
     `chave(def)` identifica o item; `candidatas(def)` busca na rede as opções possíveis (já no formato guardado). */
-function criaGaleria({ store, images = null, temRede, ESCOLHAS: K_ESCOLHAS, OPCOES: K_OPCOES, chave, candidatas, teto = OPCOES_MAX }) {
+function criaGaleria({ store, images = null, temRede, ESCOLHAS: K_ESCOLHAS, OPCOES: K_OPCOES, chave, candidatas, teto = OPCOES_MAX, aceita = null }) {
   const K_FILA = K_OPCOES + '.fila'; // I7 · as candidatas da última busca ficam guardadas: pedir mais não volta à Scryfall
-  const le = async (k) => { try { return (await store.get(k)) || {}; } catch (e) { return {}; } };
+  // G-257 · `aceita(opcao)`: o que foi guardado e não serve mais sai na leitura (e some do aparelho na próxima gravação)
+  const filtra = (k, x) => {
+    if (!aceita || !x || typeof x !== 'object') return x;
+    const out = {};
+    for (const [ch, v] of Object.entries(x)) {
+      if (Array.isArray(v)) out[ch] = v.filter(aceita);
+      else if (k === K_ESCOLHAS ? aceita(v) : true) out[ch] = v;
+    }
+    return out;
+  };
+  const le = async (k) => { try { return filtra(k, (await store.get(k)) || {}); } catch (e) { return {}; } };
   const aquece = async (urls, opcoes) => { if (images && images.available) { try { await images.warm(urls.filter(Boolean), opcoes); } catch (e) { /* imagem é conforto */ } } };
   const fila = new Map(), restam = new Map(); // candidatas por item e quantas ainda não foram baixadas
   const CAMPOS = ['id', 'name', 'type_line', 'oracle_text', 'power', 'toughness', 'colors', 'color_identity', 'keywords', 'layout', 'set', 'set_name', 'collector_number', 'images', 'faces', 'mana_cost', 'cmc'];
@@ -12429,8 +12461,8 @@ function createFichas({ store, scryfall, images = null, temRede = temRedePadrao 
     async candidatas(def) {
       let cartas = await scryfall.search(consultaDaFicha(def), { pages: 2, unique: 'prints' });
       if (!cartas.length && (def.colors || []).length) cartas = await scryfall.search(consultaDaFicha(def, { comCor: false }), { pages: 2, unique: 'prints' });
-      return opcoesDeArte(cartas);
-    } });
+      return opcoesDeArte(cartas, OPCOES_MAX, def);
+    }, aceita: o => !String((o && o.name) || '').includes(' // ') }); // G-257 · opção e escolha de duas faces guardadas antes somem
   /** G-244 · relato #10: as fichas que as cartas destas listas criam, pela Scryfall. Sem `rede`, só o que está guardado
       (carta guardada antes desta leva não sabe as fichas dela: com rede, é buscada de novo uma vez). */
   galeria.dasListas = async (nomes, { cardRepo = null, rede = false } = {}) => {
@@ -12490,7 +12522,7 @@ function cartaComTerreno(card, escolhas) {
 function cartaComFicha(card, escolhas) {
   if (!card || !escolhas || !(/\btoken\b/i.test(card.type_line || '') || card.layout === 'token')) return card;
   const e = escolhas['ficha:' + norm(card.name) + (card.power != null ? ` ${card.power}/${card.toughness}` : '')];
-  return e && e.images ? { ...card, images: e.images } : card;
+  return e && e.images && !String(e.name || '').includes(' // ') ? { ...card, images: e.images } : card; // G-257 · escolha antiga de duas faces não vale
 }
 /** V5 · a impressão escolhida na lista (V1) vale na mesa: por assento, o nome da carta → a impressão da entrada da lista
     com que ele joga (a partida guarda as entradas no `setup`). Puro. */

@@ -168,3 +168,67 @@ test('G-244 · relato #10: as fichas que as cartas das listas criam, pela Scryfa
   assert.equal(semLista.filter(x => x.chave === 'ficha:zombie 2/2').length, 0, 'tirou a lista: o Zombie sai daqui (fica no grupo do catálogo)');
   assert.ok(!semLista.find(x => x.chave === 'ficha:treasure').suaLista);
 });
+
+/* ---------------- G-257 · relato #20: a ficha de duas faces não empresta a arte da outra face ---------------- */
+// Na Scryfall há fichas de duas faces (ex.: "Dinosaur // Treasure"): a busca exata "!Treasure" também as acha, e a
+// primeira face é o Dinossauro verde 3/3. A ficha só vale pela face com o nome dela (e a mesma força e resistência).
+const { terrenos: TR257 } = loadModules();
+const tesouro = (id, arte) => ({ id, name: 'Treasure', type_line: 'Token Artifact — Treasure', layout: 'token', set: 'ltr', collector_number: id, power: null, toughness: null, faces: [], images: { small: arte + '/s', normal: arte + '/n', large: arte + '/l', art: arte } });
+const duasFaces = id => ({ id, name: 'Dinosaur // Treasure', type_line: 'Token Creature — Dinosaur // Token Artifact — Treasure', layout: 'double_faced_token', set: 'tlci', collector_number: id, power: '3', toughness: '3', images: null,
+  faces: [{ name: 'Dinosaur', type_line: 'Token Creature — Dinosaur', power: '3', toughness: '3', colors: ['G'], oracle_text: 'Trample', images: { small: 'dino/s', normal: 'dino/n', large: 'dino/l', art: 'dino' } },
+    { name: 'Treasure', type_line: 'Token Artifact — Treasure', power: null, toughness: null, colors: [], oracle_text: 'T, Sacrifice this token: Add one mana of any color.', images: { small: 'tes2/s', normal: 'tes2/n', large: 'tes2/l', art: 'tes2' } }] });
+const TESOURO = { name: 'Treasure', types: ['artifact'], subtypes: ['Treasure'], colors: [] };
+const DINO = { name: 'Dinosaur', types: ['creature'], subtypes: ['Dinosaur'], colors: ['G'], power: 3, toughness: 3 };
+
+test('G-257 · faceDaFicha: carta de uma face só com o mesmo nome (e P/T); de duas faces, a face com o nome da ficha', () => {
+  const t = tesouro('1', 'tes1');
+  assert.equal(C.faceDaFicha(t, TESOURO), t, 'uma face com o mesmo nome: a própria carta');
+  assert.equal(C.faceDaFicha({ ...t, name: 'Clue' }, TESOURO), null);
+  const f = C.faceDaFicha(duasFaces('d1'), TESOURO);
+  assert.deepEqual(J([f.name, f.type_line, f.images.normal, f.power, f.faces.length]), ['Treasure', 'Token Artifact — Treasure', 'tes2/n', null, 0], 'a face de trás, com a arte dela');
+  assert.equal(C.faceDaFicha(duasFaces('d1'), DINO).images.normal, 'dino/n', 'o Dinossauro 3/3 pela face da frente');
+  assert.equal(C.faceDaFicha(duasFaces('d1'), { ...DINO, power: 1, toughness: 1 }), null, 'força e resistência diferentes: não serve');
+  assert.equal(C.faceDaFicha({ ...duasFaces('d1'), faces: [], images: { normal: 'dino/n' } }, TESOURO), null, 'opção de duas faces guardada antes desta leva (sem as faces): não serve');
+  assert.equal(C.faceDaFicha(null, TESOURO), null); assert.equal(C.faceDaFicha(t, null), null);
+});
+
+test('G-257 · a ficha padrão da mesa: o Tesouro não vem com a arte do Dinossauro, nem pelo que ficou guardado antes', async () => {
+  // a busca devolve a de duas faces primeiro (é o que a Scryfall pode devolver): a de uma face vence; sem ela, a face certa
+  const store = P.memoryStore();
+  let resposta = [duasFaces('d1'), tesouro('1', 'tes1')];
+  const scryfall = { async search() { return resposta; }, async collection() { return { found: [], missing: [] }; } };
+  const repo = C.createCardRepo({ store, scryfall, now: () => 1000 });
+  assert.equal((await repo.fichas([TESOURO])).get('ficha:treasure').images.normal, 'tes1/n', 'a de uma face primeiro');
+  const store2 = P.memoryStore(); resposta = [duasFaces('d1')];
+  const repo2 = C.createCardRepo({ store: store2, scryfall, now: () => 1000 });
+  const t2 = (await repo2.fichas([TESOURO])).get('ficha:treasure');
+  assert.deepEqual(J([t2.name, t2.images.normal]), ['Treasure', 'tes2/n'], 'só a de duas faces: vale a face do Tesouro');
+  // o que ficou guardado antes desta leva (a carta de duas faces, fixada para sempre): com rede, busca de novo; sem rede, não mostra o Dinossauro
+  const store3 = P.memoryStore(); resposta = [tesouro('1', 'tes1')];
+  await store3.set('card.ficha:treasure', { ts: 1000, card: { ...duasFaces('d1'), faces: [], images: { normal: 'dino/n' } }, pin: true });
+  const repo3 = C.createCardRepo({ store: store3, scryfall, now: () => 2000 });
+  const sem = (await repo3.fichas([TESOURO], { onlineOnly: true })).get('ficha:treasure');
+  assert.ok(!sem || sem.images.normal !== 'dino/n', 'sem rede: nada de Dinossauro');
+  assert.equal((await repo3.fichas([TESOURO])).get('ficha:treasure').images.normal, 'tes1/n', 'com rede: troca pela certa');
+  // a escolha guardada antes desta leva (opção de duas faces sem as faces) não vale: a mesa usa o padrão
+  await store3.set('fichas.escolhas', { 'ficha:treasure': { id: 'd1', name: 'Dinosaur // Treasure', images: { normal: 'dino/n' }, faces: [] } });
+  assert.equal((await repo3.fichas([TESOURO])).get('ficha:treasure').images.normal, 'tes1/n');
+});
+
+test('G-257 · Perfil › Fichas e a mesa: opções de arte só da face certa; opção e escolha antigas de duas faces somem', async () => {
+  const ops = FX.opcoesDeArte([duasFaces('d1'), tesouro('1', 'tes1'), duasFaces('d2')], FX.OPCOES_MAX, TESOURO);
+  assert.deepEqual(J(ops.map(o => [o.id, o.name, o.images.normal])), [['1', 'Treasure', 'tes1/n'], ['d1', 'Treasure', 'tes2/n']], 'uma face primeiro; a de duas faces pela face do Tesouro, sem repetir a mesma arte');
+  assert.ok(FX.opcoesDeArte([duasFaces('d1')], FX.OPCOES_MAX, DINO).every(o => o.images.normal === 'dino/n'));
+  // guardadas antes desta leva: opções, candidatas da fila e escolha com o nome de duas faces
+  const store = P.memoryStore(), velha = { id: 'd9', name: 'Dinosaur // Treasure', images: { small: 'dino/s', normal: 'dino/n' }, faces: [] };
+  await store.set('fichas.opcoes', { 'ficha:treasure': [velha, tesouro('1', 'tes1')] });
+  await store.set('fichas.opcoes.fila', { 'ficha:treasure': [velha, tesouro('1', 'tes1')] });
+  await store.set('fichas.escolhas', { 'ficha:treasure': velha });
+  const fx = FX.createFichas({ store, scryfall: { async search() { return []; } }, temRede: () => true });
+  const st = await fx.estado();
+  assert.deepEqual(J(st.opcoes['ficha:treasure'].map(o => o.id)), ['1']); assert.equal(st.escolhas['ficha:treasure'], undefined);
+  assert.ok((await fx.mais(TESOURO)).every(o => !o.name.includes(' // ')), 'pedir mais não traz a velha de volta');
+  // a mesa (arte escolhida na partida que já começou) também ignora a escolha antiga
+  const naMesa = { name: 'Treasure', type_line: 'Token Artifact — Treasure', layout: 'token', images: { normal: 'padrao/n' } };
+  assert.equal(TR257.cartaComFicha(naMesa, { 'ficha:treasure': velha }).images.normal, 'padrao/n');
+});
