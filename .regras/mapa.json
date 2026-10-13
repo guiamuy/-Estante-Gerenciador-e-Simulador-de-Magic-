@@ -10368,13 +10368,13 @@
    "regra": "Split Cards",
    "titulo": "Divididas permanentes de linha de tipo única (Salas)",
    "status": "parcial",
-   "falta": "T-19 (12/10/2026): fica para depois — Salas (Duskmourn): portas, destrancar e designação de metade (2 levas); nenhuma carta das listas. Depois da T-26 falta (T-27): 709.5 no nome e no valor de mana da permanente (a porta trancada não tem nome nem custo: hoje a Sala no campo tem os dois nomes e o custo somado), 709.5f/g (destrancar e trancar por efeito), 709.5i (\"destranca por inteiro\"), 709.5b na cópia, e contínuos e concessões numa porta (o validador recusa: a Sala com eles fica manual).",
+   "falta": "T-19 (12/10/2026): fica para depois — Salas (Duskmourn): portas, destrancar e designação de metade (2 levas); nenhuma carta das listas. Depois da T-27 falta: o nome da Sala no campo (a porta trancada não tem nome: hoje ela tem os dois, o que importa para \"nomes diferentes entre portas destrancadas\", Promising Stairs); o valor de mana das portas destrancadas vale no alvo e no seletor, mas não nos caminhos que leem o valor impresso direto (busca, sacrifício por valor); contínuo e concessão numa porta (o validador recusa: a Sala com eles fica manual).",
    "esforco": "P",
    "depende": [
     "709.3"
    ],
    "cartas": "uma coleção só",
-   "evidencia": "T-26 (13/10/2026): Sala = dividida de permanente (self.dividida + self.sala, portas encantamento, 709.5a); cada porta é conjurada pelo custo dela e a Sala entra inteira com a porta conjurada destrancada (709.5d, salaEntrouT); posta no campo de outro jeito, as duas trancadas. Designações em s.salasT com a encarnação (709.5c, 400.7). A porta trancada não tem habilidades (abilitiesOf só dá as das portas destrancadas). Destrancar é ação especial no tempo de feitiço, pagando o custo da porta, sem pilha (709.5e, 116.2). \"When you unlock this door\" (unlock-door) dispara ao entrar ou depois, só na porta destrancada (709.5h). Mesa: \"Destrancar <porta> · custo\"; registro \"destrancou <porta> (<Sala>)\". Carta exemplo completa: Glassworks // Shattered Yard (Oracle do Forge, 13/10/2026).",
+   "evidencia": "T-26 (13/10/2026): Sala = dividida de permanente (self.dividida + self.sala, portas encantamento, 709.5a); cada porta é conjurada pelo custo dela e a Sala entra inteira com a porta conjurada destrancada (709.5d, salaEntrouT); posta no campo de outro jeito, as duas trancadas. Designações em s.salasT com a encarnação (709.5c, 400.7). A porta trancada não tem habilidades (abilitiesOf só dá as das portas destrancadas). Destrancar é ação especial no tempo de feitiço, pagando o custo da porta, sem pilha (709.5e, 116.2). \"When you unlock this door\" (unlock-door) dispara ao entrar ou depois, só na porta destrancada (709.5h). Mesa: \"Destrancar <porta> · custo\"; registro \"destrancou <porta> (<Sala>)\". Carta exemplo completa: Glassworks // Shattered Yard (Oracle do Forge, 13/10/2026). T-27 (13/10/2026): valor de mana da Sala no campo = portas destrancadas, no alvo e no seletor (valorDaSalaT). 709.5f/g: efeito porta (destrancar, trancar, qualquer) na Sala alvo; com duas portas possíveis, a decisão porta_escolha (mesa \"Escolher (2)\" com uma linha por porta, goldfish e bot) — a escolha abre logo depois da resolução (porta é o último efeito, o validador exige). 709.5i: fully-unlock dispara quando a Sala tinha uma porta e ganha a outra. 709.5b: a cópia tem as portas e nenhuma designação. Cartas: Ghostly Keybearer e Keys to the House (Oracle do Forge, 13/10/2026).",
    "testes": [
     "CR 709.3 / 709.5 · na mão, cada porta é conjurada pelo custo dela (a Sala inteira não); é encantamento: só no tempo de feitiço",
     "CR 709.5d / 709.5h · Glassworks (texto oficial): conjurada a porta esquerda, a Sala entra inteira com ela destrancada e \"quando você destranca esta porta\" dispara (4 de dano na criatura do oponente)",
@@ -10383,7 +10383,13 @@
     "CR 709.5e · só no seu turno, na fase principal, com a pilha vazia, pela mana certa e por quem controla",
     "CR 709.5h · destrancar uma porta dispara o \"quando você destranca esta porta\" só dela",
     "CR 709.5d · a Sala posta no campo sem ser conjurada entra com as duas portas trancadas: nenhuma habilidade, nada dispara; as duas podem ser destrancadas",
-    "CR 400.7 / 709.5c · as designações são da permanente: a Sala que sai e volta é objeto novo, com as portas trancadas"
+    "CR 400.7 / 709.5c · as designações são da permanente: a Sala que sai e volta é objeto novo, com as portas trancadas",
+    "CR 709.5 · valor de mana da Sala no campo: só o das portas destrancadas (a trancada não tem custo)",
+    "CR 709.5f · Ghostly Keybearer (texto oficial): com uma porta trancada só, destranca essa, e o \"quando você destranca esta porta\" dela dispara",
+    "CR 709.5f · com as duas trancadas, quem destranca escolhe a porta: a mesa pergunta (uma oferta por porta) e nada mais é aceito antes",
+    "CR 709.5f / 709.5g · Keys to the House (texto oficial): tranca ou destranca uma porta, à escolha, só no tempo de feitiço; trancar não dispara nada e a porta trancada perde o texto",
+    "CR 709.5i · \"quando você destranca esta Sala por inteiro\" dispara quando a segunda porta destranca — e de novo se ela for trancada e destrancada",
+    "CR 709.5b / 707.2 · a cópia de uma Sala tem as duas portas (pode destrancá-las), mas nenhuma designação: entra com as duas trancadas"
    ]
   },
   {

@@ -11081,3 +11081,32 @@ test('e2e · T-26 · CR 709.5 · Sala: a folha oferece conjurar cada porta; no c
   if (linhas.length) assert.ok(linhas.some(l => /destrancou Shattered Yard \(Glassworks \/\/ Shattered Yard\)/.test(l)), 'registro: ' + JSON.stringify(linhas.slice(-6)));
   assert.deepEqual(M.errors, []);
 });
+
+test('e2e · T-27 · CR 709.5f · Sala: destrancar por efeito com as duas portas trancadas, a mesa pergunta qual porta (uma linha por porta) e o registro diz a escolhida', { skip }, async t => {
+  // Textos oficiais em .listas/oficiais-tipos.json (Oracle do Forge, 13/10/2026): Glassworks // Shattered Yard e Ghostly Keybearer. A Sala
+  // entra no campo por dado e a espera da escolha é a que o efeito `porta` anota (o motor é provado em tipos.salas.unit).
+  const extras = JSON.parse(readFileSync(join(ROOT, '.listas', 'oficiais-tipos.json'), 'utf8')).cartas.filter(c => c.name === 'Glassworks // Shattered Yard');
+  const M = await comLista125(t, '20 Mountain\n20 Glassworks // Shattered Yard', ['Mountain', 'Glassworks // Shattered Yard'], '4', { extras });
+  const { page } = M;
+  const g = await page.evaluate(() => { const s = window.__estanteMesa.estado(), z = s.zones[0];
+    const i = z.library.findIndex(o => s.objects[o].name === 'Glassworks // Shattered Yard'); const oid = z.library.splice(i, 1)[0];
+    Object.assign(s.objects[oid], { zone: 'battlefield', controller: 0, tapped: false, sick: false, damage: 0, counters: {} }); z.battlefield.push(oid);
+    s.portaEsperaT = { p: 0, oid, z: s.objects[oid].zc || 0, acao: 'destrancar', name: 'Ghostly Keybearer' }; return oid; });
+  const terra = await M.oid('Mountain'); assert.equal(await M.act({ t: 'play_land', p: 0, oid: terra }), true); await page.waitForTimeout(250);
+  const e = await M.est();
+  assert.equal(e.pend, 'porta_escolha', 'a mesa pergunta: ' + JSON.stringify(e));
+  assert.match(await M.decisao(), /^Ghostly Keybearer: qual porta destrancar\? \| Glassworks \/\/ Shattered Yard/);
+  await auditaTela(page, 'Sala: qual porta destrancar');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/t27-porta.png' });
+  await page.locator('#tb-porta_escolha').click(); await page.waitForSelector('.ds-dialog'); await page.waitForTimeout(250);
+  const botoes = (await page.locator('.ds-dialog .tb-sheet__actions button').allInnerTexts()).map(x => x.replace(/\s+/g, ' ').trim());
+  assert.deepEqual(botoes, ['Destrancar Glassworks', 'Destrancar Shattered Yard'], 'uma linha por porta: ' + JSON.stringify(botoes));
+  for (const b of await page.locator('.ds-dialog .tb-sheet__actions button').all()) { const cx = await b.boundingBox(); assert.ok(cx && cx.height >= 44, 'botão com 44 px de altura ou mais: ' + JSON.stringify(cx)); }
+  await auditaTela(page, 'folha: qual porta');
+  await page.locator('.ds-dialog .tb-sheet__actions button', { hasText: /Shattered Yard/ }).click(); await page.waitForTimeout(250);
+  const fim = await page.evaluate(g => { const s = window.__estanteMesa.estado(); return { e: !!(s.salasT && s.salasT[g] && s.salasT[g].esquerda), d: !!(s.salasT && s.salasT[g] && s.salasT[g].direita), pend: s.pending && s.pending.kind }; }, g);
+  assert.deepEqual(fim, { e: false, d: true, pend: null });
+  const linhas = await page.evaluate(() => (window.__estanteMesa.registro ? window.__estanteMesa.registro() : []).map(String));
+  if (linhas.length) assert.ok(linhas.some(l => /destrancou Shattered Yard \(Glassworks \/\/ Shattered Yard\)/.test(l)), 'registro: ' + JSON.stringify(linhas.slice(-6)));
+  assert.deepEqual(M.errors, []);
+});

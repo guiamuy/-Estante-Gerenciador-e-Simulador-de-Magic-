@@ -5484,6 +5484,7 @@ const EFFECTS = {
   lutador: { fields: [], targets: ['creature', 'creature-you-control'] },
   fight: { fields: [], targets: ['creature', 'creature-opponent-controls', 'creature-you-control'] }, // quem: 'self-source' (a permanente fonte luta) | 'primeiro-alvo' (luta a criatura anotada pelo `lutador` anterior)
   /* ↓ T · efeitos da trilha tipos */
+  porta: { fields: [], targets: ['permanent-you-control'] }, // T-27 · CR 709.5f/g · "unlock a locked door" / "lock a door" / "lock or unlock a door" de uma Sala (alvo: seletor de Sala sua); a porta é escolhida na resolução
   papel: { fields: [], targets: ['creature', 'creature-you-control', 'first-target'] }, // T-20 · CR 111.10j–r / 303.7 · "create a <Papel> Role token attached to <alvo>": a ficha de Papel (definida pela regra) entra anexada
   cerco_derrotado: { fields: [], targets: ['self'] }, // T-14 · CR 310.12b · a habilidade intrínseca do Cerco: "exile it, then you may cast it transformed without paying its mana cost" (o motor a dispara quando sai o último marcador de defesa; o script não a escreve)
   nivel_sobe: { fields: [], targets: ['self'] }, // T-25 · CR 702.87a · "ponha um marcador de nível nesta" (o motor o monta a partir de `self.nivelar`, o script não o escreve)
@@ -5788,6 +5789,7 @@ const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield
   'exerted', // V-20 · "You may exert ~ as it attacks. When you do, …" (701.43d): dispara quando a permanente é exaurida
   'becomes-monstrous', // V-6 · "When ~ becomes monstrous" (o valor do gatilho é o N da monstruosidade, 701.37c)
   /* ↓ T · gatilhos da trilha tipos */
+  'fully-unlock', // T-27 · CR 709.5i · "When you fully unlock this Room": só numa porta de Sala
   'unlock-door', // T-26 · CR 709.5h · "When you unlock this door": só numa porta de Sala (o motor a dispara quando a porta recebe a designação de destrancada, ao entrar ou depois)
   'becomes-level', // T-12 · CR 716.2a · "When this Class becomes level N": só dentro de um nível de `self.classe` (o motor a dispara quando o efeito de subir de nível resolve)
   'transforms', // T-7 · CR 701.27e · "When ~ transforms (into …)": dispara na face que ficou para cima depois de a permanente transformar
@@ -6573,6 +6575,13 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-27 · CR 709.5f/g · destrancar e trancar por efeito (Oracle do Forge, consulta de 13/10/2026).
+  { name: 'Ghostly Keybearer', abilities: [{ kind: 'triggered', when: 'combat-damage', effects: [{ do: 'porta', acao: 'destrancar', target: { tipos: ['enchantment'], subtipos: ['Room'], de: 'you' }, upTo: true }] }], // "Flying · Whenever Ghostly Keybearer deals combat damage to a player, unlock a locked door of up to one target Room you control." (voar vem da palavra-chave)
+    example: { target: 'none', expect: { selfLife: 0 } } },
+  { name: 'Keys to the House', abilities: [
+    { kind: 'activated', cost: { mana: '{1}', tap: true, sacrifice: true }, effects: [{ do: 'search', amount: 1, filter: { types: ['land'], basic: true }, to: 'hand' }] }, // "{1}, {T}, Sacrifice Keys to the House: Search your library for a basic land card, reveal it, put it into your hand, then shuffle."
+    { kind: 'activated', cost: { mana: '{3}', tap: true, sacrifice: true }, sorceryOnly: true, effects: [{ do: 'porta', acao: 'qualquer', target: { tipos: ['enchantment'], subtipos: ['Room'], de: 'you' } }] }], // "{3}, {T}, Sacrifice Keys to the House: Lock or unlock a door of target Room you control. Activate only as a sorcery."
+    example: { target: 'none', expect: { selfLife: 0 } } },
   // T-26 · CR 709.5 · Sala (Oracle do Forge, consulta de 13/10/2026). O lembrete entre parênteses não se escreve.
   { name: 'Glassworks // Shattered Yard', self: { dividida: true, sala: true, mana: '{2}{R}', types: ['enchantment'] },
     abilities: [{ kind: 'triggered', when: 'unlock-door', effects: [{ do: 'damage', amount: 4, target: 'creature-opponent-controls' }] }], // "When you unlock this door, this Room deals 4 damage to target creature an opponent controls."
@@ -8686,9 +8695,10 @@ EVENTOS_DE_OBJETO.push('monstruosa'); OBJETOS_DO_EVENTO.monstruosa = ['self']; G
    mana, abilities }` é a porta direita. O gatilho `unlock-door` ("When you unlock this door") só existe numa porta. Contínuos,
    concessões e efeitos de resolução ainda não existem numa porta (o validador recusa: a Sala com eles fica manual). */
 function salaErros(sc) {
-  const sf = sc && sc.self, temUnlock = abs => (abs || []).some(ab => ab && ab.when === 'unlock-door');
-  if (!sf || !sf.sala) return temUnlock(sc && sc.abilities) && !(sf && sf.barraT) ? ['sala: o gatilho "unlock-door" só existe numa porta de Sala (self.sala)'] : [];
-  const errs = [];
+  const sf = sc && sc.self, temUnlock = abs => (abs || []).some(ab => ab && (ab.when === 'unlock-door' || ab.when === 'fully-unlock')); // T-27 · 709.5i também
+  const errsPorta = portaErrosT(sc);
+  if (!sf || !sf.sala) return errsPorta.concat(temUnlock(sc && sc.abilities) && !(sf && sf.barraT) ? ['sala: os gatilhos "unlock-door" e "fully-unlock" só existem numa porta de Sala (self.sala)'] : []);
+  const errs = errsPorta.slice();
   if (sf.sala !== true || sf.dividida !== true) errs.push('sala: a Sala é dividida (self.dividida: true e self.sala: true)');
   if (sc.continuo || sc.grants || sc.grantsAll || sf.per || sc.aura || sc.equip || (sc.effects || []).length || sc.regraJogador || sc.substitui || sc.entra || sc.dano) errs.push('sala: só habilidades ativadas e disparadas nas portas (contínuo, concessão e efeito de resolução ainda não)');
   const b = sc.back;
@@ -8699,6 +8709,18 @@ function salaErros(sc) {
   return errs;
 }
 GATILHO_EVENTO['unlock-door'] = { evento: 'destranca_porta', objeto: 'self' }; TRIGGER_PT['unlock-door'] = 'quando você destranca esta porta';
+GATILHO_EVENTO['fully-unlock'] = { evento: 'destranca_sala', objeto: 'self' }; TRIGGER_PT['fully-unlock'] = 'quando você destranca a Sala por inteiro'; // T-27 · CR 709.5i
+/** T-27 · CR 709.5f/g · o efeito `porta`: `acao` 'destrancar' (uma porta trancada), 'trancar' (uma destrancada) ou 'qualquer' (tranca ou
+ * destranca); a escolha da porta abre logo depois da resolução, por isso `porta` é o último efeito da lista. */
+function portaErrosT(sc) {
+  const errs = [], listas = [['efeito', (sc && sc.effects) || []], ...((sc && sc.abilities) || []).map((ab, i) => [`habilidade ${i + 1}`, (ab && ab.effects) || []]), ...(sc && sc.back && typeof sc.back === 'object' ? ((sc.back.abilities || []).map((ab, i) => [`porta direita, habilidade ${i + 1}`, (ab && ab.effects) || []])) : [])];
+  for (const [tag, es] of listas) es.forEach((e, i) => {
+    if (!e || e.do !== 'porta') return;
+    if (!['destrancar', 'trancar', 'qualquer'].includes(e.acao)) errs.push(`${tag}: porta precisa de acao 'destrancar', 'trancar' ou 'qualquer'`);
+    if (i !== es.length - 1) errs.push(`${tag}: porta é o último efeito da lista (a porta é escolhida logo depois da resolução)`);
+  });
+  return errs;
+}
 Object.assign(EXPORTS_T_SC, { salaErros });
 /* ---------------- T-24 · CR 702.87 / 711 · cartas de subir de nível (forma) ----------------
    `self: { nivelar: { mana: '{2}{G}', faixas: [{ de: 1, ate: 3, base: [4, 4] }, { de: 4, base: [6, 6], palavras: ['trample'] }] } }`.
@@ -18549,7 +18571,7 @@ function selCasa(s, p, o, sel, selfOid, opts = {}) {
   if (sel.semPalavra && has(s, o, sel.semPalavra)) return false;
   if ((sel.semSubtipos || []).some(x => isChangeling(s, o, x) || new RegExp('\\b' + x + '\\b', 'i').test(o.zone === 'battlefield' ? linhaDeTipo(s, o) : (f.typeText || '')))) return false; // CR2d.12 · subtipo de agora
   if (sel.mvMax != null || sel.mvMin != null) {
-    const vm = o.faceDown ? 0 : (f.cmc || 0) + (o.zone === 'stack' ? (o.xPaid || 0) * ((f.cost || {}).x || 0) : 0);
+    const vm = o.faceDown ? 0 : (valorDaSalaT(s, o) ?? (f.cmc || 0)) + (o.zone === 'stack' ? (o.xPaid || 0) * ((f.cost || {}).x || 0) : 0);
     const fonte = opts.src || { controller: p };
     if (sel.mvMax != null && vm > amountOf(s, fonte, sel.mvMax)) return false;
     if (sel.mvMin != null && vm < amountOf(s, fonte, sel.mvMin)) return false;
@@ -18745,7 +18767,7 @@ function targetAllowed(s, eff, tgt, src) {
   if (eff.targetNotLand && (f.types || []).includes('land')) return false; // R11 · "nonland permanent"
   if (eff.targetTypes && !eff.targetTypes.some(x => (f.types || []).includes(x))) return false; // R11 · "instant or sorcery spell"
   if (eff.targetNotColor && coresDe(s, o).includes(eff.targetNotColor)) return false; // S38 · "criatura não-preta" · CR2d.8
-  const vm = (f.cmc || 0) + (o.zone === 'stack' ? (o.xPaid || 0) * ((f.cost || {}).x || 0) : 0); // CR 202.3e: na pilha, X é o valor escolhido
+  const vm = (valorDaSalaT(s, o) ?? (f.cmc || 0)) + (o.zone === 'stack' ? (o.xPaid || 0) * ((f.cost || {}).x || 0) : 0); // T-27 · CR 709.5: a Sala no campo vale as portas destrancadas (Toca ponto comum: valor de mana do alvo) · CR 202.3e: na pilha, X é o valor escolhido
   if (eff.targetMv != null && vm !== eff.targetMv) return false;
   if (eff.targetPTTotalMax != null && !(o.zone === 'battlefield' && isCreature(s, o) && power(s, o) + toughness(s, o) <= eff.targetPTTotalMax)) return false; // M-331 · "with total power and toughness 5 or less" (Cut Down)
   if (eff.targetMvMax != null) {
@@ -19951,6 +19973,7 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'lutador': if (obj) s.lutadorV = { fonte: src.oid, fz: encarnacaoV(s, src), oid: obj.oid, z: obj.zc || 0 }; break; // V-1/V-5 · anota quem luta; a luta é o `fight` seguinte, que apaga a anotação
     case 'fight': lutar(s, src, eff, tgt, events); break; // V-1 · 701.14
     /* ↓ T · casos de applyEffect da trilha tipos */
+    case 'porta': portaEfeitoT(s, src, eff, obj, events); break; // T-27 · CR 709.5f/g · destranca, tranca ou "tranca ou destranca" uma porta da Sala alvo
     case 'papel': criaPapelT(s, src, eff, obj, events); break; // T-20 · CR 111.10j–r / 303.7 · a ficha de Papel entra anexada ao alvo
     case 'cerco_derrotado': cercoDerrotadoT(s, src, eff, events); break; // T-14 · CR 310.12b · exila o Cerco e abre "conjurar transformado sem pagar"
     case 'nivel_sobe': nivelSobeT(s, src, eff, events); break; // T-25 · CR 702.87a / 400.7 · subir de nível
@@ -21223,7 +21246,7 @@ function stateBased(s, events) {
       for (const oid of morrem) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield') continue; moveObject(s, oid, 'graveyard'); changed = true; events.push({ kind: 'died', oid, name: o.name }); }
       delete s.saindoJuntas;
     }
-    if (batalhasDeEstadoT(s, events) | equipamentosDeEstadoT(s, events) | papeisDeEstadoT(s, events) | auraAnexoDeEstadoT(s, events)) changed = true; // T-22 · CR 303.4f // T-20 · CR 303.7a / 704.5z // T-16 · CR 301.5c / 704.5n · Equipamento que não pode equipar se solta // T-14 · CR 310.7 / 310.8 / 310.10 / 310.11 / 704.5v–y · batalhas (função abaixo da âncora T das exportações)
+    if (batalhasDeEstadoT(s, events) | equipamentosDeEstadoT(s, events) | papeisDeEstadoT(s, events) | auraAnexoDeEstadoT(s, events) | portaDeEstadoT(s, events)) changed = true; // T-27 · CR 709.5f // T-22 · CR 303.4f // T-20 · CR 303.7a / 704.5z // T-16 · CR 301.5c / 704.5n · Equipamento que não pode equipar se solta // T-14 · CR 310.7 / 310.8 / 310.10 / 310.11 / 704.5v–y · batalhas (função abaixo da âncora T das exportações)
     if (sagasDeEstado(s, events)) changed = true; // T-1 · CR 714.2b (capítulos disparam), 714.3b (read ahead) e 714.4 / 704.5s (sacrifício); função abaixo da âncora T das exportações
     if (!changed) break;
   }
@@ -22047,6 +22070,15 @@ const HANDLERS = {
   },
   /* ↓ V · ações (HANDLERS) da trilha verbos */
   /* ↓ T · ações (HANDLERS) da trilha tipos */
+  /** T-27 · CR 709.5f/g · quem destranca (ou tranca) escolhe a porta. */
+  porta_escolha(s, a, ev) {
+    const pd = s.pending;
+    if (!pd || pd.kind !== 'porta_escolha' || pd.p !== a.p) throw new RuleError('tempo', 'nenhuma porta esperando a escolha');
+    if (!(pd.options || []).includes(a.porta)) throw new RuleError('sala', 'escolha uma das portas oferecidas');
+    s.pending = null;
+    const o = s.objects[pd.oid];
+    if (o && (o.zc || 0) === pd.z && portasDaSalaT(s, o)) aplicaPortaT(s, o, a.porta, pd.acao, pd.name, ev); // a Sala que saiu do campo: nada acontece
+  },
   destrancar(s, a) { destrancarT(s, a); }, // T-26 · CR 709.5e · ação especial: paga o custo da porta trancada e a destranca
   /** T-22 · CR 303.4f · quem controla a Aura que entrou sem ser conjurada escolhe o que ela encanta (não mira). */
   aura_anexo(s, a, ev) {
@@ -25182,8 +25214,10 @@ function salaHabilidadesT(s, o, sc) {
 function destrancaT(s, o, lado) {
   const reg = (s.salasT = s.salasT || {}), r = reg[o.oid] && reg[o.oid].z === (o.zc || 0) ? reg[o.oid] : (reg[o.oid] = { z: o.zc || 0, esquerda: false, direita: false });
   if (r[lado]) return false;
-  r[lado] = true;
+  const tinhaUma = r.esquerda || r.direita; r[lado] = true;
   for (const ab of abilitiesOf(s, o)) if (ab.kind === 'triggered' && ab.when === 'unlock-door' && ab.portaT === lado && triggerConditionMet(s, o, ab.condition))
+    s.queued.push({ source: o.oid, name: o.name, controller: o.controller, effects: ab.effects, when: ab.when, ...marcasDaHabilidade(ab) });
+  if (tinhaUma && r.esquerda && r.direita) for (const ab of abilitiesOf(s, o)) if (ab.kind === 'triggered' && ab.when === 'fully-unlock' && triggerConditionMet(s, o, ab.condition)) // T-27 · 709.5i: tinha uma e ganhou a outra
     s.queued.push({ source: o.oid, name: o.name, controller: o.controller, effects: ab.effects, when: ab.when, ...marcasDaHabilidade(ab) });
   return true;
 }
@@ -25222,7 +25256,49 @@ function destrancarT(s, a) {
 }
 /** O nome da porta (para a folha e o registro). */
 function nomeDaPortaT(s, oid, lado) { const o = s.objects[oid], sc = o && salaScriptT(s, o); return sc ? (lado === 'direita' ? direitaT(sc) : esquerdaT(sc)) : null; }
-Object.assign(EXPORTS_T, { portasDaSalaT, nomeDaPortaT });
+/* ---------------- T-27 · CR 709.5 / 709.5f / 709.5g / 709.5i · Salas, fatia 2 ----------------
+   - 709.5: a porta trancada não tem custo — o valor de mana da Sala no campo é a soma das portas destrancadas (`valorDaSalaT`, usado
+     onde o alvo é conferido pelo valor de mana).
+   - 709.5f/g: o efeito `porta` destranca, tranca ou "tranca ou destranca" uma porta da Sala alvo. Uma porta possível: vale na hora.
+     Duas: a Sala fica anotada (`s.portaEsperaT`) e a conferência seguinte abre a decisão `porta_escolha` (uma oferta por porta; mesa,
+     goldfish e bot) — o validador exige que `porta` seja o último efeito, então nada da mesma habilidade acontece entre a resolução e a escolha.
+   - 709.5i: "When you fully unlock this Room" (`fully-unlock`) dispara quando a Sala tinha uma porta destrancada e ganha a outra. */
+function valorDaSalaT(s, o) {
+  const pt = o && o.zone === 'battlefield' && !o.faceDown ? portasDaSalaT(s, o) : null; if (!pt) return null;
+  const sc = salaScriptT(s, o);
+  return (pt.esquerda ? (s.facts[esquerdaT(sc)] || {}).cmc || 0 : 0) + (pt.direita ? (s.facts[direitaT(sc)] || {}).cmc || 0 : 0);
+}
+function trancaT(s, o, lado) {
+  const r = s.salasT && s.salasT[o.oid]; if (!r || r.z !== (o.zc || 0) || !r[lado]) return false;
+  r[lado] = false; return true;
+}
+const portasPossiveisT = (pt, acao) => ['esquerda', 'direita'].filter(l => (acao === 'destrancar' ? !pt[l] : acao === 'trancar' ? pt[l] : true));
+function aplicaPortaT(s, o, lado, acao, quem, events) {
+  const tranca = acao === 'trancar' || (acao === 'qualquer' && portasDaSalaT(s, o)[lado]);
+  if (tranca ? trancaT(s, o, lado) : destrancaT(s, o, lado)) events.push({ kind: 'effect', do: 'porta', name: quem, target: o.name, porta: nomeDaPortaT(s, o.oid, lado), acao: tranca ? 'trancou' : 'destrancou' });
+}
+function portaEfeitoT(s, src, eff, obj, events) {
+  const pt = obj && !obj.phasedOut ? portasDaSalaT(s, obj) : null;
+  const ops = pt ? portasPossiveisT(pt, eff.acao) : [];
+  if (!ops.length) { events.push({ kind: 'effect', do: 'porta', name: src.name, failed: true }); return; }
+  if (ops.length === 1) aplicaPortaT(s, obj, ops[0], eff.acao, src.name, events);
+  else s.portaEsperaT = { p: src.controller, oid: obj.oid, z: obj.zc || 0, acao: eff.acao, name: src.name };
+}
+/** 709.5f · abre a escolha da porta anotada na resolução; se a Sala saiu (ou ficou uma opção só), resolve sem perguntar. */
+function portaDeEstadoT(s, events) {
+  const w = s.portaEsperaT; if (!w || s.pending || s.status !== 'playing') return false;
+  delete s.portaEsperaT;
+  const o = s.objects[w.oid], pt = o && (o.zc || 0) === w.z ? portasDaSalaT(s, o) : null, ops = pt ? portasPossiveisT(pt, w.acao) : [];
+  if (ops.length === 1) aplicaPortaT(s, o, ops[0], w.acao, w.name, events);
+  else if (ops.length > 1) s.pending = { kind: 'porta_escolha', p: w.p, oid: o.oid, z: w.z, name: w.name, sala: o.name, acao: w.acao, options: ops };
+  return true;
+}
+/** Rótulo de uma opção da escolha (mesa e registro): "Destrancar Cofre" / "Trancar Saguão". */
+function rotuloDaPortaT(s, pd, lado) {
+  const o = s.objects[pd.oid], tranca = pd.acao === 'trancar' || (pd.acao === 'qualquer' && o && (portasDaSalaT(s, o) || {})[lado]);
+  return `${tranca ? 'Trancar' : 'Destrancar'} ${nomeDaPortaT(s, pd.oid, lado) || lado}`;
+}
+Object.assign(EXPORTS_T, { portasDaSalaT, nomeDaPortaT, valorDaSalaT, rotuloDaPortaT });
 /* ---------------- T-24 · CR 702.87 / 711 · cartas de subir de nível ----------------
    Forma no script: `self: { nivelar: { mana, faixas: [{ de, ate, base: [P, R], palavras?, abilities?, continuo? }, …, { de, base, … }] } }`
    (a última barra é a "N+", sem `ate`). O nível é o número de marcadores `level` da permanente (122.1), de qualquer fonte.
@@ -25648,7 +25724,7 @@ function sagasNaLimpeza(s) {
   s.turn.passes = 0; s.turn.priority = s.turn.active; return true;
 }
 /** T-2 · 714.3b · outra ação com a escolha do capítulo aberta: a recusa fala da decisão certa. */
-function sagaRecusa(k) { if (k === 'saga_capitulo') throw new RuleError('pendente', 'escolha o capítulo da Saga primeiro'); if (k === 'tripular') throw new RuleError('pendente', 'escolha quem tripula o Veículo primeiro'); if (k === 'aura_anexo') throw new RuleError('pendente', 'escolha o que a Aura encanta primeiro'); /* T-22 */ } // T-3 · a mesma chamada serve às decisões da trilha tipos
+function sagaRecusa(k) { if (k === 'saga_capitulo') throw new RuleError('pendente', 'escolha o capítulo da Saga primeiro'); if (k === 'tripular') throw new RuleError('pendente', 'escolha quem tripula o Veículo primeiro'); if (k === 'aura_anexo') throw new RuleError('pendente', 'escolha o que a Aura encanta primeiro'); /* T-22 */ if (k === 'porta_escolha') throw new RuleError('pendente', 'escolha a porta da Sala primeiro'); /* T-27 */ } // T-3 · a mesma chamada serve às decisões da trilha tipos
 /** 714.3b · abre a escolha do read ahead de quem entrou; 714.2b · rede de segurança do disparo (T-2: o disparo de verdade é no
  * ato de pôr o marcador, em `sagaMarcou`); e o aviso, no registro, do marcador que a ação de turno pôs. */
 function sagaConfere(s, events) {
@@ -25698,11 +25774,13 @@ function sagasNaPrincipal(s) {
 function sagaOfertas(s, p, out) {
   if (s.pending && s.pending.kind === 'saga_capitulo' && s.pending.p === p) for (let n = 1; n <= s.pending.max; n++) out.push({ t: 'saga_capitulo', p, n, label: 'Capítulo ' + (ROMANOS[n] || n) });
   tripularPendentes(s, p, out); // T-3 · CR 702.122a · a mesma chamada serve às decisões da trilha tipos
+  if (s.pending && s.pending.kind === 'porta_escolha' && s.pending.p === p) for (const porta of s.pending.options || []) out.push({ t: 'porta_escolha', p, porta }); // T-27 · CR 709.5f/g · uma oferta por porta
   if (s.pending && s.pending.kind === 'aura_anexo' && s.pending.p === p) for (const oid of s.pending.options || []) out.push({ t: 'aura_anexo', p, oid }); // T-22 · CR 303.4f · uma oferta por permanente que ela pode encantar
   faceGratisOfertasT(s, p, out); // T-11 · CR 709.3 / 712.11b · "conjure sem pagar": as duas metades da dividida e a face de trás da modal
 }
 PENDING_ACTIONS.saga_capitulo = ['saga_capitulo', 'concede'];
 PENDING_ACTIONS.aura_anexo = ['aura_anexo', 'concede']; // T-22 · CR 303.4f
+PENDING_ACTIONS.porta_escolha = ['porta_escolha', 'concede']; // T-27 · CR 709.5f/g
 /* ---------------- T-3 · CR 702.122 · tripular (com 301.7 e 208.3a) ----------------
    A habilidade de tripular é a ativada de custo `{ crew: N }` do script (CR2d.3: vira criatura artefato até o fim do turno, com o
    P/T impresso — 301.7a–b). Esta leva completa a regra:
@@ -27818,6 +27896,7 @@ function describe(before, a, events, after) {
     case 'commander_zone': { const o = before.objects[a.oid || (before.pending || {}).oid]; const onde = { graveyard: 'no cemitério', exile: 'no exílio', hand: 'na mão', library: 'no grimório' }[(before.pending || {}).from] || 'onde caiu';
       L.push(a.yes ? `${P} levou ${o ? o.name : 'o comandante'} para a zona de comando` : `${P} deixou ${o ? o.name : 'o comandante'} ${onde}`); break; }
     // Leva 131 · escolha de modo: o que foi escolhido, ou que preferiu não fazer
+    case 'porta_escolha': { const pd = before.pending || {}; L.push(`${P} escolheu: ${E.rotuloDaPortaT(before, pd, a.porta).replace(/^Trancar/, 'trancou').replace(/^Destrancar/, 'destrancou')} (${pd.sala || 'a Sala'})`); break; } // T-27 · CR 709.5f/g
     case 'aura_anexo': L.push(`${P} anexou ${(before.pending || {}).name || 'a Aura'} a ${nameOf(before, a.oid)}`); break; // T-22 · CR 303.4f
     case 'saga_capitulo': L.push(`${P} começou ${(before.pending || {}).name || 'a Saga'} no capítulo ${['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'][a.n] || a.n}`); break; // T-1 · CR 714.3b
     case 'tripular': L.push(`${P} vai escolher quem tripula ${nameOf(before, a.oid)}`); break; // T-3 · CR 702.122a
@@ -28059,6 +28138,7 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
           : pd.kind === 'choose_room' ? { t: 'choose_room', p: pd.p, index: 0 }
           : pd.kind === 'topo_fundo' ? { t: 'topo_fundo', p: pd.p, topo: true } // M-264
           : pd.kind === 'aura_anexo' ? { t: 'aura_anexo', p: pd.p, oid: ((s.objects[pd.oid] && E.candidatosDaAuraT(s, s.objects[pd.oid], pd.p) || []).map(x => x.oid).find(x => pd.options.includes(x))) || pd.options[0] } // T-22 · CR 303.4f · o goldfish encanta a primeira opção que ainda vale (T-23)
+          : pd.kind === 'porta_escolha' ? { t: 'porta_escolha', p: pd.p, porta: pd.options[0] } // T-27 · CR 709.5f/g · o goldfish fica com a primeira porta oferecida (Toca ponto comum: goldfish)
           : pd.kind === 'saga_capitulo' ? { t: 'saga_capitulo', p: pd.p, n: 1 } // T-1 · CR 714.3b · o goldfish começa a Saga pelo capítulo I
           : pd.kind === 'tripular' ? E.tripulacaoPadrao(s) // T-3 · CR 702.122a · o goldfish fecha a tripulação assim que a soma chega
           : pd.kind === 'dividir_dano' ? { t: 'dividir_dano', p: pd.p, index: 0 } // CR2g.2 · o goldfish mata na ordem do bloqueio
@@ -28690,9 +28770,9 @@ const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas
   fight: e => `${e.quem === 'self-source' ? 'esta criatura luta' : 'ela luta'} com ${ALVO_PT[e.target] || descreveAlvo(e.target)} (cada uma causa dano igual ao próprio poder à outra)`,
 };
 /* ↓ T · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha tipos */
-const EFEITO_PT_T = { nivel_sobe: () => 'põe um marcador de nível nela', nivel_classe: e => `a Classe sobe para o nível ${e.n}`, tripulada: () => 'vira criatura artefato até o fim do turno', transformar: () => 'transforma (vira a outra face)' }; // T-7 · 701.27
+const EFEITO_PT_T = { porta: e => (e.acao === 'trancar' ? 'tranca uma porta destrancada de uma Sala sua' : e.acao === 'destrancar' ? 'destranca uma porta trancada de uma Sala sua' : 'tranca ou destranca uma porta de uma Sala sua'), nivel_sobe: () => 'põe um marcador de nível nela', nivel_classe: e => `a Classe sobe para o nível ${e.n}`, tripulada: () => 'vira criatura artefato até o fim do turno', transformar: () => 'transforma (vira a outra face)' }; // T-7 · 701.27
 /** T-7 · linhas do registro para os eventos da trilha tipos. */
-const LINHA_T = { nivel_sobe: ev => (ev.failed ? `${ev.name}: saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu de nível (nível ${ev.nivel})`), nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
+const LINHA_T = { porta: ev => (ev.failed ? `${ev.name}: nenhuma porta para trancar ou destrancar` : `${ev.name} ${ev.acao} ${ev.porta} (${ev.target})`), nivel_sobe: ev => (ev.failed ? `${ev.name}: saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu de nível (nível ${ev.nivel})`), nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
 Object.assign(EFEITO_PT_T, { cerco_derrotado: () => 'exila o Cerco; você pode conjurá-lo transformado, sem pagar', papel: e => `cria um Papel de ${e.papel} anexado à criatura` }); // T-14 · CR 310.12b
 Object.assign(LINHA_T, { cerco_derrotado: ev => (ev.failed ? `${ev.name}: o Cerco já tinha saído do campo, nada a exilar` : `${ev.name} foi derrotada e exilada${ev.target ? ` (pode virar ${ev.target})` : ''}`), protetor_batalha: ev => `${ev.target} passa a proteger ${ev.name}`, anexo_barrado: ev => `${ev.name} não pode equipar${ev.target ? ' ' + ev.target : ''} e fica onde está`, papel: ev => (ev.failed ? `${ev.name}: sem criatura para o Papel de ${ev.target}` : `Papel de ${ev.target || ev.name}`), papel_substituido: ev => `o Papel ${ev.name} foi substituído e vai para o cemitério`, batalha_cemiterio: ev => `${ev.name} ficou sem defesa e foi para o cemitério` }); // T-14 · CR 310.12b / 310.11 / 310.8
 function descreveEfeito(e) {
@@ -31132,6 +31212,12 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       banner = PriorityBanner({ title: 'Em qual masmorra se aventurar?', hint: 'Você entra na primeira sala dela.', tone: 'warning',
         actions: (s.pending.labels || s.pending.options || []).slice(0, 4).map((rot, index) =>
           Button(rot, { variant: index ? undefined : 'primary', id: index ? undefined : 'tb-choose-dungeon', onClick: () => act({ t: 'choose_dungeon', p: v, index }) })) });
+    } else if (s.pending && s.pending.kind === 'porta_escolha' && s.pending.p === v) { // T-27 · CR 709.5f/g · qual porta destrancar (ou trancar) · Toca ponto comum: table.js
+      const pd = s.pending, ops = pd.options || [];
+      banner = PriorityBanner({ title: `${pd.name}: ${pd.acao === 'trancar' ? 'qual porta trancar?' : pd.acao === 'destrancar' ? 'qual porta destrancar?' : 'trancar ou destrancar qual porta?'}`, hint: pd.sala, tone: 'warning',
+        actions: [Button(`Escolher (${ops.length})`, { variant: 'primary', id: 'tb-porta_escolha', onClick: () => Dialog({ title: pd.sala,
+          body: h('div', { class: 'tb-sheet__actions' }, ...ops.map((porta, i) => Button(E.rotuloDaPortaT(s, pd, porta), { block: true, variant: i ? undefined : 'primary', onClick: () => { closeDialog(); act({ t: 'porta_escolha', p: v, porta }); } }))),
+          actions: [Button('Voltar', { onClick: closeDialog })] }) })] });
     } else if (s.pending && s.pending.kind === 'aura_anexo' && s.pending.p === v) { // T-22 · CR 303.4f · o que a Aura encanta (sem mirar) · Toca ponto comum: table.js
       const ops = s.pending.options || [];
       const rotulo = oid => `${nameOf(s, oid)}${s.objects[oid] && s.objects[oid].controller !== v ? ' (oponente)' : ''}`;

@@ -10,6 +10,8 @@ const L = n => JSON.parse(readFileSync(new URL('./.listas/' + n, import.meta.url
 const C = {};
 for (const c of L('oficiais-tipos.json').filter(x => x.name === 'Glassworks // Shattered Yard'))
   C[c.name] = { name: c.name, type_line: `${c.type_line} // ${c.verso.type_line}`, mana_cost: `${c.mana_cost} // ${c.verso.mana_cost}`, cmc: valorDeMana(c.mana_cost) + valorDeMana(c.verso.mana_cost), keywords: [], oracle_text: c.oracle_text, colors: ['R'], layout: 'split' };
+for (const c of L('oficiais-tipos.json').filter(x => ['Ghostly Keybearer', 'Keys to the House'].includes(x.name))) // T-27
+  C[c.name] = { name: c.name, type_line: c.type_line, mana_cost: c.mana_cost, cmc: valorDeMana(c.mana_cost), keywords: c.name === 'Ghostly Keybearer' ? ['Flying'] : [], oracle_text: c.oracle_text, colors: c.name === 'Ghostly Keybearer' ? ['U'] : [], power: c.power, toughness: c.toughness };
 for (const [n, k] of Object.entries({ Mountain: 'R', Plains: 'W' })) C[n] = { name: n, type_line: `Basic Land — ${n}`, mana_cost: '', cmc: 0, keywords: [], oracle_text: `({T}: Add {${k}}.)`, colors: [] };
 const carta = (name, type_line, extra = {}) => { C[name] = { name, type_line, mana_cost: '{1}', cmc: 1, keywords: [], oracle_text: '', colors: [], ...extra }; };
 const EX = { example: { target: 'none', expect: { selfLife: 0 } } };
@@ -21,13 +23,20 @@ const SCRIPTS = {
   'Retorno': { name: 'Retorno', effects: [{ do: 'mover', target: { zona: 'graveyard', de: 'you' }, para: 'battlefield' }], ...EX },
   'Rebote': { name: 'Rebote', effects: [{ do: 'bounce', target: 'permanent' }], ...EX },
   'Sopro': { name: 'Sopro', effects: [{ do: 'gain', amount: 1 }], ...EX },
+  // T-27 · Sala de teste com "When you fully unlock this Room, you gain 3 life." na porta direita (709.5i)
+  'Átrio // Torre': { name: 'Átrio // Torre', self: { dividida: true, sala: true, mana: '{W}', types: ['enchantment'] }, abilities: [],
+    back: { name: 'Torre', types: ['enchantment'], mana: '{1}{W}', abilities: [{ kind: 'triggered', when: 'fully-unlock', effects: [{ do: 'gain', amount: 3 }] }] }, example: SALA_EX },
+  'Demolir': { name: 'Demolir', effects: [{ do: 'destroy', target: { tipos: ['enchantment'], mvMax: 3 } }], ...EX }, // "Destroy target enchantment with mana value 3 or less."
+  'Espelho': { name: 'Espelho', effects: [{ do: 'ficha_copia', amount: 1, target: 'permanent' }], ...EX }, // "Create a token that's a copy of target permanent."
 };
 carta('Saguão // Cofre', 'Enchantment — Room // Enchantment — Room', { mana_cost: '{W} // {2}{W}', cmc: 4, colors: ['W'], layout: 'split' });
+carta('Átrio // Torre', 'Enchantment — Room // Enchantment — Room', { mana_cost: '{W} // {1}{W}', cmc: 3, colors: ['W'], layout: 'split' }); carta('Demolir', 'Instant'); carta('Espelho', 'Sorcery');
 carta('Retorno', 'Sorcery'); carta('Rebote', 'Instant'); carta('Sopro', 'Instant');
 carta('Urso', 'Creature — Bear', { power: '2', toughness: '2' }); carta('Gigante', 'Creature — Giant', { power: '5', toughness: '5' });
 
 const GW = 'Glassworks // Shattered Yard', SC2 = 'Saguão // Cofre';
-const TODAS = [GW, SC2, 'Retorno', 'Rebote', 'Sopro', 'Urso', 'Gigante'];
+const GK = 'Ghostly Keybearer', KH = 'Keys to the House', AT = 'Átrio // Torre';
+const TODAS = [GW, SC2, AT, GK, KH, 'Retorno', 'Rebote', 'Sopro', 'Demolir', 'Espelho', 'Urso', 'Gigante'];
 function mesa(seed = 1) {
   const deck = [...TODAS.map(name => ({ name, qty: 4, zone: 'main' })), { name: 'Mountain', qty: 6, zone: 'main' }, { name: 'Plains', qty: 6, zone: 'main' }];
   let s = E.createGame({ format: 'livre', seed, mode: 'full', cards: C, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
@@ -142,7 +151,7 @@ test('Validador · Sala: as duas portas encantamento com custo; "unlock-door" s�
   assert.ok(SC.validateScript({ name: 'X', abilities: [{ kind: 'triggered', when: 'unlock-door', effects: [{ do: 'gain', amount: 1 }] }], ...EX }).some(e => /unlock-door|sala/.test(e)), '"unlock-door" fora de Sala');
 });
 
-test('CR 709.5 · passeio aleatório com Salas: nada oferecido é recusado e as portas só destrancam (nunca trancam)', () => {
+test('CR 709.5 · passeio aleatório com Salas: nada oferecido é recusado e porta só tranca por efeito que tranca (709.5g)', () => {
   let destrancou = 0, portasConjuradas = 0;
   for (let seed = 1; seed <= 12; seed++) {
     let s = mesa(seed);
@@ -153,9 +162,9 @@ test('CR 709.5 · passeio aleatório com Salas: nada oferecido é recusado e as 
       const pref = os.filter(a => a.t === 'destrancar' || (a.t === 'cast' && a.face)), lista = pref.length && i % 2 === 0 ? pref : os;
       const a = lista[(i * 7 + seed) % lista.length];
       const antes = {}; for (const o of Object.values(s.objects)) { const pt = E.portasDaSalaT(s, o); if (pt) antes[o.oid] = { pt, zc: o.zc || 0 }; }
-      s = E.apply(s, a).state;
+      const res = E.apply(s, a); s = res.state; const trancou = res.events.some(e => e.do === 'porta' && e.acao === 'trancou');
       if (a.t === 'destrancar') destrancou++; if (a.t === 'cast' && a.face) portasConjuradas++;
-      for (const [oid, x] of Object.entries(antes)) { const o = s.objects[oid], d = o && (o.zc || 0) === x.zc && E.portasDaSalaT(s, o); if (d) assert.ok(!(x.pt.esquerda && !d.esquerda) && !(x.pt.direita && !d.direita), 'porta trancou sozinha'); }
+      for (const [oid, x] of Object.entries(antes)) { const o = s.objects[oid], d = o && (o.zc || 0) === x.zc && E.portasDaSalaT(s, o); if (d && !trancou) assert.ok(!(x.pt.esquerda && !d.esquerda) && !(x.pt.direita && !d.direita), 'porta trancou sozinha'); }
     }
   }
   assert.ok(destrancou > 5 && portasConjuradas > 5, `o passeio passou pelas Salas (${destrancou} destrancadas, ${portasConjuradas} portas conjuradas)`);
@@ -166,4 +175,105 @@ test('Registro · destrancar diz qual porta e de qual Sala', () => {
   const a = destrancas(s, 0, g)[0], r = E.apply(s, a);
   const linhas = T.describe(s, a, r.events, r.state);
   assert.ok(linhas.some(l => /destrancou Shattered Yard \(Glassworks \/\/ Shattered Yard\)/.test(l)), JSON.stringify(linhas));
+});
+
+/* ---------------- T-27 · Salas, fatia 2 ---------------- */
+const pelaVolta = (s, p, nome) => { let g; [s, g] = poe(s, p, nome, 'graveyard'); let r; [s, r] = poe(s, p, 'Retorno', 'hand'); s = mana(s, p);
+  return [esvazia(act(s, legais(s, p, a => a.t === 'cast' && a.oid === r && (a.targets || []).some(t => t.oid === g))[0])), g]; };
+const miraDemolir = (s, g) => { let d; [s, d] = poe(s, 0, 'Demolir', 'hand'); s = mana(s, 0); return legais(s, 0, a => a.t === 'cast' && a.oid === d && (a.targets || []).some(t => t.oid === g)).length > 0; };
+function bateCom(s, p = 0) { // o Keybearer de p ataca o oponente sem bloqueio
+  let k; [s, k] = poe(s, p, GK);
+  s = passaAte(s, x => x.pending && x.pending.kind === 'attackers' && x.pending.p === p);
+  s = act(s, { t: 'attack', p, attackers: [k] });
+  return [passaAte(s, x => !!(x.pending && ['porta_escolha', 'triggers', 'pick_target'].includes(x.pending.kind)) || ['combat_end', 'main2'].includes(x.turn.step)), k];
+}
+
+test('CR 709.5 · valor de mana da Sala no campo: só o das portas destrancadas (a trancada não tem custo)', () => {
+  let s = mesa(); let g; [s, g] = pelaVolta(s, 0, GW);
+  assert.ok(miraDemolir(s, g), 'as duas trancadas: valor 0');
+  [s, g] = conjuraPorta(mesa(), 0, GW, 'esquerda');
+  assert.ok(miraDemolir(s, g), 'só Glassworks ({2}{R}): valor 3');
+  s = mana(s); s = esvazia(act(s, destrancas(s, 0, g)[0]));
+  assert.ok(!miraDemolir(s, g), 'as duas destrancadas: valor 8');
+});
+
+test('CR 709.5f · Ghostly Keybearer (texto oficial): com uma porta trancada só, destranca essa, e o "quando você destranca esta porta" dela dispara', () => {
+  let s = mesa(); let g; [s, g] = conjuraPorta(s, 0, SC2, 'esquerda'); const v = s.players[0].life;
+  [s] = bateCom(s); s = esvazia(s);
+  eq([portas(s, g), s.players[0].life - v], [{ esquerda: true, direita: true }, 5]);
+});
+
+test('CR 709.5f · com as duas trancadas, quem destranca escolhe a porta: a mesa pergunta (uma oferta por porta) e nada mais é aceito antes', () => {
+  let s = mesa(); let g; [s, g] = pelaVolta(s, 0, SC2); const v = s.players[0].life;
+  [s] = bateCom(s); s = esvazia(s);
+  eq([s.pending && s.pending.kind, s.pending && s.pending.p, J(s.pending.options)], ['porta_escolha', 0, ['esquerda', 'direita']]);
+  eq(legais(s, 0).map(a => a.t + ':' + (a.porta || '')).filter(x => x.startsWith('porta')).sort(), ['porta_escolha:direita', 'porta_escolha:esquerda']);
+  assert.throws(() => E.apply(s, { t: 'pass', p: 0 }));
+  s = esvazia(act(s, { t: 'porta_escolha', p: 0, porta: 'direita' }));
+  eq([portas(s, g), s.players[0].life - v, s.pending], [{ esquerda: false, direita: true }, 5, null]);
+});
+
+test('CR 709.5f · "até uma Sala alvo": sem Sala, o gatilho não faz nada (e não trava a partida)', () => {
+  let s = mesa(); [s] = bateCom(s); s = esvazia(s);
+  assert.ok(!s.pending || s.pending.kind !== 'porta_escolha');
+});
+
+test('CR 709.5f / 709.5g · Keys to the House (texto oficial): tranca ou destranca uma porta, à escolha, só no tempo de feitiço; trancar não dispara nada e a porta trancada perde o texto', () => {
+  let s = mesa(); let g; [s, g] = conjuraPorta(s, 0, GW, 'esquerda'); let k; [s, k] = poe(s, 0, KH); s = mana(s);
+  const of = legais(s, 0, a => a.t === 'activate' && a.oid === k && a.index === 1 && (a.targets || []).some(t => t.oid === g));
+  assert.equal(of.length, 1, 'a segunda habilidade, mirando a Sala');
+  let r; [s, r] = poe(s, 0, 'Sopro', 'hand');
+  const t = act(s, legais(s, 0, a => a.t === 'cast' && a.oid === r)[0]);
+  assert.equal(legais(t, 0, a => a.t === 'activate' && a.oid === k && a.index === 1).length, 0, 'só como feitiço');
+  s = esvazia(act(s, of[0]));
+  eq([s.pending && s.pending.kind, s.objects[k].zone], ['porta_escolha', 'graveyard'], 'as duas portas são opção (trancar Glassworks ou destrancar Shattered Yard); a chave foi sacrificada');
+  s = esvazia(act(s, { t: 'porta_escolha', p: 0, porta: 'esquerda' }));
+  eq([portas(s, g), quandos(s, g)], [{ esquerda: false, direita: false }, []]);
+});
+
+test('CR 709.5i · "quando você destranca esta Sala por inteiro" dispara quando a segunda porta destranca — e de novo se ela for trancada e destrancada', () => {
+  let s = mesa(); const v = s.players[0].life;
+  let g; [s, g] = conjuraPorta(s, 0, AT, 'esquerda');
+  assert.equal(s.players[0].life, v, 'uma porta só: nada');
+  s = mana(s); s = esvazia(act(s, destrancas(s, 0, g)[0]));
+  assert.equal(s.players[0].life, v + 3, 'por inteiro: +3');
+  let k; [s, k] = poe(s, 0, KH); s = mana(s);
+  s = esvazia(act(s, legais(s, 0, a => a.t === 'activate' && a.oid === k && a.index === 1 && (a.targets || []).some(t => t.oid === g))[0]));
+  s = esvazia(act(s, { t: 'porta_escolha', p: 0, porta: 'esquerda' }));
+  s = mana(s); s = esvazia(act(s, destrancas(s, 0, g)[0]));
+  assert.equal(s.players[0].life, v + 6, 'trancada e destrancada de novo: dispara outra vez');
+});
+
+test('CR 709.5i · a Sala que entra conjurada por uma porta não está "por inteiro"; posta no campo sem portas, também não', () => {
+  let s = mesa(); const v = s.players[0].life;
+  let g; [s, g] = conjuraPorta(s, 0, AT, 'direita');
+  assert.equal(s.players[0].life, v, 'a Torre conjurada: só ela destrancada');
+  s = mana(s); s = esvazia(act(s, destrancas(s, 0, g)[0]));
+  assert.equal(s.players[0].life, v + 3);
+});
+
+test('CR 709.5b / 707.2 · a cópia de uma Sala tem as duas portas (pode destrancá-las), mas nenhuma designação: entra com as duas trancadas', () => {
+  let s = mesa(); let g; [s, g] = conjuraPorta(s, 0, SC2, 'esquerda');
+  let e; [s, e] = poe(s, 0, 'Espelho', 'hand'); s = mana(s);
+  s = esvazia(act(s, legais(s, 0, a => a.t === 'cast' && a.oid === e && (a.targets || []).some(t => t.oid === g))[0]));
+  const ficha = s.zones[0].battlefield.find(o => o !== g && s.objects[o].name === SC2);
+  assert.ok(ficha, 'a ficha cópia está no campo');
+  eq([portas(s, ficha), destrancas(mana(s), 0, ficha).map(a => a.porta).sort()], [{ esquerda: false, direita: false }, ['direita', 'esquerda']]);
+});
+
+test('Validador · efeito porta: ação conhecida e é o último efeito da lista; "fully-unlock" só numa porta de Sala', () => {
+  const v = effects => SC.validateScript({ name: 'X', effects, ...EX });
+  const alvo = { tipos: ['enchantment'], subtipos: ['Room'], de: 'you' };
+  eq(v([{ do: 'porta', acao: 'qualquer', target: alvo }]), []);
+  assert.ok(v([{ do: 'porta', acao: 'abrir', target: alvo }]).some(e => /porta/.test(e)), 'ação desconhecida');
+  assert.ok(v([{ do: 'porta', acao: 'trancar', target: alvo }, { do: 'gain', amount: 1 }]).some(e => /porta/.test(e)), 'porta antes de outro efeito');
+  assert.ok(SC.validateScript({ name: 'X', abilities: [{ kind: 'triggered', when: 'fully-unlock', effects: [{ do: 'gain', amount: 1 }] }], ...EX }).some(e => /sala|fully-unlock/.test(e)));
+});
+
+test('Registro · a escolha da porta diz o que fez', () => {
+  let s = mesa(); let g; [s, g] = pelaVolta(s, 0, SC2);
+  [s] = bateCom(s); s = esvazia(s);
+  const a = { t: 'porta_escolha', p: 0, porta: 'direita' }, r = E.apply(s, a);
+  const linhas = T.describe(s, a, r.events, r.state);
+  assert.ok(linhas.some(l => /destrancou Cofre \(Saguão \/\/ Cofre\)/.test(l)), JSON.stringify(linhas));
 });
