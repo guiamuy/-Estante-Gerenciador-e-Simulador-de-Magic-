@@ -16967,7 +16967,7 @@ function countFor(s, src, per) {
   if (String(per).startsWith('devotion-')) { // S32 · devoção: símbolos daquela cor no custo das suas permanentes
     const cor = String(per).slice(-1);
     return perms.filter(o => o.controller === src.controller && !o.faceDown).reduce((n, o) => { // R9 · virada para baixo não tem custo de mana
-      const c = s.facts[o.name].cost || {};
+      const c = custoDaSalaT(s, o) || s.facts[o.name].cost || {}; // T-28 · CR 709.5: a porta trancada não tem custo (Toca ponto comum: devoção)
       return n + (c.colored ? (c.colored[cor] || 0) : 0) + (c.hybrid || []).filter(h => h.includes(cor)).length;
     }, 0);
   }
@@ -17684,7 +17684,7 @@ let PERDE_COR_ESTATICO = null, calculandoCor = false;
 const corEstatica = () => (PERDE_COR_ESTATICO ??= Object.values(SC.SCRIPTS || {}).some(sc => (sc.continuo || []).some(c => Array.isArray(c.cores))));
 function coresDe(s, o) {
   if (!o || !s.facts[o.name]) return [];
-  const impressas = o.faceDown ? [] : s.facts[o.name].colors || []; // CR 708.2: virada para baixo não tem cor · CR2d.12: mas a camada 5 vale por cima
+  const impressas = o.faceDown ? [] : coresDaSalaT(s, o) || s.facts[o.name].colors || []; // T-28 · CR 709.5 / 202.2: a Sala no campo tem a cor das portas destrancadas (Toca ponto comum: coresDe) · CR 708.2: virada para baixo não tem cor · CR2d.12: mas a camada 5 vale por cima
   if (calculandoCor || !((o.temporarios || []).some(t => t.cores) || corEstatica())) return impressas;
   calculandoCor = true;
   try {
@@ -20126,7 +20126,7 @@ function matchesFilter(s, o, filter) {
   if (filter.basic && !/^\s*basic\b/i.test(f.typeText || '')) return false;
   if ((filter.subtypes || []).length && !filter.subtypes.some(x => isChangeling(s, o, x) || new RegExp('\\b' + x + '\\b', 'i').test(f.typeText || ''))) return false; // K-1 · 702.73a: o metamorfo vale também no grimório e na mão
   if ((filter.notTypes || []).some(x => (f.types || []).includes(x))) return false; // S45 · "que não seja criatura nem terreno"
-  if (filter.mvMax != null && (f.cmc || 0) > filter.mvMax) return false; // M-335 · "with mana value N or less"
+  if (filter.mvMax != null && ((valorDaSalaT(s, o) ?? f.cmc) || 0) > filter.mvMax) return false; // T-28 · CR 709.5: a Sala no campo vale as portas destrancadas (Toca ponto comum: matchesFilter) // M-335 · "with mana value N or less"
   const types = filter.types || [];
   return !types.length || types.some(x => (f.types || []).includes(x));
 }
@@ -25369,6 +25369,18 @@ function valorDaSalaT(s, o) {
   const pt = o && o.zone === 'battlefield' && !o.faceDown ? portasDaSalaT(s, o) : null; if (!pt) return null;
   const sc = salaScriptT(s, o);
   return (pt.esquerda ? (s.facts[esquerdaT(sc)] || {}).cmc || 0 : 0) + (pt.direita ? (s.facts[direitaT(sc)] || {}).cmc || 0 : 0);
+}
+/** T-28 · CR 709.5 · o custo de mana da Sala no campo: o das portas destrancadas (nenhuma: sem custo). Fora do campo, null. */
+function custoDaSalaT(s, o) {
+  const pt = o && o.zone === 'battlefield' && !o.faceDown ? portasDaSalaT(s, o) : null; if (!pt) return null;
+  const sc = salaScriptT(s, o), txt = l => costStringT((s.facts[l === 'esquerda' ? esquerdaT(sc) : direitaT(sc)] || {}).cost || {}) || '';
+  return parseCost((pt.esquerda ? txt('esquerda') : '') + (pt.direita ? txt('direita') : ''));
+}
+/** T-28 · CR 709.5 / 202.2 · a cor da Sala no campo: a das portas destrancadas (nenhuma: incolor). Fora do campo, null. */
+function coresDaSalaT(s, o) {
+  const pt = o && o.zone === 'battlefield' && !o.faceDown ? portasDaSalaT(s, o) : null; if (!pt) return null;
+  const sc = salaScriptT(s, o), de = l => (s.facts[l === 'esquerda' ? esquerdaT(sc) : direitaT(sc)] || {}).colors || [];
+  return COLORS.filter(k => (pt.esquerda && de('esquerda').includes(k)) || (pt.direita && de('direita').includes(k)));
 }
 function trancaT(s, o, lado) {
   const r = s.salasT && s.salasT[o.oid]; if (!r || r.z !== (o.zc || 0) || !r[lado]) return false;

@@ -28,15 +28,22 @@ const SCRIPTS = {
     back: { name: 'Torre', types: ['enchantment'], mana: '{1}{W}', abilities: [{ kind: 'triggered', when: 'fully-unlock', effects: [{ do: 'gain', amount: 3 }] }] }, example: SALA_EX },
   'Demolir': { name: 'Demolir', effects: [{ do: 'destroy', target: { tipos: ['enchantment'], mvMax: 3 } }], ...EX }, // "Destroy target enchantment with mana value 3 or less."
   'Espelho': { name: 'Espelho', effects: [{ do: 'ficha_copia', amount: 1, target: 'permanent' }], ...EX }, // "Create a token that's a copy of target permanent."
+  // T-28 · cartas das divergências da auditoria
+  'Fogo // Gelo': { name: 'Fogo // Gelo', self: { dividida: true, sala: true, mana: '{R}', types: ['enchantment'] }, abilities: [],
+    back: { name: 'Gelo', types: ['enchantment'], mana: '{3}{U}', abilities: [] }, example: SALA_EX },
+  'Fervor': { name: 'Fervor', effects: [{ do: 'gain', amount: { per: 'devotion-W' } }], ...EX }, // "You gain life equal to your devotion to white."
+  'Chama Seletiva': { name: 'Chama Seletiva', effects: [{ do: 'destroy', target: { cor: 'R' } }], ...EX }, // "Destroy target red permanent."
+  'Recolher Leve': { name: 'Recolher Leve', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'return_chosen', target: 'self', filter: { types: ['enchantment'], mvMax: 2 } }] }], ...EX }, // "When this enters, return an enchantment you control with mana value 2 or less to its owner's hand."
 };
 carta('Saguão // Cofre', 'Enchantment — Room // Enchantment — Room', { mana_cost: '{W} // {2}{W}', cmc: 4, colors: ['W'], layout: 'split' });
 carta('Átrio // Torre', 'Enchantment — Room // Enchantment — Room', { mana_cost: '{W} // {1}{W}', cmc: 3, colors: ['W'], layout: 'split' }); carta('Demolir', 'Instant'); carta('Espelho', 'Sorcery');
+carta('Fogo // Gelo', 'Enchantment — Room // Enchantment — Room', { mana_cost: '{R} // {3}{U}', cmc: 5, colors: ['R', 'U'], layout: 'split' }); carta('Fervor', 'Instant'); carta('Chama Seletiva', 'Instant'); carta('Recolher Leve', 'Creature — Test', { power: '1', toughness: '1' });
 carta('Retorno', 'Sorcery'); carta('Rebote', 'Instant'); carta('Sopro', 'Instant');
 carta('Urso', 'Creature — Bear', { power: '2', toughness: '2' }); carta('Gigante', 'Creature — Giant', { power: '5', toughness: '5' });
 
 const GW = 'Glassworks // Shattered Yard', SC2 = 'Saguão // Cofre';
 const GK = 'Ghostly Keybearer', KH = 'Keys to the House', AT = 'Átrio // Torre';
-const TODAS = [GW, SC2, AT, GK, KH, 'Retorno', 'Rebote', 'Sopro', 'Demolir', 'Espelho', 'Urso', 'Gigante'];
+const TODAS = [GW, SC2, AT, GK, KH, 'Fogo // Gelo', 'Retorno', 'Rebote', 'Sopro', 'Demolir', 'Espelho', 'Fervor', 'Chama Seletiva', 'Recolher Leve', 'Urso', 'Gigante'];
 function mesa(seed = 1) {
   const deck = [...TODAS.map(name => ({ name, qty: 4, zone: 'main' })), { name: 'Mountain', qty: 6, zone: 'main' }, { name: 'Plains', qty: 6, zone: 'main' }];
   let s = E.createGame({ format: 'livre', seed, mode: 'full', cards: C, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
@@ -276,4 +283,33 @@ test('Registro · a escolha da porta diz o que fez', () => {
   const a = { t: 'porta_escolha', p: 0, porta: 'direita' }, r = E.apply(s, a);
   const linhas = T.describe(s, a, r.events, r.state);
   assert.ok(linhas.some(l => /destrancou Cofre \(Saguão \/\/ Cofre\)/.test(l)), JSON.stringify(linhas));
+});
+
+/* ---------------- T-28 · correções da auditoria independente ---------------- */
+test('CR 709.5 / 202.2 · a cor da Sala no campo vem das portas destrancadas: trancada por inteiro, incolor', () => {
+  let s = mesa(); let g; [s, g] = pelaVolta(s, 0, 'Fogo // Gelo');
+  const cor = () => E.coresDe(s, s.objects[g]).slice().sort();
+  eq(cor(), [], 'as duas trancadas: incolor');
+  let c; [s, c] = poe(s, 0, 'Chama Seletiva', 'hand'); s = mana(s);
+  assert.equal(legais(s, 0, a => a.t === 'cast' && a.oid === c && (a.targets || []).some(t => t.oid === g)).length, 0, '"permanente vermelha" não mira a Sala trancada');
+  s = mana(s); s = esvazia(act(s, legais(s, 0, a => a.t === 'destrancar' && a.oid === g && a.porta === 'esquerda')[0]));
+  eq(cor(), ['R'], 'só Fogo: vermelha');
+  s = mana(s); s = esvazia(act(s, legais(s, 0, a => a.t === 'destrancar' && a.oid === g && a.porta === 'direita')[0]));
+  eq(cor(), ['R', 'U'].sort(), 'as duas: vermelha e azul');
+});
+
+test('CR 709.5 / 700.5 · devoção conta só os símbolos das portas destrancadas', () => {
+  const devocao = s => { let f; [s, f] = poe(s, 0, 'Fervor', 'hand'); s = mana(s); const v = s.players[0].life; s = esvazia(act(s, legais(s, 0, a => a.t === 'cast' && a.oid === f)[0])); return s.players[0].life - v; };
+  let s = mesa(); let g; [s, g] = pelaVolta(s, 0, SC2);
+  assert.equal(devocao(s), 0, 'trancada: nenhum {W}');
+  [s, g] = conjuraPorta(mesa(), 0, SC2, 'esquerda');
+  assert.equal(devocao(s), 1, 'só Saguão ({W})');
+});
+
+test('CR 709.5 · "escolha um encantamento com valor de mana N ou menos" (filtro no campo) vê o valor das portas destrancadas', () => {
+  let s = mesa(); let g; [s, g] = pelaVolta(s, 0, GW);
+  let r; [s, r] = poe(s, 0, 'Recolher Leve', 'hand'); s = mana(s);
+  s = esvazia(act(s, legais(s, 0, a => a.t === 'cast' && a.oid === r)[0]));
+  if (s.pending && s.pending.kind === 'pick') s = esvazia(act(s, legais(s, 0, a => a.oid === g)[0] || legais(s, 0)[0]));
+  assert.equal(s.objects[g].zone, 'hand', 'Glassworks // Shattered Yard trancada vale 0: volta para a mão');
 });

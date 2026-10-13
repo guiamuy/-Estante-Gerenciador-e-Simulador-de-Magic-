@@ -4918,6 +4918,14 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** valor de mana no seletor (`mvMax/mvMin`) e no `targetMv` (um termo em cada linha), goldfish (um ramo: `porta_escolha`), faixa da mesa (um ramo: `porta_escolha`), linhas do registro (um caso).
 - **Próximo:** T-28, auditoria independente das Salas; depois cartas de virar (710) e fundir (712.4) esperam decisão do dono.
 
+**CR5-T28 · Salas: correções da auditoria independente** ✅ (leva T-28, sem mudança de versão do motor) — revisor sem acesso à implementação rodou 33 conferências e um fuzz de 150 partidas (55.472 ações, toda ação oferecida aceita, 63 decisões "qual porta" sempre com duas opções válidas); 3 divergências, todas em caminhos antigos que leem a carta impressa, nenhuma no código das T-26/T-27. 3 testes novos em `tipos.salas.unit` (25 no arquivo; falham sem a leva).
+- **Corrigido:** **cor (D1, 709.5 com 202.2)** — a Sala no campo tinha sempre a cor da carta inteira; agora a das portas destrancadas (trancada por inteiro, incolor: "permanente vermelha" deixa de mirá-la). **Devoção (D2)** — contava os símbolos da porta trancada; agora só os das destrancadas. **Filtro de valor de mana no campo (D3)** — `return_chosen`/`untap_chosen` liam o valor impresso; agora o das portas destrancadas.
+- **Conferido e correto pela auditoria:** conjuração por porta (nome, cor e valor da porta na pilha; anulada vai inteira ao cemitério), entrada com a porta conjurada, Clone e ficha cópia trancados, destrancar só com prioridade e pilha vazia na fase principal própria (mantém a prioridade, sem pilha), controle trocado, porta trancada sem habilidade, Keybearer e Keys (automático com uma porta, decisão com duas, alvo que sai ou fica ilegal), gatilhos de destrancar e "por inteiro", 400.7 e as linhas do registro.
+- **Fora (confirmado pela auditoria):** nome da Sala no campo; cópia de mágica de porta (o motor só copia instantânea e feitiço); ganhar as duas portas de uma vez (nenhum efeito do motor faz isso).
+- **Versão e goldens:** a versão não sobe; goldens idênticos.
+- **Toca ponto comum:** `coresDe`, devoção (`amountOf`) e `matchesFilter` (um termo em cada linha).
+- **Próximo:** decisão do dono — cartas de virar (710) e fundir (712.4); teste no aparelho das Salas.
+
 **CR6 · Multijogador e variantes** ○ — mesa de três e quatro (800–803, 806), Commander de mesa (903.2), Brawl (903.12); as variantes hoje "fora" só entram por decisão. 10 a 14 levas.
 
 **CR7 · Consolidação** ○ (em paralelo a partir da CR2) — a cada fase: fuzz em modo completo com listas reais, homologação por revisor independente relendo a seção das regras contra o motor, e rodada de simulação do dono do produto. 6 a 8 levas ao todo.
