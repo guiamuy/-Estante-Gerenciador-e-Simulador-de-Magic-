@@ -1,0 +1,201 @@
+{
+ "kind": "estante.telemetria.skills",
+ "version": 1,
+ "atualizado": "2026-10-13T22:16:15.603Z",
+ "skills": [
+  {
+   "nome": "mtg-skills-orchestrator",
+   "papel": "Porta de entrada única: refina o pedido, aciona as skills e executa até a entrega, leva a leva",
+   "atalhos": [
+    "/mtg-orq",
+    "/mtg-orq-segue",
+    "/mtg-orq-plano",
+    "/mtg-orq-rapido",
+    "/mtg-orq-paralelo",
+    "/mtg-orq-incorpora",
+    "/mtg-orq-mapa"
+   ],
+   "trilha": null,
+   "prefixo": null
+  },
+  {
+   "nome": "mtg-engine-architect",
+   "papel": "Motor de regras: mecânicas pela regra numerada, scripts de carta com texto oficial, cobertura de listas, desempenho",
+   "atalhos": [
+    "/mtg-motor",
+    "/mtg-motor-rapido",
+    "/mtg-motor-debug",
+    "/mtg-motor-lote",
+    "/mtg-motor-perf",
+    "/mtg-motor-executa"
+   ],
+   "trilha": "motor",
+   "prefixo": "M"
+  },
+  {
+   "nome": "mtg-bot-architect",
+   "papel": "Shark: força, planos por baralho, mulligan, combate, informação justa",
+   "atalhos": [
+    "/mtg-bot",
+    "/mtg-bot-plano",
+    "/mtg-bot-debug",
+    "/mtg-bot-mede",
+    "/mtg-bot-perfil",
+    "/mtg-bot-executa"
+   ],
+   "trilha": "bot",
+   "prefixo": "B"
+  },
+  {
+   "nome": "mtg-app-design-architect",
+   "papel": "Design system, telas, componentes, fluxos, coleção, listas, scanner, mesa como layout",
+   "atalhos": [
+    "/mtg-design",
+    "/mtg-design-rapido",
+    "/mtg-design-critica",
+    "/mtg-design-debug",
+    "/mtg-design-executa"
+   ],
+   "trilha": "geral",
+   "prefixo": "G"
+  },
+  {
+   "nome": "mtg-table-experience-architect",
+   "papel": "Modo Jogar como experiência: continuidade das cartas, combate desenhado, som, vibração, 60 quadros",
+   "atalhos": [
+    "/mtg-mesa",
+    "/mtg-mesa-roadmap",
+    "/mtg-mesa-rapido",
+    "/mtg-mesa-critica",
+    "/mtg-mesa-debug",
+    "/mtg-mesa-executa"
+   ],
+   "trilha": "jogabilidade",
+   "prefixo": "J"
+  },
+  {
+   "nome": "mtg-data-architect",
+   "papel": "Dados e armazenamento: IndexedDB, backup, Drive, Firebase, ramos de dados, caches, cota, custo",
+   "atalhos": [
+    "/mtg-dados",
+    "/mtg-dados-roadmap",
+    "/mtg-dados-rapido",
+    "/mtg-dados-debug",
+    "/mtg-dados-custo",
+    "/mtg-dados-executa"
+   ],
+   "trilha": "armazem",
+   "prefixo": "A"
+  },
+  {
+   "nome": "mtg-security-architect",
+   "papel": "Segurança e privacidade: HTML seguro, CSP, regras do Firebase, conta, sala, chat, relatos, Actions, repositório",
+   "atalhos": [
+    "/mtg-seguranca",
+    "/mtg-seguranca-ameacas",
+    "/mtg-seguranca-roadmap",
+    "/mtg-seguranca-audita",
+    "/mtg-seguranca-debug",
+    "/mtg-seguranca-executa"
+   ],
+   "trilha": "protecao",
+   "prefixo": "P"
+  },
+  {
+   "nome": "mtg-scale-architect",
+   "papel": "Revisor-chefe de arquitetura, desempenho e custo: parecer de todo diff, orçamentos como teste, projeção de custo",
+   "atalhos": [
+    "/mtg-escala",
+    "/mtg-escala-revisa",
+    "/mtg-escala-audita",
+    "/mtg-escala-orcamento",
+    "/mtg-escala-custo",
+    "/mtg-escala-roadmap",
+    "/mtg-escala-executa"
+   ],
+   "trilha": "escala",
+   "prefixo": "E"
+  },
+  {
+   "nome": "mtg-publish-manager",
+   "papel": "Publicações: leva commits prontos ao main pela fila; conflito, recusa, diário, diagnóstico",
+   "atalhos": [
+    "/mtg-publica",
+    "/mtg-publica-lote",
+    "/mtg-publica-conflito",
+    "/mtg-publica-diagnostico",
+    "/mtg-publica-roadmap",
+    "/mtg-publica-pos"
+   ],
+   "trilha": "infra",
+   "prefixo": "I"
+  },
+  {
+   "nome": "mtg-slice-architect",
+   "papel": "Divide história ou pedido grande na menor fatia que entrega valor e vai ao main sozinha",
+   "atalhos": [
+    "/mtg-fatia",
+    "/mtg-fatia-rapido",
+    "/mtg-fatia-historia",
+    "/mtg-fatia-executa"
+   ],
+   "trilha": null,
+   "prefixo": null
+  },
+  {
+   "nome": "mtg-parallel-manager",
+   "papel": "Coordena o escopo entre conversas antes da edição: check-in, sobreposição, reserva, diretriz, check-out",
+   "atalhos": [
+    "/mtg-paralelo",
+    "/mtg-paralelo-checkin",
+    "/mtg-paralelo-reserva",
+    "/mtg-paralelo-libera",
+    "/mtg-paralelo-mapa",
+    "/mtg-paralelo-reorganiza"
+   ],
+   "trilha": null,
+   "prefixo": null
+  },
+  {
+   "nome": "mtg-bi-specialist",
+   "papel": "Visão de gestão: ritmo de levas, intervalo entre publicações, retrabalho, testes, cobertura, cada número com fonte",
+   "atalhos": [
+    "/mtg-bi",
+    "/mtg-bi-rapido",
+    "/mtg-bi-painel",
+    "/mtg-bi-decisao",
+    "/mtg-bi-kpis"
+   ],
+   "trilha": "radar",
+   "prefixo": "R"
+  },
+  {
+   "nome": "prompt-architect",
+   "papel": "Engenharia de prompts: diagnostica e reconstrói prompts, instruções de Projeto e de agente",
+   "atalhos": [
+    "/pa-skill",
+    "/pa-rapido",
+    "/pa-completo",
+    "/pa-ab",
+    "/pa-debug",
+    "/pa-agente"
+   ],
+   "trilha": null,
+   "prefixo": null
+  },
+  {
+   "nome": "design-system-extractor",
+   "papel": "Extrai a linguagem visual de um artefato em tokens e componentes replicáveis",
+   "atalhos": [],
+   "trilha": null,
+   "prefixo": null
+  },
+  {
+   "nome": "skill-creator",
+   "papel": "Cria, melhora e mede skills; é por ele que o orquestrador é atualizado",
+   "atalhos": [],
+   "trilha": null,
+   "prefixo": null
+  }
+ ]
+}
