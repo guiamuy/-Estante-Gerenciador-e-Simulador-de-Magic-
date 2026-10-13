@@ -8150,6 +8150,32 @@ const RAW_SCRIPTS = [
   // L-7 · Pauper de M a Z, lote 7: cartas que usam a redução por cor da M-352 (texto oficial em .listas/oficiais-listas.json, Oracle do Forge, 12/10/2026)
   { name: 'Sunscape Familiar', self: { keywords: ['defender'], reduzCor: { generic: 1, cores: ['G', 'U'] } }, // "Defender / Green spells and blue spells you cast cost {1} less to cast." (601.2f: só o genérico; M-352)
     example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor): o cenário de verdade está em listas.lote*.unit
+  // L-8 · Pauper de M a Z, lote 8: os pedidos do motor com primitiva na M-356…M-362 (texto oficial em .listas/oficiais-listas.json, Oracle do Forge, 12/10/2026)
+  { name: 'Tithing Blade', self: { duplaFace: true, craft: { mana: '{4}{B}', types: ['creature'] } }, // "Craft with creature {4}{B}" (702.167, M-356)
+    abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'sacrificar', tipos: ['creature'], jogadores: 'cada-oponente' }] }], // "When Tithing Blade enters, each opponent sacrifices a creature."
+    back: { name: 'Consuming Sepulcher', types: ['artifact'], colors: ['B'], // verso: "At the beginning of your upkeep, each opponent loses 1 life and you gain 1 life."
+      abilities: [{ kind: 'triggered', when: 'upkeep', effects: [{ do: 'lose', amount: 1, target: 'each-opponent' }, { do: 'gain', amount: 1 }] }] },
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor): o cenário de verdade está em listas.lote*.unit
+  { name: 'Manamorphose', effects: [{ do: 'mana_combinada', amount: 2 }, { do: 'draw', amount: 1 }], // "Add two mana in any combination of colors. / Draw a card." (106.1a, M-357)
+    example: { action: 'cast', target: 'none', expect: { poolAdded: 2 } } },
+  { name: 'Seize the Storm', flashback: { mana: '{6}{R}' }, // "Flashback {6}{R}"
+    effects: [{ do: 'token', amount: 1, token: { name: 'Elemental', types: ['creature'], subtypes: ['Elemental'], colors: ['R'], keywords: ['trample'], power: 0, toughness: 0, // "Create a red Elemental creature token with trample and
+      self: { ptDefinido: { poder: { per: 'soma', partes: [{ per: 'instants-sorceries-in-your-graveyard' }, { per: 'flashback-cards-you-own-in-exile' }] }, //  'This token's power and toughness are each equal to the number of instant and sorcery cards
+        resistencia: { per: 'soma', partes: [{ per: 'instants-sorceries-in-your-graveyard' }, { per: 'flashback-cards-you-own-in-exile' }] } } } } }], //  in your graveyard, plus the number of cards with flashback you own in exile.'" (604.3, M-358)
+    example: { action: 'cast', target: 'none', expect: { tokens: 1 } } },
+  { name: 'Wall of Roots', self: { keywords: ['defender'] }, // "Defender"
+    abilities: [{ kind: 'activated', cost: { poeMarcador: { tipo: 'm0m1', n: 1 } }, oncePerTurn: true, effects: [{ do: 'add_mana', symbols: ['G'] }] }], // "Put a -0/-1 counter on Wall of Roots: Add {G}. Activate only once each turn." (M-360)
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Tangle', effects: [{ do: 'fog' }, // "Prevent all combat damage that would be dealt this turn."
+    { do: 'nao_desvira', cada: { tipos: ['creature'], atacando: true } }], // "Each attacking creature doesn't untap during its controller's next untap step." (506.4, M-361)
+    example: { action: 'cast', target: 'none', expect: { fogged: true } } },
+  { name: "Witch's Cottage", entersTappedUnless: { minOutrosDoSubtipo: ['Swamp', 3] }, // "Witch's Cottage enters tapped unless you control three or more other Swamps." ({T}: Add {B} vem do tipo Pântano)
+    abilities: [{ kind: 'triggered', when: 'etb', condition: { entrouDesvirada: true }, optional: true, // "When Witch's Cottage enters untapped, you may
+      effects: [{ do: 'mover', para: 'library', posicao: 'topo', target: 'creature-in-your-graveyard' }] }], //  put target creature card from your graveyard on top of your library." (M-361)
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Spinning Darkness', alt: [{ label: 'Exilar as 3 cartas pretas de cima do cemitério em vez de pagar o custo', cost: { exileGraveyardTopo: { n: 3, cor: 'B' } } }], // "You may exile the top three black cards of your graveyard rather than pay this spell's mana cost." (118.9, M-362)
+    effects: [{ do: 'damage', amount: 3, target: 'creature', targetNotColor: 'B' }, { do: 'gain', amount: 3 }], // "Spinning Darkness deals 3 damage to target nonblack creature. You gain 3 life."
+    example: { target: 'enemy-creature', expect: { selfLife: 3 } } },
   //
   //
   //
