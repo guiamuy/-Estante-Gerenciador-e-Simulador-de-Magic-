@@ -4106,6 +4106,15 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **De passagem:** a ficha do leitor mostra também a condição do gatilho ("if you control no tapped lands"), não só o efeito.
 - **Teste:** `lt56.unit` (4 testes, falham no motor anterior).
 
+**M-374 · 608.2n · A mágica parada numa escolha só vai ao cemitério depois dela** ✅ (leva M-374, **motor v112**; goldens regravados: logs, situação e turnos idênticos, conferidos um a um — só um ponto de controle intermediário da `commander-7` mudou, durante uma escolha no meio da resolução).
+- **Valor:** quando uma instantânea ou feitiço para no meio da resolução para o jogador escolher (descartar e comprar, procurar no grimório, olhar o topo…), ela continua na pilha durante a escolha e só vai ao cemitério (ou ao exílio do lampejo, à Aventura, à recompra) no último passo, como manda a 608.2n. Antes ela ia para o cemitério antes da escolha e ficava **por baixo** das cartas descartadas — o que muda o "topo do cemitério" (Spinning Darkness) e as contagens de cartas no cemitério feitas pela própria mágica depois da escolha.
+- **Origem:** achado da revisão independente da M-373 (Thrilling Discovery); valia para toda mágica com escolha no meio da resolução.
+- **Revisão independente:** 1.561 verificações (lampejo do passado, cópia de tempestade, presságio, Aventura, recompra, duas escolhas na mesma mágica, gatilhos de descarte e insanidade esperando a mágica sair, contagem sem a própria mágica, desfazer e replay no meio da escolha): aprovada. Achou um desvio, corrigido com teste antes: "a menos que pague" com um "senão" de dois passos reescrevia a retomada e a mágica ficava presa e resolvia de novo — a mágica suspensa agora fica guardada à parte da retomada.
+- **Limitação antiga declarada:** quando um "senão" de "a menos que pague" para numa escolha, os efeitos da mágica que viriam **depois** do "a menos que pague" se perdem (nenhuma carta do acervo tem isso).
+- **Versão:** sobe para v112 — registro antigo com uma dessas mágicas pode terminar com outro cemitério. Partida salva na v111 não abre.
+- **Fora:** permanentes (o "ao entrar, escolha" já acontece com a permanente no campo); a cópia de tempestade do caminho antigo (`stormCopies`, partidas anteriores à v60).
+- **Teste:** `lt57.unit` (3 testes, falham no motor anterior; o terceiro é o achado da revisão).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

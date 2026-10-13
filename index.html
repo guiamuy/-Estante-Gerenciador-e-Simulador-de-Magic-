@@ -17088,7 +17088,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 111; // M-366 · Delver of Secrets passa a ter script (transforma na manutenção): partidas com Delver dão outro resultado; goldens regravados · v110: CR2g.4 · combate e principal adicionais (500.8)
+const ENGINE_VERSION = 112; // M-374 · 608.2n: a mágica parada numa escolha só vai ao cemitério depois dela (a ordem do cemitério muda; registro antigo pode dar outro resultado); goldens regravados (logs, situação e turnos idênticos; só um ponto de controle intermediário da commander-7) · v111: M-366 · Delver of Secrets passa a ter script (transforma na manutenção): partidas com Delver dão outro resultado; goldens regravados · v110: CR2g.4 · combate e principal adicionais (500.8)
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -20995,7 +20995,7 @@ function resumeEffects(s, events) {
   // S60 · se ainda há jogador decidindo "perder ou pagar", ele vem antes
   if (s.unlessChain && continueUnless(s, events)) return;
   if (continuaVerbo(s, events)) return; // V-2 · Toca ponto comum: resumeEffects (os passos de um verbo vêm antes de retomar a mágica)
-  const r = s.resume; if (!r) return;
+  const r = s.resume; if (!r) { terminaMagiaSuspensa(s, events); return; } // M-374
   s.resume = null;
   const src0 = s.objects[r.oid] || { oid: r.oid, name: r.name, controller: r.controller, ...(r.xPaid != null ? { xPaid: r.xPaid } : {}) };
   const src = (r.chosenColor || r.condicoes) && !src0.ability ? { ...src0, ...(r.condicoes || {}), ...(r.chosenColor ? { chosenColor: r.chosenColor } : {}) } : src0; // M-348 · cor escolhida na resolução de uma mágica (Emerge Unscathed) · M-351 · condições da conjuração (Extract a Confession)
@@ -21013,6 +21013,13 @@ function resumeEffects(s, events) {
     applyEffect(s, src, eff, tgt, events); // CR 704.4 · sem ações de estado entre os efeitos de uma mesma resolução
     if (s.pending) { s.resume = { ...r, effects: r.effects.slice(r.effects.indexOf(eff) + 1), alvos }; return; }
   } } finally { if (xRet) { if (xAntes === undefined) delete xRet.xPaid; else xRet.xPaid = xAntes; } }
+  terminaMagiaSuspensa(s, events); // M-374
+}
+/** M-374 · 608.2n · a resolução que parou numa escolha acabou (sem decisão pendente, sem retomada, sem "a menos que" em curso): agora a mágica sai da pilha. */
+function terminaMagiaSuspensa(s, events) {
+  if (!s.magiaSuspensa || s.pending || s.resume || s.unlessChain) return;
+  const m = s.magiaSuspensa; delete s.magiaSuspensa;
+  const ob = s.objects[m.item]; if (ob && ob.zone === 'stack') fimDaMagiaResolvida(s, m.item, ob, m.dest, m.controller, m.comoCopia, m.scripted, events);
 }
 
 /** S35 · avisa as auras que observam a criatura encantada virar ou levar dano. */
@@ -22109,6 +22116,15 @@ function resolveTop(s, events = []) {
   if (comoCopia && o.copiaEscolhida) { const m = s.objects[o.copiaEscolhida];
     if (m && m.zone === 'battlefield' && s.facts[m.name]) { const exc = excecaoCopiavel(s, m, { somaTipos: f.script.entraComoCopia.somaTipos }); o.nomeImpresso = o.name; o.copias = [{ ...(exc ? { excecao: exc } : {}), nome: nomeCopiavel(s, m), ate: 'sempre', by: controller, ts: relogio(s), turno: s.turn.number }]; o.name = o.copias[0].nome; } } // T-30 · 707.2: o nome copiado é o copiável (a carta virada copia a parte normal) (Toca ponto comum: entraComoCopia)
   if (scripted && !comoCopia) resolveScript(s, o, events);
+  if (s.pending && dest === 'graveyard' && s.objects[item] && s.objects[item].zone === 'stack' && !s.magiaSuspensa) { // M-374 · 608.2n: a mágica parada numa escolha (descartar e comprar, procurar, olhar…) só sai da pilha no último passo da resolução, depois da escolha
+    s.magiaSuspensa = { item, dest, controller, comoCopia: !!comoCopia, scripted: !!scripted }; // fora do `s.resume`: "a menos que pague" e "pague; se pagar" reescrevem a retomada (achado da revisão)
+    return { kind: 'resolved', oid: item, name: o.name, to: dest, scripted, adjudicate: false, suspensa: true };
+  }
+  return fimDaMagiaResolvida(s, item, o, dest, controller, comoCopia, scripted, events);
+}
+/** M-374 · 608.2n · o último passo da resolução de uma mágica: para onde a carta vai (cemitério, exílio do lampejo, Aventura, recompra, presságio, campo).
+ *  Chamado no fim do `resolveTop`, ou no fim do `resumeEffects` quando a resolução parou numa escolha. */
+function fimDaMagiaResolvida(s, item, o, dest, controller, comoCopia, scripted, events) {
   { const av = aventuraResolveu(s, item, o, controller, events); if (av) return { kind: 'resolved', oid: item, name: av, to: (s.objects[item] || {}).zone || 'exile', scripted: true, adjudicate: false }; } // T-5 · CR 715.3d · a Aventura que resolve é exilada pelo controlador, que pode conjurar a carta de lá (função abaixo da âncora T das exportações)
   { const rk = destinoAoResolverK(s, item, o, dest, events); if (rk) return { kind: 'resolved', oid: item, name: o.name, to: rk, scripted, adjudicate: s.mode === 'assisted' && !scripted }; } // K-33 · 702.27a recompra · K-35 · 702.88a ricochete (Toca ponto comum: resolveTop)
   if (s.objects[item].zone === 'stack' && o.omen) { // S24 · presságio volta embaralhado para o grimório
@@ -22136,7 +22152,7 @@ function resolveTop(s, events = []) {
 function stateBased(s, events) {
   // CR 704.4 · resolução parada numa escolha do jogador (há decisão pendente e efeitos por retomar): nada de ação de estado
   // até ela terminar. Só o fim de jogo por desistência continua valendo, lá embaixo.
-  const suspensa = !!s.resume; // `apply` garante que resolução sem decisão pendente é retomada antes de chegar aqui
+  const suspensa = !!s.resume || !!s.magiaSuspensa; // M-374 · `apply` garante que resolução sem decisão pendente é retomada antes de chegar aqui
   for (let guard = 0; guard < (suspensa ? 0 : 50); guard++) {
     let changed = false;
     s.players.forEach((pl, i) => {
@@ -23184,7 +23200,7 @@ function apply(state, action) {
   const events = [];
   barraDetidaV(s, action); // V-21 · 701.35a: habilidade ativada de permanente detida · Toca ponto comum: apply (uma linha)
   HANDLERS[action.t](s, action, events);
-  if (!s.pending && s.resume) resumeEffects(s, events); // CR 704.4 · a decisão acabou: o resto da resolução vem antes de qualquer ação de estado
+  if (!s.pending && (s.resume || s.magiaSuspensa)) resumeEffects(s, events); // M-374 · também a mágica parada numa escolha que já acabou · CR 704.4 · a decisão acabou: o resto da resolução vem antes de qualquer ação de estado
   stateBased(s, events);
   flushTriggers(s, events); // M9: gatilhos entram na pilha antes de alguém receber prioridade
   stateBased(s, events);

@@ -408,6 +408,8 @@ function runExample(sc) {
     if (pd && pd.kind === 'choose_type') { s = act(s, { t: 'choose_type', p: pd.p, index: 0 }); continue; }
     if (pd && pd.kind === 'choose_pair') { s = act(s, { t: 'choose_pair', p: pd.p, decline: true }); continue; }
     if (pd && pd.p === a && pd.kind === 'discard') { s = act(s, { t: 'discard', p: a, oid: s.zones[a].hand[0] }); discarded++; continue; }
+    // M-374 · 608.2n: a mágica fica na pilha enquanto o alvo decide o descarte (Raven's Crime); o cenário responde pelo alvo com a primeira carta
+    if (pd && pd.p !== a && pd.kind === 'discard' && s.zones[pd.p].hand.length) { s = act(s, { t: 'discard', p: pd.p, oid: s.zones[pd.p].hand[0] }); continue; }
     if (pd && pd.p === a && pd.kind === 'pick') {
       pickOpened = true;
       const opts = E.legalActions(s, a);
