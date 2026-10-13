@@ -122,7 +122,7 @@ test('CR 708.9 · quem sai do campo é revelada: na luta em que a virada morre, 
 });
 
 /* ---------------- T-73 · CR 708.2a / 708.2b / 712.16 · virar uma permanente para baixo (e para cima) por efeito ---------------- */
-import { readFileSync as lerT73 } from 'node:fs';
+import { readFileSync as lerT73, readFileSync } from 'node:fs';
 const OF73 = JSON.parse(lerT73(new URL('./.listas/oficiais-tipos.json', import.meta.url), 'utf8')).cartas;
 for (const c of OF73.filter(x => ['Backslide', 'Break Open'].includes(x.name))) C[c.name] = { name: c.name, type_line: c.type_line, mana_cost: c.mana_cost, cmc: 2, keywords: c.name === 'Backslide' ? ['Cycling'] : [], oracle_text: c.oracle_text, colors: c.name === 'Backslide' ? ['U'] : ['R'] };
 for (const n of ['Backslide', 'Break Open']) if (SC.SCRIPTS[n]) SCRIPTS[n] = SC.SCRIPTS[n]; // as cartas exemplo (script abaixo da âncora ↓ T) entram no baralho da mesa
@@ -175,4 +175,56 @@ test('Registro e frases · virar para baixo e para cima por efeito', () => {
   const r1 = E.apply(s, { t: 'pass', p: 1 }); const r2 = E.apply(r1.state, { t: 'pass', p: 0 });
   const L = T.describe(r1.state, { t: 'pass', p: 0 }, r2.events, r2.state).join(' | ');
   assert.match(L, /Backslide virou uma criatura para baixo/, L); assert.doesNotMatch(L, /Morfo Vira/, L);
+});
+
+/* ---------------- T-74 · correções da auditoria independente (T-71…T-73) ---------------- */
+SCRIPTS['Lobo'] = { name: 'Lobo', morph: { mana: '{1}' }, ...EX }; carta('Lobo', 'Creature — Wolf', { power: '3', toughness: '3', mana_cost: '{3}', cmc: 3, keywords: ['Morph'] });
+SCRIPTS['Lobo Cinza'] = { name: 'Lobo Cinza', ...EX, example: { action: 'etb', target: 'none', expect: { attached: false } } }; carta('Lobo Cinza', 'Creature — Wolf', { power: '2', toughness: '2' });
+SCRIPTS['Volta'] = { name: 'Volta', effects: [{ do: 'bounce', target: 'creature' }], ...EX }; carta('Volta', 'Instant');
+
+test('CR 702.37 / 702.168 / 708.2a · Backslide não mira criatura com disfarce (disfarce não é metamorfose); a disfarçada virada para baixo por efeito não tem a salvaguarda {2}', () => {
+  let s = mesa(); let d; [s, d] = poe(s, 0, 'Entra Vida', 'battlefield');
+  let a; [s, a] = apT73(s, 1, 'Backslide', d); assert.equal(a, undefined);
+  let t = mesa(); let g; [t, g] = viradaBaixo(t, 'Entra Vida'); t = mana(t); t = esvazia(act(t, legais(t, 0, x => x.t === 'unmorph' && x.oid === g)[0]));
+  t = J(t); E.applyEffect(t, { oid: 'zz', name: 'Efeito', controller: 1, ability: true }, { do: 'vira_para_baixo', target: 'creature' }, { oid: g }, []);
+  eq([!!t.objects[g].faceDown, E.wardsDeK(t, t.objects[g])], [true, []]);
+});
+
+test('CR 400.2 / 708.2 · registro com gêmeas: a virada para cima devolvida à mão é dita pelo nome; a luta da virada para baixo não diz o nome', () => {
+  let s = mesa(); let g; [s, g] = viradaBaixo(s, 'Entra Vida'); let f; [s, f] = poe(s, 0, 'Entra Vida', 'battlefield');
+  let a; [s, a] = deB(s, 'Volta', x => x.targets[0].oid === f); let L0; [s, L0] = registra(s, a); let L1; [s, L1] = resolveRegistrando(s);
+  eq([s.objects[f].zone, !!s.objects[g].faceDown], ['hand', true]); assert.doesNotMatch([...L0, ...L1].join(' | '), /virada para baixo .*mão/, [...L0, ...L1].join(' | '));
+  let t = mesa(); let h; [t, h] = viradaBaixo(t, 'Entra Vida'); let k; [t, k] = poe(t, 0, 'Entra Vida', 'battlefield'); let u; [t, u] = poe(t, 1, 'Urso', 'battlefield'); t = J(t); t.objects[h].counters = { p1p1: 2 };
+  let c; [t, c] = poe(t, 0, 'Caca', 'hand'); t = mana(t);
+  let M0; [t, M0] = registra(t, legais(t, 0, x => x.t === 'cast' && x.oid === c && x.targets[0].oid === h && x.targets[1].oid === u)[0]); let M1; [t, M1] = resolveRegistrando(t);
+  eq([t.objects[h].zone, !!t.objects[h].faceDown], ['battlefield', true]); naoDiz([...M0, ...M1], 'Entra Vida');
+});
+
+test('Registro · a máscara troca só a palavra inteira: "Lobo Cinza" visível fica intacta com "Lobo" virada; o jogador chamado "Lobo" continua com o nome', () => {
+  let s = mesa(); let l; [s, l] = viradaBaixo(s, 'Lobo'); let c; [s, c] = poe(s, 0, 'Lobo Cinza', 'battlefield');
+  let a; [s, a] = deB(s, 'Choque', x => x.targets[0].oid === c); let L0; [s, L0] = registra(s, a);
+  assert.match(L0.join(' | '), /alvo: Lobo Cinza/, L0.join(' | '));
+  const deck = [...Object.keys(SCRIPTS).map(name => ({ name, qty: 2, zone: 'main' })), { name: 'Urso', qty: 3, zone: 'main' }, { name: 'Forest', qty: 12, zone: 'main' }, { name: 'Island', qty: 10, zone: 'main' }];
+  let t = E.createGame({ format: 'livre', seed: 1, mode: 'full', cards: C, scripts: SCRIPTS, players: [{ name: 'Lobo', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) t = act(t, { t: 'keep', p, bottom: [] });
+  t = passaAte(t, x => x.turn.active === 0 && x.turn.step === 'main1' && !x.stack.length && !x.pending);
+  let w; [t, w] = viradaBaixo(t, 'Lobo'); let u; [t, u] = poe(t, 1, 'Urso', 'battlefield'); let ch; [t, ch] = poe(t, 0, 'Choque', 'hand'); t = mana(t);
+  const [, L1] = registra(t, legais(t, 0, x => x.t === 'cast' && x.oid === ch && x.targets[0].oid === u)[0]);
+  assert.match(L1.join(' | '), /^Lobo conjurou Choque/, L1.join(' | '));
+});
+
+test('CR 701.40g · o Break Open numa instantânea manifestada revela a carta no registro e ela continua virada', () => {
+  let t = mesa(); let c; [t, c] = poe(t, 0, 'Choque', 'hand'); t = J(t); const z = t.zones[0]; z.hand.splice(z.hand.indexOf(c), 1); z.library.unshift(c); t.objects[c].zone = 'library';
+  let mf; [t, mf] = poe(t, 0, 'Manifesta', 'hand'); t = mana(t); t = esvazia(act(t, legais(t, 0, x => x.t === 'cast' && x.oid === mf)[0]));
+  let b; [t, b] = apT73(t, 1, 'Break Open', c); t = act(t, b);
+  const r1 = E.apply(t, { t: 'pass', p: 1 }); const r2 = E.apply(r1.state, { t: 'pass', p: 0 });
+  const L = T.describe(r1.state, { t: 'pass', p: 0 }, r2.events, r2.state).join(' | ');
+  assert.match(L, /Choque foi revelada/, L); eq(!!r2.state.objects[c].faceDown, true);
+});
+
+test('CR 708.5 · mesa: a mágica virada para baixo na pilha só é vista por quem a controla (a mesma regra do campo)', () => {
+  const src = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+  const m = src.match(/const ocultaDe = (\(s, o\) => [^\n]*?\)\));/); assert.ok(m, 'ocultaDe encontrada');
+  const table = { viewer: () => 0 }; const ocultaDe = eval(m[1]); void table;
+  eq([ocultaDe({}, { faceDown: true, zone: 'stack', controller: 1, owner: 1 }), ocultaDe({}, { faceDown: true, zone: 'stack', controller: 0, owner: 0 }), ocultaDe({}, { faceDown: true, zone: 'battlefield', controller: 1 })], [true, false, true]);
 });
