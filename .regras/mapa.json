@@ -9035,15 +9035,27 @@
    "n": "702.145",
    "regra": "Keyword Abilities",
    "titulo": "Daybound and Nightbound",
-   "status": "ausente",
-   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): dia e noite (designação da partida e transformação das dupla face).",
+   "status": "coberta",
+   "falta": "Fica com a trilha tipos (CR5). T-48 (13/10/2026): coberta. Limite declarado: 702.145c/f dizem \"na hora, não é ação de estado\" — o motor confere junto das ações de estado, antes de cada prioridade; no meio da resolução de uma mágica a conferência espera a mágica terminar. Fora: as 35 outras cartas com daybound seguem pelo script de cada uma (o motor faz a parte do dia e noite de todas).",
    "esforco": "M",
    "depende": [
     "730 dia e noite",
     "712 cartas de duas faces",
     "contagem de mágicas por jogador no turno"
    ],
-   "cartas": "comum (Innistrad: Midnight Hunt/Crimson Vow)"
+   "cartas": "comum (Innistrad: Midnight Hunt/Crimson Vow)",
+   "evidencia": "T-48 (13/10/2026): designação da partida em s.cicloT (dia | noite; sem ela, nem dia nem noite, como a partida começa); checagem no passo de desvirar entre a fase (502.1) e o desvirar (502.3) pelas mágicas do jogador ativo do turno anterior (s.magiasDoAtivoT, contada em contaMagiaK só em partida com carta de dia e noite); ao virar noite a dupla face com daybound transforma, ao virar dia a com nightbound volta (transformar de verdade: \"quando transforma\" dispara); de noite a dupla face com daybound entra transformada (sagaEntrou, antes dos gatilhos de entrar); daybound sem designação faz virar dia e nightbound sem designação e sem daybound no campo faz virar noite (conferência no laço das ações de estado); quem tem daybound/nightbound só transforma por elas (transformaT). Registro \"Virou noite (nenhuma mágica no turno anterior)\"; o balão do turno diz \"Dia ou noite\". Carta exemplo: Tavern Ruffian // Tavern Smasher (Oracle do Forge, 13/10/2026).",
+   "testes": [
+    "CR 731.1 / 702.145d · a partida começa sem dia nem noite; controlar uma permanente com daybound faz virar dia",
+    "CR 731.2a / 502.2 / 702.145b · de dia, o jogador ativo que não conjura nada no turno dele faz virar noite no desvirar seguinte; Tavern Ruffian transforma em Tavern Smasher 6/5",
+    "CR 731.2b / 702.145e · de noite, duas mágicas do jogador ativo no turno dele fazem virar dia; uma só, não",
+    "CR 731.2a · só contam as mágicas do jogador ATIVO: a instantânea do oponente no meu turno não segura o dia",
+    "CR 702.145b · de noite, a dupla face com daybound entra transformada — e entrar transformada não é transformar (o gatilho do verso não dispara)",
+    "CR 702.145b / 701.27e · virar noite transforma de verdade: \"quando transforma\" do verso dispara",
+    "CR 702.145b/e · \"só transforma pelo próprio dia e noite\": a habilidade \"transforme\" da carta não a transforma",
+    "CR 702.145g · sem dia nem noite, uma permanente com nightbound (e nenhuma com daybound no campo) faz virar noite",
+    "CR 731.2c · sem dia nem noite a checagem não acontece: turnos sem conjurar nada não fazem virar noite"
+   ]
   },
   {
    "n": "702.146",
@@ -11773,25 +11785,37 @@
    "n": "731.1",
    "regra": "Day and Night",
    "titulo": "Dia e noite: designações do jogo",
-   "status": "ausente",
-   "falta": "não há designação de dia/noite no estado (grep day/night no motor: nada); cartas daybound ficam manuais.",
+   "status": "coberta",
+   "falta": "T-48 (13/10/2026): coberta. Fora, declarado: efeitos de carta que fazem virar dia ou noite (\"it becomes day/night\") e gatilhos \"whenever day becomes night\" ainda não têm vocabulário de script.",
    "esforco": "M",
    "depende": [
     "702.145",
     "712.2"
    ],
-   "cartas": "uma coleção só (Innistrad Midnight Hunt/Crimson Vow)"
+   "cartas": "uma coleção só (Innistrad Midnight Hunt/Crimson Vow)",
+   "evidencia": "T-48 (13/10/2026): designação da partida em s.cicloT (dia | noite; sem ela, nem dia nem noite, como a partida começa); checagem no passo de desvirar entre a fase (502.1) e o desvirar (502.3) pelas mágicas do jogador ativo do turno anterior (s.magiasDoAtivoT, contada em contaMagiaK só em partida com carta de dia e noite); ao virar noite a dupla face com daybound transforma, ao virar dia a com nightbound volta (transformar de verdade: \"quando transforma\" dispara); de noite a dupla face com daybound entra transformada (sagaEntrou, antes dos gatilhos de entrar); daybound sem designação faz virar dia e nightbound sem designação e sem daybound no campo faz virar noite (conferência no laço das ações de estado); quem tem daybound/nightbound só transforma por elas (transformaT). Registro \"Virou noite (nenhuma mágica no turno anterior)\"; o balão do turno diz \"Dia ou noite\". Carta exemplo: Tavern Ruffian // Tavern Smasher (Oracle do Forge, 13/10/2026).",
+   "testes": [
+    "CR 731.1 / 702.145d · a partida começa sem dia nem noite; controlar uma permanente com daybound faz virar dia",
+    "CR 702.145g · sem dia nem noite, uma permanente com nightbound (e nenhuma com daybound no campo) faz virar noite"
+   ]
   },
   {
    "n": "731.2",
    "regra": "Day and Night",
    "titulo": "Checagem de dia/noite no desvirar",
-   "status": "ausente",
-   "falta": "não há designação de dia/noite no estado (grep day/night no motor: nada); cartas daybound ficam manuais. Precisa contar mágicas conjuradas pelo jogador ativo no turno anterior (existe só s.spellsThisTurn global).",
+   "status": "coberta",
+   "falta": "T-48 (13/10/2026): coberta. 731.2a/b com turnos de equipe compartilhados (805) é fora (um app de dois jogadores).",
    "esforco": "M",
    "depende": [
     "731.1",
     "703.4b"
+   ],
+   "evidencia": "T-48 (13/10/2026): designação da partida em s.cicloT (dia | noite; sem ela, nem dia nem noite, como a partida começa); checagem no passo de desvirar entre a fase (502.1) e o desvirar (502.3) pelas mágicas do jogador ativo do turno anterior (s.magiasDoAtivoT, contada em contaMagiaK só em partida com carta de dia e noite); ao virar noite a dupla face com daybound transforma, ao virar dia a com nightbound volta (transformar de verdade: \"quando transforma\" dispara); de noite a dupla face com daybound entra transformada (sagaEntrou, antes dos gatilhos de entrar); daybound sem designação faz virar dia e nightbound sem designação e sem daybound no campo faz virar noite (conferência no laço das ações de estado); quem tem daybound/nightbound só transforma por elas (transformaT). Registro \"Virou noite (nenhuma mágica no turno anterior)\"; o balão do turno diz \"Dia ou noite\". Carta exemplo: Tavern Ruffian // Tavern Smasher (Oracle do Forge, 13/10/2026).",
+   "testes": [
+    "CR 731.2a / 502.2 / 702.145b · de dia, o jogador ativo que não conjura nada no turno dele faz virar noite no desvirar seguinte; Tavern Ruffian transforma em Tavern Smasher 6/5",
+    "CR 731.2b / 702.145e · de noite, duas mágicas do jogador ativo no turno dele fazem virar dia; uma só, não",
+    "CR 731.2a · só contam as mágicas do jogador ATIVO: a instantânea do oponente no meu turno não segura o dia",
+    "CR 731.2c · sem dia nem noite a checagem não acontece: turnos sem conjurar nada não fazem virar noite"
    ]
   },
   {

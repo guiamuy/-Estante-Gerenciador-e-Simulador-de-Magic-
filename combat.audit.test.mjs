@@ -1002,6 +1002,22 @@ test('K-70 · trabalho em equipe (702.194): virando um Urso, o outro recebe +2/+
   s = act(s, E.legalActions(s, a).find(x => x.oid === f && x.mode === ie && x.targets[0].oid === u && x.pay.equipeK.includes(v))); for (let i = 0; i < 4 && s.stack.length; i++) s = act(s, { t: 'pass', p: s.turn.priority });
   assert.equal(combate(s, [u]).players[d].life, 15);
 });
+/* ↓ T · cenários da trilha tipos (CR5): cada palavra-chave que a trilha põe em KEYWORDS ganha a prova aqui */
+test('T-48 · daybound e nightbound (702.145): controlar daybound faz virar dia; o turno sem mágica faz virar noite e a dupla face transforma', () => {
+  cobre('daybound'); cobre('nightbound');
+  const cartas = { ...CARDS, Lobo: cre('Lobo', 2, 5, ['Daybound'], { type_line: 'Creature — Human Werewolf' }) };
+  const scripts = { ...SCRIPTS, Lobo: { name: 'Lobo', self: { duplaFace: true }, back: { name: 'Lobo da Noite', types: ['creature'], subtypes: ['Werewolf'], power: 6, toughness: 5, keywords: ['nightbound'] }, example: { action: 'etb', target: 'none', expect: { attached: false } } } };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 91, mode: 'assisted', manaCheck: false, cards: cartas, scripts, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active; let l; [s, l] = poe(s, a, 'Lobo');
+  s = act(s, { t: 'pass', p: s.turn.priority });
+  assert.equal(s.cicloT, 'dia', '702.145d');
+  for (let i = 0; i < 200 && s.turn.active === a; i++) { const pd = s.pending;
+    s = pd && pd.kind === 'discard' ? act(s, { t: 'discard', p: pd.p, oid: s.zones[pd.p].hand[0] }) : pd && pd.kind === 'attackers' ? act(s, { t: 'attack', p: pd.p, attackers: [] }) : pd && pd.kind === 'blockers' ? act(s, { t: 'block', p: pd.p, blocks: [] }) : act(s, { t: 'pass', p: s.turn.priority }); }
+  assert.deepEqual([s.cicloT, s.objects[l].name, E.stats(s, s.objects[l]).power], ['noite', 'Lobo da Noite', 6], '731.2a / 702.145b: o jogador ativo não conjurou nada no turno dele');
+});
+
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));

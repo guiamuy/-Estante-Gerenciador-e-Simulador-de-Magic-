@@ -11400,3 +11400,26 @@ test('e2e · G-261 relato #16: o envio que falha fica em "Para enviar" com o mot
   if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.screenshot({ path: process.env.SHOTS + '/g261-enviados.png' }); }
   assert.deepEqual(errors.filter(e => !/500|Failed to load resource/.test(e)), []);
 });
+
+test('e2e · T-48 · CR 731.1 / 702.145c · dia e noite: o cabeçalho do turno diz "Noite"; de noite, o lobisomem com daybound transforma em Tavern Smasher', { skip }, async t => {
+  // Texto oficial: Tavern Ruffian // Tavern Smasher em .listas/oficiais-tipos.json (Oracle do Forge, 13/10/2026).
+  const extras = JSON.parse(readFileSync(join(ROOT, '.listas', 'oficiais-tipos.json'), 'utf8')).cartas.filter(c => c.name === 'Tavern Ruffian');
+  const M = await comLista125(t, '24 Mountain\n16 Tavern Ruffian', ['Mountain', 'Tavern Ruffian'], '4', { extras });
+  const { page } = M;
+  const r = await page.evaluate(() => { const s = window.__estanteMesa.estado(), z = s.zones[0];
+    const i = ['library', 'hand'].map(d => [d, z[d].findIndex(o => s.objects[o].name === 'Tavern Ruffian')]).find(([, k]) => k >= 0);
+    const oid = z[i[0]].splice(i[1], 1)[0];
+    Object.assign(s.objects[oid], { zone: 'battlefield', controller: 0, tapped: false, sick: false, damage: 0, counters: {} }); z.battlefield.push(oid);
+    const f = s.facts['Tavern Ruffian']; if (!f.kw.includes('daybound')) f.kw.push('daybound'); // a Scryfall manda "Daybound" em keywords; o ajudante dos testes só tira do texto as palavras de combate
+    s.cicloT = 'noite'; return oid; });
+  const terra = await M.oid('Mountain'); if (terra) { await M.act({ t: 'play_land', p: 0, oid: terra }); await page.waitForTimeout(250); } // a mesa redesenha; a conferência transforma
+  await page.waitForFunction(o => window.__estanteMesa.estado().objects[o].name === 'Tavern Smasher', r, { timeout: 5000 });
+  const cab = await page.locator('.tb-steps').first().getAttribute('aria-label');
+  assert.match(cab, /, noite$/, 'o leitor de tela ouve a hora do jogo: ' + cab);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.click('#tb-vez-btn'); await page.waitForSelector('#tb-vez-pop:not([hidden])');
+  assert.equal(await page.locator('#tb-vez-pop dd[data-k="ciclo"]').innerText(), 'Noite', 'o balão do turno diz que é noite');
+  await auditaTela(page, 'mesa de noite, balão do turno aberto');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/t48-noite.png' });
+  assert.deepEqual(M.errors, []);
+});

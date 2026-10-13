@@ -5294,6 +5294,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'battle cry', 'rampage', 'flanking', 'bushido', // K-30 · 702.91, 702.23, 702.25, 702.45: gatilhos de combate gerados pela palavra (GATILHOS_DE_PALAVRA_K), um por instância
   /* ↓ V · palavras-chave da trilha verbos */
   /* ↓ T · palavras-chave da trilha tipos */
+  'daybound', 'nightbound', // T-48 · 702.145: dia e noite (o motor transforma a dupla face na hora certa; nenhuma outra coisa a transforma)
 ];
 
 /** Efeitos que o motor sabe aplicar. Cada um declara os campos que exige. */
@@ -6663,6 +6664,11 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-48 · CR 702.145 · dia e noite (Oracle do Forge, clone de 13/10/2026): daybound na frente e nightbound no verso vêm do texto da carta;
+  // o motor faz o resto (virar dia ou noite, transformar, entrar transformada à noite).
+  { name: 'Tavern Ruffian', self: { duplaFace: true }, // "Daybound (If a player casts no spells during their own turn, it becomes night next turn.)"
+    back: { name: 'Tavern Smasher', types: ['creature'], subtypes: ['Werewolf'], colors: ['R'], power: 6, toughness: 5, keywords: ['nightbound'] }, // "Nightbound (…)"
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o cenário de verdade (dia, noite, transformar) está em tipos.dianoite.unit
   // T-32 · CR 702.127 · consequência (Oracle do Forge, consulta de 13/10/2026).
   { name: 'Spring // Mind', self: { dividida: true, mana: '{2}{G}', types: ['sorcery'] }, effects: [{ do: 'search', amount: 1, filter: { types: ['land'], basic: true }, to: 'battlefield-tapped' }], // "Search your library for a basic land card, put it onto the battlefield tapped, then shuffle."
     back: { name: 'Mind', types: ['instant'], mana: '{4}{U}{U}', effects: [{ do: 'draw', amount: 2 }], aftermath: true }, // "Aftermath · Draw two cards."
@@ -19008,6 +19014,7 @@ function enterStep(s, step) {
     const voltam = new Set(); // M-261 · 502.1: entra em fase antes de desvirar · CR2g.1 · 702.26g: o que saiu indiretamente volta com o que o levou, e só com ele
     for (const o of campoInteiro(s)) if (o.phasedOut && o.faseCom == null && o.controller === a) { delete o.phasedOut; voltam.add(o.oid); }
     for (const o of campoInteiro(s)) if (o.phasedOut && o.faseCom != null && voltam.has(o.faseCom)) { delete o.phasedOut; delete o.faseCom; }
+    cicloNoDesvirarT(s); // T-48 · CR 502.2 / 731.2 · dia e noite, entre a fase (502.1) e o desvirar (502.3) · Toca ponto comum: enterStep
     presasNoDesvirarV(s, a); // V-20 · 701.43 exaurir e 701.35 deter: marcas que vencem ou valem neste passo · Toca ponto comum: enterStep (uma linha antes do laço)
     for (const o of battlefield(s)) if (o.controller === a) { o.sick = false; if (naoDesviraNoPasso(s, o)) { delete o.naoDesviraProximo; continue; } desvira(s, o); } // CR2g.6 · 502.3 / 122.1d
     for (const o of battlefield(s)) if (o.controller !== a && o.tapped && !semImpressas(s, o) && ((((s.facts[o.name] || {}).script || {}).self || {}).desviraNosOutros)) desvira(s, o); // M-363 · 502.3: "Untap this artifact during each other player's untap step" (Bender's Waterskin)
@@ -22364,7 +22371,7 @@ function stateBased(s, events) {
       for (const oid of morrem) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield') continue; moveObject(s, oid, 'graveyard'); changed = true; events.push({ kind: 'died', oid, name: o.name }); }
       delete s.saindoJuntas;
     }
-    if (batalhasDeEstadoT(s, events) | equipamentosDeEstadoT(s, events) | papeisDeEstadoT(s, events) | auraAnexoDeEstadoT(s, events) | portaDeEstadoT(s, events) | masmorraDeEstadoT(s, events)) changed = true; // T-46 · CR 309.6 / 704.5t // T-27 · CR 709.5f // T-22 · CR 303.4f // T-20 · CR 303.7a / 704.5z // T-16 · CR 301.5c / 704.5n · Equipamento que não pode equipar se solta // T-14 · CR 310.7 / 310.8 / 310.10 / 310.11 / 704.5v–y · batalhas (função abaixo da âncora T das exportações)
+    if (batalhasDeEstadoT(s, events) | equipamentosDeEstadoT(s, events) | papeisDeEstadoT(s, events) | auraAnexoDeEstadoT(s, events) | portaDeEstadoT(s, events) | masmorraDeEstadoT(s, events) | cicloDeEstadoT(s, events)) changed = true; // T-48 · CR 702.145c/d/f/g // T-46 · CR 309.6 / 704.5t // T-27 · CR 709.5f // T-22 · CR 303.4f // T-20 · CR 303.7a / 704.5z // T-16 · CR 301.5c / 704.5n · Equipamento que não pode equipar se solta // T-14 · CR 310.7 / 310.8 / 310.10 / 310.11 / 704.5v–y · batalhas (função abaixo da âncora T das exportações)
     if (sagasDeEstado(s, events)) changed = true; // T-1 · CR 714.2b (capítulos disparam), 714.3b (read ahead) e 714.4 / 704.5s (sacrifício); função abaixo da âncora T das exportações
     if (!changed) break;
   }
@@ -24736,7 +24743,7 @@ function custoDaLinhaK(card, palavra) {
 const TEM_SURTO_K = new WeakMap(); // por fato (não muda depois de criado)
 const partidaTemSurtoK = s => Object.values(s.facts).some(f => { if (!f || typeof f !== 'object') return false; if (!TEM_SURTO_K.has(f)) TEM_SURTO_K.set(f, !!f.surtoK); return TEM_SURTO_K.get(f); });
 /** Só guarda a contagem numa partida com alguma carta de surto (o estado das outras partidas, e o das partidas-referência, não muda). */
-function contaMagiaK(s, p) { if (!partidaTemSurtoK(s)) return; const m = s.players[p].magiasK; s.players[p].magiasK = m && m.turno === s.turn.number ? { turno: m.turno, n: m.n + 1 } : { turno: s.turn.number, n: 1 }; }
+function contaMagiaK(s, p) { contaMagiaDoAtivoT(s, p); /* T-48 · CR 731.2: as mágicas do jogador ativo, só em partida com dia e noite (Toca ponto comum: contaMagiaK) */ if (!partidaTemSurtoK(s)) return; const m = s.players[p].magiasK; s.players[p].magiasK = m && m.turno === s.turn.number ? { turno: m.turno, n: m.n + 1 } : { turno: s.turn.number, n: 1 }; }
 const magiasDoTurnoK = (s, p) => { const m = s.players[p].magiasK; return m && m.turno === s.turn.number ? m.n : 0; };
 function condicaoDoAltK(s, p, when) {
   if (when.espetaculoK && !s.players.some((pl, i) => i !== p && !pl.lost && (pl.lifeLost || 0) > 0)) return false;
@@ -27159,6 +27166,7 @@ function sagaPoeLore(s, o, n) {
  * disparam aqui. Com read ahead e sem marcador, o registro guarda `escolhe`: a conferência seguinte abre a decisão do capítulo.
  * Quem já estava no campo e vira Saga não passa por aqui — "as this Saga enters" não vale para ela. */
 function sagaEntrou(s, o) {
+  cicloNaEntradaT(s, o); // T-48 · CR 702.145b · de noite, a dupla face com daybound entra transformada (antes dos gatilhos de entrar)
   lealdadeDaFichaT(s, o); // T-47 · CR 306.5b · a ficha de planeswalker (ficha cópia) entra com a lealdade impressa
   salaEntrouT(s, o); // T-26 · CR 709.5d · a Sala entra inteira, com a porta conjurada destrancada
   if (o && ehEquipamentoImpressoT(s, o)) o.entrouEmAbT = s.nextAbility; // T-17 · CR 400.7: a habilidade de equipar criada antes de o Equipamento entrar é do objeto anterior
@@ -27480,6 +27488,7 @@ const transformada = (s, o) => !!o && o.zone === 'battlefield' && !!o.frontName 
 function transformaT(s, o, src, events) {
   const par = parDuplaFaceT(s, o);
   if (!par || o.zone !== 'battlefield' || o.faceDown) return false; // 701.27c · 712.15a
+  if (!(src && src.diaNoiteT) && (has(s, o, 'daybound') || has(s, o, 'nightbound'))) return false; // T-48 · 702.145b/e: "can't transform except due to its daybound (nightbound) ability"
   const paraVerso = !o.frontName, destino = paraVerso ? par.verso : par.frente, fd = s.facts[destino];
   if (!fd || (fd.types || []).some(t => t === 'instant' || t === 'sorcery')) return false; // 701.27d
   if (src && src.ability && src.source === o.oid && o.transformouEm != null && parseInt(String(src.oid).slice(2), 10) < o.transformouEm) return false; // 701.27f
@@ -27495,6 +27504,65 @@ function transformaT(s, o, src, events) {
   gatilhosDaPermanente(s, 'transforma', o, ['self'], {}, () => true, false);
   return true;
 }
+/* ---------------- T-48 · CR 702.145 / 731 / 502.2 · dia e noite ----------------
+   - 731.1: o dia e a noite são designações da partida, em `s.cicloT` ('dia' | 'noite'); sem ela, nem dia nem noite (a partida começa
+     assim). Uma vez dia ou noite, a partida tem sempre uma das duas.
+   - 502.2 / 731.2: no passo de desvirar, depois da fase (502.1) e antes de desvirar (502.3), o motor olha o turno anterior: de dia, se o
+     jogador ativo dele não conjurou mágica, vira noite; de noite, se conjurou duas ou mais, vira dia (731.2c: sem designação, nada).
+     A contagem (`s.magiasDoAtivoT = { turno, n }`, só as mágicas do jogador ativo) existe só em partida com carta de dia e noite: as
+     outras, e as partidas-referência, não mudam de estado.
+   - 702.145b/e: ao virar noite, cada permanente com a frente para cima e daybound transforma; ao virar dia, cada uma com o verso para
+     cima e nightbound transforma (é transformar: 701.27e dispara). A permanente com daybound ou nightbound só transforma por elas
+     (`transformaT` recusa outra fonte).
+   - 702.145b: de noite, a dupla face com daybound entra transformada (na entrada, antes dos gatilhos de entrar; entrar transformada
+     não é transformar, 701.27e não dispara).
+   - 702.145c/d/f/g: conferidos no laço das ações de estado, que o motor roda antes de toda prioridade: daybound sem designação → dia;
+     nightbound sem designação e sem daybound no campo → noite; face para cima errada para a hora → transforma. Limite declarado: a
+     regra diz "na hora, não é ação de estado" — no meio da resolução de uma mágica, a conferência espera a mágica terminar.
+   - O passo de desvirar não tem registro próprio: as linhas ("Virou noite", "X transformou em Y") esperam em `s.cicloEvT` e saem no
+     registro da mesma jogada, pela conferência das ações de estado. */
+const TEM_DIA_NOITE_T = new WeakMap();
+const partidaTemDiaNoiteT = s => Object.values(s.facts).some(f => { if (!f || typeof f !== 'object') return false; if (!TEM_DIA_NOITE_T.has(f)) TEM_DIA_NOITE_T.set(f, (f.kw || []).includes('daybound') || (f.kw || []).includes('nightbound')); return TEM_DIA_NOITE_T.get(f); });
+/** 731.2 · conta as mágicas do jogador ativo no turno (chamada de `contaMagiaK`, em toda conjuração). */
+function contaMagiaDoAtivoT(s, p) {
+  if (p !== s.turn.active || !partidaTemDiaNoiteT(s)) return;
+  const m = s.magiasDoAtivoT; s.magiasDoAtivoT = m && m.turno === s.turn.number ? { turno: m.turno, n: m.n + 1 } : { turno: s.turn.number, n: 1 };
+}
+/** 702.145b/c/e/f · a permanente está com a face errada para a hora: transforma (só a dupla face transforma; 701.27c). */
+function cicloTransformaT(s, o, events) {
+  const fora = s.cicloT === 'noite' ? !o.frontName && has(s, o, 'daybound') : s.cicloT === 'dia' ? !!o.frontName && has(s, o, 'nightbound') : false;
+  return fora && transformaT(s, o, { diaNoiteT: true }, events);
+}
+function mudaCicloT(s, para, events, motivo) {
+  s.cicloT = para;
+  events.push({ kind: 'effect', do: 'ciclo', name: 'Dia e noite', target: para, motivo });
+  for (const o of battlefield(s)) cicloTransformaT(s, o, events);
+}
+/** 502.2 · no passo de desvirar (sem prioridade nem registro próprio): as linhas esperam em `s.cicloEvT`. */
+function cicloNoDesvirarT(s) {
+  if (!s.cicloT) return; // 731.2c
+  const m = s.magiasDoAtivoT, n = m && m.turno === s.turn.number - 1 ? m.n : 0;
+  const para = s.cicloT === 'dia' && n === 0 ? 'noite' : s.cicloT === 'noite' && n >= 2 ? 'dia' : null;
+  if (para) mudaCicloT(s, para, (s.cicloEvT = s.cicloEvT || []), n === 0 ? 'nenhuma mágica no turno anterior' : `${n} mágicas no turno anterior`);
+}
+/** 702.145c/d/f/g · conferência junto das ações de estado. Devolve se mudou alguma coisa. */
+function cicloDeEstadoT(s, events) {
+  let mudou = false;
+  if (s.cicloEvT) { events.push(...s.cicloEvT); delete s.cicloEvT; mudou = true; }
+  if (!s.cicloT && !partidaTemDiaNoiteT(s)) return mudou;
+  const campo = battlefield(s);
+  if (!s.cicloT && campo.some(o => has(s, o, 'daybound'))) { mudaCicloT(s, 'dia', events); return true; } // 702.145d
+  if (!s.cicloT && campo.some(o => has(s, o, 'nightbound'))) { mudaCicloT(s, 'noite', events); return true; } // 702.145g
+  if (s.cicloT) for (const o of campo) if (cicloTransformaT(s, o, events)) mudou = true; // 702.145c/f
+  return mudou;
+}
+/** 702.145b · "If it is night and this permanent is represented by a double-faced card, it enters transformed." */
+function cicloNaEntradaT(s, o) {
+  if (!o || s.cicloT !== 'noite' || o.frontName || o.faceDown || !has(s, o, 'daybound')) return;
+  const par = parDuplaFaceT(s, o); if (!par || !s.facts[par.verso]) return;
+  flipTo(s, o, par.verso);
+}
+Object.assign(EXPORTS_T, { partidaTemDiaNoiteT });
 /** 707.8a · a ficha criada como cópia de uma permanente de dupla face tem as duas faces e entra com a mesma face para cima. */
 function fichaDeDuplaFaceT(s, ft, modelo) {
   const par = parDuplaFaceT(s, modelo); if (!par || !ft) return;
@@ -29194,9 +29262,9 @@ const ZoneChip = (label, n, onClick, id, jogaveis = 0) => h('button', { class: '
 const PHASES = [['início', ['untap', 'upkeep', 'draw']], ['principal 1', ['main1']],
   ['combate', ['combat_begin', 'combat_attackers', 'combat_blockers', 'combat_damage', 'combat_end']], ['principal 2', ['main2']], ['final', ['end', 'cleanup']]];
 /** Cinco fases como trilho, com o passo exato escrito ao lado. */
-function StepBar({ turn, step, active, label }) {
-  return h('div', { class: 'tb-steps', 'aria-label': `Turno ${turn}, ${label}, vez de ${active}` },
-    h('div', { class: 'tb-steps__head' }, h('span', {}, `Turno ${turn} · ${active}`), h('strong', {}, label)),
+function StepBar({ turn, step, active, label, ciclo }) {
+  return h('div', { class: 'tb-steps', 'aria-label': `Turno ${turn}, ${label}, vez de ${active}${ciclo ? ', ' + ciclo.toLowerCase() : ''}` }, // T-48 · CR 731.1: dia ou noite, quando a partida tiver
+    h('div', { class: 'tb-steps__head' }, h('span', {}, `Turno ${turn} · ${active}${ciclo ? ' · ' + ciclo : ''}`), h('strong', {}, label)),
     // U8 · na tela de 360 os nomes longos viram curtos ("princ. 1"); o nome inteiro fica no title
     h('ol', { class: 'tb-steps__list' }, ...PHASES.map(([name, steps]) => h('li', { dataset: { current: String(steps.includes(step)) }, title: name },
       h('span', { class: 'tb-steps__longo' }, name), h('span', { class: 'tb-steps__curto', 'aria-hidden': 'true' }, name.replace('principal', 'princ.'))))));
@@ -30075,7 +30143,8 @@ function vezDaMesa(s, v, { bot = null, serie = null } = {}) {
       { k: 'turno', rotulo: 'Turno', valor: String(s.turn.number || 0) },
       { k: 'etapa', rotulo: 'Etapa', valor: (E.STEP_PT || {})[s.turn.step] || '—' },
       { k: 'joga', rotulo: 'Joga', valor: meu ? 'Você' : nome(a) },
-      { k: 'prioridade', rotulo: s.pending ? 'Decide' : 'Prioridade', valor: minha ? 'Você' : nome(p) }]
+      { k: 'prioridade', rotulo: s.pending ? 'Decide' : 'Prioridade', valor: minha ? 'Você' : nome(p) },
+      ...(s.cicloT ? [{ k: 'ciclo', rotulo: 'Dia ou noite', valor: s.cicloT === 'noite' ? 'Noite' : 'Dia' }] : [])] // T-48 · CR 731.1 · a designação da partida (Toca ponto comum: vezDaMesa)
   };
 }
 /** U6 · a bandeja da mão: recolhida só quando a pessoa pediu e a mão não é necessária agora.
@@ -30361,7 +30430,7 @@ const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas
 /* ↓ T · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha tipos */
 const EFEITO_PT_T = { caso_resolvido: () => 'este Caso fica resolvido', estacao: () => 'põe nesta permanente marcadores de carga iguais ao poder da criatura virada', selada: () => 'esta montaria fica selada até o fim do turno', virar_carta: e => (e.se && e.se.minCriaturas ? `se você controla ${e.se.minCriaturas} ou mais criaturas, vira esta carta` : 'vira esta carta'), porta: e => (e.acao === 'trancar' ? 'tranca uma porta destrancada de uma Sala sua' : e.acao === 'destrancar' ? 'destranca uma porta trancada de uma Sala sua' : 'tranca ou destranca uma porta de uma Sala sua'), nivel_sobe: () => 'põe um marcador de nível nela', nivel_classe: e => `a Classe sobe para o nível ${e.n}`, tripulada: () => 'vira criatura artefato até o fim do turno', transformar: () => 'transforma (vira a outra face)' }; // T-7 · 701.27
 /** T-7 · linhas do registro para os eventos da trilha tipos. */
-const LINHA_T = { masmorra_completa: ev => `${ev.target} completou a masmorra ${ev.name}`, caso_resolvido: ev => (ev.failed ? `${ev.name}: a condição não valia mais, o Caso não foi resolvido` : `${ev.name} foi resolvido`), estacao: ev => (ev.failed ? `${ev.name}: a nave saiu do campo, a estação não pôs marcadores` : `${ev.name} recebeu ${ev.amount} marcador${ev.amount === 1 ? '' : 'es'} de carga (estação)${ev.total != null ? ` · ${ev.total} no total` : ''}`), selada: ev => (ev.failed ? `${ev.name}: a montaria saiu do campo, não foi selada` : `${ev.name} foi selada`), virar_carta: ev => (ev.failed ? `${ev.name} não virou${ev.motivo ? ` (${ev.motivo})` : ''}` : `${ev.name} virou: agora é ${ev.target}`), porta: ev => (ev.failed ? `${ev.name}: nenhuma porta para trancar ou destrancar` : `${ev.name} ${ev.acao} ${ev.porta} (${ev.target})`), nivel_sobe: ev => (ev.failed ? `${ev.name}: saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu de nível (nível ${ev.nivel})`), nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
+const LINHA_T = { ciclo: ev => `Virou ${ev.target}${ev.motivo ? ` (${ev.motivo})` : ''}`, masmorra_completa: ev => `${ev.target} completou a masmorra ${ev.name}`, caso_resolvido: ev => (ev.failed ? `${ev.name}: a condição não valia mais, o Caso não foi resolvido` : `${ev.name} foi resolvido`), estacao: ev => (ev.failed ? `${ev.name}: a nave saiu do campo, a estação não pôs marcadores` : `${ev.name} recebeu ${ev.amount} marcador${ev.amount === 1 ? '' : 'es'} de carga (estação)${ev.total != null ? ` · ${ev.total} no total` : ''}`), selada: ev => (ev.failed ? `${ev.name}: a montaria saiu do campo, não foi selada` : `${ev.name} foi selada`), virar_carta: ev => (ev.failed ? `${ev.name} não virou${ev.motivo ? ` (${ev.motivo})` : ''}` : `${ev.name} virou: agora é ${ev.target}`), porta: ev => (ev.failed ? `${ev.name}: nenhuma porta para trancar ou destrancar` : `${ev.name} ${ev.acao} ${ev.porta} (${ev.target})`), nivel_sobe: ev => (ev.failed ? `${ev.name}: saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu de nível (nível ${ev.nivel})`), nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
 Object.assign(EFEITO_PT_T, { cerco_derrotado: () => 'exila o Cerco; você pode conjurá-lo transformado, sem pagar', papel: e => `cria um Papel de ${e.papel} anexado à criatura` }); // T-14 · CR 310.12b
 Object.assign(LINHA_T, { cerco_derrotado: ev => (ev.failed ? `${ev.name}: o Cerco já tinha saído do campo, nada a exilar` : `${ev.name} foi derrotada e exilada${ev.target ? ` (pode virar ${ev.target})` : ''}`), protetor_batalha: ev => `${ev.target} passa a proteger ${ev.name}`, anexo_barrado: ev => `${ev.name} não pode equipar${ev.target ? ' ' + ev.target : ''} e fica onde está`, papel: ev => (ev.failed ? `${ev.name}: sem criatura para o Papel de ${ev.target}` : `Papel de ${ev.target || ev.name}`), papel_substituido: ev => `o Papel ${ev.name} foi substituído e vai para o cemitério`, batalha_cemiterio: ev => `${ev.name} ficou sem defesa e foi para o cemitério` }); // T-14 · CR 310.12b / 310.11 / 310.8
 function descreveEfeito(e) {
@@ -33226,7 +33295,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       h('header', { class: 'tb-top ds-wrap' },
         vezBox(s, v), vezPop,
         // Leva 121 · o placar da série (leva 114) mora no balão da faixa: ver vezDaMesa
-        StepBar({ turn: s.turn.number || 0, step: s.turn.step, active: s.status === 'mulligan' ? 'mulligan' : s.players[s.turn.active].name, label: s.status === 'mulligan' ? 'Mão inicial' : E.STEP_PT[s.turn.step] }),
+        StepBar({ turn: s.turn.number || 0, step: s.turn.step, active: s.status === 'mulligan' ? 'mulligan' : s.players[s.turn.active].name, label: s.status === 'mulligan' ? 'Mão inicial' : E.STEP_PT[s.turn.step], ciclo: s.cicloT === 'noite' ? 'Noite' : s.cicloT === 'dia' ? 'Dia' : null }), // T-48 · CR 731.1 (Toca ponto comum: StepBar)
         h('div', { class: 'tb-top__actions' },
           // U2 · ações de ícone com nome acessível; desistir continua pedindo confirmação
           // leva 137 · conversa com o ponto de ligação dentro (cinco ícones não cabiam na linha da faixa em 360 px)
