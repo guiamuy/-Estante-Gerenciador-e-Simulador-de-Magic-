@@ -11048,3 +11048,36 @@ test('e2e · T-22 · CR 303.4f · Aura que entra sem ser conjurada: a mesa pergu
   assert.deepEqual(fim, { anexo: ids.dele, zona: 'battlefield', pend: null });
   assert.deepEqual(M.errors, []);
 });
+
+test('e2e · T-26 · CR 709.5 · Sala: a folha oferece conjurar cada porta; no campo, "Destrancar <porta> · custo" para a porta trancada, e o registro diz qual porta destrancou', { skip }, async t => {
+  // Texto oficial em .listas/oficiais-tipos.json (Oracle do Forge, 13/10/2026): Glassworks // Shattered Yard. O motor é provado em tipos.salas.unit.
+  const extras = JSON.parse(readFileSync(join(ROOT, '.listas', 'oficiais-tipos.json'), 'utf8')).cartas.filter(c => c.name === 'Glassworks // Shattered Yard');
+  const M = await comLista125(t, '20 Mountain\n20 Glassworks // Shattered Yard', ['Mountain', 'Glassworks // Shattered Yard'], '4', { extras });
+  const { page } = M;
+  const ids = await page.evaluate(() => { const s = window.__estanteMesa.estado(), z = s.zones[0];
+    const tira = nome => { const i = z.library.findIndex(o => s.objects[o].name === nome); return z.library.splice(i, 1)[0]; };
+    for (let i = 0; i < 7; i++) { const oid = tira('Mountain'); Object.assign(s.objects[oid], { zone: 'battlefield', controller: 0, tapped: false, sick: false, damage: 0, counters: {} }); z.battlefield.push(oid); }
+    return { g: z.hand.find(o => s.objects[o].name === 'Glassworks // Shattered Yard') || null }; });
+  assert.ok(ids.g, 'uma Sala na mão inicial (semente 4)');
+  const terra = await M.oid('Mountain'); if (terra) { await M.act({ t: 'play_land', p: 0, oid: terra }); await page.waitForTimeout(250); }
+  await page.locator(`#tb-hand .tb-card[data-oid="${ids.g}"]`).first().click(); await page.waitForSelector('.ds-dialog'); await page.waitForTimeout(400);
+  let botoes = (await page.locator('.ds-dialog .tb-sheet__actions button').allInnerTexts()).map(x => x.replace(/\s+/g, ' ').trim());
+  assert.ok(botoes.some(b => /Glassworks/.test(b)) && botoes.some(b => /Shattered Yard/.test(b)), 'uma conjuração por porta: ' + JSON.stringify(botoes));
+  await page.locator('.ds-dialog .tb-sheet__actions button', { hasText: /Glassworks/ }).first().click(); await page.waitForTimeout(300);
+  await M.resolve();
+  const portas = await page.evaluate(g => { const s = window.__estanteMesa.estado(), o = s.objects[g]; return { zona: o.zone, nome: o.name, salas: s.salasT && s.salasT[g] ? { e: s.salasT[g].esquerda, d: s.salasT[g].direita } : null }; }, ids.g);
+  assert.deepEqual(portas, { zona: 'battlefield', nome: 'Glassworks // Shattered Yard', salas: { e: true, d: false } });
+  await page.evaluate(() => { const s = window.__estanteMesa.estado(); for (const c of 'WUBRG') s.players[0].pool[c] += 6; });
+  await page.locator(`.tb-side--me .tb-card[data-oid="${ids.g}"]`).first().click(); await page.waitForSelector('.ds-dialog'); await page.waitForTimeout(300);
+  botoes = (await page.locator('.ds-dialog .tb-sheet__actions button').allInnerTexts()).map(x => x.replace(/\s+/g, ' ').trim());
+  assert.ok(botoes.includes('Destrancar Shattered Yard · {4}{R}') && !botoes.some(b => /Destrancar Glassworks/.test(b)), 'só a porta trancada: ' + JSON.stringify(botoes));
+  for (const b of await page.locator('.ds-dialog .tb-sheet__actions button', { hasText: /^Destrancar/ }).all()) { const cx = await b.boundingBox(); assert.ok(cx && cx.height >= 44, 'botão com 44 px de altura ou mais: ' + JSON.stringify(cx)); }
+  await auditaTela(page, 'folha da Sala');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/t26-sala.png' });
+  await page.locator('.ds-dialog .tb-sheet__actions button', { hasText: /^Destrancar Shattered Yard/ }).click(); await page.waitForTimeout(300);
+  const fim = await page.evaluate(g => { const s = window.__estanteMesa.estado(); return { d: !!(s.salasT && s.salasT[g] && s.salasT[g].direita), pilha: s.stack.length }; }, ids.g);
+  assert.deepEqual(fim, { d: true, pilha: 0 }, 'destrancada sem usar a pilha');
+  const linhas = await page.evaluate(() => (window.__estanteMesa.registro ? window.__estanteMesa.registro() : []).map(String));
+  if (linhas.length) assert.ok(linhas.some(l => /destrancou Shattered Yard \(Glassworks \/\/ Shattered Yard\)/.test(l)), 'registro: ' + JSON.stringify(linhas.slice(-6)));
+  assert.deepEqual(M.errors, []);
+});

@@ -5788,6 +5788,7 @@ const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield
   'exerted', // V-20 · "You may exert ~ as it attacks. When you do, …" (701.43d): dispara quando a permanente é exaurida
   'becomes-monstrous', // V-6 · "When ~ becomes monstrous" (o valor do gatilho é o N da monstruosidade, 701.37c)
   /* ↓ T · gatilhos da trilha tipos */
+  'unlock-door', // T-26 · CR 709.5h · "When you unlock this door": só numa porta de Sala (o motor a dispara quando a porta recebe a designação de destrancada, ao entrar ou depois)
   'becomes-level', // T-12 · CR 716.2a · "When this Class becomes level N": só dentro de um nível de `self.classe` (o motor a dispara quando o efeito de subir de nível resolve)
   'transforms', // T-7 · CR 701.27e · "When ~ transforms (into …)": dispara na face que ficou para cima depois de a permanente transformar
   'crews', 'becomes-crewed', // T-3 · CR 702.122b "Whenever ~ crews a Vehicle" (o Veículo é o `remembered` do gatilho) e 702.122e "Whenever ~ becomes crewed" (o valor do gatilho é o número de criaturas que tripularam)
@@ -6175,7 +6176,7 @@ function validateScript(sc) {
   if (sc && sc.replicate != null && sc.kicker) errs.push('replicar e reforço na mesma carta não são aceitos (os dois usam o pagamento repetido)');
   if (sc && sc.modeCount != null && !(Number.isInteger(sc.modeCount) && sc.modeCount >= 2 && (sc.modes || []).length && (sc.modeRepeat || sc.modeCount <= sc.modes.length))) errs.push('número de modos inválido');
   if (sc && sc.cumulativeUpkeep && !/\{/.test(String(sc.cumulativeUpkeep.mana || ''))) errs.push('manutenção cumulativa precisa de um custo de mana');
-  errs.push(...sagaErros(sc), ...tripularErros(sc), ...aventuraErros(sc), ...duplaFaceErros(sc), ...modalErros(sc), ...divididaErros(sc), ...classeErros(sc), ...batalhaErros(sc), ...papelErros(sc), ...nivelarErros(sc)); // T-24 · CR 711 · barras de nível (mesma chamada) // T-20 · CR 111.10 · papel conhecido (mesma chamada) // T-14 · CR 310.4 · defesa da batalha (mesma chamada) // T-12 · CR 716 · Classe (mesma chamada) // T-10 · CR 709 · carta dividida (mesma chamada) // T-8 · CR 712.3 · dupla face modal (mesma chamada) // T-7 · CR 712 · dupla face (mesma chamada) // T-5 · CR 715 · aventura (mesma chamada) // T-3 · CR 702.122 · tripular (mesma chamada da T-1) // T-1 · CR 714 · Saga: capítulos, read ahead e o marcador de entrada (função abaixo da âncora T das exportações)
+  errs.push(...sagaErros(sc), ...tripularErros(sc), ...aventuraErros(sc), ...duplaFaceErros(sc), ...modalErros(sc), ...divididaErros(sc), ...classeErros(sc), ...batalhaErros(sc), ...papelErros(sc), ...nivelarErros(sc), ...salaErros(sc)); // T-26 · CR 709.5 · Sala (mesma chamada) // T-24 · CR 711 · barras de nível (mesma chamada) // T-20 · CR 111.10 · papel conhecido (mesma chamada) // T-14 · CR 310.4 · defesa da batalha (mesma chamada) // T-12 · CR 716 · Classe (mesma chamada) // T-10 · CR 709 · carta dividida (mesma chamada) // T-8 · CR 712.3 · dupla face modal (mesma chamada) // T-7 · CR 712 · dupla face (mesma chamada) // T-5 · CR 715 · aventura (mesma chamada) // T-3 · CR 702.122 · tripular (mesma chamada da T-1) // T-1 · CR 714 · Saga: capítulos, read ahead e o marcador de entrada (função abaixo da âncora T das exportações)
   return errs.concat(exampleErrors(sc));
 }
 const ATRASOS = ['next-upkeep', 'next-end-step', 'end-of-combat']; // CR2b.1 · momentos de gatilho atrasado que o motor conhece
@@ -6572,6 +6573,11 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-26 · CR 709.5 · Sala (Oracle do Forge, consulta de 13/10/2026). O lembrete entre parênteses não se escreve.
+  { name: 'Glassworks // Shattered Yard', self: { dividida: true, sala: true, mana: '{2}{R}', types: ['enchantment'] },
+    abilities: [{ kind: 'triggered', when: 'unlock-door', effects: [{ do: 'damage', amount: 4, target: 'creature-opponent-controls' }] }], // "When you unlock this door, this Room deals 4 damage to target creature an opponent controls."
+    back: { name: 'Shattered Yard', types: ['enchantment'], mana: '{4}{R}', abilities: [{ kind: 'triggered', when: 'end-step', effects: [{ do: 'damage', amount: 1, target: 'each-opponent' }] }] }, // "At the beginning of your end step, this Room deals 1 damage to each opponent."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o cenário de verdade está em tipos.salas.unit (posta no campo sem ser conjurada: as duas portas trancadas)
   // T-24 · CR 702.87 / 711 · subir de nível (Oracle do Forge, consulta de 12/10/2026). O lembrete entre parênteses não se escreve.
   { name: 'Beastbreaker of Bala Ged', self: { nivelar: { mana: '{2}{G}', faixas: [{ de: 1, ate: 3, base: [4, 4] }, { de: 4, base: [6, 6], palavras: ['trample'] }] } }, // "Level up {2}{G} · LEVEL 1-3 4/4 · LEVEL 4+ 6/6 Trample"
     example: { action: 'activate:0', target: 'none', expect: { selfStats: [4, 4] } } },
@@ -8674,6 +8680,26 @@ EVENTOS_DE_OBJETO.push('exaurida'); OBJETOS_DO_EVENTO.exaurida = ['self']; GATIL
 // V-6 · evento "ficou monstruosa" (701.37): da própria permanente
 EVENTOS_DE_OBJETO.push('monstruosa'); OBJETOS_DO_EVENTO.monstruosa = ['self']; GATILHO_EVENTO['becomes-monstrous'] = { evento: 'monstruosa', objeto: 'self' }; TRIGGER_PT['becomes-monstrous'] = 'quando fica monstruosa';
 /* ↓ T · exportações de scripts.js da trilha tipos */
+/* ---------------- T-26 · CR 709.5 · Salas (forma do script) ----------------
+   A Sala é uma carta dividida de permanente com linha de tipo compartilhada: o script mora no nome inteiro ("A // B"), com
+   `self: { dividida: true, sala: true, mana, types: ['enchantment'] }` e `abilities` da porta esquerda; `back: { name, types: ['enchantment'],
+   mana, abilities }` é a porta direita. O gatilho `unlock-door` ("When you unlock this door") só existe numa porta. Contínuos,
+   concessões e efeitos de resolução ainda não existem numa porta (o validador recusa: a Sala com eles fica manual). */
+function salaErros(sc) {
+  const sf = sc && sc.self, temUnlock = abs => (abs || []).some(ab => ab && ab.when === 'unlock-door');
+  if (!sf || !sf.sala) return temUnlock(sc && sc.abilities) && !(sf && sf.barraT) ? ['sala: o gatilho "unlock-door" só existe numa porta de Sala (self.sala)'] : [];
+  const errs = [];
+  if (sf.sala !== true || sf.dividida !== true) errs.push('sala: a Sala é dividida (self.dividida: true e self.sala: true)');
+  if (sc.continuo || sc.grants || sc.grantsAll || sf.per || sc.aura || sc.equip || (sc.effects || []).length || sc.regraJogador || sc.substitui || sc.entra || sc.dano) errs.push('sala: só habilidades ativadas e disparadas nas portas (contínuo, concessão e efeito de resolução ainda não)');
+  const b = sc.back;
+  if (b && typeof b === 'object') {
+    for (const k of Object.keys(b)) if (!['name', 'types', 'subtypes', 'mana', 'colors', 'abilities'].includes(k)) errs.push(`sala, porta direita: chave "${k}" desconhecida (só habilidades ativadas e disparadas)`);
+    errs.push(...validateScript({ name: `${sc.name} (porta direita)`, abilities: b.abilities || [], self: { barraT: true }, example: { target: 'none', expect: { selfLife: 0 } } }).map(e => `sala, porta direita: ${e}`));
+  }
+  return errs;
+}
+GATILHO_EVENTO['unlock-door'] = { evento: 'destranca_porta', objeto: 'self' }; TRIGGER_PT['unlock-door'] = 'quando você destranca esta porta';
+Object.assign(EXPORTS_T_SC, { salaErros });
 /* ---------------- T-24 · CR 702.87 / 711 · cartas de subir de nível (forma) ----------------
    `self: { nivelar: { mana: '{2}{G}', faixas: [{ de: 1, ate: 3, base: [4, 4] }, { de: 4, base: [6, 6], palavras: ['trample'] }] } }`.
    As barras são contíguas e em ordem; a última é a "N+" (sem `ate`). Cada barra pode ter `palavras`, `abilities` e `continuo`. */
@@ -8747,7 +8773,7 @@ function divididaErros(sc) {
   if (dv !== true) errs.push('dividida: self.dividida só vale como true');
   if (sf.modal || sf.duplaFace || sf.aventura) errs.push('dividida: a carta é dividida, modal, de transformar ou de aventura, não as duas');
   if (!(typeof sf.mana === 'string' && /\{/.test(sf.mana))) errs.push('dividida: falta o custo da metade esquerda (self.mana)');
-  const ok = ts => Array.isArray(ts) && ts.length && ts.every(t => t === 'instant' || t === 'sorcery');
+  const ok = ts => Array.isArray(ts) && ts.length && ts.every(t => (sf.sala ? t === 'enchantment' : t === 'instant' || t === 'sorcery')); // T-26 · CR 709.5a: as portas de uma Sala são encantamento (linha de tipo compartilhada)
   if (!ok(sf.types)) errs.push('dividida: as metades são instantânea ou feitiço (self.types)');
   if (!sc.back) { errs.push('dividida: falta a metade direita (back)'); return errs; }
   if (!(typeof sc.back.mana === 'string' && /\{/.test(sc.back.mana))) errs.push('dividida: a metade direita precisa de custo (back.mana)');
@@ -18471,6 +18497,7 @@ const abilitiesOf = (s, o) => {
   const mu = mutacao(s, o); if (mu && mu.perde) return grantedAbilities(s, o).filter(ab => (ab.grantedTs || 0) > mu.corte); // CR2d.1
   const sc = scriptOf(s, o);
   if (!sc) return grantedAbilities(s, o).concat(habilidadesDePalavraK(s, o)); // K-3 · palavra-chave que é habilidade disparada (proeza…)
+  if (sc.self && sc.self.sala) return salaHabilidadesT(s, o, sc).concat(grantedAbilities(s, o), habilidadesDePalavraK(s, o)); // T-26 · CR 709.5 · só as portas destrancadas têm texto (Toca ponto comum: abilitiesOf)
   const list = (sc.abilities || []).slice();
   // CR 702.24 · manutenção cumulativa é uma habilidade disparada da sua manutenção
   if (sc.cumulativeUpkeep) list.push({ kind: 'triggered', when: 'upkeep', effects: [{ do: 'cumulative_upkeep', mana: sc.cumulativeUpkeep.mana }] });
@@ -22020,6 +22047,7 @@ const HANDLERS = {
   },
   /* ↓ V · ações (HANDLERS) da trilha verbos */
   /* ↓ T · ações (HANDLERS) da trilha tipos */
+  destrancar(s, a) { destrancarT(s, a); }, // T-26 · CR 709.5e · ação especial: paga o custo da porta trancada e a destranca
   /** T-22 · CR 303.4f · quem controla a Aura que entrou sem ser conjurada escolhe o que ela encanta (não mira). */
   aura_anexo(s, a, ev) {
     const pd = s.pending;
@@ -22657,6 +22685,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
   for (let i = out.length - 1; i >= 0; i--) if (acaoDeDetidaV(s, out[i])) out.splice(i, 1); // V-21 · 701.35a: habilidade ativada de permanente detida não é oferecida
   if (!s.pending) for (const o of battlefield(s)) if (o.controller === p && podeVirarManifestada(s, o) && (!s.manaCheck || canPay(s, p, s.facts[o.name].cost))) out.push({ t: 'unmorph', p, oid: o.oid, manifest: true }); // V-17 · 701.40b
   /* ↓ T · ofertas de legalActions da trilha tipos (out.push) */
+  salaOfertasT(s, p, out); // T-26 · CR 709.5e · destrancar uma porta (ação especial, tempo de feitiço)
   tripularOfertas(s, p, out); // T-3 · CR 702.122a · "qualquer número de outras criaturas": além dos grupos mínimos, a escolha de quem tripula (função abaixo da âncora T das exportações)
   modalOfertas(s, p, out); // T-8 · CR 712.11b / 712.12 · dupla face modal na mão: conjurar ou jogar a face de trás (função abaixo da âncora T das exportações)
   return out;
@@ -25129,6 +25158,71 @@ function lutar(s, src, eff, tgt, events) {
 }
 Object.assign(EXPORTS_V, { lutar });
 /* ↓ T · exportações de core.js da trilha tipos */
+/* ---------------- T-26 · CR 709.5 · Salas ----------------
+   - 709.5 / 709.5a: a Sala é dividida de permanente (forma das divididas, T-10: cada porta é conjurada pelo custo dela) e, no campo, é a
+     carta inteira. As designações "porta esquerda/direita destrancada" (709.5c) moram fora do objeto, em `s.salasT[oid] = { z, esquerda,
+     direita }` (z = encarnação, 400.7); sem registro, as duas trancadas. `s.salasT` só nasce quando uma Sala entra.
+   - 709.5: a porta trancada não tem o texto dela — `abilitiesOf` dá só as habilidades das portas destrancadas.
+   - 709.5d: a Sala entra com a porta conjurada destrancada (`salaEntrouT`, no ponto de entrada de `moveObject`); posta no campo de outro
+     jeito, com as duas trancadas.
+   - 709.5e: destrancar é ação especial (`destrancar`, com `porta`): paga o custo da porta trancada, no tempo de feitiço, sem pilha.
+   - 709.5h: "When you unlock this door" (`unlock-door`) dispara quando a porta recebe a designação, ao entrar ou depois. */
+const salaScriptT = (s, o) => { const sc = divididaScriptT(s, o); return sc && sc.self.sala ? sc : null; };
+function portasDaSalaT(s, o) {
+  if (!o || o.zone !== 'battlefield' || !salaScriptT(s, o)) return null;
+  const r = s.salasT && s.salasT[o.oid];
+  return r && r.z === (o.zc || 0) ? { esquerda: !!r.esquerda, direita: !!r.direita } : { esquerda: false, direita: false };
+}
+function salaHabilidadesT(s, o, sc) {
+  const pt = portasDaSalaT(s, o); if (!pt) return [];
+  return [...(pt.esquerda ? (sc.abilities || []).map(ab => ({ ...ab, portaT: 'esquerda' })) : []),
+    ...(pt.direita ? (((s.facts[direitaT(sc)] || {}).script || {}).abilities || []).map(ab => ({ ...ab, portaT: 'direita' })) : [])];
+}
+/** 709.5c / 709.5h · a porta recebe a designação de destrancada e o "quando você destranca esta porta" dela dispara. */
+function destrancaT(s, o, lado) {
+  const reg = (s.salasT = s.salasT || {}), r = reg[o.oid] && reg[o.oid].z === (o.zc || 0) ? reg[o.oid] : (reg[o.oid] = { z: o.zc || 0, esquerda: false, direita: false });
+  if (r[lado]) return false;
+  r[lado] = true;
+  for (const ab of abilitiesOf(s, o)) if (ab.kind === 'triggered' && ab.when === 'unlock-door' && ab.portaT === lado && triggerConditionMet(s, o, ab.condition))
+    s.queued.push({ source: o.oid, name: o.name, controller: o.controller, effects: ab.effects, when: ab.when, ...marcasDaHabilidade(ab) });
+  return true;
+}
+function salaEntrouT(s, o) {
+  if (!o || !o.frontName) return;
+  const f = s.facts[o.frontName], sc = f && f.script; if (!sc || !sc.self || !sc.self.sala) return;
+  const lado = o.name === esquerdaT(sc) ? 'esquerda' : o.name === direitaT(sc) ? 'direita' : null;
+  flipToFront(s, o); // 709.5: no campo, a carta inteira
+  if (lado) destrancaT(s, o, lado);
+}
+function salaOfertasT(s, p, out) {
+  if (s.pending || !canSorceryNow(s, p)) return;
+  for (const o of battlefield(s)) {
+    if (o.controller !== p || o.faceDown || o.phasedOut) continue;
+    const pt = portasDaSalaT(s, o); if (!pt) continue;
+    const sc = salaScriptT(s, o);
+    for (const lado of ['esquerda', 'direita']) {
+      const f = s.facts[lado === 'esquerda' ? esquerdaT(sc) : direitaT(sc)];
+      if (!pt[lado] && f && (!s.manaCheck || canPay(s, p, f.cost))) out.push({ t: 'destrancar', p, oid: o.oid, porta: lado });
+    }
+  }
+}
+/** 709.5e · a ação especial de destrancar (chamada por HANDLERS.destrancar). */
+function destrancarT(s, a) {
+  noPending(s); holder(s, a.p);
+  const o = onField(s, a.oid), sc = salaScriptT(s, o);
+  if (!sc || o.faceDown || o.phasedOut) throw new RuleError('sala', 'esta permanente não é uma Sala');
+  if (o.controller !== a.p) throw new RuleError('sala', 'só quem controla a Sala destranca as portas dela');
+  if (a.porta !== 'esquerda' && a.porta !== 'direita') throw new RuleError('sala', 'escolha a porta: esquerda ou direita');
+  if (!canSorceryNow(s, a.p)) throw new RuleError('tempo', 'destrancar só no seu turno, na fase principal, com a pilha vazia');
+  if (portasDaSalaT(s, o)[a.porta]) throw new RuleError('sala', 'esta porta já está destrancada');
+  const f = s.facts[a.porta === 'esquerda' ? esquerdaT(sc) : direitaT(sc)];
+  if (s.manaCheck) payCost(s, a.p, f.cost);
+  destrancaT(s, o, a.porta);
+  s.turn.passes = 0;
+}
+/** O nome da porta (para a folha e o registro). */
+function nomeDaPortaT(s, oid, lado) { const o = s.objects[oid], sc = o && salaScriptT(s, o); return sc ? (lado === 'direita' ? direitaT(sc) : esquerdaT(sc)) : null; }
+Object.assign(EXPORTS_T, { portasDaSalaT, nomeDaPortaT });
 /* ---------------- T-24 · CR 702.87 / 711 · cartas de subir de nível ----------------
    Forma no script: `self: { nivelar: { mana, faixas: [{ de, ate, base: [P, R], palavras?, abilities?, continuo? }, …, { de, base, … }] } }`
    (a última barra é a "N+", sem `ate`). O nível é o número de marcadores `level` da permanente (122.1), de qualquer fonte.
@@ -25532,6 +25626,7 @@ function sagaPoeLore(s, o, n) {
  * disparam aqui. Com read ahead e sem marcador, o registro guarda `escolhe`: a conferência seguinte abre a decisão do capítulo.
  * Quem já estava no campo e vira Saga não passa por aqui — "as this Saga enters" não vale para ela. */
 function sagaEntrou(s, o) {
+  salaEntrouT(s, o); // T-26 · CR 709.5d · a Sala entra inteira, com a porta conjurada destrancada
   if (o && ehEquipamentoImpressoT(s, o)) o.entrouEmAbT = s.nextAbility; // T-17 · CR 400.7: a habilidade de equipar criada antes de o Equipamento entrar é do objeto anterior
   auraEntrouT(s, o); // T-22 · CR 303.4f · Aura que entrou sem ser conjurada: anexa à única opção ou abre a escolha
   batalhaEntrouT(s, o); // T-14 · CR 310.4b / 310.9a · a batalha que entra: marcadores de defesa e protetor (mesmo ponto de entrada: moveObject e createToken)
@@ -25970,7 +26065,7 @@ function gruposGratisT(s, opts) {
 }
 Object.assign(EXPORTS_T, { gruposGratisT });
 /** T-11 · a escolha de face entra na chave das ações do bot: as duas metades (ou as duas faces) com os mesmos alvos são jogadas diferentes. Sem `face`, a chave não muda. */
-const chaveDeFaceT = a => (a && a.face != null ? '|face:' + a.face : '');
+const chaveDeFaceT = a => (a && a.face != null ? '|face:' + a.face : '') + (a && a.porta ? '|porta:' + a.porta : ''); // T-26 · a porta destrancada também
 Object.assign(EXPORTS_T, { chaveDeFaceT });
 Object.assign(EXPORTS_T, { metadesDe, nomesDe });
 /* ---------------- T-12 · CR 716 · Classes ----------------
@@ -27705,6 +27800,7 @@ function describe(before, a, events, after) {
     case 'pick_target': { const op = ((before.pending || {}).options || [])[a.index]; const nome = op ? (op.player != null ? who(before, op.player) : nameOf(before, op.oid)) : null;
       L.push(a.nenhum ? `${P} não escolheu alvo para ${(before.pending || {}).name || 'o gatilho'}` : nome ? `${P} escolheu ${nome} como alvo de ${(before.pending || {}).name || 'o gatilho'}` : `${P} escolheu o alvo de ${(before.pending || {}).name || 'o gatilho'}`); break; }
     case 'plot': L.push(`${P} tramou ${nameOf(before, a.oid)} (plot): fica no exílio para conjurar sem pagar num turno seguinte`); break; // Leva 121
+    case 'destrancar': L.push(`${P} destrancou ${E.nomeDaPortaT(before, a.oid, a.porta) || 'uma porta'} (${nameOf(before, a.oid)})`); break; // T-26 · CR 709.5e (Toca ponto comum: linhas do registro)
     case 'suspender_k': L.push(`${P} suspendeu ${nameOf(before, a.oid)}: vai para o exílio com marcadores de tempo e, quando sair o último, é conjurada sem pagar`); break; // K-73
     case 'unmorph': L.push(`${P} virou ${nameOf(after, a.oid)} para cima`); break; // Leva 121
     case 'transmute': L.push(`${P} transmutou ${nameOf(before, a.oid)}`); break;
@@ -30647,6 +30743,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
         : a.t === 'unmorph' ? doBtn(`Virar para cima · ${a.manifest ? costLabel(f.cost) || '{0}' : ((f.script || {}).morph || {}).mana || ''}`, a, { variant: 'primary' }) // V-17 · manifestada vira pelo custo de mana da carta (toque autorizado pelo dono em 11/10/2026)
         : a.t === 'cast' && a.faceDown ? doBtn('Conjurar virada para baixo · {3}', a)
         : a.t === 'cast' && a.aerobend ? doBtn('Conjurar por aerobender · {2}' + ((a.targets || []).length ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : ''), a, { variant: 'primary' }) // V-30 · 701.65a: {2} em vez do custo impresso (Toca ponto comum: table.js, uma linha)
+        : a.t === 'destrancar' ? (md => doBtn(`Destrancar ${md ? md.nome : 'a porta'} · ${md ? md.mana : ''}`, a, { variant: 'primary' }))((E.metadesDe(s, a.oid) || [])[a.porta === 'direita' ? 1 : 0]) // T-26 · CR 709.5e: uma por porta trancada (Toca ponto comum: folha da carta)
         : a.t === 'suspender_k' ? doBtn(`Suspender · ${(f.suspenderK || {}).mana || ''} (${(f.suspenderK || {}).n || 0} ${((f.suspenderK || {}).n || 0) === 1 ? 'marcador' : 'marcadores'} de tempo)`, a) // K-73 · 702.62a: suspender da mão (decisão D2 do dono, 12/10/2026; Toca ponto comum: table.js)
         : a.t === 'cast' && a.plotted ? doBtn('Conjurar sem pagar' + ((a.targets || []).length ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : ''), a, { variant: 'primary' })
         : a.t === 'cast' ? doBtn(((a.alt != null && f.script && f.script.alt && f.script.alt[a.alt]) ? ((f.script.alt[a.alt].cost || {}).mana ? `Custo alternativo · ${f.script.alt[a.alt].label}` : `Conjurar sem pagar mana · ${f.script.alt[a.alt].label}`) : a.flashback ? `Lampejo do passado · ${custoDoLampejo(f.script.flashback)}` : a.retrace ? 'Retraçar · descartando um terreno' : Array.isArray(a.modes) ? a.modes.map(m => (f.script.modes[m] || {}).label || 'modo').join(' + ') : (f.script && f.script.modes && f.script.modes[a.mode || 0]) ? f.script.modes[a.mode || 0].label : a.permissao != null ? `Conjurar do cemitério (${(s.objects[a.permissao] || {}).name || 'permissão'})` : a.delve ? `Conjurar com delve (exila ${a.delve} do cemitério)` : a.exilaMao ? `Conjurar exilando ${a.exilaMao} ${a.exilaMao > 1 ? 'cartas' : 'carta'} da mão` : (o.zone === 'command' ? `Conjurar da zona de comando (imposto ${E.commanderTax(s, v, oid)})` : a.evidence ? `Conjurar com provas ${(f.script || {}).evidence || ''}`.trim() : 'Conjurar')) + ((a.targets || []).length ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : '')
