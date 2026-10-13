@@ -8337,13 +8337,21 @@
    "n": "702.102",
    "regra": "Keyword Abilities",
    "titulo": "Fuse",
-   "status": "ausente",
-   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): cartas divididas sem fundir (T-10 deixou fundir e aftermath fora da forma de carta dividida).",
+   "status": "coberta",
+   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): cartas divididas sem fundir (T-10 deixou fundir e aftermath fora da forma de carta dividida). T-34 (13/10/2026): coberta — nada falta da 702.102a–d (a cópia de mágica dividida fundida segue a 709.3c, que é do motor).",
    "esforco": "M",
    "depende": [
     "709 cartas divididas"
    ],
-   "cartas": "rara (uma coleção: Dragon's Maze)"
+   "cartas": "rara (uma coleção: Dragon's Maze)",
+   "evidencia": "T-34 (13/10/2026): self.fundir na carta dividida de instantânea ou feitiço; da mão, além de uma oferta por metade, a oferta `face: 'fundida'`: a carta inteira vai para a pilha com os dois nomes, o custo somado, as duas cores e o valor de mana somado, com um alvo para cada metade, e resolve a esquerda e depois a direita. Do cemitério, do exílio ou fora da mão não há fundida (pedido direto recusado). Conjurar sem pagar da mão também oferece a fundida. Mesa: \"Fundir: Wear e Tear · {1}{R}{W}\" e os alvos aos pares; registro \"(fundida: Wear e Tear)\". Carta exemplo completa: Wear // Tear (Oracle do Forge, 13/10/2026).",
+   "testes": [
+    "CR 702.102a · da mão, além de cada metade, a opção de conjurar as duas (fundida), com um alvo para cada metade",
+    "CR 702.102c / 702.102d · fundida: paga os dois custos ({1}{R} + {W}) e resolve a esquerda e depois a direita",
+    "CR 702.102b · na pilha, a fundida tem as características das duas metades (nome das duas, valor de mana 3, vermelha e branca)",
+    "CR 702.102a · só da mão: do cemitério (ou de outra zona) não há fundida",
+    "CR 702.102 · passeio aleatório com Wear // Tear: nada oferecido é recusado, a fundida aparece e fora da pilha a carta é sempre a inteira"
+   ]
   },
   {
    "n": "702.103",
@@ -10346,7 +10354,7 @@
    "regra": "Split Cards",
    "titulo": "Escolher a metade ao conjurar",
    "status": "parcial",
-   "falta": "709.3c: cópia de carta dividida conjurada (707.12) não existe no motor. Fundir (702.102) e Consequência (702.127) não existem: as cartas com essas palavras-chave ficam manuais. T-32 (13/10/2026): Consequência (702.127) existe.",
+   "falta": "709.3c: cópia de carta dividida conjurada (707.12) não existe no motor. Fundir (702.102) e Consequência (702.127) não existem: as cartas com essas palavras-chave ficam manuais. T-32 (13/10/2026): Consequência (702.127) existe. T-34 (13/10/2026): Fundir (702.102) existe.",
    "esforco": "M",
    "cartas": "comum",
    "evidencia": "T-10: a ação de conjurar leva `face: 'esquerda' | 'direita'`; legalActions oferece uma conjuração por metade (custo, tempo e alvos dela) e nunca a carta inteira; na pilha só a metade conjurada existe. T-11 (12/10/2026) · auditoria independente (12 arquivos de sonda, 259 conferências, fuzz de 120 partidas, 1.364.904 pedidos diretos): na decisão \"conjurar sem pagar\" a dividida oferece as duas metades (antes só a esquerda; a direita era aceita sem ser oferecida) e a tela tem um botão por metade; o bot distingue as metades.",

@@ -11142,3 +11142,34 @@ test('e2e · P-20 Apoiar a Estante: todas as formas na tela, a da região primei
   await page.click('#apoio-voltar'); await page.waitForSelector('#perfil-saida');
   assert.deepEqual(errors, []);
 });
+
+test('e2e · T-34 · CR 702.102 · fundir: a folha da carta dividida com fundir tem um botão por metade e o "Fundir" pelo custo das duas; os alvos vêm aos pares e as duas metades resolvem', { skip }, async t => {
+  // Texto oficial: Wear // Tear em .listas/oficiais-tipos.json (Oracle do Forge, 13/10/2026); Relic of Progenitus e Makeshift Munitions em .listas/oficiais.json.
+  const extras = JSON.parse(readFileSync(join(ROOT, '.listas', 'oficiais-tipos.json'), 'utf8')).cartas.filter(c => c.name === 'Wear // Tear');
+  const M = await comLista125(t, '12 Mountain\n8 Plains\n4 Relic of Progenitus\n4 Makeshift Munitions\n12 Wear // Tear', ['Mountain', 'Plains', 'Relic of Progenitus', 'Makeshift Munitions', 'Wear // Tear'], '4', { extras });
+  const { page } = M;
+  const ids = await page.evaluate(() => { const s = window.__estanteMesa.estado(), z = s.zones[0];
+    const tira = (nome, ...de) => { for (const d of de) { const i = z[d].findIndex(o => s.objects[o].name === nome); if (i >= 0) return z[d].splice(i, 1)[0]; } return null; };
+    const campo = oid => { Object.assign(s.objects[oid], { zone: 'battlefield', controller: 0, tapped: false, sick: false, damage: 0, counters: {} }); z.battlefield.push(oid); return oid; };
+    for (const n of ['Mountain', 'Mountain', 'Plains']) campo(tira(n, 'library', 'hand'));
+    const rel = campo(tira('Relic of Progenitus', 'library', 'hand')), mun = campo(tira('Makeshift Munitions', 'library', 'hand'));
+    let wt = z.hand.find(o => s.objects[o].name === 'Wear // Tear'); if (!wt) { wt = tira('Wear // Tear', 'library'); z.hand.push(wt); s.objects[wt].zone = 'hand'; }
+    return { rel, mun, wt }; });
+  await page.evaluate(() => window.__estanteMesa.redesenha && window.__estanteMesa.redesenha());
+  await page.locator('#tb-hand .tb-card[aria-label^="Wear"]').first().click(); await page.waitForSelector('.ds-dialog'); await page.waitForTimeout(400);
+  const botoes = (await page.locator('.ds-dialog .tb-sheet__actions button').allInnerTexts()).map(x => x.replace(/\s+/g, ' ').trim());
+  for (const b of ['Conjurar Wear · {1}{R}', 'Conjurar Tear · {W}', 'Fundir: Wear e Tear · {1}{R}{W}']) assert.ok(botoes.includes(b), b + ': ' + JSON.stringify(botoes));
+  for (const b of await page.locator('.ds-dialog .tb-sheet__actions button', { hasText: /^(Conjurar|Fundir)/ }).all()) { const cx = await b.boundingBox(); assert.ok(cx && cx.height >= 44, 'botão com 44 px de altura ou mais: ' + JSON.stringify(cx)); }
+  await auditaTela(page, 'folha da carta dividida com fundir');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/t34-fundir.png' });
+  await page.locator('.ds-dialog .tb-sheet__actions button', { hasText: /^Fundir/ }).click(); await page.waitForTimeout(300);
+  const par = page.locator('#tb-alvos button', { hasText: 'Relic of Progenitus + Makeshift Munitions' });
+  if (await par.count()) { await auditaTela(page, 'alvos da fundida aos pares'); await par.first().click(); await page.waitForTimeout(300); }
+  await M.resolve();
+  await page.waitForFunction(i => { const s = window.__estanteMesa.estado(); return s.objects[i.wt].zone === 'graveyard'; }, ids, { timeout: 5000 });
+  const fim = await page.evaluate(i => { const s = window.__estanteMesa.estado(); return [s.objects[i.rel].zone, s.objects[i.mun].zone, s.objects[i.wt].name]; }, ids);
+  assert.deepEqual(fim, ['graveyard', 'graveyard', 'Wear // Tear'], 'as duas metades resolveram e a carta inteira foi ao cemitério');
+  const linhas = await page.evaluate(() => (window.__estanteMesa.registro ? window.__estanteMesa.registro() : []).map(String));
+  if (linhas.length) assert.ok(linhas.some(l => /Wear \/\/ Tear \(fundida: Wear e Tear\)/.test(l)), 'registro: ' + JSON.stringify(linhas.slice(-6)));
+  assert.deepEqual(M.errors, []);
+});

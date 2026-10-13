@@ -5012,6 +5012,11 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `HANDLERS.cast` (uma linha: a marca de exílio da metade de consequência).
 - **Próximo:** T-34 fundir carta dividida (fuse, 702.102).
 
+**CR5-T34 · Fundir carta dividida (fuse, 702.102)** ✅ (leva T-34, sem mudança de versão do motor) — **Valor:** as cartas divididas com fundir (Dragon's Maze) jogam inteiras: da mão, cada metade sozinha ou as duas juntas. **Aceite:** com `self.fundir`, da mão, além de uma oferta por metade, a oferta "fundida": a carta inteira vai para a pilha com os dois nomes, o custo das duas metades, as duas cores e o valor de mana somado, com um alvo para cada metade, e resolve a esquerda e depois a direita (702.102a–d); do cemitério, do exílio ou fora da mão não há fundida, nem por pedido direto; conjurar sem pagar da mão também oferece a fundida. Mesa: botão "Fundir: Wear e Tear · {1}{R}{W}" e os alvos aos pares; registro "(fundida: Wear e Tear)". **Testes:** `tipos.fundir.unit` (9; falham sem a leva) e o teste de tela T-34 (com auditaTela). Carta: Wear // Tear (Oracle do Forge, consulta de 13/10/2026). **Depende de:** CR5-T10. **Fora:** cópia de mágica dividida fundida (709.3c, 707.12) segue com o motor.
+- **Versão e goldens:** a versão não sobe; goldens idênticos.
+- **Toca ponto comum:** `createGame` (uma linha: a carta inteira com fundir resolve as instruções das duas metades).
+- **Próximo:** T-35 auditoria independente (correções da T-33 e fundir); depois as parciais da CR5 (712.x, 715.3, 716.2, 303.4, 309.x).
+
 **CR6 · Multijogador e variantes** ○ — mesa de três e quatro (800–803, 806), Commander de mesa (903.2), Brawl (903.12); as variantes hoje "fora" só entram por decisão. 10 a 14 levas.
 
 **CR7 · Consolidação** ○ (em paralelo a partir da CR2) — a cada fase: fuzz em modo completo com listas reais, homologação por revisor independente relendo a seção das regras contra o motor, e rodada de simulação do dono do produto. 6 a 8 levas ao todo.

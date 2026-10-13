@@ -6605,6 +6605,10 @@ const RAW_SCRIPTS = [
   { name: 'Spring // Mind', self: { dividida: true, mana: '{2}{G}', types: ['sorcery'] }, effects: [{ do: 'search', amount: 1, filter: { types: ['land'], basic: true }, to: 'battlefield-tapped' }], // "Search your library for a basic land card, put it onto the battlefield tapped, then shuffle."
     back: { name: 'Mind', types: ['instant'], mana: '{4}{U}{U}', effects: [{ do: 'draw', amount: 2 }], aftermath: true }, // "Aftermath · Draw two cards."
     example: { target: 'none', expect: { selfLife: 0 } } },
+  // T-34 · CR 702.102 · fundir (Oracle do Forge, consulta de 13/10/2026). `self.fundir`: da mão, além de cada metade, as duas juntas.
+  { name: 'Wear // Tear', self: { dividida: true, mana: '{1}{R}', types: ['instant'], fundir: true }, effects: [{ do: 'destroy', target: 'artifact' }], // "Destroy target artifact. · Fuse"
+    back: { name: 'Tear', types: ['instant'], mana: '{W}', effects: [{ do: 'destroy', target: 'enchantment' }] }, // "Destroy target enchantment. · Fuse"
+    example: { target: 'enemy-permanent', expect: { gone: true } } },
   // T-31 · CR 702.171 · selar (Oracle do Forge, consulta de 13/10/2026). A ficha de Ovelha é a w_1_1_sheep do Forge. Vigilância vem da palavra-chave.
   { name: 'Bridled Bighorn', self: { selar: 2 }, abilities: [{ kind: 'triggered', when: 'attacks', condition: { selada: true }, effects: [{ do: 'token', amount: 1, token: { name: 'Sheep', types: ['creature'], subtypes: ['Sheep'], colors: ['W'], power: 1, toughness: 1 } }] }], // "Whenever Bridled Bighorn attacks while saddled, create a 1/1 white Sheep creature token. · Saddle 2"
     example: { action: 'activate:0', target: 'none', expect: { selfLife: 0 } } },
@@ -9070,7 +9074,7 @@ Object.assign(EXPORTS_T_SC, { batalhaErros });
    `back: { name, types, mana, colors, effects }` é a direita. Salas (709.5) e fundir/aftermath ficam fora desta forma. */
 function divididaErros(sc) {
   const errs = [], sf = sc && sc.self, dv = sf && sf.dividida;
-  if (dv == null) return errs;
+  if (dv == null) return sf && sf.fundir != null ? ['fundir: self.fundir só existe numa carta dividida de instantânea ou feitiço (702.102)'] : errs; // T-34
   if (dv !== true) errs.push('dividida: self.dividida só vale como true');
   if (sf.modal || sf.duplaFace || sf.aventura) errs.push('dividida: a carta é dividida, modal, de transformar ou de aventura, não as duas');
   if (!(typeof sf.mana === 'string' && /\{/.test(sf.mana))) errs.push('dividida: falta o custo da metade esquerda (self.mana)');
@@ -9081,6 +9085,8 @@ function divididaErros(sc) {
   if (!ok(sc.back.types)) errs.push('dividida: as metades são instantânea ou feitiço (back.types)');
   if (sc.back.aftermath != null && (sc.back.aftermath !== true || sf.sala)) errs.push('consequência: back.aftermath só vale como true, numa carta dividida de instantânea ou feitiço'); // T-32 · CR 702.127
   if (sf.aftermath != null) errs.push('consequência: só a metade direita tem consequência (back.aftermath)'); // T-32
+  if (sf.fundir != null && (sf.fundir !== true || sf.sala || sc.back.aftermath)) errs.push('fundir: self.fundir só vale como true, numa carta dividida de instantânea ou feitiço sem consequência'); // T-34 · CR 702.102
+  if (sc.back.fundir != null) errs.push('fundir: a palavra-chave vale para a carta inteira (self.fundir)'); // T-34
   return errs;
 }
 Object.assign(EXPORTS_T_SC, { divididaErros });
@@ -17390,6 +17396,7 @@ function createGame(setup) {
     if (sc.self && sc.self.devoid) f.colors = []; // R7 · desprovido de cor (702.114): incolor mesmo com mana colorida no custo
     if (sc.self && Array.isArray(sc.self.keywords)) { for (const k of sc.self.keywords) if (!f.kw.includes(k)) f.kw.push(k); if (f.kw.includes('flash')) f.flash = true; }
     if (sc.self && sc.self.nivelar) fatosDoNivelarT(f, sc); // T-24 · CR 711.5 · as palavras das barras só valem pela barra (Toca ponto comum: createGame)
+    if (sc.self && sc.self.fundir && sc.back) f.script.effects = (sc.effects || []).concat(sc.back.effects || []); // T-34 · CR 702.102d: a carta inteira (a fundida) resolve a esquerda e depois a direita; cada metade conjurada sozinha usa os fatos dela (Toca ponto comum: createGame)
     if (sc.choose) f.script.choose = sc.choose;
     if (sc.staticRule) f.script.staticRule = sc.staticRule;
     if (sc.cumulativeUpkeep) f.script.cumulativeUpkeep = sc.cumulativeUpkeep; // CR 702.24
@@ -26802,16 +26809,24 @@ function fatosDaDivididaT(s, sc, setup, fd) {
 function divididaEscolhidaT(s, a, o) {
   const sc = o && !o.frontName && divididaScriptT(s, o); if (!sc) return false;
   const lado = a.face == null ? 'esquerda' : a.face;
+  if (lado === 'fundida') { // T-34 · CR 702.102a/c: as duas metades juntas, só da mão; a carta inteira vai para a pilha (custo somado, os dois nomes)
+    if (!sc.self.fundir) throw new RuleError('face', 'só a carta com fundir conjura as duas metades');
+    if (o.zone !== 'hand') throw new RuleError('face', 'a carta só é fundida quando conjurada da mão');
+    if (a.omen || a.disturb || a.faceDown || a.bestow || a.flashback) throw new RuleError('face', 'a fundida é conjurada pelo custo das duas metades');
+    return true;
+  }
   if (lado !== 'esquerda' && lado !== 'direita') throw new RuleError('face', 'escolha a metade da carta dividida: esquerda ou direita');
   if (a.omen || a.disturb || a.faceDown || a.bestow) throw new RuleError('face', 'a metade é conjurada pelo custo dela');
   if (lado === 'direita' && consequenciaDaCartaT(s, o) && o.zone !== 'graveyard') throw new RuleError('face', `${direitaT(sc)} tem consequência: só é conjurada do cemitério`); // T-32 · CR 702.127a
   flipTo(s, o, lado === 'direita' ? direitaT(sc) : esquerdaT(sc));
   return true;
 }
+/** T-34 · CR 702.102a · a oferta da carta inteira vira a fundida quando a carta tem fundir e está na mão (pelo custo das duas metades). */
+function fundidaOfertaT(s, a) { const o = s.objects[a.oid], sc = o && divididaScriptT(s, o); return !!(sc && sc.self.fundir && o.zone === 'hand' && !a.omen && !a.disturb && !a.faceDown && !a.bestow && !a.flashback); }
 function divididaOfertas(s, p, out) {
   const aqui = s.zones[p].hand.concat(s.zones[p].exile.filter(oid => jogavelDoExilio(s, p, s.objects[oid])), s.zones[p].graveyard).filter(oid => !s.objects[oid].frontName && metadesDe(s, oid));
   if (!aqui.length) return;
-  for (let i = out.length - 1; i >= 0; i--) if (out[i].t === 'cast' && aqui.includes(out[i].oid) && out[i].face == null) out.splice(i, 1); // a carta inteira não é conjurada (709.3)
+  for (let i = out.length - 1; i >= 0; i--) if (out[i].t === 'cast' && aqui.includes(out[i].oid) && out[i].face == null) { if (fundidaOfertaT(s, out[i])) out[i] = { ...out[i], face: 'fundida' }; else out.splice(i, 1); } // a carta inteira não é conjurada (709.3), salvo a fundida da mão (T-34 · 702.102a)
   for (const lado of ['esquerda', 'direita']) {
     const s2 = cloneEstado(s); for (const oid of aqui) { const sc = divididaScriptT(s2, s2.objects[oid]); flipTo(s2, s2.objects[oid], lado === 'direita' ? direitaT(sc) : esquerdaT(sc)); }
     DENTRO_DAS_MODAIS = true;
@@ -26829,7 +26844,7 @@ function faceGratisOfertasT(s, p, out) {
   const div = ops.filter(oid => metadesDe(s, oid));
   const mod = ops.filter(oid => { const o = s.objects[oid], fv = !div.includes(oid) && faceDeTras(s, oid); return fv && (o.zone === 'hand' || (o.zone === 'exile' && jogavelDoExilio(s, p, o))) && !((s.facts[fv.nome] || {}).types || []).includes('land'); }); // a mesma conferência de faceEscolhidaT
   if (!div.length && !mod.length) return;
-  for (let i = out.length - 1; i >= 0; i--) if (out[i].t === 'cast_free' && div.includes(out[i].oid) && out[i].face == null) out.splice(i, 1); // a carta inteira não é conjurada (709.3)
+  for (let i = out.length - 1; i >= 0; i--) if (out[i].t === 'cast_free' && div.includes(out[i].oid) && out[i].face == null) { if (fundidaOfertaT(s, out[i])) out[i] = { ...out[i], face: 'fundida' }; else out.splice(i, 1); } // a carta inteira não é conjurada (709.3), salvo a fundida da mão (T-34)
   const vira = { esquerda: oid => esquerdaT(divididaScriptT(s, s.objects[oid])), direita: oid => direitaT(divididaScriptT(s, s.objects[oid])), verso: oid => faceDeTras(s, oid).nome };
   for (const [face, quais] of [['esquerda', div], ['direita', div], ['verso', mod]]) {
     if (!quais.length) continue;
@@ -28637,6 +28652,7 @@ function describe(before, a, events, after) {
   if (a.face === 'verso' && L.length) { const fv = E.faceDeTras(before, a.oid), n0 = nameOf(before, a.oid); if (fv) L[L.length - 1] = L[L.length - 1].replace(n0, `${fv.nome} (a outra face de ${n0})`); } // T-8 · CR 712.11b / 712.12 · o registro diz a face jogada
   if (a.face === 'transformada' && L.length) { const o0 = before.objects[a.oid], n0 = nameOf(before, a.oid); if (o0 && o0.cercoT) L[L.length - 1] = L[L.length - 1].replace(n0, `${o0.cercoT} (${n0} transformada)`); } // T-14 · CR 310.12b · o registro diz a face conjurada
   if ((a.face === 'esquerda' || a.face === 'direita') && L.length) { const hs = E.metadesDe(before, a.oid), n0 = nameOf(before, a.oid); if (hs) L[L.length - 1] = L[L.length - 1].replace(n0, `${hs[a.face === 'direita' ? 1 : 0].nome} (metade de ${n0})`); } // T-10 · CR 709.3 · o registro diz a metade
+  if (a.face === 'fundida' && L.length) { const hs = E.metadesDe(before, a.oid), n0 = nameOf(before, a.oid); if (hs) L[L.length - 1] = L[L.length - 1].replace(n0, `${n0} (fundida: ${hs[0].nome} e ${hs[1].nome})`); } // T-34 · CR 702.102 · o registro diz que as duas metades foram conjuradas
   // dano de combate e mortes que acontecem ao passar
   if (a.t === 'pass' || a.t === 'block' || a.t === 'attack') {
     after.players.forEach((pl, i) => { if (pl.life !== before.players[i].life) L.push(linhaDeVida(pl.name, before.players[i].life, pl.life)); });
@@ -31602,6 +31618,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     { const av = E.aventuraDe(s, oid); if (av) for (const b of legal) if (b.action && b.action.t === 'cast' && b.action.omen) b.label = `Aventura · ${av.nome} · ${av.mana}`; } // T-5 · CR 715.3 · a escolha "carta normal ou Aventura": o botão diz Aventura, o nome e o custo
     { const fv = E.faceDeTras(s, oid); if (fv) for (const b of legal) { const ac = b.action; if (!ac) continue; if (ac.face === 'verso') b.label = ac.t === 'play_land' ? `Jogar ${fv.nome}` : `Conjurar ${fv.nome} · ${fv.mana}`; else if (ac.t === 'play_land' && ac.revela == null) b.label = `Jogar ${o.name}`; } } // T-8 · CR 712.11b / 712.12 · dupla face modal: cada botão diz a face
     { const hs = E.metadesDe(s, oid); if (hs) for (const b of legal) { const ac = b.action; if (ac && ac.t === 'cast' && (ac.face === 'esquerda' || ac.face === 'direita')) { const md = hs[ac.face === 'direita' ? 1 : 0]; b.label = `Conjurar ${md.nome}${E.consequenciaT(s, ac) ? ' do cemitério' : ''} · ${md.mana}`; /* T-32 · CR 702.127a */ } } } // T-10 · CR 709.3 · um botão por metade
+    { const hs = E.metadesDe(s, oid); if (hs) for (const b of legal) { const ac = b.action; if (ac && (ac.t === 'cast' || ac.t === 'cast_free') && ac.face === 'fundida') b.label = `Fundir: ${hs[0].nome} e ${hs[1].nome}${ac.t === 'cast' ? ` · ${hs[0].mana}${hs[1].mana}` : ''}`; } } // T-34 · CR 702.102 · o botão da fundida
     // S34: conceder
     for (const bw of E.legalActions(s, v).filter(x => x.t === 'cast' && x.oid === oid && x.bestow))
       legal.push(doBtn(`Conceder · ${(f.script.bestow || {}).mana || ''} → ${targetName(s, bw.targets[0])}`, bw, { variant: 'primary' }));
