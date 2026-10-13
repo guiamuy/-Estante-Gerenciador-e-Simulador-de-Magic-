@@ -11260,9 +11260,9 @@
    "n": "718.3",
    "regra": "Prototype Cards",
    "titulo": "Conjurar como protótipo",
-   "status": "parcial",
-   "falta": "T-56 (13/10/2026): 718.3c/d cobertas. Falta: conjurar sem pagar o custo (cascata, descobrir) não oferece o protótipo (mais restritivo que a regra; nada ilegal é aceito). O valor de mana do protótipo que saiu do campo pela última informação já vale desde a M-368 (`ultima.mv` pelo manaValueT).",
-   "evidencia": "T-36 (13/10/2026): self.prototipo = { mana, power, toughness }; a ação de conjurar leva `prototipo: true` (oferta própria, calculada numa cópia com o custo e o tamanho alternativos); a marca `prototipoT` é da conjuração: vale na pilha e no campo e some em qualquer outra mudança de zona. Mesa: \"Conjurar como protótipo · {3}{G} · 3/3\"; registro \"(como protótipo)\". Carta exemplo completa: Boulderbranch Golem (Oracle do Forge, 13/10/2026). T-38 (13/10/2026) · auditoria independente (38 conferências, fuzz de 10.100 ações): \"mágicas verdes custam {1} a menos\" vale para o protótipo conjurado (antes a oferta e a aceitação discordavam). T-56 (13/10/2026): ser protótipo é valor copiável — o registro de cópia leva `prototipoT` do modelo (aplicaCopia, entra como cópia) e `prototipoAtivoT` olha também o efeito de cópia vigente mais novo; a ficha que copia um protótipo nasce protótipo; a cópia de uma mágica de protótipo (tempestade, 707.10) leva a marca pelas marcas da mágica e vira ficha de protótipo.",
+   "status": "coberta",
+   "falta": "T-63 (13/10/2026): coberta — a conjuração sem pagar o custo (cascata, descobrir, suspender) também oferece o protótipo, com o limite de valor de mana do efeito conferido pelo custo alternativo (718.3a). O valor de mana do protótipo que saiu do campo pela última informação já vale desde a M-368 (`ultima.mv` pelo manaValueT).",
+   "evidencia": "T-36 (13/10/2026): self.prototipo = { mana, power, toughness }; a ação de conjurar leva `prototipo: true` (oferta própria, calculada numa cópia com o custo e o tamanho alternativos); a marca `prototipoT` é da conjuração: vale na pilha e no campo e some em qualquer outra mudança de zona. Mesa: \"Conjurar como protótipo · {3}{G} · 3/3\"; registro \"(como protótipo)\". Carta exemplo completa: Boulderbranch Golem (Oracle do Forge, 13/10/2026). T-38 (13/10/2026) · auditoria independente (38 conferências, fuzz de 10.100 ações): \"mágicas verdes custam {1} a menos\" vale para o protótipo conjurado (antes a oferta e a aceitação discordavam). T-56 (13/10/2026): ser protótipo é valor copiável — o registro de cópia leva `prototipoT` do modelo (aplicaCopia, entra como cópia) e `prototipoAtivoT` olha também o efeito de cópia vigente mais novo; a ficha que copia um protótipo nasce protótipo; a cópia de uma mágica de protótipo (tempestade, 707.10) leva a marca pelas marcas da mágica e vira ficha de protótipo. T-63 (13/10/2026): prototipoGratisOfertasT (na decisão free_cast, uma oferta `prototipo: true` ao lado de cada oferta normal, se o valor de mana do protótipo cabe no limite); aventuraGratisConfereT recusa o protótipo acima do limite; a folha \"conjurar sem pagar\" mostra o protótipo como grupo próprio (\"Boulderbranch Golem (protótipo · 3/3)\"); o registro ganhou a linha da conjuração sem pagar.",
    "testes": [
     "CR 601.2f / 718.3b · \"mágicas verdes ou vermelhas custam {1} a menos\": o protótipo (verde) custa {2}{G}; oferta e aceitação concordam",
     "CR 718.3a/b · como protótipo: paga {3}{G}; na pilha e no campo é 3/3, verde, valor de mana 4; a entrada ganha 3 de vida",
@@ -11271,7 +11271,9 @@
     "CR 718.3 · pedido direto: protótipo de carta sem protótipo é recusado; protótipo do cemitério (sem permissão) também",
     "CR 718.3d · Clone que entra copiando um protótipo tem o tamanho e o valor de mana do protótipo (3/3, valor 4)",
     "CR 718.3d · a ficha que copia um protótipo também é protótipo; copiando o Golem normal, 6/5",
-    "CR 718.3c · a cópia (tempestade) de uma mágica de protótipo também é protótipo: a ficha que ela vira tem o tamanho alternativo"
+    "CR 718.3c · a cópia (tempestade) de uma mágica de protótipo também é protótipo: a ficha que ela vira tem o tamanho alternativo",
+    "CR 718.3 / 701.57a · descobrir: a carta de protótipo achada pode ser conjurada sem pagar normal (6/5) ou como protótipo (3/3 verde, valor de mana 4)",
+    "CR 702.85a / 718.3 · cascata: a carta de protótipo achada pode ser conjurada como protótipo; o registro diz \"(como protótipo)\""
    ],
    "esforco": "M",
    "depende": [

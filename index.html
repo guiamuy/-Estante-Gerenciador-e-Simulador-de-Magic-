@@ -28482,6 +28482,7 @@ function faceGratisOfertasT(s, p, out) {
   const div = ops.filter(oid => metadesDe(s, oid));
   const mod = ops.filter(oid => { const o = s.objects[oid], fv = !div.includes(oid) && faceDeTras(s, oid); return fv && (o.zone === 'hand' || (o.zone === 'exile' && jogavelDoExilio(s, p, o))) && !((s.facts[fv.nome] || {}).types || []).includes('land'); }); // a mesma conferência de faceEscolhidaT
   aventuraGratisOfertasT(s, p, out, ops.filter(oid => aventuraDe(s, oid))); // T-40 · CR 715.3d · "conjure sem pagar" também como Aventura
+  prototipoGratisOfertasT(s, p, out, ops.filter(oid => prototipoDaCartaT(s, s.objects[oid]))); // T-63 · CR 718.3 · "conjure sem pagar" também como protótipo
   if (!div.length && !mod.length) return;
   for (let i = out.length - 1; i >= 0; i--) if (out[i].t === 'cast_free' && div.includes(out[i].oid) && out[i].face == null) { if (fundidaOfertaT(s, out[i])) out[i] = { ...out[i], face: 'fundida' }; else out.splice(i, 1); } // a carta inteira não é conjurada (709.3), salvo a fundida da mão (T-34)
   fundidaMesmoAlvoT(s, p, out, div); // T-35 · CR 115.3
@@ -28505,9 +28506,21 @@ function limiteDaAventuraGratisT(s, pk, oid) {
 }
 const valorDaAventuraT = (s, oid) => ((s.facts[aventuraDe(s, oid).nome] || {}).cmc || 0);
 function aventuraGratisConfereT(s, pk, a) { // na decisão "sem pagar", o pedido da Aventura acima do limite é recusado
+  if (a.prototipo) { const pr = prototipoDaCartaT(s, s.objects[a.oid]), lim = pr && limiteDaAventuraGratisT(s, pk, a.oid); if (pr && lim != null && valorDoCustoT(parseCost(pr.mana)) > lim) throw new RuleError('protótipo', 'o protótipo tem valor de mana acima do que este efeito deixa conjurar'); } // T-63 · CR 718.3a / 702.85a / 701.57a: como protótipo, vale o valor de mana alternativo
   if (!a.omen || !aventuraDe(s, a.oid)) return;
   const lim = limiteDaAventuraGratisT(s, pk, a.oid);
   if (lim != null && valorDaAventuraT(s, a.oid) > lim) throw new RuleError('aventura', `a Aventura tem valor de mana ${valorDaAventuraT(s, a.oid)}: acima do que este efeito deixa conjurar`);
+}
+/** T-63 · CR 718.3 · na decisão "conjurar sem pagar" (cascata, descobrir, suspender…), a carta de protótipo também pode ser conjurada como
+ * protótipo: uma oferta `prototipo: true` ao lado de cada oferta normal (os alvos são os mesmos, 718.5), se o valor de mana do protótipo
+ * cabe no limite do efeito (718.3a: ao conjurar, vale o custo alternativo). O custo não é pago (118.9); o tamanho e a cor valem desde a conjuração. */
+function prototipoGratisOfertasT(s, p, out, cand) {
+  if (!cand.length) return;
+  for (const x of out.slice()) {
+    if (x.t !== 'cast_free' || !cand.includes(x.oid) || x.face != null || x.omen || x.prototipo || x.faceDown || x.disturb || x.bestow) continue;
+    const pr = prototipoDaCartaT(s, s.objects[x.oid]), lim = limiteDaAventuraGratisT(s, s.pending, x.oid);
+    if (lim == null || valorDoCustoT(parseCost(pr.mana)) <= lim) out.push({ ...x, prototipo: true });
+  }
 }
 function aventuraGratisOfertasT(s, p, out, avs) {
   avs = avs.filter(oid => { const lim = limiteDaAventuraGratisT(s, s.pending, oid); return lim == null || valorDaAventuraT(s, oid) <= lim; }); // T-41
@@ -28522,9 +28535,9 @@ function aventuraGratisOfertasT(s, p, out, avs) {
 function gruposGratisT(s, opts) {
   const gs = [];
   for (const a of opts) {
-    const k = a.oid + '|' + (a.face || (a.omen ? 'aventura' : '')); let g = gs.find(x => x.k === k); // T-40 · a Aventura é um grupo próprio
+    const k = a.oid + '|' + (a.face || (a.omen ? 'aventura' : '')) + (a.prototipo ? '|prototipo' : ''); let g = gs.find(x => x.k === k); // T-40 · a Aventura é um grupo próprio · T-63 · e o protótipo
     if (!g) { const md = (a.face === 'esquerda' || a.face === 'direita') && metadesDe(s, a.oid), fv = a.face === 'verso' && faceDeTras(s, a.oid);
-      g = { k, oid: a.oid, face: a.face || null, nome: md ? md[a.face === 'direita' ? 1 : 0].nome : fv ? fv.nome : a.face === 'transformada' ? ((s.objects[a.oid] || {}).cercoT || null) : a.omen && aventuraDe(s, a.oid) ? aventuraDe(s, a.oid).nome : null, da: [] }; gs.push(g); } // T-40 · o nome da Aventura // T-14 · face 'transformada': o nome é o do verso do Cerco
+      g = { k, oid: a.oid, face: a.face || null, nome: md ? md[a.face === 'direita' ? 1 : 0].nome : fv ? fv.nome : a.face === 'transformada' ? ((s.objects[a.oid] || {}).cercoT || null) : a.omen && aventuraDe(s, a.oid) ? aventuraDe(s, a.oid).nome : a.prototipo && prototipoDaCartaT(s, s.objects[a.oid]) ? `${s.objects[a.oid].name} (protótipo · ${prototipoDaCartaT(s, s.objects[a.oid]).power}/${prototipoDaCartaT(s, s.objects[a.oid]).toughness})` : null, da: [] }; gs.push(g); } // T-63 · o protótipo com o tamanho // T-40 · o nome da Aventura // T-14 · face 'transformada': o nome é o do verso do Cerco
     g.da.push(a);
   }
   return gs;
@@ -30306,6 +30319,7 @@ function describe(before, a, events, after) {
     case 'cycle': L.push(`${P} ciclou ${nameOf(before, a.oid)}`); break;
     case 'ninjutsu': L.push(`${P} usou ninjutsu: ${nameOf(before, a.attacker)} voltou e ${nameOf(before, a.oid)} entrou atacando`); break;
     case 'cast_madness': L.push(`${P} conjurou ${nameOf(before, before.pending.oid)} por insanidade`); break;
+    case 'cast_free': { const alvo = (a.targets || []).map(x => x.player != null ? who(before, x.player) : nameOf(before, x.oid)).join(', '); L.push(`${P} conjurou ${nameOf(before, a.oid)} sem pagar${alvo ? ` · alvo: ${alvo}` : ''}`); break; } // T-63 · a conjuração sem pagar (cascata, descobrir…) entra no registro (Toca ponto comum: linhas do registro)
     case 'decline_madness': L.push(`${P} deixou ${nameOf(before, before.pending.oid)} ir para o cemitério`); break;
     // Leva 110 · "pagar" serve a dois casos: custo de "a menos que pague" e custo opcional de efeito
     case 'pay': { const pd = before.pending || {}; const alvo = before.objects[pd.target];
@@ -30347,7 +30361,8 @@ function describe(before, a, events, after) {
   if (a.face === 'fundida' && L.length) { const hs = E.metadesDe(before, a.oid), n0 = nameOf(before, a.oid); if (hs) L[L.length - 1] = L[L.length - 1].replace(n0, `${n0} (fundida: ${hs[0].nome} e ${hs[1].nome})`); } // T-34 · CR 702.102 · o registro diz que as duas metades foram conjuradas
   if (a.t === 'cast' && L.length && (before.objects[a.oid] || {}).copiaPreparoT) { const n0 = nameOf(before, a.oid); L[L.length - 1] = L[L.length - 1].replace(n0, `uma cópia de ${n0} (mágica de preparação)`); } // T-52 · CR 722.3c · o registro diz que é a cópia
   if (a.face === 'convertida' && a.t === 'cast' && L.length) { const n0 = nameOf(before, a.oid), o1 = after.objects[a.oid]; if (o1 && o1.name !== n0) L[L.length - 1] = L[L.length - 1].replace(n0, `${o1.name} (convertida)`); } // T-49 · CR 702.162a
-  if (a.prototipo && a.t === 'cast' && L.length) { const n0 = nameOf(before, a.oid); L[L.length - 1] = L[L.length - 1].replace(n0, `${n0} (como protótipo)`); } // T-36 · CR 718.3
+  if (a.prototipo && (a.t === 'cast' || a.t === 'cast_free') && L.length) { // T-63 · também sem pagar
+    const n0 = nameOf(before, a.oid); L[L.length - 1] = L[L.length - 1].replace(n0, `${n0} (como protótipo)`); } // T-36 · CR 718.3
   // dano de combate e mortes que acontecem ao passar
   if (a.t === 'pass' || a.t === 'block' || a.t === 'attack') {
     after.players.forEach((pl, i) => { if (pl.life !== before.players[i].life) L.push(linhaDeVida(pl.name, before.players[i].life, pl.life)); });

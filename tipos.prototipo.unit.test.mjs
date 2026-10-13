@@ -215,3 +215,60 @@ test('CR 707.2 / 718.2a · o efeito de cópia mais novo decide: a ficha de prot�
   s = passaAte(s, x => x.turn.active === 1 && x.turn.step === 'main1' && !x.stack.length && !x.pending);
   eq(pt(s, g), [3, 3], 'a cópia acabou: volta ao protótipo');
 });
+
+/* ---------------- T-63 · CR 718.3 · conjurar sem pagar o custo também como protótipo (descobrir, cascata) ---------------- */
+const comGratis = (seed = 5) => {
+  const sc = { ...SCRIPTS, 'Descobre Sete': { name: 'Descobre Sete', effects: [{ do: 'discover', amount: 7 }], ...EX }, // "Discover 7."
+    'Cascata Oito': { name: 'Cascata Oito', effects: [{ do: 'gain', amount: 1 }], ...EX } }; // "Cascade · You gain 1 life."
+  C['Descobre Sete'] = { name: 'Descobre Sete', type_line: 'Sorcery', mana_cost: '{1}', cmc: 1, keywords: [], oracle_text: 'Discover 7.', colors: [] };
+  C['Cascata Oito'] = { name: 'Cascata Oito', type_line: 'Sorcery', mana_cost: '{8}', cmc: 8, keywords: ['Cascade'], oracle_text: 'Cascade\nYou gain 1 life.', colors: [] };
+  const deck = [{ name: BG, qty: 6, zone: 'main' }, ...['Descobre Sete', 'Cascata Oito', 'Volta'].map(name => ({ name, qty: 3, zone: 'main' })), { name: 'Forest', qty: 14, zone: 'main' }, { name: 'Island', qty: 12, zone: 'main' }];
+  let s = E.createGame({ format: 'livre', seed, mode: 'full', cards: C, scripts: sc, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  return passaAte(s, x => x.turn.active === 0 && x.turn.step === 'main1' && !x.stack.length && !x.pending);
+};
+const noTopoT63 = (s, p, oid) => { s = J(s); const z = s.zones[p], o = s.objects[oid]; z[o.zone].splice(z[o.zone].indexOf(oid), 1); o.zone = 'library'; z.library.unshift(oid); return s; };
+const gratis = (s, oid) => legais(s, 0, x => x.t === 'cast_free' && x.oid === oid);
+/** o Golem no topo e a mágica que o acha (descobrir 7 ou cascata 8) resolvendo até a decisão "conjurar sem pagar". */
+const achaGolem = (nome, seed) => {
+  let s = comGratis(seed); let g; [s, g] = poe(s, 0, BG, 'hand'); s = noTopoT63(s, 0, g);
+  let m; [s, m] = poe(s, 0, nome, 'hand'); s = mana(s, 0, { G: 9, C: 9 });
+  s = act(s, conjuras(s, 0, m)[0]); for (let i = 0; i < 6 && !(s.pending && s.pending.kind === 'free_cast'); i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  assert.ok(s.pending && s.pending.kind === 'free_cast' && s.pending.options.includes(g), `${nome} achou o Golem`);
+  return [s, g];
+};
+
+test('CR 718.3 / 701.57a · descobrir: a carta de protótipo achada pode ser conjurada sem pagar normal (6/5) ou como protótipo (3/3 verde, valor de mana 4)', () => {
+  let [s, g] = achaGolem('Descobre Sete', 5);
+  eq([gratis(s, g).some(x => x.prototipo), gratis(s, g).some(x => !x.prototipo)], [true, true]);
+  const antes = pool(s);
+  let x = esvazia(act(s, gratis(s, g).find(a => a.prototipo)));
+  const o = x.objects[g];
+  eq([o.zone, pt(x, g), E.manaValueT(x, o), pool(x) === antes], ['battlefield', [3, 3], 4, true], 'sem pagar: a reserva de mana não muda');
+  let y = esvazia(act(s, gratis(s, g).find(a => !a.prototipo)));
+  eq([y.objects[g].zone, pt(y, g), E.manaValueT(y, y.objects[g])], ['battlefield', [6, 5], 7]);
+});
+
+test('CR 702.85a / 718.3 · cascata: a carta de protótipo achada pode ser conjurada como protótipo; o registro diz "(como protótipo)"', () => {
+  let [s, g] = achaGolem('Cascata Oito', 7);
+  const a = gratis(s, g).find(x => x.prototipo); assert.ok(a, 'oferta do protótipo na cascata');
+  const r = E.apply(s, a); const linhas = T.describe(s, a, r.events, r.state).join(' | ');
+  assert.ok(/Boulderbranch Golem \(como protótipo\)/.test(linhas), linhas);
+  s = esvazia(r.state);
+  eq([s.objects[g].zone, pt(s, g)], ['battlefield', [3, 3]]);
+});
+
+test('Mesa · na decisão "conjurar sem pagar", o protótipo é um grupo próprio com o tamanho no nome', () => {
+  let [s, g] = achaGolem('Descobre Sete', 5);
+  const gs = E.gruposGratisT(s, gratis(s, g));
+  eq(gs.map(x => x.nome).sort((a, b) => String(a).localeCompare(String(b))), [null, `${BG} (protótipo · 3/3)`].sort((a, b) => String(a).localeCompare(String(b))));
+});
+
+test('CR 718.3 · sem pagar, pedir o protótipo de uma carta que não tem protótipo é recusado', () => {
+  let s = comGratis(5); let m; [s, m] = poe(s, 0, 'Descobre Sete', 'hand'); s = mana(s, 0, { G: 9, C: 9 });
+  let v; [s, v] = poe(s, 0, 'Descobre Sete', 'hand'); s = noTopoT63(s, 0, v);
+  s = act(s, conjuras(s, 0, m)[0]); for (let i = 0; i < 6 && !(s.pending && s.pending.kind === 'free_cast'); i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  assert.ok(s.pending && s.pending.kind === 'free_cast' && s.pending.options.includes(v));
+  eq(gratis(s, v).some(x => x.prototipo), false);
+  assert.throws(() => E.apply(s, { ...gratis(s, v)[0], prototipo: true }), /protótipo/);
+});
