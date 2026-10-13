@@ -5271,6 +5271,14 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `venture` (309.5b) e `enterRoom` (a marca de completa saiu daqui para a ação de estado); o laço das ações de estado (a linha da trilha ganhou a da masmorra).
 - **Próximo:** auditoria independente de completado e masmorra (T-47); depois 716.2 Classe, mutação e dia e noite.
 
+**CR5-T47 · Completado e masmorra: correções da auditoria independente** ✅ (leva T-47, sem mudança de versão do motor) — revisor sem acesso à implementação rodou 27 sondas e um passeio de 14.682 ações (79 masmorras completadas); 5 divergências, 2 corrigidas e 3 declaradas. 2 testes novos (`tipos.completado.unit` 6; falham sem a leva).
+- **Corrigido:** **306.5b (D1)** — a ficha que é cópia de um planeswalker entrava sem marcador de lealdade e morria na hora; agora entra com a lealdade impressa. **702.150a (D4)** — na mesa que não cobra mana, um pedido de "pagar com vida" reduzia a lealdade sem vida paga; agora o pagamento só fica anotado quando a vida é cobrada.
+- **Fora, declarado:** **D2** — com "dobre os marcadores" (Doubling Season), o motor desconta o completado antes de dobrar (5 → 6), sem a escolha de ordem da 616.1e (dobrando antes seria 8). **D3** — o símbolo phyrexiano híbrido ({G/U/P}) só aceita a primeira cor no pagamento (107.4f; código do pagamento phyrexiano: pedido à trilha motor; afeta Tamiyo, Compleated Sage e Ajani, Sleeper Agent quando tiverem script). **D5** — com a habilidade da última sala ainda na pilha, completar e chegar de novo ao fim de outra masmorra igual adia a conclusão da nova até a habilidade antiga sair (o total é o mesmo).
+- **Conferido e correto pela auditoria:** completado com um e dois símbolos, lealdade 0 vai ao cemitério, `self.completado`, a marca some na mudança de zona, ofertas pela vida disponível; masmorra completa depois que a habilidade sai (resolvida ou anulada), aventurar-se na última sala, iniciativa e Cidade Baixa, Trono e Covil depois da decisão, dois jogadores, turno do oponente.
+- **Versão e goldens:** a versão não sobe; goldens idênticos.
+- **Toca ponto comum:** nenhum novo (a lealdade da ficha entra pela função de entrada da trilha, `sagaEntrou`).
+- **Próximo:** 716.2 Classe; mutação; dia e noite.
+
 **CR6 · Multijogador e variantes** ○ — mesa de três e quatro (800–803, 806), Commander de mesa (903.2), Brawl (903.12); as variantes hoje "fora" só entram por decisão. 10 a 14 levas.
 
 **CR7 · Consolidação** ○ (em paralelo a partir da CR2) — a cada fase: fuzz em modo completo com listas reais, homologação por revisor independente relendo a seção das regras contra o motor, e rodada de simulação do dono do produto. 6 a 8 levas ao todo.

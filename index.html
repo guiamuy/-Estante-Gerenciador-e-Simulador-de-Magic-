@@ -26295,6 +26295,13 @@ const custoDoPrototipoT = (s, o) => { const pr = o && o.prototipoT && prototipoD
 MARCAS_DA_CONJURACAO.push('prototipoT');
 MARCAS_DA_CONJURACAO.push('disfarcadaT');
 MARCAS_DA_CONJURACAO.push('vidaPhyrexianaT'); // T-45 · quantos símbolos phyrexianos foram pagos com vida (vai da mão para a pilha e da pilha para o campo)
+/** T-47 · CR 306.5b · a ficha que é planeswalker entra com a lealdade impressa (a carta recebe a dela na linha de entrada do
+ * moveObject; a ficha nasce em createToken, que chama sagaEntrou). Sem a marca da conjuração, o completado não reduz. */
+function lealdadeDaFichaT(s, o) {
+  const f = o && o.token && o.zone === 'battlefield' && s.facts[o.name];
+  if (!f || !(f.types || []).includes('planeswalker') || f.loyalty == null || (o.counters || {}).loyalty != null) return;
+  o.counters = o.counters || {}; o.counters.loyalty = marcadoresAoPor(s, o, 'loyalty', f.loyalty, true);
+}
 /** T-45 · CR 702.150a · completado: quantos marcadores de lealdade a menos na entrada (dois por símbolo phyrexiano pago com vida por
  * quem a conjurou). A palavra vem dos fatos da carta ("Compleated") ou de `self.completado`. */
 const completadoT = (s, o) => { const f = s.facts[o.name] || {}, tem = (f.kw || []).includes('compleated') || !!((f.script || {}).self || {}).completado; return tem && o.vidaPhyrexianaT ? 2 * o.vidaPhyrexianaT : 0; }; // T-42 · vai da mão para a pilha e da pilha para o campo; some em qualquer outra mudança de zona
@@ -27049,6 +27056,7 @@ function sagaPoeLore(s, o, n) {
  * disparam aqui. Com read ahead e sem marcador, o registro guarda `escolhe`: a conferência seguinte abre a decisão do capítulo.
  * Quem já estava no campo e vira Saga não passa por aqui — "as this Saga enters" não vale para ela. */
 function sagaEntrou(s, o) {
+  lealdadeDaFichaT(s, o); // T-47 · CR 306.5b · a ficha de planeswalker (ficha cópia) entra com a lealdade impressa
   salaEntrouT(s, o); // T-26 · CR 709.5d · a Sala entra inteira, com a porta conjurada destrancada
   if (o && ehEquipamentoImpressoT(s, o)) o.entrouEmAbT = s.nextAbility; // T-17 · CR 400.7: a habilidade de equipar criada antes de o Equipamento entrar é do objeto anterior
   auraEntrouT(s, o); // T-22 · CR 303.4f · Aura que entrou sem ser conjurada: anexa à única opção ou abre a escolha
@@ -27406,7 +27414,7 @@ function faceDeTras(s, x) {
 }
 const costStringT = c => (c.x ? '{X}'.repeat(c.x) : '') + (c.generic ? `{${c.generic}}` : '') + (c.hybrid || []).map(h => `{${h}}`).join('') + COLORS.map(k => `{${k}}`.repeat((c.colored || {})[k] || 0)).join('');
 function faceEscolhidaT(s, a, o) {
-  if (o && a.t === 'cast' && Number.isInteger(a.vida) && a.vida > 0) o.vidaPhyrexianaT = a.vida; // T-45 · CR 702.150a: o pagamento com vida fica anotado na conjuração
+  if (o && a.t === 'cast' && Number.isInteger(a.vida) && a.vida > 0 && s.manaCheck && !a.free) o.vidaPhyrexianaT = a.vida; // T-47 · só quando a vida é cobrada // T-45 · CR 702.150a: o pagamento com vida fica anotado na conjuração
   if (a.faceDown && o && ((s.facts[o.name] || {}).script || {}).morph && s.facts[o.name].script.morph.disfarceT) o.disfarcadaT = true; // T-42 · CR 702.168a: conjurada pelo disfarce (a salvaguarda {2} é só dela)
   if (prototipoEscolhidoT(s, a, o)) return; // T-36 · CR 718.3 · como protótipo: o custo, a cor e o tamanho alternativos valem desde a conjuração
   if (cercoEscolhaT(s, a, o)) return; // T-14 · CR 310.12b · o Cerco derrotado é conjurado transformado

@@ -11,16 +11,17 @@ const EX = { example: { target: 'none', expect: { selfLife: 0 } } };
 // planeswalker de teste: {2}{U}{U/P}, lealdade 5, completado; "+1: compre uma carta"
 carta('Sábio Completado', 'Legendary Planeswalker — Teste', { mana_cost: '{2}{U}{U/P}', cmc: 4, keywords: ['Compleated'], oracle_text: 'Compleated', colors: ['U'], loyalty: '5' });
 carta('Sábio Comum', 'Legendary Planeswalker — Outro', { mana_cost: '{2}{U}{U/P}', cmc: 4, keywords: [], oracle_text: '', colors: ['U'], loyalty: '5' });
-carta('Volta', 'Instant');
+carta('Volta', 'Instant'); carta('Imita', 'Sorcery');
 carta('Island', 'Basic Land — Island', { mana_cost: '', cmc: 0, oracle_text: '({T}: Add {U}.)' });
 const SCRIPTS = {
   'Volta': { name: 'Volta', effects: [{ do: 'bounce', target: 'permanent' }], ...EX },
+  'Imita': { name: 'Imita', effects: [{ do: 'ficha_copia', amount: 1, target: 'permanent' }], ...EX },
   'Sábio Completado': { name: 'Sábio Completado', loyalty: [{ cost: 1, label: '+1: compre uma carta', effects: [{ do: 'draw', amount: 1 }] }], ...EX },
   'Sábio Comum': { name: 'Sábio Comum', loyalty: [{ cost: 1, label: '+1: compre uma carta', effects: [{ do: 'draw', amount: 1 }] }], ...EX },
 };
-function mesa(seed = 1) {
-  const deck = [{ name: 'Sábio Completado', qty: 4, zone: 'main' }, { name: 'Sábio Comum', qty: 4, zone: 'main' }, { name: 'Volta', qty: 3, zone: 'main' }, { name: 'Island', qty: 29, zone: 'main' }];
-  let s = E.createGame({ format: 'livre', seed, mode: 'full', cards: C, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+function mesa(seed = 1, opts = {}) {
+  const deck = [{ name: 'Sábio Completado', qty: 4, zone: 'main' }, { name: 'Sábio Comum', qty: 4, zone: 'main' }, { name: 'Volta', qty: 3, zone: 'main' }, { name: 'Imita', qty: 3, zone: 'main' }, { name: 'Island', qty: 26, zone: 'main' }];
+  let s = E.createGame({ format: 'livre', seed, mode: 'full', ...opts, cards: C, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
   for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
   return passaAte(s, x => x.turn.active === 0 && x.turn.step === 'main1' && !x.stack.length && !x.pending);
 }
@@ -52,4 +53,23 @@ test('CR 702.150a · 400.7 · a marca do pagamento é da conjuração: devolvido
   eq([s.objects[c].zone, s.objects[c].vidaPhyrexianaT || 0], ['hand', 0]);
   s = mana(s); s = esvazia(act(s, legais(s, 0, a => a.t === 'cast' && a.oid === c && !(a.vida || 0))[0]));
   eq(s.objects[c].counters.loyalty, 5);
+});
+
+/* ---------------- T-47 · correção da auditoria independente ---------------- */
+test('CR 306.5b · a ficha que é cópia de um planeswalker entra com a lealdade impressa (não foi conjurada: o completado não reduz)', () => {
+  let [s, c] = conjura(mesa(), 'Sábio Completado', 1);
+  let m; [s, m] = poe(s, 0, 'Imita', 'hand'); s = mana(s);
+  s = esvazia(act(s, legais(s, 0, a => a.t === 'cast' && a.oid === m && a.targets[0].oid === c)[0]));
+  const ficha = Object.values(s.objects).find(o => o.token && o.name === 'Sábio Completado');
+  assert.ok(ficha, 'a ficha cópia existe');
+  eq([ficha.zone, ficha.counters.loyalty, !!ficha.vidaPhyrexianaT], ['battlefield', 5, false]);
+});
+
+test('CR 702.150a / 107.4f · na mesa que não cobra mana, um "pagar com vida" sem vida paga não reduz a lealdade', () => {
+  let s = mesa(1, { mode: 'assisted', manaCheck: false }); let c; [s, c] = poe(s, 0, 'Sábio Completado', 'hand');
+  const base = legais(s, 0, x => x.t === 'cast' && x.oid === c)[0]; assert.ok(base);
+  const vida = s.players[0].life;
+  let r; try { r = E.apply(s, { ...base, vida: 1 }).state; } catch (e) { return; } // recusar também vale
+  r = esvazia(r);
+  assert.ok(!(r.objects[c].counters.loyalty < 5 && vida === r.players[0].life), 'reduziu a lealdade sem pagar vida');
 });
