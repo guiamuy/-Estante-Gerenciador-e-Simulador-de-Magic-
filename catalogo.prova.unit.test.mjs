@@ -99,3 +99,10 @@ test('H-3 · Shark × Shark com duas listas do acervo: o motor aceita toda jogad
   assert.equal(r.erro, undefined, `${r.erro}: ${r.mensagem}`);
   assert.ok(r.turnos >= 2, `a partida andou (${r.turnos} turnos, ${r.acoes} ações)`);
 });
+
+test('H-11 · a prova usa a conta de cartas do motor: não reconta nem filtra a invariante (cópia de mágica e cópia de preparação são do `invariants`)', async () => {
+  const { readFileSync } = await import('node:fs');
+  const fonte = readFileSync(new URL('./catalogo.prova.mjs', import.meta.url), 'utf8');
+  assert.doesNotMatch(fonte, /copiaDeMagia|cartasSemCopia/, 'nenhuma recontagem própria de cartas (ela não conhecia a cópia de preparação, T-51)');
+  assert.doesNotMatch(fonte, /errs\.filter\(/, 'nenhum erro de invariante é descartado pela prova');
+});

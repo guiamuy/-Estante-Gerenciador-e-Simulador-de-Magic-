@@ -175,7 +175,7 @@ export function joga(setup, comEstado = false, obs = null) {
   if (s.status !== 'playing') return { erro: 'começar', mensagem: `a partida não começou (situação ${s.status})`, cartas: [] };
   const total = Object.keys(s.objects).length;
   let r = (setup.seed * 2654435761) >>> 0, n = 0;
-  const rastro = [], avisos = new Set();
+  const rastro = [];
   for (; n < MAX_ACOES && s.status === 'playing'; n++) {
     const p = s.pending ? s.pending.p : s.turn.priority;
     let l;
@@ -192,16 +192,10 @@ export function joga(setup, comEstado = false, obs = null) {
     catch (e) { return { erro: 'recusada', mensagem: e.message, acao: n, cartas, rastro: rastro.slice(-5), ...(comEstado ? { estado: s, acaoRecusada: x } : {}) }; }
     let errs;
     try { errs = E.invariants(s, total); } catch (e) { errs = ['invariantes quebraram: ' + e.message]; }
-    // achado H-1: `invariants` (v110) conta a cópia de mágica na pilha (copiaDeMagia, 707.10) como carta. Até o motor corrigir, a
-    // conta é refeita aqui sem as cópias e o caso vira aviso (uma vez por partida), para não esconder as outras falhas.
-    const copias = Object.values(s.objects).filter(o => o.copiaDeMagia).length;
-    if (copias && errs.some(e => /^cartas \d+, esperadas/.test(e))) {
-      const cartasSemCopia = Object.values(s.objects).filter(o => !o.ability && !o.token && !o.copiaDeMagia).length;
-      if (cartasSemCopia === total) { errs = errs.filter(e => !/^cartas \d+, esperadas/.test(e)); avisos.add('invariante conta cópia de mágica como carta'); }
-    }
+    // H-11 · a conta de cartas é a do motor (`invariants` ignora cópia de mágica desde a M-355 e a cópia de preparação desde a T-51); a prova não reconta.
     if (errs.length) return { erro: 'invariante', mensagem: errs.join('; '), acao: n, cartas, rastro: rastro.slice(-5), ...(comEstado ? { estado: s } : {}) };
   }
-  return { fim: s.status !== 'playing', acoes: n, turnos: s.turn.number, vencedor: s.winner ?? null, ...(avisos.size ? { avisos: [...avisos] } : {}) };
+  return { fim: s.status !== 'playing', acoes: n, turnos: s.turn.number, vencedor: s.winner ?? null };
 }
 
 /** H-3 · Shark × Shark: os dois assentos com o bot do app (informação justa), como o torneio das listas (torneio.listas.mjs).
@@ -230,7 +224,6 @@ export function jogaShark(setup, max = 1500) {
     try { s = E.apply(s, acao).state; } catch (e) { return { erro: 'recusada', mensagem: `jogada do Shark: ${e.message}`, acao: n, cartas, rastro: rastro.slice(-5) }; }
     if (s.status === 'mulligan') continue;
     let errs; try { errs = E.invariants(s, total); } catch (e) { errs = ['invariantes quebraram: ' + e.message]; }
-    if (Object.values(s.objects).some(o => o.copiaDeMagia)) errs = errs.filter(e => !/^cartas \d+, esperadas/.test(e)); // achado H-1, pedido ao motor
     if (errs.length) return { erro: 'invariante', mensagem: errs.join('; '), acao: n, cartas, rastro: rastro.slice(-5) };
   }
   return { fim: s.status === 'over', acoes: n, turnos: s.turn.number, vencedor: s.winner ?? null, piorMs: pior };

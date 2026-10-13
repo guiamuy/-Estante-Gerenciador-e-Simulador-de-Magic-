@@ -10082,6 +10082,11 @@ O que a cobertura não mede: se a lista que **pode** jogar no modo completo **jo
 - **Testes:** `homologacao.aero.unit` (2; o de regra falha sem a correção); `verbos.aero.unit` e `verbos.auditoria7.unit` intactos.
 - **Fora:** a taxa de quem mira (M-364, Kaervek's Torch) não entra no aerobender: só mágica que mira mágica paga a taxa, e o aerobender conjura permanentes, que não miram mágicas.
 
+**H-11 · A prova confia na conta de cartas do motor** 🟡 (leva H-11, só a ferramenta da prova) — pedido da trilha `tipos` (T-51): a prova recontava as cartas sem a cópia de mágica (contorno da H-1, de quando o `invariants` a contava) e não conhecia a cópia de preparação no exílio (`copiaPreparoT`, 722), que não é carta. Desde a M-355 o motor ignora a cópia de mágica e, com a T-51, a de preparação; o contorno sai e nenhum erro de invariante é mais descartado pela prova.
+- **Placar da prova (13/10 17h, `main` com H-10, T-48…T-50, G-262, motor v112): Pauper 262 de 341 listas jogam**, 0 falhas nas 262 partidas.
+- **Shark × Shark na v112 (duas fatias):** 262 partidas, 0 falhas; 261 até o fim e 1 no limite de 1.500 ações da prova (Jeskai Mulldrifter × Jund Gixian Infiltrator: vida alta dos dois lados, 50 turnos; repetida, terminou no turno 43 por grimório vazio — partida longa, não travada). Pior jogada 6,7 s (espelho de Elfos), mesmo pedido da H-9 à trilha `bot`/`escala`.
+- **Testes:** `catalogo.prova.unit` +1 (falha com o contorno).
+
 ## 8. Como publicar e verificar
 
 ### Publicar a partir de uma conversa (padrão desde a leva 124)
