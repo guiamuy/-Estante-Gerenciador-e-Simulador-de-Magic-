@@ -5649,7 +5649,7 @@ const CHOICE_EFFECTS = ['terreno_da_mao', 'exila_da_mao', 'revela_topo_transform
 /** S47 · condição do próprio efeito, olhando o que foi pago como custo. */
 /** M-249 · 122.1 · marcadores nomeados em português (o tipo é a chave em `counters`). */
 const MARCADOR_PT = { p1p1: '+1/+1', m0m1: '−0/−1', /* M-360 */ oil: 'de óleo', depletion: 'de esgotamento', charge: 'de carga', age: 'de idade', loyalty: 'de lealdade', time: 'de tempo', lore: 'de saga', poison: 'de veneno', energia: 'de energia' /* H-6 */ };
-const ONLY_IF = ['discarded-nonland', 'source-entered-earlier', 'paid-additional', 'kicked', 'not-attacked', 'metalcraft', 'cast-from-graveyard', 'alvo-era-seu', 'evidenced', 'not-evidenced', 'bargained', 'alvo-era-neve']; // M-385 · "If that land was a snow land" (Thermokarst, 608.2h) · M-384 · 702.166b "If this spell was bargained" (Torch the Tower) // M-351 · "If evidence was collected, instead …" (Extract a Confession, 701.59 + 601.2b)
+const ONLY_IF = ['discarded-nonland', 'source-entered-earlier', 'paid-additional', 'kicked', 'not-attacked', 'metalcraft', 'cast-from-graveyard', 'alvo-era-seu', 'evidenced', 'not-evidenced', 'bargained', 'alvo-era-neve', ...onlyIfT()]; // T-62 · "if you're the monarch" / "if an opponent is the monarch" (onlyIfT, função içada da trilha tipos) // M-385 · "If that land was a snow land" (Thermokarst, 608.2h) · M-384 · 702.166b "If this spell was bargained" (Torch the Tower) // M-351 · "If evidence was collected, instead …" (Extract a Confession, 701.59 + 601.2b)
 /** S16 · custos que substituem o custo de mana, e o custo do lampejo do passado. */
 const ALT_COST_PARTS = ['mana', 'life', 'discard', 'returnLand', 'exileGraveyard', 'tapOther', 'sacrificeOther', 'discardSubtype', 'exileHandColor', 'free', 'revealHand', 'exileGraveyardTopo']; // M-362 · "exile the top three black cards of your graveyard" (Spinning Darkness) // M-351 · revealHand: "you may reveal your hand rather than pay" (Land Grant, 118.9) // CR2c.4 · Ilha entre as descartadas (Foil), exilar carta da cor da mão (Snapback), de graça (Mogg Salvage)
 /** S48 · fuga: conjura do cemitério pagando o custo, e a carta fica em jogo. */
@@ -5828,7 +5828,7 @@ function continuoErros(c, tag) {
   for (const k of Object.keys(c)) if (!CHAVES_CONTINUO.includes(k)) errs.push(`${tag}: chave "${k}" desconhecida`);
   const a = c.afetados;
   if (c.seAfetado != null) { if (typeof c.seAfetado !== 'object' || Array.isArray(c.seAfetado)) errs.push(`${tag}: "seAfetado" precisa ser um seletor`); else { errs.push(...seletorErros(c.seAfetado, `${tag}: seAfetado`)); for (const k of ['zona', 'ref', 'ou', 'jogadores', 'habilidades']) if (c.seAfetado[k] != null) errs.push(`${tag}: seAfetado não aceita "${k}"`); } }
-  if (c.se != null && !(c.se && Object.keys(c.se).length === 1 && (Number.isInteger(c.se.oponenteComVeneno) || TIPOS_DE_CARTA.includes(c.se.controlaTipo) || c.se.metalcraft === true))) errs.push(`${tag}: "se" conhece só oponenteComVeneno (inteiro), controlaTipo (tipo de carta) ou metalcraft (true)`); // M-363 // M-253 · Corrompido · M-351 · "as long as you control an artifact" (Goblin Tomb Raider)
+  if (c.se != null && !(c.se && Object.keys(c.se).length === 1 && (Number.isInteger(c.se.oponenteComVeneno) || TIPOS_DE_CARTA.includes(c.se.controlaTipo) || c.se.metalcraft === true || seMonarcaT(c.se)))) errs.push(`${tag}: "se" conhece só oponenteComVeneno (inteiro), controlaTipo (tipo de carta) ou metalcraft (true)`); // M-363 // M-253 · Corrompido · M-351 · "as long as you control an artifact" (Goblin Tomb Raider)
   if (c.ward != null) errs.push(...wardCustoErrosK(c.ward, false).map(e => `${tag}: "ward" ${e}`)); // K-2 · 702.21
   if (a !== 'self' && a !== 'anexada' && a !== 'equipada-pela-anexada') {
     if (!a || typeof a !== 'object') errs.push(`${tag}: "afetados" precisa ser self, anexada ou um seletor (ou equipada-pela-anexada)`);
@@ -6031,7 +6031,7 @@ const REDUZ_POR = ['instants-sorceries-in-your-graveyard', 'creature-cards-in-yo
 /** S19 · um valor pode ser um número ou uma contagem do campo. */
 const isCount = v => v && typeof v === 'object' && (typeof v.per === 'string' || typeof v.subtype === 'string');
 const valueErrors = (v, label) => isCount(v) && v.per === 'soma' ? (Array.isArray(v.partes) && v.partes.length >= 2 && v.partes.every(x => isCount(x) && x.per !== 'soma') ? v.partes.flatMap((x, i) => valueErrors(x, `${label} (parte ${i + 1})`)) : [`${label}: "soma" precisa de duas ou mais contagens em "partes"`]) // M-358
-  : isCount(v) ? (v.per === 'se' && !(['metalcraft', 'cast-from-graveyard', 'kicked', 'not-cast-from-hand', 'bargained'].includes(v.se) && Number.isInteger(v.sim) && Number.isInteger(v.nao)) ? [`${label}: "se" precisa da condição (metalcraft, cast-from-graveyard, kicked) e dos valores sim/não`] : v.subtype || PER_COUNTS.includes(v.per) ? [] : [`${label}: contagem "${v.per}" desconhecida`]) // M-331
+  : isCount(v) ? (v.per === 'se' && !(['metalcraft', 'cast-from-graveyard', 'kicked', 'not-cast-from-hand', 'bargained', ...onlyIfT()].includes(v.se) && Number.isInteger(v.sim) && Number.isInteger(v.nao)) ? [`${label}: "se" precisa da condição (metalcraft, cast-from-graveyard, kicked) e dos valores sim/não`] : v.subtype || PER_COUNTS.includes(v.per) ? [] : [`${label}: contagem "${v.per}" desconhecida`]) // M-331
   : (Number.isInteger(v) ? [] : [`${label}: precisa ser inteiro ou contagem`]);
 /** S11b · evasão estática e escolhas feitas quando a permanente entra. */
 const EVASIONS = ['flying-only', 'power-less', 'three-or-more']; // M-349 · Troll of Khazad-dûm: "can't be blocked except by three or more creatures"
@@ -6282,7 +6282,7 @@ function validateScript(sc) {
   if (sc && sc.replicate != null && sc.kicker) errs.push('replicar e reforço na mesma carta não são aceitos (os dois usam o pagamento repetido)');
   if (sc && sc.modeCount != null && !(Number.isInteger(sc.modeCount) && sc.modeCount >= 2 && (sc.modes || []).length && (sc.modeRepeat || sc.modeCount <= sc.modes.length))) errs.push('número de modos inválido');
   if (sc && sc.cumulativeUpkeep && !/\{/.test(String(sc.cumulativeUpkeep.mana || ''))) errs.push('manutenção cumulativa precisa de um custo de mana');
-  errs.push(...sagaErros(sc), ...tripularErros(sc), ...aventuraErros(sc), ...duplaFaceErros(sc), ...modalErros(sc), ...divididaErros(sc), ...classeErros(sc), ...batalhaErros(sc), ...papelErros(sc), ...nivelarErros(sc), ...salaErros(sc), ...virarErros(sc), ...selarErros(sc), ...prototipoErros(sc), ...estacaoErros(sc), ...casoErros(sc), ...disfarceErros(sc), ...reconfigurarErros(sc), ...maisQueOlhosErros(sc), ...preparoErros(sc)); // T-51 · CR 722 · preparação (mesma chamada) // T-49 · CR 702.162 · More Than Meets the Eye (mesma chamada) // T-43 · CR 702.151 · reconfigurar (mesma chamada) // T-42 · CR 702.168 · disfarce (mesma chamada) // T-39 · CR 719 · Caso (mesma chamada) // T-37 · CR 721 · estação (mesma chamada) // T-36 · CR 718 · protótipo (mesma chamada) // T-31 · CR 702.171 · selar (mesma chamada) // T-29 · CR 710 · carta de virar (mesma chamada) // T-26 · CR 709.5 · Sala (mesma chamada) // T-24 · CR 711 · barras de nível (mesma chamada) // T-20 · CR 111.10 · papel conhecido (mesma chamada) // T-14 · CR 310.4 · defesa da batalha (mesma chamada) // T-12 · CR 716 · Classe (mesma chamada) // T-10 · CR 709 · carta dividida (mesma chamada) // T-8 · CR 712.3 · dupla face modal (mesma chamada) // T-7 · CR 712 · dupla face (mesma chamada) // T-5 · CR 715 · aventura (mesma chamada) // T-3 · CR 702.122 · tripular (mesma chamada da T-1) // T-1 · CR 714 · Saga: capítulos, read ahead e o marcador de entrada (função abaixo da âncora T das exportações)
+  errs.push(...sagaErros(sc), ...tripularErros(sc), ...aventuraErros(sc), ...duplaFaceErros(sc), ...modalErros(sc), ...divididaErros(sc), ...classeErros(sc), ...batalhaErros(sc), ...papelErros(sc), ...nivelarErros(sc), ...salaErros(sc), ...virarErros(sc), ...selarErros(sc), ...prototipoErros(sc), ...estacaoErros(sc), ...casoErros(sc), ...disfarceErros(sc), ...reconfigurarErros(sc), ...maisQueOlhosErros(sc), ...preparoErros(sc), ...monarcaErrosT(sc)); // T-62 · CR 725.5 · condições do monarca (mesma chamada) // T-51 · CR 722 · preparação (mesma chamada) // T-49 · CR 702.162 · More Than Meets the Eye (mesma chamada) // T-43 · CR 702.151 · reconfigurar (mesma chamada) // T-42 · CR 702.168 · disfarce (mesma chamada) // T-39 · CR 719 · Caso (mesma chamada) // T-37 · CR 721 · estação (mesma chamada) // T-36 · CR 718 · protótipo (mesma chamada) // T-31 · CR 702.171 · selar (mesma chamada) // T-29 · CR 710 · carta de virar (mesma chamada) // T-26 · CR 709.5 · Sala (mesma chamada) // T-24 · CR 711 · barras de nível (mesma chamada) // T-20 · CR 111.10 · papel conhecido (mesma chamada) // T-14 · CR 310.4 · defesa da batalha (mesma chamada) // T-12 · CR 716 · Classe (mesma chamada) // T-10 · CR 709 · carta dividida (mesma chamada) // T-8 · CR 712.3 · dupla face modal (mesma chamada) // T-7 · CR 712 · dupla face (mesma chamada) // T-5 · CR 715 · aventura (mesma chamada) // T-3 · CR 702.122 · tripular (mesma chamada da T-1) // T-1 · CR 714 · Saga: capítulos, read ahead e o marcador de entrada (função abaixo da âncora T das exportações)
   return errs.concat(exampleErrors(sc));
 }
 const ATRASOS = ['next-upkeep', 'next-end-step', 'end-of-combat']; // CR2b.1 · momentos de gatilho atrasado que o motor conhece
@@ -6695,6 +6695,14 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-62 · CR 725.5 · o monarca nas condições (Oracle do Forge, clone de 13/10/2026). Toque mortífero e ímpeto da rainha vêm do texto da carta.
+  { name: 'Throne Warden', abilities: [{ kind: 'triggered', when: 'end-step', condition: { monarca: 'voce' }, effects: [{ do: 'counters', amount: 1, target: 'self-source' }] }], // "At the beginning of your end step, if you're the monarch, put a +1/+1 counter on Throne Warden."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o cenário de verdade está em tipos.monarca.unit
+  { name: 'Garrulous Sycophant', abilities: [{ kind: 'triggered', when: 'end-step', condition: { monarca: 'voce' }, effects: [{ do: 'lose', amount: 1, target: 'each-opponent' }, { do: 'gain', amount: 1 }] }], // "At the beginning of your end step, if you're the monarch, each opponent loses 1 life and you gain 1 life."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Queen Marchesa', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'monarch' }] }, // "When Queen Marchesa enters, you become the monarch."
+    { kind: 'triggered', when: 'upkeep', condition: { monarca: 'oponente' }, effects: [{ do: 'token', amount: 1, token: { name: 'Assassin', types: ['creature'], subtypes: ['Assassin'], colors: ['B'], power: 1, toughness: 1, keywords: ['deathtouch', 'haste'] } }] }], // "At the beginning of your upkeep, if an opponent is the monarch, create a 1/1 black Assassin creature token with deathtouch and haste."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // T-51 · CR 722 · preparação (Oracle do Forge, clone de 13/10/2026). A mágica de preparação é o `back`; "This creature enters prepared" é `entraPreparada`.
   { name: 'Elite Interceptor', self: { preparo: true, entraPreparada: true }, // "This creature enters prepared." (T-61 · Pauper: 6 listas)
     back: { name: 'Rejoinder', types: ['sorcery'], mana: '{1}{W}', effects: [{ do: 'tap_or_untap', target: 'creature', optional: true }, { do: 'draw', amount: 1 }] }, // "Rejoinder {1}{W} · Sorcery · You may tap or untap target creature. Draw a card."
@@ -9374,7 +9382,20 @@ MARCADOR_PT.level = 'de nível'; // T-24 · CR 122.1 / 702.87a
    As sete fichas de Papel, como a regra 111.10 as define (CR de 25/09/2026): encantamento Aura Role incolor, "enchant creature", e o
    que cada uma dá à criatura encantada. O efeito `papel` (`{ do: 'papel', papel: 'Monster', target }`) cria a ficha anexada ao alvo.
    Condição nova de gatilho: `resistenciaAte: N` ("if its toughness is N or less", conferida ao disparar e ao resolver, 603.4). */
-function condicoesT() { return ['resistenciaAte', 'selada', 'preparada']; } // T-51 · preparada: "if this creature is (isn't) prepared" (722.3a) // T-31 · selada: "attacks while saddled" (702.171b) // função (içada): o validador roda na carga do módulo, antes desta linha
+function condicoesT() { return ['resistenciaAte', 'selada', 'preparada', 'monarca']; } // T-62 · monarca: "if you're the monarch" ('voce') / "if an opponent is the monarch" ('oponente') (725.5, 603.4) // T-51 · preparada: "if this creature is (isn't) prepared" (722.3a) // T-31 · selada: "attacks while saddled" (702.171b) // função (içada): o validador roda na carga do módulo, antes desta linha
+/* ---------------- T-62 · CR 725.5 · o monarca nas condições (forma do script) ----------------
+   Gatilho: `condition: { monarca: 'voce' | 'oponente' }` ("if you're the monarch" / "if an opponent is the monarch", conferida ao
+   disparar e ao resolver, 603.4). Efeito: `onlyIf: 'monarca' | 'oponente-monarca'` e `amount: { per: 'se', se: 'monarca', sim, nao }`
+   ("… instead if you're the monarch"). Efeito contínuo: `se: { monarca: 'voce' | 'oponente' }` ("as long as you're the monarch").
+   Sem monarca no jogo, nenhuma das condições vale (725.5). */
+function onlyIfT() { return ['monarca', 'oponente-monarca']; } // função (içada): ONLY_IF e o validador do `per: 'se'` são montados antes desta linha
+function seMonarcaT(se) { return !!se && Object.keys(se).length === 1 && ['voce', 'oponente'].includes(se.monarca); }
+function monarcaErrosT(sc) {
+  const errs = [], abs = [...((sc && sc.abilities) || []), ...((sc && sc.back && sc.back.abilities) || [])];
+  for (const ab of abs) if (ab && ab.condition && ab.condition.monarca != null && !['voce', 'oponente'].includes(ab.condition.monarca)) errs.push('condição "monarca" do gatilho: \'voce\' ou \'oponente\'');
+  return errs;
+}
+Object.assign(EXPORTS_T_SC, { monarcaErrosT });
 var PAPEIS_DEF_T; // idem: criado na primeira chamada de papeisT()
 function papeisT() { const AURA_PAPEL_T = { enchant: 'creature' }; return PAPEIS_DEF_T || (PAPEIS_DEF_T = {
   Cursed: { name: 'Cursed', aura: AURA_PAPEL_T, continuo: [{ afetados: 'anexada', torna: { base: [1, 1] } }], example: { target: 'none', expect: { selfLife: 0 } } }, // 111.10j "Enchanted creature has base power and toughness 1/1."
@@ -17990,6 +18011,7 @@ function condicaoContinua(s, x, se) {
   if (!se) return true;
   if (se.oponenteComVeneno != null) return alive(s).some(q => q !== x.controller && (s.players[q].poison || 0) >= se.oponenteComVeneno);
   if (se.controlaTipo) return battlefield(s).some(o => o.controller === x.controller && tiposDe(s, o).includes(se.controlaTipo)); // a própria fonte conta se tiver o tipo
+  if (se.monarca) return monarcaCondT(s, x.controller, se.monarca); // T-62 · CR 725.5 / 611.2 · "as long as you're the monarch" (Toca ponto comum: condicaoContinua)
   if (se.metalcraft) return condicaoDoEfeito(s, x, 'metalcraft'); // M-363 · "Metalcraft — … as long as you control three or more artifacts" (Ardent Recruit)
   return true;
 }
@@ -20201,6 +20223,7 @@ function condicaoDoEfeito(s, fonte, k) {
   if (k === 'cast-from-graveyard') return fonte.castFrom === 'graveyard';
   if (k === 'kicked') return !!fonte.kicked; // M-337
   if (k === 'bargained') return !!fonte.bargained; // M-384 · 702.166b
+  if (k === 'monarca' || k === 'oponente-monarca') return monarcaCondT(s, fonte.controller, k === 'monarca' ? 'voce' : 'oponente'); // T-62 · CR 725.5 · na resolução (Toca ponto comum: condicaoDoEfeito)
   if (k === 'not-cast-from-hand') return fonte.castFrom !== 'hand'; // M-352 · Twinned Vision (a cópia não foi conjurada: também não veio da mão) · 702.33d · "If this spell was kicked, it deals 4 damage instead" (Burst Lightning)
   return false;
 }
@@ -20213,6 +20236,7 @@ function effectAllowed(s, fonte, eff) {
   if (eff.onlyIf === 'bargained') return !!fonte && !!fonte.bargained; // M-384 · 702.166b · "If this spell was bargained" (Torch the Tower)
   if (eff.onlyIf === 'kicked') return !!fonte && !!fonte.kicked; // CR 702.33d · "if this spell was kicked"
   if (eff.onlyIf === 'metalcraft' || eff.onlyIf === 'cast-from-graveyard') return condicaoDoEfeito(s, fonte, eff.onlyIf); // M-331
+  if (eff.onlyIf === 'monarca' || eff.onlyIf === 'oponente-monarca') return condicaoDoEfeito(s, fonte, eff.onlyIf); // T-62 · CR 725.5 (Toca ponto comum: effectAllowed)
   if (eff.onlyIf === 'not-attacked') return !!fonte && !(s.players[fonte.controller] || {}).atacouCom; // M-248 · "unless you attacked this turn" (Chart a Course)
   if (eff.onlyIf === 'evidenced') return !!fonte && !!fonte.evidenced; // M-351 · 701.59 · "If evidence was collected" (Extract a Confession)
   if (eff.onlyIf === 'not-evidenced') return !!fonte && !fonte.evidenced; // M-351 · a frase substituída ("instead")
@@ -22016,6 +22040,7 @@ function triggerConditionMet(s, o, cond) {
   if (cond.atacaSozinha && !(s.combat && (s.combat.attackers || []).length === 1 && s.combat.attackers[0] === o.oid)) return false; // M-251 · 506.5 "attacks alone"
   if (cond.preparada != null && preparadaT(s, o) !== !!cond.preparada) return false; // T-51 · CR 722.3a · "if this creature is (isn't) prepared" (Toca ponto comum: triggerConditionMet)
   if (cond.selada && !seladaAgoraT(s, o)) return false; // T-31 · CR 702.171b: "while saddled" (Toca ponto comum: triggerConditionMet)
+  if (cond.monarca && !monarcaCondT(s, o.controller, cond.monarca)) return false; // T-62 · CR 725.5 / 603.4 · "if you're (an opponent is) the monarch" (Toca ponto comum: triggerConditionMet)
   if (cond.resistenciaAte != null && !(o.zone === 'battlefield' && toughness(s, o) <= cond.resistenciaAte)) return false; // T-20 · CR 111.10r / 603.4: "if its toughness is N or less" · Toca ponto comum: triggerConditionMet (uma linha)
   if (!condicaoK(s, o, cond)) return false; // K-59 · bênção da cidade e presente prometido (Toca ponto comum: triggerConditionMet)
   if (cond.attackersAtLeast != null) {
@@ -26969,6 +26994,9 @@ function lealdadeDaFichaT(s, o) {
 const completadoT = (s, o) => { const f = s.facts[o.name] || {}, tem = (f.kw || []).includes('compleated') || !!((f.script || {}).self || {}).completado; return tem && o.vidaPhyrexianaT ? 2 * o.vidaPhyrexianaT : 0; }; // T-42 · vai da mão para a pilha e da pilha para o campo; some em qualquer outra mudança de zona
 /** T-42 · CR 702.168a · a salvaguarda {2} da permanente conjurada pelo disfarce, enquanto virada para baixo (chamada só por wardsDeK). */
 const wardDoDisfarceT = (s, o) => (((o.faceDown && o.disfarcadaT) || (!o.faceDown && copiaComWardViradaT(s, o))) && !(mutacao(s, o) || {}).perde ? ['{2}'] : []); // T-57 · e a cópia de uma virada com salvaguarda (valor copiável)
+/** T-62 · CR 725.5 · "if you're the monarch" ('voce') / "if an opponent is the monarch" ('oponente'), visto do jogador `p` agora.
+ * Sem monarca no jogo, nenhuma das duas vale (o efeito não faz nada até alguém se tornar o monarca). */
+function monarcaCondT(s, p, quem) { if (s.monarca == null || p == null) return false; return quem === 'oponente' ? s.monarca !== p : s.monarca === p; }
 /** T-42 · CR 708.8 · a permanente foi virada para cima: dispara "when ~ is turned face up". */
 function viradaParaCimaT(s, oid) { const o = s.objects[oid]; if (o && o.zone === 'battlefield' && !o.faceDown) gatilhosDaPermanente(s, 'virada-para-cima', o, ['self'], {}, () => true, false); }
 function prototipoEscolhidoT(s, a, o) {
@@ -31378,6 +31406,7 @@ function descreveEfeito(e) {
 // Leva 131 · a condição do efeito entra na frase (Moon-Circuit Hacker: o aviso dizia "descarta 1 carta" no turno em que ela entrou, quando não descarta)
 const CONDICAO_PT = { kicked: 'se tiver sido reforçada', bargained: 'se tiver sido barganhada', 'paid-additional': 'se o custo adicional foi pago', metalcraft: 'com metalurgia', 'cast-from-graveyard': 'se foi conjurada do cemitério', 'source-entered-earlier': 'só se ela não entrou neste turno', 'not-attacked': 'só se você não atacou neste turno', evidenced: 'se colheu provas', 'not-evidenced': 'se não colheu provas', 'alvo-era-neve': 'se o terreno era nevado', 'alvo-era-seu': 'se a permanente era sua' }; // M-385 // M-351 · Extract a Confession (achado da revisão do lote XXIII: as duas frases pareciam dois sacrifícios)
 const X_PT = { movidas: 'o número de cartas postas no cemitério assim', 'instants-sorceries-in-your-graveyard': 'mágicas instantâneas e feitiços no seu cemitério', 'flashback-cards-you-own-in-exile': 'cartas com lampejo do passado suas no exílio', /* M-358 */ 'cards-in-hand': 'cartas na sua mão', 'creature-cards-in-your-graveyard': 'cartas de criatura no seu cemitério', 'sacrificed-power': 'o poder da criatura sacrificada', 'sacrificed-toughness': 'a resistência da criatura sacrificada', 'sacrificed-mv': 'o valor de mana do que foi sacrificado' }; // M-354 · o que o X conta (achado da revisão do lote XXVI)
+Object.assign(CONDICAO_PT, { monarca: 'se você é o monarca', 'oponente-monarca': 'se um oponente é o monarca' }); // T-62 · CR 725.5
 const descreveEfeitos = effects => (effects || []).map(e => { let f = descreveEfeito(e); const xp = e && e.amount && X_PT[e.amount.per]; if (f && xp && /\bX\b/.test(f)) f = `${f} (X = ${xp})`; return f && e.onlyIf && CONDICAO_PT[e.onlyIf] ? `${f} (${CONDICAO_PT[e.onlyIf]})` : f; }).filter(Boolean).join('; ');
 /** E50 P6 · a linha do texto oficial (inglês) que corresponde a uma habilidade na pilha.
     Gatilho: linhas "When/Whenever/At"; ativada: linhas com custo antes de ":". Entre as do mesmo tipo,
