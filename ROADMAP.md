@@ -4269,6 +4269,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** com outro escudo de "os próximos N" mais antigo, o motor gasta os escudos do mais antigo ao mais novo (615.7/616.1 sem escolha de ordem — simplificação já existente); com a Haze, o escudo de N pode ser gasto por dano que a Haze já preveniria (o jogador escolheria aplicar a Haze primeiro). A ficha que deixou de existir conta pelo tipo impresso da ficha (uma ficha não criatura animada não seria vista como criatura).
 - **Teste:** `lt73.unit` (1 teste; falha no motor anterior).
 
+**M-391 · LT58 · 725 · "Can't be blocked by creatures the monarch controls"** ✅ (leva M-391, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** revisão por lote XLIX — **Azure Fleet Admiral passa a jogar** (APROVADAS; Oracle do Forge, consulta de 12/10/2026). Ao entrar, você vira o monarca; criaturas de quem é o monarca na hora do bloqueio não o bloqueiam (a mesa, a pré-visão de combate e o bot usam a mesma regra, `canBlock`).
+- **Revisão independente:** lote conjunto com a M-392 — 85 asserções (matriz atacante × monarca nenhum/A/B; `canBlock`, ofertas, pré-visão e os dois bots; `apply` recusa bloqueio simples e duplo; monarca que troca no turno), diferencial e fuzz sem diferença; aprovada.
+- **Fora (declarado):** nada além da regra.
+- **Teste:** `lt74.unit` (1 teste; falha no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

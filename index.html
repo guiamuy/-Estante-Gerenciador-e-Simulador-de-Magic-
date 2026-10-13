@@ -6036,7 +6036,7 @@ const valueErrors = (v, label) => isCount(v) && v.per === 'soma' ? (Array.isArra
   : isCount(v) ? (v.per === 'se' && !(['metalcraft', 'cast-from-graveyard', 'kicked', 'not-cast-from-hand', 'bargained', ...onlyIfT()].includes(v.se) && Number.isInteger(v.sim) && Number.isInteger(v.nao)) ? [`${label}: "se" precisa da condição (metalcraft, cast-from-graveyard, kicked, bargained, not-cast-from-hand, monarca, oponente-monarca) e dos valores sim/não`] : v.subtype || PER_COUNTS.includes(v.per) ? [] : [`${label}: contagem "${v.per}" desconhecida`]) // M-331
   : (Number.isInteger(v) ? [] : [`${label}: precisa ser inteiro ou contagem`]);
 /** S11b · evasão estática e escolhas feitas quando a permanente entra. */
-const EVASIONS = ['flying-only', 'power-less', 'three-or-more']; // M-349 · Troll of Khazad-dûm: "can't be blocked except by three or more creatures"
+const EVASIONS = ['flying-only', 'power-less', 'three-or-more', 'not-monarch']; // M-391 · "can't be blocked by creatures the monarch controls" (Azure Fleet Admiral, 725) // M-349 · Troll of Khazad-dûm: "can't be blocked except by three or more creatures"
 const CHOICES = ['color'];
 const STATIC_RULES = ['flagbearer', 'exile-instead-of-graveyard', 'opponent-creatures-enter-tapped'];
 const TRIGGER_PT = { etb: 'quando entra no campo', dies: 'quando morre', upkeep: 'na sua manutenção', attacks: 'quando ataca', blocks: 'quando bloqueia',
@@ -9083,6 +9083,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'First Day of Class': { texto: 'kp0tqg', leva: 'M-389' },
   // M-390 · revisão por lote XLVIII (Ethereal Haze), revisor independente: reprovada na primeira passada (habilidade de ficha que deixou de existir), corrigida com teste; 97 verificações e diferencial sem diferença
   'Ethereal Haze': { texto: '16xsz8s', leva: 'M-390' },
+  // M-391 · revisão por lote XLIX (Azure Fleet Admiral), revisor independente: lote conjunto com a M-392; aprovada (85 asserções, diferencial e fuzz sem diferença)
+  'Azure Fleet Admiral': { texto: '1586jlv', leva: 'M-391' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -17653,6 +17655,7 @@ const __m42 = (function () {
         if (al && (!al[4] || al[4].split(/ and /).every(k => KW.has(k.trim().toLowerCase())))) { topo.continuo = [...(topo.continuo || []), { afetados: 'self', poder: SINAL(al[2]), resistencia: SINAL(al[3]), ...(al[4] ? { palavras: al[4].split(/ and /).map(k => k.trim().toLowerCase()) } : {}), se: { controlaTipo: al[1].toLowerCase() } }]; frases.push({ texto: linha, lida: true }); continue; }
         const pe = lp.match(/^~ gets ([+-]\d+)\/([+-]\d+) for each (.+)$/i); // LT5 · "~ gets +1/+1 for each Aura on the battlefield"
         if (pe && contagem(pe[3])) { topo.self = { ...(topo.self || {}), perPower: SINAL(pe[1]), perToughness: SINAL(pe[2]), per: contagem(pe[3]) }; frases.push({ texto: linha, lida: true }); continue; }
+        if (/^~ can't be blocked by creatures the monarch controls\.?$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'not-monarch' }; frases.push({ texto: linha, lida: true }); continue; } // M-391 · Azure Fleet Admiral (725)
         if (/^~ can't be blocked except by creatures with flying$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'flying-only' }; frases.push({ texto: linha, lida: true }); continue; } // LT5
         if (/^creatures with power less than ~'s power can't block it$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'power-less' }; frases.push({ texto: linha, lida: true }); continue; } // LT5
         const sc = SUBST_COMPRA.find(([re]) => re.test(lp)); // CR2e.3 · 614.11
@@ -19760,6 +19763,7 @@ function porQueNaoBloqueia(s, blocker, attacker) {
   const ev = evasionOf(s, a); // S11b · evasão estática
   if (ev === 'flying-only' && !has(s, b, 'flying')) return 'só criaturas com voar bloqueiam';
   if (ev === 'power-less' && power(s, b) < power(s, a)) return 'poder menor que o da atacante';
+  if (ev === 'not-monarch' && s.monarca != null && s.monarca === b.controller) return 'criaturas do monarca não a bloqueiam'; // M-391 · 725
   // 'three-or-more' (M-349): cada bloqueador pode, mas o grupo precisa de três — conferido na declaração
   if (protections(s, a).some(c => casaProtecaoK(s, c, b))) return 'proteção contra o bloqueador'; // K-17 · 702.16f: qualquer qualidade (Toca ponto comum)
   // CR1b · evasões por palavra-chave
