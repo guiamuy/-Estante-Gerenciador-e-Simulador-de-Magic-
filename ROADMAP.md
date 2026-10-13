@@ -9454,6 +9454,11 @@ O que a cobertura não mede: se a lista que **pode** jogar no modo completo **jo
 - **Testes:** `homologacao.catalogo.unit` +1 (falhava com o atalho no índice).
 - **Para quem já tem o laço no clone:** depois do rebase, `npm install` recria a pasta.
 
+**H-5 · O Shark não quebra mais ao pensar no truque depois do ataque** 🟡 (leva H-5, motor v110 sem mudança) — achado da prova de partida no `main` com a L-4 (Pauper, Grixis Fiery Temper × Esper Springleaf Drum, Shark × Shark): ao avaliar o truque depois dos bloqueios, o Shark tomava o **primeiro** alvo da ação como a criatura atacante; com Sazacap's Brew prometendo o presente, o primeiro alvo é o jogador que compra e a criatura que ganha +2/+0 vem em segundo, e a decisão do ataque quebrava ("Cannot read properties of undefined"). Na mesa, era o Shark travando no combate. Agora ele usa o alvo que é a sua criatura atacante, em qualquer posição.
+- **Toca ponto comum:** `notaDoAtaqueComTruque` (`src/engine/bot.js`, `__m25`), três linhas; o bot não tinha conversa ativa nem leva `B-` recente.
+- **Placar da prova (13/10 03h, `main` com L-4):** Pauper **63 de 341** listas jogam; 64 partidas Shark × Shark, a única falha era esta.
+- **Testes:** `homologacao.catalogo.unit` +1 (o Shark decide o ataque com Sazacap's Brew na mão; falhava com a exceção). `bot.unit` e goldens intactos.
+
 ## 8. Como publicar e verificar
 
 ### Publicar a partir de uma conversa (padrão desde a leva 124)

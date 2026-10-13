@@ -26822,10 +26822,12 @@ function notaDoAtaqueComTruque(s, p, atacantes, opts = {}) {
   let melhor = { nota: fecha(cur), truque: null };
   const meus = new Set((cur.combat || {}).attackers || []);
   const vistos = new Set(); let n = 0;
-  const ordem = E.legalActions(cur, p).filter(a => RESOLVE.includes(a.t) && (a.targets || []).some(x => x.oid && meus.has(x.oid)))
-    .sort((x, y) => { const bx = (cur.objects[x.targets[0].oid] || {}).blockedBy ? 1 : 0, by = (cur.objects[y.targets[0].oid] || {}).blockedBy ? 1 : 0; return bx - by || (chaveAcao(x) < chaveAcao(y) ? -1 : 1); });
+  // H-5 · o alvo que importa é a MINHA criatura atacante, que pode não ser o primeiro (Sazacap's Brew com presente: jogador primeiro, criatura depois)
+  const atacanteDe = a => cur.objects[((a.targets || []).find(x => x && x.oid && meus.has(x.oid)) || {}).oid] || {};
+  const ordem = E.legalActions(cur, p).filter(a => RESOLVE.includes(a.t) && (a.targets || []).some(x => x && x.oid && meus.has(x.oid)))
+    .sort((x, y) => { const bx = atacanteDe(x).blockedBy ? 1 : 0, by = atacanteDe(y).blockedBy ? 1 : 0; return bx - by || (chaveAcao(x) < chaveAcao(y) ? -1 : 1); });
   for (const a of ordem) {
-    const alvo = cur.objects[a.targets[0].oid];
+    const alvo = atacanteDe(a);
     const k = (cur.objects[a.oid] || {}).name + '#' + (a.index != null ? a.index : '') + '#' + alvo.name + ((alvo.blockedBy || []).length ? 'b' : 'l');
     if (vistos.has(k)) continue; vistos.add(k);
     if (++n > 6) break;

@@ -61,3 +61,40 @@ test('H-4 · o repositório não guarda atalho (symlink): node_modules nem nenhu
   const atalhos = saida.split('\n').filter(l => l.startsWith('120000 ')).map(l => l.split('\t')[1]);
   assert.deepEqual(atalhos, [], `atalhos versionados: ${atalhos.join(', ')}`);
 });
+
+// H-5 · a prova de partida (Pauper, Grixis Fiery Temper × Esper Springleaf Drum, Shark × Shark) achou o Shark quebrando ao decidir o
+// ataque: "Cannot read properties of undefined (reading 'name')". Ao pensar no truque depois dos bloqueios, ele olhava o PRIMEIRO alvo
+// da ação como se fosse a criatura atacante; com Sazacap's Brew prometendo o presente, o primeiro alvo é o jogador que compra e a
+// criatura que ganha +2/+0 vem em segundo. Texto oficial: Oracle do Forge (s/sazacaps_brew.txt), consultado em 12/10/2026.
+test('H-5 · o Shark decide o ataque com Sazacap\'s Brew na mão (primeiro alvo é o jogador, a criatura vem depois) sem quebrar', async () => {
+  const { loadModules } = await import('./_load.mjs');
+  const B = loadModules().bot;
+  const cartas = {
+    "Sazacap's Brew": { name: "Sazacap's Brew", type_line: 'Instant', mana_cost: '{1}{R}', cmc: 2, colors: ['R'], keywords: ['Gift'],
+      oracle_text: "Gift a tapped Fish (You may promise an opponent a gift as you cast this spell. If you do, they create a tapped 1/1 blue Fish creature token before its other effects.)\nAs an additional cost to cast this spell, discard a card.\nTarget player draws two cards. If the gift was promised, target creature you control gets +2/+0 until end of turn." },
+    'Grizzly Bears': { name: 'Grizzly Bears', type_line: 'Creature — Bear', mana_cost: '{1}{G}', cmc: 2, colors: ['G'], keywords: [], oracle_text: '', power: '2', toughness: '2' },
+    Mountain: CARTAS.Mountain, Plains: CARTAS.Plains
+  };
+  let s = E.createGame({ format: 'livre', seed: 9, mode: 'full', cards: cartas, players: [
+    { name: 'A', deck: [{ name: "Sazacap's Brew", qty: 4 }, { name: 'Grizzly Bears', qty: 8 }, { name: 'Mountain', qty: 28 }] },
+    { name: 'B', deck: [{ name: 'Grizzly Bears', qty: 12 }, { name: 'Plains', qty: 28 }] }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  s = passaAte(s, x => x.turn.active === 0 && x.turn.step === 'main1' && !x.stack.length && !x.pending && x.turn.number >= 3);
+  s = limpaMao(limpaMao(s, 0), 1);
+  for (const n of ['Grizzly Bears', 'Mountain', 'Mountain', 'Mountain']) [s] = poe(s, 0, n);
+  [s] = poe(s, 1, 'Grizzly Bears');
+  [s] = poe(s, 0, "Sazacap's Brew", 'hand'); [s] = poe(s, 0, 'Grizzly Bears', 'hand'); // a segunda carta paga o descarte do custo
+  const brew = s.zones[0].hand.find(o => s.objects[o].name === "Sazacap's Brew");
+  s = passaAte(s, x => x.pending && x.pending.kind === 'attackers');
+  assert.equal(s.pending && s.pending.kind, 'attackers', 'chegou à declaração de atacantes de A');
+  const shark = B.criaBot({ nivel: 'shark', orcamentoMs: 400 });
+  let j;
+  assert.doesNotThrow(() => { j = shark.jogada(s, 0); }, 'o Shark decide o ataque sem quebrar');
+  assert.ok(j && j.acao && j.acao.t === 'attack', 'devolve uma declaração de ataque');
+  assert.doesNotThrow(() => E.apply(s, j.acao), 'a jogada do Shark é legal');
+  // a pista do achado: depois do ataque, a mágica do presente mira o jogador primeiro e a criatura atacante em segundo
+  const depois = E.apply(s, { t: 'attack', p: 0, attackers: s.zones[0].battlefield.filter(o => s.objects[o].name === 'Grizzly Bears') }).state;
+  const t2 = passaAte(depois, x => x.turn.step !== 'combat_attackers' && !x.pending && x.turn.priority === 0, 20);
+  const ofertas = E.legalActions(t2, 0).filter(a => a.t === 'cast' && a.oid === brew && (a.targets || []).length > 1);
+  assert.ok(ofertas.some(a => a.targets[0] && a.targets[0].oid == null), 'existe a forma com o jogador como primeiro alvo (o caso que quebrava)');
+});
