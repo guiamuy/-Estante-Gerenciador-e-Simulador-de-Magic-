@@ -5374,7 +5374,8 @@ const EFFECTS = {
   sacrifice_it: { fields: [], targets: ['permanent', 'self-source'] },
   pisca: { fields: [], targets: ['creature', 'creature-you-control', 'permanent', 'permanent-you-control'] },
   revela_topo_transforma: { fields: [], targets: ['self'] }, // M-353 · Delver of Secrets: olha o topo; se for do tipo pedido, pode revelá-lo e transformar a fonte (701.28)
-  exila_da_mao: { fields: ['amount'], targets: ['opponent', 'player'] }, // M-353 · Mesmeric Fiend: o jogador alvo revela a mão, você escolhe e exila; a fonte guarda a carta para devolver ao sair
+  exila_da_mao: { fields: ['amount'], targets: ['opponent', 'player'] },
+  terreno_da_mao: { fields: [], targets: ['self'] }, // M-354 · "You may put a land card from your hand onto the battlefield [tapped]" (Growth Spiral, Embrace the Paradox; 305.2: não é jogar terreno) // M-353 · Mesmeric Fiend: o jogador alvo revela a mão, você escolhe e exila; a fonte guarda a carta para devolver ao sair
   pisca_exila: { fields: [], targets: ['creature', 'creature-you-control', 'permanent', 'permanent-you-control'] }, // M-351 · Ghostly Flicker: "exile two target …, then return those cards" — a primeira metade (a mágica lembra o que exilou)
   pisca_volta: { fields: [], targets: ['self'] }, // M-351 · a segunda metade: devolve juntas as que exilou (`sob: 'voce'` = sob o seu controle; padrão: do dono); ficha não volta (111.8) // M-349 · Ephemerate: exila e devolve ao campo sob o controle do dono (objeto novo, 400.7)
   sacrifica_a_menos_que_devolva: { fields: [], targets: ['self'] }, // M-349 · Glint Hawk: "sacrifice it unless you return an artifact you control to its owner's hand"
@@ -5587,7 +5588,7 @@ const REGRAS_DO_JOGADOR = ['naoGanhaVida', 'terrenosExtras', 'semLimiteDeMao']; 
 const PICK_DESTS = ['hand', 'graveyard', 'battlefield', 'battlefield-tapped', 'library-top', 'library-bottom', 'library-bottom-random', 'stay']; // M-262 · "on the bottom in a random order"
 const FILTER_TYPES = ['creature', 'land', 'artifact', 'enchantment', 'instant', 'sorcery', 'planeswalker', 'battle']; // M-246 · "nonland permanent" inclui batalha
 const LOYALTY_PT = c => (c > 0 ? '+' : '') + c;
-const CHOICE_EFFECTS = ['exila_da_mao', 'revela_topo_transforma', 'topo_ou_fundo_do_dono', 'untap_chosen', 'discard_or_sacrifice_land_draw', 'return_chosen', 'discard', 'discard_chosen', 'exile_chosen', 'connive', 'search', 'look', 'scry', 'surveil', 'put_back', 'choose_type'];
+const CHOICE_EFFECTS = ['terreno_da_mao', 'exila_da_mao', 'revela_topo_transforma', 'topo_ou_fundo_do_dono', 'untap_chosen', 'discard_or_sacrifice_land_draw', 'return_chosen', 'discard', 'discard_chosen', 'exile_chosen', 'connive', 'search', 'look', 'scry', 'surveil', 'put_back', 'choose_type'];
 /** S47 · condição do próprio efeito, olhando o que foi pago como custo. */
 /** M-249 · 122.1 · marcadores nomeados em português (o tipo é a chave em `counters`). */
 const MARCADOR_PT = { p1p1: '+1/+1', oil: 'de óleo', depletion: 'de esgotamento', charge: 'de carga', age: 'de idade', loyalty: 'de lealdade', time: 'de tempo', lore: 'de saga', poison: 'de veneno' };
@@ -5960,7 +5961,7 @@ function descreveGatilho(w) {
 const ATTACH_KINDS = ['creature', 'permanent', 'land', 'creature-you-control', 'creature-or-planeswalker-you-control', 'creature-card-in-graveyard']; // CR2d.4 · "Enchant creature card in a graveyard" // Q11 · Setessan Training
 const PER_COUNTS = ['enchantments-you-control', 'other-enchantments', 'auras-on-battlefield',
   'creatures-you-control', 'other-creatures-you-control', 'elves-you-control', 'elves-on-battlefield', 'defenders-you-control', 'permanents-you-control', 'nonland-permanents-you-control', 'life-gained-this-turn', 'life-lost-this-turn',
-  'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G', 'counters-on-source', 'opponents-empty-hand', 'trigger-value', 'chosen-type-permanents', 'sacrificed-toughness', 'sacrificed-mv', 'x', 'power-of-source', 'se', 'power-of-target'];
+  'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G', 'counters-on-source', 'opponents-empty-hand', 'trigger-value', 'chosen-type-permanents', 'sacrificed-toughness', 'sacrificed-mv', 'sacrificed-power', 'creature-cards-in-your-graveyard', 'cards-in-hand', 'x', 'power-of-source', 'se', 'power-of-target'];
 /** M-333 · 601.2f · "This spell costs {N} less to cast for each …": o que a redução conta (chave `reduzPor: { generic, per }` no topo do script). */
 const REDUZ_POR = ['instants-sorceries-in-your-graveyard', 'creature-cards-in-your-graveyard', 'land-cards-in-your-graveyard', 'creatures-on-battlefield',
   'creatures-opponents-control', 'basic-land-types-you-control', 'attacking-creatures', 'attacking-creatures-you-control', 'cards-drawn-this-turn',
@@ -8779,6 +8780,14 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Experimental Synthesizer': { texto: '1jdhkal', leva: 'M-352' },
   // M-353 · revisão por lote XXV (Pauper: Mesmeric Fiend), revisor independente com 104 (+120 na reconferência) verificações: 1 de 1 aprovada
   'Mesmeric Fiend': { texto: '420ufa', leva: 'M-353' },
+  // M-354 · revisão por lote XXVI (Pauper: Growth Spiral, Embrace the Paradox, Union of the Third Path, Lotleth Giant, Defile, Ancient Stirrings, Fling), revisor independente com 89 verificações: 7 de 7 aprovadas
+  'Growth Spiral': { texto: 'xrljuy', leva: 'M-354' },
+  'Embrace the Paradox': { texto: 'z38xaa', leva: 'M-354' },
+  'Union of the Third Path': { texto: 'al0iwn', leva: 'M-354' },
+  'Lotleth Giant': { texto: 'hp1jwk', leva: 'M-354' },
+  'Defile': { texto: '1xzfbl6', leva: 'M-354' },
+  'Ancient Stirrings': { texto: '8l1g14', leva: 'M-354' },
+  'Fling': { texto: 'ut7lh6', leva: 'M-354' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -16407,6 +16416,11 @@ const __m42 = (function () {
     [/^target creature gets \+1\/\+0 until end of turn and can't be blocked this turn$/i, () => [{ do: 'pump', power: 1, toughness: 0, target: 'creature' }, { do: 'imbloqueavel', target: 'first-target' }]], // M-349 · Distortion Strike
     [/^exila_da_mao (target opponent|target player)$/i, m => [{ do: 'exila_da_mao', amount: 1, target: /opponent/i.test(m[1]) ? 'opponent' : 'player', filter: { notTypes: ['land'] } }]], // M-353 · Mesmeric Fiend (frase juntada em leParagrafo)
     [/^return the exiled card to its owner's hand$/i, () => [{ do: 'return_held', para: 'hand' }]], // M-353 · Mesmeric Fiend
+    [/^you may put a land card from your hand onto the battlefield( tapped)?$/i, m => [{ do: 'terreno_da_mao', ...(m[1] ? { virado: true } : {}) }]], // M-354 · Growth Spiral, Embrace the Paradox
+    [/^you gain life equal to the number of cards in your hand$/i, () => [{ do: 'gain', amount: { per: 'cards-in-hand' } }]], // M-354 · Union of the Third Path
+    [/^(?:it|~) deals 1 damage to (target opponent|target player|any target) for each creature card in your graveyard$/i, m => { const a = alvo(m[1]); return a ? [{ do: 'damage', amount: { per: 'creature-cards-in-your-graveyard' }, ...a }] : null; }], // M-354 · Lotleth Giant
+    [/^~ deals damage equal to the sacrificed creature's power to (any target|target creature|target player)$/i, m => { const a = alvo(m[1]); return a ? [{ do: 'damage', amount: { per: 'sacrificed-power' }, ...a }] : null; }], // M-354 · Fling (608.2h)
+    [/^target creature gets ([+-]1)\/([+-]1) until end of turn for each (Swamp|Island|Forest|Mountain|Plains|Gate) you control$/i, m => [{ do: 'pump', target: 'creature', power: { subtype: m[3][0].toUpperCase() + m[3].slice(1).toLowerCase(), times: SINAL(m[1]) }, toughness: { subtype: m[3][0].toUpperCase() + m[3].slice(1).toLowerCase(), times: SINAL(m[2]) } }]], // M-354 · Defile (contagem na resolução)
     [new RegExp(`^impulso ${N} ate o fim do turno$`, 'i'), m => [{ do: 'exile_top_playable', amount: num(m[1]), ate: 'fim-do-turno' }]], // M-352 · Experimental Synthesizer (frase juntada em leParagrafo)
     [/^the owner of (target nonland permanent) puts it into their library second from the top or on the bottom$/i, m => { const a = alvo(m[1]); return a ? [{ do: 'topo_ou_fundo_do_dono', target: { semTipos: ['land'] }, segundo: true }] : null; }], // M-352 · Deem Inferior
     [/^the owner of (target nonland permanent) puts it on the top or bottom of their library$/i, m => { const a = alvo(m[1]); return a ? [{ do: 'topo_ou_fundo_do_dono', target: { semTipos: ['land'] } }] : null; }], // M-352 · a forma sem "segundo" (canalizar de Moonsnare Prototype e afins)
@@ -16645,7 +16659,7 @@ const __m42 = (function () {
   /** Um parágrafo de efeito de mágica → { efeitos, frases }. */
   /** M-335 · orações em sequência que formam um efeito só (no começo do parágrafo): revelar a mão e escolher o descarte; olhar o topo e pegar. */
   const FILTRO_DESCARTE = { 'nonland card': { notTypes: ['land'] }, 'noncreature, nonland card': { notTypes: ['creature', 'land'] }, 'nonland, noncreature card': { notTypes: ['creature', 'land'] } };
-  const FILTRO_TOPO = { 'instant or sorcery': { types: ['instant', 'sorcery'] }, creature: { types: ['creature'] }, artifact: { types: ['artifact'] }, land: { types: ['land'] }, 'creature or land': { types: ['creature', 'land'] } };
+  const FILTRO_TOPO = { colorless: { incolor: true }, 'instant or sorcery': { types: ['instant', 'sorcery'] }, creature: { types: ['creature'] }, artifact: { types: ['artifact'] }, land: { types: ['land'] }, 'creature or land': { types: ['creature', 'land'] } };
   const PRE_PARAGRAFO = [
     [new RegExp(`^look at the top ${N} cards of your library, then put them back in any order(?:\\.\\s*|$)`, 'i'), m => { const c = num(m[1]); return c ? [{ do: 'look', count: c, amount: c, min: c, to: 'library-top', rest: 'stay', ordena: true }] : null; }], // M-339 · Ponder
     [/^(target player|target opponent) reveals (?:their|his or her) hand\. you choose an? (.+?) from it(?: with mana value (\d+) or less)?\. (?:that player|they) discards? that card(?:\.\s*|$)/i, m => {
@@ -16655,7 +16669,7 @@ const __m42 = (function () {
       return [{ do: 'discard_chosen', amount: 1, target: m[1].toLowerCase() === 'target player' ? 'player' : 'opponent', ...(padrao ? {} : { filter: filtro }) }]; }],
     [new RegExp(`^look at the top ${N} cards of your library\\. put ${N} of them into your hand and the rest on the bottom of your library in (any|a random) order(?:\\.\\s*|$)`, 'i'), m => {
       const c = num(m[1]), k = num(m[2]); return c && k && k < c ? [{ do: 'look', count: c, amount: k, min: k, to: 'hand', rest: /random/i.test(m[3]) ? 'library-bottom-random' : 'library-bottom' }] : null; }],
-    [new RegExp(`^look at the top ${N} cards of your library\\. you may reveal an? (instant or sorcery|creature|artifact|land|creature or land) card from among them and put it into your hand\\. put the rest on the bottom of your library in (any|a random) order(?:\\.\\s*|$)`, 'i'), m => {
+    [new RegExp(`^look at the top ${N} cards of your library\\. you may reveal an? (instant or sorcery|creature|artifact|land|creature or land|colorless) card from among them and put it into your hand\\. (?:then )?put the rest on the bottom of your library in (any|a random) order(?:\\.\\s*|$)`, 'i'), m => {
       const c = num(m[1]); return c ? [{ do: 'look', count: c, amount: 1, min: 0, to: 'hand', rest: /random/i.test(m[3]) ? 'library-bottom-random' : 'library-bottom', revelaEscolhida: true, filter: FILTRO_TOPO[m[2].toLowerCase()] }] : null; }]
   ];
   /** M-343 · "scry 1 and create a Treasure token": duas ações em sequência. Só quando as duas metades são lidas sozinhas e a segunda não
@@ -16713,7 +16727,7 @@ const __m42 = (function () {
   function ler(card) {
     const nome = (card && card.name) || ''; nomeAtual = nome; const tipo = String((card && card.type_line) || ''); tipoAtual = tipo;
     const texto = card && card.verso ? [card.oracle_text, '//', card.verso.oracle_text].join('\n') : card && card.oracle_text; // M-322 · a Aventura guardada à parte (.listas): mesma forma do app ("frente\n//\nverso")
-    const linhas = semLembrete(texto).split('\n').map(x => x.trim()).filter(Boolean);
+    const linhas = semLembrete(texto).split('\n').map(x => x.trim().replace(/^(?:undergrowth|threshold|delirium|revolt|morbid|raid|hellbent|landfall|ferocious|coven|alliance|magecraft) — (?=(?:when|whenever|at|as long as|if)\b)/i, '')).filter(Boolean); // M-354 · 207.2c: palavra de habilidade não tem efeito de regra (Lotleth Giant)
     const frases = [], efeitos = [], topo = {};
     const magica = /\b(Instant|Sorcery)\b/.test(tipo);
     let modos = null; const coresVida = []; // M-342
@@ -17267,6 +17281,8 @@ function countFor(s, src, per) {
     const rx = new RegExp('\\b' + per.subtype + '\\b', 'i');
     return battlefield(s).filter(o => o.controller === src.controller && !o.faceDown && (isChangeling(s, o, per.subtype) || rx.test(linhaDeTipo(s, o)))).length; // R9 · virada para baixo não tem tipo
   }
+  if (per === 'creature-cards-in-your-graveyard') return s.zones[src.controller].graveyard.filter(x => ((s.facts[s.objects[x].name] || {}).types || []).includes('creature')).length; // M-354 · Lotleth Giant
+  if (per === 'cards-in-hand') return s.zones[src.controller].hand.length; // M-354 · Union of the Third Path (conta na resolução, depois da compra)
   if (per === 'trigger-value') return src.triggerValue || 0; // S48 · quanto o gatilho trouxe (dano causado)
   if (per === 'chosen-type-permanents') { // S50 · permanentes suas do tipo escolhido
     const tipo = src.chosenType;
@@ -19275,6 +19291,7 @@ function amountOf(s, src, v) {
     if (v.per === 'se') return condicaoDoEfeito(s, src.ability ? s.objects[src.source] : src, v.se) ? v.sim : v.nao; // M-331 · "… instead if …" (Galvanic Blast, Plunder the Trollshaws)
     if (v.per === 'x') return (src.xPaid || 0) * (v.times || 1); // CR2c.3 · 107.3a: o X escolhido ao conjurar, o mesmo em todo o texto
     // CR2a.4 · 608.2h/113.7a: a resistência que a criatura sacrificada no custo tinha no campo
+    if (v.per === 'sacrificed-power') return (src.sacrificados || []).reduce((n, x) => n + Math.max(0, x.power || 0), 0) * (v.times || 1); // M-354 · Fling: o poder da criatura sacrificada como ela era no campo (608.2h)
     if (v.per === 'sacrificed-toughness') return (src.sacrificados || []).reduce((n, x) => n + Math.max(0, x.toughness || 0), 0) * (v.times || 1);
     if (v.per === 'sacrificed-mv') return (src.sacrificados || []).reduce((n, x) => n + (((s.facts[(s.objects[x.oid] || {}).name] || {}).cmc) || 0), 0) * (v.times || 1); // M-348 · Reckoner's Bargain (608.2h: o valor que a permanente tinha)
     if (v.per === 'power-of-target') return countFor(s, src, 'power-of-target') * (v.times || 1); // M-338 · numa habilidade, os alvos moram na habilidade, não na permanente (Solitude)
@@ -19739,6 +19756,12 @@ function applyEffect(s, src, eff, tgt, events) {
       note({ pending: true }); break;
     }
     case 'revela_topo': { const topo = s.zones[ctrl].library[0]; if (topo) events.push({ kind: 'revealed', oid: topo, name: s.objects[topo].name, p: ctrl }); note({}); break; } // M-353 · 701.20a
+    case 'terreno_da_mao': { // M-354 · você escolhe um terreno da mão (ou nenhum); entra pelo efeito, não conta como jogada de terreno (305.2)
+      const terrenos = s.zones[ctrl].hand.filter(x => ((s.facts[s.objects[x].name] || {}).types || []).includes('land'));
+      if (!terrenos.length) { note({ amount: 0 }); break; }
+      startPick(s, { p: ctrl, from: terrenos, min: 0, max: 1, to: eff.virado ? 'battlefield-tapped' : 'battlefield', rest: 'stay', label: eff.virado ? 'pôr um terreno no campo, virado' : 'pôr um terreno no campo', source: src.name }, events);
+      note({ pending: true }); break;
+    }
     case 'exila_da_mao': { // M-353 · Mesmeric Fiend: revela a mão; VOCÊ escolhe; a carta vai ao exílio e a fonte a guarda (se ainda estiver no campo)
       const who = playerOf(), filtro = eff.filter || { notTypes: ['land'] };
       const mao = s.zones[who].hand.filter(x => matchesFilter(s, s.objects[x], filtro));
@@ -20584,6 +20607,7 @@ function matchesFilter(s, o, filter) {
   if (filter.keyword && !(f.kw || []).includes(String(filter.keyword).toLowerCase())) return false;
   // S44 · "básico" e "um destes subtipos" (Sheltering Landscape)
   if (filter.basic && !/^\s*basic\b/i.test(f.typeText || '')) return false;
+  if (filter.incolor && (o.zone === 'battlefield' ? coresDe(s, o) : (f.colors || [])).length) return false; // M-354 · "a colorless card" (Ancient Stirrings: terreno também é incolor, 105.2c)
   if ((filter.subtypes || []).length && !filter.subtypes.some(x => isChangeling(s, o, x) || new RegExp('\\b' + x + '\\b', 'i').test(f.typeText || ''))) return false; // K-1 · 702.73a: o metamorfo vale também no grimório e na mão
   if ((filter.notTypes || []).some(x => (f.types || []).includes(x))) return false; // S45 · "que não seja criatura nem terreno"
   if (filter.mvMax != null && ((valorDaSalaT(s, o) ?? f.cmc) || 0) > filter.mvMax) return false; // T-28 · CR 709.5: a Sala no campo vale as portas destrancadas (Toca ponto comum: matchesFilter) // M-335 · "with mana value N or less"
@@ -29502,7 +29526,13 @@ function descreveEfeito(e) {
     case 'search': return `procura ${plural(n, 'carta', 'cartas')} no grimório${e.reparte ? ' (a primeira entra virada, a segunda vai para a mão)' : ''}${e.desviraSeTerrenos ? ` (desvira a terra achada se você tiver ${e.desviraSeTerrenos} terrenos ou mais)` : ''}`; // M-343
     case 'scry': return `vidência ${n}: olha ${plural(n, 'carta', 'cartas')} de cima e decide o que fica no topo`;
     case 'surveil': return `vigia ${n}`;
-    case 'look': return `olha as ${n} cartas de cima`;
+    case 'look': { // M-354 · achado da revisão do lote XXVI: dizia "olha as 1 cartas" (contava o que vai para a mão, não o que se olha)
+      const k = e.count || n, f = e.filter || {}, TIPO = { creature: 'de criatura', land: 'de terreno', artifact: 'de artefato', enchantment: 'de encantamento', instant: 'instantânea', sorcery: 'de feitiço', planeswalker: 'de planeswalker' };
+      const qual = f.incolor ? ' incolor' : (f.types || []).length ? ' ' + f.types.map(t => TIPO[t] || t).join(' ou ') : '';
+      const mao = e.to === 'hand' ? `; ${e.min ? '' : 'pode '}${e.revelaEscolhida ? 'revelar e ' : ''}pôr ${typeof e.amount === 'number' && e.amount > 1 ? `${e.amount} cartas` : 'uma carta'}${qual} na mão` : '';
+      const resto = e.rest === 'library-bottom' ? '; o resto vai para o fundo' : e.rest === 'library-bottom-random' ? '; o resto vai para o fundo em ordem aleatória' : '';
+      return `olha as ${k} cartas de cima${mao}${resto}`;
+    }
     case 'untap': return `desvira ${alvo || 'uma permanente'}`;
     case 'tap': return `vira ${alvo || 'uma permanente'}`;
     case 'tap_or_untap': return `${e.optional ? 'pode virar ou desvirar' : 'vira ou desvira'} ${alvo || 'uma criatura'}`; // Leva 131
@@ -29591,6 +29621,7 @@ function descreveEfeito(e) {
     case 'exile_return_transformed': return `é exilada e volta transformada, sob o controle ${e.sob === 'voce' ? 'de quem a controlava' : 'do dono'}`; // CR2d.5 · M-353
     case 'revela_topo_transforma': return 'olha a carta do topo; se for instantânea ou feitiço, pode revelá-la e transformar esta permanente'; // M-353
     case 'revela_topo': return 'revela a carta do topo'; // M-353
+    case 'terreno_da_mao': return `você pode pôr um terreno da sua mão no campo${e.virado ? ', virado' : ''}`; // M-354
     case 'exila_da_mao': return `${alvo || 'o oponente alvo'} revela a mão e você escolhe uma carta que não seja terreno para exilar (volta à mão do dono quando esta permanente sair do campo)`; // M-353
     case 'must_attack_source': return 'até uma criatura alvo de um oponente ataca esta planeswalker no próximo turno de quem a controla, se puder'; // M-228
     case 'prevent_self': return 'previne todo dano que seria causado a ela neste turno';
@@ -29642,7 +29673,8 @@ function descreveEfeito(e) {
 }
 // Leva 131 · a condição do efeito entra na frase (Moon-Circuit Hacker: o aviso dizia "descarta 1 carta" no turno em que ela entrou, quando não descarta)
 const CONDICAO_PT = { 'source-entered-earlier': 'só se ela não entrou neste turno', 'not-attacked': 'só se você não atacou neste turno', evidenced: 'se colheu provas', 'not-evidenced': 'se não colheu provas' }; // M-351 · Extract a Confession (achado da revisão do lote XXIII: as duas frases pareciam dois sacrifícios)
-const descreveEfeitos = effects => (effects || []).map(e => { const f = descreveEfeito(e); return f && e.onlyIf && CONDICAO_PT[e.onlyIf] ? `${f} (${CONDICAO_PT[e.onlyIf]})` : f; }).filter(Boolean).join('; ');
+const X_PT = { 'cards-in-hand': 'cartas na sua mão', 'creature-cards-in-your-graveyard': 'cartas de criatura no seu cemitério', 'sacrificed-power': 'o poder da criatura sacrificada', 'sacrificed-toughness': 'a resistência da criatura sacrificada', 'sacrificed-mv': 'o valor de mana do que foi sacrificado' }; // M-354 · o que o X conta (achado da revisão do lote XXVI)
+const descreveEfeitos = effects => (effects || []).map(e => { let f = descreveEfeito(e); const xp = e && e.amount && X_PT[e.amount.per]; if (f && xp && /\bX\b/.test(f)) f = `${f} (X = ${xp})`; return f && e.onlyIf && CONDICAO_PT[e.onlyIf] ? `${f} (${CONDICAO_PT[e.onlyIf]})` : f; }).filter(Boolean).join('; ');
 /** E50 P6 · a linha do texto oficial (inglês) que corresponde a uma habilidade na pilha.
     Gatilho: linhas "When/Whenever/At"; ativada: linhas com custo antes de ":". Entre as do mesmo tipo,
     a posição no script decide. Sem correspondência segura, devolve o texto inteiro. */
