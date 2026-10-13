@@ -9361,8 +9361,15 @@
    "n": "702.168",
    "regra": "Keyword Abilities",
    "titulo": "Disguise",
-   "status": "ausente",
-   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): disfarce é face para baixo com proteção (708, face para baixo completa).",
+   "status": "parcial",
+   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): disfarce é face para baixo com proteção (708, face para baixo completa). T-42 (13/10/2026): falta conjurar disfarçada de outra zona que não a mão (exílio jogável, cemitério com permissão): a oferta de virada para baixo é só da mão.",
+   "evidencia": "T-42 (13/10/2026): self.disfarce = custo de disfarce; o motor usa o caminho da metamorfose (conjurar virada para baixo por {3}, 2/2 sem nome; virar para cima pelo custo de disfarce, ação especial) e dá salvaguarda {2} à permanente conjurada pelo disfarce enquanto virada para baixo (a marca `disfarcadaT`: a manifestada não tem). Gatilho novo `turned-face-up` (\"When ~ is turned face up\", 708.8), disparado ao virar pela metamorfose, pelo disfarce ou a manifestada. Carta exemplo completa: Nervous Gardener (Oracle do Forge, 13/10/2026).",
+   "testes": [
+    "CR 702.168a · da mão, conjurar virada para baixo por {3}: entra 2/2 sem nome nem custo",
+    "CR 702.168a / 702.21 · virada para baixo pelo disfarce ela tem salvaguarda {2}: a mágica do oponente que a mira dispara a salvaguarda",
+    "CR 702.168d · com prioridade, virar para cima pelo custo de disfarce ({G}); a salvaguarda acaba; \"quando é virada para cima\" busca um terreno com tipo básico para a mão",
+    "CR 702.168a · conjurada normalmente (virada para cima) não tem salvaguarda nem o gatilho"
+   ],
    "esforco": "P",
    "depende": [
     "702.37 metamorfose (existe)",

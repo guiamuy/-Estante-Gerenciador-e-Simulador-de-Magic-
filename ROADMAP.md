@@ -5176,6 +5176,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `cast_free` (uma linha: o limite de valor de mana da Aventura) e `descobrir` (o N fica no passo do verbo).
 - **Próximo:** 716.2 Classe (redução de custo e regras por nível) e 309.6/309.7 masmorra.
 
+**CR5-T42 · Disfarce (702.168) e o gatilho "quando é virada para cima" (708.8)** ✅ (leva T-42, sem mudança de versão do motor) — **Valor:** as cartas com disfarce (Murders at Karlov Manor, muitas comuns) jogam pela forma de script, e o gatilho "When ~ is turned face up", que quase todas têm, existe; o disfarce era uma das palavras-chave delegadas à trilha. **Aceite:** com `self.disfarce`, da mão, conjurar virada para baixo por {3} como 2/2 sem nome nem custo, com salvaguarda {2} enquanto virada para baixo (só a conjurada pelo disfarce; a manifestada não tem); com prioridade, virar para cima pelo custo de disfarce (ação especial, sem pilha); ao virar para cima — pela metamorfose, pelo disfarce ou a manifestada — dispara `turned-face-up`. Mesa: "Conjurar virada para baixo · {3}" e "Virar para cima · {G}" (os botões da metamorfose). **Testes:** `tipos.disfarce.unit` (7; falham sem a leva). Carta: Nervous Gardener (Oracle do Forge, clone de 13/10/2026). **Depende de:** a metamorfose (S54) e a salvaguarda (K-2). **Fora:** conjurar disfarçada de outra zona que não a mão; efeitos de carta como "escolha novos alvos" (Boltbender) seguem por carta.
+- **Mapa:** 702.168 (delegada à trilha). A 708.8 ("não há gatilho when this is turned face up") é de outra trilha: aviso no registro de trilhas.
+- **Versão e goldens:** a versão não sobe; goldens idênticos.
+- **Toca ponto comum:** `HANDLERS.unmorph` (dispara o gatilho, nas duas saídas), `wardsDeK` (a salvaguarda da disfarçada).
+- **Próximo:** auditoria independente de disfarce (com a próxima leva); 716.2 Classe; 309.6/309.7 masmorra.
+
 **CR6 · Multijogador e variantes** ○ — mesa de três e quatro (800–803, 806), Commander de mesa (903.2), Brawl (903.12); as variantes hoje "fora" só entram por decisão. 10 a 14 levas.
 
 **CR7 · Consolidação** ○ (em paralelo a partir da CR2) — a cada fase: fuzz em modo completo com listas reais, homologação por revisor independente relendo a seção das regras contra o motor, e rodada de simulação do dono do produto. 6 a 8 levas ao todo.
