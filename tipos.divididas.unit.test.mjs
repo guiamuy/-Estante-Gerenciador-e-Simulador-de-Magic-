@@ -139,7 +139,7 @@ test('CR 709.3 · mesa: um botão por metade ("Conjurar Cura · {W}", "Conjurar 
   const a = metade(s, 0, c, 'direita')[0];
   assert.match(T.describe(s, a, [], act(s, a)).join(' | '), /A conjurou Festa \(metade de Cura \/\/ Festa\)/);
   const src = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
-  assert.match(src, /`Conjurar \$\{md\.nome\} · \$\{md\.mana\}`/);
+  assert.match(src, /`Conjurar \$\{md\.nome\}\$\{[^`]*\} · \$\{md\.mana\}`/); // T-32 · expectativa ajustada com justificativa: o rótulo ganhou " do cemitério" para a metade de consequência (702.127a); o resto do texto é o mesmo
 });
 
 test('CR 709 · partida sem a carta não ganha nada no estado; passeio aleatório com divididas: nada oferecido é recusado e fora da pilha a carta é sempre a inteira', () => {

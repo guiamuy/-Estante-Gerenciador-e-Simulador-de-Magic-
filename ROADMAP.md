@@ -4949,6 +4949,14 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `abilitiesOf` e `triggerConditionMet` (uma linha cada); mesa: faixa de tripular ("Quem sela …?") e a pergunta da escolha do pagamento ("Quais criaturas selam?").
 - **Próximo:** T-32 consequência (aftermath, 702.127); T-33 fundir carta dividida (fuse, 702.102); T-34 auditoria independente.
 
+**CR5-T32 · Consequência (aftermath, 702.127)** ✅ (leva T-32, sem mudança de versão do motor) — **Valor:** as cartas divididas de Amonkhet com consequência jogam: a metade de cima da mão e a de consequência do cemitério. **Aceite:** a metade direita com `back.aftermath` só é conjurada do cemitério, pelo custo dela, e vai para o exílio ao sair da pilha, resolvida ou anulada; da mão, do exílio ou "sem pagar" fora do cemitério, não (702.127a); a esquerda segue a regra das divididas. **Testes:** `tipos.consequencia.unit` (8; falham sem a leva). Carta: Spring // Mind (Oracle do Forge, consulta de 13/10/2026). **Depende de:** CR5-T10.
+- **Simplificação declarada:** a metade de consequência usa o caminho do lampejo do passado com o custo dela (mesmo custo, mesma zona, mesmo exílio); nada no motor pergunta "conjurada com lampejo", então o resultado da partida é o mesmo.
+- **Expectativa ajustada com justificativa:** `tipos.divididas.unit` conferia o texto exato do rótulo da folha; o rótulo ganhou " do cemitério" para a metade de consequência.
+- **Correção pega pelo portão local:** a metade "Mind" fazia a lista que tem outra carta chamada "Mind" (com script próprio, `rules.unit` S49) virar a carta dividida; agora carta com script próprio de mesmo nome que uma metade continua sendo ela (fatos são por nome, armadilha 27).
+- **Versão e goldens:** a versão não sobe; goldens idênticos.
+- **Toca ponto comum:** `HANDLERS.cast` (um termo na conferência do lampejo), linhas do registro (uma linha).
+- **Próximo:** T-33 fundir carta dividida (fuse, 702.102); T-34 auditoria independente de selar e consequência.
+
 **CR6 · Multijogador e variantes** ○ — mesa de três e quatro (800–803, 806), Commander de mesa (903.2), Brawl (903.12); as variantes hoje "fora" só entram por decisão. 10 a 14 levas.
 
 **CR7 · Consolidação** ○ (em paralelo a partir da CR2) — a cada fase: fuzz em modo completo com listas reais, homologação por revisor independente relendo a seção das regras contra o motor, e rodada de simulação do dono do produto. 6 a 8 levas ao todo.

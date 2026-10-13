@@ -8743,14 +8743,21 @@
    "n": "702.127",
    "regra": "Keyword Abilities",
    "titulo": "Aftermath",
-   "status": "ausente",
-   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): aftermath é metade de carta dividida conjurável só do cemitério (T-10 deixou fora).",
+   "status": "coberta",
+   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): aftermath é metade de carta dividida conjurável só do cemitério (T-10 deixou fora). T-32 (13/10/2026): coberta — nada falta da 702.127a.",
    "esforco": "M",
    "depende": [
     "709 cartas divididas",
     "601.3 conjurar do cemitério"
    ],
-   "cartas": "rara (Amonkhet)"
+   "cartas": "rara (Amonkhet)",
+   "evidencia": "T-32 (13/10/2026): back.aftermath na metade direita de carta dividida; ela só é conjurada do cemitério, pelo custo dela, e vai para o exílio ao sair da pilha (resolvida ou anulada) — caminho do lampejo com o custo da metade; da mão, do exílio ou sem pagar fora do cemitério, não. Mesa: \"Conjurar Mind do cemitério · {4}{U}{U}\"; registro \"do cemitério (consequência)\". Carta exemplo completa: Spring // Mind (Oracle do Forge, 13/10/2026).",
+   "testes": [
+    "CR 702.127a · da mão, só a metade sem consequência (Spring); Mind não é conjurada da mão (nem por pedido direto)",
+    "CR 702.127a · do cemitério, só a metade com consequência (Mind), pelo custo dela; Spring não",
+    "CR 702.127a · Mind (instantânea) do cemitério: compra duas e vai para o exílio, não para o cemitério",
+    "CR 702.127a · Mind anulada também vai para o exílio"
+   ]
   },
   {
    "n": "702.128",
@@ -10337,7 +10344,7 @@
    "regra": "Split Cards",
    "titulo": "Escolher a metade ao conjurar",
    "status": "parcial",
-   "falta": "709.3c: cópia de carta dividida conjurada (707.12) não existe no motor. Fundir (702.102) e Consequência (702.127) não existem: as cartas com essas palavras-chave ficam manuais.",
+   "falta": "709.3c: cópia de carta dividida conjurada (707.12) não existe no motor. Fundir (702.102) e Consequência (702.127) não existem: as cartas com essas palavras-chave ficam manuais. T-32 (13/10/2026): Consequência (702.127) existe.",
    "esforco": "M",
    "cartas": "comum",
    "evidencia": "T-10: a ação de conjurar leva `face: 'esquerda' | 'direita'`; legalActions oferece uma conjuração por metade (custo, tempo e alvos dela) e nunca a carta inteira; na pilha só a metade conjurada existe. T-11 (12/10/2026) · auditoria independente (12 arquivos de sonda, 259 conferências, fuzz de 120 partidas, 1.364.904 pedidos diretos): na decisão \"conjurar sem pagar\" a dividida oferece as duas metades (antes só a esquerda; a direita era aceita sem ser oferecida) e a tela tem um botão por metade; o bot distingue as metades.",

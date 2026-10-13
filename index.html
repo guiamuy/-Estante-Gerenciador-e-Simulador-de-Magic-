@@ -6588,6 +6588,10 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-32 · CR 702.127 · consequência (Oracle do Forge, consulta de 13/10/2026).
+  { name: 'Spring // Mind', self: { dividida: true, mana: '{2}{G}', types: ['sorcery'] }, effects: [{ do: 'search', amount: 1, filter: { types: ['land'], basic: true }, to: 'battlefield-tapped' }], // "Search your library for a basic land card, put it onto the battlefield tapped, then shuffle."
+    back: { name: 'Mind', types: ['instant'], mana: '{4}{U}{U}', effects: [{ do: 'draw', amount: 2 }], aftermath: true }, // "Aftermath · Draw two cards."
+    example: { target: 'none', expect: { selfLife: 0 } } },
   // T-31 · CR 702.171 · selar (Oracle do Forge, consulta de 13/10/2026). A ficha de Ovelha é a w_1_1_sheep do Forge. Vigilância vem da palavra-chave.
   { name: 'Bridled Bighorn', self: { selar: 2 }, abilities: [{ kind: 'triggered', when: 'attacks', condition: { selada: true }, effects: [{ do: 'token', amount: 1, token: { name: 'Sheep', types: ['creature'], subtypes: ['Sheep'], colors: ['W'], power: 1, toughness: 1 } }] }], // "Whenever Bridled Bighorn attacks while saddled, create a 1/1 white Sheep creature token. · Saddle 2"
     example: { action: 'activate:0', target: 'none', expect: { selfLife: 0 } } },
@@ -8958,6 +8962,8 @@ function divididaErros(sc) {
   if (!sc.back) { errs.push('dividida: falta a metade direita (back)'); return errs; }
   if (!(typeof sc.back.mana === 'string' && /\{/.test(sc.back.mana))) errs.push('dividida: a metade direita precisa de custo (back.mana)');
   if (!ok(sc.back.types)) errs.push('dividida: as metades são instantânea ou feitiço (back.types)');
+  if (sc.back.aftermath != null && (sc.back.aftermath !== true || sf.sala)) errs.push('consequência: back.aftermath só vale como true, numa carta dividida de instantânea ou feitiço'); // T-32 · CR 702.127
+  if (sf.aftermath != null) errs.push('consequência: só a metade direita tem consequência (back.aftermath)'); // T-32
   return errs;
 }
 Object.assign(EXPORTS_T_SC, { divididaErros });
@@ -21630,7 +21636,7 @@ const HANDLERS = {
     aerobendNoCastV(s, a, o); // V-30 · 701.65a: conjurar a carta aerobendida por {2} (Toca ponto comum: HANDLERS.cast)
     const fromExile = jogavelDoExilio(s, a.p, o); // M-270
     if (!o || o.owner !== a.p || !(o.zone === 'hand' || fromGraveyard || fromPlot || fromExile || (o.zone === 'command' && o.commander))) throw new RuleError('objeto', 'só conjura da mão ou da zona de comando');
-    if (a.flashback && !flashbackOf(s, o)) throw new RuleError('lampejo', 'esta carta não tem lampejo do passado');
+    if (a.flashback && !flashbackOf(s, o) && !consequenciaT(s, a)) throw new RuleError('lampejo', 'esta carta não tem lampejo do passado'); // T-32 · CR 702.127a: a metade de consequência é conferida depois de virar para ela (Toca ponto comum: HANDLERS.cast)
     if (a.retrace && !(s.facts[o.name].script || {}).retrace) throw new RuleError('retraçar', 'esta carta não tem retraçar'); // M-222 · 702.81
     if (a.recomecarK) pagaRecomecarK(s, a, o); // K-10 · 702.133a: confere e descarta a carta escolhida (custo adicional)
     confereHarmonizarK(s, a, o); // K-55 · 702.180a: harmonizar só do cemitério, e só pelo custo de harmonizar (Toca ponto comum: HANDLERS.cast)
@@ -25643,6 +25649,14 @@ function seladaT(s, src, events) {
 /** A mesa: a ação é a de selar (para a pergunta e o rótulo dizerem "selar", não "tripular"). */
 function selarDaAcaoT(s, a) { const o = a && a.t === 'activate' && s.objects[a.oid], ab = o && abilitiesOf(s, o).filter(x => x.kind === 'activated')[a.index || 0]; return !!(ab && ab.selarT); }
 Object.assign(EXPORTS_T, { seladaAgoraT, selarDaAcaoT });
+/* ---------------- T-32 · CR 702.127 · consequência (aftermath) ----------------
+   Na carta dividida, a metade direita com `back.aftermath` só é conjurada do cemitério (pelo custo dela, `flashback` interno da metade,
+   que leva ao exílio ao sair da pilha, anulada ou resolvida); da mão, do exílio ou "sem pagar" fora do cemitério, não. A esquerda segue a
+   regra das divididas (da mão). O registro diz "do cemitério (consequência)". Única diferença do lampejo do passado, declarada: o custo
+   é pago pelo caminho de custo alternativo (nada no motor pergunta "conjurada com lampejo"). */
+function consequenciaDaCartaT(s, o) { const sc = o && divididaScriptT(s, o); return !!(sc && ((s.facts[direitaT(sc)] || {}).script || {}).flashback && s.facts[direitaT(sc)].script.flashback.consequenciaT); }
+function consequenciaT(s, a) { const o = a && s.objects[a.oid]; return !!(a && a.face === 'direita' && a.flashback && consequenciaDaCartaT(s, o)); }
+Object.assign(EXPORTS_T, { consequenciaT });
 /* ---------------- T-24 · CR 702.87 / 711 · cartas de subir de nível ----------------
    Forma no script: `self: { nivelar: { mana, faixas: [{ de, ate, base: [P, R], palavras?, abilities?, continuo? }, …, { de, base, … }] } }`
    (a última barra é a "N+", sem `ate`). O nível é o número de marcadores `level` da permanente (122.1), de qualquer fonte.
@@ -26420,7 +26434,7 @@ function divididasPorInteiroT(setup, scripts) {
   const troca = {}, porMetade = {};
   for (const sc of Object.values(scripts || {})) if (sc && sc.self && sc.self.dividida && sc.back) { porMetade[esquerdaT(sc)] = sc.name; porMetade[sc.back.name] = sc.name; }
   const nomes = new Set([...Object.keys(setup.cards || {}), ...(setup.players || []).flatMap(pl => (pl.deck || []).map(e => e.name))]); // T-11 · também o nome do baralho sem dado próprio
-  for (const k of nomes) { const inteira = porMetade[k]; if (inteira && k !== inteira) troca[k] = inteira; }
+  for (const k of nomes) { const inteira = porMetade[k]; if (inteira && k !== inteira && !(scripts[k] && !(scripts[k].self || {}).dividida)) troca[k] = inteira; } // T-32 · carta com script próprio de mesmo nome que uma metade (fatos são por nome) não vira a carta dividida
   if (!Object.keys(troca).length) return setup;
   const cards = {}; for (const [k, c] of Object.entries(setup.cards)) { const n = troca[k] || k; if (!cards[n] || n === k) cards[n] = c; }
   return { ...setup, cards, players: setup.players.map(pl => ({ ...pl, deck: (pl.deck || []).map(e => (troca[e.name] ? { ...e, name: troca[e.name] } : e)) })) };
@@ -26428,6 +26442,7 @@ function divididasPorInteiroT(setup, scripts) {
 function fatosDaDivididaT(s, sc, setup, fd) {
   const sf = sc.self, cd = parseCost(sf.mana), ce = sc.back.colors && sc.back.colors.length ? null : 1;
   fd.cost = parseCost(sc.back.mana); fd.cmc = valorDoCustoT(fd.cost); fd.semCusto = false; if (ce) fd.colors = coresDoCustoT(fd.cost);
+  if (sc.back.aftermath && fd.script) fd.script.flashback = { mana: sc.back.mana, consequenciaT: true }; // T-32 · CR 702.127a: do cemitério, pelo custo da própria metade, e exilada ao sair da pilha (o caminho do lampejo)
   const esq = esquerdaT(sc), fe = s.facts[esq] = cardFacts({ name: esq, type_line: (sf.types || []).join(' '), colors: (sf.colors && sf.colors.length) ? sf.colors : coresDoCustoT(cd), keywords: [], oracle_text: '' });
   fe.cost = cd; fe.cmc = valorDoCustoT(cd); fe.semCusto = false; fe.script = { name: esq, effects: sc.effects || [], abilities: [] }; fe.metadeDe = sc.name;
   fd.metadeDe = fe.metadeDe;
@@ -26443,6 +26458,7 @@ function divididaEscolhidaT(s, a, o) {
   const lado = a.face == null ? 'esquerda' : a.face;
   if (lado !== 'esquerda' && lado !== 'direita') throw new RuleError('face', 'escolha a metade da carta dividida: esquerda ou direita');
   if (a.omen || a.disturb || a.faceDown || a.bestow) throw new RuleError('face', 'a metade é conjurada pelo custo dela');
+  if (lado === 'direita' && consequenciaDaCartaT(s, o) && o.zone !== 'graveyard') throw new RuleError('face', `${direitaT(sc)} tem consequência: só é conjurada do cemitério`); // T-32 · CR 702.127a
   flipTo(s, o, lado === 'direita' ? direitaT(sc) : esquerdaT(sc));
   return true;
 }
@@ -26453,7 +26469,7 @@ function divididaOfertas(s, p, out) {
   for (const lado of ['esquerda', 'direita']) {
     const s2 = cloneEstado(s); for (const oid of aqui) { const sc = divididaScriptT(s2, s2.objects[oid]); flipTo(s2, s2.objects[oid], lado === 'direita' ? direitaT(sc) : esquerdaT(sc)); }
     DENTRO_DAS_MODAIS = true;
-    try { for (const a of legalActions(s2, p)) if (aqui.includes(a.oid) && a.t === 'cast' && !a.omen && !a.disturb && !a.faceDown && !a.bestow) out.push({ ...a, face: lado }); }
+    try { for (const a of legalActions(s2, p)) if (aqui.includes(a.oid) && a.t === 'cast' && !a.omen && !a.disturb && !a.faceDown && !a.bestow && !(lado === 'direita' && s.objects[a.oid].zone !== 'graveyard' && consequenciaDaCartaT(s, s.objects[a.oid]))) out.push({ ...a, face: lado }); } // T-32 · CR 702.127a: a metade de consequência só do cemitério
     finally { DENTRO_DAS_MODAIS = false; }
   }
 }
@@ -26473,7 +26489,7 @@ function faceGratisOfertasT(s, p, out) {
     if (!quais.length) continue;
     const s2 = cloneEstado(s); for (const oid of quais) flipTo(s2, s2.objects[oid], vira[face](oid));
     DENTRO_DAS_MODAIS = true;
-    try { for (const x of legalActions(s2, p)) if (x.t === 'cast_free' && quais.includes(x.oid)) out.push({ ...x, face }); }
+    try { for (const x of legalActions(s2, p)) if (x.t === 'cast_free' && quais.includes(x.oid) && !(face === 'direita' && s.objects[x.oid].zone !== 'graveyard' && consequenciaDaCartaT(s, s.objects[x.oid]))) out.push({ ...x, face }); } // T-32 · CR 702.127a
     finally { DENTRO_DAS_MODAIS = false; }
   }
 }
@@ -28213,6 +28229,7 @@ function describe(before, a, events, after) {
       const comX = a.x != null ? ` com X = ${a.x}` : ''; // Leva 104
       // Leva 110 · "alvo:" no lugar da seta, que não dizia nada para quem não conhece o app
       L.push(extra ? `${P} conjurou ${o.name}${extra}${comX}${alvo ? ` · alvo: ${alvo}` : ''}` : (o.zone === 'command' ? `${P} conjurou ${o.name} da zona de comando (imposto ${E.commanderTax(after, a.p, a.oid)})` : `${P} conjurou ${o.name}${comX}`) + (alvo ? ` · alvo: ${alvo}` : ''));
+      if (E.consequenciaT(before, a)) L[L.length - 1] = L[L.length - 1].replace(' (lampejo do passado)', ' do cemitério (consequência)'); // T-32 · CR 702.127a (Toca ponto comum: linhas do registro)
       { const av = a.omen && E.aventuraDe(before, a.oid); if (av) L[L.length - 1] = L[L.length - 1].replace(' (presságio)', ` como a aventura ${av.nome}`); } // T-5 · CR 715.3 · a Aventura diz o nome dela no registro
       break;
     }
@@ -31219,7 +31236,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       legal.push(doBtn(x.disturb ? `Perturbar · ${(f.script.disturb || {}).mana || ''}` : `Presságio · ${(f.script.omen || {}).mana || ''}`, x, { variant: 'primary' }));
     { const av = E.aventuraDe(s, oid); if (av) for (const b of legal) if (b.action && b.action.t === 'cast' && b.action.omen) b.label = `Aventura · ${av.nome} · ${av.mana}`; } // T-5 · CR 715.3 · a escolha "carta normal ou Aventura": o botão diz Aventura, o nome e o custo
     { const fv = E.faceDeTras(s, oid); if (fv) for (const b of legal) { const ac = b.action; if (!ac) continue; if (ac.face === 'verso') b.label = ac.t === 'play_land' ? `Jogar ${fv.nome}` : `Conjurar ${fv.nome} · ${fv.mana}`; else if (ac.t === 'play_land' && ac.revela == null) b.label = `Jogar ${o.name}`; } } // T-8 · CR 712.11b / 712.12 · dupla face modal: cada botão diz a face
-    { const hs = E.metadesDe(s, oid); if (hs) for (const b of legal) { const ac = b.action; if (ac && ac.t === 'cast' && (ac.face === 'esquerda' || ac.face === 'direita')) { const md = hs[ac.face === 'direita' ? 1 : 0]; b.label = `Conjurar ${md.nome} · ${md.mana}`; } } } // T-10 · CR 709.3 · um botão por metade
+    { const hs = E.metadesDe(s, oid); if (hs) for (const b of legal) { const ac = b.action; if (ac && ac.t === 'cast' && (ac.face === 'esquerda' || ac.face === 'direita')) { const md = hs[ac.face === 'direita' ? 1 : 0]; b.label = `Conjurar ${md.nome}${E.consequenciaT(s, ac) ? ' do cemitério' : ''} · ${md.mana}`; /* T-32 · CR 702.127a */ } } } // T-10 · CR 709.3 · um botão por metade
     // S34: conceder
     for (const bw of E.legalActions(s, v).filter(x => x.t === 'cast' && x.oid === oid && x.bestow))
       legal.push(doBtn(`Conceder · ${(f.script.bestow || {}).mana || ''} → ${targetName(s, bw.targets[0])}`, bw, { variant: 'primary' }));
