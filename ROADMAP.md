@@ -4204,6 +4204,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** o bot não prenuncia; a visão do bot do oponente ainda conhece o nome da carta prenunciada (`visaoDe`, pedido à trilha `bot`); a redução por cor também falta no aerobender (`custoAerobendV`, região V — pedido à `homologacao`); reforço e X na prenunciada não são oferecidos. Mapa de regras: 702.143 parcial, 701.63 (endure, M-380) coberta.
 - **Teste:** `lt65.unit` (3 testes, falham no motor anterior) e um teste de tela no fim do `e2e.test.mjs` (o verso no exílio do oponente).
 
+**M-383 · LT50 · 601.2f · "Costs {N} less if it targets a tapped permanent" e alvo "creature or Vehicle"** ✅ (leva M-383, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** revisão por lote XLI — **Ride's End passa a jogar** (APROVADAS; Oracle do Forge, consulta de 12/10/2026). A mesa oferece a mágica mirando uma permanente virada pelo custo reduzido ({1}{W}) e, com a mana inteira ({4}{W}), qualquer criatura ou Veículo; o Veículo é alvo mesmo sem estar tripulado, e o Veículo tripulado aparece uma vez só na lista. A redução vale na oferta e no pagamento (601.2f, a partir dos alvos escolhidos).
+- **Revisão independente:** 91 asserções em sondas e um diferencial de 7.224 comparações de ofertas em 1.806 estados, com e sem a carta; aprovada sem divergências. A deduplicação do alvo "ou" tirou uma oferta repetida da Saheeli, Sublime Artificer (correção devida).
+- **Fora (declarado):** a redução confere o alvo só na conjuração (como manda a 601.2f); o bot usa a mesma oferta, sem plano próprio para mirar virados.
+- **Teste:** `lt66.unit` (2 testes; o primeiro falha no motor anterior: com duas Planícies, a mesa não oferecia mirar o Urso virado).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

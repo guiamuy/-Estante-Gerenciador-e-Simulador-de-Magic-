@@ -6116,6 +6116,7 @@ function validateScript(sc) {
   if (sc && sc.self && sc.self.entersWithCountersX != null && typeof sc.self.entersWithCountersX !== 'boolean') errs.push('entra com X marcadores precisa ser verdadeiro ou falso');
   if (sc && sc.discount && !(Number.isInteger(sc.discount.amount) && sc.discount.amount > 0 && (sc.discount.needs || []).length)) errs.push('desconto precisa de valor e de exigências');
   if (sc && sc.reduzPor && !(Number.isInteger(sc.reduzPor.generic) && sc.reduzPor.generic > 0 && REDUZ_POR.includes(sc.reduzPor.per))) errs.push('redução por contagem precisa de valor e de uma contagem conhecida'); // M-333
+  if (sc && sc.reduzSeAlvoVirado != null && !(Number.isInteger(sc.reduzSeAlvoVirado) && sc.reduzSeAlvoVirado > 0)) errs.push('reduzSeAlvoVirado: quanto o custo cai (inteiro) se a mágica mira uma permanente virada'); // M-383 · Ride's End
   if (sc && sc.reduzPor && (sc.discount || sc.affinity)) errs.push('redução por contagem não se soma a desconto ou afinidade no mesmo script'); // M-333
   // S18 · ninjutsu e insanidade
   // S21 · habilidades de lealdade
@@ -8979,6 +8980,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Eureka Moment': { texto: 'jwwwgk', leva: 'M-380' },
   // M-382 · revisão por lote XL (prenunciar, 702.143: Behold the Multiverse), revisor independente com 75 verificações: 1 de 1 aprovada (depois da correção da redução por cor e do exílio virado para baixo à vista do oponente)
   'Behold the Multiverse': { texto: 'yonfkj', leva: 'M-382' },
+  // M-383 · revisão por lote XLI (Pauper: Ride's End), revisor independente: 91 asserções e 7.224 comparações de ofertas, aprovada sem divergências
+  'Ride\'s End': { texto: '1gesdum', leva: 'M-383' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -16637,6 +16640,7 @@ const __m42 = (function () {
     if (k === 'target opponent or planeswalker') return { target: { tipos: ['planeswalker'], jogadores: 'opponent' } }; // M-343
     if (k === 'target legendary creature') return { target: { tipos: ['creature'], lendaria: true } }; // M-343 · Karakas (205.4)
     if (k === 'up to one target tapped creature') return { target: 'creature', upTo: true, targetTapped: true }; // M-349 · Cryogen Relic
+    if (k === 'target creature or vehicle') return { target: { ou: [{ tipos: ['creature'] }, { subtipos: ['Vehicle'] }] } }; // M-383 · Ride's End
     if (k === 'target attacking creature') return { target: { tipos: ['creature'], atacando: true } }; // M-377 · Desert (seletor atacando, M-361)
     if (k === 'up to one target card from a graveyard') return { target: 'card-in-any-graveyard', upTo: true }; // M-373 · Heritage Reclamation (115.3: aceita zero)
     if (k === 'target instant or sorcery spell') return { target: 'spell', targetTypes: ['instant', 'sorcery'] }; // LT13
@@ -17106,6 +17110,7 @@ const __m42 = (function () {
       if (magica && /^teamwork \d+$/i.test(linha.replace(/\.$/, ''))) { frases.push({ texto: linha, lida: true, palavras: true }); continue; } // M-379 · 702.194 (K-70): o N vem do texto da carta (fatos.equipeK)
       if (!magica && /^ward \{\d+\}$/i.test(linha.replace(/\.$/, ''))) { frases.push({ texto: linha, lida: true, palavras: true }); continue; } // M-333 · 702.21: o motor lê "Ward {N}" impresso da carta (K-2)
       const kc0 = !magica && COM_CUSTO.map(([re, faz]) => { const m = linha.replace(/\.$/, '').match(re); return m && faz(m); }).find(Boolean); // LT5 · reciclagem em terreno
+      { const rv = linha.replace(/\.$/, '').match(/^this spell costs \{(\d+)\} less to cast if it targets a tapped permanent$/i); if (rv && magica) { topo.reduzSeAlvoVirado = +rv[1]; frases.push({ texto: linha, lida: true }); continue; } } // M-383 · Ride's End
       { const rp = linha.replace(/\.$/, '').match(/^(?:domain — )?this spell costs \{(\d+)\} less to cast for each (.+)$/i), per = rp && REDUZ_POR_TEXTO[rp[2].toLowerCase()]; // M-333 · 601.2f
         if (per) { topo.reduzPor = { generic: +rp[1], per }; frases.push({ texto: linha, lida: true }); continue; } }
       if (kc0) { Object.assign(topo, kc0); frases.push({ texto: linha, lida: true }); continue; }
@@ -17803,6 +17808,7 @@ function createGame(setup) {
     if (sc.escape) f.script.escape = sc.escape; // S48 · fuga
     if (sc.discount) f.script.discount = sc.discount; // S49 · desconto por condição de campo
     if (sc.reduzPor) f.script.reduzPor = sc.reduzPor; // M-333 · 601.2f
+    if (sc.reduzSeAlvoVirado) f.script.reduzSeAlvoVirado = sc.reduzSeAlvoVirado; // M-383 · 601.2f
     if (sc.ninjutsu) f.script.ninjutsu = sc.ninjutsu;
     if (sc.madness) f.script.madness = sc.madness;
     if (sc.produces) f.script.produces = sc.produces;
@@ -18814,6 +18820,8 @@ function reducaoPorCor(s, p, o) {
 function reducaoPorAlvo(s, p, o, alvos) {
   if (alvos == null) return 0;
   let n = 0;
+  { const rv = o && ((s.facts[o.name] || {}).script || {}).reduzSeAlvoVirado; // M-383 · 601.2f: "This spell costs {N} less to cast if it targets a tapped permanent" (Ride's End)
+    if (rv && (alvos === 'otimista' || [].concat(alvos || []).some(t => t && t.oid != null && s.objects[t.oid] && s.objects[t.oid].zone === 'battlefield' && s.objects[t.oid].tapped))) n += rv; }
   for (const x of battlefield(s)) {
     if (x.controller !== p || x.faceDown || semImpressas(s, x)) continue;
     const r = (((s.facts[x.name] || {}).script || {}).self || {}).reduzSeMira; if (!r) continue;
@@ -18825,7 +18833,8 @@ function reducaoPorAlvo(s, p, o, alvos) {
 }
 /** M-259 · a redução por alvo num custo qualquer (lampejo do passado, conceder): só o genérico. */
 const reducaoNoCusto = (s, p, o, alvos, custo) => Math.min(custo.generic || 0, reducaoPorAlvo(s, p, o, alvos) + reducaoPorCor(s, p, o)); // M-352 · a redução por cor vale também no lampejo e no conceder
-const temReducaoPorAlvo = (s, p) => battlefield(s).some(x => x.controller === p && !x.faceDown && (((s.facts[x.name] || {}).script || {}).self || {}).reduzSeMira);
+const temReducaoPorAlvo = (s, p) => battlefield(s).some(x => x.controller === p && !x.faceDown && (((s.facts[x.name] || {}).script || {}).self || {}).reduzSeMira)
+  || ['hand', 'graveyard', 'exile', 'command'].some(z => ((s.zones[p] || {})[z] || []).some(oid => { const x = s.objects[oid]; return x && ((s.facts[x.name] || {}).script || {}).reduzSeAlvoVirado; })); // M-383 · a redução da própria mágica (Ride's End) também liga a oferta otimista
 /** Quantas permanentes do tipo pedido você controla (limitado ao custo genérico). */
 function affinityDiscount(s, p, o, acrescimo = 0) {
   const sc = s.facts[o.name].script || {};
@@ -19566,7 +19575,7 @@ function selCasa(s, p, o, sel, selfOid, opts = {}) {
 }
 /** Objetos e jogadores que o seletor escolhe, na ordem das zonas (objetos primeiro, jogadores depois). */
 function selecionar(s, p, sel, selfOid, opts = {}) {
-  if (sel.ou) return sel.ou.flatMap(x => selecionar(s, p, x, selfOid, opts));
+  if (sel.ou) { const r = sel.ou.flatMap(x => selecionar(s, p, x, selfOid, opts)), k = x => (x.oid != null ? 'o' + x.oid : 'p' + x.player); return r.filter((x, i) => r.findIndex(y => k(y) === k(x)) === i); } // M-383 · um objeto que casa com duas partes do "ou" (Veículo tripulado é criatura) aparece uma vez só
   const mira = opts.mira !== false; // "cada" não mira: resistência a magia e proteção não impedem
   const out = [], srcObj = selfOid ? s.objects[selfOid] : null;
   if (sel.ref === 'encantada-pela-fonte') { // S35 · a criatura que esta aura encanta
