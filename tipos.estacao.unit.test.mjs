@@ -182,3 +182,35 @@ test('CR 702.184c · "each creature you control with toughness greater than its 
   E.rotulosDaClasseT(s, k, legal, () => '');
   assert.ok(legal.some(b => /Estação: virar Muro \(\+4 de carga\)/.test(b.label)), JSON.stringify(legal.map(b => b.label)));
 });
+
+/* ---------------- T-55 · correções da auditoria independente ---------------- */
+const comGuardia = (seed = 5) => {
+  const sc = { ...SCRIPTS, 'Guardiã': { name: 'Guardiã', self: { estacionaPelaResistencia: true }, ...EX } };
+  C['Guardiã'] = { name: 'Guardiã', type_line: 'Artifact Creature — Robot Soldier', mana_cost: '{1}', cmc: 1, keywords: [], oracle_text: '', colors: [], power: '3', toughness: '4' };
+  C['Muro Leve'] = { name: 'Muro Leve', type_line: 'Creature — Wall', mana_cost: '{1}', cmc: 1, keywords: [], oracle_text: '', colors: [], power: '1', toughness: '3' };
+  const deck = [{ name: KS, qty: 4, zone: 'main' }, { name: 'Guardiã', qty: 4, zone: 'main' }, ...['Urso', 'Muro Leve', 'Volta', 'Força'].map(name => ({ name, qty: 6, zone: 'main' })), { name: 'Plains', qty: 14, zone: 'main' }];
+  let s = E.createGame({ format: 'livre', seed, mode: 'full', cards: C, scripts: sc, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  return passaAte(s, x => x.turn.active === 0 && x.turn.step === 'main1' && !x.stack.length && !x.pending);
+};
+test('CR 702.184c / 608.2h · a criatura roubada que sai em resposta: vale a Guardiã de quem a controlava, não a do dono (D4)', () => {
+  let s = comGuardia(); let k, m; [s, k] = nave(s); [s, m] = poe(s, 1, 'Muro Leve', 'battlefield');
+  s = J(s); Object.assign(s.objects[m], { controller: 0, controladorBase: 1, controles: [{ por: 0, ate: 'sempre', by: 0, ts: 1, turno: s.turn.number }] }); // A controla o Muro de B (efeito de controle; a carta segue na zona do dono)
+  [s] = poe(s, 0, 'Guardiã', 'battlefield');
+  let t = act(s, estacoes(s, 0, k).find(a => [].concat(a.pay.tapOther)[0] === m));
+  let v; [t, v] = poe(t, 0, 'Volta', 'hand'); t = mana(t);
+  t = act(t, legais(t, 0, a => a.t === 'cast' && a.oid === v && a.targets[0].oid === m)[0]); // devolve o Muro em resposta
+  t = esvazia(t);
+  eq(carga(t, k), 3, 'a Guardiã de A (quem controlava): a resistência 3');
+});
+test('CR 608.2h · a criatura que sai e volta antes da resolução: vale a última informação de quando saiu, não a foto da ativação (D5)', () => {
+  let s = comGuardia(7); let k, m; [s, k] = nave(s); [s, m] = poe(s, 0, 'Muro Leve');
+  let t = act(s, estacoes(s, 0, k).find(a => [].concat(a.pay.tapOther)[0] === m));
+  let f; [t, f] = poe(t, 0, 'Força', 'hand'); t = mana(t);
+  t = act(t, legais(t, 0, a => a.t === 'cast' && a.oid === f && a.targets[0].oid === m)[0]); t = act(t, { t: 'pass', p: 0 }); t = act(t, { t: 'pass', p: 1 }); // Muro 4/6
+  let v; [t, v] = poe(t, 0, 'Volta', 'hand'); t = mana(t);
+  t = act(t, legais(t, 0, a => a.t === 'cast' && a.oid === v && a.targets[0].oid === m)[0]); t = act(t, { t: 'pass', p: 0 }); t = act(t, { t: 'pass', p: 1 }); // volta para a mão (sai: última informação 4/6)
+  t = J(t); const mm = t.objects[m]; t.zones[0].hand = t.zones[0].hand.filter(z => z !== m); mm.zone = 'battlefield'; mm.zc = (mm.zc || 0) + 1; t.zones[0].battlefield.push(m); // volta ao campo (objeto novo)
+  t = esvazia(t);
+  eq(carga(t, k), 4, 'o poder 4 de quando saiu (sem Guardiã: resistência 6 só valeria com ela)');
+});

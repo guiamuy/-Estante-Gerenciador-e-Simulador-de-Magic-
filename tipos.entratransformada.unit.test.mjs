@@ -23,15 +23,21 @@ const SCRIPTS = {
   'Rito Duplo': { name: 'Rito Duplo', self: { modal: true }, effects: [{ do: 'gain', amount: 1 }], back: { name: 'Poço Duplo', types: ['land'], produces: [['B']] }, ...EX },
   // "Return target card from your graveyard to the battlefield."
   'Ressurgir': { name: 'Ressurgir', effects: [{ do: 'mover', target: 'card-in-your-graveyard', de: 'graveyard', para: 'battlefield' }], ...EX },
+  // T-55 · frente "entra virada" e "entra com 2 marcadores +1/+1"; o verso não tem nada disso
+  'Vigia Torto': { name: 'Vigia Torto', entersTapped: true, self: { duplaFace: true, entersWithCounters: 2 }, back: { name: 'Vigia Erguido', types: ['creature'], subtypes: ['Horror'], colors: ['B'], power: 3, toughness: 3 }, ...EX },
+  // T-55 · frente Aura (encantar criatura sua), verso terreno — o padrão de Journey to Eternity // Atzal
+  'Jornada Teste': { name: 'Jornada Teste', aura: { enchant: 'creature-you-control' }, self: { duplaFace: true }, back: { name: 'Cidade Teste', types: ['land'], produces: [['B']] }, ...EX },
+  'Volta Qualquer': { name: 'Volta Qualquer', effects: [{ do: 'mover', target: 'card-in-your-graveyard', de: 'graveyard', para: 'battlefield', transformada: true }], ...EX },
   'Golpe': { name: 'Golpe', effects: [{ do: 'destroy', target: 'creature' }], ...EX },
 };
-carta('Volta Lunar', 'Sorcery'); carta('Golpe', 'Instant'); carta('Rito Duplo', 'Sorcery'); carta('Ressurgir', 'Sorcery');
+carta('Volta Lunar', 'Sorcery'); carta('Golpe', 'Instant'); carta('Rito Duplo', 'Sorcery'); carta('Ressurgir', 'Sorcery'); carta('Volta Qualquer', 'Sorcery');
+carta('Vigia Torto', 'Creature — Human', { power: '1', toughness: '1' }); carta('Jornada Teste', 'Legendary Enchantment — Aura');
 carta('Cultista', 'Creature — Human Cleric', { power: '1', toughness: '1' });
 carta('Mago Caido', 'Creature — Human Wizard', { power: '2', toughness: '2' });
 carta('Urso', 'Creature — Bear', { power: '2', toughness: '2' });
 
 function mesa(seed = 1) {
-  const deck = [{ name: 'Swamp', qty: 20, zone: 'main' }, { name: 'Volta Lunar', qty: 6, zone: 'main' }, { name: 'Golpe', qty: 4, zone: 'main' }, { name: 'Cultista', qty: 4, zone: 'main' }, { name: 'Mago Caido', qty: 3, zone: 'main' }, { name: 'Urso', qty: 3, zone: 'main' }, { name: 'Rito Duplo', qty: 2, zone: 'main' }, { name: 'Ressurgir', qty: 2, zone: 'main' }];
+  const deck = [{ name: 'Swamp', qty: 20, zone: 'main' }, { name: 'Volta Lunar', qty: 6, zone: 'main' }, { name: 'Golpe', qty: 4, zone: 'main' }, { name: 'Cultista', qty: 4, zone: 'main' }, { name: 'Mago Caido', qty: 3, zone: 'main' }, { name: 'Urso', qty: 3, zone: 'main' }, { name: 'Rito Duplo', qty: 2, zone: 'main' }, { name: 'Ressurgir', qty: 2, zone: 'main' }, { name: 'Volta Qualquer', qty: 2, zone: 'main' }, { name: 'Vigia Torto', qty: 1, zone: 'main' }, { name: 'Jornada Teste', qty: 1, zone: 'main' }];
   let s = E.createGame({ format: 'livre', seed, mode: 'full', cards: C, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
   for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
   return passaAte(s, x => x.turn.active === 0 && x.turn.step === 'main1' && !x.stack.length && !x.pending);
@@ -86,4 +92,27 @@ test('CR 712.14b · a dupla face modal cuja frente não é de permanente, mandad
   let s = mesa(); let r; [s, r] = poe(s, 0, 'Rito Duplo', 'graveyard');
   [s] = conjura(s, 0, 'Ressurgir', a => a.targets[0].oid === r);
   eq([s.objects[r].zone, s.objects[r].name], ['graveyard', 'Rito Duplo']);
+});
+
+/* ---------------- T-55 · correções da auditoria independente ---------------- */
+test('CR 614.12 / 712.14a · as substituições de entrada olham a face que entra: o "entra virada" e o "entra com marcadores" da frente não valem para o verso (D1)', () => {
+  let s = mesa(); let v; [s, v] = poe(s, 0, 'Vigia Torto', 'graveyard');
+  [s] = conjura(s, 0, 'Volta Lunar', a => a.targets[0].oid === v);
+  const o = s.objects[v];
+  eq([o.name, !!o.tapped, (o.counters || {}).p1p1 || 0], ['Vigia Erguido', false, 0]);
+});
+
+test('CR 303.4g / 712.14a · frente Aura sem nada para encantar, verso terreno: entra transformada como terreno (D2)', () => {
+  let s = mesa(); let j; [s, j] = poe(s, 0, 'Jornada Teste', 'graveyard');
+  for (const oid of [...s.zones[0].battlefield]) if (E.tiposDe(s, s.objects[oid]).includes('creature')) s = act(s, { t: 'pass', p: s.turn.priority }); // nenhuma criatura nossa no campo (a mesa começa vazia)
+  [s] = conjura(s, 0, 'Volta Qualquer', a => a.targets[0].oid === j);
+  eq([s.objects[j].zone, s.objects[j].name], ['battlefield', 'Cidade Teste']);
+});
+
+test('Registro · a carta que entra transformada diz a face que ficou para cima (D6)', () => {
+  let s = mesa(); let c; [s, c] = poe(s, 0, 'Cultista', 'graveyard'); s = mana(s);
+  let x; [s, x] = poe(s, 0, 'Volta Lunar', 'hand'); s = mana(s);
+  let t = act(s, legais(s, 0, a => a.t === 'cast' && a.oid === x && a.targets[0].oid === c)[0]), linhas = [];
+  for (let i = 0; i < 6 && t.stack.length; i++) { const pa = { t: 'pass', p: t.turn.priority }, r = E.apply(t, pa); linhas = linhas.concat(T.describe(t, pa, r.events, r.state).map(String)); t = r.state; }
+  assert.ok(linhas.some(l => /Cultista foi para o campo transformada: agora é Cultista Desperto/.test(l)), JSON.stringify(linhas));
 });

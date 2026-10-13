@@ -18057,6 +18057,7 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
   if (o.commander && VOLTA_COMANDO.includes(to) && fromZone !== to && (fromZone !== 'command' || to === 'hand' || to === 'library')) (s.voltaComando = s.voltaComando || []).push(oid); // M-348 · 903.9b: "from anywhere" (Campfire); do próprio comando só para mão ou grimório
   if (to === 'library' && !top) dest.push(oid); else if (to === 'library') dest.unshift(oid); else dest.push(oid);
   // CR2-G R5a · 614.1c/614.12 · "entra virada", "entra virada a menos que…", "entra com N marcadores": um caminho só
+  if (to === 'battlefield') { entraTransformadaNaEntradaT(s, o); cicloNaEntradaT(s, o); } // T-55 · CR 614.12 / 712.14a / 702.145b: a face que entra é a que as substituições de entrada olham (Toca ponto comum: moveObject)
   if (to === 'battlefield') { const r = entradaModificada(s, o, xPago); if (r.virada != null) o.tapped = r.virada; if (r.pagaVida) s.queuedChoices = (s.queuedChoices || []).concat([{ kind: 'paga_vida_entrada', oid: o.oid, z: o.zc || 0, p: o.controller, n: r.pagaVida, name: o.name }]); for (const [k, n] of Object.entries(r.marcadores)) o.counters[k] = (o.counters[k] || 0) + marcadoresAoPor(s, o, k, n, true); } // CR2e.2 · 614.16: entrar com marcadores também é pôr marcadores
   if (to === 'battlefield') sagaEntrou(s, o); // T-2 · CR 714.3a / 122.6 / 714.3b · Saga que ENTRA no campo: o marcador de entrada dispara o capítulo aqui; com read ahead, fica anotada para a escolha (função abaixo da âncora T das exportações)
   // S21 · planeswalker entra com sua lealdade inicial
@@ -19936,7 +19937,7 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'mover': { // CR2-G R4a · mover entre zonas
       const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
       const nome = alvo && alvo.name;
-      if (moverObjeto(s, src, alvo, eff, ctrl)) note({ name: nome, para: eff.para, ...(eff.posicao ? { posicao: eff.posicao } : {}) }); else note({ failed: true });
+      if (moverObjeto(s, src, alvo, eff, ctrl)) note({ name: nome, para: eff.para, ...(eff.posicao ? { posicao: eff.posicao } : {}), ...(eff.transformada && alvo.zone === 'battlefield' && alvo.name !== nome ? { transformadaEm: alvo.name } : {}) }); else note({ failed: true }); // T-55 · a face que ficou para cima
       break;
     }
     case 'return_held': { // S48 · devolve ao campo a carta que esta permanente exilou
@@ -26498,6 +26499,13 @@ function entraTransformadaT(s, alvo) {
   alvo.entraTransformadaT = true;
   return true;
 }
+/** T-55 · o nome da face com que `o` vai entrar no campo: o verso quando entra transformada (712.14a) ou é a dupla face com daybound
+ * entrando de noite (702.145b); senão, a de agora. */
+function faceDeEntradaT(s, o) {
+  if (!o || o.frontName) return o && o.name;
+  const par = (o.entraTransformadaT || (s.cicloT === 'noite' && ((s.facts[o.name] || {}).kw || []).includes('daybound'))) && parDuplaFaceT(s, o);
+  return par && s.facts[par.verso] ? par.verso : o.name;
+}
 function entraTransformadaNaEntradaT(s, o) {
   if (!o || !o.entraTransformadaT) return;
   delete o.entraTransformadaT;
@@ -26673,14 +26681,14 @@ function estacaoHabilidadesT(s, o, sc, list) {
 const estacionaPelaResistenciaT = (s, p) => battlefield(s).some(x => x.controller === p && !x.faceDown && !semImpressas(s, x) && !!((((s.facts[x.name] || {}).script) || {}).self || {}).estacionaPelaResistencia);
 function valorDeEstacaoT(s, x, foto) {
   const pw = foto ? foto.power : isCreature(s, x) ? power(s, x) : 0, tg = foto ? foto.toughness : isCreature(s, x) ? toughness(s, x) : 0;
-  return pw == null ? 0 : tg != null && tg > pw && estacionaPelaResistenciaT(s, x.controller) ? tg : pw;
+  return pw == null ? 0 : tg != null && tg > pw && estacionaPelaResistenciaT(s, foto && foto.controller != null ? foto.controller : x.controller) ? tg : pw; // T-55 · 608.2h: o controlador de quando ela saiu (auditoria, D4)
 }
 function estacaoFotoT(s, oid) { const x = s.objects[oid]; return x ? { oid, z: x.zc || 0, power: valorDeEstacaoT(s, x) } : null; } // T-54 · 702.184c
 function estacaoResolveT(s, src, eff, events) {
   const o = src.ability ? s.objects[src.source] : src, v = src.estacaoViradaT;
   if (!o || o.zone !== 'battlefield' || (eff.z != null && (o.zc || 0) !== eff.z)) { events.push({ kind: 'effect', do: 'estacao', name: src.name, failed: true }); return; }
   const x = v && s.objects[v.oid], agora = x && x.zone === 'battlefield' && (x.zc || 0) === v.z;
-  const saiu = x && !agora && (x.zc || 0) === v.z + 1 && x.ultima ? (x.ultima.power != null ? valorDeEstacaoT(s, x, x.ultima) : 0) : null; // T-54 · 702.184c: com a foto // T-38 · 608.2h: o último poder que ela teve no campo (a foto de quando saiu)
+  const saiu = x && !agora && ((x.zc || 0) === v.z + 1 || ((x.zc || 0) === v.z + 2 && x.zone === 'battlefield')) && x.ultima ? (x.ultima.power != null ? valorDeEstacaoT(s, x, x.ultima) : 0) : null; // T-54 · 702.184c: com a foto · T-55 · 608.2h: também se saiu e voltou (a última informação é a da saída; auditoria, D5) // T-38 · 608.2h: o último poder que ela teve no campo (a foto de quando saiu)
   const n = Math.max(0, v ? (agora ? valorDeEstacaoT(s, x) : saiu != null ? saiu : v.power) : 0); // T-54 · 702.184c
   const k = n > 0 ? poeMarcadores(s, o, 'charge', n) : 0;
   events.push({ kind: 'effect', do: 'estacao', name: o.name, target: o.name, amount: k, total: (o.counters || {}).charge || 0 });
@@ -27005,6 +27013,7 @@ function candidatosDaAuraT(s, o, ctrl) {
 /** 303.4g · a Aura que entraria sem ser conjurada e não tem o que encantar não entra. Com opções, anota a entrada para `auraEntrouT`. */
 function auraNaoEntraT(s, o, controller) {
   if (!o || o.ability || o.attachedTo) return false;
+  if (faceDeEntradaT(s, o) !== o.name) return false; // T-55 · 712.14a / 702.145b: entra com o verso para cima — as regras de entrada são as dele (terreno, criatura…)
   const c = candidatosDaAuraT(s, o, controller != null ? controller : o.owner);
   if (!c) return false;
   if (!c.length) return true;
@@ -27083,7 +27092,7 @@ function papeisDeEstadoT(s, events) {
    por aqui: vai ao cemitério). Vale pela face de cima (a de fora do campo é a frente, 712.14). */
 function magiaNaoEntraT(s, o) {
   if (!o || o.ability || o.copiaDeMagia) return false;
-  const tipos = ((s.facts[o.name] || {}).types) || [];
+  const tipos = ((s.facts[faceDeEntradaT(s, o)] || {}).types) || []; // T-55 · a face que vai entrar
   return (tipos.includes('instant') || tipos.includes('sorcery')) && !tipos.some(t => PERMANENT.includes(t));
 }
 /* ---------------- T-18 · CR 306 · planeswalker ----------------
@@ -29682,7 +29691,7 @@ function effectLine(ev) {
     case 'gain': return `${t} ganhou ${n} de vida (${ev.name})`;
     case 'lose': return `${t} perdeu ${n} de vida (${ev.name})`;
     case 'pump': return `${t} ganhou ${ev.power >= 0 ? '+' : ''}${ev.power}/${ev.toughness >= 0 ? '+' : ''}${ev.toughness} até o fim do turno (${ev.name})`;
-    case 'mover': return ev.failed ? `${ev.name}: nada a mover` : `${ev.target} foi ${{ hand: 'devolvida à mão', exile: 'exilada', graveyard: 'para o cemitério', battlefield: 'para o campo', library: ev.posicao === 'embaralhado' ? 'embaralhada no grimório' : ev.posicao === 'fundo' ? 'para o fundo do grimório' : 'para o topo do grimório' }[ev.para] || 'movida'} (${ev.name})`;
+    case 'mover': if (ev.transformadaEm && !ev.failed) return `${ev.target} foi para o campo transformada: agora é ${ev.transformadaEm}`; /* T-55 · 712.14a */ return ev.failed ? `${ev.name}: nada a mover` : `${ev.target} foi ${{ hand: 'devolvida à mão', exile: 'exilada', graveyard: 'para o cemitério', battlefield: 'para o campo', library: ev.posicao === 'embaralhado' ? 'embaralhada no grimório' : ev.posicao === 'fundo' ? 'para o fundo do grimório' : 'para o topo do grimório' }[ev.para] || 'movida'} (${ev.name})`;
     case 'continuo': { const pt = ev.power || ev.toughness ? `${ev.power >= 0 ? '+' : ''}${ev.power}/${ev.toughness >= 0 ? '+' : ''}${ev.toughness}` : '';
       const kw = (ev.palavras || []).map(k => PALAVRA_PT[k] || k).join(' e ');
       return `${t} ganhou ${[pt, kw].filter(Boolean).join(' e ')} ${duracaoPT(ev.ate)} (${ev.name})`; }
@@ -30625,7 +30634,7 @@ const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas
   fight: e => `${e.quem === 'self-source' ? 'esta criatura luta' : 'ela luta'} com ${ALVO_PT[e.target] || descreveAlvo(e.target)} (cada uma causa dano igual ao próprio poder à outra)`,
 };
 /* ↓ T · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha tipos */
-const EFEITO_PT_T = { caso_resolvido: () => 'este Caso fica resolvido', estacao: () => 'põe nesta permanente marcadores de carga iguais ao poder da criatura virada', selada: () => 'esta montaria fica selada até o fim do turno', virar_carta: e => (e.se && e.se.minCriaturas ? `se você controla ${e.se.minCriaturas} ou mais criaturas, vira esta carta` : 'vira esta carta'), porta: e => (e.acao === 'trancar' ? 'tranca uma porta destrancada de uma Sala sua' : e.acao === 'destrancar' ? 'destranca uma porta trancada de uma Sala sua' : 'tranca ou destranca uma porta de uma Sala sua'), nivel_sobe: () => 'põe um marcador de nível nela', nivel_classe: e => `a Classe sobe para o nível ${e.n}`, tripulada: () => 'vira criatura artefato até o fim do turno', transformar: () => 'transforma (vira a outra face)', preparar: () => 'esta criatura fica preparada', despreparar: () => 'esta criatura deixa de estar preparada' }; // T-51 · 722.3 // T-7 · 701.27
+const EFEITO_PT_T = { caso_resolvido: () => 'este Caso fica resolvido', estacao: () => 'põe nesta permanente marcadores de carga iguais ao poder da criatura virada (ou à resistência, quando um efeito manda estacionar por ela)', selada: () => 'esta montaria fica selada até o fim do turno', virar_carta: e => (e.se && e.se.minCriaturas ? `se você controla ${e.se.minCriaturas} ou mais criaturas, vira esta carta` : 'vira esta carta'), porta: e => (e.acao === 'trancar' ? 'tranca uma porta destrancada de uma Sala sua' : e.acao === 'destrancar' ? 'destranca uma porta trancada de uma Sala sua' : 'tranca ou destranca uma porta de uma Sala sua'), nivel_sobe: () => 'põe um marcador de nível nela', nivel_classe: e => `a Classe sobe para o nível ${e.n}`, tripulada: () => 'vira criatura artefato até o fim do turno', transformar: () => 'transforma (vira a outra face)', preparar: () => 'esta criatura fica preparada', despreparar: () => 'esta criatura deixa de estar preparada' }; // T-51 · 722.3 // T-7 · 701.27
 /** T-7 · linhas do registro para os eventos da trilha tipos. */
 const LINHA_T = { preparada: ev => (ev.failed ? `${ev.name}: ${ev.motivo || 'não ficou preparada'}, nada muda` : `${ev.name} está preparada (pode conjurar uma cópia de ${ev.target})`), despreparada: ev => `${ev.name} deixou de estar preparada`, ciclo: ev => `Virou ${ev.target}${ev.motivo ? ` (${ev.motivo})` : ''}`, masmorra_completa: ev => `${ev.target} completou a masmorra ${ev.name}`, caso_resolvido: ev => (ev.failed ? `${ev.name}: a condição não valia mais, o Caso não foi resolvido` : `${ev.name} foi resolvido`), estacao: ev => (ev.failed ? `${ev.name}: a nave saiu do campo, a estação não pôs marcadores` : `${ev.name} recebeu ${ev.amount} marcador${ev.amount === 1 ? '' : 'es'} de carga (estação)${ev.total != null ? ` · ${ev.total} no total` : ''}`), selada: ev => (ev.failed ? `${ev.name}: a montaria saiu do campo, não foi selada` : `${ev.name} foi selada`), virar_carta: ev => (ev.failed ? `${ev.name} não virou${ev.motivo ? ` (${ev.motivo})` : ''}` : `${ev.name} virou: agora é ${ev.target}`), porta: ev => (ev.failed ? `${ev.name}: nenhuma porta para trancar ou destrancar` : `${ev.name} ${ev.acao} ${ev.porta} (${ev.target})`), nivel_sobe: ev => (ev.failed ? `${ev.name}: saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu de nível (nível ${ev.nivel})`), nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, converter: ev => `${ev.name} converteu em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
 Object.assign(EFEITO_PT_T, { cerco_derrotado: () => 'exila o Cerco; você pode conjurá-lo transformado, sem pagar', papel: e => `cria um Papel de ${e.papel} anexado à criatura` }); // T-14 · CR 310.12b

@@ -9700,7 +9700,9 @@
     "CR 702.184a · estação: vire outra criatura sua desvirada (enjoo não impede) e a nave recebe marcadores de carga iguais ao poder dela",
     "CR 702.184a · estação só como feitiço: não no turno do oponente nem com a pilha ocupada; criatura virada não serve",
     "CR 702.184a / 608.2h · o número de marcadores é o poder da criatura virada quando a estação resolve (Força em resposta: 5); criatura de poder 0 não põe nada",
-    "CR 702.184c · \"each creature you control with toughness greater than its power stations permanents using its toughness\": o Muro 0/4 põe 4; o Urso 2/2 segue pelo poder; a do oponente não vale"
+    "CR 702.184c · \"each creature you control with toughness greater than its power stations permanents using its toughness\": o Muro 0/4 põe 4; o Urso 2/2 segue pelo poder; a do oponente não vale",
+    "CR 702.184c / 608.2h · a criatura roubada que sai em resposta: vale a Guardiã de quem a controlava, não a do dono (D4)",
+    "CR 608.2h · a criatura que sai e volta antes da resolução: vale a última informação de quando saiu, não a foto da ativação (D5)"
    ],
    "esforco": "G",
    "depende": [
@@ -10827,7 +10829,7 @@
    "regra": "Double-Faced Cards",
    "titulo": "Dupla face posta no campo por outra zona",
    "status": "coberta",
-   "evidencia": "entra com a frente (flipToFront ao mudar de zona, 10259) T-53 (13/10/2026): o efeito `mover` com `transformada: true` (\"return it to the battlefield transformed/converted\") marca a carta (moverObjeto) e a entrada da trilha (sagaEntrou → entraTransformadaNaEntradaT) vira o verso antes dos gatilhos de entrar e da lealdade inicial; carta que não é de dupla face (ou de verso instantânea/feitiço) fica onde está; enjoo recalculado pela face. 712.14b já valia pela T-23 (303.4g/304.4: carta cuja face de cima não é de permanente não entra) e ganhou teste.",
+   "evidencia": "entra com a frente (flipToFront ao mudar de zona, 10259) T-53 (13/10/2026): o efeito `mover` com `transformada: true` (\"return it to the battlefield transformed/converted\") marca a carta (moverObjeto) e a entrada da trilha (sagaEntrou → entraTransformadaNaEntradaT) vira o verso antes dos gatilhos de entrar e da lealdade inicial; carta que não é de dupla face (ou de verso instantânea/feitiço) fica onde está; enjoo recalculado pela face. 712.14b já valia pela T-23 (303.4g/304.4: carta cuja face de cima não é de permanente não entra) e ganhou teste. T-55 (13/10/2026) · auditoria independente (59 verificações, 9.344 ações): a face que entra é virada antes das substituições de entrada (moveObject) e as regras de entrada de Aura/mágica olham essa face.",
    "falta": "T-53 (13/10/2026): coberta. 712.14c (meld) espera a primitiva \"permanente feita de várias cartas\" (712.4). As cartas antigas com `back` sem self.duplaFace seguem no efeito antigo `exile_return_transformed`.",
    "esforco": "M",
    "depende": [
@@ -10838,7 +10840,9 @@
     "CR 712.14a · carta que não é de dupla face mandada entrar transformada fica onde está",
     "CR 712.14 · sem \"transformed\", a dupla face entra com a frente para cima (o caminho de sempre)",
     "CR 712.14a / 306.5b · o verso planeswalker entra com a lealdade dele (\"When this dies, return it transformed\")",
-    "CR 712.14b · a dupla face modal cuja frente não é de permanente, mandada ao campo por um efeito, fica onde está"
+    "CR 712.14b · a dupla face modal cuja frente não é de permanente, mandada ao campo por um efeito, fica onde está",
+    "CR 614.12 / 712.14a · as substituições de entrada olham a face que entra: o \"entra virada\" e o \"entra com marcadores\" da frente não valem para o verso (D1)",
+    "CR 303.4g / 712.14a · frente Aura sem nada para encantar, verso terreno: entra transformada como terreno (D2)"
    ]
   },
   {
