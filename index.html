@@ -8080,6 +8080,13 @@ const RAW_SCRIPTS = [
     example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor): o cenário de verdade está em listas.lote*.unit
   { name: 'Thrill of Possibility', additional: { discard: 1 }, effects: [{ do: 'draw', amount: 2 }], // "As an additional cost to cast this spell, discard a card. / Draw two cards."
     example: { target: 'none', expect: { handDelta: 1 } } }, // o cenário conta a mão sem a própria mágica: −1 do descarte do custo, +2 da compra
+  // L-5 · Pauper de M a Z, lote 5: cartas que usam o `descarta_e_compra` da M-348 (texto oficial em .listas/oficiais-listas.json, Oracle do Forge, 12/10/2026)
+  { name: 'Ragged Short Spear', equip: { enchant: 'creature', cost: { mana: '{3}' } }, grants: { power: 2, toughness: 0 }, // "Equipped creature gets +2/+0. / Equip {3}"
+    abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'descarta_e_compra', amount: 2 }] }], // "When this Equipment enters, you may discard a card. If you do, draw two cards." (M-348)
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor): o cenário de verdade está em listas.lote*.unit
+  { name: "Witch's Mark", effects: [{ do: 'descarta_e_compra', amount: 2 }, // "You may discard a card. If you do, draw two cards." (M-348)
+    { do: 'papel', papel: 'Wicked', target: 'creature-you-control', upTo: true }], // "Create a Wicked Role token attached to up to one target creature you control."
+    example: { target: 'own-creature', expect: { stats: [3, 3] } } },
   //
   //
   //
