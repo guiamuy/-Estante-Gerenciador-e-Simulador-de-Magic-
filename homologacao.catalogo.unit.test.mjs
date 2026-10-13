@@ -98,3 +98,18 @@ test('H-5 · o Shark decide o ataque com Sazacap\'s Brew na mão (primeiro alvo 
   const ofertas = E.legalActions(t2, 0).filter(a => a.t === 'cast' && a.oid === brew && (a.targets || []).length > 1);
   assert.ok(ofertas.some(a => a.targets[0] && a.targets[0].oid == null), 'existe a forma com o jogador como primeiro alvo (o caso que quebrava)');
 });
+
+test('H-9 · com uma jogada legal só, o Shark não pensa: devolve a jogada sem consultar o relógio do orçamento (nem montar mundos)', async () => {
+  const { mesa } = await import('./cmd.mjs');
+  const { loadModules } = await import('./_load.mjs');
+  const { bot: B } = loadModules();
+  let s = J(mesa(['Grizzly Bears'], ['Grizzly Bears']));
+  for (const oid of s.zones[0].hand.splice(0)) { s.zones[0].library.push(oid); s.objects[oid].zone = 'library'; } // mão vazia: só passar
+  assert.equal(E.legalActions(s, 0).map(a => a.t).join(), 'pass');
+  let relogio = 0;
+  const bot = B.criaBot({ nivel: 'shark', orcamentoMs: 60, agora: () => { relogio++; return 0; } });
+  const j = bot.jogada(s, 0);
+  assert.equal(j.acao.t, 'pass');
+  assert.equal(relogio, 0, 'sem pensar: o orçamento de tempo nem foi consultado');
+  assert.equal(j.motivo, 'passei a prioridade');
+});

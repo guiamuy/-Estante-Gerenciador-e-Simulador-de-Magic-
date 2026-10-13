@@ -28985,6 +28985,9 @@ function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date
         if (igual) return { acao: igual, motivo: plano.length ? 'segui o plano: mais mana' : motivoDe(s, p, igual, 1) };
         plano = [];
       }
+      // H-9 · uma jogada legal só: não há o que pensar. Sem isto, o Shark montava os mundos e simulava mesmo assim (até 0,8 s por
+      // passe forçado com 19 criaturas na mesa, medido na prova do catálogo, Elfos de Pauper).
+      const unica = E.legalActions(s, p); if (unica.length === 1) return { acao: unica[0], motivo: motivoDe(s, p, unica[0]) };
       if (ligadas.plano) {
         if (perfil === undefined) { perfil = perfilDe(s, p); avPlano = avaliadorDoPlano(avAtual || avaliaV3, perfil, p); }
         if (s.turn.number !== turnoCombo) { turnoCombo = s.turn.number; passosCombo = 0; }

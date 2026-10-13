@@ -9961,6 +9961,15 @@ O que a cobertura não mede: se a lista que **pode** jogar no modo completo **jo
 - **Placar da prova (13/10 10h50, `main` com L-8, M-366…M-368, T-41): Pauper 226 de 341 listas jogam**, 0 falhas nas 226 partidas; estresse de Modern (264 listas) e Legacy (268) sem falha.
 - **Testes:** `catalogo.prova.unit` +1 (falha sem a correção).
 
+**H-8 · Rodada longa do Shark em fatias, com progresso** 🟡 (leva H-8, só a ferramenta da prova) — a rodada Shark × Shark sobre todas as listas que jogam leva mais de uma hora num núcleo (uma partida de Pauper com o Shark nos dois lados custa de 8 a 130 s) e, sem saída até o fim, uma partida presa não se distinguia de uma lenta. `--fatia i/n` divide o Shark entre processos (o mesmo emparelhamento da rodada inteira) e cada partida escreve uma linha de progresso com o tempo, o fim e as ações.
+- **Rodada de 13/10 (`main` com H-7, motor v111, duas fatias): Pauper 231 de 341 listas jogam; 231 partidas Shark × Shark, todas até o fim, 0 falhas** (o motor aceitou toda jogada do Shark e as invariantes valeram). Pior jogada: 4,6 s (Mono Green Priest of Titania × Mono Green Timberwatch Elf) — vira a H-9 e um pedido ao bot.
+- **Testes:** nenhum novo (opção de linha de comando da ferramenta; o placar e o Shark seguem cobertos por `catalogo.prova.unit`).
+
+**H-9 · O Shark não pensa quando só há uma jogada** 🟡 (leva H-9, motor v111 sem mudança; toca o bot) — achado da rodada da H-8: com uma única jogada legal (o passe forçado na declaração de atacantes, por exemplo), o Shark montava os mundos e simulava mesmo assim; com 13 a 19 criaturas na mesa (Elfos de Pauper) isso custava até 0,8 s por passe forçado. Agora devolve a jogada na hora, com o motivo de sempre ("passei a prioridade").
+- **Toca ponto comum:** `criaBot().jogada` (`src/engine/bot.js`, `__m25`), uma linha depois do plano de mana; a decisão não muda (só havia uma), o bot não tem conversa ativa no registro.
+- **Testes:** `homologacao.catalogo.unit` +1 (o relógio do orçamento não é consultado com uma jogada só; falha sem a correção). `bot.unit`, `shark.unit`, goldens e `table.unit` intactos.
+- **Fora (pedido à trilha `bot`/`escala`):** com 80 a 150 jogadas legais (Elfos com 20 criaturas e habilidades de mana), a decisão de atacantes leva de 2 a 3,7 s e a fase principal ~1 s, acima do orçamento de 60 ms. Reprodução: `catalogo.prova.mjs --formato pauper --shark --lista "Priest of Titania"` (ou a partida `topdeck-rebound-samedi-7` × `topdeck-common-combat-3-2`, semente 21756).
+
 ## 8. Como publicar e verificar
 
 ### Publicar a partir de uma conversa (padrão desde a leva 124)
