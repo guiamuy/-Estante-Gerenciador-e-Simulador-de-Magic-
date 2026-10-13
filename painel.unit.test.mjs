@@ -178,10 +178,10 @@ test('R-2 · fonte sem rede ou com a cota esgotada devolve o que havia guardado 
 });
 
 /* ---------- modelo puro ---------- */
-test('R-2 · modelo: oito sub-abas na ordem das fatias (Pipeline antes da Eficiência), todas com a leva e o que trazem; prontas: Pipeline (R-4), Eficiência (R-5), Roadmap (R-6), Motor (R-7), Qualidade (R-8), Em curso (R-9) e Skills (R-10)', () => {
+test('R-2 · modelo: oito sub-abas na ordem das fatias (Pipeline antes da Eficiência), todas com a leva e o que trazem; prontas: Pipeline (R-4), Eficiência (R-5), Roadmap (R-6), Motor (R-7), Qualidade (R-8), Em curso (R-9), Skills (R-10) e Modelos (R-11): todas', () => {
   const { modelo, app } = loadPainel();
   assert.deepEqual(modelo.SUBABAS.map(a => a.id), ['pipeline', 'eficiencia', 'roadmap', 'motor', 'qualidade', 'curso', 'skills', 'modelos']);
-  for (const a of modelo.SUBABAS) { assert.match(a.leva, /^R-\d+$/); assert.ok(a.traz.length > 20); assert.equal(!!a.pronta, ['pipeline', 'eficiencia', 'roadmap', 'motor', 'qualidade', 'curso', 'skills'].includes(a.id)); assert.equal(!!app.VISOES[a.id], !!a.pronta, 'toda sub-aba pronta tem a visão que a desenha'); }
+  for (const a of modelo.SUBABAS) { assert.match(a.leva, /^R-\d+$/); assert.ok(a.traz.length > 20); assert.equal(!!a.pronta, true, a.id + ' pronta'); assert.equal(!!app.VISOES[a.id], !!a.pronta, 'toda sub-aba pronta tem a visão que a desenha'); }
   assert.deepEqual(modelo.SUBABAS.map(a => a.leva), ['R-4', 'R-5', 'R-6', 'R-7', 'R-8', 'R-9', 'R-10', 'R-11']);
 });
 
@@ -468,4 +468,16 @@ test('R-10 · fluxos: o yml dá nome, crons e gatilhos; o cron vira frase; a lis
   const rot = modelo.linhasDasRotinas([{ id: 'a', nome: 'x', quando: '2026-10-13T21:51:00Z', status: 'agendada', atualizado: '2026-10-13T21:05:00Z' }, { id: 'b', nome: 'y', quando: '2026-10-14T21:51:00Z', status: 'agendada', atualizado: '2026-10-13T22:00:00Z' }], Date.parse('2026-10-13T23:00:00Z'));
   assert.deepEqual(rot.map(x => [x.id, x.atrasada]), [['b', false], ['a', true]]);
   for (const f of ['catalogo.yml', 'fila.yml', 'gate.yml', 'noticias.yml', 'relatos-fila.yml', 'relatos.yml']) { const x = modelo.resumoDoFluxo(readFileSync(join(ROOT, '.github', 'workflows', f), 'utf8'), f); assert.ok(x.nome && x.gatilhos.length, f); }
+});
+
+
+/* ---------- R-11 · Modelos ---------- */
+test('R-11 · porModelo: levas, tempo mediano, portão verde na primeira (só das que registraram portão; reenvio não conta como verde), tokens e bugs por modelo', () => {
+  const { modelo } = loadPainel();
+  const r = modelo.porModelo(modelo.linhasDasLevas([
+    { id: 'R-2', modelo: 'Fable 5.1', inicio: '2026-10-13T21:55:00Z', fim: '2026-10-13T22:35:00Z', portao: 'verde', tokens_estimados: 90000, bugs_achados: 0 },
+    { id: 'R-3', modelo: 'Fable 5.1', inicio: '2026-10-13T22:40:00Z', fim: '2026-10-13T23:40:00Z', portao: 'verde', tentativas_fila: 2 },
+    { id: 'M-390', modelo: 'Opus 5.5', fim: '2026-10-13T20:00:00Z', portao: 'vermelho', bugs_achados: 2 },
+    { id: 'X-1', inicio: '2026-10-13T20:00:00Z', fim: '2026-10-13T20:10:00Z' }]));
+  assert.deepEqual(r.map(m => [m.modelo, m.levas, m.tempoMediano, m.pctVerde, m.tokens, m.bugs]), [['Fable 5.1', 2, 50 * 60000, 50, 90000, 0], ['Opus 5.5', 1, null, 0, 0, 2], ['sem modelo', 1, 10 * 60000, null, 0, 0]]);
 });

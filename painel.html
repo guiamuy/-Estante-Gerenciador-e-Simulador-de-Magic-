@@ -378,7 +378,20 @@ a { color: var(--accent); }
 @media (prefers-reduced-motion: reduce) { .ds-nav:active { transform: none; } }
 @media (prefers-reduced-motion: reduce) { .ds-expansivel__seta { transition: none; } .ds-expansivel__corpo { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .tb-online[data-ligado="false"] { animation: none; opacity: .6; } }
+.ds-field { display: block; }
+.ds-field__label { display: block; font-size: var(--text-sm); color: var(--fg-muted); margin-bottom: var(--space-1); }
+.ds-field__hint { display: block; font-size: var(--text-xs); color: var(--fg-subtle); margin-top: var(--space-1); }
 @media (prefers-reduced-motion: reduce) { .ds-dica__balao { animation: none; } }
+.ds-input, .ds-select, .ds-textarea {
+  width: 100%; min-height: var(--tap-min);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-elev-2); color: var(--fg);
+  border: 1px solid var(--border); border-radius: var(--radius-1);
+  transition: border-color var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out);
+}
+.ds-input:focus, .ds-select:focus, .ds-textarea:focus {
+  outline: none; border-color: var(--accent); box-shadow: var(--focus-ring);
+}
 .ds-badge {
   display: inline-flex; align-items: center; gap: var(--space-1);
   padding: 2px var(--space-2); border-radius: var(--radius-1);
@@ -543,6 +556,10 @@ button.pn-barras__linha[aria-pressed="true"] { background: var(--accent-soft); }
 @media (hover: hover) {
   button.pn-barras__linha:hover { background: var(--bg-elev-2); }
 }
+/* R-11 · formulário do plano */
+.pn-form { gap: var(--space-3); }
+.pn-form .ds-field { display: flex; flex-direction: column; }
+.pn-form__acoes { flex-wrap: wrap; }
 
 </style>
 </head>
@@ -729,7 +746,7 @@ const __p2 = (function () {
     { id: 'qualidade', rotulo: 'Qualidade', titulo: 'Qualidade', leva: 'R-8', pronta: true, traz: 'relatos abertos e fechados por semana, tempo até a correção, testes e instáveis, bugs por leva' },
     { id: 'curso', rotulo: 'Em curso', titulo: 'Trabalho em curso', leva: 'R-9', pronta: true, traz: 'cada conversa ativa, a história, as skills, a última atualização, dependências e estimativa' },
     { id: 'skills', rotulo: 'Skills', titulo: 'Skills e rotinas', leva: 'R-10', pronta: true, traz: 'o catálogo de skills, uso por leva e em uso agora; fluxos do GitHub e rotinas do Claude com última e próxima execução' },
-    { id: 'modelos', rotulo: 'Modelos', titulo: 'Modelos', leva: 'R-11', traz: 'levas, tempo e portão por modelo, e o consumo estimado do plano' }
+    { id: 'modelos', rotulo: 'Modelos', titulo: 'Modelos', leva: 'R-11', pronta: true, traz: 'levas, tempo e portão por modelo, e o consumo estimado do plano' }
   ];
   /** Limiares dos faróis (doc BI-painel-epicos.md, seção 3): editáveis aqui, exibidos em cada cartão. */
   const LIMIARES = {
@@ -1052,7 +1069,23 @@ const __p2 = (function () {
     return (rotinas || []).map(r => { const quando = Date.parse(r.quando || '') || null; return { ...r, data: Date.parse(r.atualizado || '') || null, quandoMs: quando, atrasada: r.status === 'agendada' && quando != null && quando < agora - 15 * 60000 }; }).sort((a, b) => (b.data || 0) - (a.data || 0));
   }
   Object.assign(LIMIARES, { fluxos: { verde: 0, amarelo: 1, unidade: 'fluxos com a última execução vermelha', texto: 'fluxos do GitHub com a última execução vermelha: 0 · 1 · mais' } });
+
+  /* ---------- R-11 · Modelos (puro) ---------- */
+  /** Levas da telemetria agrupadas por modelo: quantas, tempo mediano, portão verde na primeira (das que registraram portão), tokens estimados. */
+  function porModelo(levas) {
+    const g = new Map();
+    for (const l of levas || []) { const k = l.modelo || 'sem modelo'; g.set(k, [...(g.get(k) || []), l]); }
+    return [...g.entries()].map(([modelo, ls]) => {
+      const tempos = ls.filter(l => l.inicio && l.fim).map(l => Date.parse(l.fim) - Date.parse(l.inicio));
+      const comPortao = ls.filter(l => l.portao);
+      const verdes = comPortao.filter(l => l.portao === 'verde' && !(l.tentativas_fila > 1)).length;
+      const tokens = ls.filter(l => l.tokens_estimados).reduce((n, l) => n + l.tokens_estimados, 0);
+      return { modelo, levas: ls.length, tempoMediano: mediana(tempos), comPortao: comPortao.length, verdes, pctVerde: comPortao.length ? Math.round(100 * verdes / comPortao.length) : null, tokens, bugs: ls.reduce((n, l) => n + (l.bugs_achados || 0), 0) };
+    }).sort((a, b) => b.levas - a.levas);
+  }
+  Object.assign(LIMIARES, { plano: { verde: 80, amarelo: 95, unidade: '% do plano', texto: 'consumo do plano: < 80 % · < 95 % · 95 % ou mais' } });
   const FONTES = {
+    plano: 'informado pelo dono no painel (guardado neste aparelho; o banco entra na R-11b, com a regra /painel)',
     skills: 'ramo telemetria · skills.json (catálogo gerado do registro do orquestrador)',
     fluxos: 'API GitHub · actions/workflows + actions/runs (últimas 50) + raw dos .yml (agendamento)',
     rotinas: 'ramo telemetria · rotinas.json (tarefas agendadas registradas pelas conversas)',
@@ -1068,7 +1101,7 @@ const __p2 = (function () {
     pages: 'API GitHub · actions/runs (fluxo "pages build and deployment")',
     levas: 'ramo telemetria · levas.jsonl (escrito pelas sessões)'
   };
-  return { SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, linhasDosRelatos, linhasDasTrilhas, resumoDoFluxo, fraseDoCron, linhasDosFluxos, linhasDasRotinas, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
+  return { SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, linhasDosRelatos, linhasDasTrilhas, resumoDoFluxo, fraseDoCron, linhasDosFluxos, linhasDasRotinas, porModelo, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
 })();
 
 /* ==== src/painel/ui.js ==== */
@@ -1149,7 +1182,12 @@ const __p3 = (function () {
   const Linha = ({ id, principal, selo = null, seloTom = null, detalhe = null, dataset }) => h('li', { class: 'pn-linha', id, dataset },
     h('div', { class: 'pn-linha__texto' }, h('span', { class: 'ds-text ds-text--md' }, principal), detalhe ? h('span', { class: 'ds-text ds-text--sm ds-text--muted pn-linha__detalhe' }, detalhe) : null),
     selo ? h('span', { class: ['ds-badge', seloTom ? `ds-badge--${seloTom}` : ''].filter(Boolean).join(' ') }, selo) : null);
-  return { ICONES, Icone, Button, IconButton, LinkBotao, Text, Empty, Note, AvisoRede, Spinner, Tabs, Farol, Chip, Cartao, Barras, Linha };
+
+  /* ---------- R-11 · campo de formulário (mesmas classes do DS) ---------- */
+  const Field = (rotulo, controle, { id, dica } = {}) => h('label', { class: 'ds-field', for: id }, h('span', { class: 'ds-field__label' }, rotulo), controle, dica ? h('span', { class: 'ds-field__hint' }, dica) : null);
+  const Input = ({ id, type = 'text', value = '', placeholder, inputmode, min, max, step, onInput, ariaLabel }) => h('input', { class: 'ds-input', id, type, value: String(value ?? ''), placeholder, inputmode, min, max, step, onInput, 'aria-label': ariaLabel || null });
+  const Select = ({ id, value, opcoes, onChange }) => h('select', { class: 'ds-select', id, onChange }, ...opcoes.map(o => h('option', { value: o.valor, selected: o.valor === value ? true : null }, o.rotulo)));
+  return { ICONES, Icone, Button, IconButton, LinkBotao, Text, Empty, Note, AvisoRede, Spinner, Tabs, Farol, Chip, Cartao, Barras, Linha, Field, Input, Select };
 })();
 
 /* ==== src/painel/app.js ==== */
@@ -1161,7 +1199,7 @@ const __p4 = (function () {
   const { h, clear, createGuarda, createFonte } = __p0;
   const M = __p2;
   const { SUBABAS, LIMIARES, FONTES, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, minutos } = M;
-  const { Icone, Button, IconButton, LinkBotao, Text, Empty, Note, AvisoRede, Spinner, Tabs, Farol, Chip, Cartao, Barras, Linha } = __p3;
+  const { Icone, Button, IconButton, LinkBotao, Text, Empty, Note, AvisoRede, Spinner, Tabs, Farol, Chip, Cartao, Barras, Linha, Field, Input, Select } = __p3;
   const W = typeof window !== 'undefined' ? window : {};
   // Configuração pública (a mesma do app: Client ID e chave web não são segredo; a proteção são as regras do banco e a
   // origem autorizada). Nos testes, window.__PAINEL_* substitui cada peça.
@@ -1178,6 +1216,48 @@ const __p4 = (function () {
 
   /* ---------- visões (uma por sub-aba pronta): carrega(fonte, forcar) → dados; desenha(dados, filtros, api) → nós ---------- */
   const VISOES = {
+    modelos: {
+      filtros: ['periodo', 'modelo', 'trilha', 'conversa', 'portao'], periodoPadrao: '30d',
+      linhas: d => M.linhasDasLevas(d.levas || []),
+      async carrega(fonte, forcar) {
+        const avisos = [];
+        let levas = [];
+        try { levas = lerJsonl((await fonte.raw('telemetria', 'levas.jsonl', { ttl: 2 * 60000, forcar })).dado); } catch (e) { avisos.push('telemetria indisponível (levas.jsonl)'); }
+        return { em: Date.now(), levas, avisos, sem: {} };
+      },
+      desenha(d, filtros, api) {
+        const agora = Date.now();
+        const periodo = filtros.periodo || '30d';
+        const levas = M.linhasDasLevas(d.levas);
+        const rLev = recorte(levas, { periodo, modelo: filtros.modelo, trilha: filtros.trilha, conversa: filtros.conversa, portao: filtros.portao }, agora);
+        const modelos = M.porModelo(rLev.linhas);
+        const plano = api.plano();
+        const recorteTxt = fraseDoRecorte({ ...filtros, periodo });
+        const notas = [];
+        if (!levas.length) notas.push('telemetria sem levas: levas por modelo, tempo e portão aparecem quando as conversas registrarem o campo "modelo"');
+        notas.push('consumo do plano: não existe API do plano Claude acessível ao painel; o valor é o que você informa (estimado), guardado neste aparelho até a regra /painel do banco (R-11b)');
+        for (const a of d.avisos || []) notas.push(a);
+        const form = h('form', { class: 'pn-form ds-surface pn-cartao', id: 'pn-plano-form', novalidate: true, onSubmit: e => { e.preventDefault(); api.salvaPlano(); } },
+          h('span', { class: 'ds-text ds-text--caps' }, 'Plano do Claude (informado por você)'),
+          Field('Plano', Select({ id: 'pn-plano-nome', value: plano.nome || '', opcoes: [{ valor: '', rotulo: 'não informado' }, { valor: 'Pro', rotulo: 'Pro' }, { valor: 'Max 5x', rotulo: 'Max 5x' }, { valor: 'Max 20x', rotulo: 'Max 20x' }, { valor: 'Team', rotulo: 'Team' }, { valor: 'outro', rotulo: 'outro' }], onChange: e => api.mudaPlano({ nome: e.target.value }) }), { id: 'pn-plano-nome' }),
+          Field('Consumo do mês (%)', Input({ id: 'pn-plano-pct', type: 'number', inputmode: 'numeric', min: 0, max: 100, step: 1, value: plano.consumoPct ?? '', placeholder: 'o que a página de uso mostra', onInput: e => api.mudaPlano({ consumoPct: e.target.value === '' ? null : Number(e.target.value) }) }), { id: 'pn-plano-pct', dica: 'estimado: copie da página de uso do Claude' }),
+          Field('Renova em', Input({ id: 'pn-plano-renova', type: 'date', value: plano.renovaEm || '', onInput: e => api.mudaPlano({ renovaEm: e.target.value }) }), { id: 'pn-plano-renova' }),
+          h('div', { class: 'ds-row pn-form__acoes' }, Button('Salvar', { variant: 'primary', id: 'pn-plano-salvar', icone: 'conferir', onClick: () => api.salvaPlano() }), plano.atualizadoEm ? h('span', { class: 'ds-text ds-text--sm ds-text--muted', id: 'pn-plano-salvo' }, `salvo ${haQuanto(plano.atualizadoEm, agora)} · neste aparelho`) : h('span', { class: 'ds-text ds-text--sm ds-text--muted', id: 'pn-plano-salvo' }, 'ainda não informado')));
+        return [
+          h('div', { class: 'pn-cartoes' },
+            Cartao({ id: 'pn-k-consumo', rotulo: 'Consumo do plano (estimado)', valor: plano.consumoPct != null ? plano.consumoPct : '—', unidade: plano.consumoPct != null ? `% · ${plano.nome || 'plano não informado'}` : (plano.nome || ''), farol: plano.consumoPct != null ? farol(plano.consumoPct, LIMIARES.plano) : 'cinza', limiar: LIMIARES.plano, fonte: FONTES.plano, formula: 'informado por você' + (plano.renovaEm ? ` · renova em ${plano.renovaEm.split('-').reverse().join('/')}` : ''), em: plano.atualizadoEm || null, semDados: plano.consumoPct == null }),
+            Cartao({ id: 'pn-k-modelos', rotulo: 'Modelos nas levas', valor: modelos.length, unidade: `· ${rLev.linhas.length} levas`, fonte: FONTES.levas, formula: 'campo modelo · ' + recorteTxt, em: d.em, semDados: !levas.length }),
+            Cartao({ id: 'pn-k-tokens', rotulo: 'Tokens estimados', valor: modelos.reduce((n, m) => n + m.tokens, 0) ? Math.round(modelos.reduce((n, m) => n + m.tokens, 0) / 1000) : '—', unidade: 'mil · estimado', fonte: FONTES.levas, formula: 'soma de tokens_estimados (declarados pelas conversas) · ' + recorteTxt, em: d.em, semDados: !modelos.some(m => m.tokens) })),
+          h('section', { class: 'pn-bloco', id: 'pn-modelos' }, h('h3', { class: 'ds-text ds-text--md' }, 'Por modelo'),
+            modelos.length ? h('ul', { class: 'pn-linhas', role: 'list' }, ...modelos.map(m => Linha({ principal: m.modelo, selo: `${m.levas} leva(s)`, seloTom: 'accent', detalhe: `tempo mediano ${minutos(m.tempoMediano)} · portão verde na primeira ${m.pctVerde != null ? m.pctVerde + '% de ' + m.comPortao : '—'} · bugs achados ${m.bugs}${m.tokens ? ' · ~' + Math.round(m.tokens / 1000) + ' mil tokens' : ''}`, dataset: { modelo: m.modelo } }))) : h('p', { class: 'ds-text ds-text--sm ds-text--muted' }, levas.length ? 'nenhuma leva neste recorte' : 'pendente de telemetria')),
+          h('div', { class: 'pn-graficos' },
+            Barras({ id: 'pn-g-modelos', titulo: `Levas por modelo · ${recorteTxt} (toque filtra)`, itens: modelos.map(m => ({ chave: m.modelo, rotulo: m.modelo, valor: m.levas })), onBarra: v => api.filtra('modelo', v), ativo: filtros.modelo || null, vazio: levas.length ? 'nenhuma leva neste recorte' : 'pendente de telemetria' }),
+            Barras({ id: 'pn-g-tempo-modelo', titulo: 'Tempo mediano por modelo (min)', itens: modelos.filter(m => m.tempoMediano != null).map(m => ({ chave: m.modelo, rotulo: m.modelo, valor: Math.round(m.tempoMediano / 60000) })), formato: v => `${v} min`, vazio: 'sem levas com início e fim' })),
+          form,
+          notas.length ? h('ul', { class: 'pn-notas ds-text ds-text--sm ds-text--muted', id: 'pn-notas' }, ...notas.map(n => h('li', {}, n))) : null
+        ];
+      }
+    },
     skills: {
       filtros: ['periodo', 'skill', 'trilha', 'conversa', 'situacao'], periodoPadrao: '7d',
       linhas: d => M.linhasDasLevas(d.levas || []),
@@ -1593,7 +1673,9 @@ const __p4 = (function () {
     function limpaFiltros() { const tinhaPeriodo = est.filtros.periodo; est.filtros = {}; gravaUrl(); desenha(); if (tinhaPeriodo && visao() && visao().porPeriodo) atualiza(); }
     /** Período: muda o recorte e, nas visões que leem por dia, pede os dias que faltam. */
     function mudaPeriodo(valor) { est.filtros.periodo = valor; gravaUrl(); desenha(); if (visao() && visao().porPeriodo) atualiza(); }
-    const api = { filtra };
+    const PLANO = 'painel.plano';
+    let rascunho = null;
+    const api = { filtra, plano: () => rascunho || guarda.ler(PLANO) || {}, mudaPlano(p) { rascunho = { ...(rascunho || guarda.ler(PLANO) || {}), ...p }; }, salvaPlano() { const p = { kind: 'estante.painel.plano', version: 1, ...(rascunho || guarda.ler(PLANO) || {}), atualizadoEm: Date.now() }; if (p.consumoPct != null && (Number.isNaN(p.consumoPct) || p.consumoPct < 0 || p.consumoPct > 100)) { est.aviso = { tipo: 'api', texto: 'Consumo precisa ser um número de 0 a 100.' }; desenha(); return; } guarda.gravar(PLANO, p); rascunho = null; desenha(); } };
 
     function telaEntrar() {
       const estado = estadoTela(est);

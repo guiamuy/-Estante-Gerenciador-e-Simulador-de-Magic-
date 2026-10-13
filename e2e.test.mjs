@@ -12299,3 +12299,44 @@ test('e2e · R-10 Painel · Skills e rotinas: catálogo com papel e atalhos, uso
   if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.screenshot({ path: process.env.SHOTS + '/r10-skills.png', fullPage: true }); }
   assert.deepEqual(errors, []);
 });
+
+/* ---------- R-11 · BI1-9 · Modelos ---------- */
+test('e2e · R-11 Painel · Modelos: levas, tempo e portão por modelo (toque filtra), tokens estimados; o plano e o consumo informados pelo dono ficam guardados no aparelho com farol e carimbo (rotulados "estimado"); valor fora de 0–100 é recusado; sem sobreposição nas quatro medidas e dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  const painel = base.replace('index.html', 'painel.html');
+  await page.setViewportSize({ width: 360, height: 780 });
+  const json = (r, corpo) => r.fulfill({ json: corpo, headers: { 'content-type': 'application/json', 'x-ratelimit-remaining': '50', 'x-ratelimit-limit': '60', 'access-control-expose-headers': 'etag, x-ratelimit-remaining, x-ratelimit-limit' } });
+  await page.route('https://api.github.com/**', r => json(r, /commits\?sha=main&per_page=1/.test(r.request().url()) ? [{ sha: 'abc1234def0', commit: { message: 'Leva M-390 · x', committer: { date: new Date().toISOString() } } }] : []));
+  const h = n => new Date(Date.now() - n * 3600000).toISOString();
+  const levas = [`{"id":"R-2","trilha":"radar","conversa":"radar","situacao":"publicada","inicio":"${h(5)}","fim":"${h(4)}","portao":"verde","modelo":"Fable 5.1","tokens_estimados":90000}`, `{"id":"R-3","trilha":"radar","conversa":"radar","situacao":"na-fila","inicio":"${h(3)}","fim":"${h(2)}","portao":"verde","modelo":"Fable 5.1"}`, `{"id":"M-390","trilha":"motor","conversa":"motor","situacao":"publicada","inicio":"${h(8)}","fim":"${h(6)}","portao":"vermelho","modelo":"Opus 5.5","bugs_achados":2}`].join('\n') + '\n';
+  await page.route('https://raw.githubusercontent.com/**', r => r.fulfill({ body: /levas\.jsonl/.test(r.request().url()) ? levas : '', headers: { 'content-type': 'text/plain', 'access-control-allow-origin': '*' } }));
+  await page.addInitScript(() => {
+    const jwt = email => 'h.' + btoa(JSON.stringify({ email })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') + '.s';
+    window.__PAINEL_FETCH = async (url) => new Response(JSON.stringify(url.includes('securetoken') ? { user_id: 'uidE2E', id_token: jwt('gui.amuy@gmail.com'), refresh_token: 'ref-e2e', expires_in: '3600' } : { localId: 'uidE2E', idToken: jwt('gui.amuy@gmail.com'), refreshToken: 'ref-e2e', expiresIn: '3600' }), { headers: { 'content-type': 'application/json' } });
+    window.__PAINEL_GOOGLE = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+  });
+  await page.goto(painel + '#modelos'); await page.waitForSelector('#pn-entrar'); await page.click('#pn-entrar');
+  await page.waitForSelector('#pn-visao-modelos');
+  assert.match(await page.innerText('#pn-k-consumo'), /sem dados neste recorte/);
+  assert.match(await page.innerText('#pn-k-modelos'), /2[\s\S]*3 levas/);
+  assert.match(await page.innerText('#pn-k-tokens'), /90[\s\S]*mil · estimado/);
+  assert.match(await page.innerText('#pn-modelos'), /Fable 5\.1[\s\S]*tempo mediano 1 h · portão verde na primeira 100% de 2 · bugs achados 0 · ~90 mil tokens[\s\S]*2 leva\(s\)[\s\S]*Opus 5\.5[\s\S]*tempo mediano 2 h · portão verde na primeira 0% de 1 · bugs achados 2/);
+  assert.match(await page.innerText('#pn-plano-salvo'), /ainda não informado/);
+  await auditaTela(page, 'modelos 360');
+  // informar o plano: valor fora de 0–100 é recusado; válido fica guardado no aparelho com farol
+  await page.selectOption('#pn-plano-nome', 'Max 5x');
+  await page.fill('#pn-plano-pct', '140'); await page.click('#pn-plano-salvar'); await page.waitForSelector('#pn-aviso');
+  assert.match(await page.innerText('#pn-aviso'), /0 a 100/);
+  await page.fill('#pn-plano-pct', '82'); await page.click('#pn-plano-salvar'); await page.waitForFunction(() => /salvo agora · neste aparelho/.test(document.querySelector('#pn-plano-salvo')?.innerText || ''));
+  assert.match(await page.innerText('#pn-k-consumo'), /82[\s\S]*% · Max 5x[\s\S]*informado por você/);
+  assert.equal(await page.getAttribute('#pn-k-consumo .pn-farol', 'data-farol'), 'amarelo');
+  await page.reload(); await page.waitForSelector('#pn-visao-modelos');
+  assert.match(await page.innerText('#pn-k-consumo'), /82/);
+  // toque na barra filtra por modelo
+  await page.click('#pn-g-modelos button[data-valor="Opus 5.5"], #pn-g-modelos li[data-valor="Opus 5.5"] button');
+  await page.waitForFunction(() => location.hash.includes('modelo=Opus'));
+  assert.match(await page.innerText('#pn-k-modelos'), /1[\s\S]*1 levas/);
+  await emTodasAsMedidas(page, 'modelos filtrado');
+  if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.screenshot({ path: process.env.SHOTS + '/r11-modelos.png', fullPage: true }); }
+  assert.deepEqual(errors, []);
+});
