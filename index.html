@@ -5335,6 +5335,7 @@ const EFFECTS = {
   // até o seu próximo turno). `pump` e `keyword` viraram atalhos dele.
   continuo: { fields: [], targets: ['self-source', 'first-target', 'creature', 'creature-you-control', 'creature-opponent-controls', 'other-creature-you-control', 'each-creature', 'each-opponent-creature', 'each-own-creature'] },
   // M-255 · "hexproof from that color" e "can't be blocked by creatures of that color this turn", com a cor escolhida na ativação
+  sem_alvo_de_oponentes: { fields: [], targets: ['creature', 'creature-you-control', 'first-target'] }, // M-375 · "Target creature can't be the target of spells or abilities your opponents control this turn" (Vines of Vastwood)
   resistencia_cor: { fields: [], targets: ['creature', 'creature-you-control', 'other-creature-you-control', 'first-target'] },
   imbloqueavel_cor: { fields: [], targets: ['creature', 'creature-you-control', 'other-creature-you-control', 'first-target'] },
   imbloqueavel: { fields: [], targets: ['creature', 'creature-you-control', 'first-target', 'self-source'] }, // M-336 · "Target creature can't be blocked this turn" (Rogue's Passage)
@@ -8917,6 +8918,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Martyr\'s Soul': { texto: '7xsnc6', leva: 'M-373' },
   'Heritage Reclamation': { texto: 'j49872', leva: 'M-373' },
   'Thrilling Discovery': { texto: 'u92ry7', leva: 'M-373' },
+  // M-375 · revisão por lote XXXIV (Pauper: Vines of Vastwood), revisor independente com 59 verificações: 1 de 1 aprovada
+  'Vines of Vastwood': { texto: '14mrg7t', leva: 'M-375' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -16631,7 +16634,9 @@ const __m42 = (function () {
     [/^return target creature card from your graveyard to your hand$/i, () => [{ do: 'to_hand', target: 'creature-in-your-graveyard' }]], // LT9
     [new RegExp(`^you may discard a card to draw ${N} cards?$`, 'i'), m => [{ do: 'descarta_e_compra', amount: num(m[1]) }]], // M-348
     [new RegExp(`^you may discard (two|three) cards to draw ${N} cards?$`, 'i'), m => [{ do: 'descarta_e_compra', descarta: num(m[1]), amount: num(m[2]) }]], // M-373 · todas ou nenhuma
-    [/^untap ~$/i, () => [{ do: 'untap', target: 'self-source' }]], // M-373 · "Put a -1/-1 counter on ~: Untap ~" (Devoted Druid)
+    [/^untap ~$/i, () => [{ do: 'untap', target: 'self-source' }]], // M-373
+    [/^(target creature|target creature you control) can't be the target of spells or abilities your opponents control this turn$/i, m => [com({ do: 'sem_alvo_de_oponentes' }, alvo(m[1]))]], // M-375 · Vines of Vastwood
+    [/^if this spell was kicked, that creature gets ([+-]\d+)\/([+-]\d+) until end of turn$/i, m => [{ do: 'pump', power: SINAL(m[1]), toughness: SINAL(m[2]), target: 'first-target', onlyIf: 'kicked' }]], // M-375 · 702.33d · "Put a -1/-1 counter on ~: Untap ~" (Devoted Druid)
     [/^exile (up to one target card from a graveyard)$/i, m => [com({ do: 'exile' }, alvo(m[1]))]], // M-373 · Heritage Reclamation
     [/^pisca (target (?:creature|permanent)(?: you control)?)$/i, m => { const a = alvo(m[1]); return a ? [{ do: 'pisca', ...a }] : null; }], // M-349 · Ephemerate (frase juntada em leParagrafo)
     [new RegExp(`^put ${N} ([a-z]+) counters? on (.+)$`, 'i'), m => { const a = alvo(m[3]); return a && !['target player', 'target opponent'].includes(m[3].toLowerCase()) ? [{ do: 'counters', tipo: m[2].toLowerCase(), amount: num(m[1]), ...a }] : null; }], // M-349 · Cryogen Relic ("a stun counter on up to one target tapped creature")
@@ -17905,7 +17910,7 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
     for (const k of MARCAS_DA_CONJURACAO) delete o[k];
   }
   o.tapped = false; o.damage = 0; o.counters = {}; o.controller = to === 'battlefield' && controller != null ? controller : o.owner; delete o.controles; delete o.controladorBase; // CR2d.6 · 400.7 · CR2b.5 · 603.3a: entra já sob quem a pôs no campo
-  delete o.tempToxico; delete o.tempResguardoCor; delete o.tempNaoBloqueadaPor; delete o.tempImbloqueavel; delete o.tempImbloqueavelExceto; delete o.tempHabilidades; delete o.permissaoUsada; if (fromZone !== to) delete o.desenterrada; // M-255/M-256/M-257 · 400.7
+  delete o.tempToxico; delete o.tempResguardoCor; delete o.tempSemAlvoDe; delete o.tempNaoBloqueadaPor; delete o.tempImbloqueavel; delete o.tempImbloqueavelExceto; delete o.tempHabilidades; delete o.permissaoUsada; if (fromZone !== to) delete o.desenterrada; // M-255/M-256/M-257 · 400.7
   delete o.attacking; delete o.atacandoPw; delete o.exigeAtacarPw; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.pumpNext; delete o.goaded; delete o.keywordsNext; delete o.cantAttackNext; delete o.targets; delete o.attachedTo; delete o.tempKeywords; delete o.tempTs; delete o.anexadaEm; delete o.anexadaZ; delete o.mutavel; delete o.vira; delete o.prevenirDano; delete o.regenerar; delete o.temporarios; delete o.tempProtection; delete o.paired; // S39 · o vínculo de alma se desfaz ao sair do campo
   if (fromZone !== 'stack') { delete o.chosenColor; delete o.chosenType; delete o.damagePrevented; delete o.preventGainTo; delete o.devolvidas; } // CR2a.9 · 400.7 / 608.2n: a marca da resolução fica onde a carta caiu; ao sair de lá, o objeto é novo
   delete o.loyaltyTurn; delete o.usedThisTurn; delete o.alvejadoNoTurno; // CR2c.6 · 400.7: o objeto novo não carrega o uso da habilidade do anterior (606.3, 602.5b) nem o "primeira vez no turno" do valente (CR2b.9)
@@ -18976,7 +18981,7 @@ function fimDosEfeitosDoTurno(s) {
   delete s.mareAlta; // M-262 · High Tide vale até o fim do turno
   for (const o of campoInteiro(s)) if (o.copias) { o.copias = o.copias.filter(t => ficaTemporario(s, t, 'limpeza')); recalculaCopia(s, o); } // CR2f.1 · CR2d.13: também "até o fim do seu próximo turno"
   for (const o of campoInteiro(s)) if (o.controles) { o.controles = o.controles.filter(t => ficaTemporario(s, t, 'limpeza')); recalculaControle(s, o); } // CR2d.13 // CR2d.6 · "until end of turn" acaba na limpeza (514.2)
-  for (const o of campoInteiro(s)) { delete o.pump; delete o.tempKeywords; delete o.tempTs; podaTemporarios(s, o, 'limpeza'); delete o.prevenirDano; delete o.regenerar; delete o.tempProtection; delete o.tempToxico; delete o.tempResguardoCor; delete o.tempNaoBloqueadaPor; delete o.tempImbloqueavel; delete o.tempImbloqueavelExceto; delete o.tempHabilidades; delete o.usedThisTurn; o.damage = 0; delete o.deathtouched; } // M-255 · tóxico, resistência a magia de cor e "não bloqueada por cor" até o fim do turno
+  for (const o of campoInteiro(s)) { delete o.pump; delete o.tempKeywords; delete o.tempTs; podaTemporarios(s, o, 'limpeza'); delete o.prevenirDano; delete o.regenerar; delete o.tempProtection; delete o.tempToxico; delete o.tempResguardoCor; delete o.tempSemAlvoDe; delete o.tempNaoBloqueadaPor; delete o.tempImbloqueavel; delete o.tempImbloqueavelExceto; delete o.tempHabilidades; delete o.usedThisTurn; o.damage = 0; delete o.deathtouched; } // M-255 · tóxico, resistência a magia de cor e "não bloqueada por cor" até o fim do turno
   delete s.fogged; delete s.preventedColors; delete s.noPrevention; delete s.prevencoes; // CR2-G R5b · escudos do verbo prevenir também acabam
   for (const o of Object.values(s.objects)) if (o.damagePrevented) { delete o.damagePrevented; delete o.preventGainTo; } // R9 · Hallow: a prevenção acaba com o turno
 }
@@ -19315,6 +19320,7 @@ function targetable(s, p, o, src) {
   if (!o || o.zone !== 'battlefield') return false;
   if (has(s, o, 'shroud')) return false;
   if (has(s, o, 'hexproof') && o.controller !== p) return false;
+  if ((o.tempSemAlvoDe || []).some(q => q !== p)) return false; // M-375 · Vines of Vastwood: mágica ou habilidade de um oponente de quem a conjurou não mira
   if (src && protectedFrom(s, o, src)) return false; // S11b · proteção de cor
   if (src && (o.tempResguardoCor || []).length && o.controller !== p && o.tempResguardoCor.some(c => colorsOf(s, src).includes(c))) return false; // M-255 · 702.11d "hexproof from [cor]"
   if (src && o.controller !== p && resistenteAK(s, o, src)) return false; // K-18 · 702.11d: "hexproof from [qualidade]" impresso (Toca ponto comum: targetable)
@@ -20442,6 +20448,10 @@ function applyEffect(s, src, eff, tgt, events) {
       if (!alvo || alvo.zone !== 'battlefield') { note({ failed: true }); break; }
       if (eff.exceto) { alvo.tempImbloqueavelExceto = [...new Set([...(alvo.tempImbloqueavelExceto || []), eff.exceto])]; note({ target: alvo.name, exceto: eff.exceto }); break; } // M-370 · 509.1b: "except by creatures with haste" — cada restrição vale sozinha
       alvo.tempImbloqueavel = true; note({ target: alvo.name }); break;
+    }
+    case 'sem_alvo_de_oponentes': { // M-375 · "your opponents": os oponentes de quem controla a mágica (não os de quem controla a criatura), até o fim do turno
+      if (!obj || obj.zone !== 'battlefield') { note({ failed: true }); break; }
+      obj.tempSemAlvoDe = [...new Set([...(obj.tempSemAlvoDe || []), ctrl])]; note({ target: obj.name }); break;
     }
     case 'resistencia_cor': case 'imbloqueavel_cor': { // M-255 · com a cor escolhida ao ativar, até o fim do turno
       const cor = src.chosenColor;
@@ -30278,6 +30288,7 @@ function descreveEfeito(e) {
     case 'look_top': return 'olha a carta do topo do grimório do jogador alvo';
     case 'look_hand': return 'olha a mão do jogador alvo';
     case 'protection': return `${alvo || 'a criatura'} ganha proteção contra uma cor`;
+    case 'sem_alvo_de_oponentes': return `${alvo || 'a criatura'} não pode ser alvo de mágicas nem de habilidades dos oponentes de quem a conjurou neste turno`; // M-375
     case 'resistencia_cor': return `${alvo || 'a criatura'} ganha resistência a magia da cor escolhida até o fim do turno`; // M-255
     case 'imbloqueavel': return `${alvo || 'a criatura'} não pode ser ${/^o /.test(alvo || '') ? 'bloqueado' : 'bloqueada'} neste turno${e.exceto ? ', exceto por criaturas com ' + (PALAVRA_PT[e.exceto] || e.exceto) : ''}`; // M-336 · M-370
     case 'imbloqueavel_cor': return `${alvo || 'a criatura'} não pode ser ${/^o /.test(alvo || '') ? 'bloqueado' : 'bloqueada'} por criaturas da cor escolhida neste turno`;
@@ -30338,7 +30349,7 @@ function descreveEfeito(e) {
   }
 }
 // Leva 131 · a condição do efeito entra na frase (Moon-Circuit Hacker: o aviso dizia "descarta 1 carta" no turno em que ela entrou, quando não descarta)
-const CONDICAO_PT = { 'source-entered-earlier': 'só se ela não entrou neste turno', 'not-attacked': 'só se você não atacou neste turno', evidenced: 'se colheu provas', 'not-evidenced': 'se não colheu provas' }; // M-351 · Extract a Confession (achado da revisão do lote XXIII: as duas frases pareciam dois sacrifícios)
+const CONDICAO_PT = { kicked: 'se tiver sido reforçada', 'paid-additional': 'se o custo adicional foi pago', metalcraft: 'com metalurgia', 'cast-from-graveyard': 'se foi conjurada do cemitério', 'source-entered-earlier': 'só se ela não entrou neste turno', 'not-attacked': 'só se você não atacou neste turno', evidenced: 'se colheu provas', 'not-evidenced': 'se não colheu provas' }; // M-351 · Extract a Confession (achado da revisão do lote XXIII: as duas frases pareciam dois sacrifícios)
 const X_PT = { 'instants-sorceries-in-your-graveyard': 'mágicas instantâneas e feitiços no seu cemitério', 'flashback-cards-you-own-in-exile': 'cartas com lampejo do passado suas no exílio', /* M-358 */ 'cards-in-hand': 'cartas na sua mão', 'creature-cards-in-your-graveyard': 'cartas de criatura no seu cemitério', 'sacrificed-power': 'o poder da criatura sacrificada', 'sacrificed-toughness': 'a resistência da criatura sacrificada', 'sacrificed-mv': 'o valor de mana do que foi sacrificado' }; // M-354 · o que o X conta (achado da revisão do lote XXVI)
 const descreveEfeitos = effects => (effects || []).map(e => { let f = descreveEfeito(e); const xp = e && e.amount && X_PT[e.amount.per]; if (f && xp && /\bX\b/.test(f)) f = `${f} (X = ${xp})`; return f && e.onlyIf && CONDICAO_PT[e.onlyIf] ? `${f} (${CONDICAO_PT[e.onlyIf]})` : f; }).filter(Boolean).join('; ');
 /** E50 P6 · a linha do texto oficial (inglês) que corresponde a uma habilidade na pilha.

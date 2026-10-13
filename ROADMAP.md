@@ -4115,6 +4115,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora:** permanentes (o "ao entrar, escolha" já acontece com a permanente no campo); a cópia de tempestade do caminho antigo (`stormCopies`, partidas anteriores à v60).
 - **Teste:** `lt57.unit` (3 testes, falham no motor anterior; o terceiro é o achado da revisão).
 
+**M-375 · LT43 · Vines of Vastwood: "não pode ser alvo de mágicas nem habilidades dos seus oponentes neste turno" e o reforço** ✅ (leva M-375, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** revisão por lote XXXIV — **Vines of Vastwood passa a jogar** (APROVADAS; texto do Oracle do Forge, consulta de 12/10/2026). A resposta clássica funciona: em resposta à remoção do oponente, a remoção perde o alvo e não resolve (608.2b); com o reforço pago, a criatura ainda ganha +4/+4 até o fim do turno. "Your opponents" são os oponentes de quem **conjurou** a Vines: posta na criatura do oponente, é o dono dela que não pode mais mirá-la. Efeitos sem alvo (varreduras) continuam valendo; dura até o fim do turno; a criatura piscada volta sem o efeito (400.7).
+- **Revisão independente:** 59 verificações, aprovada. De passagem (achado da revisão), a pilha explicada passa a dizer a condição dos efeitos condicionados ao reforço ("se tiver sido reforçada"), ao custo adicional, à metalurgia e à conjuração do cemitério — antes o +4/+4 aparecia mesmo sem o reforço (valia também para Into the Roil).
+- **Simplificação declarada:** com mais de dois jogadores, todos os outros contam como oponentes (não há equipes na mesa).
+- **Teste:** `lt58.unit` (3 testes, falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
