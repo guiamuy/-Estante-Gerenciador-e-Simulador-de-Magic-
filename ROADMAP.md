@@ -4254,6 +4254,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** a escolha usa a mesma decisão pendente do "escolha um tipo de criatura" (`choose_type`, com o terreno marcado); só o efeito com "in addition" existe (o "becomes" que substitui os tipos, 305.7 sem "in addition", não está no vocabulário).
 - **Teste:** `lt71.unit` (2 testes; falham no motor anterior).
 
+**M-389 · LT56 · 603.7c · Gatilho atrasado "this turn" que dispara a cada vez** ✅ (leva M-389, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** revisão por lote XLVII — **First Day of Class passa a jogar** (APROVADAS; Oracle do Forge, consulta de 12/10/2026; era a **única carta faltando em 10 listas** Pauper do catálogo). Até o fim do turno, cada criatura sua que entrar ganha um marcador +1/+1 e ímpeto até o fim do turno (o gatilho guarda a criatura com a encarnação, 603.7c); depois, aprender (701.48). O gatilho some na limpeza.
+- **Revisão independente:** 65 asserções (conjurada, ficha, reanimada, piscada; criatura do oponente não; conjurada no turno do oponente vale para quem a conjurou; 603.7c respondendo ao gatilho com Lightning Bolt, Snapback e Ephemerate; cópia de tempestade cria o seu gatilho; salvar e retomar), fuzz de 14 partidas com o modo sombra sem diferença e diferencial de 16 partidas contra o motor anterior sem diferença; leitor nas 1.165 cartas das listas; aprovada. Textos corrigidos antes de subir: a pilha explicada dizia "delayed object" em inglês, o registro não dizia o que a mágica criou e o gatilho atrasado aparecia como "(delayed)".
+- **Fora (declarado):** aprender continua sem a Lição de fora do jogo (decisão V-13: só "descarte uma carta para comprar uma"); o gatilho do turno só conhece "criatura sua entra" (outros momentos entram quando aparecerem).
+- **Teste:** `lt72.unit` (1 teste; falha no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

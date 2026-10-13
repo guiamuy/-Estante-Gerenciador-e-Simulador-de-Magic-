@@ -5447,6 +5447,7 @@ const EFFECTS = {
   prevenir: { fields: [], targets: ['self-source', 'any', 'creature', 'creature-you-control', 'player', 'opponent'] },
   // CR2b.1 · 603.7: "…at the beginning of the next turn's upkeep" — a resolução só registra a promessa; os efeitos de dentro vão à pilha depois
   delayed: { fields: [], targets: ['self', 'target-controller'] },
+  gatilho_no_turno: { fields: [], targets: ['self'] }, // M-389 · 603.7c · "Whenever a creature you control enters this turn, …" (First Day of Class): gatilho atrasado que dispara a cada vez até o fim do turno
   desenterrar: { fields: [], targets: ['self'] }, // M-256 · resolução do desenterrar (702.84a)
   reforco: { fields: [], targets: ['first-target'] }, // M-260 · a segunda metade do reforço (702.165a)
   sai_de_fase: { fields: [], targets: ['creature', 'permanent', 'first-target'] }, // M-261 · 702.26 "phases out"
@@ -6296,6 +6297,7 @@ function effectErrors(effects, label, opcional) {
     if (e.do === 'token') errs.push(...tokenErrors(e.token, `${label} ${i + 1}`));
     if (e.do === 'unless_pays') { if (!String(e.cost || '').match(/\{/)) errs.push(`${label} ${i + 1}: "a menos que pague" precisa do custo`); errs.push(...effectErrors(e.effects, `${label} ${i + 1} (se não pagar)`)); }
     if (e.do === 'reflexive') errs.push(...effectErrors(e.effects, `${label} ${i + 1} (reflexivo)`));
+    if (e.do === 'gatilho_no_turno') { if (e.when !== 'criatura-sua-entra') errs.push(`${label} ${i + 1}: momento "${e.when}" desconhecido para gatilho deste turno`); errs.push(...effectErrors(e.effects, `${label} ${i + 1} (deste turno)`)); } // M-389
     if (e.do === 'delayed') { if (!ATRASOS.includes(e.when)) errs.push(`${label} ${i + 1}: momento "${e.when}" desconhecido para gatilho atrasado`); errs.push(...effectErrors(e.effects, `${label} ${i + 1} (atrasado)`)); }
     if (e.do === 'tap_or_untap' && e.optional != null && typeof e.optional !== 'boolean') errs.push(`${label} ${i + 1}: "opcional" precisa ser verdadeiro ou falso`); // Leva 131
     if (e.exilaSeMorrer != null && !(e.do === 'damage' && e.exilaSeMorrer === true)) errs.push(`${label} ${i + 1}: "exilaSeMorrer" é uma marca (true) do dano`); // M-384 · Torch the Tower
@@ -9017,6 +9019,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Gorilla Shaman': { texto: 'kna41h', leva: 'M-387' },
   // M-388 · revisão por lote XLVI (Pauper: Navigator's Compass), revisor independente: reprovada na primeira passada (205.4: a mudança de tipo tirava os supertipos), corrigida na classe com teste; 77 asserções e fuzz
   'Navigator\'s Compass': { texto: '1b2nud0', leva: 'M-388' },
+  // M-389 · revisão por lote XLVII (First Day of Class), revisor independente: aprovada (65 asserções, fuzz com sombra e diferencial sem diferença); três textos corrigidos
+  'First Day of Class': { texto: 'kp0tqg', leva: 'M-389' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -9114,6 +9118,7 @@ Object.assign(EXPORTS_K_SC, { TIPOS_DE_CRIATURA_SCK: tiposDeCriaturaSCK(), PROTE
 Object.assign(MARCADOR_PT, { fade: 'de desvanecer' }); // K-37 · 702.32a
 TRIGGER_PT.cycled = 'quando você a cicla'; // K-16 · 702.29c
 TRIGGER_PT['storm-gatilho'] = 'quando você a conjura (tempestade)'; // K-25 · 702.40a
+TRIGGER_PT.delayed = 'atrasado'; // M-389 · achado da revisão: "(delayed)" aparecia em inglês
 function palavraNaLinhaK(k) {
   if (k === 'suspend') return 'suspend \\d+\\s*[—-]\\s*(?:\\{[0-9WUBRGC]+\\})+'; // K-22
   if (k === 'landwalk') return '(?:(?:non)?(?:basic|legendary|snow|artifact) )?(?:land|desert|island|swamp|forest|mountain|plains|gate|cave|lair|locus|sphere|urza\'s)walk'; // K-21
@@ -17128,6 +17133,8 @@ const __m42 = (function () {
     [/^put target creature card from your graveyard on top of your library$/i, () => [{ do: 'mover', para: 'library', posicao: 'topo', target: 'creature-in-your-graveyard' }]], // M-361 · Witch's Cottage, Mortuary Mire
     [/^if that creature would die this turn, exile it instead$/i, () => [{ do: 'exila_se_morrer', target: 'first-target' }]], // M-384 · Suplex (614.1a)
     [/^until end of turn, target land you control becomes the basic land type of your choice in addition to its other types$/i, () => [{ do: 'tipo_basico', target: 'land-you-control' }]], // M-388 · Navigator's Compass (305.7)
+    [/^whenever a creature you control enters this turn, put a \+1\/\+1 counter on it and it gains haste until end of turn$/i, () => [{ do: 'gatilho_no_turno', when: 'criatura-sua-entra', effects: [{ do: 'counters', tipo: 'p1p1', amount: 1, target: 'delayed-object' }, { do: 'keyword', keyword: 'haste', target: 'delayed-object' }] }]], // M-389 · First Day of Class (603.7c)
+    [/^learn$/i, () => [{ do: 'learn' }]], // M-389 · 701.48 (o motor aprende desde a V-13; a Lição de fora do jogo não existe no app — parcial declarada no vocabulário)
     [/^it doesn't untap during its controller's next untap step$/i, () => [{ do: 'nao_desvira', target: 'first-target' }]], // M-334 · LT18 · 502.3 (Sleep of the Dead)
     [/^add ((?:\{[WUBRGC]\})+)$/i, m => [{ do: 'add_mana', symbols: m[1].match(/[WUBRGC]/g) }]], // M-334 · LT18 · mágica ou gatilho que adiciona mana (Seething Song, Burning-Tree Emissary)
     [/^you become the monarch$/i, () => [{ do: 'monarch' }]], // M-332 · CR 725
@@ -19446,6 +19453,7 @@ function fimDosEfeitosDoTurno(s) {
   for (const pl of s.players.keys()) for (const oid of s.zones[pl].exile) { const x = s.objects[oid]; if (x && x.jogavelSoNesteTurno) { delete x.playableFromExile; delete x.jogavelSoNesteTurno; }
     if (x && x.jogavelAte && x.jogavelAte.by === s.turn.active && s.turn.number > x.jogavelAte.turno) { delete x.playableFromExile; delete x.jogavelAte; } } // M-349 · acaba na limpeza do próximo turno de quem exilou // M-267 · "this turn"
   delete s.mareAlta; // M-262 · High Tide vale até o fim do turno
+  delete s.gatilhosDoTurno; // M-389 · "this turn" acaba na limpeza (514.2)
   for (const o of campoInteiro(s)) if (o.copias) { o.copias = o.copias.filter(t => ficaTemporario(s, t, 'limpeza')); recalculaCopia(s, o); } // CR2f.1 · CR2d.13: também "até o fim do seu próximo turno"
   for (const o of campoInteiro(s)) if (o.controles) { o.controles = o.controles.filter(t => ficaTemporario(s, t, 'limpeza')); recalculaControle(s, o); } // CR2d.13 // CR2d.6 · "until end of turn" acaba na limpeza (514.2)
   for (const o of campoInteiro(s)) { delete o.pump; delete o.tempKeywords; delete o.tempTs; podaTemporarios(s, o, 'limpeza'); delete o.prevenirDano; delete o.regenerar; delete o.tempProtection; delete o.tempToxico; delete o.tempResguardoCor; delete o.tempSemAlvoDe; delete o.tempNaoBloqueadaPor; delete o.tempImbloqueavel; delete o.tempImbloqueavelExceto; delete o.tempHabilidades; delete o.usedThisTurn; o.damage = 0; delete o.deathtouched; } // M-255 · tóxico, resistência a magia de cor e "não bloqueada por cor" até o fim do turno
@@ -21401,6 +21409,7 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'manifest': manifestar(s, src, eff, events); break; // V-17 · 701.40
     case 'discard_random': descartaAoAcaso(s, src, eff, tgt, events); break; // V-14 · 701.9b
     case 'learn': aprender(s, src, events); break; // V-13 · 701.48
+    case 'gatilho_no_turno': (s.gatilhosDoTurno = (s.gatilhosDoTurno || []).filter(g => g.turno === s.turn.number)).push({ when: eff.when, turno: s.turn.number, controller: ctrl, name: src.name, source: src.ability ? src.source : src.oid, effects: eff.effects }); note({ amount: 1 }); break; // M-389 · 603.7c: quem controla é quem controlava a mágica (603.7d)
     case 'learn_sim': s.aprendeV = true; break; // V-16 · o "sim" do aprender (efeito interno, sem script)
     case 'suspect': suspeitar(s, src, eff, tgt, events); break; // V-12 · 701.60
     case 'unsuspect': absolver(s, src, eff, tgt, events); break; // V-12 · 701.60a "is no longer suspected"
@@ -22055,7 +22064,15 @@ function naSombra(s, rotulo, legado, novo) {
   if (velho !== nova && sombraGatilhos.diferencas.length < 20) sombraGatilhos.diferencas.push({ rotulo, velho, novo: nova });
 }
 const disparaZona = (s, o, de, para, ctrlAntes, ultima) => (para === 'battlefield' && de !== 'battlefield' && evoluirK(s, o), naSombra(s, `${o.name}: ${de} → ${para}`, // K-11 · evoluir (Toca ponto comum: disparaZona)
-  () => gatilhosDeZonaLegado(s, o, de, para, ctrlAntes, ultima), () => gatilhosDeZona(s, o, de, para, ctrlAntes, ultima)));
+  () => gatilhosDeZonaLegado(s, o, de, para, ctrlAntes, ultima), () => gatilhosDeZona(s, o, de, para, ctrlAntes, ultima)), gatilhosDoTurnoM(s, o, de, para));
+/** M-389 · 603.7c · os gatilhos criados por uma mágica para "este turno": disparam a cada evento até a limpeza; o objeto que entrou viaja como `objeto` (603.7c, com a encarnação). */
+function gatilhosDoTurnoM(s, o, de, para) {
+  if (!(s.gatilhosDoTurno || []).length || para !== 'battlefield' || de === 'battlefield' || isAbility(o)) return;
+  for (const g of s.gatilhosDoTurno) {
+    if (g.turno !== s.turn.number || s.players[g.controller].lost) continue;
+    if (g.when === 'criatura-sua-entra' && o.controller === g.controller && isCreature(s, o)) s.queued.push({ source: g.source, name: g.name, controller: g.controller, effects: g.effects, when: 'delayed', objeto: { oid: o.oid, z: o.zc || 0 } });
+  }
+}
 /** CR2-G R2b · o evento acontece com cada objeto da lista (conjurar, atacar, bloquear, dano de combate). */
 const NOME_DO_EVENTO = { conjurar: 'cast-self', ataca: 'attacks', bloqueia: 'blocks', 'dano-combate': 'combat-damage' };
 /** CR2g.5 · 509.3c/509.3f · depois da declaração de bloqueadores: "é bloqueada" (uma vez, com um ou mais bloqueadores) e "ataca e não é
@@ -30096,6 +30113,7 @@ function effectLine(ev) {
     case 'turno_extra': return `${t} vai jogar um turno extra depois deste (${ev.name})`; // CR2g.2
     case 'monarch': return ev.failed ? `${t} continua o monarca (${ev.name})` : `${t} se tornou o monarca (${ev.name})`; // M-332
     case 'initiative': return `${t} tomou a iniciativa (${ev.name})`; // M-332
+    case 'gatilho_no_turno': return `${ev.name}: neste turno, cada criatura sua que entrar ganha o efeito`; // M-389 · achado da revisão
     case 'exila_se_morrer': return ev.failed ? `${ev.name}: o alvo já não estava no campo` : `${t || ev.name}: se fosse morrer neste turno, é exilada`; // M-384
     case 'lembradas_ao_cemiterio': return `${ev.name}: ${ev.amount === 1 ? '1 carta exilada foi' : `${ev.amount || 0} cartas exiladas foram`} para o cemitério`; // M-386
     case 'nao_desvira': return ev.failed ? `${ev.name}: o alvo já não estava no campo` : `${t || ev.name}: não desvira no próximo passo de desvirar`;
@@ -30935,7 +30953,7 @@ function descreveAlvo(chave) {
   if (!nome) return (each ? 'cada ' : '') + qual;
   return (each ? 'cada ' : (['player', 'opponent'].includes(nome) ? 'um ' : 'uma ')) + base[nome] + (qual && qual !== nome ? ' ' + qual : '');
 }
-const ALVO_PT = { 'each-opponent-creature': 'cada criatura dos oponentes', 'each-opponent-creature-planeswalker': 'cada oponente e cada criatura e planeswalker deles',
+const ALVO_PT = { 'delayed-object': 'essa permanente', 'each-opponent-creature': 'cada criatura dos oponentes', 'each-opponent-creature-planeswalker': 'cada oponente e cada criatura e planeswalker deles',
   'each-own-creature': 'cada criatura sua', 'each-flying-creature': 'cada criatura com voar', 'each-nonflying-creature': 'cada criatura sem voar', 'creature-spell': 'uma mágica de criatura',
   'noncreature-spell': 'uma mágica que não é de criatura', 'instant-spell': 'uma mágica instantânea', 'artifact-spell': 'uma mágica de artefato', 'artifact-enchantment-spell': 'uma mágica de artefato ou encantamento',
   'artifact-enchantment': 'um artefato ou encantamento', 'artifact-enchantment-opponent-controls': 'um artefato ou encantamento de um oponente', 'card-in-any-graveyard': 'uma carta de um cemitério',
@@ -31219,6 +31237,7 @@ function descreveEfeito(e) {
     case 'amass': return `amassa ${n} (${e.subtipo || 'Zombie'}): sem Exército, cria um 0/0; põe ${plural(n, 'marcador +1/+1', 'marcadores +1/+1')} nele`;
     case 'resistencia_jogador': return 'você ganha resistência a magia até o fim do turno';
     case 'desenterrar': return 'volta do cemitério para o campo com ímpeto; é exilada no início do próximo passo final ou se fosse sair do campo'; // M-257
+    case 'gatilho_no_turno': return `neste turno, sempre que uma criatura sua entrar: ${descreveEfeitos(e.effects).replace(/ em essa permanente/g, ' nela').replace(/essa permanente ganha/g, 'ela ganha')}`; // M-389 (achado da revisão: "delayed object" em inglês)
     case 'delayed': return `${{ 'next-upkeep': 'no início da manutenção do próximo turno', 'next-end-step': 'no início do próximo passo final', 'end-of-combat': 'no fim do combate' }[e.when] || 'mais tarde'}: ${descreveEfeitos(e.effects)}`;
     case 'reflexive': return `quando fizer isso: ${descreveEfeitos(e.effects)}`;
     case 'unless_pays': return `${descreveEfeitos(e.effects)}, a menos que aquele jogador pague ${e.cost}`;
