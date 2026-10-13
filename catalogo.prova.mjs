@@ -13,7 +13,7 @@
 //   git clone --depth 1 --filter=blob:none --sparse https://github.com/Card-Forge/forge <dir> && \
 //     git -C <dir> sparse-checkout set forge-gui/res/cardsfolder      (uma vez; texto oficial das cartas)
 //   node catalogo.prova.mjs --forge <dir>/forge-gui/res/cardsfolder [--formato pauper] [--partidas 2] [--acoes 1000]
-//        [--lista <trecho do nome>] [--saida .tmp/prova-pauper.json] [--semente 1] [--todas] [--shark [--orcamento 60]]
+//        [--lista <trecho do nome>] [--saida .tmp/prova-pauper.json] [--semente 1] [--todas] [--shark [--orcamento 60] [--fatia 1/2]]
 //   --shark: as listas que jogam também fazem a mesma partida com o Shark nos dois assentos (H-3)
 //   --todas: também joga as listas de cobertura incompleta (estresse do motor; a carta sem regra entra sem efeito)
 // Saída: placar no terminal (joga / falha / cobertura incompleta / sem dados) e o detalhe em JSON (padrão `.tmp/`).
@@ -206,6 +206,8 @@ export function joga(setup, comEstado = false, obs = null) {
 
 /** H-3 · Shark × Shark: os dois assentos com o bot do app (informação justa), como o torneio das listas (torneio.listas.mjs).
     Falha: o motor recusa a jogada que o Shark escolheu entre as legais, o Shark fica sem jogada, ou uma invariante quebra. */
+/** H-8 · `--fatia i/n`: o Shark joga só as listas de índice ≡ i (mod n), para dividir a rodada longa entre processos (os dois núcleos). */
+const FATIA = /^(\d+)\/(\d+)$/.exec(String(ARGS.fatia || '')), naFatia = i => !FATIA || i % +FATIA[2] === +FATIA[1] - 1;
 export function jogaShark(setup, max = 1500) {
   const B = M.bot;
   let s;
@@ -267,8 +269,9 @@ function main() {
           players: assentos.map((x, j) => ({ name: j ? 'B' : 'A', deck: x.entradas.map(e => ({ name: e.name, qty: e.qty, zone: e.zone || 'main' })) })) };
         const res = joga(setup, false, oferta);
         const reg = { contra: b2.nome, contraId: b2.id, assento: k % 2, semente: setup.seed, ...res };
-        if (ARGS.shark && campo === 'partidas' && k === 0) { // H-3 · a primeira partida de cada lista, de novo com o Shark nos dois assentos
-          const sh = jogaShark(setup);
+        if (ARGS.shark && campo === 'partidas' && k === 0 && naFatia(i)) { // H-3 · a primeira partida de cada lista, de novo com o Shark nos dois assentos
+          const tS = Date.now(); process.stderr.write(`  shark ${i + 1}/${grupo.length} · ${a.nome} × ${b2.nome} (semente ${setup.seed}) … `); // H-8 · progresso: a partida que não termina fica visível no log
+          const sh = jogaShark(setup); process.stderr.write(`${((Date.now() - tS) / 1000).toFixed(1)} s · ${sh.erro || (sh.fim ? 'fim' : 'limite')} · ${sh.acoes ?? sh.acao} ações\n`);
           const regS = { modo: 'shark', contra: b2.nome, contraId: b2.id, assento: k % 2, semente: setup.seed, ...sh };
           (a.shark = a.shark || []).push(regS);
           if (sh.erro) (a.falhas = a.falhas || []).push(regS);
