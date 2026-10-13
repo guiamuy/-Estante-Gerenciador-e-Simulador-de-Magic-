@@ -18766,7 +18766,7 @@ const canPay = (s, p, cost, extra = 0) => !!planTaps(s, p, cost, extra);
 const nPhyrexianos = cost => (cost.hybrid || []).filter(h => h.includes('P')).length;
 function custoPhyrexiano(cost, n) {
   let k = 0; const hybrid = [], colored = { ...cost.colored };
-  for (const h of cost.hybrid || []) { if (!h.includes('P')) { hybrid.push(h); continue; } if (k++ < n) continue; const cor = h.find(x => x !== 'P'); colored[cor] = (colored[cor] || 0) + 1; }
+  for (const h of cost.hybrid || []) { if (!h.includes('P')) { hybrid.push(h); continue; } if (k++ < n) continue; const cores = h.filter(x => x !== 'P'); if (cores.length === 1) colored[cores[0]] = (colored[cores[0]] || 0) + 1; else hybrid.push(cores); } // M-381 · 107.4f: o phyrexiano híbrido ({G/U/P}) não pago com vida vira o híbrido das duas cores (antes só aceitava a primeira) — pedido da trilha tipos (T-47)
   return { ...cost, colored, hybrid };
 }
 /** CR2c.1 · custo somado (custo de mana + reforço pago n vezes). */

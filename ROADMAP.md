@@ -4194,6 +4194,10 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Cosmético registrado:** o registro mostra a ficha como "Spirit" (nome da ficha em inglês, como as outras) e não diz que o terreno do Eureka entrou no campo.
 - **Teste:** `lt63.unit` (2 testes, falham no motor anterior).
 
+**M-381 · 107.4f · Phyrexiano híbrido ({G/U/P})** ✅ (leva M-381, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** o símbolo phyrexiano híbrido se paga com qualquer das duas cores ou com 2 de vida. Antes, sem pagar vida, o motor só aceitava a primeira cor — a mesa não oferecia conjurar Tamiyo, Compleated Sage ou Ajani, Sleeper Agent com a outra cor. Pedido da trilha `tipos` (T-47).
+- **Teste:** `lt64.unit` (2 testes; o primeiro falha no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
