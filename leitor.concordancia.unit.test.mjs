@@ -74,7 +74,7 @@ test('LT1 · fidelidade: frase sem padrão fica não lida, com o texto dela, e a
   const b2 = L.ler({ name: 'Mapa', type_line: 'Sorcery', oracle_text: 'Search your library for a card with mana value 3, reveal it, put it into your hand, then shuffle.' });
   assert.equal(b2.completa, false, 'qualidade "mana value 3" não cabe no filtro do motor: não lida');
   const b3 = L.ler({ name: 'Tutor', type_line: 'Instant', oracle_text: 'Search your library for an instant or sorcery card, reveal it, then shuffle and put that card on top.' });
-  assert.deepEqual(JSON.parse(JSON.stringify(b3.script.effects)), [{ do: 'search', amount: 1, filter: { types: ['instant', 'sorcery'] }, to: 'library-top' }], 'LT5: "shuffle and put that card on top" vai ao topo do grimório');
+  assert.deepEqual(JSON.parse(JSON.stringify(b3.script.effects)), [{ do: 'search', amount: 1, filter: { types: ['instant', 'sorcery'] }, to: 'library-top', revela: true }], 'LT5: "shuffle and put that card on top" vai ao topo do grimório; M-351: "reveal it" mostra a carta achada (701.20a; achado da revisão do lote XXIII)');
   const l5 = L.ler({ name: 'Terra', type_line: 'Land', oracle_text: '{T}: Add {C}.\nCycling {R}{G}{W}' });
   // LT13 · terreno de dor: a cobertura por texto ainda trata a linha como mana; lida pelo leitor, a carta sem script à mão deixaria de jogar (decisão 11)
   // M-331 · metalurgia, "cast from a graveyard … instead", P+T no alvo, lampejo que sacrifica
