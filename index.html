@@ -5651,7 +5651,7 @@ const EXTRA_COST_PARTS = ['sacrificeOther', 'tapOther', 'discard', 'returnLand',
    equivalência compara o caminho antigo com o novo em partidas aleatórias. Carta nova escreve o seletor direto:
    target: { tipos: ['creature'], de: 'opponent' }  ·  { zona: 'graveyard', de: 'you', tipos: ['creature'] }  ·  { jogadores: 'any' } */
 const SELETOR_ZONAS = ['battlefield', 'graveyard', 'stack', 'nenhuma'];
-const SELETOR_CHAVES = ['zona', 'de', 'dono', 'tipos', 'semTipos', 'tiposImpressos', 'tiposDaCarta', 'subtipos', 'semSubtipos', 'palavra', 'semPalavra', 'mvMax', 'mvMin', 'outra', 'cor', 'semCor', 'permanente', 'jogadores', 'habilidades', 'ref', 'subtipoDaAura', 'lendaria', 'comToxico', 'ou', 'atacando']; // M-361 · `atacando: true` (506.4)
+const SELETOR_CHAVES = ['historico', 'foraDaLei', 'modificada', /* T-59 · CR 700.6 / 700.12 / 700.9 */ 'zona', 'de', 'dono', 'tipos', 'semTipos', 'tiposImpressos', 'tiposDaCarta', 'subtipos', 'semSubtipos', 'palavra', 'semPalavra', 'mvMax', 'mvMin', 'outra', 'cor', 'semCor', 'permanente', 'jogadores', 'habilidades', 'ref', 'subtipoDaAura', 'lendaria', 'comToxico', 'ou', 'atacando']; // M-361 · `atacando: true` (506.4)
 const ALVO_SELETOR = {
   any: { tipos: ['creature', 'planeswalker'], jogadores: 'any' },
   creature: { tipos: ['creature'] }, planeswalker: { tipos: ['planeswalker'] }, permanent: {},
@@ -5717,6 +5717,7 @@ function seletorErros(sel, label) {
   for (const k of ['palavra', 'semPalavra']) if (sel[k] != null && !KEYWORDS.includes(sel[k])) errs.push(`${label}: palavra-chave "${sel[k]}" não é resolvida pelo motor`);
   for (const k of ['mvMax', 'mvMin']) if (sel[k] != null) errs.push(...valueErrors(sel[k], `${label}: ${k}`));
   if (sel.lendaria != null && typeof sel.lendaria !== 'boolean') errs.push(`${label}: "lendaria" precisa ser verdadeiro ou falso`); // M-246 · supertipo lendário (205.4)
+  for (const k of ['historico', 'foraDaLei', 'modificada']) if (sel[k] != null && typeof sel[k] !== 'boolean') errs.push(`${label}: "${k}" precisa ser verdadeiro ou falso`); // T-59 · CR 700.6 / 700.12 / 700.9 (Toca ponto comum: seletorErros)
   return errs;
 }
 /** O seletor (já expandido dos atalhos) escolhe jogadores? E objetos? */
@@ -6011,7 +6012,7 @@ const ATTACH_KINDS = ['creature', 'permanent', 'land', 'creature-you-control', '
 const PER_COUNTS = ['enchantments-you-control', 'other-enchantments', 'auras-on-battlefield',
   'creatures-you-control', 'other-creatures-you-control', 'elves-you-control', 'elves-on-battlefield', 'defenders-you-control', 'permanents-you-control', 'nonland-permanents-you-control', 'life-gained-this-turn', 'life-lost-this-turn',
   'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G', 'counters-on-source', 'opponents-empty-hand', 'trigger-value', 'chosen-type-permanents', 'sacrificed-toughness', 'sacrificed-mv', 'sacrificed-power', 'creature-cards-in-your-graveyard', 'cards-in-hand', 'x', 'power-of-source', 'se', 'power-of-target',
-  'instants-sorceries-in-your-graveyard', 'flashback-cards-you-own-in-exile', 'soma']; // M-358 · Seize the Storm (604.3); `soma`: { per: 'soma', partes: [contagem, contagem, …] }
+  'instants-sorceries-in-your-graveyard', 'flashback-cards-you-own-in-exile', 'soma', 'party']; // T-59 · CR 700.8 · quantas criaturas há no seu grupo (0 a 4) // M-358 · Seize the Storm (604.3); `soma`: { per: 'soma', partes: [contagem, contagem, …] }
 /** M-333 · 601.2f · "This spell costs {N} less to cast for each …": o que a redução conta (chave `reduzPor: { generic, per }` no topo do script). */
 const REDUZ_POR = ['instants-sorceries-in-your-graveyard', 'creature-cards-in-your-graveyard', 'land-cards-in-your-graveyard', 'creatures-on-battlefield',
   'creatures-opponents-control', 'basic-land-types-you-control', 'attacking-creatures', 'attacking-creatures-you-control', 'cards-drawn-this-turn',
@@ -17676,6 +17677,7 @@ function bonus(s, host) {
   return { p, t: tgh };
 }
 function countFor(s, src, per) {
+  if (per === 'party') return tamanhoDoGrupoT(s, src.controller); // T-59 · CR 700.8 (Toca ponto comum: countFor)
   if (per && typeof per === 'object' && per.subtype) {
     const rx = new RegExp('\\b' + per.subtype + '\\b', 'i');
     return battlefield(s).filter(o => o.controller === src.controller && !o.faceDown && (isChangeling(s, o, per.subtype) || rx.test(linhaDeTipo(s, o)))).length; // R9 · virada para baixo não tem tipo
@@ -19579,6 +19581,7 @@ function selCasa(s, p, o, sel, selfOid, opts = {}) {
   if (sel.cor && !coresDe(s, o).includes(sel.cor)) return false; // CR2d.8
   if (sel.lendaria != null && portadorLendarioV(s, o)) { if (!sel.lendaria) return false; sel = { ...sel, lendaria: null }; } // V-25 · 701.54c (1): o Portador do Anel é lendário (Toca ponto comum: seletor)
   if (sel.lendaria != null && (!!f.legendary && !o.faceDown) !== sel.lendaria) return false;
+  if ((sel.historico != null || sel.foraDaLei != null || sel.modificada != null) && !predicadosDeTipoT(s, o, sel)) return false; // T-59 · CR 700.6 / 700.12 / 700.9 (Toca ponto comum: selCasa)
   if (sel.atacando != null && (o.zone !== 'battlefield' || (o.attacking != null) !== !!sel.atacando)) return false; // M-361 · 506.4: "attacking creature" (Tangle)
   if (sel.comToxico && !toxicoDe(s, o)) return false; // M-253 · "creatures you control with toxic" // M-246 · 205.4 · lendária (virada para baixo não tem supertipo)
   if (sel.semCor && coresDe(s, o).includes(sel.semCor)) return false; // CR2d.8
@@ -21167,6 +21170,7 @@ function matchesFilter(s, o, filter) {
   if (filter.keyword && !(f.kw || []).includes(String(filter.keyword).toLowerCase())) return false;
   // S44 · "básico" e "um destes subtipos" (Sheltering Landscape)
   if (filter.basic && !/^\s*basic\b/i.test(f.typeText || '')) return false;
+  if ((filter.historico != null || filter.foraDaLei != null || filter.modificada != null) && !predicadosDeTipoT(s, o, filter)) return false; // T-59 · CR 700.6 / 700.12 / 700.9: "whenever you cast a historic spell", "outlaws you control" (Toca ponto comum: matchesFilter)
   if (filter.incolor && (o.zone === 'battlefield' ? coresDe(s, o) : (f.colors || [])).length) return false; // M-354 · "a colorless card" (Ancient Stirrings: terreno também é incolor, 105.2c)
   if ((filter.subtypes || []).length && !filter.subtypes.some(x => isChangeling(s, o, x) || new RegExp('\\b' + x + '\\b', 'i').test(f.typeText || ''))) return false; // K-1 · 702.73a: o metamorfo vale também no grimório e na mão
   if ((filter.notTypes || []).some(x => (f.types || []).includes(x))) return false; // S45 · "que não seja criatura nem terreno"
@@ -21633,6 +21637,7 @@ function matchesTriggerFilter(s, o, filter) {
   if ((filter.types || []).some(x => !tipos.includes(x))) return false;
   if (filter.anyTypes && !filter.anyTypes.some(x => tipos.includes(x))) return false; // R11 · "creature or planeswalker" (Cruel Celebrant)
   if (filter.noncreature && tipos.includes('creature')) return false;
+  if ((filter.historico != null || filter.foraDaLei != null || filter.modificada != null) && !predicadosDeTipoT(s, o, filter)) return false; // T-59 · CR 700.6 / 700.12 / 700.9: "whenever you cast a historic spell" (Toca ponto comum: matchesTriggerFilter)
   if (filter.semManaGasta && (!s.manaCheck || ((o.manaGasta || {})[filter.semManaGasta === 'colorida' ? 'colorida' : 'total'] || 0) > 0)) return false; // M-346 · Vexing Bauble, Void Mirror (603.4)
   if ((lki ? lki.faceDown : o.faceDown) && !filter.subtype) return true; // V-19 · 708.2a: a virada para baixo é criatura (os tipos acima já são os de agora); só o subtipo ela não tem · Toca ponto comum: matchesTriggerFilter (uma linha antes da regra da S54)
   if (lki ? lki.faceDown : o.faceDown) return false; // S54 · virada para baixo não combina com filtro de carta
@@ -26574,6 +26579,34 @@ function prototipoOfertasT(s, p, out) {
   try { for (const a of legalActions(s2, p)) if (a.t === 'cast' && cand.includes(a.oid) && a.face == null && !a.omen && !a.disturb && !a.faceDown && !a.bestow && a.alt == null && !a.plotted) out.push({ ...a, prototipo: true }); }
   finally { DENTRO_DAS_MODAIS = false; }
 }
+/* ---------------- T-59 · CR 700.6 / 700.8 / 700.9 / 700.12 · predicados de tipo ----------------
+   - 700.6 histórico: lendário, artefato ou Saga. 700.12 fora da lei: Assassin, Mercenary, Pirate, Rogue ou Warlock (metamorfo conta).
+     700.9 modificada: com marcador, equipada, ou encantada por uma Aura que o controlador dela controla. Virada para baixo não tem nada
+     disso (708.2). Seletor: `historico`, `foraDaLei`, `modificada` (true/false).
+   - 700.8 grupo: até um Clérigo, um Ladino, um Guerreiro e um Mago de quem controla; quem tem vários desses tipos conta para um só, do
+     jeito que der mais (700.8b: emparelhamento máximo, por força bruta — são no máximo quatro papéis). Contagem `{ per: 'party' }`. */
+const SUBTIPOS_FORA_DA_LEI_T = ['Assassin', 'Mercenary', 'Pirate', 'Rogue', 'Warlock'];
+const temSubtipoT = (s, o, x) => isChangeling(s, o, x) || new RegExp('\\b' + x + '\\b').test(o.zone === 'battlefield' ? linhaDeTipo(s, o) : ((s.facts[o.name] || {}).typeText || ''));
+function predicadosDeTipoT(s, o, sel) {
+  const f = s.facts[o.name] || {}, virada = !!o.faceDown;
+  if (sel.historico != null) { const h = !virada && (!!f.legendary || portadorLendarioV(s, o) || (o.zone === 'battlefield' ? tiposDe(s, o) : (f.types || [])).includes('artifact') || temSubtipoT(s, o, 'Saga')); if (h !== sel.historico) return false; }
+  if (sel.foraDaLei != null) { const fl = !virada && SUBTIPOS_FORA_DA_LEI_T.some(x => temSubtipoT(s, o, x)); if (fl !== sel.foraDaLei) return false; }
+  if (sel.modificada != null) {
+    const m = o.zone === 'battlefield' && (Object.values(o.counters || {}).some(n => n > 0) || attachedTo(s, o).some(x => ehEquipamentoT(s, x) || (x.controller === o.controller && ehAuraT(s, x))));
+    if (m !== sel.modificada) return false;
+  }
+  return true;
+}
+const ehAuraT = (s, x) => !!x.bestowed || /\bAura\b/.test(linhaDeTipo(s, x)) || !!((s.facts[x.name] || {}).script || {}).aura;
+function tamanhoDoGrupoT(s, p) {
+  const papeis = ['Cleric', 'Rogue', 'Warrior', 'Wizard'];
+  const cands = battlefield(s).filter(o => o.controller === p && !o.faceDown && isCreature(s, o)).map(o => papeis.filter(x => temSubtipoT(s, o, x))).filter(ps => ps.length);
+  let melhor = 0;
+  const busca = (i, usados, n) => { if (n > melhor) melhor = n; if (melhor === 4 || i >= cands.length) return; for (const r of cands[i]) if (!usados.has(r)) { usados.add(r); busca(i + 1, usados, n + 1); usados.delete(r); } busca(i + 1, usados, n); };
+  busca(0, new Set(), 0);
+  return melhor;
+}
+Object.assign(EXPORTS_T, { tamanhoDoGrupoT });
 /* ---------------- T-53 · CR 712.14a · "entra transformada" vinda de outra zona ----------------
    - O efeito `mover` com `transformada: true` ("return it to the battlefield transformed / converted") marca a carta e ela entra no
      campo com o verso para cima: a entrada da trilha vira a face antes dos gatilhos de entrar (os do verso disparam; "quando transforma"
@@ -30511,7 +30544,7 @@ function descreveSeletor(sel) {
   const sem = (sel.semTipos || []).length ? ` que não seja ${(sel.semTipos || []).map(x => nomes[x] || x).join(' nem ')}` : '';
   const dono = zona === 'graveyard' ? (sel.de === 'you' ? ' do seu cemitério' : sel.de === 'opponent' ? ' do cemitério de um oponente' : ' de um cemitério')
     : sel.de === 'you' ? ' que você controla' : sel.de === 'opponent' ? ' que um oponente controla' : sel.dono === 'you' ? ' que é sua' : '';
-  return `${coisa}${sem}${dono}${sel.comToxico ? ' com tóxico' : ''}${jog ? ' ou ' + jog : ''}`; // M-253
+  return `${coisa}${predicadosPT_T(sel)}${sem}${dono}${sel.comToxico ? ' com tóxico' : ''}${jog ? ' ou ' + jog : ''}`; // M-253 // T-59 · histórica, fora da lei, modificada
 }
 /** CR2-G R3a · efeito contínuo estático em português: quem é afetado, o +N/+N (fixo ou por contagem) e as palavras-chave. */
 const PER_PT = { 'creatures-you-control': 'criatura que você controla', 'other-creatures-you-control': 'outra criatura que você controla', 'enchantments-you-control': 'encantamento que você controla',
@@ -30582,7 +30615,7 @@ ALVO_PT['that-player'] = 'quem controla a mágica que disparou'; // M-322 · CR2
 const PALAVRA_PT = { defender: 'defensor', /* M-370 */ infect: 'infectar', indestructible: 'indestrutível', hexproof: 'resistência a magia', flying: 'voar', haste: 'ímpeto', trample: 'atropelar', lifelink: 'vínculo com a vida', deathtouch: 'toque mortífero', vigilance: 'vigilância', reach: 'alcance', menace: 'ameaçar', 'first strike': 'iniciativa', 'double strike': 'golpe duplo',
   fear: 'medo', intimidate: 'intimidar', shadow: 'sombra', skulk: 'esgueirar', islandwalk: 'travessia de ilha', swampwalk: 'travessia de pântano', forestwalk: 'travessia de floresta', mountainwalk: 'travessia de montanha', plainswalk: 'travessia de planície' };
 const qtd = v => (typeof v === 'number' ? v : (v && v.per === 'se') ? `${v.nao} (${v.sim} ${({ metalcraft: 'com três artefatos ou mais', 'cast-from-graveyard': 'se veio do cemitério', kicked: 'com reforço', bargained: 'com barganha', 'not-cast-from-hand': 'se não foi conjurada da mão' })[v.se] || 'com a condição'})` : (v && v.per) ? 'X' : 1); // M-331
-const IGUAL_A = { 'life-lost-this-turn': 'à vida que você perdeu neste turno', 'life-gained-this-turn': 'à vida que você ganhou neste turno', 'power-of-source': 'ao poder dela', 'power-of-target': 'ao poder do alvo' }; // M-248 · CR2b.10
+const IGUAL_A = { party: 'ao número de criaturas do seu grupo', /* T-59 · CR 700.8 */ 'life-lost-this-turn': 'à vida que você perdeu neste turno', 'life-gained-this-turn': 'à vida que você ganhou neste turno', 'power-of-source': 'ao poder dela', 'power-of-target': 'ao poder do alvo' }; // M-248 · CR2b.10
 const plural = (n, um, muitos) => (n === 1 ? `${n} ${um}` : `${n} ${muitos}`);
 /** Uma frase por efeito. O que o dicionário não conhece vira o nome do efeito, nunca some. */
 /* ↓ K · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha keywords */
@@ -30725,6 +30758,8 @@ const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas
 /* ↓ T · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha tipos */
 const EFEITO_PT_T = { caso_resolvido: () => 'este Caso fica resolvido', estacao: () => 'põe nesta permanente marcadores de carga iguais ao poder da criatura virada (ou à resistência, quando um efeito manda estacionar por ela)', selada: () => 'esta montaria fica selada até o fim do turno', virar_carta: e => (e.se && e.se.minCriaturas ? `se você controla ${e.se.minCriaturas} ou mais criaturas, vira esta carta` : 'vira esta carta'), porta: e => (e.acao === 'trancar' ? 'tranca uma porta destrancada de uma Sala sua' : e.acao === 'destrancar' ? 'destranca uma porta trancada de uma Sala sua' : 'tranca ou destranca uma porta de uma Sala sua'), nivel_sobe: () => 'põe um marcador de nível nela', nivel_classe: e => `a Classe sobe para o nível ${e.n}`, tripulada: () => 'vira criatura artefato até o fim do turno', transformar: () => 'transforma (vira a outra face)', preparar: () => 'esta criatura fica preparada', despreparar: () => 'esta criatura deixa de estar preparada' }; // T-51 · 722.3 // T-7 · 701.27
 /** T-7 · linhas do registro para os eventos da trilha tipos. */
+/** T-59 · CR 700.6 / 700.12 / 700.9 · os predicados de tipo na frase do seletor. */
+const predicadosPT_T = sel => (sel.historico ? ' histórica' : sel.historico === false ? ' que não é histórica' : '') + (sel.foraDaLei ? ' fora da lei' : '') + (sel.modificada ? ' modificada' : sel.modificada === false ? ' que não está modificada' : '');
 const LINHA_T = { preparada: ev => (ev.failed ? `${ev.name}: ${ev.motivo || 'não ficou preparada'}, nada muda` : `${ev.name} está preparada (pode conjurar uma cópia de ${ev.target})`), despreparada: ev => `${ev.name} deixou de estar preparada`, ciclo: ev => `Virou ${ev.target}${ev.motivo ? ` (${ev.motivo})` : ''}`, masmorra_completa: ev => `${ev.target} completou a masmorra ${ev.name}`, caso_resolvido: ev => (ev.failed ? `${ev.name}: a condição não valia mais, o Caso não foi resolvido` : `${ev.name} foi resolvido`), estacao: ev => (ev.failed ? `${ev.name}: a nave saiu do campo, a estação não pôs marcadores` : `${ev.name} recebeu ${ev.amount} marcador${ev.amount === 1 ? '' : 'es'} de carga (estação)${ev.total != null ? ` · ${ev.total} no total` : ''}`), selada: ev => (ev.failed ? `${ev.name}: a montaria saiu do campo, não foi selada` : `${ev.name} foi selada`), virar_carta: ev => (ev.failed ? `${ev.name} não virou${ev.motivo ? ` (${ev.motivo})` : ''}` : `${ev.name} virou: agora é ${ev.target}`), porta: ev => (ev.failed ? `${ev.name}: nenhuma porta para trancar ou destrancar` : `${ev.name} ${ev.acao} ${ev.porta} (${ev.target})`), nivel_sobe: ev => (ev.failed ? `${ev.name}: saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu de nível (nível ${ev.nivel})`), nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, converter: ev => `${ev.name} converteu em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
 Object.assign(EFEITO_PT_T, { cerco_derrotado: () => 'exila o Cerco; você pode conjurá-lo transformado, sem pagar', papel: e => `cria um Papel de ${e.papel} anexado à criatura` }); // T-14 · CR 310.12b
 Object.assign(LINHA_T, { cerco_derrotado: ev => (ev.failed ? `${ev.name}: o Cerco já tinha saído do campo, nada a exilar` : `${ev.name} foi derrotada e exilada${ev.target ? ` (pode virar ${ev.target})` : ''}`), protetor_batalha: ev => `${ev.target} passa a proteger ${ev.name}`, anexo_barrado: ev => `${ev.name} não pode equipar${ev.target ? ' ' + ev.target : ''} e fica onde está`, papel: ev => (ev.failed ? `${ev.name}: sem criatura para o Papel de ${ev.target}` : `Papel de ${ev.target || ev.name}`), papel_substituido: ev => `o Papel ${ev.name} foi substituído e vai para o cemitério`, batalha_cemiterio: ev => `${ev.name} ficou sem defesa e foi para o cemitério` }); // T-14 · CR 310.12b / 310.11 / 310.8

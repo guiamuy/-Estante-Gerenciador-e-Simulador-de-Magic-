@@ -5434,6 +5434,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** nenhum novo.
 - **Próximo:** placar do catálogo; mutação e meld esperam a decisão do dono.
 
+**CR5-T59 · Predicados de tipo: histórico (700.6), grupo (700.8), modificada (700.9) e fora da lei (700.12)** ✅ (leva T-59, sem mudança de versão do motor) — **Valor:** as palavras que as cartas usam para agrupar tipos passam a existir no vocabulário: "historic", "party", "modified" e "outlaw" (cartas de Dominaria, Zendikar Rising, Kamigawa: Neon Dynasty e Outlaws of Thunder Junction). **Aceite:** o seletor de alvos e de varreduras, o filtro de busca e o filtro de gatilho aceitam `historico` (lendário, artefato ou Saga), `foraDaLei` (Assassin, Mercenary, Pirate, Rogue ou Warlock; metamorfo conta) e `modificada` (com marcador, equipada, ou encantada por uma Aura de quem a controla — a Aura do oponente não conta); a contagem `{ per: 'party' }` dá o tamanho do grupo de quem controla — até um Clérigo, um Ladino, um Guerreiro e um Mago, e quem tem dois desses tipos conta uma vez só, do jeito que dá mais (700.8b); virada para baixo não tem nenhum desses. "Whenever you cast a historic spell" funciona como gatilho. A pilha explica "uma permanente histórica", "uma criatura fora da lei", "uma criatura modificada" e "igual ao número de criaturas do seu grupo". **Testes:** `tipos.predicados.unit` (7; falham sem a leva). Mapa: 700.6, 700.8, 700.9 e 700.12 cobertas (382).
+- **Fora, declarado:** 700.8d (Stick Together: escolher o grupo, uma carta); o leitor de frases ainda não reconhece "historic", "party" e "outlaw" (as cartas usam o vocabulário pelo script).
+- **Versão e goldens:** a versão não sobe; goldens idênticos.
+- **Toca ponto comum:** `SELETOR_CHAVES` e `seletorErros` (chaves novas), `selCasa`, `matchesFilter`, `matchesTriggerFilter` e `countFor` (uma linha cada, chamando `predicadosDeTipoT`/`tamanhoDoGrupoT`), `PER_COUNTS` e `IGUAL_A` (a contagem `party`), `descreveSeletor` (a frase).
+- **Próximo:** auditoria independente de T-59 com a próxima; mutação e meld esperam o dono.
+
 **CR6 · Multijogador e variantes** ○ — mesa de três e quatro (800–803, 806), Commander de mesa (903.2), Brawl (903.12); as variantes hoje "fora" só entram por decisão. 10 a 14 levas.
 
 **CR7 · Consolidação** ○ (em paralelo a partir da CR2) — a cada fase: fuzz em modo completo com listas reais, homologação por revisor independente relendo a seção das regras contra o motor, e rodada de simulação do dono do produto. 6 a 8 levas ao todo.
