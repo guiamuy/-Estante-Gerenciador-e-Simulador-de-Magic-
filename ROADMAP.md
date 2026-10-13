@@ -3984,6 +3984,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Pedido à trilha `listas`:** script à mão de Manamorphose `[{ do: 'mana_combinada', amount: 2 }, { do: 'draw', amount: 1 }]` (é o que o leitor produz).
 - **Teste:** `lt40.unit` (4 testes; todos falham no motor anterior).
 
+**M-358 · Ficha com P/T definido por contagem e soma de contagens (Seize the Storm)** ✅ (leva M-358, motor v110 sem mudança de forma; goldens intactos).
+- **Valor:** ficha pode ter "power and toughness each equal to …" (604.3), que acompanha o jogo a cada momento; contagens novas "mágicas instantâneas e feitiços no seu cemitério" e "cartas com lampejo do passado suas no exílio", e a soma de contagens (`{ per: 'soma', partes: [...] }`). Destrava Seize the Storm (texto do Oracle do Forge em `.listas/oficiais-listas.json`, consulta de 12/10/2026; 11 listas de Pauper).
+- **Regra:** conta o cemitério e o exílio de quem controla a ficha; só lampejo impresso conta, e carta virada para baixo no exílio não tem lampejo (708.2); marcadores somam por cima (613.4c); com 0 de resistência a ficha morre (704.5f).
+- **Revisão independente:** achou dois desvios e um texto, corrigidos com teste antes: carta virada para baixo no exílio contava como "com lampejo"; a pilha explicada dizia "ficha de Elemental 0/0" sem dizer que o P/T é a contagem nem que tem atropelar. **Limitação declarada (vira a M-359):** fichas diferentes com o mesmo nome dividem os fatos (P/T, cor, palavras-chave) — com Resculpt ou Young Pyromancer na mesma partida, o Elemental da Seize sai com os dados da ficha criada antes (e vice-versa). É anterior a esta leva e muda o resultado da partida; a correção é a próxima leva do motor.
+- **Pedido à trilha `listas`:** script à mão de Seize the Storm com a ficha `self.ptDefinido` usando a soma (modelo em `lt41.unit`) e `flashback: { mana: '{6}{R}' }`.
+- **Teste:** `lt41.unit` (4 testes; todos falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

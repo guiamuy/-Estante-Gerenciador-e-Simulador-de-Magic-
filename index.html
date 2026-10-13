@@ -5964,14 +5964,16 @@ function descreveGatilho(w) {
 const ATTACH_KINDS = ['creature', 'permanent', 'land', 'creature-you-control', 'creature-or-planeswalker-you-control', 'creature-card-in-graveyard']; // CR2d.4 · "Enchant creature card in a graveyard" // Q11 · Setessan Training
 const PER_COUNTS = ['enchantments-you-control', 'other-enchantments', 'auras-on-battlefield',
   'creatures-you-control', 'other-creatures-you-control', 'elves-you-control', 'elves-on-battlefield', 'defenders-you-control', 'permanents-you-control', 'nonland-permanents-you-control', 'life-gained-this-turn', 'life-lost-this-turn',
-  'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G', 'counters-on-source', 'opponents-empty-hand', 'trigger-value', 'chosen-type-permanents', 'sacrificed-toughness', 'sacrificed-mv', 'sacrificed-power', 'creature-cards-in-your-graveyard', 'cards-in-hand', 'x', 'power-of-source', 'se', 'power-of-target'];
+  'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G', 'counters-on-source', 'opponents-empty-hand', 'trigger-value', 'chosen-type-permanents', 'sacrificed-toughness', 'sacrificed-mv', 'sacrificed-power', 'creature-cards-in-your-graveyard', 'cards-in-hand', 'x', 'power-of-source', 'se', 'power-of-target',
+  'instants-sorceries-in-your-graveyard', 'flashback-cards-you-own-in-exile', 'soma']; // M-358 · Seize the Storm (604.3); `soma`: { per: 'soma', partes: [contagem, contagem, …] }
 /** M-333 · 601.2f · "This spell costs {N} less to cast for each …": o que a redução conta (chave `reduzPor: { generic, per }` no topo do script). */
 const REDUZ_POR = ['instants-sorceries-in-your-graveyard', 'creature-cards-in-your-graveyard', 'land-cards-in-your-graveyard', 'creatures-on-battlefield',
   'creatures-opponents-control', 'basic-land-types-you-control', 'attacking-creatures', 'attacking-creatures-you-control', 'cards-drawn-this-turn',
   'creatures-attacked-this-turn', 'creatures-you-attacked-with-this-turn'];
 /** S19 · um valor pode ser um número ou uma contagem do campo. */
 const isCount = v => v && typeof v === 'object' && (typeof v.per === 'string' || typeof v.subtype === 'string');
-const valueErrors = (v, label) => isCount(v) ? (v.per === 'se' && !(['metalcraft', 'cast-from-graveyard', 'kicked', 'not-cast-from-hand'].includes(v.se) && Number.isInteger(v.sim) && Number.isInteger(v.nao)) ? [`${label}: "se" precisa da condição (metalcraft, cast-from-graveyard, kicked) e dos valores sim/não`] : v.subtype || PER_COUNTS.includes(v.per) ? [] : [`${label}: contagem "${v.per}" desconhecida`]) // M-331
+const valueErrors = (v, label) => isCount(v) && v.per === 'soma' ? (Array.isArray(v.partes) && v.partes.length >= 2 && v.partes.every(x => isCount(x) && x.per !== 'soma') ? v.partes.flatMap((x, i) => valueErrors(x, `${label} (parte ${i + 1})`)) : [`${label}: "soma" precisa de duas ou mais contagens em "partes"`]) // M-358
+  : isCount(v) ? (v.per === 'se' && !(['metalcraft', 'cast-from-graveyard', 'kicked', 'not-cast-from-hand'].includes(v.se) && Number.isInteger(v.sim) && Number.isInteger(v.nao)) ? [`${label}: "se" precisa da condição (metalcraft, cast-from-graveyard, kicked) e dos valores sim/não`] : v.subtype || PER_COUNTS.includes(v.per) ? [] : [`${label}: contagem "${v.per}" desconhecida`]) // M-331
   : (Number.isInteger(v) ? [] : [`${label}: precisa ser inteiro ou contagem`]);
 /** S11b · evasão estática e escolhas feitas quando a permanente entra. */
 const EVASIONS = ['flying-only', 'power-less', 'three-or-more']; // M-349 · Troll of Khazad-dûm: "can't be blocked except by three or more creatures"
@@ -6465,7 +6467,7 @@ function tokenErrors(tk, label) {
   for (const c of tk.colors || []) if (!'WUBRG'.includes(c)) errs.push(`${label}: cor de ficha "${c}" inválida`);
   if (tk.legendary != null && typeof tk.legendary !== 'boolean') errs.push(`${label}: "lendária" precisa ser verdadeiro ou falso`);
   for (const ab of tk.abilities || []) if (ab.kind !== 'activated' && ab.kind !== 'triggered') errs.push(`${label}: habilidade de ficha inválida`);
-  if (tk.self != null) { for (const k of Object.keys(tk.self)) if (!['toxic', 'naoBloqueia'].includes(k)) errs.push(`${label}: "${k}" não vale em ficha`); if (tk.self.toxic != null && !(Number.isInteger(tk.self.toxic) && tk.self.toxic > 0)) errs.push(`${label}: tóxico precisa ser inteiro positivo`); } // M-253
+  if (tk.self != null) { for (const k of Object.keys(tk.self)) if (!['toxic', 'naoBloqueia', 'ptDefinido'].includes(k)) errs.push(`${label}: "${k}" não vale em ficha`); if (tk.self.ptDefinido != null) { const d = tk.self.ptDefinido; if (!d || typeof d !== 'object' || (d.poder == null && d.resistencia == null)) errs.push(`${label}: P/T definido precisa de poder ou resistência`); else for (const k of ['poder', 'resistencia']) if (d[k] != null) errs.push(...valueErrors(d[k], `${label}: P/T definido`)); } /* M-358 · 604.3 na ficha (Seize the Storm) */ if (tk.self.toxic != null && !(Number.isInteger(tk.self.toxic) && tk.self.toxic > 0)) errs.push(`${label}: tóxico precisa ser inteiro positivo`); } // M-253
   return errs;
 }
 
@@ -17317,6 +17319,8 @@ function countFor(s, src, per) {
     return battlefield(s).filter(o => o.controller === src.controller && !o.faceDown && (isChangeling(s, o, per.subtype) || rx.test(linhaDeTipo(s, o)))).length; // R9 · virada para baixo não tem tipo
   }
   if (per === 'creature-cards-in-your-graveyard') return s.zones[src.controller].graveyard.filter(x => ((s.facts[s.objects[x].name] || {}).types || []).includes('creature')).length; // M-354 · Lotleth Giant
+  if (per === 'instants-sorceries-in-your-graveyard') return s.zones[src.controller].graveyard.filter(x => ((s.facts[s.objects[x].name] || {}).types || []).some(t => t === 'instant' || t === 'sorcery')).length; // M-358 · Seize the Storm
+  if (per === 'flashback-cards-you-own-in-exile') return s.zones[src.controller].exile.filter(x => { const o = s.objects[x], f = o && !o.token && !o.ability && !o.faceDown && o.owner === src.controller && s.facts[o.name]; return !!f && !!((f.script || {}).flashback || (f.kw || []).includes('flashback')); }).length; // M-358 · "cards with flashback you own in exile" (702.34: a palavra-chave impressa; virada para baixo não tem habilidade, 708.2 — achado da revisão)
   if (per === 'cards-in-hand') return s.zones[src.controller].hand.length; // M-354 · Union of the Third Path (conta na resolução, depois da compra)
   if (per === 'trigger-value') return src.triggerValue || 0; // S48 · quanto o gatilho trouxe (dano causado)
   if (per === 'chosen-type-permanents') { // S50 · permanentes suas do tipo escolhido
@@ -19345,6 +19349,7 @@ function amountOf(s, src, v) {
     // S48 · o valor que o gatilho trouxe mora na habilidade, não na permanente que a gerou
     if (v.per === 'trigger-value') return (src.triggerValue || 0) * (v.times || 1);
     if (v.per === 'se') return condicaoDoEfeito(s, src.ability ? s.objects[src.source] : src, v.se) ? v.sim : v.nao; // M-331 · "… instead if …" (Galvanic Blast, Plunder the Trollshaws)
+    if (v.per === 'soma') return (v.partes || []).reduce((n, x) => n + amountOf(s, src, x), 0) * (v.times || 1); // M-358 · "N, plus M" (Seize the Storm)
     if (v.per === 'x') return (src.xPaid || 0) * (v.times || 1); // CR2c.3 · 107.3a: o X escolhido ao conjurar, o mesmo em todo o texto
     // CR2a.4 · 608.2h/113.7a: a resistência que a criatura sacrificada no custo tinha no campo
     if (v.per === 'sacrificed-power') return (src.sacrificados || []).reduce((n, x) => n + Math.max(0, x.power || 0), 0) * (v.times || 1); // M-354 · Fling: o poder da criatura sacrificada como ela era no campo (608.2h)
@@ -29697,7 +29702,8 @@ function descreveEfeito(e) {
     case 'exile': return `exila ${alvo || 'uma permanente'}`;
     case 'bounce': return `devolve ${alvo || 'uma permanente'} para a mão do dono`;
     case 'to_hand': return 'volta para a mão';
-    case 'token': { const t = e.token || {}; const pt = t.power != null ? ` ${t.power}/${t.toughness}` : ''; return `cria ${plural(n, 'ficha', 'fichas')}${t.name ? ` de ${t.name}` : ''}${pt}`; }
+    case 'token': { const t = e.token || {}; const pd = (t.self || {}).ptDefinido, contaPT = v => v && v.per === 'soma' ? (v.partes || []).map(x => X_PT[x.per] || x.per).join(' mais ') : (v && (X_PT[v.per] || v.per)) || v; /* M-358 · achado da revisão: a ficha de P/T por contagem e as palavras-chave dela */
+      const pt = pd ? `, com poder e resistência iguais a ${contaPT(pd.poder != null ? pd.poder : pd.resistencia)}${(t.keywords || []).length ? ` e ${t.keywords.map(k => PALAVRA_PT[k] || k).join(', ')}` : ''},` : t.power != null ? ` ${t.power}/${t.toughness}` : ''; return `cria ${plural(n, 'ficha', 'fichas')}${t.name ? ` de ${t.name}` : ''}${pt}`; }
     case 'pump': { const p = e.power || 0, t = e.toughness || 0; const sinal = v => (v && (v.per || v.subtype) ? ((v.times || 1) < 0 ? '−X' : '+X') : v >= 0 ? `+${v}` : `−${Math.abs(v)}`); const quem = e.cada && e.cada.de === 'alvo' ? `cada criatura que ${e.target === 'opponent' ? 'o oponente alvo' : 'o jogador alvo'} controla` : (alvo || 'a criatura'); /* achado da revisão do lote XXIII: "cada criatura que cada criatura controla" */ return `${quem} recebe ${sinal(p)}/${sinal(t)}${e.until === 'your-next-turn' ? ' até o seu próximo turno' : ' até o fim do turno'}${p && p.subtype ? ` (X = ${p.subtype === 'Gate' ? 'Portões' : p.subtype === 'Swamp' ? 'Pântanos' : p.subtype + 's'} que você controla)` : ''}`; } // R9b (achado da C-1): contagem por subtipo mostrava "−NaN" (Defile, Basilisk Gate) · M-351 · "cada criatura do jogador alvo" (Arms of Hadar)
     case 'mana_combinada': return `adiciona ${e.amount === 1 ? 'uma mana' : (e.amount || 2) + ' manas'} das cores que você escolher (pode misturar)`; // M-357 · 106.1a
     case 'add_mana': return e.identity ? 'adiciona mana de uma cor da identidade do seu comandante' : e.opponentLands ? 'adiciona mana de uma cor que um terreno de um oponente poderia produzir' : e.anyColor ? 'adiciona mana de qualquer cor' : 'adiciona mana';
@@ -29852,7 +29858,7 @@ function descreveEfeito(e) {
 }
 // Leva 131 · a condição do efeito entra na frase (Moon-Circuit Hacker: o aviso dizia "descarta 1 carta" no turno em que ela entrou, quando não descarta)
 const CONDICAO_PT = { 'source-entered-earlier': 'só se ela não entrou neste turno', 'not-attacked': 'só se você não atacou neste turno', evidenced: 'se colheu provas', 'not-evidenced': 'se não colheu provas' }; // M-351 · Extract a Confession (achado da revisão do lote XXIII: as duas frases pareciam dois sacrifícios)
-const X_PT = { 'cards-in-hand': 'cartas na sua mão', 'creature-cards-in-your-graveyard': 'cartas de criatura no seu cemitério', 'sacrificed-power': 'o poder da criatura sacrificada', 'sacrificed-toughness': 'a resistência da criatura sacrificada', 'sacrificed-mv': 'o valor de mana do que foi sacrificado' }; // M-354 · o que o X conta (achado da revisão do lote XXVI)
+const X_PT = { 'instants-sorceries-in-your-graveyard': 'mágicas instantâneas e feitiços no seu cemitério', 'flashback-cards-you-own-in-exile': 'cartas com lampejo do passado suas no exílio', /* M-358 */ 'cards-in-hand': 'cartas na sua mão', 'creature-cards-in-your-graveyard': 'cartas de criatura no seu cemitério', 'sacrificed-power': 'o poder da criatura sacrificada', 'sacrificed-toughness': 'a resistência da criatura sacrificada', 'sacrificed-mv': 'o valor de mana do que foi sacrificado' }; // M-354 · o que o X conta (achado da revisão do lote XXVI)
 const descreveEfeitos = effects => (effects || []).map(e => { let f = descreveEfeito(e); const xp = e && e.amount && X_PT[e.amount.per]; if (f && xp && /\bX\b/.test(f)) f = `${f} (X = ${xp})`; return f && e.onlyIf && CONDICAO_PT[e.onlyIf] ? `${f} (${CONDICAO_PT[e.onlyIf]})` : f; }).filter(Boolean).join('; ');
 /** E50 P6 · a linha do texto oficial (inglês) que corresponde a uma habilidade na pilha.
     Gatilho: linhas "When/Whenever/At"; ativada: linhas com custo antes de ":". Entre as do mesmo tipo,
