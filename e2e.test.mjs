@@ -11423,3 +11423,37 @@ test('e2e · T-48 · CR 731.1 / 702.145c · dia e noite: o cabeçalho do turno d
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/t48-noite.png' });
   assert.deepEqual(M.errors, []);
 });
+
+test('e2e · T-49 · CR 702.162 · "More Than Meets the Eye": a folha da carta tem "Conjurar convertida: <verso> · {3}{U}"; convertida, ela entra como o Veículo', { skip }, async t => {
+  // Texto oficial: Jetfire, Ingenious Scientist // Jetfire, Air Guardian em .listas/oficiais-tipos.json (Oracle do Forge, 13/10/2026).
+  const extras = JSON.parse(readFileSync(join(ROOT, '.listas', 'oficiais-tipos.json'), 'utf8')).cartas.filter(c => c.name === 'Jetfire, Ingenious Scientist');
+  // a carta é parcial (falta a habilidade de mana da frente): a mesa só começa com cobertura de 100% fora do modo de desenvolvimento
+  const { page, errors, base } = await open(t, { dev: true });
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await comOficiais(page, ['Island', 'Jetfire, Ingenious Scientist'], { extras });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'R2', '36 Island\n4 Jetfire, Ingenious Scientist', 'livre');
+  await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', '4');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForTimeout(300);
+  await meuPrincipal121(page);
+  const M = { page, errors,
+    act: a => page.evaluate(a => { try { window.__estanteMesa.act(a); return true; } catch (e) { return String(e); } }, a),
+    oid: (nome, zona = 'hand') => page.evaluate(([nome, zona]) => { const s = window.__estanteMesa.estado(); return s.zones[0][zona].find(o => s.objects[o].name === nome) || null; }, [nome, zona]),
+    resolve: async () => { for (let i = 0; i < 20; i++) { const e = await estado121(page); if (e.pend || !e.pilha) return e; await page.click('#tb-pass').catch(() => {}); await page.waitForTimeout(100); } } };
+  const j = await page.evaluate(() => { const s = window.__estanteMesa.estado(), z = s.zones[0];
+    const tira = (nome, ...de) => { for (const d of de) { const i = z[d].findIndex(o => s.objects[o].name === nome); if (i >= 0) return z[d].splice(i, 1)[0]; } return null; };
+    for (let k = 0; k < 3; k++) { const oid = tira('Island', 'library', 'hand'); Object.assign(s.objects[oid], { zone: 'battlefield', controller: 0, tapped: false, sick: false, damage: 0, counters: {} }); z.battlefield.push(oid); }
+    const oid = z.hand.find(o => s.objects[o].name === 'Jetfire, Ingenious Scientist') || (() => { const x = tira('Jetfire, Ingenious Scientist', 'library'); z.hand.push(x); s.objects[x].zone = 'hand'; return x; })();
+    return oid; });
+  const terra = await M.oid('Island'); if (terra) { await M.act({ t: 'play_land', p: 0, oid: terra }); await page.waitForTimeout(250); } // quatro Ilhas e a mesa redesenhada
+  await page.locator(`#tb-hand .tb-card[data-oid="${j}"]`).first().click(); await page.waitForSelector('.ds-dialog'); await page.waitForTimeout(300);
+  const botoes = (await page.locator('.ds-dialog .tb-sheet__actions button').allInnerTexts()).map(x => x.replace(/\s+/g, ' ').trim());
+  assert.ok(botoes.some(x => /^Conjurar convertida: Jetfire, Air Guardian · \{3\}\{U\}/.test(x)), JSON.stringify(botoes));
+  const b = page.locator('.ds-dialog .tb-sheet__actions button', { hasText: /^Conjurar convertida/ }).first();
+  const cx = await b.boundingBox(); assert.ok(cx && cx.height >= 44, 'botão com 44 px de altura ou mais: ' + JSON.stringify(cx));
+  await auditaTela(page, 'folha com a conjuração convertida');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/t49-convertida.png' });
+  await b.click(); await page.waitForTimeout(300); await M.resolve();
+  await page.waitForFunction(o => { const x = window.__estanteMesa.estado().objects[o]; return x.zone === 'battlefield' && x.name === 'Jetfire, Air Guardian'; }, j, { timeout: 5000 });
+  assert.deepEqual(M.errors, []);
+});

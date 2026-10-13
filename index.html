@@ -5294,6 +5294,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'battle cry', 'rampage', 'flanking', 'bushido', // K-30 · 702.91, 702.23, 702.25, 702.45: gatilhos de combate gerados pela palavra (GATILHOS_DE_PALAVRA_K), um por instância
   /* ↓ V · palavras-chave da trilha verbos */
   /* ↓ T · palavras-chave da trilha tipos */
+  'living metal', // T-49 · 702.161: "durante o seu turno, esta permanente também é criatura artefato"
   'daybound', 'nightbound', // T-48 · 702.145: dia e noite (o motor transforma a dupla face na hora certa; nenhuma outra coisa a transforma)
 ];
 
@@ -6259,7 +6260,7 @@ function validateScript(sc) {
   if (sc && sc.replicate != null && sc.kicker) errs.push('replicar e reforço na mesma carta não são aceitos (os dois usam o pagamento repetido)');
   if (sc && sc.modeCount != null && !(Number.isInteger(sc.modeCount) && sc.modeCount >= 2 && (sc.modes || []).length && (sc.modeRepeat || sc.modeCount <= sc.modes.length))) errs.push('número de modos inválido');
   if (sc && sc.cumulativeUpkeep && !/\{/.test(String(sc.cumulativeUpkeep.mana || ''))) errs.push('manutenção cumulativa precisa de um custo de mana');
-  errs.push(...sagaErros(sc), ...tripularErros(sc), ...aventuraErros(sc), ...duplaFaceErros(sc), ...modalErros(sc), ...divididaErros(sc), ...classeErros(sc), ...batalhaErros(sc), ...papelErros(sc), ...nivelarErros(sc), ...salaErros(sc), ...virarErros(sc), ...selarErros(sc), ...prototipoErros(sc), ...estacaoErros(sc), ...casoErros(sc), ...disfarceErros(sc), ...reconfigurarErros(sc)); // T-43 · CR 702.151 · reconfigurar (mesma chamada) // T-42 · CR 702.168 · disfarce (mesma chamada) // T-39 · CR 719 · Caso (mesma chamada) // T-37 · CR 721 · estação (mesma chamada) // T-36 · CR 718 · protótipo (mesma chamada) // T-31 · CR 702.171 · selar (mesma chamada) // T-29 · CR 710 · carta de virar (mesma chamada) // T-26 · CR 709.5 · Sala (mesma chamada) // T-24 · CR 711 · barras de nível (mesma chamada) // T-20 · CR 111.10 · papel conhecido (mesma chamada) // T-14 · CR 310.4 · defesa da batalha (mesma chamada) // T-12 · CR 716 · Classe (mesma chamada) // T-10 · CR 709 · carta dividida (mesma chamada) // T-8 · CR 712.3 · dupla face modal (mesma chamada) // T-7 · CR 712 · dupla face (mesma chamada) // T-5 · CR 715 · aventura (mesma chamada) // T-3 · CR 702.122 · tripular (mesma chamada da T-1) // T-1 · CR 714 · Saga: capítulos, read ahead e o marcador de entrada (função abaixo da âncora T das exportações)
+  errs.push(...sagaErros(sc), ...tripularErros(sc), ...aventuraErros(sc), ...duplaFaceErros(sc), ...modalErros(sc), ...divididaErros(sc), ...classeErros(sc), ...batalhaErros(sc), ...papelErros(sc), ...nivelarErros(sc), ...salaErros(sc), ...virarErros(sc), ...selarErros(sc), ...prototipoErros(sc), ...estacaoErros(sc), ...casoErros(sc), ...disfarceErros(sc), ...reconfigurarErros(sc), ...maisQueOlhosErros(sc)); // T-49 · CR 702.162 · More Than Meets the Eye (mesma chamada) // T-43 · CR 702.151 · reconfigurar (mesma chamada) // T-42 · CR 702.168 · disfarce (mesma chamada) // T-39 · CR 719 · Caso (mesma chamada) // T-37 · CR 721 · estação (mesma chamada) // T-36 · CR 718 · protótipo (mesma chamada) // T-31 · CR 702.171 · selar (mesma chamada) // T-29 · CR 710 · carta de virar (mesma chamada) // T-26 · CR 709.5 · Sala (mesma chamada) // T-24 · CR 711 · barras de nível (mesma chamada) // T-20 · CR 111.10 · papel conhecido (mesma chamada) // T-14 · CR 310.4 · defesa da batalha (mesma chamada) // T-12 · CR 716 · Classe (mesma chamada) // T-10 · CR 709 · carta dividida (mesma chamada) // T-8 · CR 712.3 · dupla face modal (mesma chamada) // T-7 · CR 712 · dupla face (mesma chamada) // T-5 · CR 715 · aventura (mesma chamada) // T-3 · CR 702.122 · tripular (mesma chamada da T-1) // T-1 · CR 714 · Saga: capítulos, read ahead e o marcador de entrada (função abaixo da âncora T das exportações)
   return errs.concat(exampleErrors(sc));
 }
 const ATRASOS = ['next-upkeep', 'next-end-step', 'end-of-combat']; // CR2b.1 · momentos de gatilho atrasado que o motor conhece
@@ -6664,6 +6665,12 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-49 · CR 702.162 / 702.161 / 701.28 · Transformers (Oracle do Forge, clone de 13/10/2026). Voar da frente vem do texto da carta.
+  { name: 'Jetfire, Ingenious Scientist', self: { duplaFace: true, maisQueOlhos: '{3}{U}' }, // "More Than Meets the Eye {3}{U}"
+    covers: 'partial', note: 'falta a habilidade de mana da frente ("Remove one or more +1/+1 counters from among artifacts you control: Target player adds that much {C}. This mana can\'t be spent to cast nonartifact spells. Convert Jetfire."); o resto é completo',
+    back: { name: 'Jetfire, Air Guardian', types: ['legendary', 'artifact'], subtypes: ['Vehicle'], colors: ['U'], power: 3, toughness: 4, keywords: ['living metal', 'flying'], // "Living metal · Flying"
+      abilities: [{ kind: 'activated', cost: { mana: '{U}{U}{U}' }, effects: [{ do: 'convert' }, { do: 'adapt', amount: 3 }] }] }, // "{U}{U}{U}: Convert Jetfire, then adapt 3."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o cenário de verdade (convertida, metal vivo, converter) está em tipos.convertido.unit
   // T-48 · CR 702.145 · dia e noite (Oracle do Forge, clone de 13/10/2026): daybound na frente e nightbound no verso vêm do texto da carta;
   // o motor faz o resto (virar dia ou noite, transformar, entrar transformada à noite).
   { name: 'Tavern Ruffian', self: { duplaFace: true }, // "Daybound (If a player casts no spells during their own turn, it becomes night next turn.)"
@@ -9186,6 +9193,17 @@ function reconfigurarErros(sc) {
   return typeof sf.reconfigurar === 'string' && /\{/.test(sf.reconfigurar) ? [] : ['reconfigurar: self.reconfigurar é o custo ("{2}")'];
 }
 Object.assign(EXPORTS_T_SC, { reconfigurarErros });
+/* ---------------- T-49 · CR 702.162 · "More Than Meets the Eye" (forma do script) ----------------
+   `self: { duplaFace: true, maisQueOlhos: '{3}{U}' }`: além do custo impresso, a carta pode ser conjurada convertida (com o verso para cima)
+   por esse custo. O verso costuma ter metal vivo (`back.keywords: ['living metal']`, 702.161) e "convert ~" (efeito `convert`, 701.28). */
+function maisQueOlhosErros(sc) {
+  const sf = sc && sc.self; if (!sf || sf.maisQueOlhos == null) return [];
+  const errs = [];
+  if (!(typeof sf.maisQueOlhos === 'string' && /\{/.test(sf.maisQueOlhos))) errs.push('More Than Meets the Eye: self.maisQueOlhos é o custo ("{3}{U}")');
+  if (!sf.duplaFace || !sc.back) errs.push('More Than Meets the Eye: só carta de dupla face que transforma (self.duplaFace e back)');
+  return errs;
+}
+Object.assign(EXPORTS_T_SC, { maisQueOlhosErros });
 EVENTOS_DE_OBJETO.push('virada-para-cima'); OBJETOS_DO_EVENTO['virada-para-cima'] = ['self']; GATILHO_EVENTO['turned-face-up'] = { evento: 'virada-para-cima', objeto: 'self' }; TRIGGER_PT['turned-face-up'] = 'quando é virada para cima'; // T-42 · CR 708.8
 /* ---------------- T-31 · CR 702.171 · selar (forma do script) ----------------
    `self: { selar: N }` ("Saddle N"): o motor monta a ativada (custo de tripular N, só como feitiço, efeito `selada`). "Whenever ~ attacks
@@ -20963,7 +20981,7 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'earthbend': terraDobraV(s, src, eff, objetoDoVerbo(s, src, eff, tgt), events); break; // V-28 · 701.66
     case 'incubate': incubar(s, src, eff, events); break; // V-27 · 701.53
     case 'ring_tempts': anelTentaV(s, src, events); break; // V-25 · 701.54
-    case 'convert': applyEffect(s, src, { ...eff, do: 'transform' }, tgt, events); break; // V-22 · 701.28a: segue as regras de transformar (701.27)
+    case 'convert': if (converteDuplaFaceT(s, src, events)) break; applyEffect(s, src, { ...eff, do: 'transform' }, tgt, events); break; // V-22 · 701.28a: segue as regras de transformar (701.27) // T-49 · a carta de dupla face desta trilha (self.duplaFace) converte pelo transformar da T-7: nos dois sentidos, 701.28e/f (Toca ponto comum: applyEffect 'convert')
     case 'blight': afligir(s, src, eff, events); break; // V-22 · 701.68
     case 'recruit': recrutar(s, src, events); break; // V-22 · 701.70
     case 'detain': { const o = objetoDoVerbo(s, src, eff, tgt); if (!deter(s, o, src.controller, events)) note({ failed: true }); break; } // V-21 · 701.35
@@ -22564,7 +22582,7 @@ const HANDLERS = {
     else if (a.aerobend) { if (s.manaCheck && !a.free) { const c = custoAerobendV(s, a.p, o, a.kick || 0, a.targets || []); payCost(s, a.p, c.custo, c.extra); } } // V-30/V-31 · 701.65a, 118.9d: {2} em vez do custo de mana, mais reforço, menos reduções (Toca ponto comum: HANDLERS.cast)
     else if (a.plotted) { /* S53 · plot: o mana já foi pago quando a carta foi plotada */ }
     if (!caminhoNormal && s.manaCheck) { const aum = aumentoPorAlvo(s, a.targets || []); if (aum > 0) payCost(s, a.p, parseCost('{0}'), aum); } // M-365 · 601.2f: a taxa de quem mira a Tocha soma ao custo alternativo, ao lampejo e ao "sem pagar" (achado da revisão: Daze e lampejo saíam sem a taxa)
-    else if (s.manaCheck && !a.free) { if (f.semCusto) throw new RuleError('custo', 'esta carta não tem custo de mana: não pode ser conjurada assim');
+    else if (s.manaCheck && !a.free) { if (f.semCusto && !custoDoPrototipoT(s, o)) throw new RuleError('custo', 'esta carta não tem custo de mana: não pode ser conjurada assim'); /* T-49 · CR 702.162a: o verso sem custo é conjurado pelo custo alternativo (Toca ponto comum: HANDLERS.cast) */
       let custo = a.kick ? somaCusto(custoDoPrototipoT(s, o) || f.cost, parseCost(reforco.mana), a.kick) : custoDoPrototipoT(s, o) || f.cost; // T-36 · CR 718.3a: como protótipo, o custo de mana é o alternativo (Toca ponto comum: HANDLERS.cast)
       for (const x of a.emenda || []) custo = somaCusto(custo, parseCost(s.facts[s.objects[x].name].script.splice.mana), 1); // M-274 · 702.47b: paga o custo de encaixar de cada uma
       const extraBase = castExtraComReforco(s, a.p, o, a.x || 0, a.targets || [], a.kick), extraPago = extraBase - delveN - descontoExilaMao(s, o, exilaMaoN, extraBase); // M-267
@@ -23914,6 +23932,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
   modalOfertas(s, p, out); // T-8 · CR 712.11b / 712.12 · dupla face modal na mão: conjurar ou jogar a face de trás (função abaixo da âncora T das exportações)
   disfarceOfertasT(s, p, out); // T-44 · CR 702.168a · virada para baixo pelo disfarce também do exílio jogável
   aventuraOfertasT(s, p, out); // T-40 · CR 715.3d · a Aventura da carta jogável do exílio por outro efeito
+  convertidaOfertasT(s, p, out); // T-49 · CR 702.162a · conjurar convertida pelo custo de "More Than Meets the Eye"
   prototipoOfertasT(s, p, out); // T-36 · CR 718.3 · conjurar como protótipo (custo, cor e tamanho alternativos)
   return out;
   })());
@@ -26401,8 +26420,9 @@ Object.assign(EXPORTS_V, { lutar });
    Fora: cópia de protótipo (718.3c/d) fica com as características normais; conjurar sem pagar não oferece o protótipo. */
 const prototipoDaCartaT = (s, o) => { const f = o && s.facts[o.frontName || o.name], pr = f && f.script && f.script.self && f.script.self.prototipo; return pr && typeof pr === 'object' ? pr : null; };
 function prototipoAtivoT(s, o) { return o && o.prototipoT && !o.faceDown ? prototipoDaCartaT(s, o) : null; } // a marca só existe na pilha, no campo e, durante a conjuração, na zona de onde a carta sai (MARCAS_DA_CONJURACAO); T-38 · as reduções de custo leem a cor e o custo dela
-const custoDoPrototipoT = (s, o) => { const pr = o && o.prototipoT && prototipoDaCartaT(s, o); return pr ? parseCost(pr.mana) : null; }; // o custo pago na conjuração (a carta ainda está na mão ou no exílio)
+const custoDoPrototipoT = (s, o) => { const pr = o && o.prototipoT && prototipoDaCartaT(s, o); if (pr) return parseCost(pr.mana); const mq = o && o.convertidaT && maisQueOlhosDaCartaT(s, o); return mq ? parseCost(mq) : null; }; // o custo pago na conjuração (a carta ainda está na mão ou no exílio) · T-49 · CR 702.162a: e o de "More Than Meets the Eye" (custo alternativo)
 MARCAS_DA_CONJURACAO.push('prototipoT');
+MARCAS_DA_CONJURACAO.push('convertidaT'); // T-49 · CR 702.162a · conjurada convertida (o custo alternativo vale na conjuração)
 MARCAS_DA_CONJURACAO.push('disfarcadaT');
 MARCAS_DA_CONJURACAO.push('vidaPhyrexianaT'); // T-45 · quantos símbolos phyrexianos foram pagos com vida (vai da mão para a pilha e da pilha para o campo)
 /** T-47 · CR 306.5b · a ficha que é planeswalker entra com a lealdade impressa (a carta recebe a dela na linha de entrada do
@@ -26436,6 +26456,46 @@ function prototipoOfertasT(s, p, out) {
   try { for (const a of legalActions(s2, p)) if (a.t === 'cast' && cand.includes(a.oid) && a.face == null && !a.omen && !a.disturb && !a.faceDown && !a.bestow && a.alt == null && !a.plotted) out.push({ ...a, prototipo: true }); }
   finally { DENTRO_DAS_MODAIS = false; }
 }
+/* ---------------- T-49 · CR 702.162 / 701.28 / 702.161 · Transformers ----------------
+   - 702.162a / 712.11a: a ação de conjurar leva `face: 'convertida'`; o verso vai para cima antes de qualquer conferência (custo, tempo e
+     alvos são os dele; 712.11d não muda nada aqui) e a marca `o.convertidaT` (da conjuração) faz o custo pago ser o de "More Than Meets
+     the Eye" (custo alternativo, 601.2b/f–h). Na pilha o valor de mana é o da frente (712.8c, pelos fatos do verso); a mágica entra com
+     o verso para cima (712.13). Vale de qualquer zona de onde a carta poderia ser conjurada: a mão e o exílio jogável.
+   - As ofertas saem de `legalActions` numa cópia do estado com o verso para cima e o custo alternativo nos fatos do verso.
+   - 702.161a: metal vivo — no turno de quem controla, a permanente também é criatura artefato (camada 4, pelas redefinições da trilha).
+     A palavra é lida dos fatos da face para cima (sem passar por `has`, que consulta as camadas). Fora, declarado: com um efeito que
+     tira as habilidades (camada 6), o metal vivo continua valendo (a dependência da 613.8 não é calculada).
+   - 701.28: o efeito `convert` (V-22), na carta de dupla face desta trilha, é o transformar da T-7, com o registro "converteu". */
+/** 701.28a · "convert ~" na carta de dupla face desta trilha: o transformar da T-7 (nos dois sentidos, uma vez por habilidade, e quem não
+ * pode transformar não converte), com o registro "converteu". Devolve se tratou (a carta antiga com `back` segue no caminho da V-22). */
+function converteDuplaFaceT(s, src, events) {
+  const o = src.ability ? s.objects[src.source] : src, par = o && parDuplaFaceT(s, o);
+  if (!par) return false;
+  transformaT(s, o, { ...src, converteT: true }, events);
+  return true;
+}
+const maisQueOlhosDaCartaT = (s, o) => { const f = o && s.facts[o.frontName || o.name], mq = f && f.script && f.script.self && f.script.self.maisQueOlhos; return typeof mq === 'string' ? mq : null; };
+const metalVivoAtivoT = (s, o) => !!o && o.zone === 'battlefield' && !o.faceDown && o.controller === s.turn.active && ((s.facts[o.name] || {}).kw || []).includes('living metal');
+function convertidaEscolhidaT(s, a, o) {
+  if (a.face !== 'convertida') return false;
+  const par = o && parDuplaFaceT(s, o);
+  if (!par || !maisQueOlhosDaCartaT(s, o) || o.frontName || !(o.zone === 'hand' || (o.zone === 'exile' && jogavelDoExilio(s, a.p, o)))) throw new RuleError('face', 'só a carta com "More Than Meets the Eye", na mão ou jogável do exílio, é conjurada convertida');
+  if (a.omen || a.disturb || a.flashback || a.escape || a.plotted || a.faceDown || a.bestow || a.retrace || a.permissao != null || a.alt != null || a.prototipo) throw new RuleError('face', 'a convertida é conjurada pelo custo de "More Than Meets the Eye"');
+  if (a.x != null && a.x !== 0 && !parseCost(maisQueOlhosDaCartaT(s, o)).x) throw new RuleError('face', 'este custo não tem X'); // 107.3
+  flipTo(s, o, par.verso); o.convertidaT = true;
+  return true;
+}
+function convertidaOfertasT(s, p, out) {
+  if (DENTRO_DAS_MODAIS || s.pending) return;
+  const cand = s.zones[p].hand.concat(s.zones[p].exile.filter(oid => jogavelDoExilio(s, p, s.objects[oid]))).filter(oid => { const o = s.objects[oid]; return !o.frontName && maisQueOlhosDaCartaT(s, o) && parDuplaFaceT(s, o) && s.facts[parDuplaFaceT(s, o).verso]; });
+  if (!cand.length) return;
+  const s2 = cloneEstado(s);
+  for (const oid of cand) { const o2 = s2.objects[oid], par = parDuplaFaceT(s, o2), c = parseCost(maisQueOlhosDaCartaT(s, o2)); flipTo(s2, o2, par.verso); o2.convertidaT = true; s2.facts[par.verso] = { ...s.facts[par.verso], cost: c, semCusto: false }; }
+  DENTRO_DAS_MODAIS = true;
+  try { for (const a of legalActions(s2, p)) if (a.t === 'cast' && cand.includes(a.oid) && a.face == null && !a.omen && !a.disturb && !a.faceDown && !a.bestow && a.alt == null && !a.plotted && !a.prototipo) out.push({ ...a, face: 'convertida' }); }
+  finally { DENTRO_DAS_MODAIS = false; }
+}
+Object.assign(EXPORTS_T, { maisQueOlhosDaCartaT });
 /* ---------------- T-37 · CR 702.184 / 721 · estação ----------------
    - 702.184a: a ativada de estação ("Station") custa virar outra criatura sua desvirada (`tapOther`, enjoo não impede) e só como
      feitiço; na resolução põe marcadores de carga iguais ao poder dela — o de agora, se ela continua no campo, ou o último que teve
@@ -26471,9 +26531,10 @@ function desanexaT(s, src, events) {
   if (!o || o.zone !== 'battlefield' || !o.attachedTo) { events.push({ kind: 'effect', do: 'desanexar', name: (o || src).name, failed: true }); return; }
   delete o.attachedTo; events.push({ kind: 'unattached', oid: o.oid, name: o.name });
 }
-const mutaPelaTrilhaT = (s, o) => estacaoMutaT(s, o) || reconfiguradaAnexadaT(s, o);
+const mutaPelaTrilhaT = (s, o) => estacaoMutaT(s, o) || reconfiguradaAnexadaT(s, o) || metalVivoAtivoT(s, o); // T-49 · metal vivo no turno de quem controla
 function redefinicoesDaTrilhaT(s, o) {
   const out = redefinicoesDaEstacaoT(s, o);
+  if (metalVivoAtivoT(s, o)) out.push({ types: ['artifact', 'creature'], addTypes: true }); // T-49 · CR 702.161a · camada 4: "an artifact creature in addition to its other types"
   if (reconfiguradaAnexadaT(s, o)) {
     const f = s.facts[o.name], subs = String(f.typeText || '').split('—')[1] ? String(f.typeText).split('—')[1].trim().split(/\s+/) : [];
     out.push({ types: (f.types || []).filter(t => t !== 'creature'), subtypes: subs.filter(x => !SC.TIPOS_DE_CRIATURA_SCK.has(x.toLowerCase())) }); // 205.3d: sem os subtipos de criatura (o conjunto é em minúsculas)
@@ -27500,8 +27561,8 @@ function transformaT(s, o, src, events) {
   } else if (paraVerso) flipTo(s, o, par.verso);
   else { o.name = par.frente; delete o.frontName; o.ts = relogio(s); } // de volta à frente, com carimbo novo (613.7g)
   o.transformouEm = s.nextAbility;
-  events.push({ kind: 'effect', do: 'transformar', name: de, target: destino });
-  gatilhosDaPermanente(s, 'transforma', o, ['self'], {}, () => true, false);
+  events.push({ kind: 'effect', do: src && src.converteT ? 'converter' : 'transformar', name: de, target: destino }); // T-49 · 701.28a: converter segue as regras de transformar
+  gatilhosDaPermanente(s, 'transforma', o, ['self'], {}, () => true, false); // 701.27e: "transforms into" dispara também ao converter
   return true;
 }
 /* ---------------- T-48 · CR 702.145 / 731 / 502.2 · dia e noite ----------------
@@ -27587,6 +27648,7 @@ const costStringT = c => (c.x ? '{X}'.repeat(c.x) : '') + (c.generic ? `{${c.gen
 function faceEscolhidaT(s, a, o) {
   if (o && a.t === 'cast' && Number.isInteger(a.vida) && a.vida > 0 && s.manaCheck && !a.free) o.vidaPhyrexianaT = a.vida; // T-47 · só quando a vida é cobrada // T-45 · CR 702.150a: o pagamento com vida fica anotado na conjuração
   if (a.faceDown && o && ((s.facts[o.name] || {}).script || {}).morph && s.facts[o.name].script.morph.disfarceT) o.disfarcadaT = true; // T-42 · CR 702.168a: conjurada pelo disfarce (a salvaguarda {2} é só dela)
+  if (convertidaEscolhidaT(s, a, o)) return; // T-49 · CR 702.162a / 712.11a · convertida: o verso vai para cima antes de qualquer conferência
   if (prototipoEscolhidoT(s, a, o)) return; // T-36 · CR 718.3 · como protótipo: o custo, a cor e o tamanho alternativos valem desde a conjuração
   if (cercoEscolhaT(s, a, o)) return; // T-14 · CR 310.12b · o Cerco derrotado é conjurado transformado
   if (divididaEscolhidaT(s, a, o)) return; // T-10 · CR 709.3 · a metade da carta dividida
@@ -29577,6 +29639,7 @@ function describe(before, a, events, after) {
   if (a.face === 'transformada' && L.length) { const o0 = before.objects[a.oid], n0 = nameOf(before, a.oid); if (o0 && o0.cercoT) L[L.length - 1] = L[L.length - 1].replace(n0, `${o0.cercoT} (${n0} transformada)`); } // T-14 · CR 310.12b · o registro diz a face conjurada
   if ((a.face === 'esquerda' || a.face === 'direita') && L.length) { const hs = E.metadesDe(before, a.oid), n0 = nameOf(before, a.oid); if (hs) L[L.length - 1] = L[L.length - 1].replace(n0, `${hs[a.face === 'direita' ? 1 : 0].nome} (metade de ${n0})`); } // T-10 · CR 709.3 · o registro diz a metade
   if (a.face === 'fundida' && L.length) { const hs = E.metadesDe(before, a.oid), n0 = nameOf(before, a.oid); if (hs) L[L.length - 1] = L[L.length - 1].replace(n0, `${n0} (fundida: ${hs[0].nome} e ${hs[1].nome})`); } // T-34 · CR 702.102 · o registro diz que as duas metades foram conjuradas
+  if (a.face === 'convertida' && a.t === 'cast' && L.length) { const n0 = nameOf(before, a.oid), o1 = after.objects[a.oid]; if (o1 && o1.name !== n0) L[L.length - 1] = L[L.length - 1].replace(n0, `${o1.name} (convertida)`); } // T-49 · CR 702.162a
   if (a.prototipo && a.t === 'cast' && L.length) { const n0 = nameOf(before, a.oid); L[L.length - 1] = L[L.length - 1].replace(n0, `${n0} (como protótipo)`); } // T-36 · CR 718.3
   // dano de combate e mortes que acontecem ao passar
   if (a.t === 'pass' || a.t === 'block' || a.t === 'attack') {
@@ -30430,7 +30493,7 @@ const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas
 /* ↓ T · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha tipos */
 const EFEITO_PT_T = { caso_resolvido: () => 'este Caso fica resolvido', estacao: () => 'põe nesta permanente marcadores de carga iguais ao poder da criatura virada', selada: () => 'esta montaria fica selada até o fim do turno', virar_carta: e => (e.se && e.se.minCriaturas ? `se você controla ${e.se.minCriaturas} ou mais criaturas, vira esta carta` : 'vira esta carta'), porta: e => (e.acao === 'trancar' ? 'tranca uma porta destrancada de uma Sala sua' : e.acao === 'destrancar' ? 'destranca uma porta trancada de uma Sala sua' : 'tranca ou destranca uma porta de uma Sala sua'), nivel_sobe: () => 'põe um marcador de nível nela', nivel_classe: e => `a Classe sobe para o nível ${e.n}`, tripulada: () => 'vira criatura artefato até o fim do turno', transformar: () => 'transforma (vira a outra face)' }; // T-7 · 701.27
 /** T-7 · linhas do registro para os eventos da trilha tipos. */
-const LINHA_T = { ciclo: ev => `Virou ${ev.target}${ev.motivo ? ` (${ev.motivo})` : ''}`, masmorra_completa: ev => `${ev.target} completou a masmorra ${ev.name}`, caso_resolvido: ev => (ev.failed ? `${ev.name}: a condição não valia mais, o Caso não foi resolvido` : `${ev.name} foi resolvido`), estacao: ev => (ev.failed ? `${ev.name}: a nave saiu do campo, a estação não pôs marcadores` : `${ev.name} recebeu ${ev.amount} marcador${ev.amount === 1 ? '' : 'es'} de carga (estação)${ev.total != null ? ` · ${ev.total} no total` : ''}`), selada: ev => (ev.failed ? `${ev.name}: a montaria saiu do campo, não foi selada` : `${ev.name} foi selada`), virar_carta: ev => (ev.failed ? `${ev.name} não virou${ev.motivo ? ` (${ev.motivo})` : ''}` : `${ev.name} virou: agora é ${ev.target}`), porta: ev => (ev.failed ? `${ev.name}: nenhuma porta para trancar ou destrancar` : `${ev.name} ${ev.acao} ${ev.porta} (${ev.target})`), nivel_sobe: ev => (ev.failed ? `${ev.name}: saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu de nível (nível ${ev.nivel})`), nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
+const LINHA_T = { ciclo: ev => `Virou ${ev.target}${ev.motivo ? ` (${ev.motivo})` : ''}`, masmorra_completa: ev => `${ev.target} completou a masmorra ${ev.name}`, caso_resolvido: ev => (ev.failed ? `${ev.name}: a condição não valia mais, o Caso não foi resolvido` : `${ev.name} foi resolvido`), estacao: ev => (ev.failed ? `${ev.name}: a nave saiu do campo, a estação não pôs marcadores` : `${ev.name} recebeu ${ev.amount} marcador${ev.amount === 1 ? '' : 'es'} de carga (estação)${ev.total != null ? ` · ${ev.total} no total` : ''}`), selada: ev => (ev.failed ? `${ev.name}: a montaria saiu do campo, não foi selada` : `${ev.name} foi selada`), virar_carta: ev => (ev.failed ? `${ev.name} não virou${ev.motivo ? ` (${ev.motivo})` : ''}` : `${ev.name} virou: agora é ${ev.target}`), porta: ev => (ev.failed ? `${ev.name}: nenhuma porta para trancar ou destrancar` : `${ev.name} ${ev.acao} ${ev.porta} (${ev.target})`), nivel_sobe: ev => (ev.failed ? `${ev.name}: saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu de nível (nível ${ev.nivel})`), nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, converter: ev => `${ev.name} converteu em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
 Object.assign(EFEITO_PT_T, { cerco_derrotado: () => 'exila o Cerco; você pode conjurá-lo transformado, sem pagar', papel: e => `cria um Papel de ${e.papel} anexado à criatura` }); // T-14 · CR 310.12b
 Object.assign(LINHA_T, { cerco_derrotado: ev => (ev.failed ? `${ev.name}: o Cerco já tinha saído do campo, nada a exilar` : `${ev.name} foi derrotada e exilada${ev.target ? ` (pode virar ${ev.target})` : ''}`), protetor_batalha: ev => `${ev.target} passa a proteger ${ev.name}`, anexo_barrado: ev => `${ev.name} não pode equipar${ev.target ? ' ' + ev.target : ''} e fica onde está`, papel: ev => (ev.failed ? `${ev.name}: sem criatura para o Papel de ${ev.target}` : `Papel de ${ev.target || ev.name}`), papel_substituido: ev => `o Papel ${ev.name} foi substituído e vai para o cemitério`, batalha_cemiterio: ev => `${ev.name} ficou sem defesa e foi para o cemitério` }); // T-14 · CR 310.12b / 310.11 / 310.8
 function descreveEfeito(e) {
@@ -32565,6 +32628,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     { const hs = E.metadesDe(s, oid); if (hs) for (const b of legal) { const ac = b.action; if (ac && ac.t === 'cast' && (ac.face === 'esquerda' || ac.face === 'direita')) { const md = hs[ac.face === 'direita' ? 1 : 0]; b.label = `Conjurar ${md.nome}${E.consequenciaT(s, ac) ? ' do cemitério' : ''} · ${md.mana}`; /* T-32 · CR 702.127a */ } } } // T-10 · CR 709.3 · um botão por metade
     { const hs = E.metadesDe(s, oid); if (hs) for (const b of legal) { const ac = b.action; if (ac && (ac.t === 'cast' || ac.t === 'cast_free') && ac.face === 'fundida') b.label = `Fundir: ${hs[0].nome} e ${hs[1].nome}${ac.t === 'cast' ? ` · ${hs[0].mana}${hs[1].mana}` : ''}`; } } // T-34 · CR 702.102 · o botão da fundida
     { const o = s.objects[oid], f = o && s.facts[o.name], pr = f && f.script && f.script.self && f.script.self.prototipo; if (pr) for (const b of legal) { const ac = b.action; if (ac && ac.t === 'cast' && ac.prototipo) b.label = `Conjurar como protótipo · ${pr.mana} · ${pr.power}/${pr.toughness}`; } } // T-36 · CR 718.3 · o botão do protótipo
+    { const mq = E.maisQueOlhosDaCartaT(s, s.objects[oid]), sc0 = mq && (s.facts[s.objects[oid].name] || {}).script; if (mq && sc0 && sc0.back) for (const b of legal) { const ac = b.action; if (ac && ac.t === 'cast' && ac.face === 'convertida') b.label = `Conjurar convertida: ${sc0.back} · ${mq}`; } } // T-49 · CR 702.162a · o botão de "More Than Meets the Eye"
     // S34: conceder
     for (const bw of E.legalActions(s, v).filter(x => x.t === 'cast' && x.oid === oid && x.bestow))
       legal.push(doBtn(`Conceder · ${(f.script.bestow || {}).mana || ''} → ${targetName(s, bw.targets[0])}`, bw, { variant: 'primary' }));

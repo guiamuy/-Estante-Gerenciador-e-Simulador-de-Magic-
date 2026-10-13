@@ -6129,16 +6129,18 @@
    "regra": "Keyword Actions",
    "titulo": "Convert",
    "status": "parcial",
-   "falta": "herda o que falta em transformar (701.27): só a própria fonte converte; não confere se já converteu desde que a habilidade foi para a pilha (e); não barra verso instantânea/feitiço (d). \"More Than Meets the Eye\" (conjurar convertida) e \"living metal\" são de 702.",
+   "falta": "T-49 (13/10/2026): na carta de dupla face desta trilha (self.duplaFace) coberta — 701.28a–f pelo transformar da T-7 (nos dois sentidos, uma vez por habilidade, quem não pode transformar não converte). Falta: as cartas antigas com back sem self.duplaFace seguem no caminho da V-22 (só para o verso, sem 701.28e/f); converter outra permanente (alvo) não tem vocabulário.",
    "esforco": "P",
    "depende": [
     "701.27",
     "712"
    ],
    "cartas": "uma coleção só",
-   "evidencia": "V-22 · efeito `convert` (caso de applyEffect abaixo da âncora ↓ V): é a mesma ação de transformar, com outro nome (a) — a permanente de duas faces vira para a outra face; a de uma face só não muda (c).",
+   "evidencia": "V-22 · efeito `convert` (caso de applyEffect abaixo da âncora ↓ V): é a mesma ação de transformar, com outro nome (a) — a permanente de duas faces vira para a outra face; a de uma face só não muda (c). T-49 (13/10/2026): `self.maisQueOlhos` (custo de More Than Meets the Eye) em carta `self.duplaFace`; a ação `cast` com `face: \"convertida\"` vira o verso para cima antes de qualquer conferência e a marca da conjuração `convertidaT` faz o custo pago ser o alternativo (custoDoPrototipoT, HANDLERS.cast); na pilha o valor de mana é o da frente (712.8c) e a mágica entra com o verso para cima (712.13); de qualquer zona de onde poderia ser conjurada (mão, exílio jogável); ofertas pela cópia do estado com o verso para cima. Metal vivo: no turno de quem controla, a permanente também é criatura artefato (camada 4, redefinicoesDaTrilhaT; lido dos fatos da face para cima). \"Convert ~\" (efeito convert da V-22) na carta de dupla face desta trilha passa pelo transformar da T-7 (nos dois sentidos, 701.28e/f), com o registro \"converteu\". Botão \"Conjurar convertida: <verso> · <custo>\". Carta exemplo: Jetfire, Ingenious Scientist // Jetfire, Air Guardian (Oracle do Forge, 13/10/2026), parcial (a habilidade de mana da frente fica de fora).",
    "testes": [
-    "CR 701.28 · converter segue as regras de transformar: a permanente de duas faces vira para a outra face; a de uma face só não muda"
+    "CR 701.28 · converter segue as regras de transformar: a permanente de duas faces vira para a outra face; a de uma face só não muda",
+    "CR 701.28a · \"{U}{U}{U}: Convert Jetfire, then adapt 3\": converte de volta para a frente e põe três marcadores +1/+1 nela; o registro diz \"converteu\"",
+    "CR 701.28c · converter uma permanente que não é de dupla face: nada acontece"
    ]
   },
   {
@@ -9294,28 +9296,41 @@
    "n": "702.161",
    "regra": "Keyword Abilities",
    "titulo": "Living Metal",
-   "status": "ausente",
-   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): metal vivo é de Veículo dupla face (Transformers).",
+   "status": "coberta",
+   "falta": "Fica com a trilha tipos (CR5). T-49 (13/10/2026): coberta. Fora, declarado: com um efeito que tira as habilidades (camada 6), o metal vivo continua valendo (a dependência da 613.8 não é calculada).",
    "esforco": "M",
    "depende": [
     "301.7 Veículos",
     "613 camadas (tipo)"
    ],
-   "cartas": "uma coleção só (Transformers, em The Brothers' War)"
+   "cartas": "uma coleção só (Transformers, em The Brothers' War)",
+   "evidencia": "T-49 (13/10/2026): `self.maisQueOlhos` (custo de More Than Meets the Eye) em carta `self.duplaFace`; a ação `cast` com `face: \"convertida\"` vira o verso para cima antes de qualquer conferência e a marca da conjuração `convertidaT` faz o custo pago ser o alternativo (custoDoPrototipoT, HANDLERS.cast); na pilha o valor de mana é o da frente (712.8c) e a mágica entra com o verso para cima (712.13); de qualquer zona de onde poderia ser conjurada (mão, exílio jogável); ofertas pela cópia do estado com o verso para cima. Metal vivo: no turno de quem controla, a permanente também é criatura artefato (camada 4, redefinicoesDaTrilhaT; lido dos fatos da face para cima). \"Convert ~\" (efeito convert da V-22) na carta de dupla face desta trilha passa pelo transformar da T-7 (nos dois sentidos, 701.28e/f), com o registro \"converteu\". Botão \"Conjurar convertida: <verso> · <custo>\". Carta exemplo: Jetfire, Ingenious Scientist // Jetfire, Air Guardian (Oracle do Forge, 13/10/2026), parcial (a habilidade de mana da frente fica de fora).",
+   "testes": [
+    "CR 712.13 / 702.161a · a mágica convertida entra com o verso para cima: Veículo que, no turno de quem controla, também é criatura artefato 3/4 com voar",
+    "CR 702.161a · metal vivo vale só durante o turno de quem controla: no turno do oponente, não é criatura (e não pode bloquear)",
+    "CR 302.6 · convertida no turno em que entrou, com metal vivo ela é criatura mas está enjoada: não ataca"
+   ]
   },
   {
    "n": "702.162",
    "regra": "Keyword Abilities",
    "titulo": "More Than Meets the Eye",
-   "status": "ausente",
-   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): \"mais do que os olhos veem\" conjura a face de trás (dupla face).",
+   "status": "coberta",
+   "falta": "Fica com a trilha tipos (CR5). T-49 (13/10/2026): coberta. Fora: conjurar convertida sem pagar (cascata, descobrir) não é oferecido.",
    "esforco": "M",
    "depende": [
     "701.28 converter",
     "712 dupla face",
     "601.2b custo alternativo"
    ],
-   "cartas": "uma coleção só (Transformers)"
+   "cartas": "uma coleção só (Transformers)",
+   "evidencia": "T-49 (13/10/2026): `self.maisQueOlhos` (custo de More Than Meets the Eye) em carta `self.duplaFace`; a ação `cast` com `face: \"convertida\"` vira o verso para cima antes de qualquer conferência e a marca da conjuração `convertidaT` faz o custo pago ser o alternativo (custoDoPrototipoT, HANDLERS.cast); na pilha o valor de mana é o da frente (712.8c) e a mágica entra com o verso para cima (712.13); de qualquer zona de onde poderia ser conjurada (mão, exílio jogável); ofertas pela cópia do estado com o verso para cima. Metal vivo: no turno de quem controla, a permanente também é criatura artefato (camada 4, redefinicoesDaTrilhaT; lido dos fatos da face para cima). \"Convert ~\" (efeito convert da V-22) na carta de dupla face desta trilha passa pelo transformar da T-7 (nos dois sentidos, 701.28e/f), com o registro \"converteu\". Botão \"Conjurar convertida: <verso> · <custo>\". Carta exemplo: Jetfire, Ingenious Scientist // Jetfire, Air Guardian (Oracle do Forge, 13/10/2026), parcial (a habilidade de mana da frente fica de fora).",
+   "testes": [
+    "CR 702.162a / 712.11a · da mão, conjurar convertida pelo custo de \"More Than Meets the Eye\" ({3}{U}): na pilha com o verso para cima, valor de mana da frente (712.8c)",
+    "CR 702.162a · conjurada normalmente (frente para cima) pelo custo impresso {4}{U}: entra como Jetfire, Ingenious Scientist",
+    "CR 702.162a · sem permissão, do cemitério não há conjuração convertida; carta sem \"More Than Meets the Eye\" não é conjurada convertida (pedido direto recusado)",
+    "CR 702.162a · \"de qualquer zona de onde poderia conjurá-la\": jogável do exílio, também convertida"
+   ]
   },
   {
    "n": "702.163",
@@ -10751,7 +10766,7 @@
    "titulo": "Conjurar dupla face: frente por padrão",
    "status": "parcial",
    "evidencia": "T-8 (11/10/2026) · src/engine/core.js, bloco \"T-8 · CR 712.3 … dupla face modal\" (cartas `self: { modal: true }`): 712.11 — a frente por padrão. 712.11b–c — faceEscolhidaT põe a face escolhida para cima antes de qualquer conferência de `cast`: só ela é avaliada (custo, tempo, alvos) e só ela vai à pilha; as ofertas saem do próprio legalActions sobre uma cópia do estado com as modais da mão viradas (modalOfertas). 712.11a/d seguem no caminho do disturb (trilha motor).",
-   "falta": "712.11a/d: conjurar \"transformada\" só existe no disturb antigo, com valor de mana 0 na pilha (712.8c); cópia de carta modal conjurada (\"or a copy of\") não tem efeito no vocabulário.",
+   "falta": "712.11a/d: conjurar convertida coberta na T-49 (More Than Meets the Eye: verso para cima na pilha, valor de mana da frente); conjurar \"transformada\" ainda só existe no disturb antigo, com valor de mana 0 na pilha (712.8c); cópia de carta modal conjurada (\"or a copy of\") não tem efeito no vocabulário.",
    "esforco": "P",
    "depende": [
     "712.3"
@@ -10760,7 +10775,8 @@
     "CR 712.11b–c · dupla face modal: da mão o jogador escolhe a face que conjura; só a face escolhida conta — custo, tempo e alvos dela",
     "CR 712.11b · face de trás que não é permanente: resolve e vai ao cemitério como a carta da frente; anulada, também; 712.9 · a modal não transforma",
     "CR 107.3 · pedido da face de trás com X numa face sem X é recusado (D10)",
-    "CR 712.11b · conjurar sem pagar: a decisão oferece também a face de trás da modal (com os alvos dela), e o pedido do verso é o oferecido; terreno do verso não é conjurado"
+    "CR 712.11b · conjurar sem pagar: a decisão oferece também a face de trás da modal (com os alvos dela), e o pedido do verso é o oferecido; terreno do verso não é conjurado",
+    "CR 702.162a / 712.11a · da mão, conjurar convertida pelo custo de \"More Than Meets the Eye\" ({3}{U}): na pilha com o verso para cima, valor de mana da frente (712.8c)"
    ]
   },
   {

@@ -1018,6 +1018,19 @@ test('T-48 · daybound e nightbound (702.145): controlar daybound faz virar dia;
   assert.deepEqual([s.cicloT, s.objects[l].name, E.stats(s, s.objects[l]).power], ['noite', 'Lobo da Noite', 6], '731.2a / 702.145b: o jogador ativo não conjurou nada no turno dele');
 });
 
+test('T-49 · metal vivo (702.161): no turno de quem controla o Veículo é criatura e ataca; no turno do oponente não é criatura', () => {
+  cobre('living metal');
+  const cartas = { ...CARDS, Carro: { name: 'Carro', type_line: 'Artifact — Vehicle', mana_cost: '{3}', cmc: 3, colors: [], power: '3', toughness: '3', keywords: ['Living metal'], oracle_text: 'Living metal (During your turn, this Vehicle is also a creature.)' } };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 92, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a; let c, u; [s, c] = poe(s, a, 'Carro'); [s, u] = poe(s, d, 'Urso');
+  assert.equal(E.isCreature(s, s.objects[c]), true, 'no turno de quem controla, é criatura');
+  assert.equal(combate(s, [c]).players[d].life, 17, 'ataca e causa 3');
+  const s2 = J(s); s2.turn.active = d; // no turno do oponente (só a designação do turno muda)
+  assert.equal(E.isCreature(s2, s2.objects[c]), false, 'no turno do oponente, não é criatura (logo não bloqueia: 509.1a)');
+});
+
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));
