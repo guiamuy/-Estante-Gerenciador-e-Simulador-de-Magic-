@@ -5558,6 +5558,7 @@ const EFFECTS = {
   lutador: { fields: [], targets: ['creature', 'creature-you-control'] },
   fight: { fields: [], targets: ['creature', 'creature-opponent-controls', 'creature-you-control'] }, // quem: 'self-source' (a permanente fonte luta) | 'primeiro-alvo' (luta a criatura anotada pelo `lutador` anterior)
   /* ↓ T · efeitos da trilha tipos */
+  dado: { fields: [], targets: ['self'] }, // T-66 · CR 706 · "roll a dN": `lados`, `quantos` (1 ou 2), `ignora: 'menor'` (706.6), `mais` (706.2); a tabela são os efeitos seguintes com `faixaDoDado`
   moeda: { fields: [], targets: ['self'] }, // T-65 · CR 705 · "flip a coin": `fixa` (705.3), `resultado: true` (só cara ou coroa), `ateperder` ("until you lose a flip")
   preparar: { fields: [], targets: ['self'] }, // T-51 · CR 722.3a · "this creature becomes prepared": ganha a designação e a cópia da mágica de preparação no exílio (722.3c); já preparada, nada
   despreparar: { fields: [], targets: ['self'] }, // T-51 · CR 722.3b · "becomes unprepared": perde a designação (a cópia deixa de existir)
@@ -6535,6 +6536,21 @@ function effectErrors(effects, label, opcional) {
     if (e.do === 'lutador' && !effects.slice(i + 1).some(x => x.do === 'fight' && x.quem === 'primeiro-alvo')) errs.push(`${label} ${i + 1} (lutador): precisa ser seguido da luta (fight, quem: primeiro-alvo)`);
   });
   /* ↓ T · validação da trilha tipos */
+  effects.forEach((e, i) => { // T-66 · CR 706 · o dado, a faixa da tabela e o resultado
+    if (e.do === 'dado') {
+      if (!Number.isInteger(e.lados) || e.lados < 2) errs.push(`${label} ${i + 1} (dado): "lados" é um inteiro, 2 ou mais`);
+      if (e.quantos != null && ![1, 2].includes(e.quantos)) errs.push(`${label} ${i + 1} (dado): um ou dois dados`);
+      if (e.ignora != null && !(e.ignora === 'menor' && e.quantos === 2)) errs.push(`${label} ${i + 1} (dado): "ignora" só vale como 'menor', com dois dados`);
+      if (e.mais != null && !Number.isInteger(e.mais) && !(e.mais && typeof e.mais === 'object' && e.mais.per)) errs.push(`${label} ${i + 1} (dado): "mais" é um número ou uma contagem`);
+    }
+    const antes = effects.slice(0, i).some(x => x.do === 'dado');
+    if (e.faixaDoDado != null) {
+      const f = e.faixaDoDado;
+      if (!Array.isArray(f) || f.length !== 2 || !Number.isInteger(f[0]) || !(f[1] === null || (Number.isInteger(f[1]) && f[1] >= f[0]))) errs.push(`${label} ${i + 1}: a faixa do dado ("faixaDoDado") é [de, ate], de ≤ ate (ate null = "de ou mais")`);
+      if (!antes) errs.push(`${label} ${i + 1}: "faixaDoDado" precisa de um dado antes`);
+    }
+    if (((e.amount && e.amount.per === 'resultado-do-dado') || e.onlyIf === 'dado-duplos') && !antes) errs.push(`${label} ${i + 1}: o resultado do dado precisa de um dado antes`);
+  });
   effects.forEach((e, i) => { // T-65 · CR 705 · a moeda e as condições do lance
     if (e.do === 'moeda') {
       if (e.fixa != null && !(e.resultado ? ['cara', 'coroa'] : ['ganha', 'perde', 'cara', 'coroa']).includes(e.fixa)) errs.push(`${label} ${i + 1} (moeda): "fixa" é ganha, perde, cara ou coroa (num lance só de resultado, cara ou coroa)`);
@@ -6707,6 +6723,15 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-66 · CR 706 · rolar um dado (Oracle do Forge, clone de 13/10/2026). Voar e vigilância vêm do texto da carta.
+  { name: 'Djinni Windseer', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'dado', lados: 20 }, { do: 'scry', amount: 1, faixaDoDado: [1, 9] }, { do: 'scry', amount: 2, faixaDoDado: [10, 19] }, { do: 'scry', amount: 3, faixaDoDado: [20, 20] }] }], // "When Djinni Windseer enters, roll a d20. 1—9 | Scry 1. 10—19 | Scry 2. 20 | Scry 3."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o cenário de verdade está em tipos.dado.unit
+  { name: 'Sylvan Shepherd', abilities: [{ kind: 'triggered', when: 'attacks', effects: [{ do: 'dado', lados: 20 }, { do: 'gain', amount: 1, faixaDoDado: [1, 9] }, { do: 'gain', amount: 2, faixaDoDado: [10, 19] }, { do: 'gain', amount: 5, faixaDoDado: [20, 20] }] }], // "Whenever Sylvan Shepherd attacks, roll a d20. 1—9 | You gain 1 life. 10—19 | You gain 2 life. 20 | You gain 5 life."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Swarming Goblins', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'dado', lados: 20 }, ...[[1, 9, 1], [10, 19, 2], [20, 20, 3]].map(([de, ate, n]) => ({ do: 'token', amount: n, token: { name: 'Goblin', types: ['creature'], subtypes: ['Goblin'], colors: ['R'], power: 1, toughness: 1 }, faixaDoDado: [de, ate] }))] }], // "When Swarming Goblins enters, roll a d20. 1—9 | Create a 1/1 red Goblin creature token. 10—19 | Create two of those tokens. 20 | Create three of those tokens."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Contact Other Plane', effects: [{ do: 'dado', lados: 20 }, { do: 'draw', amount: 2, faixaDoDado: [1, 9] }, { do: 'scry', amount: 2, faixaDoDado: [10, 19] }, { do: 'draw', amount: 2, faixaDoDado: [10, 19] }, { do: 'scry', amount: 3, faixaDoDado: [20, 20] }, { do: 'draw', amount: 3, faixaDoDado: [20, 20] }], // "Roll a d20. 1—9 | Draw two cards. 10—19 | Scry 2, then draw two cards. 20 | Scry 3, then draw three cards."
+    example: { target: 'none', expect: { selfLife: 0 } } },
   // T-65 · CR 705 · jogar uma moeda (Oracle do Forge, clone de 13/10/2026).
   { name: 'Stitch in Time', effects: [{ do: 'moeda' }, { do: 'turno_extra', target: 'self', onlyIf: 'ganhou-moeda' }], // "Flip a coin. If you win the flip, take an extra turn after this one."
     example: { target: 'none', expect: { selfLife: 0 } } }, // o cenário de verdade está em tipos.moeda.unit
@@ -9411,8 +9436,8 @@ function condicoesT() { return ['resistenciaAte', 'selada', 'preparada', 'monarc
    disparar e ao resolver, 603.4). Efeito: `onlyIf: 'monarca' | 'oponente-monarca'` e `amount: { per: 'se', se: 'monarca', sim, nao }`
    ("… instead if you're the monarch"). Efeito contínuo: `se: { monarca: 'voce' | 'oponente' }` ("as long as you're the monarch").
    Sem monarca no jogo, nenhuma das condições vale (725.5). */
-function onlyIfT() { return ['monarca', 'oponente-monarca', 'ganhou-moeda', 'perdeu-moeda', 'deu-cara', 'deu-coroa']; } // T-65 · CR 705.2 · o lance da moeda
-function perCountsT() { return ['party', 'moedas-ganhas']; } // T-59 · CR 700.8 · grupo · T-65 · CR 705.2 · "for each flip you won" (função içada: PER_COUNTS é montada antes) // função (içada): ONLY_IF e o validador do `per: 'se'` são montados antes desta linha
+function onlyIfT() { return ['monarca', 'oponente-monarca', 'ganhou-moeda', 'perdeu-moeda', 'deu-cara', 'deu-coroa', 'dado-duplos']; } // T-66 · CR 706.5 // T-65 · CR 705.2 · o lance da moeda
+function perCountsT() { return ['party', 'moedas-ganhas', 'resultado-do-dado']; } // T-66 · CR 706.4 // T-59 · CR 700.8 · grupo · T-65 · CR 705.2 · "for each flip you won" (função içada: PER_COUNTS é montada antes) // função (içada): ONLY_IF e o validador do `per: 'se'` são montados antes desta linha
 function seMonarcaT(se) { return !!se && Object.keys(se).length === 1 && ['voce', 'oponente'].includes(se.monarca); }
 function monarcaErrosT(sc) {
   const errs = [], abs = [...((sc && sc.abilities) || []), ...((sc && sc.back && sc.back.abilities) || [])];
@@ -20226,6 +20251,7 @@ function amountOf(s, src, v) {
     if (v.per === 'movidas') return (src.movidas || 0) * (v.times || 1); // M-386 · o que o efeito anterior desta habilidade pôs no cemitério
     if (v.per === 'se') return condicaoDoEfeito(s, src.ability && !doQueResolveT(v.se) ? s.objects[src.source] : src, v.se) ? v.sim : v.nao; // T-64 · o monarca é visto do controlador da habilidade (109.5) // M-331 · "… instead if …" (Galvanic Blast, Plunder the Trollshaws)
     if (v.per === 'soma') return (v.partes || []).reduce((n, x) => n + amountOf(s, src, x), 0) * (v.times || 1); // M-358 · "N, plus M" (Seize the Storm)
+    if (v.per === 'resultado-do-dado') return ((src.dadoT || {}).resultado || 0) * (v.times || 1); // T-66 · CR 706.4 · "equal to the result"
     if (v.per === 'moedas-ganhas') return ((src.moedaT || {}).ganhas || 0) * (v.times || 1); // T-65 · CR 705.2 · "for each flip you won" (Toca ponto comum: amountOf)
     if (v.per === 'x') return (src.xPaid || 0) * (v.times || 1); // CR2c.3 · 107.3a: o X escolhido ao conjurar, o mesmo em todo o texto
     // CR2a.4 · 608.2h/113.7a: a resistência que a criatura sacrificada no custo tinha no campo
@@ -20249,11 +20275,13 @@ function condicaoDoEfeito(s, fonte, k) {
   if (k === 'kicked') return !!fonte.kicked; // M-337
   if (k === 'bargained') return !!fonte.bargained; // M-384 · 702.166b
   if (k === 'monarca' || k === 'oponente-monarca') return monarcaCondT(s, fonte.controller, k === 'monarca' ? 'voce' : 'oponente');
+  if (k === 'dado-duplos') return !!(fonte.dadoT && fonte.dadoT.duplos); // T-66 · CR 706.5
   if (MOEDA_COND_T.includes(k)) return moedaCondT(fonte, k); // T-65 · CR 705.2 · o lance que este objeto jogou (Toca ponto comum: condicaoDoEfeito) // T-62 · CR 725.5 · na resolução (Toca ponto comum: condicaoDoEfeito)
   if (k === 'not-cast-from-hand') return fonte.castFrom !== 'hand'; // M-352 · Twinned Vision (a cópia não foi conjurada: também não veio da mão) · 702.33d · "If this spell was kicked, it deals 4 damage instead" (Burst Lightning)
   return false;
 }
 function effectAllowed(s, fonte, eff) {
+  if (eff.faixaDoDado && !dadoNaFaixaT(fonte, eff.faixaDoDado)) return false; // T-66 · CR 706.3a · a linha da tabela de resultados (Toca ponto comum: effectAllowed)
   if (!eff.onlyIf) return true;
   // Leva 107 · "unless it entered this turn": vale a última informação, mesmo com a fonte fora do campo (Moon-Circuit Hacker)
   if (eff.onlyIf === 'source-entered-earlier') return !!fonte && (fonte.entrouNoTurno != null ? fonte.entrouNoTurno !== s.turn.number : !fonte.sick);
@@ -21551,6 +21579,7 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'fight': lutar(s, src, eff, tgt, events); break; // V-1 · 701.14
     /* ↓ T · casos de applyEffect da trilha tipos */
     case 'moeda': moedaT(s, src, eff, events); break; // T-65 · CR 705 · jogar uma moeda
+    case 'dado': dadoT(s, src, eff, events); break; // T-66 · CR 706 · rolar um dado
     case 'desanexar': desanexaT(s, src, events); break; // T-43 · CR 702.151a · a permanente se solta e fica no campo
     case 'caso_resolvido': casoResolveT(s, src, eff, events); break; // T-39 · CR 719.3a · o Caso fica resolvido, se a condição ainda vale (603.4)
     case 'estacao': estacaoResolveT(s, src, eff, events); break; // T-37 · CR 702.184a · marcadores de carga iguais ao poder da criatura virada
@@ -24587,7 +24616,7 @@ function resolveAbility(s, o, events) {
   for (const eff of o.effects || []) {
     if (eff.onlyIf === 'alvo-era-neve' && !neveDoPrimeiro) continue; // M-385
     if (eff.onlyIf === 'alvo-era-seu' && donoDoPrimeiro !== o.controller) continue; // M-341
-    if (!effectAllowed(s, doQueResolveT(eff.onlyIf) ? o : fonte, eff)) continue; // S49 · condição do próprio efeito · T-64 · o monarca é visto do controlador da habilidade (109.5; Toca ponto comum: resolveAbility)
+    if (!effectAllowed(s, doQueResolveT(eff.onlyIf) || eff.faixaDoDado ? o : fonte, eff)) continue; // S49 · condição do próprio efeito · T-64 · o monarca é visto do controlador da habilidade (109.5; Toca ponto comum: resolveAbility)
     if (eff.target === 'self-source' && o.fonteZc != null && fonte && fonte.zone === 'battlefield' && (fonte.zc || 0) !== o.fonteZc) { events.push({ kind: 'effect', do: eff.do, name: o.name, failed: true }); continue; } // M-371 · 400.7: a permanente que saiu e voltou é outro objeto
     if (SC.isTargeted(eff)) { const t = chosen[ti]; const legal = ok[ti]; ti++; if (ti === 1 && t == null && eff.upTo) primeiroVazio = true; if (!primeiro) { primeiro = t; donoDoPrimeiro = t && t.oid != null && s.objects[t.oid] ? s.objects[t.oid].controller : null; neveDoPrimeiro = !!(t && t.oid != null && s.objects[t.oid] && s.objects[t.oid].zone === 'battlefield' && temSubtipo(s, t.oid, 'Snow')); } if (legal) applyEffect(s, o, eff, t, events); }
     else if (eff.target === 'target-controller') { if (primeiroVazio) continue; const t = primeiro; applyEffect(s, o, eff, { player: t && t.player != null ? t.player : donoDoPrimeiro != null ? donoDoPrimeiro : o.controller }, events); } // M-327 · "its controller" também em habilidade (Ghost Quarter: quem busca é o dono do terreno destruído; antes era quem ativou)
@@ -27039,10 +27068,25 @@ function moedaT(s, src, eff, events) {
   const m = { r, ganhou, ganhas };
   src.moedaT = m; if (src.oid != null && s.objects[src.oid] && s.objects[src.oid] !== src) s.objects[src.oid].moedaT = m;
 }
+/** T-66 · CR 706 · rolar um dado. `lados` (706.1a: dN, N resultados igualmente prováveis, do acaso s.rng), `quantos` (1 ou 2), `ignora: 'menor'`
+ * (706.6: com dois dados, o menor é ignorado — nunca aconteceu), `mais` (706.2: modificador somado ao resultado natural). O que saiu fica no
+ * objeto que resolve (`dadoT`): a tabela de resultados (706.3a) são os efeitos seguintes com `faixaDoDado: [de, ate]` (ate null = "N+"),
+ * `per: 'resultado-do-dado'` (706.4) e a condição `dado-duplos` (706.5). */
+function dadoT(s, src, eff, events) {
+  const p = src.controller, lados = eff.lados, rol = [];
+  for (let i = 0; i < (eff.quantos || 1); i++) rol.push(1 + Math.floor(nextRand(s) * lados));
+  let usados = rol.slice(), ignorada = null;
+  if (eff.ignora === 'menor' && usados.length > 1) { const i = usados.indexOf(Math.min(...usados)); ignorada = usados.splice(i, 1)[0]; }
+  const natural = Math.max(...usados), mais = eff.mais != null ? (amountOf(s, src, eff.mais) || 0) : 0, resultado = natural + mais;
+  const d = { natural, resultado, rolagens: rol, ignorada, duplos: rol.length === 2 && rol[0] === rol[1] };
+  src.dadoT = d; if (src.oid != null && s.objects[src.oid] && s.objects[src.oid] !== src) s.objects[src.oid].dadoT = d;
+  events.push({ kind: 'effect', do: 'dado', name: src.name, target: s.players[p] ? s.players[p].name : '', lados, rolagens: rol, ignorada, natural, mais, resultado });
+}
+const dadoNaFaixaT = (o, f) => { const d = o && o.dadoT; return !!d && d.resultado >= f[0] && (f[1] == null || d.resultado <= f[1]); };
 const moedaCondT = (o, k) => { const m = o && o.moedaT; if (!m) return false; return k === 'ganhou-moeda' ? m.ganhou === true : k === 'perdeu-moeda' ? m.ganhou === false : k === 'deu-cara' ? m.r === 'cara' : m.r === 'coroa'; };
 /** T-62 · CR 725.5 · "if you're the monarch" ('voce') / "if an opponent is the monarch" ('oponente'), visto do jogador `p` agora.
  * Sem monarca no jogo, nenhuma das duas vale (o efeito não faz nada até alguém se tornar o monarca). */
-function doQueResolveT(k) { return k === 'monarca' || k === 'oponente-monarca' || MOEDA_COND_T.includes(k); } // T-64 · as condições de efeito vistas do objeto que resolve (monarca: o controlador da habilidade; T-65 · moeda: o lance que ele jogou), em onlyIf e per: 'se'
+function doQueResolveT(k) { return k === 'monarca' || k === 'oponente-monarca' || k === 'dado-duplos' || MOEDA_COND_T.includes(k); } // T-64 · as condições de efeito vistas do objeto que resolve (monarca: o controlador da habilidade; T-65 · moeda: o lance que ele jogou), em onlyIf e per: 'se'
 function monarcaCondT(s, p, quem) { if (s.monarca == null || p == null) return false; return quem === 'oponente' ? s.monarca !== p : s.monarca === p; }
 /** T-42 · CR 708.8 · a permanente foi virada para cima: dispara "when ~ is turned face up". */
 function viradaParaCimaT(s, oid) { const o = s.objects[oid]; if (o && o.zone === 'battlefield' && !o.faceDown) gatilhosDaPermanente(s, 'virada-para-cima', o, ['self'], {}, () => true, false); }
@@ -30265,6 +30309,7 @@ function effectLine(ev) {
     case 'vence': return `${ev.name}: o controlador venceu o jogo`; // CR2h.6
     case 'perde': return `${ev.name}: ${t} perdeu o jogo`; // CR2h.6
     case 'turno_extra': return `${t} vai jogar um turno extra depois deste (${ev.name})`; // CR2g.2
+    case 'dado': return `${t} rolou ${ev.rolagens.length}d${ev.lados} (${ev.rolagens.join(' e ')}${ev.ignorada != null ? `, ignorou o ${ev.ignorada}` : ''})${ev.mais ? ` + ${ev.mais}` : ''}: ${ev.resultado} (${ev.name})`; // T-66 · CR 706
     case 'moeda': return `${t} jogou uma moeda: ${ev.resultado}${ev.ganhou == null ? '' : ev.ganhou ? ' · ganhou' : ' · perdeu'} (${ev.name})`; // T-65 · CR 705
     case 'monarch': return ev.failed ? `${t} continua o monarca (${ev.name})` : `${t} se tornou o monarca (${ev.name})`; // M-332
     case 'initiative': return `${t} tomou a iniciativa (${ev.name})`; // M-332
@@ -31307,6 +31352,7 @@ function descreveEfeito(e) {
       const pt = pd ? `, com poder e resistência iguais a ${contaPT(pd.poder != null ? pd.poder : pd.resistencia)}${(t.keywords || []).length ? ` e ${t.keywords.map(k => PALAVRA_PT[k] || k).join(', ')}` : ''},` : t.power != null ? ` ${t.power}/${t.toughness}` : ''; return `cria ${plural(n, 'ficha', 'fichas')}${t.name ? ` de ${t.name}` : ''}${pt}`; }
     case 'pump': { const p = e.power || 0, t = e.toughness || 0; const sinal = v => (v && (v.per || v.subtype) ? ((v.times || 1) < 0 ? '−X' : '+X') : v >= 0 ? `+${v}` : `−${Math.abs(v)}`); const quem = e.cada && e.cada.de === 'alvo' ? `cada criatura que ${e.target === 'opponent' ? 'o oponente alvo' : 'o jogador alvo'} controla` : (alvo || 'a criatura'); /* achado da revisão do lote XXIII: "cada criatura que cada criatura controla" */ return `${quem} recebe ${sinal(p)}/${sinal(t)}${e.until === 'your-next-turn' ? ' até o seu próximo turno' : ' até o fim do turno'}${p && p.subtype ? ` (X = ${p.subtype === 'Gate' ? 'Portões' : p.subtype === 'Swamp' ? 'Pântanos' : p.subtype + 's'} que você controla)` : ''}`; } // R9b (achado da C-1): contagem por subtipo mostrava "−NaN" (Defile, Basilisk Gate) · M-351 · "cada criatura do jogador alvo" (Arms of Hadar)
     case 'volta_ao_acaso': return `uma carta${e.tipos ? ' de ' + ({ creature: 'criatura', artifact: 'artefato', land: 'terreno', instant: 'mágica instantânea', sorcery: 'feitiço', enchantment: 'encantamento' }[e.tipos[0]] || e.tipos[0]) : ''} do seu cemitério, escolhida ao acaso, volta para a sua mão`; // M-369
+    case 'dado': return `role ${e.quantos === 2 ? 'dois' : 'um'} d${e.lados}${e.ignora ? ' e ignore o menor' : ''}${Number.isInteger(e.mais) && e.mais ? ` e some ${e.mais}` : e.mais ? ' e some o modificador' : ''}`; // T-66 · CR 706
     case 'moeda': return `jogue uma moeda${e.ateperder ? ' até perder um lance' : ''}`; // T-65 · CR 705
     case 'energia': return `você ganha ${e.amount === 1 ? 'um marcador' : (e.amount || 1) + ' marcadores'} de energia`; // M-367
     case 'mana_combinada': return `adiciona ${e.amount === 1 ? 'uma mana' : (e.amount || 2) + ' manas'} das cores que você escolher (pode misturar)`; // M-357 · 106.1a
@@ -31470,9 +31516,11 @@ function descreveEfeito(e) {
 // Leva 131 · a condição do efeito entra na frase (Moon-Circuit Hacker: o aviso dizia "descarta 1 carta" no turno em que ela entrou, quando não descarta)
 const CONDICAO_PT = { kicked: 'se tiver sido reforçada', bargained: 'se tiver sido barganhada', 'paid-additional': 'se o custo adicional foi pago', metalcraft: 'com metalurgia', 'cast-from-graveyard': 'se foi conjurada do cemitério', 'source-entered-earlier': 'só se ela não entrou neste turno', 'not-attacked': 'só se você não atacou neste turno', evidenced: 'se colheu provas', 'not-evidenced': 'se não colheu provas', 'alvo-era-neve': 'se o terreno era nevado', 'alvo-era-seu': 'se a permanente era sua' }; // M-385 // M-351 · Extract a Confession (achado da revisão do lote XXIII: as duas frases pareciam dois sacrifícios)
 const X_PT = { movidas: 'o número de cartas postas no cemitério assim', 'instants-sorceries-in-your-graveyard': 'mágicas instantâneas e feitiços no seu cemitério', 'flashback-cards-you-own-in-exile': 'cartas com lampejo do passado suas no exílio', /* M-358 */ 'cards-in-hand': 'cartas na sua mão', 'creature-cards-in-your-graveyard': 'cartas de criatura no seu cemitério', 'sacrificed-power': 'o poder da criatura sacrificada', 'sacrificed-toughness': 'a resistência da criatura sacrificada', 'sacrificed-mv': 'o valor de mana do que foi sacrificado' }; // M-354 · o que o X conta (achado da revisão do lote XXVI)
-Object.assign(X_PT, { 'moedas-ganhas': 'os lances ganhos' }); // T-65
+Object.assign(X_PT, { 'moedas-ganhas': 'os lances ganhos', 'resultado-do-dado': 'o resultado do dado' }); // T-65 · T-66
+const faixaPT_T = (e, f) => !f || !e || !e.faixaDoDado ? f : `${f} (${e.faixaDoDado[1] == null ? `se o dado der ${e.faixaDoDado[0]} ou mais` : e.faixaDoDado[0] === e.faixaDoDado[1] ? `se o dado der ${e.faixaDoDado[0]}` : `se o dado der de ${e.faixaDoDado[0]} a ${e.faixaDoDado[1]}`})`; // T-66 · CR 706.3a
+Object.assign(CONDICAO_PT, { 'dado-duplos': 'se os dois dados derem o mesmo número' }); // T-66 · CR 706.5
 Object.assign(CONDICAO_PT, { monarca: 'se você é o monarca', 'oponente-monarca': 'se um oponente é o monarca', 'ganhou-moeda': 'se ganhar o lance', 'perdeu-moeda': 'se perder o lance', 'deu-cara': 'se der cara', 'deu-coroa': 'se der coroa' }); // T-62 · CR 725.5
-const descreveEfeitos = effects => (effects || []).map(e => { let f = descreveEfeito(e); const xp = e && e.amount && X_PT[e.amount.per]; if (f && xp && /\bX\b/.test(f)) f = `${f} (X = ${xp})`; return f && e.onlyIf && CONDICAO_PT[e.onlyIf] ? `${f} (${CONDICAO_PT[e.onlyIf]})` : f; }).filter(Boolean).join('; ');
+const descreveEfeitos = effects => (effects || []).map(e => { let f = descreveEfeito(e); const xp = e && e.amount && X_PT[e.amount.per]; if (f && xp && /\bX\b/.test(f)) f = `${f} (X = ${xp})`; f = faixaPT_T(e, f); /* T-66 */ return f && e.onlyIf && CONDICAO_PT[e.onlyIf] ? `${f} (${CONDICAO_PT[e.onlyIf]})` : f; }).filter(Boolean).join('; ');
 /** E50 P6 · a linha do texto oficial (inglês) que corresponde a uma habilidade na pilha.
     Gatilho: linhas "When/Whenever/At"; ativada: linhas com custo antes de ":". Entre as do mesmo tipo,
     a posição no script decide. Sem correspondência segura, devolve o texto inteiro. */

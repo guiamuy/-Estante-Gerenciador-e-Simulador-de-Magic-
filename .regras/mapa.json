@@ -10068,66 +10068,94 @@
    "n": "706.1",
    "regra": "Rolling a Die",
    "titulo": "Rolar dado: tipo e quantidade",
-   "status": "ausente",
-   "falta": "nenhum efeito de rolar dado em EFFECTS (grep d20/dado/roll: nada no motor).",
+   "status": "coberta",
+   "falta": "T-66 (13/10/2026): coberta (dN de qualquer tamanho; um ou dois dados).",
    "esforco": "P",
-   "cartas": "comum em AFR/CLB"
+   "cartas": "comum em AFR/CLB",
+   "testes": [
+    "CR 706.1 / 706.4 · rolar um d6 sem tabela: o resultado (1 a 6) diz quanto se ganha; sai da semente da partida",
+    "CR 706.6 · \"roll two d20 and ignore the lower roll\": o resultado é o maior; o menor é ignorado"
+   ],
+   "evidencia": "T-66 (13/10/2026): efeito `dado` (dadoT: `lados`, `quantos`, `ignora: 'menor'`, `mais`; acaso de s.rng), tabela pelos efeitos seguintes com `faixaDoDado: [de, ate]`, `per: 'resultado-do-dado'`, condição `dado-duplos`; registro \"rolou 2d20 (7 e 15, ignorou o 7): 15\". Cartas: Djinni Windseer, Sylvan Shepherd, Swarming Goblins, Contact Other Plane (Oracle do Forge, 13/10/2026). tipos.dado.unit."
   },
   {
    "n": "706.2",
    "regra": "Rolling a Die",
    "titulo": "Resultado natural e modificadores",
-   "status": "ausente",
-   "falta": "sem rolagem de dado.",
+   "status": "parcial",
+   "falta": "T-66 (13/10/2026): o modificador do próprio efeito entra no resultado (natural guardado). Falta 706.2a/b: modificadores opcionais ou com custo e a escolha entre vários efeitos que modificam (rolar de novo, somar) — nenhuma carta do vocabulário.",
    "esforco": "P",
    "depende": [
     "706.1"
-   ]
+   ],
+   "testes": [
+    "CR 706.2 / 706.3a · o modificador entra no resultado (natural 1 a 4, resultado 11 a 14) e a tabela usa o resultado: \"13+\""
+   ],
+   "evidencia": "T-66 (13/10/2026): efeito `dado` (dadoT: `lados`, `quantos`, `ignora: 'menor'`, `mais`; acaso de s.rng), tabela pelos efeitos seguintes com `faixaDoDado: [de, ate]`, `per: 'resultado-do-dado'`, condição `dado-duplos`; registro \"rolou 2d20 (7 e 15, ignorou o 7): 15\". Cartas: Djinni Windseer, Sylvan Shepherd, Swarming Goblins, Contact Other Plane (Oracle do Forge, 13/10/2026). tipos.dado.unit."
   },
   {
    "n": "706.3",
    "regra": "Rolling a Die",
    "titulo": "Tabela de resultados",
-   "status": "ausente",
-   "falta": "sem rolagem de dado; precisa de efeito condicionado à faixa do resultado.",
+   "status": "parcial",
+   "falta": "T-66 (13/10/2026): tabela de resultados (faixas \"N\", \"N1–N2\" e \"N+\"), a linha inteira na mesma habilidade (706.3b). Falta 706.3c (\"Roll again\").",
    "esforco": "M",
    "depende": [
     "706.1"
-   ]
+   ],
+   "testes": [
+    "CR 706.2 / 706.3a · o modificador entra no resultado (natural 1 a 4, resultado 11 a 14) e a tabela usa o resultado: \"13+\"",
+    "CR 706.3 · Sylvan Shepherd: ao atacar, d20 — 1–9 ganha 1, 10–19 ganha 2, 20 ganha 5",
+    "CR 706.3 · Swarming Goblins: ao entrar, d20 — 1, 2 ou 3 Goblins 1/1 vermelhos pela faixa",
+    "CR 706.3 / 706.3b · Contact Other Plane e Djinni Windseer: a linha da tabela inteira acontece (vidência e compra), depois de uma decisão também"
+   ],
+   "evidencia": "T-66 (13/10/2026): efeito `dado` (dadoT: `lados`, `quantos`, `ignora: 'menor'`, `mais`; acaso de s.rng), tabela pelos efeitos seguintes com `faixaDoDado: [de, ate]`, `per: 'resultado-do-dado'`, condição `dado-duplos`; registro \"rolou 2d20 (7 e 15, ignorou o 7): 15\". Cartas: Djinni Windseer, Sylvan Shepherd, Swarming Goblins, Contact Other Plane (Oracle do Forge, 13/10/2026). tipos.dado.unit."
   },
   {
    "n": "706.4",
    "regra": "Rolling a Die",
    "titulo": "Rolagem sem tabela",
-   "status": "ausente",
-   "falta": "sem rolagem de dado.",
+   "status": "coberta",
+   "falta": "T-66 (13/10/2026): coberta (\"equal to the result\": per resultado-do-dado).",
    "esforco": "P",
    "depende": [
     "706.1"
-   ]
+   ],
+   "testes": [
+    "CR 706.1 / 706.4 · rolar um d6 sem tabela: o resultado (1 a 6) diz quanto se ganha; sai da semente da partida"
+   ],
+   "evidencia": "T-66 (13/10/2026): efeito `dado` (dadoT: `lados`, `quantos`, `ignora: 'menor'`, `mais`; acaso de s.rng), tabela pelos efeitos seguintes com `faixaDoDado: [de, ate]`, `per: 'resultado-do-dado'`, condição `dado-duplos`; registro \"rolou 2d20 (7 e 15, ignorou o 7): 15\". Cartas: Djinni Windseer, Sylvan Shepherd, Swarming Goblins, Contact Other Plane (Oracle do Forge, 13/10/2026). tipos.dado.unit."
   },
   {
    "n": "706.5",
    "regra": "Rolling a Die",
    "titulo": "Rolar duplos (Celebr-8000)",
-   "status": "ausente",
-   "falta": "uma carta só; sem rolagem de dado.",
+   "status": "coberta",
+   "falta": "T-66 (13/10/2026): coberta (condição dado-duplos).",
    "esforco": "P",
    "depende": [
     "706.1"
    ],
-   "cartas": "uma carta só"
+   "cartas": "uma carta só",
+   "testes": [
+    "CR 706.5 · \"if you rolled doubles\": compra só quando os dois dados dão o mesmo número"
+   ],
+   "evidencia": "T-66 (13/10/2026): efeito `dado` (dadoT: `lados`, `quantos`, `ignora: 'menor'`, `mais`; acaso de s.rng), tabela pelos efeitos seguintes com `faixaDoDado: [de, ate]`, `per: 'resultado-do-dado'`, condição `dado-duplos`; registro \"rolou 2d20 (7 e 15, ignorou o 7): 15\". Cartas: Djinni Windseer, Sylvan Shepherd, Swarming Goblins, Contact Other Plane (Oracle do Forge, 13/10/2026). tipos.dado.unit."
   },
   {
    "n": "706.6",
    "regra": "Rolling a Die",
    "titulo": "Ignorar uma rolagem",
-   "status": "ausente",
-   "falta": "sem rolagem de dado.",
+   "status": "coberta",
+   "falta": "T-66 (13/10/2026): coberta para \"roll two and ignore the lower\" no próprio efeito; a substituição \"if you would roll, roll one more and ignore the lowest\" (Barbarian Class) não existe (nenhuma carta do vocabulário).",
    "esforco": "P",
    "depende": [
     "706.1"
-   ]
+   ],
+   "testes": [
+    "CR 706.6 · \"roll two d20 and ignore the lower roll\": o resultado é o maior; o menor é ignorado"
+   ],
+   "evidencia": "T-66 (13/10/2026): efeito `dado` (dadoT: `lados`, `quantos`, `ignora: 'menor'`, `mais`; acaso de s.rng), tabela pelos efeitos seguintes com `faixaDoDado: [de, ate]`, `per: 'resultado-do-dado'`, condição `dado-duplos`; registro \"rolou 2d20 (7 e 15, ignorou o 7): 15\". Cartas: Djinni Windseer, Sylvan Shepherd, Swarming Goblins, Contact Other Plane (Oracle do Forge, 13/10/2026). tipos.dado.unit."
   },
   {
    "n": "706.7",
