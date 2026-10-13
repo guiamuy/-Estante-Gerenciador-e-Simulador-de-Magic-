@@ -6334,6 +6334,7 @@ function effectErrors(effects, label, opcional) {
       if ((e.virada || e.controle != null) && e.para !== 'battlefield') errs.push(`${L}: "virada" e "controle" só valem para o campo`);
       if (e.controle != null && !['voce', 'dono'].includes(e.controle)) errs.push(`${L}: "controle" precisa ser voce ou dono`);
       if (e.lembra && e.para !== 'exile') errs.push(`${L}: "lembra" só vale para o exílio`);
+      if (e.transformada != null && (e.transformada !== true || e.para !== 'battlefield')) errs.push(`${L}: "transformada" (true) só vale para o campo`); // T-53 · CR 712.14a
     }
     if (e.do === 'continuo') { // CR2-G R3b
       if (e.poder == null && e.resistencia == null && !(e.palavras || []).length && !e.torna && !e.toxico && !(e.perde || []).length && e.cores == null && !e.troca) errs.push(`${label} ${i + 1}: efeito contínuo não muda nada`);
@@ -19820,7 +19821,9 @@ function moverObjeto(s, src, alvo, m, ctrl) {
     if (!fonte || fonte.zone !== 'battlefield' || (src.ability && src.fonteZc != null && (fonte.zc || 0) !== src.fonteZc)) return false; // 610.3a · o evento já aconteceu: o objeto não se move
     m = { ...m, guardaEm: fonte, de0: alvo.zone };
   }
+  if (m.para === 'battlefield' && m.transformada && !entraTransformadaT(s, alvo)) return false; // T-53 · CR 712.14a: carta que não é de dupla face fica onde está (Toca ponto comum: moverObjeto)
   moveObject(s, alvo.oid, m.para, { ...(m.posicao === 'fundo' ? { top: false } : {}), ...(m.para === 'battlefield' ? { controller: m.controle === 'dono' ? alvo.owner : ctrl } : {}) }); // CR2b.5 · 603.3a: entra já sob quem a pôs
+  if (alvo.entraTransformadaT) delete alvo.entraTransformadaT; // T-53 · a marca vale só para esta entrada
   if (m.para === 'battlefield' && alvo.zone !== 'battlefield') return false; // T-23 · CR 303.4g / 304.4: não entrou (ficou onde estava) — nada de controle, registro ou "devolvidas" · Toca ponto comum: moverObjeto (uma linha)
   if (m.guardaEm && alvo.zone === m.para) m.guardaEm.ate = [...(m.guardaEm.ate || []), { oid: alvo.oid, de: m.de0, z: alvo.zc || 0 }]; // CR2d.1 · auditoria M-308: a encarnação no exílio (400.7)
   if (m.posicao === 'embaralhado') shuffle(s, s.zones[alvo.owner].library);
@@ -26482,6 +26485,24 @@ function prototipoOfertasT(s, p, out) {
   try { for (const a of legalActions(s2, p)) if (a.t === 'cast' && cand.includes(a.oid) && a.face == null && !a.omen && !a.disturb && !a.faceDown && !a.bestow && a.alt == null && !a.plotted) out.push({ ...a, prototipo: true }); }
   finally { DENTRO_DAS_MODAIS = false; }
 }
+/* ---------------- T-53 · CR 712.14a · "entra transformada" vinda de outra zona ----------------
+   - O efeito `mover` com `transformada: true` ("return it to the battlefield transformed / converted") marca a carta e ela entra no
+     campo com o verso para cima: a entrada da trilha vira a face antes dos gatilhos de entrar (os do verso disparam; "quando transforma"
+     não, 701.27e) e antes da lealdade inicial (o verso planeswalker entra com a lealdade dele). O enjoo é recalculado pela face.
+   - Carta que não é de dupla face (ou cujo verso é instantânea ou feitiço) fica na zona em que está (712.14a). */
+function entraTransformadaT(s, alvo) {
+  const par = parDuplaFaceT(s, alvo), fv = par && s.facts[par.verso];
+  if (!par || !fv || (fv.types || []).some(x => x === 'instant' || x === 'sorcery') || alvo.frontName) return false;
+  alvo.entraTransformadaT = true;
+  return true;
+}
+function entraTransformadaNaEntradaT(s, o) {
+  if (!o || !o.entraTransformadaT) return;
+  delete o.entraTransformadaT;
+  const par = parDuplaFaceT(s, o); if (!par || o.frontName) return;
+  flipTo(s, o, par.verso);
+  o.sick = isCreature(s, o); // 302.6: o enjoo da entrada foi calculado com a frente
+}
 /* ---------------- T-51 · CR 722 · cartas de preparação ----------------
    - 722.3a: "preparada" é uma designação da permanente, em `s.preparadasT[oid] = { z }` (z = encarnação, 400.7); só a ganha quem tem
      mágica de preparação (`self.preparo`) e quem ainda não a tem. `s.preparadasT` só nasce quando alguma permanente fica preparada.
@@ -27321,6 +27342,7 @@ function sagaPoeLore(s, o, n) {
  * disparam aqui. Com read ahead e sem marcador, o registro guarda `escolhe`: a conferência seguinte abre a decisão do capítulo.
  * Quem já estava no campo e vira Saga não passa por aqui — "as this Saga enters" não vale para ela. */
 function sagaEntrou(s, o) {
+  entraTransformadaNaEntradaT(s, o); // T-53 · CR 712.14a · "onto the battlefield transformed": o verso já entra para cima (antes dos gatilhos de entrar e da lealdade)
   preparoNaEntradaT(s, o); // T-51 · CR 722.3a · "This creature enters prepared"
   cicloNaEntradaT(s, o); // T-48 · CR 702.145b · de noite, a dupla face com daybound entra transformada (antes dos gatilhos de entrar)
   lealdadeDaFichaT(s, o); // T-47 · CR 306.5b · a ficha de planeswalker (ficha cópia) entra com a lealdade impressa
@@ -30655,7 +30677,7 @@ function descreveEfeito(e) {
     case 'counters': return e.tipo && e.tipo !== 'p1p1' ? `põe ${plural(n, 'marcador ' + (MARCADOR_PT[e.tipo] || e.tipo), 'marcadores ' + (MARCADOR_PT[e.tipo] || e.tipo))} em ${alvo || 'uma permanente'}` : `põe ${plural(n, 'marcador +1/+1', 'marcadores +1/+1')} em ${alvo || 'uma criatura'}`;
     case 'mover': { // CR2-G R4a
       const quem = e.target === 'self-source' ? 'esta carta' : alvo || 'o alvo';
-      if (e.para === 'battlefield') return `põe ${quem} no campo${e.controle === 'dono' ? ' sob o controle do dono' : ' sob o seu controle'}${e.virada ? ', virada' : ''}`;
+      if (e.para === 'battlefield') return `põe ${quem} no campo${e.controle === 'dono' ? ' sob o controle do dono' : ' sob o seu controle'}${e.virada ? ', virada' : ''}${e.transformada ? ', transformada' : ''}`; // T-53 · 712.14a
       if (e.para === 'library') return e.posicao === 'embaralhado' ? `embaralha ${quem} no grimório do dono` : `põe ${quem} no ${e.posicao === 'fundo' ? 'fundo' : 'topo'} do grimório do dono`;
       return { hand: `devolve ${quem} à mão do dono`, exile: `exila ${quem}`, graveyard: `põe ${quem} no cemitério do dono` }[e.para] || `move ${quem}`;
     }

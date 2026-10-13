@@ -10191,15 +10191,16 @@
    "n": "707.8",
    "regra": "Copying Objects",
    "titulo": "Ficha que é cópia de permanente",
-   "status": "parcial",
+   "status": "coberta",
    "depende": [
     "707.2"
    ],
    "evidencia": "CR2f.2/M-281 (v98): verbo ficha_copia { amount, palavras, somaTipos }: a ficha copia os valores copiáveis do alvo (o nome de agora), com as exceções (707.9). · auditoria independente CR2d/CR2f (11/10/2026): na CR de 2026 a 707.8 é a cópia de dupla face; o nome da face de cima é copiado (flipTo)",
    "testes": [
-    "CR 707.5 · recusar: entra como ela mesma, com o gatilho dela; CR 707.8 · ficha que é cópia"
+    "CR 707.8a · a ficha que é cópia de uma permanente de dupla face é uma ficha de dupla face, com a mesma face para cima: copiando a frente ela transforma no verso; copiando o verso ela já é \"transformada\" e volta à frente",
+    "CR 707.8a · 707.9 · a ficha que copia uma dupla face \"com ímpeto\" (exceção da cópia) também transforma e volta (D3)"
    ],
-   "falta": "ficha que copia uma dupla face não tem as duas faces (707.8a)",
+   "falta": "T-53 (13/10/2026): coberta pela T-7/T-9 (ficha de dupla face, 707.8a) e conferida nas auditorias T-48/T-49 (Clone copia a face para cima; a ficha cópia da frente ou do verso transforma). Melded (707.8, primeira frase) espera a primitiva de meld.",
    "esforco": "M"
   },
   {
@@ -10816,12 +10817,19 @@
    "n": "712.14",
    "regra": "Double-Faced Cards",
    "titulo": "Dupla face posta no campo por outra zona",
-   "status": "parcial",
-   "evidencia": "entra com a frente (flipToFront ao mudar de zona, 10259)",
-   "falta": "712.14a (\"entra transformada\" vinda de outra zona) só existe no efeito antigo `exile_return_transformed` (Sorin, Kytheon); carta sem verso mandada entrar transformada deveria ser exilada e ficar no exílio. 712.14b (modal com frente que não é permanente, mandada ao campo por um efeito, fica onde está): os efeitos que põem carta no campo olham os tipos da frente, mas não há teste por efeito. 712.14b confirmado pela auditoria (T-9): `mover` para o campo põe ali uma carta que não é de permanente (Zof Consumption, e também um feitiço comum: 400.4a) — trilha motor.",
+   "status": "coberta",
+   "evidencia": "entra com a frente (flipToFront ao mudar de zona, 10259) T-53 (13/10/2026): o efeito `mover` com `transformada: true` (\"return it to the battlefield transformed/converted\") marca a carta (moverObjeto) e a entrada da trilha (sagaEntrou → entraTransformadaNaEntradaT) vira o verso antes dos gatilhos de entrar e da lealdade inicial; carta que não é de dupla face (ou de verso instantânea/feitiço) fica onde está; enjoo recalculado pela face. 712.14b já valia pela T-23 (303.4g/304.4: carta cuja face de cima não é de permanente não entra) e ganhou teste.",
+   "falta": "T-53 (13/10/2026): coberta. 712.14c (meld) espera a primitiva \"permanente feita de várias cartas\" (712.4). As cartas antigas com `back` sem self.duplaFace seguem no efeito antigo `exile_return_transformed`.",
    "esforco": "M",
    "depende": [
     "400.7"
+   ],
+   "testes": [
+    "CR 712.14a · \"return … to the battlefield transformed\": a dupla face entra com o verso para cima; o gatilho de entrar do verso dispara, o de transformar não (701.27e)",
+    "CR 712.14a · carta que não é de dupla face mandada entrar transformada fica onde está",
+    "CR 712.14 · sem \"transformed\", a dupla face entra com a frente para cima (o caminho de sempre)",
+    "CR 712.14a / 306.5b · o verso planeswalker entra com a lealdade dele (\"When this dies, return it transformed\")",
+    "CR 712.14b · a dupla face modal cuja frente não é de permanente, mandada ao campo por um efeito, fica onde está"
    ]
   },
   {
