@@ -4148,6 +4148,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora:** as outras formas de trabalho em equipe ("choose both instead", "instead", "unless … teamwork" — 13 cartas do catálogo); o registro não diz quais criaturas viraram nem que as cartas foram exiladas (já era assim).
 - **Teste:** `lt62.unit` (falha no motor anterior).
 
+**M-380 · LT48 · "Endures N" e o terreno da mão do Eureka Moment** ✅ (leva M-380, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** revisão por lote XXXIX — **Fortress Kin-Guard e Eureka Moment passam a jogar** (APROVADAS; Oracle do Forge, consulta de 12/10/2026; a Kin-Guard era o bloqueio único de 4 listas de Pauper). "It endures N": quem controla escolhe pôr N marcadores +1/+1 na permanente ou criar um Espírito branco N/N; se ela já saiu do campo (ou saiu e voltou, 400.7), só o Espírito, sem perguntar (notas oficiais de Tarkir: Dragonstorm, citadas pelo revisor). Eureka Moment já era lida pelo leitor e faltava só a revisão.
+- **Revisão independente:** 75 verificações, as duas aprovadas.
+- **Cosmético registrado:** o registro mostra a ficha como "Spirit" (nome da ficha em inglês, como as outras) e não diz que o terreno do Eureka entrou no campo.
+- **Teste:** `lt63.unit` (2 testes, falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

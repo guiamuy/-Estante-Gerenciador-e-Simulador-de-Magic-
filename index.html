@@ -5350,6 +5350,7 @@ const EFFECTS = {
   energia: { fields: ['amount'], targets: ['self'] }, // M-367 · 107.14 · "you get {E}{E}": marcadores de energia do jogador (122.1)
   mana_combinada: { fields: ['amount'], targets: ['self'] }, // M-357 · "Add two mana in any combination of colors" (Manamorphose): cada mana pede a cor na resolução
   token: { fields: ['amount'], targets: ['self', 'opponent', 'target-controller'] },
+  endure: { fields: ['amount'], targets: ['self'] }, // M-380 · "it endures N": põe N marcadores +1/+1 nela OU cria um Espírito branco N/N (quem controla escolhe; Tarkir: Dragonstorm, texto de lembrete)
   discard: { fields: ['amount'], targets: ['self', 'player', 'opponent', 'target-controller', 'each-opponent'] },
   // S40 · conluio: compra, descarta e ganha marcador se o descarte não foi terreno
   connive: { fields: ['amount'], targets: ['self'] },
@@ -8937,6 +8938,9 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Inferno Titan': { texto: 'tekjd4', leva: 'M-378' },
   // M-379 · revisão por lote XXXVIII (trabalho em equipe pelo leitor: Crossover Collaboration), revisor independente com 59 verificações: 1 de 1 aprovada
   'Crossover Collaboration': { texto: 'd8nx38', leva: 'M-379' },
+  // M-380 · revisão por lote XXXIX (Pauper: Fortress Kin-Guard — endure —, Eureka Moment), revisor independente com 75 verificações: 2 de 2 aprovadas
+  'Fortress Kin-Guard': { texto: '17ouytg', leva: 'M-380' },
+  'Eureka Moment': { texto: 'jwwwgk', leva: 'M-380' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -16653,6 +16657,7 @@ const __m42 = (function () {
     [new RegExp(`^you may discard a card to draw ${N} cards?$`, 'i'), m => [{ do: 'descarta_e_compra', amount: num(m[1]) }]], // M-348
     [new RegExp(`^you may discard (two|three) cards to draw ${N} cards?$`, 'i'), m => [{ do: 'descarta_e_compra', descarta: num(m[1]), amount: num(m[2]) }]], // M-373 · todas ou nenhuma
     [/^untap ~$/i, () => [{ do: 'untap', target: 'self-source' }]], // M-373
+    [new RegExp(`^(?:~|this creature) endures ${N}$`, 'i'), m => [{ do: 'endure', amount: num(m[1]) }]], // M-380 · "it endures 1" (Fortress Kin-Guard)
     [/^revela_ate_terreno_cemiterio (target player|target opponent)$/i, m => [{ do: 'revela_ate_cemiterio', match: 'land', target: /opponent/i.test(m[1]) ? 'opponent' : 'player' }]], // M-377 · Balustrade Spy
     [/^search your library for a basic land card or an? ([A-Z][a-z]+) card, reveal it, put it into your hand$/i, m => [{ do: 'search', amount: 1, filter: { ou: [{ types: ['land'], basic: true }, { subtypes: [m[1]] }] }, to: 'hand' }]], // M-377 · Gatecreeper Vine
     [/^~ deals (\d+|X) damage divided as you choose among (any number of targets|one or two targets|one, two, or three targets|any number of target creatures)$/i, m => [{ do: 'damage', amount: m[1].toUpperCase() === 'X' ? { per: 'x' } : +m[1], target: /creatures$/i.test(m[2]) ? 'creature' : 'any', dividido: { max: /^one or two/i.test(m[2]) ? 2 : /^one, two, or three/i.test(m[2]) ? 3 : null } }]], // M-376 · 601.2d
@@ -19280,6 +19285,8 @@ function evidenceCards(s, p, n) {
     separado na pilha, então ninguém responde entre a vigilância e a mágica. */
 const wardOf = (s, o) => { if (!o || o.zone !== 'battlefield') return null; const proprio = (((s.facts[o.name] || {}).script || {}).self || {}).ward; if (proprio) return proprio;
   const c = continuosQueAfetam(s, o).find(e => e.ward); return c ? c.ward : null; }; // M-251 · ward concedido (Combat Research)
+/** M-380 · a ficha do "endure": Espírito branco N/N. */
+const espiritoDoEndure = n => ({ do: 'token', amount: 1, token: { name: 'Spirit', types: ['creature'], subtypes: ['Spirit'], colors: ['W'], power: n, toughness: n } });
 /** M-376 · 601.2d · dano dividido ao conjurar. */
 function divisaoDaMagia(s, o) { if (!o) return null; return (o.ability ? (o.effects || []) : efeitosDaMagia(s, o)).find(e => e && e.dividido) || null; } // M-378 · também a habilidade na pilha (o modelo mora em o.effects)
 function alvosDaDivisao(s, p, oid, e) { const src = s.objects[oid]; return legalTargets(s, p, e.target, oid, e.targetColor).filter(x => targetAllowed(s, e, x, src)); }
@@ -20166,6 +20173,14 @@ function applyEffect(s, src, eff, tgt, events) {
       const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj; // M-342 · "sacrifice ~" (City of Traitors)
       if (alvo && alvo.zone === 'battlefield') { const nome = alvo.name; sacrifice(s, alvo.oid, events); note({ name: nome }); } else note({ failed: true });
       break;
+    }
+    case 'endure': { // M-380 · "endures N": a permanente que resiste é a fonte; fora do campo (ou outro objeto, 400.7) só sobra o Espírito
+      const n = amountOf(s, src, eff.amount), perm = src.ability ? s.objects[src.source] : src;
+      const viva = !!perm && perm.zone === 'battlefield' && (src.fonteZc == null || (perm.zc || 0) === src.fonteZc);
+      if (n < 1) { note({ amount: 0 }); break; }
+      if (!viva) { applyEffect(s, src, espiritoDoEndure(n), null, events); note({ amount: n, target: 'Espírito' }); break; }
+      s.pending = { kind: 'choose_mode', p: ctrl, name: src.name, options: [`Pôr ${n} ${n === 1 ? 'marcador' : 'marcadores'} +1/+1 em ${perm.name}`, `Criar um Espírito ${n}/${n}`], endure: { oid: perm.oid, z: perm.zc || 0, n } };
+      note({ pending: true }); break;
     }
     case 'revela_ate_cemiterio': { // M-377 · 701.20: revela do topo até um terreno; as reveladas (o terreno também) vão para o cemitério do dono; sem terreno, revela o grimório inteiro
       const quem = tgt && tgt.player != null ? tgt.player : null; /* achado da revisão: o alvo é jogador (tgt), não objeto */ if (quem == null || !s.players[quem]) { note({ failed: true }); break; }
@@ -21418,7 +21433,7 @@ function makeAbility(s, source, ab, targets, blockedAt = source.blocking) {
   s.objects[oid] = { oid, ability: true, name: source.name, source: source.oid, effects: ab.effects, owner: source.controller,
     controller: source.controller, zone: 'stack', tapped: false, sick: false, damage: 0, counters: {}, targets: carimbaAlvos(s, targets),
     ...(blockedAt ? { blockedAt } : {}) }; // Q11 · Tinder Wall: quem ela bloqueava, mesmo depois de sacrificada (última informação conhecida)
-  { const f = s.objects[source.oid]; if (f && !f.ability && (ab.effects || []).some(e => e && (e.ate === 'fonte-sair' || (['topo_do_dono', 'exila_da_mao', 'revela_topo_transforma', 'exile_return_transformed', 'craft_volta'].includes(e.do) || e.remember || e.lembra || e.target === 'self-source')))) s.objects[oid].fonteZc = f.zc || 0; } // M-371 · também todo efeito em "esta permanente" (400.7) // M-353 · a habilidade lembra a encarnação da fonte (achado da revisão do lote XXV) // M-345 · também "put ~ on top" (achado da revisão) // CR2d.1 · 610.3a (auditoria M-308: também na ativada): se a fonte já saiu quando o efeito resolve, nada se move
+  { const f = s.objects[source.oid]; if (f && !f.ability && (ab.effects || []).some(e => e && (e.ate === 'fonte-sair' || (['topo_do_dono', 'exila_da_mao', 'revela_topo_transforma', 'exile_return_transformed', 'craft_volta', 'endure'].includes(e.do) || e.remember || e.lembra || e.target === 'self-source')))) s.objects[oid].fonteZc = f.zc || 0; } // M-371 · também todo efeito em "esta permanente" (400.7) // M-353 · a habilidade lembra a encarnação da fonte (achado da revisão do lote XXV) // M-345 · também "put ~ on top" (achado da revisão) // CR2d.1 · 610.3a (auditoria M-308: também na ativada): se a fonte já saiu quando o efeito resolve, nada se move
   s.stack.push(oid);
   return oid;
 }
@@ -22783,6 +22798,15 @@ const HANDLERS = {
       const oid = pk.marcador.oids[a.index]; if (!oid) throw new RuleError('escolha', 'criatura inválida');
       s.pending = null; const o1 = s.objects[oid];
       if (o1 && o1.zone === 'battlefield') { poeMarcadores(s, o1, pk.marcador.kind, 1); ev.push({ kind: 'effect', do: 'counter_choice', name: pk.name, target: o1.name, kind: pk.marcador.kind }); }
+      if (!s.pending) resumeEffects(s, ev);
+      return;
+    }
+    if (pk.endure) { // M-380 · resiste: marcadores nela ou o Espírito
+      if (![0, 1].includes(a.index)) throw new RuleError('escolha', 'escolha uma das duas opções');
+      const { oid, z, n } = pk.endure, perm = s.objects[oid]; s.pending = null;
+      if (a.index === 0 && perm && perm.zone === 'battlefield' && (perm.zc || 0) === z) { poeMarcadores(s, perm, 'p1p1', n); ev.push({ kind: 'effect', do: 'counters', name: pk.name, target: perm.name, amount: n }); }
+      else applyEffect(s, { oid, name: pk.name, controller: pk.p }, espiritoDoEndure(n), null, ev);
+      stateBased(s, ev);
       if (!s.pending) resumeEffects(s, ev);
       return;
     }
@@ -30423,6 +30447,7 @@ function descreveEfeito(e) {
     case 'prevent_self': return 'previne todo dano que seria causado a ela neste turno';
     case 'sacrifice_reanimated': return 'quem controla a criatura a sacrifica';
     case 'animate': { const b = e.becomes || {}; return `vira uma criatura ${b.base ? b.base.join('/') : ''}${(b.keywords || []).length ? ' com ' + b.keywords.map(k => PALAVRA_PT[k] || k).join(', ') : ''} até o fim do turno${b.addTypes ? ' (continua terreno)' : ''}`; } // CR2d.2
+    case 'endure': return `resiste ${n}: põe ${plural(n, 'marcador +1/+1', 'marcadores +1/+1')} nela ou cria um Espírito branco ${n}/${n}`; // M-380
     case 'revela_ate_cemiterio': return `${alvo && alvo !== 'um jogador' ? alvo : 'o jogador alvo'} revela cartas do topo do grimório até revelar um terreno e põe todas no cemitério`; // M-377
     case 'reveal_until': return `${e.who === 'self' ? 'você revela' : 'o controlador dela revela'} cartas do topo até ${e.match === 'creature' ? 'uma criatura' : e.match === 'creature-greater-mv' ? 'uma criatura de valor de mana maior' : `uma carta${e.permanentOnly ? ' de permanente' : ''} que divida um tipo com ela`}, põe no campo e ${e.rest === 'shuffle' ? 'embaralha as outras' : 'põe as outras no fundo em ordem aleatória'}`; // M-222
     case 'to_bottom': return 'põe a sua permanente alvo no fundo do grimório';
