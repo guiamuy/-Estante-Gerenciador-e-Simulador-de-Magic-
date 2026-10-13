@@ -354,3 +354,35 @@ test('CR 715.3d · mesa: na decisão "conjurar sem pagar", a Aventura é um grup
   const gs = E.gruposGratisT(s, legais(s, 0, x => x.t === 'cast_free' && x.oid === a));
   eq(gs.map(g => g.nome).sort((x, y) => String(x).localeCompare(String(y))), [null, 'Passeio'].sort((x, y) => String(x).localeCompare(String(y))));
 });
+
+/* ---------------- T-41 · correção da auditoria independente ---------------- */
+SCRIPTS['Cascateiro'] = { name: 'Cascateiro', effects: ganha(1), ...EX };
+SCRIPTS['Descobre1'] = { name: 'Descobre1', effects: [{ do: 'discover', amount: 1 }], ...EX };
+SCRIPTS['Descobre2'] = { name: 'Descobre2', effects: [{ do: 'discover', amount: 2 }], ...EX };
+carta('Cascateiro', 'Sorcery', { mana_cost: '{1}{R}', cmc: 2, keywords: ['Cascade'], oracle_text: 'Cascade\nYou gain 1 life.', colors: ['R'] });
+carta('Descobre1', 'Sorcery'); carta('Descobre2', 'Sorcery');
+const livres = (s, oid) => legais(s, 0, x => x.t === 'cast_free' && x.oid === oid);
+
+test('CR 702.85a · cascata: a Aventura só é oferecida se o valor de mana DELA for menor que o da mágica com cascata (Passeio 2 pela cascata 2: só a criatura)', () => {
+  let s = mesa(['Andarilho', 'Cascateiro']); let a; [s, a] = naMao(s, 0, 'Andarilho'); s = noTopo(s, 0, a);
+  let c; [s, c] = naMao(s, 0, 'Cascateiro'); s = mana(s, 0);
+  s = act(s, conjuras(s, 0, c)[0]); for (let i = 0; i < 4 && !s.pending; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  assert.ok(s.pending && s.pending.kind === 'free_cast' && s.pending.options.includes(a), 'a cascata achou o Andarilho');
+  eq([livres(s, a).some(x => x.omen), livres(s, a).some(x => !x.omen)], [false, true]);
+  assert.throws(() => E.apply(s, { t: 'cast_free', p: 0, oid: a, omen: true }));
+});
+
+test('CR 701.57a · descobrir N: a Aventura só é oferecida com valor de mana N ou menos (descobrir 1: não; descobrir 2: sim)', () => {
+  for (const [nome, esperado] of [['Descobre1', [false, true]], ['Descobre2', [true, true]]]) {
+    let s = mesa(['Andarilho', nome]); let a; [s, a] = naMao(s, 0, 'Andarilho'); s = noTopo(s, 0, a);
+    let c; [s, c] = naMao(s, 0, nome); s = mana(s, 0);
+    s = resolveUm(act(s, conjuras(s, 0, c)[0]));
+    assert.ok(s.pending && s.pending.kind === 'free_cast', nome);
+    eq([livres(s, a).some(x => x.omen), livres(s, a).some(x => !x.omen)], esperado, nome);
+    if (!esperado[0]) assert.throws(() => E.apply(s, { t: 'cast_free', p: 0, oid: a, omen: true }), nome);
+  }
+});
+
+test('Bot · a chave das jogadas distingue a Aventura da carta normal (com os mesmos alvos são jogadas diferentes)', () => {
+  assert.notEqual(E.chaveDeFaceT({ t: 'cast', oid: 'o1', omen: true }), E.chaveDeFaceT({ t: 'cast', oid: 'o1' }));
+});

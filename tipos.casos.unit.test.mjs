@@ -138,3 +138,20 @@ test('CR 719 · passeio aleatório com Casos: nada oferecido é recusado e um Ca
   }
   assert.ok(resolvidos > 0, 'algum Caso foi resolvido no passeio');
 });
+
+/* ---------------- T-41 · correção da auditoria independente ---------------- */
+test('CR 603.3a / 603.4 · o "você" da condição é quem controla a habilidade: o oponente toma o Caso com o gatilho na pilha e ele resolve pelos artefatos de quem disparou', () => {
+  SCRIPTS['Rouba'] = { name: 'Rouba', effects: [{ do: 'ganhar_controle', target: 'permanent' }], ...EX }; carta('Rouba', 'Instant');
+  const deck = [{ name: CF, qty: 4, zone: 'main' }, { name: 'Rouba', qty: 3, zone: 'main' }, { name: 'Amuleto', qty: 8, zone: 'main' }, { name: 'Island', qty: 25, zone: 'main' }];
+  let s = E.createGame({ format: 'livre', seed: 1, mode: 'full', cards: C, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  s = passaAte(s, x => x.turn.active === 0 && x.turn.step === 'main1' && !x.stack.length && !x.pending);
+  let c; [s, c] = poe(s, 0, CF, 'battlefield'); for (let i = 0; i < 3; i++) [s] = poe(s, 0, 'Amuleto');
+  let r; [s, r] = poe(s, 1, 'Rouba', 'hand');
+  s = passaAte(s, x => x.turn.active === 0 && x.turn.step === 'end' && x.stack.length > 0);
+  s = act(s, { t: 'pass', p: 0 }); s = mana(s, 1);
+  s = act(s, legais(s, 1, a => a.t === 'cast' && a.oid === r && a.targets[0].oid === c)[0]);
+  s = esvazia(s);
+  eq([s.objects[c].controller, resolvido(s, c)], [1, true]);
+  delete SCRIPTS['Rouba'];
+});

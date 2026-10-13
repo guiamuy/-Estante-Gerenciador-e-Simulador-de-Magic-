@@ -22604,6 +22604,7 @@ const HANDLERS = {
     if (!s.pending || s.pending.kind !== 'free_cast' || s.pending.p !== a.p) throw new RuleError('tempo', 'nada para conjurar sem pagar'); semFracao(s);
     const pk = s.pending;
     if (!(pk.options || []).includes(a.oid)) throw new RuleError('objeto', 'essa carta não veio deste efeito');
+    aventuraGratisConfereT(s, pk, a); // T-41 · CR 702.85a / 701.57a · o limite de valor de mana vale também para a Aventura (Toca ponto comum: cast_free)
     const terreno = s.facts[s.objects[a.oid].name].types.includes('land');
     if (terreno && !pk.escondida) throw new RuleError('tipo', 'terreno é jogado, não conjurado');
     s.pending = null;
@@ -25876,7 +25877,7 @@ function descobrir(s, src, eff, events) {
   const i = lib.findIndex(serve), exiladas = i >= 0 ? lib.slice(0, i + 1) : lib.slice(), achada = i >= 0 ? lib[i] : null;
   for (const oid of exiladas) moveObject(s, oid, 'exile');
   events.push({ kind: 'effect', do: 'discover', name: src.name, target: s.players[p].name, amount: n, nomes: exiladas.map(x => s.objects[x].name), achada: achada ? s.objects[achada].name : null });
-  s.verbo = [...(s.verbo || []), { passo: 'descobrir-fim', p, achada, resto: exiladas.filter(x => x !== achada) }];
+  s.verbo = [...(s.verbo || []), { passo: 'descobrir-fim', p, achada, resto: exiladas.filter(x => x !== achada), n }]; // T-41 · o N fica no passo: a Aventura da carta descoberta só é conjurada com valor de mana N ou menos (Toca ponto comum: descobrir)
   if (!achada) return void continuaVerbo(s, events);
   s.objects[achada].playableFromExile = p; // só durante a decisão: o passo seguinte tira a permissão
   s.pending = { kind: 'free_cast', p, options: [achada], name: `${src.name} — descobrir ${n}: ${s.objects[achada].name}` };
@@ -26168,8 +26169,8 @@ function estacaoResolveT(s, src, eff, events) {
      resolvido; não é copiável). `s.casosT` só nasce quando um Caso é resolvido.
    - 719.3c / 702.169b–d: as habilidades, os contínuos e as regras de jogador de `resolvido` valem só com o Caso resolvido. */
 const casoResolvidoT = (s, o) => { const r = o && o.zone === 'battlefield' && s.casosT && s.casosT[o.oid]; return !!(r && r.z === (o.zc || 0)); };
-function casoCondicaoT(s, o, r) {
-  const n = r.per != null ? countFor(s, o, r.per) : battlefield(s).filter(x => x.controller === o.controller && selCasa(s, o.controller, x, r.controla, o.oid)).length;
+function casoCondicaoT(s, o, r, quem = o.controller) { // T-41 · CR 603.3a: o "você" da condição é quem controla a habilidade (na resolução, o controlador dela)
+  const n = r.per != null ? countFor(s, quem === o.controller ? o : { ...o, controller: quem }, r.per) : battlefield(s).filter(x => x.controller === quem && selCasa(s, quem, x, r.controla, o.oid)).length;
   return (r.min == null || n >= r.min) && (r.max == null || n <= r.max);
 }
 function casoHabilidadesT(s, o, sc, list) {
@@ -26192,7 +26193,7 @@ function regrasDosCasosT(s, p, out) {
 }
 function casoResolveT(s, src, eff, events) {
   const o = src.ability ? s.objects[src.source] : src, sc = o && ((s.facts[o.name] || {}).script || {});
-  const vale = o && o.zone === 'battlefield' && !o.phasedOut && (eff.z == null || (o.zc || 0) === eff.z) && sc.self && sc.self.caso && !casoResolvidoT(s, o) && casoCondicaoT(s, o, sc.self.caso.resolver);
+  const vale = o && o.zone === 'battlefield' && !o.phasedOut && (eff.z == null || (o.zc || 0) === eff.z) && sc.self && sc.self.caso && !casoResolvidoT(s, o) && casoCondicaoT(s, o, sc.self.caso.resolver, src.controller != null ? src.controller : o.controller);
   if (!vale) { events.push({ kind: 'effect', do: 'caso_resolvido', name: (o || src).name, failed: true }); return; }
   (s.casosT = s.casosT || {})[o.oid] = { z: o.zc || 0 };
   events.push({ kind: 'effect', do: 'caso_resolvido', name: o.name, target: o.name });
@@ -27293,7 +27294,23 @@ function faceGratisOfertasT(s, p, out) {
     finally { DENTRO_DAS_MODAIS = false; }
   }
 }
+/** T-41 · CR 702.85a / 701.57a · cascata e descobrir limitam o valor de mana da mágica conjurada: a Aventura também (o da Aventura, 715.3a).
+ * Devolve o valor máximo, ou null quando a decisão "sem pagar" não tem limite. Na cascata, o limite é o da mágica com cascata que está
+ * na pilha (sem achá-la, o da carta achada: mais restritivo, nunca ilegal). */
+function limiteDaAventuraGratisT(s, pk, oid) {
+  const c = s.objects[oid], doCard = ((s.facts[c.name] || {}).cmc || 0);
+  if (pk && pk.cascataK) { const sp = s.stack.map(x => s.objects[x]).find(x => x && !x.ability && x.name === pk.name); return sp ? manaValueT(s, sp) - 1 : doCard; }
+  const v = (s.verbo || []).find(x => x.passo === 'descobrir-fim' && x.achada === oid);
+  return v ? (v.n != null ? v.n : doCard) : null;
+}
+const valorDaAventuraT = (s, oid) => ((s.facts[aventuraDe(s, oid).nome] || {}).cmc || 0);
+function aventuraGratisConfereT(s, pk, a) { // na decisão "sem pagar", o pedido da Aventura acima do limite é recusado
+  if (!a.omen || !aventuraDe(s, a.oid)) return;
+  const lim = limiteDaAventuraGratisT(s, pk, a.oid);
+  if (lim != null && valorDaAventuraT(s, a.oid) > lim) throw new RuleError('aventura', `a Aventura tem valor de mana ${valorDaAventuraT(s, a.oid)}: acima do que este efeito deixa conjurar`);
+}
 function aventuraGratisOfertasT(s, p, out, avs) {
+  avs = avs.filter(oid => { const lim = limiteDaAventuraGratisT(s, s.pending, oid); return lim == null || valorDaAventuraT(s, oid) <= lim; }); // T-41
   if (!avs.length) return;
   const s2 = cloneEstado(s); for (const oid of avs) flipTo(s2, s2.objects[oid], aventuraDe(s, oid).nome);
   DENTRO_DAS_MODAIS = true;
@@ -27314,7 +27331,7 @@ function gruposGratisT(s, opts) {
 }
 Object.assign(EXPORTS_T, { gruposGratisT });
 /** T-11 · a escolha de face entra na chave das ações do bot: as duas metades (ou as duas faces) com os mesmos alvos são jogadas diferentes. Sem `face`, a chave não muda. */
-const chaveDeFaceT = a => (a && a.face != null ? '|face:' + a.face : '') + (a && a.porta ? '|porta:' + a.porta : '') + (a && a.prototipo ? '|prototipo' : ''); // T-26 · a porta destrancada também; T-36 · o protótipo também
+const chaveDeFaceT = a => (a && a.face != null ? '|face:' + a.face : '') + (a && a.porta ? '|porta:' + a.porta : '') + (a && a.prototipo ? '|prototipo' : '') + (a && a.omen ? '|omen' : ''); // T-41 · a Aventura também // T-26 · a porta destrancada também; T-36 · o protótipo também
 Object.assign(EXPORTS_T, { chaveDeFaceT });
 Object.assign(EXPORTS_T, { metadesDe, nomesDe });
 /* ---------------- T-12 · CR 716 · Classes ----------------

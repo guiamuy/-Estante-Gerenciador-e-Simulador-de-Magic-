@@ -5168,6 +5168,14 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** nenhum novo (as funções da Aventura, das ofertas de "sem pagar" e da folha são da trilha).
 - **Próximo:** auditoria independente de Casos e Aventura (T-41); depois 716.2 Classe e 309.6/309.7 masmorra.
 
+**CR5-T41 · Casos e Aventura: correções da auditoria independente** ✅ (leva T-41, sem mudança de versão do motor) — revisor sem acesso à implementação rodou 1.134 conferências e um fuzz de 21.965 ações (76 Casos resolvidos; 33 Aventuras do exílio e 8 de graça); 3 divergências, todas corrigidas. 4 testes novos (`tipos.casos.unit` 11, `tipos.aventuras.unit` 27; falham sem a leva).
+- **Corrigido:** **603.3a (D1)** — com o gatilho "To solve" na pilha, o oponente tomava o Caso e a condição passava a contar as permanentes dele; agora conta as de quem controla a habilidade. **702.85a / 701.57a (D2)** — cascata e descobrir ofereciam a Aventura sem conferir o valor de mana dela (Foulmire Knight achado por cascata 2 deixava conjurar Profane Insight, valor 3); agora o limite vale para a Aventura (na cascata, o valor da mágica com cascata que está na pilha; no descobrir, o N). **Bot (D3)** — a chave das jogadas não distinguia a Aventura da carta normal com os mesmos alvos, e o Shark descartava uma das duas; agora são jogadas diferentes.
+- **Pedido à trilha bot:** o motivo que o bot mostra diz "conjurei <carta>" quando conjurou a Aventura (texto do bot).
+- **Conferido e correto pela auditoria:** Caso só no passo final de quem o controla, condição falsa ao disparar, Caso que entra no passo final, resolvido que continua com a condição falsa ou sob outro controlador, piscado com o gatilho na pilha, ficha cópia sem "resolvido", dois Casos, gatilho anulado; Aventura por impulso (as duas ofertas, o custo dela, a permissão da própria Aventura depois, prazos curtos que não passam adiante), instantânea do exílio no turno do oponente, anulada vai ao cemitério, folha de "sem pagar", pedidos forjados recusados.
+- **Versão e goldens:** a versão não sobe; goldens idênticos.
+- **Toca ponto comum:** `cast_free` (uma linha: o limite de valor de mana da Aventura) e `descobrir` (o N fica no passo do verbo).
+- **Próximo:** 716.2 Classe (redução de custo e regras por nível) e 309.6/309.7 masmorra.
+
 **CR6 · Multijogador e variantes** ○ — mesa de três e quatro (800–803, 806), Commander de mesa (903.2), Brawl (903.12); as variantes hoje "fora" só entram por decisão. 10 a 14 levas.
 
 **CR7 · Consolidação** ○ (em paralelo a partir da CR2) — a cada fase: fuzz em modo completo com listas reais, homologação por revisor independente relendo a seção das regras contra o motor, e rodada de simulação do dono do produto. 6 a 8 levas ao todo.
