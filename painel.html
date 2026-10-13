@@ -512,7 +512,8 @@ body {
 .pn-cartoes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
 @media (min-width: 600px) { .pn-cartoes { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .pn-cartao { padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
-.pn-cartao__topo { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.pn-cartao__topo { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-1) var(--space-2); }
+.pn-cartao__topo .pn-farol { flex: none; white-space: nowrap; }
 .pn-cartao__valor { color: var(--fg); overflow-wrap: anywhere; }
 .pn-cartao__unidade, .pn-cartao__total { font-family: var(--font-ui); font-weight: var(--weight-regular); }
 .pn-cartao__vazio { min-height: calc(var(--text-2xl) * var(--lh-2xl)); display: flex; align-items: center; }
@@ -722,7 +723,7 @@ const __p2 = (function () {
       "em breve" com o que a visão vai trazer. Incremento 1 (13/10): Pipeline entra antes da Eficiência. */
   const SUBABAS = [
     { id: 'pipeline', rotulo: 'Pipeline', titulo: 'Pipeline de publicação', leva: 'R-4', pronta: true, traz: 'a fila agora (levas na fila, recusadas e o motivo, rodada em curso), entregue, recusado e reprocessando por período, e o filtro que vale para todas as visões' },
-    { id: 'eficiencia', rotulo: 'Eficiência', titulo: 'Eficiência', leva: 'R-5', traz: 'levas por dia e por semana por trilha, intervalo entre publicações, portão verde na primeira, duração do portão e retrabalho' },
+    { id: 'eficiencia', rotulo: 'Eficiência', titulo: 'Eficiência', leva: 'R-5', pronta: true, traz: 'levas por dia e por semana por trilha, intervalo entre publicações, portão verde na primeira, duração do portão e retrabalho' },
     { id: 'roadmap', rotulo: 'Roadmap', titulo: 'Roadmap', leva: 'R-6', traz: 'histórias por status, por épico e por tema, % concluído por épico e o burn-up semanal' },
     { id: 'motor', rotulo: 'Motor', titulo: 'Motor de regras', leva: 'R-7', traz: 'versão, regras do mapa por status, listas que jogam por formato e a evolução' },
     { id: 'qualidade', rotulo: 'Qualidade', titulo: 'Qualidade', leva: 'R-8', traz: 'relatos abertos e fechados por semana, tempo até a correção, testes e instáveis, bugs por leva' },
@@ -895,14 +896,52 @@ const __p2 = (function () {
     portaoVerde: { verde: 80, amarelo: 60, unidade: '%', texto: 'rodadas verdes: ≥ 80 % · ≥ 60 % · menos' },
     pages: { verde: 1, amarelo: 0, unidade: 'ok', texto: 'Pages: última publicação ok · sem execução · falhou' }
   });
+
+  /* ---------- R-5 · Eficiência (puro) ---------- */
+  /** Commits do main (API `commits`) → linhas normalizadas: uma por leva (mensagem "Leva X-N"), data = committer (quando a fila avançou). */
+  function linhasDosCommits(commits) {
+    const saida = [];
+    for (const c of commits || []) {
+      const msg = String((c.commit && c.commit.message) || '').split('\n')[0];
+      const m = msg.match(/^Leva ([A-Z])-(\d+)/); if (!m) continue;
+      const data = Date.parse((c.commit.committer && c.commit.committer.date) || (c.commit.author && c.commit.author.date) || '') || null;
+      const autoria = Date.parse((c.commit.author && c.commit.author.date) || '') || null;
+      saida.push({ leva: `${m[1]}-${m[2]}`, trilha: TRILHA_DA_LETRA[m[1]] || m[1].toLowerCase(), data, autoria, sha: String(c.sha || '').slice(0, 7), assunto: msg.replace(/^Leva [A-Z]-\d+\s*·\s*/, '').slice(0, 80), situacao: 'publicada' });
+    }
+    return saida.sort((a, b) => (a.data || 0) - (b.data || 0));
+  }
+  /** Intervalos entre publicações consecutivas (ms), na ordem das datas. */
+  function intervalos(linhas) {
+    const datas = (linhas || []).map(l => l.data).filter(Boolean).sort((a, b) => a - b);
+    const saida = []; for (let i = 1; i < datas.length; i++) saida.push(datas[i] - datas[i - 1]);
+    return saida;
+  }
+  /** Dias (AAAA-MM-DD, local) que um período cobre, do mais recente ao mais antigo; "tudo" é limitado a `teto` dias por orçamento. */
+  function diasDoPeriodo(periodo = '7d', agora = Date.now(), teto = 30) {
+    const n = periodo === '24h' ? 2 : periodo === '7d' ? 7 : Math.min(teto, periodo === '30d' ? 30 : teto);
+    const dias = [];
+    for (let i = 0; i < n; i++) { const d = new Date(agora - i * 86400000); dias.push(`${d.getFullYear()}-${dois(d.getMonth() + 1)}-${dois(d.getDate())}`); }
+    return dias;
+  }
+  /** Agrupa por semana (segunda a domingo, chave do primeiro dia). */
+  function porSemana(linhas, campo = 'data') {
+    const g = new Map();
+    for (const l of linhas || []) { if (!l[campo]) continue; const d = new Date(l[campo]); const dia = (d.getDay() + 6) % 7; const seg = new Date(d.getFullYear(), d.getMonth(), d.getDate() - dia); const k = `${seg.getFullYear()}-${dois(seg.getMonth() + 1)}-${dois(seg.getDate())}`; g.set(k, [...(g.get(k) || []), l]); }
+    return [...g.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([semana, itens]) => ({ semana, itens }));
+  }
+  Object.assign(LIMIARES, {
+    intervalo: { verde: 4 * 3600000, amarelo: 12 * 3600000, unidade: 'ms', texto: 'intervalo mediano entre publicações: ≤ 4 h · ≤ 12 h · mais' },
+    leadTime: { verde: 60 * 60000, amarelo: 3 * 3600000, unidade: 'ms', texto: 'do fim da leva ao main (mediana): ≤ 1 h · ≤ 3 h · mais' }
+  });
   const FONTES = {
+    commits: 'API GitHub · commits?sha=main&since&until (um pedido por dia; dias passados guardados para sempre)',
     ramos: 'API GitHub · branches (+ branches/<nome> por sha, guardado para sempre)',
     rodadas: 'API GitHub · actions/workflows/fila.yml/runs',
     jobs: 'API GitHub · actions/runs/<id>/jobs (só com rodada em curso)',
     pages: 'API GitHub · actions/runs (fluxo "pages build and deployment")',
     levas: 'ramo telemetria · levas.jsonl (escrito pelas sessões)'
   };
-  return { SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
+  return { SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, intervalos, diasDoPeriodo, porSemana, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
 })();
 
 /* ==== src/painel/ui.js ==== */
@@ -1012,6 +1051,72 @@ const __p4 = (function () {
 
   /* ---------- visões (uma por sub-aba pronta): carrega(fonte, forcar) → dados; desenha(dados, filtros, api) → nós ---------- */
   const VISOES = {
+    eficiencia: {
+      filtros: ['periodo', 'trilha', 'conversa', 'modelo', 'portao', 'situacao'], porPeriodo: true,
+      /** Commits por dia (dias passados são imutáveis: guardados para sempre; o dia de hoje volta a cada atualização), rodadas,
+          ramos e telemetria compartilham o cache da Pipeline. Dias ainda não lidos ficam para a próxima atualização (orçamento). */
+      async carrega(fonte, forcar, filtros = {}) {
+        const avisos = [];
+        const agora = Date.now();
+        const hoje = M.diasDoPeriodo('24h', agora)[0];
+        const dias = M.diasDoPeriodo(filtros.periodo || '7d', agora);
+        const commits = {}; let novos = 0; const pendentes = [];
+        for (const dia of dias) {
+          const nome = 'commits.' + dia; const ehHoje = dia === hoje;
+          if (!ehHoje && !fonte.emCache(nome)) { if (novos >= ORCAMENTO.detalhes) { pendentes.push(dia); continue; } novos++; }
+          const de = new Date(dia + 'T00:00:00'), ate = new Date(de.getTime() + 86400000);
+          try { commits[dia] = (await fonte.api(`/commits?sha=main&since=${de.toISOString()}&until=${ate.toISOString()}&per_page=100`, { nome, ttl: ehHoje ? 2 * 60000 : Infinity, forcar: ehHoje && forcar })).dado || []; }
+          catch (e) { pendentes.push(dia); }
+        }
+        if (pendentes.length) avisos.push(`${pendentes.length} dia(s) ainda não lidos (orçamento de pedidos): ${pendentes.slice(0, 3).join(', ')}${pendentes.length > 3 ? '…' : ''}`);
+        if ((filtros.periodo || '7d') === 'tudo') avisos.push('"tudo" cobre os últimos 30 dias (orçamento de pedidos)');
+        const rodadas = await fonte.api('/actions/workflows/fila.yml/runs?per_page=50', { nome: 'rodadas', ttl: 2 * 60000, forcar });
+        let levas = [];
+        try { levas = lerJsonl((await fonte.raw('telemetria', 'levas.jsonl', { ttl: 2 * 60000, forcar })).dado); } catch (e) { avisos.push('telemetria indisponível (ramo telemetria)'); }
+        return { em: agora, dias, commits, pendentes, rodadas: (rodadas.dado && rodadas.dado.workflow_runs) || [], levas, avisos, sem: { rodadas: rodadas.semRede || rodadas.cotaEsgotada } };
+      },
+      desenha(d, filtros, api) {
+        const agora = Date.now();
+        const periodo = filtros.periodo || '7d';
+        const todas = M.linhasDosCommits(Object.values(d.commits).flat());
+        const rCom = recorte(todas, { periodo, trilha: filtros.trilha }, agora);
+        const rRod = recorte(M.linhasDasRodadas(d.rodadas).filter(r => r.status === 'completed'), { periodo, portao: filtros.portao }, agora);
+        const rLev = recorte(M.linhasDasLevas(d.levas), filtros, agora);
+        const ints = M.intervalos(rCom.linhas);
+        const verdes = rRod.linhas.filter(r => r.portao === 'verde').length, total = rRod.linhas.length;
+        const pct = total ? Math.round(100 * verdes / total) : null;
+        const duracoes = rRod.linhas.map(r => r.duracao);
+        const comFim = rLev.linhas.filter(l => l.inicio && l.fim).map(l => Date.parse(l.fim) - Date.parse(l.inicio));
+        const shaDaLeva = new Map(todas.map(l => [l.leva, l]));
+        const leads = rLev.linhas.filter(l => l.fim && shaDaLeva.get(l.id) && shaDaLeva.get(l.id).data).map(l => shaDaLeva.get(l.id).data - Date.parse(l.fim)).filter(x => x >= 0);
+        const retrabalho = valoresDe(rLev.linhas.filter(l => l.portao && l.portao !== 'verde').map(l => ({ causa: l.portao })), 'causa').map(v => ({ chave: v.valor, rotulo: v.valor, valor: v.n, tom: 'negative' }));
+        const porTamanho = valoresDe(rLev.linhas.filter(l => l.tamanho), 'tamanho').map(v => { const ls = rLev.linhas.filter(l => l.tamanho === v.valor); const tempos = ls.filter(l => l.inicio && l.fim).map(l => Date.parse(l.fim) - Date.parse(l.inicio)); return { chave: v.valor, rotulo: `tamanho ${v.valor} (${v.n})`, valor: Math.round((M.mediana(tempos) || 0) / 60000), dica: `${v.n} leva(s) · tempo mediano ${minutos(M.mediana(tempos))}` }; });
+        const recorteTxt = fraseDoRecorte(filtros);
+        const semanal = periodo === '30d' || periodo === 'tudo';
+        const serie = semanal ? M.porSemana(rCom.linhas).map(({ semana, itens }) => ({ chave: semana, rotulo: 'sem. ' + semana.slice(5).split('-').reverse().join('/'), valor: itens.length, dica: `${itens.length} leva(s) na semana de ${semana}` })) : M.porDia(rCom.linhas).map(({ dia, itens }) => ({ chave: dia, rotulo: dia.slice(5).split('-').reverse().join('/'), valor: itens.length, dica: `${dia}: ${itens.length} leva(s)` }));
+        const porTrilha = valoresDe(rCom.linhas, 'trilha', 12).map(v => ({ chave: v.valor, rotulo: v.valor, valor: v.n }));
+        const notas = [];
+        if (rLev.naoAplica.length) notas.push(`o filtro ${rLev.naoAplica.join(', ')} não se aplica às levas sem essa informação`);
+        if (!d.levas.length) notas.push('telemetria ainda sem levas: tempo de leva, lead time, retrabalho por causa e custo por tamanho aparecem quando as conversas registrarem');
+        for (const a of d.avisos || []) notas.push(a);
+        const comFiltro = !!filtros.trilha;
+        return [
+          h('div', { class: 'pn-cartoes' },
+            Cartao({ id: 'pn-k-levas', rotulo: 'Levas publicadas', valor: rCom.linhas.length, unidade: `no recorte`, farol: null, fonte: FONTES.commits, formula: 'commits "Leva X-N" no main · ' + recorteTxt, em: d.em, totalSemFiltro: comFiltro ? recorte(todas, { periodo }, agora).linhas.length : null, semDados: !todas.length }),
+            Cartao({ id: 'pn-k-intervalo', rotulo: 'Intervalo entre publicações', valor: minutos(M.mediana(ints)), unidade: ints.length ? `mediana · pior ${minutos(Math.max(...ints))}` : '', farol: ints.length ? farol(M.mediana(ints), LIMIARES.intervalo) : 'cinza', limiar: LIMIARES.intervalo, fonte: FONTES.commits, formula: 'diferença entre commits consecutivos · ' + recorteTxt, em: d.em, semDados: !ints.length }),
+            Cartao({ id: 'pn-k-verde1', rotulo: 'Portão verde na primeira', valor: pct == null ? '—' : pct, unidade: pct == null ? '' : `% de ${total} rodadas`, farol: pct == null ? 'cinza' : farol(pct, LIMIARES.portaoVerde), limiar: LIMIARES.portaoVerde, fonte: FONTES.rodadas, formula: 'rodadas success ÷ concluídas · ' + recorteTxt, em: d.em, semDados: !total, nota: 'por rodada; por leva, só com telemetria' }),
+            Cartao({ id: 'pn-k-portao', rotulo: 'Duração do portão', valor: minutos(M.mediana(duracoes)), unidade: duracoes.length ? `p50 · p95 ${minutos(M.p95(duracoes))}` : '', farol: duracoes.length ? farol(M.mediana(duracoes), LIMIARES.rodada) : 'cinza', limiar: LIMIARES.rodada, fonte: FONTES.rodadas, formula: 'updated_at − run_started_at · ' + recorteTxt, em: d.em, semDados: !duracoes.length }),
+            Cartao({ id: 'pn-k-tempo-leva', rotulo: 'Tempo de leva', valor: minutos(M.mediana(comFim)), unidade: comFim.length ? `mediana de ${comFim.length}` : '', farol: null, fonte: FONTES.levas, formula: 'fim − início · ' + recorteTxt, em: d.em, semDados: !comFim.length }),
+            Cartao({ id: 'pn-k-lead', rotulo: 'Do fim da leva ao main', valor: minutos(M.mediana(leads)), unidade: leads.length ? `mediana de ${leads.length}` : '', farol: leads.length ? farol(M.mediana(leads), LIMIARES.leadTime) : 'cinza', limiar: LIMIARES.leadTime, fonte: FONTES.levas + ' + commits', formula: 'data do commit no main − fim · ' + recorteTxt, em: d.em, semDados: !leads.length })),
+          h('div', { class: 'pn-graficos' },
+            Barras({ id: 'pn-g-levas', titulo: `Levas publicadas por ${semanal ? 'semana' : 'dia'} · ${recorteTxt}`, itens: serie, vazio: 'sem levas neste recorte' }),
+            Barras({ id: 'pn-g-trilhas', titulo: 'Levas por trilha', itens: porTrilha, onBarra: v => api.filtra('trilha', v), ativo: filtros.trilha || null, vazio: 'sem levas neste recorte' }),
+            Barras({ id: 'pn-g-retrabalho', titulo: 'Retrabalho por causa (telemetria)', itens: retrabalho, onBarra: v => api.filtra('portao', v), ativo: filtros.portao || null, vazio: d.levas.length ? 'nenhuma recusa registrada neste recorte' : 'pendente de telemetria' }),
+            Barras({ id: 'pn-g-tamanho', titulo: 'Tempo mediano por tamanho de leva (min)', itens: porTamanho, formato: v => `${v} min`, vazio: d.levas.length ? 'nenhuma leva com tamanho neste recorte' : 'pendente de telemetria' })),
+          notas.length ? h('ul', { class: 'pn-notas ds-text ds-text--sm ds-text--muted', id: 'pn-notas' }, ...notas.map(n => h('li', {}, n))) : null
+        ];
+      }
+    },
     pipeline: {
       filtros: ['periodo', 'trilha', 'situacao', 'portao', 'conversa', 'modelo'],
       async carrega(fonte, forcar) {
@@ -1109,7 +1214,7 @@ const __p4 = (function () {
         else if (r.cotaEsgotada) est.aviso = { tipo: 'cota', texto: motivo('cota') };
         else if (r.falhou) est.aviso = { tipo: 'api', texto: motivo('api') + ' Mostrando o que havia guardado.' };
         const v = visao();
-        if (v) { est.dados[est.aba] = await v.carrega(fonte, forcar); if (est.dados[est.aba].sem && (est.dados[est.aba].sem.ramos || est.dados[est.aba].sem.rodadas) && !est.aviso) est.aviso = { tipo: 'rede', texto: 'Parte dos dados veio do que estava guardado (sem rede ou cota).' }; }
+        if (v) { est.dados[est.aba] = await v.carrega(fonte, forcar, est.filtros); if (est.dados[est.aba].sem && (est.dados[est.aba].sem.ramos || est.dados[est.aba].sem.rodadas) && !est.aviso) est.aviso = { tipo: 'rede', texto: 'Parte dos dados veio do que estava guardado (sem rede ou cota).' }; }
       } catch (e) {
         est.aviso = { tipo: e.message === 'sem-rede' ? 'rede' : 'api', texto: e.message === 'sem-rede' ? 'Sem internet. Nenhum dado guardado ainda.' : motivo(e.message) };
       }
@@ -1127,7 +1232,9 @@ const __p4 = (function () {
     function abre(id) { if (id === est.aba) return; est.aba = id; est.filtros = {}; est.maisFiltros = false; guarda.gravar('painel.aba', id); gravaUrl(); desenha(); atualiza(); }
     /** Filtro cruzado: tocar de novo no mesmo valor desfaz. */
     function filtra(dim, valor) { if (est.filtros[dim] === valor) delete est.filtros[dim]; else est.filtros[dim] = valor; gravaUrl(); desenha(); }
-    function limpaFiltros() { est.filtros = {}; gravaUrl(); desenha(); }
+    function limpaFiltros() { const tinhaPeriodo = est.filtros.periodo; est.filtros = {}; gravaUrl(); desenha(); if (tinhaPeriodo && visao() && visao().porPeriodo) atualiza(); }
+    /** Período: muda o recorte e, nas visões que leem por dia, pede os dias que faltam. */
+    function mudaPeriodo(valor) { est.filtros.periodo = valor; gravaUrl(); desenha(); if (visao() && visao().porPeriodo) atualiza(); }
     const api = { filtra };
 
     function telaEntrar() {
@@ -1163,7 +1270,7 @@ const __p4 = (function () {
       const ativos = Object.keys(est.filtros).filter(k => est.filtros[k]).length;
       const periodoAtual = est.filtros.periodo || '7d';
       const grupo = g => h('div', { class: 'pn-filtros__grupo', dataset: { dim: g.dim }, role: 'group', 'aria-label': g.dim },
-        ...g.chips.map(c => Chip(c.rotulo, { ativo: g.dim === 'periodo' ? periodoAtual === c.valor : est.filtros[g.dim] === c.valor, dataset: { dim: g.dim, valor: c.valor }, onClick: () => g.dim === 'periodo' ? (est.filtros.periodo = c.valor, gravaUrl(), desenha()) : filtra(g.dim, c.valor) })));
+        ...g.chips.map(c => Chip(c.rotulo, { ativo: g.dim === 'periodo' ? periodoAtual === c.valor : est.filtros[g.dim] === c.valor, dataset: { dim: g.dim, valor: c.valor }, onClick: () => g.dim === 'periodo' ? mudaPeriodo(c.valor) : filtra(g.dim, c.valor) })));
       // No 360: período numa linha, trilha e as ações na segunda (até 5 trilhas à vista); o resto em "Mais filtros".
       const fixos = grupos.filter(g => g.fixo && g.dim !== 'situacao');
       const escondidos = grupos.filter(g => !fixos.includes(g));
@@ -1219,7 +1326,7 @@ const __p4 = (function () {
     desenha();
     if (typeof window !== 'undefined') {
       window.addEventListener('online', desenha); window.addEventListener('offline', desenha);
-      window.addEventListener('hashchange', () => { const u = filtrosDaUrl(location.hash); if (u.aba && SUBABAS.some(a => a.id === u.aba) && (u.aba !== est.aba || JSON.stringify(u.filtros) !== JSON.stringify(est.filtros))) { const mudouAba = u.aba !== est.aba; est.aba = u.aba; est.filtros = u.filtros; desenha(); if (mudouAba) atualiza(); } });
+      window.addEventListener('hashchange', () => { const u = filtrosDaUrl(location.hash); if (u.aba && SUBABAS.some(a => a.id === u.aba) && (u.aba !== est.aba || JSON.stringify(u.filtros) !== JSON.stringify(est.filtros))) { const mudouAba = u.aba !== est.aba, mudouPeriodo = (u.filtros.periodo || '7d') !== (est.filtros.periodo || '7d'); est.aba = u.aba; est.filtros = u.filtros; desenha(); if (mudouAba || (mudouPeriodo && visao() && visao().porPeriodo)) atualiza(); } });
     }
     est.carregando = true; desenha();
     sessao.retomar().then(s => { est.sessao = s; est.carregando = false; desenha(); if (s) { gravaUrl(); atualiza(); } })

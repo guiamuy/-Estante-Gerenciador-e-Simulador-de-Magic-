@@ -178,10 +178,10 @@ test('R-2 · fonte sem rede ou com a cota esgotada devolve o que havia guardado 
 });
 
 /* ---------- modelo puro ---------- */
-test('R-2 · modelo: oito sub-abas na ordem das fatias (Pipeline antes da Eficiência), todas com a leva e o que trazem; só a Pipeline pronta (R-4)', () => {
+test('R-2 · modelo: oito sub-abas na ordem das fatias (Pipeline antes da Eficiência), todas com a leva e o que trazem; prontas: Pipeline (R-4) e Eficiência (R-5)', () => {
   const { modelo, app } = loadPainel();
   assert.deepEqual(modelo.SUBABAS.map(a => a.id), ['pipeline', 'eficiencia', 'roadmap', 'motor', 'qualidade', 'curso', 'skills', 'modelos']);
-  for (const a of modelo.SUBABAS) { assert.match(a.leva, /^R-\d+$/); assert.ok(a.traz.length > 20); assert.equal(!!a.pronta, a.id === 'pipeline'); assert.equal(!!app.VISOES[a.id], !!a.pronta, 'toda sub-aba pronta tem a visão que a desenha'); }
+  for (const a of modelo.SUBABAS) { assert.match(a.leva, /^R-\d+$/); assert.ok(a.traz.length > 20); assert.equal(!!a.pronta, ['pipeline', 'eficiencia'].includes(a.id)); assert.equal(!!app.VISOES[a.id], !!a.pronta, 'toda sub-aba pronta tem a visão que a desenha'); }
   assert.deepEqual(modelo.SUBABAS.map(a => a.leva), ['R-4', 'R-5', 'R-6', 'R-7', 'R-8', 'R-9', 'R-10', 'R-11']);
 });
 
@@ -329,4 +329,40 @@ test('R-4 · orçamento de pedidos da Pipeline: primeira abertura ≤ 4 fixos + 
   const d3 = await app.VISOES.pipeline.carrega(fonte, true);
   assert.ok(fonte.pedidos <= app.ORCAMENTO.fixos, `em regime: ${fonte.pedidos} pedidos (≤ ${app.ORCAMENTO.fixos})`);
   assert.equal(Object.keys(d3.detalhes).length, 7); assert.equal(d3.levas.length, 1); assert.equal(d3.emCurso.id, 9); assert.equal(d3.jobs.jobs[0].name, 'portao'); assert.match(d3.pages.name, /pages/);
+});
+
+
+/* ---------- R-5 · Eficiência ---------- */
+test('R-5 · Eficiência: commits do main viram levas (trilha pela letra, data do committer = quando a fila avançou); intervalos entre publicações; dias do período; semanas', () => {
+  const { modelo } = loadPainel();
+  const c = (leva, data, autoria) => ({ sha: 'abcdef0123', commit: { message: `Leva ${leva} · assunto\n\nTrilha: x`, committer: { date: data }, author: { date: autoria || data } } });
+  const linhas = modelo.linhasDosCommits([c('M-390', '2026-10-13T20:00:00Z', '2026-10-13T18:00:00Z'), { sha: 'x', commit: { message: 'merge sem leva', committer: { date: '2026-10-13T19:00:00Z' } } }, c('R-2', '2026-10-13T19:30:00Z'), c('G-266', '2026-10-13T18:00:00Z')]);
+  assert.deepEqual(linhas.map(l => [l.leva, l.trilha]), [['G-266', 'geral'], ['R-2', 'radar'], ['M-390', 'motor']], 'ordem por data; commit sem "Leva" fica de fora');
+  assert.equal(linhas[2].autoria, Date.parse('2026-10-13T18:00:00Z')); assert.equal(linhas[2].situacao, 'publicada');
+  assert.deepEqual(modelo.intervalos(linhas), [90 * 60000, 30 * 60000]);
+  assert.deepEqual(modelo.intervalos([]), []);
+  const agora = new Date(2026, 9, 13, 20, 0).getTime();
+  assert.deepEqual(modelo.diasDoPeriodo('24h', agora), ['2026-10-13', '2026-10-12']);
+  assert.equal(modelo.diasDoPeriodo('7d', agora).length, 7); assert.equal(modelo.diasDoPeriodo('7d', agora)[6], '2026-10-07');
+  assert.equal(modelo.diasDoPeriodo('30d', agora).length, 30); assert.equal(modelo.diasDoPeriodo('tudo', agora).length, 30, '"tudo" é limitado a 30 dias por orçamento');
+  const sem = modelo.porSemana([{ data: new Date(2026, 9, 13).getTime() }, { data: new Date(2026, 9, 12).getTime() }, { data: new Date(2026, 9, 11).getTime() }]);
+  assert.deepEqual(sem.map(x => [x.semana, x.itens.length]), [['2026-10-05', 1], ['2026-10-12', 2]], 'semana começa na segunda');
+});
+
+test('R-5 · orçamento da Eficiência: um pedido por dia do período, dias passados guardados para sempre, hoje volta a cada atualização; "tudo" lê no máximo 4 dias novos por vez e avisa; em regime ≤ 4 pedidos', async () => {
+  const { app, base } = loadPainel();
+  const guarda = base.createGuarda(null);
+  const chamadas = [];
+  const fetch = async url => { chamadas.push(url); return { ok: true, status: 200, headers: { get: () => null }, json: async () => /commits\?/.test(url) ? [{ sha: 'a', commit: { message: 'Leva M-1 · x', committer: { date: '2026-10-13T12:00:00Z' } } }] : { workflow_runs: [] }, text: async () => '' }; };
+  const fonte = base.createFonte({ fetch, guarda });
+  const d = await app.VISOES.eficiencia.carrega(fonte, false, { periodo: '7d' });
+  assert.ok(fonte.pedidos <= app.ORCAMENTO.fixos + app.ORCAMENTO.detalhes, `7 dias na primeira abertura: ${fonte.pedidos}`);
+  assert.equal(Object.keys(d.commits).length, 5, 'hoje + 4 dias novos; 2 pendentes'); assert.equal(d.pendentes.length, 2); assert.match(d.avisos.join(' '), /não lidos/);
+  fonte.zerar(); const d2 = await app.VISOES.eficiencia.carrega(fonte, true, { periodo: '7d' });
+  assert.equal(Object.keys(d2.commits).length, 7); assert.ok(fonte.pedidos <= 1 + 2 + 1, `segunda: ${fonte.pedidos}`);
+  fonte.zerar(); const d3 = await app.VISOES.eficiencia.carrega(fonte, true, { periodo: '7d' });
+  assert.equal(Object.keys(d3.commits).length, 7); assert.ok(fonte.pedidos <= app.ORCAMENTO.fixos, `em regime: ${fonte.pedidos} (hoje + rodadas)`);
+  fonte.zerar(); const d4 = await app.VISOES.eficiencia.carrega(fonte, false, { periodo: 'tudo' });
+  assert.match(d4.avisos.join(' '), /30 dias/); assert.ok(fonte.pedidos <= app.ORCAMENTO.fixos + app.ORCAMENTO.detalhes);
+  assert.equal(chamadas.filter(u => /raw\.githubusercontent/.test(u)).length, 3, 'a telemetria é lida pelo raw (fora da cota): sem cache, e nas duas atualizações forçadas; a quarta vem do cache');
 });

@@ -12004,3 +12004,62 @@ test('e2e · R-4 Painel · Pipeline: fila agora com espera e recusas com motivo,
   await page.click('#pn-abas [data-tab="pipeline"]'); await page.waitForSelector('#pn-visao-pipeline');
   assert.deepEqual(errors, []);
 });
+
+/* ---------- R-5 · BI1-3 · Eficiência ---------- */
+test('e2e · R-5 Painel · Eficiência: levas publicadas por dia e por trilha (toque filtra), intervalo entre publicações, portão verde na primeira, duração do portão, tempo de leva e lead time da telemetria, retrabalho por causa; período muda a leitura (dia ↔ semana) e o endereço; sem sobreposição nas quatro medidas e dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  const painel = base.replace('index.html', 'painel.html');
+  await page.setViewportSize({ width: 360, height: 780 });
+  const agora = Date.now();
+  const iso = ms => new Date(ms).toISOString();
+  const h = n => iso(agora - n * 3600000);
+  const json = (r, corpo) => r.fulfill({ json: corpo, headers: { 'content-type': 'application/json', 'x-ratelimit-remaining': '50', 'x-ratelimit-limit': '60', 'access-control-expose-headers': 'etag, x-ratelimit-remaining, x-ratelimit-limit' } });
+  const commit = (leva, em) => ({ sha: leva.replace('-', '') + '0000000', commit: { message: `Leva ${leva} · assunto`, committer: { date: iso(em) }, author: { date: iso(em - 3600000) } } });
+  const levasDoDia = { 0: [commit('M-390', agora - 2 * 3600000), commit('R-2', agora - 3 * 3600000), commit('G-266', agora - 5 * 3600000)], 1: [commit('M-388', agora - 30 * 3600000)], 2: [commit('T-61', agora - 50 * 3600000), commit('M-384', agora - 52 * 3600000)] };
+  let pedidosCommits = 0;
+  await page.route('https://api.github.com/**', r => {
+    const u = r.request().url();
+    if (/\/commits\?sha=main&per_page=1/.test(u)) return json(r, [commit('M-390', agora - 2 * 3600000)]);
+    if (/\/commits\?sha=main&since=/.test(u)) { pedidosCommits++; const since = Date.parse(decodeURIComponent((u.match(/since=([^&]+)/) || [])[1])); const diasAtras = Math.round((new Date(agora).setHours(0, 0, 0, 0) - since) / 86400000); return json(r, levasDoDia[diasAtras] || []); }
+    if (/fila\.yml\/runs/.test(u)) return json(r, { workflow_runs: [{ id: 8, status: 'completed', conclusion: 'success', run_started_at: h(3), updated_at: iso(agora - 3 * 3600000 + 18 * 60000) }, { id: 7, status: 'completed', conclusion: 'failure', run_started_at: h(30), updated_at: iso(agora - 30 * 3600000 + 30 * 60000) }, { id: 6, status: 'completed', conclusion: 'success', run_started_at: h(52), updated_at: iso(agora - 52 * 3600000 + 20 * 60000) }] });
+    if (/\/branches/.test(u)) return json(r, []);
+    return json(r, { workflow_runs: [] });
+  });
+  await page.route('https://raw.githubusercontent.com/**', r => r.fulfill({ body: [
+    `{"id":"R-2","trilha":"radar","conversa":"radar · 13/10","situacao":"publicada","inicio":"${h(4)}","fim":"${h(3.5)}","portao":"verde","tamanho":"1","modelo":"Fable 5.1"}`,
+    `{"id":"M-390","trilha":"motor","conversa":"motor · 11/10","situacao":"publicada","inicio":"${h(5)}","fim":"${h(3)}","portao":"verde","tamanho":"1","modelo":"Fable 5.1"}`,
+    `{"id":"M-351","trilha":"motor","conversa":"motor · 11/10","situacao":"recusada","em":"${h(8)}","portao":"recusada-conflito","tentativas_fila":2,"tamanho":"2","modelo":"Fable 5.1"}`].join('\n') + '\n', headers: { 'content-type': 'text/plain', 'access-control-allow-origin': '*' } }));
+  await page.addInitScript(() => {
+    const jwt = email => 'h.' + btoa(JSON.stringify({ email })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') + '.s';
+    window.__PAINEL_FETCH = async (url) => new Response(JSON.stringify(url.includes('securetoken') ? { user_id: 'uidE2E', id_token: jwt('gui.amuy@gmail.com'), refresh_token: 'ref-e2e', expires_in: '3600' } : { localId: 'uidE2E', idToken: jwt('gui.amuy@gmail.com'), refreshToken: 'ref-e2e', expiresIn: '3600' }), { headers: { 'content-type': 'application/json' } });
+    window.__PAINEL_GOOGLE = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+  });
+  await page.goto(painel + '#eficiencia'); await page.waitForSelector('#pn-entrar'); await page.click('#pn-entrar');
+  await page.waitForSelector('#pn-visao-eficiencia');
+  // 7 dias: 6 levas (3 hoje, 1 ontem, 2 anteontem), um pedido por dia (7 dias na primeira abertura: 1 de hoje + até 4 novos; o resto avisado)
+  assert.ok(pedidosCommits <= 5, `primeira abertura lê até 5 dias: ${pedidosCommits}`);
+  assert.match(await page.innerText('#pn-notas'), /dia\(s\) ainda não lidos/);
+  await page.click('#pn-atualizar'); await page.waitForFunction(() => !/não lidos/.test(document.querySelector('#pn-notas')?.innerText || ''));
+  assert.match(await page.innerText('#pn-k-levas'), /6\s*no recorte/);
+  assert.match(await page.innerText('#pn-k-intervalo'), /mediana/);
+  assert.match(await page.innerText('#pn-k-verde1'), /67\s*% de 3 rodadas/);
+  assert.match(await page.innerText('#pn-k-portao'), /20 min\s*p50/);
+  assert.match(await page.innerText('#pn-k-tempo-leva'), /1,3 h[\s\S]*mediana de 2/);
+  assert.match(await page.innerText('#pn-k-lead'), /mediana de 2/, 'lead time: fim da leva até o commit no main, para R-2 e M-390');
+  assert.match(await page.innerText('#pn-g-levas'), /Levas publicadas por dia/);
+  assert.match(await page.innerText('#pn-g-retrabalho'), /recusada-conflito/);
+  assert.match(await page.innerText('#pn-g-tamanho'), /tamanho 1 \(2\)/);
+  await auditaTela(page, 'eficiência 360');
+  // toque na barra "motor" filtra: levas publicadas por motor = 3 (M-390, M-388, M-384) de 6; endereço guarda
+  await page.click('#pn-g-trilhas button[data-valor="motor"], #pn-g-trilhas li[data-valor="motor"] button');
+  await page.waitForFunction(() => location.hash.includes('trilha=motor'));
+  assert.match(await page.innerText('#pn-k-levas'), /3\s*no recorte\s*\/\s*6/);
+  // período 24 h recalcula sem pedido novo além de hoje; 30 dias muda a série para semanas
+  await page.click('#pn-filtros [data-dim="periodo"][data-valor="24h"]'); await page.waitForFunction(() => location.hash.includes('periodo=24h'));
+  await page.waitForFunction(() => /1\s*no recorte\s*\/\s*3/.test(document.querySelector('#pn-k-levas')?.innerText || '')); // motor nas últimas 24 h: só M-390, de 3 levas no dia
+  await page.click('#pn-filtros [data-dim="periodo"][data-valor="30d"]'); await page.waitForFunction(() => location.hash.includes('periodo=30d'));
+  await page.waitForFunction(() => /por semana/.test(document.querySelector('#pn-g-levas')?.innerText || ''));
+  await emTodasAsMedidas(page, 'eficiência filtrada');
+  if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.screenshot({ path: process.env.SHOTS + '/r5-eficiencia.png', fullPage: true }); }
+  assert.deepEqual(errors, []);
+});
