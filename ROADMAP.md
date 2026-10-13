@@ -9539,6 +9539,9 @@ o aviso de fila ligada, o que acontece na primeira rodada depois de o dono criar
   nada de senha nem token de acesso guardado, reabrir continua, sair, senha errada avisa, a certa entra). Leva 129, P-7 e
   P-8 continuam verdes.
 - **Fora:** esqueci a senha, nome de usuário, vincular o Google, trocar senha e excluir conta (T6f-2 a T6f-5).
+- **Correção (leva G-265, 13/10/2026):** criar ou entrar com e-mail não disparava a sincronização do perfil (só o
+  Google passava por `conectarEstante`): o perfil da nuvem só descia ao reabrir ou voltar ao app. Agora as duas entradas
+  sincronizam na hora. Teste: e2e "G-265" (cria a conta e o tema da nuvem vale em até 3 s; falhava sem a correção).
 
 **T6f-2 · Esqueci a senha** ✅ (leva G-264, trilha `geral`, 13/10/2026)
 - **Como:** `redefinirSenha` na sessão (`accounts:sendOobCode`, `requestType: PASSWORD_RESET`; o e-mail sai no modelo

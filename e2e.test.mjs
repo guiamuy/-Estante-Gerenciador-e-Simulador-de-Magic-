@@ -5420,6 +5420,39 @@ test('e2e · A-263 perfil sincronizado: ao conectar, o que a nuvem tem de mais n
   assert.deepEqual(errors, []);
 });
 
+/* G-265 · a conta criada com e-mail sincroniza o perfil na hora (como a do Google) */
+test('e2e · G-265 conta com e-mail sincroniza ao entrar: criar a conta já traz o tema da nuvem e mostra "Perfil sincronizado"', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  const banco = { perfis: { uidSenha: { doc: { kind: 'estante.perfil.remoto', version: 1, atualizadoEm: 4e12, nome: '', pessoaEm: 0, p: { 'ui:theme': { v: '"light"', t: 4e12 } } } } } };
+  await page.route('https://teste.firebaseio.com/**', async r => {
+    const u = new URL(r.request().url()), seg = u.pathname.replace(/\.json$/, '').split('/').filter(Boolean), metodo = r.request().method();
+    if (u.searchParams.get('auth') !== 'id-senha') return r.fulfill({ status: 401, json: { error: 'Permission denied' } });
+    const corpo = r.request().postData() ? JSON.parse(r.request().postData()) : null;
+    const poe = (caminho, v) => { let o = banco; for (const k of caminho.slice(0, -1)) o = o[k] = o[k] && typeof o[k] === 'object' ? o[k] : {}; if (v === null) delete o[caminho.at(-1)]; else o[caminho.at(-1)] = v; };
+    if (metodo === 'PUT') poe(seg, corpo);
+    if (metodo === 'PATCH') for (const [k, v] of Object.entries(corpo)) poe([...seg, ...k.split('/')], v);
+    return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(metodo === 'GET' ? (seg.reduce((o, k) => (o && typeof o === 'object' ? o[k] : undefined), banco) ?? null) : corpo) });
+  });
+  await page.addInitScript(() => {
+    window.__FIREBASE_DB_URL = 'https://teste.firebaseio.com';
+    window.__GOOGLE_CLIENT_ID = 'e2e.apps.googleusercontent.com'; window.__FIREBASE_API_KEY = 'chave-e2e';
+    window.__FIREBASE_FETCH = async (url, init) => new Response(JSON.stringify(url.includes('securetoken') ? { id_token: 'id-senha', refresh_token: 'ref-senha', expires_in: '3600', user_id: 'uidSenha' }
+      : { localId: 'uidSenha', email: JSON.parse(init.body).email, idToken: 'id-senha', refreshToken: 'ref-senha', expiresIn: '3600' }), { headers: { 'content-type': 'application/json' } });
+    window.EventSource = class { constructor() {} addEventListener() {} close() {} };
+  });
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#conta-email-abrir:not([disabled])');
+  const aqui = await page.getAttribute('html', 'data-theme'), la = aqui === 'dark' ? 'light' : 'dark';
+  banco.perfis.uidSenha.doc.p['ui:theme'].v = JSON.stringify(la);
+  await page.click('#conta-email-abrir'); await page.waitForSelector('#conta-email-campo');
+  await page.click('#conta-email-modo [data-modo="criar"]');
+  await page.fill('#conta-email-campo', 'gui@exemplo.com'); await page.fill('#conta-senha', 'senha-certa-1'); await page.click('#conta-email-confirmar');
+  // na hora, sem esperar a próxima mudança do perfil: antes da G-265 só sincronizava ao reabrir ou ao voltar ao app
+  await page.waitForFunction(t => document.documentElement.getAttribute('data-theme') === t, la, { timeout: 3000 });
+  await page.waitForSelector('#conta-sincronia[data-estado="sincronizado"]', { timeout: 10000 });
+  assert.deepEqual(errors, []);
+});
+
 // ---- Leva 131 · R3 · Mono Blue Faeries pela tela (360×780, modo único) ----
 const dock131 = async page => (await page.locator('.tb-dock').innerText()).replace(/\s*\n+\s*/g, ' | ');
 const folha131 = async (page, nome, onde = '#tb-hand') => { await page.locator(`${onde} .tb-card[aria-label^="${nome}"]`).first().click(); await page.waitForSelector('.ds-dialog'); await page.waitForTimeout(250);

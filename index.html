@@ -36214,6 +36214,8 @@ aoPreferencia = () => sincronia.mudou();
 { // conectar (ao entrar, no Perfil ou na sala) já sincroniza; sair para
   const conectar = conta.conectarEstante.bind(conta), sair = conta.sair.bind(conta);
   conta.conectarEstante = async (...a) => { const r = await conectar(...a); if (conta.estante().estado === 'conectada') sincronia.agora(); return r; };
+  // G-265 · entrar ou criar a conta com e-mail e senha também conecta a conta da Estante: sincroniza na hora, como o Google
+  for (const nome of ['criarComEmail', 'entrarComEmail']) { const fn = conta[nome].bind(conta); conta[nome] = async (...a) => { const r = await fn(...a); if (conta.estante().estado === 'conectada') sincronia.agora(); return r; }; }
   conta.sair = async (...a) => { sincronia.para(); return sair(...a); };
 }
 conta.pronta.then(() => sincronia.agora());
