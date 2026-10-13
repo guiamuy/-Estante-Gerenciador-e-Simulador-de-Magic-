@@ -302,3 +302,32 @@ test('G-267 · ligar o Google à conta de e-mail: signInWithIdp com o idToken da
   await outro.criarComSenha('a@b.co', 'segredo-123');
   await assert.rejects(outro.vincularGoogle('tok'), /firebase-recusou/); assert.equal(outro.uid(), 'uidA');
 });
+
+test('G-268 · trocar a senha: confere a atual antes (entrada recente), grava a nova pelo accounts:update e passa a usar os tokens novos', async () => {
+  const pedidos = []; let n = 0, recusaUpdate = null;
+  const ok = (o, st = 200) => ({ ok: st < 400, status: st, json: async () => o });
+  const fetch = async (url, init = {}) => {
+    const corpo = JSON.parse(init.body); pedidos.push({ url: url.split('?')[0], corpo });
+    if (url.includes('accounts:signUp')) return ok({ localId: 'uidSenha_1', email: corpo.email, idToken: 'id-' + (++n), refreshToken: 'ref-' + n, expiresIn: '3600' });
+    if (url.includes('signInWithPassword')) return corpo.password === 'segredo-123' ? ok({ localId: 'uidSenha_1', email: corpo.email, idToken: 'id-' + (++n), refreshToken: 'ref-' + n, expiresIn: '3600' }) : ok({ error: { message: 'INVALID_LOGIN_CREDENTIALS' } }, 400);
+    if (url.includes('accounts:update')) return recusaUpdate ? ok({ error: { message: recusaUpdate } }, 400) : ok({ localId: 'uidSenha_1', idToken: 'id-' + (++n), refreshToken: 'ref-' + n, expiresIn: '3600' });
+    return ok({}, 404);
+  };
+  const guardado = [];
+  const { conta } = contaCom(C.createSessaoFirebase({ apiKey: 'k', fetch, guarda: d => guardado.push(d) }));
+  await assert.rejects(conta.trocarSenha('a', 'nova-senha-1'), /sem-conta-estante/);
+  await conta.criarComEmail('ana@exemplo.com', 'segredo-123');
+  for (const [a, nv, codigo] of [['', 'nova-senha-1', 'senha-vazia'], ['segredo-123', 'curta', 'senha-curta'], ['segredo-123', 'segredo-123', 'senha-igual']]) await assert.rejects(conta.trocarSenha(a, nv), e => e.message === codigo, codigo);
+  const antes = pedidos.length;
+  await assert.rejects(conta.trocarSenha('errada-000', 'nova-senha-1'), /senha-nao-confere/);
+  assert.equal(pedidos.slice(antes).filter(p => p.url.endsWith('accounts:update')).length, 0, 'senha atual errada não troca nada');
+  await conta.trocarSenha('segredo-123', 'nova-senha-1');
+  const up = pedidos.at(-1);
+  assert.equal(up.url, 'https://identitytoolkit.googleapis.com/v1/accounts:update');
+  assert.deepEqual(up.corpo, { idToken: 'id-2', password: 'nova-senha-1', returnSecureToken: true }, 'usa o token da entrada recém-conferida');
+  assert.equal(conta.estante().estado, 'conectada');
+  assert.equal(await conta.sessao.token(), 'id-3'); assert.deepEqual({ ...guardado.at(-1) }, { uid: 'uidSenha_1', refreshToken: 'ref-3' });
+  recusaUpdate = 'WEAK_PASSWORD : Password should be at least 6 characters';
+  await assert.rejects(conta.trocarSenha('segredo-123', 'nova-senha-2'), /senha-fraca/);
+  assert.ok(C.MOTIVO['senha-igual'] && !/firebase|token|uid/i.test(C.MOTIVO['senha-igual']));
+});

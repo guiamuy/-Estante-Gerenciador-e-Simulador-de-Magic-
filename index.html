@@ -11201,6 +11201,20 @@ function createConta({ clientId = '', store, fetch: fetchFn = null, google: goog
       await store.set(KEY, { ...antes, nome: u.name || antes.nome || '', foto: u.picture || antes.foto || null, google: { email: String(u.email || ''), em: agora() } });
       return this.get();
     },
+    /** G-268 · T6f-5a · Trocar a senha: confere a atual (entrada recente, que o Firebase exige) e grava a nova. */
+    async trocarSenha(atual, nova) {
+      const c = await this.get();
+      if (!c || c.provedor !== 'senha' || !sessao || !sessao.trocarSenha) throw erro('sem-conta-estante');
+      const a = String(atual || ''), n = String(nova || '');
+      if (!a) throw erro('senha-vazia');
+      if (n.length < SENHA_MIN) throw erro('senha-curta');
+      if (n.length > 128) throw erro('senha-longa');
+      if (n === a) throw erro('senha-igual');
+      if (!temRede()) throw erro('sem-rede');
+      await sessao.entrarComSenha(c.email, a);
+      await sessao.trocarSenha(n);
+      return this.get();
+    },
     /** G-264 · T6f-2 · Esqueci a senha: confere o e-mail antes da rede e pede o link. */
     async redefinirSenha(email) {
       if (!sessao || !sessao.disponivel() || !sessao.redefinirSenha) throw erro('sem-firebase');
@@ -11305,6 +11319,7 @@ const STK = 'https://securetoken.googleapis.com/v1/token';
 const SIGNUP = 'https://identitytoolkit.googleapis.com/v1/accounts:signUp';
 const SENHA = 'https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword';
 const OOB = 'https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode'; // G-264 · T6f-2 · link de senha nova
+const UPDATE = 'https://identitytoolkit.googleapis.com/v1/accounts:update'; // G-268 · T6f-5a · trocar a senha
 /** Código do Identity Toolkit (o começo da mensagem de erro) → motivo da tela. Com a proteção contra enumeração ligada,
     e-mail sem conta e senha errada chegam iguais (INVALID_LOGIN_CREDENTIALS): a tela também não diferencia. */
 const ERRO_SENHA = { EMAIL_EXISTS: 'email-em-uso', INVALID_EMAIL: 'email-invalido', MISSING_EMAIL: 'email-invalido', WEAK_PASSWORD: 'senha-fraca', MISSING_PASSWORD: 'senha-vazia', INVALID_LOGIN_CREDENTIALS: 'senha-nao-confere', INVALID_PASSWORD: 'senha-nao-confere', EMAIL_NOT_FOUND: 'senha-nao-confere', USER_DISABLED: 'conta-desativada', TOO_MANY_ATTEMPTS_TRY_LATER: 'muitas-tentativas', RESET_PASSWORD_EXCEED_LIMIT: 'muitas-tentativas', OPERATION_NOT_ALLOWED: 'sem-senha', PASSWORD_LOGIN_DISABLED: 'sem-senha' };
@@ -11385,6 +11400,27 @@ function createSessaoFirebase({ apiKey = '', fetch: fetchFn = null, agora = () =
       }
       return { uid: s.uid };
     },
+    /** G-268 · T6f-5a · Troca a senha da conta aberta (o Firebase pede entrada recente: a conta confere a senha atual antes).
+        O Firebase encerra as outras sessões da conta e devolve tokens novos, que passam a valer aqui. */
+    async trocarSenha(nova) {
+      if (!apiKey) throw erro('sem-firebase');
+      if (!s) throw erro('sem-conta-estante');
+      const atual = s, idToken = await this.token();
+      let r;
+      try {
+        r = await pede(`${UPDATE}?key=${chave()}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idToken, password: String(nova || ''), returnSecureToken: true }) });
+      } catch (e) {
+        const c = String(e.detalhe || '').split(/[\s:]/)[0];
+        const codigo = e.message === 'firebase-recusou' ? (ERRO_SENHA[c] || ERRO_VINCULO[c]) : null;
+        throw codigo ? erro(codigo, { status: e.status }) : e;
+      }
+      if (s !== atual || String(r.localId || '') !== atual.uid) throw erro('firebase-recusou');
+      if (typeof r.idToken === 'string' && typeof r.refreshToken === 'string') {
+        s = { ...atual, idToken: r.idToken, refreshToken: r.refreshToken, expira: agora() + (Number(r.expiresIn) || 3600) * 1000 };
+        grava({ uid: s.uid, refreshToken: s.refreshToken });
+      }
+      return { uid: s.uid };
+    },
     /** G-264 · T6f-2 · Pede o e-mail com o link de senha nova (modelo em pt-BR no console). A resposta é a mesma com ou
         sem conta nesse e-mail (proteção contra enumeração): só e-mail malformado, excesso de pedidos e rede mudam. */
     async redefinirSenha(email) {
@@ -11435,7 +11471,7 @@ const MOTIVO = { 'sem-client-id': 'Entrar com Google precisa de um Client ID con
   // G-263 · T6f-1 · e-mail e senha
   'email-invalido': 'Confira o e-mail: falta algo como nome@exemplo.com.', 'senha-vazia': 'Digite a senha.', 'senha-curta': 'A senha precisa de pelo menos 8 caracteres.', 'senha-longa': 'A senha pode ter no máximo 128 caracteres.', 'senha-fraca': 'Senha fraca demais: use pelo menos 8 caracteres.', 'email-em-uso': 'Este e-mail já tem conta. Toque em Entrar (se a conta foi criada com o Google, use Continuar com Google).', 'senha-nao-confere': 'E-mail ou senha não conferem.', 'conta-desativada': 'Esta conta foi desativada.', 'muitas-tentativas': 'Muitas tentativas em pouco tempo. Espere alguns minutos e tente de novo.', 'sem-senha': 'Entrar com e-mail ainda não está ligado neste app.', 'entre-de-novo': 'A conta saiu deste aparelho: entre de novo com e-mail e senha.',
   // G-267 · T6f-4 · ligar o Google
-  'sem-conta-estante': 'Entre na conta da Estante antes de ligar o Google.', 'google-de-outra-conta': 'Esta conta Google já é de outra conta da Estante. Use outra conta Google, ou entre pela outra com Continuar com Google.', 'google-email-em-uso': 'O e-mail desta conta Google já tem conta na Estante. Entre por ela com Continuar com Google.' };
+  'sem-conta-estante': 'Entre na conta da Estante antes de ligar o Google.', 'senha-igual': 'A senha nova precisa ser diferente da atual.', 'google-de-outra-conta': 'Esta conta Google já é de outra conta da Estante. Use outra conta Google, ou entre pela outra com Continuar com Google.', 'google-email-em-uso': 'O e-mail desta conta Google já tem conta na Estante. Entre por ela com Continuar com Google.' };
 const motivoDe = e => MOTIVO[e && e.message] || MOTIVO.api;
 return { createConta, createSessaoFirebase, carregaScriptWeb, motivoDe, MOTIVO, KEY, ARQUIVO };
 })();
@@ -15081,6 +15117,39 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
     confere();
     campo.focus({ preventScroll: true });
   }
+  /** G-268 · T6f-5a · trocar a senha da conta de e-mail: a atual (o Firebase pede entrada recente) e a nova. */
+  function abreTrocarSenha() {
+    const erro = h('div', { class: 'conta-email__erro', id: 'conta-troca-erro', role: 'alert' });
+    const atual = h('input', { class: 'ds-input', type: 'password', id: 'conta-troca-atual', autocomplete: 'current-password', placeholder: 'Senha de agora' });
+    const nova = h('input', { class: 'ds-input', type: 'password', id: 'conta-troca-nova', autocomplete: 'new-password', placeholder: 'Senha nova' });
+    const olho = IconButton('olho', 'Mostrar as senhas', { id: 'conta-troca-mostrar', variant: 'ghost', onClick: () => {
+      const ver = nova.type === 'password'; for (const c of [atual, nova]) c.type = ver ? 'text' : 'password';
+      olho.setAttribute('aria-pressed', String(ver)); olho.setAttribute('aria-label', ver ? 'Esconder as senhas' : 'Mostrar as senhas'); } });
+    olho.setAttribute('aria-pressed', 'false');
+    const vai = Button('Trocar a senha', { variant: 'primary', icone: 'conferir', id: 'conta-troca-confirmar', onClick: () => confirma() });
+    const rot = () => vai.querySelector('.ds-btn__rotulo');
+    async function confirma() {
+      if (vai.disabled) return;
+      clear(erro); vai.disabled = true; vai.setAttribute('aria-busy', 'true'); rot().textContent = 'Trocando…'; st.contaOcupada = true;
+      try {
+        await conta.trocarSenha(atual.value, nova.value);
+        st.contaOcupada = false; if (haptics) haptics.evento('confirmacao');
+        closeDialog(); toast('Senha trocada. Nos outros aparelhos, entre de novo com a senha nova.', 3600); paint();
+      } catch (e) {
+        st.contaOcupada = false; vai.disabled = false; vai.removeAttribute('aria-busy'); rot().textContent = 'Trocar a senha';
+        mount(erro, Note(e && e.message === 'senha-nao-confere' ? 'A senha de agora não confere.' : __m29.motivoDe(e), 'negative'));
+        (/^senha-(nao-confere|vazia)$/.test(e && e.message) ? atual : nova).focus();
+      }
+    }
+    for (const c of [atual, nova]) c.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); confirma(); } });
+    Dialog({ title: 'Trocar a senha', body: Stack({},
+      Field('Senha de agora', atual),
+      h('label', { class: 'ds-field' }, h('span', { class: 'ds-field__label' }, 'Senha nova'), h('span', { class: 'conta-email__senha' }, nova, olho), h('span', { class: 'ds-field__hint' }, 'Pelo menos 8 caracteres.')),
+      Text('Os outros aparelhos com esta conta saem e pedem a senha nova.', { size: 'sm', tone: 'muted' }),
+      erro),
+      actions: [Button('Cancelar', { id: 'conta-troca-cancelar', onClick: closeDialog }), vai] });
+    atual.focus({ preventScroll: true });
+  }
   function secaoConta() {
     if (!conta) return null;
     const comEmail = !!(conta.comEmailDisponivel && conta.comEmailDisponivel());
@@ -15131,6 +15200,7 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
             onClick: () => acaoDaConta(async () => { await conta.vincularGoogle(); if (haptics) haptics.evento('confirmacao'); toast('Google ligado: o backup no Drive está pronto'); }) }))
         ] : [Text('Backup no Google Drive: chega quando der para ligar o Google a esta conta. Até lá, o backup por arquivo guarda tudo.', { size: 'sm', tone: 'muted', attrs: { id: 'conta-backup-quando' } })]),
         Row({ class: 'ds-row--wrap' },
+          Button('Trocar a senha', { icone: 'editar', id: 'conta-senha-trocar', variant: 'ghost', disabled: oc || e.estado !== 'conectada', title: e.estado !== 'conectada' ? 'Entre de novo antes de trocar a senha' : 'Trocar a senha desta conta', onClick: () => abreTrocarSenha() }),
           Button('Sair', { icone: 'desistir', id: 'conta-sair', variant: 'ghost', disabled: oc, onClick: () => acaoDaConta(async () => { await conta.sair(); toast('Conta desconectada'); }) }))));
     }
     return Surface({ class: 'ds-surface--pad', id: 'perfil-conta', dataset: { conectada: 'true' } }, Stack({}, cabeca,

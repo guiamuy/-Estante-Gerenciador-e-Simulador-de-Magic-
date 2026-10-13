@@ -5198,6 +5198,51 @@ test('e2e · G-267 ligar o Google: a conta de e-mail ganha o Drive sem trocar de
   assert.deepEqual(errors, []);
 });
 
+/* G-268 · T6f-5a · relato #18: trocar a senha */
+test('e2e · G-268 trocar a senha: confere a de agora, avisa embaixo sem fechar, troca e a conta continua conectada', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.addInitScript(() => {
+    window.__GOOGLE_CLIENT_ID = 'e2e.apps.googleusercontent.com'; window.__FIREBASE_API_KEY = 'chave-e2e';
+    window.__firebaseLog = []; window.__senha = 'senha-certa-1';
+    const ok = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } });
+    window.__FIREBASE_FETCH = async (url, init) => {
+      const corpo = url.includes('securetoken') ? init.body : JSON.parse(init.body); window.__firebaseLog.push({ url: url.split('?')[0], corpo });
+      if (url.includes('securetoken')) return ok({ id_token: 'id-renovado', refresh_token: 'ref-2', expires_in: '3600', user_id: 'uidSenha_1' });
+      if (url.includes('accounts:update')) { window.__senha = corpo.password; return ok({ localId: 'uidSenha_1', idToken: 'id-nova', refreshToken: 'ref-nova', expiresIn: '3600' }); }
+      if (url.includes('signInWithPassword') && corpo.password !== window.__senha) return ok({ error: { message: 'INVALID_LOGIN_CREDENTIALS' } }, 400);
+      return ok({ localId: 'uidSenha_1', email: corpo.email, idToken: 'id-senha', refreshToken: 'ref-senha', expiresIn: '3600' });
+    };
+  });
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#conta-email-abrir:not([disabled])');
+  await page.click('#conta-email-abrir'); await page.waitForSelector('#conta-email-campo');
+  await page.click('#conta-email-modo [data-modo="criar"]');
+  await page.fill('#conta-email-campo', 'gui@exemplo.com'); await page.fill('#conta-senha', 'senha-certa-1'); await page.click('#conta-email-confirmar');
+  await page.waitForSelector('#conta-senha-trocar:not([disabled])');
+  assert.ok((await page.locator('#conta-senha-trocar').boundingBox()).height >= 44);
+  await page.click('#conta-senha-trocar'); await page.waitForSelector('#conta-troca-atual');
+  // senha de agora errada: avisa embaixo, a folha fica, nada é trocado
+  await page.fill('#conta-troca-atual', 'errada-000'); await page.fill('#conta-troca-nova', 'nova-senha-1'); await page.click('#conta-troca-confirmar');
+  await page.waitForFunction(() => /A senha de agora não confere/.test(document.querySelector('#conta-troca-erro').textContent));
+  assert.equal(await page.evaluate(() => window.__firebaseLog.filter(l => l.url.endsWith('accounts:update')).length), 0);
+  // nova igual: avisa sem ir à rede
+  await page.fill('#conta-troca-atual', 'senha-certa-1'); await page.fill('#conta-troca-nova', 'senha-certa-1'); await page.press('#conta-troca-nova', 'Enter');
+  await page.waitForFunction(() => /diferente da atual/.test(document.querySelector('#conta-troca-erro').textContent));
+  await page.click('#conta-troca-mostrar'); assert.equal(await page.getAttribute('#conta-troca-nova', 'type'), 'text');
+  await auditaTela(page, 'perfil · trocar a senha');
+  // troca
+  await page.fill('#conta-troca-nova', 'nova-senha-1'); await page.click('#conta-troca-confirmar');
+  await page.waitForFunction(() => /Senha trocada/.test(document.querySelector('#ds-toast')?.textContent || ''));
+  assert.equal(await page.evaluate(() => window.__senha), 'nova-senha-1');
+  assert.equal(await page.locator('#ds-overlay[data-open="true"]').count(), 0);
+  assert.match(await page.innerText('#conta-estante'), /conectada/);
+  // sair e entrar com a nova
+  await page.click('#conta-sair'); await page.waitForSelector('#conta-email-abrir');
+  await page.click('#conta-email-abrir'); await page.fill('#conta-email-campo', 'gui@exemplo.com'); await page.fill('#conta-senha', 'nova-senha-1'); await page.click('#conta-email-confirmar');
+  await page.waitForSelector('#conta-estante[data-estado="conectada"]');
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · P-8 sala pela internet: sem conta da Estante, Criar e Entrar dão lugar a Conectar; sem conta Google leva ao Perfil; conectada, a sala aparece; P-9 reabrir continua conectado; sem sessão, Conectar liga ali', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.setViewportSize({ width: 360, height: 780 });

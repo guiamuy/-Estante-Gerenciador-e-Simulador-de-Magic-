@@ -535,6 +535,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ep ✅ | T6f-2 esqueci a senha: na folha de entrar, manda o link de senha nova para o e-mail digitado, sem dizer se há conta nele (relato #18, fatia 2 de 6, leva G-264) | P | 1 | teste no aparelho (e-mail de verdade) |
 | 16º-eq ✅ | T6f-3 nome de usuário único: escolher e trocar o @ no Perfil, um nome por conta garantido pelo banco (relato #18, fatia 3 de 6, leva G-266) | P | 1 | o dono publicar as regras no console |
 | 16º-er ✅ | T6f-4 ligar o Google a uma conta de e-mail: o backup no Drive passa a valer sem trocar de conta (relato #18, fatia 4 de 6, leva G-267) | P | 1 | teste no aparelho |
+| 16º-es ✅ | T6f-5a trocar a senha da conta de e-mail no Perfil, conferindo a de agora (relato #18, fatia 5a, leva G-268) | P | 1 | teste no aparelho |
 | 16º-ee ✅ | T6e-2 Enviar relato sem sair do app: com a conta conectada e a fila ligada, o relato vai para a fila do Firebase e o cartão mostra "Na fila" até o número do registro (relato #13, leva G-255) | T | 1 | — |
 | 16º-eh ✅ | T6e-2 prazo honesto do relato pela fila: o GitHub atrasa o agendamento em horas, a tela diz "de minutos a algumas horas" e a conversa que lê relatos roda a fila antes (relato #13, leva G-256) | T | 1 | 16º-ee |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
@@ -9562,8 +9563,7 @@ o aviso de fila ligada, o que acontece na primeira rodada depois de o dono criar
   (isso já vale pela A-261/A-263 por uid). O dono ligou o provedor E-mail/senha no Firebase em 13/10/2026 (modelo de
   redefinição em pt-BR, uma conta por e-mail, criação ligada, proteção contra enumeração ligada).
 - **Fatias:** T6f-1 criar e entrar (G-263) ✅ · T6f-2 esqueci a senha (G-264) ✅ · T6f-3 nome de usuário único (G-266) ✅, regras do
-  banco que o dono publica · T6f-4 vincular o Google depois (G-267) ✅ · T6f-5 trocar a
-  senha e excluir a conta (com os dados da nuvem) · T6f-6 transições de entrada e sucesso.
+  banco que o dono publica · T6f-4 vincular o Google depois (G-267) ✅ · T6f-5a trocar a senha (G-268) ✅ · T6f-5b excluir a conta (com os dados da nuvem) · T6f-6 transições de entrada e sucesso.
 
 **T6f-1 · Criar conta e entrar com e-mail e senha** ✅ (leva G-263, trilha `geral`, 13/10/2026)
 - **Como:** a sessão da Estante (`src/data/conta.js`, `createSessaoFirebase`) ganhou `criarComSenha` e `entrarComSenha`
@@ -9638,6 +9638,18 @@ regras** (`database.rules.json`) no console; até lá a tela diz "Nomes de usuá
   `idToken`; Perfil mostra o Google e o backup; o backup vai para o Drive).
 - **Fora:** tirar o Google da conta; entrar pelo Google numa conta de e-mail já ligada abre a mesma conta, mas o Perfil a
   mostra como conta Google até a próxima entrada com senha.
+
+**T6f-5a · Trocar a senha** ✅ (leva G-268, trilha `geral`, 13/10/2026)
+- **Como:** o Firebase só troca a senha com entrada recente, então a conta confere a senha de agora
+  (`accounts:signInWithPassword`) e grava a nova (`accounts:update`, `src/data/conta.js`); os tokens novos que ele devolve
+  passam a valer aqui, e os outros aparelhos da conta saem e pedem a senha nova (dito na folha e no aviso). Perfil ›
+  Conta de e-mail: "Trocar a senha" (44 px) ao lado de Sair; a folha tem a senha de agora, a nova (8 ou mais), mostrar as
+  senhas, "Trocando…", erro embaixo sem fechar (senha de agora não confere, nova igual à atual, fraca).
+- **Testes:** U `conta.estante.unit` (G-268: conferência antes da rede, senha atual errada não troca, formato do
+  `accounts:update` com o token da entrada recém-conferida, tokens novos guardados como renovação, senha fraca);
+  e2e "G-268" (erro sem fechar e sem trocar, nova igual sem ir à rede, mostrar senhas, troca, continua conectada, entra
+  de novo com a nova).
+- **Fora:** criar senha numa conta que entrou só pelo Google (vem com a T6f-5b ou depois).
 
 **T6e-3 · Relato enviado não muda mais (relato #16)** ✅ (leva G-261, trilha `geral`, 13/10/2026)
 - **Pedido (relato #16, infraestrutura · impede o uso):** depois de enviado, o relato não se edita, não se reenvia, não se
