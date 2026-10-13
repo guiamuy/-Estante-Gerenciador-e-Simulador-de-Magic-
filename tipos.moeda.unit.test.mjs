@@ -143,3 +143,14 @@ test('Validador, frases e registro · a moeda e as condições do lance', () => 
   const linhas = T.describe(r.state, { t: 'pass', p: 1 }, r2.events, r2.state).join(' | ');
   assert.match(linhas, /moeda: cara · ganhou/, linhas);
 });
+
+/* ---------------- T-67 · correções da auditoria independente (T-65/T-66) ---------------- */
+SCRIPTS['Oraculo Moeda'] = { name: 'Oraculo Moeda', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'moeda', fixa: 'ganha' }, { do: 'scry', amount: 1, onlyIf: 'ganhou-moeda' }, { do: 'draw', amount: 1, onlyIf: 'ganhou-moeda' }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } };
+carta('Oraculo Moeda', 'Creature — Human', { power: '2', toughness: '2' });
+
+test('CR 705.2 · gatilho com moeda e uma escolha no meio (vidência): o "se ganhar" depois da escolha usa o lance desta resolução', () => {
+  let s = mesa(); let m; [s, m] = poe(s, 0, 'Oraculo Moeda', 'hand'); s = mana(s); const h = s.zones[0].hand.length - 1;
+  let r = E.apply(s, legais(s, 0, a => a.t === 'cast' && a.oid === m)[0]); let y = r.state, vid = false;
+  for (let i = 0; i < 30 && (y.stack.length || y.pending); i++) { if (y.pending && y.pending.label === 'scry') vid = true; y = E.apply(y, y.pending ? legais(y, y.pending.p)[0] : { t: 'pass', p: y.turn.priority }).state; }
+  assert.ok(vid, 'houve a vidência'); eq(y.zones[0].hand.length - h, 1, 'compra 1 depois da vidência');
+});

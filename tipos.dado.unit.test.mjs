@@ -129,3 +129,46 @@ test('Validador, frases e registro · o dado, a faixa e o resultado', () => {
   const L = T.describe(r.state, { t: 'pass', p: 1 }, r2.events, r2.state).join(' | ');
   assert.match(L, /rolou 2d20 \(\d+ e \d+, ignorou o \d+\): \d+/, L);
 });
+
+/* ---------------- T-67 · correções da auditoria independente (T-65/T-66) ---------------- */
+const EXA = { example: { action: 'etb', target: 'none', expect: { attached: false } } };
+SCRIPTS['Oraculo Dado'] = { name: 'Oraculo Dado', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'dado', lados: 20 }, { do: 'scry', amount: 1, faixaDoDado: [1, 20] }, { do: 'draw', amount: 1, faixaDoDado: [1, 20] }] }], ...EXA };
+SCRIPTS['Oraculo Valor'] = { name: 'Oraculo Valor', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'dado', lados: 6 }, { do: 'scry', amount: 1 }, { do: 'gain', amount: { per: 'resultado-do-dado' } }] }], ...EXA };
+SCRIPTS['Vidente Velho'] = { name: 'Vidente Velho', abilities: [
+  { kind: 'triggered', when: 'etb', optional: true, effects: [{ do: 'dado', lados: 20, mais: 100 }, { do: 'gain', amount: 1 }] },
+  { kind: 'triggered', when: 'attacks', effects: [{ do: 'dado', lados: 6 }, { do: 'scry', amount: 1 }, { do: 'gain', amount: { per: 'resultado-do-dado' } }] }], ...EXA };
+for (const n of ['Oraculo Dado', 'Oraculo Valor', 'Vidente Velho']) carta(n, 'Creature — Human', { power: '2', toughness: '2' });
+
+test('CR 706.3b / 706.4 · gatilho com dado e uma escolha no meio (vidência): a linha da tabela e o "igual ao resultado" depois da escolha usam o dado desta resolução', () => {
+  for (let seed = 1; seed <= 6; seed++) {
+    const s0 = mesa(seed); let m, x; [x, m] = poe(s0, 0, 'Oraculo Dado', 'hand'); const h = x.zones[0].hand.length - 1;
+    const r = joga(s0, 'Oraculo Dado'); assert.ok(r.escolhas.includes('scry'), 'houve a vidência');
+    eq(r.s.zones[0].hand.length - h, 1, `semente ${seed}: compra 1 depois da vidência`);
+    const v = s0.players[0].life; const r2 = joga(s0, 'Oraculo Valor');
+    eq(r2.s.players[0].life - v, r2.dados[0].resultado, `semente ${seed}: ganha o d6`);
+  }
+});
+
+test('CR 400.7 · o dado de uma resolução antiga não vaza: o gatilho de ataque retomado depois da vidência usa o d6 dele, não o d20+100 da entrada', () => {
+  let s = mesa(8); let m; [s, m] = poe(s, 0, 'Vidente Velho', 'hand'); s = mana(s);
+  let r = E.apply(s, legais(s, 0, a => a.t === 'cast' && a.oid === m)[0]); let y = r.state;
+  for (let i = 0; i < 40 && (y.stack.length || y.pending); i++) y = E.apply(y, y.pending ? legais(y, y.pending.p)[0] : { t: 'pass', p: y.turn.priority }).state;
+  y = J(y); y.objects[m].sick = false;
+  y = passaAte(y, x => x.pending && x.pending.kind === 'attackers' && x.pending.p === 0, 800);
+  const v = y.players[0].life; r = E.apply(y, { t: 'attack', p: 0, attackers: [m] }); const evs = [...r.events]; y = r.state;
+  for (let i = 0; i < 20 && !evs.some(e => e.kind === 'effect' && e.do === 'gain'); i++) { r = E.apply(y, y.pending ? legais(y, y.pending.p)[0] : { t: 'pass', p: y.turn.priority }); evs.push(...r.events); y = r.state; }
+  const d6 = evs.filter(e => e.kind === 'effect' && e.do === 'dado').pop();
+  eq([d6.lados, y.players[0].life - v], [6, d6.resultado]);
+});
+
+test('CR 706.5 / 706.6 / 706.4 · validador: "duplos" com rolagem ignorada, "duplos" no per: se sem dado e o resultado único de dois dados sem ignorar são recusados; o motor não conta duplos com a ignorada', () => {
+  const ruim = efs => SC.validateScript({ name: 'X', effects: efs, ...EX });
+  assert.ok(ruim([{ do: 'dado', lados: 2, quantos: 2, ignora: 'menor' }, { do: 'draw', amount: 1, onlyIf: 'dado-duplos' }]).some(e => /duplos/.test(e)));
+  assert.ok(ruim([{ do: 'gain', amount: { per: 'se', se: 'dado-duplos', sim: 2, nao: 1 } }]).some(e => /dado/.test(e)));
+  assert.ok(ruim([{ do: 'dado', lados: 6, quantos: 2 }, { do: 'gain', amount: { per: 'resultado-do-dado' } }]).some(e => /dois dados/.test(e)));
+  assert.ok(ruim([{ do: 'dado', lados: 6, quantos: 2 }, { do: 'gain', amount: 1, faixaDoDado: [1, 3] }]).some(e => /dois dados/.test(e)));
+  const s = J(mesa(1)); const src = { oid: 'zz', name: 'Teste', controller: 0, ability: true };
+  let achou = false;
+  for (let i = 0; i < 40 && !achou; i++) { const ev = []; E.applyEffect(s, src, { do: 'dado', lados: 2, quantos: 2, ignora: 'menor' }, null, ev); if (ev[0].rolagens[0] === ev[0].rolagens[1]) { achou = true; eq(src.dadoT.duplos, false, '1 e 1 com um ignorado: não são duplos'); } }
+  assert.ok(achou, 'apareceu um par igual');
+});

@@ -6549,7 +6549,10 @@ function effectErrors(effects, label, opcional) {
       if (!Array.isArray(f) || f.length !== 2 || !Number.isInteger(f[0]) || !(f[1] === null || (Number.isInteger(f[1]) && f[1] >= f[0]))) errs.push(`${label} ${i + 1}: a faixa do dado ("faixaDoDado") é [de, ate], de ≤ ate (ate null = "de ou mais")`);
       if (!antes) errs.push(`${label} ${i + 1}: "faixaDoDado" precisa de um dado antes`);
     }
-    if (((e.amount && e.amount.per === 'resultado-do-dado') || e.onlyIf === 'dado-duplos') && !antes) errs.push(`${label} ${i + 1}: o resultado do dado precisa de um dado antes`);
+    const kd = e.onlyIf || (e.amount && e.amount.per === 'se' ? e.amount.se : null), usaResultado = (e.amount && e.amount.per === 'resultado-do-dado') || e.faixaDoDado != null, ultimo = effects.slice(0, i).filter(x => x.do === 'dado').pop();
+    if (((e.amount && e.amount.per === 'resultado-do-dado') || kd === 'dado-duplos') && !antes) errs.push(`${label} ${i + 1}: o resultado do dado precisa de um dado antes`); // T-67 · também no per: 'se'
+    if (ultimo && kd === 'dado-duplos' && !(ultimo.quantos === 2 && !ultimo.ignora)) errs.push(`${label} ${i + 1}: "duplos" precisa de dois dados sem rolagem ignorada (706.5, 706.6)`); // T-67
+    if (ultimo && usaResultado && ultimo.quantos === 2 && !ultimo.ignora) errs.push(`${label} ${i + 1}: com dois dados, o texto da carta diz como usar cada resultado (706.4): o resultado único só existe ignorando um dado`); // T-67
   });
   effects.forEach((e, i) => { // T-65 · CR 705 · a moeda e as condições do lance
     if (e.do === 'moeda') {
@@ -9437,7 +9440,7 @@ function condicoesT() { return ['resistenciaAte', 'selada', 'preparada', 'monarc
    ("… instead if you're the monarch"). Efeito contínuo: `se: { monarca: 'voce' | 'oponente' }` ("as long as you're the monarch").
    Sem monarca no jogo, nenhuma das condições vale (725.5). */
 function onlyIfT() { return ['monarca', 'oponente-monarca', 'ganhou-moeda', 'perdeu-moeda', 'deu-cara', 'deu-coroa', 'dado-duplos']; } // T-66 · CR 706.5 // T-65 · CR 705.2 · o lance da moeda
-function perCountsT() { return ['party', 'moedas-ganhas', 'resultado-do-dado']; } // T-66 · CR 706.4 // T-59 · CR 700.8 · grupo · T-65 · CR 705.2 · "for each flip you won" (função içada: PER_COUNTS é montada antes) // função (içada): ONLY_IF e o validador do `per: 'se'` são montados antes desta linha
+function perCountsT() { return ['moedas-ganhas', 'resultado-do-dado']; } // T-66 · CR 706.4 // T-59 · CR 700.8 · grupo · T-65 · CR 705.2 · "for each flip you won" (função içada: PER_COUNTS é montada antes) // função (içada): ONLY_IF e o validador do `per: 'se'` são montados antes desta linha
 function seMonarcaT(se) { return !!se && Object.keys(se).length === 1 && ['voce', 'oponente'].includes(se.monarca); }
 function monarcaErrosT(sc) {
   const errs = [], abs = [...((sc && sc.abilities) || []), ...((sc && sc.back && sc.back.abilities) || [])];
@@ -21732,7 +21735,7 @@ function resumeEffects(s, events) {
   const r = s.resume; if (!r) { terminaMagiaSuspensa(s, events); return; } // M-374
   s.resume = null;
   const src0 = s.objects[r.oid] || { oid: r.oid, name: r.name, controller: r.controller, ...(r.xPaid != null ? { xPaid: r.xPaid } : {}) };
-  const src = (r.chosenColor || r.condicoes) && !src0.ability ? { ...src0, ...(r.condicoes || {}), ...(r.chosenColor ? { chosenColor: r.chosenColor } : {}) } : src0; // M-348 · cor escolhida na resolução de uma mágica (Emerge Unscathed) · M-351 · condições da conjuração (Extract a Confession)
+  const src = comResolucaoT(r, (r.chosenColor || r.condicoes) && !src0.ability ? { ...src0, ...(r.condicoes || {}), ...(r.chosenColor ? { chosenColor: r.chosenColor } : {}) } : src0); // M-348 · cor escolhida na resolução de uma mágica (Emerge Unscathed) · M-351 · condições da conjuração (Extract a Confession) // T-67 · o dado e a moeda desta resolução voltam com a retomada (Toca ponto comum: resumeEffects)
   const alvos = (r.alvos || []).slice();
   // CR2c.7 · habilidade com X retomada depois de uma decisão: a fonte é a permanente, e o X é o da habilidade só durante esta retomada
   const xRet = r.xPaid != null && s.objects[r.oid] ? src : null, xAntes = xRet ? xRet.xPaid : undefined; if (xRet) xRet.xPaid = r.xPaid;
@@ -21745,7 +21748,7 @@ function resumeEffects(s, events) {
     else if (eff.target === 'target-controller') { const t = r.alvo; tgt = { player: t && t.player != null ? t.player : t && t.oid != null && s.objects[t.oid] ? s.objects[t.oid].controller : r.controller }; }
     if (porJogador(eff)) aplicaPorJogador(s, src, eff, events); else if (eff.cada && eff.cada.de === 'alvo') aplicaCadaDoAlvo(s, src, eff, tgt, events); else if (ehVarredura(eff)) aplicaCada(s, src, eff, events); else // M-230 · a varredura também retoma depois de uma decisão; CR2-G R4b · M-351
     applyEffect(s, src, eff, tgt, events); // CR 704.4 · sem ações de estado entre os efeitos de uma mesma resolução
-    if (s.pending) { s.resume = { ...r, effects: r.effects.slice(r.effects.indexOf(eff) + 1), alvos }; return; }
+    if (s.pending) { s.resume = { ...r, effects: r.effects.slice(r.effects.indexOf(eff) + 1), alvos, ...(src.dadoT || src.moedaT ? resolucaoT(src) : {}) }; return; } // T-67
   } } finally { if (xRet) { if (xAntes === undefined) delete xRet.xPaid; else xRet.xPaid = xAntes; } }
   terminaMagiaSuspensa(s, events); // M-374
 }
@@ -24629,7 +24632,7 @@ function resolveAbility(s, o, events) {
     else if (eff.target === 'delayed-player') applyEffect(s, o, eff, { player: o.jogadorAtrasado != null ? o.jogadorAtrasado : o.controller }, events); // CR2b.1
     else if (ehVarredura(eff)) aplicaCada(s, o, eff, events); // M-230
     else applyEffect(s, o, eff, null, events);
-    if (s.pending) { s.resume = { oid: o.source || o.oid, name: o.name, controller: o.controller, effects: (o.effects || []).slice((o.effects || []).indexOf(eff) + 1), alvo: primeiro, alvos: chosen.slice(ti), ...(o.xPaid != null ? { xPaid: o.xPaid } : {}) }; return; } // CR2c.7 · o X viaja com a retomada
+    if (s.pending) { s.resume = { oid: o.source || o.oid, name: o.name, controller: o.controller, effects: (o.effects || []).slice((o.effects || []).indexOf(eff) + 1), alvo: primeiro, alvos: chosen.slice(ti), ...(o.xPaid != null ? { xPaid: o.xPaid } : {}), ...(o.dadoT || o.moedaT ? resolucaoT(o) : {}) }; return; } // CR2c.7 · o X viaja com a retomada · T-67 · e o dado e a moeda desta resolução (706.3b)
   }
 }
 
@@ -27078,10 +27081,14 @@ function dadoT(s, src, eff, events) {
   let usados = rol.slice(), ignorada = null;
   if (eff.ignora === 'menor' && usados.length > 1) { const i = usados.indexOf(Math.min(...usados)); ignorada = usados.splice(i, 1)[0]; }
   const natural = Math.max(...usados), mais = eff.mais != null ? (amountOf(s, src, eff.mais) || 0) : 0, resultado = natural + mais;
-  const d = { natural, resultado, rolagens: rol, ignorada, duplos: rol.length === 2 && rol[0] === rol[1] };
+  const d = { natural, resultado, rolagens: rol, ignorada, duplos: ignorada == null && rol.length === 2 && rol[0] === rol[1] }; // T-67 · 706.6: a rolagem ignorada nunca aconteceu
   src.dadoT = d; if (src.oid != null && s.objects[src.oid] && s.objects[src.oid] !== src) s.objects[src.oid].dadoT = d;
   events.push({ kind: 'effect', do: 'dado', name: src.name, target: s.players[p] ? s.players[p].name : '', lados, rolagens: rol, ignorada, natural, mais, resultado });
 }
+/** T-67 · CR 706.3b / 400.7 · as marcas desta resolução (o dado e a moeda) viajam com a retomada: a habilidade retomada depois de uma
+ * escolha (vidência, alvo) volta com a permanente como fonte, que não guarda o resultado (nem deve: o de uma resolução antiga não vale). */
+const resolucaoT = o => ({ resolucaoT: { dadoT: (o && o.dadoT) || null, moedaT: (o && o.moedaT) || null } });
+const comResolucaoT = (r, src) => r.resolucaoT ? { ...src, dadoT: r.resolucaoT.dadoT, moedaT: r.resolucaoT.moedaT } : src;
 const dadoNaFaixaT = (o, f) => { const d = o && o.dadoT; return !!d && d.resultado >= f[0] && (f[1] == null || d.resultado <= f[1]); };
 const moedaCondT = (o, k) => { const m = o && o.moedaT; if (!m) return false; return k === 'ganhou-moeda' ? m.ganhou === true : k === 'perdeu-moeda' ? m.ganhou === false : k === 'deu-cara' ? m.r === 'cara' : m.r === 'coroa'; };
 /** T-62 · CR 725.5 · "if you're the monarch" ('voce') / "if an opponent is the monarch" ('oponente'), visto do jogador `p` agora.
