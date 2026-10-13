@@ -21315,7 +21315,7 @@ function makeAbility(s, source, ab, targets, blockedAt = source.blocking) {
   s.objects[oid] = { oid, ability: true, name: source.name, source: source.oid, effects: ab.effects, owner: source.controller,
     controller: source.controller, zone: 'stack', tapped: false, sick: false, damage: 0, counters: {}, targets: carimbaAlvos(s, targets),
     ...(blockedAt ? { blockedAt } : {}) }; // Q11 · Tinder Wall: quem ela bloqueava, mesmo depois de sacrificada (última informação conhecida)
-  { const f = s.objects[source.oid]; if (f && !f.ability && (ab.effects || []).some(e => e && (e.ate === 'fonte-sair' || (['topo_do_dono', 'exila_da_mao', 'revela_topo_transforma', 'exile_return_transformed', 'craft_volta'].includes(e.do) || e.remember || e.lembra)))) s.objects[oid].fonteZc = f.zc || 0; } // M-353 · a habilidade lembra a encarnação da fonte (achado da revisão do lote XXV) // M-345 · também "put ~ on top" (achado da revisão) // CR2d.1 · 610.3a (auditoria M-308: também na ativada): se a fonte já saiu quando o efeito resolve, nada se move
+  { const f = s.objects[source.oid]; if (f && !f.ability && (ab.effects || []).some(e => e && (e.ate === 'fonte-sair' || (['topo_do_dono', 'exila_da_mao', 'revela_topo_transforma', 'exile_return_transformed', 'craft_volta'].includes(e.do) || e.remember || e.lembra || e.target === 'self-source')))) s.objects[oid].fonteZc = f.zc || 0; } // M-371 · também todo efeito em "esta permanente" (400.7) // M-353 · a habilidade lembra a encarnação da fonte (achado da revisão do lote XXV) // M-345 · também "put ~ on top" (achado da revisão) // CR2d.1 · 610.3a (auditoria M-308: também na ativada): se a fonte já saiu quando o efeito resolve, nada se move
   s.stack.push(oid);
   return oid;
 }
@@ -23788,6 +23788,7 @@ function resolveAbility(s, o, events) {
   for (const eff of o.effects || []) {
     if (eff.onlyIf === 'alvo-era-seu' && donoDoPrimeiro !== o.controller) continue; // M-341
     if (!effectAllowed(s, fonte, eff)) continue; // S49 · condição do próprio efeito
+    if (eff.target === 'self-source' && o.fonteZc != null && fonte && fonte.zone === 'battlefield' && (fonte.zc || 0) !== o.fonteZc) { events.push({ kind: 'effect', do: eff.do, name: o.name, failed: true }); continue; } // M-371 · 400.7: a permanente que saiu e voltou é outro objeto
     if (SC.isTargeted(eff)) { const t = chosen[ti]; const legal = ok[ti]; ti++; if (ti === 1 && t == null && eff.upTo) primeiroVazio = true; if (!primeiro) { primeiro = t; donoDoPrimeiro = t && t.oid != null && s.objects[t.oid] ? s.objects[t.oid].controller : null; } if (legal) applyEffect(s, o, eff, t, events); }
     else if (eff.target === 'target-controller') { if (primeiroVazio) continue; const t = primeiro; applyEffect(s, o, eff, { player: t && t.player != null ? t.player : donoDoPrimeiro != null ? donoDoPrimeiro : o.controller }, events); } // M-327 · "its controller" também em habilidade (Ghost Quarter: quem busca é o dono do terreno destruído; antes era quem ativou)
     else if (eff.target === 'first-target') { if (primeiro) applyEffect(s, o, eff, primeiro, events); } // S42 · o mesmo alvo

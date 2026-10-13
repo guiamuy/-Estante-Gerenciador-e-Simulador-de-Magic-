@@ -4085,6 +4085,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Revisão independente:** 48 verificações, aprovada; os dois textos que faltavam (registro e "defensor" na pilha) foram corrigidos com teste antes. Achado antigo registrado para a próxima leva: efeito em "esta permanente" de uma habilidade ainda vale sobre o objeto novo se a permanente sair e voltar com a habilidade na pilha (400.7).
 - **Teste:** `lt53.unit` (2 testes; falham no motor anterior).
 
+**M-371 · 400.7 · Efeito em "esta permanente" não vale sobre a permanente que saiu e voltou** ✅ (leva M-371, motor v111 sem mudança de forma; goldens intactos).
+- **Valor:** se uma criatura é piscada (Ephemerate e afins) com uma habilidade dela na pilha, o "+1/+0", o "não pode ser bloqueada" e qualquer outro efeito em "esta permanente" deixam de valer sobre a que voltou — ela é outro objeto.
+- **Origem:** achado da revisão independente da M-370 (Gingerbrute); valia para todo efeito com `target: 'self-source'`.
+- **Fora:** os efeitos que olham a fonte fora do campo (voltar do cemitério para a mão, craft, exilar e voltar transformada) seguem com a conferência própria que já tinham.
+- **Teste:** `lt54.unit` (3 testes; os dois de piscar falham no motor anterior, o terceiro guarda o caso normal).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
