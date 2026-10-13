@@ -23624,6 +23624,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
   salaOfertasT(s, p, out); // T-26 · CR 709.5e · destrancar uma porta (ação especial, tempo de feitiço)
   tripularOfertas(s, p, out); // T-3 · CR 702.122a · "qualquer número de outras criaturas": além dos grupos mínimos, a escolha de quem tripula (função abaixo da âncora T das exportações)
   modalOfertas(s, p, out); // T-8 · CR 712.11b / 712.12 · dupla face modal na mão: conjurar ou jogar a face de trás (função abaixo da âncora T das exportações)
+  aventuraOfertasT(s, p, out); // T-40 · CR 715.3d · a Aventura da carta jogável do exílio por outro efeito
   prototipoOfertasT(s, p, out); // T-36 · CR 718.3 · conjurar como protótipo (custo, cor e tamanho alternativos)
   return out;
   })());
@@ -27018,9 +27019,22 @@ function aventuraDe(s, x) {
   const f = s.facts[o.frontName || o.name], sc = f && f.script;
   return sc && sc.self && sc.self.aventura && sc.omen && sc.back ? { nome: sc.back, mana: sc.omen.mana } : null;
 }
+/** T-40 · CR 715.3d, última frase · outra permissão de conjurar a carta também deixa conjurá-la como Aventura: a carta jogável do exílio
+ * por outro efeito (não pela própria Aventura) e a decisão "conjure sem pagar" (cascata, descobrir, "compre e conjure"). */
+const aventuraExiladaPelaPropriaT = o => o.aventuraExiladaT != null && o.aventuraExiladaT === (o.zc || 0);
+const aventuraPorOutraPermissaoT = (s, a, o) => (a.free && a.granted) || (o.zone === 'exile' && jogavelDoExilio(s, a.p, o) && !aventuraExiladaPelaPropriaT(o));
+function aventuraOfertasT(s, p, out) {
+  if (DENTRO_DAS_MODAIS || s.pending) return;
+  const cand = s.zones[p].exile.filter(oid => { const o = s.objects[oid]; return aventuraDe(s, o) && jogavelDoExilio(s, p, o) && !aventuraExiladaPelaPropriaT(o); });
+  if (!cand.length) return;
+  const s2 = cloneEstado(s); for (const oid of cand) { const z = s2.zones[p]; z.exile.splice(z.exile.indexOf(oid), 1); z.hand.push(oid); s2.objects[oid].zone = 'hand'; } // na cópia, a carta faz de conta que está na mão: as ofertas da Aventura saem do mesmo caminho
+  DENTRO_DAS_MODAIS = true;
+  try { for (const a of legalActions(s2, p)) if (a.t === 'cast' && a.omen && cand.includes(a.oid)) out.push(a); }
+  finally { DENTRO_DAS_MODAIS = false; }
+}
 function aventuraNaConjuracao(s, a, o) {
   if (!a.omen || !o || !aventuraDe(s, o)) return;
-  if (o.zone !== 'hand') throw new RuleError('aventura', 'fora da mão esta carta não é conjurada como Aventura (do exílio, só a carta normal)');
+  if (o.zone !== 'hand' && !aventuraPorOutraPermissaoT(s, a, o)) throw new RuleError('aventura', 'fora da mão esta carta não é conjurada como Aventura (do exílio da própria Aventura, só a carta normal)'); // T-40 · 715.3d, última frase
   // T-6 · 601.2e: o que o motor não oferece para a Aventura é recusado aqui, com mensagem (antes, algumas combinações davam erro interno)
   if (a.flashback || a.escape || a.disturb || a.plotted || a.faceDown || a.bestow || a.retrace || a.permissao != null) throw new RuleError('aventura', 'a Aventura é conjurada da mão, pelo custo dela');
   if (a.x != null && a.x !== 0) throw new RuleError('aventura', 'esta Aventura não tem X no custo');
@@ -27032,7 +27046,7 @@ function aventuraResolveu(s, item, o, controller, events) {
   if (events.some(e => e.kind === 'fizzled' && e.oid === item)) { moveObject(s, item, 'graveyard'); return nome; } // 608.2b · sem alvo legal não resolve: cemitério, sem a permissão do exílio
   moveObject(s, item, 'exile');
   const c = s.objects[item];
-  if (c && c.zone === 'exile') { c.playableFromExile = controller; events.push({ kind: 'effect', do: 'aventura', name: nome, target: c.name }); }
+  if (c && c.zone === 'exile') { c.playableFromExile = controller; c.aventuraExiladaT = c.zc || 0; events.push({ kind: 'effect', do: 'aventura', name: nome, target: c.name }); } // T-40 · 715.3d: a marca diz que a permissão é a da própria Aventura (vale enquanto a encarnação for esta)
   return nome;
 }
 /** T-6 · o valor de mana de um custo já lido (202.3): genérico + um por símbolo de cor ou híbrido; X conta 0 fora da pilha. */
@@ -27266,6 +27280,7 @@ function faceGratisOfertasT(s, p, out) {
   const ops = (s.pending.options || []).filter(oid => s.objects[oid] && !s.objects[oid].frontName);
   const div = ops.filter(oid => metadesDe(s, oid));
   const mod = ops.filter(oid => { const o = s.objects[oid], fv = !div.includes(oid) && faceDeTras(s, oid); return fv && (o.zone === 'hand' || (o.zone === 'exile' && jogavelDoExilio(s, p, o))) && !((s.facts[fv.nome] || {}).types || []).includes('land'); }); // a mesma conferência de faceEscolhidaT
+  aventuraGratisOfertasT(s, p, out, ops.filter(oid => aventuraDe(s, oid))); // T-40 · CR 715.3d · "conjure sem pagar" também como Aventura
   if (!div.length && !mod.length) return;
   for (let i = out.length - 1; i >= 0; i--) if (out[i].t === 'cast_free' && div.includes(out[i].oid) && out[i].face == null) { if (fundidaOfertaT(s, out[i])) out[i] = { ...out[i], face: 'fundida' }; else out.splice(i, 1); } // a carta inteira não é conjurada (709.3), salvo a fundida da mão (T-34)
   fundidaMesmoAlvoT(s, p, out, div); // T-35 · CR 115.3
@@ -27278,14 +27293,21 @@ function faceGratisOfertasT(s, p, out) {
     finally { DENTRO_DAS_MODAIS = false; }
   }
 }
+function aventuraGratisOfertasT(s, p, out, avs) {
+  if (!avs.length) return;
+  const s2 = cloneEstado(s); for (const oid of avs) flipTo(s2, s2.objects[oid], aventuraDe(s, oid).nome);
+  DENTRO_DAS_MODAIS = true;
+  try { for (const x of legalActions(s2, p)) if (x.t === 'cast_free' && avs.includes(x.oid) && x.face == null) out.push({ ...x, omen: true }); }
+  finally { DENTRO_DAS_MODAIS = false; }
+}
 /** T-11 · a folha de "conjurar sem pagar" agrupa as ofertas por carta e por face, na ordem em que vêm: `nome` é o da metade ou do
  * verso escolhido (null sem face: a tela usa o nome da carta). */
 function gruposGratisT(s, opts) {
   const gs = [];
   for (const a of opts) {
-    const k = a.oid + '|' + (a.face || ''); let g = gs.find(x => x.k === k);
+    const k = a.oid + '|' + (a.face || (a.omen ? 'aventura' : '')); let g = gs.find(x => x.k === k); // T-40 · a Aventura é um grupo próprio
     if (!g) { const md = (a.face === 'esquerda' || a.face === 'direita') && metadesDe(s, a.oid), fv = a.face === 'verso' && faceDeTras(s, a.oid);
-      g = { k, oid: a.oid, face: a.face || null, nome: md ? md[a.face === 'direita' ? 1 : 0].nome : fv ? fv.nome : a.face === 'transformada' ? ((s.objects[a.oid] || {}).cercoT || null) : null, da: [] }; gs.push(g); } // T-14 · face 'transformada': o nome é o do verso do Cerco
+      g = { k, oid: a.oid, face: a.face || null, nome: md ? md[a.face === 'direita' ? 1 : 0].nome : fv ? fv.nome : a.face === 'transformada' ? ((s.objects[a.oid] || {}).cercoT || null) : a.omen && aventuraDe(s, a.oid) ? aventuraDe(s, a.oid).nome : null, da: [] }; gs.push(g); } // T-40 · o nome da Aventura // T-14 · face 'transformada': o nome é o do verso do Cerco
     g.da.push(a);
   }
   return gs;

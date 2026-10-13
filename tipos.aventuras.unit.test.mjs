@@ -304,3 +304,53 @@ test('CR 715 · com os dados da carta como a Scryfall entrega (nome "A // B", cu
     assert.equal(zona(t, c), 'battlefield'); assert.ok(E.hasKeyword(t, t.objects[c], 'deathtouch'));
   }
 });
+
+/* ---------------- T-40 · CR 715.3d, última frase: outros efeitos que deixam conjurar a carta ---------------- */
+SCRIPTS['Impulso'] = { name: 'Impulso', effects: [{ do: 'exile_top_playable', amount: 1 }], ...EX };
+SCRIPTS['Achado'] = { name: 'Achado', effects: [{ do: 'draw_free_cast', amount: 1 }], ...EX };
+carta('Impulso', 'Sorcery'); carta('Achado', 'Sorcery');
+const noTopo = (s, p, oid) => { s = J(s); const z = s.zones[p], o = s.objects[oid]; z[o.zone].splice(z[o.zone].indexOf(oid), 1); o.zone = 'library'; z.library.unshift(oid); return s; };
+
+test('CR 715.3d · carta exilada por outro efeito que deixa jogá-la ("exile a do topo; você pode jogá-la"): do exílio, a carta normal ou a Aventura', () => {
+  let s = mesa(['Andarilho', 'Impulso']); let a; [s, a] = naMao(s, 0, 'Andarilho'); s = noTopo(s, 0, a);
+  let i; [s, i] = naMao(s, 0, 'Impulso'); s = mana(s, 0);
+  s = resolveUm(act(s, conjuras(s, 0, i)[0]));
+  eq(s.objects[a].zone, 'exile');
+  const of = conjuras(s, 0, a);
+  eq([of.some(x => x.omen), of.some(x => !x.omen)], [true, true], 'as duas ofertas');
+  const vida = s.players[0].life;
+  s = resolveUm(act(s, of.find(x => x.omen)));
+  eq([s.players[0].life - vida, s.objects[a].zone], [5, 'exile'], 'a Aventura resolveu e foi exilada pela regra da Aventura');
+  const de = conjuras(s, 0, a);
+  eq([de.some(x => x.omen), de.some(x => !x.omen)], [false, true], 'exilada pela própria Aventura: só a carta normal (715.3d)');
+  assert.throws(() => E.apply(s, { t: 'cast', p: 0, oid: a, omen: true }));
+});
+
+test('CR 715.3d · "conjure sem pagar" (compre uma e conjure-a sem pagar): a decisão oferece a carta normal e a Aventura; a Aventura resolve e vai ao exílio com a permissão', () => {
+  let s = mesa(['Andarilho', 'Achado']); let a; [s, a] = naMao(s, 0, 'Andarilho'); s = noTopo(s, 0, a);
+  let c; [s, c] = naMao(s, 0, 'Achado'); s = mana(s, 0);
+  s = resolveUm(act(s, conjuras(s, 0, c)[0]));
+  assert.ok(s.pending && s.pending.kind === 'free_cast', 'a decisão de conjurar sem pagar');
+  const of = legais(s, 0, x => x.t === 'cast_free' && x.oid === a);
+  eq([of.some(x => x.omen), of.some(x => !x.omen)], [true, true]);
+  const vida = s.players[0].life;
+  s = resolveUm(act(s, of.find(x => x.omen)));
+  eq([s.players[0].life - vida, s.objects[a].zone], [5, 'exile']);
+  assert.ok(conjuras(s, 0, a).some(x => !x.omen), 'do exílio, a carta normal');
+});
+
+test('CR 715.3d · sem permissão nenhuma, a Aventura não é conjurada do exílio nem do cemitério (pedido direto recusado)', () => {
+  let s = mesa(['Andarilho']); let a; [s, a] = poe(s, 0, 'Andarilho', 'graveyard'); s = mana(s, 0);
+  assert.throws(() => E.apply(s, { t: 'cast', p: 0, oid: a, omen: true }));
+  s = J(s); const z = s.zones[0]; z.graveyard.splice(z.graveyard.indexOf(a), 1); z.exile.push(a); s.objects[a].zone = 'exile';
+  eq(conjuras(s, 0, a).length, 0);
+  assert.throws(() => E.apply(s, { t: 'cast', p: 0, oid: a, omen: true }));
+});
+
+test('CR 715.3d · mesa: na decisão "conjurar sem pagar", a Aventura é um grupo próprio com o nome dela (a carta normal fica no outro)', () => {
+  let s = mesa(['Andarilho', 'Achado']); let a; [s, a] = naMao(s, 0, 'Andarilho'); s = noTopo(s, 0, a);
+  let c; [s, c] = naMao(s, 0, 'Achado'); s = mana(s, 0);
+  s = resolveUm(act(s, conjuras(s, 0, c)[0]));
+  const gs = E.gruposGratisT(s, legais(s, 0, x => x.t === 'cast_free' && x.oid === a));
+  eq(gs.map(g => g.nome).sort((x, y) => String(x).localeCompare(String(y))), [null, 'Passeio'].sort((x, y) => String(x).localeCompare(String(y))));
+});

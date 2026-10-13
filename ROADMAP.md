@@ -5163,6 +5163,11 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** nenhum novo (as linhas de `abilitiesOf` e `continuosDaFonte` são as da T-24, que ganharam o Caso).
 - **Próximo:** as parciais da CR5 (715.3 Aventura de outras zonas, 716.2 Classe, 309.6/309.7 masmorra).
 
+**CR5-T40 · Aventura por outras permissões (715.3d)** ✅ (leva T-40, sem mudança de versão do motor) — **Valor:** a carta de aventura exilada por um efeito de "jogue do exílio" ou achada por cascata, descobrir ou "compre e conjure sem pagar" pode ser conjurada como Aventura, como a regra deixa (antes só a carta normal: mais restritivo que a regra). **Aceite:** a Aventura que resolve vai ao exílio com a marca de que a permissão é a dela — dali só a carta normal (715.3d); outra permissão de jogar do exílio oferece a carta normal e a Aventura; a decisão "conjure sem pagar" oferece as duas, e a folha mostra a Aventura num botão próprio com o nome dela; sem permissão, a Aventura não sai do exílio nem do cemitério (pedido direto recusado). **Testes:** 4 novos em `tipos.aventuras.unit` (falham sem a leva). **Depende de:** CR5-T5. **Fora:** permissão de conjurar do cemitério (avaliaria o tipo da Aventura, 715.3a), X no custo da Aventura, redução por alvo no presságio.
+- **Versão e goldens:** a versão não sobe; goldens idênticos (conferidos).
+- **Toca ponto comum:** nenhum novo (as funções da Aventura, das ofertas de "sem pagar" e da folha são da trilha).
+- **Próximo:** auditoria independente de Casos e Aventura (T-41); depois 716.2 Classe e 309.6/309.7 masmorra.
+
 **CR6 · Multijogador e variantes** ○ — mesa de três e quatro (800–803, 806), Commander de mesa (903.2), Brawl (903.12); as variantes hoje "fora" só entram por decisão. 10 a 14 levas.
 
 **CR7 · Consolidação** ○ (em paralelo a partir da CR2) — a cada fase: fuzz em modo completo com listas reais, homologação por revisor independente relendo a seção das regras contra o motor, e rodada de simulação do dono do produto. 6 a 8 levas ao todo.
