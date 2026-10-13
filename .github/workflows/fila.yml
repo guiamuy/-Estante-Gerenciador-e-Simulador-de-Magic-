@@ -117,7 +117,7 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: write    # avançar o main, apagar fila/<nome>, gravar recusada/<nome>
-      actions: write     # disparar a rodada seguinte quando sobra ramo na fila
+      actions: write     # disparar a rodada seguinte quando sobra ramo na fila, e o fluxo "Relatos pela fila" (I-291)
       statuses: write    # marcar no commit publicado que o portão da fila passou
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09   # v5 (fixada por SHA; roda em Node 24)
@@ -149,6 +149,14 @@ jobs:
         run: |
           gh api -X POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='Portão de release (fila)' \
             -f description='Portão inteiro verde sobre a soma da fila' -f target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+      # I-291 · o agendamento */10 do relatos-fila.yml não roda neste repositório (nenhuma rodada agendada desde 12/10 19:49 UTC):
+      # cada avanço do main passa a disparar a leitura da fila de relatos. Mesmo token e mesma permissão do passo seguinte;
+      # nada da leva é executado aqui. Se o disparo falhar, a rodada não cai: o main já avançou e o agendamento continua valendo.
+      - name: Relatos pela fila (o main avançou)
+        if: steps.avanca.outputs.publicado != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run relatos-fila.yml --repo "$GITHUB_REPOSITORY" --ref main || echo "::warning::não consegui disparar relatos-fila.yml"
       - name: Rodada seguinte (sobrou ramo na fila, ou uma leva precisa ser testada sozinha)
         if: steps.avanca.outputs.de_novo == 'sim'
         env:

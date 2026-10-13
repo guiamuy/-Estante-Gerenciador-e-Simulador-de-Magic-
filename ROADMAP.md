@@ -551,6 +551,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ij ✅ | Q21 Playwright 1.56.1, a versão do Chromium que as sessões de nuvem já têm (1194); versão exata no `package.json` (leva I-288) | Q | ½ | — |
 | 16º-ik ✅ | T6e-1 relato da fila do Firebase vira registro no GitHub: fluxo a cada 10 min com a conta de serviço, limite por conta, sem menção, tabela regravada (relato #13, leva I-289; liga com o segredo `FIREBASE_SERVICE_ACCOUNT`) | T | 1 | segredo do dono |
 | 16º-il ✅ | Z8 vigia do catálogo: evento de teste e data futura da TopDeck.gg fora (e retirados do que já estava publicado); saúde por fonte no `coleta.json`; fonte parada deixa a execução vermelha e o GitHub avisa (leva G-258) | Z | ½ | — |
+| 16º-im ✅ | I-291 a fila de publicação dispara "Relatos pela fila" a cada avanço do `main` (o agendamento do GitHub não rodava): relato enviado pelo app vira registro na próxima publicação, sem permissão nova | I | ½ | segredo do dono (feito 12/10) |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -9273,6 +9274,14 @@ dono criar o segredo `FIREBASE_SERVICE_ACCOUNT`)
   mesmo job regrava a tabela do ramo `relatos` (registro criado pelo `GITHUB_TOKEN` não dispara o fluxo Relatos), na mesma
   fila de execução (`concurrency: relatos`).
 - **Sem o segredo:** o fluxo termina sem fazer nada (é o estado até o dono criar a chave).
+- **Ligado em 12/10/2026:** o dono criou o segredo; a rodada à mão das 22:28 UTC gravou `fila.json`.
+- **Disparo pela fila (leva I-291, 13/10/2026):** o agendamento `*/10` nunca rodou neste repositório (nenhuma rodada
+  agendada de 12/10 19:49 UTC a 13/10; o de Notícias, "de hora em hora", roda a cada 4 a 10 h). Cada avanço do `main` pela
+  fila de publicação passa a disparar `relatos-fila.yml` (passo novo no fim do job `avanca` de `fila.yml`, com o
+  `GITHUB_TOKEN` e o `actions: write` que o job já tinha; nenhuma permissão nova; falhar o disparo não derruba a rodada).
+  O agendamento continua. **Resíduo:** em horas sem publicação, o relato espera o agendamento (atrasado) ou uma rodada à
+  mão. Teste: U `fila.unit` "I-291" (falha sem o passo). Custo: uma rodada de ~20 s por avanço do `main` (dezenas por dia
+  em dia de muitas levas; repositório público, sem custo).
 - **Aviso de ligada (leva I-290):** na primeira rodada com o segredo, o fluxo grava `fila.json` (`{ versao: 1, ligada: true,
   desde }`) no ramo `relatos`, uma vez só. É por ele que o app passa a enviar pela fila (T6e-2); se o segredo for tirado
   depois, o aviso fica (resíduo: relatos ficariam na fila até o segredo voltar).

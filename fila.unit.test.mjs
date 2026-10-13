@@ -228,6 +228,21 @@ test('Q17 · o fluxo da fila: só o job que avança tem escrita e ele não execu
   assert.doesNotMatch(yml, /--force(?!-)|push -f\b/, 'nenhum push forçado no fluxo');
 });
 
+test('I-291 · a cada avanço do main, a fila dispara "Relatos pela fila" (o agendamento do GitHub não roda), sem permissão nova', () => {
+  const yml = readFileSync(join(RAIZ, '.github/workflows/fila.yml'), 'utf8');
+  const avanca = (yml.match(/\n  avanca:\n([\s\S]*?)(?=\n  [a-z]+:\n|$)/) || [])[1] || '';
+  const passos = avanca.split('\n      - ');
+  const passo = passos.find(p => /^name: .*\n[\s\S]*gh workflow run relatos-fila/.test(p));
+  assert.ok(passo, 'há um passo que dispara relatos-fila.yml');
+  assert.match(passo, /if: steps\.avanca\.outputs\.publicado != ''/, 'só quando o main avançou');
+  assert.match(passo, /GH_TOKEN: \$\{\{ github\.token \}\}/, 'com o token do próprio fluxo, nenhum segredo');
+  assert.match(passo, /gh workflow run relatos-fila\.yml --repo "\$GITHUB_REPOSITORY" --ref main/);
+  assert.match(passo, /\|\| (true|echo)/, 'falhar o disparo não derruba a rodada (o main já avançou)');
+  assert.ok(passos.indexOf(passo) > passos.findIndex(p => /Marcar o commit publicado/.test(p)), 'depois de marcar o commit publicado');
+  const perms = (avanca.match(/permissions:\n((?:      [a-z].*\n)+)/) || [])[1] || '';
+  assert.deepEqual(perms.trim().split('\n').map(l => l.trim().split(':')[0]).sort(), ['actions', 'contents', 'statuses'], 'as mesmas três permissões de antes');
+});
+
 test('Q17 · do lado da conversa: `publicar --fila` envia para fila/<leva>; número já na fila por outra conversa é recusado; o que a fila publicou sai da frente no rebase seguinte', () => {
   const m = mundo();
   try {
