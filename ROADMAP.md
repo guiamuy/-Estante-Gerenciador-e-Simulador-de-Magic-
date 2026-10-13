@@ -4073,6 +4073,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora:** emergir (custo menos o valor da sacrificada) ainda lê o valor impresso — é da trilha `keywords` (`emergirK`); pedido registrado.
 - **Teste:** `lt51.unit` (2 testes; falham no motor anterior).
 
+**M-369 · LT40 · "Volta ao acaso uma carta de criatura do seu cemitério para a mão" — revisão por lote XXXI** ✅ (leva M-369, motor v111 sem mudança de forma; goldens intactos).
+- **Valor:** Haunted Fengraf (4 listas de Pauper esperavam só por ela, 7 a até duas cartas) passa a jogar pela leitura revisada (decisão A; texto do Oracle do Forge, consulta de 12/10/2026, em `.listas/oficiais-revisadas.json`).
+- **Motor:** efeito `volta_ao_acaso { tipos }` — a escolha é feita na resolução, ao acaso pela semente da partida, só entre as cartas do tipo no cemitério de quem controla a habilidade.
+- **Revisão independente:** 135 verificações; achou um desvio antigo e genérico, corrigido com teste antes: a habilidade ativada com "Sacrifice ~" de uma permanente roubada nascia como do dono (o custo devolvia o controle antes) — agora é de quem ativou (113.8 / 602.2a), também na mana. De passagem, a pilha explicada mostrava o texto inteiro de terrenos com mana impressa e uma ativada.
+- **Teste:** `lt52.unit` (3 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

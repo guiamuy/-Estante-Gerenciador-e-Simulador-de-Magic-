@@ -5345,6 +5345,7 @@ const EFFECTS = {
   reanimate: { fields: [], targets: ['creature-in-your-graveyard', 'permanent-in-your-graveyard'] },
   reanimate_tapped: { fields: [], targets: ['self-source', 'creature-in-your-graveyard'] },
   add_mana: { fields: [], targets: ['self'] },
+  volta_ao_acaso: { fields: [], targets: ['self'] }, // M-369 · "Return a <tipo> card at random from your graveyard to your hand" (Haunted Fengraf); `tipos` filtra
   energia: { fields: ['amount'], targets: ['self'] }, // M-367 · 107.14 · "you get {E}{E}": marcadores de energia do jogador (122.1)
   mana_combinada: { fields: ['amount'], targets: ['self'] }, // M-357 · "Add two mana in any combination of colors" (Manamorphose): cada mana pede a cor na resolução
   token: { fields: ['amount'], targets: ['self', 'opponent', 'target-controller'] },
@@ -8906,6 +8907,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Kaervek\'s Torch': { texto: '1gdi2fl', leva: 'M-365' },
   // M-367 · revisão por lote XXX (Pauper: Inventor's Axe), revisor independente com 93 verificações: 1 de 1 aprovadas
   'Inventor\'s Axe': { texto: '1gpar0d', leva: 'M-367' },
+  // M-369 · revisão por lote XXXI (Pauper: Haunted Fengraf), revisor independente com 135 verificações: 1 de 1 (depois da correção de 602.2a) aprovadas
+  'Haunted Fengraf': { texto: 'fcokt2', leva: 'M-369' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -16648,6 +16651,7 @@ const __m42 = (function () {
     [/^~ connives$/i, () => [{ do: 'connive', amount: 1 }]], // LT9 · 701.50
     [new RegExp(`^~ deals ${N} damage to each creature without flying$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'each-nonflying-creature' }]], // LT10
     [/^damage can't be prevented this turn$/i, () => [{ do: 'no_prevention' }]], // LT10 · 615.12
+    [/^return an? (creature|artifact|land|instant|sorcery|enchantment)? ?card at random from your graveyard to your hand$/i, m => [{ do: 'volta_ao_acaso', ...(m[1] ? { tipos: [m[1].toLowerCase()] } : {}) }]], // M-369 · Haunted Fengraf
     [/^you get ((?:\{E\})+)(?: \([a-z]+ energy counters?\))?$/i, m => [{ do: 'energia', amount: m[1].match(/\{E\}/gi).length }]], // M-367 · 107.14
     [/^attach (?:it|~) to target creature you control$/i, () => [{ do: 'attach', target: 'creature-you-control' }]], // M-367 · Inventor's Axe
     [/^revela_dois_um_para_mao (artifact|creature|land|instant|sorcery|enchantment) (\d+)$/i, m => [{ do: 'look', count: 2, amount: 1, min: 1, to: 'hand', rest: 'graveyard', revela: true, onPicked: { vidaSeTipo: { tipo: m[1].toLowerCase(), vida: +m[2] } } }]], // M-364 · Chrome Courier
@@ -20123,6 +20127,11 @@ function applyEffect(s, src, eff, tgt, events) {
       syms.forEach(c => { s.players[ctrl].pool[c] = (s.players[ctrl].pool[c] || 0) + 1; });
       note({ amount: syms.length }); break;
     }
+    case 'volta_ao_acaso': { // M-369 · escolha ao acaso entre as cartas do tipo pedido no cemitério de quem controla (o acaso sai de s.rng)
+      const cands = s.zones[ctrl].graveyard.filter(x => !eff.tipos || ((s.facts[s.objects[x].name] || {}).types || []).some(t => eff.tipos.includes(t)));
+      if (!cands.length) { note({ amount: 0 }); break; }
+      const oid = cands[Math.floor(nextRand(s) * cands.length)], nome = s.objects[oid].name; moveObject(s, oid, 'hand'); note({ amount: 1, target: nome }); break;
+    }
     case 'energia': { const n = amountOf(s, src, eff.amount) || 0; if (n > 0) s.players[ctrl].energia = (s.players[ctrl].energia || 0) + n; note({ amount: n }); break; } // M-367 · 107.14 / 122.1
     case 'mana_combinada': { // M-357 · 106.1a/106.4: "Add N mana in any combination of colors" — a escolha é de quem controla, na resolução; uma mana por vez
       const n = amountOf(s, src, eff.amount) || 0;
@@ -22575,12 +22584,12 @@ const HANDLERS = {
     // S33/Leva 106 · adaptar usa a pilha (701.46a): os marcadores entram na resolução, se ela ainda não tiver nenhum
     // 605.1a · habilidade de mana não usa a pilha: resolve na hora
     if ((ab.effects || []).length && (ab.effects || []).every(e => e.do === 'add_mana') && !need.length) {
-      (ab.effects || []).forEach(e => applyEffect(s, o, e, null, ev || []));
+      { const fonteM = o.controller === a.p ? o : { ...o, controller: a.p }; (ab.effects || []).forEach(e => applyEffect(s, fonteM, e, null, ev || [])); } // M-369 · 602.2a: a mana vai para quem ativou, mesmo se o custo devolveu a fonte ao dono
       if ((ab.cost || {}).tap) manaExtraDeVirar(s, o, a.p); // M-353 · 106.12a: "tapped for mana" vale para toda habilidade de mana com {T} no custo (Wild Growth numa terra de esgotamento) — pedido da L-1
       // M-250 · "If there are no depletion counters on this land, sacrifice it" (Saprazzan Skerry): parte da própria habilidade de mana (605.1a)
       if (ab.semMarcadorSacrifica && o.zone === 'battlefield' && !(o.counters || {})[ab.semMarcadorSacrifica]) sacrifice(s, o.oid, ev || []);
     } else { // S41 · vigilância do alvo · S43 · a cor escolhida viaja com a habilidade
-      const abOid = makeAbility(s, o, ab.adapt != null ? { ...ab, effects: [{ do: 'adapt', amount: ab.adapt }, ...(ab.effects || [])] } : ab, chosen, bloqueavaAntes);
+      const abOid = makeAbility(s, o.controller === a.p ? o : { ...o, controller: a.p }, ab.adapt != null ? { ...ab, effects: [{ do: 'adapt', amount: ab.adapt }, ...(ab.effects || [])] } : ab, chosen, bloqueavaAntes);
       if (a.color) s.objects[abOid].chosenColor = a.color;
       if (nX) s.objects[abOid].xPaid = a.x || 0; // CR2c.7 · 107.3a: o mesmo X em todo o texto da habilidade, até ela resolver
       if (s.sacrificadosNoCusto) s.objects[abOid].sacrificados = s.sacrificadosNoCusto;
@@ -29118,6 +29127,7 @@ function effectLine(ev) {
     case 'combate_extra': return ev.failed ? `${ev.name}: fora da fase principal, sem combate adicional` : `${ev.name}: depois desta fase principal vem um combate adicional e outra fase principal`; // CR2g.4
     case 'desvira_atacantes': return `${ev.name} desvirou ${n} criatura(s) que atacaram neste turno`;
     case 'animate': return `${t} virou criatura até o fim do turno`; // CR2d.2
+    case 'volta_ao_acaso': return ev.amount ? `${ev.name}: ${ev.target} voltou do cemitério para a mão (ao acaso)` : `${ev.name}: nenhuma carta para voltar`; // M-369
     case 'craft_volta': return ev.failed ? `${ev.name}: a carta não estava mais no exílio` : `${ev.name} voltou do exílio transformada`; // M-356 · 702.167a
     case 'exile_return_transformed': return ev.failed ? `${ev.name}: não estava mais no campo` : `${ev.name} foi exilado e voltou transformado`; // CR2d.5
     case 'must_attack_source': return `${t} vai ter de atacar ${ev.name} no próximo turno de quem a controla`; // M-228
@@ -30133,6 +30143,7 @@ function descreveEfeito(e) {
     case 'token': { const t = e.token || {}; const pd = (t.self || {}).ptDefinido, contaPT = v => v && v.per === 'soma' ? (v.partes || []).map(x => X_PT[x.per] || x.per).join(' mais ') : (v && (X_PT[v.per] || v.per)) || v; /* M-358 · achado da revisão: a ficha de P/T por contagem e as palavras-chave dela */
       const pt = pd ? `, com poder e resistência iguais a ${contaPT(pd.poder != null ? pd.poder : pd.resistencia)}${(t.keywords || []).length ? ` e ${t.keywords.map(k => PALAVRA_PT[k] || k).join(', ')}` : ''},` : t.power != null ? ` ${t.power}/${t.toughness}` : ''; return `cria ${plural(n, 'ficha', 'fichas')}${t.name ? ` de ${t.name}` : ''}${pt}`; }
     case 'pump': { const p = e.power || 0, t = e.toughness || 0; const sinal = v => (v && (v.per || v.subtype) ? ((v.times || 1) < 0 ? '−X' : '+X') : v >= 0 ? `+${v}` : `−${Math.abs(v)}`); const quem = e.cada && e.cada.de === 'alvo' ? `cada criatura que ${e.target === 'opponent' ? 'o oponente alvo' : 'o jogador alvo'} controla` : (alvo || 'a criatura'); /* achado da revisão do lote XXIII: "cada criatura que cada criatura controla" */ return `${quem} recebe ${sinal(p)}/${sinal(t)}${e.until === 'your-next-turn' ? ' até o seu próximo turno' : ' até o fim do turno'}${p && p.subtype ? ` (X = ${p.subtype === 'Gate' ? 'Portões' : p.subtype === 'Swamp' ? 'Pântanos' : p.subtype + 's'} que você controla)` : ''}`; } // R9b (achado da C-1): contagem por subtipo mostrava "−NaN" (Defile, Basilisk Gate) · M-351 · "cada criatura do jogador alvo" (Arms of Hadar)
+    case 'volta_ao_acaso': return `uma carta${e.tipos ? ' de ' + ({ creature: 'criatura', artifact: 'artefato', land: 'terreno', instant: 'mágica instantânea', sorcery: 'feitiço', enchantment: 'encantamento' }[e.tipos[0]] || e.tipos[0]) : ''} do seu cemitério, escolhida ao acaso, volta para a sua mão`; // M-369
     case 'energia': return `você ganha ${e.amount === 1 ? 'um marcador' : (e.amount || 1) + ' marcadores'} de energia`; // M-367
     case 'mana_combinada': return `adiciona ${e.amount === 1 ? 'uma mana' : (e.amount || 2) + ' manas'} das cores que você escolher (pode misturar)`; // M-357 · 106.1a
     case 'add_mana': return e.identity ? 'adiciona mana de uma cor da identidade do seu comandante' : e.opponentLands ? 'adiciona mana de uma cor que um terreno de um oponente poderia produzir' : e.anyColor ? 'adiciona mana de qualquer cor' : 'adiciona mana';
@@ -30308,6 +30319,7 @@ function linhaOficialDaHabilidade(o, facts, oracle) {
   // a posição só é confiável quando script e carta têm o mesmo número de linhas daquele tipo
   if (iG >= 0 && gatilhos.length === gat.length && gatilhos[iG]) return gatilhos[iG];
   if (iA >= 0 && ativadas.length === atv.length && ativadas[iA]) return ativadas[iA];
+  { const semMana = ativadas.filter(l => !/:\s*Add\b/i.test(l)); if (iA >= 0 && ativadas.length !== atv.length && semMana.length === atv.length && semMana[iA]) return semMana[iA]; } // M-369 · a mana impressa mora em `produces`, não em abilities (achado da revisão)
   if (iG >= 0 && gatilhos.length === 1) return gatilhos[0];
   if (iA >= 0 && ativadas.length === 1) return ativadas[0];
   return texto;
