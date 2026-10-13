@@ -533,6 +533,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-en ✅ | A12b sem listas próprias da Estante: Listas prontas só com o catálogo; as listas do dono vão por um arquivo de backup que ele importa uma vez (relato #17, leva G-262) | A | 1 | o dono importar o arquivo |
 | 16º-eo ✅ | T6f-1 conta com e-mail e senha: criar conta e entrar no Perfil, ao lado do Google; a sessão fica ao reabrir; erros na hora, sem fechar a folha (relato #18, fatia 1 de 6, leva G-263) | P | 1 | teste no aparelho |
 | 16º-ep ✅ | T6f-2 esqueci a senha: na folha de entrar, manda o link de senha nova para o e-mail digitado, sem dizer se há conta nele (relato #18, fatia 2 de 6, leva G-264) | P | 1 | teste no aparelho (e-mail de verdade) |
+| 16º-eq ✅ | T6f-3 nome de usuário único: escolher e trocar o @ no Perfil, um nome por conta garantido pelo banco (relato #18, fatia 3 de 6, leva G-266) | P | 1 | o dono publicar as regras no console |
 | 16º-ee ✅ | T6e-2 Enviar relato sem sair do app: com a conta conectada e a fila ligada, o relato vai para a fila do Firebase e o cartão mostra "Na fila" até o número do registro (relato #13, leva G-255) | T | 1 | — |
 | 16º-eh ✅ | T6e-2 prazo honesto do relato pela fila: o GitHub atrasa o agendamento em horas, a tela diz "de minutos a algumas horas" e a conversa que lê relatos roda a fila antes (relato #13, leva G-256) | T | 1 | 16º-ee |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
@@ -9528,8 +9529,8 @@ o aviso de fila ligada, o que acontece na primeira rodada depois de o dono criar
   manutenção de conta e LGPD; telas de entrada, carregamento, falha e sucesso; a conta guarda as configurações do perfil
   (isso já vale pela A-261/A-263 por uid). O dono ligou o provedor E-mail/senha no Firebase em 13/10/2026 (modelo de
   redefinição em pt-BR, uma conta por e-mail, criação ligada, proteção contra enumeração ligada).
-- **Fatias:** T6f-1 criar e entrar (G-263) ✅ · T6f-2 esqueci a senha (G-264) ✅ · T6f-3 nome de usuário único (regras do banco; o
-  dono publica) · T6f-4 vincular o Google depois (com e-mail confirmado; senão o Google desfaz a senha) · T6f-5 trocar a
+- **Fatias:** T6f-1 criar e entrar (G-263) ✅ · T6f-2 esqueci a senha (G-264) ✅ · T6f-3 nome de usuário único (G-266) ✅, regras do
+  banco que o dono publica · T6f-4 vincular o Google depois (com e-mail confirmado; senão o Google desfaz a senha) · T6f-5 trocar a
   senha e excluir a conta (com os dados da nuvem) · T6f-6 transições de entrada e sucesso.
 
 **T6f-1 · Criar conta e entrar com e-mail e senha** ✅ (leva G-263, trilha `geral`, 13/10/2026)
@@ -9566,6 +9567,26 @@ o aviso de fila ligada, o que acontece na primeira rodada depois de o dono criar
   pedido certo, folha aberta, quatro medidas e dois temas).
 - **Fora:** a página que abre o link é a do Firebase (`estante-10102026.firebaseapp.com`), não uma tela da Estante;
   trocar a senha de dentro do app fica para a T6f-5.
+
+**T6f-3 · Nome de usuário único** ✅ (leva G-266, trilha `geral`, 13/10/2026) — **vale depois que o dono publicar as
+regras** (`database.rules.json`) no console; até lá a tela diz "Nomes de usuário ainda não estão ligados".
+- **Como:** dois nós novos no banco (forma em `src/data/remoto.js`, `createNomeDeUsuario`): `usuarios/<nome>` `{ uid, em }`
+  é a reserva — a regra só aceita criar se o nome está livre e só a dona solta, então duas contas nunca ficam com o mesmo
+  nome, nem tocando ao mesmo tempo; `perfis/<uid>/usuario` `{ nome, em }` aponta a conta para o nome, e a regra confere
+  que a reserva é dela. Nome: 3 a 20, letras sem acento, números e `_`, em minúsculas (`@Gui` vira `gui`). Trocar
+  reserva o novo, aponta e solta o antigo. Perfil › Conta (conectada): linha "@nome" ou "Sem nome de usuário ainda" com
+  Escolher/Trocar; a folha confere o formato a cada letra (o botão só liga com nome bom), "Reservando…", "já é de outra
+  conta" embaixo sem fechar, e avisa que o antigo fica livre. "O que sai do aparelho" ganhou o nome de usuário e o
+  e-mail e senha da T6f-1.
+- **Decisão declarada (privacidade):** quem tem conta consegue ler uma reserva (é assim que o app vê se o nome está
+  livre), o que mostra o código da conta dona do nome. O código não dá acesso a nada (as regras conferem quem pede); o
+  perfil, a foto e o e-mail continuam só da dona.
+- **Testes:** U `regras.unit` (G-266: reserva, em uso, corrida recusada pelo banco, ninguém solta nem aponta para o nome
+  dos outros, trocar solta o antigo, formato e campos conferidos no banco, regras antigas → "ainda não ligado"; P-4 dos
+  ramos do primeiro nível ganhou `usuarios` de propósito); e2e "G-266" (formato a cada letra sem ir ao banco, em uso
+  avisa sem fechar, reservar mostra @gui, trocar solta o antigo, reabrir traz o nome).
+- **Fora:** o nome ainda não aparece na sala online nem na mesa; "Apagar também da nuvem" não solta o nome (vai com
+  "excluir a conta", T6f-5).
 
 **T6e-3 · Relato enviado não muda mais (relato #16)** ✅ (leva G-261, trilha `geral`, 13/10/2026)
 - **Pedido (relato #16, infraestrutura · impede o uso):** depois de enviado, o relato não se edita, não se reenvia, não se

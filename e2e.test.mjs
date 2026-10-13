@@ -5453,6 +5453,69 @@ test('e2e · G-265 conta com e-mail sincroniza ao entrar: criar a conta já traz
   assert.deepEqual(errors, []);
 });
 
+/* G-266 · T6f-3 · relato #18: nome de usuário único */
+test('e2e · G-266 nome de usuário: formato conferido a cada letra, nome em uso avisa sem fechar, reservar mostra @nome, trocar solta o antigo e fica ao reabrir', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  const banco = { usuarios: { ocupado: { uid: 'outraConta', em: 1 } } }, escritas = [];
+  await page.route('https://teste.firebaseio.com/**', async r => {
+    const u = new URL(r.request().url()), seg = u.pathname.replace(/\.json$/, '').split('/').filter(Boolean), metodo = r.request().method();
+    if (u.searchParams.get('auth') !== 'id-senha') return r.fulfill({ status: 401, json: { error: 'Permission denied' } });
+    const corpo = r.request().postData() ? JSON.parse(r.request().postData()) : null;
+    const atual = seg.reduce((o, k) => (o && typeof o === 'object' ? o[k] : undefined), banco) ?? null;
+    if (metodo !== 'GET') escritas.push(metodo + ' /' + seg.join('/'));
+    // a regra do banco: reserva só se livre (ou se já é desta conta)
+    if (seg[0] === 'usuarios' && metodo === 'PUT' && atual && atual.uid !== 'uidSenha') return r.fulfill({ status: 401, json: { error: 'Permission denied' } });
+    const poe = (caminho, v) => { let o = banco; for (const k of caminho.slice(0, -1)) o = o[k] = o[k] && typeof o[k] === 'object' ? o[k] : {}; if (v === null) delete o[caminho.at(-1)]; else o[caminho.at(-1)] = v; };
+    if (metodo === 'PUT') poe(seg, corpo);
+    if (metodo === 'DELETE') poe(seg, null);
+    if (metodo === 'PATCH') for (const [k, v] of Object.entries(corpo)) poe([...seg, ...k.split('/')], v);
+    return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(metodo === 'GET' ? atual : corpo) });
+  });
+  await page.addInitScript(() => {
+    window.__FIREBASE_DB_URL = 'https://teste.firebaseio.com';
+    window.__GOOGLE_CLIENT_ID = 'e2e.apps.googleusercontent.com'; window.__FIREBASE_API_KEY = 'chave-e2e';
+    window.__FIREBASE_FETCH = async (url, init) => new Response(JSON.stringify(url.includes('securetoken') ? { id_token: 'id-senha', refresh_token: 'ref-senha', expires_in: '3600', user_id: 'uidSenha' }
+      : { localId: 'uidSenha', email: JSON.parse(init.body).email, idToken: 'id-senha', refreshToken: 'ref-senha', expiresIn: '3600' }), { headers: { 'content-type': 'application/json' } });
+    window.EventSource = class { constructor() {} addEventListener() {} close() {} };
+  });
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#conta-email-abrir:not([disabled])');
+  await page.click('#conta-email-abrir'); await page.waitForSelector('#conta-email-campo');
+  await page.fill('#conta-email-campo', 'gui@exemplo.com'); await page.fill('#conta-senha', 'senha-certa-1'); await page.click('#conta-email-confirmar');
+  // 1 · conectada: a linha do nome aparece, sem nome ainda, com Escolher (44 px)
+  await page.waitForSelector('#conta-usuario[data-estado="sem"]');
+  assert.ok((await page.locator('#conta-usuario-escolher').boundingBox()).height >= 44);
+  await page.click('#conta-usuario-escolher'); await page.waitForSelector('#conta-usuario-campo');
+  // 2 · a cada letra: formato conferido e o botão só liga com nome bom
+  assert.equal(await page.isDisabled('#conta-usuario-confirmar'), true);
+  await page.fill('#conta-usuario-campo', 'jo'); assert.match(await page.innerText('#conta-usuario-dica'), /pelo menos 3/);
+  await page.fill('#conta-usuario-campo', 'joão'); assert.match(await page.innerText('#conta-usuario-dica'), /sem acento/);
+  assert.equal(await page.isDisabled('#conta-usuario-confirmar'), true);
+  assert.equal(escritas.filter(e => /usuario/.test(e)).length, 0, 'formato ruim não vai ao banco');
+  // 3 · em uso: avisa embaixo, a folha continua aberta
+  await page.fill('#conta-usuario-campo', 'Ocupado'); assert.match(await page.innerText('#conta-usuario-dica'), /Fica @ocupado/);
+  await auditaTela(page, 'perfil · escolher nome de usuário');
+  await page.click('#conta-usuario-confirmar');
+  await page.waitForFunction(() => /já é de outra conta/.test(document.querySelector('#conta-usuario-erro').textContent));
+  assert.equal(banco.usuarios.ocupado.uid, 'outraConta');
+  // 4 · nome livre: reserva, fecha e a linha mostra @gui
+  await page.fill('#conta-usuario-campo', '@Gui'); await page.press('#conta-usuario-campo', 'Enter');
+  await page.waitForSelector('#conta-usuario[data-estado="tem"]');
+  assert.equal(await page.innerText('#conta-usuario-texto'), '@gui');
+  assert.equal(banco.usuarios.gui.uid, 'uidSenha'); assert.equal(banco.perfis.uidSenha.usuario.nome, 'gui');
+  // 5 · trocar: avisa que o antigo fica livre e o solta
+  await page.click('#conta-usuario-escolher'); await page.waitForSelector('#conta-usuario-aviso');
+  assert.match(await page.innerText('#conta-usuario-aviso'), /@gui fica livre/);
+  assert.equal(await page.isDisabled('#conta-usuario-confirmar'), true, 'o mesmo nome não troca');
+  await page.fill('#conta-usuario-campo', 'gui_2'); await page.click('#conta-usuario-confirmar');
+  await page.waitForFunction(() => document.querySelector('#conta-usuario-texto')?.textContent === '@gui_2');
+  assert.equal(banco.usuarios.gui, undefined, 'o antigo foi solto');
+  // 6 · reabrir: o nome vem da conta
+  await page.reload(); await page.goto(base + '#/perfil');
+  await page.waitForFunction(() => document.querySelector('#conta-usuario-texto')?.textContent === '@gui_2');
+  assert.deepEqual(errors, []);
+});
+
 // ---- Leva 131 · R3 · Mono Blue Faeries pela tela (360×780, modo único) ----
 const dock131 = async page => (await page.locator('.tb-dock').innerText()).replace(/\s*\n+\s*/g, ' | ');
 const folha131 = async (page, nome, onde = '#tb-hand') => { await page.locator(`${onde} .tb-card[aria-label^="${nome}"]`).first().click(); await page.waitForSelector('.ds-dialog'); await page.waitForTimeout(250);

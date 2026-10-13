@@ -12234,7 +12234,53 @@ function relatoDaFila(no) {
   if (!no || no.kind !== RELATO_KIND || no.version !== RELATO_VERSION || typeof no.dado !== 'string' || no.dado.length > RELATO_MAX) return null;
   try { const r = JSON.parse(no.dado); return r && typeof r === 'object' && ID_OK.test(String(r.id || '')) ? r : null; } catch (e) { return null; }
 }
-return { caminhos, codifica, decodifica, paraRemoto, doRemoto, oQueSobe, createPerfilRemoto, createFilaDeRelatos, createSincronia, relatoDaFila, REMOTO_KIND, REMOTO_VERSION, RELATO_KIND, RELATO_VERSION, VALOR_MAX, RELATO_MAX };
+/* ---------------------------------------------------------------------
+   G-266 · T6f-3 · relato #18: NOME DE USUÁRIO ÚNICO
+     usuarios/<nome>        { uid, em }   ← a reserva. A regra do banco só aceita criar se o nome está livre: é isso que
+                                            garante uma conta por nome, mesmo com duas pessoas tocando ao mesmo tempo.
+     perfis/<uid>/usuario   { nome, em }  ← o nome desta conta; a regra confere que a reserva é desta conta.
+   Trocar reserva o novo, aponta o perfil e solta o antigo. Quem tem conta consegue ler uma reserva (para ver se o nome
+   está livre): o nome e o código da conta são públicos entre contas, como um @. A foto, o perfil e o e-mail, não.
+   --------------------------------------------------------------------- */
+const NOME_USUARIO_MIN = 3, NOME_USUARIO_MAX = 20, NOME_USUARIO_OK = /^[a-z0-9_]+$/;
+const normalizaNomeDeUsuario = n => String(n || '').trim().replace(/^@+/, '').toLowerCase();
+function erroDoNome(n) {
+  const x = normalizaNomeDeUsuario(n);
+  if (x.length < NOME_USUARIO_MIN) return 'nome-curto';
+  if (x.length > NOME_USUARIO_MAX) return 'nome-longo';
+  return NOME_USUARIO_OK.test(x) ? null : 'nome-formato';
+}
+const MOTIVO_NOME = { 'nome-curto': 'Use pelo menos 3 caracteres.', 'nome-longo': 'Use no máximo 20 caracteres.', 'nome-formato': 'Só letras sem acento, números e _.',
+  'nome-em-uso': 'Esse nome já é de outra conta. Tente outro.', 'nome-sem-regras': 'Nomes de usuário ainda não estão ligados no banco da Estante. Tente mais tarde.',
+  'sem-rede': 'Sem internet agora. Tente de novo quando a conexão voltar.', api: 'O banco não respondeu. Tente de novo em instantes.' };
+function createNomeDeUsuario({ transporte, uid, agora = () => Date.now() }) {
+  caminhos(uid);
+  const negado = e => !!e && (e.status === 401 || e.status === 403);
+  return {
+    /** O nome desta conta, ou null. */
+    async meu() {
+      const v = await transporte.ler(`perfis/${uid}/usuario`);
+      return v && typeof v.nome === 'string' && !erroDoNome(v.nome) ? { nome: v.nome, em: Number(v.em) || 0 } : null;
+    },
+    /** Reserva `nome` para esta conta (e solta o anterior). Erros: nome-curto/longo/formato, nome-em-uso, nome-sem-regras. */
+    async reservar(nome) {
+      const n = normalizaNomeDeUsuario(nome), ruim = erroDoNome(n);
+      if (ruim) throw new Error(ruim);
+      const atual = await this.meu();
+      if (atual && atual.nome === n) return { nome: n, mudou: false };
+      let dono;
+      try { dono = await transporte.ler(`usuarios/${n}`); } catch (e) { if (negado(e)) throw new Error('nome-sem-regras'); throw e; } // regras antigas: o ramo não existe
+      if (dono && dono.uid !== uid) throw new Error('nome-em-uso');
+      const em = agora();
+      if (!dono) { try { await transporte.escrever(`usuarios/${n}`, { uid, em }); } catch (e) { if (negado(e)) throw new Error('nome-em-uso'); throw e; } } // outra conta chegou antes
+      await transporte.escrever(`perfis/${uid}/usuario`, { nome: n, em });
+      if (atual) { try { await transporte.apagar(`usuarios/${atual.nome}`); } catch (e) { /* o antigo fica reservado para esta conta: ninguém mais o pega */ } }
+      return { nome: n, mudou: true };
+    }
+  };
+}
+return { createNomeDeUsuario, normalizaNomeDeUsuario, erroDoNome, MOTIVO_NOME, NOME_USUARIO_MIN, NOME_USUARIO_MAX,
+  caminhos, codifica, decodifica, paraRemoto, doRemoto, oQueSobe, createPerfilRemoto, createFilaDeRelatos, createSincronia, relatoDaFila, REMOTO_KIND, REMOTO_VERSION, RELATO_KIND, RELATO_VERSION, VALOR_MAX, RELATO_MAX };
 })();
 
 /* ==== src/data/etiquetas.js ==== */
@@ -13374,7 +13420,7 @@ const DESTINOS = [
   { id: 'firebase', nome: 'Conta da Estante e partida online', icone: 'pessoas', liga: 'firebase',
     origens: ['https://identitytoolkit.googleapis.com', 'https://securetoken.googleapis.com', 'https://*.firebaseio.com', 'wss://*.firebaseio.com', 'https://*.firebasedatabase.app'],
     // P-15 · a sincronia do perfil (A-263) e a lista de bloqueados também vão para a conta: a lista diz isso agora
-    vai: 'Na sala: o código, seu nome e foto do perfil, a lista que você escolheu, as jogadas e as mensagens da conversa. Cada assento leva o código da conta da Estante de quem sentou, para que ninguém jogue no seu lugar. Com a conta da Estante conectada, também vão para ela, e só você lê: o seu perfil (nome, foto e preferências), para os seus outros aparelhos, e as contas que você bloqueou (código e nome). Ao enviar um relato com a conta conectada, o relato (texto, tela e contexto, sem a partida anexada) vai para a fila da conta, de onde o repositório cria o registro público no GitHub e o tira da fila.',
+    vai: 'Na sala: o código, seu nome e foto do perfil, a lista que você escolheu, as jogadas e as mensagens da conversa. Cada assento leva o código da conta da Estante de quem sentou, para que ninguém jogue no seu lugar. Com a conta da Estante conectada, também vão para ela, e só você lê: o seu perfil (nome, foto e preferências), para os seus outros aparelhos, e as contas que você bloqueou (código e nome). O nome de usuário (@), se você escolher um, fica reservado para a sua conta: quem tem conta consegue ver que ele está em uso e de que conta é. Ao criar a conta ou entrar com e-mail e senha, os dois vão para o serviço de contas do Google (Firebase Authentication), que guarda a senha protegida; no aparelho fica só o e-mail. Ao enviar um relato com a conta conectada, o relato (texto, tela e contexto, sem a partida anexada) vai para a fila da conta, de onde o repositório cria o registro público no GitHub e o tira da fila.',
     quando: 'Ao criar ou entrar numa sala online. Com a conta conectada, também ao abrir o app, ao mudar uma preferência, ao abrir o Perfil, ao bloquear ou desbloquear alguém e ao tocar em Enviar num relato.',
     evitar: 'Jogar contra o bot ou a dois no mesmo aparelho e não conectar a conta da Estante: nada sai. O que já foi sai em Perfil › Dados › Apagar tudo, com "Apagar também da nuvem".' }
 ];
@@ -14861,6 +14907,59 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
     pinta();
     (email0 ? senha : email).focus({ preventScroll: true });
   }
+  /** G-266 · T6f-3 · nome de usuário único (@nome): lido da conta da Estante ao abrir o Perfil; Escolher/Trocar reserva. */
+  function linhaUsuario(oc) {
+    const nu = conta.nomeDeUsuario ? conta.nomeDeUsuario() : null;
+    if (!nu) return null;
+    const uid = conta.sessao && conta.sessao.uid();
+    if (!st.usuario || st.usuario.de !== uid) {
+      st.usuario = { de: uid, carregando: true, nome: null };
+      nu.meu().then(m => ({ de: uid, nome: m ? m.nome : null }), () => ({ de: uid, nome: null, falhou: true }))
+        .then(u => { if (st.usuario && st.usuario.de === uid) { st.usuario = u; if (root.isConnected) paint(); } });
+    }
+    const u = st.usuario;
+    return Row({ class: 'ds-row--wrap perfil-conta__estante', id: 'conta-usuario', dataset: { estado: u.carregando ? 'carregando' : u.nome ? 'tem' : u.falhou ? 'falhou' : 'sem' } },
+      Text(u.carregando ? 'Conferindo o nome de usuário…' : u.nome ? '@' + u.nome : u.falhou ? 'Não deu para ler o nome de usuário agora.' : 'Sem nome de usuário ainda', { size: 'sm', tone: u.nome ? undefined : 'muted', class: 'ds-grow', attrs: { id: 'conta-usuario-texto', role: 'status' } }),
+      Button(u.nome ? 'Trocar' : 'Escolher', { icone: 'pessoa', id: 'conta-usuario-escolher', variant: 'ghost', disabled: oc || !!u.carregando, title: u.nome ? 'Trocar o nome de usuário' : 'Escolher um nome de usuário', onClick: () => abreNomeDeUsuario(nu, u.nome) }));
+  }
+  function abreNomeDeUsuario(nu, atual) {
+    const R = __m40, rotuloBase = atual ? 'Trocar' : 'Reservar';
+    const erro = h('div', { class: 'conta-email__erro', id: 'conta-usuario-erro', role: 'alert' });
+    const campo = h('input', { class: 'ds-input', type: 'text', id: 'conta-usuario-campo', value: atual || '', autocomplete: 'username', autocapitalize: 'none', spellcheck: 'false', maxlength: '21', placeholder: 'seu_nome' });
+    const dica = h('span', { class: 'ds-field__hint', id: 'conta-usuario-dica', 'aria-live': 'polite' });
+    const vai = Button(rotuloBase, { variant: 'primary', icone: 'conferir', id: 'conta-usuario-confirmar', onClick: () => confirma() });
+    const rot = () => vai.querySelector('.ds-btn__rotulo');
+    // retorno na hora, a cada letra: o formato é conferido aqui; só "já é de outra conta" precisa do banco
+    const confere = () => {
+      const n = R.normalizaNomeDeUsuario(campo.value), ruim = n ? R.erroDoNome(n) : null;
+      dica.textContent = !n ? '3 a 20 caracteres: letras sem acento, números e _.' : ruim ? R.MOTIVO_NOME[ruim] : n === atual ? 'É o seu nome de agora.' : 'Fica @' + n + '.';
+      dica.classList.toggle('ds-text--negative', !!ruim);
+      vai.disabled = !n || !!ruim || n === atual;
+    };
+    async function confirma() {
+      if (vai.disabled) return;
+      clear(erro); vai.disabled = true; vai.setAttribute('aria-busy', 'true'); rot().textContent = 'Reservando…';
+      try {
+        const r = await nu.reservar(campo.value);
+        st.usuario = { de: conta.sessao.uid(), nome: r.nome };
+        if (haptics) haptics.evento('confirmacao');
+        closeDialog(); toast('@' + r.nome + ' agora é seu'); paint();
+      } catch (e) {
+        vai.removeAttribute('aria-busy'); rot().textContent = rotuloBase; confere();
+        mount(erro, Note(R.MOTIVO_NOME[e && e.message] || R.MOTIVO_NOME.api, 'negative')); campo.focus();
+      }
+    }
+    campo.addEventListener('input', () => { clear(erro); confere(); });
+    campo.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); confirma(); } });
+    Dialog({ title: atual ? 'Trocar o nome de usuário' : 'Escolher o nome de usuário', body: Stack({},
+      Field('Nome de usuário', campo), dica,
+      Text('É único: cada nome é de uma conta só. Quem tem conta na Estante consegue ver que ele está em uso.', { size: 'sm', tone: 'muted' }),
+      atual ? Text('Ao trocar, @' + atual + ' fica livre para outra pessoa.', { size: 'sm', tone: 'muted', attrs: { id: 'conta-usuario-aviso' } }) : null,
+      erro),
+      actions: [Button('Cancelar', { id: 'conta-usuario-cancelar', onClick: closeDialog }), vai] });
+    confere();
+    campo.focus({ preventScroll: true });
+  }
   function secaoConta() {
     if (!conta) return null;
     const comEmail = !!(conta.comEmailDisponivel && conta.comEmailDisponivel());
@@ -14893,6 +14992,7 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
               Text('Conta da Estante desconectada' + (e.motivo ? ' · ' + __m29.motivoDe(new Error(e.motivo)) : ''), { size: 'sm', tone: 'muted', class: 'ds-grow' }),
               Button('Entrar de novo', { icone: 'email', id: 'conta-estante-conectar', variant: 'ghost', disabled: oc, onClick: () => abreEntrarComEmail('entrar', c.email) }))
           : linhaEstante(oc),
+        linhaUsuario(oc),
         linhaSincronia(oc),
         Text('Backup no Google Drive: chega quando der para ligar o Google a esta conta. Até lá, o backup por arquivo guarda tudo.', { size: 'sm', tone: 'muted', attrs: { id: 'conta-backup-quando' } }),
         Row({ class: 'ds-row--wrap' },
@@ -14903,6 +15003,7 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
         Avatar({ nome: c.nome, avatar: c.foto }, { tamanho: 40 }),
         Stack({ class: 'ds-grow perfil-conta__texto' }, h('b', { class: 'ds-text ds-text--md', id: 'conta-nome' }, c.nome || c.email), Text(c.email, { size: 'sm', tone: 'muted', attrs: { id: 'conta-email' } }))),
       linhaEstante(oc),
+      linhaUsuario(oc),
       linhaSincronia(oc),
       Row({ class: 'ds-row--wrap' },
         Button('Usar na mesa', { icone: 'pessoa', id: 'conta-usar', title: 'Usar o nome e a foto da conta no perfil', disabled: oc, onClick: () => acaoDaConta(async () => {
@@ -36210,6 +36311,8 @@ const sincronia = __m40.createSincronia({
   aoDescer: async r => { await theme.init(); etiquetas.recarrega(); await som.init(); if (r.pessoaDesceu) document.dispatchEvent(new CustomEvent('estante:perfil')); }
 });
 conta.sincronia = sincronia;
+// G-266 · T6f-3 · nome de usuário único: com a conta da Estante conectada e o banco ligado
+conta.nomeDeUsuario = () => { if (online.modo !== 'firebase' || conta.estante().estado !== 'conectada') return null; const uid = conta.sessao.uid(); return uid ? __m40.createNomeDeUsuario({ transporte: online.transporte, uid }) : null; };
 aoPreferencia = () => sincronia.mudou();
 { // conectar (ao entrar, no Perfil ou na sala) já sincroniza; sair para
   const conectar = conta.conectarEstante.bind(conta), sair = conta.sair.bind(conta);

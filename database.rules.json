@@ -53,6 +53,18 @@
             ".validate": false
           }
         },
+        "usuario": {
+          ".validate": "newData.hasChildren(['nome', 'em']) && root.child('usuarios/' + newData.child('nome').val() + '/uid').val() === $uid",
+          "nome": {
+            ".validate": "newData.isString()"
+          },
+          "em": {
+            ".validate": "newData.isNumber() && newData.val() >= 0"
+          },
+          "$outro": {
+            ".validate": false
+          }
+        },
         "$outro": {
           ".validate": false
         }
@@ -186,6 +198,22 @@
         },
         "fim": {
           ".write": "auth != null && root.child('salas/' + $codigo + '/criadaEm').val() > now - 21600000 && (root.child('salas/' + $codigo + '/anfitriao/uid').val() === auth.uid || root.child('salas/' + $codigo + '/convidado/uid').val() === auth.uid)"
+        },
+        "$outro": {
+          ".validate": false
+        }
+      }
+    },
+    "usuarios": {
+      "$nome": {
+        ".read": "auth != null",
+        ".write": "auth != null && ((!data.exists() && newData.child('uid').val() === auth.uid) || (data.child('uid').val() === auth.uid && !newData.exists()))",
+        ".validate": "$nome.matches(/^[a-z0-9_]+$/) && $nome.length >= 3 && $nome.length <= 20 && newData.hasChildren(['uid', 'em'])",
+        "uid": {
+          ".validate": "newData.isString() && newData.val() === auth.uid"
+        },
+        "em": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
         },
         "$outro": {
           ".validate": false

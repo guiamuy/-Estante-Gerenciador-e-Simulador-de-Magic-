@@ -125,7 +125,7 @@ const docLocal = (preferencias, { nome = 'Ana', avatar = null, em = 10 } = {}) =
 /* ---------- o arquivo ---------- */
 test('P-4 · regras: JSON válido, raiz fechada, só caminhos conhecidos no primeiro nível', () => {
   assert.equal(REGRAS['.read'], false); assert.equal(REGRAS['.write'], false);
-  assert.deepEqual(Object.keys(REGRAS).filter(k => !k.startsWith('.')).sort(), ['bloqueios', 'perfis', 'relatos', 'salas']);
+  assert.deepEqual(Object.keys(REGRAS).filter(k => !k.startsWith('.')).sort(), ['bloqueios', 'perfis', 'relatos', 'salas', 'usuarios']); // G-266 · usuarios: a reserva do nome de usuário
 });
 
 test('P-4 · regras: expressões regulares só no subconjunto que o Firebase aceita (sem chaves, âncora só nas pontas)', () => {
@@ -340,4 +340,44 @@ test('P-4 · o resto do banco é negado (ler a raiz, escrever fora dos três ram
   await recusa(transporte(b, ANA).ler(''), 'ler a raiz');
   await recusa(transporte(b, ANA).escrever('outra/coisa', { x: 1 }), 'ramo desconhecido');
   await recusa(transporte(b, ANA).escrever(`relatos/outra/${ANA.uid}`, { x: 1 }), 'fora da fila');
+});
+
+/* ---------- G-266 · T6f-3 · nome de usuário único (código real do app sob as regras) ---------- */
+test('G-266 · nome de usuário: a primeira conta reserva; a outra recebe "em uso"; trocar solta o antigo; ninguém mexe na reserva dos outros', async () => {
+  const b = bancoComRegras();
+  const daAna = R.createNomeDeUsuario({ transporte: transporte(b, ANA), uid: ANA.uid, agora: () => 7 });
+  const doBeto = R.createNomeDeUsuario({ transporte: transporte(b, BETO), uid: BETO.uid, agora: () => 8 });
+  assert.equal(await daAna.meu(), null);
+  assert.deepEqual({ ...(await daAna.reservar('  @Ana_01 ')) }, { nome: 'ana_01', mudou: true });
+  assert.equal(JSON.stringify(b.dados().usuarios), JSON.stringify({ ana_01: { uid: ANA.uid, em: 7 } }));
+  assert.equal((await daAna.meu()).nome, 'ana_01');
+  assert.deepEqual({ ...(await daAna.reservar('ana_01')) }, { nome: 'ana_01', mudou: false }, 'o mesmo nome não escreve de novo');
+  await assert.rejects(doBeto.reservar('ana_01'), /nome-em-uso/);
+  // corrida: o Beto leu "livre" e a Ana escreveu antes; o banco recusa a segunda reserva
+  await recusa(transporte(b, BETO).escrever('usuarios/ana_01', { uid: BETO.uid, em: 9 }), 'reserva por cima da de outra conta');
+  await recusa(transporte(b, BETO).escrever('usuarios/ana_01', null), 'soltar a reserva de outra conta');
+  await recusa(transporte(b, BETO).escrever('usuarios/beto', { uid: ANA.uid, em: 9 }), 'reservar em nome de outra conta');
+  await recusa(transporte(b, BETO).escrever(`perfis/${BETO.uid}/usuario`, { nome: 'ana_01', em: 9 }), 'apontar o perfil para o nome dos outros');
+  await recusa(transporte(b, BETO).escrever(`perfis/${BETO.uid}/usuario`, { nome: 'livre', em: 9 }), 'apontar para nome sem reserva');
+  await recusa(transporte(b, null).ler('usuarios/ana_01'), 'sem conta não lê');
+  assert.equal((await transporte(b, BETO).ler('usuarios/ana_01')).uid, ANA.uid, 'com conta, dá para ver que está em uso');
+  // trocar: reserva o novo, aponta o perfil e o antigo fica livre para o Beto
+  assert.deepEqual({ ...(await daAna.reservar('aninha')) }, { nome: 'aninha', mudou: true });
+  assert.equal((await daAna.meu()).nome, 'aninha');
+  assert.equal(b.dados().usuarios.ana_01, undefined, 'o antigo foi solto');
+  assert.deepEqual({ ...(await doBeto.reservar('ana_01')) }, { nome: 'ana_01', mudou: true });
+});
+
+test('G-266 · nome de usuário: formato conferido no app e no banco; banco com as regras antigas diz "ainda não ligado"', async () => {
+  for (const [n, e] of [['ab', 'nome-curto'], ['a'.repeat(21), 'nome-longo'], ['joão', 'nome-formato'], ['com espaço', 'nome-formato'], ['a.b', 'nome-formato'], ['', 'nome-curto']]) assert.equal(R.erroDoNome(n), e, n);
+  assert.equal(R.erroDoNome('Gui_2026'), null, 'maiúscula vira minúscula');
+  for (const k of ['nome-curto', 'nome-longo', 'nome-formato', 'nome-em-uso', 'nome-sem-regras', 'sem-rede', 'api']) assert.ok(R.MOTIVO_NOME[k] && !/firebase|token|uid/i.test(R.MOTIVO_NOME[k]), k);
+  const b = bancoComRegras(), t = transporte(b, ANA);
+  for (const ruim of ['AB', 'ab', 'a-b', 'x'.repeat(21)]) await recusa(t.escrever(`usuarios/${ruim}`, { uid: ANA.uid, em: 1 }), ruim);
+  await recusa(t.escrever('usuarios/certo', { uid: ANA.uid, em: 1, extra: 1 }), 'campo a mais');
+  await recusa(t.escrever('usuarios/certo', { uid: ANA.uid }), 'sem o instante');
+  // as regras publicadas antes da G-266 não têm o ramo: a leitura é recusada e o app explica
+  const antigas = { ler: async () => { throw Object.assign(new Error('api'), { status: 401 }); }, escrever: async () => {}, apagar: async () => {} };
+  await assert.rejects(R.createNomeDeUsuario({ transporte: { ...antigas, ler: async c => { if (c.startsWith('perfis/')) return null; return antigas.ler(); } }, uid: ANA.uid }).reservar('gui'), /nome-sem-regras/);
+  assert.throws(() => R.createNomeDeUsuario({ transporte: t, uid: '../x' }), /uid-invalido/);
 });
