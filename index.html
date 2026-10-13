@@ -7991,6 +7991,43 @@ const RAW_SCRIPTS = [
     abilities: [{ kind: 'activated', cost: { tap: true, removeCounters: { tipo: 'depletion', n: 1 } }, semMarcadorSacrifica: 'depletion', effects: [{ do: 'add_mana', symbols: ['W', 'W'] }] }],
     note: 'a mana sai pela habilidade da terra (ative antes de conjurar); o pagamento automático ainda não usa habilidades de mana com custo além de {T}',
     example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor): o cenário de verdade está em listas.lote*.unit
+  // L-3 · Pauper de M a Z, lote 3 (texto oficial em .listas/oficiais-listas.json, Oracle do Forge, 12/10/2026)
+  { name: "Raven's Crime", retrace: true, effects: [{ do: 'discard', amount: 1, target: 'player' }], // "Target player discards a card. / Retrace"
+    example: { target: 'opponent', expect: { handDelta: 0 } } },
+  { name: 'Might of the Masses', effects: [{ do: 'pump', power: { per: 'creatures-you-control' }, toughness: { per: 'creatures-you-control' }, target: 'creature' }], // "Target creature gets +1/+1 until end of turn for each creature you control."
+    example: { target: 'own-creature', expect: { pump: [2, 2] } } }, // no cenário você controla dois Ursos
+  { name: 'Oroku Saki, Shredder Rising', sneak: { mana: '{1}{B}' }, // "Sneak {1}{B}"
+    abilities: [{ kind: 'triggered', when: 'combat-damage', effects: [{ do: 'draw', amount: 1 }, { do: 'lose', amount: 1 }] }], // "Whenever Oroku Saki deals combat damage to a player, you draw a card and lose 1 life."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor): o cenário de verdade está em listas.lote*.unit
+  { name: 'Siege Smash', modes: [{ label: 'Destruir um artefato', effects: [{ do: 'destroy', target: 'artifact' }] }, // "Split second / Choose one — • Destroy target artifact.
+    { label: '+3/+2 e atropelar numa criatura', effects: [{ do: 'pump', power: 3, toughness: 2, target: 'creature' }, { do: 'keyword', keyword: 'trample', target: 'first-target' }] }], // • Target creature gets +3/+2 and gains trample until end of turn." (fração de segundo vem da linha impressa)
+    example: { action: 'mode:1', target: 'own-creature', expect: { pump: [3, 2] } } },
+  { name: 'Seeker of the Way', abilities: [{ kind: 'triggered', when: 'other-cast', filter: { noncreature: true }, effects: [{ do: 'keyword', keyword: 'lifelink', target: 'self-source' }] }], // "Prowess / Whenever you cast a noncreature spell, Seeker of the Way gains lifelink until end of turn."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor): o cenário de verdade está em listas.lote*.unit
+  { name: 'Pactdoll Terror', abilities: [ // "Whenever this creature or another artifact you control enters, each opponent loses 1 life and you gain 1 life."
+    { kind: 'triggered', when: 'etb', effects: [{ do: 'lose', amount: 1, target: 'each-opponent' }, { do: 'gain', amount: 1 }] },
+    { kind: 'triggered', when: 'other-etb', filter: { types: ['artifact'] }, effects: [{ do: 'lose', amount: 1, target: 'each-opponent' }, { do: 'gain', amount: 1 }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor): o cenário de verdade está em listas.lote*.unit
+  { name: 'Sea Gate Oracle', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'look', count: 2, amount: 1, min: 1, to: 'hand', rest: 'library-bottom' }] }], // "When Sea Gate Oracle enters, look at the top two cards of your library. Put one of them into your hand and the other on the bottom of your library."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor): o cenário de verdade está em listas.lote*.unit
+  // "(As this Saga enters and after your draw step, add a lore counter.) / I, II — Draw a card, then discard a card. / III — Exile this Saga, then return it to the battlefield transformed under your control." · verso Vector Glider: Enchantment Creature — Spirit 2/3, azul (indicador de cor), "Flying"
+  { name: 'The Modern Age', self: { duplaFace: true }, entra: [{ afetados: 'self', marcadores: { lore: 1 } }], abilities: [
+    { kind: 'triggered', when: 'chapter', chapters: [1, 2], effects: [{ do: 'draw', amount: 1 }, { do: 'discard', amount: 1 }] },
+    { kind: 'triggered', when: 'chapter', chapters: [3], effects: [{ do: 'exile_return_transformed', target: 'self-source' }] }],
+    back: { name: 'Vector Glider', types: ['enchantment', 'creature'], subtypes: ['Spirit'], colors: ['U'], power: 2, toughness: 3, keywords: ['flying'] },
+    note: 'capítulo III: volta sob o controle do dono (o texto diz "your control"; só difere se outro jogador controlar a Saga)',
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor): o cenário de verdade está em listas.lote*.unit
+  { name: 'Snakeskin Veil', effects: [{ do: 'counters', amount: 1, target: { tipos: ['creature'], de: 'you' } }, { do: 'keyword', keyword: 'hexproof', target: 'first-target' }], // "Put a +1/+1 counter on target creature you control. It gains hexproof until end of turn."
+    example: { target: 'own-creature', expect: { keyword: 'hexproof' } } },
+  { name: "Tamiyo's Safekeeping", effects: [{ do: 'continuo', target: { de: 'you' }, palavras: ['hexproof', 'indestructible'] }, { do: 'gain', amount: 2 }], // "Target permanent you control gains hexproof and indestructible until end of turn. You gain 2 life."
+    example: { target: 'own-creature', expect: { keyword: 'indestructible', selfLife: 2 } } },
+  { name: 'Unexpected Fangs', effects: [{ do: 'counters', amount: 1, target: 'creature' }, { do: 'counters', amount: 1, tipo: 'lifelink', target: 'first-target' }], // "Put a +1/+1 counter and a lifelink counter on target creature."
+    example: { target: 'own-creature', expect: { keyword: 'lifelink' } } },
+  { name: 'Mesmerizing Dose', aura: { enchant: 'creature' }, grants: { naoDesvira: true }, // "Enchant creature / Enchanted creature doesn't untap during its controller's untap step."
+    abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'tap', target: 'enchanted' }, { do: 'proliferate' }] }], // "When Mesmerizing Dose enters, tap enchanted creature, then proliferate."
+    example: { action: 'aura', target: 'own-creature', expect: { tapped: true } } },
+  { name: 'Thrummingbird', abilities: [{ kind: 'triggered', when: 'combat-damage', effects: [{ do: 'proliferate' }] }], // "Flying / Whenever Thrummingbird deals combat damage to a player, proliferate."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor): o cenário de verdade está em listas.lote*.unit
   //
   //
   //
