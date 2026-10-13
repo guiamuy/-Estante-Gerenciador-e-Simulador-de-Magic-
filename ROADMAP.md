@@ -525,6 +525,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ed ✅ | SEG10 relato só de quem tem acesso ao repositório: registro de outra conta não ganha etiqueta nem entra na tabela, a não ser que o dono o aceite com `relato-aceito` (leva P-17) | SEG | ½ | — |
 | 16º-ef ✅ | SEG11 licença: `LICENSE` com todos os direitos reservados ao autor (Guilherme de Aguiar Schmidt Amuy), separando o que é de terceiros (Wizards, Scryfall, MTGJSON, Tesseract) (leva P-18) | SEG | ½ | nome do dono |
 | 16º-eg ✅ | SEG9b sala nova sempre com 6 símbolos: o recuo para 4 ao criar saiu depois que o dono publicou as regras da P-16 no console; banco que recusa vira erro, nunca código curto (leva P-19) | SEG | ½ | regras publicadas (dono, 12/10) |
+| 16º-ei ✅ | MON1 Apoiar a Estante: Pix (chave e copia e cola), Ko-fi, PayPal e GitHub Sponsors numa tela, a forma da região primeiro; prévia com dados de exemplo travada (leva P-20) | SEG | 1 | dados reais do dono |
 | 16º-ee ✅ | T6e-2 Enviar relato sem sair do app: com a conta conectada e a fila ligada, o relato vai para a fila do Firebase e o cartão mostra "Na fila" até o número do registro (relato #13, leva G-255) | T | 1 | — |
 | 16º-eh ✅ | T6e-2 prazo honesto do relato pela fila: o GitHub atrasa o agendamento em horas, a tela diz "de minutos a algumas horas" e a conversa que lê relatos roda a fila antes (relato #13, leva G-256) | T | 1 | 16º-ee |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
@@ -9411,6 +9412,28 @@ segredo do repositório. O `main` não recebe commit do coletor.
   URL do app (Pages). O app ainda não mostra o aviso da Fan Content Policy numa tela "Sobre" (hoje só no crédito das
   listas do Magic Online): fica como recomendação para a trilha de design. Isto não é parecer jurídico; registro no INPI
   continua opcional antes de monetizar.
+
+**MON1 · Apoiar a Estante** 🟡 prévia (leva P-20, 12/10/2026) — decisão D7 do dono (doações; anúncios fora); ameaças em
+`claude/PLANO-monetizacao-seguranca.md`, plataformas em `claude/DOACOES-plataformas.md` (Projeto).
+- **Valor:** quem gosta da Estante apoia do jeito mais fácil de onde estiver: Pix no Brasil, PayPal na América Latina,
+  Ko-fi nos EUA e na Europa, GitHub Sponsors para quem programa — todas na tela, a da região primeiro.
+- **Entregue:** tela **Apoiar a Estante** (`#/perfil/apoiar`, módulo `__m41`/`src/app/saida.js`). Região provável pelo
+  fuso e pelo idioma do aparelho (nada sai); cartão em destaque com "Recomendado" e o único primário; "Outras formas" em
+  lista. Pix com **Copiar chave** e **Copia e cola** (BR Code estático montado no aparelho, CRC16 conferido contra o
+  exemplo do manual do Banco Central; nome até 25 e cidade até 15 sem acento); links abrem fora do app só em https.
+  **Dados de exemplo travados:** com `APOIO.exemplo` nenhum botão copia nem abre (o toque diz "Prévia…"), a tela mostra
+  "Prévia com dados de exemplo" e a entrada do Perfil não aparece; a chave de exemplo não tem forma de chave Pix e os
+  links de exemplo não têm endereço. Sem rede: aviso "o Pix funciona agora". Nada guardado, nada enviado, sem código de
+  terceiro, sem origem nova na política.
+- **Testes:** U `seguranca.apoiar.unit` (5: região por fuso e idioma; ordem por região sem esconder nenhuma forma; Pix
+  copia e cola igual ao exemplo do manual e CRC em texto qualquer; trava dos dados de exemplo; com dados reais, só https
+  e **toda origem de link de apoio em LINKS** — o contrato que a leva dos dados reais precisa cumprir); e2e "P-20" (fuso
+  do Brasil: Pix primeiro com "Recomendado", um primário, 44 px, prévia não copia nem abre, Perfil sem entrada, sem rede
+  com aviso, volta ao Perfil, `emTodasAsMedidas` nas quatro larguras e dois temas).
+- **Falta (dono):** os dados reais — chave Pix (não o CPF), nome e cidade do Pix, endereços do Ko-fi, do PayPal.Me e,
+  se quiser, do GitHub Sponsors. Uma leva troca o `APOIO`, põe as origens em LINKS e libera a entrada no Perfil.
+- **Fora:** QR do Pix (para quem abre no computador; o celular copia e cola), valor sugerido, patrocínio próprio (MON2) e
+  rede de anúncios (MON3).
 
 ### P · Plataforma
 

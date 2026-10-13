@@ -1308,6 +1308,17 @@ body {
 .saida-linha { margin: 0; font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--fg); }
 .saida-linha b { font-weight: 600; }
 .saida-item__origens { margin: 0; font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--fg-muted); overflow-wrap: anywhere; }
+/* P-20 · MON1 · Apoiar a Estante: o cartão da região vem em destaque (borda de latão); os outros em lista */
+.apoio-lista { display: grid; gap: var(--space-3); }
+.apoio-item__cabeca { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.apoio-item__selo { display: inline-flex; flex: none; color: var(--accent); }
+.apoio-item__nome { margin: 0; flex: 1 1 auto; min-width: 0; font-size: var(--text-lg); line-height: var(--lh-lg); font-weight: 600; color: var(--fg); overflow-wrap: anywhere; }
+.apoio-item--destaque { border-color: var(--accent); box-shadow: var(--shadow-2); }
+.apoio-item__texto { margin: 0; font-size: var(--text-md); line-height: var(--lh-md); color: var(--fg); }
+.apoio-item__regiao { margin: 0; font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--fg-muted); }
+.apoio-item__chave { margin: 0; font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--fg); font-family: var(--font-mono); overflow-wrap: anywhere; user-select: all; }
+.apoio-item__rotulo { font-family: var(--font-ui); color: var(--fg-muted); user-select: none; }
+.apoio-item__acoes { gap: var(--space-2); }
 .pt-ladrilhos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
 .pt-ladrilho { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: var(--space-3) var(--space-2); border-radius: var(--radius-2); background: var(--bg-elev-1); border: 1px solid var(--border); min-width: 0; }
 .pt-ladrilho__valor { display: inline-flex; align-items: center; gap: var(--space-1); font-family: var(--font-display); font-size: var(--text-xl); line-height: var(--lh-xl); color: var(--fg); font-variant-numeric: tabular-nums; text-align: center; }
@@ -12820,7 +12831,106 @@ async function apagaTudoComNuvem({ nuvem = null, ...resto }) {
   r.nuvem = nuvem ? 'apagada' : null;
   return r;
 }
-return { DESTINOS, LINKS, ORIGENS, createSaidaScreen, apagaTudoDoAparelho, apagaTudoComNuvem };
+/* =====================================================================
+   P-20 · MON1 · APOIAR A ESTANTE (Perfil › Apoiar) — claude/PLANO-monetizacao-seguranca.md, plataformas em
+   claude/DOACOES-plataformas.md. Só chave e links: nenhum código de terceiro, nada sai do aparelho além do toque no
+   link. A forma da região provável (fuso e idioma, sem rede) vem primeiro; todas aparecem sempre.
+   DADOS: `APOIO` é o único lugar a trocar. Com `exemplo: true` nada copia nem abre, a tela avisa que é prévia e a
+   entrada do Perfil fica escondida. Ao pôr os dados reais: `exemplo: false`, cada `url` em https e a origem dela em
+   LINKS acima (o teste `seguranca.apoiar.unit` cobra).
+   ===================================================================== */
+const APOIO = {
+  exemplo: true,
+  formas: [
+    { id: 'pix', tipo: 'pix', nome: 'Pix', icone: 'raio', chave: 'chave-de-exemplo', titular: 'Nome de exemplo', cidade: 'Cidade',
+      resumo: 'Na hora, sem taxa, direto do app do seu banco.', regiao: 'Para quem tem conta no Brasil' },
+    { id: 'kofi', tipo: 'link', nome: 'Ko-fi', icone: 'vida', endereco: 'ko-fi.com/…', url: null,
+      resumo: 'Cartão, Apple Pay ou Google Pay. Uma vez ou todo mês.', regiao: 'Melhor nos EUA, na Europa e no resto do mundo' },
+    { id: 'paypal', tipo: 'link', nome: 'PayPal', icone: 'globo', endereco: 'paypal.me/…', url: null,
+      resumo: 'Saldo PayPal ou cartão, em qualquer moeda.', regiao: 'Melhor na América Latina' },
+    { id: 'github', tipo: 'link', nome: 'GitHub Sponsors', icone: 'pessoas', endereco: 'github.com/sponsors/…', url: null,
+      resumo: 'Para quem tem conta no GitHub. Uma vez ou todo mês, sem taxa.', regiao: 'Para quem programa' }
+  ]
+};
+const ORDEM_APOIO = { br: ['pix', 'kofi', 'paypal', 'github'], latam: ['paypal', 'kofi', 'github', 'pix'], us: ['kofi', 'paypal', 'github', 'pix'], eu: ['kofi', 'paypal', 'github', 'pix'], outro: ['kofi', 'paypal', 'github', 'pix'] };
+const NOME_REGIAO = { br: 'no Brasil', latam: 'na América Latina', us: 'nos Estados Unidos', eu: 'na Europa', outro: '' };
+const FUSOS_BR = /^America\/(Sao_Paulo|Bahia|Fortaleza|Recife|Maceio|Belem|Manaus|Cuiaba|Campo_Grande|Porto_Velho|Boa_Vista|Rio_Branco|Noronha|Araguaina|Santarem|Eirunepe)$/;
+const FUSOS_LATAM = /^America\/(Argentina\/.+|Buenos_Aires|Santiago|Punta_Arenas|Bogota|Lima|Caracas|Montevideo|Asuncion|La_Paz|Guayaquil|Panama|Costa_Rica|Guatemala|El_Salvador|Tegucigalpa|Managua|Havana|Santo_Domingo|Puerto_Rico|Mexico_City|Cancun|Merida|Monterrey|Matamoros|Chihuahua|Ciudad_Juarez|Ojinaga|Mazatlan|Bahia_Banderas|Hermosillo|Tijuana)$/;
+/** Região provável de quem abre a tela, só pelo fuso e pelo idioma do aparelho (nada sai do aparelho). */
+function regiaoProvavel({ fuso = '', idioma = '' } = {}) {
+  const f = String(fuso || ''), l = String(idioma || '').toLowerCase();
+  if (FUSOS_BR.test(f)) return 'br';
+  if (FUSOS_LATAM.test(f)) return 'latam';
+  if (/^America\//.test(f)) return l.startsWith('pt') ? 'br' : 'us';
+  if (/^(Europe\/|Atlantic\/(Canary|Madeira|Azores|Faroe|Reykjavik))/.test(f)) return 'eu';
+  if (f) return 'outro';
+  if (l === 'pt-br' || l === 'pt') return 'br';
+  if (l.startsWith('es-419') || /^es-(ar|mx|co|cl|pe|ve|uy|py|bo|ec|pa|cr|gt|sv|hn|ni|cu|do|pr)$/.test(l)) return 'latam';
+  if (l === 'en-us') return 'us';
+  if (/^(de|fr|it|nl|pt-pt|es-es|en-gb|en-ie|pl|sv|da|fi|no|nb|cs|el|ro|hu|sk|sl|hr|bg|et|lv|lt)\b/.test(l)) return 'eu';
+  return 'outro';
+}
+const regiaoDoAparelho = () => { let fuso = '', idioma = ''; try { fuso = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) { /* sem Intl */ } try { idioma = navigator.language || ''; } catch (e) { /* sem navigator */ } return regiaoProvavel({ fuso, idioma }); };
+function ordemDoApoio(regiao, dados = APOIO) { const o = ORDEM_APOIO[regiao] || ORDEM_APOIO.outro; return [...dados.formas].sort((a, b) => o.indexOf(a.id) - o.indexOf(b.id)); }
+/** CRC16-CCITT (polinômio 0x1021, início 0xFFFF), como pede o BR Code. */
+function crc16(txt) { let c = 0xFFFF; for (const b of new TextEncoder().encode(txt)) { c ^= b << 8; for (let i = 0; i < 8; i++) c = c & 0x8000 ? ((c << 1) ^ 0x1021) & 0xFFFF : (c << 1) & 0xFFFF; } return c.toString(16).toUpperCase().padStart(4, '0'); }
+const semAcento = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\x20-\x7E]/g, '');
+/** "Pix copia e cola" (BR Code estático, sem valor: quem doa escolhe o valor no banco). */
+function pixCopiaECola({ chave, nome, cidade }) {
+  const k = String(chave || '').trim(); if (!k) return null;
+  const campo = (id, v) => id + String(v.length).padStart(2, '0') + v;
+  const conta = campo('00', 'br.gov.bcb.pix') + campo('01', k);
+  const corpo = campo('00', '01') + campo('26', conta) + campo('52', '0000') + campo('53', '986') + campo('58', 'BR') +
+    campo('59', semAcento(nome).slice(0, 25) || 'N') + campo('60', semAcento(cidade).slice(0, 15) || 'C') + campo('62', campo('05', '***')) + '6304';
+  return corpo + crc16(corpo);
+}
+const apoioPronto = (dados = APOIO) => !dados.exemplo;
+/** O que o botão faz: copiar (Pix) ou abrir (link https). Com dados de exemplo, nada. */
+function acaoDaForma(f, dados = APOIO) {
+  if (!f || dados.exemplo) return null;
+  if (f.tipo === 'pix') { const codigo = pixCopiaECola({ chave: f.chave, nome: f.titular || f.nome, cidade: f.cidade }); return codigo ? { tipo: 'copiar', chave: f.chave, codigo } : null; }
+  if (f.tipo === 'link' && /^https:\/\/[a-z0-9.-]+\//i.test(String(f.url || ''))) return { tipo: 'abrir', url: f.url };
+  return null;
+}
+/** Origens que os links de apoio abrem: precisam estar em LINKS (contrato do teste). */
+const origensDoApoio = (dados = APOIO) => [...new Set(dados.formas.map(f => acaoDaForma(f, dados)).filter(a => a && a.tipo === 'abrir').map(a => new URL(a.url).origin))];
+
+function createApoioScreen({ dados = APOIO, regiao = regiaoDoAparelho(), copiar = t => navigator.clipboard.writeText(t), abrir = u => window.open(u, '_blank', 'noopener'), online = () => typeof navigator === 'undefined' || navigator.onLine !== false } = {}) {
+  const { Button, Note, toast } = __m3;
+  const formas = ordemDoApoio(regiao, dados);
+  const copia = async (texto, ok) => { try { await copiar(texto); toast(ok); } catch (e) { toast('Não consegui copiar. Toque e segure no texto para copiar à mão.', 3600); } };
+  const age = (f, qual = 'codigo') => {
+    const a = acaoDaForma(f, dados);
+    if (!a) { toast('Prévia: esta forma de apoio entra quando a conta estiver pronta.', 3000); return; }
+    if (a.tipo === 'copiar') return copia(qual === 'chave' ? a.chave : a.codigo, qual === 'chave' ? 'Chave Pix copiada' : 'Pix copia e cola copiado');
+    if (!online()) { toast('Sem internet: o link abre quando a conexão voltar. O Pix funciona agora.', 3600); return; }
+    abrir(a.url);
+  };
+  const botoes = (f, primario) => f.tipo === 'pix'
+    ? [Button('Copiar chave', { variant: primario ? 'primary' : 'ghost', icone: 'copiar', id: 'apoio-pix-chave', onClick: () => age(f, 'chave') }),
+       Button('Copia e cola', { variant: 'ghost', icone: 'copiar', id: 'apoio-pix-codigo', title: 'Copiar o código Pix copia e cola', onClick: () => age(f, 'codigo') })]
+    : [Button(f.id === 'github' ? 'Patrocinar' : 'Doar', { variant: primario ? 'primary' : 'ghost', icone: 'externo', id: 'apoio-' + f.id, title: 'Abrir ' + f.nome + ' fora do app', onClick: () => age(f) })];
+  const cartao = (f, primario) => Surface({ class: 'ds-surface--pad apoio-item' + (primario ? ' apoio-item--destaque' : ''), id: 'apoio-forma-' + f.id, dataset: { forma: f.id } }, Stack({ style: { gap: 'var(--space-2)' } },
+    h('div', { class: 'apoio-item__cabeca' }, h('span', { class: 'apoio-item__selo' }, Icone(f.icone, { tamanho: 20 })),
+      h('h2', { class: 'apoio-item__nome' }, f.nome),
+      primario && NOME_REGIAO[regiao] ? Badge('Recomendado', { tone: 'accent' }) : null),
+    h('p', { class: 'apoio-item__texto' }, f.resumo),
+    h('p', { class: 'apoio-item__regiao' }, primario && NOME_REGIAO[regiao] ? 'Para quem está ' + NOME_REGIAO[regiao] : f.regiao),
+    f.tipo === 'pix' ? h('p', { class: 'apoio-item__chave', lang: 'en' }, h('span', { class: 'apoio-item__rotulo' }, 'Chave '), f.chave)
+      : h('p', { class: 'apoio-item__chave', lang: 'en' }, f.endereco || ''),
+    Row({ class: 'ds-row--wrap apoio-item__acoes' }, ...botoes(f, primario))));
+  const [primeira, ...outras] = formas;
+  return Stack({ class: 'ds-wrap', id: 'apoio', dataset: { regiao, exemplo: String(!!dados.exemplo) }, style: { paddingTop: 'var(--space-5)', paddingBottom: 'var(--space-8)' } },
+    Row({ class: 'ds-row--wrap' }, IconButton('voltar', 'Voltar ao perfil', { id: 'apoio-voltar', variant: 'ghost', onClick: () => go('/perfil') }), Text('Apoiar a Estante', { size: '2xl', display: true, as: 'h1' })),
+    Text('A Estante é feita por uma pessoa só, sem anúncio e sem rastreio. Se ela te ajuda, apoie do jeito mais fácil para você.', { size: 'sm', tone: 'muted' }),
+    dados.exemplo ? h('div', { id: 'apoio-previa' }, Note('Prévia com dados de exemplo: as formas de apoio passam a funcionar quando as contas estiverem prontas.', 'warning')) : null,
+    online() ? null : h('div', { id: 'apoio-sem-rede' }, Note('Sem internet: o Pix funciona agora; os outros abrem quando a conexão voltar.')),
+    primeira ? cartao(primeira, true) : null,
+    outras.length ? Text('Outras formas', { size: 'lg', display: true, as: 'h2' }) : null,
+    h('div', { class: 'apoio-lista', id: 'apoio-outras' }, ...outras.map(f => cartao(f, false))),
+    Text('O app não guarda nem envia nada sobre a sua doação: o pagamento acontece no seu banco ou no site da plataforma.', { size: 'xs', tone: 'muted', attrs: { id: 'apoio-privacidade' } }));
+}
+return { DESTINOS, LINKS, ORIGENS, createSaidaScreen, apagaTudoDoAparelho, apagaTudoComNuvem, APOIO, regiaoProvavel, ordemDoApoio, crc16, pixCopiaECola, apoioPronto, acaoDaForma, origensDoApoio, createApoioScreen };
 })();
 
 /* ==== src/app/relatos.js ==== */
@@ -14188,6 +14298,10 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
       h('button', { class: 'ds-surface ds-expansivel__cabeca perfil-atalho', type: 'button', id: 'perfil-saida', onClick: () => go('/perfil/saida') },
         h('span', { class: 'ds-expansivel__selo' }, Icone('proteger', { tamanho: 20 })), h('span', { class: 'ds-expansivel__titulo' }, 'O que sai do aparelho'),
         h('span', { class: 'ds-expansivel__resumo' }, 'Serviços, o que vai e quando'), Icone('seguir', { tamanho: 20 })),
+      // P-20 · MON1 · Apoiar a Estante: a entrada só aparece com os dados reais (com dados de exemplo é prévia, por endereço)
+      __m41.apoioPronto() ? h('button', { class: 'ds-surface ds-expansivel__cabeca perfil-atalho', type: 'button', id: 'perfil-apoiar', onClick: () => go('/perfil/apoiar') },
+        h('span', { class: 'ds-expansivel__selo' }, Icone('vida', { tamanho: 20 })), h('span', { class: 'ds-expansivel__titulo' }, 'Apoiar a Estante'),
+        h('span', { class: 'ds-expansivel__resumo' }, 'Pix, Ko-fi, PayPal'), Icone('seguir', { tamanho: 20 })) : null,
       secaoBloqueios(),
       // P-10 · SEG6 · apagar tudo deste aparelho: confirmação com o backup à mão; só recarrega depois de conferir que nada sobrou
       apagar ? Surface({ class: 'ds-surface--pad', id: 'perfil-apagar' }, Stack({},
@@ -34162,6 +34276,7 @@ const ROUTES = [
   { path: '/noticias', title: 'Notícias', render: () => renderHome({ ancora: true }) }, // N2 · T2: a Início, aberta nas notícias
   { path: '/noticias/guardadas', title: 'Guardadas', render: () => __m37.createGuardadasScreen({ noticias, share: platform.share }) }, // N4
   { path: '/perfil/partidas', title: 'Partidas', render: () => createPartidasScreen({ partidas }) }, // I5
+  { path: '/perfil/apoiar', title: 'Apoiar a Estante', render: () => __m41.createApoioScreen() }, // P-20 · MON1 (com dados de exemplo: só por este endereço, como prévia)
   { path: '/perfil/saida', title: 'O que sai do aparelho', render: () => __m41.createSaidaScreen({ config: { google: !!((typeof window !== 'undefined' && window.__GOOGLE_CLIENT_ID) || GOOGLE_CLIENT_ID), firebase: !!((typeof window !== 'undefined' && window.__FIREBASE_DB_URL) || FIREBASE_DB_URL) } }) }, // P-6 · SEG5
   { path: '/perfil/relatos', title: 'Relatos', render: () => __m38.createRelatosScreen({ relatos, share: platform.share, files: platform.files, fila: envioPelaFila, // T6e-2
     // Y3 · abrir a partida anexada: entra no lugar da salva (sem a parte online) e a série em curso sai

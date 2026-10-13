@@ -11110,3 +11110,35 @@ test('e2e · T-27 · CR 709.5f · Sala: destrancar por efeito com as duas portas
   if (linhas.length) assert.ok(linhas.some(l => /destrancou Shattered Yard \(Glassworks \/\/ Shattered Yard\)/.test(l)), 'registro: ' + JSON.stringify(linhas.slice(-6)));
   assert.deepEqual(M.errors, []);
 });
+
+/* ---------------- P-20 · MON1 · Apoiar a Estante (prévia com dados de exemplo) ---------------- */
+test('e2e · P-20 Apoiar a Estante: todas as formas na tela, a da região primeiro (Brasil: Pix); prévia não copia nem abre; Perfil sem a entrada; sem rede o Pix segue; sem sobreposição nas quatro medidas e dois temas; volta ao Perfil', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  // fuso do Brasil (o app só lê o fuso e o idioma do aparelho; nada sai)
+  await page.addInitScript(() => { const r = Intl.DateTimeFormat.prototype.resolvedOptions; Intl.DateTimeFormat.prototype.resolvedOptions = function () { return { ...r.call(this), timeZone: 'America/Sao_Paulo' }; }; window.__copias = []; navigator.clipboard.writeText = async t => { window.__copias.push(t); }; window.open = u => { window.__abertos = (window.__abertos || []).concat(u); return null; }; });
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-saida');
+  assert.equal(await page.locator('#perfil-apoiar').count(), 0, 'com dados de exemplo o Perfil não mostra a entrada');
+  await page.goto(base + '#/perfil/apoiar'); await page.waitForSelector('#apoio');
+  assert.equal(await page.locator('h1').innerText(), 'Apoiar a Estante');
+  assert.equal(await page.getAttribute('#apoio', 'data-regiao'), 'br');
+  assert.match(await page.innerText('#apoio-previa'), /Prévia com dados de exemplo/);
+  const ordem = await page.$$eval('.apoio-item', es => es.map(e => e.dataset.forma));
+  assert.deepEqual(ordem, ['pix', 'kofi', 'paypal', 'github'], 'todas as formas, a do Brasil primeiro');
+  assert.match(await page.innerText('#apoio-forma-pix'), /Recomendado[\s\S]*Para quem está no Brasil/);
+  assert.equal(await page.locator('.ds-btn--primary:visible').count(), 1, 'um primário: o do cartão em destaque');
+  for (const id of ['#apoio-pix-chave', '#apoio-pix-codigo', '#apoio-kofi', '#apoio-paypal', '#apoio-github']) assert.ok((await page.locator(id).boundingBox()).height >= 44, id + ' com 44 px');
+  // prévia: nada copia nem abre, e o app diz por quê
+  await page.click('#apoio-pix-chave'); await page.waitForSelector('#ds-toast'); assert.match(await page.innerText('#ds-toast'), /Prévia/);
+  await page.click('#apoio-kofi');
+  assert.deepEqual(await page.evaluate(() => [window.__copias.length, (window.__abertos || []).length]), [0, 0]);
+  await emTodasAsMedidas(page, 'apoiar a estante');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/p20-apoiar.png', fullPage: true });
+  // sem rede: o aviso aparece e diz que o Pix funciona
+  await page.context().setOffline(true);
+  await page.goto(base + '#/perfil'); await page.goto(base + '#/perfil/apoiar'); await page.waitForSelector('#apoio-sem-rede');
+  assert.match(await page.innerText('#apoio-sem-rede'), /o Pix funciona/);
+  await page.context().setOffline(false);
+  await page.click('#apoio-voltar'); await page.waitForSelector('#perfil-saida');
+  assert.deepEqual(errors, []);
+});
