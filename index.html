@@ -8028,6 +8028,41 @@ const RAW_SCRIPTS = [
     example: { action: 'aura', target: 'own-creature', expect: { tapped: true } } },
   { name: 'Thrummingbird', abilities: [{ kind: 'triggered', when: 'combat-damage', effects: [{ do: 'proliferate' }] }], // "Flying / Whenever Thrummingbird deals combat damage to a player, proliferate."
     example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor): o cenário de verdade está em listas.lote*.unit
+  // L-4 · Pauper de M a Z, lote 4 (texto oficial em .listas/oficiais-listas.json, Oracle do Forge, 12/10/2026)
+  { name: 'Unbounded Potential', modes: [ // "Choose one — … / Entwine {3}{W}" (o entrelaçar vem da linha impressa, K-34)
+    { label: 'Um marcador +1/+1 em cada uma de até duas criaturas', effects: [{ do: 'counters', amount: 1, target: 'creature', upTo: true }, { do: 'counters', amount: 1, target: 'creature', upTo: true }] }, // "• Put a +1/+1 counter on each of up to two target creatures."
+    { label: 'Proliferar', effects: [{ do: 'proliferate' }] }], // "• Proliferate."
+    example: { action: 'mode:0', target: 'own-creature', expect: { stats: [3, 3] } } },
+  { name: 'Molten Gatekeeper', unearth: { mana: '{R}' }, // "Unearth {R}"
+    abilities: [{ kind: 'triggered', when: 'other-etb', filter: { types: ['creature'] }, effects: [{ do: 'damage', amount: 1, target: 'each-opponent' }] }], // "Whenever another creature you control enters, Molten Gatekeeper deals 1 damage to each opponent."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor): o cenário de verdade está em listas.lote*.unit
+  { name: "Survivors' Encampment", produces: [['C']], abilities: [{ kind: 'activated', cost: { tap: true, tapOther: { types: ['creature'] } }, effects: [{ do: 'add_mana', anyColor: true }] }], // "{T}: Add {C}. / {T}, Tap an untapped creature you control: Add one mana of any color."
+    example: { action: 'activate:0', target: 'none', expect: { poolAdded: 1 } } },
+  { name: 'Well-Worn Spatula', equip: { enchant: 'creature', cost: { mana: '{1}' } }, grants: { power: 1, toughness: 1 }, // "Equipped creature gets +1/+1. / Equip {1}"
+    abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'gain', amount: 2 }] }], // "When this Equipment enters, you gain 2 life."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor): o cenário de verdade está em listas.lote*.unit
+  { name: 'Muscle Sliver', continuo: [{ afetados: { tipos: ['creature'], subtipos: ['Sliver'] }, poder: 1, resistencia: 1 }], // "All Sliver creatures get +1/+1."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor): o cenário de verdade está em listas.lote*.unit
+  { name: 'Plated Sliver', continuo: [{ afetados: { tipos: ['creature'], subtipos: ['Sliver'] }, resistencia: 1 }], // "All Sliver creatures get +0/+1."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor): o cenário de verdade está em listas.lote*.unit
+  { name: 'Predatory Sliver', continuo: [{ afetados: { tipos: ['creature'], subtipos: ['Sliver'], de: 'you' }, poder: 1, resistencia: 1 }], // "Sliver creatures you control get +1/+1."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor): o cenário de verdade está em listas.lote*.unit
+  { name: 'Sentinel Sliver', continuo: [{ afetados: { tipos: ['creature'], subtipos: ['Sliver'], de: 'you' }, palavras: ['vigilance'] }], // "Sliver creatures you control have vigilance."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor): o cenário de verdade está em listas.lote*.unit
+  { name: 'Sidewinder Sliver', continuo: [{ afetados: { tipos: ['creature'], subtipos: ['Sliver'] }, palavras: ['flanking'] }], // "All Sliver creatures have flanking."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor): o cenário de verdade está em listas.lote*.unit
+  { name: 'Sinew Sliver', continuo: [{ afetados: { tipos: ['creature'], subtipos: ['Sliver'] }, poder: 1, resistencia: 1 }], // "All Sliver creatures get +1/+1."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor): o cenário de verdade está em listas.lote*.unit
+  { name: 'Thermo-Alchemist', abilities: [ // "Defender"
+    { kind: 'activated', cost: { tap: true }, effects: [{ do: 'damage', amount: 1, target: 'each-opponent' }] }, // "{T}: Thermo-Alchemist deals 1 damage to each opponent."
+    { kind: 'triggered', when: 'other-cast', filter: { anyTypes: ['instant', 'sorcery'] }, effects: [{ do: 'untap', target: 'self-source' }] }], // "Whenever you cast an instant or sorcery spell, untap Thermo-Alchemist."
+    example: { action: 'activate:0', target: 'none', expect: { opponentLife: -1 } } },
+  { name: 'Stickytongue Sentinel', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'bounce', target: { de: 'you', outra: true }, upTo: true }] }], // "Reach / When Stickytongue Sentinel enters, return up to one other target permanent you control to its owner's hand."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor): o cenário de verdade está em listas.lote*.unit
+  { name: 'Patient Instructor', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'recruit' }] }], // "Vigilance / When this creature enters, recruit."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor): o cenário de verdade está em listas.lote*.unit
+  { name: 'Thrill of Possibility', additional: { discard: 1 }, effects: [{ do: 'draw', amount: 2 }], // "As an additional cost to cast this spell, discard a card. / Draw two cards."
+    example: { target: 'none', expect: { handDelta: 1 } } }, // o cenário conta a mão sem a própria mágica: −1 do descarte do custo, +2 da compra
   //
   //
   //
