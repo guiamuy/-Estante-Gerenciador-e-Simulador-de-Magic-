@@ -4129,6 +4129,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora:** habilidades com dano dividido (Inferno Titan, Skarrgan Hellkite) — próxima fatia; Fire // Ice é da trilha `tipos`.
 - **Teste:** `lt59.unit` (6 testes, falham no motor anterior) e um teste de tela no fim do `e2e.test.mjs` (o aviso "divida 3 de dano", botões de 44 px, um toque por ponto, registro).
 
+**M-377 · LT45 · Frases do Pauper: "revela até um terreno e põe no cemitério", "terreno básico ou Portão", "só no passo final de combate"** ✅ (leva M-377, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** revisão por lote XXXVI — **Balustrade Spy, Gatecreeper Vine e Desert passam a jogar** (APROVADAS; Oracle do Forge, consulta de 12/10/2026; bloqueavam 9, 8 e 6 listas do catálogo, pela medição da `homologacao`). Balustrade Spy: o jogador alvo revela do topo até um terreno e todas as reveladas, o terreno também, vão para o cemitério dele (sem terreno, o grimório inteiro; ele só perde quando tentar comprar). Gatecreeper Vine: busca opcional de um terreno básico ou de uma carta com o subtipo Portão. Desert: {C}, e o dano de 1 só no passo final de combate (de qualquer jogador), só numa criatura atacante — que ainda está atacando nesse passo (511.3).
+- **Revisão independente:** 100 verificações. Reprovou a Balustrade Spy: o efeito lia o jogador alvo do lugar errado e nunca fazia nada (nenhum teste meu conferia as zonas) — corrigido com teste antes, e as 32 sondas dela passam; de passagem, o registro diz quando não achou terreno e quando não havia jogador alvo.
+- **Cosmético registrado:** a pilha explicada da Desert diz "uma criatura" sem "atacante"; a da Vine diz só "procura 1 carta".
+- **Teste:** `lt60.unit` (3 testes, falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

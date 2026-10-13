@@ -5380,6 +5380,7 @@ const EFFECTS = {
   // M-222 · 701.20 "reveal cards from the top … until you reveal …" (referência: o primeiro alvo, pela última informação conhecida),
   // "put target permanent … on the bottom of your library" e "target permanent's controller sacrifices it"
   reveal_until: { fields: [], targets: ['first-target'] },
+  revela_ate_cemiterio: { fields: [], targets: ['player', 'opponent'] }, // M-377 · "target player reveals cards from the top of their library until they reveal a land card, then puts those cards into their graveyard" (Balustrade Spy, 701.20)
   // CR2d.4 · Animate Dead: devolver a carta encantada e anexar; ao sair, quem controla a criatura a sacrifica
   animate_dead: { fields: [], targets: ['self'] },
   sacrifice_reanimated: { fields: [], targets: ['self'] },
@@ -8927,6 +8928,10 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Twin Bolt': { texto: '1sgujlh', leva: 'M-376' },
   'Arc Lightning': { texto: '1dxjjju', leva: 'M-376' },
   'Forked Bolt': { texto: '1sgujlh', leva: 'M-376' },
+  // M-377 · revisão por lote XXXVI (Pauper: Balustrade Spy, Gatecreeper Vine, Desert), revisor independente com 100 verificações: 3 de 3 aprovadas (Balustrade Spy depois da correção do alvo jogador; as 32 sondas dela passam)
+  'Balustrade Spy': { texto: 'uhpqql', leva: 'M-377' },
+  'Gatecreeper Vine': { texto: '1tx40s3', leva: 'M-377' },
+  'Desert': { texto: 'vc8fuy', leva: 'M-377' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -16526,6 +16531,7 @@ const __m42 = (function () {
     if (k === 'target opponent or planeswalker') return { target: { tipos: ['planeswalker'], jogadores: 'opponent' } }; // M-343
     if (k === 'target legendary creature') return { target: { tipos: ['creature'], lendaria: true } }; // M-343 · Karakas (205.4)
     if (k === 'up to one target tapped creature') return { target: 'creature', upTo: true, targetTapped: true }; // M-349 · Cryogen Relic
+    if (k === 'target attacking creature') return { target: { tipos: ['creature'], atacando: true } }; // M-377 · Desert (seletor atacando, M-361)
     if (k === 'up to one target card from a graveyard') return { target: 'card-in-any-graveyard', upTo: true }; // M-373 · Heritage Reclamation (115.3: aceita zero)
     if (k === 'target instant or sorcery spell') return { target: 'spell', targetTypes: ['instant', 'sorcery'] }; // LT13
     return null;
@@ -16642,6 +16648,8 @@ const __m42 = (function () {
     [new RegExp(`^you may discard a card to draw ${N} cards?$`, 'i'), m => [{ do: 'descarta_e_compra', amount: num(m[1]) }]], // M-348
     [new RegExp(`^you may discard (two|three) cards to draw ${N} cards?$`, 'i'), m => [{ do: 'descarta_e_compra', descarta: num(m[1]), amount: num(m[2]) }]], // M-373 · todas ou nenhuma
     [/^untap ~$/i, () => [{ do: 'untap', target: 'self-source' }]], // M-373
+    [/^revela_ate_terreno_cemiterio (target player|target opponent)$/i, m => [{ do: 'revela_ate_cemiterio', match: 'land', target: /opponent/i.test(m[1]) ? 'opponent' : 'player' }]], // M-377 · Balustrade Spy
+    [/^search your library for a basic land card or an? ([A-Z][a-z]+) card, reveal it, put it into your hand$/i, m => [{ do: 'search', amount: 1, filter: { ou: [{ types: ['land'], basic: true }, { subtypes: [m[1]] }] }, to: 'hand' }]], // M-377 · Gatecreeper Vine
     [/^~ deals (\d+|X) damage divided as you choose among (any number of targets|one or two targets|one, two, or three targets|any number of target creatures)$/i, m => [{ do: 'damage', amount: m[1].toUpperCase() === 'X' ? { per: 'x' } : +m[1], target: /creatures$/i.test(m[2]) ? 'creature' : 'any', dividido: { max: /^one or two/i.test(m[2]) ? 2 : /^one, two, or three/i.test(m[2]) ? 3 : null } }]], // M-376 · 601.2d
     [/^(target creature|target creature you control) can't be the target of spells or abilities your opponents control this turn$/i, m => [com({ do: 'sem_alvo_de_oponentes' }, alvo(m[1]))]], // M-375 · Vines of Vastwood
     [/^if this spell was kicked, that creature gets ([+-]\d+)\/([+-]\d+) until end of turn$/i, m => [{ do: 'pump', power: SINAL(m[1]), toughness: SINAL(m[2]), target: 'first-target', onlyIf: 'kicked' }]], // M-375 · 702.33d · "Put a -1/-1 counter on ~: Untap ~" (Devoted Druid)
@@ -16852,6 +16860,7 @@ const __m42 = (function () {
     const fraseSo = so && /\{X\}/.test(cost.mana || '') ? { texto: so[0].replace(/^\.\s*/, ''), lida: true } : null;
     if (fraseSo) { corpo = corpo.slice(0, so.index); cost.xCor = CORES[so[1].toLowerCase()]; }
     if (/\.\s*Activate only as a sorcery$/i.test(corpo)) { corpo = corpo.replace(/\.\s*Activate only as a sorcery$/i, ''); extra.sorceryOnly = true; }
+    { const st = corpo.match(/\.\s*Activate only (during the end of combat step|during combat)$/i); if (st) { corpo = corpo.slice(0, st.index); extra.onlyInStep = /end of combat/i.test(st[1]) ? ['combat_end'] : ['combat_begin', 'combat_attackers', 'combat_blockers', 'combat_damage', 'combat_end']; frases.push({ texto: `Activate only ${st[1]}`, lida: true }); } } // M-377 · 602.5b (Desert)
     const instante = /^Add (two|three|four|five) mana of any one color\.\s*Activate only as an instant$/i.test(corpo); if (instante) corpo = corpo.replace(/\.\s*Activate only as an instant$/i, ''); // M-342 · Lion's Eye Diamond: ativar exige prioridade, como toda ativação nesta mesa (602.5d não muda nada aqui)
     if (/\.\s*Activate only once each turn$/i.test(corpo)) { corpo = corpo.replace(/\.\s*Activate only once each turn$/i, ''); extra.oncePerTurn = true; } // M-334 · LT18 · 602.5b (Barrels of Blasting Jelly)
     if (/^Add one mana of any color$/i.test(corpo) && !(cost.tap && Object.keys(cost).length === 1)) { frases.push({ texto: m[1], lida: true }, { texto: corpo, lida: true }); return { kind: 'activated', cost, ...extra, effects: [{ do: 'add_mana', anyColor: true }] }; } // LT11 · mana de qualquer cor com custo além de {T}
@@ -16937,6 +16946,7 @@ const __m42 = (function () {
     for (let achou = true; achou && texto;) { achou = false; // M-335
       for (const [re, faz] of PRE_PARAGRAFO) { const m = texto.match(re); const e = m && faz(m); if (!e) continue; efeitos.push(...e); frases.push({ texto: m[0].trim().replace(/\.$/, ''), lida: true }); texto = texto.slice(m[0].length).trim(); achou = true; break; } }
     if (!texto) return efeitos;
+    texto = texto.replace(/^(target player|target opponent) reveals cards from the top of their library until they reveal a land card, then puts those cards into their graveyard/i, 'revela_ate_terreno_cemiterio $1'); // M-377 · Balustrade Spy
     texto = texto.replace(/(?:then )?(?:you may )?discard (a card|two cards|three cards)\. if you do, draw (\w+) cards?/i, 'you may discard $1 to draw $2 cards'); // M-373 · "Then you may discard two cards. If you do, draw three cards" (Thrilling Discovery)
     texto = texto.replace(/^exile (target (?:creature|permanent)(?: you control)?), then return (?:it|that card) to the battlefield under its owner's control/i, 'pisca $1'); // M-349 · Ephemerate
     texto = texto.replace(/^exile two target (artifacts, creatures, and\/or lands you control), then return those cards to the battlefield under your control/i, 'pisca_dois $1'); // M-351 · Ghostly Flicker
@@ -20145,6 +20155,14 @@ function applyEffect(s, src, eff, tgt, events) {
       if (alvo && alvo.zone === 'battlefield') { const nome = alvo.name; sacrifice(s, alvo.oid, events); note({ name: nome }); } else note({ failed: true });
       break;
     }
+    case 'revela_ate_cemiterio': { // M-377 · 701.20: revela do topo até um terreno; as reveladas (o terreno também) vão para o cemitério do dono; sem terreno, revela o grimório inteiro
+      const quem = tgt && tgt.player != null ? tgt.player : null; /* achado da revisão: o alvo é jogador (tgt), não objeto */ if (quem == null || !s.players[quem]) { note({ failed: true }); break; }
+      const lib = s.zones[quem].library, i = lib.findIndex(oid => (s.facts[s.objects[oid].name] || {}).types && s.facts[s.objects[oid].name].types.includes(eff.match || 'land'));
+      const reveladas = i >= 0 ? lib.slice(0, i + 1) : lib.slice();
+      note({ target: s.players[quem].name, amount: reveladas.length, nomes: reveladas.map(x => s.objects[x].name), semTerreno: i < 0 });
+      for (const oid of reveladas) moveObject(s, oid, 'graveyard');
+      break;
+    }
     case 'reveal_until': { // M-222 · 701.20: revela do topo até achar a carta pedida; a referência é o primeiro alvo, pela última informação conhecida (608.2h)
       const ref = obj, fRef = ref ? (s.facts[ref.name] || {}) : {};
       const virada = !!ref && ((ref.zone === 'battlefield' && ref.faceDown) || (ref.zone !== 'battlefield' && ref.ultima && ref.ultima.faceDown));
@@ -20957,6 +20975,7 @@ function sweepTargetsLegado(s, src, eff) {
    escolhe. O que sobra da mágica espera a escolha terminar (s.resume). */
 function matchesFilter(s, o, filter) {
   if (!filter) return true;
+  if (Array.isArray(filter.ou)) return filter.ou.some(g => matchesFilter(s, o, g)); // M-377 · "a basic land card or a Gate card" (Gatecreeper Vine)
   // CR2d.1 · no campo valem os tipos e habilidades de agora (camadas 4 e 6)
   const f = o.zone === 'battlefield' && s.facts[o.name] ? { ...s.facts[o.name], types: tiposDe(s, o), typeText: linhaDeTipo(s, o), kw: semImpressas(s, o) ? [] : s.facts[o.name].kw } : (s.facts[o.name] || {});
   if (filter.name && o.name !== filter.name) return false;
@@ -22085,6 +22104,7 @@ const canPayAbility = (s, p, source, ab) => {
   if (ab.onlyIfLifeOverStart != null && !vidaAcimaDaInicial(s, p, ab.onlyIfLifeOverStart)) return false; // CR 602.5 · "Activate only if…"
   if (ab.onlyIfAttacking && source.attacking == null) return false; // "Activate only if this creature is attacking"
   if (ab.onlyIfMetalcraft && !condicaoDoEfeito(s, source, 'metalcraft')) return false; // M-342 · Mox Opal (602.5b)
+  if (ab.onlyInStep && !ab.onlyInStep.includes(s.turn.step)) return false; // M-377 · 602.5b · "Activate only during the end of combat step" (Desert)
   if (ab.onlyIfGraveyardAtLeast != null && s.zones[p].graveyard.length < ab.onlyIfGraveyardAtLeast) return false; // M-249 · limiar (702.25 Threshold)
   if (cost.life && s.players[p].life < cost.life) return false;
   if (cost.energia && (s.players[p].energia || 0) < cost.energia) return false; // M-367
@@ -22674,6 +22694,7 @@ const HANDLERS = {
     if (base.onlyIfLifeOverStart != null && !vidaAcimaDaInicial(s, a.p, base.onlyIfLifeOverStart)) throw new RuleError('vida', `só ativa com pelo menos ${base.onlyIfLifeOverStart} de vida acima da inicial`);
     if (base.onlyIfAttacking && o.attacking == null) throw new RuleError('tempo', 'só ativa enquanto esta criatura está atacando');
     if (base.onlyIfMetalcraft && !condicaoDoEfeito(s, o, 'metalcraft')) throw new RuleError('tempo', 'só ativa se você controla três ou mais artefatos'); // M-342 · 602.5b
+    if (base.onlyInStep && !base.onlyInStep.includes(s.turn.step)) throw new RuleError('tempo', `só ativa ${base.onlyInStep.length === 1 ? 'no passo final de combate' : 'durante o combate'}`); // M-377
     if (base.onlyIfGraveyardAtLeast != null && s.zones[a.p].graveyard.length < base.onlyIfGraveyardAtLeast) throw new RuleError('tempo', `só ativa com ${base.onlyIfGraveyardAtLeast} ou mais cartas no seu cemitério`);
     delete s.sacrificadosNoCusto;
     const bloqueavaAntes = o.blocking; // Q11 · o custo pode sacrificar a fonte (Tinder Wall): a habilidade nasce sabendo quem ela bloqueava
@@ -29266,6 +29287,7 @@ function effectLine(ev) {
     case 'prevent_self': return `todo dano a ${t} neste turno será prevenido`;
     case 'animate_dead': return ev.failed ? `${ev.name}: a carta já não estava no cemitério` : `${ev.name} devolveu ${t} ao campo`; // CR2d.4
     case 'sacrifice_reanimated': return `${t} foi sacrificada (${ev.name} saiu do campo)`;
+    case 'revela_ate_cemiterio': return ev.failed ? `${ev.name}: sem jogador alvo, não revelou nada` : `${t} revelou ${n} carta(s)${ev.semTerreno ? ' sem achar terreno' : ' até um terreno'} e pôs todas no cemitério (${ev.name})`; // M-377
     case 'reveal_until': return `${t} revelou ${n} carta(s) (${(ev.nomes || []).join(', ')})${ev.achada ? ` e pôs ${ev.achada} no campo` : ' sem achar o que procurava'} (${ev.name})`; // M-222
     case 'to_bottom': return ev.failed ? `${ev.name}: o alvo já não estava no campo` : `${t} foi para o fundo do grimório (${ev.name})`;
     case 'sacrifice_it': return ev.failed ? `${ev.name}: o alvo já não estava no campo` : `${ev.name}: ${ev.name2 || t} foi sacrificada`;
@@ -30388,6 +30410,7 @@ function descreveEfeito(e) {
     case 'prevent_self': return 'previne todo dano que seria causado a ela neste turno';
     case 'sacrifice_reanimated': return 'quem controla a criatura a sacrifica';
     case 'animate': { const b = e.becomes || {}; return `vira uma criatura ${b.base ? b.base.join('/') : ''}${(b.keywords || []).length ? ' com ' + b.keywords.map(k => PALAVRA_PT[k] || k).join(', ') : ''} até o fim do turno${b.addTypes ? ' (continua terreno)' : ''}`; } // CR2d.2
+    case 'revela_ate_cemiterio': return `${alvo && alvo !== 'um jogador' ? alvo : 'o jogador alvo'} revela cartas do topo do grimório até revelar um terreno e põe todas no cemitério`; // M-377
     case 'reveal_until': return `${e.who === 'self' ? 'você revela' : 'o controlador dela revela'} cartas do topo até ${e.match === 'creature' ? 'uma criatura' : e.match === 'creature-greater-mv' ? 'uma criatura de valor de mana maior' : `uma carta${e.permanentOnly ? ' de permanente' : ''} que divida um tipo com ela`}, põe no campo e ${e.rest === 'shuffle' ? 'embaralha as outras' : 'põe as outras no fundo em ordem aleatória'}`; // M-222
     case 'to_bottom': return 'põe a sua permanente alvo no fundo do grimório';
     case 'pisca': return `exila ${alvo || 'a permanente'} e a devolve ao campo sob o controle ${e.sob === 'voce' ? 'de quem conjurou' : 'do dono'}`; // M-349 · M-351
