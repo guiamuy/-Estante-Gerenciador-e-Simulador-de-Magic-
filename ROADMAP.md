@@ -4218,6 +4218,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** a marca vale até o fim do turno em que foi posta (vira outra permanente ao mudar de zona, 400.7); a ordem entre essa substituição e outras de "iria ao cemitério" segue o código (616.1, simplificação já declarada).
 - **Teste:** `lt67.unit` (5 testes; falham no motor anterior).
 
+**M-385 · LT52 · 608.2h · "If that land was a snow land"** ✅ (leva M-385, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** revisão por lote XLIII — **Thermokarst passa a jogar** (APROVADAS; Oracle do Forge, consulta de 12/10/2026; carta da lista Pauper de M a Z). Destrói o terreno alvo; se ele era nevado (visto como era antes de ser destruído, 608.2h), você ganha 1 de vida. A pilha explicada diz "se o terreno era nevado"; a "if you controlled that permanent" (Boomerang Basics) passa a dizer "se a permanente era sua".
+- **Revisão independente:** lote conjunto com a M-386 — 25 asserções da Thermokarst (terreno nevado ou comum, de qualquer controlador; nevado indestrutível fica e dá a vida, 608.2h; alvo que saiu ou voltou como objeto novo anula a mágica), leitor comparado nas 1.304 cartas do corpus e 26 partidas aleatórias (~18 mil passos) sem diferença de oferta ou estado; aprovada. Achado corrigido com teste: a condição também nas habilidades (antes passava como verdadeira).
+- **Fora (declarado):** a condição olha o primeiro alvo da mágica (como a "if you controlled that permanent" da M-341); numa retomada depois de decisão no meio da resolução, ela não é levada junto (Thermokarst não tem decisão no meio).
+- **Teste:** `lt68.unit` (1 teste; falha no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
