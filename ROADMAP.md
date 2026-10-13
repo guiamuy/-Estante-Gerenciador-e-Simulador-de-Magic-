@@ -3892,6 +3892,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Script:** efeitos `comandantes_para_mao`, `cemiterio_no_grimorio`, `compra_quem_controla_nome`, `descarta_e_compra`; contagem `sacrificed-mv` (a mágica lembra o que sacrificou no custo adicional; o valor é lido da carta no cemitério); `keyword` aceita `first-target`; leitor: custos "Remove a N counter from ~" e "Exile ~", `entra` com marcadores, `flashback.pagarVida`, `additional.discard`.
 - **Teste:** `lt32.unit` (11 testes; os de regra falham no motor anterior); `--confere` com 546 aprovadas.
 
+**L-1 · Trilha listas · Pauper de M a Z, lote 1 (30 cartas mais usadas): 8 com script à mão, 4 já jogam pelo motor, 18 manuais declaradas** ✅ (leva L-1, motor v110 sem mudança: só scripts abaixo da âncora `↓ L`; goldens intactos).
+- **Valor:** passam a jogar Mukotai Ambusher, Ramosian Rally (virar uma criatura em vez de pagar, com Planície), Rally at the Hornburg, Skred, Wild Growth, Sazacap's Brew (com e sem o presente), Unfathomable Truths e Ragged Short Spear. Reckoner's Bargain, Toxin Analysis, Pursue the Past e Sandstone Needle já jogam pela leitura revisada do motor (M-348).
+- **Texto oficial:** `.listas/oficiais-listas.json`, as 116 cartas da trilha (Oracle do Forge, consulta de 12/10/2026; fonte única: a Scryfall recusa a sessão).
+- **Simplificação declarada:** Wild Growth não soma o {G} quando a mana sai de habilidade com custo além de {T} (terras de esgotamento; 106.12a) — teste `todo` em `listas.lote1.unit`, pedido à trilha motor.
+- **Manuais (falta primitiva; lista com a regra no adendo da trilha):** Tithing Blade (fabricar, 702.167), Troll of Khazad-dûm (bloqueio só por três ou mais, 509.1b), Wrenn's Resolve e Reckless Impulse (jogar do exílio até o fim do seu próximo turno), Melded Moxite (ficha que entra virada), Seize the Storm (P/R da ficha por contagem, 604.3), Twinned Vision ("não foi conjurada da mão"; lampejo com descarte), Manamorphose (mágica que dá mana de cores escolhidas), Thornscape Familiar (redução por cor da mágica, 601.2f), Mesmeric Fiend (exilar da mão revelada e devolver, 607.2a), Martyr's Soul ("se você não controla terreno virado", 603.4), Wall of Roots (custo de pôr marcador −0/−1), Witch's Cottage (entra virada a menos que três outros Pântanos; gatilho "entra desvirada"), Union of the Third Path (cartas na mão), Tangle (criaturas atacantes não desviram), Spinning Darkness (exilar as três pretas do topo do cemitério), Pinnacle Kill-Ship (estação, 702.184), Spider-Man, Web-Slinger (web-slinging, 702.188).
+- **Teste:** `listas.lote1.unit` (regra de cada mecânica tocada, partidas em modo único; falham sem os scripts); cenário S8 de cada script.
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
@@ -9372,6 +9379,7 @@ Regras completas em `CLAUDE.md`. Trilhas em uso (o nome vai no rodapé `Trilha:`
 | `keywords` | CR4 · habilidades de palavra-chave (702), em ondas pela frequência nas listas; só abaixo das âncoras `↓ K` (levas `K-N`) |
 | `verbos` | CR3 · ações de palavra-chave (701); só abaixo das âncoras `↓ V` (levas `V-N`) |
 | `tipos` | CR5 · tipos e formatos de carta (Sagas, Veículos, aventuras, dupla face, batalhas, Classes); só abaixo das âncoras `↓ T` (levas `T-N`) |
+| `listas` | Pauper de M a Z: scripts à mão com texto oficial (`.listas/oficiais-listas.json`), só abaixo da âncora `↓ L` (levas `L-N`) |
 
 ### Publicar pela interface web
 

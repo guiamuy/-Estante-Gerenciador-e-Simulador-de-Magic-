@@ -7803,6 +7803,29 @@ const RAW_SCRIPTS = [
   //
   /* ↓ L · scripts de carta da trilha listas (Pauper M–Z; texto oficial em .listas/oficiais-listas.json) · M-347 */
   // (a trilha `listas` insere só abaixo desta linha)
+  // L-1 · Pauper de M a Z, lote 1 (texto oficial em .listas/oficiais-listas.json, Oracle do Forge, 12/10/2026). As palavras-chave
+  // impressas (ninjutsu, vínculo com a vida, desprovido, presente) vêm da linha da carta; o script diz só o resto.
+  { name: 'Mukotai Ambusher', ninjutsu: { mana: '{1}{B}' }, self: { keywords: ['lifelink'] }, // "Ninjutsu {1}{B} / Lifelink"
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor): o cenário de verdade está em listas.lote*.unit
+  { name: 'Ramosian Rally', alt: [{ label: 'Virar uma criatura sua em vez de pagar o custo (você controla uma Planície)', cost: { tapOther: { types: ['creature'] } }, when: { youControlSubtype: 'Plains' } }], // "If you control a Plains, you may tap an untapped creature you control rather than pay this spell's mana cost."
+    effects: [{ do: 'pump', power: 1, toughness: 1, target: 'each-own-creature' }], // "Creatures you control get +1/+1 until end of turn."
+    example: { target: 'none', expect: { pump: [1, 1] } } },
+  { name: 'Rally at the Hornburg', effects: [{ do: 'token', amount: 2, token: { name: 'Human Soldier', types: ['creature'], subtypes: ['Human', 'Soldier'], colors: ['W'], power: 1, toughness: 1 } }, // "Create two 1/1 white Human Soldier creature tokens."
+    { do: 'continuo', cada: { tipos: ['creature'], subtipos: ['Human'], de: 'you' }, palavras: ['haste'] }], // "Humans you control gain haste until end of turn."
+    example: { target: 'none', expect: { tokens: 2 } } },
+  { name: 'Skred', effects: [{ do: 'damage', amount: { subtype: 'Snow' }, target: 'creature' }], // "Skred deals damage to target creature equal to the number of snow permanents you control." (o cenário não tem permanente da neve: 0 de dano)
+    example: { target: 'enemy-creature', expect: { gone: false } } },
+  { name: 'Wild Growth', aura: { enchant: 'land' }, grants: { extraMana: ['G'] }, note: 'o {G} a mais vem com a mana de {T} simples; num terreno cuja mana sai de habilidade com custo além de {T} (terras de esgotamento) ele ainda não vem (106.12a, achado da auditoria do L-2: pedido ao motor)', // "Enchant land / Whenever enchanted land is tapped for mana, its controller adds an additional {G}."
+    example: { action: 'aura', target: 'own-land', expect: { mana: true } } },
+  { name: "Sazacap's Brew", additional: { discard: 1 }, effects: [{ do: 'draw', amount: 2, target: 'player' }], // "Gift a tapped Fish / As an additional cost to cast this spell, discard a card. / Target player draws two cards."
+    presenteK: { effects: [{ do: 'draw', amount: 2, target: 'player' }, { do: 'pump', power: 2, toughness: 0, target: 'creature-you-control' }] }, // "If the gift was promised, target creature you control gets +2/+0 until end of turn." (702.174m: esse alvo só existe no modo prometido)
+    example: { action: 'mode:0', target: 'self-player', expect: { handDelta: 1 } } }, // o cenário conta a mão sem a própria mágica: −1 do descarte do custo, +2 da compra
+  { name: 'Unfathomable Truths', effects: [{ do: 'draw', amount: 3 }, { do: 'token', amount: 1, token: { name: 'Eldrazi Spawn', types: ['creature'], subtypes: ['Eldrazi', 'Spawn'], colors: [], power: 0, toughness: 1, // "Devoid / Draw three cards and create a 0/1 colorless Eldrazi Spawn creature token with "Sacrifice this creature: Add {C}.""
+    abilities: [{ kind: 'activated', cost: { sacrifice: true }, effects: [{ do: 'add_mana', symbols: ['C'] }] }] } }],
+    example: { target: 'none', expect: { handDelta: 3, tokens: 1 } } },
+  { name: 'Ragged Short Spear', equip: { enchant: 'creature', cost: { mana: '{3}' } }, grants: { power: 2, toughness: 0 }, // "Equipped creature gets +2/+0. / Equip {3}"
+    abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'descarta_e_compra', amount: 2 }] }], // "When this Equipment enters, you may discard a card. If you do, draw two cards." (M-348)
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor): o cenário de verdade está em listas.lote*.unit
   //
   //
   //
