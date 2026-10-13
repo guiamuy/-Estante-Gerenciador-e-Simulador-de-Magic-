@@ -106,3 +106,20 @@ test('H-11 · a prova usa a conta de cartas do motor: não reconta nem filtra a 
   assert.doesNotMatch(fonte, /copiaDeMagia|cartasSemCopia/, 'nenhuma recontagem própria de cartas (ela não conhecia a cópia de preparação, T-51)');
   assert.doesNotMatch(fonte, /errs\.filter\(/, 'nenhum erro de invariante é descartado pela prova');
 });
+
+test('H-12 · carta de preparação (722): a lista que escreve "Elite Interceptor // Rejoinder" acha os dados da carta (pedido da trilha tipos)', async () => {
+  const { mkdtempSync, mkdirSync, writeFileSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { cartasDoForge } = await import('./catalogo.prova.mjs');
+  // Texto do Oracle do Forge (forge-gui/res/cardsfolder/e/elite_interceptor_rejoinder.txt, consultado em 13/10/2026)
+  const txt = 'Name:Elite Interceptor\nManaCost:W\nTypes:Creature Human Wizard\nPT:1/2\nAlternateMode:Prepare\nOracle:This creature enters prepared. (While it\'s prepared, you may cast a copy of its spell. Doing so unprepares it.)\n\nALTERNATE\n\nName:Rejoinder\nManaCost:1 W\nTypes:Sorcery\nOracle:You may tap or untap target creature.\\nDraw a card.\n';
+  const cru = cartaDoForge(txt);
+  assert.deepEqual([cru.name, cru.layout, cru.mana_cost, cru.type_line, cru.power], ['Elite Interceptor', 'prepare', '{W}', 'Creature — Human Wizard', '1']);
+  assert.deepEqual([cru.preparo.name, cru.preparo.mana_cost, cru.preparo.type_line], ['Rejoinder', '{1}{W}', 'Sorcery']);
+  const pasta = mkdtempSync(join(tmpdir(), 'forge-')); mkdirSync(join(pasta, 'e')); writeFileSync(join(pasta, 'e', 'elite_interceptor_rejoinder.txt'), txt);
+  const achadas = cartasDoForge(pasta, ['Elite Interceptor // Rejoinder']);
+  const norm = n => n.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
+  assert.ok([...achadas.keys()].some(k => k === norm('Elite Interceptor // Rejoinder') || k.includes('rejoinder')), `o nome da lista acha a carta (chaves: ${[...achadas.keys()].join(', ')})`);
+  assert.equal([...achadas.values()][0].name, 'Elite Interceptor');
+});

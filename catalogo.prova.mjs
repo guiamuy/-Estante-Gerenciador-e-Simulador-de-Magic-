@@ -77,7 +77,7 @@ function face(sec) {
     ...(pt ? { power: pt.split('/')[0], toughness: pt.split('/')[1] } : {}),
     ...(v('Loyalty') ? { loyalty: v('Loyalty') } : {}), ...(v('Defense') ? { defense: v('Defense') } : {}), colors, keywords };
 }
-const LAYOUT = { DoubleFaced: 'transform', Modal: 'modal_dfc', Split: 'split', Adventure: 'adventure', Flip: 'flip', Omen: 'omen', Meld: 'meld' };
+const LAYOUT = { DoubleFaced: 'transform', Modal: 'modal_dfc', Split: 'split', Adventure: 'adventure', Flip: 'flip', Omen: 'omen', Meld: 'meld', Prepare: 'prepare' };
 /** Um arquivo do Forge vira uma carta crua da Scryfall (com `card_faces` quando há duas faces). */
 export function cartaDoForge(texto) {
   const secoes = texto.split(/\r?\n\s*ALTERNATE\s*\r?\n/).map(s => s.split(/\r?\n/).map(l => l.trim()).filter(Boolean));
@@ -89,6 +89,9 @@ export function cartaDoForge(texto) {
   const f1 = face(secoes[1]);
   const faces = [f0, f1];
   const nome = `${f0.name} // ${f1.name}`;
+  // H-12 · carta de preparação (722, AlternateMode:Prepare): a carta é a permanente; a mágica de preparação vem do script (`back`), como em
+  // .listas/oficiais-tipos.json. A lista do catálogo pode escrever "Permanente // Mágica": esse nome também acha a carta (nomeNaLista).
+  if (layout === 'prepare') return { ...f0, cmc: valorDeMana(f0.mana_cost), color_identity: f0.colors, layout, preparo: { name: f1.name, mana_cost: f1.mana_cost, type_line: f1.type_line, oracle_text: f1.oracle_text }, nomeNaLista: nome };
   const kws = [...new Set([...f0.keywords, ...f1.keywords])];
   const ci = [...new Set([...f0.colors, ...f1.colors])];
   if (layout === 'transform' || layout === 'modal_dfc') return { name: nome, cmc: valorDeMana(f0.mana_cost), type_line: `${f0.type_line} // ${f1.type_line}`, card_faces: faces, keywords: kws, color_identity: ci, layout };
@@ -112,7 +115,7 @@ export function cartasDoForge(pasta, nomes) {
       if (!nome) continue;
       const cru = cartaDoForge(txt);
       if (!cru) continue;
-      const chaves = [norm(cru.name), norm(nome.trim())];
+      const chaves = [norm(cru.name), norm(nome.trim()), ...(cru.nomeNaLista ? [norm(cru.nomeNaLista)] : [])]; // H-12
       if (!chaves.some(k => falta.has(k))) continue;
       const c = normalizeCard(cru);
       for (const k of chaves) if (!out.has(k)) out.set(k, c);

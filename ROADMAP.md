@@ -10175,6 +10175,10 @@ O que a cobertura não mede: se a lista que **pode** jogar no modo completo **jo
 - **Shark × Shark na v112 (duas fatias):** 262 partidas, 0 falhas; 261 até o fim e 1 no limite de 1.500 ações da prova (Jeskai Mulldrifter × Jund Gixian Infiltrator: vida alta dos dois lados, 50 turnos; repetida, terminou no turno 43 por grimório vazio — partida longa, não travada). Pior jogada 6,7 s (espelho de Elfos), mesmo pedido da H-9 à trilha `bot`/`escala`.
 - **Testes:** `catalogo.prova.unit` +1 (falha com o contorno).
 
+**H-12 · A prova acha as cartas de preparação pelo nome da lista** 🟡 (leva H-12, só a ferramenta da prova) — pedido da trilha `tipos` (T-61): a lista do catálogo que escreve "Elite Interceptor // Rejoinder" ficava "sem dados da carta", porque a conversão do Oracle do Forge não conhecia `AlternateMode:Prepare` e só registrava o nome da permanente. Agora a carta de preparação vira a permanente com `layout: 'prepare'` e a mágica de preparação em `preparo` (a mesma forma de `.listas/oficiais-tipos.json`), e o nome "Permanente // Mágica" também acha a carta.
+- **Placar da prova (13/10 20h, `main` com M-381…M-384, H-11, motor v112): Pauper 272 de 341 listas jogam**, 0 falhas; **Shark × Shark: 272 partidas, todas até o fim, 0 falhas** (pior jogada 2,6 s).
+- **Testes:** `catalogo.prova.unit` +1 (Elite Interceptor // Rejoinder: forma da carta e busca pelo nome da lista; falha sem a correção).
+
 ## 8. Como publicar e verificar
 
 ### Publicar a partir de uma conversa (padrão desde a leva 124)
