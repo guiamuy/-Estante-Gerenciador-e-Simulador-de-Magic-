@@ -143,3 +143,55 @@ test('CR 601.2f / 718.3b · "mágicas verdes ou vermelhas custam {1} a menos": o
   eq([s.objects[g].zone, pool(s)], ['stack', 0]);
   delete SCRIPTS['Desconto Verde'];
 });
+
+/* ---------------- T-56 · CR 718.2a / 718.3c / 718.3d · cópias de protótipo ---------------- */
+const comCopias = (seed = 4) => {
+  const sc = { ...SCRIPTS,
+    'Clone Teste': { name: 'Clone Teste', entraComoCopia: { de: { tipos: ['creature'] } }, ...EX },
+    'Espelho': { name: 'Espelho', effects: [{ do: 'ficha_copia', amount: 1, target: 'creature' }], ...EX },
+    'Golem Tempestade': { name: 'Golem Tempestade', storm: true, self: { prototipo: { mana: '{1}{G}', power: 1, toughness: 1 } }, ...EX } };
+  C['Clone Teste'] = { name: 'Clone Teste', type_line: 'Creature — Shapeshifter', mana_cost: '{3}', cmc: 3, keywords: [], oracle_text: '', colors: [], power: '0', toughness: '0' };
+  C['Espelho'] = { name: 'Espelho', type_line: 'Sorcery', mana_cost: '{2}', cmc: 2, keywords: [], oracle_text: '', colors: [] };
+  C['Golem Tempestade'] = { name: 'Golem Tempestade', type_line: 'Artifact Creature — Golem', mana_cost: '{6}', cmc: 6, keywords: ['Storm', 'Prototype'], oracle_text: '', colors: [], power: '6', toughness: '6' };
+  const deck = [{ name: BG, qty: 6, zone: 'main' }, ...['Clone Teste', 'Espelho', 'Golem Tempestade', 'Volta'].map(name => ({ name, qty: 3, zone: 'main' })), { name: 'Forest', qty: 12, zone: 'main' }, { name: 'Island', qty: 10, zone: 'main' }];
+  let s = E.createGame({ format: 'livre', seed, mode: 'full', cards: C, scripts: sc, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  return passaAte(s, x => x.turn.active === 0 && x.turn.step === 'main1' && !x.stack.length && !x.pending);
+};
+const muito = s => mana(s, 0, { G: 9, U: 9, C: 9 });
+const golemProtótipo = s => { let g; [s, g] = poe(s, 0, BG, 'hand'); s = muito(s); s = esvazia(act(s, proto(s, 0, g)[0])); return [s, g]; };
+
+test('CR 718.3d · Clone que entra copiando um protótipo tem o tamanho e o valor de mana do protótipo (3/3, valor 4)', () => {
+  let s = comCopias(); let g; [s, g] = golemProtótipo(s);
+  eq(pt(s, g), [3, 3]);
+  let c; [s, c] = poe(s, 0, 'Clone Teste', 'hand'); s = muito(s);
+  s = act(s, legais(s, 0, a => a.t === 'cast' && a.oid === c)[0]);
+  s = passaAte(s, x => !!x.pending || !x.stack.length);
+  if (s.pending && s.pending.kind === 'pick') s = act(s, { t: 'pick', p: 0, oid: g });
+  s = esvazia(s);
+  const o = s.objects[c];
+  eq([o.name, pt(s, c), E.manaValueT(s, o)], [BG, [3, 3], 4]);
+});
+
+test('CR 718.3d · a ficha que copia um protótipo também é protótipo; copiando o Golem normal, 6/5', () => {
+  let s = comCopias(); let g; [s, g] = golemProtótipo(s);
+  let e; [s, e] = poe(s, 0, 'Espelho', 'hand'); s = muito(s);
+  s = esvazia(act(s, legais(s, 0, a => a.t === 'cast' && a.oid === e && ((a.targets || [])[0] || {}).oid === g)[0]));
+  const ft = s.zones[0].battlefield.map(x => s.objects[x]).find(o => o.token && o.name === BG);
+  eq(ft && pt(s, ft.oid), [3, 3]);
+  let n; [s, n] = poe(s, 0, BG, 'battlefield');
+  [s, e] = poe(s, 0, 'Espelho', 'hand'); s = muito(s);
+  s = esvazia(act(s, legais(s, 0, a => a.t === 'cast' && a.oid === e && ((a.targets || [])[0] || {}).oid === n)[0]));
+  const fichas = s.zones[0].battlefield.map(x => s.objects[x]).filter(o => o.token && o.name === BG).map(o => pt(s, o.oid)).sort();
+  eq(fichas, [[3, 3], [6, 5]]);
+});
+
+test('CR 718.3c · a cópia (tempestade) de uma mágica de protótipo também é protótipo: a ficha que ela vira tem o tamanho alternativo', () => {
+  let s = comCopias(); let x; [s, x] = poe(s, 0, 'Volta', 'hand'); s = muito(s);
+  let u; [s, u] = poe(s, 0, BG, 'battlefield');
+  s = esvazia(act(s, legais(s, 0, a => a.t === 'cast' && a.oid === x && a.targets[0].oid === u)[0])); // uma mágica antes
+  let t; [s, t] = poe(s, 0, 'Golem Tempestade', 'hand'); s = muito(s);
+  s = esvazia(act(s, proto(s, 0, t)[0]));
+  const golens = s.zones[0].battlefield.map(o => s.objects[o]).filter(o => o.name === 'Golem Tempestade').map(o => [!!o.token, ...pt(s, o.oid)]).sort();
+  eq(golens, [[false, 1, 1], [true, 1, 1]]);
+});

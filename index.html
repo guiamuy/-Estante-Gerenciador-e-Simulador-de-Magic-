@@ -18228,7 +18228,7 @@ function aplicaCopia(s, o, modelo, ate = 'sempre', excecao) {
   if (!o || !modelo || o.zone !== 'battlefield' || o.oid === modelo.oid || !s.facts[modelo.name]) return false;
   if (o.nomeImpresso == null) o.nomeImpresso = o.name;
   const exc = excecaoCopiavel(s, modelo, excecao);
-  o.copias = [...(o.copias || []), { nome: nomeCopiavel(s, modelo), ate, by: o.controller, ts: relogio(s), turno: s.turn.number, ...(exc ? { excecao: exc } : {}) }];
+  o.copias = [...(o.copias || []), { nome: nomeCopiavel(s, modelo), ate, by: o.controller, ts: relogio(s), turno: s.turn.number, ...(exc ? { excecao: exc } : {}), ...copiavelDaTrilhaT(s, modelo) }]; // T-56 · 718.3d (Toca ponto comum: aplicaCopia)
   recalculaCopia(s, o);
   aplicaExcecao(s, o, exc, ate); // 707.9b
   return true;
@@ -19354,7 +19354,7 @@ function efeitosDaMagia(s, o, mode) { const base = efeitosBaseDaMagia(s, o, mode
 /** CR2f.3 · 707.10: as escolhas feitas ao conjurar que a cópia leva (modo, modos, X pago, reforço, encaixe, custo alternativo, cor escolhida). */
 /** M-351 · as marcas de "como foi conjurada" que as condições de efeito leem (601.2b, 702.33d, 701.59): a carta as perde ao sair da pilha (400.7), a retomada as guarda. */
 const condicoesDaMagia = (o, effs) => { if (!(effs || []).some(e => e && (e.onlyIf || (e.amount && e.amount.per === 'se')))) return undefined; const c = {}; for (const k of ['evidenced', 'kicked', 'paidAdditional', 'discardedNonland', 'bargained', 'castFrom']) if (o && o[k] != null) c[k] = o[k]; return Object.keys(c).length ? c : undefined; }; // só quando o resto da resolução tem condição (o estado das partidas sem isso não muda)
-const marcasDaMagia = o => { if (!o) return {}; const m = {}; for (const k of ['mode', 'modes', 'xPaid', 'kicked', 'emendas', 'altIndex', 'chosenColor', 'divisao']) if (o[k] != null) m[k] = Array.isArray(o[k]) ? o[k].slice() : o[k]; return m; };
+const marcasDaMagia = o => { if (!o) return {}; const m = {}; for (const k of ['mode', 'modes', 'xPaid', 'kicked', 'emendas', 'altIndex', 'chosenColor', 'divisao', 'prototipoT']) if (o[k] != null) m[k] = Array.isArray(o[k]) ? o[k].slice() : o[k]; return m; };
 const emendasDe = (s, oids) => oids.map(x => ({ name: s.objects[x].name, effects: ((s.facts[s.objects[x].name].script || {}).effects || []) }));
 const encaixavelEm = (s, carta, magia) => { const sp = ((s.facts[s.objects[carta].name] || {}).script || {}).splice; return !!sp && carta !== magia && temSubtipo(s, magia, sp.subtipo); };
 function efeitosBaseDaMagia(s, o, mode) {
@@ -20384,6 +20384,7 @@ function applyEffect(s, src, eff, tgt, events) {
       const n = fichasAoCriar(s, ctrl, amountOf(s, src, eff.amount || 1)), novas = []; // CR2e.2 · 614.16
       const exc = excecaoCopiavel(s, obj, { somaTipos: eff.somaTipos, palavras: eff.palavras }); // CR2d.13 · 707.9b: a exceção do modelo vem junto
       for (let i = 0; i < n; i++) { const t = createToken(s, { name: nomeCopiavel(s, obj) }, ctrl, events); novas.push(t); const ft = s.objects[t]; // CR2d.12 · cópia da virada para baixo
+        if (prototipoAtivoT(s, obj)) ft.prototipoT = true; // T-56 · CR 718.3d · a ficha que copia um protótipo também é protótipo (Toca ponto comum: ficha_copia)
         fichaDeDuplaFaceT(s, ft, obj); // T-7 · CR 707.8a · a ficha que copia uma permanente de dupla face é ficha de dupla face, com a mesma face para cima (função abaixo da âncora T das exportações)
         if (exc) { ft.nomeImpresso = ft.name; ft.copias = [{ nome: ft.name, ate: 'sempre', by: ctrl, ts: relogio(s), turno: s.turn.number, excecao: exc }]; aplicaExcecao(s, ft, exc, 'sempre'); } } // 707.9 · "except it has haste"
       note({ name: obj.name, amount: novas.length }); break;
@@ -22313,7 +22314,7 @@ function resolveTop(s, events = []) {
     o.copiaEscolhida = null;
   }
   if (comoCopia && o.copiaEscolhida) { const m = s.objects[o.copiaEscolhida];
-    if (m && m.zone === 'battlefield' && s.facts[m.name]) { const exc = excecaoCopiavel(s, m, { somaTipos: f.script.entraComoCopia.somaTipos }); o.nomeImpresso = o.name; o.copias = [{ ...(exc ? { excecao: exc } : {}), nome: nomeCopiavel(s, m), ate: 'sempre', by: controller, ts: relogio(s), turno: s.turn.number }]; o.name = o.copias[0].nome; } } // T-30 · 707.2: o nome copiado é o copiável (a carta virada copia a parte normal) (Toca ponto comum: entraComoCopia)
+    if (m && m.zone === 'battlefield' && s.facts[m.name]) { const exc = excecaoCopiavel(s, m, { somaTipos: f.script.entraComoCopia.somaTipos }); o.nomeImpresso = o.name; o.copias = [{ ...(exc ? { excecao: exc } : {}), ...copiavelDaTrilhaT(s, m), /* T-56 · 718.3d (Toca ponto comum: entra como cópia) */ nome: nomeCopiavel(s, m), ate: 'sempre', by: controller, ts: relogio(s), turno: s.turn.number }]; o.name = o.copias[0].nome; } } // T-30 · 707.2: o nome copiado é o copiável (a carta virada copia a parte normal) (Toca ponto comum: entraComoCopia)
   if (scripted && !comoCopia) resolveScript(s, o, events);
   if (s.pending && dest === 'graveyard' && s.objects[item] && s.objects[item].zone === 'stack' && !s.magiaSuspensa) { // M-374 · 608.2n: a mágica parada numa escolha (descartar e comprar, procurar, olhar…) só sai da pilha no último passo da resolução, depois da escolha
     s.magiaSuspensa = { item, dest, controller, comoCopia: !!comoCopia, scripted: !!scripted }; // fora do `s.resume`: "a menos que pague" e "pague; se pagar" reescrevem a retomada (achado da revisão)
@@ -26451,9 +26452,13 @@ Object.assign(EXPORTS_V, { lutar });
    - As ofertas saem de `legalActions` numa cópia do estado em que os fatos da carta têm o custo e o tamanho alternativos.
    Fora: cópia de protótipo (718.3c/d) fica com as características normais; conjurar sem pagar não oferece o protótipo. */
 const prototipoDaCartaT = (s, o) => { const f = o && s.facts[o.frontName || o.name], pr = f && f.script && f.script.self && f.script.self.prototipo; return pr && typeof pr === 'object' ? pr : null; };
-function prototipoAtivoT(s, o) { return o && o.prototipoT && !o.faceDown ? prototipoDaCartaT(s, o) : null; } // a marca só existe na pilha, no campo e, durante a conjuração, na zona de onde a carta sai (MARCAS_DA_CONJURACAO); T-38 · as reduções de custo leem a cor e o custo dela
+function prototipoAtivoT(s, o) { return o && (o.prototipoT || copiaDePrototipoT(s, o)) && !o.faceDown ? prototipoDaCartaT(s, o) : null; } // T-56 · 718.3d: a cópia de um protótipo também é // a marca só existe na pilha, no campo e, durante a conjuração, na zona de onde a carta sai (MARCAS_DA_CONJURACAO); T-38 · as reduções de custo leem a cor e o custo dela
 const custoDoPrototipoT = (s, o) => { const pr = o && o.prototipoT && prototipoDaCartaT(s, o); if (pr) return parseCost(pr.mana); const mq = o && o.convertidaT && maisQueOlhosDaCartaT(s, o); return mq ? parseCost(mq) : null; }; // o custo pago na conjuração (a carta ainda está na mão ou no exílio) · T-49 · CR 702.162a: e o de "More Than Meets the Eye" (custo alternativo)
 MARCAS_DA_CONJURACAO.push('prototipoT');
+/** T-56 · CR 718.2a / 718.3d · ser protótipo faz parte dos valores copiáveis: o efeito de cópia vigente mais novo diz se a cópia é protótipo. */
+function copiaDePrototipoT(s, o) { const vale = (o.copias || []).filter(t => vigente(s, t)); return vale.length ? !!vale.reduce((a, b) => (b.ts > a.ts ? b : a)).prototipoT : false; }
+/** T-56 · o que o registro de cópia leva da trilha (marcas copiáveis do modelo): `{ prototipoT: true }` quando o modelo é protótipo. */
+const copiavelDaTrilhaT = (s, modelo) => (modelo && prototipoAtivoT(s, modelo) ? { prototipoT: true } : {});
 MARCAS_DA_CONJURACAO.push('convertidaT'); // T-49 · CR 702.162a · conjurada convertida (o custo alternativo vale na conjuração)
 MARCAS_DA_CONJURACAO.push('disfarcadaT');
 MARCAS_DA_CONJURACAO.push('vidaPhyrexianaT'); // T-45 · quantos símbolos phyrexianos foram pagos com vida (vai da mão para a pilha e da pilha para o campo)

@@ -10849,16 +10849,17 @@
    "n": "712.15",
    "regra": "Double-Faced Cards",
    "titulo": "Dupla face conjurada virada para baixo",
-   "status": "parcial",
-   "falta": "712.15 (dupla face conjurada ou posta virada para baixo com as características do efeito) e a volta para cima com a frente não têm carta nem teste.",
+   "status": "coberta",
+   "falta": "T-56 (13/10/2026): coberta (manifestar uma dupla face; 712.15a pela T-7: virada para baixo não transforma). Disfarce/metamorfose de dupla face: nenhuma carta tem as duas coisas.",
    "esforco": "P",
    "depende": [
     "708"
    ],
    "testes": [
-    "CR 701.27d · 712.10 · a outra face instantânea ou feitiço: nada acontece (carta de aventura mandada transformar); 712.15a · virada para baixo não transforma"
+    "CR 701.27d · 712.10 · a outra face instantânea ou feitiço: nada acontece (carta de aventura mandada transformar); 712.15a · virada para baixo não transforma",
+    "CR 712.15 / 712.15a · dupla face manifestada: criatura 2/2 virada para baixo, que não transforma; virada para cima, com a frente"
    ],
-   "evidencia": "T-7 (11/10/2026) · src/engine/core.js, bloco \"T-7 · CR 701.27 / 712 / 707.8a\" (cartas marcadas `self: { duplaFace: true }`, efeito `transformar`): 712.15a — permanente virada para baixo não transforma (transformaT)."
+   "evidencia": "T-7 (11/10/2026) · src/engine/core.js, bloco \"T-7 · CR 701.27 / 712 / 707.8a\" (cartas marcadas `self: { duplaFace: true }`, efeito `transformar`): 712.15a — permanente virada para baixo não transforma (transformaT). T-56 (13/10/2026): a dupla face manifestada é criatura 2/2 virada para baixo; virada para cima pelo custo de mana, fica com a frente."
   },
   {
    "n": "712.16",
@@ -11214,11 +11215,13 @@
    "n": "718.2",
    "regra": "Prototype Cards",
    "titulo": "Características alternativas do protótipo",
-   "status": "parcial",
-   "falta": "718.2a: os valores alternativos não passam para a cópia (Clone de um protótipo fica com o tamanho normal; os fatos são por nome).",
-   "evidencia": "T-36 (13/10/2026): self.prototipo = { mana, power, toughness }; a ação de conjurar leva `prototipo: true` (oferta própria, calculada numa cópia com o custo e o tamanho alternativos); a marca `prototipoT` é da conjuração: vale na pilha e no campo e some em qualquer outra mudança de zona. Mesa: \"Conjurar como protótipo · {3}{G} · 3/3\"; registro \"(como protótipo)\". Carta exemplo completa: Boulderbranch Golem (Oracle do Forge, 13/10/2026).",
+   "status": "coberta",
+   "falta": "T-56 (13/10/2026): coberta.",
+   "evidencia": "T-36 (13/10/2026): self.prototipo = { mana, power, toughness }; a ação de conjurar leva `prototipo: true` (oferta própria, calculada numa cópia com o custo e o tamanho alternativos); a marca `prototipoT` é da conjuração: vale na pilha e no campo e some em qualquer outra mudança de zona. Mesa: \"Conjurar como protótipo · {3}{G} · 3/3\"; registro \"(como protótipo)\". Carta exemplo completa: Boulderbranch Golem (Oracle do Forge, 13/10/2026). T-56 (13/10/2026): ser protótipo é valor copiável — o registro de cópia leva `prototipoT` do modelo (aplicaCopia, entra como cópia) e `prototipoAtivoT` olha também o efeito de cópia vigente mais novo; a ficha que copia um protótipo nasce protótipo; a cópia de uma mágica de protótipo (tempestade, 707.10) leva a marca pelas marcas da mágica e vira ficha de protótipo.",
    "testes": [
-    "CR 718.3a/b · como protótipo: paga {3}{G}; na pilha e no campo é 3/3, verde, valor de mana 4; a entrada ganha 3 de vida"
+    "CR 718.3a/b · como protótipo: paga {3}{G}; na pilha e no campo é 3/3, verde, valor de mana 4; a entrada ganha 3 de vida",
+    "CR 718.3d · Clone que entra copiando um protótipo tem o tamanho e o valor de mana do protótipo (3/3, valor 4)",
+    "CR 718.3d · a ficha que copia um protótipo também é protótipo; copiando o Golem normal, 6/5"
    ],
    "esforco": "M",
    "cartas": "uma coleção só (The Brothers' War)"
@@ -11228,14 +11231,17 @@
    "regra": "Prototype Cards",
    "titulo": "Conjurar como protótipo",
    "status": "parcial",
-   "falta": "718.3c/d: cópia de mágica ou de permanente de protótipo não tem as características alternativas. Conjurar sem pagar o custo não oferece o protótipo (mais restritivo que a regra; nada ilegal é aceito). T-38 (13/10/2026) · auditoria: o valor de mana do protótipo que já saiu do campo é lido como o normal pela última informação (\"ganhe vida igual ao valor de mana da sacrificada\", emergir, \"revele até uma criatura de valor maior\"): a foto `ultima` não guarda o valor de mana — pedido à trilha motor (gravar o valor na foto muda o estado das partidas-referência).",
-   "evidencia": "T-36 (13/10/2026): self.prototipo = { mana, power, toughness }; a ação de conjurar leva `prototipo: true` (oferta própria, calculada numa cópia com o custo e o tamanho alternativos); a marca `prototipoT` é da conjuração: vale na pilha e no campo e some em qualquer outra mudança de zona. Mesa: \"Conjurar como protótipo · {3}{G} · 3/3\"; registro \"(como protótipo)\". Carta exemplo completa: Boulderbranch Golem (Oracle do Forge, 13/10/2026). T-38 (13/10/2026) · auditoria independente (38 conferências, fuzz de 10.100 ações): \"mágicas verdes custam {1} a menos\" vale para o protótipo conjurado (antes a oferta e a aceitação discordavam).",
+   "falta": "T-56 (13/10/2026): 718.3c/d cobertas. Falta: conjurar sem pagar o custo (cascata, descobrir) não oferece o protótipo (mais restritivo que a regra; nada ilegal é aceito). O valor de mana do protótipo que saiu do campo pela última informação já vale desde a M-368 (`ultima.mv` pelo manaValueT).",
+   "evidencia": "T-36 (13/10/2026): self.prototipo = { mana, power, toughness }; a ação de conjurar leva `prototipo: true` (oferta própria, calculada numa cópia com o custo e o tamanho alternativos); a marca `prototipoT` é da conjuração: vale na pilha e no campo e some em qualquer outra mudança de zona. Mesa: \"Conjurar como protótipo · {3}{G} · 3/3\"; registro \"(como protótipo)\". Carta exemplo completa: Boulderbranch Golem (Oracle do Forge, 13/10/2026). T-38 (13/10/2026) · auditoria independente (38 conferências, fuzz de 10.100 ações): \"mágicas verdes custam {1} a menos\" vale para o protótipo conjurado (antes a oferta e a aceitação discordavam). T-56 (13/10/2026): ser protótipo é valor copiável — o registro de cópia leva `prototipoT` do modelo (aplicaCopia, entra como cópia) e `prototipoAtivoT` olha também o efeito de cópia vigente mais novo; a ficha que copia um protótipo nasce protótipo; a cópia de uma mágica de protótipo (tempestade, 707.10) leva a marca pelas marcas da mágica e vira ficha de protótipo.",
    "testes": [
     "CR 601.2f / 718.3b · \"mágicas verdes ou vermelhas custam {1} a menos\": o protótipo (verde) custa {2}{G}; oferta e aceitação concordam",
     "CR 718.3a/b · como protótipo: paga {3}{G}; na pilha e no campo é 3/3, verde, valor de mana 4; a entrada ganha 3 de vida",
     "CR 718.3b · na pilha, o protótipo é alvo de \"anule a mágica de valor de mana 4 ou menos\"; a normal (7), não",
     "CR 718.3b · no campo, o protótipo é verde: \"destrua a criatura verde alvo\" alcança só ele",
-    "CR 718.3 · pedido direto: protótipo de carta sem protótipo é recusado; protótipo do cemitério (sem permissão) também"
+    "CR 718.3 · pedido direto: protótipo de carta sem protótipo é recusado; protótipo do cemitério (sem permissão) também",
+    "CR 718.3d · Clone que entra copiando um protótipo tem o tamanho e o valor de mana do protótipo (3/3, valor 4)",
+    "CR 718.3d · a ficha que copia um protótipo também é protótipo; copiando o Golem normal, 6/5",
+    "CR 718.3c · a cópia (tempestade) de uma mágica de protótipo também é protótipo: a ficha que ela vira tem o tamanho alternativo"
    ],
    "esforco": "M",
    "depende": [

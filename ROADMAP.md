@@ -5394,6 +5394,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `moveObject` (uma linha antes das substituições de entrada: a face que entra), o caso `mover` do `applyEffect` e a linha dele no registro (a face que ficou para cima).
 - **Próximo:** placar do catálogo; mutação e meld esperam a decisão do dono sobre a "permanente feita de várias cartas".
 
+**CR5-T56 · Cópias de protótipo (718.2a, 718.3c, 718.3d) e dupla face virada para baixo (712.15)** ✅ (leva T-56, sem mudança de versão do motor) — **Valor:** o Clone de um protótipo passa a ser um protótipo (tamanho, custo, cor e valor de mana alternativos), como na regra; antes copiava o tamanho grande. **Aceite:** ser protótipo é valor copiável: o Clone que entra copiando um protótipo, a permanente que vira cópia dele e a ficha que o copia têm as características alternativas (copiando a carta normal, as normais); a cópia de uma mágica de protótipo (tempestade) também é protótipo e vira ficha de protótipo (718.3c); a dupla face manifestada é criatura 2/2 virada para baixo, não transforma e, virada para cima, fica com a frente (712.15, que já valia e ganhou teste). **Testes:** `tipos.prototipo.unit` +3 (falham sem a leva) e `tipos.entratransformada.unit` +1. Mapa: 718.2 e 712.15 cobertas (377); 718.3 só falta o "conjurar sem pagar" com protótipo.
+- **Fora, declarado:** conjurar sem pagar (cascata, descobrir) ainda não oferece o protótipo; 712.13a (mágica de dupla face que entraria transformada com verso instantânea/feitiço vai ao cemitério — nenhuma carta das listas).
+- **Versão e goldens:** a versão não sobe; goldens idênticos.
+- **Toca ponto comum:** `aplicaCopia` e o "entra como cópia" (o registro da cópia leva a marca do protótipo), `ficha_copia` (a ficha nasce protótipo), `marcasDaMagia` (a marca do protótipo vai para a cópia da mágica).
+- **Próximo:** auditoria independente de T-56 com a próxima; placar do catálogo.
+
 **CR6 · Multijogador e variantes** ○ — mesa de três e quatro (800–803, 806), Commander de mesa (903.2), Brawl (903.12); as variantes hoje "fora" só entram por decisão. 10 a 14 levas.
 
 **CR7 · Consolidação** ○ (em paralelo a partir da CR2) — a cada fase: fuzz em modo completo com listas reais, homologação por revisor independente relendo a seção das regras contra o motor, e rodada de simulação do dono do produto. 6 a 8 levas ao todo.

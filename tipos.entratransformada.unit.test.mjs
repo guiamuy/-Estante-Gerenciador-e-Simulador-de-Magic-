@@ -28,16 +28,17 @@ const SCRIPTS = {
   // T-55 · frente Aura (encantar criatura sua), verso terreno — o padrão de Journey to Eternity // Atzal
   'Jornada Teste': { name: 'Jornada Teste', aura: { enchant: 'creature-you-control' }, self: { duplaFace: true }, back: { name: 'Cidade Teste', types: ['land'], produces: [['B']] }, ...EX },
   'Volta Qualquer': { name: 'Volta Qualquer', effects: [{ do: 'mover', target: 'card-in-your-graveyard', de: 'graveyard', para: 'battlefield', transformada: true }], ...EX },
+  'Manifesto': { name: 'Manifesto', effects: [{ do: 'manifest' }], ...EX }, // "Manifest the top card of your library."
   'Golpe': { name: 'Golpe', effects: [{ do: 'destroy', target: 'creature' }], ...EX },
 };
-carta('Volta Lunar', 'Sorcery'); carta('Golpe', 'Instant'); carta('Rito Duplo', 'Sorcery'); carta('Ressurgir', 'Sorcery'); carta('Volta Qualquer', 'Sorcery');
+carta('Volta Lunar', 'Sorcery'); carta('Golpe', 'Instant'); carta('Rito Duplo', 'Sorcery'); carta('Ressurgir', 'Sorcery'); carta('Volta Qualquer', 'Sorcery'); carta('Manifesto', 'Sorcery');
 carta('Vigia Torto', 'Creature — Human', { power: '1', toughness: '1' }); carta('Jornada Teste', 'Legendary Enchantment — Aura');
 carta('Cultista', 'Creature — Human Cleric', { power: '1', toughness: '1' });
 carta('Mago Caido', 'Creature — Human Wizard', { power: '2', toughness: '2' });
 carta('Urso', 'Creature — Bear', { power: '2', toughness: '2' });
 
 function mesa(seed = 1) {
-  const deck = [{ name: 'Swamp', qty: 20, zone: 'main' }, { name: 'Volta Lunar', qty: 6, zone: 'main' }, { name: 'Golpe', qty: 4, zone: 'main' }, { name: 'Cultista', qty: 4, zone: 'main' }, { name: 'Mago Caido', qty: 3, zone: 'main' }, { name: 'Urso', qty: 3, zone: 'main' }, { name: 'Rito Duplo', qty: 2, zone: 'main' }, { name: 'Ressurgir', qty: 2, zone: 'main' }, { name: 'Volta Qualquer', qty: 2, zone: 'main' }, { name: 'Vigia Torto', qty: 1, zone: 'main' }, { name: 'Jornada Teste', qty: 1, zone: 'main' }];
+  const deck = [{ name: 'Swamp', qty: 20, zone: 'main' }, { name: 'Volta Lunar', qty: 6, zone: 'main' }, { name: 'Golpe', qty: 4, zone: 'main' }, { name: 'Cultista', qty: 4, zone: 'main' }, { name: 'Mago Caido', qty: 3, zone: 'main' }, { name: 'Urso', qty: 3, zone: 'main' }, { name: 'Rito Duplo', qty: 2, zone: 'main' }, { name: 'Ressurgir', qty: 2, zone: 'main' }, { name: 'Volta Qualquer', qty: 2, zone: 'main' }, { name: 'Vigia Torto', qty: 1, zone: 'main' }, { name: 'Jornada Teste', qty: 1, zone: 'main' }, { name: 'Manifesto', qty: 2, zone: 'main' }];
   let s = E.createGame({ format: 'livre', seed, mode: 'full', cards: C, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
   for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
   return passaAte(s, x => x.turn.active === 0 && x.turn.step === 'main1' && !x.stack.length && !x.pending);
@@ -115,4 +116,17 @@ test('Registro · a carta que entra transformada diz a face que ficou para cima 
   let t = act(s, legais(s, 0, a => a.t === 'cast' && a.oid === x && a.targets[0].oid === c)[0]), linhas = [];
   for (let i = 0; i < 6 && t.stack.length; i++) { const pa = { t: 'pass', p: t.turn.priority }, r = E.apply(t, pa); linhas = linhas.concat(T.describe(t, pa, r.events, r.state).map(String)); t = r.state; }
   assert.ok(linhas.some(l => /Cultista foi para o campo transformada: agora é Cultista Desperto/.test(l)), JSON.stringify(linhas));
+});
+
+/* ---------------- T-56 · CR 712.15 · dupla face virada para baixo ---------------- */
+test('CR 712.15 / 712.15a · dupla face manifestada: criatura 2/2 virada para baixo, que não transforma; virada para cima, com a frente', () => {
+  let s = mesa(); let c; [s, c] = poe(s, 0, 'Cultista', 'library');
+  s = J(s); s.zones[0].library = [c, ...s.zones[0].library.filter(x => x !== c)]; // no topo
+  [s] = conjura(s, 0, 'Manifesto');
+  const o = s.objects[c];
+  eq([o.zone, !!o.faceDown, E.stats(s, o).power, E.stats(s, o).toughness], ['battlefield', true, 2, 2]);
+  s = mana(s); const v = legais(s, 0, a => a.t === 'unmorph' && a.oid === c);
+  assert.equal(v.length, 1, 'a manifestada de criatura vira para cima pelo custo de mana');
+  s = esvazia(act(s, v[0]));
+  eq([s.objects[c].faceDown || false, s.objects[c].name], [false, 'Cultista']);
 });
