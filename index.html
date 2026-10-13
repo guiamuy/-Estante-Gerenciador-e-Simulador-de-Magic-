@@ -8909,6 +8909,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Inventor\'s Axe': { texto: '1gpar0d', leva: 'M-367' },
   // M-369 · revisão por lote XXXI (Pauper: Haunted Fengraf), revisor independente com 135 verificações: 1 de 1 (depois da correção de 602.2a) aprovadas
   'Haunted Fengraf': { texto: 'fcokt2', leva: 'M-369' },
+  // M-370 · revisão por lote XXXII (Pauper: Gingerbrute), revisor independente com 48 verificações: 1 de 1 aprovadas
+  'Gingerbrute': { texto: 'ecv8hp', leva: 'M-370' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -16651,6 +16653,7 @@ const __m42 = (function () {
     [/^~ connives$/i, () => [{ do: 'connive', amount: 1 }]], // LT9 · 701.50
     [new RegExp(`^~ deals ${N} damage to each creature without flying$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'each-nonflying-creature' }]], // LT10
     [/^damage can't be prevented this turn$/i, () => [{ do: 'no_prevention' }]], // LT10 · 615.12
+    [/^~ can't be blocked this turn except by creatures with (haste|defender|flying)$/i, m => [{ do: 'imbloqueavel', target: 'self-source', exceto: m[1].toLowerCase() }]], // M-370 · Gingerbrute, Tin Street Dodger
     [/^return an? (creature|artifact|land|instant|sorcery|enchantment)? ?card at random from your graveyard to your hand$/i, m => [{ do: 'volta_ao_acaso', ...(m[1] ? { tipos: [m[1].toLowerCase()] } : {}) }]], // M-369 · Haunted Fengraf
     [/^you get ((?:\{E\})+)(?: \([a-z]+ energy counters?\))?$/i, m => [{ do: 'energia', amount: m[1].match(/\{E\}/gi).length }]], // M-367 · 107.14
     [/^attach (?:it|~) to target creature you control$/i, () => [{ do: 'attach', target: 'creature-you-control' }]], // M-367 · Inventor's Axe
@@ -17888,7 +17891,7 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
     for (const k of MARCAS_DA_CONJURACAO) delete o[k];
   }
   o.tapped = false; o.damage = 0; o.counters = {}; o.controller = to === 'battlefield' && controller != null ? controller : o.owner; delete o.controles; delete o.controladorBase; // CR2d.6 · 400.7 · CR2b.5 · 603.3a: entra já sob quem a pôs no campo
-  delete o.tempToxico; delete o.tempResguardoCor; delete o.tempNaoBloqueadaPor; delete o.tempImbloqueavel; delete o.tempHabilidades; delete o.permissaoUsada; if (fromZone !== to) delete o.desenterrada; // M-255/M-256/M-257 · 400.7
+  delete o.tempToxico; delete o.tempResguardoCor; delete o.tempNaoBloqueadaPor; delete o.tempImbloqueavel; delete o.tempImbloqueavelExceto; delete o.tempHabilidades; delete o.permissaoUsada; if (fromZone !== to) delete o.desenterrada; // M-255/M-256/M-257 · 400.7
   delete o.attacking; delete o.atacandoPw; delete o.exigeAtacarPw; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.pumpNext; delete o.goaded; delete o.keywordsNext; delete o.cantAttackNext; delete o.targets; delete o.attachedTo; delete o.tempKeywords; delete o.tempTs; delete o.anexadaEm; delete o.anexadaZ; delete o.mutavel; delete o.vira; delete o.prevenirDano; delete o.regenerar; delete o.temporarios; delete o.tempProtection; delete o.paired; // S39 · o vínculo de alma se desfaz ao sair do campo
   if (fromZone !== 'stack') { delete o.chosenColor; delete o.chosenType; delete o.damagePrevented; delete o.preventGainTo; delete o.devolvidas; } // CR2a.9 · 400.7 / 608.2n: a marca da resolução fica onde a carta caiu; ao sair de lá, o objeto é novo
   delete o.loyaltyTurn; delete o.usedThisTurn; delete o.alvejadoNoTurno; // CR2c.6 · 400.7: o objeto novo não carrega o uso da habilidade do anterior (606.3, 602.5b) nem o "primeira vez no turno" do valente (CR2b.9)
@@ -18959,7 +18962,7 @@ function fimDosEfeitosDoTurno(s) {
   delete s.mareAlta; // M-262 · High Tide vale até o fim do turno
   for (const o of campoInteiro(s)) if (o.copias) { o.copias = o.copias.filter(t => ficaTemporario(s, t, 'limpeza')); recalculaCopia(s, o); } // CR2f.1 · CR2d.13: também "até o fim do seu próximo turno"
   for (const o of campoInteiro(s)) if (o.controles) { o.controles = o.controles.filter(t => ficaTemporario(s, t, 'limpeza')); recalculaControle(s, o); } // CR2d.13 // CR2d.6 · "until end of turn" acaba na limpeza (514.2)
-  for (const o of campoInteiro(s)) { delete o.pump; delete o.tempKeywords; delete o.tempTs; podaTemporarios(s, o, 'limpeza'); delete o.prevenirDano; delete o.regenerar; delete o.tempProtection; delete o.tempToxico; delete o.tempResguardoCor; delete o.tempNaoBloqueadaPor; delete o.tempImbloqueavel; delete o.tempHabilidades; delete o.usedThisTurn; o.damage = 0; delete o.deathtouched; } // M-255 · tóxico, resistência a magia de cor e "não bloqueada por cor" até o fim do turno
+  for (const o of campoInteiro(s)) { delete o.pump; delete o.tempKeywords; delete o.tempTs; podaTemporarios(s, o, 'limpeza'); delete o.prevenirDano; delete o.regenerar; delete o.tempProtection; delete o.tempToxico; delete o.tempResguardoCor; delete o.tempNaoBloqueadaPor; delete o.tempImbloqueavel; delete o.tempImbloqueavelExceto; delete o.tempHabilidades; delete o.usedThisTurn; o.damage = 0; delete o.deathtouched; } // M-255 · tóxico, resistência a magia de cor e "não bloqueada por cor" até o fim do turno
   delete s.fogged; delete s.preventedColors; delete s.noPrevention; delete s.prevencoes; // CR2-G R5b · escudos do verbo prevenir também acabam
   for (const o of Object.values(s.objects)) if (o.damagePrevented) { delete o.damagePrevented; delete o.preventGainTo; } // R9 · Hallow: a prevenção acaba com o turno
 }
@@ -19037,6 +19040,7 @@ function eligibleAttackers(s, p) {
 function eligibleBlockers(s, p) {
   return battlefield(s).filter(o => o.controller === p && !ehBatalhaT(s, o) && isCreature(s, o) && !o.tapped && !naoBloqueia(s, o) && !suspeitaNaoBloqueia(s, o)).map(o => o.oid); // V-12 · 701.60c
 }
+const PALAVRA_PT_CORE = { haste: 'ímpeto', defender: 'defensor', flying: 'voar', reach: 'alcance' }; // M-370 · texto do motivo de bloqueio
 const TRAVESSIAS = [['islandwalk', 'Island'], ['swampwalk', 'Swamp'], ['forestwalk', 'Forest'], ['mountainwalk', 'Mountain'], ['plainswalk', 'Plains']];
 /** M-253 · "This creature can't block" (509.1a), impressa ou da ficha. */
 const naoBloqueia = (s, o) => (!o.faceDown && !semImpressas(s, o) && !!((((s.facts[o.name] || {}).script || {}).self || {}).naoBloqueia)) || anexoProibe(s, o, 'naoBloqueia') || naoBloqueiaK(s, o); // M-336 · Pacifism · K-62 · 702.98a (Toca ponto comum: naoBloqueia)
@@ -19046,6 +19050,7 @@ const anexoProibe = (s, o, k) => attachedTo(s, o).some(x => !semImpressas(s, x) 
 function porQueNaoBloqueia(s, blocker, attacker) {
   const b = s.objects[blocker], a = s.objects[attacker];
   if (a.tempImbloqueavel) return 'não pode ser bloqueada neste turno'; // M-336
+  { const falta = (a.tempImbloqueavelExceto || []).find(k => !has(s, b, k)); if (falta) return `neste turno, só criaturas com ${PALAVRA_PT_CORE[falta] || falta} a bloqueiam`; } // M-370
   if ((a.tempNaoBloqueadaPor || []).some(c => colorsOf(s, b).includes(c))) return 'não pode ser bloqueada por criaturas dessa cor neste turno'; // M-255
   if (has(s, a, 'flying') && !has(s, b, 'flying') && !has(s, b, 'reach')) return 'voar';
   const ev = evasionOf(s, a); // S11b · evasão estática
@@ -20421,6 +20426,7 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'imbloqueavel': { // M-336 · até o fim do turno (514.2)
       const alvo = eff.target === 'self-source' ? s.objects[src.ability ? src.source : src.oid] : obj;
       if (!alvo || alvo.zone !== 'battlefield') { note({ failed: true }); break; }
+      if (eff.exceto) { alvo.tempImbloqueavelExceto = [...new Set([...(alvo.tempImbloqueavelExceto || []), eff.exceto])]; note({ target: alvo.name, exceto: eff.exceto }); break; } // M-370 · 509.1b: "except by creatures with haste" — cada restrição vale sozinha
       alvo.tempImbloqueavel = true; note({ target: alvo.name }); break;
     }
     case 'resistencia_cor': case 'imbloqueavel_cor': { // M-255 · com a cor escolhida ao ativar, até o fim do turno
@@ -29127,6 +29133,7 @@ function effectLine(ev) {
     case 'combate_extra': return ev.failed ? `${ev.name}: fora da fase principal, sem combate adicional` : `${ev.name}: depois desta fase principal vem um combate adicional e outra fase principal`; // CR2g.4
     case 'desvira_atacantes': return `${ev.name} desvirou ${n} criatura(s) que atacaram neste turno`;
     case 'animate': return `${t} virou criatura até o fim do turno`; // CR2d.2
+    case 'imbloqueavel': return ev.failed ? `${ev.name}: a criatura não estava mais no campo` : `${ev.target || ev.name} não pode ser bloqueada neste turno${ev.exceto ? ', exceto por criaturas com ' + ({ haste: 'ímpeto', defender: 'defensor', flying: 'voar' }[ev.exceto] || ev.exceto) : ''}`; // M-370 (achado da revisão: o registro só dizia "resolveu")
     case 'volta_ao_acaso': return ev.amount ? `${ev.name}: ${ev.target} voltou do cemitério para a mão (ao acaso)` : `${ev.name}: nenhuma carta para voltar`; // M-369
     case 'craft_volta': return ev.failed ? `${ev.name}: a carta não estava mais no exílio` : `${ev.name} voltou do exílio transformada`; // M-356 · 702.167a
     case 'exile_return_transformed': return ev.failed ? `${ev.name}: não estava mais no campo` : `${ev.name} foi exilado e voltou transformado`; // CR2d.5
@@ -29959,7 +29966,7 @@ const ALVO_PT = { 'each-opponent-creature': 'cada criatura dos oponentes', 'each
   'first-target': 'o mesmo alvo', 'spell-or-creature': 'uma mágica ou criatura', 'spell-or-ability': 'uma mágica ou habilidade', 'target-controller': 'quem controlava o alvo', 'self-source': 'esta permanente', self: 'você',
   'creature-blocked-by-source': 'a criatura que ela bloqueia', all: 'tudo', enchanted: 'a criatura encantada', any: 'qualquer alvo', 'artifact-creature': 'um artefato ou criatura', player: 'um jogador', creature: 'uma criatura', permanent: 'uma permanente', spell: 'uma mágica', 'each-creature': 'cada criatura', 'each-opponent': 'cada oponente', opponent: 'um oponente', 'creature-or-player': 'criatura ou jogador', land: 'um terreno', artifact: 'um artefato', enchantment: 'um encantamento' };
 ALVO_PT['that-player'] = 'quem controla a mágica que disparou'; // M-322 · CR2b.9 (Bonecrusher Giant: "that spell's controller"); o portão R9b pegou a frase em inglês
-const PALAVRA_PT = { infect: 'infectar', indestructible: 'indestrutível', hexproof: 'resistência a magia', flying: 'voar', haste: 'ímpeto', trample: 'atropelar', lifelink: 'vínculo com a vida', deathtouch: 'toque mortífero', vigilance: 'vigilância', reach: 'alcance', menace: 'ameaçar', 'first strike': 'iniciativa', 'double strike': 'golpe duplo',
+const PALAVRA_PT = { defender: 'defensor', /* M-370 */ infect: 'infectar', indestructible: 'indestrutível', hexproof: 'resistência a magia', flying: 'voar', haste: 'ímpeto', trample: 'atropelar', lifelink: 'vínculo com a vida', deathtouch: 'toque mortífero', vigilance: 'vigilância', reach: 'alcance', menace: 'ameaçar', 'first strike': 'iniciativa', 'double strike': 'golpe duplo',
   fear: 'medo', intimidate: 'intimidar', shadow: 'sombra', skulk: 'esgueirar', islandwalk: 'travessia de ilha', swampwalk: 'travessia de pântano', forestwalk: 'travessia de floresta', mountainwalk: 'travessia de montanha', plainswalk: 'travessia de planície' };
 const qtd = v => (typeof v === 'number' ? v : (v && v.per === 'se') ? `${v.nao} (${v.sim} ${({ metalcraft: 'com três artefatos ou mais', 'cast-from-graveyard': 'se veio do cemitério', kicked: 'com reforço', 'not-cast-from-hand': 'se não foi conjurada da mão' })[v.se] || 'com a condição'})` : (v && v.per) ? 'X' : 1); // M-331
 const IGUAL_A = { 'life-lost-this-turn': 'à vida que você perdeu neste turno', 'life-gained-this-turn': 'à vida que você ganhou neste turno', 'power-of-source': 'ao poder dela', 'power-of-target': 'ao poder do alvo' }; // M-248 · CR2b.10
@@ -30238,7 +30245,7 @@ function descreveEfeito(e) {
     case 'look_hand': return 'olha a mão do jogador alvo';
     case 'protection': return `${alvo || 'a criatura'} ganha proteção contra uma cor`;
     case 'resistencia_cor': return `${alvo || 'a criatura'} ganha resistência a magia da cor escolhida até o fim do turno`; // M-255
-    case 'imbloqueavel': return `${alvo || 'a criatura'} não pode ser ${/^o /.test(alvo || '') ? 'bloqueado' : 'bloqueada'} neste turno`; // M-336
+    case 'imbloqueavel': return `${alvo || 'a criatura'} não pode ser ${/^o /.test(alvo || '') ? 'bloqueado' : 'bloqueada'} neste turno${e.exceto ? ', exceto por criaturas com ' + (PALAVRA_PT[e.exceto] || e.exceto) : ''}`; // M-336 · M-370
     case 'imbloqueavel_cor': return `${alvo || 'a criatura'} não pode ser ${/^o /.test(alvo || '') ? 'bloqueado' : 'bloqueada'} por criaturas da cor escolhida neste turno`;
     case 'transform': return 'transforma';
     case 'animate_dead': return 'devolve a carta encantada ao campo sob o seu controle e se anexa a ela'; // CR2d.4

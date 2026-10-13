@@ -4079,6 +4079,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Revisão independente:** 135 verificações; achou um desvio antigo e genérico, corrigido com teste antes: a habilidade ativada com "Sacrifice ~" de uma permanente roubada nascia como do dono (o custo devolvia o controle antes) — agora é de quem ativou (113.8 / 602.2a), também na mana. De passagem, a pilha explicada mostrava o texto inteiro de terrenos com mana impressa e uma ativada.
 - **Teste:** `lt52.unit` (3 testes; falham no motor anterior).
 
+**M-370 · LT41 · "Não pode ser bloqueada neste turno, exceto por criaturas com ímpeto" (509.1b) — revisão por lote XXXII** ✅ (leva M-370, motor v111 sem mudança de forma; goldens intactos).
+- **Valor:** Gingerbrute (5 listas de Pauper esperavam só por ela) passa a jogar pela leitura revisada (decisão A; texto do Oracle do Forge, consulta de 12/10/2026, em `.listas/oficiais-revisadas.json`). O leitor também lê a variante com defensor (Tin Street Dodger, da trilha `listas`).
+- **Motor:** `imbloqueavel` com `exceto` (palavra-chave que o bloqueador precisa ter), até o fim do turno; cada restrição vale sozinha (voar + só ímpeto pede as duas); o motivo do bloqueio recusado e o registro em português.
+- **Revisão independente:** 48 verificações, aprovada; os dois textos que faltavam (registro e "defensor" na pilha) foram corrigidos com teste antes. Achado antigo registrado para a próxima leva: efeito em "esta permanente" de uma habilidade ainda vale sobre o objeto novo se a permanente sair e voltar com a habilidade na pilha (400.7).
+- **Teste:** `lt53.unit` (2 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
