@@ -840,6 +840,11 @@ a { color: var(--accent); }
 .conta-email__erro:empty { display: none; }
 .conta-email__senha { display: flex; gap: var(--space-2); align-items: stretch; }
 .conta-email__senha > .ds-input { flex: 1; min-width: 0; }
+/* G-270 · T6f-6 · transições da conta: o erro chega com um tremor curto; a conta que acabou de entrar sobe e brilha uma vez */
+.conta-email__erro > .ds-note { animation: tb-fx-tremor var(--dur-fx-curto) var(--ease-out); }
+#perfil-conta[data-chegou="true"] { animation: conta-chega var(--dur-4) var(--ease-out) both, tb-fx-brilho var(--dur-fx) var(--ease-out) var(--dur-3) 1; }
+@keyframes conta-chega { from { opacity: 0; transform: translateY(var(--space-2)); } to { opacity: 1; transform: none; } } /* sem escala: o tamanho dos alvos não muda no meio */
+@media (prefers-reduced-motion: reduce) { .conta-email__erro > .ds-note, #perfil-conta[data-chegou="true"] { animation: none; } }
 .perfil-conta__texto > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ---------------- campos ---------------- */
@@ -1075,6 +1080,9 @@ a { color: var(--accent); }
   animation: ds-spin var(--dur-giro) linear infinite;
 }
 @keyframes ds-spin { to { transform: rotate(360deg) } }
+/* G-270 · botão ocupado (aria-busy): o ícone dá lugar ao giro do carregando, na cor do botão — retorno na hora do toque */
+.ds-btn[aria-busy="true"] > .ds-icon { display: none; }
+.ds-btn[aria-busy="true"]::before { content: ''; flex: none; width: 18px; height: 18px; border-radius: var(--radius-full); border: 2px solid currentColor; border-right-color: transparent; animation: ds-spin var(--dur-giro) linear infinite; }
 /* J5 · abertura: ao abrir o app, o ícone se monta — o ladrilho pousa, a moldura e a tábua da estante aparecem e as três
    cartas caem no lugar, a de latão por último, inclinada. O último quadro é exatamente o ícone do app. A camada não
    recebe toque (o app por baixo já funciona); qualquer toque ou tecla a dispensa. */
@@ -15085,6 +15093,7 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
         await (modo === 'criar' ? conta.criarComEmail(email.value, senha.value) : conta.entrarComEmail(email.value, senha.value));
         st.contaOcupada = false; try { st.conta = await conta.get(); } catch (e) { st.conta = null; }
         if (haptics) haptics.evento('confirmacao');
+        st.contaChegou = Date.now(); // G-270 · a seção da conta chega com a transição de sucesso
         closeDialog(); toast(modo === 'criar' ? 'Conta criada e conectada' : 'Conta conectada'); paint();
       } catch (e) {
         st.contaOcupada = false;
@@ -15235,7 +15244,7 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
       semId ? Note(__m29.MOTIVO['sem-client-id'] + ' Até lá, o backup por arquivo acima guarda tudo.', 'warning') : null,
       h('div', { class: 'perfil-conta__opcoes' },
         // sem desenhar a marca do Google (o desenho oficial tem regras de uso): ícone genérico e o nome no rótulo
-        Button('Continuar com Google', { icone: 'externo', id: 'conta-entrar', block: true, disabled: oc || semId, title: semId ? __m29.MOTIVO['sem-client-id'] : null, onClick: () => acaoDaConta(async () => { await conta.entrar(); toast('Conta conectada'); }) }),
+        Button('Continuar com Google', { icone: 'externo', id: 'conta-entrar', block: true, disabled: oc || semId, title: semId ? __m29.MOTIVO['sem-client-id'] : null, onClick: () => acaoDaConta(async () => { await conta.entrar(); st.contaChegou = Date.now(); toast('Conta conectada'); }) }),
         Button('Entrar com e-mail', { icone: 'email', id: 'conta-email-abrir', block: true, disabled: oc, onClick: () => abreEntrarComEmail() }))));
     if (semId && !(c && c.provedor === 'senha')) return Surface({ class: 'ds-surface--pad', id: 'perfil-conta' }, Stack({}, cabeca,
       Note(__m29.MOTIVO['sem-client-id'] + ' Até lá, o backup por arquivo acima guarda tudo.', 'warning'),
@@ -15246,7 +15255,7 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
     // G-263 · conta de e-mail e senha: e-mail, conta da Estante e sincronização; o backup no Drive chega com o Google vinculado (T6f-4)
     if (c.provedor === 'senha') {
       const e = conta.estante ? conta.estante() : { estado: 'desligada' };
-      return Surface({ class: 'ds-surface--pad', id: 'perfil-conta', dataset: { conectada: 'true', provedor: 'senha' } }, Stack({}, cabeca,
+      return Surface({ class: 'ds-surface--pad', id: 'perfil-conta', dataset: { conectada: 'true', provedor: 'senha', chegou: String(chegouAgora()) } }, Stack({}, cabeca,
         Row({ class: 'perfil-conta__quem' },
           Avatar({ nome: st.nome || c.email, avatar: st.avatar }, { tamanho: 40 }),
           Stack({ class: 'ds-grow perfil-conta__texto' }, h('b', { class: 'ds-text ds-text--md', id: 'conta-nome' }, st.nome || 'Conta com e-mail'), Text(c.email, { size: 'sm', tone: 'muted', attrs: { id: 'conta-email' } }))),
@@ -15277,7 +15286,7 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
           botaoExcluir(c, oc, e.estado),
           Button('Sair', { icone: 'desistir', id: 'conta-sair', variant: 'ghost', disabled: oc, onClick: () => acaoDaConta(async () => { await conta.sair(); toast('Conta desconectada'); }) }))));
     }
-    return Surface({ class: 'ds-surface--pad', id: 'perfil-conta', dataset: { conectada: 'true' } }, Stack({}, cabeca,
+    return Surface({ class: 'ds-surface--pad', id: 'perfil-conta', dataset: { conectada: 'true', chegou: String(chegouAgora()) } }, Stack({}, cabeca,
       Row({ class: 'perfil-conta__quem' },
         Avatar({ nome: c.nome, avatar: c.foto }, { tamanho: 40 }),
         Stack({ class: 'ds-grow perfil-conta__texto' }, h('b', { class: 'ds-text ds-text--md', id: 'conta-nome' }, c.nome || c.email), Text(c.email, { size: 'sm', tone: 'muted', attrs: { id: 'conta-email' } }))),
@@ -15300,6 +15309,9 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
         botaoExcluir(c, oc, conta.estante ? conta.estante().estado : 'desligada'),
         Button('Sair', { icone: 'desistir', id: 'conta-sair', variant: 'ghost', disabled: oc, onClick: () => acaoDaConta(async () => { await conta.sair(); toast('Conta desconectada'); }) }))));
   }
+  /** G-270 · a seção acabou de ganhar a conta (entrada nos últimos 1,5 s): a transição de sucesso roda uma vez — a
+      próxima pintura (sincronia, nome de usuário) já não repete. */
+  function chegouAgora() { const sim = !!st.contaChegou && Date.now() - st.contaChegou < 1500; st.contaChegou = 0; return sim; }
   /** G-269 · só com a conta da Estante conectada (é ela que se exclui). */
   function botaoExcluir(c, oc, estado) {
     if (!conta.excluirConta || estado !== 'conectada') return null;

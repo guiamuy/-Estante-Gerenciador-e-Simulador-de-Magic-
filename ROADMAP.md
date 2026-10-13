@@ -537,6 +537,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-er ✅ | T6f-4 ligar o Google a uma conta de e-mail: o backup no Drive passa a valer sem trocar de conta (relato #18, fatia 4 de 6, leva G-267) | P | 1 | teste no aparelho |
 | 16º-es ✅ | T6f-5a trocar a senha da conta de e-mail no Perfil, conferindo a de agora (relato #18, fatia 5a, leva G-268) | P | 1 | teste no aparelho |
 | 16º-et ✅ | T6f-5b excluir a conta: confere quem é, limpa a nuvem da conta e só então a exclui; diz o que sai e o que fica (relato #18, fatia 5b, leva G-269) | P | 1 | teste no aparelho |
+| 16º-eu ✅ | T6f-6 transições da conta: botão ocupado com giro, erro com tremor curto, conta que entra sobe e brilha uma vez; com menos movimento, nada se mexe (relato #18, fatia 6 de 6, leva G-270) | P | 1 | teste no aparelho |
 | 16º-ee ✅ | T6e-2 Enviar relato sem sair do app: com a conta conectada e a fila ligada, o relato vai para a fila do Firebase e o cartão mostra "Na fila" até o número do registro (relato #13, leva G-255) | T | 1 | — |
 | 16º-eh ✅ | T6e-2 prazo honesto do relato pela fila: o GitHub atrasa o agendamento em horas, a tela diz "de minutos a algumas horas" e a conversa que lê relatos roda a fila antes (relato #13, leva G-256) | T | 1 | 16º-ee |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
@@ -9582,7 +9583,7 @@ o aviso de fila ligada, o que acontece na primeira rodada depois de o dono criar
   (isso já vale pela A-261/A-263 por uid). O dono ligou o provedor E-mail/senha no Firebase em 13/10/2026 (modelo de
   redefinição em pt-BR, uma conta por e-mail, criação ligada, proteção contra enumeração ligada).
 - **Fatias:** T6f-1 criar e entrar (G-263) ✅ · T6f-2 esqueci a senha (G-264) ✅ · T6f-3 nome de usuário único (G-266) ✅, regras do
-  banco que o dono publica · T6f-4 vincular o Google depois (G-267) ✅ · T6f-5a trocar a senha (G-268) ✅ · T6f-5b excluir a conta (G-269) ✅ · T6f-6 transições de entrada e sucesso.
+  banco que o dono publica · T6f-4 vincular o Google depois (G-267) ✅ · T6f-5a trocar a senha (G-268) ✅ · T6f-5b excluir a conta (G-269) ✅ · T6f-6 transições (G-270) ✅.
 
 **T6f-1 · Criar conta e entrar com e-mail e senha** ✅ (leva G-263, trilha `geral`, 13/10/2026)
 - **Como:** a sessão da Estante (`src/data/conta.js`, `createSessaoFirebase`) ganhou `criarComSenha` e `entrarComSenha`
@@ -9685,6 +9686,16 @@ regras** (`database.rules.json`) no console; até lá a tela diz "Nomes de usuá
   senha errada sem apagar nada, a certa limpa a nuvem e exclui, volta às duas portas).
 - **Fora:** relatos que ainda estão na fila da conta não saem por ela (a regra só deixa acrescentar; o repositório os
   consome); o backup no Drive é do Drive da pessoa e fica.
+
+**T6f-6 · Transições da conta** ✅ (leva G-270, trilha `geral`, 13/10/2026)
+- **Como:** só CSS do design system e um marcador: todo botão `ds-btn` com `aria-busy` troca o ícone pelo giro do
+  carregando na cor do botão (retorno na hora do toque — vale também para "Apagar tudo"); o erro das folhas da conta
+  chega com o tremor curto da mesa (`tb-fx-tremor`); a seção Conta que acabou de ganhar a conta (e-mail ou Google) sobe
+  e brilha uma vez (`conta-chega` + `tb-fx-brilho`, sem escala, para os alvos não encolherem no meio) e as pinturas
+  seguintes não repetem. Com "Menos movimento" ou o pedido do sistema, nada se mexe.
+- **Testes:** e2e "G-270" (ocupado: giro e "Entrando…" sem o ícone; falha com tremor e o giro some; sucesso com a
+  chegada; menos movimento sem animação); G-267 e G-268 medem os 44 px sem a transição.
+- **Fora:** o ícone do Google continua genérico (decisão da T6f-1).
 
 **T6e-3 · Relato enviado não muda mais (relato #16)** ✅ (leva G-261, trilha `geral`, 13/10/2026)
 - **Pedido (relato #16, infraestrutura · impede o uso):** depois de enviado, o relato não se edita, não se reenvia, não se

@@ -5177,7 +5177,7 @@ test('e2e · G-267 ligar o Google: a conta de e-mail ganha o Drive sem trocar de
   await page.click('#conta-email-modo [data-modo="criar"]');
   await page.fill('#conta-email-campo', 'gui@exemplo.com'); await page.fill('#conta-senha', 'senha-certa-1'); await page.click('#conta-email-confirmar');
   await page.waitForSelector('#conta-google-ligar:not([disabled])');
-  assert.ok((await page.locator('#conta-google-ligar').boundingBox()).height >= 44);
+  assert.ok(await page.$eval('#conta-google-ligar', b => b.offsetHeight) >= 44, 'alvo de 44 px (sem a transição de chegada da conta, G-270)');
   assert.equal(await page.locator('#conta-enviar').count(), 0, 'sem Google, sem Drive');
   // 1 · Google de outra conta da Estante: avisa e nada muda
   await page.evaluate(() => { window.__vinculo = 'FEDERATED_USER_ID_ALREADY_LINKED'; });
@@ -5219,7 +5219,7 @@ test('e2e · G-268 trocar a senha: confere a de agora, avisa embaixo sem fechar,
   await page.click('#conta-email-modo [data-modo="criar"]');
   await page.fill('#conta-email-campo', 'gui@exemplo.com'); await page.fill('#conta-senha', 'senha-certa-1'); await page.click('#conta-email-confirmar');
   await page.waitForSelector('#conta-senha-trocar:not([disabled])');
-  assert.ok((await page.locator('#conta-senha-trocar').boundingBox()).height >= 44);
+  assert.ok(await page.$eval('#conta-senha-trocar', b => b.offsetHeight) >= 44, 'alvo de 44 px (sem a transição de chegada da conta, G-270)');
   await page.click('#conta-senha-trocar'); await page.waitForSelector('#conta-troca-atual');
   // senha de agora errada: avisa embaixo, a folha fica, nada é trocado
   await page.fill('#conta-troca-atual', 'errada-000'); await page.fill('#conta-troca-nova', 'nova-senha-1'); await page.click('#conta-troca-confirmar');
@@ -5240,6 +5240,51 @@ test('e2e · G-268 trocar a senha: confere a de agora, avisa embaixo sem fechar,
   await page.click('#conta-sair'); await page.waitForSelector('#conta-email-abrir');
   await page.click('#conta-email-abrir'); await page.fill('#conta-email-campo', 'gui@exemplo.com'); await page.fill('#conta-senha', 'nova-senha-1'); await page.click('#conta-email-confirmar');
   await page.waitForSelector('#conta-estante[data-estado="conectada"]');
+  assert.deepEqual(errors, []);
+});
+
+/* G-270 · T6f-6 · relato #18: transições da conta (carregando, falha, sucesso) */
+test('e2e · G-270 transições da conta: o botão ocupado gira na hora, o erro chega com tremor, a conta que entra sobe uma vez; com menos movimento, nada se mexe', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.addInitScript(() => {
+    window.__GOOGLE_CLIENT_ID = 'e2e.apps.googleusercontent.com'; window.__FIREBASE_API_KEY = 'chave-e2e';
+    window.__solta = null;
+    const ok = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } });
+    window.__FIREBASE_FETCH = async (url, init) => {
+      const corpo = url.includes('securetoken') ? init.body : JSON.parse(init.body);
+      if (url.includes('securetoken')) return ok({ id_token: 'id-2', refresh_token: 'ref-2', expires_in: '3600', user_id: 'uidSenha_1' });
+      await new Promise(r => { window.__solta = r; }); // o teste solta a resposta: dá para ver o botão ocupado
+      if (corpo.password !== 'senha-certa-1') return ok({ error: { message: 'INVALID_LOGIN_CREDENTIALS' } }, 400);
+      return ok({ localId: 'uidSenha_1', email: corpo.email, idToken: 'id-senha', refreshToken: 'ref-senha', expiresIn: '3600' });
+    };
+  });
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#conta-email-abrir:not([disabled])');
+  await page.click('#conta-email-abrir'); await page.waitForSelector('#conta-email-campo');
+  await page.fill('#conta-email-campo', 'gui@exemplo.com'); await page.fill('#conta-senha', 'errada-000'); await page.click('#conta-email-confirmar');
+  // 1 · ocupado: na hora do toque, o ícone sai e o giro aparece, com o rótulo do que acontece
+  await page.waitForSelector('#conta-email-confirmar[aria-busy="true"]');
+  const ocupado = await page.$eval('#conta-email-confirmar', b => ({ giro: getComputedStyle(b, '::before').animationName, icone: getComputedStyle(b.querySelector('.ds-icon')).display, texto: b.textContent }));
+  assert.deepEqual(ocupado, { giro: 'ds-spin', icone: 'none', texto: 'Entrando…' });
+  await auditaTela(page, 'perfil · entrando com e-mail (ocupado)');
+  // 2 · falha: o aviso chega com o tremor curto
+  await page.evaluate(() => window.__solta());
+  await page.waitForSelector('#conta-email-erro .ds-note');
+  assert.equal(await page.$eval('#conta-email-erro .ds-note', n => getComputedStyle(n).animationName), 'tb-fx-tremor');
+  assert.equal(await page.$eval('#conta-email-confirmar', b => getComputedStyle(b, '::before').content), 'none', 'o giro sai com o erro');
+  // 3 · sucesso: a seção da conta chega com a transição, uma vez só
+  await page.fill('#conta-senha', 'senha-certa-1'); await page.click('#conta-email-confirmar');
+  await page.waitForSelector('#conta-email-confirmar[aria-busy="true"]'); await page.evaluate(() => window.__solta());
+  await page.waitForSelector('#perfil-conta[data-chegou="true"]');
+  assert.match(await page.$eval('#perfil-conta', n => getComputedStyle(n).animationName), /conta-chega/);
+  await page.click('#conta-sair'); await page.waitForSelector('#conta-email-abrir');
+  // 4 · menos movimento: nada se mexe (o giro e o tremor param)
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.click('#conta-email-abrir'); await page.waitForSelector('#conta-email-campo');
+  await page.fill('#conta-email-campo', 'gui@exemplo.com'); await page.fill('#conta-senha', 'errada-000'); await page.click('#conta-email-confirmar');
+  await page.waitForSelector('#conta-email-confirmar[aria-busy="true"]'); await page.evaluate(() => window.__solta());
+  await page.waitForSelector('#conta-email-erro .ds-note');
+  assert.equal(await page.$eval('#conta-email-erro .ds-note', n => getComputedStyle(n).animationName), 'none');
   assert.deepEqual(errors, []);
 });
 
