@@ -4942,6 +4942,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `recalculaCopia` e `entraComoCopia` (um termo cada), oferta de bloqueio em `legalActions` (uma guarda).
 - **Próximo:** fundir (712.4), em duas levas.
 
+**CR5-T31 · Selar (702.171)** ✅ (leva T-31, sem mudança de versão do motor) — **Valor:** as montarias de Outlaws of Thunder Junction jogam: "Selar N" pela mesa e os gatilhos "ao atacar selada". **Diretriz do dono (13/10, modo contínuo, `claude/DIRETRIZ-motor-continuo.md`):** seguir até a cobertura integral; carta sem a primitiva fica manual declarada. **Aceite:** selar vira outras criaturas suas com poder total N ou mais (enjoo não impede), só como feitiço, grupos mínimos em um toque e escolha livre de quem sela (702.171a); selada até o fim do turno ou até sair do campo, não copiável, e a habilidade que resolve depois de a montaria sair e voltar não sela (702.171b, 400.7); "attacks while saddled" é o gatilho de ataque com a condição `selada`. **Testes:** `tipos.selar.unit` (10; falham sem a leva). Cartas: Bridled Bighorn, Trained Arynx, Drover Grizzly (Oracle do Forge, consulta de 13/10/2026). **Depende de:** CR5-T3 (tripular).
+- **Fora:** 702.171c ("whenever ~ saddles a Mount") e "não pode selar"; quem tripula "como se tivesse poder maior" soma também para selar.
+- **Fundir carta de fusão (meld, 701.42 / 712.4 / 712.21):** as 7 duplas ficam **manuais declaradas**; pedido à trilha `motor` pela primitiva "objeto de duas cartas" (uma permanente feita de duas cartas, que sai do campo como duas), que mexe em `battlefield()`/invariantes — contrato comum, fora das âncoras `↓ T`.
+- **Versão e goldens:** a versão não sobe; goldens idênticos.
+- **Toca ponto comum:** `abilitiesOf` e `triggerConditionMet` (uma linha cada); mesa: faixa de tripular ("Quem sela …?") e a pergunta da escolha do pagamento ("Quais criaturas selam?").
+- **Próximo:** T-32 consequência (aftermath, 702.127); T-33 fundir carta dividida (fuse, 702.102); T-34 auditoria independente.
+
 **CR6 · Multijogador e variantes** ○ — mesa de três e quatro (800–803, 806), Commander de mesa (903.2), Brawl (903.12); as variantes hoje "fora" só entram por decisão. 10 a 14 levas.
 
 **CR7 · Consolidação** ○ (em paralelo a partir da CR2) — a cada fase: fuzz em modo completo com listas reais, homologação por revisor independente relendo a seção das regras contra o motor, e rodada de simulação do dono do produto. 6 a 8 levas ao todo.

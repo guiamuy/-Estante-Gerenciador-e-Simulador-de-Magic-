@@ -9375,13 +9375,22 @@
    "n": "702.171",
    "regra": "Keyword Abilities",
    "titulo": "Saddle",
-   "status": "ausente",
-   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): selar (saddle) é a montaria, irmã do tripular (T-3).",
+   "status": "parcial",
+   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): selar (saddle) é a montaria, irmã do tripular (T-3). T-31 (13/10/2026): falta só 702.171c — o gatilho \"whenever ~ saddles a Mount\" e \"não pode selar\" ainda não existem; quem tripula \"como se tivesse poder maior\" soma também para selar.",
    "esforco": "M",
    "depende": [
     "602 custo de virar várias criaturas"
    ],
-   "cartas": "uma coleção só (Outlaws of Thunder Junction)"
+   "cartas": "uma coleção só (Outlaws of Thunder Junction)",
+   "evidencia": "T-31 (13/10/2026): self.selar = N monta a ativada de selar (custo de tripular N, só como feitiço, grupos mínimos e escolha livre de quem sela, efeito selada); selada até o fim do turno ou até sair do campo, não copiável (o.seladaT com turno e encarnação); a habilidade que resolve depois de a montaria sair e voltar não sela (400.7); \"attacks while saddled\" = gatilho attacks com condition { selada: true }. Mesa: \"Selar N\", \"Quem sela …?\", registro \"X foi selada\". Cartas exemplo completas: Bridled Bighorn, Trained Arynx, Drover Grizzly (Oracle do Forge, 13/10/2026).",
+   "testes": [
+    "CR 702.171a · selar N: virar outras criaturas suas com poder total N ou mais (enjoo não impede); só como feitiço; a montaria fica selada",
+    "CR 702.171a · poder somado: dois 1/1 selam \"Selar 2\"; um 1/1 só, não",
+    "CR 702.171b · selada até o fim do turno; no turno seguinte, não",
+    "CR 702.171b / 400.7 · a montaria que sai do campo deixa de estar selada (objeto novo)",
+    "CR 400.7 · a habilidade de selar que resolve depois de a montaria sair e voltar não sela o objeto novo",
+    "Bridled Bighorn (texto oficial) · atacando selada, cria uma Ovelha 1/1 branca; sem selar, nada"
+   ]
   },
   {
    "n": "702.172",
@@ -10586,7 +10595,7 @@
    "regra": "Double-Faced Cards",
    "titulo": "Cartas de fundir (meld)",
    "status": "ausente",
-   "falta": "sem meld. T-19 (12/10/2026): fica para depois — fundir (7 pares, nenhum nas listas): 2 levas.",
+   "falta": "sem meld. T-19 (12/10/2026): fica para depois — fundir (7 pares, nenhum nas listas): 2 levas. T-31 (13/10/2026): pedido à trilha motor — a primitiva \"objeto de duas cartas\" (uma permanente feita de duas cartas, que sai do campo como duas cartas, 701.42 / 712.21) mexe em battlefield()/invariantes (contrato comum); as 7 duplas ficam manuais declaradas até ela existir.",
    "esforco": "G",
    "depende": [
     "701.36"
@@ -10598,7 +10607,7 @@
    "regra": "Double-Faced Cards",
    "titulo": "Os sete pares de meld",
    "status": "ausente",
-   "falta": "sem meld. T-19 (12/10/2026): ver 712.4.",
+   "falta": "sem meld. T-19 (12/10/2026): ver 712.4. T-31 (13/10/2026): pedido à trilha motor — a primitiva \"objeto de duas cartas\" (uma permanente feita de duas cartas, que sai do campo como duas cartas, 701.42 / 712.21) mexe em battlefield()/invariantes (contrato comum); as 7 duplas ficam manuais declaradas até ela existir.",
    "esforco": "G",
    "depende": [
     "712.4"
@@ -10787,7 +10796,7 @@
    "regra": "Double-Faced Cards",
    "titulo": "Permanente fundida ao sair do campo",
    "status": "ausente",
-   "falta": "sem meld. T-19 (12/10/2026): ver 712.4.",
+   "falta": "sem meld. T-19 (12/10/2026): ver 712.4. T-31 (13/10/2026): pedido à trilha motor — a primitiva \"objeto de duas cartas\" (uma permanente feita de duas cartas, que sai do campo como duas cartas, 701.42 / 712.21) mexe em battlefield()/invariantes (contrato comum); as 7 duplas ficam manuais declaradas até ela existir.",
    "esforco": "G",
    "depende": [
     "712.4"

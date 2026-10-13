@@ -5495,6 +5495,7 @@ const EFFECTS = {
   lutador: { fields: [], targets: ['creature', 'creature-you-control'] },
   fight: { fields: [], targets: ['creature', 'creature-opponent-controls', 'creature-you-control'] }, // quem: 'self-source' (a permanente fonte luta) | 'primeiro-alvo' (luta a criatura anotada pelo `lutador` anterior)
   /* ↓ T · efeitos da trilha tipos */
+  selada: { fields: [], targets: ['self'] }, // T-31 · CR 702.171a · "this permanent becomes saddled until end of turn" (o motor o monta a partir de `self.selar`, o script não o escreve)
   virar_carta: { fields: [], targets: ['self'] }, // T-29 · CR 710 · "flip ~": vira esta carta de virar para a parte alternativa (sem volta, 710.4); `se: { minCriaturas: N }` confere "if you control N or more creatures" na resolução
   porta: { fields: [], targets: ['permanent-you-control'] }, // T-27 · CR 709.5f/g · "unlock a locked door" / "lock a door" / "lock or unlock a door" de uma Sala (alvo: seletor de Sala sua); a porta é escolhida na resolução
   papel: { fields: [], targets: ['creature', 'creature-you-control', 'first-target'] }, // T-20 · CR 111.10j–r / 303.7 · "create a <Papel> Role token attached to <alvo>": a ficha de Papel (definida pela regra) entra anexada
@@ -6190,7 +6191,7 @@ function validateScript(sc) {
   if (sc && sc.replicate != null && sc.kicker) errs.push('replicar e reforço na mesma carta não são aceitos (os dois usam o pagamento repetido)');
   if (sc && sc.modeCount != null && !(Number.isInteger(sc.modeCount) && sc.modeCount >= 2 && (sc.modes || []).length && (sc.modeRepeat || sc.modeCount <= sc.modes.length))) errs.push('número de modos inválido');
   if (sc && sc.cumulativeUpkeep && !/\{/.test(String(sc.cumulativeUpkeep.mana || ''))) errs.push('manutenção cumulativa precisa de um custo de mana');
-  errs.push(...sagaErros(sc), ...tripularErros(sc), ...aventuraErros(sc), ...duplaFaceErros(sc), ...modalErros(sc), ...divididaErros(sc), ...classeErros(sc), ...batalhaErros(sc), ...papelErros(sc), ...nivelarErros(sc), ...salaErros(sc), ...virarErros(sc)); // T-29 · CR 710 · carta de virar (mesma chamada) // T-26 · CR 709.5 · Sala (mesma chamada) // T-24 · CR 711 · barras de nível (mesma chamada) // T-20 · CR 111.10 · papel conhecido (mesma chamada) // T-14 · CR 310.4 · defesa da batalha (mesma chamada) // T-12 · CR 716 · Classe (mesma chamada) // T-10 · CR 709 · carta dividida (mesma chamada) // T-8 · CR 712.3 · dupla face modal (mesma chamada) // T-7 · CR 712 · dupla face (mesma chamada) // T-5 · CR 715 · aventura (mesma chamada) // T-3 · CR 702.122 · tripular (mesma chamada da T-1) // T-1 · CR 714 · Saga: capítulos, read ahead e o marcador de entrada (função abaixo da âncora T das exportações)
+  errs.push(...sagaErros(sc), ...tripularErros(sc), ...aventuraErros(sc), ...duplaFaceErros(sc), ...modalErros(sc), ...divididaErros(sc), ...classeErros(sc), ...batalhaErros(sc), ...papelErros(sc), ...nivelarErros(sc), ...salaErros(sc), ...virarErros(sc), ...selarErros(sc)); // T-31 · CR 702.171 · selar (mesma chamada) // T-29 · CR 710 · carta de virar (mesma chamada) // T-26 · CR 709.5 · Sala (mesma chamada) // T-24 · CR 711 · barras de nível (mesma chamada) // T-20 · CR 111.10 · papel conhecido (mesma chamada) // T-14 · CR 310.4 · defesa da batalha (mesma chamada) // T-12 · CR 716 · Classe (mesma chamada) // T-10 · CR 709 · carta dividida (mesma chamada) // T-8 · CR 712.3 · dupla face modal (mesma chamada) // T-7 · CR 712 · dupla face (mesma chamada) // T-5 · CR 715 · aventura (mesma chamada) // T-3 · CR 702.122 · tripular (mesma chamada da T-1) // T-1 · CR 714 · Saga: capítulos, read ahead e o marcador de entrada (função abaixo da âncora T das exportações)
   return errs.concat(exampleErrors(sc));
 }
 const ATRASOS = ['next-upkeep', 'next-end-step', 'end-of-combat']; // CR2b.1 · momentos de gatilho atrasado que o motor conhece
@@ -6587,6 +6588,13 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-31 · CR 702.171 · selar (Oracle do Forge, consulta de 13/10/2026). A ficha de Ovelha é a w_1_1_sheep do Forge. Vigilância vem da palavra-chave.
+  { name: 'Bridled Bighorn', self: { selar: 2 }, abilities: [{ kind: 'triggered', when: 'attacks', condition: { selada: true }, effects: [{ do: 'token', amount: 1, token: { name: 'Sheep', types: ['creature'], subtypes: ['Sheep'], colors: ['W'], power: 1, toughness: 1 } }] }], // "Whenever Bridled Bighorn attacks while saddled, create a 1/1 white Sheep creature token. · Saddle 2"
+    example: { action: 'activate:0', target: 'none', expect: { selfLife: 0 } } },
+  { name: 'Trained Arynx', self: { selar: 2 }, abilities: [{ kind: 'triggered', when: 'attacks', condition: { selada: true }, effects: [{ do: 'keyword', keyword: 'first strike', target: 'self-source' }, { do: 'scry', amount: 1 }] }], // "Whenever Trained Arynx attacks while saddled, it gains first strike until end of turn. Scry 1. · Saddle 2"
+    example: { action: 'activate:0', target: 'none', expect: { selfLife: 0 } } },
+  { name: 'Drover Grizzly', self: { selar: 1 }, abilities: [{ kind: 'triggered', when: 'attacks', condition: { selada: true }, effects: [{ do: 'keyword', keyword: 'trample', target: 'each-own-creature' }] }], // "Whenever Drover Grizzly attacks while saddled, creatures you control gain trample until end of turn. · Saddle 1"
+    example: { action: 'activate:0', target: 'none', expect: { selfLife: 0 } } },
   // T-29 · CR 710 · carta de virar (Oracle do Forge, consulta de 13/10/2026). A ficha é a g_1_1_snake do Forge.
   { name: 'Orochi Eggwatcher', self: { virar: true },
     abilities: [{ kind: 'activated', cost: { mana: '{2}{G}', tap: true }, effects: [{ do: 'token', amount: 1, token: { name: 'Snake', types: ['creature'], subtypes: ['Snake'], colors: ['G'], power: 1, toughness: 1 } }, { do: 'virar_carta', se: { minCriaturas: 10 } }] }], // "{2}{G}, {T}: Create a 1/1 green Snake creature token. If you control ten or more creatures, flip Orochi Eggwatcher."
@@ -8809,6 +8817,14 @@ EVENTOS_DE_OBJETO.push('exaurida'); OBJETOS_DO_EVENTO.exaurida = ['self']; GATIL
 // V-6 · evento "ficou monstruosa" (701.37): da própria permanente
 EVENTOS_DE_OBJETO.push('monstruosa'); OBJETOS_DO_EVENTO.monstruosa = ['self']; GATILHO_EVENTO['becomes-monstrous'] = { evento: 'monstruosa', objeto: 'self' }; TRIGGER_PT['becomes-monstrous'] = 'quando fica monstruosa';
 /* ↓ T · exportações de scripts.js da trilha tipos */
+/* ---------------- T-31 · CR 702.171 · selar (forma do script) ----------------
+   `self: { selar: N }` ("Saddle N"): o motor monta a ativada (custo de tripular N, só como feitiço, efeito `selada`). "Whenever ~ attacks
+   while saddled" é o gatilho `attacks` com `condition: { selada: true }`. */
+function selarErros(sc) {
+  const sf = sc && sc.self; if (!sf || sf.selar == null) return [];
+  return Number.isInteger(sf.selar) && sf.selar > 0 ? [] : ['selar: self.selar é o N de "Saddle N", um inteiro positivo'];
+}
+Object.assign(EXPORTS_T_SC, { selarErros });
 /* ---------------- T-29 · CR 710 · cartas de virar (forma do script) ----------------
    O script mora no nome da parte normal (a carta listada como "A // B" usa o mesmo script, como as outras de duas partes):
    `self: { virar: true }` + `back: { name, types, subtypes, legendary, power, toughness, keywords, abilities }` (a parte alternativa,
@@ -8897,7 +8913,7 @@ MARCADOR_PT.level = 'de nível'; // T-24 · CR 122.1 / 702.87a
    As sete fichas de Papel, como a regra 111.10 as define (CR de 25/09/2026): encantamento Aura Role incolor, "enchant creature", e o
    que cada uma dá à criatura encantada. O efeito `papel` (`{ do: 'papel', papel: 'Monster', target }`) cria a ficha anexada ao alvo.
    Condição nova de gatilho: `resistenciaAte: N` ("if its toughness is N or less", conferida ao disparar e ao resolver, 603.4). */
-function condicoesT() { return ['resistenciaAte']; } // função (içada): o validador roda na carga do módulo, antes desta linha
+function condicoesT() { return ['resistenciaAte', 'selada']; } // T-31 · selada: "attacks while saddled" (702.171b) // função (içada): o validador roda na carga do módulo, antes desta linha
 var PAPEIS_DEF_T; // idem: criado na primeira chamada de papeisT()
 function papeisT() { const AURA_PAPEL_T = { enchant: 'creature' }; return PAPEIS_DEF_T || (PAPEIS_DEF_T = {
   Cursed: { name: 'Cursed', aura: AURA_PAPEL_T, continuo: [{ afetados: 'anexada', torna: { base: [1, 1] } }], example: { target: 'none', expect: { selfLife: 0 } } }, // 111.10j "Enchanted creature has base power and toughness 1/1."
@@ -18779,6 +18795,7 @@ const abilitiesOf = (s, o) => {
   // S11 · equipar é uma habilidade ativada com alvo, só no tempo de feitiço
   if (sc.equip) list.push({ kind: 'activated', cost: sc.equip.cost || {}, sorceryOnly: true, equip: true, effects: [{ do: 'attach', target: 'creature-you-control' }] });
   if (sc.self && sc.self.classe) classeHabilidadesT(s, o, sc, list); // T-12 · CR 716.2a · as habilidades dos níveis alcançados e a ativada do próximo nível
+  if (sc.self && sc.self.selar) list.push(selarHabilidadeT(sc)); // T-31 · CR 702.171a · a ativada de selar (Toca ponto comum: abilitiesOf)
   if (sc.self && sc.self.nivelar) nivelarHabilidadesT(s, o, sc, list); // T-24 · CR 702.87a / 711.4 · a ativada de subir de nível e as habilidades da barra alcançada (Toca ponto comum: abilitiesOf)
   if (sc.equip) list.push(...equipesK(s, o)); // K-28 · 702.6c-d: as outras habilidades de equipar impressas, com qualidade (Toca ponto comum: abilitiesOf)
   return list.concat(grantedAbilities(s, o), habilidadesDePalavraK(s, o)); // K-3 · palavra-chave que é habilidade disparada (proeza…)
@@ -20222,6 +20239,7 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'lutador': if (obj) s.lutadorV = { fonte: src.oid, fz: encarnacaoV(s, src), oid: obj.oid, z: obj.zc || 0 }; break; // V-1/V-5 · anota quem luta; a luta é o `fight` seguinte, que apaga a anotação
     case 'fight': lutar(s, src, eff, tgt, events); break; // V-1 · 701.14
     /* ↓ T · casos de applyEffect da trilha tipos */
+    case 'selada': seladaT(s, src, events); break; // T-31 · CR 702.171a · a montaria fica selada até o fim do turno
     case 'virar_carta': viraCartaT(s, src, eff, events); break; // T-29 · CR 710 · "flip ~" (sem volta)
     case 'porta': portaEfeitoT(s, src, eff, obj, events); break; // T-27 · CR 709.5f/g · destranca, tranca ou "tranca ou destranca" uma porta da Sala alvo
     case 'papel': criaPapelT(s, src, eff, obj, events); break; // T-20 · CR 111.10j–r / 303.7 · a ficha de Papel entra anexada ao alvo
@@ -20675,6 +20693,7 @@ function triggerConditionMet(s, o, cond) {
     if (!alive(s).some(q => q !== o.controller && terrenos(q) > terrenos(o.controller))) return false;
   }
   if (cond.atacaSozinha && !(s.combat && (s.combat.attackers || []).length === 1 && s.combat.attackers[0] === o.oid)) return false; // M-251 · 506.5 "attacks alone"
+  if (cond.selada && !seladaAgoraT(s, o)) return false; // T-31 · CR 702.171b: "while saddled" (Toca ponto comum: triggerConditionMet)
   if (cond.resistenciaAte != null && !(o.zone === 'battlefield' && toughness(s, o) <= cond.resistenciaAte)) return false; // T-20 · CR 111.10r / 603.4: "if its toughness is N or less" · Toca ponto comum: triggerConditionMet (uma linha)
   if (!condicaoK(s, o, cond)) return false; // K-59 · bênção da cidade e presente prometido (Toca ponto comum: triggerConditionMet)
   if (cond.attackersAtLeast != null) {
@@ -25605,6 +25624,25 @@ function viraCartaT(s, src, eff, events) {
   events.push({ kind: 'effect', do: 'virar_carta', name: de, target: o.name });
 }
 Object.assign(EXPORTS_T, { virarScriptT });
+/* ---------------- T-31 · CR 702.171 · selar ----------------
+   - 702.171a: "Saddle N" é a ativada de custo "vire outras criaturas suas com poder total N ou mais", só como feitiço — o mesmo custo de
+     tripular (grupos mínimos em `activate` e a escolha livre `tripular`, T-3), num não-Veículo: paga o custo e mais nada.
+   - 702.171b: "selada" é designação até o fim do turno ou até a montaria sair do campo (`o.seladaT = { turno, z }`); não é copiável.
+     A habilidade que resolve depois de a montaria sair e voltar não sela o objeto novo (400.7, o registro da ativação em `s.tripulou`).
+   Fora: o gatilho "whenever ~ saddles" (702.171c) e "não pode selar" ainda não existem; quem tripula "como se tivesse poder maior"
+   (tripulaMais) soma também para selar. */
+function selarHabilidadeT(sc) { const n = sc.self.selar; return { kind: 'activated', cost: { crew: n }, sorceryOnly: true, label: `Selar ${n}`, selarT: true, effects: [{ do: 'selada' }] }; }
+function seladaAgoraT(s, o) { const r = o && o.zone === 'battlefield' && o.seladaT; return !!(r && r.turno === s.turn.number && r.z === (o.zc || 0)); }
+function seladaT(s, src, events) {
+  const v = src.ability ? s.objects[src.source] : src, reg = (s.tripulou || {})[src.oid];
+  if (s.tripulou) { delete s.tripulou[src.oid]; if (!Object.keys(s.tripulou).length) delete s.tripulou; }
+  if (!v || v.zone !== 'battlefield' || (reg && reg.z !== (v.zc || 0))) { events.push({ kind: 'effect', do: 'selada', name: src.name, failed: true }); return; } // 400.7
+  v.seladaT = { turno: s.turn.number, z: v.zc || 0 };
+  events.push({ kind: 'effect', do: 'selada', name: v.name, target: v.name });
+}
+/** A mesa: a ação é a de selar (para a pergunta e o rótulo dizerem "selar", não "tripular"). */
+function selarDaAcaoT(s, a) { const o = a && a.t === 'activate' && s.objects[a.oid], ab = o && abilitiesOf(s, o).filter(x => x.kind === 'activated')[a.index || 0]; return !!(ab && ab.selarT); }
+Object.assign(EXPORTS_T, { seladaAgoraT, selarDaAcaoT });
 /* ---------------- T-24 · CR 702.87 / 711 · cartas de subir de nível ----------------
    Forma no script: `self: { nivelar: { mana, faixas: [{ de, ate, base: [P, R], palavras?, abilities?, continuo? }, …, { de, base, … }] } }`
    (a última barra é a "N+", sem `ate`). O nível é o número de marcadores `level` da permanente (122.1), de qualquer fonte.
@@ -26012,7 +26050,7 @@ function sagaEntrou(s, o) {
   if (o && ehEquipamentoImpressoT(s, o)) o.entrouEmAbT = s.nextAbility; // T-17 · CR 400.7: a habilidade de equipar criada antes de o Equipamento entrar é do objeto anterior
   auraEntrouT(s, o); // T-22 · CR 303.4f · Aura que entrou sem ser conjurada: anexa à única opção ou abre a escolha
   batalhaEntrouT(s, o); // T-14 · CR 310.4b / 310.9a · a batalha que entra: marcadores de defesa e protetor (mesmo ponto de entrada: moveObject e createToken)
-  if (o) { delete o.viradaT; delete o.viradaDeT; } // T-30 · 110.5b: entra sem virar
+  if (o) { delete o.viradaT; delete o.viradaDeT; delete o.seladaT; } // T-31 · 702.171b: a montaria entra sem estar selada · T-30 · 110.5b: entra sem virar
   if (o && virarScriptT(s, o)) o.virarEmT = s.nextAbility; // T-29 · CR 400.7: a habilidade de virar criada antes de a carta entrar é do objeto anterior
   if (o && parDuplaFaceT(s, o)) o.transformouEm = s.nextAbility; // T-9 · 400.7 / 701.27f: habilidade criada antes de a dupla face entrar no campo é do objeto antigo e não a transforma
   if (!o || !ehSaga(s, o)) return;
@@ -26198,12 +26236,13 @@ PENDING_ACTIONS.tripular = ['tripulante', 'tripular_pronto', 'concede'];
 function tripulacaoPendente(s) {
   const pd = s.pending; if (!pd || pd.kind !== 'tripular') return null;
   const valem = escolhidasQueValem(s, pd), soma = forcaDoGrupo(s, valem);
-  return { nome: pd.name, n: pd.n, soma, pronto: soma >= pd.n, escolhidas: valem.map(x => s.objects[x].name),
+  const ab = s.objects[pd.oid] && abilitiesOf(s, s.objects[pd.oid]).filter(x => x.kind === 'activated')[pd.index || 0]; // T-31 · selar usa a mesma decisão
+  return { nome: pd.name, n: pd.n, soma, pronto: soma >= pd.n, selar: !!(ab && ab.selarT), escolhidas: valem.map(x => s.objects[x].name),
     candidatos: candidatosATripular(s, pd.p, pd.oid).filter(x => !valem.includes(x)).map(oid => ({ oid, nome: s.objects[oid].name, forca: forcaDeTripular(s, s.objects[oid]) })) };
 }
 const tripulacaoPadrao = s => { const out = []; tripularPendentes(s, s.pending.p, out); return out[0] || { t: 'concede', p: s.pending.p }; };
 /** Para a folha da carta na mesa: as ações da trilha tipos que não são `activate`, com o rótulo do botão. */
-const acoesDeTipos = (s, p, oid) => legalActions(s, p).filter(a => a.t === 'tripular' && a.oid === oid).map(action => ({ label: 'Escolher quem tripula', action }));
+const acoesDeTipos = (s, p, oid) => legalActions(s, p).filter(a => a.t === 'tripular' && a.oid === oid).map(action => ({ label: selarDaAcaoT(s, { t: 'activate', oid, index: action.index }) ? 'Escolher quem sela' : 'Escolher quem tripula', action })); // T-31
 Object.assign(EXPORTS_T, { forcaDeTripular, candidatosATripular, tripulantesDe, tripulacaoPendente, tripulacaoPadrao, acoesDeTipos });
 /* ---------------- T-5 · CR 715 · cartas de aventura ----------------
    A Aventura usa o caminho de conjurar do presságio (`cast` com `omen: true`: a carta vai à pilha com a face de trás — 715.3a–b: só
@@ -29081,9 +29120,9 @@ const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas
   fight: e => `${e.quem === 'self-source' ? 'esta criatura luta' : 'ela luta'} com ${ALVO_PT[e.target] || descreveAlvo(e.target)} (cada uma causa dano igual ao próprio poder à outra)`,
 };
 /* ↓ T · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha tipos */
-const EFEITO_PT_T = { virar_carta: e => (e.se && e.se.minCriaturas ? `se você controla ${e.se.minCriaturas} ou mais criaturas, vira esta carta` : 'vira esta carta'), porta: e => (e.acao === 'trancar' ? 'tranca uma porta destrancada de uma Sala sua' : e.acao === 'destrancar' ? 'destranca uma porta trancada de uma Sala sua' : 'tranca ou destranca uma porta de uma Sala sua'), nivel_sobe: () => 'põe um marcador de nível nela', nivel_classe: e => `a Classe sobe para o nível ${e.n}`, tripulada: () => 'vira criatura artefato até o fim do turno', transformar: () => 'transforma (vira a outra face)' }; // T-7 · 701.27
+const EFEITO_PT_T = { selada: () => 'esta montaria fica selada até o fim do turno', virar_carta: e => (e.se && e.se.minCriaturas ? `se você controla ${e.se.minCriaturas} ou mais criaturas, vira esta carta` : 'vira esta carta'), porta: e => (e.acao === 'trancar' ? 'tranca uma porta destrancada de uma Sala sua' : e.acao === 'destrancar' ? 'destranca uma porta trancada de uma Sala sua' : 'tranca ou destranca uma porta de uma Sala sua'), nivel_sobe: () => 'põe um marcador de nível nela', nivel_classe: e => `a Classe sobe para o nível ${e.n}`, tripulada: () => 'vira criatura artefato até o fim do turno', transformar: () => 'transforma (vira a outra face)' }; // T-7 · 701.27
 /** T-7 · linhas do registro para os eventos da trilha tipos. */
-const LINHA_T = { virar_carta: ev => (ev.failed ? `${ev.name} não virou${ev.motivo ? ` (${ev.motivo})` : ''}` : `${ev.name} virou: agora é ${ev.target}`), porta: ev => (ev.failed ? `${ev.name}: nenhuma porta para trancar ou destrancar` : `${ev.name} ${ev.acao} ${ev.porta} (${ev.target})`), nivel_sobe: ev => (ev.failed ? `${ev.name}: saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu de nível (nível ${ev.nivel})`), nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
+const LINHA_T = { selada: ev => (ev.failed ? `${ev.name}: a montaria saiu do campo, não foi selada` : `${ev.name} foi selada`), virar_carta: ev => (ev.failed ? `${ev.name} não virou${ev.motivo ? ` (${ev.motivo})` : ''}` : `${ev.name} virou: agora é ${ev.target}`), porta: ev => (ev.failed ? `${ev.name}: nenhuma porta para trancar ou destrancar` : `${ev.name} ${ev.acao} ${ev.porta} (${ev.target})`), nivel_sobe: ev => (ev.failed ? `${ev.name}: saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu de nível (nível ${ev.nivel})`), nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
 Object.assign(EFEITO_PT_T, { cerco_derrotado: () => 'exila o Cerco; você pode conjurá-lo transformado, sem pagar', papel: e => `cria um Papel de ${e.papel} anexado à criatura` }); // T-14 · CR 310.12b
 Object.assign(LINHA_T, { cerco_derrotado: ev => (ev.failed ? `${ev.name}: o Cerco já tinha saído do campo, nada a exilar` : `${ev.name} foi derrotada e exilada${ev.target ? ` (pode virar ${ev.target})` : ''}`), protetor_batalha: ev => `${ev.target} passa a proteger ${ev.name}`, anexo_barrado: ev => `${ev.name} não pode equipar${ev.target ? ' ' + ev.target : ''} e fica onde está`, papel: ev => (ev.failed ? `${ev.name}: sem criatura para o Papel de ${ev.target}` : `Papel de ${ev.target || ev.name}`), papel_substituido: ev => `o Papel ${ev.name} foi substituído e vai para o cemitério`, batalha_cemiterio: ev => `${ev.name} ficou sem defesa e foi para o cemitério` }); // T-14 · CR 310.12b / 310.11 / 310.8
 function descreveEfeito(e) {
@@ -30890,7 +30929,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const campos = CAMPOS_PAGAMENTO.filter(([c]) => opcoes.some(a => a.pay && a.pay[c] != null));
     if (!campos.length && !opcoes.some(a => a.add === null)) return act(opcoes[0]);
     // uma pergunta só quando todas as opções pagam do mesmo jeito; senão, "como você paga?"
-    const unico = campos.length === 1 && opcoes.every(a => a.pay && a.pay[campos[0][0]] != null) ? campos[0] : null;
+    const unico = (u => (u && u[0] === 'crew' && opcoes.some(a => E.selarDaAcaoT(s, a)) ? ['crew', () => 'Quais criaturas selam?', 'Virar'] : u))(campos.length === 1 && opcoes.every(a => a.pay && a.pay[campos[0][0]] != null) ? campos[0] : null); // T-31 · selar: a pergunta fala em selar (Toca ponto comum: escolha do pagamento)
     const qtd = unico ? [].concat(opcoes[0].pay[unico[0]]).length : 0;
     // Leva 125 · quando a escolha é UMA carta (descartar, sacrificar, virar, devolver, exilar), a pergunta mostra as
     // cartas, não uma lista de botões dourados com o nome: cópias iguais da mão ou do cemitério viram uma carta só com ×N.
@@ -31542,7 +31581,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
         actions: Array.from({ length: Math.min(s.pending.max, 8) }, (_, i) => Button('Capítulo ' + (['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'][i] || i + 1), { variant: i ? undefined : 'primary', id: i ? undefined : 'tb-saga_capitulo', onClick: () => act({ t: 'saga_capitulo', p: v, n: i + 1 }) })) });
     } else if (s.pending && s.pending.kind === 'tripular' && s.pending.p === v) { // T-3 · CR 702.122a · quem tripula (qualquer número de criaturas)
       const tp = E.tripulacaoPendente(s);
-      banner = PriorityBanner({ title: `Quem tripula ${tp.nome}?`, hint: `Poder somado: ${tp.soma} de ${tp.n}${tp.escolhidas.length ? ' · ' + tp.escolhidas.join(' + ') : ''}. Toque em quem vira; pode virar mais do que o necessário.`, tone: 'warning',
+      banner = PriorityBanner({ title: `Quem ${tp.selar ? 'sela' : 'tripula'} ${tp.nome}?`, hint: `Poder somado: ${tp.soma} de ${tp.n}${tp.escolhidas.length ? ' · ' + tp.escolhidas.join(' + ') : ''}. Toque em quem vira; pode virar mais do que o necessário.`, tone: 'warning', // T-31 · selar usa a mesma decisão
         actions: [...(tp.pronto ? [Button('Pronto', { variant: 'primary', id: 'tb-tripular', onClick: () => act({ t: 'tripular_pronto', p: v }) })] : []),
           ...tp.candidatos.slice(0, 7).map((c, i) => Button(`${c.nome} (${c.forca})`, { variant: !tp.pronto && !i ? 'primary' : undefined, id: i ? undefined : 'tb-tripulante', onClick: () => act({ t: 'tripulante', p: v, oid: c.oid }) }))] });
     } else if (s.pending && s.pending.kind === 'dividir_dano' && s.pending.p === v) { // CR2g.2 · 510.1c
