@@ -5607,7 +5607,7 @@ const EXTRA_COST_PARTS = ['sacrificeOther', 'tapOther', 'discard', 'returnLand',
    equivalência compara o caminho antigo com o novo em partidas aleatórias. Carta nova escreve o seletor direto:
    target: { tipos: ['creature'], de: 'opponent' }  ·  { zona: 'graveyard', de: 'you', tipos: ['creature'] }  ·  { jogadores: 'any' } */
 const SELETOR_ZONAS = ['battlefield', 'graveyard', 'stack', 'nenhuma'];
-const SELETOR_CHAVES = ['zona', 'de', 'dono', 'tipos', 'semTipos', 'tiposImpressos', 'tiposDaCarta', 'subtipos', 'semSubtipos', 'palavra', 'semPalavra', 'mvMax', 'mvMin', 'outra', 'cor', 'semCor', 'permanente', 'jogadores', 'habilidades', 'ref', 'subtipoDaAura', 'lendaria', 'comToxico', 'ou'];
+const SELETOR_CHAVES = ['zona', 'de', 'dono', 'tipos', 'semTipos', 'tiposImpressos', 'tiposDaCarta', 'subtipos', 'semSubtipos', 'palavra', 'semPalavra', 'mvMax', 'mvMin', 'outra', 'cor', 'semCor', 'permanente', 'jogadores', 'habilidades', 'ref', 'subtipoDaAura', 'lendaria', 'comToxico', 'ou', 'atacando']; // M-361 · `atacando: true` (506.4)
 const ALVO_SELETOR = {
   any: { tipos: ['creature', 'planeswalker'], jogadores: 'any' },
   creature: { tipos: ['creature'] }, planeswalker: { tipos: ['planeswalker'] }, permanent: {},
@@ -16497,6 +16497,8 @@ const __m42 = (function () {
     [/^regenerate ~$/i, () => [{ do: 'regenerar', target: 'self-source' }]], // M-340 · 701.19 (Sanguine Guard, Dutiful Thrull)
     [/^you may shuffle$/i, () => [{ do: 'embaralhar_grimorio', optional: true }]], // M-339 · Ponder (701.24)
     [/^its controller gains life equal to its power$/i, () => [{ do: 'gain', amount: { per: 'power-of-target' }, target: 'target-controller' }]], // M-335 · Swords to Plowshares (608.2h: o poder como era no campo)
+    [/^each attacking creature doesn't untap during its controller's next untap step$/i, () => [{ do: 'nao_desvira', cada: { tipos: ['creature'], atacando: true } }]], // M-361 · Tangle (502.3, 506.4)
+    [/^put target creature card from your graveyard on top of your library$/i, () => [{ do: 'mover', para: 'library', posicao: 'topo', target: 'creature-in-your-graveyard' }]], // M-361 · Witch's Cottage, Mortuary Mire
     [/^it doesn't untap during its controller's next untap step$/i, () => [{ do: 'nao_desvira', target: 'first-target' }]], // M-334 · LT18 · 502.3 (Sleep of the Dead)
     [/^add ((?:\{[WUBRGC]\})+)$/i, m => [{ do: 'add_mana', symbols: m[1].match(/[WUBRGC]/g) }]], // M-334 · LT18 · mágica ou gatilho que adiciona mana (Seething Song, Burning-Tree Emissary)
     [/^you become the monarch$/i, () => [{ do: 'monarch' }]], // M-332 · CR 725
@@ -19137,6 +19139,7 @@ function selCasa(s, p, o, sel, selfOid, opts = {}) {
   if (sel.cor && !coresDe(s, o).includes(sel.cor)) return false; // CR2d.8
   if (sel.lendaria != null && portadorLendarioV(s, o)) { if (!sel.lendaria) return false; sel = { ...sel, lendaria: null }; } // V-25 · 701.54c (1): o Portador do Anel é lendário (Toca ponto comum: seletor)
   if (sel.lendaria != null && (!!f.legendary && !o.faceDown) !== sel.lendaria) return false;
+  if (sel.atacando != null && (o.zone !== 'battlefield' || (o.attacking != null) !== !!sel.atacando)) return false; // M-361 · 506.4: "attacking creature" (Tangle)
   if (sel.comToxico && !toxicoDe(s, o)) return false; // M-253 · "creatures you control with toxic" // M-246 · 205.4 · lendária (virada para baixo não tem supertipo)
   if (sel.semCor && coresDe(s, o).includes(sel.semCor)) return false; // CR2d.8
   if (sel.subtipoDaAura) { // Q11 · aura de subtipo ("Enchant Forest"): a fonte diz o subtipo e o terreno precisa tê-lo

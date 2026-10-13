@@ -4005,6 +4005,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Pedido à trilha `listas`:** script à mão de Wall of Roots com o que o leitor produz (modelo em `lt43.unit`).
 - **Teste:** `lt43.unit` (3 testes; todos falham no motor anterior).
 
+**M-361 · Seletor de criatura atacando e frases de Tangle e Witch's Cottage** ✅ (leva M-361, motor v110 sem mudança de forma; goldens intactos).
+- **Valor:** seletor `atacando: true` (506.4) para efeitos sobre "each attacking creature"; o leitor lê "Each attacking creature doesn't untap during its controller's next untap step" e "put target creature card from your graveyard on top of your library". Destrava Tangle (6 listas) e Witch's Cottage (8 listas) — textos do Oracle do Forge em `.listas/oficiais-listas.json`, consulta de 12/10/2026; a entrada virada "a menos que três outros Pântanos" e o gatilho "entra desvirada" já existiam desde a M-349.
+- **Regra:** só as criaturas atacando na resolução ficam presas no próximo passo de desvirar de quem as controla (502.3); o gatilho da Cottage é opcional e só dispara se ela entrou desvirada.
+- **Pedido à trilha `listas`:** scripts à mão de Tangle e Witch's Cottage com o que o leitor produz (modelos em `lt44.unit`).
+- **Teste:** `lt44.unit` (3 testes; todos falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
