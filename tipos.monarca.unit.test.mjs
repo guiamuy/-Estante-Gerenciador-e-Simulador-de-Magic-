@@ -108,3 +108,31 @@ test('Validador e frases · a condição do monarca no gatilho, no efeito e no e
   assert.match(T.descreveEfeitos(SCRIPTS.Golpe.effects), /se um oponente é o monarca/);
   assert.match(T.descreveEfeitos([{ do: 'draw', amount: 1, onlyIf: 'monarca' }]), /se você é o monarca/);
 });
+
+/* ---------------- T-64 · correções da auditoria independente (T-62) ---------------- */
+// B ganha o controle da permanente pelo efeito real `ganhar_controle` (fonte de B).
+const bToma = (s, oid) => { s = J(s); E.applyEffect(s, { oid: 'zz', name: 'Roubo', controller: 1, ability: true }, { do: 'ganhar_controle', target: 'creature' }, { oid }, []); return s; };
+
+test('CR 603.4 / 109.5 · o "você" da condição é quem controla a habilidade: B rouba o Throne Warden com o gatilho de A na pilha; A segue monarca, o marcador vem', () => {
+  let s = mesa(); let w; [s, w] = poe(s, 0, TW, 'battlefield'); s = monarca(s, 0);
+  let x = aoPasso(s, 0, 'end'); eq(naPilha(x, TW), 1);
+  x = bToma(x, w); eq(x.objects[w].controller, 1);
+  x = esvazia(x);
+  eq((x.objects[w].counters || {}).p1p1 || 0, 1);
+});
+
+test('CR 109.5 / 608.2c · efeito de habilidade com "se você é o monarca": o controle da fonte muda com a habilidade na pilha; vale o controlador da habilidade', () => {
+  SCRIPTS.Escriba = { name: 'Escriba', abilities: [{ kind: 'triggered', when: 'end-step', effects: [{ do: 'gain', amount: { per: 'se', se: 'monarca', sim: 3, nao: 1 } }, { do: 'draw', amount: 1, onlyIf: 'monarca' }] }], ...EX };
+  carta('Escriba', 'Creature — Human', { power: '1', toughness: '1' });
+  let s = monarca(mesa(), 0); let e; [s, e] = poe(s, 0, 'Escriba');
+  const v = s.players[0].life, h = s.zones[0].hand.length;
+  let x = aoPasso(s, 0, 'end'); eq(naPilha(x, 'Escriba'), 1);
+  x = esvazia(bToma(x, e));
+  eq([x.players[0].life - v, x.zones[0].hand.length - h], [3, 2], 'ganha 3 e compra 1 (mais 1 do monarca)');
+});
+
+test('Validador · as mensagens do "se" citam o monarca', () => {
+  assert.match(T.descreveEfeitos(SCRIPTS.Tributo.effects), /2 se você é o monarca/, 'a frase do "per: se" diz a condição');
+  assert.ok(SC.validateScript({ ...SCRIPTS.Pajem, continuo: [{ afetados: 'self', poder: 1, resistencia: 1, se: { monarca: true } }] }).some(e => /monarca/.test(e)));
+  assert.ok(SC.validateScript({ ...SCRIPTS.Tributo, effects: [{ do: 'draw', amount: { per: 'se', se: 'monarch', sim: 2, nao: 1 } }] }).some(e => /monarca/.test(e)));
+});

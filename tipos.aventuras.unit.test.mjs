@@ -386,3 +386,20 @@ test('CR 701.57a · descobrir N: a Aventura só é oferecida com valor de mana N
 test('Bot · a chave das jogadas distingue a Aventura da carta normal (com os mesmos alvos são jogadas diferentes)', () => {
   assert.notEqual(E.chaveDeFaceT({ t: 'cast', oid: 'o1', omen: true }), E.chaveDeFaceT({ t: 'cast', oid: 'o1' }));
 });
+
+/* ---------------- T-64 · correções da auditoria independente da T-62/T-63: o registro da conjuração sem pagar ---------------- */
+test('Registro · conjurar sem pagar como Aventura nomeia a Aventura; o terreno escondido é "jogado", não "conjurado" (305.1)', () => {
+  let s = mesa(['Andarilho', 'Descobre2']); let a; [s, a] = naMao(s, 0, 'Andarilho'); s = noTopo(s, 0, a);
+  let c; [s, c] = naMao(s, 0, 'Descobre2'); s = mana(s, 0);
+  s = resolveUm(act(s, conjuras(s, 0, c)[0]));
+  const av = livres(s, a).find(x => x.omen); const r = E.apply(s, av);
+  const L = T.describe(s, av, r.events, r.state).join(' | ');
+  assert.match(L, /conjurou Andarilho como a aventura Passeio sem pagar/, L);
+  let t = mesa(['Andarilho']); let f; [t, f] = naMao(t, 0, 'Forest'); t = J(t);
+  t.zones[0].hand.splice(t.zones[0].hand.indexOf(f), 1); t.zones[0].exile.push(f); Object.assign(t.objects[f], { zone: 'exile', faceDown: true, playableFromExile: 0 });
+  t.pending = { kind: 'free_cast', p: 0, options: [f], name: 'Windbrisk Heights', escondida: true };
+  const j = legais(t, 0, x => x.t === 'cast_free' && x.oid === f)[0]; assert.ok(j, 'oferta do terreno escondido');
+  const r2 = E.apply(t, j); const L2 = T.describe(t, j, r2.events, r2.state).join(' | ');
+  eq(r2.state.objects[f].zone, 'battlefield');
+  assert.match(L2, /jogou Forest/, L2); assert.doesNotMatch(L2, /conjurou/, L2);
+});

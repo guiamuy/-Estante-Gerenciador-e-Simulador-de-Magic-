@@ -5828,7 +5828,7 @@ function continuoErros(c, tag) {
   for (const k of Object.keys(c)) if (!CHAVES_CONTINUO.includes(k)) errs.push(`${tag}: chave "${k}" desconhecida`);
   const a = c.afetados;
   if (c.seAfetado != null) { if (typeof c.seAfetado !== 'object' || Array.isArray(c.seAfetado)) errs.push(`${tag}: "seAfetado" precisa ser um seletor`); else { errs.push(...seletorErros(c.seAfetado, `${tag}: seAfetado`)); for (const k of ['zona', 'ref', 'ou', 'jogadores', 'habilidades']) if (c.seAfetado[k] != null) errs.push(`${tag}: seAfetado não aceita "${k}"`); } }
-  if (c.se != null && !(c.se && Object.keys(c.se).length === 1 && (Number.isInteger(c.se.oponenteComVeneno) || TIPOS_DE_CARTA.includes(c.se.controlaTipo) || c.se.metalcraft === true || seMonarcaT(c.se)))) errs.push(`${tag}: "se" conhece só oponenteComVeneno (inteiro), controlaTipo (tipo de carta) ou metalcraft (true)`); // M-363 // M-253 · Corrompido · M-351 · "as long as you control an artifact" (Goblin Tomb Raider)
+  if (c.se != null && !(c.se && Object.keys(c.se).length === 1 && (Number.isInteger(c.se.oponenteComVeneno) || TIPOS_DE_CARTA.includes(c.se.controlaTipo) || c.se.metalcraft === true || seMonarcaT(c.se)))) errs.push(`${tag}: "se" conhece só oponenteComVeneno (inteiro), controlaTipo (tipo de carta), metalcraft (true) ou monarca ('voce' ou 'oponente')`); // M-363 // M-253 · Corrompido · M-351 · "as long as you control an artifact" (Goblin Tomb Raider)
   if (c.ward != null) errs.push(...wardCustoErrosK(c.ward, false).map(e => `${tag}: "ward" ${e}`)); // K-2 · 702.21
   if (a !== 'self' && a !== 'anexada' && a !== 'equipada-pela-anexada') {
     if (!a || typeof a !== 'object') errs.push(`${tag}: "afetados" precisa ser self, anexada ou um seletor (ou equipada-pela-anexada)`);
@@ -6031,7 +6031,7 @@ const REDUZ_POR = ['instants-sorceries-in-your-graveyard', 'creature-cards-in-yo
 /** S19 · um valor pode ser um número ou uma contagem do campo. */
 const isCount = v => v && typeof v === 'object' && (typeof v.per === 'string' || typeof v.subtype === 'string');
 const valueErrors = (v, label) => isCount(v) && v.per === 'soma' ? (Array.isArray(v.partes) && v.partes.length >= 2 && v.partes.every(x => isCount(x) && x.per !== 'soma') ? v.partes.flatMap((x, i) => valueErrors(x, `${label} (parte ${i + 1})`)) : [`${label}: "soma" precisa de duas ou mais contagens em "partes"`]) // M-358
-  : isCount(v) ? (v.per === 'se' && !(['metalcraft', 'cast-from-graveyard', 'kicked', 'not-cast-from-hand', 'bargained', ...onlyIfT()].includes(v.se) && Number.isInteger(v.sim) && Number.isInteger(v.nao)) ? [`${label}: "se" precisa da condição (metalcraft, cast-from-graveyard, kicked) e dos valores sim/não`] : v.subtype || PER_COUNTS.includes(v.per) ? [] : [`${label}: contagem "${v.per}" desconhecida`]) // M-331
+  : isCount(v) ? (v.per === 'se' && !(['metalcraft', 'cast-from-graveyard', 'kicked', 'not-cast-from-hand', 'bargained', ...onlyIfT()].includes(v.se) && Number.isInteger(v.sim) && Number.isInteger(v.nao)) ? [`${label}: "se" precisa da condição (metalcraft, cast-from-graveyard, kicked, bargained, not-cast-from-hand, monarca, oponente-monarca) e dos valores sim/não`] : v.subtype || PER_COUNTS.includes(v.per) ? [] : [`${label}: contagem "${v.per}" desconhecida`]) // M-331
   : (Number.isInteger(v) ? [] : [`${label}: precisa ser inteiro ou contagem`]);
 /** S11b · evasão estática e escolhas feitas quando a permanente entra. */
 const EVASIONS = ['flying-only', 'power-less', 'three-or-more']; // M-349 · Troll of Khazad-dûm: "can't be blocked except by three or more creatures"
@@ -20200,7 +20200,7 @@ function amountOf(s, src, v) {
     // S48 · o valor que o gatilho trouxe mora na habilidade, não na permanente que a gerou
     if (v.per === 'trigger-value') return (src.triggerValue || 0) * (v.times || 1);
     if (v.per === 'movidas') return (src.movidas || 0) * (v.times || 1); // M-386 · o que o efeito anterior desta habilidade pôs no cemitério
-    if (v.per === 'se') return condicaoDoEfeito(s, src.ability ? s.objects[src.source] : src, v.se) ? v.sim : v.nao; // M-331 · "… instead if …" (Galvanic Blast, Plunder the Trollshaws)
+    if (v.per === 'se') return condicaoDoEfeito(s, src.ability && !seDoMonarcaT(v.se) ? s.objects[src.source] : src, v.se) ? v.sim : v.nao; // T-64 · o monarca é visto do controlador da habilidade (109.5) // M-331 · "… instead if …" (Galvanic Blast, Plunder the Trollshaws)
     if (v.per === 'soma') return (v.partes || []).reduce((n, x) => n + amountOf(s, src, x), 0) * (v.times || 1); // M-358 · "N, plus M" (Seize the Storm)
     if (v.per === 'x') return (src.xPaid || 0) * (v.times || 1); // CR2c.3 · 107.3a: o X escolhido ao conjurar, o mesmo em todo o texto
     // CR2a.4 · 608.2h/113.7a: a resistência que a criatura sacrificada no custo tinha no campo
@@ -24522,8 +24522,8 @@ function resolveAbility(s, o, events) {
     // CR2b.6 · 603.4 / 608.2h: se a fonte mudou de zona, a condição usa a última informação conhecida dela (o retrato do disparo)
     const fonte = viva && r && (viva.zc || 0) !== r.zc ? (({ zc, ...m }) => ({ ...viva, kicked: undefined, bargained: undefined, evidenced: undefined, faceDown: undefined, ...m }))(r) : viva;
     // "atacou com três ou mais" é informação do combate que já passou: vale o que foi visto no disparo
-    const { attackersAtLeast, atacaSozinha, entrouDesvirada, ...resto } = o.condicao; // M-252 · "ataca sozinha" também é do disparo · M-349 · "entra desvirada" idem
-    if (fonte && !triggerConditionMet(s, fonte, resto)) { events.push({ kind: 'trigger-fizzled', name: o.name, when: 'condição' }); return; }
+    const { attackersAtLeast, atacaSozinha, entrouDesvirada, monarca, ...resto } = o.condicao; // M-252 · "ataca sozinha" também é do disparo · M-349 · "entra desvirada" idem · T-64 · o monarca é do controlador da habilidade (abaixo)
+    if ((fonte && !triggerConditionMet(s, fonte, resto)) || (monarca && !monarcaCondT(s, o.controller, monarca))) { events.push({ kind: 'trigger-fizzled', name: o.name, when: 'condição' }); return; } // T-64 · CR 603.4 / 109.5: o "você" é quem controla a habilidade (Toca ponto comum: resolveAbility)
     o.condicaoConferida = true;
   }
   // R9 · 608.2b: com todos os alvos ilegais a habilidade sai da pilha antes de qualquer pergunta ou pagamento
@@ -24560,7 +24560,7 @@ function resolveAbility(s, o, events) {
   for (const eff of o.effects || []) {
     if (eff.onlyIf === 'alvo-era-neve' && !neveDoPrimeiro) continue; // M-385
     if (eff.onlyIf === 'alvo-era-seu' && donoDoPrimeiro !== o.controller) continue; // M-341
-    if (!effectAllowed(s, fonte, eff)) continue; // S49 · condição do próprio efeito
+    if (!effectAllowed(s, seDoMonarcaT(eff.onlyIf) ? o : fonte, eff)) continue; // S49 · condição do próprio efeito · T-64 · o monarca é visto do controlador da habilidade (109.5; Toca ponto comum: resolveAbility)
     if (eff.target === 'self-source' && o.fonteZc != null && fonte && fonte.zone === 'battlefield' && (fonte.zc || 0) !== o.fonteZc) { events.push({ kind: 'effect', do: eff.do, name: o.name, failed: true }); continue; } // M-371 · 400.7: a permanente que saiu e voltou é outro objeto
     if (SC.isTargeted(eff)) { const t = chosen[ti]; const legal = ok[ti]; ti++; if (ti === 1 && t == null && eff.upTo) primeiroVazio = true; if (!primeiro) { primeiro = t; donoDoPrimeiro = t && t.oid != null && s.objects[t.oid] ? s.objects[t.oid].controller : null; neveDoPrimeiro = !!(t && t.oid != null && s.objects[t.oid] && s.objects[t.oid].zone === 'battlefield' && temSubtipo(s, t.oid, 'Snow')); } if (legal) applyEffect(s, o, eff, t, events); }
     else if (eff.target === 'target-controller') { if (primeiroVazio) continue; const t = primeiro; applyEffect(s, o, eff, { player: t && t.player != null ? t.player : donoDoPrimeiro != null ? donoDoPrimeiro : o.controller }, events); } // M-327 · "its controller" também em habilidade (Ghost Quarter: quem busca é o dono do terreno destruído; antes era quem ativou)
@@ -26996,6 +26996,7 @@ const completadoT = (s, o) => { const f = s.facts[o.name] || {}, tem = (f.kw || 
 const wardDoDisfarceT = (s, o) => (((o.faceDown && o.disfarcadaT) || (!o.faceDown && copiaComWardViradaT(s, o))) && !(mutacao(s, o) || {}).perde ? ['{2}'] : []); // T-57 · e a cópia de uma virada com salvaguarda (valor copiável)
 /** T-62 · CR 725.5 · "if you're the monarch" ('voce') / "if an opponent is the monarch" ('oponente'), visto do jogador `p` agora.
  * Sem monarca no jogo, nenhuma das duas vale (o efeito não faz nada até alguém se tornar o monarca). */
+function seDoMonarcaT(k) { return k === 'monarca' || k === 'oponente-monarca'; } // T-64 · as condições de efeito do monarca (onlyIf e per: 'se')
 function monarcaCondT(s, p, quem) { if (s.monarca == null || p == null) return false; return quem === 'oponente' ? s.monarca !== p : s.monarca === p; }
 /** T-42 · CR 708.8 · a permanente foi virada para cima: dispara "when ~ is turned face up". */
 function viradaParaCimaT(s, oid) { const o = s.objects[oid]; if (o && o.zone === 'battlefield' && !o.faceDown) gatilhosDaPermanente(s, 'virada-para-cima', o, ['self'], {}, () => true, false); }
@@ -30319,7 +30320,7 @@ function describe(before, a, events, after) {
     case 'cycle': L.push(`${P} ciclou ${nameOf(before, a.oid)}`); break;
     case 'ninjutsu': L.push(`${P} usou ninjutsu: ${nameOf(before, a.attacker)} voltou e ${nameOf(before, a.oid)} entrou atacando`); break;
     case 'cast_madness': L.push(`${P} conjurou ${nameOf(before, before.pending.oid)} por insanidade`); break;
-    case 'cast_free': { const alvo = (a.targets || []).map(x => x.player != null ? who(before, x.player) : nameOf(before, x.oid)).join(', '); L.push(`${P} conjurou ${nameOf(before, a.oid)} sem pagar${alvo ? ` · alvo: ${alvo}` : ''}`); break; } // T-63 · a conjuração sem pagar (cascata, descobrir…) entra no registro (Toca ponto comum: linhas do registro)
+    case 'cast_free': { const alvo = (a.targets || []).map(x => x.player != null ? who(before, x.player) : nameOf(before, x.oid)).join(', '), n0 = nameOf(before, a.oid), av = a.omen && E.aventuraDe(before, a.oid); if (E.tiposDe(before, before.objects[a.oid]).includes('land')) { L.push(`${P} jogou ${n0}`); break; } /* T-64 · 305.1: o terreno escondido é jogado */ L.push(`${P} conjurou ${n0}${av ? ` como a aventura ${av.nome}` : a.omen ? ' (presságio)' : ''} sem pagar${alvo ? ` · alvo: ${alvo}` : ''}`); break; } // T-63 · a conjuração sem pagar (cascata, descobrir…) entra no registro (Toca ponto comum: linhas do registro)
     case 'decline_madness': L.push(`${P} deixou ${nameOf(before, before.pending.oid)} ir para o cemitério`); break;
     // Leva 110 · "pagar" serve a dois casos: custo de "a menos que pague" e custo opcional de efeito
     case 'pay': { const pd = before.pending || {}; const alvo = before.objects[pd.target];
@@ -31073,7 +31074,7 @@ const ALVO_PT = { 'delayed-object': 'essa permanente', 'each-opponent-creature':
 ALVO_PT['that-player'] = 'quem controla a mágica que disparou'; // M-322 · CR2b.9 (Bonecrusher Giant: "that spell's controller"); o portão R9b pegou a frase em inglês
 const PALAVRA_PT = { defender: 'defensor', /* M-370 */ infect: 'infectar', indestructible: 'indestrutível', hexproof: 'resistência a magia', flying: 'voar', haste: 'ímpeto', trample: 'atropelar', lifelink: 'vínculo com a vida', deathtouch: 'toque mortífero', vigilance: 'vigilância', reach: 'alcance', menace: 'ameaçar', 'first strike': 'iniciativa', 'double strike': 'golpe duplo',
   fear: 'medo', intimidate: 'intimidar', shadow: 'sombra', skulk: 'esgueirar', islandwalk: 'travessia de ilha', swampwalk: 'travessia de pântano', forestwalk: 'travessia de floresta', mountainwalk: 'travessia de montanha', plainswalk: 'travessia de planície' };
-const qtd = v => (typeof v === 'number' ? v : (v && v.per === 'se') ? `${v.nao} (${v.sim} ${({ metalcraft: 'com três artefatos ou mais', 'cast-from-graveyard': 'se veio do cemitério', kicked: 'com reforço', bargained: 'com barganha', 'not-cast-from-hand': 'se não foi conjurada da mão' })[v.se] || 'com a condição'})` : (v && v.per) ? 'X' : 1); // M-331
+const qtd = v => (typeof v === 'number' ? v : (v && v.per === 'se') ? `${v.nao} (${v.sim} ${({ metalcraft: 'com três artefatos ou mais', 'cast-from-graveyard': 'se veio do cemitério', kicked: 'com reforço', bargained: 'com barganha', 'not-cast-from-hand': 'se não foi conjurada da mão', monarca: 'se você é o monarca', 'oponente-monarca': 'se um oponente é o monarca' /* T-64 */ })[v.se] || 'com a condição'})` : (v && v.per) ? 'X' : 1); // M-331
 const IGUAL_A = { party: 'ao número de criaturas do seu grupo', /* T-59 · CR 700.8 */ 'life-lost-this-turn': 'à vida que você perdeu neste turno', 'life-gained-this-turn': 'à vida que você ganhou neste turno', 'power-of-source': 'ao poder dela', 'power-of-target': 'ao poder do alvo' }; // M-248 · CR2b.10
 const plural = (n, um, muitos) => (n === 1 ? `${n} ${um}` : `${n} ${muitos}`);
 /** Uma frase por efeito. O que o dicionário não conhece vira o nome do efeito, nunca some. */
