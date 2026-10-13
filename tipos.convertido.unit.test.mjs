@@ -130,3 +130,13 @@ test('CR 702.162 · passeio aleatório com Transformers: nada oferecido é recus
   }
   assert.ok(convertidas > 0, 'alguma carta foi conjurada convertida');
 });
+
+/* ---------------- T-50 · correções da auditoria independente ---------------- */
+test('CR 302.6 · convertida no turno em que entrou e convertida de volta para a frente (criatura): continua enjoada, não ataca (D1)', () => {
+  let s = mesa(); let j; [s, j] = conjuraConvertida(s); s = mana(s);
+  s = esvazia(act(s, legais(s, 0, a => a.t === 'activate' && a.oid === j)[0]));
+  eq([s.objects[j].name, E.tiposDe(s, s.objects[j]).includes('creature')], [JF, true]);
+  s = passaAte(s, x => x.turn.step === 'combat_attackers' || (!!x.pending && x.pending.kind !== 'attackers'));
+  assert.ok(!E.legalActions(s, 0).some(a => a.t === 'attack' && (a.attackers || []).includes(j)), 'não é oferecida para atacar');
+  if (s.pending && s.pending.kind === 'attackers') assert.throws(() => E.apply(s, { t: 'attack', p: 0, attackers: [j] }), 'o pedido direto é recusado');
+});

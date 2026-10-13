@@ -16,6 +16,7 @@ const EX = { example: { target: 'none', expect: { selfLife: 0 } } };
 const SCRIPTS = {
   'Faisca': { name: 'Faisca', effects: [{ do: 'damage', amount: 1, target: 'player' }], ...EX },
   // dupla face de teste: daybound na frente; o verso ganha 3 de vida "quando transforma" (701.27e) e tem nightbound
+  'Totem Lunar': { name: 'Totem Lunar', self: { duplaFace: true }, back: { name: 'Fera Lunar', types: ['creature'], subtypes: ['Werewolf'], colors: ['R'], power: 4, toughness: 4, keywords: ['Nightbound'] }, ...EX },
   'Lobo Teste': { name: 'Lobo Teste', self: { duplaFace: true }, abilities: [{ kind: 'activated', cost: { mana: '{1}' }, effects: [{ do: 'transformar' }] }],
     back: { name: 'Lobo Noturno', types: ['creature'], subtypes: ['Werewolf'], colors: ['R'], power: 5, toughness: 5, keywords: ['Nightbound'],
       abilities: [{ kind: 'triggered', when: 'transforms', effects: [{ do: 'gain', amount: 3 }] }] }, ...EX },
@@ -23,11 +24,12 @@ const SCRIPTS = {
 carta('Faisca', 'Instant');
 carta('Lobo Teste', 'Creature — Human Werewolf', { power: '1', toughness: '1', keywords: ['Daybound'], mana_cost: '{1}{R}', cmc: 2 });
 carta('Lua Cheia', 'Creature — Wolf', { power: '2', toughness: '2', keywords: ['Nightbound'] }); // só nightbound (702.145g), sem dupla face
+carta('Totem Lunar', 'Artifact', { keywords: ['Daybound'], mana_cost: '{2}', cmc: 2 }); // frente que não é criatura; o verso é (T-50)
 carta('Urso', 'Creature — Bear', { power: '2', toughness: '2', mana_cost: '{1}{R}', cmc: 2 });
 
 const TR = 'Tavern Ruffian';
 const deckCom = extra => [{ name: 'Mountain', qty: 24, zone: 'main' }, { name: 'Faisca', qty: 10, zone: 'main' }, { name: 'Urso', qty: 10, zone: 'main' }, ...extra];
-function mesa(seed = 1, extra = [{ name: TR, qty: 4, zone: 'main' }, { name: 'Lobo Teste', qty: 4, zone: 'main' }, { name: 'Lua Cheia', qty: 2, zone: 'main' }]) {
+function mesa(seed = 1, extra = [{ name: TR, qty: 4, zone: 'main' }, { name: 'Lobo Teste', qty: 4, zone: 'main' }, { name: 'Lua Cheia', qty: 2, zone: 'main' }, { name: 'Totem Lunar', qty: 2, zone: 'main' }]) {
   const deck = deckCom(extra);
   const nomes = new Set(deck.map(d => d.name)), cards = Object.fromEntries(Object.entries(C).filter(([n]) => nomes.has(n))); // os fatos da partida são as cartas das listas (como no app)
   let s = E.createGame({ format: 'livre', seed, mode: 'full', cards, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
@@ -157,4 +159,14 @@ test('CR 702.145 · passeio aleatório com lobisomens: nada oferecido é recusad
     }
   }
   eq([...vistos].sort(), ['dia', 'noite']);
+});
+
+/* ---------------- T-50 · correções da auditoria independente ---------------- */
+test('CR 702.145b / 302.6 · de noite, a dupla face cuja frente não é criatura entra transformada numa criatura: enjoada, não ataca no turno em que entrou', () => {
+  let s = mesa(); [s] = conjura(s, 0, TR);
+  s = ateTurnoDe(s, 1); s = ateTurnoDe(s, 0); eq(ciclo(s), 'noite');
+  let x; [s, x] = conjura(s, 0, 'Totem Lunar');
+  eq([s.objects[x].name, E.tiposDe(s, s.objects[x]).includes('creature'), !!s.objects[x].sick], ['Fera Lunar', true, true]);
+  s = passaAte(s, y => y.turn.step === 'combat_attackers' || (!!y.pending && y.pending.kind !== 'attackers'));
+  assert.ok(!E.legalActions(s, 0).some(a => a.t === 'attack' && (a.attackers || []).includes(x)), 'não é oferecida para atacar');
 });

@@ -27561,6 +27561,7 @@ function transformaT(s, o, src, events) {
   } else if (paraVerso) flipTo(s, o, par.verso);
   else { o.name = par.frente; delete o.frontName; o.ts = relogio(s); } // de volta à frente, com carimbo novo (613.7g)
   o.transformouEm = s.nextAbility;
+  if (o.entrouNoTurno === s.turn.number && !o.sick && isCreature(s, o)) o.sick = true; // T-50 · CR 302.6: entrou neste turno sem ser criatura (Veículo, Aura) e virou uma face de criatura — continua sem poder atacar nem usar {T} (auditoria, D1)
   events.push({ kind: 'effect', do: src && src.converteT ? 'converter' : 'transformar', name: de, target: destino }); // T-49 · 701.28a: converter segue as regras de transformar
   gatilhosDaPermanente(s, 'transforma', o, ['self'], {}, () => true, false); // 701.27e: "transforms into" dispara também ao converter
   return true;
@@ -27622,6 +27623,7 @@ function cicloNaEntradaT(s, o) {
   if (!o || s.cicloT !== 'noite' || o.frontName || o.faceDown || !has(s, o, 'daybound')) return;
   const par = parDuplaFaceT(s, o); if (!par || !s.facts[par.verso]) return;
   flipTo(s, o, par.verso);
+  if (isCreature(s, o)) o.sick = true; // T-50 · CR 302.6: o enjoo da entrada foi calculado com a frente (que pode não ser criatura)
 }
 Object.assign(EXPORTS_T, { partidaTemDiaNoiteT });
 /** 707.8a · a ficha criada como cópia de uma permanente de dupla face tem as duas faces e entra com a mesma face para cima. */

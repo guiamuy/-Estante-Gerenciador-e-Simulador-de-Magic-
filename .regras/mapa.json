@@ -9046,7 +9046,7 @@
     "contagem de mágicas por jogador no turno"
    ],
    "cartas": "comum (Innistrad: Midnight Hunt/Crimson Vow)",
-   "evidencia": "T-48 (13/10/2026): designação da partida em s.cicloT (dia | noite; sem ela, nem dia nem noite, como a partida começa); checagem no passo de desvirar entre a fase (502.1) e o desvirar (502.3) pelas mágicas do jogador ativo do turno anterior (s.magiasDoAtivoT, contada em contaMagiaK só em partida com carta de dia e noite); ao virar noite a dupla face com daybound transforma, ao virar dia a com nightbound volta (transformar de verdade: \"quando transforma\" dispara); de noite a dupla face com daybound entra transformada (sagaEntrou, antes dos gatilhos de entrar); daybound sem designação faz virar dia e nightbound sem designação e sem daybound no campo faz virar noite (conferência no laço das ações de estado); quem tem daybound/nightbound só transforma por elas (transformaT). Registro \"Virou noite (nenhuma mágica no turno anterior)\"; o balão do turno diz \"Dia ou noite\". Carta exemplo: Tavern Ruffian // Tavern Smasher (Oracle do Forge, 13/10/2026).",
+   "evidencia": "T-48 (13/10/2026): designação da partida em s.cicloT (dia | noite; sem ela, nem dia nem noite, como a partida começa); checagem no passo de desvirar entre a fase (502.1) e o desvirar (502.3) pelas mágicas do jogador ativo do turno anterior (s.magiasDoAtivoT, contada em contaMagiaK só em partida com carta de dia e noite); ao virar noite a dupla face com daybound transforma, ao virar dia a com nightbound volta (transformar de verdade: \"quando transforma\" dispara); de noite a dupla face com daybound entra transformada (sagaEntrou, antes dos gatilhos de entrar); daybound sem designação faz virar dia e nightbound sem designação e sem daybound no campo faz virar noite (conferência no laço das ações de estado); quem tem daybound/nightbound só transforma por elas (transformaT). Registro \"Virou noite (nenhuma mágica no turno anterior)\"; o balão do turno diz \"Dia ou noite\". Carta exemplo: Tavern Ruffian // Tavern Smasher (Oracle do Forge, 13/10/2026). T-50 (13/10/2026) · auditoria independente (139 verificações, passeio de 8.512 ações): a carta que entra transformada numa criatura, ou vira criatura ao transformar no turno em que entrou, fica enjoada (302.6).",
    "testes": [
     "CR 731.1 / 702.145d · a partida começa sem dia nem noite; controlar uma permanente com daybound faz virar dia",
     "CR 731.2a / 502.2 / 702.145b · de dia, o jogador ativo que não conjura nada no turno dele faz virar noite no desvirar seguinte; Tavern Ruffian transforma em Tavern Smasher 6/5",
@@ -9056,7 +9056,8 @@
     "CR 702.145b / 701.27e · virar noite transforma de verdade: \"quando transforma\" do verso dispara",
     "CR 702.145b/e · \"só transforma pelo próprio dia e noite\": a habilidade \"transforme\" da carta não a transforma",
     "CR 702.145g · sem dia nem noite, uma permanente com nightbound (e nenhuma com daybound no campo) faz virar noite",
-    "CR 731.2c · sem dia nem noite a checagem não acontece: turnos sem conjurar nada não fazem virar noite"
+    "CR 731.2c · sem dia nem noite a checagem não acontece: turnos sem conjurar nada não fazem virar noite",
+    "CR 702.145b / 302.6 · de noite, a dupla face cuja frente não é criatura entra transformada numa criatura: enjoada, não ataca no turno em que entrou"
    ]
   },
   {
@@ -9324,12 +9325,13 @@
     "601.2b custo alternativo"
    ],
    "cartas": "uma coleção só (Transformers)",
-   "evidencia": "T-49 (13/10/2026): `self.maisQueOlhos` (custo de More Than Meets the Eye) em carta `self.duplaFace`; a ação `cast` com `face: \"convertida\"` vira o verso para cima antes de qualquer conferência e a marca da conjuração `convertidaT` faz o custo pago ser o alternativo (custoDoPrototipoT, HANDLERS.cast); na pilha o valor de mana é o da frente (712.8c) e a mágica entra com o verso para cima (712.13); de qualquer zona de onde poderia ser conjurada (mão, exílio jogável); ofertas pela cópia do estado com o verso para cima. Metal vivo: no turno de quem controla, a permanente também é criatura artefato (camada 4, redefinicoesDaTrilhaT; lido dos fatos da face para cima). \"Convert ~\" (efeito convert da V-22) na carta de dupla face desta trilha passa pelo transformar da T-7 (nos dois sentidos, 701.28e/f), com o registro \"converteu\". Botão \"Conjurar convertida: <verso> · <custo>\". Carta exemplo: Jetfire, Ingenious Scientist // Jetfire, Air Guardian (Oracle do Forge, 13/10/2026), parcial (a habilidade de mana da frente fica de fora).",
+   "evidencia": "T-49 (13/10/2026): `self.maisQueOlhos` (custo de More Than Meets the Eye) em carta `self.duplaFace`; a ação `cast` com `face: \"convertida\"` vira o verso para cima antes de qualquer conferência e a marca da conjuração `convertidaT` faz o custo pago ser o alternativo (custoDoPrototipoT, HANDLERS.cast); na pilha o valor de mana é o da frente (712.8c) e a mágica entra com o verso para cima (712.13); de qualquer zona de onde poderia ser conjurada (mão, exílio jogável); ofertas pela cópia do estado com o verso para cima. Metal vivo: no turno de quem controla, a permanente também é criatura artefato (camada 4, redefinicoesDaTrilhaT; lido dos fatos da face para cima). \"Convert ~\" (efeito convert da V-22) na carta de dupla face desta trilha passa pelo transformar da T-7 (nos dois sentidos, 701.28e/f), com o registro \"converteu\". Botão \"Conjurar convertida: <verso> · <custo>\". Carta exemplo: Jetfire, Ingenious Scientist // Jetfire, Air Guardian (Oracle do Forge, 13/10/2026), parcial (a habilidade de mana da frente fica de fora). T-50 (13/10/2026) · auditoria independente: convertida e convertida de volta no mesmo turno continua enjoada (302.6). Fora (anterior, T-9 D2): Clone de face de trás com o valor de mana da frente (712.8e).",
    "testes": [
     "CR 702.162a / 712.11a · da mão, conjurar convertida pelo custo de \"More Than Meets the Eye\" ({3}{U}): na pilha com o verso para cima, valor de mana da frente (712.8c)",
     "CR 702.162a · conjurada normalmente (frente para cima) pelo custo impresso {4}{U}: entra como Jetfire, Ingenious Scientist",
     "CR 702.162a · sem permissão, do cemitério não há conjuração convertida; carta sem \"More Than Meets the Eye\" não é conjurada convertida (pedido direto recusado)",
-    "CR 702.162a · \"de qualquer zona de onde poderia conjurá-la\": jogável do exílio, também convertida"
+    "CR 702.162a · \"de qualquer zona de onde poderia conjurá-la\": jogável do exílio, também convertida",
+    "CR 302.6 · convertida no turno em que entrou e convertida de volta para a frente (criatura): continua enjoada, não ataca (D1)"
    ]
   },
   {
