@@ -5362,6 +5362,7 @@ const EFFECTS = {
   animate: { fields: [], targets: ['self-source'] },
   // CR2d.5 · "exile <ela>, then return <ela> to the battlefield transformed under its owner's control" e "prevent all damage that would be dealt to him this turn"
   exile_return_transformed: { fields: [], targets: ['self-source'] },
+  craft_volta: { fields: [], targets: ['self-source'] }, // M-356 · CR 702.167a · "Return this card transformed under its owner's control" (o motor o monta a partir de `self.craft`, o script não o escreve)
   must_attack_source: { fields: [], targets: ['creature-opponent-controls'] }, // M-228 · "attacks <esta planeswalker> during its controller's next turn if able"
   prevent_self: { fields: [], targets: ['self-source'] }, // CR2d.2 · "this land becomes a N/N <tipo> creature until end of turn"
   to_bottom: { fields: [], targets: ['permanent-you-own'] },
@@ -5597,6 +5598,7 @@ const ONLY_IF = ['discarded-nonland', 'source-entered-earlier', 'paid-additional
 const ALT_COST_PARTS = ['mana', 'life', 'discard', 'returnLand', 'exileGraveyard', 'tapOther', 'sacrificeOther', 'discardSubtype', 'exileHandColor', 'free', 'revealHand']; // M-351 · revealHand: "you may reveal your hand rather than pay" (Land Grant, 118.9) // CR2c.4 · Ilha entre as descartadas (Foil), exilar carta da cor da mão (Snapback), de graça (Mogg Salvage)
 /** S48 · fuga: conjura do cemitério pagando o custo, e a carta fica em jogo. */
 /** S20 · custos adicionais de ativação e de conjuração. */
+const CRAFT_TIPOS = ['creature', 'artifact', 'land', 'enchantment']; // M-356 · 702.167a: materiais de craft
 const EXTRA_COST_PARTS = ['sacrificeOther', 'tapOther', 'discard', 'returnLand', 'revealColor', 'exileFromGraveyard', 'discardSelf', 'pagarVida']; // M-346 · pagarVida: "or pay 3 life" (Bitter Triumph)
 /* ---------------- M-229 · R1 · seletor único de objetos (gramática escalável) ----------------
    Um alvo é descrito por um seletor, não por um nome: zona, de quem é, tipos, subtipos, "outra", valor de mana, cor,
@@ -6161,6 +6163,9 @@ function validateScript(sc) {
     if (self.naoBloqueia != null && self.naoBloqueia !== true) errs.push('bônus próprio: "não bloqueia" só vale como true');
     if (self.reduzCor != null && !(self.reduzCor && Number.isInteger(self.reduzCor.generic) && self.reduzCor.generic > 0 && Array.isArray(self.reduzCor.cores) && self.reduzCor.cores.length && self.reduzCor.cores.every(c => 'WUBRG'.includes(c) && c.length === 1))) errs.push('bônus próprio: reduzCor pede generic inteiro positivo e cores WUBRG'); // M-352
     if (self.keywords != null && (!Array.isArray(self.keywords) || self.keywords.some(k => !KEYWORDS.includes(k)))) errs.push('bônus próprio: palavra-chave desconhecida');
+    if (self.craft != null) { const c = self.craft; // M-356 · CR 702.167a · "Craft with <materiais> <custo>"
+      if (!(c && typeof c === 'object' && typeof c.mana === 'string' && /^(\{[^}]+\})+$/.test(c.mana) && Array.isArray(c.types) && c.types.length && c.types.every(t => CRAFT_TIPOS.includes(t)) && (c.amount == null || (Number.isInteger(c.amount) && c.amount > 0)) && Object.keys(c).every(k => ['mana', 'types', 'amount'].includes(k)))) errs.push('craft: precisa do custo de mana, dos tipos do material (criatura, artefato, terreno ou encantamento) e de uma quantidade inteira positiva');
+      if (!(sc.back && sc.back.name)) errs.push('craft: a carta volta transformada, então precisa da face de trás (back)'); }
     if (self.evasion && !EVASIONS.includes(self.evasion)) errs.push(`evasão "${self.evasion}" desconhecida`);
     if (self.entersWithCounters != null && !Number.isInteger(self.entersWithCounters)) errs.push('marcadores de entrada precisam ser inteiros');
     if (self.substituiCompra != null) { // CR2e.3 · 614.11: "se você fosse comprar com o grimório vazio, você vence" / "se um oponente fosse comprar, você compra"
@@ -19072,6 +19077,7 @@ const abilitiesOf = (s, o) => {
   // S11 · equipar é uma habilidade ativada com alvo, só no tempo de feitiço
   if (sc.equip) list.push({ kind: 'activated', cost: sc.equip.cost || {}, sorceryOnly: true, equip: true, effects: [{ do: 'attach', target: 'creature-you-control' }] });
   if (sc.self && sc.self.classe) classeHabilidadesT(s, o, sc, list); // T-12 · CR 716.2a · as habilidades dos níveis alcançados e a ativada do próximo nível
+  if (sc.self && sc.self.craft) list.push(craftHabilidade(sc.self.craft)); // M-356 · CR 702.167a · a ativada de craft (só como feitiço)
   if (sc.self && sc.self.selar) list.push(selarHabilidadeT(sc)); // T-31 · CR 702.171a · a ativada de selar (Toca ponto comum: abilitiesOf)
   if (sc.self && sc.self.nivelar) nivelarHabilidadesT(s, o, sc, list); // T-24 · CR 702.87a / 711.4 · a ativada de subir de nível e as habilidades da barra alcançada (Toca ponto comum: abilitiesOf)
   if (sc.equip) list.push(...equipesK(s, o)); // K-28 · 702.6c-d: as outras habilidades de equipar impressas, com qualidade (Toca ponto comum: abilitiesOf)
@@ -20235,6 +20241,13 @@ function applyEffect(s, src, eff, tgt, events) {
       { const sob = eff.sob === 'voce' ? ctrl : alvo.owner; flipTo(s, alvo, back); moveObject(s, alvo.oid, 'battlefield', { controller: sob }); alvo.controller = sob; } // a lealdade entra pelo moveObject · M-353 · sob: 'voce' ("under your control", The Modern Age; pedido da L-3)
       note({ name: alvo.name }); break;
     }
+    case 'craft_volta': { // M-356 · CR 702.167a · a carta exilada pelo custo volta transformada sob o controle do DONO; se saiu do exílio (400.7) ou não tem face de trás, nada acontece
+      const carta = src.ability ? s.objects[src.source] : null;
+      const back = carta && backOf(s, carta);
+      if (!carta || !back || carta.zone !== 'exile' || (src.fonteZc != null && (carta.zc || 0) !== src.fonteZc)) { note({ failed: true }); break; }
+      flipTo(s, carta, back); moveObject(s, carta.oid, 'battlefield', { controller: carta.owner }); carta.controller = carta.owner;
+      note({ name: carta.name }); break;
+    }
     case 'must_attack_source': { // M-228 · Gideon +2: a criatura alvo ataca a fonte no próximo turno do controlador dela, se puder
       const fonte = src.ability ? s.objects[src.source] : src;
       if (obj && obj.zone === 'battlefield' && fonte && fonte.zone === 'battlefield') { obj.exigeAtacarPw = { pw: fonte.oid, z: fonte.zc || 0, turno: null }; note({ target: obj.name }); }
@@ -21047,7 +21060,7 @@ function makeAbility(s, source, ab, targets, blockedAt = source.blocking) {
   s.objects[oid] = { oid, ability: true, name: source.name, source: source.oid, effects: ab.effects, owner: source.controller,
     controller: source.controller, zone: 'stack', tapped: false, sick: false, damage: 0, counters: {}, targets: carimbaAlvos(s, targets),
     ...(blockedAt ? { blockedAt } : {}) }; // Q11 · Tinder Wall: quem ela bloqueava, mesmo depois de sacrificada (última informação conhecida)
-  { const f = s.objects[source.oid]; if (f && !f.ability && (ab.effects || []).some(e => e && (e.ate === 'fonte-sair' || (['topo_do_dono', 'exila_da_mao', 'revela_topo_transforma', 'exile_return_transformed'].includes(e.do) || e.remember || e.lembra)))) s.objects[oid].fonteZc = f.zc || 0; } // M-353 · a habilidade lembra a encarnação da fonte (achado da revisão do lote XXV) // M-345 · também "put ~ on top" (achado da revisão) // CR2d.1 · 610.3a (auditoria M-308: também na ativada): se a fonte já saiu quando o efeito resolve, nada se move
+  { const f = s.objects[source.oid]; if (f && !f.ability && (ab.effects || []).some(e => e && (e.ate === 'fonte-sair' || (['topo_do_dono', 'exila_da_mao', 'revela_topo_transforma', 'exile_return_transformed', 'craft_volta'].includes(e.do) || e.remember || e.lembra)))) s.objects[oid].fonteZc = f.zc || 0; } // M-353 · a habilidade lembra a encarnação da fonte (achado da revisão do lote XXV) // M-345 · também "put ~ on top" (achado da revisão) // CR2d.1 · 610.3a (auditoria M-308: também na ativada): se a fonte já saiu quando o efeito resolve, nada se move
   s.stack.push(oid);
   return oid;
 }
@@ -21518,7 +21531,7 @@ function combinacoes(lista, k, limite = LIMITE_PAGAMENTOS) {
 function pagamentosDe(s, p, cost, selfOid) {
   if (!cost) return [{}];
   let out = [{}];
-  const usados = pay => [].concat(pay.tapOther || [], pay.sacrifice || [], pay.land || [], pay.crew || []);
+  const usados = pay => [].concat(pay.tapOther || [], pay.sacrifice || [], pay.land || [], pay.crew || [], pay.craft || []); // M-356
   const multiplica = (opcoes, campo) => {
     const novo = [];
     for (const base of out) for (const v of opcoes) {
@@ -21538,6 +21551,7 @@ function pagamentosDe(s, p, cost, selfOid) {
     multiplica(battlefield(s).filter(x => x.controller === p && s.facts[x.name].types.includes('land') && rx.test(s.facts[x.name].typeText || x.name)).map(x => x.oid), 'land');
   }
   if (cost.exileFromGraveyard) multiplica(s.zones[p].graveyard.filter(x => x !== selfOid && matchesFilter(s, s.objects[x], cost.exileFromGraveyard)), 'exile');
+  if (cost.craft) multiplica(combinacoes(materiaisDeCraft(s, p, cost.craft, selfOid), cost.craft.amount || 1), 'craft'); // M-356 · 702.167a: quem paga escolhe os materiais
   // Leva 107 · "Reveal X white cards" (Martyr of Sands): quem paga escolhe quantas revela, de 0 ao que tem
   if (cost.revealColor) {
     const tem = s.zones[p].hand.filter(x => x !== selfOid && (s.facts[s.objects[x].name].colors || []).includes(cost.revealColor)).length;
@@ -21549,6 +21563,19 @@ function pagamentosDe(s, p, cost, selfOid) {
   return out;
 }
 const comPagamento = pay => (pay && Object.keys(pay).length ? { pay } : {});
+/** M-356 · CR 702.167a · craft: "[Cost], Exile this permanent, Exile [materials] from among permanents you control and/or cards in your graveyard:
+ * Return this card to the battlefield transformed under its owner's control. Activate only as a sorcery." Os materiais são OUTROS objetos
+ * (a própria permanente é exilada por `exileSelf`); permanente conta pelo tipo que tem no campo, carta do cemitério pelo tipo impresso. */
+const TIPO_CRAFT_PT = { creature: ['criatura', 'criaturas'], artifact: ['artefato', 'artefatos'], land: ['terreno', 'terrenos'], enchantment: ['encantamento', 'encantamentos'] };
+function craftHabilidade(c) {
+  const n = c.amount || 1, nome = c.types.map(t => TIPO_CRAFT_PT[t][n > 1 ? 1 : 0]).join(' ou ');
+  return { kind: 'activated', cost: { mana: c.mana, exileSelf: true, craft: { types: c.types.slice(), amount: n } }, sorceryOnly: true, label: `Craft com ${n > 1 ? n + ' ' : ''}${nome}`, effects: [{ do: 'craft_volta' }] };
+}
+function materiaisDeCraft(s, p, spec, selfOid) {
+  const campo = extraCostCandidates(s, p, { types: spec.types }, selfOid);
+  const cemiterio = s.zones[p].graveyard.filter(x => x !== selfOid && matchesFilter(s, s.objects[x], { types: spec.types }));
+  return campo.concat(cemiterio);
+}
 function payExtraCosts(s, p, cost, pay, selfOid) {
   if (cost.pagarVida != null) { if (s.players[p].life < cost.pagarVida) throw new RuleError('custo', 'vida insuficiente'); perdeVida(s, p, cost.pagarVida); } // K-2 · salvaguarda com vida
   if (cost.crew != null) cost = pagaTripulacaoT(s, p, cost, pay, selfOid); // T-3 · CR 702.122a–d · paga a tripulação (qualquer grupo que some N), anota quem tripulou e dispara "crews a Vehicle"; devolve o custo sem a parte de tripular (função abaixo da âncora T das exportações)
@@ -21605,6 +21632,12 @@ function payExtraCosts(s, p, cost, pay, selfOid) {
     if (!oid || !s.zones[p].graveyard.includes(oid) || !matchesFilter(s, s.objects[oid], cost.exileFromGraveyard)) throw new RuleError('custo', 'exile uma carta do seu cemitério como custo');
     moveObject(s, oid, 'exile');
   }
+  if (cost.craft) { // M-356 · CR 702.167a · exila os materiais escolhidos (permanentes suas e/ou cartas do seu cemitério)
+    const n = cost.craft.amount || 1, cands = materiaisDeCraft(s, p, cost.craft, selfOid);
+    const lista = [].concat((pay && pay.craft) || cands.slice(0, n));
+    if (lista.length !== n || new Set(lista).size !== n || lista.some(x => !cands.includes(x))) throw new RuleError('custo', n > 1 ? `exile ${n} materiais que sirvam para o craft` : 'exile um material que sirva para o craft');
+    for (const oid of lista) moveObject(s, oid, 'exile');
+  }
   if (cost.tapOther) {
     const n = cost.tapOther.amount || 1;
     const livres = extraCostCandidates(s, p, cost.tapOther, selfOid, true);
@@ -21632,6 +21665,7 @@ const canPayExtra = (s, p, cost, selfOid) =>
   (cost.pagarVida == null || s.players[p].life >= cost.pagarVida) && // K-2 · 119.4: só paga a vida que tem
   (cost.crew == null || formasDeTripular(s, p, cost.crew, selfOid).length > 0) &&
   (!cost.exileFromGraveyard || s.zones[p].graveyard.some(x => matchesFilter(s, s.objects[x], cost.exileFromGraveyard))) &&
+  (!cost.craft || materiaisDeCraft(s, p, cost.craft, selfOid).length >= (cost.craft.amount || 1)) && // M-356
   (!cost.returnLand || !!defaultPayment(s, p, cost, selfOid).land) &&
   (!cost.discard || s.zones[p].hand.filter(x => x !== selfOid).length >= cost.discard) &&
   (!cost.sacrificeOther || extraCostCandidates(s, p, cost.sacrificeOther, selfOid).length >= (cost.sacrificeOther.amount || 1)) &&
@@ -28640,6 +28674,7 @@ function effectLine(ev) {
     case 'combate_extra': return ev.failed ? `${ev.name}: fora da fase principal, sem combate adicional` : `${ev.name}: depois desta fase principal vem um combate adicional e outra fase principal`; // CR2g.4
     case 'desvira_atacantes': return `${ev.name} desvirou ${n} criatura(s) que atacaram neste turno`;
     case 'animate': return `${t} virou criatura até o fim do turno`; // CR2d.2
+    case 'craft_volta': return ev.failed ? `${ev.name}: a carta não estava mais no exílio` : `${ev.name} voltou do exílio transformada`; // M-356 · 702.167a
     case 'exile_return_transformed': return ev.failed ? `${ev.name}: não estava mais no campo` : `${ev.name} foi exilado e voltou transformado`; // CR2d.5
     case 'must_attack_source': return `${t} vai ter de atacar ${ev.name} no próximo turno de quem a controla`; // M-228
     case 'prevent_self': return `todo dano a ${t} neste turno será prevenido`;
@@ -29748,6 +29783,7 @@ function descreveEfeito(e) {
     case 'imbloqueavel_cor': return `${alvo || 'a criatura'} não pode ser ${/^o /.test(alvo || '') ? 'bloqueado' : 'bloqueada'} por criaturas da cor escolhida neste turno`;
     case 'transform': return 'transforma';
     case 'animate_dead': return 'devolve a carta encantada ao campo sob o seu controle e se anexa a ela'; // CR2d.4
+    case 'craft_volta': return 'volta do exílio transformada, sob o controle do dono'; // M-356 · 702.167a
     case 'exile_return_transformed': return `é exilada e volta transformada, sob o controle ${e.sob === 'voce' ? 'de quem a controlava' : 'do dono'}`; // CR2d.5 · M-353
     case 'revela_topo_transforma': return 'olha a carta do topo; se for instantânea ou feitiço, pode revelá-la e transformar esta permanente'; // M-353
     case 'revela_topo': return 'revela a carta do topo'; // M-353
@@ -29812,6 +29848,7 @@ function linhaOficialDaHabilidade(o, facts, oracle) {
   const texto = String(oracle || '').trim(); if (!texto) return '';
   const linhas = texto.split('\n').map(l => l.trim()).filter(Boolean);
   const sc = (facts && facts.script) || {};
+  if ((o.effects || []).some(e => e && e.do === 'craft_volta')) { const l = linhas.find(x => /^Craft with\b/i.test(x)); if (l) return l; } // M-356 · 702.167a (achado da revisão independente)
   const mesmo = a => a && JSON.stringify(a.effects || []) === JSON.stringify(o.effects || []);
   // R9b · gatilhos e ativadas moram juntos em script.abilities: separar por tipo, senão o gatilho de entrada da Harrier Strix
   // mostrava a linha da habilidade ativada ("{2}{U}: Draw a card, then discard a card.")
@@ -31412,6 +31449,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     ['retrace', () => 'Qual terreno você descarta para retraçar?', 'Descartar'], // M-222
     ['crew', () => 'Quais criaturas tripulam?', 'Virar'], // CR2d.3
     ['exile', () => 'Qual carta do cemitério é exilada?', 'Exilar'],
+    ['craft', n => n > 1 ? 'Quais materiais você exila para o craft?' : 'Qual material você exila para o craft?', 'Exilar'], // M-356 · 702.167a
     ['bargain', () => 'O que você sacrifica na barganha?', 'Sacrificar'],
     ['exileGrave', () => 'Quais cartas do cemitério você exila?', 'Exilar'],
     ['revelar', () => 'Quantas cartas você revela?', 'Revelar']];
@@ -31641,7 +31679,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   function custoDaHabilidade(ab) {
     const c = ab.cost || {};
     return [c.mana, c.tap ? '{T}' : null, c.discard ? (c.discard > 1 ? `descartar ${c.discard} cartas` : 'descartar uma carta') : null,
-      c.sacrifice ? 'sacrificar' : null, c.removeCounters ? `remover ${plural(c.removeCounters.n || 1, 'marcador ' + (MARCADOR_PT[c.removeCounters.tipo] || c.removeCounters.tipo), 'marcadores ' + (MARCADOR_PT[c.removeCounters.tipo] || c.removeCounters.tipo))}` : null, c.exileSelf ? (c.fromHand ? 'exilar esta carta da mão' : 'exilar esta') : null, c.discardSelf ? 'descartar esta carta' : null, c.discardHand ? 'descartar a mão' : null, c.returnLand ? `devolver ${c.returnLand === true ? 'terreno' : c.returnLand} à mão` : null, c.sacrificeOther ? sacrificioPorExtenso(c.sacrificeOther) : null, c.tapOther ? 'virar outra' : null].filter(Boolean).join(', ');
+      c.sacrifice ? 'sacrificar' : null, c.removeCounters ? `remover ${plural(c.removeCounters.n || 1, 'marcador ' + (MARCADOR_PT[c.removeCounters.tipo] || c.removeCounters.tipo), 'marcadores ' + (MARCADOR_PT[c.removeCounters.tipo] || c.removeCounters.tipo))}` : null, c.exileSelf ? (c.fromHand ? 'exilar esta carta da mão' : 'exilar esta') : null, c.discardSelf ? 'descartar esta carta' : null, c.discardHand ? 'descartar a mão' : null, c.returnLand ? `devolver ${c.returnLand === true ? 'terreno' : c.returnLand} à mão` : null, c.sacrificeOther ? sacrificioPorExtenso(c.sacrificeOther) : null, c.tapOther ? 'virar outra' : null, c.craft ? (c.craft.amount > 1 ? `exilar ${c.craft.amount} materiais` : 'exilar um material') : null].filter(Boolean).join(', ');
   }
   /** R6 · custo do lampejo do passado por extenso: mana, ou "virar 3 criaturas brancas" (Battle Screech, Prismatic Strands). Antes o botão saía com o custo vazio. */
   function custoDoLampejo(fb) {

@@ -3967,6 +3967,15 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Origem:** pedidos (1) e (2) da trilha `homologacao` em `claude/TRILHAS-ativas.md` (reprodução: Commander, Chord of Calling X=5, semente 12868).
 - **Teste:** `lt38.unit` (4 testes; os quatro falham no motor anterior).
 
+**M-356 · Craft (702.167): a primitiva de fabricar com materiais** ✅ (leva M-356, motor v110 sem mudança de forma; goldens intactos).
+- **Valor:** carta com "Craft with <materiais> <custo>" ganha a habilidade ativada (só como feitiço) que paga o custo, exila a própria permanente e os materiais escolhidos entre as suas permanentes e as cartas do seu cemitério, e devolve a carta transformada sob o controle do dono. Destrava Tithing Blade // Consuming Sepulcher (texto do Oracle do Forge em `.listas/oficiais-listas.json`, consulta de 12/10/2026), que pesa em 18 listas de Pauper.
+- **Forma do script:** `self: { craft: { mana, types, amount } }` mais `back` (face de trás). O validador recusa craft sem face de trás, material fora de criatura/artefato/terreno/encantamento e quantidade não inteira.
+- **Regra:** 702.167a; a habilidade lembra a carta exilada pelo custo e não traz de volta um objeto novo (400.7); o material pode ser criatura virada, com enjoo ou virada para baixo; criatura ou cemitério do oponente não serve.
+- **Revisão independente:** 43 asserções em sondas, nenhum desvio de regra no craft; um texto enganoso corrigido com teste antes (a pilha explicada mostrava o texto inteiro da carta, com o "enters" da frente).
+- **Fora:** 702.167b (permanente que se refere às "cartas usadas no craft"): nenhuma carta das listas precisa; fica para quando uma precisar. Craft com "dois ou mais" materiais (quantidade variável) também.
+- **Pedido à trilha `listas`:** script à mão de Tithing Blade com `self.craft` e a face de trás (o script de teste em `lt39.unit` segue o texto oficial).
+- **Teste:** `lt39.unit` (6 testes; todos falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
