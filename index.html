@@ -5485,6 +5485,7 @@ const EFFECTS = {
   // S61 · Masmorra do Mago Louco
   cant_attack: { fields: [], targets: ['creature'] },
   exile_top_playable: { fields: ['amount'], targets: ['self'] },
+  lembradas_ao_cemiterio: { fields: [], targets: ['self'] }, // M-386 · 603.7c: "if any of those cards remain exiled, put them into your graveyard" (Glimpse the Impossible)
   draw_free_cast: { fields: ['amount'], targets: ['self'] },
   /* ↓ K · efeitos da trilha keywords */
   dobra_k: { fields: [], targets: [] }, // K-51 · 702.185a · exila a permanente dobrada no começo da próxima etapa final (gerado pelo motor)
@@ -6020,7 +6021,7 @@ const ATTACH_KINDS = ['creature', 'permanent', 'land', 'creature-you-control', '
 const PER_COUNTS = ['enchantments-you-control', 'other-enchantments', 'auras-on-battlefield',
   'creatures-you-control', 'other-creatures-you-control', 'elves-you-control', 'elves-on-battlefield', 'defenders-you-control', 'permanents-you-control', 'nonland-permanents-you-control', 'life-gained-this-turn', 'life-lost-this-turn',
   'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G', 'counters-on-source', 'opponents-empty-hand', 'trigger-value', 'chosen-type-permanents', 'sacrificed-toughness', 'sacrificed-mv', 'sacrificed-power', 'creature-cards-in-your-graveyard', 'cards-in-hand', 'x', 'power-of-source', 'se', 'power-of-target',
-  'instants-sorceries-in-your-graveyard', 'flashback-cards-you-own-in-exile', 'soma', 'party']; // T-59 · CR 700.8 · quantas criaturas há no seu grupo (0 a 4) // M-358 · Seize the Storm (604.3); `soma`: { per: 'soma', partes: [contagem, contagem, …] }
+  'instants-sorceries-in-your-graveyard', 'flashback-cards-you-own-in-exile', 'soma', 'party', 'movidas']; // M-386 · `movidas`: "for each card put into your graveyard this way" (o que o efeito anterior desta habilidade moveu) // T-59 · CR 700.8 · quantas criaturas há no seu grupo (0 a 4) // M-358 · Seize the Storm (604.3); `soma`: { per: 'soma', partes: [contagem, contagem, …] }
 /** M-333 · 601.2f · "This spell costs {N} less to cast for each …": o que a redução conta (chave `reduzPor: { generic, per }` no topo do script). */
 const REDUZ_POR = ['instants-sorceries-in-your-graveyard', 'creature-cards-in-your-graveyard', 'land-cards-in-your-graveyard', 'creatures-on-battlefield',
   'creatures-opponents-control', 'basic-land-types-you-control', 'attacking-creatures', 'attacking-creatures-you-control', 'cards-drawn-this-turn',
@@ -6294,6 +6295,8 @@ function effectErrors(effects, label, opcional) {
     if (e.do === 'delayed') { if (!ATRASOS.includes(e.when)) errs.push(`${label} ${i + 1}: momento "${e.when}" desconhecido para gatilho atrasado`); errs.push(...effectErrors(e.effects, `${label} ${i + 1} (atrasado)`)); }
     if (e.do === 'tap_or_untap' && e.optional != null && typeof e.optional !== 'boolean') errs.push(`${label} ${i + 1}: "opcional" precisa ser verdadeiro ou falso`); // Leva 131
     if (e.exilaSeMorrer != null && !(e.do === 'damage' && e.exilaSeMorrer === true)) errs.push(`${label} ${i + 1}: "exilaSeMorrer" é uma marca (true) do dano`); // M-384 · Torch the Tower
+    if (e.lembraExiladas != null && !(e.lembraExiladas === true && (e.do === 'exile_top_playable' || e.do === 'delayed'))) errs.push(`${label} ${i + 1}: "lembraExiladas" é uma marca (true) do exílio do topo e do gatilho atrasado`); // M-386 (o \`lembra\` do \`mover\` é outra coisa — achado da revisão: Leonin Relic-Warder)
+    if (e.seRestar != null && !(e.seRestar === true && e.do === 'delayed' && e.lembraExiladas)) errs.push(`${label} ${i + 1}: "seRestar" é do gatilho atrasado que lembra as exiladas`); // M-386 · 603.4
     if (e.dividido != null && !(e.do === 'damage' && typeof e.dividido === 'object' && (e.dividido.max == null || (Number.isInteger(e.dividido.max) && e.dividido.max >= 2)) && ['any', 'creature'].includes(e.target))) errs.push(`${label} ${i + 1}: "dividido" é dano dividido entre alvos (601.2d): { max: null | 2 ou mais }, alvo "any" ou "creature"`); // M-376
     if (e.do === 'descarta_e_compra' && e.descarta != null && !(Number.isInteger(e.descarta) && e.descarta >= 1)) errs.push(`${label} ${i + 1}: "descarta" é quantas cartas se descartam (inteiro, 1 ou mais)`); // M-373
     if (['search', 'look'].includes(e.do)) {
@@ -9002,6 +9005,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Suplex': { texto: 'nfft0b', leva: 'M-384' },
   // M-385 · revisão por lote XLIII (Pauper: Thermokarst), revisor independente: lote conjunto com a M-386; aprovada (25 asserções, leitor nas 1.304 cartas, 26 partidas sem diferença); condição também nas habilidades
   'Thermokarst': { texto: '15giz1r', leva: 'M-385' },
+  // M-386 · revisão por lote XLIV (Glimpse the Impossible), revisor independente: reprovada na primeira passada (o `lembra` do mover), corrigida com teste; 47 asserções, 151 salvamentos com replay idêntico
+  'Glimpse the Impossible': { texto: 'r0pnzy', leva: 'M-386' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -17251,6 +17256,7 @@ const __m42 = (function () {
     texto = texto.replace(/^exile (target (?:creature|permanent)(?: you control)?), then return (?:it|that card) to the battlefield under its owner's control/i, 'pisca $1'); // M-349 · Ephemerate
     texto = texto.replace(/^exile two target (artifacts, creatures, and\/or lands you control), then return those cards to the battlefield under your control/i, 'pisca_dois $1'); // M-351 · Ghostly Flicker
     texto = texto.replace(/exile the top card of your library\. until end of turn, you may play that card/i, 'impulso one ate o fim do turno'); // M-352
+    texto = texto.replace(/exile the top (card|two cards|three cards) of your library\. you may play (?:it|them|those cards) this turn/i, (m0, q) => `impulso ${({ card: 'one', 'two cards': 'two', 'three cards': 'three' })[q.toLowerCase()]} ate o fim do turno`); // M-386 · Glimpse the Impossible
     texto = texto.replace(/^(target opponent|target player) reveals their hand and you choose a nonland card from it\. exile that card/i, 'exila_da_mao $1'); // M-353 · Mesmeric Fiend · Experimental Synthesizer
     texto = texto.replace(/exile the top (card|two cards|three cards) of your library\. (?:you may play (?:it|them|those cards) until the end of your next turn|until the end of your next turn, you may play (?:it|them|those cards))/i, (m0, q) => `impulso ${q === 'card' ? 'one' : q.split(' ')[0]} ate o proximo turno`); // M-349 // M-348 · duas frases, um efeito (Pursue the Past, Melded Moxite)
     texto = texto.replace(/reveal the top two cards of your library\. put one of them into your hand and the other into your graveyard\. if you put an? (artifact|creature|land|instant|sorcery|enchantment) card into your hand this way, you gain (\d+) life/i, 'revela_dois_um_para_mao $1 $2'); // M-364 · Chrome Courier
@@ -17379,6 +17385,10 @@ const __m42 = (function () {
       const mc = linha.replace(/\.$/, '').replace(new RegExp(escapa(nome || '\u0000'), 'g'), '~'); // M-331 · metalurgia (palavra de habilidade)
       const tq = mc.match(/^as long as ~ is on the stack, spells that target it cost \{(\d+)\} more to cast$/i); // M-364 · Kaervek's Torch (601.2f)
       if (tq) { topo.self = { ...(topo.self || {}), encareceQuemMira: +tq[1] }; frases.push({ texto: linha, lida: true }); continue; }
+      if (/^at the beginning of the next end step, if any of those cards remain exiled, put them into your graveyard, then create a 0\/1 colorless eldrazi spawn creature token for each card put into your graveyard this way\. those tokens have "sacrifice this creature: add \{c\}\.?"\.?$/i.test(mc) && efeitos.length && efeitos[efeitos.length - 1].do === 'exile_top_playable') { // M-386 · Glimpse the Impossible (603.7c)
+        efeitos[efeitos.length - 1].lembraExiladas = true;
+        efeitos.push({ do: 'delayed', when: 'next-end-step', lembraExiladas: true, seRestar: true, effects: [{ do: 'lembradas_ao_cemiterio' }, { do: 'token', amount: { per: 'movidas' }, token: { name: 'Eldrazi Spawn', types: ['creature'], subtypes: ['Eldrazi', 'Spawn'], colors: [], power: 0, toughness: 1, abilities: [{ kind: 'activated', cost: { sacrifice: true }, effects: [{ do: 'add_mana', symbols: ['C'] }] }] } }] });
+        frases.push({ texto: linha, lida: true }); continue; }
       if (/^if a permanent dealt damage by ~ would die this turn, exile it instead$/i.test(mc) && efeitos.some(e => e.do === 'damage')) { for (const e of efeitos) if (e.do === 'damage') e.exilaSeMorrer = true; frases.push({ texto: linha, lida: true }); continue; } // M-384 · 614.1a · Torch the Tower (parágrafo próprio: marca o dano da mágica)
       const mi = mc.match(/^metalcraft — ~ deals (\d+) damage instead if you control three or more artifacts$/i);
       if (mi && efeitos.length && efeitos[efeitos.length - 1].do === 'damage' && Number.isInteger(efeitos[efeitos.length - 1].amount)) { const ult = efeitos[efeitos.length - 1]; ult.amount = { per: 'se', se: 'metalcraft', sim: +mi[1], nao: ult.amount }; frases.push({ texto: linha, lida: true }); continue; }
@@ -19286,7 +19296,7 @@ function enterStep(s, step) {
   if (momento && (s.atrasados || []).length) {
     const agora = s.atrasados.filter(d => d.when === momento && (momento !== 'next-upkeep' || s.turn.number > d.turno));
     s.atrasados = s.atrasados.filter(d => !agora.includes(d));
-    for (const d of agora) if (!s.players[d.controller].lost) s.queued.push({ source: d.source, name: d.name, controller: d.controller, effects: d.effects, when: 'delayed', jogador: d.jogador, ...(d.objeto ? { objeto: d.objeto } : {}) });
+    for (const d of agora) if (!s.players[d.controller].lost && !(d.seRestar && !(d.objetos || []).some(x => s.objects[x.oid] && s.objects[x.oid].zone === 'exile' && (s.objects[x.oid].zc || 0) === x.z))) s.queued.push({ source: d.source, name: d.name, controller: d.controller, effects: d.effects, when: 'delayed', jogador: d.jogador, ...(d.objeto ? { objeto: d.objeto } : {}), ...(d.objetos ? { objetos: d.objetos } : {}) }); // M-386
   }
   // CR2-G R2b · nos outros passos, os atrasados vêm antes; depois os do jogador ativo e os de cada jogador / dos oponentes
   // (CR2b.5 · 603.2b; CR 511.2: o fim do combate é de todos os jogadores, não só do ativo)
@@ -19976,6 +19986,7 @@ function amountOf(s, src, v) {
   if (v && typeof v === 'object' && (v.subtype || v.per)) {
     // S48 · o valor que o gatilho trouxe mora na habilidade, não na permanente que a gerou
     if (v.per === 'trigger-value') return (src.triggerValue || 0) * (v.times || 1);
+    if (v.per === 'movidas') return (src.movidas || 0) * (v.times || 1); // M-386 · o que o efeito anterior desta habilidade pôs no cemitério
     if (v.per === 'se') return condicaoDoEfeito(s, src.ability ? s.objects[src.source] : src, v.se) ? v.sim : v.nao; // M-331 · "… instead if …" (Galvanic Blast, Plunder the Trollshaws)
     if (v.per === 'soma') return (v.partes || []).reduce((n, x) => n + amountOf(s, src, x), 0) * (v.times || 1); // M-358 · "N, plus M" (Seize the Storm)
     if (v.per === 'x') return (src.xPaid || 0) * (v.times || 1); // CR2c.3 · 107.3a: o X escolhido ao conjurar, o mesmo em todo o texto
@@ -20591,8 +20602,14 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'exile_top_playable': { // S61 · exila do topo e você pode jogar essas cartas
       const n = amountOf(s, src, eff.amount);
       const topo = s.zones[ctrl].library.slice(0, n);
-      for (const oid of topo) { moveObject(s, oid, 'exile'); s.objects[oid].playableFromExile = ctrl; if (eff.ate === 'proximo-turno') s.objects[oid].jogavelAte = { by: ctrl, turno: s.turn.number }; if (eff.ate === 'fim-do-turno') s.objects[oid].jogavelSoNesteTurno = true; } // M-352 · "Until end of turn, you may play that card" (Experimental Synthesizer) // M-349 · "until the end of your next turn" (Wrenn's Resolve)
+      if (eff.lembraExiladas) src.exiladasAgora = []; // M-386 · "those cards": as cartas, com a encarnação do exílio (400.7)
+      for (const oid of topo) { moveObject(s, oid, 'exile'); if (eff.lembraExiladas) src.exiladasAgora.push({ oid, z: s.objects[oid].zc || 0 }); s.objects[oid].playableFromExile = ctrl; if (eff.ate === 'proximo-turno') s.objects[oid].jogavelAte = { by: ctrl, turno: s.turn.number }; if (eff.ate === 'fim-do-turno') s.objects[oid].jogavelSoNesteTurno = true; } // M-352 · "Until end of turn, you may play that card" (Experimental Synthesizer) // M-349 · "until the end of your next turn" (Wrenn's Resolve)
       note({ amount: topo.length }); break;
+    }
+    case 'lembradas_ao_cemiterio': { // M-386 · 603.7c/400.7: só as que continuam no exílio, na mesma encarnação; a contagem fica na habilidade para "for each card put into your graveyard this way"
+      let k = 0;
+      for (const d of src.objetosAtrasados || []) { const x = s.objects[d.oid]; if (!x || x.zone !== 'exile' || (x.zc || 0) !== d.z) continue; moveObject(s, d.oid, 'graveyard'); if ((s.objects[d.oid] || {}).zone === 'graveyard') k++; }
+      src.movidas = k; note({ amount: k }); break;
     }
     case 'draw_free_cast': { // S61 · compra N e pode conjurar uma delas sem pagar
       const n = amountOf(s, src, eff.amount);
@@ -20764,6 +20781,7 @@ function applyEffect(s, src, eff, tgt, events) {
       (s.atrasados = s.atrasados || []).push({ when: eff.when, turno: s.turn.number, controller: ctrl, jogador: tgt && tgt.player != null ? tgt.player : ctrl,
         // 603.7c · o gatilho que fala de "ela" guarda o objeto E a encarnação: se a carta mudar de zona, ele não a acha mais
         ...(tgt && tgt.oid != null && s.objects[tgt.oid] ? { objeto: { oid: tgt.oid, z: s.objects[tgt.oid].zc || 0 } } : {}),
+        ...(eff.lembraExiladas ? { objetos: (src.exiladasAgora || []).slice(), ...(eff.seRestar ? { seRestar: true } : {}) } : {}), // M-386 · 603.7c: o atrasado fala das cartas exiladas por este mesmo efeito
         name: src.name, source: src.ability ? src.source : src.oid, effects: eff.effects });
       note({ amount: 1 }); break;
     }
@@ -22156,6 +22174,7 @@ function marcasDoGatilho(s, q, oid) {
   { const f = q.condition && s.objects[q.source]; if (f && !f.ability) s.objects[oid].fonteRetrato = { zc: f.zc || 0, controller: f.controller, ...(f.kicked ? { kicked: f.kicked } : {}), ...(f.bargained ? { bargained: true } : {}), ...(f.evidenced ? { evidenced: true } : {}), ...(f.faceDown ? { faceDown: true } : {}) }; } // CR2b.6 · 608.2h
   if (q.value != null) s.objects[oid].triggerValue = q.value; // S48 · o valor que o gatilho trouxe
   if (q.lembrada) s.objects[oid].lembrada = q.lembrada; // CR2b.3 · "that card": a carta que saiu, na encarnação nova
+  if (q.objetos) s.objects[oid].objetosAtrasados = q.objetos; // M-386 · "those cards"
   if (q.objeto) s.objects[oid].objetoAtrasado = q.objeto; // CR2b.2 · "ela", com a encarnação mirada
   if (q.jogador != null) s.objects[oid].jogadorAtrasado = q.jogador; // CR2b.1 · o "jogador daquela mágica" do gatilho atrasado
   if (q.host) s.objects[oid].hostOid = q.host; // Leva 108 · a criatura encantada no momento do disparo
@@ -29953,6 +29972,7 @@ function effectLine(ev) {
     case 'monarch': return ev.failed ? `${t} continua o monarca (${ev.name})` : `${t} se tornou o monarca (${ev.name})`; // M-332
     case 'initiative': return `${t} tomou a iniciativa (${ev.name})`; // M-332
     case 'exila_se_morrer': return ev.failed ? `${ev.name}: o alvo já não estava no campo` : `${t || ev.name}: se fosse morrer neste turno, é exilada`; // M-384
+    case 'lembradas_ao_cemiterio': return `${ev.name}: ${ev.amount === 1 ? '1 carta exilada foi' : `${ev.amount || 0} cartas exiladas foram`} para o cemitério`; // M-386
     case 'nao_desvira': return ev.failed ? `${ev.name}: o alvo já não estava no campo` : `${t || ev.name}: não desvira no próximo passo de desvirar`;
     case 'combate_extra': return ev.failed ? `${ev.name}: fora da fase principal, sem combate adicional` : `${ev.name}: depois desta fase principal vem um combate adicional e outra fase principal`; // CR2g.4
     case 'desvira_atacantes': return `${ev.name} desvirou ${n} criatura(s) que atacaram neste turno`;
@@ -31052,6 +31072,7 @@ function descreveEfeito(e) {
     case 'perde': return `${alvo || 'você'} perde o jogo`; // CR2h.6
     case 'turno_extra': return alvo ? `${alvo} joga um turno extra depois deste` : 'você joga um turno extra depois deste'; // CR2g.2
     case 'exila_se_morrer': return `se ${alvo || 'a criatura'} fosse morrer neste turno, é exilada em vez disso`; // M-384
+    case 'lembradas_ao_cemiterio': return 'as cartas exiladas por ela que ainda estiverem no exílio vão para o cemitério'; // M-386
     case 'nao_desvira': return `${alvo || 'a criatura'} não desvira no próximo passo de desvirar de quem a controla`; // CR2g.6
     case 'combate_extra': return 'depois desta fase principal, um combate adicional e outra fase principal'; // CR2g.4
     case 'desvira_atacantes': return 'desvira as criaturas que atacaram neste turno';
@@ -31144,7 +31165,7 @@ function descreveEfeito(e) {
 }
 // Leva 131 · a condição do efeito entra na frase (Moon-Circuit Hacker: o aviso dizia "descarta 1 carta" no turno em que ela entrou, quando não descarta)
 const CONDICAO_PT = { kicked: 'se tiver sido reforçada', bargained: 'se tiver sido barganhada', 'paid-additional': 'se o custo adicional foi pago', metalcraft: 'com metalurgia', 'cast-from-graveyard': 'se foi conjurada do cemitério', 'source-entered-earlier': 'só se ela não entrou neste turno', 'not-attacked': 'só se você não atacou neste turno', evidenced: 'se colheu provas', 'not-evidenced': 'se não colheu provas', 'alvo-era-neve': 'se o terreno era nevado', 'alvo-era-seu': 'se a permanente era sua' }; // M-385 // M-351 · Extract a Confession (achado da revisão do lote XXIII: as duas frases pareciam dois sacrifícios)
-const X_PT = { 'instants-sorceries-in-your-graveyard': 'mágicas instantâneas e feitiços no seu cemitério', 'flashback-cards-you-own-in-exile': 'cartas com lampejo do passado suas no exílio', /* M-358 */ 'cards-in-hand': 'cartas na sua mão', 'creature-cards-in-your-graveyard': 'cartas de criatura no seu cemitério', 'sacrificed-power': 'o poder da criatura sacrificada', 'sacrificed-toughness': 'a resistência da criatura sacrificada', 'sacrificed-mv': 'o valor de mana do que foi sacrificado' }; // M-354 · o que o X conta (achado da revisão do lote XXVI)
+const X_PT = { movidas: 'o número de cartas postas no cemitério assim', 'instants-sorceries-in-your-graveyard': 'mágicas instantâneas e feitiços no seu cemitério', 'flashback-cards-you-own-in-exile': 'cartas com lampejo do passado suas no exílio', /* M-358 */ 'cards-in-hand': 'cartas na sua mão', 'creature-cards-in-your-graveyard': 'cartas de criatura no seu cemitério', 'sacrificed-power': 'o poder da criatura sacrificada', 'sacrificed-toughness': 'a resistência da criatura sacrificada', 'sacrificed-mv': 'o valor de mana do que foi sacrificado' }; // M-354 · o que o X conta (achado da revisão do lote XXVI)
 const descreveEfeitos = effects => (effects || []).map(e => { let f = descreveEfeito(e); const xp = e && e.amount && X_PT[e.amount.per]; if (f && xp && /\bX\b/.test(f)) f = `${f} (X = ${xp})`; return f && e.onlyIf && CONDICAO_PT[e.onlyIf] ? `${f} (${CONDICAO_PT[e.onlyIf]})` : f; }).filter(Boolean).join('; ');
 /** E50 P6 · a linha do texto oficial (inglês) que corresponde a uma habilidade na pilha.
     Gatilho: linhas "When/Whenever/At"; ativada: linhas com custo antes de ":". Entre as do mesmo tipo,
