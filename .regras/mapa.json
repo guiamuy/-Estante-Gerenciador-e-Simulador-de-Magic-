@@ -11738,7 +11738,7 @@
    "regra": "The Monarch",
    "titulo": "Efeito contínuo que depende de quem é monarca",
    "status": "coberta",
-   "falta": "T-62 (13/10/2026): coberta. Entourage of Trest (bloqueio extra), Crown-Hunter Hireling (\"can't attack unless defending player is the monarch\") e Fall from Favor (não desvira a menos que seja o monarca) ficam manuais: as três restrições não existem no motor.",
+   "falta": "T-62/T-70 (13/10/2026): coberta (condições, contínuo, evasão, ataque e desvirar ligados ao monarca). Entourage of Trest (\"can block an additional creature each combat as long as you're the monarch\") fica manual: bloquear mais de uma criatura não existe no motor.",
    "esforco": "P",
    "depende": [
     "725.1",
@@ -11748,9 +11748,11 @@
     "CR 725.5 / 611.2 · \"enquanto você é o monarca\" (efeito contínuo): sem monarca no jogo o efeito não faz nada; vale enquanto você é o monarca e para quando a coroa sai",
     "CR 725.5 / 603.4 · Throne Warden: no seu passo final, se você é o monarca, ganha um marcador +1/+1; sem ser o monarca, nem dispara",
     "CR 725.5 / 608.2c · efeitos com \"se você é o monarca\" e \"se um oponente é o monarca\" olham a coroa na resolução",
-    "CR 725.5 · Queen Marchesa: na sua manutenção, se um oponente é o monarca, cria um Assassino 1/1 com toque mortífero e ímpeto; sendo você o monarca, ou sem monarca, nada"
+    "CR 725.5 · Queen Marchesa: na sua manutenção, se um oponente é o monarca, cria um Assassino 1/1 com toque mortífero e ímpeto; sendo você o monarca, ou sem monarca, nada",
+    "CR 508.1c / 725.5 · Crown-Hunter Hireling: só ataca se o jogador defensor é o monarca",
+    "CR 502.3 / 725.5 · Fall from Favor: vira a criatura encantada e você se torna o monarca; ela não desvira no desvirar do controlador, a menos que ele seja o monarca"
    ],
-   "evidencia": "T-62 (13/10/2026): condições do monarca — gatilho `condition: { monarca: 'voce'|'oponente' }` (603.4, ao disparar e ao resolver), efeito `onlyIf: 'monarca'|'oponente-monarca'` e `per: 'se'`, efeito contínuo `se: { monarca }` (monarcaCondT: sem monarca no jogo nenhuma vale). Cartas: Throne Warden, Garrulous Sycophant, Queen Marchesa (Oracle do Forge, 13/10/2026). tipos.monarca.unit (T-62)."
+   "evidencia": "T-62 (13/10/2026): condições do monarca — gatilho `condition: { monarca: 'voce'|'oponente' }` (603.4, ao disparar e ao resolver), efeito `onlyIf: 'monarca'|'oponente-monarca'` e `per: 'se'`, efeito contínuo `se: { monarca }` (monarcaCondT: sem monarca no jogo nenhuma vale). Cartas: Throne Warden, Garrulous Sycophant, Queen Marchesa (Oracle do Forge, 13/10/2026). tipos.monarca.unit (T-62). T-70: self.atacaSeMonarcaDefende e grants.naoDesviraSalvoMonarca (Crown-Hunter Hireling, Fall from Favor); \"can't be blocked by creatures the monarch controls\" (Azure Fleet Admiral) é da M-391, trilha motor."
   },
   {
    "n": "726.1",

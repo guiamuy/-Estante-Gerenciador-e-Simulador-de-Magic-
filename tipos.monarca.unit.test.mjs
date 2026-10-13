@@ -10,7 +10,8 @@ import { E, S as SC, T, J, act, poe, legais, passaAte, valorDeMana } from './lis
 const OF = JSON.parse(readFileSync(new URL('./.listas/oficiais-tipos.json', import.meta.url), 'utf8')).cartas;
 const TW = 'Throne Warden', GS = 'Garrulous Sycophant', QM = 'Queen Marchesa';
 const C = {};
-for (const c of OF.filter(x => [TW, GS, QM].includes(x.name)))
+const CHH = 'Crown-Hunter Hireling', FFF = 'Fall from Favor';
+for (const c of OF.filter(x => [TW, GS, QM, CHH, FFF].includes(x.name)))
   C[c.name] = { name: c.name, type_line: c.type_line, mana_cost: c.mana_cost, cmc: valorDeMana(c.mana_cost), keywords: c.name === QM ? ['Deathtouch', 'Haste'] : [], oracle_text: c.oracle_text, colors: [...new Set(c.mana_cost.match(/[WUBRG]/g) || [])], power: c.power, toughness: c.toughness };
 C.Plains = { name: 'Plains', type_line: 'Basic Land — Plains', mana_cost: '', cmc: 0, keywords: [], oracle_text: '({T}: Add {W}.)', colors: [] };
 const EX = { example: { target: 'none', expect: { selfLife: 0 } } };
@@ -135,4 +136,24 @@ test('Validador · as mensagens do "se" citam o monarca', () => {
   assert.match(T.descreveEfeitos(SCRIPTS.Tributo.effects), /2 se você é o monarca/, 'a frase do "per: se" diz a condição');
   assert.ok(SC.validateScript({ ...SCRIPTS.Pajem, continuo: [{ afetados: 'self', poder: 1, resistencia: 1, se: { monarca: true } }] }).some(e => /monarca/.test(e)));
   assert.ok(SC.validateScript({ ...SCRIPTS.Tributo, effects: [{ do: 'draw', amount: { per: 'se', se: 'monarch', sim: 2, nao: 1 } }] }).some(e => /monarca/.test(e)));
+});
+
+/* ---------------- T-70 · CR 725.5 · restrições ligadas ao monarca ---------------- */
+const comCombate = (s, p, oid) => { s = J(s); s.objects[oid].sick = false; return s; };
+
+test('CR 508.1c / 725.5 · Crown-Hunter Hireling: só ataca se o jogador defensor é o monarca', () => {
+  let s = mesa(); let h; [s, h] = poe(s, 0, CHH, 'battlefield'); s = comCombate(s, 0, h);
+  const pode = x => E.eligibleAttackers(x, 0).includes(h);
+  eq([pode(s), pode(monarca(s, 0)), pode(monarca(s, 1))], [false, false, true]);
+});
+
+test('CR 502.3 / 725.5 · Fall from Favor: vira a criatura encantada e você se torna o monarca; ela não desvira no desvirar do controlador, a menos que ele seja o monarca', () => {
+  let s = mesa(); let u; [s, u] = poe(s, 1, 'Pajem', 'battlefield');
+  let f; [s, f] = poe(s, 0, FFF, 'hand'); s = mana(s);
+  s = esvazia(act(s, legais(s, 0, x => x.t === 'cast' && x.oid === f && (x.targets || [])[0] && x.targets[0].oid === u)[0]));
+  eq([s.objects[u].tapped, s.monarca], [true, 0]);
+  let x = passaAte(s, y => y.turn.active === 1 && y.turn.step === 'main1');
+  eq(x.objects[u].tapped, true, 'B não é o monarca: continua virada');
+  let y = passaAte(monarca(s, 1), z => z.turn.active === 1 && z.turn.step === 'main1');
+  eq(y.objects[u].tapped, false, 'B é o monarca: desvira');
 });
