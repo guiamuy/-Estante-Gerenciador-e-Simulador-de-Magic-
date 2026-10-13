@@ -331,3 +331,34 @@ test('G-268 · trocar a senha: confere a atual antes (entrada recente), grava a 
   await assert.rejects(conta.trocarSenha('segredo-123', 'nova-senha-2'), /senha-fraca/);
   assert.ok(C.MOTIVO['senha-igual'] && !/firebase|token|uid/i.test(C.MOTIVO['senha-igual']));
 });
+
+test('G-269 · excluir a conta: confere a senha, limpa a nuvem antes e só então exclui (accounts:delete); nuvem sem confirmar não exclui', async () => {
+  const pedidos = []; let n = 0;
+  const ok = (o, st = 200) => ({ ok: st < 400, status: st, json: async () => o });
+  const fetch = async (url, init = {}) => {
+    const corpo = JSON.parse(init.body); pedidos.push({ url: url.split('?')[0], corpo });
+    if (url.includes('signInWithPassword') && corpo.password !== 'segredo-123') return ok({ error: { message: 'INVALID_LOGIN_CREDENTIALS' } }, 400);
+    if (url.includes('accounts:delete')) return ok({ kind: 'identitytoolkit#DeleteAccountResponse' });
+    return ok({ localId: 'uidSenha_1', email: corpo.email, idToken: 'id-' + (++n), refreshToken: 'ref-' + n, expiresIn: '3600' });
+  };
+  const guardado = [];
+  const { conta } = contaCom(C.createSessaoFirebase({ apiKey: 'k', fetch, guarda: d => guardado.push(d) }));
+  await conta.criarComEmail('ana@exemplo.com', 'segredo-123');
+  const ordem = [];
+  const limpa = async () => { ordem.push('nuvem'); return true; };
+  await assert.rejects(conta.excluirConta({ senha: '', limpaNuvem: limpa }), /senha-vazia/);
+  await assert.rejects(conta.excluirConta({ senha: 'errada-000', limpaNuvem: limpa }), /senha-nao-confere/);
+  assert.deepEqual(ordem, [], 'senha errada não toca na nuvem');
+  await assert.rejects(conta.excluirConta({ senha: 'segredo-123', limpaNuvem: async () => false }), /nuvem-falhou/);
+  await assert.rejects(conta.excluirConta({ senha: 'segredo-123', limpaNuvem: async () => { throw new Error('api'); } }), /nuvem-falhou/);
+  assert.equal(pedidos.filter(p => p.url.endsWith('accounts:delete')).length, 0, 'nuvem sem confirmar: a conta fica');
+  assert.equal(conta.estante().estado, 'conectada');
+  assert.equal(await conta.excluirConta({ senha: 'segredo-123', limpaNuvem: limpa }), true);
+  const del = pedidos.at(-1);
+  assert.equal(del.url, 'https://identitytoolkit.googleapis.com/v1/accounts:delete');
+  assert.deepEqual(Object.keys(del.corpo), ['idToken']);
+  assert.deepEqual(ordem, ['nuvem']);
+  assert.equal(await conta.get(), null, 'saiu deste aparelho'); assert.equal(conta.estante().estado, 'desconectada');
+  assert.equal(guardado.at(-1), null, 'a sessão guardada foi apagada');
+  assert.ok(C.MOTIVO['nuvem-falhou'] && !/firebase|token|uid/i.test(C.MOTIVO['nuvem-falhou']));
+});

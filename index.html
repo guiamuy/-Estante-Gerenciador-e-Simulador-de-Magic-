@@ -11208,6 +11208,22 @@ function createConta({ clientId = '', store, fetch: fetchFn = null, google: goog
       await store.set(KEY, { ...antes, nome: u.name || antes.nome || '', foto: u.picture || antes.foto || null, google: { email: String(u.email || ''), em: agora() } });
       return this.get();
     },
+    /** G-269 · T6f-5b · Excluir a conta: confere quem é (senha, ou o Google de novo), apaga os dados da conta na nuvem
+        (`limpaNuvem`, que devolve true só com tudo apagado) e só então a conta; por fim sai deste aparelho. Se a nuvem
+        não confirmar, nada é excluído. */
+    async excluirConta({ senha = '', limpaNuvem = async () => true } = {}) {
+      const c = await this.get();
+      if (!c || !sessao || !sessao.excluirConta) throw erro('sem-conta-estante');
+      if (c.provedor === 'senha' && !String(senha || '')) throw erro('senha-vazia');
+      if (!temRede()) throw erro('sem-rede');
+      if (c.provedor === 'senha') await sessao.entrarComSenha(c.email, String(senha));
+      else { await pedeToken(); await sessao.entrar(token); }
+      let limpo = false; try { limpo = await limpaNuvem(); } catch (e) { limpo = false; }
+      if (!limpo) throw erro('nuvem-falhou');
+      await sessao.excluirConta();
+      await this.sair();
+      return true;
+    },
     /** G-268 · T6f-5a · Trocar a senha: confere a atual (entrada recente, que o Firebase exige) e grava a nova. */
     async trocarSenha(atual, nova) {
       const c = await this.get();
@@ -11327,6 +11343,7 @@ const SIGNUP = 'https://identitytoolkit.googleapis.com/v1/accounts:signUp';
 const SENHA = 'https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword';
 const OOB = 'https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode'; // G-264 · T6f-2 · link de senha nova
 const UPDATE = 'https://identitytoolkit.googleapis.com/v1/accounts:update'; // G-268 · T6f-5a · trocar a senha
+const APAGA = 'https://identitytoolkit.googleapis.com/v1/accounts:delete'; // G-269 · T6f-5b · excluir a conta
 /** Código do Identity Toolkit (o começo da mensagem de erro) → motivo da tela. Com a proteção contra enumeração ligada,
     e-mail sem conta e senha errada chegam iguais (INVALID_LOGIN_CREDENTIALS): a tela também não diferencia. */
 const ERRO_SENHA = { EMAIL_EXISTS: 'email-em-uso', INVALID_EMAIL: 'email-invalido', MISSING_EMAIL: 'email-invalido', WEAK_PASSWORD: 'senha-fraca', MISSING_PASSWORD: 'senha-vazia', INVALID_LOGIN_CREDENTIALS: 'senha-nao-confere', INVALID_PASSWORD: 'senha-nao-confere', EMAIL_NOT_FOUND: 'senha-nao-confere', USER_DISABLED: 'conta-desativada', TOO_MANY_ATTEMPTS_TRY_LATER: 'muitas-tentativas', RESET_PASSWORD_EXCEED_LIMIT: 'muitas-tentativas', OPERATION_NOT_ALLOWED: 'sem-senha', PASSWORD_LOGIN_DISABLED: 'sem-senha' };
@@ -11428,6 +11445,16 @@ function createSessaoFirebase({ apiKey = '', fetch: fetchFn = null, agora = () =
       }
       return { uid: s.uid };
     },
+    /** G-269 · T6f-5b · Exclui a conta da Estante aberta (pede entrada recente: quem chama confere antes). Encerra a sessão. */
+    async excluirConta() {
+      if (!apiKey) throw erro('sem-firebase');
+      if (!s) throw erro('sem-conta-estante');
+      const idToken = await this.token();
+      try { await pede(`${APAGA}?key=${chave()}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idToken }) }); }
+      catch (e) { const codigo = e.message === 'firebase-recusou' ? ERRO_VINCULO[String(e.detalhe || '').split(/[\s:]/)[0]] : null; throw codigo ? erro(codigo, { status: e.status }) : e; }
+      s = null; renovando = null; grava(null);
+      return true;
+    },
     /** G-264 · T6f-2 · Pede o e-mail com o link de senha nova (modelo em pt-BR no console). A resposta é a mesma com ou
         sem conta nesse e-mail (proteção contra enumeração): só e-mail malformado, excesso de pedidos e rede mudam. */
     async redefinirSenha(email) {
@@ -11478,6 +11505,7 @@ const MOTIVO = { 'sem-client-id': 'Entrar com Google precisa de um Client ID con
   // G-263 · T6f-1 · e-mail e senha
   'email-invalido': 'Confira o e-mail: falta algo como nome@exemplo.com.', 'senha-vazia': 'Digite a senha.', 'senha-curta': 'A senha precisa de pelo menos 8 caracteres.', 'senha-longa': 'A senha pode ter no máximo 128 caracteres.', 'senha-fraca': 'Senha fraca demais: use pelo menos 8 caracteres.', 'email-em-uso': 'Este e-mail já tem conta. Toque em Entrar (se a conta foi criada com o Google, use Continuar com Google).', 'senha-nao-confere': 'E-mail ou senha não conferem.', 'conta-desativada': 'Esta conta foi desativada.', 'muitas-tentativas': 'Muitas tentativas em pouco tempo. Espere alguns minutos e tente de novo.', 'sem-senha': 'Entrar com e-mail ainda não está ligado neste app.', 'entre-de-novo': 'A conta saiu deste aparelho: entre de novo com e-mail e senha.',
   // G-267 · T6f-4 · ligar o Google
+  'nuvem-falhou': 'A nuvem não confirmou que apagou os dados, e a conta não foi excluída. Confira a internet e tente de novo.',
   'sem-conta-estante': 'Entre na conta da Estante antes de ligar o Google.', 'senha-igual': 'A senha nova precisa ser diferente da atual.', 'google-de-outra-conta': 'Esta conta Google já é de outra conta da Estante. Use outra conta Google, ou entre pela outra com Continuar com Google.', 'google-email-em-uso': 'O e-mail desta conta Google já tem conta na Estante. Entre por ela com Continuar com Google.' };
 const motivoDe = e => MOTIVO[e && e.message] || MOTIVO.api;
 return { createConta, createSessaoFirebase, carregaScriptWeb, motivoDe, MOTIVO, KEY, ARQUIVO };
@@ -12440,6 +12468,14 @@ function createNomeDeUsuario({ transporte, uid, agora = () => Date.now() }) {
       await transporte.escrever(`perfis/${uid}/usuario`, { nome: n, em });
       if (atual) { try { await transporte.apagar(`usuarios/${atual.nome}`); } catch (e) { /* o antigo fica reservado para esta conta: ninguém mais o pega */ } }
       return { nome: n, mudou: true };
+    },
+    /** G-269 · Solta o nome desta conta (excluir a conta). Devolve true com o nome solto, ou sem nome. */
+    async liberar() {
+      const atual = await this.meu();
+      if (!atual) return true;
+      await transporte.apagar(`usuarios/${atual.nome}`);
+      await transporte.apagar(`perfis/${uid}/usuario`);
+      return (await transporte.ler(`usuarios/${atual.nome}`)) === null;
     }
   };
 }
@@ -13586,7 +13622,7 @@ const DESTINOS = [
     // P-15 · a sincronia do perfil (A-263) e a lista de bloqueados também vão para a conta: a lista diz isso agora
     vai: 'Na sala: o código, seu nome e foto do perfil, a lista que você escolheu, as jogadas e as mensagens da conversa. Cada assento leva o código da conta da Estante de quem sentou, para que ninguém jogue no seu lugar. Com a conta da Estante conectada, também vão para ela, e só você lê: o seu perfil (nome, foto e preferências), para os seus outros aparelhos, e as contas que você bloqueou (código e nome). O nome de usuário (@), se você escolher um, fica reservado para a sua conta: quem tem conta consegue ver que ele está em uso e de que conta é. Ao criar a conta ou entrar com e-mail e senha, os dois vão para o serviço de contas do Google (Firebase Authentication), que guarda a senha protegida; no aparelho fica só o e-mail. Ao enviar um relato com a conta conectada, o relato (texto, tela e contexto, sem a partida anexada) vai para a fila da conta, de onde o repositório cria o registro público no GitHub e o tira da fila.',
     quando: 'Ao criar ou entrar numa sala online. Com a conta conectada, também ao abrir o app, ao mudar uma preferência, ao abrir o Perfil, ao bloquear ou desbloquear alguém e ao tocar em Enviar num relato.',
-    evitar: 'Jogar contra o bot ou a dois no mesmo aparelho e não conectar a conta da Estante: nada sai. O que já foi sai em Perfil › Dados › Apagar tudo, com "Apagar também da nuvem".' }
+    evitar: 'Jogar contra o bot ou a dois no mesmo aparelho e não conectar a conta da Estante: nada sai. O que já foi sai em Perfil › Dados › Apagar tudo, com "Apagar também da nuvem", ou de vez em Perfil › Conta › Excluir a conta (G-269).' }
 ];
 /** Endereços que o app só abre numa aba quando você toca: nada vai além do endereço. */
 const LINKS = [
@@ -15157,6 +15193,36 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
       actions: [Button('Cancelar', { id: 'conta-troca-cancelar', onClick: closeDialog }), vai] });
     atual.focus({ preventScroll: true });
   }
+  /** G-269 · T6f-5b · excluir a conta: diz o que sai e o que fica, confere quem é e só exclui com a nuvem limpa. */
+  function abreExcluirConta(c) {
+    const erro = h('div', { class: 'conta-email__erro', id: 'conta-excluir-erro', role: 'alert' });
+    const senha = c.provedor === 'senha' ? h('input', { class: 'ds-input', type: 'password', id: 'conta-excluir-senha', autocomplete: 'current-password', placeholder: 'Senha' }) : null;
+    const vai = Button('Excluir a conta', { variant: 'danger', icone: 'lixeira', id: 'conta-excluir-confirmar', onClick: () => confirma() });
+    const rot = () => vai.querySelector('.ds-btn__rotulo');
+    async function confirma() {
+      if (vai.disabled) return;
+      clear(erro); vai.disabled = true; vai.setAttribute('aria-busy', 'true'); rot().textContent = 'Excluindo…'; st.contaOcupada = true;
+      try {
+        await conta.excluirConta({ senha: senha ? senha.value : '', limpaNuvem: conta.limpaNuvem });
+        st.contaOcupada = false; st.conta = null; st.usuario = null;
+        closeDialog(); toast('Conta excluída. O que está neste aparelho continua aqui.', 4000); paint();
+      } catch (e) {
+        st.contaOcupada = false; vai.disabled = false; vai.removeAttribute('aria-busy'); rot().textContent = 'Excluir a conta';
+        try { if (conta.sincronia) conta.sincronia.agora(); } catch (err) { /* sem sincronia: a limpeza pode ter parado a sincronia; volta */ }
+        mount(erro, Note(e && e.message === 'senha-nao-confere' ? 'A senha não confere.' : __m29.motivoDe(e), 'negative'));
+        if (senha) senha.focus();
+      }
+    }
+    if (senha) senha.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); confirma(); } });
+    Dialog({ title: 'Excluir a conta?', body: Stack({},
+      Text('Não dá para desfazer. A conta ' + c.email + ' deixa de existir.', { tone: 'muted' }),
+      Text('Sai da nuvem: o perfil e a foto, as preferências, as contas que você bloqueou e o nome de usuário (que fica livre).', { size: 'sm' }),
+      Text('Fica: as listas, a coleção e o perfil neste aparelho; o backup no seu Google Drive (apague no Drive, se quiser); os relatos já enviados, que estão no GitHub.', { size: 'sm', tone: 'muted' }),
+      senha ? Field('Digite a senha para confirmar', senha) : Text('O Google vai pedir para confirmar que é você.', { size: 'sm', tone: 'muted' }),
+      erro),
+      actions: [Button('Cancelar', { id: 'conta-excluir-cancelar', onClick: closeDialog }), vai] });
+    if (senha) senha.focus({ preventScroll: true });
+  }
   function secaoConta() {
     if (!conta) return null;
     const comEmail = !!(conta.comEmailDisponivel && conta.comEmailDisponivel());
@@ -15208,6 +15274,7 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
         ] : [Text('Backup no Google Drive: chega quando der para ligar o Google a esta conta. Até lá, o backup por arquivo guarda tudo.', { size: 'sm', tone: 'muted', attrs: { id: 'conta-backup-quando' } })]),
         Row({ class: 'ds-row--wrap' },
           Button('Trocar a senha', { icone: 'editar', id: 'conta-senha-trocar', variant: 'ghost', disabled: oc || e.estado !== 'conectada', title: e.estado !== 'conectada' ? 'Entre de novo antes de trocar a senha' : 'Trocar a senha desta conta', onClick: () => abreTrocarSenha() }),
+          botaoExcluir(c, oc, e.estado),
           Button('Sair', { icone: 'desistir', id: 'conta-sair', variant: 'ghost', disabled: oc, onClick: () => acaoDaConta(async () => { await conta.sair(); toast('Conta desconectada'); }) }))));
     }
     return Surface({ class: 'ds-surface--pad', id: 'perfil-conta', dataset: { conectada: 'true' } }, Stack({}, cabeca,
@@ -15230,7 +15297,13 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
           const b = await conta.baixarBackup(); if (!b) return toast('Não há backup na nuvem ainda');
           toast(await backup.restaurar(b.texto)); await carrega();
         }) }),
+        botaoExcluir(c, oc, conta.estante ? conta.estante().estado : 'desligada'),
         Button('Sair', { icone: 'desistir', id: 'conta-sair', variant: 'ghost', disabled: oc, onClick: () => acaoDaConta(async () => { await conta.sair(); toast('Conta desconectada'); }) }))));
+  }
+  /** G-269 · só com a conta da Estante conectada (é ela que se exclui). */
+  function botaoExcluir(c, oc, estado) {
+    if (!conta.excluirConta || estado !== 'conectada') return null;
+    return Button('Excluir a conta', { icone: 'lixeira', id: 'conta-excluir', variant: 'danger', disabled: oc, title: 'Excluir esta conta e os dados dela na nuvem', onClick: () => abreExcluirConta(c) });
   }
 
   async function salvar(forca = false) {
@@ -36652,6 +36725,14 @@ const sincronia = __m40.createSincronia({
   aoDescer: async r => { await theme.init(); etiquetas.recarrega(); await som.init(); if (r.pessoaDesceu) document.dispatchEvent(new CustomEvent('estante:perfil')); }
 });
 conta.sincronia = sincronia;
+// G-269 · T6f-5b · excluir a conta: o que a conta tem na nuvem sai antes (perfil, foto, bloqueados, nome de usuário)
+conta.limpaNuvem = async () => {
+  try { sincronia.para(); } catch (e) { /* sem sincronia */ }
+  if (online.modo !== 'firebase') return true; // sem banco ligado, a conta não guardou nada nele
+  const uid = conta.sessao.uid(); if (!uid) return false;
+  const nu = __m40.createNomeDeUsuario({ transporte: online.transporte, uid });
+  return !!(await nu.liberar() && await __m40.createPerfilRemoto({ transporte: online.transporte, uid }).apagarTudo() && await online.bloqueios.apagarDaNuvem());
+};
 // G-266 · T6f-3 · nome de usuário único: com a conta da Estante conectada e o banco ligado
 conta.nomeDeUsuario = () => { if (online.modo !== 'firebase' || conta.estante().estado !== 'conectada') return null; const uid = conta.sessao.uid(); return uid ? __m40.createNomeDeUsuario({ transporte: online.transporte, uid }) : null; };
 aoPreferencia = () => sincronia.mudou();

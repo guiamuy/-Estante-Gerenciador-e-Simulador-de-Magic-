@@ -381,3 +381,13 @@ test('G-266 · nome de usuário: formato conferido no app e no banco; banco com 
   await assert.rejects(R.createNomeDeUsuario({ transporte: { ...antigas, ler: async c => { if (c.startsWith('perfis/')) return null; return antigas.ler(); } }, uid: ANA.uid }).reservar('gui'), /nome-sem-regras/);
   assert.throws(() => R.createNomeDeUsuario({ transporte: t, uid: '../x' }), /uid-invalido/);
 });
+
+test('G-269 · excluir a conta: soltar o nome de usuário sob as regras (a reserva e o apontamento saem; o nome fica livre)', async () => {
+  const b = bancoComRegras();
+  const daAna = R.createNomeDeUsuario({ transporte: transporte(b, ANA), uid: ANA.uid, agora: () => 7 });
+  assert.equal(await daAna.liberar(), true, 'sem nome: nada a soltar');
+  await daAna.reservar('ana');
+  assert.equal(await daAna.liberar(), true);
+  assert.equal(b.dados(), null, 'o banco ficou vazio');
+  assert.deepEqual({ ...(await R.createNomeDeUsuario({ transporte: transporte(b, BETO), uid: BETO.uid }).reservar('ana')) }, { nome: 'ana', mudou: true });
+});

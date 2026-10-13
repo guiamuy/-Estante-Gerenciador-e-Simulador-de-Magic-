@@ -5614,6 +5614,60 @@ test('e2e · G-266 nome de usuário: formato conferido a cada letra, nome em uso
   assert.deepEqual(errors, []);
 });
 
+/* G-269 · T6f-5b · relato #18: excluir a conta */
+test('e2e · G-269 excluir a conta: diz o que sai e o que fica, senha errada não apaga nada, a certa limpa a nuvem e exclui; o aparelho fica como está', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  const banco = { usuarios: { gui: { uid: 'uidSenha', em: 1 } }, perfis: { uidSenha: { usuario: { nome: 'gui', em: 1 } } }, bloqueios: { uidSenha: { outra: { nome: 'X', em: 1 } } } };
+  await page.route('https://teste.firebaseio.com/**', async r => {
+    const u = new URL(r.request().url()), seg = u.pathname.replace(/\.json$/, '').split('/').filter(Boolean), metodo = r.request().method();
+    if (u.searchParams.get('auth') !== 'id-senha') return r.fulfill({ status: 401, json: { error: 'Permission denied' } });
+    const corpo = r.request().postData() ? JSON.parse(r.request().postData()) : null;
+    const poe = (caminho, v) => { let o = banco; for (const k of caminho.slice(0, -1)) o = o[k] = o[k] && typeof o[k] === 'object' ? o[k] : {}; if (v === null) delete o[caminho.at(-1)]; else o[caminho.at(-1)] = v; };
+    if (metodo === 'PUT') poe(seg, corpo);
+    if (metodo === 'DELETE') poe(seg, null);
+    if (metodo === 'PATCH') for (const [k, v] of Object.entries(corpo)) poe([...seg, ...k.split('/')], v);
+    return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(metodo === 'GET' ? (seg.reduce((o, k) => (o && typeof o === 'object' ? o[k] : undefined), banco) ?? null) : corpo) });
+  });
+  await page.addInitScript(() => {
+    window.__FIREBASE_DB_URL = 'https://teste.firebaseio.com';
+    window.__GOOGLE_CLIENT_ID = 'e2e.apps.googleusercontent.com'; window.__FIREBASE_API_KEY = 'chave-e2e';
+    window.__apagou = 0;
+    const ok = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } });
+    window.__FIREBASE_FETCH = async (url, init) => {
+      const corpo = url.includes('securetoken') ? init.body : JSON.parse(init.body);
+      if (url.includes('securetoken')) return ok({ id_token: 'id-senha', refresh_token: 'ref-senha', expires_in: '3600', user_id: 'uidSenha' });
+      if (url.includes('accounts:delete')) { window.__apagou++; return ok({}); }
+      if (url.includes('signInWithPassword') && corpo.password !== 'senha-certa-1') return ok({ error: { message: 'INVALID_LOGIN_CREDENTIALS' } }, 400);
+      return ok({ localId: 'uidSenha', email: corpo.email, idToken: 'id-senha', refreshToken: 'ref-senha', expiresIn: '3600' });
+    };
+    window.EventSource = class { constructor() {} addEventListener() {} close() {} };
+  });
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#conta-email-abrir:not([disabled])');
+  await page.click('#conta-email-abrir'); await page.waitForSelector('#conta-email-campo');
+  await page.fill('#conta-email-campo', 'gui@exemplo.com'); await page.fill('#conta-senha', 'senha-certa-1'); await page.click('#conta-email-confirmar');
+  await page.waitForSelector('#conta-sincronia[data-estado="sincronizado"]', { timeout: 10000 });
+  assert.ok(banco.perfis.uidSenha.doc, 'o perfil subiu para a nuvem');
+  await page.click('#conta-excluir'); await page.waitForSelector('#conta-excluir-senha');
+  const texto = await page.innerText('.ds-dialog');
+  assert.match(texto, /Não dá para desfazer/); assert.match(texto, /nome de usuário \(que fica livre\)/); assert.match(texto, /listas, a coleção e o perfil neste aparelho/);
+  await auditaTela(page, 'perfil · excluir a conta');
+  // senha errada: avisa, nada sai da nuvem e a conta fica
+  await page.fill('#conta-excluir-senha', 'errada-000'); await page.click('#conta-excluir-confirmar');
+  await page.waitForFunction(() => /A senha não confere/.test(document.querySelector('#conta-excluir-erro').textContent));
+  assert.equal(await page.evaluate(() => window.__apagou), 0); assert.ok(banco.perfis.uidSenha.doc && banco.usuarios.gui);
+  // a certa: a nuvem é limpa e a conta excluída; o Perfil volta às duas portas
+  await page.fill('#conta-excluir-senha', 'senha-certa-1'); await page.click('#conta-excluir-confirmar');
+  await page.waitForSelector('#conta-email-abrir');
+  assert.equal(await page.evaluate(() => window.__apagou), 1);
+  const resto = banco.perfis?.uidSenha || {}; // o banco de verdade poda o nó vazio; o falso deixa {}
+  assert.deepEqual([resto.doc, resto.avatar, resto.usuario], [undefined, undefined, undefined], 'perfil, foto e nome de usuário saíram');
+  assert.equal(banco.usuarios?.gui, undefined, 'o nome ficou livre');
+  assert.ok(!banco.bloqueios?.uidSenha || !Object.keys(banco.bloqueios.uidSenha).length, 'os bloqueados saíram');
+  assert.match(await page.innerText('#ds-toast'), /Conta excluída/);
+  assert.deepEqual(errors, []);
+});
+
 // ---- Leva 131 · R3 · Mono Blue Faeries pela tela (360×780, modo único) ----
 const dock131 = async page => (await page.locator('.tb-dock').innerText()).replace(/\s*\n+\s*/g, ' | ');
 const folha131 = async (page, nome, onde = '#tb-hand') => { await page.locator(`${onde} .tb-card[aria-label^="${nome}"]`).first().click(); await page.waitForSelector('.ds-dialog'); await page.waitForTimeout(250);
