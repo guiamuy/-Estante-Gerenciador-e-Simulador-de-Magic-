@@ -9619,8 +9619,14 @@
    "n": "702.184",
    "regra": "Keyword Abilities",
    "titulo": "Station",
-   "status": "ausente",
-   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): estação é do tipo Espaçonave.",
+   "status": "parcial",
+   "falta": "Fica com a trilha tipos (CR5, tipos e formatos de carta): estação é do tipo Espaçonave. T-37 (13/10/2026): falta só 702.184c (estacionar por outra característica, Tapestry Warden).",
+   "evidencia": "T-37 (13/10/2026): self.estacao.faixas = [{ n, pt?, palavras?, abilities? }]; o motor monta a ativada de estação (virar outra criatura sua desvirada, enjoo não impede, só como feitiço; marcadores de carga iguais ao poder dela na resolução, ou o último que teve se saiu, 608.2h), que existe sempre (721.4). Cada faixa {N+} alcançada dá palavras e habilidades e, com pt, torna a permanente criatura com esse P/R base além dos outros tipos (cálculo de camadas). Mesa: \"Estação: virar <criatura> (+N de carga)\"; registro \"recebeu N marcadores de carga (estação)\". Carta exemplo completa: Pinnacle Kill-Ship (Oracle do Forge, 13/10/2026).",
+   "testes": [
+    "CR 702.184a · estação: vire outra criatura sua desvirada (enjoo não impede) e a nave recebe marcadores de carga iguais ao poder dela",
+    "CR 702.184a · estação só como feitiço: não no turno do oponente nem com a pilha ocupada; criatura virada não serve",
+    "CR 702.184a / 608.2h · o número de marcadores é o poder da criatura virada quando a estação resolve (Força em resposta: 5); criatura de poder 0 não põe nada"
+   ],
    "esforco": "G",
    "depende": [
     "721 cartas estação",
@@ -11253,8 +11259,14 @@
    "n": "721.2",
    "regra": "Station Cards",
    "titulo": "Símbolo de estação: habilidades por carga",
-   "status": "ausente",
-   "falta": "sem station nem marcadores de carga com faixas (grep station: nada).",
+   "status": "coberta",
+   "falta": "T-37 (13/10/2026): nada falta.",
+   "evidencia": "T-37 (13/10/2026): self.estacao.faixas = [{ n, pt?, palavras?, abilities? }]; o motor monta a ativada de estação (virar outra criatura sua desvirada, enjoo não impede, só como feitiço; marcadores de carga iguais ao poder dela na resolução, ou o último que teve se saiu, 608.2h), que existe sempre (721.4). Cada faixa {N+} alcançada dá palavras e habilidades e, com pt, torna a permanente criatura com esse P/R base além dos outros tipos (cálculo de camadas). Mesa: \"Estação: virar <criatura> (+N de carga)\"; registro \"recebeu N marcadores de carga (estação)\". Carta exemplo completa: Pinnacle Kill-Ship (Oracle do Forge, 13/10/2026).",
+   "testes": [
+    "CR 721.2b · abaixo de 7 marcadores a nave não é criatura nem voa; com 7 ou mais é criatura artefato 7/7 com voar",
+    "CR 721.4 · a habilidade de estação existe sempre: com 7 ou mais marcadores ela continua oferecida",
+    "CR 400.7 · a nave que sai e volta é um objeto novo: sem marcadores, não é criatura"
+   ],
    "esforco": "M",
    "depende": [
     "702 station",

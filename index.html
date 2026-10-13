@@ -5508,6 +5508,7 @@ const EFFECTS = {
   lutador: { fields: [], targets: ['creature', 'creature-you-control'] },
   fight: { fields: [], targets: ['creature', 'creature-opponent-controls', 'creature-you-control'] }, // quem: 'self-source' (a permanente fonte luta) | 'primeiro-alvo' (luta a criatura anotada pelo `lutador` anterior)
   /* ↓ T · efeitos da trilha tipos */
+  estacao: { fields: [], targets: ['self'] }, // T-37 · CR 702.184a · "put charge counters equal to the tapped creature's power on this permanent" (o motor o monta a partir de `self.estacao`)
   selada: { fields: [], targets: ['self'] }, // T-31 · CR 702.171a · "this permanent becomes saddled until end of turn" (o motor o monta a partir de `self.selar`, o script não o escreve)
   virar_carta: { fields: [], targets: ['self'] }, // T-29 · CR 710 · "flip ~": vira esta carta de virar para a parte alternativa (sem volta, 710.4); `se: { minCriaturas: N }` confere "if you control N or more creatures" na resolução
   porta: { fields: [], targets: ['permanent-you-control'] }, // T-27 · CR 709.5f/g · "unlock a locked door" / "lock a door" / "lock or unlock a door" de uma Sala (alvo: seletor de Sala sua); a porta é escolhida na resolução
@@ -6216,7 +6217,7 @@ function validateScript(sc) {
   if (sc && sc.replicate != null && sc.kicker) errs.push('replicar e reforço na mesma carta não são aceitos (os dois usam o pagamento repetido)');
   if (sc && sc.modeCount != null && !(Number.isInteger(sc.modeCount) && sc.modeCount >= 2 && (sc.modes || []).length && (sc.modeRepeat || sc.modeCount <= sc.modes.length))) errs.push('número de modos inválido');
   if (sc && sc.cumulativeUpkeep && !/\{/.test(String(sc.cumulativeUpkeep.mana || ''))) errs.push('manutenção cumulativa precisa de um custo de mana');
-  errs.push(...sagaErros(sc), ...tripularErros(sc), ...aventuraErros(sc), ...duplaFaceErros(sc), ...modalErros(sc), ...divididaErros(sc), ...classeErros(sc), ...batalhaErros(sc), ...papelErros(sc), ...nivelarErros(sc), ...salaErros(sc), ...virarErros(sc), ...selarErros(sc), ...prototipoErros(sc)); // T-36 · CR 718 · protótipo (mesma chamada) // T-31 · CR 702.171 · selar (mesma chamada) // T-29 · CR 710 · carta de virar (mesma chamada) // T-26 · CR 709.5 · Sala (mesma chamada) // T-24 · CR 711 · barras de nível (mesma chamada) // T-20 · CR 111.10 · papel conhecido (mesma chamada) // T-14 · CR 310.4 · defesa da batalha (mesma chamada) // T-12 · CR 716 · Classe (mesma chamada) // T-10 · CR 709 · carta dividida (mesma chamada) // T-8 · CR 712.3 · dupla face modal (mesma chamada) // T-7 · CR 712 · dupla face (mesma chamada) // T-5 · CR 715 · aventura (mesma chamada) // T-3 · CR 702.122 · tripular (mesma chamada da T-1) // T-1 · CR 714 · Saga: capítulos, read ahead e o marcador de entrada (função abaixo da âncora T das exportações)
+  errs.push(...sagaErros(sc), ...tripularErros(sc), ...aventuraErros(sc), ...duplaFaceErros(sc), ...modalErros(sc), ...divididaErros(sc), ...classeErros(sc), ...batalhaErros(sc), ...papelErros(sc), ...nivelarErros(sc), ...salaErros(sc), ...virarErros(sc), ...selarErros(sc), ...prototipoErros(sc), ...estacaoErros(sc)); // T-37 · CR 721 · estação (mesma chamada) // T-36 · CR 718 · protótipo (mesma chamada) // T-31 · CR 702.171 · selar (mesma chamada) // T-29 · CR 710 · carta de virar (mesma chamada) // T-26 · CR 709.5 · Sala (mesma chamada) // T-24 · CR 711 · barras de nível (mesma chamada) // T-20 · CR 111.10 · papel conhecido (mesma chamada) // T-14 · CR 310.4 · defesa da batalha (mesma chamada) // T-12 · CR 716 · Classe (mesma chamada) // T-10 · CR 709 · carta dividida (mesma chamada) // T-8 · CR 712.3 · dupla face modal (mesma chamada) // T-7 · CR 712 · dupla face (mesma chamada) // T-5 · CR 715 · aventura (mesma chamada) // T-3 · CR 702.122 · tripular (mesma chamada da T-1) // T-1 · CR 714 · Saga: capítulos, read ahead e o marcador de entrada (função abaixo da âncora T das exportações)
   return errs.concat(exampleErrors(sc));
 }
 const ATRASOS = ['next-upkeep', 'next-end-step', 'end-of-combat']; // CR2b.1 · momentos de gatilho atrasado que o motor conhece
@@ -6618,6 +6619,10 @@ const RAW_SCRIPTS = [
   { name: 'Spring // Mind', self: { dividida: true, mana: '{2}{G}', types: ['sorcery'] }, effects: [{ do: 'search', amount: 1, filter: { types: ['land'], basic: true }, to: 'battlefield-tapped' }], // "Search your library for a basic land card, put it onto the battlefield tapped, then shuffle."
     back: { name: 'Mind', types: ['instant'], mana: '{4}{U}{U}', effects: [{ do: 'draw', amount: 2 }], aftermath: true }, // "Aftermath · Draw two cards."
     example: { target: 'none', expect: { selfLife: 0 } } },
+  // T-37 · CR 702.184 / 721 · estação (Oracle do Forge, clone de 13/10/2026). `self.estacao.faixas`: os símbolos {N+}; a ativada de estação o motor monta.
+  { name: 'Pinnacle Kill-Ship', self: { estacao: { faixas: [{ n: 7, pt: [7, 7], palavras: ['flying'] }] } }, // "STATION 7+ · Flying · 7/7"
+    abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'damage', amount: 10, target: 'creature', upTo: true }] }], // "When this Spacecraft enters, it deals 10 damage to up to one target creature."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o cenário de verdade (estação, faixa 7+, dano ao entrar) está em tipos.estacao.unit
   // T-36 · CR 702.160 / 718 · protótipo (Oracle do Forge, clone de 13/10/2026). `self.prototipo`: o custo, o poder e a resistência alternativos.
   { name: 'Boulderbranch Golem', self: { prototipo: { mana: '{3}{G}', power: 3, toughness: 3 } }, // "Prototype {3}{G} — 3/3"
     abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'gain', amount: { per: 'power-of-source' } }] }], // "When Boulderbranch Golem enters, you gain life equal to its power."
@@ -8988,6 +8993,28 @@ function prototipoErros(sc) {
   return errs;
 }
 Object.assign(EXPORTS_T_SC, { prototipoErros });
+/* ---------------- T-37 · CR 702.184 / 721 · estação (forma do script) ----------------
+   `self: { estacao: { faixas: [{ n, pt?, palavras?, abilities? }] } }`: cada faixa é um símbolo de estação "{N+}" (721.2): com N ou
+   mais marcadores de carga a permanente tem as palavras e as habilidades da faixa e, com `pt`, é criatura com esse P/R base além dos
+   outros tipos (721.2b). A ativada de estação (702.184a) o motor monta: o script não a escreve. */
+function estacaoErros(sc) {
+  const sf = sc && sc.self, es = sf && sf.estacao; if (es == null) return [];
+  const fx = es && es.faixas;
+  if (!Array.isArray(fx) || !fx.length) return ['estação: self.estacao.faixas é a lista dos símbolos de estação ({N+}), em ordem'];
+  const errs = [];
+  fx.forEach((f, i) => {
+    const tag = `estação, faixa ${i + 1}`;
+    if (!f || !Number.isInteger(f.n) || f.n < 1) { errs.push(`${tag}: N precisa ser um inteiro positivo`); return; }
+    if (i && fx[i - 1] && f.n <= fx[i - 1].n) errs.push(`${tag}: as faixas vão em ordem crescente de N`);
+    if (f.pt != null && !(Array.isArray(f.pt) && f.pt.length === 2 && f.pt.every(Number.isInteger))) errs.push(`${tag}: pt é [poder, resistência]`);
+    if (f.palavras != null && !Array.isArray(f.palavras)) errs.push(`${tag}: palavras é uma lista`);
+    if (f.abilities != null) { const v = validateScript({ name: `${sc.name} (${tag})`, abilities: f.abilities, example: { target: 'none', expect: { selfLife: 0 } } }); errs.push(...v.map(e => `${tag}: ${e}`)); }
+    if (f.pt == null && !(f.palavras || []).length && !(f.abilities || []).length) errs.push(`${tag}: a faixa não dá nada`);
+  });
+  if (sf.nivelar || sf.classe) errs.push('estação: a carta de estação não tem barras de nível nem de Classe');
+  return errs;
+}
+Object.assign(EXPORTS_T_SC, { estacaoErros });
 /* ---------------- T-31 · CR 702.171 · selar (forma do script) ----------------
    `self: { selar: N }` ("Saddle N"): o motor monta a ativada (custo de tripular N, só como feitiço, efeito `selada`). "Whenever ~ attacks
    while saddled" é o gatilho `attacks` com `condition: { selada: true }`. */
@@ -17210,15 +17237,16 @@ function redefinicoesDe(s, o) {
   const out = [];
   for (const x of attachedTo(s, o)) for (const e of continuosDaFonte(s, x)) if (e.afetados === 'anexada' && e.redefine) out.push({ ts: x.anexadaEm || 0, b: e.redefine });
   for (const v of o.vira || []) if (vigente(s, v)) out.push({ ts: v.ts || 0, b: v }); // CR2-G R6 · "torna" com duração
+  for (const b of redefinicoesDaEstacaoT(s, o)) out.push({ ts: -1, b }); // T-37 · CR 721.2b · a faixa de estação alcançada torna a permanente criatura com o P/R dela (habilidade estática própria: carimbo de quando entrou) (Toca ponto comum: redefinicoesDe)
   return out.sort((x, y) => x.ts - y.ts);
 }
 /** CR2d.13 · 205.2: os tipos somados ficam na ordem da linha de tipo ("Artifact Creature", não "Creature Artifact"). */
 const ORDEM_DOS_TIPOS = ['kindred', 'tribal', 'artifact', 'enchantment', 'land', 'creature', 'planeswalker', 'battle', 'instant', 'sorcery'];
 const ordenaTipos = ts => ts.slice().sort((a, b) => (ORDEM_DOS_TIPOS.indexOf(a) + 1 || 99) - (ORDEM_DOS_TIPOS.indexOf(b) + 1 || 99));
 function mutacao(s, o) {
-  if (!o || o.zone !== 'battlefield' || (!o.mutavel && !o.faceDown)) return null; // atalho: só quem já recebeu uma Aura dessas, ou está virada para baixo (o cálculo é chamado a cada consulta de habilidade)
+  if (!o || o.zone !== 'battlefield' || (!o.mutavel && !o.faceDown && !estacaoMutaT(s, o))) return null; // T-37 · a nave com marcador de carga também (Toca ponto comum: mutacao) · atalho: só quem já recebeu uma Aura dessas, ou está virada para baixo (o cálculo é chamado a cada consulta de habilidade)
   // CR2d.2 · também "this land becomes a N/N <tipo> creature until end of turn. It's still a land" (o.vira, com carimbo próprio)
-  const efeitos = o.mutavel ? redefinicoesDe(s, o) : [];
+  const efeitos = o.mutavel || estacaoMutaT(s, o) ? redefinicoesDe(s, o) : []; // T-37
   if (!efeitos.length && !o.faceDown) return null;
   const f = s.facts[o.name], subImpressos = String(f.typeText || '').split('—')[1] ? String(f.typeText).split('—')[1].trim().split(/\s+/) : [];
   // CR2d.12 · 613.2b / 708.2: virada para baixo, a camada 1b dá uma criatura 2/2 sem subtipo; o que vem depois vale por cima
@@ -17291,7 +17319,7 @@ function condicaoContinua(s, x, se) {
 function continuosDaFonte(s, x) {
   const sc = s.facts[x.name].script;
   if (sc && sc.self && sc.self.classe) return continuosDaClasseT(s, x, sc); // T-12 · CR 716.2a · os contínuos do nível 1 e dos níveis alcançados
-  if (sc && sc.self && sc.self.nivelar) return continuosDoNivelarT(s, x, sc); // T-24 · CR 711.2 · as palavras e os contínuos da barra alcançada (Toca ponto comum: continuosDaFonte)
+  if (sc && sc.self && (sc.self.nivelar || sc.self.estacao)) return continuosDoNivelarT(s, x, sc); // T-37 · CR 721.2 · e os das faixas de estação alcançadas // T-24 · CR 711.2 · as palavras e os contínuos da barra alcançada (Toca ponto comum: continuosDaFonte)
   if (!sc || !(sc.grants || sc.grantsAll || (sc.self && sc.self.per) || sc.continuo || (sc.aura && sc.aura.becomes))) return SEM_CONTINUOS; // atalho: quase toda permanente não concede nada
   const out = [];
   if (sc.aura && sc.aura.becomes) out.push({ afetados: 'anexada', redefine: sc.aura.becomes }); // CR2d.1 · atalho: Aura que redefine a criatura
@@ -17456,7 +17484,7 @@ function createGame(setup) {
     // palavras-chave impressas na carta, declaradas no script: valem mesmo quando o dado da carta veio sem elas (sem rede)
     if (sc.self && sc.self.devoid) f.colors = []; // R7 · desprovido de cor (702.114): incolor mesmo com mana colorida no custo
     if (sc.self && Array.isArray(sc.self.keywords)) { for (const k of sc.self.keywords) if (!f.kw.includes(k)) f.kw.push(k); if (f.kw.includes('flash')) f.flash = true; }
-    if (sc.self && sc.self.nivelar) fatosDoNivelarT(f, sc); // T-24 · CR 711.5 · as palavras das barras só valem pela barra (Toca ponto comum: createGame)
+    if (sc.self && (sc.self.nivelar || sc.self.estacao)) fatosDoNivelarT(f, sc); // T-37 · CR 721.2a · também as palavras das faixas de estação // T-24 · CR 711.5 · as palavras das barras só valem pela barra (Toca ponto comum: createGame)
     if (sc.self && sc.self.fundir && sc.back) f.script.effects = (sc.effects || []).map(e => ({ ...e, __modo: 'fundir-0' })).concat((sc.back.effects || []).map(e => ({ ...e, __modo: 'fundir-1' }))); // T-34 · CR 702.102d: a carta inteira (a fundida) resolve a esquerda e depois a direita; cada metade conjurada sozinha usa os fatos dela. T-35 · cada metade é uma frase própria (115.3: o mesmo alvo vale uma vez por metade) (Toca ponto comum: createGame)
     if (sc.choose) f.script.choose = sc.choose;
     if (sc.staticRule) f.script.staticRule = sc.staticRule;
@@ -19122,7 +19150,7 @@ const abilitiesOf = (s, o) => {
   if (sc.self && sc.self.classe) classeHabilidadesT(s, o, sc, list); // T-12 · CR 716.2a · as habilidades dos níveis alcançados e a ativada do próximo nível
   if (sc.self && sc.self.craft) list.push(craftHabilidade(sc.self.craft)); // M-356 · CR 702.167a · a ativada de craft (só como feitiço)
   if (sc.self && sc.self.selar) list.push(selarHabilidadeT(sc)); // T-31 · CR 702.171a · a ativada de selar (Toca ponto comum: abilitiesOf)
-  if (sc.self && sc.self.nivelar) nivelarHabilidadesT(s, o, sc, list); // T-24 · CR 702.87a / 711.4 · a ativada de subir de nível e as habilidades da barra alcançada (Toca ponto comum: abilitiesOf)
+  if (sc.self && (sc.self.nivelar || sc.self.estacao)) nivelarHabilidadesT(s, o, sc, list); // T-37 · CR 702.184a / 721.2a / 721.4 · e a ativada de estação com as habilidades das faixas alcançadas // T-24 · CR 702.87a / 711.4 · a ativada de subir de nível e as habilidades da barra alcançada (Toca ponto comum: abilitiesOf)
   if (sc.equip) list.push(...equipesK(s, o)); // K-28 · 702.6c-d: as outras habilidades de equipar impressas, com qualidade (Toca ponto comum: abilitiesOf)
   return list.concat(grantedAbilities(s, o), habilidadesDePalavraK(s, o)); // K-3 · palavra-chave que é habilidade disparada (proeza…)
 };
@@ -20659,6 +20687,7 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'lutador': if (obj) s.lutadorV = { fonte: src.oid, fz: encarnacaoV(s, src), oid: obj.oid, z: obj.zc || 0 }; break; // V-1/V-5 · anota quem luta; a luta é o `fight` seguinte, que apaga a anotação
     case 'fight': lutar(s, src, eff, tgt, events); break; // V-1 · 701.14
     /* ↓ T · casos de applyEffect da trilha tipos */
+    case 'estacao': estacaoResolveT(s, src, eff, events); break; // T-37 · CR 702.184a · marcadores de carga iguais ao poder da criatura virada
     case 'selada': seladaT(s, src, events); break; // T-31 · CR 702.171a · a montaria fica selada até o fim do turno
     case 'virar_carta': viraCartaT(s, src, eff, events); break; // T-29 · CR 710 · "flip ~" (sem volta)
     case 'porta': portaEfeitoT(s, src, eff, obj, events); break; // T-27 · CR 709.5f/g · destranca, tranca ou "tranca ou destranca" uma porta da Sala alvo
@@ -21718,6 +21747,7 @@ function payExtraCosts(s, p, cost, pay, selfOid) {
     const escolha = (pay && pay.tapOther) ? [].concat(pay.tapOther) : livres.slice(0, n);
     if (escolha.length !== n || escolha.some(x => !livres.includes(x))) throw new RuleError('custo', `vire ${n} criatura(s) que sirvam de custo`);
     escolha.forEach(x => { if (!s.objects[x].tapped) noteEnchantedEvent(s, s.objects[x]); s.objects[x].tapped = true; }); // Leva 106 · Cryoshatter
+    if (cost.estacaoT) s.estacaoViradaT = estacaoFotoT(s, escolha[0]); // T-37 · CR 702.184a · quem foi virada, para a resolução (Toca ponto comum: custo tapOther)
   }
 }
 /** CR2d.3 · 702.122a "Crew N": vire qualquer número de OUTRAS criaturas desviradas suas com poder total N ou mais.
@@ -22415,6 +22445,7 @@ const HANDLERS = {
       if (a.color) s.objects[abOid].chosenColor = a.color;
       if (nX) s.objects[abOid].xPaid = a.x || 0; // CR2c.7 · 107.3a: o mesmo X em todo o texto da habilidade, até ela resolver
       if (s.sacrificadosNoCusto) s.objects[abOid].sacrificados = s.sacrificadosNoCusto;
+      if (s.estacaoViradaT) { s.objects[abOid].estacaoViradaT = s.estacaoViradaT; delete s.estacaoViradaT; } // T-37 · CR 702.184a (Toca ponto comum: HANDLERS.activate)
       chargeWard(s, a.p, abOid, chosen);
       disparaAlvejado(s, abOid, chosen); // CR2b.9
     }
@@ -26019,6 +26050,41 @@ function prototipoOfertasT(s, p, out) {
   try { for (const a of legalActions(s2, p)) if (a.t === 'cast' && cand.includes(a.oid) && a.face == null && !a.omen && !a.disturb && !a.faceDown && !a.bestow && a.alt == null && !a.plotted) out.push({ ...a, prototipo: true }); }
   finally { DENTRO_DAS_MODAIS = false; }
 }
+/* ---------------- T-37 · CR 702.184 / 721 · estação ----------------
+   - 702.184a: a ativada de estação ("Station") custa virar outra criatura sua desvirada (`tapOther`, enjoo não impede) e só como
+     feitiço; na resolução põe marcadores de carga iguais ao poder dela — o de agora, se ela continua no campo, ou o último que teve
+     (608.2h). Quem foi virada viaja com a habilidade (`estacaoViradaT`). A ativada existe sempre (721.4).
+   - 721.2a/b: cada faixa {N+} alcançada dá as palavras e as habilidades dela e, com `pt`, torna a permanente criatura com esse P/R base
+     além dos outros tipos (camadas 4 e 7b: `redefinicoesDaEstacaoT` entra no cálculo de camadas, `mutacao`). As palavras impressas nas faixas saem dos
+     fatos (`fatosDoNivelarT`): só valem pela faixa.
+   Fora: 702.184c (estacionar pela resistência, Tapestry Warden). */
+const faixasDaEstacaoT = (s, o, sc) => { const n = ((o && o.counters) || {}).charge || 0; return o && o.zone === 'battlefield' ? sc.self.estacao.faixas.filter(f => n >= f.n) : []; };
+function continuosDaEstacaoT(s, x, sc) {
+  const cs = (sc.continuo || []).slice();
+  for (const f of faixasDaEstacaoT(s, x, sc)) {
+    if ((f.palavras || []).length) cs.push({ afetados: 'self', palavras: f.palavras });
+  }
+  if (!cs.length) return SEM_CONTINUOS;
+  return cs.map(c => ({ ...c, palavras: c.palavras ? c.palavras.map(w => String(w).toLowerCase()) : undefined, ...(c.torna ? { redefine: SC.tornaParaBecomes(c.torna) } : {}) })); // como o laço do `continuo` em continuosDaFonte
+}
+const estacaoMutaT = (s, o) => !!(o.counters && o.counters.charge && (((s.facts[o.name] || {}).script || {}).self || {}).estacao);
+function redefinicoesDaEstacaoT(s, o) {
+  if (!estacaoMutaT(s, o)) return [];
+  return faixasDaEstacaoT(s, o, s.facts[o.name].script).filter(f => f.pt).map(f => ({ types: ['creature'], addTypes: true, base: f.pt.slice() }));
+}
+function estacaoHabilidadesT(s, o, sc, list) {
+  list.push({ kind: 'activated', cost: { tapOther: { types: ['creature'] }, estacaoT: true }, sorceryOnly: true, label: 'Estação', estacaoT: true, effects: [{ do: 'estacao', z: o.zc || 0 }] });
+  for (const f of faixasDaEstacaoT(s, o, sc)) for (const ab of f.abilities || []) list.push({ ...ab, estacaoFaixaT: f.n });
+}
+function estacaoFotoT(s, oid) { const x = s.objects[oid]; return x ? { oid, z: x.zc || 0, power: isCreature(s, x) ? power(s, x) : 0 } : null; }
+function estacaoResolveT(s, src, eff, events) {
+  const o = src.ability ? s.objects[src.source] : src, v = src.estacaoViradaT;
+  if (!o || o.zone !== 'battlefield' || (eff.z != null && (o.zc || 0) !== eff.z)) { events.push({ kind: 'effect', do: 'estacao', name: src.name, failed: true }); return; }
+  const x = v && s.objects[v.oid], agora = x && x.zone === 'battlefield' && (x.zc || 0) === v.z;
+  const n = Math.max(0, v ? (agora ? (isCreature(s, x) ? power(s, x) : 0) : v.power) : 0);
+  const k = n > 0 ? poeMarcadores(s, o, 'charge', n) : 0;
+  events.push({ kind: 'effect', do: 'estacao', name: o.name, target: o.name, amount: k, total: (o.counters || {}).charge || 0 });
+}
 /** T-36 · o valor de mana do objeto, como os alvos o conferem (Sala no campo, protótipo, X na pilha). */
 function manaValueT(s, o) { const f = s.facts[o.name] || {}; return o.faceDown ? 0 : (valorDaSalaT(s, o) ?? (f.cmc || 0)) + (o.zone === 'stack' ? (o.xPaid || 0) * ((f.cost || {}).x || 0) : 0); }
 Object.assign(EXPORTS_T, { prototipoAtivoT, manaValueT });
@@ -26241,12 +26307,14 @@ function nivelSobeT(s, src, eff, events) {
 }
 function ptDoNivelT(s, o) { const pr = prototipoAtivoT(s, o); if (pr) return [pr.power, pr.toughness]; const f = faixaDoNivelarT(s, o); return f ? [f.base[0], f.base[1]] : null; } // T-36 · CR 718.3b: o protótipo na pilha e no campo tem o poder e a resistência alternativos (o gancho do P/R base)
 function continuosDoNivelarT(s, x, sc) {
+  if (sc.self.estacao) return continuosDaEstacaoT(s, x, sc); // T-37
   const f = faixaDoNivelarT(s, x);
   const cs = (sc.continuo || []).concat(f ? (f.continuo || []) : [], f && (f.palavras || []).length ? [{ afetados: 'self', palavras: f.palavras }] : []);
   if (!cs.length) return SEM_CONTINUOS;
   return cs.map(c => ({ ...c, palavras: c.palavras ? c.palavras.map(w => String(w).toLowerCase()) : undefined, ...(c.torna ? { redefine: SC.tornaParaBecomes(c.torna) } : {}) })); // como o laço do `continuo` em continuosDaFonte
 }
 function nivelarHabilidadesT(s, o, sc, list) {
+  if (sc.self.estacao) return estacaoHabilidadesT(s, o, sc, list); // T-37
   const nv = sc.self.nivelar;
   list.push({ kind: 'activated', cost: { mana: nv.mana }, sorceryOnly: true, label: 'Subir de nível', nivelarT: true, effects: [{ do: 'nivel_sobe', z: o.zc || 0 }] }); // 702.87a · T-25 · 400.7: a subida leva a encarnação (`z`), como a da Classe
   const f = faixaDoNivelarT(s, o); if (f) for (const ab of f.abilities || []) list.push({ ...ab, nivelarFaixaT: f.de });
@@ -26254,7 +26322,7 @@ function nivelarHabilidadesT(s, o, sc, list) {
 /** Os fatos da carta (palavras lidas do texto inteiro) perdem as palavras que só existem dentro de uma barra; `self.keywords` fica. */
 function fatosDoNivelarT(f, sc) {
   const fixas = ((sc.self && sc.self.keywords) || []).map(k => String(k).toLowerCase());
-  const dasBarras = new Set(sc.self.nivelar.faixas.flatMap(b => (b.palavras || []).map(k => String(k).toLowerCase())));
+  const dasBarras = new Set((sc.self.nivelar || sc.self.estacao).faixas.flatMap(b => (b.palavras || []).map(k => String(k).toLowerCase()))); // T-37 · as faixas de estação também
   f.kw = f.kw.filter(k => !dasBarras.has(k) || fixas.includes(k)); f.flash = f.kw.includes('flash');
 }
 Object.assign(EXPORTS_T, { faixaDoNivelarT });
@@ -27155,7 +27223,7 @@ function regrasDosNiveisT(s, p, out) {
 /** T-12 · rótulos da folha para as ativadas de uma Classe: a folha conhece só as ativadas impressas do script; as dos níveis e a de
  * subir vêm de `abilitiesOf`. A de subir diz "Subir para o nível N · custo"; as de um nível, "Ativar (custo)" (com o alvo, se houver). */
 function rotulosDaClasseT(s, oid, legal, custo) {
-  const o = s.objects[oid], sc = o && ((s.facts[o.name] || {}).script || {}); if (!sc || !sc.self || !(sc.self.classe || sc.self.nivelar)) return; // T-24 · também a carta de subir de nível
+  const o = s.objects[oid], sc = o && ((s.facts[o.name] || {}).script || {}); if (!sc || !sc.self || !(sc.self.classe || sc.self.nivelar || sc.self.estacao)) return; // T-24 · também a carta de subir de nível; T-37 · e a de estação
   const abs = abilitiesOf(s, o).filter(x => x.kind === 'activated'), impressas = (sc.abilities || []).filter(x => x.kind === 'activated').length;
   for (const b of legal) {
     const a = b && b.action; if (!a || a.t !== 'activate' || a.oid !== oid) continue;
@@ -27163,6 +27231,7 @@ function rotulosDaClasseT(s, oid, legal, custo) {
     const resto = (b.label || '').includes(' → ') ? b.label.slice(b.label.indexOf(' → ')) : '';
     if (ab.classeNivelT) b.label = `Subir para o nível ${ab.classeNivelT} · ${ab.cost.mana}`;
     else if (ab.nivelarT) b.label = `Subir de nível · ${ab.cost.mana}`; // T-24 · CR 702.87a
+    else if (ab.estacaoT) { const q = s.objects[[].concat((a.pay || {}).tapOther || [])[0]], n = q && isCreature(s, q) ? Math.max(0, power(s, q)) : 0; b.label = `Estação: virar ${q ? q.name : 'uma criatura'} (+${n} de carga)`; } // T-37 · CR 702.184a
     else { const c = custo(ab); b.label = `${ab.label || 'Ativar'}${c ? ` (${c})` : ''}${resto}`; } // T-13 · o rótulo que o script dá à ativada da barra (D3)
   }
 }
@@ -29744,7 +29813,7 @@ const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas
 /* ↓ T · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha tipos */
 const EFEITO_PT_T = { selada: () => 'esta montaria fica selada até o fim do turno', virar_carta: e => (e.se && e.se.minCriaturas ? `se você controla ${e.se.minCriaturas} ou mais criaturas, vira esta carta` : 'vira esta carta'), porta: e => (e.acao === 'trancar' ? 'tranca uma porta destrancada de uma Sala sua' : e.acao === 'destrancar' ? 'destranca uma porta trancada de uma Sala sua' : 'tranca ou destranca uma porta de uma Sala sua'), nivel_sobe: () => 'põe um marcador de nível nela', nivel_classe: e => `a Classe sobe para o nível ${e.n}`, tripulada: () => 'vira criatura artefato até o fim do turno', transformar: () => 'transforma (vira a outra face)' }; // T-7 · 701.27
 /** T-7 · linhas do registro para os eventos da trilha tipos. */
-const LINHA_T = { selada: ev => (ev.failed ? `${ev.name}: a montaria saiu do campo, não foi selada` : `${ev.name} foi selada`), virar_carta: ev => (ev.failed ? `${ev.name} não virou${ev.motivo ? ` (${ev.motivo})` : ''}` : `${ev.name} virou: agora é ${ev.target}`), porta: ev => (ev.failed ? `${ev.name}: nenhuma porta para trancar ou destrancar` : `${ev.name} ${ev.acao} ${ev.porta} (${ev.target})`), nivel_sobe: ev => (ev.failed ? `${ev.name}: saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu de nível (nível ${ev.nivel})`), nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
+const LINHA_T = { estacao: ev => (ev.failed ? `${ev.name}: a nave saiu do campo, a estação não pôs marcadores` : `${ev.name} recebeu ${ev.amount} marcador${ev.amount === 1 ? '' : 'es'} de carga (estação)${ev.total != null ? ` · ${ev.total} no total` : ''}`), selada: ev => (ev.failed ? `${ev.name}: a montaria saiu do campo, não foi selada` : `${ev.name} foi selada`), virar_carta: ev => (ev.failed ? `${ev.name} não virou${ev.motivo ? ` (${ev.motivo})` : ''}` : `${ev.name} virou: agora é ${ev.target}`), porta: ev => (ev.failed ? `${ev.name}: nenhuma porta para trancar ou destrancar` : `${ev.name} ${ev.acao} ${ev.porta} (${ev.target})`), nivel_sobe: ev => (ev.failed ? `${ev.name}: saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu de nível (nível ${ev.nivel})`), nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
 Object.assign(EFEITO_PT_T, { cerco_derrotado: () => 'exila o Cerco; você pode conjurá-lo transformado, sem pagar', papel: e => `cria um Papel de ${e.papel} anexado à criatura` }); // T-14 · CR 310.12b
 Object.assign(LINHA_T, { cerco_derrotado: ev => (ev.failed ? `${ev.name}: o Cerco já tinha saído do campo, nada a exilar` : `${ev.name} foi derrotada e exilada${ev.target ? ` (pode virar ${ev.target})` : ''}`), protetor_batalha: ev => `${ev.target} passa a proteger ${ev.name}`, anexo_barrado: ev => `${ev.name} não pode equipar${ev.target ? ' ' + ev.target : ''} e fica onde está`, papel: ev => (ev.failed ? `${ev.name}: sem criatura para o Papel de ${ev.target}` : `Papel de ${ev.target || ev.name}`), papel_substituido: ev => `o Papel ${ev.name} foi substituído e vai para o cemitério`, batalha_cemiterio: ev => `${ev.name} ficou sem defesa e foi para o cemitério` }); // T-14 · CR 310.12b / 310.11 / 310.8
 function descreveEfeito(e) {

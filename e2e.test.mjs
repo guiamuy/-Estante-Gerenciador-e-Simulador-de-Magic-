@@ -11200,3 +11200,33 @@ test('e2e · T-36 · CR 718.3 · protótipo: a folha tem "Conjurar como protóti
   if (linhas.length) assert.ok(linhas.some(l => /Boulderbranch Golem \(como protótipo\)/.test(l)), 'registro: ' + JSON.stringify(linhas.slice(-6)));
   assert.deepEqual(M.errors, []);
 });
+
+test('e2e · T-37 · CR 702.184 · estação: a folha da nave tem um botão por criatura que pode ser virada, com quantos marcadores ela põe; com 7 a nave vira criatura', { skip }, async t => {
+  // Texto oficial: Pinnacle Kill-Ship em .listas/oficiais-tipos.json (Oracle do Forge, clone de 13/10/2026); Shepherd of the Flock e Drover Grizzly no mesmo arquivo.
+  const L = n => JSON.parse(readFileSync(join(ROOT, '.listas', n), 'utf8')).cartas;
+  const extras = L('oficiais-tipos.json').filter(c => ['Pinnacle Kill-Ship', 'Shepherd of the Flock', 'Drover Grizzly'].includes(c.name));
+  const M = await comLista125(t, '16 Plains\n12 Pinnacle Kill-Ship\n6 Shepherd of the Flock\n6 Drover Grizzly', ['Plains', 'Pinnacle Kill-Ship', 'Shepherd of the Flock', 'Drover Grizzly'], '4', { extras });
+  const { page } = M;
+  const ids = await page.evaluate(() => { const s = window.__estanteMesa.estado(), z = s.zones[0];
+    const tira = (nome, ...de) => { for (const d of de) { const i = z[d].findIndex(o => s.objects[o].name === nome); if (i >= 0) return z[d].splice(i, 1)[0]; } return null; };
+    const campo = oid => { Object.assign(s.objects[oid], { zone: 'battlefield', controller: 0, tapped: false, sick: false, damage: 0, counters: {} }); z.battlefield.push(oid); return oid; };
+    return { k: campo(tira('Pinnacle Kill-Ship', 'library', 'hand')), u: campo(tira('Shepherd of the Flock', 'library', 'hand')), w: campo(tira('Drover Grizzly', 'library', 'hand')) }; });
+  const terra = await M.oid('Plains'); if (terra) { await M.act({ t: 'play_land', p: 0, oid: terra }); await page.waitForTimeout(250); } // a mesa redesenha com o que foi posto no campo
+  await page.locator(`.tb-side--me .tb-card[data-oid="${ids.k}"]`).first().click(); await page.waitForSelector('.ds-dialog'); await page.waitForTimeout(400);
+  const botoes = (await page.locator('.ds-dialog .tb-sheet__actions button').allInnerTexts()).map(x => x.replace(/\s+/g, ' ').trim());
+  for (const b of ['Estação: virar Shepherd of the Flock (+3 de carga)', 'Estação: virar Drover Grizzly (+4 de carga)']) assert.ok(botoes.includes(b), b + ': ' + JSON.stringify(botoes));
+  for (const b of await page.locator('.ds-dialog .tb-sheet__actions button', { hasText: /^Estação/ }).all()) { const cx = await b.boundingBox(); assert.ok(cx && cx.height >= 44, 'botão com 44 px de altura ou mais: ' + JSON.stringify(cx)); }
+  await auditaTela(page, 'folha da nave com estação');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/t37-estacao.png' });
+  await page.locator('.ds-dialog .tb-sheet__actions button', { hasText: /^Estação: virar Drover Grizzly/ }).click(); await page.waitForTimeout(300);
+  await M.resolve();
+  await page.waitForFunction(i => ((window.__estanteMesa.estado().objects[i.k].counters || {}).charge || 0) === 4, ids, { timeout: 5000 });
+  assert.equal(await page.evaluate(i => window.__estanteMesa.estado().objects[i.w].tapped, ids), true, 'o Drover Grizzly foi virado');
+  assert.equal(await M.act({ t: 'activate', p: 0, oid: ids.k, index: 0, pay: { tapOther: [ids.u] } }), true);
+  await M.resolve();
+  await page.waitForFunction(i => ((window.__estanteMesa.estado().objects[i.k].counters || {}).charge || 0) === 7 && window.__estanteMesa.estado().objects[i.k].zone === 'battlefield', ids, { timeout: 5000 });
+  assert.equal(await page.evaluate(i => window.__estanteMesa.estado().zones[0].battlefield.includes(i.k), ids), true);
+  const linhas = await page.evaluate(() => (window.__estanteMesa.registro ? window.__estanteMesa.registro() : []).map(String));
+  if (linhas.length) assert.ok(linhas.some(l => /Pinnacle Kill-Ship recebeu 4 marcadores de carga \(estação\)/.test(l)), 'registro: ' + JSON.stringify(linhas.slice(-6)));
+  assert.deepEqual(M.errors, []);
+});

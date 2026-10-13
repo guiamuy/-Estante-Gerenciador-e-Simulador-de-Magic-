@@ -5116,6 +5116,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Toca ponto comum:** `HANDLERS.cast` (a linha do custo de mana: como protótipo, o custo é o alternativo).
 - **Próximo:** Estação (702.184, 721: Pinnacle Kill-Ship falta em 6 listas de Pauper); depois as parciais da CR5.
 
+**CR5-T37 · Estação (702.184, 721)** ✅ (leva T-37, sem mudança de versão do motor) — **Valor:** as Espaçonaves com estação (Edge of Eternities) jogam; Pinnacle Kill-Ship deixa de faltar em 6 listas de Pauper (prova do catálogo de 13/10: Pauper **178 de 341** jogam, 0 falhas; o número inclui o `main` novo trazido no rebase). **Aceite:** com `self.estacao.faixas`, a permanente tem sempre a ativada de estação: virar outra criatura sua desvirada (enjoo não impede), só como feitiço; na resolução, marcadores de carga iguais ao poder dela — o de agora, ou o último que ela teve se saiu do campo (702.184a, 608.2h). Cada faixa {N+} alcançada dá as palavras e as habilidades dela e, com P/R, torna a permanente criatura com esse P/R base além dos outros tipos (721.2a/b); as palavras impressas numa faixa só valem por ela. Mesa: um botão por criatura que pode ser virada, "Estação: virar <criatura> (+N de carga)"; registro "recebeu N marcadores de carga (estação)". **Testes:** `tipos.estacao.unit` (11; falham sem a leva) e o teste de tela T-37 (com auditaTela). Carta: Pinnacle Kill-Ship (Oracle do Forge, clone de 13/10/2026). **Depende de:** CR5-T24 (o caminho das barras de nível). **Fora:** 702.184c (estacionar pela resistência, Tapestry Warden).
+- **Escopo do mapa:** a 702.184 já dizia "fica com a trilha tipos"; a leva atualiza 702.184 e 721.2.
+- **Versão e goldens:** a versão não sobe; goldens idênticos.
+- **Toca ponto comum:** `redefinicoesDe` e `mutacao` (a faixa de estação alcançada entra no cálculo de camadas, como a Aura que redefine), o custo `tapOther` (anota quem foi virada só para a estação) e `HANDLERS.activate` (a anotação vai com a habilidade).
+- **Próximo:** auditoria independente de protótipo e estação (T-38); depois as parciais da CR5.
+
 **CR6 · Multijogador e variantes** ○ — mesa de três e quatro (800–803, 806), Commander de mesa (903.2), Brawl (903.12); as variantes hoje "fora" só entram por decisão. 10 a 14 levas.
 
 **CR7 · Consolidação** ○ (em paralelo a partir da CR2) — a cada fase: fuzz em modo completo com listas reais, homologação por revisor independente relendo a seção das regras contra o motor, e rodada de simulação do dono do produto. 6 a 8 levas ao todo.
