@@ -4020,6 +4020,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Pedido à trilha `listas`:** script à mão de Spinning Darkness com o que o leitor produz (modelo em `lt45.unit`).
 - **Teste:** `lt45.unit` (3 testes; os dois primeiros falham no motor anterior, o terceiro guarda a recusa sem cartas suficientes).
 
+**M-363 · LT36 · Frases do Pauper: metalurgia em estática, desvirar no turno dos outros e 115.3 (cada "target" é uma escolha) — revisão por lote XXVII** ✅ (leva M-363, motor v110 sem mudança de forma; goldens intactos).
+- **Valor:** Agony Warp (5 listas de Pauper esperavam só por ela), Ardent Recruit (3) e Bender's Waterskin (4) passam a jogar pela leitura revisada (decisão A; textos do Oracle do Forge, consulta de 12/10/2026, em `.listas/oficiais-revisadas.json`).
+- **Motor:** condição contínua `se: { metalcraft: true }` (611.2); `self.desviraNosOutros` (502.3: desvira no passo de desvirar de cada outro jogador); `alvoLivre` no efeito (115.3: cada palavra "target" é uma escolha própria — a mesma criatura pode ser os dois alvos de Agony Warp), honrado na conjuração, na oferta e na escolha de alvos da cópia; o leitor marca a linha nova que começa com "Target …".
+- **Revisão independente:** cerca de 79 verificações, 3 de 3 aprovadas; achou um desvio, corrigido com teste antes: a cópia de Agony Warp (replicar, tempestade) ainda exigia alvos diferentes.
+- **Fora:** duas frases "Target …" no mesmo parágrafo continuam exigindo alvos diferentes (mais restritivo que a 115.3; nenhuma carta do acervo tem esse formato); habilidades ativadas e disparadas não usam `alvoLivre`.
+- **Teste:** `lt46.unit` (4 testes; todos falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

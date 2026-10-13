@@ -5772,7 +5772,7 @@ function continuoErros(c, tag) {
   for (const k of Object.keys(c)) if (!CHAVES_CONTINUO.includes(k)) errs.push(`${tag}: chave "${k}" desconhecida`);
   const a = c.afetados;
   if (c.seAfetado != null) { if (typeof c.seAfetado !== 'object' || Array.isArray(c.seAfetado)) errs.push(`${tag}: "seAfetado" precisa ser um seletor`); else { errs.push(...seletorErros(c.seAfetado, `${tag}: seAfetado`)); for (const k of ['zona', 'ref', 'ou', 'jogadores', 'habilidades']) if (c.seAfetado[k] != null) errs.push(`${tag}: seAfetado não aceita "${k}"`); } }
-  if (c.se != null && !(c.se && Object.keys(c.se).length === 1 && (Number.isInteger(c.se.oponenteComVeneno) || TIPOS_DE_CARTA.includes(c.se.controlaTipo)))) errs.push(`${tag}: "se" conhece só oponenteComVeneno (inteiro) ou controlaTipo (tipo de carta)`); // M-253 · Corrompido · M-351 · "as long as you control an artifact" (Goblin Tomb Raider)
+  if (c.se != null && !(c.se && Object.keys(c.se).length === 1 && (Number.isInteger(c.se.oponenteComVeneno) || TIPOS_DE_CARTA.includes(c.se.controlaTipo) || c.se.metalcraft === true))) errs.push(`${tag}: "se" conhece só oponenteComVeneno (inteiro), controlaTipo (tipo de carta) ou metalcraft (true)`); // M-363 // M-253 · Corrompido · M-351 · "as long as you control an artifact" (Goblin Tomb Raider)
   if (c.ward != null) errs.push(...wardCustoErrosK(c.ward, false).map(e => `${tag}: "ward" ${e}`)); // K-2 · 702.21
   if (a !== 'self' && a !== 'anexada' && a !== 'equipada-pela-anexada') {
     if (!a || typeof a !== 'object') errs.push(`${tag}: "afetados" precisa ser self, anexada ou um seletor (ou equipada-pela-anexada)`);
@@ -6178,6 +6178,7 @@ function validateScript(sc) {
         errs.push('bônus próprio: substituiCompra é [{ seVazia: "vence" }] ou [{ oponente: "voce-compra", exceto?: "primeira-do-passo" }]');
     }
     if (self.naoDesvira != null && self.naoDesvira !== true) errs.push('bônus próprio: naoDesvira só vale como true'); // CR2g.6
+    if (self.desviraNosOutros != null && self.desviraNosOutros !== true) errs.push('bônus próprio: desviraNosOutros só vale como true'); // M-363 · 502.3
     if (self.multiplica != null) { // CR2e.2 · 614.16: "cria o dobro de fichas" / "põe o dobro de marcadores" / "esse número mais um"
       if (!Array.isArray(self.multiplica) || !self.multiplica.length) errs.push('bônus próprio: multiplica precisa ser uma lista');
       else for (const m of self.multiplica) {
@@ -8815,6 +8816,10 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Defile': { texto: '1xzfbl6', leva: 'M-354' },
   'Ancient Stirrings': { texto: '8l1g14', leva: 'M-354' },
   'Fling': { texto: 'ut7lh6', leva: 'M-354' },
+  // M-363 · revisão por lote XXVII (Pauper: Agony Warp, Ardent Recruit, Bender's Waterskin), revisor independente com 79 verificações: 3 de 3 aprovadas
+  'Agony Warp': { texto: '1w9h0wf', leva: 'M-363' },
+  'Ardent Recruit': { texto: '1hohwrh', leva: 'M-363' },
+  'Bender\'s Waterskin': { texto: 'sa7u68', leva: 'M-363' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -16795,6 +16800,9 @@ const __m42 = (function () {
         const CORN = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }; // M-352 · 601.2f · redução por cor (Goblin Anarchomancer, Thornscape Familiar)
         const rc = lp.match(/^each spell you cast that's (white|blue|black|red|green) or (white|blue|black|red|green) costs \{(\d+)\} less to cast$/i) || lp.match(/^(white|blue|black|red|green) spells and (white|blue|black|red|green) spells you cast cost \{(\d+)\} less to cast$/i);
         if (rc) { topo.self = { ...(topo.self || {}), reduzCor: { generic: +rc[3], cores: [CORN[rc[1].toLowerCase()], CORN[rc[2].toLowerCase()]] } }; frases.push({ texto: linha, lida: true }); continue; }
+        const mcs = lp.match(/^metalcraft — ~ gets ([+-]\d+)\/([+-]\d+) as long as you control three or more artifacts$/i); // M-363 · Ardent Recruit (611.2)
+        if (mcs) { topo.continuo = [...(topo.continuo || []), { afetados: 'self', poder: SINAL(mcs[1]), resistencia: SINAL(mcs[2]), se: { metalcraft: true } }]; frases.push({ texto: linha, lida: true }); continue; }
+        if (/^untap (?:this artifact|this permanent|~) during each other player's untap step$/i.test(lp)) { topo.self = { ...(topo.self || {}), desviraNosOutros: true }; frases.push({ texto: linha, lida: true }); continue; } // M-363 · Bender's Waterskin (502.3)
         const al = lp.match(/^as long as you control an? (artifact|creature|enchantment|land|planeswalker), ~ gets ([+-]\d+)\/([+-]\d+)(?: and has ([a-z ]+))?$/i); // M-351 · Goblin Tomb Raider (611.2 · condição conferida a cada leitura)
         if (al && (!al[4] || al[4].split(/ and /).every(k => KW.has(k.trim().toLowerCase())))) { topo.continuo = [...(topo.continuo || []), { afetados: 'self', poder: SINAL(al[2]), resistencia: SINAL(al[3]), ...(al[4] ? { palavras: al[4].split(/ and /).map(k => k.trim().toLowerCase()) } : {}), se: { controlaTipo: al[1].toLowerCase() } }]; frases.push({ texto: linha, lida: true }); continue; }
         const pe = lp.match(/^~ gets ([+-]\d+)\/([+-]\d+) for each (.+)$/i); // LT5 · "~ gets +1/+1 for each Aura on the battlefield"
@@ -16855,7 +16863,7 @@ const __m42 = (function () {
       if (ms) { const sub = []; const e = leParagrafo(ms[1], nome, sub); frases.push({ texto: 'Metalcraft — If you control three or more artifacts', lida: true }, ...sub); if (e) efeitos.push(...e.map(x => ({ ...x, onlyIf: 'metalcraft' }))); continue; }
       const bala = linha.match(/^•\s*(.+)$/);
       if (bala && modos) { const e = leParagrafo(bala[1], nome, frases); modos.push(e ? { label: bala[1].replace(/\.$/, ''), effects: e } : null); continue; }
-      const e = leParagrafo(linha, nome, frases); if (e) efeitos.push(...e);
+      const e = leParagrafo(linha, nome, frases); if (e && /^target /i.test(linha) && efeitos.some(x => SC_ALVEJA(x) || ['any', 'player', 'opponent'].includes(x.target))) e.forEach(x => { if (SC_ALVEJA(x) || ['any', 'player', 'opponent'].includes(x.target)) x.alvoLivre = true; }); if (e) efeitos.push(...e); // M-363 · 115.3: a linha nova com "Target …" é outra palavra target (Agony Warp)
     }
     if (coresVida.length && (topo.produces || []).some(x => x.length && !x.every(c => coresVida.includes(c)) && x.some(c => coresVida.includes(c)))) frases.push({ texto: 'mana com e sem vida na mesma cor', lida: false, motivo: 'regra de mana por cor (M-342)' });
     if (coresVida.length && (topo.produces || []).filter(x => x.length === 1 && coresVida.includes(x[0])).length > new Set(coresVida).size) frases.push({ texto: 'mana com e sem vida na mesma cor', lida: false, motivo: 'regra de mana por cor (M-342)' });
@@ -17267,6 +17275,7 @@ function condicaoContinua(s, x, se) {
   if (!se) return true;
   if (se.oponenteComVeneno != null) return alive(s).some(q => q !== x.controller && (s.players[q].poison || 0) >= se.oponenteComVeneno);
   if (se.controlaTipo) return battlefield(s).some(o => o.controller === x.controller && tiposDe(s, o).includes(se.controlaTipo)); // a própria fonte conta se tiver o tipo
+  if (se.metalcraft) return condicaoDoEfeito(s, x, 'metalcraft'); // M-363 · "Metalcraft — … as long as you control three or more artifacts" (Ardent Recruit)
   return true;
 }
 function continuosDaFonte(s, x) {
@@ -18722,6 +18731,7 @@ function enterStep(s, step) {
     for (const o of campoInteiro(s)) if (o.phasedOut && o.faseCom != null && voltam.has(o.faseCom)) { delete o.phasedOut; delete o.faseCom; }
     presasNoDesvirarV(s, a); // V-20 · 701.43 exaurir e 701.35 deter: marcas que vencem ou valem neste passo · Toca ponto comum: enterStep (uma linha antes do laço)
     for (const o of battlefield(s)) if (o.controller === a) { o.sick = false; if (naoDesviraNoPasso(s, o)) { delete o.naoDesviraProximo; continue; } desvira(s, o); } // CR2g.6 · 502.3 / 122.1d
+    for (const o of battlefield(s)) if (o.controller !== a && o.tapped && !semImpressas(s, o) && ((((s.facts[o.name] || {}).script || {}).self || {}).desviraNosOutros)) desvira(s, o); // M-363 · 502.3: "Untap this artifact during each other player's untap step" (Bender's Waterskin)
     return enterStep(s, 'upkeep');
   }
   // CR2-G R2b · 603.2b · começo do passo: na manutenção, os do jogador ativo vêm antes dos atrasados (como antes)
@@ -21521,7 +21531,7 @@ function putTriggerOnStack(s, q, events) {
   for (let i = targets.length; i < targeted.length; i++) {
     const eff = targeted[i];
     const opts = legalTargets(s, q.controller, eff.target, q.source, eff.targetColor)
-      .filter(x => targetAllowed(s, eff, x, src) && !targets.some(y => y && sameChoice(x, y))); // 601.2c: alvos diferentes
+      .filter(x => targetAllowed(s, eff, x, src) && !targets.some((y, j) => y && sameChoice(x, y) && !eff.alvoLivre && !(targeted[j] || {}).alvoLivre)); // 601.2c: alvos diferentes · M-363 · 115.3: alvoLivre (achado da revisão: a cópia de Agony Warp)
     if (!opts.length) { if (eff.upTo) { targets.push(null); continue; } events.push({ kind: 'trigger-fizzled', name: q.name, when: q.when }); return false; } // M-338 · "up to one": sem alvo legal, segue sem alvo
     if (opts.length > 1 || eff.upTo) { s.pending = { kind: 'pick_target', p: q.controller, trigger: { ...q, alvos: targets }, options: opts, name: q.name, ...(targeted.length > 1 ? { qual: i + 1, de: targeted.length } : {}), ...(eff.upTo ? { semAlvo: true } : {}) }; return false; } // M-338 · "up to one": pergunta mesmo com uma opção (pode ser nenhuma)
     targets.push(opts[0]);
@@ -22141,7 +22151,7 @@ const HANDLERS = {
     if (chosen.length < minAlvos || chosen.length > need.length) throw new RuleError('alvo', `escolha ${minAlvos === need.length ? need.length : `de ${minAlvos} a ${need.length}`} alvo(s)`);
     // 601.2c · dois alvos da mesma mágica ou habilidade precisam ser diferentes
     // CR 115.3 · em modos diferentes, cada "alvo" é uma instância própria: o mesmo objeto pode ser escolhido de novo
-    if (chosen.some((x, i) => chosen.some((y, j) => j > i && sameChoice(x, y) && (!nModos && !modosCombinadosK(need) || need[i].__modo === need[j].__modo)))) throw new RuleError('alvo', 'escolha alvos diferentes'); // K-48 · 115.3 também nos modos somados de entrelaçar e escalar (Toca ponto comum: modosCombinadosK)
+    if (chosen.some((x, i) => chosen.some((y, j) => j > i && sameChoice(x, y) && !need[i].alvoLivre && !need[j].alvoLivre && (!nModos && !modosCombinadosK(need) || need[i].__modo === need[j].__modo)))) throw new RuleError('alvo', 'escolha alvos diferentes'); // M-363 · 115.3: alvoLivre // K-48 · 115.3 também nos modos somados de entrelaçar e escalar (Toca ponto comum: modosCombinadosK)
     need.forEach((eff, i) => { if (chosen[i] == null && eff.upTo) return; if (!targetStillLegal(s, a.p, eff.target, chosen[i], a.oid, eff.targetColor, eff, { controller: a.p, xPaid: a.x || 0 })) throw new RuleError('alvo', 'alvo ilegal'); }); // CR2c.3 · "valor de mana X ou menos" com o X desta conjuração
     if (violaPortaEstandarte(s, a.p, need, chosen, a.oid)) throw new RuleError('alvo', 'um dos alvos precisa ser um porta-estandarte');
     if (excedeSoma(s, need, chosen)) throw new RuleError('alvo', 'os alvos passam do valor de mana total permitido'); // CR2c.5
@@ -23102,7 +23112,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
           return [c, ...opts.filter((x, i) => i > ant && !c.some(y => sameChoice(x, y))).map(x => c.concat([x])).filter(cc => !excedeSoma(s, need, cc))]; }).slice(0, COMBO_LIMIT);
         continue;
       }
-      combos = eff.upTo ? addTarget(combos, opts).concat(combos) : addTarget(combos, opts);
+      combos = eff.upTo ? addTarget(combos, opts).concat(combos) : eff.alvoLivre ? combos.flatMap(c => opts.map(x => c.concat([x]))).slice(0, COMBO_LIMIT) : addTarget(combos, opts); // M-363 · 115.3: outra palavra "target" pode repetir o objeto
     }
     const vistos = new Set(); // S47 · dois alvos opcionais repetiam a mesma combinação
     return combos.filter(c => { const k = JSON.stringify(c); if (vistos.has(k)) return false; vistos.add(k); return !violaPortaEstandarte(s, p, need, c, o.oid); })
@@ -29536,7 +29546,7 @@ function descreveContinuo(c) {
   if (c.troca) partes.push('troca o poder e a resistência'); // CR2d.9
   if (c.torna) partes.unshift(descreveTorna(c.torna));
   const se = c.seAfetado ? `enquanto for ${c.seAfetado.lendaria ? 'lendária' : ''}${c.seAfetado.lendaria && (c.seAfetado.tipos || []).length ? ' e ' : ''}${(c.seAfetado.tipos || []).map(x => TIPO_PT[x] || x).join(' ou ')}, ` : ''; // M-251
-  const seJogo = c.se ? (c.se.controlaTipo ? `enquanto você controlar ${({ artifact: 'um artefato', creature: 'uma criatura', enchantment: 'um encantamento', land: 'um terreno', planeswalker: 'um planeswalker' })[c.se.controlaTipo] || 'um ' + c.se.controlaTipo}, ` : `enquanto um oponente tiver ${c.se.oponenteComVeneno} ou mais marcadores de veneno, `) : ''; // M-253 · Corrompido · M-351 · controlaTipo
+  const seJogo = c.se ? (c.se.metalcraft ? 'enquanto você controlar três artefatos ou mais' : c.se.controlaTipo ? `enquanto você controlar ${({ artifact: 'um artefato', creature: 'uma criatura', enchantment: 'um encantamento', land: 'um terreno', planeswalker: 'um planeswalker' })[c.se.controlaTipo] || 'um ' + c.se.controlaTipo}, ` : `enquanto um oponente tiver ${c.se.oponenteComVeneno} ou mais marcadores de veneno, `) : ''; // M-253 · Corrompido · M-351 · controlaTipo
   return `${seJogo}${se}${quem} ${partes.join(' e ')}`;
 }
 /** CR2-G R6 · a duração em português. */
