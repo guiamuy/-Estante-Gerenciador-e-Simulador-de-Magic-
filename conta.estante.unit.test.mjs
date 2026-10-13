@@ -267,3 +267,38 @@ test('G-264 · esqueci a senha: pede o link (PASSWORD_RESET) com resposta igual 
   }
   await assert.rejects(C.createSessaoFirebase({ apiKey: '' }).redefinirSenha('x@y.co'), /sem-firebase/);
 });
+
+test('G-267 · ligar o Google à conta de e-mail: signInWithIdp com o idToken da conta, mesmo uid, nome e foto do Google; recusas viram motivo', async () => {
+  const pedidos = []; let n = 0, resposta = null;
+  const fetch = async (url, init = {}) => {
+    const corpo = init.body && init.body[0] === '{' ? JSON.parse(init.body) : init.body; pedidos.push({ url, corpo });
+    const ok = (o, st = 200) => ({ ok: st < 400, status: st, json: async () => o });
+    if (url.includes('accounts:signUp')) return ok({ localId: 'uidSenha_1', email: corpo.email, idToken: 'id-' + (++n), refreshToken: 'ref-' + n, expiresIn: '3600' });
+    if (url.includes('signInWithIdp')) return resposta ? ok({ error: { message: resposta } }, 400) : ok({ localId: 'uidSenha_1', idToken: 'id-' + (++n), refreshToken: 'ref-' + n, expiresIn: '3600' });
+    return ok({}, 404);
+  };
+  const guardado = [];
+  const sessao = C.createSessaoFirebase({ apiKey: 'k', fetch, origem: 'https://guiamuy.github.io', guarda: d => guardado.push(d) });
+  const { conta, gravados } = contaCom(sessao);
+  await assert.rejects(conta.vincularGoogle(), /sem-conta-estante/, 'sem conta de e-mail aberta');
+  await conta.criarComEmail('ana@exemplo.com', 'segredo-123');
+  assert.equal((await conta.get()).googleLigado, false);
+  const c = await conta.vincularGoogle();
+  const p = pedidos.at(-1);
+  assert.equal(p.url, 'https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key=k');
+  assert.deepEqual(p.corpo, { postBody: 'access_token=tok-google&providerId=google.com', requestUri: 'https://guiamuy.github.io', idToken: 'id-1', returnSecureToken: true, returnIdpCredential: false });
+  assert.deepEqual({ provedor: c.provedor, googleLigado: c.googleLigado, googleEmail: c.googleEmail, nome: c.nome, email: c.email }, { provedor: 'senha', googleLigado: true, googleEmail: 'ana@example.com', nome: 'Ana', email: 'ana@exemplo.com' });
+  assert.equal(sessao.uid(), 'uidSenha_1'); assert.equal(await sessao.token(), 'id-2', 'os tokens novos valem');
+  assert.deepEqual({ ...guardado.at(-1) }, { uid: 'uidSenha_1', refreshToken: 'ref-2' });
+  assert.ok(!gravados.some(g => /tok-google|id-2/.test(g)), 'token do Google ou de acesso no armazenamento');
+  for (const [msg, codigo] of [['FEDERATED_USER_ID_ALREADY_LINKED', 'google-de-outra-conta'], ['EMAIL_EXISTS', 'google-email-em-uso'], ['CREDENTIAL_TOO_OLD_LOGIN_AGAIN', 'entre-de-novo']]) {
+    resposta = msg; await assert.rejects(conta.vincularGoogle(), e => e.message === codigo, msg);
+    assert.ok(C.MOTIVO[codigo] && !/firebase|token|uid/i.test(C.MOTIVO[codigo]), codigo);
+    assert.equal(sessao.uid(), 'uidSenha_1', 'a conta continua aberta');
+  }
+  resposta = null;
+  // resposta de outro uid não troca a conta
+  const outro = C.createSessaoFirebase({ apiKey: 'k', fetch: async (u, i) => u.includes('signUp') ? { ok: true, status: 200, json: async () => ({ localId: 'uidA', idToken: 'a', refreshToken: 'r', expiresIn: '3600' }) } : { ok: true, status: 200, json: async () => ({ localId: 'uidB', idToken: 'b', refreshToken: 'rb', expiresIn: '3600' }) } });
+  await outro.criarComSenha('a@b.co', 'segredo-123');
+  await assert.rejects(outro.vincularGoogle('tok'), /firebase-recusou/); assert.equal(outro.uid(), 'uidA');
+});

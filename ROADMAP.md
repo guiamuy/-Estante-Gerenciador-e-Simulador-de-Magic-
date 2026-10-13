@@ -534,6 +534,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-eo ✅ | T6f-1 conta com e-mail e senha: criar conta e entrar no Perfil, ao lado do Google; a sessão fica ao reabrir; erros na hora, sem fechar a folha (relato #18, fatia 1 de 6, leva G-263) | P | 1 | teste no aparelho |
 | 16º-ep ✅ | T6f-2 esqueci a senha: na folha de entrar, manda o link de senha nova para o e-mail digitado, sem dizer se há conta nele (relato #18, fatia 2 de 6, leva G-264) | P | 1 | teste no aparelho (e-mail de verdade) |
 | 16º-eq ✅ | T6f-3 nome de usuário único: escolher e trocar o @ no Perfil, um nome por conta garantido pelo banco (relato #18, fatia 3 de 6, leva G-266) | P | 1 | o dono publicar as regras no console |
+| 16º-er ✅ | T6f-4 ligar o Google a uma conta de e-mail: o backup no Drive passa a valer sem trocar de conta (relato #18, fatia 4 de 6, leva G-267) | P | 1 | teste no aparelho |
 | 16º-ee ✅ | T6e-2 Enviar relato sem sair do app: com a conta conectada e a fila ligada, o relato vai para a fila do Firebase e o cartão mostra "Na fila" até o número do registro (relato #13, leva G-255) | T | 1 | — |
 | 16º-eh ✅ | T6e-2 prazo honesto do relato pela fila: o GitHub atrasa o agendamento em horas, a tela diz "de minutos a algumas horas" e a conversa que lê relatos roda a fila antes (relato #13, leva G-256) | T | 1 | 16º-ee |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
@@ -9543,7 +9544,7 @@ o aviso de fila ligada, o que acontece na primeira rodada depois de o dono criar
   (isso já vale pela A-261/A-263 por uid). O dono ligou o provedor E-mail/senha no Firebase em 13/10/2026 (modelo de
   redefinição em pt-BR, uma conta por e-mail, criação ligada, proteção contra enumeração ligada).
 - **Fatias:** T6f-1 criar e entrar (G-263) ✅ · T6f-2 esqueci a senha (G-264) ✅ · T6f-3 nome de usuário único (G-266) ✅, regras do
-  banco que o dono publica · T6f-4 vincular o Google depois (com e-mail confirmado; senão o Google desfaz a senha) · T6f-5 trocar a
+  banco que o dono publica · T6f-4 vincular o Google depois (G-267) ✅ · T6f-5 trocar a
   senha e excluir a conta (com os dados da nuvem) · T6f-6 transições de entrada e sucesso.
 
 **T6f-1 · Criar conta e entrar com e-mail e senha** ✅ (leva G-263, trilha `geral`, 13/10/2026)
@@ -9600,6 +9601,25 @@ regras** (`database.rules.json`) no console; até lá a tela diz "Nomes de usuá
   avisa sem fechar, reservar mostra @gui, trocar solta o antigo, reabrir traz o nome).
 - **Fora:** o nome ainda não aparece na sala online nem na mesa; "Apagar também da nuvem" não solta o nome (vai com
   "excluir a conta", T6f-5).
+
+**T6f-4 · Ligar o Google a uma conta de e-mail** ✅ (leva G-267, trilha `geral`, 13/10/2026)
+- **Como:** `vincularGoogle` na sessão (`src/data/conta.js`): o mesmo `accounts:signInWithIdp` da entrada com Google, mas
+  com o `idToken` da conta aberta, que o Firebase trata como vincular — o uid não muda, a senha continua valendo, e
+  resposta com outro uid é recusada (a conta aberta fica como estava). Na conta: abre o consentimento do Google (com o
+  Drive do backup), guarda nome e foto do Google e marca o Google como ligado. Perfil › Conta de e-mail: "Ligar o
+  Google" (44 px) quando a conta da Estante está conectada; depois, "Google ligado · e-mail do Google", o último envio e
+  Enviar/Baixar do backup, como na conta Google. Recusas viram frase: Google já é de outra conta da Estante, e-mail do
+  Google já tem conta, entrar de novo.
+- **Decisão declarada:** não pedimos para confirmar o e-mail antes de ligar. Vincular pelo `idToken` mantém a senha mesmo
+  com o e-mail sem confirmação; o risco que sobra é a pessoa usar "Continuar com Google" com o mesmo e-mail **sem**
+  ligar antes — aí o Firebase troca a senha pelo Google na mesma conta (o uid e os dados ficam). A confirmação de e-mail
+  fica para a T6f-5.
+- **Testes:** U `conta.estante.unit` (G-267: formato do pedido com o `idToken`, mesmo uid, tokens novos guardados só como
+  renovação, nome e foto do Google, recusas com motivo, outro uid recusado); `conta.unit` (Leva 129: `get()` diz
+  `googleLigado` e `googleEmail`, de propósito); e2e "G-267" (Google de outra conta avisa e nada muda; liga com o
+  `idToken`; Perfil mostra o Google e o backup; o backup vai para o Drive).
+- **Fora:** tirar o Google da conta; entrar pelo Google numa conta de e-mail já ligada abre a mesma conta, mas o Perfil a
+  mostra como conta Google até a próxima entrada com senha.
 
 **T6e-3 · Relato enviado não muda mais (relato #16)** ✅ (leva G-261, trilha `geral`, 13/10/2026)
 - **Pedido (relato #16, infraestrutura · impede o uso):** depois de enviado, o relato não se edita, não se reenvia, não se

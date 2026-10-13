@@ -11107,13 +11107,27 @@ function createConta({ clientId = '', store, fetch: fetchFn = null, google: goog
     ARQUIVO, ESCOPOS,
     /** Há Client ID? Sem ele a conta não existe na interface. */
     disponivel() { return !!clientId; },
-    async get() { let c = null; try { c = await store.get(KEY); } catch (e) { c = null; } return c && c.email ? { nome: String(c.nome || ''), email: String(c.email), foto: typeof c.foto === 'string' && /^https:\/\//.test(c.foto) ? c.foto : null, entradaEm: c.entradaEm || 0, backupEm: c.backupEm || 0, provedor: c.provedor === 'senha' ? 'senha' : 'google' } : null; },
+    async get() { let c = null; try { c = await store.get(KEY); } catch (e) { c = null; } return c && c.email ? { nome: String(c.nome || ''), email: String(c.email), foto: typeof c.foto === 'string' && /^https:\/\//.test(c.foto) ? c.foto : null, entradaEm: c.entradaEm || 0, backupEm: c.backupEm || 0, provedor: c.provedor === 'senha' ? 'senha' : 'google', googleLigado: c.provedor !== 'senha' || !!(c.google && c.google.email), googleEmail: c.provedor === 'senha' ? (c.google && String(c.google.email || '')) || null : String(c.email) } : null; },
     /** G-263 · T6f-1 · Dá para criar conta e entrar com e-mail e senha? (precisa só da conta da Estante configurada) */
     comEmailDisponivel() { return !!(sessao && sessao.disponivel() && sessao.criarComSenha); },
     /** G-263 · Cria a conta da Estante com e-mail e senha e guarda só o e-mail no aparelho (a senha nunca é guardada). */
     criarComEmail(email, senha) { return comEmail('criarComSenha', email, senha); },
     /** G-263 · Entra com e-mail e senha. */
     entrarComEmail(email, senha) { return comEmail('entrarComSenha', email, senha); },
+    /** G-267 · T6f-4 · Liga o Google a esta conta de e-mail e senha: abre o consentimento (com o Drive do backup),
+        vincula na conta da Estante e guarda nome e foto do Google. Depois disso o backup no Drive funciona como na conta Google. */
+    async vincularGoogle() {
+      if (!clientId) throw erro('sem-client-id');
+      const c = await this.get();
+      if (!c || c.provedor !== 'senha' || !sessao || !sessao.ativa() || !sessao.vincularGoogle) throw erro('sem-conta-estante');
+      if (!temRede()) throw erro('sem-rede');
+      await pedeToken();
+      const u = await json(`${API}/oauth2/v3/userinfo`, { headers: auth() });
+      await sessao.vincularGoogle(token);
+      const antes = (await store.get(KEY)) || {};
+      await store.set(KEY, { ...antes, nome: u.name || antes.nome || '', foto: u.picture || antes.foto || null, google: { email: String(u.email || ''), em: agora() } });
+      return this.get();
+    },
     /** G-264 · T6f-2 · Esqueci a senha: confere o e-mail antes da rede e pede o link. */
     async redefinirSenha(email) {
       if (!sessao || !sessao.disponivel() || !sessao.redefinirSenha) throw erro('sem-firebase');
@@ -11222,6 +11236,8 @@ const OOB = 'https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode'; //
     e-mail sem conta e senha errada chegam iguais (INVALID_LOGIN_CREDENTIALS): a tela também não diferencia. */
 const ERRO_SENHA = { EMAIL_EXISTS: 'email-em-uso', INVALID_EMAIL: 'email-invalido', MISSING_EMAIL: 'email-invalido', WEAK_PASSWORD: 'senha-fraca', MISSING_PASSWORD: 'senha-vazia', INVALID_LOGIN_CREDENTIALS: 'senha-nao-confere', INVALID_PASSWORD: 'senha-nao-confere', EMAIL_NOT_FOUND: 'senha-nao-confere', USER_DISABLED: 'conta-desativada', TOO_MANY_ATTEMPTS_TRY_LATER: 'muitas-tentativas', RESET_PASSWORD_EXCEED_LIMIT: 'muitas-tentativas', OPERATION_NOT_ALLOWED: 'sem-senha', PASSWORD_LOGIN_DISABLED: 'sem-senha' };
 const UID_OK = /^[A-Za-z0-9_-]{1,128}$/;
+/** G-267 · recusas ao ligar o Google a uma conta que já existe. */
+const ERRO_VINCULO = { FEDERATED_USER_ID_ALREADY_LINKED: 'google-de-outra-conta', EMAIL_EXISTS: 'google-email-em-uso', CREDENTIAL_TOO_OLD_LOGIN_AGAIN: 'entre-de-novo', TOKEN_EXPIRED: 'entre-de-novo', INVALID_ID_TOKEN: 'entre-de-novo', USER_NOT_FOUND: 'entre-de-novo' };
 const RENOVA_ANTES_MS = 5 * 60000;
 function createSessaoFirebase({ apiKey = '', fetch: fetchFn = null, agora = () => Date.now(), origem = null, guarda = null } = {}) {
   let s = null, renovando = null;
@@ -11274,6 +11290,28 @@ function createSessaoFirebase({ apiKey = '', fetch: fetchFn = null, agora = () =
     criarComSenha(email, senha) { return comSenha(SIGNUP, email, senha); },
     /** G-263 · Entra na conta da Estante com e-mail e senha. Devolve `{ uid, email }`. */
     entrarComSenha(email, senha) { return comSenha(SENHA, email, senha); },
+    /** G-267 · T6f-4 · Liga o Google à conta da Estante aberta (a de e-mail e senha): o mesmo `signInWithIdp`, com o
+        `idToken` da conta, que o Firebase entende como "vincular". O uid continua o mesmo; resposta de outro uid é recusada. */
+    async vincularGoogle(tokenGoogle) {
+      if (!apiKey) throw erro('sem-firebase');
+      if (!s) throw erro('sem-conta-estante');
+      if (!tokenGoogle) throw erro('recusado');
+      const atual = s, idToken = await this.token();
+      let r;
+      try {
+        r = await pede(`${IDT}?key=${chave()}`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ postBody: `access_token=${encodeURIComponent(tokenGoogle)}&providerId=google.com`, requestUri: requestUri(), idToken, returnSecureToken: true, returnIdpCredential: false }) });
+      } catch (e) {
+        const codigo = e.message === 'firebase-recusou' ? ERRO_VINCULO[String(e.detalhe || '').split(/[\s:]/)[0]] : null;
+        throw codigo ? erro(codigo, { status: e.status }) : e;
+      }
+      if (s !== atual || String(r.localId || '') !== atual.uid) throw erro('firebase-recusou');
+      if (typeof r.idToken === 'string' && typeof r.refreshToken === 'string') {
+        s = { ...atual, idToken: r.idToken, refreshToken: r.refreshToken, expira: agora() + (Number(r.expiresIn) || 3600) * 1000 };
+        if (s.refreshToken !== atual.refreshToken) grava({ uid: s.uid, refreshToken: s.refreshToken });
+      }
+      return { uid: s.uid };
+    },
     /** G-264 · T6f-2 · Pede o e-mail com o link de senha nova (modelo em pt-BR no console). A resposta é a mesma com ou
         sem conta nesse e-mail (proteção contra enumeração): só e-mail malformado, excesso de pedidos e rede mudam. */
     async redefinirSenha(email) {
@@ -11322,7 +11360,9 @@ function createSessaoFirebase({ apiKey = '', fetch: fetchFn = null, agora = () =
 /** Frase de interface para cada erro da conta. */
 const MOTIVO = { 'sem-client-id': 'Entrar com Google precisa de um Client ID configurado no app.', 'sem-firebase': 'Ainda não configurada neste app.', 'firebase-recusou': 'Entrada recusada. Saia e entre de novo.', 'firebase-fora': 'Sem resposta agora. Tente de novo em instantes.', 'sem-rede': 'Sem internet: a conta Google precisa de conexão.', 'sem-google': 'Não foi possível carregar o Google neste navegador.', recusado: 'Entrada cancelada ou recusada.', expirado: 'A sessão do Google expirou: entre de novo.', api: 'O Google não respondeu como esperado.',
   // G-263 · T6f-1 · e-mail e senha
-  'email-invalido': 'Confira o e-mail: falta algo como nome@exemplo.com.', 'senha-vazia': 'Digite a senha.', 'senha-curta': 'A senha precisa de pelo menos 8 caracteres.', 'senha-longa': 'A senha pode ter no máximo 128 caracteres.', 'senha-fraca': 'Senha fraca demais: use pelo menos 8 caracteres.', 'email-em-uso': 'Este e-mail já tem conta. Toque em Entrar (se a conta foi criada com o Google, use Continuar com Google).', 'senha-nao-confere': 'E-mail ou senha não conferem.', 'conta-desativada': 'Esta conta foi desativada.', 'muitas-tentativas': 'Muitas tentativas em pouco tempo. Espere alguns minutos e tente de novo.', 'sem-senha': 'Entrar com e-mail ainda não está ligado neste app.', 'entre-de-novo': 'A conta saiu deste aparelho: entre de novo com e-mail e senha.' };
+  'email-invalido': 'Confira o e-mail: falta algo como nome@exemplo.com.', 'senha-vazia': 'Digite a senha.', 'senha-curta': 'A senha precisa de pelo menos 8 caracteres.', 'senha-longa': 'A senha pode ter no máximo 128 caracteres.', 'senha-fraca': 'Senha fraca demais: use pelo menos 8 caracteres.', 'email-em-uso': 'Este e-mail já tem conta. Toque em Entrar (se a conta foi criada com o Google, use Continuar com Google).', 'senha-nao-confere': 'E-mail ou senha não conferem.', 'conta-desativada': 'Esta conta foi desativada.', 'muitas-tentativas': 'Muitas tentativas em pouco tempo. Espere alguns minutos e tente de novo.', 'sem-senha': 'Entrar com e-mail ainda não está ligado neste app.', 'entre-de-novo': 'A conta saiu deste aparelho: entre de novo com e-mail e senha.',
+  // G-267 · T6f-4 · ligar o Google
+  'sem-conta-estante': 'Entre na conta da Estante antes de ligar o Google.', 'google-de-outra-conta': 'Esta conta Google já é de outra conta da Estante. Use outra conta Google, ou entre pela outra com Continuar com Google.', 'google-email-em-uso': 'O e-mail desta conta Google já tem conta na Estante. Entre por ela com Continuar com Google.' };
 const motivoDe = e => MOTIVO[e && e.message] || MOTIVO.api;
 return { createConta, createSessaoFirebase, carregaScriptWeb, motivoDe, MOTIVO, KEY, ARQUIVO };
 })();
@@ -15002,7 +15042,21 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
           : linhaEstante(oc),
         linhaUsuario(oc),
         linhaSincronia(oc),
-        Text('Backup no Google Drive: chega quando der para ligar o Google a esta conta. Até lá, o backup por arquivo guarda tudo.', { size: 'sm', tone: 'muted', attrs: { id: 'conta-backup-quando' } }),
+        // G-267 · T6f-4 · o Drive do backup chega ligando o Google a esta conta (mesmo uid, a senha continua valendo)
+        ...(c.googleLigado ? [
+          Row({ class: 'perfil-conta__estante', id: 'conta-google', dataset: { estado: 'ligado' } }, Icone('conferir', { tamanho: 18 }), Text('Google ligado' + (c.googleEmail ? ' · ' + c.googleEmail : ''), { size: 'sm' })),
+          Text(`Backup na nuvem · último envio: ${quando(c.backupEm)}`, { size: 'sm', tone: 'muted', attrs: { id: 'conta-backup-quando' } }),
+          Row({ class: 'ds-row--wrap' },
+            Button('Enviar', { icone: 'subir', id: 'conta-enviar', title: 'Enviar o backup completo para a nuvem', disabled: oc, onClick: () => acaoDaConta(async () => { const r = await conta.enviarBackup(await backup.texto()); toast(r.substituiu ? 'Backup na nuvem atualizado' : 'Backup enviado para a nuvem'); }) }),
+            Button('Baixar', { icone: 'descer', id: 'conta-baixar', title: 'Restaurar o backup guardado na nuvem', disabled: oc, onClick: () => acaoDaConta(async () => {
+              const b = await conta.baixarBackup(); if (!b) return toast('Não há backup na nuvem ainda');
+              toast(await backup.restaurar(b.texto)); await carrega();
+            }) }))
+        ] : conta.disponivel() && conta.vincularGoogle ? [
+          Text('Ligue o Google a esta conta para guardar o backup na pasta privada do app no seu Drive. A senha continua valendo.', { size: 'sm', tone: 'muted', attrs: { id: 'conta-backup-quando' } }),
+          Row({ class: 'ds-row--wrap' }, Button('Ligar o Google', { icone: 'externo', id: 'conta-google-ligar', disabled: oc || e.estado !== 'conectada', title: e.estado !== 'conectada' ? 'Entre de novo antes de ligar o Google' : 'Ligar a sua conta Google a esta conta',
+            onClick: () => acaoDaConta(async () => { await conta.vincularGoogle(); if (haptics) haptics.evento('confirmacao'); toast('Google ligado: o backup no Drive está pronto'); }) }))
+        ] : [Text('Backup no Google Drive: chega quando der para ligar o Google a esta conta. Até lá, o backup por arquivo guarda tudo.', { size: 'sm', tone: 'muted', attrs: { id: 'conta-backup-quando' } })]),
         Row({ class: 'ds-row--wrap' },
           Button('Sair', { icone: 'desistir', id: 'conta-sair', variant: 'ghost', disabled: oc, onClick: () => acaoDaConta(async () => { await conta.sair(); toast('Conta desconectada'); }) }))));
     }

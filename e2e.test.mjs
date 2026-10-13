@@ -5145,6 +5145,59 @@ test('e2e · G-264 esqueci a senha: só em Entrar, confere o e-mail na hora, man
   assert.deepEqual(errors, []);
 });
 
+/* G-267 · T6f-4 · relato #18: ligar o Google a uma conta de e-mail (para o backup no Drive) */
+test('e2e · G-267 ligar o Google: a conta de e-mail ganha o Drive sem trocar de conta (mesmo uid), o backup vai para o Drive; Google de outra conta avisa', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  const nuvem = { arquivo: null };
+  await page.route('https://www.googleapis.com/**', async r => {
+    const url = r.request().url();
+    if (!/Bearer tok-e2e/.test(r.request().headers().authorization || '')) return r.fulfill({ status: 401, json: {} });
+    if (url.includes('/oauth2/v3/userinfo')) return r.fulfill({ json: { name: 'Gui do Google', email: 'gui.google@example.com' } });
+    if (url.includes('/drive/v3/files?spaces=appDataFolder')) return r.fulfill({ json: { files: nuvem.arquivo ? [{ id: 'f1', modifiedTime: '2026-10-13T12:00:00Z' }] : [] } });
+    if (url.includes('/upload/drive/v3/files')) { nuvem.arquivo = r.request().postData().split('\r\n\r\n')[2].split('\r\n--')[0]; return r.fulfill({ json: { id: 'f1' } }); }
+    return r.fulfill({ status: 404, json: {} });
+  });
+  await page.addInitScript(() => {
+    window.__GOOGLE_CLIENT_ID = 'e2e.apps.googleusercontent.com'; window.__FIREBASE_API_KEY = 'chave-e2e';
+    window.__firebaseLog = []; window.__vinculo = null;
+    const ok = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } });
+    window.__FIREBASE_FETCH = async (url, init) => {
+      const corpo = url.includes('securetoken') ? init.body : JSON.parse(init.body); window.__firebaseLog.push({ url: url.split('?')[0], corpo });
+      if (url.includes('securetoken')) return ok({ id_token: 'id-renovado', refresh_token: 'ref-2', expires_in: '3600', user_id: 'uidSenha_1' });
+      if (url.includes('signInWithIdp')) return window.__vinculo ? ok({ error: { message: window.__vinculo } }, 400) : ok({ localId: 'uidSenha_1', idToken: 'id-ligado', refreshToken: 'ref-ligado', expiresIn: '3600' });
+      return ok({ localId: 'uidSenha_1', email: corpo.email, idToken: 'id-senha', refreshToken: 'ref-senha', expiresIn: '3600' });
+    };
+    window.__GOOGLE_FALSO = { accounts: { oauth2: {
+      initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }),
+      revoke: (tk, cb) => cb && cb() } } };
+  });
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#conta-email-abrir:not([disabled])');
+  await page.click('#conta-email-abrir'); await page.waitForSelector('#conta-email-campo');
+  await page.click('#conta-email-modo [data-modo="criar"]');
+  await page.fill('#conta-email-campo', 'gui@exemplo.com'); await page.fill('#conta-senha', 'senha-certa-1'); await page.click('#conta-email-confirmar');
+  await page.waitForSelector('#conta-google-ligar:not([disabled])');
+  assert.ok((await page.locator('#conta-google-ligar').boundingBox()).height >= 44);
+  assert.equal(await page.locator('#conta-enviar').count(), 0, 'sem Google, sem Drive');
+  // 1 · Google de outra conta da Estante: avisa e nada muda
+  await page.evaluate(() => { window.__vinculo = 'FEDERATED_USER_ID_ALREADY_LINKED'; });
+  await page.click('#conta-google-ligar'); await page.waitForFunction(() => /já é de outra conta da Estante/.test(document.querySelector('#ds-toast')?.textContent || ''));
+  assert.equal(await page.locator('#conta-enviar').count(), 0);
+  // 2 · liga: o pedido leva o idToken da conta (vincular, não trocar), o Perfil mostra o Google e o backup
+  await page.evaluate(() => { window.__vinculo = null; });
+  await page.click('#conta-google-ligar'); await page.waitForSelector('#conta-google[data-estado="ligado"]');
+  const p = await page.evaluate(() => window.__firebaseLog.filter(l => l.url.endsWith('signInWithIdp')).at(-1));
+  assert.equal(p.corpo.idToken, 'id-senha'); assert.equal(p.corpo.postBody, 'access_token=tok-e2e&providerId=google.com');
+  assert.match(await page.innerText('#conta-google'), /Google ligado · gui\.google@example\.com/);
+  assert.equal(await page.innerText('#conta-email'), 'gui@exemplo.com', 'a conta continua a do e-mail');
+  assert.match(await page.innerText('#perfil-conta[data-provedor="senha"] #conta-estante'), /conectada/);
+  await auditaTela(page, 'perfil · conta de e-mail com Google ligado');
+  // 3 · o backup vai para o Drive
+  await page.click('#conta-enviar'); await page.waitForFunction(() => /Backup enviado/.test(document.querySelector('#ds-toast')?.textContent || ''));
+  assert.equal(JSON.parse(nuvem.arquivo).kind, 'estante.backup');
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · P-8 sala pela internet: sem conta da Estante, Criar e Entrar dão lugar a Conectar; sem conta Google leva ao Perfil; conectada, a sala aparece; P-9 reabrir continua conectado; sem sessão, Conectar liga ali', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.setViewportSize({ width: 360, height: 780 });
