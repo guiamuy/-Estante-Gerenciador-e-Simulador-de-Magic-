@@ -5361,7 +5361,9 @@ const EFFECTS = {
   mover: { fields: [], targets: ['self-source', 'creature', 'spell', 'spell-or-creature', 'permanent', 'permanent-you-control', 'land-you-control', 'artifact', 'artifact-creature', 'permanent-you-own',
     'creature-you-control', 'card-in-any-graveyard', 'card-in-your-graveyard', 'creature-in-your-graveyard', 'permanent-in-your-graveyard', 'creature-land-in-any-graveyard'] },
   sacrifice_it: { fields: [], targets: ['permanent', 'self-source'] },
-  pisca: { fields: [], targets: ['creature', 'creature-you-control', 'permanent', 'permanent-you-control'] }, // M-349 · Ephemerate: exila e devolve ao campo sob o controle do dono (objeto novo, 400.7)
+  pisca: { fields: [], targets: ['creature', 'creature-you-control', 'permanent', 'permanent-you-control'] },
+  pisca_exila: { fields: [], targets: ['creature', 'creature-you-control', 'permanent', 'permanent-you-control'] }, // M-351 · Ghostly Flicker: "exile two target …, then return those cards" — a primeira metade (a mágica lembra o que exilou)
+  pisca_volta: { fields: [], targets: ['self'] }, // M-351 · a segunda metade: devolve juntas as que exilou (`sob: 'voce'` = sob o seu controle; padrão: do dono); ficha não volta (111.8) // M-349 · Ephemerate: exila e devolve ao campo sob o controle do dono (objeto novo, 400.7)
   sacrifica_a_menos_que_devolva: { fields: [], targets: ['self'] }, // M-349 · Glint Hawk: "sacrifice it unless you return an artifact you control to its owner's hand"
   comandantes_para_mao: { fields: [], targets: ['self'] }, // M-348 · Campfire: os comandantes seus na zona de comando e no cemitério vão para a mão (fora de Commander, nada)
   cemiterio_no_grimorio: { fields: [], targets: ['self'] }, // M-348 · Campfire: embaralha o cemitério no grimório
@@ -5574,9 +5576,9 @@ const CHOICE_EFFECTS = ['topo_ou_fundo_do_dono', 'untap_chosen', 'discard_or_sac
 /** S47 · condição do próprio efeito, olhando o que foi pago como custo. */
 /** M-249 · 122.1 · marcadores nomeados em português (o tipo é a chave em `counters`). */
 const MARCADOR_PT = { p1p1: '+1/+1', oil: 'de óleo', depletion: 'de esgotamento', charge: 'de carga', age: 'de idade', loyalty: 'de lealdade', time: 'de tempo', lore: 'de saga', poison: 'de veneno' };
-const ONLY_IF = ['discarded-nonland', 'source-entered-earlier', 'paid-additional', 'kicked', 'not-attacked', 'metalcraft', 'cast-from-graveyard', 'alvo-era-seu'];
+const ONLY_IF = ['discarded-nonland', 'source-entered-earlier', 'paid-additional', 'kicked', 'not-attacked', 'metalcraft', 'cast-from-graveyard', 'alvo-era-seu', 'evidenced', 'not-evidenced']; // M-351 · "If evidence was collected, instead …" (Extract a Confession, 701.59 + 601.2b)
 /** S16 · custos que substituem o custo de mana, e o custo do lampejo do passado. */
-const ALT_COST_PARTS = ['mana', 'life', 'discard', 'returnLand', 'exileGraveyard', 'tapOther', 'sacrificeOther', 'discardSubtype', 'exileHandColor', 'free']; // CR2c.4 · Ilha entre as descartadas (Foil), exilar carta da cor da mão (Snapback), de graça (Mogg Salvage)
+const ALT_COST_PARTS = ['mana', 'life', 'discard', 'returnLand', 'exileGraveyard', 'tapOther', 'sacrificeOther', 'discardSubtype', 'exileHandColor', 'free', 'revealHand']; // M-351 · revealHand: "you may reveal your hand rather than pay" (Land Grant, 118.9) // CR2c.4 · Ilha entre as descartadas (Foil), exilar carta da cor da mão (Snapback), de graça (Mogg Salvage)
 /** S48 · fuga: conjura do cemitério pagando o custo, e a carta fica em jogo. */
 /** S20 · custos adicionais de ativação e de conjuração. */
 const EXTRA_COST_PARTS = ['sacrificeOther', 'tapOther', 'discard', 'returnLand', 'revealColor', 'exileFromGraveyard', 'discardSelf', 'pagarVida']; // M-346 · pagarVida: "or pay 3 life" (Bitter Triumph)
@@ -5645,7 +5647,7 @@ function seletorErros(sel, label) {
   for (const k of Object.keys(sel)) if (!SELETOR_CHAVES.includes(k)) errs.push(`${label}: chave "${k}" desconhecida no seletor`);
   if (sel.ou) { if (!Array.isArray(sel.ou) || !sel.ou.length) errs.push(`${label}: "ou" precisa de uma lista de seletores`); else sel.ou.forEach((x, i) => errs.push(...seletorErros(x, `${label} ou ${i + 1}`))); }
   if (sel.zona != null && !SELETOR_ZONAS.includes(sel.zona)) errs.push(`${label}: zona "${sel.zona}" desconhecida`);
-  for (const k of ['de', 'dono', 'jogadores']) if (sel[k] != null && !['you', 'opponent', 'any'].includes(sel[k])) errs.push(`${label}: "${k}" precisa ser you, opponent ou any`);
+  for (const k of ['de', 'dono', 'jogadores']) if (sel[k] != null && !['you', 'opponent', 'any'].includes(sel[k]) && !(k === 'de' && sel[k] === 'alvo')) errs.push(`${label}: "${k}" precisa ser you, opponent ou any`); // M-351 · de: 'alvo' = o jogador alvo do efeito (Arms of Hadar)
   for (const k of ['tipos', 'semTipos']) for (const x of sel[k] || []) if (!TIPOS_DE_CARTA.includes(x)) errs.push(`${label}: tipo "${x}" desconhecido`);
   for (const k of ['cor', 'semCor']) if (sel[k] != null && !'WUBRG'.includes(sel[k])) errs.push(`${label}: cor precisa ser WUBRG`);
   if (sel.ref != null && !['bloqueada-pela-fonte', 'encantada-pela-fonte'].includes(sel.ref)) errs.push(`${label}: referência "${sel.ref}" desconhecida`);
@@ -5751,7 +5753,7 @@ function continuoErros(c, tag) {
   for (const k of Object.keys(c)) if (!CHAVES_CONTINUO.includes(k)) errs.push(`${tag}: chave "${k}" desconhecida`);
   const a = c.afetados;
   if (c.seAfetado != null) { if (typeof c.seAfetado !== 'object' || Array.isArray(c.seAfetado)) errs.push(`${tag}: "seAfetado" precisa ser um seletor`); else { errs.push(...seletorErros(c.seAfetado, `${tag}: seAfetado`)); for (const k of ['zona', 'ref', 'ou', 'jogadores', 'habilidades']) if (c.seAfetado[k] != null) errs.push(`${tag}: seAfetado não aceita "${k}"`); } }
-  if (c.se != null && !(c.se && Number.isInteger(c.se.oponenteComVeneno) && Object.keys(c.se).length === 1)) errs.push(`${tag}: "se" conhece só oponenteComVeneno (inteiro)`); // M-253 · Corrompido
+  if (c.se != null && !(c.se && Object.keys(c.se).length === 1 && (Number.isInteger(c.se.oponenteComVeneno) || TIPOS_DE_CARTA.includes(c.se.controlaTipo)))) errs.push(`${tag}: "se" conhece só oponenteComVeneno (inteiro) ou controlaTipo (tipo de carta)`); // M-253 · Corrompido · M-351 · "as long as you control an artifact" (Goblin Tomb Raider)
   if (c.ward != null) errs.push(...wardCustoErrosK(c.ward, false).map(e => `${tag}: "ward" ${e}`)); // K-2 · 702.21
   if (a !== 'self' && a !== 'anexada' && a !== 'equipada-pela-anexada') {
     if (!a || typeof a !== 'object') errs.push(`${tag}: "afetados" precisa ser self, anexada ou um seletor (ou equipada-pela-anexada)`);
@@ -6017,7 +6019,7 @@ function validateScript(sc) {
     if (!parts.length) errs.push(`custo alternativo ${i + 1}: sem custo`);
     for (const k of parts) if (!ALT_COST_PARTS.includes(k)) errs.push(`custo alternativo ${i + 1}: parte "${k}" desconhecida`);
     if (alt.effects) errs.push(...effectErrors(alt.effects, `custo alternativo ${i + 1}`)); // Q11 · sobrecarga tem efeitos próprios
-    if (alt.when && !Object.keys(alt.when).every(k => ['opponentControlsSubtype', 'youControlSubtype', 'naoSeuTurno'].includes(k))) errs.push(`custo alternativo ${i + 1}: condição desconhecida`);
+    if (alt.when && !Object.keys(alt.when).every(k => ['opponentControlsSubtype', 'youControlSubtype', 'naoSeuTurno', 'semTerrenoNaMao'].includes(k))) errs.push(`custo alternativo ${i + 1}: condição desconhecida`); // M-351 · semTerrenoNaMao (Land Grant)
     if (alt.cost && alt.cost.discardSubtype && !alt.cost.discard) errs.push(`custo alternativo ${i + 1}: "descartar uma <subtipo>" precisa do número de descartes`);
     if (alt.cost && alt.cost.exileHandColor && !'WUBRG'.includes(alt.cost.exileHandColor)) errs.push(`custo alternativo ${i + 1}: exilar da mão precisa de uma cor WUBRG`);
   }
@@ -6322,7 +6324,7 @@ function effectErrors(effects, label, opcional) {
     if (CHOICE_EFFECTS.includes(e.do) && effects.slice(i + 1).some(isTargeted)) errs.push(`${label} ${i + 1} (${e.do}): efeito com alvo depois de uma escolha`);
     if (e.cada != null) { // M-230 · varredura escrita como seletor: sem alvo e sobre objetos
       errs.push(...seletorErros(e.cada, `${label} ${i + 1} (${e.do}) cada`));
-      if (e.target != null) errs.push(`${label} ${i + 1} (${e.do}): use "cada" ou "target", não os dois`);
+      if (e.target != null && !(e.cada.de === 'alvo' && ['player', 'opponent'].includes(e.target))) errs.push(`${label} ${i + 1} (${e.do}): use "cada" ou "target", não os dois`); // M-351 · "creatures target player controls get −N/−N": alvo é o jogador, a varredura é das criaturas dele
       if (selJogadores(e.cada)) errs.push(`${label} ${i + 1} (${e.do}): "cada" é para objetos; jogadores usam each-player/each-opponent`);
       return;
     }
@@ -8711,14 +8713,10 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Campfire': { texto: '18w8igq', leva: 'M-348' },
   'Bonder\'s Ornament': { texto: '16zwzx', leva: 'M-348' },
   'Reckoner\'s Bargain': { texto: '1kynrym', leva: 'M-348' },
-  'Toxin Analysis': { texto: '1w3doi5', leva: 'M-348' },
   'Pursue the Past': { texto: 'mbaiyc', leva: 'M-348' },
-  'Sandstone Needle': { texto: '1b8g0o3', leva: 'M-348' },
   'Abandon Attachments': { texto: '1vvbg18', leva: 'M-348' },
   'Bitter Reunion': { texto: 'mza4w6', leva: 'M-348' },
-  'Remote Farm': { texto: '1msmzib', leva: 'M-348' },
   'Emerge Unscathed': { texto: '1owuscz', leva: 'M-348' },
-  'Thrill of Possibility': { texto: '56vj14', leva: 'M-348' },
   'Laughing Mad': { texto: 'i0a12g', leva: 'M-348' },
   'Electric Revelation': { texto: 'i0a12g', leva: 'M-348' },
   // M-349 · revisão por lote XXII (Pauper: impulso até o próximo turno, Glint Hawk, Gingerbread Cabin, Cryogen Relic, Ephemerate, Troll, Melded Moxite), revisor independente com 191 (+142 na reconferência da Ephemerate) verificações: 10 de 10 aprovadas
@@ -8731,6 +8729,13 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Ephemerate': { texto: '1s11xj1', leva: 'M-349' },
   'Troll of Khazad-dûm': { texto: '14nk49z', leva: 'M-349' },
   'Melded Moxite': { texto: '153fvyb', leva: 'M-349' },
+  // M-351 · Toxin Analysis, Sandstone Needle, Remote Farm e Thrill of Possibility (lote XXI) e Ramosian Rally (lote XXIII) saíram daqui: a L-1…L-4 publicaram script à mão para elas e o script à mão vence (as cartas seguem jogando)
+  // M-351 · revisão por lote XXIII (Pauper: Extract a Confession, Land Grant, Ramosian Rally, Arms of Hadar, Ghostly Flicker, Goblin Tomb Raider), revisor independente com 131 (+56 na reconferência dos achados) verificações: 6 de 6 aprovadas
+  'Extract a Confession': { texto: 'rafyij', leva: 'M-351' },
+  'Land Grant': { texto: 'bp9bkx', leva: 'M-351' },
+  'Arms of Hadar': { texto: '13y4fnp', leva: 'M-351' },
+  'Ghostly Flicker': { texto: 'mu29yw', leva: 'M-351' },
+  'Goblin Tomb Raider': { texto: '1met7hz', leva: 'M-351' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -16142,7 +16147,7 @@ const __m42 = (function () {
     const filter = m[5] ? { name: m[5] } : (m[4] ? filtroDeBusca(m[4]) : {}); if (!filter) return null;
     if (filter.name === '~') filter.name = nomeAtual;
     const to = m[6] ? DESTINO[m[6].toLowerCase()] : 'hand'; if (!to) return null;
-    return [{ do: 'search', amount, ...(quem ? { target: quem } : {}), ...(m[1] ? { optional: true } : {}), filter, to }];
+    return [{ do: 'search', amount, ...(quem ? { target: quem } : {}), ...(m[1] ? { optional: true } : {}), filter, to, ...(/, reveal (?:it|them|that card)/i.test(m[0]) ? { revela: true } : {}) }]; // M-351 · 701.20a: "reveal it/that card" mostra a carta achada (achado da revisão do lote XXIII, Land Grant)
   }
   /** LT9 · 111.10 · fichas predefinidas, como o motor as cria (mesma definição dos scripts à mão). */
   const FICHAS_PREDEFINIDAS = {
@@ -16182,6 +16187,8 @@ const __m42 = (function () {
     [/^counter (target [a-z ']+)$/i, m => [com({ do: 'counter' }, alvo(m[1]))]],
     [/^return (target [a-z ']+) to its owner's hand$/i, m => [com({ do: 'bounce' }, alvo(m[1]))]],
     [/^(target creature|target creature you control|creatures you control|creatures your opponents control|all creatures) gets? ([+-]\d+)\/([+-]\d+) until end of turn$/i, m => [com({ do: 'pump', power: SINAL(m[2]), toughness: SINAL(m[3]) }, alvo(m[1]))]],
+    [/^creatures (target player|target opponent) controls? get ([+-]\d+)\/([+-]\d+) until end of turn$/i, m => [{ do: 'pump', target: m[1] === 'target player' ? 'player' : 'opponent', cada: { tipos: ['creature'], de: 'alvo' }, power: SINAL(m[2]), toughness: SINAL(m[3]) }]], // M-351 · Arms of Hadar
+    [/^pisca_dois (artifacts, creatures, and\/or lands you control)$/i, () => [{ do: 'pisca_exila', target: { tipos: ['artifact', 'creature', 'land'], de: 'you' } }, { do: 'pisca_exila', target: { tipos: ['artifact', 'creature', 'land'], de: 'you' } }, { do: 'pisca_volta', sob: 'voce' }]], // M-351 · Ghostly Flicker (frase juntada em leParagrafo; 601.2c: dois alvos diferentes)
     [new RegExp(`^scry ${N}$`, 'i'), m => [{ do: 'scry', amount: num(m[1]) }]],
     [new RegExp(`^surveil ${N}$`, 'i'), m => [{ do: 'surveil', amount: num(m[1]) }]],
     [new RegExp(`^discard ${N} cards?$`, 'i'), m => [{ do: 'discard', amount: num(m[1]) }]],
@@ -16200,7 +16207,7 @@ const __m42 = (function () {
     [new RegExp(`^put ${N} \\+1/\\+1 counters? on (this creature|~)$`, 'i'), m => [{ do: 'counters', amount: num(m[1]), target: 'self-source' }]],
     [/^exile target player's graveyard$/i, () => [{ do: 'exile_graveyard', target: 'player' }]],
     [/^it deals (\d+) damage to (each opponent|target opponent|any target)$/i, m => [com({ do: 'damage', amount: +m[1] }, alvo(m[2]))]],
-    [new RegExp(`^(?:(you may|its controller may|that player may|target player may) )?search (?:your|their) library for (?:(up to) )?${N}(?: (.+?))? cards?(?: named (.+?))?(?:, reveal (?:it|them))?(?:,? (?:and )?put (?:it|them|that card) (into (?:your|their) hand|onto the battlefield(?: tapped)?|on top of your library))?$`, 'i'), busca], // LT5 · 701.23
+    [new RegExp(`^(?:(you may|its controller may|that player may|target player may) )?search (?:your|their) library for (?:(up to) )?${N}(?: (.+?))? cards?(?: named (.+?))?(?:, reveal (?:it|them|that card))?(?:,? (?:and )?put (?:it|them|that card) (into (?:your|their) hand|onto the battlefield(?: tapped)?|on top of your library))?$`, 'i'), busca], // LT5 · 701.23
     [/^shuffle(?: your library)?$/i, () => []],
     [new RegExp(`^create ${N} (treasure|food|blood|map|clue) tokens?$`, 'i'), m => fichaPredefinida(m[1], m[2])], // LT9 · 111.10
     [/^investigate$/i, () => fichaPredefinida('a', 'clue')], // LT9 · 701.16
@@ -16270,7 +16277,10 @@ const __m42 = (function () {
     [/^flashback (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ flashback: { mana: m[1] } })],
     [/^flashback—sacrifice an? (Plains|Island|Swamp|Mountain|Forest)$/i, m => ({ flashback: { sacrificeOther: { types: ['land'], subtype: m[1][0].toUpperCase() + m[1].slice(1).toLowerCase() } } })], // M-331 · Lava Dart
     [/^flashback—(\{[^}]+\}(?:\{[^}]+\})*), pay (\d+) life$/i, m => ({ flashback: { mana: m[1], pagarVida: +m[2] } })], // M-348 · Deep Analysis (702.34a + 119.4)
-    [/^as an additional cost to cast this spell, discard a card$/i, () => ({ additional: { discard: 1 } })], // M-348 · Big Score, Sazacap's Brew (601.2b)
+    [/^as an additional cost to cast this spell, discard a card$/i, () => ({ additional: { discard: 1 } })], // M-348
+    [/^as an additional cost to cast this spell, you may collect evidence (\d+)$/i, m => ({ evidence: +m[1] })], // M-351 · 701.59 · Extract a Confession (o motor oferece conjurar com ou sem provas)
+    [/^if you have no land cards in hand, you may reveal your hand rather than pay this spell's mana cost$/i, () => ({ alt: [{ label: 'Revelar a mão (sem terrenos) em vez de pagar o custo', cost: { free: true, revealHand: true }, when: { semTerrenoNaMao: true } }] })], // M-351 · Land Grant (118.9)
+    [/^if you control an? (Plains|Island|Swamp|Mountain|Forest), you may tap an untapped creature you control rather than pay this spell's mana cost$/i, m => ({ alt: [{ label: `Virar uma criatura sua desvirada em vez de pagar o custo (você controla ${{ Plains: 'uma Planície', Island: 'uma Ilha', Swamp: 'um Pântano', Mountain: 'uma Montanha', Forest: 'uma Floresta' }[m[1]]})`, cost: { tapOther: { types: ['creature'], amount: 1 } }, when: { youControlSubtype: m[1] } }] })], // M-351 · Ramosian Rally (118.9) · Big Score, Sazacap's Brew (601.2b)
     [/^madness (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ madness: { mana: m[1] } })],
     [/^cycling (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ cycling: { mana: m[1] } })],
     [/^if you control an? (Plains|Island|Swamp|Mountain|Forest), you may pay (\d+) life rather than pay this spell's mana cost$/i, m => ({ alt: [{ label: `Pagar ${m[2]} de vida em vez do custo (você controla ${{ Plains: 'uma Planície', Island: 'uma Ilha', Swamp: 'um Pântano', Mountain: 'uma Montanha', Forest: 'uma Floresta' }[m[1]]})`, cost: { life: +m[2] }, when: { youControlSubtype: m[1] } }] })], // M-328 · 118.9 (Snuff Out)
@@ -16478,11 +16488,13 @@ const __m42 = (function () {
     if (!texto) return efeitos;
     texto = texto.replace(/(?:you may )?discard a card\. if you do, draw (\w+) cards?/i, 'you may discard a card to draw $1 cards');
     texto = texto.replace(/^exile (target (?:creature|permanent)(?: you control)?), then return (?:it|that card) to the battlefield under its owner's control/i, 'pisca $1'); // M-349 · Ephemerate
+    texto = texto.replace(/^exile two target (artifacts, creatures, and\/or lands you control), then return those cards to the battlefield under your control/i, 'pisca_dois $1'); // M-351 · Ghostly Flicker
     texto = texto.replace(/exile the top (card|two cards|three cards) of your library\. (?:you may play (?:it|them|those cards) until the end of your next turn|until the end of your next turn, you may play (?:it|them|those cards))/i, (m0, q) => `impulso ${q === 'card' ? 'one' : q.split(' ')[0]} ate o proximo turno`); // M-349 // M-348 · duas frases, um efeito (Pursue the Past, Melded Moxite)
     const partes = texto.replace(/, then shuffle and put that card on top(\.|$)/i, ', put that card on top of your library, then shuffle$1').split(/\.\s+|,\s+then\s+|\.$/).map(x => x.replace(/\.$/, '').trim()).filter(Boolean);
     let ok = true;
     for (const p of partes) {
       if (/^if that spell is countered this way, exile it instead of putting it into its owner's graveyard$/i.test(p) && efeitos.length && efeitos[efeitos.length - 1].do === 'counter') { efeitos[efeitos.length - 1].exila = true; frases.push({ texto: p, lida: true }); continue; } // M-338 · Force of Negation
+      if (/^if evidence was collected, instead each opponent sacrifices a creature with the greatest power among creatures they control$/i.test(p) && efeitos.length && !efeitos[efeitos.length - 1].onlyIf) { efeitos[efeitos.length - 1].onlyIf = 'not-evidenced'; efeitos.push({ do: 'sacrificar', tipos: ['creature'], jogadores: 'cada-oponente', maiorPoder: true, onlyIf: 'evidenced' }); frases.push({ texto: p, lida: true }); continue; } // M-351 · Extract a Confession (701.59; "instead" troca a frase anterior)
       if (/^if you controlled that permanent, draw a card$/i.test(p) && efeitos.length && SC_ALVEJA(efeitos[efeitos.length - 1])) { efeitos.push({ do: 'draw', amount: 1, onlyIf: 'alvo-era-seu' }); frases.push({ texto: p, lida: true }); continue; } // M-341 · Boomerang Basics
       const ik = p.match(new RegExp(`^if this spell was kicked, (?:it|~) deals ${N} damage(?: to that (?:creature|player|permanent|planeswalker))? instead$`, 'i')); // M-337 · 702.33d · Burst Lightning
       if (ik && efeitos.length && efeitos[efeitos.length - 1].do === 'damage' && Number.isInteger(efeitos[efeitos.length - 1].amount)) { const ult = efeitos[efeitos.length - 1]; ult.amount = { per: 'se', se: 'kicked', sim: num(ik[1]), nao: ult.amount }; frases.push({ texto: p, lida: true }); continue; }
@@ -16528,6 +16540,8 @@ const __m42 = (function () {
         const eq = lp.match(/^Equip (\{[^}]+\}(?:\{[^}]+\})*)$/); if (eq) { topo.equip = { enchant: 'creature', cost: { mana: eq[1] } }; frases.push({ texto: linha, lida: true }); continue; } // LT5
         const ga = lp.match(/^creatures you control have ([a-z ,]+)$/i); // LT5 · "Creatures you control have haste"
         if (ga) { const kws = ga[1].split(/,\s*|\s+and\s+/).map(x => x.trim().toLowerCase()); if (kws.every(k => KW.has(k))) { topo.grantsAll = { ...(topo.grantsAll || {}), keywords: [...((topo.grantsAll || {}).keywords || []), ...kws] }; frases.push({ texto: linha, lida: true }); continue; } }
+        const al = lp.match(/^as long as you control an? (artifact|creature|enchantment|land|planeswalker), ~ gets ([+-]\d+)\/([+-]\d+)(?: and has ([a-z ]+))?$/i); // M-351 · Goblin Tomb Raider (611.2 · condição conferida a cada leitura)
+        if (al && (!al[4] || al[4].split(/ and /).every(k => KW.has(k.trim().toLowerCase())))) { topo.continuo = [...(topo.continuo || []), { afetados: 'self', poder: SINAL(al[2]), resistencia: SINAL(al[3]), ...(al[4] ? { palavras: al[4].split(/ and /).map(k => k.trim().toLowerCase()) } : {}), se: { controlaTipo: al[1].toLowerCase() } }]; frases.push({ texto: linha, lida: true }); continue; }
         const pe = lp.match(/^~ gets ([+-]\d+)\/([+-]\d+) for each (.+)$/i); // LT5 · "~ gets +1/+1 for each Aura on the battlefield"
         if (pe && contagem(pe[3])) { topo.self = { ...(topo.self || {}), perPower: SINAL(pe[1]), perToughness: SINAL(pe[2]), per: contagem(pe[3]) }; frases.push({ texto: linha, lida: true }); continue; }
         if (/^~ can't be blocked except by creatures with flying$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'flying-only' }; frases.push({ texto: linha, lida: true }); continue; } // LT5
@@ -16598,7 +16612,7 @@ const __m42 = (function () {
     let script = null;
     if (modos && modos.length && !efeitos.length) script = { name: nome, modes: modos.filter(Boolean), ...topo };
     else if (efeitos.length && !modos) script = { name: nome, effects: efeitos, ...topo };
-    else if (!magica && (topo.abilities || topo.aura || topo.equip || topo.entersTapped || topo.grants || topo.grantsAll || topo.self || topo.produces || topo.cycling || topo.transmute || topo.escape || topo.entersTappedUnless || topo.affinity || topo.ninjutsu || topo.reduzPor)) script = { name: nome, ...topo }; // LT3/LT5
+    else if (!magica && (topo.abilities || topo.aura || topo.equip || topo.entersTapped || topo.grants || topo.grantsAll || topo.self || topo.produces || topo.cycling || topo.transmute || topo.escape || topo.entersTappedUnless || topo.affinity || topo.ninjutsu || topo.reduzPor || topo.continuo)) script = { name: nome, ...topo }; // LT3/LT5 · M-351 · continuo
     if (script && (script.effects || []).some(e => e.do === 'protection') && !script.choose) script.choose = 'color'; // M-348 · "protection from the color of your choice": a mágica escolhe a cor na resolução (achado da revisão do lote XXI)
     const permanenteSemTexto = !magica && !linhas.length; // criatura sem texto: não precisa de script (o motor joga pelos dados da carta)
     const erros = script ? SC.validateScript({ ...script, example: { target: 'none', expect: {} } }).filter(e => !/cenário|example|exemplo/i.test(e)) : ['sem efeito'];
@@ -16993,6 +17007,13 @@ function bonusLegado(s, host) {
    feita do ponto de vista da fonte). Os bônus de Aura e Equipamento (grants), "suas criaturas têm" (grantsAll) e o bônus
    próprio por contagem (self.per) viram atalhos; carta nova escreve `continuo: [...]` no script. */
 const SEM_CONTINUOS = Object.freeze([]);
+/** M-351 · 611.2 · condição de um efeito contínuo ("as long as …"), conferida a cada leitura: oponente com N venenos (M-253) ou "you control a <tipo>". */
+function condicaoContinua(s, x, se) {
+  if (!se) return true;
+  if (se.oponenteComVeneno != null) return alive(s).some(q => q !== x.controller && (s.players[q].poison || 0) >= se.oponenteComVeneno);
+  if (se.controlaTipo) return battlefield(s).some(o => o.controller === x.controller && tiposDe(s, o).includes(se.controlaTipo)); // a própria fonte conta se tiver o tipo
+  return true;
+}
 function continuosDaFonte(s, x) {
   const sc = s.facts[x.name].script;
   if (sc && sc.self && sc.self.classe) return continuosDaClasseT(s, x, sc); // T-12 · CR 716.2a · os contínuos do nível 1 e dos níveis alcançados
@@ -17016,12 +17037,12 @@ function continuosQueAfetam(s, o) {
   if (!o || !s.facts[o.name]) return out;
   for (const e of temporariosDe(o, s)) out.push({ ...e, fonte: o }); // CR2-G R3b/R6 · temporários gravados no objeto
   // 'self': a própria permanente (em qualquer zona, como o bônus antigo); some com as habilidades impressas
-  if (!semImpressas(s, o)) for (const e of continuosDaFonte(s, o)) if (e.afetados === 'self') out.push({ ...e, fonte: o, ts: o.ts || 0 });
+  if (!semImpressas(s, o)) for (const e of continuosDaFonte(s, o)) if (e.afetados === 'self' && condicaoContinua(s, o, e.se)) out.push({ ...e, fonte: o, ts: o.ts || 0 }); // M-351 · "as long as you control an artifact, ~ gets +1/+0 and has haste" 
   for (const x of battlefield(s)) {
     if (!s.facts[x.name]) continue;
     for (const e of continuosDaFonte(s, x)) {
       if (e.afetados === 'self') continue;
-      if (e.se && !(alive(s).some(q => q !== x.controller && (s.players[q].poison || 0) >= e.se.oponenteComVeneno))) continue; // M-253 · "Corrupted — as long as an opponent has three or more poison counters"
+      if (!condicaoContinua(s, x, e.se)) continue; // M-253 · Corrompido · M-351 · controlaTipo · "Corrupted — as long as an opponent has three or more poison counters"
       if (e.seAfetado && !selCasa(s, x.controller, o, e.seAfetado, x.oid, { mira: false, src: x })) continue; // M-251 · "as long as enchanted permanent is a creature / legendary"
       if (e.afetados === 'anexada') { if (x.attachedTo === o.oid) out.push({ ...e, fonte: x, ts: x.anexadaEm || 0 }); continue; }
       if (e.afetados === 'equipada-pela-anexada') { // M-251 · Rune: "As long as enchanted permanent is an Equipment, it has 'Equipped creature has …'"
@@ -18233,11 +18254,12 @@ const descarteServe = (s, cost, list) => !cost.discardSubtype || list.some(x => 
 /** CR2c.4 · cartas da mão da cor pedida que podem ser exiladas como custo (a própria mágica não). */
 const exilaveisDaMao = (s, p, cor, selfOid) => s.zones[p].hand.filter(x => x !== selfOid && ((s.facts[s.objects[x].name] || {}).colors || []).includes(cor));
 /** CR2c.4 · condição do custo alternativo ("If an opponent controls an Island and you control a Mountain"). */
-function condicaoDoAlt(s, p, when) {
+function condicaoDoAlt(s, p, when, selfOid) { // M-351 · selfOid: a própria mágica não conta como "carta na mão"
   if (!when) return true;
   const terreno = (o, sub) => s.facts[o.name].types.includes('land') && !o.faceDown && new RegExp('\\b' + sub + '\\b').test(linhaDeTipo(s, o));
   if (when.opponentControlsSubtype && !battlefield(s).some(o => o.controller !== p && !s.players[o.controller].lost && terreno(o, when.opponentControlsSubtype))) return false;
   if (when.youControlSubtype && !battlefield(s).some(o => o.controller === p && terreno(o, when.youControlSubtype))) return false;
+  if (when.semTerrenoNaMao && s.zones[p].hand.some(x => x !== selfOid && (s.facts[s.objects[x].name] || { types: [] }).types.includes('land'))) return false; // M-351 · "If you have no land cards in hand" (Land Grant)
   if (when.naoSeuTurno && s.turn.active === p) return false; // M-338 · "If it's not your turn, you may … rather than pay" (Force of Negation)
   if (!condicaoDoAltK(s, p, when)) return false; // K-32 · espetáculo e surto (Toca ponto comum: condicaoDoAlt)
   return true;
@@ -18677,6 +18699,8 @@ function spellEffects(s, o, mode) { return expandeAlvos(s, o, efeitosDaMagia(s, 
 function efeitosDaMagia(s, o, mode) { const base = efeitosBaseDaMagia(s, o, mode); if (!o || !(o.emendas || []).length) return base;
   return base.concat(...o.emendas.map((e, k) => (e.effects || []).map(x => ({ ...x, __modo: `emenda-${k}` })))); }
 /** CR2f.3 · 707.10: as escolhas feitas ao conjurar que a cópia leva (modo, modos, X pago, reforço, encaixe, custo alternativo, cor escolhida). */
+/** M-351 · as marcas de "como foi conjurada" que as condições de efeito leem (601.2b, 702.33d, 701.59): a carta as perde ao sair da pilha (400.7), a retomada as guarda. */
+const condicoesDaMagia = (o, effs) => { if (!(effs || []).some(e => e && (e.onlyIf || (e.amount && e.amount.per === 'se')))) return undefined; const c = {}; for (const k of ['evidenced', 'kicked', 'paidAdditional', 'discardedNonland', 'bargained', 'castFrom']) if (o && o[k] != null) c[k] = o[k]; return Object.keys(c).length ? c : undefined; }; // só quando o resto da resolução tem condição (o estado das partidas sem isso não muda)
 const marcasDaMagia = o => { if (!o) return {}; const m = {}; for (const k of ['mode', 'modes', 'xPaid', 'kicked', 'emendas', 'altIndex', 'chosenColor']) if (o[k] != null) m[k] = Array.isArray(o[k]) ? o[k].slice() : o[k]; return m; };
 const emendasDe = (s, oids) => oids.map(x => ({ name: s.objects[x].name, effects: ((s.facts[s.objects[x].name].script || {}).effects || []) }));
 const encaixavelEm = (s, carta, magia) => { const sp = ((s.facts[s.objects[carta].name] || {}).script || {}).splice; return !!sp && carta !== magia && temSubtipo(s, magia, sp.subtipo); };
@@ -18792,6 +18816,7 @@ function selTemTipo(s, o, t, impressos) {
 }
 function selCasa(s, p, o, sel, selfOid, opts = {}) {
   const f = s.facts[o.name] || {};
+  if (sel.de === 'alvo') { const t = opts.alvoJogador != null ? opts.alvoJogador : ((opts.src && opts.src.targets) || []).map(t => t && (t.player != null ? t.player : null)).find(x => x != null); if (t == null || o.controller !== t) return false; } // M-351 · "creatures target player controls" 
   if (sel.de === 'you' && o.controller !== p) return false;
   if (sel.de === 'opponent' && o.controller === p) return false;
   if (sel.dono === 'you' && o.owner !== p) return false;
@@ -19058,6 +19083,8 @@ function effectAllowed(s, fonte, eff) {
   if (eff.onlyIf === 'kicked') return !!fonte && !!fonte.kicked; // CR 702.33d · "if this spell was kicked"
   if (eff.onlyIf === 'metalcraft' || eff.onlyIf === 'cast-from-graveyard') return condicaoDoEfeito(s, fonte, eff.onlyIf); // M-331
   if (eff.onlyIf === 'not-attacked') return !!fonte && !(s.players[fonte.controller] || {}).atacouCom; // M-248 · "unless you attacked this turn" (Chart a Course)
+  if (eff.onlyIf === 'evidenced') return !!fonte && !!fonte.evidenced; // M-351 · 701.59 · "If evidence was collected" (Extract a Confession)
+  if (eff.onlyIf === 'not-evidenced') return !!fonte && !fonte.evidenced; // M-351 · a frase substituída ("instead")
   return true;
 }
 function effectTargetName(s, t) { return t == null ? '' : t.oid != null ? ((s.objects[t.oid] || {}).name || '?') : s.players[t.player].name; }
@@ -19089,7 +19116,7 @@ function sacrificarJogadores(s, src, spec, quem, events, note) {
   if (q == null && (s.players[quem].lost || !sacrificeOptions(s, quem, spec.tipos).length)) { note({ amount: 0 }); return; } // a linha do registro só aparece quando não há o que sacrificar
   const vez = s.turn.active, ordem = [vez, ...s.players.map((_, i) => i).filter(i => i !== vez)];
   const fila = q == null ? [quem] : ordem.filter(i => !s.players[i].lost && (q === 'cada' || i !== ctrl));
-  s.edito = { fila, escolhidas: [], types: spec.tipos, nontoken: !!spec.naoFicha, name: src.name };
+  s.edito = { fila, escolhidas: [], types: spec.tipos, nontoken: !!spec.naoFicha, name: src.name, ...(spec.maiorPoder ? { maiorPoder: true } : {}) }; // M-351 · "a creature with the greatest power among creatures they control"
   continuaEdito(s, events);
 }
 /** CR2-G R4a · 400.7/701 · move um objeto para outra zona. `de`: a zona (ou zonas) onde ele precisa estar — se já saiu, é
@@ -19307,7 +19334,7 @@ function applyEffect(s, src, eff, tgt, events) {
       if (!from.length) { shuffle(s, s.zones[who].library); note({ amount: 0 }); break; }
       // CR 701.23b: busca por uma qualidade em zona oculta não obriga a achar; sem filtro ("a card"), é obrigatória
       const qualidade = eff.filter && Object.keys(eff.filter).length > 0;
-      startPick(s, { p: who, from, min: eff.optional || qualidade ? 0 : eff.amount, max: eff.amount, to: eff.to || 'hand', rest: 'stay', shuffle: true, filter: eff.filter, label: 'vasculhar', source: src.name, ...(Array.isArray(eff.reparte) ? { reparte: eff.reparte } : {}), ...(eff.desviraSeTerrenos ? { onPicked: { desviraSeTerrenos: eff.desviraSeTerrenos } } : {}) }, events); // M-343
+      startPick(s, { p: who, from, min: eff.optional || qualidade ? 0 : eff.amount, max: eff.amount, to: eff.to || 'hand', rest: 'stay', shuffle: true, filter: eff.filter, label: 'vasculhar', source: src.name, ...(eff.revela ? { revelaEscolhida: true } : {}) /* M-351 · 701.20a: "reveal that card" (Land Grant) */, ...(Array.isArray(eff.reparte) ? { reparte: eff.reparte } : {}), ...(eff.desviraSeTerrenos ? { onPicked: { desviraSeTerrenos: eff.desviraSeTerrenos } } : {}) }, events); // M-343
       break;
     }
     case 'transmute_busca': { // Leva 107 · resolução do transmutar: procura uma carta de mesmo valor e embaralha
@@ -19476,8 +19503,19 @@ function applyEffect(s, src, eff, tgt, events) {
       if (!obj || obj.zone !== 'battlefield') { note({ failed: true }); break; }
       const nome = obj.name, dono = obj.owner, ficha = !!obj.token; moveObject(s, obj.oid, 'exile');
       if (ficha) { note({ name: nome, ficha: true }); break; } // revisão do lote XXII · 111.8: ficha que saiu do campo não volta (a SBA a apaga)
-      if (s.objects[obj.oid] && s.objects[obj.oid].zone === 'exile') { moveObject(s, obj.oid, 'battlefield', { controller: dono }); s.objects[obj.oid].controller = dono; }
+      if (s.objects[obj.oid] && s.objects[obj.oid].zone === 'exile') { const sob = eff.sob === 'voce' ? ctrl : dono; moveObject(s, obj.oid, 'battlefield', { controller: sob }); s.objects[obj.oid].controller = sob; } // M-351 · sob: 'voce' ("under your control")
       note({ name: nome }); break;
+    }
+    case 'pisca_exila': { // M-351 · Ghostly Flicker: exila agora; quem devolve é pisca_volta, com todas juntas (400.7; 111.8 para fichas)
+      if (!obj || obj.zone !== 'battlefield') { note({ failed: true }); break; }
+      const nome = obj.name, dono = obj.owner, ficha = !!obj.token; moveObject(s, obj.oid, 'exile');
+      if (!ficha && s.objects[obj.oid] && s.objects[obj.oid].zone === 'exile') (src.piscadas = src.piscadas || []).push({ oid: obj.oid, z: s.objects[obj.oid].zc || 0, dono });
+      note({ name: nome, ...(ficha ? { ficha: true } : {}) }); break;
+    }
+    case 'pisca_volta': { // M-351 · devolve ao campo, juntas, as que pisca_exila exilou nesta resolução
+      const lista = (src.piscadas || []).filter(x => s.objects[x.oid] && s.objects[x.oid].zone === 'exile' && (s.objects[x.oid].zc || 0) === x.z); delete src.piscadas;
+      for (const x of lista) { const sob = eff.sob === 'voce' ? ctrl : x.dono; moveObject(s, x.oid, 'battlefield', { controller: sob }); s.objects[x.oid].controller = sob; }
+      note({ amount: lista.length, nomes: lista.map(x => s.objects[x.oid].name) }); break;
     }
     case 'sacrifica_a_menos_que_devolva': { // M-349 · Glint Hawk: o controlador escolhe um artefato seu para devolver à mão; sem escolher (ou sem ter), sacrifica a fonte
       const fonte = src.ability ? s.objects[src.source] : src; if (!fonte || fonte.zone !== 'battlefield') { note({ failed: true }); break; }
@@ -20265,6 +20303,14 @@ function sweepTargets(s, src, eff) {
   if (!sel) return sweepTargetsLegado(s, src, eff);
   return selecionar(s, src.controller, sel, null, { mira: false, src }).map(x => s.objects[x.oid]);
 }
+/** M-351 · efeito com alvo jogador e varredura das permanentes dele ("Creatures target player controls get −2/−2"): o alvo é o jogador, o efeito vale em cada objeto do seletor que ele controla. */
+function aplicaCadaDoAlvo(s, src, eff, tgt, events) {
+  if (!tgt || tgt.player == null) return;
+  const sel = { ...eff.cada }; delete sel.de;
+  const alvos = selecionar(s, src.controller, sel, null, { mira: false, src, alvoJogador: tgt.player }).map(x => s.objects[x.oid]).filter(x => x.controller === tgt.player);
+  const e2 = { ...eff }; delete e2.cada; delete e2.target;
+  for (const x of alvos) applyEffect(s, src, e2, { oid: x.oid }, events);
+}
 /** M-230 · aplica o efeito a cada objeto da varredura; o que muda de zona sai junto (603.10a: quem sai junto vê os outros). */
 function aplicaCada(s, src, eff, events) {
   const alvos = sweepTargets(s, src, eff), juntas = ['destroy', 'exile', 'bounce', 'reanimate', 'to_hand'].includes(eff.do);
@@ -20376,7 +20422,7 @@ function resumeEffects(s, events) {
   const r = s.resume; if (!r) return;
   s.resume = null;
   const src0 = s.objects[r.oid] || { oid: r.oid, name: r.name, controller: r.controller, ...(r.xPaid != null ? { xPaid: r.xPaid } : {}) };
-  const src = r.chosenColor && !src0.ability ? { ...src0, chosenColor: r.chosenColor } : src0; // M-348 · cor escolhida na resolução de uma mágica (Emerge Unscathed)
+  const src = (r.chosenColor || r.condicoes) && !src0.ability ? { ...src0, ...(r.condicoes || {}), ...(r.chosenColor ? { chosenColor: r.chosenColor } : {}) } : src0; // M-348 · cor escolhida na resolução de uma mágica (Emerge Unscathed) · M-351 · condições da conjuração (Extract a Confession)
   const alvos = (r.alvos || []).slice();
   // CR2c.7 · habilidade com X retomada depois de uma decisão: a fonte é a permanente, e o X é o da habilidade só durante esta retomada
   const xRet = r.xPaid != null && s.objects[r.oid] ? src : null, xAntes = xRet ? xRet.xPaid : undefined; if (xRet) xRet.xPaid = r.xPaid;
@@ -20385,8 +20431,9 @@ function resumeEffects(s, events) {
     let tgt = null;
     if (SC.isTargeted(eff)) tgt = alvos.shift() || null;
     else if (eff.target === 'first-target') tgt = r.alvo || null;
+    if (!effectAllowed(s, src, eff)) continue; // M-351 · a condição do efeito também vale depois de uma decisão ("if evidence was collected, instead …")
     else if (eff.target === 'target-controller') { const t = r.alvo; tgt = { player: t && t.player != null ? t.player : t && t.oid != null && s.objects[t.oid] ? s.objects[t.oid].controller : r.controller }; }
-    if (porJogador(eff)) aplicaPorJogador(s, src, eff, events); else if (ehVarredura(eff)) aplicaCada(s, src, eff, events); else // M-230 · a varredura também retoma depois de uma decisão; CR2-G R4b
+    if (porJogador(eff)) aplicaPorJogador(s, src, eff, events); else if (eff.cada && eff.cada.de === 'alvo') aplicaCadaDoAlvo(s, src, eff, tgt, events); else if (ehVarredura(eff)) aplicaCada(s, src, eff, events); else // M-230 · a varredura também retoma depois de uma decisão; CR2-G R4b · M-351
     applyEffect(s, src, eff, tgt, events); // CR 704.4 · sem ações de estado entre os efeitos de uma mesma resolução
     if (s.pending) { s.resume = { ...r, effects: r.effects.slice(r.effects.indexOf(eff) + 1), alvos }; return; }
   } } finally { if (xRet) { if (xAntes === undefined) delete xRet.xPaid; else xRet.xPaid = xAntes; } }
@@ -20531,7 +20578,8 @@ function continuaEdito(s, events) {
   while (ed.fila.length) {
     const p = ed.fila[0];
     const opts = sacrificeOptions(s, p, ed.types).filter(oid => !(ed.nontoken && s.objects[oid].token));
-    if (ed.diferentesK) { const resto = opts.filter(oid => !ed.escolhidas.includes(oid)); opts.length = 0; opts.push(...resto); } // K-40 · 702.86a: "sacrifices N permanents" são N diferentes (Toca ponto comum: continuaEdito)
+    if (ed.diferentesK) { const resto = opts.filter(oid => !ed.escolhidas.includes(oid)); opts.length = 0; opts.push(...resto); } // K-40
+    if (ed.maiorPoder && opts.length > 1) { const pw = oid => power(s, s.objects[oid]); const max = Math.max(...opts.map(pw)); const top = opts.filter(oid => pw(oid) === max); opts.length = 0; opts.push(...top); } // M-351 · só as de maior poder; empate: o jogador escolhe entre elas · 702.86a: "sacrifices N permanents" são N diferentes (Toca ponto comum: continuaEdito)
     if (opts.length > 1) { s.pending = { kind: 'sacrifice', p, options: opts, types: ed.types, name: ed.name, edito: true }; return true; }
     if (opts.length === 1) ed.escolhidas.push(opts[0]);
     ed.fila.shift();
@@ -20641,14 +20689,14 @@ function resolveScript(s, o, events) {
   // ainda legais e a cor, porque a carta sai da pilha enquanto o jogador decide — achado da revisão do lote XXI, Emerge Unscathed)
   if (sc.choose === 'color' && !o.chosenColor) {
     s.pending = { kind: 'choose_color', p: o.controller, oid: o.oid };
-    s.resume = { oid: o.oid, name: o.name, controller: o.controller, effects, alvos: chosen.map((t, i) => stillLegal[i] ? t : null) };
+    s.resume = { oid: o.oid, name: o.name, controller: o.controller, effects, alvos: chosen.map((t, i) => stillLegal[i] ? t : null), condicoes: condicoesDaMagia(o, effects) }; // M-351
     return;
   }
   let ti = 0, firstTarget = null, donoDoPrimeiro = null, modoAtual = null;
   for (const [idx, eff] of effects.entries()) {
     if (eff.__modo != null && eff.__modo !== modoAtual) { modoAtual = eff.__modo; firstTarget = null; donoDoPrimeiro = null; } // CR 700.2d · cada modo é uma frase própria
     // Q10 · a retomada leva o alvo junto: "perde 1 de vida" depois de devolver o comandante era cobrado de quem conjurou
-    if (s.pending) { s.resume = { oid: o.oid, name: o.name, controller: o.controller, effects: effects.slice(idx), alvo: firstTarget, alvos: chosen.slice(ti) }; return; }
+    if (s.pending) { s.resume = { oid: o.oid, name: o.name, controller: o.controller, effects: effects.slice(idx), alvo: firstTarget, alvos: chosen.slice(ti), condicoes: condicoesDaMagia(o, effects.slice(idx)) }; return; } // M-351 · as marcas da conjuração (400.7 já as apagou da carta) seguem na retomada
     if (eff.onlyIf === 'alvo-era-seu' && donoDoPrimeiro !== o.controller) continue; // M-341 · "If you controlled that permanent" (608.2h: o controlador de antes do efeito)
     if (!effectAllowed(s, o, eff)) continue; // S47/S49 · condição do próprio efeito
     if (SC.isTargeted(eff)) {
@@ -20657,6 +20705,7 @@ function resolveScript(s, o, events) {
       if (!ok) { events.push({ kind: 'effect', do: eff.do, name: o.name, target: effectTargetName(s, tgt), failed: true }); continue; }
       // Leva 107 · 608.2h: "o controlador do alvo" é quem controlava ANTES do efeito (Smash to Smithereens num artefato roubado)
       if (!firstTarget) { firstTarget = tgt; donoDoPrimeiro = tgt && tgt.oid != null && s.objects[tgt.oid] ? s.objects[tgt.oid].controller : null; }
+      if (eff.cada && eff.cada.de === 'alvo') aplicaCadaDoAlvo(s, o, eff, tgt, events); else // M-351 · Arms of Hadar
       applyEffect(s, o, eff, tgt, events);
     } else if (eff.target === 'first-target') { // S42 · o mesmo alvo do efeito anterior
       if (firstTarget) applyEffect(s, o, eff, firstTarget, events);
@@ -21699,8 +21748,8 @@ const HANDLERS = {
     // S16 · custo alternativo, lampejo do passado ou o custo normal
     const alt = a.alt != null ? altCosts(s, o)[a.alt] : null;
     if (a.alt != null && !alt) throw new RuleError('custo', 'custo alternativo inexistente');
-    if (alt && !condicaoDoAlt(s, a.p, alt.when)) throw new RuleError('custo', 'a condição do custo alternativo não vale agora');
-    if (alt) payAlt(s, a.p, alt.cost, a.pay, a.oid);
+    if (alt && !condicaoDoAlt(s, a.p, alt.when, a.oid)) throw new RuleError('custo', 'a condição do custo alternativo não vale agora');
+    if (alt) { payAlt(s, a.p, alt.cost, a.pay, a.oid); if (alt.cost && alt.cost.revealHand) events.push({ kind: 'reveal-hand', p: a.p, name: o.name, cards: s.zones[a.p].hand.filter(x => x !== a.oid).map(x => s.objects[x].name) }); } // M-351 · 701.20 · a mão revelada vai ao registro (Land Grant)
     else if (a.flashback) {
       const fb = flashbackOf(s, o);
       if (fb.mana && s.manaCheck && !a.free) { const c = parseCost(fb.mana); payCost(s, a.p, c, -reducaoNoCusto(s, a.p, o, a.targets || [], c)); } // M-259
@@ -22790,7 +22839,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
     if (f.types.includes('land')) continue;
     if (!(canSorcery || !isSorcerySpeed(f))) continue;
     altCosts(s, o).forEach((alt, i) => {
-      if (!condicaoDoAlt(s, p, alt.when) || !canPayAlt(s, p, alt.cost, oid)) return;
+      if (!condicaoDoAlt(s, p, alt.when, oid) || !canPayAlt(s, p, alt.cost, oid)) return; // M-351
       pagamentosDe(s, p, alt.cost, oid).forEach(pay =>
         castWith(o, ((alt.effects || (f.script && f.script.effects)) || []).filter(SC.isTargeted)).forEach(x => out.push({ ...x, alt: i, ...comPagamento(pay) })));
     });
@@ -28896,7 +28945,7 @@ function descreveContinuo(c) {
   if (c.troca) partes.push('troca o poder e a resistência'); // CR2d.9
   if (c.torna) partes.unshift(descreveTorna(c.torna));
   const se = c.seAfetado ? `enquanto for ${c.seAfetado.lendaria ? 'lendária' : ''}${c.seAfetado.lendaria && (c.seAfetado.tipos || []).length ? ' e ' : ''}${(c.seAfetado.tipos || []).map(x => TIPO_PT[x] || x).join(' ou ')}, ` : ''; // M-251
-  const seJogo = c.se ? `enquanto um oponente tiver ${c.se.oponenteComVeneno} ou mais marcadores de veneno, ` : ''; // M-253 · Corrompido
+  const seJogo = c.se ? (c.se.controlaTipo ? `enquanto você controlar ${({ artifact: 'um artefato', creature: 'uma criatura', enchantment: 'um encantamento', land: 'um terreno', planeswalker: 'um planeswalker' })[c.se.controlaTipo] || 'um ' + c.se.controlaTipo}, ` : `enquanto um oponente tiver ${c.se.oponenteComVeneno} ou mais marcadores de veneno, `) : ''; // M-253 · Corrompido · M-351 · controlaTipo
   return `${seJogo}${se}${quem} ${partes.join(' e ')}`;
 }
 /** CR2-G R6 · a duração em português. */
@@ -29104,7 +29153,7 @@ function descreveEfeito(e) {
     case 'bounce': return `devolve ${alvo || 'uma permanente'} para a mão do dono`;
     case 'to_hand': return 'volta para a mão';
     case 'token': { const t = e.token || {}; const pt = t.power != null ? ` ${t.power}/${t.toughness}` : ''; return `cria ${plural(n, 'ficha', 'fichas')}${t.name ? ` de ${t.name}` : ''}${pt}`; }
-    case 'pump': { const p = e.power || 0, t = e.toughness || 0; const sinal = v => (v && v.per ? ((v.times || 1) < 0 ? '−X' : '+X') : v >= 0 ? `+${v}` : `−${Math.abs(v)}`); return `${alvo || 'a criatura'} recebe ${sinal(p)}/${sinal(t)}${e.until === 'your-next-turn' ? ' até o seu próximo turno' : ' até o fim do turno'}`; }
+    case 'pump': { const p = e.power || 0, t = e.toughness || 0; const sinal = v => (v && (v.per || v.subtype) ? ((v.times || 1) < 0 ? '−X' : '+X') : v >= 0 ? `+${v}` : `−${Math.abs(v)}`); const quem = e.cada && e.cada.de === 'alvo' ? `cada criatura que ${e.target === 'opponent' ? 'o oponente alvo' : 'o jogador alvo'} controla` : (alvo || 'a criatura'); /* achado da revisão do lote XXIII: "cada criatura que cada criatura controla" */ return `${quem} recebe ${sinal(p)}/${sinal(t)}${e.until === 'your-next-turn' ? ' até o seu próximo turno' : ' até o fim do turno'}${p && p.subtype ? ` (X = ${p.subtype === 'Gate' ? 'Portões' : p.subtype === 'Swamp' ? 'Pântanos' : p.subtype + 's'} que você controla)` : ''}`; } // R9b (achado da C-1): contagem por subtipo mostrava "−NaN" (Defile, Basilisk Gate) · M-351 · "cada criatura do jogador alvo" (Arms of Hadar)
     case 'add_mana': return e.identity ? 'adiciona mana de uma cor da identidade do seu comandante' : e.opponentLands ? 'adiciona mana de uma cor que um terreno de um oponente poderia produzir' : e.anyColor ? 'adiciona mana de qualquer cor' : 'adiciona mana';
     case 'search': return `procura ${plural(n, 'carta', 'cartas')} no grimório${e.reparte ? ' (a primeira entra virada, a segunda vai para a mão)' : ''}${e.desviraSeTerrenos ? ` (desvira a terra achada se você tiver ${e.desviraSeTerrenos} terrenos ou mais)` : ''}`; // M-343
     case 'scry': return `vidência ${n}: olha ${plural(n, 'carta', 'cartas')} de cima e decide o que fica no topo`;
@@ -29124,7 +29173,7 @@ function descreveEfeito(e) {
       return { hand: `devolve ${quem} à mão do dono`, exile: `exila ${quem}`, graveyard: `põe ${quem} no cemitério do dono` }[e.para] || `move ${quem}`;
     }
     case 'continuo': { // CR2-G R3b
-      const sinal = v => (v && v.per ? ((v.times || 1) < 0 ? '−X' : '+X') : v >= 0 ? `+${v}` : `−${Math.abs(v)}`);
+      const sinal = v => (v && (v.per || v.subtype) ? ((v.times || 1) < 0 ? '−X' : '+X') : v >= 0 ? `+${v}` : `−${Math.abs(v)}`); // R9b · subtype
       const partes = [];
       if (e.poder != null || e.resistencia != null) partes.push(`recebe ${sinal(e.poder || 0)}/${sinal(e.resistencia || 0)}`);
       if ((e.palavras || []).length) partes.push(`ganha ${e.palavras.map(k => PALAVRA_PT[String(k).toLowerCase()] || k).join(' e ')}`);
@@ -29149,7 +29198,7 @@ function descreveEfeito(e) {
     case 'sacrificar': { // CR2-G R4c
       const nomes = { creature: 'uma criatura', artifact: 'um artefato', enchantment: 'um encantamento', land: 'um terreno', planeswalker: 'um planeswalker' };
       const coisa = (e.tipos || []).length === 1 ? (nomes[e.tipos[0]] || 'uma permanente') : (e.tipos || []).map(x => (nomes[x] || x).replace(/^uma? /, '')).join(' ou ').replace(/^/, 'um(a) ');
-      const ficha = e.naoFicha ? ' que não seja ficha' : '';
+      const ficha = (e.naoFicha ? ' que não seja ficha' : '') + (e.maiorPoder ? ' com o maior poder entre as que controla' : ''); // M-351 · Extract a Confession
       if (e.target) return `${alvo || 'o jogador alvo'} sacrifica ${coisa}${ficha} à escolha dele`;
       const quem = { cada: 'cada jogador', 'cada-oponente': 'cada oponente' }[e.jogadores];
       return quem ? `${quem} sacrifica ${coisa}${ficha} à sua escolha` : `sacrifica ${coisa}`;
@@ -29202,7 +29251,9 @@ function descreveEfeito(e) {
     case 'animate': { const b = e.becomes || {}; return `vira uma criatura ${b.base ? b.base.join('/') : ''}${(b.keywords || []).length ? ' com ' + b.keywords.map(k => PALAVRA_PT[k] || k).join(', ') : ''} até o fim do turno${b.addTypes ? ' (continua terreno)' : ''}`; } // CR2d.2
     case 'reveal_until': return `${e.who === 'self' ? 'você revela' : 'o controlador dela revela'} cartas do topo até ${e.match === 'creature' ? 'uma criatura' : e.match === 'creature-greater-mv' ? 'uma criatura de valor de mana maior' : `uma carta${e.permanentOnly ? ' de permanente' : ''} que divida um tipo com ela`}, põe no campo e ${e.rest === 'shuffle' ? 'embaralha as outras' : 'põe as outras no fundo em ordem aleatória'}`; // M-222
     case 'to_bottom': return 'põe a sua permanente alvo no fundo do grimório';
-    case 'pisca': return `exila ${alvo || 'a permanente'} e a devolve ao campo sob o controle do dono`; // M-349
+    case 'pisca': return `exila ${alvo || 'a permanente'} e a devolve ao campo sob o controle ${e.sob === 'voce' ? 'de quem conjurou' : 'do dono'}`; // M-349 · M-351
+    case 'pisca_exila': return `exila ${alvo || 'a permanente'} (volta ao campo em seguida)`; // M-351 · Ghostly Flicker
+    case 'pisca_volta': return `devolve as exiladas ao campo${e.sob === 'voce' ? ' sob o seu controle' : ''}`; // M-351
     case 'sacrifica_a_menos_que_devolva': return 'sacrifica esta permanente a menos que você devolva um artefato seu à mão';
     case 'comandantes_para_mao': return 'põe os seus comandantes da zona de comando e do cemitério na sua mão'; // M-348
     case 'cemiterio_no_grimorio': return 'embaralha o seu cemitério no grimório';
@@ -29243,7 +29294,7 @@ function descreveEfeito(e) {
   }
 }
 // Leva 131 · a condição do efeito entra na frase (Moon-Circuit Hacker: o aviso dizia "descarta 1 carta" no turno em que ela entrou, quando não descarta)
-const CONDICAO_PT = { 'source-entered-earlier': 'só se ela não entrou neste turno', 'not-attacked': 'só se você não atacou neste turno' };
+const CONDICAO_PT = { 'source-entered-earlier': 'só se ela não entrou neste turno', 'not-attacked': 'só se você não atacou neste turno', evidenced: 'se colheu provas', 'not-evidenced': 'se não colheu provas' }; // M-351 · Extract a Confession (achado da revisão do lote XXIII: as duas frases pareciam dois sacrifícios)
 const descreveEfeitos = effects => (effects || []).map(e => { const f = descreveEfeito(e); return f && e.onlyIf && CONDICAO_PT[e.onlyIf] ? `${f} (${CONDICAO_PT[e.onlyIf]})` : f; }).filter(Boolean).join('; ');
 /** E50 P6 · a linha do texto oficial (inglês) que corresponde a uma habilidade na pilha.
     Gatilho: linhas "When/Whenever/At"; ativada: linhas com custo antes de ":". Entre as do mesmo tipo,
