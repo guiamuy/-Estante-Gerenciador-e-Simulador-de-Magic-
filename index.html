@@ -5596,7 +5596,7 @@ const CHOICE_EFFECTS = ['terreno_da_mao', 'exila_da_mao', 'revela_topo_transform
 const MARCADOR_PT = { p1p1: '+1/+1', m0m1: '−0/−1', /* M-360 */ oil: 'de óleo', depletion: 'de esgotamento', charge: 'de carga', age: 'de idade', loyalty: 'de lealdade', time: 'de tempo', lore: 'de saga', poison: 'de veneno' };
 const ONLY_IF = ['discarded-nonland', 'source-entered-earlier', 'paid-additional', 'kicked', 'not-attacked', 'metalcraft', 'cast-from-graveyard', 'alvo-era-seu', 'evidenced', 'not-evidenced']; // M-351 · "If evidence was collected, instead …" (Extract a Confession, 701.59 + 601.2b)
 /** S16 · custos que substituem o custo de mana, e o custo do lampejo do passado. */
-const ALT_COST_PARTS = ['mana', 'life', 'discard', 'returnLand', 'exileGraveyard', 'tapOther', 'sacrificeOther', 'discardSubtype', 'exileHandColor', 'free', 'revealHand']; // M-351 · revealHand: "you may reveal your hand rather than pay" (Land Grant, 118.9) // CR2c.4 · Ilha entre as descartadas (Foil), exilar carta da cor da mão (Snapback), de graça (Mogg Salvage)
+const ALT_COST_PARTS = ['mana', 'life', 'discard', 'returnLand', 'exileGraveyard', 'tapOther', 'sacrificeOther', 'discardSubtype', 'exileHandColor', 'free', 'revealHand', 'exileGraveyardTopo']; // M-362 · "exile the top three black cards of your graveyard" (Spinning Darkness) // M-351 · revealHand: "you may reveal your hand rather than pay" (Land Grant, 118.9) // CR2c.4 · Ilha entre as descartadas (Foil), exilar carta da cor da mão (Snapback), de graça (Mogg Salvage)
 /** S48 · fuga: conjura do cemitério pagando o custo, e a carta fica em jogo. */
 /** S20 · custos adicionais de ativação e de conjuração. */
 const CRAFT_TIPOS = ['creature', 'artifact', 'land', 'enchantment']; // M-356 · 702.167a: materiais de craft
@@ -6045,6 +6045,7 @@ function validateScript(sc) {
     if (alt.when && !Object.keys(alt.when).every(k => ['opponentControlsSubtype', 'youControlSubtype', 'naoSeuTurno', 'semTerrenoNaMao'].includes(k))) errs.push(`custo alternativo ${i + 1}: condição desconhecida`); // M-351 · semTerrenoNaMao (Land Grant)
     if (alt.cost && alt.cost.discardSubtype && !alt.cost.discard) errs.push(`custo alternativo ${i + 1}: "descartar uma <subtipo>" precisa do número de descartes`);
     if (alt.cost && alt.cost.exileHandColor && !'WUBRG'.includes(alt.cost.exileHandColor)) errs.push(`custo alternativo ${i + 1}: exilar da mão precisa de uma cor WUBRG`);
+    if (alt.cost && alt.cost.exileGraveyardTopo != null) { const t = alt.cost.exileGraveyardTopo; if (!(t && Number.isInteger(t.n) && t.n > 0 && (t.cor == null || ['W', 'U', 'B', 'R', 'G'].includes(t.cor)))) errs.push(`custo alternativo ${i + 1}: exilar do topo do cemitério precisa de uma quantidade inteira e, se houver, uma cor WUBRG`); } // M-362
   }
   if (sc && sc.flashback && !(sc.flashback.mana || sc.flashback.tapOther || sc.flashback.sacrificeOther)) errs.push('lampejo do passado sem custo'); // M-331 · "Flashback—Sacrifice a Mountain\"
   if (sc && sc.escape && !sc.escape.mana) errs.push('fuga sem custo de mana');
@@ -16520,6 +16521,7 @@ const __m42 = (function () {
     [/^flashback—(\{[^}]+\}(?:\{[^}]+\})*), discard a card$/i, m => ({ flashback: { mana: m[1], discard: 1 } })], // M-352 · Twinned Vision (702.34a: o descarte faz parte do custo do lampejo) · Deep Analysis (702.34a + 119.4)
     [/^as an additional cost to cast this spell, discard a card$/i, () => ({ additional: { discard: 1 } })], // M-348
     [/^as an additional cost to cast this spell, you may collect evidence (\d+)$/i, m => ({ evidence: +m[1] })], // M-351 · 701.59 · Extract a Confession (o motor oferece conjurar com ou sem provas)
+    [new RegExp(`^you may exile the top ${N} (white|blue|black|red|green) cards of your graveyard rather than pay this spell's mana cost$`, 'i'), m => { const n = num(m[1]), cor = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[2].toLowerCase()]; return { alt: [{ label: `Exilar as ${n} cartas ${{ W: 'brancas', U: 'azuis', B: 'pretas', R: 'vermelhas', G: 'verdes' }[cor]} de cima do cemitério em vez de pagar o custo`, cost: { exileGraveyardTopo: { n, cor } } }] }; }], // M-362 · Spinning Darkness (118.9)
     [/^if you have no land cards in hand, you may reveal your hand rather than pay this spell's mana cost$/i, () => ({ alt: [{ label: 'Revelar a mão (sem terrenos) em vez de pagar o custo', cost: { free: true, revealHand: true }, when: { semTerrenoNaMao: true } }] })], // M-351 · Land Grant (118.9)
     [/^if you control an? (Plains|Island|Swamp|Mountain|Forest), you may tap an untapped creature you control rather than pay this spell's mana cost$/i, m => ({ alt: [{ label: `Virar uma criatura sua desvirada em vez de pagar o custo (você controla ${{ Plains: 'uma Planície', Island: 'uma Ilha', Swamp: 'um Pântano', Mountain: 'uma Montanha', Forest: 'uma Floresta' }[m[1]]})`, cost: { tapOther: { types: ['creature'], amount: 1 } }, when: { youControlSubtype: m[1] } }] })], // M-351 · Ramosian Rally (118.9) · Big Score, Sazacap's Brew (601.2b)
     [/^madness (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ madness: { mana: m[1] } })],
@@ -18573,7 +18575,10 @@ function defaultPayment(s, p, cost, selfOid) {
   }
   return pay;
 }
+/** M-362 · 404.2: o cemitério tem ordem (a carta posta por último fica em cima). "The top N <cor> cards" são as N dessa cor mais perto do topo, sem escolha. */
+const topoDoCemiterio = (s, p, t, selfOid) => s.zones[p].graveyard.filter(x => x !== selfOid && (t.cor == null || ((s.facts[s.objects[x].name] || {}).colors || []).includes(t.cor))).slice(-t.n).reverse();
 function canPayAlt(s, p, cost, selfOid) {
+  if (cost.exileGraveyardTopo && topoDoCemiterio(s, p, cost.exileGraveyardTopo, selfOid).length < cost.exileGraveyardTopo.n) return false; // M-362
   if (cost.mana && s.manaCheck && !canPay(s, p, parseCost(cost.mana), -reducaoDoAlt(s, p, selfOid, cost))) return false; // M-352 · 601.2f
   if (cost.exileGraveyard && s.zones[p].graveyard.filter(x => x !== selfOid).length < cost.exileGraveyard) return false;
   if (!canPayExtra(s, p, cost, selfOid)) return false;
@@ -18587,6 +18592,7 @@ function canPayAlt(s, p, cost, selfOid) {
 /** M-352 · 601.2f · a redução por cor (e a por alvo, otimista na oferta) também vale sobre o custo alternativo e a fuga — achado da revisão do lote XXIV. */
 const reducaoDoAlt = (s, p, selfOid, cost, alvos) => { const o = selfOid != null && s.objects[selfOid]; return o && s.facts[o.name] && cost.mana ? reducaoNoCusto(s, p, o, alvos === undefined ? (temReducaoPorAlvo(s, p) ? 'otimista' : undefined) : alvos, parseCost(cost.mana)) : 0; };
 function payAlt(s, p, cost, pay, selfOid, alvos) {
+  if (cost.exileGraveyardTopo) { const l = topoDoCemiterio(s, p, cost.exileGraveyardTopo, selfOid); if (l.length < cost.exileGraveyardTopo.n) throw new RuleError('custo', `exile as ${cost.exileGraveyardTopo.n} cartas de cima do cemitério que o custo pede`); l.forEach(x => moveObject(s, x, 'exile')); } // M-362 · 118.9
   if (cost.mana && s.manaCheck) payCost(s, p, parseCost(cost.mana), -reducaoDoAlt(s, p, selfOid, cost, alvos || [])); // M-352 · 601.2f
   if (cost.exileGraveyard) { // S26 · delve · Leva 107: as cartas escolhidas por quem paga
     const list = (pay && pay.exileGrave) || s.zones[p].graveyard.filter(x => x !== selfOid).slice(0, cost.exileGraveyard);

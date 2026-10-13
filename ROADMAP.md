@@ -4011,6 +4011,11 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Pedido à trilha `listas`:** scripts à mão de Tangle e Witch's Cottage com o que o leitor produz (modelos em `lt44.unit`).
 - **Teste:** `lt44.unit` (3 testes; todos falham no motor anterior).
 
+**M-362 · Custo alternativo "exile as N cartas de uma cor de cima do cemitério" (Spinning Darkness)** ✅ (leva M-362, motor v110 sem mudança de forma; goldens intactos).
+- **Valor:** custo alternativo `exileGraveyardTopo { n, cor }` (118.9): exila as N cartas da cor mais perto do topo do cemitério (404.2: o cemitério tem ordem; sem escolha); o leitor lê "You may exile the top three black cards of your graveyard rather than pay this spell's mana cost". Destrava Spinning Darkness (texto do Oracle do Forge em `.listas/oficiais-listas.json`, consulta de 12/10/2026; 6 listas de Pauper).
+- **Pedido à trilha `listas`:** script à mão de Spinning Darkness com o que o leitor produz (modelo em `lt45.unit`).
+- **Teste:** `lt45.unit` (3 testes; os dois primeiros falham no motor anterior, o terceiro guarda a recusa sem cartas suficientes).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
