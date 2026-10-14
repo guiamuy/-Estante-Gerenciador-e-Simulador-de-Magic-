@@ -4369,6 +4369,11 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** Wheel of Potential, Wrath of the Skies, Aether Spike, Die Young e Suppression Ray ("pay any amount of {E}" com outros efeitos) ainda não são lidas.
 - **Teste:** `lt87.unit` (4 testes; falham no motor anterior) e `e2e · M-405` (a mesa pergunta a quantia).
 
+**M-406 · LT72 · "Discard a card. If you do, draw two cards." — descarte obrigatório** ✅ (leva M-406, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** pedido da trilha `listas` (Stormshriek Feral, presságio Flush Out; Oracle do Forge, consulta de 12/10/2026). O `descarta_e_compra` ganha `obrigatorio: true`: com carta na mão, a escolha pede uma carta e não aceita nenhuma; com a mão vazia, nada acontece ("if you do"). **Correção de classe no leitor:** a frase sem "you may" ("Discard a card. If you do, draw…") era lida como opcional; agora sai obrigatória (Territorial Kavu, Gristle Glutton, Shadow of the Goblin, Akoum Flameseeker e Stormshriek Feral passam pelo mesmo caminho quando o resto do texto for lido). No gatilho "you may discard…", o "you may" continua sendo a pergunta do gatilho — diferencial do leitor no corpus inteiro: nenhuma carta muda.
+- **Fora (declarado):** descarte obrigatório de duas ou mais cartas ("discard two cards. If you do…") não existe no vocabulário (o validador recusa); Stormshriek Feral em si é script à mão da trilha `listas` (face de presságio).
+- **Teste:** `lt88.unit` (2 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

@@ -6344,6 +6344,7 @@ function effectErrors(effects, label, opcional) {
     if (e.marcadorSeCriatura != null && !(e.do === 'reanimate' && e.target !== 'self-source' && Number.isInteger(e.marcadorSeCriatura) && e.marcadorSeCriatura > 0)) errs.push(`${label} ${i + 1}: "marcadorSeCriatura" é a quantidade de marcadores +1/+1 extras do reanimar`); // M-400
     if (e.dividido != null && !(e.do === 'damage' && typeof e.dividido === 'object' && (e.dividido.max == null || (Number.isInteger(e.dividido.max) && e.dividido.max >= 2)) && ['any', 'creature'].includes(e.target))) errs.push(`${label} ${i + 1}: "dividido" é dano dividido entre alvos (601.2d): { max: null | 2 ou mais }, alvo "any" ou "creature"`); // M-376
     if (e.do === 'descarta_e_compra' && e.descarta != null && !(Number.isInteger(e.descarta) && e.descarta >= 1)) errs.push(`${label} ${i + 1}: "descarta" é quantas cartas se descartam (inteiro, 1 ou mais)`); // M-373
+    if (e.do === 'descarta_e_compra' && e.obrigatorio != null && !(e.obrigatorio === true && (e.descarta || 1) === 1)) errs.push(`${label} ${i + 1}: "obrigatorio" é true e só vale para descartar uma carta`); // M-406
     if (['search', 'look'].includes(e.do)) {
       if (e.to && !PICK_DESTS.includes(e.to)) errs.push(`${label} ${i + 1}: destino "${e.to}" desconhecido`);
       if (e.rest && !PICK_DESTS.includes(e.rest)) errs.push(`${label} ${i + 1}: resto "${e.rest}" desconhecido`);
@@ -17680,6 +17681,7 @@ const __m42 = (function () {
     [/^exile all cards from target player's graveyard$/i, () => [{ do: 'exile_graveyard', target: 'player' }]], // LT9
     [/^return target creature card from your graveyard to your hand$/i, () => [{ do: 'to_hand', target: 'creature-in-your-graveyard' }]], // LT9
     [new RegExp(`^you may discard a card to draw ${N} cards?$`, 'i'), m => [{ do: 'descarta_e_compra', amount: num(m[1]) }]], // M-348
+    [new RegExp(`^must discard a card to draw ${N} cards?$`, 'i'), m => [{ do: 'descarta_e_compra', amount: num(m[1]), obrigatorio: true }]], // M-406 · "Discard a card. If you do, draw two cards." (Stormshriek Feral, presságio Flush Out — pedido da listas)
     [new RegExp(`^you may discard (two|three) cards to draw ${N} cards?$`, 'i'), m => [{ do: 'descarta_e_compra', descarta: num(m[1]), amount: num(m[2]) }]], // M-373 · todas ou nenhuma
     [/^untap ~$/i, () => [{ do: 'untap', target: 'self-source' }]], // M-373
     [new RegExp(`^(?:~|this creature) endures ${N}$`, 'i'), m => [{ do: 'endure', amount: num(m[1]) }]], // M-380 · "it endures 1" (Fortress Kin-Guard)
@@ -17952,6 +17954,7 @@ const __m42 = (function () {
     const sub = [];
     const e = anexada && /^it /i.test(corpo) ? (sub.push({ texto: resto2, lida: false }), null) : leParagrafo(corpo, nome, sub); // M-401 · "it deals…" da hospedeira: a fonte seria a criatura, que o motor ainda não modela aqui
     if (e && /^whenever equipped creature/i.test(cab)) for (const x of e) if (x.target === 'enchanted') x.equipada = true; // M-401 · texto: "a criatura equipada"
+    if (e && opcional) for (const x of e) if (x.do === 'descarta_e_compra' && x.obrigatorio) delete x.obrigatorio; // M-406 · "you may discard…" no gatilho: o "you may" já virou a pergunta do gatilho (o script fica como era)
     if (e && g[1] === 'dies') for (const x of e) if (x.do === 'to_hand' && x.target === 'self-source' && x.from === 'battlefield') delete x.from; // M-339 · "when ~ is put into a graveyard…, return ~ to its owner's hand": do cemitério
     const textoCond = condicao ? resto.slice(0, resto.length - resto2.length).replace(/,\s*$/, '') : ''; // M-373 · achado da revisão: a ficha mostra também a condição (603.4), não só o efeito
     frases.push({ texto: cab, lida: true }, ...(textoCond ? [{ texto: textoCond, lida: true }] : []), ...sub);
@@ -18004,7 +18007,7 @@ const __m42 = (function () {
       for (const [re, faz] of PRE_PARAGRAFO) { const m = texto.match(re); const e = m && faz(m); if (!e) continue; efeitos.push(...e); frases.push({ texto: m[0].trim().replace(/\.$/, ''), lida: true }); texto = texto.slice(m[0].length).trim(); achou = true; break; } }
     if (!texto) return efeitos;
     texto = texto.replace(/^(target player|target opponent) reveals cards from the top of their library until they reveal a land card, then puts those cards into their graveyard/i, 'revela_ate_terreno_cemiterio $1'); // M-377 · Balustrade Spy
-    texto = texto.replace(/(?:then )?(?:you may )?discard (a card|two cards|three cards)\. if you do, draw (\w+) cards?/i, 'you may discard $1 to draw $2 cards'); // M-373 · "Then you may discard two cards. If you do, draw three cards" (Thrilling Discovery)
+    texto = texto.replace(/(?:then )?(you may )?discard (a card|two cards|three cards)\. if you do, draw (\w+) cards?/i, (m0, pode, q, n) => `${pode ? 'you may' : 'must'} discard ${q} to draw ${n} cards`); // M-406 · sem "you may" o descarte é obrigatório (antes virava opcional) // M-373 · "Then you may discard two cards. If you do, draw three cards" (Thrilling Discovery)
     texto = texto.replace(/^exile (target (?:creature|permanent)(?: you control)?), then return (?:it|that card) to the battlefield under its owner's control/i, 'pisca $1'); // M-349 · Ephemerate
     texto = texto.replace(/^exile two target (artifacts, creatures, and\/or lands you control), then return those cards to the battlefield under your control/i, 'pisca_dois $1'); // M-351 · Ghostly Flicker
     texto = texto.replace(/exile the top card of your library\. until end of turn, you may play that card/i, 'impulso one ate o fim do turno'); // M-352
@@ -21339,7 +21342,7 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'descarta_e_compra': { // M-348 · "You may discard a card. If you do, draw N cards": o jogador escolhe a carta (ou nenhuma)
       const mao = s.zones[ctrl].hand.slice(), nd = eff.descarta || 1; // M-373 · "you may discard two cards. If you do, draw three cards" (Thrilling Discovery): todas ou nenhuma
       if (mao.length < nd) { note({ amount: 0 }); break; } // M-373 · sem cartas bastantes para descartar todas, não há o que oferecer (declarado)
-      startPick(s, { p: ctrl, from: mao, min: 0, max: nd, to: 'graveyard', rest: 'stay', discard: true, label: 'escolher o descarte', source: src.name, depois: { draw: amountOf(s, src, eff.amount) }, ...(nd > 1 ? { tudoOuNada: true } : {}) }, events);
+      startPick(s, { p: ctrl, from: mao, min: eff.obrigatorio ? nd : 0 /* M-406 · "Discard a card. If you do…": obrigatório com carta na mão */, max: nd, to: 'graveyard', rest: 'stay', discard: true, label: 'escolher o descarte', source: src.name, depois: { draw: amountOf(s, src, eff.amount) }, ...(nd > 1 ? { tudoOuNada: true } : {}) }, events);
       note({ pending: true }); break;
     }
     case 'sacrifice_it': { // M-222 · "Target permanent's controller sacrifices it"
@@ -32881,7 +32884,7 @@ function descreveEfeito(e) {
     case 'comandantes_para_mao': return 'põe os seus comandantes da zona de comando e do cemitério na sua mão'; // M-348
     case 'cemiterio_no_grimorio': return 'embaralha o seu cemitério no grimório';
     case 'compra_quem_controla_nome': return 'cada jogador que controla uma permanente com este nome compra uma carta';
-    case 'descarta_e_compra': return `pode descartar ${(e.descarta || 1) > 1 ? `${e.descarta} cartas` : 'uma carta'}; se fizer, compra ${plural(n, 'carta', 'cartas')}`; // M-373
+    case 'descarta_e_compra': return `${e.obrigatorio ? 'descarta' : 'pode descartar'} ${(e.descarta || 1) > 1 ? `${e.descarta} cartas` : 'uma carta'}; se fizer, compra ${plural(n, 'carta', 'cartas')}`; // M-373 · M-406
     case 'topo_do_dono': return 'põe esta permanente no topo do grimório do dono'; // M-345
     case 'sacrifice_it': return e.target === 'self-source' ? 'sacrifica esta permanente' : 'o controlador sacrifica a permanente alvo'; // M-342
     case 'reanimate_all': return `devolve ao campo todas as ${(e.types || []).map(x => ({ creature: 'criaturas', planeswalker: 'planeswalkers' }[x] || x)).join(' e ')}${e.mvMax != null ? ` de valor de mana ${qtd(e.mvMax)} ou menos` : ''} do seu cemitério`; // CR2c.5
