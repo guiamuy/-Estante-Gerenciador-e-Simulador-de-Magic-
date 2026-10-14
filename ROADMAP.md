@@ -4337,6 +4337,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nada além da regra.
 - **Teste:** `lt82.unit` (1 teste; falha no motor anterior).
 
+**M-400 · LT67 · 614.1c · "If a creature enters this way, it enters with an additional +1/+1 counter"** ✅ (leva M-400, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** revisão por lote LVII — **Recommission passa a jogar** (APROVADAS; Oracle do Forge, consulta de 12/10/2026). Devolve do seu cemitério ao campo uma carta de artefato ou criatura de valor de mana 3 ou menos; se for criatura, ela entra com um marcador +1/+1 a mais (pelo mesmo caminho do "volta com um marcador" de persistir/imortal, antes dos gatilhos de entrada).
+- **Revisão independente:** 93 verificações (alvos — artefato-terreno de valor 0, carta com X, encantamento-criatura; o gatilho de entrada já vê o marcador; Hardened Scales e Doubling Season; alvo ilegal sem marca sobrando; persistir e imortal iguais), leitor no corpus (só a carta muda), diferenciais de 27 partidas e fuzz de 40 partidas (89 devoluções, todas com o marcador certo) sem diferença. Reprovou na primeira passada por texto: a pilha explicada falava só de criatura e omitia o marcador — corrigido com teste; o validador passa a recusar o marcador extra no "devolver a si mesma" (vazamento latente).
+- **Fora (declarado):** "entra como criatura" é visto pelo tipo impresso da carta (614.12 manda olhar como ela vai ficar no campo): um deus de devoção que entra não criatura ganharia o marcador; uma carta animada por efeito contínuo ao entrar, não.
+- **Teste:** `lt83.unit` (2 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

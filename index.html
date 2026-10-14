@@ -5374,7 +5374,7 @@ const EFFECTS = {
   protection: { fields: [], targets: ['creature-you-control', 'other-creature-you-control', 'creature-enchantment-you-control'] },
   // S20 · cemitério
   to_hand: { fields: [], targets: ['self-source', 'card-in-your-graveyard', 'creature-in-your-graveyard', 'permanent-in-your-graveyard', 'creature-land-in-any-graveyard'] },
-  reanimate: { fields: [], targets: ['creature-in-your-graveyard', 'permanent-in-your-graveyard', 'self-source'] }, // M-398 · self-source: a própria carta, do cemitério
+  reanimate: { fields: [], targets: ['creature-in-your-graveyard', 'permanent-in-your-graveyard', 'self-source', 'card-in-your-graveyard'] }, // M-400 · card-in-your-graveyard com targetTypes (Recommission) // M-398 · self-source: a própria carta, do cemitério
   reanimate_tapped: { fields: [], targets: ['self-source', 'creature-in-your-graveyard'] },
   add_mana: { fields: [], targets: ['self'] },
   volta_ao_acaso: { fields: [], targets: ['self'] }, // M-369 · "Return a <tipo> card at random from your graveyard to your hand" (Haunted Fengraf); `tipos` filtra
@@ -6324,6 +6324,7 @@ function effectErrors(effects, label, opcional) {
     if (e.exilaSeMorrer != null && !(e.do === 'damage' && e.exilaSeMorrer === true)) errs.push(`${label} ${i + 1}: "exilaSeMorrer" é uma marca (true) do dano`); // M-384 · Torch the Tower
     if (e.lembraExiladas != null && !(e.lembraExiladas === true && (e.do === 'exile_top_playable' || e.do === 'delayed'))) errs.push(`${label} ${i + 1}: "lembraExiladas" é uma marca (true) do exílio do topo e do gatilho atrasado`); // M-386 (o \`lembra\` do \`mover\` é outra coisa — achado da revisão: Leonin Relic-Warder)
     if (e.seRestar != null && !(e.seRestar === true && e.do === 'delayed' && e.lembraExiladas)) errs.push(`${label} ${i + 1}: "seRestar" é do gatilho atrasado que lembra as exiladas`); // M-386 · 603.4
+    if (e.marcadorSeCriatura != null && !(e.do === 'reanimate' && e.target !== 'self-source' && Number.isInteger(e.marcadorSeCriatura) && e.marcadorSeCriatura > 0)) errs.push(`${label} ${i + 1}: "marcadorSeCriatura" é a quantidade de marcadores +1/+1 extras do reanimar`); // M-400
     if (e.dividido != null && !(e.do === 'damage' && typeof e.dividido === 'object' && (e.dividido.max == null || (Number.isInteger(e.dividido.max) && e.dividido.max >= 2)) && ['any', 'creature'].includes(e.target))) errs.push(`${label} ${i + 1}: "dividido" é dano dividido entre alvos (601.2d): { max: null | 2 ou mais }, alvo "any" ou "creature"`); // M-376
     if (e.do === 'descarta_e_compra' && e.descarta != null && !(Number.isInteger(e.descarta) && e.descarta >= 1)) errs.push(`${label} ${i + 1}: "descarta" é quantas cartas se descartam (inteiro, 1 ou mais)`); // M-373
     if (['search', 'look'].includes(e.do)) {
@@ -9214,6 +9215,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Cauldron Familiar': { texto: '1v4u5ft', leva: 'M-398' },
   // M-399 · revisão por lote LVI (Temur Battle Rage), revisor independente: aprovada (57 verificações, diferencial e fuzz sem diferença)
   'Temur Battle Rage': { texto: 'f0d3qs', leva: 'M-399' },
+  // M-400 · revisão por lote LVII (Recommission), revisor independente: reprovada na primeira passada por texto (pilha explicada), corrigida com teste; 93 verificações, diferencial e fuzz sem diferença
+  'Recommission': { texto: 'es8ajp', leva: 'M-400' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -17529,6 +17532,7 @@ const __m42 = (function () {
     [/^put (?:~|this artifact) on top of its owner's library$/i, () => [{ do: 'topo_do_dono', target: 'self-source' }]], // M-345 · Sensei's Divining Top
     [/^search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand$/i, () => [{ do: 'search', amount: 2, filter: { basic: true, types: ['land'] }, to: 'battlefield-tapped', reparte: ['battlefield-tapped', 'hand'] }]], // M-345 · Cultivate, Kodama's Reach: uma busca de até dois; o primeiro escolhido entra virado, o segundo vai para a mão (achado da revisão: um só entra virado, 609.3)
     [new RegExp(`^~ deals ${N} damage to each of one or two targets$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'any' }, { do: 'damage', amount: num(m[1]), target: 'any', upTo: true }]], // M-345 · Storm of Steel, Prismari Charm (601.2c: alvos diferentes)
+    [/^return target artifact or creature card with mana value (\d+) or less from your graveyard to the battlefield$/i, m => [{ do: 'reanimate', target: 'card-in-your-graveyard', targetTypes: ['artifact', 'creature'], targetMvMax: +m[1] }]], // M-400 · Recommission
     [/^return target creature card with mana value (\d+) or less from your graveyard to the battlefield$/i, m => [{ do: 'reanimate', target: 'creature-in-your-graveyard', targetMvMax: +m[1] }]], // LT13
     [/^return target creature or land card from a graveyard to its owner's hand$/i, () => [{ do: 'to_hand', target: 'creature-land-in-any-graveyard' }]], // LT9
     [/^~ connives$/i, () => [{ do: 'connive', amount: 1 }]], // LT9 · 701.50
@@ -17834,6 +17838,7 @@ const __m42 = (function () {
         const ult = efeitos[efeitos.length - 1];
         if (ib && ult && ult.do === 'damage' && Number.isInteger(ult.amount)) { ult.amount = { per: 'se', se: 'bargained', sim: num(ib[1]), nao: ult.amount }; if (ib[2]) efeitos.push({ do: 'scry', amount: num(ib[3]), onlyIf: 'bargained' }); frases.push({ texto: p, lida: true }); continue; }
       }
+      if (/^if a creature enters this way, it enters with an additional \+1\/\+1 counter on it$/i.test(p) && efeitos.length && efeitos[efeitos.length - 1].do === 'reanimate') { efeitos[efeitos.length - 1].marcadorSeCriatura = 1; frases.push({ texto: p, lida: true }); continue; } // M-400 · Recommission
       const ik = p.match(new RegExp(`^if this spell was kicked, (?:it|~) deals ${N} damage(?: to that (?:creature|player|permanent|planeswalker))? instead$`, 'i')); // M-337 · 702.33d · Burst Lightning
       if (ik && efeitos.length && efeitos[efeitos.length - 1].do === 'damage' && Number.isInteger(efeitos[efeitos.length - 1].amount)) { const ult = efeitos[efeitos.length - 1]; ult.amount = { per: 'se', se: 'kicked', sim: num(ik[1]), nao: ult.amount }; frases.push({ texto: p, lida: true }); continue; }
       const ih = p.match(new RegExp(`^if this spell wasn't cast from your hand, draw ${N} cards instead$`, 'i')); // M-352 · Twinned Vision
@@ -21027,7 +21032,7 @@ function applyEffect(s, src, eff, tgt, events) {
       moverObjeto(s, src, alvo, { para: 'hand' }, ctrl); // CR2-G R4a · atalho de mover
       note({}); break;
     }
-    case 'reanimate': { const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : null) : obj; if (eff.target === 'self-source' && (!alvo || alvo.zone !== 'graveyard' || (src.fonteZc != null && (alvo.zc || 0) !== src.fonteZc))) { note({ failed: true }); break; } moverObjeto(s, src, alvo, { para: 'battlefield' }, ctrl); note({}); break; } /* M-398 · self-source: a própria carta, se ainda está no cemitério e é o mesmo objeto (113.6, 400.7 — achado da revisão) */ // CR2-G R4a · atalho de mover; // CR2c.5 · a mágica lembra quem ela devolveu ("either of them")
+    case 'reanimate': { const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : null) : obj; if (alvo && eff.marcadorSeCriatura && ((s.facts[alvo.name] || {}).types || []).includes('creature')) alvo.entraComK = { ...(alvo.entraComK || {}), p1p1: ((alvo.entraComK || {}).p1p1 || 0) + eff.marcadorSeCriatura }; /* M-400 · 614.1c: "If a creature enters this way, it enters with an additional +1/+1 counter" (o mesmo caminho do "volta com um marcador") */ if (eff.target === 'self-source' && (!alvo || alvo.zone !== 'graveyard' || (src.fonteZc != null && (alvo.zc || 0) !== src.fonteZc))) { note({ failed: true }); break; } moverObjeto(s, src, alvo, { para: 'battlefield' }, ctrl); if (alvo && alvo.zone !== 'battlefield') delete alvo.entraComK; note({}); break; } /* M-400: a marca não sobra se ela não entrou · M-398 · self-source: a própria carta, se ainda está no cemitério e é o mesmo objeto (113.6, 400.7 — achado da revisão) */ // CR2-G R4a · atalho de mover; // CR2c.5 · a mágica lembra quem ela devolveu ("either of them")
     case 'animate_dead': { // CR2d.4 · "if it's on the battlefield … return enchanted creature card to the battlefield under your control and attach this Aura to it"
       const aura = src.ability ? s.objects[src.source] : src;
       if (!aura || aura.zone !== 'battlefield') break; // ruling: fora do campo, nada acontece
@@ -32233,7 +32238,8 @@ function descreveEfeito(e) {
     case 'reanimate_all': return `devolve ao campo todas as ${(e.types || []).map(x => ({ creature: 'criaturas', planeswalker: 'planeswalkers' }[x] || x)).join(' e ')}${e.mvMax != null ? ` de valor de mana ${qtd(e.mvMax)} ou menos` : ''} do seu cemitério`; // CR2c.5
     case 'exile_self': return 'exila esta mágica';
     case 'counter_choice': return `põe um marcador de ${PALAVRA_PT[e.kind] || e.kind} em uma delas`;
-    case 'reanimate': case 'reanimate_tapped': if (e.totalMvMax != null) return `devolve até ${qtd(e.targetCount)} criaturas com valor de mana total ${e.totalMvMax} ou menos do cemitério ao campo`;
+    case 'reanimate': case 'reanimate_tapped': if (e.marcadorSeCriatura) return `devolve ${(e.targetTypes || []).includes('artifact') ? 'uma carta de artefato ou criatura' : 'uma carta'}${e.targetMvMax != null ? ` de valor de mana ${e.targetMvMax} ou menos` : ''} do seu cemitério ao campo; se for criatura, ela entra com ${plural(e.marcadorSeCriatura, 'marcador +1/+1 a mais', 'marcadores +1/+1 a mais')}`; // M-400 · achado da revisão (Recommission)
+      if (e.totalMvMax != null) return `devolve até ${qtd(e.targetCount)} criaturas com valor de mana total ${e.totalMvMax} ou menos do cemitério ao campo`;
       return `devolve uma criatura${e.targetMvMax != null ? ` de valor de mana ${qtd(e.targetMvMax)} ou menos` : ''} do cemitério ao campo`;
     case 'fog': return 'previne todo o dano de combate deste turno';
     case 'attach': return 'anexa';
