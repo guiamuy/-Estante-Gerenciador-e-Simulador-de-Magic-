@@ -148,12 +148,12 @@ test('CR 400.7 / 709.5c · as designações são da permanente: a Sala que sai e
   eq(portas(s, g), { esquerda: false, direita: false });
 });
 
-test('Validador · Sala: as duas portas encantamento com custo; "unlock-door" só numa porta de Sala; contínuo e concessão ainda não', () => {
+test('Validador · Sala: as duas portas encantamento com custo; "unlock-door" só numa porta de Sala; concessão ainda não', () => {
   eq(SC.validateScript(SCRIPTS[SC2]), [], 'a Sala de teste é válida');
   const v = sc => SC.validateScript({ ...SCRIPTS[SC2], ...sc });
   assert.ok(v({ self: { dividida: true, sala: true, mana: '{W}', types: ['instant'] } }).some(e => /sala|dividida/.test(e)), 'porta que não é encantamento');
   assert.ok(v({ back: { ...SCRIPTS[SC2].back, mana: undefined } }).some(e => /sala|dividida/.test(e)), 'porta direita sem custo');
-  assert.ok(v({ continuo: [{ afetados: 'self', palavras: ['flying'] }] }).some(e => /sala/.test(e)), 'contínuo numa Sala');
+  assert.ok(v({ grants: { power: 1 } }).some(e => /sala/.test(e)), 'concessão numa Sala'); // T-76 · o contínuo numa porta passou a valer (709.5; tipos.salasportas.unit)
   assert.ok(v({ back: { ...SCRIPTS[SC2].back, abilities: [{ kind: 'triggered', when: 'unlock-door', effects: [{ do: 'nada' }] }] } }).some(e => /sala/.test(e)), 'erro na porta direita aparece');
   assert.ok(SC.validateScript({ name: 'X', abilities: [{ kind: 'triggered', when: 'unlock-door', effects: [{ do: 'gain', amount: 1 }] }], ...EX }).some(e => /unlock-door|sala/.test(e)), '"unlock-door" fora de Sala');
 });

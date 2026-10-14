@@ -6737,6 +6737,12 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-76 · CR 709.5 · Sala com regra de jogador na porta (Oracle do Forge, clone de 13/10/2026). O lembrete entre parênteses não se escreve.
+  { name: 'Roaring Furnace // Steaming Sauna', self: { dividida: true, sala: true, mana: '{1}{R}', types: ['enchantment'] },
+    abilities: [{ kind: 'triggered', when: 'unlock-door', effects: [{ do: 'damage', amount: { per: 'cards-in-hand' }, target: 'creature-opponent-controls' }] }], // "When you unlock this door, this Room deals damage equal to the number of cards in your hand to target creature an opponent controls."
+    back: { name: 'Steaming Sauna', types: ['enchantment'], mana: '{3}{U}{U}', regraJogador: [{ quem: 'voce', semLimiteDeMao: true }], // "You have no maximum hand size."
+      abilities: [{ kind: 'triggered', when: 'end-step', effects: [{ do: 'draw', amount: 1 }] }] }, // "At the beginning of your end step, draw a card."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o cenário de verdade está em tipos.salasportas.unit (posta no campo sem ser conjurada: as duas portas trancadas)
   // T-66 · CR 706 · rolar um dado (Oracle do Forge, clone de 13/10/2026). Voar e vigilância vêm do texto da carta.
   { name: 'Djinni Windseer', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'dado', lados: 20 }, { do: 'scry', amount: 1, faixaDoDado: [1, 9] }, { do: 'scry', amount: 2, faixaDoDado: [10, 19] }, { do: 'scry', amount: 3, faixaDoDado: [20, 20] }] }], // "When Djinni Windseer enters, roll a d20. 1—9 | Scry 1. 10—19 | Scry 2. 20 | Scry 3."
     example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o cenário de verdade está em tipos.dado.unit
@@ -9405,11 +9411,12 @@ function salaErros(sc) {
   if (!sf || !sf.sala) return errsPorta.concat(temUnlock(sc && sc.abilities) && !(sf && sf.barraT) ? ['sala: os gatilhos "unlock-door" e "fully-unlock" só existem numa porta de Sala (self.sala)'] : []);
   const errs = errsPorta.slice();
   if (sf.sala !== true || sf.dividida !== true) errs.push('sala: a Sala é dividida (self.dividida: true e self.sala: true)');
-  if (sc.continuo || sc.grants || sc.grantsAll || sf.per || sc.aura || sc.equip || (sc.effects || []).length || sc.regraJogador || sc.substitui || sc.entra || sc.dano) errs.push('sala: só habilidades ativadas e disparadas nas portas (contínuo, concessão e efeito de resolução ainda não)');
+  if (sc.grants || sc.grantsAll || sf.per || sc.aura || sc.equip || (sc.effects || []).length || sc.substitui || sc.entra || sc.dano) errs.push('sala: nas portas, só habilidades ativadas, disparadas, contínuos e regras de jogador (concessão e efeito de resolução ainda não)'); // T-76 · 709.5: contínuo e regra de jogador valem com a porta destrancada
   const b = sc.back;
   if (b && typeof b === 'object') {
-    for (const k of Object.keys(b)) if (!['name', 'types', 'subtypes', 'mana', 'colors', 'abilities'].includes(k)) errs.push(`sala, porta direita: chave "${k}" desconhecida (só habilidades ativadas e disparadas)`);
-    errs.push(...validateScript({ name: `${sc.name} (porta direita)`, abilities: b.abilities || [], self: { barraT: true }, example: { target: 'none', expect: { selfLife: 0 } } }).map(e => `sala, porta direita: ${e}`));
+    for (const k of Object.keys(b)) if (!['name', 'types', 'subtypes', 'mana', 'colors', 'abilities', 'continuo', 'regraJogador'].includes(k)) errs.push(`sala, porta direita: chave "${k}" desconhecida (só habilidades ativadas e disparadas, contínuos e regras de jogador)`);
+    errs.push(...validateScript({ name: `${sc.name} (porta direita)`, abilities: b.abilities || [], continuo: b.continuo, regraJogador: b.regraJogador, self: { barraT: true }, example: { target: 'none', expect: { selfLife: 0 } } }).map(e => `sala, porta direita: ${e}`));
+    if ((Array.isArray(b.continuo) ? b.continuo : []).some(c => c && ((c.perde || []).length || c.troca || c.cores))) errs.push('sala, porta direita: contínuo que tira habilidade, troca poder e resistência ou muda a cor ainda não (só na porta esquerda)'); // T-76 · os atalhos perdeEstatico/trocaEstatica/corEstatica só leem o contínuo de cima
   }
   return errs;
 }
@@ -18249,6 +18256,7 @@ function condicaoContinua(s, x, se) {
 }
 function continuosDaFonte(s, x) {
   const sc = s.facts[x.name].script;
+  if (sc && sc.self && sc.self.sala) return continuosDaSalaT(s, x, sc); // T-76 · CR 709.5 · só os contínuos das portas destrancadas (Toca ponto comum: continuosDaFonte)
   if (sc && sc.self && sc.self.classe) return continuosDaClasseT(s, x, sc); // T-12 · CR 716.2a · os contínuos do nível 1 e dos níveis alcançados
   if (sc && sc.self && (sc.self.nivelar || sc.self.estacao || sc.self.caso)) return continuosDoNivelarT(s, x, sc); // T-39 · CR 719.3c · e os do Caso resolvido // T-37 · CR 721.2 · e os das faixas de estação alcançadas // T-24 · CR 711.2 · as palavras e os contínuos da barra alcançada (Toca ponto comum: continuosDaFonte)
   if (!sc || !(sc.grants || sc.grantsAll || (sc.self && sc.self.per) || sc.continuo || (sc.aura && sc.aura.becomes))) return SEM_CONTINUOS; // atalho: quase toda permanente não concede nada
@@ -22963,7 +22971,7 @@ const REGRAS_JOGADOR = ['naoGanhaVida', 'terrenosExtras', 'semLimiteDeMao'];
 const casaJogadores = (quem, dono, p) => quem === 'todos' || (quem === 'voce' ? p === dono : quem === 'oponentes' ? p !== dono : false);
 function regrasDoJogador(s, p) {
   const out = [];
-  for (const o of battlefield(s)) { const r = ((s.facts[o.name] || {}).script || {}).regraJogador; if (!r || o.faceDown || semImpressas(s, o)) continue;
+  for (const o of battlefield(s)) { const r = ((s.facts[o.name] || {}).script || {}).regraJogador; if (!r || o.faceDown || semImpressas(s, o) || salaScriptT(s, o)) continue; // T-76 · a da Sala vem das portas destrancadas (regrasDasSalasT) (Toca ponto comum: regrasDoJogador)
     for (const e of r) if (casaJogadores(e.quem || 'voce', o.controller, p)) out.push(e); }
   regrasDosNiveisT(s, p, out); // T-12 · CR 716.2a · regra de jogador de um nível de Classe alcançado
   for (const e of (s.players[p] || {}).efeitos || []) out.push(e);
@@ -27665,6 +27673,21 @@ function portasDaSalaT(s, o) {
   const r = s.salasT && s.salasT[o.oid];
   return r && r.z === (o.zc || 0) ? { esquerda: !!r.esquerda, direita: !!r.direita } : { esquerda: false, direita: false };
 }
+/** T-76 · CR 709.5 · a porta trancada não tem o texto dela: contínuos (`continuo`) e regras de jogador (`regraJogador`) só valem com a
+ * porta destrancada — a esquerda no script da Sala, a direita em `back` (copiados para os fatos da porta em fatosDaDivididaT). */
+const textoDasPortasT = (s, o, sc, k) => { const pt = portasDaSalaT(s, o); if (!pt) return [];
+  return [...(pt.esquerda ? sc[k] || [] : []), ...(pt.direita ? (((s.facts[direitaT(sc)] || {}).script || {})[k] || []) : [])]; };
+function continuosDaSalaT(s, x, sc) {
+  const cs = textoDasPortasT(s, x, sc, 'continuo'); if (!cs.length) return SEM_CONTINUOS;
+  return cs.map(c => ({ ...c, palavras: c.palavras ? c.palavras.map(w => String(w).toLowerCase()) : undefined, ...(c.torna ? { redefine: SC.tornaParaBecomes(c.torna) } : {}) })); // como o laço do `continuo` em continuosDaFonte
+}
+function regrasDasSalasT(s, p, out) {
+  if (!s.salasT) return;
+  for (const oid of Object.keys(s.salasT)) {
+    const o = s.objects[oid], sc = o && !o.phasedOut && !o.faceDown && salaScriptT(s, o); if (!sc || semImpressas(s, o)) continue;
+    for (const e of textoDasPortasT(s, o, sc, 'regraJogador')) if (casaJogadores(e.quem || 'voce', o.controller, p)) out.push(e);
+  }
+}
 function salaHabilidadesT(s, o, sc) {
   const pt = portasDaSalaT(s, o); if (!pt) return [];
   return [...(pt.esquerda ? (sc.abilities || []).map(ab => ({ ...ab, portaT: 'esquerda' })) : []),
@@ -28747,7 +28770,10 @@ function metadesDe(s, x) {
   return [{ nome: esq, mana: costStringT(s.facts[esq].cost) }, { nome: direitaT(sc), mana: costStringT(s.facts[direitaT(sc)].cost) }];
 }
 /** 709.4a · os nomes do objeto: os das duas metades fora da pilha, o da metade conjurada na pilha. */
-function nomesDe(s, o) { const md = !o.frontName && metadesDe(s, o); return md ? md.map(x => x.nome) : [o.name]; }
+function nomesDe(s, o) {
+  const pt = portasDaSalaT(s, o); if (pt) { const sc = salaScriptT(s, o); return [...(pt.esquerda ? [esquerdaT(sc)] : []), ...(pt.direita ? [direitaT(sc)] : [])]; } // T-76 · CR 709.5: no campo, a porta trancada não tem nome
+  const md = !o.frontName && metadesDe(s, o); return md ? md.map(x => x.nome) : [o.name];
+}
 function divididasPorInteiroT(setup, scripts) {
   const troca = {}, porMetade = {};
   for (const sc of Object.values(scripts || {})) if (sc && sc.self && sc.self.dividida && sc.back) { porMetade[esquerdaT(sc)] = sc.name; porMetade[sc.back.name] = sc.name; }
@@ -28760,6 +28786,7 @@ function divididasPorInteiroT(setup, scripts) {
 function fatosDaDivididaT(s, sc, setup, fd) {
   const sf = sc.self, cd = parseCost(sf.mana), ce = sc.back.colors && sc.back.colors.length ? null : 1;
   fd.cost = parseCost(sc.back.mana); fd.cmc = valorDoCustoT(fd.cost); fd.semCusto = false; if (ce) fd.colors = coresDoCustoT(fd.cost);
+  if (sf.sala && fd.script) for (const k of ['continuo', 'regraJogador']) if (sc.back[k]) fd.script[k] = sc.back[k]; // T-76 · CR 709.5 · o texto estático da porta direita
   if (sc.back.aftermath && fd.script) fd.script.flashback = { mana: sc.back.mana, consequenciaT: true }; // T-32 · CR 702.127a: do cemitério, pelo custo da própria metade, e exilada ao sair da pilha (o caminho do lampejo)
   const esq = esquerdaT(sc), fe = s.facts[esq] = cardFacts({ name: esq, type_line: (sf.types || []).join(' '), colors: (sf.colors && sf.colors.length) ? sf.colors : coresDoCustoT(cd), keywords: [], oracle_text: '' });
   fe.cost = cd; fe.cmc = valorDoCustoT(cd); fe.semCusto = false; fe.script = { name: esq, effects: sc.effects || [], abilities: [] }; fe.metadeDe = sc.name;
@@ -28938,6 +28965,7 @@ function continuosDaClasseT(s, x, sc) {
   return cs.map(c => ({ ...c, palavras: c.palavras ? c.palavras.map(w => String(w).toLowerCase()) : undefined, ...(c.torna ? { redefine: SC.tornaParaBecomes(c.torna) } : {}) })); // como o laço do `continuo` em continuosDaFonte
 }
 function regrasDosNiveisT(s, p, out) {
+  regrasDasSalasT(s, p, out); // T-76 · CR 709.5 · regra de jogador de uma porta destrancada
   regrasDosCasosT(s, p, out); // T-39 · CR 719.3c · regra de jogador do Caso resolvido
   if (!s.classes) return;
   for (const oid of Object.keys(s.classes)) {
