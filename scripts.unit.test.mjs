@@ -287,6 +287,7 @@ function runExample(sc) {
   // um cemitério com carta, para os efeitos que mexem nele
   s = J(s); const buried = s.zones[d].library.pop(); s.zones[d].graveyard.push(buried); s.objects[buried].zone = 'graveyard';
   const how = ex.action || 'cast';
+  if (ex.target === 'enemy-creature' && /"tapped":true/.test(JSON.stringify(sc.effects || []))) { s = J(s); s.objects[theirs].tapped = true; } // T-87 · "tapped creature": a criatura do oponente do cenário está virada
   const soDaMao = (sc.abilities || []).some(x => ((x.cost || {}).fromHand));
   [s, oid] = put(s, a, sc.name, !soDaMao && (how.startsWith('activate') || how.startsWith('loyalty') || how === 'equip') ? 'battlefield' : 'hand');
   if (how.startsWith('loyalty')) { s = JSON.parse(JSON.stringify(s)); s.objects[oid].counters.loyalty = LOYALTY[sc.name] || 3; }

@@ -5753,11 +5753,16 @@
    "n": "700.10",
    "regra": "General",
    "titulo": "Permanente \"ativada neste turno\"",
-   "status": "ausente",
-   "falta": "O motor não registra por permanente que uma habilidade dela foi ativada no turno (grep vazio).",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "602"
+   ],
+   "evidencia": "T-87 (14/10/2026): a permanente que foi fonte de uma habilidade ativada neste turno (ativar, virar para mana pela ação, tripular) fica marcada com o turno e a encarnação (marcaAtivadaT, no apply); seletor ativadaNoTurno. Seletor tapped (\"tapped creature\"). A habilidade de mana usada no pagamento automático não marca (só importaria para planeswalker). Carta: Cut Short (Oracle do Forge, clone de 13/10/2026).",
+   "testes": [
+    "CR 700.10 · Cut Short (texto oficial): o planeswalker que ativou uma habilidade neste turno é alvo; o que não ativou, não",
+    "CR 700.10 · \"this turn\": no turno seguinte a marca acabou; a permanente que sai e volta é outro objeto (400.7)",
+    "CR 700.10 · validador: \"ativadaNoTurno\" e \"tapped\" só aceitam verdadeiro ou falso"
    ]
   },
   {
