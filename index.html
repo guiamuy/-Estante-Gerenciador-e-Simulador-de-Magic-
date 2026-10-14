@@ -1397,6 +1397,7 @@ body {
 .pt-linha__data { flex: none; font-size: var(--text-xs); color: var(--fg-muted); font-variant-numeric: tabular-nums; }
 /* I4 · fichas: linha da lista (miniatura ou ícone, nome, cores, estado) e grade de artes */
 .perfil-atalho { text-align: left; color: var(--fg); font: inherit; }
+a.perfil-atalho { text-decoration: none; } /* R-15 · a entrada do painel é um link (outra página do mesmo Pages) */
 /* P-14 · contas bloqueadas: nome ocupa o que sobra e quebra dentro; o botão tem caixa própria */
 .perfil-bloqueio { align-items: center; gap: var(--space-2); border-top: 1px solid var(--border); padding-top: var(--space-2); }
 .perfil-bloqueio__nome { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; font-size: var(--text-md); }
@@ -15346,6 +15347,8 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
       actions: [Button('Cancelar', { id: 'conta-excluir-cancelar', onClick: closeDialog }), vai] });
     if (senha) senha.focus({ preventScroll: true });
   }
+  // R-15 · BI1-11 · contas que veem a entrada do Painel Estante no Perfil (a mesma lista do painel.html; o painel e o banco conferem de novo)
+  const PAINEL_DONOS = ['gui.amuy@gmail.com'];
   function secaoConta() {
     if (!conta) return null;
     const comEmail = !!(conta.comEmailDisponivel && conta.comEmailDisponivel());
@@ -15543,6 +15546,11 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
       h('button', { class: 'ds-surface ds-expansivel__cabeca perfil-atalho', type: 'button', id: 'perfil-saida', onClick: () => go('/perfil/saida') },
         h('span', { class: 'ds-expansivel__selo' }, Icone('proteger', { tamanho: 20 })), h('span', { class: 'ds-expansivel__titulo' }, 'O que sai do aparelho'),
         h('span', { class: 'ds-expansivel__resumo' }, 'Serviços, o que vai e quando'), Icone('seguir', { tamanho: 20 })),
+      // R-15 · BI1-11 · Painel Estante (BI do dono): entrada só para a conta do dono, conferida pelo e-mail no cliente; o painel
+      // confere de novo ao entrar (lista própria + regra do banco). Para qualquer outra conta, nada aparece.
+      st.conta && st.conta.email && PAINEL_DONOS.includes(String(st.conta.email).toLowerCase()) ? h('a', { class: 'ds-surface ds-expansivel__cabeca perfil-atalho', id: 'perfil-painel', href: 'painel.html' },
+        h('span', { class: 'ds-expansivel__selo' }, Icone('painel', { tamanho: 20 })), h('span', { class: 'ds-expansivel__titulo' }, 'Painel Estante'),
+        h('span', { class: 'ds-expansivel__resumo' }, 'Evolução, fila e qualidade · só você vê'), Icone('seguir', { tamanho: 20 })) : null,
       // P-20 · MON1 · Apoiar a Estante: a entrada só aparece com os dados reais (com dados de exemplo é prévia, por endereço)
       __m41.apoioPronto() ? h('button', { class: 'ds-surface ds-expansivel__cabeca perfil-atalho', type: 'button', id: 'perfil-apoiar', onClick: () => go('/perfil/apoiar') },
         h('span', { class: 'ds-expansivel__selo' }, Icone('vida', { tamanho: 20 })), h('span', { class: 'ds-expansivel__titulo' }, 'Apoiar a Estante'),

@@ -12372,3 +12372,48 @@ test('e2e · R-11/R-11b Painel · Modelos: levas, tempo e portão por modelo (to
   if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.screenshot({ path: process.env.SHOTS + '/r11-modelos.png', fullPage: true }); }
   assert.deepEqual(errors, []);
 });
+
+/* ---------- R-15 · BI1-11 · entrada do Painel Estante no Perfil, só para a conta do dono ---------- */
+test('e2e · R-15 Perfil · Painel Estante: sem conta não há entrada; conta Google de outra pessoa não vê nada; a conta do dono vê o atalho (44 px, sem sobreposição) que abre painel.html; sair esconde', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+  let email = 'outra@gmail.com';
+  await page.route('https://www.googleapis.com/**', async r => {
+    const url = r.request().url();
+    if (!/Bearer tok-e2e/.test(r.request().headers().authorization || '')) return r.fulfill({ status: 401, json: {} });
+    if (url.includes('/oauth2/v3/userinfo')) return r.fulfill({ json: { name: 'Conta de teste', email, picture: 'https://lh3.googleusercontent.com/a/foto' } });
+    if (url.includes('/drive/v3/files?spaces=appDataFolder')) return r.fulfill({ json: { files: [] } });
+    if (url.includes('/upload/drive/v3/files')) return r.fulfill({ json: { id: 'f1' } });
+    return r.fulfill({ status: 404, json: {} });
+  });
+  await page.route('https://lh3.googleusercontent.com/**', r => r.fulfill({ status: 200, contentType: 'image/png', body: PNG, headers: { 'access-control-allow-origin': '*' } }));
+  await page.addInitScript(() => {
+    window.__GOOGLE_CLIENT_ID = 'e2e.apps.googleusercontent.com';
+    window.__GOOGLE_FALSO = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+  });
+  // sem conta: nada
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-saida');
+  assert.equal(await page.locator('#perfil-painel').count(), 0, 'sem conta não há entrada do painel');
+  // outra pessoa entra com o Google: continua sem entrada
+  await page.waitForSelector('#conta-entrar:not([disabled])');
+  await page.click('#conta-entrar'); await page.waitForSelector('#perfil-conta[data-conectada="true"]');
+  assert.equal(await page.innerText('#conta-email'), 'outra@gmail.com');
+  assert.equal(await page.locator('#perfil-painel').count(), 0, 'outra conta não vê o painel');
+  await page.click('#conta-sair'); await page.waitForSelector('#conta-entrar:not([disabled])');
+  // o dono entra: o atalho aparece, com 44 px, e leva ao painel.html
+  email = 'gui.amuy@gmail.com';
+  await page.click('#conta-entrar'); await page.waitForSelector('#perfil-conta[data-conectada="true"]');
+  await page.waitForSelector('#perfil-painel');
+  assert.match(await page.innerText('#perfil-painel'), /Painel Estante[\s\S]*só você vê/);
+  assert.ok((await page.locator('#perfil-painel').boundingBox()).height >= 44, 'atalho com 44 px');
+  assert.equal(await page.getAttribute('#perfil-painel', 'href'), 'painel.html');
+  await auditaTela(page, 'perfil com o painel');
+  await emTodasAsMedidas(page, 'perfil com o painel');
+  await page.click('#perfil-painel'); await page.waitForURL(/painel\.html/); await page.waitForSelector('#pn-entrar');
+  await page.goBack(); await page.waitForSelector('#perfil-painel');
+  // sair esconde de novo
+  await page.click('#conta-sair'); await page.waitForSelector('#conta-entrar:not([disabled])');
+  assert.equal(await page.locator('#perfil-painel').count(), 0);
+  assert.deepEqual(errors, []);
+});
