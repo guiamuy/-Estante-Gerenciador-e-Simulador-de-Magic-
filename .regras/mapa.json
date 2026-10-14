@@ -11779,25 +11779,33 @@
    "n": "724.1",
    "regra": "Ending Turns and Phases",
    "titulo": "Encerrar o turno",
-   "status": "ausente",
-   "falta": "nenhum efeito \"end the turn\": seria exilar a pilha, tirar do combate e pular para a limpeza (grep endTurn/end the turn: nada).",
+   "status": "coberta",
    "esforco": "M",
    "depende": [
     "514"
    ],
-   "cartas": "rara"
+   "cartas": "rara",
+   "evidencia": "T-92 (14/10/2026): efeito `encerra_turno` na ordem de 724.1a–f — os gatilhos que esperavam deixam de existir; a pilha inteira vai para o exílio (habilidade e cópia deixam de existir), inclusive o que resolve; ações de estado sem prioridade; as criaturas saem do combate e o turno vai direto para a limpeza (o passo final não acontece, 724.1e); o que disparou no caminho vai para a pilha na limpeza e vem outra limpeza (514.3a). Cartas: Time Stop, Sundial of the Infinite (\"Activate only during your turn\", soNoSeuTurno), Ultima (tipos.encerrar.unit)",
+   "testes": [
+    "CR 724.1b · Time Stop (texto oficial): a mágica que estava embaixo e o próprio Time Stop vão para o exílio; o turno passa para o oponente",
+    "CR 724.1c / 724.1f · o que a ação de estado do encerramento dispara vai para a pilha na limpeza, com prioridade, e depois vem outra limpeza"
+   ]
   },
   {
    "n": "724.2",
    "regra": "Ending Turns and Phases",
    "titulo": "Encerrar a fase de combate (Mandate of Peace)",
-   "status": "ausente",
-   "falta": "uma carta só; sem implementação.",
+   "status": "coberta",
    "esforco": "M",
    "depende": [
     "724.1"
    ],
-   "cartas": "uma carta só"
+   "cartas": "uma carta só",
+   "evidencia": "T-92 (14/10/2026): efeito `encerra_combate` (724.2a–g) — o mesmo caminho, e a fase principal seguinte começa (\"at end of combat\" não dispara); fora do combate, nada. Mandate of Peace com \"Cast this spell only during combat\" (self.soEmCombate) e \"Your opponents can't cast spells this turn\" (tipos.encerrar.unit)",
+   "testes": [
+    "CR 724.2 · Mandate of Peace (texto oficial): só no combate; acaba o combate (sem dano, sem \"at end of combat\") e vai para a fase principal; os oponentes não conjuram mais neste turno",
+    "CR 724.2g · fora da fase de combate, encerrar o combate não faz nada (a pilha fica)"
+   ]
   },
   {
    "n": "725.1",

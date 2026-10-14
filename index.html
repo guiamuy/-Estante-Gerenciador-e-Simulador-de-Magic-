@@ -5568,6 +5568,9 @@ const EFFECTS = {
   lutador: { fields: [], targets: ['creature', 'creature-you-control'] },
   fight: { fields: [], targets: ['creature', 'creature-opponent-controls', 'creature-you-control'] }, // quem: 'self-source' (a permanente fonte luta) | 'primeiro-alvo' (luta a criatura anotada pelo `lutador` anterior)
   /* ↓ T · efeitos da trilha tipos */
+  encerra_turno: { fields: [], targets: ['self'] }, // T-92 · CR 724.1 · "End the turn."
+  encerra_combate: { fields: [], targets: ['self'] }, // T-92 · CR 724.2 · "End the combat phase." (fora do combate, nada)
+  oponentes_nao_conjuram: { fields: [], targets: ['self'] }, // T-92 · "Your opponents can't cast spells this turn."
   rad: { fields: ['amount'], targets: ['self', 'player', 'opponent', 'each-player', 'each-opponent'] }, // T-91 · CR 728.1 · "[target player | each player | each opponent | you] get(s) N rad counters"
   descarta_para_comprar: { fields: [], targets: ['self'] }, // T-88 · "you may discard a card. If you do, draw a card." (a pergunta só aparece com carta na mão; a compra só se descartou)
   pilhas: { fields: ['amount'], targets: ['self'] }, // T-83 · CR 700.3 · "reveal the top N cards of your library; [an opponent | you] separates those cards into two piles; put one pile into your hand and the other into your graveyard" — `separa` e `escolhe`: 'voce' | 'oponente'
@@ -6762,6 +6765,15 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-92 · CR 724 · encerrar o turno e a fase de combate (Oracle do Forge, clone de 13/10/2026, conferido no master em 14/10/2026). O lembrete entre parênteses não se escreve.
+  { name: 'Time Stop', effects: [{ do: 'encerra_turno' }], // "End the turn."
+    example: { target: 'none', expect: { selfLife: 0 } } },
+  { name: 'Sundial of the Infinite', abilities: [{ kind: 'activated', cost: { mana: '{1}', tap: true }, soNoSeuTurno: true, effects: [{ do: 'encerra_turno' }] }], // "{1}, {T}: End the turn. Activate only during your turn."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Ultima', effects: [{ do: 'destroy', cada: { tipos: ['artifact', 'creature'] } }, { do: 'encerra_turno' }], // "Destroy all artifacts and creatures. End the turn."
+    example: { target: 'none', expect: { selfLife: 0 } } },
+  { name: 'Mandate of Peace', self: { soEmCombate: true }, effects: [{ do: 'oponentes_nao_conjuram' }, { do: 'encerra_combate' }], // "Cast this spell only during combat. · Your opponents can't cast spells this turn. · End the combat phase."
+    example: { target: 'none', expect: { selfLife: 0 } } },
   // T-91 · CR 728 · marcadores de radiação (Oracle do Forge, clone de 13/10/2026, conferido no master em 14/10/2026). Ward e menace vêm da linha de palavras-chave da carta.
   { name: "Megaton's Fate", modes: [
     { label: 'Desarmar: destruir um artefato e criar quatro Tesouros', effects: [{ do: 'destroy', target: 'artifact' }, { do: 'token', amount: 4, token: TESOURO }] }, // "• Disarm — Destroy target artifact. Create four Treasure tokens."
@@ -9635,6 +9647,8 @@ function monarcaErrosT(sc) {
   for (const ab of abs) if (ab && ab.umaVezPorTurno != null && (ab.umaVezPorTurno !== true || ab.kind !== 'triggered' || ab.when !== 'crime')) errs.push('"umaVezPorTurno" só vale como true, num gatilho "crime"'); // T-86 · 603.2h
   for (const ab of abs) if (ab && ab.kind === 'triggered' && ab.when === 'expend' && !(Number.isInteger(ab.n) && ab.n >= 1)) errs.push('gatilho "expend": "n" é um inteiro, 1 ou mais (o N de "whenever you expend N")'); // T-85
   if (sc && sc.self && sc.self.atacaSeMonarcaDefende != null && sc.self.atacaSeMonarcaDefende !== true) errs.push('self.atacaSeMonarcaDefende só vale como true'); // T-70
+  if (sc && sc.self && sc.self.soEmCombate != null && sc.self.soEmCombate !== true) errs.push('self.soEmCombate só vale como true'); // T-92 · "Cast this spell only during combat"
+  for (const ab of ((sc && sc.abilities) || [])) if (ab && ab.soNoSeuTurno != null && (ab.soNoSeuTurno !== true || ab.kind !== 'activated')) errs.push('soNoSeuTurno só vale como true, numa habilidade ativada'); // T-92 · "Activate only during your turn"
   if (sc && sc.self && sc.self.radGanhaVida != null && sc.self.radGanhaVida !== true) errs.push('self.radGanhaVida só vale como true'); // T-91 · CR 728.1a
   if (sc && sc.self && sc.self.corExceto != null && (!['W', 'U', 'B', 'R', 'G'].includes(sc.self.corExceto) || sc.choose !== 'color')) errs.push("self.corExceto é uma das cinco cores ('W', 'U', 'B', 'R', 'G'), com choose: 'color'"); // T-90 · CR 105.4 · "choose a color other than white"
   if (((sc && sc.produces) || []).some(o => o && !Array.isArray(o) && o.escolhida != null) && (sc.choose !== 'color' || sc.produces.some(o => o && !Array.isArray(o) && o.escolhida != null && (o.escolhida !== true || Object.keys(o).length > 1)))) errs.push("produces: { escolhida: true } (a mana da cor escolhida) pede choose: 'color' e não leva outras chaves"); // T-90 · CR 106.1 / 605.1a
@@ -22019,6 +22033,9 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'lutador': if (obj) s.lutadorV = { fonte: src.oid, fz: encarnacaoV(s, src), oid: obj.oid, z: obj.zc || 0 }; break; // V-1/V-5 · anota quem luta; a luta é o `fight` seguinte, que apaga a anotação
     case 'fight': lutar(s, src, eff, tgt, events); break; // V-1 · 701.14
     /* ↓ T · casos de applyEffect da trilha tipos */
+    case 'encerra_turno': encerraT(s, src, 'turno', events); break; // T-92 · CR 724.1
+    case 'encerra_combate': encerraT(s, src, 'combate', events); break; // T-92 · CR 724.2
+    case 'oponentes_nao_conjuram': s.semConjurarT = { turno: s.turn.number, jogadores: s.players.map((_, i) => i).filter(i => i !== ctrl) }; note({}); break; // T-92 · "this turn"
     case 'rad': radT(s, src, eff, playerOf(), events); break; // T-91 · CR 728.1
     case 'radiacao': radiacaoT(s, src, events); break; // T-91 · CR 728.1 · a habilidade sem fonte
     case 'descarta_para_comprar': descartaParaComprarT(s, src, events); break; // T-88
@@ -29430,14 +29447,14 @@ function acaoTravadaPeloNomeT(s, a, travas) {
   const nomes = nomesDe(s, o), mana = a.t === 'tap_mana' || (!!ab && ehHabilidadeDeMana(ab) && ab.loyalty == null); // T-82 · 605.1a: habilidade de lealdade nunca é de mana
   return travas.find(t => t.modo && nomes.includes(t.nome) && (t.modo === 'todas' || !mana)) || null;
 }
-function filtraTravadasPeloNomeT(s, out) { const tv = travasDeNomeT(s); if (tv.length) for (let i = out.length - 1; i >= 0; i--) if (acaoTravadaPeloNomeT(s, out[i], tv)) out.splice(i, 1); }
+function filtraTravadasPeloNomeT(s, out) { filtraVedadasPeloTurnoT(s, out); const tv = travasDeNomeT(s); if (tv.length) for (let i = out.length - 1; i >= 0; i--) if (acaoTravadaPeloNomeT(s, out[i], tv)) out.splice(i, 1); }
 /** T-87 · CR 700.10 · a permanente que foi fonte de uma habilidade ativada neste turno (ativar, virar para mana pela ação, tripular). A
  * habilidade de mana usada no pagamento automático não marca (só importaria para planeswalker, e nenhum tem). Chamada no apply, na cópia. */
 function marcaAtivadaT(s, a) {
   if (!a || !['activate', 'tap_mana', 'tripular'].includes(a.t) || a.oid == null || a.fromHand || a.fromGraveyard || !partidaPerguntaT(s, 'ativada', sc => /ativadaNoTurno/.test(JSON.stringify(sc)))) return; // só nas partidas que perguntam (as partidas-referência não mudam)
   const o = s.objects[a.oid]; if (o && o.zone === 'battlefield') o.ativadaT = { turno: s.turn.number, z: o.zc || 0 };
 }
-function barraTravadaPeloNomeT(s, a) { corExcetoBarraT(s, a); marcaAtivadaT(s, a); const t = acaoTravadaPeloNomeT(s, a, travasDeNomeT(s)); if (t) throw new RuleError('travada', ACOES_CONJURAR_T.includes(a.t) ? `${t.fonte}: mágicas com o nome ${t.nome} não podem ser conjuradas` : `${t.fonte}: as habilidades ativadas de ${t.nome} não podem ser ativadas${t.modo === 'semMana' ? ' (as de mana podem)' : ''}`); }
+function barraTravadaPeloNomeT(s, a) { corExcetoBarraT(s, a); barraVedadaPeloTurnoT(s, a); marcaAtivadaT(s, a); const t = acaoTravadaPeloNomeT(s, a, travasDeNomeT(s)); if (t) throw new RuleError('travada', ACOES_CONJURAR_T.includes(a.t) ? `${t.fonte}: mágicas com o nome ${t.nome} não podem ser conjuradas` : `${t.fonte}: as habilidades ativadas de ${t.nome} não podem ser ativadas${t.modo === 'semMana' ? ' (as de mana podem)' : ''}`); }
 /* ---------------- T-90 · CR 105.4 · "As this enters, choose a color other than X" (Portões, 205.3i) ----------------
    `self.corExceto` (com `choose: 'color'`): a escolha de cor desta permanente (a de 614.12, aberta ao entrar) não oferece a cor vedada
    e a ação com ela é recusada. A escolha de cor de mana ("any combination of colors", `manaRestam`) não é da carta e fica livre.
@@ -29480,6 +29497,48 @@ function radiacaoT(s, src, events) {
   events.push({ kind: 'effect', do: 'radiacao', name: 'Radiação', target: pl.name, moidas: nomes, amount: k, ganha, total: pl.rad });
 }
 function quaisMarcadoresT(tipos) { if (!tipos.includes('rad')) return null; const N = { poison: 'veneno', energia: 'energia', rad: 'radiação' }, ps = tipos.map(t => N[t]); return tipos.length === 1 ? 'um marcador de radiação' : 'um de ' + ps.slice(0, -1).join(', um de ') + ' e um de ' + ps[ps.length - 1]; }
+/* ---------------- T-92 · CR 724 · encerrar o turno e encerrar a fase de combate ----------------
+   `encerra_turno` (724.1) e `encerra_combate` (724.2), na ordem da regra: (a) os gatilhos que dispararam e ainda não foram para a pilha
+   deixam de existir; (b) tudo o que está na pilha vai para o exílio, inclusive o que está resolvendo (habilidade e cópia deixam de
+   existir); (c) as ações de estado são conferidas, sem prioridade — o que disparar agora espera; (d) a fase acaba: as criaturas saem do
+   combate e o turno vai direto para a limpeza (724.1d; o passo final não acontece, então "at the beginning of the end step" não dispara,
+   724.1e) ou para a fase principal seguinte (724.2d; "at end of combat" não dispara, 724.2e). Na limpeza, o que disparou no caminho vai
+   para a pilha com prioridade e vem outra limpeza (724.1f, 514.3a — o caminho que a limpeza já tem). 724.2g: fora do combate, nada.
+   Restrições de turno usadas pelas cartas daqui: `soNoSeuTurno` numa ativada ("Activate only during your turn"), `self.soEmCombate`
+   ("Cast this spell only during combat") e `oponentes_nao_conjuram` ("Your opponents can't cast spells this turn"). */
+const PASSOS_DE_COMBATE_T = ['combat_begin', 'combat_attackers', 'combat_blockers', 'combat_damage', 'combat_end'];
+function encerraT(s, src, oque, events) {
+  if (oque === 'combate' && !PASSOS_DE_COMBATE_T.includes(s.turn.step)) { events.push({ kind: 'effect', do: 'encerra', oque, name: src.name, failed: true }); return; } // 724.2g
+  s.queued = []; if (s.pending && s.pending.kind === 'triggers') s.pending = null; // (a)
+  const exiladas = [];
+  for (const oid of s.stack.slice().reverse()) { const o = s.objects[oid]; if (!o) continue; // (b)
+    if (isAbility(o)) { s.stack.splice(s.stack.lastIndexOf(oid), 1); delete s.objects[oid]; continue; }
+    exiladas.push(o.name); moveObject(s, oid, 'exile'); }
+  s.stack = []; delete s.magiaSuspensa; delete s.resume;
+  stateBased(s, events); // (c) — os gatilhos que isso disparar ficam esperando a limpeza (ou a fase principal)
+  if (s.combat || battlefield(s).some(o => o.attacking || o.blocking)) saiDoCombate(s); // (d)
+  events.push({ kind: 'effect', do: 'encerra', oque, name: src.name, exiladas });
+  s.turn.passes = 0;
+  enterStep(s, oque === 'turno' ? 'cleanup' : 'main2');
+}
+function filtraVedadasPeloTurnoT(s, out) { const r = restricoesDeTurnoT(s); if (r) for (let i = out.length - 1; i >= 0; i--) if (vedadaPeloTurnoT(s, out[i], r)) out.splice(i, 1); }
+function barraVedadaPeloTurnoT(s, a) { const r = restricoesDeTurnoT(s), m = r && vedadaPeloTurnoT(s, a, r); if (m) throw new RuleError('tempo', m); }
+function restricoesDeTurnoT(s) {
+  const sem = s.semConjurarT && s.semConjurarT.turno === s.turn.number ? s.semConjurarT.jogadores : null;
+  const seu = partidaPerguntaT(s, 'soNoSeuTurno', sc => (sc.abilities || []).some(ab => ab && ab.soNoSeuTurno)), combate = partidaPerguntaT(s, 'soEmCombate', sc => !!(sc.self && sc.self.soEmCombate));
+  return sem || seu || combate ? { sem, seu, combate } : null;
+}
+function vedadaPeloTurnoT(s, a, r) {
+  if (!a || a.oid == null && a.t !== 'cast_madness') return null;
+  if (ACOES_CONJURAR_T.includes(a.t)) {
+    if (r.sem && r.sem.includes(a.p)) return 'neste turno você não pode conjurar mágicas';
+    const o = s.objects[a.oid != null ? a.oid : (s.pending || {}).oid], sf = r.combate && o && (((s.facts[o.name] || {}).script || {}).self);
+    if (sf && sf.soEmCombate && !PASSOS_DE_COMBATE_T.includes(s.turn.step)) return `${o.name}: só durante o combate`;
+    return null;
+  }
+  if (a.t === 'activate' && r.seu && a.p !== s.turn.active) { const o = s.objects[a.oid], ab = o && abilitiesOf(s, o).filter(x => x.kind === 'activated')[a.index || 0]; if (ab && ab.soNoSeuTurno) return `${o.name}: só no seu turno`; }
+  return null;
+}
 /** T-81 · "Lands with the chosen name have '{T}: Add {C}.'" (`self.manaDoNome`, Petrified Hamlet): a opção de mana que o terreno com o
  * nome escolhido ganha. */
 function manaDoNomeT(s, o) {
@@ -32247,6 +32306,8 @@ Object.assign(EFEITO_PT_T, { vira_para_baixo: () => 'vira a criatura alvo para b
 /** T-59 · CR 700.6 / 700.12 / 700.9 · os predicados de tipo na frase do seletor. */
 const predicadosPT_T = sel => (sel.tapped ? ' virada' : sel.tapped === false ? ' desvirada' : '') + (sel.ativadaNoTurno ? ' que teve habilidade ativada neste turno' : '') + /* T-87 */ (sel.terrenoBasico === false ? ' que não seja terreno básico' : sel.terrenoBasico ? ' que é terreno básico' : '') + /* T-80 */ (sel.historico ? ' histórica' : sel.historico === false ? ' que não é histórica' : '') + (sel.foraDaLei ? ' fora da lei' : sel.foraDaLei === false ? ' que não é fora da lei' : '') + /* T-60 */ (sel.modificada ? ' modificada' : sel.modificada === false ? ' que não está modificada' : '');
 const LINHA_T = { preparada: ev => (ev.failed ? `${ev.name}: ${ev.motivo || 'não ficou preparada'}, nada muda` : `${ev.name} está preparada (pode conjurar uma cópia de ${ev.target})`), despreparada: ev => `${ev.name} deixou de estar preparada`, ciclo: ev => `Virou ${ev.target}${ev.motivo ? ` (${ev.motivo})` : ''}`, masmorra_completa: ev => `${ev.target} completou a masmorra ${ev.name}`, caso_resolvido: ev => (ev.failed ? `${ev.name}: a condição não valia mais, o Caso não foi resolvido` : `${ev.name} foi resolvido`), estacao: ev => (ev.failed ? `${ev.name}: a nave saiu do campo, a estação não pôs marcadores` : `${ev.name} recebeu ${ev.amount} marcador${ev.amount === 1 ? '' : 'es'} de carga (estação)${ev.total != null ? ` · ${ev.total} no total` : ''}`), selada: ev => (ev.failed ? `${ev.name}: a montaria saiu do campo, não foi selada` : `${ev.name} foi selada`), virar_carta: ev => (ev.failed ? `${ev.name} não virou${ev.motivo ? ` (${ev.motivo})` : ''}` : `${ev.name} virou: agora é ${ev.target}`), porta: ev => (ev.failed ? `${ev.name}: nenhuma porta para trancar ou destrancar` : `${ev.name} ${ev.acao} ${ev.porta} (${ev.target})`), nivel_sobe: ev => (ev.failed ? `${ev.name}: saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu de nível (nível ${ev.nivel})`), nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, converter: ev => `${ev.name} converteu em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
+Object.assign(LINHA_T, { encerra: ev => ev.failed ? `${ev.name}: não é a fase de combate, nada acontece` : `\u2063${ev.name}: ${ev.oque === 'turno' ? 'o turno acaba' : 'a fase de combate acaba'}${ev.exiladas.length ? ` (exiladas da pilha: ${ev.exiladas.join(', ')})` : ''}` }); // T-92 · CR 724
+Object.assign(EFEITO_PT_T, { encerra_turno: () => 'o turno acaba (a pilha vai para o exílio e vem a limpeza)', encerra_combate: () => 'a fase de combate acaba (a pilha vai para o exílio e as criaturas saem do combate)', oponentes_nao_conjuram: () => 'seus oponentes não podem conjurar mágicas neste turno' }); // T-92
 Object.assign(LINHA_T, { rad: ev => `${ev.target} recebeu ${ev.amount === 1 ? 'um marcador' : ev.amount + ' marcadores'} de radiação (${ev.name}; agora ${ev.total})`, // T-91 · CR 728.1
   radiacao: ev => ev.failed ? `Radiação: ${ev.target} não tem mais marcadores, nada acontece` : `\u2063Radiação: ${ev.target} moeu ${ev.moidas.length ? ev.moidas.join(', ') : 'nada (grimório vazio)'}${ev.amount ? ` — ${ev.ganha ? 'ganhou' : 'perdeu'} ${ev.amount} de vida e tirou ${ev.amount === 1 ? 'um marcador' : ev.amount + ' marcadores'}` : ''} (restam ${ev.total})` });
 Object.assign(EFEITO_PT_T, { rad: e => `${e.target === 'each-player' ? 'cada jogador recebe' : e.target === 'each-opponent' ? 'cada oponente recebe' : e.target === 'self' ? 'você recebe' : 'o jogador alvo recebe'} ${typeof e.amount === 'number' ? (e.amount === 1 ? 'um marcador' : e.amount + ' marcadores') : 'X marcadores'} de radiação`,

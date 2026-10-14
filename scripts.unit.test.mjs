@@ -29,7 +29,7 @@ const LOYALTY = { 'Saheeli, Sublime Artificer': 5, 'Lukka, Coppercoat Outcast': 
 // quem responde à pilha é instantânea: efeito de resposta, modo, ou alvo que é uma mágica
 const instantish = sc => (sc.modes || []).length > 0
   || (sc.effects || []).some(e => ['counter', 'pump', 'bounce', 'tap', 'untap'].includes(e.do) || /spell/.test(e.target || ''))
-  || /spell|instant/.test(sc.example.target || '');
+  || /spell|instant/.test(sc.example.target || '') || !!(sc.self && sc.self.soEmCombate); // T-92 · "Cast this spell only during combat" é instantânea
 for (const sc of S.RAW_SCRIPTS) {
   CARDS[sc.name] = card(sc.name, PERM_TYPES[sc.name] || (instantish(sc) ? 'Instant' : 'Sorcery'),
     PERM_TYPES[sc.name] && /Creature/.test(PERM_TYPES[sc.name]) ? { pt: [1, 1] } : {});
@@ -307,6 +307,7 @@ function runExample(sc) {
     for (let g = 0; g < 10 && s.turn.step !== 'combat_blockers'; g++) s = act(s, { t: 'pass', p: s.turn.priority });
     if (s.pending && s.pending.kind === 'blockers') s = act(s, { t: 'block', p: s.pending.p, blocks: [] });
   }
+  if (sc.self && sc.self.soEmCombate) { for (let g = 0; g < 30 && s.turn.step !== 'combat_attackers'; g++) s = act(s, { t: 'pass', p: s.turn.priority }); if (s.pending && s.pending.kind === 'attackers') s = act(s, { t: 'attack', p: a, attackers: [mine] }); } // T-92 · "Cast this spell only during combat": o cenário conjura na declaração de atacantes
   // S39 · vínculo de alma só emparelha em mudança de zona real: reentra pelo motor
   if (sc.soulbond) {
     s = J(s); s.zones[a].battlefield = s.zones[a].battlefield.filter(x => x !== oid);
@@ -433,7 +434,7 @@ function runExample(sc) {
   }
   const isPermanentCard = !!PERM_TYPES[sc.name] || how === 'disturb' || how === 'omen' || how === 'transmute' || how === 'bestow';
   // CR2c.5 · "Exile <esta mágica>" (Ascend from Avernus): o próprio texto a manda para o exílio, e o cenário confere com `exiled`
-  if (!isPermanentCard && !(sc.effects || []).some(e => e.do === 'exile_self') && (!isLand || how.startsWith('activate')) && (how === 'cast' || how === 'madness' || how.startsWith('mode') || how.startsWith('alt'))) assert.equal(s.objects[oid].zone, 'graveyard', `${sc.name} deveria ir para o cemitério`);
+  if (!isPermanentCard && !(sc.effects || []).some(e => ['exile_self', 'encerra_turno', 'encerra_combate'].includes(e.do) /* T-92 · 724.1b: encerrar exila a própria mágica */) && (!isLand || how.startsWith('activate')) && (how === 'cast' || how === 'madness' || how.startsWith('mode') || how.startsWith('alt'))) assert.equal(s.objects[oid].zone, 'graveyard', `${sc.name} deveria ir para o cemitério`);
   if (how === 'aura' || how === 'equip' || how === 'bestow') assert.equal(s.objects[oid].attachedTo, ex.target === 'own-land' ? land : ex.target === 'own-forest' ? myForest : ex.target === 'own-graveyard-creature' ? buriedMine : mine, // CR2d.4 · Animate Dead
     `${sc.name} deveria estar anexada`);
   const o = s.objects[watchOverride || watch];
