@@ -4349,6 +4349,10 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** "it deals N damage" sob gatilho de anexo (a criatura como fonte do dano) não é lido; cartas assim ficam manuais (Extra Arms).
 - **Teste:** `lt84.unit` (5 testes; falham no motor anterior).
 
+**M-402 · Correções do portão no lote M-394 a M-401 (só testes)** ✅ (leva M-402, motor v112 sem mudança; goldens intactos).
+- **Valor:** o portão completo do lote pegou duas expectativas que as levas anteriores tornaram velhas, sem erro de regra. (1) **LT1 · concordância**: com a M-394 o leitor passou a ler "This land enters tapped with two depletion counters on it" (Saprazzan Skerry, texto Commander), e o teste ainda não comparava a entrada modificada (`entra`); agora compara, e o script do leitor é igual ao escrito à mão. (2) **LT61**: a M-398 ensinou o leitor a ler "Sacrifice a Food", e a Gilded Goose passou a sair lida (corretamente); o teste do custo desconhecido usa outro custo ("Put a -1/-1 counter on a creature you control").
+- **Teste:** `leitor.concordancia.unit`, `lt77.unit` (expectativas ajustadas com a justificativa escrita no próprio teste; a regra conferida é a mesma ou mais estrita).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

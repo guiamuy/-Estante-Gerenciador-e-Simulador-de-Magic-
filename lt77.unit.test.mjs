@@ -42,7 +42,8 @@ test('LT61 · Skateboard entra e vira a permanente alvo; White Auracite exila o 
 
 test('LT61 · achado da revisão: custo de ativação que o leitor não conhece continua marcado como não lido (sem exceção, sem custo vazio)', () => {
   const L = loadModules().leitor;
-  const g = L.ler({ name: 'Gilded Goose', type_line: 'Creature — Bird', mana_cost: '{G}', oracle_text: 'Flying\nWhen this creature enters, create a Food token.\n{1}{G}, {T}: Create a Food token.\n{T}, Sacrifice a Food: Add one mana of any color.', power: '0', toughness: '2' });
-  assert.ok(!g.completa); assert.ok(g.frases.some(f => !f.lida && /Sacrifice a Food/i.test(f.texto)), JSON.stringify(g.frases));
+  // M-402 · expectativa ajustada: a M-398 ensinou o leitor a ler "Sacrifice a Food" (a Gilded Goose passou a sair lida, e certa); a regra testada continua — custo desconhecido fica não lido — com outro custo
+  const g = L.ler({ name: 'Ave', type_line: 'Creature — Bird', mana_cost: '{G}', oracle_text: 'Flying\nWhen this creature enters, create a Food token.\n{T}, Put a -1/-1 counter on a creature you control: Add one mana of any color.', power: '0', toughness: '2' });
+  assert.ok(!g.completa); assert.ok(g.frases.some(f => !f.lida && /-1\/-1 counter/i.test(f.texto)), JSON.stringify(g.frases));
   assert.ok(!JSON.stringify(g.script || {}).includes('"cost":null'), 'nenhuma habilidade com custo vazio');
 });
