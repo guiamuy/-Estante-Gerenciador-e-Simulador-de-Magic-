@@ -1720,12 +1720,15 @@
    "regra": "Counters",
    "titulo": "Marcadores e seus tipos",
    "status": "parcial",
-   "evidencia": "+1/+1 soma em poder/resistência (index.html:10340-10341; addCounters index.html:11579); lealdade (index.html:10301, 12125; rules.unit S21) · CR2c.5 (v88): b) marcador de palavra-chave (122.1b) — has() lê marcadores de voar, iniciativa, golpe duplo, toque mortífero, decaído, exaltado, ímpeto, resistência a magia, indestrutível, vínculo com a vida, ameaça, alcance, sombra, atropelar e vigilância; efeito counter_choice (commander.regras \"CR2c.5 · Call of the Death-Dweller\") · M-249/M-253 (v96): marcadores nomeados em permanente (counters com tipo; custo removeCounters; semMarcadorSacrifica) e marcadores de veneno em jogador (darVeneno; 10 = derrota); −1/−1 colocado por infectar (M-254). · auditoria independente CR2a/CR2h (11/10/2026): marcadores nomeados (M-249), de palavra-chave (CR2c.5), veneno (M-253)",
+   "evidencia": "+1/+1 soma em poder/resistência (index.html:10340-10341; addCounters index.html:11579); lealdade (index.html:10301, 12125; rules.unit S21) · CR2c.5 (v88): b) marcador de palavra-chave (122.1b) — has() lê marcadores de voar, iniciativa, golpe duplo, toque mortífero, decaído, exaltado, ímpeto, resistência a magia, indestrutível, vínculo com a vida, ameaça, alcance, sombra, atropelar e vigilância; efeito counter_choice (commander.regras \"CR2c.5 · Call of the Death-Dweller\") · M-249/M-253 (v96): marcadores nomeados em permanente (counters com tipo; custo removeCounters; semMarcadorSacrifica) e marcadores de veneno em jogador (darVeneno; 10 = derrota); −1/−1 colocado por infectar (M-254). · auditoria independente CR2a/CR2h (11/10/2026): marcadores nomeados (M-249), de palavra-chave (CR2c.5), veneno (M-253) · T-91: marcador de radiação em jogador (728.1), também no proliferar",
    "falta": "escudo, atordoamento, defesa, energia, experiência",
    "esforco": "M",
    "depende": [
     "614",
     "704"
+   ],
+   "testes": [
+    "CR 701.34a / 122.1 · proliferar também dá mais um marcador de radiação ao jogador que tem"
    ]
   },
   {
@@ -12010,13 +12013,17 @@
    "n": "728.1",
    "regra": "Rad Counters",
    "titulo": "Marcadores de radiação",
-   "status": "ausente",
-   "falta": "jogador não tem marcadores (nem rad, nem veneno); sem gatilho de pré-combate do jogo.",
+   "status": "coberta",
    "esforco": "M",
    "depende": [
     "122.1"
    ],
-   "cartas": "uma coleção só (Fallout)"
+   "cartas": "uma coleção só (Fallout)",
+   "evidencia": "T-91 (14/10/2026): o jogador guarda os marcadores de radiação (players[p].rad, mostrados na linha de vida); efeito `rad` (alvo, você, cada jogador, cada oponente); a habilidade inerente sem fonte, do jogador ativo, dispara no começo da fase principal pré-combate e confere o \"if\" de novo na resolução (603.4); mói tantas quantos marcadores, perde 1 de vida e tira 1 marcador por carta que não é terreno; 728.1a (\"gain life rather than lose life from radiation\", self.radGanhaVida); proliferar dá mais um (701.34a). Cartas: Megaton's Fate, Nuclear Fallout, Contaminated Drink, Feral Ghoul, Vault 12: The Necropolis, Strong, the Brutish Thespian (tipos.radiacao.unit)",
+   "testes": [
+    "CR 728.1 · na fase principal pré-combate, quem tem radiação mói tantas cartas quantos marcadores; perde 1 de vida e 1 marcador por carta que não é terreno",
+    "CR 728.1a · Strong, the Brutish Thespian (texto oficial): ganha vida em vez de perder pela radiação; ao sofrer dano, três marcadores e três +1/+1"
+   ]
   },
   {
    "n": "729.1",

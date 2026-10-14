@@ -10257,7 +10257,8 @@ test('e2e · G-242 Perfil › Fichas com o catálogo: todas as fichas do jogo nu
   // 2 · busca: nome, tipo e P/T, sobre os dois grupos, sem perder o foco
   await page.fill('#fichas-busca', 'zomb'); await page.waitForFunction(() => document.querySelectorAll('#fichas-catalogo .ficha-linha').length === 1);
   assert.equal(await page.evaluate(() => document.activeElement.id), 'fichas-busca', 'digitar não perde o foco');
-  assert.equal(await page.textContent('#fichas-catalogo .ds-list__group'), 'Todas as fichas · 1'); assert.ok(await page.locator('#fichas-recorte-vazio').count() === 1, 'as do app não têm Zombie');
+  assert.equal(await page.textContent('#fichas-catalogo .ds-list__group'), 'Todas as fichas · 1'); assert.equal(await page.locator('#fichas-lista .ficha-linha').count(), 1, 'das do app, só a Zombie Mutant 2/2 (Vault 12: The Necropolis, T-91)');
+  await page.fill('#fichas-busca', 'archon'); await page.waitForFunction(() => document.querySelectorAll('#fichas-catalogo .ficha-linha').length === 1); assert.ok(await page.locator('#fichas-recorte-vazio').count() === 1, 'as do app não têm Archon'); // T-91 · o recorte vazio das do app passa a ser conferido com Archon
   await page.fill('#fichas-busca', '4/4'); await page.waitForFunction(() => document.querySelector('#fichas-catalogo .ficha-linha') && document.querySelector('#fichas-catalogo .ficha-linha').dataset.ficha === 'ficha:archon 4/4');
   await page.fill('#fichas-busca', 'clue'); await page.waitForFunction(() => document.querySelector('#fichas-catalogo-vazio'));
   assert.equal(await page.locator('#fichas-lista .ficha-linha[data-ficha="ficha:clue"]').count(), 1);

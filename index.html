@@ -5568,6 +5568,7 @@ const EFFECTS = {
   lutador: { fields: [], targets: ['creature', 'creature-you-control'] },
   fight: { fields: [], targets: ['creature', 'creature-opponent-controls', 'creature-you-control'] }, // quem: 'self-source' (a permanente fonte luta) | 'primeiro-alvo' (luta a criatura anotada pelo `lutador` anterior)
   /* ↓ T · efeitos da trilha tipos */
+  rad: { fields: ['amount'], targets: ['self', 'player', 'opponent', 'each-player', 'each-opponent'] }, // T-91 · CR 728.1 · "[target player | each player | each opponent | you] get(s) N rad counters"
   descarta_para_comprar: { fields: [], targets: ['self'] }, // T-88 · "you may discard a card. If you do, draw a card." (a pergunta só aparece com carta na mão; a compra só se descartou)
   pilhas: { fields: ['amount'], targets: ['self'] }, // T-83 · CR 700.3 · "reveal the top N cards of your library; [an opponent | you] separates those cards into two piles; put one pile into your hand and the other into your graveyard" — `separa` e `escolhe`: 'voce' | 'oponente'
   exila_mesmo_nome: { fields: [], targets: ['permanent'] }, // T-80 (o alvo de verdade é o seletor com zona 'graveyard', conferido na validação da trilha) · CR 701.23 · "search its owner's graveyard, hand, and library for any number of cards with the same name as that card and exile them. Then that player shuffles." (alvo: seletor de carta em cemitério)
@@ -6761,6 +6762,27 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-91 · CR 728 · marcadores de radiação (Oracle do Forge, clone de 13/10/2026, conferido no master em 14/10/2026). Ward e menace vêm da linha de palavras-chave da carta.
+  { name: "Megaton's Fate", modes: [
+    { label: 'Desarmar: destruir um artefato e criar quatro Tesouros', effects: [{ do: 'destroy', target: 'artifact' }, { do: 'token', amount: 4, token: TESOURO }] }, // "• Disarm — Destroy target artifact. Create four Treasure tokens."
+    { label: 'Detonar: 8 de dano em cada criatura; cada jogador recebe quatro marcadores de radiação', effects: [{ do: 'damage', amount: 8, target: 'each-creature' }, { do: 'rad', amount: 4, target: 'each-player' }] }], // "• Detonate — Megaton's Fate deals 8 damage to each creature. Each player gets four rad counters."
+    example: { action: 'mode:1', target: 'none', expect: { selfLife: 0 } } },
+  { name: 'Nuclear Fallout', effects: [{ do: 'pump', power: { per: 'x', times: -2 }, toughness: { per: 'x', times: -2 }, target: 'each-creature' }, { do: 'rad', amount: { per: 'x' }, target: 'each-player' }], // "Each creature gets twice -X/-X until end of turn. Each player gets X rad counters."
+    example: { target: 'none', expect: { selfLife: 0 } } },
+  { name: 'Contaminated Drink', effects: [{ do: 'draw', amount: { per: 'x' } }, { do: 'rad', amount: { per: 'metade-de-x' }, target: 'self' }], // "Draw X cards, then you get half X rad counters, rounded up."
+    example: { target: 'none', expect: { selfLife: 0 } } },
+  { name: 'Feral Ghoul', abilities: [
+    { kind: 'triggered', when: 'other-dies', filter: { types: ['creature'] }, effects: [{ do: 'counters', amount: 1, target: 'self-source' }] }, // "Whenever another creature you control dies, put a +1/+1 counter on Feral Ghoul."
+    { kind: 'triggered', when: 'dies', effects: [{ do: 'rad', amount: { per: 'power-of-source' }, target: 'each-opponent' }] }], // "When Feral Ghoul dies, each opponent gets a number of rad counters equal to its power."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Vault 12: The Necropolis', entra: [{ afetados: 'self', marcadores: { lore: 1 } }], abilities: [
+    { kind: 'triggered', when: 'chapter', chapters: [1], effects: [{ do: 'rad', amount: 3, target: 'each-player' }] }, // "I — Each player gets three rad counters."
+    { kind: 'triggered', when: 'chapter', chapters: [2], effects: [{ do: 'token', amount: { per: 'rad-total' }, token: { name: 'Zombie Mutant', types: ['creature'], subtypes: ['Zombie', 'Mutant'], colors: ['B'], power: 2, toughness: 2 } }] }, // "II — Create X 2/2 black Zombie Mutant creature tokens, where X is the total number of rad counters among players."
+    { kind: 'triggered', when: 'chapter', chapters: [3], effects: [{ do: 'counters', amount: 2, cada: { tipos: ['creature'], subtipos: ['Zombie', 'Mutant'], de: 'you' } }] }], // "III — Put two +1/+1 counters on each creature you control that's a Zombie or Mutant."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Strong, the Brutish Thespian', self: { radGanhaVida: true }, // "You gain life rather than lose life from radiation."
+    abilities: [{ kind: 'triggered', when: 'dealt-damage', effects: [{ do: 'rad', amount: 3, target: 'self' }, { do: 'counters', amount: 3, target: 'self-source' }] }], // "Enrage — Whenever Strong is dealt damage, you get three rad counters and put three +1/+1 counters on Strong."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // T-90 · CR 105.4 / 614.12 · Portões (Oracle do Forge, conferido em 14/10/2026; o texto já está em .listas/oficiais-cartas.json e oficiais-listas.json)
   { name: 'Citadel Gate', entersTapped: true, choose: 'color', self: { corExceto: 'W' }, produces: [['W'], { escolhida: true }], // "Citadel Gate enters tapped. · As Citadel Gate enters, choose a color other than white. · {T}: Add {W} or one mana of the chosen color."
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
@@ -9604,7 +9626,7 @@ function condicoesT() { return ['resistenciaAte', 'selada', 'preparada', 'monarc
    ("… instead if you're the monarch"). Efeito contínuo: `se: { monarca: 'voce' | 'oponente' }` ("as long as you're the monarch").
    Sem monarca no jogo, nenhuma das condições vale (725.5). */
 function onlyIfT() { return ['monarca', 'oponente-monarca', 'ganhou-moeda', 'perdeu-moeda', 'deu-cara', 'deu-coroa', 'dado-duplos', 'desceu']; } // T-84 · CR 700.11 // T-66 · CR 706.5 // T-65 · CR 705.2 · o lance da moeda
-function perCountsT() { return ['moedas-ganhas', 'resultado-do-dado', 'vezes-que-desceu']; } // T-84 · CR 700.11 · "the number of times you descended this turn" // T-66 · CR 706.4 // T-59 · CR 700.8 · grupo · T-65 · CR 705.2 · "for each flip you won" (função içada: PER_COUNTS é montada antes) // função (içada): ONLY_IF e o validador do `per: 'se'` são montados antes desta linha
+function perCountsT() { return ['moedas-ganhas', 'resultado-do-dado', 'vezes-que-desceu', 'metade-de-x', 'rad-total']; } // T-91 · "half X, rounded up" e "the total number of rad counters among players" // T-84 · CR 700.11 · "the number of times you descended this turn" // T-66 · CR 706.4 // T-59 · CR 700.8 · grupo · T-65 · CR 705.2 · "for each flip you won" (função içada: PER_COUNTS é montada antes) // função (içada): ONLY_IF e o validador do `per: 'se'` são montados antes desta linha
 function seMonarcaT(se) { return !!se && Object.keys(se).length === 1 && ['voce', 'oponente'].includes(se.monarca); }
 function monarcaErrosT(sc) {
   const errs = [], abs = [...((sc && sc.abilities) || []), ...((sc && sc.back && sc.back.abilities) || [])];
@@ -9613,6 +9635,7 @@ function monarcaErrosT(sc) {
   for (const ab of abs) if (ab && ab.umaVezPorTurno != null && (ab.umaVezPorTurno !== true || ab.kind !== 'triggered' || ab.when !== 'crime')) errs.push('"umaVezPorTurno" só vale como true, num gatilho "crime"'); // T-86 · 603.2h
   for (const ab of abs) if (ab && ab.kind === 'triggered' && ab.when === 'expend' && !(Number.isInteger(ab.n) && ab.n >= 1)) errs.push('gatilho "expend": "n" é um inteiro, 1 ou mais (o N de "whenever you expend N")'); // T-85
   if (sc && sc.self && sc.self.atacaSeMonarcaDefende != null && sc.self.atacaSeMonarcaDefende !== true) errs.push('self.atacaSeMonarcaDefende só vale como true'); // T-70
+  if (sc && sc.self && sc.self.radGanhaVida != null && sc.self.radGanhaVida !== true) errs.push('self.radGanhaVida só vale como true'); // T-91 · CR 728.1a
   if (sc && sc.self && sc.self.corExceto != null && (!['W', 'U', 'B', 'R', 'G'].includes(sc.self.corExceto) || sc.choose !== 'color')) errs.push("self.corExceto é uma das cinco cores ('W', 'U', 'B', 'R', 'G'), com choose: 'color'"); // T-90 · CR 105.4 · "choose a color other than white"
   if (((sc && sc.produces) || []).some(o => o && !Array.isArray(o) && o.escolhida != null) && (sc.choose !== 'color' || sc.produces.some(o => o && !Array.isArray(o) && o.escolhida != null && (o.escolhida !== true || Object.keys(o).length > 1)))) errs.push("produces: { escolhida: true } (a mana da cor escolhida) pede choose: 'color' e não leva outras chaves"); // T-90 · CR 106.1 / 605.1a
   if (sc && sc.self && sc.self.nomeAoEntrar != null) { const n = sc.self.nomeAoEntrar, f = n && n.filtro; if (!(n === true || (n && typeof n === 'object' && !Array.isArray(n) && Object.keys(n).every(k => k === 'filtro')))) errs.push('self.nomeAoEntrar é true ou { filtro }'); else if (f != null && (typeof f !== 'object' || Object.keys(f).some(k => !['tipos', 'semTipos'].includes(k) || !Array.isArray(f[k]) || f[k].some(t => !FILTER_TYPES.includes(t))))) errs.push('self.nomeAoEntrar: o filtro é { tipos, semTipos }, com tipos de carta'); } // T-79
@@ -20656,6 +20679,7 @@ function amountOf(s, src, v) {
     if (v.per === 'soma') return (v.partes || []).reduce((n, x) => n + amountOf(s, src, x), 0) * (v.times || 1); // M-358 · "N, plus M" (Seize the Storm)
     if (v.per === 'resultado-do-dado') return ((src.dadoT || {}).resultado || 0) * (v.times || 1); // T-66 · CR 706.4 · "equal to the result"
     if (v.per === 'vezes-que-desceu') return vezesQueDesceuT(s, src.controller) * (v.times || 1); // T-84 · CR 700.11 (Toca ponto comum: amountOf)
+    if (v.per === 'metade-de-x' || v.per === 'rad-total') return (v.per === 'rad-total' ? s.players.reduce((n, pl) => n + (pl.lost ? 0 : pl.rad || 0), 0) : Math.ceil((src.xPaid || 0) / 2)) * (v.times || 1); // T-91 · CR 728.1 · Contaminated Drink, Vault 12 (Toca ponto comum: amountOf)
     if (v.per === 'moedas-ganhas') return ((src.moedaT || {}).ganhas || 0) * (v.times || 1); // T-65 · CR 705.2 · "for each flip you won" (Toca ponto comum: amountOf)
     if (v.per === 'x') return (src.xPaid || 0) * (v.times || 1); // CR2c.3 · 107.3a: o X escolhido ao conjurar, o mesmo em todo o texto
     // CR2a.4 · 608.2h/113.7a: a resistência que a criatura sacrificada no custo tinha no campo
@@ -21995,6 +22019,8 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'lutador': if (obj) s.lutadorV = { fonte: src.oid, fz: encarnacaoV(s, src), oid: obj.oid, z: obj.zc || 0 }; break; // V-1/V-5 · anota quem luta; a luta é o `fight` seguinte, que apaga a anotação
     case 'fight': lutar(s, src, eff, tgt, events); break; // V-1 · 701.14
     /* ↓ T · casos de applyEffect da trilha tipos */
+    case 'rad': radT(s, src, eff, playerOf(), events); break; // T-91 · CR 728.1
+    case 'radiacao': radiacaoT(s, src, events); break; // T-91 · CR 728.1 · a habilidade sem fonte
     case 'descarta_para_comprar': descartaParaComprarT(s, src, events); break; // T-88
     case 'pilhas': pilhasT(s, src, eff, events); break; // T-83 · CR 700.3
     case 'exila_mesmo_nome': exilaMesmoNomeT(s, src, obj, events); break; // T-80 · CR 701.23 / 201.2
@@ -27422,7 +27448,7 @@ function escolhaDoVerbo(s, oid) { const lista = s.proliferar ? s.proliferar.obje
    depois cada escolhido recebe mais um marcador de cada tipo que já tem, todos de uma vez. Marcador em jogador, neste motor: veneno e energia (H-6). */
 const temMarcador = o => Object.values(o.counters || {}).some(n => n > 0);
 /** H-6 · 701.34a/122.1 · tipos de marcador que o jogador tem (veneno, energia de 107.14); o "sim" dá mais um de cada. */
-const marcadoresDoJogador = pl => [(pl.poison || 0) > 0 ? 'poison' : null, (pl.energia || 0) > 0 ? 'energia' : null].filter(Boolean);
+const marcadoresDoJogador = pl => [(pl.poison || 0) > 0 ? 'poison' : null, (pl.energia || 0) > 0 ? 'energia' : null, (pl.rad || 0) > 0 ? 'rad' : null /* T-91 · 728.1 / 701.34a (Toca ponto comum: marcadoresDoJogador) */].filter(Boolean);
 function proliferar(s, src, events) {
   const p = src.controller, nome = src.name;
   const objetos = battlefield(s).filter(temMarcador).map(o => o.oid);
@@ -27444,7 +27470,7 @@ const PASSOS_V = {
   'povoar-cria': (s, passo, events) => passoPovoarCria(s, passo, events), // V-4
   'proliferar-jogador'(s, passo, events) { // uma pergunta por jogador com marcador (veneno e/ou energia, H-6): "sim" anota o jogador
     const pl = s.players[passo.jogador], tipos = pl && !pl.lost ? marcadoresDoJogador(pl) : []; if (!tipos.length) return;
-    const quais = tipos.length === 2 ? 'um de veneno e um de energia' : `um marcador de ${tipos[0] === 'poison' ? 'veneno' : 'energia'}`;
+    const quais = quaisMarcadoresT(tipos) || (tipos.length === 2 ? 'um de veneno e um de energia' : `um marcador de ${tipos[0] === 'poison' ? 'veneno' : 'energia'}`); // T-91 · com radiação, o texto vem da trilha tipos (Toca ponto comum: proliferar-jogador)
     s.pending = { kind: 'may_pay', p: passo.p, cost: null, name: `Proliferar: mais ${quais} em ${pl.name}`,
       then: { effects: [{ do: 'proliferate_jogador', jogador: passo.jogador }], source: passo.fonte, name: passo.nome, controller: passo.p, targets: [] } };
     events.push({ kind: 'choice', what: 'proliferar', name: passo.nome, amount: 1 });
@@ -27458,6 +27484,7 @@ const PASSOS_V = {
         if (postos > 0) events.push({ kind: 'effect', do: 'counters', name: o.name, target: o.name, amount: postos, ...(tipo === 'p1p1' ? {} : { tipo }) }); } }
     for (const i of pr.jogadores) { const pl = s.players[i]; if (!pl || pl.lost) continue; // H-6 · mais um de cada tipo que o jogador tem agora
       if (pl.poison > 0) { darVeneno(s, i, 1, events, pr.nome); dados++; }
+      if (pl.rad > 0) { darRadT(s, i, 1, events, pr.nome); dados++; } // T-91 · CR 701.34a · mais um de radiação (Toca ponto comum: proliferar-aplica)
       if (pl.energia > 0) { pl.energia += 1; dados++; events.push({ kind: 'effect', do: 'counters', name: pl.name, target: pl.name, amount: 1, tipo: 'energia' }); } }
     events.push({ kind: 'effect', do: 'proliferate', name: pr.nome, target: s.players[pr.p].name, amount: dados });
   },
@@ -28639,6 +28666,7 @@ function sagasDeEstado(s, events) {
 /** 714.3c / 703.4f · assim que a fase principal pré-combate começa, o jogador ativo põe um marcador de lore em cada Saga que
  * controla com um ou mais capítulos. Ação de turno: não usa a pilha; os capítulos disparam na conferência seguinte, antes da prioridade. */
 function sagasNaPrincipal(s) {
+  radNaPrincipalT(s); // T-91 · CR 728.1 · "at the beginning of each player's precombat main phase" (a mesma chamada do começo da principal)
   const a = s.turn.active; if (!s.players[a] || s.players[a].lost) return;
   for (const o of battlefield(s)) if (o.controller === a && capitulosDe(s, o).length) { const antes = o.counters.lore || 0; o.counters.lore = antes + 1; (s.sagaAviso = s.sagaAviso || []).push(o.oid); sagaMarcou(s, o, antes); } // T-2 · o capítulo dispara no ato
 }
@@ -29423,6 +29451,35 @@ function corVedadaT(s) {
 function corExcetoOfertasT(s, out) { const v = corVedadaT(s); if (v) for (let i = out.length - 1; i >= 0; i--) if (out[i].t === 'choose_color' && out[i].color === v) out.splice(i, 1); }
 function corExcetoBarraT(s, a) { if (a.t !== 'choose_color') return; const v = corVedadaT(s); if (v && a.color === v) throw new RuleError('cor', `${s.objects[s.pending.oid].name}: escolha uma cor que não seja ${NOME_COR_T[v]}`); }
 Object.assign(EXPORTS_T, { corVedadaT });
+/* ---------------- T-91 · CR 728 · marcadores de radiação ----------------
+   - 728.1 / 122.1 · o jogador guarda os marcadores em `players[p].rad` (o campo só aparece quando alguém recebe radiação: partidas sem essas
+     cartas não mudam). O efeito `rad` ("[target player | each player | each opponent | you] get(s) N rad counters") soma ao jogador.
+   - 728.1 · a habilidade inerente, sem fonte e controlada pelo jogador ativo: no começo da fase principal pré-combate, se ele tem radiação,
+     vai para a pilha (`source: null`, como o monarca); na resolução (603.4: o "if" de novo) ele mói tantas cartas quantos marcadores tem
+     agora; por carta que não é terreno, perde 1 de vida e tira 1 marcador (a perda é um evento só, de N).
+   - 728.1a · "you gain life rather than lose life from radiation" (`self.radGanhaVida` numa permanente sua): a mesma quantia vira ganho.
+   - 701.34a · proliferar dá mais um de radiação a quem tem (o "sim" da pergunta por jogador). */
+function darRadT(s, p, n, events, nome) { const pl = s.players[p]; if (!(n > 0) || !pl || pl.lost) return; pl.rad = (pl.rad || 0) + n; (events || []).push({ kind: 'effect', do: 'rad', name: nome, target: pl.name, amount: n, total: pl.rad }); }
+function radT(s, src, eff, quem, events) {
+  const n = amountOf(s, src, eff.amount), ctrl = src.controller;
+  const jogadores = eff.target === 'each-player' ? s.players.map((_, i) => i) : eff.target === 'each-opponent' ? s.players.map((_, i) => i).filter(i => i !== ctrl) : [quem];
+  for (const p of jogadores) darRadT(s, p, n, events, src.name);
+}
+function radNaPrincipalT(s) {
+  const a = s.turn.active, pl = s.players[a];
+  if (pl && !pl.lost && (pl.rad || 0) > 0) s.queued.push({ source: null, name: 'Radiação', controller: a, effects: [{ do: 'radiacao' }], when: 'radiacao' });
+}
+function radiacaoT(s, src, events) {
+  const p = src.controller, pl = s.players[p], n = pl ? pl.rad || 0 : 0;
+  if (!pl || pl.lost || n <= 0) { events.push({ kind: 'effect', do: 'radiacao', name: 'Radiação', target: pl ? pl.name : '', failed: true }); return; }
+  const moidas = s.zones[p].library.slice(0, n), nomes = moidas.map(oid => s.objects[oid].name);
+  for (const oid of moidas) moveObject(s, oid, 'graveyard');
+  const k = moidas.filter(oid => !(((s.facts[s.objects[oid].name] || {}).types) || []).includes('land')).length;
+  const ganha = battlefield(s).some(o => o.controller === p && !o.faceDown && ((((s.facts[o.name] || {}).script) || {}).self || {}).radGanhaVida);
+  if (k > 0) { if (ganha) ganhaVidaJogador(s, p, k); else perdeVida(s, p, k); pl.rad = Math.max(0, n - k); }
+  events.push({ kind: 'effect', do: 'radiacao', name: 'Radiação', target: pl.name, moidas: nomes, amount: k, ganha, total: pl.rad });
+}
+function quaisMarcadoresT(tipos) { if (!tipos.includes('rad')) return null; const N = { poison: 'veneno', energia: 'energia', rad: 'radiação' }, ps = tipos.map(t => N[t]); return tipos.length === 1 ? 'um marcador de radiação' : 'um de ' + ps.slice(0, -1).join(', um de ') + ' e um de ' + ps[ps.length - 1]; }
 /** T-81 · "Lands with the chosen name have '{T}: Add {C}.'" (`self.manaDoNome`, Petrified Hamlet): a opção de mana que o terreno com o
  * nome escolhido ganha. */
 function manaDoNomeT(s, o) {
@@ -32190,6 +32247,10 @@ Object.assign(EFEITO_PT_T, { vira_para_baixo: () => 'vira a criatura alvo para b
 /** T-59 · CR 700.6 / 700.12 / 700.9 · os predicados de tipo na frase do seletor. */
 const predicadosPT_T = sel => (sel.tapped ? ' virada' : sel.tapped === false ? ' desvirada' : '') + (sel.ativadaNoTurno ? ' que teve habilidade ativada neste turno' : '') + /* T-87 */ (sel.terrenoBasico === false ? ' que não seja terreno básico' : sel.terrenoBasico ? ' que é terreno básico' : '') + /* T-80 */ (sel.historico ? ' histórica' : sel.historico === false ? ' que não é histórica' : '') + (sel.foraDaLei ? ' fora da lei' : sel.foraDaLei === false ? ' que não é fora da lei' : '') + /* T-60 */ (sel.modificada ? ' modificada' : sel.modificada === false ? ' que não está modificada' : '');
 const LINHA_T = { preparada: ev => (ev.failed ? `${ev.name}: ${ev.motivo || 'não ficou preparada'}, nada muda` : `${ev.name} está preparada (pode conjurar uma cópia de ${ev.target})`), despreparada: ev => `${ev.name} deixou de estar preparada`, ciclo: ev => `Virou ${ev.target}${ev.motivo ? ` (${ev.motivo})` : ''}`, masmorra_completa: ev => `${ev.target} completou a masmorra ${ev.name}`, caso_resolvido: ev => (ev.failed ? `${ev.name}: a condição não valia mais, o Caso não foi resolvido` : `${ev.name} foi resolvido`), estacao: ev => (ev.failed ? `${ev.name}: a nave saiu do campo, a estação não pôs marcadores` : `${ev.name} recebeu ${ev.amount} marcador${ev.amount === 1 ? '' : 'es'} de carga (estação)${ev.total != null ? ` · ${ev.total} no total` : ''}`), selada: ev => (ev.failed ? `${ev.name}: a montaria saiu do campo, não foi selada` : `${ev.name} foi selada`), virar_carta: ev => (ev.failed ? `${ev.name} não virou${ev.motivo ? ` (${ev.motivo})` : ''}` : `${ev.name} virou: agora é ${ev.target}`), porta: ev => (ev.failed ? `${ev.name}: nenhuma porta para trancar ou destrancar` : `${ev.name} ${ev.acao} ${ev.porta} (${ev.target})`), nivel_sobe: ev => (ev.failed ? `${ev.name}: saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu de nível (nível ${ev.nivel})`), nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, converter: ev => `${ev.name} converteu em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
+Object.assign(LINHA_T, { rad: ev => `${ev.target} recebeu ${ev.amount === 1 ? 'um marcador' : ev.amount + ' marcadores'} de radiação (${ev.name}; agora ${ev.total})`, // T-91 · CR 728.1
+  radiacao: ev => ev.failed ? `Radiação: ${ev.target} não tem mais marcadores, nada acontece` : `\u2063Radiação: ${ev.target} moeu ${ev.moidas.length ? ev.moidas.join(', ') : 'nada (grimório vazio)'}${ev.amount ? ` — ${ev.ganha ? 'ganhou' : 'perdeu'} ${ev.amount} de vida e tirou ${ev.amount === 1 ? 'um marcador' : ev.amount + ' marcadores'}` : ''} (restam ${ev.total})` });
+Object.assign(EFEITO_PT_T, { rad: e => `${e.target === 'each-player' ? 'cada jogador recebe' : e.target === 'each-opponent' ? 'cada oponente recebe' : e.target === 'self' ? 'você recebe' : 'o jogador alvo recebe'} ${typeof e.amount === 'number' ? (e.amount === 1 ? 'um marcador' : e.amount + ' marcadores') : 'X marcadores'} de radiação`,
+  radiacao: () => 'mói uma carta por marcador de radiação; por carta que não é terreno, perde 1 de vida e tira um marcador' }); // T-91
 Object.assign(LINHA_T, { descarta_para_comprar: ev => `${ev.name}: ${ev.target} não tem carta na mão para descartar` }); // T-88
 Object.assign(EFEITO_PT_T, { descarta_para_comprar: () => 'você pode descartar uma carta; se descartar, compra uma' }); // T-88
 Object.assign(LINHA_T, { pilhas: ev => ev.revela.length ? `\u2063${ev.target} revelou ${ev.revela.join(', ')}` : `${ev.name}: o grimório está vazio, nada é revelado`, pilhas_fim: ev => `\u2063${ev.target}: ${ev.mao.length ? ev.mao.join(', ') + ' para a mão' : 'nada para a mão'}; ${ev.cemiterio.length ? ev.cemiterio.join(', ') + ' para o cemitério' : 'nada para o cemitério'}` }); // T-83 · CR 700.3
@@ -34566,7 +34627,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const comandanteTxt = __m18.textoDoDanoDeComandante(s, p); // G-259 · relato #20: dano de comandante à vista
     const designacao = [s.monarca === p ? 'Monarca' : null, s.iniciativa === p ? 'Iniciativa' : null].filter(Boolean).join(' · ') || null; // M-332 · CR 725 / 726
     const life = LifeCounter({ name: pl.name + (pl.lost ? ' (fora)' : ''), life: pl.life, active: s.turn.active === p,
-      sub: [designacao, subMasm, veneno, energiaTxt, comandanteTxt].filter(Boolean).join(' · ') || null, onClick: () => openLife(p), id: mine ? 'tb-life-me' : 'tb-life-opp' });
+      sub: [designacao, subMasm, veneno, energiaTxt, pl.rad ? `Radiação ${pl.rad}` /* T-91 · CR 728.1 (Toca ponto comum: table.js, linha de vida) */ : null, comandanteTxt].filter(Boolean).join(' · ') || null, onClick: () => openLife(p), id: mine ? 'tb-life-me' : 'tb-life-opp' });
     // D6 · relance: sem nada em campo, uma linha só ("Campo vazio"); com uma das duas zonas vazia, ela vira uma linha fina
     // D6 · relance: "Terrenos" e "Permanentes" só quando há; com o campo vazio o lado é só a linha de vida e zonas
     const campoVazio = !others.length && !lands.length;
