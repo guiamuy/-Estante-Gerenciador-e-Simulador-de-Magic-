@@ -781,6 +781,7 @@ const __p2 = (function () {
     { id: 'eficiencia', rotulo: 'Eficiência', titulo: 'Eficiência', leva: 'R-5', pronta: true, traz: 'levas por dia e por semana por trilha, intervalo entre publicações, portão verde na primeira, duração do portão e retrabalho' },
     { id: 'roadmap', rotulo: 'Roadmap', titulo: 'Roadmap', leva: 'R-6', pronta: true, traz: 'histórias por status, por épico e por tema, % concluído por épico e o burn-up semanal' },
     { id: 'motor', rotulo: 'Motor', titulo: 'Motor de regras', leva: 'R-7', pronta: true, traz: 'versão, regras do mapa por status, listas que jogam por formato e a evolução' },
+    { id: 'jogo', rotulo: 'Jogo', titulo: 'Jogo e Shark', leva: 'R-18', pronta: true, traz: 'listas que jogam por formato em série, falhas e cartas culpadas, Shark até o fim e pior jogada por versão do motor' },
     { id: 'qualidade', rotulo: 'Qualidade', titulo: 'Qualidade', leva: 'R-8', pronta: true, traz: 'relatos abertos e fechados por semana, tempo até a correção, testes e instáveis, bugs por leva' },
     { id: 'curso', rotulo: 'Em curso', titulo: 'Trabalho em curso', leva: 'R-9', pronta: true, traz: 'cada conversa ativa, a história, as skills, a última atualização, dependências e estimativa' },
     { id: 'skills', rotulo: 'Skills', titulo: 'Skills e rotinas', leva: 'R-10', pronta: true, traz: 'o catálogo de skills, uso por leva e em uso agora; fluxos do GitHub e rotinas do Claude com última e próxima execução' },
@@ -1059,6 +1060,18 @@ const __p2 = (function () {
     return { motor: mapa && mapa.motor, cr: mapa && mapa.cr, auditoria: mapa && mapa.auditoria, total: itens.length, porStatus, aplicaveis, secoes: Object.values(secoes).sort((a, b) => a.secao - b.secao) };
   }
   /** Placares da telemetria → linhas normalizadas (data = em). */
+  /** R-18 · BI2-1 · Shark por versão do motor: partidas, até o fim (%), pior jogada e tempo médio, dos placares que têm Shark. */
+  function sharkPorVersao(placares) {
+    const por = new Map();
+    for (const p of placares || []) {
+      if (!p.shark_partidas) continue;
+      const v = por.get(p.motor) || { motor: p.motor, partidas: 0, ateFim: 0, falhas: 0, pior: 0, tempos: [] };
+      v.partidas += p.shark_partidas; v.ateFim += p.shark_ate_fim || 0; v.falhas += p.shark_falhas || 0; v.pior = Math.max(v.pior, p.pior_jogada_ms || 0);
+      if (p.tempo_medio_ms != null) v.tempos.push(p.tempo_medio_ms);
+      por.set(p.motor, v);
+    }
+    return [...por.values()].map(v => ({ ...v, pctFim: v.partidas ? Math.round(100 * v.ateFim / v.partidas) : null, tempoMedio: v.tempos.length ? Math.round(10 * v.tempos.reduce((a, b) => a + b, 0) / v.tempos.length) / 10 : null, tempos: undefined })).sort((a, b) => (a.motor || 0) - (b.motor || 0));
+  }
   const linhasDosPlacares = placares => (placares || []).map(p => ({ ...p, data: Date.parse(p.em || '') || null })).sort((a, b) => (a.data || 0) - (b.data || 0));
   Object.assign(LIMIARES, { mapaVersao: { verde: 1, amarelo: 0, unidade: 'igual', texto: 'auditoria do mapa na versão do motor em uso: igual · de outra versão' } });
 
@@ -1143,6 +1156,8 @@ const __p2 = (function () {
       return { modelo, levas: ls.length, tempoMediano: mediana(tempos), comPortao: comPortao.length, verdes, pctVerde: comPortao.length ? Math.round(100 * verdes / comPortao.length) : null, tokens, bugs: ls.reduce((n, l) => n + (l.bugs_achados || 0), 0) };
     }).sort((a, b) => b.levas - a.levas);
   }
+  // R-18 · BI2-1 · Jogo: falhas da prova (menos é melhor), Shark até o fim (% das partidas), pior jogada (ms; a homologacao mediu 2,6 s a 6,7 s em 13–14/10)
+  Object.assign(LIMIARES, { falhasProva: { verde: 0, amarelo: 2, unidade: 'listas com falha', texto: 'falhas na prova: 0 · até 2 · mais' }, sharkFim: { verde: 95, amarelo: 80, unidade: '% até o fim', texto: 'Shark × Shark até o fim: ≥ 95 % · ≥ 80 % · menos' }, piorJogada: { verde: 1000, amarelo: 3000, unidade: 'ms', texto: 'pior jogada do Shark: ≤ 1 s · ≤ 3 s · mais' } });
   Object.assign(LIMIARES, { plano: { verde: 80, amarelo: 95, unidade: '% do plano', texto: 'consumo do plano: < 80 % · < 95 % · 95 % ou mais' } });
   const FONTES = {
     plano: 'informado pelo dono no painel · banco /painel/<uid>/plano (regra só para o uid e o e-mail do dono), com cópia neste aparelho',
@@ -1161,7 +1176,7 @@ const __p2 = (function () {
     pages: 'API GitHub · actions/runs (fluxo "pages build and deployment")',
     levas: 'ramo telemetria · levas.jsonl (escrito pelas sessões)'
   };
-  return { SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, levasPorRodada, compactaCommits, MAIN_URL, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, linhasDosRelatos, linhasDasTrilhas, resumoDoFluxo, fraseDoCron, linhasDosFluxos, linhasDasRotinas, porModelo, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
+  return { SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, levasPorRodada, compactaCommits, MAIN_URL, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, sharkPorVersao, linhasDosRelatos, linhasDasTrilhas, resumoDoFluxo, fraseDoCron, linhasDosFluxos, linhasDasRotinas, porModelo, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
 })();
 
 /* ==== src/painel/ui.js ==== */
@@ -1414,6 +1429,51 @@ const __p4 = (function () {
             Barras({ id: 'pn-g-skills-agora', titulo: 'Skills atuando agora (levas em edição; toque filtra)', itens: skillsAgora, onBarra: v => api.filtra('skill', v), ativo: filtros.skill || null, vazio: levas.length ? 'nenhuma leva em edição' : 'pendente de telemetria' }),
             Barras({ id: 'pn-g-situacao-trilhas', titulo: 'Conversas por situação (toque filtra)', itens: valoresDe(rTr.linhas, 'situacaoEfetiva').map(v => ({ chave: v.valor, rotulo: v.valor, valor: v.n, tom: v.valor === 'parada' ? 'negative' : 'accent' })), onBarra: v => api.filtra('situacao', v === 'parada' ? 'parada' : v), ativo: filtros.situacao || null, vazio: 'pendente de telemetria' })),
           notas.length ? h('ul', { class: 'pn-notas ds-text ds-text--sm ds-text--muted', id: 'pn-notas' }, ...notas.map(n => h('li', {}, n))) : null
+        ];
+      }
+    },
+    // R-18 · BI2-1 (fatia 2) · Jogo: só o ramo telemetria (placares.jsonl); nenhum pedido à API além do main da faixa
+    jogo: {
+      filtros: ['periodo', 'formato', 'trilha'], periodoPadrao: 'tudo',
+      linhas: d => M.linhasDosPlacares(d.placares),
+      async carrega(fonte, forcar) {
+        const avisos = []; let placares = [];
+        let em = Date.now();
+        try { const r = await fonte.raw('telemetria', 'placares.jsonl', { ttl: 2 * 60000, forcar }); placares = lerJsonl(r.dado); em = r.em || em; if (r.semRede) avisos.push('placares lidos do que estava guardado (sem rede)'); } catch (e) { avisos.push('telemetria indisponível (ramo telemetria)'); }
+        return { em, placares, avisos, sem: {} };
+      },
+      desenha(d, filtros, api) {
+        const agora = Date.now();
+        const placares = M.linhasDosPlacares(d.placares);
+        const rPl = recorte(placares, { periodo: filtros.periodo || 'tudo', formato: filtros.formato, trilha: filtros.trilha }, agora);
+        const provas = rPl.linhas.filter(p => p.listas_total);
+        const ultimo = provas.length ? provas[provas.length - 1] : null;
+        const comShark = rPl.linhas.filter(p => p.shark_partidas);
+        const ultimoShark = comShark.length ? comShark[comShark.length - 1] : null;
+        const pctFim = ultimoShark ? Math.round(100 * (ultimoShark.shark_ate_fim || 0) / ultimoShark.shark_partidas) : null;
+        const recorteTxt = fraseDoRecorte({ ...filtros, periodo: filtros.periodo || 'tudo' });
+        if (!placares.length) return [Empty('Os placares chegam quando a prova de partida roda (`node catalogo.prova.mjs …` grava sozinha desde a R-17) ou quando uma conversa registra `node telemetria.mjs placar …`.', null, { icone: 'ampulheta', titulo: 'Pendente de telemetria', hero: true, id: 'pn-jogo-pendente' })];
+        const cartoes = h('div', { class: 'pn-cartoes' },
+          Cartao({ id: 'pn-k-jogam', rotulo: 'Listas que jogam', valor: ultimo ? ultimo.listas_jogam : '—', unidade: ultimo ? `de ${ultimo.listas_total} · ${ultimo.formato || '?'} · v${ultimo.motor}` : '', fonte: FONTES.placares, formula: 'último placar da prova no recorte · ' + recorteTxt, em: ultimo ? ultimo.data : null, semDados: !ultimo }),
+          Cartao({ id: 'pn-k-falhas-prova', rotulo: 'Listas com falha', valor: ultimo && ultimo.falhas != null ? ultimo.falhas : '—', unidade: ultimo && ultimo.falhas != null ? 'na partida' : '', farol: ultimo && ultimo.falhas != null ? farol(ultimo.falhas, LIMIARES.falhasProva) : 'cinza', limiar: LIMIARES.falhasProva, fonte: FONTES.placares, formula: 'falha na partida no último placar', em: ultimo ? ultimo.data : null, semDados: !(ultimo && ultimo.falhas != null) }),
+          Cartao({ id: 'pn-k-shark-fim', rotulo: 'Shark até o fim', valor: pctFim == null ? '—' : pctFim, unidade: pctFim == null ? '' : `% de ${ultimoShark.shark_partidas}`, farol: pctFim == null ? 'cinza' : farol(pctFim, LIMIARES.sharkFim), limiar: LIMIARES.sharkFim, fonte: FONTES.placares, formula: 'shark_ate_fim ÷ shark_partidas · último placar com Shark', em: ultimoShark ? ultimoShark.data : null, semDados: pctFim == null }),
+          Cartao({ id: 'pn-k-pior', rotulo: 'Pior jogada do Shark', valor: ultimoShark && ultimoShark.pior_jogada_ms != null ? (ultimoShark.pior_jogada_ms >= 1000 ? (Math.round(ultimoShark.pior_jogada_ms / 100) / 10).toLocaleString('pt-BR') : ultimoShark.pior_jogada_ms) : '—', unidade: ultimoShark && ultimoShark.pior_jogada_ms != null ? (ultimoShark.pior_jogada_ms >= 1000 ? 's' : 'ms') + (ultimoShark.tempo_medio_ms != null ? ` · média ${ultimoShark.tempo_medio_ms} ms por jogada` : '') : '', farol: ultimoShark && ultimoShark.pior_jogada_ms != null ? farol(ultimoShark.pior_jogada_ms, LIMIARES.piorJogada) : 'cinza', limiar: LIMIARES.piorJogada, fonte: FONTES.placares, formula: 'pior_jogada_ms · último placar com Shark', em: ultimoShark ? ultimoShark.data : null, semDados: !(ultimoShark && ultimoShark.pior_jogada_ms != null) }));
+        const serie = provas.map(p => ({ chave: p.formato || '?', rotulo: `${new Date(p.data).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} ${p.formato || ''} v${p.motor}`, valor: p.listas_jogam, dica: `${p.listas_jogam} de ${p.listas_total} · ${p.falhas || 0} falha(s)` }));
+        const comCulpadas = rPl.linhas.filter(p => p.culpadas && p.culpadas.length), ultCulp = comCulpadas.length ? comCulpadas[comCulpadas.length - 1] : null;
+        const culpadas = ultCulp ? ultCulp.culpadas.map(c => ({ chave: c.carta, rotulo: c.carta, valor: c.listas, tom: 'negative' })) : [];
+        const porVersao = M.sharkPorVersao(rPl.linhas).map(v => ({ chave: String(v.motor), rotulo: `v${v.motor} · ${v.partidas} partidas`, valor: v.pctFim, dica: `${v.ateFim} até o fim · ${v.falhas} falha(s) · pior ${v.pior} ms${v.tempoMedio != null ? ` · ${v.tempoMedio} ms por jogada` : ''}` }));
+        const notas = [];
+        if (rPl.naoAplica.length) notas.push(`o filtro ${rPl.naoAplica.join(', ')} não se aplica aos placares sem essa informação`);
+        if (!comShark.length) notas.push('nenhum placar com Shark × Shark no recorte: rode a prova com --shark');
+        notas.push('tabela de força do torneio do bot (taxa de vitória por adversário congelado): pendente de telemetria da trilha bot');
+        for (const a of d.avisos || []) notas.push(a);
+        return [
+          cartoes,
+          h('div', { class: 'pn-graficos' },
+            Barras({ id: 'pn-g-jogam', titulo: `Listas que jogam por placar · ${recorteTxt}`, itens: serie, onBarra: v => api.filtra('formato', v), ativo: filtros.formato || null, vazio: 'sem placar da prova neste recorte' }),
+            Barras({ id: 'pn-g-culpadas', titulo: ultCulp ? `Cartas nas falhas · ${ultCulp.formato || '?'} v${ultCulp.motor} · ${new Date(ultCulp.data).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} (listas)` : 'Cartas nas falhas (listas)', itens: culpadas, vazio: 'nenhum placar com cartas culpadas neste recorte' }),
+            Barras({ id: 'pn-g-shark-versao', titulo: 'Shark até o fim por versão do motor (%)', itens: porVersao, maximo: 100, formato: v => v + '%', vazio: 'sem placar com Shark' })),
+          h('ul', { class: 'pn-notas ds-text ds-text--sm ds-text--muted', id: 'pn-notas' }, ...notas.map(n => h('li', {}, n)))
         ];
       }
     },

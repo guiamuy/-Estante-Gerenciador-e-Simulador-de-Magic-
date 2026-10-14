@@ -11931,7 +11931,7 @@ test('e2e · R-2 Painel Estante: outro e-mail é recusado e desconectado; o dono
   assert.equal(await page.evaluate(() => [window.__revogados, localStorage.getItem('painel.sessao')].join('|')), '1|');
   assert.equal(await page.locator('#pn-entrar').innerText(), 'Trocar de conta');
   await auditaTela(page, 'painel recusado');
-  // o dono entra: casca, faixa com o main, oito sub-abas em breve, um pedido ao GitHub
+  // o dono entra: casca, faixa com o main, nove sub-abas (R-18 somou Jogo), um pedido ao main
   await page.evaluate(() => localStorage.setItem('__e2e_email', 'gui.amuy@gmail.com'));
   await page.click('#pn-entrar'); await page.waitForSelector('#pn-abas');
   await page.waitForFunction(() => /main: G-264/.test(document.querySelector('#pn-main')?.innerText || ''));
@@ -11941,8 +11941,8 @@ test('e2e · R-2 Painel Estante: outro e-mail é recusado e desconectado; o dono
   assert.match(await page.innerText('#pn-main'), /main: G-264 · há 2 h/);
   assert.equal(await page.getAttribute('#pn-carimbo', 'data-farol'), 'verde');
   assert.match(await page.innerText('#pn-cota'), /57 de 60/);
-  assert.equal(await page.locator('#pn-abas .ds-tab').count(), 8);
-  assert.deepEqual(await page.$$eval('#pn-abas .ds-tab', es => es.map(e => e.dataset.tab)), ['pipeline', 'eficiencia', 'roadmap', 'motor', 'qualidade', 'curso', 'skills', 'modelos']);
+  assert.equal(await page.locator('#pn-abas .ds-tab').count(), 9);
+  assert.deepEqual(await page.$$eval('#pn-abas .ds-tab', es => es.map(e => e.dataset.tab)), ['pipeline', 'eficiencia', 'roadmap', 'motor', 'jogo', 'qualidade', 'curso', 'skills', 'modelos']);
   await page.waitForSelector('#pn-visao-pipeline, #pn-sem-dados, #pn-em-breve');
   for (const id of ['#pn-atualizar', '#pn-sair', '#pn-tema', '#pn-voltar']) assert.ok((await page.locator(id).boundingBox()).height >= 44, id + ' com 44 px');
   // abrir outra sub-aba: dentro do prazo do cache não há pedido novo; o conteúdo diz a leva dela
@@ -12443,4 +12443,48 @@ test('e2e · M-405 · Galvanic Discharge: a mesa pergunta quanta energia pagar, 
   const fim = await page.evaluate(oid => { const s = window.__estanteMesa.estado(); return { zona: s.objects[oid].zone, energia: s.players[0].energia }; }, imp);
   assert.deepEqual(fim, { zona: 'graveyard', energia: 3 }, '2 de dano no Kitchen Imp 2/2; sobram 3 de energia');
   assert.deepEqual(M.errors, []);
+});
+
+/* ---------- R-18 · BI2-1 (fatia 2) · sub-aba Jogo ---------- */
+test('e2e · R-18 Painel · Jogo: sem placar fica "pendente de telemetria"; com placares mostra listas que jogam, falhas com farol, Shark até o fim e pior jogada, série por placar (toque filtra formato), cartas culpadas e Shark por versão; sem sobreposição nas quatro medidas e dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  const painel = base.replace('index.html', 'painel.html');
+  await page.setViewportSize({ width: 360, height: 780 });
+  const json = (r, corpo) => r.fulfill({ json: corpo, headers: { 'content-type': 'application/json', 'x-ratelimit-remaining': '50', 'x-ratelimit-limit': '60', 'access-control-expose-headers': 'etag, x-ratelimit-remaining, x-ratelimit-limit' } });
+  await page.route('https://api.github.com/**', r => json(r, /commits\?sha=main/.test(r.request().url()) ? [{ sha: 'abc1234def0', commit: { message: 'Leva M-390 · x', committer: { date: new Date().toISOString() } } }] : []));
+  const h = n => new Date(Date.now() - n * 3600000).toISOString();
+  let placares = '';
+  await page.route('https://raw.githubusercontent.com/**', r => r.fulfill({ body: /placares\.jsonl/.test(r.request().url()) ? placares : '', headers: { 'content-type': 'text/plain', 'access-control-allow-origin': '*' } }));
+  await page.addInitScript(() => {
+    const jwt = email => 'h.' + btoa(JSON.stringify({ email })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') + '.s';
+    window.__PAINEL_FETCH = async (url) => new Response(JSON.stringify(url.includes('securetoken') ? { user_id: 'uidE2E', id_token: jwt('gui.amuy@gmail.com'), refresh_token: 'ref-e2e', expires_in: '3600' } : { localId: 'uidE2E', idToken: jwt('gui.amuy@gmail.com'), refreshToken: 'ref-e2e', expiresIn: '3600' }), { headers: { 'content-type': 'application/json' } });
+    window.__PAINEL_GOOGLE = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+  });
+  // sem placar
+  await page.goto(painel + '#jogo'); await page.waitForSelector('#pn-entrar'); await page.click('#pn-entrar');
+  await page.waitForSelector('#pn-jogo-pendente');
+  assert.match(await page.innerText('#pn-jogo-pendente'), /Pendente de telemetria/);
+  await auditaTela(page, 'jogo pendente');
+  // com placares: dois do pauper (v110 e v112, com Shark) e um do commander sem Shark
+  placares = [
+    `{"trilha":"homologacao","motor":110,"formato":"pauper","listas_total":325,"listas_jogam":264,"falhas":3,"shark_partidas":50,"shark_ate_fim":40,"shark_falhas":2,"pior_jogada_ms":700,"tempo_medio_ms":5,"em":"${h(30)}"}`,
+    `{"trilha":"homologacao","motor":112,"formato":"pauper","listas_total":355,"listas_jogam":300,"falhas":0,"cobertura_incompleta":52,"shark_partidas":300,"shark_ate_fim":298,"shark_falhas":0,"pior_jogada_ms":3300,"tempo_medio_ms":6.8,"turnos_medios":21,"culpadas":[{"carta":"Darval, Whose Web Protects","listas":3},{"carta":"Skyward Spider","listas":2}],"em":"${h(2)}"}`,
+    `{"trilha":"homologacao","motor":112,"formato":"commander","listas_total":40,"listas_jogam":12,"falhas":1,"em":"${h(1)}"}`].join('\n') + '\n';
+  await page.click('#pn-atualizar'); await page.waitForSelector('#pn-k-jogam');
+  assert.match(await page.innerText('#pn-k-jogam'), /12[\s\S]*de 40 · commander · v112/);
+  assert.match(await page.innerText('#pn-k-falhas-prova'), /1[\s\S]*na partida/); assert.equal(await page.getAttribute('#pn-k-falhas-prova .pn-farol', 'data-farol'), 'amarelo');
+  assert.match(await page.innerText('#pn-k-shark-fim'), /99[\s\S]*% de 300/); assert.equal(await page.getAttribute('#pn-k-shark-fim .pn-farol', 'data-farol'), 'verde');
+  assert.match(await page.innerText('#pn-k-pior'), /3,3[\s\S]*s · média 6\.8 ms por jogada/); assert.equal(await page.getAttribute('#pn-k-pior .pn-farol', 'data-farol'), 'vermelho');
+  assert.match(await page.innerText('#pn-g-culpadas'), /Darval, Whose Web Protects[\s\S]*3[\s\S]*Skyward Spider[\s\S]*2/);
+  assert.match(await page.innerText('#pn-g-shark-versao'), /v110 · 50 partidas[\s\S]*80%[\s\S]*v112 · 300 partidas[\s\S]*99%/);
+  assert.match(await page.innerText('#pn-notas'), /torneio do bot[\s\S]*pendente/);
+  await auditaTela(page, 'jogo 360');
+  // toque na série filtra o formato: o último placar passa a ser o do pauper
+  await page.click('#pn-g-jogam button[data-valor="pauper"], #pn-g-jogam li[data-valor="pauper"] button');
+  await page.waitForFunction(() => location.hash.includes('formato=pauper'));
+  assert.match(await page.innerText('#pn-k-jogam'), /300[\s\S]*de 355 · pauper · v112/);
+  assert.equal(await page.getAttribute('#pn-k-falhas-prova .pn-farol', 'data-farol'), 'verde');
+  await emTodasAsMedidas(page, 'jogo filtrado');
+  if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.screenshot({ path: process.env.SHOTS + '/r18-jogo.png', fullPage: true }); }
+  assert.deepEqual(errors, []);
 });

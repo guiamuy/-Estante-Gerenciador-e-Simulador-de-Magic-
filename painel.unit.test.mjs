@@ -178,11 +178,11 @@ test('R-2 · fonte sem rede ou com a cota esgotada devolve o que havia guardado 
 });
 
 /* ---------- modelo puro ---------- */
-test('R-2 · modelo: oito sub-abas na ordem das fatias (Pipeline antes da Eficiência), todas com a leva e o que trazem; prontas: Pipeline (R-4), Eficiência (R-5), Roadmap (R-6), Motor (R-7), Qualidade (R-8), Em curso (R-9), Skills (R-10) e Modelos (R-11): todas', () => {
+test('R-2/R-18 · modelo: nove sub-abas na ordem das fatias (Pipeline antes da Eficiência; Jogo depois do Motor), todas com a leva e o que trazem; prontas: Pipeline (R-4), Eficiência (R-5), Roadmap (R-6), Motor (R-7), Jogo (R-18), Qualidade (R-8), Em curso (R-9), Skills (R-10) e Modelos (R-11): todas', () => {
   const { modelo, app } = loadPainel();
-  assert.deepEqual(modelo.SUBABAS.map(a => a.id), ['pipeline', 'eficiencia', 'roadmap', 'motor', 'qualidade', 'curso', 'skills', 'modelos']);
+  assert.deepEqual(modelo.SUBABAS.map(a => a.id), ['pipeline', 'eficiencia', 'roadmap', 'motor', 'jogo', 'qualidade', 'curso', 'skills', 'modelos']);
   for (const a of modelo.SUBABAS) { assert.match(a.leva, /^R-\d+$/); assert.ok(a.traz.length > 20); assert.equal(!!a.pronta, true, a.id + ' pronta'); assert.equal(!!app.VISOES[a.id], !!a.pronta, 'toda sub-aba pronta tem a visão que a desenha'); }
-  assert.deepEqual(modelo.SUBABAS.map(a => a.leva), ['R-4', 'R-5', 'R-6', 'R-7', 'R-8', 'R-9', 'R-10', 'R-11']);
+  assert.deepEqual(modelo.SUBABAS.map(a => a.leva), ['R-4', 'R-5', 'R-6', 'R-7', 'R-18', 'R-8', 'R-9', 'R-10', 'R-11']);
 });
 
 test('R-2 · modelo: carimbo dos dados, idade e farol com limiar declarado', () => {
@@ -585,4 +585,21 @@ test('R-16 · levasPorRodada: cada rodada verde leva os commits do main com cari
   assert.deepEqual(compacto, [{ sha: 'x', commit: { message: 'Leva M-1 · a', committer: { date: 'd1' }, author: { date: 'd0' } } }]);
   assert.deepEqual(modelo.compactaCommits(null), []);
   assert.equal(modelo.MAIN_URL, '/commits?sha=main&per_page=100');
+});
+
+test('R-18 · sharkPorVersao: soma partidas, até o fim e falhas por versão do motor, pior jogada é o máximo, tempo médio é a média dos placares; placar sem Shark não entra; ordem pela versão', () => {
+  const { modelo } = loadPainel();
+  const r = modelo.sharkPorVersao([
+    { motor: 112, shark_partidas: 100, shark_ate_fim: 98, shark_falhas: 0, pior_jogada_ms: 3300, tempo_medio_ms: 6 },
+    { motor: 110, shark_partidas: 50, shark_ate_fim: 40, shark_falhas: 2, pior_jogada_ms: 700, tempo_medio_ms: 5 },
+    { motor: 112, shark_partidas: 200, shark_ate_fim: 199, shark_falhas: 1, pior_jogada_ms: 4200, tempo_medio_ms: 8 },
+    { motor: 112, listas_jogam: 300, listas_total: 355 }]);
+  assert.deepEqual(r, [
+    { motor: 110, partidas: 50, ateFim: 40, falhas: 2, pior: 700, pctFim: 80, tempoMedio: 5, tempos: undefined },
+    { motor: 112, partidas: 300, ateFim: 297, falhas: 1, pior: 4200, pctFim: 99, tempoMedio: 7, tempos: undefined }]);
+  assert.deepEqual(modelo.sharkPorVersao([]), []);
+  assert.deepEqual(modelo.LIMIARES.falhasProva, { verde: 0, amarelo: 2, unidade: 'listas com falha', texto: 'falhas na prova: 0 · até 2 · mais' });
+  assert.equal(modelo.farol(0, modelo.LIMIARES.falhasProva), 'verde'); assert.equal(modelo.farol(3, modelo.LIMIARES.falhasProva), 'vermelho');
+  assert.equal(modelo.farol(96, modelo.LIMIARES.sharkFim), 'verde'); assert.equal(modelo.farol(79, modelo.LIMIARES.sharkFim), 'vermelho');
+  assert.equal(modelo.farol(3300, modelo.LIMIARES.piorJogada), 'vermelho'); assert.equal(modelo.farol(900, modelo.LIMIARES.piorJogada), 'verde');
 });
