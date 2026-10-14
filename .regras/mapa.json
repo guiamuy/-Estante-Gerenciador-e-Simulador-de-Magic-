@@ -23,12 +23,16 @@
    "n": "100.3",
    "regra": "General",
    "titulo": "Moedas e dados",
-   "status": "ausente",
-   "falta": "Não há cara ou coroa nem rolagem de dado no motor (nenhum efeito no vocabulário EFFECTS).",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "705",
     "706"
+   ],
+   "evidencia": "T-98 (conferência do mapa, 14/10/2026): moeda (705, T-65) e dado (706, T-66) existem no vocabulário (efeitos `moeda` e `dado`); a semente da partida decide (tipos.moeda.unit, tipos.dado.unit)",
+   "testes": [
+    "CR 705.1 / 705.2 · sem resultado forçado, o lance sai do acaso da partida: a mesma semente dá o mesmo resultado; sementes diferentes dão os dois",
+    "CR 706.1 / 706.4 · rolar um d6 sem tabela: o resultado (1 a 6) diz quanto se ganha; sai da semente da partida"
    ]
   },
   {
@@ -482,14 +486,17 @@
    "n": "107.8",
    "regra": "Numbers and Symbols",
    "titulo": "Símbolos de nível (leveler)",
-   "status": "ausente",
-   "falta": "Sem marcadores de nível nem faixas de habilidade/P&R.",
+   "status": "coberta",
    "esforco": "M",
    "depende": [
     "711",
     "613"
    ],
-   "cartas": "rara (Rise of the Eldrazi)"
+   "cartas": "rara (Rise of the Eldrazi)",
+   "evidencia": "T-98 (conferência do mapa, 14/10/2026): nivelar (711, T-42): marcadores de nível e barras com P/R e habilidades (tipos.nivelar.unit)",
+   "testes": [
+    "CR 711.2a / 711.2b · Beastbreaker of Bala Ged (texto oficial): nível 1 a 3 é 4/4; nível 4 ou mais é 6/6 com atropelar"
+   ]
   },
   {
    "n": "107.9",
@@ -554,13 +561,16 @@
    "n": "107.16",
    "regra": "Numbers and Symbols",
    "titulo": "Barras de nível de Classe",
-   "status": "ausente",
-   "falta": "Sem nível de Classe.",
+   "status": "coberta",
    "esforco": "M",
    "depende": [
     "716"
    ],
-   "cartas": "rara"
+   "cartas": "rara",
+   "evidencia": "T-98 (conferência do mapa, 14/10/2026): barras de nível de Classe (716, T-12 e seguintes) (tipos.classes.unit)",
+   "testes": [
+    "CR 716.2a · subir de nível: só a barra seguinte (nível atual + 1), pelo custo dela, e só como feitiço — fora disso não é oferecida e o pedido é recusado"
+   ]
   },
   {
    "n": "107.17",
@@ -1122,12 +1132,14 @@
    "n": "115.4",
    "regra": "Targets",
    "titulo": "\"Qualquer alvo\" em dano",
-   "status": "parcial",
-   "evidencia": "alvo \"any\" = criatura, planeswalker ou jogador (index.html:10931, 11001)",
-   "falta": "Batalha não é alvo de \"any target\" (batalhas não têm defesa no motor).",
+   "status": "coberta",
+   "evidencia": "alvo \"any\" = criatura, planeswalker ou jogador (index.html:10931, 11001) · T-98 (conferência do mapa, 14/10/2026): batalha tem defesa e é alvo de \"any target\" (310, trilha tipos) (tipos.batalhas.unit)",
    "esforco": "P",
    "depende": [
     "310"
+   ],
+   "testes": [
+    "CR 115.4 / 120.1 / 120.3h · \"qualquer alvo\" inclui a batalha e o dano fora de combate tira defesa; \"criatura alvo\" não a inclui"
    ]
   },
   {
@@ -1536,12 +1548,15 @@
    "n": "120.1",
    "regra": "Damage",
    "titulo": "Quem pode receber dano",
-   "status": "parcial",
-   "evidencia": "o efeito damage só aceita criatura, planeswalker ou jogador (EFFECTS.damage index.html:4376; legalTargets index.html:10926-10937, 11001)",
-   "falta": "Batalha não recebe dano (sem marcadores de defesa).",
+   "status": "coberta",
+   "evidencia": "o efeito damage só aceita criatura, planeswalker ou jogador (EFFECTS.damage index.html:4376; legalTargets index.html:10926-10937, 11001) · T-98 (conferência do mapa, 14/10/2026): batalha recebe dano, de combate e fora dele (310.6) (tipos.batalhas.unit)",
    "esforco": "P",
    "depende": [
     "310"
+   ],
+   "testes": [
+    "CR 115.4 / 120.1 / 120.3h · \"qualquer alvo\" inclui a batalha e o dano fora de combate tira defesa; \"criatura alvo\" não a inclui",
+    "CR 310.6 / 120.3h / 510.1b · o dano de combate à batalha tira marcadores de defesa; o vínculo com a vida conta; nenhum jogador recebe o dano"
    ]
   },
   {
@@ -1556,8 +1571,8 @@
    "regra": "Damage",
    "titulo": "Resultados do dano",
    "status": "parcial",
-   "evidencia": "a) jogador perde vida (index.html:10806, 11125); c) planeswalker perde lealdade por dano de efeito (index.html:11123; rules.unit \"S21 · … dano tira lealdade\"); e) dano marcado (index.html:10804, 11124); f) vínculo com a vida no combate e fora (index.html:10809, 11558; combat.audit K4) · M-228 (v95): cada atacante ataca o jogador ou um planeswalker dele (ação attack com alvos; o.atacandoPw); dano de combate sem bloqueio vai para o planeswalker e tira lealdade (criatura-planeswalker também marca dano); planeswalker que saiu não recebe nada; exigência \"ataca X se puder\" (Gideon +2) · M-253/M-254 (v96): 120.3b infectar em jogador vira veneno; 120.3d infectar em criatura vira −1/−1; 120.3g tóxico dá veneno (combat.audit K12c, veneno.unit). · M-291 (CR2a.9): toque mortífero e infectar de habilidade são os da fonte; 120.3b infectar (M-254)",
-   "falta": "d definhar; e dano de efeito em planeswalker-criatura só tira lealdade; h batalha",
+   "evidencia": "a) jogador perde vida (index.html:10806, 11125); c) planeswalker perde lealdade por dano de efeito (index.html:11123; rules.unit \"S21 · … dano tira lealdade\"); e) dano marcado (index.html:10804, 11124); f) vínculo com a vida no combate e fora (index.html:10809, 11558; combat.audit K4) · M-228 (v95): cada atacante ataca o jogador ou um planeswalker dele (ação attack com alvos; o.atacandoPw); dano de combate sem bloqueio vai para o planeswalker e tira lealdade (criatura-planeswalker também marca dano); planeswalker que saiu não recebe nada; exigência \"ataca X se puder\" (Gideon +2) · M-253/M-254 (v96): 120.3b infectar em jogador vira veneno; 120.3d infectar em criatura vira −1/−1; 120.3g tóxico dá veneno (combat.audit K12c, veneno.unit). · M-291 (CR2a.9): toque mortífero e infectar de habilidade são os da fonte; 120.3b infectar (M-254) · T-98 (conferência do mapa, 14/10/2026): 120.3h — o dano à batalha tira marcadores de defesa (310.6)",
+   "falta": "d definhar; e dano de efeito em planeswalker-criatura só tira lealdade",
    "esforco": "M",
    "depende": [
     "122.1f",
@@ -1569,7 +1584,8 @@
     "CR 704.5 · Mishra\\",
     "CR 702.2 · toque mortífero concedido à fonte de uma habilidade de dano destrói (pinger com colar); com infectar também destrói",
     "CR 704.5 · o toque mortífero vale só desde a última checagem: o indestrutível que perde a indestrutibilidade depois não morre",
-    "CR 400.7 · o que a resolução anotou na carta não acompanha o objeto novo: o lampejo do Prismatic Strands pede a cor de novo; a segunda Call of the Death-Dweller sem alvo não mexe na criatura da primeira"
+    "CR 400.7 · o que a resolução anotou na carta não acompanha o objeto novo: o lampejo do Prismatic Strands pede a cor de novo; a segunda Call of the Death-Dweller sem alvo não mexe na criatura da primeira",
+    "CR 310.6 / 120.3h / 510.1b · o dano de combate à batalha tira marcadores de defesa; o vínculo com a vida conta; nenhum jogador recebe o dano"
    ]
   },
   {
@@ -2005,15 +2021,17 @@
    "regra": "Mana Cost and Color",
    "titulo": "Valor de mana",
    "status": "parcial",
-   "evidencia": "f.cmc vem do dado (index.html:10054) e é usado em alvos e buscas (index.html:11053, 11206); teste \"S17 · ... Spell Snare só pega valor 2\" · teste de conformidade em cr.conformidade (leva CR1a)",
-   "falta": "202.3b: a face de trás nasce com valor 0 em vez do valor da frente. 202.3d (cartas divididas) não existe. 202.3e cumprida para filtros de alvo; contagens que leem valor de mana fora de alvo ainda usam o valor impresso.",
+   "evidencia": "f.cmc vem do dado (index.html:10054) e é usado em alvos e buscas (index.html:11053, 11206); teste \"S17 · ... Spell Snare só pega valor 2\" · teste de conformidade em cr.conformidade (leva CR1a) · T-98 (conferência do mapa, 14/10/2026): 202.3b — a face de trás de uma dupla face não modal vale o custo da frente (712.8e, T-69); 202.3d — a carta dividida fora da pilha vale o custo somado (709.4, trilha tipos)",
+   "falta": "202.3c (meld) não existe. 202.3e cumprida para filtros de alvo; contagens que leem valor de mana fora de alvo ainda usam o valor impresso.",
    "esforco": "P",
    "depende": [
     "709",
     "712"
    ],
    "testes": [
-    "CR 202.3 · o X pago conta no valor de mana da mágica na pilha: Spell Snare (valor 2) mira {X}{G} com X=1 e não com X=2"
+    "CR 202.3 · o X pago conta no valor de mana da mágica na pilha: Spell Snare (valor 2) mira {X}{G} com X=1 e não com X=2",
+    "CR 712.8e / 202.3b · a permanente que copia o verso de uma dupla face tem valor de mana 0: o Clone de Insectile Aberration é alvo de \"valor de mana 0\"",
+    "CR 709.4 · 709.4b–c · 709.2 · fora da pilha a carta tem as duas metades: os dois tipos, o custo somado, a cor e o valor de mana desse custo; é uma carta só"
    ]
   },
   {
@@ -2220,11 +2238,14 @@
    "n": "210.1",
    "regra": "Defense",
    "titulo": "Defesa de batalha",
-   "status": "ausente",
-   "falta": "sonda: batalha de teste (defense 4) entra no campo sem marcador nenhum; cardFacts não lê defense.",
+   "status": "coberta",
    "esforco": "M",
    "depende": [
     "310"
+   ],
+   "evidencia": "T-98 (conferência do mapa, 14/10/2026): a batalha entra com marcadores de defesa iguais à defesa impressa (310.4b–c) (tipos.batalhas.unit)",
+   "testes": [
+    "CR 310.4b / 310.4c · a batalha entra com marcadores de defesa iguais à defesa impressa (do dado da carta; sem o dado, da defesa do script) e a defesa no campo é o número de marcadores"
    ]
   },
   {
@@ -3741,14 +3762,17 @@
    "n": "502.2",
    "regra": "Untap Step",
    "titulo": "Dia e noite no passo de desvirar",
-   "status": "ausente",
-   "falta": "Não existe dia/noite (daybound/nightbound); s.spellsThisTurn é zerado na limpeza (10719) mas não é consultado para isso. 502.2a é de equipes (fora).",
+   "status": "coberta",
    "esforco": "M",
    "depende": [
     "731",
     "712 (dupla face)"
    ],
-   "cartas": "comum (Innistrad)"
+   "cartas": "comum (Innistrad)",
+   "evidencia": "T-98 (conferência do mapa, 14/10/2026): dia e noite no passo de desvirar (731.2, T-48) (tipos.dianoite.unit)",
+   "testes": [
+    "CR 731.2a / 502.2 / 702.145b · de dia, o jogador ativo que não conjura nada no turno dele faz virar noite no desvirar seguinte; Tavern Ruffian transforma em Tavern Smasher 6/5"
+   ]
   },
   {
    "n": "502.3",
@@ -3834,13 +3858,16 @@
    "n": "505.4",
    "regra": "Main Phase",
    "titulo": "Marcador de conhecimento nas Sagas",
-   "status": "ausente",
-   "falta": "Não há Sagas: nada acontece ao entrar em main1 (enterStep, 10680-10713, não tem ramo para main1) e não existe marcador de conhecimento nem habilidade de capítulo.",
+   "status": "coberta",
    "esforco": "M",
    "depende": [
     "714"
    ],
-   "cartas": "comum"
+   "cartas": "comum",
+   "evidencia": "T-98 (conferência do mapa, 14/10/2026): marcador de lore no começo da fase principal pré-combate (714.3c, T-1) (tipos.sagas.unit)",
+   "testes": [
+    "CR 714.3c · no começo da fase principal pré-combate o jogador ativo põe um marcador em cada Saga sua, sem pilha e antes da prioridade; a conjurada na principal só ganha no turno seguinte"
+   ]
   },
   {
    "n": "505.5",
@@ -3886,14 +3913,17 @@
    "n": "506.2",
    "regra": "Combat Phase",
    "titulo": "Atacante, defensor e o que pode ser atacado",
-   "status": "parcial",
-   "evidencia": "s.combat = { attackers, defender: nextAlive(ativo) } (index.html:10696); só o ativo declara (pending attackers p = ativo); sonda p5/t2.mjs C1",
-   "falta": "Só o jogador pode ser atacado: planeswalker do defensor não é atacável (sonda t3.mjs W1: as opções não têm alvo e attacking = 1, o jogador) e batalhas não existem. 506.2a/b são de mesa com três ou mais e de equipes.",
+   "status": "coberta",
+   "evidencia": "s.combat = { attackers, defender: nextAlive(ativo) } (index.html:10696); só o ativo declara (pending attackers p = ativo); sonda p5/t2.mjs C1 · T-98 (conferência do mapa, 14/10/2026): planeswalker atacável (M-228) e batalha atacável por quem tem o protetor como jogador defensor (310.5, trilha tipos); 506.2a/b são de mesa com três ou mais e de equipes (fora)",
    "esforco": "M",
    "depende": [
     "508.1b",
     "306.6",
     "310"
+   ],
+   "testes": [
+    "M-228 · atacar planeswalker: a criatura escolhe atacar o planeswalker do oponente; o dano de combate sem bloqueio tira lealdade, não vida",
+    "CR 310.5 / 310.9b / 508.1b · a batalha pode ser atacada por quem tem o protetor como jogador defensor (o Cerco, pelo próprio controlador); o protetor nunca a ataca e o pedido é recusado"
    ]
   },
   {
@@ -3901,12 +3931,15 @@
    "regra": "Combat Phase",
    "titulo": "Só criatura ataca ou bloqueia; o que pode ser atacado",
    "status": "parcial",
-   "evidencia": "eligibleAttackers/eligibleBlockers filtram isCreature (index.html:10752-10759); ninjutsu/esgueirar-se põem criatura em campo atacando e não bloqueada (506.3d): sonda p5/t3.mjs N1; rules.unit 'S18 · ninjutsu...' e 'S54 · esgueirar-se' · M-228 (v95): cada atacante ataca o jogador ou um planeswalker dele (ação attack com alvos; o.atacandoPw); dano de combate sem bloqueio vai para o planeswalker e tira lealdade (criatura-planeswalker também marca dano); planeswalker que saiu não recebe nada; exigência \"ataca X se puder\" (Gideon +2)",
-   "falta": "Planeswalker pode ser atacado (M-228); batalha não. 506.3a/b/c/e/f/g (entrar atacando sob outro controlador, entrar bloqueando, batalha-criatura) não têm caminho no motor: só ninjutsu/esgueirar-se entram atacando.",
+   "evidencia": "eligibleAttackers/eligibleBlockers filtram isCreature (index.html:10752-10759); ninjutsu/esgueirar-se põem criatura em campo atacando e não bloqueada (506.3d): sonda p5/t3.mjs N1; rules.unit 'S18 · ninjutsu...' e 'S54 · esgueirar-se' · M-228 (v95): cada atacante ataca o jogador ou um planeswalker dele (ação attack com alvos; o.atacandoPw); dano de combate sem bloqueio vai para o planeswalker e tira lealdade (criatura-planeswalker também marca dano); planeswalker que saiu não recebe nada; exigência \"ataca X se puder\" (Gideon +2) · T-98 (conferência do mapa, 14/10/2026): a batalha pode ser atacada (310.5)",
+   "falta": "506.3a/b/c/e/f/g (entrar atacando sob outro controlador, entrar bloqueando, batalha-criatura) não têm caminho no motor: só ninjutsu/esgueirar-se entram atacando.",
    "esforco": "M",
    "depende": [
     "508.1b",
     "509.4"
+   ],
+   "testes": [
+    "CR 310.5 / 310.9b / 508.1b · a batalha pode ser atacada por quem tem o protetor como jogador defensor (o Cerco, pelo próprio controlador); o protetor nunca a ataca e o pedido é recusado"
    ]
   },
   {
@@ -3969,14 +4002,17 @@
    "regra": "Declare Attackers Step",
    "titulo": "Declaração de atacantes",
    "status": "parcial",
-   "evidencia": "ação attack (index.html:12331-12343) + eligibleAttackers (10752): desvirada, sem enjoo ou com ímpeto, defensor não ataca, provocada precisa atacar (mustAttack 10748), vira quem não tem vigilância, não usa a pilha, declaração ilegal é recusada sem mudar o estado; sonda p5/t2.mjs C1/C7/C8; rules.unit 'M6 · quem pode atacar...' e 'S59 · provocada ataca se puder'; combat.audit K5, K6, K9 · M-228 (v95): cada atacante ataca o jogador ou um planeswalker dele (ação attack com alvos; o.atacandoPw); dano de combate sem bloqueio vai para o planeswalker e tira lealdade (criatura-planeswalker também marca dano); planeswalker que saiu não recebe nada; exigência \"ataca X se puder\" (Gideon +2)",
-   "falta": "508.1b: escolhe jogador ou planeswalker por atacante (M-228); batalha não; a tela aplica um alvo ao grupo escolhido. 508.1c: só defensor e \"não pode atacar até o próximo turno\" como restrição; nada de \"não pode atacar sozinha\" ou \"a menos que\". 508.1d: só provocar, sem o cálculo de máximo de exigências. 508.1e bandos: ausente. 508.1g-j: custo para atacar (Propaganda, Ghostly Prison) ausente. 508.1a: enjoo só é marcado em quem entra como criatura (10275), então permanente que vira criatura no turno em que entrou atacaria (não alcançável hoje: não há efeito de animar).",
+   "evidencia": "ação attack (index.html:12331-12343) + eligibleAttackers (10752): desvirada, sem enjoo ou com ímpeto, defensor não ataca, provocada precisa atacar (mustAttack 10748), vira quem não tem vigilância, não usa a pilha, declaração ilegal é recusada sem mudar o estado; sonda p5/t2.mjs C1/C7/C8; rules.unit 'M6 · quem pode atacar...' e 'S59 · provocada ataca se puder'; combat.audit K5, K6, K9 · M-228 (v95): cada atacante ataca o jogador ou um planeswalker dele (ação attack com alvos; o.atacandoPw); dano de combate sem bloqueio vai para o planeswalker e tira lealdade (criatura-planeswalker também marca dano); planeswalker que saiu não recebe nada; exigência \"ataca X se puder\" (Gideon +2) · T-98 (conferência do mapa, 14/10/2026): 508.1b — também a batalha, por quem tem o protetor como jogador defensor (310.5)",
+   "falta": "508.1b: a tela aplica um alvo ao grupo escolhido. 508.1c: só defensor e \"não pode atacar até o próximo turno\" como restrição; nada de \"não pode atacar sozinha\" ou \"a menos que\". 508.1d: só provocar, sem o cálculo de máximo de exigências. 508.1e bandos: ausente. 508.1g-j: custo para atacar (Propaganda, Ghostly Prison) ausente. 508.1a: enjoo só é marcado em quem entra como criatura (10275), então permanente que vira criatura no turno em que entrou atacaria (não alcançável hoje: não há efeito de animar).",
    "esforco": "M",
    "depende": [
     "506.2",
     "613"
    ],
-   "cartas": "evergreen"
+   "cartas": "evergreen",
+   "testes": [
+    "CR 310.5 / 310.9b / 508.1b · a batalha pode ser atacada por quem tem o protetor como jogador defensor (o Cerco, pelo próprio controlador); o protetor nunca a ataca e o pedido é recusado"
+   ]
   },
   {
    "n": "508.2",
@@ -4107,15 +4143,16 @@
    "regra": "Combat Damage Step",
    "titulo": "Atribuição do dano de combate",
    "status": "parcial",
-   "evidencia": "dealCombatDamage (index.html:10770-10798): dano = poder, 0 ou menos não atribui (10781), não bloqueada → jogador, bloqueada sem bloqueador → nada, bloqueador → o atacante que bloqueia; sonda p5/t2.mjs C4 (5/5 x 3/3+2/2), C6, C7 (poder 0); combat.audit K13, K14; rules.unit 'A16 · prévia do ataque...' · M-285 (CR2g.2): com dois ou mais bloqueadores, quem ataca escolhe a divisão na mesa (decisão dividir_dano): matar os bloqueadores numa ordem ou pôr tudo num só; a escolha vale para cada passo de dano",
-   "falta": "divisões que não mudam quem morre (ex.: 2 e 2 em dois 3/3) não são oferecidas; 510.1d (bloqueador de várias atacantes) e batalha ficam de fora",
+   "evidencia": "dealCombatDamage (index.html:10770-10798): dano = poder, 0 ou menos não atribui (10781), não bloqueada → jogador, bloqueada sem bloqueador → nada, bloqueador → o atacante que bloqueia; sonda p5/t2.mjs C4 (5/5 x 3/3+2/2), C6, C7 (poder 0); combat.audit K13, K14; rules.unit 'A16 · prévia do ataque...' · M-285 (CR2g.2): com dois ou mais bloqueadores, quem ataca escolhe a divisão na mesa (decisão dividir_dano): matar os bloqueadores numa ordem ou pôr tudo num só; a escolha vale para cada passo de dano · T-98 (conferência do mapa, 14/10/2026): 510.1b — a criatura que ataca uma batalha causa dano a ela (310.6)",
+   "falta": "divisões que não mudam quem morre (ex.: 2 e 2 em dois 3/3) não são oferecidas; 510.1d (bloqueador de várias atacantes) fica de fora",
    "esforco": "M",
    "depende": [
     "702.19 (atropelar)"
    ],
    "cartas": "evergreen",
    "testes": [
-    "CR2g.2 · 510.1c: com dois bloqueadores, quem ataca escolhe a divisão — matar o Masked Vandal em vez do Valakut Invoker"
+    "CR2g.2 · 510.1c: com dois bloqueadores, quem ataca escolhe a divisão — matar o Masked Vandal em vez do Valakut Invoker",
+    "CR 310.6 / 120.3h / 510.1b · o dano de combate à batalha tira marcadores de defesa; o vínculo com a vida conta; nenhum jogador recebe o dano"
    ]
   },
   {
