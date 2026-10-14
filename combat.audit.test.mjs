@@ -1031,6 +1031,24 @@ test('T-49 · metal vivo (702.161): no turno de quem controla o Veículo é cria
   assert.equal(E.isCreature(s2, s2.objects[c]), false, 'no turno do oponente, não é criatura (logo não bloqueia: 509.1a)');
 });
 
+test('T-100 · dobra de fogo (702.189a): ao atacar, N {R} que atravessam os passos do combate e somem ao sair dele', () => {
+  cobre('firebending');
+  const cartas = { ...CARDS, Sabio: cre('Sabio', 2, 2, ['Firebending'], { oracle_text: 'Firebending 2 (Whenever this creature attacks, add {R}{R}. This mana lasts until end of combat.)' }) };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  let s = E.createGame({ format: 'livre', seed: 93, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  const a = s.turn.active, d = 1 - a; let f; [s, f] = poe(s, a, 'Sabio');
+  s = passaAte(s, 'combat_attackers'); s = act(s, { t: 'attack', p: a, attackers: [f] });
+  const visto = {};
+  for (let i = 0; i < 60 && s.turn.step !== 'main2'; i++) {
+    if (s.pending && s.pending.kind === 'blockers') { s = act(s, { t: 'block', p: d, blocks: [] }); continue; }
+    if (s.pending) break;
+    if (!s.stack.length) visto[s.turn.step] = s.players[a].pool.R;
+    s = act(s, { t: 'pass', p: s.turn.priority });
+  }
+  assert.deepEqual([visto.combat_damage, visto.combat_end, s.turn.step, s.players[a].pool.R, s.players[d].life], [2, 2, 'main2', 0, 18], 'a mana fica no dano e no fim do combate; na principal 2 sumiu');
+});
+
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));

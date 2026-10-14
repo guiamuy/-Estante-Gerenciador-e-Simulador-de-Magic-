@@ -3636,12 +3636,16 @@
    "regra": "General",
    "titulo": "Efeitos de fim de passo expiram e a mana esvazia",
    "status": "parcial",
-   "evidencia": "emptyPools no começo de todo enterStep (index.html:10681); rules.unit 'M7 · reserva de mana esvazia ao trocar de passo'; sonda p5/t1.mjs: {G} na reserva em main1 some ao entrar em combat_begin",
-   "falta": "A mana esvazia (2ª frase), mas não existe duração \"até o fim do combate\" (500.5a) nem \"até o fim deste passo/fase\"; só \"até o fim do turno\" (500.5b → 514.2). Efeitos que impedem a mana de esvaziar também não existem.",
+   "evidencia": "emptyPools no começo de todo enterStep (index.html:10681); rules.unit 'M7 · reserva de mana esvazia ao trocar de passo'; sonda p5/t1.mjs: {G} na reserva em main1 some ao entrar em combat_begin · T-100 (14/10/2026): 500.5a \"até o fim do combate\" (duração 'fim-do-combate', Murk Dwellers) e mana que não esvazia entre os passos do combate (dobra de fogo, 702.189a)",
+   "falta": "\"até o fim deste passo/fase\" não existe.",
    "esforco": "M",
    "depende": [
     "611",
     "511.2"
+   ],
+   "testes": [
+    "CR 500.5a / 511.3 · Murk Dwellers (texto oficial): +2/+0 até o fim do combate — dá o dano e acaba ao sair do combate",
+    "CR 702.189a · Fire Sages (texto oficial), dobra de fogo 1: ao atacar, {R}; a mana atravessa os passos do combate e some na fase principal 2"
    ]
   },
   {
@@ -4206,16 +4210,17 @@
    "n": "511.2",
    "regra": "End of Combat Step",
    "titulo": "Gatilhos de fim de combate; \"até o fim do combate\"",
-   "status": "parcial",
-   "evidencia": "enterStep enfileira 'end-of-combat' ao entrar no passo (index.html:10690); sonda p5/t3.mjs G1; rules.unit 'S25 · transforma no fim do combate com três atacantes' · teste de conformidade em cr.conformidade (leva CR1a)",
-   "falta": "efeito \"até o fim do combate\" não existe (500.5a); gatilho atrasado \"no fim do combate\" também não (603.7).",
+   "status": "coberta",
+   "evidencia": "enterStep enfileira 'end-of-combat' ao entrar no passo (index.html:10690); sonda p5/t3.mjs G1; rules.unit 'S25 · transforma no fim do combate com três atacantes' · teste de conformidade em cr.conformidade (leva CR1a) · T-100 (14/10/2026, conferência): o gatilho atrasado \"no fim do combate\" já existia (603.7) e a duração \"até o fim do combate\" passa a existir (Murk Dwellers)",
    "esforco": "P",
    "depende": [
     "603.7",
     "500.5"
    ],
    "testes": [
-    "CR 511.2 · \"no fim do combate\" dispara para as permanentes de todos os jogadores, não só do ativo"
+    "CR 511.2 · \"no fim do combate\" dispara para as permanentes de todos os jogadores, não só do ativo",
+    "CR 603.7 · \"no fim do combate\": o gatilho atrasado dispara no próximo passo de fim de combate, uma vez",
+    "CR 500.5a / 511.3 · Murk Dwellers (texto oficial): +2/+0 até o fim do combate — dá o dano e acaba ao sair do combate"
    ]
   },
   {
@@ -9935,14 +9940,18 @@
    "n": "702.189",
    "regra": "Keyword Abilities",
    "titulo": "Firebending",
-   "status": "ausente",
-   "falta": "Fora da onda 4 da trilha keywords por custo e pouca carta: dobra de fogo gera {R} que dura até o fim do combate.",
+   "status": "parcial",
+   "falta": "702.189b (\"whenever a player firebends\") sem carta no vocabulário; ficha com dobra de fogo (o N da ficha) não.",
    "esforco": "M",
    "depende": [
     "500.5 esvaziar a reserva de mana",
     "106 mana com duração"
    ],
-   "cartas": "uma coleção só (Avatar: The Last Airbender)"
+   "cartas": "uma coleção só (Avatar: The Last Airbender)",
+   "evidencia": "T-100 (14/10/2026): 702.189a — gatilho de ataque por instância (palavra impressa \"Firebending N\"; \"Firebending X\" pelo script), {R} que não se perde entre os passos do combate e some ao sair dele; o jogador gasta primeiro a outra mana (tipos.dobradefogo.unit)",
+   "testes": [
+    "CR 702.189a · Fire Sages (texto oficial), dobra de fogo 1: ao atacar, {R}; a mana atravessa os passos do combate e some na fase principal 2"
+   ]
   },
   {
    "n": "702.190",

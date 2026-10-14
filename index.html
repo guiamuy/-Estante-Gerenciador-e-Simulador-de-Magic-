@@ -5311,6 +5311,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
   'battle cry', 'rampage', 'flanking', 'bushido', // K-30 · 702.91, 702.23, 702.25, 702.45: gatilhos de combate gerados pela palavra (GATILHOS_DE_PALAVRA_K), um por instância
   /* ↓ V · palavras-chave da trilha verbos */
   /* ↓ T · palavras-chave da trilha tipos */
+  'firebending', // T-100 · 702.189: "Whenever this creature attacks, add N {R}. Until end of combat, you don't lose this mana as steps and phases end." (GATILHOS_DE_PALAVRA_K; X pelo `self.firebendingX`)
   'living metal', // T-49 · 702.161: "durante o seu turno, esta permanente também é criatura artefato"
   'daybound', 'nightbound', // T-48 · 702.145: dia e noite (o motor transforma a dupla face na hora certa; nenhuma outra coisa a transforma)
 ];
@@ -5569,6 +5570,7 @@ const EFFECTS = {
   lutador: { fields: [], targets: ['creature', 'creature-you-control'] },
   fight: { fields: [], targets: ['creature', 'creature-opponent-controls', 'creature-you-control'] }, // quem: 'self-source' (a permanente fonte luta) | 'primeiro-alvo' (luta a criatura anotada pelo `lutador` anterior)
   /* ↓ T · efeitos da trilha tipos */
+  dobra_de_fogo: { fields: [], targets: ['self'] }, // T-100 · 702.189a · "add N {R}. Until end of combat, you don't lose this mana as steps and phases end." (`n`: número ou contagem)
   pula: { fields: [], targets: ['self', 'player', 'opponent', 'each-opponent'] }, // T-99 · CR 614.10 · "skips their next [untap | draw] step / combat phase / turn": `o` ('desvirar' | 'compra' | 'combate' | 'turno'); `quando` ('neste-turno' | 'todas-do-proximo-turno') só para o combate
   recomeca_jogo: { fields: [], targets: ['self'] }, // T-95 · CR 727 · "Restart the game, leaving in exile all non-Aura permanent cards exiled with ~. Then put those cards onto the battlefield under your control."
   exila_da_propria_mao: { fields: [], targets: ['player', 'opponent'] }, // T-95 · "Target player exiles a card from their hand." (quem exila escolhe; a carta fica marcada como exilada com a fonte, 607.2a)
@@ -5736,7 +5738,7 @@ function jogadoresDe(e) {
   return null;
 }
 /** CR2-G R3b · durações dos efeitos temporários (611.2a; a R6 junta as outras). */
-const DURACOES = ['fim-do-turno', 'seu-proximo-turno', 'fim-do-seu-proximo-turno', 'sempre']; // M-272 · 'sempre': sem prazo, enquanto o objeto ficar no campo (611.2a)
+const DURACOES = ['fim-do-turno', 'seu-proximo-turno', 'fim-do-seu-proximo-turno', 'sempre', 'fim-do-combate' /* T-100 · 500.5a · "until end of combat" (Toca ponto comum: DURACOES) */]; // M-272 · 'sempre': sem prazo, enquanto o objeto ficar no campo (611.2a)
 /** CR2-G R6 · 611.2 · duração válida: um dos nomes, ou { enquanto: 'controlar-fonte' } ("enquanto você controlar <a fonte>"). */
 const duracaoValida = d => DURACOES.includes(d) || !!(d && typeof d === 'object' && d.enquanto === 'controlar-fonte' && Object.keys(d).length === 1);
 const EFEITOS_ATALHO = { sacrifice_own: 'sacrificar (você)', sacrifice_each: 'sacrificar (cada jogador)', edict: 'sacrificar (jogador alvo)', exile: 'mover (exílio)', bounce: 'mover (mão)', to_hand: 'mover (mão)', reanimate: 'mover (campo, seu controle)', reanimate_tapped: 'mover (campo, virada)', to_library_shuffled: 'mover (grimório, embaralhado)', to_bottom: 'mover (fundo do grimório)', animate: 'continuo (torna)', destroy_all: 'destroy + cada', reanimate_all: 'reanimate + cada (seu cemitério)', pump: 'continuo (poder/resistência)', keyword: 'continuo (palavra-chave)' };
@@ -6771,6 +6773,20 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-100 · CR 702.189 · dobra de fogo e "até o fim do combate" (Oracle do Forge, clone de 13/10/2026, conferido no master em 14/10/2026). A dobra de fogo, a ameaça e a
+  // destreza vêm da linha de palavras-chave da carta; o lembrete entre parênteses não se escreve.
+  { name: 'Fire Sages', abilities: [{ kind: 'activated', cost: { mana: '{1}{R}{R}' }, effects: [{ do: 'counters', amount: 1, target: 'self-source' }] }], // "Firebending 1 · {1}{R}{R}: Put a +1/+1 counter on this creature."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Firebending Student', self: { firebendingX: 'power-of-source' }, // "Prowess · Firebending X, where X is this creature's power."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Loyal Fire Sage', abilities: [{ kind: 'activated', cost: { mana: '{5}' }, effects: [{ do: 'token', amount: 1, token: { name: 'Ally', types: ['creature'], subtypes: ['Ally'], colors: ['W'], power: 1, toughness: 1 } }] }], // "Firebending 1 · {5}: Create a 1/1 white Ally creature token."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Vindictive Warden', abilities: [{ kind: 'activated', cost: { mana: '{3}' }, effects: [{ do: 'damage', amount: 1, target: 'each-opponent' }] }], // "Menace · Firebending 1 · {3}: This creature deals 1 damage to each opponent."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Zuko, Exiled Prince', abilities: [{ kind: 'activated', cost: { mana: '{3}' }, effects: [{ do: 'exile_top_playable', amount: 1, ate: 'fim-do-turno' }] }], // "Firebending 3 · {3}: Exile the top card of your library. You may play that card this turn."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Murk Dwellers', abilities: [{ kind: 'triggered', when: 'attacks-unblocked', effects: [{ do: 'continuo', target: 'self-source', poder: 2, resistencia: 0, ate: 'fim-do-combate' }] }], // "Whenever Murk Dwellers attacks and isn't blocked, it gets +2/+0 until end of combat."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // T-99 · CR 614.10 / 500.11 · pular passo, fase e turno (Oracle do Forge, clone de 13/10/2026, conferido no master em 14/10/2026)
   { name: 'Fatigue', effects: [{ do: 'pula', o: 'compra', target: 'player' }], // "Target player skips their next draw step."
     example: { target: 'opponent', expect: { selfLife: 0 } } },
@@ -9461,6 +9477,7 @@ function palavraNaLinhaK(k) {
   if (k === 'teamwork') return 'teamwork \\d+'; // K-70
   if (k === 'dash') return 'dash\\s+(?:\\{[0-9WUBRGC]+\\})+'; // K-9
   if (k === 'evoke') return 'evoke(?:\\s+(?:\\{[0-9WUBRGC]+\\})+|\\s*[—-]\\s*exile an? (?:white|blue|black|red|green) card from your hand\\.?)'; // K-8 · só as formas que o motor paga
+  if (k === 'firebending') return 'firebending (?:\\d+|x)'; // T-100 · 702.189 ("Firebending X, where X is …": o X vem do script) (Toca ponto comum: palavraNaLinhaK)
   return ['afterlife', 'rampage', 'bushido', 'afflict'].includes(k) ? `${k} \\d+` : k; // K-30 · alvoroço N e bushido N
 }
 /* ↓ V · exportações de scripts.js da trilha verbos */
@@ -9693,6 +9710,7 @@ function monarcaErrosT(sc) {
   for (const ab of abs) if (ab && ab.umaVezPorTurno != null && (ab.umaVezPorTurno !== true || ab.kind !== 'triggered' || ab.when !== 'crime')) errs.push('"umaVezPorTurno" só vale como true, num gatilho "crime"'); // T-86 · 603.2h
   for (const ab of abs) if (ab && ab.kind === 'triggered' && ab.when === 'expend' && !(Number.isInteger(ab.n) && ab.n >= 1)) errs.push('gatilho "expend": "n" é um inteiro, 1 ou mais (o N de "whenever you expend N")'); // T-85
   if (sc && sc.self && sc.self.atacaSeMonarcaDefende != null && sc.self.atacaSeMonarcaDefende !== true) errs.push('self.atacaSeMonarcaDefende só vale como true'); // T-70
+  if (sc && sc.self && sc.self.firebendingX != null && !PER_COUNTS.includes(sc.self.firebendingX)) errs.push('self.firebendingX é uma contagem conhecida (power-of-source, creatures-you-control…)'); // T-100 · 702.189
   for (const e of [...((sc && sc.effects) || []), ...((sc && sc.abilities) || []).flatMap(ab => ab.effects || [])]) if (e && e.do === 'pula' && (!['desvirar', 'compra', 'combate', 'turno'].includes(e.o) || (e.quando != null && (e.o !== 'combate' || !['neste-turno', 'todas-do-proximo-turno'].includes(e.quando))))) errs.push("pula: o é 'desvirar', 'compra', 'combate' ou 'turno'; quando ('neste-turno' | 'todas-do-proximo-turno') só no combate"); // T-99
   for (const k of ['naoPodePerder', 'naoPodeVencer']) if (sc && sc.self && sc.self[k] != null && !['voce', 'oponentes'].includes(sc.self[k])) errs.push(`self.${k} é 'voce' ou 'oponentes'`); // T-96 · CR 104.3
   if (sc && sc.self && sc.self.emVezDePerder != null && sc.self.emVezDePerder !== 'lich') errs.push("self.emVezDePerder conhece só 'lich' (Lich's Mirror)"); // T-96 · CR 704.7
@@ -19209,6 +19227,7 @@ function recalculaControle(s, o) {
 function ficaTemporario(s, t, momento) {
   if (!vigente(s, t)) return false;
   if (momento === 'inicio') return !(t.ate === 'seu-proximo-turno' && t.by === s.turn.active);
+  if (momento === 'fim-do-combate' || t.ate === 'fim-do-combate') return t.ate !== 'fim-do-combate'; // T-100 · 500.5a: acaba no fim do combate (e, criado fora dele, na limpeza) (Toca ponto comum: ficaTemporario)
   if (!t.ate || t.ate === 'fim-do-turno') return false;
   return !(t.ate === 'fim-do-seu-proximo-turno' && t.by === s.turn.active && s.turn.number > t.turno);
 }
@@ -20019,7 +20038,9 @@ const naoDesviraNoPasso = (s, o) => !!o.naoDesviraProximo || (!semImpressas(s, o
   || naoDesviraPeloMonarcaT(s, o); // T-70 · CR 725.5 · "doesn't untap … unless that player is the monarch" (Toca ponto comum: naoDesviraNoPasso)
 function enterStep(s, step) {
   if (s.pulosT) { const prox = passoPuladoT(s, step); if (prox) return enterStep(s, prox); } // T-99 · CR 614.10 / 500.11 · pular o passo ou a fase (Toca ponto comum: enterStep)
+  const manaDeCombate = manaDeCombateAntesT(s, step); // T-100 · 702.189a: a mana da dobra de fogo não se perde entre os passos do combate (Toca ponto comum: enterStep)
   emptyPools(s); // 500.4: reserva esvazia entre passos
+  if (manaDeCombate) manaDeCombateDepoisT(s, manaDeCombate); // T-100
   s.turn.step = step; s.turn.passes = 0; s.turn.priority = s.turn.active;
   const a = s.turn.active;
   if (step === 'untap') {
@@ -20117,6 +20138,7 @@ function finishCleanup(s) {
 /** CR2g.1 · 511.3: ao fim do passo de fim do combate, todas as criaturas e planeswalkers saem do combate. Até lá continuam atacando e
     bloqueando (o ninjutsu vale no passo de fim do combate; gatilhos "no fim do combate" veem as atacantes). */
 function saiDoCombate(s) {
+  for (const o of campoInteiro(s)) if (o.temporarios || o.vira) podaTemporarios(s, o, 'fim-do-combate'); // T-100 · 500.5a / 511.3 · "until end of combat" (Toca ponto comum: saiDoCombate)
   for (const o of campoInteiro(s)) { delete o.attacking; delete o.atacandoPw; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.struck; delete o.divisaoDano; }
   s.combat = null;
 }
@@ -20124,7 +20146,7 @@ function advanceStep(s) {
   if (s.turn.step === 'cleanup') return enterStep(s, 'cleanup'); // R9 · houve prioridade na limpeza: outra etapa de limpeza
   if (s.turn.step === 'combat_end') saiDoCombate(s); // CR2g.1 · 511.3
   // CR2g.3 · 510.4: todos passaram depois do dano de iniciativa (com os gatilhos dele resolvidos): vem o segundo passo de dano
-  if (s.turn.step === 'combat_damage' && faltaSegundoDano(s)) { emptyPools(s); s.turn.passes = 0; s.turn.priority = s.turn.active; dealCombatDamage(s); return; }
+  if (s.turn.step === 'combat_damage' && faltaSegundoDano(s)) { const mcT = manaDeCombateAntesT(s, 'combat_damage'); emptyPools(s); if (mcT) manaDeCombateDepoisT(s, mcT); /* T-100 · 702.189a (Toca ponto comum: advanceStep) */ s.turn.passes = 0; s.turn.priority = s.turn.active; dealCombatDamage(s); return; }
   if (s.turn.step === 'main1' || s.turn.step === 'main2') { // CR2g.4 · 500.8: combate e principal adicionais logo depois desta fase principal
     if (s.combatesExtras > 0) { s.combatesExtras--; if (!s.combatesExtras) delete s.combatesExtras; if (s.retornoFase == null) s.retornoFase = STEPS[STEPS.indexOf(s.turn.step) + 1]; return enterStep(s, 'combat_begin'); }
     if (s.retornoFase != null) { const r = s.retornoFase; delete s.retornoFase; return enterStep(s, r); } // saindo da principal adicional: o que viria depois da principal original
@@ -22093,6 +22115,7 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'lutador': if (obj) s.lutadorV = { fonte: src.oid, fz: encarnacaoV(s, src), oid: obj.oid, z: obj.zc || 0 }; break; // V-1/V-5 · anota quem luta; a luta é o `fight` seguinte, que apaga a anotação
     case 'fight': lutar(s, src, eff, tgt, events); break; // V-1 · 701.14
     /* ↓ T · casos de applyEffect da trilha tipos */
+    case 'dobra_de_fogo': dobraDeFogoT(s, src, eff, events); break; // T-100 · 702.189a
     case 'pula': pulaT(s, src, eff, playerOf(), events); break; // T-99 · CR 614.10
     case 'recomeca_jogo': recomecaJogoT(s, src, events); break; // T-95 · CR 727
     case 'exila_da_propria_mao': exilaDaPropriaMaoT(s, src, playerOf(), events); break; // T-95
@@ -29704,6 +29727,29 @@ function recomecaJogoT(s, src, events) {
   events.push({ kind: 'effect', do: 'recomeca', name: src.name, target: s.players[p].name, isentas: isentas.map(x => s.objects[x].name) });
 }
 const PERM_TYPES_T = ['artifact', 'battle', 'creature', 'enchantment', 'land', 'planeswalker'];
+/* ---------------- T-100 · CR 702.189 · dobra de fogo (firebending) e o que dura "até o fim do combate" (500.5, 500.5a) ----------------
+   "Firebending N" é um gatilho de ataque (GATILHOS_DE_PALAVRA_K, um por instância): adiciona N {R} e, até o fim do combate, essa mana não se
+   perde quando os passos acabam (`players[p].manaCombateT`: quantos {R} da reserva são dela; o jogador gasta primeiro a outra). Ao entrar num
+   passo de combate (ou no segundo passo de dano), a reserva esvazia e volta com min({R}, manaCombateT); ao sair do combate, some.
+   "Firebending X, where X is …": `self.firebendingX` (uma contagem de PER_COUNTS; 'power-of-source' = o poder). 702.189b ("whenever a player
+   firebends") não tem carta no vocabulário. A duração 'fim-do-combate' (500.5a) acaba ao sair do combate; criada fora dele, na limpeza. */
+NUMERADAS_K.push('firebending');
+GATILHOS_DE_PALAVRA_K.firebending = (s, o, i) => { const sf = o && (((s.facts[o.name] || {}).script || {}).self || {}); return { kind: 'triggered', when: 'attacks', palavraK: 'firebending', effects: [{ do: 'dobra_de_fogo', n: sf && sf.firebendingX ? { per: sf.firebendingX } : numeroDaPalavraK(s, o, 'firebending', i) }] }; };
+function dobraDeFogoT(s, src, eff, events) {
+  const p = src.controller, pl = s.players[p], n = Math.max(0, amountOf(s, src, eff.n == null ? 1 : eff.n));
+  if (!pl || n <= 0) { events.push({ kind: 'effect', do: 'dobra_de_fogo', name: src.name, target: pl ? pl.name : '', amount: 0 }); return; }
+  pl.pool.R = (pl.pool.R || 0) + n; pl.manaCombateT = (pl.manaCombateT || 0) + n;
+  events.push({ kind: 'effect', do: 'dobra_de_fogo', name: src.name, target: pl.name, amount: n });
+}
+const PASSOS_DO_COMBATE_T = ['combat_begin', 'combat_attackers', 'combat_blockers', 'combat_damage', 'combat_end'];
+function manaDeCombateAntesT(s, proximo) {
+  if (!s.players.some(pl => pl.manaCombateT)) return null;
+  const ficam = PASSOS_DO_COMBATE_T.includes(proximo) && PASSOS_DO_COMBATE_T.includes(s.turn.step);
+  const out = s.players.map(pl => ficam && pl.manaCombateT ? Math.min(pl.pool.R || 0, pl.manaCombateT) : 0);
+  for (const pl of s.players) delete pl.manaCombateT;
+  return out;
+}
+function manaDeCombateDepoisT(s, guardada) { guardada.forEach((n, i) => { if (n > 0) { s.players[i].pool.R = (s.players[i].pool.R || 0) + n; s.players[i].manaCombateT = n; } }); }
 /* ---------------- T-99 · CR 614.10 / 500.11 · pular passo, fase e turno ----------------
    `s.pulosT` (só existe quando algo manda pular): cada registro é { p, o, … }. "Skip" é "em vez de fazer, nada" (614.10) e o pulado
    não acontece (500.11): nada do que estava marcado para ele acontece, e o "próximo" espera a primeira ocorrência que não foi pulada
@@ -32558,6 +32604,9 @@ Object.assign(EFEITO_PT_T, { vira_para_baixo: () => 'vira a criatura alvo para b
 /** T-59 · CR 700.6 / 700.12 / 700.9 · os predicados de tipo na frase do seletor. */
 const predicadosPT_T = sel => (sel.tapped ? ' virada' : sel.tapped === false ? ' desvirada' : '') + (sel.ativadaNoTurno ? ' que teve habilidade ativada neste turno' : '') + /* T-87 */ (sel.terrenoBasico === false ? ' que não seja terreno básico' : sel.terrenoBasico ? ' que é terreno básico' : '') + /* T-80 */ (sel.historico ? ' histórica' : sel.historico === false ? ' que não é histórica' : '') + (sel.foraDaLei ? ' fora da lei' : sel.foraDaLei === false ? ' que não é fora da lei' : '') + /* T-60 */ (sel.modificada ? ' modificada' : sel.modificada === false ? ' que não está modificada' : '');
 const LINHA_T = { preparada: ev => (ev.failed ? `${ev.name}: ${ev.motivo || 'não ficou preparada'}, nada muda` : `${ev.name} está preparada (pode conjurar uma cópia de ${ev.target})`), despreparada: ev => `${ev.name} deixou de estar preparada`, ciclo: ev => `Virou ${ev.target}${ev.motivo ? ` (${ev.motivo})` : ''}`, masmorra_completa: ev => `${ev.target} completou a masmorra ${ev.name}`, caso_resolvido: ev => (ev.failed ? `${ev.name}: a condição não valia mais, o Caso não foi resolvido` : `${ev.name} foi resolvido`), estacao: ev => (ev.failed ? `${ev.name}: a nave saiu do campo, a estação não pôs marcadores` : `${ev.name} recebeu ${ev.amount} marcador${ev.amount === 1 ? '' : 'es'} de carga (estação)${ev.total != null ? ` · ${ev.total} no total` : ''}`), selada: ev => (ev.failed ? `${ev.name}: a montaria saiu do campo, não foi selada` : `${ev.name} foi selada`), virar_carta: ev => (ev.failed ? `${ev.name} não virou${ev.motivo ? ` (${ev.motivo})` : ''}` : `${ev.name} virou: agora é ${ev.target}`), porta: ev => (ev.failed ? `${ev.name}: nenhuma porta para trancar ou destrancar` : `${ev.name} ${ev.acao} ${ev.porta} (${ev.target})`), nivel_sobe: ev => (ev.failed ? `${ev.name}: saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu de nível (nível ${ev.nivel})`), nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, converter: ev => `${ev.name} converteu em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
+Object.assign(LINHA_T, { dobra_de_fogo: ev => ev.amount ? `${ev.target} adicionou ${'{R}'.repeat(Math.min(ev.amount, 12))} pela dobra de fogo de ${ev.name} (dura até o fim do combate)` : `${ev.name}: a dobra de fogo não adicionou mana` }); // T-100
+Object.assign(EFEITO_PT_T, { dobra_de_fogo: e => `adicione ${typeof e.n === 'number' ? '{R}'.repeat(Math.min(e.n, 12)) : 'X {R}'}; até o fim do combate você não perde essa mana quando os passos acabam` }); // T-100
+Object.assign(PALAVRA_PT, { firebending: 'dobra de fogo' }); // T-100 · 702.189
 Object.assign(LINHA_T, { pula: ev => `${ev.target} vai pular ${({ desvirar: 'o próximo passo de desvirar', compra: 'o próximo passo de compra', combate: ev.quando === 'todas-do-proximo-turno' ? 'as fases de combate do próximo turno' : ev.quando === 'neste-turno' ? 'a próxima fase de combate deste turno' : 'a próxima fase de combate', turno: 'o próximo turno' })[ev.o]} (${ev.name})` }); // T-99
 Object.assign(EFEITO_PT_T, { pula: e => `${e.target === 'self' ? 'você pula' : e.target === 'each-opponent' ? 'cada oponente pula' : 'o jogador alvo pula'} ${({ desvirar: 'o próximo passo de desvirar', compra: 'o próximo passo de compra', combate: e.quando === 'todas-do-proximo-turno' ? 'todas as fases de combate do próximo turno' : e.quando === 'neste-turno' ? 'a próxima fase de combate deste turno' : 'a próxima fase de combate', turno: 'o próximo turno' })[e.o]}` }); // T-99
 Object.assign(LINHA_T, { em_vez_de_perder: ev => `\u2063${ev.name}: em vez de perder (${ev.motivo}), ${ev.target} embaralha a mão, o cemitério e as permanentes dele no grimório, compra sete e fica com 20 de vida` }); // T-96 · CR 704.7
