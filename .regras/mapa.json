@@ -10496,8 +10496,8 @@
    "regra": "Copying Objects",
    "titulo": "Copiar mágica ou habilidade",
    "status": "parcial",
-   "evidencia": "tempestade: uma cópia por mágica anterior, na pilha por cima da original, com alvo próprio, resolve mesmo se a original for anulada (index.html:12288-12293; ordem em 11821-11827; resolução 12046-12050) · M-265/M-271 (v97): cópias do replicar (uma por pagamento, alvo próprio) e \"pode copiar esta mágica\" na resolução quando conjurada de um cemitério (copiar_esta; Sevinne's Reclamation), as duas como item na pilha com alvo novo. · CR2f.3/M-282 (v98): a cópia de mágica (tempestade, replicar, \"pode copiar esta mágica\") é uma mágica na pilha — alvo de \"anule a mágica alvo\", leva modo, X, reforço, encaixe e custo alternativo da original, não é conjurada, e fora da pilha deixa de existir (707.10a, 704.5e); cópia de mágica de permanente entra como ficha (707.10c). \"Pode copiar\" decide antes de a cópia ir à pilha. copia3.unit.",
-   "falta": "Faltam \"copie a mágica alvo\" de outra pessoa (verbo de carta), cópia de habilidade (707.10b) e cópia que muda de alvo por regra (707.10d).",
+   "evidencia": "tempestade: uma cópia por mágica anterior, na pilha por cima da original, com alvo próprio, resolve mesmo se a original for anulada (index.html:12288-12293; ordem em 11821-11827; resolução 12046-12050) · M-265/M-271 (v97): cópias do replicar (uma por pagamento, alvo próprio) e \"pode copiar esta mágica\" na resolução quando conjurada de um cemitério (copiar_esta; Sevinne's Reclamation), as duas como item na pilha com alvo novo. · CR2f.3/M-282 (v98): a cópia de mágica (tempestade, replicar, \"pode copiar esta mágica\") é uma mágica na pilha — alvo de \"anule a mágica alvo\", leva modo, X, reforço, encaixe e custo alternativo da original, não é conjurada, e fora da pilha deixa de existir (707.10a, 704.5e); cópia de mágica de permanente entra como ficha (707.10c). \"Pode copiar\" decide antes de a cópia ir à pilha. copia3.unit. · T-108 (14/10/2026): \"Copy target instant or sorcery spell [you control]. You may choose new targets for the copy.\" (efeito `copia_magia`, `vezes`): a cópia vai direto à pilha por cima, é de quem copiou, leva as escolhas da original e escolhe alvo de novo; não é conjurada; a alvo que saiu da pilha não é copiada. Twincast, Reverberate, Reiterate, Increasing Vengeance, Geistblast, Nivix Guildmage, Dualcaster Mage (tipos.copiamagia.unit)",
+   "falta": "Cópia de habilidade (707.10b: Strionic Resonator, Lithoform Engine), cópia com exceção (Fork: \"except that the copy is red\") e cópia que muda de alvo por regra (707.10d).",
    "esforco": "M",
    "depende": [
     "707.2",
@@ -10506,7 +10506,15 @@
    "testes": [
     "M-265 · replicar: a mesa oferece pagar o custo de replicar 0, 1, 2… vezes (o que a mana pagar); cada pagamento é uma cópia com alvo próprio, antes da original",
     "CR 707.10 · replicar: a cópia é mágica na pilha, com o nome da original; resolvida, deixa de existir (não vai para o cemitério)",
-    "CR 707.10 · a cópia pode ser anulada como qualquer mágica, e anulada deixa de existir; leva o X pago da original"
+    "CR 707.10 · a cópia pode ser anulada como qualquer mágica, e anulada deixa de existir; leva o X pago da original",
+    "CR 707.10 · Twincast (texto oficial): a cópia vai à pilha por cima, com alvo novo (aqui o mesmo jogador), e resolve antes da original — 6 de dano",
+    "CR 707.10 · a cópia é de quem copiou: o Raio de B mira A; A copia com Reverberate (texto oficial) e manda a cópia em B",
+    "CR 707.10 · a mágica alvo saiu da pilha antes: nada é copiado",
+    "CR 707.10 · Increasing Vengeance (texto oficial): da mão, uma cópia; pelo lampejo do passado (do cemitério), duas",
+    "CR 702.27 / 707.10 · Reiterate (texto oficial) com recompra volta para a mão",
+    "CR 707.10 · Geistblast (texto oficial): do cemitério, exilando-se, copia uma mágica sua — não a do oponente",
+    "CR 707.10 · Dualcaster Mage (texto oficial): com lampejo, entra em resposta e o gatilho copia; Nivix Guildmage copia a sua",
+    "CR 707.10 · validador e pilha explicada"
    ]
   },
   {

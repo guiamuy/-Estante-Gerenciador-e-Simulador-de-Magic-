@@ -272,17 +272,18 @@ function runExample(sc) {
   // servisse, e isso dependia do embaralhamento (um script novo na biblioteca trouxe uma criatura com gatilho de entrada que devolvia a mágica à
   // mão); põe um Grizzly Bear no topo do grimório de quem conjura, só neste cenário, sem mexer no resto do grimório
   if ((sc.effects || []).some(e => e.do === 'reveal_until' && e.match === 'shares-type')) { let gb; [s, gb] = put(s, a, 'Grizzly Bear', 'library'); s.zones[a].library.splice(s.zones[a].library.indexOf(gb), 1); s.zones[a].library.unshift(gb); }
-  if (ex.target === 'enemy-spell' || ex.target === 'enemy-instant') {
+  if (ex.target === 'enemy-spell' || ex.target === 'enemy-instant' || ex.target === 'own-instant') { // T-108 · own-instant: o Lightning Bolt é de quem conjura e mira o oponente
     // põe uma mágica do oponente na pilha (o cenário só precisa dela lá)
     // a mágica na pilha precisa combinar com o que o script mira
     const wantKind = [...(sc.effects || []), ...(sc.modes || []).flatMap(m => m.effects || [])].map(e => e.target).find(x => /spell/.test(x || '')) || '';
-    const spellName = wantKind === 'artifact-enchantment-spell' ? 'Test Signet' : (ex.target === 'enemy-instant' || wantKind === 'instant-spell') ? 'Lightning Bolt' : 'Grizzly Bear';
+    const spellName = wantKind === 'artifact-enchantment-spell' ? 'Test Signet' : (ex.target === 'enemy-instant' || ex.target === 'own-instant' || wantKind === 'instant-spell') ? 'Lightning Bolt' : 'Grizzly Bear';
     [s, spellOid] = put(s, d, spellName, 'hand');
     s = J(s);
     s.zones[d].hand = s.zones[d].hand.filter(x => x !== spellOid);
     s.stack.push(spellOid);
     Object.assign(s.objects[spellOid], { zone: 'stack', controller: d });
     if (ex.target === 'enemy-instant') s.objects[spellOid].targets = [{ player: a }];
+    if (ex.target === 'own-instant') { s.objects[spellOid].controller = a; s.objects[spellOid].targets = [{ player: d }]; } // T-108 · a mágica é de quem conjura o script e mira o oponente
   }
   // um cemitério com carta, para os efeitos que mexem nele
   s = J(s); const buried = s.zones[d].library.pop(); s.zones[d].graveyard.push(buried); s.objects[buried].zone = 'graveyard';
@@ -294,7 +295,7 @@ function runExample(sc) {
   const ownSweep = [...(sc.effects || []), ...(sc.abilities || []).flatMap(x => x.effects || [])].some(e => e.target === 'each-own-creature');
   const watch = ex.target === 'own-creature' || ownSweep ? mine : ex.target === 'own-land' ? land : ex.target === 'own-forest' ? myForest : ex.target === 'enemy-enchantment' ? enemyWard : ex.target === 'enemy-permanent' ? art : spellOid || theirs;
   const target = { 'opponent': { player: d }, 'self-player': { player: a }, 'enemy-creature': { oid: theirs },
-    'own-creature': { oid: mine }, 'own-land': { oid: land }, 'own-forest': { oid: myForest }, 'own-graveyard-creature': { oid: buriedMine }, 'enemy-spell': { oid: spellOid }, 'enemy-instant': { oid: spellOid }, 'enemy-permanent': { oid: art }, 'enemy-enchantment': { oid: enemyWard } }[ex.target || 'none'];
+    'own-creature': { oid: mine }, 'own-land': { oid: land }, 'own-forest': { oid: myForest }, 'own-graveyard-creature': { oid: buriedMine }, 'enemy-spell': { oid: spellOid }, 'enemy-instant': { oid: spellOid }, 'own-instant': { oid: spellOid }, 'enemy-permanent': { oid: art }, 'enemy-enchantment': { oid: enemyWard } }[ex.target || 'none'];
   const tokensOf = st2 => Object.values(st2.objects).filter(o => o.token && o.controller === a).length;
   const before = { life: s.players.map(p => p.life), hand: s.zones[a].hand.length, total: Object.values(s.objects).filter(o => !o.ability && !o.token).length, tokens: tokensOf(s) };
   // equipar é a última habilidade ativada do script

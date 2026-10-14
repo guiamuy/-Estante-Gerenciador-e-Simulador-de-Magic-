@@ -1,0 +1,120 @@
+// T-108 · CR5 · Copiar a mágica alvo (Comprehensive Rules 707.10, 707.10c).
+// Texto da regra: .regras/cr-2026-09-25.txt. Cartas com o texto oficial de .listas/oficiais-tipos.json (Oracle do Forge, clone de 13/10/2026,
+// conferido no master em 14/10/2026): Twincast, Reverberate, Reiterate, Increasing Vengeance, Geistblast, Nivix Guildmage e Dualcaster Mage.
+// "Raio", "Choque" e "Urso" são cartas de teste.
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { E, S as SC, T, J, act, poe, legais, passaAte, valorDeMana } from './listas.mjs';
+
+const L = n => JSON.parse(readFileSync(new URL('./.listas/' + n, import.meta.url), 'utf8')).cartas;
+const NOMES = ['Twincast', 'Reverberate', 'Reiterate', 'Increasing Vengeance', 'Geistblast', 'Nivix Guildmage', 'Dualcaster Mage'];
+const KW = { 'Dualcaster Mage': ['Flash'], 'Reiterate': ['Buyback'], 'Increasing Vengeance': ['Flashback'] };
+const C = {};
+for (const c of L('oficiais-tipos.json').filter(x => NOMES.includes(x.name)))
+  C[c.name] = { name: c.name, type_line: c.type_line, mana_cost: c.mana_cost, cmc: valorDeMana(c.mana_cost), keywords: KW[c.name] || [], oracle_text: c.oracle_text, colors: [], power: c.power, toughness: c.toughness };
+C.Island = { name: 'Island', type_line: 'Basic Land — Island', mana_cost: '', cmc: 0, keywords: [], oracle_text: '({T}: Add {U}.)', colors: [] };
+const carta = (name, type_line, extra = {}) => { C[name] = { name, type_line, mana_cost: '{R}', cmc: 1, keywords: [], oracle_text: '', colors: ['R'], ...extra }; };
+carta('Raio', 'Instant'); carta('Choque', 'Sorcery'); carta('Urso', 'Creature — Bear', { power: '2', toughness: '2', mana_cost: '{1}{G}', cmc: 2, colors: ['G'] });
+const EX = { example: { target: 'none', expect: { selfLife: 0 } } };
+const SCRIPTS = { 'Raio': { name: 'Raio', effects: [{ do: 'damage', amount: 3, target: 'any' }], ...EX }, 'Choque': { name: 'Choque', effects: [{ do: 'damage', amount: 2, target: 'any' }], ...EX } };
+function mesa(seed = 1) {
+  const deck = [...Object.keys(C).filter(n => n !== 'Island').map(name => ({ name, qty: 2, zone: 'main' })), { name: 'Island', qty: 16, zone: 'main' }];
+  let s = E.createGame({ format: 'livre', seed, mode: 'full', cards: C, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  return passaAte(s, x => x.turn.active === 0 && x.turn.step === 'main1' && !x.stack.length && !x.pending);
+}
+const mana = (s, p = 0, n = 9) => { s = J(s); for (const c of 'WUBRGC') s.players[p].pool[c] += n; return s; };
+const eq = (a, b, m) => assert.deepStrictEqual(J(a), J(b), m);
+/** passa a prioridade; na escolha do alvo da cópia, escolhe o alvo pedido (`alvoDaCopia(opcoes)` devolve o índice). */
+const resolve = (s, alvoDaCopia = () => 0) => { for (let i = 0; i < 60 && (s.stack.length || s.pending); i++) {
+  if (s.pending) { const os = legais(s, s.pending.p); s = act(s, s.pending.kind === 'pick_target' ? os[alvoDaCopia(s)] || os[0] : os[0]); continue; }
+  s = act(s, legais(s, s.turn.priority).find(x => x.t === 'pass')); } return s; };
+const alvoJogador = p => s => (s.pending.options || s.pending.alvos || []).findIndex(x => x && x.player === p);
+const conjura = (s, p, oid, f = () => true) => { s = J(s); s.turn.priority = p; const a = legais(s, p, x => x.t === 'cast' && x.oid === oid && f(x))[0]; assert.ok(a, 'conjurar ' + s.objects[oid].name); return act(s, a); };
+
+test('CR 707.10 · Twincast (texto oficial): a cópia vai à pilha por cima, com alvo novo (aqui o mesmo jogador), e resolve antes da original — 6 de dano', () => {
+  let s = mesa(); let r, t; [s, r] = poe(s, 0, 'Raio', 'hand'); [s, t] = poe(s, 0, 'Twincast', 'hand'); s = mana(s);
+  s = conjura(s, 0, r, a => a.targets[0].player === 1);
+  s = conjura(s, 0, t, a => a.targets[0].oid === r);
+  s = act(s, { t: 'pass', p: 0 }); s = act(s, { t: 'pass', p: 1 }); // resolve o Twincast
+  eq([s.pending && s.pending.kind, s.spellsThisTurn], ['pick_target', 2], 'a cópia pede o alvo; não conta como conjurada (707.10)');
+  const op = legais(s, 0).find(x => x.t === 'pick_target' && JSON.stringify(s.pending).includes('"player":1') && x.index === (s.pending.options || []).findIndex(o => o && o.player === 1));
+  s = act(s, op || legais(s, 0)[1]);
+  eq(s.stack.map(o => !!s.objects[o].copiaDeMagia), [false, true], 'a cópia por cima da original');
+  s = resolve(s);
+  eq(s.players[1].life, 14);
+});
+
+test('CR 707.10 · a cópia é de quem copiou: o Raio de B mira A; A copia com Reverberate (texto oficial) e manda a cópia em B', () => {
+  let s = mesa(); let r, v; [s, r] = poe(s, 1, 'Raio', 'hand'); [s, v] = poe(s, 0, 'Reverberate', 'hand'); s = mana(s, 0); s = mana(s, 1);
+  s = conjura(s, 1, r, a => a.targets[0].player === 0);
+  s = conjura(s, 0, v, a => a.targets[0].oid === r);
+  s = act(s, { t: 'pass', p: 0 }); s = act(s, { t: 'pass', p: 1 });
+  assert.equal(s.pending && s.pending.p, 0, 'quem escolhe o alvo da cópia é A');
+  const k = (s.pending.options || []).findIndex(o => o && o.player === 1); s = act(s, legais(s, 0).find(x => x.t === 'pick_target' && x.index === k) || legais(s, 0)[0]);
+  const copia = s.stack.map(o => s.objects[o]).find(o => o.copiaDeMagia);
+  eq(copia && copia.controller, 0, 'a cópia é de A');
+  s = resolve(s);
+  eq([s.players[0].life, s.players[1].life], [17, 17]);
+});
+
+test('CR 707.10 · a mágica alvo saiu da pilha antes: nada é copiado', () => {
+  let s = mesa(); let r, t, c; [s, r] = poe(s, 0, 'Raio', 'hand'); [s, t] = poe(s, 0, 'Twincast', 'hand'); s = mana(s);
+  s = conjura(s, 0, r, a => a.targets[0].player === 1);
+  s = conjura(s, 0, t, a => a.targets[0].oid === r);
+  s = J(s); const i = s.stack.indexOf(r); s.stack.splice(i, 1); s.objects[r].zone = 'graveyard'; s.zones[0].graveyard.push(r); // a original foi anulada
+  s = resolve(s);
+  eq([s.players[1].life, s.stack.length], [20, 0]);
+});
+
+test('CR 707.10 · Increasing Vengeance (texto oficial): da mão, uma cópia; pelo lampejo do passado (do cemitério), duas', () => {
+  let s = mesa(); let r, iv; [s, r] = poe(s, 0, 'Raio', 'hand'); [s, iv] = poe(s, 0, 'Increasing Vengeance', 'hand'); s = mana(s);
+  s = conjura(s, 0, r, a => a.targets[0].player === 1); s = conjura(s, 0, iv, a => a.targets[0].oid === r);
+  s = resolve(s, alvoJogador(1));
+  eq(s.players[1].life, 14, 'da mão: original + uma cópia');
+  let r2; [s, r2] = poe(s, 0, 'Raio', 'hand'); s = mana(s);
+  s = conjura(s, 0, r2, a => a.targets[0].player === 1);
+  s = J(s); s.turn.priority = 0; const fb = legais(s, 0, x => x.t === 'cast' && x.oid === iv && x.flashback)[0]; assert.ok(fb, 'lampejo do passado do cemitério');
+  s = resolve(act(s, fb), alvoJogador(1));
+  eq(s.players[1].life, 5, 'do cemitério: original + duas cópias (9)');
+});
+
+test('CR 702.27 / 707.10 · Reiterate (texto oficial) com recompra volta para a mão', () => {
+  let s = mesa(); let r, re; [s, r] = poe(s, 0, 'Raio', 'hand'); [s, re] = poe(s, 0, 'Reiterate', 'hand'); s = mana(s);
+  s = conjura(s, 0, r, a => a.targets[0].player === 1);
+  s = conjura(s, 0, re, a => a.targets[0].oid === r && !!a.recompraK);
+  s = resolve(s, alvoJogador(1));
+  eq([s.players[1].life, s.objects[re].zone], [14, 'hand']);
+});
+
+test('CR 707.10 · Geistblast (texto oficial): do cemitério, exilando-se, copia uma mágica sua — não a do oponente', () => {
+  let s = mesa(); let g, r, rb; [s, g] = poe(s, 0, 'Geistblast', 'graveyard'); [s, r] = poe(s, 0, 'Raio', 'hand'); [s, rb] = poe(s, 1, 'Raio', 'hand'); s = mana(s, 0); s = mana(s, 1);
+  s = conjura(s, 1, rb, a => a.targets[0].player === 0);
+  assert.ok(!legais(s, 0, x => x.t === 'activate' && x.oid === g).some(x => x.targets && x.targets[0].oid === rb), 'a do oponente não é alvo');
+  s = resolve(s);
+  s = conjura(s, 0, r, a => a.targets[0].player === 1);
+  s = act(s, legais(s, 0, x => x.t === 'activate' && x.oid === g && x.targets[0].oid === r)[0]);
+  eq(s.objects[g].zone, 'exile', 'exilou-se como custo');
+  s = resolve(s, alvoJogador(1));
+  eq(s.players[1].life, 14);
+});
+
+test('CR 707.10 · Dualcaster Mage (texto oficial): com lampejo, entra em resposta e o gatilho copia; Nivix Guildmage copia a sua', () => {
+  let s = mesa(); let d, r, n; [s, d] = poe(s, 0, 'Dualcaster Mage', 'hand'); [s, r] = poe(s, 1, 'Raio', 'hand'); s = mana(s, 0); s = mana(s, 1);
+  s = conjura(s, 1, r, a => a.targets[0].player === 0);
+  s = conjura(s, 0, d);
+  s = resolve(s, alvoJogador(1));
+  eq([s.players[0].life, s.players[1].life, s.objects[d].zone], [17, 17, 'battlefield']);
+  [s, n] = poe(s, 0, 'Nivix Guildmage', 'battlefield'); let c; [s, c] = poe(s, 0, 'Choque', 'hand'); s = mana(s);
+  s = conjura(s, 0, c, a => a.targets[0].player === 1);
+  s = act(s, legais(s, 0, x => x.t === 'activate' && x.oid === n && x.targets && x.targets[0].oid === c)[0]);
+  s = resolve(s, alvoJogador(1));
+  eq(s.players[1].life, 13, 'Choque e a cópia: 4');
+});
+
+test('CR 707.10 · validador e pilha explicada', () => {
+  const v = sc => J(SC.validateScript({ name: 'X', ...sc, example: { target: 'none', expect: { selfLife: 0 } } }));
+  eq(v({ effects: [{ do: 'copia_magia', target: { zona: 'stack', tipos: ['instant', 'sorcery'] } }] }), []);
+  assert.match(T.descreveEfeitos([{ do: 'copia_magia', target: { zona: 'stack', tipos: ['instant', 'sorcery'], de: 'you' } }]), /copia uma mágica instantânea ou feitiço sua/);
+});
