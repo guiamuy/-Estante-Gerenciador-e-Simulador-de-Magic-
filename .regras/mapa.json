@@ -266,7 +266,10 @@
    "regra": "Colors",
    "titulo": "Escolher uma cor: só as cinco",
    "status": "coberta",
-   "evidencia": "legalActions de choose_color oferece só W,U,B,R,G (index.html:12843); rules.unit 'S43 · proteção pela cor escolhida'"
+   "evidencia": "legalActions de choose_color oferece só W,U,B,R,G (index.html:12843); rules.unit 'S43 · proteção pela cor escolhida' · T-90: \"choose a color other than X\" (self.corExceto: a cor vedada não é oferecida nem aceita; tipos.portoes.unit)",
+   "testes": [
+    "CR 105.4 / 614.12 · Citadel Gate (texto oficial): entra virada e pede uma cor que não seja branco"
+   ]
   },
   {
    "n": "105.5",
@@ -4678,11 +4681,14 @@
    "regra": "Linked Abilities",
    "titulo": "Tipos de habilidades ligadas",
    "status": "parcial",
-   "evidencia": "607.2a exílio \"até sair do campo\" (return_held index.html:11139-11146; rules.unit \"S48 · o encantamento exila a criatura e devolve quando sai do campo\"); 607.2d cor/tipo escolhido (rules.unit \"S43 · proteção pela cor escolhida\", \"S50 · escolher o tipo de criatura\"); 607.2i custo adicional pago (rules.unit \"S37 · barganha: o gatilho só acontece se algo foi sacrificado ao conjurar\", onlyIf paid-additional :11084); 607.2j X pago (rules.unit \"S50 · custo X… entra com X marcadores\")",
+   "evidencia": "607.2a exílio \"até sair do campo\" (return_held index.html:11139-11146; rules.unit \"S48 · o encantamento exila a criatura e devolve quando sai do campo\"); 607.2d cor/tipo escolhido (rules.unit \"S43 · proteção pela cor escolhida\", \"S50 · escolher o tipo de criatura\"); 607.2i custo adicional pago (rules.unit \"S37 · barganha: o gatilho só acontece se algo foi sacrificado ao conjurar\", onlyIf paid-additional :11084); 607.2j X pago (rules.unit \"S50 · custo X… entra com X marcadores\") · T-90 · 607.2d também na mana: \"{T}: Add {W} or one mana of the chosen color\" (produces { escolhida: true }; tipos.portoes.unit)",
    "falta": "607.2a guarda uma só carta por permanente (holding é um oid) e não há \"cartas exiladas com esta permanente\" consultáveis por outra habilidade (ativada que devolve/usa a carta exilada); 607.2b, c, e, f, g, h, k (campeão), m (palavra-âncora), n, p, q ausentes.",
    "esforco": "M",
    "depende": [
     "614"
+   ],
+   "testes": [
+    "CR 106.1 / 605.1a · \"{T}: Add {W} or one mana of the chosen color\": as duas opções, e só elas"
    ]
   },
   {

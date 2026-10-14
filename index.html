@@ -6238,7 +6238,7 @@ function validateScript(sc) {
   // S19 · produção de mana declarada no script (Priest of Titania, Battlement)
   for (const opt of (sc && sc.produces) || []) {
     if (Array.isArray(opt)) continue;
-    if (!opt || (!opt.symbol && !opt.anyColor)) errs.push('produces: opção sem símbolo');
+    if (!opt || (!opt.symbol && !opt.anyColor && opt.escolhida == null)) errs.push('produces: opção sem símbolo'); // T-90 · a cor escolhida (Toca ponto comum: validateScript, produces)
     else if (opt.per && !PER_COUNTS.includes(opt.per)) errs.push(`produces: contagem "${opt.per}" desconhecida`);
     // Leva 122 · "em qualquer combinação de cores" só faz sentido para mana de qualquer cor
     if (opt && opt.combination != null && (opt.combination !== true || !opt.anyColor)) errs.push('produces: "combination" só vale como true, junto de anyColor');
@@ -6761,6 +6761,20 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-90 · CR 105.4 / 614.12 · Portões (Oracle do Forge, conferido em 14/10/2026; o texto já está em .listas/oficiais-cartas.json e oficiais-listas.json)
+  { name: 'Citadel Gate', entersTapped: true, choose: 'color', self: { corExceto: 'W' }, produces: [['W'], { escolhida: true }], // "Citadel Gate enters tapped. · As Citadel Gate enters, choose a color other than white. · {T}: Add {W} or one mana of the chosen color."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Black Dragon Gate', entersTapped: true, choose: 'color', self: { corExceto: 'B' }, produces: [['B'], { escolhida: true }], // "Black Dragon Gate enters tapped. · As Black Dragon Gate enters, choose a color other than black. · {T}: Add {B} or one mana of the chosen color."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Sea Gate', entersTapped: true, choose: 'color', self: { corExceto: 'U' }, produces: [['U'], { escolhida: true }], // "Sea Gate enters tapped. · As Sea Gate enters, choose a color other than blue. · {T}: Add {U} or one mana of the chosen color."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Manor Gate', entersTapped: true, choose: 'color', self: { corExceto: 'G' }, produces: [['G'], { escolhida: true }], // "Manor Gate enters tapped. · As Manor Gate enters, choose a color other than green. · {T}: Add {G} or one mana of the chosen color."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Cliffgate', entersTapped: true, choose: 'color', self: { corExceto: 'R' }, produces: [['R'], { escolhida: true }], // "Cliffgate enters tapped. · As Cliffgate enters, choose a color other than red. · {T}: Add {R} or one mana of the chosen color." (texto em .listas/oficiais-tipos.json)
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Basilisk Gate', produces: [['C']], // "{T}: Add {C}."
+    abilities: [{ kind: 'activated', cost: { mana: '{2}', tap: true }, sorceryOnly: true, effects: [{ do: 'pump', power: { subtype: 'Gate' }, toughness: { subtype: 'Gate' }, target: 'creature' }] }], // "{2}, {T}: Target creature gets +X/+X until end of turn, where X is the number of Gates you control. Activate only as a sorcery."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // T-88 · CR 716.2a · barra de Classe com redução de custo e "dano a mais" (Oracle do Forge, clone de 13/10/2026). O lembrete não se escreve.
   { name: "Artist's Talent", self: { classe: [
       { mana: '{2}{R}', reduz: { generic: 1, semTipos: ['creature'] } }, // "{2}{R}: Level 2 · Noncreature spells you cast cost {1} less to cast."
@@ -9599,6 +9613,8 @@ function monarcaErrosT(sc) {
   for (const ab of abs) if (ab && ab.umaVezPorTurno != null && (ab.umaVezPorTurno !== true || ab.kind !== 'triggered' || ab.when !== 'crime')) errs.push('"umaVezPorTurno" só vale como true, num gatilho "crime"'); // T-86 · 603.2h
   for (const ab of abs) if (ab && ab.kind === 'triggered' && ab.when === 'expend' && !(Number.isInteger(ab.n) && ab.n >= 1)) errs.push('gatilho "expend": "n" é um inteiro, 1 ou mais (o N de "whenever you expend N")'); // T-85
   if (sc && sc.self && sc.self.atacaSeMonarcaDefende != null && sc.self.atacaSeMonarcaDefende !== true) errs.push('self.atacaSeMonarcaDefende só vale como true'); // T-70
+  if (sc && sc.self && sc.self.corExceto != null && (!['W', 'U', 'B', 'R', 'G'].includes(sc.self.corExceto) || sc.choose !== 'color')) errs.push("self.corExceto é uma das cinco cores ('W', 'U', 'B', 'R', 'G'), com choose: 'color'"); // T-90 · CR 105.4 · "choose a color other than white"
+  if (((sc && sc.produces) || []).some(o => o && !Array.isArray(o) && o.escolhida != null) && (sc.choose !== 'color' || sc.produces.some(o => o && !Array.isArray(o) && o.escolhida != null && (o.escolhida !== true || Object.keys(o).length > 1)))) errs.push("produces: { escolhida: true } (a mana da cor escolhida) pede choose: 'color' e não leva outras chaves"); // T-90 · CR 106.1 / 605.1a
   if (sc && sc.self && sc.self.nomeAoEntrar != null) { const n = sc.self.nomeAoEntrar, f = n && n.filtro; if (!(n === true || (n && typeof n === 'object' && !Array.isArray(n) && Object.keys(n).every(k => k === 'filtro')))) errs.push('self.nomeAoEntrar é true ou { filtro }'); else if (f != null && (typeof f !== 'object' || Object.keys(f).some(k => !['tipos', 'semTipos'].includes(k) || !Array.isArray(f[k]) || f[k].some(t => !FILTER_TYPES.includes(t))))) errs.push('self.nomeAoEntrar: o filtro é { tipos, semTipos }, com tipos de carta'); } // T-79
   const nomeNoGatilhoT_ = ((sc && sc.abilities) || []).some(ab => ab && ab.kind === 'triggered' && ab.when === 'etb' && (ab.effects || []).some(e => e && e.do === 'escolhe_nome')), escolheNomeT_ = !!(sc && sc.self && sc.self.nomeAoEntrar) || nomeNoGatilhoT_; // T-81 · "when this enters, choose a card name" (Petrified Hamlet) também
   if (sc && sc.self && sc.self.nomeAoEntrar && nomeNoGatilhoT_) errs.push('self.nomeAoEntrar e um escolhe_nome no gatilho de entrar: a carta escolhe um nome só (ou "as … enters", ou "when … enters")'); // T-82
@@ -19204,6 +19220,7 @@ function expandProduction(s, o, opt, visto) {
   const n = opt.per ? countFor(s, o, opt.per) : (opt.amount || 1);
   if (n <= 0) return [];
   if (opt.anyColor) return ['W', 'U', 'B', 'R', 'G'].map(c => Array(n).fill(c));
+  if (opt.escolhida) return o.chosenColor ? [Array(n).fill(o.chosenColor)] : []; // T-90 · CR 106.1 / 605.1a · "one mana of the chosen color" (Portões); antes de escolher, nada (Toca ponto comum: expandProduction)
   return [Array(n).fill(opt.symbol)];
 }
 /** M13 · cores da identidade dos comandantes do jogador (vazia fora do Commander). */
@@ -28634,6 +28651,7 @@ function sagaOfertas(s, p, out) {
   if (s.pending && s.pending.p === p && (s.pending.kind === 'pilha_separa' || s.pending.kind === 'pilha_escolhe')) pilhasOfertasT(s, p, out); // T-83 · CR 700.3
   if (s.pending && s.pending.kind === 'aura_anexo' && s.pending.p === p) for (const oid of s.pending.options || []) out.push({ t: 'aura_anexo', p, oid }); // T-22 · CR 303.4f · uma oferta por permanente que ela pode encantar
   faceGratisOfertasT(s, p, out); // T-11 · CR 709.3 / 712.11b · "conjure sem pagar": as duas metades da dividida e a face de trás da modal
+  corExcetoOfertasT(s, out); // T-90 · CR 105.4 · "choose a color other than X": a cor vedada não é oferecida
   filtraTravadasPeloNomeT(s, out); // T-82 · as ofertas das decisões pendentes (conjurar sem pagar, loucura) também passam pela trava do nome (201.4)
 }
 PENDING_ACTIONS.saga_capitulo = ['saga_capitulo', 'concede'];
@@ -29391,7 +29409,20 @@ function marcaAtivadaT(s, a) {
   if (!a || !['activate', 'tap_mana', 'tripular'].includes(a.t) || a.oid == null || a.fromHand || a.fromGraveyard || !partidaPerguntaT(s, 'ativada', sc => /ativadaNoTurno/.test(JSON.stringify(sc)))) return; // só nas partidas que perguntam (as partidas-referência não mudam)
   const o = s.objects[a.oid]; if (o && o.zone === 'battlefield') o.ativadaT = { turno: s.turn.number, z: o.zc || 0 };
 }
-function barraTravadaPeloNomeT(s, a) { marcaAtivadaT(s, a); const t = acaoTravadaPeloNomeT(s, a, travasDeNomeT(s)); if (t) throw new RuleError('travada', ACOES_CONJURAR_T.includes(a.t) ? `${t.fonte}: mágicas com o nome ${t.nome} não podem ser conjuradas` : `${t.fonte}: as habilidades ativadas de ${t.nome} não podem ser ativadas${t.modo === 'semMana' ? ' (as de mana podem)' : ''}`); }
+function barraTravadaPeloNomeT(s, a) { corExcetoBarraT(s, a); marcaAtivadaT(s, a); const t = acaoTravadaPeloNomeT(s, a, travasDeNomeT(s)); if (t) throw new RuleError('travada', ACOES_CONJURAR_T.includes(a.t) ? `${t.fonte}: mágicas com o nome ${t.nome} não podem ser conjuradas` : `${t.fonte}: as habilidades ativadas de ${t.nome} não podem ser ativadas${t.modo === 'semMana' ? ' (as de mana podem)' : ''}`); }
+/* ---------------- T-90 · CR 105.4 · "As this enters, choose a color other than X" (Portões, 205.3i) ----------------
+   `self.corExceto` (com `choose: 'color'`): a escolha de cor desta permanente (a de 614.12, aberta ao entrar) não oferece a cor vedada
+   e a ação com ela é recusada. A escolha de cor de mana ("any combination of colors", `manaRestam`) não é da carta e fica livre.
+   A mana da cor escolhida é a opção `{ escolhida: true }` do `produces` (expandProduction): antes de escolher, ela não existe. */
+const NOME_COR_T = { W: 'branco', U: 'azul', B: 'preto', R: 'vermelho', G: 'verde' };
+function corVedadaT(s) {
+  const pd = s && s.pending; if (!pd || pd.kind !== 'choose_color' || pd.manaRestam) return null;
+  const o = s.objects[pd.oid], sf = o && ((s.facts[o.name] || {}).script || {}).self;
+  return (sf && sf.corExceto) || null;
+}
+function corExcetoOfertasT(s, out) { const v = corVedadaT(s); if (v) for (let i = out.length - 1; i >= 0; i--) if (out[i].t === 'choose_color' && out[i].color === v) out.splice(i, 1); }
+function corExcetoBarraT(s, a) { if (a.t !== 'choose_color') return; const v = corVedadaT(s); if (v && a.color === v) throw new RuleError('cor', `${s.objects[s.pending.oid].name}: escolha uma cor que não seja ${NOME_COR_T[v]}`); }
+Object.assign(EXPORTS_T, { corVedadaT });
 /** T-81 · "Lands with the chosen name have '{T}: Add {C}.'" (`self.manaDoNome`, Petrified Hamlet): a opção de mana que o terreno com o
  * nome escolhido ganha. */
 function manaDoNomeT(s, o) {
@@ -31504,7 +31535,7 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
           : pd.kind === 'discard' && naMao.length ? { t: 'discard', p: pd.p, oid: naMao[0] }
           : pd.kind === 'pick' ? ((pd.needMv ? somaMvDoGoldfish(s, pd) >= pd.needMv : (pd.picked || []).length >= (pd.label === 'vasculhar' || pd.label === 'desvirar' ? (pd.max || 1) : (pd.min || 0))) || !livre ? { t: 'pick_done', p: pd.p } : { t: 'pick', p: pd.p, oid: livre })
           : pd.kind === 'may_pay' ? { t: 'decline', p: pd.p }
-          : pd.kind === 'choose_color' ? { t: 'choose_color', p: pd.p, color: 'W' }
+          : pd.kind === 'choose_color' ? { t: 'choose_color', p: pd.p, color: E.corVedadaT(s) === 'W' ? 'U' : 'W' } // T-90 · CR 105.4 · "other than white" (Citadel Gate) (Toca ponto comum: goldfish)
           : pd.kind === 'commander_zone' ? { t: 'commander_zone', p: pd.p, yes: true } // M13
           : pd.kind === 'choose_type' ? { t: 'choose_type', p: pd.p, index: 0 }
           : pd.kind === 'choose_pair' ? { t: 'choose_pair', p: pd.p, index: 0 }
@@ -34805,7 +34836,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       banner = PriorityBanner({ title: `Escolha uma cor para ${alvo ? alvo.name : 'a permanente'}`,
         // R6 · mágica que pede a cor ao resolver (Prismatic Strands) não "entra no campo"
         hint: alvo && ['instant', 'sorcery'].some(k => ((s.facts[alvo.name] || {}).types || []).includes(k)) ? 'A mágica vale para a cor que você escolher agora.' : 'A carta pede uma cor ao entrar no campo.',
-        actions: [['W', 'Branco'], ['U', 'Azul'], ['B', 'Preto'], ['R', 'Vermelho'], ['G', 'Verde']].map(([c, label]) =>
+        actions: [['W', 'Branco'], ['U', 'Azul'], ['B', 'Preto'], ['R', 'Vermelho'], ['G', 'Verde']].filter(([c]) => c !== E.corVedadaT(s)).map(([c, label]) => // T-90 · CR 105.4 · a cor vedada não vira botão (Toca ponto comum: table.js, banner da cor)
           Button(label, { dataset: { color: c }, onClick: () => act({ t: 'choose_color', p: v, color: c }) })) });
     } else if (s.pending && s.pending.kind === 'triggers' && s.pending.p === v) {
       const mine = s.queued.filter(q => q.controller === v);

@@ -384,7 +384,7 @@ function runExample(sc) {
   // resolve tudo o que a mágica abriu: escolhas, gatilhos e o que ficou na pilha
   for (let guard = 0; guard < 20; guard++) {
     const pd = s.pending;
-    if (pd && pd.p === a && pd.kind === 'choose_color') { s = act(s, { t: 'choose_color', p: a, color: 'G' }); continue; }
+    if (pd && pd.p === a && pd.kind === 'choose_color') { s = act(s, { t: 'choose_color', p: a, color: E.corVedadaT(s) === 'G' ? 'W' : 'G' }); continue; } // T-90 · "other than green" (Manor Gate)
     if (pd && pd.p === a && pd.kind === 'pick_target') {
       // quando o alvo é um jogador, o cenário mira o oponente (antes: o primeiro da lista, que era o oponente só
       // quando o sorteio punha o jogador 1 para começar; um script novo na biblioteca muda o sorteio)
