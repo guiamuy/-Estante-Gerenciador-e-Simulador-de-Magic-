@@ -5327,7 +5327,7 @@ const EFFECTS = {
   draw: { fields: ['amount'], targets: ['player', 'self'] },
   gain: { fields: ['amount'], targets: ['player', 'self', 'target-controller'] }, // M-335 · "Its controller gains life equal to its power" (Swords to Plowshares)
   lose: { fields: ['amount'], targets: ['player', 'opponent', 'self', 'target-controller', 'each-opponent'] },
-  counters: { fields: ['amount'], targets: ['self-source', 'creature', 'first-target'] }, // M-272 · first-target: o alvo de um efeito anterior
+  counters: { fields: ['amount'], targets: ['self-source', 'creature', 'first-target', 'creature-you-control'] }, // M-395 · "target creature you control" (Idyllic Grange) // M-272 · first-target: o alvo de um efeito anterior
   pump: { fields: ['power', 'toughness'], targets: ['creature', 'creature-you-control', 'creature-opponent-controls', 'each-creature', 'each-opponent-creature', 'each-own-creature'] },
   tap: { fields: [], targets: ['self-source', 'enchanted', 'creature', 'permanent', 'permanent-opponent-controls'] },
   untap: { fields: [], targets: ['self-source', 'enchanted', 'creature', 'permanent'] },
@@ -6054,7 +6054,7 @@ const valueErrors = (v, label) => isCount(v) && v.per === 'soma' ? (Array.isArra
   : isCount(v) ? (v.per === 'se' && !(['metalcraft', 'cast-from-graveyard', 'kicked', 'not-cast-from-hand', 'bargained', ...onlyIfT()].includes(v.se) && Number.isInteger(v.sim) && Number.isInteger(v.nao)) ? [`${label}: "se" precisa da condição (metalcraft, cast-from-graveyard, kicked, bargained, not-cast-from-hand, monarca, oponente-monarca) e dos valores sim/não`] : v.subtype || PER_COUNTS.includes(v.per) ? [] : [`${label}: contagem "${v.per}" desconhecida`]) // M-331
   : (Number.isInteger(v) ? [] : [`${label}: precisa ser inteiro ou contagem`]);
 /** S11b · evasão estática e escolhas feitas quando a permanente entra. */
-const EVASIONS = ['flying-only', 'power-less', 'three-or-more', 'not-monarch']; // M-391 · "can't be blocked by creatures the monarch controls" (Azure Fleet Admiral, 725) // M-349 · Troll of Khazad-dûm: "can't be blocked except by three or more creatures"
+const EVASIONS = ['flying-only', 'power-less', 'three-or-more', 'not-monarch', 'unblockable']; // M-395 · "~ can't be blocked" (Blighted Agent, 509.1b) // M-391 · "can't be blocked by creatures the monarch controls" (Azure Fleet Admiral, 725) // M-349 · Troll of Khazad-dûm: "can't be blocked except by three or more creatures"
 const CHOICES = ['color'];
 const STATIC_RULES = ['flagbearer', 'exile-instead-of-graveyard', 'opponent-creatures-enter-tapped'];
 const TRIGGER_PT = { etb: 'quando entra no campo', dies: 'quando morre', upkeep: 'na sua manutenção', attacks: 'quando ataca', blocks: 'quando bloqueia',
@@ -9202,6 +9202,11 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Skateboard': { texto: 'tgh34y', leva: 'M-394' },
   'Meteor Sword': { texto: 'd154e4', leva: 'M-394' },
   'White Auracite': { texto: '1wkxqxf', leva: 'M-394' },
+  // M-395 · revisão por lote LIII (Pauper: Blighted Agent, Idyllic Grange, God-Pharaoh's Faithful, Memory Lapse), revisor independente: aprovada (116 asserções, leitor no corpus e diferencial sem diferença); dois achados corrigidos com teste
+  'Blighted Agent': { texto: 'vwajp8', leva: 'M-395' },
+  'Idyllic Grange': { texto: '148q7zh', leva: 'M-395' },
+  'God-Pharaoh\'s Faithful': { texto: '101awhg', leva: 'M-395' },
+  'Memory Lapse': { texto: 'n6w385', leva: 'M-395' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -17553,6 +17558,7 @@ const __m42 = (function () {
     [/^until end of turn, target land you control becomes the basic land type of your choice in addition to its other types$/i, () => [{ do: 'tipo_basico', target: 'land-you-control' }]], // M-388 · Navigator's Compass (305.7)
     [/^whenever a creature you control enters this turn, put a \+1\/\+1 counter on it and it gains haste until end of turn$/i, () => [{ do: 'gatilho_no_turno', when: 'criatura-sua-entra', effects: [{ do: 'counters', tipo: 'p1p1', amount: 1, target: 'delayed-object' }, { do: 'keyword', keyword: 'haste', target: 'delayed-object' }] }]], // M-389 · First Day of Class (603.7c)
     [/^learn$/i, () => [{ do: 'learn' }]],
+    [/^put a \+1\/\+1 counter on target creature you control$/i, () => [{ do: 'counters', tipo: 'p1p1', amount: 1, target: 'creature-you-control' }]], // M-395 · Idyllic Grange
     [/^prevent all damage that would be dealt by creatures this turn$/i, () => [{ do: 'prevenir', todos: true, deCriatura: true }]], // M-390 · Ethereal Haze (615.1) // M-389 · 701.48 (o motor aprende desde a V-13; a Lição de fora do jogo não existe no app — parcial declarada no vocabulário)
     [/^it doesn't untap during its controller's next untap step$/i, () => [{ do: 'nao_desvira', target: 'first-target' }]], // M-334 · LT18 · 502.3 (Sleep of the Dead)
     [/^add ((?:\{[WUBRGC]\})+)$/i, m => [{ do: 'add_mana', symbols: m[1].match(/[WUBRGC]/g) }]], // M-334 · LT18 · mágica ou gatilho que adiciona mana (Seething Song, Burning-Tree Emissary)
@@ -17628,7 +17634,8 @@ const __m42 = (function () {
     [/^when you play another land$/i, 'you-play-land'], // M-342 · City of Traitors (305.1: jogar, não pôr no campo)
     [/^whenever you sacrifice another permanent$/i, 'other-sacrificed'], // LT10
     [/^whenever you cast an instant or sorcery spell$/i, 'other-cast', () => ({ filter: { anyTypes: ['instant', 'sorcery'] } })], // M-328
-    [/^whenever you cast a noncreature spell$/i, 'other-cast', () => ({ filter: { noncreature: true } })], // M-328
+    [/^whenever you cast a noncreature spell$/i, 'other-cast', () => ({ filter: { noncreature: true } })],
+    [/^whenever you cast an? (?:white|blue|black|red|green)(?:-(?:white|blue|black|red|green))+ spell$/i, 'other-cast', m => ({ filter: { anyColors: [...new Set(m[0].toLowerCase().match(/white|blue|black|red|green/g).map(c => ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[c]))] } })], // M-395 · God-Pharaoh's Faithful // M-328
     [/^[Ww]henever you cast an? ([A-Z][a-z]+) spell$/, 'other-cast', m => ({ filter: { subtype: m[1] } })], // LT11 · "whenever you cast an Elf spell"
     [/^[Ww]henever another ([A-Z][a-z]+) enters(?: the battlefield)?$/, 'other-etb', m => ({ anyController: true, filter: { types: ['creature'], subtype: m[1] } })], // LT10 · "another Elf enters" (de qualquer jogador)
     [/^(?:heroic — )?whenever you cast a spell that targets (this creature|~)$/i, 'heroic'], // CR2b.8
@@ -17807,6 +17814,7 @@ const __m42 = (function () {
     const partes = texto.replace(/, then shuffle and put that card on top(\.|$)/i, ', put that card on top of your library, then shuffle$1').split(/\.\s+|,\s+then\s+|\.$/).map(x => x.replace(/\.$/, '').trim()).filter(Boolean);
     let ok = true;
     for (const p of partes) {
+      if (/^if that spell is countered this way, put it on top of its owner's library instead of into that player's graveyard$/i.test(p) && efeitos.length && efeitos[efeitos.length - 1].do === 'counter') { efeitos[efeitos.length - 1].topo = true; frases.push({ texto: p, lida: true }); continue; } // M-395 · Memory Lapse
       if (/^if that spell is countered this way, exile it instead of putting it into its owner's graveyard$/i.test(p) && efeitos.length && efeitos[efeitos.length - 1].do === 'counter') { efeitos[efeitos.length - 1].exila = true; frases.push({ texto: p, lida: true }); continue; } // M-338 · Force of Negation
       if (/^if evidence was collected, instead each opponent sacrifices a creature with the greatest power among creatures they control$/i.test(p) && efeitos.length && !efeitos[efeitos.length - 1].onlyIf) { efeitos[efeitos.length - 1].onlyIf = 'not-evidenced'; efeitos.push({ do: 'sacrificar', tipos: ['creature'], jogadores: 'cada-oponente', maiorPoder: true, onlyIf: 'evidenced' }); frases.push({ texto: p, lida: true }); continue; } // M-351 · Extract a Confession (701.59; "instead" troca a frase anterior)
       if (/^if that land was a snow land, you gain 1 life$/i.test(p) && efeitos.length && SC_ALVEJA(efeitos[efeitos.length - 1])) { efeitos.push({ do: 'gain', amount: 1, onlyIf: 'alvo-era-neve' }); frases.push({ texto: p, lida: true }); continue; } // M-385 · Thermokarst (608.2h)
@@ -17858,7 +17866,7 @@ const __m42 = (function () {
         if (per) { topo.reduzPor = { generic: +rp[1], per }; frases.push({ texto: linha, lida: true }); continue; } }
       if (kc0) { Object.assign(topo, kc0); frases.push({ texto: linha, lida: true }); continue; }
       if (!magica) { // LT3 · permanentes
-        const lp = til(linha.replace(/\.$/, ''), nome); // LT6 · o nome impresso vale como "~" · M-394: "this creature/artifact/…" também
+        const lp = til(linha.replace(/\.$/, ''), nome).replace(/^(whenever you cast an? )((?:white|blue|black|red|green)(?:, (?:white|blue|black|red|green))*),? or (white|blue|black|red|green) spell/i, (m0, a, b, c) => a + b.split(', ').join('-') + '-' + c + ' spell'); /* M-395 · "a blue, black, or red spell": as vírgulas da lista de cores não separam gatilho e efeito */ // LT6 · o nome impresso vale como "~" · M-394: "this creature/artifact/…" também
 
         const en = ENCHANT[lp.toLowerCase()]; if (en) { topo.aura = { enchant: en }; frases.push({ texto: linha, lida: true }); continue; }
         const eqE = lp.match(/^Equip—Pay ((?:\{E\})+)$/); if (eqE) { topo.equip = { enchant: 'creature', cost: { energia: eqE[1].match(/\{E\}/g).length } }; frases.push({ texto: linha, lida: true }); continue; } // M-367 · Inventor's Axe
@@ -17875,6 +17883,7 @@ const __m42 = (function () {
         if (al && (!al[4] || al[4].split(/ and /).every(k => KW.has(k.trim().toLowerCase())))) { topo.continuo = [...(topo.continuo || []), { afetados: 'self', poder: SINAL(al[2]), resistencia: SINAL(al[3]), ...(al[4] ? { palavras: al[4].split(/ and /).map(k => k.trim().toLowerCase()) } : {}), se: { controlaTipo: al[1].toLowerCase() } }]; frases.push({ texto: linha, lida: true }); continue; }
         const pe = lp.match(/^~ gets ([+-]\d+)\/([+-]\d+) for each (.+)$/i); // LT5 · "~ gets +1/+1 for each Aura on the battlefield"
         if (pe && contagem(pe[3])) { topo.self = { ...(topo.self || {}), perPower: SINAL(pe[1]), perToughness: SINAL(pe[2]), per: contagem(pe[3]) }; frases.push({ texto: linha, lida: true }); continue; }
+        if (/^~ can't be blocked$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'unblockable' }; frases.push({ texto: linha, lida: true }); continue; } // M-395 · Blighted Agent
         if (/^~ can't be blocked by creatures the monarch controls\.?$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'not-monarch' }; frases.push({ texto: linha, lida: true }); continue; } // M-391 · Azure Fleet Admiral (725)
         if (/^~ can't be blocked except by creatures with flying$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'flying-only' }; frases.push({ texto: linha, lida: true }); continue; } // LT5
         if (/^creatures with power less than ~'s power can't block it$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'power-less' }; frases.push({ texto: linha, lida: true }); continue; } // LT5
@@ -17916,7 +17925,7 @@ const __m42 = (function () {
         if (el2) { const g1 = leGatilho(`When ~ enters, ${el2[1]}`, nome, frases), g2 = leGatilho(`When ~ leaves the battlefield, ${el2[1]}`, nome, []); if (g1 && g2) (topo.abilities = topo.abilities || []).push(g1, g2); continue; }
         if (/^~ can't be blocked except by three or more creatures$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'three-or-more' }; frases.push({ texto: linha, lida: true }); continue; } // M-349 · Troll of Khazad-dûm
         const egf = lp.match(new RegExp(`^(?:this land|~) enters(?: the battlefield)? tapped unless you control ${N} or more other (Plains|Islands|Swamps|Mountains|Forests)$`, 'i')); // M-349 · Gingerbread Cabin
-        if (egf) { topo.entersTappedUnless = { minOutrosDoSubtipo: [egf[2].replace(/s$/, ''), num(egf[1])] }; frases.push({ texto: linha, lida: true }); continue; }
+        if (egf) { topo.entersTappedUnless = { minOutrosDoSubtipo: [/^plains$/i.test(egf[2]) ? 'Plains' : egf[2].replace(/s$/, ''), num(egf[1])] }; /* M-395 · o singular de "Plains" é "Plains" (Idyllic Grange: antes virava "Plain" e nunca contava) */ frases.push({ texto: linha, lida: true }); continue; }
         const ed = lp.match(/^when ~ enters(?: the battlefield)? or is put into a graveyard from the battlefield, (.+)$/i); // LT11 · entra ou morre: dois gatilhos com o mesmo efeito
         if (ed) { const g1 = leGatilho(`When ~ enters, ${ed[1]}`, nome, frases), g2 = leGatilho(`When ~ dies, ${ed[1]}`, nome, []); if (g1 && g2) (topo.abilities = topo.abilities || []).push(g1, g2); continue; }
         if (GATILHOS.some(([re]) => re.test(lp.split(', ')[0]))) { const g = leGatilho(lp, nome, frases); if (g) (topo.abilities = topo.abilities || []).push(g); continue; } // gatilho (as frases do corpo já ficaram anotadas)
@@ -20003,6 +20012,7 @@ function porQueNaoBloqueia(s, blocker, attacker) {
   if (ev === 'flying-only' && !has(s, b, 'flying')) return 'só criaturas com voar bloqueiam';
   if (ev === 'power-less' && power(s, b) < power(s, a)) return 'poder menor que o da atacante';
   if (ev === 'not-monarch' && s.monarca != null && s.monarca === b.controller) return 'criaturas do monarca não a bloqueiam'; // M-391 · 725
+  if (ev === 'unblockable') return 'não pode ser bloqueada'; // M-395 · 509.1b
   // 'three-or-more' (M-349): cada bloqueador pode, mas o grupo precisa de três — conferido na declaração
   if (protections(s, a).some(c => casaProtecaoK(s, c, b))) return 'proteção contra o bloqueador'; // K-17 · 702.16f: qualquer qualidade (Toca ponto comum)
   // CR1b · evasões por palavra-chave
@@ -20793,12 +20803,13 @@ function applyEffect(s, src, eff, tgt, events) {
       const custoUnless = eff.unless ? String(eff.unless.mana).replace(/\{X\}/g, `{${src.xPaid || 0}}`) : null; // M-338 · 107.3a: o X anunciado (Syncopate)
       if (eff.unless && s.manaCheck && canPay(s, obj.controller, parseCost(custoUnless))) {
         // S16 · o controlador da mágica decide se paga para salvá-la
-        s.pending = { kind: 'may_pay', p: obj.controller, cost: custoUnless, target: obj.oid, name: src.name, ...(eff.exila ? { exila: true } : {}) }; // M-338 · No More Lies
+        s.pending = { kind: 'may_pay', p: obj.controller, cost: custoUnless, target: obj.oid, name: src.name, ...(eff.exila ? { exila: true } : {}), ...(eff.topo ? { topo: true } : {}) }; // M-338 · No More Lies · M-395: e o topo do grimório
         note({ pending: true }); break;
       }
       if (eff.suspende && s.objects[obj.oid]) { // M-269 · Delay: "exile it with three time counters on it instead … If it doesn't have suspend, it gains suspend"
         moveObject(s, obj.oid, 'exile'); obj.counters.time = eff.suspende; obj.suspensa = true; note({ suspensa: eff.suspende }); break; }
-      if (eff.exila && !obj.ability) { moveObject(s, obj.oid, 'exile'); note({ exilada: true }); break; } // M-338 · Force of Negation: anulada assim, vai para o exílio
+      if (eff.exila && !obj.ability) { moveObject(s, obj.oid, 'exile'); note({ exilada: true }); break; }
+      if (eff.topo && !obj.ability) { moveObject(s, obj.oid, 'library', { top: true }); note({ topo: s.objects[obj.oid] && s.objects[obj.oid].zone === 'library' }); break; } // M-395 · Memory Lapse (o lampejo do passado continua indo ao exílio, 702.34a; a cópia some) // M-338 · Force of Negation: anulada assim, vai para o exílio
       moveObject(s, obj.oid, 'graveyard'); note({}); break;
     case 'draw': { const n = amountOf(s, src, eff.amount); draw(s, playerOf(), n); note({ amount: n }); } break;
     case 'gain': { const n = amountOf(s, src, eff.amount); const who = playerOf(); const g = ganhaVidaJogador(s, who, n); note({ amount: g, ...(g < n ? { failed: true } : {}) }); } break; // CR2d.10
@@ -20813,7 +20824,7 @@ function applyEffect(s, src, eff, tgt, events) {
       if (alvo && alvo.zone === 'battlefield') {
         const nM = amountOf(s, src, eff.amount); // CR2c.7 · quantidade variável ("put X counters": o X da habilidade)
         if (eff.tipo && eff.tipo !== 'p1p1') { const k = poeMarcadores(s, alvo, eff.tipo, nM); note({ amount: k, tipo: eff.tipo, name: alvo.name }); } // M-249 · marcador nomeado (122.1) · CR2e.2 · 614.16
-        else { const k = addCounters(s, alvo, nM); note({ amount: k }); }
+        else { const k = addCounters(s, alvo, nM); note({ amount: k, name: alvo.name }); } /* M-395 · achado da revisão: o registro dava o marcador à fonte (Guiding Voice, Idyllic Grange) */
       }
       break;
     }
@@ -22450,6 +22461,7 @@ function matchesTriggerFilter(s, o, filter) {
   if ((filter.types || []).some(x => !tipos.includes(x))) return false;
   if (filter.anyTypes && !filter.anyTypes.some(x => tipos.includes(x))) return false; // R11 · "creature or planeswalker" (Cruel Celebrant)
   if (filter.noncreature && tipos.includes('creature')) return false;
+  if (filter.anyColors && !filter.anyColors.some(c => colorsOf(s, o).includes(c))) return false; // M-395 · "a blue, black, or red spell" (God-Pharaoh's Faithful)
   if ((filter.historico != null || filter.foraDaLei != null || filter.modificada != null || filter.virada != null || filter.metamorfose != null) && !predicadosDeTipoT(s, o, filter, lki)) return false; // T-59 · CR 700.6 / 700.12 / 700.9: "whenever you cast a historic spell" · T-60 · 603.10a: quem saiu do campo, como era lá (Toca ponto comum: matchesTriggerFilter)
   if (filter.semManaGasta && (!s.manaCheck || ((o.manaGasta || {})[filter.semManaGasta === 'colorida' ? 'colorida' : 'total'] || 0) > 0)) return false; // M-346 · Vexing Bauble, Void Mirror (603.4)
   if ((lki ? lki.faceDown : o.faceDown) && !filter.subtype) return true; // V-19 · 708.2a: a virada para baixo é criatura (os tipos acima já são os de agora); só o subtipo ela não tem · Toca ponto comum: matchesTriggerFilter (uma linha antes da regra da S54)
@@ -23770,7 +23782,7 @@ const HANDLERS = {
     if (pk.senao) { aplicaSenao(s, pk.senao, ev); if (!s.pending) resumeEffects(s, ev); return; } // CR2b.5 · não pagou
     if (pk.then) return resumeEffects(s, ev); // S47 · não pagou: o gatilho não faz nada
     const obj = s.objects[pk.target];
-    if (obj && obj.zone === 'stack') { const exila = pk.exila && !obj.ability; moveObject(s, obj.oid, exila ? 'exile' : 'graveyard'); ev.push({ kind: 'effect', do: 'counter', name: pk.name, target: obj.name, ...(exila ? { exilada: true } : {}) }); } // M-338 · "if that spell is countered this way, exile it"
+    if (obj && obj.zone === 'stack') { const exila = pk.exila && !obj.ability, topo = pk.topo && !obj.ability && !exila; moveObject(s, obj.oid, exila ? 'exile' : topo ? 'library' : 'graveyard', topo ? { top: true } : undefined); ev.push({ kind: 'effect', do: 'counter', name: pk.name, target: obj.name, ...(exila ? { exilada: true } : {}), ...(topo ? { topo: true } : {}) }); } /* M-395 · achado da revisão: "a menos que pague" + topo */ // M-338 · "if that spell is countered this way, exile it"
     resumeEffects(s, ev);
   },
   /** S15 · escolhe o alvo de um gatilho. */
@@ -31019,7 +31031,7 @@ function effectLine(ev) {
     case 'destroy': return ev.failed ? `${ev.name} não destruiu ${t}${ev.why ? ` (${ev.why})` : ': sem efeito'}` : `${ev.name} destruiu ${t}`; // R9b · Hydroblast em permanente que não é vermelha dizia "(indestrutível)"
     case 'exile': return `${ev.name} exilou ${t}`;
     case 'bounce': return `${ev.name} devolveu ${t} à mão do dono`;
-    case 'counter': if (ev.exilada) return `${ev.name} anulou ${t} e a exilou`; if (ev.suspensa) return `${ev.name} anulou ${t} e a exilou com ${ev.suspensa} marcadores de tempo (suspender)`; return ev.paid ? `${t} escapou de ${ev.name}: o custo foi pago` : ev.pending ? `${ev.name} espera o pagamento de ${t}` : ev.failed ? `${ev.name} não anulou ${t}: sem efeito` : `${ev.name} anulou ${t}`; // R9b · dizia "anulou" com a mágica ainda na pilha
+    case 'counter': if (ev.topo) return `${ev.name} anulou ${t} e a pôs no topo do grimório do dono`; if (ev.exilada) return `${ev.name} anulou ${t} e a exilou`; if (ev.suspensa) return `${ev.name} anulou ${t} e a exilou com ${ev.suspensa} marcadores de tempo (suspender)`; return ev.paid ? `${t} escapou de ${ev.name}: o custo foi pago` : ev.pending ? `${ev.name} espera o pagamento de ${t}` : ev.failed ? `${ev.name} não anulou ${t}: sem efeito` : `${ev.name} anulou ${t}`; // R9b · dizia "anulou" com a mágica ainda na pilha
     case 'counters': return ev.tipo ? `${ev.name} recebeu ${plural(n, 'marcador ' + (MARCADOR_PT[ev.tipo] || ev.tipo), 'marcadores ' + (MARCADOR_PT[ev.tipo] || ev.tipo))}` : `${ev.name} recebeu ${plural(n, 'marcador +1/+1', 'marcadores +1/+1')}`;
     case 'adapt': return n ? `${ev.name} adaptou: ${plural(n, 'marcador +1/+1', 'marcadores +1/+1')}` : `${ev.name} não adaptou: já tinha marcador +1/+1`;
     case 'return_chosen': return `${ev.name}: ${t} devolveu uma permanente à mão`;
@@ -32059,7 +32071,7 @@ function descreveEfeito(e) {
       return e.amount && IGUAL_A[e.amount.per] ? `causa dano igual ${IGUAL_A[e.amount.per]} a ${alvo || 'um alvo'}` : `causa ${n} de dano a ${alvo || 'um alvo'}${e.exilaSeMorrer ? ' (se o que recebeu esse dano fosse morrer neste turno, é exilado)' : ''}`; // CR2b.10 · M-384
     case 'gain': return e.amount && IGUAL_A[e.amount.per] ? `ganha vida igual ${IGUAL_A[e.amount.per]}` : `ganha ${n} de vida`;
     case 'lose': return `${alvo === 'cada oponente' ? 'cada oponente perde' : 'perde'} ${n} de vida`;
-    case 'counter': return `anula ${alvo || 'uma mágica'}${e.suspende ? ` e a exila com ${e.suspende} marcadores de tempo, com suspender` : ''}${e.exila ? ' e a exila' : ''}`; // M-269 · M-338
+    case 'counter': return `anula ${alvo || 'uma mágica'}${e.suspende ? ` e a exila com ${e.suspende} marcadores de tempo, com suspender` : ''}${e.exila ? ' e a exila' : ''}${e.topo ? ' e a põe no topo do grimório do dono' : ''}`; // M-269 · M-338 · M-395
     case 'destroy': return `destrói ${alvo || 'uma permanente'}`;
     case 'destroy_all': { const nomes = { artifact: 'artefatos', enchantment: 'encantamentos', creature: 'criaturas', land: 'terrenos', planeswalker: 'planeswalkers' }; // CR2c.2
       const vm = e.mvMax != null ? ` de valor de mana ${e.mvMax} ou menos` : e.mvMin != null ? ` de valor de mana ${e.mvMin} ou mais` : '';
