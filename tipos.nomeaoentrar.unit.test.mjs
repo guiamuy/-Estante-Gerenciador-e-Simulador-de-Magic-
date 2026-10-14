@@ -8,17 +8,19 @@ import { E, S as SC, T, J, act, poe, legais, passaAte, valorDeMana } from './lis
 
 const L = n => JSON.parse(readFileSync(new URL('./.listas/' + n, import.meta.url), 'utf8')).cartas;
 const C = {};
-for (const c of L('oficiais-tipos.json').filter(x => ['Pithing Needle', 'Phyrexian Revoker'].includes(x.name)))
+for (const c of L('oficiais-tipos.json').filter(x => ['Pithing Needle', 'Phyrexian Revoker', 'Meddling Mage', 'Nevermore', 'Petrified Hamlet', 'Wax // Wane', 'Foulmire Knight'].includes(x.name))) // T-81 · e as do nome para conjurar e para mana
   C[c.name] = { name: c.name, type_line: c.type_line, mana_cost: c.mana_cost, cmc: valorDeMana(c.mana_cost), keywords: [], oracle_text: c.oracle_text, colors: [], ...(c.power != null ? { power: c.power, toughness: c.toughness } : {}) };
 for (const [n, k] of Object.entries({ Forest: 'G', Mountain: 'R' })) C[n] = { name: n, type_line: `Basic Land — ${n}`, mana_cost: '', cmc: 0, keywords: [], oracle_text: `({T}: Add {${k}}.)`, colors: [] };
 const carta = (name, type_line, extra = {}) => { C[name] = { name, type_line, mana_cost: '{1}', cmc: 1, keywords: [], oracle_text: '', colors: [], ...extra }; };
 carta('Atirador', 'Creature — Human', { power: '1', toughness: '1' }); carta('Elfo', 'Creature — Elf', { power: '1', toughness: '1' });
-carta('Ciclador', 'Sorcery');
+carta('Ciclador', 'Sorcery'); carta('Terra Útil', 'Land', { mana_cost: '', cmc: 0 }); carta('Choque', 'Instant');
 const EX = { example: { target: 'none', expect: { selfLife: 0 } } };
 const SCRIPTS = {
   'Atirador': { name: 'Atirador', abilities: [{ kind: 'activated', cost: { tap: true }, effects: [{ do: 'damage', amount: 1, target: 'any' }] }], ...EX }, // "{T}: This creature deals 1 damage to any target."
   'Elfo': { name: 'Elfo', produces: [['G']], ...EX }, // "{T}: Add {G}."
   'Ciclador': { name: 'Ciclador', effects: [{ do: 'gain', amount: 1 }], cycling: { mana: '{1}' }, ...EX }, // "You gain 1 life. · Cycling {1}"
+  'Terra Útil': { name: 'Terra Útil', abilities: [{ kind: 'activated', cost: { tap: true, sacrifice: true }, effects: [{ do: 'gain', amount: 2 }] }], ...EX }, // "{T}, Sacrifice this land: You gain 2 life." (sem habilidade de mana)
+  'Choque': { name: 'Choque', effects: [{ do: 'damage', amount: 2, target: 'any' }], ...EX },
 };
 const TODAS = Object.keys(C).filter(n => !['Forest', 'Mountain'].includes(n));
 function mesa(seed = 1) {
@@ -104,4 +106,59 @@ test('CR 201.4 · validador, mesa e registro: nomeAoEntrar e travaAtivadasDoNome
   s = act(s, legais(s, 0, a => a.t === 'cast' && a.oid === g)[0]); s = passaAte(s, x => !!x.pending || !x.stack.length);
   const r = E.apply(s, { t: 'choose_name', p: 0, nome: 'Atirador' });
   assert.match(T.describe(s, { t: 'choose_name', p: 0, nome: 'Atirador' }, r.events, r.state).join(' | '), /escolheu o nome Atirador/);
+});
+
+/* ---------------- T-81 · o nome escolhido para conjurar (Meddling Mage, Nevermore) e para mana (Petrified Hamlet) ---------------- */
+const conjura = (s, p, oid, f = () => true) => { s = mana(s, p); s = J(s); s.turn.priority = p; return legais(s, p, a => a.t === 'cast' && a.oid === oid && f(a)); };
+
+test('CR 201.4 / 601.2 · Meddling Mage (texto oficial): "Spells with the chosen name can’t be cast" — nenhum jogador conjura Choque; a mesa não oferece e o apply recusa; outra mágica, sim', () => {
+  let s = mesa(); let c0, c1, ci; [s, c0] = poe(s, 0, 'Choque', 'hand'); [s, c1] = poe(s, 1, 'Choque', 'hand'); [s, ci] = poe(s, 0, 'Ciclador', 'hand');
+  [s] = agulha(s, 'Meddling Mage', 'Choque');
+  eq([conjura(s, 0, c0).length, conjura(s, 1, c1).length], [0, 0]);
+  assert.ok(conjura(s, 0, ci).length > 0, 'Ciclador continua');
+  assert.throws(() => E.apply(mana(s), { t: 'cast', p: 0, oid: c0, targets: [{ player: 1 }] }), /não podem ser conjuradas/);
+});
+
+test('CR 709.3 / 715.3 · o nome é o da mágica na pilha: nomeando Wane, Wax continua (só a metade direita para); nomeando Profane Insight, Foulmire Knight é conjurada como criatura mas não como Aventura', () => {
+  let s = mesa(); let w, f; [s, w] = poe(s, 0, 'Wax // Wane', 'hand'); [s, f] = poe(s, 0, 'Foulmire Knight', 'hand'); [s] = poe(s, 1, 'Atirador', 'battlefield'); // alvo para Wax (criatura); Wane mira o próprio Nevermore
+  let t = agulha(s, 'Nevermore', 'Wax')[0];
+  const sem = conjura(t, 0, w).map(a => a.face || 'esquerda');
+  assert.ok(!sem.includes('esquerda') && sem.includes('direita'), 'nomeando Wax, só Wane: ' + JSON.stringify(sem));
+  t = agulha(s, 'Nevermore', 'Wane')[0];
+  const faces = conjura(t, 0, w).map(a => a.face || 'esquerda');
+  assert.ok(faces.includes('esquerda') && !faces.includes('direita'), JSON.stringify(faces));
+  t = agulha(s, 'Nevermore', 'Profane Insight')[0];
+  const fk = conjura(t, 0, f);
+  assert.ok(fk.some(a => !a.omen) && !fk.some(a => a.omen), JSON.stringify(fk.map(a => !!a.omen)));
+});
+
+test('CR 400.7 · Meddling Mage que sai do campo leva a proibição', () => {
+  let s = mesa(); let c0; [s, c0] = poe(s, 0, 'Choque', 'hand');
+  let g; [s, g] = agulha(s, 'Meddling Mage', 'Choque');
+  eq(conjura(s, 0, c0).length, 0);
+  s = J(s); const z = s.zones[0]; z.battlefield.splice(z.battlefield.indexOf(g), 1); z.graveyard.push(g); s.objects[g].zone = 'graveyard'; s.objects[g].zc = (s.objects[g].zc || 0) + 1;
+  assert.ok(conjura(s, 0, c0).length > 0);
+});
+
+test('CR 201.4 / 603 · Petrified Hamlet (texto oficial): ao entrar, o gatilho pede um nome de terreno; a ativada da Terra Útil para, e ela ganha "{T}: Add {C}"; o Hamlet dá {C}', () => {
+  let s = mesa(); let u; [s, u] = poe(s, 0, 'Terra Útil', 'battlefield');
+  assert.ok(ativa(s, 0, u).length > 0, 'antes, ativa');
+  eq(J(E.productions(s, s.objects[u])), [], 'sem habilidade de mana');
+  let h; [s, h] = poe(s, 0, 'Petrified Hamlet', 'hand'); s = J(s); s.players[0].landsPlayed = 0;
+  s = act(s, legais(s, 0, a => a.t === 'play_land' && a.oid === h)[0]); s = passaAte(s, x => !!x.pending || !x.stack.length);
+  for (let i = 0; i < 5 && s.pending && s.pending.kind !== 'choose_name'; i++) s = act(s, legais(s, s.pending.p)[0]);
+  assert.ok(s.pending && s.pending.kind === 'choose_name', 'o gatilho resolve e pede o nome');
+  assert.ok(s.pending.options.includes('Terra Útil') && s.pending.options.includes('Forest') && !s.pending.options.includes('Atirador'), 'só nomes de terreno');
+  s = act(s, { t: 'choose_name', p: 0, nome: 'Terra Útil' }); s = passaAte(s, x => !x.stack.length || !!x.pending);
+  eq(ativa(s, 0, u).length, 0, 'a ativada (que não é de mana) para');
+  eq(J(E.productions(s, s.objects[u])), [['C']], 'ganha {T}: Add {C}');
+  eq(J(E.productions(s, s.objects[h])), [['C']]);
+});
+
+test('CR 201.4 · validador: travaConjurarDoNome e manaDoNome pedem o nome escolhido; manaDoNome só cores de mana', () => {
+  const v = sc => J(SC.validateScript({ name: 'X', ...sc, example: { action: 'etb', target: 'none', expect: { attached: false } } }));
+  eq(v({ self: { nomeAoEntrar: true, travaConjurarDoNome: true } }), []);
+  assert.ok(v({ self: { travaConjurarDoNome: true } }).some(e => /travaConjurarDoNome/.test(e)));
+  assert.ok(v({ self: { nomeAoEntrar: true, manaDoNome: ['X'] } }).some(e => /manaDoNome/.test(e)));
+  eq(v({ produces: [['C']], self: { travaAtivadasDoNome: 'semMana', manaDoNome: ['C'] }, abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'escolhe_nome', filtro: { tipos: ['land'] } }] }] }), []);
 });

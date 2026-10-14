@@ -6749,6 +6749,14 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-81 · CR 201.4 · o nome escolhido: conjurar e mana (Oracle do Forge, clone de 13/10/2026).
+  { name: 'Meddling Mage', self: { nomeAoEntrar: { filtro: { semTipos: ['land'] } }, travaConjurarDoNome: true }, // "As Meddling Mage enters, choose a nonland card name. · Spells with the chosen name can't be cast."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o cenário de verdade está em tipos.nomeaoentrar.unit
+  { name: 'Nevermore', self: { nomeAoEntrar: { filtro: { semTipos: ['land'] } }, travaConjurarDoNome: true }, // "As Nevermore enters, choose a nonland card name. · Spells with the chosen name can't be cast."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Petrified Hamlet', produces: [['C']], self: { travaAtivadasDoNome: 'semMana', manaDoNome: ['C'] }, // "Activated abilities of sources with the chosen name can't be activated unless they're mana abilities. · Lands with the chosen name have "{T}: Add {C}." · {T}: Add {C}."
+    abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'escolhe_nome', filtro: { tipos: ['land'] } }] }], // "When this land enters, choose a land card name."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // T-80 · CR 701.23 · cartas com o mesmo nome (Oracle do Forge, clone de 13/10/2026). O lembrete do {B/P} entre parênteses não se escreve.
   { name: 'Surgical Extraction', effects: [{ do: 'exila_mesmo_nome', target: { zona: 'graveyard', terrenoBasico: false } }], // "Choose target card in a graveyard other than a basic land card. Search its owner's graveyard, hand, and library for any number of cards with the same name as that card and exile them. Then that player shuffles."
     example: { target: 'own-graveyard-creature', expect: { selfLife: 0 } } }, // o cenário de verdade está em tipos.mesmonome.unit
@@ -9506,7 +9514,10 @@ function monarcaErrosT(sc) {
   for (const ab of abs) if (ab && ab.condition && ab.condition.monarca != null && !['voce', 'oponente'].includes(ab.condition.monarca)) errs.push('condição "monarca" do gatilho: \'voce\' ou \'oponente\'');
   if (sc && sc.self && sc.self.atacaSeMonarcaDefende != null && sc.self.atacaSeMonarcaDefende !== true) errs.push('self.atacaSeMonarcaDefende só vale como true'); // T-70
   if (sc && sc.self && sc.self.nomeAoEntrar != null) { const n = sc.self.nomeAoEntrar, f = n && n.filtro; if (!(n === true || (n && typeof n === 'object' && !Array.isArray(n) && Object.keys(n).every(k => k === 'filtro')))) errs.push('self.nomeAoEntrar é true ou { filtro }'); else if (f != null && (typeof f !== 'object' || Object.keys(f).some(k => !['tipos', 'semTipos'].includes(k) || !Array.isArray(f[k]) || f[k].some(t => !FILTER_TYPES.includes(t))))) errs.push('self.nomeAoEntrar: o filtro é { tipos, semTipos }, com tipos de carta'); } // T-79
-  if (sc && sc.self && sc.self.travaAtivadasDoNome != null && (!['semMana', 'todas'].includes(sc.self.travaAtivadasDoNome) || !sc.self.nomeAoEntrar)) errs.push("self.travaAtivadasDoNome é 'semMana' ou 'todas', com self.nomeAoEntrar"); // T-79
+  const escolheNomeT_ = !!(sc && sc.self && sc.self.nomeAoEntrar) || ((sc && sc.abilities) || []).some(ab => ab && ab.kind === 'triggered' && ab.when === 'etb' && (ab.effects || []).some(e => e && e.do === 'escolhe_nome')); // T-81 · "when this enters, choose a card name" (Petrified Hamlet) também
+  if (sc && sc.self && sc.self.travaAtivadasDoNome != null && (!['semMana', 'todas'].includes(sc.self.travaAtivadasDoNome) || !escolheNomeT_)) errs.push("self.travaAtivadasDoNome é 'semMana' ou 'todas', com self.nomeAoEntrar (ou um escolhe_nome ao entrar)"); // T-79
+  if (sc && sc.self && sc.self.travaConjurarDoNome != null && (sc.self.travaConjurarDoNome !== true || !escolheNomeT_)) errs.push('self.travaConjurarDoNome só vale como true, com self.nomeAoEntrar (ou um escolhe_nome ao entrar)'); // T-81
+  if (sc && sc.self && sc.self.manaDoNome != null && (!Array.isArray(sc.self.manaDoNome) || !sc.self.manaDoNome.length || sc.self.manaDoNome.some(c => !['W', 'U', 'B', 'R', 'G', 'C'].includes(c)) || !escolheNomeT_)) errs.push('self.manaDoNome é uma lista de cores de mana (W U B R G C), com o nome escolhido ao entrar'); // T-81
   if (sc && sc.grants && sc.grants.naoDesviraSalvoMonarca != null && sc.grants.naoDesviraSalvoMonarca !== true) errs.push('bônus: naoDesviraSalvoMonarca só vale como true'); // T-70
   return errs;
 }
@@ -19097,6 +19108,7 @@ function productions(s, o, visto) {
   // para qualquer mana que o terreno gere, não só para as opções que existiam quando a Aura entrou
   const anexos = attachedTo(s, o).filter(x => !perde || (x.anexadaEm || 0) > mu.corte).map(x => [x, grantsOf(s, x)]).filter(([, g]) => g);
   for (const [, g] of anexos) if (g.produces) opts = opts.concat(g.produces.flatMap(y => expandProduction(s, o, y, visto)));
+  if (s.nomesT) opts = opts.concat(manaDoNomeT(s, o)); // T-81 · "Lands with the chosen name have '{T}: Add {C}.'" (Petrified Hamlet) · Toca ponto comum: productions (uma linha)
   for (const [x, g] of anexos) {
     if (g.extraMana) {
       const extra = g.extraMana === 'chosen' ? (x.chosenColor ? [x.chosenColor] : []) : g.extraMana;
@@ -29064,20 +29076,40 @@ function travasDeNomeT(s) {
   if (!s.nomesT) return [];
   const out = [];
   for (const o of battlefield(s)) {
-    const modo = !o.faceDown && ((((s.facts[o.name] || {}).script || {}).self) || {}).travaAtivadasDoNome; if (!modo || o.phasedOut || semImpressas(s, o)) continue;
-    const r = s.nomesT[o.oid]; if (r && r.z === (o.zc || 0)) out.push({ nome: r.nome, modo, fonte: o.name });
+    const sf = !o.faceDown && ((((s.facts[o.name] || {}).script || {}).self) || {}), modo = sf && sf.travaAtivadasDoNome, conjurar = !!(sf && sf.travaConjurarDoNome); if (!(modo || conjurar) || o.phasedOut || semImpressas(s, o)) continue;
+    const r = s.nomesT[o.oid]; if (r && r.z === (o.zc || 0)) out.push({ nome: r.nome, modo, conjurar, fonte: o.name }); // T-81 · conjurar: Meddling Mage, Nevermore
   }
   return out;
 }
 const ACOES_ATIVADAS_T = ['activate', 'cycle', 'ninjutsu', 'unearth', 'transmute', 'tripular', 'tap_mana'];
+const ACOES_CONJURAR_T = ['cast', 'cast_free', 'cast_madness']; // T-81
+/** T-81 · os nomes da mágica que a ação conjura (709.3: só a metade escolhida; a face de trás, a Aventura e o Presságio têm o nome
+ * deles na pilha; virada para baixo, nenhum, 708.2). */
+function nomesDaMagiaT(s, o, a) {
+  if (a.faceDown) return [];
+  const base = o.frontName || o.name, sc = (s.facts[base] || {}).script || {}, tras = typeof sc.back === 'string' ? sc.back : null, md = metadesDe(s, o);
+  if (md) return a.face === 'fundida' ? md.map(x => x.nome) : a.face ? [md[a.face === 'direita' ? 1 : 0].nome] : o.frontName ? [o.name] : [md[0].nome]; // sem `face`, a esquerda; na cópia que legalActions vira para cada metade, a metade virada
+  if (tras && (['verso', 'transformada', 'convertida'].includes(a.face) || a.omen || a.disturb)) return [tras];
+  return nomesDe(s, o);
+}
 function acaoTravadaPeloNomeT(s, a, travas) {
-  if (!a || !ACOES_ATIVADAS_T.includes(a.t) || a.oid == null || !travas.length) return null;
+  if (!a || a.oid == null || !travas.length) return null;
+  if (ACOES_CONJURAR_T.includes(a.t)) { const o = s.objects[a.oid]; if (!o) return null; const ns = nomesDaMagiaT(s, o, a); return travas.find(t => t.conjurar && ns.includes(t.nome)) || null; } // T-81 · "Spells with the chosen name can't be cast"
+  if (!ACOES_ATIVADAS_T.includes(a.t)) return null;
   const o = s.objects[a.oid]; if (!o || o.faceDown) return null;
   const nomes = nomesDe(s, o), mana = a.t === 'tap_mana' || (a.t === 'activate' && ehHabilidadeDeMana(abilitiesOf(s, o).filter(x => x.kind === 'activated')[a.index || 0] || {}));
-  return travas.find(t => nomes.includes(t.nome) && (t.modo === 'todas' || !mana)) || null;
+  return travas.find(t => t.modo && nomes.includes(t.nome) && (t.modo === 'todas' || !mana)) || null;
 }
 function filtraTravadasPeloNomeT(s, out) { const tv = travasDeNomeT(s); if (tv.length) for (let i = out.length - 1; i >= 0; i--) if (acaoTravadaPeloNomeT(s, out[i], tv)) out.splice(i, 1); }
-function barraTravadaPeloNomeT(s, a) { const t = acaoTravadaPeloNomeT(s, a, travasDeNomeT(s)); if (t) throw new RuleError('travada', `${t.fonte}: as habilidades ativadas de ${t.nome} não podem ser ativadas${t.modo === 'semMana' ? ' (as de mana podem)' : ''}`); }
+function barraTravadaPeloNomeT(s, a) { const t = acaoTravadaPeloNomeT(s, a, travasDeNomeT(s)); if (t) throw new RuleError('travada', ACOES_CONJURAR_T.includes(a.t) ? `${t.fonte}: mágicas com o nome ${t.nome} não podem ser conjuradas` : `${t.fonte}: as habilidades ativadas de ${t.nome} não podem ser ativadas${t.modo === 'semMana' ? ' (as de mana podem)' : ''}`); }
+/** T-81 · "Lands with the chosen name have '{T}: Add {C}.'" (`self.manaDoNome`, Petrified Hamlet): a opção de mana que o terreno com o
+ * nome escolhido ganha. */
+function manaDoNomeT(s, o) {
+  if (o.faceDown || !tiposDe(s, o).includes('land')) return [];
+  const nomes = nomesDe(s, o), out = [];
+  for (const x of battlefield(s)) { const sf = ((s.facts[x.name] || {}).script || {}).self; if (!sf || !sf.manaDoNome || x.faceDown || x.phasedOut || semImpressas(s, x)) continue; const r = s.nomesT[x.oid]; if (r && r.z === (x.zc || 0) && nomes.includes(r.nome)) out.push(...sf.manaDoNome.map(c => [c])); }
+  return out;
+}
 function manaTravadaPeloNomeT(s, o) { if (!s.nomesT || o.faceDown) return false; const tv = travasDeNomeT(s).filter(t => t.modo === 'todas'); return tv.length > 0 && nomesDe(s, o).some(n => tv.some(t => t.nome === n)); }
 /* ---------------- T-12 · CR 716 · Classes ----------------
    - 716.2b / 716.2d: o nível é uma designação da permanente, guardada fora do objeto em `s.classes[oid] = { z, n }` (z = encarnação,
