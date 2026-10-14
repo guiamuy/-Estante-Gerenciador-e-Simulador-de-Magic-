@@ -301,7 +301,7 @@ test('R-4 · Pipeline: ramos + detalhes viram linhas da fila (espera, posição 
 });
 
 test('R-4 · orçamento de pedidos da Pipeline: primeira abertura ≤ 4 fixos + ≤ 4 detalhes; a atualização seguinte ≤ 4 (detalhes guardados por sha para sempre); o raw da telemetria não entra na cota', async () => {
-  const { app, base } = loadPainel();
+  const { app, base, modelo } = loadPainel();
   const guarda = base.createGuarda(null);
   const chamadas = [];
   const corpo = url => {
@@ -310,10 +310,13 @@ test('R-4 · orçamento de pedidos da Pipeline: primeira abertura ≤ 4 fixos + 
     if (/fila\.yml\/runs/.test(url)) return { workflow_runs: [{ id: 9, status: 'in_progress', run_started_at: '2026-10-13T19:50:00Z', updated_at: '2026-10-13T19:55:00Z' }, { id: 8, status: 'completed', conclusion: 'success', run_started_at: '2026-10-13T18:00:00Z', updated_at: '2026-10-13T18:20:00Z' }] };
     if (/\/jobs/.test(url)) return { jobs: [{ name: 'portao', status: 'in_progress' }] };
     if (/actions\/runs\?/.test(url)) return { workflow_runs: [{ name: 'pages build and deployment', conclusion: 'success', updated_at: '2026-10-13T18:25:00Z' }] };
+    if (/commits\?sha=main/.test(url)) return [{ sha: 'aaaa111', commit: { message: 'Leva M-301 · x\n\nTrilha: motor', committer: { date: '2026-10-13T19:20:00Z' }, author: { date: '2026-10-13T18:00:00Z' } } }];
     return null;
   };
   const fetch = async url => { chamadas.push(url); const texto = /raw\.githubusercontent/.test(url); return { ok: true, status: 200, headers: { get: n => n === 'etag' ? '"e"' : null }, json: async () => corpo(url), text: async () => '{"id":"R-1","trilha":"radar","conversa":"c","situacao":"na-fila","fim":"2026-10-13T18:30:00Z"}\n' }; };
   const fonte = base.createFonte({ fetch, guarda });
+  // R-16 · a faixa lê os 100 commits do main antes de toda sub-aba (mesmo nome de cache): a Pipeline reaproveita sem pedido novo
+  await fonte.api(modelo.MAIN_URL, { nome: 'main', transforma: modelo.compactaCommits }); fonte.zerar(); chamadas.length = 0;
   const d1 = await app.VISOES.pipeline.carrega(fonte, false);
   const api1 = chamadas.filter(u => u.startsWith(base.API)).length, raw1 = chamadas.filter(u => u.startsWith(base.RAW)).length;
   assert.equal(raw1, 1);
@@ -558,4 +561,28 @@ test('R-11b · o painel lê e grava o plano no banco do app (mesma URL do index.
   assert.ok(INDEX.includes(app.FIREBASE_DB_URL), 'a URL do banco é a mesma do app');
   assert.match(PAINEL, /connect-src[^"]*https:\/\/\*\.firebaseio\.com/);
   assert.equal(loadPainel({ __PAINEL_DB_URL: '' }).app.FIREBASE_DB_URL, '', 'nos testes o banco pode ser desligado');
+});
+
+test('R-16 · levasPorRodada: cada rodada verde leva os commits do main com carimbo dentro dela (committer, não autoria); rodada vermelha fica sem levas; commit fora de toda rodada é "fora da fila"; média só das verdes; compactaCommits guarda só o que o painel usa', () => {
+  const { modelo } = loadPainel();
+  const runs = modelo.linhasDasRodadas([
+    { id: 1, status: 'completed', conclusion: 'success', run_started_at: '2026-10-13T10:00:00Z', updated_at: '2026-10-13T10:20:00Z' },
+    { id: 2, status: 'completed', conclusion: 'failure', run_started_at: '2026-10-13T11:00:00Z', updated_at: '2026-10-13T11:20:00Z' },
+    { id: 3, status: 'completed', conclusion: 'success', run_started_at: '2026-10-13T12:00:00Z', updated_at: '2026-10-13T12:25:00Z' },
+    { id: 4, status: 'in_progress', run_started_at: '2026-10-13T13:00:00Z', updated_at: '2026-10-13T13:05:00Z' }]);
+  const c = (sha, leva, committer, author = '2026-10-13T08:00:00Z') => ({ sha, commit: { message: `Leva ${leva} · assunto`, committer: { date: committer }, author: { date: author } } });
+  const commits = modelo.linhasDosCommits(modelo.compactaCommits([
+    c('a1a1a1a', 'M-300', '2026-10-13T10:10:00Z'), c('b2b2b2b', 'G-200', '2026-10-13T10:12:00Z'),
+    c('c3c3c3c', 'T-50', '2026-10-13T11:10:00Z'),            // dentro da rodada vermelha: não foi ela que publicou (é fora da fila)
+    c('d4d4d4d', 'R-9', '2026-10-13T12:20:00Z'), c('e5e5e5e', 'R-10', '2026-10-13T12:21:00Z'), c('f6f6f6f', 'R-11', '2026-10-13T12:22:00Z'),
+    c('0707070', 'I-5', '2026-10-13T09:00:00Z')]));           // antes de toda rodada: fora da janela, não conta
+  const r = modelo.levasPorRodada(runs, commits);
+  assert.deepEqual(r.rodadas.map(x => [x.id, x.portao, x.levas, x.trilhas]), [[3, 'verde', ['R-9', 'R-10', 'R-11'], ['radar']], [2, 'vermelho', [], []], [1, 'verde', ['M-300', 'G-200'], ['motor', 'geral']]]);
+  assert.equal(r.media, 2.5);
+  assert.deepEqual(r.foraDaFila, ['T-50']);
+  assert.deepEqual(modelo.levasPorRodada([], commits), { rodadas: [], media: null, foraDaFila: [] });
+  const compacto = modelo.compactaCommits([{ sha: 'x', html_url: 'https://…', commit: { message: 'Leva M-1 · a\n\ncorpo', committer: { date: 'd1', name: 'n' }, author: { date: 'd0' } }, files: [1, 2] }]);
+  assert.deepEqual(compacto, [{ sha: 'x', commit: { message: 'Leva M-1 · a', committer: { date: 'd1' }, author: { date: 'd0' } } }]);
+  assert.deepEqual(modelo.compactaCommits(null), []);
+  assert.equal(modelo.MAIN_URL, '/commits?sha=main&per_page=100');
 });

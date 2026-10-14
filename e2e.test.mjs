@@ -11978,7 +11978,8 @@ test('e2e · R-4 Painel · Pipeline: fila agora com espera e recusas com motivo,
   const json = (r, corpo) => r.fulfill({ json: corpo, headers: { 'content-type': 'application/json', 'x-ratelimit-remaining': '55', 'x-ratelimit-limit': '60', 'access-control-expose-headers': 'etag, x-ratelimit-remaining, x-ratelimit-limit' } });
   await page.route('https://api.github.com/**', r => {
     const u = r.request().url();
-    if (/\/commits\?sha=main/.test(u)) return json(r, [{ sha: 'abc1234def0', commit: { message: 'Leva G-264 · T6f-2', committer: { date: h(2) } } }]);
+    // R-16 · G-264 (há 2 h) fora de toda rodada = publicação direta; T-61 (há 2,9 h) dentro da rodada 8 (há 3 h, 18 min)
+    if (/\/commits\?sha=main/.test(u)) return json(r, [{ sha: 'abc1234def0', commit: { message: 'Leva G-264 · T6f-2', committer: { date: h(2) } } }, { sha: 'bcd2345ef01', commit: { message: 'Leva T-61 · monarca', committer: { date: h(2.9) } } }]);
     if (/\/branches\?/.test(u)) return json(r, [{ name: 'main', commit: { sha: 'm' } }, { name: 'fila/T-62', commit: { sha: 'a1' } }, { name: 'fila/R-2', commit: { sha: 'b2' } }, { name: 'recusada/M-351', commit: { sha: 'c3' } }, { name: 'acumulado/x', commit: { sha: 'z' } }]);
     if (/\/branches\/fila%2FT-62/.test(u)) return json(r, { commit: { message: 'Leva T-62 · monarca', committer: { date: h(1) } } });
     if (/\/branches\/fila%2FR-2/.test(u)) return json(r, { commit: { message: 'Leva R-2', committer: { date: h(0.5) } } });
@@ -12005,6 +12006,10 @@ test('e2e · R-4 Painel · Pipeline: fila agora com espera e recusas com motivo,
   assert.match(await page.innerText('#pn-fila-agora'), /1º · T-62[\s\S]*espera 1 h[\s\S]*tipos[\s\S]*2º · R-2/);
   assert.match(await page.innerText('#pn-recusadas'), /M-351[\s\S]*index\.html[\s\S]*conflito/);
   assert.match(await page.innerText('#pn-k-reproc'), /1\s*leva/);
+  // R-16 · BI1-13 · levas por rodada: a rodada 8 publicou a T-61; a G-264 ficou fora de toda rodada (direta)
+  assert.match(await page.innerText('#pn-levas-rodada'), /T-61[\s\S]*18 min · tipos[\s\S]*1 leva[\s\S]*nada publicado \(portão vermelho\)[\s\S]*portão vermelho/);
+  assert.match(await page.innerText('#pn-k-levas-rodada'), /1[\s\S]*em média/);
+  assert.match(await page.innerText('#pn-fora-da-fila'), /G-264/);
   assert.match(await page.innerText('#pn-g-situacao'), /na-fila[\s\S]*recusada/);
   // cada cartão diz a origem (fonte · fórmula · carimbo)
   assert.match(await page.innerText('#pn-k-verdes .pn-cartao__origem'), /success ÷ concluídas · 7 dias · API GitHub/);

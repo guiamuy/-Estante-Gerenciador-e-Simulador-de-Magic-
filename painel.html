@@ -378,6 +378,7 @@ a { color: var(--accent); }
 @media (prefers-reduced-motion: reduce) { .ds-nav:active { transform: none; } }
 @media (prefers-reduced-motion: reduce) { .ds-expansivel__seta { transition: none; } .ds-expansivel__corpo { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .tb-online[data-ligado="false"] { animation: none; opacity: .6; } }
+@media (prefers-reduced-motion: reduce) { .conta-email__erro > .ds-note, #perfil-conta[data-chegou="true"] { animation: none; } }
 .ds-field { display: block; }
 .ds-field__label { display: block; font-size: var(--text-sm); color: var(--fg-muted); margin-bottom: var(--space-1); }
 .ds-field__hint { display: block; font-size: var(--text-xs); color: var(--fg-subtle); margin-top: var(--space-1); }
@@ -817,6 +818,8 @@ const __p2 = (function () {
     return `há ${Math.round(horas / 24)} dias`;
   }
   /** Resumo do último commit do main (lista da API `commits`): leva e assunto curto. Texto do GitHub é dado: vira texto na tela. */
+  /** R-16 · a faixa e a Pipeline leem a mesma lista (100 commits do main) sob o mesmo nome de cache: um pedido por atualização. */
+  const MAIN_URL = '/commits?sha=main&per_page=100';
   function resumoDoMain(commits) {
     const c = Array.isArray(commits) ? commits[0] : null;
     if (!c || !c.commit) return null;
@@ -964,6 +967,26 @@ const __p2 = (function () {
     }
     return saida.sort((a, b) => (a.data || 0) - (b.data || 0));
   }
+  /** R-16 · BI1-13 · Levas por rodada da fila: cada rodada verde publica os commits cujo carimbo do committer (o `avanca` da fila
+      regrava o sha e a data ao pôr a leva no main) cai entre o início e o fim da rodada. Rodada vermelha não publica nada (isola ou recusa).
+      Commits fora de toda rodada (publicação direta, `--direto`) ficam em `foraDaFila`. Entrada: linhas de `linhasDasRodadas` e `linhasDosCommits`. */
+  function levasPorRodada(rodadas, commits) {
+    const verdes = (rodadas || []).filter(r => r.status === 'completed' && r.data).sort((a, b) => a.data - b.data);
+    const usados = new Set();
+    const saida = verdes.map(r => {
+      const fim = r.duracao != null ? r.data + r.duracao : r.data;
+      const levas = r.portao === 'verde' ? (commits || []).filter(c => c.data && c.data >= r.data - 60000 && c.data <= fim + 60000) : [];
+      for (const c of levas) usados.add(c.sha);
+      const trilhas = [...new Set(levas.map(c => c.trilha))];
+      return { id: r.id, data: r.data, duracao: r.duracao, portao: r.portao, conclusao: r.conclusao, levas: levas.map(c => c.leva), trilhas, n: levas.length };
+    }).sort((a, b) => b.data - a.data);
+    const foraDaFila = (commits || []).filter(c => c.data && !usados.has(c.sha) && verdes.length && c.data >= verdes[0].data).map(c => c.leva);
+    const comLevas = saida.filter(r => r.portao === 'verde');
+    const media = comLevas.length ? comLevas.reduce((t, r) => t + r.n, 0) / comLevas.length : null;
+    return { rodadas: saida, media, foraDaFila };
+  }
+  /** Só o que o painel usa de cada commit do GitHub (a lista inteira de 100 iria para o cache do aparelho). */
+  const compactaCommits = cs => (Array.isArray(cs) ? cs : []).map(c => ({ sha: c.sha, commit: { message: String((c.commit && c.commit.message) || '').split('\n')[0], committer: { date: c.commit && c.commit.committer && c.commit.committer.date }, author: { date: c.commit && c.commit.author && c.commit.author.date } } }));
   /** Intervalos entre publicações consecutivas (ms), na ordem das datas. */
   function intervalos(linhas) {
     const datas = (linhas || []).map(l => l.data).filter(Boolean).sort((a, b) => a - b);
@@ -1138,7 +1161,7 @@ const __p2 = (function () {
     pages: 'API GitHub · actions/runs (fluxo "pages build and deployment")',
     levas: 'ramo telemetria · levas.jsonl (escrito pelas sessões)'
   };
-  return { SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, linhasDosRelatos, linhasDasTrilhas, resumoDoFluxo, fraseDoCron, linhasDosFluxos, linhasDasRotinas, porModelo, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
+  return { SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, levasPorRodada, compactaCommits, MAIN_URL, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, linhasDosRelatos, linhasDasTrilhas, resumoDoFluxo, fraseDoCron, linhasDosFluxos, linhasDasRotinas, porModelo, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
 })();
 
 /* ==== src/painel/ui.js ==== */
@@ -1615,7 +1638,10 @@ const __p4 = (function () {
         try { const p = await fonte.api('/actions/runs?per_page=20', { nome: 'pages', ttl: 5 * 60000, forcar }); pages = ((p.dado && p.dado.workflow_runs) || []).find(r => /pages build and deployment/i.test(r.name || '')) || null; } catch (e) { avisos.push('não li o estado do Pages'); }
         let levas = [];
         try { levas = lerJsonl((await fonte.raw('telemetria', 'levas.jsonl', { ttl: 2 * 60000, forcar })).dado); } catch (e) { avisos.push('telemetria indisponível (ramo telemetria)'); }
-        return { em: Date.now(), ramos: relevantes, detalhes, rodadas: lista, emCurso, jobs, pages, levas, avisos, sem: { ramos: ramos.semRede || ramos.cotaEsgotada, rodadas: rodadas.semRede || rodadas.cotaEsgotada } };
+        // R-16 · BI1-13 · os commits do main vêm do mesmo cache da faixa (um pedido por atualização, nunca forçado aqui)
+        let commitsMain = [];
+        try { commitsMain = (await fonte.api(M.MAIN_URL, { nome: 'main', forcar: false, transforma: M.compactaCommits })).dado || []; } catch (e) { avisos.push('não li os commits do main (levas por rodada ficam sem dados)'); }
+        return { em: Date.now(), ramos: relevantes, detalhes, rodadas: lista, emCurso, jobs, pages, levas, commitsMain, avisos, sem: { ramos: ramos.semRede || ramos.cotaEsgotada, rodadas: rodadas.semRede || rodadas.cotaEsgotada } };
       },
       desenha(d, filtros, api) {
         const agora = Date.now();
@@ -1650,6 +1676,13 @@ const __p4 = (function () {
         const porSituacao = valoresDe(rLev.linhas, 'situacao').map(v => ({ chave: v.valor, rotulo: v.valor, valor: v.n }));
         const porTrilha = valoresDe([...rLev.linhas, ...rFila.linhas], 'trilha').map(v => ({ chave: v.valor, rotulo: v.valor, valor: v.n }));
         const reproc = rLev.linhas.filter(l => l.reprocessando).length;
+        // R-16 · BI1-13 · levas por rodada (rodadas do recorte × commits do main; filtro de trilha vale na lista)
+        const porRodada = M.levasPorRodada(rRod.linhas, M.linhasDosCommits(d.commitsMain || []));
+        const rodadasVistas = porRodada.rodadas.filter(r => !filtros.trilha || r.trilhas.includes(filtros.trilha)).slice(0, 12);
+        const listaRodadas = h('section', { class: 'pn-bloco', id: 'pn-levas-rodada' }, h('h3', { class: 'ds-text ds-text--md' }, `Levas por rodada · ${recorteTxt}`),
+          rodadasVistas.length ? h('ul', { class: 'pn-linhas', role: 'list' }, ...rodadasVistas.map(r => Linha({ principal: r.portao === 'verde' ? (r.n ? r.levas.join(' · ') : 'nenhuma leva (rodada só de limpeza)') : r.portao === 'vermelho' ? 'nada publicado (portão vermelho)' : r.conclusao === 'cancelled' ? 'rodada cancelada (trocada por uma mais nova)' : `rodada ${r.conclusao}`, selo: r.portao === 'verde' ? `${r.n} leva${r.n === 1 ? '' : 's'}` : r.portao === 'vermelho' ? 'portão vermelho' : r.conclusao, seloTom: r.portao === 'verde' ? 'positive' : r.portao === 'vermelho' ? 'negative' : null, detalhe: `${new Date(r.data).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} · ${r.duracao != null ? minutos(r.duracao) : '—'}${r.trilhas.length ? ' · ' + r.trilhas.join(', ') : ''}`, dataset: { rodada: String(r.id), portao: r.portao } })))
+            : Empty('Sem rodadas neste recorte.', null, { icone: 'ampulheta', titulo: 'Sem dados', id: 'pn-levas-rodada-vazio' }),
+          porRodada.foraDaFila.length ? h('p', { class: 'ds-text ds-text--sm ds-text--muted', id: 'pn-fora-da-fila' }, `fora da fila (publicação direta): ${porRodada.foraDaFila.join(', ')}`) : null);
         const notas = [];
         if (rLev.naoAplica.length) notas.push(`o filtro ${rLev.naoAplica.join(', ')} não se aplica às levas sem essa informação`);
         if (!levas.length) notas.push('telemetria ainda sem levas: entregue / recusado / reprocessando por leva aparecem quando as conversas registrarem');
@@ -1662,6 +1695,8 @@ const __p4 = (function () {
             Barras({ id: 'pn-g-motivos', titulo: 'Recusas por motivo', itens: porMotivo, vazio: 'nenhuma recusa' }),
             Barras({ id: 'pn-g-situacao', titulo: `Levas registradas por situação · ${recorteTxt}`, itens: porSituacao, onBarra: v => api.filtra('situacao', v), ativo: filtros.situacao || null, vazio: 'sem levas neste recorte' }),
             Barras({ id: 'pn-g-trilha', titulo: 'Por trilha (fila + levas registradas)', itens: porTrilha, onBarra: v => api.filtra('trilha', v), ativo: filtros.trilha || null, vazio: 'sem dados neste recorte' })),
+          listaRodadas,
+          Cartao({ id: 'pn-k-levas-rodada', rotulo: 'Levas por rodada verde', valor: porRodada.media == null ? '—' : Math.round(porRodada.media * 10) / 10, unidade: porRodada.media == null ? '' : 'em média', farol: porRodada.media == null ? 'cinza' : 'verde', fonte: FONTES.rodadas + ' + commits do main', formula: 'commits do main com carimbo dentro de cada rodada verde ÷ rodadas verdes · ' + recorteTxt, em: d.em, semDados: porRodada.media == null }),
           Cartao({ id: 'pn-k-reproc', rotulo: 'Reprocessando', valor: reproc, unidade: reproc === 1 ? 'leva' : 'levas', farol: reproc ? 'amarelo' : 'verde', fonte: FONTES.levas, formula: 'recusada ou tentativas_fila > 1 · ' + recorteTxt, em: d.em, semDados: !levas.length, totalSemFiltro: Object.keys(filtros).some(k => k !== 'periodo' && filtros[k]) ? levas.filter(l => l.reprocessando).length : null }),
           notas.length ? h('ul', { class: 'pn-notas ds-text ds-text--sm ds-text--muted', id: 'pn-notas' }, ...notas.map(n => h('li', {}, n))) : null
         ];
@@ -1684,7 +1719,7 @@ const __p4 = (function () {
       est.atualizando = true; est.aviso = null; desenha();
       fonte.zerar();
       try {
-        const r = await fonte.api('/commits?sha=main&per_page=1', { nome: 'main', forcar });
+        const r = await fonte.api(M.MAIN_URL, { nome: 'main', forcar, transforma: M.compactaCommits });
         est.main = resumoDoMain(r.dado); est.em = r.em;
         if (r.semRede) est.aviso = { tipo: 'rede', texto: 'Sem internet. Mostrando o que havia guardado.' };
         else if (r.cotaEsgotada) est.aviso = { tipo: 'cota', texto: motivo('cota') };
