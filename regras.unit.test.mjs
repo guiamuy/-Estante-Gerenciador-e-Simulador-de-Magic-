@@ -125,7 +125,7 @@ const docLocal = (preferencias, { nome = 'Ana', avatar = null, em = 10 } = {}) =
 /* ---------- o arquivo ---------- */
 test('P-4 · regras: JSON válido, raiz fechada, só caminhos conhecidos no primeiro nível', () => {
   assert.equal(REGRAS['.read'], false); assert.equal(REGRAS['.write'], false);
-  assert.deepEqual(Object.keys(REGRAS).filter(k => !k.startsWith('.')).sort(), ['bloqueios', 'perfis', 'relatos', 'salas', 'usuarios']); // G-266 · usuarios: a reserva do nome de usuário
+  assert.deepEqual(Object.keys(REGRAS).filter(k => !k.startsWith('.')).sort(), ['bloqueios', 'painel', 'perfis', 'relatos', 'salas', 'usuarios']); // G-266 · usuarios: a reserva do nome de usuário · R-13 · painel: o campo do plano do Painel Estante (só o dono)
 });
 
 test('P-4 · regras: expressões regulares só no subconjunto que o Firebase aceita (sem chaves, âncora só nas pontas)', () => {
@@ -343,6 +343,40 @@ test('P-4 · o resto do banco é negado (ler a raiz, escrever fora dos três ram
 });
 
 /* ---------- G-266 · T6f-3 · nome de usuário único (código real do app sob as regras) ---------- */
+test('R-11b · painel/$uid: só o próprio uid com o e-mail do dono lê e escreve; o plano precisa de kind, version 1 e atualizadoEm; consumoPct 0–100, renovaEm AAAA-MM-DD, nome ≤ 24; chave desconhecida e outro ramo recusados', async () => {
+  const DONO = { uid: 'uidDoDono_001', token: { email: 'gui.amuy@gmail.com' } };
+  const OUTRO_EMAIL = { uid: 'uidDoDono_001', token: { email: 'outra@pessoa.com' } };
+  const SEM_TOKEN = { uid: 'uidDoDono_001' };
+  const b = bancoComRegras();
+  const plano = { kind: 'estante.painel.plano', version: 1, atualizadoEm: 1700000000000, nome: 'Max 5x', consumoPct: 82, renovaEm: '2026-11-01' };
+  await transporte(b, DONO).escrever(`painel/${DONO.uid}/plano`, plano);
+  assert.deepEqual(await transporte(b, DONO).ler(`painel/${DONO.uid}/plano`), plano);
+  // mesmo uid sem o e-mail do dono, ou sem token: nada
+  await recusa(transporte(b, OUTRO_EMAIL).ler(`painel/${DONO.uid}/plano`), 'ler com outro e-mail');
+  await recusa(transporte(b, OUTRO_EMAIL).escrever(`painel/${DONO.uid}/plano`, plano), 'escrever com outro e-mail');
+  await recusa(transporte(b, SEM_TOKEN).ler(`painel/${DONO.uid}/plano`), 'ler sem e-mail no token');
+  // outro uid com o e-mail do dono (token forjado não passa pelo uid): nada
+  await recusa(transporte(b, { uid: 'uidDoBeto-456', token: { email: 'gui.amuy@gmail.com' } }).ler(`painel/${DONO.uid}/plano`), 'outro uid');
+  await recusa(transporte(b, ANA).ler(`painel/${DONO.uid}/plano`), 'Ana lê o plano do dono');
+  await recusa(transporte(b, ANA).escrever(`painel/${ANA.uid}/plano`, plano), 'Ana escreve o próprio painel sem ser o dono');
+  // forma
+  await recusa(transporte(b, DONO).escrever(`painel/${DONO.uid}/plano`, { ...plano, consumoPct: 140 }), 'consumo > 100');
+  await recusa(transporte(b, DONO).escrever(`painel/${DONO.uid}/plano`, { ...plano, consumoPct: -1 }), 'consumo < 0');
+  await recusa(transporte(b, DONO).escrever(`painel/${DONO.uid}/plano`, { ...plano, renovaEm: '1/11/2026' }), 'data fora da forma');
+  await recusa(transporte(b, DONO).escrever(`painel/${DONO.uid}/plano`, { ...plano, nome: 'x'.repeat(25) }), 'nome longo');
+  await recusa(transporte(b, DONO).escrever(`painel/${DONO.uid}/plano`, { ...plano, version: 2 }), 'versão desconhecida');
+  await recusa(transporte(b, DONO).escrever(`painel/${DONO.uid}/plano`, { ...plano, kind: 'outro' }), 'kind errado');
+  await recusa(transporte(b, DONO).escrever(`painel/${DONO.uid}/plano`, { ...plano, email: 'x@y.z' }), 'chave desconhecida (e-mail nunca entra)');
+  await recusa(transporte(b, DONO).escrever(`painel/${DONO.uid}/outra`, { x: 1 }), 'ramo desconhecido dentro de painel');
+  // sem os obrigatórios
+  await recusa(transporte(b, DONO).escrever(`painel/${DONO.uid}/plano`, { nome: 'Pro' }), 'sem kind/version/atualizadoEm');
+  // só o plano, sem nome, consumo e data, também vale (o dono ainda não informou)
+  await transporte(b, DONO).escrever(`painel/${DONO.uid}/plano`, { kind: 'estante.painel.plano', version: 1, atualizadoEm: 1700000000001 });
+  // apagar é permitido ao dono
+  await transporte(b, DONO).apagar(`painel/${DONO.uid}/plano`);
+  assert.equal(await transporte(b, DONO).ler(`painel/${DONO.uid}/plano`), null);
+});
+
 test('G-266 · nome de usuário: a primeira conta reserva; a outra recebe "em uso"; trocar solta o antigo; ninguém mexe na reserva dos outros', async () => {
   const b = bancoComRegras();
   const daAna = R.createNomeDeUsuario({ transporte: transporte(b, ANA), uid: ANA.uid, agora: () => 7 });

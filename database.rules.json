@@ -204,6 +204,42 @@
         }
       }
     },
+    "painel": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid && auth.token.email === 'gui.amuy@gmail.com'",
+        ".write": "auth != null && auth.uid === $uid && auth.token.email === 'gui.amuy@gmail.com'",
+        "plano": {
+          ".validate": "newData.hasChildren(['kind', 'version', 'atualizadoEm']) && newData.child('kind').val() === 'estante.painel.plano' && newData.child('version').val() === 1",
+          "kind": {
+            ".validate": "newData.isString()"
+          },
+          "version": {
+            ".validate": "newData.isNumber()"
+          },
+          "atualizadoEm": {
+            ".validate": "newData.isNumber() && newData.val() >= 0"
+          },
+          "nome": {
+            ".validate": "newData.isString() && newData.val().length <= 24"
+          },
+          "consumoPct": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+          },
+          "renovaEm": {
+            ".validate": "newData.isString() && newData.val().matches(/^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]$/)"
+          },
+          "nota": {
+            ".validate": "newData.isString() && newData.val().length <= 200"
+          },
+          "$outro": {
+            ".validate": false
+          }
+        },
+        "$outro": {
+          ".validate": false
+        }
+      }
+    },
     "usuarios": {
       "$nome": {
         ".read": "auth != null",

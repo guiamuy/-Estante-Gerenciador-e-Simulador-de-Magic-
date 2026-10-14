@@ -626,7 +626,44 @@ const __p0 = (function () {
     const emCache = nome => !!guarda.ler('painel.cache.' + nome);
     return { api, raw, emCache, get pedidos() { return pedidos; }, get brutos() { return brutos; }, zerar() { pedidos = 0; brutos = 0; }, get cota() { return cota; } };
   }
-  return { REPO, API, RAW, erro, h, clear, createGuarda, createFonte };
+  /** R-11b · Campo do plano no banco: `/painel/<uid>/plano` por REST com o token da sessão (`?auth=`), regra `painel/$uid`
+      (uid e e-mail do dono). O aparelho guarda a cópia (`painel.plano`); o banco é a fonte entre aparelhos. Toda gravação é
+      lida de volta antes de dizer "no banco"; sem rede, recusa ou resposta diferente, fica "neste aparelho" e a tela diz. */
+  function createPlano({ fetch: fetchFn = null, dbUrl = '', token = null, uid = null, guarda, chave = 'painel.plano' } = {}) {
+    const f = fetchFn || (typeof fetch === 'function' ? fetch.bind(globalThis) : null);
+    const url = async () => { const u = uid && uid(); const t = token ? await token() : null; if (!dbUrl || !u || !t || !f) return null; return `${dbUrl}/painel/${encodeURIComponent(u)}/plano.json?auth=${encodeURIComponent(t)}`; };
+    const local = () => guarda.ler(chave) || null;
+    const igual = (a, b) => !!a && !!b && a.atualizadoEm === b.atualizadoEm && (a.consumoPct ?? null) === (b.consumoPct ?? null) && (a.nome || '') === (b.nome || '') && (a.renovaEm || '') === (b.renovaEm || '');
+    return {
+      local,
+      /** Lê o banco; o mais novo (por `atualizadoEm`) vence e fica no aparelho. Devolve { plano, onde: 'banco'|'aparelho', motivo }. */
+      async ler() {
+        const u = await url().catch(() => null);
+        const meu = local();
+        if (!u) return { plano: meu, onde: 'aparelho', motivo: dbUrl ? 'sem-sessao' : 'sem-banco' };
+        let r; try { r = await f(u, { method: 'GET' }); } catch (e) { return { plano: meu, onde: 'aparelho', motivo: 'sem-rede' }; }
+        if (!r.ok) return { plano: meu, onde: 'aparelho', motivo: r.status === 401 || r.status === 403 ? 'recusado' : 'fora' };
+        let remoto = null; try { remoto = await r.json(); } catch (e) { remoto = null; }
+        if (!remoto || typeof remoto !== 'object') return { plano: meu, onde: meu ? 'aparelho' : 'banco', motivo: meu ? (meu.pendente ? 'pendente' : 'vazio') : 'vazio' };
+        if (meu && (meu.atualizadoEm || 0) > (remoto.atualizadoEm || 0)) return { plano: meu, onde: 'aparelho', motivo: meu.pendente ? 'pendente' : 'mais-novo' };
+        const p = { ...remoto, origem: 'banco' }; delete p.pendente; guarda.gravar(chave, p);
+        return { plano: p, onde: 'banco', motivo: null };
+      },
+      /** Grava no aparelho e no banco; "no banco" só depois de ler de volta o mesmo registro. */
+      async gravar(plano) {
+        const p = { ...plano }; delete p.origem; delete p.pendente;
+        const u = await url().catch(() => null);
+        if (!u) { guarda.gravar(chave, { ...p, pendente: !!dbUrl }); return { onde: 'aparelho', motivo: dbUrl ? 'sem-sessao' : 'sem-banco' }; }
+        let r; try { r = await f(u, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p) }); } catch (e) { guarda.gravar(chave, { ...p, pendente: true }); return { onde: 'aparelho', motivo: 'sem-rede' }; }
+        if (!r.ok) { guarda.gravar(chave, { ...p, pendente: true }); return { onde: 'aparelho', motivo: r.status === 401 || r.status === 403 ? 'recusado' : 'fora' }; }
+        let volta = null; try { volta = await r.json(); } catch (e) { volta = null; }
+        if (!igual(volta, p)) { guarda.gravar(chave, { ...p, pendente: true }); return { onde: 'aparelho', motivo: 'conferencia' }; }
+        guarda.gravar(chave, { ...p, origem: 'banco' });
+        return { onde: 'banco', motivo: null };
+      }
+    };
+  }
+  return { REPO, API, RAW, erro, h, clear, createGuarda, createFonte, createPlano };
 })();
 
 /* ==== src/painel/sessao.js ==== */
@@ -1085,7 +1122,7 @@ const __p2 = (function () {
   }
   Object.assign(LIMIARES, { plano: { verde: 80, amarelo: 95, unidade: '% do plano', texto: 'consumo do plano: < 80 % · < 95 % · 95 % ou mais' } });
   const FONTES = {
-    plano: 'informado pelo dono no painel (guardado neste aparelho; o banco entra na R-11b, com a regra /painel)',
+    plano: 'informado pelo dono no painel · banco /painel/<uid>/plano (regra só para o uid e o e-mail do dono), com cópia neste aparelho',
     skills: 'ramo telemetria · skills.json (catálogo gerado do registro do orquestrador)',
     fluxos: 'API GitHub · actions/workflows + actions/runs (últimas 50) + raw dos .yml (agendamento)',
     rotinas: 'ramo telemetria · rotinas.json (tarefas agendadas registradas pelas conversas)',
@@ -1196,7 +1233,7 @@ const __p3 = (function () {
    sub-aba; filtro cruzado por toque numa barra; cada cartão diz o recorte; a sub-aba Pipeline lê a fila, as rodadas, o Pages e a
    telemetria com orçamento de pedidos declarado. */
 const __p4 = (function () {
-  const { h, clear, createGuarda, createFonte } = __p0;
+  const { h, clear, createGuarda, createFonte, createPlano } = __p0;
   const M = __p2;
   const { SUBABAS, LIMIARES, FONTES, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, minutos } = M;
   const { Icone, Button, IconButton, LinkBotao, Text, Empty, Note, AvisoRede, Spinner, Tabs, Farol, Chip, Cartao, Barras, Linha, Field, Input, Select } = __p3;
@@ -1205,6 +1242,7 @@ const __p4 = (function () {
   // origem autorizada). Nos testes, window.__PAINEL_* substitui cada peça.
   const GOOGLE_CLIENT_ID = W.__PAINEL_CLIENT_ID === '' ? '' : (W.__PAINEL_CLIENT_ID || '993924277405-mue4t9vi9rbv3ohu1sm93k61hbgkvucs.apps.googleusercontent.com');
   const FIREBASE_API_KEY = W.__PAINEL_API_KEY === '' ? '' : (W.__PAINEL_API_KEY || 'AIzaSyD6WvzlsJ4KZ9b5QZOEdQnd-liaNeJ0xRk');
+  const FIREBASE_DB_URL = W.__PAINEL_DB_URL === '' ? '' : (W.__PAINEL_DB_URL || 'https://estante-10102026-default-rtdb.firebaseio.com');
   const PERMITIDOS = Array.isArray(W.__PAINEL_PERMITIDOS) ? W.__PAINEL_PERMITIDOS : ['gui.amuy@gmail.com'];
   const APP = './index.html';
   /** Orçamento por atualização de sub-aba: pedidos fixos à API (≤ 4) e detalhes por sha ainda não guardados (≤ 4). */
@@ -1235,14 +1273,14 @@ const __p4 = (function () {
         const recorteTxt = fraseDoRecorte({ ...filtros, periodo });
         const notas = [];
         if (!levas.length) notas.push('telemetria sem levas: levas por modelo, tempo e portão aparecem quando as conversas registrarem o campo "modelo"');
-        notas.push('consumo do plano: não existe API do plano Claude acessível ao painel; o valor é o que você informa (estimado), guardado neste aparelho até a regra /painel do banco (R-11b)');
+        notas.push('consumo do plano: não existe API do plano Claude acessível ao painel; o valor é o que você informa (estimado), guardado no banco (só a sua conta lê e escreve) e neste aparelho');
         for (const a of d.avisos || []) notas.push(a);
         const form = h('form', { class: 'pn-form ds-surface pn-cartao', id: 'pn-plano-form', novalidate: true, onSubmit: e => { e.preventDefault(); api.salvaPlano(); } },
           h('span', { class: 'ds-text ds-text--caps' }, 'Plano do Claude (informado por você)'),
           Field('Plano', Select({ id: 'pn-plano-nome', value: plano.nome || '', opcoes: [{ valor: '', rotulo: 'não informado' }, { valor: 'Pro', rotulo: 'Pro' }, { valor: 'Max 5x', rotulo: 'Max 5x' }, { valor: 'Max 20x', rotulo: 'Max 20x' }, { valor: 'Team', rotulo: 'Team' }, { valor: 'outro', rotulo: 'outro' }], onChange: e => api.mudaPlano({ nome: e.target.value }) }), { id: 'pn-plano-nome' }),
           Field('Consumo do mês (%)', Input({ id: 'pn-plano-pct', type: 'number', inputmode: 'numeric', min: 0, max: 100, step: 1, value: plano.consumoPct ?? '', placeholder: 'o que a página de uso mostra', onInput: e => api.mudaPlano({ consumoPct: e.target.value === '' ? null : Number(e.target.value) }) }), { id: 'pn-plano-pct', dica: 'estimado: copie da página de uso do Claude' }),
           Field('Renova em', Input({ id: 'pn-plano-renova', type: 'date', value: plano.renovaEm || '', onInput: e => api.mudaPlano({ renovaEm: e.target.value }) }), { id: 'pn-plano-renova' }),
-          h('div', { class: 'ds-row pn-form__acoes' }, Button('Salvar', { variant: 'primary', id: 'pn-plano-salvar', icone: 'conferir', onClick: () => api.salvaPlano() }), plano.atualizadoEm ? h('span', { class: 'ds-text ds-text--sm ds-text--muted', id: 'pn-plano-salvo' }, `salvo ${haQuanto(plano.atualizadoEm, agora)} · neste aparelho`) : h('span', { class: 'ds-text ds-text--sm ds-text--muted', id: 'pn-plano-salvo' }, 'ainda não informado')));
+          h('div', { class: 'ds-row pn-form__acoes' }, Button('Salvar', { variant: 'primary', id: 'pn-plano-salvar', icone: 'conferir', onClick: () => api.salvaPlano(), disabled: !!api.salvando }), plano.atualizadoEm ? h('span', { class: 'ds-text ds-text--sm ds-text--muted', id: 'pn-plano-salvo', dataset: { onde: plano.origem === 'banco' && !plano.pendente ? 'banco' : 'aparelho' } }, `salvo ${haQuanto(plano.atualizadoEm, agora)} · ${plano.origem === 'banco' && !plano.pendente ? 'no banco' : plano.pendente ? 'neste aparelho · o banco não recebeu ainda' : 'neste aparelho'}`) : h('span', { class: 'ds-text ds-text--sm ds-text--muted', id: 'pn-plano-salvo', dataset: { onde: 'nenhum' } }, 'ainda não informado')));
         return [
           h('div', { class: 'pn-cartoes' },
             Cartao({ id: 'pn-k-consumo', rotulo: 'Consumo do plano (estimado)', valor: plano.consumoPct != null ? plano.consumoPct : '—', unidade: plano.consumoPct != null ? `% · ${plano.nome || 'plano não informado'}` : (plano.nome || ''), farol: plano.consumoPct != null ? farol(plano.consumoPct, LIMIARES.plano) : 'cinza', limiar: LIMIARES.plano, fonte: FONTES.plano, formula: 'informado por você' + (plano.renovaEm ? ` · renova em ${plano.renovaEm.split('-').reverse().join('/')}` : ''), em: plano.atualizadoEm || null, semDados: plano.consumoPct == null }),
@@ -1652,7 +1690,7 @@ const __p4 = (function () {
         else if (r.cotaEsgotada) est.aviso = { tipo: 'cota', texto: motivo('cota') };
         else if (r.falhou) est.aviso = { tipo: 'api', texto: motivo('api') + ' Mostrando o que havia guardado.' };
         const v = visao();
-        if (v) { est.dados[est.aba] = await v.carrega(fonte, forcar, est.filtros); if (est.dados[est.aba].sem && (est.dados[est.aba].sem.ramos || est.dados[est.aba].sem.rodadas) && !est.aviso) est.aviso = { tipo: 'rede', texto: 'Parte dos dados veio do que estava guardado (sem rede ou cota).' }; }
+        if (v) { est.dados[est.aba] = await v.carrega(fonte, forcar, est.filtros); if (est.aba === 'modelos') await lePlano(); if (est.dados[est.aba].sem && (est.dados[est.aba].sem.ramos || est.dados[est.aba].sem.rodadas) && !est.aviso) est.aviso = { tipo: 'rede', texto: 'Parte dos dados veio do que estava guardado (sem rede ou cota).' }; }
       } catch (e) {
         est.aviso = { tipo: e.message === 'sem-rede' ? 'rede' : 'api', texto: e.message === 'sem-rede' ? 'Sem internet. Nenhum dado guardado ainda.' : motivo(e.message) };
       }
@@ -1674,8 +1712,26 @@ const __p4 = (function () {
     /** Período: muda o recorte e, nas visões que leem por dia, pede os dias que faltam. */
     function mudaPeriodo(valor) { est.filtros.periodo = valor; gravaUrl(); desenha(); if (visao() && visao().porPeriodo) atualiza(); }
     const PLANO = 'painel.plano';
+    const planoBanco = createPlano({ fetch: W.__PAINEL_FETCH_DB || W.__PAINEL_FETCH || null, dbUrl: FIREBASE_DB_URL, token: () => sessao.token(), uid: () => est.sessao && est.sessao.uid, guarda, chave: PLANO });
     let rascunho = null;
-    const api = { filtra, plano: () => rascunho || guarda.ler(PLANO) || {}, mudaPlano(p) { rascunho = { ...(rascunho || guarda.ler(PLANO) || {}), ...p }; }, salvaPlano() { const p = { kind: 'estante.painel.plano', version: 1, ...(rascunho || guarda.ler(PLANO) || {}), atualizadoEm: Date.now() }; if (p.consumoPct != null && (Number.isNaN(p.consumoPct) || p.consumoPct < 0 || p.consumoPct > 100)) { est.aviso = { tipo: 'api', texto: 'Consumo precisa ser um número de 0 a 100.' }; desenha(); return; } guarda.gravar(PLANO, p); rascunho = null; desenha(); } };
+    const MOTIVO_PLANO = { 'sem-rede': 'Sem internet: o plano ficou guardado neste aparelho e vai para o banco no próximo Salvar com rede.', recusado: 'O banco recusou a gravação do plano (regra /painel ainda não publicada no Firebase?). Ficou guardado neste aparelho.', fora: 'O banco não respondeu. O plano ficou guardado neste aparelho.', conferencia: 'O banco devolveu um registro diferente do enviado. O plano ficou guardado neste aparelho.', 'sem-sessao': 'Sem sessão: o plano ficou guardado neste aparelho.', 'sem-banco': null, pendente: 'O plano guardado neste aparelho ainda não chegou ao banco. Toque em Salvar para enviar.', vazio: 'O banco ainda não tem o plano. Toque em Salvar para enviar o que está neste aparelho.', 'mais-novo': null };
+    const api = { filtra, plano: () => rascunho || guarda.ler(PLANO) || {}, mudaPlano(p) { rascunho = { ...(rascunho || guarda.ler(PLANO) || {}), ...p }; }, get salvando() { return !!est.salvandoPlano; },
+      async salvaPlano() {
+        const p = { kind: 'estante.painel.plano', version: 1, ...(rascunho || guarda.ler(PLANO) || {}), atualizadoEm: Date.now() };
+        if (p.consumoPct != null && (Number.isNaN(p.consumoPct) || p.consumoPct < 0 || p.consumoPct > 100)) { est.aviso = { tipo: 'api', texto: 'Consumo precisa ser um número de 0 a 100.' }; desenha(); return; }
+        if (p.renovaEm != null && p.renovaEm !== '' && !/^\d{4}-\d{2}-\d{2}$/.test(String(p.renovaEm))) { est.aviso = { tipo: 'api', texto: 'Data de renovação inválida.' }; desenha(); return; }
+        for (const k of Object.keys(p)) if (p[k] == null || p[k] === '') delete p[k];
+        est.salvandoPlano = true; desenha();
+        const r = await planoBanco.gravar(p);
+        est.salvandoPlano = false; rascunho = null;
+        est.aviso = r.onde === 'banco' ? null : (MOTIVO_PLANO[r.motivo] ? { tipo: r.motivo === 'sem-rede' ? 'rede' : 'api', texto: MOTIVO_PLANO[r.motivo] } : null);
+        desenha();
+      } };
+    /** Na sub-aba Modelos, cada atualização lê o plano do banco (1 pedido ao Firebase, fora da cota do GitHub). */
+    async function lePlano() {
+      const r = await planoBanco.ler();
+      if (r.onde !== 'banco' && MOTIVO_PLANO[r.motivo] && r.motivo !== 'sem-sessao' && !est.aviso) est.aviso = { tipo: r.motivo === 'sem-rede' ? 'rede' : 'api', texto: MOTIVO_PLANO[r.motivo] };
+    }
 
     function telaEntrar() {
       const estado = estadoTela(est);
@@ -1777,7 +1833,7 @@ const __p4 = (function () {
     const inicia = () => { window.__painel = boot(document.getElementById('painel')); };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', inicia); else inicia();
   }
-  return { boot, VISOES, ORCAMENTO, PERMITIDOS, GOOGLE_CLIENT_ID, FIREBASE_API_KEY };
+  return { boot, VISOES, ORCAMENTO, PERMITIDOS, GOOGLE_CLIENT_ID, FIREBASE_API_KEY, FIREBASE_DB_URL };
 })();
 
 </script>

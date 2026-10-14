@@ -12301,7 +12301,7 @@ test('e2e · R-10 Painel · Skills e rotinas: catálogo com papel e atalhos, uso
 });
 
 /* ---------- R-11 · BI1-9 · Modelos ---------- */
-test('e2e · R-11 Painel · Modelos: levas, tempo e portão por modelo (toque filtra), tokens estimados; o plano e o consumo informados pelo dono ficam guardados no aparelho com farol e carimbo (rotulados "estimado"); valor fora de 0–100 é recusado; sem sobreposição nas quatro medidas e dois temas', { skip }, async t => {
+test('e2e · R-11/R-11b Painel · Modelos: levas, tempo e portão por modelo (toque filtra), tokens estimados; o plano e o consumo informados pelo dono vão para o banco (/painel/<uid>/plano, lido de volta) com cópia no aparelho, farol e carimbo (rotulados "estimado"); outro aparelho lê do banco; banco recusando, fica no aparelho marcado pendente; valor fora de 0–100 é recusado; sem sobreposição nas quatro medidas e dois temas', { skip }, async t => {
   const { page, errors, base } = await open(t);
   const painel = base.replace('index.html', 'painel.html');
   await page.setViewportSize({ width: 360, height: 780 });
@@ -12314,10 +12314,21 @@ test('e2e · R-11 Painel · Modelos: levas, tempo e portão por modelo (toque fi
     const jwt = email => 'h.' + btoa(JSON.stringify({ email })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') + '.s';
     window.__PAINEL_FETCH = async (url) => new Response(JSON.stringify(url.includes('securetoken') ? { user_id: 'uidE2E', id_token: jwt('gui.amuy@gmail.com'), refresh_token: 'ref-e2e', expires_in: '3600' } : { localId: 'uidE2E', idToken: jwt('gui.amuy@gmail.com'), refreshToken: 'ref-e2e', expiresIn: '3600' }), { headers: { 'content-type': 'application/json' } });
     window.__PAINEL_GOOGLE = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+    // R-11b · banco falso: /painel/<uid>/plano.json com o token da sessão; guarda em sessionStorage (sobrevive ao reload, some ao fechar)
+    window.__dbPedidos = [];
+    window.__PAINEL_FETCH_DB = async (url, opts = {}) => {
+      const m = /^https:\/\/estante-10102026-default-rtdb\.firebaseio\.com\/painel\/([^/]+)\/plano\.json\?auth=(.+)$/.exec(url);
+      window.__dbPedidos.push({ url, method: opts.method || 'GET' });
+      if (!m || m[1] !== 'uidE2E' || !m[2]) return new Response('{"error":"Permission denied"}', { status: 401, headers: { 'content-type': 'application/json' } });
+      if (sessionStorage.getItem('db.recusa')) return new Response('{"error":"Permission denied"}', { status: 401, headers: { 'content-type': 'application/json' } });
+      if ((opts.method || 'GET') === 'PUT') sessionStorage.setItem('db.plano', opts.body);
+      return new Response(sessionStorage.getItem('db.plano') || 'null', { headers: { 'content-type': 'application/json' } });
+    };
   });
   await page.goto(painel + '#modelos'); await page.waitForSelector('#pn-entrar'); await page.click('#pn-entrar');
   await page.waitForSelector('#pn-visao-modelos');
   assert.match(await page.innerText('#pn-k-consumo'), /sem dados neste recorte/);
+  assert.deepEqual(await page.evaluate(() => window.__dbPedidos.map(p => p.method)), ['GET'], 'ao abrir Modelos o painel lê o plano do banco uma vez');
   assert.match(await page.innerText('#pn-k-modelos'), /2[\s\S]*3 levas/);
   assert.match(await page.innerText('#pn-k-tokens'), /90[\s\S]*mil · estimado/);
   assert.match(await page.innerText('#pn-modelos'), /Fable 5\.1[\s\S]*tempo mediano 1 h · portão verde na primeira 100% de 2 · bugs achados 0 · ~90 mil tokens[\s\S]*2 leva\(s\)[\s\S]*Opus 5\.5[\s\S]*tempo mediano 2 h · portão verde na primeira 0% de 1 · bugs achados 2/);
@@ -12327,11 +12338,28 @@ test('e2e · R-11 Painel · Modelos: levas, tempo e portão por modelo (toque fi
   await page.selectOption('#pn-plano-nome', 'Max 5x');
   await page.fill('#pn-plano-pct', '140'); await page.click('#pn-plano-salvar'); await page.waitForSelector('#pn-aviso');
   assert.match(await page.innerText('#pn-aviso'), /0 a 100/);
-  await page.fill('#pn-plano-pct', '82'); await page.click('#pn-plano-salvar'); await page.waitForFunction(() => /salvo agora · neste aparelho/.test(document.querySelector('#pn-plano-salvo')?.innerText || ''));
+  await page.fill('#pn-plano-pct', '82'); await page.click('#pn-plano-salvar'); await page.waitForFunction(() => /salvo agora · no banco/.test(document.querySelector('#pn-plano-salvo')?.innerText || ''));
+  assert.equal(await page.getAttribute('#pn-plano-salvo', 'data-onde'), 'banco');
+  assert.equal(await page.$('#pn-aviso'), null, 'gravação no banco não deixa aviso');
+  assert.deepEqual(await page.evaluate(() => window.__dbPedidos.map(p => p.method)), ['GET', 'PUT'], 'uma gravação, lida de volta na própria resposta');
+  assert.match(await page.evaluate(() => sessionStorage.getItem('db.plano')), /"kind":"estante.painel.plano","version":1[\s\S]*"nome":"Max 5x"[\s\S]*"consumoPct":82/);
+  assert.doesNotMatch(await page.evaluate(() => sessionStorage.getItem('db.plano')), /email|uid|token/, 'nada da sessão vai para o registro do plano');
   assert.match(await page.innerText('#pn-k-consumo'), /82[\s\S]*% · Max 5x[\s\S]*informado por você/);
   assert.equal(await page.getAttribute('#pn-k-consumo .pn-farol', 'data-farol'), 'amarelo');
+  // outro aparelho: sem a cópia local, o valor vem do banco
+  await page.evaluate(() => localStorage.removeItem('painel.plano'));
   await page.reload(); await page.waitForSelector('#pn-visao-modelos');
+  await page.waitForFunction(() => /no banco/.test(document.querySelector('#pn-plano-salvo')?.innerText || ''));
   assert.match(await page.innerText('#pn-k-consumo'), /82/);
+  // banco recusando (regra ainda não publicada): fica no aparelho, marcado pendente, com o motivo
+  await page.evaluate(() => sessionStorage.setItem('db.recusa', '1'));
+  await page.fill('#pn-plano-pct', '90'); await page.click('#pn-plano-salvar'); await page.waitForFunction(() => /o banco não recebeu ainda/.test(document.querySelector('#pn-plano-salvo')?.innerText || ''));
+  assert.equal(await page.getAttribute('#pn-plano-salvo', 'data-onde'), 'aparelho');
+  assert.match(await page.innerText('#pn-aviso'), /banco recusou/);
+  assert.match(await page.innerText('#pn-k-consumo'), /90/);
+  await page.reload(); await page.waitForSelector('#pn-visao-modelos');
+  assert.match(await page.innerText('#pn-k-consumo'), /90/, 'o valor pendente do aparelho vence o do banco (é mais novo)');
+  await page.evaluate(() => sessionStorage.removeItem('db.recusa'));
   // toque na barra filtra por modelo
   await page.click('#pn-g-modelos button[data-valor="Opus 5.5"], #pn-g-modelos li[data-valor="Opus 5.5"] button');
   await page.waitForFunction(() => location.hash.includes('modelo=Opus'));

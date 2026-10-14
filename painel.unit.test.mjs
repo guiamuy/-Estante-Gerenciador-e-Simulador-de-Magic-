@@ -481,3 +481,81 @@ test('R-11 · porModelo: levas, tempo mediano, portão verde na primeira (só da
     { id: 'X-1', inicio: '2026-10-13T20:00:00Z', fim: '2026-10-13T20:10:00Z' }]));
   assert.deepEqual(r.map(m => [m.modelo, m.levas, m.tempoMediano, m.pctVerde, m.tokens, m.bugs]), [['Fable 5.1', 2, 50 * 60000, 50, 90000, 0], ['Opus 5.5', 1, null, 0, 0, 2], ['sem modelo', 1, 10 * 60000, null, 0, 0]]);
 });
+
+/* ---------- R-11b · plano no banco ---------- */
+function planoFalso({ respostas = [], dbUrl = 'https://db.exemplo', token = async () => 'tok', uid = () => 'uidDono', guarda } = {}) {
+  const { base } = loadPainel();
+  const g = guarda || base.createGuarda(null);
+  const pedidos = [];
+  const fetch = async (url, opts = {}) => {
+    pedidos.push({ url, method: opts.method || 'GET', body: opts.body ? JSON.parse(opts.body) : null });
+    const r = respostas.shift();
+    if (!r) throw new TypeError('sem rede');
+    if (typeof r === 'function') return r(pedidos[pedidos.length - 1]);
+    return r;
+  };
+  const resp = (status, json) => ({ ok: status >= 200 && status < 300, status, json: async () => json });
+  return { plano: base.createPlano({ fetch, dbUrl, token, uid, guarda: g }), guarda: g, pedidos, resp };
+}
+
+test('R-11b · plano no banco: gravar faz PUT em /painel/<uid>/plano.json?auth=<token>, só diz "no banco" depois de ler de volta o mesmo registro; o aparelho guarda a cópia com a origem', async () => {
+  const F = planoFalso({ respostas: [p => ({ ok: true, status: 200, json: async () => p.body })] });
+  const p = { kind: 'estante.painel.plano', version: 1, atualizadoEm: 5, nome: 'Max 5x', consumoPct: 82, renovaEm: '2026-11-01' };
+  assert.deepEqual(await F.plano.gravar(p), { onde: 'banco', motivo: null });
+  assert.equal(F.pedidos[0].url, 'https://db.exemplo/painel/uidDono/plano.json?auth=tok');
+  assert.equal(F.pedidos[0].method, 'PUT'); assert.deepEqual(F.pedidos[0].body, p);
+  assert.deepEqual(F.guarda.ler('painel.plano'), { ...p, origem: 'banco' });
+  // o banco devolveu outra coisa: não é "no banco"
+  const G = planoFalso({ respostas: [{ ok: true, status: 200, json: async () => ({ ...p, consumoPct: 10 }) }] });
+  assert.deepEqual(await G.plano.gravar(p), { onde: 'aparelho', motivo: 'conferencia' });
+  assert.equal(G.guarda.ler('painel.plano').pendente, true);
+});
+
+test('R-11b · plano no banco: sem rede, recusa (401) ou banco fora, o plano fica no aparelho marcado pendente e o motivo é nomeado; sem banco configurado, só o aparelho', async () => {
+  const A = planoFalso({ respostas: [] });
+  const p = { kind: 'estante.painel.plano', version: 1, atualizadoEm: 7, nome: 'Pro' };
+  assert.deepEqual(await A.plano.gravar(p), { onde: 'aparelho', motivo: 'sem-rede' });
+  assert.deepEqual(A.guarda.ler('painel.plano'), { ...p, pendente: true });
+  const B = planoFalso({ respostas: [{ ok: false, status: 401, json: async () => ({ error: 'Permission denied' }) }] });
+  assert.deepEqual(await B.plano.gravar(p), { onde: 'aparelho', motivo: 'recusado' });
+  const C = planoFalso({ respostas: [{ ok: false, status: 503, json: async () => null }] });
+  assert.deepEqual(await C.plano.gravar(p), { onde: 'aparelho', motivo: 'fora' });
+  const D = planoFalso({ dbUrl: '' });
+  assert.deepEqual(await D.plano.gravar(p), { onde: 'aparelho', motivo: 'sem-banco' });
+  assert.deepEqual(D.guarda.ler('painel.plano'), { ...p, pendente: false });
+  assert.equal(D.pedidos.length, 0, 'sem banco não há pedido');
+  const E = planoFalso({ uid: () => null });
+  assert.deepEqual(await E.plano.gravar(p), { onde: 'aparelho', motivo: 'sem-sessao' });
+});
+
+test('R-11b · plano no banco: ler traz o do banco e guarda no aparelho; o mais novo vence (aparelho pendente mais novo fica); banco vazio diz vazio; recusa e sem rede devolvem o do aparelho', async () => {
+  const p = { kind: 'estante.painel.plano', version: 1, atualizadoEm: 10, nome: 'Max 20x', consumoPct: 40 };
+  const A = planoFalso({ respostas: [{ ok: true, status: 200, json: async () => p }] });
+  assert.deepEqual(await A.plano.ler(), { plano: { ...p, origem: 'banco' }, onde: 'banco', motivo: null });
+  assert.equal(A.pedidos[0].method, 'GET');
+  assert.deepEqual(A.guarda.ler('painel.plano'), { ...p, origem: 'banco' });
+  // aparelho com registro pendente mais novo: fica o do aparelho
+  const B = planoFalso({ respostas: [{ ok: true, status: 200, json: async () => p }] });
+  B.guarda.gravar('painel.plano', { ...p, atualizadoEm: 11, consumoPct: 55, pendente: true });
+  const rb = await B.plano.ler(); assert.equal(rb.onde, 'aparelho'); assert.equal(rb.motivo, 'pendente'); assert.equal(rb.plano.consumoPct, 55);
+  // banco vazio e aparelho com valor antigo (de antes da R-11b): aparelho, motivo vazio
+  const C = planoFalso({ respostas: [{ ok: true, status: 200, json: async () => null }] });
+  C.guarda.gravar('painel.plano', p);
+  assert.deepEqual(await C.plano.ler(), { plano: p, onde: 'aparelho', motivo: 'vazio' });
+  // banco vazio e aparelho vazio
+  const D = planoFalso({ respostas: [{ ok: true, status: 200, json: async () => null }] });
+  assert.deepEqual(await D.plano.ler(), { plano: null, onde: 'banco', motivo: 'vazio' });
+  // recusa e sem rede
+  const E = planoFalso({ respostas: [{ ok: false, status: 401, json: async () => null }] }); E.guarda.gravar('painel.plano', p);
+  assert.deepEqual(await E.plano.ler(), { plano: p, onde: 'aparelho', motivo: 'recusado' });
+  const F = planoFalso({ respostas: [] }); F.guarda.gravar('painel.plano', p);
+  assert.deepEqual(await F.plano.ler(), { plano: p, onde: 'aparelho', motivo: 'sem-rede' });
+});
+
+test('R-11b · o painel lê e grava o plano no banco do app (mesma URL do index.html) e a política de conteúdo já autoriza o banco', () => {
+  const { app } = loadPainel();
+  assert.match(app.FIREBASE_DB_URL, /^https:\/\/estante-10102026-default-rtdb\.firebaseio\.com$/);
+  assert.ok(INDEX.includes(app.FIREBASE_DB_URL), 'a URL do banco é a mesma do app');
+  assert.match(PAINEL, /connect-src[^"]*https:\/\/\*\.firebaseio\.com/);
+  assert.equal(loadPainel({ __PAINEL_DB_URL: '' }).app.FIREBASE_DB_URL, '', 'nos testes o banco pode ser desligado');
+});
