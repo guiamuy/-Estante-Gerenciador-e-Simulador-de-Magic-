@@ -1,4 +1,5 @@
-// T-108 · CR5 · Copiar a mágica alvo (Comprehensive Rules 707.10, 707.10c).
+// T-108 · CR5 · Copiar a mágica alvo (Comprehensive Rules 707.10, 707.10c). T-109 · copiar habilidade (707.10b): Strionic Resonator e Lithoform Engine.
+// "Vigia" e "Fonte" são cartas de teste.
 // Texto da regra: .regras/cr-2026-09-25.txt. Cartas com o texto oficial de .listas/oficiais-tipos.json (Oracle do Forge, clone de 13/10/2026,
 // conferido no master em 14/10/2026): Twincast, Reverberate, Reiterate, Increasing Vengeance, Geistblast, Nivix Guildmage e Dualcaster Mage.
 // "Raio", "Choque" e "Urso" são cartas de teste.
@@ -8,16 +9,18 @@ import { readFileSync } from 'node:fs';
 import { E, S as SC, T, J, act, poe, legais, passaAte, valorDeMana } from './listas.mjs';
 
 const L = n => JSON.parse(readFileSync(new URL('./.listas/' + n, import.meta.url), 'utf8')).cartas;
-const NOMES = ['Twincast', 'Reverberate', 'Reiterate', 'Increasing Vengeance', 'Geistblast', 'Nivix Guildmage', 'Dualcaster Mage'];
+const NOMES = ['Twincast', 'Reverberate', 'Reiterate', 'Increasing Vengeance', 'Geistblast', 'Nivix Guildmage', 'Dualcaster Mage', 'Strionic Resonator', 'Lithoform Engine'];
 const KW = { 'Dualcaster Mage': ['Flash'], 'Reiterate': ['Buyback'], 'Increasing Vengeance': ['Flashback'] };
 const C = {};
 for (const c of L('oficiais-tipos.json').filter(x => NOMES.includes(x.name)))
   C[c.name] = { name: c.name, type_line: c.type_line, mana_cost: c.mana_cost, cmc: valorDeMana(c.mana_cost), keywords: KW[c.name] || [], oracle_text: c.oracle_text, colors: [], power: c.power, toughness: c.toughness };
 C.Island = { name: 'Island', type_line: 'Basic Land — Island', mana_cost: '', cmc: 0, keywords: [], oracle_text: '({T}: Add {U}.)', colors: [] };
 const carta = (name, type_line, extra = {}) => { C[name] = { name, type_line, mana_cost: '{R}', cmc: 1, keywords: [], oracle_text: '', colors: ['R'], ...extra }; };
-carta('Raio', 'Instant'); carta('Choque', 'Sorcery'); carta('Urso', 'Creature — Bear', { power: '2', toughness: '2', mana_cost: '{1}{G}', cmc: 2, colors: ['G'] });
+carta('Raio', 'Instant'); carta('Choque', 'Sorcery'); carta('Vigia', 'Creature — Soldier', { power: '1', toughness: '1', keywords: ['Flash'], oracle_text: 'Flash' }); carta('Fonte', 'Artifact'); carta('Urso', 'Creature — Bear', { power: '2', toughness: '2', mana_cost: '{1}{G}', cmc: 2, colors: ['G'] });
 const EX = { example: { target: 'none', expect: { selfLife: 0 } } };
-const SCRIPTS = { 'Raio': { name: 'Raio', effects: [{ do: 'damage', amount: 3, target: 'any' }], ...EX }, 'Choque': { name: 'Choque', effects: [{ do: 'damage', amount: 2, target: 'any' }], ...EX } };
+const SCRIPTS = { 'Vigia': { name: 'Vigia', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'gain', amount: 3 }] }], example: { action: 'etb', target: 'none', expect: { selfLife: 3 } } }, // "When this enters, you gain 3 life."
+  'Fonte': { name: 'Fonte', abilities: [{ kind: 'activated', cost: { mana: '{1}' }, effects: [{ do: 'gain', amount: 2 }] }], example: { action: 'activate:0', target: 'none', expect: { selfLife: 2 } } }, // "{1}: You gain 2 life."
+  'Raio': { name: 'Raio', effects: [{ do: 'damage', amount: 3, target: 'any' }], ...EX }, 'Choque': { name: 'Choque', effects: [{ do: 'damage', amount: 2, target: 'any' }], ...EX } };
 function mesa(seed = 1) {
   const deck = [...Object.keys(C).filter(n => n !== 'Island').map(name => ({ name, qty: 2, zone: 'main' })), { name: 'Island', qty: 16, zone: 'main' }];
   let s = E.createGame({ format: 'livre', seed, mode: 'full', cards: C, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
@@ -117,4 +120,46 @@ test('CR 707.10 · validador e pilha explicada', () => {
   const v = sc => J(SC.validateScript({ name: 'X', ...sc, example: { target: 'none', expect: { selfLife: 0 } } }));
   eq(v({ effects: [{ do: 'copia_magia', target: { zona: 'stack', tipos: ['instant', 'sorcery'] } }] }), []);
   assert.match(T.descreveEfeitos([{ do: 'copia_magia', target: { zona: 'stack', tipos: ['instant', 'sorcery'], de: 'you' } }]), /copia uma mágica instantânea ou feitiço sua/);
+});
+
+test('CR 707.10b · T-109: Strionic Resonator (texto oficial) copia o gatilho de entrada seu — 6 de vida; não mira habilidade ativada nem gatilho do oponente', () => {
+  let s = mesa(); let r, v, f, vb; [s, r] = poe(s, 0, 'Strionic Resonator', 'battlefield'); [s, f] = poe(s, 0, 'Fonte', 'battlefield'); [s, v] = poe(s, 0, 'Vigia', 'hand'); s = mana(s);
+  const vida = s.players[0].life;
+  s = conjura(s, 0, v); s = act(s, { t: 'pass', p: 0 }); s = act(s, { t: 'pass', p: 1 }); // a Vigia entra; o gatilho vai à pilha
+  const gat = s.stack.find(o => s.objects[o].ability && s.objects[o].name === 'Vigia'); assert.ok(gat, 'o gatilho na pilha');
+  s = J(s); s.turn.priority = 0;
+  s = act(s, legais(s, 0, x => x.t === 'activate' && x.oid === r && x.targets && x.targets[0].oid === gat)[0]);
+  s = resolve(s);
+  eq(s.players[0].life - vida, 6, 'o gatilho e a cópia');
+  s = mana(s); s = J(s); s.turn.priority = 0; s.objects[r].tapped = false;
+  s = act(s, legais(s, 0, x => x.t === 'activate' && x.oid === f)[0]);
+  const hab = s.stack.find(o => s.objects[o].ability && s.objects[o].name === 'Fonte');
+  assert.ok(!legais(s, 0, x => x.t === 'activate' && x.oid === r).some(x => x.targets && x.targets[0].oid === hab), 'habilidade ativada não é alvo do Resonator');
+  s = resolve(s);
+  [s, vb] = poe(s, 1, 'Vigia', 'hand'); s = mana(s, 1); s = conjura(s, 1, vb); s = act(s, { t: 'pass', p: 1 }); s = act(s, { t: 'pass', p: 0 });
+  const gb = s.stack.find(o => s.objects[o].ability && s.objects[o].name === 'Vigia');
+  s = J(s); s.turn.priority = 0;
+  assert.ok(gb && !legais(s, 0, x => x.t === 'activate' && x.oid === r).some(x => x.targets && x.targets[0].oid === gb), 'gatilho do oponente não é alvo');
+});
+
+test('CR 707.10b / 707.10c · T-109: Lithoform Engine (texto oficial) copia a habilidade ativada sua (4 de vida) e a mágica de permanente sua (a cópia vira ficha)', () => {
+  let s = mesa(); let e, f, u; [s, e] = poe(s, 0, 'Lithoform Engine', 'battlefield'); [s, f] = poe(s, 0, 'Fonte', 'battlefield'); s = mana(s);
+  const vida = s.players[0].life;
+  s = act(s, legais(s, 0, x => x.t === 'activate' && x.oid === f)[0]);
+  const hab = s.stack.find(o => s.objects[o].ability && s.objects[o].name === 'Fonte');
+  s = act(s, legais(s, 0, x => x.t === 'activate' && x.oid === e && (x.index || 0) === 0 && x.targets[0].oid === hab)[0]);
+  s = resolve(s);
+  eq(s.players[0].life - vida, 4);
+  s = J(s); s.objects[e].tapped = false; [s, u] = poe(s, 0, 'Urso', 'hand'); s = mana(s);
+  s = conjura(s, 0, u);
+  s = act(s, legais(s, 0, x => x.t === 'activate' && x.oid === e && x.index === 2 && x.targets[0].oid === u)[0]);
+  s = resolve(s);
+  const ursos = s.zones[0].battlefield.map(o => s.objects[o]).filter(o => o.name === 'Urso');
+  eq([ursos.length, ursos.filter(o => o.token).length], [2, 1], 'a carta e a ficha');
+});
+
+test('CR 707.10b · T-109: validador do seletor de habilidade', () => {
+  const v = sc => J(SC.validateScript({ name: 'X', ...sc, example: { target: 'none', expect: { selfLife: 0 } } }));
+  eq(v({ effects: [{ do: 'copia_habilidade', target: { zona: 'stack', habilidades: 'disparadas', de: 'you' } }] }), []);
+  assert.ok(v({ effects: [{ do: 'copia_habilidade', target: { zona: 'stack', habilidades: 'mana' } }] }).some(e => /habilidades/.test(e)));
 });

@@ -5572,6 +5572,7 @@ const EFFECTS = {
   lutador: { fields: [], targets: ['creature', 'creature-you-control'] },
   fight: { fields: [], targets: ['creature', 'creature-opponent-controls', 'creature-you-control'] }, // quem: 'self-source' (a permanente fonte luta) | 'primeiro-alvo' (luta a criatura anotada pelo `lutador` anterior)
   /* ↓ T · efeitos da trilha tipos */
+  copia_habilidade: { fields: [], targets: ['spell-or-ability'] }, // T-109 · CR 707.10b · "Copy target [activated or] triggered ability you control. You may choose new targets for the copy."
   copia_magia: { fields: [], targets: ['spell'] }, // T-108 · CR 707.10 · "Copy target instant or sorcery spell. You may choose new targets for the copy." (alvo: seletor de mágica na pilha; `vezes`: quantas cópias)
   descarta_a_mao: { fields: [], targets: ['self', 'player', 'opponent', 'that-player', 'enchanted-player', 'each-player'] }, // T-101 · 701.9 · "discard your hand" (as cartas saem juntas; insanidade como no descarte de sempre)
   passo_extra: { fields: [], targets: ['self', 'player', 'enchanted-player'] }, // T-101 · CR 500.9 · "that player gets an additional upkeep step after this step" (`passo`: 'upkeep' | 'draw')
@@ -5759,6 +5760,7 @@ function seletorErros(sel, label) {
   for (const k of ['de', 'dono', 'jogadores']) if (sel[k] != null && !['you', 'opponent', 'any'].includes(sel[k]) && !(k === 'de' && sel[k] === 'alvo')) errs.push(`${label}: "${k}" precisa ser you, opponent ou any`); // M-351 · de: 'alvo' = o jogador alvo do efeito (Arms of Hadar)
   for (const k of ['tipos', 'semTipos']) for (const x of sel[k] || []) if (!TIPOS_DE_CARTA.includes(x)) errs.push(`${label}: tipo "${x}" desconhecido`);
   for (const k of ['cor', 'semCor']) if (sel[k] != null && !'WUBRG'.includes(sel[k])) errs.push(`${label}: cor precisa ser WUBRG`);
+  if (sel.habilidades != null && ![true, 'so', 'disparadas'].includes(sel.habilidades)) errs.push(`${label}: "habilidades" é true (mágica ou habilidade), 'so' (só habilidade) ou 'disparadas' (só habilidade disparada)`); // T-109 · 707.10b
   if (sel.ref != null && !['bloqueada-pela-fonte', 'encantada-pela-fonte'].includes(sel.ref)) errs.push(`${label}: referência "${sel.ref}" desconhecida`);
   for (const k of ['palavra', 'semPalavra']) if (sel[k] != null && !KEYWORDS.includes(sel[k])) errs.push(`${label}: palavra-chave "${sel[k]}" não é resolvida pelo motor`);
   for (const k of ['mvMax', 'mvMin']) if (sel[k] != null) errs.push(...valueErrors(sel[k], `${label}: ${k}`));
@@ -6838,6 +6840,14 @@ const RAW_SCRIPTS = [
     { label: 'Destruir um terreno', effects: [{ do: 'destroy', target: 'land' }] },
     { label: 'Destruir um planeswalker', effects: [{ do: 'destroy', target: { tipos: ['planeswalker'] } }] }],
     example: { action: 'mode:1', target: 'enemy-creature', expect: { gone: true } } },
+  // T-109 · CR 707.10b / 707.10c · copiar habilidade e mágica de permanente (Oracle do Forge, clone de 13/10/2026, conferido no master em 14/10/2026).
+  { name: 'Strionic Resonator', abilities: [{ kind: 'activated', cost: { mana: '{2}', tap: true }, effects: [{ do: 'copia_habilidade', target: { zona: 'stack', habilidades: 'disparadas', de: 'you' } }] }], // "{2}, {T}: Copy target triggered ability you control. You may choose new targets for the copy."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Lithoform Engine', abilities: [ // "{2}, {T}: Copy target activated or triggered ability you control. … · {3}, {T}: Copy target instant or sorcery spell you control. … · {4}, {T}: Copy target permanent spell you control. (The copy becomes a token.)"
+    { kind: 'activated', cost: { mana: '{2}', tap: true }, effects: [{ do: 'copia_habilidade', target: { zona: 'stack', habilidades: 'so', de: 'you' } }] },
+    { kind: 'activated', cost: { mana: '{3}', tap: true }, effects: [{ do: 'copia_magia', target: { zona: 'stack', tipos: ['instant', 'sorcery'], de: 'you' } }] },
+    { kind: 'activated', cost: { mana: '{4}', tap: true }, effects: [{ do: 'copia_magia', target: { zona: 'stack', permanente: true, de: 'you' } }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // T-108 · CR 707.10 · copiar mágica alvo (Oracle do Forge, clone de 13/10/2026, conferido no master em 14/10/2026). Recompra, lampejo e "entra virado" vêm do texto da carta.
   { name: 'Twincast', effects: [{ do: 'copia_magia', target: { zona: 'stack', tipos: ['instant', 'sorcery'] } }], example: { target: 'enemy-instant', expect: { opponentLife: -3 } } }, // o cenário: o Lightning Bolt do oponente mira você; a cópia é sua e vai no oponente // "Copy target instant or sorcery spell. You may choose new targets for the copy."
   { name: 'Reverberate', effects: [{ do: 'copia_magia', target: { zona: 'stack', tipos: ['instant', 'sorcery'] } }], example: { target: 'enemy-instant', expect: { opponentLife: -3 } } }, // o cenário: o Lightning Bolt do oponente mira você; a cópia é sua e vai no oponente // "Copy target instant or sorcery spell. You may choose new targets for the copy."
@@ -20711,7 +20721,7 @@ function selecionar(s, p, sel, selfOid, opts = {}) {
     const semDe = { ...sel, de: null };
     for (const z of zs) for (const oid of z.graveyard) if (selCasa(s, p, s.objects[oid], semDe, selfOid, opts)) out.push({ oid });
   } else if (zona === 'stack') {
-    for (const oid of s.stack) { const o = s.objects[oid]; if (oid === selfOid || (isAbility(o) && !sel.habilidades)) continue; if (isAbility(o) || selCasa(s, p, o, sel, selfOid, opts)) out.push({ oid }); }
+    for (const oid of s.stack) { const o = s.objects[oid]; if (oid === selfOid || (isAbility(o) && !sel.habilidades)) continue; if (isAbility(o) ? habilidadeCasaT(p, o, sel) : (sel.habilidades === true || !sel.habilidades) && selCasa(s, p, o, sel, selfOid, opts)) out.push({ oid }); } // T-109 · 707.10b: só habilidades ('so'), só disparadas ('disparadas'), "you control" (Toca ponto comum: legalTargets na pilha)
   }
   if (sel.jogadores) s.players.forEach((pl, i) => { if (!pl.lost && !(mira && pl.tempHexproof && i !== p) && (sel.jogadores === 'any' || (sel.jogadores === 'opponent' ? i !== p : i === p))) out.push({ player: i }); }); // M-260 · jogador com resistência a magia
   if (sel.jogadores && mira) for (let k = out.length - 1; k >= 0; k--) if (out[k].player != null && jogadorIntocavelK(s, out[k].player, p)) out.splice(k, 1); // K-26 · 702.11c / 702.18a: também a resistência e o manto estáticos do jogador (Toca ponto comum: alvos de jogador)
@@ -22266,6 +22276,7 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'fight': lutar(s, src, eff, tgt, events); break; // V-1 · 701.14
     /* ↓ T · casos de applyEffect da trilha tipos */
     case 'copia_magia': copiaMagiaT(s, src, eff, obj, ctrl, events); break; // T-108 · CR 707.10
+    case 'copia_habilidade': copiaHabilidadeT(s, src, obj, ctrl, events); break; // T-109 · CR 707.10b
     case 'passo_extra': passoExtraAddT(s, src, eff, playerOf(), events); break; // T-101 · CR 500.9
     case 'descarta_a_mao': for (const q of (eff.target === 'each-player' ? s.players.map((_, i) => i).filter(i => !s.players[i].lost) : [playerOf()])) { const mao = s.zones[q].hand.slice(); for (const oid of mao) { const o = s.objects[oid]; if (madnessOf(s, o)) { moveObject(s, oid, 'exile'); noteDiscard(s, q); insanidadeNaPilhaK(s, q, oid); } else moveObject(s, oid, 'graveyard'); } events.push({ kind: 'effect', do: 'descarta_a_mao', name: src.name, target: s.players[q].name, amount: mao.length }); } break; // T-101 · 701.9
     case 'dobra_de_fogo': dobraDeFogoT(s, src, eff, events); break; // T-100 · 702.189a
@@ -23240,6 +23251,7 @@ function putTriggerOnStack(s, q, events) {
   }
   const oid = makeAbility(s, { oid: q.source, name: q.name, controller: q.controller }, { effects: q.effects }, targets);
   if (q.guarda !== undefined) s.objects[oid].guarda = q.guarda; // M-353 · 607.2a
+  if (q.marcasHabT) Object.assign(s.objects[oid], q.marcasHabT); // T-109 · 707.10b: a cópia de habilidade leva X, cor, sacrificados e modo da original (Toca ponto comum: putTriggerOnStack)
   marcasDoGatilho(s, q, oid);
   events.push({ kind: 'trigger', name: q.name, when: q.when, oid });
   if ((q.effects || []).some(e => e && e.dividido)) iniciaDivisao(s, oid, events); // M-378 · 603.3d / 601.2d: o gatilho que divide dano escolhe alvos e divisão ao ir para a pilha
@@ -23270,6 +23282,27 @@ function copiaMagiaT(s, src, eff, obj, ctrl, events) {
   for (let i = 0; i < n; i++) s.queued.push({ source: obj.oid, name: obj.name, controller: ctrl, effects: spellEffects(s, obj), when: 'copia', copia: true, copiaDeMagia: true, marcasMagia: marcasDaMagia(obj) });
   events.push({ kind: 'effect', do: 'copia_magia', name: src.name, target: obj.name, amount: n });
 }
+/** T-109 · CR 707.10b · seletor de habilidade na pilha: `habilidades: 'so'` (só habilidades) ou 'disparadas' (só as disparadas — as ativadas
+ * levam `ativadaT`); `de: 'you'` ("you control"). `habilidades: true` (mágica ou habilidade) segue como antes. */
+function habilidadeCasaT(p, o, sel) {
+  if (sel.habilidades === 'disparadas' && o.ativadaT) return false;
+  if (sel.de === 'you' && o.controller !== p) return false;
+  if (sel.de === 'opponent' && o.controller === p) return false;
+  return sel.habilidades === true || sel.habilidades === 'so' || sel.habilidades === 'disparadas';
+}
+/** T-109 · CR 707.10b · "Copy target [activated or] triggered ability you control. You may choose new targets for the copy.": a cópia vai à
+ * pilha por cima (é de quem copiou), com o texto, o valor que o gatilho trouxe, as marcas de "aquele jogador / aquela carta", o X, a cor e
+ * o modo da original; escolhe alvo de novo; uma habilidade de mana copiada também usa a pilha aqui (não há carta que copie mana). */
+function copiaHabilidadeT(s, src, obj, ctrl, events) {
+  if (!obj || obj.zone !== 'stack' || !isAbility(obj)) { events.push({ kind: 'effect', do: 'copia_habilidade', name: src.name, failed: true }); return; }
+  const marcas = {}; for (const k of ['xPaid', 'chosenColor', 'sacrificados', 'modoT', 'estacaoViradaT', 'ativadaT', 'condicao', 'fonteRetrato', 'blockedAt']) if (obj[k] != null) marcas[k] = J_T(obj[k]);
+  s.queued.push({ source: obj.source, name: obj.name, controller: ctrl, effects: obj.effects, when: 'copia-habilidade', copia: true,
+    ...(obj.triggerValue != null ? { value: obj.triggerValue } : {}), ...(obj.lembrada ? { lembrada: obj.lembrada } : {}), ...(obj.objetosAtrasados ? { objetos: obj.objetosAtrasados } : {}),
+    ...(obj.objetoAtrasado ? { objeto: obj.objetoAtrasado } : {}), ...(obj.jogadorAtrasado != null ? { jogador: obj.jogadorAtrasado } : {}), ...(obj.hostOid ? { host: obj.hostOid, hostZc: obj.hostZc } : {}),
+    ...(obj.defensor != null ? { defensor: obj.defensor } : {}), ...(obj.mayPay ? { mayPay: obj.mayPay } : {}), marcasHabT: marcas });
+  events.push({ kind: 'effect', do: 'copia_habilidade', name: src.name, target: obj.name });
+}
+const J_T = x => (x && typeof x === 'object') ? JSON.parse(JSON.stringify(x)) : x;
 /** T-107 · CR 700.2e · "An opponent chooses one —" (`modoPeloOponente: true`): a mágica vai à pilha sem modo e, antes de alguém ter
  * prioridade, o oponente (numa mesa de dois, o único) escolhe o modo numa decisão `choose_mode`; o modo fica na mágica (`mode`) e a cópia o
  * leva (700.2g). Os modos não têm alvo (o validador recusa): a escolha de alvo depois do modo do oponente (Fatal Lore) fica de fora. */
@@ -24197,6 +24230,7 @@ const HANDLERS = {
       if (a.color) s.objects[abOid].chosenColor = a.color;
       if (nX) s.objects[abOid].xPaid = a.x || 0; // CR2c.7 · 107.3a: o mesmo X em todo o texto da habilidade, até ela resolver
       if (s.sacrificadosNoCusto) s.objects[abOid].sacrificados = s.sacrificadosNoCusto;
+      s.objects[abOid].ativadaT = true; // T-109 · 707.10b: "activated ability" na pilha (o resto que não é mágica é disparada)
       if (ab.modoT != null) { s.objects[abOid].modoT = ab.modoT; (ev || []).push({ kind: 'effect', do: 'modo_ativada', name: o.name, target: s.players[a.p].name, rotulo: ((base.rotulosT || [])[ab.modoT]) || '' }); } // T-106 · 700.2a: o modo escolhido é público (Toca ponto comum: HANDLERS.activate)
       if (s.estacaoViradaT) { s.objects[abOid].estacaoViradaT = s.estacaoViradaT; delete s.estacaoViradaT; } // T-37 · CR 702.184a (Toca ponto comum: HANDLERS.activate)
       chargeWard(s, a.p, abOid, chosen);
@@ -32885,6 +32919,7 @@ Object.assign(EFEITO_PT_T, { vira_para_baixo: () => 'vira a criatura alvo para b
 const predicadosPT_T = sel => (sel.tapped ? ' virada' : sel.tapped === false ? ' desvirada' : '') + (sel.ativadaNoTurno ? ' que teve habilidade ativada neste turno' : '') + /* T-87 */ (sel.terrenoBasico === false ? ' que não seja terreno básico' : sel.terrenoBasico ? ' que é terreno básico' : '') + /* T-80 */ (sel.historico ? ' histórica' : sel.historico === false ? ' que não é histórica' : '') + (sel.foraDaLei ? ' fora da lei' : sel.foraDaLei === false ? ' que não é fora da lei' : '') + /* T-60 */ (sel.modificada ? ' modificada' : sel.modificada === false ? ' que não está modificada' : '');
 const LINHA_T = { preparada: ev => (ev.failed ? `${ev.name}: ${ev.motivo || 'não ficou preparada'}, nada muda` : `${ev.name} está preparada (pode conjurar uma cópia de ${ev.target})`), despreparada: ev => `${ev.name} deixou de estar preparada`, ciclo: ev => `Virou ${ev.target}${ev.motivo ? ` (${ev.motivo})` : ''}`, masmorra_completa: ev => `${ev.target} completou a masmorra ${ev.name}`, caso_resolvido: ev => (ev.failed ? `${ev.name}: a condição não valia mais, o Caso não foi resolvido` : `${ev.name} foi resolvido`), estacao: ev => (ev.failed ? `${ev.name}: a nave saiu do campo, a estação não pôs marcadores` : `${ev.name} recebeu ${ev.amount} marcador${ev.amount === 1 ? '' : 'es'} de carga (estação)${ev.total != null ? ` · ${ev.total} no total` : ''}`), selada: ev => (ev.failed ? `${ev.name}: a montaria saiu do campo, não foi selada` : `${ev.name} foi selada`), virar_carta: ev => (ev.failed ? `${ev.name} não virou${ev.motivo ? ` (${ev.motivo})` : ''}` : `${ev.name} virou: agora é ${ev.target}`), porta: ev => (ev.failed ? `${ev.name}: nenhuma porta para trancar ou destrancar` : `${ev.name} ${ev.acao} ${ev.porta} (${ev.target})`), nivel_sobe: ev => (ev.failed ? `${ev.name}: saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu de nível (nível ${ev.nivel})`), nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, converter: ev => `${ev.name} converteu em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
 Object.assign(LINHA_T, { descarta_a_mao: ev => `${ev.target} descartou a mão (${ev.amount === 1 ? 'uma carta' : ev.amount + ' cartas'}; ${ev.name})` }); Object.assign(EFEITO_PT_T, { descarta_a_mao: e => `${e.target === 'self' ? 'você descarta' : e.target === 'each-player' ? 'cada jogador descarta' : 'o jogador descarta'} a mão` }); // T-101
+Object.assign(LINHA_T, { copia_habilidade: ev => ev.failed ? `${ev.name}: a habilidade alvo já saiu da pilha, nada copiado` : `${ev.name} copiou a habilidade de ${ev.target}` }); Object.assign(EFEITO_PT_T, { copia_habilidade: e => `copia uma habilidade ${e.target && e.target.habilidades === 'disparadas' ? 'disparada' : 'ativada ou disparada'}${e.target && e.target.de === 'you' ? ' sua' : ''}; você pode escolher novos alvos para a cópia` }); // T-109 · 707.10b
 Object.assign(LINHA_T, { copia_magia: ev => ev.failed ? `${ev.name}: a mágica alvo já saiu da pilha, nada copiado` : `${ev.name} copiou ${ev.target}${ev.amount > 1 ? ` ${ev.amount} vezes` : ''}` }); Object.assign(EFEITO_PT_T, { copia_magia: e => `copia ${e.target && e.target.de === 'you' ? 'uma mágica instantânea ou feitiço sua' : 'uma mágica instantânea ou feitiço'}${e.vezes && e.vezes.per === 'se' ? ' (duas vezes se esta foi conjurada de um cemitério)' : ''}; você pode escolher novos alvos para a cópia` }); // T-108 · 707.10
 Object.assign(LINHA_T, { modo_do_oponente: ev => `${ev.target} escolheu o modo de ${ev.name}: ${ev.rotulo}` }); // T-107 · 700.2e
 Object.assign(LINHA_T, { modo_ativada: ev => `${ev.target} ativou ${ev.name}${ev.rotulo ? ': ' + ev.rotulo : ''}` }); // T-106 · 700.2a: o modo escolhido no registro
