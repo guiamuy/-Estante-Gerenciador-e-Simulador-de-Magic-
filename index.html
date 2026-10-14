@@ -5381,7 +5381,9 @@ const EFFECTS = {
   volta_ao_acaso: { fields: [], targets: ['self'] }, // M-369 · "Return a <tipo> card at random from your graveyard to your hand" (Haunted Fengraf); `tipos` filtra
   energia: { fields: ['amount'], targets: ['self'] },
   energia_reanima: { fields: [], targets: ['card-in-your-graveyard'] },
-  energia_dano: { fields: [], targets: ['creature', 'planeswalker'] }, // M-405 · 107.14 · "then you may pay any amount of {E}. ~ deals that much damage to that creature/permanent" (Galvanic Discharge, Harnessed Lightning): alvo seletor // M-393 · "you may pay an amount of {E} equal to that card's mana value. If you do, return it from your graveyard to the battlefield" (Jolted Awake) // M-367 · 107.14 · "you get {E}{E}": marcadores de energia do jogador (122.1)
+  energia_dano: { fields: [], targets: ['creature', 'planeswalker'] },
+  mordedor: { fields: [], targets: ['creature-you-control'] }, // M-407 · "Target creature you control deals damage equal to its power to …": o primeiro alvo (a fonte do dano)
+  morde: { fields: [], targets: ['creature', 'planeswalker'] }, // M-407 · o segundo alvo recebe o dano da criatura do "mordedor" (Rabid Bite, Ram Through, Bite Down, Tail Slash…) // M-405 · 107.14 · "then you may pay any amount of {E}. ~ deals that much damage to that creature/permanent" (Galvanic Discharge, Harnessed Lightning): alvo seletor // M-393 · "you may pay an amount of {E} equal to that card's mana value. If you do, return it from your graveyard to the battlefield" (Jolted Awake) // M-367 · 107.14 · "you get {E}{E}": marcadores de energia do jogador (122.1)
   mana_combinada: { fields: ['amount'], targets: ['self'] }, // M-357 · "Add two mana in any combination of colors" (Manamorphose): cada mana pede a cor na resolução
   token: { fields: ['amount'], targets: ['self', 'opponent', 'target-controller'] },
   endure: { fields: ['amount'], targets: ['self'] }, // M-380 · "it endures N": põe N marcadores +1/+1 nela OU cria um Espírito branco N/N (quem controla escolhe; Tarkir: Dragonstorm, texto de lembrete)
@@ -6344,6 +6346,8 @@ function effectErrors(effects, label, opcional) {
     if (e.marcadorSeCriatura != null && !(e.do === 'reanimate' && e.target !== 'self-source' && Number.isInteger(e.marcadorSeCriatura) && e.marcadorSeCriatura > 0)) errs.push(`${label} ${i + 1}: "marcadorSeCriatura" é a quantidade de marcadores +1/+1 extras do reanimar`); // M-400
     if (e.dividido != null && !(e.do === 'damage' && typeof e.dividido === 'object' && (e.dividido.max == null || (Number.isInteger(e.dividido.max) && e.dividido.max >= 2)) && ['any', 'creature'].includes(e.target))) errs.push(`${label} ${i + 1}: "dividido" é dano dividido entre alvos (601.2d): { max: null | 2 ou mais }, alvo "any" ou "creature"`); // M-376
     if (e.do === 'descarta_e_compra' && e.descarta != null && !(Number.isInteger(e.descarta) && e.descarta >= 1)) errs.push(`${label} ${i + 1}: "descarta" é quantas cartas se descartam (inteiro, 1 ou mais)`); // M-373
+    if (e.do === 'morde' && !(i > 0 && effects[i - 1] && effects[i - 1].do === 'mordedor')) errs.push(`${label} ${i + 1}: "morde" vem logo depois de "mordedor" (a criatura que causa o dano)`); // M-407
+    if (e.do === 'mordedor' && !(effects[i + 1] && effects[i + 1].do === 'morde')) errs.push(`${label} ${i + 1}: "mordedor" precisa de "morde" logo depois`); // M-407
     if (e.do === 'descarta_e_compra' && e.obrigatorio != null && !(e.obrigatorio === true && (e.descarta || 1) === 1)) errs.push(`${label} ${i + 1}: "obrigatorio" é true e só vale para descartar uma carta`); // M-406
     if (['search', 'look'].includes(e.do)) {
       if (e.to && !PICK_DESTS.includes(e.to)) errs.push(`${label} ${i + 1}: destino "${e.to}" desconhecido`);
@@ -9370,6 +9374,11 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   // M-405 · revisão por lote LX (Pauper: Galvanic Discharge, 31 listas; Harnessed Lightning), revisor independente: 93 verificações, fuzz e diferenciais sem diferença; aprovou com uma ressalva no bot (quantias agrupadas como jogadas iguais) — tratada com teste
   'Galvanic Discharge': { texto: 'gjfy9', leva: 'M-405' },
   'Harnessed Lightning': { texto: 'cyivty', leva: 'M-405' },
+  // M-407 · revisão por lote LXI (Pauper: Rabid Bite, 10 listas; Ram Through, 8; Bite Down, Tail Slash), revisor independente: cerca de 130 verificações, fuzz e diferenciais sem diferença; reprovou na primeira passada (120.4a: o excesso como segundo evento; o letal com dano marcado; o registro) — corrigido com teste
+  'Rabid Bite': { texto: '69dyok', leva: 'M-407' },
+  'Ram Through': { texto: 'wn60hx', leva: 'M-407' },
+  'Bite Down': { texto: '1roe0ay', leva: 'M-407' },
+  'Tail Slash': { texto: '69dyok', leva: 'M-407' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -17681,6 +17690,7 @@ const __m42 = (function () {
     [/^exile all cards from target player's graveyard$/i, () => [{ do: 'exile_graveyard', target: 'player' }]], // LT9
     [/^return target creature card from your graveyard to your hand$/i, () => [{ do: 'to_hand', target: 'creature-in-your-graveyard' }]], // LT9
     [new RegExp(`^you may discard a card to draw ${N} cards?$`, 'i'), m => [{ do: 'descarta_e_compra', amount: num(m[1]) }]], // M-348
+    [/^target creature you control deals damage equal to its power to (target creature you don't control|target creature or planeswalker you don't control)$/i, m => [{ do: 'mordedor', target: 'creature-you-control' }, { do: 'morde', target: /planeswalker/i.test(m[1]) ? { tipos: ['creature', 'planeswalker'], de: 'opponent' } : { tipos: ['creature'], de: 'opponent' } }]], // M-407 · Rabid Bite, Ram Through, Bite Down, Tail Slash
     [new RegExp(`^must discard a card to draw ${N} cards?$`, 'i'), m => [{ do: 'descarta_e_compra', amount: num(m[1]), obrigatorio: true }]], // M-406 · "Discard a card. If you do, draw two cards." (Stormshriek Feral, presságio Flush Out — pedido da listas)
     [new RegExp(`^you may discard (two|three) cards to draw ${N} cards?$`, 'i'), m => [{ do: 'descarta_e_compra', descarta: num(m[1]), amount: num(m[2]) }]], // M-373 · todas ou nenhuma
     [/^untap ~$/i, () => [{ do: 'untap', target: 'self-source' }]], // M-373
@@ -18022,6 +18032,7 @@ const __m42 = (function () {
       if (/^if that spell is countered this way, exile it instead of putting it into its owner's graveyard$/i.test(p) && efeitos.length && efeitos[efeitos.length - 1].do === 'counter') { efeitos[efeitos.length - 1].exila = true; frases.push({ texto: p, lida: true }); continue; } // M-338 · Force of Negation
       if (/^if evidence was collected, instead each opponent sacrifices a creature with the greatest power among creatures they control$/i.test(p) && efeitos.length && !efeitos[efeitos.length - 1].onlyIf) { efeitos[efeitos.length - 1].onlyIf = 'not-evidenced'; efeitos.push({ do: 'sacrificar', tipos: ['creature'], jogadores: 'cada-oponente', maiorPoder: true, onlyIf: 'evidenced' }); frases.push({ texto: p, lida: true }); continue; } // M-351 · Extract a Confession (701.59; "instead" troca a frase anterior)
       if (/^if that land was a snow land, you gain 1 life$/i.test(p) && efeitos.length && SC_ALVEJA(efeitos[efeitos.length - 1])) { efeitos.push({ do: 'gain', amount: 1, onlyIf: 'alvo-era-neve' }); frases.push({ texto: p, lida: true }); continue; } // M-385 · Thermokarst (608.2h)
+      if (/^if the creature you control has trample, excess damage is dealt to that creature's controller instead$/i.test(p) && efeitos.length && efeitos[efeitos.length - 1].do === 'morde') { efeitos[efeitos.length - 1].excessoComAtropelar = true; frases.push({ texto: p, lida: true }); continue; } // M-407 · Ram Through
       if (/^if you controlled that permanent, draw a card$/i.test(p) && efeitos.length && SC_ALVEJA(efeitos[efeitos.length - 1])) { efeitos.push({ do: 'draw', amount: 1, onlyIf: 'alvo-era-seu' }); frases.push({ texto: p, lida: true }); continue; } // M-341 · Boomerang Basics
       { const ib = p.match(new RegExp(`^if this spell was bargained, instead it deals ${N} damage to that (?:creature|permanent|planeswalker)( and you scry ${N})?$`, 'i')); // M-384 · 702.166b · Torch the Tower
         const ult = efeitos[efeitos.length - 1];
@@ -20992,11 +21003,12 @@ function applyEffect(s, src, eff, tgt, events) {
         if (resto < n) ganhaVida(n - resto);
         n = resto;
         if (eff.exilaSeMorrer && obj && n > 0) obj.exilaSeMorrerNoTurno = s.turn.number; // M-384 · 614.1a: "If a permanent dealt damage by ~ would die this turn, exile it instead" (só se o dano foi causado, depois da prevenção)
-        if (obj && (danoEmBatalhaT(s, src, obj, n) || danoEmPwCriaturaT(s, src, obj, n))) { causouDano(s, src, n); note({ amount: n }); break; } // T-18 · CR 120.3e: planeswalker-criatura // T-14 · CR 310.6 / 120.3h · dano à batalha tira defesa · Toca ponto comum: applyEffect damage (uma linha)
-        if (obj && !obj.faceDown && s.facts[obj.name].types.includes('planeswalker')) { obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - n); causouDano(s, src, n); note({ amount: n }); break; } // V-19 · virado para baixo recebe dano como criatura · Toca ponto comum: applyEffect damage
+        const causou = (q, j = null) => { if (eff.acumula) { eff.acumula.n += q > 0 ? q : 0; if (j != null && q > 0) eff.acumula.jogador = j; } else causouDano(s, src, q, j); }; // M-407 · o "morde" junta as partes num evento de dano só
+        if (obj && (danoEmBatalhaT(s, src, obj, n) || danoEmPwCriaturaT(s, src, obj, n))) { causou(n); note({ amount: n }); break; } // T-18 · CR 120.3e: planeswalker-criatura // T-14 · CR 310.6 / 120.3h · dano à batalha tira defesa · Toca ponto comum: applyEffect damage (uma linha)
+        if (obj && !obj.faceDown && s.facts[obj.name].types.includes('planeswalker')) { obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - n); causou(n); note({ amount: n }); break; } // V-19 · virado para baixo recebe dano como criatura · Toca ponto comum: applyEffect damage
         if (obj && n > 0) { marcaDanoEmCriatura(s, src, obj, n); noteEnchantedEvent(s, obj, 'recebe-dano'); noteDamaged(s, obj); if (has(s, fonteDoDano(s, src), 'deathtouch')) obj.deathtouched = true; } // CR2a.9 // CR 120.8: dano 0 não é dano
         else danoEmJogador(s, src, playerOf(), n);
-        causouDano(s, src, n, obj ? null : playerOf()); // Leva 106 · vínculo com a vida e Armadillo Cloak/Spirit Link também fora do combate
+        causou(n, obj ? null : playerOf()); // Leva 106 · vínculo com a vida e Armadillo Cloak/Spirit Link também fora do combate
         note({ amount: n }); } break;
     case 'destroy': {
       const alvoD = eff.target === 'enchanted' ? criaturaEncantada(s, src) : obj; // Leva 108 · Cryoshatter sem alvo
@@ -22123,6 +22135,21 @@ function applyEffect(s, src, eff, tgt, events) {
         then: { effects: [{ do: 'gasta_energia', amount: n }, { do: 'reanimate', target: 'remembered' }], source: src.ability ? src.source : src.oid, name: src.name, controller: ctrl, targets: [], lembrada: { oid: obj.oid, z: obj.zc || 0 } } };
       note({ pending: true }); break;
     }
+    case 'mordedor': break; // M-407 · só escolhe a criatura que vai causar o dano (o "morde" seguinte a usa)
+    case 'morde': { // M-407 · a criatura do primeiro alvo é a fonte (vínculo com a vida, toque mortífero, infectar); 608.2b: com qualquer um dos dois alvos ilegal, não há dano
+      if (!eff.mordedor) break; // o primeiro alvo deixou de ser válido: a linha do registro já saiu no "mordedor"
+      const m = s.objects[eff.mordedor.oid];
+      if (!m || m.zone !== 'battlefield' || !isCreature(s, m) || !mesmaEncarnacao(s, eff.mordedor) || !obj || obj.zone !== 'battlefield') { note({ failed: true }); break; }
+      const n = Math.max(0, power(s, m)), dono = obj.controller;
+      if (!n) { note({ amount: 0 }); break; }
+      let noAlvo = n, excesso = 0;
+      if (eff.excessoComAtropelar && has(s, m, 'trample') && isCreature(s, obj)) { const falta = Math.max(0, toughness(s, obj) - (obj.damage || 0)); const letal = falta === 0 ? 0 : has(s, m, 'deathtouch') ? 1 : falta; noAlvo = Math.min(n, letal); excesso = n - noAlvo; } // Ram Through · 120.4a / 702.2c: o excesso passa da lesão letal, contando o dano já marcado (com toque mortífero, 1)
+      const lote = { n: 0, jogador: null }; // achado da revisão (120.4a): um evento de dano só — vínculo com a vida, Armadillo Cloak e Ajani's Pridemate veem um golpe
+      if (noAlvo > 0) applyEffect(s, m, { do: 'damage', amount: noAlvo, acumula: lote }, { oid: obj.oid }, events);
+      if (excesso > 0) applyEffect(s, m, { do: 'damage', amount: excesso, acumula: lote }, { player: dono }, events);
+      causouDano(s, m, lote.n, lote.jogador);
+      break;
+    }
     case 'energia_dano': { // M-405 · 107.14 · 608.2d: a quantia é escolhida na resolução, de 0 até a energia que você tem
       if (!obj || obj.zone !== 'battlefield') { note({ failed: true }); break; }
       const max = s.players[ctrl].energia || 0;
@@ -22628,7 +22655,7 @@ function resolveScript(s, o, events) {
     s.resume = { oid: o.oid, name: o.name, controller: o.controller, effects, alvos: chosen.map((t, i) => stillLegal[i] ? t : null), condicoes: condicoesDaMagia(o, effects) }; // M-351
     return;
   }
-  let ti = 0, firstTarget = null, donoDoPrimeiro = null, modoAtual = null, neveDoPrimeiro = false;
+  let ti = 0, firstTarget = null, donoDoPrimeiro = null, modoAtual = null, neveDoPrimeiro = false, mordedorM = null; // M-407
   for (const [idx, eff] of effects.entries()) {
     if (eff.__modo != null && eff.__modo !== modoAtual) { modoAtual = eff.__modo; firstTarget = null; donoDoPrimeiro = null; neveDoPrimeiro = false; } // CR 700.2d · cada modo é uma frase própria
     // Q10 · a retomada leva o alvo junto: "perde 1 de vida" depois de devolver o comandante era cobrado de quem conjurou
@@ -22642,8 +22669,9 @@ function resolveScript(s, o, events) {
       if (!ok) { events.push({ kind: 'effect', do: eff.do, name: o.name, target: effectTargetName(s, tgt), failed: true }); continue; }
       // Leva 107 · 608.2h: "o controlador do alvo" é quem controlava ANTES do efeito (Smash to Smithereens num artefato roubado)
       if (!firstTarget) { firstTarget = tgt; donoDoPrimeiro = tgt && tgt.oid != null && s.objects[tgt.oid] ? s.objects[tgt.oid].controller : null; neveDoPrimeiro = !!(tgt && tgt.oid != null && s.objects[tgt.oid] && s.objects[tgt.oid].zone === 'battlefield' && temSubtipo(s, tgt.oid, 'Snow')); } // M-385 · 608.2h: como era antes do efeito
+      if (eff.do === 'mordedor') mordedorM = tgt; // M-407 · a criatura que vai causar o dano do "morde"
       if (eff.cada && eff.cada.de === 'alvo') aplicaCadaDoAlvo(s, o, eff, tgt, events); else // M-351 · Arms of Hadar
-      applyEffect(s, o, eff, tgt, events);
+      applyEffect(s, o, eff.do === 'morde' ? { ...eff, mordedor: mordedorM } : eff, tgt, events);
     } else if (eff.target === 'first-target') { // S42 · o mesmo alvo do efeito anterior
       if (firstTarget) applyEffect(s, o, eff, firstTarget, events);
     } else if (eff.target === 'target-controller') {
@@ -25286,14 +25314,14 @@ function resolveAbility(s, o, events) {
   const ok = targeted.map((eff, i) => targetStillLegal(s, o.controller, eff.target, chosen[i], o.oid, eff.targetColor, eff, o));
   const semNenhum = targeted.length && targeted.every((eff, i) => chosen[i] == null && eff.upTo); // M-338 · todos os "up to" vazios: resolve sem alvo
   if (targeted.length && !semNenhum && ok.every((x, i) => !x && !(chosen[i] == null && targeted[i].upTo))) { events.push({ kind: 'fizzled', oid: o.oid, name: o.name }); return; }
-  let ti = 0, primeiro = null, donoDoPrimeiro = null, primeiroVazio = false, neveDoPrimeiro = false; // M-385 · achado da revisão: a condição do terreno nevado também nas habilidades // M-327 · 608.2h: o controlador do alvo é o de antes do efeito
+  let ti = 0, primeiro = null, donoDoPrimeiro = null, primeiroVazio = false, neveDoPrimeiro = false, mordedorH = null; /* M-407 · também nas habilidades (Vivien of the Arkbow −3) */ // M-385 · achado da revisão: a condição do terreno nevado também nas habilidades // M-327 · 608.2h: o controlador do alvo é o de antes do efeito
   const fonte = s.objects[o.source];
   for (const eff of o.effects || []) {
     if (eff.onlyIf === 'alvo-era-neve' && !neveDoPrimeiro) continue; // M-385
     if (eff.onlyIf === 'alvo-era-seu' && donoDoPrimeiro !== o.controller) continue; // M-341
     if (!effectAllowed(s, doQueResolveT(eff.onlyIf) || eff.faixaDoDado ? o : fonte, eff)) continue; // S49 · condição do próprio efeito · T-64 · o monarca é visto do controlador da habilidade (109.5; Toca ponto comum: resolveAbility)
     if (eff.target === 'self-source' && o.fonteZc != null && fonte && fonte.zone === 'battlefield' && (fonte.zc || 0) !== o.fonteZc) { events.push({ kind: 'effect', do: eff.do, name: o.name, failed: true }); continue; } // M-371 · 400.7: a permanente que saiu e voltou é outro objeto
-    if (SC.isTargeted(eff)) { const t = chosen[ti]; const legal = ok[ti]; ti++; if (ti === 1 && t == null && eff.upTo) primeiroVazio = true; if (!primeiro) { primeiro = t; donoDoPrimeiro = t && t.oid != null && s.objects[t.oid] ? s.objects[t.oid].controller : null; neveDoPrimeiro = !!(t && t.oid != null && s.objects[t.oid] && s.objects[t.oid].zone === 'battlefield' && temSubtipo(s, t.oid, 'Snow')); } if (legal) applyEffect(s, o, eff, t, events); }
+    if (SC.isTargeted(eff)) { const t = chosen[ti]; const legal = ok[ti]; ti++; if (ti === 1 && t == null && eff.upTo) primeiroVazio = true; if (!primeiro) { primeiro = t; donoDoPrimeiro = t && t.oid != null && s.objects[t.oid] ? s.objects[t.oid].controller : null; neveDoPrimeiro = !!(t && t.oid != null && s.objects[t.oid] && s.objects[t.oid].zone === 'battlefield' && temSubtipo(s, t.oid, 'Snow')); } if (eff.do === 'mordedor') mordedorH = legal ? t : null; /* M-407 */ if (legal) applyEffect(s, o, eff.do === 'morde' ? { ...eff, mordedor: mordedorH } : eff, t, events); }
     else if (eff.target === 'target-controller') { if (primeiroVazio) continue; const t = primeiro; applyEffect(s, o, eff, { player: t && t.player != null ? t.player : donoDoPrimeiro != null ? donoDoPrimeiro : o.controller }, events); } // M-327 · "its controller" também em habilidade (Ghost Quarter: quem busca é o dono do terreno destruído; antes era quem ativou)
     else if (eff.target === 'first-target') { if (primeiro) applyEffect(s, o, eff, primeiro, events); } // S42 · o mesmo alvo
     else if (porJogador(eff)) aplicaPorJogador(s, o, eff, events); // CR2-G R4b
@@ -31641,6 +31669,8 @@ function effectLine(ev) {
   if (LINHA_T[ev.do]) return LINHA_T[ev.do](ev); // T-7 · Toca ponto comum: effectLine (linhas do registro da trilha tipos)
   const n = ev.amount, t = ev.target;
   switch (ev.do) {
+    case 'mordedor': return `${ev.name} não causou dano: a criatura que ia causar o dano deixou de ser um alvo válido`; // M-407
+    case 'morde': return ev.failed ? `${ev.name} não causou dano: a criatura alvo deixou de ser válida` : `${ev.name} não causou dano (poder ${ev.amount || 0})`; // M-407
     case 'damage': return ev.failed ? `${ev.name} não causou dano: alvo ilegal` : ev.prevented ? `${ev.name}: o dano a ${t} foi prevenido` : `${ev.name} causou ${n} de dano a ${t}`; // M-397 · o dano prevenido não aparece como causado
     case 'reveal': return `${ev.name} revelou: ${t}`; // Leva 108
     case 'vence': return `${ev.name}: o controlador venceu o jogo`; // CR2h.6
@@ -32916,6 +32946,8 @@ function descreveEfeito(e) {
     case 'to_library_shuffled': return 'é embaralhada no grimório do dono';
     case 'discard_or_sacrifice_land_draw': return 'pode descartar uma carta ou sacrificar um terreno; se fizer, compra 2 cartas';
     case 'choose_type': return 'escolhe um tipo de criatura';
+    case 'mordedor': return ''; // M-407 · a frase sai no "morde"
+    case 'morde': return `a criatura sua alvo causa dano igual ao poder dela a ${(alvo || 'uma criatura').replace(/ que um oponente controla$/, '') + ' que você não controla'}${e.excessoComAtropelar ? '; se ela tiver atropelar, o dano além do letal vai para o controlador da outra' : ''}`; // M-407
     case 'energia_dano': return `paga quanta energia quiser e causa esse tanto de dano a ${alvo || 'o alvo'}`; // M-405
     case 'tipo_basico': return `${alvo || 'o terreno alvo'} ganha o tipo básico de terreno que você escolher (e a mana dele) até o fim do turno, além dos outros tipos`; // M-388
     case 'put_back': return `devolve ${plural(n, 'carta', 'cartas')} da mão ao topo do grimório`;
