@@ -6769,6 +6769,13 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-96 · CR 104.3 / 704.7 · não poder perder ou vencer e substituir a derrota (Oracle do Forge, clone de 13/10/2026, conferido no master em 14/10/2026)
+  { name: 'Platinum Angel', self: { naoPodePerder: 'voce', naoPodeVencer: 'oponentes' }, // "Flying · You can't lose the game and your opponents can't win the game."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Abyssal Persecutor', self: { naoPodeVencer: 'voce', naoPodePerder: 'oponentes' }, // "Flying, trample · You can't win the game and your opponents can't lose the game."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: "Lich's Mirror", self: { emVezDePerder: 'lich' }, // "If you would lose the game, instead shuffle your hand, your graveyard, and all permanents you own into your library, then draw seven cards and your life total becomes 20."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // T-95 · CR 727 · recomeçar o jogo (Oracle do Forge, clone de 13/10/2026, conferido no master em 14/10/2026)
   { name: 'Karn Liberated', loyalty: [
     { cost: 4, label: '+4: O jogador alvo exila uma carta da mão', effects: [{ do: 'exila_da_propria_mao', target: 'player' }, { do: 'marca_exiladas' }] }, // "+4: Target player exiles a card from their hand."
@@ -9665,6 +9672,8 @@ function monarcaErrosT(sc) {
   for (const ab of abs) if (ab && ab.umaVezPorTurno != null && (ab.umaVezPorTurno !== true || ab.kind !== 'triggered' || ab.when !== 'crime')) errs.push('"umaVezPorTurno" só vale como true, num gatilho "crime"'); // T-86 · 603.2h
   for (const ab of abs) if (ab && ab.kind === 'triggered' && ab.when === 'expend' && !(Number.isInteger(ab.n) && ab.n >= 1)) errs.push('gatilho "expend": "n" é um inteiro, 1 ou mais (o N de "whenever you expend N")'); // T-85
   if (sc && sc.self && sc.self.atacaSeMonarcaDefende != null && sc.self.atacaSeMonarcaDefende !== true) errs.push('self.atacaSeMonarcaDefende só vale como true'); // T-70
+  for (const k of ['naoPodePerder', 'naoPodeVencer']) if (sc && sc.self && sc.self[k] != null && !['voce', 'oponentes'].includes(sc.self[k])) errs.push(`self.${k} é 'voce' ou 'oponentes'`); // T-96 · CR 104.3
+  if (sc && sc.self && sc.self.emVezDePerder != null && sc.self.emVezDePerder !== 'lich') errs.push("self.emVezDePerder conhece só 'lich' (Lich's Mirror)"); // T-96 · CR 704.7
   if (sc && sc.self && sc.self.soEmCombate != null && sc.self.soEmCombate !== true) errs.push('self.soEmCombate só vale como true'); // T-92 · "Cast this spell only during combat"
   for (const ab of ((sc && sc.abilities) || [])) if (ab && ab.soNoSeuTurno != null && (ab.soNoSeuTurno !== true || ab.kind !== 'activated')) errs.push('soNoSeuTurno só vale como true, numa habilidade ativada'); // T-92 · "Activate only during your turn"
   if (sc && sc.self && sc.self.radGanhaVida != null && sc.self.radGanhaVida !== true) errs.push('self.radGanhaVida só vale como true'); // T-91 · CR 728.1a
@@ -23411,6 +23420,7 @@ function stateBased(s, events) {
   const suspensa = !!s.resume || !!s.magiaSuspensa; // M-374 · `apply` garante que resolução sem decisão pendente é retomada antes de chegar aqui
   for (let guard = 0; guard < (suspensa ? 0 : 50); guard++) {
     let changed = false;
+    vencerEPerderT(s); // T-96 · CR 104.3f: quem venceria e perderia ao mesmo tempo perde (não vence) (Toca ponto comum: stateBased)
     s.players.forEach((pl, i) => {
       if (pl.lost) return;
       let why = null;
@@ -23420,6 +23430,7 @@ function stateBased(s, events) {
       else if (pl.perdeuPorEfeito) why = 'perdeu o jogo por efeito de carta'; // CR2h.6 · 104.3e (verificado aqui, logo depois do efeito)
       else if (s.format === 'commander' && Object.values(pl.commanderDamage).some(d => d >= FORMAT_RULES.commander.commanderDamage)) why = 'dano de comandante';
       else if ((pl.poison || 0) >= 10) why = 'veneno'; // M-253 · 704.5c
+      if (why && pl.lossReason !== 'desistência') why = derrotaT(s, i, why, events); // T-96 · CR 104.3 / 704.7: "can't lose", "can't win" e "if you would lose the game, instead…" (Toca ponto comum: stateBased)
       if (why) { pl.lost = true; pl.lossReason = pl.lossReason === 'desistência' ? pl.lossReason : why; changed = true; events.push({ kind: 'lost', p: i, reason: why }); removePlayer(s, i); }
     });
     for (const o of battlefield(s)) if (o.controles && o.controles.some(t => typeof t.ate === 'object') && recalculaControle(s, o)) changed = true; // CR2d.6 · "for as long as you control …"
@@ -29643,6 +29654,42 @@ function recomecaJogoT(s, src, events) {
   events.push({ kind: 'effect', do: 'recomeca', name: src.name, target: s.players[p].name, isentas: isentas.map(x => s.objects[x].name) });
 }
 const PERM_TYPES_T = ['artifact', 'battle', 'creature', 'enchantment', 'land', 'planeswalker'];
+/* ---------------- T-96 · CR 104.3 / 104.2a / 704.7 · não poder perder, não poder vencer e substituir a derrota ----------------
+   `self.naoPodePerder: 'voce' | 'oponentes'` ("You can't lose the game" / "your opponents can't lose the game") e `self.naoPodeVencer: 'voce' |
+   'oponentes'` ("You can't win the game" / "your opponents can't win the game"), de permanente no campo com as habilidades impressas.
+   - Quem não pode perder não perde pelas ações de estado (vida, veneno, compra em grimório vazio, dano de comandante) nem por efeito; a vida
+     e o veneno continuam lá (se a permanente sair, perde na conferência seguinte); a compra em grimório vazio e o "perde" de efeito são
+     eventos e passam (104.3c / 104.3e). Desistir sempre vale (104.3a).
+   - Quem não pode vencer: o "você vence" (`vence`, Laboratory Maniac) não faz os outros perderem; 104.2a (todos os oponentes saíram)
+     passa por cima de tudo.
+   - 104.3f: quem venceria e perderia na mesma conferência perde — e então não vence.
+   - 704.7 / 614: `self.emVezDePerder: 'lich'` (Lich's Mirror): a derrota vira "embaralhe a mão, o cemitério e todas as permanentes suas no
+     grimório, compre sete e sua vida passa a 20"; uma substituição só, por mais motivos que a conferência tenha. */
+const comHabilidadesT = (s, o) => o.zone === 'battlefield' && !semImpressas(s, o) && !o.phasedOut;
+function regraDeVitoriaT(s, chave, valor, p, comoControlador) { return battlefield(s).some(o => comHabilidadesT(s, o) && ((((s.facts[o.name] || {}).script) || {}).self || {})[chave] === valor && (comoControlador ? o.controller === p : o.controller !== p)); }
+const naoPodePerderT = (s, p) => regraDeVitoriaT(s, 'naoPodePerder', 'voce', p, true) || regraDeVitoriaT(s, 'naoPodePerder', 'oponentes', p, false);
+const naoPodeVencerT = (s, p) => regraDeVitoriaT(s, 'naoPodeVencer', 'voce', p, true) || regraDeVitoriaT(s, 'naoPodeVencer', 'oponentes', p, false);
+function motivoDeDerrotaT(s, pl, i) { return pl.life <= 0 || pl.drewFromEmpty || pl.perdeuPorEfeito || (pl.poison || 0) >= 10 || (s.format === 'commander' && Object.values(pl.commanderDamage || {}).some(d => d >= FORMAT_RULES.commander.commanderDamage)); }
+function vencerEPerderT(s) {
+  const vencedores = new Set(s.players.map(pl => pl.derrotadoPor).filter(x => x != null));
+  for (const w of vencedores) {
+    const pw = s.players[w], bloqueia = naoPodeVencerT(s, w) || (pw && !pw.lost && motivoDeDerrotaT(s, pw, w) && !naoPodePerderT(s, w)); // 104.3f
+    if (bloqueia) for (const pl of s.players) if (pl.derrotadoPor === w) delete pl.derrotadoPor;
+  }
+}
+function derrotaT(s, i, why, events) {
+  const pl = s.players[i];
+  if (naoPodePerderT(s, i)) { delete pl.drewFromEmpty; delete pl.perdeuPorEfeito; delete pl.derrotadoPor; return null; }
+  const espelho = battlefield(s).find(o => o.controller === i && comHabilidadesT(s, o) && ((((s.facts[o.name] || {}).script) || {}).self || {}).emVezDePerder === 'lich');
+  if (!espelho) return why;
+  const nome = espelho.name, minhas = [...s.zones[i].hand, ...s.zones[i].graveyard, ...battlefield(s).filter(o => o.owner === i).map(o => o.oid)];
+  for (const oid of minhas) { const o = s.objects[oid]; if (o && o.zone !== 'library') moveObject(s, oid, 'library'); }
+  shuffle(s, s.zones[i].library);
+  delete pl.drewFromEmpty; delete pl.perdeuPorEfeito; delete pl.derrotadoPor;
+  draw(s, i, 7); pl.life = 20;
+  events.push({ kind: 'effect', do: 'em_vez_de_perder', name: nome, target: pl.name, motivo: why });
+  return null;
+}
 function recomecoAntesDoDesvirarT(s) {
   const r = s.recomecoT; if (!r) return; delete s.recomecoT;
   for (const i of r.perdem || []) if (s.players[i]) s.players[i].drewFromEmpty = true; // 727.3
@@ -32416,6 +32463,7 @@ Object.assign(EFEITO_PT_T, { vira_para_baixo: () => 'vira a criatura alvo para b
 /** T-59 · CR 700.6 / 700.12 / 700.9 · os predicados de tipo na frase do seletor. */
 const predicadosPT_T = sel => (sel.tapped ? ' virada' : sel.tapped === false ? ' desvirada' : '') + (sel.ativadaNoTurno ? ' que teve habilidade ativada neste turno' : '') + /* T-87 */ (sel.terrenoBasico === false ? ' que não seja terreno básico' : sel.terrenoBasico ? ' que é terreno básico' : '') + /* T-80 */ (sel.historico ? ' histórica' : sel.historico === false ? ' que não é histórica' : '') + (sel.foraDaLei ? ' fora da lei' : sel.foraDaLei === false ? ' que não é fora da lei' : '') + /* T-60 */ (sel.modificada ? ' modificada' : sel.modificada === false ? ' que não está modificada' : '');
 const LINHA_T = { preparada: ev => (ev.failed ? `${ev.name}: ${ev.motivo || 'não ficou preparada'}, nada muda` : `${ev.name} está preparada (pode conjurar uma cópia de ${ev.target})`), despreparada: ev => `${ev.name} deixou de estar preparada`, ciclo: ev => `Virou ${ev.target}${ev.motivo ? ` (${ev.motivo})` : ''}`, masmorra_completa: ev => `${ev.target} completou a masmorra ${ev.name}`, caso_resolvido: ev => (ev.failed ? `${ev.name}: a condição não valia mais, o Caso não foi resolvido` : `${ev.name} foi resolvido`), estacao: ev => (ev.failed ? `${ev.name}: a nave saiu do campo, a estação não pôs marcadores` : `${ev.name} recebeu ${ev.amount} marcador${ev.amount === 1 ? '' : 'es'} de carga (estação)${ev.total != null ? ` · ${ev.total} no total` : ''}`), selada: ev => (ev.failed ? `${ev.name}: a montaria saiu do campo, não foi selada` : `${ev.name} foi selada`), virar_carta: ev => (ev.failed ? `${ev.name} não virou${ev.motivo ? ` (${ev.motivo})` : ''}` : `${ev.name} virou: agora é ${ev.target}`), porta: ev => (ev.failed ? `${ev.name}: nenhuma porta para trancar ou destrancar` : `${ev.name} ${ev.acao} ${ev.porta} (${ev.target})`), nivel_sobe: ev => (ev.failed ? `${ev.name}: saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu de nível (nível ${ev.nivel})`), nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, converter: ev => `${ev.name} converteu em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
+Object.assign(LINHA_T, { em_vez_de_perder: ev => `\u2063${ev.name}: em vez de perder (${ev.motivo}), ${ev.target} embaralha a mão, o cemitério e as permanentes dele no grimório, compra sete e fica com 20 de vida` }); // T-96 · CR 704.7
 Object.assign(LINHA_T, { recomeca: ev => `\u2063${ev.name}: o jogo recomeça; ${ev.target} começa${ev.isentas.length ? ` (ficam no exílio e entram no campo de ${ev.target} antes do primeiro desvirar: ${ev.isentas.join(', ')})` : ''}`, exila_da_propria_mao: ev => `${ev.name}: ${ev.target} não tem carta na mão` }); // T-95 · CR 727
 Object.assign(EFEITO_PT_T, { recomeca_jogo: () => 'o jogo recomeça (todas as cartas voltam ao grimório do dono, cada um embaralha e compra sete; você começa); as cartas de permanente que não são Aura exiladas com esta carta ficam no exílio e, depois, entram no campo sob o seu controle', exila_da_propria_mao: e => `${e.target === 'opponent' ? 'o oponente alvo' : 'o jogador alvo'} exila uma carta da mão (ele escolhe)`, marca_exiladas: () => '' }); // T-95
 Object.assign(LINHA_T, { encerra: ev => ev.failed ? `${ev.name}: não é a fase de combate, nada acontece` : `\u2063${ev.name}: ${ev.oque === 'turno' ? 'o turno acaba' : 'a fase de combate acaba'}${ev.exiladas.length ? ` (exiladas da pilha: ${ev.exiladas.join(', ')})` : ''}` }); // T-92 · CR 724

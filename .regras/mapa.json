@@ -191,22 +191,28 @@
    "n": "104.2",
    "regra": "Ending the Game",
    "titulo": "Formas de vencer",
-   "status": "parcial",
-   "evidencia": "104.2a: sobra um jogador, ele vence (index.html:12146; engine.unit 'M5 · vida zero, grimório vazio e 21 de dano de comandante')",
-   "falta": "104.2b: não existe efeito \"vence o jogo\" no vocabulário EFFECTS. 104.2c-d fora (equipes, Emperor).",
-   "esforco": "P"
+   "status": "coberta",
+   "evidencia": "104.2a: sobra um jogador, ele vence (index.html:12146; engine.unit 'M5 · vida zero, grimório vazio e 21 de dano de comandante') · 104.2b (conferência da T-96, 14/10/2026): o efeito `vence` existe desde a CR2h.6 (Felidar Sovereign, Helix Pinnacle, Laboratory Maniac — vencer.perder.unit, compra.substituicao.unit); T-96: \"can't win\" bloqueia o `vence` e 104.2a passa por cima (tipos.naoperde.unit)",
+   "falta": "104.2c-d fora (equipes, Emperor).",
+   "esforco": "P",
+   "testes": [
+    "CR 104.2a/603.4 · Felidar Sovereign: com 40 de vida na manutenção você vence; com 39 não dispara; se a vida cai antes de resolver, não vence",
+    "CR 104.3 / 104.2b · \"your opponents can’t win the game\": o \"você vence\" do oponente não faz nada; desistir sempre vale (104.3a)"
+   ]
   },
   {
    "n": "104.3",
    "regra": "Ending the Game",
    "titulo": "Formas de perder",
-   "status": "parcial",
-   "evidencia": "a: concede a qualquer hora, inclusive no mulligan e com decisão pendente (index.html:12747, 12786-12787; sonda); b: vida <= 0; c: compra de grimório vazio (drewFromEmpty index.html:10318); j: 21 de dano de comandante (index.html:12096-12099; engine.unit M5) · teste de conformidade em cr.conformidade (leva CR1a) · M-253 (v96): 104.3d — dez venenos, perde (veneno.unit).",
-   "falta": "104.3e aplicado na ação de estado logo depois do efeito (M-325, efeito perde); \"can't lose\"/\"can't win\" não existem; 104.3f sem uso. g, h, i, k fora.",
+   "status": "coberta",
+   "evidencia": "a: concede a qualquer hora, inclusive no mulligan e com decisão pendente (index.html:12747, 12786-12787; sonda); b: vida <= 0; c: compra de grimório vazio (drewFromEmpty index.html:10318); j: 21 de dano de comandante (index.html:12096-12099; engine.unit M5) · teste de conformidade em cr.conformidade (leva CR1a) · M-253 (v96): 104.3d — dez venenos, perde (veneno.unit). · T-96 (14/10/2026): \"You can't lose the game\" / \"your opponents can't lose the game\" e \"can't win\" (Platinum Angel, Abyssal Persecutor): vida e veneno seguem valendo quando a permanente sai; compra em grimório vazio e \"perde\" de efeito passam; desistir sempre vale; 104.3f quem venceria e perderia na mesma conferência perde (tipos.naoperde.unit)",
+   "falta": "g, h, i, k fora.",
    "esforco": "M",
    "cartas": "veneno: comum (infect/toxic)",
    "testes": [
-    "CR 104.3 · quem concede perde por desistência, não por vida"
+    "CR 104.3 · quem concede perde por desistência, não por vida",
+    "CR 104.3 · Platinum Angel (texto oficial): com vida 0 e com dez venenos você não perde; ao sair o Anjo, perde na conferência seguinte",
+    "CR 104.3f · quem venceria e perderia ao mesmo tempo perde e não vence"
    ]
   },
   {
@@ -10080,11 +10086,14 @@
    "n": "704.7",
    "regra": "State-Based Actions",
    "titulo": "Uma substituição cobre várias SBA de mesmo resultado",
-   "status": "ausente",
-   "falta": "não há efeito de substituição para \"perder o jogo\" (Lich's Mirror, Platinum Angel); a derrota é direta em stateBased (12095-12101).",
+   "status": "coberta",
    "esforco": "M",
    "depende": [
     "614"
+   ],
+   "evidencia": "T-96 (14/10/2026): \"If you would lose the game, instead…\" (Lich's Mirror) substitui uma vez todas as derrotas da mesma conferência (vida e veneno juntos); o espelho vai junto para o grimório e o veneno que ficou faz perder na conferência seguinte (tipos.naoperde.unit)",
+   "testes": [
+    "CR 704.7 · Lich’s Mirror (texto oficial): uma substituição só para vida 0 e veneno ao mesmo tempo; o espelho vai junto para o grimório e o veneno fica — na conferência seguinte, perde"
    ]
   },
   {
