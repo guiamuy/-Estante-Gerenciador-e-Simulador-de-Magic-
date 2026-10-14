@@ -11902,12 +11902,15 @@ test('e2e · T-51 · CR 722 · preparação: Landscape Painter entra preparada; 
 });
 
 /* ---------------- R-2 · BI1-1 · Painel Estante: entrar e a casca ---------------- */
-test('e2e · R-2 Painel Estante: outro e-mail é recusado e desconectado; o dono entra, a sessão volta ao reabrir; casca com as oito sub-abas em "em breve", carimbo do main com um pedido por atualização; sem rede mostra o guardado; sem sobreposição nas quatro medidas e dois temas; volta ao app', { skip }, async t => {
+test('e2e · R-2 Painel Estante: outro e-mail é recusado e desconectado; o dono entra, a sessão volta ao reabrir; casca com as oito sub-abas, carimbo do main lido uma vez por atualização (as visões prontas leem o resto dentro do orçamento); sem rede mostra o guardado; sem sobreposição nas quatro medidas e dois temas; volta ao app', { skip }, async t => {
   const { page, errors, base } = await open(t);
   const painel = base.replace('index.html', 'painel.html');
   await page.setViewportSize({ width: 360, height: 780 });
-  let pedidosGithub = 0, semRede = false;
-  await page.route('https://api.github.com/**', r => { if (semRede) return r.abort('internetdisconnected'); pedidosGithub++; r.fulfill({ json: [{ sha: 'abc1234def0', commit: { message: 'Leva G-264 · T6f-2 · Esqueci a senha', committer: { date: new Date(Date.now() - 7200000).toISOString() } } }], headers: { 'x-ratelimit-remaining': '57', 'x-ratelimit-limit': '60', etag: '"e1"', 'content-type': 'application/json', 'access-control-expose-headers': 'etag, x-ratelimit-remaining, x-ratelimit-limit, x-ratelimit-reset' } }); }); // o GitHub expõe esses cabeçalhos ao navegador
+  let pedidosMain = 0, pedidosGithub = 0, semRede = false;
+  // R-14 · as sub-abas ficaram prontas (R-4…R-13): a casca é testada com as outras fontes vazias; só o main é contado à parte
+  const vazio = url => /\/runs/.test(url) ? { workflow_runs: [], total_count: 0 } : /\/workflows(\?|$)/.test(url) ? { workflows: [] } : [];
+  await page.route('https://api.github.com/**', r => { if (semRede) return r.abort('internetdisconnected'); pedidosGithub++; const url = r.request().url(); const ehMain = /commits\?sha=main&per_page=1/.test(url); if (ehMain) pedidosMain++; r.fulfill({ json: ehMain ? [{ sha: 'abc1234def0', commit: { message: 'Leva G-264 · T6f-2 · Esqueci a senha', committer: { date: new Date(Date.now() - 7200000).toISOString() } } }] : vazio(url), headers: { 'x-ratelimit-remaining': '57', 'x-ratelimit-limit': '60', etag: '"e1"', 'content-type': 'application/json', 'access-control-expose-headers': 'etag, x-ratelimit-remaining, x-ratelimit-limit, x-ratelimit-reset' } }); }); // o GitHub expõe esses cabeçalhos ao navegador
+  await page.route('https://raw.githubusercontent.com/**', r => semRede ? r.abort('internetdisconnected') : r.fulfill({ body: '', headers: { 'content-type': 'text/plain', 'access-control-allow-origin': '*' } }));
   await page.addInitScript(() => {
     const jwt = email => 'h.' + btoa(JSON.stringify({ email })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') + '.s';
     window.__PAINEL_FETCH = async (url) => {
@@ -11931,21 +11934,22 @@ test('e2e · R-2 Painel Estante: outro e-mail é recusado e desconectado; o dono
   await page.evaluate(() => localStorage.setItem('__e2e_email', 'gui.amuy@gmail.com'));
   await page.click('#pn-entrar'); await page.waitForSelector('#pn-abas');
   await page.waitForFunction(() => /main: G-264/.test(document.querySelector('#pn-main')?.innerText || ''));
-  assert.equal(pedidosGithub, 1, 'entrar lê o main uma vez');
+  assert.equal(pedidosMain, 1, 'entrar lê o main uma vez');
+  assert.ok(pedidosGithub <= 1 + 8, `a sub-aba inicial fica no orçamento (${pedidosGithub} pedidos)`);
   assert.match(await page.innerText('#pn-carimbo'), /dados de hoje às \d\d:\d\d/);
   assert.match(await page.innerText('#pn-main'), /main: G-264 · há 2 h/);
   assert.equal(await page.getAttribute('#pn-carimbo', 'data-farol'), 'verde');
   assert.match(await page.innerText('#pn-cota'), /57 de 60/);
   assert.equal(await page.locator('#pn-abas .ds-tab').count(), 8);
   assert.deepEqual(await page.$$eval('#pn-abas .ds-tab', es => es.map(e => e.dataset.tab)), ['pipeline', 'eficiencia', 'roadmap', 'motor', 'qualidade', 'curso', 'skills', 'modelos']);
-  assert.match(await page.innerText('#pn-em-breve'), /Pipeline de publicação · em breve[\s\S]*leva R-4/);
+  await page.waitForSelector('#pn-visao-pipeline, #pn-sem-dados, #pn-em-breve');
   for (const id of ['#pn-atualizar', '#pn-sair', '#pn-tema', '#pn-voltar']) assert.ok((await page.locator(id).boundingBox()).height >= 44, id + ' com 44 px');
   // abrir outra sub-aba: dentro do prazo do cache não há pedido novo; o conteúdo diz a leva dela
-  await page.click('#pn-abas [data-tab="motor"]'); await page.waitForFunction(() => /Motor de regras · em breve/.test(document.querySelector('#pn-em-breve')?.innerText || ''));
-  assert.equal(pedidosGithub, 1);
+  await page.click('#pn-abas [data-tab="motor"]'); await page.waitForSelector('#pn-conteudo[aria-label="Motor de regras"] #pn-visao-motor, #pn-conteudo[aria-label="Motor de regras"] #pn-sem-dados, #pn-conteudo[aria-label="Motor de regras"] #pn-em-breve');
+  assert.equal(pedidosMain, 1);
   // Atualizar força um pedido só
-  await page.click('#pn-atualizar'); await page.waitForTimeout(300);
-  assert.equal(pedidosGithub, 2, 'Atualizar faz um pedido');
+  await page.click('#pn-atualizar'); await page.waitForFunction(() => !document.querySelector('#pn-atualizar[disabled]'));
+  assert.equal(pedidosMain, 2, 'Atualizar relê o main uma vez');
   await emTodasAsMedidas(page, 'painel casca');
   if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.screenshot({ path: process.env.SHOTS + '/r2-painel.png', fullPage: true }); }
   // reabrir: a sessão volta sem o Google (Secure Token) e a sub-aba escolhida fica
@@ -12044,8 +12048,8 @@ test('e2e · R-4 Painel · Pipeline: fila agora com espera e recusas com motivo,
   // Limpar volta ao recorte padrão e tira o filtro do endereço
   await page.click('#pn-limpar'); await page.waitForFunction(() => location.hash === '#pipeline');
   assert.match(await page.innerText('#pn-k-fila'), /2\s*levas/);
-  // outra sub-aba continua "em breve"; voltar à Pipeline reabre com os dados guardados
-  await page.click('#pn-abas [data-tab="motor"]'); await page.waitForSelector('#pn-em-breve');
+  // outra sub-aba abre (pronta desde a R-7, ou "em breve"); voltar à Pipeline reabre com os dados guardados
+  await page.click('#pn-abas [data-tab="motor"]'); await page.waitForSelector('#pn-conteudo[aria-label="Motor de regras"] #pn-visao-motor, #pn-conteudo[aria-label="Motor de regras"] #pn-sem-dados, #pn-conteudo[aria-label="Motor de regras"] #pn-em-breve, #pn-conteudo[aria-label="Motor de regras"] #pn-aviso');
   await page.click('#pn-abas [data-tab="pipeline"]'); await page.waitForSelector('#pn-visao-pipeline');
   assert.deepEqual(errors, []);
 });
