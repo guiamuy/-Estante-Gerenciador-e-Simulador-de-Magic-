@@ -785,7 +785,8 @@ const __p2 = (function () {
     { id: 'qualidade', rotulo: 'Qualidade', titulo: 'Qualidade', leva: 'R-8', pronta: true, traz: 'relatos abertos e fechados por semana, tempo até a correção, testes e instáveis, bugs por leva' },
     { id: 'curso', rotulo: 'Em curso', titulo: 'Trabalho em curso', leva: 'R-9', pronta: true, traz: 'cada conversa ativa, a história, as skills, a última atualização, dependências e estimativa' },
     { id: 'skills', rotulo: 'Skills', titulo: 'Skills e rotinas', leva: 'R-10', pronta: true, traz: 'o catálogo de skills, uso por leva e em uso agora; fluxos do GitHub e rotinas do Claude com última e próxima execução' },
-    { id: 'modelos', rotulo: 'Modelos', titulo: 'Modelos', leva: 'R-11', pronta: true, traz: 'levas, tempo e portão por modelo, e o consumo estimado do plano' }
+    { id: 'modelos', rotulo: 'Modelos', titulo: 'Modelos', leva: 'R-11', pronta: true, traz: 'levas, tempo e portão por modelo, e o consumo estimado do plano' },
+    { id: 'custo', rotulo: 'Custo', titulo: 'Custo e escala', leva: 'R-19', pronta: true, traz: 'minutos de Actions por rodada, dia e mês, e o tamanho do index.html por leva' }
   ];
   /** Limiares dos faróis (doc BI-painel-epicos.md, seção 3): editáveis aqui, exibidos em cada cartão. */
   const LIMIARES = {
@@ -1072,6 +1073,28 @@ const __p2 = (function () {
     }
     return [...por.values()].map(v => ({ ...v, pctFim: v.partidas ? Math.round(100 * v.ateFim / v.partidas) : null, tempoMedio: v.tempos.length ? Math.round(10 * v.tempos.reduce((a, b) => a + b, 0) / v.tempos.length) / 10 : null, tempos: undefined })).sort((a, b) => (a.motor || 0) - (b.motor || 0));
   }
+  /** R-19 · BI2-5 · Minutos de Actions das rodadas concluídas: por rodada, por dia e por mês (chave AAAA-MM). Minutos de execução,
+      não a cobrança (o repositório é público; a referência do plano gratuito para privado é 2.000 min/mês). */
+  function minutosDasRodadas(rodadas) {
+    const concluidas = (rodadas || []).filter(r => r.status === 'completed' && r.duracao != null && r.data);
+    const min = ms => Math.round(ms / 60000);
+    const porMes = {};
+    for (const r of concluidas) { const d = new Date(r.data); const k = `${d.getFullYear()}-${dois(d.getMonth() + 1)}`; porMes[k] = (porMes[k] || 0) + r.duracao; }
+    const total = concluidas.reduce((t, r) => t + r.duracao, 0);
+    return { rodadas: concluidas.length, totalMin: min(total), mediaMin: concluidas.length ? Math.round(10 * min(total) / concluidas.length) / 10 : null, porMes: Object.fromEntries(Object.entries(porMes).map(([k, v]) => [k, min(v)])), porDia: porDia(concluidas).map(({ dia, itens }) => ({ dia, minutos: min(itens.reduce((t, r) => t + r.duracao, 0)), rodadas: itens.length })) };
+  }
+  /** R-19 · BI2-5 · Tamanho do index.html por leva: commits do main (linhasDosCommits) × tamanhos por sha ({ sha7: bytes }); a diferença é
+      contra a leva anterior que tem tamanho. Levas sem tamanho ainda ficam com bytes null (o orçamento lê 4 por atualização). */
+  function serieDeTamanho(commits, tamanhos) {
+    const saida = []; let anterior = null;
+    for (const c of commits || []) {
+      const bytes = tamanhos && tamanhos[c.sha] != null ? tamanhos[c.sha] : null;
+      saida.push({ leva: c.leva, trilha: c.trilha, sha: c.sha, data: c.data, bytes, delta: bytes != null && anterior != null ? bytes - anterior : null });
+      if (bytes != null) anterior = bytes;
+    }
+    return saida;
+  }
+  const kb = b => b == null ? '—' : b >= 1024 * 1024 ? `${(Math.round(b / 1024 / 1024 * 100) / 100).toLocaleString('pt-BR')} MB` : `${Math.round(b / 1024)} KB`;
   const linhasDosPlacares = placares => (placares || []).map(p => ({ ...p, data: Date.parse(p.em || '') || null })).sort((a, b) => (a.data || 0) - (b.data || 0));
   Object.assign(LIMIARES, { mapaVersao: { verde: 1, amarelo: 0, unidade: 'igual', texto: 'auditoria do mapa na versão do motor em uso: igual · de outra versão' } });
 
@@ -1158,6 +1181,8 @@ const __p2 = (function () {
   }
   // R-18 · BI2-1 · Jogo: falhas da prova (menos é melhor), Shark até o fim (% das partidas), pior jogada (ms; a homologacao mediu 2,6 s a 6,7 s em 13–14/10)
   Object.assign(LIMIARES, { falhasProva: { verde: 0, amarelo: 2, unidade: 'listas com falha', texto: 'falhas na prova: 0 · até 2 · mais' }, sharkFim: { verde: 95, amarelo: 80, unidade: '% até o fim', texto: 'Shark × Shark até o fim: ≥ 95 % · ≥ 80 % · menos' }, piorJogada: { verde: 1000, amarelo: 3000, unidade: 'ms', texto: 'pior jogada do Shark: ≤ 1 s · ≤ 3 s · mais' } });
+  // R-19 · BI2-5 · Custo: minutos de Actions no mês (referência: 2.000 min/mês do plano gratuito para repositório privado; o repositório é público e hoje não paga) e tamanho do index.html (app sem build: o arquivo inteiro vai ao aparelho)
+  Object.assign(LIMIARES, { minutosMes: { verde: 1500, amarelo: 1900, unidade: 'min no mês', texto: 'minutos de Actions no mês: < 1.500 · < 1.900 · 1.900 ou mais (referência do plano gratuito para privado: 2.000)' }, tamanhoIndex: { verde: 3.5 * 1024 * 1024, amarelo: 4 * 1024 * 1024, unidade: 'bytes', texto: 'tamanho do index.html — ≤ 3,5 MB · ≤ 4 MB · mais' } });
   Object.assign(LIMIARES, { plano: { verde: 80, amarelo: 95, unidade: '% do plano', texto: 'consumo do plano: < 80 % · < 95 % · 95 % ou mais' } });
   const FONTES = {
     plano: 'informado pelo dono no painel · banco /painel/<uid>/plano (regra só para o uid e o e-mail do dono), com cópia neste aparelho',
@@ -1167,6 +1192,8 @@ const __p2 = (function () {
     trilhas: 'ramo telemetria · trilhas.json (espelho do registro de check-in, escrito pelas conversas)',
     relatos: 'raw · relatos/relatos.json (tabela gravada pelo fluxo Relatos)',
     mapa: 'raw · main/.regras/mapa.json (resumo guardado por 10 min)',
+    tamanho: 'API GitHub · contents/index.html?ref=<sha> (só o tamanho; 1 pedido por leva, guardado para sempre)',
+    minutosActions: 'API GitHub · actions/workflows/fila.yml/runs (updated_at − run_started_at; minutos de execução, não a cobrança)',
     placares: 'ramo telemetria · placares.jsonl (prova de partida e mapa, escritos pelas conversas)',
     roadmap: 'raw · main/ROADMAP.md (seções 6 e 7; só o resumo fica guardado)',
     commits: 'API GitHub · commits?sha=main&since&until (um pedido por dia; dias passados guardados para sempre)',
@@ -1176,7 +1203,7 @@ const __p2 = (function () {
     pages: 'API GitHub · actions/runs (fluxo "pages build and deployment")',
     levas: 'ramo telemetria · levas.jsonl (escrito pelas sessões)'
   };
-  return { SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, levasPorRodada, compactaCommits, MAIN_URL, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, sharkPorVersao, linhasDosRelatos, linhasDasTrilhas, resumoDoFluxo, fraseDoCron, linhasDosFluxos, linhasDasRotinas, porModelo, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
+  return { SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, levasPorRodada, compactaCommits, MAIN_URL, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, sharkPorVersao, minutosDasRodadas, serieDeTamanho, kb, linhasDosRelatos, linhasDasTrilhas, resumoDoFluxo, fraseDoCron, linhasDosFluxos, linhasDasRotinas, porModelo, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
 })();
 
 /* ==== src/painel/ui.js ==== */
@@ -1473,6 +1500,58 @@ const __p4 = (function () {
             Barras({ id: 'pn-g-jogam', titulo: `Listas que jogam por placar · ${recorteTxt}`, itens: serie, onBarra: v => api.filtra('formato', v), ativo: filtros.formato || null, vazio: 'sem placar da prova neste recorte' }),
             Barras({ id: 'pn-g-culpadas', titulo: ultCulp ? `Cartas nas falhas · ${ultCulp.formato || '?'} v${ultCulp.motor} · ${new Date(ultCulp.data).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} (listas)` : 'Cartas nas falhas (listas)', itens: culpadas, vazio: 'nenhum placar com cartas culpadas neste recorte' }),
             Barras({ id: 'pn-g-shark-versao', titulo: 'Shark até o fim por versão do motor (%)', itens: porVersao, maximo: 100, formato: v => v + '%', vazio: 'sem placar com Shark' })),
+          h('ul', { class: 'pn-notas ds-text ds-text--sm ds-text--muted', id: 'pn-notas' }, ...notas.map(n => h('li', {}, n)))
+        ];
+      }
+    },
+    // R-19 · BI2-5 · Custo e escala: rodadas (cache compartilhado), commits do main (cache da faixa) e o tamanho do index.html por sha
+    custo: {
+      filtros: ['periodo', 'trilha'], periodoPadrao: '30d',
+      linhas: d => [...M.linhasDasRodadas(d.rodadas || []), ...M.linhasDosCommits(d.commitsMain || [])],
+      async carrega(fonte, forcar) {
+        const avisos = [];
+        const rodadas = await fonte.api('/actions/workflows/fila.yml/runs?per_page=50', { nome: 'rodadas', ttl: 2 * 60000, forcar });
+        let commitsMain = [];
+        try { commitsMain = (await fonte.api(M.MAIN_URL, { nome: 'main', forcar: false, transforma: M.compactaCommits })).dado || []; } catch (e) { avisos.push('não li os commits do main'); }
+        const levas = M.linhasDosCommits(commitsMain).slice(-30).reverse(); // as 30 mais recentes, da mais nova para a mais velha
+        const tamanhos = {}; let novos = 0;
+        for (const c of levas) {
+          const nome = 'tamanho.' + c.sha;
+          if (!fonte.emCache(nome)) { if (novos >= ORCAMENTO.detalhes) { avisos.push('tamanho de algumas levas fica para a próxima atualização (orçamento de pedidos)'); continue; } novos++; }
+          try { tamanhos[c.sha] = (await fonte.api('/contents/index.html?ref=' + c.sha, { nome, ttl: Infinity, transforma: j => ({ size: j && j.size }) })).dado.size; } catch (e) { /* sem tamanho: a leva fica sem barra */ }
+        }
+        return { em: Date.now(), rodadas: (rodadas.dado && rodadas.dado.workflow_runs) || [], commitsMain, tamanhos, avisos, sem: { rodadas: rodadas.semRede || rodadas.cotaEsgotada } };
+      },
+      desenha(d, filtros, api) {
+        const agora = Date.now();
+        const rod = M.linhasDasRodadas(d.rodadas);
+        const rRod = recorte(rod.filter(r => r.status === 'completed'), { periodo: filtros.periodo || '30d' }, agora);
+        const m = M.minutosDasRodadas(rRod.linhas);
+        const mesAtual = `${new Date(agora).getFullYear()}-${String(new Date(agora).getMonth() + 1).padStart(2, '0')}`;
+        const mTudo = M.minutosDasRodadas(rod);
+        const minMes = mTudo.porMes[mesAtual] || 0;
+        const commits = M.linhasDosCommits(d.commitsMain || []);
+        const rCom = recorte(commits, { periodo: filtros.periodo || '30d', trilha: filtros.trilha }, agora);
+        const serie = M.serieDeTamanho(rCom.linhas, d.tamanhos || {});
+        const comTamanho = serie.filter(x => x.bytes != null);
+        const ultimo = comTamanho.length ? comTamanho[comTamanho.length - 1] : null;
+        const recorteTxt = fraseDoRecorte({ ...filtros, periodo: filtros.periodo || '30d' });
+        const cartoes = h('div', { class: 'pn-cartoes' },
+          Cartao({ id: 'pn-k-minutos', rotulo: 'Minutos de Actions', valor: m.rodadas ? m.totalMin : '—', unidade: m.rodadas ? `min em ${m.rodadas} rodadas · média ${m.mediaMin} min` : '', fonte: FONTES.minutosActions, formula: 'soma das rodadas concluídas · ' + recorteTxt, em: d.em, semDados: !m.rodadas }),
+          Cartao({ id: 'pn-k-minutos-mes', rotulo: 'Minutos no mês', valor: minMes, unidade: `min · ${mesAtual.split('-').reverse().join('/')}`, farol: farol(minMes, LIMIARES.minutosMes), limiar: LIMIARES.minutosMes, fonte: FONTES.minutosActions, formula: 'rodadas da fila do mês (até 50 mais recentes); público: sem cobrança', em: d.em, semDados: false }),
+          Cartao({ id: 'pn-k-tamanho', rotulo: 'index.html', valor: ultimo ? M.kb(ultimo.bytes) : '—', unidade: ultimo ? `na ${ultimo.leva}${ultimo.delta != null ? ` · ${ultimo.delta >= 0 ? '+' : '−'}${M.kb(Math.abs(ultimo.delta))} vs anterior` : ''}` : '', farol: ultimo ? farol(ultimo.bytes, LIMIARES.tamanhoIndex) : 'cinza', limiar: LIMIARES.tamanhoIndex, fonte: FONTES.tamanho, formula: 'tamanho do arquivo no commit da leva mais recente com tamanho lido · ' + recorteTxt, em: ultimo ? ultimo.data : null, semDados: !ultimo }));
+        const porDia = m.porDia.map(x => ({ chave: x.dia, rotulo: x.dia.slice(5).split('-').reverse().join('/'), valor: x.minutos, dica: `${x.dia}: ${x.rodadas} rodada(s), ${x.minutos} min` }));
+        const barrasTamanho = comTamanho.slice(-12).map(x => ({ chave: x.leva, rotulo: x.leva, valor: Math.round(x.bytes / 1024), dica: `${x.leva} (${x.trilha}) · ${M.kb(x.bytes)}${x.delta != null ? ` · ${x.delta >= 0 ? '+' : '−'}${M.kb(Math.abs(x.delta))}` : ''}` }));
+        const notas = ['minutos são de execução das rodadas da fila (não a cobrança): o repositório é público e o GitHub não cobra Actions dele hoje; o limiar usa a referência de 2.000 min/mês do plano gratuito para privado',
+          'pareceres de custo (/mtg-escala-custo, /mtg-dados-custo: 1 / 1.000 / 10.000 usuários) ficam nos adendos do Projeto; não há fonte legível pelo painel',
+          'tráfego do Pages e do raw: sem fonte (o GitHub não expõe); fica declarado como lacuna'];
+        if (filtros.trilha) notas.push(`o filtro trilha vale para o tamanho por leva; os minutos somam as rodadas da fila de todas as trilhas (uma rodada publica várias levas)`);
+        for (const a of d.avisos || []) notas.push(a);
+        return [
+          cartoes,
+          h('div', { class: 'pn-graficos' },
+            Barras({ id: 'pn-g-minutos', titulo: `Minutos de Actions por dia · ${recorteTxt}`, itens: porDia, vazio: 'sem rodadas neste recorte' }),
+            Barras({ id: 'pn-g-tamanho', titulo: `index.html por leva (KB) · ${recorteTxt}`, itens: barrasTamanho, formato: v => `${v} KB`, vazio: 'sem tamanho lido ainda (chega em até 4 levas por atualização)' })),
           h('ul', { class: 'pn-notas ds-text ds-text--sm ds-text--muted', id: 'pn-notas' }, ...notas.map(n => h('li', {}, n)))
         ];
       }

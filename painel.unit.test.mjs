@@ -178,11 +178,11 @@ test('R-2 · fonte sem rede ou com a cota esgotada devolve o que havia guardado 
 });
 
 /* ---------- modelo puro ---------- */
-test('R-2/R-18 · modelo: nove sub-abas na ordem das fatias (Pipeline antes da Eficiência; Jogo depois do Motor), todas com a leva e o que trazem; prontas: Pipeline (R-4), Eficiência (R-5), Roadmap (R-6), Motor (R-7), Jogo (R-18), Qualidade (R-8), Em curso (R-9), Skills (R-10) e Modelos (R-11): todas', () => {
+test('R-2/R-19 · modelo: dez sub-abas na ordem das fatias (Pipeline antes da Eficiência; Jogo depois do Motor; Custo no fim), todas com a leva e o que trazem; prontas: Pipeline (R-4), Eficiência (R-5), Roadmap (R-6), Motor (R-7), Jogo (R-18), Qualidade (R-8), Em curso (R-9), Skills (R-10), Modelos (R-11) e Custo (R-19): todas', () => {
   const { modelo, app } = loadPainel();
-  assert.deepEqual(modelo.SUBABAS.map(a => a.id), ['pipeline', 'eficiencia', 'roadmap', 'motor', 'jogo', 'qualidade', 'curso', 'skills', 'modelos']);
+  assert.deepEqual(modelo.SUBABAS.map(a => a.id), ['pipeline', 'eficiencia', 'roadmap', 'motor', 'jogo', 'qualidade', 'curso', 'skills', 'modelos', 'custo']);
   for (const a of modelo.SUBABAS) { assert.match(a.leva, /^R-\d+$/); assert.ok(a.traz.length > 20); assert.equal(!!a.pronta, true, a.id + ' pronta'); assert.equal(!!app.VISOES[a.id], !!a.pronta, 'toda sub-aba pronta tem a visão que a desenha'); }
-  assert.deepEqual(modelo.SUBABAS.map(a => a.leva), ['R-4', 'R-5', 'R-6', 'R-7', 'R-18', 'R-8', 'R-9', 'R-10', 'R-11']);
+  assert.deepEqual(modelo.SUBABAS.map(a => a.leva), ['R-4', 'R-5', 'R-6', 'R-7', 'R-18', 'R-8', 'R-9', 'R-10', 'R-11', 'R-19']);
 });
 
 test('R-2 · modelo: carimbo dos dados, idade e farol com limiar declarado', () => {
@@ -602,4 +602,50 @@ test('R-18 · sharkPorVersao: soma partidas, até o fim e falhas por versão do 
   assert.equal(modelo.farol(0, modelo.LIMIARES.falhasProva), 'verde'); assert.equal(modelo.farol(3, modelo.LIMIARES.falhasProva), 'vermelho');
   assert.equal(modelo.farol(96, modelo.LIMIARES.sharkFim), 'verde'); assert.equal(modelo.farol(79, modelo.LIMIARES.sharkFim), 'vermelho');
   assert.equal(modelo.farol(3300, modelo.LIMIARES.piorJogada), 'vermelho'); assert.equal(modelo.farol(900, modelo.LIMIARES.piorJogada), 'verde');
+});
+
+test('R-19 · minutosDasRodadas (só concluídas; por dia e por mês, minutos de execução), serieDeTamanho (bytes por leva, diferença contra a anterior com tamanho) e kb', () => {
+  const { modelo } = loadPainel();
+  const rod = modelo.linhasDasRodadas([
+    { id: 1, status: 'completed', conclusion: 'success', run_started_at: '2026-10-13T10:00:00Z', updated_at: '2026-10-13T10:20:00Z' },
+    { id: 2, status: 'completed', conclusion: 'failure', run_started_at: '2026-10-14T11:00:00Z', updated_at: '2026-10-14T11:30:00Z' },
+    { id: 3, status: 'in_progress', run_started_at: '2026-10-14T12:00:00Z', updated_at: '2026-10-14T12:05:00Z' }]);
+  const m = modelo.minutosDasRodadas(rod);
+  assert.equal(m.rodadas, 2); assert.equal(m.totalMin, 50); assert.equal(m.mediaMin, 25); assert.deepEqual(m.porMes, { '2026-10': 50 });
+  assert.deepEqual(m.porDia.map(x => [x.minutos, x.rodadas]), [[20, 1], [30, 1]]);
+  assert.deepEqual(modelo.minutosDasRodadas([]), { rodadas: 0, totalMin: 0, mediaMin: null, porMes: {}, porDia: [] });
+  const cs = modelo.linhasDosCommits(modelo.compactaCommits([
+    { sha: 'ccccccc', commit: { message: 'Leva R-18 · x', committer: { date: '2026-10-14T10:00:00Z' } } },
+    { sha: 'bbbbbbb', commit: { message: 'Leva M-405 · y', committer: { date: '2026-10-14T09:00:00Z' } } },
+    { sha: 'aaaaaaa', commit: { message: 'Leva T-97 · z', committer: { date: '2026-10-14T08:00:00Z' } } }]));
+  const serie = modelo.serieDeTamanho(cs, { aaaaaaa: 3400000, ccccccc: 3495646 });
+  assert.deepEqual(serie.map(x => [x.leva, x.bytes, x.delta]), [['T-97', 3400000, null], ['M-405', null, null], ['R-18', 3495646, 95646]]);
+  assert.equal(modelo.kb(3495646), '3,33 MB'); assert.equal(modelo.kb(2048), '2 KB'); assert.equal(modelo.kb(null), '—');
+  assert.equal(modelo.farol(1400, modelo.LIMIARES.minutosMes), 'verde'); assert.equal(modelo.farol(1950, modelo.LIMIARES.minutosMes), 'vermelho');
+  assert.equal(modelo.farol(3495646, modelo.LIMIARES.tamanhoIndex), 'verde'); assert.equal(modelo.farol(4.2 * 1024 * 1024, modelo.LIMIARES.tamanhoIndex), 'vermelho');
+});
+
+test('R-19 · orçamento do Custo: rodadas (1) + tamanhos de até 4 levas por atualização (guardados para sempre por sha); o main vem do cache da faixa; em regime ≤ 4', async () => {
+  const { app, base, modelo } = loadPainel();
+  const guarda = base.createGuarda(null);
+  const chamadas = [];
+  const commits = Array.from({ length: 7 }, (_, i) => ({ sha: `sha${i}sha${i}`, commit: { message: `Leva M-${300 + i} · x`, committer: { date: `2026-10-1${i % 4}T1${i}:00:00Z` } } }));
+  const corpo = url => {
+    if (/fila\.yml\/runs/.test(url)) return { workflow_runs: [{ id: 8, status: 'completed', conclusion: 'success', run_started_at: '2026-10-13T19:00:00Z', updated_at: '2026-10-13T19:18:00Z' }] };
+    if (/commits\?sha=main/.test(url)) return commits;
+    if (/contents\/index\.html\?ref=/.test(url)) return { size: 3400000 + Number(url.slice(-1)) * 1000, sha: 'x', content: 'não vem: só o tamanho entra no cache' };
+    return null;
+  };
+  const fetch = async url => { chamadas.push(url); return { ok: true, status: 200, headers: { get: n => n === 'etag' ? '"e"' : null }, json: async () => corpo(url), text: async () => '' }; };
+  const fonte = base.createFonte({ fetch, guarda });
+  await fonte.api(modelo.MAIN_URL, { nome: 'main', transforma: modelo.compactaCommits }); fonte.zerar(); chamadas.length = 0;
+  const d1 = await app.VISOES.custo.carrega(fonte, false);
+  assert.ok(fonte.pedidos <= app.ORCAMENTO.fixos + app.ORCAMENTO.detalhes, `primeira abertura: ${fonte.pedidos}`);
+  assert.equal(Object.keys(d1.tamanhos).length, 4, 'só 4 tamanhos por atualização'); assert.match(d1.avisos.join(' '), /orçamento/);
+  assert.ok(chamadas.every(u => !u.includes('contents') || /\?ref=sha\d/.test(u)), 'o tamanho é lido por sha');
+  fonte.zerar(); const d2 = await app.VISOES.custo.carrega(fonte, true);
+  assert.ok(fonte.pedidos <= app.ORCAMENTO.fixos + 3, `segunda: ${fonte.pedidos}`); assert.equal(Object.keys(d2.tamanhos).length, 7);
+  fonte.zerar(); await app.VISOES.custo.carrega(fonte, true);
+  assert.ok(fonte.pedidos <= app.ORCAMENTO.fixos, `em regime: ${fonte.pedidos}`);
+  assert.equal(guarda.ler('painel.cache.tamanho.sha0sha').dado.content, undefined, 'o cache guarda só o tamanho');
 });

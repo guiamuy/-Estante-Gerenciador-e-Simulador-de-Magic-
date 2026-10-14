@@ -11931,7 +11931,7 @@ test('e2e · R-2 Painel Estante: outro e-mail é recusado e desconectado; o dono
   assert.equal(await page.evaluate(() => [window.__revogados, localStorage.getItem('painel.sessao')].join('|')), '1|');
   assert.equal(await page.locator('#pn-entrar').innerText(), 'Trocar de conta');
   await auditaTela(page, 'painel recusado');
-  // o dono entra: casca, faixa com o main, nove sub-abas (R-18 somou Jogo), um pedido ao main
+  // o dono entra: casca, faixa com o main, dez sub-abas (R-18 somou Jogo, R-19 Custo), um pedido ao main
   await page.evaluate(() => localStorage.setItem('__e2e_email', 'gui.amuy@gmail.com'));
   await page.click('#pn-entrar'); await page.waitForSelector('#pn-abas');
   await page.waitForFunction(() => /main: G-264/.test(document.querySelector('#pn-main')?.innerText || ''));
@@ -11941,8 +11941,8 @@ test('e2e · R-2 Painel Estante: outro e-mail é recusado e desconectado; o dono
   assert.match(await page.innerText('#pn-main'), /main: G-264 · há 2 h/);
   assert.equal(await page.getAttribute('#pn-carimbo', 'data-farol'), 'verde');
   assert.match(await page.innerText('#pn-cota'), /57 de 60/);
-  assert.equal(await page.locator('#pn-abas .ds-tab').count(), 9);
-  assert.deepEqual(await page.$$eval('#pn-abas .ds-tab', es => es.map(e => e.dataset.tab)), ['pipeline', 'eficiencia', 'roadmap', 'motor', 'jogo', 'qualidade', 'curso', 'skills', 'modelos']);
+  assert.equal(await page.locator('#pn-abas .ds-tab').count(), 10);
+  assert.deepEqual(await page.$$eval('#pn-abas .ds-tab', es => es.map(e => e.dataset.tab)), ['pipeline', 'eficiencia', 'roadmap', 'motor', 'jogo', 'qualidade', 'curso', 'skills', 'modelos', 'custo']);
   await page.waitForSelector('#pn-visao-pipeline, #pn-sem-dados, #pn-em-breve');
   for (const id of ['#pn-atualizar', '#pn-sair', '#pn-tema', '#pn-voltar']) assert.ok((await page.locator(id).boundingBox()).height >= 44, id + ' com 44 px');
   // abrir outra sub-aba: dentro do prazo do cache não há pedido novo; o conteúdo diz a leva dela
@@ -12486,5 +12486,46 @@ test('e2e · R-18 Painel · Jogo: sem placar fica "pendente de telemetria"; com 
   assert.equal(await page.getAttribute('#pn-k-falhas-prova .pn-farol', 'data-farol'), 'verde');
   await emTodasAsMedidas(page, 'jogo filtrado');
   if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.screenshot({ path: process.env.SHOTS + '/r18-jogo.png', fullPage: true }); }
+  assert.deepEqual(errors, []);
+});
+
+/* ---------- R-19 · BI2-5 · sub-aba Custo e escala ---------- */
+test('e2e · R-19 Painel · Custo: minutos de Actions no recorte e no mês (farol declarado), tamanho do index.html por leva com a diferença, barras por dia e por leva, notas de lacuna (cobrança, pareceres, tráfego); período e trilha filtram; sem sobreposição nas quatro medidas e dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  const painel = base.replace('index.html', 'painel.html');
+  await page.setViewportSize({ width: 360, height: 780 });
+  const json = (r, corpo) => r.fulfill({ json: corpo, headers: { 'content-type': 'application/json', 'x-ratelimit-remaining': '50', 'x-ratelimit-limit': '60', 'access-control-expose-headers': 'etag, x-ratelimit-remaining, x-ratelimit-limit' } });
+  const h = n => new Date(Date.now() - n * 3600000).toISOString();
+  const agora = new Date();
+  await page.route('https://api.github.com/**', r => {
+    const u = r.request().url();
+    if (/\/commits\?sha=main/.test(u)) return json(r, [{ sha: 'ccc3333ccc3', commit: { message: 'Leva R-18 · jogo', committer: { date: h(1) } } }, { sha: 'bbb2222bbb2', commit: { message: 'Leva M-405 · energia', committer: { date: h(5) } } }, { sha: 'aaa1111aaa1', commit: { message: 'Leva T-97 · correções', committer: { date: h(30) } } }]);
+    if (/fila\.yml\/runs/.test(u)) return json(r, { workflow_runs: [{ id: 9, status: 'completed', conclusion: 'success', run_started_at: h(2), updated_at: new Date(Date.now() - 2 * 3600000 + 20 * 60000).toISOString() }, { id: 8, status: 'completed', conclusion: 'failure', run_started_at: h(26), updated_at: new Date(Date.now() - 26 * 3600000 + 30 * 60000).toISOString() }] });
+    const m = /contents\/index\.html\?ref=([a-z0-9]+)/.exec(u);
+    if (m) return json(r, { size: { ccc3333: 3495646, bbb2222: 3480000, aaa1111: 3470000 }[m[1]] || 1, sha: m[1] });
+    return json(r, []);
+  });
+  await page.route('https://raw.githubusercontent.com/**', r => r.fulfill({ body: '', headers: { 'content-type': 'text/plain', 'access-control-allow-origin': '*' } }));
+  await page.addInitScript(() => {
+    const jwt = email => 'h.' + btoa(JSON.stringify({ email })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') + '.s';
+    window.__PAINEL_FETCH = async (url) => new Response(JSON.stringify(url.includes('securetoken') ? { user_id: 'uidE2E', id_token: jwt('gui.amuy@gmail.com'), refresh_token: 'ref-e2e', expires_in: '3600' } : { localId: 'uidE2E', idToken: jwt('gui.amuy@gmail.com'), refreshToken: 'ref-e2e', expiresIn: '3600' }), { headers: { 'content-type': 'application/json' } });
+    window.__PAINEL_GOOGLE = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+  });
+  await page.goto(painel + '#custo'); await page.waitForSelector('#pn-entrar'); await page.click('#pn-entrar');
+  await page.waitForSelector('#pn-visao-custo');
+  assert.match(await page.innerText('#pn-k-minutos'), /50[\s\S]*min em 2 rodadas · média 25 min/);
+  assert.match(await page.innerText('#pn-k-minutos-mes'), /min · /); assert.ok(['verde', 'amarelo', 'vermelho'].includes(await page.getAttribute('#pn-k-minutos-mes .pn-farol', 'data-farol')));
+  assert.match(await page.innerText('#pn-k-tamanho'), /3,33 MB[\s\S]*na R-18 · \+15 KB vs anterior/); assert.equal(await page.getAttribute('#pn-k-tamanho .pn-farol', 'data-farol'), 'verde');
+  assert.match(await page.innerText('#pn-g-tamanho'), /T-97[\s\S]*3389 KB[\s\S]*M-405[\s\S]*3398 KB[\s\S]*R-18[\s\S]*3414 KB/);
+  assert.match(await page.innerText('#pn-g-minutos'), /20|30/);
+  assert.match(await page.innerText('#pn-notas'), /não a cobrança[\s\S]*pareceres de custo[\s\S]*tráfego do Pages/);
+  await auditaTela(page, 'custo 360');
+  // filtro de trilha vale para o tamanho (levas da radar), não para as rodadas (o cartão diz)
+  await page.click('#pn-filtros [data-dim="trilha"][data-valor="radar"]');
+  await page.waitForFunction(() => location.hash.includes('trilha=radar'));
+  assert.match(await page.innerText('#pn-g-tamanho'), /R-18/); assert.doesNotMatch(await page.innerText('#pn-g-tamanho'), /M-405/);
+  assert.match(await page.innerText('#pn-notas'), /filtro trilha vale para o tamanho por leva/);
+  await emTodasAsMedidas(page, 'custo filtrado');
+  if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.screenshot({ path: process.env.SHOTS + '/r19-custo.png', fullPage: true }); }
   assert.deepEqual(errors, []);
 });
