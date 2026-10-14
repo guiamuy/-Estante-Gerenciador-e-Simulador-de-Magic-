@@ -4313,6 +4313,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** o leitor lê "put a <tipo> counter on target creature you control" para qualquer tipo de marcador — **Brokers Veteran (marcador de escudo, 122.1c) não deve ser aprovado** até o escudo existir no motor; o validador ainda não confere o conteúdo de `anyColors` (só o leitor produz o campo, sempre como lista).
 - **Teste:** `lt78.unit` (4 testes; falham no motor anterior).
 
+**M-396 · LT63 · 603.4 · "At the beginning of the end step, if no creatures are on the battlefield" e dano a cada criatura e cada jogador** ✅ (leva M-396, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** revisão por lote LIV — **Pestilence passa a jogar** (APROVADAS; Oracle do Forge, consulta de 12/10/2026; bloqueava 3 a 4 listas Pauper). "{B}: 1 de dano a cada criatura e a cada jogador"; no começo de cada passo final (de qualquer jogador), se não houver criatura no campo, ela é sacrificada — condição conferida no disparo e na resolução (603.4; condição nova `semCriaturas`).
+- **Revisão independente:** 66 verificações (dano a cada criatura e cada jogador, proteção contra preto, Prismatic Strands, derrota simultânea a 1 de vida; gatilho no passo final dos dois jogadores, artefato-criatura conta, lampejo em resposta — 603.4, morte da última criatura já dentro do passo final — nada dispara nesse passo, 603.2; `end-step` e `each-upkeep` iguais; três jogadores), leitor no corpus (18 cartas passam a ser lidas por inteiro — Pyrohemia, Famine, Inferno… —, conferidas uma a uma) e diferencial de 17 partidas sem diferença; aprovada.
+- **Fora (declarado):** quatro linhas do registro, anteriores a esta leva, ficam para a próxima: "A foi sacrificada" (nome do jogador no lugar da carta), "morreu" para permanente que não é criatura, gatilho que falha pela condição dito como "sem alvo legal" e dano prevenido dito como causado.
+- **Teste:** `lt79.unit` (1 teste; falha no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

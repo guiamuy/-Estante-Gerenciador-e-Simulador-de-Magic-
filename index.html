@@ -5317,7 +5317,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
 
 /** Efeitos que o motor sabe aplicar. Cada um declara os campos que exige. */
 const EFFECTS = {
-  damage: { fields: ['amount'], targets: ['any', 'creature', 'planeswalker', 'player', 'opponent', 'target-controller', 'each-creature', 'each-opponent-creature', 'each-opponent-creature-planeswalker', 'each-own-creature', 'each-opponent', 'each-flying-creature', 'each-nonflying-creature', 'creature-opponent-controls', 'creature-blocked-by-source'] },
+  damage: { fields: ['amount'], targets: ['each-player', 'any', 'creature', 'planeswalker', 'player', 'opponent', 'target-controller', 'each-creature', 'each-opponent-creature', 'each-opponent-creature-planeswalker', 'each-own-creature', 'each-opponent', 'each-flying-creature', 'each-nonflying-creature', 'creature-opponent-controls', 'creature-blocked-by-source'] },
   destroy: { fields: [], targets: ['creature', 'permanent', 'artifact', 'enchantment', 'artifact-enchantment', 'land', 'enchanted-creature', 'enchanted'] },
   exile: { fields: [], targets: ['creature', 'permanent', 'artifact', 'artifact-creature', 'artifact-enchantment-opponent-controls', 'card-in-any-graveyard', 'creature-you-control'] }, // M-222 · Lukka −2: "Exile target creature you control"
   // S45 · o jogador alvo escolhe as cartas do próprio cemitério para exilar
@@ -6157,7 +6157,7 @@ function validateScript(sc) {
     if (sc && (temMvX(sc.effects) || (sc.modes || []).some(m => m && temMvX(m.effects)))) errs.push('"targetMvIgualX" só em habilidade ativada com {X} no custo');
     for (const ab of (sc && sc.abilities) || []) if (ab && temMvX(ab.effects) && !(ab.kind === 'activated' && /\{X\}/.test((ab.cost || {}).mana || ''))) errs.push('"targetMvIgualX" só em habilidade ativada com {X} no custo'); }
   for (const ab of (sc && sc.abilities) || []) if (ab && ab.kind !== 'triggered' && (ab.effects || []).some(e => e && e.dividido)) errs.push('dano dividido: só em mágica e em habilidade disparada (a ativada ainda não divide — M-378)'); // M-378
-  for (const ab of (sc && sc.abilities) || []) if (ab.condition && !['lifeGained', 'attackersAtLeast', 'controlsOtherNamed', 'bargained', 'evidenced', 'kicked', 'opponentMoreLands', 'atacaSozinha', 'vidaPeloMenos', 'marcadoresNaFonte', 'entrouDesvirada', 'semTerrenoVirado', ...condicoesK(), ...condicoesT()].includes(Object.keys(ab.condition)[0] || '')) errs.push('condição de gatilho desconhecida'); // K-59 · condições da trilha keywords (Toca ponto comum: validador de condições)
+  for (const ab of (sc && sc.abilities) || []) if (ab.condition && !['lifeGained', 'attackersAtLeast', 'controlsOtherNamed', 'bargained', 'evidenced', 'kicked', 'opponentMoreLands', 'atacaSozinha', 'vidaPeloMenos', 'marcadoresNaFonte', 'entrouDesvirada', 'semTerrenoVirado', 'semCriaturas', ...condicoesK(), ...condicoesT()].includes(Object.keys(ab.condition)[0] || '')) errs.push('condição de gatilho desconhecida'); // K-59 · condições da trilha keywords (Toca ponto comum: validador de condições)
   if (sc && sc.bargain != null && sc.bargain !== true) errs.push('barganha é uma marca, sem valor');
   if (sc && !sc.bargain && [...(sc.effects || []), ...((sc.modes || []).flatMap(m => (m && m.effects) || []))].some(e => e && (e.onlyIf === 'bargained' || (e.amount && e.amount.se === 'bargained')))) errs.push('"se barganhada" sem a barganha na carta'); // M-384 · achado da revisão
   if (sc && sc.evidence != null && !(Number.isInteger(sc.evidence) && sc.evidence > 0)) errs.push('colher provas precisa de um número inteiro positivo');
@@ -9207,6 +9207,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Idyllic Grange': { texto: '148q7zh', leva: 'M-395' },
   'God-Pharaoh\'s Faithful': { texto: '101awhg', leva: 'M-395' },
   'Memory Lapse': { texto: 'n6w385', leva: 'M-395' },
+  // M-396 · revisão por lote LIV (Pauper: Pestilence), revisor independente: aprovada (66 verificações, leitor no corpus e diferencial sem diferença)
+  'Pestilence': { texto: '1ec5euf', leva: 'M-396' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -17558,6 +17560,7 @@ const __m42 = (function () {
     [/^until end of turn, target land you control becomes the basic land type of your choice in addition to its other types$/i, () => [{ do: 'tipo_basico', target: 'land-you-control' }]], // M-388 · Navigator's Compass (305.7)
     [/^whenever a creature you control enters this turn, put a \+1\/\+1 counter on it and it gains haste until end of turn$/i, () => [{ do: 'gatilho_no_turno', when: 'criatura-sua-entra', effects: [{ do: 'counters', tipo: 'p1p1', amount: 1, target: 'delayed-object' }, { do: 'keyword', keyword: 'haste', target: 'delayed-object' }] }]], // M-389 · First Day of Class (603.7c)
     [/^learn$/i, () => [{ do: 'learn' }]],
+    [/^~ deals (\d+) damage to each creature and each player$/i, m => [{ do: 'damage', amount: +m[1], target: 'each-creature' }, { do: 'damage', amount: +m[1], target: 'each-player' }]], // M-396 · Pestilence
     [/^put a \+1\/\+1 counter on target creature you control$/i, () => [{ do: 'counters', tipo: 'p1p1', amount: 1, target: 'creature-you-control' }]], // M-395 · Idyllic Grange
     [/^prevent all damage that would be dealt by creatures this turn$/i, () => [{ do: 'prevenir', todos: true, deCriatura: true }]], // M-390 · Ethereal Haze (615.1) // M-389 · 701.48 (o motor aprende desde a V-13; a Lição de fora do jogo não existe no app — parcial declarada no vocabulário)
     [/^it doesn't untap during its controller's next untap step$/i, () => [{ do: 'nao_desvira', target: 'first-target' }]], // M-334 · LT18 · 502.3 (Sleep of the Dead)
@@ -17883,6 +17886,7 @@ const __m42 = (function () {
         if (al && (!al[4] || al[4].split(/ and /).every(k => KW.has(k.trim().toLowerCase())))) { topo.continuo = [...(topo.continuo || []), { afetados: 'self', poder: SINAL(al[2]), resistencia: SINAL(al[3]), ...(al[4] ? { palavras: al[4].split(/ and /).map(k => k.trim().toLowerCase()) } : {}), se: { controlaTipo: al[1].toLowerCase() } }]; frases.push({ texto: linha, lida: true }); continue; }
         const pe = lp.match(/^~ gets ([+-]\d+)\/([+-]\d+) for each (.+)$/i); // LT5 · "~ gets +1/+1 for each Aura on the battlefield"
         if (pe && contagem(pe[3])) { topo.self = { ...(topo.self || {}), perPower: SINAL(pe[1]), perToughness: SINAL(pe[2]), per: contagem(pe[3]) }; frases.push({ texto: linha, lida: true }); continue; }
+        if (/^at the beginning of the end step, if no creatures are on the battlefield, sacrifice ~$/i.test(lp)) { (topo.abilities = topo.abilities || []).push({ kind: 'triggered', when: { evento: 'passo', passo: 'end', turno: 'qualquer' }, condition: { semCriaturas: true }, effects: [{ do: 'sacrifice_it', target: 'self-source' }] }); frases.push({ texto: linha, lida: true }); continue; } // M-396 · Pestilence (cada passo final, 603.4)
         if (/^~ can't be blocked$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'unblockable' }; frases.push({ texto: linha, lida: true }); continue; } // M-395 · Blighted Agent
         if (/^~ can't be blocked by creatures the monarch controls\.?$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'not-monarch' }; frases.push({ texto: linha, lida: true }); continue; } // M-391 · Azure Fleet Admiral (725)
         if (/^~ can't be blocked except by creatures with flying$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'flying-only' }; frases.push({ texto: linha, lida: true }); continue; } // LT5
@@ -22426,6 +22430,7 @@ function makeAbility(s, source, ab, targets, blockedAt = source.blocking) {
 function triggerConditionMet(s, o, cond) {
   if (!cond) return true;
   if (cond.lifeGained != null && (s.players[o.controller].lifeGained || 0) < cond.lifeGained) return false;
+  if (cond.semCriaturas && battlefield(s).some(x => isCreature(s, x))) return false; // M-396 · 603.4 · "if no creatures are on the battlefield" (Pestilence): conferido no disparo e na resolução
   if (cond.entrouDesvirada && o.tapped) return false; // M-349 · "When ~ enters untapped" (Gingerbread Cabin): como entrou
   if (cond.bargained && !o.bargained) return false;
   if (cond.evidenced && !o.evidenced) return false; // S41 · colher provas
