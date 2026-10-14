@@ -14,6 +14,7 @@ for (const [n, k] of Object.entries({ Forest: 'G', Mountain: 'R' })) C[n] = { na
 const carta = (name, type_line, extra = {}) => { C[name] = { name, type_line, mana_cost: '{1}', cmc: 1, keywords: [], oracle_text: '', colors: [], ...extra }; };
 carta('Atirador', 'Creature — Human', { power: '1', toughness: '1' }); carta('Elfo', 'Creature — Elf', { power: '1', toughness: '1' });
 carta('Ciclador', 'Sorcery'); carta('Terra Útil', 'Land', { mana_cost: '', cmc: 0 }); carta('Choque', 'Instant');
+carta('Temperamento', 'Instant', { keywords: ['Madness'] }); carta('Descarte', 'Sorcery'); carta('Inspiração', 'Sorcery'); carta('Chama Viva', 'Legendary Planeswalker — Test', { loyalty: '3', mana_cost: '{2}', cmc: 2 }); // T-82
 const EX = { example: { target: 'none', expect: { selfLife: 0 } } };
 const SCRIPTS = {
   'Atirador': { name: 'Atirador', abilities: [{ kind: 'activated', cost: { tap: true }, effects: [{ do: 'damage', amount: 1, target: 'any' }] }], ...EX }, // "{T}: This creature deals 1 damage to any target."
@@ -21,6 +22,11 @@ const SCRIPTS = {
   'Ciclador': { name: 'Ciclador', effects: [{ do: 'gain', amount: 1 }], cycling: { mana: '{1}' }, ...EX }, // "You gain 1 life. · Cycling {1}"
   'Terra Útil': { name: 'Terra Útil', abilities: [{ kind: 'activated', cost: { tap: true, sacrifice: true }, effects: [{ do: 'gain', amount: 2 }] }], ...EX }, // "{T}, Sacrifice this land: You gain 2 life." (sem habilidade de mana)
   'Choque': { name: 'Choque', effects: [{ do: 'damage', amount: 2, target: 'any' }], ...EX },
+  // T-82 · cartas de teste dos achados da auditoria
+  'Temperamento': { name: 'Temperamento', effects: [{ do: 'damage', amount: 3, target: 'any' }], madness: { mana: '{R}' }, ...EX }, // "deals 3 damage to any target · Madness {R}"
+  'Descarte': { name: 'Descarte', effects: [{ do: 'discard', amount: 1, target: 'self' }], ...EX }, // "Discard a card."
+  'Inspiração': { name: 'Inspiração', effects: [{ do: 'draw_free_cast', amount: 1 }], ...EX }, // "Draw a card. You may cast it without paying its mana cost."
+  'Chama Viva': { name: 'Chama Viva', loyalty: [{ cost: 1, label: '+1: Add {R}{R}', effects: [{ do: 'add_mana', symbols: ['R', 'R'] }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } }, // "+1: Add {R}{R}." (lealdade: nunca é habilidade de mana, 605.1a)
 };
 const TODAS = Object.keys(C).filter(n => !['Forest', 'Mountain'].includes(n));
 function mesa(seed = 1) {
@@ -161,4 +167,51 @@ test('CR 201.4 · validador: travaConjurarDoNome e manaDoNome pedem o nome escol
   assert.ok(v({ self: { travaConjurarDoNome: true } }).some(e => /travaConjurarDoNome/.test(e)));
   assert.ok(v({ self: { nomeAoEntrar: true, manaDoNome: ['X'] } }).some(e => /manaDoNome/.test(e)));
   eq(v({ produces: [['C']], self: { travaAtivadasDoNome: 'semMana', manaDoNome: ['C'] }, abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'escolhe_nome', filtro: { tipos: ['land'] } }] }] }), []);
+});
+
+/* ---------------- T-82 · achados da auditoria independente (T-79…T-81) ---------------- */
+test('CR 702.35 / 201.4 · loucura não passa por cima do Meddling Mage: com Temperamento nomeado, o descarte não oferece conjurar pela loucura e o apply recusa', () => {
+  let s = mesa(); let t, d; [s, t] = poe(s, 0, 'Temperamento', 'hand'); [s, d] = poe(s, 0, 'Descarte', 'hand');
+  [s] = agulha(s, 'Meddling Mage', 'Temperamento'); s = mana(s);
+  s = act(s, legais(s, 0, a => a.t === 'cast' && a.oid === d)[0]); s = passaAte(s, x => !!x.pending || !x.stack.length);
+  if (s.pending && s.pending.kind === 'discard') s = act(s, { t: 'discard', p: 0, oid: t });
+  s = passaAte(s, x => !!x.pending || !x.stack.length);
+  assert.ok(s.pending && s.pending.kind === 'madness', 'a loucura pergunta');
+  s = mana(s);
+  eq(legais(s, 0, a => a.t === 'cast_madness').length, 0, 'não é oferecida');
+  assert.throws(() => E.apply(s, { t: 'cast_madness', p: 0, targets: [{ player: 1 }] }), /não podem ser conjuradas/);
+  assert.ok(legais(s, 0, a => a.t === 'decline_madness').length > 0, 'recusar continua');
+});
+
+test('CR 201.4 · conjurar sem pagar: com Choque nomeado, a decisão de conjurar de graça não oferece o Choque (o que é oferecido é aceito)', () => {
+  let s = mesa(); let i; [s, i] = poe(s, 0, 'Inspiração', 'hand');
+  let c; [s, c] = poe(s, 0, 'Choque', 'hand'); s = J(s); const z = s.zones[0]; z.hand.splice(z.hand.indexOf(c), 1); z.library.unshift(c); s.objects[c].zone = 'library';
+  [s] = agulha(s, 'Meddling Mage', 'Choque'); s = mana(s);
+  s = act(s, legais(s, 0, a => a.t === 'cast' && a.oid === i)[0]); s = passaAte(s, x => !!x.pending || !x.stack.length);
+  assert.ok(s.pending && s.pending.kind === 'free_cast', 'a decisão abre');
+  eq(legais(s, 0, a => a.t === 'cast_free').length, 0);
+  for (const a of legais(s, 0)) E.apply(s, a); // nada oferecido é recusado
+});
+
+test('CR 605.1a · habilidade de lealdade nunca é habilidade de mana: Pithing Needle nomeando a planeswalker trava o "+1: Add {R}{R}"', () => {
+  let s = mesa(); let w; [s, w] = poe(s, 0, 'Chama Viva', 'battlefield'); s = J(s); s.objects[w].counters.loyalty = 3;
+  assert.ok(ativa(s, 0, w).length > 0, 'antes, ativa');
+  [s] = agulha(s, 'Pithing Needle', 'Chama Viva');
+  eq([s.objects[w].zone, ativa(s, 0, w).length], ['battlefield', 0]);
+});
+
+test('CR 400.7 · o gatilho de Petrified Hamlet de uma encarnação anterior não dá nome ao Hamlet que voltou', () => {
+  let s = mesa(); let h; [s, h] = poe(s, 0, 'Petrified Hamlet', 'hand'); s = J(s); s.players[0].landsPlayed = 0;
+  s = act(s, legais(s, 0, a => a.t === 'play_land' && a.oid === h)[0]);
+  assert.ok(s.stack.length > 0, 'o gatilho está na pilha');
+  s = J(s); const z = s.zones[0]; z.battlefield.splice(z.battlefield.indexOf(h), 1); z.hand.push(h); s.objects[h].zone = 'hand'; s.objects[h].zc = (s.objects[h].zc || 0) + 1;
+  z.hand.splice(z.hand.indexOf(h), 1); z.battlefield.push(h); s.objects[h].zone = 'battlefield'; s.objects[h].zc += 1;
+  s = passaAte(s, x => !!x.pending || !x.stack.length);
+  assert.ok(!(s.pending && s.pending.kind === 'choose_name' && s.pending.oid === h && s.pending.z === s.objects[h].zc), 'o gatilho velho não pede nome para o Hamlet novo');
+  assert.ok(!(s.nomesT && s.nomesT[h] && s.nomesT[h].z === (s.objects[h].zc || 0)));
+});
+
+test('CR 201.4 · validador: nomeAoEntrar e escolhe_nome no gatilho de entrar na mesma carta são recusados', () => {
+  const v = sc => J(SC.validateScript({ name: 'X', ...sc, example: { action: 'etb', target: 'none', expect: { attached: false } } }));
+  assert.ok(v({ self: { nomeAoEntrar: true }, abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'escolhe_nome' }] }] }).some(e => /um nome só/.test(e)));
 });

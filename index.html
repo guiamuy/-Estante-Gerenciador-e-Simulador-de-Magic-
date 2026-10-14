@@ -9514,7 +9514,8 @@ function monarcaErrosT(sc) {
   for (const ab of abs) if (ab && ab.condition && ab.condition.monarca != null && !['voce', 'oponente'].includes(ab.condition.monarca)) errs.push('condição "monarca" do gatilho: \'voce\' ou \'oponente\'');
   if (sc && sc.self && sc.self.atacaSeMonarcaDefende != null && sc.self.atacaSeMonarcaDefende !== true) errs.push('self.atacaSeMonarcaDefende só vale como true'); // T-70
   if (sc && sc.self && sc.self.nomeAoEntrar != null) { const n = sc.self.nomeAoEntrar, f = n && n.filtro; if (!(n === true || (n && typeof n === 'object' && !Array.isArray(n) && Object.keys(n).every(k => k === 'filtro')))) errs.push('self.nomeAoEntrar é true ou { filtro }'); else if (f != null && (typeof f !== 'object' || Object.keys(f).some(k => !['tipos', 'semTipos'].includes(k) || !Array.isArray(f[k]) || f[k].some(t => !FILTER_TYPES.includes(t))))) errs.push('self.nomeAoEntrar: o filtro é { tipos, semTipos }, com tipos de carta'); } // T-79
-  const escolheNomeT_ = !!(sc && sc.self && sc.self.nomeAoEntrar) || ((sc && sc.abilities) || []).some(ab => ab && ab.kind === 'triggered' && ab.when === 'etb' && (ab.effects || []).some(e => e && e.do === 'escolhe_nome')); // T-81 · "when this enters, choose a card name" (Petrified Hamlet) também
+  const nomeNoGatilhoT_ = ((sc && sc.abilities) || []).some(ab => ab && ab.kind === 'triggered' && ab.when === 'etb' && (ab.effects || []).some(e => e && e.do === 'escolhe_nome')), escolheNomeT_ = !!(sc && sc.self && sc.self.nomeAoEntrar) || nomeNoGatilhoT_; // T-81 · "when this enters, choose a card name" (Petrified Hamlet) também
+  if (sc && sc.self && sc.self.nomeAoEntrar && nomeNoGatilhoT_) errs.push('self.nomeAoEntrar e um escolhe_nome no gatilho de entrar: a carta escolhe um nome só (ou "as … enters", ou "when … enters")'); // T-82
   if (sc && sc.self && sc.self.travaAtivadasDoNome != null && (!['semMana', 'todas'].includes(sc.self.travaAtivadasDoNome) || !escolheNomeT_)) errs.push("self.travaAtivadasDoNome é 'semMana' ou 'todas', com self.nomeAoEntrar (ou um escolhe_nome ao entrar)"); // T-79
   if (sc && sc.self && sc.self.travaConjurarDoNome != null && (sc.self.travaConjurarDoNome !== true || !escolheNomeT_)) errs.push('self.travaConjurarDoNome só vale como true, com self.nomeAoEntrar (ou um escolhe_nome ao entrar)'); // T-81
   if (sc && sc.self && sc.self.manaDoNome != null && (!Array.isArray(sc.self.manaDoNome) || !sc.self.manaDoNome.length || sc.self.manaDoNome.some(c => !['W', 'U', 'B', 'R', 'G', 'C'].includes(c)) || !escolheNomeT_)) errs.push('self.manaDoNome é uma lista de cores de mana (W U B R G C), com o nome escolhido ao entrar'); // T-81
@@ -22330,7 +22331,7 @@ function makeAbility(s, source, ab, targets, blockedAt = source.blocking) {
   s.objects[oid] = { oid, ability: true, name: source.name, source: source.oid, effects: ab.effects, owner: source.controller,
     controller: source.controller, zone: 'stack', tapped: false, sick: false, damage: 0, counters: {}, targets: carimbaAlvos(s, targets),
     ...(blockedAt ? { blockedAt } : {}) }; // Q11 · Tinder Wall: quem ela bloqueava, mesmo depois de sacrificada (última informação conhecida)
-  { const f = s.objects[source.oid]; if (f && !f.ability && (ab.effects || []).some(e => e && (e.ate === 'fonte-sair' || (['topo_do_dono', 'exila_da_mao', 'revela_topo_transforma', 'exile_return_transformed', 'craft_volta', 'endure'].includes(e.do) || e.remember || e.lembra || e.target === 'self-source')))) s.objects[oid].fonteZc = f.zc || 0; } // M-371 · também todo efeito em "esta permanente" (400.7) // M-353 · a habilidade lembra a encarnação da fonte (achado da revisão do lote XXV) // M-345 · também "put ~ on top" (achado da revisão) // CR2d.1 · 610.3a (auditoria M-308: também na ativada): se a fonte já saiu quando o efeito resolve, nada se move
+  { const f = s.objects[source.oid]; if (f && !f.ability && (ab.effects || []).some(e => e && (e.ate === 'fonte-sair' || (['topo_do_dono', 'exila_da_mao', 'revela_topo_transforma', 'exile_return_transformed', 'craft_volta', 'endure', 'escolhe_nome'].includes(e.do) || e.remember || e.lembra || e.target === 'self-source')))) s.objects[oid].fonteZc = f.zc || 0; } // M-371 · também todo efeito em "esta permanente" (400.7) // M-353 · a habilidade lembra a encarnação da fonte (achado da revisão do lote XXV) // M-345 · também "put ~ on top" (achado da revisão) // CR2d.1 · 610.3a (auditoria M-308: também na ativada): se a fonte já saiu quando o efeito resolve, nada se move
   s.stack.push(oid);
   return oid;
 }
@@ -28442,6 +28443,7 @@ function sagaOfertas(s, p, out) {
   if (s.pending && s.pending.kind === 'choose_name' && s.pending.p === p) for (const nome of s.pending.options || []) out.push({ t: 'choose_name', p, nome }); // T-77 · CR 201.4 · uma oferta por nome
   if (s.pending && s.pending.kind === 'aura_anexo' && s.pending.p === p) for (const oid of s.pending.options || []) out.push({ t: 'aura_anexo', p, oid }); // T-22 · CR 303.4f · uma oferta por permanente que ela pode encantar
   faceGratisOfertasT(s, p, out); // T-11 · CR 709.3 / 712.11b · "conjure sem pagar": as duas metades da dividida e a face de trás da modal
+  filtraTravadasPeloNomeT(s, out); // T-82 · as ofertas das decisões pendentes (conjurar sem pagar, loucura) também passam pela trava do nome (201.4)
 }
 PENDING_ACTIONS.saga_capitulo = ['saga_capitulo', 'concede'];
 PENDING_ACTIONS.aura_anexo = ['aura_anexo', 'concede']; // T-22 · CR 303.4f
@@ -29019,6 +29021,7 @@ const fonteDoNomeT = (s, src) => (src.ability ? (s.objects[src.source] || src) :
 function nomeEscolhidoT(s, src) { const f = fonteDoNomeT(s, src), r = s.nomesT && s.nomesT[f.oid]; return r && r.z === (f.zc || 0) ? r.nome : null; }
 function escolheNomeT(s, src, eff, events) {
   const fonte = fonteDoNomeT(s, src), ops = nomesEscolhiveisT(s, eff.filtro);
+  if (src.ability && src.fonteZc != null && (fonte.zc || 0) !== src.fonteZc) { events.push({ kind: 'effect', do: 'escolhe_nome', name: src.name, failed: true, saiu: true }); return; } // T-82 · 400.7: o gatilho da encarnação anterior não dá nome à nova
   if (!ops.length) { events.push({ kind: 'effect', do: 'escolhe_nome', name: src.name, failed: true }); return; }
   s.pending = { kind: 'choose_name', p: src.controller, oid: fonte.oid, z: fonte.zc || 0, options: ops, source: src.name };
 }
@@ -29093,11 +29096,12 @@ function nomesDaMagiaT(s, o, a) {
   return nomesDe(s, o);
 }
 function acaoTravadaPeloNomeT(s, a, travas) {
-  if (!a || a.oid == null || !travas.length) return null;
-  if (ACOES_CONJURAR_T.includes(a.t)) { const o = s.objects[a.oid]; if (!o) return null; const ns = nomesDaMagiaT(s, o, a); return travas.find(t => t.conjurar && ns.includes(t.nome)) || null; } // T-81 · "Spells with the chosen name can't be cast"
-  if (!ACOES_ATIVADAS_T.includes(a.t)) return null;
+  if (!a || !travas.length) return null;
+  if (ACOES_CONJURAR_T.includes(a.t)) { const oid = a.oid != null ? a.oid : a.t === 'cast_madness' && s.pending && s.pending.kind === 'madness' ? s.pending.oid : null, o = oid != null && s.objects[oid]; if (!o) return null; const ns = nomesDaMagiaT(s, o, a); return travas.find(t => t.conjurar && ns.includes(t.nome)) || null; } // T-81 · "Spells with the chosen name can't be cast" · T-82 · a loucura não traz o oid na ação: a carta é a da decisão
+  if (!ACOES_ATIVADAS_T.includes(a.t) || a.oid == null) return null;
   const o = s.objects[a.oid]; if (!o || o.faceDown) return null;
-  const nomes = nomesDe(s, o), mana = a.t === 'tap_mana' || (a.t === 'activate' && ehHabilidadeDeMana(abilitiesOf(s, o).filter(x => x.kind === 'activated')[a.index || 0] || {}));
+  const ab = a.t === 'activate' ? abilitiesOf(s, o).filter(x => x.kind === 'activated')[a.index || 0] || {} : null;
+  const nomes = nomesDe(s, o), mana = a.t === 'tap_mana' || (!!ab && ehHabilidadeDeMana(ab) && ab.loyalty == null); // T-82 · 605.1a: habilidade de lealdade nunca é de mana
   return travas.find(t => t.modo && nomes.includes(t.nome) && (t.modo === 'todas' || !mana)) || null;
 }
 function filtraTravadasPeloNomeT(s, out) { const tv = travasDeNomeT(s); if (tv.length) for (let i = out.length - 1; i >= 0; i--) if (acaoTravadaPeloNomeT(s, out[i], tv)) out.splice(i, 1); }
@@ -31826,7 +31830,7 @@ const predicadosPT_T = sel => (sel.terrenoBasico === false ? ' que não seja ter
 const LINHA_T = { preparada: ev => (ev.failed ? `${ev.name}: ${ev.motivo || 'não ficou preparada'}, nada muda` : `${ev.name} está preparada (pode conjurar uma cópia de ${ev.target})`), despreparada: ev => `${ev.name} deixou de estar preparada`, ciclo: ev => `Virou ${ev.target}${ev.motivo ? ` (${ev.motivo})` : ''}`, masmorra_completa: ev => `${ev.target} completou a masmorra ${ev.name}`, caso_resolvido: ev => (ev.failed ? `${ev.name}: a condição não valia mais, o Caso não foi resolvido` : `${ev.name} foi resolvido`), estacao: ev => (ev.failed ? `${ev.name}: a nave saiu do campo, a estação não pôs marcadores` : `${ev.name} recebeu ${ev.amount} marcador${ev.amount === 1 ? '' : 'es'} de carga (estação)${ev.total != null ? ` · ${ev.total} no total` : ''}`), selada: ev => (ev.failed ? `${ev.name}: a montaria saiu do campo, não foi selada` : `${ev.name} foi selada`), virar_carta: ev => (ev.failed ? `${ev.name} não virou${ev.motivo ? ` (${ev.motivo})` : ''}` : `${ev.name} virou: agora é ${ev.target}`), porta: ev => (ev.failed ? `${ev.name}: nenhuma porta para trancar ou destrancar` : `${ev.name} ${ev.acao} ${ev.porta} (${ev.target})`), nivel_sobe: ev => (ev.failed ? `${ev.name}: saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu de nível (nível ${ev.nivel})`), nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, converter: ev => `${ev.name} converteu em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
 Object.assign(LINHA_T, { exila_mesmo_nome: ev => ev.failed ? `${ev.name}: a carta já tinha saído do cemitério, nada é exilado` : `\u2063${ev.name} exilou ${[[ev.cemiterio, 'do cemitério'], [ev.mao, 'da mão'], [ev.grimorio, 'do grimório']].filter(x => x[0].length).map(([ns, de]) => `${ns.join(', ')} ${de}`).join('; ') || 'nada'} de ${ev.target}; ${ev.target} embaralhou o grimório` }); // T-80 · o exílio é público
 Object.assign(EFEITO_PT_T, { exila_mesmo_nome: () => 'exila do cemitério, da mão e do grimório do dono da carta alvo todas as cartas com o mesmo nome dela; o dono embaralha' }); // T-80
-Object.assign(LINHA_T, { escolhe_nome: ev => `${ev.name}: não há nome de carta que sirva, nada é escolhido`, // T-77 · CR 201.4
+Object.assign(LINHA_T, { escolhe_nome: ev => ev.saiu ? `${ev.name}: a permanente saiu do campo, nenhum nome é escolhido` : `${ev.name}: não há nome de carta que sirva, nada é escolhido`, // T-77 · CR 201.4 · T-82: a fonte que saiu
   descarta_nome: ev => ev.failed ? `${ev.name}: nada é descartado` : `\u2063${ev.target} revelou a mão${ev.revelada.length ? ` (${ev.revelada.join(', ')})` : ', vazia,'} e ${ev.nomes.length ? `descartou ${ev.nomes.join(', ')}` : `não tinha ${ev.nome}`}` }); // \u2063: revelar é público (701.20)
 Object.assign(EFEITO_PT_T, { escolhe_nome: e => `escolhe um nome de carta${e.filtro && (e.filtro.semTipos || []).includes('land') ? ' que não seja terreno' : ''}`, descarta_nome: e => `${e.target === 'opponent' ? 'o oponente alvo' : 'o jogador alvo'} revela a mão e descarta todas as cartas com esse nome` }); // T-77
 Object.assign(LINHA_T, { vira_para_baixo: ev => ev.failed ? `${ev.name}: ${ev.motivo || 'nada muda'}` : `${ev.name} virou uma criatura para baixo (fica 2/2, sem nome nem habilidades)`, vira_para_cima: ev => ev.revelada ? `\u2063${ev.name}: ${ev.target} foi revelada (instantânea ou feitiço manifestado: continua virada para baixo)` : ev.failed ? `${ev.name}: ${ev.motivo || 'nada muda'}` : `${ev.name} virou ${ev.target} para cima` }); // T-74 · 701.40g: a linha que revela não é mascarada // T-73 · CR 708.2a / 708.8
