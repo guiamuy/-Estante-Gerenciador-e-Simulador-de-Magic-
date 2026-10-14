@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs';
 import { E, S as SC, J, act, poe, legais, passaAte, valorDeMana } from './listas.mjs';
 
 const L = n => JSON.parse(readFileSync(new URL('./.listas/' + n, import.meta.url), 'utf8')).cartas;
-const NOMES = ['Grim Discovery', 'Branching Bolt', 'Winterflame', 'Fissure Vent', 'Crush Contraband', 'Vandalize', 'Rain of Thorns', 'Casualties of War', 'Cankerbloom', 'Insidious Fungus', 'Balm of Restoration', 'Potatoes'];
+const NOMES = ['Grim Discovery', 'Branching Bolt', 'Winterflame', 'Fissure Vent', 'Crush Contraband', 'Vandalize', 'Rain of Thorns', 'Casualties of War', 'Cankerbloom', 'Insidious Fungus', 'Balm of Restoration', 'Potatoes', 'Misfortune', 'Library of Lat-Nam'];
 const C = {};
 for (const c of L('oficiais-tipos.json').filter(x => NOMES.includes(x.name)))
   C[c.name] = { name: c.name, type_line: c.type_line, mana_cost: c.mana_cost, cmc: valorDeMana(c.mana_cost), keywords: [], oracle_text: c.oracle_text, colors: [], power: c.power, toughness: c.toughness };
@@ -186,4 +186,37 @@ test('CR 700.2a · T-106: o modo da ativada fica na habilidade da pilha e no reg
   eq([hab && hab.modoT, r.events.some(e => e.do === 'modo_ativada' && e.rotulo === 'Destruir um artefato')], [0, true]);
   const v = SC.validateScript({ name: 'X', abilities: [{ kind: 'activated', cost: { mana: '{1}' }, effects: [{ do: 'gain', amount: 1 }], modes: [{ label: 'a', effects: [{ do: 'gain', amount: 1 }] }, { label: 'b', effects: [{ do: 'gain', amount: 2 }] }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } });
   assert.ok(v.some(e => /modos/.test(e)), JSON.stringify(v));
+});
+
+test('CR 700.2e · T-107: Misfortune (texto oficial) — vai à pilha sem modo; o oponente escolhe antes de alguém ter prioridade; −1/−1 nas criaturas dele e 4 de dano', () => {
+  let s = mesa(); let m, u, x; [s, m] = poe(s, 0, 'Misfortune', 'hand'); [s, u] = poe(s, 0, 'Urso', 'battlefield'); [s, x] = poe(s, 1, 'Urso', 'battlefield'); s = mana(s);
+  const os = legais(s, 0, a => a.t === 'cast' && a.oid === m);
+  eq([os.length, os[0].mode], [1, undefined], 'uma oferta, sem modo');
+  assert.throws(() => act(s, { ...os[0], mode: 0 }), /oponente/);
+  const r = E.apply(s, os[0]); s = r.state;
+  eq([s.pending && s.pending.kind, s.pending && s.pending.p, s.pending && s.pending.options.length], ['choose_mode', 1, 2], 'B escolhe');
+  const r2 = E.apply(s, legais(s, 1).find(a => a.t === 'choose_mode' && a.index === 1)); s = r2.state;
+  assert.ok(r2.events.some(e => e.do === 'modo_do_oponente'), 'no registro');
+  s = resolveTudo(s);
+  eq([s.players[1].life, (s.objects[x].counters || {}).m1m1, (s.objects[u].counters || {}).p1p1 || 0], [16, 1, 0]);
+});
+
+test('CR 700.2e · T-107: Misfortune — o oponente escolhe o primeiro modo: +1/+1 nas suas criaturas e 4 de vida', () => {
+  let s = mesa(); let m, u; [s, m] = poe(s, 0, 'Misfortune', 'hand'); [s, u] = poe(s, 0, 'Urso', 'battlefield'); s = mana(s); const v = s.players[0].life;
+  s = act(s, legais(s, 0, a => a.t === 'cast' && a.oid === m)[0]); s = act(s, legais(s, 1).find(a => a.t === 'choose_mode' && a.index === 0)); s = resolveTudo(s);
+  eq([s.players[0].life - v, s.objects[u].counters.p1p1], [4, 1]);
+});
+
+test('CR 700.2e · T-107: Library of Lat-Nam (texto oficial) — o oponente escolhe "compra três na próxima manutenção": nada agora, três na manutenção', () => {
+  let s = mesa(); let l; [s, l] = poe(s, 0, 'Library of Lat-Nam', 'hand'); s = mana(s); const mao = s.zones[0].hand.length;
+  s = act(s, legais(s, 0, a => a.t === 'cast' && a.oid === l)[0]); s = act(s, legais(s, 1).find(a => a.t === 'choose_mode' && a.index === 0)); s = resolveTudo(s);
+  eq(s.zones[0].hand.length - mao, -1, 'só saiu a mágica');
+  s = passaAte(s, x => x.turn.active === 1 && x.turn.step === 'draw');
+  eq(s.zones[0].hand.length - mao, 2, 'na manutenção seguinte (a do oponente), três cartas');
+});
+
+test('CR 700.2e · T-107: validador — modoPeloOponente só com modos sem alvo', () => {
+  const v = sc => J(SC.validateScript({ name: 'X', ...sc, example: { target: 'none', expect: { selfLife: 0 } } }));
+  eq(v({ modoPeloOponente: true, modes: [{ label: 'a', effects: [{ do: 'gain', amount: 1 }] }, { label: 'b', effects: [{ do: 'draw', amount: 1 }] }] }), []);
+  assert.ok(v({ modoPeloOponente: true, modes: [{ label: 'a', effects: [{ do: 'destroy', target: 'creature' }] }, { label: 'b', effects: [{ do: 'draw', amount: 1 }] }] }).some(e => /modoPeloOponente/.test(e)));
 });

@@ -6837,6 +6837,15 @@ const RAW_SCRIPTS = [
     { label: 'Destruir um terreno', effects: [{ do: 'destroy', target: 'land' }] },
     { label: 'Destruir um planeswalker', effects: [{ do: 'destroy', target: { tipos: ['planeswalker'] } }] }],
     example: { action: 'mode:1', target: 'enemy-creature', expect: { gone: true } } },
+  // T-107 · CR 700.2e · "An opponent chooses one —" (Oracle do Forge, clone de 13/10/2026, conferido no master em 14/10/2026). Numa mesa de dois, "that player" é o oponente.
+  { name: 'Misfortune', modoPeloOponente: true, modes: [ // "An opponent chooses one — • You put a +1/+1 counter on each creature you control and gain 4 life. • You put a -1/-1 counter on each creature that player controls and Misfortune deals 4 damage to that player."
+    { label: 'Você põe +1/+1 em cada criatura sua e ganha 4 de vida', effects: [{ do: 'counters', amount: 1, cada: { tipos: ['creature'], de: 'you' } }, { do: 'gain', amount: 4 }] },
+    { label: 'Você põe −1/−1 em cada criatura do oponente e causa 4 de dano a ele', effects: [{ do: 'counters', amount: 1, tipo: 'm1m1', cada: { tipos: ['creature'], de: 'opponent' } }, { do: 'damage', amount: 4, target: 'each-opponent' }] }],
+    example: { target: 'none', expect: { selfLife: 4 } } }, // o cenário escolhe pela primeira oferta: +1/+1 e 4 de vida
+  { name: 'Library of Lat-Nam', modoPeloOponente: true, modes: [ // "An opponent chooses one — • You draw three cards at the beginning of the next turn's upkeep. • You search your library for a card, put that card into your hand, then shuffle."
+    { label: 'Você compra três cartas na próxima manutenção', effects: [{ do: 'delayed', when: 'next-upkeep', effects: [{ do: 'draw', amount: 3 }] }] },
+    { label: 'Você busca uma carta no grimório e põe na mão', effects: [{ do: 'search', amount: 1, filter: {}, to: 'hand' }] }],
+    example: { target: 'none', expect: { selfLife: 0 } } },
   // T-105 · CR 700.2a · habilidade ativada modal (Oracle do Forge, clone de 13/10/2026, conferido no master em 14/10/2026).
   { name: 'Cankerbloom', abilities: [{ kind: 'activated', cost: { mana: '{1}', sacrifice: true }, modes: [ // "{1}, Sacrifice Cankerbloom: Choose one — • Destroy target artifact. • Destroy target enchantment. • Proliferate."
     { label: 'Destruir um artefato', effects: [{ do: 'destroy', target: 'artifact' }] },
@@ -9815,6 +9824,7 @@ function monarcaErrosT(sc) {
   for (const e of [...((sc && sc.effects) || []), ...((sc && sc.abilities) || []).flatMap(ab => ab.effects || [])]) if (e && e.do === 'pula' && (!['desvirar', 'compra', 'combate', 'turno'].includes(e.o) || (e.quando != null && (e.o !== 'combate' || !['neste-turno', 'todas-do-proximo-turno'].includes(e.quando))))) errs.push("pula: o é 'desvirar', 'compra', 'combate' ou 'turno'; quando ('neste-turno' | 'todas-do-proximo-turno') só no combate"); // T-99
   for (const k of ['naoPodePerder', 'naoPodeVencer']) if (sc && sc.self && sc.self[k] != null && !['voce', 'oponentes'].includes(sc.self[k])) errs.push(`self.${k} é 'voce' ou 'oponentes'`); // T-96 · CR 104.3
   for (const ab of ((sc && sc.abilities) || [])) if (ab && ab.kind === 'activated' && (ab.modes || []).length && (ab.effects || []).length) errs.push('habilidade ativada modal: os efeitos vão nos modos, não em "effects"'); // T-106 · 700.2a
+  if (sc && sc.modoPeloOponente != null && !(sc.modoPeloOponente === true && (sc.modes || []).length >= 2 && !sc.modeCount && !(sc.effects || []).length && sc.modes.every(m => !((m && m.effects) || []).some(isTargeted)))) errs.push('"modoPeloOponente" (700.2e): true, com dois ou mais modos sem alvo, sem modeCount e sem "effects"'); // T-107
   if (sc && sc.modeMin != null && !(Number.isInteger(sc.modeMin) && sc.modeMin >= 1 && Number.isInteger(sc.modeCount) && sc.modeMin < sc.modeCount && !sc.modeRepeat)) errs.push('"modeMin" é um inteiro de 1 até modeCount − 1, sem repetir modos ("choose one or both", "choose one or more")'); // T-104 · CR 700.2d
   if (sc && sc.self && sc.self.emVezDePerder != null && sc.self.emVezDePerder !== 'lich') errs.push("self.emVezDePerder conhece só 'lich' (Lich's Mirror)"); // T-96 · CR 704.7
   if (sc && sc.self && sc.self.soEmCombate != null && sc.self.soEmCombate !== true) errs.push('self.soEmCombate só vale como true'); // T-92 · "Cast this spell only during combat"
@@ -18844,6 +18854,7 @@ function createGame(setup) {
     if (sc.soulbond) f.script.soulbond = sc.soulbond; // S39 · vínculo de alma
     if (sc.evidence) f.script.evidence = sc.evidence; // S41 · colher provas
     if (sc.modes) f.script.modes = sc.modes;
+    if (sc.modoPeloOponente) f.script.modoPeloOponente = true; // T-107 · CR 700.2e (Toca ponto comum: fatos do script)
     if (sc.alt) f.script.alt = sc.alt;
     if (altsImpressosK(f).length) f.script.alt = (f.script.alt || []).concat(altsImpressosK(f)); // K-8/K-9 · evocar e arremeter são mais custos alternativos, depois dos do script
     if (f.entrelacarK && (f.script.modes || []).length > 1 && !f.script.modeCount) f.script.modes = f.script.modes.concat([modoEntrelacadoK(f.script.modes, f.entrelacarK)]); // K-34 · 702.42a: "choose all modes" é mais um modo, com custo adicional
@@ -23235,6 +23246,21 @@ function extraCostCandidates(s, p, spec, selfOid, needUntapped) {
     (!needUntapped || !o.tapped)).map(o => o.oid);
 }
 /** CR 700.2d · conjuntos de k modos (com repetição quando a carta deixa), em ordem crescente. */
+/** T-107 · CR 700.2e · "An opponent chooses one —" (`modoPeloOponente: true`): a mágica vai à pilha sem modo e, antes de alguém ter
+ * prioridade, o oponente (numa mesa de dois, o único) escolhe o modo numa decisão `choose_mode`; o modo fica na mágica (`mode`) e a cópia o
+ * leva (700.2g). Os modos não têm alvo (o validador recusa): a escolha de alvo depois do modo do oponente (Fatal Lore) fica de fora. */
+function modoDoOponentePendenteT(s, oid) {
+  const o = s.objects[oid], sc = o && ((s.facts[o.name] || {}).script || {});
+  if (!o || !sc.modoPeloOponente || o.mode != null || o.copiaDeMagia) return;
+  const quem = nextAlive(s, o.controller); if (quem == null || quem === o.controller) return;
+  s.pending = { kind: 'choose_mode', p: quem, options: (sc.modes || []).map(m => m.label || 'opção'), name: o.name, modoDoOponenteT: oid };
+}
+function escolheModoDoOponenteT(s, a, ev, pk) {
+  const o = s.objects[pk.modoDoOponenteT], i = a.index || 0;
+  if (!(pk.options || [])[i]) throw new RuleError('escolha', 'escolha um dos modos');
+  s.pending = null;
+  if (o && o.zone === 'stack') { o.mode = i; ev.push({ kind: 'effect', do: 'modo_do_oponente', name: o.name, target: s.players[a.p].name, rotulo: pk.options[i] }); }
+}
 /** T-106 · CR 103.8a · quem começa uma partida de dois jogadores pula o passo de compra do primeiro turno: a mesa mantém o passo (as
  * partidas-referência passam a prioridade nele), sem a compra e sem os gatilhos "no começo do passo de compra" (Kami of the Crescent Moon,
  * Howling Mine). O passo de compra a mais (500.9) não é ele. */
@@ -23869,6 +23895,7 @@ const HANDLERS = {
       if (!Array.isArray(a.modes) || a.modes.length > nModos || a.modes.length < minModosT || a.modes.some(m => !modes[m])) throw new RuleError('modo', minModosT < nModos ? `escolha de ${minModosT} a ${nModos} modos` : `escolha ${nModos} modos`);
       if (!f.script.modeRepeat && new Set(a.modes).size !== a.modes.length) throw new RuleError('modo', 'escolha modos diferentes');
       if (a.modes.some((m, k) => k > 0 && m < a.modes[k - 1])) throw new RuleError('modo', 'os modos vão na ordem impressa'); // T-106 · os alvos seguem os modos em ordem
+    } else if ((f.script || {}).modoPeloOponente) { if (a.mode != null) throw new RuleError('modo', 'quem escolhe o modo é um oponente'); /* T-107 · CR 700.2e (Toca ponto comum: HANDLERS.cast) */
     } else if (modes.length && (a.mode == null || !modes[a.mode])) throw new RuleError('modo', 'escolha um modo');
     // CR 702.33 · reforço: pago junto com o custo; multirreforço quantas vezes quiser
     const reforco = f.script && f.script.kicker;
@@ -24194,6 +24221,7 @@ const HANDLERS = {
   choose_mode(s, a, ev) { // S56 · escolhe o modo do gatilho e segue
     if (!s.pending || s.pending.kind !== 'choose_mode' || s.pending.p !== a.p) throw new RuleError('tempo', 'nenhum gatilho esperando escolha');
     const pk = s.pending;
+    if (pk.modoDoOponenteT) return escolheModoDoOponenteT(s, a, ev, pk); // T-107 · 700.2e (Toca ponto comum: choose_mode)
     if (pk.opcoesK) return escolheOpcaoK(s, a, ev, pk); // K-38 · escolha entre resultados rotulados (tumulto, fabricar) (Toca ponto comum: choose_mode)
     if (pk.compra) { // CR2b.1 · "may draw up to N": a opção escolhida diz quantas
       const n = pk.compra.max - (a.index || 0);
@@ -24788,6 +24816,7 @@ function apply(state, action) {
   barraDetidaV(s, action); // V-21 · 701.35a: habilidade ativada de permanente detida · Toca ponto comum: apply (uma linha)
   barraTravadaPeloNomeT(s, action); // T-79 · CR 201.4 · "activated abilities of sources with the chosen name can't be activated" (Pithing Needle, Phyrexian Revoker) · Toca ponto comum: apply (uma linha)
   HANDLERS[action.t](s, action, events);
+  if (action.oid != null && s.objects[action.oid] && s.objects[action.oid].zone === 'stack' && !s.pending) modoDoOponentePendenteT(s, action.oid); // T-107 · 700.2e: o oponente escolhe o modo quando quem conjura escolheria (Toca ponto comum: apply, uma linha)
   if (s.players.some(pl => pl.manaCombateT)) podaManaDeCombateT(s); // T-102 · 702.189a: a mana da dobra de fogo gasta não volta (Toca ponto comum: apply, uma linha)
   if (!s.pending && s.divisaoPendente) { const oid = s.divisaoPendente; delete s.divisaoPendente; if (s.objects[oid] && s.objects[oid].zone === 'stack') iniciaDivisao(s, oid, events); } // M-376
   if (!s.pending && (s.resume || s.magiaSuspensa)) resumeEffects(s, events); // M-374 · também a mágica parada numa escolha que já acabou · CR 704.4 · a decisão acabou: o resto da resolução vem antes de qualquer ação de estado
@@ -24995,7 +25024,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
       }
       return combos.map(targets => ({ t: 'cast', p, oid: o.oid, modes: ms, ...(need.length ? { targets } : {}) }));
     });
-    if (modes.length) return modes.flatMap((m, i) => castWith(o, expandeAlvos(s, { xPaid: xv || 0 }, m.effects || []).filter(SC.isTargeted), i, xv));
+    if (modes.length && !f.script.modoPeloOponente) return modes.flatMap((m, i) => castWith(o, expandeAlvos(s, { xPaid: xv || 0 }, m.effects || []).filter(SC.isTargeted), i, xv)); // T-107 · 700.2e: o modo é do oponente (Toca ponto comum: ofertas de conjurar)
     return castWith(o, expandeAlvos(s, { xPaid: xv || 0 }, (f.script && f.script.effects) || []).filter(SC.isTargeted), undefined, xv);
   };
   // CR 702.33 · quantas vezes o reforço cabe na mana (multirreforço até 5)
@@ -32832,6 +32861,7 @@ Object.assign(EFEITO_PT_T, { vira_para_baixo: () => 'vira a criatura alvo para b
 const predicadosPT_T = sel => (sel.tapped ? ' virada' : sel.tapped === false ? ' desvirada' : '') + (sel.ativadaNoTurno ? ' que teve habilidade ativada neste turno' : '') + /* T-87 */ (sel.terrenoBasico === false ? ' que não seja terreno básico' : sel.terrenoBasico ? ' que é terreno básico' : '') + /* T-80 */ (sel.historico ? ' histórica' : sel.historico === false ? ' que não é histórica' : '') + (sel.foraDaLei ? ' fora da lei' : sel.foraDaLei === false ? ' que não é fora da lei' : '') + /* T-60 */ (sel.modificada ? ' modificada' : sel.modificada === false ? ' que não está modificada' : '');
 const LINHA_T = { preparada: ev => (ev.failed ? `${ev.name}: ${ev.motivo || 'não ficou preparada'}, nada muda` : `${ev.name} está preparada (pode conjurar uma cópia de ${ev.target})`), despreparada: ev => `${ev.name} deixou de estar preparada`, ciclo: ev => `Virou ${ev.target}${ev.motivo ? ` (${ev.motivo})` : ''}`, masmorra_completa: ev => `${ev.target} completou a masmorra ${ev.name}`, caso_resolvido: ev => (ev.failed ? `${ev.name}: a condição não valia mais, o Caso não foi resolvido` : `${ev.name} foi resolvido`), estacao: ev => (ev.failed ? `${ev.name}: a nave saiu do campo, a estação não pôs marcadores` : `${ev.name} recebeu ${ev.amount} marcador${ev.amount === 1 ? '' : 'es'} de carga (estação)${ev.total != null ? ` · ${ev.total} no total` : ''}`), selada: ev => (ev.failed ? `${ev.name}: a montaria saiu do campo, não foi selada` : `${ev.name} foi selada`), virar_carta: ev => (ev.failed ? `${ev.name} não virou${ev.motivo ? ` (${ev.motivo})` : ''}` : `${ev.name} virou: agora é ${ev.target}`), porta: ev => (ev.failed ? `${ev.name}: nenhuma porta para trancar ou destrancar` : `${ev.name} ${ev.acao} ${ev.porta} (${ev.target})`), nivel_sobe: ev => (ev.failed ? `${ev.name}: saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu de nível (nível ${ev.nivel})`), nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, converter: ev => `${ev.name} converteu em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
 Object.assign(LINHA_T, { descarta_a_mao: ev => `${ev.target} descartou a mão (${ev.amount === 1 ? 'uma carta' : ev.amount + ' cartas'}; ${ev.name})` }); Object.assign(EFEITO_PT_T, { descarta_a_mao: e => `${e.target === 'self' ? 'você descarta' : e.target === 'each-player' ? 'cada jogador descarta' : 'o jogador descarta'} a mão` }); // T-101
+Object.assign(LINHA_T, { modo_do_oponente: ev => `${ev.target} escolheu o modo de ${ev.name}: ${ev.rotulo}` }); // T-107 · 700.2e
 Object.assign(LINHA_T, { modo_ativada: ev => `${ev.target} ativou ${ev.name}${ev.rotulo ? ': ' + ev.rotulo : ''}` }); // T-106 · 700.2a: o modo escolhido no registro
 Object.assign(LINHA_T, { passo_extra: ev => ev.failed ? `${ev.name}: não é o turno de ${ev.target}, nada acontece` : ev.n === 0 ? `${ev.name}: nenhum passo a mais` : `${ev.target} tem ${ev.passo === 'fase-inicial' ? (ev.n > 1 ? ev.n + ' fases iniciais' : 'uma fase inicial') : ev.passo === 'draw' ? (ev.n > 1 ? ev.n + ' passos de compra' : 'um passo de compra') : (ev.n > 1 ? ev.n + ' manutenções' : 'uma manutenção')} a mais depois ${ev.aposFase ? 'desta fase' : 'deste passo'} (${ev.name})` }); // T-101 · T-103
 Object.assign(EFEITO_PT_T, { passo_extra: e => `${e.target === 'enchanted-player' ? 'o jogador encantado' : e.target === 'player' ? 'o jogador alvo' : 'você'} ganha ${e.fase === 'inicial' ? 'uma fase inicial (desvirar, manutenção e compra)' : (e.n != null && e.n !== 1 ? (typeof e.n === 'number' ? e.n : (e.n.per === 'trigger-value' ? 'tantas' : 'X')) + (e.passo === 'draw' ? ' passos de compra' : ' manutenções') : e.passo === 'draw' ? 'um passo de compra' : 'uma manutenção')} a mais depois ${e.fase === 'inicial' || e.apos === 'fase' ? 'desta fase' : 'deste passo'}${e.n && e.n.per === 'trigger-value' ? ' (uma para cada ponto de dano)' : ''}` }); // T-101 · T-103

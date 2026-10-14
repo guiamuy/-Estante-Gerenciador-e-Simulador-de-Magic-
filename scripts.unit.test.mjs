@@ -362,6 +362,7 @@ function runExample(sc) {
     : how === 'equip' ? { t: 'activate', p: a, oid, index: equipIndex, targets: [{ oid: mine }] }
     : how.startsWith('activate') ? { t: 'activate', p: a, oid, index: Number(how.split(':')[1]), ...(soDaMao ? { fromHand: true } : {}), ...(target ? { targets: [target] } : {}), ...(porIdentidade ? { color: 'W' } : {}) }
       : { t: 'cast', p: a, oid, ...(target ? { targets: [target] } : {}) };
+  if (action.t === 'activate' && ((((sc.abilities || []).filter(x => x.kind === 'activated')[action.index || 0] || {}).cost || {}).revealColor)) action.pay = { ...(action.pay || {}), revelar: 0 }; // T-107 · Martyr of Sands: o cenário revela 0 (sem isso, o motor revela todas as brancas da mão, e a mão do cenário muda quando a biblioteca ganha cartas)
   const oferta = E.legalActions(s, a).find(x => x.t === action.t && x.oid === oid && (x.index || 0) === (action.index || 0) && x.color);
   if (oferta) action.color = oferta.color;
   // efeito com mais de um alvo: usa a combinação que a própria mesa oferece
