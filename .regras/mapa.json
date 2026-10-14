@@ -3718,13 +3718,16 @@
    "n": "500.11",
    "regra": "General",
    "titulo": "Pular passo, fase ou turno",
-   "status": "ausente",
-   "falta": "Só existem os dois saltos embutidos: sem atacantes pula bloqueio/dano (10740) e a primeira compra de quem começa (10692). Nenhum efeito de carta pula passo, fase ou turno (Fatespinner, Stasis-like, \"skip your next turn/untap step/draw step\").",
+   "status": "coberta",
    "esforco": "M",
    "depende": [
     "614.10 (substituição)"
    ],
-   "cartas": "rara"
+   "cartas": "rara",
+   "evidencia": "T-99 (14/10/2026): o passo, a fase ou o turno pulado não acontece — nem os gatilhos de começo de passo (tipos.pular.unit)",
+   "testes": [
+    "CR 614.10 / 500.11 · Moment of Silence (texto oficial): o jogador ativo pula a fase de combate deste turno — sem gatilho de início de combate, direto para a principal 2"
+   ]
   },
   {
    "n": "500.12",
@@ -5383,11 +5386,16 @@
    "n": "614.10",
    "regra": "Replacement Effects",
    "titulo": "Pular etapa, fase ou turno",
-   "status": "ausente",
-   "falta": "Nenhum efeito de pular (614.10a-b). A única pulada é a compra do primeiro turno, escrita na regra do turno (enterStep :10692), que não é substituição. advanceStep segue a lista STEPS fixa.",
+   "status": "coberta",
    "esforco": "M",
    "depende": [
     "500"
+   ],
+   "evidencia": "T-99 (14/10/2026): efeito `pula` — passo de desvirar e de compra, fase de combate (a próxima; \"neste turno\"; \"todas do próximo turno\") e turno; \"skip\" é \"em vez de, nada\": a conferência é na entrada do passo, fase ou turno; 614.10a o \"próximo\" espera a primeira ocorrência não pulada e dois pulam dois. Fatigue, Moment of Silence, False Peace, Meditate, Brine Elemental (tipos.pular.unit). 614.10b sem carta no vocabulário",
+   "testes": [
+    "CR 614.10 · Fatigue (texto oficial): o jogador alvo pula o próximo passo de compra — o dele, mesmo que não seja o turno de agora",
+    "CR 614.10a · dois \"pule o próximo\" pulam dois",
+    "CR 614.10 · Meditate (texto oficial): compra quatro e você pula o próximo turno — o oponente joga dois seguidos"
    ]
   },
   {

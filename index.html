@@ -5569,6 +5569,7 @@ const EFFECTS = {
   lutador: { fields: [], targets: ['creature', 'creature-you-control'] },
   fight: { fields: [], targets: ['creature', 'creature-opponent-controls', 'creature-you-control'] }, // quem: 'self-source' (a permanente fonte luta) | 'primeiro-alvo' (luta a criatura anotada pelo `lutador` anterior)
   /* ↓ T · efeitos da trilha tipos */
+  pula: { fields: [], targets: ['self', 'player', 'opponent', 'each-opponent'] }, // T-99 · CR 614.10 · "skips their next [untap | draw] step / combat phase / turn": `o` ('desvirar' | 'compra' | 'combate' | 'turno'); `quando` ('neste-turno' | 'todas-do-proximo-turno') só para o combate
   recomeca_jogo: { fields: [], targets: ['self'] }, // T-95 · CR 727 · "Restart the game, leaving in exile all non-Aura permanent cards exiled with ~. Then put those cards onto the battlefield under your control."
   exila_da_propria_mao: { fields: [], targets: ['player', 'opponent'] }, // T-95 · "Target player exiles a card from their hand." (quem exila escolhe; a carta fica marcada como exilada com a fonte, 607.2a)
   marca_exiladas: { fields: [], targets: ['self', 'first-target'] }, // T-95 · CR 607.2a · as cartas exiladas pelo efeito anterior ficam "exiled with ~" (first-target: o alvo exilado)
@@ -6770,6 +6771,22 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-99 · CR 614.10 / 500.11 · pular passo, fase e turno (Oracle do Forge, clone de 13/10/2026, conferido no master em 14/10/2026)
+  { name: 'Fatigue', effects: [{ do: 'pula', o: 'compra', target: 'player' }], // "Target player skips their next draw step."
+    example: { target: 'opponent', expect: { selfLife: 0 } } },
+  { name: 'Moment of Silence', effects: [{ do: 'pula', o: 'combate', quando: 'neste-turno', target: 'player' }], // "Target player skips their next combat phase this turn."
+    example: { target: 'opponent', expect: { selfLife: 0 } } },
+  { name: 'False Peace', effects: [{ do: 'pula', o: 'combate', quando: 'todas-do-proximo-turno', target: 'player' }], // "Target player skips all combat phases of their next turn."
+    example: { target: 'opponent', expect: { selfLife: 0 } } },
+  { name: 'Meditate', effects: [{ do: 'draw', amount: 4 }, { do: 'pula', o: 'turno', target: 'self' }], // "Draw four cards. You skip your next turn."
+    example: { target: 'none', expect: { handDelta: 4 } } },
+  { name: 'Wormfang Manta', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'pula', o: 'turno', target: 'self' }] }, // "Flying · When Wormfang Manta enters, you skip your next turn."
+    { kind: 'triggered', when: 'leaves-battlefield', effects: [{ do: 'turno_extra' }] }], // "When Wormfang Manta leaves the battlefield, you take an extra turn after this one."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Chronatog', abilities: [{ kind: 'activated', cost: { mana: '{0}' }, oncePerTurn: true, effects: [{ do: 'continuo', target: 'self-source', poder: 3, resistencia: 3 }, { do: 'pula', o: 'turno', target: 'self' }] }], // "{0}: Chronatog gets +3/+3 until end of turn. You skip your next turn. Activate only once each turn."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Brine Elemental', morph: { mana: '{5}{U}{U}' }, abilities: [{ kind: 'triggered', when: 'turned-face-up', effects: [{ do: 'pula', o: 'desvirar', target: 'each-opponent' }] }], // "Morph {5}{U}{U} · When Brine Elemental is turned face up, each opponent skips their next untap step."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // T-96 · CR 104.3 / 704.7 · não poder perder ou vencer e substituir a derrota (Oracle do Forge, clone de 13/10/2026, conferido no master em 14/10/2026)
   { name: 'Platinum Angel', self: { naoPodePerder: 'voce', naoPodeVencer: 'oponentes' }, // "Flying · You can't lose the game and your opponents can't win the game."
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
@@ -9676,6 +9693,7 @@ function monarcaErrosT(sc) {
   for (const ab of abs) if (ab && ab.umaVezPorTurno != null && (ab.umaVezPorTurno !== true || ab.kind !== 'triggered' || ab.when !== 'crime')) errs.push('"umaVezPorTurno" só vale como true, num gatilho "crime"'); // T-86 · 603.2h
   for (const ab of abs) if (ab && ab.kind === 'triggered' && ab.when === 'expend' && !(Number.isInteger(ab.n) && ab.n >= 1)) errs.push('gatilho "expend": "n" é um inteiro, 1 ou mais (o N de "whenever you expend N")'); // T-85
   if (sc && sc.self && sc.self.atacaSeMonarcaDefende != null && sc.self.atacaSeMonarcaDefende !== true) errs.push('self.atacaSeMonarcaDefende só vale como true'); // T-70
+  for (const e of [...((sc && sc.effects) || []), ...((sc && sc.abilities) || []).flatMap(ab => ab.effects || [])]) if (e && e.do === 'pula' && (!['desvirar', 'compra', 'combate', 'turno'].includes(e.o) || (e.quando != null && (e.o !== 'combate' || !['neste-turno', 'todas-do-proximo-turno'].includes(e.quando))))) errs.push("pula: o é 'desvirar', 'compra', 'combate' ou 'turno'; quando ('neste-turno' | 'todas-do-proximo-turno') só no combate"); // T-99
   for (const k of ['naoPodePerder', 'naoPodeVencer']) if (sc && sc.self && sc.self[k] != null && !['voce', 'oponentes'].includes(sc.self[k])) errs.push(`self.${k} é 'voce' ou 'oponentes'`); // T-96 · CR 104.3
   if (sc && sc.self && sc.self.emVezDePerder != null && sc.self.emVezDePerder !== 'lich') errs.push("self.emVezDePerder conhece só 'lich' (Lich's Mirror)"); // T-96 · CR 704.7
   if (sc && sc.self && sc.self.soEmCombate != null && sc.self.soEmCombate !== true) errs.push('self.soEmCombate só vale como true'); // T-92 · "Cast this spell only during combat"
@@ -20000,6 +20018,7 @@ const naoDesviraNoPasso = (s, o) => !!o.naoDesviraProximo || (!semImpressas(s, o
   || attachedTo(s, o).some(x => !semImpressas(s, x) && !!((((s.facts[x.name] || {}).script || {}).grants || {}).naoDesvira))
   || naoDesviraPeloMonarcaT(s, o); // T-70 · CR 725.5 · "doesn't untap … unless that player is the monarch" (Toca ponto comum: naoDesviraNoPasso)
 function enterStep(s, step) {
+  if (s.pulosT) { const prox = passoPuladoT(s, step); if (prox) return enterStep(s, prox); } // T-99 · CR 614.10 / 500.11 · pular o passo ou a fase (Toca ponto comum: enterStep)
   emptyPools(s); // 500.4: reserva esvazia entre passos
   s.turn.step = step; s.turn.passes = 0; s.turn.priority = s.turn.active;
   const a = s.turn.active;
@@ -20077,7 +20096,7 @@ function finishCleanup(s) {
   s.pending = null;
   s.turn.firstTurn = false;
   s.turn.number++;
-  s.turn.active = proximoTurno(s); // CR2g.2 · 500.7: turnos extras antes do próximo jogador
+  s.turn.active = proximoTurno(s); if (s.pulosT) s.turn.active = turnoPuladoT(s, s.turn.active); /* T-99 · CR 614.10 · pular o turno (Toca ponto comum: finishCleanup) */ // CR2g.2 · 500.7: turnos extras antes do próximo jogador
   if (s.contaTurnos) s.contaTurnos[s.turn.active] = (s.contaTurnos[s.turn.active] || 0) + 1; // M-342
   // S57 · "até o seu próximo turno" termina quando esse turno começa
   for (const pl of s.players) if (pl.efeitos) { pl.efeitos = pl.efeitos.filter(e => !(e.ate === 'seu-proximo-turno' && e.by === s.turn.active)); if (!pl.efeitos.length) delete pl.efeitos; } // CR2d.10
@@ -22074,6 +22093,7 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'lutador': if (obj) s.lutadorV = { fonte: src.oid, fz: encarnacaoV(s, src), oid: obj.oid, z: obj.zc || 0 }; break; // V-1/V-5 · anota quem luta; a luta é o `fight` seguinte, que apaga a anotação
     case 'fight': lutar(s, src, eff, tgt, events); break; // V-1 · 701.14
     /* ↓ T · casos de applyEffect da trilha tipos */
+    case 'pula': pulaT(s, src, eff, playerOf(), events); break; // T-99 · CR 614.10
     case 'recomeca_jogo': recomecaJogoT(s, src, events); break; // T-95 · CR 727
     case 'exila_da_propria_mao': exilaDaPropriaMaoT(s, src, playerOf(), events); break; // T-95
     case 'marca_exiladas': marcaExiladasT(s, src, eff.target === 'first-target' ? obj : null, events); break; // T-95 · CR 607.2a
@@ -29684,6 +29704,46 @@ function recomecaJogoT(s, src, events) {
   events.push({ kind: 'effect', do: 'recomeca', name: src.name, target: s.players[p].name, isentas: isentas.map(x => s.objects[x].name) });
 }
 const PERM_TYPES_T = ['artifact', 'battle', 'creature', 'enchantment', 'land', 'planeswalker'];
+/* ---------------- T-99 · CR 614.10 / 500.11 · pular passo, fase e turno ----------------
+   `s.pulosT` (só existe quando algo manda pular): cada registro é { p, o, … }. "Skip" é "em vez de fazer, nada" (614.10) e o pulado
+   não acontece (500.11): nada do que estava marcado para ele acontece, e o "próximo" espera a primeira ocorrência que não foi pulada
+   (614.10a; dois "pule o próximo" pulam dois). Um passo ou fase que já começou não é pulado (a conferência é na entrada).
+   - `desvirar` e `compra`: o próximo passo daquele nome do jogador; `combate`: a próxima fase de combate dele (todos os passos, direto
+     para a fase principal seguinte; "neste-turno" só no turno em que foi pedido; "todas-do-proximo-turno": todas as do próximo turno dele).
+   - `turno`: o próximo turno dele não acontece; vem o de quem jogaria depois (também com turnos extras). */
+const PASSO_DO_PULO_T = { desvirar: 'untap', compra: 'draw' };
+function pulaT(s, src, eff, quem, events) {
+  const ctrl = src.controller, quais = eff.target === 'each-opponent' ? s.players.map((_, i) => i).filter(i => i !== ctrl && !s.players[i].lost) : [quem];
+  for (const p of quais) {
+    const r = { p, o: eff.o };
+    if (eff.o === 'combate' && eff.quando === 'neste-turno') r.turno = s.turn.number;
+    if (eff.o === 'combate' && eff.quando === 'todas-do-proximo-turno') { r.todas = true; r.apos = s.turn.number; }
+    (s.pulosT = s.pulosT || []).push(r);
+    events.push({ kind: 'effect', do: 'pula', name: src.name, target: s.players[p].name, o: eff.o, quando: eff.quando || null });
+  }
+}
+function passoPuladoT(s, step) {
+  const a = s.turn.active, n = s.turn.number;
+  s.pulosT = s.pulosT.filter(r => !(r.turno != null && r.turno < n) && !(r.usadoEm != null && r.usadoEm < n)); // "neste turno" e "todas daquele turno" vencem
+  let i = -1;
+  if (step === 'combat_begin') i = s.pulosT.findIndex(r => r.p === a && r.o === 'combate' && (r.turno != null ? r.turno === n : r.todas ? (r.usadoEm === n || (r.usadoEm == null && n > r.apos)) : true));
+  else i = s.pulosT.findIndex(r => r.p === a && PASSO_DO_PULO_T[r.o] === step);
+  if (i < 0) return null;
+  const r = s.pulosT[i];
+  if (r.todas) r.usadoEm = n; else s.pulosT.splice(i, 1);
+  if (!s.pulosT.length) delete s.pulosT;
+  (s.puladosT = s.puladosT || []).push({ p: a, o: r.o, turno: n }); // para o registro e os testes
+  return step === 'combat_begin' ? 'main2' : STEPS[STEPS.indexOf(step) + 1];
+}
+function turnoPuladoT(s, p) {
+  for (let k = 0; k < 8 && s.pulosT; k++) {
+    const i = s.pulosT.findIndex(r => r.p === p && r.o === 'turno'); if (i < 0) return p;
+    s.pulosT.splice(i, 1); if (!s.pulosT.length) delete s.pulosT;
+    (s.puladosT = s.puladosT || []).push({ p, o: 'turno', turno: s.turn.number });
+    s.turn.active = p; p = proximoTurno(s);
+  }
+  return p;
+}
 /* ---------------- T-96 · CR 104.3 / 104.2a / 704.7 · não poder perder, não poder vencer e substituir a derrota ----------------
    `self.naoPodePerder: 'voce' | 'oponentes'` ("You can't lose the game" / "your opponents can't lose the game") e `self.naoPodeVencer: 'voce' |
    'oponentes'` ("You can't win the game" / "your opponents can't win the game"), de permanente no campo com as habilidades impressas.
@@ -32498,6 +32558,8 @@ Object.assign(EFEITO_PT_T, { vira_para_baixo: () => 'vira a criatura alvo para b
 /** T-59 · CR 700.6 / 700.12 / 700.9 · os predicados de tipo na frase do seletor. */
 const predicadosPT_T = sel => (sel.tapped ? ' virada' : sel.tapped === false ? ' desvirada' : '') + (sel.ativadaNoTurno ? ' que teve habilidade ativada neste turno' : '') + /* T-87 */ (sel.terrenoBasico === false ? ' que não seja terreno básico' : sel.terrenoBasico ? ' que é terreno básico' : '') + /* T-80 */ (sel.historico ? ' histórica' : sel.historico === false ? ' que não é histórica' : '') + (sel.foraDaLei ? ' fora da lei' : sel.foraDaLei === false ? ' que não é fora da lei' : '') + /* T-60 */ (sel.modificada ? ' modificada' : sel.modificada === false ? ' que não está modificada' : '');
 const LINHA_T = { preparada: ev => (ev.failed ? `${ev.name}: ${ev.motivo || 'não ficou preparada'}, nada muda` : `${ev.name} está preparada (pode conjurar uma cópia de ${ev.target})`), despreparada: ev => `${ev.name} deixou de estar preparada`, ciclo: ev => `Virou ${ev.target}${ev.motivo ? ` (${ev.motivo})` : ''}`, masmorra_completa: ev => `${ev.target} completou a masmorra ${ev.name}`, caso_resolvido: ev => (ev.failed ? `${ev.name}: a condição não valia mais, o Caso não foi resolvido` : `${ev.name} foi resolvido`), estacao: ev => (ev.failed ? `${ev.name}: a nave saiu do campo, a estação não pôs marcadores` : `${ev.name} recebeu ${ev.amount} marcador${ev.amount === 1 ? '' : 'es'} de carga (estação)${ev.total != null ? ` · ${ev.total} no total` : ''}`), selada: ev => (ev.failed ? `${ev.name}: a montaria saiu do campo, não foi selada` : `${ev.name} foi selada`), virar_carta: ev => (ev.failed ? `${ev.name} não virou${ev.motivo ? ` (${ev.motivo})` : ''}` : `${ev.name} virou: agora é ${ev.target}`), porta: ev => (ev.failed ? `${ev.name}: nenhuma porta para trancar ou destrancar` : `${ev.name} ${ev.acao} ${ev.porta} (${ev.target})`), nivel_sobe: ev => (ev.failed ? `${ev.name}: saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu de nível (nível ${ev.nivel})`), nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, converter: ev => `${ev.name} converteu em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
+Object.assign(LINHA_T, { pula: ev => `${ev.target} vai pular ${({ desvirar: 'o próximo passo de desvirar', compra: 'o próximo passo de compra', combate: ev.quando === 'todas-do-proximo-turno' ? 'as fases de combate do próximo turno' : ev.quando === 'neste-turno' ? 'a próxima fase de combate deste turno' : 'a próxima fase de combate', turno: 'o próximo turno' })[ev.o]} (${ev.name})` }); // T-99
+Object.assign(EFEITO_PT_T, { pula: e => `${e.target === 'self' ? 'você pula' : e.target === 'each-opponent' ? 'cada oponente pula' : 'o jogador alvo pula'} ${({ desvirar: 'o próximo passo de desvirar', compra: 'o próximo passo de compra', combate: e.quando === 'todas-do-proximo-turno' ? 'todas as fases de combate do próximo turno' : e.quando === 'neste-turno' ? 'a próxima fase de combate deste turno' : 'a próxima fase de combate', turno: 'o próximo turno' })[e.o]}` }); // T-99
 Object.assign(LINHA_T, { em_vez_de_perder: ev => `\u2063${ev.name}: em vez de perder (${ev.motivo}), ${ev.target} embaralha a mão, o cemitério e as permanentes dele no grimório, compra sete e fica com 20 de vida` }); // T-96 · CR 704.7
 Object.assign(LINHA_T, { recomeca: ev => `\u2063${ev.name}: o jogo recomeça; ${ev.target} começa${ev.isentas.length ? ` (ficam no exílio e entram no campo de ${ev.target} antes do primeiro desvirar: ${ev.isentas.join(', ')})` : ''}`, exila_da_propria_mao: ev => `${ev.name}: ${ev.target} não tem carta na mão` }); // T-95 · CR 727
 Object.assign(EFEITO_PT_T, { recomeca_jogo: () => 'o jogo recomeça (todas as cartas voltam ao grimório do dono, cada um embaralha e compra sete; você começa); as cartas de permanente que não são Aura exiladas com esta carta ficam no exílio e, depois, entram no campo sob o seu controle', exila_da_propria_mao: e => `${e.target === 'opponent' ? 'o oponente alvo' : 'o jogador alvo'} exila uma carta da mão (ele escolhe)`, marca_exiladas: () => '' }); // T-95
