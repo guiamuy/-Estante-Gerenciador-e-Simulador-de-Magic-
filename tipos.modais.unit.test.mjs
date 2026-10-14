@@ -16,10 +16,11 @@ for (const c of L('oficiais-tipos.json').filter(x => NOMES.includes(x.name)))
 C.Mountain = { name: 'Mountain', type_line: 'Basic Land — Mountain', mana_cost: '', cmc: 0, keywords: [], oracle_text: '({T}: Add {R}.)', colors: [] };
 const carta = (name, type_line, extra = {}) => { C[name] = { name, type_line, mana_cost: '{1}', cmc: 1, keywords: [], oracle_text: '', colors: [], ...extra }; };
 carta('Urso', 'Creature — Bear', { power: '2', toughness: '2' }); carta('Ave', 'Creature — Bird', { power: '1', toughness: '1', keywords: ['Flying'], oracle_text: 'Flying' });
-carta('Totem', 'Artifact'); carta('Eco', 'Instant', { keywords: ['Storm'], oracle_text: 'Storm' }); carta('Faísca', 'Instant'); carta('Aura Solta', 'Enchantment'); carta('Andarilho', 'Legendary Planeswalker — Teste', { loyalty: '3' }); carta('Ermo', 'Land');
+carta('Totem', 'Artifact'); carta('Eco', 'Instant', { keywords: ['Storm'], oracle_text: 'Storm' }); carta('Cascata', 'Sorcery', { mana_cost: '{6}', cmc: 6, keywords: ['Cascade'], oracle_text: 'Cascade' }); carta('Faísca', 'Instant'); carta('Aura Solta', 'Enchantment'); carta('Andarilho', 'Legendary Planeswalker — Teste', { loyalty: '3' }); carta('Ermo', 'Land');
 const EXT = { example: { action: 'mode:0', target: 'none', expect: { selfLife: 0 } } };
 const SCRIPTS_T = {
   'Eco': { name: 'Eco', storm: true, modeCount: 2, modeMin: 1, modes: [{ label: 'Ganhar 1', effects: [{ do: 'gain', amount: 1 }] }, { label: 'Ganhar 2', effects: [{ do: 'gain', amount: 2 }] }], ...EXT }, // "Storm · Choose one or both — • You gain 1 life. • You gain 2 life."
+  'Cascata': { name: 'Cascata', effects: [{ do: 'gain', amount: 0 }], example: { target: 'none', expect: { selfLife: 0 } } },
   'Faísca': { name: 'Faísca', effects: [{ do: 'gain', amount: 0 }], example: { target: 'none', expect: { selfLife: 0 } } },
 };
 function mesa(seed = 1) {
@@ -149,4 +150,40 @@ test('CR 700.2g · a cópia de uma mágica modal leva os modos escolhidos (tempe
   const v = s.players[0].life;
   s = resolveTudo(act(s, ofertas(s, e).find(x => x.modes.join() === '1')));
   eq(s.players[0].life - v, 4, 'a original e a cópia: 2 + 2 (só o modo escolhido)');
+});
+
+test('CR 700.2c · T-106: com "one or both" num campo cheio, há oferta com os dois modos nos alvos do oponente — e Casualties of War não passa de ~130 ofertas', () => {
+  let s = mesa(); let b, c; [s, b] = poe(s, 0, 'Branching Bolt', 'hand'); [s, c] = poe(s, 0, 'Casualties of War', 'hand');
+  for (let k = 0; k < 2; k++) for (const n of ['Ave', 'Urso', 'Totem', 'Aura Solta', 'Mountain']) [s] = poe(s, 0, n, 'battlefield');
+  const deles = {}; for (const n of ['Ave', 'Urso', 'Totem', 'Aura Solta', 'Ermo', 'Andarilho']) { let o; [s, o] = poe(s, 1, n, 'battlefield'); deles[n] = o; }
+  s = J(s); s.objects[deles.Andarilho].counters.loyalty = 3; s = mana(s);
+  assert.ok(ofertas(s, b).some(x => x.modes.length === 2 && x.targets[0].oid === deles.Ave && x.targets[1].oid === deles.Urso), 'Branching Bolt nas duas do oponente');
+  const oc = ofertas(s, c);
+  assert.ok(oc.some(x => x.modes.length === 5 && x.targets.every(t => s.objects[t.oid].controller === 1)), 'Casualties com os cinco modos, todos no oponente');
+  assert.ok(oc.length <= 140, 'ofertas: ' + oc.length);
+});
+
+test('CR 118.9d / 700.2d · T-106: conjurar sem pagar (cascata) uma mágica de "one or both" — as ofertas levam os modos e o motor as aceita', () => {
+  let s = mesa(); let c, w, u; [s, c] = poe(s, 0, 'Cascata', 'hand'); [s, w] = poe(s, 0, 'Winterflame', 'library'); [s, u] = poe(s, 1, 'Urso', 'battlefield');
+  s = J(s); s.zones[0].library.splice(s.zones[0].library.indexOf(w), 1); s.zones[0].library.unshift(w); s = mana(s);
+  s = passaAte(act(s, legais(s, 0, x => x.t === 'cast' && x.oid === c)[0]), x => !x.stack.length || !!x.pending);
+  assert.equal((s.pending || {}).kind, 'free_cast');
+  const os = legais(s, 0, x => x.t === 'cast_free' && x.oid === w);
+  assert.ok(os.length && os.every(x => Array.isArray(x.modes)), 'com os modos');
+  s = resolveTudo(act(s, os.find(x => x.modes.length === 2 && x.targets.every(t => t.oid === u))));
+  eq(no(s, u), 'graveyard', 'virada e com 2 de dano');
+});
+
+test('CR 700.2d · T-106: modos fora da ordem impressa são recusados com o motivo certo', () => {
+  let s = mesa(); let w, u; [s, w] = poe(s, 0, 'Winterflame', 'hand'); [s, u] = poe(s, 1, 'Urso', 'battlefield'); s = mana(s);
+  assert.throws(() => act(s, { t: 'cast', p: 0, oid: w, modes: [1, 0], targets: [{ oid: u }, { oid: u }] }), /ordem impressa/);
+});
+
+test('CR 700.2a · T-106: o modo da ativada fica na habilidade da pilha e no registro; o validador recusa "effects" junto dos modos', () => {
+  let s = mesa(); let c, t; [s, c] = poe(s, 0, 'Cankerbloom', 'battlefield'); [s, t] = poe(s, 1, 'Totem', 'battlefield'); s = mana(s);
+  const r = E.apply(s, ativacoes(s, c).find(x => x.mode === 0));
+  const hab = r.state.stack.map(o => r.state.objects[o]).find(o => o.name === 'Cankerbloom');
+  eq([hab && hab.modoT, r.events.some(e => e.do === 'modo_ativada' && e.rotulo === 'Destruir um artefato')], [0, true]);
+  const v = SC.validateScript({ name: 'X', abilities: [{ kind: 'activated', cost: { mana: '{1}' }, effects: [{ do: 'gain', amount: 1 }], modes: [{ label: 'a', effects: [{ do: 'gain', amount: 1 }] }, { label: 'b', effects: [{ do: 'gain', amount: 2 }] }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } });
+  assert.ok(v.some(e => /modos/.test(e)), JSON.stringify(v));
 });

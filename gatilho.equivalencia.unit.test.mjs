@@ -182,7 +182,7 @@ test('M-232 · R2b · começo de passo escrito como descritor: "no início de ca
     { kind: 'triggered', when: { evento: 'passo', passo: 'end', turno: 'qualquer' }, effects: [{ do: 'gain', amount: 1 }] },
     { kind: 'triggered', when: { evento: 'passo', passo: 'upkeep', turno: 'oponente' }, effects: [{ do: 'gain', amount: 2 }] },
     { kind: 'triggered', when: { evento: 'passo', passo: 'draw' }, effects: [{ do: 'gain', amount: 3 }] }] } };
-  const fila = (a, passo) => { const x = J(s); x.queued = []; x.turn.active = a; E.enterStep(x, passo); return x.queued.filter(q => q.source === host).map(q => q.effects[0].amount); };
+  const fila = (a, passo) => { const x = J(s); x.queued = []; x.turn.active = a; x.turn.firstTurn = false; /* T-106 · 103.8a: no primeiro turno de quem começa, o passo de compra pulado não tem gatilhos; a pergunta aqui é a do descritor, num turno comum */ E.enterStep(x, passo); return x.queued.filter(q => q.source === host).map(q => q.effects[0].amount); };
   assert.deepEqual(J(fila(1, 'end')), [1], 'passo final do oponente: dispara');
   assert.deepEqual(J(fila(0, 'end')), [1], 'o seu passo final também');
   assert.deepEqual(J(fila(1, 'upkeep')), [2], 'manutenção do oponente: dispara');

@@ -9814,6 +9814,7 @@ function monarcaErrosT(sc) {
   if (sc && sc.self && sc.self.firebendingX != null && !PER_COUNTS.includes(sc.self.firebendingX)) errs.push('self.firebendingX é uma contagem conhecida (power-of-source, creatures-you-control…)'); // T-100 · 702.189
   for (const e of [...((sc && sc.effects) || []), ...((sc && sc.abilities) || []).flatMap(ab => ab.effects || [])]) if (e && e.do === 'pula' && (!['desvirar', 'compra', 'combate', 'turno'].includes(e.o) || (e.quando != null && (e.o !== 'combate' || !['neste-turno', 'todas-do-proximo-turno'].includes(e.quando))))) errs.push("pula: o é 'desvirar', 'compra', 'combate' ou 'turno'; quando ('neste-turno' | 'todas-do-proximo-turno') só no combate"); // T-99
   for (const k of ['naoPodePerder', 'naoPodeVencer']) if (sc && sc.self && sc.self[k] != null && !['voce', 'oponentes'].includes(sc.self[k])) errs.push(`self.${k} é 'voce' ou 'oponentes'`); // T-96 · CR 104.3
+  for (const ab of ((sc && sc.abilities) || [])) if (ab && ab.kind === 'activated' && (ab.modes || []).length && (ab.effects || []).length) errs.push('habilidade ativada modal: os efeitos vão nos modos, não em "effects"'); // T-106 · 700.2a
   if (sc && sc.modeMin != null && !(Number.isInteger(sc.modeMin) && sc.modeMin >= 1 && Number.isInteger(sc.modeCount) && sc.modeMin < sc.modeCount && !sc.modeRepeat)) errs.push('"modeMin" é um inteiro de 1 até modeCount − 1, sem repetir modos ("choose one or both", "choose one or more")'); // T-104 · CR 700.2d
   if (sc && sc.self && sc.self.emVezDePerder != null && sc.self.emVezDePerder !== 'lich') errs.push("self.emVezDePerder conhece só 'lich' (Lich's Mirror)"); // T-96 · CR 704.7
   if (sc && sc.self && sc.self.soEmCombate != null && sc.self.soEmCombate !== true) errs.push('self.soEmCombate só vale como true'); // T-92 · "Cast this spell only during combat"
@@ -20145,7 +20146,7 @@ const naoDesviraNoPasso = (s, o) => !!o.naoDesviraProximo || (!semImpressas(s, o
   || attachedTo(s, o).some(x => !semImpressas(s, x) && !!((((s.facts[x.name] || {}).script || {}).grants || {}).naoDesvira))
   || naoDesviraPeloMonarcaT(s, o); // T-70 · CR 725.5 · "doesn't untap … unless that player is the monarch" (Toca ponto comum: naoDesviraNoPasso)
 function enterStep(s, step) {
-  if (s.pulosT) { const prox = passoPuladoT(s, step); if (prox && s.emPassoExtraT === step) { s.turn.step = step; return advanceStep(s); } /* T-103 · o passo a mais pulado segue a fila dos passos a mais */ if (prox) return enterStep(s, prox); } // T-99 · CR 614.10 / 500.11 · pular o passo ou a fase (Toca ponto comum: enterStep)
+  if (s.pulosT) { const prox = passoPuladoT(s, step); if (prox && (s.emPassoExtraT === step || (s.passosExtrasT || []).some(x => x.depois === step && x.turno === s.turn.number))) { s.turn.step = step; return advanceStep(s); } /* T-103 · o passo a mais pulado segue a fila dos passos a mais */ if (prox) return enterStep(s, prox); } // T-99 · CR 614.10 / 500.11 · pular o passo ou a fase (Toca ponto comum: enterStep)
   const manaDeCombate = manaDeCombateAntesT(s, step); // T-100 · 702.189a: a mana da dobra de fogo não se perde entre os passos do combate (Toca ponto comum: enterStep)
   emptyPools(s); // 500.4: reserva esvazia entre passos
   if (manaDeCombate) manaDeCombateDepoisT(s, manaDeCombate); // T-100
@@ -20157,7 +20158,7 @@ function enterStep(s, step) {
     for (const o of campoInteiro(s)) if (o.phasedOut && o.faseCom != null && voltam.has(o.faseCom)) { delete o.phasedOut; delete o.faseCom; }
     cicloNoDesvirarT(s); // T-48 · CR 502.2 / 731.2 · dia e noite, entre a fase (502.1) e o desvirar (502.3) · Toca ponto comum: enterStep
     presasNoDesvirarV(s, a); // V-20 · 701.43 exaurir e 701.35 deter: marcas que vencem ou valem neste passo · Toca ponto comum: enterStep (uma linha antes do laço)
-    for (const o of battlefield(s)) if (o.controller === a) { o.sick = false; if (naoDesviraNoPasso(s, o)) { delete o.naoDesviraProximo; continue; } desvira(s, o); } // CR2g.6 · 502.3 / 122.1d
+    for (const o of battlefield(s)) if (o.controller === a) { if (!s.emPassoExtraT) o.sick = false; /* T-106 · 302.6: o desvirar da fase inicial a mais não é começo de turno (Toca ponto comum: enterStep) */ if (naoDesviraNoPasso(s, o)) { delete o.naoDesviraProximo; continue; } desvira(s, o); } // CR2g.6 · 502.3 / 122.1d
     for (const o of battlefield(s)) if (o.controller !== a && o.tapped && !semImpressas(s, o) && ((((s.facts[o.name] || {}).script || {}).self || {}).desviraNosOutros)) desvira(s, o); // M-363 · 502.3: "Untap this artifact during each other player's untap step" (Bender's Waterskin)
     return enterStep(s, 'upkeep');
   }
@@ -20175,11 +20176,11 @@ function enterStep(s, step) {
   }
   // CR2-G R2b · nos outros passos, os atrasados vêm antes; depois os do jogador ativo e os de cada jogador / dos oponentes
   // (CR2b.5 · 603.2b; CR 511.2: o fim do combate é de todos os jogadores, não só do ativo)
-  if (SC.PASSOS_DO_GATILHO.includes(step)) { if (step !== 'upkeep') disparaPasso(s, step, 'seu'); disparaPasso(s, step, 'todos'); }
+  if (SC.PASSOS_DO_GATILHO.includes(step) && !compraDoPrimeiroTurnoT(s, step)) { if (step !== 'upkeep') disparaPasso(s, step, 'seu'); disparaPasso(s, step, 'todos'); } // T-106 · 103.8a: o passo de compra pulado do primeiro turno não tem gatilhos de começo (Toca ponto comum: enterStep)
   designacoesNoPasso(s, step); // M-332 · CR 725.2 / 726.2 · monarca no passo final, iniciativa na manutenção
   if (step === 'main1') sagasNaPrincipal(s); // T-1 · CR 714.3c / 703.4f · marcador de lore em cada Saga do jogador ativo, antes da prioridade (função abaixo da âncora T das exportações)
   if (step === 'draw') {
-    const skip = s.turn.firstTurn && s.players.length === 2; // 103.8a
+    const skip = s.turn.firstTurn && s.players.length === 2 && !s.emPassoExtraT; // 103.8a · T-106: o passo de compra a mais (500.8, 500.9) não é "o passo de compra" do primeiro turno (Toca ponto comum: enterStep)
     if (!skip) draw(s, a, 1, { primeiraDoPasso: true }); // CR2e.3 · a compra do turno é a primeira do passo de compra
   }
   if (step === 'combat_attackers') {
@@ -23234,13 +23235,47 @@ function extraCostCandidates(s, p, spec, selfOid, needUntapped) {
     (!needUntapped || !o.tapped)).map(o => o.oid);
 }
 /** CR 700.2d · conjuntos de k modos (com repetição quando a carta deixa), em ordem crescente. */
+/** T-106 · CR 103.8a · quem começa uma partida de dois jogadores pula o passo de compra do primeiro turno: a mesa mantém o passo (as
+ * partidas-referência passam a prioridade nele), sem a compra e sem os gatilhos "no começo do passo de compra" (Kami of the Crescent Moon,
+ * Howling Mine). O passo de compra a mais (500.9) não é ele. */
+function compraDoPrimeiroTurnoT(s, step) { return step === 'draw' && !!s.turn.firstTurn && s.players.length === 2 && !s.emPassoExtraT; }
+/** T-106 · achado da auditoria: com "one or both"/"one or more", o teto de combinações de alvos é repartido entre as combinações de modos
+ * (Casualties of War tem 31) — no máximo ~128 ofertas — e, nos efeitos que tiram, viram, causam dano ou destroem, os alvos do oponente vêm
+ * primeiro (antes o corte deixava só combinações com as permanentes do próprio jogador). */
+function limiteDeCombosModaisT(n) { return Math.max(2, Math.min(COMBO_LIMIT, Math.floor(128 / Math.max(1, n)))); }
+const EFEITOS_CONTRA_T = new Set(['destroy', 'exile', 'damage', 'tap', 'bounce', 'to_library', 'counter', 'edict', 'lose', 'discard', 'mill']);
+function alvosDoOponentePrimeiroT(s, p, eff, opts, variavel) {
+  if (!variavel || !EFEITOS_CONTRA_T.has(eff.do) || opts.length < 2) return opts;
+  const dono = x => x.player != null ? x.player : (s.objects[x.oid] || {}).controller != null ? s.objects[x.oid].controller : (s.objects[x.oid] || {}).owner;
+  return opts.filter(x => dono(x) !== p).concat(opts.filter(x => dono(x) === p));
+}
+/** T-106 · achado da auditoria: conjurar sem pagar (cascata, descobrir, Covil) uma mágica de "choose two" / "one or both": as ofertas levam
+ * os modos (`modes`), como na conjuração normal; antes vinham com um modo só e o motor as recusava. */
+function ofertasModaisSemPagarT(s, p, out) {
+  for (let i = out.length - 1; i >= 0; i--) { const x = out[i]; if (x.t !== 'cast_free' || x.mode == null) continue; const o = s.objects[x.oid], f = o && s.facts[o.name]; if (f && f.script && f.script.modeCount) out.splice(i, 1); }
+  const feitos = new Set();
+  for (const oid of (s.pending || {}).options || []) {
+    const o = s.objects[oid], f = o && s.facts[o.name]; if (!f || !f.script || !f.script.modeCount || feitos.has(oid)) continue; feitos.add(oid);
+    const todas = combinacoesDeModosT((f.script.modes || []).length, f.script.modeCount, !!f.script.modeRepeat, f.script.modeMin), lim = limiteDeCombosModaisT(todas.length);
+    for (const ms of todas) {
+      const need = spellEffects(s, { name: o.name, modes: ms, xPaid: 0 }).filter(SC.isTargeted);
+      let combos = [[]];
+      for (const eff of need) {
+        const opts = alvosDoOponentePrimeiroT(s, p, eff, limitaAlvos(legalTargets(s, p, eff.target, oid, eff.targetColor).filter(x => targetAllowed(s, eff, x)), need.length), true);
+        if (!opts.length) { if (eff.upTo) continue; combos = []; break; }
+        combos = combos.flatMap(c => opts.filter(x => !c.some((y, j) => sameChoice(x, y) && need[j].__modo === eff.__modo)).map(x => c.concat([x]))).slice(0, lim);
+      }
+      for (const targets of combos) out.push({ t: 'cast_free', p, oid, modes: ms, ...(need.length ? { targets } : {}) });
+    }
+  }
+}
 /** T-105 · CR 700.2a · habilidade ativada modal ("{cost}: Choose one —"): o modo escolhido vem na ação (`a.mode`) e os efeitos são os dele;
  * sem modo, ou modo que não existe, a ativação é recusada. Habilidade sem modos passa como está. */
 function ativadaComModoT(a, ab) {
   if (!ab || !(ab.modes || []).length) { if (ab && a.mode != null) throw new RuleError('modo', 'esta habilidade não tem modos'); return ab; }
   const m = ab.modes[a.mode];
   if (a.mode == null || !m) throw new RuleError('modo', 'escolha um modo');
-  return { ...ab, modes: undefined, effects: m.effects || [], modoT: a.mode };
+  return { ...ab, modes: undefined, effects: m.effects || [], modoT: a.mode, rotulosT: ab.modes.map(x => x.label || '') };
 }
 /** T-104 · CR 700.2d · "choose one or both" / "one or more": as combinações de `min` a `k` modos, das menores para as maiores (sem `min`, só as de `k`). */
 function combinacoesDeModosT(n, k, repete, min) { const out = []; for (let j = min || k; j <= k; j++) out.push(...combinacoesDeModos(n, j, repete)); return out; }
@@ -23833,6 +23868,7 @@ const HANDLERS = {
       const minModosT = f.script.modeMin || nModos; // T-104 · CR 700.2d · "one or both" / "one or more": de modeMin a modeCount modos (Toca ponto comum: HANDLERS.cast)
       if (!Array.isArray(a.modes) || a.modes.length > nModos || a.modes.length < minModosT || a.modes.some(m => !modes[m])) throw new RuleError('modo', minModosT < nModos ? `escolha de ${minModosT} a ${nModos} modos` : `escolha ${nModos} modos`);
       if (!f.script.modeRepeat && new Set(a.modes).size !== a.modes.length) throw new RuleError('modo', 'escolha modos diferentes');
+      if (a.modes.some((m, k) => k > 0 && m < a.modes[k - 1])) throw new RuleError('modo', 'os modos vão na ordem impressa'); // T-106 · os alvos seguem os modos em ordem
     } else if (modes.length && (a.mode == null || !modes[a.mode])) throw new RuleError('modo', 'escolha um modo');
     // CR 702.33 · reforço: pago junto com o custo; multirreforço quantas vezes quiser
     const reforco = f.script && f.script.kicker;
@@ -24110,6 +24146,7 @@ const HANDLERS = {
       if (a.color) s.objects[abOid].chosenColor = a.color;
       if (nX) s.objects[abOid].xPaid = a.x || 0; // CR2c.7 · 107.3a: o mesmo X em todo o texto da habilidade, até ela resolver
       if (s.sacrificadosNoCusto) s.objects[abOid].sacrificados = s.sacrificadosNoCusto;
+      if (ab.modoT != null) { s.objects[abOid].modoT = ab.modoT; (ev || []).push({ kind: 'effect', do: 'modo_ativada', name: o.name, target: s.players[a.p].name, rotulo: ((base.rotulosT || [])[ab.modoT]) || '' }); } // T-106 · 700.2a: o modo escolhido é público (Toca ponto comum: HANDLERS.activate)
       if (s.estacaoViradaT) { s.objects[abOid].estacaoViradaT = s.estacaoViradaT; delete s.estacaoViradaT; } // T-37 · CR 702.184a (Toca ponto comum: HANDLERS.activate)
       chargeWard(s, a.p, abOid, chosen);
       disparaAlvejado(s, abOid, chosen); // CR2b.9
@@ -24865,6 +24902,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
         }
       }
     }
+    if (k === 'free_cast') ofertasModaisSemPagarT(s, p, out); // T-106 · 118.9d / 700.2d: as modais de vários modos levam os modos (Toca ponto comum: legalActions free_cast)
     if (k === 'free_cast') ofertasSemPagarK(s, p, out); // K-64 · 118.9d: na conjuração sem pagar, os custos adicionais da trilha (prole, presente, recompra, spree, escalar, entrelaçar) e os alvos por modo — achado da auditoria 4a (Toca ponto comum: legalActions free_cast)
     // S60 · perder ou pagar, e escolher o que sacrificar
     if (k === 'unless') { out.push({ t: 'take_loss', p }); out.push({ t: 'pay_unless', p }); }
@@ -24939,11 +24977,12 @@ function legalActions(s, p, { adjudication = false } = {}) {
     const modes = (f.script && f.script.modes) || [];
     const nModos = (f.script && f.script.modeCount) || 0;
     const comX = xv != null ? { controller: p, xPaid: xv } : undefined; // CR2c.3 · alvo que depende do X desta conjuração
-    if (nModos) return combinacoesDeModosT(modes.length, nModos, !!f.script.modeRepeat, f.script.modeMin).flatMap(ms => { // CR 700.2d · T-104: de modeMin a modeCount (Toca ponto comum: ofertas de conjurar)
+    const combosModaisT = nModos ? combinacoesDeModosT(modes.length, nModos, !!f.script.modeRepeat, f.script.modeMin) : null, limiteModalT = nModos && f.script.modeMin ? limiteDeCombosModaisT(combosModaisT.length) : COMBO_LIMIT; // T-106
+    if (nModos) return combosModaisT.flatMap(ms => { // CR 700.2d · T-104: de modeMin a modeCount (Toca ponto comum: ofertas de conjurar)
       const need = spellEffects(s, { name: o.name, modes: ms, xPaid: xv || 0 }).filter(SC.isTargeted);
       let combos = [[]];
       for (const [k, eff] of need.entries()) {
-        const opts = limitaAlvos(legalTargets(s, p, eff.target, o.oid, eff.targetColor).filter(x => targetAllowed(s, eff, x, comX)), need.length);
+        const opts = alvosDoOponentePrimeiroT(s, p, eff, limitaAlvos(legalTargets(s, p, eff.target, o.oid, eff.targetColor).filter(x => targetAllowed(s, eff, x, comX)), need.length), f.script.modeMin); // T-106
         if (eff.upTo) { // CR2c.3 · "até N alvos": pode parar em qualquer instância; dentro do grupo, alvos em ordem (sem repetir a mesma combinação embaralhada)
           const grupo = k > 0 && need[k - 1].upTo && need[k - 1].__modo === eff.__modo;
           combos = combos.flatMap(c => { if (c.length < k) return [c];
@@ -24952,7 +24991,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
           continue;
         }
         if (!opts.length) return []; // 700.2b · modo sem alvo legal não pode ser escolhido
-        combos = combos.flatMap(c => opts.filter(x => !c.some((y, j) => sameChoice(x, y) && need[j].__modo === eff.__modo)).map(x => c.concat([x]))).slice(0, COMBO_LIMIT);
+        combos = combos.flatMap(c => opts.filter(x => !c.some((y, j) => sameChoice(x, y) && need[j].__modo === eff.__modo)).map(x => c.concat([x]))).slice(0, limiteModalT); // T-106: com número variável de modos, o teto é repartido entre as combinações
       }
       return combos.map(targets => ({ t: 'cast', p, oid: o.oid, modes: ms, ...(need.length ? { targets } : {}) }));
     });
@@ -27385,7 +27424,7 @@ function prendeNoDesvirarV(s, o, p) { o.presaV = [...(o.presaV || []), { z: o.zc
 const presasValidasV = o => (o.presaV || []).filter(m => m.z === (o.zc || 0));
 /** Chamada só por enterStep, antes de desvirar as permanentes de `a`. */
 function presasNoDesvirarV(s, a) {
-  soltaDetidasV(s, a); // V-21 · começo do turno de quem deteve
+  if (!s.emPassoExtraT) soltaDetidasV(s, a); // V-21 · começo do turno de quem deteve · T-106: o desvirar da fase inicial a mais não é começo de turno (701.35a; Toca ponto comum: presasNoDesvirarV)
   for (const o of campoInteiro(s)) {
     if (!o.presaV) continue;
     const marcas = presasValidasV(o);
@@ -29775,6 +29814,7 @@ function fimDoEncerramentoT(s, oque) {
   if (oque === 'turno') { delete s.emPassoExtraT; delete s.passosExtrasT; delete s.voltaDoExtraT; delete s.filaExtraT; } // T-102 · achado da auditoria: o turno encerrado não volta a um passo a mais (724.1)
   if (s.combat || battlefield(s).some(o => o.attacking || o.blocking)) saiDoCombate(s); // (d)
   s.turn.passes = 0;
+  if (oque !== 'turno' && s.passosExtrasT && s.passosExtrasT.some(x => x.depois === 'combat_end' && x.turno === s.turn.number)) { s.turn.step = 'combat_end'; const ex = passoExtraT(s); if (ex) return enterStep(s, ex); } // T-106 · 724.2d: a próxima fase são as pedidas "depois desta fase" (Obeka)
   enterStep(s, oque === 'turno' ? 'cleanup' : 'main2');
 }
 /** T-93 · a conferência seguinte, sem escolha pendente, termina o encerramento que esperava. */
@@ -29962,8 +30002,8 @@ function passoPuladoT(s, step) {
   const r = s.pulosT[i];
   if (r.todas) r.usadoEm = n; else s.pulosT.splice(i, 1);
   if (!s.pulosT.length) delete s.pulosT;
-  (s.puladosT = s.puladosT || []).push({ p: a, o: r.o, turno: n }); // para o registro e os testes
-  if (step === 'untap') { for (const o of battlefield(s)) if (o.controller === a) o.sick = false; soltaDetidasV(s, a); } // T-102 · achado da auditoria: o turno começa mesmo sem o desvirar — o enjoo (302.6) e o "até o seu próximo turno" da detenção (701.35a) acabam
+  s.puladosT = (s.puladosT || []).filter(x => x.turno >= n - 1); s.puladosT.push({ p: a, o: r.o, turno: n }); // para o registro e os testes (T-106: só os do turno e do anterior)
+  if (step === 'untap' && !s.emPassoExtraT) { for (const o of battlefield(s)) if (o.controller === a) o.sick = false; soltaDetidasV(s, a); } // T-106: só o primeiro desvirar do turno · T-102 · achado da auditoria: o turno começa mesmo sem o desvirar — o enjoo (302.6) e o "até o seu próximo turno" da detenção (701.35a) acabam
   return step === 'combat_begin' ? 'main2' : STEPS[STEPS.indexOf(step) + 1];
 }
 function turnoPuladoT(s, p) {
@@ -32792,6 +32832,7 @@ Object.assign(EFEITO_PT_T, { vira_para_baixo: () => 'vira a criatura alvo para b
 const predicadosPT_T = sel => (sel.tapped ? ' virada' : sel.tapped === false ? ' desvirada' : '') + (sel.ativadaNoTurno ? ' que teve habilidade ativada neste turno' : '') + /* T-87 */ (sel.terrenoBasico === false ? ' que não seja terreno básico' : sel.terrenoBasico ? ' que é terreno básico' : '') + /* T-80 */ (sel.historico ? ' histórica' : sel.historico === false ? ' que não é histórica' : '') + (sel.foraDaLei ? ' fora da lei' : sel.foraDaLei === false ? ' que não é fora da lei' : '') + /* T-60 */ (sel.modificada ? ' modificada' : sel.modificada === false ? ' que não está modificada' : '');
 const LINHA_T = { preparada: ev => (ev.failed ? `${ev.name}: ${ev.motivo || 'não ficou preparada'}, nada muda` : `${ev.name} está preparada (pode conjurar uma cópia de ${ev.target})`), despreparada: ev => `${ev.name} deixou de estar preparada`, ciclo: ev => `Virou ${ev.target}${ev.motivo ? ` (${ev.motivo})` : ''}`, masmorra_completa: ev => `${ev.target} completou a masmorra ${ev.name}`, caso_resolvido: ev => (ev.failed ? `${ev.name}: a condição não valia mais, o Caso não foi resolvido` : `${ev.name} foi resolvido`), estacao: ev => (ev.failed ? `${ev.name}: a nave saiu do campo, a estação não pôs marcadores` : `${ev.name} recebeu ${ev.amount} marcador${ev.amount === 1 ? '' : 'es'} de carga (estação)${ev.total != null ? ` · ${ev.total} no total` : ''}`), selada: ev => (ev.failed ? `${ev.name}: a montaria saiu do campo, não foi selada` : `${ev.name} foi selada`), virar_carta: ev => (ev.failed ? `${ev.name} não virou${ev.motivo ? ` (${ev.motivo})` : ''}` : `${ev.name} virou: agora é ${ev.target}`), porta: ev => (ev.failed ? `${ev.name}: nenhuma porta para trancar ou destrancar` : `${ev.name} ${ev.acao} ${ev.porta} (${ev.target})`), nivel_sobe: ev => (ev.failed ? `${ev.name}: saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu de nível (nível ${ev.nivel})`), nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, converter: ev => `${ev.name} converteu em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
 Object.assign(LINHA_T, { descarta_a_mao: ev => `${ev.target} descartou a mão (${ev.amount === 1 ? 'uma carta' : ev.amount + ' cartas'}; ${ev.name})` }); Object.assign(EFEITO_PT_T, { descarta_a_mao: e => `${e.target === 'self' ? 'você descarta' : e.target === 'each-player' ? 'cada jogador descarta' : 'o jogador descarta'} a mão` }); // T-101
+Object.assign(LINHA_T, { modo_ativada: ev => `${ev.target} ativou ${ev.name}${ev.rotulo ? ': ' + ev.rotulo : ''}` }); // T-106 · 700.2a: o modo escolhido no registro
 Object.assign(LINHA_T, { passo_extra: ev => ev.failed ? `${ev.name}: não é o turno de ${ev.target}, nada acontece` : ev.n === 0 ? `${ev.name}: nenhum passo a mais` : `${ev.target} tem ${ev.passo === 'fase-inicial' ? (ev.n > 1 ? ev.n + ' fases iniciais' : 'uma fase inicial') : ev.passo === 'draw' ? (ev.n > 1 ? ev.n + ' passos de compra' : 'um passo de compra') : (ev.n > 1 ? ev.n + ' manutenções' : 'uma manutenção')} a mais depois ${ev.aposFase ? 'desta fase' : 'deste passo'} (${ev.name})` }); // T-101 · T-103
 Object.assign(EFEITO_PT_T, { passo_extra: e => `${e.target === 'enchanted-player' ? 'o jogador encantado' : e.target === 'player' ? 'o jogador alvo' : 'você'} ganha ${e.fase === 'inicial' ? 'uma fase inicial (desvirar, manutenção e compra)' : (e.n != null && e.n !== 1 ? (typeof e.n === 'number' ? e.n : (e.n.per === 'trigger-value' ? 'tantas' : 'X')) + (e.passo === 'draw' ? ' passos de compra' : ' manutenções') : e.passo === 'draw' ? 'um passo de compra' : 'uma manutenção')} a mais depois ${e.fase === 'inicial' || e.apos === 'fase' ? 'desta fase' : 'deste passo'}${e.n && e.n.per === 'trigger-value' ? ' (uma para cada ponto de dano)' : ''}` }); // T-101 · T-103
 Object.assign(LINHA_T, { dobra_de_fogo: ev => ev.amount ? `${ev.target} adicionou ${'{R}'.repeat(Math.min(ev.amount, 12))} pela dobra de fogo de ${ev.name} (dura até o fim do combate)` : `${ev.name}: a dobra de fogo não adicionou mana` }); // T-100
@@ -35034,7 +35075,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       if (E.legalActions(s, v).some(x => x.t === 'activate' && x.oid === oid && (x.index || 0) === index)) return;
       if ((ab.effects || []).some(e => e.do === 'add_mana') && E.legalActions(s, v).some(x => x.t === 'tap_mana' && x.oid === oid)) return;
       let motivo = 'não dá agora';
-      try { E.apply(s, { t: 'activate', p: v, oid, index }); } catch (e) { motivo = T.explicaRecusa(e, { t: 'activate', oid }, s).motivo; }
+      try { E.apply(s, { t: 'activate', p: v, oid, index, ...((ab.modes || []).length ? { mode: 0 } : {}) }); } catch (e) { motivo = T.explicaRecusa(e, { t: 'activate', oid }, s).motivo; } // T-106 · a ativada modal ensaia com o primeiro modo (o motivo era "escolha um modo")
       const cost = custoDaHabilidade(ab);
       const repetido = ((f.script && f.script.abilities) || []).filter(x => x.kind === 'activated' && custoDaHabilidade(x) === cost).length > 1;
       legal.push({ label: `Ativar${cost ? ` (${cost})` : ''}${repetido ? `: ${T.descreveEfeitos(ab.effects)}` : ''} — ${motivo.charAt(0).toLowerCase() + motivo.slice(1)}`, disabled: true });

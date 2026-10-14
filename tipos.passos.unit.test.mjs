@@ -118,3 +118,13 @@ test('CR 500.6 / 500.9 · validador', () => {
   assert.ok(v({ abilities: [{ kind: 'triggered', when: 'upkeep', condition: { primeiraManutencao: 2 }, effects: [{ do: 'gain', amount: 1 }] }] }).some(e => /primeiraManutencao/.test(e)));
   assert.match(T.descreveEfeitos([{ do: 'draw', amount: 1, target: 'that-player' }]), /^esse jogador compra/, 'T-102 · quem compra é o jogador do turno, não quem controla');
 });
+
+test('CR 103.8a · T-106: quem começa pula o passo de compra do primeiro turno — Howling Mine (texto oficial) não dá carta nele', () => {
+  const C2 = { ...C };
+  let s = E.createGame({ format: 'livre', seed: 3, mode: 'full', cards: C2, scripts: SCRIPTS, players: [{ name: 'A', deck: [{ name: 'Howling Mine', qty: 4, zone: 'main' }, { name: 'Island', qty: 20, zone: 'main' }] }, { name: 'B', deck: [{ name: 'Island', qty: 24, zone: 'main' }] }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  assert.equal(s.turn.firstTurn, true);
+  const a = s.turn.active; let h; [s, h] = poe(s, a, 'Howling Mine', 'battlefield'); const mao = s.zones[a].hand.length;
+  s = passaAte(s, x => x.turn.step === 'main1' && !x.stack.length && !x.pending);
+  eq([s.turn.number, s.zones[a].hand.length - mao], [1, 0], 'nem a do turno nem a da Howling Mine');
+});

@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 import { E, S as SC, T, J, act, poe, legais, passaAte, valorDeMana } from './listas.mjs';
 
 const L = n => JSON.parse(readFileSync(new URL('./.listas/' + n, import.meta.url), 'utf8')).cartas;
-const NOMES = ['Obeka, Splitter of Seconds', 'Sphinx of the Second Sun', 'Shadow of the Second Sun', 'Fatigue'];
+const NOMES = ['Obeka, Splitter of Seconds', 'Sphinx of the Second Sun', 'Shadow of the Second Sun', 'Fatigue', 'Mandate of Peace'];
 const KW = { 'Obeka, Splitter of Seconds': ['Menace'], 'Sphinx of the Second Sun': ['Flying'] };
 const C = {};
 for (const c of L('oficiais-tipos.json').filter(x => NOMES.includes(x.name)))
@@ -90,4 +90,33 @@ test('CR 500.10 · validador e pilha explicada', () => {
   assert.ok(v({ effects: [{ do: 'passo_extra', fase: 'combate', target: 'self' }] }).some(e => /fase/.test(e)));
   assert.ok(v({ effects: [{ do: 'passo_extra', passo: 'upkeep', apos: 'turno', target: 'self' }] }).some(e => /apos/.test(e)));
   assert.match(T.descreveEfeitos([{ do: 'passo_extra', passo: 'upkeep', apos: 'fase', n: { per: 'trigger-value' }, target: 'self' }]), /manutenções a mais depois desta fase/);
+});
+
+test('CR 302.6 / 701.35a · T-106: o desvirar da fase inicial a mais não é começo de turno — a criatura que entrou segue enjoada e a detenção segue', () => {
+  let s = mesa(); let u, x; [s] = poe(s, 0, 'Sphinx of the Second Sun', 'battlefield'); [s, u] = poe(s, 0, 'Urso', 'battlefield'); [s, x] = poe(s, 1, 'Urso', 'battlefield');
+  s = J(s); s.objects[u].sick = true; s.objects[x].detidaV = [{ by: 0, z: s.objects[x].zc || 0 }]; s.objects[x].cantAttackNext = { by: 0 };
+  let vistos, durante; [s, vistos, durante] = trilha(s, y => y.turn.step === 'end' || y.turn.active === 1);
+  const i = vistos.indexOf('0:upkeep*'); assert.ok(i >= 0, vistos.join(' '));
+  eq([durante[i].objects[u].sick, !!durante[i].objects[x].detidaV], [true, true]);
+});
+
+test('CR 724.2d · T-106: Mandate of Peace (texto oficial) depois do gatilho de Obeka — a fase de combate acaba e as manutenções pedidas "depois desta fase" acontecem', () => {
+  let s = mesa(); let o, m; [s, o] = poe(s, 0, 'Obeka, Splitter of Seconds', 'battlefield'); [s] = poe(s, 0, 'Vigia', 'battlefield'); [s, m] = poe(s, 0, 'Mandate of Peace', 'hand'); s = J(s); s.objects[o].sick = false;
+  const v = s.players[0].life;
+  s = passaAte(s, x => x.turn.step === 'combat_attackers' || !!x.pending); s = act(s, { t: 'attack', p: 0, attackers: [o] });
+  for (let i = 0; i < 40 && !(s.turn.step === 'combat_damage' && !s.stack.length && !s.pending && s.turn.priority === 0); i++) s = s.pending && s.pending.kind === 'blockers' ? act(s, { t: 'block', p: 1, blocks: [] }) : act(s, legais(s, s.pending ? s.pending.p : s.turn.priority).find(x => x.t === 'pass') || legais(s, s.pending ? s.pending.p : s.turn.priority)[0]);
+  assert.equal((s.passosExtrasT || []).length, 1, 'o pedido de Obeka está lá');
+  s = mana(s); s = act(s, legais(s, 0, x => x.t === 'cast' && x.oid === m)[0]);
+  let vistos; [s, vistos] = trilha(s, x => x.turn.step === 'main2');
+  eq([vistos.filter(x => x.endsWith('*')).length > 0, s.players[0].life - v], [true, 2], 'as duas manutenções aconteceram');
+});
+
+test('CR 500.10 / 614.10 · T-106: pedido "depois desta fase" feito na manutenção, com o passo de compra pulado — a manutenção a mais acontece depois da fase', () => {
+  let s = mesa(); let f; [s] = poe(s, 0, 'Vigia', 'battlefield'); [s, f] = poe(s, 0, 'Fatigue', 'hand'); s = mana(s);
+  s = passaAte(act(s, legais(s, 0, x => x.t === 'cast' && x.oid === f && x.targets && x.targets[0] && x.targets[0].player === 0)[0]), x => !x.stack.length || !!x.pending);
+  s = passaAte(s, x => x.turn.active === 0 && x.turn.step === 'upkeep' && x.turn.number > 2 && !x.stack.length && !x.pending);
+  const v = s.players[0].life; let a; [s, a] = poe(s, 0, 'Ampulheta', 'hand'); s = mana(s); s = J(s); s.turn.priority = 0;
+  s = act(s, legais(s, 0, x => x.t === 'cast' && x.oid === a)[0]);
+  let vistos; [s, vistos] = trilha(s, x => x.turn.step === 'main1');
+  eq([vistos.includes('0:draw'), vistos.includes('0:upkeep*'), s.players[0].life - v], [false, true, 1], 'sem compra; a manutenção a mais (a Vigia +1)');
 });

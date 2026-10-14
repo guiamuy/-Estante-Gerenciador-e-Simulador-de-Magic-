@@ -182,7 +182,10 @@
    "regra": "Starting the Game",
    "titulo": "Primeiro turno: quem começa não compra",
    "status": "coberta",
-   "evidencia": "enterStep: skip = firstTurn && 2 jogadores (index.html:10692); engine.unit 'M3 · quem começa não compra no primeiro turno'; sonda: mão 7 no turno 1 do inicial, 8 no do segundo"
+   "evidencia": "enterStep: skip = firstTurn && 2 jogadores (index.html:10692); engine.unit 'M3 · quem começa não compra no primeiro turno'; sonda: mão 7 no turno 1 do inicial, 8 no do segundo · T-106 (14/10/2026): 103.8a — o passo de compra pulado do primeiro turno não tem os gatilhos de começo do passo (Howling Mine); a mesa mantém o passo para a prioridade (as partidas-referência passam nele); o passo de compra a mais (500.9) compra",
+   "testes": [
+    "CR 103.8a · T-106: quem começa pula o passo de compra do primeiro turno — Howling Mine (texto oficial) não dá carta nele"
+   ]
   },
   {
    "n": "104.1",
@@ -3682,7 +3685,7 @@
    "regra": "General",
    "titulo": "Fases extras (combate/principal adicional)",
    "status": "parcial",
-   "falta": "fase principal adicional sem combate, combate adicional 'após este combate' (Combat Celebrant, Moraug), fases extras de outro jogador",
+   "falta": "fase principal adicional sem combate, combate adicional 'após este combate' (Combat Celebrant, Moraug), fases extras de outro jogador · T-106 (14/10/2026): com uma fase inicial a mais e um combate a mais pedidos na mesma principal, a ordem não segue \"o criado por último primeiro\" (combatesExtras e a fila dos passos a mais são guardados à parte).",
    "esforco": "M",
    "depende": [
     "505.1a"
@@ -3726,12 +3729,15 @@
     "500.11"
    ],
    "cartas": "rara",
-   "evidencia": "T-103 (14/10/2026): `passo_extra` com `apos: 'fase'` — o passo pedido entra depois do último passo da fase em curso, numa fase só com ele (as N manutenções de Obeka são N fases iniciais só com a manutenção); ao sair do fim do combate para elas, as criaturas saem do combate (511.3); \"that many\" é o dano de combate causado; 500.10a: no turno de outro jogador, nada é acrescentado. Obeka, Splitter of Seconds (tipos.fasesextras.unit)",
+   "evidencia": "T-103 (14/10/2026): `passo_extra` com `apos: 'fase'` — o passo pedido entra depois do último passo da fase em curso, numa fase só com ele (as N manutenções de Obeka são N fases iniciais só com a manutenção); ao sair do fim do combate para elas, as criaturas saem do combate (511.3); \"that many\" é o dano de combate causado; 500.10a: no turno de outro jogador, nada é acrescentado. Obeka, Splitter of Seconds (tipos.fasesextras.unit) · T-106 (14/10/2026): o desvirar da fase inicial a mais não é começo de turno (o enjoo e a detenção seguem; 302.6, 701.35a); Mandate of Peace depois do gatilho de Obeka leva às manutenções pedidas (724.2d); o pedido \"depois desta fase\" com o último passo da fase pulado acontece; teto declarado de 20 passos a mais por pedido",
    "testes": [
     "CR 500.10 · Obeka (texto oficial): 2 de dano de combate ao jogador, duas manutenções a mais depois da fase de combate — com as criaturas já fora do combate — e depois a principal 2",
     "CR 500.10 · Obeka bloqueada não causa dano ao jogador: nenhum passo a mais",
     "CR 500.10a · \"you get\" no turno de outro jogador: nada é acrescentado",
-    "CR 500.10 · validador e pilha explicada"
+    "CR 500.10 · validador e pilha explicada",
+    "CR 302.6 / 701.35a · T-106: o desvirar da fase inicial a mais não é começo de turno — a criatura que entrou segue enjoada e a detenção segue",
+    "CR 724.2d · T-106: Mandate of Peace (texto oficial) depois do gatilho de Obeka — a fase de combate acaba e as manutenções pedidas \"depois desta fase\" acontecem",
+    "CR 500.10 / 614.10 · T-106: pedido \"depois desta fase\" feito na manutenção, com o passo de compra pulado — a manutenção a mais acontece depois da fase"
    ]
   },
   {
@@ -5724,7 +5730,7 @@
    "regra": "General",
    "titulo": "Mágicas e habilidades modais",
    "status": "parcial",
-   "evidencia": "(a) COBERTA: modo vai na ação de conjurar (cast exige a.mode, index.html:12239-12240; grava o.mode 12286; spellEffects 10823-10828); sonda: Abrade com mesa vazia não gera ação, só com criatura oferece só o modo 0, e forçar modo 1 é recusado (\"escolha 1 alvo(s)\"/\"alvo ilegal\"). (c) COBERTA: alvos saem só do modo escolhido (12244); boros.regras \"R6 · Thraben Charm\" (modo 2 com 1 ou 2 jogadores, modos 0/1 com alvo próprio). (f) COBERTA na 1ª frase (alvo por modo, mesma evidência); 2ª frase sem efeito alcançável (não existe troca de alvo no motor). (b) PARCIAL: gatilho modal escolhe o modo antes de ir à pilha (putTriggerOnStack 11845-11848, choose_mode 12439-12459; rules.unit \"S56 · gatilho com modos\"), mas oferece modo ilegal. Nove mágicas modais nos scripts (Abrade, Hydroblast, Pyroblast, REB, BEB, Thraben Charm, Winding Way, Cast into the Fire, Steel Sabotage). · CR1b (motor v74): (b) COBERTA no gatilho — modosLegais só oferece modo com alvo legal, recusa o ilegal e tira o gatilho da pilha quando nenhum modo serve; teste de conformidade em cr.conformidade · CR2c.1 (motor v84): (d) COBERTA — \"escolha dois/três\" (modeCount, com repetição quando modeRepeat): a mesa oferece só conjuntos de modos com alvo legal, cada instância de \"alvo\" é própria (o mesmo objeto pode ser escolhido em modos diferentes) e os efeitos saem na ordem impressa, com \"o mesmo alvo\" valendo dentro do modo; commander.regras Wretched Confluence · T-104 (14/10/2026): (d) número variável de modos — \"Choose one or both —\" e \"Choose one or more —\" (`modeMin` com `modeCount`): a mesa oferece de modeMin a modeCount modos, só os que têm alvo legal (a), cada modo com o seu alvo (c, f; a mesma criatura pode ser alvo em modos diferentes); nenhum modo ou modos demais é recusado. Grim Discovery, Branching Bolt, Winterflame, Fissure Vent, Crush Contraband, Vandalize, Rain of Thorns, Casualties of War (tipos.modais.unit). Conferência: (h) modo com custo adicional existe pela palavra Spree (K-54, 702.172) · T-105 (14/10/2026): habilidade ATIVADA modal (\"{custo}: Choose one —\"): uma oferta por modo, só os que têm alvo legal; o modo vem na ação e sem ele a ativação é recusada; o botão diz o modo (Cankerbloom, Insidious Fungus, Balm of Restoration, Potatoes). (g) COBERTA: a cópia leva os modos escolhidos (marcasDaMagia, CR2f.3), conferido com a tempestade",
+   "evidencia": "(a) COBERTA: modo vai na ação de conjurar (cast exige a.mode, index.html:12239-12240; grava o.mode 12286; spellEffects 10823-10828); sonda: Abrade com mesa vazia não gera ação, só com criatura oferece só o modo 0, e forçar modo 1 é recusado (\"escolha 1 alvo(s)\"/\"alvo ilegal\"). (c) COBERTA: alvos saem só do modo escolhido (12244); boros.regras \"R6 · Thraben Charm\" (modo 2 com 1 ou 2 jogadores, modos 0/1 com alvo próprio). (f) COBERTA na 1ª frase (alvo por modo, mesma evidência); 2ª frase sem efeito alcançável (não existe troca de alvo no motor). (b) PARCIAL: gatilho modal escolhe o modo antes de ir à pilha (putTriggerOnStack 11845-11848, choose_mode 12439-12459; rules.unit \"S56 · gatilho com modos\"), mas oferece modo ilegal. Nove mágicas modais nos scripts (Abrade, Hydroblast, Pyroblast, REB, BEB, Thraben Charm, Winding Way, Cast into the Fire, Steel Sabotage). · CR1b (motor v74): (b) COBERTA no gatilho — modosLegais só oferece modo com alvo legal, recusa o ilegal e tira o gatilho da pilha quando nenhum modo serve; teste de conformidade em cr.conformidade · CR2c.1 (motor v84): (d) COBERTA — \"escolha dois/três\" (modeCount, com repetição quando modeRepeat): a mesa oferece só conjuntos de modos com alvo legal, cada instância de \"alvo\" é própria (o mesmo objeto pode ser escolhido em modos diferentes) e os efeitos saem na ordem impressa, com \"o mesmo alvo\" valendo dentro do modo; commander.regras Wretched Confluence · T-104 (14/10/2026): (d) número variável de modos — \"Choose one or both —\" e \"Choose one or more —\" (`modeMin` com `modeCount`): a mesa oferece de modeMin a modeCount modos, só os que têm alvo legal (a), cada modo com o seu alvo (c, f; a mesma criatura pode ser alvo em modos diferentes); nenhum modo ou modos demais é recusado. Grim Discovery, Branching Bolt, Winterflame, Fissure Vent, Crush Contraband, Vandalize, Rain of Thorns, Casualties of War (tipos.modais.unit). Conferência: (h) modo com custo adicional existe pela palavra Spree (K-54, 702.172) · T-105 (14/10/2026): habilidade ATIVADA modal (\"{custo}: Choose one —\"): uma oferta por modo, só os que têm alvo legal; o modo vem na ação e sem ele a ativação é recusada; o botão diz o modo (Cankerbloom, Insidious Fungus, Balm of Restoration, Potatoes). (g) COBERTA: a cópia leva os modos escolhidos (marcasDaMagia, CR2f.3), conferido com a tempestade · T-106 (14/10/2026): conjurar sem pagar (cascata, descobrir, Covil) uma modal de vários modos leva os modos; com número variável de modos, os alvos do oponente vêm primeiro nos efeitos que tiram, destroem, causam dano ou viram, e o teto de ofertas é repartido (Casualties of War: até ~130); modos fora da ordem impressa são recusados; o modo da ativada fica na pilha e no registro",
    "falta": "(e) AUSENTE: outro jogador escolhe o modo (Misfortune, Fatal Lore, Library of Lat-Nam). (i) AUSENTE: modos com {P} (Season of…, Bloomburrow). \"Choose any number —\" não aparece em nenhuma carta do Forge (13/10/2026).",
    "esforco": "M",
    "depende": [
@@ -5747,7 +5753,11 @@
     "CR 700.2a · Insidious Fungus (texto oficial): o terceiro modo compra e põe um terreno da mão virado",
     "CR 700.2a · Balm of Restoration (texto oficial): prevenir os próximos 2 de dano a uma criatura — o Urso aguenta 3",
     "CR 700.2a · Potatoes (texto oficial): Purê cria duas fichas de Comida; Ensopado ganha 3 e compra",
-    "CR 700.2g · a cópia de uma mágica modal leva os modos escolhidos (tempestade)"
+    "CR 700.2g · a cópia de uma mágica modal leva os modos escolhidos (tempestade)",
+    "CR 700.2c · T-106: com \"one or both\" num campo cheio, há oferta com os dois modos nos alvos do oponente — e Casualties of War não passa de ~130 ofertas",
+    "CR 118.9d / 700.2d · T-106: conjurar sem pagar (cascata) uma mágica de \"one or both\" — as ofertas levam os modos e o motor as aceita",
+    "CR 700.2d · T-106: modos fora da ordem impressa são recusados com o motivo certo",
+    "CR 700.2a · T-106: o modo da ativada fica na habilidade da pilha e no registro; o validador recusa \"effects\" junto dos modos"
    ]
   },
   {
