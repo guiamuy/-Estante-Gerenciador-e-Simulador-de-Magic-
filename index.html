@@ -5895,6 +5895,7 @@ const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield
   'exerted', // V-20 · "You may exert ~ as it attacks. When you do, …" (701.43d): dispara quando a permanente é exaurida
   'becomes-monstrous', // V-6 · "When ~ becomes monstrous" (o valor do gatilho é o N da monstruosidade, 701.37c)
   /* ↓ T · gatilhos da trilha tipos */
+  'enchanted-player-upkeep', // T-94 · CR 303.4b · "At the beginning of enchanted player's upkeep" (o "that player" dos efeitos é `target: 'enchanted-player'`)
   'crime', // T-86 · CR 700.13 · "Whenever you commit a crime": você conjura uma mágica, ativa uma habilidade ou põe um gatilho na pilha mirando um oponente, algo que ele controla ou uma carta no cemitério dele (`umaVezPorTurno`: "This ability triggers only once each turn")
   'expend', // T-85 · CR 700.14 · "Whenever you expend N" (`n`): dispara quando o total de mana que você gastou para conjurar mágicas no turno passa de menos de N para N ou mais
   'saddles', // T-54 · CR 702.171c "Whenever ~ saddles a Mount" (a montaria é o `remembered` do gatilho)
@@ -6044,7 +6045,7 @@ function descreveGatilho(w, como = {}) { // M-401 · como.equipada: "a criatura 
 }
 /** S11 · o que uma aura ou equipamento pode conceder. `per` conta permanentes
     e multiplica o bônus (Ancestral Mask, Ethereal Armor). */
-const ATTACH_KINDS = ['creature', 'permanent', 'land', 'creature-you-control', 'creature-or-planeswalker-you-control', 'creature-card-in-graveyard']; // CR2d.4 · "Enchant creature card in a graveyard" // Q11 · Setessan Training
+const ATTACH_KINDS = ['creature', 'permanent', 'land', 'creature-you-control', 'creature-or-planeswalker-you-control', 'creature-card-in-graveyard', 'player' /* T-94 · CR 303.4b · "Enchant player" (Maldições) (Toca ponto comum: ATTACH_KINDS) */]; // CR2d.4 · "Enchant creature card in a graveyard" // Q11 · Setessan Training
 const PER_COUNTS = ['enchantments-you-control', 'other-enchantments', 'auras-on-battlefield',
   'creatures-you-control', 'other-creatures-you-control', 'elves-you-control', 'elves-on-battlefield', 'defenders-you-control', 'permanents-you-control', 'nonland-permanents-you-control', 'life-gained-this-turn', 'life-lost-this-turn',
   'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G', 'counters-on-source', 'opponents-empty-hand', 'trigger-value', 'chosen-type-permanents', 'sacrificed-toughness', 'sacrificed-mv', 'sacrificed-power', 'creature-cards-in-your-graveyard', 'cards-in-hand', 'x', 'power-of-source', 'se', 'power-of-target',
@@ -6474,7 +6475,7 @@ function effectErrors(effects, label, opcional) {
     // S42 · "no mesmo alvo": reaproveita o alvo já escolhido por um efeito anterior
     if (t === 'first-target') {
       if (!effects.slice(0, i).some(isTargeted)) errs.push(`${label} ${i + 1} (${e.do}): "no mesmo alvo" precisa de um alvo escolhido antes`);
-    } else if (t !== 'self' && t !== 'delayed-object' && t !== 'remembered' && t !== 'that-player' && !spec.targets.includes(t)) errs.push(`${label} ${i + 1} (${e.do}): alvo "${t}" não vale aqui`);
+    } else if (t !== 'self' && t !== 'delayed-object' && t !== 'remembered' && t !== 'that-player' && t !== 'enchanted-player' /* T-94 (Toca ponto comum: effectErrors) */ && !spec.targets.includes(t)) errs.push(`${label} ${i + 1} (${e.do}): alvo "${t}" não vale aqui`);
   });
   /* ↓ K · validação da trilha keywords */
   /* ↓ V · validação da trilha verbos */
@@ -6765,6 +6766,13 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-94 · CR 303.4b · Maldições: Aura que encanta um jogador (Oracle do Forge, clone de 13/10/2026, conferido no master em 14/10/2026)
+  { name: 'Curse of the Bloody Tome', aura: { enchant: 'player' }, abilities: [{ kind: 'triggered', when: 'enchanted-player-upkeep', effects: [{ do: 'mill', amount: 2, target: 'enchanted-player' }] }], // "Enchant player · At the beginning of enchanted player's upkeep, that player mills two cards."
+    example: { target: 'opponent', expect: { attached: false } } },
+  { name: 'Curse of Thirst', aura: { enchant: 'player' }, abilities: [{ kind: 'triggered', when: 'enchanted-player-upkeep', effects: [{ do: 'damage', amount: { per: 'maldicoes-no-jogador' }, target: 'enchanted-player' }] }], // "Enchant player · At the beginning of enchanted player's upkeep, Curse of Thirst deals damage to that player equal to the number of Curses attached to them."
+    example: { target: 'opponent', expect: { attached: false } } },
+  { name: 'Curse of Oblivion', aura: { enchant: 'player' }, abilities: [{ kind: 'triggered', when: 'enchanted-player-upkeep', effects: [{ do: 'exile_chosen', amount: 2, target: 'enchanted-player' }] }], // "Enchant player · At the beginning of enchanted player's upkeep, that player exiles two cards from their graveyard."
+    example: { target: 'opponent', expect: { attached: false } } },
   // T-92 · CR 724 · encerrar o turno e a fase de combate (Oracle do Forge, clone de 13/10/2026, conferido no master em 14/10/2026). O lembrete entre parênteses não se escreve.
   { name: 'Time Stop', effects: [{ do: 'encerra_turno' }], // "End the turn."
     example: { target: 'none', expect: { selfLife: 0 } } },
@@ -9428,6 +9436,7 @@ EVENTOS_DE_OBJETO.push('exaurida'); OBJETOS_DO_EVENTO.exaurida = ['self']; GATIL
 // V-6 · evento "ficou monstruosa" (701.37): da própria permanente
 EVENTOS_DE_OBJETO.push('monstruosa'); OBJETOS_DO_EVENTO.monstruosa = ['self']; GATILHO_EVENTO['becomes-monstrous'] = { evento: 'monstruosa', objeto: 'self' }; TRIGGER_PT['becomes-monstrous'] = 'quando fica monstruosa';
 /* ↓ T · exportações de scripts.js da trilha tipos */
+GATILHO_EVENTO['enchanted-player-upkeep'] = { evento: 'passo', passo: 'upkeep', turno: 'qualquer', jogadorEncantado: true }; TRIGGER_PT['enchanted-player-upkeep'] = 'na manutenção do jogador encantado'; // T-94 · CR 303.4b
 /* ---------------- T-36 · CR 702.160 / 718 · protótipo (forma do script) ----------------
    `self: { prototipo: { mana, power, toughness } }` ("Prototype {3}{G} — 3/3"): o segundo conjunto de custo de mana, poder e resistência. */
 function prototipoErros(sc) {
@@ -9638,7 +9647,7 @@ function condicoesT() { return ['resistenciaAte', 'selada', 'preparada', 'monarc
    ("… instead if you're the monarch"). Efeito contínuo: `se: { monarca: 'voce' | 'oponente' }` ("as long as you're the monarch").
    Sem monarca no jogo, nenhuma das condições vale (725.5). */
 function onlyIfT() { return ['monarca', 'oponente-monarca', 'ganhou-moeda', 'perdeu-moeda', 'deu-cara', 'deu-coroa', 'dado-duplos', 'desceu']; } // T-84 · CR 700.11 // T-66 · CR 706.5 // T-65 · CR 705.2 · o lance da moeda
-function perCountsT() { return ['moedas-ganhas', 'resultado-do-dado', 'vezes-que-desceu', 'metade-de-x', 'rad-total']; } // T-91 · "half X, rounded up" e "the total number of rad counters among players" // T-84 · CR 700.11 · "the number of times you descended this turn" // T-66 · CR 706.4 // T-59 · CR 700.8 · grupo · T-65 · CR 705.2 · "for each flip you won" (função içada: PER_COUNTS é montada antes) // função (içada): ONLY_IF e o validador do `per: 'se'` são montados antes desta linha
+function perCountsT() { return ['moedas-ganhas', 'resultado-do-dado', 'vezes-que-desceu', 'metade-de-x', 'rad-total', 'maldicoes-no-jogador']; } // T-94 · "the number of Curses attached to them" // T-91 · "half X, rounded up" e "the total number of rad counters among players" // T-84 · CR 700.11 · "the number of times you descended this turn" // T-66 · CR 706.4 // T-59 · CR 700.8 · grupo · T-65 · CR 705.2 · "for each flip you won" (função içada: PER_COUNTS é montada antes) // função (içada): ONLY_IF e o validador do `per: 'se'` são montados antes desta linha
 function seMonarcaT(se) { return !!se && Object.keys(se).length === 1 && ['voce', 'oponente'].includes(se.monarca); }
 function monarcaErrosT(sc) {
   const errs = [], abs = [...((sc && sc.abilities) || []), ...((sc && sc.back && sc.back.abilities) || [])];
@@ -20693,6 +20702,7 @@ function amountOf(s, src, v) {
     if (v.per === 'soma') return (v.partes || []).reduce((n, x) => n + amountOf(s, src, x), 0) * (v.times || 1); // M-358 · "N, plus M" (Seize the Storm)
     if (v.per === 'resultado-do-dado') return ((src.dadoT || {}).resultado || 0) * (v.times || 1); // T-66 · CR 706.4 · "equal to the result"
     if (v.per === 'vezes-que-desceu') return vezesQueDesceuT(s, src.controller) * (v.times || 1); // T-84 · CR 700.11 (Toca ponto comum: amountOf)
+    if (v.per === 'maldicoes-no-jogador') return maldicoesNoJogadorT(s, src.jogadorAtrasado != null ? src.jogadorAtrasado : src.controller) * (v.times || 1); // T-94 · CR 303.4b (Toca ponto comum: amountOf)
     if (v.per === 'metade-de-x' || v.per === 'rad-total') return (v.per === 'rad-total' ? s.players.reduce((n, pl) => n + (pl.lost ? 0 : pl.rad || 0), 0) : Math.ceil((src.xPaid || 0) / 2)) * (v.times || 1); // T-91 · CR 728.1 · Contaminated Drink, Vault 12 (Toca ponto comum: amountOf)
     if (v.per === 'moedas-ganhas') return ((src.moedaT || {}).ganhas || 0) * (v.times || 1); // T-65 · CR 705.2 · "for each flip you won" (Toca ponto comum: amountOf)
     if (v.per === 'x') return (src.xPaid || 0) * (v.times || 1); // CR2c.3 · 107.3a: o X escolhido ao conjurar, o mesmo em todo o texto
@@ -22796,8 +22806,9 @@ function gatilhosDoPasso(s, passo, fase) {
       if (!d || d.evento !== 'passo' || d.passo !== passo) continue;
       const turno = d.turno || 'seu';
       if (fase === 'seu' ? turno !== 'seu' : (turno === 'seu' || (turno === 'oponente' && o.controller === a))) continue;
+      if (d.jogadorEncantado && jogadorEncantadoT(s, o) !== a) continue; // T-94 · CR 303.4b · "enchanted player's upkeep" (Toca ponto comum: gatilhosDoPasso)
       if (!triggerConditionMet(s, o, ab.condition)) continue;
-      s.queued.push({ source: o.oid, name: o.name, controller: o.controller, effects: ab.effects, when: ab.when, ...marcasDaHabilidade(ab) });
+      s.queued.push({ source: o.oid, name: o.name, controller: o.controller, effects: ab.effects, when: ab.when, ...marcasDaHabilidade(ab), ...(d.jogadorEncantado ? { jogador: a } : {}) });
     }
   }
 }
@@ -23331,6 +23342,7 @@ function resolveTop(s, events = []) {
         return { kind: 'resolved', oid: item, name: o.name, to: 'battlefield', scripted: true, adjudicate: false };
       }
       events.push({ kind: 'fizzled', oid: item, name: o.name }); moveObject(s, item, 'graveyard'); return { kind: 'resolved', oid: item, name: o.name, to: 'graveyard', scripted: true, adjudicate: false }; }
+    { const rj = auraEmJogadorT(s, item, o, tgt, controller, events); if (rj) return rj; } // T-94 · CR 303.4b · a Maldição entra encantando o jogador (Toca ponto comum: resolveTop)
     moveObject(s, item, 'battlefield', { controller: controller }); s.objects[item].controller = controller;
     if (aura === 'creature-card-in-graveyard') { delete s.objects[item].reanimada; s.objects[item].attachedTo = tgt.oid; s.objects[item].anexadaEm = relogio(s); s.objects[item].anexadaZ = s.objects[tgt.oid].zc || 0; events.push({ kind: 'effect', do: 'attach', name: o.name, target: s.objects[tgt.oid].name }); } // CR2d.4 · entra encantando a carta no cemitério; o gatilho de entrada faz o resto
     else attachTo(s, s.objects[item], tgt.oid, events);
@@ -23427,7 +23439,7 @@ function stateBased(s, events) {
     for (const o of battlefield(s)) { const n = Math.min(o.counters.p1p1 || 0, o.counters.m1m1 || 0); if (n > 0) { o.counters.p1p1 -= n; o.counters.m1m1 -= n; changed = true; } }
     // CR 704.5m: Aura no campo sem estar anexada (entrou sem ser conjurada), ou anexada a algo que ela não pode encantar
     for (const o of battlefield(s)) {
-      const au = (s.facts[o.name].script || {}).aura; if (!au || o.faceDown || (s.facts[o.name].script || {}).bestow || o.escolheAnexoT) continue; /* T-22 · CR 303.4f: a Aura esperando a escolha do que encanta não cai · Toca ponto comum: stateBased 704.5m */ // V-19 · 708.2a: virada para baixo não é Aura · Toca ponto comum: stateBased (704.5m)
+      const au = (s.facts[o.name].script || {}).aura; if (!au || o.faceDown || (s.facts[o.name].script || {}).bestow || o.escolheAnexoT || encantaJogadorOkT(s, o, au) /* T-94 · CR 303.4c: a Maldição no jogador que segue no jogo fica */) continue; /* T-22 · CR 303.4f: a Aura esperando a escolha do que encanta não cai · Toca ponto comum: stateBased 704.5m */ // V-19 · 708.2a: virada para baixo não é Aura · Toca ponto comum: stateBased (704.5m)
       const host = o.attachedTo ? s.objects[o.attachedTo] : null;
       if (host && host.zone === 'battlefield' && auraPodeEncantar(s, au, host)) continue;
       if (host && host.zone === 'battlefield' ? true : !o.attachedTo) { moveObject(s, o.oid, 'graveyard'); events.push({ kind: 'unattached', oid: o.oid, name: o.name, died: true }); changed = true; }
@@ -25150,6 +25162,7 @@ function resolveAbility(s, o, events) {
     else if (eff.target === 'delayed-object') { const d = o.objetoAtrasado; if (d && mesmaEncarnacao(s, d) && s.objects[d.oid]) applyEffect(s, o, eff, { oid: d.oid }, events); } // 603.7c
     else if (eff.target === 'that-player') applyEffect(s, o, eff, { player: o.jogadorAtrasado != null ? o.jogadorAtrasado : o.controller }, events); // CR2b.5 · quem conjurou a mágica que disparou
     else if (eff.target === 'delayed-player') applyEffect(s, o, eff, { player: o.jogadorAtrasado != null ? o.jogadorAtrasado : o.controller }, events); // CR2b.1
+    else if (eff.target === 'enchanted-player') { if (o.jogadorAtrasado != null) applyEffect(s, o, eff, { player: o.jogadorAtrasado }, events); } // T-94 · CR 303.4b · "that player": o jogador encantado quando disparou (Toca ponto comum: resolveAbility)
     else if (ehVarredura(eff)) aplicaCada(s, o, eff, events); // M-230
     else applyEffect(s, o, eff, null, events);
     if (s.pending) { s.resume = { oid: o.source || o.oid, name: o.name, controller: o.controller, effects: (o.effects || []).slice((o.effects || []).indexOf(eff) + 1), alvo: primeiro, alvos: chosen.slice(ti), ...(o.xPaid != null ? { xPaid: o.xPaid } : {}), ...(o.dadoT || o.moedaT ? resolucaoT(o) : {}) }; return; } // CR2c.7 · o X viaja com a retomada · T-67 · e o dado e a moeda desta resolução (706.3b)
@@ -29547,6 +29560,26 @@ function vedadaPeloTurnoT(s, a) {
   return ab && ab.soNoSeuTurno ? `${o.name}: só no seu turno` : null;
 }
 function perguntaDoScriptT(sc, chave, pred) { let m = PERGUNTA_T.get(sc); if (!m) PERGUNTA_T.set(sc, m = {}); if (m[chave] == null) m[chave] = !!pred(sc); return m[chave]; }
+/* ---------------- T-94 · CR 303.4b–c · Aura que encanta um jogador (Maldições) ----------------
+   `aura: { enchant: 'player' }` ("Enchant player"): a mágica mira um jogador (303.4a) e, ao resolver, a Aura entra no campo do controlador
+   encantando o jogador — `o.encantaJogadorT = { p, z }` (z = a encarnação da Aura: saiu e voltou, é outro objeto, 400.7). 303.4c / 704.5m:
+   se o jogador saiu do jogo, ou a anotação é de outra encarnação, a Aura vai para o cemitério (a conferência de sempre da Aura solta).
+   Gatilho `enchanted-player-upkeep` ("at the beginning of enchanted player's upkeep"): dispara na manutenção do jogador encantado e leva o
+   jogador como `jogador`; os efeitos com `target: 'enchanted-player'` ("that player") valem nele. Contagem `maldicoes-no-jogador` ("the
+   number of Curses attached to them"). Fora (declarado no ROADMAP): a Aura de jogador que entra sem ser conjurada (303.4f), "Enchant
+   opponent" e os contínuos sobre o que o jogador encantado controla. */
+function auraEmJogadorT(s, item, o, tgt, ctrl, events) {
+  if (!tgt || tgt.player == null || auraTarget(s.facts[o.name], o.bestowed) !== 'player') return null;
+  moveObject(s, item, 'battlefield', { controller: ctrl }); const a = s.objects[item]; a.controller = ctrl;
+  a.encantaJogadorT = { p: tgt.player, z: a.zc || 0 }; a.anexadaEm = relogio(s);
+  events.push({ kind: 'effect', do: 'attach', name: o.name, target: s.players[tgt.player].name });
+  return { kind: 'resolved', oid: item, name: o.name, to: 'battlefield', scripted: true, adjudicate: false };
+}
+function jogadorEncantadoT(s, o) { const r = o && o.encantaJogadorT; return r && r.z === (o.zc || 0) && o.zone === 'battlefield' && s.players[r.p] && !s.players[r.p].lost ? r.p : null; }
+function encantaJogadorOkT(s, o, au) { return String(au.enchant || '') === 'player' && jogadorEncantadoT(s, o) != null; }
+function maldicoesNoJogadorT(s, p) { return battlefield(s).filter(o => jogadorEncantadoT(s, o) === p && !o.faceDown && /\bCurse\b/.test(linhaDeTipo(s, o))).length; }
+function encantamentosDoJogadorT(s, p) { const ns = battlefield(s).filter(o => jogadorEncantadoT(s, o) === p).map(o => o.name); return ns.length ? 'Encantado por ' + ns.join(', ') : null; }
+Object.assign(EXPORTS_T, { encantamentosDoJogadorT, jogadorEncantadoT });
 /** T-81 · "Lands with the chosen name have '{T}: Add {C}.'" (`self.manaDoNome`, Petrified Hamlet): a opção de mana que o terreno com o
  * nome escolhido ganha. */
 function manaDoNomeT(s, o) {
@@ -32163,6 +32196,7 @@ const ALVO_PT = { 'delayed-object': 'essa permanente', 'each-opponent-creature':
   'creature-enchantment-you-control': 'uma criatura ou encantamento seu', 'other-creature-you-control': 'outra criatura sua', 'creature-you-control': 'uma criatura sua', 'creature-opponent-controls': 'uma criatura de um oponente',
   'first-target': 'o mesmo alvo', 'spell-or-creature': 'uma mágica ou criatura', 'spell-or-ability': 'uma mágica ou habilidade', 'target-controller': 'quem controlava o alvo', 'self-source': 'esta permanente', self: 'você',
   'creature-blocked-by-source': 'a criatura que ela bloqueia', all: 'tudo', enchanted: 'a criatura encantada', any: 'qualquer alvo', 'artifact-creature': 'um artefato ou criatura', player: 'um jogador', creature: 'uma criatura', permanent: 'uma permanente', spell: 'uma mágica', 'each-creature': 'cada criatura', 'each-opponent': 'cada oponente', opponent: 'um oponente', 'creature-or-player': 'criatura ou jogador', land: 'um terreno', artifact: 'um artefato', enchantment: 'um encantamento' };
+ALVO_PT['enchanted-player'] = 'quem está encantado'; // T-94 · CR 303.4b ("that player": o jogador encantado)
 ALVO_PT['that-player'] = 'quem controla a mágica que disparou'; // M-322 · CR2b.9 (Bonecrusher Giant: "that spell's controller"); o portão R9b pegou a frase em inglês
 const PALAVRA_PT = { defender: 'defensor', /* M-370 */ infect: 'infectar', indestructible: 'indestrutível', hexproof: 'resistência a magia', flying: 'voar', haste: 'ímpeto', trample: 'atropelar', lifelink: 'vínculo com a vida', deathtouch: 'toque mortífero', vigilance: 'vigilância', reach: 'alcance', menace: 'ameaçar', 'first strike': 'iniciativa', 'double strike': 'golpe duplo',
   fear: 'medo', intimidate: 'intimidar', shadow: 'sombra', skulk: 'esgueirar', islandwalk: 'travessia de ilha', swampwalk: 'travessia de pântano', forestwalk: 'travessia de floresta', mountainwalk: 'travessia de montanha', plainswalk: 'travessia de planície' };
@@ -32537,7 +32571,11 @@ function descreveEfeito(e) {
 const CONDICAO_PT = { kicked: 'se tiver sido reforçada', bargained: 'se tiver sido barganhada', 'paid-additional': 'se o custo adicional foi pago', metalcraft: 'com metalurgia', 'cast-from-graveyard': 'se foi conjurada do cemitério', 'source-entered-earlier': 'só se ela não entrou neste turno', 'not-attacked': 'só se você não atacou neste turno', evidenced: 'se colheu provas', 'not-evidenced': 'se não colheu provas', ferocious: 'se você controlar uma criatura com poder 4 ou mais', 'alvo-era-neve': 'se o terreno era nevado', 'alvo-era-seu': 'se a permanente era sua' }; // M-385 // M-351 · Extract a Confession (achado da revisão do lote XXIII: as duas frases pareciam dois sacrifícios)
 const X_PT = { movidas: 'o número de cartas postas no cemitério assim', 'instants-sorceries-in-your-graveyard': 'mágicas instantâneas e feitiços no seu cemitério', 'flashback-cards-you-own-in-exile': 'cartas com lampejo do passado suas no exílio', /* M-358 */ 'cards-in-hand': 'cartas na sua mão', 'creature-cards-in-your-graveyard': 'cartas de criatura no seu cemitério', 'sacrificed-power': 'o poder da criatura sacrificada', 'sacrificed-toughness': 'a resistência da criatura sacrificada', 'sacrificed-mv': 'o valor de mana do que foi sacrificado' }; // M-354 · o que o X conta (achado da revisão do lote XXVI)
 Object.assign(X_PT, { 'moedas-ganhas': 'os lances ganhos', 'resultado-do-dado': 'o resultado do dado' }); // T-65 · T-66
-const faixaPT_T = (e, f) => !f || !e || !e.faixaDoDado ? f : `${f} (${e.faixaDoDado[1] == null ? `se o dado der ${e.faixaDoDado[0]} ou mais` : e.faixaDoDado[0] === e.faixaDoDado[1] ? `se o dado der ${e.faixaDoDado[0]}` : `se o dado der de ${e.faixaDoDado[0]} a ${e.faixaDoDado[1]}`})`; // T-66 · CR 706.3a
+const faixaPT_T = (e, f) => jogadorEncantadoPT_T(e, faixaDoDadoPT_T(e, f)); // T-94 · "that player" das Maldições
+const jogadorEncantadoPT_T = (e, f) => !f || !e || e.target !== 'enchanted-player' || /encantad/.test(f) ? f : `${f} (o jogador encantado)`;
+Object.assign(X_PT, { 'maldicoes-no-jogador': 'o número de Maldições no jogador encantado' }); // T-94
+Object.assign(EFEITO_PT_T, { exile_chosen: e => `${e.target === 'enchanted-player' ? 'o jogador encantado' : 'o alvo'} exila ${typeof e.amount === 'number' && e.amount > 1 ? e.amount + ' cartas' : 'uma carta'} do próprio cemitério` }); // T-94 · com a quantidade (antes dizia sempre "uma carta")
+const faixaDoDadoPT_T = (e, f) => !f || !e || !e.faixaDoDado ? f : `${f} (${e.faixaDoDado[1] == null ? `se o dado der ${e.faixaDoDado[0]} ou mais` : e.faixaDoDado[0] === e.faixaDoDado[1] ? `se o dado der ${e.faixaDoDado[0]}` : `se o dado der de ${e.faixaDoDado[0]} a ${e.faixaDoDado[1]}`})`; // T-66 · CR 706.3a
 Object.assign(CONDICAO_PT, { 'dado-duplos': 'se os dois dados derem o mesmo número' }); // T-66 · CR 706.5
 Object.assign(CONDICAO_PT, { desceu: 'se você desceu neste turno (uma carta de permanente foi para o seu cemitério)' }); // T-84 · CR 700.11
 Object.assign(CONDICAO_PT, { monarca: 'se você é o monarca', 'oponente-monarca': 'se um oponente é o monarca', 'ganhou-moeda': 'se ganhar o lance', 'perdeu-moeda': 'se perder o lance', 'deu-cara': 'se der cara', 'deu-coroa': 'se der coroa' }); // T-62 · CR 725.5
@@ -34696,7 +34734,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const comandanteTxt = __m18.textoDoDanoDeComandante(s, p); // G-259 · relato #20: dano de comandante à vista
     const designacao = [s.monarca === p ? 'Monarca' : null, s.iniciativa === p ? 'Iniciativa' : null].filter(Boolean).join(' · ') || null; // M-332 · CR 725 / 726
     const life = LifeCounter({ name: pl.name + (pl.lost ? ' (fora)' : ''), life: pl.life, active: s.turn.active === p,
-      sub: [designacao, subMasm, veneno, energiaTxt, pl.rad ? `Radiação ${pl.rad}` /* T-91 · CR 728.1 (Toca ponto comum: table.js, linha de vida) */ : null, comandanteTxt].filter(Boolean).join(' · ') || null, onClick: () => openLife(p), id: mine ? 'tb-life-me' : 'tb-life-opp' });
+      sub: [designacao, subMasm, veneno, energiaTxt, pl.rad ? `Radiação ${pl.rad}` /* T-91 · CR 728.1 (Toca ponto comum: table.js, linha de vida) */ : null, E.encantamentosDoJogadorT(s, p) /* T-94 · CR 303.4b: "Encantado por …" */, comandanteTxt].filter(Boolean).join(' · ') || null, onClick: () => openLife(p), id: mine ? 'tb-life-me' : 'tb-life-opp' });
     // D6 · relance: sem nada em campo, uma linha só ("Campo vazio"); com uma das duas zonas vazia, ela vira uma linha fina
     // D6 · relance: "Terrenos" e "Permanentes" só quando há; com o campo vazio o lado é só a linha de vida e zonas
     const campoVazio = !others.length && !lands.length;

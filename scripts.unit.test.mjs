@@ -31,7 +31,7 @@ const instantish = sc => (sc.modes || []).length > 0
   || (sc.effects || []).some(e => ['counter', 'pump', 'bounce', 'tap', 'untap'].includes(e.do) || /spell/.test(e.target || ''))
   || /spell|instant/.test(sc.example.target || '') || !!(sc.self && sc.self.soEmCombate); // T-92 · "Cast this spell only during combat" é instantânea
 for (const sc of S.RAW_SCRIPTS) {
-  CARDS[sc.name] = card(sc.name, PERM_TYPES[sc.name] || (instantish(sc) ? 'Instant' : 'Sorcery'),
+  CARDS[sc.name] = card(sc.name, PERM_TYPES[sc.name] || (sc.aura && sc.aura.enchant === 'player' ? 'Enchantment — Aura Curse' /* T-94 · Maldição */ : instantish(sc) ? 'Instant' : 'Sorcery'),
     PERM_TYPES[sc.name] && /Creature/.test(PERM_TYPES[sc.name]) ? { pt: [1, 1] } : {});
   if (LOYALTY[sc.name]) CARDS[sc.name].loyalty = String(LOYALTY[sc.name]);
   if (PT_IMPRESSO[sc.name]) Object.assign(CARDS[sc.name], { power: String(PT_IMPRESSO[sc.name][0]), toughness: String(PT_IMPRESSO[sc.name][1]) });
@@ -432,7 +432,7 @@ function runExample(sc) {
     if (s.stack.length) { s = resolve(s); continue; }
     break;
   }
-  const isPermanentCard = !!PERM_TYPES[sc.name] || how === 'disturb' || how === 'omen' || how === 'transmute' || how === 'bestow';
+  const isPermanentCard = !!PERM_TYPES[sc.name] || !!(sc.aura && sc.aura.enchant === 'player') /* T-94 */ || how === 'disturb' || how === 'omen' || how === 'transmute' || how === 'bestow';
   // CR2c.5 · "Exile <esta mágica>" (Ascend from Avernus): o próprio texto a manda para o exílio, e o cenário confere com `exiled`
   if (!isPermanentCard && !(sc.effects || []).some(e => ['exile_self', 'encerra_turno', 'encerra_combate'].includes(e.do) /* T-92 · 724.1b: encerrar exila a própria mágica */) && (!isLand || how.startsWith('activate')) && (how === 'cast' || how === 'madness' || how.startsWith('mode') || how.startsWith('alt'))) assert.equal(s.objects[oid].zone, 'graveyard', `${sc.name} deveria ir para o cemitério`);
   if (how === 'aura' || how === 'equip' || how === 'bestow') assert.equal(s.objects[oid].attachedTo, ex.target === 'own-land' ? land : ex.target === 'own-forest' ? myForest : ex.target === 'own-graveyard-creature' ? buriedMine : mine, // CR2d.4 · Animate Dead
