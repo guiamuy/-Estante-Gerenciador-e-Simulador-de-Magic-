@@ -5379,7 +5379,8 @@ const EFFECTS = {
   add_mana: { fields: [], targets: ['self'] },
   volta_ao_acaso: { fields: [], targets: ['self'] }, // M-369 · "Return a <tipo> card at random from your graveyard to your hand" (Haunted Fengraf); `tipos` filtra
   energia: { fields: ['amount'], targets: ['self'] },
-  energia_reanima: { fields: [], targets: ['card-in-your-graveyard'] }, // M-393 · "you may pay an amount of {E} equal to that card's mana value. If you do, return it from your graveyard to the battlefield" (Jolted Awake) // M-367 · 107.14 · "you get {E}{E}": marcadores de energia do jogador (122.1)
+  energia_reanima: { fields: [], targets: ['card-in-your-graveyard'] },
+  energia_dano: { fields: [], targets: ['creature', 'planeswalker'] }, // M-405 · 107.14 · "then you may pay any amount of {E}. ~ deals that much damage to that creature/permanent" (Galvanic Discharge, Harnessed Lightning): alvo seletor // M-393 · "you may pay an amount of {E} equal to that card's mana value. If you do, return it from your graveyard to the battlefield" (Jolted Awake) // M-367 · 107.14 · "you get {E}{E}": marcadores de energia do jogador (122.1)
   mana_combinada: { fields: ['amount'], targets: ['self'] }, // M-357 · "Add two mana in any combination of colors" (Manamorphose): cada mana pede a cor na resolução
   token: { fields: ['amount'], targets: ['self', 'opponent', 'target-controller'] },
   endure: { fields: ['amount'], targets: ['self'] }, // M-380 · "it endures N": põe N marcadores +1/+1 nela OU cria um Espírito branco N/N (quem controla escolhe; Tarkir: Dragonstorm, texto de lembrete)
@@ -9301,6 +9302,9 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   // M-403 · revisão por lote LIX (pedido da listas: Skyward Spider; Obstinate Gargoyle), revisor independente: 108 verificações, diferenciais e fuzz sem diferença; aprovou com uma ressalva (palavra condicional na lista da Scryfall) — tratada com teste
   'Skyward Spider': { texto: '10le0hs', leva: 'M-403' },
   'Obstinate Gargoyle': { texto: '1hzyi8e', leva: 'M-403' },
+  // M-405 · revisão por lote LX (Pauper: Galvanic Discharge, 31 listas; Harnessed Lightning), revisor independente: 93 verificações, fuzz e diferenciais sem diferença; aprovou com uma ressalva no bot (quantias agrupadas como jogadas iguais) — tratada com teste
+  'Galvanic Discharge': { texto: 'gjfy9', leva: 'M-405' },
+  'Harnessed Lightning': { texto: 'cyivty', leva: 'M-405' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -17901,6 +17905,7 @@ const __m42 = (function () {
   const FILTRO_DESCARTE = { 'nonland card': { notTypes: ['land'] }, 'noncreature, nonland card': { notTypes: ['creature', 'land'] }, 'nonland, noncreature card': { notTypes: ['creature', 'land'] } };
   const FILTRO_TOPO = { colorless: { incolor: true }, 'instant or sorcery': { types: ['instant', 'sorcery'] }, creature: { types: ['creature'] }, artifact: { types: ['artifact'] }, land: { types: ['land'] }, 'creature or land': { types: ['creature', 'land'] } };
   const PRE_PARAGRAFO = [
+    [/^choose (target creature or planeswalker|target creature)\. you get ((?:\{E\})+)(?: \([^)]*\))?, then you may pay any amount of \{E\}\. ~ deals that much damage to that (?:creature|permanent)(?:\.\s*|$)/i, m => [{ do: 'energia', amount: m[2].length / 3 }, { do: 'energia_dano', target: /planeswalker/i.test(m[1]) ? { tipos: ['creature', 'planeswalker'] } : { tipos: ['creature'] } }]], // M-405 · Galvanic Discharge, Harnessed Lightning
     [new RegExp(`^look at the top ${N} cards of your library, then put them back in any order(?:\\.\\s*|$)`, 'i'), m => { const c = num(m[1]); return c ? [{ do: 'look', count: c, amount: c, min: c, to: 'library-top', rest: 'stay', ordena: true }] : null; }], // M-339 · Ponder
     [/^(target player|target opponent) reveals (?:their|his or her) hand\. you choose an? (.+?) from it(?: with mana value (\d+) or less)?\. (?:that player|they) discards? that card(?:\.\s*|$)/i, m => {
       const k = m[2].toLowerCase(), base = FILTRO_DESCARTE[k], filtro = base && (m[3] ? { ...base, mvMax: +m[3] } : base); // Inquisition of Kozilek: "a nonland card from it with mana value 3 or less" 
@@ -22037,6 +22042,14 @@ function applyEffect(s, src, eff, tgt, events) {
         then: { effects: [{ do: 'gasta_energia', amount: n }, { do: 'reanimate', target: 'remembered' }], source: src.ability ? src.source : src.oid, name: src.name, controller: ctrl, targets: [], lembrada: { oid: obj.oid, z: obj.zc || 0 } } };
       note({ pending: true }); break;
     }
+    case 'energia_dano': { // M-405 · 107.14 · 608.2d: a quantia é escolhida na resolução, de 0 até a energia que você tem
+      if (!obj || obj.zone !== 'battlefield') { note({ failed: true }); break; }
+      const max = s.players[ctrl].energia || 0;
+      if (!max) { note({ amount: 0 }); break; }
+      s.pending = { kind: 'quantia', p: ctrl, min: 0, max, name: `${src.name}: quanta energia pagar?`, dica: `O dano em ${obj.name} é igual à energia que você pagar.`,
+        quantia: { do: 'energia_dano', srcOid: src.oid, name: src.name, controller: ctrl, alvo: { oid: obj.oid, z: obj.zc || 0 } } };
+      note({ pending: true }); break;
+    }
     case 'gasta_energia': { const n = eff.amount || 0; if ((s.players[ctrl].energia || 0) < n) throw new RuleError('custo', 'energia insuficiente'); s.players[ctrl].energia -= n; note({ amount: n }); break; } // M-393 · interno (o "sim" do Jolted Awake) // V-16 · o "sim" do aprender (efeito interno, sem script)
     case 'suspect': suspeitar(s, src, eff, tgt, events); break; // V-12 · 701.60
     case 'unsuspect': absolver(s, src, eff, tgt, events); break; // V-12 · 701.60a "is no longer suspected"
@@ -24134,6 +24147,19 @@ const HANDLERS = {
     s.pending = null;
     ev.push({ kind: 'choice-done', what: 'vínculo de alma', name: nova ? nova.name : '?', amount: 1 });
   },
+  quantia(s, a, ev) { // M-405 · escolher uma quantia na resolução ("you may pay any amount of {E}")
+    const pk = s.pending;
+    if (!pk || pk.kind !== 'quantia' || pk.p !== a.p) throw new RuleError('tempo', 'nenhuma quantia a escolher');
+    if (!Number.isInteger(a.n) || a.n < pk.min || a.n > pk.max) throw new RuleError('quantia', `escolha um número de ${pk.min} a ${pk.max}`);
+    const q = pk.quantia, n = a.n;
+    if ((s.players[a.p].energia || 0) < n) throw new RuleError('custo', 'energia insuficiente');
+    s.pending = null;
+    s.players[a.p].energia -= n;
+    ev.push({ kind: 'effect', do: 'gasta_energia', name: q.name, amount: n });
+    const alvo = s.objects[q.alvo.oid];
+    if (n > 0 && alvo && alvo.zone === 'battlefield' && mesmaEncarnacao(s, q.alvo)) applyEffect(s, s.objects[q.srcOid] || { oid: q.srcOid, name: q.name, controller: q.controller }, { do: 'damage', amount: n }, { oid: alvo.oid }, ev);
+    resumeEffects(s, ev);
+  },
   choose_type(s, a, ev) { // S50 · escolhe o tipo de criatura e segue a mágica
     if (!s.pending || s.pending.kind !== 'choose_type' || s.pending.p !== a.p) throw new RuleError('tempo', 'nenhum tipo a escolher');
     const pk = s.pending;
@@ -24509,7 +24535,7 @@ function assisted(s) { if (s.mode !== 'assisted') throw new RuleError('modo', 'c
 function onField(s, oid) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield') throw new RuleError('objeto', 'objeto fora do campo'); return o; }
 
 const MULLIGAN_ACTIONS = new Set(['mulligan', 'keep', 'concede']);
-const PENDING_ACTIONS = { dividir_magia: ['dividir_ponto', 'concede'], dividir_dano: ['dividir_dano', 'concede'], topo_fundo: ['topo_fundo', 'concede'], commander_zone: ['commander_zone', 'concede'], discard: ['discard', 'concede'], choose_type: ['choose_type', 'concede'], choose_pair: ['choose_pair', 'concede'], legend: ['choose_legend', 'concede'], unless: ['take_loss', 'pay_unless', 'tap_mana', 'concede'], free_cast: ['cast_free', 'decline_free', 'concede'], sacrifice: ['sacrifice', 'concede'], choose_mode: ['choose_mode', 'concede'], choose_dungeon: ['choose_dungeon', 'concede'], choose_room: ['choose_room', 'concede'], attackers: ['attack', 'concede'], blockers: ['block', 'concede'], triggers: ['order_trigger', 'concede'], choose_color: ['choose_color', 'concede'], pick: ['pick', 'pick_done', 'concede'], pick_target: ['pick_target', 'concede'], may_pay: ['pay', 'decline', 'tap_mana', 'concede'], madness: ['cast_madness', 'decline_madness', 'tap_mana', 'concede'] };
+const PENDING_ACTIONS = { quantia: ['quantia', 'concede'] /* M-405 */, dividir_magia: ['dividir_ponto', 'concede'], dividir_dano: ['dividir_dano', 'concede'], topo_fundo: ['topo_fundo', 'concede'], commander_zone: ['commander_zone', 'concede'], discard: ['discard', 'concede'], choose_type: ['choose_type', 'concede'], choose_pair: ['choose_pair', 'concede'], legend: ['choose_legend', 'concede'], unless: ['take_loss', 'pay_unless', 'tap_mana', 'concede'], free_cast: ['cast_free', 'decline_free', 'concede'], sacrifice: ['sacrifice', 'concede'], choose_mode: ['choose_mode', 'concede'], choose_dungeon: ['choose_dungeon', 'concede'], choose_room: ['choose_room', 'concede'], attackers: ['attack', 'concede'], blockers: ['block', 'concede'], triggers: ['order_trigger', 'concede'], choose_color: ['choose_color', 'concede'], pick: ['pick', 'pick_done', 'concede'], pick_target: ['pick_target', 'concede'], may_pay: ['pay', 'decline', 'tap_mana', 'concede'], madness: ['cast_madness', 'decline_madness', 'tap_mana', 'concede'] };
 
 function apply(state, action) {
   if (!action || !HANDLERS[action.t]) throw new RuleError('acao', 'ação desconhecida: ' + (action && action.t));
@@ -24525,6 +24551,7 @@ function apply(state, action) {
       : k === 'commander_zone' ? 'decida se o comandante volta para a zona de comando primeiro'
       : k === 'choose_type' ? (s.pending.terreno ? 'escolha o tipo básico de terreno primeiro' : 'escolha o tipo de criatura primeiro') // M-388
       : k === 'choose_pair' ? 'escolha o par do vínculo de alma primeiro'
+      : k === 'quantia' ? 'escolha a quantia primeiro' // M-405
       : k === 'legend' ? 'escolha qual lendária fica primeiro'
       : k === 'choose_mode' ? 'escolha o que o gatilho faz primeiro'
       : k === 'free_cast' ? 'decida se conjura sem pagar primeiro'
@@ -24624,6 +24651,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
       out.push({ t: 'decline', p });
     }
     if (k === 'choose_type') (s.pending.options || []).forEach((subtype, index) => out.push({ t: 'choose_type', p, index, subtype })); // S50
+    if (k === 'quantia') for (let n = s.pending.min; n <= s.pending.max; n++) out.push({ t: 'quantia', p, n }); // M-405
     if (k === 'legend') s.pending.options.forEach(oid => out.push({ t: 'choose_legend', p, oid })); // CR 704.5j
     if (k === 'choose_pair') { (s.pending.options || []).forEach((oid, index) => out.push({ t: 'choose_pair', p, index, oid })); out.push({ t: 'choose_pair', p, decline: true }); } // S51
     if (k === 'choose_mode') { (s.pending.options || []).forEach((label, index) => { if (!s.pending.legais || s.pending.legais.includes(index)) out.push({ t: 'choose_mode', p, index, label }); }); // S56 · CR 700.2b
@@ -29964,7 +29992,7 @@ function simula(estado, acao) {
     ordem em que `legalActions` as produziu. */
 const chaveAcao = a => [a.t, a.oid || '', a.index != null ? a.index : '', a.p,
   (a.targets || []).map(x => x.oid || 'p' + x.player).join('+'),
-  (a.attackers || []).join('+'), a.mode != null ? a.mode : '', a.x != null ? a.x : ''].join('|') + E.chaveDeFaceT(a); // T-11 · a face escolhida (metade da dividida, verso da modal)
+  (a.attackers || []).join('+'), a.mode != null ? a.mode : '', a.x != null ? a.x : ''].join('|') + (a.n != null ? '|n' + a.n : '') /* M-405 · a quantia escolhida */ + E.chaveDeFaceT(a); // T-11 · a face escolhida (metade da dividida, verso da modal)
 
 /** B2 · escolhe a melhor candidata com orçamento de tempo.
     `nota(acao)` devolve um número; empate fica com a primeira em ordem estável.
@@ -30521,7 +30549,7 @@ function jogadaProfissional(s, p, opts = {}) {
     const avR = opts.av || avalia;
     // cópias iguais dão a mesma jogada: fica uma de cada (mesma carta, mesma habilidade, mesmos alvos pelo nome)
     const nomeDe = oid => { const o = s.objects[oid]; return o ? o.name + (o.tapped ? '*' : '') + (o.sick ? '~' : '') + JSON.stringify(o.counters || '') + (o.attachedTo ? '@' : '') : oid; };
-    const igual = a => [a.t, a.oid ? nomeDe(a.oid) : '', a.index != null ? a.index : '', (a.targets || []).map(x => x.oid ? nomeDe(x.oid) : 'p' + x.player).join('+'), a.mode != null ? a.mode : '', a.x != null ? a.x : '', a.alt || '', JSON.stringify(a.tapOther || a.sacrifice || a.pay || '')].join('|') + E.chaveDeFaceT(a); // T-11 · metades e faces não são cópias iguais
+    const igual = a => [a.t, a.oid ? nomeDe(a.oid) : '', a.index != null ? a.index : '', (a.targets || []).map(x => x.oid ? nomeDe(x.oid) : 'p' + x.player).join('+'), a.mode != null ? a.mode : '', a.x != null ? a.x : '', a.alt || '', JSON.stringify(a.tapOther || a.sacrifice || a.pay || '')].join('|') + (a.n != null ? '|n' + a.n : '') /* M-405 · achado da revisão: quantias diferentes não são cópias iguais (o Shark pagava 0) */ + E.chaveDeFaceT(a); // T-11 · metades e faces não são cópias iguais
     const unicas = []; const jaVi = new Set();
     for (const a of [...candidatas].sort((x, y) => chaveAcao(x) < chaveAcao(y) ? -1 : 1)) { const k = igual(a); if (!jaVi.has(k)) { jaVi.add(k); unicas.push(a); } }
     const t0 = opts.agora ? opts.agora() : 0, teto = (opts.orcamentoMs || 400) / 2;
@@ -31430,7 +31458,7 @@ function effectLine(ev) {
     case 'monarch': return ev.failed ? `${t} continua o monarca (${ev.name})` : `${t} se tornou o monarca (${ev.name})`; // M-332
     case 'initiative': return `${t} tomou a iniciativa (${ev.name})`; // M-332
     case 'energia_reanima': return ev.failed ? `${ev.name}: a carta já não estava no cemitério` : ev.pending ? `${ev.name}: pode pagar energia para devolver a carta` : `${ev.name}: sem energia bastante para devolver a carta`; // M-393 · achado da revisão: a linha da pergunta dizia "sem energia"
-    case 'gasta_energia': return `${ev.name}: pagou ${ev.amount} de energia`; // M-393
+    case 'gasta_energia': return ev.amount ? `${ev.name}: pagou ${ev.amount} de energia` : `${ev.name}: não pagou energia`; // M-393 · M-405
     case 'gatilho_no_turno': return `${ev.name}: neste turno, cada criatura sua que entrar ganha o efeito`; // M-389 · achado da revisão
     case 'exila_se_morrer': return ev.failed ? `${ev.name}: o alvo já não estava no campo` : `${t || ev.name}: se fosse morrer neste turno, é exilada`; // M-384
     case 'lembradas_ao_cemiterio': return `${ev.name}: ${ev.amount === 1 ? '1 carta exilada foi' : `${ev.amount || 0} cartas exiladas foram`} para o cemitério`; // M-386
@@ -31816,6 +31844,7 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
           : pd.kind === 'choose_color' ? { t: 'choose_color', p: pd.p, color: E.corVedadaT(s) === 'W' ? 'U' : 'W' } // T-90 · CR 105.4 · "other than white" (Citadel Gate) (Toca ponto comum: goldfish)
           : pd.kind === 'commander_zone' ? { t: 'commander_zone', p: pd.p, yes: true } // M13
           : pd.kind === 'choose_type' ? { t: 'choose_type', p: pd.p, index: 0 }
+          : pd.kind === 'quantia' ? { t: 'quantia', p: pd.p, n: pd.max } // M-405 · o goldfish paga tudo
           : pd.kind === 'choose_pair' ? { t: 'choose_pair', p: pd.p, index: 0 }
           : pd.kind === 'legend' ? { t: 'choose_legend', p: pd.p, oid: pd.options[0] }
           : pd.kind === 'choose_mode' ? { t: 'choose_mode', p: pd.p, index: 0 }
@@ -32134,7 +32163,7 @@ const MOMENTO_PASSO = { untap: ['virar', 'Desvirar'], upkeep: ['sol', 'Manutenç
   combat_end: ['espada', 'Combate'], main2: ['jogar', 'Principal 2'], end: ['lua', 'Final'], cleanup: ['lua', 'Limpeza'] };
 const MOMENTO_DECISAO = { attackers: ['espada', 'Atacar'], blockers: ['escudo', 'Bloquear'], discard: ['mao', 'Descartar'], madness: ['raio', 'Insanidade'],
   may_pay: ['ampulheta', 'Decidir'], unless: ['ampulheta', 'Decidir'], pick: ['alvo', 'Escolher'], pick_target: ['alvo', 'Alvo'], choose_color: ['alvo', 'Cor'],
-  choose_type: ['alvo', 'Tipo'], choose_mode: ['alvo', 'Modo'], choose_pair: ['anexo', 'Emparelhar'], legend: ['alvo', 'Lendária'], choose_dungeon: ['seguir', 'Masmorra'], choose_room: ['seguir', 'Sala'],
+  choose_type: ['alvo', 'Tipo'], quantia: ['ampulheta', 'Quantia'] /* M-405 */, choose_mode: ['alvo', 'Modo'], choose_pair: ['anexo', 'Emparelhar'], legend: ['alvo', 'Lendária'], choose_dungeon: ['seguir', 'Masmorra'], choose_room: ['seguir', 'Sala'],
   triggers: ['camadas', 'Gatilhos'], sacrifice: ['lixeira', 'Sacrificar'], commander_zone: ['voltar', 'Comandante'], free_cast: ['jogar', 'Conjurar'] };
 function momentoDaBandeja(s, v) {
   const de = ([icone, curto], tom = 'normal') => ({ icone, curto, tom });
@@ -32686,6 +32715,7 @@ function descreveEfeito(e) {
     case 'to_library_shuffled': return 'é embaralhada no grimório do dono';
     case 'discard_or_sacrifice_land_draw': return 'pode descartar uma carta ou sacrificar um terreno; se fizer, compra 2 cartas';
     case 'choose_type': return 'escolhe um tipo de criatura';
+    case 'energia_dano': return `paga quanta energia quiser e causa esse tanto de dano a ${alvo || 'o alvo'}`; // M-405
     case 'tipo_basico': return `${alvo || 'o terreno alvo'} ganha o tipo básico de terreno que você escolher (e a mana dele) até o fim do turno, além dos outros tipos`; // M-388
     case 'put_back': return `devolve ${plural(n, 'carta', 'cartas')} da mão ao topo do grimório`;
     default: return String(e.do).replace(/_/g, ' ');
@@ -34964,6 +34994,12 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
           return [...ops.slice(0, 7).map((t, i) => botao(t, i)), Button(`Outros tipos (${ops.length - 7})`, { id: 'tb-choose-type-mais',
             onClick: () => Dialog({ title: 'Escolha um tipo de criatura', body: h('div', { class: 'tb-sheet__actions' }, ...ops.map((t, i) => botao(t, i, { block: true, id: undefined }))), actions: [Button('Voltar', { onClick: closeDialog })] }) })];
         })() });
+    } else if (s.pending && s.pending.kind === 'quantia' && s.pending.p === v) { // M-405 · "pay any amount of {E}": da maior para a menor; com muitas, "Outra quantia" abre a lista
+      const pq = s.pending, ns = []; for (let n = pq.max; n >= pq.min; n--) ns.push(n);
+      const botao = (n, i, extra = {}) => Button(n === 0 ? 'Não pagar' : `Pagar ${n}`, { variant: i ? undefined : 'primary', id: i ? undefined : 'tb-quantia', ...extra, onClick: () => { closeDialog(); act({ t: 'quantia', p: v, n }); } });
+      banner = PriorityBanner({ title: pq.name, hint: `${pq.dica || ''} Você tem ${pq.max} de energia.`.trim(),
+        actions: ns.length <= 8 ? ns.map((n, i) => botao(n, i)) : [...ns.slice(0, 7).map((n, i) => botao(n, i)), Button(`Outra quantia (${ns.length - 7})`, { id: 'tb-quantia-mais',
+          onClick: () => Dialog({ title: pq.name, body: h('div', { class: 'tb-sheet__actions' }, ...ns.map((n, i) => botao(n, i, { block: true, id: undefined }))), actions: [Button('Voltar', { onClick: closeDialog })] }) })] });
     } else if (s.pending && s.pending.kind === 'free_cast' && s.pending.p === v) {
       // S61 · Covil do Mago Louco: uma das cartas compradas pode ser conjurada sem pagar
       const opts = E.legalActions(s, v).filter(x => x.t === 'cast_free');

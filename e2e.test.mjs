@@ -12423,3 +12423,24 @@ test('e2e · R-15 Perfil · Painel Estante: sem conta não há entrada; conta Go
   assert.equal(await page.locator('#perfil-painel').count(), 0);
   assert.deepEqual(errors, []);
 });
+
+/* ---------------- M-405 · decisão `quantia`: "pay any amount of {E}" (Galvanic Discharge) ---------------- */
+test('e2e · M-405 · Galvanic Discharge: a mesa pergunta quanta energia pagar, da maior para a menor, e o dano sai igual ao que pagou', { skip }, async t => {
+  const extras = JSON.parse(readFileSync(join(ROOT, '.listas', 'oficiais-revisadas.json'), 'utf8')).cartas.filter(c => c.name === 'Galvanic Discharge');
+  const M = await comLista125(t, '20 Mountain\n20 Galvanic Discharge\n20 Kitchen Imp', ['Mountain', 'Galvanic Discharge', 'Kitchen Imp'], '4', { extras });
+  const { page } = M;
+  const imp = await page.evaluate(() => { const s = window.__estanteMesa.estadoFinal(); // o estado real (o da tela esconde o grimório do oponente) · mesa montada à mão: Montanha no campo, a Discharge na mão, um Kitchen Imp no campo
+    const poe = (q, nome, para) => { const z = s.zones[q]; for (const zn of ['library', 'hand']) { const i = z[zn].findIndex(o => s.objects[o].name === nome); if (i >= 0) { const oid = z[zn][i]; z[zn].splice(i, 1); z[para].push(oid); Object.assign(s.objects[oid], { zone: para, tapped: false }); return oid; } } return null; };
+    poe(0, 'Mountain', 'battlefield'); poe(0, 'Galvanic Discharge', 'hand'); s.players[0].energia = 2; return poe(0, 'Kitchen Imp', 'battlefield'); }); // a mesa de teste joga contra o goldfish (sem cartas): o alvo é um Kitchen Imp seu
+  assert.equal(await M.act((await M.legal("a.t==='tap_mana'"))[0]), true, 'gera o {R} (e a mesa recalcula as ações depois da montagem)');
+  const cast = (await M.legal(`a.t==='cast' && a.targets && a.targets[0] && a.targets[0].oid===${JSON.stringify(imp)}`)).find(a => true);
+  assert.ok(cast, 'a Discharge mira o Kitchen Imp'); assert.equal(await M.act(cast), true);
+  let e = await M.resolve(); assert.equal(e.pend, 'quantia');
+  assert.equal(await M.decisao(), 'Galvanic Discharge: quanta energia pagar? | O dano em Kitchen Imp é igual à energia que você pagar. Você tem 5 de energia.');
+  assert.deepEqual(await page.locator('.tb-banner__actions button').allInnerTexts(), ['Pagar 5', 'Pagar 4', 'Pagar 3', 'Pagar 2', 'Pagar 1', 'Não pagar']);
+  await auditaTela(page, 'quanta energia pagar (Galvanic Discharge)');
+  await page.locator('.tb-banner__actions button', { hasText: 'Pagar 2' }).click(); await page.waitForTimeout(300); e = await M.resolve();
+  const fim = await page.evaluate(oid => { const s = window.__estanteMesa.estado(); return { zona: s.objects[oid].zone, energia: s.players[0].energia }; }, imp);
+  assert.deepEqual(fim, { zona: 'graveyard', energia: 3 }, '2 de dano no Kitchen Imp 2/2; sobram 3 de energia');
+  assert.deepEqual(M.errors, []);
+});
