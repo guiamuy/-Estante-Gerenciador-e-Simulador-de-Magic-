@@ -5568,6 +5568,7 @@ const EFFECTS = {
   lutador: { fields: [], targets: ['creature', 'creature-you-control'] },
   fight: { fields: [], targets: ['creature', 'creature-opponent-controls', 'creature-you-control'] }, // quem: 'self-source' (a permanente fonte luta) | 'primeiro-alvo' (luta a criatura anotada pelo `lutador` anterior)
   /* ↓ T · efeitos da trilha tipos */
+  descarta_para_comprar: { fields: [], targets: ['self'] }, // T-88 · "you may discard a card. If you do, draw a card." (a pergunta só aparece com carta na mão; a compra só se descartou)
   pilhas: { fields: ['amount'], targets: ['self'] }, // T-83 · CR 700.3 · "reveal the top N cards of your library; [an opponent | you] separates those cards into two piles; put one pile into your hand and the other into your graveyard" — `separa` e `escolhe`: 'voce' | 'oponente'
   exila_mesmo_nome: { fields: [], targets: ['permanent'] }, // T-80 (o alvo de verdade é o seletor com zona 'graveyard', conferido na validação da trilha) · CR 701.23 · "search its owner's graveyard, hand, and library for any number of cards with the same name as that card and exile them. Then that player shuffles." (alvo: seletor de carta em cemitério)
   escolhe_nome: { fields: [], targets: ['self'] }, // T-77 · CR 201.4 · "choose a [nonland] card name": `filtro` opcional ({ tipos, semTipos }); quem controla o efeito escolhe, na resolução
@@ -6760,6 +6761,12 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-88 · CR 716.2a · barra de Classe com redução de custo e "dano a mais" (Oracle do Forge, clone de 13/10/2026). O lembrete não se escreve.
+  { name: "Artist's Talent", self: { classe: [
+      { mana: '{2}{R}', reduz: { generic: 1, semTipos: ['creature'] } }, // "{2}{R}: Level 2 · Noncreature spells you cast cost {1} less to cast."
+      { mana: '{2}{R}', dano: [{ a: 'oponente-ou-dele', soma: 2, soNaoCombate: true }] }] }, // "{2}{R}: Level 3 · If a source you control would deal noncombat damage to an opponent or a permanent an opponent controls, it deals that much damage plus 2 instead."
+    abilities: [{ kind: 'triggered', when: 'other-cast', filter: { noncreature: true }, effects: [{ do: 'descarta_para_comprar' }] }], // "Whenever you cast a noncreature spell, you may discard a card. If you do, draw a card."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o cenário de verdade está em tipos.classes2.unit
   // T-87 · CR 700.10 · "activated this turn" (Oracle do Forge, clone de 13/10/2026). Convocar vem do texto; o lembrete não se escreve.
   { name: 'Cut Short', effects: [{ do: 'destroy', target: { ou: [{ tipos: ['planeswalker'], ativadaNoTurno: true }, { tipos: ['creature'], tapped: true }] } }], // "Destroy target planeswalker that was activated this turn or tapped creature."
     example: { target: 'enemy-creature', expect: { gone: true } } }, // o cenário de verdade está em tipos.ativadanoturno.unit
@@ -9669,15 +9676,31 @@ function classeErros(sc) {
   cl.forEach((b, i) => {
     const tag = `classe, nível ${i + 2}`;
     if (!b || typeof b !== 'object') { errs.push(`${tag}: precisa ser um objeto`); return; }
-    for (const k of Object.keys(b)) if (!['mana', 'abilities', 'continuo', 'regraJogador'].includes(k)) errs.push(`${tag}: chave "${k}" desconhecida`);
+    for (const k of Object.keys(b)) if (!['mana', 'abilities', 'continuo', 'regraJogador', 'reduz', 'dano'].includes(k)) errs.push(`${tag}: chave "${k}" desconhecida`); // T-88 · reduz e dano
     if (!(typeof b.mana === 'string' && /\{/.test(b.mana))) errs.push(`${tag}: falta o custo de subir de nível (mana)`);
-    if (!(b.abilities || []).length && !(b.continuo || []).length && !(b.regraJogador || []).length) errs.push(`${tag}: a barra não dá nada`);
+    if (!(b.abilities || []).length && !(b.continuo || []).length && !(b.regraJogador || []).length && !b.reduz && !(b.dano || []).length) errs.push(`${tag}: a barra não dá nada`);
+    errs.push(...barraReduzDanoErrosT(b, tag)); // T-88
     const v = validateScript({ name: `${sc.name} (${tag})`, abilities: b.abilities || [], continuo: b.continuo, regraJogador: b.regraJogador, self: { barraT: true }, example: sc.example || { target: 'none', expect: { selfLife: 0 } } });
     errs.push(...v.map(e => `${tag}: ${e}`));
   });
   return errs;
 }
 Object.assign(EXPORTS_T_SC, { classeErros });
+/** T-88 · CR 716.2a · numa barra de Classe: `reduz: { generic: N, tipos?, semTipos? }` ("[tipo] spells you cast cost {N} less to cast",
+ * só o genérico, 601.2f) e `dano: [{ a, soma, soNaoCombate? }]` ("if a source you control would deal [noncombat] damage to [an opponent or a
+ * permanent an opponent controls], it deals that much damage plus N instead", 614.1a); `a`: 'oponente' ou 'oponente-ou-dele'. */
+function barraReduzDanoErrosT(b, tag) {
+  const errs = [], FT = ['creature', 'artifact', 'enchantment', 'land', 'planeswalker', 'instant', 'sorcery', 'battle'];
+  if (b.reduz != null) { const r = b.reduz;
+    if (!r || typeof r !== 'object' || !Number.isInteger(r.generic) || r.generic < 1) errs.push(`${tag}: reduz é { generic: N (1 ou mais), tipos?, semTipos? }`);
+    else for (const k of Object.keys(r)) if (!['generic', 'tipos', 'semTipos'].includes(k) || (k !== 'generic' && (!Array.isArray(r[k]) || r[k].some(t => !FT.includes(t))))) errs.push(`${tag}: reduz, chave "${k}" desconhecida ou com tipo que não existe`); }
+  if (b.dano != null) { if (!Array.isArray(b.dano)) errs.push(`${tag}: dano é uma lista`);
+    else b.dano.forEach((d, i) => { if (!d || typeof d !== 'object' || !Number.isInteger(d.soma) || d.soma < 1) return errs.push(`${tag}: dano ${i + 1} precisa de "soma" (inteiro positivo)`);
+      for (const k of Object.keys(d)) if (!['a', 'soma', 'soNaoCombate'].includes(k)) errs.push(`${tag}: dano ${i + 1}, chave "${k}" desconhecida`);
+      if (!['oponente', 'oponente-ou-dele'].includes(d.a)) errs.push(`${tag}: dano ${i + 1}, "a" é 'oponente' ou 'oponente-ou-dele'`);
+      if (d.soNaoCombate != null && d.soNaoCombate !== true) errs.push(`${tag}: dano ${i + 1}, soNaoCombate só vale como true`); }); }
+  return errs;
+}
 GATILHO_EVENTO['becomes-level'] = { evento: 'classe_nivel', objeto: 'self' }; TRIGGER_PT['becomes-level'] = 'quando a Classe sobe para este nível';
 /* ---------------- T-8 · CR 712.3 · dupla face modal (forma do script) ----------------
    `self: { modal: true }` + `back: { name, types, … }`. A face de trás que não é terreno tem custo próprio (`back.mana`) e é
@@ -19295,6 +19318,7 @@ function danoSubstituido(s, src, alvo, amt, combate) {
       soma += r.soma || 0; vezes *= r.multiplica || 1;
     }
   }
+  { const t = danoDasClassesT(s, fonte, alvo, combate); soma += t.soma; vezes *= t.vezes; } // T-88 · CR 716.2a / 614.1a · o "causa N a mais" de um nível de Classe alcançado (Toca ponto comum: danoSubstituido, uma linha)
   // CR2e.1 · 616.1: quem é afetado escolhe a ordem das substituições; o motor escolhe por ele a ordem que causa menos dano (multiplicar antes de
   // somar, quando há as duas). Antes somava sempre antes de multiplicar, o que dava mais dano do que o afetado escolheria.
   return vezes > 1 && soma > 0 ? amt * vezes + soma : (amt + soma) * vezes;
@@ -19616,7 +19640,7 @@ const descontoExilaMao = (s, o, k, extra) => { const em = ((s.facts[o.name] || {
 const aumentoPorAlvo = (s, alvos) => Array.isArray(alvos) ? [...new Set(alvos.filter(t => t && t.oid != null).map(t => t.oid))].map(oid => ({ oid })).reduce((n, t) => { const x = t && t.oid != null && s.objects[t.oid]; /* uma vez por mágica alvo, mesmo mirada duas vezes (achado da revisão) */ const k = x && x.zone === 'stack' && !x.ability ? ((((s.facts[x.name] || {}).script || {}).self || {}).encareceQuemMira || 0) : 0; /* a cópia também tem o texto (707.10) */ return n + k; }, 0) : 0;
 const temAumentoPorAlvo = s => s.stack.some(oid => { const x = s.objects[oid]; return x && !x.ability && ((((s.facts[x.name] || {}).script || {}).self || {}).encareceQuemMira); });
 const castExtra = (s, p, o, x = 0, alvos) => { const base = (o.zone === 'command' ? commanderTax(s, p, o.oid) : 0) + x * (s.facts[o.name].cost.x || 0) + aumentoPorAlvo(s, alvos) /* M-364 */, af = affinityDiscount(s, p, o, base); // S33 · afinidade reduz o custo genérico
-  const teto = Math.max(0, ((custoDoPrototipoT(s, o) || s.facts[o.name].cost).generic || 0) + base - af); return base - af - Math.min(teto, reducaoPorAlvo(s, p, o, alvos) + reducaoPorCor(s, p, o)); }; // M-352 · reducaoPorCor
+  const teto = Math.max(0, ((custoDoPrototipoT(s, o) || s.facts[o.name].cost).generic || 0) + base - af); return base - af - Math.min(teto, reducaoPorAlvo(s, p, o, alvos) + reducaoPorCor(s, p, o) + reducaoDasClassesT(s, p, o)); }; // M-352 · reducaoPorCor
 /** M-352 · 601.2f · o custo total com reforço: as reduções tiram também do genérico do reforço (Burst Lightning com {R}+{4} e Goblin Anarchomancer: {3}{R}) — achado da revisão do lote XXIV. */
 const castExtraComReforco = (s, p, o, x, alvos, kick) => { const k = kick && (s.facts[o.name].script || {}).kicker; return k ? castExtraK(s, p, o, x, alvos, (parseCost(k.mana).generic || 0) * kick) : castExtra(s, p, o, x, alvos); };
 /** M-352 · 601.2f · "Each spell you cast that's red or green costs {1} less" / "Red spells and white spells you cast cost {1} less": permanentes suas com `self.reduzCor`; só o genérico. */
@@ -19646,7 +19670,7 @@ function reducaoPorAlvo(s, p, o, alvos) {
   return n;
 }
 /** M-259 · a redução por alvo num custo qualquer (lampejo do passado, conceder): só o genérico. */
-const reducaoNoCusto = (s, p, o, alvos, custo) => Math.min(custo.generic || 0, reducaoPorAlvo(s, p, o, alvos) + reducaoPorCor(s, p, o)); // M-352 · a redução por cor vale também no lampejo e no conceder
+const reducaoNoCusto = (s, p, o, alvos, custo) => Math.min(custo.generic || 0, reducaoPorAlvo(s, p, o, alvos) + reducaoPorCor(s, p, o) + reducaoDasClassesT(s, p, o)); // M-352 · a redução por cor vale também no lampejo e no conceder
 const temReducaoPorAlvo = (s, p) => battlefield(s).some(x => x.controller === p && !x.faceDown && (((s.facts[x.name] || {}).script || {}).self || {}).reduzSeMira)
   || ['hand', 'graveyard', 'exile', 'command'].some(z => ((s.zones[p] || {})[z] || []).some(oid => { const x = s.objects[oid]; return x && ((s.facts[x.name] || {}).script || {}).reduzSeAlvoVirado; })); // M-383 · a redução da própria mágica (Ride's End) também liga a oferta otimista
 /** Quantas permanentes do tipo pedido você controla (limitado ao custo genérico). */
@@ -20236,7 +20260,7 @@ function previstaNoCastM(s, a, o) {
 }
 function custoPrevistaM(s, p, o, alvos) {
   const f = s.facts[o.name], custo = parseCost(f.script.foretell.mana);
-  const teto = custo.generic || 0, red = affinityDiscount(s, p, o, teto - (f.cost.generic || 0)) + reducaoPorAlvo(s, p, o, alvos) + reducaoPorCor(s, p, o); // achado da revisão: a redução por cor também (601.2f)
+  const teto = custo.generic || 0, red = affinityDiscount(s, p, o, teto - (f.cost.generic || 0)) + reducaoPorAlvo(s, p, o, alvos) + reducaoPorCor(s, p, o) + reducaoDasClassesT(s, p, o); // achado da revisão: a redução por cor também (601.2f)
   return { custo, extra: -Math.min(teto, red) };
 }
 function ofertasPrevistasM(s, p, out, casts, canSorcery) {
@@ -21953,6 +21977,7 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'lutador': if (obj) s.lutadorV = { fonte: src.oid, fz: encarnacaoV(s, src), oid: obj.oid, z: obj.zc || 0 }; break; // V-1/V-5 · anota quem luta; a luta é o `fight` seguinte, que apaga a anotação
     case 'fight': lutar(s, src, eff, tgt, events); break; // V-1 · 701.14
     /* ↓ T · casos de applyEffect da trilha tipos */
+    case 'descarta_para_comprar': descartaParaComprarT(s, src, events); break; // T-88
     case 'pilhas': pilhasT(s, src, eff, events); break; // T-83 · CR 700.3
     case 'exila_mesmo_nome': exilaMesmoNomeT(s, src, obj, events); break; // T-80 · CR 701.23 / 201.2
     case 'escolhe_nome': escolheNomeT(s, src, eff, events); break; // T-77 · CR 201.4
@@ -26094,7 +26119,7 @@ function genericoAdicionalK(s, a, o) {
 function castExtraK(s, p, o, x, alvos, adic) {
   const f = s.facts[o.name], base = (o.zone === 'command' ? commanderTax(s, p, o.oid) : 0) + x * (f.cost.x || 0) + aumentoPorAlvo(s, alvos) /* M-364 */, af = affinityDiscount(s, p, o, base + adic);
   const teto = Math.max(0, ((custoDoPrototipoT(s, o) || f.cost).generic || 0) + base + adic - af); // T-38 · CR 718.3a: o teto da redução é o genérico do custo que está sendo pago (Toca ponto comum: castExtraK)
-  return base - af - Math.min(teto, reducaoPorAlvo(s, p, o, alvos) + reducaoPorCor(s, p, o)); // M-352 · 601.2f: a redução por cor também tira do genérico adicional (reforço) — achado da revisão do lote XXIV (Toca ponto comum: castExtraK; a trilha keywords fechou)
+  return base - af - Math.min(teto, reducaoPorAlvo(s, p, o, alvos) + reducaoPorCor(s, p, o) + reducaoDasClassesT(s, p, o)); // M-352 · 601.2f: a redução por cor também tira do genérico adicional (reforço) — achado da revisão do lote XXIV (Toca ponto comum: castExtraK; a trilha keywords fechou)
 }
 Object.assign(EXPORTS_K, { sobControleDesdeK, genericoAdicionalK, castExtraK });
 /* K-43 · 702.82 devorar ("As this object enters, you may sacrifice any number of creatures [of the quality]. This permanent enters with N +1/+1
@@ -26787,7 +26812,7 @@ function aerobendNoCastV(s, a, o) {
 function custoAerobendV(s, p, o, kick, alvos) {
   const f = s.facts[o.name], k = kick && (f.script || {}).kicker;
   const custo = k ? somaCusto(parseCost('{2}'), parseCost(k.mana), kick) : parseCost('{2}');
-  const teto = custo.generic || 0, red = affinityDiscount(s, p, o, teto - (f.cost.generic || 0)) + reducaoPorAlvo(s, p, o, alvos) + reducaoPorCor(s, p, o); // H-10 · redução por cor (M-352) também tira do {2}
+  const teto = custo.generic || 0, red = affinityDiscount(s, p, o, teto - (f.cost.generic || 0)) + reducaoPorAlvo(s, p, o, alvos) + reducaoPorCor(s, p, o) + reducaoDasClassesT(s, p, o); // H-10 · redução por cor (M-352) também tira do {2}
   return { custo, extra: -Math.min(teto, red) };
 }
 /** Chamada só por legalActions (abaixo da âncora V): uma conjuração por forma (sem reforço; com 1 a 5 reforços se a carta tiver), com os alvos de `casts`. */
@@ -29398,6 +29423,48 @@ function nivelDaClasseSobeT(s, src, eff, events) {
     if (ab.kind !== 'triggered' || ab.when !== 'becomes-level' || ab.nivelT !== eff.n || !triggerConditionMet(s, o, ab.condition)) continue;
     s.queued.push({ source: o.oid, name: o.name, controller: o.controller, effects: ab.effects, when: ab.when, ...marcasDaHabilidade(ab) });
   }
+}
+/** T-88 · as barras de Classe alcançadas pelas Classes que `p` controla (de onde vêm `reduz` e `dano`). */
+/** T-88 · "you may discard a card. If you do, draw a card.": os mesmos passos do aprender (V-13: a pergunta, o descarte escolhido e a compra
+ * só se houve descarte), sem a Lição. */
+function descartaParaComprarT(s, src, events) {
+  const p = src.controller, nome = src.name;
+  if (!s.zones[p].hand.length) return void events.push({ kind: 'effect', do: 'descarta_para_comprar', name: nome, target: s.players[p].name, amount: 0 });
+  s.verbo = [...(s.verbo || []), { passo: 'aprender-descarta', p, nome }];
+  s.pending = { kind: 'may_pay', p, cost: null, name: `${nome} — descartar uma carta para comprar uma`,
+    then: { effects: [{ do: 'learn_sim' }], source: src.ability ? src.source : src.oid, name: nome, controller: p, targets: [] } };
+  events.push({ kind: 'choice', what: 'descartar para comprar', name: nome, amount: 1 });
+}
+function barrasAlcancadasT(s, p) {
+  if (!s.classes) return [];
+  const out = [];
+  for (const oid of Object.keys(s.classes)) {
+    const o = s.objects[oid], sc = o && o.zone === 'battlefield' && !o.phasedOut && !o.faceDown && ((s.facts[o.name] || {}).script || {});
+    if (!sc || !sc.self || !sc.self.classe || (p != null && o.controller !== p) || semImpressas(s, o)) continue;
+    for (const b of sc.self.classe.slice(0, Math.max(0, nivelDaClasseT(s, o) - 1))) out.push([o, b]);
+  }
+  return out;
+}
+function reducaoDasClassesT(s, p, o) {
+  if (!s.classes) return 0;
+  const tipos = (s.facts[o.name] || {}).types || []; let n = 0;
+  for (const [, b] of barrasAlcancadasT(s, p)) { const r = b.reduz; if (!r) continue;
+    if ((r.tipos || []).length && !r.tipos.some(t => tipos.includes(t))) continue;
+    if ((r.semTipos || []).some(t => tipos.includes(t))) continue;
+    n += r.generic; }
+  return n;
+}
+function danoDasClassesT(s, fonte, alvo, combate) {
+  const out = { soma: 0, vezes: 1 }; if (!s.classes || !fonte) return out;
+  for (const [x, b] of barrasAlcancadasT(s, null)) for (const r of b.dano || []) {
+    if (r.soNaoCombate && combate) continue;
+    if (fonte.controller !== x.controller) continue; // "a source you control"
+    const doOponente = alvo.player != null ? alvo.player !== x.controller : !!(alvo.obj && alvo.obj.controller !== x.controller);
+    if (r.a === 'oponente' && !(alvo.player != null && alvo.player !== x.controller)) continue;
+    if (r.a === 'oponente-ou-dele' && !doOponente) continue;
+    out.soma += r.soma;
+  }
+  return out;
 }
 function continuosDaClasseT(s, x, sc) {
   const n = nivelDaClasseT(s, x), cs = (sc.continuo || []).concat(...sc.self.classe.slice(0, Math.max(0, n - 1)).map(b => b.continuo || []));
@@ -32088,6 +32155,8 @@ Object.assign(EFEITO_PT_T, { vira_para_baixo: () => 'vira a criatura alvo para b
 /** T-59 · CR 700.6 / 700.12 / 700.9 · os predicados de tipo na frase do seletor. */
 const predicadosPT_T = sel => (sel.tapped ? ' virada' : sel.tapped === false ? ' desvirada' : '') + (sel.ativadaNoTurno ? ' que teve habilidade ativada neste turno' : '') + /* T-87 */ (sel.terrenoBasico === false ? ' que não seja terreno básico' : sel.terrenoBasico ? ' que é terreno básico' : '') + /* T-80 */ (sel.historico ? ' histórica' : sel.historico === false ? ' que não é histórica' : '') + (sel.foraDaLei ? ' fora da lei' : sel.foraDaLei === false ? ' que não é fora da lei' : '') + /* T-60 */ (sel.modificada ? ' modificada' : sel.modificada === false ? ' que não está modificada' : '');
 const LINHA_T = { preparada: ev => (ev.failed ? `${ev.name}: ${ev.motivo || 'não ficou preparada'}, nada muda` : `${ev.name} está preparada (pode conjurar uma cópia de ${ev.target})`), despreparada: ev => `${ev.name} deixou de estar preparada`, ciclo: ev => `Virou ${ev.target}${ev.motivo ? ` (${ev.motivo})` : ''}`, masmorra_completa: ev => `${ev.target} completou a masmorra ${ev.name}`, caso_resolvido: ev => (ev.failed ? `${ev.name}: a condição não valia mais, o Caso não foi resolvido` : `${ev.name} foi resolvido`), estacao: ev => (ev.failed ? `${ev.name}: a nave saiu do campo, a estação não pôs marcadores` : `${ev.name} recebeu ${ev.amount} marcador${ev.amount === 1 ? '' : 'es'} de carga (estação)${ev.total != null ? ` · ${ev.total} no total` : ''}`), selada: ev => (ev.failed ? `${ev.name}: a montaria saiu do campo, não foi selada` : `${ev.name} foi selada`), virar_carta: ev => (ev.failed ? `${ev.name} não virou${ev.motivo ? ` (${ev.motivo})` : ''}` : `${ev.name} virou: agora é ${ev.target}`), porta: ev => (ev.failed ? `${ev.name}: nenhuma porta para trancar ou destrancar` : `${ev.name} ${ev.acao} ${ev.porta} (${ev.target})`), nivel_sobe: ev => (ev.failed ? `${ev.name}: saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu de nível (nível ${ev.nivel})`), nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, converter: ev => `${ev.name} converteu em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
+Object.assign(LINHA_T, { descarta_para_comprar: ev => `${ev.name}: ${ev.target} não tem carta na mão para descartar` }); // T-88
+Object.assign(EFEITO_PT_T, { descarta_para_comprar: () => 'você pode descartar uma carta; se descartar, compra uma' }); // T-88
 Object.assign(LINHA_T, { pilhas: ev => ev.revela.length ? `\u2063${ev.target} revelou ${ev.revela.join(', ')}` : `${ev.name}: o grimório está vazio, nada é revelado`, pilhas_fim: ev => `\u2063${ev.target}: ${ev.mao.length ? ev.mao.join(', ') + ' para a mão' : 'nada para a mão'}; ${ev.cemiterio.length ? ev.cemiterio.join(', ') + ' para o cemitério' : 'nada para o cemitério'}` }); // T-83 · CR 700.3
 Object.assign(EFEITO_PT_T, { pilhas: e => `revela as ${qtd(e.amount)} cartas do topo do seu grimório; ${e.separa === 'voce' ? 'você as separa' : 'um oponente as separa'} em duas pilhas; ${e.escolhe === 'oponente' ? 'um oponente escolhe uma, que vai para a sua mão' : 'uma vai para a sua mão'} e a outra para o seu cemitério` }); // T-83
 Object.assign(LINHA_T, { exila_mesmo_nome: ev => ev.failed ? `${ev.name}: a carta já tinha saído do cemitério, nada é exilado` : `\u2063${ev.name} exilou ${[[ev.cemiterio, 'do cemitério'], [ev.mao, 'da mão'], [ev.grimorio, 'do grimório']].filter(x => x[0].length).map(([ns, de]) => `${ns.join(', ')} ${de}`).join('; ') || 'nada'} de ${ev.target}; ${ev.target} embaralhou o grimório` }); // T-80 · o exílio é público

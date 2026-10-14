@@ -11310,13 +11310,13 @@
    "regra": "Class Cards",
    "titulo": "Barra de nível de classe",
    "status": "parcial",
-   "falta": "Numa barra, só habilidades ativadas e disparadas, `continuo` e `regraJogador`: redução de custo, substituição e regra estática por nível não são lidas da barra (cartas como Bard Class, Artist's Talent, Fishers' Talent ficam manuais). 716.2c (\"ganhar um nível\" como restrição de mana, Sorcerer Class) não existe.",
+   "falta": "Numa barra: habilidades ativadas e disparadas, continuo, regraJogador, redução de custo por tipo (reduz) e \"dano a mais\" ao oponente (dano, T-88). Outras substituições e regras estáticas por nível (Bard Class: lendárias custam menos e entram com marcadores; Fishers' Talent) não são lidas da barra. 716.2c (\"ganhar um nível\" como restrição de mana, Sorcerer Class) não existe.",
    "esforco": "M",
    "depende": [
     "613"
    ],
    "cartas": "rara",
-   "evidencia": "T-12 (12/10/2026): 716.2a — `abilitiesOf` dá as habilidades das barras alcançadas e, no campo, a ativada da barra seguinte (custo da barra, só como feitiço, só no nível N−1); o efeito `nivel_classe` sobe o nível e dispara \"When this Class becomes level N\" (`becomes-level`); `continuo` e `regraJogador` da barra valem a partir do nível dela. 716.2b/716.2d — o nível é designação do objeto (`s.classes[oid]` com a encarnação), não copiável, nível 1 sem registro. Mesa: \"Subir para o nível N · custo\"; registro \"X subiu para o nível N\". T-13 (12/10/2026) · auditoria independente (204 conferências, fuzz de 220 partidas, 807.060 pedidos diretos de ativar): Classe fora de fase não sobe (nem pela subida que já estava na pilha) e não oferece a barra; o validador recusa `becomes-level` fora de Classe; a folha mostra o rótulo e o custo da ativada de uma barra.",
+   "evidencia": "T-12 (12/10/2026): 716.2a — `abilitiesOf` dá as habilidades das barras alcançadas e, no campo, a ativada da barra seguinte (custo da barra, só como feitiço, só no nível N−1); o efeito `nivel_classe` sobe o nível e dispara \"When this Class becomes level N\" (`becomes-level`); `continuo` e `regraJogador` da barra valem a partir do nível dela. 716.2b/716.2d — o nível é designação do objeto (`s.classes[oid]` com a encarnação), não copiável, nível 1 sem registro. Mesa: \"Subir para o nível N · custo\"; registro \"X subiu para o nível N\". T-13 (12/10/2026) · auditoria independente (204 conferências, fuzz de 220 partidas, 807.060 pedidos diretos de ativar): Classe fora de fase não sobe (nem pela subida que já estava na pilha) e não oferece a barra; o validador recusa `becomes-level` fora de Classe; a folha mostra o rótulo e o custo da ativada de uma barra. T-88 (14/10/2026): reduz ({ generic, tipos?, semTipos? }: \"[tipo] spells you cast cost {N} less\", nas cinco somas de redução, 601.2f) e dano ([{ a: oponente | oponente-ou-dele, soma, soNaoCombate? }]: \"would deal [noncombat] damage … plus N instead\", em danoSubstituido, 614.1a) numa barra alcançada. Efeito descarta_para_comprar (\"you may discard a card. If you do, draw a card\"). Carta: Artist's Talent (Oracle do Forge, clone de 13/10/2026), completa.",
    "testes": [
     "CR 716.2a · subir de nível: só a barra seguinte (nível atual + 1), pelo custo dela, e só como feitiço — fora disso não é oferecida e o pedido é recusado",
     "CR 716.2a · \"só como feitiço\": no turno do oponente, com a pilha ocupada ou na etapa de combate a barra não é oferecida",
@@ -11329,7 +11329,12 @@
     "CR 716 · mesa e registro: o botão diz \"Subir para o nível 2 · {1}\" e a ativada de um nível diz o custo dela; a pilha explica e o registro diz que a Classe subiu",
     "CR 716 · partida sem Classe não ganha nada no estado; passeio aleatório com Classes: nada oferecido é recusado e o nível nunca passa de 3 nem pula",
     "CR 702.26b · 716.2a · Classe fora de fase: não sobe — a subida não é oferecida nem aceita, e a que já estava na pilha resolve sem subir e sem disparar (D1, D2)",
-    "CR 716 · mesa: a ativada de uma barra com `label` no script mostra o rótulo e o custo (D3); validador: \"becomes-level\" fora de Classe é recusado (D4)"
+    "CR 716 · mesa: a ativada de uma barra com `label` no script mostra o rótulo e o custo (D3); validador: \"becomes-level\" fora de Classe é recusado (D4)",
+    "CR 716.2a · Artist’s Talent (texto oficial), nível 1: ao conjurar uma mágica que não é criatura, pode descartar uma carta para comprar uma",
+    "CR 716.2a / 601.2f · nível 2: mágicas que não são criatura custam {1} a menos; criatura não",
+    "CR 716.2a / 614.1a · nível 3: o dano que não é de combate da sua fonte ao oponente ou ao que ele controla tem +2; a sua criatura, não",
+    "CR 716.2a / 614.1a · o +2 não vale para dano de combate",
+    "CR 716 · validador: reduz e dano numa barra de Classe"
    ]
   },
   {
