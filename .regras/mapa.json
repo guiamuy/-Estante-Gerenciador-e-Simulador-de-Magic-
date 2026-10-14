@@ -3688,11 +3688,13 @@
     "505.1a"
    ],
    "cartas": "comum no Commander",
-   "evidencia": "M-307 (CR2g.4): verbo combate_extra — depois desta fase principal, combate adicional e principal adicional (pós-combate), só resolvendo numa principal (ruling); várias se enfileiram; depois volta o que viria após a principal original; desvira_atacantes lembra as criaturas que atacaram no turno (mesmo objeto)",
+   "evidencia": "M-307 (CR2g.4): verbo combate_extra — depois desta fase principal, combate adicional e principal adicional (pós-combate), só resolvendo numa principal (ruling); várias se enfileiram; depois volta o que viria após a principal original; desvira_atacantes lembra as criaturas que atacaram no turno (mesmo objeto) · T-103 (14/10/2026): fase inicial a mais depois desta fase (`passo_extra` com `fase: 'inicial'`: desvirar, manutenção e compra; Sphinx of the Second Sun, Shadow of the Second Sun); o passo a mais pulado (Fatigue) segue a fila dos passos a mais",
    "testes": [
     "CR 500.8 · na segunda fase principal: desvira quem atacou, e vem combate adicional + principal adicional; a Ursa ataca duas vezes",
     "CR 500.8 · na primeira fase principal: combate adicional + principal adicional vêm antes do combate normal",
-    "CR 500.8 · ruling: fora da fase principal (com lampejo), não cria fases"
+    "CR 500.8 · ruling: fora da fase principal (com lampejo), não cria fases",
+    "CR 500.8 / 501.1 · Sphinx of the Second Sun (texto oficial): na principal 2, uma fase inicial a mais — desvira, manutenção (gatilhos) e compra — e depois o passo final",
+    "CR 500.8 · Shadow of the Second Sun (texto oficial): só na principal 2 do jogador encantado"
    ]
   },
   {
@@ -3716,15 +3718,21 @@
    "n": "500.10",
    "regra": "General",
    "titulo": "Passo extra depois de uma fase (Obeka)",
-   "status": "ausente",
-   "falta": "Depende de fases e passos extras (500.8, 500.9) e de pular passos (500.11); 500.10a idem.",
+   "status": "coberta",
    "esforco": "M",
    "depende": [
     "500.8",
     "500.9",
     "500.11"
    ],
-   "cartas": "rara"
+   "cartas": "rara",
+   "evidencia": "T-103 (14/10/2026): `passo_extra` com `apos: 'fase'` — o passo pedido entra depois do último passo da fase em curso, numa fase só com ele (as N manutenções de Obeka são N fases iniciais só com a manutenção); ao sair do fim do combate para elas, as criaturas saem do combate (511.3); \"that many\" é o dano de combate causado; 500.10a: no turno de outro jogador, nada é acrescentado. Obeka, Splitter of Seconds (tipos.fasesextras.unit)",
+   "testes": [
+    "CR 500.10 · Obeka (texto oficial): 2 de dano de combate ao jogador, duas manutenções a mais depois da fase de combate — com as criaturas já fora do combate — e depois a principal 2",
+    "CR 500.10 · Obeka bloqueada não causa dano ao jogador: nenhum passo a mais",
+    "CR 500.10a · \"you get\" no turno de outro jogador: nada é acrescentado",
+    "CR 500.10 · validador e pilha explicada"
+   ]
   },
   {
    "n": "500.11",

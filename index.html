@@ -5905,6 +5905,7 @@ const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield
   'becomes-monstrous', // V-6 · "When ~ becomes monstrous" (o valor do gatilho é o N da monstruosidade, 701.37c)
   /* ↓ T · gatilhos da trilha tipos */
   'draw-step', 'each-draw-step', 'precombat-main', 'each-precombat-main', // T-101 · CR 500.6 · "at the beginning of your/each player's draw step / precombat main phase" (o "that player" de "each player's" é o jogador ativo: `target: 'that-player'`)
+  'enchanted-player-postcombat-main', // T-103 · "At the beginning of each of enchanted player's postcombat main phases" (Shadow of the Second Sun)
   'enchanted-player-upkeep', // T-94 · CR 303.4b · "At the beginning of enchanted player's upkeep" (o "that player" dos efeitos é `target: 'enchanted-player'`)
   'crime', // T-86 · CR 700.13 · "Whenever you commit a crime": você conjura uma mágica, ativa uma habilidade ou põe um gatilho na pilha mirando um oponente, algo que ele controla ou uma carta no cemitério dele (`umaVezPorTurno`: "This ability triggers only once each turn")
   'expend', // T-85 · CR 700.14 · "Whenever you expend N" (`n`): dispara quando o total de mana que você gastou para conjurar mágicas no turno passa de menos de N para N ou mais
@@ -6572,6 +6573,12 @@ function effectErrors(effects, label, opcional) {
     if (e.do === 'lutador' && !effects.slice(i + 1).some(x => x.do === 'fight' && x.quem === 'primeiro-alvo')) errs.push(`${label} ${i + 1} (lutador): precisa ser seguido da luta (fight, quem: primeiro-alvo)`);
   });
   /* ↓ T · validação da trilha tipos */
+  effects.forEach((e, i) => { if (e.do !== 'passo_extra') return; // T-101 / T-103 · 500.9, 500.10
+    if (e.passo != null && !['upkeep', 'draw'].includes(e.passo)) errs.push(`${label} ${i + 1} (passo_extra): "passo" é 'upkeep' ou 'draw'`);
+    if (e.fase != null && e.fase !== 'inicial') errs.push(`${label} ${i + 1} (passo_extra): "fase" só vale como 'inicial'`);
+    if (e.apos != null && !['passo', 'fase'].includes(e.apos)) errs.push(`${label} ${i + 1} (passo_extra): "apos" é 'passo' ou 'fase'`);
+    if (e.fase != null && e.passo != null) errs.push(`${label} ${i + 1} (passo_extra): ou um passo ou uma fase inicial`);
+  });
   effects.forEach((e, i) => { if (e.do !== 'continuo' && Object.values(e).includes('fim-do-combate')) errs.push(`${label} ${i + 1} (${e.do}): "até o fim do combate" só vale no efeito contínuo`); }); // T-102 · 500.5a: só o contínuo acaba ao sair do combate
   effects.forEach((e, i) => { if (e.do !== 'pilhas') return; // T-83 · CR 700.3
     if (e.separa != null && !['voce', 'oponente'].includes(e.separa)) errs.push(`${label} ${i + 1} (pilhas): "separa" é 'voce' ou 'oponente'`);
@@ -6788,6 +6795,13 @@ const RAW_SCRIPTS = [
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Grafted Skullcap', abilities: [{ kind: 'triggered', when: 'draw-step', effects: [{ do: 'draw', amount: 1 }] }, { kind: 'triggered', when: 'end-step', effects: [{ do: 'descarta_a_mao', target: 'self' }] }], // "At the beginning of your draw step, draw an additional card. · At the beginning of your end step, discard your hand."
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // T-103 · CR 500.10 / 500.8 (Oracle do Forge, clone de 13/10/2026, conferido no master em 14/10/2026). Menace e voar vêm da palavra-chave.
+  { name: 'Obeka, Splitter of Seconds', abilities: [{ kind: 'triggered', when: 'combat-damage', effects: [{ do: 'passo_extra', passo: 'upkeep', apos: 'fase', n: { per: 'trigger-value' }, target: 'self' }] }], // "Menace · Whenever Obeka, Splitter of Seconds deals combat damage to a player, you get that many additional upkeep steps after this phase."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Sphinx of the Second Sun', abilities: [{ kind: 'triggered', when: 'main2', effects: [{ do: 'passo_extra', fase: 'inicial', target: 'self' }] }], // "Flying · At the beginning of each of your postcombat main phases, there is an additional beginning phase after this phase."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Shadow of the Second Sun', aura: { enchant: 'player' }, abilities: [{ kind: 'triggered', when: 'enchanted-player-postcombat-main', effects: [{ do: 'passo_extra', fase: 'inicial', target: 'enchanted-player' }] }], // "Enchant player · At the beginning of each of enchanted player's postcombat main phases, there is an additional beginning phase after this phase."
+    example: { target: 'self-player', expect: { attached: false } } },
   { name: 'Paradox Haze', aura: { enchant: 'player' }, abilities: [{ kind: 'triggered', when: 'enchanted-player-upkeep', condition: { primeiraManutencao: true }, effects: [{ do: 'passo_extra', passo: 'upkeep', target: 'enchanted-player' }] }], // "Enchant player · At the beginning of enchanted player's first upkeep each turn, that player gets an additional upkeep step after this step."
     example: { target: 'self-player', expect: { attached: false } } },
   // T-100 · CR 702.189 · dobra de fogo e "até o fim do combate" (Oracle do Forge, clone de 13/10/2026, conferido no master em 14/10/2026). A dobra de fogo, a ameaça e a
@@ -9508,6 +9522,7 @@ EVENTOS_DE_OBJETO.push('exaurida'); OBJETOS_DO_EVENTO.exaurida = ['self']; GATIL
 EVENTOS_DE_OBJETO.push('monstruosa'); OBJETOS_DO_EVENTO.monstruosa = ['self']; GATILHO_EVENTO['becomes-monstrous'] = { evento: 'monstruosa', objeto: 'self' }; TRIGGER_PT['becomes-monstrous'] = 'quando fica monstruosa';
 /* ↓ T · exportações de scripts.js da trilha tipos */
 Object.assign(GATILHO_EVENTO, { 'draw-step': { evento: 'passo', passo: 'draw', turno: 'seu' }, 'each-draw-step': { evento: 'passo', passo: 'draw', turno: 'qualquer', jogadorAtivo: true }, 'precombat-main': { evento: 'passo', passo: 'main1', turno: 'seu' }, 'each-precombat-main': { evento: 'passo', passo: 'main1', turno: 'qualquer', jogadorAtivo: true } }); Object.assign(TRIGGER_PT, { 'draw-step': 'no início do seu passo de compra', 'each-draw-step': 'no início do passo de compra de cada jogador', 'precombat-main': 'no início da sua fase principal pré-combate', 'each-precombat-main': 'no início da fase principal pré-combate de cada jogador' }); // T-101 · CR 500.6
+GATILHO_EVENTO['enchanted-player-postcombat-main'] = { evento: 'passo', passo: 'main2', turno: 'qualquer', jogadorEncantado: true }; TRIGGER_PT['enchanted-player-postcombat-main'] = 'no início de cada fase principal pós-combate do jogador encantado'; // T-103
 GATILHO_EVENTO['enchanted-player-upkeep'] = { evento: 'passo', passo: 'upkeep', turno: 'qualquer', jogadorEncantado: true }; TRIGGER_PT['enchanted-player-upkeep'] = 'na manutenção do jogador encantado'; // T-94 · CR 303.4b
 /* ---------------- T-36 · CR 702.160 / 718 · protótipo (forma do script) ----------------
    `self: { prototipo: { mana, power, toughness } }` ("Prototype {3}{G} — 3/3"): o segundo conjunto de custo de mana, poder e resistência. */
@@ -20056,7 +20071,7 @@ const naoDesviraNoPasso = (s, o) => !!o.naoDesviraProximo || (!semImpressas(s, o
   || attachedTo(s, o).some(x => !semImpressas(s, x) && !!((((s.facts[x.name] || {}).script || {}).grants || {}).naoDesvira))
   || naoDesviraPeloMonarcaT(s, o); // T-70 · CR 725.5 · "doesn't untap … unless that player is the monarch" (Toca ponto comum: naoDesviraNoPasso)
 function enterStep(s, step) {
-  if (s.pulosT) { const prox = passoPuladoT(s, step); if (prox) return enterStep(s, prox); } // T-99 · CR 614.10 / 500.11 · pular o passo ou a fase (Toca ponto comum: enterStep)
+  if (s.pulosT) { const prox = passoPuladoT(s, step); if (prox && s.emPassoExtraT === step) { s.turn.step = step; return advanceStep(s); } /* T-103 · o passo a mais pulado segue a fila dos passos a mais */ if (prox) return enterStep(s, prox); } // T-99 · CR 614.10 / 500.11 · pular o passo ou a fase (Toca ponto comum: enterStep)
   const manaDeCombate = manaDeCombateAntesT(s, step); // T-100 · 702.189a: a mana da dobra de fogo não se perde entre os passos do combate (Toca ponto comum: enterStep)
   emptyPools(s); // 500.4: reserva esvazia entre passos
   if (manaDeCombate) manaDeCombateDepoisT(s, manaDeCombate); // T-100
@@ -20131,7 +20146,7 @@ function finishCleanup(s) {
   // recebem prioridade e depois vem outra limpeza (advanceStep). Antes o turno passava com o gatilho ainda por pôr na pilha.
   { const ev = []; stateBased(s, ev); if (ev.length || (s.queued || []).length || s.pending) { s.turn.passes = 0; s.turn.priority = s.turn.active; return; } }
   s.players.forEach(pl => { pl.lifeGained = 0; pl.drawnThisTurn = 0; delete pl.lifeLost; delete pl.atacouCom; }); // M-248 · rastros do turno
-  delete s.atacaramNoTurno; delete s.combatesExtras; delete s.retornoFase; delete s.emPassoExtraT; delete s.passosExtrasT; delete s.voltaDoExtraT; // CR2g.4 · T-102: os passos a mais pedidos e não jogados (turno encerrado) não passam ao próximo turno (Toca ponto comum: finishCleanup)
+  delete s.atacaramNoTurno; delete s.combatesExtras; delete s.retornoFase; delete s.emPassoExtraT; delete s.passosExtrasT; delete s.voltaDoExtraT; delete s.filaExtraT; // CR2g.4 · T-102: os passos a mais pedidos e não jogados (turno encerrado) não passam ao próximo turno (Toca ponto comum: finishCleanup)
   s.spellsThisTurn = 0;
   s.pending = null;
   s.turn.firstTurn = false;
@@ -20329,7 +20344,7 @@ function dealCombatDamage(s) {
       }
       if (has(s, src, 'lifelink')) vinculo.set(src.oid, { quem: src.controller, n: ((vinculo.get(src.oid) || {}).n || 0) + amt }); // CR2d.10 · CR2b.7
       noteEnchantedDealt(s, src, amt, obj ? null : player); // S48 · Armadillo Cloak: a aura de quem causou o dano é avisada
-      if (player != null && !obj) disparaEvento(s, 'dano-combate', [src]); // S18 · dano de combate ao jogador
+      if (player != null && !obj) { const q0T = (s.queued || []).length; disparaEvento(s, 'dano-combate', [src]); valorDoDanoDeCombateT(s, q0T, src, amt); } // S18 · dano de combate ao jogador · T-103: "that many" é o dano causado (Toca ponto comum: dano de combate)
       if (player != null && !obj) anelDanoV(s, src); // V-26 · 701.54c (4) (Toca ponto comum: dano de combate)
     }
     for (const v of vinculo.values()) ganhaVidaJogador(s, v.quem, v.n); // CR2b.7 · um ganho por criatura com vínculo vital
@@ -29654,7 +29669,7 @@ function encerraT(s, src, oque, events) {
   fimDoEncerramentoT(s, oque);
 }
 function fimDoEncerramentoT(s, oque) {
-  if (oque === 'turno') { delete s.emPassoExtraT; delete s.passosExtrasT; delete s.voltaDoExtraT; } // T-102 · achado da auditoria: o turno encerrado não volta a um passo a mais (724.1)
+  if (oque === 'turno') { delete s.emPassoExtraT; delete s.passosExtrasT; delete s.voltaDoExtraT; delete s.filaExtraT; } // T-102 · achado da auditoria: o turno encerrado não volta a um passo a mais (724.1)
   if (s.combat || battlefield(s).some(o => o.attacking || o.blocking)) saiDoCombate(s); // (d)
   s.turn.passes = 0;
   enterStep(s, oque === 'turno' ? 'cleanup' : 'main2');
@@ -29772,21 +29787,37 @@ const PASSOS_DO_COMBATE_T = ['combat_begin', 'combat_attackers', 'combat_blocker
    `passo_extra` ("that player gets an additional upkeep step after this step"): o passo novo entra logo depois do passo em que o efeito
    resolveu, no turno daquele jogador (`s.passosExtrasT`, só existe quando há um; vários depois do mesmo passo: o criado por último vem
    primeiro, 500.9). Durante o passo a mais, `s.emPassoExtraT` diz qual é (o "first upkeep each turn" do Paradox Haze não dispara de novo). */
+/* T-103 · CR 500.10 / 500.8 · "you get N additional upkeep steps after this phase" (`apos: 'fase'`, Obeka) e "there is an additional
+   beginning phase after this phase" (`fase: 'inicial'`, Sphinx of the Second Sun): o pedido entra depois do último passo da fase em curso.
+   A fase inicial a mais tem desvirar, manutenção e compra; o passo pedido "depois da fase" cria a fase dele só com ele (500.10: as N
+   manutenções de Obeka são N fases iniciais só com a manutenção). Os pedidos que chegam ao mesmo ponto viram uma fila (`s.filaExtraT`);
+   o criado por último vem primeiro (500.8, 500.9). Ao sair do fim do combate para um passo a mais, as criaturas saem do combate (511.3). */
+const FIM_DA_FASE_T = { untap: 'draw', upkeep: 'draw', draw: 'draw', main1: 'main1', combat_begin: 'combat_end', combat_attackers: 'combat_end', combat_blockers: 'combat_end', combat_damage: 'combat_end', combat_end: 'combat_end', main2: 'main2', end: 'cleanup', cleanup: 'cleanup' };
 function passoExtraAddT(s, src, eff, p, events) {
-  const passo = eff.passo || 'upkeep', depois = s.turn.step;
-  if (p !== s.turn.active || !['upkeep', 'draw'].includes(passo)) { events.push({ kind: 'effect', do: 'passo_extra', name: src.name, target: s.players[p].name, failed: true }); return; }
-  (s.passosExtrasT = s.passosExtrasT || []).push({ depois, passo, turno: s.turn.number });
-  events.push({ kind: 'effect', do: 'passo_extra', name: src.name, target: s.players[p].name, passo });
+  const fase = eff.fase === 'inicial', passo = eff.passo || 'upkeep', depois = fase || eff.apos === 'fase' ? FIM_DA_FASE_T[s.turn.step] : s.turn.step;
+  if (p !== s.turn.active || (!fase && !['upkeep', 'draw'].includes(passo))) { events.push({ kind: 'effect', do: 'passo_extra', name: src.name, target: s.players[p].name, failed: true }); return; } // 500.10a
+  const n = Math.max(0, Math.min(20, amountOf(s, src, eff.n == null ? 1 : eff.n) || 0));
+  if (n > 0) { const um = fase ? ['untap', 'upkeep', 'draw'] : [passo], passos = []; for (let k = 0; k < n; k++) passos.push(...um); (s.passosExtrasT = s.passosExtrasT || []).push({ depois, passos, turno: s.turn.number }); }
+  events.push({ kind: 'effect', do: 'passo_extra', name: src.name, target: s.players[p].name, passo: fase ? 'fase-inicial' : passo, n, aposFase: fase || eff.apos === 'fase' });
 }
 function passoExtraT(s) {
-  const lista = (s.passosExtrasT || []).filter(x => x.turno === s.turn.number);
-  const i = lista.map(x => x.depois).lastIndexOf(s.turn.step);
-  if (i < 0) { if (s.emPassoExtraT && s.voltaDoExtraT && s.turn.step === s.emPassoExtraT) s.turn.step = s.voltaDoExtraT; delete s.emPassoExtraT; delete s.voltaDoExtraT; if (s.passosExtrasT && !lista.length) delete s.passosExtrasT; return null; } // T-102 · achado da auditoria: depois dos passos a mais, a ordem segue do passo em que foram pedidos
-  const x = lista[i]; s.passosExtrasT = lista.filter(y => y !== x); if (!s.passosExtrasT.length) delete s.passosExtrasT;
-  if (!s.emPassoExtraT) s.voltaDoExtraT = s.turn.step;
-  s.emPassoExtraT = x.passo; if (s.passosExtrasT) for (const y of s.passosExtrasT) if (y.depois === x.depois) y.depois = x.passo; // os outros pedidos "depois deste" vêm depois do passo novo
-  return x.passo;
+  if (s.passosExtrasT) {
+    const n = s.turn.number, aqui = s.passosExtrasT.filter(x => x.turno === n && x.depois === s.turn.step);
+    s.passosExtrasT = s.passosExtrasT.filter(x => x.turno === n && x.depois !== s.turn.step); if (!s.passosExtrasT.length) delete s.passosExtrasT;
+    if (aqui.length) { s.filaExtraT = [...aqui.reverse().flatMap(x => x.passos), ...(s.filaExtraT || [])]; if (!s.emPassoExtraT) s.voltaDoExtraT = s.turn.step; }
+  }
+  if (s.filaExtraT) {
+    if (s.turn.step === 'combat_end' && !s.emPassoExtraT) saiDoCombate(s); // 511.3: a fase de combate acabou antes dos passos a mais
+    const prox = s.filaExtraT.shift(); if (prox === 'untap' && s.filaExtraT[0] === 'upkeep') s.filaExtraT.shift(); // o desvirar segue sozinho para a manutenção (enterStep)
+    if (!s.filaExtraT.length) delete s.filaExtraT;
+    s.emPassoExtraT = prox === 'untap' ? 'upkeep' : prox;
+    return prox;
+  }
+  if (s.emPassoExtraT && s.voltaDoExtraT && s.turn.step === s.emPassoExtraT) s.turn.step = s.voltaDoExtraT; // T-102 · depois dos passos a mais, a ordem segue do passo em que foram pedidos
+  delete s.emPassoExtraT; delete s.voltaDoExtraT; return null;
 }
+/** T-103 · "that many": o dano de combate que a fonte acabou de causar ao jogador vai como valor do gatilho (`per: 'trigger-value'`). */
+function valorDoDanoDeCombateT(s, desde, src, amt) { for (let k = desde; k < (s.queued || []).length; k++) { const q = s.queued[k]; if (q && q.source === src.oid && q.value == null) q.value = amt; } }
 function manaDeCombateAntesT(s, proximo) {
   if (!s.players.some(pl => pl.manaCombateT)) return null;
   const ficam = PASSOS_DO_COMBATE_T.includes(proximo) && PASSOS_DO_COMBATE_T.includes(s.turn.step);
@@ -32656,8 +32687,8 @@ Object.assign(EFEITO_PT_T, { vira_para_baixo: () => 'vira a criatura alvo para b
 const predicadosPT_T = sel => (sel.tapped ? ' virada' : sel.tapped === false ? ' desvirada' : '') + (sel.ativadaNoTurno ? ' que teve habilidade ativada neste turno' : '') + /* T-87 */ (sel.terrenoBasico === false ? ' que não seja terreno básico' : sel.terrenoBasico ? ' que é terreno básico' : '') + /* T-80 */ (sel.historico ? ' histórica' : sel.historico === false ? ' que não é histórica' : '') + (sel.foraDaLei ? ' fora da lei' : sel.foraDaLei === false ? ' que não é fora da lei' : '') + /* T-60 */ (sel.modificada ? ' modificada' : sel.modificada === false ? ' que não está modificada' : '');
 const LINHA_T = { preparada: ev => (ev.failed ? `${ev.name}: ${ev.motivo || 'não ficou preparada'}, nada muda` : `${ev.name} está preparada (pode conjurar uma cópia de ${ev.target})`), despreparada: ev => `${ev.name} deixou de estar preparada`, ciclo: ev => `Virou ${ev.target}${ev.motivo ? ` (${ev.motivo})` : ''}`, masmorra_completa: ev => `${ev.target} completou a masmorra ${ev.name}`, caso_resolvido: ev => (ev.failed ? `${ev.name}: a condição não valia mais, o Caso não foi resolvido` : `${ev.name} foi resolvido`), estacao: ev => (ev.failed ? `${ev.name}: a nave saiu do campo, a estação não pôs marcadores` : `${ev.name} recebeu ${ev.amount} marcador${ev.amount === 1 ? '' : 'es'} de carga (estação)${ev.total != null ? ` · ${ev.total} no total` : ''}`), selada: ev => (ev.failed ? `${ev.name}: a montaria saiu do campo, não foi selada` : `${ev.name} foi selada`), virar_carta: ev => (ev.failed ? `${ev.name} não virou${ev.motivo ? ` (${ev.motivo})` : ''}` : `${ev.name} virou: agora é ${ev.target}`), porta: ev => (ev.failed ? `${ev.name}: nenhuma porta para trancar ou destrancar` : `${ev.name} ${ev.acao} ${ev.porta} (${ev.target})`), nivel_sobe: ev => (ev.failed ? `${ev.name}: saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu de nível (nível ${ev.nivel})`), nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, converter: ev => `${ev.name} converteu em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
 Object.assign(LINHA_T, { descarta_a_mao: ev => `${ev.target} descartou a mão (${ev.amount === 1 ? 'uma carta' : ev.amount + ' cartas'}; ${ev.name})` }); Object.assign(EFEITO_PT_T, { descarta_a_mao: e => `${e.target === 'self' ? 'você descarta' : e.target === 'each-player' ? 'cada jogador descarta' : 'o jogador descarta'} a mão` }); // T-101
-Object.assign(LINHA_T, { passo_extra: ev => ev.failed ? `${ev.name}: não é o turno de ${ev.target}, nada acontece` : `${ev.target} tem ${ev.passo === 'draw' ? 'um passo de compra' : 'uma manutenção'} a mais depois deste passo (${ev.name})` }); // T-101
-Object.assign(EFEITO_PT_T, { passo_extra: e => `${e.target === 'enchanted-player' ? 'o jogador encantado' : e.target === 'player' ? 'o jogador alvo' : 'você'} ganha ${e.passo === 'draw' ? 'um passo de compra' : 'uma manutenção'} a mais depois deste passo` }); // T-101
+Object.assign(LINHA_T, { passo_extra: ev => ev.failed ? `${ev.name}: não é o turno de ${ev.target}, nada acontece` : ev.n === 0 ? `${ev.name}: nenhum passo a mais` : `${ev.target} tem ${ev.passo === 'fase-inicial' ? (ev.n > 1 ? ev.n + ' fases iniciais' : 'uma fase inicial') : ev.passo === 'draw' ? (ev.n > 1 ? ev.n + ' passos de compra' : 'um passo de compra') : (ev.n > 1 ? ev.n + ' manutenções' : 'uma manutenção')} a mais depois ${ev.aposFase ? 'desta fase' : 'deste passo'} (${ev.name})` }); // T-101 · T-103
+Object.assign(EFEITO_PT_T, { passo_extra: e => `${e.target === 'enchanted-player' ? 'o jogador encantado' : e.target === 'player' ? 'o jogador alvo' : 'você'} ganha ${e.fase === 'inicial' ? 'uma fase inicial (desvirar, manutenção e compra)' : (e.n != null && e.n !== 1 ? (typeof e.n === 'number' ? e.n : (e.n.per === 'trigger-value' ? 'tantas' : 'X')) + (e.passo === 'draw' ? ' passos de compra' : ' manutenções') : e.passo === 'draw' ? 'um passo de compra' : 'uma manutenção')} a mais depois ${e.fase === 'inicial' || e.apos === 'fase' ? 'desta fase' : 'deste passo'}${e.n && e.n.per === 'trigger-value' ? ' (uma para cada ponto de dano)' : ''}` }); // T-101 · T-103
 Object.assign(LINHA_T, { dobra_de_fogo: ev => ev.amount ? `${ev.target} adicionou ${'{R}'.repeat(Math.min(ev.amount, 12))} pela dobra de fogo de ${ev.name} (dura até o fim do combate)` : `${ev.name}: a dobra de fogo não adicionou mana` }); // T-100
 Object.assign(EFEITO_PT_T, { dobra_de_fogo: e => `adicione ${typeof e.n === 'number' ? '{R}'.repeat(Math.min(e.n, 12)) : 'X {R}'}; até o fim do combate você não perde essa mana quando os passos acabam` }); // T-100
 Object.assign(PALAVRA_PT, { firebending: 'dobra de fogo' }); // T-100 · 702.189
