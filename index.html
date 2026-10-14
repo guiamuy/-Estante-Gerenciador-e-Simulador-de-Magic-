@@ -5327,7 +5327,7 @@ const EFFECTS = {
   draw: { fields: ['amount'], targets: ['player', 'self'] },
   gain: { fields: ['amount'], targets: ['player', 'self', 'target-controller'] }, // M-335 · "Its controller gains life equal to its power" (Swords to Plowshares)
   lose: { fields: ['amount'], targets: ['player', 'opponent', 'self', 'target-controller', 'each-opponent'] },
-  counters: { fields: ['amount'], targets: ['self-source', 'creature', 'first-target', 'creature-you-control'] }, // M-395 · "target creature you control" (Idyllic Grange) // M-272 · first-target: o alvo de um efeito anterior
+  counters: { fields: ['amount'], targets: ['self-source', 'creature', 'first-target', 'creature-you-control', 'enchanted'] }, // M-401 · 'enchanted': a criatura equipada/encantada (Greatsword of Tyr) // M-395 · "target creature you control" (Idyllic Grange) // M-272 · first-target: o alvo de um efeito anterior
   pump: { fields: ['power', 'toughness'], targets: ['creature', 'creature-you-control', 'creature-opponent-controls', 'each-creature', 'each-opponent-creature', 'each-own-creature'] },
   tap: { fields: [], targets: ['self-source', 'enchanted', 'creature', 'permanent', 'permanent-opponent-controls'] },
   untap: { fields: [], targets: ['self-source', 'enchanted', 'creature', 'permanent'] },
@@ -5926,7 +5926,7 @@ const EVENTOS_DE_JOGADOR = ['descarta', 'compra', 'ganha-vida', 'atacou', 'joga-
 /** M-258 · 603.2c · evento em lote: "whenever one or more <criaturas suas> deal damage to your opponents" dispara uma vez por golpe simultâneo. */
 const EVENTOS_DE_LOTE = ['causam-dano'];
 /** De quem o gatilho observa o evento, por evento (o primeiro é o padrão). */
-const OBJETOS_DO_EVENTO = { zona: ['self', 'outra', 'anexada'], conjurar: ['self', 'outra'], ataca: ['self', 'outra'], bloqueia: ['self', 'outra'],
+const OBJETOS_DO_EVENTO = { zona: ['self', 'outra', 'anexada'], conjurar: ['self', 'outra'], ataca: ['self', 'outra', 'anexada'] /* M-401 · Greatsword of Tyr */, bloqueia: ['self', 'outra'],
   'dano-combate': ['self', 'outra'], marcadores: ['self', 'outra'], 'recebe-dano': ['self', 'anexada'], 'causa-dano': ['self', 'anexada'],
   vira: ['self', 'anexada'], sacrifica: ['outra'], bloqueada: ['self', 'outra'], 'nao-bloqueada': ['self', 'outra'] }; // CR2g.5
 const GATILHO_EVENTO = {
@@ -6004,7 +6004,7 @@ const ZONA_DE_PT = { battlefield: 'do campo', graveyard: 'do cemitério', exile:
 const ORDINAL_PT = { 1: 'primeira', 2: 'segunda', 3: 'terceira', 4: 'quarta', 5: 'quinta' };
 const PASSO_PT = { upkeep: ['manutenção', 'a'], draw: ['passo de compra', 'o'], main1: ['primeira fase principal', 'a'], combat_begin: ['combate', 'o'],
   combat_end: ['fim do combate', 'o'], main2: ['segunda fase principal', 'a'], end: ['passo final', 'o'] };
-function descreveGatilho(w) {
+function descreveGatilho(w, como = {}) { // M-401 · como.equipada: "a criatura equipada" 
   if (typeof w === 'string') return TRIGGER_PT[w] || w;
   const ev = gatilhoDoEvento(w); if (!ev) return 'gatilho';
   if (ev.evento === 'causam-dano') return `quando uma ou mais criaturas suas causam dano a ${ev.a === 'jogador' ? 'um jogador' : 'seus oponentes'}`; // M-258
@@ -6025,7 +6025,7 @@ function descreveGatilho(w) {
     const a = { jogador: ' a um jogador', oponente: ' a um oponente' }[ev.a] || '';
     const verbo = [].concat(ev.evento).map(e => ({ ataca: 'ataca', bloqueia: 'bloqueia', 'dano-combate': 'causa dano de combate a um jogador', marcadores: 'recebe marcadores +1/+1',
       'recebe-dano': 'recebe dano', 'causa-dano': 'causa dano' + a, vira: 'vira', bloqueada: 'é bloqueada', 'nao-bloqueada': 'ataca e não é bloqueada' })[e]).join(' ou ');
-    if (ev.objeto === 'anexada') return `quando a criatura encantada ${verbo}`;
+    if (ev.objeto === 'anexada') return `quando a criatura ${como.equipada ? 'equipada' : 'encantada'} ${verbo}`; // M-401
     if (ev.objeto !== 'outra') return `quando ${verbo}`;
     return `quando ${ev.quem === 'qualquer' ? 'outra criatura' : ev.quem === 'oponente' ? 'uma criatura de um oponente' : 'outra criatura sua'} ${verbo}`;
   }
@@ -9217,6 +9217,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Temur Battle Rage': { texto: 'f0d3qs', leva: 'M-399' },
   // M-400 · revisão por lote LVII (Recommission), revisor independente: reprovada na primeira passada por texto (pilha explicada), corrigida com teste; 93 verificações, diferencial e fuzz sem diferença
   'Recommission': { texto: 'es8ajp', leva: 'M-400' },
+  // M-401 · revisão por lote LVIII (Pauper: Greatsword of Tyr), revisor independente: 57 verificações, diferenciais e fuzz sem diferença; reprovou na primeira passada (508.5: o jogador defensor) — corrigido com teste
+  'Greatsword of Tyr': { texto: 'lf56aj', leva: 'M-401' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -17569,6 +17571,7 @@ const __m42 = (function () {
     [/^until end of turn, target land you control becomes the basic land type of your choice in addition to its other types$/i, () => [{ do: 'tipo_basico', target: 'land-you-control' }]], // M-388 · Navigator's Compass (305.7)
     [/^whenever a creature you control enters this turn, put a \+1\/\+1 counter on it and it gains haste until end of turn$/i, () => [{ do: 'gatilho_no_turno', when: 'criatura-sua-entra', effects: [{ do: 'counters', tipo: 'p1p1', amount: 1, target: 'delayed-object' }, { do: 'keyword', keyword: 'haste', target: 'delayed-object' }] }]], // M-389 · First Day of Class (603.7c)
     [/^learn$/i, () => [{ do: 'learn' }]],
+    [/^put a \+1\/\+1 counter on it and tap up to one target creature defending player controls$/i, () => [{ do: 'counters', tipo: 'p1p1', amount: 1, target: 'enchanted' }, { do: 'tap', target: { tipos: ['creature'] }, targetDefensor: true, upTo: true }]], // M-401 · Greatsword of Tyr · 508.5: o jogador que a criatura equipada ataca
     [/^that creature also gains (flying|trample|first strike|deathtouch|lifelink|vigilance|haste|menace|indestructible|hexproof) until end of turn if you control a creature with power 4 or greater$/i, m => [{ do: 'keyword', keyword: m[1].toLowerCase(), target: 'first-target', onlyIf: 'ferocious' }]], // M-399 · Temur Battle Rage (ferocidade)
     [/^~ deals (\d+) damage to each creature and each player$/i, m => [{ do: 'damage', amount: +m[1], target: 'each-creature' }, { do: 'damage', amount: +m[1], target: 'each-player' }]], // M-396 · Pestilence
     [/^put a \+1\/\+1 counter on target creature you control$/i, () => [{ do: 'counters', tipo: 'p1p1', amount: 1, target: 'creature-you-control' }]], // M-395 · Idyllic Grange
@@ -17630,6 +17633,7 @@ const __m42 = (function () {
     [/^when (this creature|this artifact|~) leaves the battlefield$/i, 'leaves-battlefield'],
     [/^whenever (this creature|~) deals combat damage to a player$/i, 'combat-damage'],
     [/^whenever (this creature|~) attacks$/i, 'attacks'],
+    [/^whenever (?:equipped|enchanted) creature attacks$/i, { evento: 'ataca', objeto: 'anexada' }], // M-401 · Greatsword of Tyr
     [/^whenever (this creature|~) blocks$/i, 'blocks'],
     [/^at the beginning of your upkeep$/i, 'upkeep'],
     [/^at the beginning of your end step$/i, 'end-step'],
@@ -17763,10 +17767,11 @@ const __m42 = (function () {
     const sn = !condicao && resto2.match(/^if you control no tapped lands, (.+)$/i); // M-373 · 603.4 (Martyr's Soul)
     if (sn) { condicao = { semTerrenoVirado: true }; resto2 = sn[1]; }
     const opcional = /^you may /i.test(resto2);
-    let corpo = resto2.replace(/^you may /i, '').replace(/^it /i, '~ ');
+    let corpo = resto2.replace(/^you may /i, ''); const anexada = !!(g[1] && g[1].objeto === 'anexada'); if (!anexada) corpo = corpo.replace(/^it /i, '~ '); // M-401 · sob "Whenever enchanted/equipped creature …", "it" é a hospedeira, não a carta (Extra Arms)
     if (/(this creature|~)/i.test(cab) && !/\btarget\b/i.test(corpo)) corpo = corpo.replace(/ on it$/i, ' on ~'); // M-322 · "put a +1/+1 counter on it": "it" é a própria permanente da abertura
     const sub = [];
-    const e = leParagrafo(corpo, nome, sub);
+    const e = anexada && /^it /i.test(corpo) ? (sub.push({ texto: resto2, lida: false }), null) : leParagrafo(corpo, nome, sub); // M-401 · "it deals…" da hospedeira: a fonte seria a criatura, que o motor ainda não modela aqui
+    if (e && /^whenever equipped creature/i.test(cab)) for (const x of e) if (x.target === 'enchanted') x.equipada = true; // M-401 · texto: "a criatura equipada"
     if (e && g[1] === 'dies') for (const x of e) if (x.do === 'to_hand' && x.target === 'self-source' && x.from === 'battlefield') delete x.from; // M-339 · "when ~ is put into a graveyard…, return ~ to its owner's hand": do cemitério
     const textoCond = condicao ? resto.slice(0, resto.length - resto2.length).replace(/,\s*$/, '') : ''; // M-373 · achado da revisão: a ficha mostra também a condição (603.4), não só o efeito
     frases.push({ texto: cab, lida: true }, ...(textoCond ? [{ texto: textoCond, lida: true }] : []), ...sub);
@@ -20559,6 +20564,7 @@ function targetAllowed(s, eff, tgt, src) {
   if (eff.targetNotLegendary && portadorLendarioV(s, o)) return false; // V-25 · 701.54c (1) (Toca ponto comum: targetAllowed)
   if (eff.targetNotLegendary && f.legendary) return false;
   if (eff.targetPowerMax != null && !(o.zone === 'battlefield' && isCreature(s, o) && power(s, o) <= eff.targetPowerMax)) return false; // M-341
+  if (eff.targetDefensor && src && o.controller !== (src.defensor != null ? src.defensor : o.controller === src.controller ? -1 : o.controller)) return false; // M-401 · 508.5: "creature defending player controls" (sem combate conhecido, um oponente)
   if (eff.targetTapped && !o.tapped) return false; // M-349 · "target tapped creature" (Cryogen Relic) · "target creature with power N or less"
   if (eff.targetNotBasic && /^\s*basic\b/i.test((o.zone === 'battlefield' ? linhaDeTipo(s, o) : f.typeText) || '')) return false; // M-335 · "target nonbasic land" (Wasteland)
   if (eff.targetNotFromHand && o.zone === 'stack' && o.castFrom === 'hand') return false;
@@ -20645,7 +20651,7 @@ function effectAllowed(s, fonte, eff) {
 function effectTargetName(s, t) { return t == null ? '' : t.oid != null ? ((s.objects[t.oid] || {}).name || '?') : s.players[t.player].name; }
 /** Leva 105 · a permanente que a aura de origem encanta, sem alvo ("Tap enchanted creature"). */
 function criaturaEncantada(s, src) {
-  if (src.hostOid) { const h = s.objects[src.hostOid]; return h && h.zone === 'battlefield' ? h : null; } // Leva 108
+  if (src.hostOid) { const h = s.objects[src.hostOid]; return h && h.zone === 'battlefield' && (src.hostZc == null || (h.zc || 0) === src.hostZc) ? h : null; } // Leva 108 · M-401 · 400.7: a hospedeira que saiu e voltou é outro objeto
   const aura = src.ability ? s.objects[src.source] : src;
   const host = aura && aura.zone === 'battlefield' && aura.attachedTo ? s.objects[aura.attachedTo] : null;
   return host && host.zone === 'battlefield' ? host : null;
@@ -20837,7 +20843,7 @@ function applyEffect(s, src, eff, tgt, events) {
         if (eff.target === 'each-opponent') { s.players.forEach((pl, i) => { if (i !== ctrl && !pl.lost) perdeVida(s, i, n); }); note({ amount: n }); break; }
         perdeVida(s, playerOf(), n); note({ amount: n }); } break;
     case 'counters': {
-      const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
+      const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : eff.target === 'enchanted' ? criaturaEncantada(s, src) : obj; // M-401
       const fonteM = src.ability ? s.objects[src.source] : src; // M-272 · "se você controlar uma permanente [cor] que não seja ela nem a fonte"
       if (alvo && eff.seControlaOutra && !battlefield(s).some(x => x.controller === ctrl && x.oid !== alvo.oid && !(fonteM && x.oid === fonteM.oid) && colorsOf(s, x).includes(eff.seControlaOutra.cor))) { note({ failed: true }); break; }
       if (alvo && alvo.zone === 'battlefield') {
@@ -22632,8 +22638,18 @@ function disparaAlvejado(s, itemOid, alvos) {
     }
   }
 }
-const disparaEvento = (s, evento, objects) => naSombra(s, `${evento}: ${objects.map(o => o && o.name).join(', ')}`,
-  () => queueTriggersLegado(s, NOME_DO_EVENTO[evento], objects), () => gatilhosDoObjeto(s, evento, objects));
+const disparaEvento = (s, evento, objects) => (naSombra(s, `${evento}: ${objects.map(o => o && o.name).join(', ')}`,
+  () => queueTriggersLegado(s, NOME_DO_EVENTO[evento], objects), () => gatilhosDoObjeto(s, evento, objects)), gatilhosDaAnexadaAtacaM(s, evento, objects));
+/** M-401 · "Whenever equipped/enchanted creature attacks" (Greatsword of Tyr): o Equipamento ou a Aura anexada observa o ataque da hospedeira; a hospedeira vai junto (`host`). */
+function gatilhosDaAnexadaAtacaM(s, evento, objects) {
+  if (evento !== 'ataca') return;
+  for (const o of objects) { if (!o || isAbility(o)) continue;
+    for (const x of attachedTo(s, o)) for (const ab of abilitiesOf(s, x)) {
+      const d = ab.kind === 'triggered' && SC.gatilhoDoEvento(ab.when);
+      if (!d || d.evento !== 'ataca' || d.objeto !== 'anexada' || !triggerConditionMet(s, x, ab.condition)) continue;
+      s.queued.push({ source: x.oid, name: x.name, controller: x.controller, effects: ab.effects, when: ab.when, host: o.oid, hostZc: o.zc || 0, defensor: defensorDeK(s, o), ...marcasDaHabilidade(ab) }); // 400.7 · 508.5: a encarnação da hospedeira e o jogador que ela ataca
+    } }
+}
 /** CR2-G R2b · começo de passo. `fase` 'seu' = gatilhos do jogador ativo; 'todos' = de cada jogador e dos oponentes. */
 const PASSO_LEGADO = { 'upkeep/seu': ['upkeep', true], 'upkeep/todos': ['each-upkeep', false], 'combat_begin/seu': ['begin-combat', true],
   'end/seu': ['end-step', true], 'main2/seu': ['main2', true], 'combat_end/todos': ['end-of-combat', false] };
@@ -22833,6 +22849,7 @@ function marcasDoGatilho(s, q, oid) {
   if (q.objeto) s.objects[oid].objetoAtrasado = q.objeto; // CR2b.2 · "ela", com a encarnação mirada
   if (q.jogador != null) s.objects[oid].jogadorAtrasado = q.jogador; // CR2b.1 · o "jogador daquela mágica" do gatilho atrasado
   if (q.host) s.objects[oid].hostOid = q.host; // Leva 108 · a criatura encantada no momento do disparo
+  if (q.hostZc != null) s.objects[oid].hostZc = q.hostZc; if (q.defensor != null) s.objects[oid].defensor = q.defensor; // M-401 · 400.7 e 508.5
   chargeWard(s, q.controller, oid, s.objects[oid].targets); // Leva 107 · proteção (ward) vale contra gatilho também
   disparaAlvejado(s, oid, s.objects[oid].targets); // CR2b.9 · o gatilho com alvo também faz a permanente "se tornar alvo"
 }
@@ -22860,7 +22877,7 @@ function putTriggerOnStack(s, q, events) {
   // CR 603.3d · um alvo por efeito com alvo, escolhidos em ordem antes de a habilidade ir à pilha (q.alvos guarda os já escolhidos)
   const targeted = (q.effects || []).filter(SC.isTargeted);
   let targets = (q.alvos || []).slice();
-  const src = s.objects[q.source] || { controller: q.controller };
+  const src0 = s.objects[q.source] || { controller: q.controller }, src = q.defensor != null ? { ...src0, defensor: q.defensor } : src0; // M-401 · 508.5: o defensor viaja com o gatilho
   for (let i = targets.length; i < targeted.length; i++) {
     const eff = targeted[i];
     const opts = legalTargets(s, q.controller, eff.target, q.source, eff.targetColor)
@@ -31184,7 +31201,7 @@ function describe(before, a, events, after) {
     if (ev.kind === 'choice') L.push(`${ev.name}: ${ev.what} (${plural(ev.amount, 'carta', 'cartas')})`);
     if (ev.kind === 'trigger-fizzled') L.push(ev.when === 'condição' ? `Gatilho de ${ev.name}: a condição deixou de valer, nada acontece` : `Gatilho de ${ev.name} sem alvo legal: saiu da pilha`); // M-397 · 603.4
     if (ev.kind === 'room') L.push(`${ev.target} se aventurou na masmorra: ${ev.dungeon} — ${ev.name}`); // S57
-    if (ev.kind === 'trigger') L.push(`Gatilho de ${ev.name} (${descreveGatilho(ev.when)})`); // CR2-G R2a · nome antigo ou descritor
+    if (ev.kind === 'trigger') L.push(`Gatilho de ${ev.name} (${descreveGatilho(ev.when, { equipada: /\bEquipment\b/.test((((after || {}).facts || {})[ev.name] || {}).typeText || '') })})`); // M-401 // CR2-G R2a · nome antigo ou descritor
     if (ev.kind === 'resolved' && !ev.scripted) L.push(ev.to === 'battlefield' ? `${ev.name} entrou no campo` : `${ev.name} resolveu`);
     if (ev.kind === 'regenerated') L.push(`${ev.name} regenerou: virou, perdeu o dano e saiu do combate`); // CR2-G R5c
     if (ev.kind === 'totem') L.push(`${ev.aura} foi destruída no lugar de ${ev.name} (armadura de totem)`);
@@ -32082,7 +32099,8 @@ function descreveEfeito(e) {
     const frase = descreveEfeito(base);
     return frase.startsWith(quem) ? frase : `${quem} ${frase}`;
   }
-  const alvo = e.cada ? descreveSeletor(e.cada).replace(/^(uma|outra) /, 'cada ') : e.target ? (ALVO_PT[e.target] || descreveAlvo(e.target)) : null; // M-230 · varredura escrita como seletor
+  const alvo = e.cada ? descreveSeletor(e.cada).replace(/^(uma|outra) /, 'cada ') : e.target === 'enchanted' && e.equipada ? 'a criatura equipada' : e.target ? (ALVO_PT[e.target] || descreveAlvo(e.target)) + (e.targetDefensor ? ' que o jogador defensor controla' : '') : null; // M-230 · varredura escrita como seletor · M-401
+  const emPT = a => /^(a|o|as|os) /.test(a) ? 'n' + a : 'em ' + a; // M-401 · "na criatura equipada" (não "em a")
   const n = qtd(e.amount);
   switch (e.do) {
     case 'draw': return `compra ${plural(n, 'carta', 'cartas')}`;
@@ -32122,12 +32140,12 @@ function descreveEfeito(e) {
       return `olha as ${k} cartas de cima${mao}${resto}`;
     }
     case 'untap': return `desvira ${alvo || 'uma permanente'}`;
-    case 'tap': return `vira ${alvo || 'uma permanente'}`;
+    case 'tap': return `vira ${e.upTo && alvo && /^uma? /.test(alvo) ? 'até ' + alvo : alvo || 'uma permanente'}`; // M-401 · "up to one"
     case 'tap_or_untap': return `${e.optional ? 'pode virar ou desvirar' : 'vira ou desvira'} ${alvo || 'uma criatura'}`; // Leva 131
     case 'untap_chosen': { const tipo = ((e.filter || {}).types || [])[0], nome = { land: ['terreno', 'terrenos'], creature: ['criatura', 'criaturas'], artifact: ['artefato', 'artefatos'] }[tipo] || ['permanente', 'permanentes']; return `desvira até ${n} ${n === 1 ? nome[0] : nome[1]}`; } // M-250
     case 'exile_graveyard': return 'exila cartas do cemitério';
     case 'discard': return `descarta ${plural(n, 'carta', 'cartas')}`;
-    case 'counters': return e.tipo && e.tipo !== 'p1p1' ? `põe ${plural(n, 'marcador ' + (MARCADOR_PT[e.tipo] || e.tipo), 'marcadores ' + (MARCADOR_PT[e.tipo] || e.tipo))} em ${alvo || 'uma permanente'}` : `põe ${plural(n, 'marcador +1/+1', 'marcadores +1/+1')} em ${alvo || 'uma criatura'}`;
+    case 'counters': return e.tipo && e.tipo !== 'p1p1' ? `põe ${plural(n, 'marcador ' + (MARCADOR_PT[e.tipo] || e.tipo), 'marcadores ' + (MARCADOR_PT[e.tipo] || e.tipo))} ${emPT(alvo || 'uma permanente')}` : `põe ${plural(n, 'marcador +1/+1', 'marcadores +1/+1')} ${emPT(alvo || 'uma criatura')}`; // M-401
     case 'mover': { // CR2-G R4a
       const quem = e.target === 'self-source' ? 'esta carta' : alvo || 'o alvo';
       if (e.para === 'battlefield') return `põe ${quem} no campo${e.controle === 'dono' ? ' sob o controle do dono' : ' sob o seu controle'}${e.virada ? ', virada' : ''}${e.transformada ? ', transformada' : ''}`; // T-53 · 712.14a

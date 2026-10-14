@@ -223,7 +223,7 @@ test('M-232 · R2b · descritores de passo e de objeto: validador e português',
   assert.deepEqual(erros({ evento: 'ataca', objeto: 'outra', quem: 'qualquer' }), []);
   assert.ok(erros({ evento: 'passo', passo: 'cleanup' }).some(e => /passo "cleanup"/.test(e)));
   assert.ok(erros({ evento: 'passo', passo: 'end', turno: 'meu' }).some(e => /turno/.test(e)));
-  assert.ok(erros({ evento: 'ataca', objeto: 'anexada' }).some(e => /objeto "anexada"/.test(e)));
+  assert.ok(erros({ evento: 'bloqueia', objeto: 'anexada' }).some(e => /objeto "anexada"/.test(e))); // M-401 · expectativa ajustada: "Whenever equipped/enchanted creature attacks" (ataca + anexada) passou a valer com a Greatsword of Tyr; a recusa do objeto continua onde o motor não despacha (bloqueia)
   assert.ok(erros({ evento: 'conjurar', passo: 'end' }).some(e => /chave "passo"/.test(e)));
   assert.ok(erros({ evento: 'explode' }).some(e => /evento "explode"/.test(e)));
   assert.equal(S.descreveGatilho({ evento: 'passo', passo: 'end', turno: 'qualquer' }), 'no início de cada passo final');
