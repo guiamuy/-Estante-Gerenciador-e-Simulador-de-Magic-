@@ -6837,6 +6837,26 @@ const RAW_SCRIPTS = [
     { label: 'Destruir um terreno', effects: [{ do: 'destroy', target: 'land' }] },
     { label: 'Destruir um planeswalker', effects: [{ do: 'destroy', target: { tipos: ['planeswalker'] } }] }],
     example: { action: 'mode:1', target: 'enemy-creature', expect: { gone: true } } },
+  // T-105 · CR 700.2a · habilidade ativada modal (Oracle do Forge, clone de 13/10/2026, conferido no master em 14/10/2026).
+  { name: 'Cankerbloom', abilities: [{ kind: 'activated', cost: { mana: '{1}', sacrifice: true }, modes: [ // "{1}, Sacrifice Cankerbloom: Choose one — • Destroy target artifact. • Destroy target enchantment. • Proliferate."
+    { label: 'Destruir um artefato', effects: [{ do: 'destroy', target: 'artifact' }] },
+    { label: 'Destruir um encantamento', effects: [{ do: 'destroy', target: 'enchantment' }] },
+    { label: 'Proliferar', effects: [{ do: 'proliferate' }] }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Insidious Fungus', abilities: [{ kind: 'activated', cost: { mana: '{2}', sacrifice: true }, modes: [ // "{2}, Sacrifice Insidious Fungus: Choose one — • Destroy target artifact. • Destroy target enchantment. • Draw a card. Then you may put a land card from your hand onto the battlefield tapped."
+    { label: 'Destruir um artefato', effects: [{ do: 'destroy', target: 'artifact' }] },
+    { label: 'Destruir um encantamento', effects: [{ do: 'destroy', target: 'enchantment' }] },
+    { label: 'Comprar e pôr um terreno da mão, virado', effects: [{ do: 'draw', amount: 1 }, { do: 'terreno_da_mao', virado: true }] }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Balm of Restoration', abilities: [{ kind: 'activated', cost: { mana: '{1}', tap: true, sacrifice: true }, modes: [ // "{1}, {T}, Sacrifice Balm of Restoration: Choose one — • You gain 2 life. • Prevent the next 2 damage that would be dealt to any target this turn."
+    { label: 'Ganhar 2 de vida', effects: [{ do: 'gain', amount: 2 }] },
+    { label: 'Prevenir os próximos 2 de dano a um alvo neste turno', effects: [{ do: 'prevenir', quantidade: 2, target: 'any' }] }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Potatoes', abilities: [{ kind: 'activated', cost: { mana: '{2}', tap: true, sacrifice: true }, modes: [ // "{2}, {T}, Sacrifice Potatoes: Choose one — • Boil — Potatoes deals 1 damage to any target. • Mash — Create two Food tokens. • Stew — Gain 3 life. Draw a card."
+    { label: 'Cozida: 1 de dano a qualquer alvo', effects: [{ do: 'damage', amount: 1, target: 'any' }] },
+    { label: 'Purê: duas fichas de Comida', effects: [{ do: 'token', amount: 2, token: { name: 'Food', types: ['artifact'], subtypes: ['Food'], colors: [], abilities: [{ kind: 'activated', cost: { mana: '{2}', tap: true, sacrifice: true }, effects: [{ do: 'gain', amount: 3 }] }] } }] },
+    { label: 'Ensopado: ganhar 3 de vida e comprar uma carta', effects: [{ do: 'gain', amount: 3 }, { do: 'draw', amount: 1 }] }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // T-103 · CR 500.10 / 500.8 (Oracle do Forge, clone de 13/10/2026, conferido no master em 14/10/2026). Menace e voar vêm da palavra-chave.
   { name: 'Obeka, Splitter of Seconds', abilities: [{ kind: 'triggered', when: 'combat-damage', effects: [{ do: 'passo_extra', passo: 'upkeep', apos: 'fase', n: { per: 'trigger-value' }, target: 'self' }] }], // "Menace · Whenever Obeka, Splitter of Seconds deals combat damage to a player, you get that many additional upkeep steps after this phase."
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
@@ -23214,6 +23234,14 @@ function extraCostCandidates(s, p, spec, selfOid, needUntapped) {
     (!needUntapped || !o.tapped)).map(o => o.oid);
 }
 /** CR 700.2d · conjuntos de k modos (com repetição quando a carta deixa), em ordem crescente. */
+/** T-105 · CR 700.2a · habilidade ativada modal ("{cost}: Choose one —"): o modo escolhido vem na ação (`a.mode`) e os efeitos são os dele;
+ * sem modo, ou modo que não existe, a ativação é recusada. Habilidade sem modos passa como está. */
+function ativadaComModoT(a, ab) {
+  if (!ab || !(ab.modes || []).length) { if (ab && a.mode != null) throw new RuleError('modo', 'esta habilidade não tem modos'); return ab; }
+  const m = ab.modes[a.mode];
+  if (a.mode == null || !m) throw new RuleError('modo', 'escolha um modo');
+  return { ...ab, modes: undefined, effects: m.effects || [], modoT: a.mode };
+}
 /** T-104 · CR 700.2d · "choose one or both" / "one or more": as combinações de `min` a `k` modos, das menores para as maiores (sem `min`, só as de `k`). */
 function combinacoesDeModosT(n, k, repete, min) { const out = []; for (let j = min || k; j <= k; j++) out.push(...combinacoesDeModos(n, j, repete)); return out; }
 function combinacoesDeModos(n, k, repete) {
@@ -24028,7 +24056,7 @@ const HANDLERS = {
     noPending(s); holder(s, a.p);
     const o = a.fromHand ? owns(s, a.p, a.oid, 'hand') : a.fromGraveyard ? owns(s, a.p, a.oid, 'graveyard') : onField(s, a.oid); // M-352 · 113.6: habilidade que funciona do cemitério
     if (!a.fromHand && !a.fromGraveyard && o.controller !== a.p) throw new RuleError('objeto', 'a permanente não é sua');
-    const base = abilitiesOf(s, o).filter(x => x.kind === 'activated')[a.index || 0];
+    const base = ativadaComModoT(a, abilitiesOf(s, o).filter(x => x.kind === 'activated')[a.index || 0]); // T-105 · CR 700.2a: habilidade ativada modal — o modo vem na ação (Toca ponto comum: HANDLERS.activate)
     if (!base) throw new RuleError('habilidade', 'essa permanente não tem essa habilidade');
     const nX = xDaHabilidade(base); // CR2c.7 · 107.3k · 602.2b: o X é escolhido ao ativar
     if (a.x != null && !nX) throw new RuleError('custo', 'esta habilidade não tem X no custo');
@@ -25178,7 +25206,8 @@ function legalActions(s, p, { adjudication = false } = {}) {
   // M9 · habilidades ativadas das suas permanentes
   for (const o of battlefield(s)) {
     if (o.controller !== p) continue;
-    abilitiesOf(s, o).filter(x => x.kind === 'activated').forEach((ab, index) => {
+    abilitiesOf(s, o).filter(x => x.kind === 'activated').forEach(function ofertaDaAtivada(ab, index, _l, modoT) {
+      if ((ab.modes || []).length && modoT == null) return ab.modes.forEach((m, k) => { const n0 = out.length; ofertaDaAtivada({ ...ab, modes: undefined, effects: m.effects || [] }, index, null, k); for (let j = n0; j < out.length; j++) out[j].mode = k; }); // T-105 · CR 700.2a: uma oferta por modo, só os que têm alvo legal (Toca ponto comum: ofertas de ativar)
       if ((ab.cost || {}).fromHand || (ab.cost || {}).fromGraveyard) return; // S37 · só vale com a carta na mão · M-352 · ou no cemitério
       if (ab.sorceryOnly && !canSorcery) return;
       if (!canPayAbility(s, p, o, ab)) return;
@@ -34993,7 +35022,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       // R8 · duas habilidades com o mesmo custo (Freed from the Real: {U} vira, {U} desvira) saíam com o mesmo nome; a folha juntava
       // as duas num botão só e a segunda (desvirar) não podia ser usada. Com custo repetido, o botão diz o que cada uma faz.
       const custoRepetido = allAbilities.filter(x => x.loyalty == null && custoDaHabilidade(x) === cost).length > 1;
-      const oQueFaz = o.token || custoRepetido ? T.descreveEfeitos(ab.effects) : '';
+      const oQueFaz = act.mode != null && (ab.modes || [])[act.mode] ? (ab.modes[act.mode].label || T.descreveEfeitos(ab.modes[act.mode].effects)) : o.token || custoRepetido ? T.descreveEfeitos(ab.effects) : ''; // T-105 · 700.2a: o botão diz o modo (Toca ponto comum: folha da carta)
       legal.push(doBtn(`Ativar${cost ? ` (${cost})` : ''}${oQueFaz ? `: ${oQueFaz}` : ''}${(act.targets || []).length ? ` → ${act.targets.map(x => targetName(s, x)).join(' + ')}` : ''}`, act, { variant: 'primary' }));
     }
     E.rotulosDaClasseT(s, oid, legal, custoDaHabilidade); // T-12 · CR 716.2a · "Subir para o nível N · custo" e o custo certo das ativadas de um nível

@@ -1,4 +1,5 @@
 // T-104 · CR5 · Mágicas modais com número variável de modos: "Choose one or both —" e "Choose one or more —" (Comprehensive Rules 700.2a, 700.2c, 700.2d).
+// T-105 · habilidade ativada modal (700.2a) e a cópia de mágica modal (700.2g): Cankerbloom, Insidious Fungus, Balm of Restoration e Potatoes. "Eco" e "Faísca" são cartas de teste.
 // Texto da regra: .regras/cr-2026-09-25.txt. Cartas com o texto oficial de .listas/oficiais-tipos.json (Oracle do Forge, clone de 13/10/2026,
 // conferido no master em 14/10/2026): Grim Discovery, Branching Bolt, Winterflame, Fissure Vent, Crush Contraband, Vandalize, Rain of Thorns e
 // Casualties of War. "Urso", "Ave", "Totem", "Aura Solta", "Andarilho" e "Ermo" são cartas de teste.
@@ -8,17 +9,22 @@ import { readFileSync } from 'node:fs';
 import { E, S as SC, J, act, poe, legais, passaAte, valorDeMana } from './listas.mjs';
 
 const L = n => JSON.parse(readFileSync(new URL('./.listas/' + n, import.meta.url), 'utf8')).cartas;
-const NOMES = ['Grim Discovery', 'Branching Bolt', 'Winterflame', 'Fissure Vent', 'Crush Contraband', 'Vandalize', 'Rain of Thorns', 'Casualties of War'];
+const NOMES = ['Grim Discovery', 'Branching Bolt', 'Winterflame', 'Fissure Vent', 'Crush Contraband', 'Vandalize', 'Rain of Thorns', 'Casualties of War', 'Cankerbloom', 'Insidious Fungus', 'Balm of Restoration', 'Potatoes'];
 const C = {};
 for (const c of L('oficiais-tipos.json').filter(x => NOMES.includes(x.name)))
-  C[c.name] = { name: c.name, type_line: c.type_line, mana_cost: c.mana_cost, cmc: valorDeMana(c.mana_cost), keywords: [], oracle_text: c.oracle_text, colors: [] };
+  C[c.name] = { name: c.name, type_line: c.type_line, mana_cost: c.mana_cost, cmc: valorDeMana(c.mana_cost), keywords: [], oracle_text: c.oracle_text, colors: [], power: c.power, toughness: c.toughness };
 C.Mountain = { name: 'Mountain', type_line: 'Basic Land — Mountain', mana_cost: '', cmc: 0, keywords: [], oracle_text: '({T}: Add {R}.)', colors: [] };
 const carta = (name, type_line, extra = {}) => { C[name] = { name, type_line, mana_cost: '{1}', cmc: 1, keywords: [], oracle_text: '', colors: [], ...extra }; };
 carta('Urso', 'Creature — Bear', { power: '2', toughness: '2' }); carta('Ave', 'Creature — Bird', { power: '1', toughness: '1', keywords: ['Flying'], oracle_text: 'Flying' });
-carta('Totem', 'Artifact'); carta('Aura Solta', 'Enchantment'); carta('Andarilho', 'Legendary Planeswalker — Teste', { loyalty: '3' }); carta('Ermo', 'Land');
+carta('Totem', 'Artifact'); carta('Eco', 'Instant', { keywords: ['Storm'], oracle_text: 'Storm' }); carta('Faísca', 'Instant'); carta('Aura Solta', 'Enchantment'); carta('Andarilho', 'Legendary Planeswalker — Teste', { loyalty: '3' }); carta('Ermo', 'Land');
+const EXT = { example: { action: 'mode:0', target: 'none', expect: { selfLife: 0 } } };
+const SCRIPTS_T = {
+  'Eco': { name: 'Eco', storm: true, modeCount: 2, modeMin: 1, modes: [{ label: 'Ganhar 1', effects: [{ do: 'gain', amount: 1 }] }, { label: 'Ganhar 2', effects: [{ do: 'gain', amount: 2 }] }], ...EXT }, // "Storm · Choose one or both — • You gain 1 life. • You gain 2 life."
+  'Faísca': { name: 'Faísca', effects: [{ do: 'gain', amount: 0 }], example: { target: 'none', expect: { selfLife: 0 } } },
+};
 function mesa(seed = 1) {
   const deck = [...Object.keys(C).filter(n => n !== 'Mountain').map(name => ({ name, qty: 2, zone: 'main' })), { name: 'Mountain', qty: 16, zone: 'main' }];
-  let s = E.createGame({ format: 'livre', seed, mode: 'full', cards: C, scripts: {}, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  let s = E.createGame({ format: 'livre', seed, mode: 'full', cards: C, scripts: SCRIPTS_T, players: [{ name: 'A', deck }, { name: 'B', deck }] });
   for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
   return passaAte(s, x => x.turn.active === 0 && x.turn.step === 'main1' && !x.stack.length && !x.pending);
 }
@@ -90,4 +96,57 @@ test('CR 700.2d · validador', () => {
   assert.ok(v({ modeCount: 2, modeMin: 2, modes: M }).some(e => /modeMin/.test(e)), 'modeMin menor que modeCount');
   assert.ok(v({ modeMin: 1, modes: M }).some(e => /modeMin/.test(e)), 'modeMin só com modeCount');
   assert.ok(v({ modeCount: 2, modeMin: 1, modeRepeat: true, modes: M }).some(e => /modeMin/.test(e)), 'sem repetir');
+});
+
+const ativacoes = (s, oid) => legais(s, 0, x => x.t === 'activate' && x.oid === oid);
+const resolveTudo = s => { for (let i = 0; i < 20; i++) { s = passaAte(s, x => !x.stack.length || !!x.pending); if (!s.pending) return s; s = act(s, legais(s, s.pending.p)[0]); } return s; };
+
+test('CR 700.2a · Cankerbloom (texto oficial): habilidade ativada modal — uma oferta por modo, só os que têm alvo legal; o modo escolhido resolve', () => {
+  let s = mesa(); let c, t; [s, c] = poe(s, 0, 'Cankerbloom', 'battlefield'); [s, t] = poe(s, 1, 'Totem', 'battlefield'); s = mana(s);
+  eq([...new Set(ativacoes(s, c).map(x => x.mode))].sort(), [0, 2], 'sem encantamento no campo, o modo 1 não é oferecido');
+  s = resolveTudo(act(s, ativacoes(s, c).find(x => x.mode === 0 && x.targets[0].oid === t)));
+  eq([no(s, c), no(s, t)], ['graveyard', 'graveyard'], 'sacrificou e destruiu o artefato');
+});
+
+test('CR 700.2a · sem modo, ou com modo numa habilidade sem modos, a ativação é recusada', () => {
+  let s = mesa(); let c, t; [s, c] = poe(s, 0, 'Cankerbloom', 'battlefield'); [s, t] = poe(s, 1, 'Totem', 'battlefield'); s = mana(s);
+  assert.throws(() => act(s, { t: 'activate', p: 0, oid: c, index: 0, targets: [{ oid: t }] }), /escolha um modo/);
+  assert.throws(() => act(s, { t: 'activate', p: 0, oid: c, index: 0, mode: 7 }), /escolha um modo/);
+  let b; [s, b] = poe(s, 0, 'Balm of Restoration', 'battlefield');
+  assert.throws(() => act(s, { t: 'activate', p: 0, oid: c, index: 0, mode: 0 }), /alvo/, 'modo 0 sem alvo: recusado pelo alvo');
+});
+
+test('CR 700.2a · Insidious Fungus (texto oficial): o terceiro modo compra e põe um terreno da mão virado', () => {
+  let s = mesa(); let f; [s, f] = poe(s, 0, 'Insidious Fungus', 'battlefield'); [s] = poe(s, 0, 'Ermo', 'hand'); s = mana(s);
+  const campo = s.zones[0].battlefield.length;
+  s = passaAte(act(s, ativacoes(s, f).find(x => x.mode === 2)), x => !x.stack.length || !!x.pending);
+  assert.equal((s.pending || {}).kind, 'pick', 'pergunta qual terreno pôr (ou nenhum)');
+  const e0 = s.zones[0].hand.find(o => s.objects[o].name === 'Ermo'); s = act(s, { t: 'pick', p: 0, oid: e0 }); if (s.pending && s.pending.kind === 'pick') s = act(s, { t: 'pick_done', p: 0 }); s = resolveTudo(s);
+  const ermo = s.zones[0].battlefield.map(o => s.objects[o]).find(o => o.name === 'Ermo');
+  eq([no(s, f), !!ermo, ermo && ermo.tapped, s.zones[0].battlefield.length - campo], ['graveyard', true, true, 0], 'saiu o Fungo, entrou o Ermo virado');
+});
+
+test('CR 700.2a · Balm of Restoration (texto oficial): prevenir os próximos 2 de dano a uma criatura — o Urso aguenta 3', () => {
+  let s = mesa(); let b, u; [s, b] = poe(s, 0, 'Balm of Restoration', 'battlefield'); [s, u] = poe(s, 0, 'Urso', 'battlefield'); s = mana(s);
+  s = resolveTudo(act(s, ativacoes(s, b).find(x => x.mode === 1 && x.targets[0].oid === u)));
+  let w; [s, w] = poe(s, 0, 'Winterflame', 'hand'); s = mana(s);
+  s = resolveTudo(act(s, ofertas(s, w).find(x => x.modes.join() === '1' && x.targets[0].oid === u)));
+  eq([no(s, u), s.objects[u].damage || 0], ['battlefield', 0], '2 de dano prevenidos');
+});
+
+test('CR 700.2a · Potatoes (texto oficial): Purê cria duas fichas de Comida; Ensopado ganha 3 e compra', () => {
+  let s = mesa(); let p1, p2; [s, p1] = poe(s, 0, 'Potatoes', 'battlefield'); [s, p2] = poe(s, 0, 'Potatoes', 'battlefield'); s = mana(s);
+  s = resolveTudo(act(s, ativacoes(s, p1).find(x => x.mode === 1)));
+  eq(s.zones[0].battlefield.filter(o => s.objects[o].name === 'Food').length, 2);
+  const v = s.players[0].life, mao = s.zones[0].hand.length; s = mana(s);
+  s = resolveTudo(act(s, ativacoes(s, p2).find(x => x.mode === 2)));
+  eq([s.players[0].life - v, s.zones[0].hand.length - mao], [3, 1]);
+});
+
+test('CR 700.2g · a cópia de uma mágica modal leva os modos escolhidos (tempestade)', () => {
+  let s = mesa(); let f, e; [s, f] = poe(s, 0, 'Faísca', 'hand'); [s, e] = poe(s, 0, 'Eco', 'hand'); s = mana(s);
+  s = resolveTudo(act(s, legais(s, 0, x => x.t === 'cast' && x.oid === f)[0]));
+  const v = s.players[0].life;
+  s = resolveTudo(act(s, ofertas(s, e).find(x => x.modes.join() === '1')));
+  eq(s.players[0].life - v, 4, 'a original e a cópia: 2 + 2 (só o modo escolhido)');
 });
