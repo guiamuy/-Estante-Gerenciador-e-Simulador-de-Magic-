@@ -5567,6 +5567,7 @@ const EFFECTS = {
   lutador: { fields: [], targets: ['creature', 'creature-you-control'] },
   fight: { fields: [], targets: ['creature', 'creature-opponent-controls', 'creature-you-control'] }, // quem: 'self-source' (a permanente fonte luta) | 'primeiro-alvo' (luta a criatura anotada pelo `lutador` anterior)
   /* ↓ T · efeitos da trilha tipos */
+  pilhas: { fields: ['amount'], targets: ['self'] }, // T-83 · CR 700.3 · "reveal the top N cards of your library; [an opponent | you] separates those cards into two piles; put one pile into your hand and the other into your graveyard" — `separa` e `escolhe`: 'voce' | 'oponente'
   exila_mesmo_nome: { fields: [], targets: ['permanent'] }, // T-80 (o alvo de verdade é o seletor com zona 'graveyard', conferido na validação da trilha) · CR 701.23 · "search its owner's graveyard, hand, and library for any number of cards with the same name as that card and exile them. Then that player shuffles." (alvo: seletor de carta em cemitério)
   escolhe_nome: { fields: [], targets: ['self'] }, // T-77 · CR 201.4 · "choose a [nonland] card name": `filtro` opcional ({ tipos, semTipos }); quem controla o efeito escolhe, na resolução
   descarta_nome: { fields: [], targets: ['player', 'opponent'] }, // T-77 · "target player reveals their hand and discards all cards with that name" (o nome do `escolhe_nome` anterior)
@@ -6550,6 +6551,11 @@ function effectErrors(effects, label, opcional) {
     if (e.do === 'lutador' && !effects.slice(i + 1).some(x => x.do === 'fight' && x.quem === 'primeiro-alvo')) errs.push(`${label} ${i + 1} (lutador): precisa ser seguido da luta (fight, quem: primeiro-alvo)`);
   });
   /* ↓ T · validação da trilha tipos */
+  effects.forEach((e, i) => { if (e.do !== 'pilhas') return; // T-83 · CR 700.3
+    if (e.separa != null && !['voce', 'oponente'].includes(e.separa)) errs.push(`${label} ${i + 1} (pilhas): "separa" é 'voce' ou 'oponente'`);
+    if (e.escolhe != null && !['voce', 'oponente'].includes(e.escolhe)) errs.push(`${label} ${i + 1} (pilhas): "escolhe" é 'voce' ou 'oponente'`);
+    if ((e.separa || 'oponente') === (e.escolhe || 'voce')) errs.push(`${label} ${i + 1} (pilhas): quem separa não é quem escolhe`);
+  });
   effects.forEach((e, i) => { if (e.do === 'exila_mesmo_nome' && !(e.target && typeof e.target === 'object' && e.target.zona === 'graveyard')) errs.push(`${label} ${i + 1} (exila_mesmo_nome): o alvo é uma carta em um cemitério (seletor com zona: 'graveyard')`); }); // T-80
   effects.forEach((e, i) => { // T-77 · CR 201.4 · escolher um nome de carta
     if (e.do === 'escolhe_nome' && e.filtro != null) {
@@ -6749,6 +6755,13 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-83 · CR 700.3 · pilhas (Oracle do Forge, clone de 13/10/2026).
+  { name: 'Fact or Fiction', effects: [{ do: 'pilhas', amount: 5 }], // "Reveal the top five cards of your library. An opponent separates those cards into two piles. Put one pile into your hand and the other into your graveyard."
+    example: { target: 'none', expect: { selfLife: 0 } } }, // o cenário de verdade está em tipos.pilhas.unit
+  { name: 'Steam Augury', effects: [{ do: 'pilhas', amount: 5, separa: 'voce', escolhe: 'oponente' }], // "Reveal the top five cards of your library and separate them into two piles. An opponent chooses one of those piles. Put that pile into your hand and the other into your graveyard."
+    example: { target: 'none', expect: { selfLife: 0 } } },
+  { name: 'Sphinx of Uthuun', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'pilhas', amount: 5 }] }], // "Flying · When Sphinx of Uthuun enters, reveal the top five cards of your library. An opponent separates those cards into two piles. Put one pile into your hand and the other into your graveyard."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // T-81 · CR 201.4 · o nome escolhido: conjurar e mana (Oracle do Forge, clone de 13/10/2026).
   { name: 'Meddling Mage', self: { nomeAoEntrar: { filtro: { semTipos: ['land'] } }, travaConjurarDoNome: true }, // "As Meddling Mage enters, choose a nonland card name. · Spells with the chosen name can't be cast."
     example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o cenário de verdade está em tipos.nomeaoentrar.unit
@@ -21832,6 +21845,7 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'lutador': if (obj) s.lutadorV = { fonte: src.oid, fz: encarnacaoV(s, src), oid: obj.oid, z: obj.zc || 0 }; break; // V-1/V-5 · anota quem luta; a luta é o `fight` seguinte, que apaga a anotação
     case 'fight': lutar(s, src, eff, tgt, events); break; // V-1 · 701.14
     /* ↓ T · casos de applyEffect da trilha tipos */
+    case 'pilhas': pilhasT(s, src, eff, events); break; // T-83 · CR 700.3
     case 'exila_mesmo_nome': exilaMesmoNomeT(s, src, obj, events); break; // T-80 · CR 701.23 / 201.2
     case 'escolhe_nome': escolheNomeT(s, src, eff, events); break; // T-77 · CR 201.4
     case 'descarta_nome': descartaNomeT(s, src, playerOf(), events); break; // T-77 · CR 201.4 / 701.20
@@ -24112,6 +24126,29 @@ const HANDLERS = {
   },
   /* ↓ V · ações (HANDLERS) da trilha verbos */
   /* ↓ T · ações (HANDLERS) da trilha tipos */
+  /** T-83 · CR 700.3 · quem separa diz quais cartas vão para a primeira pilha; o resto é a segunda (700.3a; pode ficar vazia, 700.3d). */
+  pilha_separa(s, a, ev) {
+    const pd = s.pending;
+    if (!pd || pd.kind !== 'pilha_separa' || pd.p !== a.p) throw new RuleError('tempo', 'nenhuma pilha a separar');
+    const p1 = Array.isArray(a.pilha) ? a.pilha : null;
+    if (!p1 || new Set(p1).size !== p1.length || p1.some(o => !pd.oids.includes(o))) throw new RuleError('escolha', 'a primeira pilha tem cartas reveladas, cada uma uma vez só');
+    const pilhas = [pd.oids.filter(o => p1.includes(o)), pd.oids.filter(o => !p1.includes(o))];
+    s.pending = { kind: 'pilha_escolhe', p: pd.escolhe, dono: pd.dono, pilhas, source: pd.source };
+    ev.push({ kind: 'choice-done', what: 'pilhas', name: pd.source, amount: pilhas[0].length });
+  },
+  /** T-83 · CR 700.3 · quem escolhe fica com uma pilha (para a mão do dono); a outra vai para o cemitério. */
+  pilha_escolhe(s, a, ev) {
+    const pd = s.pending;
+    if (!pd || pd.kind !== 'pilha_escolhe' || pd.p !== a.p) throw new RuleError('tempo', 'nenhuma pilha a escolher');
+    if (![0, 1].includes(a.pilha)) throw new RuleError('escolha', 'escolha a pilha 1 ou a pilha 2');
+    const fica = pd.pilhas[a.pilha], vai = pd.pilhas[1 - a.pilha], noGrimorio = o => s.objects[o] && s.objects[o].zone === 'library' && s.objects[o].owner === pd.dono;
+    s.pending = null;
+    const mao = fica.filter(noGrimorio), cemiterio = vai.filter(noGrimorio);
+    for (const o of mao) moveObject(s, o, 'hand');
+    for (const o of cemiterio) moveObject(s, o, 'graveyard');
+    ev.push({ kind: 'effect', do: 'pilhas_fim', name: pd.source, target: s.players[pd.dono].name, mao: mao.map(o => s.objects[o].name), cemiterio: cemiterio.map(o => s.objects[o].name) });
+    resumeEffects(s, ev);
+  },
   /** T-77 · CR 201.4 · quem controla o efeito escolhe o nome de carta; a resolução segue com ele. */
   choose_name(s, a, ev) {
     const pd = s.pending;
@@ -28389,7 +28426,7 @@ function sagasNaLimpeza(s) {
   s.turn.passes = 0; s.turn.priority = s.turn.active; return true;
 }
 /** T-2 · 714.3b · outra ação com a escolha do capítulo aberta: a recusa fala da decisão certa. */
-function sagaRecusa(k) { if (k === 'choose_name') throw new RuleError('pendente', 'escolha o nome da carta primeiro'); /* T-77 */ if (k === 'saga_capitulo') throw new RuleError('pendente', 'escolha o capítulo da Saga primeiro'); if (k === 'tripular') throw new RuleError('pendente', 'escolha quem tripula o Veículo primeiro'); if (k === 'aura_anexo') throw new RuleError('pendente', 'escolha o que a Aura encanta primeiro'); /* T-22 */ if (k === 'porta_escolha') throw new RuleError('pendente', 'escolha a porta da Sala primeiro'); /* T-27 */ } // T-3 · a mesma chamada serve às decisões da trilha tipos
+function sagaRecusa(k) { if (k === 'choose_name') throw new RuleError('pendente', 'escolha o nome da carta primeiro'); /* T-77 */ if (k === 'pilha_separa') throw new RuleError('pendente', 'separe as cartas reveladas em duas pilhas primeiro'); if (k === 'pilha_escolhe') throw new RuleError('pendente', 'escolha uma das pilhas primeiro'); /* T-83 */ if (k === 'saga_capitulo') throw new RuleError('pendente', 'escolha o capítulo da Saga primeiro'); if (k === 'tripular') throw new RuleError('pendente', 'escolha quem tripula o Veículo primeiro'); if (k === 'aura_anexo') throw new RuleError('pendente', 'escolha o que a Aura encanta primeiro'); /* T-22 */ if (k === 'porta_escolha') throw new RuleError('pendente', 'escolha a porta da Sala primeiro'); /* T-27 */ } // T-3 · a mesma chamada serve às decisões da trilha tipos
 /** 714.3b · abre a escolha do read ahead de quem entrou; 714.2b · rede de segurança do disparo (T-2: o disparo de verdade é no
  * ato de pôr o marcador, em `sagaMarcou`); e o aviso, no registro, do marcador que a ação de turno pôs. */
 function sagaConfere(s, events) {
@@ -28441,6 +28478,7 @@ function sagaOfertas(s, p, out) {
   tripularPendentes(s, p, out); // T-3 · CR 702.122a · a mesma chamada serve às decisões da trilha tipos
   if (s.pending && s.pending.kind === 'porta_escolha' && s.pending.p === p) for (const porta of s.pending.options || []) out.push({ t: 'porta_escolha', p, porta }); // T-27 · CR 709.5f/g · uma oferta por porta
   if (s.pending && s.pending.kind === 'choose_name' && s.pending.p === p) for (const nome of s.pending.options || []) out.push({ t: 'choose_name', p, nome }); // T-77 · CR 201.4 · uma oferta por nome
+  if (s.pending && s.pending.p === p && (s.pending.kind === 'pilha_separa' || s.pending.kind === 'pilha_escolhe')) pilhasOfertasT(s, p, out); // T-83 · CR 700.3
   if (s.pending && s.pending.kind === 'aura_anexo' && s.pending.p === p) for (const oid of s.pending.options || []) out.push({ t: 'aura_anexo', p, oid }); // T-22 · CR 303.4f · uma oferta por permanente que ela pode encantar
   faceGratisOfertasT(s, p, out); // T-11 · CR 709.3 / 712.11b · "conjure sem pagar": as duas metades da dividida e a face de trás da modal
   filtraTravadasPeloNomeT(s, out); // T-82 · as ofertas das decisões pendentes (conjurar sem pagar, loucura) também passam pela trava do nome (201.4)
@@ -28449,6 +28487,7 @@ PENDING_ACTIONS.saga_capitulo = ['saga_capitulo', 'concede'];
 PENDING_ACTIONS.aura_anexo = ['aura_anexo', 'concede']; // T-22 · CR 303.4f
 PENDING_ACTIONS.porta_escolha = ['porta_escolha', 'concede']; // T-27 · CR 709.5f/g
 PENDING_ACTIONS.choose_name = ['choose_name', 'concede']; // T-77 · CR 201.4
+PENDING_ACTIONS.pilha_separa = ['pilha_separa', 'concede']; PENDING_ACTIONS.pilha_escolhe = ['pilha_escolhe', 'concede']; // T-83 · CR 700.3
 /* ---------------- T-3 · CR 702.122 · tripular (com 301.7 e 208.3a) ----------------
    A habilidade de tripular é a ativada de custo `{ crew: N }` do script (CR2d.3: vira criatura artefato até o fim do turno, com o
    P/T impresso — 301.7a–b). Esta leva completa a regra:
@@ -29034,6 +29073,29 @@ function descartaNomeT(s, src, p, events) {
   events.push({ kind: 'effect', do: 'descarta_nome', name: src.name, target: pl.name, nome, revelada, nomes, amount: saem.length });
 }
 Object.assign(EXPORTS_T, { nomesEscolhiveisT });
+/* ---------------- T-83 · CR 700.3 · separar em pilhas (Fact or Fiction, Steam Augury, Sphinx of Uthuun) ----------------
+   - O efeito `pilhas` revela as N cartas do topo do grimório de quem o controla (públicas, 701.20) e abre `pilha_separa` para quem separa
+     (`separa`: 'oponente', o padrão, ou 'voce'); depois `pilha_escolhe` para quem escolhe (`escolhe`: 'voce', o padrão, ou 'oponente').
+     A escolhida vai para a mão do dono; a outra, para o cemitério. 700.3c: enquanto isso, as cartas continuam no grimório.
+   - Ofertas: uma por divisão (2^N; N ≤ 6 — com mais, só as divisões "as k primeiras"), a mais equilibrada primeiro; na escolha, a pilha
+     maior primeiro (o goldfish e quem decide pela primeira oferta ficam com ela). */
+function pilhasT(s, src, eff, events) {
+  const p = src.controller, op = s.players.findIndex((pl, i) => i !== p && !pl.lost);
+  const lib = s.zones[p].library, n = Math.max(0, Math.min(amountOf(s, src, eff.amount), lib.length)), oids = lib.slice(0, n);
+  events.push({ kind: 'effect', do: 'pilhas', name: src.name, target: s.players[p].name, revela: oids.map(o => s.objects[o].name) });
+  if (!n) return;
+  const separa = eff.separa === 'voce' || op < 0 ? p : op, escolhe = eff.escolhe === 'oponente' && op >= 0 ? op : p;
+  s.pending = { kind: 'pilha_separa', p: separa, dono: p, escolhe, oids, source: src.name };
+}
+function pilhasOfertasT(s, p, out) {
+  const pd = s.pending;
+  if (pd.kind === 'pilha_escolhe') { const ordem = pd.pilhas[0].length >= pd.pilhas[1].length ? [0, 1] : [1, 0]; for (const k of ordem) out.push({ t: 'pilha_escolhe', p, pilha: k }); return; }
+  const n = pd.oids.length, subs = [];
+  if (n <= 6) for (let m = 0; m < (1 << n); m++) subs.push(pd.oids.filter((_, i) => m & (1 << i)));
+  else for (let k = 0; k <= n; k++) subs.push(pd.oids.slice(0, k));
+  subs.sort((x, y) => Math.abs(2 * x.length - n) - Math.abs(2 * y.length - n));
+  for (const pilha of subs) out.push({ t: 'pilha_separa', p, pilha });
+}
 /* ---------------- T-80 · CR 701.23 / 201.2 · "cards with the same name as that card" (Surgical Extraction) ----------------
    - `exila_mesmo_nome` mira uma carta em um cemitério (seletor com `zona: 'graveyard'`; `terrenoBasico: false` = "other than a basic land
      card") e exila do cemitério, da mão e do grimório do dono dela todas as cartas que têm um nome em comum com ela (`nomesDe`: a dividida
@@ -30905,6 +30967,8 @@ function describe(before, a, events, after) {
     case 'commander_zone': { const o = before.objects[a.oid || (before.pending || {}).oid]; const onde = { graveyard: 'no cemitério', exile: 'no exílio', hand: 'na mão', library: 'no grimório' }[(before.pending || {}).from] || 'onde caiu';
       L.push(a.yes ? `${P} levou ${o ? o.name : 'o comandante'} para a zona de comando` : `${P} deixou ${o ? o.name : 'o comandante'} ${onde}`); break; }
     // Leva 131 · escolha de modo: o que foi escolhido, ou que preferiu não fazer
+    case 'pilha_separa': { const pd = before.pending || {}, nm = o => nameOf(before, o), p1 = (a.pilha || []).map(nm), p2 = (pd.oids || []).filter(o => !(a.pilha || []).includes(o)).map(nm); L.push(`\u2063${P} separou em duas pilhas: [${p1.join(', ')}] e [${p2.join(', ')}]`); break; } // T-83 · CR 700.3 · as cartas foram reveladas (públicas) · Toca ponto comum: describe
+    case 'pilha_escolhe': { const pd = before.pending || {}, nm = o => nameOf(before, o), k = a.pilha === 1 ? 1 : 0; L.push(`\u2063${P} ficou com a pilha [${((pd.pilhas || [])[k] || []).map(nm).join(', ')}]`); break; } // T-83
     case 'choose_name': { const pd = before.pending || {}; L.push(`\u2063${P} escolheu o nome ${a.nome != null ? a.nome : (pd.options || [])[a.index || 0]}`); break; } // T-77 · CR 201.4 · o nome é público (\u2063: a máscara das viradas não mexe) · Toca ponto comum: describe
     case 'porta_escolha': { const pd = before.pending || {}; L.push(`${P} escolheu: ${E.rotuloDaPortaT(before, pd, a.porta).replace(/^Trancar/, 'trancou').replace(/^Destrancar/, 'destrancou')} (${pd.sala || 'a Sala'})`); break; } // T-27 · CR 709.5f/g
     case 'aura_anexo': L.push(`${P} anexou ${(before.pending || {}).name || 'a Aura'} a ${nameOf(before, a.oid)}`); break; // T-22 · CR 303.4f
@@ -31187,6 +31251,7 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
           : pd.kind === 'choose_room' ? { t: 'choose_room', p: pd.p, index: 0 }
           : pd.kind === 'topo_fundo' ? { t: 'topo_fundo', p: pd.p, topo: true } // M-264
           : pd.kind === 'aura_anexo' ? { t: 'aura_anexo', p: pd.p, oid: ((s.objects[pd.oid] && E.candidatosDaAuraT(s, s.objects[pd.oid], pd.p) || []).map(x => x.oid).find(x => pd.options.includes(x))) || pd.options[0] } // T-22 · CR 303.4f · o goldfish encanta a primeira opção que ainda vale (T-23)
+          : pd.kind === 'pilha_separa' || pd.kind === 'pilha_escolhe' ? E.legalActions(s, pd.p)[0] // T-83 · CR 700.3 · o goldfish fica com a primeira oferta (a divisão mais equilibrada; a pilha maior) (Toca ponto comum: goldfish)
           : pd.kind === 'choose_name' ? { t: 'choose_name', p: pd.p, nome: pd.options[0] } // T-77 · CR 201.4 · o goldfish fica com o primeiro nome (Toca ponto comum: goldfish)
           : pd.kind === 'porta_escolha' ? { t: 'porta_escolha', p: pd.p, porta: pd.options[0] } // T-27 · CR 709.5f/g · o goldfish fica com a primeira porta oferecida (Toca ponto comum: goldfish)
           : pd.kind === 'saga_capitulo' ? { t: 'saga_capitulo', p: pd.p, n: 1 } // T-1 · CR 714.3b · o goldfish começa a Saga pelo capítulo I
@@ -31828,6 +31893,8 @@ Object.assign(EFEITO_PT_T, { vira_para_baixo: () => 'vira a criatura alvo para b
 /** T-59 · CR 700.6 / 700.12 / 700.9 · os predicados de tipo na frase do seletor. */
 const predicadosPT_T = sel => (sel.terrenoBasico === false ? ' que não seja terreno básico' : sel.terrenoBasico ? ' que é terreno básico' : '') + /* T-80 */ (sel.historico ? ' histórica' : sel.historico === false ? ' que não é histórica' : '') + (sel.foraDaLei ? ' fora da lei' : sel.foraDaLei === false ? ' que não é fora da lei' : '') + /* T-60 */ (sel.modificada ? ' modificada' : sel.modificada === false ? ' que não está modificada' : '');
 const LINHA_T = { preparada: ev => (ev.failed ? `${ev.name}: ${ev.motivo || 'não ficou preparada'}, nada muda` : `${ev.name} está preparada (pode conjurar uma cópia de ${ev.target})`), despreparada: ev => `${ev.name} deixou de estar preparada`, ciclo: ev => `Virou ${ev.target}${ev.motivo ? ` (${ev.motivo})` : ''}`, masmorra_completa: ev => `${ev.target} completou a masmorra ${ev.name}`, caso_resolvido: ev => (ev.failed ? `${ev.name}: a condição não valia mais, o Caso não foi resolvido` : `${ev.name} foi resolvido`), estacao: ev => (ev.failed ? `${ev.name}: a nave saiu do campo, a estação não pôs marcadores` : `${ev.name} recebeu ${ev.amount} marcador${ev.amount === 1 ? '' : 'es'} de carga (estação)${ev.total != null ? ` · ${ev.total} no total` : ''}`), selada: ev => (ev.failed ? `${ev.name}: a montaria saiu do campo, não foi selada` : `${ev.name} foi selada`), virar_carta: ev => (ev.failed ? `${ev.name} não virou${ev.motivo ? ` (${ev.motivo})` : ''}` : `${ev.name} virou: agora é ${ev.target}`), porta: ev => (ev.failed ? `${ev.name}: nenhuma porta para trancar ou destrancar` : `${ev.name} ${ev.acao} ${ev.porta} (${ev.target})`), nivel_sobe: ev => (ev.failed ? `${ev.name}: saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu de nível (nível ${ev.nivel})`), nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, converter: ev => `${ev.name} converteu em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
+Object.assign(LINHA_T, { pilhas: ev => ev.revela.length ? `\u2063${ev.target} revelou ${ev.revela.join(', ')}` : `${ev.name}: o grimório está vazio, nada é revelado`, pilhas_fim: ev => `\u2063${ev.target}: ${ev.mao.length ? ev.mao.join(', ') + ' para a mão' : 'nada para a mão'}; ${ev.cemiterio.length ? ev.cemiterio.join(', ') + ' para o cemitério' : 'nada para o cemitério'}` }); // T-83 · CR 700.3
+Object.assign(EFEITO_PT_T, { pilhas: e => `revela as ${qtd(e.amount)} cartas do topo do seu grimório; ${e.separa === 'voce' ? 'você as separa' : 'um oponente as separa'} em duas pilhas; ${e.escolhe === 'oponente' ? 'um oponente escolhe uma, que vai para a sua mão' : 'uma vai para a sua mão'} e a outra para o seu cemitério` }); // T-83
 Object.assign(LINHA_T, { exila_mesmo_nome: ev => ev.failed ? `${ev.name}: a carta já tinha saído do cemitério, nada é exilado` : `\u2063${ev.name} exilou ${[[ev.cemiterio, 'do cemitério'], [ev.mao, 'da mão'], [ev.grimorio, 'do grimório']].filter(x => x[0].length).map(([ns, de]) => `${ns.join(', ')} ${de}`).join('; ') || 'nada'} de ${ev.target}; ${ev.target} embaralhou o grimório` }); // T-80 · o exílio é público
 Object.assign(EFEITO_PT_T, { exila_mesmo_nome: () => 'exila do cemitério, da mão e do grimório do dono da carta alvo todas as cartas com o mesmo nome dela; o dono embaralha' }); // T-80
 Object.assign(LINHA_T, { escolhe_nome: ev => ev.saiu ? `${ev.name}: a permanente saiu do campo, nenhum nome é escolhido` : `${ev.name}: não há nome de carta que sirva, nada é escolhido`, // T-77 · CR 201.4 · T-82: a fonte que saiu
@@ -34337,6 +34404,20 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       banner = PriorityBanner({ title: 'Em qual masmorra se aventurar?', hint: 'Você entra na primeira sala dela.', tone: 'warning',
         actions: (s.pending.labels || s.pending.options || []).slice(0, 4).map((rot, index) =>
           Button(rot, { variant: index ? undefined : 'primary', id: index ? undefined : 'tb-choose-dungeon', onClick: () => act({ t: 'choose_dungeon', p: v, index }) })) });
+    } else if (s.pending && s.pending.kind === 'pilha_separa' && s.pending.p === v) { // T-83 · CR 700.3 · separar as cartas reveladas em duas pilhas (toque marca a carta na pilha 1) · Toca ponto comum: table.js
+      const pd = s.pending, nome = o => (s.objects[o] || {}).name || '?';
+      banner = PriorityBanner({ title: `${pd.source}: separe em duas pilhas`, hint: `${pd.oids.length} cartas reveladas de ${s.players[pd.dono].name}`, tone: 'warning',
+        actions: [Button('Separar', { variant: 'primary', id: 'tb-pilha_separa', onClick: () => {
+          const marcadas = new Set();
+          const resumo = h('p', { class: 'ds-note' }, 'Pilha 1: nenhuma · Pilha 2: todas');
+          const atualiza = () => { const p1 = pd.oids.filter(o => marcadas.has(o)), p2 = pd.oids.filter(o => !marcadas.has(o)); resumo.textContent = `Pilha 1: ${p1.map(nome).join(', ') || 'nenhuma'} · Pilha 2: ${p2.map(nome).join(', ') || 'nenhuma'}`; };
+          const botoes = pd.oids.map(o => { const b = Button(nome(o), { block: true, onClick: () => { if (marcadas.has(o)) marcadas.delete(o); else marcadas.add(o); b.setAttribute('aria-pressed', marcadas.has(o) ? 'true' : 'false'); atualiza(); } }); b.setAttribute('aria-pressed', 'false'); return b; });
+          Dialog({ title: 'Toque nas cartas da pilha 1', body: h('div', {}, resumo, h('div', { class: 'tb-sheet__actions' }, ...botoes)),
+            actions: [Button('Voltar', { onClick: closeDialog }), Button('Confirmar', { variant: 'primary', onClick: () => { closeDialog(); act({ t: 'pilha_separa', p: v, pilha: pd.oids.filter(o => marcadas.has(o)) }); } })] }); } })] });
+    } else if (s.pending && s.pending.kind === 'pilha_escolhe' && s.pending.p === v) { // T-83 · CR 700.3 · escolher uma das pilhas · Toca ponto comum: table.js
+      const pd = s.pending, nome = o => (s.objects[o] || {}).name || '?', rot = k => `Pilha ${k + 1}: ${pd.pilhas[k].map(nome).join(', ') || 'vazia'}`;
+      banner = PriorityBanner({ title: `${pd.source}: qual pilha vai para a mão de ${s.players[pd.dono].name}?`, hint: 'A outra vai para o cemitério.', tone: 'warning',
+        actions: [0, 1].map(k => Button(rot(k), { variant: k ? undefined : 'primary', id: k ? undefined : 'tb-pilha_escolhe', onClick: () => act({ t: 'pilha_escolhe', p: v, pilha: k }) })) });
     } else if (s.pending && s.pending.kind === 'choose_name' && s.pending.p === v) { // T-77 · CR 201.4 · escolher um nome de carta (com busca: a lista tem os nomes de todas as cartas da partida) · Toca ponto comum: table.js
       const pd = s.pending, ops = pd.options || [];
       banner = PriorityBanner({ title: `${pd.source}: escolha um nome de carta`, hint: `${ops.length} ${ops.length === 1 ? 'nome' : 'nomes'} das cartas desta partida`, tone: 'warning',

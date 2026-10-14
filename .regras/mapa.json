@@ -5652,11 +5652,19 @@
    "n": "700.3",
    "regra": "General",
    "titulo": "Separar objetos em pilhas",
-   "status": "ausente",
-   "falta": "Nenhuma primitiva de pilhas (grep por pile/pilhas só acha tela de coleção e scanner): (a) cada objeto em exatamente uma pilha, (b) pilha não é objeto, (c) objetos não saem da zona enquanto separados, (d) pilha vazia vale. Fact or Fiction, Steam Augury, Gifts-like ficam manuais.",
+   "status": "coberta",
    "esforco": "M",
    "depende": [
     "decisão do oponente durante a resolução (608.2)"
+   ],
+   "evidencia": "T-83 (14/10/2026): efeito pilhas — revela as N do topo (públicas, 701.20), quem separa (o oponente ou você) divide em duas pilhas pela decisão pilha_separa (cada carta numa pilha só, 700.3a; pilha vazia vale, 700.3d), quem escolhe (você ou o oponente) fica com uma pela decisão pilha_escolhe: a escolhida vai para a mão do dono, a outra para o cemitério; enquanto isso as cartas continuam no grimório (700.3c); cada carta continua um objeto (700.3b). Mesa: \"Separar\" (toque marca a carta na pilha 1) e a escolha entre as duas pilhas; registro com as reveladas, as pilhas e a escolhida. Cartas: Fact or Fiction, Steam Augury e Sphinx of Uthuun (Oracle do Forge, clone de 13/10/2026).",
+   "testes": [
+    "CR 700.3 · Fact or Fiction (texto oficial): revela as cinco de cima; o oponente separa em duas pilhas; quem conjurou fica com uma na mão e a outra vai para o cemitério",
+    "CR 700.3a / 700.3d · cada carta numa pilha só, e uma pilha pode ficar vazia: a separação com carta repetida ou de fora é recusada; a pilha vazia vale",
+    "CR 700.3 · Steam Augury (texto oficial): quem conjura separa; o oponente escolhe a pilha que vai para a mão de quem conjurou",
+    "CR 700.3 · Sphinx of Uthuun (texto oficial): o gatilho de entrar faz o mesmo que Fact or Fiction",
+    "CR 700.3 · com menos de cinco no grimório, revela as que tem; com nenhuma, não pergunta nada",
+    "CR 700.3 / 701.20 · registro e validador: as cartas reveladas, as duas pilhas e a escolhida aparecem; parâmetros inválidos são recusados"
    ]
   },
   {
