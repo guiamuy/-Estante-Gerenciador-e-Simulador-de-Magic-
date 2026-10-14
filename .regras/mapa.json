@@ -3652,14 +3652,17 @@
    "n": "500.6",
    "regra": "General",
    "titulo": "Gatilhos de \"no início de\" passo ou fase",
-   "status": "parcial",
-   "evidencia": "enterStep enfileira 'upkeep', 'main2' e 'end-of-combat' (index.html:10688-10690) e flushTriggers os põe na pilha antes da prioridade; sonda p5/t3.mjs G2: gatilho de manutenção na pilha com prioridade do ativo; rules.unit 'M9 · gatilhos de morte, de manutenção e de ataque'",
-   "falta": "TRIGGERS (4534) não tem início do passo final (\"at the beginning of the end step\"), início do combate, passo de compra nem primeira principal; e os três que existem só olham permanentes do jogador ativo (filtro controller === a), então \"at the beginning of each upkeep / each end step / each combat\" de quem não é o ativo não dispara. Gatilho atrasado (\"no início do próximo passo final\") também não existe.",
+   "status": "coberta",
+   "evidencia": "enterStep enfileira 'upkeep', 'main2' e 'end-of-combat' (index.html:10688-10690) e flushTriggers os põe na pilha antes da prioridade; sonda p5/t3.mjs G2: gatilho de manutenção na pilha com prioridade do ativo; rules.unit 'M9 · gatilhos de morte, de manutenção e de ataque' · T-101 (14/10/2026): começo do passo de compra e da fase principal pré-combate, do seu e de cada jogador (`draw-step`, `each-draw-step`, `precombat-main`, `each-precombat-main`; o \"that player\" é o ativo); os de manutenção, combate, fim de combate, passo final e os atrasados já existiam (tipos.passos.unit)",
    "esforco": "M",
    "depende": [
     "603.7 (gatilhos atrasados)"
    ],
-   "cartas": "muito comum"
+   "cartas": "muito comum",
+   "testes": [
+    "CR 500.6 · Kami of the Crescent Moon (texto oficial): no começo do passo de compra de cada jogador, esse jogador compra mais uma — depois da compra do turno",
+    "CR 500.6 · \"at the beginning of your precombat main phase\" dispara só na principal pré-combate de quem controla"
+   ]
   },
   {
    "n": "500.7",
@@ -3696,13 +3699,16 @@
    "n": "500.9",
    "regra": "General",
    "titulo": "Passos extras dentro de uma fase",
-   "status": "ausente",
-   "falta": "Sem estrutura para inserir passo extra (ex.: passo de compra ou de manutenção adicional).",
+   "status": "coberta",
    "esforco": "M",
    "depende": [
     "500.8"
    ],
-   "cartas": "rara"
+   "cartas": "rara",
+   "evidencia": "T-101 (14/10/2026): efeito `passo_extra` — o passo novo entra logo depois do passo em que o efeito resolveu; vários depois do mesmo passo: o criado por último primeiro; o passo a mais é um passo de verdade (os gatilhos dele disparam). Paradox Haze (tipos.passos.unit)",
+   "testes": [
+    "CR 500.9 · Paradox Haze (texto oficial): na primeira manutenção do jogador encantado, uma manutenção a mais depois dela — os gatilhos de manutenção disparam duas vezes, o Haze uma"
+   ]
   },
   {
    "n": "500.10",
