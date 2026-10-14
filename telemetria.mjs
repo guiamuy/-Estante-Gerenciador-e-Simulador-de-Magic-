@@ -50,6 +50,7 @@ const CHAVES_PROIBIDAS = /^(uid|token|refresh|refreshtoken|idtoken|senha|passwor
 const ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})$/;
 const texto = (v, max = 200) => typeof v === 'string' && v.trim().length > 0 && v.length <= max;
 const inteiro = v => Number.isInteger(v) && v >= 0;
+const numero = v => typeof v === 'number' && Number.isFinite(v) && v >= 0;
 const lista = v => Array.isArray(v) && v.every(x => texto(x, 60));
 
 /** Varre valores e chaves em busca do que nunca pode sair da conversa. Devolve a primeira ofensa ou null. */
@@ -103,11 +104,38 @@ const ESQUEMA_PLACAR = {
   listas_total: { ok: inteiro }, listas_jogam: { ok: inteiro }, falhas: { ok: inteiro }, partidas: { ok: inteiro },
   regras_cobertas: { ok: inteiro }, regras_parciais: { ok: inteiro }, regras_ausentes: { ok: inteiro },
   cartas_mao: { ok: inteiro }, cartas_leitura: { ok: inteiro }, cartas_tipos: { ok: inteiro }, cartas_manual: { ok: inteiro },
+  // R-17 · BI2-1 · o placar completo da prova de partida (catalogo.prova.mjs grava sozinho ao fim de cada rodada)
+  cobertura_incompleta: { ok: inteiro }, sem_dados: { ok: inteiro }, semente: { ok: inteiro }, acoes_max: { ok: inteiro }, segundos: { ok: inteiro },
+  shark_partidas: { ok: inteiro }, shark_ate_fim: { ok: inteiro }, shark_falhas: { ok: inteiro }, pior_jogada_ms: { ok: inteiro },
+  tempo_medio_ms: { ok: numero }, turnos_medios: { ok: numero },
+  culpadas: { ok: v => Array.isArray(v) && v.length <= 10 && v.every(c => c && typeof c === 'object' && texto(c.carta, 80) && inteiro(c.listas) && Object.keys(c).every(k => k === 'carta' || k === 'listas')) },
   nota: { ok: v => texto(v, 200) }, em: { ok: v => typeof v === 'string' && ISO.test(v) }
 };
 const ESQUEMAS = { leva: ESQUEMA_LEVA, trilha: ESQUEMA_TRILHA, rotina: ESQUEMA_ROTINA, placar: ESQUEMA_PLACAR };
 
 /** Valida contra o esquema: chave desconhecida, obrigatória ausente, valor fora da forma e privacidade. Devolve [] quando ok. */
+/** R-17 · BI2-1 · O registro de placar a partir do JSON que `catalogo.prova.mjs` grava ({ placar, culpadas, listas }):
+    contagens da prova, Shark × Shark (partidas, até o fim, falhas, pior jogada, tempo médio por jogada, turnos) e as 10 cartas
+    mais culpadas. Só números e nomes de carta: nada de lista de jogador, nada de quem rodou. */
+export function placarDaProva(detalhe, { trilha = 'homologacao', conversa = null } = {}) {
+  const p = (detalhe && detalhe.placar) || {};
+  const r = { trilha, motor: p.motor, formato: p.formato, listas_total: p.listas, listas_jogam: p.joga, falhas: p.falha, cobertura_incompleta: p.coberturaIncompleta, sem_dados: p.semDados, partidas: p.partidas, semente: p.semente, acoes_max: p.acoesMax, segundos: p.segundos };
+  if (conversa) r.conversa = conversa;
+  const sh = ((detalhe && detalhe.listas) || []).flatMap(x => x.shark || []);
+  if (sh.length) {
+    r.shark_partidas = sh.length; r.shark_ate_fim = sh.filter(x => x.fim).length; r.shark_falhas = sh.filter(x => x.erro).length;
+    r.pior_jogada_ms = Math.max(0, ...sh.map(x => x.piorMs || 0));
+    const comTempo = sh.filter(x => x.ms != null && x.acoes);
+    if (comTempo.length) r.tempo_medio_ms = Math.round(100 * comTempo.reduce((t, x) => t + x.ms, 0) / comTempo.reduce((t, x) => t + x.acoes, 0)) / 100;
+    const comTurnos = sh.filter(x => x.turnos != null);
+    if (comTurnos.length) r.turnos_medios = Math.round(10 * comTurnos.reduce((t, x) => t + x.turnos, 0) / comTurnos.length) / 10;
+  }
+  const culpadas = ((detalhe && detalhe.culpadas) || []).slice(0, 10).map(c => ({ carta: String(c.carta).slice(0, 80), listas: c.listas }));
+  if (culpadas.length) r.culpadas = culpadas;
+  for (const k of Object.keys(r)) if (r[k] === undefined) delete r[k];
+  return r;
+}
+
 export function valida(tipo, obj) {
   const esquema = ESQUEMAS[tipo];
   if (!esquema) return [`tipo desconhecido: ${tipo}`];

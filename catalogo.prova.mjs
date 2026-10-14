@@ -13,7 +13,9 @@
 //   git clone --depth 1 --filter=blob:none --sparse https://github.com/Card-Forge/forge <dir> && \
 //     git -C <dir> sparse-checkout set forge-gui/res/cardsfolder      (uma vez; texto oficial das cartas)
 //   node catalogo.prova.mjs --forge <dir>/forge-gui/res/cardsfolder [--formato pauper] [--partidas 2] [--acoes 1000]
-//        [--lista <trecho do nome>] [--saida .tmp/prova-pauper.json] [--semente 1] [--todas] [--shark [--orcamento 60] [--fatia 1/2]]
+//        [--lista <trecho do nome>] [--saida .tmp/prova-pauper.json] [--semente 1] [--todas] [--shark [--orcamento 60] [--fatia 1/2]] [--sem-telemetria]
+//   R-17 · ao fim, o placar (contagens, Shark, 10 culpadas) vai para o ramo `telemetria` do repositório, que o Painel Estante lê;
+//   --sem-telemetria desliga (também desligado no CI e com --lista, que é recorte); falha de envio nunca derruba a prova
 //   --shark: as listas que jogam também fazem a mesma partida com o Shark nos dois assentos (H-3)
 //   --todas: também joga as listas de cobertura incompleta (estresse do motor; a carta sem regra entra sem efeito)
 // Saída: placar no terminal (joga / falha / cobertura incompleta / sem dados) e o detalhe em JSON (padrão `.tmp/`).
@@ -21,6 +23,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSy
 import { execFileSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { loadModules, ROOT } from './_load.mjs';
+import { gravar, placarDaProva } from './telemetria.mjs'; // R-17 · o placar vai para o ramo `telemetria` (Painel Estante)
 
 const M = loadModules();
 const E = M.engine, S = M.scripts, norm = M.cards.norm, normalizeCard = M.scryfall.normalizeCard, BASIC = M.cards.BASIC_CARDS;
@@ -268,7 +271,7 @@ function main() {
         if (ARGS.shark && campo === 'partidas' && k === 0 && naFatia(i)) { // H-3 · a primeira partida de cada lista, de novo com o Shark nos dois assentos
           const tS = Date.now(); process.stderr.write(`  shark ${i + 1}/${grupo.length} · ${a.nome} × ${b2.nome} (semente ${setup.seed}) … `); // H-8 · progresso: a partida que não termina fica visível no log
           const sh = jogaShark(setup); process.stderr.write(`${((Date.now() - tS) / 1000).toFixed(1)} s · ${sh.erro || (sh.fim ? 'fim' : 'limite')} · ${sh.acoes ?? sh.acao} ações\n`);
-          const regS = { modo: 'shark', contra: b2.nome, contraId: b2.id, assento: k % 2, semente: setup.seed, ...sh };
+          const regS = { modo: 'shark', contra: b2.nome, contraId: b2.id, assento: k % 2, semente: setup.seed, ms: Date.now() - tS, ...sh }; // R-17 · `ms`: tempo médio por jogada no painel
           (a.shark = a.shark || []).push(regS);
           if (sh.erro) (a.falhas = a.falhas || []).push(regS);
         }
@@ -298,8 +301,13 @@ function main() {
     partidas: PARTIDAS, acoesMax: MAX_ACOES, semente: SEMENTE, motor: E.ENGINE_VERSION, segundos: Math.round((Date.now() - t0) / 1000) };
   const ordena = m => [...m].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([carta, listas]) => ({ carta, listas, ...(nivelDe.get(carta) || (resultado.some(x => x.semDados.includes(carta)) ? { nivel: 'sem dados' } : {})) }));
   mkdirSync(dirname(SAIDA), { recursive: true });
-  writeFileSync(SAIDA, JSON.stringify({ placar, culpadas: ordena(culpadas), faltantes: ordena(faltantes), ofertaQueSome,
-    listas: resultado.map(({ entradas, ...x }) => x) }, null, 1));
+  const detalhe = { placar, culpadas: ordena(culpadas), faltantes: ordena(faltantes), ofertaQueSome, listas: resultado.map(({ entradas, ...x }) => x) };
+  writeFileSync(SAIDA, JSON.stringify(detalhe, null, 1));
+  // R-17 · BI2-1 · o placar vai para o ramo `telemetria` (dado, não produto): o Painel Estante mostra a série. Recorte (--lista) e CI não gravam.
+  if (!ARGS['sem-telemetria'] && !ARGS.lista && !process.env.CI) {
+    try { const r = gravar({ tipo: 'placar', registro: placarDaProva(detalhe) }); console.log(`  telemetria: placar gravado em ${r.arquivo} (${r.enviado ? 'enviado ao ramo telemetria' : 'sem envio'})`); }
+    catch (e) { console.log(`  telemetria não gravada (${String(e && e.message).split('\n')[0].slice(0, 120)}); a prova vale do mesmo jeito`); }
+  }
   console.log(`Prova de partida · ${FORMATO} · motor v${placar.motor} · ${placar.listas} listas · ${PARTIDAS} partida(s) por lista, até ${MAX_ACOES} ações · ${placar.segundos} s`);
   console.log(`  joga de verdade: ${placar.joga} · falha na partida: ${placar.falha} · cobertura incompleta: ${placar.coberturaIncompleta} · sem dados da carta: ${placar.semDados}`);
   if (ARGS.shark) { const sh = resultado.flatMap(x => x.shark || []); console.log(`  Shark × Shark: ${sh.length} partidas · ${sh.filter(x => x.fim).length} até o fim · ${sh.filter(x => x.erro).length} com falha · pior jogada ${Math.max(0, ...sh.map(x => x.piorMs || 0))} ms`); }
