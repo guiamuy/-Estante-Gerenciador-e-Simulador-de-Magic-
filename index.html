@@ -5374,7 +5374,7 @@ const EFFECTS = {
   protection: { fields: [], targets: ['creature-you-control', 'other-creature-you-control', 'creature-enchantment-you-control'] },
   // S20 · cemitério
   to_hand: { fields: [], targets: ['self-source', 'card-in-your-graveyard', 'creature-in-your-graveyard', 'permanent-in-your-graveyard', 'creature-land-in-any-graveyard'] },
-  reanimate: { fields: [], targets: ['creature-in-your-graveyard', 'permanent-in-your-graveyard'] },
+  reanimate: { fields: [], targets: ['creature-in-your-graveyard', 'permanent-in-your-graveyard', 'self-source'] }, // M-398 · self-source: a própria carta, do cemitério
   reanimate_tapped: { fields: [], targets: ['self-source', 'creature-in-your-graveyard'] },
   add_mana: { fields: [], targets: ['self'] },
   volta_ao_acaso: { fields: [], targets: ['self'] }, // M-369 · "Return a <tipo> card at random from your graveyard to your hand" (Haunted Fengraf); `tipos` filtra
@@ -6084,7 +6084,7 @@ function validateScript(sc) {
       if (cost.mana != null && typeof cost.mana !== 'string') errs.push(`${tag}: custo de mana inválido`);
       if (cost.xCor != null && !(typeof cost.xCor === 'string' && cost.xCor.length === 1 && 'WUBRG'.includes(cost.xCor) && /\{X\}/i.test(cost.mana || ''))) errs.push(`${tag}: "gaste só mana de uma cor em X" precisa de uma cor WUBRG e de {X} no custo`); // CR2c.7
       if (cost.crew != null && !(Number.isInteger(cost.crew) && cost.crew >= 0)) errs.push(`${tag}: tripular precisa de um número`); // CR2d.3
-      if (cost.fromGraveyard != null && !(cost.fromGraveyard === true && cost.exileSelf && !cost.fromHand && !cost.tap)) errs.push(`${tag}: habilidade do cemitério precisa exilar a própria carta como custo (e não usa {T})`); // M-352 · 113.6
+      if (cost.fromGraveyard != null && !(cost.fromGraveyard === true && (cost.exileSelf || cost.devolveSelf) && !cost.fromHand && !cost.tap)) errs.push(`${tag}: habilidade do cemitério precisa exilar a própria carta como custo ou devolvê-la ao campo (e não usa {T})`); // M-352 · 113.6 · M-398: "Return ~ from your graveyard to the battlefield" (Cauldron Familiar)
       if (cost.crew == null && !cost.mana && !cost.tap && !cost.sacrifice && !cost.sacrificeOther && !cost.tapOther && !cost.life && !cost.discard && !cost.returnLand && !cost.revealColor && !cost.discardSelf && !cost.exileSelf && !cost.discardHand && !cost.removeCounters && !cost.poeMarcador && !cost.energia) errs.push(`${tag}: habilidade ativada sem custo`);
       if (cost.energia != null && !(Number.isInteger(cost.energia) && cost.energia > 0)) errs.push(`${tag}: pagar energia precisa de uma quantidade inteira positiva`); // M-367
       if (cost.poeMarcador != null && !(cost.poeMarcador && /^[a-z][a-z0-9]*$/.test(cost.poeMarcador.tipo || '') && cost.poeMarcador.tipo !== 'lore' && Number.isInteger(cost.poeMarcador.n || 1) && (cost.poeMarcador.n || 1) > 0)) errs.push(`${tag}: pôr marcadores como custo precisa do tipo e de uma quantidade inteira`); // M-360 · 122.1 / 602.1
@@ -6156,6 +6156,7 @@ function validateScript(sc) {
   { const temMvX = es => (es || []).some(e => e && e.targetMvIgualX); // M-387 · achado da revisão: "with mana value X" só em habilidade ativada com {X} no custo (na mágica, a oferta não casa o alvo com o X)
     if (sc && (temMvX(sc.effects) || (sc.modes || []).some(m => m && temMvX(m.effects)))) errs.push('"targetMvIgualX" só em habilidade ativada com {X} no custo');
     for (const ab of (sc && sc.abilities) || []) if (ab && temMvX(ab.effects) && !(ab.kind === 'activated' && /\{X\}/.test((ab.cost || {}).mana || ''))) errs.push('"targetMvIgualX" só em habilidade ativada com {X} no custo'); }
+  for (const ab of (sc && sc.abilities) || []) if (ab && (ab.cost || {}).devolveSelf && !(ab.effects || []).some(e => e && e.do === 'reanimate' && e.target === 'self-source')) errs.push('"devolveSelf": a habilidade do cemitério precisa devolver a própria carta ao campo'); // M-398 · achado da revisão
   for (const ab of (sc && sc.abilities) || []) if (ab && ab.kind !== 'triggered' && (ab.effects || []).some(e => e && e.dividido)) errs.push('dano dividido: só em mágica e em habilidade disparada (a ativada ainda não divide — M-378)'); // M-378
   for (const ab of (sc && sc.abilities) || []) if (ab.condition && !['lifeGained', 'attackersAtLeast', 'controlsOtherNamed', 'bargained', 'evidenced', 'kicked', 'opponentMoreLands', 'atacaSozinha', 'vidaPeloMenos', 'marcadoresNaFonte', 'entrouDesvirada', 'semTerrenoVirado', 'semCriaturas', ...condicoesK(), ...condicoesT()].includes(Object.keys(ab.condition)[0] || '')) errs.push('condição de gatilho desconhecida'); // K-59 · condições da trilha keywords (Toca ponto comum: validador de condições)
   if (sc && sc.bargain != null && sc.bargain !== true) errs.push('barganha é uma marca, sem valor');
@@ -9209,6 +9210,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Memory Lapse': { texto: 'n6w385', leva: 'M-395' },
   // M-396 · revisão por lote LIV (Pauper: Pestilence), revisor independente: aprovada (66 verificações, leitor no corpus e diferencial sem diferença)
   'Pestilence': { texto: '1ec5euf', leva: 'M-396' },
+  // M-398 · revisão por lote LV (Pauper: Cauldron Familiar), revisor independente: reprovada na primeira passada (400.7: a segunda ativação devolvia o objeto novo), corrigida com teste; 83 verificações, diferencial e fuzz sem diferença
+  'Cauldron Familiar': { texto: '1v4u5ft', leva: 'M-398' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -17692,6 +17695,7 @@ const __m42 = (function () {
       else if (/^sacrifice (this (creature|artifact|land|permanent)|~)$/i.test(parte)) cost.sacrifice = true;
       else if (/^sacrifice an artifact or creature$/i.test(parte)) cost.sacrificeOther = { types: ['artifact', 'creature'] };
       else if (/^sacrifice an artifact$/i.test(parte)) cost.sacrificeOther = { types: ['artifact'] };
+      else if (/^sacrifice an? (Food|Treasure|Clue|Blood)$/i.test(parte)) cost.sacrificeOther = { types: ['artifact'], subtype: parte.match(/(Food|Treasure|Clue|Blood)$/i)[1].replace(/^./, c => c.toUpperCase()) }; // M-398 · Cauldron Familiar
       else if (/^sacrifice a creature$/i.test(parte)) cost.sacrificeOther = { types: ['creature'], ...(/\bcreature\b/i.test(tipoAtual) ? { includeSelf: true } : {}) }; // LT13 · Phyrexian Tower · M-327: a criatura com esse custo pode se sacrificar (Viscera Seer)
       else if (/^sacrifice another creature$/i.test(parte)) cost.sacrificeOther = { types: ['creature'], outra: true };
       else if (/^discard a card$/i.test(parte)) cost.discard = 1;
@@ -17717,6 +17721,7 @@ const __m42 = (function () {
     if (fraseSo) { corpo = corpo.slice(0, so.index); cost.xCor = CORES[so[1].toLowerCase()]; }
     if (/\.\s*Activate only as a sorcery$/i.test(corpo)) { corpo = corpo.replace(/\.\s*Activate only as a sorcery$/i, ''); extra.sorceryOnly = true; }
     { const st = corpo.match(/\.\s*Activate only (during the end of combat step|during combat)$/i); if (st) { corpo = corpo.slice(0, st.index); extra.onlyInStep = /end of combat/i.test(st[1]) ? ['combat_end'] : ['combat_begin', 'combat_attackers', 'combat_blockers', 'combat_damage', 'combat_end']; frases.push({ texto: `Activate only ${st[1]}`, lida: true }); } } // M-377 · 602.5b (Desert)
+    if (/^return ~ from your graveyard to the battlefield$/i.test(til(corpo, nome))) { cost.fromGraveyard = true; cost.devolveSelf = true; frases.push({ texto: m[1], lida: true }, { texto: corpo, lida: true }); return { kind: 'activated', cost, ...extra, effects: [{ do: 'reanimate', target: 'self-source' }] }; } // M-398 · Cauldron Familiar (113.6)
     const instante = /^Add (two|three|four|five) mana of any one color\.\s*Activate only as an instant$/i.test(corpo); if (instante) corpo = corpo.replace(/\.\s*Activate only as an instant$/i, ''); // M-342 · Lion's Eye Diamond: ativar exige prioridade, como toda ativação nesta mesa (602.5d não muda nada aqui)
     if (/\.\s*Activate only once each turn$/i.test(corpo)) { corpo = corpo.replace(/\.\s*Activate only once each turn$/i, ''); extra.oncePerTurn = true; } // M-334 · LT18 · 602.5b (Barrels of Blasting Jelly)
     if (/^Add one mana of any color$/i.test(corpo) && !(cost.tap && Object.keys(cost).length === 1)) { frases.push({ texto: m[1], lida: true }, { texto: corpo, lida: true }); return { kind: 'activated', cost, ...extra, effects: [{ do: 'add_mana', anyColor: true }] }; } // LT11 · mana de qualquer cor com custo além de {T}
@@ -20710,7 +20715,8 @@ function moverLegado(s, src, eff, obj, ctrl) {
     case 'to_hand': { const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
       if (alvo && eff.target === 'self-source' && alvo.zone !== (eff.from || 'graveyard')) return false;
       if (alvo) moveObject(s, alvo.oid, 'hand'); return !!alvo; }
-    case 'reanimate': moveObject(s, obj.oid, 'battlefield', { controller: ctrl }); if (s.objects[obj.oid].zone !== 'battlefield') return false; /* T-23 · 303.4g / 304.4: o caminho antigo igual ao novo */ s.objects[obj.oid].controller = ctrl; if (!src.ability && s.objects[src.oid] === src) (src.devolvidas = src.devolvidas || []).push(obj.oid); return true;
+    case 'reanimate': if (eff.target === 'self-source') { const a = src.ability ? s.objects[src.source] : null; if (!a || a.zone !== 'graveyard' || (src.fonteZc != null && (a.zc || 0) !== src.fonteZc)) { note({ failed: true }); break; } moveObject(s, a.oid, 'battlefield', { controller: ctrl }); if (s.objects[a.oid].zone === 'battlefield') s.objects[a.oid].controller = ctrl; note({ name: a.name }); break; } /* M-398 · 113.6: a habilidade do cemitério devolve a própria carta (se ela ainda está lá) */
+      moveObject(s, obj.oid, 'battlefield', { controller: ctrl }); if (s.objects[obj.oid].zone !== 'battlefield') return false; /* T-23 · 303.4g / 304.4: o caminho antigo igual ao novo */ s.objects[obj.oid].controller = ctrl; if (!src.ability && s.objects[src.oid] === src) (src.devolvidas = src.devolvidas || []).push(obj.oid); return true;
     case 'reanimate_tapped': { const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
       if (alvo && alvo.zone === 'graveyard') { moveObject(s, alvo.oid, 'battlefield', { controller: ctrl }); if (alvo.zone !== 'battlefield') return false; /* T-23 */ alvo.controller = ctrl; entraViradaPorEfeito(s, alvo); return true; } return false; } // M-330
     case 'to_library_shuffled': { const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
@@ -21017,7 +21023,7 @@ function applyEffect(s, src, eff, tgt, events) {
       moverObjeto(s, src, alvo, { para: 'hand' }, ctrl); // CR2-G R4a · atalho de mover
       note({}); break;
     }
-    case 'reanimate': moverObjeto(s, src, obj, { para: 'battlefield' }, ctrl); note({}); break; // CR2-G R4a · atalho de mover; // CR2c.5 · a mágica lembra quem ela devolveu ("either of them")
+    case 'reanimate': { const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : null) : obj; if (eff.target === 'self-source' && (!alvo || alvo.zone !== 'graveyard' || (src.fonteZc != null && (alvo.zc || 0) !== src.fonteZc))) { note({ failed: true }); break; } moverObjeto(s, src, alvo, { para: 'battlefield' }, ctrl); note({}); break; } /* M-398 · self-source: a própria carta, se ainda está no cemitério e é o mesmo objeto (113.6, 400.7 — achado da revisão) */ // CR2-G R4a · atalho de mover; // CR2c.5 · a mágica lembra quem ela devolveu ("either of them")
     case 'animate_dead': { // CR2d.4 · "if it's on the battlefield … return enchanted creature card to the battlefield under your control and attach this Aura to it"
       const aura = src.ability ? s.objects[src.source] : src;
       if (!aura || aura.zone !== 'battlefield') break; // ruling: fora do campo, nada acontece
@@ -24817,10 +24823,11 @@ function legalActions(s, p, { adjudication = false } = {}) {
       if (ab.sorceryOnly && !canSorcery) return;
       if (s.manaCheck && (ab.cost || {}).mana && !canPay(s, p, parseCost(ab.cost.mana))) return;
       const need = (ab.effects || []).filter(SC.isTargeted);
-      if (!need.length) return out.push({ t: 'activate', p, oid, index, fromGraveyard: true });
+      const pays = pagamentosDe(s, p, ab.cost, oid); if (!pays.length) return; // M-398 · o custo com escolha ("Sacrifice a Food") gera uma ação por forma de pagar
+      if (!need.length) return pays.forEach(pay => out.push({ t: 'activate', p, oid, index, fromGraveyard: true, ...comPagamento(pay) }));
       let combos = [[]];
       for (const eff of need) { const opts = limitaAlvos(legalTargets(s, p, eff.target, oid), need.length); if (!opts.length) { if (eff.upTo) continue; return; } combos = eff.upTo ? addTarget(combos, opts).concat(combos) : addTarget(combos, opts); }
-      combos.forEach(targets => out.push({ t: 'activate', p, oid, index, fromGraveyard: true, targets }));
+      combos.forEach(targets => pays.forEach(pay => out.push({ t: 'activate', p, oid, index, fromGraveyard: true, targets, ...comPagamento(pay) })));
     });
   }
   // M9 · habilidades ativadas das suas permanentes
@@ -34094,6 +34101,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const PT = { artifact: 'artefato', creature: 'criatura', land: 'terreno', enchantment: 'encantamento' };
     const ts = ((spec && spec.types) || []).map(x => PT[x]).filter(Boolean);
     if (!ts.length) return 'sacrificar outra';
+    { const SUB = { Food: 'uma Comida', Treasure: 'um Tesouro', Clue: 'uma Pista', Blood: 'um Sangue' }; if (spec.subtype && SUB[spec.subtype]) return `sacrificar ${SUB[spec.subtype]}`; } // M-398 · achado da revisão: "Sacrifice a Food" saía como "sacrificar um artefato"
     if ((spec.amount || 1) > 1) return `sacrificar ${spec.amount} outras: ${ts.join(' ou ')}`; // M-264
     return ts.length === 1 ? `sacrificar ${ts[0] === 'criatura' ? 'uma' : 'um'} ${ts[0]}` : `sacrificar ${ts.slice(0, -1).join(', ')} ou ${ts[ts.length - 1]}`;
   }

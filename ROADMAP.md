@@ -4325,6 +4325,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** só o texto do registro; nenhuma regra muda. Ficam para depois: sacrifício de outra permanente pelo efeito alvo mostra o nome da permanente no lugar da fonte; dano parcialmente prevenido não diz quanto foi prevenido.
 - **Teste:** `lt80.unit` (2 testes; falham no motor anterior).
 
+**M-398 · LT65 · 113.6 · Habilidade do cemitério que devolve a própria carta, com custo "sacrifique uma Comida"** ✅ (leva M-398, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** revisão por lote LV — **Cauldron Familiar passa a jogar** (APROVADAS; Oracle do Forge, consulta de 12/10/2026; bloqueava 3 a 4 listas Pauper). "Sacrifique uma Comida: devolva ~ do seu cemitério ao campo" — habilidade ativada que funciona do cemitério sem exilar a carta (o validador passa a aceitar a forma "devolve a si mesma", `devolveSelf`); o custo "Sacrifice a Food/Treasure/Clue/Blood" vira sacrificar artefato do subtipo; a oferta do cemitério passa a gerar uma ação por forma de pagar (antes a escolha do sacrifício não aparecia).
+- **Revisão independente:** lote conjunto com a M-397 — 83 verificações (oferta só com Comida sua, uma ação por Comida; ação montada com Tesouro, artefato comum ou Comida do oponente recusada; usa a pilha e a resposta com exílio do cemitério anula; volta com enjoo e o gatilho de entrada; Bramble Wurm e Makeshift Munitions iguais), leitor no corpus (8 cartas passam a ser lidas por inteiro, conferidas), diferencial de 16 partidas e fuzz de 30 partidas sem diferença nem erro. Reprovou na primeira passada: a segunda ativação devolvia o Familiar que já tinha voltado ao cemitério como objeto novo (400.7) — corrigido com teste; também o botão do custo ("sacrificar uma Comida") e o validador do `devolveSelf` (precisa devolver a própria carta).
+- **Fora (declarado):** nada além da regra.
+- **Teste:** `lt81.unit` (2 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
