@@ -1911,14 +1911,17 @@
    "regra": "Name",
    "titulo": "Escolher um nome de carta",
    "status": "parcial",
-   "falta": "Simplificação declarada: a lista de nomes é a das cartas da partida (as duas listas, em ordem alfabética) — por isso ela mostra a quem escolhe os nomes da lista do oponente, como numa lista aberta; a alternativa (um catálogo de nomes passado à partida pelo app) muda o contrato de createGame e fica para decisão do dono. Carta de duas partes sem script (só o dado da Scryfall) tem só o nome da parte de cima (201.4b/d). 201.4e (meld) e 201.4g (nomes intercambiáveis) não existem no motor. Só Cabal Therapy usa o nome escolhido (descarta_nome); \"as this enters, choose a card name\" com efeito contínuo (Pithing Needle, Meddling Mage) ainda não. O Shark escolhe o primeiro nome da lista (pedido à trilha bot).",
+   "falta": "Simplificação declarada: a lista de nomes é a das cartas da partida (as duas listas, em ordem alfabética) — por isso ela mostra a quem escolhe os nomes da lista do oponente, como numa lista aberta; a alternativa (um catálogo de nomes passado à partida pelo app) muda o contrato de createGame e fica para decisão do dono. Carta de duas partes sem script (só o dado da Scryfall) tem só o nome da parte de cima (201.4b/d). 201.4e (meld) e 201.4g (nomes intercambiáveis) não existem no motor. Usam o nome escolhido: Cabal Therapy (descarta_nome, T-77), Pithing Needle e Phyrexian Revoker (trava das ativadas, T-79); \"spells with the chosen name can't be cast\" (Meddling Mage) e proteção contra o nome (Runed Halo) ainda não. A escolha \"as this enters\" é feita logo depois de entrar, antes de alguém receber prioridade (614.12 pede ao entrar; nada acontece no meio). O Shark escolhe o primeiro nome da lista (pedido à trilha bot).",
    "esforco": "M",
-   "evidencia": "T-77 (14/10/2026): efeito escolhe_nome (filtro { tipos, semTipos }) abre a decisão choose_name na resolução, para quem controla o efeito; o nome fica no objeto de onde o efeito veio (s.nomesT, com a encarnação). Nomes escolhíveis: os das cartas da partida, em ordem alfabética, nunca o de ficha nem o da carta inteira de duas partes; cada face com as suas características (nomesEscolhiveisT). Mesa: \"Escolher o nome\" com busca; goldfish fica com o primeiro; registro \"escolheu o nome X\". Carta: Cabal Therapy (Oracle do Forge, clone de 13/10/2026), com descarta_nome (o alvo revela a mão e descarta todas as cartas com o nome). 201.4a: o filtro olha as características da face (\"nonland\" tira os terrenos).",
+   "evidencia": "T-77 (14/10/2026): efeito escolhe_nome (filtro { tipos, semTipos }) abre a decisão choose_name na resolução, para quem controla o efeito; o nome fica no objeto de onde o efeito veio (s.nomesT, com a encarnação). Nomes escolhíveis: os das cartas da partida, em ordem alfabética, nunca o de ficha nem o da carta inteira de duas partes; cada face com as suas características (nomesEscolhiveisT). Mesa: \"Escolher o nome\" com busca; goldfish fica com o primeiro; registro \"escolheu o nome X\". Carta: Cabal Therapy (Oracle do Forge, clone de 13/10/2026), com descarta_nome (o alvo revela a mão e descarta todas as cartas com o nome). 201.4a: o filtro olha as características da face (\"nonland\" tira os terrenos). T-79 (14/10/2026): self.nomeAoEntrar (true ou { filtro }) — ao entrar, a conferência seguinte abre choose_name; o nome fica com a encarnação. Cartas: Pithing Needle e Phyrexian Revoker (Oracle do Forge, clone de 13/10/2026).",
    "testes": [
     "CR 201.4 / 201.4a · Cabal Therapy (texto oficial): escolhe um nome de carta não terreno; o alvo revela a mão e descarta todas as cartas com esse nome",
     "CR 201.4 · Cabal Therapy: nomeando uma carta que não está na mão, nada é descartado (a mão é revelada no registro)",
     "CR 201.4 · ficha não tem nome de carta: o nome de uma ficha criada na partida não é escolhível",
-    "CR 201.4 · registro e validador: \"escolheu o nome\"; a mão revelada e o que saiu; descarta_nome sem escolhe_nome antes e filtro desconhecido são recusados"
+    "CR 201.4 · registro e validador: \"escolheu o nome\"; a mão revelada e o que saiu; descarta_nome sem escolhe_nome antes e filtro desconhecido são recusados",
+    "CR 201.4 · Pithing Needle (texto oficial): ao entrar escolhe um nome de carta, terreno incluído; a escolha vem antes de alguém receber prioridade",
+    "CR 201.4 · Phyrexian Revoker: \"nonland\" — terrenos não estão na lista",
+    "CR 400.7 · a agulha que sai do campo leva a trava; a que volta escolhe de novo"
    ]
   },
   {
@@ -4338,8 +4341,8 @@
    "regra": "Activating Activated Abilities",
    "titulo": "Restrições de ativação (enjoo, uma vez por turno, tempo de feitiço)",
    "status": "parcial",
-   "evidencia": "enjoo para {T} sem ímpeto (index.html:11991-11994, 12013), oncePerTurn fica na permanente (:11997-12000), sorceryOnly (:12386); rules.unit \"M9 · … enjoo impede {T}\", \"S29 · devolver Floresta como custo, uma vez por turno\", \"S11 · equipar só na sua fase principal\" · CR2a.4 (v78): \"Activate only if you have at least N life more than your starting life total\" (onlyIfLifeOverStart, na oferta e na ativação) · CR2b.4 (v82): \"Activate only if this creature is attacking\" (onlyIfAttacking) · M-290 (CR2c.6): \"uma vez por turno\" é do objeto (400.7); o enjoo usa o tipo atual",
-   "falta": "sem {Q}; sem \"não pode ser ativada\" genérico",
+   "evidencia": "enjoo para {T} sem ímpeto (index.html:11991-11994, 12013), oncePerTurn fica na permanente (:11997-12000), sorceryOnly (:12386); rules.unit \"M9 · … enjoo impede {T}\", \"S29 · devolver Floresta como custo, uma vez por turno\", \"S11 · equipar só na sua fase principal\" · CR2a.4 (v78): \"Activate only if you have at least N life more than your starting life total\" (onlyIfLifeOverStart, na oferta e na ativação) · CR2b.4 (v82): \"Activate only if this creature is attacking\" (onlyIfAttacking) · M-290 (CR2c.6): \"uma vez por turno\" é do objeto (400.7); o enjoo usa o tipo atual T-79 (14/10/2026): self.travaAtivadasDoNome (semMana | todas) — a ativada da fonte com o nome escolhido não é oferecida e é recusada no apply, em qualquer zona (ativar, ciclar, ninjutsu, desenterrar, transmutar, tripular); com todas, a de mana também (ação e pagamento automático).",
+   "falta": "sem {Q}. T-79 (14/10/2026): \"activated abilities of sources with the chosen name can't be activated [unless they're mana abilities]\" (Pithing Needle, Phyrexian Revoker) existe; \"não pode ser ativada\" genérico por outras qualidades, não.",
    "esforco": "P",
    "testes": [
     "CR 602.2 · \"{1}{R}, {T}\": com só o Kher Keep e uma Mountain desvirados, a fonte do {T} não paga a própria mana",
@@ -4347,7 +4350,11 @@
     "CR 117.1 · marca interna não vem do jogador: \"concedido por efeito\" não fura a fase nem a prioridade, e habilidade de campo não ativa da mão",
     "CR 601.2 · o reforço soma ao custo alternativo (antes saía de graça), e conjurar sem pagar faz X = 0 (107.3b)",
     "CR 608.2 · conjurar sem pagar durante a resolução: o jogador da decisão conjura mesmo sem ser o ativo",
-    "CR 601.2 · o lampejo do passado cobra só o custo do lampejo, mesmo com o reforço somado no caminho alternativo (guarda contra o custo cobrado em dobro)"
+    "CR 601.2 · o lampejo do passado cobra só o custo do lampejo, mesmo com o reforço somado no caminho alternativo (guarda contra o custo cobrado em dobro)",
+    "CR 201.4 / 602.5 · Pithing Needle nomeando Atirador: a habilidade ativada das Atirador (as duas, de qualquer jogador) não é oferecida e é recusada; a de outra carta, sim",
+    "CR 201.4 / 605.1a · Pithing Needle não trava habilidade de mana; Phyrexian Revoker trava (o Elfo deixa de pagar a mágica)",
+    "CR 201.4 · a trava vale para a fonte em outras zonas: ciclar da mão é habilidade ativada (conjurar não é)",
+    "CR 201.4 · validador, mesa e registro: nomeAoEntrar e travaAtivadasDoNome conferidos; o registro diz o nome escolhido"
    ]
   },
   {

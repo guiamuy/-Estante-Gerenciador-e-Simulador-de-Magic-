@@ -6747,6 +6747,11 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-79 · CR 201.4 · "As this enters, choose a card name" (Oracle do Forge, clone de 13/10/2026).
+  { name: 'Pithing Needle', self: { nomeAoEntrar: true, travaAtivadasDoNome: 'semMana' }, // "As Pithing Needle enters, choose a card name. · Activated abilities of sources with the chosen name can't be activated unless they're mana abilities."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o cenário de verdade está em tipos.nome.unit
+  { name: 'Phyrexian Revoker', self: { nomeAoEntrar: { filtro: { semTipos: ['land'] } }, travaAtivadasDoNome: 'todas' }, // "As Phyrexian Revoker enters, choose a nonland card name. · Activated abilities of sources with the chosen name can't be activated."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // T-77 · CR 201.4 · escolher um nome de carta (Oracle do Forge, clone de 13/10/2026).
   { name: 'Cabal Therapy', effects: [{ do: 'escolhe_nome', filtro: { semTipos: ['land'] } }, { do: 'descarta_nome', target: 'player' }], // "Choose a nonland card name. Target player reveals their hand and discards all cards with that name."
     flashback: { sacrificeOther: { types: ['creature'] } }, // "Flashback—Sacrifice a creature."
@@ -9495,6 +9500,8 @@ function monarcaErrosT(sc) {
   const errs = [], abs = [...((sc && sc.abilities) || []), ...((sc && sc.back && sc.back.abilities) || [])];
   for (const ab of abs) if (ab && ab.condition && ab.condition.monarca != null && !['voce', 'oponente'].includes(ab.condition.monarca)) errs.push('condição "monarca" do gatilho: \'voce\' ou \'oponente\'');
   if (sc && sc.self && sc.self.atacaSeMonarcaDefende != null && sc.self.atacaSeMonarcaDefende !== true) errs.push('self.atacaSeMonarcaDefende só vale como true'); // T-70
+  if (sc && sc.self && sc.self.nomeAoEntrar != null) { const n = sc.self.nomeAoEntrar, f = n && n.filtro; if (!(n === true || (n && typeof n === 'object' && !Array.isArray(n) && Object.keys(n).every(k => k === 'filtro')))) errs.push('self.nomeAoEntrar é true ou { filtro }'); else if (f != null && (typeof f !== 'object' || Object.keys(f).some(k => !['tipos', 'semTipos'].includes(k) || !Array.isArray(f[k]) || f[k].some(t => !FILTER_TYPES.includes(t))))) errs.push('self.nomeAoEntrar: o filtro é { tipos, semTipos }, com tipos de carta'); } // T-79
+  if (sc && sc.self && sc.self.travaAtivadasDoNome != null && (!['semMana', 'todas'].includes(sc.self.travaAtivadasDoNome) || !sc.self.nomeAoEntrar)) errs.push("self.travaAtivadasDoNome é 'semMana' ou 'todas', com self.nomeAoEntrar"); // T-79
   if (sc && sc.grants && sc.grants.naoDesviraSalvoMonarca != null && sc.grants.naoDesviraSalvoMonarca !== true) errs.push('bônus: naoDesviraSalvoMonarca só vale como true'); // T-70
   return errs;
 }
@@ -19075,7 +19082,7 @@ function manaExtraDeVirar(s, o, p) {
   for (const c of extra) s.players[p].pool[c] = (s.players[p].pool[c] || 0) + 1;
 }
 function productions(s, o, visto) {
-  if (o.faceDown || ehDetida(s, o)) return []; // V-21 · 701.35a: a detida não ativa habilidade de mana · V-17 · 708.2: virada para baixo não tem habilidade de mana (terreno manifestado não dá mana) · Toca ponto comum: productions (uma linha)
+  if (o.faceDown || ehDetida(s, o) || manaTravadaPeloNomeT(s, o)) return []; // T-79 · CR 201.4 · Phyrexian Revoker trava também a habilidade de mana · V-21 · 701.35a: a detida não ativa habilidade de mana · V-17 · 708.2: virada para baixo não tem habilidade de mana (terreno manifestado não dá mana) · Toca ponto comum: productions (uma linha)
   const mu = mutacao(s, o), perde = !!(mu && mu.perde); // CR2d.1 · perdeu as habilidades: inclusive as de mana
   const spec = perde ? [] : ((s.facts[o.name].script || {}).produces) || [];
   // quando o script declara a produção, ela substitui o que foi lido do texto
@@ -23204,7 +23211,7 @@ function stateBased(s, events) {
       for (const oid of morrem) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield') continue; moveObject(s, oid, 'graveyard'); changed = true; const para = (s.objects[oid] || {}).zone; events.push({ kind: 'died', oid, name: o.name, ...(para && para !== 'graveyard' ? { para } : {}) }); } // M-384 · achado da revisão: a substituição (exílio) aparece no registro
       delete s.saindoJuntas;
     }
-    if (batalhasDeEstadoT(s, events) | equipamentosDeEstadoT(s, events) | papeisDeEstadoT(s, events) | auraAnexoDeEstadoT(s, events) | portaDeEstadoT(s, events) | masmorraDeEstadoT(s, events) | cicloDeEstadoT(s, events) | preparoDeEstadoT(s, events)) changed = true; // T-51 · CR 722.3c // T-48 · CR 702.145c/d/f/g // T-46 · CR 309.6 / 704.5t // T-27 · CR 709.5f // T-22 · CR 303.4f // T-20 · CR 303.7a / 704.5z // T-16 · CR 301.5c / 704.5n · Equipamento que não pode equipar se solta // T-14 · CR 310.7 / 310.8 / 310.10 / 310.11 / 704.5v–y · batalhas (função abaixo da âncora T das exportações)
+    if (batalhasDeEstadoT(s, events) | equipamentosDeEstadoT(s, events) | papeisDeEstadoT(s, events) | auraAnexoDeEstadoT(s, events) | portaDeEstadoT(s, events) | nomeDeEstadoT(s, events) | masmorraDeEstadoT(s, events) | cicloDeEstadoT(s, events) | preparoDeEstadoT(s, events)) changed = true; // T-51 · CR 722.3c // T-48 · CR 702.145c/d/f/g // T-46 · CR 309.6 / 704.5t // T-27 · CR 709.5f // T-22 · CR 303.4f // T-20 · CR 303.7a / 704.5z // T-16 · CR 301.5c / 704.5n · Equipamento que não pode equipar se solta // T-14 · CR 310.7 / 310.8 / 310.10 / 310.11 / 704.5v–y · batalhas (função abaixo da âncora T das exportações)
     if (sagasDeEstado(s, events)) changed = true; // T-1 · CR 714.2b (capítulos disparam), 714.3b (read ahead) e 714.4 / 704.5s (sacrifício); função abaixo da âncora T das exportações
     if (!changed) break;
   }
@@ -24094,6 +24101,7 @@ const HANDLERS = {
     if (!(pd.options || []).includes(nome)) throw new RuleError('escolha', 'esse nome não está entre os nomes de carta que valem aqui');
     (s.nomesT = s.nomesT || {})[pd.oid] = { z: pd.z, nome };
     s.pending = null;
+    if (pd.aoEntrar) { ev.push({ kind: 'choice-done', what: 'nome de carta', name: pd.source, amount: 1, nome }); return; } // T-79 · a escolha ao entrar não é parte de uma resolução
     ev.push({ kind: 'choice-done', what: 'nome de carta', name: pd.source, amount: 1, nome });
     resumeEffects(s, ev);
   },
@@ -24228,6 +24236,7 @@ function apply(state, action) {
   const s = cloneEstado(state); // desempenho · fatos compartilhados
   const events = [];
   barraDetidaV(s, action); // V-21 · 701.35a: habilidade ativada de permanente detida · Toca ponto comum: apply (uma linha)
+  barraTravadaPeloNomeT(s, action); // T-79 · CR 201.4 · "activated abilities of sources with the chosen name can't be activated" (Pithing Needle, Phyrexian Revoker) · Toca ponto comum: apply (uma linha)
   HANDLERS[action.t](s, action, events);
   if (!s.pending && s.divisaoPendente) { const oid = s.divisaoPendente; delete s.divisaoPendente; if (s.objects[oid] && s.objects[oid].zone === 'stack') iniciaDivisao(s, oid, events); } // M-376
   if (!s.pending && (s.resume || s.magiaSuspensa)) resumeEffects(s, events); // M-374 · também a mágica parada numa escolha que já acabou · CR 704.4 · a decisão acabou: o resto da resolução vem antes de qualquer ação de estado
@@ -24774,6 +24783,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
   /* ↓ V · ofertas de legalActions da trilha verbos (out.push) */
   if (!s.pending) ofertasPrevistasM(s, p, out, casts, canSorcery); // M-382 · 702.143a
   if (!s.pending) ofertasAerobendV(s, p, out, casts, canSorcery); // V-30/V-31 · 701.65a, 118.9d: a carta aerobendida, por {2} (com reforço e reduções)
+  filtraTravadasPeloNomeT(s, out); // T-79 · CR 201.4 · ativada de fonte com o nome escolhido não é oferecida · Toca ponto comum: legalActions (uma linha)
   for (let i = out.length - 1; i >= 0; i--) if (acaoDeDetidaV(s, out[i])) out.splice(i, 1); // V-21 · 701.35a: habilidade ativada de permanente detida não é oferecida
   if (!s.pending) for (const o of battlefield(s)) if (o.controller === p && podeVirarManifestada(s, o) && (!s.manaCheck || canPay(s, p, s.facts[o.name].cost))) out.push({ t: 'unmorph', p, oid: o.oid, manifest: true }); // V-17 · 701.40b
   /* ↓ T · ofertas de legalActions da trilha tipos (out.push) */
@@ -28335,6 +28345,7 @@ function sagaEntrou(s, o) {
   cicloNaEntradaT(s, o); // T-48 · CR 702.145b · de noite, a dupla face com daybound entra transformada (antes dos gatilhos de entrar)
   lealdadeDaFichaT(s, o); // T-47 · CR 306.5b · a ficha de planeswalker (ficha cópia) entra com a lealdade impressa
   salaEntrouT(s, o); // T-26 · CR 709.5d · a Sala entra inteira, com a porta conjurada destrancada
+  nomeAoEntrarT(s, o); // T-79 · CR 201.4 · "As this enters, choose a card name": a conferência seguinte abre a escolha
   if (o && ehEquipamentoImpressoT(s, o)) o.entrouEmAbT = s.nextAbility; // T-17 · CR 400.7: a habilidade de equipar criada antes de o Equipamento entrar é do objeto anterior
   auraEntrouT(s, o); // T-22 · CR 303.4f · Aura que entrou sem ser conjurada: anexa à única opção ou abre a escolha
   batalhaEntrouT(s, o); // T-14 · CR 310.4b / 310.9a · a batalha que entra: marcadores de defesa e protetor (mesmo ponto de entrada: moveObject e createToken)
@@ -29001,6 +29012,49 @@ function descartaNomeT(s, src, p, events) {
   events.push({ kind: 'effect', do: 'descarta_nome', name: src.name, target: pl.name, nome, revelada, nomes, amount: saem.length });
 }
 Object.assign(EXPORTS_T, { nomesEscolhiveisT });
+/* ---------------- T-79 · CR 201.4 · "As this enters, choose a card name" e a trava das ativadas ----------------
+   - `self.nomeAoEntrar: true | { filtro }`: ao entrar (carta ou ficha), a permanente fica anotada (`s.nomesEsperaT`) e a conferência
+     seguinte abre a decisão `choose_name` (uma por vez, antes de alguém receber prioridade); o nome fica em `s.nomesT` com a encarnação.
+   - `self.travaAtivadasDoNome: 'semMana' | 'todas'`: "Activated abilities of sources with the chosen name can't be activated [unless
+     they're mana abilities]". Vale para a fonte em qualquer zona (ciclar da mão, desenterrar do cemitério, ninjutsu, transmutar,
+     tripular, ativar no campo); 'todas' também trava a habilidade de mana (pela ação e no pagamento automático). A virada para baixo não
+     tem nome (708.2). Ação especial (virar para cima, tramar, prever, suspender, destrancar) não é habilidade: não trava. */
+function nomeAoEntrarT(s, o) {
+  const sf = o && ((s.facts[o.name] || {}).script || {}).self; if (!sf || !sf.nomeAoEntrar || o.faceDown) return;
+  (s.nomesEsperaT = s.nomesEsperaT || []).push({ oid: o.oid, z: o.zc || 0, p: o.controller, filtro: sf.nomeAoEntrar.filtro });
+}
+function nomeDeEstadoT(s, events) {
+  if (!s.nomesEsperaT || s.pending || s.status !== 'playing') return false;
+  while (s.nomesEsperaT.length) {
+    const w = s.nomesEsperaT.shift(), o = s.objects[w.oid];
+    if (!o || o.zone !== 'battlefield' || (o.zc || 0) !== w.z) continue;
+    const ops = nomesEscolhiveisT(s, w.filtro);
+    if (!ops.length) continue;
+    s.pending = { kind: 'choose_name', p: o.controller, oid: o.oid, z: w.z, options: ops, source: o.name, aoEntrar: true };
+    break;
+  }
+  if (!s.nomesEsperaT.length) delete s.nomesEsperaT;
+  return !!s.pending;
+}
+function travasDeNomeT(s) {
+  if (!s.nomesT) return [];
+  const out = [];
+  for (const o of battlefield(s)) {
+    const modo = !o.faceDown && ((((s.facts[o.name] || {}).script || {}).self) || {}).travaAtivadasDoNome; if (!modo || o.phasedOut || semImpressas(s, o)) continue;
+    const r = s.nomesT[o.oid]; if (r && r.z === (o.zc || 0)) out.push({ nome: r.nome, modo, fonte: o.name });
+  }
+  return out;
+}
+const ACOES_ATIVADAS_T = ['activate', 'cycle', 'ninjutsu', 'unearth', 'transmute', 'tripular', 'tap_mana'];
+function acaoTravadaPeloNomeT(s, a, travas) {
+  if (!a || !ACOES_ATIVADAS_T.includes(a.t) || a.oid == null || !travas.length) return null;
+  const o = s.objects[a.oid]; if (!o || o.faceDown) return null;
+  const nomes = nomesDe(s, o), mana = a.t === 'tap_mana' || (a.t === 'activate' && ehHabilidadeDeMana(abilitiesOf(s, o).filter(x => x.kind === 'activated')[a.index || 0] || {}));
+  return travas.find(t => nomes.includes(t.nome) && (t.modo === 'todas' || !mana)) || null;
+}
+function filtraTravadasPeloNomeT(s, out) { const tv = travasDeNomeT(s); if (tv.length) for (let i = out.length - 1; i >= 0; i--) if (acaoTravadaPeloNomeT(s, out[i], tv)) out.splice(i, 1); }
+function barraTravadaPeloNomeT(s, a) { const t = acaoTravadaPeloNomeT(s, a, travasDeNomeT(s)); if (t) throw new RuleError('travada', `${t.fonte}: as habilidades ativadas de ${t.nome} não podem ser ativadas${t.modo === 'semMana' ? ' (as de mana podem)' : ''}`); }
+function manaTravadaPeloNomeT(s, o) { if (!s.nomesT || o.faceDown) return false; const tv = travasDeNomeT(s).filter(t => t.modo === 'todas'); return tv.length > 0 && nomesDe(s, o).some(n => tv.some(t => t.nome === n)); }
 /* ---------------- T-12 · CR 716 · Classes ----------------
    - 716.2b / 716.2d: o nível é uma designação da permanente, guardada fora do objeto em `s.classes[oid] = { z, n }` (z = encarnação,
      400.7); sem registro, nível 1. Não é copiável (a cópia tem o próprio oid) e fica mesmo se a permanente deixar de ser Classe.
