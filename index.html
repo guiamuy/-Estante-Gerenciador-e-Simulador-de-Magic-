@@ -9426,6 +9426,7 @@ function salaErros(sc) {
   const errs = errsPorta.slice();
   if (sf.sala !== true || sf.dividida !== true) errs.push('sala: a Sala é dividida (self.dividida: true e self.sala: true)');
   if (sc.grants || sc.grantsAll || sf.per || sc.aura || sc.equip || (sc.effects || []).length || sc.substitui || sc.entra || sc.dano) errs.push('sala: nas portas, só habilidades ativadas, disparadas, contínuos e regras de jogador (concessão e efeito de resolução ainda não)'); // T-76 · 709.5: contínuo e regra de jogador valem com a porta destrancada
+  for (const k of Object.keys(sc)) if (!['name', 'self', 'abilities', 'back', 'example', 'note', 'covers', 'continuo', 'regraJogador', 'effects', 'grants', 'grantsAll', 'aura', 'equip', 'substitui', 'entra', 'dano'].includes(k)) errs.push(`sala: a chave "${k}" não vale numa porta (valeria com a porta trancada; 709.5)`); // T-78 · achado da auditoria: staticRule e produces passavam e valiam com as duas portas trancadas
   const b = sc.back;
   if (b && typeof b === 'object') {
     for (const k of Object.keys(b)) if (!['name', 'types', 'subtypes', 'mana', 'colors', 'abilities', 'continuo', 'regraJogador'].includes(k)) errs.push(`sala, porta direita: chave "${k}" desconhecida (só habilidades ativadas e disparadas, contínuos e regras de jogador)`);
@@ -27701,9 +27702,9 @@ function portasDaSalaT(s, o) {
   return r && r.z === (o.zc || 0) ? { esquerda: !!r.esquerda, direita: !!r.direita } : { esquerda: false, direita: false };
 }
 /** T-76 · CR 709.5 · a porta trancada não tem o texto dela: contínuos (`continuo`) e regras de jogador (`regraJogador`) só valem com a
- * porta destrancada — a esquerda no script da Sala, a direita em `back` (copiados para os fatos da porta em fatosDaDivididaT). */
+ * porta destrancada — a esquerda no script da Sala, a direita em `back` (copiados para `portaT` nos fatos da porta, em fatosDaDivididaT). */
 const textoDasPortasT = (s, o, sc, k) => { const pt = portasDaSalaT(s, o); if (!pt) return [];
-  return [...(pt.esquerda ? sc[k] || [] : []), ...(pt.direita ? (((s.facts[direitaT(sc)] || {}).script || {})[k] || []) : [])]; };
+  return [...(pt.esquerda ? sc[k] || [] : []), ...(pt.direita ? ((((s.facts[direitaT(sc)] || {}).script || {}).portaT || {})[k] || []) : [])]; };
 function continuosDaSalaT(s, x, sc) {
   const cs = textoDasPortasT(s, x, sc, 'continuo'); if (!cs.length) return SEM_CONTINUOS;
   return cs.map(c => ({ ...c, palavras: c.palavras ? c.palavras.map(w => String(w).toLowerCase()) : undefined, ...(c.torna ? { redefine: SC.tornaParaBecomes(c.torna) } : {}) })); // como o laço do `continuo` em continuosDaFonte
@@ -28815,7 +28816,7 @@ function divididasPorInteiroT(setup, scripts) {
 function fatosDaDivididaT(s, sc, setup, fd) {
   const sf = sc.self, cd = parseCost(sf.mana), ce = sc.back.colors && sc.back.colors.length ? null : 1;
   fd.cost = parseCost(sc.back.mana); fd.cmc = valorDoCustoT(fd.cost); fd.semCusto = false; if (ce) fd.colors = coresDoCustoT(fd.cost);
-  if (sf.sala && fd.script) for (const k of ['continuo', 'regraJogador']) if (sc.back[k]) fd.script[k] = sc.back[k]; // T-76 · CR 709.5 · o texto estático da porta direita
+  if (sf.sala && fd.script) fd.script.portaT = { continuo: sc.back.continuo, regraJogador: sc.back.regraJogador }; // T-76 · CR 709.5 · o texto estático da porta direita (T-78: numa chave só da Sala — um objeto com o nome da porta, fora da Sala, não ganha esse texto)
   if (sc.back.aftermath && fd.script) fd.script.flashback = { mana: sc.back.mana, consequenciaT: true }; // T-32 · CR 702.127a: do cemitério, pelo custo da própria metade, e exilada ao sair da pilha (o caminho do lampejo)
   const esq = esquerdaT(sc), fe = s.facts[esq] = cardFacts({ name: esq, type_line: (sf.types || []).join(' '), colors: (sf.colors && sf.colors.length) ? sf.colors : coresDoCustoT(cd), keywords: [], oracle_text: '' });
   fe.cost = cd; fe.cmc = valorDoCustoT(cd); fe.semCusto = false; fe.script = { name: esq, effects: sc.effects || [], abilities: [] }; fe.metadeDe = sc.name;

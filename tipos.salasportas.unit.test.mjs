@@ -114,3 +114,17 @@ test('CR 709.5 · validador: contínuo e regra de jogador valem nas portas; conc
   recusa({ ...base, back: { name: 'Y', types: ['enchantment'], mana: '{1}', abilities: [], continuo: [{ afetados: { tipos: ['creature'] }, perde: ['flying'] }] } }, /porta direita/);
   recusa({ ...base, back: { name: 'Y', types: ['enchantment'], mana: '{1}', abilities: [], continuo: [{ afetados: { tipos: ['creature'] }, poder: 'x' }] } }, /porta direita/);
 });
+
+/* ---------------- T-78 · achados da auditoria independente (T-75…T-77) ---------------- */
+test('CR 709.5 · validador: numa Sala, chave estática de topo que valeria com as portas trancadas (staticRule, produces, entra virada) é recusada', () => {
+  const base = { name: 'X // Y', self: { dividida: true, sala: true, mana: '{W}', types: ['enchantment'] }, abilities: [], back: { name: 'Y', types: ['enchantment'], mana: '{1}', abilities: [] }, example: SALA_EX };
+  for (const extra of [{ staticRule: 'opponent-creatures-enter-tapped' }, { produces: ['W'] }, { entersTapped: true }, { flashback: { mana: '{1}' } }])
+    assert.ok(SC.validateScript({ ...base, ...extra }).some(e => /sala: a chave/.test(e)), JSON.stringify(extra));
+  eq(SC.validateScript(base), []);
+});
+
+test('CR 709.5 · o texto estático da porta direita fica numa chave só da Sala: os fatos da porta não têm contínuo nem regra de jogador soltos', () => {
+  const s = mesa();
+  eq([s.facts['Galeria'].script.continuo, s.facts['Galeria'].script.regraJogador, s.facts['Steaming Sauna'].script.regraJogador], [undefined, undefined, undefined]);
+  assert.ok(s.facts['Galeria'].script.portaT.continuo.length === 1 && s.facts['Steaming Sauna'].script.portaT.regraJogador.length === 1);
+});
