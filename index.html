@@ -5889,6 +5889,7 @@ const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield
   'exerted', // V-20 · "You may exert ~ as it attacks. When you do, …" (701.43d): dispara quando a permanente é exaurida
   'becomes-monstrous', // V-6 · "When ~ becomes monstrous" (o valor do gatilho é o N da monstruosidade, 701.37c)
   /* ↓ T · gatilhos da trilha tipos */
+  'expend', // T-85 · CR 700.14 · "Whenever you expend N" (`n`): dispara quando o total de mana que você gastou para conjurar mágicas no turno passa de menos de N para N ou mais
   'saddles', // T-54 · CR 702.171c "Whenever ~ saddles a Mount" (a montaria é o `remembered` do gatilho)
   'turned-face-up', // T-42 · CR 708.8 · "When ~ is turned face up": dispara quando a permanente virada para baixo é virada para cima (custo de metamorfose ou disfarce, ou a manifestada)
   'fully-unlock', // T-27 · CR 709.5i · "When you fully unlock this Room": só numa porta de Sala
@@ -6755,6 +6756,16 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-85 · CR 700.14 · "Whenever you expend N" (Oracle do Forge, clone de 13/10/2026). O lembrete entre parênteses não se escreve; menace vem do texto.
+  { name: 'Bakersbane Duo', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'token', amount: 1, token: { name: 'Food', types: ['artifact'], subtypes: ['Food'], colors: [], abilities: [{ kind: 'activated', cost: { mana: '{2}', tap: true, sacrifice: true }, effects: [{ do: 'gain', amount: 3 }] }] } }] }, // "When Bakersbane Duo enters, create a Food token."
+    { kind: 'triggered', when: 'expend', n: 4, effects: [{ do: 'continuo', target: 'self-source', poder: 1, resistencia: 1 }] }], // "Whenever you expend 4, Bakersbane Duo gets +1/+1 until end of turn."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o cenário de verdade está em tipos.expend.unit
+  { name: 'Bark-Knuckle Boxer', abilities: [{ kind: 'triggered', when: 'expend', n: 4, effects: [{ do: 'keyword', keyword: 'indestructible', target: 'self-source' }] }], // "Whenever you expend 4, Bark-Knuckle Boxer gains indestructible until end of turn."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Teapot Slinger', abilities: [{ kind: 'triggered', when: 'expend', n: 4, effects: [{ do: 'damage', amount: 2, target: 'each-opponent' }] }], // "Menace · Whenever you expend 4, Teapot Slinger deals 2 damage to each opponent."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Wandertale Mentor', produces: [['R'], ['G']], abilities: [{ kind: 'triggered', when: 'expend', n: 4, effects: [{ do: 'counters', amount: 1, target: 'self-source' }] }], // "Whenever you expend 4, put a +1/+1 counter on Wandertale Mentor. · {T}: Add {R} or {G}."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // T-84 · CR 700.11 · "descended this turn" (Oracle do Forge, clone de 13/10/2026). O lembrete entre parênteses não se escreve; as palavras-chave vêm do texto.
   { name: 'Child of the Volcano', abilities: [{ kind: 'triggered', when: 'end-step', condition: { desceu: true }, effects: [{ do: 'counters', amount: 1, target: 'self-source' }] }], // "Trample · At the beginning of your end step, if you descended this turn, put a +1/+1 counter on Child of the Volcano."
     example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o cenário de verdade está em tipos.desceu.unit
@@ -9476,6 +9487,7 @@ function salaErros(sc) {
   return errs;
 }
 GATILHO_EVENTO['unlock-door'] = { evento: 'destranca_porta', objeto: 'self' }; TRIGGER_PT['unlock-door'] = 'quando você destranca esta porta';
+TRIGGER_PT.expend = 'sempre que o total de mana que você gastou em mágicas neste turno chega ao número da habilidade (expend)'; // T-85 · CR 700.14
 GATILHO_EVENTO['fully-unlock'] = { evento: 'destranca_sala', objeto: 'self' }; TRIGGER_PT['fully-unlock'] = 'quando você destranca a Sala por inteiro'; // T-27 · CR 709.5i
 /** T-27 · CR 709.5f/g · o efeito `porta`: `acao` 'destrancar' (uma porta trancada), 'trancar' (uma destrancada) ou 'qualquer' (tranca ou
  * destranca); a escolha da porta abre logo depois da resolução, por isso `porta` é o último efeito da lista. */
@@ -9535,6 +9547,7 @@ function monarcaErrosT(sc) {
   const errs = [], abs = [...((sc && sc.abilities) || []), ...((sc && sc.back && sc.back.abilities) || [])];
   for (const ab of abs) if (ab && ab.condition && ab.condition.monarca != null && !['voce', 'oponente'].includes(ab.condition.monarca)) errs.push('condição "monarca" do gatilho: \'voce\' ou \'oponente\'');
   for (const ab of abs) if (ab && ab.condition && ab.condition.desceu != null && ab.condition.desceu !== true) errs.push('condição "desceu" do gatilho: só true'); // T-84
+  for (const ab of abs) if (ab && ab.kind === 'triggered' && ab.when === 'expend' && !(Number.isInteger(ab.n) && ab.n >= 1)) errs.push('gatilho "expend": "n" é um inteiro, 1 ou mais (o N de "whenever you expend N")'); // T-85
   if (sc && sc.self && sc.self.atacaSeMonarcaDefende != null && sc.self.atacaSeMonarcaDefende !== true) errs.push('self.atacaSeMonarcaDefende só vale como true'); // T-70
   if (sc && sc.self && sc.self.nomeAoEntrar != null) { const n = sc.self.nomeAoEntrar, f = n && n.filtro; if (!(n === true || (n && typeof n === 'object' && !Array.isArray(n) && Object.keys(n).every(k => k === 'filtro')))) errs.push('self.nomeAoEntrar é true ou { filtro }'); else if (f != null && (typeof f !== 'object' || Object.keys(f).some(k => !['tipos', 'semTipos'].includes(k) || !Array.isArray(f[k]) || f[k].some(t => !FILTER_TYPES.includes(t))))) errs.push('self.nomeAoEntrar: o filtro é { tipos, semTipos }, com tipos de carta'); } // T-79
   const nomeNoGatilhoT_ = ((sc && sc.abilities) || []).some(ab => ab && ab.kind === 'triggered' && ab.when === 'etb' && (ab.effects || []).some(e => e && e.do === 'escolhe_nome')), escolheNomeT_ = !!(sc && sc.self && sc.self.nomeAoEntrar) || nomeNoGatilhoT_; // T-81 · "when this enters, choose a card name" (Petrified Hamlet) também
@@ -19353,6 +19366,7 @@ function serveGasto(s, g, ctx) {
 const MANA_GASTA_NA_PARTIDA = new WeakMap();
 const partidaContaManaGasta = s => { if (!MANA_GASTA_NA_PARTIDA.has(s.facts)) MANA_GASTA_NA_PARTIDA.set(s.facts, Object.values(s.facts).some(f => f && ((f.script || {}).abilities || []).some(ab => ab && ab.filter && ab.filter.semManaGasta))); return MANA_GASTA_NA_PARTIDA.get(s.facts); };
 function anotaManaGasta(s, antes, depois) {
+  expendGastoT(s, antes, depois); // T-85 · CR 700.14 · o total do turno e o "expend N" (Toca ponto comum: anotaManaGasta, uma linha)
   if (!GASTO || GASTO.magia == null || !s.objects[GASTO.magia] || !partidaContaManaGasta(s)) return;
   let total = 0, colorida = 0; for (const c of COLORS) { const g = Math.max(0, (antes[c] || 0) - (depois[c] || 0)); total += g; if (c !== 'C') colorida += g; }
   const o = s.objects[GASTO.magia], m = o.manaGasta || { total: 0, colorida: 0 }; o.manaGasta = { total: m.total + total, colorida: m.colorida + colorida };
@@ -29105,6 +29119,21 @@ function desceuT(s, o) {
 const vezesQueDesceuT = (s, p) => (s.desceuT && s.desceuT.turno === s.turn.number && s.desceuT.n[p]) || 0;
 const desceuNoTurnoT = (s, p) => vezesQueDesceuT(s, p) > 0;
 Object.assign(EXPORTS_T, { vezesQueDesceuT });
+/* ---------------- T-85 · CR 700.14 · "Whenever you expend N" ----------------
+   Toda mana gasta para pagar o custo de conjurar uma mágica (o ponto em que o motor anota a mana gasta, 601.2h) soma no total do turno de
+   quem conjura (`s.expendT = { turno, n: { [jogador]: N } }`). Quando o total passa de menos de N para N ou mais, dispara o
+   `when: 'expend'` com `n: N` das permanentes desse jogador (603.2). Vida paga no lugar de mana phyrexiana não é mana gasta. */
+function expendGastoT(s, antes, depois) {
+  if (!GASTO || GASTO.magia == null || !partidaPerguntaT(s, 'expend', sc => (sc.abilities || []).some(ab => ab && ab.when === 'expend'))) return; const o = s.objects[GASTO.magia]; if (!o) return; // só nas partidas com "expend" (as partidas-referência não mudam)
+  let total = 0; for (const c of COLORS) total += Math.max(0, (antes[c] || 0) - (depois[c] || 0)); if (!total) return;
+  const p = o.controller, r = s.expendT && s.expendT.turno === s.turn.number ? s.expendT : (s.expendT = { turno: s.turn.number, n: {} });
+  const de = r.n[p] || 0, ate = de + total; r.n[p] = ate;
+  for (const w of battlefield(s)) { if (w.controller !== p) continue;
+    for (const ab of abilitiesOf(s, w)) if (ab.kind === 'triggered' && ab.when === 'expend' && de < ab.n && ate >= ab.n && triggerConditionMet(s, w, ab.condition))
+      s.queued.push({ source: w.oid, name: w.name, controller: p, effects: ab.effects, when: ab.when, ...marcasDaHabilidade(ab) }); }
+}
+const manaGastaNoTurnoT = (s, p) => (s.expendT && s.expendT.turno === s.turn.number && s.expendT.n[p]) || 0;
+Object.assign(EXPORTS_T, { manaGastaNoTurnoT });
 /* ---------------- T-83 · CR 700.3 · separar em pilhas (Fact or Fiction, Steam Augury, Sphinx of Uthuun) ----------------
    - O efeito `pilhas` revela as N cartas do topo do grimório de quem o controla (públicas, 701.20) e abre `pilha_separa` para quem separa
      (`separa`: 'oponente', o padrão, ou 'voce'); depois `pilha_escolhe` para quem escolhe (`escolhe`: 'voce', o padrão, ou 'oponente').

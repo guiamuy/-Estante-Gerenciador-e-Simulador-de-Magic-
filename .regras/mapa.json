@@ -5812,12 +5812,19 @@
    "n": "700.14",
    "regra": "General",
    "titulo": "Gastar N (expend)",
-   "status": "ausente",
-   "falta": "Sem contador de mana gasta para conjurar mágicas no turno nem gatilho \"whenever you expend N\" (grep vazio; existe só spellsThisTurn para tempestade, index.html:12294).",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "601.2h",
     "106"
+   ],
+   "evidencia": "T-85 (14/10/2026): toda mana gasta para pagar o custo de conjurar uma mágica soma no total do turno de quem conjura (expendGastoT, no ponto em que o motor anota a mana gasta, 601.2h); quando o total passa de menos de N para N ou mais, dispara when: \"expend\" com n: N das permanentes desse jogador. Mana de habilidade ativada não conta; vida paga no lugar de mana phyrexiana não é mana. Cartas: Teapot Slinger, Bakersbane Duo, Bark-Knuckle Boxer, Wandertale Mentor (Oracle do Forge, clone de 13/10/2026).",
+   "testes": [
+    "CR 700.14 · Teapot Slinger (texto oficial): dispara quando o total de mana gasta em mágicas no turno chega a 4 — uma vez só",
+    "CR 700.14 · o total conta as mágicas de antes de a permanente entrar: Teapot Slinger conjurada por {3}{R} já leva o total a 4 e não dispara depois",
+    "CR 700.14 · só mana gasta para conjurar mágicas: a mana de uma habilidade ativada não conta; o total recomeça no turno seguinte",
+    "CR 700.14 · Bakersbane Duo, Bark-Knuckle Boxer e Wandertale Mentor (textos oficiais): +1/+1 até o fim do turno, indestrutível até o fim do turno e um marcador",
+    "CR 700.14 · validador: o gatilho \"expend\" pede o N"
    ]
   },
   {
