@@ -4319,6 +4319,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** quatro linhas do registro, anteriores a esta leva, ficam para a próxima: "A foi sacrificada" (nome do jogador no lugar da carta), "morreu" para permanente que não é criatura, gatilho que falha pela condição dito como "sem alvo legal" e dano prevenido dito como causado.
 - **Teste:** `lt79.unit` (1 teste; falha no motor anterior).
 
+**M-397 · LT64 · Registro da partida: quatro linhas que contavam errado** ✅ (leva M-397, motor v112 sem mudança de forma; goldens intactos — o registro não entra no estado).
+- **Valor:** achados da revisão da M-396, anteriores a ela. (1) A permanente que se sacrifica pelo próprio efeito aparece como "Pestilence foi sacrificada" (antes: "Pestilence: A foi sacrificada", com o nome do jogador); (2) permanente que não é criatura nem planeswalker vai "para o cemitério" (700.4: só elas "morrem"); (3) gatilho que deixa de valer pela condição (603.4) diz "a condição deixou de valer, nada acontece" (antes: "sem alvo legal"); (4) dano prevenido diz "o dano a X foi prevenido" (antes aparecia como causado).
+- **Revisão independente:** lote conjunto com a M-398 — as quatro linhas nos casos certos e sem regressão (criatura, ficha de criatura, artefato-criatura e planeswalker continuam "morreu"); aprovada.
+- **Fora (declarado):** só o texto do registro; nenhuma regra muda. Ficam para depois: sacrifício de outra permanente pelo efeito alvo mostra o nome da permanente no lugar da fonte; dano parcialmente prevenido não diz quanto foi prevenido.
+- **Teste:** `lt80.unit` (2 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

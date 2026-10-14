@@ -21120,7 +21120,7 @@ function applyEffect(s, src, eff, tgt, events) {
     }
     case 'sacrifice_it': { // M-222 · "Target permanent's controller sacrifices it"
       const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj; // M-342 · "sacrifice ~" (City of Traitors)
-      if (alvo && alvo.zone === 'battlefield') { const nome = alvo.name; sacrifice(s, alvo.oid, events); note({ name: nome }); } else note({ failed: true });
+      if (alvo && alvo.zone === 'battlefield') { const nome = alvo.name; sacrifice(s, alvo.oid, events); note({ name: nome, ...(eff.target === 'self-source' ? { propria: true } : {}) }); } else note({ failed: true }); // M-397 · o registro da própria permanente
       break;
     }
     case 'endure': { // M-380 · "endures N": a permanente que resiste é a fonte; fora do campo (ou outro objeto, 400.7) só sobra o Espírito
@@ -30996,7 +30996,7 @@ function effectLine(ev) {
   if (LINHA_T[ev.do]) return LINHA_T[ev.do](ev); // T-7 · Toca ponto comum: effectLine (linhas do registro da trilha tipos)
   const n = ev.amount, t = ev.target;
   switch (ev.do) {
-    case 'damage': return ev.failed ? `${ev.name} não causou dano: alvo ilegal` : `${ev.name} causou ${n} de dano a ${t}`;
+    case 'damage': return ev.failed ? `${ev.name} não causou dano: alvo ilegal` : ev.prevented ? `${ev.name}: o dano a ${t} foi prevenido` : `${ev.name} causou ${n} de dano a ${t}`; // M-397 · o dano prevenido não aparece como causado
     case 'reveal': return `${ev.name} revelou: ${t}`; // Leva 108
     case 'vence': return `${ev.name}: o controlador venceu o jogo`; // CR2h.6
     case 'perde': return `${ev.name}: ${t} perdeu o jogo`; // CR2h.6
@@ -31025,7 +31025,7 @@ function effectLine(ev) {
     case 'revela_ate_cemiterio': return ev.failed ? `${ev.name}: sem jogador alvo, não revelou nada` : `${t} revelou ${n} carta(s)${ev.semTerreno ? ' sem achar terreno' : ' até um terreno'} e pôs todas no cemitério (${ev.name})`; // M-377
     case 'reveal_until': return `${t} revelou ${n} carta(s) (${(ev.nomes || []).join(', ')})${ev.achada ? ` e pôs ${ev.achada} no campo` : ' sem achar o que procurava'} (${ev.name})`; // M-222
     case 'to_bottom': return ev.failed ? `${ev.name}: o alvo já não estava no campo` : `${t} foi para o fundo do grimório (${ev.name})`;
-    case 'sacrifice_it': return ev.failed ? `${ev.name}: o alvo já não estava no campo` : `${ev.name}: ${ev.name2 || t} foi sacrificada`;
+    case 'sacrifice_it': return ev.failed ? `${ev.name}: o alvo já não estava no campo` : ev.propria ? `${ev.name} foi sacrificada` : `${ev.name}: ${ev.name2 || t} foi sacrificada`; // M-397 · antes "Pestilence: A foi sacrificada"
     case 'reanimate_all': return n ? `${ev.name} devolveu ao campo ${(ev.nomes || []).join(', ')}` : `${ev.name} não devolveu nada`; // CR2c.5
     case 'exile_self': return `${ev.name} foi exilada`;
     case 'counter_choice': return `${t} recebeu um marcador de ${PALAVRA_PT[ev.kind] || ev.kind} (${ev.name})`;
@@ -31156,7 +31156,7 @@ function describe(before, a, events, after) {
   // dano de combate e mortes que acontecem ao passar
   if (a.t === 'pass' || a.t === 'block' || a.t === 'attack') {
     after.players.forEach((pl, i) => { if (pl.life !== before.players[i].life) L.push(linhaDeVida(pl.name, before.players[i].life, pl.life)); });
-    for (const o of Object.values(after.objects)) if (before.objects[o.oid] && before.objects[o.oid].zone === 'battlefield' && o.zone === 'graveyard' && !events.some(e => e.oid === o.oid)) L.push(`${o.name} morreu`);
+    for (const o of Object.values(after.objects)) if (before.objects[o.oid] && before.objects[o.oid].zone === 'battlefield' && o.zone === 'graveyard' && !events.some(e => e.oid === o.oid)) L.push(o.ultima && !(o.ultima.tipos || []).some(t => t === 'creature' || t === 'planeswalker') ? `${o.name} foi para o cemitério` : `${o.name} morreu`); // M-397 · 700.4: só criatura (e planeswalker) "morre"
   }
   for (const ev of events) {
     if (ev.kind === 'effect') L.push(effectLine(ev));
@@ -31166,7 +31166,7 @@ function describe(before, a, events, after) {
     if (ev.kind === 'replicar') L.push(`Replicar: ${plural(ev.amount, 'cópia', 'cópias')} de ${ev.name}`); // M-265
     if (ev.kind === 'copy') L.push(`Cópia de ${ev.name} na pilha`); // CR2f.3
     if (ev.kind === 'choice') L.push(`${ev.name}: ${ev.what} (${plural(ev.amount, 'carta', 'cartas')})`);
-    if (ev.kind === 'trigger-fizzled') L.push(`Gatilho de ${ev.name} sem alvo legal: saiu da pilha`);
+    if (ev.kind === 'trigger-fizzled') L.push(ev.when === 'condição' ? `Gatilho de ${ev.name}: a condição deixou de valer, nada acontece` : `Gatilho de ${ev.name} sem alvo legal: saiu da pilha`); // M-397 · 603.4
     if (ev.kind === 'room') L.push(`${ev.target} se aventurou na masmorra: ${ev.dungeon} — ${ev.name}`); // S57
     if (ev.kind === 'trigger') L.push(`Gatilho de ${ev.name} (${descreveGatilho(ev.when)})`); // CR2-G R2a · nome antigo ou descritor
     if (ev.kind === 'resolved' && !ev.scripted) L.push(ev.to === 'battlefield' ? `${ev.name} entrou no campo` : `${ev.name} resolveu`);
