@@ -8,6 +8,7 @@ import { readFileSync } from 'node:fs';
 import { E, S as SC, J, act, poe, legais, passaAte, valorDeMana } from './listas.mjs';
 
 const L = n => JSON.parse(readFileSync(new URL('./.listas/' + n, import.meta.url), 'utf8')).cartas;
+const DM = L('oficiais-commander.json').find(x => x.name === 'Darksteel Mutation'); // T-93 · o texto oficial já registrado
 const NOMES = ["Megaton's Fate", 'Nuclear Fallout', 'Feral Ghoul', 'Contaminated Drink', 'Vault 12: The Necropolis', 'Strong, the Brutish Thespian'];
 const C = {};
 for (const c of L('oficiais-tipos.json').filter(x => NOMES.includes(x.name)))
@@ -16,6 +17,7 @@ C.Swamp = { name: 'Swamp', type_line: 'Basic Land — Swamp', mana_cost: '', cmc
 const carta = (name, type_line, extra = {}) => { C[name] = { name, type_line, mana_cost: '{1}', cmc: 1, keywords: [], oracle_text: '', colors: [], ...extra }; };
 carta('Urso', 'Creature — Bear', { power: '2', toughness: '2' }); carta('Zumbi', 'Creature — Zombie', { power: '2', toughness: '2' }); carta('Pedra', 'Artifact');
 carta('Choque', 'Instant'); carta('Prolifera', 'Sorcery');
+C[DM.name] = { name: DM.name, type_line: DM.type_line, mana_cost: DM.mana_cost, cmc: valorDeMana(DM.mana_cost), keywords: [], oracle_text: DM.oracle_text, colors: ['W'] };
 const EX = { example: { target: 'none', expect: { selfLife: 0 } } };
 const SCRIPTS = {
   'Choque': { name: 'Choque', effects: [{ do: 'damage', amount: 2, target: 'any' }], ...EX },
@@ -50,8 +52,8 @@ test('CR 728.1 · a habilidade é só na fase principal de quem tem radiação; 
   let s = mesa(); s = comRad(s, 1, 2); let ids; [s, ids] = topo(s, 1, ['Swamp', 'Urso', 'Urso']); ids = ids.slice(1); // a primeira é a compra do turno
   let t = passaAte(s, x => x.turn.active === 0 && x.turn.step === 'combat_begin' || x.turn.active === 1);
   eq(ids.map(o => t.objects[o].zone), ['library', 'library'], 'na principal de A, B não mói');
-  t = mesa(); const g = t.zones[0].graveyard.length; t = resolve(proximaPrincipal(t, 0));
-  eq(t.zones[0].graveyard.length, g, 'sem radiação, nada');
+  t = mesa(); const g = t.zones[0].library.length; t = resolve(proximaPrincipal(t, 0));
+  eq(g - t.zones[0].library.length, 1, 'sem radiação, nada: só a compra do turno');
   t = proximaPrincipal(s, 1);
   assert.ok(t.stack.length || t.pending, 'disparou');
   t = comRad(t, 1, 0); t = resolve(t);
@@ -122,4 +124,15 @@ test('CR 728.1 · validador: "rad" pede a quantidade e um jogador', () => {
   eq(v({ effects: [{ do: 'rad', amount: { per: 'metade-de-x' }, target: 'self' }] }), []);
   assert.ok(v({ effects: [{ do: 'rad', amount: 2, target: 'creature' }] }).length > 0, 'criatura não recebe radiação');
   assert.ok(v({ self: { radGanhaVida: 1 }, effects: [{ do: 'gain', amount: 1 }] }).some(e => /radGanhaVida/.test(e)));
+});
+
+/* ---------------- T-93 · achados da auditoria independente (T-90…T-92) ---------------- */
+test('CR 728.1a · Strong que perdeu as habilidades (Darksteel Mutation, texto oficial) não troca a perda pela radiação por ganho', () => {
+  let s = mesa(); let st, dm; [s, st] = poe(s, 0, 'Strong, the Brutish Thespian', 'battlefield');
+  [s, dm] = conjura(s, 'Darksteel Mutation', a => a.targets && a.targets[0] && a.targets[0].oid === st);
+  eq([s.objects[dm].attachedTo, E.stats(s, s.objects[st]).power], [st, 0], 'Strong virou um 0/1 sem habilidades');
+  s = comRad(s, 0, 2); [s] = topo(s, 0, ['Swamp', 'Urso', 'Swamp']);
+  const v = s.players[0].life;
+  s = resolve(proximaPrincipal(s, 0));
+  eq([s.players[0].life - v, rad(s, 0)], [-1, 1], 'perdeu 1 (a habilidade do Strong não existe mais)');
 });

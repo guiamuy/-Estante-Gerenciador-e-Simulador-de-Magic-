@@ -23454,7 +23454,7 @@ function stateBased(s, events) {
       for (const oid of morrem) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield') continue; moveObject(s, oid, 'graveyard'); changed = true; const para = (s.objects[oid] || {}).zone; events.push({ kind: 'died', oid, name: o.name, ...(para && para !== 'graveyard' ? { para } : {}) }); } // M-384 · achado da revisão: a substituição (exílio) aparece no registro
       delete s.saindoJuntas;
     }
-    if (batalhasDeEstadoT(s, events) | equipamentosDeEstadoT(s, events) | papeisDeEstadoT(s, events) | auraAnexoDeEstadoT(s, events) | portaDeEstadoT(s, events) | nomeDeEstadoT(s, events) | masmorraDeEstadoT(s, events) | cicloDeEstadoT(s, events) | preparoDeEstadoT(s, events)) changed = true; // T-51 · CR 722.3c // T-48 · CR 702.145c/d/f/g // T-46 · CR 309.6 / 704.5t // T-27 · CR 709.5f // T-22 · CR 303.4f // T-20 · CR 303.7a / 704.5z // T-16 · CR 301.5c / 704.5n · Equipamento que não pode equipar se solta // T-14 · CR 310.7 / 310.8 / 310.10 / 310.11 / 704.5v–y · batalhas (função abaixo da âncora T das exportações)
+    if (batalhasDeEstadoT(s, events) | equipamentosDeEstadoT(s, events) | papeisDeEstadoT(s, events) | auraAnexoDeEstadoT(s, events) | portaDeEstadoT(s, events) | nomeDeEstadoT(s, events) | encerraDeEstadoT(s) /* T-93 · CR 724.1c (Toca ponto comum: stateBased, linha das conferências T) */ | masmorraDeEstadoT(s, events) | cicloDeEstadoT(s, events) | preparoDeEstadoT(s, events)) changed = true; // T-51 · CR 722.3c // T-48 · CR 702.145c/d/f/g // T-46 · CR 309.6 / 704.5t // T-27 · CR 709.5f // T-22 · CR 303.4f // T-20 · CR 303.7a / 704.5z // T-16 · CR 301.5c / 704.5n · Equipamento que não pode equipar se solta // T-14 · CR 310.7 / 310.8 / 310.10 / 310.11 / 704.5v–y · batalhas (função abaixo da âncora T das exportações)
     if (sagasDeEstado(s, events)) changed = true; // T-1 · CR 714.2b (capítulos disparam), 714.3b (read ahead) e 714.4 / 704.5s (sacrifício); função abaixo da âncora T das exportações
     if (!changed) break;
   }
@@ -29440,7 +29440,7 @@ function nomesDaMagiaT(s, o, a) {
 }
 function acaoTravadaPeloNomeT(s, a, travas) {
   if (!a || !travas.length) return null;
-  if (ACOES_CONJURAR_T.includes(a.t)) { const oid = a.oid != null ? a.oid : a.t === 'cast_madness' && s.pending && s.pending.kind === 'madness' ? s.pending.oid : null, o = oid != null && s.objects[oid]; if (!o) return null; const ns = nomesDaMagiaT(s, o, a); return travas.find(t => t.conjurar && ns.includes(t.nome)) || null; } // T-81 · "Spells with the chosen name can't be cast" · T-82 · a loucura não traz o oid na ação: a carta é a da decisão
+  if (ACOES_CONJURAR_T.includes(a.t) || (a.t === 'ninjutsu' && !!a.sneak) /* T-93 · esgueirar-se é conjurar */) { const oid = a.oid != null ? a.oid : a.t === 'cast_madness' && s.pending && s.pending.kind === 'madness' ? s.pending.oid : null, o = oid != null && s.objects[oid]; if (!o) return null; const ns = nomesDaMagiaT(s, o, a); return travas.find(t => t.conjurar && ns.includes(t.nome)) || null; } // T-81 · "Spells with the chosen name can't be cast" · T-82 · a loucura não traz o oid na ação: a carta é a da decisão
   if (!ACOES_ATIVADAS_T.includes(a.t) || a.oid == null) return null;
   const o = s.objects[a.oid]; if (!o || o.faceDown) return null;
   const ab = a.t === 'activate' ? abilitiesOf(s, o).filter(x => x.kind === 'activated')[a.index || 0] || {} : null;
@@ -29454,7 +29454,7 @@ function marcaAtivadaT(s, a) {
   if (!a || !['activate', 'tap_mana', 'tripular'].includes(a.t) || a.oid == null || a.fromHand || a.fromGraveyard || !partidaPerguntaT(s, 'ativada', sc => /ativadaNoTurno/.test(JSON.stringify(sc)))) return; // só nas partidas que perguntam (as partidas-referência não mudam)
   const o = s.objects[a.oid]; if (o && o.zone === 'battlefield') o.ativadaT = { turno: s.turn.number, z: o.zc || 0 };
 }
-function barraTravadaPeloNomeT(s, a) { corExcetoBarraT(s, a); barraVedadaPeloTurnoT(s, a); marcaAtivadaT(s, a); const t = acaoTravadaPeloNomeT(s, a, travasDeNomeT(s)); if (t) throw new RuleError('travada', ACOES_CONJURAR_T.includes(a.t) ? `${t.fonte}: mágicas com o nome ${t.nome} não podem ser conjuradas` : `${t.fonte}: as habilidades ativadas de ${t.nome} não podem ser ativadas${t.modo === 'semMana' ? ' (as de mana podem)' : ''}`); }
+function barraTravadaPeloNomeT(s, a) { corExcetoBarraT(s, a); barraVedadaPeloTurnoT(s, a); marcaAtivadaT(s, a); const t = acaoTravadaPeloNomeT(s, a, travasDeNomeT(s)); if (t) throw new RuleError('travada', ehConjurarT(a) ? `${t.fonte}: mágicas com o nome ${t.nome} não podem ser conjuradas` : `${t.fonte}: as habilidades ativadas de ${t.nome} não podem ser ativadas${t.modo === 'semMana' ? ' (as de mana podem)' : ''}`); }
 /* ---------------- T-90 · CR 105.4 · "As this enters, choose a color other than X" (Portões, 205.3i) ----------------
    `self.corExceto` (com `choose: 'color'`): a escolha de cor desta permanente (a de 614.12, aberta ao entrar) não oferece a cor vedada
    e a ação com ela é recusada. A escolha de cor de mana ("any combination of colors", `manaRestam`) não é da carta e fica livre.
@@ -29492,7 +29492,7 @@ function radiacaoT(s, src, events) {
   const moidas = s.zones[p].library.slice(0, n), nomes = moidas.map(oid => s.objects[oid].name);
   for (const oid of moidas) moveObject(s, oid, 'graveyard');
   const k = moidas.filter(oid => !(((s.facts[s.objects[oid].name] || {}).types) || []).includes('land')).length;
-  const ganha = battlefield(s).some(o => o.controller === p && !o.faceDown && ((((s.facts[o.name] || {}).script) || {}).self || {}).radGanhaVida);
+  const ganha = battlefield(s).some(o => o.controller === p && !semImpressas(s, o) && ((((s.facts[o.name] || {}).script) || {}).self || {}).radGanhaVida); // T-93 · achado da auditoria: sem as habilidades impressas (virada para baixo, perdeu as habilidades), não troca
   if (k > 0) { if (ganha) ganhaVidaJogador(s, p, k); else perdeVida(s, p, k); pl.rad = Math.max(0, n - k); }
   events.push({ kind: 'effect', do: 'radiacao', name: 'Radiação', target: pl.name, moidas: nomes, amount: k, ganha, total: pl.rad });
 }
@@ -29516,29 +29516,37 @@ function encerraT(s, src, oque, events) {
     exiladas.push(o.name); moveObject(s, oid, 'exile'); }
   s.stack = []; delete s.magiaSuspensa; delete s.resume;
   stateBased(s, events); // (c) — os gatilhos que isso disparar ficam esperando a limpeza (ou a fase principal)
-  if (s.combat || battlefield(s).some(o => o.attacking || o.blocking)) saiDoCombate(s); // (d)
   events.push({ kind: 'effect', do: 'encerra', oque, name: src.name, exiladas });
+  if (s.pending) { s.encerraDepoisT = oque; return; } // T-93 · achado da auditoria: a escolha da ação de estado (a lendária que fica) vem antes da limpeza (724.1c, 514.1)
+  fimDoEncerramentoT(s, oque);
+}
+function fimDoEncerramentoT(s, oque) {
+  if (s.combat || battlefield(s).some(o => o.attacking || o.blocking)) saiDoCombate(s); // (d)
   s.turn.passes = 0;
   enterStep(s, oque === 'turno' ? 'cleanup' : 'main2');
 }
-function filtraVedadasPeloTurnoT(s, out) { const r = restricoesDeTurnoT(s); if (r) for (let i = out.length - 1; i >= 0; i--) if (vedadaPeloTurnoT(s, out[i], r)) out.splice(i, 1); }
-function barraVedadaPeloTurnoT(s, a) { const r = restricoesDeTurnoT(s), m = r && vedadaPeloTurnoT(s, a, r); if (m) throw new RuleError('tempo', m); }
-function restricoesDeTurnoT(s) {
-  const sem = s.semConjurarT && s.semConjurarT.turno === s.turn.number ? s.semConjurarT.jogadores : null;
-  const seu = partidaPerguntaT(s, 'soNoSeuTurno', sc => (sc.abilities || []).some(ab => ab && ab.soNoSeuTurno)), combate = partidaPerguntaT(s, 'soEmCombate', sc => !!(sc.self && sc.self.soEmCombate));
-  return sem || seu || combate ? { sem, seu, combate } : null;
-}
-function vedadaPeloTurnoT(s, a, r) {
-  if (!a || a.oid == null && a.t !== 'cast_madness') return null;
-  if (ACOES_CONJURAR_T.includes(a.t)) {
-    if (r.sem && r.sem.includes(a.p)) return 'neste turno você não pode conjurar mágicas';
-    const o = s.objects[a.oid != null ? a.oid : (s.pending || {}).oid], sf = r.combate && o && (((s.facts[o.name] || {}).script || {}).self);
+/** T-93 · a conferência seguinte, sem escolha pendente, termina o encerramento que esperava. */
+function encerraDeEstadoT(s) { if (!s.encerraDepoisT || s.pending || s.status !== 'playing') return false; const q = s.encerraDepoisT; delete s.encerraDepoisT; fimDoEncerramentoT(s, q); return true; }
+function filtraVedadasPeloTurnoT(s, out) { for (let i = out.length - 1; i >= 0; i--) if (vedadaPeloTurnoT(s, out[i])) out.splice(i, 1); }
+function barraVedadaPeloTurnoT(s, a) { const m = vedadaPeloTurnoT(s, a); if (m) throw new RuleError('tempo', m); }
+/** T-93 · achado da auditoria (desempenho): a pergunta é feita por ação, pelo script da própria carta (resposta guardada no objeto do script),
+ * sem varrer os fatos da partida a cada legalActions. Esgueirar-se (`ninjutsu` com `sneak`) é conjurar. */
+const ehConjurarT = a => ACOES_CONJURAR_T.includes(a.t) || (a.t === 'ninjutsu' && !!a.sneak);
+function vedadaPeloTurnoT(s, a) {
+  if (!a) return null;
+  if (ehConjurarT(a)) {
+    if (s.semConjurarT && s.semConjurarT.turno === s.turn.number && s.semConjurarT.jogadores.includes(a.p)) return 'neste turno você não pode conjurar mágicas';
+    const oid = a.oid != null ? a.oid : (s.pending || {}).oid, o = oid != null && s.objects[oid], sf = o && (((s.facts[o.name] || {}).script || {}).self);
     if (sf && sf.soEmCombate && !PASSOS_DE_COMBATE_T.includes(s.turn.step)) return `${o.name}: só durante o combate`;
     return null;
   }
-  if (a.t === 'activate' && r.seu && a.p !== s.turn.active) { const o = s.objects[a.oid], ab = o && abilitiesOf(s, o).filter(x => x.kind === 'activated')[a.index || 0]; if (ab && ab.soNoSeuTurno) return `${o.name}: só no seu turno`; }
-  return null;
+  if (a.t !== 'activate' || a.oid == null || a.p === s.turn.active) return null;
+  const o = s.objects[a.oid], sc = o && (s.facts[o.name] || {}).script;
+  if (!sc || !perguntaDoScriptT(sc, 'soNoSeuTurno', x => (x.abilities || []).some(ab => ab && ab.soNoSeuTurno))) return null;
+  const ab = abilitiesOf(s, o).filter(x => x.kind === 'activated')[a.index || 0];
+  return ab && ab.soNoSeuTurno ? `${o.name}: só no seu turno` : null;
 }
+function perguntaDoScriptT(sc, chave, pred) { let m = PERGUNTA_T.get(sc); if (!m) PERGUNTA_T.set(sc, m = {}); if (m[chave] == null) m[chave] = !!pred(sc); return m[chave]; }
 /** T-81 · "Lands with the chosen name have '{T}: Add {C}.'" (`self.manaDoNome`, Petrified Hamlet): a opção de mana que o terreno com o
  * nome escolhido ganha. */
 function manaDoNomeT(s, o) {
@@ -32283,7 +32291,7 @@ const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas
   unsuspect: e => e.target === 'each-creature' ? 'todas as criaturas suspeitas deixam de ser suspeitas' : `${e.target === 'self-source' ? 'esta permanente' : ALVO_PT[e.target] || descreveAlvo(e.target)} deixa de ser suspeita`,
   lutador: e => `escolhe ${ALVO_PT[e.target] || descreveAlvo(e.target)} para lutar`,
   proliferate: () => 'prolifera (escolhe permanentes e jogadores com marcador; cada um recebe mais um de cada tipo que já tem)', // V-2
-  proliferate_jogador: () => 'esse jogador recebe mais um marcador de cada tipo que tem (veneno, energia)', // H-6
+  proliferate_jogador: () => 'esse jogador recebe mais um marcador de cada tipo que tem (veneno, energia, radiação)', // H-6 · T-93 · radiação (728.1)
   bolster: e => `fortalece ${qtd(e.amount)} (põe ${qtd(e.amount) === 1 ? '1 marcador' : qtd(e.amount) + ' marcadores'} +1/+1 na sua criatura de menor resistência)`, // V-3
   populate: () => 'povoa (cria uma ficha que é cópia de uma ficha de criatura sua)', // V-4
   monstrosity: e => `monstruosidade ${qtd(e.amount)}: se ainda não é monstruosa, recebe ${qtd(e.amount) === 1 ? '1 marcador' : qtd(e.amount) + ' marcadores'} +1/+1 e fica monstruosa`, // V-6

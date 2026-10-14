@@ -15,7 +15,7 @@ for (const c of L('oficiais-tipos.json').filter(x => NOMES.includes(x.name)))
 C.Island = { name: 'Island', type_line: 'Basic Land — Island', mana_cost: '', cmc: 0, keywords: [], oracle_text: '({T}: Add {U}.)', colors: [] };
 const carta = (name, type_line, extra = {}) => { C[name] = { name, type_line, mana_cost: '{1}', cmc: 1, keywords: [], oracle_text: '', colors: [], ...extra }; };
 carta('Urso', 'Creature — Bear', { power: '2', toughness: '2' }); carta('Pedra', 'Artifact'); carta('Raio', 'Instant'); carta('Fora', 'Instant');
-carta('Fim', 'Creature — Spirit', { power: '1', toughness: '1' }); carta('Combate', 'Creature — Soldier', { power: '1', toughness: '1' }); carta('Lembrança', 'Creature — Spirit', { power: '1', toughness: '1' });
+carta('Fim', 'Creature — Spirit', { power: '1', toughness: '1' }); carta('Combate', 'Creature — Soldier', { power: '1', toughness: '1' }); carta('Lembrança', 'Creature — Spirit', { power: '1', toughness: '1' }); carta('Lenda', 'Legendary Creature — Spirit', { power: '1', toughness: '1' });
 const EX = { example: { target: 'none', expect: { selfLife: 0 } } }, EXP = { example: { action: 'etb', target: 'none', expect: { attached: false } } };
 const SCRIPTS = {
   'Raio': { name: 'Raio', effects: [{ do: 'pump', power: 2, toughness: 0, target: 'creature' }], ...EX }, // "Target creature gets +2/+0 until end of turn."
@@ -120,4 +120,21 @@ test('CR 724 · validador: soNoSeuTurno só numa ativada; soEmCombate só como t
   eq(v({ abilities: [{ kind: 'activated', cost: { mana: '{1}' }, soNoSeuTurno: true, effects: [{ do: 'encerra_turno' }] }] }), []);
   assert.ok(v({ abilities: [{ kind: 'triggered', when: 'etb', soNoSeuTurno: true, effects: [{ do: 'gain', amount: 1 }] }] }).some(e => /soNoSeuTurno/.test(e)));
   assert.ok(v({ self: { soEmCombate: 'sim' }, effects: [{ do: 'gain', amount: 1 }] }).some(e => /soEmCombate/.test(e)));
+});
+
+/* ---------------- T-93 · achados da auditoria independente (T-90…T-92) ---------------- */
+test('CR 724.1c · a escolha da ação de estado do encerramento (a lendária que fica) vem antes da limpeza; depois o turno acaba', () => {
+  let s = mesa(); s = J(s);
+  while (s.zones[0].hand.length < 9) { const o = s.zones[0].library.shift(); s.zones[0].hand.push(o); s.objects[o].zone = 'hand'; }
+  [s] = lanca(s, 0, 'Time Stop'); s = act(s, { t: 'pass', p: 0 });
+  let l1, l2; [s, l1] = poe(s, 0, 'Lenda', 'battlefield'); [s, l2] = poe(s, 0, 'Lenda', 'battlefield'); // a ação de estado só é conferida no encerramento
+  s = act(s, { t: 'pass', p: 1 });
+  eq(s.pending && s.pending.kind, 'legend', 'primeiro a lendária');
+  s = act(s, legais(s, 0, a => a.t === 'choose_legend')[0]);
+  eq([s.turn.step, s.pending && s.pending.kind, s.pending && s.pending.n], ['cleanup', 'discard', 2], 'depois a limpeza, com o descarte');
+});
+
+test('CR 702.190 · esgueirar-se é conjurar: "Your opponents can’t cast spells this turn" também o veda', () => {
+  let s = mesa(); s = J(s); s.semConjurarT = { turno: s.turn.number, jogadores: [0] };
+  for (const a of [{ t: 'ninjutsu', p: 0, oid: s.zones[0].hand[0], sneak: true }, { t: 'cast', p: 0, oid: s.zones[0].hand[0] }]) assert.throws(() => E.apply(s, a), /não pode conjurar/);
 });
