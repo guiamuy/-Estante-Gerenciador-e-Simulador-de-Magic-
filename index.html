@@ -29615,30 +29615,32 @@ Object.assign(EXPORTS_T, { encantamentosDoJogadorT, jogadorEncantadoT });
    O estado novo tem só as chaves de uma partida recém-criada (mais `recomecoT`): monarca, iniciativa, dia e noite, marcas do turno, efeitos e
    designações da partida antiga não sobrevivem. */
 function marcaExiladasT(s, src, obj, events) {
-  const fonte = src.ability ? src.source : src.oid, z = src.fonteZc != null ? src.fonteZc : ((s.objects[fonte] || {}).zc || 0);
-  const novas = obj ? [obj] : (() => { const m = s.marcaExilioT; delete s.marcaExilioT; return m ? s.zones[m.p].exile.filter(x => !m.antes.includes(x)).map(x => s.objects[x]) : []; })();
-  for (const o of novas) if (o && o.zone === 'exile' && !o.token) o.exiladaPorT = { oid: fonte, z };
+  const fonte = src.ability ? src.source : src.oid, m = obj ? null : s.marcaExilioT; if (!obj) delete s.marcaExilioT;
+  const z = m && m.z != null ? m.z : src.fonteZc != null ? src.fonteZc : ((s.objects[fonte] || {}).zc || 0); // T-97 · a encarnação da fonte quando ativou (a retomada não leva fonteZc)
+  const novas = obj ? [obj] : m ? s.zones[m.p].exile.filter(x => !m.antes.includes(x)).map(x => s.objects[x]) : [];
+  for (const o of novas) if (o && o.zone === 'exile' && !o.token) o.exiladaPorT = { oid: fonte, z, cz: o.zc || 0 }; // T-97 · cz: a encarnação da carta exilada (400.7)
 }
 function exilaDaPropriaMaoT(s, src, who, events) {
   const mao = s.zones[who].hand.slice();
   if (!mao.length) { events.push({ kind: 'effect', do: 'exila_da_propria_mao', name: src.name, target: s.players[who].name, failed: true }); return; }
-  s.marcaExilioT = { p: who, antes: s.zones[who].exile.slice() };
+  s.marcaExilioT = { p: who, antes: s.zones[who].exile.slice(), z: src.fonteZc != null ? src.fonteZc : ((s.objects[src.ability ? src.source : src.oid] || {}).zc || 0) };
   startPick(s, { p: who, from: mao, min: 1, max: 1, to: 'exile', rest: 'stay', label: 'escolher a carta a exilar', source: src.name }, events);
 }
 const NOME_BASE_T = o => o.frontName || o.nomeImpresso || o.name;
 function recomecaJogoT(s, src, events) {
   const p = src.controller, fonte = src.ability ? src.source : src.oid, z = src.fonteZc != null ? src.fonteZc : ((s.objects[fonte] || {}).zc || 0);
   const ehCarta = o => o && !o.ability && !o.token && !o.copiaDeMagia && o.owner != null && s.players[o.owner];
-  const isenta = o => o.zone === 'exile' && o.exiladaPorT && o.exiladaPorT.oid === fonte && o.exiladaPorT.z === z && !o.faceDown && (() => { const f = s.facts[NOME_BASE_T(o)] || {}; return PERM_TYPES_T.some(t => (f.types || []).includes(t)) && !/\bAura\b/.test(f.typeText || ''); })();
+  const isenta = o => o.zone === 'exile' && o.exiladaPorT && o.exiladaPorT.oid === fonte && o.exiladaPorT.z === z && (o.exiladaPorT.cz == null || o.exiladaPorT.cz === (o.zc || 0)) /* T-97 · a mesma carta exilada (400.7) */ && !o.faceDown && (() => { const f = s.facts[NOME_BASE_T(o)] || {}; return PERM_TYPES_T.some(t => (f.types || []).includes(t)) && !/\bAura\b/.test(f.typeText || ''); })();
   const rules = FORMAT_RULES[s.format] || FORMAT_RULES.livre;
   const isentas = [], objetos = {}, zonas = s.players.map(() => Object.fromEntries(ZONE_NAMES.map(n => [n, []])));
   for (const o of Object.values(s.objects)) {
     if (!ehCarta(o)) continue;
+    if (s.players[o.owner].lost) continue; // T-97 · 727.1: só os jogadores que estavam no jogo; as cartas de quem saiu ficam fora
     const zona = isenta(o) ? 'exile' : o.zone === 'companion' ? 'companion' : rules.commander && o.commander ? 'command' : 'library';
     objetos[o.oid] = { oid: o.oid, name: NOME_BASE_T(o), owner: o.owner, controller: o.owner, zone: zona, tapped: false, sick: false, damage: 0, counters: {}, commander: !!o.commander };
     zonas[o.owner][zona].push(o.oid); if (zona === 'exile') isentas.push(o.oid);
   }
-  const jogadores = s.players.map(pl => ({ name: pl.name, life: pl.startLife != null ? pl.startLife : rules.life, startLife: pl.startLife != null ? pl.startLife : rules.life, lost: false, lossReason: null,
+  const jogadores = s.players.map(pl => ({ name: pl.name, life: pl.startLife != null ? pl.startLife : rules.life, startLife: pl.startLife != null ? pl.startLife : rules.life, lost: !!pl.lost, lossReason: pl.lost ? pl.lossReason : null, /* T-97 · 727.1 */
     landsPlayed: 0, mulligans: 0, kept: false, drewFromEmpty: false, commanderCasts: {}, commanderDamage: {}, pool: { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 }, companionUsed: false, dungeon: null, dungeonsDone: 0,
     ...(pl.dummy ? { dummy: true } : {}), ...(pl.identity ? { identity: pl.identity.slice() } : {}) }));
   const novo = { v: s.v, format: s.format, mode: s.mode, manaCheck: s.manaCheck, rng: s.rng, seed: s.seed, facts: s.facts, objects: objetos, nextOid: s.nextOid,
@@ -29648,7 +29650,7 @@ function recomecaJogoT(s, src, events) {
   for (const k of Object.keys(s)) delete s[k];
   Object.assign(s, novo);
   for (const z2 of s.zones) shuffle(s, z2.library);
-  s.players.forEach((_, i) => draw(s, i, rules.hand));
+  s.players.forEach((pl, i) => { if (!pl.lost) draw(s, i, rules.hand); }); // T-97 · quem já tinha saído não compra
   const perdem = s.players.map((pl, i) => pl.drewFromEmpty ? i : null).filter(i => i != null); for (const i of perdem) s.players[i].drewFromEmpty = false; // 727.3: a derrota espera a primeira conferência do primeiro turno
   if (isentas.length || perdem.length) s.recomecoT = { p, cartas: isentas, perdem };
   events.push({ kind: 'effect', do: 'recomeca', name: src.name, target: s.players[p].name, isentas: isentas.map(x => s.objects[x].name) });
@@ -29680,14 +29682,17 @@ function vencerEPerderT(s) {
 function derrotaT(s, i, why, events) {
   const pl = s.players[i];
   if (naoPodePerderT(s, i)) { delete pl.drewFromEmpty; delete pl.perdeuPorEfeito; delete pl.derrotadoPor; return null; }
-  const espelho = battlefield(s).find(o => o.controller === i && comHabilidadesT(s, o) && ((((s.facts[o.name] || {}).script) || {}).self || {}).emVezDePerder === 'lich');
+  const espelho = pl.derrotadoPor == null && battlefield(s).find(o => o.controller === i && comHabilidadesT(s, o) && ((((s.facts[o.name] || {}).script) || {}).self || {}).emVezDePerder === 'lich'); // T-97 · "if you would lose": a vitória do oponente (104.2b) não é substituída
   if (!espelho) return why;
   const nome = espelho.name, minhas = [...s.zones[i].hand, ...s.zones[i].graveyard, ...battlefield(s).filter(o => o.owner === i).map(o => o.oid)];
   for (const oid of minhas) { const o = s.objects[oid]; if (o && o.zone !== 'library') moveObject(s, oid, 'library'); }
   shuffle(s, s.zones[i].library);
   delete pl.drewFromEmpty; delete pl.perdeuPorEfeito; delete pl.derrotadoPor;
-  draw(s, i, 7); pl.life = 20;
+  draw(s, i, 7); { const d = 20 - pl.life; if (d > 0) ganhaVidaJogador(s, i, d); else if (d < 0) perdeVida(s, i, -d); } // T-97 · 119.5: "becomes 20" é ganhar ou perder a diferença
   events.push({ kind: 'effect', do: 'em_vez_de_perder', name: nome, target: pl.name, motivo: why });
+  if (motivoDeDerrotaT(s, pl, i) && s.objects[espelho.oid] && s.objects[espelho.oid].zone === 'battlefield' && s.objects[espelho.oid].controller === i) { // T-97 · 704.3 + 104.4b: a mesma substituição de novo, sem fim — o jogo empata
+    s.players.forEach((q, k) => { if (!q.lost) { q.lost = true; q.lossReason = 'empate: laço de ações obrigatórias (104.4b)'; events.push({ kind: 'lost', p: k, reason: q.lossReason }); } });
+  }
   return null;
 }
 function recomecoAntesDoDesvirarT(s) {
@@ -31734,6 +31739,7 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
     const after = match.state;
     if (revealed(before, after)) barrier = match.log.length;
     const novas = describe(before, action, events, after);
+    if (after.status === 'mulligan' && before.status !== 'mulligan') foto = null; // T-97 · CR 727: o jogo recomeçou — a foto do turno era da partida antiga (Toca ponto comum: table.js, resumo do turno)
     // A16 · virou o turno: fecha o resumo do que acabou (o "antes" ainda é o fim do turno velho)
     if ((after.turn.number || 0) > (before.turn.number || 0)) {
       if (foto && foto.turno > 0) { const r = resumoDoTurnoMesa(foto, fotoDoTurno(before), before); if (r) resumos.push(r); }

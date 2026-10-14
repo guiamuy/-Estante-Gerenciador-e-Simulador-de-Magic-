@@ -95,3 +95,26 @@ test('CR 104.3 · validador', () => {
   assert.ok(v({ self: { naoPodePerder: true } }).some(e => /naoPodePerder/.test(e)));
   assert.ok(v({ self: { emVezDePerder: 'x' } }).some(e => /emVezDePerder/.test(e)));
 });
+
+/* ---------------- T-97 · achados da auditoria independente (T-94…T-96) ---------------- */
+test('CR 104.2b · Lich’s Mirror não substitui a vitória do oponente: o "você vence" de A encerra o jogo', () => {
+  let s = mesa(); [s] = poe(s, 1, "Lich's Mirror", 'battlefield');
+  s = conjura(s, 0, 'Vitória');
+  eq([s.status, s.winner], ['over', 0]);
+});
+
+test('CR 704.3 / 104.4b · o espelho que não volta ao grimório substitui de novo sem fim: o jogo empata', () => {
+  let s = mesa(); let m; [s, m] = poe(s, 1, "Lich's Mirror", 'battlefield');
+  s = J(s); s.objects[m].controller = 0; const z1 = s.zones[1], z0 = s.zones[0]; // o espelho é de B e está com A
+  for (const oid of z0.library.slice(3)) { z0.library.splice(z0.library.indexOf(oid), 1); z1.library.push(oid); s.objects[oid].owner = 1; }
+  for (const oid of z0.hand.slice()) { z0.hand.splice(z0.hand.indexOf(oid), 1); z1.hand.push(oid); s.objects[oid].owner = 1; }
+  s.players[0].life = 0;
+  s = act(s, { t: 'pass', p: s.turn.priority });
+  eq([s.status, s.winner], ['over', null], 'empate');
+});
+
+test('CR 119.5 · "your life total becomes 20" é ganhar a diferença: conta como vida ganha', () => {
+  let s = mesa(); [s] = poe(s, 0, "Lich's Mirror", 'battlefield'); s = J(s); s.players[0].life = -2;
+  s = act(s, { t: 'pass', p: s.turn.priority });
+  eq([s.players[0].life, s.players[0].lifeGained], [20, 22]);
+});

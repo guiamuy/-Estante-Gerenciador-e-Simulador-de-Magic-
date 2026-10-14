@@ -220,9 +220,12 @@
    "regra": "Ending the Game",
    "titulo": "Formas de empatar",
    "status": "parcial",
-   "evidencia": "104.4a: os dois perdem na mesma checagem e winner fica null (index.html:12146-12148; sonda: status over, winner null)",
+   "evidencia": "104.4a: os dois perdem na mesma checagem e winner fica null (index.html:12146-12148; sonda: status over, winner null) · T-97 (14/10/2026): 104.4b num caso — a substituição da derrota (Lich's Mirror) que se repete sem fim na mesma conferência de ações de estado empata o jogo (tipos.naoperde.unit)",
    "falta": "104.4b: nenhum detector de laço obrigatório (um laço sem escolha roda até o teto de passos); 104.4c: não há efeito \"o jogo empata\"; 104.4i (empate de comum acordo) não existe. d-h fora.",
-   "esforco": "M"
+   "esforco": "M",
+   "testes": [
+    "CR 704.3 / 104.4b · o espelho que não volta ao grimório substitui de novo sem fim: o jogo empata"
+   ]
   },
   {
    "n": "104.5",

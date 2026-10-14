@@ -50,7 +50,7 @@ test('CR 727.5 / 727.4 · as cartas de permanente que não são Aura exiladas co
   let s = mesa(); let k, u, b, c; [s, k] = poe(s, 0, KL, 'battlefield'); [s, u] = poe(s, 1, 'Urso', 'battlefield');
   s = lealdade(s, k, 6);
   s = resolve(act(s, legais(s, 0, x => x.t === 'activate' && x.oid === k && x.targets && x.targets[0] && x.targets[0].oid === u)[0]));
-  eq([s.objects[u].zone, J(s.objects[u].exiladaPorT)], ['exile', { oid: k, z: s.objects[k].zc || 0 }], '−3: o Urso de B exilado com o Karn');
+  eq([s.objects[u].zone, J(s.objects[u].exiladaPorT)], ['exile', { oid: k, z: s.objects[k].zc || 0, cz: s.objects[u].zc }], '−3: o Urso de B exilado com o Karn (com a encarnação dele, T-97)');
   [s, b] = poe(s, 1, 'Bênção', 'exile'); [s, c] = poe(s, 1, 'Choque', 'exile'); s = J(s); s.objects[b].exiladaPorT = { oid: k, z: s.objects[k].zc || 0 }; s.objects[c].exiladaPorT = { oid: k, z: s.objects[k].zc || 0 };
   s = passaAte(s, x => x.turn.active === 0 && x.turn.number > s.turn.number && x.turn.step === 'main1' && !x.stack.length && !x.pending);
   s = ult(s, k);
@@ -95,4 +95,26 @@ test('CR 727 · validador e pilha explicada', () => {
   const v = sc => J(SC.validateScript({ name: 'X', ...sc, example: { action: 'etb', target: 'none', expect: { attached: false } } }));
   eq(v({ loyalty: [{ cost: -14, label: 'x', effects: [{ do: 'recomeca_jogo' }] }] }), []);
   assert.match(T.descreveEfeitos([{ do: 'recomeca_jogo' }]), /recomeça/);
+});
+
+/* ---------------- T-97 · achados da auditoria independente (T-94…T-96) ---------------- */
+test('CR 400.7 / 607.2a · a carta que saiu do exílio e voltou a ele por outro efeito não é mais "exiled with Karn"', () => {
+  let s = mesa(); let k, u; [s, k] = poe(s, 0, KL, 'battlefield'); [s, u] = poe(s, 1, 'Urso', 'battlefield'); s = lealdade(s, k, 6);
+  s = resolve(act(s, legais(s, 0, x => x.t === 'activate' && x.oid === k && x.targets && x.targets[0] && x.targets[0].oid === u)[0]));
+  s = J(s); const z = s.zones[1]; z.exile.splice(z.exile.indexOf(u), 1); z.graveyard.push(u); s.objects[u].zone = 'graveyard'; s.objects[u].zc += 1; // saiu do exílio
+  z.graveyard.splice(z.graveyard.indexOf(u), 1); z.exile.push(u); s.objects[u].zone = 'exile'; s.objects[u].zc += 1; // e voltou por outro efeito (a marca velha ficou)
+  s = passaAte(s, x => x.turn.active === 0 && x.turn.number > s.turn.number && x.turn.step === 'main1' && !x.stack.length && !x.pending);
+  s = ult(s, k);
+  assert.ok(s.zones[1].library.includes(u) || s.zones[1].hand.includes(u), 'voltou ao grimório de B');
+});
+
+test('CR 727.1 · quem já tinha perdido fica fora do jogo novo (mesa de três)', () => {
+  const D = [{ name: 'Wastes', qty: 20, zone: 'main' }, { name: 'Urso', qty: 10, zone: 'main' }, { name: KL, qty: 1, zone: 'main' }];
+  let s = E.createGame({ format: 'livre', seed: 2, mode: 'full', cards: C, scripts: SCRIPTS, players: [{ name: 'A', deck: D }, { name: 'B', deck: D }, { name: 'C', deck: D }] });
+  for (let p = 0; p < 3; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  s = passaAte(s, x => x.turn.step === 'main1' && !x.stack.length && !x.pending);
+  s = J(s); s.turn.active = 0; s.turn.priority = 0; s.players[2].lost = true; s.players[2].lossReason = 'vida';
+  let k; [s, k] = poe(s, 0, KL, 'battlefield');
+  s = ult(s, k);
+  eq([s.players[2].lost, s.zones[2].hand.length, s.players[0].lost, s.zones[0].hand.length], [true, 0, false, 7]);
 });
