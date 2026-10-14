@@ -5800,12 +5800,20 @@
    "n": "700.13",
    "regra": "General",
    "titulo": "Cometer um crime",
-   "status": "ausente",
-   "falta": "Sem registro de \"mirou oponente / permanente, mágica ou habilidade de oponente / carta em cemitério de oponente\" ao conjurar, ativar ou pôr gatilho na pilha, e sem gatilho/condição de crime (grep vazio).",
+   "status": "coberta",
    "esforco": "M",
    "depende": [
     "601.2c",
     "603.3d"
+   ],
+   "evidencia": "T-86 (14/10/2026): crimeT — ao conjurar uma mágica (no disparo dos gatilhos de conjurar), ao ativar uma habilidade ou pôr um gatilho na pilha (makeAbility), se algum alvo é um oponente, uma permanente/mágica/habilidade que um oponente controla ou uma carta no cemitério de um oponente, o jogador comete um crime: dispara os when: \"crime\" das permanentes dele e os que funcionam do cemitério (fromGraveyard); umaVezPorTurno (\"This ability triggers only once each turn\", 603.2h) por objeto. O efeito que não mira (\"each opponent\") não é crime. Cartas: Raven of Fell Omens, Blood Hustler, Deepmuck Desperado, Hardbristle Bandit, Forsaken Miner (Oracle do Forge, clone de 13/10/2026).",
+   "testes": [
+    "CR 700.13 · Raven of Fell Omens (texto oficial): mirar o oponente com uma mágica é crime — ele perde 1 e você ganha 1; \"only once each turn\"",
+    "CR 700.13 · o que é crime: a criatura do oponente e a carta no cemitério dele, sim; a sua criatura e o efeito que não mira (\"each opponent\"), não",
+    "CR 700.13 · habilidade ativada e gatilho também: Blood Hustler mira o oponente com a própria ativada (crime, marcador); o gatilho de entrar que mira o oponente é crime",
+    "CR 700.13 · Deepmuck Desperado e Hardbristle Bandit (textos oficiais): o oponente mói três; o Bandit desvira",
+    "CR 700.13 · Forsaken Miner (texto oficial): do cemitério, num crime, pode pagar {B} e voltar ao campo",
+    "CR 603.2h · validador: \"umaVezPorTurno\" só num gatilho \"crime\""
    ]
   },
   {

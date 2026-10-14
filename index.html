@@ -5889,6 +5889,7 @@ const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield
   'exerted', // V-20 · "You may exert ~ as it attacks. When you do, …" (701.43d): dispara quando a permanente é exaurida
   'becomes-monstrous', // V-6 · "When ~ becomes monstrous" (o valor do gatilho é o N da monstruosidade, 701.37c)
   /* ↓ T · gatilhos da trilha tipos */
+  'crime', // T-86 · CR 700.13 · "Whenever you commit a crime": você conjura uma mágica, ativa uma habilidade ou põe um gatilho na pilha mirando um oponente, algo que ele controla ou uma carta no cemitério dele (`umaVezPorTurno`: "This ability triggers only once each turn")
   'expend', // T-85 · CR 700.14 · "Whenever you expend N" (`n`): dispara quando o total de mana que você gastou para conjurar mágicas no turno passa de menos de N para N ou mais
   'saddles', // T-54 · CR 702.171c "Whenever ~ saddles a Mount" (a montaria é o `remembered` do gatilho)
   'turned-face-up', // T-42 · CR 708.8 · "When ~ is turned face up": dispara quando a permanente virada para baixo é virada para cima (custo de metamorfose ou disfarce, ou a manifestada)
@@ -6207,7 +6208,7 @@ function validateScript(sc) {
   // S33 · afinidade e adaptar
   if (sc && sc.affinity && !FILTER_TYPES.includes(sc.affinity)) errs.push(`afinidade por "${sc.affinity}" desconhecida`);
   for (const ab of (sc && sc.abilities) || []) if (ab.adapt != null && !Number.isInteger(ab.adapt)) errs.push('adaptar precisa de um número inteiro');
-  for (const ab of (sc && sc.abilities) || []) if (ab.kind === 'triggered' && ab.fromGraveyard && !falaDe(gatilhoDoEvento(ab.when), 'compra')) errs.push('gatilho do cemitério só vale para a terceira compra');
+  for (const ab of (sc && sc.abilities) || []) if (ab.kind === 'triggered' && ab.fromGraveyard && !falaDe(gatilhoDoEvento(ab.when), 'compra') && ab.when !== 'crime') errs.push('gatilho do cemitério só vale para a terceira compra'); // T-86 · e o "crime" (Forsaken Miner)
   if (sc && sc.entersTapped != null && typeof sc.entersTapped !== 'boolean') errs.push('entersTapped precisa ser verdadeiro ou falso');
   if (sc && sc.ninjutsu && !sc.ninjutsu.mana) errs.push('ninjutsu sem custo');
   if (sc && sc.madness && !sc.madness.mana) errs.push('insanidade sem custo');
@@ -6756,6 +6757,18 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-86 · CR 700.13 · cometer um crime (Oracle do Forge, clone de 13/10/2026). O lembrete entre parênteses não se escreve; voar vem do texto.
+  { name: 'Blood Hustler', abilities: [{ kind: 'triggered', when: 'crime', umaVezPorTurno: true, effects: [{ do: 'counters', amount: 1, target: 'self-source' }] }, // "Whenever you commit a crime, put a +1/+1 counter on Blood Hustler. This ability triggers only once each turn."
+    { kind: 'activated', cost: { mana: '{3}{B}' }, effects: [{ do: 'lose', amount: 1, target: 'opponent' }, { do: 'gain', amount: 1, target: 'self' }] }], // "{3}{B}: Target opponent loses 1 life and you gain 1 life."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o cenário de verdade está em tipos.crime.unit
+  { name: 'Raven of Fell Omens', abilities: [{ kind: 'triggered', when: 'crime', umaVezPorTurno: true, effects: [{ do: 'lose', amount: 1, target: 'each-opponent' }, { do: 'gain', amount: 1, target: 'self' }] }], // "Flying · Whenever you commit a crime, each opponent loses 1 life and you gain 1 life. This ability triggers only once each turn."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Deepmuck Desperado', abilities: [{ kind: 'triggered', when: 'crime', umaVezPorTurno: true, effects: [{ do: 'mill', amount: 3, jogadores: 'cada-oponente' }] }], // "Whenever you commit a crime, each opponent mills three cards. This ability triggers only once each turn."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Hardbristle Bandit', produces: [['W'], ['U'], ['B'], ['R'], ['G']], abilities: [{ kind: 'triggered', when: 'crime', umaVezPorTurno: true, effects: [{ do: 'untap', target: 'self-source' }] }], // "{T}: Add one mana of any color. · Whenever you commit a crime, untap Hardbristle Bandit. This ability triggers only once each turn."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Forsaken Miner', self: { naoBloqueia: true }, abilities: [{ kind: 'triggered', when: 'crime', fromGraveyard: true, mayPay: { mana: '{B}' }, effects: [{ do: 'mover', target: 'self-source', para: 'battlefield' }] }], // "Forsaken Miner can't block. · Whenever you commit a crime, you may pay {B}. If you do, return Forsaken Miner from your graveyard to the battlefield."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // T-85 · CR 700.14 · "Whenever you expend N" (Oracle do Forge, clone de 13/10/2026). O lembrete entre parênteses não se escreve; menace vem do texto.
   { name: 'Bakersbane Duo', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'token', amount: 1, token: { name: 'Food', types: ['artifact'], subtypes: ['Food'], colors: [], abilities: [{ kind: 'activated', cost: { mana: '{2}', tap: true, sacrifice: true }, effects: [{ do: 'gain', amount: 3 }] }] } }] }, // "When Bakersbane Duo enters, create a Food token."
     { kind: 'triggered', when: 'expend', n: 4, effects: [{ do: 'continuo', target: 'self-source', poder: 1, resistencia: 1 }] }], // "Whenever you expend 4, Bakersbane Duo gets +1/+1 until end of turn."
@@ -9487,6 +9500,7 @@ function salaErros(sc) {
   return errs;
 }
 GATILHO_EVENTO['unlock-door'] = { evento: 'destranca_porta', objeto: 'self' }; TRIGGER_PT['unlock-door'] = 'quando você destranca esta porta';
+TRIGGER_PT.crime = 'sempre que você comete um crime (mira um oponente, algo que ele controla ou uma carta no cemitério dele)'; // T-86 · CR 700.13
 TRIGGER_PT.expend = 'sempre que o total de mana que você gastou em mágicas neste turno chega ao número da habilidade (expend)'; // T-85 · CR 700.14
 GATILHO_EVENTO['fully-unlock'] = { evento: 'destranca_sala', objeto: 'self' }; TRIGGER_PT['fully-unlock'] = 'quando você destranca a Sala por inteiro'; // T-27 · CR 709.5i
 /** T-27 · CR 709.5f/g · o efeito `porta`: `acao` 'destrancar' (uma porta trancada), 'trancar' (uma destrancada) ou 'qualquer' (tranca ou
@@ -9547,6 +9561,7 @@ function monarcaErrosT(sc) {
   const errs = [], abs = [...((sc && sc.abilities) || []), ...((sc && sc.back && sc.back.abilities) || [])];
   for (const ab of abs) if (ab && ab.condition && ab.condition.monarca != null && !['voce', 'oponente'].includes(ab.condition.monarca)) errs.push('condição "monarca" do gatilho: \'voce\' ou \'oponente\'');
   for (const ab of abs) if (ab && ab.condition && ab.condition.desceu != null && ab.condition.desceu !== true) errs.push('condição "desceu" do gatilho: só true'); // T-84
+  for (const ab of abs) if (ab && ab.umaVezPorTurno != null && (ab.umaVezPorTurno !== true || ab.kind !== 'triggered' || ab.when !== 'crime')) errs.push('"umaVezPorTurno" só vale como true, num gatilho "crime"'); // T-86 · 603.2h
   for (const ab of abs) if (ab && ab.kind === 'triggered' && ab.when === 'expend' && !(Number.isInteger(ab.n) && ab.n >= 1)) errs.push('gatilho "expend": "n" é um inteiro, 1 ou mais (o N de "whenever you expend N")'); // T-85
   if (sc && sc.self && sc.self.atacaSeMonarcaDefende != null && sc.self.atacaSeMonarcaDefende !== true) errs.push('self.atacaSeMonarcaDefende só vale como true'); // T-70
   if (sc && sc.self && sc.self.nomeAoEntrar != null) { const n = sc.self.nomeAoEntrar, f = n && n.filtro; if (!(n === true || (n && typeof n === 'object' && !Array.isArray(n) && Object.keys(n).every(k => k === 'filtro')))) errs.push('self.nomeAoEntrar é true ou { filtro }'); else if (f != null && (typeof f !== 'object' || Object.keys(f).some(k => !['tipos', 'semTipos'].includes(k) || !Array.isArray(f[k]) || f[k].some(t => !FILTER_TYPES.includes(t))))) errs.push('self.nomeAoEntrar: o filtro é { tipos, semTipos }, com tipos de carta'); } // T-79
@@ -22374,6 +22389,7 @@ function makeAbility(s, source, ab, targets, blockedAt = source.blocking) {
     ...(blockedAt ? { blockedAt } : {}) }; // Q11 · Tinder Wall: quem ela bloqueava, mesmo depois de sacrificada (última informação conhecida)
   { const f = s.objects[source.oid]; if (f && !f.ability && (ab.effects || []).some(e => e && (e.ate === 'fonte-sair' || (['topo_do_dono', 'exila_da_mao', 'revela_topo_transforma', 'exile_return_transformed', 'craft_volta', 'endure', 'escolhe_nome'].includes(e.do) || e.remember || e.lembra || e.target === 'self-source')))) s.objects[oid].fonteZc = f.zc || 0; } // M-371 · também todo efeito em "esta permanente" (400.7) // M-353 · a habilidade lembra a encarnação da fonte (achado da revisão do lote XXV) // M-345 · também "put ~ on top" (achado da revisão) // CR2d.1 · 610.3a (auditoria M-308: também na ativada): se a fonte já saiu quando o efeito resolve, nada se move
   s.stack.push(oid);
+  if (!ab.semCrimeT) crimeT(s, source.controller, s.objects[oid].targets); // T-86 · CR 700.13 · a habilidade ativada ou o gatilho posto na pilha que mira o oponente (Toca ponto comum: makeAbility, uma linha)
   return oid;
 }
 /** Registra gatilhos que dispararam; entram na pilha antes da próxima prioridade. */
@@ -22603,6 +22619,7 @@ function gatilhosDoObjeto(s, evento, objects, controller) {
       s.queued.push({ source: o.oid, name: o.name, controller: ctrl, effects: ab.effects, when: ab.when, ...marcasDaHabilidade(ab) });
     }
     quemObserva(s, o, ctrl, battlefield(s), d => d.evento === evento, false, evento === 'conjurar');
+    if (evento === 'conjurar') crimeT(s, ctrl, o.targets); // T-86 · CR 700.13 · a mágica conjurada que mira o oponente (Toca ponto comum: gatilhosDoObjeto, uma linha)
   }
 }
 /** CR2-G R2b · 603.2b · despachante do começo de passo: cada permanente no campo com gatilho daquele passo, conforme de quem é o turno. */
@@ -29134,6 +29151,35 @@ function expendGastoT(s, antes, depois) {
 }
 const manaGastaNoTurnoT = (s, p) => (s.expendT && s.expendT.turno === s.turn.number && s.expendT.n[p]) || 0;
 Object.assign(EXPORTS_T, { manaGastaNoTurnoT });
+/* ---------------- T-86 · CR 700.13 · cometer um crime ----------------
+   Um jogador comete um crime ao conjurar uma mágica, ativar uma habilidade ou pôr um gatilho na pilha que mire um oponente, uma
+   permanente, mágica ou habilidade que um oponente controla, ou uma carta no cemitério de um oponente (no ponto em que a mágica conjurada
+   dispara os gatilhos de conjurar e no ponto em que a habilidade vai para a pilha). Cada crime dispara os `when: 'crime'` das permanentes
+   de quem o cometeu (e os que funcionam do cemitério, `fromGraveyard`); `umaVezPorTurno: true` ("This ability triggers only once each
+   turn", 603.2h) — uma vez por turno por objeto (encarnação). O total do turno fica em `s.crimeT` (condição futura "if you've committed a
+   crime this turn"). */
+function ehCrimeT(s, p, targets) {
+  return (targets || []).some(t => { if (!t) return false; if (t.player != null) return t.player !== p;
+    const o = t.oid != null && s.objects[t.oid]; if (!o) return false;
+    return o.zone === 'graveyard' ? o.owner !== p : (o.zone === 'battlefield' || o.zone === 'stack') && o.controller !== p; });
+}
+function crimeT(s, p, targets) {
+  if (p == null || !partidaPerguntaT(s, 'crime', sc => (sc.abilities || []).some(ab => ab && ab.when === 'crime')) || !ehCrimeT(s, p, targets)) return; // só nas partidas com "crime" (as partidas-referência não mudam)
+  const r = s.crimeT && s.crimeT.turno === s.turn.number ? s.crimeT : (s.crimeT = { turno: s.turn.number, n: {}, uma: {} });
+  r.n[p] = (r.n[p] || 0) + 1;
+  const fontes = [...battlefield(s).filter(w => w.controller === p), ...(s.zones[p] ? s.zones[p].graveyard.map(oid => s.objects[oid]) : [])];
+  for (const w of fontes) {
+    if (!w) continue;
+    for (const ab of abilitiesOf(s, w)) {
+      if (ab.kind !== 'triggered' || ab.when !== 'crime' || (w.zone === 'graveyard') !== !!ab.fromGraveyard || !triggerConditionMet(s, w, ab.condition)) continue;
+      const chave = w.oid + ':' + (w.zc || 0) + ':' + abilitiesOf(s, w).indexOf(ab);
+      if (ab.umaVezPorTurno) { if (r.uma[chave]) continue; r.uma[chave] = true; }
+      s.queued.push({ source: w.oid, name: w.name, controller: p, effects: ab.effects, when: ab.when, ...marcasDaHabilidade(ab) });
+    }
+  }
+}
+const crimesNoTurnoT = (s, p) => (s.crimeT && s.crimeT.turno === s.turn.number && s.crimeT.n[p]) || 0;
+Object.assign(EXPORTS_T, { crimesNoTurnoT });
 /* ---------------- T-83 · CR 700.3 · separar em pilhas (Fact or Fiction, Steam Augury, Sphinx of Uthuun) ----------------
    - O efeito `pilhas` revela as N cartas do topo do grimório de quem o controla (públicas, 701.20) e abre `pilha_separa` para quem separa
      (`separa`: 'oponente', o padrão, ou 'voce'); depois `pilha_escolhe` para quem escolhe (`escolhe`: 'voce', o padrão, ou 'oponente').
