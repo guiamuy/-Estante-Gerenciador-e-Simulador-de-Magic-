@@ -6800,6 +6800,43 @@ const RAW_SCRIPTS = [
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Grafted Skullcap', abilities: [{ kind: 'triggered', when: 'draw-step', effects: [{ do: 'draw', amount: 1 }] }, { kind: 'triggered', when: 'end-step', effects: [{ do: 'descarta_a_mao', target: 'self' }] }], // "At the beginning of your draw step, draw an additional card. · At the beginning of your end step, discard your hand."
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // T-104 · CR 700.2d · "Choose one or both —" / "Choose one or more —" (Oracle do Forge, clone de 13/10/2026, conferido no master em 14/10/2026).
+  { name: 'Grim Discovery', modeCount: 2, modeMin: 1, modes: [ // "Choose one or both — • Return target creature card from your graveyard to your hand. • Return target land card from your graveyard to your hand."
+    { label: 'Criatura do seu cemitério para a mão', effects: [{ do: 'to_hand', target: 'creature-in-your-graveyard' }] },
+    { label: 'Terreno do seu cemitério para a mão', effects: [{ do: 'to_hand', target: { tipos: ['land'], zona: 'graveyard', de: 'you' } }] }],
+    example: { action: 'mode:0', target: 'own-graveyard-creature', expect: { handDelta: 1 } } },
+  { name: 'Branching Bolt', modeCount: 2, modeMin: 1, modes: [ // "Choose one or both — • Branching Bolt deals 3 damage to target creature with flying. • Branching Bolt deals 3 damage to target creature without flying."
+    { label: '3 de dano a uma criatura com voar', effects: [{ do: 'damage', amount: 3, target: { tipos: ['creature'], palavra: 'flying' } }] },
+    { label: '3 de dano a uma criatura sem voar', effects: [{ do: 'damage', amount: 3, target: { tipos: ['creature'], semPalavra: 'flying' } }] }],
+    example: { action: 'mode:1', target: 'enemy-creature', expect: { gone: true } } },
+  { name: 'Winterflame', modeCount: 2, modeMin: 1, modes: [ // "Choose one or both — • Tap target creature. • Winterflame deals 2 damage to target creature."
+    { label: 'Virar uma criatura', effects: [{ do: 'tap', target: 'creature' }] },
+    { label: '2 de dano a uma criatura', effects: [{ do: 'damage', amount: 2, target: 'creature' }] }],
+    example: { action: 'mode:0', target: 'enemy-creature', expect: { tapped: true } } },
+  { name: 'Fissure Vent', modeCount: 2, modeMin: 1, modes: [ // "Choose one or both — • Destroy target artifact. • Destroy target nonbasic land."
+    { label: 'Destruir um artefato', effects: [{ do: 'destroy', target: 'artifact' }] },
+    { label: 'Destruir um terreno não básico', effects: [{ do: 'destroy', target: 'land', targetNotBasic: true }] }],
+    example: { action: 'mode:0', target: 'none', expect: { attached: false } } },
+  { name: 'Crush Contraband', modeCount: 2, modeMin: 1, modes: [ // "Choose one or both — • Exile target artifact. • Exile target enchantment."
+    { label: 'Exilar um artefato', effects: [{ do: 'exile', target: 'artifact' }] },
+    { label: 'Exilar um encantamento', effects: [{ do: 'exile', target: { tipos: ['enchantment'] } }] }],
+    example: { action: 'mode:1', target: 'enemy-enchantment', expect: { gone: true } } },
+  { name: 'Vandalize', modeCount: 2, modeMin: 1, modes: [ // "Choose one or both — • Destroy target artifact. • Destroy target land."
+    { label: 'Destruir um artefato', effects: [{ do: 'destroy', target: 'artifact' }] },
+    { label: 'Destruir um terreno', effects: [{ do: 'destroy', target: 'land' }] }],
+    example: { action: 'mode:0', target: 'none', expect: { attached: false } } },
+  { name: 'Rain of Thorns', modeCount: 3, modeMin: 1, modes: [ // "Choose one or more — • Destroy target artifact. • Destroy target enchantment. • Destroy target land."
+    { label: 'Destruir um artefato', effects: [{ do: 'destroy', target: 'artifact' }] },
+    { label: 'Destruir um encantamento', effects: [{ do: 'destroy', target: 'enchantment' }] },
+    { label: 'Destruir um terreno', effects: [{ do: 'destroy', target: 'land' }] }],
+    example: { action: 'mode:1', target: 'enemy-enchantment', expect: { gone: true } } },
+  { name: 'Casualties of War', modeCount: 5, modeMin: 1, modes: [ // "Choose one or more — • Destroy target artifact. • Destroy target creature. • Destroy target enchantment. • Destroy target land. • Destroy target planeswalker."
+    { label: 'Destruir um artefato', effects: [{ do: 'destroy', target: 'artifact' }] },
+    { label: 'Destruir uma criatura', effects: [{ do: 'destroy', target: 'creature' }] },
+    { label: 'Destruir um encantamento', effects: [{ do: 'destroy', target: 'enchantment' }] },
+    { label: 'Destruir um terreno', effects: [{ do: 'destroy', target: 'land' }] },
+    { label: 'Destruir um planeswalker', effects: [{ do: 'destroy', target: { tipos: ['planeswalker'] } }] }],
+    example: { action: 'mode:1', target: 'enemy-creature', expect: { gone: true } } },
   // T-103 · CR 500.10 / 500.8 (Oracle do Forge, clone de 13/10/2026, conferido no master em 14/10/2026). Menace e voar vêm da palavra-chave.
   { name: 'Obeka, Splitter of Seconds', abilities: [{ kind: 'triggered', when: 'combat-damage', effects: [{ do: 'passo_extra', passo: 'upkeep', apos: 'fase', n: { per: 'trigger-value' }, target: 'self' }] }], // "Menace · Whenever Obeka, Splitter of Seconds deals combat damage to a player, you get that many additional upkeep steps after this phase."
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
@@ -9757,6 +9794,7 @@ function monarcaErrosT(sc) {
   if (sc && sc.self && sc.self.firebendingX != null && !PER_COUNTS.includes(sc.self.firebendingX)) errs.push('self.firebendingX é uma contagem conhecida (power-of-source, creatures-you-control…)'); // T-100 · 702.189
   for (const e of [...((sc && sc.effects) || []), ...((sc && sc.abilities) || []).flatMap(ab => ab.effects || [])]) if (e && e.do === 'pula' && (!['desvirar', 'compra', 'combate', 'turno'].includes(e.o) || (e.quando != null && (e.o !== 'combate' || !['neste-turno', 'todas-do-proximo-turno'].includes(e.quando))))) errs.push("pula: o é 'desvirar', 'compra', 'combate' ou 'turno'; quando ('neste-turno' | 'todas-do-proximo-turno') só no combate"); // T-99
   for (const k of ['naoPodePerder', 'naoPodeVencer']) if (sc && sc.self && sc.self[k] != null && !['voce', 'oponentes'].includes(sc.self[k])) errs.push(`self.${k} é 'voce' ou 'oponentes'`); // T-96 · CR 104.3
+  if (sc && sc.modeMin != null && !(Number.isInteger(sc.modeMin) && sc.modeMin >= 1 && Number.isInteger(sc.modeCount) && sc.modeMin < sc.modeCount && !sc.modeRepeat)) errs.push('"modeMin" é um inteiro de 1 até modeCount − 1, sem repetir modos ("choose one or both", "choose one or more")'); // T-104 · CR 700.2d
   if (sc && sc.self && sc.self.emVezDePerder != null && sc.self.emVezDePerder !== 'lich') errs.push("self.emVezDePerder conhece só 'lich' (Lich's Mirror)"); // T-96 · CR 704.7
   if (sc && sc.self && sc.self.soEmCombate != null && sc.self.soEmCombate !== true) errs.push('self.soEmCombate só vale como true'); // T-92 · "Cast this spell only during combat"
   for (const ab of ((sc && sc.abilities) || [])) if (ab && ab.soNoSeuTurno != null && (ab.soNoSeuTurno !== true || ab.kind !== 'activated')) errs.push('soNoSeuTurno só vale como true, numa habilidade ativada'); // T-92 · "Activate only during your turn"
@@ -18776,7 +18814,7 @@ function createGame(setup) {
     if (sc.affinity) f.script.affinity = sc.affinity;
     if (sc.kicker) f.script.kicker = sc.kicker; // CR2c.1
     if (sc.replicate) f.script.kicker = { mana: sc.replicate, multi: true, replicar: true }; // M-265 · replicar (702.56): pago quantas vezes quiser, pelo mesmo caminho do multirreforço; não marca a mágica como "kicked"
-    if (sc.modeCount) { f.script.modeCount = sc.modeCount; f.script.modeRepeat = !!sc.modeRepeat; }
+    if (sc.modeCount) { f.script.modeCount = sc.modeCount; f.script.modeRepeat = !!sc.modeRepeat; if (sc.modeMin != null) f.script.modeMin = sc.modeMin; /* T-104 · 700.2d: "one or both" / "one or more" (Toca ponto comum: fatos do script) */ }
     if (sc.storm) f.script.storm = true;
     if (sc.retrace) f.script.retrace = true; // M-222 · 702.81
     if (sc.changeling) f.script.changeling = true;
@@ -23176,6 +23214,8 @@ function extraCostCandidates(s, p, spec, selfOid, needUntapped) {
     (!needUntapped || !o.tapped)).map(o => o.oid);
 }
 /** CR 700.2d · conjuntos de k modos (com repetição quando a carta deixa), em ordem crescente. */
+/** T-104 · CR 700.2d · "choose one or both" / "one or more": as combinações de `min` a `k` modos, das menores para as maiores (sem `min`, só as de `k`). */
+function combinacoesDeModosT(n, k, repete, min) { const out = []; for (let j = min || k; j <= k; j++) out.push(...combinacoesDeModos(n, j, repete)); return out; }
 function combinacoesDeModos(n, k, repete) {
   const out = [];
   const passo = (ini, atual) => { if (atual.length === k) { out.push(atual.slice()); return; } for (let i = ini; i < n; i++) { atual.push(i); passo(repete ? i : i + 1, atual); atual.pop(); } };
@@ -23762,7 +23802,8 @@ const HANDLERS = {
     const modes = (f.script && f.script.modes) || [];
     const nModos = (f.script && f.script.modeCount) || 0; // CR 700.2d · "choose two/three"
     if (nModos) {
-      if (!Array.isArray(a.modes) || a.modes.length !== nModos || a.modes.some(m => !modes[m])) throw new RuleError('modo', `escolha ${nModos} modos`);
+      const minModosT = f.script.modeMin || nModos; // T-104 · CR 700.2d · "one or both" / "one or more": de modeMin a modeCount modos (Toca ponto comum: HANDLERS.cast)
+      if (!Array.isArray(a.modes) || a.modes.length > nModos || a.modes.length < minModosT || a.modes.some(m => !modes[m])) throw new RuleError('modo', minModosT < nModos ? `escolha de ${minModosT} a ${nModos} modos` : `escolha ${nModos} modos`);
       if (!f.script.modeRepeat && new Set(a.modes).size !== a.modes.length) throw new RuleError('modo', 'escolha modos diferentes');
     } else if (modes.length && (a.mode == null || !modes[a.mode])) throw new RuleError('modo', 'escolha um modo');
     // CR 702.33 · reforço: pago junto com o custo; multirreforço quantas vezes quiser
@@ -24870,7 +24911,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
     const modes = (f.script && f.script.modes) || [];
     const nModos = (f.script && f.script.modeCount) || 0;
     const comX = xv != null ? { controller: p, xPaid: xv } : undefined; // CR2c.3 · alvo que depende do X desta conjuração
-    if (nModos) return combinacoesDeModos(modes.length, nModos, !!f.script.modeRepeat).flatMap(ms => { // CR 700.2d
+    if (nModos) return combinacoesDeModosT(modes.length, nModos, !!f.script.modeRepeat, f.script.modeMin).flatMap(ms => { // CR 700.2d · T-104: de modeMin a modeCount (Toca ponto comum: ofertas de conjurar)
       const need = spellEffects(s, { name: o.name, modes: ms, xPaid: xv || 0 }).filter(SC.isTargeted);
       let combos = [[]];
       for (const [k, eff] of need.entries()) {
