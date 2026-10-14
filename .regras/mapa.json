@@ -5764,12 +5764,20 @@
    "n": "700.11",
    "regra": "General",
    "titulo": "Descer (carta de permanente no seu cemitério no turno)",
-   "status": "ausente",
-   "falta": "Sem contador por jogador de cartas de permanente postas no cemitério no turno, nem condição/gatilho \"descended\" (grep vazio).",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "400.7",
     "603.4"
+   ],
+   "evidencia": "T-84 (14/10/2026): cada carta de permanente (características da carta) que vai para o cemitério do dono, de qualquer lugar, conta uma descida do dono no turno (desceuT, no ponto de chegada ao cemitério de moveObject; ficha não é carta; não importa se continua lá). Gatilho condition: { desceu: true } (603.4: conferida ao disparar e ao resolver), efeito onlyIf: \"desceu\" e contagem { per: \"vezes-que-desceu\" }. Cartas: Child of the Volcano, Deep Goblin Skulltaker, Ruin-Lurker Bat, Enterprising Scallywag (Oracle do Forge, clone de 13/10/2026).",
+   "testes": [
+    "CR 700.11 · Child of the Volcano (texto oficial): na etapa final, ganha um marcador se uma carta de permanente foi para o seu cemitério neste turno",
+    "CR 700.11 · instantânea e feitiço não contam; ficha não é carta; descer \"de qualquer lugar\" conta (descarte de terreno)",
+    "CR 700.11 · conta para o dono do cemitério: a criatura do oponente que morre não faz você descer",
+    "CR 700.11 · é \"neste turno\": a descida do turno anterior não conta na etapa final do turno seguinte",
+    "CR 700.11 · \"the number of times you descended this turn\": duas cartas de permanente, dois de vida; Enterprising Scallywag cria um Tesouro na etapa final",
+    "CR 700.11 · validador: a condição \"desceu\" do gatilho só vale como true"
    ]
   },
   {

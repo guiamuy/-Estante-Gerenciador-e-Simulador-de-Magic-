@@ -6755,6 +6755,15 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-84 · CR 700.11 · "descended this turn" (Oracle do Forge, clone de 13/10/2026). O lembrete entre parênteses não se escreve; as palavras-chave vêm do texto.
+  { name: 'Child of the Volcano', abilities: [{ kind: 'triggered', when: 'end-step', condition: { desceu: true }, effects: [{ do: 'counters', amount: 1, target: 'self-source' }] }], // "Trample · At the beginning of your end step, if you descended this turn, put a +1/+1 counter on Child of the Volcano."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o cenário de verdade está em tipos.desceu.unit
+  { name: 'Deep Goblin Skulltaker', abilities: [{ kind: 'triggered', when: 'end-step', condition: { desceu: true }, effects: [{ do: 'counters', amount: 1, target: 'self-source' }] }], // "Menace · At the beginning of your end step, if you descended this turn, put a +1/+1 counter on Deep Goblin Skulltaker."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Ruin-Lurker Bat', abilities: [{ kind: 'triggered', when: 'end-step', condition: { desceu: true }, effects: [{ do: 'scry', amount: 1 }] }], // "Flying, lifelink · At the beginning of your end step, if you descended this turn, scry 1."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Enterprising Scallywag', abilities: [{ kind: 'triggered', when: 'end-step', condition: { desceu: true }, effects: [{ do: 'token', amount: 1, token: TESOURO }] }], // "At the beginning of your end step, if you descended this turn, create a Treasure token."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // T-83 · CR 700.3 · pilhas (Oracle do Forge, clone de 13/10/2026).
   { name: 'Fact or Fiction', effects: [{ do: 'pilhas', amount: 5 }], // "Reveal the top five cards of your library. An opponent separates those cards into two piles. Put one pile into your hand and the other into your graveyard."
     example: { target: 'none', expect: { selfLife: 0 } } }, // o cenário de verdade está em tipos.pilhas.unit
@@ -9513,18 +9522,19 @@ MARCADOR_PT.level = 'de nível'; // T-24 · CR 122.1 / 702.87a
    As sete fichas de Papel, como a regra 111.10 as define (CR de 25/09/2026): encantamento Aura Role incolor, "enchant creature", e o
    que cada uma dá à criatura encantada. O efeito `papel` (`{ do: 'papel', papel: 'Monster', target }`) cria a ficha anexada ao alvo.
    Condição nova de gatilho: `resistenciaAte: N` ("if its toughness is N or less", conferida ao disparar e ao resolver, 603.4). */
-function condicoesT() { return ['resistenciaAte', 'selada', 'preparada', 'monarca']; } // T-62 · monarca: "if you're the monarch" ('voce') / "if an opponent is the monarch" ('oponente') (725.5, 603.4) // T-51 · preparada: "if this creature is (isn't) prepared" (722.3a) // T-31 · selada: "attacks while saddled" (702.171b) // função (içada): o validador roda na carga do módulo, antes desta linha
+function condicoesT() { return ['resistenciaAte', 'selada', 'preparada', 'monarca', 'desceu']; } // T-84 · desceu: "if you descended this turn" (700.11, 603.4) // T-62 · monarca: "if you're the monarch" ('voce') / "if an opponent is the monarch" ('oponente') (725.5, 603.4) // T-51 · preparada: "if this creature is (isn't) prepared" (722.3a) // T-31 · selada: "attacks while saddled" (702.171b) // função (içada): o validador roda na carga do módulo, antes desta linha
 /* ---------------- T-62 · CR 725.5 · o monarca nas condições (forma do script) ----------------
    Gatilho: `condition: { monarca: 'voce' | 'oponente' }` ("if you're the monarch" / "if an opponent is the monarch", conferida ao
    disparar e ao resolver, 603.4). Efeito: `onlyIf: 'monarca' | 'oponente-monarca'` e `amount: { per: 'se', se: 'monarca', sim, nao }`
    ("… instead if you're the monarch"). Efeito contínuo: `se: { monarca: 'voce' | 'oponente' }` ("as long as you're the monarch").
    Sem monarca no jogo, nenhuma das condições vale (725.5). */
-function onlyIfT() { return ['monarca', 'oponente-monarca', 'ganhou-moeda', 'perdeu-moeda', 'deu-cara', 'deu-coroa', 'dado-duplos']; } // T-66 · CR 706.5 // T-65 · CR 705.2 · o lance da moeda
-function perCountsT() { return ['moedas-ganhas', 'resultado-do-dado']; } // T-66 · CR 706.4 // T-59 · CR 700.8 · grupo · T-65 · CR 705.2 · "for each flip you won" (função içada: PER_COUNTS é montada antes) // função (içada): ONLY_IF e o validador do `per: 'se'` são montados antes desta linha
+function onlyIfT() { return ['monarca', 'oponente-monarca', 'ganhou-moeda', 'perdeu-moeda', 'deu-cara', 'deu-coroa', 'dado-duplos', 'desceu']; } // T-84 · CR 700.11 // T-66 · CR 706.5 // T-65 · CR 705.2 · o lance da moeda
+function perCountsT() { return ['moedas-ganhas', 'resultado-do-dado', 'vezes-que-desceu']; } // T-84 · CR 700.11 · "the number of times you descended this turn" // T-66 · CR 706.4 // T-59 · CR 700.8 · grupo · T-65 · CR 705.2 · "for each flip you won" (função içada: PER_COUNTS é montada antes) // função (içada): ONLY_IF e o validador do `per: 'se'` são montados antes desta linha
 function seMonarcaT(se) { return !!se && Object.keys(se).length === 1 && ['voce', 'oponente'].includes(se.monarca); }
 function monarcaErrosT(sc) {
   const errs = [], abs = [...((sc && sc.abilities) || []), ...((sc && sc.back && sc.back.abilities) || [])];
   for (const ab of abs) if (ab && ab.condition && ab.condition.monarca != null && !['voce', 'oponente'].includes(ab.condition.monarca)) errs.push('condição "monarca" do gatilho: \'voce\' ou \'oponente\'');
+  for (const ab of abs) if (ab && ab.condition && ab.condition.desceu != null && ab.condition.desceu !== true) errs.push('condição "desceu" do gatilho: só true'); // T-84
   if (sc && sc.self && sc.self.atacaSeMonarcaDefende != null && sc.self.atacaSeMonarcaDefende !== true) errs.push('self.atacaSeMonarcaDefende só vale como true'); // T-70
   if (sc && sc.self && sc.self.nomeAoEntrar != null) { const n = sc.self.nomeAoEntrar, f = n && n.filtro; if (!(n === true || (n && typeof n === 'object' && !Array.isArray(n) && Object.keys(n).every(k => k === 'filtro')))) errs.push('self.nomeAoEntrar é true ou { filtro }'); else if (f != null && (typeof f !== 'object' || Object.keys(f).some(k => !['tipos', 'semTipos'].includes(k) || !Array.isArray(f[k]) || f[k].some(t => !FILTER_TYPES.includes(t))))) errs.push('self.nomeAoEntrar: o filtro é { tipos, semTipos }, com tipos de carta'); } // T-79
   const nomeNoGatilhoT_ = ((sc && sc.abilities) || []).some(ab => ab && ab.kind === 'triggered' && ab.when === 'etb' && (ab.effects || []).some(e => e && e.do === 'escolhe_nome')), escolheNomeT_ = !!(sc && sc.self && sc.self.nomeAoEntrar) || nomeNoGatilhoT_; // T-81 · "when this enters, choose a card name" (Petrified Hamlet) também
@@ -18768,6 +18778,7 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
   // M13 · 903.9: comandante que vai para cemitério, exílio, mão ou grimório pode voltar à zona de comando
   if (o.commander && VOLTA_COMANDO.includes(to) && fromZone !== to && (fromZone !== 'command' || to === 'hand' || to === 'library')) (s.voltaComando = s.voltaComando || []).push(oid); // M-348 · 903.9b: "from anywhere" (Campfire); do próprio comando só para mão ou grimório
   if (to === 'library' && !top) dest.push(oid); else if (to === 'library') dest.unshift(oid); else dest.push(oid);
+  if (to === 'graveyard' && !o.token) desceuT(s, o); // T-84 · CR 700.11 · carta de permanente posta no cemitério do dono, de qualquer lugar (Toca ponto comum: moveObject)
   // CR2-G R5a · 614.1c/614.12 · "entra virada", "entra virada a menos que…", "entra com N marcadores": um caminho só
   if (to === 'battlefield') { entraTransformadaNaEntradaT(s, o); cicloNaEntradaT(s, o); } // T-55 · CR 614.12 / 712.14a / 702.145b: a face que entra é a que as substituições de entrada olham (Toca ponto comum: moveObject)
   if (to === 'battlefield') { const r = entradaModificada(s, o, xPago); if (r.virada != null) o.tapped = r.virada; if (r.pagaVida) s.queuedChoices = (s.queuedChoices || []).concat([{ kind: 'paga_vida_entrada', oid: o.oid, z: o.zc || 0, p: o.controller, n: r.pagaVida, name: o.name }]); for (const [k, n] of Object.entries(r.marcadores)) o.counters[k] = (o.counters[k] || 0) + marcadoresAoPor(s, o, k, n, true); } // CR2e.2 · 614.16: entrar com marcadores também é pôr marcadores
@@ -20510,6 +20521,7 @@ function amountOf(s, src, v) {
     if (v.per === 'se') return condicaoDoEfeito(s, src.ability && !doQueResolveT(v.se) ? s.objects[src.source] : src, v.se) ? v.sim : v.nao; // T-64 · o monarca é visto do controlador da habilidade (109.5) // M-331 · "… instead if …" (Galvanic Blast, Plunder the Trollshaws)
     if (v.per === 'soma') return (v.partes || []).reduce((n, x) => n + amountOf(s, src, x), 0) * (v.times || 1); // M-358 · "N, plus M" (Seize the Storm)
     if (v.per === 'resultado-do-dado') return ((src.dadoT || {}).resultado || 0) * (v.times || 1); // T-66 · CR 706.4 · "equal to the result"
+    if (v.per === 'vezes-que-desceu') return vezesQueDesceuT(s, src.controller) * (v.times || 1); // T-84 · CR 700.11 (Toca ponto comum: amountOf)
     if (v.per === 'moedas-ganhas') return ((src.moedaT || {}).ganhas || 0) * (v.times || 1); // T-65 · CR 705.2 · "for each flip you won" (Toca ponto comum: amountOf)
     if (v.per === 'x') return (src.xPaid || 0) * (v.times || 1); // CR2c.3 · 107.3a: o X escolhido ao conjurar, o mesmo em todo o texto
     // CR2a.4 · 608.2h/113.7a: a resistência que a criatura sacrificada no custo tinha no campo
@@ -20534,6 +20546,7 @@ function condicaoDoEfeito(s, fonte, k) {
   if (k === 'bargained') return !!fonte.bargained; // M-384 · 702.166b
   if (k === 'monarca' || k === 'oponente-monarca') return monarcaCondT(s, fonte.controller, k === 'monarca' ? 'voce' : 'oponente');
   if (k === 'dado-duplos') return !!(fonte.dadoT && fonte.dadoT.duplos); // T-66 · CR 706.5
+  if (k === 'desceu') return desceuNoTurnoT(s, fonte.controller); // T-84 · CR 700.11 (Toca ponto comum: condicaoDoEfeito)
   if (MOEDA_COND_T.includes(k)) return moedaCondT(fonte, k); // T-65 · CR 705.2 · o lance que este objeto jogou (Toca ponto comum: condicaoDoEfeito) // T-62 · CR 725.5 · na resolução (Toca ponto comum: condicaoDoEfeito)
   if (k === 'not-cast-from-hand') return fonte.castFrom !== 'hand'; // M-352 · Twinned Vision (a cópia não foi conjurada: também não veio da mão) · 702.33d · "If this spell was kicked, it deals 4 damage instead" (Burst Lightning)
   return false;
@@ -22369,6 +22382,7 @@ function triggerConditionMet(s, o, cond) {
   if (cond.atacaSozinha && !(s.combat && (s.combat.attackers || []).length === 1 && s.combat.attackers[0] === o.oid)) return false; // M-251 · 506.5 "attacks alone"
   if (cond.preparada != null && preparadaT(s, o) !== !!cond.preparada) return false; // T-51 · CR 722.3a · "if this creature is (isn't) prepared" (Toca ponto comum: triggerConditionMet)
   if (cond.selada && !seladaAgoraT(s, o)) return false; // T-31 · CR 702.171b: "while saddled" (Toca ponto comum: triggerConditionMet)
+  if (cond.desceu && !desceuNoTurnoT(s, o.controller)) return false; // T-84 · CR 700.11 / 603.4 · "if you descended this turn" (Toca ponto comum: triggerConditionMet)
   if (cond.monarca && !monarcaCondT(s, o.controller, cond.monarca)) return false; // T-62 · CR 725.5 / 603.4 · "if you're (an opponent is) the monarch" (Toca ponto comum: triggerConditionMet)
   if (cond.resistenciaAte != null && !(o.zone === 'battlefield' && toughness(s, o) <= cond.resistenciaAte)) return false; // T-20 · CR 111.10r / 603.4: "if its toughness is N or less" · Toca ponto comum: triggerConditionMet (uma linha)
   if (!condicaoK(s, o, cond)) return false; // K-59 · bênção da cidade e presente prometido (Toca ponto comum: triggerConditionMet)
@@ -29073,6 +29087,24 @@ function descartaNomeT(s, src, p, events) {
   events.push({ kind: 'effect', do: 'descarta_nome', name: src.name, target: pl.name, nome, revelada, nomes, amount: saem.length });
 }
 Object.assign(EXPORTS_T, { nomesEscolhiveisT });
+/* ---------------- T-84 · CR 700.11 · "descended this turn" ----------------
+   Cada carta de permanente (pelas características da carta: 205.2a) que vai para o cemitério do dono, de qualquer lugar, conta uma
+   "descida" do dono neste turno (`s.desceuT = { turno, n: { [jogador]: N } }`; a ficha não é carta). Gatilho `condition: { desceu: true }`
+   ("if you descended this turn", conferida ao disparar e ao resolver, 603.4), efeito `onlyIf: 'desceu'` e contagem
+   `{ per: 'vezes-que-desceu' }` ("the number of times you descended this turn"). Não importa se a carta continua no cemitério. */
+/** As contagens do turno da trilha (descer, expend, crime, ativada) só existem nas partidas com carta que pergunta por elas — a partida que
+ * não tem essas cartas não ganha nada no estado (as partidas-referência não mudam). `pred` olha o script de cada carta; guardado por partida. */
+const PERGUNTA_T = new WeakMap();
+function partidaPerguntaT(s, chave, pred) { let m = PERGUNTA_T.get(s.facts); if (!m) PERGUNTA_T.set(s.facts, m = {}); if (m[chave] == null) m[chave] = Object.values(s.facts).some(f => !!(f && f.script) && pred(f.script)); return m[chave]; }
+function desceuT(s, o) {
+  if (!partidaPerguntaT(s, 'desceu', sc => /desceu/.test(JSON.stringify(sc)))) return;
+  const f = s.facts[o.frontName || o.name] || s.facts[o.name] || {}; if (!(f.types || []).some(t => PERMANENT.includes(t))) return;
+  const r = s.desceuT && s.desceuT.turno === s.turn.number ? s.desceuT : (s.desceuT = { turno: s.turn.number, n: {} });
+  r.n[o.owner] = (r.n[o.owner] || 0) + 1;
+}
+const vezesQueDesceuT = (s, p) => (s.desceuT && s.desceuT.turno === s.turn.number && s.desceuT.n[p]) || 0;
+const desceuNoTurnoT = (s, p) => vezesQueDesceuT(s, p) > 0;
+Object.assign(EXPORTS_T, { vezesQueDesceuT });
 /* ---------------- T-83 · CR 700.3 · separar em pilhas (Fact or Fiction, Steam Augury, Sphinx of Uthuun) ----------------
    - O efeito `pilhas` revela as N cartas do topo do grimório de quem o controla (públicas, 701.20) e abre `pilha_separa` para quem separa
      (`separa`: 'oponente', o padrão, ou 'voce'); depois `pilha_escolhe` para quem escolhe (`escolhe`: 'voce', o padrão, ou 'oponente').
@@ -32108,6 +32140,7 @@ const X_PT = { movidas: 'o número de cartas postas no cemitério assim', 'insta
 Object.assign(X_PT, { 'moedas-ganhas': 'os lances ganhos', 'resultado-do-dado': 'o resultado do dado' }); // T-65 · T-66
 const faixaPT_T = (e, f) => !f || !e || !e.faixaDoDado ? f : `${f} (${e.faixaDoDado[1] == null ? `se o dado der ${e.faixaDoDado[0]} ou mais` : e.faixaDoDado[0] === e.faixaDoDado[1] ? `se o dado der ${e.faixaDoDado[0]}` : `se o dado der de ${e.faixaDoDado[0]} a ${e.faixaDoDado[1]}`})`; // T-66 · CR 706.3a
 Object.assign(CONDICAO_PT, { 'dado-duplos': 'se os dois dados derem o mesmo número' }); // T-66 · CR 706.5
+Object.assign(CONDICAO_PT, { desceu: 'se você desceu neste turno (uma carta de permanente foi para o seu cemitério)' }); // T-84 · CR 700.11
 Object.assign(CONDICAO_PT, { monarca: 'se você é o monarca', 'oponente-monarca': 'se um oponente é o monarca', 'ganhou-moeda': 'se ganhar o lance', 'perdeu-moeda': 'se perder o lance', 'deu-cara': 'se der cara', 'deu-coroa': 'se der coroa' }); // T-62 · CR 725.5
 const descreveEfeitos = effects => (effects || []).map(e => { let f = descreveEfeito(e); const xp = e && e.amount && X_PT[e.amount.per]; if (f && xp && /\bX\b/.test(f)) f = `${f} (X = ${xp})`; f = faixaPT_T(e, f); /* T-66 */ return f && e.onlyIf && CONDICAO_PT[e.onlyIf] ? `${f} (${CONDICAO_PT[e.onlyIf]})` : f; }).filter(Boolean).join('; ');
 /** E50 P6 · a linha do texto oficial (inglês) que corresponde a uma habilidade na pilha.
