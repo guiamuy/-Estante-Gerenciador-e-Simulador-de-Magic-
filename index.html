@@ -19634,9 +19634,11 @@ function poolUsavel(s, p) {
   for (const t of s.players[p].manaRestrita || []) if (serveGasto(s, t.gasto, GASTO)) P[t.cor] = (P[t.cor] || 0) + 1;
   return P;
 }
+/** H-13 · 601.2g–h · as permanentes que o custo vira (a fonte do {T} e as escolhidas para "Tap an untapped …") não pagam a mana do mesmo custo. */
+const reservadasDoCusto = (cost, selfOid, pay) => { const l = [cost.tap ? selfOid : null, ...(cost.tapOther && pay && pay.tapOther ? [].concat(pay.tapOther) : [])].filter(Boolean); return l.length > 1 ? l : (l[0] || null); };
 const semAFonte = (oid, f) => { const antes = fonteReservada; fonteReservada = oid; try { return f(); } finally { fonteReservada = antes; } };
 function sources(s, p) {
-  return battlefield(s).filter(o => o.controller === p && !o.tapped && o.oid !== fonteReservada && productions(s, o).length &&
+  return battlefield(s).filter(o => o.controller === p && !o.tapped && !(Array.isArray(fonteReservada) ? fonteReservada.includes(o.oid) : o.oid === fonteReservada) && productions(s, o).length && // H-13 · também uma lista (as viradas como custo)
     !(isCreature(s, o) && enjoado(s, o) && !has(s, o, 'haste'))); // CR2d.2 · criatura de agora (terreno animado)
 }
 /** Escolhe fontes desviradas para completar o pagamento. Busca limitada e determinística. */
@@ -23332,7 +23334,7 @@ function payAbilityCost(s, p, source, ab) {
     if (source.tapped) throw new RuleError('custo', 'a permanente já está virada');
     if (isCreature(s, source) && enjoado(s, source) && !has(s, source, 'haste')) throw new RuleError('custo', 'criatura com enjoo não pode usar {T}');
   }
-  if (cost.mana && s.manaCheck) semAFonte(cost.tap ? source.oid : null, () => { // CR2c.6 · a fonte do {T} não paga a própria mana
+  if (cost.mana && s.manaCheck) semAFonte(reservadasDoCusto(cost, source.oid, ab.pay), () => { // CR2c.6 · a fonte do {T} não paga a própria mana · H-13 · nem a escolhida para virar como custo
     const c = custoAtivadaComX(cost, ab.x); // CR2c.7 · o X escolhido entra no custo
     if (ab.vida != null) { // M-255 · phyrexiano: quem ativa escolhe quantos símbolos paga com vida
       if (!(Number.isInteger(ab.vida) && ab.vida >= 0 && ab.vida <= nPhyrexianos(c))) throw new RuleError('custo', 'escolha quantos símbolos phyrexianos pagar com vida');
@@ -25110,7 +25112,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
       if (!canPayAbility(s, p, o, ab)) return;
       const cost = ab.cost || {};
       // Leva 104 · uma ação por forma de pagar (qual criatura vira, qual permanente é sacrificada, qual terreno volta)
-      const pays = pagamentosDe(s, p, cost, o.oid);
+      const pays = pagamentosDe(s, p, cost, o.oid).filter(pay => !(cost.mana && s.manaCheck && cost.tapOther && pay && pay.tapOther) || semAFonte(reservadasDoCusto(cost, o.oid, pay), () => canPay(s, p, custoAtivadaComX(cost, 0)))); // H-13 · a virada como custo não paga a mana
       ab = { ...ab, effects: expandeAlvos(s, o, ab.effects || []) }; // M-264 · "any number of target players": uma instância por alvo possível
       // M-255 · 107.4f/601.2f · phyrexiano no custo da habilidade: uma oferta por quantidade de símbolos pagos com 2 de vida
       const vidasDe = x => { const c = cost.mana ? custoAtivadaComX(cost, x || 0) : null, k = c ? nPhyrexianos(c) : 0; if (!k || !s.manaCheck) return [null];
