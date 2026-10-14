@@ -20302,6 +20302,7 @@ function finalizaDivisao(s, events) {
   }
   chargeWard(s, o.controller, o.oid, alvos); // 702.21a · a salvaguarda dispara quando vira alvo (601.2c, aqui no fim da divisão)
   if (!o.ability) disparaHeroico(s, o); disparaAlvejado(s, o.oid, alvos); // CR2b.8 (heroico é de mágica) / CR2b.9
+  if (!o.copiaDeMagia) crimeT(s, o.controller, alvos); // T-89 · CR 700.13 · com dano dividido os alvos só existem aqui (601.2d): o crime é contado no fim da divisão (Toca ponto comum: finalizaDivisao, uma linha)
 }
 function chargeWard(s, p, stackOid, chosen) { salvaguardaK(s, p, stackOid, chosen); } // K-2 · 702.21a: a salvaguarda é habilidade disparada, vai para a pilha (salvaguardaK)
 /** Leva 107 · próxima cobrança de ward, se a mágica/habilidade ainda estiver na pilha. */
@@ -29232,8 +29233,11 @@ Object.assign(EXPORTS_T, { nomesEscolhiveisT });
    `{ per: 'vezes-que-desceu' }` ("the number of times you descended this turn"). Não importa se a carta continua no cemitério. */
 /** As contagens do turno da trilha (descer, expend, crime, ativada) só existem nas partidas com carta que pergunta por elas — a partida que
  * não tem essas cartas não ganha nada no estado (as partidas-referência não mudam). `pred` olha o script de cada carta; guardado por partida. */
-const PERGUNTA_T = new WeakMap();
-function partidaPerguntaT(s, chave, pred) { let m = PERGUNTA_T.get(s.facts); if (!m) PERGUNTA_T.set(s.facts, m = {}); if (m[chave] == null) m[chave] = Object.values(s.facts).some(f => !!(f && f.script) && pred(f.script)); return m[chave]; }
+const PERGUNTA_T = new WeakMap(); // T-89 · a resposta fica no objeto do script (os fatos são copiados a cada apply, os scripts não): sem varrer o texto de novo
+function partidaPerguntaT(s, chave, pred) {
+  for (const f of Object.values(s.facts)) { const sc = f && f.script; if (!sc) continue; let m = PERGUNTA_T.get(sc); if (!m) PERGUNTA_T.set(sc, m = {}); if (m[chave] == null) m[chave] = !!pred(sc); if (m[chave]) return true; }
+  return false;
+}
 function desceuT(s, o) {
   if (!partidaPerguntaT(s, 'desceu', sc => /desceu/.test(JSON.stringify(sc)))) return;
   const f = s.facts[o.frontName || o.name] || s.facts[o.name] || {}; if (!(f.types || []).some(t => PERMANENT.includes(t))) return;

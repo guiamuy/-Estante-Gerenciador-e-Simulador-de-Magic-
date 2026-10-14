@@ -12,13 +12,14 @@ for (const c of L('oficiais-tipos.json').filter(x => ['Raven of Fell Omens', 'Bl
   C[c.name] = { name: c.name, type_line: c.type_line, mana_cost: c.mana_cost, cmc: valorDeMana(c.mana_cost), keywords: [], oracle_text: c.oracle_text, colors: [], power: c.power, toughness: c.toughness };
 C.Swamp = { name: 'Swamp', type_line: 'Basic Land — Swamp', mana_cost: '', cmc: 0, keywords: [], oracle_text: '({T}: Add {B}.)', colors: [] };
 const carta = (name, type_line, extra = {}) => { C[name] = { name, type_line, mana_cost: '{1}', cmc: 1, keywords: [], oracle_text: '', colors: [], ...extra }; };
-carta('Urso', 'Creature — Bear', { power: '2', toughness: '2' }); carta('Choque', 'Instant'); carta('Coveiro', 'Sorcery'); carta('Batedor', 'Creature — Goblin', { power: '1', toughness: '1' }); carta('Fogueira', 'Sorcery');
+carta('Urso', 'Creature — Bear', { power: '2', toughness: '2' }); carta('Choque', 'Instant'); carta('Coveiro', 'Sorcery'); carta('Batedor', 'Creature — Goblin', { power: '1', toughness: '1' }); carta('Fogueira', 'Sorcery'); carta('Garfo', 'Sorcery', { mana_cost: '{1}{R}', cmc: 2 }); // T-89
 const EX = { example: { target: 'none', expect: { selfLife: 0 } } };
 const SCRIPTS = {
   'Choque': { name: 'Choque', effects: [{ do: 'damage', amount: 2, target: 'any' }], ...EX },
   'Coveiro': { name: 'Coveiro', effects: [{ do: 'exile', target: { zona: 'graveyard' } }], ...EX }, // "Exile target card from a graveyard."
   'Batedor': { name: 'Batedor', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'damage', amount: 1, target: 'player' }] }], ...EX }, // "When this enters, it deals 1 damage to target player."
   'Fogueira': { name: 'Fogueira', effects: [{ do: 'damage', amount: 1, target: 'each-opponent' }], ...EX }, // "This deals 1 damage to each opponent." (não mira)
+  'Garfo': { name: 'Garfo', effects: [{ do: 'damage', amount: 2, target: 'any', dividido: { max: 2 } }], ...EX }, // "This deals 2 damage divided as you choose among one or two targets."
 };
 const RV = 'Raven of Fell Omens';
 function mesa(seed = 1) {
@@ -80,4 +81,13 @@ test('CR 603.2h · validador: "umaVezPorTurno" só num gatilho "crime"', () => {
   const v = sc => J(SC.validateScript({ name: 'X', ...sc, example: { action: 'etb', target: 'none', expect: { attached: false } } }));
   eq(v({ abilities: [{ kind: 'triggered', when: 'crime', umaVezPorTurno: true, effects: [{ do: 'gain', amount: 1 }] }] }), []);
   assert.ok(v({ abilities: [{ kind: 'triggered', when: 'etb', umaVezPorTurno: true, effects: [{ do: 'gain', amount: 1 }] }] }).some(e => /umaVezPorTurno/.test(e)));
+});
+
+/* ---------------- T-89 · achados da auditoria independente (T-83…T-88) ---------------- */
+test('CR 700.13 / 601.2d · dano dividido: os alvos escolhidos na divisão contam — o Garfo todo no oponente é crime', () => {
+  let s = mesa(); [s] = poe(s, 0, RV, 'battlefield'); let g; [s, g] = poe(s, 0, 'Garfo', 'hand'); s = mana(s);
+  s = act(s, legais(s, 0, a => a.t === 'cast' && a.oid === g)[0]);
+  for (let i = 0; i < 10 && s.pending && /dividir/.test(s.pending.kind); i++) { const pd = s.pending, os = legais(s, pd.p); s = act(s, os.find(a => a.t === 'dividir_ponto' && (pd.options[a.index] || {}).player === 1) || os[0]); }
+  const b = s.players[1].life; s = resolve(s);
+  eq([E.crimesNoTurnoT(s, 0), b - s.players[1].life], [1, 3], '2 do Garfo e 1 do Corvo');
 });
