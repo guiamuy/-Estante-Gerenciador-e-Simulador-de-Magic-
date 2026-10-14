@@ -4331,6 +4331,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nada além da regra.
 - **Teste:** `lt81.unit` (2 testes; falham no motor anterior).
 
+**M-399 · LT66 · Ferocidade (palavra de habilidade, 207.2c): "if you control a creature with power 4 or greater"** ✅ (leva M-399, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** revisão por lote LVI — **Temur Battle Rage passa a jogar** (APROVADAS; Oracle do Forge, consulta de 12/10/2026; bloqueava 1 a 2 listas Pauper). Golpe duplo na criatura alvo e, se você controlar criatura com poder 4 ou mais na resolução, atropelar também (condição nova `ferocious`). O leitor tira a palavra de habilidade também antes de "That creature also …" (a condição está escrita na frase).
+- **Revisão independente:** 57 verificações (golpe duplo e atropelar no combate, inclusive o excesso contando o dano já marcado, 702.19c; ferocidade conferida na resolução — bombar em resposta conta, destruir ou encolher em resposta tira; vale quem controla a mágica; alvo ilegal não resolve), leitor no corpus (só a carta muda), diferencial de 17 partidas e fuzz de 40 partidas (148 resoluções, atropelar sempre igual ao cálculo independente) sem diferença; aprovada.
+- **Fora (declarado):** nada além da regra.
+- **Teste:** `lt82.unit` (1 teste; falha no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
