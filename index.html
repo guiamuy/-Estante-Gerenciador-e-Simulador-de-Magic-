@@ -5568,6 +5568,9 @@ const EFFECTS = {
   lutador: { fields: [], targets: ['creature', 'creature-you-control'] },
   fight: { fields: [], targets: ['creature', 'creature-opponent-controls', 'creature-you-control'] }, // quem: 'self-source' (a permanente fonte luta) | 'primeiro-alvo' (luta a criatura anotada pelo `lutador` anterior)
   /* ↓ T · efeitos da trilha tipos */
+  recomeca_jogo: { fields: [], targets: ['self'] }, // T-95 · CR 727 · "Restart the game, leaving in exile all non-Aura permanent cards exiled with ~. Then put those cards onto the battlefield under your control."
+  exila_da_propria_mao: { fields: [], targets: ['player', 'opponent'] }, // T-95 · "Target player exiles a card from their hand." (quem exila escolhe; a carta fica marcada como exilada com a fonte, 607.2a)
+  marca_exiladas: { fields: [], targets: ['self', 'first-target'] }, // T-95 · CR 607.2a · as cartas exiladas pelo efeito anterior ficam "exiled with ~" (first-target: o alvo exilado)
   encerra_turno: { fields: [], targets: ['self'] }, // T-92 · CR 724.1 · "End the turn."
   encerra_combate: { fields: [], targets: ['self'] }, // T-92 · CR 724.2 · "End the combat phase." (fora do combate, nada)
   oponentes_nao_conjuram: { fields: [], targets: ['self'] }, // T-92 · "Your opponents can't cast spells this turn."
@@ -6766,6 +6769,12 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-95 · CR 727 · recomeçar o jogo (Oracle do Forge, clone de 13/10/2026, conferido no master em 14/10/2026)
+  { name: 'Karn Liberated', loyalty: [
+    { cost: 4, label: '+4: O jogador alvo exila uma carta da mão', effects: [{ do: 'exila_da_propria_mao', target: 'player' }, { do: 'marca_exiladas' }] }, // "+4: Target player exiles a card from their hand."
+    { cost: -3, label: '−3: Exilar uma permanente', effects: [{ do: 'exile', target: 'permanent' }, { do: 'marca_exiladas', target: 'first-target' }] }, // "−3: Exile target permanent."
+    { cost: -14, label: '−14: Recomeçar o jogo', effects: [{ do: 'recomeca_jogo' }] }], // "−14: Restart the game, leaving in exile all non-Aura permanent cards exiled with Karn Liberated. Then put those cards onto the battlefield under your control."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // T-94 · CR 303.4b · Maldições: Aura que encanta um jogador (Oracle do Forge, clone de 13/10/2026, conferido no master em 14/10/2026)
   { name: 'Curse of the Bloody Tome', aura: { enchant: 'player' }, abilities: [{ kind: 'triggered', when: 'enchanted-player-upkeep', effects: [{ do: 'mill', amount: 2, target: 'enchanted-player' }] }], // "Enchant player · At the beginning of enchanted player's upkeep, that player mills two cards."
     example: { target: 'opponent', expect: { attached: false } } },
@@ -22043,6 +22052,9 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'lutador': if (obj) s.lutadorV = { fonte: src.oid, fz: encarnacaoV(s, src), oid: obj.oid, z: obj.zc || 0 }; break; // V-1/V-5 · anota quem luta; a luta é o `fight` seguinte, que apaga a anotação
     case 'fight': lutar(s, src, eff, tgt, events); break; // V-1 · 701.14
     /* ↓ T · casos de applyEffect da trilha tipos */
+    case 'recomeca_jogo': recomecaJogoT(s, src, events); break; // T-95 · CR 727
+    case 'exila_da_propria_mao': exilaDaPropriaMaoT(s, src, playerOf(), events); break; // T-95
+    case 'marca_exiladas': marcaExiladasT(s, src, eff.target === 'first-target' ? obj : null, events); break; // T-95 · CR 607.2a
     case 'encerra_turno': encerraT(s, src, 'turno', events); break; // T-92 · CR 724.1
     case 'encerra_combate': encerraT(s, src, 'combate', events); break; // T-92 · CR 724.2
     case 'oponentes_nao_conjuram': s.semConjurarT = { turno: s.turn.number, jogadores: s.players.map((_, i) => i).filter(i => i !== ctrl) }; note({}); break; // T-92 · "this turn"
@@ -22549,7 +22561,7 @@ function makeAbility(s, source, ab, targets, blockedAt = source.blocking) {
   s.objects[oid] = { oid, ability: true, name: source.name, source: source.oid, effects: ab.effects, owner: source.controller,
     controller: source.controller, zone: 'stack', tapped: false, sick: false, damage: 0, counters: {}, targets: carimbaAlvos(s, targets),
     ...(blockedAt ? { blockedAt } : {}) }; // Q11 · Tinder Wall: quem ela bloqueava, mesmo depois de sacrificada (última informação conhecida)
-  { const f = s.objects[source.oid]; if (f && !f.ability && (ab.effects || []).some(e => e && (e.ate === 'fonte-sair' || (['topo_do_dono', 'exila_da_mao', 'revela_topo_transforma', 'exile_return_transformed', 'craft_volta', 'endure', 'escolhe_nome'].includes(e.do) || e.remember || e.lembra || e.target === 'self-source')))) s.objects[oid].fonteZc = f.zc || 0; } // M-371 · também todo efeito em "esta permanente" (400.7) // M-353 · a habilidade lembra a encarnação da fonte (achado da revisão do lote XXV) // M-345 · também "put ~ on top" (achado da revisão) // CR2d.1 · 610.3a (auditoria M-308: também na ativada): se a fonte já saiu quando o efeito resolve, nada se move
+  { const f = s.objects[source.oid]; if (f && !f.ability && (ab.effects || []).some(e => e && (e.ate === 'fonte-sair' || (['topo_do_dono', 'exila_da_mao', 'revela_topo_transforma', 'exile_return_transformed', 'craft_volta', 'endure', 'escolhe_nome', 'recomeca_jogo', 'marca_exiladas', 'exila_da_propria_mao' /* T-95 · 607.2a: a encarnação da fonte (Toca ponto comum: makeAbility) */].includes(e.do) || e.remember || e.lembra || e.target === 'self-source')))) s.objects[oid].fonteZc = f.zc || 0; } // M-371 · também todo efeito em "esta permanente" (400.7) // M-353 · a habilidade lembra a encarnação da fonte (achado da revisão do lote XXV) // M-345 · também "put ~ on top" (achado da revisão) // CR2d.1 · 610.3a (auditoria M-308: também na ativada): se a fonte já saiu quando o efeito resolve, nada se move
   s.stack.push(oid);
   if (!ab.semCrimeT) crimeT(s, source.controller, s.objects[oid].targets); // T-86 · CR 700.13 · a habilidade ativada ou o gatilho posto na pilha que mira o oponente (Toca ponto comum: makeAbility, uma linha)
   return oid;
@@ -23539,6 +23551,7 @@ const HANDLERS = {
       // isto, "quando você compra a terceira carta do turno" já tinha disparado antes
       // do jogo começar e nunca disparava no primeiro turno
       s.players.forEach(x => { x.drawnThisTurn = 0; });
+      recomecoAntesDoDesvirarT(s); // T-95 · CR 727.4 · o que o recomeço manda fazer depois, logo antes do desvirar do primeiro turno (Toca ponto comum: keep)
       s.status = 'playing'; s.turn.number = 1; if (partidaContaTurnos(s)) s.contaTurnos = s.players.map((_, i) => i === s.turn.active ? 1 : 0); enterStep(s, 'untap'); // M-342
     }
   },
@@ -29580,6 +29593,61 @@ function encantaJogadorOkT(s, o, au) { return String(au.enchant || '') === 'play
 function maldicoesNoJogadorT(s, p) { return battlefield(s).filter(o => jogadorEncantadoT(s, o) === p && !o.faceDown && /\bCurse\b/.test(linhaDeTipo(s, o))).length; }
 function encantamentosDoJogadorT(s, p) { const ns = battlefield(s).filter(o => jogadorEncantadoT(s, o) === p).map(o => o.name); return ns.length ? 'Encantado por ' + ns.join(', ') : null; }
 Object.assign(EXPORTS_T, { encantamentosDoJogadorT, jogadorEncantadoT });
+/* ---------------- T-95 · CR 727 · recomeçar o jogo (Karn Liberated) ----------------
+   727.1 · o jogo acaba sem vencedor e um novo começa pelo procedimento de 103 (embaralhar, comprar sete, mulligan), com quem controlava o
+   efeito começando (727.1a). 727.2 · toda carta que estava na partida entra no grimório do dono (de onde estiver; a propriedade não muda);
+   fichas, cópias de mágica e habilidades deixam de existir; o comandante volta à zona de comando; o companheiro continua fora. 727.3 · com
+   menos de sete cartas no grimório, o jogador perde na primeira conferência de ações de estado do primeiro turno (a compra em grimório vazio
+   já faz isso). 727.4 · o resto do efeito ("then put those cards onto the battlefield under your control") acontece logo antes do desvirar do
+   primeiro turno, sem prioridade: `s.recomecoT`, cumprido no `keep` que encerra os mulligans. 727.5 · as cartas isentas (`exiladaPorT` da
+   mesma fonte e encarnação — 607.2a: "exiled with ~" — que não são Aura e são de permanente) ficam no exílio, fora do grimório.
+   O estado novo tem só as chaves de uma partida recém-criada (mais `recomecoT`): monarca, iniciativa, dia e noite, marcas do turno, efeitos e
+   designações da partida antiga não sobrevivem. */
+function marcaExiladasT(s, src, obj, events) {
+  const fonte = src.ability ? src.source : src.oid, z = src.fonteZc != null ? src.fonteZc : ((s.objects[fonte] || {}).zc || 0);
+  const novas = obj ? [obj] : (() => { const m = s.marcaExilioT; delete s.marcaExilioT; return m ? s.zones[m.p].exile.filter(x => !m.antes.includes(x)).map(x => s.objects[x]) : []; })();
+  for (const o of novas) if (o && o.zone === 'exile' && !o.token) o.exiladaPorT = { oid: fonte, z };
+}
+function exilaDaPropriaMaoT(s, src, who, events) {
+  const mao = s.zones[who].hand.slice();
+  if (!mao.length) { events.push({ kind: 'effect', do: 'exila_da_propria_mao', name: src.name, target: s.players[who].name, failed: true }); return; }
+  s.marcaExilioT = { p: who, antes: s.zones[who].exile.slice() };
+  startPick(s, { p: who, from: mao, min: 1, max: 1, to: 'exile', rest: 'stay', label: 'escolher a carta a exilar', source: src.name }, events);
+}
+const NOME_BASE_T = o => o.frontName || o.nomeImpresso || o.name;
+function recomecaJogoT(s, src, events) {
+  const p = src.controller, fonte = src.ability ? src.source : src.oid, z = src.fonteZc != null ? src.fonteZc : ((s.objects[fonte] || {}).zc || 0);
+  const ehCarta = o => o && !o.ability && !o.token && !o.copiaDeMagia && o.owner != null && s.players[o.owner];
+  const isenta = o => o.zone === 'exile' && o.exiladaPorT && o.exiladaPorT.oid === fonte && o.exiladaPorT.z === z && !o.faceDown && (() => { const f = s.facts[NOME_BASE_T(o)] || {}; return PERM_TYPES_T.some(t => (f.types || []).includes(t)) && !/\bAura\b/.test(f.typeText || ''); })();
+  const rules = FORMAT_RULES[s.format] || FORMAT_RULES.livre;
+  const isentas = [], objetos = {}, zonas = s.players.map(() => Object.fromEntries(ZONE_NAMES.map(n => [n, []])));
+  for (const o of Object.values(s.objects)) {
+    if (!ehCarta(o)) continue;
+    const zona = isenta(o) ? 'exile' : o.zone === 'companion' ? 'companion' : rules.commander && o.commander ? 'command' : 'library';
+    objetos[o.oid] = { oid: o.oid, name: NOME_BASE_T(o), owner: o.owner, controller: o.owner, zone: zona, tapped: false, sick: false, damage: 0, counters: {}, commander: !!o.commander };
+    zonas[o.owner][zona].push(o.oid); if (zona === 'exile') isentas.push(o.oid);
+  }
+  const jogadores = s.players.map(pl => ({ name: pl.name, life: pl.startLife != null ? pl.startLife : rules.life, startLife: pl.startLife != null ? pl.startLife : rules.life, lost: false, lossReason: null,
+    landsPlayed: 0, mulligans: 0, kept: false, drewFromEmpty: false, commanderCasts: {}, commanderDamage: {}, pool: { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 }, companionUsed: false, dungeon: null, dungeonsDone: 0,
+    ...(pl.dummy ? { dummy: true } : {}), ...(pl.identity ? { identity: pl.identity.slice() } : {}) }));
+  const novo = { v: s.v, format: s.format, mode: s.mode, manaCheck: s.manaCheck, rng: s.rng, seed: s.seed, facts: s.facts, objects: objetos, nextOid: s.nextOid,
+    players: jogadores, zones: zonas, stack: [], combat: null, queued: [], queuedChoices: [], resume: null, nextAbility: s.nextAbility, nextToken: s.nextToken,
+    turn: { number: 0, active: p, step: 'untap', priority: p, passes: 0, firstTurn: true }, status: 'mulligan', winner: null, pending: null,
+  };
+  for (const k of Object.keys(s)) delete s[k];
+  Object.assign(s, novo);
+  for (const z2 of s.zones) shuffle(s, z2.library);
+  s.players.forEach((_, i) => draw(s, i, rules.hand));
+  const perdem = s.players.map((pl, i) => pl.drewFromEmpty ? i : null).filter(i => i != null); for (const i of perdem) s.players[i].drewFromEmpty = false; // 727.3: a derrota espera a primeira conferência do primeiro turno
+  if (isentas.length || perdem.length) s.recomecoT = { p, cartas: isentas, perdem };
+  events.push({ kind: 'effect', do: 'recomeca', name: src.name, target: s.players[p].name, isentas: isentas.map(x => s.objects[x].name) });
+}
+const PERM_TYPES_T = ['artifact', 'battle', 'creature', 'enchantment', 'land', 'planeswalker'];
+function recomecoAntesDoDesvirarT(s) {
+  const r = s.recomecoT; if (!r) return; delete s.recomecoT;
+  for (const i of r.perdem || []) if (s.players[i]) s.players[i].drewFromEmpty = true; // 727.3
+  for (const oid of r.cartas) { const o = s.objects[oid]; if (!o || o.zone !== 'exile') continue; moveObject(s, oid, 'battlefield', { controller: r.p }); if (s.objects[oid].zone === 'battlefield') s.objects[oid].controller = r.p; }
+}
 /** T-81 · "Lands with the chosen name have '{T}: Add {C}.'" (`self.manaDoNome`, Petrified Hamlet): a opção de mana que o terreno com o
  * nome escolhido ganha. */
 function manaDoNomeT(s, o) {
@@ -32348,6 +32416,8 @@ Object.assign(EFEITO_PT_T, { vira_para_baixo: () => 'vira a criatura alvo para b
 /** T-59 · CR 700.6 / 700.12 / 700.9 · os predicados de tipo na frase do seletor. */
 const predicadosPT_T = sel => (sel.tapped ? ' virada' : sel.tapped === false ? ' desvirada' : '') + (sel.ativadaNoTurno ? ' que teve habilidade ativada neste turno' : '') + /* T-87 */ (sel.terrenoBasico === false ? ' que não seja terreno básico' : sel.terrenoBasico ? ' que é terreno básico' : '') + /* T-80 */ (sel.historico ? ' histórica' : sel.historico === false ? ' que não é histórica' : '') + (sel.foraDaLei ? ' fora da lei' : sel.foraDaLei === false ? ' que não é fora da lei' : '') + /* T-60 */ (sel.modificada ? ' modificada' : sel.modificada === false ? ' que não está modificada' : '');
 const LINHA_T = { preparada: ev => (ev.failed ? `${ev.name}: ${ev.motivo || 'não ficou preparada'}, nada muda` : `${ev.name} está preparada (pode conjurar uma cópia de ${ev.target})`), despreparada: ev => `${ev.name} deixou de estar preparada`, ciclo: ev => `Virou ${ev.target}${ev.motivo ? ` (${ev.motivo})` : ''}`, masmorra_completa: ev => `${ev.target} completou a masmorra ${ev.name}`, caso_resolvido: ev => (ev.failed ? `${ev.name}: a condição não valia mais, o Caso não foi resolvido` : `${ev.name} foi resolvido`), estacao: ev => (ev.failed ? `${ev.name}: a nave saiu do campo, a estação não pôs marcadores` : `${ev.name} recebeu ${ev.amount} marcador${ev.amount === 1 ? '' : 'es'} de carga (estação)${ev.total != null ? ` · ${ev.total} no total` : ''}`), selada: ev => (ev.failed ? `${ev.name}: a montaria saiu do campo, não foi selada` : `${ev.name} foi selada`), virar_carta: ev => (ev.failed ? `${ev.name} não virou${ev.motivo ? ` (${ev.motivo})` : ''}` : `${ev.name} virou: agora é ${ev.target}`), porta: ev => (ev.failed ? `${ev.name}: nenhuma porta para trancar ou destrancar` : `${ev.name} ${ev.acao} ${ev.porta} (${ev.target})`), nivel_sobe: ev => (ev.failed ? `${ev.name}: saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu de nível (nível ${ev.nivel})`), nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, converter: ev => `${ev.name} converteu em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
+Object.assign(LINHA_T, { recomeca: ev => `\u2063${ev.name}: o jogo recomeça; ${ev.target} começa${ev.isentas.length ? ` (ficam no exílio e entram no campo de ${ev.target} antes do primeiro desvirar: ${ev.isentas.join(', ')})` : ''}`, exila_da_propria_mao: ev => `${ev.name}: ${ev.target} não tem carta na mão` }); // T-95 · CR 727
+Object.assign(EFEITO_PT_T, { recomeca_jogo: () => 'o jogo recomeça (todas as cartas voltam ao grimório do dono, cada um embaralha e compra sete; você começa); as cartas de permanente que não são Aura exiladas com esta carta ficam no exílio e, depois, entram no campo sob o seu controle', exila_da_propria_mao: e => `${e.target === 'opponent' ? 'o oponente alvo' : 'o jogador alvo'} exila uma carta da mão (ele escolhe)`, marca_exiladas: () => '' }); // T-95
 Object.assign(LINHA_T, { encerra: ev => ev.failed ? `${ev.name}: não é a fase de combate, nada acontece` : `\u2063${ev.name}: ${ev.oque === 'turno' ? 'o turno acaba' : 'a fase de combate acaba'}${ev.exiladas.length ? ` (exiladas da pilha: ${ev.exiladas.join(', ')})` : ''}` }); // T-92 · CR 724
 Object.assign(EFEITO_PT_T, { encerra_turno: () => 'o turno acaba (a pilha vai para o exílio e vem a limpeza)', encerra_combate: () => 'a fase de combate acaba (a pilha vai para o exílio e as criaturas saem do combate)', oponentes_nao_conjuram: () => 'seus oponentes não podem conjurar mágicas neste turno' }); // T-92
 Object.assign(LINHA_T, { rad: ev => `${ev.target} recebeu ${ev.amount === 1 ? 'um marcador' : ev.amount + ' marcadores'} de radiação (${ev.name}; agora ${ev.total})`, // T-91 · CR 728.1

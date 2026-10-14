@@ -229,13 +229,16 @@
    "n": "104.6",
    "regra": "Ending the Game",
    "titulo": "Reinício do jogo (Karn Liberated)",
-   "status": "ausente",
-   "falta": "Sem efeito de reiniciar a partida.",
+   "status": "coberta",
    "esforco": "M",
    "depende": [
     "727"
    ],
-   "cartas": "uma carta"
+   "cartas": "uma carta",
+   "evidencia": "T-95 (14/10/2026): o reinício do jogo é a regra 727 — efeito `recomeca_jogo` do Karn Liberated (tipos.recomecar.unit)",
+   "testes": [
+    "CR 727.1 / 727.1a / 727.2 · Karn Liberated (texto oficial), −14: o jogo recomeça — todas as cartas no grimório do dono, sete na mão, vida inicial, quem ativou começa; fichas e estado da partida antiga somem"
+   ]
   },
   {
    "n": "105.1",
@@ -11956,53 +11959,68 @@
    "n": "727.1",
    "regra": "Restarting the Game",
    "titulo": "Recomeçar o jogo",
-   "status": "ausente",
-   "falta": "uma carta só (Karn Liberated); não há recomeço de partida dentro do motor.",
+   "status": "coberta",
    "esforco": "M",
-   "cartas": "uma carta só"
+   "cartas": "uma carta só",
+   "evidencia": "T-95 (14/10/2026): efeito `recomeca_jogo` — o jogo acaba sem vencedor e um novo começa pelo procedimento de 103 (embaralhar, sete cartas, mulligan); quem controlava o efeito começa (727.1a). Karn Liberated (tipos.recomecar.unit)",
+   "testes": [
+    "CR 727.1 / 727.1a / 727.2 · Karn Liberated (texto oficial), −14: o jogo recomeça — todas as cartas no grimório do dono, sete na mão, vida inicial, quem ativou começa; fichas e estado da partida antiga somem"
+   ]
   },
   {
    "n": "727.2",
    "regra": "Restarting the Game",
    "titulo": "Cartas voltam ao grimório dos donos",
-   "status": "ausente",
-   "falta": "uma carta só (Karn Liberated); não há recomeço de partida dentro do motor.",
+   "status": "coberta",
    "esforco": "M",
    "depende": [
     "727.1"
+   ],
+   "evidencia": "T-95: toda carta da partida vai ao grimório do dono, de onde estiver (cemitério, exílio, campo, mão); fichas, cópias e habilidades deixam de existir; o comandante volta à zona de comando; o companheiro segue fora; o estado novo só tem as chaves de uma partida recém-criada (tipos.recomecar.unit)",
+   "testes": [
+    "CR 727.1 / 727.1a / 727.2 · Karn Liberated (texto oficial), −14: o jogo recomeça — todas as cartas no grimório do dono, sete na mão, vida inicial, quem ativou começa; fichas e estado da partida antiga somem"
    ]
   },
   {
    "n": "727.3",
    "regra": "Restarting the Game",
    "titulo": "Jogador com menos de sete cartas",
-   "status": "ausente",
-   "falta": "uma carta só (Karn Liberated); não há recomeço de partida dentro do motor.",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "727.1"
+   ],
+   "evidencia": "T-95: o jogador que comprou de grimório vazio no jogo novo perde na primeira conferência do primeiro turno (a marca espera os mulligans) (tipos.recomecar.unit)",
+   "testes": [
+    "CR 727.3 · quem tem menos de sete cartas no grimório no jogo novo perde na primeira conferência de ações de estado do primeiro turno"
    ]
   },
   {
    "n": "727.4",
    "regra": "Restarting the Game",
    "titulo": "O efeito termina antes do primeiro desvirar",
-   "status": "ausente",
-   "falta": "uma carta só (Karn Liberated); não há recomeço de partida dentro do motor.",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "727.1"
+   ],
+   "evidencia": "T-95: o resto do efeito (\"then put those cards onto the battlefield under your control\") acontece logo antes do desvirar do primeiro turno, sem prioridade; os gatilhos vão para a pilha na manutenção (tipos.recomecar.unit)",
+   "testes": [
+    "CR 727.5 / 727.4 · as cartas de permanente que não são Aura exiladas com o Karn ficam fora do grimório e entram no campo de quem o controla logo antes do primeiro desvirar; a Aura e a instantânea exiladas com ele voltam ao grimório"
    ]
   },
   {
    "n": "727.5",
    "regra": "Restarting the Game",
    "titulo": "Cartas isentas do recomeço",
-   "status": "ausente",
-   "falta": "uma carta só (Karn Liberated); não há recomeço de partida dentro do motor.",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "727.1"
+   ],
+   "evidencia": "T-95: as cartas isentas (exiladas com a mesma fonte e encarnação, 607.2a / 400.7; de permanente e não Aura, no texto do Karn) ficam fora do grimório (tipos.recomecar.unit)",
+   "testes": [
+    "CR 727.5 / 727.4 · as cartas de permanente que não são Aura exiladas com o Karn ficam fora do grimório e entram no campo de quem o controla logo antes do primeiro desvirar; a Aura e a instantânea exiladas com ele voltam ao grimório"
    ]
   },
   {
