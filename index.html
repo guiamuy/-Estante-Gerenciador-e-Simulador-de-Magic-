@@ -5567,6 +5567,7 @@ const EFFECTS = {
   lutador: { fields: [], targets: ['creature', 'creature-you-control'] },
   fight: { fields: [], targets: ['creature', 'creature-opponent-controls', 'creature-you-control'] }, // quem: 'self-source' (a permanente fonte luta) | 'primeiro-alvo' (luta a criatura anotada pelo `lutador` anterior)
   /* ↓ T · efeitos da trilha tipos */
+  exila_mesmo_nome: { fields: [], targets: ['permanent'] }, // T-80 (o alvo de verdade é o seletor com zona 'graveyard', conferido na validação da trilha) · CR 701.23 · "search its owner's graveyard, hand, and library for any number of cards with the same name as that card and exile them. Then that player shuffles." (alvo: seletor de carta em cemitério)
   escolhe_nome: { fields: [], targets: ['self'] }, // T-77 · CR 201.4 · "choose a [nonland] card name": `filtro` opcional ({ tipos, semTipos }); quem controla o efeito escolhe, na resolução
   descarta_nome: { fields: [], targets: ['player', 'opponent'] }, // T-77 · "target player reveals their hand and discards all cards with that name" (o nome do `escolhe_nome` anterior)
   vira_para_baixo: { fields: [], targets: ['creature', 'permanent'] }, // T-73 · CR 708.2a · "turn target creature face down" (2/2 sem nome; nada acontece com quem já está virada ou com dupla face, 708.2b / 712.16)
@@ -5677,7 +5678,7 @@ const EXTRA_COST_PARTS = ['sacrificeOther', 'tapOther', 'discard', 'returnLand',
    equivalência compara o caminho antigo com o novo em partidas aleatórias. Carta nova escreve o seletor direto:
    target: { tipos: ['creature'], de: 'opponent' }  ·  { zona: 'graveyard', de: 'you', tipos: ['creature'] }  ·  { jogadores: 'any' } */
 const SELETOR_ZONAS = ['battlefield', 'graveyard', 'stack', 'nenhuma'];
-const SELETOR_CHAVES = ['historico', 'foraDaLei', 'modificada', 'virada', 'metamorfose', /* T-59 · CR 700.6 / 700.12 / 700.9 · T-73 · virada para baixo (708) */ 'zona', 'de', 'dono', 'tipos', 'semTipos', 'tiposImpressos', 'tiposDaCarta', 'subtipos', 'semSubtipos', 'palavra', 'semPalavra', 'mvMax', 'mvMin', 'outra', 'cor', 'semCor', 'permanente', 'jogadores', 'habilidades', 'ref', 'subtipoDaAura', 'lendaria', 'comToxico', 'ou', 'atacando']; // M-361 · `atacando: true` (506.4)
+const SELETOR_CHAVES = ['historico', 'foraDaLei', 'modificada', 'virada', 'metamorfose', 'terrenoBasico', /* T-59 · CR 700.6 / 700.12 / 700.9 · T-73 · virada para baixo (708) · T-80 · terreno básico (205.4) */ 'zona', 'de', 'dono', 'tipos', 'semTipos', 'tiposImpressos', 'tiposDaCarta', 'subtipos', 'semSubtipos', 'palavra', 'semPalavra', 'mvMax', 'mvMin', 'outra', 'cor', 'semCor', 'permanente', 'jogadores', 'habilidades', 'ref', 'subtipoDaAura', 'lendaria', 'comToxico', 'ou', 'atacando']; // M-361 · `atacando: true` (506.4)
 const ALVO_SELETOR = {
   any: { tipos: ['creature', 'planeswalker'], jogadores: 'any' },
   creature: { tipos: ['creature'] }, planeswalker: { tipos: ['planeswalker'] }, permanent: {},
@@ -5743,7 +5744,7 @@ function seletorErros(sel, label) {
   for (const k of ['palavra', 'semPalavra']) if (sel[k] != null && !KEYWORDS.includes(sel[k])) errs.push(`${label}: palavra-chave "${sel[k]}" não é resolvida pelo motor`);
   for (const k of ['mvMax', 'mvMin']) if (sel[k] != null) errs.push(...valueErrors(sel[k], `${label}: ${k}`));
   if (sel.lendaria != null && typeof sel.lendaria !== 'boolean') errs.push(`${label}: "lendaria" precisa ser verdadeiro ou falso`); // M-246 · supertipo lendário (205.4)
-  for (const k of ['historico', 'foraDaLei', 'modificada', 'virada', 'metamorfose']) if (sel[k] != null && typeof sel[k] !== 'boolean') errs.push(`${label}: "${k}" precisa ser verdadeiro ou falso`); // T-59 · CR 700.6 / 700.12 / 700.9 (Toca ponto comum: seletorErros)
+  for (const k of ['historico', 'foraDaLei', 'modificada', 'virada', 'metamorfose', 'terrenoBasico']) if (sel[k] != null && typeof sel[k] !== 'boolean') errs.push(`${label}: "${k}" precisa ser verdadeiro ou falso`); // T-59 · CR 700.6 / 700.12 / 700.9 (Toca ponto comum: seletorErros)
   return errs;
 }
 /** O seletor (já expandido dos atalhos) escolhe jogadores? E objetos? */
@@ -6549,6 +6550,7 @@ function effectErrors(effects, label, opcional) {
     if (e.do === 'lutador' && !effects.slice(i + 1).some(x => x.do === 'fight' && x.quem === 'primeiro-alvo')) errs.push(`${label} ${i + 1} (lutador): precisa ser seguido da luta (fight, quem: primeiro-alvo)`);
   });
   /* ↓ T · validação da trilha tipos */
+  effects.forEach((e, i) => { if (e.do === 'exila_mesmo_nome' && !(e.target && typeof e.target === 'object' && e.target.zona === 'graveyard')) errs.push(`${label} ${i + 1} (exila_mesmo_nome): o alvo é uma carta em um cemitério (seletor com zona: 'graveyard')`); }); // T-80
   effects.forEach((e, i) => { // T-77 · CR 201.4 · escolher um nome de carta
     if (e.do === 'escolhe_nome' && e.filtro != null) {
       const f = e.filtro;
@@ -6747,6 +6749,9 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-80 · CR 701.23 · cartas com o mesmo nome (Oracle do Forge, clone de 13/10/2026). O lembrete do {B/P} entre parênteses não se escreve.
+  { name: 'Surgical Extraction', effects: [{ do: 'exila_mesmo_nome', target: { zona: 'graveyard', terrenoBasico: false } }], // "Choose target card in a graveyard other than a basic land card. Search its owner's graveyard, hand, and library for any number of cards with the same name as that card and exile them. Then that player shuffles."
+    example: { target: 'own-graveyard-creature', expect: { selfLife: 0 } } }, // o cenário de verdade está em tipos.mesmonome.unit
   // T-79 · CR 201.4 · "As this enters, choose a card name" (Oracle do Forge, clone de 13/10/2026).
   { name: 'Pithing Needle', self: { nomeAoEntrar: true, travaAtivadasDoNome: 'semMana' }, // "As Pithing Needle enters, choose a card name. · Activated abilities of sources with the chosen name can't be activated unless they're mana abilities."
     example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o cenário de verdade está em tipos.nome.unit
@@ -20259,7 +20264,7 @@ function selCasa(s, p, o, sel, selfOid, opts = {}) {
   if (sel.cor && !coresDe(s, o).includes(sel.cor)) return false; // CR2d.8
   if (sel.lendaria != null && portadorLendarioV(s, o)) { if (!sel.lendaria) return false; sel = { ...sel, lendaria: null }; } // V-25 · 701.54c (1): o Portador do Anel é lendário (Toca ponto comum: seletor)
   if (sel.lendaria != null && (!!f.legendary && !o.faceDown) !== sel.lendaria) return false;
-  if ((sel.historico != null || sel.foraDaLei != null || sel.modificada != null || sel.virada != null || sel.metamorfose != null) && !predicadosDeTipoT(s, o, sel)) return false; // T-59 · CR 700.6 / 700.12 / 700.9 (Toca ponto comum: selCasa)
+  if ((sel.historico != null || sel.foraDaLei != null || sel.modificada != null || sel.virada != null || sel.metamorfose != null || sel.terrenoBasico != null) && !predicadosDeTipoT(s, o, sel)) return false; // T-59 · CR 700.6 / 700.12 / 700.9 (Toca ponto comum: selCasa)
   if (sel.atacando != null && (o.zone !== 'battlefield' || (o.attacking != null) !== !!sel.atacando)) return false; // M-361 · 506.4: "attacking creature" (Tangle)
   if (sel.comToxico && !toxicoDe(s, o)) return false; // M-253 · "creatures you control with toxic" // M-246 · 205.4 · lendária (virada para baixo não tem supertipo)
   if (sel.semCor && coresDe(s, o).includes(sel.semCor)) return false; // CR2d.8
@@ -21814,6 +21819,7 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'lutador': if (obj) s.lutadorV = { fonte: src.oid, fz: encarnacaoV(s, src), oid: obj.oid, z: obj.zc || 0 }; break; // V-1/V-5 · anota quem luta; a luta é o `fight` seguinte, que apaga a anotação
     case 'fight': lutar(s, src, eff, tgt, events); break; // V-1 · 701.14
     /* ↓ T · casos de applyEffect da trilha tipos */
+    case 'exila_mesmo_nome': exilaMesmoNomeT(s, src, obj, events); break; // T-80 · CR 701.23 / 201.2
     case 'escolhe_nome': escolheNomeT(s, src, eff, events); break; // T-77 · CR 201.4
     case 'descarta_nome': descartaNomeT(s, src, playerOf(), events); break; // T-77 · CR 201.4 / 701.20
     case 'moeda': moedaT(s, src, eff, events); break; // T-65 · CR 705 · jogar uma moeda
@@ -27408,6 +27414,7 @@ function predicadosDeTipoT(s, o, sel, lki = null) {
   const tem = x => lki ? (isChangeling(s, o, x) || new RegExp('\\b' + x + '\\b').test(lki.linha || '')) : temSubtipoT(s, o, x);
   if (sel.historico != null) { const h = !virada && (lki ? /\bLegendary\b/i.test(lki.linha || '') || !!f.legendary || (lki.tipos || []).includes('artifact') : (!!f.legendary || portadorLendarioV(s, o) || (o.zone === 'battlefield' ? tiposDe(s, o) : (f.types || [])).includes('artifact'))) || tem('Saga'); if (h !== sel.historico) return false; }
   if (sel.foraDaLei != null) { const fl = !virada && SUBTIPOS_FORA_DA_LEI_T.some(tem); if (fl !== sel.foraDaLei) return false; }
+  if (sel.terrenoBasico != null && (!virada && (f.types || []).includes('land') && /^\s*basic\b/i.test(f.typeText || '')) !== sel.terrenoBasico) return false; // T-80 · "other than a basic land card" (205.4)
   if (sel.virada != null && virada !== sel.virada) return false; // T-73 · "face-down creature" (708)
   if (sel.metamorfose != null && (!virada && !!((f.script || {}).morph) && !((f.script || {}).morph || {}).disfarceT) !== sel.metamorfose) return false; // T-74 · disfarce (702.168) não é metamorfose // T-73 · "creature with a morph ability" (702.37; a virada para baixo não tem habilidade, 708.2)
   if (sel.modificada != null) {
@@ -29012,6 +29019,23 @@ function descartaNomeT(s, src, p, events) {
   events.push({ kind: 'effect', do: 'descarta_nome', name: src.name, target: pl.name, nome, revelada, nomes, amount: saem.length });
 }
 Object.assign(EXPORTS_T, { nomesEscolhiveisT });
+/* ---------------- T-80 · CR 701.23 / 201.2 · "cards with the same name as that card" (Surgical Extraction) ----------------
+   - `exila_mesmo_nome` mira uma carta em um cemitério (seletor com `zona: 'graveyard'`; `terrenoBasico: false` = "other than a basic land
+     card") e exila do cemitério, da mão e do grimório do dono dela todas as cartas que têm um nome em comum com ela (`nomesDe`: a dividida
+     tem os dois, 709.4a), a própria alvo inclusive; depois o dono embaralha. Ficha não é carta.
+   - Simplificação declarada: "any number of cards" exila todas (quem busca não escolhe deixar alguma para trás). */
+function exilaMesmoNomeT(s, src, obj, events) {
+  if (!obj || obj.zone !== 'graveyard') { events.push({ kind: 'effect', do: 'exila_mesmo_nome', name: src.name, failed: true }); return; }
+  const dono = obj.owner, nomes = nomesDe(s, obj), z = s.zones[dono];
+  const casa = oid => { const x = s.objects[oid]; return !!x && !x.token && nomesDe(s, x).some(n => nomes.includes(n)); };
+  const de = { graveyard: z.graveyard.filter(casa), hand: z.hand.filter(casa), library: z.library.filter(casa) };
+  const nomesDe_ = k => de[k].map(oid => s.objects[oid].name);
+  const ev = { kind: 'effect', do: 'exila_mesmo_nome', name: src.name, target: s.players[dono].name, cemiterio: nomesDe_('graveyard'), mao: nomesDe_('hand'), grimorio: nomesDe_('library') };
+  for (const oid of [...de.graveyard, ...de.hand, ...de.library]) moveObject(s, oid, 'exile');
+  shuffle(s, s.zones[dono].library);
+  ev.amount = de.graveyard.length + de.hand.length + de.library.length;
+  events.push(ev);
+}
 /* ---------------- T-79 · CR 201.4 · "As this enters, choose a card name" e a trava das ativadas ----------------
    - `self.nomeAoEntrar: true | { filtro }`: ao entrar (carta ou ficha), a permanente fica anotada (`s.nomesEsperaT`) e a conferência
      seguinte abre a decisão `choose_name` (uma por vez, antes de alguém receber prioridade); o nome fica em `s.nomesT` com a encarnação.
@@ -31766,8 +31790,10 @@ const EFEITO_PT_T = { caso_resolvido: () => 'este Caso fica resolvido', estacao:
 Object.assign(EFEITO_PT_T, { vira_para_baixo: () => 'vira a criatura alvo para baixo (2/2, sem nome nem habilidades)', vira_para_cima: () => 'vira para cima a criatura alvo virada para baixo' }); // T-73 · CR 708.2a / 708.8
 /** T-7 · linhas do registro para os eventos da trilha tipos. */
 /** T-59 · CR 700.6 / 700.12 / 700.9 · os predicados de tipo na frase do seletor. */
-const predicadosPT_T = sel => (sel.historico ? ' histórica' : sel.historico === false ? ' que não é histórica' : '') + (sel.foraDaLei ? ' fora da lei' : sel.foraDaLei === false ? ' que não é fora da lei' : '') + /* T-60 */ (sel.modificada ? ' modificada' : sel.modificada === false ? ' que não está modificada' : '');
+const predicadosPT_T = sel => (sel.terrenoBasico === false ? ' que não seja terreno básico' : sel.terrenoBasico ? ' que é terreno básico' : '') + /* T-80 */ (sel.historico ? ' histórica' : sel.historico === false ? ' que não é histórica' : '') + (sel.foraDaLei ? ' fora da lei' : sel.foraDaLei === false ? ' que não é fora da lei' : '') + /* T-60 */ (sel.modificada ? ' modificada' : sel.modificada === false ? ' que não está modificada' : '');
 const LINHA_T = { preparada: ev => (ev.failed ? `${ev.name}: ${ev.motivo || 'não ficou preparada'}, nada muda` : `${ev.name} está preparada (pode conjurar uma cópia de ${ev.target})`), despreparada: ev => `${ev.name} deixou de estar preparada`, ciclo: ev => `Virou ${ev.target}${ev.motivo ? ` (${ev.motivo})` : ''}`, masmorra_completa: ev => `${ev.target} completou a masmorra ${ev.name}`, caso_resolvido: ev => (ev.failed ? `${ev.name}: a condição não valia mais, o Caso não foi resolvido` : `${ev.name} foi resolvido`), estacao: ev => (ev.failed ? `${ev.name}: a nave saiu do campo, a estação não pôs marcadores` : `${ev.name} recebeu ${ev.amount} marcador${ev.amount === 1 ? '' : 'es'} de carga (estação)${ev.total != null ? ` · ${ev.total} no total` : ''}`), selada: ev => (ev.failed ? `${ev.name}: a montaria saiu do campo, não foi selada` : `${ev.name} foi selada`), virar_carta: ev => (ev.failed ? `${ev.name} não virou${ev.motivo ? ` (${ev.motivo})` : ''}` : `${ev.name} virou: agora é ${ev.target}`), porta: ev => (ev.failed ? `${ev.name}: nenhuma porta para trancar ou destrancar` : `${ev.name} ${ev.acao} ${ev.porta} (${ev.target})`), nivel_sobe: ev => (ev.failed ? `${ev.name}: saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu de nível (nível ${ev.nivel})`), nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, converter: ev => `${ev.name} converteu em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
+Object.assign(LINHA_T, { exila_mesmo_nome: ev => ev.failed ? `${ev.name}: a carta já tinha saído do cemitério, nada é exilado` : `\u2063${ev.name} exilou ${[[ev.cemiterio, 'do cemitério'], [ev.mao, 'da mão'], [ev.grimorio, 'do grimório']].filter(x => x[0].length).map(([ns, de]) => `${ns.join(', ')} ${de}`).join('; ') || 'nada'} de ${ev.target}; ${ev.target} embaralhou o grimório` }); // T-80 · o exílio é público
+Object.assign(EFEITO_PT_T, { exila_mesmo_nome: () => 'exila do cemitério, da mão e do grimório do dono da carta alvo todas as cartas com o mesmo nome dela; o dono embaralha' }); // T-80
 Object.assign(LINHA_T, { escolhe_nome: ev => `${ev.name}: não há nome de carta que sirva, nada é escolhido`, // T-77 · CR 201.4
   descarta_nome: ev => ev.failed ? `${ev.name}: nada é descartado` : `\u2063${ev.target} revelou a mão${ev.revelada.length ? ` (${ev.revelada.join(', ')})` : ', vazia,'} e ${ev.nomes.length ? `descartou ${ev.nomes.join(', ')}` : `não tinha ${ev.nome}`}` }); // \u2063: revelar é público (701.20)
 Object.assign(EFEITO_PT_T, { escolhe_nome: e => `escolhe um nome de carta${e.filtro && (e.filtro.semTipos || []).includes('land') ? ' que não seja terreno' : ''}`, descarta_nome: e => `${e.target === 'opponent' ? 'o oponente alvo' : 'o jogador alvo'} revela a mão e descarta todas as cartas com esse nome` }); // T-77

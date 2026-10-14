@@ -1894,9 +1894,12 @@
    "regra": "Name",
    "titulo": "Nome em inglês e comparação de nomes",
    "status": "parcial",
-   "evidencia": "objetos e fatos são indexados pelo nome inglês (s.facts[name], index.html:10145); teste rules.unit \"S28 · gatilho só dispara com outra permanente de mesmo nome\"",
-   "falta": "não há verificação de \"nomes diferentes\" (201.2b-c) nem tratamento de objeto sem nome: carta virada para baixo continua com o.name da carta (201.2a).",
-   "esforco": "P"
+   "evidencia": "objetos e fatos são indexados pelo nome inglês (s.facts[name], index.html:10145); teste rules.unit \"S28 · gatilho só dispara com outra permanente de mesmo nome\" T-80 (14/10/2026): \"mesmo nome\" compara pelos nomes do objeto (E.nomesDe): a dividida tem os dois (709.4a), a Sala no campo os das portas destrancadas.",
+   "falta": "não há verificação de \"nomes diferentes\" (201.2b-c) nem tratamento de objeto sem nome: carta virada para baixo continua com o.name da carta (201.2a) — o registro e os efeitos de nome da trilha tipos já a tratam como sem nome (T-68, T-79).",
+   "esforco": "P",
+   "testes": [
+    "CR 709.4a · dividida: Wax // Wane no cemitério leva as outras Wax // Wane da mão e do grimório"
+   ]
   },
   {
    "n": "201.3",
@@ -6104,8 +6107,8 @@
    "regra": "Keyword Actions",
    "titulo": "Search",
    "status": "parcial",
-   "evidencia": "case search (index.html:11196-11203) e transmute_busca: só cartas do filtro, embaralha depois, embaralha mesmo sem achar; rules.unit \"S13 · vasculhar: só cartas do filtro, e o grimório é embaralhado\"; pauper.regras \"Leva 108 · buscar sem achar nada ainda embaralha\" · teste de conformidade em cr.conformidade (leva CR1a)",
-   "falta": "só busca no grimório (sem cemitério nem mão); sem buscar fora do jogo (701.23j); sem substituição de busca (701.23f).",
+   "evidencia": "case search (index.html:11196-11203) e transmute_busca: só cartas do filtro, embaralha depois, embaralha mesmo sem achar; rules.unit \"S13 · vasculhar: só cartas do filtro, e o grimório é embaralhado\"; pauper.regras \"Leva 108 · buscar sem achar nada ainda embaralha\" · teste de conformidade em cr.conformidade (leva CR1a) T-80 (14/10/2026): exila_mesmo_nome — busca no cemitério, na mão e no grimório do dono da carta alvo as cartas com o mesmo nome (nomesDe) e exila; o dono embaralha. Carta: Surgical Extraction (Oracle do Forge, clone de 13/10/2026).",
+   "falta": "só a busca de \"mesmo nome\" (Surgical Extraction, T-80) olha cemitério, mão e grimório; as outras buscas só no grimório; sem buscar fora do jogo (701.23j); sem substituição de busca (701.23f); \"any number\" da Surgical exila todas (simplificação declarada).",
    "esforco": "P",
    "depende": [
     "701.24",
@@ -6113,7 +6116,10 @@
    ],
    "cartas": "evergreen",
    "testes": [
-    "CR 701.23 · busca por característica em zona oculta: o jogador pode não achar"
+    "CR 701.23 · busca por característica em zona oculta: o jogador pode não achar",
+    "CR 701.23 / 201.2 · Surgical Extraction (texto oficial): exila do cemitério, da mão e do grimório do dono todas as cartas com o mesmo nome da carta alvo, e o dono embaralha",
+    "CR 701.23 · o alvo é uma carta em um cemitério que não seja terreno básico: o Pântano não é alvo; Terra Rara (terreno não básico) é",
+    "CR 701.23 · registro e validador: o que saiu de cada zona aparece; o seletor \"terrenoBasico\" só aceita verdadeiro ou falso"
    ]
   },
   {
