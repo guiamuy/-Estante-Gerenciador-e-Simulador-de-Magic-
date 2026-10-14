@@ -1910,9 +1910,16 @@
    "n": "201.4",
    "regra": "Name",
    "titulo": "Escolher um nome de carta",
-   "status": "ausente",
-   "falta": "não existe decisão pendente de \"escolha um nome de carta\" (só cor, tipo de criatura, modo): Pithing Needle, Meddling Mage, Cabal Therapy ficam manuais. 201.4a-g dependem disso.",
-   "esforco": "M"
+   "status": "parcial",
+   "falta": "Simplificação declarada: a lista de nomes é a das cartas da partida (as duas listas); nomear carta que não está na partida não muda nada no jogo. 201.4e (meld) e 201.4g (nomes intercambiáveis) não existem no motor. Só Cabal Therapy usa o nome escolhido (descarta_nome); Pithing Needle, Meddling Mage e afins (\"as this enters, choose a card name\" com efeito contínuo) ainda não.",
+   "esforco": "M",
+   "evidencia": "T-77 (14/10/2026): efeito escolhe_nome (filtro { tipos, semTipos }) abre a decisão choose_name na resolução, para quem controla o efeito; o nome fica no objeto de onde o efeito veio (s.nomesT, com a encarnação). Nomes escolhíveis: os das cartas da partida, em ordem alfabética, nunca o de ficha nem o da carta inteira de duas partes; cada face com as suas características (nomesEscolhiveisT). Mesa: \"Escolher o nome\" com busca; goldfish fica com o primeiro; registro \"escolheu o nome X\". Carta: Cabal Therapy (Oracle do Forge, clone de 13/10/2026), com descarta_nome (o alvo revela a mão e descarta todas as cartas com o nome). 201.4a: o filtro olha as características da face (\"nonland\" tira os terrenos).",
+   "testes": [
+    "CR 201.4 / 201.4a · Cabal Therapy (texto oficial): escolhe um nome de carta não terreno; o alvo revela a mão e descarta todas as cartas com esse nome",
+    "CR 201.4 · Cabal Therapy: nomeando uma carta que não está na mão, nada é descartado (a mão é revelada no registro)",
+    "CR 201.4 · ficha não tem nome de carta: o nome de uma ficha criada na partida não é escolhível",
+    "CR 201.4 · registro e validador: \"escolheu o nome\"; a mão revelada e o que saiu; descarta_nome sem escolhe_nome antes e filtro desconhecido são recusados"
+   ]
   },
   {
    "n": "201.5",
@@ -10560,16 +10567,17 @@
    "regra": "Split Cards",
    "titulo": "Fora da pilha, características somadas das metades",
    "status": "parcial",
-   "falta": "709.4a: os efeitos de \"escolha um nome de carta\" do motor ainda comparam o nome do objeto, não E.nomesDe (trilha motor). 709.4b, última frase: o custo somado junta o genérico ({1}{R} + {1}{U} vira {2}{U}{R}). 709.4d: fundir não existe.",
+   "falta": "709.4b, última frase: o custo somado junta o genérico ({1}{R} + {1}{U} vira {2}{U}{R}). 709.4d: fundir não existe.",
    "esforco": "M",
    "depende": [
     "709.3"
    ],
-   "evidencia": "T-10: fora da pilha a carta tem os dois tipos, o custo somado e a cor e o valor de mana desse custo (Assault // Battery: {3}{R}{G}, valor 5, vermelha e verde); E.nomesDe devolve os dois nomes.",
+   "evidencia": "T-10: fora da pilha a carta tem os dois tipos, o custo somado e a cor e o valor de mana desse custo (Assault // Battery: {3}{R}{G}, valor 5, vermelha e verde); E.nomesDe devolve os dois nomes. T-77 (14/10/2026): 709.4a — o efeito de nome escolhido compara pelos nomes do objeto (E.nomesDe): nomeando uma metade, a dividida na mão sai (201.4b).",
    "testes": [
     "CR 709.4 · 709.4b–c · 709.2 · fora da pilha a carta tem as duas metades: os dois tipos, o custo somado, a cor e o valor de mana desse custo; é uma carta só",
     "CR 709.4a · a carta dividida tem os dois nomes: E.nomesDe devolve as duas metades",
-    "CR 709 · a lista pode trazer a carta pelo nome de uma metade (\"Wax\") ou pelo nome completo (\"Wax // Wane\"), com o dado no formato da Scryfall: a partida usa sempre a carta inteira"
+    "CR 709 · a lista pode trazer a carta pelo nome de uma metade (\"Wax\") ou pelo nome completo (\"Wax // Wane\"), com o dado no formato da Scryfall: a partida usa sempre a carta inteira",
+    "CR 201.4b / 709.4a · dividida: escolhe-se o nome de uma metade, nunca o da carta inteira; na mão, Wax // Wane tem os dois nomes e sai nomeando Wane"
    ]
   },
   {
@@ -10671,11 +10679,15 @@
    "n": "710.5",
    "regra": "Flip Cards",
    "titulo": "Escolher o nome alternativo de carta de virar",
-   "status": "ausente",
-   "falta": "Continua sem efeito de escolher nome de carta no motor (o nome alternativo seria opção). T-29 (13/10/2026): as cartas de virar existem.",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "201.4"
+   ],
+   "evidencia": "T-77 (14/10/2026): efeito escolhe_nome (filtro { tipos, semTipos }) abre a decisão choose_name na resolução, para quem controla o efeito; o nome fica no objeto de onde o efeito veio (s.nomesT, com a encarnação). Nomes escolhíveis: os das cartas da partida, em ordem alfabética, nunca o de ficha nem o da carta inteira de duas partes; cada face com as suas características (nomesEscolhiveisT). Mesa: \"Escolher o nome\" com busca; goldfish fica com o primeiro; registro \"escolheu o nome X\". Carta: Cabal Therapy (Oracle do Forge, clone de 13/10/2026), com descarta_nome (o alvo revela a mão e descarta todas as cartas com o nome). o nome alternativo da carta de virar (Shidako, Broodmistress) é escolhível, com as características da parte alternativa (201.4c); na mão, a carta se chama pela parte de cima (Orochi Eggwatcher).",
+   "testes": [
+    "CR 201.4c / 201.4d / 712.19 / 710.5 / 720.5 / 722.5 · o nome da face de trás, da parte alternativa, do Presságio e da mágica de preparação são escolhíveis, com as características dessa face",
+    "CR 710.4 / 201.4c · na mão, a carta de virar se chama pela parte de cima: nomeando Shidako, Broodmistress, ela fica; nomeando Orochi Eggwatcher, sai"
    ]
   },
   {
@@ -11000,11 +11012,14 @@
    "n": "712.19",
    "regra": "Double-Faced Cards",
    "titulo": "Escolher nome: qualquer face",
-   "status": "ausente",
-   "falta": "não há efeito de escolher nome de carta. T-19 (12/10/2026): fica para depois — não há efeito de escolher nome de carta.",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "201.4"
+   ],
+   "evidencia": "T-77 (14/10/2026): efeito escolhe_nome (filtro { tipos, semTipos }) abre a decisão choose_name na resolução, para quem controla o efeito; o nome fica no objeto de onde o efeito veio (s.nomesT, com a encarnação). Nomes escolhíveis: os das cartas da partida, em ordem alfabética, nunca o de ficha nem o da carta inteira de duas partes; cada face com as suas características (nomesEscolhiveisT). Mesa: \"Escolher o nome\" com busca; goldfish fica com o primeiro; registro \"escolheu o nome X\". Carta: Cabal Therapy (Oracle do Forge, clone de 13/10/2026), com descarta_nome (o alvo revela a mão e descarta todas as cartas com o nome). o nome da face de trás (Insectile Aberration) é escolhível, com as características dela (201.4d).",
+   "testes": [
+    "CR 201.4c / 201.4d / 712.19 / 710.5 / 720.5 / 722.5 · o nome da face de trás, da parte alternativa, do Presságio e da mágica de preparação são escolhíveis, com as características dessa face"
    ]
   },
   {
@@ -11208,11 +11223,15 @@
    "n": "715.5",
    "regra": "Adventurer Cards",
    "titulo": "Escolher o nome da Aventura",
-   "status": "ausente",
-   "falta": "não há efeito de escolher nome de carta no vocabulário (nenhuma carta das listas pede); quando existir, o nome da Aventura (E.aventuraDe(…).nome) é uma escolha válida.",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "201.4"
+   ],
+   "evidencia": "T-77 (14/10/2026): efeito escolhe_nome (filtro { tipos, semTipos }) abre a decisão choose_name na resolução, para quem controla o efeito; o nome fica no objeto de onde o efeito veio (s.nomesT, com a encarnação). Nomes escolhíveis: os das cartas da partida, em ordem alfabética, nunca o de ficha nem o da carta inteira de duas partes; cada face com as suas características (nomesEscolhiveisT). Mesa: \"Escolher o nome\" com busca; goldfish fica com o primeiro; registro \"escolheu o nome X\". Carta: Cabal Therapy (Oracle do Forge, clone de 13/10/2026), com descarta_nome (o alvo revela a mão e descarta todas as cartas com o nome). o nome da Aventura (Profane Insight) é escolhível (201.4f); na mão, Foulmire Knight só tem o nome dela (715.4) e não sai nomeando a Aventura.",
+   "testes": [
+    "CR 201.4c / 201.4d / 712.19 / 710.5 / 720.5 / 722.5 · o nome da face de trás, da parte alternativa, do Presságio e da mágica de preparação são escolhíveis, com as características dessa face",
+    "CR 201.4f / 715.5 · Aventura: o nome da Aventura (Profane Insight) é escolhível; na mão, Foulmire Knight só tem o nome dela e não sai (715.4)"
    ]
   },
   {
@@ -11461,11 +11480,14 @@
    "n": "720.5",
    "regra": "Omen Cards",
    "titulo": "Escolher o nome do Presságio",
-   "status": "ausente",
-   "falta": "não há efeito de escolher nome de carta.",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "201.4"
+   ],
+   "evidencia": "T-77 (14/10/2026): efeito escolhe_nome (filtro { tipos, semTipos }) abre a decisão choose_name na resolução, para quem controla o efeito; o nome fica no objeto de onde o efeito veio (s.nomesT, com a encarnação). Nomes escolhíveis: os das cartas da partida, em ordem alfabética, nunca o de ficha nem o da carta inteira de duas partes; cada face com as suas características (nomesEscolhiveisT). Mesa: \"Escolher o nome\" com busca; goldfish fica com o primeiro; registro \"escolheu o nome X\". Carta: Cabal Therapy (Oracle do Forge, clone de 13/10/2026), com descarta_nome (o alvo revela a mão e descarta todas as cartas com o nome). o nome do Presságio (Roost Seek) é escolhível, com as características dele (feitiço).",
+   "testes": [
+    "CR 201.4c / 201.4d / 712.19 / 710.5 / 720.5 / 722.5 · o nome da face de trás, da parte alternativa, do Presságio e da mágica de preparação são escolhíveis, com as características dessa face"
    ]
   },
   {
@@ -11570,11 +11592,14 @@
    "n": "722.5",
    "regra": "Preparation Cards",
    "titulo": "Escolher o nome da mágica de preparação",
-   "status": "ausente",
-   "falta": "não há efeito de escolher nome de carta. T-51 (13/10/2026): fica para quando houver efeito de escolher nome (o nome da mágica de preparação está nos fatos da partida).",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "201.4"
+   ],
+   "evidencia": "T-77 (14/10/2026): efeito escolhe_nome (filtro { tipos, semTipos }) abre a decisão choose_name na resolução, para quem controla o efeito; o nome fica no objeto de onde o efeito veio (s.nomesT, com a encarnação). Nomes escolhíveis: os das cartas da partida, em ordem alfabética, nunca o de ficha nem o da carta inteira de duas partes; cada face com as suas características (nomesEscolhiveisT). Mesa: \"Escolher o nome\" com busca; goldfish fica com o primeiro; registro \"escolheu o nome X\". Carta: Cabal Therapy (Oracle do Forge, clone de 13/10/2026), com descarta_nome (o alvo revela a mão e descarta todas as cartas com o nome). o nome da mágica de preparação (Rejoinder) é escolhível, com as características dela (feitiço).",
+   "testes": [
+    "CR 201.4c / 201.4d / 712.19 / 710.5 / 720.5 / 722.5 · o nome da face de trás, da parte alternativa, do Presságio e da mágica de preparação são escolhíveis, com as características dessa face"
    ]
   },
   {
