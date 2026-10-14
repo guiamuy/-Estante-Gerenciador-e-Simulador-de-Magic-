@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { E, S as SC, J, act, poe, legais, passaAte, valorDeMana } from './listas.mjs';
+import { E, S as SC, T, J, act, poe, legais, passaAte, valorDeMana } from './listas.mjs';
 
 const L = n => JSON.parse(readFileSync(new URL('./.listas/' + n, import.meta.url), 'utf8')).cartas;
 const NOMES = ['Kami of the Crescent Moon', 'Font of Mythos', 'Dictate of Kruphix', 'Howling Mine', 'Grafted Skullcap', 'Paradox Haze'];
@@ -14,11 +14,13 @@ for (const c of L('oficiais-tipos.json').filter(x => NOMES.includes(x.name)))
   C[c.name] = { name: c.name, type_line: c.type_line, mana_cost: c.mana_cost, cmc: valorDeMana(c.mana_cost), keywords: c.name === 'Dictate of Kruphix' ? ['Flash'] : [], oracle_text: c.oracle_text, colors: [], power: c.power, toughness: c.toughness };
 C.Island = { name: 'Island', type_line: 'Basic Land — Island', mana_cost: '', cmc: 0, keywords: [], oracle_text: '({T}: Add {U}.)', colors: [] };
 const carta = (name, type_line, extra = {}) => { C[name] = { name, type_line, mana_cost: '{1}', cmc: 1, keywords: [], oracle_text: '', colors: [], ...extra }; };
-carta('Ritual', 'Enchantment'); carta('Vigia', 'Enchantment');
+carta('Ritual', 'Enchantment'); carta('Vigia', 'Enchantment'); carta('Relógio', 'Enchantment'); carta('Ampulheta', 'Instant');
 const EXP = { example: { action: 'etb', target: 'none', expect: { attached: false } } };
 const SCRIPTS = {
   'Ritual': { name: 'Ritual', abilities: [{ kind: 'triggered', when: 'precombat-main', effects: [{ do: 'gain', amount: 2 }] }], ...EXP }, // "At the beginning of your precombat main phase, you gain 2 life."
   'Vigia': { name: 'Vigia', abilities: [{ kind: 'triggered', when: 'upkeep', effects: [{ do: 'gain', amount: 1 }] }], ...EXP }, // "At the beginning of your upkeep, you gain 1 life."
+  'Relógio': { name: 'Relógio', abilities: [{ kind: 'triggered', when: 'upkeep', effects: [{ do: 'passo_extra', passo: 'draw', target: 'self' }] }], ...EXP }, // "At the beginning of your upkeep, you get an additional draw step after this step."
+  'Ampulheta': { name: 'Ampulheta', effects: [{ do: 'passo_extra', passo: 'upkeep', target: 'self' }], example: { target: 'none', expect: { selfLife: 0 } } }, // "You get an additional upkeep step after this step."
 };
 function mesa(seed = 1) {
   const deck = [...Object.keys(C).filter(n => n !== 'Island').map(name => ({ name, qty: 2, zone: 'main' })), { name: 'Island', qty: 16, zone: 'main' }];
@@ -82,8 +84,37 @@ test('CR 500.9 · Paradox Haze (texto oficial): na primeira manutenção do joga
   eq([s.players[0].life - v, s.emPassoExtraT, s.passosExtrasT], [2, undefined, undefined], 'duas manutenções: Vigia duas vezes; o Haze não pediu a terceira');
 });
 
+const trilha = (s, fim) => { const vistos = []; for (let i = 0; i < 400 && !fim(s); i++) { const p = s.pending ? s.pending.p : s.turn.priority; const os = legais(s, p); s = act(s, os.find(x => x.t === 'pass') || os[0]); const k = s.turn.step + (s.emPassoExtraT ? '*' : ''); if (vistos[vistos.length - 1] !== k) vistos.push(k); } return [s, vistos]; };
+
+test('CR 500.9 · passo a mais de outro tipo: um passo de compra a mais depois da manutenção — e depois dele vem o passo de compra normal (a ordem segue do passo em que foi pedido)', () => {
+  let s = mesa(); [s] = poe(s, 0, 'Relógio', 'battlefield');
+  s = passaAte(s, x => x.turn.active === 1 && x.turn.step === 'main1'); const mao = s.zones[0].hand.length;
+  let vistos; [s, vistos] = trilha(s, x => x.turn.active === 0 && x.turn.step === 'main1' && !x.stack.length && !x.pending);
+  eq([vistos.filter(v => /^(upkeep|draw)/.test(v)), s.zones[0].hand.length - mao], [['upkeep', 'draw*', 'draw'], 2], 'duas compras: a do passo a mais e a do passo normal');
+});
+
+test('CR 500.9 · manutenção a mais pedida no passo de compra: depois dela vem a principal, não outro passo de compra', () => {
+  let s = mesa(); s = passaAte(s, x => x.turn.active === 1 && x.turn.step === 'main1');
+  s = passaAte(s, x => x.turn.active === 0 && x.turn.step === 'draw' && !x.stack.length && !x.pending); const mao = s.zones[0].hand.length;
+  let a; [s, a] = poe(s, 0, 'Ampulheta', 'hand'); s = J(s); s.players[0].pool.C += 1; s.turn.priority = 0;
+  s = act(s, legais(s, 0, x => x.t === 'cast' && x.oid === a)[0]);
+  let vistos; [s, vistos] = trilha(s, x => x.turn.step === 'main1' && !x.stack.length && !x.pending);
+  eq([vistos.filter(v => /^(upkeep|draw)/.test(v)), s.zones[0].hand.length - mao, s.voltaDoExtraT], [['draw', 'upkeep*'], 0, undefined]);
+});
+
+test('CR 500.9 · o turno que acaba com um passo a mais ainda por jogar: nada dele passa ao turno seguinte', () => {
+  let s = mesa(); [s] = poe(s, 0, 'Relógio', 'battlefield');
+  s = passaAte(s, x => x.turn.active === 1 && x.turn.step === 'main1');
+  s = passaAte(s, x => x.turn.active === 0 && x.emPassoExtraT === 'draw' && !x.stack.length && !x.pending);
+  s = J(s); s.passosExtrasT = [{ depois: 'draw', passo: 'upkeep', turno: s.turn.number }]; // um pedido ainda por jogar
+  s = J(s); s.turn.step = 'end'; s.turn.passes = 0; // o turno acaba sem jogar o pedido
+  s = passaAte(s, x => x.turn.active === 1 && x.turn.step === 'upkeep');
+  eq([s.emPassoExtraT, s.passosExtrasT, s.voltaDoExtraT], [undefined, undefined, undefined]);
+});
+
 test('CR 500.6 / 500.9 · validador', () => {
   const v = sc => J(SC.validateScript({ name: 'X', ...sc, example: { action: 'etb', target: 'none', expect: { attached: false } } }));
   eq(v({ abilities: [{ kind: 'triggered', when: 'each-draw-step', condition: { fonteDesvirada: true }, effects: [{ do: 'draw', amount: 1, target: 'that-player' }] }] }), []);
   assert.ok(v({ abilities: [{ kind: 'triggered', when: 'upkeep', condition: { primeiraManutencao: 2 }, effects: [{ do: 'gain', amount: 1 }] }] }).some(e => /primeiraManutencao/.test(e)));
+  assert.match(T.descreveEfeitos([{ do: 'draw', amount: 1, target: 'that-player' }]), /^esse jogador compra/, 'T-102 · quem compra é o jogador do turno, não quem controla');
 });

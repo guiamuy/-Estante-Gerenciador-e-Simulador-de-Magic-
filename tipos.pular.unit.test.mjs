@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 import { E, S as SC, J, act, poe, legais, passaAte, valorDeMana } from './listas.mjs';
 
 const L = n => JSON.parse(readFileSync(new URL('./.listas/' + n, import.meta.url), 'utf8')).cartas;
-const NOMES = ['Fatigue', 'Moment of Silence', 'False Peace', 'Meditate', 'Brine Elemental', 'Wormfang Manta', 'Chronatog'];
+const NOMES = ['Fatigue', 'Moment of Silence', 'False Peace', 'Meditate', 'Brine Elemental', 'Wormfang Manta', 'Chronatog', 'Time Stop'];
 const C = {};
 for (const c of L('oficiais-tipos.json').filter(x => NOMES.includes(x.name)))
   C[c.name] = { name: c.name, type_line: c.type_line, mana_cost: c.mana_cost, cmc: valorDeMana(c.mana_cost), keywords: c.name === 'Brine Elemental' ? ['Morph'] : [], oracle_text: c.oracle_text, colors: [], power: c.power, toughness: c.toughness };
@@ -85,6 +85,23 @@ test('CR 614.10 · Brine Elemental (texto oficial): virada para cima, cada opone
   eq(s.objects[u].tapped, true, 'o Urso de B não desvirou');
 });
 
+test('CR 302.6 / 701.35a · sem o passo de desvirar, o turno começa do mesmo jeito: a criatura de B deixa de estar enjoada e o que B deteve se solta', () => {
+  let s = mesa(); let b, v, x; [s, b] = poe(s, 0, 'Brine Elemental', 'battlefield'); [s, v] = poe(s, 1, 'Vigia', 'battlefield'); [s, x] = poe(s, 0, 'Urso', 'battlefield');
+  s = J(s); s.objects[b].faceDown = true; s.objects[v].sick = true; s.objects[x].detidaV = [{ by: 1, z: s.objects[x].zc || 0 }]; s.objects[x].cantAttackNext = { by: 1 };
+  s = mana(s); s = passaAte(act(s, legais(s, 0, a => a.oid === b && /unmorph|face|desvira|vira/i.test(a.t))[0]), y => !y.stack.length || !!y.pending);
+  [s] = passos(s, y => y.turn.active === 1 && y.turn.step === 'main1');
+  eq([(s.puladosT || []).some(r => r.p === 1 && r.o === 'desvirar'), s.objects[v].sick, s.objects[x].detidaV, s.objects[x].cantAttackNext], [true, false, undefined, undefined]);
+});
+
+test('CR 614.10 · False Peace no oponente e o turno dele encerrado antes do combate (Time Stop, texto oficial): o "próximo turno" foi aquele — no seguinte, ele tem combate', () => {
+  let s = mesa(); s = conjura(s, 0, 'False Peace', noJogador(1));
+  s = passaAte(s, x => x.turn.active === 1 && x.turn.step === 'upkeep' && x.turn.priority === 0 && !x.stack.length && !x.pending);
+  s = conjura(s, 0, 'Time Stop'); s = passaAte(s, x => !x.stack.length && !x.pending);
+  let vistos; [s, vistos] = passos(s, x => x.turn.active === 1 && x.turn.number > 3 && x.turn.step === 'main2');
+  assert.ok(vistos.includes('1:combat_begin'), 'B tem combate no turno seguinte: ' + vistos.join(' '));
+  assert.equal(s.pulosT, undefined, 'nada sobra');
+});
+
 test('Wormfang Manta e Chronatog (textos oficiais): ao entrar, a Manta faz você pular o próximo turno, e ao sair dá um turno extra depois deste; o Chronatog ganha +3/+3 e você pula o próximo turno (uma vez por turno)', () => {
   let s = mesa(); let w; [s, w] = poe(s, 0, 'Wormfang Manta', 'hand'); s = mana(s); s = passaAte(act(s, legais(s, 0, x => x.t === 'cast' && x.oid === w)[0]), x => !x.stack.length || !!x.pending);
   eq((s.pulosT || []).filter(r => r.p === 0 && r.o === 'turno').length, 1, 'a Manta entrou: um turno a pular');
@@ -98,4 +115,5 @@ test('CR 614.10 · validador', () => {
   eq(v({ effects: [{ do: 'pula', o: 'compra', target: 'player' }] }), []);
   assert.ok(v({ effects: [{ do: 'pula', o: 'limpeza', target: 'player' }] }).some(e => /pula/.test(e)));
   assert.ok(v({ effects: [{ do: 'pula', o: 'compra', quando: 'neste-turno', target: 'player' }] }).some(e => /pula/.test(e)));
+  assert.ok(v({ effects: [{ do: 'gain', amount: 1, ate: 'fim-do-combate' }] }).some(e => /fim do combate/.test(e)), 'T-102 · "até o fim do combate" só no contínuo');
 });

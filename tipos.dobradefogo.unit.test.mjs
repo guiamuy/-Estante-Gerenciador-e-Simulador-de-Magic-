@@ -50,6 +50,15 @@ test('CR 702.189a / 500.4 · a mana comum some entre os passos; só a da dobra f
   eq(s.players[0].pool.R, 3, 'as três da dobra seguem');
 });
 
+test('CR 702.189a · a mana da dobra gasta não volta: o {R} comum que entra depois some no passo seguinte', () => {
+  let s = mesa(); let f; [s, f] = poe(s, 0, 'Fire Sages', 'battlefield'); s = semMana(s); s.objects[f].sick = false;
+  s = atacaCom(s, [f]); s = J(s); s.turn.priority = 0;
+  let c; [s, c] = poe(s, 0, 'Choque', 'hand'); s = act(s, legais(s, 0, a => a.t === 'cast' && a.oid === c && a.targets[0].player === 1)[0]);
+  eq([s.players[0].pool.R, s.players[0].manaCombateT], [0, undefined], 'gastou o {R} da dobra');
+  s = passaAte(s, x => !x.stack.length || !!x.pending); s = J(s); s.players[0].pool.R = 1; // um {R} comum (um terreno virado)
+  s = vaiAte(s, 'combat_blockers'); eq(s.players[0].pool.R, 0, 'o comum some entre os passos');
+});
+
 test('CR 702.189a · Firebending Student (texto oficial): dobra de fogo X, X = o poder (com a destreza, conta o +1/+1)', () => {
   let s = mesa(); let f; [s, f] = poe(s, 0, 'Firebending Student', 'battlefield'); s = semMana(s); s.objects[f].sick = false; s.players[0].pool.R = 1;
   let c; [s, c] = poe(s, 0, 'Choque', 'hand'); s = act(s, legais(s, 0, a => a.t === 'cast' && a.oid === c && a.targets[0].player === 1)[0]); s = passaAte(s, x => !x.stack.length || !!x.pending);
@@ -84,4 +93,5 @@ test('CR 702.189 · validador, palavra e pilha explicada', () => {
   assert.ok(v({ self: { firebendingX: 'poder' } }).some(e => /firebendingX/.test(e)));
   eq(v({ abilities: [{ kind: 'triggered', when: 'attacks', effects: [{ do: 'continuo', target: 'self-source', poder: 1, resistencia: 0, ate: 'fim-do-combate' }] }] }), []);
   assert.match(T.descreveEfeitos([{ do: 'dobra_de_fogo', n: 2 }]), /\{R\}\{R\}.*fim do combate/);
+  assert.match(T.descreveEfeitos([{ do: 'continuo', target: 'self-source', poder: 2, resistencia: 0, ate: 'fim-do-combate' }]), /\+2\/\+0 até o fim do combate/, 'T-102 · não "até o fim do turno"');
 });

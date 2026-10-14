@@ -6572,6 +6572,7 @@ function effectErrors(effects, label, opcional) {
     if (e.do === 'lutador' && !effects.slice(i + 1).some(x => x.do === 'fight' && x.quem === 'primeiro-alvo')) errs.push(`${label} ${i + 1} (lutador): precisa ser seguido da luta (fight, quem: primeiro-alvo)`);
   });
   /* ↓ T · validação da trilha tipos */
+  effects.forEach((e, i) => { if (e.do !== 'continuo' && Object.values(e).includes('fim-do-combate')) errs.push(`${label} ${i + 1} (${e.do}): "até o fim do combate" só vale no efeito contínuo`); }); // T-102 · 500.5a: só o contínuo acaba ao sair do combate
   effects.forEach((e, i) => { if (e.do !== 'pilhas') return; // T-83 · CR 700.3
     if (e.separa != null && !['voce', 'oponente'].includes(e.separa)) errs.push(`${label} ${i + 1} (pilhas): "separa" é 'voce' ou 'oponente'`);
     if (e.escolhe != null && !['voce', 'oponente'].includes(e.escolhe)) errs.push(`${label} ${i + 1} (pilhas): "escolhe" é 'voce' ou 'oponente'`);
@@ -20130,7 +20131,7 @@ function finishCleanup(s) {
   // recebem prioridade e depois vem outra limpeza (advanceStep). Antes o turno passava com o gatilho ainda por pôr na pilha.
   { const ev = []; stateBased(s, ev); if (ev.length || (s.queued || []).length || s.pending) { s.turn.passes = 0; s.turn.priority = s.turn.active; return; } }
   s.players.forEach(pl => { pl.lifeGained = 0; pl.drawnThisTurn = 0; delete pl.lifeLost; delete pl.atacouCom; }); // M-248 · rastros do turno
-  delete s.atacaramNoTurno; delete s.combatesExtras; delete s.retornoFase; // CR2g.4
+  delete s.atacaramNoTurno; delete s.combatesExtras; delete s.retornoFase; delete s.emPassoExtraT; delete s.passosExtrasT; delete s.voltaDoExtraT; // CR2g.4 · T-102: os passos a mais pedidos e não jogados (turno encerrado) não passam ao próximo turno (Toca ponto comum: finishCleanup)
   s.spellsThisTurn = 0;
   s.pending = null;
   s.turn.firstTurn = false;
@@ -24633,6 +24634,7 @@ function apply(state, action) {
   barraDetidaV(s, action); // V-21 · 701.35a: habilidade ativada de permanente detida · Toca ponto comum: apply (uma linha)
   barraTravadaPeloNomeT(s, action); // T-79 · CR 201.4 · "activated abilities of sources with the chosen name can't be activated" (Pithing Needle, Phyrexian Revoker) · Toca ponto comum: apply (uma linha)
   HANDLERS[action.t](s, action, events);
+  if (s.players.some(pl => pl.manaCombateT)) podaManaDeCombateT(s); // T-102 · 702.189a: a mana da dobra de fogo gasta não volta (Toca ponto comum: apply, uma linha)
   if (!s.pending && s.divisaoPendente) { const oid = s.divisaoPendente; delete s.divisaoPendente; if (s.objects[oid] && s.objects[oid].zone === 'stack') iniciaDivisao(s, oid, events); } // M-376
   if (!s.pending && (s.resume || s.magiaSuspensa)) resumeEffects(s, events); // M-374 · também a mágica parada numa escolha que já acabou · CR 704.4 · a decisão acabou: o resto da resolução vem antes de qualquer ação de estado
   stateBased(s, events);
@@ -29652,6 +29654,7 @@ function encerraT(s, src, oque, events) {
   fimDoEncerramentoT(s, oque);
 }
 function fimDoEncerramentoT(s, oque) {
+  if (oque === 'turno') { delete s.emPassoExtraT; delete s.passosExtrasT; delete s.voltaDoExtraT; } // T-102 · achado da auditoria: o turno encerrado não volta a um passo a mais (724.1)
   if (s.combat || battlefield(s).some(o => o.attacking || o.blocking)) saiDoCombate(s); // (d)
   s.turn.passes = 0;
   enterStep(s, oque === 'turno' ? 'cleanup' : 'main2');
@@ -29778,8 +29781,9 @@ function passoExtraAddT(s, src, eff, p, events) {
 function passoExtraT(s) {
   const lista = (s.passosExtrasT || []).filter(x => x.turno === s.turn.number);
   const i = lista.map(x => x.depois).lastIndexOf(s.turn.step);
-  if (i < 0) { delete s.emPassoExtraT; if (s.passosExtrasT && !lista.length) delete s.passosExtrasT; return null; }
+  if (i < 0) { if (s.emPassoExtraT && s.voltaDoExtraT && s.turn.step === s.emPassoExtraT) s.turn.step = s.voltaDoExtraT; delete s.emPassoExtraT; delete s.voltaDoExtraT; if (s.passosExtrasT && !lista.length) delete s.passosExtrasT; return null; } // T-102 · achado da auditoria: depois dos passos a mais, a ordem segue do passo em que foram pedidos
   const x = lista[i]; s.passosExtrasT = lista.filter(y => y !== x); if (!s.passosExtrasT.length) delete s.passosExtrasT;
+  if (!s.emPassoExtraT) s.voltaDoExtraT = s.turn.step;
   s.emPassoExtraT = x.passo; if (s.passosExtrasT) for (const y of s.passosExtrasT) if (y.depois === x.depois) y.depois = x.passo; // os outros pedidos "depois deste" vêm depois do passo novo
   return x.passo;
 }
@@ -29790,6 +29794,9 @@ function manaDeCombateAntesT(s, proximo) {
   for (const pl of s.players) delete pl.manaCombateT;
   return out;
 }
+/** T-102 · achado da auditoria: quanto da reserva é da dobra de fogo nunca passa do {R} que sobrou (o jogador gasta primeiro a outra mana);
+ * sem isso, o {R} comum gerado depois de gastar a da dobra atravessava os passos do combate. */
+function podaManaDeCombateT(s) { for (const pl of s.players) if (pl.manaCombateT) { const r = pl.pool.R || 0; if (r <= 0) delete pl.manaCombateT; else if (pl.manaCombateT > r) pl.manaCombateT = r; } }
 function manaDeCombateDepoisT(s, guardada) { guardada.forEach((n, i) => { if (n > 0) { s.players[i].pool.R = (s.players[i].pool.R || 0) + n; s.players[i].manaCombateT = n; } }); }
 /* ---------------- T-99 · CR 614.10 / 500.11 · pular passo, fase e turno ----------------
    `s.pulosT` (só existe quando algo manda pular): cada registro é { p, o, … }. "Skip" é "em vez de fazer, nada" (614.10) e o pulado
@@ -29812,6 +29819,8 @@ function pulaT(s, src, eff, quem, events) {
 function passoPuladoT(s, step) {
   const a = s.turn.active, n = s.turn.number;
   s.pulosT = s.pulosT.filter(r => !(r.turno != null && r.turno < n) && !(r.usadoEm != null && r.usadoEm < n)); // "neste turno" e "todas daquele turno" vencem
+  for (const r of s.pulosT) if (r.todas && r.usadoEm == null && r.p === a && n > r.apos) r.usadoEm = n; // T-102 · achado da auditoria: "todas do próximo turno" é deste turno, tenha ele combate ou não
+  if (!s.pulosT.length) { delete s.pulosT; return null; }
   let i = -1;
   if (step === 'combat_begin') i = s.pulosT.findIndex(r => r.p === a && r.o === 'combate' && (r.turno != null ? r.turno === n : r.todas ? (r.usadoEm === n || (r.usadoEm == null && n > r.apos)) : true));
   else i = s.pulosT.findIndex(r => r.p === a && PASSO_DO_PULO_T[r.o] === step);
@@ -29820,10 +29829,11 @@ function passoPuladoT(s, step) {
   if (r.todas) r.usadoEm = n; else s.pulosT.splice(i, 1);
   if (!s.pulosT.length) delete s.pulosT;
   (s.puladosT = s.puladosT || []).push({ p: a, o: r.o, turno: n }); // para o registro e os testes
+  if (step === 'untap') { for (const o of battlefield(s)) if (o.controller === a) o.sick = false; soltaDetidasV(s, a); } // T-102 · achado da auditoria: o turno começa mesmo sem o desvirar — o enjoo (302.6) e o "até o seu próximo turno" da detenção (701.35a) acabam
   return step === 'combat_begin' ? 'main2' : STEPS[STEPS.indexOf(step) + 1];
 }
 function turnoPuladoT(s, p) {
-  for (let k = 0; k < 8 && s.pulosT; k++) {
+  while (s.pulosT) { // T-102 · achado da auditoria: cada volta gasta um registro, então acaba sem limite fixo
     const i = s.pulosT.findIndex(r => r.p === p && r.o === 'turno'); if (i < 0) return p;
     s.pulosT.splice(i, 1); if (!s.pulosT.length) delete s.pulosT;
     (s.puladosT = s.puladosT || []).push({ p, o: 'turno', turno: s.turn.number });
@@ -32472,7 +32482,7 @@ function descreveContinuo(c) {
   return `${seJogo}${se}${quem} ${partes.join(' e ')}`;
 }
 /** CR2-G R6 · a duração em português. */
-const duracaoPT = d => d && typeof d === 'object' ? 'enquanto você controlar esta permanente' : ({ 'seu-proximo-turno': 'até o seu próximo turno', 'fim-do-seu-proximo-turno': 'até o fim do seu próximo turno', sempre: 'sem prazo' }[d] || 'até o fim do turno');
+const duracaoPT = d => d && typeof d === 'object' ? 'enquanto você controlar esta permanente' : ({ 'seu-proximo-turno': 'até o seu próximo turno', 'fim-do-seu-proximo-turno': 'até o fim do seu próximo turno', sempre: 'sem prazo', 'fim-do-combate': 'até o fim do combate' /* T-102 (Toca ponto comum: duracaoPT) */ }[d] || 'até o fim do turno');
 function descreveAlvo(chave) {
   if (chave && typeof chave === 'object') return descreveSeletor(chave);
   const k = String(chave);
@@ -32691,7 +32701,7 @@ function descreveEfeito(e) {
   const emPT = a => /^(a|o|as|os) /.test(a) ? 'n' + a : 'em ' + a; // M-401 · "na criatura equipada" (não "em a")
   const n = qtd(e.amount);
   switch (e.do) {
-    case 'draw': return `compra ${plural(n, 'carta', 'cartas')}`;
+    case 'draw': return `${e.target === 'that-player' ? 'esse jogador ' : ''}compra ${plural(n, 'carta', 'cartas')}`; // T-102 · quem compra é o jogador do gatilho, não quem controla (Toca ponto comum: descreveEfeito)
     case 'adapt': return `adapta ${e.amount}`;
     case 'return_chosen': return 'devolve uma permanente sua para a mão';
     case 'damage': if (e.dividido) { const q = e.target === 'creature' ? ['criaturas', 'quantas criaturas quiser'] : ['alvos', 'quantos alvos quiser']; return `causa ${n} de dano dividido como você quiser entre ${e.dividido.max ? `até ${e.dividido.max} ${q[0]}` : q[1]}`; } // M-376 · 601.2d

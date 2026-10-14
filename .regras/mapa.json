@@ -1571,8 +1571,8 @@
    "regra": "Damage",
    "titulo": "Resultados do dano",
    "status": "parcial",
-   "evidencia": "a) jogador perde vida (index.html:10806, 11125); c) planeswalker perde lealdade por dano de efeito (index.html:11123; rules.unit \"S21 · … dano tira lealdade\"); e) dano marcado (index.html:10804, 11124); f) vínculo com a vida no combate e fora (index.html:10809, 11558; combat.audit K4) · M-228 (v95): cada atacante ataca o jogador ou um planeswalker dele (ação attack com alvos; o.atacandoPw); dano de combate sem bloqueio vai para o planeswalker e tira lealdade (criatura-planeswalker também marca dano); planeswalker que saiu não recebe nada; exigência \"ataca X se puder\" (Gideon +2) · M-253/M-254 (v96): 120.3b infectar em jogador vira veneno; 120.3d infectar em criatura vira −1/−1; 120.3g tóxico dá veneno (combat.audit K12c, veneno.unit). · M-291 (CR2a.9): toque mortífero e infectar de habilidade são os da fonte; 120.3b infectar (M-254) · T-98 (conferência do mapa, 14/10/2026): 120.3h — o dano à batalha tira marcadores de defesa (310.6)",
-   "falta": "d definhar; e dano de efeito em planeswalker-criatura só tira lealdade",
+   "evidencia": "a) jogador perde vida (index.html:10806, 11125); c) planeswalker perde lealdade por dano de efeito (index.html:11123; rules.unit \"S21 · … dano tira lealdade\"); e) dano marcado (index.html:10804, 11124); f) vínculo com a vida no combate e fora (index.html:10809, 11558; combat.audit K4) · M-228 (v95): cada atacante ataca o jogador ou um planeswalker dele (ação attack com alvos; o.atacandoPw); dano de combate sem bloqueio vai para o planeswalker e tira lealdade (criatura-planeswalker também marca dano); planeswalker que saiu não recebe nada; exigência \"ataca X se puder\" (Gideon +2) · M-253/M-254 (v96): 120.3b infectar em jogador vira veneno; 120.3d infectar em criatura vira −1/−1; 120.3g tóxico dá veneno (combat.audit K12c, veneno.unit). · M-291 (CR2a.9): toque mortífero e infectar de habilidade são os da fonte; 120.3b infectar (M-254) · T-98 (conferência do mapa, 14/10/2026): 120.3h — o dano à batalha tira marcadores de defesa (310.6) · T-102 (conferência do mapa, 14/10/2026): 120.3d — o dano de fonte com murchar (wither) a criatura vira marcadores −1/−1, também concedido e pela última informação (K-65, K-72; keywords.cr4.unit)",
+   "falta": "e: dano de efeito em planeswalker-criatura só tira lealdade",
    "esforco": "M",
    "depende": [
     "122.1f",
@@ -2022,7 +2022,7 @@
    "titulo": "Valor de mana",
    "status": "parcial",
    "evidencia": "f.cmc vem do dado (index.html:10054) e é usado em alvos e buscas (index.html:11053, 11206); teste \"S17 · ... Spell Snare só pega valor 2\" · teste de conformidade em cr.conformidade (leva CR1a) · T-98 (conferência do mapa, 14/10/2026): 202.3b — a face de trás de uma dupla face não modal vale o custo da frente (712.8e, T-69); 202.3d — a carta dividida fora da pilha vale o custo somado (709.4, trilha tipos)",
-   "falta": "202.3c (meld) não existe. 202.3e cumprida para filtros de alvo; contagens que leem valor de mana fora de alvo ainda usam o valor impresso.",
+   "falta": "202.3c (meld, 712.4) não existe: está com o dono (decisão pendente, ver adendo da trilha tipos). 202.3e cumprida para filtros de alvo; contagens que leem valor de mana fora de alvo ainda usam o valor impresso.",
    "esforco": "P",
    "depende": [
     "709",
@@ -3705,9 +3705,11 @@
     "500.8"
    ],
    "cartas": "rara",
-   "evidencia": "T-101 (14/10/2026): efeito `passo_extra` — o passo novo entra logo depois do passo em que o efeito resolveu; vários depois do mesmo passo: o criado por último primeiro; o passo a mais é um passo de verdade (os gatilhos dele disparam). Paradox Haze (tipos.passos.unit)",
+   "evidencia": "T-101 (14/10/2026): efeito `passo_extra` — o passo novo entra logo depois do passo em que o efeito resolveu; vários depois do mesmo passo: o criado por último primeiro; o passo a mais é um passo de verdade (os gatilhos dele disparam). Paradox Haze (tipos.passos.unit) · T-102 (achado da auditoria): depois dos passos a mais, a ordem segue do passo em que foram pedidos (o passo de compra a mais depois da manutenção é seguido do passo de compra normal); o pedido não jogado não passa ao turno seguinte",
    "testes": [
-    "CR 500.9 · Paradox Haze (texto oficial): na primeira manutenção do jogador encantado, uma manutenção a mais depois dela — os gatilhos de manutenção disparam duas vezes, o Haze uma"
+    "CR 500.9 · Paradox Haze (texto oficial): na primeira manutenção do jogador encantado, uma manutenção a mais depois dela — os gatilhos de manutenção disparam duas vezes, o Haze uma",
+    "CR 500.9 · passo a mais de outro tipo: um passo de compra a mais depois da manutenção — e depois dele vem o passo de compra normal (a ordem segue do passo em que foi pedido)",
+    "CR 500.9 · manutenção a mais pedida no passo de compra: depois dela vem a principal, não outro passo de compra"
    ]
   },
   {
@@ -4015,8 +4017,8 @@
    "regra": "Declare Attackers Step",
    "titulo": "Declaração de atacantes",
    "status": "parcial",
-   "evidencia": "ação attack (index.html:12331-12343) + eligibleAttackers (10752): desvirada, sem enjoo ou com ímpeto, defensor não ataca, provocada precisa atacar (mustAttack 10748), vira quem não tem vigilância, não usa a pilha, declaração ilegal é recusada sem mudar o estado; sonda p5/t2.mjs C1/C7/C8; rules.unit 'M6 · quem pode atacar...' e 'S59 · provocada ataca se puder'; combat.audit K5, K6, K9 · M-228 (v95): cada atacante ataca o jogador ou um planeswalker dele (ação attack com alvos; o.atacandoPw); dano de combate sem bloqueio vai para o planeswalker e tira lealdade (criatura-planeswalker também marca dano); planeswalker que saiu não recebe nada; exigência \"ataca X se puder\" (Gideon +2) · T-98 (conferência do mapa, 14/10/2026): 508.1b — também a batalha, por quem tem o protetor como jogador defensor (310.5)",
-   "falta": "508.1b: a tela aplica um alvo ao grupo escolhido. 508.1c: só defensor e \"não pode atacar até o próximo turno\" como restrição; nada de \"não pode atacar sozinha\" ou \"a menos que\". 508.1d: só provocar, sem o cálculo de máximo de exigências. 508.1e bandos: ausente. 508.1g-j: custo para atacar (Propaganda, Ghostly Prison) ausente. 508.1a: enjoo só é marcado em quem entra como criatura (10275), então permanente que vira criatura no turno em que entrou atacaria (não alcançável hoje: não há efeito de animar).",
+   "evidencia": "ação attack (index.html:12331-12343) + eligibleAttackers (10752): desvirada, sem enjoo ou com ímpeto, defensor não ataca, provocada precisa atacar (mustAttack 10748), vira quem não tem vigilância, não usa a pilha, declaração ilegal é recusada sem mudar o estado; sonda p5/t2.mjs C1/C7/C8; rules.unit 'M6 · quem pode atacar...' e 'S59 · provocada ataca se puder'; combat.audit K5, K6, K9 · M-228 (v95): cada atacante ataca o jogador ou um planeswalker dele (ação attack com alvos; o.atacandoPw); dano de combate sem bloqueio vai para o planeswalker e tira lealdade (criatura-planeswalker também marca dano); planeswalker que saiu não recebe nada; exigência \"ataca X se puder\" (Gideon +2) · T-98 (conferência do mapa, 14/10/2026): 508.1b — também a batalha, por quem tem o protetor como jogador defensor (310.5) · T-102 (conferência do mapa, 14/10/2026): 508.1a — a permanente que vira criatura no turno em que entrou também está enjoada (enjoado lê entrouNoTurno); 508.1c — \"can't attack unless defending player is the monarch\" (Crown-Hunter Hireling, T-70)",
+   "falta": "508.1b: a tela aplica um alvo ao grupo escolhido. 508.1c: só defensor e \"não pode atacar até o próximo turno\" como restrição; nada de \"não pode atacar sozinha\"; \"a menos que\" só o do monarca (T-70). 508.1d: só provocar, sem o cálculo de máximo de exigências. 508.1e bandos: ausente. 508.1g-j: custo para atacar (Propaganda, Ghostly Prison) ausente.",
    "esforco": "M",
    "depende": [
     "506.2",
