@@ -4359,6 +4359,10 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** lista com vírgula antes do "and" ("flying, vigilance, and lifelink as long as it's modified") não é lida (nenhuma carta real assim). Persistir da Gargoyle vem da lista de palavras-chave da carta (como toda palavra impressa).
 - **Teste:** `lt85.unit` (4 testes; falham no motor anterior).
 
+**M-404 · LT70 · 605.1a · Habilidade de lealdade nunca é habilidade de mana** ✅ (leva M-404, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** aviso da trilha `tipos` (T-82). Uma habilidade de lealdade que só gera mana ("+1: Add {R}{R}", Chandra, Torch of Defiance; Jaya Ballard) usava o caminho da habilidade de mana: resolvia na hora, sem pilha, e não podia ser respondida. Agora a definição de habilidade de mana é uma só (`ehHabilidadeDeMana`, que exclui a de lealdade) e vale tanto para a fração de segundo quanto para "resolve sem a pilha". Nenhuma carta em produção tinha esse caso (correção de classe, antes das cartas).
+- **Teste:** `lt86.unit` (2 testes: a lealdade que gera mana vai para a pilha e dá a mana ao resolver — falha no motor anterior; e a guarda de que, com fração de segundo na pilha, ela não é oferecida nem aceita).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

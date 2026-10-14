@@ -23903,7 +23903,7 @@ const HANDLERS = {
     payAbilityCost(s, a.p, o, { ...ab, pay: a.pay, ...(a.vida != null ? { vida: a.vida } : {}), ...(nX ? { x: a.x || 0 } : {}) });
     // S33/Leva 106 · adaptar usa a pilha (701.46a): os marcadores entram na resolução, se ela ainda não tiver nenhum
     // 605.1a · habilidade de mana não usa a pilha: resolve na hora
-    if ((ab.effects || []).length && (ab.effects || []).every(e => e.do === 'add_mana') && !need.length) {
+    if (ehHabilidadeDeMana(ab) && !need.length) { // M-404 · 605.1a: a mesma definição da fração de segundo (a de lealdade usa a pilha)
       { const fonteM = o.controller === a.p ? o : { ...o, controller: a.p }; (ab.effects || []).forEach(e => applyEffect(s, fonteM, e, null, ev || [])); } // M-369 · 602.2a: a mana vai para quem ativou, mesmo se o custo devolveu a fonte ao dono
       if ((ab.cost || {}).tap) manaExtraDeVirar(s, o, a.p); // M-353 · 106.12a: "tapped for mana" vale para toda habilidade de mana com {T} no custo (Wild Growth numa terra de esgotamento) — pedido da L-1
       // M-250 · "If there are no depletion counters on this land, sacrifice it" (Saprazzan Skerry): parte da própria habilidade de mana (605.1a)
@@ -24553,7 +24553,7 @@ function apply(state, action) {
 /** Todas as ações legais agora para o jogador p. */
 /** CR 702.61 · há mágica com fração de segundo na pilha (virada para baixo não tem a habilidade). */
 const fracaoDeSegundo = s => s.stack.some(oid => { const o = s.objects[oid]; return o && !isAbility(o) && !o.faceDown && s.facts[o.name] && s.facts[o.name].kw.includes('split second'); });
-const ehHabilidadeDeMana = ab => (ab.effects || []).length > 0 && ab.effects.every(e => e.do === 'add_mana') && !ab.effects.some(SC.isTargeted) && ab.adapt == null;
+const ehHabilidadeDeMana = ab => (ab.effects || []).length > 0 && ab.effects.every(e => e.do === 'add_mana') && !ab.effects.some(SC.isTargeted) && ab.adapt == null && ab.loyalty == null; // M-404 · 605.1a: habilidade de lealdade nunca é de mana (aviso da T-82)
 const semFracao = s => { if (fracaoDeSegundo(s)) throw new RuleError('tempo', 'fração de segundo: enquanto essa mágica estiver na pilha, ninguém conjura mágicas nem ativa habilidades que não sejam de mana'); };
 const PARADAS_PELA_FRACAO = new Set(['cast', 'cycle', 'transmute', 'ninjutsu', 'cast_madness', 'cast_free']);
 /** M-365 · 601.2f · com uma mágica que encarece quem a mira na pilha, a conjuração que a mira é conferida no próprio motor (oferta = aceito em todos os
