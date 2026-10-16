@@ -11931,7 +11931,7 @@ test('e2e · R-2 Painel Estante: outro e-mail é recusado e desconectado; o dono
   assert.equal(await page.evaluate(() => [window.__revogados, localStorage.getItem('painel.sessao')].join('|')), '1|');
   assert.equal(await page.locator('#pn-entrar').innerText(), 'Trocar de conta');
   await auditaTela(page, 'painel recusado');
-  // o dono entra: casca, faixa com o main, dez sub-abas (R-18 somou Jogo, R-19 Custo), um pedido ao main
+  // o dono entra: casca, faixa com o main, onze sub-abas (R-18 somou Jogo, R-19 Custo, R-20 Acervo), um pedido ao main
   await page.evaluate(() => localStorage.setItem('__e2e_email', 'gui.amuy@gmail.com'));
   await page.click('#pn-entrar'); await page.waitForSelector('#pn-abas');
   await page.waitForFunction(() => /main: G-264/.test(document.querySelector('#pn-main')?.innerText || ''));
@@ -11941,8 +11941,8 @@ test('e2e · R-2 Painel Estante: outro e-mail é recusado e desconectado; o dono
   assert.match(await page.innerText('#pn-main'), /main: G-264 · há 2 h/);
   assert.equal(await page.getAttribute('#pn-carimbo', 'data-farol'), 'verde');
   assert.match(await page.innerText('#pn-cota'), /57 de 60/);
-  assert.equal(await page.locator('#pn-abas .ds-tab').count(), 10);
-  assert.deepEqual(await page.$$eval('#pn-abas .ds-tab', es => es.map(e => e.dataset.tab)), ['pipeline', 'eficiencia', 'roadmap', 'motor', 'jogo', 'qualidade', 'curso', 'skills', 'modelos', 'custo']);
+  assert.equal(await page.locator('#pn-abas .ds-tab').count(), 11);
+  assert.deepEqual(await page.$$eval('#pn-abas .ds-tab', es => es.map(e => e.dataset.tab)), ['pipeline', 'eficiencia', 'roadmap', 'motor', 'jogo', 'qualidade', 'curso', 'skills', 'modelos', 'custo', 'acervo']);
   await page.waitForSelector('#pn-visao-pipeline, #pn-sem-dados, #pn-em-breve');
   for (const id of ['#pn-atualizar', '#pn-sair', '#pn-tema', '#pn-voltar']) assert.ok((await page.locator(id).boundingBox()).height >= 44, id + ' com 44 px');
   // abrir outra sub-aba: dentro do prazo do cache não há pedido novo; o conteúdo diz a leva dela
@@ -12527,5 +12527,60 @@ test('e2e · R-19 Painel · Custo: minutos de Actions no recorte e no mês (faro
   assert.match(await page.innerText('#pn-notas'), /filtro trilha vale para o tamanho por leva/);
   await emTodasAsMedidas(page, 'custo filtrado');
   if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.screenshot({ path: process.env.SHOTS + '/r19-custo.png', fullPage: true }); }
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · R-20 Painel · Acervo: listas no acervo, saúde da coleta, lista mais nova e fichas pendentes (faróis declarados) lidos de coleta.json e do cabeçalho do indice.json do ramo catalogo; barras por formato e por fonte filtram (fonte é dimensão nova, no endereço); MTGJSON derivado e scanner declarados nas notas; o índice é lido uma vez por carimbo; sem sobreposição nas quatro medidas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  const painel = base.replace('index.html', 'painel.html');
+  await page.setViewportSize({ width: 360, height: 780 });
+  const json = (r, corpo) => r.fulfill({ json: corpo, headers: { 'content-type': 'application/json', 'x-ratelimit-remaining': '50', 'x-ratelimit-limit': '60', 'access-control-expose-headers': 'etag, x-ratelimit-remaining, x-ratelimit-limit' } });
+  await page.route('https://api.github.com/**', r => json(r, /\/commits\?sha=main/.test(r.request().url()) ? [{ sha: 'ccc3333ccc3', commit: { message: 'Leva R-19 · custo', committer: { date: new Date().toISOString() } } }] : []));
+  const coleta = { em: '2026-10-16T11:40:34.193Z', saude: { ok: true, alertas: [], avisos: ['TopDeck.gg · Pioneer: zero torneios'], fontes: { mtgo: { eventos: 546, listas: 1527, maisNova: '2026-10-16', dias: 0 }, topdeck: { torneios: 759, erros: 0, listas: 353, maisNova: '2026-10-15', dias: 1 } } },
+    topdeck: [{ formato: 'Pauper', torneios: 58, recentes: 20, listas: 109, semLista: 51 }, { formato: 'Pioneer', torneios: 0, recentes: 0, listas: 0, semLista: 0 }, { formato: 'EDH', torneios: 573, recentes: 20, listas: 14, semLista: 146 }],
+    mtgo: [{ formato: 'Pauper', eventos: 90, colhidos: 2, listas: 14 }, { formato: 'Pioneer', eventos: 70, colhidos: 2, listas: 13 }] };
+  const indice = { versao: 1, geradoEm: coleta.em, fontes: [{ id: 'mtgjson', nome: 'MTGJSON', licenca: 'MIT' }, { id: 'topdeck', nome: 'TopDeck.gg' }, { id: 'mtgo', nome: 'Magic Online' }], formatos: [{ id: 'commander', nome: 'Commander', listas: 325 }, { id: 'pauper', nome: 'Pauper', listas: 425 }, { id: 'pioneer', nome: 'Pioneer', listas: 164 }], total: 2764, pendentes: 3, listas: new Array(2764).fill({ id: 'x', nome: 'lista', cartas: 60 }) };
+  const brutos = [];
+  await page.route('https://raw.githubusercontent.com/**', r => {
+    const u = r.request().url(); brutos.push(u.split('/').pop());
+    const corpo = /catalogo\/coleta\.json/.test(u) ? JSON.stringify(coleta) : /catalogo\/indice\.json/.test(u) ? JSON.stringify(indice) : '';
+    return r.fulfill({ body: corpo, headers: { 'content-type': 'text/plain', 'access-control-allow-origin': '*' } });
+  });
+  await page.addInitScript(() => {
+    const jwt = email => 'h.' + btoa(JSON.stringify({ email })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') + '.s';
+    window.__PAINEL_FETCH = async (url) => new Response(JSON.stringify(url.includes('securetoken') ? { user_id: 'uidE2E', id_token: jwt('gui.amuy@gmail.com'), refresh_token: 'ref-e2e', expires_in: '3600' } : { localId: 'uidE2E', idToken: jwt('gui.amuy@gmail.com'), refreshToken: 'ref-e2e', expiresIn: '3600', email: 'gui.amuy@gmail.com' }), { headers: { 'content-type': 'application/json' } });
+    window.__PAINEL_GOOGLE = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+  });
+  await page.goto(painel + '#acervo'); await page.waitForSelector('#pn-entrar'); await page.click('#pn-entrar');
+  await page.waitForSelector('#pn-visao-acervo');
+  assert.match(await page.innerText('#pn-k-listas'), /2764[\s\S]*em 3 formatos · 3 fontes/);
+  assert.match(await page.innerText('#pn-k-saude'), /com avisos[\s\S]*0 alerta\(s\) · 1 aviso\(s\)/); assert.equal(await page.getAttribute('#pn-k-saude .pn-farol', 'data-farol'), 'amarelo');
+  assert.match(await page.innerText('#pn-k-frescor'), /hoje[\s\S]*Magic Online 16\/10\/2026 · TopDeck.gg 15\/10\/2026/); assert.equal(await page.getAttribute('#pn-k-frescor .pn-farol', 'data-farol'), 'verde');
+  assert.match(await page.innerText('#pn-k-pendentes'), /3[\s\S]*cartas sem ficha/); assert.equal(await page.getAttribute('#pn-k-pendentes .pn-farol', 'data-farol'), 'amarelo');
+  assert.match(await page.innerText('#pn-g-formatos'), /Pauper[\s\S]*425[\s\S]*Commander[\s\S]*325[\s\S]*Pioneer[\s\S]*164/);
+  assert.match(await page.innerText('#pn-g-fontes'), /Magic Online[\s\S]*1527[\s\S]*MTGJSON[\s\S]*884[\s\S]*TopDeck.gg[\s\S]*353/);
+  assert.match(await page.innerText('#pn-g-eventos'), /TopDeck.gg · pauper[\s\S]*58[\s\S]*Magic Online · pauper[\s\S]*90/);
+  assert.match(await page.innerText('#pn-notas'), /aviso da coleta: TopDeck.gg · Pioneer: zero torneios[\s\S]*MTGJSON não entra na coleta diária[\s\S]*scanner[\s\S]*lacuna/);
+  assert.deepEqual(brutos.filter(b => b.startsWith('indice')), ['indice.json'], 'o índice foi lido uma vez');
+  await auditaTela(page, 'acervo 360');
+  // toque na barra de fonte filtra (dimensão nova no endereço); as listas do recorte somam as linhas fonte × formato
+  await page.click('#pn-g-fontes [data-valor="mtgo"] button');
+  await page.waitForFunction(() => location.hash.includes('fonte=mtgo'));
+  assert.match(await page.innerText('#pn-k-listas'), /27[\s\S]*fonte mtgo[\s\S]*\/ 2764/, 'MTGO: Pauper 14 + Pioneer 13 do recorte, com o total sem filtro ao lado');
+  assert.match(await page.innerText('#pn-g-formatos'), /Pauper[\s\S]*14[\s\S]*Pioneer[\s\S]*13/); assert.doesNotMatch(await page.innerText('#pn-g-formatos'), /Commander/);
+  assert.equal(await page.getAttribute('#pn-g-fontes [data-valor="mtgo"] button', 'aria-pressed'), 'true');
+  // formato por cima do filtro de fonte: Pioneer do MTGO
+  await page.click('#pn-g-formatos [data-valor="pioneer"] button');
+  await page.waitForFunction(() => location.hash.includes('formato=pioneer') && location.hash.includes('fonte=mtgo'));
+  assert.match(await page.innerText('#pn-k-listas'), /13[\s\S]*fonte mtgo/);
+  await page.click('#pn-mais-filtros'); await page.waitForSelector('#pn-filtros [data-dim="fonte"]');
+  assert.ok((await page.$$('#pn-filtros [data-dim="fonte"] .ds-chip')).length >= 3, 'chips da dimensão fonte (mtgjson, mtgo, topdeck)');
+  await emTodasAsMedidas(page, 'acervo filtrado');
+  // Atualizar relê a coleta e não o índice (mesmo carimbo)
+  brutos.length = 0; await page.click('#pn-atualizar');
+  for (let i = 0; i < 50 && !brutos.length; i++) await page.waitForTimeout(100);
+  await page.waitForFunction(() => !document.querySelector('#pn-atualizar').disabled);
+  assert.deepEqual(brutos, ['coleta.json']);
+  if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.screenshot({ path: process.env.SHOTS + '/r20-acervo.png', fullPage: true }); }
   assert.deepEqual(errors, []);
 });

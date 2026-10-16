@@ -552,6 +552,7 @@ button.pn-barras__linha[aria-pressed="true"] { background: var(--accent-soft); }
 .pn-barras__barra { display: block; height: 100%; width: var(--pn-largura, 0%); min-width: 2px; border-radius: var(--radius-1); background: var(--accent); transition: width var(--dur-2) var(--ease-out); }
 .pn-barras__barra[data-tom="negative"] { background: var(--negative); }
 .pn-barras__barra[data-tom="positive"] { background: var(--positive); }
+.pn-barras__barra[data-tom="warning"] { background: var(--warning); } /* R-20 · fonte/formato sem evento */
 .pn-barras__valor { text-align: right; font-variant-numeric: tabular-nums; }
 .pn-notas { margin: 0; padding-left: var(--space-4); }
 @media (hover: hover) {
@@ -786,7 +787,8 @@ const __p2 = (function () {
     { id: 'curso', rotulo: 'Em curso', titulo: 'Trabalho em curso', leva: 'R-9', pronta: true, traz: 'cada conversa ativa, a história, as skills, a última atualização, dependências e estimativa' },
     { id: 'skills', rotulo: 'Skills', titulo: 'Skills e rotinas', leva: 'R-10', pronta: true, traz: 'o catálogo de skills, uso por leva e em uso agora; fluxos do GitHub e rotinas do Claude com última e próxima execução' },
     { id: 'modelos', rotulo: 'Modelos', titulo: 'Modelos', leva: 'R-11', pronta: true, traz: 'levas, tempo e portão por modelo, e o consumo estimado do plano' },
-    { id: 'custo', rotulo: 'Custo', titulo: 'Custo e escala', leva: 'R-19', pronta: true, traz: 'minutos de Actions por rodada, dia e mês, e o tamanho do index.html por leva' }
+    { id: 'custo', rotulo: 'Custo', titulo: 'Custo e escala', leva: 'R-19', pronta: true, traz: 'minutos de Actions por rodada, dia e mês, e o tamanho do index.html por leva' },
+    { id: 'acervo', rotulo: 'Acervo', titulo: 'Acervo de listas', leva: 'R-20', pronta: true, traz: 'listas do catálogo por formato e por fonte, saúde e frescor das fontes (MTGJSON, Magic Online, TopDeck.gg) e fichas pendentes' }
   ];
   /** Limiares dos faróis (doc BI-painel-epicos.md, seção 3): editáveis aqui, exibidos em cada cartão. */
   const LIMIARES = {
@@ -854,7 +856,7 @@ const __p2 = (function () {
 
   /* ---------- R-4 · incremento 1 · filtros em tudo (puro) ---------- */
   /** Dimensões que toda linha normalizada pode carregar; o filtro só vale onde a dimensão existe. */
-  const DIMENSOES = ['periodo', 'trilha', 'conversa', 'historia', 'epico', 'tema', 'skill', 'modelo', 'situacao', 'portao', 'formato', 'area', 'tipo', 'urgencia'];
+  const DIMENSOES = ['periodo', 'trilha', 'conversa', 'historia', 'epico', 'tema', 'skill', 'modelo', 'situacao', 'portao', 'formato', 'area', 'tipo', 'urgencia', 'fonte'];
   const PERIODOS = { '24h': 24 * 3600000, '7d': 7 * 86400000, '30d': 30 * 86400000, 'tudo': Infinity };
   /** Trilha pela letra da leva (prefixo do rodapé `Trilha:`; retrato de 13/10/2026). */
   const TRILHA_DA_LETRA = { M: 'motor', B: 'bot', G: 'geral', D: 'design', S: 'scanner', I: 'infra', P: 'protecao', A: 'armazem', K: 'keywords', V: 'verbos', T: 'tipos', L: 'listas', C: 'cartas', H: 'homologacao', R: 'radar', E: 'escala', J: 'jogabilidade' };
@@ -1179,6 +1181,44 @@ const __p2 = (function () {
       return { modelo, levas: ls.length, tempoMediano: mediana(tempos), comPortao: comPortao.length, verdes, pctVerde: comPortao.length ? Math.round(100 * verdes / comPortao.length) : null, tokens, bugs: ls.reduce((n, l) => n + (l.bugs_achados || 0), 0) };
     }).sort((a, b) => b.levas - a.levas);
   }
+  /* ---------- R-20 · BI2-2 · Acervo (puro): coleta.json e o cabeçalho do indice.json do ramo catalogo ---------- */
+  /** Só o cabeçalho do índice fica no painel (o arquivo tem as 2.700 listas): versão, carimbo, fontes, formatos, total, pendentes. */
+  function cabecalhoDoIndice(texto) {
+    let j = null; try { j = typeof texto === 'string' ? JSON.parse(texto) : texto; } catch (e) { return null; }
+    if (!j || typeof j !== 'object' || Array.isArray(j)) return null;
+    return { versao: j.versao ?? null, geradoEm: j.geradoEm || null, fontes: Array.isArray(j.fontes) ? j.fontes.map(f => ({ id: String(f.id || ''), nome: String(f.nome || f.id || ''), licenca: String(f.licenca || '') })) : [], formatos: Array.isArray(j.formatos) ? j.formatos.map(f => ({ id: String(f.id || ''), nome: String(f.nome || f.id || ''), listas: Number(f.listas) || 0 })) : [], total: Number(j.total) || 0, pendentes: Number(j.pendentes) || 0 };
+  }
+  const formatoDaColeta = f => { const x = String(f || '').toLowerCase(); return x === 'edh' ? 'commander' : x; };
+  /** Resumo do acervo: linhas fonte × formato (para filtrar), listas por formato e por fonte, saúde e frescor. O MTGJSON não aparece
+      na coleta (é lido do índice): suas listas por formato são o que sobra do índice depois de MTGO e TopDeck (fórmula declarada). */
+  function resumoDoCatalogo({ coleta = null, indice = null } = {}) {
+    const em = Date.parse((coleta && coleta.em) || (indice && indice.geradoEm) || '') || null;
+    const nomes = { mtgjson: 'MTGJSON', mtgo: 'Magic Online', topdeck: 'TopDeck.gg' };
+    for (const f of (indice && indice.fontes) || []) if (f.id) nomes[f.id] = f.nome || f.id;
+    const linhas = [];
+    for (const f of (coleta && coleta.topdeck) || []) linhas.push({ fonte: 'topdeck', formato: formatoDaColeta(f.formato), listas: Number(f.listas) || 0, eventos: Number(f.torneios) || 0, semLista: Number(f.semLista) || 0, erro: f.erro ? String(f.erro) : null });
+    for (const f of (coleta && coleta.mtgo) || []) linhas.push({ fonte: 'mtgo', formato: formatoDaColeta(f.formato), listas: Number(f.listas) || 0, eventos: Number(f.eventos) || 0, semLista: 0, erro: null });
+    const porFormatoIndice = new Map(((indice && indice.formatos) || []).map(f => [f.id, f]));
+    for (const [id, f] of porFormatoIndice) {
+      const outras = linhas.filter(l => l.formato === id).reduce((n, l) => n + l.listas, 0);
+      const resto = f.listas - outras;
+      if (resto > 0) linhas.push({ fonte: 'mtgjson', formato: id, listas: resto, eventos: null, semLista: 0, erro: null, derivado: true });
+    }
+    const soma = (ls, k) => ls.reduce((n, l) => n + (l[k] || 0), 0);
+    const formatos = [...new Set([...porFormatoIndice.keys(), ...linhas.map(l => l.formato)])].map(id => ({ formato: id, nome: (porFormatoIndice.get(id) || {}).nome || id, listas: porFormatoIndice.has(id) ? porFormatoIndice.get(id).listas : soma(linhas.filter(l => l.formato === id), 'listas') })).sort((a, b) => b.listas - a.listas || a.formato.localeCompare(b.formato));
+    const saudeFontes = (coleta && coleta.saude && coleta.saude.fontes) || {};
+    const fontes = [...new Set([...Object.keys(nomes), ...linhas.map(l => l.fonte)])].map(id => {
+      const sf = saudeFontes[id] || null, ls = linhas.filter(l => l.fonte === id);
+      const vivas = Object.values(saudeFontes).reduce((n, x) => n + (Number(x && x.listas) || 0), 0);
+      return { fonte: id, nome: nomes[id] || id, listas: sf && sf.listas != null ? Number(sf.listas) : id === 'mtgjson' && indice ? Math.max(0, indice.total - vivas) : soma(ls, 'listas'), eventos: sf ? Number(sf.eventos ?? sf.torneios) || 0 : (id === 'mtgjson' ? null : soma(ls, 'eventos')), erros: sf ? Number(sf.erros) || 0 : 0, maisNova: sf && sf.maisNova ? String(sf.maisNova) : null, dias: sf && sf.dias != null ? Number(sf.dias) : null, derivado: id === 'mtgjson' };
+    }).filter(f => f.listas || f.eventos || f.dias != null).sort((a, b) => b.listas - a.listas);
+    const saude = coleta && coleta.saude ? { ok: !!coleta.saude.ok, alertas: (coleta.saude.alertas || []).map(String), avisos: (coleta.saude.avisos || []).map(String) } : null;
+    const diasMaisNova = fontes.filter(f => f.dias != null).length ? Math.min(...fontes.filter(f => f.dias != null).map(f => f.dias)) : null;
+    const total = indice ? indice.total : soma(linhas, 'listas');
+    return { em, total, pendentes: indice ? indice.pendentes : null, comIndice: !!indice, linhas, formatos, fontes, saude, diasMaisNova };
+  }
+  // R-20 · BI2-2 · Acervo: saúde da coleta (alertas param a coleta; avisos são formato sem evento), frescor (a lista mais nova entre as fontes vivas), fichas pendentes
+  Object.assign(LIMIARES, { saudeCatalogo: { verde: 2, amarelo: 1, unidade: 'nível', texto: 'saúde da coleta: sem alertas nem avisos · só avisos · com alerta (a coleta falhou em alguma fonte)' }, frescorCatalogo: { verde: 1, amarelo: 3, unidade: 'dias', texto: 'lista mais nova entre as fontes: até 1 dia · até 3 dias · mais' }, pendentesCatalogo: { verde: 0, amarelo: 50, unidade: 'fichas', texto: 'fichas pendentes (cartas sem ficha da Scryfall): 0 · até 50 · mais' } });
   // R-18 · BI2-1 · Jogo: falhas da prova (menos é melhor), Shark até o fim (% das partidas), pior jogada (ms; a homologacao mediu 2,6 s a 6,7 s em 13–14/10)
   Object.assign(LIMIARES, { falhasProva: { verde: 0, amarelo: 2, unidade: 'listas com falha', texto: 'falhas na prova: 0 · até 2 · mais' }, sharkFim: { verde: 95, amarelo: 80, unidade: '% até o fim', texto: 'Shark × Shark até o fim: ≥ 95 % · ≥ 80 % · menos' }, piorJogada: { verde: 1000, amarelo: 3000, unidade: 'ms', texto: 'pior jogada do Shark: ≤ 1 s · ≤ 3 s · mais' } });
   // R-19 · BI2-5 · Custo: minutos de Actions no mês (referência: 2.000 min/mês do plano gratuito para repositório privado; o repositório é público e hoje não paga) e tamanho do index.html (app sem build: o arquivo inteiro vai ao aparelho)
@@ -1201,9 +1241,11 @@ const __p2 = (function () {
     rodadas: 'API GitHub · actions/workflows/fila.yml/runs',
     jobs: 'API GitHub · actions/runs/<id>/jobs (só com rodada em curso)',
     pages: 'API GitHub · actions/runs (fluxo "pages build and deployment")',
-    levas: 'ramo telemetria · levas.jsonl (escrito pelas sessões)'
+    levas: 'ramo telemetria · levas.jsonl (escrito pelas sessões)',
+    coleta: 'raw · catalogo/coleta.json (saúde e contagens da última coleta; gravado pelo fluxo Catálogo)',
+    indice: 'raw · catalogo/indice.json (só o cabeçalho: fontes, formatos, total, pendentes; lido uma vez por coleta e guardado por carimbo)'
   };
-  return { SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, levasPorRodada, compactaCommits, MAIN_URL, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, sharkPorVersao, minutosDasRodadas, serieDeTamanho, kb, linhasDosRelatos, linhasDasTrilhas, resumoDoFluxo, fraseDoCron, linhasDosFluxos, linhasDasRotinas, porModelo, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
+  return { SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, levasPorRodada, compactaCommits, MAIN_URL, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, sharkPorVersao, minutosDasRodadas, serieDeTamanho, kb, cabecalhoDoIndice, resumoDoCatalogo, linhasDosRelatos, linhasDasTrilhas, resumoDoFluxo, fraseDoCron, linhasDosFluxos, linhasDasRotinas, porModelo, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
 })();
 
 /* ==== src/painel/ui.js ==== */
@@ -1552,6 +1594,51 @@ const __p4 = (function () {
           h('div', { class: 'pn-graficos' },
             Barras({ id: 'pn-g-minutos', titulo: `Minutos de Actions por dia · ${recorteTxt}`, itens: porDia, vazio: 'sem rodadas neste recorte' }),
             Barras({ id: 'pn-g-tamanho', titulo: `index.html por leva (KB) · ${recorteTxt}`, itens: barrasTamanho, formato: v => `${v} KB`, vazio: 'sem tamanho lido ainda (chega em até 4 levas por atualização)' })),
+          h('ul', { class: 'pn-notas ds-text ds-text--sm ds-text--muted', id: 'pn-notas' }, ...notas.map(n => h('li', {}, n)))
+        ];
+      }
+    },
+    // R-20 · BI2-2 · Acervo: coleta.json (1,6 KB, a cada atualização) e o cabeçalho do indice.json (1,4 MB: uma vez por coleta, guardado pelo carimbo)
+    acervo: {
+      filtros: ['formato', 'fonte'], periodoPadrao: 'tudo',
+      linhas: d => M.resumoDoCatalogo({ coleta: d.coleta, indice: d.indice }).linhas,
+      async carrega(fonte, forcar) {
+        const avisos = []; let coleta = null, indice = null, em = Date.now();
+        try { const r = await fonte.raw('catalogo', 'coleta.json', { ttl: 10 * 60000, forcar, transforma: t => { try { return JSON.parse(t); } catch (e) { return null; } } }); coleta = r.dado; em = r.em || em; if (r.semRede) avisos.push('coleta lida do que estava guardado (sem rede)'); } catch (e) { avisos.push('coleta.json indisponível (ramo catalogo)'); }
+        const carimbo = (coleta && coleta.em) || 'sem-coleta';
+        try { const r = await fonte.raw('catalogo', 'indice.json', { nome: 'catalogo.indice.' + carimbo, ttl: carimbo === 'sem-coleta' ? 60 * 60000 : Infinity, forcar: false, transforma: M.cabecalhoDoIndice }); indice = r.dado; } catch (e) { avisos.push('índice indisponível: contagens só das fontes da coleta (MTGO e TopDeck)'); }
+        return { em, coleta, indice, avisos, sem: {} };
+      },
+      desenha(d, filtros, api) {
+        const r = M.resumoDoCatalogo({ coleta: d.coleta, indice: d.indice });
+        if (!d.coleta && !d.indice) return [Empty('O acervo chega quando o fluxo Catálogo roda (ramo catalogo: coleta.json e indice.json). Sem rede, fica o que estava guardado.', null, { icone: 'ampulheta', titulo: 'Acervo indisponível', hero: true, id: 'pn-acervo-pendente' })];
+        const rl = recorte(r.linhas, { formato: filtros.formato, fonte: filtros.fonte });
+        const recorteTxt = fraseDoRecorte({ formato: filtros.formato, fonte: filtros.fonte, periodo: 'tudo' });
+        const filtrado = !!(filtros.formato || filtros.fonte);
+        const listasRecorte = rl.linhas.reduce((n, l) => n + l.listas, 0);
+        const nivelSaude = !r.saude ? null : r.saude.alertas.length ? 0 : r.saude.avisos.length ? 1 : 2;
+        const nomeFonte = id => (r.fontes.find(f => f.fonte === id) || {}).nome || id;
+        const cartoes = h('div', { class: 'pn-cartoes' },
+          Cartao({ id: 'pn-k-listas', rotulo: 'Listas no acervo', valor: filtrado ? listasRecorte : r.total, unidade: filtrado ? `· ${recorteTxt}` : `em ${r.formatos.length} formatos · ${r.fontes.length} fontes`, fonte: filtrado ? FONTES.coleta + ' + ' + FONTES.indice : FONTES.indice, formula: filtrado ? 'soma das linhas fonte × formato do recorte (MTGJSON = índice − MTGO − TopDeck)' : 'total do índice', em: r.em, semDados: filtrado ? !rl.linhas.length : !r.comIndice, totalSemFiltro: filtrado ? r.total : null }),
+          Cartao({ id: 'pn-k-saude', rotulo: 'Saúde da coleta', valor: nivelSaude == null ? '—' : nivelSaude === 2 ? 'ok' : nivelSaude === 1 ? 'com avisos' : 'com alerta', unidade: r.saude ? `· ${r.saude.alertas.length} alerta(s) · ${r.saude.avisos.length} aviso(s)` : '', farol: nivelSaude == null ? 'cinza' : farol(nivelSaude, LIMIARES.saudeCatalogo), limiar: LIMIARES.saudeCatalogo, fonte: FONTES.coleta, formula: 'saude.ok, alertas e avisos da última coleta', em: r.em, semDados: nivelSaude == null }),
+          Cartao({ id: 'pn-k-frescor', rotulo: 'Lista mais nova', valor: r.diasMaisNova == null ? '—' : r.diasMaisNova === 0 ? 'hoje' : r.diasMaisNova, unidade: r.diasMaisNova == null ? '' : r.diasMaisNova === 0 ? '' : r.diasMaisNova === 1 ? 'dia' : 'dias', farol: r.diasMaisNova == null ? 'cinza' : farol(r.diasMaisNova, LIMIARES.frescorCatalogo), limiar: LIMIARES.frescorCatalogo, fonte: FONTES.coleta, formula: 'menor "dias" entre as fontes vivas (MTGO, TopDeck) · ' + r.fontes.filter(f => f.maisNova).map(f => `${f.nome} ${f.maisNova.split('-').reverse().join('/')}`).join(' · '), em: r.em, semDados: r.diasMaisNova == null }),
+          Cartao({ id: 'pn-k-pendentes', rotulo: 'Fichas pendentes', valor: r.pendentes == null ? '—' : r.pendentes, unidade: r.pendentes == null ? '' : 'cartas sem ficha', farol: r.pendentes == null ? 'cinza' : farol(r.pendentes, LIMIARES.pendentesCatalogo), limiar: LIMIARES.pendentesCatalogo, fonte: FONTES.indice, formula: 'pendentes do índice', em: r.em, semDados: r.pendentes == null }));
+        const porFormato = (filtros.fonte ? r.formatos.map(f => ({ ...f, listas: rl.linhas.filter(l => l.formato === f.formato).reduce((n, l) => n + l.listas, 0) })).filter(f => f.listas) : r.formatos).map(f => ({ chave: f.formato, rotulo: f.nome, valor: f.listas, dica: `${f.nome}: ${f.listas} listas` }));
+        const porFonte = (filtros.formato ? r.fontes.map(f => ({ ...f, listas: rl.linhas.filter(l => l.fonte === f.fonte).reduce((n, l) => n + l.listas, 0) })).filter(f => f.listas) : r.fontes).map(f => ({ chave: f.fonte, rotulo: f.nome, valor: f.listas, dica: `${f.nome}: ${f.listas} listas${f.eventos != null ? ` · ${f.eventos} eventos` : ''}${f.erros ? ` · ${f.erros} erro(s)` : ''}`, tom: f.erros ? 'negative' : 'accent' }));
+        const eventos = rl.linhas.filter(l => l.eventos != null).map(l => ({ chave: l.formato, rotulo: `${nomeFonte(l.fonte)} · ${l.formato}`, valor: l.eventos, dica: `${l.eventos} evento(s) · ${l.listas} listas${l.semLista ? ` · ${l.semLista} sem lista` : ''}${l.erro ? ` · ${l.erro}` : ''}`, tom: l.erro ? 'negative' : l.eventos ? 'accent' : 'warning' }));
+        const notas = [];
+        if (r.saude) for (const a of r.saude.alertas) notas.push('alerta da coleta: ' + a);
+        if (r.saude) for (const a of r.saude.avisos) notas.push('aviso da coleta: ' + a);
+        notas.push('MTGJSON não entra na coleta diária (listas oficiais, lidas do índice): por formato, é o que sobra do índice depois de MTGO e TopDeck');
+        notas.push('scanner (tempo por quadro, taxa de acerto): sem fonte persistida — o teste X11 mede no portão e não grava; fica declarado como lacuna');
+        if (!r.comIndice) notas.push('índice indisponível nesta atualização: o total e as fichas pendentes ficam sem dados');
+        for (const a of d.avisos || []) notas.push(a);
+        return [
+          cartoes,
+          h('div', { class: 'pn-graficos' },
+            Barras({ id: 'pn-g-formatos', titulo: `Listas por formato · ${recorteTxt} (toque filtra)`, itens: porFormato, onBarra: v => api.filtra('formato', v), ativo: filtros.formato || null, vazio: 'sem formato neste recorte' }),
+            Barras({ id: 'pn-g-fontes', titulo: `Listas por fonte · ${recorteTxt} (toque filtra)`, itens: porFonte, onBarra: v => api.filtra('fonte', v), ativo: filtros.fonte || null, vazio: 'sem fonte neste recorte' }),
+            Barras({ id: 'pn-g-eventos', titulo: `Eventos lidos por fonte e formato · ${recorteTxt}`, itens: eventos, vazio: 'sem eventos neste recorte (MTGJSON não tem eventos)' })),
           h('ul', { class: 'pn-notas ds-text ds-text--sm ds-text--muted', id: 'pn-notas' }, ...notas.map(n => h('li', {}, n)))
         ];
       }

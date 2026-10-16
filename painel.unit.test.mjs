@@ -178,11 +178,11 @@ test('R-2 · fonte sem rede ou com a cota esgotada devolve o que havia guardado 
 });
 
 /* ---------- modelo puro ---------- */
-test('R-2/R-19 · modelo: dez sub-abas na ordem das fatias (Pipeline antes da Eficiência; Jogo depois do Motor; Custo no fim), todas com a leva e o que trazem; prontas: Pipeline (R-4), Eficiência (R-5), Roadmap (R-6), Motor (R-7), Jogo (R-18), Qualidade (R-8), Em curso (R-9), Skills (R-10), Modelos (R-11) e Custo (R-19): todas', () => {
+test('R-2/R-20 · modelo: onze sub-abas na ordem das fatias (Pipeline antes da Eficiência; Jogo depois do Motor; Custo e Acervo no fim), todas com a leva e o que trazem; prontas: Pipeline (R-4), Eficiência (R-5), Roadmap (R-6), Motor (R-7), Jogo (R-18), Qualidade (R-8), Em curso (R-9), Skills (R-10), Modelos (R-11), Custo (R-19) e Acervo (R-20): todas', () => {
   const { modelo, app } = loadPainel();
-  assert.deepEqual(modelo.SUBABAS.map(a => a.id), ['pipeline', 'eficiencia', 'roadmap', 'motor', 'jogo', 'qualidade', 'curso', 'skills', 'modelos', 'custo']);
+  assert.deepEqual(modelo.SUBABAS.map(a => a.id), ['pipeline', 'eficiencia', 'roadmap', 'motor', 'jogo', 'qualidade', 'curso', 'skills', 'modelos', 'custo', 'acervo']);
   for (const a of modelo.SUBABAS) { assert.match(a.leva, /^R-\d+$/); assert.ok(a.traz.length > 20); assert.equal(!!a.pronta, true, a.id + ' pronta'); assert.equal(!!app.VISOES[a.id], !!a.pronta, 'toda sub-aba pronta tem a visão que a desenha'); }
-  assert.deepEqual(modelo.SUBABAS.map(a => a.leva), ['R-4', 'R-5', 'R-6', 'R-7', 'R-18', 'R-8', 'R-9', 'R-10', 'R-11', 'R-19']);
+  assert.deepEqual(modelo.SUBABAS.map(a => a.leva), ['R-4', 'R-5', 'R-6', 'R-7', 'R-18', 'R-8', 'R-9', 'R-10', 'R-11', 'R-19', 'R-20']);
 });
 
 test('R-2 · modelo: carimbo dos dados, idade e farol com limiar declarado', () => {
@@ -648,4 +648,75 @@ test('R-19 · orçamento do Custo: rodadas (1) + tamanhos de até 4 levas por at
   fonte.zerar(); await app.VISOES.custo.carrega(fonte, true);
   assert.ok(fonte.pedidos <= app.ORCAMENTO.fixos, `em regime: ${fonte.pedidos}`);
   assert.equal(guarda.ler('painel.cache.tamanho.sha0sha').dado.content, undefined, 'o cache guarda só o tamanho');
+});
+
+/* ---------- R-20 · BI2-2 · Acervo ---------- */
+const COLETA_R20 = { em: '2026-10-16T11:40:34.193Z', saude: { ok: true, alertas: [], avisos: ['TopDeck.gg · Pioneer: zero torneios'], fontes: { mtgo: { eventos: 546, listas: 1527, maisNova: '2026-10-16', dias: 0 }, topdeck: { torneios: 759, erros: 0, listas: 353, maisNova: '2026-10-15', dias: 1 } } },
+  topdeck: [{ formato: 'Pauper', torneios: 58, recentes: 20, listas: 109, semLista: 51 }, { formato: 'Pioneer', torneios: 0, recentes: 0, listas: 0, semLista: 0 }, { formato: 'EDH', torneios: 573, recentes: 20, listas: 14, semLista: 146, dias: 14 }],
+  mtgo: [{ formato: 'Pauper', eventos: 90, colhidos: 2, listas: 14 }, { formato: 'Pioneer', eventos: 70, colhidos: 2, listas: 13 }] };
+const INDICE_R20 = { versao: 1, geradoEm: '2026-10-16T11:40:34.193Z', fontes: [{ id: 'mtgjson', nome: 'MTGJSON', url: 'https://mtgjson.com', licenca: 'MIT' }, { id: 'topdeck', nome: 'TopDeck.gg', licenca: 'crédito obrigatório' }, { id: 'mtgo', nome: 'Magic Online', licenca: 'Fan Content Policy' }],
+  formatos: [{ id: 'commander', nome: 'Commander', listas: 325 }, { id: 'pauper', nome: 'Pauper', listas: 425 }, { id: 'pioneer', nome: 'Pioneer', listas: 164 }], total: 2764, pendentes: 0, listas: [{ id: 'nunca-entra' }] };
+
+test('R-20 · cabecalhoDoIndice guarda só o cabeçalho do índice (nunca as listas); texto que não é JSON vira null', () => {
+  const { modelo } = loadPainel();
+  const c = modelo.cabecalhoDoIndice(JSON.stringify(INDICE_R20));
+  assert.deepEqual(Object.keys(c), ['versao', 'geradoEm', 'fontes', 'formatos', 'total', 'pendentes']);
+  assert.equal(c.total, 2764); assert.equal(c.pendentes, 0); assert.equal(c.formatos[1].listas, 425); assert.equal(c.fontes[2].nome, 'Magic Online');
+  assert.ok(!JSON.stringify(c).includes('nunca-entra'));
+  assert.equal(modelo.cabecalhoDoIndice('{ quebrado'), null); assert.equal(modelo.cabecalhoDoIndice('[]'), null);
+  assert.equal(modelo.cabecalhoDoIndice(JSON.stringify({ total: 3 })).formatos.length, 0, 'índice sem formatos não derruba');
+});
+
+test('R-20 · resumoDoCatalogo: linhas fonte × formato (EDH vira commander; MTGJSON = índice − MTGO − TopDeck, marcado derivado), listas por formato e por fonte, saúde, frescor (menor dias) e pendentes; sem índice, só as fontes da coleta; sem nada, vazio', () => {
+  const { modelo } = loadPainel();
+  const r = modelo.resumoDoCatalogo({ coleta: COLETA_R20, indice: INDICE_R20 });
+  assert.equal(r.em, Date.parse('2026-10-16T11:40:34.193Z')); assert.equal(r.total, 2764); assert.equal(r.pendentes, 0); assert.equal(r.comIndice, true);
+  const linha = (f, fo) => r.linhas.find(l => l.fonte === f && l.formato === fo);
+  assert.equal(linha('topdeck', 'commander').listas, 14, 'EDH vira commander');
+  assert.deepEqual({ ...linha('mtgjson', 'pauper') }, { fonte: 'mtgjson', formato: 'pauper', listas: 425 - 109 - 14, eventos: null, semLista: 0, erro: null, derivado: true });
+  assert.equal(linha('mtgjson', 'pioneer').listas, 164 - 13, 'TopDeck Pioneer com zero listas não desconta');
+  assert.equal(linha('mtgjson', 'commander').listas, 325 - 14);
+  assert.deepEqual(r.formatos.map(f => [f.formato, f.listas]), [['pauper', 425], ['commander', 325], ['pioneer', 164]], 'por formato vem do índice, do maior ao menor');
+  assert.deepEqual(r.fontes.map(f => [f.fonte, f.listas, f.dias]), [['mtgo', 1527, 0], ['mtgjson', 2764 - 1527 - 353, null], ['topdeck', 353, 1]], 'listas por fonte (maior primeiro): saúde da coleta; MTGJSON é o resto do total');
+  assert.equal(r.fontes[0].eventos, 546); assert.equal(r.fontes[2].eventos, 759); assert.equal(r.fontes[2].maisNova, '2026-10-15');
+  assert.deepEqual(r.saude, { ok: true, alertas: [], avisos: ['TopDeck.gg · Pioneer: zero torneios'] });
+  assert.equal(r.diasMaisNova, 0);
+  // sem índice: formatos e totais só das fontes da coleta
+  const s = modelo.resumoDoCatalogo({ coleta: COLETA_R20, indice: null });
+  assert.equal(s.comIndice, false); assert.equal(s.pendentes, null); assert.equal(s.total, 109 + 0 + 14 + 14 + 13);
+  assert.ok(!s.linhas.some(l => l.fonte === 'mtgjson'), 'sem índice não há o que derivar');
+  assert.deepEqual(s.formatos.map(f => f.formato), ['pauper', 'commander', 'pioneer']);
+  // só o índice (coleta indisponível): tudo é MTGJSON, sem saúde nem frescor
+  const i = modelo.resumoDoCatalogo({ coleta: null, indice: INDICE_R20 });
+  assert.equal(i.saude, null); assert.equal(i.diasMaisNova, null); assert.equal(i.linhas.filter(l => l.fonte === 'mtgjson').reduce((n, l) => n + l.listas, 0), 325 + 425 + 164);
+  const v = modelo.resumoDoCatalogo({});
+  assert.equal(v.em, null); assert.equal(v.total, 0); assert.deepEqual(v.linhas, []); assert.deepEqual(v.fontes, []);
+  // os filtros formato e fonte recortam as linhas; período não se aplica (linha sem data)
+  const rec = modelo.recorte(r.linhas, { fonte: 'mtgo', periodo: '7d' });
+  assert.deepEqual(rec.linhas.map(l => l.formato), ['pauper', 'pioneer']); assert.deepEqual(rec.naoAplica, ['periodo']);
+  assert.ok(modelo.DIMENSOES.includes('fonte'));
+  assert.equal(modelo.urlDosFiltros('acervo', { fonte: 'topdeck', formato: 'pauper' }), '#acervo?fonte=topdeck&formato=pauper'); assert.deepEqual(modelo.filtrosDaUrl('#acervo?fonte=mtgo').filtros, { fonte: 'mtgo' });
+});
+
+test('R-20 · orçamento do Acervo: coleta.json a cada atualização (raw, fora da cota) e o índice uma vez por carimbo da coleta (guardado para sempre; só o cabeçalho no cache); zero pedidos à API', async () => {
+  const { base, app, modelo } = loadPainel();
+  const guarda = base.createGuarda(null);
+  const chamadas = [];
+  let coleta = COLETA_R20;
+  const fetch = async url => { chamadas.push(url); const corpo = /coleta\.json/.test(url) ? JSON.stringify(coleta) : /indice\.json/.test(url) ? JSON.stringify(INDICE_R20) : ''; return { ok: true, status: 200, headers: { get: () => null }, json: async () => JSON.parse(corpo), text: async () => corpo }; };
+  const fonte = base.createFonte({ fetch, guarda });
+  const d1 = await app.VISOES.acervo.carrega(fonte, false);
+  assert.equal(fonte.pedidos, 0, 'nada vai à API'); assert.equal(fonte.brutos, 2); assert.equal(d1.indice.total, 2764); assert.deepEqual(d1.avisos, []);
+  assert.ok(!JSON.stringify(guarda.ler('painel.cache.catalogo.indice.2026-10-16T11:40:34.193Z')).includes('nunca-entra'), 'o cache guarda só o cabeçalho');
+  fonte.zerar(); chamadas.length = 0;
+  await app.VISOES.acervo.carrega(fonte, true);
+  assert.deepEqual(chamadas.map(u => u.split('/').pop()), ['coleta.json'], 'atualizar relê a coleta; o índice vem do cache enquanto o carimbo é o mesmo');
+  coleta = { ...COLETA_R20, em: '2026-10-17T11:40:00.000Z' }; chamadas.length = 0;
+  await app.VISOES.acervo.carrega(fonte, true);
+  assert.deepEqual(chamadas.map(u => u.split('/').pop()), ['coleta.json', 'indice.json'], 'carimbo novo: o índice é lido de novo, uma vez');
+  // coleta fora do ar: o índice ainda é lido (chave da hora) e a visão avisa
+  const fonte2 = base.createFonte({ fetch: async url => { if (/coleta/.test(url)) throw new TypeError('sem rede'); return fetch(url); }, guarda: base.createGuarda(null) });
+  const d2 = await app.VISOES.acervo.carrega(fonte2, false);
+  assert.equal(d2.coleta, null); assert.equal(d2.indice.total, 2764); assert.match(d2.avisos.join(' '), /coleta\.json indisponível/);
+  assert.equal(modelo.resumoDoCatalogo({ coleta: d2.coleta, indice: d2.indice }).saude, null);
 });
