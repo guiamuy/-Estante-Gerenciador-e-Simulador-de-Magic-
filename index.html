@@ -9627,6 +9627,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   "Vivisurgeon's Insight": { texto: 'v68qf9', leva: 'M-433' },
   // M-434 · revisão por lote LXXXV (descartar a mão e comprar o mesmo tanto: Tolarian Winds), texto da Scryfall de 17/10/2026 UTC, revisor independente
   'Tolarian Winds': { texto: '1bb2sat', leva: 'M-434' },
+  // M-435 · revisão por lote LXXXVI ("Whenever a creature you control enters": Impact Tremors), texto da Scryfall de 17/10/2026 UTC, revisor independente
+  'Impact Tremors': { texto: '1if3310', leva: 'M-435' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18116,6 +18118,7 @@ const __m42 = (function () {
     [/^whenever enchanted creature deals damage to an opponent$/i, 'enchanted-damages-opponent'],
     [/^whenever another creature enters(?: the battlefield)? under your control$/i, 'other-etb', () => ({ filter: { types: ['creature'] } })], // M-324 · o filtro de criatura (sem ele, qualquer permanente sua dispararia)
     [/^whenever another creature you control enters(?: the battlefield)?$/i, 'other-etb', () => ({ filter: { types: ['creature'] } })], // M-324
+    [/^whenever a creature you control enters(?: the battlefield)?$/i, 'other-etb', () => ({ filter: { types: ['creature'] }, soNaoCriatura: true })], // M-435 · Impact Tremors: numa fonte que não é criatura, "a creature you control" é "outra"; numa criatura (ela mesma também dispara) fica sem leitura
     [/^(?:landfall — )?whenever a land you control enters(?: the battlefield)?$/i, 'other-etb', () => ({ filter: { types: ['land'] } })], // M-340 · Landfall
     [/^whenever another creature you control dies$/i, 'other-dies', () => ({ filter: { types: ['creature'] } })], // M-324
     [/^whenever (this creature|~) is dealt damage$/i, 'dealt-damage'], // M-324 · CR2b.3
@@ -18232,6 +18235,9 @@ const __m42 = (function () {
     const cab = linha.slice(0, i), resto = linha.slice(i + 2).replace(/\.$/, '');
     const g = GATILHOS.find(([re]) => re.test(cab)); if (!g) return null;
     const extra = g[2] ? g[2](cab.match(g[0])) : {}; // LT10 · filtro e "de qualquer jogador" da abertura
+    if (extra && extra.soNaoCriatura) { // M-435 · numa criatura, ela mesma também dispara; "it" no efeito é a que entrou (Warstorm Surge), não a fonte: sem leitura
+      if (/\bCreature\b/i.test(tipoAtual) || /\b(?:it|its)\b/i.test(resto)) { frases.push({ texto: linha, lida: false, motivo: 'gatilho de criatura sua que entra: a própria criatura ou "it" (a que entrou) o leitor ainda não lê' }); return null; }
+      delete extra.soNaoCriatura; }
     let resto2 = resto, condicao = null;
     const se = resto2.match(/^if you control another creature named ~, (.+)$/i); // LT12 · 603.4 "if" intermediário (Faerie Miscreant)
     if (se) { condicao = { controlsOtherNamed: true }; resto2 = se[1]; }
