@@ -5574,6 +5574,7 @@ const EFFECTS = {
   lutador: { fields: [], targets: ['creature', 'creature-you-control'] },
   fight: { fields: [], targets: ['creature', 'creature-opponent-controls', 'creature-you-control'] }, // quem: 'self-source' (a permanente fonte luta) | 'primeiro-alvo' (luta a criatura anotada pelo `lutador` anterior)
   /* ↓ T · efeitos da trilha tipos */
+  revela_ate_mao: { fields: [], targets: [] }, // T-117 · CR 701.20 · "Reveal cards from the top of your library until you reveal an instant or sorcery card. Put that card into your hand and the rest on the bottom of your library in a random order." (`match: 'instant-or-sorcery'`)
   marcadores_da_fonte: { fields: [], targets: ['creature-you-control', 'creature'] }, // T-115 · CR 122.1 · "put its counters on target creature you control": o mesmo número de cada tipo de marcador que a fonte tinha ao sair do campo (603.10a; não é mover)
   dano_jogador_ou_pw: { fields: ['amount'], targets: ['enchanted-player', 'player', 'opponent', 'that-player'] }, // T-112 · CR 303.4b / 120.3 · "deals N damage to that player or a planeswalker that player controls" (sem alvo: quem controla a fonte escolhe na resolução)
   dano_fixo_t: { fields: ['amount'], targets: [] }, // T-112 · a escolha do dano_jogador_ou_pw (gerado pelo motor; `jogador` ou `oid`/`z`)
@@ -6814,6 +6815,9 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-117 · grandeza (casualplaneswalker + Forge, consulta de 17/10/2026)
+  { name: 'Page, Loose Leaf', produces: [['C']], abilities: [{ kind: 'activated', cost: { discard: 1, discardNomeT: 'Page, Loose Leaf' }, label: 'Grandeza', effects: [{ do: 'revela_ate_mao', match: 'instant-or-sorcery' }] }], // "{T}: Add {C}. · Grandeur — Discard another card named Page, Loose Leaf: Reveal cards from the top of your library until you reveal an instant or sorcery card. Put that card into your hand and the rest on the bottom of your library in a random order."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // T-116 · CR 709.5h · Sala (mtg.wtf + mtgazone + grimoria, consulta de 17/10/2026). O lembrete entre parênteses não se escreve.
   { name: 'Meat Locker // Drowned Diner', self: { dividida: true, sala: true, mana: '{2}{U}', types: ['enchantment'] },
     abilities: [{ kind: 'triggered', when: 'unlock-door', effects: [{ do: 'tap', target: 'creature', upTo: true }, { do: 'counters', amount: 2, tipo: 'stun', target: 'first-target' }] }], // "When you unlock this door, tap up to one target creature and put two stun counters on it."
@@ -20283,7 +20287,7 @@ const escapeOf = (s, o) => (s.facts[o.name].script || {}).escape; // S48 · fuga
 /** CR2c.4 · "an Island card": carta com o subtipo na linha de tipo (Ilha básica, Tropical Island…). */
 const temSubtipo = (s, oid, sub) => new RegExp('\\b' + sub + '\\b').test(linhaDeTipo(s, s.objects[oid]));
 /** CR2c.4 · descartes que servem: com `discardSubtype`, pelo menos uma das cartas tem o subtipo. */
-const descarteServe = (s, cost, list) => !cost.discardSubtype || list.some(x => temSubtipo(s, x, cost.discardSubtype));
+const descarteServe = (s, cost, list) => (!cost.discardSubtype || list.some(x => temSubtipo(s, x, cost.discardSubtype))) && (!cost.discardNomeT || list.some(x => s.objects[x].name === cost.discardNomeT)); // T-117 · "Discard another card named ~" (grandeza) (Toca ponto comum: descarteServe)
 /** CR2c.4 · cartas da mão da cor pedida que podem ser exiladas como custo (a própria mágica não). */
 const exilaveisDaMao = (s, p, cor, selfOid) => s.zones[p].hand.filter(x => x !== selfOid && ((s.facts[s.objects[x].name] || {}).colors || []).includes(cor));
 /** CR2c.4 · condição do custo alternativo ("If an opponent controls an Island and you control a Mountain"). */
@@ -22590,6 +22594,7 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'lutador': if (obj) s.lutadorV = { fonte: src.oid, fz: encarnacaoV(s, src), oid: obj.oid, z: obj.zc || 0 }; break; // V-1/V-5 · anota quem luta; a luta é o `fight` seguinte, que apaga a anotação
     case 'fight': lutar(s, src, eff, tgt, events); break; // V-1 · 701.14
     /* ↓ T · casos de applyEffect da trilha tipos */
+    case 'revela_ate_mao': { const r = revelaAteMaoT(s, ctrl, eff); note({ target: s.players[ctrl].name, amount: r.reveladas.length, nomes: r.reveladas, achada: r.achada }); break; } // T-117 · CR 701.20
     case 'marcadores_da_fonte': { const n = marcadoresDaFonteT(s, src, obj, events); note({ amount: n }); break; } // T-115 · CR 122.1
     case 'dano_jogador_ou_pw': danoJogadorOuPwT(s, src, eff, playerOf(), ctrl, events); break; // T-112 · CR 120.3
     case 'dano_fixo_t': { const x = eff.oid != null ? s.objects[eff.oid] : null; if (eff.oid != null && !(x && x.zone === 'battlefield' && (x.zc || 0) === (eff.z || 0))) { note({ failed: true }); break; } applyEffect(s, src, { do: 'damage', amount: eff.amount }, eff.oid != null ? { oid: eff.oid } : { player: eff.jogador }, events); break; } // T-112 · 400.7
@@ -23794,6 +23799,7 @@ function payExtraCosts(s, p, cost, pay, selfOid) {
   if (cost.discard) {
     const list = (pay && pay.discard) || s.zones[p].hand.filter(x => x !== selfOid).slice(0, cost.discard);
     if (list.length !== cost.discard || list.some(x => !s.zones[p].hand.includes(x) || x === selfOid)) throw new RuleError('custo', `descarte ${cost.discard} carta(s) como custo`);
+    if (cost.discardNomeT && !descarteServe(s, cost, list)) throw new RuleError('custo', `descarte outra carta chamada ${cost.discardNomeT}`); // T-117 · grandeza (Toca ponto comum: pagamento do custo)
     // S47 · a mágica pode perguntar depois se o descarte foi terreno (Grab the Prize)
     const semTerreno = list.every(x => !s.facts[s.objects[x].name].types.includes('land'));
     if (s.objects[selfOid]) s.objects[selfOid].discardedNonland = semTerreno;
@@ -23851,7 +23857,7 @@ const canPayExtra = (s, p, cost, selfOid) =>
   (!cost.exileFromGraveyard || s.zones[p].graveyard.some(x => matchesFilter(s, s.objects[x], cost.exileFromGraveyard))) &&
   (!cost.craft || materiaisDeCraft(s, p, cost.craft, selfOid).length >= (cost.craft.amount || 1)) && // M-356
   (!cost.returnLand || !!defaultPayment(s, p, cost, selfOid).land) &&
-  (!cost.discard || s.zones[p].hand.filter(x => x !== selfOid).length >= cost.discard) &&
+  (!cost.discard || (s.zones[p].hand.filter(x => x !== selfOid).length >= cost.discard && (!cost.discardNomeT || s.zones[p].hand.some(x => x !== selfOid && s.objects[x].name === cost.discardNomeT)))) && // T-117 · grandeza (Toca ponto comum: canPay)
   (!cost.sacrificeOther || extraCostCandidates(s, p, cost.sacrificeOther, selfOid).length >= (cost.sacrificeOther.amount || 1)) &&
   (!cost.tapOther || extraCostCandidates(s, p, cost.tapOther, selfOid, true).length >= (cost.tapOther.amount || 1)) &&
   (!cost.removeCounters || ((((s.objects[selfOid] || {}).counters) || {})[cost.removeCounters.tipo] || 0) >= (cost.removeCounters.n || 1)); // M-249 · "Remove two oil counters from this artifact"
@@ -28311,6 +28317,16 @@ function marcadoresDaFonteT(s, src, alvo, events) {
   if (!alvo || alvo.zone !== 'battlefield') return 0; let n = 0;
   for (const [tipo, q] of Object.entries(foto)) if (q > 0) { applyEffect(s, src, { do: 'counters', amount: q, ...(tipo === 'p1p1' ? {} : { tipo }) }, { oid: alvo.oid }, events); n += q; }
   return n;
+}
+/* T-117 · CR 701.20 · revelar do topo até uma instantânea ou feitiço: ela vai para a mão; as outras reveladas, para o fundo em ordem
+   aleatória (s.rng). Sem nenhuma, todas as reveladas (o grimório inteiro) vão para o fundo em ordem aleatória. */
+function revelaAteMaoT(s, p, eff) {
+  const serve = oid => { const tp = (s.facts[s.objects[oid].name] || {}).types || []; return eff.match === 'instant-or-sorcery' && (tp.includes('instant') || tp.includes('sorcery')); };
+  const lib = s.zones[p].library, i = lib.findIndex(serve), reveladas = i >= 0 ? lib.slice(0, i + 1) : lib.slice(), achada = i >= 0 ? lib[i] : null;
+  const nomes = reveladas.map(x => s.objects[x].name), resto = reveladas.filter(x => x !== achada);
+  s.zones[p].library = lib.filter(x => !reveladas.includes(x)); shuffle(s, resto); s.zones[p].library.push(...resto);
+  if (achada) { s.zones[p].library.includes(achada) && s.zones[p].library.splice(s.zones[p].library.indexOf(achada), 1); s.zones[p].hand.push(achada); s.objects[achada].zone = 'hand'; }
+  return { reveladas: nomes, achada: achada ? s.objects[achada].name : null };
 }
 let conferindoConcessaoT = false; // o tipo da encantada (camada 4) não depende desta concessão (ela não muda tipo): na volta do cálculo, ela fica de fora
 function concessaoVigenteT(s, aura, g) {
@@ -33323,6 +33339,7 @@ const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas
 const EFEITO_PT_T = { caso_resolvido: () => 'este Caso fica resolvido', estacao: () => 'põe nesta permanente marcadores de carga iguais ao poder da criatura virada (ou à resistência, quando um efeito manda estacionar por ela)', selada: () => 'esta montaria fica selada até o fim do turno', virar_carta: e => (e.se && e.se.minCriaturas ? `se você controla ${e.se.minCriaturas} ou mais criaturas, vira esta carta` : 'vira esta carta'), porta: e => (e.acao === 'trancar' ? 'tranca uma porta destrancada de uma Sala sua' : e.acao === 'destrancar' ? 'destranca uma porta trancada de uma Sala sua' : 'tranca ou destranca uma porta de uma Sala sua'), nivel_sobe: () => 'põe um marcador de nível nela', nivel_classe: e => `a Classe sobe para o nível ${e.n}`, tripulada: () => 'vira criatura artefato até o fim do turno', transformar: () => 'transforma (vira a outra face)', preparar: () => 'esta criatura fica preparada', despreparar: () => 'esta criatura deixa de estar preparada' }; // T-51 · 722.3 // T-7 · 701.27
 Object.assign(EFEITO_PT_T, { dano_jogador_ou_pw: e => `causa ${e.amount} de dano ao jogador encantado ou a um planeswalker dele (você escolhe)`, dano_fixo_t: e => `causa ${e.amount} de dano` }); // T-112
 Object.assign(EFEITO_PT_T, { marcadores_da_fonte: () => 'põe na criatura alvo sua os marcadores que esta criatura tinha (o mesmo número de cada tipo)' }); // T-115
+Object.assign(EFEITO_PT_T, { revela_ate_mao: () => 'revela cartas do topo até uma instantânea ou feitiço, põe na mão e as outras no fundo em ordem aleatória' }); // T-117
 Object.assign(EFEITO_PT_T, { embalsamar: () => 'cria uma ficha que é cópia desta carta, só que branca, Zumbi além dos outros tipos e sem custo de mana (embalsamar)' }); // T-111 · CR 702.128a
 Object.assign(EFEITO_PT_T, { vira_para_baixo: () => 'vira a criatura alvo para baixo (2/2, sem nome nem habilidades)', vira_para_cima: () => 'vira para cima a criatura alvo virada para baixo' }); // T-73 · CR 708.2a / 708.8
 /** T-7 · linhas do registro para os eventos da trilha tipos. */

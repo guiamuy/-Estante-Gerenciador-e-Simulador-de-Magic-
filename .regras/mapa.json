@@ -6259,13 +6259,18 @@
    "regra": "Keyword Actions",
    "titulo": "Reveal",
    "status": "parcial",
-   "evidencia": "revelar existe como evento pontual: explore (index.html:11287), look com `revela` (11254), mão revelada em discard_chosen (`mostrar`, 11310), custo revealColor; pauper.regras \"Leva 108 · Duress sem carta que sirva ainda revela a mão\", \"Leva 108 · Malevolent Rumble revela as quatro cartas\" · M-222 (v89): \"revele cartas do topo até revelar…\" (reveal_until): criatura, carta que divida um tipo com a referência (só de permanente, se pedido) ou criatura de valor maior; a referência é o alvo pela última informação conhecida; achada vai ao campo do jogador que revelou; resto embaralhado ou no fundo em ordem aleatória (commander.regras \"M-222 · Polymorph\" e seguintes)",
+   "evidencia": "revelar existe como evento pontual: explore (index.html:11287), look com `revela` (11254), mão revelada em discard_chosen (`mostrar`, 11310), custo revealColor; pauper.regras \"Leva 108 · Duress sem carta que sirva ainda revela a mão\", \"Leva 108 · Malevolent Rumble revela as quatro cartas\" · M-222 (v89): \"revele cartas do topo até revelar…\" (reveal_until): criatura, carta que divida um tipo com a referência (só de permanente, se pedido) ou criatura de valor maior; a referência é o alvo pela última informação conhecida; achada vai ao campo do jogador que revelou; resto embaralhado ou no fundo em ordem aleatória (commander.regras \"M-222 · Polymorph\" e seguintes) · T-117 (17/10/2026): revelar do topo até uma instantânea ou feitiço, que vai para a mão, e o resto no fundo em ordem aleatória (`revela_ate_mao`) — Page, Loose Leaf",
    "falta": "não há estado \"revelada\" que dure até a mágica/habilidade sair da pilha (701.20a), nem efeito genérico revelar/olhar carta de zona oculta (mão do oponente, topo) fora dos casos acima (701.20e); busca nunca revela a carta achada",
    "esforco": "M",
    "depende": [
     "400.2"
    ],
-   "cartas": "evergreen"
+   "cartas": "evergreen",
+   "testes": [
+    "CR 602.1 · Page, Loose Leaf (texto oficial): grandeza descarta OUTRA Page da mão; sem outra Page, não há oferta",
+    "CR 701.20 · grandeza: revela até uma instantânea ou feitiço, põe na mão e o resto no fundo; não vira (a Page segue podendo gerar {C})",
+    "CR 701.20 · grandeza sem instantânea nem feitiço no grimório: revela tudo e põe tudo no fundo, sem carta na mão"
+   ]
   },
   {
    "n": "701.21",
