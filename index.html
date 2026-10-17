@@ -9580,6 +9580,9 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Respite': { texto: 'ur0onp', leva: 'M-423' },
   'Rite of Flame': { texto: '19i7ens', leva: 'M-423' },
   'Songs of the Damned': { texto: '1xvmgxe', leva: 'M-423' },
+  // M-424 · revisão por lote LXXVIII (revelar o topo e pegar até K de um tipo, o resto no cemitério: Pieces of the Puzzle, Tracker's Instincts), texto da Scryfall de 17/10/2026 UTC, revisor independente
+  'Pieces of the Puzzle': { texto: '1vrfvgn', leva: 'M-424' },
+  "Tracker's Instincts": { texto: '1td9jz5', leva: 'M-424' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18232,7 +18235,10 @@ const __m42 = (function () {
     [new RegExp(`^look at the top ${N} cards of your library\\. you may reveal an? (instant or sorcery|creature|artifact|land|creature or land|colorless) card from among them and put it into your hand\\. (?:then )?put the rest on the bottom of your library in (any|a random) order(?:\\.\\s*|$)`, 'i'), m => {
       const c = num(m[1]); return c ? [{ do: 'look', count: c, amount: 1, min: 0, to: 'hand', rest: /random/i.test(m[3]) ? 'library-bottom-random' : 'library-bottom', revelaEscolhida: true, filter: FILTRO_TOPO[m[2].toLowerCase()] }] : null; }],
     [new RegExp(`^look at the top ${N} cards of your library\\. you may reveal a creature card with power (\\d+) or less from among them and put it into your hand\\. (?:then )?put the rest on the bottom of your library in (any|a random) order(?:\\.\\s*|$)`, 'i'), m => { // M-420 · Militia Bugler
-      const c = num(m[1]); return c ? [{ do: 'look', count: c, amount: 1, min: 0, to: 'hand', rest: /random/i.test(m[3]) ? 'library-bottom-random' : 'library-bottom', revelaEscolhida: true, filter: { types: ['creature'], powerMax: +m[2] } }] : null; }]
+      const c = num(m[1]); return c ? [{ do: 'look', count: c, amount: 1, min: 0, to: 'hand', rest: /random/i.test(m[3]) ? 'library-bottom-random' : 'library-bottom', revelaEscolhida: true, filter: { types: ['creature'], powerMax: +m[2] } }] : null; }],
+    [new RegExp(`^reveal the top ${N} cards of your library\\. put (up to ${N}|an?) (instant and/or sorcery|creature|enchantment|artifact|land) cards? from among them into your hand and the rest(?: of the revealed cards)? into your graveyard(?:\\.\\s*|$)`, 'i'), m => { // M-424 · Pieces of the Puzzle, Tracker's Instincts
+      const c = num(m[1]), k = m[3] ? num(m[3]) : 1, t = m[4].toLowerCase(), filtro = t === 'instant and/or sorcery' ? { types: ['instant', 'sorcery'] } : { types: [t] };
+      return c && k && k <= c ? [{ do: 'look', count: c, amount: k, min: m[3] ? 0 : 1, revela: true, filter: filtro, to: 'hand', rest: 'graveyard' }] : null; }]
   ];
   /** M-343 · "scry 1 and create a Treasure token": duas ações em sequência. Só quando as duas metades são lidas sozinhas e a segunda não
       tem pronome (it, its, them, that…) que dependa da primeira — senão a frase fica não lida. */

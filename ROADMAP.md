@@ -4478,6 +4478,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nada novo.
 - **Teste:** `lt105.unit` (4 testes; falham no motor anterior).
 
+**M-424 · LT90 · revelar o topo e pegar até K de um tipo, o resto no cemitério: Pieces of the Puzzle, Tracker's Instincts** ✅ (leva M-424, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** **Pieces of the Puzzle e Tracker's Instincts passam a jogar** (APROVADAS; texto da Scryfall de 17/10/2026 UTC). Padrão novo do leitor: "Reveal the top N cards of your library. Put up to K <tipo> cards from among them into your hand and the rest into your graveyard" (com "up to", pode pegar nenhuma; com "a creature card", a criatura é obrigatória se houver uma entre as reveladas). O padrão lê o Kruphix's Insight igual ao script à mão que ele já tinha. Placar do Pauper (`main` + M-424 × catálogo de 17/10): a lista com Pieces of the Puzzle ainda espera o Echoing Truth.
+- **Revisão independente:** revisor independente do lote M-424…M-428 (diferencial do leitor: só 7 cartas passaram a ser lidas por inteiro, todas coerentes com o texto; 703 aprovadas íntegras; equivalência de 36 partidas e 14.400 ações com estado idêntico; fuzz de 40 partidas e cerca de 35 mil ações sem exceção nem ação recusada): **aprovado** (~25 verificações) — revela as cinco; "and/or" pega instantânea e feitiço juntos e não deixa a terceira; grimório com 3 ou vazio; sem carta do tipo, tudo ao cemitério; Tracker's só oferece a criatura, sem recusar, e o lampejo vai ao exílio; Kruphix's Insight lida igual ao script à mão.
+- **Fora (declarado):** nada novo.
+- **Teste:** `lt106.unit` (4 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
