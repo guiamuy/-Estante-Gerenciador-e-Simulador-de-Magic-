@@ -5710,7 +5710,7 @@ const EXTRA_COST_PARTS = ['sacrificeOther', 'tapOther', 'discard', 'returnLand',
    equivalência compara o caminho antigo com o novo em partidas aleatórias. Carta nova escreve o seletor direto:
    target: { tipos: ['creature'], de: 'opponent' }  ·  { zona: 'graveyard', de: 'you', tipos: ['creature'] }  ·  { jogadores: 'any' } */
 const SELETOR_ZONAS = ['battlefield', 'graveyard', 'stack', 'nenhuma'];
-const SELETOR_CHAVES = ['historico', 'foraDaLei', 'modificada', 'virada', 'metamorfose', 'terrenoBasico', 'ativadaNoTurno', 'tapped', /* T-87 · 700.10 e "tapped" · T-59 · CR 700.6 / 700.12 / 700.9 · T-73 · virada para baixo (708) · T-80 · terreno básico (205.4) */ 'zona', 'de', 'dono', 'tipos', 'semTipos', 'tiposImpressos', 'tiposDaCarta', 'subtipos', 'semSubtipos', 'palavra', 'semPalavra', 'mvMax', 'mvMin', 'outra', 'cor', 'semCor', 'permanente', 'jogadores', 'habilidades', 'ref', 'subtipoDaAura', 'lendaria', 'comToxico', 'ou', 'atacando']; // M-361 · `atacando: true` (506.4)
+const SELETOR_CHAVES = ['historico', 'foraDaLei', 'modificada', 'virada', 'metamorfose', 'terrenoBasico', 'ativadaNoTurno', 'tapped', /* T-87 · 700.10 e "tapped" · T-59 · CR 700.6 / 700.12 / 700.9 · T-73 · virada para baixo (708) · T-80 · terreno básico (205.4) */ 'zona', 'de', 'dono', 'tipos', 'semTipos', 'tiposImpressos', 'tiposDaCarta', 'subtipos', 'semSubtipos', 'palavra', 'semPalavra', 'mvMax', 'mvMin', 'outra', 'cor', 'semCor', 'permanente', 'jogadores', 'habilidades', 'ref', 'subtipoDaAura', 'lendaria', 'comToxico', 'ou', 'atacando', 'comMarcador' /* M-461 · "with a +1/+1 counter on it" */]; // M-361 · `atacando: true` (506.4)
 const ALVO_SELETOR = {
   any: { tipos: ['creature', 'planeswalker'], jogadores: 'any' },
   creature: { tipos: ['creature'] }, planeswalker: { tipos: ['planeswalker'] }, permanent: {},
@@ -9736,6 +9736,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   // M-460 · revisão por lote CVII (gatilho do cemitério ao conjurar multicolorida: Aurora Eidolon, Sandstorm Eidolon), texto da Scryfall de 17/10/2026 UTC, revisor independente
   'Aurora Eidolon': { texto: '1imkdg', leva: 'M-460' },
   'Sandstorm Eidolon': { texto: 'sw7gi', leva: 'M-460' },
+  // M-461 · revisão por lote CVIII ("with a +1/+1 counter on it": Lifecrafter's Gift), texto da Scryfall de 17/10/2026 UTC, revisor independente
+  'Lifecrafter\'s Gift': { texto: '179hu3y', leva: 'M-461' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18087,6 +18089,7 @@ const __m42 = (function () {
     [/^prevent all combat damage that would be dealt this turn$/i, () => [{ do: 'fog' }]], // LT9
     [/^exile all cards from target player's graveyard$/i, () => [{ do: 'exile_graveyard', target: 'player' }]], // LT9
     [/^return target creature card from your graveyard to your hand$/i, () => [{ do: 'to_hand', target: 'creature-in-your-graveyard' }]], // LT9
+    [/^put a \+1\/\+1 counter on each creature you control with a \+1\/\+1 counter on it$/i, () => [{ do: 'counters', tipo: 'p1p1', amount: 1, cada: { tipos: ['creature'], de: 'you', comMarcador: 'p1p1' } }]], // M-461 · Lifecrafter's Gift (as de agora, depois da frase anterior: o alvo também ganha o segundo)
     [new RegExp(`^prevent the next ${N} damage that would be dealt to any target this turn$`, 'i'), m => [{ do: 'prevenir', quantidade: num(m[1]), target: 'any' }]], // M-460 · 615.7 (Aurora Eidolon; o escudo da R5b)
     [/^target creature can't block this turn$/i, () => [{ do: 'nao_bloqueia_no_turno', target: 'creature' }]], // M-460 · 509.1a (Sandstorm Eidolon)
     [/^return (?:~|this card) from your graveyard to your hand$/i, () => [{ do: 'to_hand', target: 'self-source' }]], // M-460 · Aurora/Sandstorm Eidolon (só como gatilho que funciona do cemitério)
@@ -21101,6 +21104,7 @@ function selCasa(s, p, o, sel, selfOid, opts = {}) {
   if (sel.lendaria != null && (!!f.legendary && !o.faceDown) !== sel.lendaria) return false;
   if ((sel.historico != null || sel.foraDaLei != null || sel.modificada != null || sel.virada != null || sel.metamorfose != null || sel.terrenoBasico != null || sel.ativadaNoTurno != null || sel.tapped != null) && !predicadosDeTipoT(s, o, sel)) return false; // T-59 · CR 700.6 / 700.12 / 700.9 (Toca ponto comum: selCasa)
   if (sel.atacando != null && (o.zone !== 'battlefield' || (o.attacking != null) !== !!sel.atacando)) return false; // M-361 · 506.4: "attacking creature" (Tangle)
+  if (sel.comMarcador && !(((o.counters || {})[sel.comMarcador] || 0) > 0)) return false; // M-461 · "with a +1/+1 counter on it" (Lifecrafter's Gift): o de agora (122.1)
   if (sel.comToxico && !toxicoDe(s, o)) return false; // M-253 · "creatures you control with toxic" // M-246 · 205.4 · lendária (virada para baixo não tem supertipo)
   if (sel.semCor && coresDe(s, o).includes(sel.semCor)) return false; // CR2d.8
   if (sel.subtipoDaAura) { // Q11 · aura de subtipo ("Enchant Forest"): a fonte diz o subtipo e o terreno precisa tê-lo
@@ -33433,7 +33437,7 @@ function descreveSeletor(sel) {
   const sem = (sel.semTipos || []).length ? ` que não seja ${(sel.semTipos || []).map(x => nomes[x] || x).join(' nem ')}` : '';
   const dono = zona === 'graveyard' ? (sel.de === 'you' ? ' do seu cemitério' : sel.de === 'opponent' ? ' do cemitério de um oponente' : ' de um cemitério')
     : sel.de === 'you' ? ' que você controla' : sel.de === 'opponent' ? ' que um oponente controla' : sel.dono === 'you' ? ' que é sua' : '';
-  return `${coisa}${predicadosPT_T(sel)}${sem}${dono}${sel.comToxico ? ' com tóxico' : ''}${jog ? ' ou ' + jog : ''}`; // M-253 // T-59 · histórica, fora da lei, modificada
+  return `${coisa}${predicadosPT_T(sel)}${sem}${dono}${sel.comToxico ? ' com tóxico' : ''}${sel.comMarcador === 'p1p1' ? ' com marcador +1/+1' : ''}${jog ? ' ou ' + jog : ''}`; // M-253 // T-59 · histórica, fora da lei, modificada
 }
 /** CR2-G R3a · efeito contínuo estático em português: quem é afetado, o +N/+N (fixo ou por contagem) e as palavras-chave. */
 const PER_PT = { 'creatures-you-control': 'criatura que você controla', 'other-creatures-you-control': 'outra criatura que você controla', 'enchantments-you-control': 'encantamento que você controla',
