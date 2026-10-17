@@ -4484,6 +4484,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nada novo.
 - **Teste:** `lt106.unit` (4 testes; falham no motor anterior).
 
+**M-425 · LT91 · devolver o alvo e as outras permanentes com o mesmo nome: Echoing Truth** ✅ (leva M-425, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** **Echoing Truth (8 listas do catálogo) passa a jogar** (APROVADAS; texto da Scryfall de 17/10/2026 UTC). Campo novo `mesmoNome` no devolver: o alvo e todas as outras permanentes com nome em comum (201.2), de qualquer jogador, voltam juntas à mão de cada dono; virada para baixo não tem nome (708.2) e fica; alvo ilegal na resolução não devolve nada (608.2b). O registro diz "e mais N com o mesmo nome". Com a M-423 (Respite) e a M-424 (Pieces of the Puzzle), a lista que esperava as três passa a jogar.
+- **Revisão independente:** revisor independente do lote M-424…M-428 (diferencial do leitor: só 7 cartas passaram a ser lidas por inteiro, todas coerentes com o texto; 703 aprovadas íntegras; equivalência de 36 partidas e 14.400 ações com estado idêntico; fuzz de 40 partidas e cerca de 35 mil ações sem exceção nem ação recusada): **aprovado com achado** (~17 verificações) — alvo e as outras de qualquer jogador; roubada volta ao dono; ficha some; virada para baixo não conta; alvo ilegal: as outras ficam; a face transformada leva só as transformadas (712.8). Achado corrigido na M-431 com teste: as que voltavam à mão saíam uma de cada vez e não se viam sair (603.10a).
+- **Fora (declarado):** nada novo.
+- **Teste:** `lt107.unit` (4 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

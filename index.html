@@ -6357,6 +6357,7 @@ function effectErrors(effects, label, opcional) {
     if (e.dividido != null && !(e.do === 'damage' && typeof e.dividido === 'object' && (e.dividido.max == null || (Number.isInteger(e.dividido.max) && e.dividido.max >= 2)) && ['any', 'creature'].includes(e.target))) errs.push(`${label} ${i + 1}: "dividido" é dano dividido entre alvos (601.2d): { max: null | 2 ou mais }, alvo "any" ou "creature"`); // M-376
     if (e.do === 'discard_or_sacrifice_land_draw' && e.obrigatorio != null) errs.push(`${label} ${i + 1}: o descarte ou sacrifício obrigatório (sem "you may") não é coberto`); // M-411 · fica sem leitura, nunca opcional por engano
     if (e.do === 'discard_or_sacrifice_land_draw' && e.tipo != null && e.tipo !== 'artifact') errs.push(`${label} ${i + 1}: "tipo" do sacrifício é 'artifact' (sem tipo: terreno)`); // M-411
+    if (e.mesmoNome != null && !(e.mesmoNome === true && e.do === 'bounce' && isTargeted(e))) errs.push(`${label} ${i + 1}: "mesmoNome" só em devolver um alvo`); // M-425
     if (e.excetoPrimeiro != null && !(e.excetoPrimeiro === true && e.cada && !isTargeted(e) && effects.slice(0, i).some(isTargeted))) errs.push(`${label} ${i + 1}: "excetoPrimeiro" só numa varredura (cada) sem alvo, depois de um efeito com alvo`); // M-422
     if (e.porContagem != null && (e.do !== 'add_mana' || !PER_COUNTS.includes(e.porContagem))) errs.push(`${label} ${i + 1}: "porContagem" só na mana, com uma contagem conhecida`); // M-423
     if (e.mvAte != null && (e.do !== 'counter' || !(Number.isInteger(e.mvAte) ? e.mvAte >= 0 : (e.mvAte && e.mvAte.per === 'se' && e.mvAte.se === 'kicked' && Number.isInteger(e.mvAte.sim) && Number.isInteger(e.mvAte.nao))))) errs.push(`${label} ${i + 1}: "mvAte" só na anulação: inteiro, ou se reforçada`); // M-419
@@ -9583,6 +9584,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   // M-424 · revisão por lote LXXVIII (revelar o topo e pegar até K de um tipo, o resto no cemitério: Pieces of the Puzzle, Tracker's Instincts), texto da Scryfall de 17/10/2026 UTC, revisor independente
   'Pieces of the Puzzle': { texto: '1vrfvgn', leva: 'M-424' },
   "Tracker's Instincts": { texto: '1td9jz5', leva: 'M-424' },
+  // M-425 · revisão por lote LXXIX (devolver o alvo e as outras permanentes com o mesmo nome: Echoing Truth), texto da Scryfall de 17/10/2026 UTC, revisor independente
+  'Echoing Truth': { texto: 'km0nfi', leva: 'M-425' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -17879,6 +17882,7 @@ const __m42 = (function () {
     [/^exile (target [a-z ']+)$/i, m => [com({ do: 'exile' }, alvo(m[1]))]],
     [/^counter (target [a-z ']+) unless its controller pays (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => [com({ do: 'counter', unless: { mana: m[2] } }, alvo(m[1]))]],
     [/^counter target spell with mana value (\d+)$/i, m => [{ do: 'counter', target: 'spell', targetMv: +m[1] }]], // LT13
+    [/^return target nonland permanent and all other permanents with the same name as that permanent to their owners' hands$/i, () => [{ do: 'bounce', target: { semTipos: ['land'] }, mesmoNome: true }]], // M-425 · Echoing Truth
     [/^add \{([WUBRGC])\} for each (creature card in your graveyard|card named ~ in each graveyard)$/i, m => [{ do: 'add_mana', symbols: [m[1].toUpperCase()], porContagem: /named/i.test(m[2]) ? 'mesmo-nome-nos-cemiterios' : 'creature-cards-in-your-graveyard' }]], // M-423 · Songs of the Damned, Rite of Flame
     [/^you gain 1 life for each attacking creature$/i, () => [{ do: 'gain', amount: { per: 'attacking-creatures' } }]], // M-423 · Respite (506.4)
     [/^counter target spell if its mana value is (\d+) or less$/i, m => [{ do: 'counter', target: 'spell', mvAte: +m[1] }]], // M-419 · Prohibit (mira qualquer mágica; confere na resolução)
@@ -21314,7 +21318,12 @@ function applyEffect(s, src, eff, tgt, events) {
       if (fonte && !instantaneo) { delete fonte.holding; delete fonte.devolverAoSair; } // o objeto novo (piscado) guarda a carta dele
       break;
     }
-    case 'bounce': moverObjeto(s, src, obj, { para: 'hand' }, ctrl); note({}); break; // CR2-G R4a · atalho de mover
+    case 'bounce': { // CR2-G R4a · atalho de mover
+      // M-425 · Echoing Truth: "and all other permanents with the same name as that permanent" — as outras saem junto (201.2: nome em comum; 708.2: virada para baixo não tem nome)
+      const ns = eff.mesmoNome && obj && obj.zone === 'battlefield' && !obj.faceDown ? nomesDe(s, obj) : null;
+      const outras = ns ? battlefield(s).filter(o => o.oid !== obj.oid && !o.faceDown && !o.phasedOut && nomesDe(s, o).some(n => ns.includes(n))) : [];
+      moverObjeto(s, src, obj, { para: 'hand' }, ctrl); for (const o of outras) moverObjeto(s, src, o, { para: 'hand' }, ctrl);
+      note(eff.mesmoNome ? { mesmoNome: outras.length } : {}); break; }
     case 'counter':
       if (obj && obj.naoAnulavel && obj.zone === 'stack') { note({ failed: true, naoAnulavel: true }); break; }
       if (eff.target === 'remembered' && (!obj || obj.zone !== 'stack')) { note({ failed: true }); break; } // M-346 · "counter that spell": a mágica já saiu da pilha // M-345 · Delighted Halfling: "that spell can't be countered" (101.2)
@@ -32150,7 +32159,7 @@ function effectLine(ev) {
     case 'sacrificar': return ev.amount === 0 ? `${t} não tinha o que sacrificar` : `${t} sacrificou ${ev.name}`; // CR2-G R4c (o nome é o da permanente sacrificada)
     case 'destroy': return ev.failed ? `${ev.name} não destruiu ${t}${ev.why ? ` (${ev.why})` : ': sem efeito'}` : `${ev.name} destruiu ${t}`; // R9b · Hydroblast em permanente que não é vermelha dizia "(indestrutível)"
     case 'exile': return `${ev.name} exilou ${t}`;
-    case 'bounce': return `${ev.name} devolveu ${t} à mão do dono`;
+    case 'bounce': return `${ev.name} devolveu ${t} à mão do dono${ev.mesmoNome ? ` e mais ${ev.mesmoNome} com o mesmo nome` : ''}`; // M-425
     case 'counter': if (ev.mvAlto != null) return `${ev.name} não anulou ${t}: o valor de mana é ${ev.mvAlto}`; /* M-419 */ if (ev.topo) return `${ev.name} anulou ${t} e a pôs no topo do grimório do dono`; if (ev.exilada) return `${ev.name} anulou ${t} e a exilou`; if (ev.suspensa) return `${ev.name} anulou ${t} e a exilou com ${ev.suspensa} marcadores de tempo (suspender)`; return ev.paid ? `${t} escapou de ${ev.name}: o custo foi pago` : ev.pending ? `${ev.name} espera o pagamento de ${t}` : ev.failed ? `${ev.name} não anulou ${t}: sem efeito` : `${ev.name} anulou ${t}`; // R9b · dizia "anulou" com a mágica ainda na pilha
     case 'counters': return ev.tipo ? `${ev.name} recebeu ${plural(n, 'marcador ' + (MARCADOR_PT[ev.tipo] || ev.tipo), 'marcadores ' + (MARCADOR_PT[ev.tipo] || ev.tipo))}` : `${ev.name} recebeu ${plural(n, 'marcador +1/+1', 'marcadores +1/+1')}`;
     case 'adapt': return n ? `${ev.name} adaptou: ${plural(n, 'marcador +1/+1', 'marcadores +1/+1')}` : `${ev.name} não adaptou: já tinha marcador +1/+1`;
@@ -33230,7 +33239,7 @@ function descreveEfeito(e) {
       return `destrói ${fem ? 'todas as' : 'todos os'} ${(e.types || []).map(x => nomes[x] || x).join(' e ')}${vm}`; }
     case 'edict': return `${alvo || 'o oponente'} sacrifica ${e.types && e.types[0] === 'creature' ? 'uma criatura' : 'uma permanente'} à escolha dele`;
     case 'exile': return `exila ${alvo || 'uma permanente'}`;
-    case 'bounce': return `devolve ${alvo || 'uma permanente'} para a mão do dono`;
+    case 'bounce': return `devolve ${alvo || 'uma permanente'}${e.mesmoNome ? ' e todas as outras permanentes com o mesmo nome' : ''} para a mão do dono`; // M-425
     case 'to_hand': return 'volta para a mão';
     case 'token': { const t = e.token || {}; const pd = (t.self || {}).ptDefinido, contaPT = v => v && v.per === 'soma' ? (v.partes || []).map(x => X_PT[x.per] || x.per).join(' mais ') : (v && (X_PT[v.per] || v.per)) || v; /* M-358 · achado da revisão: a ficha de P/T por contagem e as palavras-chave dela */
       const pt = pd ? `, com poder e resistência iguais a ${contaPT(pd.poder != null ? pd.poder : pd.resistencia)}${(t.keywords || []).length ? ` e ${t.keywords.map(k => PALAVRA_PT[k] || k).join(', ')}` : ''},` : t.power != null ? ` ${t.power}/${t.toughness}` : ''; return `cria ${plural(n, 'ficha', 'fichas')}${t.name ? ` de ${t.name}` : ''}${pt}`; }
