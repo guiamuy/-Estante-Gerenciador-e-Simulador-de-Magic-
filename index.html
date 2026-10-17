@@ -19294,7 +19294,7 @@ function entradaModificada(s, o, xPago) {
 const noTurnoProprioAte = (s, p, n) => s.turn.active === p && (s.contaTurnos ? (s.contaTurnos[p] || 0) : Math.ceil((s.turn.number || 1) / s.players.length)) <= n;
 const partidaContaTurnos = s => Object.values(s.facts).some(f => f && ((f.script || {}).entersTappedUnless || {}).ateTurnoProprio != null);
 /** M-349 · quantas outras permanentes do controlador de `o` têm o subtipo (Gingerbread Cabin: "other Forests"). */
-const outrosDoSubtipo = (s, o, sub) => battlefield(s).filter(x => x.oid !== o.oid && x.controller === o.controller && new RegExp('\\b' + sub + '\\b').test(linhaDeTipo(s, x))).length;
+const outrosDoSubtipo = (s, o, sub) => battlefield(s).filter(x => x.oid !== o.oid && !entrandoJunto(s, x) && x.controller === o.controller && /* M-438 */ new RegExp('\\b' + sub + '\\b').test(linhaDeTipo(s, x))).length;
 /** M-336 · quantos outros terrenos o controlador de `o` tem no campo (a própria carta, entrando, não conta). */
 const entrandoJunto = (s, x) => !!s.entrandoJuntas && s.entrandoJuntas.some(t => t[0] === x.oid); // M-431 · 614.12: quem entra no mesmo evento não está no campo quando a outra confere a entrada
 const outrasTerras = (s, o, basicos = false) => battlefield(s).filter(x => x.oid !== o.oid && !entrandoJunto(s, x) && x.controller === o.controller && tiposDe(s, x).includes('land') && (!basicos || /^\s*basic\b/i.test(linhaDeTipo(s, x)))).length; // M-340 · basicos: "two or more basic lands"
@@ -21441,6 +21441,7 @@ function applyEffect(s, src, eff, tgt, events) {
     }
     case 'reanimate_tapped': { // S33 · volta do cemitério direto ao campo, virada
       const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
+      if (eff.target === 'self-source' && src.ability && src.fonteZc != null && alvo && (alvo.zc || 0) !== src.fonteZc) { note({ failed: true }); break; } // M-438 · 400.7 (achado da revisão da M-429)
       if (moverObjeto(s, src, alvo, { para: 'battlefield', de: 'graveyard', virada: true, semRegistro: true, ...(eff.controle === 'dono' ? { controle: 'dono' } : {}) }, ctrl)) note({ name: alvo.name }); // CR2-G R4a · atalho de mover · M-429 · "under its owner's control"
       break;
     }
@@ -21688,13 +21689,14 @@ function applyEffect(s, src, eff, tgt, events) {
     }
     case 'pisca_exila': { // M-351 · Ghostly Flicker: exila agora; quem devolve é pisca_volta, com todas juntas (400.7; 111.8 para fichas)
       if (!obj || obj.zone !== 'battlefield') { note({ failed: true }); break; }
-      const nome = obj.name, dono = obj.owner, ficha = !!obj.token, antes = s.saindoJuntas, ja = (src.piscadas || []).map(x => x.oid);
+      const nome = obj.name, dono = obj.owner, ficha = !!obj.token, antes = s.saindoJuntas, ja = (src.saindoPiscadas || []).slice(); /* M-438 · com as fichas (achado da revisão da M-431) */
       if (ja.length) s.saindoJuntas = ja; moveObject(s, obj.oid, 'exile'); if (ja.length) { if (antes) s.saindoJuntas = antes; else delete s.saindoJuntas; } // M-431 · 603.10a: as exiladas pela mesma mágica saem juntas (achado da revisão da M-426)
+      (src.saindoPiscadas = src.saindoPiscadas || []).push(obj.oid); // M-438
       if (!ficha && s.objects[obj.oid] && s.objects[obj.oid].zone === 'exile') (src.piscadas = src.piscadas || []).push({ oid: obj.oid, z: s.objects[obj.oid].zc || 0, dono });
       note({ name: nome, ...(ficha ? { ficha: true } : {}) }); break;
     }
     case 'pisca_volta': { // M-351 · devolve ao campo, juntas, as que pisca_exila exilou nesta resolução
-      const lista = (src.piscadas || []).filter(x => s.objects[x.oid] && s.objects[x.oid].zone === 'exile' && (s.objects[x.oid].zc || 0) === x.z); delete src.piscadas;
+      const lista = (src.piscadas || []).filter(x => s.objects[x.oid] && s.objects[x.oid].zone === 'exile' && (s.objects[x.oid].zc || 0) === x.z); delete src.piscadas; delete src.saindoPiscadas;
       s.entrandoJuntas = []; // M-426 · achado da revisão de M-416…M-421: uma de cada vez, a primeira não via a segunda entrar (603.6a)
       for (const x of lista) { const sob = eff.sob === 'voce' ? ctrl : x.dono; moveObject(s, x.oid, 'battlefield', { controller: sob }); s.objects[x.oid].controller = sob; }
       { const adiadas = s.entrandoJuntas; delete s.entrandoJuntas; for (const [oid, de, para, c0, ult] of adiadas) disparaZona(s, s.objects[oid], de, para, c0, ult); }
@@ -33477,7 +33479,7 @@ function descreveEfeito(e) {
     case 'reanimate_all': return `devolve ao campo todas as ${(e.types || []).map(x => ({ creature: 'criaturas', planeswalker: 'planeswalkers' }[x] || x)).join(' e ')}${e.mvMax != null ? ` de valor de mana ${qtd(e.mvMax)} ou menos` : ''} do seu cemitério`; // CR2c.5
     case 'exile_self': return 'exila esta mágica';
     case 'counter_choice': return `põe um marcador de ${PALAVRA_PT[e.kind] || e.kind} em uma delas`;
-    case 'reanimate': case 'reanimate_tapped': if (e.marcadorSeCriatura) return `devolve ${(e.targetTypes || []).includes('artifact') ? 'uma carta de artefato ou criatura' : 'uma carta'}${e.targetMvMax != null ? ` de valor de mana ${e.targetMvMax} ou menos` : ''} do seu cemitério ao campo; se for criatura, ela entra com ${plural(e.marcadorSeCriatura, 'marcador +1/+1 a mais', 'marcadores +1/+1 a mais')}`; // M-400 · achado da revisão (Recommission)
+    case 'reanimate': case 'reanimate_tapped': if (e.target === 'self-source' && e.do === 'reanimate_tapped') return `ela volta do cemitério ao campo virada${e.controle === 'dono' ? ', sob o controle do dono' : ''}`; /* M-438 · achado da revisão da M-429 */ if (e.marcadorSeCriatura) return `devolve ${(e.targetTypes || []).includes('artifact') ? 'uma carta de artefato ou criatura' : 'uma carta'}${e.targetMvMax != null ? ` de valor de mana ${e.targetMvMax} ou menos` : ''} do seu cemitério ao campo; se for criatura, ela entra com ${plural(e.marcadorSeCriatura, 'marcador +1/+1 a mais', 'marcadores +1/+1 a mais')}`; // M-400 · achado da revisão (Recommission)
       if (e.totalMvMax != null) return `devolve até ${qtd(e.targetCount)} criaturas com valor de mana total ${e.totalMvMax} ou menos do cemitério ao campo`;
       return `devolve uma criatura${e.targetMvMax != null ? ` de valor de mana ${qtd(e.targetMvMax)} ou menos` : ''} do cemitério ao campo`;
     case 'fog': return 'previne todo o dano de combate deste turno';

@@ -4569,6 +4569,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nada (a escolha dos alvos da cópia foi corrigida na M-439).
 - **Teste:** `lt119.unit` (6 testes; falham no motor anterior).
 
+**M-438 · LT104 · correções da revisão independente de M-429…M-431** ✅ (leva M-438, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** (1) **Supernatural Stamina:** a carta que saiu do cemitério e voltou antes de o gatilho resolver é outro objeto e fica no cemitério (400.7 — fecha a lacuna declarada na M-429); (2) a pilha explicada diz "ela volta do cemitério ao campo virada, sob o controle do dono"; (3) **Gingerbread Cabin pelo Ghostly Flicker:** a Forest que entra junto não conta como "other Forest" (614.12; ruling de 04/10/2019) — volta virada e sem Comida nas duas ordens; (4) **Ghostly Flicker numa ficha e numa carta:** as duas saem juntas e se veem (603.10a), nas duas ordens.
+- **Revisão independente:** os quatro itens são achados do revisor do lote M-429…M-431; cada um tem teste que falha no motor anterior. A revisão do lote M-432…M-438 aprovou (8 verificações).
+- **Fora (declarado):** nada novo.
+- **Teste:** `lt120.unit` (4 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
