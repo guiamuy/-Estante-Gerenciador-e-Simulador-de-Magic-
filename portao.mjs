@@ -42,7 +42,8 @@ export function resumoDoTap(tap) {
   const n = (rx) => { const m = s.match(rx); return m ? Number(m[1]) : null; };
   const caidos = [...s.matchAll(/^\s*not ok \d+ - (.+?)\s*(?:# .*)?$/gm)].map((m) => m[1]).filter((x) => !/\.test\.mjs$/.test(x));
   const quedasOrcamento = [...new Set(caidos.filter((x) => /or[çc]amento/i.test(x)))];
-  const telas = [...new Set([...s.matchAll(/^\s*# auditaTela · (.+?)\s*$/gm)].map((m) => m[1]))];
+  // o relator TAP do Node escreve o console.log do teste como `# \# auditaTela · nome` (escapa o # do texto): aceitar as duas formas
+  const telas = [...new Set([...s.matchAll(/^\s*#\s*(?:\\#\s*)?auditaTela · (.+?)\s*$/gm)].map((m) => m[1]))];
   return { passaram: n(/^# pass (\d+)/m), cairam: n(/^# fail (\d+)/m), quedasOrcamento, telas };
 }
 /** R-21 · o resumo do portão vai para `.tmp/portao.json` (fora do git), por fase: a fase rápida e a de tela cada uma grava a sua parte,

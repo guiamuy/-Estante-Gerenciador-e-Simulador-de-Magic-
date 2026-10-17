@@ -155,8 +155,8 @@ test('Q21 · o Playwright tem versão exata (sem faixa): versão nova pede outro
 
 test('R-21 · resumoDoTap: passaram e caíram pelas linhas # pass/# fail, quedas em testes de orçamento pelo nome (sem repetir), telas auditadas pelas linhas "# auditaTela · nome" (sem repetir); arquivo que caiu não conta como queda de orçamento', () => {
   const tap = ['TAP version 13', '# Subtest: painel.unit.test.mjs', '    ok 1 - R-19 · orçamento do Custo: rodadas', '    not ok 2 - Q8 · orçamento do apply com listas reais # TODO', '    not ok 3 - R-20 · orçamento do Acervo', '    not ok 4 - X11 scanner lento',
-    'not ok 1 - painel.unit.test.mjs', '# auditaTela · custo 360', '    # auditaTela · acervo 360', '# auditaTela · custo 360', '# pass 3060', '# fail 3', '# skipped 0'].join('\n');
-  assert.deepEqual(resumoDoTap(tap), { passaram: 3060, cairam: 3, quedasOrcamento: ['Q8 · orçamento do apply com listas reais', 'R-20 · orçamento do Acervo'], telas: ['custo 360', 'acervo 360'] });
+    'not ok 1 - painel.unit.test.mjs', '# auditaTela · custo 360', '    # auditaTela · acervo 360', '# auditaTela · custo 360', '# \\# auditaTela · jogo 360', '    # \\# auditaTela · acervo 360', '# pass 3060', '# fail 3', '# skipped 0'].join('\n');
+  assert.deepEqual(resumoDoTap(tap), { passaram: 3060, cairam: 3, quedasOrcamento: ['Q8 · orçamento do apply com listas reais', 'R-20 · orçamento do Acervo'], telas: ['custo 360', 'acervo 360', 'jogo 360'] }, 'o relator do Node escapa o # do console.log (`# \\# auditaTela`): as duas formas contam, sem repetir');
   assert.deepEqual(resumoDoTap(''), { passaram: null, cairam: null, quedasOrcamento: [], telas: [] });
 });
 
