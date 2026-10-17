@@ -9700,6 +9700,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Codespell Cleric': { texto: '40pji1', leva: 'M-442' },
   // M-443 · revisão por lote XCII ("If you cast this spell during your main phase": Might of Old Krosa), texto da Scryfall de 17/10/2026 UTC, revisor independente
   'Might of Old Krosa': { texto: 'l18cfk', leva: 'M-443' },
+  // M-444 · revisão por lote XCIII (nome curto da lendária no texto: Raphael, Tough Turtle), texto da Scryfall de 17/10/2026 UTC, revisor independente
+  'Raphael, Tough Turtle': { texto: '1hq65c8', leva: 'M-444' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18354,7 +18356,8 @@ const __m42 = (function () {
   const escapa = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   /** M-394 · 201.5 · o nome impresso e "this creature/artifact/…" (redação Oracle desde 2024) valem como "~"; dentro de aspas (habilidade concedida a outro objeto) o "this …" é do outro objeto e fica. */
   const ESTE_OBJETO = /\bthis (creature|artifact|enchantment|land|permanent|vehicle|equipment|aura)\b/gi;
-  const til = (t, nome) => String(t).replace(new RegExp(escapa(nome || '\u0000'), 'g'), '~').split('"').map((p, i) => i % 2 ? p : p.replace(ESTE_OBJETO, '~')).join('"');
+  const nomeCurtoRe = nome => { const i = String(nome || '').indexOf(', '); const c = i > 2 ? nome.slice(0, i) : null; return c ? new RegExp('\\b' + escapa(c) + '\\b(?!,)', 'g') : /(?!)/g; }; // M-444
+  const til = (t, nome) => String(t).replace(new RegExp(escapa(nome || '\u0000'), 'g'), '~').replace(nomeCurtoRe(nome), '~') /* M-444 · 201.4b: o nome curto da lendária ("Raphael" em "Raphael, Tough Turtle") */.split('"').map((p, i) => i % 2 ? p : p.replace(ESTE_OBJETO, '~')).join('"');
   /** Um parágrafo de efeito de mágica → { efeitos, frases }. */
   /** M-335 · orações em sequência que formam um efeito só (no começo do parágrafo): revelar a mão e escolher o descarte; olhar o topo e pegar. */
   const FILTRO_DESCARTE = { 'nonland card': { notTypes: ['land'] }, 'noncreature, nonland card': { notTypes: ['creature', 'land'] }, 'nonland, noncreature card': { notTypes: ['creature', 'land'] } };

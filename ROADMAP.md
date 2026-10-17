@@ -4612,6 +4612,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** a cópia (não conjurada) fica com +2/+2, como manda o texto.
 - **Teste:** `lt125.unit` (4 testes; falham no motor anterior).
 
+**M-444 · LT110 · nome curto da lendária no texto: Raphael, Tough Turtle** ✅ (leva M-444, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** **Raphael, Tough Turtle (2 listas do catálogo) passa a jogar** (APROVADAS; texto da Scryfall de 17/10/2026 UTC). O leitor troca por "~" também o nome curto da lendária, a parte antes da vírgula ("Raphael" em "Raphael, Tough Turtle"; 201.4b), só como palavra inteira. Mais 15 lendárias passam a ser lidas por inteiro (não aprovadas por esta leva); nenhuma leitura existente mudou.
+- **Revisão independente:** aprovada com ressalva (Raphael em 7 sondas; as 16 lendárias que passaram a ser lidas conferem com o texto). Dois achados baixos, sem efeito em carta jogável hoje, corrigidos na M-454: a troca pelo nome curto também pegava cartas não lendárias (Elemental, My Dear) e nomes de outros objetos com "'s" (Koma's Coil, Volo's Journal, Selenia's Curse). O teste "a do oponente não" do `lt126` usava `poe` (não passa pela entrada no campo) e foi refeito na M-454.
+- **Fora (declarado):** nada novo.
+- **Teste:** `lt126.unit` (3 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
