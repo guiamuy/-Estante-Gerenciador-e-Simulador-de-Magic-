@@ -4685,6 +4685,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** convocar junto com "pay {N}" de custo adicional não é oferecido (nenhuma carta real tem os dois); recompra com convocar não combina com reforço.
 - **Teste:** `lt135.unit` (4 testes; três falham no motor anterior).
 
+**M-455 · LT121 · Ravening Warg: "Ferocious — Whenever ~ attacks while you control a creature with power 4 or greater"** ✅ (leva M-455, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** a **Ravening Warg** (pedido da trilha `listas`; 2 listas do catálogo) joga pelo leitor aprovado: ganha 2 de vida ao atacar se você controla uma criatura de poder 4 ou mais naquele momento. Texto da Scryfall consultado em 17/10/2026.
+- **Primitiva:** condição de gatilho `ferociousAoDisparar` — o "while" é parte do evento: conferido só no disparo, não de novo na resolução (o "if" de 603.4 continua sendo conferido de novo).
+- **Revisão independente:** aprovada (20 sondas, com a M-459): dispara só com criatura sua de poder 4 ou mais ao disparar; a 4/4 morta em resposta não impede o ganho; a própria Warg com poder 5 conta.
+- **Fora (declarado):** Wargling (mesma condição) tem o efeito "this creature gets +1/+0 and creatures you control gain trample" ainda sem leitura. **Aviso à `tipos`:** o "while saddled" (T-31, `selada`) é conferido de novo na resolução; pela mesma razão, deveria ser só do disparo.
+- **Teste:** `lt137.unit` (3 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

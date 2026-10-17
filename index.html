@@ -6196,7 +6196,7 @@ function validateScript(sc) {
     for (const ab of (sc && sc.abilities) || []) if (ab && temMvX(ab.effects) && !(ab.kind === 'activated' && /\{X\}/.test((ab.cost || {}).mana || ''))) errs.push('"targetMvIgualX" só em habilidade ativada com {X} no custo'); }
   for (const ab of (sc && sc.abilities) || []) if (ab && (ab.cost || {}).devolveSelf && !(ab.effects || []).some(e => e && e.do === 'reanimate' && e.target === 'self-source')) errs.push('"devolveSelf": a habilidade do cemitério precisa devolver a própria carta ao campo'); // M-398 · achado da revisão
   for (const ab of (sc && sc.abilities) || []) if (ab && ab.kind !== 'triggered' && (ab.effects || []).some(e => e && e.dividido)) errs.push('dano dividido: só em mágica e em habilidade disparada (a ativada ainda não divide — M-378)'); // M-378
-  for (const ab of (sc && sc.abilities) || []) if (ab.condition && !['lifeGained', 'attackersAtLeast', 'controlsOtherNamed', 'bargained', 'evidenced', 'kicked', 'opponentMoreLands', 'atacaSozinha', 'vidaPeloMenos', 'marcadoresNaFonte', 'entrouDesvirada', 'semTerrenoVirado', 'semCriaturas', 'segundaMagiaDoTurno' /* M-442 */, ...condicoesK(), ...condicoesT()].includes(Object.keys(ab.condition)[0] || '')) errs.push('condição de gatilho desconhecida'); // K-59 · condições da trilha keywords (Toca ponto comum: validador de condições)
+  for (const ab of (sc && sc.abilities) || []) if (ab.condition && !['lifeGained', 'attackersAtLeast', 'controlsOtherNamed', 'bargained', 'evidenced', 'kicked', 'opponentMoreLands', 'atacaSozinha', 'vidaPeloMenos', 'marcadoresNaFonte', 'entrouDesvirada', 'semTerrenoVirado', 'semCriaturas', 'segundaMagiaDoTurno' /* M-442 */, 'ferociousAoDisparar' /* M-455 */, ...condicoesK(), ...condicoesT()].includes(Object.keys(ab.condition)[0] || '')) errs.push('condição de gatilho desconhecida'); // K-59 · condições da trilha keywords (Toca ponto comum: validador de condições)
   if (sc && sc.bargain != null && sc.bargain !== true) errs.push('barganha é uma marca, sem valor');
   if (sc && !sc.bargain && [...(sc.effects || []), ...((sc.modes || []).flatMap(m => (m && m.effects) || []))].some(e => e && (e.onlyIf === 'bargained' || (e.amount && e.amount.se === 'bargained')))) errs.push('"se barganhada" sem a barganha na carta'); // M-384 · achado da revisão
   if (sc && sc.evidence != null && !(Number.isInteger(sc.evidence) && sc.evidence > 0)) errs.push('colher provas precisa de um número inteiro positivo');
@@ -9721,6 +9721,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   // M-453 · revisão por lote CI ("gets +N/+N and gains … until end of turn": Mighty Leap, Slayers' Stronghold), texto da Scryfall de 17/10/2026 UTC, revisor independente
   'Mighty Leap': { texto: '1o40nuw', leva: 'M-453' },
   'Slayers\' Stronghold': { texto: '1vdf09w', leva: 'M-453' },
+  // M-455 · revisão por lote CII (ferocidade no disparo: Ravening Warg), texto da Scryfall de 17/10/2026 UTC, revisor independente
+  'Ravening Warg': { texto: 'psej35', leva: 'M-455' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18216,6 +18218,7 @@ const __m42 = (function () {
     [/^when (this creature|this artifact|~) leaves the battlefield$/i, 'leaves-battlefield'],
     [/^whenever (this creature|~) deals combat damage to a player$/i, 'combat-damage'],
     [/^whenever (this creature|~) attacks$/i, 'attacks'],
+    [/^whenever (this creature|~) attacks while you control a creature with power 4 or greater$/i, 'attacks', () => ({ condition: { ferociousAoDisparar: true } })], // M-455 · Ravening Warg (o prefixo "Ferocious — " é tirado antes)
     [/^whenever (?:equipped|enchanted) creature attacks$/i, { evento: 'ataca', objeto: 'anexada' }], // M-401 · Greatsword of Tyr
     [/^whenever (this creature|~) blocks$/i, 'blocks'],
     [/^at the beginning of your upkeep$/i, 'upkeep'],
@@ -23263,6 +23266,7 @@ function triggerConditionMet(s, o, cond) {
   }
   if (cond.atacaSozinha && !(s.combat && (s.combat.attackers || []).length === 1 && s.combat.attackers[0] === o.oid)) return false; // M-251 · 506.5 "attacks alone"
   if (cond.preparada != null && preparadaT(s, o) !== !!cond.preparada) return false; // T-51 · CR 722.3a · "if this creature is (isn't) prepared" (Toca ponto comum: triggerConditionMet)
+  if (cond.ferociousAoDisparar && !battlefield(s).some(x => x.controller === o.controller && isCreature(s, x) && power(s, x) >= 4)) return false; // M-455 · "Ferocious — Whenever ~ attacks while you control a creature with power 4 or greater" (Ravening Warg): "while" faz parte do evento — só no disparo, não de novo na resolução
   if (cond.selada && !seladaAgoraT(s, o)) return false; // T-31 · CR 702.171b: "while saddled" (Toca ponto comum: triggerConditionMet)
   if (cond.fonteDesvirada && o.tapped) return false; // T-101 · 603.4 · "if ~ is untapped" (Howling Mine) (Toca ponto comum: triggerConditionMet)
   if (cond.primeiraManutencao && s.emPassoExtraT === 'upkeep') return false; // T-101 · 500.9 · "first upkeep each turn" (Paradox Haze)
@@ -25983,7 +25987,7 @@ function resolveAbility(s, o, events) {
     // CR2b.6 · 603.4 / 608.2h: se a fonte mudou de zona, a condição usa a última informação conhecida dela (o retrato do disparo)
     const fonte = viva && r && (viva.zc || 0) !== r.zc ? (({ zc, ...m }) => ({ ...viva, kicked: undefined, bargained: undefined, evidenced: undefined, faceDown: undefined, ...m }))(r) : viva;
     // "atacou com três ou mais" é informação do combate que já passou: vale o que foi visto no disparo
-    const { attackersAtLeast, atacaSozinha, entrouDesvirada, monarca, ...resto } = o.condicao; // M-252 · "ataca sozinha" também é do disparo · M-349 · "entra desvirada" idem · T-64 · o monarca é do controlador da habilidade (abaixo)
+    const { attackersAtLeast, atacaSozinha, entrouDesvirada, monarca, ferociousAoDisparar, ...resto } = o.condicao; // M-455 · o "while" da ferocidade também é do disparo // M-252 · "ataca sozinha" também é do disparo · M-349 · "entra desvirada" idem · T-64 · o monarca é do controlador da habilidade (abaixo)
     if ((fonte && !triggerConditionMet(s, o.hostOid || o.fotoT ? { ...fonte, ...(o.hostOid ? { hostT: { oid: o.hostOid, z: o.hostZc } } : {}), ...(o.fotoT ? { fotoT: o.fotoT } : {}) } : fonte, resto)) /* T-118 · 603.4 com a encantada do disparo (Toca ponto comum: resolveAbility) */ || (monarca && !monarcaCondT(s, o.controller, monarca))) { events.push({ kind: 'trigger-fizzled', name: o.name, when: 'condição' }); return; } // T-64 · CR 603.4 / 109.5: o "você" é quem controla a habilidade (Toca ponto comum: resolveAbility)
     o.condicaoConferida = true;
   }
