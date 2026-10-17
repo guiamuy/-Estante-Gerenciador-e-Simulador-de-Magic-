@@ -6194,7 +6194,7 @@ function validateScript(sc) {
     for (const ab of (sc && sc.abilities) || []) if (ab && temMvX(ab.effects) && !(ab.kind === 'activated' && /\{X\}/.test((ab.cost || {}).mana || ''))) errs.push('"targetMvIgualX" só em habilidade ativada com {X} no custo'); }
   for (const ab of (sc && sc.abilities) || []) if (ab && (ab.cost || {}).devolveSelf && !(ab.effects || []).some(e => e && e.do === 'reanimate' && e.target === 'self-source')) errs.push('"devolveSelf": a habilidade do cemitério precisa devolver a própria carta ao campo'); // M-398 · achado da revisão
   for (const ab of (sc && sc.abilities) || []) if (ab && ab.kind !== 'triggered' && (ab.effects || []).some(e => e && e.dividido)) errs.push('dano dividido: só em mágica e em habilidade disparada (a ativada ainda não divide — M-378)'); // M-378
-  for (const ab of (sc && sc.abilities) || []) if (ab.condition && !['lifeGained', 'attackersAtLeast', 'controlsOtherNamed', 'bargained', 'evidenced', 'kicked', 'opponentMoreLands', 'atacaSozinha', 'vidaPeloMenos', 'marcadoresNaFonte', 'entrouDesvirada', 'semTerrenoVirado', 'semCriaturas', ...condicoesK(), ...condicoesT()].includes(Object.keys(ab.condition)[0] || '')) errs.push('condição de gatilho desconhecida'); // K-59 · condições da trilha keywords (Toca ponto comum: validador de condições)
+  for (const ab of (sc && sc.abilities) || []) if (ab.condition && !['lifeGained', 'attackersAtLeast', 'controlsOtherNamed', 'bargained', 'evidenced', 'kicked', 'opponentMoreLands', 'atacaSozinha', 'vidaPeloMenos', 'marcadoresNaFonte', 'entrouDesvirada', 'semTerrenoVirado', 'semCriaturas', 'segundaMagiaDoTurno' /* M-442 */, ...condicoesK(), ...condicoesT()].includes(Object.keys(ab.condition)[0] || '')) errs.push('condição de gatilho desconhecida'); // K-59 · condições da trilha keywords (Toca ponto comum: validador de condições)
   if (sc && sc.bargain != null && sc.bargain !== true) errs.push('barganha é uma marca, sem valor');
   if (sc && !sc.bargain && [...(sc.effects || []), ...((sc.modes || []).flatMap(m => (m && m.effects) || []))].some(e => e && (e.onlyIf === 'bargained' || (e.amount && e.amount.se === 'bargained')))) errs.push('"se barganhada" sem a barganha na carta'); // M-384 · achado da revisão
   if (sc && sc.evidence != null && !(Number.isInteger(sc.evidence) && sc.evidence > 0)) errs.push('colher provas precisa de um número inteiro positivo');
@@ -9696,6 +9696,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Bone Picker': { texto: 't2ant', leva: 'M-440' },
   // M-441 · revisão por lote XC (custo adicional "discard a card or pay {N}": Lightning Axe), texto da Scryfall de 17/10/2026 UTC, revisor independente
   'Lightning Axe': { texto: '1faf2kj', leva: 'M-441' },
+  // M-442 · revisão por lote XCI ("if it was the second spell you cast this turn": Codespell Cleric), texto da Scryfall de 17/10/2026 UTC, revisor independente
+  'Codespell Cleric': { texto: '40pji1', leva: 'M-442' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18121,6 +18123,7 @@ const __m42 = (function () {
     [/^that creature also gains (flying|trample|first strike|deathtouch|lifelink|vigilance|haste|menace|indestructible|hexproof) until end of turn if you control a creature with power 4 or greater$/i, m => [{ do: 'keyword', keyword: m[1].toLowerCase(), target: 'first-target', onlyIf: 'ferocious' }]], // M-399 · Temur Battle Rage (ferocidade)
     [/^~ deals (\d+) damage to each creature and each player$/i, m => [{ do: 'damage', amount: +m[1], target: 'each-creature' }, { do: 'damage', amount: +m[1], target: 'each-player' }]], // M-396 · Pestilence
     [/^put a \+1\/\+1 counter on target creature you control$/i, () => [{ do: 'counters', tipo: 'p1p1', amount: 1, target: 'creature-you-control' }]], // M-395 · Idyllic Grange
+    [/^put a \+1\/\+1 counter on target creature$/i, () => [{ do: 'counters', tipo: 'p1p1', amount: 1, target: 'creature' }]], // M-442 · Codespell Cleric (qualquer criatura)
     [/^prevent all damage that would be dealt by creatures this turn$/i, () => [{ do: 'prevenir', todos: true, deCriatura: true }]], // M-390 · Ethereal Haze (615.1) // M-389 · 701.48 (o motor aprende desde a V-13; a Lição de fora do jogo não existe no app — parcial declarada no vocabulário)
     [/^it doesn't untap during its controller's next untap step$/i, () => [{ do: 'nao_desvira', target: 'first-target' }]], // M-334 · LT18 · 502.3 (Sleep of the Dead)
     [/^add ((?:\{[WUBRGC]\})+)$/i, m => [{ do: 'add_mana', symbols: m[1].match(/[WUBRGC]/g) }]], // M-334 · LT18 · mágica ou gatilho que adiciona mana (Seething Song, Burning-Tree Emissary)
@@ -18321,6 +18324,8 @@ const __m42 = (function () {
     if (sk) { condicao = { kicked: true }; resto2 = sk[1]; }
     const sm = !se && !sv && !sk && resto2.match(/^if there are (\d+) or more ([a-z]+) counters on (?:~|this [a-z]+), (.+)$/i); // M-325
     if (sm) { condicao = { marcadoresNaFonte: { tipo: sm[2].toLowerCase(), n: +sm[1] } }; resto2 = sm[3]; }
+    const s2m = !condicao && resto2.match(/^if it was the second spell you cast this turn, (.+)$/i); // M-442 · Codespell Cleric (603.4)
+    if (s2m) { condicao = { segundaMagiaDoTurno: true }; resto2 = s2m[1]; }
     const sn = !condicao && resto2.match(/^if you control no tapped lands, (.+)$/i); // M-373 · 603.4 (Martyr's Soul)
     if (sn) { condicao = { semTerrenoVirado: true }; resto2 = sn[1]; }
     const opcional = /^you may /i.test(resto2);
@@ -19267,7 +19272,7 @@ function zoneList(s, obj, zone) { return zone === 'stack' ? s.stack : s.zones[ob
 const VOLTA_COMANDO = ['graveyard', 'exile', 'hand', 'library'];
 /** Leva 105 · marcas que a conjuração põe na carta (e que não atravessam outra mudança de zona). */
 const MARCAS_DA_CONJURACAO = ['xPaid', 'bestowed', 'evidenced', 'faceDown', 'prevista', 'flashback', 'paidAdditional', 'discardedNonland', 'altIndex', 'mode',
-  'bargained', 'omen', 'stormCopies', 'chosenColor', 'plotted', 'playableFromExile', 'jogavelSoNesteTurno', 'jogavelAte', 'escondida', 'suspensa', 'suspensaImpeto', 'jogavelSe', 'emendas', 'sneakAtaque', 'sneakPw', 'kicked', 'modes', 'castFrom', 'divisao', 'danoCausado' /* M-427 */, 'descartadas' /* M-434 */]; // M-376 · 'revealed' fica: a habilidade do Martyr of Sands lê depois do sacrifício
+  'bargained', 'omen', 'stormCopies', 'chosenColor', 'plotted', 'playableFromExile', 'jogavelSoNesteTurno', 'jogavelAte', 'escondida', 'suspensa', 'suspensaImpeto', 'jogavelSe', 'emendas', 'sneakAtaque', 'sneakPw', 'kicked', 'modes', 'castFrom', 'divisao', 'danoCausado' /* M-427 */, 'descartadas' /* M-434 */, 'ordemDaMagiaM' /* M-442 */]; // M-376 · 'revealed' fica: a habilidade do Martyr of Sands lê depois do sacrifício
 /* ---------------- CR2-G R5c · 701.8/614 · "se fosse destruída" ---------------- */
 /** O que acontece se `o` fosse destruída agora: 'indestrutivel' (não é destruída), { totem: aura } (702.89: a Aura com
  * armadura de totem é destruída no lugar e o dano sai), 'regenerou' (701.15: um escudo de regeneração é gasto) ou 'destruida'.
@@ -23177,6 +23182,7 @@ function triggerConditionMet(s, o, cond) {
   if (cond.evidenced && !o.evidenced) return false; // S41 · colher provas
   if (cond.kicked && !o.kicked) return false; // CR 702.33d · "if it was kicked"
   if (cond.controlsOtherNamed && !battlefield(s).some(x => x.oid !== o.oid && x.controller === o.controller && x.name === o.name)) return false;
+  if (cond.segundaMagiaDoTurno && o.ordemDaMagiaM !== 2) return false; // M-442 · Codespell Cleric: "if it was the second spell you cast this turn" (603.4; a ordem fica marcada na mágica e vai com ela ao campo)
   if (cond.semTerrenoVirado && battlefield(s).some(x => x.controller === o.controller && x.tapped && tiposDe(s, x).includes('land'))) return false; // M-373 · "if you control no tapped lands" (603.4: ao disparar e ao resolver)
   if (cond.vidaPeloMenos != null && !(s.players[o.controller] && s.players[o.controller].life >= cond.vidaPeloMenos)) return false; // CR2h.6 · "if you have 40 or more life" (603.4: confere ao disparar e ao resolver)
   if (cond.marcadoresNaFonte && !(((o.counters || {})[cond.marcadoresNaFonte.tipo] || 0) >= cond.marcadoresNaFonte.n)) return false; // CR2h.6 · "if there are 100 or more tower counters on ~"
@@ -24454,7 +24460,7 @@ const HANDLERS = {
     // com alvo próprio por cima da original, que existem mesmo se a original for anulada; não são conjuradas
     if (a.kick && reforco && reforco.replicar) { for (let i = 0; i < a.kick; i++) s.queued.push({ source: a.oid, name: o.name, controller: a.p, effects: spellEffects(s, s.objects[a.oid]), when: 'replicar', copia: true, copiaDeMagia: true, marcasMagia: marcasDaMagia(s.objects[a.oid]) }); events.push({ kind: 'replicar', name: o.name, amount: a.kick }); }
     s.spellsThisTurn = (s.spellsThisTurn || 0) + 1;
-    contaMagiaK(s, a.p); // K-32 · 702.117a: quantas mágicas cada jogador conjurou no turno (Toca ponto comum: HANDLERS.cast)
+    contaMagiaK(s, a.p); if (partidaTemSurtoK(s) && s.objects[a.oid]) s.objects[a.oid].ordemDaMagiaM = magiasDoTurnoK(s, a.p); // M-442 · a ordem desta mágica entre as que o jogador conjurou no turno // K-32 · 702.117a: quantas mágicas cada jogador conjurou no turno (Toca ponto comum: HANDLERS.cast)
     if (a.flashback) s.objects[a.oid].flashback = true; // exila em vez de voltar ao cemitério
     if (a.recomecarK) s.objects[a.oid].flashback = true; // K-10 · 702.133a: "exile this card instead of putting it anywhere else any time it would leave the stack" (o mesmo caminho do lampejo, 702.34a)
     if (fromGraveyard && a.face === 'direita' && consequenciaDaCartaT(s, s.objects[a.oid])) s.objects[a.oid].flashback = true; // T-33 · CR 702.127a: a metade de consequência conjurada do cemitério por qualquer caminho é exilada ao sair da pilha (Toca ponto comum: HANDLERS.cast)
@@ -26669,7 +26675,7 @@ function custoDaLinhaK(card, palavra) {
   return undefined;
 }
 const TEM_SURTO_K = new WeakMap(); // por fato (não muda depois de criado)
-const partidaTemSurtoK = s => Object.values(s.facts).some(f => { if (!f || typeof f !== 'object') return false; if (!TEM_SURTO_K.has(f)) TEM_SURTO_K.set(f, !!f.surtoK); return TEM_SURTO_K.get(f); });
+const partidaTemSurtoK = s => Object.values(s.facts).some(f => { if (!f || typeof f !== 'object') return false; if (!TEM_SURTO_K.has(f)) TEM_SURTO_K.set(f, !!f.surtoK || JSON.stringify(f.script || {}).includes('"segundaMagiaDoTurno"')); return TEM_SURTO_K.get(f); }); // M-442 · a contagem por jogador também nas partidas com "the second spell you cast this turn"
 /** Só guarda a contagem numa partida com alguma carta de surto (o estado das outras partidas, e o das partidas-referência, não muda). */
 function contaMagiaK(s, p) { contaMagiaDoAtivoT(s, p); /* T-48 · CR 731.2: as mágicas do jogador ativo, só em partida com dia e noite (Toca ponto comum: contaMagiaK) */ if (!partidaTemSurtoK(s)) return; const m = s.players[p].magiasK; s.players[p].magiasK = m && m.turno === s.turn.number ? { turno: m.turno, n: m.n + 1 } : { turno: s.turn.number, n: 1 }; }
 const magiasDoTurnoK = (s, p) => { const m = s.players[p].magiasK; return m && m.turno === s.turn.number ? m.n : 0; };
