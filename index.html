@@ -9621,6 +9621,10 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   // M-432 · revisão por lote LXXXIII (veneno para cada oponente: Infectious Inquiry, Prologue to Phyresis), texto da Scryfall de 17/10/2026 UTC, revisor independente
   'Infectious Inquiry': { texto: 'qapkry', leva: 'M-432' },
   'Prologue to Phyresis': { texto: '1wch7yo', leva: 'M-432' },
+  // M-433 · revisão por lote LXXXIV (proliferar pelo leitor: Tezzeret's Gambit, Thirsting Roots, Vivisurgeon's Insight), texto da Scryfall de 17/10/2026 UTC, revisor independente
+  "Tezzeret's Gambit": { texto: '1gi4ck2', leva: 'M-433' },
+  'Thirsting Roots': { texto: '1xl8tzs', leva: 'M-433' },
+  "Vivisurgeon's Insight": { texto: 'v68qf9', leva: 'M-433' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -17900,6 +17904,7 @@ const __m42 = (function () {
     [new RegExp(`^(each opponent|target opponent|target player) loses ${N} life$`, 'i'), m => [com({ do: 'lose', amount: num(m[2]) }, alvo(m[1]))]],
     [new RegExp(`^(each opponent|target opponent|target player) gets ${N} poison counters?$`, 'i'), m => [com({ do: 'veneno', amount: num(m[2]) }, alvo(m[1]))]], // M-432 · 122.1f
     [new RegExp(`^you draw ${N} cards? and you lose ${N} life$`, 'i'), m => [{ do: 'draw', amount: num(m[1]) }, { do: 'lose', amount: num(m[2]) }]], // M-432 · Infectious Inquiry
+    [/^proliferate$/i, () => [{ do: 'proliferate' }]], // M-433 · 701.34 (Thirsting Roots, Vivisurgeon's Insight; o efeito existe desde a V-2)
     [/^(target creature you control|target creature or enchantment you control) gains protection from the color of your choice until end of turn$/i, m => [{ do: 'protection', target: /enchantment/i.test(m[1]) ? 'creature-enchantment-you-control' : 'creature-you-control' }]], // M-324 · 702.16
     [/^(creatures you control|another target creature you control) gains? ([a-z]+)(?: and ([a-z]+))? until end of turn$/i, m => { const alvo2 = /^another/i.test(m[1]) ? 'other-creature-you-control' : 'each-own-creature'; const ks = [m[2], m[3]].filter(Boolean).map(k => k.toLowerCase()); return ks.every(k => KW.has(k)) ? ks.map(k => ({ do: 'keyword', keyword: k, target: alvo2 })) : null; }], // M-324
     [new RegExp(`^untap up to ${N} lands$`, 'i'), m => [{ do: 'untap_chosen', amount: num(m[1]), filter: { types: ['land'] } }]], // M-324 · Frantic Search

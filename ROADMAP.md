@@ -4539,6 +4539,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nada novo.
 - **Teste:** `lt114.unit` (3 testes; falham no motor anterior).
 
+**M-433 · LT99 · proliferar pelo leitor: Tezzeret's Gambit, Thirsting Roots, Vivisurgeon's Insight** ✅ (leva M-433, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** **Tezzeret's Gambit (8 listas do catálogo), Thirsting Roots e Vivisurgeon's Insight passam a jogar** (APROVADAS; texto da Scryfall de 17/10/2026 UTC). Frase nova "Proliferate." (701.34; o efeito e a decisão um a um existem desde a V-2/H-6), também como modo. O leitor também passa a ler mais 26 cartas com a frase (Thrummingbird já tinha script à mão; as outras não são aprovadas por esta leva).
+- **Revisão independente:** revisor independente do lote M-432…M-438 (~120 verificações dinâmicas e ~60 cartas lidas contra o texto; diferencial do leitor: 62 cartas passaram a ser lidas, nenhuma perdeu, nenhum script mudou; 716 aprovadas íntegras; equivalência de 27 partidas e 10.800 ações sem divergência, goldens idênticos byte a byte; fuzz de 40 partidas e 35.363 ações sem exceção nem ação recusada): **aprovado com achado latente** — escolha de permanentes e jogadores um a um, modo, mana phyrexiana com 1 e 2 de vida. Achado corrigido na M-439: "Sacrifice an artifact" num artefato (Throne of Geth, lida e não aprovada) não deixava a própria fonte ser sacrificada.
+- **Fora (declarado):** nada novo.
+- **Teste:** `lt115.unit` (4 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
