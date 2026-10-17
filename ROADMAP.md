@@ -4424,6 +4424,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nada novo.
 - **Teste:** `lt96.unit` (4 testes; falham no motor anterior).
 
+**M-415 · LT81 · "If that creature or planeswalker would die this turn, exile it instead" (614.1a, 700.4)** ✅ (leva M-415, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** **Fanged Flames passa a jogar** e com ela a classe Flame-Blessed Bolt, Obliterating Bolt e Scorching Dragonfire (APROVADAS; texto da Scryfall de 17/10/2026 UTC). O leitor estende a frase do Suplex (M-384) para "that creature or planeswalker": a marca de "se fosse morrer neste turno, é exilada" vai para o alvo depois do dano. Placar do Pauper (`main` + M-415 × catálogo de 17/10): **385 de 425 listas jogam** (eram 384).
+- **Revisão independente:** revisor independente do lote M-414, M-415, M-422 e M-423 (diferencial do leitor: só as cartas das levas passaram a ser lidas; 698 aprovadas íntegras; fuzz de 150 partidas e cerca de 99 mil ações e 16 partidas bot × bot sem ação recusada nem exceção): **aprovado** (cerca de 101 verificações) — morte pelo dano, por destruição ou sacrifício no mesmo turno e em combate vai ao exílio; no turno seguinte, cemitério; planeswalker com lealdade 0 exilado; indestrutível fica; o objeto novo (400.7) perde a marca; ficha exilada; alvo que sai antes: a mágica não resolve. Observação: a frase também passa a ser lida em Brutal Expulsion (parcial), cujo primeiro alvo no modo "both" é o da devolução — conferir antes de aprovar essa carta.
+- **Fora (declarado):** nada novo.
+- **Teste:** `lt97.unit` (2 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

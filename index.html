@@ -9537,6 +9537,11 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Vithian Stinger': { texto: 'rusnzw', leva: 'M-413' },
   // M-414 · revisão por lote LXVIII (Glorious Gale: "If it was a legendary spell, the Ring tempts you", 608.2h + 701.54), texto da Scryfall de 17/10/2026 UTC, revisor independente
   'Glorious Gale': { texto: 'o8gbyp', leva: 'M-414' },
+  // M-415 · revisão por lote LXIX ("If that creature or planeswalker would die this turn, exile it instead", 614.1a: Fanged Flames e a classe), texto da Scryfall de 17/10/2026 UTC, revisor independente
+  'Fanged Flames': { texto: '3t9d8y', leva: 'M-415' },
+  'Flame-Blessed Bolt': { texto: 'xvm1e3', leva: 'M-415' },
+  'Obliterating Bolt': { texto: 'f4k899', leva: 'M-415' },
+  'Scorching Dragonfire': { texto: '17xlu5m', leva: 'M-415' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -17940,7 +17945,7 @@ const __m42 = (function () {
     [/^its controller gains life equal to its power$/i, () => [{ do: 'gain', amount: { per: 'power-of-target' }, target: 'target-controller' }]], // M-335 · Swords to Plowshares (608.2h: o poder como era no campo)
     [/^each attacking creature doesn't untap during its controller's next untap step$/i, () => [{ do: 'nao_desvira', cada: { tipos: ['creature'], atacando: true } }]], // M-361 · Tangle (502.3, 506.4)
     [/^put target creature card from your graveyard on top of your library$/i, () => [{ do: 'mover', para: 'library', posicao: 'topo', target: 'creature-in-your-graveyard' }]], // M-361 · Witch's Cottage, Mortuary Mire
-    [/^if that creature would die this turn, exile it instead$/i, () => [{ do: 'exila_se_morrer', target: 'first-target' }]], // M-384 · Suplex (614.1a)
+    [/^if that (?:creature|creature or planeswalker|planeswalker) would die this turn, exile it instead$/i, () => [{ do: 'exila_se_morrer', target: 'first-target' }]], // M-384 · Suplex (614.1a) · M-415 · Fanged Flames: "that creature or planeswalker" (700.4: o planeswalker também morre)
     [/^until end of turn, target land you control becomes the basic land type of your choice in addition to its other types$/i, () => [{ do: 'tipo_basico', target: 'land-you-control' }]], // M-388 · Navigator's Compass (305.7)
     [/^whenever a creature you control enters this turn, put a \+1\/\+1 counter on it and it gains haste until end of turn$/i, () => [{ do: 'gatilho_no_turno', when: 'criatura-sua-entra', effects: [{ do: 'counters', tipo: 'p1p1', amount: 1, target: 'delayed-object' }, { do: 'keyword', keyword: 'haste', target: 'delayed-object' }] }]], // M-389 · First Day of Class (603.7c)
     [/^learn$/i, () => [{ do: 'learn' }]],
