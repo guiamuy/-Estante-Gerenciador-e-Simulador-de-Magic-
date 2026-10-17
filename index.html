@@ -6817,6 +6817,9 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-122 · CR 614.10 (Scryfall, consulta de 17/10/2026, rulings de 19/03/2021)
+  { name: 'Stonehorn Dignitary', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'pula', o: 'combate', target: 'opponent' }] }], // "When Stonehorn Dignitary enters, target opponent skips their next combat phase."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // T-121 · CR 101.4 / 701.21 (Scryfall, consulta de 17/10/2026, rulings de 04/10/2004)
   { name: 'Fade Away', effects: [{ do: 'cada_criatura_paga_ou_sacrifica', mana: '{1}' }], // "For each creature, its controller sacrifices a permanent unless they pay {1}."
     example: { target: 'none', expect: { selfLife: 0 } } },
