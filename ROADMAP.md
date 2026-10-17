@@ -4618,6 +4618,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nada novo.
 - **Teste:** `lt126.unit` (3 testes; falham no motor anterior).
 
+**M-445 · LT111 · convocar e recompra pela linha de palavras-chave: Sprout Swarm** ✅ (leva M-445, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** **Sprout Swarm passa a jogar** (APROVADAS; texto da Scryfall de 17/10/2026 UTC). Desde a M-430 o leitor aceita as linhas "Convoke" e "Buyback {3}" (o motor tira as duas do texto: K-13, K-33); a leva só confere e aprova: cria o Saproling 1/1 verde, recompra paga {3} a mais e devolve a carta à mão, convocar vira criaturas para pagar.
+- **Revisão independente:** aprovada com achado (17 verificações: convocar paga a cor certa; recompra com 5 terrenos e não com 4; anulada com recompra vai ao cemitério, 702.27a). Achado médio corrigido na M-454: recompra junto com convocar não era oferecida, embora o pagamento aceitasse (702.51a, 601.2f).
+- **Fora (declarado):** nada novo.
+- **Teste:** `lt127.unit` (3 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
