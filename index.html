@@ -5961,7 +5961,7 @@ const PASSOS_DO_GATILHO = ['upkeep', 'draw', 'main1', 'combat_begin', 'combat_en
 const EVENTOS_DE_OBJETO = ['conjurar', 'ataca', 'bloqueia', 'dano-combate', 'marcadores', 'recebe-dano', 'causa-dano', 'vira', 'sacrifica', 'bloqueada', 'nao-bloqueada']; // CR2g.5
 const EVENTOS_DE_JOGADOR = ['descarta', 'compra', 'ganha-vida', 'atacou', 'joga-terreno']; // CR2b.7 · 119.9 · CR2g.5 · 508.3d
 /** M-258 · 603.2c · evento em lote: "whenever one or more <criaturas suas> deal damage to your opponents" dispara uma vez por golpe simultâneo. */
-const EVENTOS_DE_LOTE = ['causam-dano', 'saem-do-cemiterio']; // M-449 · "whenever one or more cards leave your graveyard": uma vez por evento (Spirit Mascot)
+const EVENTOS_DE_LOTE = ['causam-dano', 'saem-do-cemiterio', 'descartam' /* M-462 · "whenever you discard one or more cards" (Magmakin Artillerist) */]; // M-449 · "whenever one or more cards leave your graveyard": uma vez por evento (Spirit Mascot)
 /** De quem o gatilho observa o evento, por evento (o primeiro é o padrão). */
 const OBJETOS_DO_EVENTO = { zona: ['self', 'outra', 'anexada'], conjurar: ['self', 'outra'], ataca: ['self', 'outra', 'anexada'] /* M-401 · Greatsword of Tyr */, bloqueia: ['self', 'outra'],
   'dano-combate': ['self', 'outra'], marcadores: ['self', 'outra'], 'recebe-dano': ['self', 'anexada'], 'causa-dano': ['self', 'anexada'],
@@ -6001,7 +6001,7 @@ const falaDe = (d, evento) => !!d && (Array.isArray(d.evento) ? d.evento.include
 /** O descritor de zona de um gatilho; null se não for de zona. */
 const gatilhoDeZona = w => { const d = gatilhoDoEvento(w); return d && d.evento === 'zona' ? d : null; };
 const CHAVES_DO_EVENTO = { zona: ['evento', 'de', 'para', 'objeto', 'quem', 'donoVoce'], passo: ['evento', 'passo', 'turno'],
-  descarta: ['evento', 'quem'], compra: ['evento', 'n', 'quem'], 'ganha-vida': ['evento', 'quem'], atacou: ['evento', 'quem'], 'joga-terreno': ['evento', 'quem'], 'causam-dano': ['evento', 'a'], 'saem-do-cemiterio': ['evento', 'quem'] /* M-449 */, 'recebe-dano': ['evento', 'objeto'], vira: ['evento', 'objeto'], 'causa-dano': ['evento', 'objeto', 'a'] };
+  descarta: ['evento', 'quem'], compra: ['evento', 'n', 'quem'], 'ganha-vida': ['evento', 'quem'], atacou: ['evento', 'quem'], 'joga-terreno': ['evento', 'quem'], 'causam-dano': ['evento', 'a'], 'saem-do-cemiterio': ['evento', 'quem'] /* M-449 */, descartam: ['evento', 'quem'] /* M-462 */, 'recebe-dano': ['evento', 'objeto'], vira: ['evento', 'objeto'], 'causa-dano': ['evento', 'objeto', 'a'] };
 for (const e of EVENTOS_DE_OBJETO) CHAVES_DO_EVENTO[e] = CHAVES_DO_EVENTO[e] || ['evento', 'objeto', 'quem', 'donoVoce'];
 function gatilhoErros(w, tag) {
   if (typeof w === 'string') return TRIGGERS.includes(w) ? [] : [`${tag}: gatilho "${w}" desconhecido`];
@@ -6045,6 +6045,7 @@ function descreveGatilho(w, como = {}) { // M-401 · como.equipada: "a criatura 
   const sohCriatura = !!(como.filtro && (como.filtro.types || []).length === 1 && como.filtro.types[0] === 'creature'), perm = sohCriatura ? 'criatura' : 'permanente';
   if (typeof w === 'string') return TRIGGER_PT[w] || w;
   const ev = gatilhoDoEvento(w); if (!ev) return 'gatilho';
+  if (ev.evento === 'descartam') return `quando ${ev.quem === 'oponente' ? 'um oponente descarta' : ev.quem === 'qualquer' ? 'um jogador descarta' : 'você descarta'} uma ou mais cartas`; // M-462
   if (ev.evento === 'saem-do-cemiterio') return `quando uma ou mais cartas saem ${ev.quem === 'oponente' ? 'do cemitério de um oponente' : ev.quem === 'qualquer' ? 'de um cemitério' : 'do seu cemitério'}`; // M-449
   if (ev.evento === 'causam-dano') return `quando uma ou mais criaturas suas causam dano a ${ev.a === 'jogador' ? 'um jogador' : 'seus oponentes'}`; // M-258
   if (ev.evento === 'passo') {
@@ -9738,6 +9739,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Sandstorm Eidolon': { texto: 'sw7gi', leva: 'M-460' },
   // M-461 · revisão por lote CVIII ("with a +1/+1 counter on it": Lifecrafter's Gift), texto da Scryfall de 17/10/2026 UTC, revisor independente
   'Lifecrafter\'s Gift': { texto: '179hu3y', leva: 'M-461' },
+  // M-462 · revisão por lote CIX ("whenever you discard one or more cards": Magmakin Artillerist), texto da Scryfall de 17/10/2026 UTC, revisor independente
+  'Magmakin Artillerist': { texto: '1widw5s', leva: 'M-462' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18072,6 +18075,7 @@ const __m42 = (function () {
       if (m[1] === '~') return [{ ...base, target: 'self-source' }]; const a = alvo(m[1]); return a ? [{ ...base, ...a }] : null; }],
     [/^(target creature|target creature an opponent controls|target creature you control) gets ([+-]\d+)\/([+-]\d+) until end of turn$/i, m => [com({ do: 'pump', power: SINAL(m[2]), toughness: SINAL(m[3]) }, alvo(m[1]))]],
     [/^you gain that much life$/i, () => [{ do: 'gain', amount: { per: 'trigger-value' } }]],
+    [/^~ deals that much damage to each opponent$/i, () => [{ do: 'damage', amount: { per: 'trigger-value' }, target: 'each-opponent' }]], // M-462 · "that much": o valor do gatilho
     [/^untap (target [a-z ']+)$/i, m => [com({ do: 'untap' }, alvo(m[1]))]],
     [new RegExp(`^put ${N} \\+1/\\+1 counters? on (this creature|~)$`, 'i'), m => [{ do: 'counters', amount: num(m[1]), target: 'self-source' }]],
     [/^exile target player's graveyard$/i, () => [{ do: 'exile_graveyard', target: 'player' }]],
@@ -18251,7 +18255,9 @@ const __m42 = (function () {
     [/^whenever another creature enters(?: the battlefield)? under your control$/i, 'other-etb', () => ({ filter: { types: ['creature'] } })], // M-324 · o filtro de criatura (sem ele, qualquer permanente sua dispararia)
     [/^whenever another creature you control enters(?: the battlefield)?$/i, 'other-etb', () => ({ filter: { types: ['creature'] } })], // M-324
     [/^whenever you cycle another card$/i, 'other-cycled'], // M-436 · Drannith Healer, Drannith Stinger
-    [/^whenever one or more cards leave your graveyard$/i, { evento: 'saem-do-cemiterio', quem: 'voce' }], // M-449 · Spirit Mascot (603.10a: olha para trás; uma vez por evento)
+    [/^whenever one or more cards leave your graveyard$/i, { evento: 'saem-do-cemiterio', quem: 'voce' }],
+    [/^whenever you discard one or more cards$/i, { evento: 'descartam', quem: 'voce' }], // M-462 · Magmakin Artillerist (uma vez por evento; o valor é quantas)
+    [/^when you cycle (?:this card|~)$/i, 'cycled'], // M-462 · 702.29c (o gatilho da K-16) // M-449 · Spirit Mascot (603.10a: olha para trás; uma vez por evento)
     [/^whenever a creature you control enters(?: the battlefield)?$/i, 'other-etb', () => ({ filter: { types: ['creature'] }, soNaoCriatura: true })], // M-435 · Impact Tremors: numa fonte que não é criatura, "a creature you control" é "outra"; numa criatura (ela mesma também dispara) fica sem leitura
     [/^(?:landfall — )?whenever a land you control enters(?: the battlefield)?$/i, 'other-etb', () => ({ filter: { types: ['land'] } })], // M-340 · Landfall
     [/^whenever another creature you control dies$/i, 'other-dies', () => ({ filter: { types: ['creature'] } })], // M-324
@@ -20525,7 +20531,8 @@ function noteDiscardLegado(s, p) {
 }
 /** CR2-G R2c · `quem` do evento de jogador: quem descarta/compra (p) em relação a quem controla o observador (c). */
 const quemCasa = (d, c, p) => { const q = d.quem || 'voce'; return q === 'qualquer' || (q === 'voce' ? c === p : c !== p); };
-const noteDiscard = (s, p) => naSombra(s, `descarta ${p}`, () => noteDiscardLegado(s, p), () => gatilhosDeJogador(s, 'descarta', p));
+const noteDiscard = (s, p) => (loteDescarteM(s, p), noteDiscardM462(s, p)); // M-462
+const noteDiscardM462 = (s, p) => naSombra(s, `descarta ${p}`, () => noteDiscardLegado(s, p), () => gatilhosDeJogador(s, 'descarta', p));
 /** CR2-G R2c · descartar e comprar: as permanentes (e, para a compra, as cartas do cemitério com fromGraveyard) de cada
  * jogador, a começar por quem fez, com gatilho deste evento cujo `quem` casa. `n` = qual compra do turno. */
 function gatilhosDeJogador(s, evento, p, n) {
@@ -21501,7 +21508,7 @@ function aplicaPorJogador(s, src, eff, events) {
 }
 const porJogador = eff => !!SC.jogadoresDe(eff);
 /** M-449 · cada efeito é um evento: o lote de "cartas saem do seu cemitério" fecha no fim dele. */
-function applyEffect(s, src, eff, tgt, events) { const r = applyEffectM449(s, src, eff, tgt, events); if (s.loteCemiterioM) fechaLoteCemiterioM(s); return r; }
+function applyEffect(s, src, eff, tgt, events) { const r = applyEffectM449(s, src, eff, tgt, events); if (s.loteCemiterioM || s.loteDescarteM) fechaLoteCemiterioM(s); return r; }
 function applyEffectM449(s, src, eff, tgt, events) {
   const ctrl = src.controller;
   // S41 · guarda o nome do alvo antes de aplicar: anular uma habilidade a apaga do jogo
@@ -23675,7 +23682,21 @@ function saiuDoCemiterioM(s, o) {
       const lote = s.loteCemiterioM || (s.loteCemiterioM = []); if (lote.some(x => x.source === w.oid && x.i === i)) continue;
       lote.push({ source: w.oid, i, name: w.name, controller: w.controller, effects: ab.effects, when: ab.when, ...marcasDaHabilidade(ab) }); } }
 }
-function fechaLoteCemiterioM(s) { const l = s.loteCemiterioM; if (!l) return; delete s.loteCemiterioM; for (const { i, ...q } of l) s.queued.push(q); }
+function fechaLoteCemiterioM(s) { fechaLoteDescarteM(s); const l = s.loteCemiterioM; if (!l) return; delete s.loteCemiterioM; for (const { i, ...q } of l) s.queued.push(q); }
+/* M-462 · 603.2c · "Whenever you discard one or more cards, … that much" (Magmakin Artillerist): uma vez por evento de descarte, com o valor = quantas
+   cartas o jogador descartou nele (insanidade também é descarte, 702.35). O lote fecha nos mesmos pontos do da M-449; só nas partidas com o gatilho. */
+const TEM_DESCARTAM_M = new WeakMap();
+const partidaTemDescartamM = s => Object.values(s.facts).some(f => { if (!f || typeof f !== 'object') return false; if (!TEM_DESCARTAM_M.has(f)) TEM_DESCARTAM_M.set(f, JSON.stringify(f.script || {}).includes('"descartam"')); return TEM_DESCARTAM_M.get(f); });
+function loteDescarteM(s, p) { if (!partidaTemDescartamM(s)) return; const l = s.loteDescarteM || (s.loteDescarteM = {}); l[p] = (l[p] || 0) + 1; }
+function fechaLoteDescarteM(s) {
+  const l = s.loteDescarteM; if (!l) return; delete s.loteDescarteM;
+  for (const [pk, n] of Object.entries(l)) { const p = +pk;
+    for (const w of battlefield(s)) { if (!s.facts[w.name]) continue;
+      for (const ab of abilitiesOf(s, w)) { const d = ab.kind === 'triggered' && SC.gatilhoDoEvento(ab.when); if (!d || d.evento !== 'descartam') continue;
+        const quem = d.quem || 'voce'; if (quem === 'voce' ? p !== w.controller : quem === 'oponente' ? p === w.controller : false) continue;
+        if (!triggerConditionMet(s, w, ab.condition)) continue;
+        s.queued.push({ source: w.oid, name: w.name, controller: w.controller, effects: ab.effects, when: ab.when, value: n, jogador: p, ...marcasDaHabilidade(ab) }); } } }
+}
 function flushTriggers(s, events) {
   fechaLoteCemiterioM(s); // M-449
   if (escolhaDeEntradaK(s)) return; // K-38 · 702.136a: a escolha do tumulto, antes dos gatilhos (Toca ponto comum: flushTriggers)
@@ -24582,9 +24603,9 @@ const HANDLERS = {
     }
     if (o.zone === 'command') s.players[a.p].commanderCasts[a.oid] = (s.players[a.p].commanderCasts[a.oid] || 0) + 1;
     const origem = o.zone; // CR2c.4 · de onde foi conjurada ("cast from its owner's hand")
-    if (s.loteCemiterioM) fechaLoteCemiterioM(s); // M-449 · o custo pago (fuga) é um evento; ir para a pilha é outro
+    if (s.loteCemiterioM || s.loteDescarteM) fechaLoteCemiterioM(s); // M-449 · o custo pago (fuga) é um evento; ir para a pilha é outro
     moveObject(s, a.oid, 'stack');
-    if (s.loteCemiterioM) fechaLoteCemiterioM(s); // M-449
+    if (s.loteCemiterioM || s.loteDescarteM) fechaLoteCemiterioM(s); // M-449
     s.objects[a.oid].controller = a.p; // T-72 · CR 601.2a / 108.4: quem conjura controla a mágica (o Cerco derrotado de outro dono) (Toca ponto comum: HANDLERS.cast)
     s.objects[a.oid].castFrom = origem;
     if (s.turn.active === a.p && (s.turn.step === 'main1' || s.turn.step === 'main2') && JSON.stringify((s.facts[o.name] || {}).script || {}).includes('na-principal-propria')) s.objects[a.oid].naPrincipalM = true; // M-443 · conjurada na fase principal de quem conjura (505.1); só a mágica que usa a condição guarda a marca (o estado das outras partidas não muda)
@@ -25422,7 +25443,7 @@ function apply(state, action) {
   barraDetidaV(s, action); // V-21 · 701.35a: habilidade ativada de permanente detida · Toca ponto comum: apply (uma linha)
   barraTravadaPeloNomeT(s, action); // T-79 · CR 201.4 · "activated abilities of sources with the chosen name can't be activated" (Pithing Needle, Phyrexian Revoker) · Toca ponto comum: apply (uma linha)
   HANDLERS[action.t](s, action, events);
-  if (s.loteCemiterioM) fechaLoteCemiterioM(s); // M-449 · o lote fecha no fim da ação
+  if (s.loteCemiterioM || s.loteDescarteM) fechaLoteCemiterioM(s); // M-449 · o lote fecha no fim da ação
   if (action.oid != null && s.objects[action.oid] && s.objects[action.oid].zone === 'stack' && !s.pending) modoDoOponentePendenteT(s, action.oid); // T-107 · 700.2e: o oponente escolhe o modo quando quem conjura escolheria (Toca ponto comum: apply, uma linha)
   if (s.players.some(pl => pl.manaCombateT)) podaManaDeCombateT(s); // T-102 · 702.189a: a mana da dobra de fogo gasta não volta (Toca ponto comum: apply, uma linha)
   if (!s.pending && s.divisaoPendente) { const oid = s.divisaoPendente; delete s.divisaoPendente; if (s.objects[oid] && s.objects[oid].zone === 'stack') iniciaDivisao(s, oid, events); } // M-376

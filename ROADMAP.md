@@ -4735,6 +4735,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nenhum.
 - **Teste:** `lt143.unit` (2 testes; falham no motor anterior).
 
+**M-462 · LT128 · Magmakin Artillerist: "Whenever you discard one or more cards, … that much damage"** ✅ (leva M-462, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** a **Magmakin Artillerist** (pedido da trilha `listas`; 2 listas do catálogo) joga pelo leitor aprovado: descartar três de uma vez (Tolarian Winds) é **um** gatilho de 3 de dano em cada oponente; ciclar dispara o "When you cycle this card" (1 de dano) e a Artillerist do campo vê o descarte. Texto da Scryfall consultado em 17/10/2026.
+- **Primitiva:** evento em lote `descartam` (603.2c), com o valor = quantas cartas o jogador descartou no evento (insanidade conta, 702.35); fecha nos mesmos pontos do lote da M-449 e só existe nas partidas com o gatilho. O leitor passa a ler "When you cycle this card" (gatilho da K-16) e "~ deals that much damage to each opponent".
+- **Revisão independente:** aprovada com ressalva (22 sondas): ciclagem, insanidade, descarte aleatório e LKI certos. Achado médio (603.2c): descarte escolhido de N cartas gerava N gatilhos de 1 — corrigido na M-475.
+- **Fora (declarado):** nenhum. Seis cartas do corpus passaram a ser lidas, sem aprovação (Windcaller Aven, Titanoth Rex, Krosan Tusker, Void Beckoner, Splendor Mare, Avian Oddity).
+- **Teste:** `lt144.unit` (3 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
