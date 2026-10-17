@@ -243,6 +243,34 @@ test('I-291 · a cada avanço do main, a fila dispara "Relatos pela fila" (o age
   assert.deepEqual(perms.trim().split('\n').map(l => l.trim().split(':')[0]).sort(), ['actions', 'contents', 'statuses'], 'as mesmas três permissões de antes');
 });
 
+test('I-292 · telemetria da rodada: o portão entrega só um resumo agregado como saída do job; o avanca grava a rodada com o telemetria.mjs do main, copiado antes de a árvore virar a soma, tudo pelo ambiente, sem permissão nova e sem derrubar a rodada', () => {
+  const yml = readFileSync(join(RAIZ, '.github/workflows/fila.yml'), 'utf8');
+  const job = (nome) => (yml.match(new RegExp(`\\n  ${nome}:\\n([\\s\\S]*?)(?=\\n  [a-z]+:\\n|$)`)) || [])[1] || '';
+  const portao = job('portao'), avanca = job('avanca');
+  assert.match(portao, /outputs:\n(?:      \w+: .*\n)*      resumo: \$\{\{ steps\.resumo\.outputs\.resumo \}\}/, 'o portão expõe o resumo como saída do job');
+  const pResumo = portao.split('\n      - ').find(p => /^name: Resumo do portão/.test(p));
+  assert.ok(pResumo, 'passo do resumo'); assert.match(pResumo, /if: always\(\)/, 'roda com o portão verde ou vermelho');
+  assert.match(pResumo, /\.tmp\/portao\.json/); assert.doesNotMatch(pResumo, /upload-artifact|gh api|github\.token/, 'nenhum artefato, nenhuma chamada à API: só a saída do job');
+  for (const campo of ['passaram', 'minutos', 'instaveis', 'telas', 'medidas']) assert.ok(pResumo.includes(campo), `o resumo leva ${campo}`);
+  assert.match(pResumo, /telas: Array\.isArray\(x\.telas\) \? x\.telas\.length : 0/, 'telas vai como contagem (818 nomes não cabem numa saída)');
+  const passos = avanca.split('\n      - ');
+  const iGuarda = passos.findIndex(p => /^name: Guardar o telemetria\.mjs do main/.test(p)), iAvanca = passos.findIndex(p => /^name: Avançar o main/.test(p)), iTel = passos.findIndex(p => /^name: Telemetria da rodada/.test(p));
+  assert.ok(iGuarda >= 0 && iAvanca >= 0 && iTel >= 0, 'três passos');
+  assert.ok(iGuarda < iAvanca, 'o telemetria.mjs do main sai da árvore antes de a árvore virar a soma');
+  assert.match(passos[iGuarda], /cp telemetria\.mjs "\$RUNNER_TEMP\/"/);
+  assert.ok(iTel > passos.findIndex(p => /Marcar o commit publicado/.test(p)), 'depois de marcar o commit publicado');
+  const tel = passos[iTel];
+  assert.match(tel, /if: always\(\) && needs\.portao\.result != 'skipped'/, 'grava verde ou vermelho; sem portão (nada para testar) não há rodada');
+  for (const v of ['FILA_PLANO: ${{ needs.monta.outputs.plano }}', 'FILA_PORTAO: ${{ needs.portao.result }}', 'FILA_RESUMO: ${{ needs.portao.outputs.resumo }}', 'FILA_PUBLICADO: ${{ steps.avanca.outputs.publicado }}', 'GH_TOKEN: ${{ github.token }}']) assert.ok(tel.includes(v), `ambiente: ${v}`);
+  assert.doesNotMatch(tel.split('run: |')[1] || '', /\$\{\{/, 'nada do plano ou do resumo interpolado no shell: tudo pelo ambiente');
+  assert.match(tel, /cd "\$RUNNER_TEMP" && node telemetria\.mjs rodada --ci --remoto "\$\{GITHUB_SERVER_URL\}\/\$\{GITHUB_REPOSITORY\}\.git"/, 'roda a cópia do main, fora da árvore, e a URL do remoto não leva o token');
+  assert.match(tel, /git config --global "http\.\$\{GITHUB_SERVER_URL\}\/\.extraheader"/, 'o token vai pelo cabeçalho do git do runner (como o checkout faz)');
+  assert.match(tel, /\|\| echo "::warning::/, 'falhar não derruba a rodada');
+  assert.doesNotMatch(avanca, /npm (ci|install|run|test)|npx |playwright/, 'continua sem instalar nem rodar nada da leva');
+  const perms = (avanca.match(/permissions:\n((?:      [a-z].*\n)+)/) || [])[1] || '';
+  assert.deepEqual(perms.trim().split('\n').map(l => l.trim().split(':')[0]).sort(), ['actions', 'contents', 'statuses'], 'nenhuma permissão nova (contents: write já cobre o ramo telemetria)');
+});
+
 test('Q17 · do lado da conversa: `publicar --fila` envia para fila/<leva>; número já na fila por outra conversa é recusado; o que a fila publicou sai da frente no rebase seguinte', () => {
   const m = mundo();
   try {

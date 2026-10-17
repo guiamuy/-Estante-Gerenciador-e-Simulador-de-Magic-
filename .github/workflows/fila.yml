@@ -63,6 +63,7 @@ jobs:
       contents: read
     outputs:
       quedas: ${{ steps.quedas.outputs.quedas }}
+      resumo: ${{ steps.resumo.outputs.resumo }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09   # v5 (fixada por SHA; roda em Node 24)
         with:
@@ -101,6 +102,18 @@ jobs:
         run: |
           test -f portao.log || exit 0
           grep -E '^not ok [0-9]+ - ' portao.log | grep -v '\.test\.mjs$' | cut -c1-160 | head -12 | tr '\n' ';' | sed 's/^/quedas=/' >> "$GITHUB_OUTPUT"
+      # I-292 · o que o portão mediu sobre a soma (testes, instáveis, telas, duração, medidas) vai como saída do job, só agregados,
+      # para o `avanca` gravar a telemetria da rodada. O arquivo vem do código testado: o `avanca` valida antes de gravar.
+      - name: Resumo do portão para a telemetria da rodada
+        id: resumo
+        if: always()
+        run: |
+          test -f .tmp/portao.json || exit 0
+          node -e '
+            const r = JSON.parse(require("node:fs").readFileSync(".tmp/portao.json", "utf8"));
+            const f = x => x ? { passaram: x.passaram, minutos: x.minutos, quedasOrcamento: (x.quedasOrcamento || []).slice(0, 12), instaveis: (x.instaveis || []).slice(0, 10), telas: Array.isArray(x.telas) ? x.telas.length : 0, medidas: x.medidas || {} } : null;
+            console.log("resumo=" + JSON.stringify({ kind: r.kind, rapido: f(r.rapido), tela: f(r.tela) }));
+          ' >> "$GITHUB_OUTPUT"
       - name: Guardar o log do portão
         if: failure()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f   # v6 (fixada por SHA; roda em Node 24)
@@ -131,6 +144,9 @@ jobs:
         run: |
           git fetch --quiet --depth=200 origin main
           git fetch --quiet --depth=200 origin '+refs/heads/fila/*:refs/remotes/origin/fila/*'
+      # I-292 · o telemetria.mjs do main sai da árvore antes de ela virar a soma (o passo de telemetria roda depois do avanço).
+      - name: Guardar o telemetria.mjs do main
+        run: cp telemetria.mjs "$RUNNER_TEMP/"
       # Nada da leva é instalado nem executado aqui: só git e o fila.mjs do main (copiado para fora da árvore antes de remontar).
       - name: Avançar o main, recusar ou isolar
         id: avanca
@@ -157,6 +173,21 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh workflow run relatos-fila.yml --repo "$GITHUB_REPOSITORY" --ref main || echo "::warning::não consegui disparar relatos-fila.yml"
+      # I-292 · telemetria da rodada: levas somadas, resultado do portão, sha publicado e o resumo do portão (testes, instáveis,
+      # telas, duração) vão para o ramo `telemetria`, como as levas (BI2-6). Só agregados, tudo pelo ambiente (nada interpolado
+      # no shell); o código é o telemetria.mjs do main. O token fica no git do runner, nunca na URL. Falhar não derruba a rodada.
+      - name: Telemetria da rodada
+        if: always() && needs.portao.result != 'skipped'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FILA_PLANO: ${{ needs.monta.outputs.plano }}
+          FILA_PORTAO: ${{ needs.portao.result }}
+          FILA_RESUMO: ${{ needs.portao.outputs.resumo }}
+          FILA_PUBLICADO: ${{ steps.avanca.outputs.publicado }}
+        run: |
+          git config --global "http.${GITHUB_SERVER_URL}/.extraheader" "AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          cd "$RUNNER_TEMP" && node telemetria.mjs rodada --ci --remoto "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git" --pasta "$RUNNER_TEMP/telemetria" \
+            || echo "::warning::telemetria da rodada não gravada"
       - name: Rodada seguinte (sobrou ramo na fila, ou uma leva precisa ser testada sozinha)
         if: steps.avanca.outputs.de_novo == 'sim'
         env:

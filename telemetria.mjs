@@ -20,7 +20,7 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const RAMO = 'telemetria';
-export const ARQUIVOS = { levas: 'levas.jsonl', trilhas: 'trilhas.json', rotinas: 'rotinas.json', placares: 'placares.jsonl', skills: 'skills.json' };
+export const ARQUIVOS = { levas: 'levas.jsonl', trilhas: 'trilhas.json', rotinas: 'rotinas.json', placares: 'placares.jsonl', skills: 'skills.json', rodadas: 'rodadas.jsonl' };
 export const SITUACOES = ['editando', 'na-fila', 'recusada', 'publicada', 'parada', 'abandonada'];
 export const PORTOES = ['verde', 'recusada-conflito', 'recusada-guarda', 'recusada-conferencia', 'vermelho', 'instavel'];
 
@@ -115,7 +115,17 @@ const ESQUEMA_PLACAR = {
   culpadas: { ok: v => Array.isArray(v) && v.length <= 10 && v.every(c => c && typeof c === 'object' && texto(c.carta, 80) && inteiro(c.listas) && Object.keys(c).every(k => k === 'carta' || k === 'listas')) },
   nota: { ok: v => texto(v, 200) }, em: { ok: v => typeof v === 'string' && ISO.test(v) }
 };
-const ESQUEMAS = { leva: ESQUEMA_LEVA, trilha: ESQUEMA_TRILHA, rotina: ESQUEMA_ROTINA, placar: ESQUEMA_PLACAR };
+/** I-292 · rodada da fila no CI: o job `avanca` grava o resumo que o portão deixou (telemetria da rodada, não da leva).
+ *  Uma linha por rodada, regravada por `id` (= número da execução no Actions). Só agregados: nenhum nome de pessoa, token ou texto de relato. */
+const ESQUEMA_RODADA = {
+  id: { obrigatorio: true, ok: v => typeof v === 'string' && /^[0-9]{1,20}$/.test(v) }, em: { ok: v => typeof v === 'string' && ISO.test(v) },
+  levas: { obrigatorio: true, ok: v => Array.isArray(v) && v.length <= 40 && v.every(x => typeof x === 'string' && /^[A-Za-z0-9._-]{1,40}$/.test(x)) },
+  portao: { obrigatorio: true, ok: v => ['verde', 'vermelho', 'cancelado', 'pulado'].includes(v) }, publicado: { ok: v => typeof v === 'string' && /^[0-9a-f]{7,40}$/.test(v) },
+  testes_rapido: { ok: inteiro }, testes_tela: { ok: inteiro }, minutos_rapido: { ok: numero }, minutos_tela: { ok: numero },
+  instaveis: { ok: inteiro }, instaveis_nomes: { ok: v => Array.isArray(v) && v.length <= 10 && v.every(x => texto(x, 160)) }, telas_auditadas: { ok: inteiro },
+  quedas_orcamento: { ok: inteiro }, medidas: ESQUEMA_LEVA.medidas
+};
+const ESQUEMAS = { leva: ESQUEMA_LEVA, trilha: ESQUEMA_TRILHA, rotina: ESQUEMA_ROTINA, placar: ESQUEMA_PLACAR, rodada: ESQUEMA_RODADA };
 
 /** Valida contra o esquema: chave desconhecida, obrigatória ausente, valor fora da forma e privacidade. Devolve [] quando ok. */
 /** R-17 · BI2-1 · O registro de placar a partir do JSON que `catalogo.prova.mjs` grava ({ placar, culpadas, listas }):
@@ -167,7 +177,7 @@ export function upsert(linhas, nova, chave) {
 /** Aplica um registro validado ao conteúdo atual de um arquivo e devolve o conteúdo novo. */
 export function aplicar(tipo, atual, registro, agora = new Date().toISOString()) {
   const r = { ...registro };
-  if (tipo === 'leva') { r.em = r.em || agora; return escreverJsonl(upsert(lerJsonl(atual), r, 'id')); }
+  if (tipo === 'leva' || tipo === 'rodada') { r.em = r.em || agora; return escreverJsonl(upsert(lerJsonl(atual), r, 'id')); }
   if (tipo === 'placar') { r.em = r.em || agora; return escreverJsonl([...lerJsonl(atual), r]); }
   if (tipo === 'trilha' || tipo === 'rotina') {
     r.atualizado = r.atualizado || agora;
@@ -217,6 +227,23 @@ export function levaComPortao(registro, resumo) {
   if (rapido && tela && rapido.verde != null && tela.verde != null) poe('portao', rapido.verde && tela.verde ? 'verde' : 'vermelho');
   return { registro: r, consumidoEm: resumo.em || null };
 }
+/** I-292 · registro de rodada a partir do resumo do portão (`.tmp/portao.json`, como o CI o deixou), do plano da fila e do
+ *  resultado do job (`success|failure|cancelled|skipped`). Puro: o job `avanca` chama pela linha de comando com o JSON pronto. */
+export function rodadaDoResumo({ id, resumo = null, plano = null, portao = '', publicado = '', agora = new Date().toISOString() }) {
+  const levas = ((plano && Array.isArray(plano.aceitos)) ? plano.aceitos : []).map(a => String((a && a.nome) || '').replace(/^fila\//, '')).filter(Boolean);
+  const r = { id: String(id), em: agora, levas, portao: portao === 'success' ? 'verde' : portao === 'cancelled' ? 'cancelado' : portao === 'skipped' ? 'pulado' : 'vermelho' };
+  if (publicado) r.publicado = publicado;
+  const ok = resumo && resumo.kind === 'estante.portao', rp = ok ? resumo.rapido : null, tl = ok ? resumo.tela : null;
+  if (rp) { if (inteiro(rp.passaram)) r.testes_rapido = rp.passaram; if (numero(rp.minutos)) r.minutos_rapido = rp.minutos; }
+  if (tl) {
+    if (inteiro(tl.passaram)) r.testes_tela = tl.passaram; if (numero(tl.minutos)) r.minutos_tela = tl.minutos;
+    const inst = Array.isArray(tl.instaveis) ? tl.instaveis : []; r.instaveis = inst.length; if (inst.length) r.instaveis_nomes = inst.slice(0, 10);
+    r.telas_auditadas = Array.isArray(tl.telas) ? tl.telas.length : inteiro(tl.telas) ? tl.telas : 0;
+    if (tl.medidas && typeof tl.medidas === 'object' && Object.keys(tl.medidas).length) r.medidas = tl.medidas;
+  }
+  r.quedas_orcamento = ((rp && rp.quedasOrcamento) || []).length + ((tl && tl.quedasOrcamento) || []).length;
+  return r;
+}
 export function gravar({ tipo, registro, remoto, pasta, semPush = false, agora = () => new Date().toISOString(), autor = 'Telemetria Estante <noreply@anthropic.com>' }) {
   const erros = tipo === 'skills' ? [] : valida(tipo, registro);
   if (erros.length) throw new Error('registro recusado: ' + erros.join('; '));
@@ -236,7 +263,7 @@ export function gravar({ tipo, registro, remoto, pasta, semPush = false, agora =
     try { git(pasta, ['push', '-q', 'origin', `${RAMO}:${RAMO}`]); return { arquivo, tentativa, estado, enviado: true }; }
     catch (e) { ultimo = e; rmSync(pasta, { recursive: true, force: true }); }
   }
-  throw new Error('não consegui enviar depois de 5 tentativas: ' + String(ultimo && ultimo.stderr || ultimo).slice(0, 200));
+  throw new Error('não consegui enviar depois de 5 tentativas: ' + String(ultimo && ultimo.stderr || ultimo).replace(/:\/\/[^@\/\s]+@/g, '://***@').slice(0, 200));   // I-292 · nunca ecoar credencial que venha na URL
 }
 
 /* ---------- linha de comando ---------- */
@@ -253,7 +280,12 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       preparaPasta({ remoto, pasta });
       const arquivo = ARQUIVOS[args[1]]; if (!arquivo) throw new Error('o que ler: ' + Object.keys(ARQUIVOS).join('|'));
       const caminho = join(pasta, arquivo); process.stdout.write(existsSync(caminho) ? readFileSync(caminho, 'utf8') : '');
-    } else if (['leva', 'trilha', 'rotina', 'placar'].includes(comando)) {
+    } else if (comando === 'rodada' && args.includes('--ci')) {   // I-292 · o job `avanca` da fila: tudo vem do ambiente, nada da linha de comando
+      const env = process.env, json = n => { if (!env[n]) return null; try { return JSON.parse(env[n]); } catch (e) { return null; } };
+      const registro = rodadaDoResumo({ id: env.GITHUB_RUN_ID, resumo: json('FILA_RESUMO'), plano: json('FILA_PLANO'), portao: env.FILA_PORTAO || '', publicado: env.FILA_PUBLICADO || '' });
+      const r = gravar({ tipo: 'rodada', registro, remoto, pasta, semPush });
+      console.log(`✓ rodada ${registro.id} (${registro.levas.length} leva(s), portão ${registro.portao}) gravada em ${RAMO}/${r.arquivo}${r.enviado ? ' (enviado)' : ' (só na pasta)'}`);
+    } else if (['leva', 'trilha', 'rotina', 'placar', 'rodada'].includes(comando)) {
       const bruto = args.slice(1).find(a => a.startsWith('{')); if (!bruto) throw new Error('faltou o registro JSON entre aspas simples');
       let registro = JSON.parse(bruto);
       const arquivoPortao = join(raiz, '.tmp', 'portao.json');
@@ -268,7 +300,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       const r = gravar({ tipo: 'skills', registro: {}, remoto, pasta, semPush });
       console.log(`✓ skills.json regravado em ${RAMO}${r.enviado ? ' (enviado)' : ''}`);
     } else {
-      console.log('uso: node telemetria.mjs leva|trilha|rotina|placar \'{…}\' [--portao] · skills · ler levas|trilhas|rotinas|placares|skills [--remoto url] [--pasta dir] [--sem-push]');
+      console.log('uso: node telemetria.mjs leva|trilha|rotina|placar|rodada \'{…}\' [--portao] · skills · ler levas|trilhas|rotinas|placares|skills|rodadas [--remoto url] [--pasta dir] [--sem-push]');
       process.exit(comando ? 1 : 0);
     }
   } catch (e) { console.error('✗ ' + e.message); process.exit(1); }

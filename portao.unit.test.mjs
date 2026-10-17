@@ -158,6 +158,8 @@ test('R-21 · resumoDoTap: passaram e caíram pelas linhas # pass/# fail, quedas
     'not ok 1 - painel.unit.test.mjs', '# auditaTela · custo 360', '    # auditaTela · acervo 360', '# auditaTela · custo 360', '# \\# auditaTela · jogo 360', '    # \\# auditaTela · acervo 360', '# \\# medida · scanner · detector_ms=91 · confirmacao_ms=140 · leituras_s=2', '    # medida · scanner · detector_ms=88 · confirmacao_ms=132 · leituras_s=3', '# medida · outra-coisa · x=1', '# pass 3060', '# fail 3', '# skipped 0'].join('\n');
   assert.deepEqual(resumoDoTap(tap), { passaram: 3060, cairam: 3, quedasOrcamento: ['Q8 · orçamento do apply com listas reais', 'R-20 · orçamento do Acervo'], telas: ['custo 360', 'acervo 360', 'jogo 360'], medidas: { scanner: { detector_ms: 88, confirmacao_ms: 132, leituras_s: 3 } } }, 'o relator do Node escapa o # do console.log (`# \\# auditaTela`): as duas formas contam, sem repetir; medida: a última de cada nome, nome fora da forma não entra');
   assert.deepEqual(resumoDoTap(''), { passaram: null, cairam: null, quedasOrcamento: [], telas: [], medidas: {} });
+  // I-292 · fase de tela em fatias (CI): uma saída TAP por fatia, coladas; passaram e caíram somam
+  assert.deepEqual(resumoDoTap(['# pass 10', '# fail 1', '# ── fatia 2/3', '# pass 12', '# fail 0', '# pass 9', '# fail 2'].join('\n')), { passaram: 31, cairam: 3, quedasOrcamento: [], telas: [], medidas: {} });
 });
 
 test('R-21 · juntaResumo: cada fase grava a sua parte sem apagar a outra, o histórico guarda até 30 corridas (verde ou vermelha) e consumidoEm sobrevive', () => {

@@ -2,12 +2,16 @@
 // `telemetria` com nova tentativa quando outra sessão gravou antes (remoto local, sem rede).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { mkdtempSync, rmSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { valida, privacidade, aplicar, lerJsonl, upsert, gravar, preparaPasta, skillsJson, levaComPortao, SKILLS, ARQUIVOS, RAMO, SITUACOES } from './telemetria.mjs';
+import { valida, privacidade, aplicar, lerJsonl, upsert, gravar, preparaPasta, skillsJson, levaComPortao, rodadaDoResumo, SKILLS, ARQUIVOS, RAMO, SITUACOES } from './telemetria.mjs';
 
+const RAIZ_TEL = dirname(fileURLToPath(import.meta.url));
+const ISO_RX = /^\d{4}-\d{2}-\d{2}T/;
 const leva = (extra = {}) => ({ id: 'R-3', trilha: 'radar', conversa: 'radar · Painel Estante · 13/10', situacao: 'editando', ...extra });
 
 test('R-3 · esquema da leva: obrigatórios, formas, chave desconhecida; situação e portão só do vocabulário', () => {
@@ -128,4 +132,42 @@ test('R-21 · levaComPortao: o resumo do portão entra na leva (testes, instáve
   assert.deepEqual(levaComPortao(base, null), { registro: base, consumidoEm: null });
   assert.deepEqual(levaComPortao(base, { kind: 'outro' }), { registro: base, consumidoEm: null });
   assert.ok(valida('leva', { ...base, instaveis_nomes: new Array(11).fill('x') }).length, 'mais de 10 nomes é recusado');
+});
+
+test('I-292 · rodadaDoResumo: o job da fila vira uma linha de rodada (levas sem o prefixo fila/, portão pelo resultado do job, sha, testes das duas fases, instáveis, telas como lista ou contagem, medidas, quedas de orçamento somadas); resumo ausente ou estranho dá só o essencial; passa no esquema; regrava por id', () => {
+  const resumo = { kind: 'estante.portao', version: 1, rapido: { verde: true, minutos: 21.4, passaram: 3060, cairam: 0, quedasOrcamento: ['Q8 · orçamento'] },
+    tela: { verde: true, minutos: 12.5, passaram: 318, cairam: 1, quedasOrcamento: [], instaveis: ['G-266 · nome de usuário'], telas: 818, medidas: { scanner: { detector_ms: 88 } } } };
+  const plano = { aceitos: [{ nome: 'fila/R-24', sha: 'a'.repeat(40) }, { nome: 'M-410' }], recusados: [], vazios: [] };
+  const r = rodadaDoResumo({ id: '18561234567', resumo, plano, portao: 'success', publicado: '62c1eb1', agora: '2026-10-17T20:00:00Z' });
+  assert.deepEqual(r, { id: '18561234567', em: '2026-10-17T20:00:00Z', levas: ['R-24', 'M-410'], portao: 'verde', publicado: '62c1eb1', testes_rapido: 3060, minutos_rapido: 21.4,
+    testes_tela: 318, minutos_tela: 12.5, instaveis: 1, instaveis_nomes: ['G-266 · nome de usuário'], telas_auditadas: 818, medidas: { scanner: { detector_ms: 88 } }, quedas_orcamento: 1 });
+  assert.deepEqual(valida('rodada', r), []);
+  assert.equal(rodadaDoResumo({ id: 1, resumo: { ...resumo, tela: { ...resumo.tela, telas: ['a', 'b'] } }, plano, portao: 'success' }).telas_auditadas, 2, 'telas como lista conta');
+  const v = rodadaDoResumo({ id: 7, resumo: { kind: 'outro' }, plano: null, portao: 'failure', agora: '2026-10-17T20:00:00Z' });
+  assert.deepEqual(v, { id: '7', em: '2026-10-17T20:00:00Z', levas: [], portao: 'vermelho', quedas_orcamento: 0 }, 'sem resumo válido: só id, levas, portão');
+  assert.deepEqual(valida('rodada', v), []);
+  assert.equal(rodadaDoResumo({ id: 8, portao: 'cancelled' }).portao, 'cancelado'); assert.equal(rodadaDoResumo({ id: 9, portao: 'skipped' }).portao, 'pulado');
+  assert.equal(rodadaDoResumo({ id: 10, portao: 'success', plano: { aceitos: 'x' } }).levas.length, 0, 'plano com forma estranha não derruba');
+  assert.ok(valida('rodada', { id: 'abc', levas: [], portao: 'verde' }).length, 'id só dígitos'); assert.ok(valida('rodada', { id: '1', levas: ['a b'], portao: 'verde' }).length, 'nome de leva com forma de ramo');
+  assert.ok(valida('rodada', { id: '1', levas: [], portao: 'verde', publicado: 'zzz' }).length, 'sha hex'); assert.ok(valida('rodada', { id: '1', levas: [], portao: 'ok' }).length, 'portão do vocabulário');
+  const duas = aplicar('rodada', aplicar('rodada', '', { id: '1', levas: ['R-1'], portao: 'vermelho' }, '2026-10-17T20:00:00Z'), { id: '1', levas: ['R-1'], portao: 'verde', publicado: 'abcdef1' }, '2026-10-17T20:05:00Z');
+  assert.deepEqual(lerJsonl(duas).map(l => [l.id, l.portao, l.publicado]), [['1', 'verde', 'abcdef1']], 'mesma rodada regravada no lugar');
+  assert.equal(ARQUIVOS.rodadas, 'rodadas.jsonl');
+});
+
+test('I-292 · `node telemetria.mjs rodada --ci`: tudo vem do ambiente (plano, resultado e resumo do portão, sha, número da execução), nada da linha de comando; grava rodadas.jsonl no ramo telemetria e recusa registro com dado proibido', { timeout: 60000 }, t => {
+  const { base, bare } = remotoLocal(); t.after(() => rmSync(base, { recursive: true, force: true }));
+  const env = { ...process.env, GITHUB_RUN_ID: '18561234567', FILA_PORTAO: 'success', FILA_PUBLICADO: '62c1eb1',
+    FILA_PLANO: JSON.stringify({ aceitos: [{ nome: 'fila/R-24' }], recusados: [] }),
+    FILA_RESUMO: JSON.stringify({ kind: 'estante.portao', rapido: { passaram: 3060, minutos: 21.4, quedasOrcamento: [] }, tela: { passaram: 318, minutos: 12.5, instaveis: [], telas: 818, medidas: {} } }) };
+  const saida = execFileSync('node', ['telemetria.mjs', 'rodada', '--ci', '--remoto', bare, '--pasta', join(base, 'p')], { cwd: RAIZ_TEL, env, encoding: 'utf8' });
+  assert.match(saida, /✓ rodada 18561234567 \(1 leva\(s\), portão verde\) gravada em telemetria\/rodadas\.jsonl \(enviado\)/);
+  const linhas = lerJsonl(conteudo(bare, ARQUIVOS.rodadas));
+  assert.equal(linhas.length, 1); assert.equal(linhas[0].levas[0], 'R-24'); assert.equal(linhas[0].publicado, '62c1eb1'); assert.equal(linhas[0].testes_rapido, 3060); assert.equal(linhas[0].telas_auditadas, 818);
+  assert.ok(ISO_RX.test(linhas[0].em), 'em preenchido pelo script');
+  // resumo com nome de instável que parece e-mail: a privacidade recusa a linha inteira e o script sai com erro (o fluxo só avisa)
+  const ruim = { ...env, FILA_RESUMO: JSON.stringify({ kind: 'estante.portao', tela: { passaram: 1, instaveis: ['alguem@exemplo.com'] } }) };
+  const r = spawnSync('node', ['telemetria.mjs', 'rodada', '--ci', '--remoto', bare, '--pasta', join(base, 'p')], { cwd: RAIZ_TEL, env: ruim, encoding: 'utf8' });
+  assert.notEqual(r.status, 0); assert.match(r.stderr + r.stdout, /parece e-mail/);
+  assert.equal(lerJsonl(conteudo(bare, ARQUIVOS.rodadas)).length, 1, 'nada a mais no ramo');
 });

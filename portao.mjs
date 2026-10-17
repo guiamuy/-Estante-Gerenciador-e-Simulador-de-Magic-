@@ -39,7 +39,8 @@ export function falhasDoTap(tap) {
     orçamento (nome com "orçamento"), telas auditadas (linhas `# auditaTela · <nome>` que o helper do e2e imprime). Puro. */
 export function resumoDoTap(tap) {
   const s = String(tap || '');
-  const n = (rx) => { const m = s.match(rx); return m ? Number(m[1]) : null; };
+  // I-292 · em fatias (CI) a saída tem um `# pass` por fatia: soma; sem nenhuma linha, null
+  const n = (rx) => { const ms = [...s.matchAll(rx)]; return ms.length ? ms.reduce((t, m) => t + Number(m[1]), 0) : null; };
   const caidos = [...s.matchAll(/^\s*not ok \d+ - (.+?)\s*(?:# .*)?$/gm)].map((m) => m[1]).filter((x) => !/\.test\.mjs$/.test(x));
   const quedasOrcamento = [...new Set(caidos.filter((x) => /or[çc]amento/i.test(x)))];
   // o relator TAP do Node escreve o console.log do teste como `# \# auditaTela · nome` (escapa o # do texto): aceitar as duas formas
@@ -50,7 +51,7 @@ export function resumoDoTap(tap) {
     const v = {}; for (const par of m[2].split(' · ').filter(Boolean)) { const [k, x] = par.split('='); v[k] = Number(x); }
     medidas[m[1]] = v;
   }
-  return { passaram: n(/^# pass (\d+)/m), cairam: n(/^# fail (\d+)/m), quedasOrcamento, telas, medidas };
+  return { passaram: n(/^# pass (\d+)/gm), cairam: n(/^# fail (\d+)/gm), quedasOrcamento, telas, medidas };
 }
 /** R-21 · o resumo do portão vai para `.tmp/portao.json` (fora do git), por fase: a fase rápida e a de tela cada uma grava a sua parte,
     o histórico guarda as últimas 30 corridas (verde ou vermelha). `node telemetria.mjs leva … --portao` carrega isso na leva. */
