@@ -9880,6 +9880,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Wingsteed Rider': { texto: '3je57k', leva: 'M-479' },
   'Kytheon\'s Irregulars': { texto: 'rbseb6', leva: 'M-479' },
   'Siege Rhino': { texto: 'oz43by', leva: 'M-479' },
+  // M-480 · Arcanis the Omnipotent (nome curto da lendária "X the Y", 201.5c), texto da Scryfall de 17/10/2026 UTC
+  'Arcanis the Omnipotent': { texto: 'pbqx58', leva: 'M-480' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18565,7 +18567,7 @@ const __m42 = (function () {
   const escapa = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   /** M-394 · 201.5 · o nome impresso e "this creature/artifact/…" (redação Oracle desde 2024) valem como "~"; dentro de aspas (habilidade concedida a outro objeto) o "this …" é do outro objeto e fica. */
   const ESTE_OBJETO = /\bthis (creature|artifact|enchantment|land|permanent|vehicle|equipment|aura)\b/gi;
-  const nomeCurtoRe = nome => { const i = String(nome || '').indexOf(', '); const c = i > 2 && /\bLegendary\b/.test(tipoAtual || '') ? nome.slice(0, i) : null; return c ? new RegExp('\\b' + escapa(c) + '\\b(?!,|[\'’]s\\b)', 'g') : /(?!)/g; }; // M-444 · M-454: só na lendária (Elemental, My Dear não é) e nunca como parte do nome de outro objeto ("Koma's Coil", achados da revisão)
+  const nomeCurtoRe = nome => { const n0 = String(nome || ''); const i = n0.indexOf(', ') > 2 ? n0.indexOf(', ') : n0.indexOf(' the ') /* M-480 · 201.5c também em "Arcanis the Omnipotent" → "Arcanis" */; const c = i > 2 && /\bLegendary\b/.test(tipoAtual || '') ? nome.slice(0, i) : null; return c ? new RegExp('\\b' + escapa(c) + '\\b(?!,|[\'’]s\\b)', 'g') : /(?!)/g; }; // M-444 · M-454: só na lendária (Elemental, My Dear não é) e nunca como parte do nome de outro objeto ("Koma's Coil", achados da revisão)
   const til = (t, nome) => String(t).replace(new RegExp(escapa(nome || '\u0000'), 'g'), '~').replace(nomeCurtoRe(nome), '~') /* M-444 · 201.5c: o nome curto da lendária ("Raphael" em "Raphael, Tough Turtle") */.split('"').map((p, i) => i % 2 ? p : p.replace(ESTE_OBJETO, '~')).join('"');
   /** Um parágrafo de efeito de mágica → { efeitos, frases }. */
   /** M-335 · orações em sequência que formam um efeito só (no começo do parágrafo): revelar a mão e escolher o descarte; olhar o topo e pegar. */

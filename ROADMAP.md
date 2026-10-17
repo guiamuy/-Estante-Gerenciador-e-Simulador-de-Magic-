@@ -4847,6 +4847,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nenhum.
 - **Teste:** `lt161.unit` (6 testes; falham no motor anterior).
 
+**M-480 · LT146 · leitor: nome curto da lendária também em "X the Y" (201.5c)** ✅ (leva M-480, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** **Arcanis the Omnipotent passa a jogar** (texto da Scryfall de 17/10/2026): "Return Arcanis to its owner's hand" é ela mesma. O nome curto, que a M-444 lia só em "Nome, Epíteto", agora também vale em "Nome the Epíteto" — só em lendária e nunca como parte de "Nome's …" (as guardas da M-454 continuam). Leitor no corpus: nenhuma carta ganha, perde ou muda além dela.
+- **Revisão independente:** aprovada com ressalva baixa: "Nome the Outro" de outro objeto casava com o nome curto (latente, nenhuma leitura mudava) — guarda na M-485. Leitor no corpus (34.083 cartas): nada ganha, perde ou muda.
+- **Fora (declarado):** nenhum.
+- **Teste:** `lt162.unit` (3 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
