@@ -4557,6 +4557,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nada novo.
 - **Teste:** `lt117.unit` (3 testes; falham no motor anterior).
 
+**M-436 · LT102 · "Whenever you cycle another card": Drannith Healer, Drannith Stinger** ✅ (leva M-436, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** **Drannith Healer e Drannith Stinger passam a jogar** (APROVADAS; texto da Scryfall de 17/10/2026 UTC). Gatilho novo `other-cycled`: a permanente sua no campo dispara quando você cicla outra carta (702.29); o oponente ciclar não dispara. O registro diz "quando você cicla outra carta". O leitor também lê Flourishing Fox (não aprovada).
+- **Revisão independente:** revisor independente do lote M-432…M-438 (~120 verificações dinâmicas e ~60 cartas lidas contra o texto; diferencial do leitor: 62 cartas passaram a ser lidas, nenhuma perdeu, nenhum script mudou; 716 aprovadas íntegras; equivalência de 27 partidas e 10.800 ações sem divergência, goldens idênticos byte a byte; fuzz de 40 partidas e 35.363 ações sem exceção nem ação recusada): **aprovado** — Street Wraith, tipociclar, oponente ciclando, a Healer ciclada com outra no campo, ciclar com insanidade.
+- **Fora (declarado):** "Whenever you cycle or discard a card" (outra abertura) segue sem leitura.
+- **Teste:** `lt118.unit` (4 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

@@ -5909,6 +5909,7 @@ const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield
   'you-play-land',
   /* ↓ K · gatilhos da trilha keywords */
   'cycled', // K-16 · 702.29c · "When you cycle this card" (dispara da zona onde a carta foi parar)
+  'other-cycled', // M-436 · "Whenever you cycle another card" (Drannith Healer, Drannith Stinger): a permanente sua no campo vê você ciclar outra carta
   'exploits', // K-12 · 702.110b · "When ~ exploits a creature" (disparado pelo motor quando a habilidade de explorar sacrifica)
   /* ↓ V · gatilhos da trilha verbos */
   'ring-tempts', 'ring-bearer-chosen', // V-25 · "Whenever the Ring tempts you" (701.54d) e "Whenever you choose a creature as your Ring-bearer"
@@ -9629,6 +9630,9 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Tolarian Winds': { texto: '1bb2sat', leva: 'M-434' },
   // M-435 · revisão por lote LXXXVI ("Whenever a creature you control enters": Impact Tremors), texto da Scryfall de 17/10/2026 UTC, revisor independente
   'Impact Tremors': { texto: '1if3310', leva: 'M-435' },
+  // M-436 · revisão por lote LXXXVII ("Whenever you cycle another card": Drannith Healer, Drannith Stinger), texto da Scryfall de 17/10/2026 UTC, revisor independente
+  'Drannith Healer': { texto: '12ohodi', leva: 'M-436' },
+  'Drannith Stinger': { texto: '1llzsx9', leva: 'M-436' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -9725,6 +9729,7 @@ function pluraisDeCriaturaSCK() {
 Object.assign(EXPORTS_K_SC, { TIPOS_DE_CRIATURA_SCK: tiposDeCriaturaSCK(), PROTECAO_NAO_CRIATURA_SCK: protecaoNaoCriaturaSCK() });
 Object.assign(MARCADOR_PT, { fade: 'de desvanecer' }); // K-37 · 702.32a
 TRIGGER_PT.cycled = 'quando você a cicla'; // K-16 · 702.29c
+TRIGGER_PT['other-cycled'] = 'quando você cicla outra carta'; // M-436
 TRIGGER_PT['storm-gatilho'] = 'quando você a conjura (tempestade)'; // K-25 · 702.40a
 TRIGGER_PT.delayed = 'atrasado'; // M-389 · achado da revisão: "(delayed)" aparecia em inglês
 function palavraNaLinhaK(k) {
@@ -18118,6 +18123,7 @@ const __m42 = (function () {
     [/^whenever enchanted creature deals damage to an opponent$/i, 'enchanted-damages-opponent'],
     [/^whenever another creature enters(?: the battlefield)? under your control$/i, 'other-etb', () => ({ filter: { types: ['creature'] } })], // M-324 · o filtro de criatura (sem ele, qualquer permanente sua dispararia)
     [/^whenever another creature you control enters(?: the battlefield)?$/i, 'other-etb', () => ({ filter: { types: ['creature'] } })], // M-324
+    [/^whenever you cycle another card$/i, 'other-cycled'], // M-436 · Drannith Healer, Drannith Stinger
     [/^whenever a creature you control enters(?: the battlefield)?$/i, 'other-etb', () => ({ filter: { types: ['creature'] }, soNaoCriatura: true })], // M-435 · Impact Tremors: numa fonte que não é criatura, "a creature you control" é "outra"; numa criatura (ela mesma também dispara) fica sem leitura
     [/^(?:landfall — )?whenever a land you control enters(?: the battlefield)?$/i, 'other-etb', () => ({ filter: { types: ['land'] } })], // M-340 · Landfall
     [/^whenever another creature you control dies$/i, 'other-dies', () => ({ filter: { types: ['creature'] } })], // M-324
@@ -26404,6 +26410,8 @@ function cicloK(s, a, o, cy) {
   makeAbility(s, { oid: o.oid, name: o.name, controller: a.p }, { effects: [efeito] }, []);
   for (const ab of abilitiesOf(s, o)) if (ab.kind === 'triggered' && ab.when === 'cycled')
     s.queued.push({ source: o.oid, name: o.name, controller: a.p, effects: ab.effects, when: 'cycled', ...marcasDaHabilidade(ab) });
+  for (const w of battlefield(s)) if (w.controller === a.p && w.oid !== o.oid) for (const ab of abilitiesOf(s, w)) if (ab.kind === 'triggered' && ab.when === 'other-cycled') // M-436 · "Whenever you cycle another card"
+    s.queued.push({ source: w.oid, name: w.name, controller: a.p, effects: ab.effects, when: 'other-cycled', ...marcasDaHabilidade(ab) });
 }
 Object.assign(EXPORTS_K, { cicloK });
 /* K-17 · 702.16 proteção com qualquer qualidade (a). As cores continuam na lista de sempre (protecaoImpressa); as outras qualidades vêm
