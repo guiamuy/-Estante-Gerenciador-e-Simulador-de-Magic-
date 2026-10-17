@@ -5701,7 +5701,7 @@ const ALT_COST_PARTS = ['returnTapped', 'mana', 'life', 'discard', 'returnLand',
 /** S48 · fuga: conjura do cemitério pagando o custo, e a carta fica em jogo. */
 /** S20 · custos adicionais de ativação e de conjuração. */
 const CRAFT_TIPOS = ['creature', 'artifact', 'land', 'enchantment']; // M-356 · 702.167a: materiais de craft
-const EXTRA_COST_PARTS = ['sacrificeOther', 'tapOther', 'discard', 'returnLand', 'revealColor', 'exileFromGraveyard', 'discardSelf', 'pagarVida']; // M-346 · pagarVida: "or pay 3 life" (Bitter Triumph)
+const EXTRA_COST_PARTS = ['sacrificeOther', 'tapOther', 'discard', 'returnLand', 'revealColor', 'exileFromGraveyard', 'discardSelf', 'pagarVida', 'generico' /* M-441 · "or pay {5}" (Lightning Axe): mana genérica somada ao custo total, 601.2f */]; // M-346 · pagarVida: "or pay 3 life" (Bitter Triumph)
 /* ---------------- M-229 · R1 · seletor único de objetos (gramática escalável) ----------------
    Um alvo é descrito por um seletor, não por um nome: zona, de quem é, tipos, subtipos, "outra", valor de mana, cor,
    se inclui jogadores. Os nomes antigos continuam valendo e são atalhos para um seletor (ALVO_SELETOR); o teste de
@@ -6206,6 +6206,7 @@ function validateScript(sc) {
   }
   // S53 · o custo adicional pode ser um só ou uma lista de opções
   for (const op of [].concat((sc && sc.additional) || [])) for (const k of Object.keys(op || {})) if (!EXTRA_COST_PARTS.includes(k)) errs.push(`custo adicional "${k}" desconhecido`);
+  for (const op of [].concat((sc && sc.additional) || [])) if (op && op.generico != null && !(Number.isInteger(op.generico) && op.generico > 0)) errs.push('custo adicional: generico precisa ser inteiro positivo'); // M-441
   // S24 · cartas de face dupla
   if (sc && sc.back) {
     const b = sc.back;
@@ -9693,6 +9694,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Searing Blaze': { texto: '1031mvx', leva: 'M-437' },
   // M-440 · revisão por lote LXXXIX (custo menor se uma criatura morreu neste turno: Bone Picker), texto da Scryfall de 17/10/2026 UTC, revisor independente
   'Bone Picker': { texto: 't2ant', leva: 'M-440' },
+  // M-441 · revisão por lote XC (custo adicional "discard a card or pay {N}": Lightning Axe), texto da Scryfall de 17/10/2026 UTC, revisor independente
+  'Lightning Axe': { texto: '1faf2kj', leva: 'M-441' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18157,7 +18160,8 @@ const __m42 = (function () {
     [/^affinity for (artifacts|creatures)$/i, m => ({ affinity: m[1].toLowerCase().replace(/s$/, '') })], // LT11 · 702.41
     [/^transmute (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ transmute: { mana: m[1] } })], // LT10 · 702.53
     [new RegExp(`^escape—(\\{[^}]+\\}(?:\\{[^}]+\\})*), exile ${N} other cards from your graveyard$`, 'i'), m => ({ escape: { mana: m[1], exileGraveyard: num(m[2]) } })], // LT10 · 702.138
-    [/^as an additional cost to cast this spell, discard a card or pay (\d+) life$/i, m => ({ additional: [{ discard: 1 }, { pagarVida: +m[1] }] })], // M-346 · Bitter Triumph (601.2b: um ou outro)
+    [/^as an additional cost to cast this spell, discard a card or pay (\d+) life$/i, m => ({ additional: [{ discard: 1 }, { pagarVida: +m[1] }] })],
+    [/^as an additional cost to cast this spell, discard a card or pay \{(\d+)\}$/i, m => ({ additional: [{ discard: 1 }, { generico: +m[1] }] })], // M-441 · Lightning Axe (601.2b: um ou outro; o {5} entra no custo total, 601.2f) // M-346 · Bitter Triumph (601.2b: um ou outro)
     [/^as an additional cost to cast this spell, sacrifice an artifact or creature$/i, () => ({ additional: { sacrificeOther: { types: ['artifact', 'creature'] } } })], // LT10 · 601.2b
     [/^as an additional cost to cast this spell, sacrifice an? (land|creature|artifact|enchantment)$/i, m => ({ additional: { sacrificeOther: { types: [m[1].toLowerCase()] } } })], // M-334 · LT18 · 601.2b (Crop Rotation)
     [/^cycling—pay (\d+) life$/i, m => ({ cycling: { life: +m[1] } })], // M-341 · Street Wraith
@@ -23891,6 +23895,8 @@ function formasDeTripular(s, p, n, selfOid) {
   })(0, [], 0);
   return out;
 }
+/** M-441 · 601.2f · a mana genérica do custo adicional escolhido ("discard a card or pay {5}"): entra no custo total da conjuração, não no pagamento à parte. */
+const genericoDoAdicional = (s, o, add) => { const sp = (((s.facts[o.name] || {}).script) || {}).additional; const l = Array.isArray(sp) ? sp : sp ? [sp] : []; const e = add === null ? null : l[add || 0]; return (e && Number.isInteger(e.generico) && e.generico > 0) ? e.generico : 0; };
 const canPayExtra = (s, p, cost, selfOid) =>
   (cost.pagarVida == null || s.players[p].life >= cost.pagarVida) && // K-2 · 119.4: só paga a vida que tem
   (cost.crew == null || formasDeTripular(s, p, cost.crew, selfOid).length > 0) &&
@@ -24388,7 +24394,7 @@ const HANDLERS = {
     else if (s.manaCheck && !a.free) { if (f.semCusto && !custoDoPrototipoT(s, o)) throw new RuleError('custo', 'esta carta não tem custo de mana: não pode ser conjurada assim'); /* T-49 · CR 702.162a: o verso sem custo é conjurado pelo custo alternativo (Toca ponto comum: HANDLERS.cast) */
       let custo = a.kick ? somaCusto(custoDoPrototipoT(s, o) || f.cost, parseCost(reforco.mana), a.kick) : custoDoPrototipoT(s, o) || f.cost; // T-36 · CR 718.3a: como protótipo, o custo de mana é o alternativo (Toca ponto comum: HANDLERS.cast)
       for (const x of a.emenda || []) custo = somaCusto(custo, parseCost(s.facts[s.objects[x].name].script.splice.mana), 1); // M-274 · 702.47b: paga o custo de encaixar de cada uma
-      const extraBase = castExtraComReforco(s, a.p, o, a.x || 0, a.targets || [], a.kick), extraPago = extraBase - delveN - descontoExilaMao(s, o, exilaMaoN, extraBase); // M-267
+      const extraBase = castExtraComReforco(s, a.p, o, a.x || 0, a.targets || [], a.kick), extraPago = extraBase - delveN - descontoExilaMao(s, o, exilaMaoN, extraBase) + genericoDoAdicional(s, o, a.add); // M-441 // M-267
       if (a.vida != null) { // CR2c.4 · phyrexiano: quem conjura escolhe quantos símbolos paga com vida
         if (!(Number.isInteger(a.vida) && a.vida >= 0 && a.vida <= nPhyrexianos(custo))) throw new RuleError('custo', 'escolha quantos símbolos phyrexianos pagar com vida');
         if (s.players[a.p].life < 2 * a.vida) throw new RuleError('custo', 'vida insuficiente para pagar o phyrexiano'); // 119.4
@@ -25448,7 +25454,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
     const opcoes = Array.isArray(addSpec) ? addSpec : addSpec ? [addSpec] : [];
     if (!opcoes.length) return [{}];
     const out2 = [];
-    opcoes.forEach((op, i) => { if (canPayExtra(s, p, op, o.oid)) pagamentosDe(s, p, op, o.oid).forEach(pay => out2.push({ add: i, pay })); });
+    opcoes.forEach((op, i) => { if (canPayExtra(s, p, op, o.oid) && (!op.generico || !s.manaCheck || canPay(s, p, f.cost, castExtra(s, p, o, 0, OTIMISTA) + op.generico))) pagamentosDe(s, p, op, o.oid).forEach(pay => out2.push({ add: i, pay })); }); // M-441 · "or pay {5}": só com a mana do custo total
     if (f.script && f.script.additionalOptional) out2.push({ add: null });
     return out2;
   };
@@ -25778,7 +25784,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
     if (a.flashback) { const fb = flashbackOf(s, o); if (!fb || !fb.mana) return true; const c = parseCost(fb.mana); return canPay(s, p, c, -reducaoNoCusto(s, p, o, a.targets || [], c)); }
     if (a.bestow) { const bc = parseCost(bestowOf(s, o).mana); return canPay(s, p, bc, (a.x || 0) * (bc.x || 0) - reducaoNoCusto(s, p, o, a.targets || [], bc)); }
     let custo = a.kick ? somaCusto(f.cost, parseCost(f.script.kicker.mana), a.kick) : f.cost; if (a.vida != null) custo = custoPhyrexiano(custo, a.vida);
-    { const ext = castExtraComReforco(s, p, o, a.x || 0, a.targets || [], a.kick); return canPay(s, p, custo, ext - (a.delve || 0) - descontoExilaMao(s, o, a.exilaMao || 0, ext)); } // M-352 · M-365: delve e exilar da mão (achado da revisão)
+    { const ext = castExtraComReforco(s, p, o, a.x || 0, a.targets || [], a.kick); return canPay(s, p, custo, ext - (a.delve || 0) - descontoExilaMao(s, o, a.exilaMao || 0, ext) + genericoDoAdicional(s, o, a.add)); } // M-441 · "or pay {5}" // M-352 · M-365: delve e exilar da mão (achado da revisão)
   }); out.length = 0; out.push(...ok); } // M-365 · antes era `return`: as ofertas das trilhas abaixo sumiam (convocar, recomeçar, escalar…) — achado da revisão
   /* ↓ K · ofertas de legalActions da trilha keywords (out.push) */
   ofertasHarmonizarK(s, p, out, casts); // K-55 · 702.180a: do cemitério, uma oferta por criatura a virar (ou nenhuma); da mão, a opção some
@@ -35403,7 +35409,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const rotulos = opcoes.map(a => {
       const partes = CAMPOS_PAGAMENTO.filter(([c]) => a.pay && a.pay[c] != null).map(([c, , verbo]) => c === 'revelar' ? `${verbo} ${a.pay[c]}` : `${verbo} ${nomesDe(s, a.pay[c])}`);
       const op = a.add != null && s.objects[a.oid] ? [].concat(((s.facts[s.objects[a.oid].name] || {}).script || {}).additional || [])[a.add] : null; // M-346
-      return partes.length ? partes.join(' e ') : a.add === null ? 'Não pagar o custo opcional' : op && op.pagarVida ? `Pagar ${op.pagarVida} de vida` : 'Sem custo extra';
+      return partes.length ? partes.join(' e ') : a.add === null ? 'Não pagar o custo opcional' : op && op.pagarVida ? `Pagar ${op.pagarVida} de vida` : op && op.generico ? `Pagar {${op.generico}}` /* M-441 */ : 'Sem custo extra';
     });
     // nomes repetidos (duas Llanowar Elves) ganham um número para não parecerem a mesma opção
     const vistos = {}; const finais = rotulos.map(r => (rotulos.filter(x => x === r).length > 1 ? `${r} (${(vistos[r] = (vistos[r] || 0) + 1)})` : r));

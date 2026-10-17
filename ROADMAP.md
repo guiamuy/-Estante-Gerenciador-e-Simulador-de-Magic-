@@ -4594,6 +4594,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nada novo.
 - **Teste:** `lt122.unit` (3 testes; falham no motor anterior).
 
+**M-441 · LT107 · custo adicional "discard a card or pay {N}": Lightning Axe** ✅ (leva M-441, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** **Lightning Axe (9 listas do catálogo) passa a jogar** (APROVADAS; texto da Scryfall de 17/10/2026 UTC). Custo adicional novo `generico`: a forma "pay {5}" soma a mana genérica ao custo total (601.2f) e só é oferecida quando a mana fecha; "discard a card" segue como antes; um ou outro (601.2b). O botão da mesa diz "Pagar {5}". O leitor também lê Pumpkin Bombardment (não aprovada).
+- **Revisão independente:** revisor independente do lote M-441/M-442 (diferencial do leitor: 35 cartas passaram a ser lidas, nenhuma perdeu, nenhum script mudou; 719 aprovadas íntegras; equivalência de 27 partidas e 10.800 ações sem divergência; fuzz de 60 partidas e 53.929 ações sem exceção nem ação recusada): **aprovado com achados** (32 verificações) — oferta e pagamento com 0 a 7 terras, mão vazia, insanidade, cópia, mesa e bot; Bitter Triumph e Fling sem regressão. Dois achados corrigidos na M-446 com teste: a redução de custo não alcançava o {5} (601.2f), e na conjuração sem pagar (cascata, 118.9d) a escolha do custo adicional não era oferecida e o {5} não era cobrado.
+- **Fora (declarado):** a forma de pagar {N} combinada com reforço ou X não é oferecida (nenhuma carta do catálogo pede). A redução sobre o {5} e a conjuração sem pagar entraram na M-446.
+- **Teste:** `lt123.unit` (4 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
