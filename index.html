@@ -5350,7 +5350,7 @@ const EFFECTS = {
   // S50 · escolha um tipo de criatura; o que vem depois conta por esse tipo
   choose_type: { fields: [], targets: ['self'] },
   tipo_basico: { fields: [], targets: ['land-you-control', 'land'] }, // M-388 · 305.7: "target land becomes the basic land type of your choice in addition to its other types" até o fim do turno (Navigator's Compass)
-  discard_or_sacrifice_land_draw: { fields: ['amount'], targets: ['self'] }, // Leva 107 · Highway Robbery
+  discard_or_sacrifice_land_draw: { fields: ['amount'], targets: ['self'] }, // Leva 107 · Highway Robbery · M-411 · `tipo: 'artifact'`: "sacrifice an artifact or discard a card" (Vision of Love)
   // Leva 106 · "devolva uma permanente (terreno) que você controla": escolha na resolução, sem alvo (Kor Skyfisher, carnários)
   return_chosen: { fields: [], targets: ['self'] },
   // S48 · devolve ao campo a carta que esta permanente exilou (Journey to Nowhere)
@@ -6351,6 +6351,8 @@ function effectErrors(effects, label, opcional) {
     if (e.dividido != null && e.dividido.igual != null && !(e.dividido.igual === true && e.dividido.max == null && Object.keys(e.dividido).every(k => ['igual', 'max', 'custoAlvoExtra'].includes(k)))) errs.push(`${label} ${i + 1}: "dividido.igual" é true, sem máximo de alvos`); // M-408 · "divided evenly, rounded down, among any number of targets" (Fireball)
     if (e.dividido != null && e.dividido.custoAlvoExtra != null && !(e.dividido.igual === true && Number.isInteger(e.dividido.custoAlvoExtra) && e.dividido.custoAlvoExtra >= 1)) errs.push(`${label} ${i + 1}: "custoAlvoExtra" (601.2f: {N} a mais por alvo além do primeiro) só com "igual"`); // M-408
     if (e.dividido != null && !(e.do === 'damage' && typeof e.dividido === 'object' && (e.dividido.max == null || (Number.isInteger(e.dividido.max) && e.dividido.max >= 2)) && ['any', 'creature'].includes(e.target))) errs.push(`${label} ${i + 1}: "dividido" é dano dividido entre alvos (601.2d): { max: null | 2 ou mais }, alvo "any" ou "creature"`); // M-376
+    if (e.do === 'discard_or_sacrifice_land_draw' && e.obrigatorio != null) errs.push(`${label} ${i + 1}: o descarte ou sacrifício obrigatório (sem "you may") não é coberto`); // M-411 · fica sem leitura, nunca opcional por engano
+    if (e.do === 'discard_or_sacrifice_land_draw' && e.tipo != null && e.tipo !== 'artifact') errs.push(`${label} ${i + 1}: "tipo" do sacrifício é 'artifact' (sem tipo: terreno)`); // M-411
     if (e.do === 'descarta_e_compra' && e.descarta != null && !(Number.isInteger(e.descarta) && e.descarta >= 1)) errs.push(`${label} ${i + 1}: "descarta" é quantas cartas se descartam (inteiro, 1 ou mais)`); // M-373
     if (e.do === 'morde' && !(i > 0 && effects[i - 1] && effects[i - 1].do === 'mordedor')) errs.push(`${label} ${i + 1}: "morde" vem logo depois de "mordedor" (a criatura que causa o dano)`); // M-407
     if (e.do === 'mordedor' && !(effects[i + 1] && effects[i + 1].do === 'morde')) errs.push(`${label} ${i + 1}: "mordedor" precisa de "morde" logo depois`); // M-407
@@ -9498,6 +9500,9 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Terrus Wurm': { texto: '1sr84in', leva: 'M-410' },
   'Thrashing Mossdog': { texto: 'kgmaum', leva: 'M-410' },
   'Zanikev Locust': { texto: '1fa1iee', leva: 'M-410' },
+  // M-411 · revisão por lote LXV ("You may sacrifice an artifact or discard a card. If you do, draw N cards." — Vision of Love, 10 listas do catálogo; K'un-Lun Warrior), texto da Scryfall de 17/10/2026 UTC, revisor independente
+  'Vision of Love': { texto: '1qc5p5v', leva: 'M-411' },
+  "K'un-Lun Warrior": { texto: '3gpoio', leva: 'M-411' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -17820,6 +17825,7 @@ const __m42 = (function () {
     [/^exile all cards from target player's graveyard$/i, () => [{ do: 'exile_graveyard', target: 'player' }]], // LT9
     [/^return target creature card from your graveyard to your hand$/i, () => [{ do: 'to_hand', target: 'creature-in-your-graveyard' }]], // LT9
     [new RegExp(`^you may discard a card to draw ${N} cards?$`, 'i'), m => [{ do: 'descarta_e_compra', amount: num(m[1]) }]], // M-348
+    [new RegExp(`^(must_)?descarta_ou_sacrifica (artifact|land) ${N}$`, 'i'), m => [{ do: 'discard_or_sacrifice_land_draw', amount: num(m[3]), ...(m[2].toLowerCase() === 'artifact' ? { tipo: 'artifact' } : {}), ...(m[1] ? { obrigatorio: true } : {}) }]], // M-411 · "You may sacrifice an artifact or discard a card. If you do, draw N cards."
     [/^target creature you control deals damage equal to its power to (target creature you don't control|target creature or planeswalker you don't control)$/i, m => [{ do: 'mordedor', target: 'creature-you-control' }, { do: 'morde', target: /planeswalker/i.test(m[1]) ? { tipos: ['creature', 'planeswalker'], de: 'opponent' } : { tipos: ['creature'], de: 'opponent' } }]], // M-407 · Rabid Bite, Ram Through, Bite Down, Tail Slash
     [new RegExp(`^must discard a card to draw ${N} cards?$`, 'i'), m => [{ do: 'descarta_e_compra', amount: num(m[1]), obrigatorio: true }]], // M-406 · "Discard a card. If you do, draw two cards." (Stormshriek Feral, presságio Flush Out — pedido da listas)
     [new RegExp(`^you may discard (two|three) cards to draw ${N} cards?$`, 'i'), m => [{ do: 'descarta_e_compra', descarta: num(m[1]), amount: num(m[2]) }]], // M-373 · todas ou nenhuma
@@ -18095,7 +18101,7 @@ const __m42 = (function () {
     const sub = [];
     const e = anexada && /^it /i.test(corpo) ? (sub.push({ texto: resto2, lida: false }), null) : leParagrafo(corpo, nome, sub); // M-401 · "it deals…" da hospedeira: a fonte seria a criatura, que o motor ainda não modela aqui
     if (e && /^whenever equipped creature/i.test(cab)) for (const x of e) if (x.target === 'enchanted') x.equipada = true; // M-401 · texto: "a criatura equipada"
-    if (e && opcional) for (const x of e) if (x.do === 'descarta_e_compra' && x.obrigatorio) delete x.obrigatorio; // M-406 · "you may discard…" no gatilho: o "you may" já virou a pergunta do gatilho (o script fica como era)
+    if (e && opcional) for (const x of e) if ((x.do === 'descarta_e_compra' || x.do === 'discard_or_sacrifice_land_draw') && x.obrigatorio) delete x.obrigatorio; // M-411 · K'un-Lun Warrior: o "you may" do gatilho é o do efeito // M-406 · "you may discard…" no gatilho: o "you may" já virou a pergunta do gatilho (o script fica como era)
     if (e && g[1] === 'dies') for (const x of e) if (x.do === 'to_hand' && x.target === 'self-source' && x.from === 'battlefield') delete x.from; // M-339 · "when ~ is put into a graveyard…, return ~ to its owner's hand": do cemitério
     const textoCond = condicao ? resto.slice(0, resto.length - resto2.length).replace(/,\s*$/, '') : ''; // M-373 · achado da revisão: a ficha mostra também a condição (603.4), não só o efeito
     frases.push({ texto: cab, lida: true }, ...(textoCond ? [{ texto: textoCond, lida: true }] : []), ...sub);
@@ -18148,7 +18154,8 @@ const __m42 = (function () {
       for (const [re, faz] of PRE_PARAGRAFO) { const m = texto.match(re); const e = m && faz(m); if (!e) continue; efeitos.push(...e); frases.push({ texto: m[0].trim().replace(/\.$/, ''), lida: true }); texto = texto.slice(m[0].length).trim(); achou = true; break; } }
     if (!texto) return efeitos;
     texto = texto.replace(/^(target player|target opponent) reveals cards from the top of their library until they reveal a land card, then puts those cards into their graveyard/i, 'revela_ate_terreno_cemiterio $1'); // M-377 · Balustrade Spy
-    texto = texto.replace(/(?:then )?(you may )?discard (a card|two cards|three cards)\. if you do, draw (\w+) cards?/i, (m0, pode, q, n) => `${pode ? 'you may' : 'must'} discard ${q} to draw ${n} cards`); // M-406 · sem "you may" o descarte é obrigatório (antes virava opcional) // M-373 · "Then you may discard two cards. If you do, draw three cards" (Thrilling Discovery)
+    texto = texto.replace(/^(you may )?(?:sacrifice an? (artifact|land) or discard a card|discard a card or sacrifice an? (artifact|land))\. if you do, draw (\w+) cards?/i, (m0, pode, t1, t2, n) => `${pode ? '' : 'must_'}descarta_ou_sacrifica ${t1 || t2} ${n}`); // M-411 · Vision of Love, K'un-Lun Warrior (Highway Robbery: o "or" ao contrário); "you may" faz parte do efeito: escolher nada é recusar
+    texto = texto.replace(/(?:^|(?<=\. ))(?:then )?(you may )?discard (a card|two cards|three cards)\. if you do, draw (\w+) cards?/i, (m0, pode, q, n) => `${pode ? 'you may' : 'must'} discard ${q} to draw ${n} cards`); // M-406 · sem "you may" o descarte é obrigatório (antes virava opcional) // M-373 · "Then you may discard two cards. If you do, draw three cards" (Thrilling Discovery)
     texto = texto.replace(/^exile (target (?:creature|permanent)(?: you control)?), then return (?:it|that card) to the battlefield under its owner's control/i, 'pisca $1'); // M-349 · Ephemerate
     texto = texto.replace(/^exile two target (artifacts, creatures, and\/or lands you control), then return those cards to the battlefield under your control/i, 'pisca_dois $1'); // M-351 · Ghostly Flicker
     texto = texto.replace(/exile the top card of your library\. until end of turn, you may play that card/i, 'impulso one ate o fim do turno'); // M-352
@@ -21296,7 +21303,8 @@ function applyEffect(s, src, eff, tgt, events) {
       break;
     }
     case 'discard_or_sacrifice_land_draw': { // Leva 107 · Highway Robbery: uma carta da mão OU um terreno seu, ou nada
-      const opcoes = [...s.zones[ctrl].hand, ...battlefield(s).filter(x => x.controller === ctrl && s.facts[x.name].types.includes('land')).map(x => x.oid)];
+      const tipoS = eff.tipo || 'land'; // M-411 · Vision of Love: um artefato seu (o tipo de agora, 205.2)
+      const opcoes = [...s.zones[ctrl].hand, ...battlefield(s).filter(x => x.controller === ctrl && tiposDe(s, x).includes(tipoS)).map(x => x.oid)];
       if (!opcoes.length) { note({ amount: 0 }); break; }
       startPick(s, { p: ctrl, from: opcoes, min: 0, max: 1, to: 'descarta-ou-sacrifica', rest: 'stay', label: 'descartar ou sacrificar', source: src.name, depois: { draw: eff.amount } }, events);
       note({ pending: true }); break;
@@ -33209,7 +33217,7 @@ function descreveEfeito(e) {
     case 'no_prevention': return 'o dano não pode ser prevenido neste turno';
     case 'gain_per_revealed': return 'ganha 3 de vida para cada carta revelada';
     case 'to_library_shuffled': return 'é embaralhada no grimório do dono';
-    case 'discard_or_sacrifice_land_draw': return 'pode descartar uma carta ou sacrificar um terreno; se fizer, compra 2 cartas';
+    case 'discard_or_sacrifice_land_draw': return `pode descartar uma carta ou sacrificar ${e.tipo === 'artifact' ? 'um artefato' : 'um terreno'}; se fizer, compra ${plural(e.amount || 2, 'carta', 'cartas')}`; // M-411 · o tipo e a quantia vêm do efeito (antes era sempre "terreno" e "2")
     case 'choose_type': return 'escolhe um tipo de criatura';
     case 'mordedor': return ''; // M-407 · a frase sai no "morde"
     case 'morde': return `a criatura sua alvo causa dano igual ao poder dela a ${(alvo || 'uma criatura').replace(/ que um oponente controla$/, '') + ' que você não controla'}${e.excessoComAtropelar ? '; se ela tiver atropelar, o dano além do letal vai para o controlador da outra' : ''}`; // M-407
