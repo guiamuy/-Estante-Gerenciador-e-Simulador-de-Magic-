@@ -8724,6 +8724,25 @@ const RAW_SCRIPTS = [
   { name: 'Tin Street Dodger', self: { keywords: ['haste'] }, // "Haste"
     abilities: [{ kind: 'activated', cost: { mana: '{R}' }, effects: [{ do: 'imbloqueavel', target: 'self-source', exceto: 'defender' }] }], // "{R}: Tin Street Dodger can't be blocked this turn except by creatures with defender."
     example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor): o cenário de verdade está em listas.lote*.unit
+  // L-11 · Pauper de M a Z, lote 11 (plano paralelo de cobertura, 17/10/2026): texto da Scryfall (API, consulta de 17/10/2026) em .listas/oficiais-listas.json.
+  // Presságio (720) com o descarte obrigatório da M-406; modal "up to two" (700.2d); anular e exilar com alvos no cemitério (115.3); "becomes a … artifact creature" (205.1b).
+  { name: 'Stormshriek Feral', omen: { mana: '{1}{R}' }, // "Flying, haste" vêm da linha da carta
+    abilities: [{ kind: 'activated', cost: { mana: '{1}{R}' }, effects: [{ do: 'continuo', target: 'self-source', poder: 1, resistencia: 0 }] }], // "{1}{R}: This creature gets +1/+0 until end of turn."
+    back: { name: 'Flush Out', types: ['sorcery'], subtypes: ['Omen'], colors: ['R'], effects: [{ do: 'descarta_e_compra', amount: 2, obrigatorio: true }] }, // "Discard a card. If you do, draw two cards. (Then shuffle this card into its owner's library.)" (o embaralhar é do presságio, 720.3c)
+    example: { action: 'omen', target: 'none', expect: { selfLife: 0 } } }, // o cenário de verdade (descarte obrigatório, compra, volta ao grimório) está em listas.lote11.unit
+  { name: 'Call Damage Control', modeCount: 2, modeMin: 1, modes: [ // "Choose up to two. Return those cards from your graveyard to your hand." (zero modos não é oferecido: ver nota no ROADMAP L-11)
+    { label: 'Artefato do seu cemitério para a mão', effects: [{ do: 'to_hand', target: { tipos: ['artifact'], zona: 'graveyard', de: 'you' } }] }, // "• Target artifact card."
+    { label: 'Criatura do seu cemitério para a mão', effects: [{ do: 'to_hand', target: 'creature-in-your-graveyard' }] }, // "• Target creature card."
+    { label: 'Encantamento do seu cemitério para a mão', effects: [{ do: 'to_hand', target: { tipos: ['enchantment'], zona: 'graveyard', de: 'you' } }] }, // "• Target enchantment card."
+    { label: 'Terreno do seu cemitério para a mão', effects: [{ do: 'to_hand', target: { tipos: ['land'], zona: 'graveyard', de: 'you' } }] }], // "• Target land card."
+    example: { action: 'mode:1', target: 'own-graveyard-creature', expect: { handDelta: 1 } } },
+  { name: 'Devious Cover-Up', effects: [{ do: 'counter', target: 'spell', exila: true }, // "Counter target spell. If that spell is countered this way, exile it instead of putting it into its owner's graveyard."
+    { do: 'mover', target: { zona: 'graveyard', de: 'you' }, de: 'graveyard', para: 'library', posicao: 'embaralhado', upTo: true, targetCount: 4 }], // "You may shuffle up to four target cards from your graveyard into your library." (o "may" é escolher de zero a quatro alvos)
+    example: { target: 'enemy-spell', expect: { targetExiled: true } } }, // anulada e exilada (o "countered" do S8 olha o cemitério); o cenário inteiro está em listas.lote11.unit
+  { name: 'Kenku Artificer', abilities: [{ kind: 'triggered', when: 'etb', effects: [ // "Homunculus Servant — When this creature enters, …"
+    { do: 'counters', target: { tipos: ['artifact'], semTipos: ['creature'] }, upTo: true, tipo: 'p1p1', amount: 3 }, // "… put three +1/+1 counters on up to one target noncreature artifact."
+    { do: 'continuo', target: 'first-target', torna: { tipos: ['artifact', 'creature'], subtipos: ['Homunculus'], somaTipos: true, base: [0, 0], palavras: ['flying'] }, ate: 'sempre' }] }], // "That artifact becomes a 0/0 Homunculus artifact creature with flying." (205.1b: mantém os tipos e subtipos anteriores)
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo: o cenário de verdade está em listas.lote11.unit
   //
   //
   //
