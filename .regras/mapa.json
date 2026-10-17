@@ -8990,15 +8990,25 @@
    "n": "702.128",
    "regra": "Keyword Abilities",
    "titulo": "Embalm",
-   "status": "ausente",
-   "falta": "Precisa de ação nova na mesa (o botão é da trilha mesa; pedido aberto desde a onda 3): embalsamar ativa do cemitério.",
+   "status": "coberta",
+   "falta": "T-111 (17/10/2026): coberta — nada falta da 702.128a; 702.128b (\"embalmed\") fica marcado na ficha (`embalsamadaT`), sem carta coberta que o leia.",
    "esforco": "M",
    "depende": [
     "707 cópia",
     "111 fichas",
     "602 habilidade ativada do cemitério com exílio"
    ],
-   "cartas": "rara (Amonkhet)"
+   "cartas": "rara (Amonkhet)",
+   "evidencia": "T-111 (17/10/2026): `self.embalsamar` monta a ativada do cemitério (custo de mana + exilar a carta, 602.5d; só como feitiço) com o efeito `embalsamar`: a ficha é cópia da carta impressa (707.2) com a exceção copiável `excecaoFichaT` (branca, Zumbi além dos outros tipos, sem custo de mana: valor 0 e devoção 0), lida pelos ganchos de característica impressa da trilha tipos (cor, valor de mana, custo, redefinição de tipos com carimbo −1) e propagada como valor copiável (707.9b) em aplicaCopia, entra como cópia e ficha_copia; a marca nasce com a ficha (createToken `marcasT`), antes dos gatilhos de entrada. Sacred Cat (Scryfall, 17/10/2026; rulings de 18/04/2017 e 14/07/2017). Botão da mesa \"Embalsamar · {W}\".",
+   "testes": [
+    "CR 702.128a · Sacred Cat (texto oficial): do cemitério, {W} e exilar a carta, cria uma ficha que é cópia dela — Zumbi Gato branca, 1/1, com vínculo com a vida",
+    "CR 702.128a · embalsamar de carta azul de três manas: a ficha é branca em vez das outras cores, Zumbi e de valor de mana 0; um seletor de Zumbi a encontra",
+    "CR 702.128a · \"Activate only as a sorcery\": sem oferta no turno do oponente, com a pilha cheia ou no combate; o pedido direto é recusado",
+    "CR 702.128a · funciona só no cemitério: da mão e do exílio não há embalsamar; a ficha não volta a ser embalsamada",
+    "CR 702.128a · o custo exila a carta na hora (ruling de 14/07/2017): com a habilidade na pilha, a carta já está no exílio, fora do alcance de quem quisesse exilar o cemitério",
+    "CR 707.9b · a exceção do embalsamar é valor copiável (ruling de 18/04/2017): a ficha que copia a ficha embalsamada também é branca, Zumbi e de valor de mana 0",
+    "CR 702.128a · validador: self.embalsamar é o custo de \"Embalm [custo]\""
+   ]
   },
   {
    "n": "702.129",
