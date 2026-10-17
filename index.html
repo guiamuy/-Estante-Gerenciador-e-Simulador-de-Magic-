@@ -9704,6 +9704,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Raphael, Tough Turtle': { texto: '1hq65c8', leva: 'M-444' },
   // M-445 · revisão por lote XCIV (convocar e recompra pela linha de palavras-chave: Sprout Swarm), texto da Scryfall de 17/10/2026 UTC, revisor independente
   'Sprout Swarm': { texto: '1hqbw38', leva: 'M-445' },
+  // M-447 · revisão por lote XCV ("any target that was dealt damage this turn": Needle Drop), texto da Scryfall de 17/10/2026 UTC, revisor independente
+  'Needle Drop': { texto: 'zqbe49', leva: 'M-447' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18037,6 +18039,7 @@ const __m42 = (function () {
     [new RegExp(`^put ${N} \\+1/\\+1 counters? on (this creature|~)$`, 'i'), m => [{ do: 'counters', amount: num(m[1]), target: 'self-source' }]],
     [/^exile target player's graveyard$/i, () => [{ do: 'exile_graveyard', target: 'player' }]],
     [/^it deals (\d+) damage to (each opponent|target opponent|any target)$/i, m => [com({ do: 'damage', amount: +m[1] }, alvo(m[2]))]],
+    [/^~ deals (\d+) damage to any target that was dealt damage this turn$/i, m => [{ do: 'damage', amount: +m[1], target: 'any', targetDanoNoTurno: true }]], // M-447 · Needle Drop
     [new RegExp(`^(?:(you may|its controller may|that player may|target player may) )?search (?:your|their) library for (?:(up to) )?${N}(?: (.+?))? cards?(?: named (.+?))?(?:, reveal (?:it|them|that card))?(?:,? (?:and )?put (?:it|them|that card) (into (?:your|their) hand|onto the battlefield(?: tapped)?|on top of your library))?$`, 'i'), busca], // LT5 · 701.23
     [/^shuffle(?: your library)?$/i, () => []],
     [new RegExp(`^create ${N} (treasure|food|blood|map|clue) tokens?$`, 'i'), m => fichaPredefinida(m[1], m[2])], // LT9 · 111.10
@@ -19281,7 +19284,7 @@ function zoneList(s, obj, zone) { return zone === 'stack' ? s.stack : s.zones[ob
 const VOLTA_COMANDO = ['graveyard', 'exile', 'hand', 'library'];
 /** Leva 105 · marcas que a conjuração põe na carta (e que não atravessam outra mudança de zona). */
 const MARCAS_DA_CONJURACAO = ['xPaid', 'bestowed', 'evidenced', 'faceDown', 'prevista', 'flashback', 'paidAdditional', 'discardedNonland', 'altIndex', 'mode',
-  'bargained', 'omen', 'stormCopies', 'chosenColor', 'plotted', 'playableFromExile', 'jogavelSoNesteTurno', 'jogavelAte', 'escondida', 'suspensa', 'suspensaImpeto', 'jogavelSe', 'emendas', 'sneakAtaque', 'sneakPw', 'kicked', 'modes', 'castFrom', 'divisao', 'danoCausado' /* M-427 */, 'descartadas' /* M-434 */, 'ordemDaMagiaM' /* M-442 */, 'naPrincipalM' /* M-443 */]; // M-376 · 'revealed' fica: a habilidade do Martyr of Sands lê depois do sacrifício
+  'bargained', 'omen', 'stormCopies', 'chosenColor', 'plotted', 'playableFromExile', 'jogavelSoNesteTurno', 'jogavelAte', 'escondida', 'suspensa', 'suspensaImpeto', 'jogavelSe', 'emendas', 'sneakAtaque', 'sneakPw', 'kicked', 'modes', 'castFrom', 'divisao', 'danoCausado' /* M-427 */, 'descartadas' /* M-434 */, 'ordemDaMagiaM' /* M-442 */, 'naPrincipalM' /* M-443 */, 'danoNoTurnoM' /* M-447 */]; // M-376 · 'revealed' fica: a habilidade do Martyr of Sands lê depois do sacrifício
 /* ---------------- CR2-G R5c · 701.8/614 · "se fosse destruída" ---------------- */
 /** O que acontece se `o` fosse destruída agora: 'indestrutivel' (não é destruída), { totem: aura } (702.89: a Aura com
  * armadura de totem é destruída no lugar e o dano sai), 'regenerou' (701.15: um escudo de regeneração é gasto) ou 'destruida'.
@@ -21204,6 +21207,7 @@ function violaPortaEstandarte(s, p, need, chosen, selfOid) {
 /** S17 · filtros extras do efeito sobre o alvo. */
 function targetAllowed(s, eff, tgt, src) {
   const o = tgt && tgt.oid != null ? s.objects[tgt.oid] : null;
+  if (eff.targetDanoNoTurno && tgt) { if (tgt.player != null) { if ((s.players[tgt.player] || {}).danoNoTurnoK !== s.turn.number) return false; } else if (!o || o.danoNoTurnoM !== s.turn.number) return false; } // M-447 · Needle Drop: "any target that was dealt damage this turn" (conferido também na resolução, 608.2b)
   if (!o) return true;
   if (eff.doJogadorDoPrimeiro && src && (src.targets || [])[0] && src.targets[0] !== tgt && !controladaPeloPrimeiroM(s, src.targets[0], o)) return false; // M-437 · 608.2b: na resolução, a criatura precisa ser controlada pelo jogador do primeiro alvo
   const f = s.facts[o.name] || {};
@@ -21446,7 +21450,7 @@ function applyEffect(s, src, eff, tgt, events) {
         if (eff.exilaSeMorrer && obj && n > 0) obj.exilaSeMorrerNoTurno = s.turn.number; // M-384 · 614.1a: "If a permanent dealt damage by ~ would die this turn, exile it instead" (só se o dano foi causado, depois da prevenção)
         const causou = (q, j = null) => { if (q > 0) src.danoCausado = (src.danoCausado || 0) + q; /* M-427 */ if (eff.acumula) { eff.acumula.n += q > 0 ? q : 0; if (j != null && q > 0) eff.acumula.jogador = j; } else causouDano(s, src, q, j); }; // M-407 · o "morde" junta as partes num evento de dano só
         if (obj && (danoEmBatalhaT(s, src, obj, n) || danoEmPwCriaturaT(s, src, obj, n))) { causou(n); note({ amount: n }); break; } // T-18 · CR 120.3e: planeswalker-criatura // T-14 · CR 310.6 / 120.3h · dano à batalha tira defesa · Toca ponto comum: applyEffect damage (uma linha)
-        if (obj && !obj.faceDown && s.facts[obj.name].types.includes('planeswalker')) { obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - n); causou(n); note({ amount: n }); break; } // V-19 · virado para baixo recebe dano como criatura · Toca ponto comum: applyEffect damage
+        if (obj && !obj.faceDown && s.facts[obj.name].types.includes('planeswalker')) { obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - n); if (n > 0) marcaDanoNoTurnoM(s, obj); /* M-447 */ causou(n); note({ amount: n }); break; } // V-19 · virado para baixo recebe dano como criatura · Toca ponto comum: applyEffect damage
         if (obj && n > 0) { marcaDanoEmCriatura(s, src, obj, n); noteEnchantedEvent(s, obj, 'recebe-dano'); noteDamaged(s, obj); if (has(s, fonteDoDano(s, src), 'deathtouch')) obj.deathtouched = true; } // CR2a.9 // CR 120.8: dano 0 não é dano
         else danoEmJogador(s, src, playerOf(), n);
         causou(n, obj ? null : playerOf()); // Leva 106 · vínculo com a vida e Armadillo Cloak/Spirit Link também fora do combate
@@ -22929,7 +22933,9 @@ function gatilhosDaPermanente(s, evento, o, ordem, dados = {}, casa = () => true
 const casaDanoA = aJogador => (d, c) => !d.a || d.a === 'qualquer' || (aJogador != null && (d.a === 'jogador' || aJogador !== c));
 const noteEnchantedDealt = (s, host, amount, aJogador = null) => naSombra(s, `causa dano ${host && host.name}`, () => noteEnchantedDealtLegado(s, host, amount, aJogador),
   () => { if (amount > 0) gatilhosDaPermanente(s, 'causa-dano', host, ['anexada', 'self'], { value: amount }, casaDanoA(aJogador)); });
-const noteDamaged = (s, o) => naSombra(s, `recebe dano ${o.name}`, () => noteDamagedLegado(s, o), () => gatilhosDaPermanente(s, 'recebe-dano', o, ['self']));
+/** M-447 · Needle Drop: a permanente que recebeu dano neste turno (só nas partidas que precisam; objeto novo não herda, 400.7: a marca sai na mudança de zona). */
+const marcaDanoNoTurnoM = (s, o) => { if (o && partidaTemSedeK(s)) o.danoNoTurnoM = s.turn.number; };
+const noteDamaged = (s, o) => (marcaDanoNoTurnoM(s, o), naSombra(s, `recebe dano ${o.name}`, () => noteDamagedLegado(s, o), () => gatilhosDaPermanente(s, 'recebe-dano', o, ['self']))); // M-447
 /** `evento`: 'vira' (padrão) ou 'recebe-dano' — o caminho antigo não distinguia; a Aura de "vira ou recebe dano" fala dos dois. */
 const noteEnchantedEvent = (s, host, evento = 'vira') => naSombra(s, `${evento} ${host.name}`, () => noteEnchantedEventLegado(s, host),
   // no dano, os dela e os de "outra" vêm logo depois pelo noteDamaged (a ordem de antes: a Aura, depois ela)
@@ -27511,7 +27517,7 @@ const FICHAS_DO_EQUIPAMENTO_K = {
    instâncias somam). O dano a jogador (danoEmJogador, de combate ou não, com infectar também) carimba o turno no jogador (danoNoTurnoK; Toca
    ponto comum: danoEmJogador). Perder vida sem dano não conta. */
 const TEM_SEDE_K = new WeakMap(); // por fato: tem sede de sangue? (só partidas com a palavra guardam o carimbo: o estado das outras não muda)
-const partidaTemSedeK = s => Object.values(s.facts).some(f => { if (!f || typeof f !== 'object') return false; if (!TEM_SEDE_K.has(f)) TEM_SEDE_K.set(f, (f.kw || []).includes('bloodthirst')); return TEM_SEDE_K.get(f); });
+const partidaTemSedeK = s => Object.values(s.facts).some(f => { if (!f || typeof f !== 'object') return false; if (!TEM_SEDE_K.has(f)) TEM_SEDE_K.set(f, (f.kw || []).includes('bloodthirst') || JSON.stringify(f.script || {}).includes('"targetDanoNoTurno"')); return TEM_SEDE_K.get(f); }); // M-447 · também nas partidas com "any target that was dealt damage this turn" (Needle Drop)
 function danoNoTurnoK(s, p, n) { if (n > 0 && s.players[p] && partidaTemSedeK(s)) s.players[p].danoNoTurnoK = s.turn.number; }
 /* K-62 · 702.98 desencadear: "You may have this permanent enter with an additional +1/+1 counter on it" (pelo caminho do tumulto: entra
    com o marcador e a escolha logo depois pode tirá-lo) e "This permanent can't block as long as it has a +1/+1 counter on it" (qualquer

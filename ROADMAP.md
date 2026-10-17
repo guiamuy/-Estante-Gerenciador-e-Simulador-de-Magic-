@@ -4630,6 +4630,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** a frase "put a +1/+1 counter on target creature" repetida em duas frases (Common Bond, não aprovada) precisa de alvo livre (115.3) antes de ser aprovada.
 - **Teste:** `lt128.unit` (2 testes; falham no motor anterior).
 
+**M-447 · LT113 · Needle Drop: alvo "que levou dano neste turno"** ✅ (leva M-447, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** a **Needle Drop** (Pauper) joga pelo leitor aprovado: "deals 1 damage to any target that was dealt damage this turn" só oferece como alvo o jogador ou a permanente que levou dano neste turno (sem nenhum, a mágica não é conjurável, 601.2c); a restrição é conferida de novo na resolução (608.2b). Texto da Scryfall consultado em 17/10/2026.
+- **Primitiva:** restrição de alvo `targetDanoNoTurno` — jogador pela marca do sede de sangue (K-61); permanente por `danoNoTurnoM`, marcada no dano (inclusive em planeswalker) e apagada na mudança de zona (400.7). Só nasce nas partidas em que algum script usa a restrição.
+- **Revisão independente:** aprovada com ressalva (28 verificações: dano de combate e de efeito, planeswalker, dano todo prevenido não conta, perder vida não conta, infectar e murchar contam, luta, dano dividido, criatura piscada não é alvo, virada de turno, conferência na resolução). Achado baixo corrigido na M-465: o dano do terreno de dor não marcava o jogador (era perda de vida).
+- **Fora (declarado):** nenhum.
+- **Teste:** `lt129.unit` (3 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
