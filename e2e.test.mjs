@@ -3524,7 +3524,7 @@ test('e2e · X11 scanner com foto de carta inclinada: contorno em cima dela, o l
   const pelaCarta = diario.filter(x => x.via === 'carta');
   assert.ok(pelaCarta.length >= 2, 'leu pelo contorno: ' + JSON.stringify(diario.slice(0, 3)));
   assert.ok(Math.min(...pelaCarta.map(x => x.ms)) < 250, 'detector + preparo em menos de 250 ms: ' + pelaCarta.map(x => x.ms));
-  console.log(`# medida · scanner · detector_ms=${Math.min(...pelaCarta.map(x => x.ms))}`);   // R-24 · medida parcial cedo (o trecho do OCR abaixo pode sair antes do fim); a linha completa vem depois e vale a última
+  console.log(`# medida · scanner · detector_ms=${Math.min(...pelaCarta.map(x => x.ms))}`);   // R-24/R-26 · a medida do detector sai cedo (o trecho do OCR abaixo pode sair antes do fim); o X14 imprime a dele e o portão junta as chaves
   // a carta continua no quadro e o laço continua lendo: nenhum canvas novo por leitura
   const antes = await page.evaluate(() => window.__canvases);
   await page.evaluate(() => window.__ocrQueue.push('Counterspell', 'Counterspell', 'Counterspell', 'Counterspell', 'Counterspell'));
@@ -3610,7 +3610,7 @@ test('e2e · X14 resposta imediata: a carta entra na primeira leitura exata pelo
   const n0 = await page.evaluate(() => window.__leiturasDeNome); await page.waitForTimeout(1000);
   const porSegundo = (await page.evaluate(() => window.__leiturasDeNome)) - n0;
   assert.ok(porSegundo >= 1 && porSegundo <= 5, 'leituras por segundo com a carta já aceita: ' + porSegundo);
-  console.log(`# medida · scanner · detector_ms=${Math.min(...pelaCarta.map(x => x.ms))} · confirmacao_ms=${ms} · leituras_s=${porSegundo}`);   // R-24 · o portão recolhe (resumo em .tmp/portao.json) e o Acervo mostra
+  console.log(`# medida · scanner · confirmacao_ms=${ms} · leituras_s=${porSegundo}`);   // R-24/R-26 · o portão recolhe (resumo em .tmp/portao.json) e junta com a linha do X11 (detector_ms); o Acervo mostra
   assert.equal(await contaPilha(page), 1);
   await page.evaluate(() => { window.__ocrQueue.length = 0; });
   // ligar e desligar o automático depressa não deixa dois laços lendo

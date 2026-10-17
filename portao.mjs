@@ -45,11 +45,11 @@ export function resumoDoTap(tap) {
   const quedasOrcamento = [...new Set(caidos.filter((x) => /or[çc]amento/i.test(x)))];
   // o relator TAP do Node escreve o console.log do teste como `# \# auditaTela · nome` (escapa o # do texto): aceitar as duas formas
   const telas = [...new Set([...s.matchAll(/^\s*#\s*(?:\\#\s*)?auditaTela · (.+?)\s*$/gm)].map((m) => m[1]))];
-  // R-24 · linhas `# medida · <nome> · chave=valor · …` (o X11 do scanner imprime a sua): a última de cada nome vale
+  // R-24 · linhas `# medida · <nome> · chave=valor · …` (X11 e X14 do scanner imprimem as suas): as chaves do mesmo nome se juntam, a última de cada chave vale (R-26)
   const medidas = {};
   for (const m of s.matchAll(/^\s*#\s*(?:\\#\s*)?medida · ([a-z_]{2,30})((?: · [a-z_]{2,30}=-?\d+(?:\.\d+)?)+)\s*$/gm)) {
     const v = {}; for (const par of m[2].split(' · ').filter(Boolean)) { const [k, x] = par.split('='); v[k] = Number(x); }
-    medidas[m[1]] = v;
+    medidas[m[1]] = { ...(medidas[m[1]] || {}), ...v };
   }
   return { passaram: n(/^# pass (\d+)/gm), cairam: n(/^# fail (\d+)/gm), quedasOrcamento, telas, medidas };
 }
