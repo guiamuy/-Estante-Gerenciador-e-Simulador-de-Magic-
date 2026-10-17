@@ -9506,6 +9506,23 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   // M-412 · revisão por lote LXVI (limiar, 207.2c, nas mágicas: Rancid Earth e Thermal Blast), texto da Scryfall de 17/10/2026 UTC, revisor independente
   'Rancid Earth': { texto: '1odzwuc', leva: 'M-412' },
   'Thermal Blast': { texto: '2qdxwv', leva: 'M-412' },
+  // M-413 · revisão por lote LXVII (desenterrar 702.84 e harmonizar 702.180, lidos pelo leitor desde esta leva: Scrapwork Mutt e Unending Whisper travavam listas Pauper; a classe lida por inteiro), texto da Scryfall de 17/10/2026 UTC, revisor independente
+  'Archfiend of Sorrows': { texto: '1paedkd', leva: 'M-413' },
+  'Channeled Dragonfire': { texto: 'kmlbg7', leva: 'M-413' },
+  'Combat Courier': { texto: 'on090p', leva: 'M-413' },
+  'Grixis Slavedriver': { texto: 't8ah3x', leva: 'M-413' },
+  'Mammoth Bellow': { texto: 'l8oc43', leva: 'M-413' },
+  "Roamer's Routine": { texto: 'e4jz8j', leva: 'M-413' },
+  'Scourge Devil': { texto: '6601ao', leva: 'M-413' },
+  'Scrapwork Cohort': { texto: 'ere6ii', leva: 'M-413' },
+  'Scrapwork Mutt': { texto: 'qv7mc7', leva: 'M-413' },
+  'Shambling Remains': { texto: '1hxg148', leva: 'M-413' },
+  "Tocasia's Onulet": { texto: 'jiwsjh', leva: 'M-413' },
+  'Undead Leotau': { texto: 'hbsbt9', leva: 'M-413' },
+  'Unending Whisper': { texto: '1pdqcs5', leva: 'M-413' },
+  "Ureni's Rebuff": { texto: '1w2t2pn', leva: 'M-413' },
+  'Viscera Dragger': { texto: '17u48p8', leva: 'M-413' },
+  'Vithian Stinger': { texto: 'rusnzw', leva: 'M-413' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -17934,6 +17951,7 @@ const __m42 = (function () {
     [/^if you have no land cards in hand, you may reveal your hand rather than pay this spell's mana cost$/i, () => ({ alt: [{ label: 'Revelar a mão (sem terrenos) em vez de pagar o custo', cost: { free: true, revealHand: true }, when: { semTerrenoNaMao: true } }] })], // M-351 · Land Grant (118.9)
     [/^if you control an? (Plains|Island|Swamp|Mountain|Forest), you may tap an untapped creature you control rather than pay this spell's mana cost$/i, m => ({ alt: [{ label: `Virar uma criatura sua desvirada em vez de pagar o custo (você controla ${{ Plains: 'uma Planície', Island: 'uma Ilha', Swamp: 'um Pântano', Mountain: 'uma Montanha', Forest: 'uma Floresta' }[m[1]]})`, cost: { tapOther: { types: ['creature'], amount: 1 } }, when: { youControlSubtype: m[1] } }] })], // M-351 · Ramosian Rally (118.9) · Big Score, Sazacap's Brew (601.2b)
     [/^madness (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ madness: { mana: m[1] } })],
+    [/^unearth (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ unearth: { mana: m[1] } })], // M-413 · 702.84a (o motor desenterra desde a M-257)
     [/^cycling (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ cycling: { mana: m[1] } })],
     [/^if you control an? (Plains|Island|Swamp|Mountain|Forest), you may pay (\d+) life rather than pay this spell's mana cost$/i, m => ({ alt: [{ label: `Pagar ${m[2]} de vida em vez do custo (você controla ${{ Plains: 'uma Planície', Island: 'uma Ilha', Swamp: 'um Pântano', Mountain: 'uma Montanha', Forest: 'uma Floresta' }[m[1]]})`, cost: { life: +m[2] }, when: { youControlSubtype: m[1] } }] })], // M-328 · 118.9 (Snuff Out)
     [/^you may sacrifice two (Plains|Islands|Swamps|Mountains|Forests) rather than pay this spell's mana cost$/i, m => { const sub = m[1].replace(/s$/, ''); return { alt: [{ label: `Sacrificar duas ${{ Plain: 'Planícies', Island: 'Ilhas', Swamp: 'Pântanos', Mountain: 'Montanhas', Forest: 'Florestas' }[sub]} em vez do custo`, cost: { sacrificeOther: { types: ['land'], subtype: sub, amount: 2 } } }] }; }], // M-328 · 118.9 (Fireblast)
@@ -18217,6 +18235,7 @@ const __m42 = (function () {
       if (linhaDePalavras(linha)) { frases.push({ texto: linha, lida: true, palavras: true }); continue; }
       if (magica && /^teamwork \d+$/i.test(linha.replace(/\.$/, ''))) { frases.push({ texto: linha, lida: true, palavras: true }); continue; } // M-379 · 702.194 (K-70): o N vem do texto da carta (fatos.equipeK)
       if (!magica && /^ward \{\d+\}$/i.test(linha.replace(/\.$/, ''))) { frases.push({ texto: linha, lida: true, palavras: true }); continue; } // M-333 · 702.21: o motor lê "Ward {N}" impresso da carta (K-2)
+      if (magica && /^harmonize (?:\{[0-9WUBRGC]+\})+$/i.test(linha.replace(/\.$/, ''))) { frases.push({ texto: linha, lida: true, palavras: true }); continue; } // M-413 · 702.180: o motor lê "Harmonize {custo}" impresso da carta (K-55, harmonizarK)
       { const rf = linha.replace(/\.$/, '').match(/^reinforce (\d+)\s*[—-]\s*(\{[^}]+\}(?:\{[^}]+\})*)$/i); // M-410 · 702.77a: "[custo], descarte esta carta: ponha N marcadores +1/+1 na criatura alvo" — ativada que funciona da mão (113.6), a qualquer momento com prioridade
         if (rf) { (topo.abilities = topo.abilities || []).push({ kind: 'activated', label: `Reforçar ${rf[1]}`, cost: { mana: rf[2], discardSelf: true, fromHand: true }, effects: [{ do: 'counters', amount: +rf[1], target: 'creature' }] }); frases.push({ texto: linha, lida: true }); continue; } }
       { const sv = linha.replace(/\.$/, '').match(/^scavenge (\{[^}]+\}(?:\{[^}]+\})*)$/i), pw = card && /^\d+$/.test(String(card.power)) ? +card.power : null; // M-410 · 702.97a: "[custo], exile esta carta do seu cemitério: ponha marcadores +1/+1 iguais ao poder da carta na criatura alvo; só como feitiço" — no cemitério vale o poder impresso (sem poder numérico, não lê)
@@ -21769,7 +21788,7 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'resistencia_jogador': { s.players[ctrl].tempHexproof = true; note({ target: s.players[ctrl].name }); break; } // M-260
     case 'desenterrar': { // M-257 · volta ao campo com ímpeto; exilada no próximo passo final; se fosse sair do campo, exilada no lugar
       const carta = s.objects[src.ability ? src.source : src.oid];
-      if (!carta || carta.zone !== 'graveyard') { note({ failed: true }); break; }
+      if (!carta || carta.zone !== 'graveyard' || (src.fonteZc != null && (carta.zc || 0) !== src.fonteZc)) { note({ failed: true }); break; } // M-413 · achado da revisão (400.7): se ela saiu do cemitério e voltou em resposta, a habilidade não a devolve
       moveObject(s, carta.oid, 'battlefield', { controller: ctrl }); carta.controller = ctrl; carta.desenterrada = true;
       aplicaTemporario(s, carta, { palavras: ['haste'], ate: { enquanto: 'controlar-fonte' } }, ctrl, carta);
       (s.atrasados = s.atrasados || []).push({ when: 'next-end-step', turno: s.turn.number, controller: ctrl, jogador: ctrl, objeto: { oid: carta.oid, z: carta.zc || 0 },
@@ -22857,7 +22876,7 @@ function makeAbility(s, source, ab, targets, blockedAt = source.blocking) {
   s.objects[oid] = { oid, ability: true, name: source.name, source: source.oid, effects: ab.effects, owner: source.controller,
     controller: source.controller, zone: 'stack', tapped: false, sick: false, damage: 0, counters: {}, targets: carimbaAlvos(s, targets),
     ...(blockedAt ? { blockedAt } : {}) }; // Q11 · Tinder Wall: quem ela bloqueava, mesmo depois de sacrificada (última informação conhecida)
-  { const f = s.objects[source.oid]; if (f && !f.ability && (ab.effects || []).some(e => e && (e.ate === 'fonte-sair' || (['topo_do_dono', 'exila_da_mao', 'revela_topo_transforma', 'exile_return_transformed', 'craft_volta', 'endure', 'escolhe_nome', 'recomeca_jogo', 'marca_exiladas', 'exila_da_propria_mao' /* T-95 · 607.2a: a encarnação da fonte (Toca ponto comum: makeAbility) */].includes(e.do) || e.remember || e.lembra || e.target === 'self-source')))) s.objects[oid].fonteZc = f.zc || 0; } // M-371 · também todo efeito em "esta permanente" (400.7) // M-353 · a habilidade lembra a encarnação da fonte (achado da revisão do lote XXV) // M-345 · também "put ~ on top" (achado da revisão) // CR2d.1 · 610.3a (auditoria M-308: também na ativada): se a fonte já saiu quando o efeito resolve, nada se move
+  { const f = s.objects[source.oid]; if (f && !f.ability && (ab.effects || []).some(e => e && (e.ate === 'fonte-sair' || (['topo_do_dono', 'exila_da_mao', 'revela_topo_transforma', 'exile_return_transformed', 'craft_volta', 'endure', 'escolhe_nome', 'recomeca_jogo', 'marca_exiladas', 'exila_da_propria_mao', 'desenterrar' /* M-413 · 400.7: a carta que saiu do cemitério e voltou é outra */ /* T-95 · 607.2a: a encarnação da fonte (Toca ponto comum: makeAbility) */].includes(e.do) || e.remember || e.lembra || e.target === 'self-source')))) s.objects[oid].fonteZc = f.zc || 0; } // M-371 · também todo efeito em "esta permanente" (400.7) // M-353 · a habilidade lembra a encarnação da fonte (achado da revisão do lote XXV) // M-345 · também "put ~ on top" (achado da revisão) // CR2d.1 · 610.3a (auditoria M-308: também na ativada): se a fonte já saiu quando o efeito resolve, nada se move
   s.stack.push(oid);
   if (!ab.semCrimeT) crimeT(s, source.controller, s.objects[oid].targets); // T-86 · CR 700.13 · a habilidade ativada ou o gatilho posto na pilha que mira o oponente (Toca ponto comum: makeAbility, uma linha)
   return oid;
