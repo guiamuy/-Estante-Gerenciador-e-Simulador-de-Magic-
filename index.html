@@ -5721,7 +5721,6 @@ const ALVO_SELETOR = {
   'creature-enchantment-you-control': { tipos: ['creature', 'enchantment'], de: 'you', tiposImpressos: true },
   'permanent-you-control': { de: 'you' }, 'creature-or-planeswalker-you-control': { tipos: ['creature', 'planeswalker'], de: 'you' },
   'permanent-you-own': { dono: 'you' },
-  'artifact-or-creature': { tipos: ['artifact', 'creature'] }, // T-113 · "Enchant artifact or creature" (Toca ponto comum: ALVO_SELETOR)
   'creature-card-in-graveyard': { zona: 'graveyard', tipos: ['creature'] }, 'card-in-any-graveyard': { zona: 'graveyard' },
   'creature-land-in-any-graveyard': { zona: 'graveyard', tipos: ['creature', 'land'] },
   'card-in-your-graveyard': { zona: 'graveyard', de: 'you' }, 'creature-in-your-graveyard': { zona: 'graveyard', de: 'you', tipos: ['creature'] },
@@ -6075,7 +6074,7 @@ function descreveGatilho(w, como = {}) { // M-401 · como.equipada: "a criatura 
 }
 /** S11 · o que uma aura ou equipamento pode conceder. `per` conta permanentes
     e multiplica o bônus (Ancestral Mask, Ethereal Armor). */
-const ATTACH_KINDS = ['creature', 'permanent', 'land', 'creature-you-control', 'creature-or-planeswalker-you-control', 'creature-card-in-graveyard', 'player' /* T-94 · CR 303.4b · "Enchant player" (Maldições) (Toca ponto comum: ATTACH_KINDS) */, 'artifact-or-creature' /* T-113 · "Enchant artifact or creature" (Careful Cultivation) (Toca ponto comum: ATTACH_KINDS) */]; // CR2d.4 · "Enchant creature card in a graveyard" // Q11 · Setessan Training
+const ATTACH_KINDS = ['creature', 'permanent', 'land', 'creature-you-control', 'creature-or-planeswalker-you-control', 'creature-card-in-graveyard', 'player' /* T-94 · CR 303.4b · "Enchant player" (Maldições) (Toca ponto comum: ATTACH_KINDS) */, 'artifact-creature' /* T-113 · "Enchant artifact or creature" (Careful Cultivation): o mesmo nome de alvo de Resculpt (T-124) (Toca ponto comum: ATTACH_KINDS) */]; // CR2d.4 · "Enchant creature card in a graveyard" // Q11 · Setessan Training
 const PER_COUNTS = ['mesmo-nome-nos-cemiterios', 'attacking-creatures' /* M-423 · Rite of Flame ("each card named ~ in each graveyard") e Respite ("each attacking creature") */, 'enchantments-you-control', 'other-enchantments', 'auras-on-battlefield',
   'creatures-you-control', 'other-creatures-you-control', 'elves-you-control', 'elves-on-battlefield', 'defenders-you-control', 'permanents-you-control', 'nonland-permanents-you-control', 'life-gained-this-turn', 'life-lost-this-turn',
   'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G', 'counters-on-source', 'opponents-empty-hand', 'trigger-value', 'chosen-type-permanents', 'sacrificed-toughness', 'sacrificed-mv', 'sacrificed-power', 'dano-causado' /* M-427 · "the damage dealt this way" */, 'descartadas-assim' /* M-434 · "draw that many cards" depois de descartar a mão */, 'creature-cards-in-your-graveyard', 'cards-in-hand', 'x', 'power-of-source', 'se', 'power-of-target',
@@ -6849,7 +6848,7 @@ const RAW_SCRIPTS = [
   { name: 'Howl of the Hunt', aura: { enchant: 'creature' }, grants: { power: 2, toughness: 2, keywords: ['vigilance'] }, abilities: [{ kind: 'triggered', when: 'etb', condition: { encantadaSubtipo: ['Wolf', 'Werewolf'] }, effects: [{ do: 'untap', target: 'enchanted' }] }], // "Flash · Enchant creature · When Howl of the Hunt enters, if enchanted creature is a Wolf or Werewolf, untap that creature. · Enchanted creature gets +2/+2 and has vigilance."
     example: { action: 'aura', target: 'own-creature', expect: { stats: [4, 4] } } },
   // T-113 · CR 303.4 / 611.3a / 702.141 (Scryfall, consulta de 17/10/2026; texto literal do Forge de 12/10/2026)
-  { name: 'Careful Cultivation', aura: { enchant: 'artifact-or-creature' }, grants: { seCriaturaT: true, power: 1, toughness: 3, keywords: ['reach'], produces: [['G', 'G']] }, // "Enchant artifact or creature · As long as enchanted permanent is a creature, it gets +1/+3 and has reach and '{T}: Add {G}{G}.'"
+  { name: 'Careful Cultivation', aura: { enchant: 'artifact-creature' }, grants: { seCriaturaT: true, power: 1, toughness: 3, keywords: ['reach'], produces: [['G', 'G']] }, // "Enchant artifact or creature · As long as enchanted permanent is a creature, it gets +1/+3 and has reach and '{T}: Add {G}{G}.'"
     abilities: [{ kind: 'activated', cost: { mana: '{1}{G}', discardSelf: true, fromHand: true }, label: 'Canal', effects: [{ do: 'token', amount: 1, token: { name: 'Human Monk', types: ['creature'], subtypes: ['Human', 'Monk'], power: 1, toughness: 1, colors: ['G'], produces: [['G']] } }] }], // "Channel — {1}{G}, Discard Careful Cultivation: Create a 1/1 green Human Monk creature token with '{T}: Add {G}.'"
     example: { action: 'aura', target: 'own-creature', expect: { stats: [3, 5] } } },
   // T-112 · CR 303.4 · Auras com gatilho de manutenção (Oracle pelo mtg.wtf, consulta de 17/10/2026)
@@ -23997,7 +23996,7 @@ function auraTarget(f, bestowed) {
 function auraPodeEncantar(s, au, host) {
   const k = String(au.enchant || 'creature'), f = s.facts[host.name];
   if (k === 'creature-or-planeswalker-you-control') return isCreature(s, host) || f.types.includes('planeswalker');
-  if (k === 'artifact-or-creature') return isCreature(s, host) || tiposDe(s, host).includes('artifact'); // T-113 · 303.4c (Toca ponto comum: auraPodeEncantar)
+  if (k === 'artifact-creature') return isCreature(s, host) || tiposDe(s, host).includes('artifact'); // T-113 · 303.4c (Toca ponto comum: auraPodeEncantar)
   if (k === 'creature-card-in-graveyard') return host.zone === 'graveyard' ? f.types.includes('creature') : isCreature(s, host); // CR2d.4 · depois de devolver: "enchant creature put onto the battlefield with this Aura"
   if (k.startsWith('creature')) return isCreature(s, host); if (k === 'land') return f.types.includes('land') && (!au.subtype || new RegExp('\\b' + au.subtype + '\\b', 'i').test(f.typeText || ''));
   return true;

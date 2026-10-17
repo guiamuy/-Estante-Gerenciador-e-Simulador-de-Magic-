@@ -16,7 +16,7 @@ const carta = (name, type_line, extra = {}) => { C[name] = { name, type_line, ma
 carta('Urso', 'Creature — Bear', { power: '2', toughness: '2' }); carta('Cofre', 'Artifact'); carta('Encanto', 'Enchantment'); carta('Aura Teste', 'Enchantment — Aura');
 const EX = { example: { target: 'none', expect: { selfLife: 0 } } };
 const SCRIPTS = {
-  'Aura Teste': { name: 'Aura Teste', aura: { enchant: 'artifact-or-creature' }, grants: { seCriaturaT: true, activated: [{ cost: { mana: '{1}' }, effects: [{ do: 'gain', amount: 1 }] }] }, example: { action: 'aura', target: 'own-creature', expect: { stats: [2, 2] } } },
+  'Aura Teste': { name: 'Aura Teste', aura: { enchant: 'artifact-creature' }, grants: { seCriaturaT: true, activated: [{ cost: { mana: '{1}' }, effects: [{ do: 'gain', amount: 1 }] }] }, example: { action: 'aura', target: 'own-creature', expect: { stats: [2, 2] } } },
   'Cofre': { name: 'Cofre', abilities: [{ kind: 'activated', cost: { mana: '{1}' }, effects: [{ do: 'animate', target: 'self-source', becomes: { types: ['artifact', 'creature'], base: [2, 2], addTypes: true } }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
 };
 function mesa(seed = 1) {
