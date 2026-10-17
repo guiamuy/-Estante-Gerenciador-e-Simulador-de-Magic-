@@ -10536,6 +10536,10 @@ regras** (`database.rules.json`) no console; até lá a tela diz "Nomes de usuá
   avisa sem fechar, reservar mostra @gui, trocar solta o antigo, reabrir traz o nome).
 - **Fora:** o nome ainda não aparece na sala online nem na mesa; "Apagar também da nuvem" não solta o nome (vai com
   "excluir a conta", T6f-5).
+- **Instável corrigido (leva G-271, 17/10/2026):** o e2e "G-266" caiu no portão inteiro da R-23 (`boundingBox` nulo no
+  botão Escolher) e passou sozinho: a tela da conta repinta inteira quando outra leitura assíncrona chega, e entre o
+  `data-estado="sem"` e a medida o botão podia ter sido trocado por outro nó. Espera explícita pelo botão com a caixa de
+  44 px (`waitForFunction`); nenhuma asserção afrouxada.
 
 **T6f-4 · Ligar o Google a uma conta de e-mail** ✅ (leva G-267, trilha `geral`, 13/10/2026)
 - **Como:** `vincularGoogle` na sessão (`src/data/conta.js`): o mesmo `accounts:signInWithIdp` da entrada com Google, mas

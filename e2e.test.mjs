@@ -5630,7 +5630,9 @@ test('e2e · G-266 nome de usuário: formato conferido a cada letra, nome em uso
   await page.fill('#conta-email-campo', 'gui@exemplo.com'); await page.fill('#conta-senha', 'senha-certa-1'); await page.click('#conta-email-confirmar');
   // 1 · conectada: a linha do nome aparece, sem nome ainda, com Escolher (44 px)
   await page.waitForSelector('#conta-usuario[data-estado="sem"]');
-  assert.ok((await page.locator('#conta-usuario-escolher').boundingBox()).height >= 44);
+  // G-271 · a tela da conta repinta inteira (paint) quando outra leitura assíncrona chega; entre o data-estado e o boundingBox o botão podia
+  // ter sido trocado por outro nó (boundingBox null → instável no portão inteiro, R-23). Espera explícita pelo botão com a caixa de 44 px.
+  await page.waitForFunction(() => { const b = document.querySelector('#conta-usuario-escolher'); return !!b && b.getBoundingClientRect().height >= 44; });
   await page.click('#conta-usuario-escolher'); await page.waitForSelector('#conta-usuario-campo');
   // 2 · a cada letra: formato conferido e o botão só liga com nome bom
   assert.equal(await page.isDisabled('#conta-usuario-confirmar'), true);
