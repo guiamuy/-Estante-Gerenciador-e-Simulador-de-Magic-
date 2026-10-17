@@ -5371,6 +5371,7 @@ const EFFECTS = {
   sem_alvo_de_oponentes: { fields: [], targets: ['creature', 'creature-you-control', 'first-target'] }, // M-375 · "Target creature can't be the target of spells or abilities your opponents control this turn" (Vines of Vastwood)
   resistencia_cor: { fields: [], targets: ['creature', 'creature-you-control', 'other-creature-you-control', 'first-target'] },
   imbloqueavel_cor: { fields: [], targets: ['creature', 'creature-you-control', 'other-creature-you-control', 'first-target'] },
+  ataca_com_defensor: { fields: [], targets: ['self-source'] }, // M-458 · "can attack this turn as though it didn't have defender" (Nivix Cyclops, 702.3b)
   imbloqueavel: { fields: [], targets: ['creature', 'creature-you-control', 'first-target', 'self-source'] }, // M-336 · "Target creature can't be blocked this turn" (Rogue's Passage)
   // S43 · proteção contra a cor da sua escolha, até o fim do turno
   protection: { fields: [], targets: ['creature-you-control', 'other-creature-you-control', 'creature-enchantment-you-control'] },
@@ -9727,6 +9728,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Duskwatch Hunter': { texto: '1x5z34n', leva: 'M-456' },
   // M-457 · revisão por lote CIV ("activate only during your upkeep": Llanowar Augur), texto da Scryfall de 17/10/2026 UTC, revisor independente
   'Llanowar Augur': { texto: 'y1x134', leva: 'M-457' },
+  // M-458 · revisão por lote CV ("can attack this turn as though it didn't have defender": Nivix Cyclops), texto da Scryfall de 17/10/2026 UTC, revisor independente
+  'Nivix Cyclops': { texto: '1t8ohv1', leva: 'M-458' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18146,6 +18149,7 @@ const __m42 = (function () {
     [new RegExp(`^you lose ${N} life$`, 'i'), m => [{ do: 'lose', amount: num(m[1]) }]], // M-335 · Thoughtseize (sem alvo: quem controla perde, como nos scripts à mão)
     [/^exile up to one other target creature$/i, () => [{ do: 'exile', target: { tipos: ['creature'], outra: true }, upTo: true }]], // M-338 · Solitude
     [/^that creature's controller gains life equal to its power$/i, () => [{ do: 'gain', amount: { per: 'power-of-target' }, target: 'target-controller' }]], // M-338 · Solitude (608.2h)
+    [/^~ gets ([+-]\d+)\/([+-]\d+) until end of turn and can attack this turn as though it didn't have defender$/i, m => [{ do: 'continuo', target: 'self-source', poder: SINAL(m[1]), resistencia: SINAL(m[2]) }, { do: 'ataca_com_defensor', target: 'self-source' }]], // M-458 · Nivix Cyclops
     [/^~ gets ([+-]\d+)\/([+-]\d+) until end of turn$/i, m => [{ do: 'continuo', target: 'self-source', poder: SINAL(m[1]), resistencia: SINAL(m[2]) }]], // M-340 · Fallen Angel, Hollow Dogs (613.4c, até a limpeza)
     [/^regenerate ~$/i, () => [{ do: 'regenerar', target: 'self-source' }]], // M-340 · 701.19 (Sanguine Guard, Dutiful Thrull)
     [/^you may shuffle$/i, () => [{ do: 'embaralhar_grimorio', optional: true }]], // M-339 · Ponder (701.24)
@@ -19499,6 +19503,7 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
   }
   o.tapped = false; o.damage = 0; o.counters = {}; o.controller = to === 'battlefield' && controller != null ? controller : o.owner; delete o.controles; delete o.controladorBase; // CR2d.6 · 400.7 · CR2b.5 · 603.3a: entra já sob quem a pôs no campo
   delete o.exilaSeMorrerNoTurno; // M-384 · 400.7
+  delete o.atacaComDefensorM; // M-458 · 400.7
   delete o.tempToxico; delete o.tempResguardoCor; delete o.tempSemAlvoDe; delete o.tempNaoBloqueadaPor; delete o.tempImbloqueavel; delete o.tempImbloqueavelExceto; delete o.tempHabilidades; delete o.permissaoUsada; if (fromZone !== to) delete o.desenterrada; // M-255/M-256/M-257 · 400.7
   delete o.attacking; delete o.atacandoPw; delete o.exigeAtacarPw; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.pumpNext; delete o.goaded; delete o.keywordsNext; delete o.cantAttackNext; delete o.targets; delete o.attachedTo; delete o.tempKeywords; delete o.tempTs; delete o.anexadaEm; delete o.anexadaZ; delete o.mutavel; delete o.vira; delete o.prevenirDano; delete o.regenerar; delete o.temporarios; delete o.tempProtection; delete o.paired; // S39 · o vínculo de alma se desfaz ao sair do campo
   if (fromZone !== 'stack') { delete o.chosenColor; delete o.chosenType; delete o.damagePrevented; delete o.preventGainTo; delete o.devolvidas; } // CR2a.9 · 400.7 / 608.2n: a marca da resolução fica onde a carta caiu; ao sair de lá, o objeto é novo
@@ -20703,7 +20708,7 @@ function eligibleAttackers(s, p) {
     !o.cantAttackNext && // S61 · Cavernas Retorcidas: não pode atacar até o próximo turno de quem lançou
     !anexoProibe(s, o, 'naoAtaca') && // M-336 · Pacifism
     !naoAtacaPeloMonarcaT(s, o) && // T-70 · CR 725.5 · "can't attack unless defending player is the monarch" (Toca ponto comum: eligibleAttackers)
-    (!enjoado(s, o) || has(s, o, 'haste')) && !has(s, o, 'defender')).map(o => o.oid);
+    (!enjoado(s, o) || has(s, o, 'haste')) && (!has(s, o, 'defender') || o.atacaComDefensorM === s.turn.number /* M-458 · 702.3b */)).map(o => o.oid);
 }
 function eligibleBlockers(s, p) {
   return battlefield(s).filter(o => o.controller === p && !ehBatalhaT(s, o) && isCreature(s, o) && !o.tapped && !naoBloqueia(s, o) && !suspeitaNaoBloqueia(s, o)).map(o => o.oid); // V-12 · 701.60c
@@ -22263,6 +22268,9 @@ function applyEffectM449(s, src, eff, tgt, events) {
       if (obj) { obj.damagePrevented = true; obj.preventGainTo = ctrl; note({}); }
       break;
     }
+    case 'ataca_com_defensor': { // M-458 · 702.3b: neste turno, o defensor não a impede de atacar (marca do turno; objeto novo não herda, 400.7)
+      const alvo = s.objects[src.ability ? src.source : src.oid]; if (!alvo || alvo.zone !== 'battlefield') { note({ failed: true }); break; }
+      alvo.atacaComDefensorM = s.turn.number; note({ target: alvo.name }); break; }
     case 'imbloqueavel': { // M-336 · até o fim do turno (514.2)
       const alvo = eff.target === 'self-source' ? s.objects[src.ability ? src.source : src.oid] : obj;
       if (!alvo || alvo.zone !== 'battlefield') { note({ failed: true }); break; }
@@ -32575,6 +32583,7 @@ function effectLine(ev) {
     case 'combate_extra': return ev.failed ? `${ev.name}: fora da fase principal, sem combate adicional` : `${ev.name}: depois desta fase principal vem um combate adicional e outra fase principal`; // CR2g.4
     case 'desvira_atacantes': return `${ev.name} desvirou ${n} criatura(s) que atacaram neste turno`;
     case 'animate': return `${t} virou criatura até o fim do turno`; // CR2d.2
+    case 'ataca_com_defensor': return ev.failed ? `${ev.name}: a criatura não estava mais no campo` : `${ev.target || ev.name} pode atacar neste turno mesmo com defensor`; // M-458
     case 'imbloqueavel': return ev.failed ? `${ev.name}: a criatura não estava mais no campo` : `${ev.target || ev.name} não pode ser bloqueada neste turno${ev.exceto ? ', exceto por criaturas com ' + ({ haste: 'ímpeto', defender: 'defensor', flying: 'voar' }[ev.exceto] || ev.exceto) : ''}`; // M-370 (achado da revisão: o registro só dizia "resolveu")
     case 'volta_ao_acaso': return ev.amount ? `${ev.name}: ${ev.target} voltou do cemitério para a mão (ao acaso)` : `${ev.name}: nenhuma carta para voltar`; // M-369
     case 'craft_volta': return ev.failed ? `${ev.name}: a carta não estava mais no exílio` : `${ev.name} voltou do exílio transformada`; // M-356 · 702.167a
@@ -33793,6 +33802,7 @@ function descreveEfeito(e) {
     case 'protection': return `${alvo || 'a criatura'} ganha proteção contra uma cor`;
     case 'sem_alvo_de_oponentes': return `${alvo || 'a criatura'} não pode ser alvo de mágicas nem de habilidades dos oponentes de quem a conjurou neste turno`; // M-375
     case 'resistencia_cor': return `${alvo || 'a criatura'} ganha resistência a magia da cor escolhida até o fim do turno`; // M-255
+    case 'ataca_com_defensor': return 'pode atacar neste turno mesmo com defensor'; // M-458
     case 'imbloqueavel': return `${alvo || 'a criatura'} não pode ser ${/^o /.test(alvo || '') ? 'bloqueado' : 'bloqueada'} neste turno${e.exceto ? ', exceto por criaturas com ' + (PALAVRA_PT[e.exceto] || e.exceto) : ''}`; // M-336 · M-370
     case 'imbloqueavel_cor': return `${alvo || 'a criatura'} não pode ser ${/^o /.test(alvo || '') ? 'bloqueado' : 'bloqueada'} por criaturas da cor escolhida neste turno`;
     case 'transform': return 'transforma';
