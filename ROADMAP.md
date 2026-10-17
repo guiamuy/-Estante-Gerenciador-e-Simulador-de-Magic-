@@ -4665,6 +4665,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** sunburst com convocar ou improvisar não foi conferido (nenhuma carta do Pauper atual junta os dois); o pagamento automático não escolhe as fontes para maximizar as cores.
 - **Teste:** `lt133.unit` (3 testes; falham no motor anterior).
 
+**M-452 · LT118 · Zealous Display: "If it's not your turn, untap those creatures"** ✅ (leva M-452, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** o **Zealous Display** (pedido da trilha `listas`) joga pelo leitor aprovado: as suas criaturas ganham +2/+0 e, se não for o seu turno, desviram — conferido na resolução. Texto da Scryfall consultado em 17/10/2026.
+- **Primitiva:** condição `nao-seu-turno` (onlyIf, na resolução); "desvirar" aceita "cada criatura sua".
+- **Revisão independente:** aprovada (8 verificações: no seu turno não desvira; no do oponente desvira só as suas criaturas, inclusive terreno animado; ficha que entra depois não ganha o bônus, 611.2c).
+- **Fora (declarado):** nenhum.
+- **Teste:** `lt134.unit` (3 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
