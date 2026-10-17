@@ -4762,6 +4762,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** o dano do terreno de dor ainda não dispara vínculo com a vida nem gatilhos de dano da fonte (terreno não tem essas habilidades no Pauper atual); prevenção de dano não se aplica a ele (como antes).
 - **Teste:** `lt147.unit` (4 testes; falham no motor anterior).
 
+**M-466 · LT132 · Heaped Harvest: "When this artifact enters and when you sacrifice it"** ✅ (leva M-466, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** o **Heaped Harvest** (pedido da trilha `listas`) joga pelo leitor aprovado: ao entrar e ao ser sacrificado (pela própria habilidade de comida ou por outro efeito), você pode buscar um terreno básico e pô-lo virado; sacrificar outra permanente não o dispara. Texto da Scryfall consultado em 17/10/2026.
+- **Primitiva:** gatilho `sacrifica` com objeto `self` (603.10a: olha para trás; o "você" é quem sacrificou), fora do caminho de sombra dos gatilhos; os observadores de "sacrifica outra" não o confundem. Carrot Cake passou a ser lida, sem aprovação.
+- **Revisão independente:** aprovada (11 sondas): dispara ao entrar e ao ser sacrificado pela própria comida, como custo de outra permanente e por édito do oponente; não dispara ao ser destruído nem pelo sacrifício de outro Harvest; "may" recusável; sacrificado em resposta ao próprio gatilho dá duas buscas.
+- **Fora (declarado):** nenhum.
+- **Teste:** `lt148.unit` (3 testes; falham no motor anterior). Expectativa antiga mudada com justificativa: o teste M-233 do `gatilho.equivalencia.unit` exigia que `sacrifica` com objeto `self` fosse recusado; agora vale (o portão do clone pegou).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

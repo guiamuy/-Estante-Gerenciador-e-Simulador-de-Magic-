@@ -5965,7 +5965,7 @@ const EVENTOS_DE_LOTE = ['causam-dano', 'saem-do-cemiterio', 'descartam' /* M-46
 /** De quem o gatilho observa o evento, por evento (o primeiro é o padrão). */
 const OBJETOS_DO_EVENTO = { zona: ['self', 'outra', 'anexada'], conjurar: ['self', 'outra'], ataca: ['self', 'outra', 'anexada'] /* M-401 · Greatsword of Tyr */, bloqueia: ['self', 'outra'],
   'dano-combate': ['self', 'outra'], marcadores: ['self', 'outra'], 'recebe-dano': ['self', 'anexada'], 'causa-dano': ['self', 'anexada'],
-  vira: ['self', 'anexada'], sacrifica: ['outra'], bloqueada: ['self', 'outra'], 'nao-bloqueada': ['self', 'outra'] }; // CR2g.5
+  vira: ['self', 'anexada'], sacrifica: ['outra', 'self' /* M-466 · "when you sacrifice it" (Heaped Harvest) */], bloqueada: ['self', 'outra'], 'nao-bloqueada': ['self', 'outra'] }; // CR2g.5
 const GATILHO_EVENTO = {
   upkeep: { evento: 'passo', passo: 'upkeep', turno: 'seu' },
   'each-upkeep': { evento: 'passo', passo: 'upkeep', turno: 'qualquer' },
@@ -9745,6 +9745,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Apostle\'s Blessing': { texto: 'gvwvw9', leva: 'M-463' },
   // M-464 · revisão por lote CXI (mana pelo sacrificado: Soldevi Adnate), texto da Scryfall de 17/10/2026 UTC, revisor independente
   'Soldevi Adnate': { texto: '1zcvkj', leva: 'M-464' },
+  // M-466 · revisão por lote CXII ("when you sacrifice it": Heaped Harvest), texto da Scryfall de 17/10/2026 UTC, revisor independente
+  'Heaped Harvest': { texto: '1cff6qo', leva: 'M-466' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18262,6 +18264,7 @@ const __m42 = (function () {
     [/^whenever another creature you control enters(?: the battlefield)?$/i, 'other-etb', () => ({ filter: { types: ['creature'] } })], // M-324
     [/^whenever you cycle another card$/i, 'other-cycled'], // M-436 · Drannith Healer, Drannith Stinger
     [/^whenever one or more cards leave your graveyard$/i, { evento: 'saem-do-cemiterio', quem: 'voce' }],
+    [/^when you sacrifice ~$/i, { evento: 'sacrifica', objeto: 'self' }], // M-466 · Heaped Harvest (603.10a: olha para trás)
     [/^whenever you discard one or more cards$/i, { evento: 'descartam', quem: 'voce' }], // M-462 · Magmakin Artillerist (uma vez por evento; o valor é quantas)
     [/^when you cycle (?:this card|~)$/i, 'cycled'], // M-462 · 702.29c (o gatilho da K-16) // M-449 · Spirit Mascot (603.10a: olha para trás; uma vez por evento)
     [/^whenever a creature you control enters(?: the battlefield)?$/i, 'other-etb', () => ({ filter: { types: ['creature'] }, soNaoCriatura: true })], // M-435 · Impact Tremors: numa fonte que não é criatura, "a creature you control" é "outra"; numa criatura (ela mesma também dispara) fica sem leitura
@@ -18617,6 +18620,8 @@ const __m42 = (function () {
         if (om) { const g1 = leGatilho(`Whenever another creature you control dies, ${om[2]}`, nome, frases), g2 = leGatilho(`When ~ dies, ${om[2]}`, nome, []); if (g1 && g2) { if (om[1]) g1.filter = { anyTypes: ['creature', 'planeswalker'] }; (topo.abilities = topo.abilities || []).push(g1, g2); } continue; }
         const ea = lp.match(/^whenever (?:~|this creature) enters or attacks, (.+)$/i); // M-378 · Inferno Titan: dois gatilhos com o mesmo efeito
         if (ea) { const g1 = leGatilho(`When ~ enters, ${ea[1]}`, nome, frases), g2 = leGatilho(`Whenever ~ attacks, ${ea[1]}`, nome, []); if (g1 && g2) (topo.abilities = topo.abilities || []).push(g1, g2); continue; }
+        const es = lp.match(/^when (?:~|this artifact|this creature|this permanent) enters and when you sacrifice it, (.+)$/i); // M-466 · Heaped Harvest: dois gatilhos com o mesmo efeito
+        if (es) { const g1 = leGatilho(`When ~ enters, ${es[1]}`, nome, frases), g2 = leGatilho(`When you sacrifice ~, ${es[1]}`, nome, []); if (g1 && g2) (topo.abilities = topo.abilities || []).push(g1, g2); continue; }
         const el2 = lp.match(/^when (?:~|this artifact|this creature|this permanent) enters or leaves the battlefield, (.+)$/i); // M-349 · Cryogen Relic: dois gatilhos
         if (el2) { const g1 = leGatilho(`When ~ enters, ${el2[1]}`, nome, frases), g2 = leGatilho(`When ~ leaves the battlefield, ${el2[1]}`, nome, []); if (g1 && g2) (topo.abilities = topo.abilities || []).push(g1, g2); continue; }
         if (/^~ can't be blocked except by three or more creatures$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'three-or-more' }; frases.push({ texto: linha, lida: true }); continue; } // M-349 · Troll of Khazad-dûm
@@ -23152,6 +23157,14 @@ function sacrifice(s, oid, events = []) {
   const dono = o.controller;
   moveObject(s, oid, 'graveyard');
   naSombra(s, `sacrifica ${o.name}`, () => sacrificeLegado(s, o, dono), () => gatilhosDoSacrificio(s, o, dono));
+  gatilhoAoSerSacrificadaM(s, o, dono); // M-466
+}
+/** M-466 · "When you sacrifice it" (Heaped Harvest): o gatilho da própria permanente sacrificada (603.10a: como era no campo; o "você" é quem a sacrificou). */
+function gatilhoAoSerSacrificadaM(s, o, dono) {
+  if (!o || !s.facts[o.name] || o.faceDown) return;
+  for (const ab of (((s.facts[o.name] || {}).script || {}).abilities || [])) { const d = ab.kind === 'triggered' && SC.gatilhoDoEvento(ab.when);
+    if (!d || d.evento !== 'sacrifica' || d.objeto !== 'self') continue;
+    s.queued.push({ source: o.oid, name: o.name, controller: dono, effects: ab.effects, when: ab.when, ...marcasDaHabilidade(ab) }); }
 }
 function sacrificeLegado(s, o, dono) {
   const oid = o.oid;
@@ -23171,7 +23184,7 @@ function gatilhosDoSacrificio(s, o, dono) {
     if (w.oid === o.oid) continue;
     for (const ab of abilitiesOf(s, w)) {
       const d = ab.kind === 'triggered' && SC.gatilhoDoEvento(ab.when);
-      if (!SC.falaDe(d, 'sacrifica') || !quemCasa(d, w.controller, dono)) continue;
+      if (!SC.falaDe(d, 'sacrifica') || d.objeto === 'self' || !quemCasa(d, w.controller, dono)) continue; // M-466 · "when you sacrifice it" é da própria
       if (!matchesTriggerFilter(s, o, ab.filter)) continue;
       if (!triggerConditionMet(s, w, ab.condition)) continue;
       s.queued.push({ source: w.oid, name: w.name, controller: w.controller, effects: ab.effects, when: ab.when, ...((d.quem || 'voce') !== 'voce' ? { jogador: dono } : {}), ...marcasDaHabilidade(ab) });

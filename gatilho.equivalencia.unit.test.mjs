@@ -320,7 +320,8 @@ test('M-233 · R2c · validador e português dos descritores de jogador, dano, m
   assert.deepEqual(erros({ evento: ['vira', 'recebe-dano'], objeto: 'anexada' }), []);
   assert.ok(erros({ evento: 'compra' }).some(e => /"n"/.test(e)), 'compra sem n');
   assert.ok(erros({ evento: 'causa-dano', a: 'criatura' }).some(e => /"a" precisa/.test(e)));
-  assert.ok(erros({ evento: 'sacrifica', objeto: 'self' }).some(e => /objeto "self"/.test(e)), 'sacrifício é de outra');
+  assert.deepEqual(erros({ evento: 'sacrifica', objeto: 'self' }), [], 'M-466 · "when you sacrifice it" (Heaped Harvest): sacrificar a própria passou a valer'); // expectativa mudada na M-466, com justificativa: antes o sacrifício só observava outra
+  assert.ok(erros({ evento: 'sacrifica', objeto: 'anexada' }).some(e => /objeto "anexada"/.test(e)), 'sacrifício não tem objeto anexada');
   assert.ok(erros({ evento: ['vira', 'descarta'] }).some(e => /só aceita eventos de objeto/.test(e)));
   assert.ok(erros({ evento: ['vira', 'ataca'], objeto: 'anexada' }).some(e => /mesma família/.test(e)));
   assert.ok(erros({ evento: 'descarta', objeto: 'self' }).some(e => /chave "objeto"/.test(e)));
