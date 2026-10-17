@@ -220,3 +220,13 @@ test('CR 700.2e · T-107: validador — modoPeloOponente só com modos sem alvo'
   eq(v({ modoPeloOponente: true, modes: [{ label: 'a', effects: [{ do: 'gain', amount: 1 }] }, { label: 'b', effects: [{ do: 'draw', amount: 1 }] }] }), []);
   assert.ok(v({ modoPeloOponente: true, modes: [{ label: 'a', effects: [{ do: 'destroy', target: 'creature' }] }, { label: 'b', effects: [{ do: 'draw', amount: 1 }] }] }).some(e => /modoPeloOponente/.test(e)));
 });
+
+test('CR 700.2e / 118.9d · T-110: conjurar Misfortune sem pagar (cascata) — a oferta vem sem modo e o oponente escolhe', () => {
+  let s = mesa(); let c, m; [s, c] = poe(s, 0, 'Cascata', 'hand'); [s, m] = poe(s, 0, 'Misfortune', 'library');
+  s = J(s); s.zones[0].library.splice(s.zones[0].library.indexOf(m), 1); s.zones[0].library.unshift(m); s = mana(s);
+  s = passaAte(act(s, legais(s, 0, x => x.t === 'cast' && x.oid === c)[0]), x => !x.stack.length || !!x.pending);
+  const os = legais(s, 0, x => x.t === 'cast_free' && x.oid === m);
+  eq([os.length, os[0] && os[0].mode], [1, undefined]);
+  s = act(s, os[0]);
+  eq([s.pending && s.pending.kind, s.pending && s.pending.p, /conjurou Misfortune/.test((s.pending || {}).pergunta || '')], ['choose_mode', 1, true]);
+});

@@ -16,9 +16,12 @@ for (const c of L('oficiais-tipos.json').filter(x => NOMES.includes(x.name)))
   C[c.name] = { name: c.name, type_line: c.type_line, mana_cost: c.mana_cost, cmc: valorDeMana(c.mana_cost), keywords: KW[c.name] || [], oracle_text: c.oracle_text, colors: [], power: c.power, toughness: c.toughness };
 C.Island = { name: 'Island', type_line: 'Basic Land — Island', mana_cost: '', cmc: 0, keywords: [], oracle_text: '({T}: Add {U}.)', colors: [] };
 const carta = (name, type_line, extra = {}) => { C[name] = { name, type_line, mana_cost: '{R}', cmc: 1, keywords: [], oracle_text: '', colors: ['R'], ...extra }; };
-carta('Raio', 'Instant'); carta('Choque', 'Sorcery'); carta('Vigia', 'Creature — Soldier', { power: '1', toughness: '1', keywords: ['Flash'], oracle_text: 'Flash' }); carta('Fonte', 'Artifact'); carta('Urso', 'Creature — Bear', { power: '2', toughness: '2', mana_cost: '{1}{G}', cmc: 2, colors: ['G'] });
+carta('Raio', 'Instant'); carta('Choque', 'Sorcery'); carta('Ciclo', 'Sorcery'); carta('Arremesso', 'Instant'); carta('Encanto', 'Enchantment — Aura'); carta('Vigia', 'Creature — Soldier', { power: '1', toughness: '1', keywords: ['Flash'], oracle_text: 'Flash' }); carta('Fonte', 'Artifact'); carta('Urso', 'Creature — Bear', { power: '2', toughness: '2', mana_cost: '{1}{G}', cmc: 2, colors: ['G'] });
 const EX = { example: { target: 'none', expect: { selfLife: 0 } } };
-const SCRIPTS = { 'Vigia': { name: 'Vigia', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'gain', amount: 3 }] }], example: { action: 'etb', target: 'none', expect: { selfLife: 3 } } }, // "When this enters, you gain 3 life."
+const SCRIPTS = { 'Ciclo': { name: 'Ciclo', effects: [{ do: 'gain', amount: 0 }], cycling: { mana: '{1}' }, example: { target: 'none', expect: { selfLife: 0 } } }, // "Cycling {1}"
+  'Arremesso': { name: 'Arremesso', additional: { sacrificeOther: { types: ['creature'] } }, effects: [{ do: 'damage', amount: { per: 'sacrificed-power' }, target: 'any' }], example: { target: 'none', expect: { selfLife: 0 } } }, // "As an additional cost, sacrifice a creature. ~ deals damage equal to the sacrificed creature's power to any target."
+  'Encanto': { name: 'Encanto', aura: { enchant: 'creature' }, grants: { power: 2, toughness: 0 }, example: { action: 'aura', target: 'own-creature', expect: { stats: [3, 1] } } }, // "Enchant creature · Enchanted creature gets +2/+0."
+  'Vigia': { name: 'Vigia', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'gain', amount: 3 }] }], example: { action: 'etb', target: 'none', expect: { selfLife: 3 } } }, // "When this enters, you gain 3 life."
   'Fonte': { name: 'Fonte', abilities: [{ kind: 'activated', cost: { mana: '{1}' }, effects: [{ do: 'gain', amount: 2 }] }], example: { action: 'activate:0', target: 'none', expect: { selfLife: 2 } } }, // "{1}: You gain 2 life."
   'Raio': { name: 'Raio', effects: [{ do: 'damage', amount: 3, target: 'any' }], ...EX }, 'Choque': { name: 'Choque', effects: [{ do: 'damage', amount: 2, target: 'any' }], ...EX } };
 function mesa(seed = 1) {
@@ -162,4 +165,37 @@ test('CR 707.10b · T-109: validador do seletor de habilidade', () => {
   const v = sc => J(SC.validateScript({ name: 'X', ...sc, example: { target: 'none', expect: { selfLife: 0 } } }));
   eq(v({ effects: [{ do: 'copia_habilidade', target: { zona: 'stack', habilidades: 'disparadas', de: 'you' } }] }), []);
   assert.ok(v({ effects: [{ do: 'copia_habilidade', target: { zona: 'stack', habilidades: 'mana' } }] }).some(e => /habilidades/.test(e)));
+});
+
+test('CR 707.10b · T-110: o Strionic Resonator não mira a habilidade de ciclar (ativada, vai à pilha por outro caminho)', () => {
+  let s = mesa(); let r, c; [s, r] = poe(s, 0, 'Strionic Resonator', 'battlefield'); [s, c] = poe(s, 0, 'Ciclo', 'hand'); s = mana(s);
+  s = act(s, legais(s, 0, x => x.t === 'cycle' && x.oid === c)[0]);
+  const hab = s.stack.find(o => s.objects[o].ability); assert.ok(hab, 'ciclar usa a pilha');
+  assert.ok(!legais(s, 0, x => x.t === 'activate' && x.oid === r).some(x => x.targets && x.targets[0].oid === hab));
+});
+
+test('CR 707.10 · T-110: a cópia leva o custo adicional pago — a cópia do "sacrifique uma criatura" causa o mesmo dano', () => {
+  let s = mesa(); let a, u, t; [s, a] = poe(s, 0, 'Arremesso', 'hand'); [s, u] = poe(s, 0, 'Urso', 'battlefield'); [s, t] = poe(s, 0, 'Twincast', 'hand'); s = mana(s);
+  s = conjura(s, 0, a, x => x.targets[0].player === 1);
+  eq(s.objects[u].zone, 'graveyard', 'sacrificou o Urso');
+  s = conjura(s, 0, t, x => x.targets[0].oid === a);
+  s = resolve(s, alvoJogador(1));
+  eq(s.players[1].life, 16, '2 + 2');
+});
+
+test('CR 707.10 · T-110: Lithoform Engine copia uma Aura — a ficha encanta o mesmo alvo', () => {
+  let s = mesa(); let e, en, u; [s, e] = poe(s, 0, 'Lithoform Engine', 'battlefield'); [s, en] = poe(s, 0, 'Encanto', 'hand'); [s, u] = poe(s, 0, 'Urso', 'battlefield'); s = mana(s);
+  s = conjura(s, 0, en, x => x.targets && x.targets[0].oid === u);
+  s = act(s, legais(s, 0, x => x.t === 'activate' && x.oid === e && x.index === 2 && x.targets[0].oid === en)[0]);
+  s = resolve(s);
+  eq(E.stats(s, s.objects[u]).power, 6, 'duas Auras de +2/+0');
+});
+
+test('CR 708.10 / 707.10b · T-110: textos — a cópia não revela a mágica virada para baixo; seletor de habilidade descrito; validador', () => {
+  assert.match(T.descreveEfeitos([{ do: 'copia_habilidade', target: { zona: 'stack', habilidades: 'disparadas', de: 'you' } }]), /habilidade disparada sua/);
+  assert.match(T.descreveEfeitos([{ do: 'copia_magia', target: { zona: 'stack', permanente: true, de: 'you' } }]), /mágica de permanente sua/);
+  const v = sc => J(SC.validateScript({ name: 'X', ...sc, example: { target: 'none', expect: { selfLife: 0 } } }));
+  assert.ok(v({ effects: [{ do: 'copia_magia', target: { tipos: ['instant'] } }] }).some(e => /stack/.test(e)), 'sem zona stack');
+  assert.ok(v({ effects: [{ do: 'copia_habilidade', target: { zona: 'stack' } }] }).some(e => /habilidades/.test(e)), 'sem habilidades');
+  assert.ok(v({ effects: [{ do: 'destroy', target: { habilidades: 'so' } }] }).some(e => /zona 'stack'/.test(e)), 'habilidades fora da pilha');
 });

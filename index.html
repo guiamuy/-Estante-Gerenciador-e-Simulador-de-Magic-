@@ -5760,6 +5760,7 @@ function seletorErros(sel, label) {
   for (const k of ['de', 'dono', 'jogadores']) if (sel[k] != null && !['you', 'opponent', 'any'].includes(sel[k]) && !(k === 'de' && sel[k] === 'alvo')) errs.push(`${label}: "${k}" precisa ser you, opponent ou any`); // M-351 · de: 'alvo' = o jogador alvo do efeito (Arms of Hadar)
   for (const k of ['tipos', 'semTipos']) for (const x of sel[k] || []) if (!TIPOS_DE_CARTA.includes(x)) errs.push(`${label}: tipo "${x}" desconhecido`);
   for (const k of ['cor', 'semCor']) if (sel[k] != null && !'WUBRG'.includes(sel[k])) errs.push(`${label}: cor precisa ser WUBRG`);
+  if (sel.habilidades != null && sel.zona !== 'stack') errs.push(`${label}: "habilidades" só vale com zona 'stack'`); // T-110
   if (sel.habilidades != null && ![true, 'so', 'disparadas'].includes(sel.habilidades)) errs.push(`${label}: "habilidades" é true (mágica ou habilidade), 'so' (só habilidade) ou 'disparadas' (só habilidade disparada)`); // T-109 · 707.10b
   if (sel.ref != null && !['bloqueada-pela-fonte', 'encantada-pela-fonte'].includes(sel.ref)) errs.push(`${label}: referência "${sel.ref}" desconhecida`);
   for (const k of ['palavra', 'semPalavra']) if (sel[k] != null && !KEYWORDS.includes(sel[k])) errs.push(`${label}: palavra-chave "${sel[k]}" não é resolvida pelo motor`);
@@ -6864,12 +6865,12 @@ const RAW_SCRIPTS = [
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // T-107 · CR 700.2e · "An opponent chooses one —" (Oracle do Forge, clone de 13/10/2026, conferido no master em 14/10/2026). Numa mesa de dois, "that player" é o oponente.
   { name: 'Misfortune', modoPeloOponente: true, modes: [ // "An opponent chooses one — • You put a +1/+1 counter on each creature you control and gain 4 life. • You put a -1/-1 counter on each creature that player controls and Misfortune deals 4 damage to that player."
-    { label: 'Você põe +1/+1 em cada criatura sua e ganha 4 de vida', effects: [{ do: 'counters', amount: 1, cada: { tipos: ['creature'], de: 'you' } }, { do: 'gain', amount: 4 }] },
-    { label: 'Você põe −1/−1 em cada criatura do oponente e causa 4 de dano a ele', effects: [{ do: 'counters', amount: 1, tipo: 'm1m1', cada: { tipos: ['creature'], de: 'opponent' } }, { do: 'damage', amount: 4, target: 'each-opponent' }] }],
+    { label: 'Quem conjurou põe +1/+1 em cada criatura dele e ganha 4 de vida', effects: [{ do: 'counters', amount: 1, cada: { tipos: ['creature'], de: 'you' } }, { do: 'gain', amount: 4 }] },
+    { label: 'Quem conjurou põe −1/−1 em cada criatura sua e causa 4 de dano a você', effects: [{ do: 'counters', amount: 1, tipo: 'm1m1', cada: { tipos: ['creature'], de: 'opponent' } }, { do: 'damage', amount: 4, target: 'each-opponent' }] }],
     example: { target: 'none', expect: { selfLife: 4 } } }, // o cenário escolhe pela primeira oferta: +1/+1 e 4 de vida
   { name: 'Library of Lat-Nam', modoPeloOponente: true, modes: [ // "An opponent chooses one — • You draw three cards at the beginning of the next turn's upkeep. • You search your library for a card, put that card into your hand, then shuffle."
-    { label: 'Você compra três cartas na próxima manutenção', effects: [{ do: 'delayed', when: 'next-upkeep', effects: [{ do: 'draw', amount: 3 }] }] },
-    { label: 'Você busca uma carta no grimório e põe na mão', effects: [{ do: 'search', amount: 1, filter: {}, to: 'hand' }] }],
+    { label: 'Quem conjurou compra três cartas na próxima manutenção', effects: [{ do: 'delayed', when: 'next-upkeep', effects: [{ do: 'draw', amount: 3 }] }] },
+    { label: 'Quem conjurou busca uma carta no grimório e põe na mão', effects: [{ do: 'search', amount: 1, filter: {}, to: 'hand' }] }],
     example: { target: 'none', expect: { selfLife: 0 } } },
   // T-105 · CR 700.2a · habilidade ativada modal (Oracle do Forge, clone de 13/10/2026, conferido no master em 14/10/2026).
   { name: 'Cankerbloom', abilities: [{ kind: 'activated', cost: { mana: '{1}', sacrifice: true }, modes: [ // "{1}, Sacrifice Cankerbloom: Choose one — • Destroy target artifact. • Destroy target enchantment. • Proliferate."
@@ -9625,6 +9626,7 @@ EVENTOS_DE_OBJETO.push('exaurida'); OBJETOS_DO_EVENTO.exaurida = ['self']; GATIL
 EVENTOS_DE_OBJETO.push('monstruosa'); OBJETOS_DO_EVENTO.monstruosa = ['self']; GATILHO_EVENTO['becomes-monstrous'] = { evento: 'monstruosa', objeto: 'self' }; TRIGGER_PT['becomes-monstrous'] = 'quando fica monstruosa';
 /* ↓ T · exportações de scripts.js da trilha tipos */
 Object.assign(GATILHO_EVENTO, { 'draw-step': { evento: 'passo', passo: 'draw', turno: 'seu' }, 'each-draw-step': { evento: 'passo', passo: 'draw', turno: 'qualquer', jogadorAtivo: true }, 'precombat-main': { evento: 'passo', passo: 'main1', turno: 'seu' }, 'each-precombat-main': { evento: 'passo', passo: 'main1', turno: 'qualquer', jogadorAtivo: true } }); Object.assign(TRIGGER_PT, { 'draw-step': 'no início do seu passo de compra', 'each-draw-step': 'no início do passo de compra de cada jogador', 'precombat-main': 'no início da sua fase principal pré-combate', 'each-precombat-main': 'no início da fase principal pré-combate de cada jogador' }); // T-101 · CR 500.6
+TRIGGER_PT['copia-habilidade'] = 'cópia de habilidade'; TRIGGER_PT.copia = 'cópia de mágica'; // T-110 · o registro dizia a chave interna
 GATILHO_EVENTO['enchanted-player-postcombat-main'] = { evento: 'passo', passo: 'main2', turno: 'qualquer', jogadorEncantado: true }; TRIGGER_PT['enchanted-player-postcombat-main'] = 'no início de cada fase principal pós-combate do jogador encantado'; // T-103
 GATILHO_EVENTO['enchanted-player-upkeep'] = { evento: 'passo', passo: 'upkeep', turno: 'qualquer', jogadorEncantado: true }; TRIGGER_PT['enchanted-player-upkeep'] = 'na manutenção do jogador encantado'; // T-94 · CR 303.4b
 /* ---------------- T-36 · CR 702.160 / 718 · protótipo (forma do script) ----------------
@@ -9851,6 +9853,13 @@ function monarcaErrosT(sc) {
   for (const e of [...((sc && sc.effects) || []), ...((sc && sc.abilities) || []).flatMap(ab => ab.effects || [])]) if (e && e.do === 'pula' && (!['desvirar', 'compra', 'combate', 'turno'].includes(e.o) || (e.quando != null && (e.o !== 'combate' || !['neste-turno', 'todas-do-proximo-turno'].includes(e.quando))))) errs.push("pula: o é 'desvirar', 'compra', 'combate' ou 'turno'; quando ('neste-turno' | 'todas-do-proximo-turno') só no combate"); // T-99
   for (const k of ['naoPodePerder', 'naoPodeVencer']) if (sc && sc.self && sc.self[k] != null && !['voce', 'oponentes'].includes(sc.self[k])) errs.push(`self.${k} é 'voce' ou 'oponentes'`); // T-96 · CR 104.3
   for (const ab of ((sc && sc.abilities) || [])) if (ab && ab.kind === 'activated' && (ab.modes || []).length && (ab.effects || []).length) errs.push('habilidade ativada modal: os efeitos vão nos modos, não em "effects"'); // T-106 · 700.2a
+  for (const e of [...((sc && sc.effects) || []), ...((sc && sc.abilities) || []).flatMap(ab => ab.effects || []), ...((sc && sc.modes) || []).flatMap(m => (m && m.effects) || [])]) { // T-110 · 707.10 / 707.10b
+    if (!e || !['copia_magia', 'copia_habilidade'].includes(e.do)) continue;
+    const t = e.target, hab = e.do === 'copia_habilidade';
+    if (!t || typeof t !== 'object' || t.zona !== 'stack' || (hab ? !['so', 'disparadas'].includes(t.habilidades) : t.habilidades != null)) errs.push(`${e.do}: o alvo é um seletor com zona 'stack'${hab ? " e habilidades 'so' ou 'disparadas'" : ' (mágica, sem habilidades)'}`);
+    if (e.vezes != null) errs.push(...valueErrors(e.vezes, `${e.do}: vezes`));
+  }
+  for (const ab of ((sc && sc.abilities) || [])) if (ab && ab.modoPeloOponente != null) errs.push('"modoPeloOponente" é da mágica, não de habilidade'); // T-110
   if (sc && sc.modoPeloOponente != null && !(sc.modoPeloOponente === true && (sc.modes || []).length >= 2 && !sc.modeCount && !(sc.effects || []).length && sc.modes.every(m => !((m && m.effects) || []).some(isTargeted)))) errs.push('"modoPeloOponente" (700.2e): true, com dois ou mais modos sem alvo, sem modeCount e sem "effects"'); // T-107
   if (sc && sc.modeMin != null && !(Number.isInteger(sc.modeMin) && sc.modeMin >= 1 && Number.isInteger(sc.modeCount) && sc.modeMin < sc.modeCount && !sc.modeRepeat)) errs.push('"modeMin" é um inteiro de 1 até modeCount − 1, sem repetir modos ("choose one or both", "choose one or more")'); // T-104 · CR 700.2d
   if (sc && sc.self && sc.self.emVezDePerder != null && sc.self.emVezDePerder !== 'lich') errs.push("self.emVezDePerder conhece só 'lich' (Lich's Mirror)"); // T-96 · CR 704.7
@@ -20498,7 +20507,7 @@ function efeitosDaMagia(s, o, mode) { const base = efeitosBaseDaMagia(s, o, mode
 /** CR2f.3 · 707.10: as escolhas feitas ao conjurar que a cópia leva (modo, modos, X pago, reforço, encaixe, custo alternativo, cor escolhida). */
 /** M-351 · as marcas de "como foi conjurada" que as condições de efeito leem (601.2b, 702.33d, 701.59): a carta as perde ao sair da pilha (400.7), a retomada as guarda. */
 const condicoesDaMagia = (o, effs) => { if (!(effs || []).some(e => e && (e.onlyIf || (e.amount && e.amount.per === 'se')))) return undefined; const c = {}; for (const k of ['evidenced', 'kicked', 'paidAdditional', 'discardedNonland', 'bargained', 'castFrom']) if (o && o[k] != null) c[k] = o[k]; return Object.keys(c).length ? c : undefined; }; // só quando o resto da resolução tem condição (o estado das partidas sem isso não muda)
-const marcasDaMagia = o => { if (!o) return {}; const m = {}; for (const k of ['mode', 'modes', 'xPaid', 'kicked', 'emendas', 'altIndex', 'chosenColor', 'divisao', 'prototipoT']) if (o[k] != null) m[k] = Array.isArray(o[k]) ? o[k].slice() : o[k]; return m; };
+const marcasDaMagia = o => { if (!o) return {}; const m = {}; for (const k of ['mode', 'modes', 'xPaid', 'kicked', 'emendas', 'altIndex', 'chosenColor', 'divisao', 'prototipoT', 'sacrificados', 'bargained', 'evidenced', 'paidAdditional', 'discardedNonland', 'faceDown', 'escolheuModoT' /* T-110 · 707.10: a cópia copia os custos adicionais pagos e a face para baixo (707.2) */]) if (o[k] != null) m[k] = Array.isArray(o[k]) ? o[k].slice() : o[k]; return m; };
 const emendasDe = (s, oids) => oids.map(x => ({ name: s.objects[x].name, effects: ((s.facts[s.objects[x].name].script || {}).effects || []) }));
 const encaixavelEm = (s, carta, magia) => { const sp = ((s.facts[s.objects[carta].name] || {}).script || {}).splice; return !!sp && carta !== magia && temSubtipo(s, magia, sp.subtipo); };
 function efeitosBaseDaMagia(s, o, mode) {
@@ -23253,7 +23262,7 @@ function putTriggerOnStack(s, q, events) {
   if (q.copiaDeMagia) { // CR2f.3 · 707.10: a cópia de uma mágica é uma mágica na pilha (pode ser anulada, é alvo de "mágica"), não é conjurada
     if (!(q.effects || []).length && (q.modes || []).length === 0 && q.recusavel) { events.push({ kind: 'effect', do: 'copy', name: q.name, failed: true }); return false; }
     const oid = 'k' + (s.proximaCopia = (s.proximaCopia || 0) + 1);
-    s.objects[oid] = { oid, name: q.name, owner: q.controller, controller: q.controller, zone: 'stack', copiaDeMagia: true, tapped: false, damage: 0, counters: {}, ...(q.marcasMagia || {}), ...(targets.length ? { targets: carimbaAlvos(s, targets) } : {}) };
+    s.objects[oid] = { oid, name: q.name, owner: q.controller, controller: q.controller, zone: 'stack', copiaDeMagia: true, tapped: false, damage: 0, counters: {}, ...(q.marcasMagia || {}), ...(targets.length ? { targets: carimbaAlvos(s, targets) } : q.alvosFixosT ? { targets: q.alvosFixosT } : {}) }; // T-110 · cópia de Aura: o alvo da original (Toca ponto comum: cópia de mágica na pilha)
     s.stack.push(oid);
     if (targets.length) chargeWard(s, q.controller, oid, targets); // K-14 · 702.21a: a cópia é uma mágica que mira — a salvaguarda dispara (Toca ponto comum: cópia de mágica na pilha)
     if (targets.length) disparaAlvejado(s, oid, targets); // CR2b.9 · a cópia de mágica é uma mágica que mira
@@ -23262,7 +23271,7 @@ function putTriggerOnStack(s, q, events) {
   }
   const oid = makeAbility(s, { oid: q.source, name: q.name, controller: q.controller }, { effects: q.effects }, targets);
   if (q.guarda !== undefined) s.objects[oid].guarda = q.guarda; // M-353 · 607.2a
-  if (q.marcasHabT) Object.assign(s.objects[oid], q.marcasHabT); // T-109 · 707.10b: a cópia de habilidade leva X, cor, sacrificados e modo da original (Toca ponto comum: putTriggerOnStack)
+  if (q.marcasHabT) Object.assign(s.objects[oid], q.marcasHabT); else s.objects[oid].disparadaT = true; // T-110 · 707.10b: o que vem da fila de gatilhos é habilidade disparada (ciclar, desenterrar, ninjutsu vão à pilha por outro caminho) · T-109 · 707.10b: a cópia de habilidade leva X, cor, sacrificados e modo da original (Toca ponto comum: putTriggerOnStack)
   marcasDoGatilho(s, q, oid);
   events.push({ kind: 'trigger', name: q.name, when: q.when, oid });
   if ((q.effects || []).some(e => e && e.dividido)) iniciaDivisao(s, oid, events); // M-378 · 603.3d / 601.2d: o gatilho que divide dano escolhe alvos e divisão ao ir para a pilha
@@ -23290,13 +23299,14 @@ function extraCostCandidates(s, p, spec, selfOid, needUntapped) {
 function copiaMagiaT(s, src, eff, obj, ctrl, events) {
   if (!obj || obj.zone !== 'stack' || isAbility(obj) || !s.facts[obj.name]) { events.push({ kind: 'effect', do: 'copia_magia', name: src.name, failed: true }); return; }
   const n = Math.max(0, Math.min(10, amountOf(s, src, eff.vezes == null ? 1 : eff.vezes) || 0));
-  for (let i = 0; i < n; i++) s.queued.push({ source: obj.oid, name: obj.name, controller: ctrl, effects: spellEffects(s, obj), when: 'copia', copia: true, copiaDeMagia: true, marcasMagia: marcasDaMagia(obj) });
-  events.push({ kind: 'effect', do: 'copia_magia', name: src.name, target: obj.name, amount: n });
+  const auraT = auraTarget(s.facts[obj.name]) && (obj.targets || []).length ? J_T(obj.targets) : null; // T-110 · a cópia de uma Aura encanta o mesmo alvo (o alvo de encantar não está nos efeitos)
+  for (let i = 0; i < n; i++) s.queued.push({ source: obj.oid, name: obj.name, controller: ctrl, effects: spellEffects(s, obj), when: 'copia', copia: true, copiaDeMagia: true, marcasMagia: marcasDaMagia(obj), ...(auraT ? { alvosFixosT: auraT } : {}) });
+  events.push({ kind: 'effect', do: 'copia_magia', name: src.name, target: obj.faceDown ? 'uma mágica virada para baixo' : obj.name, amount: n }); // T-110 · 708.10: não revela a virada
 }
 /** T-109 · CR 707.10b · seletor de habilidade na pilha: `habilidades: 'so'` (só habilidades) ou 'disparadas' (só as disparadas — as ativadas
  * levam `ativadaT`); `de: 'you'` ("you control"). `habilidades: true` (mágica ou habilidade) segue como antes. */
 function habilidadeCasaT(p, o, sel) {
-  if (sel.habilidades === 'disparadas' && o.ativadaT) return false;
+  if (sel.habilidades === 'disparadas' && !o.disparadaT) return false; // T-110 · achado da auditoria: só o que disparou (as ativadas por ciclar, desenterrar, ninjutsu… não levam a marca)
   if (sel.de === 'you' && o.controller !== p) return false;
   if (sel.de === 'opponent' && o.controller === p) return false;
   return sel.habilidades === true || sel.habilidades === 'so' || sel.habilidades === 'disparadas';
@@ -23306,7 +23316,7 @@ function habilidadeCasaT(p, o, sel) {
  * o modo da original; escolhe alvo de novo; uma habilidade de mana copiada também usa a pilha aqui (não há carta que copie mana). */
 function copiaHabilidadeT(s, src, obj, ctrl, events) {
   if (!obj || obj.zone !== 'stack' || !isAbility(obj)) { events.push({ kind: 'effect', do: 'copia_habilidade', name: src.name, failed: true }); return; }
-  const marcas = {}; for (const k of ['xPaid', 'chosenColor', 'sacrificados', 'modoT', 'estacaoViradaT', 'ativadaT', 'condicao', 'fonteRetrato', 'blockedAt']) if (obj[k] != null) marcas[k] = J_T(obj[k]);
+  const marcas = {}; for (const k of ['xPaid', 'chosenColor', 'sacrificados', 'modoT', 'estacaoViradaT', 'ativadaT', 'disparadaT', 'condicao', 'fonteRetrato', 'blockedAt']) if (obj[k] != null) marcas[k] = J_T(obj[k]);
   s.queued.push({ source: obj.source, name: obj.name, controller: ctrl, effects: obj.effects, when: 'copia-habilidade', copia: true,
     ...(obj.triggerValue != null ? { value: obj.triggerValue } : {}), ...(obj.lembrada ? { lembrada: obj.lembrada } : {}), ...(obj.objetosAtrasados ? { objetos: obj.objetosAtrasados } : {}),
     ...(obj.objetoAtrasado ? { objeto: obj.objetoAtrasado } : {}), ...(obj.jogadorAtrasado != null ? { jogador: obj.jogadorAtrasado } : {}), ...(obj.hostOid ? { host: obj.hostOid, hostZc: obj.hostZc } : {}),
@@ -23321,13 +23331,13 @@ function modoDoOponentePendenteT(s, oid) {
   const o = s.objects[oid], sc = o && ((s.facts[o.name] || {}).script || {});
   if (!o || !sc.modoPeloOponente || o.mode != null || o.copiaDeMagia) return;
   const quem = nextAlive(s, o.controller); if (quem == null || quem === o.controller) return;
-  s.pending = { kind: 'choose_mode', p: quem, options: (sc.modes || []).map(m => m.label || 'opção'), name: o.name, modoDoOponenteT: oid };
+  s.pending = { kind: 'choose_mode', p: quem, options: (sc.modes || []).map(m => m.label || 'opção'), name: o.name, modoDoOponenteT: oid, pergunta: `${s.players[o.controller].name} conjurou ${o.name}. Você escolhe o que ela faz:` }; // T-110 · a pergunta é de quem escolhe
 }
 function escolheModoDoOponenteT(s, a, ev, pk) {
   const o = s.objects[pk.modoDoOponenteT], i = a.index || 0;
   if (!(pk.options || [])[i]) throw new RuleError('escolha', 'escolha um dos modos');
   s.pending = null;
-  if (o && o.zone === 'stack') { o.mode = i; ev.push({ kind: 'effect', do: 'modo_do_oponente', name: o.name, target: s.players[a.p].name, rotulo: pk.options[i] }); }
+  if (o && o.zone === 'stack') { o.mode = i; o.escolheuModoT = a.p; ev.push({ kind: 'effect', do: 'modo_do_oponente', name: o.name, target: s.players[a.p].name, rotulo: pk.options[i] }); }
 }
 /** T-106 · CR 103.8a · quem começa uma partida de dois jogadores pula o passo de compra do primeiro turno: a mesa mantém o passo (as
  * partidas-referência passam a prioridade nele), sem a compra e sem os gatilhos "no começo do passo de compra" (Kami of the Crescent Moon,
@@ -24989,7 +24999,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
       for (const oid of s.pending.options || []) {
         const fc = s.facts[s.objects[oid].name];
         if (fc.types.includes('land')) { if (s.pending.escondida && s.turn.active === p && s.players[p].landsPlayed < terrenosPorTurno(s, p)) out.push({ t: 'cast_free', p, oid }); continue; } // M-268
-        const modos = (fc.script && fc.script.modes) || [];
+        const modos = (fc.script && !fc.script.modoPeloOponente && fc.script.modes) || []; // T-110 · 700.2e: sem pagar, o modo continua sendo do oponente
         const listas = modos.length ? modos.map((m, i) => ({ need: (m.effects || []).filter(SC.isTargeted), mode: i }))
           : [{ need: ((fc.script && fc.script.effects) || []).filter(SC.isTargeted), mode: null }];
         const rfK = fc.script && fc.script.kicker, kickOk = !!rfK && (!s.manaCheck || canPay(s, p, parseCost(rfK.mana))); // M-337 · 118.9d: o reforço também na conjuração sem pagar
@@ -32022,7 +32032,7 @@ function describe(before, a, events, after) {
     case 'tripulante': L.push(`${P} escolheu ${nameOf(before, a.oid)} para tripular`); break;
     case 'tripular_pronto': { const pd = before.pending || {}; L.push(`${P} ${E.selarDaAcaoT(before, { t: 'activate', oid: pd.oid, index: pd.index }) ? 'selou' : 'tripulou'} ${pd.name || 'o Veículo'} com ${(pd.escolhidas || []).map(x => nameOf(before, x)).join(' + ') || 'ninguém'}`); break; }
     case 'dividir_dano': { const op = ((before.pending || {}).opcoes || [])[a.index]; L.push(`${P} dividiu o dano de ${nameOf(before, (before.pending || {}).oid)}: ${op ? op.rotulo : '?'}`); break; } // CR2g.2
-    case 'choose_mode': { const pd = before.pending || {}; const alvo = pd.naResolucao && before.objects[pd.naResolucao.oid] ? before.objects[pd.naResolucao.oid].name : null;
+    case 'choose_mode': { const pd = before.pending || {}; if (pd.modoDoOponenteT) break; /* T-110 · a linha vem do evento modo_do_oponente */ const alvo = pd.naResolucao && before.objects[pd.naResolucao.oid] ? before.objects[pd.naResolucao.oid].name : null;
       L.push(a.decline ? `${P} preferiu não usar o efeito de ${pd.name || 'o gatilho'}` : `${P} escolheu ${String((pd.options || [])[a.index || 0] || 'um modo').toLowerCase()}${alvo ? ' ' + alvo : ''} (${pd.name || 'gatilho'})`); break; }
     case 'choose_color': L.push(before.pending && before.pending.manaRestam ? `${P} adicionou {${a.color}}` : `${P} escolheu ${{ W: 'branco', U: 'azul', B: 'preto', R: 'vermelho', G: 'verde' }[a.color]}`); break; // M-357
     case 'concede': L.push(`${P} desistiu`); break;
@@ -32711,6 +32721,7 @@ const agrupaTerrenos = (s, oids, opts) => agrupaLeque(s, oids, opts);
 /** E50 P6 · chave de alvo do script fora do dicionário vira português legível, nunca "permanent-you-control". */
 /** M-229 · alvo escrito como seletor, em português: "uma criatura ou planeswalker que um oponente controla", "um jogador". */
 function descreveSeletor(sel) {
+  if (sel.habilidades === 'so' || sel.habilidades === 'disparadas') return `uma habilidade ${sel.habilidades === 'disparadas' ? 'disparada' : 'ativada ou disparada'}${sel.de === 'you' ? ' sua' : sel.de === 'opponent' ? ' de um oponente' : ''}`; // T-110 · 707.10b (Toca ponto comum: descreveSeletor)
   if (sel.ou) return sel.ou.map(descreveSeletor).join(' ou ');
   if (sel.ref === 'encantada-pela-fonte') return 'a criatura encantada';
   if (sel.ref === 'bloqueada-pela-fonte') return 'a criatura que ela bloqueia';
@@ -32944,9 +32955,9 @@ const predicadosPT_T = sel => (sel.tapped ? ' virada' : sel.tapped === false ? '
 const LINHA_T = { preparada: ev => (ev.failed ? `${ev.name}: ${ev.motivo || 'não ficou preparada'}, nada muda` : `${ev.name} está preparada (pode conjurar uma cópia de ${ev.target})`), despreparada: ev => `${ev.name} deixou de estar preparada`, ciclo: ev => `Virou ${ev.target}${ev.motivo ? ` (${ev.motivo})` : ''}`, masmorra_completa: ev => `${ev.target} completou a masmorra ${ev.name}`, caso_resolvido: ev => (ev.failed ? `${ev.name}: a condição não valia mais, o Caso não foi resolvido` : `${ev.name} foi resolvido`), estacao: ev => (ev.failed ? `${ev.name}: a nave saiu do campo, a estação não pôs marcadores` : `${ev.name} recebeu ${ev.amount} marcador${ev.amount === 1 ? '' : 'es'} de carga (estação)${ev.total != null ? ` · ${ev.total} no total` : ''}`), selada: ev => (ev.failed ? `${ev.name}: a montaria saiu do campo, não foi selada` : `${ev.name} foi selada`), virar_carta: ev => (ev.failed ? `${ev.name} não virou${ev.motivo ? ` (${ev.motivo})` : ''}` : `${ev.name} virou: agora é ${ev.target}`), porta: ev => (ev.failed ? `${ev.name}: nenhuma porta para trancar ou destrancar` : `${ev.name} ${ev.acao} ${ev.porta} (${ev.target})`), nivel_sobe: ev => (ev.failed ? `${ev.name}: saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu de nível (nível ${ev.nivel})`), nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, converter: ev => `${ev.name} converteu em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
 Object.assign(LINHA_T, { descarta_a_mao: ev => `${ev.target} descartou a mão (${ev.amount === 1 ? 'uma carta' : ev.amount + ' cartas'}; ${ev.name})` }); Object.assign(EFEITO_PT_T, { descarta_a_mao: e => `${e.target === 'self' ? 'você descarta' : e.target === 'each-player' ? 'cada jogador descarta' : 'o jogador descarta'} a mão` }); // T-101
 Object.assign(LINHA_T, { copia_habilidade: ev => ev.failed ? `${ev.name}: a habilidade alvo já saiu da pilha, nada copiado` : `${ev.name} copiou a habilidade de ${ev.target}` }); Object.assign(EFEITO_PT_T, { copia_habilidade: e => `copia uma habilidade ${e.target && e.target.habilidades === 'disparadas' ? 'disparada' : 'ativada ou disparada'}${e.target && e.target.de === 'you' ? ' sua' : ''}; você pode escolher novos alvos para a cópia` }); // T-109 · 707.10b
-Object.assign(LINHA_T, { copia_magia: ev => ev.failed ? `${ev.name}: a mágica alvo já saiu da pilha, nada copiado` : `${ev.name} copiou ${ev.target}${ev.amount > 1 ? ` ${ev.amount} vezes` : ''}` }); Object.assign(EFEITO_PT_T, { copia_magia: e => `copia ${e.target && e.target.de === 'you' ? 'uma mágica instantânea ou feitiço sua' : 'uma mágica instantânea ou feitiço'}${e.vezes && e.vezes.per === 'se' ? ' (duas vezes se esta foi conjurada de um cemitério)' : ''}; você pode escolher novos alvos para a cópia` }); // T-108 · 707.10
+Object.assign(LINHA_T, { copia_magia: ev => ev.failed ? `${ev.name}: a mágica alvo já saiu da pilha, nada copiado` : `${ev.name} copiou ${ev.target}${ev.amount > 1 ? ` ${ev.amount} vezes` : ''}` }); Object.assign(EFEITO_PT_T, { copia_magia: e => `copia ${e.target && e.target.permanente ? 'uma mágica de permanente sua (a cópia vira ficha)' : e.target && e.target.de === 'you' ? 'uma mágica instantânea ou feitiço sua' : 'uma mágica instantânea ou feitiço'}${e.vezes && e.vezes.per === 'se' ? ' (duas vezes se esta foi conjurada de um cemitério)' : ''}; você pode escolher novos alvos para a cópia` }); // T-108 · 707.10
 Object.assign(LINHA_T, { modo_do_oponente: ev => `${ev.target} escolheu o modo de ${ev.name}: ${ev.rotulo}` }); // T-107 · 700.2e
-Object.assign(LINHA_T, { modo_ativada: ev => `${ev.target} ativou ${ev.name}${ev.rotulo ? ': ' + ev.rotulo : ''}` }); // T-106 · 700.2a: o modo escolhido no registro
+Object.assign(LINHA_T, { modo_ativada: ev => `Modo escolhido para ${ev.name}: ${ev.rotulo || '?'}` }); // T-110 · a linha do "ativou" já existe // T-106 · 700.2a: o modo escolhido no registro
 Object.assign(LINHA_T, { passo_extra: ev => ev.failed ? `${ev.name}: não é o turno de ${ev.target}, nada acontece` : ev.n === 0 ? `${ev.name}: nenhum passo a mais` : `${ev.target} tem ${ev.passo === 'fase-inicial' ? (ev.n > 1 ? ev.n + ' fases iniciais' : 'uma fase inicial') : ev.passo === 'draw' ? (ev.n > 1 ? ev.n + ' passos de compra' : 'um passo de compra') : (ev.n > 1 ? ev.n + ' manutenções' : 'uma manutenção')} a mais depois ${ev.aposFase ? 'desta fase' : 'deste passo'} (${ev.name})` }); // T-101 · T-103
 Object.assign(EFEITO_PT_T, { passo_extra: e => `${e.target === 'enchanted-player' ? 'o jogador encantado' : e.target === 'player' ? 'o jogador alvo' : 'você'} ganha ${e.fase === 'inicial' ? 'uma fase inicial (desvirar, manutenção e compra)' : (e.n != null && e.n !== 1 ? (typeof e.n === 'number' ? e.n : (e.n.per === 'trigger-value' ? 'tantas' : 'X')) + (e.passo === 'draw' ? ' passos de compra' : ' manutenções') : e.passo === 'draw' ? 'um passo de compra' : 'uma manutenção')} a mais depois ${e.fase === 'inicial' || e.apos === 'fase' ? 'desta fase' : 'deste passo'}${e.n && e.n.per === 'trigger-value' ? ' (uma para cada ponto de dano)' : ''}` }); // T-101 · T-103
 Object.assign(LINHA_T, { dobra_de_fogo: ev => ev.amount ? `${ev.target} adicionou ${'{R}'.repeat(Math.min(ev.amount, 12))} pela dobra de fogo de ${ev.name} (dura até o fim do combate)` : `${ev.name}: a dobra de fogo não adicionou mana` }); // T-100
