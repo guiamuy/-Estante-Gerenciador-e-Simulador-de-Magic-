@@ -4973,6 +4973,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** Flying (Battleflight Eagle, Raven Familiar) só vale com o campo `keywords` da Scryfall (limitação já declarada em M-496, recomendada à trilha `keywords`). As duas cartas que o Raven Familiar manda ao fundo ficam na ordem original ("in any order" não é perguntado; simplificação geral do motor já declarada).
 - **Teste:** `lt182.unit` (6 testes; falham no motor anterior).
 
+**M-501 · LT167 · revisão por lote CXLIII: nove cartas lidas que travam as listas iniciantes** ✅ (leva M-501, motor v112 sem mudança de forma; goldens intactos; nenhuma linha de código nova).
+- **Valor:** passam a jogar (APROVADAS): Iron-Barb Hellion (ímpeto; não bloqueia), Predator's Strike (+3/+3 e atropelar), Brindle Boar (sacrificar: ganha 4), Doomed Dissenter (ao morrer, Zumbi 2/2), Filigree Familiar (ganha 2 ao entrar; compra ao morrer), Languish (todas -4/-4), Blood Divination (sacrificar criatura como custo adicional; compra três), Final Reward, Lich's Caress. Textos da Scryfall consultados em 17/10/2026; leituras conferidas frase a frase no texto oficial.
+- **Revisão independente:** aprovada (revisão de M-501/M-502): 18 leituras conferidas; `--confere` com 1.043 aprovadas; 29 sondas (113 asserções) sem divergência (Languish nos dois lados e não em quem entra depois, 611.2c; Blood Divination só sacrifica criatura sua, na conjuração, e o sacrificado dispara o que tiver de morrer; alvo ilegal não dá vida em Lich's Caress e Moment of Craving, 608.2b; Final Reward exila sem gatilho de morrer; Satyr Hedonist é habilidade de mana sem pilha; Warlord's Axe só em velocidade de feitiço e em criatura sua); fuzz de 60 partidas (36.000 ações) sem recusa nem exceção.
+- **Fora (declarado):** Haste (Iron-Barb Hellion) só vale com o campo `keywords` da Scryfall (limitação já declarada em M-496, recomendada à trilha `keywords`).
+- **Teste:** `lt183.unit` (6 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
