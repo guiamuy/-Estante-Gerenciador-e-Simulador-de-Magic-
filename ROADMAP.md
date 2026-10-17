@@ -4817,6 +4817,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nenhum.
 - **Teste:** `lt156.unit` (5 testes; falham no motor anterior).
 
+**M-475 · LT141 · correções da revisão independente de M-455…M-465** ✅ (leva M-475, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** (1) **400.7 no "you may":** com dois gatilhos do Aurora/Sandstorm Eidolon na pilha, se a carta volta à mão e é descartada de novo, o gatilho mais antigo não a devolve mais (a decisão opcional passa a levar a encarnação da fonte). (2) **603.2c:** descartar N cartas escolhidas uma a uma (Faithless Looting, Mind Rot, Bazaar, limpeza) é um evento só — o Magmakin Artillerist dispara uma vez com "that much" = N; na limpeza, o gatilho ganha prioridade (514.3a). (3) **Faerie Macabre e Rooftop Percher:** "exile up to two target cards from graveyards" é uma instrução só — a Spirit Mascot ganha um marcador, não dois. (4) **Necrosavant passa a jogar** (texto da Scryfall de 17/10/2026): a oferta de habilidade do cemitério respeita "Activate only during your upkeep" (antes oferecia e o `apply` recusava), e o leitor lê "Return this card from your graveyard to the battlefield".
+- **Revisão independente:** os quatro itens são achados do revisor de M-455…M-465 (as sondas dele passam: p460 27/27, p462 22/22, p465 11/11, p460c 48/48); cada um tem teste que falha no motor anterior. **Revisão de M-466…M-475:** aprovada com ressalva — 25 de 27 sondas da M-475 certas (descarte de 2 seguido de 1 = dois eventos; insanidade no meio do descarte; limpeza com insanidade); as duas ressalvas (mesma classe em outras cartas) estão na M-484. Aviso à `bot`: o Shark profissional passa sempre na própria manutenção e nunca usa a Llanowar Augur (nem a Necrosavant).
+- **Fora (declarado):** nenhum.
+- **Teste:** `lt157.unit` (6 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

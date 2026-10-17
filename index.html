@@ -7551,7 +7551,7 @@ const RAW_SCRIPTS = [
   { name: 'Duress', effects: [{ do: 'discard_chosen', amount: 1, target: 'opponent' }],
     example: { target: 'opponent', expect: { opponentLife: 0 } } },
   { name: 'Faerie Macabre', abilities: [{ kind: 'activated', cost: { discardSelf: true, fromHand: true },
-    effects: [{ do: 'exile', target: 'card-in-any-graveyard', upTo: true }, { do: 'exile', target: 'card-in-any-graveyard', upTo: true }] }], // Q11 · texto conferido em 29/09/2026 (auditoria das listas Pauper): "up to two target cards"
+    effects: [{ do: 'exile', target: 'card-in-any-graveyard', upTo: true }, { do: 'exile', target: 'card-in-any-graveyard', upTo: true, mesmaInstrucao: true }] }], // M-475 · uma instrução só (603.2c) · Q11 · texto conferido em 29/09/2026 (auditoria das listas Pauper): "up to two target cards"
     example: { action: 'activate:0', target: 'own-graveyard-creature', expect: { targetExiled: true } } },
   { name: 'Relic of Progenitus', abilities: [
     { kind: 'activated', cost: { tap: true }, effects: [{ do: 'exile_chosen', amount: 1, target: 'player' }] },
@@ -8650,7 +8650,7 @@ const RAW_SCRIPTS = [
     example: { action: 'cycling', target: 'none', expect: { tokens: 1 } } },
   { name: 'Wellwisher', abilities: [{ kind: 'activated', cost: { tap: true }, effects: [{ do: 'gain', amount: { per: 'elves-on-battlefield' } }] }], // "{T}: You gain 1 life for each Elf on the battlefield."
     example: { action: 'activate:0', target: 'none', expect: { selfLife: 0 } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor), então não há Elfo: o cenário de verdade está em listas.lote2.unit
-  { name: 'Rooftop Percher', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'exile', target: 'card-in-any-graveyard', upTo: true }, { do: 'exile', target: 'card-in-any-graveyard', upTo: true }, { do: 'gain', amount: 3 }] }], // "Changeling / Flying / When this creature enters, exile up to two target cards from graveyards. You gain 3 life."
+  { name: 'Rooftop Percher', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'exile', target: 'card-in-any-graveyard', upTo: true }, { do: 'exile', target: 'card-in-any-graveyard', upTo: true, mesmaInstrucao: true /* M-475 · uma instrução só (603.2c) */ }, { do: 'gain', amount: 3 }] }], // "Changeling / Flying / When this creature enters, exile up to two target cards from graveyards. You gain 3 life."
     example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor): o cenário de verdade está em listas.lote*.unit
   { name: 'Mortuary Mire', entersTapped: true, produces: [['B']], abilities: [{ kind: 'triggered', when: 'etb', optional: true, effects: [{ do: 'mover', para: 'library', posicao: 'topo', target: 'creature-in-your-graveyard' }] }], // "Mortuary Mire enters tapped. / When Mortuary Mire enters, you may put target creature card from your graveyard on top of your library. / {T}: Add {B}."
     example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor): o cenário de verdade está em listas.lote*.unit
@@ -9839,6 +9839,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Flames of the Firebrand': { texto: '1dxjjju', leva: 'M-474' },
   'Krosan Tusker': { texto: '113rakb', leva: 'M-474' },
   'Beast Attack': { texto: '18x0s5j', leva: 'M-474' },
+  // M-475 · Necrosavant (a oferta do cemitério passa a respeitar "Activate only during your upkeep"; leitor lê "Return this card from your graveyard to the battlefield"), texto da Scryfall de 17/10/2026 UTC
+  'Necrosavant': { texto: 'h702vq', leva: 'M-475' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18457,7 +18459,7 @@ const __m42 = (function () {
     { const su = corpo.match(/\.\s*Activate only during your upkeep$/i); if (su) { corpo = corpo.slice(0, su.index); extra.onlyInStep = ['upkeep']; extra.soNoSeuTurno = true; frases.push({ texto: 'Activate only during your upkeep', lida: true }); } } // M-457 · 602.5b (Llanowar Augur): a sua manutenção
     { const st = corpo.match(/\.\s*Activate only (during the end of combat step|during combat)$/i); if (st) { corpo = corpo.slice(0, st.index); extra.onlyInStep = /end of combat/i.test(st[1]) ? ['combat_end'] : ['combat_begin', 'combat_attackers', 'combat_blockers', 'combat_damage', 'combat_end']; frases.push({ texto: `Activate only ${st[1]}`, lida: true }); } } // M-377 · 602.5b (Desert)
     if (/^return (?:~|this card) from your graveyard to your hand$/i.test(til(corpo, nome))) { frases.push({ texto: linha, lida: false, motivo: 'ativada do cemitério para a mão: ainda sem leitura' }); return null; } // M-460 · ativada do cemitério para a mão (Firewing Phoenix): ainda sem leitura — a frase nova do gatilho não vale aqui
-    if (/^return ~ from your graveyard to the battlefield$/i.test(til(corpo, nome))) { cost.fromGraveyard = true; cost.devolveSelf = true; frases.push({ texto: m[1], lida: true }, { texto: corpo, lida: true }); return { kind: 'activated', cost, ...extra, effects: [{ do: 'reanimate', target: 'self-source' }] }; } // M-398 · Cauldron Familiar (113.6)
+    if (/^return (?:~|this card) from your graveyard to the battlefield$/i.test(til(corpo, nome))) /* M-475 · "this card" na habilidade do cemitério é ela mesma */ { cost.fromGraveyard = true; cost.devolveSelf = true; frases.push({ texto: m[1], lida: true }, { texto: corpo, lida: true }); return { kind: 'activated', cost, ...extra, effects: [{ do: 'reanimate', target: 'self-source' }] }; } // M-398 · Cauldron Familiar (113.6)
     const instante = /^Add (two|three|four|five) mana of any one color\.\s*Activate only as an instant$/i.test(corpo); if (instante) corpo = corpo.replace(/\.\s*Activate only as an instant$/i, ''); // M-342 · Lion's Eye Diamond: ativar exige prioridade, como toda ativação nesta mesa (602.5d não muda nada aqui)
     if (/\.\s*Activate only once each turn$/i.test(corpo)) { corpo = corpo.replace(/\.\s*Activate only once each turn$/i, ''); extra.oncePerTurn = true; } // M-334 · LT18 · 602.5b (Barrels of Blasting Jelly)
     if (/^Add one mana of any color$/i.test(corpo) && !(cost.tap && Object.keys(cost).length === 1)) { frases.push({ texto: m[1], lida: true }, { texto: corpo, lida: true }); return { kind: 'activated', cost, ...extra, effects: [{ do: 'add_mana', anyColor: true }] }; } // LT11 · mana de qualquer cor com custo além de {T}
@@ -23045,7 +23047,7 @@ function resumeEffects(s, events) {
   // CR2c.7 · habilidade com X retomada depois de uma decisão: a fonte é a permanente, e o X é o da habilidade só durante esta retomada
   const xRet = r.xPaid != null && s.objects[r.oid] ? src : null, xAntes = xRet ? xRet.xPaid : undefined; if (xRet) xRet.xPaid = r.xPaid;
   try { for (const eff of r.effects) {
-    if (!eff.mesmaInstrucaoM && (s.loteCemiterioM || s.loteDescarteM || s.saidasCemM)) fechaLoteCemiterioM(s); // M-465 · idem na retomada
+    if (!eff.mesmaInstrucaoM && !eff.mesmaInstrucao && (s.loteCemiterioM || s.loteDescarteM || s.saidasCemM)) fechaLoteCemiterioM(s); // M-465 · idem na retomada
     // Q10 · mesmos alvos da resolução interrompida (os que ainda não foram usados, na ordem)
     let tgt = null;
     if (SC.isTargeted(eff)) tgt = alvos.shift() || null;
@@ -23358,7 +23360,7 @@ function resolveScript(s, o, events) {
   const limiarAntes = effects.some(e => e && (e.onlyIf === 'threshold' || e.onlyIf === 'sem-limiar')) ? condicaoDoEfeito(s, o, 'threshold') : null; // M-417 · também "sem limiar" // M-412 · o "instead" do limiar decide a frase inteira de uma vez: contado antes do primeiro efeito (achado da revisão: com o dano depois da destruição, a regeneração mudava o resultado)
   let ti = 0, firstTarget = null, donoDoPrimeiro = null, modoAtual = null, neveDoPrimeiro = false, mordedorM = null, lendarioDoPrimeiro = false; // M-407 · M-414
   for (const [idx, eff] of effects.entries()) {
-    if (!eff.mesmaInstrucaoM && (s.loteCemiterioM || s.loteDescarteM || s.saidasCemM)) fechaLoteCemiterioM(s); // M-465 · cada instrução da mágica é um evento (603.2c)
+    if (!eff.mesmaInstrucaoM && !eff.mesmaInstrucao && (s.loteCemiterioM || s.loteDescarteM || s.saidasCemM)) fechaLoteCemiterioM(s); // M-465 · cada instrução da mágica é um evento (603.2c)
     if (eff.__modo != null && eff.__modo !== modoAtual) { modoAtual = eff.__modo; firstTarget = null; donoDoPrimeiro = null; neveDoPrimeiro = false; lendarioDoPrimeiro = false; } // CR 700.2d · cada modo é uma frase própria
     // Q10 · a retomada leva o alvo junto: "perde 1 de vida" depois de devolver o comandante era cobrado de quem conjurou
     if (s.pending) { s.resume = { oid: o.oid, name: o.name, controller: o.controller, effects: effects.slice(idx), alvo: firstTarget, alvos: chosen.slice(ti), condicoes: condicoesDaMagia(o, effects.slice(idx)) }; return; } // M-351 · as marcas da conjuração (400.7 já as apagou da carta) seguem na retomada
@@ -23799,6 +23801,8 @@ function saiuDoCemiterioM(s, o) {
       const lote = s.loteCemiterioM || (s.loteCemiterioM = []); if (lote.some(x => x.source === w.oid && x.i === i)) continue;
       lote.push({ source: w.oid, i, name: w.name, controller: w.controller, effects: ab.effects, when: ab.when, ...marcasDaHabilidade(ab) }); } }
 }
+/** M-475 · 603.2c: "discard N cards" escolhido carta a carta (Faithless Looting, limpeza, Mind Rot) é um evento só: o lote de descarte espera o pendente acabar. */
+const descarteEmCursoM = s => !!(s.loteDescarteM && s.pending && s.pending.kind === 'discard');
 function fechaLoteCemiterioM(s) { fechaLoteDescarteM(s); delete s.saidasCemM; const l = s.loteCemiterioM; if (!l) return; delete s.loteCemiterioM; for (const { i, ...q } of l) s.queued.push(q); }
 /* M-462 · 603.2c · "Whenever you discard one or more cards, … that much" (Magmakin Artillerist): uma vez por evento de descarte, com o valor = quantas
    cartas o jogador descartou nele (insanidade também é descarte, 702.35). O lote fecha nos mesmos pontos do da M-449; só nas partidas com o gatilho. */
@@ -23815,7 +23819,7 @@ function fechaLoteDescarteM(s) {
         s.queued.push({ source: w.oid, name: w.name, controller: w.controller, effects: ab.effects, when: ab.when, value: n, jogador: p, ...marcasDaHabilidade(ab) }); } } }
 }
 function flushTriggers(s, events) {
-  fechaLoteCemiterioM(s); // M-449
+  if (!descarteEmCursoM(s)) fechaLoteCemiterioM(s); // M-449 · M-475: o descarte escolhido carta a carta ainda é o mesmo evento
   if (escolhaDeEntradaK(s)) return; // K-38 · 702.136a: a escolha do tumulto, antes dos gatilhos (Toca ponto comum: flushTriggers)
   // escolhas pendentes vêm antes dos gatilhos
   // M-330 · 614.12 · "you may pay 2 life; if you don't, it enters tapped": a terra entra virada e o controlador decide em seguida se paga
@@ -24936,7 +24940,7 @@ const HANDLERS = {
     if (pk.extra) { if (!canPayExtra(s, a.p, pk.extra, null)) throw new RuleError('custo', 'não dá para pagar esse custo'); payExtraCosts(s, a.p, pk.extra, a.pay, null); }
     s.pending = null;
     if (pk.then) { // S47 · pagou: agora os efeitos do gatilho acontecem
-      const src = s.objects[pk.then.source] || { oid: pk.then.source, name: pk.then.name, controller: pk.then.controller };
+      const src = pk.then.fonteZc != null ? { oid: pk.then.habOid, ability: true, source: pk.then.source, fonteZc: pk.then.fonteZc, name: pk.then.name, controller: pk.then.controller } /* M-475 · 400.7: a habilidade confere a encarnação da fonte (Aurora/Sandstorm Eidolon) */ : s.objects[pk.then.source] || { oid: pk.then.source, name: pk.then.name, controller: pk.then.controller };
       // S56 · o gatilho pode ter alvo escolhido antes: aplica cada efeito com o alvo dele
       let ti = 0;
       for (const eff of pk.then.effects) {
@@ -25377,7 +25381,7 @@ const HANDLERS = {
     // S18 · insanidade: a carta descartada vai para o exílio e o dono decide
     if (madness) { moveObject(s, o.oid, 'exile'); noteDiscard(s, a.p); insanidadeNaPilhaK(s, a.p, o.oid); } // K-74 · 702.35a: gatilho na pilha; o descarte (e a limpeza) seguem (decisão D1 do dono; Toca ponto comum: HANDLERS.discard)
     else moveObject(s, o.oid, 'graveyard');
-    if (after === 'cleanup') { if ((s.queued || []).length) { fimDosEfeitosDoTurno(s); s.turn.passes = 0; s.turn.priority = s.turn.active; return; } finishCleanup(s); return; } // CR2g.1 · 514.3a: gatilho na limpeza → prioridade, depois outra limpeza
+    if (after === 'cleanup') { if (s.loteDescarteM || s.loteCemiterioM || s.saidasCemM) fechaLoteCemiterioM(s); /* M-475 · o descarte da limpeza (514.1) fecha o lote antes de decidir se há gatilho (514.3a) */ if ((s.queued || []).length) { fimDosEfeitosDoTurno(s); s.turn.passes = 0; s.turn.priority = s.turn.active; return; } finishCleanup(s); return; } // CR2g.1 · 514.3a: gatilho na limpeza → prioridade, depois outra limpeza
     // S60 · correção: o descarte pedido por um efeito não retomava o resto do efeito
     if (!s.pending) { stateBased(s, ev); if (!continueUnless(s, ev)) resumeEffects(s, ev); }
   },
@@ -25563,7 +25567,7 @@ function apply(state, action) {
   barraDetidaV(s, action); // V-21 · 701.35a: habilidade ativada de permanente detida · Toca ponto comum: apply (uma linha)
   barraTravadaPeloNomeT(s, action); // T-79 · CR 201.4 · "activated abilities of sources with the chosen name can't be activated" (Pithing Needle, Phyrexian Revoker) · Toca ponto comum: apply (uma linha)
   HANDLERS[action.t](s, action, events);
-  if (s.loteCemiterioM || s.loteDescarteM || s.saidasCemM) fechaLoteCemiterioM(s); // M-449 · o lote fecha no fim da ação
+  if ((s.loteCemiterioM || s.loteDescarteM || s.saidasCemM) && !descarteEmCursoM(s)) fechaLoteCemiterioM(s); // M-449 · o lote fecha no fim da ação · M-475: não no meio de um descarte escolhido
   if (action.oid != null && s.objects[action.oid] && s.objects[action.oid].zone === 'stack' && !s.pending) modoDoOponentePendenteT(s, action.oid); // T-107 · 700.2e: o oponente escolhe o modo quando quem conjura escolheria (Toca ponto comum: apply, uma linha)
   if (s.players.some(pl => pl.manaCombateT)) podaManaDeCombateT(s); // T-102 · 702.189a: a mana da dobra de fogo gasta não volta (Toca ponto comum: apply, uma linha)
   if (!s.pending && s.divisaoPendente) { const oid = s.divisaoPendente; delete s.divisaoPendente; if (s.objects[oid] && s.objects[oid].zone === 'stack') iniciaDivisao(s, oid, events); } // M-376
@@ -26019,6 +26023,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
     const o = s.objects[oid]; if (!o || !s.facts[o.name]) continue;
     abilitiesOf(s, o).filter(x => x.kind === 'activated').forEach((ab, index) => { if (!(ab.cost || {}).fromGraveyard) return;
       if (ab.sorceryOnly && !canSorcery) return;
+      if ((ab.onlyInStep && !ab.onlyInStep.includes(s.turn.step)) || (ab.soNoSeuTurno && s.turn.active !== p)) return; // M-475 · 602.5b: a oferta e o apply concordam (Necrosavant)
       if (s.manaCheck && (ab.cost || {}).mana && !canPay(s, p, parseCost(ab.cost.mana))) return;
       const need = (ab.effects || []).filter(SC.isTargeted);
       const pays = pagamentosDe(s, p, ab.cost, oid); if (!pays.length) return; // M-398 · o custo com escolha ("Sacrifice a Food") gera uma ação por forma de pagar
@@ -26192,7 +26197,7 @@ function resolveAbility(s, o, events) {
     o.mayPayAsked = true;
     if (o.optionalTrigger && !o.mayPay) { // S49 · "você pode comprar": decisão sem custo
       s.pending = { kind: 'may_pay', p: o.controller, cost: null, name: o.name,
-        then: { effects: o.effects || [], source: o.source || o.oid, name: o.name, controller: o.controller, targets: o.targets || [] } };
+        then: { effects: o.effects || [], source: o.source || o.oid, name: o.name, controller: o.controller, targets: o.targets || [], ...(o.ability && o.fonteZc != null ? { fonteZc: o.fonteZc, habOid: o.oid } : {}) /* M-475 · 400.7: a encarnação da fonte viaja com a decisão */ } };
       events.push({ kind: 'choice', what: 'fazer ou não o efeito', name: o.name, amount: 1 });
       return;
     }
@@ -26201,7 +26206,7 @@ function resolveAbility(s, o, events) {
     if (extra && extra.sacrificeSelf && !(s.objects[o.source] && s.objects[o.source].zone === 'battlefield')) return; // a fonte saiu: não há o que sacrificar
     if (extra ? canPayExtra(s, o.controller, extra, o.source) : (!s.manaCheck || canPay(s, o.controller, parseCost(o.mayPay.mana)))) {
       s.pending = { kind: 'may_pay', p: o.controller, cost: o.mayPay.mana || null, ...(extra ? { extra } : {}), name: o.name,
-        then: { effects: o.effects || [], source: o.source || o.oid, name: o.name, controller: o.controller, targets: o.targets || [], ...(o.lembrada ? { lembrada: o.lembrada } : {}) } };
+        then: { effects: o.effects || [], source: o.source || o.oid, name: o.name, controller: o.controller, targets: o.targets || [], ...(o.ability && o.fonteZc != null ? { fonteZc: o.fonteZc, habOid: o.oid } : {}) /* M-475 · 400.7: a encarnação da fonte viaja com a decisão */, ...(o.lembrada ? { lembrada: o.lembrada } : {}) } };
       events.push({ kind: 'choice', what: 'pagar para o efeito acontecer', name: o.name, amount: 1 });
       return;
     }
@@ -26215,7 +26220,7 @@ function resolveAbility(s, o, events) {
   let ti = 0, primeiro = null, donoDoPrimeiro = null, primeiroVazio = false, neveDoPrimeiro = false, mordedorH = null, lendarioDoPrimeiroH = false; /* M-414 */ /* M-407 · também nas habilidades (Vivien of the Arkbow −3) */ // M-385 · achado da revisão: a condição do terreno nevado também nas habilidades // M-327 · 608.2h: o controlador do alvo é o de antes do efeito
   const fonte = s.objects[o.source];
   for (const eff of o.effects || []) {
-    if (!eff.mesmaInstrucaoM && (s.loteCemiterioM || s.loteDescarteM || s.saidasCemM)) fechaLoteCemiterioM(s); // M-465 · idem na habilidade
+    if (!eff.mesmaInstrucaoM && !eff.mesmaInstrucao && (s.loteCemiterioM || s.loteDescarteM || s.saidasCemM)) fechaLoteCemiterioM(s); // M-465 · idem na habilidade
     if (eff.onlyIf === 'alvo-era-neve' && !neveDoPrimeiro) continue; // M-385
     if (eff.onlyIf === 'alvo-era-lendario' && !lendarioDoPrimeiroH) continue; // M-414
     if (eff.onlyIf === 'alvo-era-seu' && donoDoPrimeiro !== o.controller) continue; // M-341
