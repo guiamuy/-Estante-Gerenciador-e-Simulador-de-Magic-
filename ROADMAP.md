@@ -4502,6 +4502,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** Corrupt, Syphon Soul, Brightflame e Enter the God-Eternals têm a frase da vida lida, mas outra frase delas ainda não; Brion Stoutarm passa a ser lido e não está aprovado.
 - **Teste:** `lt109.unit` (4 testes; falham no motor anterior).
 
+**M-428 · LT94 · correções da revisão independente de M-414, M-415, M-422 e M-423** ✅ (leva M-428, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** (1) **Glorious Gale:** a mágica lendária conjurada virada para baixo não tem nome nem supertipo (708.2) — é anulada e o Anel não tenta; (2) **a conferência de invariantes deixa de contar o emblema do Anel como carta** (defeito da V-25 exposto pela M-414: o fuzz dava falso vermelho "cartas 51, esperadas 50" em partidas com Gale e criatura lendária); (3) a pilha explicada do Songs of the Damned diz "para cada carta de criatura no seu cemitério".
+- **Revisão independente:** os três itens são achados do revisor do lote M-414/M-415/M-422/M-423; cada um tem teste que falha no motor anterior. A revisão do lote M-424…M-428 aprovou (~6 verificações).
+- **Fora (declarado):** nada novo.
+- **Teste:** `lt110.unit` (3 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
