@@ -9706,6 +9706,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Sprout Swarm': { texto: '1hqbw38', leva: 'M-445' },
   // M-447 · revisão por lote XCV ("any target that was dealt damage this turn": Needle Drop), texto da Scryfall de 17/10/2026 UTC, revisor independente
   'Needle Drop': { texto: 'zqbe49', leva: 'M-447' },
+  // M-448 · revisão por lote XCVI ("an instant card or a card with flash": Mystical Teachings), texto da Scryfall de 17/10/2026 UTC, revisor independente
+  'Mystical Teachings': { texto: '14wo3nq', leva: 'M-448' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18061,6 +18063,7 @@ const __m42 = (function () {
     [new RegExp(`^(?:~|this creature) endures ${N}$`, 'i'), m => [{ do: 'endure', amount: num(m[1]) }]], // M-380 · "it endures 1" (Fortress Kin-Guard)
     [/^revela_ate_terreno_cemiterio (target player|target opponent)$/i, m => [{ do: 'revela_ate_cemiterio', match: 'land', target: /opponent/i.test(m[1]) ? 'opponent' : 'player' }]], // M-377 · Balustrade Spy
     [/^search your library for a basic land card or an? ([A-Z][a-z]+) card, reveal it, put it into your hand$/i, m => [{ do: 'search', amount: 1, filter: { ou: [{ types: ['land'], basic: true }, { subtypes: [m[1]] }] }, to: 'hand' }]], // M-377 · Gatecreeper Vine
+    [/^search your library for an instant card or a card with flash, reveal it, put it into your hand$/i, () => [{ do: 'search', amount: 1, filter: { ou: [{ types: ['instant'] }, { keyword: 'flash' }] }, to: 'hand', revela: true }]], // M-448 · Mystical Teachings (filtro "ou" da M-377; a carta achada é revelada, 701.20a)
     [/^~ deals X damage divided evenly, rounded down, among any number of targets$/i, () => [{ do: 'damage', amount: { per: 'x' }, target: 'any', dividido: { igual: true } }]], // M-408 · Fireball
     [/^~ deals (\d+|X) damage divided as you choose among (any number of targets|one or two targets|one, two, or three targets|any number of target creatures)$/i, m => [{ do: 'damage', amount: m[1].toUpperCase() === 'X' ? { per: 'x' } : +m[1], target: /creatures$/i.test(m[2]) ? 'creature' : 'any', dividido: { max: /^one or two/i.test(m[2]) ? 2 : /^one, two, or three/i.test(m[2]) ? 3 : null } }]], // M-376 · 601.2d
     [/^(target creature|target creature you control) can't be the target of spells or abilities your opponents control this turn$/i, m => [com({ do: 'sem_alvo_de_oponentes' }, alvo(m[1]))]], // M-375 · Vines of Vastwood

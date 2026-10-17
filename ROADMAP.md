@@ -4637,6 +4637,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nenhum.
 - **Teste:** `lt129.unit` (3 testes; falham no motor anterior).
 
+**M-448 · LT114 · Mystical Teachings: busca "an instant card or a card with flash"** ✅ (leva M-448, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** a **Mystical Teachings** joga pelo leitor aprovado: a busca oferece só instantâneas ou cartas com lampejo (inclusive outra cópia dela), revela a escolhida (701.20a) e embaralha; o lampejo do passado {5}{B} conjura do cemitério e exila depois. Texto da Scryfall consultado em 17/10/2026.
+- **Primitiva:** nenhuma nova — o filtro "ou" da M-377 com tipo e palavra-chave.
+- **Revisão independente:** aprovada (21 verificações: instantânea, criatura com lampejo e Kindred Instant são oferecidas; feitiço, terreno, "as though it had flash" e o aventureiro não; revela; pode não achar; lampejo do passado exige {B}, custa 6 e exila).
+- **Fora (declarado):** lampejo concedido por outro efeito a uma carta no grimório não existe no Pauper atual; o filtro olha a palavra-chave impressa.
+- **Teste:** `lt130.unit` (3 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
