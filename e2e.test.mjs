@@ -12584,3 +12584,26 @@ test('e2e · R-20 Painel · Acervo: listas no acervo, saúde da coleta, lista ma
   if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.screenshot({ path: process.env.SHOTS + '/r20-acervo.png', fullPage: true }); }
   assert.deepEqual(errors, []);
 });
+
+/* ---------------- M-408 · divisão igual (Fireball): marcar os alvos e fechar ---------------- */
+test('e2e · M-408 · Fireball: a mesa pede os alvos, mostra o dano em cada e o custo a mais, e "Pronto" fecha', { skip }, async t => {
+  const extras = JSON.parse(readFileSync(join(ROOT, '.listas', 'oficiais-revisadas.json'), 'utf8')).cartas.filter(c => c.name === 'Fireball');
+  const M = await comLista125(t, '20 Mountain\n20 Fireball\n20 Kitchen Imp', ['Mountain', 'Fireball', 'Kitchen Imp'], '4', { extras });
+  const { page } = M;
+  const imp = await page.evaluate(() => { const s = window.__estanteMesa.estadoFinal(); // mesa montada à mão: seis Montanhas, o Fireball na mão e um Kitchen Imp seu (o oponente de teste é o goldfish, sem cartas)
+    const poe = (q, nome, para) => { const z = s.zones[q]; for (const zn of ['library', 'hand']) { const i = z[zn].findIndex(o => s.objects[o].name === nome && (zn !== 'battlefield')); if (i >= 0) { const oid = z[zn][i]; z[zn].splice(i, 1); z[para].push(oid); Object.assign(s.objects[oid], { zone: para, tapped: false }); return oid; } } return null; };
+    for (let k = 0; k < 6; k++) poe(0, 'Mountain', 'battlefield'); poe(0, 'Fireball', 'hand'); return poe(0, 'Kitchen Imp', 'battlefield'); });
+  assert.equal(await M.act((await M.legal("a.t==='tap_mana'"))[0]), true, 'gera um {R} (e a mesa recalcula as ações depois da montagem)');
+  const cast = (await M.legal("a.t==='cast' && a.x===4"))[0]; assert.ok(cast, 'Fireball com X = 4'); assert.equal(await M.act(cast), true);
+  let e = await M.resolve(); assert.equal(e.pend, 'dividir_magia');
+  assert.match(await M.decisao(), /^Fireball: escolha os alvos \| Toque nos alvos · 4 de dano dividido igualmente · \{1\} a mais por alvo além do primeiro/);
+  await auditaTela(page, 'Fireball: escolher os alvos');
+  const idx = await page.evaluate(oid => { const s = window.__estanteMesa.estado(); return { imp: s.pending.options.findIndex(o => o.oid === oid), b: s.pending.options.findIndex(o => o.player === 1) }; }, imp);
+  await page.locator(`.tb-banner__actions [data-alvo="${idx.b}"]`).click(); await page.waitForTimeout(200);
+  await page.locator(`.tb-banner__actions [data-alvo="${idx.imp}"]`).click(); await page.waitForTimeout(200);
+  assert.match(await M.decisao(), /2 de dano em cada · custa \{1\} a mais/);
+  await page.click('#tb-dividir-pronto'); await page.waitForTimeout(300); e = await M.resolve();
+  const fim = await page.evaluate(oid => { const s = window.__estanteMesa.estado(); return { zona: s.objects[oid].zone, vidaB: s.players[1].life }; }, imp);
+  assert.deepEqual(fim, { zona: 'graveyard', vidaB: 18 }, '2 no Kitchen Imp 2/2 e 2 no oponente');
+  assert.deepEqual(M.errors, []);
+});

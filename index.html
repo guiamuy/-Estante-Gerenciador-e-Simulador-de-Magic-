@@ -6347,6 +6347,8 @@ function effectErrors(effects, label, opcional) {
     if (e.lembraExiladas != null && !(e.lembraExiladas === true && (e.do === 'exile_top_playable' || e.do === 'delayed'))) errs.push(`${label} ${i + 1}: "lembraExiladas" é uma marca (true) do exílio do topo e do gatilho atrasado`); // M-386 (o \`lembra\` do \`mover\` é outra coisa — achado da revisão: Leonin Relic-Warder)
     if (e.seRestar != null && !(e.seRestar === true && e.do === 'delayed' && e.lembraExiladas)) errs.push(`${label} ${i + 1}: "seRestar" é do gatilho atrasado que lembra as exiladas`); // M-386 · 603.4
     if (e.marcadorSeCriatura != null && !(e.do === 'reanimate' && e.target !== 'self-source' && Number.isInteger(e.marcadorSeCriatura) && e.marcadorSeCriatura > 0)) errs.push(`${label} ${i + 1}: "marcadorSeCriatura" é a quantidade de marcadores +1/+1 extras do reanimar`); // M-400
+    if (e.dividido != null && e.dividido.igual != null && !(e.dividido.igual === true && e.dividido.max == null && Object.keys(e.dividido).every(k => ['igual', 'max', 'custoAlvoExtra'].includes(k)))) errs.push(`${label} ${i + 1}: "dividido.igual" é true, sem máximo de alvos`); // M-408 · "divided evenly, rounded down, among any number of targets" (Fireball)
+    if (e.dividido != null && e.dividido.custoAlvoExtra != null && !(e.dividido.igual === true && Number.isInteger(e.dividido.custoAlvoExtra) && e.dividido.custoAlvoExtra >= 1)) errs.push(`${label} ${i + 1}: "custoAlvoExtra" (601.2f: {N} a mais por alvo além do primeiro) só com "igual"`); // M-408
     if (e.dividido != null && !(e.do === 'damage' && typeof e.dividido === 'object' && (e.dividido.max == null || (Number.isInteger(e.dividido.max) && e.dividido.max >= 2)) && ['any', 'creature'].includes(e.target))) errs.push(`${label} ${i + 1}: "dividido" é dano dividido entre alvos (601.2d): { max: null | 2 ou mais }, alvo "any" ou "creature"`); // M-376
     if (e.do === 'descarta_e_compra' && e.descarta != null && !(Number.isInteger(e.descarta) && e.descarta >= 1)) errs.push(`${label} ${i + 1}: "descarta" é quantas cartas se descartam (inteiro, 1 ou mais)`); // M-373
     if (e.do === 'morde' && !(i > 0 && effects[i - 1] && effects[i - 1].do === 'mordedor')) errs.push(`${label} ${i + 1}: "morde" vem logo depois de "mordedor" (a criatura que causa o dano)`); // M-407
@@ -9468,6 +9470,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Ram Through': { texto: 'wn60hx', leva: 'M-407' },
   'Bite Down': { texto: '1roe0ay', leva: 'M-407' },
   'Tail Slash': { texto: '69dyok', leva: 'M-407' },
+  // M-408 · revisão por lote LXII (Pauper: Fireball, 20 listas), revisor independente: cerca de 165 verificações, fuzz e diferenciais sem diferença; aprovou com dois achados (mesa sem cobrança de mana; registro de 0 de dano) — corrigidos com teste
+  'Fireball': { texto: 'wafhs5', leva: 'M-408' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -17789,6 +17793,7 @@ const __m42 = (function () {
     [new RegExp(`^(?:~|this creature) endures ${N}$`, 'i'), m => [{ do: 'endure', amount: num(m[1]) }]], // M-380 · "it endures 1" (Fortress Kin-Guard)
     [/^revela_ate_terreno_cemiterio (target player|target opponent)$/i, m => [{ do: 'revela_ate_cemiterio', match: 'land', target: /opponent/i.test(m[1]) ? 'opponent' : 'player' }]], // M-377 · Balustrade Spy
     [/^search your library for a basic land card or an? ([A-Z][a-z]+) card, reveal it, put it into your hand$/i, m => [{ do: 'search', amount: 1, filter: { ou: [{ types: ['land'], basic: true }, { subtypes: [m[1]] }] }, to: 'hand' }]], // M-377 · Gatecreeper Vine
+    [/^~ deals X damage divided evenly, rounded down, among any number of targets$/i, () => [{ do: 'damage', amount: { per: 'x' }, target: 'any', dividido: { igual: true } }]], // M-408 · Fireball
     [/^~ deals (\d+|X) damage divided as you choose among (any number of targets|one or two targets|one, two, or three targets|any number of target creatures)$/i, m => [{ do: 'damage', amount: m[1].toUpperCase() === 'X' ? { per: 'x' } : +m[1], target: /creatures$/i.test(m[2]) ? 'creature' : 'any', dividido: { max: /^one or two/i.test(m[2]) ? 2 : /^one, two, or three/i.test(m[2]) ? 3 : null } }]], // M-376 · 601.2d
     [/^(target creature|target creature you control) can't be the target of spells or abilities your opponents control this turn$/i, m => [com({ do: 'sem_alvo_de_oponentes' }, alvo(m[1]))]], // M-375 · Vines of Vastwood
     [/^if this spell was kicked, that creature gets ([+-]\d+)\/([+-]\d+) until end of turn$/i, m => [{ do: 'pump', power: SINAL(m[1]), toughness: SINAL(m[2]), target: 'first-target', onlyIf: 'kicked' }]], // M-375 · 702.33d · "Put a -1/-1 counter on ~: Untap ~" (Devoted Druid)
@@ -18169,6 +18174,7 @@ const __m42 = (function () {
       if (magica && /^teamwork \d+$/i.test(linha.replace(/\.$/, ''))) { frases.push({ texto: linha, lida: true, palavras: true }); continue; } // M-379 · 702.194 (K-70): o N vem do texto da carta (fatos.equipeK)
       if (!magica && /^ward \{\d+\}$/i.test(linha.replace(/\.$/, ''))) { frases.push({ texto: linha, lida: true, palavras: true }); continue; } // M-333 · 702.21: o motor lê "Ward {N}" impresso da carta (K-2)
       const kc0 = !magica && COM_CUSTO.map(([re, faz]) => { const m = linha.replace(/\.$/, '').match(re); return m && faz(m); }).find(Boolean); // LT5 · reciclagem em terreno
+      { const ra = linha.replace(/\.$/, '').match(/^this spell costs \{(\d+)\} more to cast for each target beyond the first$/i); if (ra && magica) { topo.custoAlvoExtraL = +ra[1]; frases.push({ texto: linha, lida: true }); continue; } } // M-408 · 601.2f (Fireball): vai para o dano dividido igual da mesma carta
       { const rv = linha.replace(/\.$/, '').match(/^this spell costs \{(\d+)\} less to cast if it targets a tapped permanent$/i); if (rv && magica) { topo.reduzSeAlvoVirado = +rv[1]; frases.push({ texto: linha, lida: true }); continue; } } // M-383 · Ride's End
       { const rp = linha.replace(/\.$/, '').match(/^(?:domain — )?this spell costs \{(\d+)\} less to cast for each (.+)$/i), per = rp && REDUZ_POR_TEXTO[rp[2].toLowerCase()]; // M-333 · 601.2f
         if (per) { topo.reduzPor = { generic: +rp[1], per }; frases.push({ texto: linha, lida: true }); continue; } }
@@ -18274,6 +18280,7 @@ const __m42 = (function () {
       const xMagica = usaX(efeitos) || (modos || []).some(m => m && usaX(m.effects)), temX = /\{X\}/.test(String((card && card.mana_cost) || ''));
       const abX = (topo.abilities || []).some(a => usaX(a.effects) && !(a.kind === 'activated' && /\{X\}/.test((a.cost || {}).mana || '')));
       if ((xMagica && !(magica && temX)) || abX) frases.push({ texto: 'X sem {X} no custo', lida: false, motivo: 'o X precisa vir do custo pago (107.3), M-343' }); }
+    if (topo.custoAlvoExtraL != null) { const d = efeitos.find(e => e && e.dividido && e.dividido.igual); if (d) d.dividido.custoAlvoExtra = topo.custoAlvoExtraL; else frases.push({ texto: 'custo a mais por alvo', lida: false, motivo: 'só com dano dividido igualmente (M-408)' }); delete topo.custoAlvoExtraL; } // M-408 · Fireball
     const lidas = frases.every(f => f.lida) && (!modos || (modos.length >= 2 && modos.every(Boolean)));
     let script = null;
     if (modos && modos.length && !efeitos.length) script = { name: nome, modes: modos.filter(Boolean), ...topo };
@@ -20550,19 +20557,23 @@ function alvosDaDivisao(s, p, oid, e) { const src = s.objects[oid]; return legal
 function divisaoPossivel(s, p, oid, x) {
   const o = s.objects[oid], e = divisaoDaMagia(s, o); if (!e) return true;
   const total = amountOf(s, { ...o, controller: p, xPaid: x != null ? x : o.xPaid }, e.amount);
-  return total >= 1 && alvosDaDivisao(s, p, oid, e).length > 0;
+  return ((e.dividido && e.dividido.igual) ? total >= 0 : total >= 1) && alvosDaDivisao(s, p, oid, e).length > 0; // M-408 · divisão igual: X = 0 é conjurável (0 de dano)
 }
 function iniciaDivisao(s, oid, events) {
   const o = s.objects[oid], e = divisaoDaMagia(s, o); if (!e || o.divisao) return;
   const total = amountOf(s, o, e.amount), options = alvosDaDivisao(s, o.controller, oid, e);
   if (o.ability && (!options.length || total < 1)) { s.stack = s.stack.filter(x => x !== oid); delete s.objects[oid]; events.push({ kind: 'trigger-fizzled', name: o.name, when: 'sem alvo' }); return; } // M-378 · 603.3d: sem alvo legal, a habilidade sai da pilha
-  s.pending = { kind: 'dividir_magia', p: o.controller, oid, name: o.name, total, max: (e.dividido && e.dividido.max) || null, options, partes: options.map(() => 0) };
-  if (options.length === 1) { s.pending.partes[0] = total; finalizaDivisao(s, events); } // um alvo só: todo o dano nele, sem perguntar
+  s.pending = { kind: 'dividir_magia', p: o.controller, oid, name: o.name, total, max: (e.dividido && e.dividido.max) || null, options, partes: options.map(() => 0),
+    ...(e.dividido && e.dividido.igual ? { igual: true, custoAlvoExtra: o.copiaDeMagia || o.ability ? 0 : (e.dividido.custoAlvoExtra || 0) } : {}) }; // M-408 · divisão igual: escolhe os alvos; a cópia não paga custo (707.10)
+  if (options.length === 1) { s.pending.partes[0] = s.pending.igual ? 1 : total; finalizaDivisao(s, events); } // um alvo só: todo o dano nele, sem perguntar
 }
 function finalizaDivisao(s, events) {
   const pd = s.pending; s.pending = null;
   const o = s.objects[pd.oid]; if (!o) return;
-  const idx = pd.options.map((t, i) => i).filter(i => pd.partes[i] > 0);
+  if (pd.igual) { const esc = pd.escolhidos || pd.options.map((t, i) => i).filter(i => pd.partes[i] > 0), n = esc.length; pd.escolhidos = esc; // M-408 · 601.2f: o custo a mais por alvo além do primeiro é pago aqui, com os alvos escolhidos
+    if (pd.custoAlvoExtra && n > 1) { if (s.manaCheck) payCost(s, pd.p, parseCost(`{${pd.custoAlvoExtra * (n - 1)}}`)); events.push({ kind: 'effect', do: 'custo_alvo_extra', name: o.name, amount: pd.custoAlvoExtra * (n - 1) }); }
+    for (const i of esc) pd.partes[i] = Math.floor(pd.total / n); } // "divided evenly, rounded down"
+  const idx = pd.igual ? pd.escolhidos : pd.options.map((t, i) => i).filter(i => pd.partes[i] > 0);
   const alvos = idx.map(i => pd.options[i]);
   o.targets = carimbaAlvos(s, alvos); o.divisao = idx.map(i => pd.partes[i]);
   if (o.ability) o.effects = (o.effects || []).flatMap(e => e && e.dividido ? partesDivididas(o, e) : [e]); // M-378 · a habilidade guarda as partes como instâncias com alvo
@@ -24107,6 +24118,13 @@ const HANDLERS = {
   dividir_ponto(s, a, ev) {
     const pd = s.pending;
     if (!pd || pd.kind !== 'dividir_magia' || pd.p !== a.p) throw new RuleError('tempo', 'nenhum dano a dividir');
+    if (pd.igual) { // M-408 · divisão igual: tocar marca o alvo (sem desmarcar: o desfazer da mesa volta atrás); "pronto" fecha e paga o custo a mais
+      const n = pd.partes.filter(x => x > 0).length;
+      if (a.fim) { if (!n) throw new RuleError('dividir', 'escolha pelo menos um alvo'); if (s.manaCheck && pd.custoAlvoExtra && n > 1 && !canPay(s, pd.p, parseCost(`{${pd.custoAlvoExtra * (n - 1)}}`))) throw new RuleError('mana', `mana insuficiente para ${n} alvos`); pd.escolhidos = pd.partes.map((x, i) => i).filter(i => pd.partes[i] > 0); return finalizaDivisao(s, ev); }
+      if (!Number.isInteger(a.index) || !pd.options[a.index]) throw new RuleError('dividir', 'escolha um dos alvos oferecidos');
+      if (!pd.partes[a.index] && s.manaCheck && pd.custoAlvoExtra && n >= 1 && !canPay(s, pd.p, parseCost(`{${pd.custoAlvoExtra * n}}`))) throw new RuleError('mana', `mana insuficiente para ${n + 1} alvos`);
+      if (pd.partes[a.index]) throw new RuleError('dividir', 'esse alvo já foi escolhido'); pd.partes[a.index] = 1; return;
+    }
     if (!Number.isInteger(a.index) || !pd.options[a.index]) throw new RuleError('dividir', 'escolha um dos alvos oferecidos');
     if (!pd.partes[a.index] && pd.max && pd.partes.filter(n => n > 0).length >= pd.max) throw new RuleError('dividir', `no máximo ${pd.max} alvos`);
     pd.partes[a.index]++;
@@ -24997,7 +25015,10 @@ function legalActions(s, p, { adjudication = false } = {}) {
     // S57 · masmorra: escolher em qual entrar e para qual sala avançar
     if (k === 'choose_dungeon') (s.pending.options || []).forEach((name, index) => out.push({ t: 'choose_dungeon', p, index, label: (s.pending.labels || [])[index] || name }));
     if (k === 'topo_fundo') { out.push({ t: 'topo_fundo', p, topo: true }); out.push({ t: 'topo_fundo', p, topo: false }); } // M-264
-    if (k === 'dividir_magia') { const pd = s.pending, usados = pd.partes.filter(n => n > 0).length; pd.options.forEach((t, index) => { if (pd.partes[index] > 0 || !pd.max || usados < pd.max) out.push({ t: 'dividir_ponto', p, index }); }); } // M-376 · 601.2d
+    if (k === 'dividir_magia' && s.pending.igual) { const pd = s.pending, usados = pd.partes.filter(n => n > 0).length; // M-408 · marcar/desmarcar cada alvo (com mana para o custo a mais) e "pronto"
+      pd.options.forEach((t, index) => { if (!pd.partes[index] && (!pd.custoAlvoExtra || !usados || !s.manaCheck || canPay(s, p, parseCost(`{${pd.custoAlvoExtra * usados}}`)))) out.push({ t: 'dividir_ponto', p, index }); });
+      if (usados && (!pd.custoAlvoExtra || usados < 2 || !s.manaCheck || canPay(s, p, parseCost(`{${pd.custoAlvoExtra * (usados - 1)}}`)))) out.push({ t: 'dividir_ponto', p, fim: true }); }
+    else if (k === 'dividir_magia') { const pd = s.pending, usados = pd.partes.filter(n => n > 0).length; pd.options.forEach((t, index) => { if (pd.partes[index] > 0 || !pd.max || usados < pd.max) out.push({ t: 'dividir_ponto', p, index }); }); } // M-376 · 601.2d
     if (k === 'dividir_dano') (s.pending.opcoes || []).forEach((op, index) => out.push({ t: 'dividir_dano', p, index, label: op.rotulo })); // CR2g.2
     if (k === 'choose_room') (s.pending.options || []).forEach((id, index) => out.push({ t: 'choose_room', p, index, label: (s.pending.labels || [])[index] || id }));
     if (k === 'pick') {
@@ -31868,7 +31889,8 @@ function effectLine(ev) {
   switch (ev.do) {
     case 'mordedor': return `${ev.name} não causou dano: a criatura que ia causar o dano deixou de ser um alvo válido`; // M-407
     case 'morde': return ev.failed ? `${ev.name} não causou dano: a criatura alvo deixou de ser válida` : `${ev.name} não causou dano (poder ${ev.amount || 0})`; // M-407
-    case 'damage': return ev.failed ? `${ev.name} não causou dano: alvo ilegal` : ev.prevented ? `${ev.name}: o dano a ${t} foi prevenido` : `${ev.name} causou ${n} de dano a ${t}`; // M-397 · o dano prevenido não aparece como causado
+    case 'damage': if (!ev.failed && !ev.prevented && ev.amount === 0) return `${ev.name} não causou dano a ${t} (0 de dano)`; // M-408 · 120.8: 0 de dano não é causado (Fireball com X menor que o número de alvos)
+      return ev.failed ? `${ev.name} não causou dano: alvo ilegal` : ev.prevented ? `${ev.name}: o dano a ${t} foi prevenido` : `${ev.name} causou ${n} de dano a ${t}`; // M-397 · o dano prevenido não aparece como causado
     case 'reveal': return `${ev.name} revelou: ${t}`; // Leva 108
     case 'vence': return `${ev.name}: o controlador venceu o jogo`; // CR2h.6
     case 'perde': return `${ev.name}: ${t} perdeu o jogo`; // CR2h.6
@@ -31878,6 +31900,7 @@ function effectLine(ev) {
     case 'monarch': return ev.failed ? `${t} continua o monarca (${ev.name})` : `${t} se tornou o monarca (${ev.name})`; // M-332
     case 'initiative': return `${t} tomou a iniciativa (${ev.name})`; // M-332
     case 'energia_reanima': return ev.failed ? `${ev.name}: a carta já não estava no cemitério` : ev.pending ? `${ev.name}: pode pagar energia para devolver a carta` : `${ev.name}: sem energia bastante para devolver a carta`; // M-393 · achado da revisão: a linha da pergunta dizia "sem energia"
+    case 'custo_alvo_extra': return `${ev.name}: pagou {${ev.amount}} a mais pelos alvos além do primeiro`; // M-408
     case 'gasta_energia': return ev.amount ? `${ev.name}: pagou ${ev.amount} de energia` : `${ev.name}: não pagou energia`; // M-393 · M-405
     case 'gatilho_no_turno': return `${ev.name}: neste turno, cada criatura sua que entrar ganha o efeito`; // M-389 · achado da revisão
     case 'exila_se_morrer': return ev.failed ? `${ev.name}: o alvo já não estava no campo` : `${t || ev.name}: se fosse morrer neste turno, é exilada`; // M-384
@@ -32280,6 +32303,7 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
           : pd.kind === 'porta_escolha' ? { t: 'porta_escolha', p: pd.p, porta: pd.options[0] } // T-27 · CR 709.5f/g · o goldfish fica com a primeira porta oferecida (Toca ponto comum: goldfish)
           : pd.kind === 'saga_capitulo' ? { t: 'saga_capitulo', p: pd.p, n: 1 } // T-1 · CR 714.3b · o goldfish começa a Saga pelo capítulo I
           : pd.kind === 'tripular' ? E.tripulacaoPadrao(s) // T-3 · CR 702.122a · o goldfish fecha a tripulação assim que a soma chega
+          : pd.kind === 'dividir_magia' && pd.igual && (pd.partes || []).some(x => x > 0) ? { t: 'dividir_ponto', p: pd.p, fim: true } // M-408 · o goldfish mira um alvo só e fecha
           : pd.kind === 'dividir_magia' ? { t: 'dividir_ponto', p: pd.p, index: Math.max(0, (pd.options || []).findIndex(t => (t.player != null ? t.player : (s.objects[t.oid] || {}).controller) !== pd.p)) } // M-376
           : pd.kind === 'dividir_dano' ? { t: 'dividir_dano', p: pd.p, index: 0 } // CR2g.2 · o goldfish mata na ordem do bloqueio
           : pd.kind === 'madness' ? { t: 'decline_madness', p: pd.p }
@@ -35532,6 +35556,16 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
         actions: [...(s.pending.options || []).slice(0, 6).map((oid, index) =>
           Button(nameOf(s, oid), { variant: index ? undefined : 'primary', id: index ? undefined : 'tb-choose-pair', onClick: () => act({ t: 'choose_pair', p: v, index, oid }) })),
           Button('Não emparelhar', { id: 'tb-choose-pair-no', onClick: () => act({ t: 'choose_pair', p: v, decline: true }) })] });
+    } else if (s.pending && s.pending.kind === 'dividir_magia' && s.pending.igual && s.pending.p === v) { // M-408 · divisão igual (Fireball): marcar os alvos e fechar (os marcados saem dos botões e vão para o resumo)
+      const pd = s.pending, rot = T.rotulosDeAlvos(s, v, pd.options), n = pd.partes.filter(x => x > 0).length, cada = n ? Math.floor(pd.total / n) : pd.total;
+      const leg = E.legalActions(s, v).filter(a => a.t === 'dividir_ponto'), pode = new Set(leg.filter(a => !a.fim).map(a => a.index)), fecha = leg.some(a => a.fim);
+      const botao = i => Button(`${pd.partes[i] ? '✓ ' : ''}${rot[i]}`, { variant: pd.partes[i] ? 'primary' : undefined, id: i === [...pode][0] ? 'tb-dividir-magia' : undefined, dataset: { alvo: String(i) }, onClick: () => act({ t: 'dividir_ponto', p: v, index: i }) });
+      const idxs = pd.options.map((t, i) => i).filter(i => pode.has(i));
+      banner = PriorityBanner({ title: `${pd.name}: escolha os alvos`, tone: 'warning',
+        hint: n ? `${pd.options.map((t, i) => pd.partes[i] ? rot[i] : '').filter(Boolean).join(', ')} · ${cada} de dano em cada${pd.custoAlvoExtra && n > 1 ? ` · custa {${pd.custoAlvoExtra * (n - 1)}} a mais` : ''}` : `Toque nos alvos · ${pd.total} de dano dividido igualmente${pd.custoAlvoExtra ? ` · {${pd.custoAlvoExtra}} a mais por alvo além do primeiro` : ''}`,
+        actions: [...(idxs.length <= T.LIMITE_DE_ALVOS ? idxs.map(botao) : [...idxs.slice(0, T.LIMITE_DE_ALVOS - 1).map(botao), Button('Mais alvos', { id: 'tb-dividir-mais', variant: 'ghost',
+          onClick: () => escolherAlvo(`${pd.name}: marcar alvo`, idxs.map(i => ({ t: 'dividir_ponto', p: v, index: i, targets: [pd.options[i]] })), { acao: a => ({ t: a.t, p: a.p, index: a.index }) }) })]),
+          ...(fecha ? [Button('Pronto', { id: 'tb-dividir-pronto', onClick: () => act({ t: 'dividir_ponto', p: v, fim: true }) })] : [])] });
     } else if (s.pending && s.pending.kind === 'dividir_magia' && s.pending.p === v) { // M-376 · 601.2d · dividir o dano da mágica, 1 por toque
       const pd = s.pending, rot = T.rotulosDeAlvos(s, v, pd.options), feito = pd.partes.reduce((x, y) => x + y, 0), faltam = pd.total - feito;
       const pode = new Set(E.legalActions(s, v).filter(a => a.t === 'dividir_ponto').map(a => a.index));
