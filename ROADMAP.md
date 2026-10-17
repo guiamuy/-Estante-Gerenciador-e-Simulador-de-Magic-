@@ -4430,6 +4430,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nada novo.
 - **Teste:** `lt97.unit` (2 testes; falham no motor anterior).
 
+**M-416 · LT82 · 207.2c · mórbido ("if a creature died this turn")** ✅ (leva M-416, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** **Tragic Slip passa a jogar** (9 listas do catálogo; nenhuma lista Pauper destrava só com ela, por isso o placar fica em 385 de 425). Condição nova `morbid`: uma criatura de qualquer jogador foi do campo ao cemitério neste turno (700.4; ficha e sacrifício contam, artefato não criatura não), contada na resolução; quantia `{ per: 'se', se: 'morbid' }` no -X/-X. O estado só ganha o campo `morteNoTurno` nas partidas que têm carta de mórbido, para as demais (e os goldens) não mudarem. A pilha explicada diz "−1/−1 (−13/−13 se uma criatura morreu neste turno)".
+- **Revisão independente:** revisor independente do lote M-416…M-421 (cerca de 130 verificações dirigidas; diferencial do leitor no corpus de 34.083 cartas: só as 23 cartas das levas mudaram; equivalência de 18 partidas, 5.400 passos, estado idêntico; fuzz de 150 partidas e 74.849 ações sem exceção nem ação recusada): **aprovado** — mórbido marca criatura do oponente, ficha, sacrificada (inclusive como custo), destruída por dano e terreno animado; não marca exílio nem devolução; a morte em resposta conta (conferida na resolução); "instead" não soma. A observação sobre partida salva antes da leva não se confirma: a mesa guarda o registro e refaz a partida desde o começo (`restoreTable` → `createGame`), então o campo nasce.
+- **Fora (declarado):** Bone Picker ("custa {3} a menos se uma criatura morreu neste turno") e as outras cartas de mórbido com gatilho ou custo seguem sem leitura; a condição já existe para elas.
+- **Teste:** `lt98.unit` (4 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
