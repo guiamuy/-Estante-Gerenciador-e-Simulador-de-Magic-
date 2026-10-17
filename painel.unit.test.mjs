@@ -789,3 +789,26 @@ test('R-24 · medidaDoScanner: a leva mais recente com medidas.scanner (data), c
   const d = await app.VISOES.acervo.carrega(fonte, false);
   assert.equal(fonte.pedidos, 0); assert.equal(fonte.brutos, 3); assert.equal(modelo.medidaDoScanner(modelo.linhasDasLevas(d.levas)).detector_ms, 88);
 });
+
+test('R-25 · rodadas da fila (CI): linhasDasRodadasCI normaliza (data pelo em, trilhas pelas letras das levas, minutos = rápida + tela, listas vazias); experienciaDasRodadas soma por semana, por nome, verdes × vermelhas, durações; instaveisPorNome junta leva local e rodada; recorte por trilha casa qualquer leva da rodada; limiares do CI abaixo do teto de 45 min', () => {
+  const { modelo } = loadPainel();
+  const linhas = modelo.linhasDasRodadasCI([
+    { id: '1', em: '2026-10-17T10:00:00Z', levas: ['M-409', 'R-24'], portao: 'verde', publicado: '62c1eb1', minutos_rapido: 19.5, minutos_tela: 13, instaveis: 1, instaveis_nomes: ['e2e · G-266'], telas_auditadas: 818, quedas_orcamento: 0 },
+    { id: 2, em: '2026-10-18T10:00:00Z', levas: ['T-75'], portao: 'vermelho', minutos_rapido: 20, instaveis: 0, quedas_orcamento: 1 },
+    { id: '3', em: '2026-10-21T10:00:00Z', levas: [], portao: 'cancelado' },
+    { id: '4', em: 'quando?', levas: ['X-1'], portao: 'verde' },
+    null
+  ]);
+  assert.deepEqual(linhas.map(r => [r.id, r.trilha, r.minutos, r.instaveis, r.data != null]), [['4', [], null, 0, false], ['1', ['motor', 'radar'], 32.5, 1, true], ['2', ['tipos'], 20, 0, true], ['3', [], null, 0, true]], 'ordem por data (sem data primeiro); minutos só com alguma fase; letra desconhecida não vira trilha');
+  const x = modelo.experienciaDasRodadas(linhas);
+  assert.equal(x.ultima.id, '3'); assert.equal(x.verdes, 2); assert.equal(x.vermelhas, 1); assert.equal(x.instaveis, 1); assert.deepEqual(x.duracoes, [32.5, 20]);
+  assert.deepEqual(x.nomes, [{ nome: 'e2e · G-266', vezes: 1 }]);
+  assert.deepEqual(x.semanas.map(s => [s.instaveis, s.quedas, s.rodadas, s.vermelhas]), [[1, 1, 2, 1], [0, 0, 1, 0]], 'a rodada sem data fica fora das semanas');
+  assert.deepEqual(modelo.experienciaDasRodadas([]), { rodadas: [], semanas: [], nomes: [], ultima: null, verdes: 0, vermelhas: 0, instaveis: 0, duracoes: [] });
+  assert.deepEqual(modelo.instaveisPorNome([{ nome: 'a', vezes: 2 }, { nome: 'b', vezes: 1 }], [{ nome: 'b', vezes: 2 }, { nome: 'c', vezes: 1 }]), [{ nome: 'b', levas: 1, rodadas: 2, vezes: 3 }, { nome: 'a', levas: 2, rodadas: 0, vezes: 2 }, { nome: 'c', levas: 0, rodadas: 1, vezes: 1 }]);
+  const r = modelo.recorte(linhas, { trilha: 'radar' }); assert.deepEqual(r.linhas.map(l => l.id), ['1']); assert.deepEqual(r.naoAplica, []);
+  const c = modelo.recorte(linhas, { conversa: 'radar' }); assert.equal(c.linhas.length, 4); assert.deepEqual(c.naoAplica, ['conversa'], 'conversa não existe na rodada: todas passam e o filtro é marcado como não aplicável');
+  assert.deepEqual(modelo.recorte(linhas, { trilha: 'motor' }).linhas.map(l => l.id), ['1'], 'rodada sem leva tem trilha [] (não undefined): fica de fora do recorte por trilha');
+  assert.ok(modelo.LIMIARES.portaoCI.amarelo < 45 && modelo.LIMIARES.portaoCI.verde < modelo.LIMIARES.portaoCI.amarelo); assert.equal(modelo.LIMIARES.vermelhasCI.verde, 0);
+  assert.ok(modelo.FONTES.rodadasCI.includes('rodadas.jsonl'));
+});

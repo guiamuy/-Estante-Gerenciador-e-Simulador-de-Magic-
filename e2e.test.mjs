@@ -12643,7 +12643,7 @@ test('e2e · R-21 Painel · Experiência: sem leva medida fica "pendente de tele
   assert.match(await page.innerText('#pn-g-quedas'), /R-20[\s\S]*0[\s\S]*M-408[\s\S]*2[\s\S]*R-21[\s\S]*1/);
   assert.match(await page.innerText('#pn-g-telas'), /R-20[\s\S]*14[\s\S]*M-408[\s\S]*30[\s\S]*R-21[\s\S]*15/);
   assert.match(await page.innerText('#pn-g-instaveis-semana'), /sem\. /);
-  assert.match(await page.innerText('#pn-notas'), /rodada da fila no CI não grava telemetria[\s\S]*1 leva\(s\) do recorte sem a medição do portão/);
+  assert.match(await page.innerText('#pn-notas'), /duas medições[\s\S]*portão da fila no CI[\s\S]*1 leva\(s\) do recorte sem a medição do portão/);   // R-25 · a nota passou a citar as duas fontes
   await auditaTela(page, 'experiência 360');
   // trilha filtra: só as da radar
   await page.click('#pn-filtros [data-dim="trilha"][data-valor="radar"]');
@@ -12757,5 +12757,50 @@ test('e2e · R-24 Painel · Acervo mostra a medida do scanner vinda da telemetri
   assert.match(await page.innerText('#pn-notas'), /scanner: medido pelo teste X11 na fase de tela da R-23[\s\S]*não é o celular[\s\S]*taxa de acerto no aparelho continua sem fonte/);
   await auditaTela(page, 'acervo scanner 360');
   await emTodasAsMedidas(page, 'acervo scanner');
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · R-25 Painel · Experiência com rodadas da fila (CI, rodadas.jsonl da I-292): cartões Portão da fila (mediana, farol) e Rodadas da fila (verdes/total, farol pelas vermelhas), barras por rodada (instáveis e duração), instáveis por nome somam leva local e rodada; só rodadas (sem leva medida) já sai do "pendente"; trilha filtra pelas levas somadas; filtro de conversa não se aplica; sem sobreposição nas quatro medidas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  const painel = base.replace('index.html', 'painel.html');
+  await page.setViewportSize({ width: 360, height: 780 });
+  const json = (r, corpo) => r.fulfill({ json: corpo, headers: { 'content-type': 'application/json', 'x-ratelimit-remaining': '50', 'x-ratelimit-limit': '60', 'access-control-expose-headers': 'etag, x-ratelimit-remaining, x-ratelimit-limit' } });
+  await page.route('https://api.github.com/**', r => json(r, /\/commits\?sha=main/.test(r.request().url()) ? [{ sha: 'ccc3333ccc3', commit: { message: 'Leva R-24 · scanner', committer: { date: new Date().toISOString() } } }] : []));
+  const h = n => new Date(Date.now() - n * 3600000).toISOString();
+  const levas = [{ id: 'R-19', trilha: 'radar', conversa: 'radar', situacao: 'publicada', fim: h(50), testes_depois: 3051 }];   // sem --portao: sozinha, era "pendente"
+  let rodadas = [
+    { id: '18560000001', em: h(40), levas: ['M-409', 'R-24'], portao: 'verde', publicado: '62c1eb1aaaa', testes_rapido: 3300, testes_tela: 250, minutos_rapido: 19.5, minutos_tela: 13, instaveis: 1, instaveis_nomes: ['e2e · G-266 nome de usuário'], telas_auditadas: 818, quedas_orcamento: 0 },
+    { id: '18560000002', em: h(20), levas: ['T-75'], portao: 'vermelho', testes_rapido: 3300, testes_tela: 249, minutos_rapido: 20, minutos_tela: 12, instaveis: 0, telas_auditadas: 810, quedas_orcamento: 1 },
+    { id: '18560000003', em: h(2), levas: ['M-410', 'M-411', 'I-292', 'G-271'], portao: 'verde', publicado: 'abcdef0bbbb', testes_rapido: 3310, testes_tela: 251, minutos_rapido: 24, minutos_tela: 18.5, instaveis: 2, instaveis_nomes: ['e2e · G-266 nome de usuário', 'e2e · X11 scanner com foto inclinada'], telas_auditadas: 820, quedas_orcamento: 0 }];
+  await page.route('https://raw.githubusercontent.com/**', r => { const u = r.request().url(); r.fulfill({ body: /levas\.jsonl/.test(u) ? levas.map(l => JSON.stringify(l)).join('\n') : /rodadas\.jsonl/.test(u) ? rodadas.map(l => JSON.stringify(l)).join('\n') : '', headers: { 'content-type': 'text/plain', 'access-control-allow-origin': '*' } }); });
+  await page.addInitScript(() => {
+    const jwt = email => 'h.' + btoa(JSON.stringify({ email })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') + '.s';
+    window.__PAINEL_FETCH = async (url) => new Response(JSON.stringify(url.includes('securetoken') ? { user_id: 'uidE2E', id_token: jwt('gui.amuy@gmail.com'), refresh_token: 'ref-e2e', expires_in: '3600' } : { localId: 'uidE2E', idToken: jwt('gui.amuy@gmail.com'), refreshToken: 'ref-e2e', expiresIn: '3600', email: 'gui.amuy@gmail.com' }), { headers: { 'content-type': 'application/json' } });
+    window.__PAINEL_GOOGLE = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+  });
+  await page.goto(painel + '#experiencia'); await page.waitForSelector('#pn-entrar'); await page.click('#pn-entrar');
+  await page.waitForSelector('#pn-k-portao-ci');
+  assert.equal(await page.locator('#pn-exp-pendente').count(), 0, 'com rodadas do CI a sub-aba não fica pendente mesmo sem leva medida');
+  assert.match(await page.innerText('#pn-k-portao-ci'), /32,5[\s\S]*min · mediana de 3 rodada\(s\)/, 'mediana de 32,5 · 32 · 42,5'); assert.equal(await page.getAttribute('#pn-k-portao-ci .pn-farol', 'data-farol'), 'amarelo');
+  assert.match(await page.innerText('#pn-k-rodadas-ci'), /2\/3[\s\S]*verdes · 1 vermelha\(s\) · 3 instável\(is\)/); assert.equal(await page.getAttribute('#pn-k-rodadas-ci .pn-farol', 'data-farol'), 'amarelo');
+  assert.match(await page.innerText('#pn-k-portao-min'), /sem dados neste recorte/, 'portão local continua sem dado: nenhuma leva medida');
+  assert.match(await page.innerText('#pn-g-rodadas-ci'), /M-409\+R-24[\s\S]*1[\s\S]*T-75[\s\S]*0[\s\S]*M-410\+M-411\+I-292\+1[\s\S]*2/);
+  assert.match(await page.innerText('#pn-g-duracao-ci'), /M-409\+R-24[\s\S]*32,5[\s\S]*T-75[\s\S]*32[\s\S]*M-410\+M-411\+2[\s\S]*42,5/);
+  assert.match(await page.innerText('#pn-g-instaveis-nome'), /G-266 nome de usuário[\s\S]*2[\s\S]*X11 scanner com foto inclinada[\s\S]*1/);
+  assert.match(await page.innerText('#pn-notas'), /duas medições[\s\S]*1 leva\(s\) do recorte sem a medição do portão/);
+  await auditaTela(page, 'experiência rodadas 360');
+  // trilha filtra pelas levas somadas: motor fica com as rodadas 1 e 3; portão filtra pelo resultado
+  await page.click('#pn-filtros [data-dim="trilha"][data-valor="motor"]');
+  await page.waitForFunction(() => location.hash.includes('trilha=motor'));
+  assert.match(await page.innerText('#pn-k-rodadas-ci'), /2\/2[\s\S]*verdes · 0 vermelha\(s\) · 3 instável\(is\)/); assert.equal(await page.getAttribute('#pn-k-rodadas-ci .pn-farol', 'data-farol'), 'verde');
+  assert.doesNotMatch(await page.innerText('#pn-g-rodadas-ci'), /T-75/);
+  await emTodasAsMedidas(page, 'experiência rodadas filtrada');
+  // última rodada vermelha vira nota
+  rodadas = [rodadas[0], { ...rodadas[2], portao: 'vermelho', publicado: undefined }];
+  await page.goto(painel + '#experiencia'); await page.click('#pn-atualizar');
+  // o cartão já existia antes do Atualizar (cache): espera o repinte com a rodada vermelha, não o seletor
+  await page.waitForFunction(() => /ficou vermelha/.test((document.querySelector('#pn-notas') || {}).textContent || ''));
+  assert.match(await page.innerText('#pn-notas'), /última rodada da fila \(18560000003\) ficou vermelha: M-410, M-411, I-292, G-271/);
+  if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.screenshot({ path: process.env.SHOTS + '/r25-experiencia-ci.png', fullPage: true }); }
   assert.deepEqual(errors, []);
 });

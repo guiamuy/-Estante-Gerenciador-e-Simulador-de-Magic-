@@ -1242,6 +1242,36 @@ const __p2 = (function () {
     return { medidas, semanas, nomes, ultima, quedas: medidas.reduce((n, l) => n + (l.quedas_orcamento || 0), 0), instaveis: medidas.reduce((n, l) => n + (l.instaveis || 0), 0), duracoes: medidas.map(l => l.portao_min).filter(x => x != null) };
   }
   Object.assign(LIMIARES, { quedasOrcamento: { verde: 0, amarelo: 2, unidade: 'quedas', texto: 'quedas de orçamento no recorte (corridas locais do portão que caíram num teste de orçamento): 0 · até 2 · mais' }, portaoMin: { verde: 30, amarelo: 45, unidade: 'min', texto: 'duração do portão local (rápida + tela, mediana): ≤ 30 min · ≤ 45 min · mais' } });
+  /* ---------- R-25 · BI2-6 · rodadas da fila no CI (puro): telemetria/rodadas.jsonl, gravado pelo job avanca (I-292) ---------- */
+  /** Uma linha por rodada da fila: `data` pelo `em`, `trilha` como lista (pela letra de cada leva somada), `minutos` = rápida + tela.
+      O filtro de trilha casa se alguma leva da rodada é da trilha; `conversa` não se aplica. */
+  function linhasDasRodadasCI(rodadas) {
+    return (rodadas || []).filter(r => r && r.id != null).map(r => {
+      const levas = Array.isArray(r.levas) ? r.levas : [];
+      const trilha = [...new Set(levas.map(trilhaDaLeva).filter(Boolean))];
+      const minutos = r.minutos_rapido != null || r.minutos_tela != null ? (r.minutos_rapido || 0) + (r.minutos_tela || 0) : null;
+      return { id: String(r.id), data: Date.parse(r.em || '') || null, levas, trilha, portao: r.portao || null, publicado: r.publicado || null, testes_rapido: r.testes_rapido ?? null, testes_tela: r.testes_tela ?? null, minutos, instaveis: r.instaveis || 0, instaveis_nomes: Array.isArray(r.instaveis_nomes) ? r.instaveis_nomes : [], telas_auditadas: r.telas_auditadas ?? null, quedas_orcamento: r.quedas_orcamento || 0, medidas: r.medidas || null };
+    }).sort((a, b) => (a.data || 0) - (b.data || 0));
+  }
+  /** Experiência das rodadas do CI: instáveis por semana e por nome, duração do portão da fila, verdes × vermelhas, telas da última. */
+  function experienciaDasRodadas(linhas) {
+    const rodadas = (linhas || []).slice().sort((a, b) => (a.data || 0) - (b.data || 0));
+    const semanas = porSemana(rodadas).map(s => ({ semana: s.semana, instaveis: s.itens.reduce((n, r) => n + (r.instaveis || 0), 0), quedas: s.itens.reduce((n, r) => n + (r.quedas_orcamento || 0), 0), rodadas: s.itens.length, vermelhas: s.itens.filter(r => r.portao === 'vermelho').length }));
+    const porNome = new Map();
+    for (const r of rodadas) for (const n of r.instaveis_nomes || []) porNome.set(n, (porNome.get(n) || 0) + 1);
+    const nomes = [...porNome.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([nome, vezes]) => ({ nome, vezes }));
+    const ultima = rodadas.length ? rodadas[rodadas.length - 1] : null;
+    return { rodadas, semanas, nomes, ultima, verdes: rodadas.filter(r => r.portao === 'verde').length, vermelhas: rodadas.filter(r => r.portao === 'vermelho').length, instaveis: rodadas.reduce((n, r) => n + (r.instaveis || 0), 0), duracoes: rodadas.map(r => r.minutos).filter(x => x != null) };
+  }
+  /** Instáveis por nome somando as duas fontes (levas locais e rodadas do CI), para um gráfico só. */
+  function instaveisPorNome(local, ci) {
+    const m = new Map();
+    for (const n of local || []) m.set(n.nome, { nome: n.nome, levas: n.vezes, rodadas: 0 });
+    for (const n of ci || []) { const a = m.get(n.nome) || { nome: n.nome, levas: 0, rodadas: 0 }; a.rodadas += n.vezes; m.set(n.nome, a); }
+    return [...m.values()].map(a => ({ ...a, vezes: a.levas + a.rodadas })).sort((a, b) => b.vezes - a.vezes || b.rodadas - a.rodadas || a.nome.localeCompare(b.nome));
+  }
+  // R-25 · o portão da fila tem 45 min de teto no CI (timeout-minutes do job portao): verde até 30, amarelo até 40, acima disso está perto de cair por tempo
+  Object.assign(LIMIARES, { portaoCI: { verde: 30, amarelo: 40, unidade: 'min', texto: 'duração do portão da fila no CI (rápida + tela, mediana): ≤ 30 min · ≤ 40 min · mais (o job cai aos 45)' }, vermelhasCI: { verde: 0, amarelo: 1, unidade: 'rodadas', texto: 'rodadas da fila com portão vermelho no recorte: 0 · 1 · mais' } });
   /* ---------- R-24 · BI2-2 · scanner (puro): a última leva com medidas.scanner da telemetria ---------- */
   /** Leva mais recente (por data) com `medidas.scanner` (o teste X11 imprime, o portão recolhe, `--portao` carrega). */
   function medidaDoScanner(linhas) {
@@ -1274,10 +1304,11 @@ const __p2 = (function () {
     jobs: 'API GitHub · actions/runs/<id>/jobs (só com rodada em curso)',
     pages: 'API GitHub · actions/runs (fluxo "pages build and deployment")',
     levas: 'ramo telemetria · levas.jsonl (escrito pelas sessões)',
+    rodadasCI: 'ramo telemetria · rodadas.jsonl (uma linha por rodada da fila, gravada pelo job avanca do CI com o resumo do portão)',
     coleta: 'raw · catalogo/coleta.json (saúde e contagens da última coleta; gravado pelo fluxo Catálogo)',
     indice: 'raw · catalogo/indice.json (só o cabeçalho: fontes, formatos, total, pendentes; lido uma vez por coleta e guardado por carimbo)'
   };
-  return { SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, levasPorRodada, compactaCommits, MAIN_URL, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, sharkPorVersao, minutosDasRodadas, serieDeTamanho, kb, cabecalhoDoIndice, resumoDoCatalogo, experienciaDasLevas, medidaDoScanner, linhasDosRelatos, linhasDasTrilhas, resumoDoFluxo, fraseDoCron, linhasDosFluxos, linhasDasRotinas, porModelo, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
+  return { SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, levasPorRodada, compactaCommits, MAIN_URL, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, sharkPorVersao, minutosDasRodadas, serieDeTamanho, kb, cabecalhoDoIndice, resumoDoCatalogo, experienciaDasLevas, linhasDasRodadasCI, experienciaDasRodadas, instaveisPorNome, medidaDoScanner, linhasDosRelatos, linhasDasTrilhas, resumoDoFluxo, fraseDoCron, linhasDosFluxos, linhasDasRotinas, porModelo, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
 })();
 
 /* ==== src/painel/ui.js ==== */
@@ -1685,14 +1716,15 @@ const __p4 = (function () {
         ];
       }
     },
-    // R-21 · BI2-6 · Experiência: só levas.jsonl (cache compartilhado com Modelos, Em curso e Qualidade)
+    // R-21 · BI2-6 · Experiência: levas.jsonl (cache compartilhado com Modelos, Em curso e Qualidade) e, desde a R-25, rodadas.jsonl (o portão da fila no CI, I-292)
     experiencia: {
       filtros: ['periodo', 'trilha', 'portao', 'conversa'], periodoPadrao: '30d',
-      linhas: d => M.linhasDasLevas(d.levas || []),
+      linhas: d => [...M.linhasDasLevas(d.levas || []), ...M.linhasDasRodadasCI(d.rodadas || [])],
       async carrega(fonte, forcar) {
-        const avisos = []; let levas = [];
+        const avisos = []; let levas = [], rodadas = [];
         try { levas = lerJsonl((await fonte.raw('telemetria', 'levas.jsonl', { ttl: 2 * 60000, forcar })).dado); } catch (e) { avisos.push('telemetria indisponível (levas.jsonl)'); }
-        return { em: Date.now(), levas, avisos, sem: {} };
+        try { rodadas = lerJsonl((await fonte.raw('telemetria', 'rodadas.jsonl', { ttl: 2 * 60000, forcar })).dado); } catch (e) { avisos.push('rodadas da fila ainda sem telemetria (rodadas.jsonl chega com a primeira rodada depois da I-292)'); }
+        return { em: Date.now(), levas, rodadas, avisos, sem: {} };
       },
       desenha(d, filtros, api) {
         const agora = Date.now();
@@ -1700,21 +1732,32 @@ const __p4 = (function () {
         const levas = M.linhasDasLevas(d.levas);
         const rLev = recorte(levas, { periodo, trilha: filtros.trilha, portao: filtros.portao, conversa: filtros.conversa }, agora);
         const x = M.experienciaDasLevas(rLev.linhas);
+        const rodadasTodas = M.linhasDasRodadasCI(d.rodadas);
+        const rRod = recorte(rodadasTodas, { periodo, trilha: filtros.trilha, portao: filtros.portao, conversa: filtros.conversa }, agora);
+        const ci = M.experienciaDasRodadas(rRod.linhas);
         const recorteTxt = fraseDoRecorte({ ...filtros, periodo });
-        if (!M.experienciaDasLevas(levas).medidas.length) return [Empty('As medições chegam quando uma conversa registra a leva com o resumo do portão: `node telemetria.mjs leva \'{…}\' --portao` depois do `npm run publicar` (o portão deixa o resumo em .tmp/portao.json).', null, { icone: 'ampulheta', titulo: 'Pendente de telemetria', hero: true, id: 'pn-exp-pendente' })];
+        if (!M.experienciaDasLevas(levas).medidas.length && !rodadasTodas.length) return [Empty('As medições chegam quando uma conversa registra a leva com o resumo do portão: `node telemetria.mjs leva \'{…}\' --portao` depois do `npm run publicar` (o portão deixa o resumo em .tmp/portao.json).', null, { icone: 'ampulheta', titulo: 'Pendente de telemetria', hero: true, id: 'pn-exp-pendente' })];
         const u = x.ultima;
         const cartoes = h('div', { class: 'pn-cartoes' },
           Cartao({ id: 'pn-k-instaveis', rotulo: 'Testes instáveis', valor: u ? (u.instaveis || 0) : '—', unidade: u ? `na ${u.id} · ${x.instaveis} no recorte` : '', farol: u ? farol(u.instaveis || 0, LIMIARES.instaveis) : 'cinza', limiar: LIMIARES.instaveis, fonte: FONTES.levas, formula: 'instaveis da última leva medida · soma no recorte · ' + recorteTxt, em: u ? u.data : d.em, semDados: !u }),
           Cartao({ id: 'pn-k-quedas', rotulo: 'Quedas de orçamento', valor: u ? x.quedas : '—', unidade: u ? `em ${x.medidas.length} levas medidas` : '', farol: u ? farol(x.quedas, LIMIARES.quedasOrcamento) : 'cinza', limiar: LIMIARES.quedasOrcamento, fonte: FONTES.levas, formula: 'soma de quedas_orcamento (corridas locais que caíram em teste de orçamento) · ' + recorteTxt, em: d.em, semDados: !u }),
           Cartao({ id: 'pn-k-telas', rotulo: 'Telas auditadas', valor: u && u.telas_auditadas != null ? u.telas_auditadas : '—', unidade: u && u.telas_auditadas != null ? `na ${u.id} (auditaTela)` : '', fonte: FONTES.levas, formula: 'telas_auditadas da última leva medida (rótulos distintos do auditaTela na fase de tela)', em: u ? u.data : d.em, semDados: !(u && u.telas_auditadas != null) }),
-          Cartao({ id: 'pn-k-portao-min', rotulo: 'Portão local', valor: x.duracoes.length ? (Math.round(M.mediana(x.duracoes) * 10) / 10).toLocaleString('pt-BR') : '—', unidade: x.duracoes.length ? `min · mediana de ${x.duracoes.length}` : '', farol: x.duracoes.length ? farol(M.mediana(x.duracoes), LIMIARES.portaoMin) : 'cinza', limiar: LIMIARES.portaoMin, fonte: FONTES.levas, formula: 'portao_min (fase rápida + fase de tela, no clone) · ' + recorteTxt, em: d.em, semDados: !x.duracoes.length }));
+          Cartao({ id: 'pn-k-portao-min', rotulo: 'Portão local', valor: x.duracoes.length ? (Math.round(M.mediana(x.duracoes) * 10) / 10).toLocaleString('pt-BR') : '—', unidade: x.duracoes.length ? `min · mediana de ${x.duracoes.length}` : '', farol: x.duracoes.length ? farol(M.mediana(x.duracoes), LIMIARES.portaoMin) : 'cinza', limiar: LIMIARES.portaoMin, fonte: FONTES.levas, formula: 'portao_min (fase rápida + fase de tela, no clone) · ' + recorteTxt, em: d.em, semDados: !x.duracoes.length }),
+          // R-25 · o portão da fila no CI (rodadas.jsonl): duração mediana e rodadas vermelhas no recorte; a última rodada no rodapé
+          Cartao({ id: 'pn-k-portao-ci', rotulo: 'Portão da fila (CI)', valor: ci.duracoes.length ? (Math.round(M.mediana(ci.duracoes) * 10) / 10).toLocaleString('pt-BR') : '—', unidade: ci.duracoes.length ? `min · mediana de ${ci.duracoes.length} rodada(s)` : (ci.rodadas.length ? `${ci.rodadas.length} rodada(s) sem duração` : ''), farol: ci.duracoes.length ? farol(M.mediana(ci.duracoes), LIMIARES.portaoCI) : 'cinza', limiar: LIMIARES.portaoCI, fonte: FONTES.rodadasCI, formula: 'minutos_rapido + minutos_tela por rodada da fila (CI), mediana · ' + recorteTxt, em: ci.ultima ? ci.ultima.data : d.em, semDados: !ci.duracoes.length }),
+          Cartao({ id: 'pn-k-rodadas-ci', rotulo: 'Rodadas da fila', valor: ci.rodadas.length ? `${ci.verdes}/${ci.rodadas.length}` : '—', unidade: ci.rodadas.length ? `verdes · ${ci.vermelhas} vermelha(s) · ${ci.instaveis} instável(is)` : '', farol: ci.rodadas.length ? farol(ci.vermelhas, LIMIARES.vermelhasCI) : 'cinza', limiar: LIMIARES.vermelhasCI, fonte: FONTES.rodadasCI, formula: 'rodadas com portão verde / rodadas do recorte; vermelhas e instáveis somados · ' + recorteTxt, em: ci.ultima ? ci.ultima.data : d.em, semDados: !ci.rodadas.length }));
         const semanas = x.semanas.map(s => ({ chave: s.semana, rotulo: `sem. ${s.semana.slice(5).split('-').reverse().join('/')}`, valor: s.instaveis, dica: `${s.instaveis} instável(is) em ${s.levas} leva(s) · ${s.quedas} queda(s) de orçamento`, tom: s.instaveis ? 'negative' : 'accent' }));
-        const nomes = x.nomes.slice(0, 10).map(n => ({ chave: n.nome, rotulo: n.nome.replace(/^e2e · /, '').slice(0, 60), valor: n.vezes, dica: `${n.nome}: instável em ${n.vezes} leva(s)`, tom: 'negative' }));
+        const nomesJuntos = M.instaveisPorNome(x.nomes, ci.nomes);
+        const nomes = nomesJuntos.slice(0, 10).map(n => ({ chave: n.nome, rotulo: n.nome.replace(/^e2e · /, '').slice(0, 60), valor: n.vezes, dica: `${n.nome}: instável em ${n.levas} leva(s) local(is) e ${n.rodadas} rodada(s) da fila`, tom: n.rodadas ? 'negative' : 'warning' }));
+        const rodadasCI = ci.rodadas.slice(-12).map(r => ({ chave: r.id, rotulo: r.levas.length ? r.levas.slice(0, 3).join('+') + (r.levas.length > 3 ? `+${r.levas.length - 3}` : '') : `#${r.id}`, valor: r.instaveis || 0, dica: `rodada ${r.id} · ${r.levas.join(', ') || 'sem leva'} · portão ${r.portao}${r.publicado ? ' · ' + r.publicado.slice(0, 7) : ''} · ${r.instaveis || 0} instável(is) · ${r.minutos != null ? r.minutos.toLocaleString('pt-BR') + ' min' : 'sem duração'}${r.telas_auditadas != null ? ' · ' + r.telas_auditadas + ' telas' : ''}`, tom: r.portao === 'vermelho' ? 'negative' : r.instaveis ? 'warning' : 'accent' }));
+        const duracoesCI = ci.rodadas.filter(r => r.minutos != null).slice(-12).map(r => ({ chave: r.id, rotulo: r.levas.length ? r.levas.slice(0, 2).join('+') + (r.levas.length > 2 ? `+${r.levas.length - 2}` : '') : `#${r.id}`, valor: Math.round(r.minutos * 10) / 10, dica: `rodada ${r.id} · ${r.minutos.toLocaleString('pt-BR')} min (rápida ${r.minutos_rapido ?? '?'} · tela ${r.minutos_tela ?? '?'})`, tom: r.minutos > LIMIARES.portaoCI.amarelo ? 'negative' : r.minutos > LIMIARES.portaoCI.verde ? 'warning' : 'accent' }));
         const quedas = x.medidas.slice(-12).map(l => ({ chave: l.id, rotulo: l.id, valor: l.quedas_orcamento || 0, dica: `${l.id} (${l.trilha}) · ${l.quedas_orcamento || 0} queda(s) · portão ${l.portao_min != null ? l.portao_min + ' min' : '?'}`, tom: l.quedas_orcamento ? 'warning' : 'accent' }));
         const telas = x.medidas.filter(l => l.telas_auditadas != null).slice(-12).map(l => ({ chave: l.id, rotulo: l.id, valor: l.telas_auditadas, dica: `${l.id} (${l.trilha}) · ${l.telas_auditadas} telas · ${l.testes_tela != null ? l.testes_tela + ' testes de tela' : ''}` }));
-        const notas = ['a medição é do portão no clone da conversa (npm run publicar e npm test); a rodada da fila no CI não grava telemetria — por rodada, veja Pipeline e Eficiência'];
+        const notas = ['duas medições: o portão no clone da conversa (levas, npm run publicar) e o portão da fila no CI (rodadas, gravadas pelo job avanca desde a I-292); instável por nome soma as duas'];
         if (x.medidas.length < rLev.linhas.length) notas.push(`${rLev.linhas.length - x.medidas.length} leva(s) do recorte sem a medição do portão (registradas sem --portao)`);
         if (rLev.naoAplica.length) notas.push(`o filtro ${rLev.naoAplica.join(', ')} não se aplica a levas sem essa informação`);
+        if (rRod.naoAplica.includes('conversa')) notas.push('o filtro de conversa não se aplica às rodadas da fila (uma rodada soma levas de várias conversas)');
+        if (ci.ultima && ci.ultima.portao === 'vermelho') notas.push(`a última rodada da fila (${ci.ultima.id}) ficou vermelha: ${ci.ultima.levas.join(', ') || 'sem leva'}`);
         for (const a of d.avisos || []) notas.push(a);
         return [
           cartoes,
@@ -1722,7 +1765,9 @@ const __p4 = (function () {
             Barras({ id: 'pn-g-instaveis-semana', titulo: `Instáveis por semana · ${recorteTxt}`, itens: semanas, vazio: 'sem leva medida neste recorte' }),
             Barras({ id: 'pn-g-instaveis-nome', titulo: 'Testes instáveis por nome (levas em que caíram e passaram sozinhos)', itens: nomes, vazio: 'nenhum instável nas levas medidas' }),
             Barras({ id: 'pn-g-quedas', titulo: `Quedas de orçamento por leva · ${recorteTxt}`, itens: quedas, vazio: 'sem leva medida neste recorte' }),
-            Barras({ id: 'pn-g-telas', titulo: `Telas auditadas por leva (auditaTela) · ${recorteTxt}`, itens: telas, vazio: 'sem leva com a fase de tela medida' })),
+            Barras({ id: 'pn-g-telas', titulo: `Telas auditadas por leva (auditaTela) · ${recorteTxt}`, itens: telas, vazio: 'sem leva com a fase de tela medida' }),
+            Barras({ id: 'pn-g-rodadas-ci', titulo: `Instáveis por rodada da fila (CI) · ${recorteTxt}`, itens: rodadasCI, vazio: 'nenhuma rodada da fila com telemetria neste recorte' }),
+            Barras({ id: 'pn-g-duracao-ci', titulo: `Duração do portão da fila por rodada (min) · ${recorteTxt}`, itens: duracoesCI, formato: v => Number(v).toLocaleString('pt-BR'), vazio: 'nenhuma rodada da fila com duração neste recorte' })),
           h('ul', { class: 'pn-notas ds-text ds-text--sm ds-text--muted', id: 'pn-notas' }, ...notas.map(n => h('li', {}, n)))
         ];
       }
