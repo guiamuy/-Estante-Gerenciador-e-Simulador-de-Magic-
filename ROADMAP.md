@@ -4644,6 +4644,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** lampejo concedido por outro efeito a uma carta no grimório não existe no Pauper atual; o filtro olha a palavra-chave impressa.
 - **Teste:** `lt130.unit` (3 testes; falham no motor anterior).
 
+**M-449 · LT115 · Spirit Mascot: gatilho "whenever one or more cards leave your graveyard"** ✅ (leva M-449, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** a **Spirit Mascot** joga pelo leitor aprovado: ganha um marcador +1/+1 por **evento** em que cartas saem do seu cemitério — várias de uma vez contam uma vez (ruling de 20/03/2026), e a fuga conta duas (exilar o custo e a carta ir para a pilha são eventos diferentes). Olha para trás (603.10a): a Mascot reanimada não vê a própria saída; ficha não é carta; o cemitério do oponente não conta. Texto da Scryfall consultado em 17/10/2026.
+- **Primitiva:** evento em lote `saem-do-cemiterio` (603.2c), com `quem` relativo ao controlador; o lote fecha no fim de cada efeito, antes e depois de a mágica ir para a pilha e no fim da ação. Só existe nas partidas com o gatilho.
+- **Revisão independente:** reprovada no primeiro lote (21 verificações; relíquias, Bojuka Bog, delve, flashback, Gravedigger, fichas, duas Mascots e fuga corretos). Achado médio corrigido na M-465: um efeito com vários alvos (Patch Up, March of the Returned) contava um evento por alvo, e a Mascot que voltava no mesmo evento via as outras saídas (603.2c, 603.10a).
+- **Fora (declarado):** duas saídas separadas dentro de uma mesma escolha pendente (por exemplo, uma escolha que devolve cartas em duas etapas) fecham no mesmo lote; não há carta no Pauper atual com esse caso.
+- **Teste:** `lt131.unit` (5 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
