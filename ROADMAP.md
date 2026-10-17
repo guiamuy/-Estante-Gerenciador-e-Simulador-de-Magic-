@@ -4787,6 +4787,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nenhum.
 - **Teste:** `lt151.unit` (5 testes; falham no motor anterior).
 
+**M-470 · LT136 · revisão por lote CXVI: nove cartas lidas que travam as listas iniciantes** ✅ (leva M-470, motor v112 sem mudança de forma; goldens intactos; nenhuma linha de código nova).
+- **Valor:** passam a jogar (APROVADAS): Phyrexian Rager, Goblin Motivator, Font of Fertility, Aether Adept, Man-o'-War, Solemn Offering, Cloudkin Seer, Aven Fisher (compra opcional ao morrer), Luminous Bonds. Textos da Scryfall consultados em 17/10/2026; leituras conferidas frase a frase no texto oficial.
+- **Revisão independente:** aprovada (revisão de M-466…M-475): leitura conferida frase a frase com o texto oficial; `--confere` com 827 aprovadas lidas por inteiro; 110 sondas de comportamento sem erro (evocar, reciclar antes da compra, dano dividido, custo híbrido, "exile instead", sacrificar a si, "may", não desvirar, prevenção); equivalência nas listas reais sem divergência; fuzz com 34 cartas novas sem recusa.
+- **Fora (declarado):** nenhum.
+- **Teste:** `lt152.unit` (6 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
