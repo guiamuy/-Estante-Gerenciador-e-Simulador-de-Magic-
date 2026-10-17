@@ -24410,7 +24410,7 @@ const HANDLERS = {
     else if (s.manaCheck && !a.free) { if (f.semCusto && !custoDoPrototipoT(s, o)) throw new RuleError('custo', 'esta carta não tem custo de mana: não pode ser conjurada assim'); /* T-49 · CR 702.162a: o verso sem custo é conjurado pelo custo alternativo (Toca ponto comum: HANDLERS.cast) */
       let custo = a.kick ? somaCusto(custoDoPrototipoT(s, o) || f.cost, parseCost(reforco.mana), a.kick) : custoDoPrototipoT(s, o) || f.cost; // T-36 · CR 718.3a: como protótipo, o custo de mana é o alternativo (Toca ponto comum: HANDLERS.cast)
       for (const x of a.emenda || []) custo = somaCusto(custo, parseCost(s.facts[s.objects[x].name].script.splice.mana), 1); // M-274 · 702.47b: paga o custo de encaixar de cada uma
-      const extraBase = castExtraComReforco(s, a.p, o, a.x || 0, a.targets || [], a.kick), extraPago = extraBase - delveN - descontoExilaMao(s, o, exilaMaoN, extraBase) + genericoDoAdicional(s, o, a.add); // M-441 // M-267
+      const extraBase = castExtraComReforco(s, a.p, o, a.x || 0, a.targets || [], a.kick), extraPago = extraBase - delveN - descontoExilaMao(s, o, exilaMaoN, extraBase); // M-446 · o {N} do custo adicional vai pelo custoTapadoK/genericoAdicionalK (601.2f: a redução o alcança) // M-267
       if (a.vida != null) { // CR2c.4 · phyrexiano: quem conjura escolhe quantos símbolos paga com vida
         if (!(Number.isInteger(a.vida) && a.vida >= 0 && a.vida <= nPhyrexianos(custo))) throw new RuleError('custo', 'escolha quantos símbolos phyrexianos pagar com vida');
         if (s.players[a.p].life < 2 * a.vida) throw new RuleError('custo', 'vida insuficiente para pagar o phyrexiano'); // 119.4
@@ -24425,6 +24425,7 @@ const HANDLERS = {
     if (alt && alt.emergirK) pagaEmergirK(s, a, o, alt); // K-47 · 702.119a: o custo de emergir menos o valor de mana da sacrificada (Toca ponto comum: HANDLERS.cast)
     if (alt && alt.harmonizarK) pagaHarmonizarK(s, a, o, alt); // K-55 · 702.180a/b: vira a criatura escolhida e paga o custo reduzido pelo poder dela (Toca ponto comum: HANDLERS.cast)
     if (a.mode != null && ((((f.script || {}).modes) || [])[a.mode] || {}).entrelacarK) pagaEntrelacarK(s, a, o, alt); // K-34 · 702.42a: o custo de entrelaçar (Toca ponto comum: HANDLERS.cast)
+    if (a.free && s.manaCheck) { const gA = genericoDoAdicional(s, o, a.add); if (gA) payCost(s, a.p, parseCost(`{${gA}}`)); } // M-446 · 118.9d: sem pagar o custo de mana, o {N} do custo adicional escolhido continua cobrado
     if (a.kick && reforco && s.manaCheck && a.free) payCost(s, a.p, somaCusto(parseCost('{0}'), parseCost(reforco.mana), a.kick)); // M-337 · 118.9d: conjurada sem pagar (cascata, Covil), o reforço é custo adicional e é pago — antes era de graça
     if (escaladoNaAcaoK(s, a, o)) pagaEscalarK(s, a, o, alt); // K-48 · 702.120a: o custo de escalar, uma vez por modo além do primeiro (Toca ponto comum: HANDLERS.cast)
     if (spreeNaAcaoK(s, a, o)) pagaSpreeK(s, a, o, alt); // K-54 · 702.172a: os custos adicionais dos modos escolhidos (Toca ponto comum: HANDLERS.cast)
@@ -25388,7 +25389,10 @@ function legalActions(s, p, { adjudication = false } = {}) {
         const listas = modos.length ? modos.map((m, i) => ({ need: (m.effects || []).filter(SC.isTargeted), mode: i }))
           : [{ need: ((fc.script && fc.script.effects) || []).filter(SC.isTargeted), mode: null }];
         const rfK = fc.script && fc.script.kicker, kickOk = !!rfK && (!s.manaCheck || canPay(s, p, parseCost(rfK.mana))); // M-337 · 118.9d: o reforço também na conjuração sem pagar
-        const pushK = x => { out.push(x); if (kickOk) out.push({ ...x, kick: 1 }); };
+        const addsF = (() => { const sp = fc.script && fc.script.additional, l = Array.isArray(sp) ? sp : sp ? [sp] : []; if (!l.length) return [{}]; const r = []; // M-446 · 118.9d: as formas do custo adicional também na conjuração sem pagar (antes só a primeira, e a mesa podia oferecer o que o apply recusava)
+          l.forEach((op, i) => { if (canPayExtra(s, p, op, oid) && (!op.generico || !s.manaCheck || canPay(s, p, parseCost(`{${op.generico}}`)))) { const pg = pagamentosDe(s, p, op, oid); (pg.length ? pg : [null]).forEach(pay => r.push({ add: i, ...(pay ? { pay } : {}) })); } });
+          if (fc.script.additionalOptional) r.push({ add: null }); return r; })();
+        const pushK = x => addsF.forEach(v => { const y = { ...x, ...v }; out.push(y); if (kickOk) out.push({ ...y, kick: 1 }); });
         for (const { need, mode } of listas) {
           const base = mode == null ? { t: 'cast_free', p, oid } : { t: 'cast_free', p, oid, mode };
           if (!need.length) { pushK(base); continue; }
@@ -25471,7 +25475,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
     const opcoes = Array.isArray(addSpec) ? addSpec : addSpec ? [addSpec] : [];
     if (!opcoes.length) return [{}];
     const out2 = [];
-    opcoes.forEach((op, i) => { if (canPayExtra(s, p, op, o.oid) && (!op.generico || !s.manaCheck || canPay(s, p, f.cost, castExtra(s, p, o, 0, OTIMISTA) + op.generico))) pagamentosDe(s, p, op, o.oid).forEach(pay => out2.push({ add: i, pay })); }); // M-441 · "or pay {5}": só com a mana do custo total
+    opcoes.forEach((op, i) => { if (canPayExtra(s, p, op, o.oid) && (!op.generico || !s.manaCheck || canPay(s, p, somaCusto(f.cost, parseCost(`{${op.generico}}`), 1), castExtraK(s, p, o, 0, [], op.generico)))) pagamentosDe(s, p, op, o.oid).forEach(pay => out2.push({ add: i, pay })); }); // M-441 · "or pay {5}": só com a mana do custo total
     if (f.script && f.script.additionalOptional) out2.push({ add: null });
     return out2;
   };
@@ -25801,7 +25805,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
     if (a.flashback) { const fb = flashbackOf(s, o); if (!fb || !fb.mana) return true; const c = parseCost(fb.mana); return canPay(s, p, c, -reducaoNoCusto(s, p, o, a.targets || [], c)); }
     if (a.bestow) { const bc = parseCost(bestowOf(s, o).mana); return canPay(s, p, bc, (a.x || 0) * (bc.x || 0) - reducaoNoCusto(s, p, o, a.targets || [], bc)); }
     let custo = a.kick ? somaCusto(f.cost, parseCost(f.script.kicker.mana), a.kick) : f.cost; if (a.vida != null) custo = custoPhyrexiano(custo, a.vida);
-    { const ext = castExtraComReforco(s, p, o, a.x || 0, a.targets || [], a.kick); return canPay(s, p, custo, ext - (a.delve || 0) - descontoExilaMao(s, o, a.exilaMao || 0, ext) + genericoDoAdicional(s, o, a.add)); } // M-441 · "or pay {5}" // M-352 · M-365: delve e exilar da mão (achado da revisão)
+    { const ext = castExtraComReforco(s, p, o, a.x || 0, a.targets || [], a.kick); const gA = genericoDoAdicional(s, o, a.add), extG = gA ? castExtraK(s, p, o, a.x || 0, a.targets || [], gA) - castExtra(s, p, o, a.x || 0, a.targets || []) : 0; return canPay(s, p, gA ? somaCusto(custo, parseCost(`{${gA}}`), 1) : custo, ext + extG - (a.delve || 0) - descontoExilaMao(s, o, a.exilaMao || 0, ext)); } // M-441 · M-446 · "or pay {5}" com a redução sobre ele // M-352 · M-365: delve e exilar da mão (achado da revisão)
   }); out.length = 0; out.push(...ok); } // M-365 · antes era `return`: as ofertas das trilhas abaixo sumiam (convocar, recomeçar, escalar…) — achado da revisão
   /* ↓ K · ofertas de legalActions da trilha keywords (out.push) */
   ofertasHarmonizarK(s, p, out, casts); // K-55 · 702.180a: do cemitério, uma oferta por criatura a virar (ou nenhuma); da mão, a opção some
@@ -26496,6 +26500,7 @@ function gruposParaTaparK(s, p, o, custo, extra) {
 }
 /** HANDLERS.cast · o custo normal a pagar com mana depois de virar o grupo escolhido (sem `tapaK`, o mesmo de antes). */
 function custoTapadoK(s, a, o, custo, extra) {
+  { const gA = genericoDoAdicional(s, o, a.add); if (gA) custo = somaCusto(custo, parseCost(`{${gA}}`), 1); } // M-446 · "discard a card or pay {5}" (Lightning Axe): soma ao custo total (Toca ponto comum: custoTapadoK)
   if (a.recompraK && (s.facts[o.name].recompraK || {}).mana) custo = somaCusto(custo, parseCost(s.facts[o.name].recompraK.mana), 1); // K-33
   if (a.proleK && (s.facts[o.name].proleK || {}).mana) custo = somaCusto(custo, parseCost(s.facts[o.name].proleK.mana), 1); // K-53 · 601.2f
   if (a.esquadraoK && (s.facts[o.name].esquadraoK || {}).mana) custo = somaCusto(custo, parseCost(s.facts[o.name].esquadraoK.mana), a.esquadraoK); // K-67
@@ -26966,7 +26971,7 @@ Object.assign(EXPORTS_K, { escolhaDeEntradaK, escolheOpcaoK, SERVO_K });
    total, com os custos adicionais da trilha (recompra, entrelaçar) somados: castExtraK é o castExtra com o genérico adicional no teto. */
 const sobControleDesdeK = o => Math.max(o.ts || 0, ...((o.controles || []).filter(t => t.por === o.controller).map(t => t.ts || 0)));
 function genericoAdicionalK(s, a, o) {
-  const f = s.facts[o.name]; let n = 0;
+  const f = s.facts[o.name]; let n = genericoDoAdicional(s, o, a.add); // M-446 · a redução de custo vale também sobre o {N} do custo adicional (601.2f) (Toca ponto comum: genericoAdicionalK)
   if (a.recompraK && (f.recompraK || {}).mana) n += parseCost(f.recompraK.mana).generic || 0;
   if (a.proleK && (f.proleK || {}).mana) n += parseCost(f.proleK.mana).generic || 0; // K-53
   if (a.esquadraoK && (f.esquadraoK || {}).mana) n += a.esquadraoK * (parseCost(f.esquadraoK.mana).generic || 0); // K-67

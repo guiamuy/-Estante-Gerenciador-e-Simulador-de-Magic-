@@ -4624,6 +4624,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nada novo.
 - **Teste:** `lt127.unit` (3 testes; falham no motor anterior).
 
+**M-446 · LT112 · correções da revisão independente de M-441/M-442** ✅ (leva M-446, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** (1) **a redução de custo alcança o {5} da Lightning Axe** (601.2f): com Goblin Anarchomancer, "pay {5}" sai por {4}{R} — o {N} do custo adicional passa a ir pelo mesmo caminho do reforço e da recompra (`custoTapadoK`/`genericoAdicionalK`); (2) **conjurar sem pagar o custo de mana** (cascata, Covil, 118.9d): as formas do custo adicional são oferecidas (antes só a primeira, e a mesa podia oferecer o que o motor recusava — vale também para o Bitter Triumph) e o {N} escolhido é cobrado.
+- **Revisão independente:** os dois itens são achados do revisor do lote M-441/M-442; cada um tem teste que falha no motor anterior. A própria M-446 passou pela revisão de M-443…M-446 (32 verificações; cascata com Axe e Bitter Triumph sem erro): achado corrigido na M-454 — conjurada sem pagar (cascata), a redução ainda não alcançava o {5} (601.2f, 118.9d). Latente, sem carta real: convocar junto com "pay {N}" não é oferecido (declarado).
+- **Fora (declarado):** a frase "put a +1/+1 counter on target creature" repetida em duas frases (Common Bond, não aprovada) precisa de alvo livre (115.3) antes de ser aprovada.
+- **Teste:** `lt128.unit` (2 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
