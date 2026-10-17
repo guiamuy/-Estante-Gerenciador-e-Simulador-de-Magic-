@@ -1751,7 +1751,7 @@
    "regra": "Counters",
    "titulo": "Marcadores e seus tipos",
    "status": "parcial",
-   "evidencia": "+1/+1 soma em poder/resistência (index.html:10340-10341; addCounters index.html:11579); lealdade (index.html:10301, 12125; rules.unit S21) · CR2c.5 (v88): b) marcador de palavra-chave (122.1b) — has() lê marcadores de voar, iniciativa, golpe duplo, toque mortífero, decaído, exaltado, ímpeto, resistência a magia, indestrutível, vínculo com a vida, ameaça, alcance, sombra, atropelar e vigilância; efeito counter_choice (commander.regras \"CR2c.5 · Call of the Death-Dweller\") · M-249/M-253 (v96): marcadores nomeados em permanente (counters com tipo; custo removeCounters; semMarcadorSacrifica) e marcadores de veneno em jogador (darVeneno; 10 = derrota); −1/−1 colocado por infectar (M-254). · auditoria independente CR2a/CR2h (11/10/2026): marcadores nomeados (M-249), de palavra-chave (CR2c.5), veneno (M-253) · T-91: marcador de radiação em jogador (728.1), também no proliferar",
+   "evidencia": "+1/+1 soma em poder/resistência (index.html:10340-10341; addCounters index.html:11579); lealdade (index.html:10301, 12125; rules.unit S21) · CR2c.5 (v88): b) marcador de palavra-chave (122.1b) — has() lê marcadores de voar, iniciativa, golpe duplo, toque mortífero, decaído, exaltado, ímpeto, resistência a magia, indestrutível, vínculo com a vida, ameaça, alcance, sombra, atropelar e vigilância; efeito counter_choice (commander.regras \"CR2c.5 · Call of the Death-Dweller\") · M-249/M-253 (v96): marcadores nomeados em permanente (counters com tipo; custo removeCounters; semMarcadorSacrifica) e marcadores de veneno em jogador (darVeneno; 10 = derrota); −1/−1 colocado por infectar (M-254). · auditoria independente CR2a/CR2h (11/10/2026): marcadores nomeados (M-249), de palavra-chave (CR2c.5), veneno (M-253) · T-91: marcador de radiação em jogador (728.1), também no proliferar · T-115 (17/10/2026): \"put its counters on target creature you control\" (`marcadores_da_fonte`): o mesmo número de cada tipo de marcador da foto de quando a fonte saiu do campo, pelo caminho comum dos marcadores — Enduring Bondwarden",
    "falta": "escudo, atordoamento, defesa, energia, experiência",
    "esforco": "M",
    "depende": [
@@ -1759,7 +1759,10 @@
     "704"
    ],
    "testes": [
-    "CR 701.34a / 122.1 · proliferar também dá mais um marcador de radiação ao jogador que tem"
+    "CR 701.34a / 122.1 · proliferar também dá mais um marcador de radiação ao jogador que tem",
+    "CR 603.10a · Enduring Bondwarden (texto oficial): ao morrer com marcadores +1/+1, põe o mesmo número na criatura alvo que você controla",
+    "CR 122.1 · ruling de 14/04/2023: todos os tipos de marcador que ela tinha, inclusive −1/−1 (o que pode matar quem recebe); não é mover",
+    "CR 603.10a · sem marcador ao morrer, o gatilho resolve sem nada; o alvo é só criatura sua"
    ]
   },
   {

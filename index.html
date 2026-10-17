@@ -5574,6 +5574,7 @@ const EFFECTS = {
   lutador: { fields: [], targets: ['creature', 'creature-you-control'] },
   fight: { fields: [], targets: ['creature', 'creature-opponent-controls', 'creature-you-control'] }, // quem: 'self-source' (a permanente fonte luta) | 'primeiro-alvo' (luta a criatura anotada pelo `lutador` anterior)
   /* ↓ T · efeitos da trilha tipos */
+  marcadores_da_fonte: { fields: [], targets: ['creature-you-control', 'creature'] }, // T-115 · CR 122.1 · "put its counters on target creature you control": o mesmo número de cada tipo de marcador que a fonte tinha ao sair do campo (603.10a; não é mover)
   dano_jogador_ou_pw: { fields: ['amount'], targets: ['enchanted-player', 'player', 'opponent', 'that-player'] }, // T-112 · CR 303.4b / 120.3 · "deals N damage to that player or a planeswalker that player controls" (sem alvo: quem controla a fonte escolhe na resolução)
   dano_fixo_t: { fields: ['amount'], targets: [] }, // T-112 · a escolha do dano_jogador_ou_pw (gerado pelo motor; `jogador` ou `oid`/`z`)
   embalsamar: { fields: [], targets: [] }, // T-111 · CR 702.128a · "Create a token that's a copy of this card, except it's white, it has no mana cost, and it's a Zombie in addition to its other types" (o motor o monta a partir de `self.embalsamar`, o script não o escreve)
@@ -6813,6 +6814,9 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-115 · CR 702.165 / 122.1 (Scryfall, consulta de 17/10/2026, rulings de 14/04/2023). O reforço mostra só a habilidade impressa abaixo dele.
+  { name: 'Enduring Bondwarden', backup: 1, abilities: [{ kind: 'triggered', when: 'dies', effects: [{ do: 'marcadores_da_fonte', target: 'creature-you-control' }] }], // "Backup 1 (…) · When this creature dies, put its counters on target creature you control."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // T-114 · CR 603.10a / 603.4 · Auras com gatilho que olha a encantada (consulta de 17/10/2026, fonte dupla). Flash vem da palavra-chave.
   { name: 'Sadistic Glee', aura: { enchant: 'creature' }, abilities: [{ kind: 'triggered', when: { evento: 'zona', de: 'battlefield', para: 'graveyard', objeto: 'outra', quem: 'qualquer' }, filter: { types: ['creature'] }, effects: [{ do: 'counters', amount: 1, target: 'enchanted' }] }], // "Enchant creature · Whenever a creature dies, put a +1/+1 counter on enchanted creature."
     example: { action: 'aura', target: 'own-creature', expect: { stats: [2, 2] } } },
@@ -22581,6 +22585,7 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'lutador': if (obj) s.lutadorV = { fonte: src.oid, fz: encarnacaoV(s, src), oid: obj.oid, z: obj.zc || 0 }; break; // V-1/V-5 · anota quem luta; a luta é o `fight` seguinte, que apaga a anotação
     case 'fight': lutar(s, src, eff, tgt, events); break; // V-1 · 701.14
     /* ↓ T · casos de applyEffect da trilha tipos */
+    case 'marcadores_da_fonte': { const n = marcadoresDaFonteT(s, src, obj, events); note({ amount: n }); break; } // T-115 · CR 122.1
     case 'dano_jogador_ou_pw': danoJogadorOuPwT(s, src, eff, playerOf(), ctrl, events); break; // T-112 · CR 120.3
     case 'dano_fixo_t': { const x = eff.oid != null ? s.objects[eff.oid] : null; if (eff.oid != null && !(x && x.zone === 'battlefield' && (x.zc || 0) === (eff.z || 0))) { note({ failed: true }); break; } applyEffect(s, src, { do: 'damage', amount: eff.amount }, eff.oid != null ? { oid: eff.oid } : { player: eff.jogador }, events); break; } // T-112 · 400.7
     case 'embalsamar': note({ amount: embalsamaT(s, src, ctrl, events) }); break; // T-111 · CR 702.128a
@@ -28292,6 +28297,16 @@ function danoJogadorOuPwT(s, src, eff, p, ctrl, events) {
    produção de mana, ativadas) só vale enquanto a permanente encantada for criatura; é conferida a cada leitura (efeito estático, 611.3a). */
 /** T-114 · CR 603.4 / 702.73a · a criatura encantada agora tem um dos subtipos (o metamorfo tem todos os tipos de criatura). */
 function encantadaTemSubtipoT(s, aura, subs) { const alvo = aura && aura.zone === 'battlefield' ? (aura.attachedTo || (s.anexandoT && s.anexandoT.oid === aura.oid ? s.anexandoT.alvo : null)) : null, h = alvo ? s.objects[alvo] : null; return !!(h && h.zone === 'battlefield' && subs.some(x => isChangeling(s, h, x) || new RegExp('\\b' + x + '\\b').test(linhaDeTipo(s, h)))); } // entrando: o gatilho de entrada dispara dentro do moveObject, antes do anexar do motor (s.anexandoT)
+/* ---------------- T-115 · CR 122.1 / 603.10a · "put its counters on target creature you control" ----------------
+   Os marcadores da fonte como ela estava ao sair do campo (a foto `ultima`, 603.10a): o mesmo número de cada tipo vai para o alvo, pelo
+   caminho comum do efeito `counters` (dobradores, 614.16; +1/+1 e −1/−1 se anulam depois, 704.5q). A fonte não perde nada (não é mover).
+   Fora: se a carta já saiu do cemitério quando o gatilho resolve, a foto se perdeu e nada é posto (603.10a pediria a foto do gatilho). */
+function marcadoresDaFonteT(s, src, alvo, events) {
+  const f = src.ability ? s.objects[src.source] : src, foto = f && f.zone !== 'battlefield' ? ((f.ultima || {}).counters || {}) : (f && f.counters) || {};
+  if (!alvo || alvo.zone !== 'battlefield') return 0; let n = 0;
+  for (const [tipo, q] of Object.entries(foto)) if (q > 0) { applyEffect(s, src, { do: 'counters', amount: q, ...(tipo === 'p1p1' ? {} : { tipo }) }, { oid: alvo.oid }, events); n += q; }
+  return n;
+}
 let conferindoConcessaoT = false; // o tipo da encantada (camada 4) não depende desta concessão (ela não muda tipo): na volta do cálculo, ela fica de fora
 function concessaoVigenteT(s, aura, g) {
   if (!g || !g.seCriaturaT) return g; if (conferindoConcessaoT) return null;
@@ -33302,6 +33317,7 @@ const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas
 /* ↓ T · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha tipos */
 const EFEITO_PT_T = { caso_resolvido: () => 'este Caso fica resolvido', estacao: () => 'põe nesta permanente marcadores de carga iguais ao poder da criatura virada (ou à resistência, quando um efeito manda estacionar por ela)', selada: () => 'esta montaria fica selada até o fim do turno', virar_carta: e => (e.se && e.se.minCriaturas ? `se você controla ${e.se.minCriaturas} ou mais criaturas, vira esta carta` : 'vira esta carta'), porta: e => (e.acao === 'trancar' ? 'tranca uma porta destrancada de uma Sala sua' : e.acao === 'destrancar' ? 'destranca uma porta trancada de uma Sala sua' : 'tranca ou destranca uma porta de uma Sala sua'), nivel_sobe: () => 'põe um marcador de nível nela', nivel_classe: e => `a Classe sobe para o nível ${e.n}`, tripulada: () => 'vira criatura artefato até o fim do turno', transformar: () => 'transforma (vira a outra face)', preparar: () => 'esta criatura fica preparada', despreparar: () => 'esta criatura deixa de estar preparada' }; // T-51 · 722.3 // T-7 · 701.27
 Object.assign(EFEITO_PT_T, { dano_jogador_ou_pw: e => `causa ${e.amount} de dano ao jogador encantado ou a um planeswalker dele (você escolhe)`, dano_fixo_t: e => `causa ${e.amount} de dano` }); // T-112
+Object.assign(EFEITO_PT_T, { marcadores_da_fonte: () => 'põe na criatura alvo sua os marcadores que esta criatura tinha (o mesmo número de cada tipo)' }); // T-115
 Object.assign(EFEITO_PT_T, { embalsamar: () => 'cria uma ficha que é cópia desta carta, só que branca, Zumbi além dos outros tipos e sem custo de mana (embalsamar)' }); // T-111 · CR 702.128a
 Object.assign(EFEITO_PT_T, { vira_para_baixo: () => 'vira a criatura alvo para baixo (2/2, sem nome nem habilidades)', vira_para_cima: () => 'vira para cima a criatura alvo virada para baixo' }); // T-73 · CR 708.2a / 708.8
 /** T-7 · linhas do registro para os eventos da trilha tipos. */
