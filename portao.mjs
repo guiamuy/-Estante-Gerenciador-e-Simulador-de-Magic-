@@ -44,7 +44,13 @@ export function resumoDoTap(tap) {
   const quedasOrcamento = [...new Set(caidos.filter((x) => /or[çc]amento/i.test(x)))];
   // o relator TAP do Node escreve o console.log do teste como `# \# auditaTela · nome` (escapa o # do texto): aceitar as duas formas
   const telas = [...new Set([...s.matchAll(/^\s*#\s*(?:\\#\s*)?auditaTela · (.+?)\s*$/gm)].map((m) => m[1]))];
-  return { passaram: n(/^# pass (\d+)/m), cairam: n(/^# fail (\d+)/m), quedasOrcamento, telas };
+  // R-24 · linhas `# medida · <nome> · chave=valor · …` (o X11 do scanner imprime a sua): a última de cada nome vale
+  const medidas = {};
+  for (const m of s.matchAll(/^\s*#\s*(?:\\#\s*)?medida · ([a-z_]{2,30})((?: · [a-z_]{2,30}=-?\d+(?:\.\d+)?)+)\s*$/gm)) {
+    const v = {}; for (const par of m[2].split(' · ').filter(Boolean)) { const [k, x] = par.split('='); v[k] = Number(x); }
+    medidas[m[1]] = v;
+  }
+  return { passaram: n(/^# pass (\d+)/m), cairam: n(/^# fail (\d+)/m), quedasOrcamento, telas, medidas };
 }
 /** R-21 · o resumo do portão vai para `.tmp/portao.json` (fora do git), por fase: a fase rápida e a de tela cada uma grava a sua parte,
     o histórico guarda as últimas 30 corridas (verde ou vermelha). `node telemetria.mjs leva … --portao` carrega isso na leva. */
@@ -53,7 +59,7 @@ export function juntaResumo(atual, parcial, agora = new Date().toISOString()) {
   const historico = [...(base.historico || []), { em: agora, fase: parcial.fase, verde: !!parcial.verde, quedasOrcamento: (parcial.quedasOrcamento || []).length, instaveis: (parcial.instaveis || []).length }].slice(-30);
   const novo = { kind: 'estante.portao', version: 1, em: agora, rapido: base.rapido || null, tela: base.tela || null, consumidoEm: base.consumidoEm || null, historico };
   if (parcial.fase === 'rapido') novo.rapido = { em: agora, verde: !!parcial.verde, minutos: parcial.minutos ?? null, passaram: parcial.passaram, cairam: parcial.cairam, quedasOrcamento: parcial.quedasOrcamento || [] };
-  if (parcial.fase === 'tela') novo.tela = { em: agora, verde: !!parcial.verde, minutos: parcial.minutos ?? null, passaram: parcial.passaram, cairam: parcial.cairam, quedasOrcamento: parcial.quedasOrcamento || [], instaveis: parcial.instaveis || [], telas: parcial.telas || [] };
+  if (parcial.fase === 'tela') novo.tela = { em: agora, verde: !!parcial.verde, minutos: parcial.minutos ?? null, passaram: parcial.passaram, cairam: parcial.cairam, quedasOrcamento: parcial.quedasOrcamento || [], instaveis: parcial.instaveis || [], telas: parcial.telas || [], medidas: parcial.medidas || {} };
   return novo;
 }
 const ARQUIVO_RESUMO = join(RAIZ, '.tmp', 'portao.json');

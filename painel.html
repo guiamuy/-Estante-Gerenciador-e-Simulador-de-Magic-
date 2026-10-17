@@ -796,7 +796,7 @@ const __p2 = (function () {
     { id: 'skills', rotulo: 'Skills', titulo: 'Skills e rotinas', leva: 'R-10', pronta: true, traz: 'o catálogo de skills, uso por leva e em uso agora; fluxos do GitHub e rotinas do Claude com última e próxima execução' },
     { id: 'modelos', rotulo: 'Modelos', titulo: 'Modelos', leva: 'R-11', pronta: true, traz: 'levas, tempo e portão por modelo, e o consumo estimado do plano' },
     { id: 'custo', rotulo: 'Custo', titulo: 'Custo e escala', leva: 'R-19', pronta: true, traz: 'minutos de Actions por rodada, dia e mês, e o tamanho do index.html por leva' },
-    { id: 'acervo', rotulo: 'Acervo', titulo: 'Acervo de listas', leva: 'R-20', pronta: true, traz: 'listas do catálogo por formato e por fonte, saúde e frescor das fontes (MTGJSON, Magic Online, TopDeck.gg) e fichas pendentes' },
+    { id: 'acervo', rotulo: 'Acervo', titulo: 'Acervo de listas', leva: 'R-20', pronta: true, traz: 'listas do catálogo por formato e por fonte, saúde e frescor das fontes (MTGJSON, Magic Online, TopDeck.gg), fichas pendentes e a medida do scanner' },
     { id: 'experiencia', rotulo: 'Experiência', titulo: 'Experiência de desenvolvimento', leva: 'R-21', pronta: true, traz: 'o que o portão mediu em cada leva: testes instáveis por semana e por nome, quedas de orçamento, telas auditadas e a duração do portão local' }
   ];
   /** Limiares dos faróis (doc BI-painel-epicos.md, seção 3): editáveis aqui, exibidos em cada cartão. */
@@ -1242,6 +1242,15 @@ const __p2 = (function () {
     return { medidas, semanas, nomes, ultima, quedas: medidas.reduce((n, l) => n + (l.quedas_orcamento || 0), 0), instaveis: medidas.reduce((n, l) => n + (l.instaveis || 0), 0), duracoes: medidas.map(l => l.portao_min).filter(x => x != null) };
   }
   Object.assign(LIMIARES, { quedasOrcamento: { verde: 0, amarelo: 2, unidade: 'quedas', texto: 'quedas de orçamento no recorte (corridas locais do portão que caíram num teste de orçamento): 0 · até 2 · mais' }, portaoMin: { verde: 30, amarelo: 45, unidade: 'min', texto: 'duração do portão local (rápida + tela, mediana): ≤ 30 min · ≤ 45 min · mais' } });
+  /* ---------- R-24 · BI2-2 · scanner (puro): a última leva com medidas.scanner da telemetria ---------- */
+  /** Leva mais recente (por data) com `medidas.scanner` (o teste X11 imprime, o portão recolhe, `--portao` carrega). */
+  function medidaDoScanner(linhas) {
+    const com = (linhas || []).filter(l => l.medidas && l.medidas.scanner && typeof l.medidas.scanner === 'object').sort((a, b) => (a.data || 0) - (b.data || 0));
+    const u = com.length ? com[com.length - 1] : null;
+    return u ? { leva: u.id, trilha: u.trilha || null, data: u.data || null, ...u.medidas.scanner } : null;
+  }
+  // R-24 · limiares do scanner vêm das afirmações do teste X11 (detector + preparo < 250 ms; confirmação numa passada < 200 ms; 1 a 5 leituras/s em repouso), no navegador de teste
+  Object.assign(LIMIARES, { scannerDetector: { verde: 150, amarelo: 250, unidade: 'ms', texto: 'detector + preparo por quadro (X11, navegador de teste): ≤ 150 ms · ≤ 250 ms · mais' }, scannerConfirmacao: { verde: 120, amarelo: 200, unidade: 'ms', texto: 'confirmação da carta numa passada (X11): ≤ 120 ms · ≤ 200 ms · mais' } });
   // R-18 · BI2-1 · Jogo: falhas da prova (menos é melhor), Shark até o fim (% das partidas), pior jogada (ms; a homologacao mediu 2,6 s a 6,7 s em 13–14/10)
   Object.assign(LIMIARES, { falhasProva: { verde: 0, amarelo: 2, unidade: 'listas com falha', texto: 'falhas na prova: 0 · até 2 · mais' }, sharkFim: { verde: 95, amarelo: 80, unidade: '% até o fim', texto: 'Shark × Shark até o fim: ≥ 95 % · ≥ 80 % · menos' }, piorJogada: { verde: 1000, amarelo: 3000, unidade: 'ms', texto: 'pior jogada do Shark: ≤ 1 s · ≤ 3 s · mais' } });
   // R-19 · BI2-5 · Custo: minutos de Actions no mês (referência: 2.000 min/mês do plano gratuito para repositório privado; o repositório é público e hoje não paga) e tamanho do index.html (app sem build: o arquivo inteiro vai ao aparelho)
@@ -1268,7 +1277,7 @@ const __p2 = (function () {
     coleta: 'raw · catalogo/coleta.json (saúde e contagens da última coleta; gravado pelo fluxo Catálogo)',
     indice: 'raw · catalogo/indice.json (só o cabeçalho: fontes, formatos, total, pendentes; lido uma vez por coleta e guardado por carimbo)'
   };
-  return { SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, levasPorRodada, compactaCommits, MAIN_URL, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, sharkPorVersao, minutosDasRodadas, serieDeTamanho, kb, cabecalhoDoIndice, resumoDoCatalogo, experienciaDasLevas, linhasDosRelatos, linhasDasTrilhas, resumoDoFluxo, fraseDoCron, linhasDosFluxos, linhasDasRotinas, porModelo, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
+  return { SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, levasPorRodada, compactaCommits, MAIN_URL, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, sharkPorVersao, minutosDasRodadas, serieDeTamanho, kb, cabecalhoDoIndice, resumoDoCatalogo, experienciaDasLevas, medidaDoScanner, linhasDosRelatos, linhasDasTrilhas, resumoDoFluxo, fraseDoCron, linhasDosFluxos, linhasDasRotinas, porModelo, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
 })();
 
 /* ==== src/painel/ui.js ==== */
@@ -1633,7 +1642,9 @@ const __p4 = (function () {
         try { const r = await fonte.raw('catalogo', 'coleta.json', { ttl: 10 * 60000, forcar, transforma: t => { try { return JSON.parse(t); } catch (e) { return null; } } }); coleta = r.dado; em = r.em || em; if (r.semRede) avisos.push('coleta lida do que estava guardado (sem rede)'); } catch (e) { avisos.push('coleta.json indisponível (ramo catalogo)'); }
         const carimbo = (coleta && coleta.em) || 'sem-coleta';
         try { const r = await fonte.raw('catalogo', 'indice.json', { nome: 'catalogo.indice.' + carimbo, ttl: carimbo === 'sem-coleta' ? 60 * 60000 : Infinity, forcar: false, transforma: M.cabecalhoDoIndice }); indice = r.dado; } catch (e) { avisos.push('índice indisponível: contagens só das fontes da coleta (MTGO e TopDeck)'); }
-        return { em, coleta, indice, avisos, sem: {} };
+        let levas = [];   // R-24 · a medida do scanner vem da telemetria das levas (cache compartilhado com as outras sub-abas)
+        try { levas = lerJsonl((await fonte.raw('telemetria', 'levas.jsonl', { ttl: 2 * 60000, forcar })).dado); } catch (e) { avisos.push('telemetria indisponível (levas.jsonl): sem a medida do scanner'); }
+        return { em, coleta, indice, levas, avisos, sem: {} };
       },
       desenha(d, filtros, api) {
         const r = M.resumoDoCatalogo({ coleta: d.coleta, indice: d.indice });
@@ -1652,15 +1663,20 @@ const __p4 = (function () {
         const porFormato = (filtros.fonte ? r.formatos.map(f => ({ ...f, listas: rl.linhas.filter(l => l.formato === f.formato).reduce((n, l) => n + l.listas, 0) })).filter(f => f.listas) : r.formatos).map(f => ({ chave: f.formato, rotulo: f.nome, valor: f.listas, dica: `${f.nome}: ${f.listas} listas` }));
         const porFonte = (filtros.formato ? r.fontes.map(f => ({ ...f, listas: rl.linhas.filter(l => l.fonte === f.fonte).reduce((n, l) => n + l.listas, 0) })).filter(f => f.listas) : r.fontes).map(f => ({ chave: f.fonte, rotulo: f.nome, valor: f.listas, dica: `${f.nome}: ${f.listas} listas${f.eventos != null ? ` · ${f.eventos} eventos` : ''}${f.erros ? ` · ${f.erros} erro(s)` : ''}`, tom: f.erros ? 'negative' : 'accent' }));
         const eventos = rl.linhas.filter(l => l.eventos != null).map(l => ({ chave: l.formato, rotulo: `${nomeFonte(l.fonte)} · ${l.formato}`, valor: l.eventos, dica: `${l.eventos} evento(s) · ${l.listas} listas${l.semLista ? ` · ${l.semLista} sem lista` : ''}${l.erro ? ` · ${l.erro}` : ''}`, tom: l.erro ? 'negative' : l.eventos ? 'accent' : 'warning' }));
+        const sc = M.medidaDoScanner(M.linhasDasLevas(d.levas || []));
+        const scanner = h('div', { class: 'pn-cartoes', id: 'pn-scanner' },
+          Cartao({ id: 'pn-k-scanner-detector', rotulo: 'Scanner · detector', valor: sc && sc.detector_ms != null ? sc.detector_ms : '—', unidade: sc && sc.detector_ms != null ? `ms por quadro · ${sc.leva}` : '', farol: sc && sc.detector_ms != null ? farol(sc.detector_ms, LIMIARES.scannerDetector) : 'cinza', limiar: LIMIARES.scannerDetector, fonte: FONTES.levas, formula: 'medidas.scanner.detector_ms da última leva medida (teste X11 na fase de tela, navegador de teste — não é o celular)', em: sc ? sc.data : null, semDados: !(sc && sc.detector_ms != null) }),
+          Cartao({ id: 'pn-k-scanner-confirmacao', rotulo: 'Scanner · confirmação', valor: sc && sc.confirmacao_ms != null ? sc.confirmacao_ms : '—', unidade: sc && sc.confirmacao_ms != null ? `ms · ${sc.leituras_s != null ? sc.leituras_s + ' leituras/s em repouso' : ''}` : '', farol: sc && sc.confirmacao_ms != null ? farol(sc.confirmacao_ms, LIMIARES.scannerConfirmacao) : 'cinza', limiar: LIMIARES.scannerConfirmacao, fonte: FONTES.levas, formula: 'medidas.scanner.confirmacao_ms e leituras_s da última leva medida (X11)', em: sc ? sc.data : null, semDados: !(sc && sc.confirmacao_ms != null) }));
         const notas = [];
         if (r.saude) for (const a of r.saude.alertas) notas.push('alerta da coleta: ' + a);
         if (r.saude) for (const a of r.saude.avisos) notas.push('aviso da coleta: ' + a);
         notas.push('MTGJSON não entra na coleta diária (listas oficiais, lidas do índice): por formato, é o que sobra do índice depois de MTGO e TopDeck');
-        notas.push('scanner (tempo por quadro, taxa de acerto): sem fonte persistida — o teste X11 mede no portão e não grava; fica declarado como lacuna');
+        notas.push(sc ? `scanner: medido pelo teste X11 na fase de tela da ${sc.leva} (navegador de teste, foto fixa; não é o celular); taxa de acerto no aparelho continua sem fonte` : 'scanner: sem medição na telemetria ainda — o teste X11 mede na fase de tela e a leva carrega com --portao; até lá fica como lacuna');
         if (!r.comIndice) notas.push('índice indisponível nesta atualização: o total e as fichas pendentes ficam sem dados');
         for (const a of d.avisos || []) notas.push(a);
         return [
           cartoes,
+          scanner,
           h('div', { class: 'pn-graficos' },
             Barras({ id: 'pn-g-formatos', titulo: `Listas por formato · ${recorteTxt} (toque filtra)`, itens: porFormato, onBarra: v => api.filtra('formato', v), ativo: filtros.formato || null, vazio: 'sem formato neste recorte' }),
             Barras({ id: 'pn-g-fontes', titulo: `Listas por fonte · ${recorteTxt} (toque filtra)`, itens: porFonte, onBarra: v => api.filtra('fonte', v), ativo: filtros.fonte || null, vazio: 'sem fonte neste recorte' }),
