@@ -9546,6 +9546,21 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Tragic Slip': { texto: 'tm1zxi', leva: 'M-416' },
   // M-417 · revisão por lote LXXI (limiar na mana: Cabal Ritual), texto da Scryfall de 17/10/2026 UTC, revisor independente
   'Cabal Ritual': { texto: 'umseyo', leva: 'M-417' },
+  // M-418 · revisão por lote LXXII (gatilhos de evento de qualquer jogador: "a player sacrifices a creature", "another creature enters/dies"; "you may have ~ deal"), texto da Scryfall de 17/10/2026 UTC, revisor independente
+  'Algae Gharial': { texto: '5dusrf', leva: 'M-418' },
+  "Cosi's Ravager": { texto: '1tc6dh5', leva: 'M-418' },
+  'Essence Warden': { texto: 'c0jip', leva: 'M-418' },
+  'Havengul Vampire': { texto: '1ewelt6', leva: 'M-418' },
+  'Hissing Iguanar': { texto: 'ugyejr', leva: 'M-418' },
+  'Kyren Sniper': { texto: 'rvuc6f', leva: 'M-418' },
+  'Midnight Guard': { texto: 'q0upyc', leva: 'M-418' },
+  'Mortician Beetle': { texto: '1f2ecs5', leva: 'M-418' },
+  'Poison-Tip Archer': { texto: 'nhj2i7', leva: 'M-418' },
+  'Rage Thrower': { texto: '1dr24hn', leva: 'M-418' },
+  'Rockslide Elemental': { texto: 'iv7zb8', leva: 'M-418' },
+  'Scavenger Drake': { texto: 'ptoc8v', leva: 'M-418' },
+  'Soul Warden': { texto: 'c0jip', leva: 'M-418' },
+  'Wretched Anurid': { texto: '1m7ly05', leva: 'M-418' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18033,6 +18048,9 @@ const __m42 = (function () {
     [/^when ~ enters untapped$/i, 'etb', () => ({ condition: { entrouDesvirada: true } })], // M-349 · Gingerbread Cabin
     [/^when you play another land$/i, 'you-play-land'], // M-342 · City of Traitors (305.1: jogar, não pôr no campo)
     [/^whenever you sacrifice another permanent$/i, 'other-sacrificed'], // LT10
+    [/^whenever a player sacrifices a creature$/i, { evento: 'sacrifica', objeto: 'outra', quem: 'qualquer' }, () => ({ filter: { types: ['creature'] } })], // M-418 · Mortician Beetle (a própria, sacrificada, não vê o marcador: dá no mesmo que "outra")
+    [/^whenever another creature enters(?: the battlefield)?$/i, { evento: 'zona', para: 'battlefield', objeto: 'outra', quem: 'qualquer' }, () => ({ filter: { types: ['creature'] } })], // M-418 · Essence Warden (de qualquer jogador)
+    [/^whenever another creature dies$/i, { evento: 'zona', de: 'battlefield', para: 'graveyard', objeto: 'outra', quem: 'qualquer' }, () => ({ filter: { types: ['creature'] } })], // M-418 · Hissing Iguanar (de qualquer jogador; 700.4)
     [/^whenever you cast an instant or sorcery spell$/i, 'other-cast', () => ({ filter: { anyTypes: ['instant', 'sorcery'] } })], // M-328
     [/^whenever you cast a noncreature spell$/i, 'other-cast', () => ({ filter: { noncreature: true } })],
     [/^whenever you cast an? (?:white|blue|black|red|green)(?:-(?:white|blue|black|red|green))+ spell$/i, 'other-cast', m => ({ filter: { anyColors: [...new Set(m[0].toLowerCase().match(/white|blue|black|red|green/g).map(c => ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[c]))] } })], // M-395 · God-Pharaoh's Faithful // M-328
@@ -18204,6 +18222,7 @@ const __m42 = (function () {
   function leParagrafo(texto0, nome, frases) {
     const efeitos = [];
     let texto = til(texto0, nome).trim(); // M-394
+    texto = texto.replace(/^have ~ deal (\d+) damage to /i, '~ deals $1 damage to '); // M-418 · "you may have ~ deal N damage to …" (Hissing Iguanar): o "you may" já virou a pergunta do gatilho
     for (let achou = true; achou && texto;) { achou = false; // M-335
       for (const [re, faz] of PRE_PARAGRAFO) { const m = texto.match(re); const e = m && faz(m); if (!e) continue; efeitos.push(...e); frases.push({ texto: m[0].trim().replace(/\.$/, ''), lida: true }); texto = texto.slice(m[0].length).trim(); achou = true; break; } }
     if (!texto) return efeitos;
