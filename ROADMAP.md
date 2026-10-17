@@ -4979,6 +4979,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** Haste (Iron-Barb Hellion) só vale com o campo `keywords` da Scryfall (limitação já declarada em M-496, recomendada à trilha `keywords`).
 - **Teste:** `lt183.unit` (6 testes; falham no motor anterior).
 
+**M-502 · LT168 · revisão por lote CXLIV: nove cartas lidas que travam as listas iniciantes** ✅ (leva M-502, motor v112 sem mudança de forma; goldens intactos; nenhuma linha de código nova).
+- **Valor:** passam a jogar (APROVADAS): Sovereign's Bite, Strangling Spores, Dark Remedy, Symbiote Spawn (ao morrer, cada oponente perde 2 e você ganha 2), Hagra Sharpshooter, Tar Snare, Moment of Craving, Warlord's Axe (equipar {4}), Satyr Hedonist ({R} e sacrifício: {R}{R}{R}, habilidade de mana). Textos da Scryfall consultados em 17/10/2026; leituras conferidas frase a frase no texto oficial.
+- **Revisão independente:** aprovada (revisão de M-501/M-502): 18 leituras conferidas; `--confere` com 1.043 aprovadas; 29 sondas (113 asserções) sem divergência (Languish nos dois lados e não em quem entra depois, 611.2c; Blood Divination só sacrifica criatura sua, na conjuração, e o sacrificado dispara o que tiver de morrer; alvo ilegal não dá vida em Lich's Caress e Moment of Craving, 608.2b; Final Reward exila sem gatilho de morrer; Satyr Hedonist é habilidade de mana sem pilha; Warlord's Axe só em velocidade de feitiço e em criatura sua); fuzz de 60 partidas (36.000 ações) sem recusa nem exceção.
+- **Fora (declarado):** o pagamento automático não usa o `{R}`+sacrifício do Satyr Hedonist (ative antes de conjurar, como as outras habilidades de mana com custo além de {T}) e pode gastar a mana preta no genérico de uma ativação repetida da Hagra Sharpshooter (vire as terras à mão); limitação geral do pagamento automático, candidata a leva própria.
+- **Teste:** `lt184.unit` (5 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
