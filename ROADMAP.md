@@ -6024,6 +6024,11 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora:** o registro do gatilho diz "quando outra criatura sua entra" (a frase de toda `other-etb` com filtro; o subtipo não aparece — mesma dívida do Elvish Vanguard).
 - **Versão e goldens:** a versão não sobe; goldens, fuzz e a equivalência de gatilhos (sombra) idênticos.
 
+**CR5-T127 · Correções da auditoria independente (T-122…T-125)** ✅ (leva T-127, sem mudança de versão do motor) — cerca de 40 sondas; uma média e uma baixa: (D1, média, de ponto comum) o gatilho com foto dos marcadores perdia a criatura encantada do disparo (a T-125 entrou no meio do if/else do host) — já corrigida e testada na T-126, achada pelas duas leituras independentemente; (D2, baixa) dois pulos para o mesmo combate ("skips their next combat phase this turn" e a Stonehorn Dignitary) gastavam o primeiro registrado: com o "neste turno" antes, a Dignitária comia o combate do turno seguinte. Pela 616.1 o afetado escolhe; o motor agora gasta primeiro o pulo que não vence sozinho, depois o "neste turno", e só então o "todas do próximo turno" — nunca pior para quem pula (simplificação declarada: o motor escolhe, sem pergunta). Nota sem sonda, anterior à fatia: a regra das lendas (704.5j) roda depois da 704.5q, fora do laço da checagem.
+- **Testes:** `tipos.dignitaria.unit.test.mjs` (+1, nas duas ordens; falha na versão anterior).
+- **Verificado e correto:** Dignitária com flash em vários momentos, duas Dignitárias, três jogadores, combate extra; Rage-Hound obrigado a atacar (virada, enjoo, Pacifismo, planeswalker, combate extra) e escape (três outras, 400.7 ao anular, piscar e reanimar, fuga de novo, Murcha); `artifact-creature` como alvo da Aura; 704.5q depois das mortes; foto dos marcadores; {Q} com atordoamento.
+- **Versão e goldens:** a versão não sobe; goldens, fuzz e a equivalência de gatilhos (sombra) idênticos.
+
 **CR6 · Multijogador e variantes** ○ — mesa de três e quatro (800–803, 806), Commander de mesa (903.2), Brawl (903.12); as variantes hoje "fora" só entram por decisão. 10 a 14 levas.
 
 **CR7 · Consolidação** ○ (em paralelo a partir da CR2) — a cada fase: fuzz em modo completo com listas reais, homologação por revisor independente relendo a seção das regras contra o motor, e rodada de simulação do dono do produto. 6 a 8 levas ao todo.

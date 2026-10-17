@@ -35,3 +35,16 @@ test('CR 614.10 · ruling de 19/03/2021: duas Dignitárias, dois combates pulado
   s = entra(s); s = entra(s);
   eq((s.pulosT || []).filter(r => r.p === 1 && r.o === 'combate').length, 2);
 });
+
+test('CR 616.1 · T-127 (auditoria T-122…T-125, D2): "neste turno" e a Dignitária no mesmo combate — gasta-se a da Dignitária (a outra venceria sozinha), e o combate seguinte de B acontece, em qualquer ordem', () => {
+  for (const antes of [true, false]) {
+    let s = mesa(); [s] = poe(s, 1, 'Urso');
+    s = entra(s);
+    s = passaAte(s, x => x.turn.active === 1 && x.turn.step === 'main1');
+    s = J(s); const n = s.turn.number, r = { p: 1, o: 'combate', turno: n }; // o pulo de "skips their next combat phase this turn" (Moment of Silence), registrado como a T-99 registra
+    if (antes) s.pulosT.unshift(r); else s.pulosT.push(r);
+    s = passaAte(s, x => x.turn.active === 0);
+    eq((s.pulosT || []).filter(x => x.p === 1 && x.turno == null && !x.todas).length, 0, `a da Dignitária foi gasta (${antes ? 'Silêncio antes' : 'Silêncio depois'})`);
+    eq((s.puladosT || []).filter(x => x.p === 1 && x.o === 'combate' && x.turno === n).length, 1, 'um combate pulado');
+  }
+});

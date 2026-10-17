@@ -30622,7 +30622,10 @@ function passoPuladoT(s, step) {
   for (const r of s.pulosT) if (r.todas && r.usadoEm == null && r.p === a && n > r.apos) r.usadoEm = n; // T-102 · achado da auditoria: "todas do próximo turno" é deste turno, tenha ele combate ou não
   if (!s.pulosT.length) { delete s.pulosT; return null; }
   let i = -1;
-  if (step === 'combat_begin') i = s.pulosT.findIndex(r => r.p === a && r.o === 'combate' && (r.turno != null ? r.turno === n : r.todas ? (r.usadoEm === n || (r.usadoEm == null && n > r.apos)) : true));
+  if (step === 'combat_begin') { const casa = r => r.p === a && r.o === 'combate' && (r.turno != null ? r.turno === n : r.todas ? (r.usadoEm === n || (r.usadoEm == null && n > r.apos)) : true);
+    // T-127 · 616.1: com vários pulos para o mesmo combate, quem pula escolhe qual se aplica; o motor gasta o que não vence sozinho ("your next combat phase"),
+    // depois o "neste turno", e só então marca o "todas do próximo turno" — nunca pior para o afetado (o que vence some no fim do turno de qualquer jeito)
+    i = s.pulosT.findIndex(r => casa(r) && r.turno == null && !r.todas); if (i < 0) i = s.pulosT.findIndex(r => casa(r) && !r.todas); if (i < 0) i = s.pulosT.findIndex(casa); }
   else i = s.pulosT.findIndex(r => r.p === a && PASSO_DO_PULO_T[r.o] === step);
   if (i < 0) return null;
   const r = s.pulosT[i];
