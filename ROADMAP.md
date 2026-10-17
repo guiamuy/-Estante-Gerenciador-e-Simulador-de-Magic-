@@ -4919,6 +4919,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nenhum.
 - **Teste:** `lt173.unit` (5 testes; falham no motor anterior).
 
+**M-492 · LT158 · revisão por lote CXXXIV: nove cartas lidas que travam as listas iniciantes** ✅ (leva M-492, motor v112 sem mudança de forma; goldens intactos; nenhuma linha de código nova).
+- **Valor:** passam a jogar (APROVADAS): Shambling Shell (com dredge 3), Slum Reaper (cada jogador sacrifica), Sorin's Thirst, Carrion Crow (entra virada), Seek the Wilds, Wildheart Invoker, Quilled Wolf, Dauthi Slayer (shadow; ataca se puder), Scorched Rusalka. Textos da Scryfall consultados em 17/10/2026; leituras conferidas frase a frase no texto oficial.
+- **Revisão independente:** aprovada (revisão de M-492/M-493): 18 leituras conferidas; `--confere` com 962 aprovadas; 97 sondas sem erro de regra (dredge 3 de verdade na compra do turno, da ciclagem e de cada compra da Ancestral Vision; Slum Reaper com escolha de cada jogador; Scorched Rusalka sacrificando a si mesma com dano por LKI; Roaring Primadox e Dream Stalker incluindo a própria; suspender 4 e a conjuração grátis; Condescend com X pago ou recusado); fuzz com as 18 cartas (2×60 partidas, com e sem as palavras-chave da Scryfall) sem recusa nem exceção.
+- **Fora (declarado):** a sombra (702.28b) da Dauthi Slayer só vale quando o dado da carta traz "Shadow" nas palavras-chave (no app vem da Scryfall); o motor não a lê da linha impressa — mesmo caso de Islandwalk (M-486) e renome (M-485).
+- **Teste:** `lt174.unit` (5 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
