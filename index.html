@@ -25018,6 +25018,7 @@ const HANDLERS = {
         const lemb = eff.target === 'remembered' ? pk.then.lembrada : null; // CR2b.3 · "that card"
         if (eff.target === 'remembered' && !(lemb && mesmaEncarnacao(s, lemb) && s.objects[lemb.oid])) continue;
         const alvo = lemb ? { oid: lemb.oid } : SC.isTargeted(eff) ? (pk.then.targets || [])[ti++] : null;
+        if (eff.target === 'self-source' && pk.then.fonteZc != null) { const f = s.objects[pk.then.source]; if (f && f.zone === 'battlefield' && (f.zc || 0) !== pk.then.fonteZc) { ev.push({ kind: 'effect', do: eff.do, name: pk.then.name, failed: true }); continue; } } // M-484 · 400.7 no "sim" do gatilho opcional (Scavenger Drake que saiu e voltou é outro objeto; a M-371 só cobria o caminho sem pergunta)
         if (!effectAllowed(s, s.objects[pk.then.source], eff)) continue;
         if (SC.isTargeted(eff) && !alvo) continue;
         applyEffect(s, src, eff, alvo, ev);
