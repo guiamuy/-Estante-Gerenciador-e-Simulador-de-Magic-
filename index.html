@@ -9743,6 +9743,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Magmakin Artillerist': { texto: '1widw5s', leva: 'M-462' },
   // M-463 · revisão por lote CX ("protection from artifacts or from the color of your choice": Apostle's Blessing), texto da Scryfall de 17/10/2026 UTC, revisor independente
   'Apostle\'s Blessing': { texto: 'gvwvw9', leva: 'M-463' },
+  // M-464 · revisão por lote CXI (mana pelo sacrificado: Soldevi Adnate), texto da Scryfall de 17/10/2026 UTC, revisor independente
+  'Soldevi Adnate': { texto: '1zcvkj', leva: 'M-464' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18078,6 +18080,7 @@ const __m42 = (function () {
       if (m[1] === '~') return [{ ...base, target: 'self-source' }]; const a = alvo(m[1]); return a ? [{ ...base, ...a }] : null; }],
     [/^(target creature|target creature an opponent controls|target creature you control) gets ([+-]\d+)\/([+-]\d+) until end of turn$/i, m => [com({ do: 'pump', power: SINAL(m[2]), toughness: SINAL(m[3]) }, alvo(m[1]))]],
     [/^you gain that much life$/i, () => [{ do: 'gain', amount: { per: 'trigger-value' } }]],
+    [/^add an amount of \{([WUBRGC])\} equal to the sacrificed creature's mana value$/i, m => [{ do: 'add_mana', symbols: [m[1].toUpperCase()], porContagem: 'sacrificed-mv' }]], // M-464 · Soldevi Adnate (608.2h: o valor de mana como era no campo)
     [/^~ deals that much damage to each opponent$/i, () => [{ do: 'damage', amount: { per: 'trigger-value' }, target: 'each-opponent' }]], // M-462 · "that much": o valor do gatilho
     [/^untap (target [a-z ']+)$/i, m => [com({ do: 'untap' }, alvo(m[1]))]],
     [new RegExp(`^put ${N} \\+1/\\+1 counters? on (this creature|~)$`, 'i'), m => [{ do: 'counters', amount: num(m[1]), target: 'self-source' }]],
@@ -18331,6 +18334,7 @@ const __m42 = (function () {
       else if (/^sacrifice an artifact or creature$/i.test(parte)) cost.sacrificeOther = { types: ['artifact', 'creature'], ...(/\b(artifact|creature)\b/i.test(tipoAtual) ? { includeSelf: true } : {}) }; // M-439 · a própria fonte serve se for de um dos tipos
       else if (/^sacrifice an artifact$/i.test(parte)) cost.sacrificeOther = { types: ['artifact'], ...(/\bartifact\b/i.test(tipoAtual) ? { includeSelf: true } : {}) }; // M-439 · Throne of Geth
       else if (/^sacrifice an? (Food|Treasure|Clue|Blood)$/i.test(parte)) cost.sacrificeOther = { types: ['artifact'], subtype: parte.match(/(Food|Treasure|Clue|Blood)$/i)[1].replace(/^./, c => c.toUpperCase()) }; // M-398 · Cauldron Familiar
+      else if (/^sacrifice an? (white|blue|black|red|green) or artifact creature$/i.test(parte)) cost.sacrificeOther = { types: ['creature'], corOuTipo: { cor: CORES[parte.match(/(white|blue|black|red|green)/i)[1].toLowerCase()], tipo: 'artifact' }, includeSelf: true }; // M-464 · Soldevi Adnate (a própria serve se for da cor ou artefato: o filtro confere)
       else if (/^sacrifice a creature$/i.test(parte)) cost.sacrificeOther = { types: ['creature'], ...(/\bcreature\b/i.test(tipoAtual) ? { includeSelf: true } : {}) }; // LT13 · Phyrexian Tower · M-327: a criatura com esse custo pode se sacrificar (Viscera Seer)
       else if (/^sacrifice another creature$/i.test(parte)) cost.sacrificeOther = { types: ['creature'], outra: true };
       else if (/^discard a card$/i.test(parte)) cost.discard = 1;
@@ -18370,6 +18374,8 @@ const __m42 = (function () {
     if (sim) { frases.push({ texto: m[1], lida: true }, { texto: corpo, lida: true }); return { kind: 'activated', cost, ...extra, effects: [{ do: 'add_mana', symbols: sim[1].match(/[WUBRGC]/g) }] }; }
     const qc = corpo.match(/^Add one mana of any color\.\s+(.+)$/i); // LT13 · Chromatic Sphere: "Add one mana of any color. Draw a card."
     if (qc) { const sub = []; const e = leParagrafo(qc[1], nome, sub); frases.push({ texto: m[1], lida: true }, { texto: 'Add one mana of any color', lida: true }, ...sub); return e ? { kind: 'activated', cost, ...extra, effects: [{ do: 'add_mana', anyColor: true }, ...e] } : null; }
+    const am = corpo.match(/^Add an amount of \{([WUBRGC])\} equal to the sacrificed creature's mana value$/i); // M-464 · Soldevi Adnate: a mana sai do sacrificado (608.2h)
+    if (am && cost.sacrificeOther) { frases.push({ texto: m[1], lida: true }, { texto: corpo, lida: true }); return { kind: 'activated', cost, ...extra, effects: [{ do: 'add_mana', symbols: [am[1].toUpperCase()], porContagem: 'sacrificed-mv' }] }; }
     if (/^Add /.test(corpo)) { frases.push({ texto: linha, lida: false, motivo: 'habilidade de mana com custo além de {T} (LT5)' }); return null; }
     const sub = []; const e = leParagrafo(corpo.replace(/^it /i, '~ '), nome, sub);
     frases.push({ texto: m[1], lida: true }, ...sub, ...(fraseSo ? [fraseSo] : []));
@@ -21982,7 +21988,7 @@ function applyEffectM449(s, src, eff, tgt, events) {
       const restritas = coresPermitidas(s, ctrl, eff); // M13/M13b · identidade ou terrenos dos oponentes
       let syms = eff.symbols || (restritas ? (eff.color && restritas.includes(eff.color) ? [eff.color] : []) : eff.anyColor ? [eff.color || 'C'] : []);
       if (eff.perCounter) { const dono = src.ability ? s.objects[src.source] : src; const n = ((dono && dono.counters) || {})[eff.perCounter] || 0; syms = Array.from({ length: n }, () => syms).flat(); } // CR2c.1 · "for each charge counter"
-      if (eff.porContagem) { const n = countFor(s, src, eff.porContagem); syms = Array.from({ length: n }, () => syms).flat(); } // M-423 · "Add {B} for each creature card in your graveyard" (Songs of the Damned), Rite of Flame
+      if (eff.porContagem) { const n = eff.porContagem === 'sacrificed-mv' ? amountOf(s, src, { per: 'sacrificed-mv' }) : countFor(s, src, eff.porContagem); /* M-464 */ syms = Array.from({ length: n }, () => syms).flat(); } // M-423 · "Add {B} for each creature card in your graveyard" (Songs of the Damned), Rite of Flame
       if (Number.isInteger(eff.vezes) && eff.vezes > 1) syms = syms.flatMap(c => Array(eff.vezes).fill(c)); // M-339 · "Add three mana of any one color" (Black Lotus, Lion's Eye Diamond)
       syms.forEach(c => { s.players[ctrl].pool[c] = (s.players[ctrl].pool[c] || 0) + 1; });
       note({ amount: syms.length }); break;
@@ -23814,6 +23820,7 @@ function extraCostCandidates(s, p, spec, selfOid, needUntapped) {
     (!spec.subtype || (!o.faceDown && (isChangeling(s, o, spec.subtype) || new RegExp('\\b' + spec.subtype + '\\b', 'i').test(linhaDeTipo(s, o))))) &&
     // S46 · a cor pedida pelo custo vale também para saber se dá para pagar
     (!spec.color || coresDe(s, o).includes(spec.color)) && // CR2d.8
+    (!spec.corOuTipo || coresDe(s, o).includes(spec.corOuTipo.cor) || tiposDe(s, o).includes(spec.corOuTipo.tipo)) && // M-464 · "a black or artifact creature"
     // S62 · enjoo de invocação vale só para o {T} da própria permanente (302.6).
     // Virar OUTRA criatura como custo aceita criatura que entrou agora — regra
     // confirmada na carta Jaspera Sentinel (consulta em 27/09/2026).
@@ -24793,7 +24800,7 @@ const HANDLERS = {
     // S33/Leva 106 · adaptar usa a pilha (701.46a): os marcadores entram na resolução, se ela ainda não tiver nenhum
     // 605.1a · habilidade de mana não usa a pilha: resolve na hora
     if (ehHabilidadeDeMana(ab) && !need.length) { // M-404 · 605.1a: a mesma definição da fração de segundo (a de lealdade usa a pilha)
-      { const fonteM = o.controller === a.p ? o : { ...o, controller: a.p }; (ab.effects || []).forEach(e => applyEffect(s, fonteM, e, null, ev || [])); } // M-369 · 602.2a: a mana vai para quem ativou, mesmo se o custo devolveu a fonte ao dono
+      { const fonteM0 = o.controller === a.p ? o : { ...o, controller: a.p }, fonteM = s.sacrificadosNoCusto ? { ...fonteM0, sacrificados: s.sacrificadosNoCusto } : fonteM0; (ab.effects || []).forEach(e => applyEffect(s, fonteM, e, null, ev || [])); } // M-464 · a habilidade de mana que conta o sacrificado (Soldevi Adnate) // M-369 · 602.2a: a mana vai para quem ativou, mesmo se o custo devolveu a fonte ao dono
       if ((ab.cost || {}).tap) manaExtraDeVirar(s, o, a.p); // M-353 · 106.12a: "tapped for mana" vale para toda habilidade de mana com {T} no custo (Wild Growth numa terra de esgotamento) — pedido da L-1
       // M-250 · "If there are no depletion counters on this land, sacrifice it" (Saprazzan Skerry): parte da própria habilidade de mana (605.1a)
       if (ab.semMarcadorSacrifica && o.zone === 'battlefield' && !(o.counters || {})[ab.semMarcadorSacrifica]) sacrifice(s, o.oid, ev || []);
@@ -33933,7 +33940,7 @@ function descreveEfeito(e) {
 }
 // Leva 131 · a condição do efeito entra na frase (Moon-Circuit Hacker: o aviso dizia "descarta 1 carta" no turno em que ela entrou, quando não descarta)
 const CONDICAO_PT = { 'nao-seu-turno': 'se não for o seu turno' /* M-452 */, kicked: 'se tiver sido reforçada', bargained: 'se tiver sido barganhada', 'paid-additional': 'se o custo adicional foi pago', metalcraft: 'com metalurgia', 'cast-from-graveyard': 'se foi conjurada do cemitério', 'source-entered-earlier': 'só se ela não entrou neste turno', 'not-attacked': 'só se você não atacou neste turno', evidenced: 'se colheu provas', 'not-evidenced': 'se não colheu provas', ferocious: 'se você controlar uma criatura com poder 4 ou mais', threshold: 'com limiar (sete cartas ou mais no seu cemitério)' /* M-412 */, morbid: 'se uma criatura morreu neste turno', 'landfall-turno': 'se um terreno entrou sob seu controle neste turno' /* M-437 */, 'na-principal-propria': 'se conjurada na sua fase principal' /* M-443 */ /* M-416 */, 'sem-limiar': 'sem limiar' /* M-417 */, 'alvo-era-neve': 'se o terreno era nevado', 'alvo-era-lendario': 'se a mágica era lendária' /* M-414 */, 'alvo-era-seu': 'se a permanente era sua' }; // M-385 // M-351 · Extract a Confession (achado da revisão do lote XXIII: as duas frases pareciam dois sacrifícios)
-const X_PT = { 'descartadas-assim': 'carta descartada assim', /* M-434 */ 'dano-causado': 'o dano causado assim', /* M-427 */ 'mesmo-nome-nos-cemiterios': 'carta com o mesmo nome em cada cemitério', 'attacking-creatures': 'criatura atacando', /* M-423 */ movidas: 'o número de cartas postas no cemitério assim', 'instants-sorceries-in-your-graveyard': 'mágicas instantâneas e feitiços no seu cemitério', 'flashback-cards-you-own-in-exile': 'cartas com lampejo do passado suas no exílio', /* M-358 */ 'cards-in-hand': 'cartas na sua mão', 'creature-cards-in-your-graveyard': 'cartas de criatura no seu cemitério', 'sacrificed-power': 'o poder da criatura sacrificada', 'sacrificed-toughness': 'a resistência da criatura sacrificada', 'sacrificed-mv': 'o valor de mana do que foi sacrificado' }; // M-354 · o que o X conta (achado da revisão do lote XXVI)
+const X_PT = { 'sacrificed-mv': 'ponto de valor de mana da criatura sacrificada', /* M-464 */ 'descartadas-assim': 'carta descartada assim', /* M-434 */ 'dano-causado': 'o dano causado assim', /* M-427 */ 'mesmo-nome-nos-cemiterios': 'carta com o mesmo nome em cada cemitério', 'attacking-creatures': 'criatura atacando', /* M-423 */ movidas: 'o número de cartas postas no cemitério assim', 'instants-sorceries-in-your-graveyard': 'mágicas instantâneas e feitiços no seu cemitério', 'flashback-cards-you-own-in-exile': 'cartas com lampejo do passado suas no exílio', /* M-358 */ 'cards-in-hand': 'cartas na sua mão', 'creature-cards-in-your-graveyard': 'cartas de criatura no seu cemitério', 'sacrificed-power': 'o poder da criatura sacrificada', 'sacrificed-toughness': 'a resistência da criatura sacrificada', 'sacrificed-mv': 'o valor de mana do que foi sacrificado' }; // M-354 · o que o X conta (achado da revisão do lote XXVI)
 Object.assign(X_PT, { 'moedas-ganhas': 'os lances ganhos', 'resultado-do-dado': 'o resultado do dado' }); // T-65 · T-66
 const faixaPT_T = (e, f) => jogadorEncantadoPT_T(e, faixaDoDadoPT_T(e, f)); // T-94 · "that player" das Maldições
 const jogadorEncantadoPT_T = (e, f) => !f || !e || e.target !== 'enchanted-player' || /encantad/.test(f) ? f : `${f} (o jogador encantado)`;

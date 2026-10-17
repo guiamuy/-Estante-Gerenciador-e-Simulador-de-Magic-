@@ -4749,6 +4749,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** o bot e o goldfish continuam escolhendo uma cor (branco); **aviso à `bot`:** a opção "artefatos" existe na decisão `choose_color` desta carta.
 - **Teste:** `lt145.unit` (4 testes; falham no motor anterior).
 
+**M-464 · LT130 · Soldevi Adnate: "Sacrifice a black or artifact creature: Add an amount of {B} equal to the sacrificed creature's mana value"** ✅ (leva M-464, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** o **Soldevi Adnate** (pedido da trilha `listas`) joga pelo leitor aprovado: vira e sacrifica uma criatura preta ou um artefato-criatura (ela mesma serve) e adiciona {B} igual ao valor de mana do sacrificado, na hora, sem pilha (605.1a). Texto da Scryfall consultado em 17/10/2026.
+- **Primitiva:** qualidade de custo "cor ou tipo" no sacrifício (`corOuTipo`); a habilidade de mana passa a conhecer o que foi sacrificado no custo (contagem `sacrificed-mv`, 608.2h). A mágica Sacrifice passou a ser lida, sem aprovação.
+- **Revisão independente:** aprovada (17 sondas): sacrifica preta, artefato ou a própria; mana igual ao valor de mana; sem pilha; o bot não sacrifica à toa.
+- **Fora (declarado):** o pagamento automático não usa o Adnate como fonte (é preciso ativar à mão), como as outras fontes com sacrifício no custo.
+- **Teste:** `lt146.unit` (3 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
