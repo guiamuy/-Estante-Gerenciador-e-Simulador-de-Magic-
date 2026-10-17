@@ -6814,6 +6814,11 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-116 · CR 709.5h · Sala (mtg.wtf + mtgazone + grimoria, consulta de 17/10/2026). O lembrete entre parênteses não se escreve.
+  { name: 'Meat Locker // Drowned Diner', self: { dividida: true, sala: true, mana: '{2}{U}', types: ['enchantment'] },
+    abilities: [{ kind: 'triggered', when: 'unlock-door', effects: [{ do: 'tap', target: 'creature', upTo: true }, { do: 'counters', amount: 2, tipo: 'stun', target: 'first-target' }] }], // "When you unlock this door, tap up to one target creature and put two stun counters on it."
+    back: { name: 'Drowned Diner', types: ['enchantment'], mana: '{3}{U}{U}', abilities: [{ kind: 'triggered', when: 'unlock-door', effects: [{ do: 'draw', amount: 3 }, { do: 'discard', amount: 1 }] }] }, // "When you unlock this door, draw three cards, then discard a card."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // T-115 · CR 702.165 / 122.1 (Scryfall, consulta de 17/10/2026, rulings de 14/04/2023). O reforço mostra só a habilidade impressa abaixo dele.
   { name: 'Enduring Bondwarden', backup: 1, abilities: [{ kind: 'triggered', when: 'dies', effects: [{ do: 'marcadores_da_fonte', target: 'creature-you-control' }] }], // "Backup 1 (…) · When this creature dies, put its counters on target creature you control."
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
