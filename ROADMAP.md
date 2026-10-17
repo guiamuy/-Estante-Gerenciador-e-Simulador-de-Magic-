@@ -4460,6 +4460,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** carta com poder "*" no grimório não serve no filtro (o valor da característica definidora fora do campo não é calculado).
 - **Teste:** `lt102.unit` (2 testes; falham no motor anterior).
 
+**M-421 · LT87 · fichas em quantidade igual ao poder da fonte: Nested Shambler** ✅ (leva M-421, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** **Nested Shambler passa a jogar** (5 listas do catálogo; APROVADAS, texto da Scryfall de 17/10/2026 UTC): ao morrer, cria X fichas 1/1 verdes de Esquilo viradas, com X = o poder que ela tinha no campo (608.2h, a contagem `power-of-source` que o Feral Ghoul já usava). Frase nova no leitor: "create X [tapped] P/T <cor> <tipo> creature tokens, where X is ~'s power". Placar do Pauper (`main` + M-421 × catálogo de 17/10): **388 de 425 listas jogam** (as listas Pauper com ela ainda têm outra carta pendente).
+- **Revisão independente:** revisor independente do lote M-416…M-421 (cerca de 130 verificações dirigidas; diferencial do leitor no corpus de 34.083 cartas: só as 23 cartas das levas mudaram; equivalência de 18 partidas, 5.400 passos, estado idêntico; fuzz de 150 partidas e 74.849 ações sem exceção nem ação recusada): **aprovado** — o poder é o do campo ao morrer (608.2h); poder negativo cria 0 fichas; as fichas vão para quem a controlava (603.3a) e entram viradas. A descrição da pilha não dizia "viradas" nem que X é o poder — corrigido na M-426.
+- **Fora (declarado):** nada novo.
+- **Teste:** `lt103.unit` (2 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

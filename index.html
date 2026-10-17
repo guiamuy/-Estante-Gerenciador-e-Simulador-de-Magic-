@@ -9570,6 +9570,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Living Phone': { texto: 'oxzw8y', leva: 'M-420' },
   'Militia Bugler': { texto: 'y21ewe', leva: 'M-420' },
   'Squad Rallier': { texto: '1domriq', leva: 'M-420' },
+  // M-421 · revisão por lote LXXV (fichas em quantidade igual ao poder da fonte: Nested Shambler), texto da Scryfall de 17/10/2026 UTC, revisor independente
+  'Nested Shambler': { texto: '1qmx71c', leva: 'M-421' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -17994,7 +17996,8 @@ const __m42 = (function () {
     [/^(target opponent|each opponent) loses that much life$/i, m => [com({ do: 'lose', amount: { per: 'trigger-value' } }, alvo(m[1]))]], // CR2b.7 · "that much": o valor do gatilho
     [/^after this main phase, there is an additional combat phase followed by an additional main phase$/i, () => [{ do: 'combate_extra' }]], // LT5 · o "then shuffle" da busca: o motor embaralha ao fim dela
     [new RegExp(`^[Cc]reate ${N} (\\d+/\\d+) ((?:white|blue|black|red|green|colorless)(?: and (?:white|blue|black|red|green))?) ${TIPO_CRIATURA} creature tokens?(?: with ([a-z ,]+))?$`), m => ficha(m[1], m[2], m[3], m[4], m[5])],
-    [new RegExp(`^[Cc]reate ${N} (tapped )?(\\d+/\\d+) (colorless|white|blue|black|red|green) ${TIPO_CRIATURA} artifact creature tokens?$`), m => fichaArtefato(m[1], m[3], m[4], m[5], !!m[2])] // M-349 · Melded Moxite
+    [new RegExp(`^[Cc]reate ${N} (tapped )?(\\d+/\\d+) (colorless|white|blue|black|red|green) ${TIPO_CRIATURA} artifact creature tokens?$`), m => fichaArtefato(m[1], m[3], m[4], m[5], !!m[2])], // M-349 · Melded Moxite
+    [new RegExp(`^[Cc]reate X (tapped )?(\\d+/\\d+) ((?:white|blue|black|red|green|colorless)(?: and (?:white|blue|black|red|green))?) ${TIPO_CRIATURA} creature tokens, where X is ~'s power$`), m => { const f = ficha('one', m[2], m[3], m[4], null); if (!f) return null; f[0].amount = { per: 'power-of-source' }; if (m[1]) f[0].virada = true; return f; }] // M-421 · Nested Shambler (608.2h: o poder como era no campo, no gatilho de morrer)
   ];
   /** Linha de palavra-chave com custo, no topo do script ("Flashback {2}{R}" → flashback: { mana }). Só as que o motor executa assim. */
   const COM_CUSTO = [
