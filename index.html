@@ -6282,6 +6282,7 @@ function validateScript(sc) {
     if (self.oponentesCompramUma != null && self.oponentesCompramUma !== true) errs.push('bônus próprio: oponentesCompramUma só vale como true'); // M-262
     if (self.reduzSeMira != null && !(self.reduzSeMira && Number.isInteger(self.reduzSeMira.generic) && self.reduzSeMira.generic > 0 && JSON.stringify(self.reduzSeMira.tipos) === '["creature"]')) errs.push('bônus próprio: reduzSeMira pede tipos [creature] e generic inteiro'); // M-259
     if (self.naoBloqueia != null && self.naoBloqueia !== true) errs.push('bônus próprio: "não bloqueia" só vale como true');
+    if (self.atacaSePuder != null && self.atacaSePuder !== true) errs.push('bônus próprio: "ataca se puder" só vale como true'); // M-430
     if (self.reduzCor != null && !(self.reduzCor && Number.isInteger(self.reduzCor.generic) && self.reduzCor.generic > 0 && Array.isArray(self.reduzCor.cores) && self.reduzCor.cores.length && self.reduzCor.cores.every(c => 'WUBRG'.includes(c) && c.length === 1))) errs.push('bônus próprio: reduzCor pede generic inteiro positivo e cores WUBRG'); // M-352
     if (self.keywords != null && (!Array.isArray(self.keywords) || self.keywords.some(k => !KEYWORDS.includes(k)))) errs.push('bônus próprio: palavra-chave desconhecida');
     if (self.craft != null) { const c = self.craft; // M-356 · CR 702.167a · "Craft with <materiais> <custo>"
@@ -9613,6 +9614,9 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Rite of Consumption': { texto: '1fbb7tr', leva: 'M-427' },
   // M-429 · revisão por lote LXXXI (habilidade disparada ganha até o fim do turno: Supernatural Stamina), texto da Scryfall de 17/10/2026 UTC, revisor independente
   'Supernatural Stamina': { texto: 'xebdh1', leva: 'M-429' },
+  // M-430 · revisão por lote LXXXII ("attacks each combat if able": Monstrous Carabid, Ulamog's Crusher), texto da Scryfall de 17/10/2026 UTC, revisor independente
+  'Monstrous Carabid': { texto: '1huc0xg', leva: 'M-430' },
+  "Ulamog's Crusher": { texto: 'a5p0yv', leva: 'M-430' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -10226,7 +10230,7 @@ function sagaErros(sc) {
 }
 TRIGGER_PT.chapter = 'capítulo da Saga';
 Object.assign(EXPORTS_T_SC, { sagaErros, capitulosDoScript });
-return { ...EXPORTS_K_SC, ...EXPORTS_V_SC, ...EXPORTS_T_SC, registraLeitor, hashTexto, assinaturaRevisao, textoRevisavel, APROVADAS, leitura, scriptLido, KEYWORDS, KEYWORD_COUNTERS, MARCADOR_PT, duracaoValida, danoErros, substituiErros, entraErros, substituicoesDoScript, JOGADORES_QUANT, VERBOS_DE_JOGADOR, jogadoresDe, DURACOES, continuoErros, tornaErros, tornaParaBecomes, GATILHO_ZONA, GATILHO_EVENTO, gatilhoDoEvento, falaDe, gatilhoDeZona, gatilhoErros, descreveGatilho, PASSOS_DO_GATILHO, ALVO_SELETOR, CADA_SELETOR, EFEITOS_ATALHO, cadaDe, seletorErros, seletorDe, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE, DUNGEONS, dungeonByName, roomById, fichasDoScript, fichasDasCartas, chaveDaFicha };
+return { ...EXPORTS_K_SC, ...EXPORTS_V_SC, ...EXPORTS_T_SC, registraLeitor, hashTexto, assinaturaRevisao, textoRevisavel, APROVADAS, leitura, scriptLido, KEYWORDS, KW_LINE, KEYWORD_COUNTERS, MARCADOR_PT, duracaoValida, danoErros, substituiErros, entraErros, substituicoesDoScript, JOGADORES_QUANT, VERBOS_DE_JOGADOR, jogadoresDe, DURACOES, continuoErros, tornaErros, tornaParaBecomes, GATILHO_ZONA, GATILHO_EVENTO, gatilhoDoEvento, falaDe, gatilhoDeZona, gatilhoErros, descreveGatilho, PASSOS_DO_GATILHO, ALVO_SELETOR, CADA_SELETOR, EFEITOS_ATALHO, cadaDe, seletorErros, seletorDe, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE, DUNGEONS, dungeonByName, roomById, fichasDoScript, fichasDasCartas, chaveDaFicha };
 })();
 
 /* ==== src/data/decks.js ==== */
@@ -18241,7 +18245,7 @@ const __m42 = (function () {
   const semLembrete = t => String(t || '').replace(/\s*\([^)]*\)/g, '').trim();
   const KW = new Set(SC.KEYWORDS.map(k => k.toLowerCase()));
   /** Uma linha só de palavras-chave que o motor conhece ("Flying, vigilance"): o motor já as lê do texto. */
-  const linhaDePalavras = l => { const ps = l.split(/,\s*/).map(x => x.trim().toLowerCase()); return ps.length > 0 && ps.every(p => KW.has(p)); };
+  const linhaDePalavras = l => { const ps = l.split(/,\s*/).map(x => x.trim().toLowerCase()); return (ps.length > 0 && ps.every(p => KW.has(p))) || SC.KW_LINE.test(l); }; // M-430 · também a palavra-chave com número ("Annihilator 2"): a mesma linha que a cobertura sem leitor já aceitava (K-6)
   /** Frase de efeito → efeitos, ou null (inclusive quando o alvo ficou fora do vocabulário). */
   function leFrase(f) {
     for (const [re, faz] of PADROES) { const m = f.match(re); if (m) { const e = faz(m); if (e && e.every(Boolean)) return e; } } // LT6 · padrão que casa mas não cabe no vocabulário deixa os seguintes tentarem
@@ -18409,6 +18413,7 @@ const __m42 = (function () {
         if (/^(?:this land|~) enters(?: the battlefield)? tapped unless you control two or more other lands$/i.test(lp)) { topo.entersTappedUnless = { minOutrasTerras: 2 }; frases.push({ texto: linha, lida: true }); continue; } // M-340 · terras lentas
         if (/^(?:this land|~) enters(?: the battlefield)? tapped unless you control two or more basic lands$/i.test(lp)) { topo.entersTappedUnless = { minBasicos: 2 }; frases.push({ texto: linha, lida: true }); continue; } // M-340 · terras de batalha
         if (/^~ can't block$/i.test(lp)) { topo.self = { ...(topo.self || {}), naoBloqueia: true }; frases.push({ texto: linha, lida: true }); continue; } // M-340 · 509.1a
+        if (/^~ attacks each combat if able$/i.test(lp)) { topo.self = { ...(topo.self || {}), atacaSePuder: true }; frases.push({ texto: linha, lida: true }); continue; } // M-430 · 508.1d: exigência de atacar (Monstrous Carabid, Ulamog's Crusher)
         const hz = lp.match(/^\{T\}, Pay (\d+) life: Add (?:(\{[WUBRG]\})(?: or (\{[WUBRG]\}))?|(one mana of any color))$/); // M-342 · 106.12 / 119.4: Horizon lands, Starting Town
         if (hz && !topo.manaRule) { const cs = hz[4] ? ['W', 'U', 'B', 'R', 'G'] : [hz[2], hz[3]].filter(Boolean).map(x => x[1]); topo.produces = [...(topo.produces || []), ...cs.map(c => [c])]; topo.manaRule = { colors: cs.join(''), life: +hz[1] }; coresVida.push(...cs); frases.push({ texto: linha, lida: true }); continue; }
         if (/^(?:this land|~) enters(?: the battlefield)? tapped unless it[’']s your first, second, or third turn of the game$/i.test(lp)) { topo.entersTappedUnless = { ateTurnoProprio: 3 }; frases.push({ texto: linha, lida: true }); continue; } // M-342 · Starting Town
@@ -20514,8 +20519,10 @@ function advanceStep(s) {
     sobra é atacar. Numa mesa com três ou mais, isso precisa voltar aqui. */
 function mustAttack(s, p) {
   const podem = new Set(eligibleAttackers(s, p));
-  return battlefield(s).filter(o => o.controller === p && (o.goaded || exigePw(s, o)) && podem.has(o.oid)).map(o => o.oid);
+  return battlefield(s).filter(o => o.controller === p && (o.goaded || exigePw(s, o) || atacaSePuder(s, o)) && podem.has(o.oid)).map(o => o.oid);
 }
+/** M-430 · 508.1d · "~ attacks each combat if able": entra na lista das que precisam atacar (só quando pode: virada, enjoada ou com custo para atacar não é obrigada). */
+const atacaSePuder = (s, o) => !o.faceDown && !semImpressas(s, o) && !!((((s.facts[o.name] || {}).script || {}).self || {}).atacaSePuder);
 /** M-228 · 506.3 / 508.1b: planeswalkers que p pode atacar (os dos oponentes que ainda jogam). */
 const pwsAtacaveis = (s, p) => battlefield(s).filter(o => o.controller !== p && !s.players[o.controller].lost && tiposDe(s, o).includes('planeswalker')).map(o => o.oid).concat(batalhasAtacaveisT(s, p)); // T-14 · CR 310.5 / 508.1b · e as batalhas que p pode atacar · Toca ponto comum: pwsAtacaveis
 /** M-228 · "attacks <planeswalker> during its controller's next turn if able" (Gideon +2): o planeswalker exigido, se ainda dá para atacá-lo. */
