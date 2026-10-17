@@ -113,12 +113,14 @@ test('R-3 · duas sessões gravando ao mesmo tempo: a segunda tem o push recusad
 test('R-21 · levaComPortao: o resumo do portão entra na leva (testes, instáveis com nomes, telas auditadas, duração, portão, quedas de orçamento só das corridas depois do último consumo); campo já informado fica; sem resumo nada muda; o registro passa no esquema', () => {
   const resumo = { kind: 'estante.portao', version: 1, em: '2026-10-17T01:00:00Z', consumidoEm: '2026-10-16T22:00:00Z',
     rapido: { em: '2026-10-17T00:50:00Z', verde: true, minutos: 15.2, passaram: 3063, cairam: 0, quedasOrcamento: [] },
-    tela: { em: '2026-10-17T01:00:00Z', verde: true, minutos: 9.9, passaram: 246, cairam: 1, quedasOrcamento: [], instaveis: ['e2e · X11 scanner'], telas: ['custo 360', 'acervo 360'] },
+    tela: { em: '2026-10-17T01:00:00Z', verde: true, minutos: 9.9, passaram: 246, cairam: 1, quedasOrcamento: [], instaveis: ['e2e · X11 scanner'], telas: ['custo 360', 'acervo 360'], medidas: { scanner: { detector_ms: 88, confirmacao_ms: 132, leituras_s: 3 } } },
     historico: [{ em: '2026-10-16T21:00:00Z', fase: 'rapido', verde: false, quedasOrcamento: 2, instaveis: 0 }, { em: '2026-10-16T23:00:00Z', fase: 'rapido', verde: false, quedasOrcamento: 1, instaveis: 0 }, { em: '2026-10-17T00:50:00Z', fase: 'rapido', verde: true, quedasOrcamento: 0, instaveis: 0 }, { em: '2026-10-17T01:00:00Z', fase: 'tela', verde: true, quedasOrcamento: 0, instaveis: 1 }] };
   const base = { id: 'R-21', trilha: 'radar', conversa: 'c', situacao: 'na-fila', bugs_achados: 0 };
   const { registro, consumidoEm } = levaComPortao(base, resumo);
   assert.equal(consumidoEm, '2026-10-17T01:00:00Z');
-  assert.deepEqual(registro, { ...base, testes_depois: 3309, testes_tela: 246, instaveis: 1, instaveis_nomes: ['e2e · X11 scanner'], telas_auditadas: 2, quedas_orcamento: 1, portao_min: 25.1, portao: 'verde' });
+  assert.deepEqual(registro, { ...base, testes_depois: 3309, testes_tela: 246, instaveis: 1, instaveis_nomes: ['e2e · X11 scanner'], telas_auditadas: 2, quedas_orcamento: 1, portao_min: 25.1, portao: 'verde', medidas: { scanner: { detector_ms: 88, confirmacao_ms: 132, leituras_s: 3 } } });
+  assert.ok(valida('leva', { ...base, medidas: { scanner: { 'Detector': 1 } } }).length, 'chave de medida fora da forma é recusada');
+  assert.ok(valida('leva', { ...base, medidas: { scanner: { detector_ms: 'x' } } }).length, 'medida tem de ser número');
   assert.deepEqual(valida('leva', registro), [], 'o registro carregado passa no esquema');
   // campo informado pela conversa vence; resumo só da fase rápida não inventa tela
   const r2 = levaComPortao({ ...base, testes_depois: 10, portao: 'vermelho' }, { ...resumo, tela: null, historico: [] }).registro;

@@ -698,7 +698,7 @@ test('R-20 · resumoDoCatalogo: linhas fonte × formato (EDH vira commander; MTG
   assert.equal(modelo.urlDosFiltros('acervo', { fonte: 'topdeck', formato: 'pauper' }), '#acervo?fonte=topdeck&formato=pauper'); assert.deepEqual(modelo.filtrosDaUrl('#acervo?fonte=mtgo').filtros, { fonte: 'mtgo' });
 });
 
-test('R-20 · orçamento do Acervo: coleta.json a cada atualização (raw, fora da cota) e o índice uma vez por carimbo da coleta (guardado para sempre; só o cabeçalho no cache); zero pedidos à API', async () => {
+test('R-20/R-24 · orçamento do Acervo: coleta.json e levas.jsonl a cada atualização (raw, fora da cota) e o índice uma vez por carimbo da coleta (guardado para sempre; só o cabeçalho no cache); zero pedidos à API', async () => {
   const { base, app, modelo } = loadPainel();
   const guarda = base.createGuarda(null);
   const chamadas = [];
@@ -706,14 +706,14 @@ test('R-20 · orçamento do Acervo: coleta.json a cada atualização (raw, fora 
   const fetch = async url => { chamadas.push(url); const corpo = /coleta\.json/.test(url) ? JSON.stringify(coleta) : /indice\.json/.test(url) ? JSON.stringify(INDICE_R20) : ''; return { ok: true, status: 200, headers: { get: () => null }, json: async () => JSON.parse(corpo), text: async () => corpo }; };
   const fonte = base.createFonte({ fetch, guarda });
   const d1 = await app.VISOES.acervo.carrega(fonte, false);
-  assert.equal(fonte.pedidos, 0, 'nada vai à API'); assert.equal(fonte.brutos, 2); assert.equal(d1.indice.total, 2764); assert.deepEqual(d1.avisos, []);
+  assert.equal(fonte.pedidos, 0, 'nada vai à API'); assert.equal(fonte.brutos, 3, 'coleta, índice e levas (R-24: a medida do scanner)'); assert.equal(d1.indice.total, 2764); assert.deepEqual(d1.avisos, []);
   assert.ok(!JSON.stringify(guarda.ler('painel.cache.catalogo.indice.2026-10-16T11:40:34.193Z')).includes('nunca-entra'), 'o cache guarda só o cabeçalho');
   fonte.zerar(); chamadas.length = 0;
   await app.VISOES.acervo.carrega(fonte, true);
-  assert.deepEqual(chamadas.map(u => u.split('/').pop()), ['coleta.json'], 'atualizar relê a coleta; o índice vem do cache enquanto o carimbo é o mesmo');
+  assert.deepEqual(chamadas.map(u => u.split('/').pop()), ['coleta.json', 'levas.jsonl'], 'atualizar relê a coleta e as levas; o índice vem do cache enquanto o carimbo é o mesmo');
   coleta = { ...COLETA_R20, em: '2026-10-17T11:40:00.000Z' }; chamadas.length = 0;
   await app.VISOES.acervo.carrega(fonte, true);
-  assert.deepEqual(chamadas.map(u => u.split('/').pop()), ['coleta.json', 'indice.json'], 'carimbo novo: o índice é lido de novo, uma vez');
+  assert.deepEqual(chamadas.map(u => u.split('/').pop()), ['coleta.json', 'indice.json', 'levas.jsonl'], 'carimbo novo: o índice é lido de novo, uma vez');
   // coleta fora do ar: o índice ainda é lido (chave da hora) e a visão avisa
   const fonte2 = base.createFonte({ fetch: async url => { if (/coleta/.test(url)) throw new TypeError('sem rede'); return fetch(url); }, guarda: base.createGuarda(null) });
   const d2 = await app.VISOES.acervo.carrega(fonte2, false);
@@ -769,4 +769,23 @@ test('R-22 · o token fica na chave painel.github.token do aparelho e nunca entr
   const plano = base.createPlano({ fetch: async () => ({ ok: true, status: 200, json: async () => null }), dbUrl: '', guarda: g });
   assert.doesNotMatch(JSON.stringify(plano.local()), /ghp_/, 'o plano não carrega o token');
   assert.doesNotMatch(PAINEL.replace(/painel\.github\.token/g, ''), /github\.token|ghp_[a-z0-9]{8}/i, 'nenhum token literal no painel.html');
+});
+
+/* ---------- R-24 · BI2-2 · scanner no Acervo ---------- */
+test('R-24 · medidaDoScanner: a leva mais recente com medidas.scanner (data), com leva e trilha; sem medida devolve null; limiares do scanner vêm do X11', async () => {
+  const { modelo, base, app } = loadPainel();
+  const levas = modelo.linhasDasLevas([
+    { id: 'R-22', trilha: 'radar', fim: '2026-10-17T04:00:00Z', medidas: { scanner: { detector_ms: 91, confirmacao_ms: 140, leituras_s: 2 } } },
+    { id: 'M-500', trilha: 'motor', fim: '2026-10-17T20:00:00Z', telas_auditadas: 10 },
+    { id: 'R-23', trilha: 'radar', fim: '2026-10-17T06:00:00Z', medidas: { scanner: { detector_ms: 88, confirmacao_ms: 132, leituras_s: 3 } } }
+  ]);
+  assert.deepEqual(modelo.medidaDoScanner(levas), { leva: 'R-23', trilha: 'radar', data: Date.parse('2026-10-17T06:00:00Z'), detector_ms: 88, confirmacao_ms: 132, leituras_s: 3 });
+  assert.equal(modelo.medidaDoScanner([]), null); assert.equal(modelo.medidaDoScanner(modelo.linhasDasLevas([{ id: 'M-500', fim: '2026-10-17T20:00:00Z' }])), null);
+  assert.equal(modelo.farol(88, modelo.LIMIARES.scannerDetector), 'verde'); assert.equal(modelo.farol(240, modelo.LIMIARES.scannerDetector), 'amarelo'); assert.equal(modelo.farol(300, modelo.LIMIARES.scannerConfirmacao), 'vermelho');
+  // o Acervo passa a ler levas.jsonl (raw, fora da cota) e continua sem pedido à API
+  const guarda = base.createGuarda(null);
+  const fetch = async url => { const corpo = /coleta\.json/.test(url) ? '{"em":"2026-10-16T11:40:34.193Z","saude":{"ok":true,"alertas":[],"avisos":[],"fontes":{}},"topdeck":[],"mtgo":[]}' : /indice\.json/.test(url) ? '{"versao":1,"total":1,"formatos":[],"fontes":[]}' : /levas\.jsonl/.test(url) ? JSON.stringify({ id: 'R-23', trilha: 'radar', conversa: 'c', situacao: 'publicada', fim: '2026-10-17T06:00:00Z', medidas: { scanner: { detector_ms: 88 } } }) : ''; return { ok: true, status: 200, headers: { get: () => null }, json: async () => JSON.parse(corpo), text: async () => corpo }; };
+  const fonte = base.createFonte({ fetch, guarda });
+  const d = await app.VISOES.acervo.carrega(fonte, false);
+  assert.equal(fonte.pedidos, 0); assert.equal(fonte.brutos, 3); assert.equal(modelo.medidaDoScanner(modelo.linhasDasLevas(d.levas)).detector_ms, 88);
 });

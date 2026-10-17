@@ -85,7 +85,9 @@ const ESQUEMA_LEVA = {
   estimativa_levas: { ok: v => typeof v === 'number' && v > 0 && v <= 100 }, tamanho: { ok: v => ['½', '1', '2', '3'].includes(v) },
   motivo: { ok: v => texto(v, 200) }, em: { ok: v => typeof v === 'string' && ISO.test(v) },
   // R-21 · BI2-6 · o que o portão mediu (carregado de .tmp/portao.json por `leva … --portao`): nomes de teste não são dado de usuário
-  testes_tela: { ok: inteiro }, telas_auditadas: { ok: inteiro }, quedas_orcamento: { ok: inteiro }, portao_min: { ok: numero }, instaveis_nomes: { ok: v => Array.isArray(v) && v.length <= 10 && v.every(x => texto(x, 160)) }
+  testes_tela: { ok: inteiro }, telas_auditadas: { ok: inteiro }, quedas_orcamento: { ok: inteiro }, portao_min: { ok: numero }, instaveis_nomes: { ok: v => Array.isArray(v) && v.length <= 10 && v.every(x => texto(x, 160)) },
+  // R-24 · medidas que os testes imprimem (`# medida · scanner · detector_ms=…`): { nome: { chave: número } }, até 10 nomes × 10 chaves
+  medidas: { ok: v => !!v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length <= 10 && Object.entries(v).every(([n, o]) => /^[a-z_]{2,30}$/.test(n) && !!o && typeof o === 'object' && Object.keys(o).length <= 10 && Object.entries(o).every(([k, x]) => /^[a-z_]{2,30}$/.test(k) && typeof x === 'number' && Number.isFinite(x))) }
 };
 const ESQUEMA_TRILHA = {
   conversa: { obrigatorio: true, ok: v => texto(v, 80) }, trilha: { obrigatorio: true, ok: v => typeof v === 'string' && /^[a-z]{2,20}$/.test(v) },
@@ -208,7 +210,7 @@ export function levaComPortao(registro, resumo) {
   const rapido = resumo.rapido || null, tela = resumo.tela || null;
   if (rapido && rapido.passaram != null) poe('testes_depois', rapido.passaram + (tela && tela.passaram != null ? tela.passaram : 0));
   if (tela && tela.passaram != null) poe('testes_tela', tela.passaram);
-  if (tela) { poe('instaveis', (tela.instaveis || []).length); if ((tela.instaveis || []).length) poe('instaveis_nomes', tela.instaveis.slice(0, 10)); poe('telas_auditadas', (tela.telas || []).length); }
+  if (tela) { poe('instaveis', (tela.instaveis || []).length); if ((tela.instaveis || []).length) poe('instaveis_nomes', tela.instaveis.slice(0, 10)); poe('telas_auditadas', (tela.telas || []).length); if (tela.medidas && Object.keys(tela.medidas).length) poe('medidas', tela.medidas); }
   poe('quedas_orcamento', corridas.reduce((n, h) => n + (h.quedasOrcamento || 0), 0));
   const min = (rapido && rapido.minutos != null ? rapido.minutos : 0) + (tela && tela.minutos != null ? tela.minutos : 0);
   if (rapido || tela) poe('portao_min', Math.round(min * 10) / 10);

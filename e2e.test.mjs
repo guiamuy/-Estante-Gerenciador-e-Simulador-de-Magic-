@@ -3524,6 +3524,7 @@ test('e2e · X11 scanner com foto de carta inclinada: contorno em cima dela, o l
   const pelaCarta = diario.filter(x => x.via === 'carta');
   assert.ok(pelaCarta.length >= 2, 'leu pelo contorno: ' + JSON.stringify(diario.slice(0, 3)));
   assert.ok(Math.min(...pelaCarta.map(x => x.ms)) < 250, 'detector + preparo em menos de 250 ms: ' + pelaCarta.map(x => x.ms));
+  console.log(`# medida · scanner · detector_ms=${Math.min(...pelaCarta.map(x => x.ms))}`);   // R-24 · medida parcial cedo (o trecho do OCR abaixo pode sair antes do fim); a linha completa vem depois e vale a última
   // a carta continua no quadro e o laço continua lendo: nenhum canvas novo por leitura
   const antes = await page.evaluate(() => window.__canvases);
   await page.evaluate(() => window.__ocrQueue.push('Counterspell', 'Counterspell', 'Counterspell', 'Counterspell', 'Counterspell'));
@@ -3609,6 +3610,7 @@ test('e2e · X14 resposta imediata: a carta entra na primeira leitura exata pelo
   const n0 = await page.evaluate(() => window.__leiturasDeNome); await page.waitForTimeout(1000);
   const porSegundo = (await page.evaluate(() => window.__leiturasDeNome)) - n0;
   assert.ok(porSegundo >= 1 && porSegundo <= 5, 'leituras por segundo com a carta já aceita: ' + porSegundo);
+  console.log(`# medida · scanner · detector_ms=${Math.min(...pelaCarta.map(x => x.ms))} · confirmacao_ms=${ms} · leituras_s=${porSegundo}`);   // R-24 · o portão recolhe (resumo em .tmp/portao.json) e o Acervo mostra
   assert.equal(await contaPilha(page), 1);
   await page.evaluate(() => { window.__ocrQueue.length = 0; });
   // ligar e desligar o automático depressa não deixa dois laços lendo
@@ -12581,7 +12583,7 @@ test('e2e · R-20 Painel · Acervo: listas no acervo, saúde da coleta, lista ma
   brutos.length = 0; await page.click('#pn-atualizar');
   for (let i = 0; i < 50 && !brutos.length; i++) await page.waitForTimeout(100);
   await page.waitForFunction(() => !document.querySelector('#pn-atualizar').disabled);
-  assert.deepEqual(brutos, ['coleta.json']);
+  assert.deepEqual(brutos, ['coleta.json', 'levas.jsonl'], 'R-24: as levas (medida do scanner) também são relidas; o índice não');
   if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.screenshot({ path: process.env.SHOTS + '/r20-acervo.png', fullPage: true }); }
   assert.deepEqual(errors, []);
 });
@@ -12728,4 +12730,32 @@ test('e2e · M-410 · Bannerhide Krushok: na mão, "Reforçar 2" com o descarte 
   const fim = await page.evaluate(oid => { const s = window.__estanteMesa.estado(); const k = s.zones[0].battlefield.find(o => s.objects[o].name === 'Bannerhide Krushok'); return { zona: s.objects[oid].zone, marcadores: (s.objects[k].counters || {}).p1p1 || 0 }; }, g);
   assert.deepEqual(fim, { zona: 'exile', marcadores: 4 });
   assert.deepEqual(M.errors, []);
+});
+
+test('e2e · R-24 Painel · Acervo mostra a medida do scanner vinda da telemetria (teste X11 recolhido pelo portão): detector e confirmação com farol, leva e nota dizendo que é o navegador de teste; sem medida fica "sem dados" com a lacuna declarada; sem sobreposição', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  const painel = base.replace('index.html', 'painel.html');
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.route('https://api.github.com/**', r => r.fulfill({ json: /\/commits\?sha=main/.test(r.request().url()) ? [{ sha: 'ccc3333ccc3', commit: { message: 'Leva R-23 · correção', committer: { date: new Date().toISOString() } } }] : [], headers: { 'content-type': 'application/json', 'x-ratelimit-remaining': '50', 'x-ratelimit-limit': '60', 'access-control-expose-headers': 'etag, x-ratelimit-remaining, x-ratelimit-limit' } }));
+  const coleta = { em: '2026-10-16T11:40:34.193Z', saude: { ok: true, alertas: [], avisos: [], fontes: { mtgo: { eventos: 10, listas: 20, maisNova: '2026-10-16', dias: 0 } } }, topdeck: [], mtgo: [{ formato: 'Pauper', eventos: 10, colhidos: 1, listas: 20 }] };
+  const indice = { versao: 1, geradoEm: coleta.em, fontes: [{ id: 'mtgo', nome: 'Magic Online' }], formatos: [{ id: 'pauper', nome: 'Pauper', listas: 20 }], total: 20, pendentes: 0, listas: [] };
+  let levas = '';
+  await page.route('https://raw.githubusercontent.com/**', r => { const u = r.request().url(); r.fulfill({ body: /coleta\.json/.test(u) ? JSON.stringify(coleta) : /indice\.json/.test(u) ? JSON.stringify(indice) : /levas\.jsonl/.test(u) ? levas : '', headers: { 'content-type': 'text/plain', 'access-control-allow-origin': '*' } }); });
+  await page.addInitScript(() => {
+    const jwt = email => 'h.' + btoa(JSON.stringify({ email })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') + '.s';
+    window.__PAINEL_FETCH = async (url) => new Response(JSON.stringify(url.includes('securetoken') ? { user_id: 'uidE2E', id_token: jwt('gui.amuy@gmail.com'), refresh_token: 'ref-e2e', expires_in: '3600' } : { localId: 'uidE2E', idToken: jwt('gui.amuy@gmail.com'), refreshToken: 'ref-e2e', expiresIn: '3600', email: 'gui.amuy@gmail.com' }), { headers: { 'content-type': 'application/json' } });
+    window.__PAINEL_GOOGLE = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+  });
+  await page.goto(painel + '#acervo'); await page.waitForSelector('#pn-entrar'); await page.click('#pn-entrar');
+  await page.waitForSelector('#pn-scanner');
+  assert.match(await page.innerText('#pn-k-scanner-detector'), /sem dados neste recorte/); assert.match(await page.innerText('#pn-notas'), /scanner: sem medição na telemetria ainda[\s\S]*lacuna/);
+  // com uma leva medida
+  levas = JSON.stringify({ id: 'R-23', trilha: 'radar', conversa: 'radar', situacao: 'publicada', fim: new Date(Date.now() - 3600000).toISOString(), testes_tela: 251, medidas: { scanner: { detector_ms: 88, confirmacao_ms: 132, leituras_s: 3 } } });
+  await page.click('#pn-atualizar'); await page.waitForFunction(() => /88/.test(document.querySelector('#pn-k-scanner-detector')?.innerText || ''));
+  assert.match(await page.innerText('#pn-k-scanner-detector'), /88[\s\S]*ms por quadro · R-23/); assert.equal(await page.getAttribute('#pn-k-scanner-detector .pn-farol', 'data-farol'), 'verde');
+  assert.match(await page.innerText('#pn-k-scanner-confirmacao'), /132[\s\S]*ms · 3 leituras\/s em repouso/); assert.equal(await page.getAttribute('#pn-k-scanner-confirmacao .pn-farol', 'data-farol'), 'amarelo');
+  assert.match(await page.innerText('#pn-notas'), /scanner: medido pelo teste X11 na fase de tela da R-23[\s\S]*não é o celular[\s\S]*taxa de acerto no aparelho continua sem fonte/);
+  await auditaTela(page, 'acervo scanner 360');
+  await emTodasAsMedidas(page, 'acervo scanner');
+  assert.deepEqual(errors, []);
 });
