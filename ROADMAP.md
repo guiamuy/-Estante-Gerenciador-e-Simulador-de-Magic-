@@ -4490,6 +4490,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nada novo.
 - **Teste:** `lt107.unit` (4 testes; falham no motor anterior).
 
+**M-426 · LT92 · correções da revisão independente de M-416…M-421** ✅ (leva M-426, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** (1) **Ghostly Flicker devolve as duas cartas no mesmo evento** (603.6a): as que entram juntas se veem — Essence Warden + Soul Warden dão +2 (antes +1) e Warden + outra criatura dá +1 nas duas ordens de alvo (antes dependia da ordem); vale também para Hinterland Sanctifier e Corpse Knight. O defeito vinha da M-351 e aparecia com as cartas da M-418. (2) **O registro diz "criatura" quando o gatilho é de criatura**: "Gatilho de Hissing Iguanar (quando outra criatura morre)", "quando um jogador sacrifica outra criatura" (Mortician Beetle). (3) **A pilha explicada do Nested Shambler** diz que as fichas entram viradas e que X é o poder dela.
+- **Revisão independente:** os três itens são achados do revisor do lote M-416…M-421; cada um tem teste que falha no motor anterior. A revisão do lote M-424…M-428 aprovou a correção (~30 verificações: substituições de entrada, enxerto, carta guardada, virada para baixo, ficha) e achou dois casos da mesma família, corrigidos na M-431: a terra que volta junto contava para a Glacial Fortress (614.12) e as exiladas pela mesma mágica não se viam sair (603.10a).
+- **Fora (declarado):** a entrada conjunta (603.6a) foi ligada só no Ghostly Flicker; outros efeitos que põem várias cartas no campo ao mesmo tempo seguem uma a uma até aparecer carta que dependa disso.
+- **Teste:** `lt108.unit` (4 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

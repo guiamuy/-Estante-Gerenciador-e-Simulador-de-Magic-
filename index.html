@@ -6031,7 +6031,8 @@ const ZONA_DE_PT = { battlefield: 'do campo', graveyard: 'do cemitério', exile:
 const ORDINAL_PT = { 1: 'primeira', 2: 'segunda', 3: 'terceira', 4: 'quarta', 5: 'quinta' };
 const PASSO_PT = { upkeep: ['manutenção', 'a'], draw: ['passo de compra', 'o'], main1: ['primeira fase principal', 'a'], combat_begin: ['combate', 'o'],
   combat_end: ['fim do combate', 'o'], main2: ['segunda fase principal', 'a'], end: ['passo final', 'o'] };
-function descreveGatilho(w, como = {}) { // M-401 · como.equipada: "a criatura equipada" 
+function descreveGatilho(w, como = {}) { // M-401 · como.equipada: "a criatura equipada" · M-426 · como.filtro: o filtro da habilidade ("a creature")
+  const sohCriatura = !!(como.filtro && (como.filtro.types || []).length === 1 && como.filtro.types[0] === 'creature'), perm = sohCriatura ? 'criatura' : 'permanente';
   if (typeof w === 'string') return TRIGGER_PT[w] || w;
   const ev = gatilhoDoEvento(w); if (!ev) return 'gatilho';
   if (ev.evento === 'causam-dano') return `quando uma ou mais criaturas suas causam dano a ${ev.a === 'jogador' ? 'um jogador' : 'seus oponentes'}`; // M-258
@@ -6047,7 +6048,7 @@ function descreveGatilho(w, como = {}) { // M-401 · como.equipada: "a criatura 
     const jogador = ev.quem === 'oponente' ? 'um oponente' : ev.quem === 'qualquer' ? 'um jogador' : 'você';
     if (ev.evento === 'descarta') return `quando ${jogador} descarta uma carta`;
     if (ev.evento === 'compra') return `quando ${jogador} compra a ${ORDINAL_PT[ev.n] || ev.n + 'ª'} carta do turno`;
-    if (ev.evento === 'sacrifica') return `quando ${jogador} sacrifica ${ev.quem === 'oponente' ? 'uma' : 'outra'} permanente`;
+    if (ev.evento === 'sacrifica') return `quando ${jogador} sacrifica ${ev.quem === 'oponente' ? 'uma' : 'outra'} ${perm}`;
     if (ev.evento === 'conjurar') return ev.objeto !== 'outra' ? 'quando você conjura esta mágica' : `quando ${jogador} conjura uma mágica`;
     const a = { jogador: ' a um jogador', oponente: ' a um oponente' }[ev.a] || '';
     const verbo = [].concat(ev.evento).map(e => ({ ataca: 'ataca', bloqueia: 'bloqueia', 'dano-combate': 'causa dano de combate a um jogador', marcadores: 'recebe marcadores +1/+1',
@@ -6059,7 +6060,7 @@ function descreveGatilho(w, como = {}) { // M-401 · como.equipada: "a criatura 
   const d = ev;
   const ou = (v, m) => [].concat(v).map(z => m[z]).join(' ou ');
   const quem = d.objeto === 'anexada' ? 'a permanente anexada' : d.objeto === 'outra'
-    ? (d.donoVoce ? 'outra permanente sua' : d.quem === 'qualquer' ? 'outra permanente' : d.quem === 'oponente' ? 'uma permanente de um oponente' : 'outra permanente que você controla') : null;
+    ? (d.donoVoce ? `outra ${perm} sua` : d.quem === 'qualquer' ? `outra ${perm}` : d.quem === 'oponente' ? `uma ${perm} de um oponente` : `outra ${perm} que você controla`) : null;
   const verbo = d.para === 'battlefield' && d.de == null ? 'entra no campo' : d.de === 'battlefield' && d.para === 'graveyard' ? 'morre'
     : d.para != null ? `vai ${d.de != null ? ou(d.de, ZONA_DE_PT) + ' ' : ''}para ${ou(d.para, ZONA_PT)}` : `sai ${ou(d.de, ZONA_DE_PT)}`;
   return quem ? `quando ${quem} ${verbo}` : `quando ${verbo}`;
@@ -19345,6 +19346,7 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
   if (fromZone === 'hand' && to === 'graveyard') noteDiscard(s, o.owner); // CR2b.4 · da mão para o cemitério é descarte
   if (s.morteNoTurno != null && fromZone === 'battlefield' && to === 'graveyard' && ultima && ultima.power != null) s.morteNoTurno = s.turn.number; // M-416 · mórbido: uma criatura morreu neste turno (o campo só existe nas partidas com carta de mórbido)
   // CR2-G R2a · 603.6 · entrar, morrer, sair do campo e "a anexada morre" são o mesmo evento de mudança de zona
+  if (s.entrandoJuntas) s.entrandoJuntas.push([o.oid, fromZone, to, fromController, ultima]); else // M-426 · 603.6a: as que entram no mesmo evento se veem (pisca_volta junta os gatilhos)
   disparaZona(s, o, fromZone, to, fromController, ultima);
   if (devolveAte && devolveAte.length) for (const a of devolveAte) { // CR2d.1 · 610.3: um segundo efeito único devolve o objeto à zona de onde veio, logo após a saída da fonte, sem usar a pilha
     const v = s.objects[a.oid]; if (!v || v.zone !== 'exile' || (a.z != null && (v.zc || 0) !== a.z)) continue; // já saiu do exílio por outro caminho (mesmo que tenha voltado): é outro objeto (400.7)
@@ -21611,7 +21613,9 @@ function applyEffect(s, src, eff, tgt, events) {
     }
     case 'pisca_volta': { // M-351 · devolve ao campo, juntas, as que pisca_exila exilou nesta resolução
       const lista = (src.piscadas || []).filter(x => s.objects[x.oid] && s.objects[x.oid].zone === 'exile' && (s.objects[x.oid].zc || 0) === x.z); delete src.piscadas;
+      s.entrandoJuntas = []; // M-426 · achado da revisão de M-416…M-421: uma de cada vez, a primeira não via a segunda entrar (603.6a)
       for (const x of lista) { const sob = eff.sob === 'voce' ? ctrl : x.dono; moveObject(s, x.oid, 'battlefield', { controller: sob }); s.objects[x.oid].controller = sob; }
+      { const adiadas = s.entrandoJuntas; delete s.entrandoJuntas; for (const [oid, de, para, c0, ult] of adiadas) disparaZona(s, s.objects[oid], de, para, c0, ult); }
       note({ amount: lista.length, nomes: lista.map(x => s.objects[x.oid].name) }); break;
     }
     case 'sacrifica_a_menos_que_devolva': { // M-349 · Glint Hawk: o controlador escolhe um artefato seu para devolver à mão; sem escolher (ou sem ter), sacrifica a fonte
@@ -32292,7 +32296,7 @@ function describe(before, a, events, after) {
     if (ev.kind === 'choice') L.push(`${ev.name}: ${ev.what} (${plural(ev.amount, 'carta', 'cartas')})`);
     if (ev.kind === 'trigger-fizzled') L.push(ev.when === 'condição' ? `Gatilho de ${ev.name}: a condição deixou de valer, nada acontece` : `Gatilho de ${ev.name} sem alvo legal: saiu da pilha`); // M-397 · 603.4
     if (ev.kind === 'room') L.push(`${ev.target} se aventurou na masmorra: ${ev.dungeon} — ${ev.name}`); // S57
-    if (ev.kind === 'trigger') L.push(`Gatilho de ${ev.name} (${descreveGatilho(ev.when, { equipada: /\bEquipment\b/.test((((after || {}).facts || {})[ev.name] || {}).typeText || '') })})`); // M-401 // CR2-G R2a · nome antigo ou descritor
+    if (ev.kind === 'trigger') L.push(`Gatilho de ${ev.name} (${descreveGatilho(ev.when, { equipada: /\bEquipment\b/.test((((after || {}).facts || {})[ev.name] || {}).typeText || ''), filtro: filtroDoGatilho(after, ev) })})`); // M-401 // CR2-G R2a · nome antigo ou descritor
     if (ev.kind === 'resolved' && !ev.scripted) L.push(ev.to === 'battlefield' ? `${ev.name} entrou no campo` : `${ev.name} resolveu`);
     if (ev.kind === 'regenerated') L.push(`${ev.name} regenerou: virou, perdeu o dano e saiu do combate`); // CR2-G R5c
     if (ev.kind === 'totem') L.push(`${ev.aura} foi destruída no lugar de ${ev.name} (armadura de totem)`);
@@ -32686,6 +32690,8 @@ function enxugaAlvos(s, lista, efeitosDe = () => []) {
 }
 
 /** Reabre uma partida salva. Lança se o motor mudou de versão. */
+/** M-426 · o filtro da habilidade que disparou (o evento guarda só o `when`): "a creature" faz o registro dizer "criatura". */
+function filtroDoGatilho(after, ev) { const sc = ((((after || {}).facts || {})[ev.name] || {}).script) || {}, w = JSON.stringify(ev.when); const ab = (sc.abilities || []).find(a => a && a.kind === 'triggered' && JSON.stringify(a.when) === w); return ab ? ab.filter || null : null; }
 function restoreTable(data) {
   if (!data || data.kind !== 'estante.match') throw new Error('formato-desconhecido');
   if (data.engine !== E.ENGINE_VERSION) throw new Error('versao-do-motor');
@@ -33242,7 +33248,7 @@ function descreveEfeito(e) {
     case 'bounce': return `devolve ${alvo || 'uma permanente'}${e.mesmoNome ? ' e todas as outras permanentes com o mesmo nome' : ''} para a mão do dono`; // M-425
     case 'to_hand': return 'volta para a mão';
     case 'token': { const t = e.token || {}; const pd = (t.self || {}).ptDefinido, contaPT = v => v && v.per === 'soma' ? (v.partes || []).map(x => X_PT[x.per] || x.per).join(' mais ') : (v && (X_PT[v.per] || v.per)) || v; /* M-358 · achado da revisão: a ficha de P/T por contagem e as palavras-chave dela */
-      const pt = pd ? `, com poder e resistência iguais a ${contaPT(pd.poder != null ? pd.poder : pd.resistencia)}${(t.keywords || []).length ? ` e ${t.keywords.map(k => PALAVRA_PT[k] || k).join(', ')}` : ''},` : t.power != null ? ` ${t.power}/${t.toughness}` : ''; return `cria ${plural(n, 'ficha', 'fichas')}${t.name ? ` de ${t.name}` : ''}${pt}`; }
+      const pt = pd ? `, com poder e resistência iguais a ${contaPT(pd.poder != null ? pd.poder : pd.resistencia)}${(t.keywords || []).length ? ` e ${t.keywords.map(k => PALAVRA_PT[k] || k).join(', ')}` : ''},` : t.power != null ? ` ${t.power}/${t.toughness}` : ''; return `cria ${plural(n, 'ficha', 'fichas')}${t.name ? ` de ${t.name}` : ''}${pt}${e.virada ? (n === 1 ? ' virada' : ' viradas') : ''}${e.amount && e.amount.per === 'power-of-source' ? ' (X = o poder dela)' : ''}`; } // M-426 · achado da revisão da M-421
     case 'pump': { const p = e.power || 0, t = e.toughness || 0; const sinal = v => (v && (v.per || v.subtype) ? ((v.times || 1) < 0 ? '−X' : '+X') : v >= 0 ? `+${v}` : `−${Math.abs(v)}`); const quem = e.cada && e.cada.de === 'alvo' ? `cada criatura que ${e.target === 'opponent' ? 'o oponente alvo' : 'o jogador alvo'} controla` : (alvo || 'a criatura'); /* achado da revisão do lote XXIII: "cada criatura que cada criatura controla" */ if (p && p.per === 'se' && t && t.per === 'se') return `${quem} recebe ${sinal(p.nao)}/${sinal(t.nao)} (${sinal(p.sim)}/${sinal(t.sim)} ${CONDICAO_PT[p.se] || 'com a condição'}) até o fim do turno`; /* M-416 · mórbido (Tragic Slip) */ return `${quem} recebe ${sinal(p)}/${sinal(t)}${e.until === 'your-next-turn' ? ' até o seu próximo turno' : ' até o fim do turno'}${p && p.subtype ? ` (X = ${p.subtype === 'Gate' ? 'Portões' : p.subtype === 'Swamp' ? 'Pântanos' : p.subtype + 's'} que você controla)` : ''}`; } // R9b (achado da C-1): contagem por subtipo mostrava "−NaN" (Defile, Basilisk Gate) · M-351 · "cada criatura do jogador alvo" (Arms of Hadar)
     case 'volta_ao_acaso': return `uma carta${e.tipos ? ' de ' + ({ creature: 'criatura', artifact: 'artefato', land: 'terreno', instant: 'mágica instantânea', sorcery: 'feitiço', enchantment: 'encantamento' }[e.tipos[0]] || e.tipos[0]) : ''} do seu cemitério, escolhida ao acaso, volta para a sua mão`; // M-369
     case 'dado': return `role ${e.quantos === 2 ? 'dois' : 'um'} d${e.lados}${e.ignora ? ' e ignore o menor' : ''}${Number.isInteger(e.mais) && e.mais ? ` e some ${e.mais}` : e.mais ? ' e some o modificador' : ''}`; // T-66 · CR 706
