@@ -4588,6 +4588,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nada novo.
 - **Teste:** `lt121.unit` (3 testes; falham no motor anterior).
 
+**M-440 · LT106 · custo menor se uma criatura morreu neste turno: Bone Picker** ✅ (leva M-440, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** **Bone Picker (3 listas do catálogo) passa a jogar** (APROVADAS; texto da Scryfall de 17/10/2026 UTC). Frase nova "This spell costs {N} less to cast if a creature died this turn" sobre a redução por contagem da M-333 (601.2f; só tira do genérico) com a marca do mórbido da M-416 (a morte de turno anterior não conta). O leitor também lê Purple Worm e Dreaded Bat-Cloud (não aprovadas).
+- **Revisão independente:** revisor independente da M-440 (43 verificações pontuais, equivalência de 27 partidas e 10.800 ações sem divergência, fuzz de 40 partidas e 35.752 ações sem exceção): **aprovado** — mortes de qualquer jogador, ficha, sacrifício e combate reduzem; exílio e devolução não (700.4); morte de turno anterior não; redução única, limitada ao genérico do custo total (601.2f, com imposto de comandante); oferta e pagamento concordam.
+- **Fora (declarado):** nada novo.
+- **Teste:** `lt122.unit` (3 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

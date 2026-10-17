@@ -6083,7 +6083,7 @@ const PER_COUNTS = ['mesmo-nome-nos-cemiterios', 'attacking-creatures' /* M-423 
 /** M-333 · 601.2f · "This spell costs {N} less to cast for each …": o que a redução conta (chave `reduzPor: { generic, per }` no topo do script). */
 const REDUZ_POR = ['instants-sorceries-in-your-graveyard', 'creature-cards-in-your-graveyard', 'land-cards-in-your-graveyard', 'creatures-on-battlefield',
   'creatures-opponents-control', 'basic-land-types-you-control', 'attacking-creatures', 'attacking-creatures-you-control', 'cards-drawn-this-turn',
-  'creatures-attacked-this-turn', 'creatures-you-attacked-with-this-turn'];
+  'creatures-attacked-this-turn', 'creatures-you-attacked-with-this-turn', 'morbid' /* M-440 · "if a creature died this turn": 1 ou 0 (Bone Picker) */];
 /** S19 · um valor pode ser um número ou uma contagem do campo. */
 const isCount = v => v && typeof v === 'object' && (typeof v.per === 'string' || typeof v.subtype === 'string');
 const valueErrors = (v, label) => isCount(v) && v.per === 'soma' ? (Array.isArray(v.partes) && v.partes.length >= 2 && v.partes.every(x => isCount(x) && x.per !== 'soma') ? v.partes.flatMap((x, i) => valueErrors(x, `${label} (parte ${i + 1})`)) : [`${label}: "soma" precisa de duas ou mais contagens em "partes"`]) // M-358
@@ -9691,6 +9691,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Drannith Stinger': { texto: '1llzsx9', leva: 'M-436' },
   // M-437 · revisão por lote LXXXVIII (alvo que depende do primeiro e landfall de mágica: Searing Blaze), texto da Scryfall de 17/10/2026 UTC, revisor independente
   'Searing Blaze': { texto: '1031mvx', leva: 'M-437' },
+  // M-440 · revisão por lote LXXXIX (custo menor se uma criatura morreu neste turno: Bone Picker), texto da Scryfall de 17/10/2026 UTC, revisor independente
+  'Bone Picker': { texto: 't2ant', leva: 'M-440' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18455,6 +18457,7 @@ const __m42 = (function () {
         if (sv && pw != null && !magica) { (topo.abilities = topo.abilities || []).push({ kind: 'activated', label: 'Necrofagia', cost: { mana: sv[1], fromGraveyard: true, exileSelf: true }, sorceryOnly: true, effects: [{ do: 'counters', amount: pw, target: 'creature' }] }); frases.push({ texto: linha, lida: true }); continue; } }
       const kc0 = !magica && COM_CUSTO.map(([re, faz]) => { const m = linha.replace(/\.$/, '').match(re); return m && faz(m); }).find(Boolean); // LT5 · reciclagem em terreno
       { const ra = linha.replace(/\.$/, '').match(/^this spell costs \{(\d+)\} more to cast for each target beyond the first$/i); if (ra && magica) { topo.custoAlvoExtraL = +ra[1]; frases.push({ texto: linha, lida: true }); continue; } } // M-408 · 601.2f (Fireball): vai para o dano dividido igual da mesma carta
+      { const rm = linha.replace(/\.$/, '').match(/^this spell costs \{(\d+)\} less to cast if a creature died this turn$/i); if (rm) { topo.reduzPor = { generic: +rm[1], per: 'morbid' }; frases.push({ texto: linha, lida: true }); continue; } } // M-440 · Bone Picker (601.2f)
       { const rv = linha.replace(/\.$/, '').match(/^this spell costs \{(\d+)\} less to cast if it targets a tapped permanent$/i); if (rv && magica) { topo.reduzSeAlvoVirado = +rv[1]; frases.push({ texto: linha, lida: true }); continue; } } // M-383 · Ride's End
       { const rp = linha.replace(/\.$/, '').match(/^(?:domain — )?this spell costs \{(\d+)\} less to cast for each (.+)$/i), per = rp && REDUZ_POR_TEXTO[rp[2].toLowerCase()]; // M-333 · 601.2f
         if (per) { topo.reduzPor = { generic: +rp[1], per }; frases.push({ texto: linha, lida: true }); continue; } }
@@ -20284,6 +20287,7 @@ function contaParaReducao(s, p, per) {
     case 'attacking-creatures': return atacando().length;
     case 'attacking-creatures-you-control': return atacando().filter(x => x.controller === p).length;
     case 'cards-drawn-this-turn': return s.players[p].drawnThisTurn || 0;
+    case 'morbid': return s.morteNoTurno != null && s.morteNoTurno === s.turn.number ? 1 : 0; // M-440 · Bone Picker (a marca do mórbido, M-416)
     case 'creatures-attacked-this-turn': return (s.atacaramNoTurno || []).length;
     case 'creatures-you-attacked-with-this-turn': return s.players[p].atacouCom || 0;
     default: return 0;
