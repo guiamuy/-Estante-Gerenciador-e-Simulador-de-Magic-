@@ -4769,6 +4769,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nenhum.
 - **Teste:** `lt148.unit` (3 testes; falham no motor anterior). Expectativa antiga mudada com justificativa: o teste M-233 do `gatilho.equivalencia.unit` exigia que `sacrifica` com objeto `self` fosse recusado; agora vale (o portão do clone pegou).
 
+**M-467 · LT133 · revisão por lote CXIII: vinte cartas lidas que mais travam as listas iniciantes** ✅ (leva M-467, motor v112 sem mudança de forma; goldens intactos; nenhuma linha de código nova).
+- **Valor:** vinte cartas que o leitor já lia por inteiro passam a jogar (APROVADAS), escolhidas pelo que mais trava as 648 listas iniciantes do catálogo (precons): Aven Flock, Stone Rain, Spineless Thug, Ogre Taskmaster, Sacred Nectar, Monstrous Growth, Gorilla Chieftain, Phantom Warrior, Master Decoy, Disperse, Heat Ray, Foul Imp, Hand of Death, Wall of Bone, Lightning Blast, Essence Drain, Riftwing Cloudskate, Raise Dead, Rootwalla, Looming Shade. Textos da Scryfall consultados em 17/10/2026; cada leitura foi conferida frase a frase no texto oficial (`leitor-revisar --lote`).
+- **Revisão independente:** aprovada (revisão de M-466…M-475): leitura conferida frase a frase com o texto oficial; `--confere` com 827 aprovadas lidas por inteiro; 110 sondas de comportamento sem erro (evocar, reciclar antes da compra, dano dividido, custo híbrido, "exile instead", sacrificar a si, "may", não desvirar, prevenção); equivalência nas listas reais sem divergência; fuzz com 34 cartas novas sem recusa.
+- **Fora (declarado):** nenhum. O catálogo fora do Pauper ainda tem cerca de 3.000 cartas que travam listas; 827 delas o leitor já lê por inteiro e só esperam revisão por lote como esta.
+- **Teste:** `lt149.unit` (5 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
