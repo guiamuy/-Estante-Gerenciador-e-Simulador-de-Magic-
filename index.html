@@ -5464,6 +5464,7 @@ const EFFECTS = {
   gatilho_no_turno: { fields: [], targets: ['self'] }, // M-389 · 603.7c · "Whenever a creature you control enters this turn, …" (First Day of Class): gatilho atrasado que dispara a cada vez até o fim do turno
   desenterrar: { fields: [], targets: ['self'] }, // M-256 · resolução do desenterrar (702.84a)
   reforco: { fields: [], targets: ['first-target'] }, // M-260 · a segunda metade do reforço (702.165a)
+  ganha_habilidade: { fields: [], targets: ['first-target'] }, // M-429 · "and gains '<habilidade>' until end of turn" (Supernatural Stamina): a criatura alvo da frase ganha a habilidade disparada até o fim do turno (613.1f)
   sai_de_fase: { fields: [], targets: ['creature', 'permanent', 'first-target'] }, // M-261 · 702.26 "phases out"
   mare_alta: { fields: [], targets: ['self'] }, // M-262 · High Tide
   topo_ou_fundo_do_dono: { fields: [], targets: ['permanent'] }, // M-264 · "The owner of target nonland permanent puts it on their choice of the top or bottom of their library"
@@ -6358,6 +6359,7 @@ function effectErrors(effects, label, opcional) {
     if (e.dividido != null && !(e.do === 'damage' && typeof e.dividido === 'object' && (e.dividido.max == null || (Number.isInteger(e.dividido.max) && e.dividido.max >= 2)) && ['any', 'creature'].includes(e.target))) errs.push(`${label} ${i + 1}: "dividido" é dano dividido entre alvos (601.2d): { max: null | 2 ou mais }, alvo "any" ou "creature"`); // M-376
     if (e.do === 'discard_or_sacrifice_land_draw' && e.obrigatorio != null) errs.push(`${label} ${i + 1}: o descarte ou sacrifício obrigatório (sem "you may") não é coberto`); // M-411 · fica sem leitura, nunca opcional por engano
     if (e.do === 'discard_or_sacrifice_land_draw' && e.tipo != null && e.tipo !== 'artifact') errs.push(`${label} ${i + 1}: "tipo" do sacrifício é 'artifact' (sem tipo: terreno)`); // M-411
+    if (e.do === 'ganha_habilidade') { const h = e.habilidade; if (!h || h.kind !== 'triggered' || !h.when || !gatilhoDoEvento(h.when)) errs.push(`${label} ${i + 1}: "habilidade" precisa ser uma habilidade disparada conhecida`); else errs.push(...effectErrors(h.effects, `${label} ${i + 1} (habilidade ganha)`)); } // M-429
     if (e.mesmoNome != null && !(e.mesmoNome === true && e.do === 'bounce' && isTargeted(e))) errs.push(`${label} ${i + 1}: "mesmoNome" só em devolver um alvo`); // M-425
     if (e.excetoPrimeiro != null && !(e.excetoPrimeiro === true && e.cada && !isTargeted(e) && effects.slice(0, i).some(isTargeted))) errs.push(`${label} ${i + 1}: "excetoPrimeiro" só numa varredura (cada) sem alvo, depois de um efeito com alvo`); // M-422
     if (e.porContagem != null && (e.do !== 'add_mana' || !PER_COUNTS.includes(e.porContagem))) errs.push(`${label} ${i + 1}: "porContagem" só na mana, com uma contagem conhecida`); // M-423
@@ -9609,6 +9611,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   // M-427 · revisão por lote LXXX (vida igual ao dano causado assim: Rite of Consumption, Creeping Bloodsucker), texto da Scryfall de 17/10/2026 UTC, revisor independente
   'Creeping Bloodsucker': { texto: 'c8awkk', leva: 'M-427' },
   'Rite of Consumption': { texto: '1fbb7tr', leva: 'M-427' },
+  // M-429 · revisão por lote LXXXI (habilidade disparada ganha até o fim do turno: Supernatural Stamina), texto da Scryfall de 17/10/2026 UTC, revisor independente
+  'Supernatural Stamina': { texto: 'xebdh1', leva: 'M-429' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -17909,6 +17913,7 @@ const __m42 = (function () {
     [/^add \{([WUBRGC])\} for each (creature card in your graveyard|card named ~ in each graveyard)$/i, m => [{ do: 'add_mana', symbols: [m[1].toUpperCase()], porContagem: /named/i.test(m[2]) ? 'mesmo-nome-nos-cemiterios' : 'creature-cards-in-your-graveyard' }]], // M-423 · Songs of the Damned, Rite of Flame
     [/^you gain 1 life for each attacking creature$/i, () => [{ do: 'gain', amount: { per: 'attacking-creatures' } }]], // M-423 · Respite (506.4)
     [/^you gain life equal to the damage dealt this way$/i, () => [{ do: 'gain', amount: { per: 'dano-causado' } }]], // M-427 · Rite of Consumption, Corrupt, Syphon Soul (o dano causado de fato)
+    [/^until end of turn, target creature gets \+(\d+)\/\+(\d+) and gains "when (?:this creature|~) dies, return it to the battlefield tapped under its owner's control\.?"\.?$/i, m => [{ do: 'pump', power: +m[1], toughness: +m[2], target: 'creature' }, { do: 'ganha_habilidade', target: 'first-target', habilidade: { kind: 'triggered', when: 'dies', effects: [{ do: 'reanimate_tapped', target: 'self-source', controle: 'dono' }] } }]], // M-429 · Supernatural Stamina
     [/^counter target spell if its mana value is (\d+) or less$/i, m => [{ do: 'counter', target: 'spell', mvAte: +m[1] }]], // M-419 · Prohibit (mira qualquer mágica; confere na resolução)
     [/^counter (target [a-z ']+)$/i, m => [com({ do: 'counter' }, alvo(m[1]))]],
     [/^return (target [a-z ']+) to its owner's hand$/i, m => [com({ do: 'bounce' }, alvo(m[1]))]],
@@ -21385,7 +21390,7 @@ function applyEffect(s, src, eff, tgt, events) {
     }
     case 'reanimate_tapped': { // S33 · volta do cemitério direto ao campo, virada
       const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
-      if (moverObjeto(s, src, alvo, { para: 'battlefield', de: 'graveyard', virada: true, semRegistro: true }, ctrl)) note({ name: alvo.name }); // CR2-G R4a · atalho de mover
+      if (moverObjeto(s, src, alvo, { para: 'battlefield', de: 'graveyard', virada: true, semRegistro: true, ...(eff.controle === 'dono' ? { controle: 'dono' } : {}) }, ctrl)) note({ name: alvo.name }); // CR2-G R4a · atalho de mover · M-429 · "under its owner's control"
       break;
     }
     case 'pump': { const pw = amountOf(s, src, eff.power), tg = amountOf(s, src, eff.toughness); // CR2-G R3b · atalho de continuo
@@ -21910,6 +21915,10 @@ function applyEffect(s, src, eff, tgt, events) {
         if (s.combat) { s.combat.attackers = (s.combat.attackers || []).filter(a => a !== x.oid); delete x.attacking; delete x.atacandoPw; delete x.blocking; delete x.blockedBy; }
       }
       note({ target: obj.name, amount: juntos.length }); break;
+    }
+    case 'ganha_habilidade': { // M-429 · Supernatural Stamina: até o fim do turno (limpeza e mudança de zona apagam), pelo mesmo caminho do reforço (tempHabilidades)
+      if (!obj || obj.zone !== 'battlefield') { note({ failed: true }); break; }
+      obj.tempHabilidades = [...(obj.tempHabilidades || []), { ab: eff.habilidade, de: src.name, ts: relogio(s) }]; note({ target: obj.name }); break;
     }
     case 'reforco': { // M-260 · se o alvo é outra criatura, ganha as habilidades da carta (menos o reforço) até o fim do turno
       const fonte = s.objects[src.ability ? src.source : src.oid];
@@ -33362,6 +33371,7 @@ function descreveEfeito(e) {
     case 'topo_ou_fundo_do_dono': return `o dono de ${alvo || 'uma permanente'} a põe ${e.segundo ? 'em segundo do topo' : 'no topo'} ou no fundo do grimório, à escolha dele`; // M-264 · M-352
     case 'mare_alta': return 'até o fim do turno, cada Ilha virada para mana dá {U} a mais (para qualquer jogador)'; // M-262
     case 'sai_de_fase': return `${alvo || 'a permanente'} sai de fase (trata-se como se não existisse até o próximo desvirar de quem a controla)`; // M-261
+    case 'ganha_habilidade': return `essa criatura ganha "${descreveGatilho((e.habilidade || {}).when)}, ${descreveEfeitos((e.habilidade || {}).effects || [])}" até o fim do turno`; // M-429
     case 'reforco': return 'se for outra criatura, ela ganha as outras habilidades desta até o fim do turno'; // M-260
     case 'amass': return `amassa ${n} (${e.subtipo || 'Zombie'}): sem Exército, cria um 0/0; põe ${plural(n, 'marcador +1/+1', 'marcadores +1/+1')} nele`;
     case 'resistencia_jogador': return 'você ganha resistência a magia até o fim do turno';
