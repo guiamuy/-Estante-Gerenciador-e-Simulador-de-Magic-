@@ -9482,6 +9482,22 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Bristling Backwoods': { texto: '1tnjk1x', leva: 'M-409' },
   'Rumble Arena': { texto: '1gmvnfd', leva: 'M-409' },
   'Peat Bog': { texto: 'wllj6r', leva: 'M-409' },
+  // M-410 · revisão por lote LXIV (reforçar 702.77 e necrofagia 702.97, lidos pelo leitor desde esta leva: Bannerhide Krushok — 8 listas do catálogo — e a classe inteira lida por inteiro), texto da Scryfall de 17/10/2026, revisor independente
+  'Bannerhide Krushok': { texto: '2vwl3q', leva: 'M-410' },
+  'Burrenton Bombardier': { texto: 'g4f6xe', leva: 'M-410' },
+  'Deadbridge Goliath': { texto: '7sphuh', leva: 'M-410' },
+  'Dreg Mangler': { texto: '1an2at6', leva: 'M-410' },
+  'Drudge Beetle': { texto: '1smgbcp', leva: 'M-410' },
+  'Earthbrawn': { texto: '1g6woxi', leva: 'M-410' },
+  'Hunting Triad': { texto: 'jaso93', leva: 'M-410' },
+  'Korozda Monitor': { texto: '1ivzcm9', leva: 'M-410' },
+  'Mosquito Guard': { texto: '1g31fc9', leva: 'M-410' },
+  'Sewer Shambler': { texto: '1mf6ud4', leva: 'M-410' },
+  'Slitherhead': { texto: 'xt6f25', leva: 'M-410' },
+  'Sluiceway Scorpion': { texto: 'v6mo4q', leva: 'M-410' },
+  'Terrus Wurm': { texto: '1sr84in', leva: 'M-410' },
+  'Thrashing Mossdog': { texto: 'kgmaum', leva: 'M-410' },
+  'Zanikev Locust': { texto: '1fa1iee', leva: 'M-410' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18191,6 +18207,10 @@ const __m42 = (function () {
       if (linhaDePalavras(linha)) { frases.push({ texto: linha, lida: true, palavras: true }); continue; }
       if (magica && /^teamwork \d+$/i.test(linha.replace(/\.$/, ''))) { frases.push({ texto: linha, lida: true, palavras: true }); continue; } // M-379 · 702.194 (K-70): o N vem do texto da carta (fatos.equipeK)
       if (!magica && /^ward \{\d+\}$/i.test(linha.replace(/\.$/, ''))) { frases.push({ texto: linha, lida: true, palavras: true }); continue; } // M-333 · 702.21: o motor lê "Ward {N}" impresso da carta (K-2)
+      { const rf = linha.replace(/\.$/, '').match(/^reinforce (\d+)\s*[—-]\s*(\{[^}]+\}(?:\{[^}]+\})*)$/i); // M-410 · 702.77a: "[custo], descarte esta carta: ponha N marcadores +1/+1 na criatura alvo" — ativada que funciona da mão (113.6), a qualquer momento com prioridade
+        if (rf) { (topo.abilities = topo.abilities || []).push({ kind: 'activated', label: `Reforçar ${rf[1]}`, cost: { mana: rf[2], discardSelf: true, fromHand: true }, effects: [{ do: 'counters', amount: +rf[1], target: 'creature' }] }); frases.push({ texto: linha, lida: true }); continue; } }
+      { const sv = linha.replace(/\.$/, '').match(/^scavenge (\{[^}]+\}(?:\{[^}]+\})*)$/i), pw = card && /^\d+$/.test(String(card.power)) ? +card.power : null; // M-410 · 702.97a: "[custo], exile esta carta do seu cemitério: ponha marcadores +1/+1 iguais ao poder da carta na criatura alvo; só como feitiço" — no cemitério vale o poder impresso (sem poder numérico, não lê)
+        if (sv && pw != null && !magica) { (topo.abilities = topo.abilities || []).push({ kind: 'activated', label: 'Necrofagia', cost: { mana: sv[1], fromGraveyard: true, exileSelf: true }, sorceryOnly: true, effects: [{ do: 'counters', amount: pw, target: 'creature' }] }); frases.push({ texto: linha, lida: true }); continue; } }
       const kc0 = !magica && COM_CUSTO.map(([re, faz]) => { const m = linha.replace(/\.$/, '').match(re); return m && faz(m); }).find(Boolean); // LT5 · reciclagem em terreno
       { const ra = linha.replace(/\.$/, '').match(/^this spell costs \{(\d+)\} more to cast for each target beyond the first$/i); if (ra && magica) { topo.custoAlvoExtraL = +ra[1]; frases.push({ texto: linha, lida: true }); continue; } } // M-408 · 601.2f (Fireball): vai para o dano dividido igual da mesma carta
       { const rv = linha.replace(/\.$/, '').match(/^this spell costs \{(\d+)\} less to cast if it targets a tapped permanent$/i); if (rv && magica) { topo.reduzSeAlvoVirado = +rv[1]; frases.push({ texto: linha, lida: true }); continue; } } // M-383 · Ride's End
@@ -35060,7 +35080,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   function custoDaHabilidade(ab) {
     const c = ab.cost || {};
     return [c.mana, c.tap ? '{T}' : null, c.discard ? (c.discard > 1 ? `descartar ${c.discard} cartas` : 'descartar uma carta') : null,
-      c.sacrifice ? 'sacrificar' : null, c.removeCounters ? `remover ${plural(c.removeCounters.n || 1, 'marcador ' + (MARCADOR_PT[c.removeCounters.tipo] || c.removeCounters.tipo), 'marcadores ' + (MARCADOR_PT[c.removeCounters.tipo] || c.removeCounters.tipo))}` : null, c.exileSelf ? (c.fromHand ? 'exilar esta carta da mão' : 'exilar esta') : null, c.discardSelf ? 'descartar esta carta' : null, c.discardHand ? 'descartar a mão' : null, c.returnLand ? `devolver ${c.returnLand === true ? 'terreno' : c.returnLand} à mão` : null, c.sacrificeOther ? sacrificioPorExtenso(c.sacrificeOther) : null, c.tapOther ? 'virar outra' : null, c.craft ? (c.craft.amount > 1 ? `exilar ${c.craft.amount} materiais` : 'exilar um material') : null, c.energia ? `pagar ${'{E}'.repeat(c.energia)}` : null, c.poeMarcador ? `pôr ${plural(c.poeMarcador.n || 1, 'marcador ' + (MARCADOR_PT[c.poeMarcador.tipo] || c.poeMarcador.tipo), 'marcadores ' + (MARCADOR_PT[c.poeMarcador.tipo] || c.poeMarcador.tipo))} nesta` : null].filter(Boolean).join(', ');
+      c.sacrifice ? 'sacrificar' : null, c.removeCounters ? `remover ${plural(c.removeCounters.n || 1, 'marcador ' + (MARCADOR_PT[c.removeCounters.tipo] || c.removeCounters.tipo), 'marcadores ' + (MARCADOR_PT[c.removeCounters.tipo] || c.removeCounters.tipo))}` : null, c.exileSelf ? (c.fromHand ? 'exilar esta carta da mão' : c.fromGraveyard ? 'exilar esta carta do cemitério' : 'exilar esta') : null, c.discardSelf ? 'descartar esta carta' : null, c.discardHand ? 'descartar a mão' : null, c.returnLand ? `devolver ${c.returnLand === true ? 'terreno' : c.returnLand} à mão` : null, c.sacrificeOther ? sacrificioPorExtenso(c.sacrificeOther) : null, c.tapOther ? 'virar outra' : null, c.craft ? (c.craft.amount > 1 ? `exilar ${c.craft.amount} materiais` : 'exilar um material') : null, c.energia ? `pagar ${'{E}'.repeat(c.energia)}` : null, c.poeMarcador ? `pôr ${plural(c.poeMarcador.n || 1, 'marcador ' + (MARCADOR_PT[c.poeMarcador.tipo] || c.poeMarcador.tipo), 'marcadores ' + (MARCADOR_PT[c.poeMarcador.tipo] || c.poeMarcador.tipo))} nesta` : null].filter(Boolean).join(', ');
   }
   /** R6 · custo do lampejo do passado por extenso: mana, ou "virar 3 criaturas brancas" (Battle Screech, Prismatic Strands). Antes o botão saía com o custo vazio. */
   function custoDoLampejo(fb) {
@@ -35198,7 +35218,8 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       // as duas num botão só e a segunda (desvirar) não podia ser usada. Com custo repetido, o botão diz o que cada uma faz.
       const custoRepetido = allAbilities.filter(x => x.loyalty == null && custoDaHabilidade(x) === cost).length > 1;
       const oQueFaz = act.mode != null && (ab.modes || [])[act.mode] ? (ab.modes[act.mode].label || T.descreveEfeitos(ab.modes[act.mode].effects)) : o.token || custoRepetido ? T.descreveEfeitos(ab.effects) : ''; // T-105 · 700.2a: o botão diz o modo (Toca ponto comum: folha da carta)
-      legal.push(doBtn(`Ativar${cost ? ` (${cost})` : ''}${oQueFaz ? `: ${oQueFaz}` : ''}${(act.targets || []).length ? ` → ${act.targets.map(x => targetName(s, x)).join(' + ')}` : ''}`, act, { variant: 'primary' }));
+      const nomeH = ab.label && ((ab.cost || {}).fromHand || (ab.cost || {}).fromGraveyard) ? ab.label : 'Ativar'; // M-410 · reforçar (702.77) e necrofagia (702.97): o botão diz a palavra-chave
+      legal.push(doBtn(`${nomeH}${cost ? ` (${cost})` : ''}${oQueFaz ? `: ${oQueFaz}` : ''}${(act.targets || []).length ? ` → ${act.targets.map(x => targetName(s, x)).join(' + ')}` : ''}`, act, { variant: 'primary' }));
     }
     E.rotulosDaClasseT(s, oid, legal, custoDaHabilidade); // T-12 · CR 716.2a · "Subir para o nível N · custo" e o custo certo das ativadas de um nível
     for (const x of E.acoesDeTipos(s, v, oid)) legal.push(doBtn(x.label, x.action)); // T-3 · CR 702.122a · "Escolher quem tripula" (ação `tripular`): abre o aviso com um botão por criatura

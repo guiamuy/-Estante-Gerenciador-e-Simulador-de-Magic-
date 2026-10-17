@@ -12707,3 +12707,25 @@ test('e2e · R-22 Painel · Token do GitHub (opcional): o rodapé abre o formul�
   if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.screenshot({ path: process.env.SHOTS + '/r22-token.png', fullPage: true }); }
   assert.deepEqual(errors.filter(e => !/status of 401/.test(e)), [], 'só o 401 que o teste provocou (o navegador registra a resposta; o painel avisou e seguiu)');
 });
+
+/* ---------------- M-410 · reforçar e necrofagia: o botão diz a palavra-chave e o custo ---------------- */
+test('e2e · M-410 · Bannerhide Krushok: na mão, "Reforçar 2" com o descarte no custo; no cemitério, "Necrofagia" exilando a carta', { skip }, async t => {
+  const extras = JSON.parse(readFileSync(join(ROOT, '.listas', 'oficiais-revisadas.json'), 'utf8')).cartas.filter(c => c.name === 'Bannerhide Krushok');
+  const M = await comLista125(t, '30 Forest\n30 Bannerhide Krushok', ['Forest', 'Bannerhide Krushok'], '4', { extras });
+  const { page } = M;
+  await page.evaluate(() => { const s = window.__estanteMesa.estadoFinal(); // mesa montada à mão: sete Florestas e um Krushok em campo, um na mão e um no cemitério
+    const poe = (nome, para) => { const z = s.zones[0]; for (const zn of ['library', 'hand']) { const i = z[zn].findIndex(o => s.objects[o].name === nome); if (i >= 0) { const oid = z[zn][i]; z[zn].splice(i, 1); z[para].push(oid); Object.assign(s.objects[oid], { zone: para, tapped: false, sick: false, controller: 0 }); return oid; } } };
+    for (let k = 0; k < 8; k++) poe('Forest', 'battlefield'); poe('Bannerhide Krushok', 'battlefield'); poe('Bannerhide Krushok', 'graveyard');
+    if (!s.zones[0].hand.some(o => s.objects[o].name === 'Bannerhide Krushok')) poe('Bannerhide Krushok', 'hand'); });
+  assert.equal(await M.act((await M.legal("a.t==='tap_mana'"))[0]), true, 'gera um {G} (e a mesa recalcula as ações depois da montagem)');
+  const f = await folha131(page, 'Bannerhide Krushok');
+  assert.ok(f.some(b => /^Reforçar 2 \(\{1\}\{G\}, descartar esta carta\) → Bannerhide Krushok$/.test(b.txt) && !b.apagado), JSON.stringify(f.map(b => b.txt)));
+  await auditaTela(page, 'Krushok: reforçar da mão');
+  await page.keyboard.press('Escape'); await page.waitForTimeout(250);
+  const g = await page.evaluate(() => { const s = window.__estanteMesa.estado(); return s.zones[0].graveyard.find(o => s.objects[o].name === 'Bannerhide Krushok'); });
+  const nv = (await M.legal(`a.t==='activate' && a.fromGraveyard && a.oid==='${g}'`))[0]; assert.ok(nv, 'necrofagia oferecida no cemitério');
+  assert.equal(await M.act(nv), true); const e = await M.resolve();
+  const fim = await page.evaluate(oid => { const s = window.__estanteMesa.estado(); const k = s.zones[0].battlefield.find(o => s.objects[o].name === 'Bannerhide Krushok'); return { zona: s.objects[oid].zone, marcadores: (s.objects[k].counters || {}).p1p1 || 0 }; }, g);
+  assert.deepEqual(fim, { zona: 'exile', marcadores: 4 });
+  assert.deepEqual(M.errors, []);
+});
