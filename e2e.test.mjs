@@ -12652,3 +12652,58 @@ test('e2e · R-21 Painel · Experiência: sem leva medida fica "pendente de tele
   if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.screenshot({ path: process.env.SHOTS + '/r21-experiencia.png', fullPage: true }); }
   assert.deepEqual(errors, []);
 });
+
+test('e2e · R-22 Painel · Token do GitHub (opcional): o rodapé abre o formulário; salvar guarda só neste aparelho e os pedidos à API passam a levar Authorization (cota 5.000, "com token"); o raw não leva; token recusado (401) avisa e mostra o guardado; Esquecer tira o cabeçalho; token com espaço é recusado; sem sobreposição nas quatro medidas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  const painel = base.replace('index.html', 'painel.html');
+  await page.setViewportSize({ width: 360, height: 780 });
+  const auths = []; const rawAuths = []; let recusa = false;
+  await page.route('https://api.github.com/**', r => {
+    // com Authorization o navegador faz o preflight (OPTIONS) antes; a API do GitHub responde o CORS dele, o mock também
+    if (r.request().method() === 'OPTIONS') return r.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization, accept, if-none-match', 'access-control-allow-methods': 'GET' } });
+    const a = r.request().headers()['authorization'] || null; auths.push(a);
+    if (recusa && a) return r.fulfill({ status: 401, json: { message: 'Bad credentials' }, headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' } });
+    return r.fulfill({ json: /\/commits\?sha=main/.test(r.request().url()) ? [{ sha: 'ccc3333ccc3', commit: { message: 'Leva R-21 · experiência', committer: { date: new Date().toISOString() } } }] : [], headers: { 'content-type': 'application/json', 'x-ratelimit-remaining': a ? '4998' : '57', 'x-ratelimit-limit': a ? '5000' : '60', 'access-control-expose-headers': 'etag, x-ratelimit-remaining, x-ratelimit-limit', 'access-control-allow-origin': '*' } });
+  });
+  await page.route('https://raw.githubusercontent.com/**', r => { rawAuths.push(r.request().headers()['authorization'] || null); r.fulfill({ body: '', headers: { 'content-type': 'text/plain', 'access-control-allow-origin': '*' } }); });
+  await page.addInitScript(() => {
+    const jwt = email => 'h.' + btoa(JSON.stringify({ email })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') + '.s';
+    window.__PAINEL_FETCH = async (url) => new Response(JSON.stringify(url.includes('securetoken') ? { user_id: 'uidE2E', id_token: jwt('gui.amuy@gmail.com'), refresh_token: 'ref-e2e', expires_in: '3600' } : { localId: 'uidE2E', idToken: jwt('gui.amuy@gmail.com'), refreshToken: 'ref-e2e', expiresIn: '3600', email: 'gui.amuy@gmail.com' }), { headers: { 'content-type': 'application/json' } });
+    window.__PAINEL_GOOGLE = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+  });
+  await page.goto(painel + '#modelos'); await page.waitForSelector('#pn-entrar'); await page.click('#pn-entrar');
+  await page.waitForSelector('#pn-visao-modelos');
+  assert.match(await page.innerText('#pn-cota'), /57 de 60/); assert.doesNotMatch(await page.innerText('#pn-cota'), /com token/);
+  assert.ok(auths.length && auths.every(a => a === null), 'sem token, nenhum pedido leva Authorization');
+  await page.click('#pn-token-abrir'); await page.waitForSelector('#pn-token-form');
+  assert.match(await page.innerText('#pn-token-form'), /TOKEN DO GITHUB \(OPCIONAL\)[\s\S]*5\.000[\s\S]*só neste aparelho[\s\S]*api\.github\.com/);
+  await auditaTela(page, 'token aberto 360');
+  // token com espaço é recusado
+  await page.fill('#pn-token', 'ghp_abc def'); await page.click('#pn-token-salvar'); await page.waitForSelector('#pn-token-erro');
+  assert.match(await page.innerText('#pn-token-erro'), /sem espaços/);
+  assert.equal(await page.evaluate(() => localStorage.getItem('painel.github.token')), null);
+  // salvar: guarda no aparelho, atualiza com o cabeçalho, cota 5.000
+  auths.length = 0; rawAuths.length = 0;
+  await page.fill('#pn-token', 'github_pat_E2E_0123456789'); await page.click('#pn-token-salvar');
+  await page.waitForFunction(() => /de 5000/.test(document.querySelector('#pn-cota')?.innerText || ''));
+  assert.match(await page.innerText('#pn-cota'), /4998 de 5000[\s\S]*com token/);
+  assert.equal(await page.evaluate(() => localStorage.getItem('painel.github.token')), JSON.stringify('github_pat_E2E_0123456789'));
+  assert.ok(auths.length && auths.every(a => a === 'Bearer github_pat_E2E_0123456789'), 'com token, todo pedido à API leva Authorization: ' + JSON.stringify(auths));
+  assert.ok(rawAuths.every(a => a === null), 'o raw nunca leva o token');
+  assert.equal(await page.$('#pn-token-form'), null, 'o formulário fecha ao salvar');
+  assert.ok(!(await page.evaluate(() => Object.keys(localStorage).filter(k => k !== 'painel.github.token').some(k => (localStorage.getItem(k) || '').includes('github_pat_E2E')))), 'o token não vaza para outra chave (cache, plano, sessão)');
+  // token recusado: aviso e o guardado continua na tela
+  recusa = true; await page.click('#pn-atualizar'); await page.waitForSelector('#pn-aviso');
+  assert.match(await page.innerText('#pn-aviso'), /recusou o token/); assert.match(await page.innerText('#pn-main'), /R-21/);
+  recusa = false;
+  // esquecer: cabeçalho some, cota volta a 60
+  await page.click('#pn-token-abrir'); await page.waitForSelector('#pn-token-esquecer'); auths.length = 0;
+  await page.click('#pn-token-esquecer');
+  await page.waitForFunction(() => /de 60/.test(document.querySelector('#pn-cota')?.innerText || ''));
+  assert.equal(await page.evaluate(() => localStorage.getItem('painel.github.token')), null);
+  assert.ok(auths.length && auths.every(a => a === null), 'sem token de novo');
+  await page.click('#pn-token-abrir'); await page.waitForSelector('#pn-token-form');
+  await emTodasAsMedidas(page, 'token aberto');
+  if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.screenshot({ path: process.env.SHOTS + '/r22-token.png', fullPage: true }); }
+  assert.deepEqual(errors.filter(e => !/status of 401/.test(e)), [], 'só o 401 que o teste provocou (o navegador registra a resposta; o painel avisou e seguiu)');
+});

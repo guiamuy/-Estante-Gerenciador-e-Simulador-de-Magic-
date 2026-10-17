@@ -562,6 +562,9 @@ button.pn-barras__linha[aria-pressed="true"] { background: var(--accent-soft); }
 .pn-form { gap: var(--space-3); }
 .pn-form .ds-field { display: flex; flex-direction: column; }
 .pn-form__acoes { flex-wrap: wrap; }
+/* R-22 · token do GitHub (opcional) no rodapé: formulário ocupa a linha inteira abaixo da cota */
+.pn-token { flex-basis: 100%; display: flex; flex-direction: column; padding: var(--space-3) var(--space-4); margin-top: var(--space-2); }
+.pn-rodape__cota .ds-btn--icone { margin-left: var(--space-1); }
 
 </style>
 </head>
@@ -601,15 +604,19 @@ const __p0 = (function () {
   }
   /** Fonte do GitHub: um pedido por chave, com ETag (304 não gasta cota), cache com carimbo e contagem de pedidos para o
       orçamento por sub-aba (≤ 4 por atualização). A cota lida nos cabeçalhos vai para o rodapé. */
-  function createFonte({ fetch: fetchFn = null, guarda, agora = () => Date.now(), ttl = 10 * 60000 } = {}) {
+  /** R-22 · BI1-12 · `token()` devolve o token pessoal do GitHub guardado só neste aparelho (ou null): vai no cabeçalho Authorization
+      dos pedidos à API (cota de 5.000/h em vez de 60), nunca ao raw, nunca ao cache. 401 com token marca `tokenRecusado`. */
+  function createFonte({ fetch: fetchFn = null, guarda, agora = () => Date.now(), ttl = 10 * 60000, token = () => null } = {}) {
     const f = (...a) => (fetchFn || (typeof fetch !== 'undefined' ? fetch.bind(globalThis) : null))(...a);
-    let pedidos = 0, brutos = 0, cota = null;
+    let pedidos = 0, brutos = 0, cota = null, tokenRecusado = false;
     const cab = (r, n) => (r && r.headers && typeof r.headers.get === 'function' ? r.headers.get(n) : null);
     async function api(caminho, { nome = null, forcar = false, ttl: prazo = ttl, base = API, texto = false, transforma = null } = {}) {
       const chave = 'painel.cache.' + (nome || caminho);
       const cache = guarda.ler(chave);
       if (cache && !forcar && agora() - cache.em < prazo) return { dado: cache.dado, em: cache.em, deCache: true };
       const headers = base === API ? { Accept: 'application/vnd.github+json' } : {};
+      const tk = base === API ? (token() || null) : null;
+      if (tk) headers.Authorization = 'Bearer ' + tk;
       if (cache && cache.etag) headers['If-None-Match'] = cache.etag;
       if (base === API) pedidos++; else brutos++;
       let r;
@@ -617,6 +624,7 @@ const __p0 = (function () {
       const restante = cab(r, 'x-ratelimit-remaining');
       if (restante != null) cota = { restante: Number(restante), limite: Number(cab(r, 'x-ratelimit-limit') || 60), reinicia: Number(cab(r, 'x-ratelimit-reset') || 0) * 1000 };
       if (r.status === 304 && cache) { const em = agora(); guarda.gravar(chave, { ...cache, em }); return { dado: cache.dado, em, deCache: false }; }
+      if (r.status === 401 && tk) { tokenRecusado = true; if (cache) return { dado: cache.dado, em: cache.em, deCache: true, tokenRecusado: true }; throw erro('token'); }
       if (r.status === 403 || r.status === 429) { if (cache) return { dado: cache.dado, em: cache.em, deCache: true, cotaEsgotada: true }; throw erro('cota'); }
       if (!r.ok) { if (cache) return { dado: cache.dado, em: cache.em, deCache: true, falhou: r.status }; throw erro('api', { status: r.status }); }
       const bruto = texto ? await r.text() : await r.json(); const dado = transforma ? transforma(bruto) : bruto; const em = agora();
@@ -626,7 +634,7 @@ const __p0 = (function () {
     /** Arquivo de um ramo pelo raw.githubusercontent (fora da cota da API; conta em `brutos`). */
     const raw = (ramo, arquivo, opts = {}) => api(`/${ramo}/${arquivo}`, { nome: `raw.${ramo}.${arquivo}`, base: RAW, texto: true, ...opts });
     const emCache = nome => !!guarda.ler('painel.cache.' + nome);
-    return { api, raw, emCache, get pedidos() { return pedidos; }, get brutos() { return brutos; }, zerar() { pedidos = 0; brutos = 0; }, get cota() { return cota; } };
+    return { api, raw, emCache, get pedidos() { return pedidos; }, get brutos() { return brutos; }, zerar() { pedidos = 0; brutos = 0; tokenRecusado = false; }, get cota() { return cota; }, get tokenRecusado() { return tokenRecusado; }, get comToken() { return !!token(); } };
   }
   /** R-11b · Campo do plano no banco: `/painel/<uid>/plano` por REST com o token da sessão (`?auth=`), regra `painel/$uid`
       (uid e e-mail do dono). O aparelho guarda a cópia (`painel.plano`); o banco é a fonte entre aparelhos. Toda gravação é
@@ -851,7 +859,8 @@ const __p2 = (function () {
     'firebase-fora': 'A conta da Estante não respondeu. Tente de novo em instantes.',
     'sem-firebase': 'A conta da Estante não está configurada neste endereço.',
     'cota': 'O GitHub pediu uma pausa (cota de pedidos). Mostrando o que havia guardado.',
-    'api': 'O GitHub não respondeu como esperado.'
+    'api': 'O GitHub não respondeu como esperado.',
+    'token': 'O GitHub recusou o token guardado neste aparelho. Confira ou esqueça o token no rodapé.'
   };
   const motivo = codigo => MOTIVO[codigo] || 'Algo não deu certo. Tente de novo.';
 
@@ -1280,7 +1289,9 @@ const __p3 = (function () {
     sol: '<circle cx="12" cy="12" r="4"/><path d="M12 2.8v2.1M12 19.1v2.1M2.8 12h2.1M19.1 12h2.1M5.5 5.5L7 7M17 17l1.5 1.5M5.5 18.5L7 17M17 7l1.5-1.5"/>',
     lua: '<path d="M19.8 14.6A8.2 8.2 0 0 1 9.4 4.2a8.2 8.2 0 1 0 10.4 10.4z"/>',
     globo: '<circle cx="12" cy="12" r="8.25"/><path d="M3.75 12h16.5"/><path d="M12 3.75c2.6 2.6 3.9 5.35 3.9 8.25S14.6 17.65 12 20.25c-2.6-2.6-3.9-5.35-3.9-8.25S9.4 6.35 12 3.75z"/>',
-    historico: '<path d="M4 12a8 8 0 1 0 2.4-5.7L4 8.5"/><path d="M4 4v4.5h4.5"/><path d="M12 7.5V12l3 2"/>'
+    historico: '<path d="M4 12a8 8 0 1 0 2.4-5.7L4 8.5"/><path d="M4 4v4.5h4.5"/><path d="M12 7.5V12l3 2"/>',
+    chave: '<circle cx="8" cy="14.5" r="4.25"/><path d="M11.2 11.3 19.5 3"/><path d="M16.5 6l2.5 2.5"/><path d="M14 8.5l2.5 2.5"/>',
+    conferir: '<path d="M5 12.5l4.5 4.5L19 7.5"/>'   // R-22 · o botão Salvar (R-11) pedia este ícone e ele não existia: o SVG saía vazio
   };
   function Icone(nome, { tamanho = 20, classe = '' } = {}) {
     const el = h('span', { class: ('ds-icon ' + classe).trim(), 'aria-hidden': 'true', dataset: { icone: nome } });
@@ -1368,6 +1379,7 @@ const __p4 = (function () {
   const APP = './index.html';
   /** Orçamento por atualização de sub-aba: pedidos fixos à API (≤ 4) e detalhes por sha ainda não guardados (≤ 4). */
   const ORCAMENTO = { fixos: 4, detalhes: 4 };
+  const __p4_CHAVE_TOKEN = 'painel.github.token';   // R-22 · onde o token do GitHub fica (só neste aparelho)
   function carregaScript(src) {
     return new Promise((res, rej) => { const el = document.createElement('script'); el.src = src; el.async = true; el.onload = res; el.onerror = () => rej(new Error('sem-google')); document.head.appendChild(el); });
   }
@@ -1989,7 +2001,11 @@ const __p4 = (function () {
   function boot(raiz) {
     const guarda = createGuarda(typeof localStorage !== 'undefined' ? localStorage : null);
     const sessao = __p1.createSessao({ apiKey: FIREBASE_API_KEY, clientId: GOOGLE_CLIENT_ID, permitidos: PERMITIDOS, fetch: W.__PAINEL_FETCH || null, google: W.__PAINEL_GOOGLE || null, carregaScript, guarda });
-    const fonte = createFonte({ fetch: W.__PAINEL_FETCH_GITHUB || null, guarda });
+    /** R-22 · BI1-12 · token pessoal do GitHub, opcional, só neste aparelho (localStorage): nunca vai ao banco, ao backup, à telemetria
+        nem ao raw; só a api.github.com. Um token sem permissão nenhuma basta (só sobe a cota). "Sair" não o apaga; "Esquecer" apaga. */
+    const CHAVE_TOKEN = __p4_CHAVE_TOKEN;
+    const tokenGuardado = () => { const t = guarda.ler(CHAVE_TOKEN); return typeof t === 'string' && t ? t : null; };
+    const fonte = createFonte({ fetch: W.__PAINEL_FETCH_GITHUB || null, guarda, token: tokenGuardado });
     const inicial = filtrosDaUrl(typeof location !== 'undefined' ? location.hash : '');
     const est = { sessao: null, erro: null, carregando: false, aba: (SUBABAS.find(a => a.id === inicial.aba) ? inicial.aba : null) || guarda.ler('painel.aba') || SUBABAS[0].id, filtros: inicial.filtros, maisFiltros: false, main: null, em: null, aviso: null, atualizando: false, dados: {}, pedidosDaVez: 0, tema: guarda.ler('painel.tema') || 'dark' };
     document.documentElement.setAttribute('data-theme', est.tema);
@@ -2004,6 +2020,7 @@ const __p4 = (function () {
         const r = await fonte.api(M.MAIN_URL, { nome: 'main', forcar, transforma: M.compactaCommits });
         est.main = resumoDoMain(r.dado); est.em = r.em;
         if (r.semRede) est.aviso = { tipo: 'rede', texto: 'Sem internet. Mostrando o que havia guardado.' };
+        else if (r.tokenRecusado) est.aviso = { tipo: 'token', texto: motivo('token') };
         else if (r.cotaEsgotada) est.aviso = { tipo: 'cota', texto: motivo('cota') };
         else if (r.falhou) est.aviso = { tipo: 'api', texto: motivo('api') + ' Mostrando o que havia guardado.' };
         const v = visao();
@@ -2113,12 +2130,34 @@ const __p4 = (function () {
       }
       return h('section', { class: 'pn-conteudo', id: 'pn-conteudo', role: 'tabpanel', 'aria-label': aba.titulo }, ...partes);
     }
+    /* ---------- R-22 · token do GitHub (opcional, só neste aparelho) ---------- */
+    function salvaToken() {
+      const t = String(est.tokenRascunho || '').trim();
+      if (!t || /\s/.test(t) || t.length > 255) { est.tokenErro = 'Cole o token inteiro, sem espaços.'; desenha(); return; }
+      guarda.gravar(CHAVE_TOKEN, t); est.tokenRascunho = ''; est.tokenErro = null; est.tokenAberto = false;
+      atualiza({ forcar: true });
+    }
+    function esqueceToken() { guarda.apagar(CHAVE_TOKEN); est.tokenRascunho = ''; est.tokenErro = null; est.tokenAberto = false; atualiza({ forcar: true }); }
+    function formToken() {
+      const tem = !!tokenGuardado();
+      return h('form', { class: 'pn-form pn-token ds-surface', id: 'pn-token-form', novalidate: true, onSubmit: e => { e.preventDefault(); salvaToken(); } },
+        h('span', { class: 'ds-text ds-text--caps' }, 'Token do GitHub (opcional)'),
+        Text(tem ? 'Há um token guardado neste aparelho. Ele vai só para api.github.com, no cabeçalho dos pedidos; nunca para o banco, o backup ou a telemetria.' : 'Sobe a cota de 60 para 5.000 pedidos por hora. Um token pessoal sem permissão nenhuma basta (o repositório é público). Fica só neste aparelho e vai só para api.github.com.', { size: 'sm', tone: 'muted' }),
+        Field(tem ? 'Trocar o token' : 'Token', Input({ id: 'pn-token', type: 'password', value: est.tokenRascunho || '', placeholder: 'github_pat_… ou ghp_…', onInput: e => { est.tokenRascunho = e.target.value; } }), { id: 'pn-token', dica: 'GitHub › Settings › Developer settings › Personal access tokens › Fine-grained; sem permissões, só "Public repositories (read-only)"' }),
+        est.tokenErro ? Note(est.tokenErro, 'negative', { id: 'pn-token-erro' }) : null,
+        h('div', { class: 'ds-row pn-form__acoes' },
+          Button('Salvar', { variant: 'primary', id: 'pn-token-salvar', icone: 'conferir', onClick: salvaToken }),
+          tem ? Button('Esquecer', { variant: 'ghost', id: 'pn-token-esquecer', onClick: esqueceToken }) : null,
+          Button('Fechar', { variant: 'ghost', id: 'pn-token-fechar', onClick: () => { est.tokenAberto = false; est.tokenErro = null; desenha(); } })));
+    }
     function rodape() {
       const c = fonte.cota;
-      const texto = c ? `GitHub: ${c.restante} de ${c.limite} pedidos nesta hora` : 'GitHub: cota ainda não lida';
+      const texto = (c ? `GitHub: ${c.restante} de ${c.limite} pedidos nesta hora` : 'GitHub: cota ainda não lida') + (tokenGuardado() ? ' · com token' : '');
       return h('footer', { class: 'pn-rodape', id: 'pn-rodape' },
-        h('span', { class: 'pn-rodape__cota', title: LIMIARES.cotaGithub.texto + ` · ${est.pedidosDaVez} pedido(s) na última atualização` }, Icone('globo', { tamanho: 16 }), Farol(c ? farol(c.restante, LIMIARES.cotaGithub) : 'cinza', texto, { id: 'pn-cota' })),
-        LinkBotao('Voltar ao app', APP, { id: 'pn-voltar', icone: 'voltar' }));
+        h('span', { class: 'pn-rodape__cota', title: LIMIARES.cotaGithub.texto + ` · ${est.pedidosDaVez} pedido(s) na última atualização` }, Icone('globo', { tamanho: 16 }), Farol(c ? farol(c.restante, LIMIARES.cotaGithub) : 'cinza', texto, { id: 'pn-cota' }),
+          IconButton('chave', tokenGuardado() ? 'Token do GitHub (guardado)' : 'Token do GitHub (opcional)', { id: 'pn-token-abrir', variant: 'ghost', onClick: () => { est.tokenAberto = !est.tokenAberto; est.tokenErro = null; desenha(); } })),
+        LinkBotao('Voltar ao app', APP, { id: 'pn-voltar', icone: 'voltar' }),
+        est.tokenAberto ? formToken() : null);
     }
     function telaPainel() {
       return [
@@ -2150,7 +2189,7 @@ const __p4 = (function () {
     const inicia = () => { window.__painel = boot(document.getElementById('painel')); };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', inicia); else inicia();
   }
-  return { boot, VISOES, ORCAMENTO, PERMITIDOS, GOOGLE_CLIENT_ID, FIREBASE_API_KEY, FIREBASE_DB_URL };
+  return { boot, VISOES, ORCAMENTO, PERMITIDOS, GOOGLE_CLIENT_ID, FIREBASE_API_KEY, FIREBASE_DB_URL, CHAVE_TOKEN: __p4_CHAVE_TOKEN };
 })();
 
 </script>

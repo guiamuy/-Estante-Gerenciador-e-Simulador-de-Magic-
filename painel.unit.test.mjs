@@ -738,3 +738,35 @@ test('R-21 · experienciaDasLevas: só levas com a medição do portão entram; 
   assert.deepEqual(modelo.experienciaDasLevas([]), { medidas: [], semanas: [], nomes: [], ultima: null, quedas: 0, instaveis: 0, duracoes: [] });
   assert.equal(modelo.LIMIARES.quedasOrcamento.verde, 0); assert.ok(modelo.LIMIARES.portaoMin.verde < modelo.LIMIARES.portaoMin.amarelo);
 });
+
+/* ---------- R-22 · BI1-12 · token do GitHub no aparelho ---------- */
+test('R-22 · fonte com token: Authorization só nos pedidos à API (nunca ao raw), nada do token no cache; 401 com token marca tokenRecusado e devolve o guardado (ou erro "token"); sem token não há cabeçalho; esquecer o token tira o cabeçalho', async () => {
+  const { base } = loadPainel();
+  const guarda = base.createGuarda(null);
+  const pedidos = []; let status = 200;
+  const fetch = async (url, opts = {}) => { pedidos.push({ url, auth: (opts.headers || {}).Authorization || null }); return { ok: status === 200, status, headers: { get: n => n === 'x-ratelimit-remaining' ? '4999' : n === 'x-ratelimit-limit' ? '5000' : null }, json: async () => ({ ok: 1 }), text: async () => 'x' }; };
+  let token = 'github_pat_abc';
+  const fonte = base.createFonte({ fetch, guarda, token: () => token });
+  await fonte.api('/branches', { nome: 'ramos' }); await fonte.raw('telemetria', 'levas.jsonl');
+  assert.deepEqual(pedidos.map(p => p.auth), ['Bearer github_pat_abc', null], 'token só na API');
+  assert.equal(fonte.cota.limite, 5000); assert.equal(fonte.comToken, true);
+  assert.ok(!JSON.stringify(guarda.ler('painel.cache.ramos')).includes('github_pat'), 'o cache guarda a resposta, não o token');
+  // 401 com token: avisa e devolve o guardado
+  status = 401; const r = await fonte.api('/branches', { nome: 'ramos', forcar: true });
+  assert.equal(r.tokenRecusado, true); assert.equal(fonte.tokenRecusado, true); assert.deepEqual(r.dado, { ok: 1 });
+  await assert.rejects(fonte.api('/runs', { nome: 'novo' }), /token/, 'sem cache, erro "token"');
+  // sem token: sem cabeçalho, e 401 não é "token"
+  token = null; status = 200; fonte.zerar(); pedidos.length = 0;
+  await fonte.api('/branches', { nome: 'ramos', forcar: true });
+  assert.equal(pedidos[0].auth, null); assert.equal(fonte.comToken, false); assert.equal(fonte.tokenRecusado, false);
+});
+
+test('R-22 · o token fica na chave painel.github.token do aparelho e nunca entra no plano do banco, na telemetria ou nos avisos; motivo "token" existe', () => {
+  const { app, modelo, base } = loadPainel();
+  assert.equal(app.CHAVE_TOKEN, 'painel.github.token');
+  assert.match(modelo.motivo('token'), /recusou o token/);
+  const g = base.createGuarda(null); g.gravar(app.CHAVE_TOKEN, 'ghp_x');
+  const plano = base.createPlano({ fetch: async () => ({ ok: true, status: 200, json: async () => null }), dbUrl: '', guarda: g });
+  assert.doesNotMatch(JSON.stringify(plano.local()), /ghp_/, 'o plano não carrega o token');
+  assert.doesNotMatch(PAINEL.replace(/painel\.github\.token/g, ''), /github\.token|ghp_[a-z0-9]{8}/i, 'nenhum token literal no painel.html');
+});
