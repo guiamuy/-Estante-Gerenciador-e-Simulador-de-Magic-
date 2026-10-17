@@ -4943,6 +4943,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nenhum.
 - **Teste:** `lt177.unit` (4 testes; falham no motor anterior).
 
+**M-496 · LT162 · revisão por lote CXXXVIII: nove cartas lidas que travam as listas iniciantes** ✅ (leva M-496, motor v112 sem mudança de forma; goldens intactos; nenhuma linha de código nova).
+- **Valor:** passam a jogar (APROVADAS): Scatter the Seeds e Overwhelm (convocar), Elusive Krasis (evoluir, imbloqueável), Viridian Shaman, Mad Prophet (ímpeto; virar e descartar como custo), Carnivorous Moss-Beast, Kill Shot (só criatura atacando), Aven Wind Mage (+1/+1 ao conjurar mágica instantânea ou feitiço), Wayward Soul (volta ao topo do grimório do dono). Textos da Scryfall consultados em 17/10/2026; leituras conferidas frase a frase no texto oficial.
+- **Revisão independente:** aprovada (revisão de M-496/M-497): 18 leituras e 44 frases conferidas; `--confere` com 998 aprovadas; 103 sondas sem divergência (convocar com cor certa e criaturas recém-chegadas; evoluir reconferido na resolução, com resistência maior e com a última informação; Kill Shot só em atacante, nunca bloqueador; Aven Wind Mage só com mágicas do controlador; Wayward Soul e Skywing Aven voltam ao dono; Barbarian Lunatic causa o dano depois de sacrificada; exaltado só com atacante sozinho, duas instâncias somam; Sylvan Ranger recusado não mexe no grimório); fuzz de 70 partidas (29.659 ações, 12.335 reaplicações) sem recusa nem exceção. Observação geral, não da carta: o pagamento automático pode gastar a mana azul no genérico (vire a outra terra antes).
+- **Fora (declarado):** Flying (Aven Wind Mage, Wayward Soul), Haste (Mad Prophet) e Evolve (Elusive Krasis) só valem quando a carta vem com o campo `keywords` da Scryfall (o caminho normal do app); sem esse campo não são lidos — mesma limitação já declarada para Islandwalk, Renown, Shadow e Infect, recomendada à trilha `keywords`.
+- **Teste:** `lt178.unit` (6 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
