@@ -6817,6 +6817,10 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-128 · CR 720 (presságio), 115.1, 601.2c/603.3d, 608.2b (Scryfall, consulta de 17/10/2026, rulings de 04/04/2025). "Flying, deathtouch" vêm da linha da carta.
+  { name: 'Feral Deathgorger', omen: { mana: '{1}{B}' }, abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'mover', target: { zona: 'graveyard' }, para: 'exile', upTo: true, mesmoCemiterioT: true }, { do: 'mover', target: { zona: 'graveyard' }, para: 'exile', upTo: true, mesmoCemiterioT: true }] }], // "When this creature enters, exile up to two target cards from a single graveyard." (dois alvos opcionais; o segundo do mesmo cemitério do primeiro)
+    back: { name: 'Dusk Sight', types: ['sorcery'], subtypes: ['Omen'], colors: ['B'], effects: [{ do: 'counters', amount: 1, target: 'creature', upTo: true }, { do: 'draw', amount: 1 }] }, // "Put a +1/+1 counter on up to one target creature. Draw a card. (Then shuffle this card into its owner's library.)" (o embaralhar é do presságio, 720.3c)
+    example: { action: 'omen', target: 'none', expect: { selfLife: 0 } } }, // o cenário de verdade está em tipos.devorador.unit
   // T-126 · CR 603.6/113.6k (gatilho que funciona do cemitério), 303.4f/303.4g (Scryfall, consulta de 17/10/2026; sem rulings)
   { name: 'Smoke Shroud', aura: { enchant: 'creature' }, grants: { power: 1, toughness: 1, keywords: ['flying'] }, abilities: [{ kind: 'triggered', when: 'other-etb', fromGraveyard: true, filter: { subtype: 'Ninja' }, optional: true, effects: [{ do: 'volta_anexada_t' }] }], // "Enchant creature · Enchanted creature gets +1/+1 and has flying. · When a Ninja you control enters, you may return this card from your graveyard to the battlefield attached to that creature."
     example: { action: 'aura', target: 'own-creature', expect: { stats: [3, 3] } } },
@@ -23598,7 +23602,7 @@ function putTriggerOnStack(s, q, events) {
   for (let i = targets.length; i < targeted.length; i++) {
     const eff = targeted[i];
     const opts = legalTargets(s, q.controller, eff.target, q.source, eff.targetColor)
-      .filter(x => targetAllowed(s, eff, x, eff.doJogadorDoPrimeiro ? { ...src, targets } : src) && !targets.some((y, j) => y && sameChoice(x, y) && !eff.alvoLivre && !(targeted[j] || {}).alvoLivre)); // M-439 · doJogadorDoPrimeiro: o primeiro alvo já escolhido para este item (a cópia), não o da original // 601.2c: alvos diferentes · M-363 · 115.3: alvoLivre (achado da revisão: a cópia de Agony Warp)
+      .filter(x => targetAllowed(s, eff, x, eff.doJogadorDoPrimeiro ? { ...src, targets } : src) && !targets.some((y, j) => y && sameChoice(x, y) && !eff.alvoLivre && !(targeted[j] || {}).alvoLivre) && mesmoCemiterioOkT(s, eff, x, targets, targeted)); /* T-128 · "from a single graveyard" (Toca ponto comum: alvos do gatilho) */ // M-439 · doJogadorDoPrimeiro: o primeiro alvo já escolhido para este item (a cópia), não o da original // 601.2c: alvos diferentes · M-363 · 115.3: alvoLivre (achado da revisão: a cópia de Agony Warp)
     if (!opts.length) { if (eff.upTo) { targets.push(null); continue; } events.push({ kind: 'trigger-fizzled', name: q.name, when: q.when }); return false; } // M-338 · "up to one": sem alvo legal, segue sem alvo
     if (opts.length > 1 || eff.upTo) { s.pending = { kind: 'pick_target', p: q.controller, trigger: { ...q, alvos: targets }, options: opts, name: q.name, ...(targeted.length > 1 ? { qual: i + 1, de: targeted.length } : {}), ...(eff.upTo ? { semAlvo: true } : {}) }; return false; } // M-338 · "up to one": pergunta mesmo com uma opção (pode ser nenhuma)
     targets.push(opts[0]);
@@ -28308,6 +28312,13 @@ function lutar(s, src, eff, tgt, events) {
 }
 Object.assign(EXPORTS_V, { lutar });
 /* ↓ T · exportações de core.js da trilha tipos */
+/** T-128 · "up to two target cards from a single graveyard" (Feral Deathgorger): o alvo marcado `mesmoCemiterioT` precisa ser do cemitério do mesmo
+    dono dos já escolhidos com a mesma marca (601.2c/603.3d: os alvos são escolhidos em ordem; o primeiro decide o cemitério). */
+function mesmoCemiterioOkT(s, eff, x, targets, targeted) {
+  if (!eff.mesmoCemiterioT || !x || x.oid == null || !s.objects[x.oid]) return true;
+  const dono = s.objects[x.oid].owner;
+  return targets.every((y, j) => !y || y.oid == null || !(targeted[j] || {}).mesmoCemiterioT || !s.objects[y.oid] || s.objects[y.oid].owner === dono);
+}
 /* ---------------- T-126 · gatilho do cemitério em "a [subtipo] you control enters" e a volta anexada (Smoke Shroud) ----------------
    - 113.6k / 603.6: a habilidade com `fromGraveyard: true` e `when: 'other-etb'` funciona do cemitério. Quem observa: as cartas do
      cemitério de quem controla a permanente que entrou ("you control"); o `filter` é o do gatilho de outra permanente.

@@ -6029,6 +6029,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Verificado e correto:** Dignitária com flash em vários momentos, duas Dignitárias, três jogadores, combate extra; Rage-Hound obrigado a atacar (virada, enjoo, Pacifismo, planeswalker, combate extra) e escape (três outras, 400.7 ao anular, piscar e reanimar, fuga de novo, Murcha); `artifact-creature` como alvo da Aura; 704.5q depois das mortes; foto dos marcadores; {Q} com atordoamento.
 - **Versão e goldens:** a versão não sobe; goldens, fuzz e a equivalência de gatilhos (sombra) idênticos.
 
+**CR5-T128 · "Exile up to two target cards from a single graveyard" (115.1, 601.2c/603.3d, 608.2b) e o presságio Dusk Sight (720): Feral Deathgorger // Dusk Sight** ✅ (leva T-128, sem mudança de versão do motor) — carta 16, a última da fatia de cobertura (texto da Scryfall de 17/10/2026, rulings do presságio de 04/04/2025; antes manual na trilha cartas, que não a achou no Forge em 12/10).
+- **Valor:** o dragão 3/5 com voar e toque mortífero exila, ao entrar, até duas cartas de um mesmo cemitério; Dusk Sight, por {1}{B}, põe um +1/+1 em até uma criatura, compra uma carta e a carta volta embaralhada ao grimório.
+- **Aceite:** o primeiro alvo pode ser de qualquer cemitério e o segundo só do mesmo; nenhum ou um alvo também servem; um alvo que sai do cemitério antes da resolução não impede o outro (608.2b); Dusk Sight sem criatura só compra.
+- **Primitiva:** marca `mesmoCemiterioT` nos alvos de um gatilho (conferida na escolha, em ordem: o primeiro decide o cemitério). Só para gatilho — mágica com a marca ainda não tem a restrição na oferta (nenhuma carta das listas precisa).
+- **Testes:** `tipos.devorador.unit.test.mjs` (5).
+- **Versão e goldens:** a versão não sobe; goldens, fuzz e a equivalência de gatilhos (sombra) idênticos.
+
 **CR6 · Multijogador e variantes** ○ — mesa de três e quatro (800–803, 806), Commander de mesa (903.2), Brawl (903.12); as variantes hoje "fora" só entram por decisão. 10 a 14 levas.
 
 **CR7 · Consolidação** ○ (em paralelo a partir da CR2) — a cada fase: fuzz em modo completo com listas reais, homologação por revisor independente relendo a seção das regras contra o motor, e rodada de simulação do dono do produto. 6 a 8 levas ao todo.
