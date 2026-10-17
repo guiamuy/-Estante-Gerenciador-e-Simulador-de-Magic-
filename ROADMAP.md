@@ -4756,6 +4756,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** o pagamento automático não usa o Adnate como fonte (é preciso ativar à mão), como as outras fontes com sacrifício no custo.
 - **Teste:** `lt146.unit` (3 testes; falham no motor anterior).
 
+**M-465 · LT131 · correções da revisão independente de M-447…M-454** ✅ (leva M-465, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** (1) **Spirit Mascot:** Patch Up devolvendo três criaturas é um evento só (+1, não +3) e a Mascot que volta junto com outra carta não vê a saída dela (603.2c, 603.10a; ruling de 20/03/2026) — o lote agora fecha por instrução do texto, não por alvo (vale também para o lote de descarte da M-462); (2) **terreno de dor causa dano** (120.3): Sulfurous Springs, Battlefield Forge e os Talismãs marcam "dealt damage this turn" e a Needle Drop pode mirar você para comprar; (3) **cascata numa Aura** (Sentinel's Eyes) oferece a criatura a encantar — antes a mesa oferecia uma conjuração que o motor recusava (303.4a).
+- **Revisão independente:** os três itens são achados do revisor de M-447…M-454; cada um tem teste que falha no motor anterior.
+- **Fora (declarado):** o dano do terreno de dor ainda não dispara vínculo com a vida nem gatilhos de dano da fonte (terreno não tem essas habilidades no Pauper atual); prevenção de dano não se aplica a ele (como antes).
+- **Teste:** `lt147.unit` (4 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

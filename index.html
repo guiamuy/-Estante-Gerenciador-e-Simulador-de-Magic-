@@ -20233,7 +20233,7 @@ function tapForMana(s, oid, option, mana) {
   if (aoGastar) { const pl = s.players[o.controller]; pl.manaMarcada = [...(pl.manaMarcada || []), ...opt.map(c => ({ cor: c, fonte: o.oid, name: o.name }))]; }
   // R11.2 · "This land deals 1 damage to you" (terrenos de dor, Talismãs) e "Pay 1 life" (Spire of Industry) ao gerar cor
   const regra = manaRuleDe(s.facts[o.name]); // M-321 · também a impressa, sem script
-  if (regra && (regra.damage || regra.life) && opt.some(c => regra.colors.includes(c))) perdeVida(s, o.controller, regra.damage || regra.life);
+  if (regra && (regra.damage || regra.life) && opt.some(c => regra.colors.includes(c))) { if (regra.damage) danoEmJogador(s, o, o.controller, regra.damage); else perdeVida(s, o.controller, regra.life); } // M-465 · 120.3: "deals 1 damage to you" é dano (Needle Drop o vê; achado da revisão)
 }
 /** M-355 · 119.4 / 601.2g · a ordem de ativar as habilidades de mana é do jogador: as que pedem "Pay N life" vêm antes das que causam dano
  * (com 1 de vida, Yavimaya Coast antes de Mana Confluence zerava a vida e a Confluence deixava de produzir — a mesa oferecia e o motor recusava).
@@ -20907,7 +20907,7 @@ function excedeSoma(s, need, chosen) {
  * seu valor; antes da divisão (na oferta, na mão) não há instância com alvo — os alvos são escolhidos na decisão "dividir_magia", logo depois de conjurar. */
 const partesDivididas = (o, e) => ((o && o.divisao) || []).map(n => { const c = { ...e, amount: n, parteDividida: true }; delete c.dividido; return c; });
 const expandeAlvos = (s, o, effs) => effs.some(e => e.targetCount != null || e.dividido) ? effs.flatMap(e => e.dividido ? partesDivididas(o, e) : e.targetCount == null ? [e]
-  : Array.from({ length: Math.max(0, amountOf(s, o || {}, e.targetCount)) }, () => { const c = { ...e, upTo: true }; delete c.targetCount; return c; })) : effs;
+  : Array.from({ length: Math.max(0, amountOf(s, o || {}, e.targetCount)) }, (_, k) => { const c = { ...e, upTo: true }; delete c.targetCount; if (k) Object.defineProperty(c, 'mesmaInstrucaoM', { value: true, enumerable: false }); return c; })) : effs; // M-465 · as cópias de "up to N targets" são a mesma instrução (um evento, 603.2c); a marca não vai para o estado
 function spellEffects(s, o, mode) { return expandeAlvos(s, o, efeitosDaMagia(s, o, mode)); }
 /** M-274 · 702.47c: o texto das cartas encaixadas vem depois do texto da mágica, cada uma como frase própria ("o mesmo alvo" vale dentro dela). */
 function efeitosDaMagia(s, o, mode) { const base = efeitosBaseDaMagia(s, o, mode); if (!o || !(o.emendas || []).length) return base;
@@ -21517,7 +21517,7 @@ function aplicaPorJogador(s, src, eff, events) {
 }
 const porJogador = eff => !!SC.jogadoresDe(eff);
 /** M-449 · cada efeito é um evento: o lote de "cartas saem do seu cemitério" fecha no fim dele. */
-function applyEffect(s, src, eff, tgt, events) { const r = applyEffectM449(s, src, eff, tgt, events); if (s.loteCemiterioM || s.loteDescarteM) fechaLoteCemiterioM(s); return r; }
+function applyEffect(s, src, eff, tgt, events) { return applyEffectM449(s, src, eff, tgt, events); } // M-465 · o lote não fecha mais aqui: um efeito com vários alvos é um evento só (603.2c; achado da revisão)
 function applyEffectM449(s, src, eff, tgt, events) {
   const ctrl = src.controller;
   // S41 · guarda o nome do alvo antes de aplicar: anular uma habilidade a apaga do jogo
@@ -22948,6 +22948,7 @@ function resumeEffects(s, events) {
   // CR2c.7 · habilidade com X retomada depois de uma decisão: a fonte é a permanente, e o X é o da habilidade só durante esta retomada
   const xRet = r.xPaid != null && s.objects[r.oid] ? src : null, xAntes = xRet ? xRet.xPaid : undefined; if (xRet) xRet.xPaid = r.xPaid;
   try { for (const eff of r.effects) {
+    if (!eff.mesmaInstrucaoM && (s.loteCemiterioM || s.loteDescarteM || s.saidasCemM)) fechaLoteCemiterioM(s); // M-465 · idem na retomada
     // Q10 · mesmos alvos da resolução interrompida (os que ainda não foram usados, na ordem)
     let tgt = null;
     if (SC.isTargeted(eff)) tgt = alvos.shift() || null;
@@ -23252,6 +23253,7 @@ function resolveScript(s, o, events) {
   const limiarAntes = effects.some(e => e && (e.onlyIf === 'threshold' || e.onlyIf === 'sem-limiar')) ? condicaoDoEfeito(s, o, 'threshold') : null; // M-417 · também "sem limiar" // M-412 · o "instead" do limiar decide a frase inteira de uma vez: contado antes do primeiro efeito (achado da revisão: com o dano depois da destruição, a regeneração mudava o resultado)
   let ti = 0, firstTarget = null, donoDoPrimeiro = null, modoAtual = null, neveDoPrimeiro = false, mordedorM = null, lendarioDoPrimeiro = false; // M-407 · M-414
   for (const [idx, eff] of effects.entries()) {
+    if (!eff.mesmaInstrucaoM && (s.loteCemiterioM || s.loteDescarteM || s.saidasCemM)) fechaLoteCemiterioM(s); // M-465 · cada instrução da mágica é um evento (603.2c)
     if (eff.__modo != null && eff.__modo !== modoAtual) { modoAtual = eff.__modo; firstTarget = null; donoDoPrimeiro = null; neveDoPrimeiro = false; lendarioDoPrimeiro = false; } // CR 700.2d · cada modo é uma frase própria
     // Q10 · a retomada leva o alvo junto: "perde 1 de vida" depois de devolver o comandante era cobrado de quem conjurou
     if (s.pending) { s.resume = { oid: o.oid, name: o.name, controller: o.controller, effects: effects.slice(idx), alvo: firstTarget, alvos: chosen.slice(ti), condicoes: condicoesDaMagia(o, effects.slice(idx)) }; return; } // M-351 · as marcas da conjuração (400.7 já as apagou da carta) seguem na retomada
@@ -23684,14 +23686,15 @@ const TEM_SAEM_CEM_M = new WeakMap();
 const partidaTemSaemCemM = s => Object.values(s.facts).some(f => { if (!f || typeof f !== 'object') return false; if (!TEM_SAEM_CEM_M.has(f)) TEM_SAEM_CEM_M.set(f, JSON.stringify(f.script || {}).includes('"saem-do-cemiterio"')); return TEM_SAEM_CEM_M.get(f); });
 function saiuDoCemiterioM(s, o) {
   if (!o || o.token || !partidaTemSaemCemM(s)) return;
-  for (const w of battlefield(s)) { if (!s.facts[w.name]) continue; const abs = abilitiesOf(s, w);
+  const saidas = s.saidasCemM || (s.saidasCemM = []); saidas.push(o.oid); // M-465 · a Mascot que volta do cemitério no mesmo evento não vê as outras (603.10a: olha para trás)
+  for (const w of battlefield(s)) { if (!s.facts[w.name] || saidas.includes(w.oid)) continue; const abs = abilitiesOf(s, w);
     for (let i = 0; i < abs.length; i++) { const ab = abs[i], d = ab.kind === 'triggered' && SC.gatilhoDoEvento(ab.when); if (!d || d.evento !== 'saem-do-cemiterio') continue;
       const quem = d.quem || 'voce'; if (quem === 'voce' ? o.owner !== w.controller : quem === 'oponente' ? o.owner === w.controller : false) continue;
       if (!matchesTriggerFilter(s, o, ab.filter) || !triggerConditionMet(s, w, ab.condition)) continue;
       const lote = s.loteCemiterioM || (s.loteCemiterioM = []); if (lote.some(x => x.source === w.oid && x.i === i)) continue;
       lote.push({ source: w.oid, i, name: w.name, controller: w.controller, effects: ab.effects, when: ab.when, ...marcasDaHabilidade(ab) }); } }
 }
-function fechaLoteCemiterioM(s) { fechaLoteDescarteM(s); const l = s.loteCemiterioM; if (!l) return; delete s.loteCemiterioM; for (const { i, ...q } of l) s.queued.push(q); }
+function fechaLoteCemiterioM(s) { fechaLoteDescarteM(s); delete s.saidasCemM; const l = s.loteCemiterioM; if (!l) return; delete s.loteCemiterioM; for (const { i, ...q } of l) s.queued.push(q); }
 /* M-462 · 603.2c · "Whenever you discard one or more cards, … that much" (Magmakin Artillerist): uma vez por evento de descarte, com o valor = quantas
    cartas o jogador descartou nele (insanidade também é descarte, 702.35). O lote fecha nos mesmos pontos do da M-449; só nas partidas com o gatilho. */
 const TEM_DESCARTAM_M = new WeakMap();
@@ -24613,9 +24616,9 @@ const HANDLERS = {
     }
     if (o.zone === 'command') s.players[a.p].commanderCasts[a.oid] = (s.players[a.p].commanderCasts[a.oid] || 0) + 1;
     const origem = o.zone; // CR2c.4 · de onde foi conjurada ("cast from its owner's hand")
-    if (s.loteCemiterioM || s.loteDescarteM) fechaLoteCemiterioM(s); // M-449 · o custo pago (fuga) é um evento; ir para a pilha é outro
+    if (s.loteCemiterioM || s.loteDescarteM || s.saidasCemM) fechaLoteCemiterioM(s); // M-449 · o custo pago (fuga) é um evento; ir para a pilha é outro
     moveObject(s, a.oid, 'stack');
-    if (s.loteCemiterioM || s.loteDescarteM) fechaLoteCemiterioM(s); // M-449
+    if (s.loteCemiterioM || s.loteDescarteM || s.saidasCemM) fechaLoteCemiterioM(s); // M-449
     s.objects[a.oid].controller = a.p; // T-72 · CR 601.2a / 108.4: quem conjura controla a mágica (o Cerco derrotado de outro dono) (Toca ponto comum: HANDLERS.cast)
     s.objects[a.oid].castFrom = origem;
     if (s.turn.active === a.p && (s.turn.step === 'main1' || s.turn.step === 'main2') && JSON.stringify((s.facts[o.name] || {}).script || {}).includes('na-principal-propria')) s.objects[a.oid].naPrincipalM = true; // M-443 · conjurada na fase principal de quem conjura (505.1); só a mágica que usa a condição guarda a marca (o estado das outras partidas não muda)
@@ -25455,7 +25458,7 @@ function apply(state, action) {
   barraDetidaV(s, action); // V-21 · 701.35a: habilidade ativada de permanente detida · Toca ponto comum: apply (uma linha)
   barraTravadaPeloNomeT(s, action); // T-79 · CR 201.4 · "activated abilities of sources with the chosen name can't be activated" (Pithing Needle, Phyrexian Revoker) · Toca ponto comum: apply (uma linha)
   HANDLERS[action.t](s, action, events);
-  if (s.loteCemiterioM || s.loteDescarteM) fechaLoteCemiterioM(s); // M-449 · o lote fecha no fim da ação
+  if (s.loteCemiterioM || s.loteDescarteM || s.saidasCemM) fechaLoteCemiterioM(s); // M-449 · o lote fecha no fim da ação
   if (action.oid != null && s.objects[action.oid] && s.objects[action.oid].zone === 'stack' && !s.pending) modoDoOponentePendenteT(s, action.oid); // T-107 · 700.2e: o oponente escolhe o modo quando quem conjura escolheria (Toca ponto comum: apply, uma linha)
   if (s.players.some(pl => pl.manaCombateT)) podaManaDeCombateT(s); // T-102 · 702.189a: a mana da dobra de fogo gasta não volta (Toca ponto comum: apply, uma linha)
   if (!s.pending && s.divisaoPendente) { const oid = s.divisaoPendente; delete s.divisaoPendente; if (s.objects[oid] && s.objects[oid].zone === 'stack') iniciaDivisao(s, oid, events); } // M-376
@@ -25554,7 +25557,8 @@ function legalActions(s, p, { adjudication = false } = {}) {
         const fc = s.facts[s.objects[oid].name];
         if (fc.types.includes('land')) { if (s.pending.escondida && s.turn.active === p && s.players[p].landsPlayed < terrenosPorTurno(s, p)) out.push({ t: 'cast_free', p, oid }); continue; } // M-268
         const modos = (fc.script && !fc.script.modoPeloOponente && fc.script.modes) || []; // T-110 · 700.2e: sem pagar, o modo continua sendo do oponente
-        const listas = modos.length ? modos.map((m, i) => ({ need: (m.effects || []).filter(SC.isTargeted), mode: i }))
+        const auraF = auraTarget(fc); // M-465 · 303.4a: Aura conjurada sem pagar (cascata) também escolhe o que encantar (achado da revisão: a mesa oferecia o que o motor recusava)
+        const listas = auraF ? [{ need: [{ target: auraF }], mode: null }] : modos.length ? modos.map((m, i) => ({ need: (m.effects || []).filter(SC.isTargeted), mode: i }))
           : [{ need: ((fc.script && fc.script.effects) || []).filter(SC.isTargeted), mode: null }];
         const rfK = fc.script && fc.script.kicker, kickOk = !!rfK && (!s.manaCheck || canPay(s, p, parseCost(rfK.mana))); // M-337 · 118.9d: o reforço também na conjuração sem pagar
         const addsF = (() => { const sp = fc.script && fc.script.additional, l = Array.isArray(sp) ? sp : sp ? [sp] : []; if (!l.length) return [{}]; const r = []; // M-446 · 118.9d: as formas do custo adicional também na conjuração sem pagar (antes só a primeira, e a mesa podia oferecer o que o apply recusava)
@@ -26106,6 +26110,7 @@ function resolveAbility(s, o, events) {
   let ti = 0, primeiro = null, donoDoPrimeiro = null, primeiroVazio = false, neveDoPrimeiro = false, mordedorH = null, lendarioDoPrimeiroH = false; /* M-414 */ /* M-407 · também nas habilidades (Vivien of the Arkbow −3) */ // M-385 · achado da revisão: a condição do terreno nevado também nas habilidades // M-327 · 608.2h: o controlador do alvo é o de antes do efeito
   const fonte = s.objects[o.source];
   for (const eff of o.effects || []) {
+    if (!eff.mesmaInstrucaoM && (s.loteCemiterioM || s.loteDescarteM || s.saidasCemM)) fechaLoteCemiterioM(s); // M-465 · idem na habilidade
     if (eff.onlyIf === 'alvo-era-neve' && !neveDoPrimeiro) continue; // M-385
     if (eff.onlyIf === 'alvo-era-lendario' && !lendarioDoPrimeiroH) continue; // M-414
     if (eff.onlyIf === 'alvo-era-seu' && donoDoPrimeiro !== o.controller) continue; // M-341
