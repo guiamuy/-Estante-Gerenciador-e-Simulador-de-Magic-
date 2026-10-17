@@ -4775,6 +4775,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nenhum. O catálogo fora do Pauper ainda tem cerca de 3.000 cartas que travam listas; 827 delas o leitor já lê por inteiro e só esperam revisão por lote como esta.
 - **Teste:** `lt149.unit` (5 testes; falham no motor anterior).
 
+**M-468 · LT134 · revisão por lote CXIV: dez cartas lidas que travam as listas iniciantes** ✅ (leva M-468, motor v112 sem mudança de forma; goldens intactos; nenhuma linha de código nova).
+- **Valor:** passam a jogar (APROVADAS): Nomadic Elf, Wanderer's Twig, Kamahl, Pit Fighter, Diregraf Ghoul, Disentomb, Spider-Bot, Dead Weight, Pelakka Wurm, Mudbutton Torchrunner, Merfolk Looter. Textos da Scryfall consultados em 17/10/2026; leituras conferidas frase a frase no texto oficial (Spider-Bot: a carta achada fica no topo depois do embaralhamento, 701.24b).
+- **Revisão independente:** aprovada (revisão de M-466…M-475): leitura conferida frase a frase com o texto oficial; `--confere` com 827 aprovadas lidas por inteiro; 110 sondas de comportamento sem erro (evocar, reciclar antes da compra, dano dividido, custo híbrido, "exile instead", sacrificar a si, "may", não desvirar, prevenção); equivalência nas listas reais sem divergência; fuzz com 34 cartas novas sem recusa.
+- **Fora (declarado):** nenhum.
+- **Teste:** `lt150.unit` (4 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
