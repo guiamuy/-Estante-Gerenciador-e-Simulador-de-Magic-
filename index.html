@@ -9730,6 +9730,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Llanowar Augur': { texto: 'y1x134', leva: 'M-457' },
   // M-458 · revisão por lote CV ("can attack this turn as though it didn't have defender": Nivix Cyclops), texto da Scryfall de 17/10/2026 UTC, revisor independente
   'Nivix Cyclops': { texto: '1t8ohv1', leva: 'M-458' },
+  // M-459 · revisão por lote CVI (ferocidade com atropelar para as suas: Wargling), texto da Scryfall de 17/10/2026 UTC, revisor independente
+  'Wargling': { texto: 'a0vgn5', leva: 'M-459' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18150,6 +18152,8 @@ const __m42 = (function () {
     [/^exile up to one other target creature$/i, () => [{ do: 'exile', target: { tipos: ['creature'], outra: true }, upTo: true }]], // M-338 · Solitude
     [/^that creature's controller gains life equal to its power$/i, () => [{ do: 'gain', amount: { per: 'power-of-target' }, target: 'target-controller' }]], // M-338 · Solitude (608.2h)
     [/^~ gets ([+-]\d+)\/([+-]\d+) until end of turn and can attack this turn as though it didn't have defender$/i, m => [{ do: 'continuo', target: 'self-source', poder: SINAL(m[1]), resistencia: SINAL(m[2]) }, { do: 'ataca_com_defensor', target: 'self-source' }]], // M-458 · Nivix Cyclops
+    [/^until end of turn, ~ gets ([+-]\d+)\/([+-]\d+) and creatures you control gain ([a-z ,]+)$/i, m => { const ks = m[3].split(/,\s*(?:and\s+)?|\s+and\s+/).map(x => x.trim().toLowerCase()).filter(Boolean); if (!ks.length || ks.some(k => !KW.has(k))) return null; // M-459 · Wargling (611.2c: as suas criaturas daquele momento)
+      return [{ do: 'continuo', target: 'self-source', poder: SINAL(m[1]), resistencia: SINAL(m[2]) }, { do: 'continuo', target: 'each-own-creature', palavras: ks }]; }],
     [/^~ gets ([+-]\d+)\/([+-]\d+) until end of turn$/i, m => [{ do: 'continuo', target: 'self-source', poder: SINAL(m[1]), resistencia: SINAL(m[2]) }]], // M-340 · Fallen Angel, Hollow Dogs (613.4c, até a limpeza)
     [/^regenerate ~$/i, () => [{ do: 'regenerar', target: 'self-source' }]], // M-340 · 701.19 (Sanguine Guard, Dutiful Thrull)
     [/^you may shuffle$/i, () => [{ do: 'embaralhar_grimorio', optional: true }]], // M-339 · Ponder (701.24)
