@@ -5371,6 +5371,7 @@ const EFFECTS = {
   sem_alvo_de_oponentes: { fields: [], targets: ['creature', 'creature-you-control', 'first-target'] }, // M-375 · "Target creature can't be the target of spells or abilities your opponents control this turn" (Vines of Vastwood)
   resistencia_cor: { fields: [], targets: ['creature', 'creature-you-control', 'other-creature-you-control', 'first-target'] },
   imbloqueavel_cor: { fields: [], targets: ['creature', 'creature-you-control', 'other-creature-you-control', 'first-target'] },
+  nao_bloqueia_no_turno: { fields: [], targets: ['creature'] }, // M-460 · "Target creature can't block this turn" (Sandstorm Eidolon, 509.1a)
   ataca_com_defensor: { fields: [], targets: ['self-source'] }, // M-458 · "can attack this turn as though it didn't have defender" (Nivix Cyclops, 702.3b)
   imbloqueavel: { fields: [], targets: ['creature', 'creature-you-control', 'first-target', 'self-source'] }, // M-336 · "Target creature can't be blocked this turn" (Rogue's Passage)
   // S43 · proteção contra a cor da sua escolha, até o fim do turno
@@ -6250,7 +6251,7 @@ function validateScript(sc) {
   // S33 · afinidade e adaptar
   if (sc && sc.affinity && !FILTER_TYPES.includes(sc.affinity)) errs.push(`afinidade por "${sc.affinity}" desconhecida`);
   for (const ab of (sc && sc.abilities) || []) if (ab.adapt != null && !Number.isInteger(ab.adapt)) errs.push('adaptar precisa de um número inteiro');
-  for (const ab of (sc && sc.abilities) || []) if (ab.kind === 'triggered' && ab.fromGraveyard && !falaDe(gatilhoDoEvento(ab.when), 'compra') && ab.when !== 'crime' && ab.when !== 'other-etb' /* T-126 · Smoke Shroud (Toca ponto comum: validador do gatilho do cemitério) */) errs.push('gatilho do cemitério só vale para a terceira compra'); // T-86 · e o "crime" (Forsaken Miner)
+  for (const ab of (sc && sc.abilities) || []) if (ab.kind === 'triggered' && ab.fromGraveyard && !falaDe(gatilhoDoEvento(ab.when), 'compra') && ab.when !== 'crime' && !(falaDe(gatilhoDoEvento(ab.when), 'conjurar') && (gatilhoDoEvento(ab.when) || {}).objeto === 'outra') /* M-460 · "quando você conjura" do cemitério (Eidolons) */ && ab.when !== 'other-etb' /* T-126 · Smoke Shroud (Toca ponto comum: validador do gatilho do cemitério) */) errs.push('gatilho do cemitério só vale para a terceira compra'); // T-86 · e o "crime" (Forsaken Miner)
   if (sc && sc.entersTapped != null && typeof sc.entersTapped !== 'boolean') errs.push('entersTapped precisa ser verdadeiro ou falso');
   if (sc && sc.ninjutsu && !sc.ninjutsu.mana) errs.push('ninjutsu sem custo');
   if (sc && sc.madness && !sc.madness.mana) errs.push('insanidade sem custo');
@@ -9732,6 +9733,9 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Nivix Cyclops': { texto: '1t8ohv1', leva: 'M-458' },
   // M-459 · revisão por lote CVI (ferocidade com atropelar para as suas: Wargling), texto da Scryfall de 17/10/2026 UTC, revisor independente
   'Wargling': { texto: 'a0vgn5', leva: 'M-459' },
+  // M-460 · revisão por lote CVII (gatilho do cemitério ao conjurar multicolorida: Aurora Eidolon, Sandstorm Eidolon), texto da Scryfall de 17/10/2026 UTC, revisor independente
+  'Aurora Eidolon': { texto: '1imkdg', leva: 'M-460' },
+  'Sandstorm Eidolon': { texto: 'sw7gi', leva: 'M-460' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18083,6 +18087,9 @@ const __m42 = (function () {
     [/^prevent all combat damage that would be dealt this turn$/i, () => [{ do: 'fog' }]], // LT9
     [/^exile all cards from target player's graveyard$/i, () => [{ do: 'exile_graveyard', target: 'player' }]], // LT9
     [/^return target creature card from your graveyard to your hand$/i, () => [{ do: 'to_hand', target: 'creature-in-your-graveyard' }]], // LT9
+    [new RegExp(`^prevent the next ${N} damage that would be dealt to any target this turn$`, 'i'), m => [{ do: 'prevenir', quantidade: num(m[1]), target: 'any' }]], // M-460 · 615.7 (Aurora Eidolon; o escudo da R5b)
+    [/^target creature can't block this turn$/i, () => [{ do: 'nao_bloqueia_no_turno', target: 'creature' }]], // M-460 · 509.1a (Sandstorm Eidolon)
+    [/^return (?:~|this card) from your graveyard to your hand$/i, () => [{ do: 'to_hand', target: 'self-source' }]], // M-460 · Aurora/Sandstorm Eidolon (só como gatilho que funciona do cemitério)
     [new RegExp(`^you may discard a card to draw ${N} cards?$`, 'i'), m => [{ do: 'descarta_e_compra', amount: num(m[1]) }]], // M-348
     [new RegExp(`^(must_)?descarta_ou_sacrifica (artifact|land) ${N}$`, 'i'), m => [{ do: 'discard_or_sacrifice_land_draw', amount: num(m[3]), ...(m[2].toLowerCase() === 'artifact' ? { tipo: 'artifact' } : {}), ...(m[1] ? { obrigatorio: true } : {}) }]], // M-411 · "You may sacrifice an artifact or discard a card. If you do, draw N cards."
     [/^target creature you control deals damage equal to its power to (target creature you don't control|target creature or planeswalker you don't control)$/i, m => [{ do: 'mordedor', target: 'creature-you-control' }, { do: 'morde', target: /planeswalker/i.test(m[1]) ? { tipos: ['creature', 'planeswalker'], de: 'opponent' } : { tipos: ['creature'], de: 'opponent' } }]], // M-407 · Rabid Bite, Ram Through, Bite Down, Tail Slash
@@ -18256,6 +18263,7 @@ const __m42 = (function () {
     [/^whenever another creature dies$/i, { evento: 'zona', de: 'battlefield', para: 'graveyard', objeto: 'outra', quem: 'qualquer' }, () => ({ filter: { types: ['creature'] } })], // M-418 · Hissing Iguanar (de qualquer jogador; 700.4)
     [/^whenever you cast an instant or sorcery spell$/i, 'other-cast', () => ({ filter: { anyTypes: ['instant', 'sorcery'] } })], // M-328
     [/^whenever you cast a noncreature spell$/i, 'other-cast', () => ({ filter: { noncreature: true } })],
+    [/^whenever you cast a multicolored spell$/i, 'other-cast', () => ({ filter: { multicolorida: true } })], // M-460 · 105.2b
     [/^whenever you cast an? (?:white|blue|black|red|green)(?:-(?:white|blue|black|red|green))+ spell$/i, 'other-cast', m => ({ filter: { anyColors: [...new Set(m[0].toLowerCase().match(/white|blue|black|red|green/g).map(c => ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[c]))] } })], // M-395 · God-Pharaoh's Faithful // M-328
     [/^[Ww]henever you cast an? ([A-Z][a-z]+) spell$/, 'other-cast', m => ({ filter: { subtype: m[1] } })], // LT11 · "whenever you cast an Elf spell"
     [/^[Ww]henever another ([A-Z][a-z]+) enters(?: the battlefield)?$/, 'other-etb', m => ({ anyController: true, filter: { types: ['creature'], subtype: m[1] } })], // LT10 · "another Elf enters" (de qualquer jogador)
@@ -18337,6 +18345,7 @@ const __m42 = (function () {
     if (/\.\s*Activate only as a sorcery$/i.test(corpo)) { corpo = corpo.replace(/\.\s*Activate only as a sorcery$/i, ''); extra.sorceryOnly = true; }
     { const su = corpo.match(/\.\s*Activate only during your upkeep$/i); if (su) { corpo = corpo.slice(0, su.index); extra.onlyInStep = ['upkeep']; extra.soNoSeuTurno = true; frases.push({ texto: 'Activate only during your upkeep', lida: true }); } } // M-457 · 602.5b (Llanowar Augur): a sua manutenção
     { const st = corpo.match(/\.\s*Activate only (during the end of combat step|during combat)$/i); if (st) { corpo = corpo.slice(0, st.index); extra.onlyInStep = /end of combat/i.test(st[1]) ? ['combat_end'] : ['combat_begin', 'combat_attackers', 'combat_blockers', 'combat_damage', 'combat_end']; frases.push({ texto: `Activate only ${st[1]}`, lida: true }); } } // M-377 · 602.5b (Desert)
+    if (/^return (?:~|this card) from your graveyard to your hand$/i.test(til(corpo, nome))) { frases.push({ texto: linha, lida: false, motivo: 'ativada do cemitério para a mão: ainda sem leitura' }); return null; } // M-460 · ativada do cemitério para a mão (Firewing Phoenix): ainda sem leitura — a frase nova do gatilho não vale aqui
     if (/^return ~ from your graveyard to the battlefield$/i.test(til(corpo, nome))) { cost.fromGraveyard = true; cost.devolveSelf = true; frases.push({ texto: m[1], lida: true }, { texto: corpo, lida: true }); return { kind: 'activated', cost, ...extra, effects: [{ do: 'reanimate', target: 'self-source' }] }; } // M-398 · Cauldron Familiar (113.6)
     const instante = /^Add (two|three|four|five) mana of any one color\.\s*Activate only as an instant$/i.test(corpo); if (instante) corpo = corpo.replace(/\.\s*Activate only as an instant$/i, ''); // M-342 · Lion's Eye Diamond: ativar exige prioridade, como toda ativação nesta mesa (602.5d não muda nada aqui)
     if (/\.\s*Activate only once each turn$/i.test(corpo)) { corpo = corpo.replace(/\.\s*Activate only once each turn$/i, ''); extra.oncePerTurn = true; } // M-334 · LT18 · 602.5b (Barrels of Blasting Jelly)
@@ -18386,7 +18395,9 @@ const __m42 = (function () {
     if (e && g[1] === 'dies') for (const x of e) if (x.do === 'to_hand' && x.target === 'self-source' && x.from === 'battlefield') delete x.from; // M-339 · "when ~ is put into a graveyard…, return ~ to its owner's hand": do cemitério
     const textoCond = condicao ? resto.slice(0, resto.length - resto2.length).replace(/,\s*$/, '') : ''; // M-373 · achado da revisão: a ficha mostra também a condição (603.4), não só o efeito
     frases.push({ texto: cab, lida: true }, ...(textoCond ? [{ texto: textoCond, lida: true }] : []), ...sub);
-    return e ? { kind: 'triggered', when: g[1], ...extra, ...(condicao ? { condition: condicao } : {}), ...(opcional ? { optional: true } : {}), effects: e } : null;
+    const doCemiterio = !!e && g[1] === 'other-cast' && e.length === 1 && e[0].do === 'to_hand' && e[0].target === 'self-source' && /from your graveyard to your hand$/i.test(corpo); // M-460 · 113.6k: "return this card from your graveyard" — o gatilho funciona do cemitério
+    if (e && !doCemiterio && e.some(x => x.do === 'to_hand' && x.target === 'self-source' && !x.from) && /from your graveyard/i.test(corpo)) { frases.push({ texto: corpo, lida: false, motivo: 'volta do cemitério fora de um gatilho do cemitério' }); return null; } // M-460
+    return e ? { kind: 'triggered', when: g[1], ...extra, ...(condicao ? { condition: condicao } : {}), ...(opcional ? { optional: true } : {}), ...(doCemiterio ? { fromGraveyard: true } : {}), effects: e } : null;
   }
   const semLembrete = t => String(t || '').replace(/\s*\([^)]*\)/g, '').trim();
   const KW = new Set(SC.KEYWORDS.map(k => k.toLowerCase()));
@@ -19507,7 +19518,7 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
   }
   o.tapped = false; o.damage = 0; o.counters = {}; o.controller = to === 'battlefield' && controller != null ? controller : o.owner; delete o.controles; delete o.controladorBase; // CR2d.6 · 400.7 · CR2b.5 · 603.3a: entra já sob quem a pôs no campo
   delete o.exilaSeMorrerNoTurno; // M-384 · 400.7
-  delete o.atacaComDefensorM; // M-458 · 400.7
+  delete o.atacaComDefensorM; delete o.naoBloqueiaM; // M-458 · M-460 · 400.7
   delete o.tempToxico; delete o.tempResguardoCor; delete o.tempSemAlvoDe; delete o.tempNaoBloqueadaPor; delete o.tempImbloqueavel; delete o.tempImbloqueavelExceto; delete o.tempHabilidades; delete o.permissaoUsada; if (fromZone !== to) delete o.desenterrada; // M-255/M-256/M-257 · 400.7
   delete o.attacking; delete o.atacandoPw; delete o.exigeAtacarPw; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.pumpNext; delete o.goaded; delete o.keywordsNext; delete o.cantAttackNext; delete o.targets; delete o.attachedTo; delete o.tempKeywords; delete o.tempTs; delete o.anexadaEm; delete o.anexadaZ; delete o.mutavel; delete o.vira; delete o.prevenirDano; delete o.regenerar; delete o.temporarios; delete o.tempProtection; delete o.paired; // S39 · o vínculo de alma se desfaz ao sair do campo
   if (fromZone !== 'stack') { delete o.chosenColor; delete o.chosenType; delete o.damagePrevented; delete o.preventGainTo; delete o.devolvidas; } // CR2a.9 · 400.7 / 608.2n: a marca da resolução fica onde a carta caiu; ao sair de lá, o objeto é novo
@@ -20720,7 +20731,7 @@ function eligibleBlockers(s, p) {
 const PALAVRA_PT_CORE = { haste: 'ímpeto', defender: 'defensor', flying: 'voar', reach: 'alcance' }; // M-370 · texto do motivo de bloqueio
 const TRAVESSIAS = [['islandwalk', 'Island'], ['swampwalk', 'Swamp'], ['forestwalk', 'Forest'], ['mountainwalk', 'Mountain'], ['plainswalk', 'Plains']];
 /** M-253 · "This creature can't block" (509.1a), impressa ou da ficha. */
-const naoBloqueia = (s, o) => (!o.faceDown && !semImpressas(s, o) && !!((((s.facts[o.name] || {}).script || {}).self || {}).naoBloqueia)) || anexoProibe(s, o, 'naoBloqueia') || naoBloqueiaK(s, o); // M-336 · Pacifism · K-62 · 702.98a (Toca ponto comum: naoBloqueia)
+const naoBloqueia = (s, o) => (o.naoBloqueiaM != null && o.naoBloqueiaM === s.turn.number) /* M-460 */ || (!o.faceDown && !semImpressas(s, o) && !!((((s.facts[o.name] || {}).script || {}).self || {}).naoBloqueia)) || anexoProibe(s, o, 'naoBloqueia') || naoBloqueiaK(s, o); // M-336 · Pacifism · K-62 · 702.98a (Toca ponto comum: naoBloqueia)
 /** M-336 · "Enchanted creature can't attack or block" / "Equipped creature can't block": o anexo proíbe (509.1b, 508.1c). */
 const anexoProibe = (s, o, k) => attachedTo(s, o).some(x => !semImpressas(s, x) && !!((concessaoVigenteT(s, x, ((s.facts[x.name] || {}).script || {}).grants) || {})[k])); // T-118 · seCriaturaT (Toca ponto comum)
 /** Por que `blocker` não pode bloquear `attacker` (texto para a mesa), ou null quando pode. */
@@ -21017,7 +21028,8 @@ function grantedAbilities(s, o) {
   }
   return out;
 }
-const abilitiesOf = (s, o) => {
+const abilitiesOf = (s, o) => { const l = abilitiesOfM460(s, o); return o && o.zone !== 'graveyard' && l.some(ab => ab && ab.kind === 'triggered' && ab.fromGraveyard) ? l.filter(ab => !(ab.kind === 'triggered' && ab.fromGraveyard)) : l; }; // M-460 · 113.6k: o gatilho que funciona do cemitério não existe fora dele
+const abilitiesOfM460 = (s, o) => {
   if (o && o.faceDown) return []; // S54 · virada para baixo não tem habilidade
   const mu = mutacao(s, o); if (mu && mu.perde) return grantedAbilities(s, o).filter(ab => (ab.grantedTs || 0) > mu.corte); // CR2d.1
   const sc = scriptOf(s, o);
@@ -21783,7 +21795,7 @@ function applyEffectM449(s, src, eff, tgt, events) {
     case 'to_hand': { // S44 · a própria carta pode voltar para a mão (Rancor)
       const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
       // Leva 107 · Rancor: "return Rancor to its owner's hand" só se ele ainda estiver no cemitério (400.7)
-      if (alvo && eff.target === 'self-source' && alvo.zone !== (eff.from || 'graveyard')) { note({ failed: true }); break; } // R11 · `from: 'battlefield'`: habilidade ativada no campo (Flickering Ward)
+      if (alvo && eff.target === 'self-source' && (alvo.zone !== (eff.from || 'graveyard') || (src.ability && src.fonteZc != null && (alvo.zc || 0) !== src.fonteZc))) { note({ failed: true }); break; } // M-460 · 400.7 // R11 · `from: 'battlefield'`: habilidade ativada no campo (Flickering Ward)
       moverObjeto(s, src, alvo, { para: 'hand' }, ctrl); // CR2-G R4a · atalho de mover
       note({}); break;
     }
@@ -22272,6 +22284,7 @@ function applyEffectM449(s, src, eff, tgt, events) {
       if (obj) { obj.damagePrevented = true; obj.preventGainTo = ctrl; note({}); }
       break;
     }
+    case 'nao_bloqueia_no_turno': { if (!obj || obj.zone !== 'battlefield') { note({ failed: true }); break; } obj.naoBloqueiaM = s.turn.number; note({}); break; } // M-460 · marca do turno; objeto novo não herda (400.7)
     case 'ataca_com_defensor': { // M-458 · 702.3b: neste turno, o defensor não a impede de atacar (marca do turno; objeto novo não herda, 400.7)
       const alvo = s.objects[src.ability ? src.source : src.oid]; if (!alvo || alvo.zone !== 'battlefield') { note({ failed: true }); break; }
       alvo.atacaComDefensorM = s.turn.number; note({ target: alvo.name }); break; }
@@ -23311,6 +23324,7 @@ function matchesTriggerFilter(s, o, filter) {
   if ((filter.types || []).some(x => !tipos.includes(x))) return false;
   if (filter.anyTypes && !filter.anyTypes.some(x => tipos.includes(x))) return false; // R11 · "creature or planeswalker" (Cruel Celebrant)
   if (filter.noncreature && tipos.includes('creature')) return false;
+  if (filter.multicolorida && colorsOf(s, o).length < 2) return false; // M-460 · 105.2b "multicolored spell"
   if (filter.anyColors && !filter.anyColors.some(c => colorsOf(s, o).includes(c))) return false; // M-395 · "a blue, black, or red spell" (God-Pharaoh's Faithful)
   if ((filter.historico != null || filter.foraDaLei != null || filter.modificada != null || filter.virada != null || filter.metamorfose != null) && !predicadosDeTipoT(s, o, filter, lki)) return false; // T-59 · CR 700.6 / 700.12 / 700.9: "whenever you cast a historic spell" · T-60 · 603.10a: quem saiu do campo, como era lá (Toca ponto comum: matchesTriggerFilter)
   if (filter.semManaGasta && (!s.manaCheck || ((o.manaGasta || {})[filter.semManaGasta === 'colorida' ? 'colorida' : 'total'] || 0) > 0)) return false; // M-346 · Vexing Bauble, Void Mirror (603.4)
@@ -23498,6 +23512,17 @@ function quemObserva(s, o, ctrl, lista, casa, saiu, conjurar = false) { // M-346
     }
   }
 }
+/** M-460 · 113.6k · "Whenever you cast a multicolored spell, you may return this card from your graveyard to your hand" (Aurora/Sandstorm Eidolon): a
+    habilidade marcada `fromGraveyard` funciona com a carta no cemitério do dono, que a controla (o "you" é o dono). Leva a encarnação (400.7). */
+const TEM_DO_CEM_M = new WeakMap();
+const partidaTemDoCemM = s => Object.values(s.facts).some(f => { if (!f || typeof f !== 'object') return false; if (!TEM_DO_CEM_M.has(f)) TEM_DO_CEM_M.set(f, JSON.stringify(f.script || {}).includes('"fromGraveyard":true')); return TEM_DO_CEM_M.get(f); });
+function observaDoCemiterioM(s, o, ctrl) {
+  if (!partidaTemDoCemM(s)) return;
+  for (const z of s.zones) for (const oid of (z && z.graveyard) || []) { const w = s.objects[oid]; if (!w || w.oid === o.oid || w.owner !== ctrl) continue;
+    for (const ab of (((s.facts[w.name] || {}).script || {}).abilities || [])) { const d = ab.kind === 'triggered' && ab.fromGraveyard && SC.gatilhoDoEvento(ab.when);
+      if (!d || d.evento !== 'conjurar' || d.objeto !== 'outra' || !matchesTriggerFilter(s, o, ab.filter)) continue;
+      s.queued.push({ source: w.oid, name: w.name, controller: w.owner, effects: ab.effects, when: ab.when, jogador: ctrl, fonteZcM: w.zc || 0, ...marcasDaHabilidade(ab) }); } }
+}
 /** CR2-G R2b · despachante dos eventos de objeto: para cada objeto, os gatilhos dele, depois os de quem observa. */
 function gatilhosDoObjeto(s, evento, objects, controller) {
   for (const o of objects) {
@@ -23510,6 +23535,7 @@ function gatilhosDoObjeto(s, evento, objects, controller) {
       s.queued.push({ source: o.oid, name: o.name, controller: ctrl, effects: ab.effects, when: ab.when, ...marcasDaHabilidade(ab) });
     }
     quemObserva(s, o, ctrl, battlefield(s), d => d.evento === evento, false, evento === 'conjurar');
+    if (evento === 'conjurar') observaDoCemiterioM(s, o, ctrl); // M-460
     if (evento === 'conjurar') crimeT(s, ctrl, o.targets); // T-86 · CR 700.13 · a mágica conjurada que mira o oponente (Toca ponto comum: gatilhosDoObjeto, uma linha)
   }
 }
@@ -23746,6 +23772,7 @@ function putTriggerOnStack(s, q, events) {
   if (q.guarda !== undefined) s.objects[oid].guarda = q.guarda; // M-353 · 607.2a
   if (q.marcasHabT) Object.assign(s.objects[oid], q.marcasHabT); else s.objects[oid].disparadaT = true; // T-110 · 707.10b: o que vem da fila de gatilhos é habilidade disparada (ciclar, desenterrar, ninjutsu vão à pilha por outro caminho) · T-109 · 707.10b: a cópia de habilidade leva X, cor, sacrificados e modo da original (Toca ponto comum: putTriggerOnStack)
   marcasDoGatilho(s, q, oid);
+  if (q.fonteZcM != null) s.objects[oid].fonteZc = q.fonteZcM; // M-460 · a encarnação da carta no cemitério (400.7)
   events.push({ kind: 'trigger', name: q.name, when: q.when, oid });
   if ((q.effects || []).some(e => e && e.dividido)) iniciaDivisao(s, oid, events); // M-378 · 603.3d / 601.2d: o gatilho que divide dano escolhe alvos e divisão ao ir para a pilha
   return true;
@@ -32587,6 +32614,7 @@ function effectLine(ev) {
     case 'combate_extra': return ev.failed ? `${ev.name}: fora da fase principal, sem combate adicional` : `${ev.name}: depois desta fase principal vem um combate adicional e outra fase principal`; // CR2g.4
     case 'desvira_atacantes': return `${ev.name} desvirou ${n} criatura(s) que atacaram neste turno`;
     case 'animate': return `${t} virou criatura até o fim do turno`; // CR2d.2
+    case 'nao_bloqueia_no_turno': return ev.failed ? `${ev.name}: a criatura não estava mais no campo` : `${ev.target} não pode bloquear neste turno`; // M-460
     case 'ataca_com_defensor': return ev.failed ? `${ev.name}: a criatura não estava mais no campo` : `${ev.target || ev.name} pode atacar neste turno mesmo com defensor`; // M-458
     case 'imbloqueavel': return ev.failed ? `${ev.name}: a criatura não estava mais no campo` : `${ev.target || ev.name} não pode ser bloqueada neste turno${ev.exceto ? ', exceto por criaturas com ' + ({ haste: 'ímpeto', defender: 'defensor', flying: 'voar' }[ev.exceto] || ev.exceto) : ''}`; // M-370 (achado da revisão: o registro só dizia "resolveu")
     case 'volta_ao_acaso': return ev.amount ? `${ev.name}: ${ev.target} voltou do cemitério para a mão (ao acaso)` : `${ev.name}: nenhuma carta para voltar`; // M-369
@@ -33806,6 +33834,7 @@ function descreveEfeito(e) {
     case 'protection': return `${alvo || 'a criatura'} ganha proteção contra uma cor`;
     case 'sem_alvo_de_oponentes': return `${alvo || 'a criatura'} não pode ser alvo de mágicas nem de habilidades dos oponentes de quem a conjurou neste turno`; // M-375
     case 'resistencia_cor': return `${alvo || 'a criatura'} ganha resistência a magia da cor escolhida até o fim do turno`; // M-255
+    case 'nao_bloqueia_no_turno': return `${alvo || 'a criatura'} não pode bloquear neste turno`; // M-460
     case 'ataca_com_defensor': return 'pode atacar neste turno mesmo com defensor'; // M-458
     case 'imbloqueavel': return `${alvo || 'a criatura'} não pode ser ${/^o /.test(alvo || '') ? 'bloqueado' : 'bloqueada'} neste turno${e.exceto ? ', exceto por criaturas com ' + (PALAVRA_PT[e.exceto] || e.exceto) : ''}`; // M-336 · M-370
     case 'imbloqueavel_cor': return `${alvo || 'a criatura'} não pode ser ${/^o /.test(alvo || '') ? 'bloqueado' : 'bloqueada'} por criaturas da cor escolhida neste turno`;

@@ -4720,6 +4720,14 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nenhum.
 - **Teste:** `lt141.unit` (3 testes; falham no motor anterior).
 
+**M-460 · LT126 · Aurora Eidolon e Sandstorm Eidolon: gatilho que funciona do cemitério ao conjurar** ✅ (leva M-460, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** os dois **Eidolons** (pedido da trilha `listas`; 3 listas do catálogo cada) jogam pelo leitor aprovado: no cemitério, quando você conjura uma mágica multicolorida, pode devolvê-los à mão (no campo o gatilho não existe; a multicolorida do oponente não conta); sacrificar o Aurora previne os próximos 3 de dano a um alvo; sacrificar o Sandstorm impede uma criatura de bloquear neste turno. Textos da Scryfall consultados em 17/10/2026.
+- **Primitivas:** gatilho "quando você conjura" com `fromGraveyard` (113.6k; a convenção que a compra e o crime já usavam), com a encarnação da carta (400.7); filtro `multicolorida` (105.2b); efeito `nao_bloqueia_no_turno` (509.1a, marca do turno); o leitor passa a ler "Prevent the next N damage that would be dealt to any target this turn" (escudo da R5b) e "Target creature can't block this turn". Um gatilho do cemitério com `fromGraveyard` deixa de existir fora do cemitério (antes, um da compra no campo podia disparar).
+- **Alcance:** 72 cartas do corpus passaram a ser lidas, sem aprovação. A ativada "{custo}: Return this card from your graveyard to your hand" (Firewing Phoenix e outras) fica sem leitura de propósito: não vale como habilidade do campo.
+- **Revisão independente:** aprovada com ressalva (85 sondas; 30 das 72 cartas novas do leitor jogadas sem erro). Achado médio (400.7): o gatilho opcional devolvia a encarnação nova da carta — corrigido na M-475.
+- **Fora (declarado):** **à `listas`:** o modo "prevent the next 3 damage" do Healing Salve agora tem frase no leitor; o script à mão continua só com o modo de vida.
+- **Teste:** `lt142.unit` (4 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
