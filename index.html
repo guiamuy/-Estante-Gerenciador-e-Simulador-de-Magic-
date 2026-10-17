@@ -9718,6 +9718,9 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Pentad Prism': { texto: 'vlxbo', leva: 'M-451' },
   // M-452 · revisão por lote C ("if it's not your turn, untap those creatures": Zealous Display), texto da Scryfall de 17/10/2026 UTC, revisor independente
   'Zealous Display': { texto: '1nlyjvn', leva: 'M-452' },
+  // M-453 · revisão por lote CI ("gets +N/+N and gains … until end of turn": Mighty Leap, Slayers' Stronghold), texto da Scryfall de 17/10/2026 UTC, revisor independente
+  'Mighty Leap': { texto: '1o40nuw', leva: 'M-453' },
+  'Slayers\' Stronghold': { texto: '1vdf09w', leva: 'M-453' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18045,6 +18048,11 @@ const __m42 = (function () {
     [/^return (?:this aura|~) to its owner's hand$/i, () => [{ do: 'to_hand', target: 'self-source', from: 'battlefield' }]],
     [new RegExp(`^target player loses ${N} life and you gain ${N} life$`, 'i'), m => [{ do: 'lose', amount: num(m[1]), target: 'player' }, { do: 'gain', amount: num(m[2]) }]],
     [/^return ~ to its owner's hand$/i, () => [{ do: 'to_hand', target: 'self-source', from: 'battlefield' }]], // M-339 · achado da revisão: numa ativada (Crystal Seer) a permanente volta do campo; no "dies" o gatilho tira o `from` (volta do cemitério, Rancor)
+    [/^(?:until end of turn, )?(target creature|target creature you control|target attacking creature|~) gets ([+-]\d+)\/([+-]\d+) and gains ([a-z ,]+?)(?: until end of turn)?$/i, m => { // M-453 · "Target creature gets +3/+3 and gains trample until end of turn" (611.2a: um efeito contínuo só, com P/T e palavras)
+      const ut = /^until end of turn, /i.test(m[0]), fim = / until end of turn$/i.test(m[0]); if (ut === fim) return null;
+      const ks = m[4].split(/,\s*(?:and\s+)?|\s+and\s+/).map(x => x.trim().toLowerCase()).filter(Boolean); if (!ks.length || ks.some(k => !KW.has(k))) return null;
+      const base = { do: 'continuo', poder: SINAL(m[2]), resistencia: SINAL(m[3]), palavras: ks };
+      if (m[1] === '~') return [{ ...base, target: 'self-source' }]; const a = alvo(m[1]); return a ? [{ ...base, ...a }] : null; }],
     [/^(target creature|target creature an opponent controls|target creature you control) gets ([+-]\d+)\/([+-]\d+) until end of turn$/i, m => [com({ do: 'pump', power: SINAL(m[2]), toughness: SINAL(m[3]) }, alvo(m[1]))]],
     [/^you gain that much life$/i, () => [{ do: 'gain', amount: { per: 'trigger-value' } }]],
     [/^untap (target [a-z ']+)$/i, m => [com({ do: 'untap' }, alvo(m[1]))]],

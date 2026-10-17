@@ -4672,6 +4672,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nenhum.
 - **Teste:** `lt134.unit` (3 testes; falham no motor anterior).
 
+**M-453 · LT119 · leitor: "Target creature gets +N/+N and gains <palavras> until end of turn"** ✅ (leva M-453, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** **Mighty Leap (16 listas do catálogo) e Slayers' Stronghold (7 listas) passam a jogar** pelo leitor aprovado. A frase "+N/+N e ganha <palavras-chave> até o fim do turno" vira um efeito contínuo só (611.2a) — também com "Until end of turn, …" na frente, com alvo atacante e na própria fonte (~). Textos da Scryfall consultados em 17/10/2026.
+- **Alcance:** 156 cartas do corpus passaram a ser lidas (nenhuma deixou de ser lida; nenhum script mudou); só as duas acima estão aprovadas — as outras esperam revisão por lote. A Wild Ride (15 listas) já joga pelo script à mão.
+- **Revisão independente:** aprovada (as 156 leituras novas conferidas contra o texto, uma a uma; Mighty Leap e Slayers' Stronghold em 8 verificações de motor). Observação para a próxima aprovação: Grim Draugr ficou completa no leitor, mas o motor trata {S} como genérico — não aprovar sem a mana de neve.
+- **Fora (declarado):** palavras-chave fora do vocabulário do motor deixam a frase sem leitura (não aproxima).
+- **Teste:** `lt136.unit` (3 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
