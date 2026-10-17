@@ -4472,6 +4472,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nada novo.
 - **Teste:** `lt104.unit` (3 testes; falham no motor anterior).
 
+**M-423 · LT89 · mana e vida por contagem: Rite of Flame, Songs of the Damned, Respite** ✅ (leva M-423, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** **Rite of Flame (63 listas do catálogo), Songs of the Damned e Respite passam a jogar** (APROVADAS; texto da Scryfall de 17/10/2026 UTC). Campo novo `porContagem` na mana ("Add {B} for each creature card in your graveyard"); contagens novas `mesmo-nome-nos-cemiterios` ("each card named ~ in each graveyard", de todos os jogadores; a própria, na pilha, não conta) e `attacking-creatures` ("each attacking creature", 506.4). A pilha explicada passa a dizer a mana ("adiciona {B}{B}", achado da revisão da M-409). Placar do Pauper (`main` + M-423 × catálogo de 17/10): **389 de 425 listas jogam** (as listas Pauper com elas ainda têm outra carta pendente).
+- **Revisão independente:** revisor independente do lote M-414, M-415, M-422 e M-423 (diferencial do leitor: só as cartas das levas passaram a ser lidas; 698 aprovadas íntegras; fuzz de 150 partidas e cerca de 99 mil ações e 16 partidas bot × bot sem ação recusada nem exceção): **aprovado** (34 verificações) — Rite of Flame com 0 a 5 cópias nos cemitérios; Songs com 0, 1 e 4 criaturas, sem o cemitério do oponente; Respite em combate real (atacantes de qualquer jogador; 0 fora do combate). O texto "para cada cartas de criatura" foi corrigido na M-428.
+- **Fora (declarado):** nada novo.
+- **Teste:** `lt105.unit` (4 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

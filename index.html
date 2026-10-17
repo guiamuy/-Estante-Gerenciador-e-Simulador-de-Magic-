@@ -6067,7 +6067,7 @@ function descreveGatilho(w, como = {}) { // M-401 · como.equipada: "a criatura 
 /** S11 · o que uma aura ou equipamento pode conceder. `per` conta permanentes
     e multiplica o bônus (Ancestral Mask, Ethereal Armor). */
 const ATTACH_KINDS = ['creature', 'permanent', 'land', 'creature-you-control', 'creature-or-planeswalker-you-control', 'creature-card-in-graveyard', 'player' /* T-94 · CR 303.4b · "Enchant player" (Maldições) (Toca ponto comum: ATTACH_KINDS) */]; // CR2d.4 · "Enchant creature card in a graveyard" // Q11 · Setessan Training
-const PER_COUNTS = ['enchantments-you-control', 'other-enchantments', 'auras-on-battlefield',
+const PER_COUNTS = ['mesmo-nome-nos-cemiterios', 'attacking-creatures' /* M-423 · Rite of Flame ("each card named ~ in each graveyard") e Respite ("each attacking creature") */, 'enchantments-you-control', 'other-enchantments', 'auras-on-battlefield',
   'creatures-you-control', 'other-creatures-you-control', 'elves-you-control', 'elves-on-battlefield', 'defenders-you-control', 'permanents-you-control', 'nonland-permanents-you-control', 'life-gained-this-turn', 'life-lost-this-turn',
   'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G', 'counters-on-source', 'opponents-empty-hand', 'trigger-value', 'chosen-type-permanents', 'sacrificed-toughness', 'sacrificed-mv', 'sacrificed-power', 'creature-cards-in-your-graveyard', 'cards-in-hand', 'x', 'power-of-source', 'se', 'power-of-target',
   'instants-sorceries-in-your-graveyard', 'flashback-cards-you-own-in-exile', 'soma', 'party', 'movidas', ...perCountsT()]; // M-386 · `movidas`: "for each card put into your graveyard this way" (o que o efeito anterior desta habilidade moveu) // T-59 · CR 700.8 · quantas criaturas há no seu grupo (0 a 4) // M-358 · Seize the Storm (604.3); `soma`: { per: 'soma', partes: [contagem, contagem, …] }
@@ -6358,6 +6358,7 @@ function effectErrors(effects, label, opcional) {
     if (e.do === 'discard_or_sacrifice_land_draw' && e.obrigatorio != null) errs.push(`${label} ${i + 1}: o descarte ou sacrifício obrigatório (sem "you may") não é coberto`); // M-411 · fica sem leitura, nunca opcional por engano
     if (e.do === 'discard_or_sacrifice_land_draw' && e.tipo != null && e.tipo !== 'artifact') errs.push(`${label} ${i + 1}: "tipo" do sacrifício é 'artifact' (sem tipo: terreno)`); // M-411
     if (e.excetoPrimeiro != null && !(e.excetoPrimeiro === true && e.cada && !isTargeted(e) && effects.slice(0, i).some(isTargeted))) errs.push(`${label} ${i + 1}: "excetoPrimeiro" só numa varredura (cada) sem alvo, depois de um efeito com alvo`); // M-422
+    if (e.porContagem != null && (e.do !== 'add_mana' || !PER_COUNTS.includes(e.porContagem))) errs.push(`${label} ${i + 1}: "porContagem" só na mana, com uma contagem conhecida`); // M-423
     if (e.mvAte != null && (e.do !== 'counter' || !(Number.isInteger(e.mvAte) ? e.mvAte >= 0 : (e.mvAte && e.mvAte.per === 'se' && e.mvAte.se === 'kicked' && Number.isInteger(e.mvAte.sim) && Number.isInteger(e.mvAte.nao))))) errs.push(`${label} ${i + 1}: "mvAte" só na anulação: inteiro, ou se reforçada`); // M-419
     if (e.do === 'descarta_e_compra' && e.descarta != null && !(Number.isInteger(e.descarta) && e.descarta >= 1)) errs.push(`${label} ${i + 1}: "descarta" é quantas cartas se descartam (inteiro, 1 ou mais)`); // M-373
     if (e.do === 'morde' && !(i > 0 && effects[i - 1] && effects[i - 1].do === 'mordedor')) errs.push(`${label} ${i + 1}: "morde" vem logo depois de "mordedor" (a criatura que causa o dano)`); // M-407
@@ -9575,6 +9576,10 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Nested Shambler': { texto: '1qmx71c', leva: 'M-421' },
   // M-422 · revisão por lote LXXVI (Moment of Glory: "also … on each other creature you control" se conjurada do cemitério), texto da Scryfall de 17/10/2026 UTC, revisor independente
   'Moment of Glory': { texto: 'c88ie7', leva: 'M-422' },
+  // M-423 · revisão por lote LXXVII (mana e vida por contagem: Rite of Flame, Songs of the Damned, Respite), texto da Scryfall de 17/10/2026 UTC, revisor independente
+  'Respite': { texto: 'ur0onp', leva: 'M-423' },
+  'Rite of Flame': { texto: '19i7ens', leva: 'M-423' },
+  'Songs of the Damned': { texto: '1xvmgxe', leva: 'M-423' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -17871,6 +17876,8 @@ const __m42 = (function () {
     [/^exile (target [a-z ']+)$/i, m => [com({ do: 'exile' }, alvo(m[1]))]],
     [/^counter (target [a-z ']+) unless its controller pays (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => [com({ do: 'counter', unless: { mana: m[2] } }, alvo(m[1]))]],
     [/^counter target spell with mana value (\d+)$/i, m => [{ do: 'counter', target: 'spell', targetMv: +m[1] }]], // LT13
+    [/^add \{([WUBRGC])\} for each (creature card in your graveyard|card named ~ in each graveyard)$/i, m => [{ do: 'add_mana', symbols: [m[1].toUpperCase()], porContagem: /named/i.test(m[2]) ? 'mesmo-nome-nos-cemiterios' : 'creature-cards-in-your-graveyard' }]], // M-423 · Songs of the Damned, Rite of Flame
+    [/^you gain 1 life for each attacking creature$/i, () => [{ do: 'gain', amount: { per: 'attacking-creatures' } }]], // M-423 · Respite (506.4)
     [/^counter target spell if its mana value is (\d+) or less$/i, m => [{ do: 'counter', target: 'spell', mvAte: +m[1] }]], // M-419 · Prohibit (mira qualquer mágica; confere na resolução)
     [/^counter (target [a-z ']+)$/i, m => [com({ do: 'counter' }, alvo(m[1]))]],
     [/^return (target [a-z ']+) to its owner's hand$/i, m => [com({ do: 'bounce' }, alvo(m[1]))]],
@@ -18902,6 +18909,8 @@ function countFor(s, src, per) {
     const rx = new RegExp('\\b' + per.subtype + '\\b', 'i');
     return battlefield(s).filter(o => o.controller === src.controller && !o.faceDown && (isChangeling(s, o, per.subtype) || rx.test(linhaDeTipo(s, o)))).length; // R9 · virada para baixo não tem tipo
   }
+  if (per === 'mesmo-nome-nos-cemiterios') return s.players.reduce((n, _, q) => n + s.zones[q].graveyard.filter(x => s.objects[x] && s.objects[x].name === src.name).length, 0); // M-423 · Rite of Flame: em cada cemitério (a própria, na pilha, não conta)
+  if (per === 'attacking-creatures') return ((s.combat && s.combat.attackers) || []).filter(oid => s.objects[oid] && s.objects[oid].zone === 'battlefield' && !s.objects[oid].phasedOut).length; // M-423 · Respite (506.4: as criaturas atacando agora)
   if (per === 'creature-cards-in-your-graveyard') return s.zones[src.controller].graveyard.filter(x => ((s.facts[s.objects[x].name] || {}).types || []).includes('creature')).length; // M-354 · Lotleth Giant
   if (per === 'instants-sorceries-in-your-graveyard') return s.zones[src.controller].graveyard.filter(x => ((s.facts[s.objects[x].name] || {}).types || []).some(t => t === 'instant' || t === 'sorcery')).length; // M-358 · Seize the Storm
   if (per === 'flashback-cards-you-own-in-exile') return s.zones[src.controller].exile.filter(x => { const o = s.objects[x], f = o && !o.token && !o.ability && !o.faceDown && o.owner === src.controller && s.facts[o.name]; return !!f && !!((f.script || {}).flashback || (f.kw || []).includes('flashback')); }).length; // M-358 · "cards with flashback you own in exile" (702.34: a palavra-chave impressa; virada para baixo não tem habilidade, 708.2 — achado da revisão)
@@ -21683,6 +21692,7 @@ function applyEffect(s, src, eff, tgt, events) {
       const restritas = coresPermitidas(s, ctrl, eff); // M13/M13b · identidade ou terrenos dos oponentes
       let syms = eff.symbols || (restritas ? (eff.color && restritas.includes(eff.color) ? [eff.color] : []) : eff.anyColor ? [eff.color || 'C'] : []);
       if (eff.perCounter) { const dono = src.ability ? s.objects[src.source] : src; const n = ((dono && dono.counters) || {})[eff.perCounter] || 0; syms = Array.from({ length: n }, () => syms).flat(); } // CR2c.1 · "for each charge counter"
+      if (eff.porContagem) { const n = countFor(s, src, eff.porContagem); syms = Array.from({ length: n }, () => syms).flat(); } // M-423 · "Add {B} for each creature card in your graveyard" (Songs of the Damned), Rite of Flame
       if (Number.isInteger(eff.vezes) && eff.vezes > 1) syms = syms.flatMap(c => Array(eff.vezes).fill(c)); // M-339 · "Add three mana of any one color" (Black Lotus, Lion's Eye Diamond)
       syms.forEach(c => { s.players[ctrl].pool[c] = (s.players[ctrl].pool[c] || 0) + 1; });
       note({ amount: syms.length }); break;
@@ -33224,7 +33234,7 @@ function descreveEfeito(e) {
     case 'moeda': return `jogue uma moeda${e.ateperder ? ' até perder um lance' : ''}`; // T-65 · CR 705
     case 'energia': return `você ganha ${e.amount === 1 ? 'um marcador' : (e.amount || 1) + ' marcadores'} de energia`; // M-367
     case 'mana_combinada': return `adiciona ${e.amount === 1 ? 'uma mana' : (e.amount || 2) + ' manas'} das cores que você escolher (pode misturar)`; // M-357 · 106.1a
-    case 'add_mana': return e.identity ? 'adiciona mana de uma cor da identidade do seu comandante' : e.opponentLands ? 'adiciona mana de uma cor que um terreno de um oponente poderia produzir' : e.anyColor ? 'adiciona mana de qualquer cor' : 'adiciona mana';
+    case 'add_mana': if (e.symbols && !e.identity && !e.opponentLands) return `adiciona ${e.symbols.map(c => `{${c}}`).join('')}${e.porContagem ? ` para cada ${X_PT[e.porContagem] || 'um'}` : ''}`; /* M-423 · a mana dita (achado da revisão da M-409: "adiciona mana") */ return e.identity ? 'adiciona mana de uma cor da identidade do seu comandante' : e.opponentLands ? 'adiciona mana de uma cor que um terreno de um oponente poderia produzir' : e.anyColor ? 'adiciona mana de qualquer cor' : 'adiciona mana';
     case 'search': return `procura ${plural(n, 'carta', 'cartas')} no grimório${e.reparte ? ' (a primeira entra virada, a segunda vai para a mão)' : ''}${e.desviraSeTerrenos ? ` (desvira a terra achada se você tiver ${e.desviraSeTerrenos} terrenos ou mais)` : ''}`; // M-343
     case 'scry': return `vidência ${n}: olha ${plural(n, 'carta', 'cartas')} de cima e decide o que fica no topo`;
     case 'surveil': return `vigia ${n}`;
@@ -33388,7 +33398,7 @@ function descreveEfeito(e) {
 }
 // Leva 131 · a condição do efeito entra na frase (Moon-Circuit Hacker: o aviso dizia "descarta 1 carta" no turno em que ela entrou, quando não descarta)
 const CONDICAO_PT = { kicked: 'se tiver sido reforçada', bargained: 'se tiver sido barganhada', 'paid-additional': 'se o custo adicional foi pago', metalcraft: 'com metalurgia', 'cast-from-graveyard': 'se foi conjurada do cemitério', 'source-entered-earlier': 'só se ela não entrou neste turno', 'not-attacked': 'só se você não atacou neste turno', evidenced: 'se colheu provas', 'not-evidenced': 'se não colheu provas', ferocious: 'se você controlar uma criatura com poder 4 ou mais', threshold: 'com limiar (sete cartas ou mais no seu cemitério)' /* M-412 */, morbid: 'se uma criatura morreu neste turno' /* M-416 */, 'sem-limiar': 'sem limiar' /* M-417 */, 'alvo-era-neve': 'se o terreno era nevado', 'alvo-era-lendario': 'se a mágica era lendária' /* M-414 */, 'alvo-era-seu': 'se a permanente era sua' }; // M-385 // M-351 · Extract a Confession (achado da revisão do lote XXIII: as duas frases pareciam dois sacrifícios)
-const X_PT = { movidas: 'o número de cartas postas no cemitério assim', 'instants-sorceries-in-your-graveyard': 'mágicas instantâneas e feitiços no seu cemitério', 'flashback-cards-you-own-in-exile': 'cartas com lampejo do passado suas no exílio', /* M-358 */ 'cards-in-hand': 'cartas na sua mão', 'creature-cards-in-your-graveyard': 'cartas de criatura no seu cemitério', 'sacrificed-power': 'o poder da criatura sacrificada', 'sacrificed-toughness': 'a resistência da criatura sacrificada', 'sacrificed-mv': 'o valor de mana do que foi sacrificado' }; // M-354 · o que o X conta (achado da revisão do lote XXVI)
+const X_PT = { 'mesmo-nome-nos-cemiterios': 'carta com o mesmo nome em cada cemitério', 'attacking-creatures': 'criatura atacando', /* M-423 */ movidas: 'o número de cartas postas no cemitério assim', 'instants-sorceries-in-your-graveyard': 'mágicas instantâneas e feitiços no seu cemitério', 'flashback-cards-you-own-in-exile': 'cartas com lampejo do passado suas no exílio', /* M-358 */ 'cards-in-hand': 'cartas na sua mão', 'creature-cards-in-your-graveyard': 'cartas de criatura no seu cemitério', 'sacrificed-power': 'o poder da criatura sacrificada', 'sacrificed-toughness': 'a resistência da criatura sacrificada', 'sacrificed-mv': 'o valor de mana do que foi sacrificado' }; // M-354 · o que o X conta (achado da revisão do lote XXVI)
 Object.assign(X_PT, { 'moedas-ganhas': 'os lances ganhos', 'resultado-do-dado': 'o resultado do dado' }); // T-65 · T-66
 const faixaPT_T = (e, f) => jogadorEncantadoPT_T(e, faixaDoDadoPT_T(e, f)); // T-94 · "that player" das Maldições
 const jogadorEncantadoPT_T = (e, f) => !f || !e || e.target !== 'enchanted-player' || /encantad/.test(f) ? f : `${f} (o jogador encantado)`;
