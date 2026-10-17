@@ -6833,7 +6833,7 @@ const RAW_SCRIPTS = [
     example: { action: 'aura', target: 'own-creature', expect: { stats: [4, 4] } } },
   // T-113 · CR 303.4 / 611.3a / 702.141 (Scryfall, consulta de 17/10/2026; texto literal do Forge de 12/10/2026)
   { name: 'Careful Cultivation', aura: { enchant: 'artifact-or-creature' }, grants: { seCriaturaT: true, power: 1, toughness: 3, keywords: ['reach'], produces: [['G', 'G']] }, // "Enchant artifact or creature · As long as enchanted permanent is a creature, it gets +1/+3 and has reach and '{T}: Add {G}{G}.'"
-    abilities: [{ kind: 'activated', cost: { mana: '{1}{G}', discardSelf: true, fromHand: true }, label: 'Canal', effects: [{ do: 'token', amount: 1, token: { name: 'Human Monk', types: ['creature'], subtypes: ['Human', 'Monk'], power: 1, toughness: 1, colors: ['G'], abilities: [{ kind: 'activated', cost: { tap: true }, effects: [{ do: 'add_mana', symbols: ['G'] }] }] } }] }], // "Channel — {1}{G}, Discard Careful Cultivation: Create a 1/1 green Human Monk creature token with '{T}: Add {G}.'"
+    abilities: [{ kind: 'activated', cost: { mana: '{1}{G}', discardSelf: true, fromHand: true }, label: 'Canal', effects: [{ do: 'token', amount: 1, token: { name: 'Human Monk', types: ['creature'], subtypes: ['Human', 'Monk'], power: 1, toughness: 1, colors: ['G'], produces: [['G']] } }] }], // "Channel — {1}{G}, Discard Careful Cultivation: Create a 1/1 green Human Monk creature token with '{T}: Add {G}.'"
     example: { action: 'aura', target: 'own-creature', expect: { stats: [3, 5] } } },
   // T-112 · CR 303.4 · Auras com gatilho de manutenção (Oracle pelo mtg.wtf, consulta de 17/10/2026)
   { name: 'Curse of the Pierced Heart', aura: { enchant: 'player' }, abilities: [{ kind: 'triggered', when: 'enchanted-player-upkeep', effects: [{ do: 'dano_jogador_ou_pw', amount: 1, target: 'enchanted-player' }] }], // "Enchant player · At the beginning of enchanted player's upkeep, this Aura deals 1 damage to that player or a planeswalker that player controls."
@@ -20456,7 +20456,7 @@ function desvira(s, o) {
 /** CR2g.6 · 502.3: a permanente não desvira no passo de desvirar do controlador — por estática própria, por Aura ("enchanted creature doesn't
     untap…") ou por efeito "no próximo passo de desvirar" (consumido nesse passo, desvirasse ou não). */
 const naoDesviraNoPasso = (s, o) => !!o.naoDesviraProximo || (!semImpressas(s, o) && !!((((s.facts[o.name] || {}).script || {}).self || {}).naoDesvira))
-  || attachedTo(s, o).some(x => !semImpressas(s, x) && !!((((s.facts[x.name] || {}).script || {}).grants || {}).naoDesvira))
+  || attachedTo(s, o).some(x => !semImpressas(s, x) && !!((concessaoVigenteT(s, x, ((s.facts[x.name] || {}).script || {}).grants) || {}).naoDesvira)) /* T-118 · seCriaturaT (Toca ponto comum) */
   || naoDesviraPeloMonarcaT(s, o); // T-70 · CR 725.5 · "doesn't untap … unless that player is the monarch" (Toca ponto comum: naoDesviraNoPasso)
 function enterStep(s, step) {
   if (s.pulosT) { const prox = passoPuladoT(s, step); if (prox && (s.emPassoExtraT === step || (s.passosExtrasT || []).some(x => x.depois === step && x.turno === s.turn.number))) { s.turn.step = step; return advanceStep(s); } /* T-103 · o passo a mais pulado segue a fila dos passos a mais */ if (prox) return enterStep(s, prox); } // T-99 · CR 614.10 / 500.11 · pular o passo ou a fase (Toca ponto comum: enterStep)
@@ -20610,7 +20610,7 @@ const TRAVESSIAS = [['islandwalk', 'Island'], ['swampwalk', 'Swamp'], ['forestwa
 /** M-253 · "This creature can't block" (509.1a), impressa ou da ficha. */
 const naoBloqueia = (s, o) => (!o.faceDown && !semImpressas(s, o) && !!((((s.facts[o.name] || {}).script || {}).self || {}).naoBloqueia)) || anexoProibe(s, o, 'naoBloqueia') || naoBloqueiaK(s, o); // M-336 · Pacifism · K-62 · 702.98a (Toca ponto comum: naoBloqueia)
 /** M-336 · "Enchanted creature can't attack or block" / "Equipped creature can't block": o anexo proíbe (509.1b, 508.1c). */
-const anexoProibe = (s, o, k) => attachedTo(s, o).some(x => !semImpressas(s, x) && !!((((s.facts[x.name] || {}).script || {}).grants || {})[k]));
+const anexoProibe = (s, o, k) => attachedTo(s, o).some(x => !semImpressas(s, x) && !!((concessaoVigenteT(s, x, ((s.facts[x.name] || {}).script || {}).grants) || {})[k])); // T-118 · seCriaturaT (Toca ponto comum)
 /** Por que `blocker` não pode bloquear `attacker` (texto para a mesa), ou null quando pode. */
 function porQueNaoBloqueia(s, blocker, attacker) {
   const b = s.objects[blocker], a = s.objects[attacker];
@@ -20894,8 +20894,8 @@ function grantedAbilities(s, o) {
   const out = [];
   for (const aura of battlefield(s)) {
     if (aura.attachedTo !== o.oid) continue;
-    for (const ab of ((s.facts[aura.name].script || {}).grants || {}).activated || []) out.push({ ...ab, kind: 'activated', grantedBy: aura.name, grantedTs: aura.anexadaEm || 0 });
-    for (const ab of ((s.facts[aura.name].script || {}).grants || {}).triggered || []) out.push({ ...ab, kind: 'triggered', grantedBy: aura.name, grantedTs: aura.anexadaEm || 0 }); // M-251 · "Enchanted creature has 'Whenever this creature …'" (613.1f)
+    for (const ab of (concessaoVigenteT(s, aura, (s.facts[aura.name].script || {}).grants) || {}).activated || []) out.push /* T-118 · seCriaturaT (Toca ponto comum: grantedAbilities) */({ ...ab, kind: 'activated', grantedBy: aura.name, grantedTs: aura.anexadaEm || 0 });
+    for (const ab of (concessaoVigenteT(s, aura, (s.facts[aura.name].script || {}).grants) || {}).triggered || []) out.push({ ...ab, kind: 'triggered', grantedBy: aura.name, grantedTs: aura.anexadaEm || 0 }); // M-251 · "Enchanted creature has 'Whenever this creature …'" (613.1f)
   }
   for (const h of o.tempHabilidades || []) out.push({ ...h.ab, grantedBy: h.de, grantedTs: h.ts || 0 }); // M-260 · reforço: habilidades ganhas até o fim do turno
   const par = soulbondPartner(s, o);
@@ -23041,6 +23041,7 @@ function createToken(s, def, controller, events) {
     s.facts[name] = cardFacts({ name, type_line: linha, power: def.power, toughness: def.toughness, keywords: def.keywords || [], colors: def.colors || [], oracle_text: '' });
     if (def.abilities) s.facts[name].script = { name, effects: [], abilities: def.abilities };
     if (def.self) s.facts[name].script = { name, effects: [], abilities: def.abilities || [], ...(s.facts[name].script || {}), self: def.self }; // M-253 · tóxico, não bloqueia
+    if (def.produces) s.facts[name].script = { name, effects: [], abilities: def.abilities || [], ...(s.facts[name].script || {}), produces: def.produces }; // T-118 · 605.1a: "{T}: Add {G}" da ficha é habilidade de mana (pagamento automático) (Toca ponto comum: createToken)
   } else if (def.abilities && !((s.facts[name].script || {}).abilities || []).length) {
     // Leva 111 · a mesa traz a carta da ficha (imagem e texto da Scryfall) e os fatos já existiam sem script:
     // a ficha nascia sem habilidade (Blood sem "comprar", Clue, Food, Map, Treasure). A habilidade vem da definição.
@@ -23534,6 +23535,7 @@ function marcasDoGatilho(s, q, oid) {
   if (q.objeto) s.objects[oid].objetoAtrasado = q.objeto; // CR2b.2 · "ela", com a encarnação mirada
   if (q.jogador != null) s.objects[oid].jogadorAtrasado = q.jogador; // CR2b.1 · o "jogador daquela mágica" do gatilho atrasado
   if (q.host) s.objects[oid].hostOid = q.host; // Leva 108 · a criatura encantada no momento do disparo
+  else { const h = hospedeiraDaFonteT(s, s.objects[q.source]); if (h) { s.objects[oid].hostOid = h.oid; s.objects[oid].hostZc = h.zc || 0; } } // T-118 · 608.2h / 113.7a: "a criatura encantada" de qualquer gatilho de Aura ou Equipamento é a do disparo, mesmo que a fonte saia (Toca ponto comum: putTriggerOnStack)
   if (q.hostZc != null) s.objects[oid].hostZc = q.hostZc; if (q.defensor != null) s.objects[oid].defensor = q.defensor; // M-401 · 400.7 e 508.5
   chargeWard(s, q.controller, oid, s.objects[oid].targets); // Leva 107 · proteção (ward) vale contra gatilho também
   disparaAlvejado(s, oid, s.objects[oid].targets); // CR2b.9 · o gatilho com alvo também faz a permanente "se tornar alvo"
@@ -25826,7 +25828,7 @@ function resolveAbility(s, o, events) {
     const fonte = viva && r && (viva.zc || 0) !== r.zc ? (({ zc, ...m }) => ({ ...viva, kicked: undefined, bargained: undefined, evidenced: undefined, faceDown: undefined, ...m }))(r) : viva;
     // "atacou com três ou mais" é informação do combate que já passou: vale o que foi visto no disparo
     const { attackersAtLeast, atacaSozinha, entrouDesvirada, monarca, ...resto } = o.condicao; // M-252 · "ataca sozinha" também é do disparo · M-349 · "entra desvirada" idem · T-64 · o monarca é do controlador da habilidade (abaixo)
-    if ((fonte && !triggerConditionMet(s, fonte, resto)) || (monarca && !monarcaCondT(s, o.controller, monarca))) { events.push({ kind: 'trigger-fizzled', name: o.name, when: 'condição' }); return; } // T-64 · CR 603.4 / 109.5: o "você" é quem controla a habilidade (Toca ponto comum: resolveAbility)
+    if ((fonte && !triggerConditionMet(s, o.hostOid && fonte ? { ...fonte, hostT: { oid: o.hostOid, z: o.hostZc } } : fonte, resto)) /* T-118 · 603.4 com a encantada do disparo (Toca ponto comum: resolveAbility) */ || (monarca && !monarcaCondT(s, o.controller, monarca))) { events.push({ kind: 'trigger-fizzled', name: o.name, when: 'condição' }); return; } // T-64 · CR 603.4 / 109.5: o "você" é quem controla a habilidade (Toca ponto comum: resolveAbility)
     o.condicaoConferida = true;
   }
   // R9 · 608.2b: com todos os alvos ilegais a habilidade sai da pilha antes de qualquer pergunta ou pagamento
@@ -28307,7 +28309,14 @@ function danoJogadorOuPwT(s, src, eff, p, ctrl, events) {
    `grants.seCriaturaT: true` ("As long as enchanted permanent is a creature, it gets … and has …"): a concessão inteira (P/R, palavras,
    produção de mana, ativadas) só vale enquanto a permanente encantada for criatura; é conferida a cada leitura (efeito estático, 611.3a). */
 /** T-114 · CR 603.4 / 702.73a · a criatura encantada agora tem um dos subtipos (o metamorfo tem todos os tipos de criatura). */
-function encantadaTemSubtipoT(s, aura, subs) { const alvo = aura && aura.zone === 'battlefield' ? (aura.attachedTo || (s.anexandoT && s.anexandoT.oid === aura.oid ? s.anexandoT.alvo : null)) : null, h = alvo ? s.objects[alvo] : null; return !!(h && h.zone === 'battlefield' && subs.some(x => isChangeling(s, h, x) || new RegExp('\\b' + x + '\\b').test(linhaDeTipo(s, h)))); } // entrando: o gatilho de entrada dispara dentro do moveObject, antes do anexar do motor (s.anexandoT)
+function encantadaTemSubtipoT(s, aura, subs) {
+  if (!aura) return false; const serve = h => !!(h && h.zone === 'battlefield' && subs.some(x => isChangeling(s, h, x) || new RegExp('\\b' + x + '\\b').test(linhaDeTipo(s, h))));
+  if (aura.hostT) { const h = s.objects[aura.hostT.oid]; return !!h && (h.zc || 0) === (aura.hostT.z || 0) && serve(h); } // T-118 · na resolução: a encantada do disparo (608.2h)
+  if (aura.zone !== 'battlefield') return false;
+  const alvo = aura.attachedTo || (s.anexandoT && s.anexandoT.oid === aura.oid ? s.anexandoT.alvo : null); // entrando: o gatilho de entrada dispara dentro do moveObject, antes do anexar do motor (s.anexandoT)
+  if (!alvo) return true; // T-118 · Aura que entra sem ser conjurada e ainda vai escolher a quem se anexar (303.4f): a condição decide na resolução (603.4)
+  return serve(s.objects[alvo]);
+}
 /* ---------------- T-115 · CR 122.1 / 603.10a · "put its counters on target creature you control" ----------------
    Os marcadores da fonte como ela estava ao sair do campo (a foto `ultima`, 603.10a): o mesmo número de cada tipo vai para o alvo, pelo
    caminho comum do efeito `counters` (dobradores, 614.16; +1/+1 e −1/−1 se anulam depois, 704.5q). A fonte não perde nada (não é mover).
@@ -28328,6 +28337,8 @@ function revelaAteMaoT(s, p, eff) {
   if (achada) { s.zones[p].library.includes(achada) && s.zones[p].library.splice(s.zones[p].library.indexOf(achada), 1); s.zones[p].hand.push(achada); s.objects[achada].zone = 'hand'; }
   return { reveladas: nomes, achada: achada ? s.objects[achada].name : null };
 }
+/** T-118 · a criatura a que a fonte (Aura ou Equipamento) está anexada agora; se a fonte já saiu do campo, a da última informação (anexadaA). */
+function hospedeiraDaFonteT(s, f) { if (!f || f.ability) return null; const oid = f.zone === 'battlefield' ? f.attachedTo : f.ultima && f.ultima.anexadaA; const h = oid ? s.objects[oid] : null; return h && h.zone === 'battlefield' ? h : null; }
 let conferindoConcessaoT = false; // o tipo da encantada (camada 4) não depende desta concessão (ela não muda tipo): na volta do cálculo, ela fica de fora
 function concessaoVigenteT(s, aura, g) {
   if (!g || !g.seCriaturaT) return g; if (conferindoConcessaoT) return null;
@@ -28428,7 +28439,7 @@ const moedaCondT = (o, k) => { const m = o && o.moedaT; if (!m) return false; re
  * its controller's untap step unless that player is the monarch"). A evasão de Azure Fleet Admiral ("can't be blocked by creatures the monarch
  * controls") é da M-391 (trilha motor, `'not-monarch'`). */
 const naoAtacaPeloMonarcaT = (s, o) => !semImpressas(s, o) && !!((((s.facts[o.name] || {}).script || {}).self || {}).atacaSeMonarcaDefende) && !(s.monarca != null && s.monarca !== o.controller);
-const naoDesviraPeloMonarcaT = (s, o) => s.monarca !== o.controller && attachedTo(s, o).some(x => !semImpressas(s, x) && !!((((s.facts[x.name] || {}).script || {}).grants || {}).naoDesviraSalvoMonarca));
+const naoDesviraPeloMonarcaT = (s, o) => s.monarca !== o.controller && attachedTo(s, o).some(x => !semImpressas(s, x) && !!((concessaoVigenteT(s, x, ((s.facts[x.name] || {}).script || {}).grants) || {}).naoDesviraSalvoMonarca));
 /** T-62 · CR 725.5 · "if you're the monarch" ('voce') / "if an opponent is the monarch" ('oponente'), visto do jogador `p` agora.
  * Sem monarca no jogo, nenhuma das duas vale (o efeito não faz nada até alguém se tornar o monarca). */
 function doQueResolveT(k) { return k === 'monarca' || k === 'oponente-monarca' || k === 'dado-duplos' || MOEDA_COND_T.includes(k); } // T-64 · as condições de efeito vistas do objeto que resolve (monarca: o controlador da habilidade; T-65 · moeda: o lance que ele jogou), em onlyIf e per: 'se'

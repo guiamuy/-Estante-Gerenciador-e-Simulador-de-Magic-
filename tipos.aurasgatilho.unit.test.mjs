@@ -15,8 +15,11 @@ for (const c of L('oficiais-tipos.json').filter(x => [SG, HH].includes(x.name)))
 C.Swamp = { name: 'Swamp', type_line: 'Basic Land — Swamp', mana_cost: '', cmc: 0, keywords: [], oracle_text: '({T}: Add {B}.)', colors: [] };
 const carta = (name, type_line, extra = {}) => { C[name] = { name, type_line, mana_cost: '{1}', cmc: 1, keywords: [], oracle_text: '', colors: [], ...extra }; };
 carta('Urso', 'Creature — Bear', { power: '2', toughness: '2' }); carta('Lobo', 'Creature — Wolf', { power: '2', toughness: '2' });
-carta('Metamorfo', 'Creature — Shapeshifter', { power: '1', toughness: '1', keywords: ['Changeling'] }); carta('Choque', 'Instant');
-const SCRIPTS = { 'Choque': { name: 'Choque', effects: [{ do: 'damage', amount: 2, target: 'creature' }], example: { target: 'opponent', expect: { selfLife: 0 } } } };
+carta('Metamorfo', 'Creature — Shapeshifter', { power: '1', toughness: '1', keywords: ['Changeling'] }); carta('Choque', 'Instant'); carta('Desanima', 'Instant'); carta('Retorno', 'Sorcery');
+const SCRIPTS = {
+  'Desanima': { name: 'Desanima', effects: [{ do: 'destroy', target: 'enchantment' }], example: { target: 'none', expect: { selfLife: 0 } } },
+  'Retorno': { name: 'Retorno', effects: [{ do: 'mover', target: { zona: 'graveyard', de: 'you' }, para: 'battlefield' }], example: { target: 'none', expect: { selfLife: 0 } } },
+  'Choque': { name: 'Choque', effects: [{ do: 'damage', amount: 2, target: 'creature' }], example: { target: 'opponent', expect: { selfLife: 0 } } } };
 function mesa(seed = 1) {
   const deck = [...Object.keys(C).filter(n => n !== 'Swamp').map(name => ({ name, qty: 3, zone: 'main' })), { name: 'Swamp', qty: 16, zone: 'main' }];
   let s = E.createGame({ format: 'livre', seed, mode: 'full', cards: C, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
@@ -64,4 +67,29 @@ test('CR 603.4 · Howl of the Hunt: condição conferida de novo ao resolver —
   const v = sc => SC.validateScript(sc);
   eq(v({ name: 'X', aura: { enchant: 'creature' }, abilities: [{ kind: 'triggered', when: 'etb', condition: { encantadaSubtipo: ['Wolf'] }, effects: [{ do: 'untap', target: 'enchanted' }] }], example: { action: 'aura', target: 'own-creature', expect: { stats: [2, 2] } } }).filter(e => /condi/.test(e)), []);
   assert.ok(v({ name: 'X', aura: { enchant: 'creature' }, abilities: [{ kind: 'triggered', when: 'etb', condition: { encantadaSubtipo: [] }, effects: [{ do: 'untap', target: 'enchanted' }] }] }).some(e => /encantadaSubtipo/.test(e)));
+});
+
+test('CR 608.2h / 113.7a · auditoria D3 (T-118): a Aura que sai com o gatilho na pilha — Howl ainda desvira o Lobo e Sadistic Glee ainda põe o marcador na criatura que ela encantava', () => {
+  let s = mesa(); let l, h; [s, l] = poe(s, 0, 'Lobo', 'battlefield', { tapped: true }); [s, h] = poe(s, 0, HH, 'hand'); s = mana(s);
+  s = act(s, legais(s, 0, x => x.t === 'cast' && x.oid === h && (x.targets || []).some(t => t.oid === l))[0]);
+  s = passaAte(s, x => !x.stack.includes(h) || !!x.pending); assert.ok(s.stack.length, 'o gatilho está na pilha');
+  let d; [s, d] = poe(s, 0, 'Desanima', 'hand'); s = mana(s); s = J(s); s.turn.priority = 0;
+  s = resolve(act(s, legais(s, 0, x => x.t === 'cast' && x.oid === d && (x.targets || []).some(t => t.oid === h))[0]));
+  eq([s.objects[h].zone, s.objects[l].tapped], ['graveyard', false]);
+  let g = mesa(); let u, v; [g, u] = poe(g, 0, 'Lobo'); [g, v] = poe(g, 1, 'Urso');
+  let sg; [g, sg] = conjuraEm(g, SG, u);
+  let c; [g, c] = poe(g, 0, 'Choque', 'hand'); g = mana(g); g = act(g, legais(g, 0, x => x.t === 'cast' && x.oid === c && (x.targets || []).some(t => t.oid === v))[0]);
+  g = passaAte(g, x => !x.stack.includes(c) || !!x.pending); assert.ok(g.stack.length, 'o gatilho do Glee está na pilha');
+  let d2; [g, d2] = poe(g, 0, 'Desanima', 'hand'); g = mana(g); g = J(g); g.turn.priority = 0;
+  g = resolve(act(g, legais(g, 0, x => x.t === 'cast' && x.oid === d2 && (x.targets || []).some(t => t.oid === sg))[0]));
+  eq([g.objects[sg].zone, m(g, u)], ['graveyard', 1]);
+});
+
+test('CR 303.4f / 603.4 · auditoria D2 (T-118): Howl of the Hunt que volta ao campo sem ser conjurada e escolhe o Lobo entre duas criaturas desvira o Lobo', () => {
+  let s = mesa(); let l, u, h; [s, l] = poe(s, 0, 'Lobo', 'battlefield', { tapped: true }); [s, u] = poe(s, 0, 'Urso'); [s, h] = poe(s, 0, HH, 'graveyard');
+  let r; [s, r] = poe(s, 0, 'Retorno', 'hand'); s = mana(s);
+  s = act(s, legais(s, 0, x => x.t === 'cast' && x.oid === r && (x.targets || []).some(t => t.oid === h))[0]); s = passaAte(s, x => !x.stack.length || !!x.pending);
+  assert.ok(s.pending && s.pending.kind === 'aura_anexo', 'a escolha de a quem se anexar');
+  s = resolve(act(s, legais(s, s.pending.p, x => x.t === 'aura_anexo' && x.oid === l)[0]));
+  eq([s.objects[h].attachedTo, s.objects[l].tapped], [l, false]);
 });
