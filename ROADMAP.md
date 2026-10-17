@@ -4823,6 +4823,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nenhum.
 - **Teste:** `lt157.unit` (6 testes; falham no motor anterior).
 
+**M-476 · LT142 · revisão por lote CXXI: nove cartas lidas que travam as listas iniciantes** ✅ (leva M-476, motor v112 sem mudança de forma; goldens intactos; nenhuma linha de código nova).
+- **Valor:** passam a jogar (APROVADAS): Torch Fiend, Goblin Glider, Blighted Gorge, Rot Shambler, Searing Touch (com recompra), Throttle, Pyrite Spellbomb (duas ativadas), Sylvan Might (com lampejo do passado), Wee Dragonauts. Textos da Scryfall consultados em 17/10/2026; leituras conferidas frase a frase no texto oficial.
+- **Revisão independente:** aprovada (revisão de M-476…M-484): leitura das 64 cartas conferida frase a frase; `--confere` com 890 aprovadas lidas por inteiro; cerca de 170 jogadas de sonda sem erro; fuzz com as cartas novas (2×40 partidas, palavras-chave do texto e da Scryfall) sem recusa nem exceção.
+- **Fora (declarado):** nenhum.
+- **Teste:** `lt158.unit` (6 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
