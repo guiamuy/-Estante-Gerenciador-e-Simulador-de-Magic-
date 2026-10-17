@@ -5574,6 +5574,7 @@ const EFFECTS = {
   lutador: { fields: [], targets: ['creature', 'creature-you-control'] },
   fight: { fields: [], targets: ['creature', 'creature-opponent-controls', 'creature-you-control'] }, // quem: 'self-source' (a permanente fonte luta) | 'primeiro-alvo' (luta a criatura anotada pelo `lutador` anterior)
   /* ↓ T · efeitos da trilha tipos */
+  volta_anexada_t: { fields: [], targets: [] }, // T-126 · "return this card from your graveyard to the battlefield attached to that creature" (Smoke Shroud): a fonte, ainda no cemitério na mesma encarnação, entra anexada à criatura lembrada pelo gatilho (303.4f); sem poder encantá-la, fica (303.4g)
   cada_criatura_paga_ou_sacrifica: { fields: [], targets: [] }, // T-121 · "For each creature, its controller sacrifices a permanent unless they pay {N}" (Fade Away; `mana`: o custo por criatura)
   paga_ou_sacrifica_escolha: { fields: [], targets: [] }, // T-121 · a escolha de cada jogador (gerado pelo motor)
   revela_ate_mao: { fields: [], targets: [] }, // T-117 · CR 701.20 · "Reveal cards from the top of your library until you reveal an instant or sorcery card. Put that card into your hand and the rest on the bottom of your library in a random order." (`match: 'instant-or-sorcery'`)
@@ -6245,7 +6246,7 @@ function validateScript(sc) {
   // S33 · afinidade e adaptar
   if (sc && sc.affinity && !FILTER_TYPES.includes(sc.affinity)) errs.push(`afinidade por "${sc.affinity}" desconhecida`);
   for (const ab of (sc && sc.abilities) || []) if (ab.adapt != null && !Number.isInteger(ab.adapt)) errs.push('adaptar precisa de um número inteiro');
-  for (const ab of (sc && sc.abilities) || []) if (ab.kind === 'triggered' && ab.fromGraveyard && !falaDe(gatilhoDoEvento(ab.when), 'compra') && ab.when !== 'crime') errs.push('gatilho do cemitério só vale para a terceira compra'); // T-86 · e o "crime" (Forsaken Miner)
+  for (const ab of (sc && sc.abilities) || []) if (ab.kind === 'triggered' && ab.fromGraveyard && !falaDe(gatilhoDoEvento(ab.when), 'compra') && ab.when !== 'crime' && ab.when !== 'other-etb' /* T-126 · Smoke Shroud (Toca ponto comum: validador do gatilho do cemitério) */) errs.push('gatilho do cemitério só vale para a terceira compra'); // T-86 · e o "crime" (Forsaken Miner)
   if (sc && sc.entersTapped != null && typeof sc.entersTapped !== 'boolean') errs.push('entersTapped precisa ser verdadeiro ou falso');
   if (sc && sc.ninjutsu && !sc.ninjutsu.mana) errs.push('ninjutsu sem custo');
   if (sc && sc.madness && !sc.madness.mana) errs.push('insanidade sem custo');
@@ -6816,6 +6817,9 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-126 · CR 603.6/113.6k (gatilho que funciona do cemitério), 303.4f/303.4g (Scryfall, consulta de 17/10/2026; sem rulings)
+  { name: 'Smoke Shroud', aura: { enchant: 'creature' }, grants: { power: 1, toughness: 1, keywords: ['flying'] }, abilities: [{ kind: 'triggered', when: 'other-etb', fromGraveyard: true, filter: { subtype: 'Ninja' }, optional: true, effects: [{ do: 'volta_anexada_t' }] }], // "Enchant creature · Enchanted creature gets +1/+1 and has flying. · When a Ninja you control enters, you may return this card from your graveyard to the battlefield attached to that creature."
+    example: { action: 'aura', target: 'own-creature', expect: { stats: [3, 3] } } },
   // T-123 · CR 508.1d / 702.138c (Scryfall, consulta de 17/10/2026, rulings de 24/01/2020)
   { name: 'Underworld Rage-Hound', self: { atacaSePuder: true } /* a primitiva da M-430 (508.1d); a T-123 tinha feito a mesma em paralelo e cedeu no rebase */, escape: { mana: '{3}{R}', exileGraveyard: 3, comMarcadoresT: { p1p1: 1 } }, // "Underworld Rage-Hound attacks each combat if able. · Escape—{3}{R}, Exile three other cards from your graveyard. · Underworld Rage-Hound escapes with a +1/+1 counter on it."
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
@@ -22614,6 +22618,7 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'lutador': if (obj) s.lutadorV = { fonte: src.oid, fz: encarnacaoV(s, src), oid: obj.oid, z: obj.zc || 0 }; break; // V-1/V-5 · anota quem luta; a luta é o `fight` seguinte, que apaga a anotação
     case 'fight': lutar(s, src, eff, tgt, events); break; // V-1 · 701.14
     /* ↓ T · casos de applyEffect da trilha tipos */
+    case 'volta_anexada_t': { const r = voltaAnexadaT(s, src, eff, ctrl, events); note(r); break; } // T-126 · 303.4f / 303.4g
     case 'cada_criatura_paga_ou_sacrifica': iniciaPagaOuSacrificaT(s, src, eff, events); break; // T-121 · 101.4 / 701.21
     case 'paga_ou_sacrifica_escolha': escolhaPagaOuSacrificaT(s, eff, events); break; // T-121
     case 'revela_ate_mao': { const r = revelaAteMaoT(s, ctrl, eff); note({ target: s.players[ctrl].name, amount: r.reveladas.length, nomes: r.reveladas, achada: r.achada }); break; } // T-117 · CR 701.20
@@ -23292,7 +23297,7 @@ function naSombra(s, rotulo, legado, novo) {
 }
 const disparaZona = (s, o, de, para, ctrlAntes, ultima) => { const n0 = s.queued.length; const r = (para === 'battlefield' && de !== 'battlefield' && evoluirK(s, o), naSombra(s, `${o.name}: ${de} → ${para}`, // K-11 · evoluir (Toca ponto comum: disparaZona)
   () => gatilhosDeZonaLegado(s, o, de, para, ctrlAntes, ultima), () => gatilhosDeZona(s, o, de, para, ctrlAntes, ultima)), gatilhosDoTurnoM(s, o, de, para));
-  fotoDosGatilhosT(s, o, de, n0); return r; }; // T-125 · 603.10a: os gatilhos da própria permanente que saiu levam os marcadores de quando saiu (Toca ponto comum: disparaZona)
+  fotoDosGatilhosT(s, o, de, n0); gatilhosDoCemiterioT(s, o, de, para); return r; }; // T-125 · 603.10a: os gatilhos da própria permanente que saiu levam os marcadores de quando saiu (Toca ponto comum: disparaZona)
 /** M-389 · 603.7c · os gatilhos criados por uma mágica para "este turno": disparam a cada evento até a limpeza; o objeto que entrou viaja como `objeto` (603.7c, com a encarnação). */
 function gatilhosDoTurnoM(s, o, de, para) {
   if (!(s.gatilhosDoTurno || []).length || para !== 'battlefield' || de === 'battlefield' || isAbility(o)) return;
@@ -23558,8 +23563,8 @@ function marcasDoGatilho(s, q, oid) {
   if (q.objetos) s.objects[oid].objetosAtrasados = q.objetos; // M-386 · "those cards"
   if (q.objeto) s.objects[oid].objetoAtrasado = q.objeto; // CR2b.2 · "ela", com a encarnação mirada
   if (q.jogador != null) s.objects[oid].jogadorAtrasado = q.jogador; // CR2b.1 · o "jogador daquela mágica" do gatilho atrasado
+  if (q.fotoT) s.objects[oid].fotoT = q.fotoT; // T-125 · 603.10a (Toca ponto comum: putTriggerOnStack) · T-126: acima do par if/else do host — a T-125 tinha entrado no meio dele e o gatilho com foto perdia a encantada do disparo
   if (q.host) s.objects[oid].hostOid = q.host; // Leva 108 · a criatura encantada no momento do disparo
-  if (q.fotoT) s.objects[oid].fotoT = q.fotoT; // T-125 · 603.10a (Toca ponto comum: putTriggerOnStack)
   else { const h = hospedeiraDaFonteT(s, s.objects[q.source]); if (h) { s.objects[oid].hostOid = h.oid; s.objects[oid].hostZc = h.zc || 0; } } // T-118 · 608.2h / 113.7a: "a criatura encantada" de qualquer gatilho de Aura ou Equipamento é a do disparo, mesmo que a fonte saia (Toca ponto comum: putTriggerOnStack)
   if (q.hostZc != null) s.objects[oid].hostZc = q.hostZc; if (q.defensor != null) s.objects[oid].defensor = q.defensor; // M-401 · 400.7 e 508.5
   chargeWard(s, q.controller, oid, s.objects[oid].targets); // Leva 107 · proteção (ward) vale contra gatilho também
@@ -28303,6 +28308,40 @@ function lutar(s, src, eff, tgt, events) {
 }
 Object.assign(EXPORTS_V, { lutar });
 /* ↓ T · exportações de core.js da trilha tipos */
+/* ---------------- T-126 · gatilho do cemitério em "a [subtipo] you control enters" e a volta anexada (Smoke Shroud) ----------------
+   - 113.6k / 603.6: a habilidade com `fromGraveyard: true` e `when: 'other-etb'` funciona do cemitério. Quem observa: as cartas do
+     cemitério de quem controla a permanente que entrou ("you control"); o `filter` é o do gatilho de outra permanente.
+   - Fica fora do modo sombra (o caminho antigo nunca olhou o cemitério para entradas): é chamado depois dele, no `disparaZona`.
+   - A volta (`volta_anexada_t`): a fonte precisa estar no cemitério na encarnação do disparo (400.7) e a criatura lembrada no campo,
+     na encarnação de quando entrou; a Aura entra anexada a ela (303.4f: o efeito diz o que ela encanta, não há escolha). Se a Aura
+     não puder encantá-la (proteção, "enchant" que não serve), fica no cemitério (303.4g). */
+function gatilhosDoCemiterioT(s, o, de, para) {
+  if (para !== 'battlefield' || de === 'battlefield' || !o || isAbility(o) || o.zone !== 'battlefield' || !s.facts[o.name]) return;
+  const p = o.controller;
+  for (const gid of s.zones[p].graveyard.slice()) {
+    const g = s.objects[gid]; if (!g || g.oid === o.oid || !s.facts[g.name]) continue;
+    for (const ab of abilitiesOf(s, g)) {
+      if (ab.kind !== 'triggered' || !ab.fromGraveyard || ab.when !== 'other-etb' || !matchesTriggerFilter(s, o, ab.filter)) continue;
+      if (!triggerConditionMet(s, g, ab.condition)) continue;
+      s.queued.push({ source: g.oid, name: g.name, controller: g.owner, effects: (ab.effects || []).map(e => e.do === 'volta_anexada_t' ? { ...e, zcT: g.zc || 0, alvoT: { oid: o.oid, z: o.zc || 0 } } : e) /* a fonte e "that creature" no próprio efeito: o "you may" (may_pay) leva só os efeitos */, when: 'other-etb', jogador: p, lembrada: { oid: o.oid, z: o.zc || 0 }, ...marcasDaHabilidade(ab) });
+    }
+  }
+}
+function voltaAnexadaT(s, src, eff, ctrl, events) {
+  const fonteOid = src.ability || src.source != null ? src.source : src.oid, a = s.objects[fonteOid], l = eff.alvoT || src.lembrada || {}, alvo = l.oid != null ? s.objects[l.oid] : null;
+  if (!a || a.zone !== 'graveyard' || (a.zc || 0) !== (eff.zcT || 0)) return { failed: true, motivo: 'a carta já não está no cemitério' };
+  if (!alvo || alvo.zone !== 'battlefield' || (alvo.zc || 0) !== (l.z || 0)) return { failed: true, motivo: 'a criatura já saiu do campo', target: alvo && alvo.name };
+  const au = ((s.facts[a.name] || {}).script || {}).aura;
+  if (!au || alvo.phasedOut || !auraPodeEncantar(s, au, alvo) || protecaoDerruba(s, alvo, { ...a, controller: ctrl })) return { failed: true, motivo: `não pode encantar ${alvo.name}`, target: alvo.name };
+  s.anexandoT = { oid: a.oid, alvo: alvo.oid }; // T-114 · a entrada já anexada (o gatilho de entrada que olha a encantada a vê)
+  try { moveObject(s, a.oid, 'battlefield', { controller: ctrl }); } finally { delete s.anexandoT; }
+  const b = s.objects[a.oid];
+  if (!b || b.zone !== 'battlefield') return { failed: true, motivo: 'não entrou', target: alvo.name };
+  delete b.escolheAnexoT; delete s.auraEntrandoT;
+  if (b.attachedTo !== alvo.oid) attachTo(s, b, alvo.oid, events);
+  return { target: alvo.name };
+}
+Object.assign(EXPORTS_T, { gatilhosDoCemiterioT });
 /* ---------------- T-36 · CR 702.160 / 718 · protótipo ----------------
    - 718.3: a ação de conjurar leva `prototipo: true`; a marca `o.prototipoT` é da conjuração (MARCAS_DA_CONJURACAO): vai da mão para a
      pilha e da pilha para o campo, e some em qualquer outra mudança de zona (718.4, 400.7).
@@ -33422,6 +33461,7 @@ const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas
 /* ↓ T · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha tipos */
 const EFEITO_PT_T = { caso_resolvido: () => 'este Caso fica resolvido', estacao: () => 'põe nesta permanente marcadores de carga iguais ao poder da criatura virada (ou à resistência, quando um efeito manda estacionar por ela)', selada: () => 'esta montaria fica selada até o fim do turno', virar_carta: e => (e.se && e.se.minCriaturas ? `se você controla ${e.se.minCriaturas} ou mais criaturas, vira esta carta` : 'vira esta carta'), porta: e => (e.acao === 'trancar' ? 'tranca uma porta destrancada de uma Sala sua' : e.acao === 'destrancar' ? 'destranca uma porta trancada de uma Sala sua' : 'tranca ou destranca uma porta de uma Sala sua'), nivel_sobe: () => 'põe um marcador de nível nela', nivel_classe: e => `a Classe sobe para o nível ${e.n}`, tripulada: () => 'vira criatura artefato até o fim do turno', transformar: () => 'transforma (vira a outra face)', preparar: () => 'esta criatura fica preparada', despreparar: () => 'esta criatura deixa de estar preparada' }; // T-51 · 722.3 // T-7 · 701.27
 Object.assign(EFEITO_PT_T, { dano_jogador_ou_pw: e => `causa ${e.amount} de dano ao jogador encantado ou a um planeswalker dele (você escolhe)`, dano_fixo_t: e => `causa ${e.amount} de dano` }); // T-112
+Object.assign(EFEITO_PT_T, { volta_anexada_t: () => 'esta carta volta do seu cemitério para o campo anexada à criatura que entrou' });  // T-126
 Object.assign(EFEITO_PT_T, { marcadores_da_fonte: () => 'põe na criatura alvo sua os marcadores que esta criatura tinha (o mesmo número de cada tipo)' }); // T-115
 Object.assign(EFEITO_PT_T, { revela_ate_mao: () => 'revela cartas do topo até uma instantânea ou feitiço, põe na mão e as outras no fundo em ordem aleatória' }); // T-117
 Object.assign(EFEITO_PT_T, { cada_criatura_paga_ou_sacrifica: e => `para cada criatura, quem a controla sacrifica uma permanente a menos que pague ${e.mana || '{1}'}`, paga_ou_sacrifica_escolha: () => 'paga ou sacrifica' }); // T-121
@@ -33431,6 +33471,7 @@ Object.assign(EFEITO_PT_T, { vira_para_baixo: () => 'vira a criatura alvo para b
 /** T-59 · CR 700.6 / 700.12 / 700.9 · os predicados de tipo na frase do seletor. */
 const predicadosPT_T = sel => (sel.tapped ? ' virada' : sel.tapped === false ? ' desvirada' : '') + (sel.ativadaNoTurno ? ' que teve habilidade ativada neste turno' : '') + /* T-87 */ (sel.terrenoBasico === false ? ' que não seja terreno básico' : sel.terrenoBasico ? ' que é terreno básico' : '') + /* T-80 */ (sel.historico ? ' histórica' : sel.historico === false ? ' que não é histórica' : '') + (sel.foraDaLei ? ' fora da lei' : sel.foraDaLei === false ? ' que não é fora da lei' : '') + /* T-60 */ (sel.modificada ? ' modificada' : sel.modificada === false ? ' que não está modificada' : '');
 const LINHA_T = { preparada: ev => (ev.failed ? `${ev.name}: ${ev.motivo || 'não ficou preparada'}, nada muda` : `${ev.name} está preparada (pode conjurar uma cópia de ${ev.target})`), despreparada: ev => `${ev.name} deixou de estar preparada`, ciclo: ev => `Virou ${ev.target}${ev.motivo ? ` (${ev.motivo})` : ''}`, masmorra_completa: ev => `${ev.target} completou a masmorra ${ev.name}`, caso_resolvido: ev => (ev.failed ? `${ev.name}: a condição não valia mais, o Caso não foi resolvido` : `${ev.name} foi resolvido`), estacao: ev => (ev.failed ? `${ev.name}: a nave saiu do campo, a estação não pôs marcadores` : `${ev.name} recebeu ${ev.amount} marcador${ev.amount === 1 ? '' : 'es'} de carga (estação)${ev.total != null ? ` · ${ev.total} no total` : ''}`), selada: ev => (ev.failed ? `${ev.name}: a montaria saiu do campo, não foi selada` : `${ev.name} foi selada`), virar_carta: ev => (ev.failed ? `${ev.name} não virou${ev.motivo ? ` (${ev.motivo})` : ''}` : `${ev.name} virou: agora é ${ev.target}`), porta: ev => (ev.failed ? `${ev.name}: nenhuma porta para trancar ou destrancar` : `${ev.name} ${ev.acao} ${ev.porta} (${ev.target})`), nivel_sobe: ev => (ev.failed ? `${ev.name}: saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu de nível (nível ${ev.nivel})`), nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, converter: ev => `${ev.name} converteu em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
+Object.assign(LINHA_T, { volta_anexada_t: ev => ev.failed ? `${ev.name}: ${ev.motivo || 'não voltou'}; fica no cemitério` : `${ev.name} voltou do cemitério anexada a ${ev.target}` }); // T-126
 Object.assign(LINHA_T, { revela_ate_mao: ev => `${ev.target} revelou ${(ev.nomes || []).join(', ') || 'o grimório vazio'} (${ev.name}); ${ev.achada ? `${ev.achada} foi para a mão e as outras para o fundo` : 'nenhuma instantânea ou feitiço: todas para o fundo'}`, paga_ou_sacrifica_escolha: ev => `${ev.target} ${ev.k ? `pagou ${ev.mana} de mana por ${ev.k} criatura(s)` : 'não pagou'}${ev.n ? ` e vai sacrificar ${ev.n} permanente(s)` : ''} (${ev.name})` }); // T-125 · auditoria D5 (a linha do sacrifício do édito, que já faltava antes, fica como dívida declarada)
 Object.assign(LINHA_T, { descarta_a_mao: ev => `${ev.target} descartou a mão (${ev.amount === 1 ? 'uma carta' : ev.amount + ' cartas'}; ${ev.name})` }); Object.assign(EFEITO_PT_T, { descarta_a_mao: e => `${e.target === 'self' ? 'você descarta' : e.target === 'each-player' ? 'cada jogador descarta' : 'o jogador descarta'} a mão` }); // T-101
 Object.assign(LINHA_T, { copia_habilidade: ev => ev.failed ? `${ev.name}: a habilidade alvo já saiu da pilha, nada copiado` : `${ev.name} copiou a habilidade de ${ev.target}` }); Object.assign(EFEITO_PT_T, { copia_habilidade: e => `copia uma habilidade ${e.target && e.target.habilidades === 'disparadas' ? 'disparada' : 'ativada ou disparada'}${e.target && e.target.de === 'you' ? ' sua' : ''}; você pode escolher novos alvos para a cópia` }); // T-109 · 707.10b
