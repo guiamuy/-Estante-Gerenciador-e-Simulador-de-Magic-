@@ -4658,6 +4658,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nenhum.
 - **Teste:** `lt132.unit` (4 testes; falham no motor anterior).
 
+**M-451 · LT117 · Pentad Prism: sunburst (as cores gastas ao conjurar)** ✅ (leva M-451, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** o **Pentad Prism** joga pelo leitor aprovado: entra com um marcador de carga por cor de mana gasta para conjurá-lo (Floresta + Ilha = 2; duas Florestas = 1; incolor não é cor) e cada marcador tirado vira uma mana de qualquer cor. Texto da Scryfall consultado em 17/10/2026.
+- **Primitiva:** o motor passa a guardar as cores gastas na conjuração (702.44a) — só na mágica que tem sunburst, como marca da conjuração (some em qualquer outra mudança de zona, 400.7). Ao entrar vinda da pilha: +1/+1 se for criatura, carga se não for; por outro caminho (inclusive cópia de mágica, que não foi conjurada), nenhum (702.44b). Também lê a palavra "Sunburst" (Baton of Courage passa a "lida", sem aprovação).
+- **Revisão independente:** aprovada com ressalva (17 verificações: Lotus Petal, híbrida, phyrexiana com vida, criatura com sunburst, mana restrita, anulada e reanimada, piscada, cascata, mana gasta em habilidade não conta). Ressalva declarada: o pagamento automático não procura mais cores (com Floresta, Floresta e Ilha livres, vira as duas Florestas); para mais marcadores, vire os terrenos à mão antes de conjurar.
+- **Fora (declarado):** sunburst com convocar ou improvisar não foi conferido (nenhuma carta do Pauper atual junta os dois); o pagamento automático não escolhe as fontes para maximizar as cores.
+- **Teste:** `lt133.unit` (3 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

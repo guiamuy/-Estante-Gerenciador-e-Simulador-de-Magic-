@@ -6186,6 +6186,7 @@ function validateScript(sc) {
   if (sc && sc.self && sc.self.entersWithCountersX != null && typeof sc.self.entersWithCountersX !== 'boolean') errs.push('entra com X marcadores precisa ser verdadeiro ou falso');
   if (sc && sc.discount && !(Number.isInteger(sc.discount.amount) && sc.discount.amount > 0 && (sc.discount.needs || []).length)) errs.push('desconto precisa de valor e de exigências');
   if (sc && sc.reduzPor && !(Number.isInteger(sc.reduzPor.generic) && sc.reduzPor.generic > 0 && REDUZ_POR.includes(sc.reduzPor.per))) errs.push('redução por contagem precisa de valor e de uma contagem conhecida'); // M-333
+  if (sc && sc.sunburst != null && sc.sunburst !== true) errs.push('sunburst: true ou ausente'); // M-451
   if (sc && sc.reduzSeAlvoVirado != null && !(Number.isInteger(sc.reduzSeAlvoVirado) && sc.reduzSeAlvoVirado > 0)) errs.push('reduzSeAlvoVirado: quanto o custo cai (inteiro) se a mágica mira uma permanente virada'); // M-383 · Ride's End
   if (sc && sc.reduzPor && (sc.discount || sc.affinity)) errs.push('redução por contagem não se soma a desconto ou afinidade no mesmo script'); // M-333
   // S18 · ninjutsu e insanidade
@@ -9713,6 +9714,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Spirit Mascot': { texto: '15nrcln', leva: 'M-449' },
   // M-450 · revisão por lote XCVIII ("for each supertype, card type, and subtype it has": Embiggen), texto da Scryfall de 17/10/2026 UTC, revisor independente
   'Embiggen': { texto: '1hi8g39', leva: 'M-450' },
+  // M-451 · revisão por lote XCIX (sunburst: Pentad Prism), texto da Scryfall de 17/10/2026 UTC, revisor independente
+  'Pentad Prism': { texto: 'vlxbo', leva: 'M-451' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18480,6 +18483,7 @@ const __m42 = (function () {
       if (linha === '//') { frases.push({ texto: linha, lida: false, motivo: 'segunda face (aventura, dupla face): o leitor ainda não lê' }); break; } // M-322
       if (linhaDePalavras(linha)) { frases.push({ texto: linha, lida: true, palavras: true }); continue; }
       if (magica && /^teamwork \d+$/i.test(linha.replace(/\.$/, ''))) { frases.push({ texto: linha, lida: true, palavras: true }); continue; } // M-379 · 702.194 (K-70): o N vem do texto da carta (fatos.equipeK)
+      if (!magica && /^sunburst$/i.test(linha.replace(/\.$/, ''))) { topo.sunburst = true; frases.push({ texto: linha, lida: true }); continue; } // M-451 · 702.44a: o motor guarda as cores gastas ao conjurar
       if (!magica && /^ward \{\d+\}$/i.test(linha.replace(/\.$/, ''))) { frases.push({ texto: linha, lida: true, palavras: true }); continue; } // M-333 · 702.21: o motor lê "Ward {N}" impresso da carta (K-2)
       if (magica && /^harmonize (?:\{[0-9WUBRGC]+\})+$/i.test(linha.replace(/\.$/, ''))) { frases.push({ texto: linha, lida: true, palavras: true }); continue; } // M-413 · 702.180: o motor lê "Harmonize {custo}" impresso da carta (K-55, harmonizarK)
       { const rf = linha.replace(/\.$/, '').match(/^reinforce (\d+)\s*[—-]\s*(\{[^}]+\}(?:\{[^}]+\})*)$/i); // M-410 · 702.77a: "[custo], descarte esta carta: ponha N marcadores +1/+1 na criatura alvo" — ativada que funciona da mão (113.6), a qualquer momento com prioridade
@@ -19226,6 +19230,7 @@ function createGame(setup) {
     if (sc.discount) f.script.discount = sc.discount; // S49 · desconto por condição de campo
     if (sc.reduzPor) f.script.reduzPor = sc.reduzPor; // M-333 · 601.2f
     if (sc.reduzSeAlvoVirado) f.script.reduzSeAlvoVirado = sc.reduzSeAlvoVirado; // M-383 · 601.2f
+    if (sc.sunburst) f.script.sunburst = true; // M-451 · 702.44a
     if (sc.ninjutsu) f.script.ninjutsu = sc.ninjutsu;
     if (sc.madness) f.script.madness = sc.madness;
     if (sc.produces) f.script.produces = sc.produces;
@@ -19294,7 +19299,7 @@ function zoneList(s, obj, zone) { return zone === 'stack' ? s.stack : s.zones[ob
 const VOLTA_COMANDO = ['graveyard', 'exile', 'hand', 'library'];
 /** Leva 105 · marcas que a conjuração põe na carta (e que não atravessam outra mudança de zona). */
 const MARCAS_DA_CONJURACAO = ['xPaid', 'bestowed', 'evidenced', 'faceDown', 'prevista', 'flashback', 'paidAdditional', 'discardedNonland', 'altIndex', 'mode',
-  'bargained', 'omen', 'stormCopies', 'chosenColor', 'plotted', 'playableFromExile', 'jogavelSoNesteTurno', 'jogavelAte', 'escondida', 'suspensa', 'suspensaImpeto', 'jogavelSe', 'emendas', 'sneakAtaque', 'sneakPw', 'kicked', 'modes', 'castFrom', 'divisao', 'danoCausado' /* M-427 */, 'descartadas' /* M-434 */, 'ordemDaMagiaM' /* M-442 */, 'naPrincipalM' /* M-443 */, 'danoNoTurnoM' /* M-447 */]; // M-376 · 'revealed' fica: a habilidade do Martyr of Sands lê depois do sacrifício
+  'bargained', 'omen', 'stormCopies', 'chosenColor', 'plotted', 'playableFromExile', 'jogavelSoNesteTurno', 'jogavelAte', 'escondida', 'suspensa', 'suspensaImpeto', 'jogavelSe', 'emendas', 'sneakAtaque', 'sneakPw', 'kicked', 'modes', 'castFrom', 'divisao', 'danoCausado' /* M-427 */, 'descartadas' /* M-434 */, 'ordemDaMagiaM' /* M-442 */, 'naPrincipalM' /* M-443 */, 'danoNoTurnoM' /* M-447 */, 'coresGastasM' /* M-451 */]; // M-376 · 'revealed' fica: a habilidade do Martyr of Sands lê depois do sacrifício
 /* ---------------- CR2-G R5c · 701.8/614 · "se fosse destruída" ---------------- */
 /** O que acontece se `o` fosse destruída agora: 'indestrutivel' (não é destruída), { totem: aura } (702.89: a Aura com
  * armadura de totem é destruída no lugar e o dano sai), 'regenerou' (701.15: um escudo de regeneração é gasto) ou 'destruida'.
@@ -19378,6 +19383,7 @@ function entradaModificada(s, o, xPago) {
     }
     for (const [k, v] of Object.entries(r.marcadores || {})) { const n = v === 'x' ? xPago : v === 'kicked' ? (o.kicked || 0) : v; if (n) marcadores[k] = (marcadores[k] || 0) + n; }
   }
+  { const sb = sunburstM(s, o); if (sb) marcadores[sb[0]] = (marcadores[sb[0]] || 0) + sb[1]; } // M-451 · 702.44a
   for (const [k, n] of Object.entries(o.entraComK || {})) marcadores[k] = (marcadores[k] || 0) + n; delete o.entraComK;
   if (o.escapouT) for (const [k, n] of Object.entries((escapeOf(s, o) || {}).comMarcadoresT || {})) marcadores[k] = (marcadores[k] || 0) + n; // T-123 · 702.138c "escapes with a +1/+1 counter" (Toca ponto comum: entradaModificada) // K-4 · "volta com um marcador" (persistir, imortal): entra com ele
   for (const [k, n] of Object.entries(entraComPalavrasK(s, o, xPago))) marcadores[k] = (marcadores[k] || 0) + n; // K-37 · 702.32a/702.63a: "enters with N fade/time counters" (Toca ponto comum: entradaModificada)
@@ -20072,10 +20078,23 @@ function serveGasto(s, g, ctx) {
 const MANA_GASTA_NA_PARTIDA = new WeakMap();
 const partidaContaManaGasta = s => { if (!MANA_GASTA_NA_PARTIDA.has(s.facts)) MANA_GASTA_NA_PARTIDA.set(s.facts, Object.values(s.facts).some(f => f && ((f.script || {}).abilities || []).some(ab => ab && ab.filter && ab.filter.semManaGasta))); return MANA_GASTA_NA_PARTIDA.get(s.facts); };
 function anotaManaGasta(s, antes, depois) {
+  coresGastasM(s, antes, depois); // M-451 · sunburst
   expendGastoT(s, antes, depois); // T-85 · CR 700.14 · o total do turno e o "expend N" (Toca ponto comum: anotaManaGasta, uma linha)
   if (!GASTO || GASTO.magia == null || !s.objects[GASTO.magia] || !partidaContaManaGasta(s)) return;
   let total = 0, colorida = 0; for (const c of COLORS) { const g = Math.max(0, (antes[c] || 0) - (depois[c] || 0)); total += g; if (c !== 'C') colorida += g; }
   const o = s.objects[GASTO.magia], m = o.manaGasta || { total: 0, colorida: 0 }; o.manaGasta = { total: m.total + total, colorida: m.colorida + colorida };
+}
+/** M-451 · 702.44a sunburst: as cores de mana gastas para conjurar a mágica (incolor não é cor; custo adicional conta; sem pagar, nenhuma).
+    Só na mágica que tem sunburst (o estado das outras não muda); a marca é da conjuração (400.7: some fora de mão → pilha → campo). */
+function coresGastasM(s, antes, depois) {
+  const o = GASTO && GASTO.magia != null ? s.objects[GASTO.magia] : null; if (!o || !((s.facts[o.name] || {}).script || {}).sunburst) return;
+  const cs = new Set(o.coresGastasM || []); for (const c of COLORS) if (c !== 'C' && (antes[c] || 0) - (depois[c] || 0) > 0) cs.add(c);
+  o.coresGastasM = COLORS.filter(c => cs.has(c));
+}
+/** M-451 · 702.44a/b: ao entrar vinda da pilha (conjurada), um marcador por cor gasta — +1/+1 se for criatura, de carga se não for; por outro caminho, nenhum. */
+function sunburstM(s, o) {
+  if (!((s.facts[o.name] || {}).script || {}).sunburst) return null; const n = (o.coresGastasM || []).length; delete o.coresGastasM;
+  return n ? [isCreature(s, o) ? 'p1p1' : 'charge', n] : null;
 }
 /** M-345 · a reserva que paga o que está sendo pago: a comum mais a restrita que serve. */
 function poolUsavel(s, p) {
