@@ -5574,6 +5574,8 @@ const EFFECTS = {
   lutador: { fields: [], targets: ['creature', 'creature-you-control'] },
   fight: { fields: [], targets: ['creature', 'creature-opponent-controls', 'creature-you-control'] }, // quem: 'self-source' (a permanente fonte luta) | 'primeiro-alvo' (luta a criatura anotada pelo `lutador` anterior)
   /* ↓ T · efeitos da trilha tipos */
+  cada_criatura_paga_ou_sacrifica: { fields: [], targets: [] }, // T-121 · "For each creature, its controller sacrifices a permanent unless they pay {N}" (Fade Away; `mana`: o custo por criatura)
+  paga_ou_sacrifica_escolha: { fields: [], targets: [] }, // T-121 · a escolha de cada jogador (gerado pelo motor)
   revela_ate_mao: { fields: [], targets: [] }, // T-117 · CR 701.20 · "Reveal cards from the top of your library until you reveal an instant or sorcery card. Put that card into your hand and the rest on the bottom of your library in a random order." (`match: 'instant-or-sorcery'`)
   marcadores_da_fonte: { fields: [], targets: ['creature-you-control', 'creature'] }, // T-115 · CR 122.1 · "put its counters on target creature you control": o mesmo número de cada tipo de marcador que a fonte tinha ao sair do campo (603.10a; não é mover)
   dano_jogador_ou_pw: { fields: ['amount'], targets: ['enchanted-player', 'player', 'opponent', 'that-player'] }, // T-112 · CR 303.4b / 120.3 · "deals N damage to that player or a planeswalker that player controls" (sem alvo: quem controla a fonte escolhe na resolução)
@@ -6815,6 +6817,9 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-121 · CR 101.4 / 701.21 (Scryfall, consulta de 17/10/2026, rulings de 04/10/2004)
+  { name: 'Fade Away', effects: [{ do: 'cada_criatura_paga_ou_sacrifica', mana: '{1}' }], // "For each creature, its controller sacrifices a permanent unless they pay {1}."
+    example: { target: 'none', expect: { selfLife: 0 } } },
   // T-120 · CR 603.4 / 122.1 (Scryfall, consulta de 17/10/2026, rulings de 18/02/2022)
   { name: 'Iron Apprentice', self: { entersWithCounters: 1 }, abilities: [{ kind: 'triggered', when: 'dies', condition: { tinhaMarcadores: true }, effects: [{ do: 'marcadores_da_fonte', target: 'creature-you-control' }] }], // "Iron Apprentice enters with a +1/+1 counter on it. · When Iron Apprentice dies, if it had counters on it, put those counters on target creature you control."
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
@@ -22603,6 +22608,8 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'lutador': if (obj) s.lutadorV = { fonte: src.oid, fz: encarnacaoV(s, src), oid: obj.oid, z: obj.zc || 0 }; break; // V-1/V-5 · anota quem luta; a luta é o `fight` seguinte, que apaga a anotação
     case 'fight': lutar(s, src, eff, tgt, events); break; // V-1 · 701.14
     /* ↓ T · casos de applyEffect da trilha tipos */
+    case 'cada_criatura_paga_ou_sacrifica': iniciaPagaOuSacrificaT(s, src, eff, events); break; // T-121 · 101.4 / 701.21
+    case 'paga_ou_sacrifica_escolha': escolhaPagaOuSacrificaT(s, eff, events); break; // T-121
     case 'revela_ate_mao': { const r = revelaAteMaoT(s, ctrl, eff); note({ target: s.players[ctrl].name, amount: r.reveladas.length, nomes: r.reveladas, achada: r.achada }); break; } // T-117 · CR 701.20
     case 'marcadores_da_fonte': { const n = marcadoresDaFonteT(s, src, obj, events); note({ amount: n }); break; } // T-115 · CR 122.1
     case 'dano_jogador_ou_pw': danoJogadorOuPwT(s, src, eff, playerOf(), ctrl, events); break; // T-112 · CR 120.3
@@ -28355,6 +28362,40 @@ function revelaAteMaoT(s, p, eff) {
 }
 /** T-118 · a criatura a que a fonte (Aura ou Equipamento) está anexada agora; se a fonte já saiu do campo, a da última informação (anexadaA). */
 function hospedeiraDaFonteT(s, f) { if (!f || f.ability) return null; const oid = f.zone === 'battlefield' ? f.attachedTo : f.ultima && f.ultima.anexadaA; const h = oid ? s.objects[oid] : null; return h && h.zone === 'battlefield' ? h : null; }
+/* ---------------- T-121 · CR 101.4 / 701.21 · "For each creature, its controller sacrifices a permanent unless they pay {1}" ----------------
+   Rulings de 04/10/2004 (Fade Away): cada jogador conta as criaturas que controla no começo da resolução; em ordem APNAP, cada um diz por
+   quantas paga (pode pagar por algumas e sacrificar por outras; só as quantias que consegue pagar são oferecidas); depois os sacrifícios
+   de todos acontecem juntos e são de permanentes diferentes (o édito com `diferentesK`): não dá para sacrificar uma criatura para não
+   pagar por outra. */
+const PERMANENTES_T = ['artifact', 'creature', 'enchantment', 'land', 'planeswalker', 'battle'];
+function iniciaPagaOuSacrificaT(s, src, eff, events) {
+  const vez = s.turn.active, ordem = [vez, ...s.players.map((_, i) => i).filter(i => i !== vez)].filter(i => !s.players[i].lost);
+  const n = {}; for (const p of ordem) n[p] = battlefield(s).filter(o => o.controller === p && isCreature(s, o)).length;
+  s.pagaOuSacrificaT = { fila: ordem.filter(p => n[p] > 0), n, sacrificios: [], mana: parseCost(eff.mana || '{1}').generic || 1, fonte: { oid: src.ability ? src.source : src.oid, name: src.name, controller: src.controller } };
+  continuaPagaOuSacrificaT(s, events);
+}
+function continuaPagaOuSacrificaT(s, events) {
+  const st = s.pagaOuSacrificaT; if (!st) return;
+  while (st.fila.length) {
+    const p = st.fila.shift(), N = st.n[p], pode = k => !s.manaCheck || k === 0 || canPay(s, p, parseCost(`{${k * st.mana}}`));
+    const ks = []; for (let k = 0; k <= N; k++) if (pode(k)) ks.push(k);
+    if (ks.length <= 1) { for (let i = 0; i < N; i++) st.sacrificios.push(p); continue; }
+    s.pending = { kind: 'choose_mode', p, name: `${st.fonte.name}: por quantas das suas ${N} criaturas você paga {${st.mana}}? (as outras: sacrificar uma permanente cada)`,
+      options: ks.map(k => k === 0 ? `Não pagar (sacrificar ${N})` : k === N ? `Pagar por todas (${k * st.mana} de mana)` : `Pagar por ${k} (${k * st.mana} de mana) e sacrificar ${N - k}`),
+      opcoesK: ks.map(k => ({ effects: [{ do: 'paga_ou_sacrifica_escolha', p, k, N }] })), fonteK: st.fonte };
+    return;
+  }
+  delete s.pagaOuSacrificaT;
+  if (!st.sacrificios.length) return;
+  s.edito = { fila: st.sacrificios, escolhidas: [], types: PERMANENTES_T, nontoken: false, name: st.fonte.name, diferentesK: true }; continuaEdito(s, events);
+}
+function escolhaPagaOuSacrificaT(s, eff, events) {
+  const st = s.pagaOuSacrificaT; if (!st) return;
+  if (eff.k > 0 && s.manaCheck) payCost(s, eff.p, parseCost(`{${eff.k * st.mana}}`));
+  if (eff.k > 0) events.push({ kind: 'effect', do: 'pay', name: st.fonte.name, target: s.players[eff.p].name });
+  for (let i = 0; i < eff.N - eff.k; i++) st.sacrificios.push(eff.p);
+  continuaPagaOuSacrificaT(s, events);
+}
 let conferindoConcessaoT = false; // o tipo da encantada (camada 4) não depende desta concessão (ela não muda tipo): na volta do cálculo, ela fica de fora
 function concessaoVigenteT(s, aura, g) {
   if (!g || !g.seCriaturaT) return g; if (conferindoConcessaoT) return null;
@@ -33367,6 +33408,7 @@ const EFEITO_PT_T = { caso_resolvido: () => 'este Caso fica resolvido', estacao:
 Object.assign(EFEITO_PT_T, { dano_jogador_ou_pw: e => `causa ${e.amount} de dano ao jogador encantado ou a um planeswalker dele (você escolhe)`, dano_fixo_t: e => `causa ${e.amount} de dano` }); // T-112
 Object.assign(EFEITO_PT_T, { marcadores_da_fonte: () => 'põe na criatura alvo sua os marcadores que esta criatura tinha (o mesmo número de cada tipo)' }); // T-115
 Object.assign(EFEITO_PT_T, { revela_ate_mao: () => 'revela cartas do topo até uma instantânea ou feitiço, põe na mão e as outras no fundo em ordem aleatória' }); // T-117
+Object.assign(EFEITO_PT_T, { cada_criatura_paga_ou_sacrifica: e => `para cada criatura, quem a controla sacrifica uma permanente a menos que pague ${e.mana || '{1}'}`, paga_ou_sacrifica_escolha: () => 'paga ou sacrifica' }); // T-121
 Object.assign(EFEITO_PT_T, { embalsamar: () => 'cria uma ficha que é cópia desta carta, só que branca, Zumbi além dos outros tipos e sem custo de mana (embalsamar)' }); // T-111 · CR 702.128a
 Object.assign(EFEITO_PT_T, { vira_para_baixo: () => 'vira a criatura alvo para baixo (2/2, sem nome nem habilidades)', vira_para_cima: () => 'vira para cima a criatura alvo virada para baixo' }); // T-73 · CR 708.2a / 708.8
 /** T-7 · linhas do registro para os eventos da trilha tipos. */

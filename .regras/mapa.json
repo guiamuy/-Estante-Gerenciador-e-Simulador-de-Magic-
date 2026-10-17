@@ -6289,8 +6289,13 @@
    "regra": "Keyword Actions",
    "titulo": "Sacrifice",
    "status": "coberta",
-   "evidencia": "sacrifice() (index.html:11628) move direto ao cemitério sem passar por destruir/indestrutível; sacrificeOptions só lista permanentes do próprio jogador; rules.unit \"S20 · custo adicional de sacrifício\", \"S60 · Oubliette\", \"S43 · sacrificar o espírito\"",
-   "cartas": "evergreen"
+   "evidencia": "sacrifice() (index.html:11628) move direto ao cemitério sem passar por destruir/indestrutível; sacrificeOptions só lista permanentes do próprio jogador; rules.unit \"S20 · custo adicional de sacrifício\", \"S60 · Oubliette\", \"S43 · sacrificar o espírito\" · T-121 (17/10/2026): \"For each creature, its controller sacrifices a permanent unless they pay {1}\" (`cada_criatura_paga_ou_sacrifica`): APNAP, cada jogador escolhe por quantas criaturas paga, e os sacrifícios de todos saem juntos, de permanentes diferentes — Fade Away",
+   "cartas": "evergreen",
+   "testes": [
+    "CR 101.4 · Fade Away (texto oficial): cada jogador, por criatura que controla, paga {1} ou sacrifica uma permanente — A (ativo) escolhe primeiro; sem mana para pagar, só sacrifica",
+    "CR 701.21 · ruling de 04/10/2004: os sacrifícios são simultâneos e de permanentes diferentes — sem pagar, B com dois Ursos e uma Pedra sacrifica duas, e não pode usar um Urso sacrificado para \"não pagar\" pelo outro",
+    "CR 101.4 · Fade Away sem criaturas no campo não pede nada"
+   ]
   },
   {
    "n": "701.22",
