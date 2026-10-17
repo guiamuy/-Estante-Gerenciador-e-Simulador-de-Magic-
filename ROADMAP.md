@@ -4545,6 +4545,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nada novo.
 - **Teste:** `lt115.unit` (4 testes; falham no motor anterior).
 
+**M-434 · LT100 · descartar a mão e comprar o mesmo tanto: Tolarian Winds** ✅ (leva M-434, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** **Tolarian Winds (2 listas do catálogo) passa a jogar** (APROVADAS; texto da Scryfall de 17/10/2026 UTC). Frase nova "Discard all the cards in your hand, then draw that many cards" sobre o `descarta_a_mao` da T-101 (701.9) e a contagem nova `descartadas-assim` (as descartadas nesta resolução; a carta exilada pela insanidade também foi descartada, 702.35). O leitor também lê Shattered Perception (mesmo texto, com lampejo do passado; não aprovada).
+- **Revisão independente:** revisor independente do lote M-432…M-438 (~120 verificações dinâmicas e ~60 cartas lidas contra o texto; diferencial do leitor: 62 cartas passaram a ser lidas, nenhuma perdeu, nenhum script mudou; 716 aprovadas íntegras; equivalência de 27 partidas e 10.800 ações sem divergência, goldens idênticos byte a byte; fuzz de 40 partidas e 35.363 ações sem exceção nem ação recusada): **aprovado** — mão vazia, insanidade (a exilada conta, 702.35), cópia própria e do oponente, sem vazamento entre resoluções.
+- **Fora (declarado):** nada novo.
+- **Teste:** `lt116.unit` (3 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

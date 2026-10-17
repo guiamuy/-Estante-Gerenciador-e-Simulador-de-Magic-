@@ -6072,7 +6072,7 @@ function descreveGatilho(w, como = {}) { // M-401 · como.equipada: "a criatura 
 const ATTACH_KINDS = ['creature', 'permanent', 'land', 'creature-you-control', 'creature-or-planeswalker-you-control', 'creature-card-in-graveyard', 'player' /* T-94 · CR 303.4b · "Enchant player" (Maldições) (Toca ponto comum: ATTACH_KINDS) */]; // CR2d.4 · "Enchant creature card in a graveyard" // Q11 · Setessan Training
 const PER_COUNTS = ['mesmo-nome-nos-cemiterios', 'attacking-creatures' /* M-423 · Rite of Flame ("each card named ~ in each graveyard") e Respite ("each attacking creature") */, 'enchantments-you-control', 'other-enchantments', 'auras-on-battlefield',
   'creatures-you-control', 'other-creatures-you-control', 'elves-you-control', 'elves-on-battlefield', 'defenders-you-control', 'permanents-you-control', 'nonland-permanents-you-control', 'life-gained-this-turn', 'life-lost-this-turn',
-  'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G', 'counters-on-source', 'opponents-empty-hand', 'trigger-value', 'chosen-type-permanents', 'sacrificed-toughness', 'sacrificed-mv', 'sacrificed-power', 'dano-causado' /* M-427 · "the damage dealt this way" */, 'creature-cards-in-your-graveyard', 'cards-in-hand', 'x', 'power-of-source', 'se', 'power-of-target',
+  'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G', 'counters-on-source', 'opponents-empty-hand', 'trigger-value', 'chosen-type-permanents', 'sacrificed-toughness', 'sacrificed-mv', 'sacrificed-power', 'dano-causado' /* M-427 · "the damage dealt this way" */, 'descartadas-assim' /* M-434 · "draw that many cards" depois de descartar a mão */, 'creature-cards-in-your-graveyard', 'cards-in-hand', 'x', 'power-of-source', 'se', 'power-of-target',
   'instants-sorceries-in-your-graveyard', 'flashback-cards-you-own-in-exile', 'soma', 'party', 'movidas', ...perCountsT()]; // M-386 · `movidas`: "for each card put into your graveyard this way" (o que o efeito anterior desta habilidade moveu) // T-59 · CR 700.8 · quantas criaturas há no seu grupo (0 a 4) // M-358 · Seize the Storm (604.3); `soma`: { per: 'soma', partes: [contagem, contagem, …] }
 /** M-333 · 601.2f · "This spell costs {N} less to cast for each …": o que a redução conta (chave `reduzPor: { generic, per }` no topo do script). */
 const REDUZ_POR = ['instants-sorceries-in-your-graveyard', 'creature-cards-in-your-graveyard', 'land-cards-in-your-graveyard', 'creatures-on-battlefield',
@@ -9625,6 +9625,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   "Tezzeret's Gambit": { texto: '1gi4ck2', leva: 'M-433' },
   'Thirsting Roots': { texto: '1xl8tzs', leva: 'M-433' },
   "Vivisurgeon's Insight": { texto: 'v68qf9', leva: 'M-433' },
+  // M-434 · revisão por lote LXXXV (descartar a mão e comprar o mesmo tanto: Tolarian Winds), texto da Scryfall de 17/10/2026 UTC, revisor independente
+  'Tolarian Winds': { texto: '1bb2sat', leva: 'M-434' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18272,6 +18274,7 @@ const __m42 = (function () {
   const FILTRO_TOPO = { colorless: { incolor: true }, 'instant or sorcery': { types: ['instant', 'sorcery'] }, creature: { types: ['creature'] }, artifact: { types: ['artifact'] }, land: { types: ['land'] }, 'creature or land': { types: ['creature', 'land'] } };
   const PRE_PARAGRAFO = [
     [/^choose (target creature or planeswalker|target creature)\. you get ((?:\{E\})+)(?: \([^)]*\))?, then you may pay any amount of \{E\}\. ~ deals that much damage to that (?:creature|permanent)(?:\.\s*|$)/i, m => [{ do: 'energia', amount: m[2].length / 3 }, { do: 'energia_dano', target: /planeswalker/i.test(m[1]) ? { tipos: ['creature', 'planeswalker'] } : { tipos: ['creature'] } }]], // M-405 · Galvanic Discharge, Harnessed Lightning
+    [/^discard all the cards in your hand, then draw that many cards(?:\.\s*|$)/i, () => [{ do: 'descarta_a_mao', target: 'self' }, { do: 'draw', amount: { per: 'descartadas-assim' } }]], // M-434 · Tolarian Winds (701.9)
     [new RegExp(`^look at the top ${N} cards of your library, then put them back in any order(?:\\.\\s*|$)`, 'i'), m => { const c = num(m[1]); return c ? [{ do: 'look', count: c, amount: c, min: c, to: 'library-top', rest: 'stay', ordena: true }] : null; }], // M-339 · Ponder
     [/^(target player|target opponent) reveals (?:their|his or her) hand\. you choose an? (.+?) from it(?: with mana value (\d+) or less)?\. (?:that player|they) discards? that card(?:\.\s*|$)/i, m => {
       const k = m[2].toLowerCase(), base = FILTRO_DESCARTE[k], filtro = base && (m[3] ? { ...base, mvMax: +m[3] } : base); // Inquisition of Kozilek: "a nonland card from it with mana value 3 or less" 
@@ -19179,7 +19182,7 @@ function zoneList(s, obj, zone) { return zone === 'stack' ? s.stack : s.zones[ob
 const VOLTA_COMANDO = ['graveyard', 'exile', 'hand', 'library'];
 /** Leva 105 · marcas que a conjuração põe na carta (e que não atravessam outra mudança de zona). */
 const MARCAS_DA_CONJURACAO = ['xPaid', 'bestowed', 'evidenced', 'faceDown', 'prevista', 'flashback', 'paidAdditional', 'discardedNonland', 'altIndex', 'mode',
-  'bargained', 'omen', 'stormCopies', 'chosenColor', 'plotted', 'playableFromExile', 'jogavelSoNesteTurno', 'jogavelAte', 'escondida', 'suspensa', 'suspensaImpeto', 'jogavelSe', 'emendas', 'sneakAtaque', 'sneakPw', 'kicked', 'modes', 'castFrom', 'divisao', 'danoCausado' /* M-427 */]; // M-376 · 'revealed' fica: a habilidade do Martyr of Sands lê depois do sacrifício
+  'bargained', 'omen', 'stormCopies', 'chosenColor', 'plotted', 'playableFromExile', 'jogavelSoNesteTurno', 'jogavelAte', 'escondida', 'suspensa', 'suspensaImpeto', 'jogavelSe', 'emendas', 'sneakAtaque', 'sneakPw', 'kicked', 'modes', 'castFrom', 'divisao', 'danoCausado' /* M-427 */, 'descartadas' /* M-434 */]; // M-376 · 'revealed' fica: a habilidade do Martyr of Sands lê depois do sacrifício
 /* ---------------- CR2-G R5c · 701.8/614 · "se fosse destruída" ---------------- */
 /** O que acontece se `o` fosse destruída agora: 'indestrutivel' (não é destruída), { totem: aura } (702.89: a Aura com
  * armadura de totem é destruída no lugar e o dano sai), 'regenerou' (701.15: um escudo de regeneração é gasto) ou 'destruida'.
@@ -21147,6 +21150,7 @@ function amountOf(s, src, v) {
     if (v.per === 'moedas-ganhas') return ((src.moedaT || {}).ganhas || 0) * (v.times || 1); // T-65 · CR 705.2 · "for each flip you won" (Toca ponto comum: amountOf)
     if (v.per === 'x') return (src.xPaid || 0) * (v.times || 1); // CR2c.3 · 107.3a: o X escolhido ao conjurar, o mesmo em todo o texto
     // CR2a.4 · 608.2h/113.7a: a resistência que a criatura sacrificada no custo tinha no campo
+    if (v.per === 'descartadas-assim') return (src.descartadas || 0) * (v.times || 1); // M-434 · Tolarian Winds: as cartas descartadas por esta resolução (as da insanidade também foram descartadas, 702.35)
     if (v.per === 'dano-causado') return (src.danoCausado || 0) * (v.times || 1); // M-427 · "You gain life equal to the damage dealt this way": o dano causado de fato nesta resolução (depois da prevenção; 0 se prevenido)
     if (v.per === 'sacrificed-power') return (src.sacrificados || []).reduce((n, x) => n + Math.max(0, x.power || 0), 0) * (v.times || 1); // M-354 · Fling: o poder da criatura sacrificada como ela era no campo (608.2h)
     if (v.per === 'sacrificed-toughness') return (src.sacrificados || []).reduce((n, x) => n + Math.max(0, x.toughness || 0), 0) * (v.times || 1);
@@ -22538,7 +22542,7 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'copia_magia': copiaMagiaT(s, src, eff, obj, ctrl, events); break; // T-108 · CR 707.10
     case 'copia_habilidade': copiaHabilidadeT(s, src, obj, ctrl, events); break; // T-109 · CR 707.10b
     case 'passo_extra': passoExtraAddT(s, src, eff, playerOf(), events); break; // T-101 · CR 500.9
-    case 'descarta_a_mao': for (const q of (eff.target === 'each-player' ? s.players.map((_, i) => i).filter(i => !s.players[i].lost) : [playerOf()])) { const mao = s.zones[q].hand.slice(); for (const oid of mao) { const o = s.objects[oid]; if (madnessOf(s, o)) { moveObject(s, oid, 'exile'); noteDiscard(s, q); insanidadeNaPilhaK(s, q, oid); } else moveObject(s, oid, 'graveyard'); } events.push({ kind: 'effect', do: 'descarta_a_mao', name: src.name, target: s.players[q].name, amount: mao.length }); } break; // T-101 · 701.9
+    case 'descarta_a_mao': for (const q of (eff.target === 'each-player' ? s.players.map((_, i) => i).filter(i => !s.players[i].lost) : [playerOf()])) { const mao = s.zones[q].hand.slice(); for (const oid of mao) { const o = s.objects[oid]; if (madnessOf(s, o)) { moveObject(s, oid, 'exile'); noteDiscard(s, q); insanidadeNaPilhaK(s, q, oid); } else moveObject(s, oid, 'graveyard'); } events.push({ kind: 'effect', do: 'descarta_a_mao', name: src.name, target: s.players[q].name, amount: mao.length }); if (q === ctrl) src.descartadas = (src.descartadas || 0) + mao.length; /* M-434 */ } break; // T-101 · 701.9
     case 'dobra_de_fogo': dobraDeFogoT(s, src, eff, events); break; // T-100 · 702.189a
     case 'pula': pulaT(s, src, eff, playerOf(), events); break; // T-99 · CR 614.10
     case 'recomeca_jogo': recomecaJogoT(s, src, events); break; // T-95 · CR 727
@@ -23013,6 +23017,7 @@ function resolveScript(s, o, events) {
     return;
   }
   if (effects.some(e => e && e.amount && e.amount.per === 'dano-causado')) o.danoCausado = 0; // M-427 · conta só o dano desta resolução
+  if (effects.some(e => e && e.amount && e.amount.per === 'descartadas-assim')) o.descartadas = 0; // M-434
   const limiarAntes = effects.some(e => e && (e.onlyIf === 'threshold' || e.onlyIf === 'sem-limiar')) ? condicaoDoEfeito(s, o, 'threshold') : null; // M-417 · também "sem limiar" // M-412 · o "instead" do limiar decide a frase inteira de uma vez: contado antes do primeiro efeito (achado da revisão: com o dano depois da destruição, a regeneração mudava o resultado)
   let ti = 0, firstTarget = null, donoDoPrimeiro = null, modoAtual = null, neveDoPrimeiro = false, mordedorM = null, lendarioDoPrimeiro = false; // M-407 · M-414
   for (const [idx, eff] of effects.entries()) {
@@ -33481,7 +33486,7 @@ function descreveEfeito(e) {
 }
 // Leva 131 · a condição do efeito entra na frase (Moon-Circuit Hacker: o aviso dizia "descarta 1 carta" no turno em que ela entrou, quando não descarta)
 const CONDICAO_PT = { kicked: 'se tiver sido reforçada', bargained: 'se tiver sido barganhada', 'paid-additional': 'se o custo adicional foi pago', metalcraft: 'com metalurgia', 'cast-from-graveyard': 'se foi conjurada do cemitério', 'source-entered-earlier': 'só se ela não entrou neste turno', 'not-attacked': 'só se você não atacou neste turno', evidenced: 'se colheu provas', 'not-evidenced': 'se não colheu provas', ferocious: 'se você controlar uma criatura com poder 4 ou mais', threshold: 'com limiar (sete cartas ou mais no seu cemitério)' /* M-412 */, morbid: 'se uma criatura morreu neste turno' /* M-416 */, 'sem-limiar': 'sem limiar' /* M-417 */, 'alvo-era-neve': 'se o terreno era nevado', 'alvo-era-lendario': 'se a mágica era lendária' /* M-414 */, 'alvo-era-seu': 'se a permanente era sua' }; // M-385 // M-351 · Extract a Confession (achado da revisão do lote XXIII: as duas frases pareciam dois sacrifícios)
-const X_PT = { 'dano-causado': 'o dano causado assim', /* M-427 */ 'mesmo-nome-nos-cemiterios': 'carta com o mesmo nome em cada cemitério', 'attacking-creatures': 'criatura atacando', /* M-423 */ movidas: 'o número de cartas postas no cemitério assim', 'instants-sorceries-in-your-graveyard': 'mágicas instantâneas e feitiços no seu cemitério', 'flashback-cards-you-own-in-exile': 'cartas com lampejo do passado suas no exílio', /* M-358 */ 'cards-in-hand': 'cartas na sua mão', 'creature-cards-in-your-graveyard': 'cartas de criatura no seu cemitério', 'sacrificed-power': 'o poder da criatura sacrificada', 'sacrificed-toughness': 'a resistência da criatura sacrificada', 'sacrificed-mv': 'o valor de mana do que foi sacrificado' }; // M-354 · o que o X conta (achado da revisão do lote XXVI)
+const X_PT = { 'descartadas-assim': 'carta descartada assim', /* M-434 */ 'dano-causado': 'o dano causado assim', /* M-427 */ 'mesmo-nome-nos-cemiterios': 'carta com o mesmo nome em cada cemitério', 'attacking-creatures': 'criatura atacando', /* M-423 */ movidas: 'o número de cartas postas no cemitério assim', 'instants-sorceries-in-your-graveyard': 'mágicas instantâneas e feitiços no seu cemitério', 'flashback-cards-you-own-in-exile': 'cartas com lampejo do passado suas no exílio', /* M-358 */ 'cards-in-hand': 'cartas na sua mão', 'creature-cards-in-your-graveyard': 'cartas de criatura no seu cemitério', 'sacrificed-power': 'o poder da criatura sacrificada', 'sacrificed-toughness': 'a resistência da criatura sacrificada', 'sacrificed-mv': 'o valor de mana do que foi sacrificado' }; // M-354 · o que o X conta (achado da revisão do lote XXVI)
 Object.assign(X_PT, { 'moedas-ganhas': 'os lances ganhos', 'resultado-do-dado': 'o resultado do dado' }); // T-65 · T-66
 const faixaPT_T = (e, f) => jogadorEncantadoPT_T(e, faixaDoDadoPT_T(e, f)); // T-94 · "that player" das Maldições
 const jogadorEncantadoPT_T = (e, f) => !f || !e || e.target !== 'enchanted-player' || /encantad/.test(f) ? f : `${f} (o jogador encantado)`;
