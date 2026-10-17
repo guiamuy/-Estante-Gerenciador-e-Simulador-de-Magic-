@@ -6091,7 +6091,7 @@ const valueErrors = (v, label) => isCount(v) && v.per === 'soma' ? (Array.isArra
   : isCount(v) ? (v.per === 'se' && !(['metalcraft', 'cast-from-graveyard', 'kicked', 'not-cast-from-hand', 'bargained', 'threshold' /* M-412 */, 'morbid' /* M-416 */, 'landfall-turno' /* M-437 */, 'na-principal-propria' /* M-443 */, ...onlyIfT()].includes(v.se) && Number.isInteger(v.sim) && Number.isInteger(v.nao)) ? [`${label}: "se" precisa da condição (metalcraft, cast-from-graveyard, kicked, bargained, not-cast-from-hand, monarca, oponente-monarca) e dos valores sim/não`] : v.subtype || PER_COUNTS.includes(v.per) ? [] : [`${label}: contagem "${v.per}" desconhecida`]) // M-331
   : (Number.isInteger(v) ? [] : [`${label}: precisa ser inteiro ou contagem`]);
 /** S11b · evasão estática e escolhas feitas quando a permanente entra. */
-const EVASIONS = ['flying-only', 'power-less', 'three-or-more', 'not-monarch', 'unblockable']; // M-395 · "~ can't be blocked" (Blighted Agent, 509.1b) // M-391 · "can't be blocked by creatures the monarch controls" (Azure Fleet Admiral, 725) // M-349 · Troll of Khazad-dûm: "can't be blocked except by three or more creatures"
+const EVASIONS = ['flying-only', 'power-less', 'three-or-more', 'not-monarch', 'unblockable', 'not-tokens' /* M-456 · "can't be blocked by tokens" (Duskwatch Hunter) */]; // M-395 · "~ can't be blocked" (Blighted Agent, 509.1b) // M-391 · "can't be blocked by creatures the monarch controls" (Azure Fleet Admiral, 725) // M-349 · Troll of Khazad-dûm: "can't be blocked except by three or more creatures"
 const CHOICES = ['color'];
 const STATIC_RULES = ['flagbearer', 'exile-instead-of-graveyard', 'opponent-creatures-enter-tapped'];
 const TRIGGER_PT = { etb: 'quando entra no campo', dies: 'quando morre', upkeep: 'na sua manutenção', attacks: 'quando ataca', blocks: 'quando bloqueia',
@@ -9723,6 +9723,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Slayers\' Stronghold': { texto: '1vdf09w', leva: 'M-453' },
   // M-455 · revisão por lote CII (ferocidade no disparo: Ravening Warg), texto da Scryfall de 17/10/2026 UTC, revisor independente
   'Ravening Warg': { texto: 'psej35', leva: 'M-455' },
+  // M-456 · revisão por lote CIII ("can't be blocked by tokens": Duskwatch Hunter), texto da Scryfall de 17/10/2026 UTC, revisor independente
+  'Duskwatch Hunter': { texto: '1x5z34n', leva: 'M-456' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18536,6 +18538,7 @@ const __m42 = (function () {
         if (pe && contagem(pe[3])) { topo.self = { ...(topo.self || {}), perPower: SINAL(pe[1]), perToughness: SINAL(pe[2]), per: contagem(pe[3]) }; frases.push({ texto: linha, lida: true }); continue; }
         if (/^at the beginning of the end step, if no creatures are on the battlefield, sacrifice ~$/i.test(lp)) { (topo.abilities = topo.abilities || []).push({ kind: 'triggered', when: { evento: 'passo', passo: 'end', turno: 'qualquer' }, condition: { semCriaturas: true }, effects: [{ do: 'sacrifice_it', target: 'self-source' }] }); frases.push({ texto: linha, lida: true }); continue; } // M-396 · Pestilence (cada passo final, 603.4)
         if (/^~ can't be blocked$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'unblockable' }; frases.push({ texto: linha, lida: true }); continue; } // M-395 · Blighted Agent
+        if (/^~ can't be blocked by tokens\.?$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'not-tokens' }; frases.push({ texto: linha, lida: true }); continue; } // M-456 · Duskwatch Hunter (509.1b)
         if (/^~ can't be blocked by creatures the monarch controls\.?$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'not-monarch' }; frases.push({ texto: linha, lida: true }); continue; } // M-391 · Azure Fleet Admiral (725)
         if (/^~ can't be blocked except by creatures with flying$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'flying-only' }; frases.push({ texto: linha, lida: true }); continue; } // LT5
         if (/^creatures with power less than ~'s power can't block it$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'power-less' }; frases.push({ texto: linha, lida: true }); continue; } // LT5
@@ -20720,6 +20723,7 @@ function porQueNaoBloqueia(s, blocker, attacker) {
   if (ev === 'power-less' && power(s, b) < power(s, a)) return 'poder menor que o da atacante';
   if (ev === 'not-monarch' && s.monarca != null && s.monarca === b.controller) return 'criaturas do monarca não a bloqueiam'; // M-391 · 725
   if (ev === 'unblockable') return 'não pode ser bloqueada'; // M-395 · 509.1b
+  if (ev === 'not-tokens' && b.token) return 'fichas não a bloqueiam'; // M-456 · 509.1b (Duskwatch Hunter); 111.1: ficha é a permanente que não é carta
   // 'three-or-more' (M-349): cada bloqueador pode, mas o grupo precisa de três — conferido na declaração
   if (protections(s, a).some(c => casaProtecaoK(s, c, b))) return 'proteção contra o bloqueador'; // K-17 · 702.16f: qualquer qualidade (Toca ponto comum)
   // CR1b · evasões por palavra-chave
