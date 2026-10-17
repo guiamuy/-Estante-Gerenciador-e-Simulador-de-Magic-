@@ -19242,7 +19242,7 @@ function entradaModificada(s, o, xPago) {
       const c = r.virada.aMenosQue, jaVirada = virada === true;
       const livre = (c.anyPlayerLifeAtMost != null && s.players.some(pl => !pl.lost && pl.life <= c.anyPlayerLifeAtMost)) ||
         // R11.2 · "a menos que você controle um Plains ou um Swamp": a própria carta, entrando, não conta
-        (c.controlsSubtype && battlefield(s).some(x => x.oid !== o.oid && x.controller === o.controller && s.facts[x.name].types.includes('land') && c.controlsSubtype.some(k => new RegExp('\\b' + k + '\\b').test(linhaDeTipo(s, x))))) ||
+        (c.controlsSubtype && battlefield(s).some(x => x.oid !== o.oid && !entrandoJunto(s, x) && x.controller === o.controller && s.facts[x.name].types.includes('land') && c.controlsSubtype.some(k => new RegExp('\\b' + k + '\\b').test(linhaDeTipo(s, x))))) ||
         (c.maxOutrasTerras != null && outrasTerras(s, o) <= c.maxOutrasTerras) || // M-336 · terras rápidas: "unless you control two or fewer other lands"
         (c.minOutrasTerras != null && outrasTerras(s, o) >= c.minOutrasTerras) || (c.minBasicos != null && outrasTerras(s, o, true) >= c.minBasicos) || // M-340 · terras lentas e de batalha
         (c.ateTurnoProprio != null && noTurnoProprioAte(s, o.controller, c.ateTurnoProprio)) || // M-342 · Starting Town
@@ -19263,7 +19263,8 @@ const partidaContaTurnos = s => Object.values(s.facts).some(f => f && ((f.script
 /** M-349 · quantas outras permanentes do controlador de `o` têm o subtipo (Gingerbread Cabin: "other Forests"). */
 const outrosDoSubtipo = (s, o, sub) => battlefield(s).filter(x => x.oid !== o.oid && x.controller === o.controller && new RegExp('\\b' + sub + '\\b').test(linhaDeTipo(s, x))).length;
 /** M-336 · quantos outros terrenos o controlador de `o` tem no campo (a própria carta, entrando, não conta). */
-const outrasTerras = (s, o, basicos = false) => battlefield(s).filter(x => x.oid !== o.oid && x.controller === o.controller && tiposDe(s, x).includes('land') && (!basicos || /^\s*basic\b/i.test(linhaDeTipo(s, x)))).length; // M-340 · basicos: "two or more basic lands"
+const entrandoJunto = (s, x) => !!s.entrandoJuntas && s.entrandoJuntas.some(t => t[0] === x.oid); // M-431 · 614.12: quem entra no mesmo evento não está no campo quando a outra confere a entrada
+const outrasTerras = (s, o, basicos = false) => battlefield(s).filter(x => x.oid !== o.oid && !entrandoJunto(s, x) && x.controller === o.controller && tiposDe(s, x).includes('land') && (!basicos || /^\s*basic\b/i.test(linhaDeTipo(s, x)))).length; // M-340 · basicos: "two or more basic lands"
 /** CR2-G R5a · o caminho antigo das modificações de entrada, tal como era no moveObject (só para o teste de equivalência). */
 function entradaLegado(s, o, xPago) {
   const to = 'battlefield';
@@ -19276,7 +19277,7 @@ function entradaLegado(s, o, xPago) {
   if (to === 'battlefield' && semVirar) {
     const livre = (semVirar.anyPlayerLifeAtMost != null && s.players.some(pl => !pl.lost && pl.life <= semVirar.anyPlayerLifeAtMost)) ||
       // R11.2 · "a menos que você controle um Plains ou um Swamp" (Isolated Chapel, Sulfur Falls): a própria carta, entrando, não conta
-      (semVirar.controlsSubtype && battlefield(s).some(x => x.oid !== o.oid && x.controller === o.controller && s.facts[x.name].types.includes('land') && semVirar.controlsSubtype.some(k => new RegExp('\\b' + k + '\\b').test(linhaDeTipo(s, x))))) ||
+      (semVirar.controlsSubtype && battlefield(s).some(x => x.oid !== o.oid && !entrandoJunto(s, x) && x.controller === o.controller && s.facts[x.name].types.includes('land') && semVirar.controlsSubtype.some(k => new RegExp('\\b' + k + '\\b').test(linhaDeTipo(s, x))))) ||
       (semVirar.maxOutrasTerras != null && outrasTerras(s, o) <= semVirar.maxOutrasTerras) || // M-336
       (semVirar.minOutrasTerras != null && outrasTerras(s, o) >= semVirar.minOutrasTerras) || (semVirar.minBasicos != null && outrasTerras(s, o, true) >= semVirar.minBasicos) || // M-340
       (semVirar.ateTurnoProprio != null && noTurnoProprioAte(s, o.controller, semVirar.ateTurnoProprio)) || // M-342
@@ -21361,7 +21362,9 @@ function applyEffect(s, src, eff, tgt, events) {
       // M-425 · Echoing Truth: "and all other permanents with the same name as that permanent" — as outras saem junto (201.2: nome em comum; 708.2: virada para baixo não tem nome)
       const ns = eff.mesmoNome && obj && obj.zone === 'battlefield' && !obj.faceDown ? nomesDe(s, obj) : null;
       const outras = ns ? battlefield(s).filter(o => o.oid !== obj.oid && !o.faceDown && !o.phasedOut && nomesDe(s, o).some(n => ns.includes(n))) : [];
+      const antes = s.saindoJuntas; if (outras.length) s.saindoJuntas = [obj.oid, ...outras.map(o => o.oid)]; // M-431 · 603.10a: as que saem no mesmo evento se veem (achado da revisão da M-425)
       moverObjeto(s, src, obj, { para: 'hand' }, ctrl); for (const o of outras) moverObjeto(s, src, o, { para: 'hand' }, ctrl);
+      if (outras.length) { if (antes) s.saindoJuntas = antes; else delete s.saindoJuntas; }
       note(eff.mesmoNome ? { mesmoNome: outras.length } : {}); break; }
     case 'counter':
       if (obj && obj.naoAnulavel && obj.zone === 'stack') { note({ failed: true, naoAnulavel: true }); break; }
@@ -21644,7 +21647,8 @@ function applyEffect(s, src, eff, tgt, events) {
     }
     case 'pisca_exila': { // M-351 · Ghostly Flicker: exila agora; quem devolve é pisca_volta, com todas juntas (400.7; 111.8 para fichas)
       if (!obj || obj.zone !== 'battlefield') { note({ failed: true }); break; }
-      const nome = obj.name, dono = obj.owner, ficha = !!obj.token; moveObject(s, obj.oid, 'exile');
+      const nome = obj.name, dono = obj.owner, ficha = !!obj.token, antes = s.saindoJuntas, ja = (src.piscadas || []).map(x => x.oid);
+      if (ja.length) s.saindoJuntas = ja; moveObject(s, obj.oid, 'exile'); if (ja.length) { if (antes) s.saindoJuntas = antes; else delete s.saindoJuntas; } // M-431 · 603.10a: as exiladas pela mesma mágica saem juntas (achado da revisão da M-426)
       if (!ficha && s.objects[obj.oid] && s.objects[obj.oid].zone === 'exile') (src.piscadas = src.piscadas || []).push({ oid: obj.oid, z: s.objects[obj.oid].zc || 0, dono });
       note({ name: nome, ...(ficha ? { ficha: true } : {}) }); break;
     }
