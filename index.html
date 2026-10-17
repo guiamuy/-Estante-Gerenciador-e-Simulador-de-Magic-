@@ -8749,6 +8749,14 @@ const RAW_SCRIPTS = [
     { do: 'counters', target: { tipos: ['artifact'], semTipos: ['creature'] }, upTo: true, tipo: 'p1p1', amount: 3 }, // "… put three +1/+1 counters on up to one target noncreature artifact."
     { do: 'continuo', target: 'first-target', torna: { tipos: ['artifact', 'creature'], subtipos: ['Homunculus'], somaTipos: true, base: [0, 0], palavras: ['flying'] }, ate: 'sempre' }] }], // "That artifact becomes a 0/0 Homunculus artifact creature with flying." (205.1b: mantém os tipos e subtipos anteriores)
     example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo: o cenário de verdade está em listas.lote11.unit
+  // L-12 · Pauper de M a Z, lote 12 (plano paralelo de cobertura): texto da Scryfall (API, consulta de 17/10/2026) em .listas/oficiais-listas.json. Barganha (702.166) com o "if bargained" na resolução.
+  { name: "Rowan's Grim Search", bargain: true, effects: [ // "Bargain (You may sacrifice an artifact, enchantment, or token as you cast this spell.)"
+    { do: 'look', count: 4, amount: 2, min: 0, to: 'library-top', ordena: true, rest: 'graveyard', onlyIf: 'bargained' }, // "If this spell was bargained, look at the top four cards of your library, then put up to two of them back on top of your library in any order and the rest into your graveyard."
+    { do: 'draw', amount: 2 }, { do: 'lose', amount: 2, target: 'self' }], // "You draw two cards and you lose 2 life."
+    example: { target: 'none', expect: { handDelta: 2, selfLife: -2 } } },
+  { name: 'Nest Invader', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'token', amount: 1, token: { name: 'Eldrazi Spawn', types: ['creature'], subtypes: ['Eldrazi', 'Spawn'], colors: [], power: 0, toughness: 1, // "When this creature enters, create a 0/1 colorless Eldrazi Spawn creature token. It has "Sacrifice this token: Add {C}.""
+    abilities: [{ kind: 'activated', cost: { sacrifice: true }, effects: [{ do: 'add_mana', symbols: ['C'] }] }] } }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor): o cenário de verdade está em listas.lote12.unit
   //
   //
   //
