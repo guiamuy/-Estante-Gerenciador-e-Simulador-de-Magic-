@@ -9566,6 +9566,10 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Envelop': { texto: 'm8fq4r', leva: 'M-419' },
   'Extinguish': { texto: 'm8fq4r', leva: 'M-419' },
   'Prohibit': { texto: 'p9iq2z', leva: 'M-419' },
+  // M-420 · revisão por lote LXXIV (olhar o topo e revelar criatura de poder 2 ou menos: Militia Bugler, Living Phone, Squad Rallier), texto da Scryfall de 17/10/2026 UTC, revisor independente
+  'Living Phone': { texto: 'oxzw8y', leva: 'M-420' },
+  'Militia Bugler': { texto: 'y21ewe', leva: 'M-420' },
+  'Squad Rallier': { texto: '1domriq', leva: 'M-420' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18213,7 +18217,9 @@ const __m42 = (function () {
     [new RegExp(`^look at the top ${N} cards of your library\\. put ${N} of them into your hand and the rest on the bottom of your library in (any|a random) order(?:\\.\\s*|$)`, 'i'), m => {
       const c = num(m[1]), k = num(m[2]); return c && k && k < c ? [{ do: 'look', count: c, amount: k, min: k, to: 'hand', rest: /random/i.test(m[3]) ? 'library-bottom-random' : 'library-bottom' }] : null; }],
     [new RegExp(`^look at the top ${N} cards of your library\\. you may reveal an? (instant or sorcery|creature|artifact|land|creature or land|colorless) card from among them and put it into your hand\\. (?:then )?put the rest on the bottom of your library in (any|a random) order(?:\\.\\s*|$)`, 'i'), m => {
-      const c = num(m[1]); return c ? [{ do: 'look', count: c, amount: 1, min: 0, to: 'hand', rest: /random/i.test(m[3]) ? 'library-bottom-random' : 'library-bottom', revelaEscolhida: true, filter: FILTRO_TOPO[m[2].toLowerCase()] }] : null; }]
+      const c = num(m[1]); return c ? [{ do: 'look', count: c, amount: 1, min: 0, to: 'hand', rest: /random/i.test(m[3]) ? 'library-bottom-random' : 'library-bottom', revelaEscolhida: true, filter: FILTRO_TOPO[m[2].toLowerCase()] }] : null; }],
+    [new RegExp(`^look at the top ${N} cards of your library\\. you may reveal a creature card with power (\\d+) or less from among them and put it into your hand\\. (?:then )?put the rest on the bottom of your library in (any|a random) order(?:\\.\\s*|$)`, 'i'), m => { // M-420 · Militia Bugler
+      const c = num(m[1]); return c ? [{ do: 'look', count: c, amount: 1, min: 0, to: 'hand', rest: /random/i.test(m[3]) ? 'library-bottom-random' : 'library-bottom', revelaEscolhida: true, filter: { types: ['creature'], powerMax: +m[2] } }] : null; }]
   ];
   /** M-343 · "scry 1 and create a Treasure token": duas ações em sequência. Só quando as duas metades são lidas sozinhas e a segunda não
       tem pronome (it, its, them, that…) que dependa da primeira — senão a frase fica não lida. */
@@ -22528,6 +22534,7 @@ function matchesFilter(s, o, filter) {
   if (filter.incolor && (o.zone === 'battlefield' ? coresDe(s, o) : (f.colors || [])).length) return false; // M-354 · "a colorless card" (Ancient Stirrings: terreno também é incolor, 105.2c)
   if ((filter.subtypes || []).length && !filter.subtypes.some(x => isChangeling(s, o, x) || new RegExp('\\b' + x + '\\b', 'i').test(f.typeText || ''))) return false; // K-1 · 702.73a: o metamorfo vale também no grimório e na mão
   if ((filter.notTypes || []).some(x => (f.types || []).includes(x))) return false; // S45 · "que não seja criatura nem terreno"
+  if (filter.powerMax != null) { const pw = o.zone === 'battlefield' && isCreature(s, o) ? power(s, o) : (/^-?\d+$/.test(String(f.power)) ? +f.power : null); if (pw == null || pw > filter.powerMax) return false; } // M-420 · "a creature card with power 2 or less" (Militia Bugler): fora do campo, o poder impresso; poder "*" fora do campo não serve (declarado)
   if (filter.mvMax != null && ((valorDaSalaT(s, o) ?? f.cmc) || 0) > filter.mvMax) return false; // T-28 · CR 709.5: a Sala no campo vale as portas destrancadas (Toca ponto comum: matchesFilter) // M-335 · "with mana value N or less"
   const types = filter.types || [];
   return !types.length || types.some(x => (f.types || []).includes(x));
@@ -33216,7 +33223,7 @@ function descreveEfeito(e) {
     case 'surveil': return `vigia ${n}`;
     case 'look': { // M-354 · achado da revisão do lote XXVI: dizia "olha as 1 cartas" (contava o que vai para a mão, não o que se olha)
       const k = e.count || n, f = e.filter || {}, TIPO = { creature: 'de criatura', land: 'de terreno', artifact: 'de artefato', enchantment: 'de encantamento', instant: 'instantânea', sorcery: 'de feitiço', planeswalker: 'de planeswalker' };
-      const qual = f.incolor ? ' incolor' : (f.types || []).length ? ' ' + f.types.map(t => TIPO[t] || t).join(' ou ') : '';
+      const qual = (f.incolor ? ' incolor' : (f.types || []).length ? ' ' + f.types.map(t => TIPO[t] || t).join(' ou ') : '') + (f.powerMax != null ? ` com poder ${f.powerMax} ou menos` : ''); // M-420
       const mao = e.to === 'hand' ? `; ${e.min ? '' : 'pode '}${e.revelaEscolhida ? 'revelar e ' : ''}pôr ${typeof e.amount === 'number' && e.amount > 1 ? `${e.amount} cartas` : 'uma carta'}${qual} na mão` : '';
       const resto = e.rest === 'library-bottom' ? '; o resto vai para o fundo' : e.rest === 'library-bottom-random' ? '; o resto vai para o fundo em ordem aleatória' : '';
       return `olha as ${k} cartas de cima${mao}${resto}`;
