@@ -82,14 +82,14 @@
  {
   "conversa": "radar · Painel Estante · 13/10",
   "trilha": "radar",
-  "leva": "R-20",
-  "historia": "R-20 Acervo na fila (fila/R-20); próxima BI2-6 Experiência (16º-ru, toca portao.mjs com check-in)",
-  "modulos": "nada em edição",
-  "contrato": "nenhum",
-  "situacao": "na-fila",
-  "estimativa": "BI2-6 é a última dos primeiros pilares; depois portão de validação",
+  "leva": "R-21",
+  "historia": "BI2-6 Experiência (16º-ru): portao.mjs grava .tmp/portao.json (resumo por fase, sem mudar o comportamento); auditaTela imprime uma linha de diagnóstico; telemetria.mjs --portao carrega o resumo na leva; sub-aba Experiência",
+  "modulos": "portao.mjs (infra: só o resumo, exit hook) + portao.unit; e2e.test.mjs (uma linha no helper auditaTela + teste R-21 no fim); telemetria.mjs + telemetria.unit; painel.html, painel.unit; ROADMAP 16º-ru",
+  "contrato": "portao.mjs e auditaTela (região infra/compartilhada): mudança mínima declarada",
+  "situacao": "editando",
+  "estimativa": "1 leva; última dos primeiros pilares",
   "inicio": "2026-10-13T21:40:00Z",
-  "atualizado": "2026-10-16T23:45:09.911Z",
+  "atualizado": "2026-10-17T00:39:11.931Z",
   "depende_de": "nada"
  },
  {
