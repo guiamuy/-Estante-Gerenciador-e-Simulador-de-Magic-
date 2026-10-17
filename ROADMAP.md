@@ -4841,6 +4841,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nenhum.
 - **Teste:** `lt160.unit` (6 testes; falham no motor anterior).
 
+**M-479 · LT145 · revisão por lote CXXIV: oito cartas lidas que travam as listas iniciantes** ✅ (leva M-479, motor v112 sem mudança de forma; goldens intactos; nenhuma linha de código nova).
+- **Valor:** passam a jogar (APROVADAS): Flame Lash, Pyre Hound, Rush of Adrenaline, Gideon's Lawkeeper, Luminous Angel (ficha opcional na manutenção), Wingsteed Rider (heroico), Kytheon's Irregulars (renome), Siege Rhino. Textos da Scryfall consultados em 17/10/2026; leituras conferidas frase a frase no texto oficial.
+- **Revisão independente:** aprovada (revisão de M-476…M-484): leitura das 64 cartas conferida frase a frase; `--confere` com 890 aprovadas lidas por inteiro; cerca de 170 jogadas de sonda sem erro; fuzz com as cartas novas (2×40 partidas, palavras-chave do texto e da Scryfall) sem recusa nem exceção. Ressalva: o renome do Kytheon's Irregulars depende da palavra-chave "Renown" vinda da Scryfall (no app vem); com dado só de texto o motor não a lê da linha impressa — declarado em M-485.
+- **Fora (declarado):** nenhum.
+- **Teste:** `lt161.unit` (6 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
