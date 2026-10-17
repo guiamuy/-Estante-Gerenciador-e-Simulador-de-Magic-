@@ -18597,7 +18597,7 @@ const __m42 = (function () {
   const escapa = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   /** M-394 · 201.5 · o nome impresso e "this creature/artifact/…" (redação Oracle desde 2024) valem como "~"; dentro de aspas (habilidade concedida a outro objeto) o "this …" é do outro objeto e fica. */
   const ESTE_OBJETO = /\bthis (creature|artifact|enchantment|land|permanent|vehicle|equipment|aura)\b/gi;
-  const nomeCurtoRe = nome => { const n0 = String(nome || ''); const i = n0.indexOf(', ') > 2 ? n0.indexOf(', ') : n0.indexOf(' the ') /* M-480 · 201.5c também em "Arcanis the Omnipotent" → "Arcanis" */; const c = i > 2 && /\bLegendary\b/.test(tipoAtual || '') ? nome.slice(0, i) : null; return c ? new RegExp('\\b' + escapa(c) + '\\b(?!,|[\'’]s\\b)', 'g') : /(?!)/g; }; // M-444 · M-454: só na lendária (Elemental, My Dear não é) e nunca como parte do nome de outro objeto ("Koma's Coil", achados da revisão)
+  const nomeCurtoRe = nome => { const n0 = String(nome || ''); const i = n0.indexOf(', ') > 2 ? n0.indexOf(', ') : n0.indexOf(' the ') /* M-480 · 201.5c também em "Arcanis the Omnipotent" → "Arcanis" */; const c = i > 2 && /\bLegendary\b/.test(tipoAtual || '') ? nome.slice(0, i) : null; return c ? new RegExp('\\b' + escapa(c) + '\\b(?!,|[\'’]s\\b| the\\b)' /* M-485 · "Tuktuk the Returned" é outro objeto */, 'g') : /(?!)/g; }; // M-444 · M-454: só na lendária (Elemental, My Dear não é) e nunca como parte do nome de outro objeto ("Koma's Coil", achados da revisão)
   const til = (t, nome) => String(t).replace(new RegExp(escapa(nome || '\u0000'), 'g'), '~').replace(nomeCurtoRe(nome), '~') /* M-444 · 201.5c: o nome curto da lendária ("Raphael" em "Raphael, Tough Turtle") */.split('"').map((p, i) => i % 2 ? p : p.replace(ESTE_OBJETO, '~')).join('"');
   /** Um parágrafo de efeito de mágica → { efeitos, frases }. */
   /** M-335 · orações em sequência que formam um efeito só (no começo do parágrafo): revelar a mão e escolher o descarte; olhar o topo e pegar. */
@@ -23112,7 +23112,7 @@ function resumeEffects(s, events) {
   if (continuaVerbo(s, events)) return; // V-2 · Toca ponto comum: resumeEffects (os passos de um verbo vêm antes de retomar a mágica)
   const r = s.resume; if (!r) { terminaMagiaSuspensa(s, events); return; } // M-374
   s.resume = null;
-  const src0 = s.objects[r.oid] || { oid: r.oid, name: r.name, controller: r.controller, ...(r.xPaid != null ? { xPaid: r.xPaid } : {}) };
+  const src0 = s.objects[r.oid] || { oid: r.oid, name: r.name, controller: r.controller, ...(r.xPaid != null ? { xPaid: r.xPaid } : {}), ...(r.ability ? { ability: true, source: r.source, fonteZc: r.fonteZc } : {}) /* M-485 */ };
   const src = comResolucaoT(r, (r.chosenColor || r.condicoes) && !src0.ability ? { ...src0, ...(r.condicoes || {}), ...(r.chosenColor ? { chosenColor: r.chosenColor } : {}) } : src0); // M-348 · cor escolhida na resolução de uma mágica (Emerge Unscathed) · M-351 · condições da conjuração (Extract a Confession) // T-67 · o dado e a moeda desta resolução voltam com a retomada (Toca ponto comum: resumeEffects)
   const alvos = (r.alvos || []).slice();
   // CR2c.7 · habilidade com X retomada depois de uma decisão: a fonte é a permanente, e o X é o da habilidade só durante esta retomada
@@ -23123,6 +23123,7 @@ function resumeEffects(s, events) {
     let tgt = null;
     if (SC.isTargeted(eff)) tgt = alvos.shift() || null;
     else if (eff.target === 'first-target') tgt = r.alvo || null;
+    if (eff.target === 'self-source' && (src.ability ? src.fonteZc != null : r.fonteZcR != null)) { const f = src.ability ? s.objects[src.source] : s.objects[r.oid]; if (f && f.zone === 'battlefield' && (f.zc || 0) !== (src.ability ? src.fonteZc : r.fonteZcR)) { events.push({ kind: 'effect', do: eff.do, name: src.name, failed: true }); continue; } } // M-485 · 400.7 na retomada (Norn's Wellspring piscada depois da vidência; M-371/M-484 só cobriam antes da escolha)
     if (!effectAllowed(s, src, eff)) continue; // M-351 · a condição do efeito também vale depois de uma decisão ("if evidence was collected, instead …")
     else if (eff.target === 'target-controller') { const t = r.alvo; tgt = { player: t && t.player != null ? t.player : t && t.oid != null && s.objects[t.oid] ? s.objects[t.oid].controller : r.controller }; }
     if (porJogador(eff)) aplicaPorJogador(s, src, eff, events); else if (eff.cada && eff.cada.de === 'alvo') aplicaCadaDoAlvo(s, src, eff, tgt, events); else if (ehVarredura(eff)) aplicaCada(s, src, eff, events); else // M-230 · a varredura também retoma depois de uma decisão; CR2-G R4b · M-351
@@ -26310,7 +26311,7 @@ function resolveAbility(s, o, events) {
     else if (eff.target === 'enchanted-player') { if (o.jogadorAtrasado != null) applyEffect(s, o, eff, { player: o.jogadorAtrasado }, events); } // T-94 · CR 303.4b · "that player": o jogador encantado quando disparou (Toca ponto comum: resolveAbility)
     else if (ehVarredura(eff)) aplicaCada(s, o, eff, events); // M-230
     else applyEffect(s, o, eff, null, events);
-    if (s.pending) { s.resume = { oid: o.source || o.oid, name: o.name, controller: o.controller, effects: (o.effects || []).slice((o.effects || []).indexOf(eff) + 1), alvo: primeiro, alvos: chosen.slice(ti), ...(o.xPaid != null ? { xPaid: o.xPaid } : {}), ...(o.dadoT || o.moedaT ? resolucaoT(o) : {}) }; return; } // CR2c.7 · o X viaja com a retomada · T-67 · e o dado e a moeda desta resolução (706.3b)
+    if (s.pending) { s.resume = { oid: o.source || o.oid, name: o.name, controller: o.controller, ...(o.source && o.fonteZc != null ? { fonteZcR: o.fonteZc } : {}) /* M-485 · a encarnação da fonte viaja com a retomada (400.7) */, effects: (o.effects || []).slice((o.effects || []).indexOf(eff) + 1), alvo: primeiro, alvos: chosen.slice(ti), ...(o.xPaid != null ? { xPaid: o.xPaid } : {}), ...(o.dadoT || o.moedaT ? resolucaoT(o) : {}) }; return; } // CR2c.7 · o X viaja com a retomada · T-67 · e o dado e a moeda desta resolução (706.3b)
   }
 }
 
@@ -28594,7 +28595,7 @@ function povoar(s, src, events) {
 /** V-5 · o resto dos efeitos de um "sim" (gatilho opcional ou "pode pagar") que parou numa escolha: retomado por resumeEffects, com os alvos que faltam. */
 function pausaDoSim(pk, src, eff, ti) {
   const efeitos = pk.then.effects;
-  return { oid: src.oid, name: pk.then.name, controller: pk.then.controller, effects: efeitos.slice(efeitos.indexOf(eff) + 1), alvo: (pk.then.targets || [])[0] || null, alvos: (pk.then.targets || []).slice(ti) };
+  return { oid: src.oid, name: pk.then.name, controller: pk.then.controller, ...(src.ability ? { ability: true, source: src.source, fonteZc: src.fonteZc } : {}) /* M-485 · a habilidade sintética da M-475 continua sendo habilidade na retomada */, effects: efeitos.slice(efeitos.indexOf(eff) + 1), alvo: (pk.then.targets || [])[0] || null, alvos: (pk.then.targets || []).slice(ti) };
 }
 function passoPovoarCria(s, passo, events) {
   const oid = (s.escolhaV || [])[0]; delete s.escolhaV;
