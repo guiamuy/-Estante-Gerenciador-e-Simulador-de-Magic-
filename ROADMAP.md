@@ -4466,6 +4466,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nada novo.
 - **Teste:** `lt103.unit` (2 testes; falham no motor anterior).
 
+**M-422 · LT88 · Moment of Glory: "also put a +1/+1 counter on each other creature you control" se conjurada do cemitério** ✅ (leva M-422, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** **Moment of Glory passa a jogar** (APROVADAS; texto da Scryfall de 17/10/2026 UTC): da mão, um marcador no alvo; pelo lampejo do passado, também um em cada outra criatura sua. Campo novo `excetoPrimeiro` na varredura: "each other" é além do alvo da frase anterior (não da fonte). A pilha explicada diz "cada outra criatura que você controla (se foi conjurada do cemitério)". Placar do Pauper (`main` + M-422 × catálogo de 17/10): **389 de 425 listas jogam** (eram 388).
+- **Revisão independente:** revisor independente do lote M-414, M-415, M-422 e M-423 (diferencial do leitor: só as cartas das levas passaram a ser lidas; 698 aprovadas íntegras; fuzz de 150 partidas e cerca de 99 mil ações e 16 partidas bot × bot sem ação recusada nem exceção): **aprovado** (17 verificações) — da mão, só o alvo; pelo lampejo, o alvo e cada outra criatura sua, sem dobrar no alvo; criatura do oponente sob seu controle ganha; alvo ilegal: ninguém ganha e a carta vai ao exílio.
+- **Fora (declarado):** nada novo.
+- **Teste:** `lt104.unit` (3 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

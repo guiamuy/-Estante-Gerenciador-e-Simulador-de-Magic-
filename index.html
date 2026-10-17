@@ -6357,6 +6357,7 @@ function effectErrors(effects, label, opcional) {
     if (e.dividido != null && !(e.do === 'damage' && typeof e.dividido === 'object' && (e.dividido.max == null || (Number.isInteger(e.dividido.max) && e.dividido.max >= 2)) && ['any', 'creature'].includes(e.target))) errs.push(`${label} ${i + 1}: "dividido" é dano dividido entre alvos (601.2d): { max: null | 2 ou mais }, alvo "any" ou "creature"`); // M-376
     if (e.do === 'discard_or_sacrifice_land_draw' && e.obrigatorio != null) errs.push(`${label} ${i + 1}: o descarte ou sacrifício obrigatório (sem "you may") não é coberto`); // M-411 · fica sem leitura, nunca opcional por engano
     if (e.do === 'discard_or_sacrifice_land_draw' && e.tipo != null && e.tipo !== 'artifact') errs.push(`${label} ${i + 1}: "tipo" do sacrifício é 'artifact' (sem tipo: terreno)`); // M-411
+    if (e.excetoPrimeiro != null && !(e.excetoPrimeiro === true && e.cada && !isTargeted(e) && effects.slice(0, i).some(isTargeted))) errs.push(`${label} ${i + 1}: "excetoPrimeiro" só numa varredura (cada) sem alvo, depois de um efeito com alvo`); // M-422
     if (e.mvAte != null && (e.do !== 'counter' || !(Number.isInteger(e.mvAte) ? e.mvAte >= 0 : (e.mvAte && e.mvAte.per === 'se' && e.mvAte.se === 'kicked' && Number.isInteger(e.mvAte.sim) && Number.isInteger(e.mvAte.nao))))) errs.push(`${label} ${i + 1}: "mvAte" só na anulação: inteiro, ou se reforçada`); // M-419
     if (e.do === 'descarta_e_compra' && e.descarta != null && !(Number.isInteger(e.descarta) && e.descarta >= 1)) errs.push(`${label} ${i + 1}: "descarta" é quantas cartas se descartam (inteiro, 1 ou mais)`); // M-373
     if (e.do === 'morde' && !(i > 0 && effects[i - 1] && effects[i - 1].do === 'mordedor')) errs.push(`${label} ${i + 1}: "morde" vem logo depois de "mordedor" (a criatura que causa o dano)`); // M-407
@@ -9572,6 +9573,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Squad Rallier': { texto: '1domriq', leva: 'M-420' },
   // M-421 · revisão por lote LXXV (fichas em quantidade igual ao poder da fonte: Nested Shambler), texto da Scryfall de 17/10/2026 UTC, revisor independente
   'Nested Shambler': { texto: '1qmx71c', leva: 'M-421' },
+  // M-422 · revisão por lote LXXVI (Moment of Glory: "also … on each other creature you control" se conjurada do cemitério), texto da Scryfall de 17/10/2026 UTC, revisor independente
+  'Moment of Glory': { texto: 'c88ie7', leva: 'M-422' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18258,6 +18261,7 @@ const __m42 = (function () {
       if (/^if that spell is countered this way, exile it instead of putting it into its owner's graveyard$/i.test(p) && efeitos.length && efeitos[efeitos.length - 1].do === 'counter') { efeitos[efeitos.length - 1].exila = true; frases.push({ texto: p, lida: true }); continue; } // M-338 · Force of Negation
       if (/^if evidence was collected, instead each opponent sacrifices a creature with the greatest power among creatures they control$/i.test(p) && efeitos.length && !efeitos[efeitos.length - 1].onlyIf) { efeitos[efeitos.length - 1].onlyIf = 'not-evidenced'; efeitos.push({ do: 'sacrificar', tipos: ['creature'], jogadores: 'cada-oponente', maiorPoder: true, onlyIf: 'evidenced' }); frases.push({ texto: p, lida: true }); continue; } // M-351 · Extract a Confession (701.59; "instead" troca a frase anterior)
       if (/^if it was a legendary spell, the ring tempts you$/i.test(p) && efeitos.length && efeitos[efeitos.length - 1].do === 'counter') { efeitos.push({ do: 'ring_tempts', onlyIf: 'alvo-era-lendario' }); frases.push({ texto: p, lida: true }); continue; } // M-414 · Glorious Gale (608.2h; 701.54)
+      if (/^if this spell was cast from a graveyard, also put a \+1\/\+1 counter on each other creature you control$/i.test(p) && efeitos.length && efeitos[efeitos.length - 1].do === 'counters' && efeitos[efeitos.length - 1].amount === 1 && efeitos[efeitos.length - 1].target === 'creature-you-control') { efeitos.push({ do: 'counters', amount: 1, cada: { tipos: ['creature'], de: 'you' }, excetoPrimeiro: true, onlyIf: 'cast-from-graveyard' }); frases.push({ texto: p, lida: true }); continue; } // M-422 · Moment of Glory ("other": além do alvo)
       if (/^if that land was a snow land, you gain 1 life$/i.test(p) && efeitos.length && SC_ALVEJA(efeitos[efeitos.length - 1])) { efeitos.push({ do: 'gain', amount: 1, onlyIf: 'alvo-era-neve' }); frases.push({ texto: p, lida: true }); continue; } // M-385 · Thermokarst (608.2h)
       if (/^if the creature you control has trample, excess damage is dealt to that creature's controller instead$/i.test(p) && efeitos.length && efeitos[efeitos.length - 1].do === 'morde') { efeitos[efeitos.length - 1].excessoComAtropelar = true; frases.push({ texto: p, lida: true }); continue; } // M-407 · Ram Through
       if (/^if you controlled that permanent, draw a card$/i.test(p) && efeitos.length && SC_ALVEJA(efeitos[efeitos.length - 1])) { efeitos.push({ do: 'draw', amount: 1, onlyIf: 'alvo-era-seu' }); frases.push({ texto: p, lida: true }); continue; } // M-341 · Boomerang Basics
@@ -22504,7 +22508,7 @@ function aplicaCadaDoAlvo(s, src, eff, tgt, events) {
 }
 /** M-230 · aplica o efeito a cada objeto da varredura; o que muda de zona sai junto (603.10a: quem sai junto vê os outros). */
 function aplicaCada(s, src, eff, events) {
-  const alvos = sweepTargets(s, src, eff), juntas = ['destroy', 'exile', 'bounce', 'reanimate', 'to_hand'].includes(eff.do);
+  const alvos = sweepTargets(s, src, eff).filter(x => !(eff.excetoOid && x.oid === eff.excetoOid)), juntas = ['destroy', 'exile', 'bounce', 'reanimate', 'to_hand'].includes(eff.do); // M-422 · excetoOid: o alvo da frase anterior
   if (juntas) s.saindoJuntas = alvos.map(x => x.oid);
   for (const x of alvos) applyEffect(s, src, eff, { oid: x.oid }, events);
   if (juntas) delete s.saindoJuntas;
@@ -22948,7 +22952,7 @@ function resolveScript(s, o, events) {
       applyEffect(s, o, eff, { player: who }, events);
     } else if (porJogador(eff)) aplicaPorJogador(s, o, eff, events); // CR2-G R4b · "cada jogador / cada oponente / você"
     else if (eff.target === 'each-opponent' || eff.target === 'each-player') { applyEffect(s, o, eff, null, events); // S47 · jogadores, não criaturas
-    } else if (ehVarredura(eff)) aplicaCada(s, o, eff, events); // S4/M-230 · varredura: "cada" pelo seletor
+    } else if (ehVarredura(eff)) aplicaCada(s, o, eff.excetoPrimeiro ? { ...eff, excetoOid: firstTarget && firstTarget.oid } : eff, events); // S4/M-230 · varredura: "cada" pelo seletor · M-422 · "each other creature you control" além do alvo (Moment of Glory)
     else applyEffect(s, o, eff, null, events);
     // CR 704.4 · as ações de estado esperam a mágica terminar de resolver (antes rodavam entre um efeito e outro)
   }
@@ -33237,7 +33241,7 @@ function descreveEfeito(e) {
     case 'untap_chosen': { const tipo = ((e.filter || {}).types || [])[0], nome = { land: ['terreno', 'terrenos'], creature: ['criatura', 'criaturas'], artifact: ['artefato', 'artefatos'] }[tipo] || ['permanente', 'permanentes']; return `desvira até ${n} ${n === 1 ? nome[0] : nome[1]}`; } // M-250
     case 'exile_graveyard': return 'exila cartas do cemitério';
     case 'discard': return `descarta ${plural(n, 'carta', 'cartas')}`;
-    case 'counters': return e.tipo && e.tipo !== 'p1p1' ? `põe ${plural(n, 'marcador ' + (MARCADOR_PT[e.tipo] || e.tipo), 'marcadores ' + (MARCADOR_PT[e.tipo] || e.tipo))} ${emPT(alvo || 'uma permanente')}` : `põe ${plural(n, 'marcador +1/+1', 'marcadores +1/+1')} ${emPT(alvo || 'uma criatura')}`; // M-401
+    case 'counters': if (e.excetoPrimeiro && e.cada) return descreveEfeito({ ...e, excetoPrimeiro: undefined }).replace(/cada criatura/, 'cada outra criatura'); /* M-422 */ return e.tipo && e.tipo !== 'p1p1' ? `põe ${plural(n, 'marcador ' + (MARCADOR_PT[e.tipo] || e.tipo), 'marcadores ' + (MARCADOR_PT[e.tipo] || e.tipo))} ${emPT(alvo || 'uma permanente')}` : `põe ${plural(n, 'marcador +1/+1', 'marcadores +1/+1')} ${emPT(alvo || 'uma criatura')}`; // M-401
     case 'mover': { // CR2-G R4a
       const quem = e.target === 'self-source' ? 'esta carta' : alvo || 'o alvo';
       if (e.para === 'battlefield') return `põe ${quem} no campo${e.controle === 'dono' ? ' sob o controle do dono' : ' sob o seu controle'}${e.virada ? ', virada' : ''}${e.transformada ? ', transformada' : ''}`; // T-53 · 712.14a
