@@ -16,11 +16,12 @@ const EX = { example: { target: 'none', expect: { selfLife: 0 } } };
 const SCRIPTS = {
   // carta azul de três manas com embalsamar: mostra o "branca em vez das outras cores" e o "sem custo de mana"
   'Gato Azul': { name: 'Gato Azul', self: { embalsamar: '{1}{U}' }, example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  'Copia Rapida': { name: 'Copia Rapida', effects: [{ do: 'ficha_copia', amount: 1, palavras: ['haste'], target: 'creature-you-control' }], example: { target: 'none', expect: { selfLife: 0 } } },
   'Copia Ficha': { name: 'Copia Ficha', effects: [{ do: 'ficha_copia', amount: 1, target: 'creature-you-control' }], example: { target: 'none', expect: { selfLife: 0 } } },
   'Mata Zumbi': { name: 'Mata Zumbi', effects: [{ do: 'destroy', target: { tipos: ['creature'], subtipos: ['Zombie'] } }], example: { target: 'none', expect: { selfLife: 0 } } },
 };
 carta('Gato Azul', 'Creature — Cat', { mana_cost: '{2}{U}', cmc: 3, colors: ['U'], power: '2', toughness: '2', keywords: ['Embalm'] });
-carta('Copia Ficha', 'Instant'); carta('Mata Zumbi', 'Instant');
+carta('Copia Ficha', 'Instant'); carta('Copia Rapida', 'Instant'); carta('Mata Zumbi', 'Instant');
 
 const SCAT = 'Sacred Cat';
 function mesa(seed = 1) {
@@ -113,4 +114,14 @@ test('CR 702.128a · validador: self.embalsamar é o custo de "Embalm [custo]"',
   eq(v({ name: 'X', self: { embalsamar: '{W}' } }), []);
   assert.ok(v({ name: 'X', self: { embalsamar: true } }).length, 'sem custo');
   assert.ok(v({ name: 'X', self: { embalsamar: 'W' } }).length, 'custo sem símbolo');
+});
+
+test('CR 707.9b · auditoria D1 (T-112): cópia com exceção própria ("except it has haste") da ficha embalsamada continua branca, Zumbi e de valor 0, e ganha ímpeto', () => {
+  let s = mesa(); let g, cr; [s, g] = poe(s, 0, 'Gato Azul', 'graveyard'); [s, cr] = poe(s, 0, 'Copia Rapida', 'hand'); s = mana(s, 0, { U: 1, C: 2 });
+  s = embalsama(s, 0, g);
+  const [t] = fichasDe(s, 0, 'Gato Azul');
+  const c = legais(s, 0, a => a.t === 'cast' && a.oid === cr && (a.targets || []).some(x => x.oid === t))[0]; assert.ok(c);
+  s = resolveTudo(act(s, c));
+  const o = s.objects[fichasDe(s, 0, 'Gato Azul').find(x => x !== t)];
+  eq([E.coresDe(s, o), E.manaValueT(s, o), /\bZombie\b/.test(E.linhaDeTipo(s, o)), E.hasKeyword(s, o, 'haste')], [['W'], 0, true, true]);
 });

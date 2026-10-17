@@ -5572,6 +5572,8 @@ const EFFECTS = {
   lutador: { fields: [], targets: ['creature', 'creature-you-control'] },
   fight: { fields: [], targets: ['creature', 'creature-opponent-controls', 'creature-you-control'] }, // quem: 'self-source' (a permanente fonte luta) | 'primeiro-alvo' (luta a criatura anotada pelo `lutador` anterior)
   /* ↓ T · efeitos da trilha tipos */
+  dano_jogador_ou_pw: { fields: ['amount'], targets: ['enchanted-player', 'player', 'opponent', 'that-player'] }, // T-112 · CR 303.4b / 120.3 · "deals N damage to that player or a planeswalker that player controls" (sem alvo: quem controla a fonte escolhe na resolução)
+  dano_fixo_t: { fields: ['amount'], targets: [] }, // T-112 · a escolha do dano_jogador_ou_pw (gerado pelo motor; `jogador` ou `oid`/`z`)
   embalsamar: { fields: [], targets: [] }, // T-111 · CR 702.128a · "Create a token that's a copy of this card, except it's white, it has no mana cost, and it's a Zombie in addition to its other types" (o motor o monta a partir de `self.embalsamar`, o script não o escreve)
   copia_habilidade: { fields: [], targets: ['spell-or-ability'] }, // T-109 · CR 707.10b · "Copy target [activated or] triggered ability you control. You may choose new targets for the copy."
   copia_magia: { fields: [], targets: ['spell'] }, // T-108 · CR 707.10 · "Copy target instant or sorcery spell. You may choose new targets for the copy." (alvo: seletor de mágica na pilha; `vezes`: quantas cópias)
@@ -5911,6 +5913,7 @@ const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield
   'exerted', // V-20 · "You may exert ~ as it attacks. When you do, …" (701.43d): dispara quando a permanente é exaurida
   'becomes-monstrous', // V-6 · "When ~ becomes monstrous" (o valor do gatilho é o N da monstruosidade, 701.37c)
   /* ↓ T · gatilhos da trilha tipos */
+  'enchanted-controller-upkeep', // T-112 · CR 303.4 / 603.2 · "At the beginning of the upkeep of enchanted creature's controller" (Unstable Mutation; "that creature" é a encantada quando disparou)
   'draw-step', 'each-draw-step', 'precombat-main', 'each-precombat-main', // T-101 · CR 500.6 · "at the beginning of your/each player's draw step / precombat main phase" (o "that player" de "each player's" é o jogador ativo: `target: 'that-player'`)
   'enchanted-player-postcombat-main', // T-103 · "At the beginning of each of enchanted player's postcombat main phases" (Shadow of the Second Sun)
   'enchanted-player-upkeep', // T-94 · CR 303.4b · "At the beginning of enchanted player's upkeep" (o "that player" dos efeitos é `target: 'enchanted-player'`)
@@ -6798,6 +6801,11 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-112 · CR 303.4 · Auras com gatilho de manutenção (Oracle pelo mtg.wtf, consulta de 17/10/2026)
+  { name: 'Curse of the Pierced Heart', aura: { enchant: 'player' }, abilities: [{ kind: 'triggered', when: 'enchanted-player-upkeep', effects: [{ do: 'dano_jogador_ou_pw', amount: 1, target: 'enchanted-player' }] }], // "Enchant player · At the beginning of enchanted player's upkeep, this Aura deals 1 damage to that player or a planeswalker that player controls."
+    example: { target: 'opponent', expect: { attached: false } } },
+  { name: 'Unstable Mutation', aura: { enchant: 'creature' }, grants: { power: 3, toughness: 3 }, abilities: [{ kind: 'triggered', when: 'enchanted-controller-upkeep', effects: [{ do: 'counters', amount: 1, tipo: 'm1m1', target: 'enchanted' }] }], // "Enchant creature · Enchanted creature gets +3/+3. · At the beginning of the upkeep of enchanted creature's controller, put a -1/-1 counter on that creature."
+    example: { action: 'aura', target: 'own-creature', expect: { stats: [5, 5] } } },
   // T-111 · CR 702.128 · embalsamar (Scryfall, consulta de 17/10/2026, com os rulings de 18/04/2017 e 14/07/2017). Vínculo com a vida vem da palavra-chave.
   { name: 'Sacred Cat', self: { embalsamar: '{W}' }, // "Lifelink · Embalm {W} ({W}, Exile this card from your graveyard: Create a token that's a copy of it, except it's a white Zombie Cat with no mana cost. Embalm only as a sorcery.)"
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
@@ -9683,6 +9691,7 @@ Object.assign(GATILHO_EVENTO, { 'draw-step': { evento: 'passo', passo: 'draw', t
 TRIGGER_PT['copia-habilidade'] = 'cópia de habilidade'; TRIGGER_PT.copia = 'cópia de mágica'; // T-110 · o registro dizia a chave interna
 GATILHO_EVENTO['enchanted-player-postcombat-main'] = { evento: 'passo', passo: 'main2', turno: 'qualquer', jogadorEncantado: true }; TRIGGER_PT['enchanted-player-postcombat-main'] = 'no início de cada fase principal pós-combate do jogador encantado'; // T-103
 GATILHO_EVENTO['enchanted-player-upkeep'] = { evento: 'passo', passo: 'upkeep', turno: 'qualquer', jogadorEncantado: true }; TRIGGER_PT['enchanted-player-upkeep'] = 'na manutenção do jogador encantado'; // T-94 · CR 303.4b
+GATILHO_EVENTO['enchanted-controller-upkeep'] = { evento: 'passo', passo: 'upkeep', turno: 'qualquer', controladorDaEncantada: true }; TRIGGER_PT['enchanted-controller-upkeep'] = 'na manutenção de quem controla a criatura encantada'; // T-112 · CR 303.4
 /* ---------------- T-36 · CR 702.160 / 718 · protótipo (forma do script) ----------------
    `self: { prototipo: { mana, power, toughness } }` ("Prototype {3}{G} — 3/3"): o segundo conjunto de custo de mana, poder e resistência. */
 function prototipoErros(sc) {
@@ -9890,6 +9899,7 @@ function nivelarErros(sc) {
 }
 Object.assign(EXPORTS_T_SC, { nivelarErros });
 MARCADOR_PT.level = 'de nível'; // T-24 · CR 122.1 / 702.87a
+MARCADOR_PT.m1m1 = '−1/−1'; // T-112 · auditoria D2: o registro e a pilha diziam "marcador m1m1" (Unstable Mutation, Misfortune)
 /* ---------------- T-20 · CR 303.7 / 111.10j–r · Papéis (forma) ----------------
    As sete fichas de Papel, como a regra 111.10 as define (CR de 25/09/2026): encantamento Aura Role incolor, "enchant creature", e o
    que cada uma dá à criatura encantada. O efeito `papel` (`{ do: 'papel', papel: 'Monster', target }`) cria a ficha anexada ao alvo.
@@ -21673,7 +21683,7 @@ function applyEffect(s, src, eff, tgt, events) {
         { const ex = excecaoDaFichaT(s, obj); if (ex) ft.excecaoFichaT = clone(ex); } // T-111 · CR 707.9b · a exceção do embalsamar é valor copiável (Toca ponto comum: ficha_copia)
         if (prototipoAtivoT(s, obj)) ft.prototipoT = true; // T-56 · CR 718.3d · a ficha que copia um protótipo também é protótipo (Toca ponto comum: ficha_copia)
         fichaDeDuplaFaceT(s, ft, obj); // T-7 · CR 707.8a · a ficha que copia uma permanente de dupla face é ficha de dupla face, com a mesma face para cima (função abaixo da âncora T das exportações)
-        if (exc) { ft.nomeImpresso = ft.name; ft.copias = [{ nome: ft.name, ate: 'sempre', by: ctrl, ts: relogio(s), turno: s.turn.number, excecao: exc }]; aplicaExcecao(s, ft, exc, 'sempre'); } } // 707.9 · "except it has haste"
+        if (exc) { ft.nomeImpresso = ft.name; ft.copias = [{ nome: ft.name, ate: 'sempre', by: ctrl, ts: relogio(s), turno: s.turn.number, excecao: exc, ...copiavelDaTrilhaT(s, obj) /* T-112 · auditoria D1: o registro da cópia leva a exceção do embalsamar e o protótipo (707.9b) (Toca ponto comum: ficha_copia) */ }]; aplicaExcecao(s, ft, exc, 'sempre'); } } // 707.9 · "except it has haste"
       note({ name: obj.name, amount: novas.length }); break;
     }
     case 'escolhe_copiadora': { src.copiadora = obj && obj.oid; note({ name: obj && obj.name }); break; } // CR2f.1
@@ -22373,6 +22383,8 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'lutador': if (obj) s.lutadorV = { fonte: src.oid, fz: encarnacaoV(s, src), oid: obj.oid, z: obj.zc || 0 }; break; // V-1/V-5 · anota quem luta; a luta é o `fight` seguinte, que apaga a anotação
     case 'fight': lutar(s, src, eff, tgt, events); break; // V-1 · 701.14
     /* ↓ T · casos de applyEffect da trilha tipos */
+    case 'dano_jogador_ou_pw': danoJogadorOuPwT(s, src, eff, playerOf(), ctrl, events); break; // T-112 · CR 120.3
+    case 'dano_fixo_t': { const x = eff.oid != null ? s.objects[eff.oid] : null; if (eff.oid != null && !(x && x.zone === 'battlefield' && (x.zc || 0) === (eff.z || 0))) { note({ failed: true }); break; } applyEffect(s, src, { do: 'damage', amount: eff.amount }, eff.oid != null ? { oid: eff.oid } : { player: eff.jogador }, events); break; } // T-112 · 400.7
     case 'embalsamar': note({ amount: embalsamaT(s, src, ctrl, events) }); break; // T-111 · CR 702.128a
     case 'copia_magia': copiaMagiaT(s, src, eff, obj, ctrl, events); break; // T-108 · CR 707.10
     case 'copia_habilidade': copiaHabilidadeT(s, src, obj, ctrl, events); break; // T-109 · CR 707.10b
@@ -23152,8 +23164,9 @@ function gatilhosDoPasso(s, passo, fase) {
       const turno = d.turno || 'seu';
       if (fase === 'seu' ? turno !== 'seu' : (turno === 'seu' || (turno === 'oponente' && o.controller === a))) continue;
       if (d.jogadorEncantado && jogadorEncantadoT(s, o) !== a) continue; // T-94 · CR 303.4b · "enchanted player's upkeep" (Toca ponto comum: gatilhosDoPasso)
+      const hospT = d.controladorDaEncantada ? hospedeiraDoPassoT(s, o, a) : null; if (d.controladorDaEncantada && !hospT) continue; // T-112 · CR 303.4 · "the upkeep of enchanted creature's controller" (Toca ponto comum: gatilhosDoPasso)
       if (!triggerConditionMet(s, o, ab.condition)) continue;
-      s.queued.push({ source: o.oid, name: o.name, controller: o.controller, effects: ab.effects, when: ab.when, ...marcasDaHabilidade(ab), ...(d.jogadorEncantado || d.jogadorAtivo ? { jogador: a } : {}) /* T-101 · "that player" de "each player's" */ });
+      s.queued.push({ source: o.oid, name: o.name, controller: o.controller, effects: ab.effects, when: ab.when, ...marcasDaHabilidade(ab), ...(d.jogadorEncantado || d.jogadorAtivo ? { jogador: a } : {}) /* T-101 · "that player" de "each player's" */, ...(hospT ? { host: hospT.oid, hostZc: hospT.zc || 0 } : {}) /* T-112 · "that creature" */ });
     }
   }
 }
@@ -28051,6 +28064,19 @@ function copiaVigenteT(s, o) { const vale = (o && o.copias || []).filter(t => vi
      `ficha_copia`; o efeito de cópia vigente mais novo decide (707.2), como no protótipo. Os ganchos de característica impressa da
      trilha (cor, valor de mana, custo e a redefinição de tipos com carimbo -1) a leem antes das outras camadas.
    - 702.128b: a ficha leva `embalsamadaT` ("embalmed"); nenhuma carta coberta lê isso ainda. */
+/* ---------------- T-112 · CR 303.4 / 120.3 · gatilhos de manutenção de Aura ----------------
+   - "At the beginning of the upkeep of enchanted creature's controller" (`enchanted-controller-upkeep`): dispara na manutenção de quem
+     controla a criatura encantada agora; "that creature" é a encantada quando disparou (host + encarnação, 400.7), mesmo que a Aura saia.
+   - "deals N damage to that player or a planeswalker that player controls" (`dano_jogador_ou_pw`): sem alvo (não cobra salvaguarda);
+     na resolução, quem controla a fonte escolhe o jogador ou um planeswalker dele (choose_mode com opcoesK); sem planeswalker, vai direto. */
+function hospedeiraDoPassoT(s, aura, ativo) { const h = aura && aura.attachedTo ? s.objects[aura.attachedTo] : null; return h && h.zone === 'battlefield' && tiposDe(s, h).includes('creature') && h.controller === ativo ? h : null; }
+function danoJogadorOuPwT(s, src, eff, p, ctrl, events) {
+  const n = amountOf(s, src, eff.amount), pws = battlefield(s).filter(o => o.controller === p && !o.faceDown && tiposDe(s, o).includes('planeswalker'));
+  if (!pws.length) { applyEffect(s, src, { do: 'damage', amount: n }, { player: p }, events); return; }
+  s.pending = { kind: 'choose_mode', p: ctrl, name: `${src.name}: ${n} de dano em quem?`, options: [s.players[p].name, ...pws.map(o => o.name)], rotulosProprios: true,
+    opcoesK: [{ effects: [{ do: 'dano_fixo_t', amount: n, jogador: p }] }, ...pws.map(o => ({ effects: [{ do: 'dano_fixo_t', amount: n, oid: o.oid, z: o.zc || 0 }] }))],
+    fonteK: { oid: src.ability ? src.source : src.oid, name: src.name, controller: ctrl } };
+}
 function excecaoDaFichaT(s, o) { if (!o || o.faceDown || o.zone !== 'battlefield') return null; const r = copiaVigenteT(s, o); return (r ? r.excecaoT : o.excecaoFichaT) || null; }
 function embalsamarHabilidadeT(sc) { const c = sc.self.embalsamar; return { kind: 'activated', cost: { mana: c, fromGraveyard: true, exileSelf: true }, sorceryOnly: true, label: `Embalsamar ${c}`, embalsamarT: true, effects: [{ do: 'embalsamar' }] }; }
 function embalsamaT(s, src, ctrl, events) {
@@ -32136,7 +32162,7 @@ function describe(before, a, events, after) {
     case 'tripular_pronto': { const pd = before.pending || {}; L.push(`${P} ${E.selarDaAcaoT(before, { t: 'activate', oid: pd.oid, index: pd.index }) ? 'selou' : 'tripulou'} ${pd.name || 'o Veículo'} com ${(pd.escolhidas || []).map(x => nameOf(before, x)).join(' + ') || 'ninguém'}`); break; }
     case 'dividir_dano': { const op = ((before.pending || {}).opcoes || [])[a.index]; L.push(`${P} dividiu o dano de ${nameOf(before, (before.pending || {}).oid)}: ${op ? op.rotulo : '?'}`); break; } // CR2g.2
     case 'choose_mode': { const pd = before.pending || {}; if (pd.modoDoOponenteT) break; /* T-110 · a linha vem do evento modo_do_oponente */ const alvo = pd.naResolucao && before.objects[pd.naResolucao.oid] ? before.objects[pd.naResolucao.oid].name : null;
-      L.push(a.decline ? `${P} preferiu não usar o efeito de ${pd.name || 'o gatilho'}` : `${P} escolheu ${String((pd.options || [])[a.index || 0] || 'um modo').toLowerCase()}${alvo ? ' ' + alvo : ''} (${pd.name || 'gatilho'})`); break; }
+      L.push(a.decline ? `${P} preferiu não usar o efeito de ${pd.name || 'o gatilho'}` : `${P} escolheu ${((x, r) => r ? x : x.toLowerCase())(String((pd.options || [])[a.index || 0] || 'um modo'), pd.rotulosProprios) /* T-112 · auditoria D3: nome de jogador ou carta fica como é (Toca ponto comum: registro) */}${alvo ? ' ' + alvo : ''} (${pd.name || 'gatilho'})`); break; }
     case 'choose_color': L.push(before.pending && before.pending.manaRestam ? `${P} adicionou {${a.color}}` : `${P} escolheu ${{ W: 'branco', U: 'azul', B: 'preto', R: 'vermelho', G: 'verde' }[a.color]}`); break; // M-357
     case 'concede': L.push(`${P} desistiu`); break;
     case 'attack': L.push(a.attackers.length ? `${P} atacou com ${a.attackers.map(o => nameOf(before, o) + (a.alvos && a.alvos[o] ? ` (em ${nameOf(before, a.alvos[o])})` : '')).join(', ')}` : `${P} não atacou`); break; // M-228 · "(em Lukka)": atacou o planeswalker
@@ -33051,6 +33077,7 @@ const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas
 };
 /* ↓ T · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha tipos */
 const EFEITO_PT_T = { caso_resolvido: () => 'este Caso fica resolvido', estacao: () => 'põe nesta permanente marcadores de carga iguais ao poder da criatura virada (ou à resistência, quando um efeito manda estacionar por ela)', selada: () => 'esta montaria fica selada até o fim do turno', virar_carta: e => (e.se && e.se.minCriaturas ? `se você controla ${e.se.minCriaturas} ou mais criaturas, vira esta carta` : 'vira esta carta'), porta: e => (e.acao === 'trancar' ? 'tranca uma porta destrancada de uma Sala sua' : e.acao === 'destrancar' ? 'destranca uma porta trancada de uma Sala sua' : 'tranca ou destranca uma porta de uma Sala sua'), nivel_sobe: () => 'põe um marcador de nível nela', nivel_classe: e => `a Classe sobe para o nível ${e.n}`, tripulada: () => 'vira criatura artefato até o fim do turno', transformar: () => 'transforma (vira a outra face)', preparar: () => 'esta criatura fica preparada', despreparar: () => 'esta criatura deixa de estar preparada' }; // T-51 · 722.3 // T-7 · 701.27
+Object.assign(EFEITO_PT_T, { dano_jogador_ou_pw: e => `causa ${e.amount} de dano ao jogador encantado ou a um planeswalker dele (você escolhe)`, dano_fixo_t: e => `causa ${e.amount} de dano` }); // T-112
 Object.assign(EFEITO_PT_T, { embalsamar: () => 'cria uma ficha que é cópia desta carta, só que branca, Zumbi além dos outros tipos e sem custo de mana (embalsamar)' }); // T-111 · CR 702.128a
 Object.assign(EFEITO_PT_T, { vira_para_baixo: () => 'vira a criatura alvo para baixo (2/2, sem nome nem habilidades)', vira_para_cima: () => 'vira para cima a criatura alvo virada para baixo' }); // T-73 · CR 708.2a / 708.8
 /** T-7 · linhas do registro para os eventos da trilha tipos. */
