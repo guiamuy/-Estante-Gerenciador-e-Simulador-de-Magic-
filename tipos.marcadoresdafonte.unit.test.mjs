@@ -1,16 +1,16 @@
 // T-115 · CR5 · "When this creature dies, put its counters on target creature you control" (603.10a, 122.1, 702.165 reforço).
 // Texto da regra: .regras/cr-2026-09-25.txt. Carta com o texto oficial de .listas/oficiais-tipos.json (Scryfall, consulta de 17/10/2026,
-// com os rulings de 14/04/2023): Enduring Bondwarden. "Urso", "Choque" e "Murcha" são cartas de teste.
+// com os rulings de 14/04/2023): Enduring Bondwarden; T-120: Iron Apprentice (Scryfall, 17/10/2026, rulings de 18/02/2022). "Urso", "Choque" e "Murcha" são cartas de teste.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { E, S as SC, J, act, poe, legais, passaAte, valorDeMana } from './listas.mjs';
 
 const L = n => JSON.parse(readFileSync(new URL('./.listas/' + n, import.meta.url), 'utf8')).cartas;
-const EB = 'Enduring Bondwarden';
+const EB = 'Enduring Bondwarden', IA = 'Iron Apprentice';
 const C = {};
-for (const c of L('oficiais-tipos.json').filter(x => x.name === EB))
-  C[c.name] = { name: c.name, type_line: c.type_line, mana_cost: c.mana_cost, cmc: valorDeMana(c.mana_cost), keywords: ['Backup'], oracle_text: c.oracle_text, colors: ['W'], power: c.power, toughness: c.toughness };
+for (const c of L('oficiais-tipos.json').filter(x => [EB, IA].includes(x.name)))
+  C[c.name] = { name: c.name, type_line: c.type_line, mana_cost: c.mana_cost, cmc: valorDeMana(c.mana_cost), keywords: c.name === EB ? ['Backup'] : [], oracle_text: c.oracle_text, colors: c.name === EB ? ['W'] : [], power: c.power, toughness: c.toughness };
 C.Plains = { name: 'Plains', type_line: 'Basic Land — Plains', mana_cost: '', cmc: 0, keywords: [], oracle_text: '({T}: Add {W}.)', colors: [] };
 const carta = (name, type_line, extra = {}) => { C[name] = { name, type_line, mana_cost: '{1}', cmc: 1, keywords: [], oracle_text: '', colors: [], ...extra }; };
 carta('Urso', 'Creature — Bear', { power: '2', toughness: '2' }); carta('Choque', 'Instant'); carta('Murcha', 'Instant');
@@ -61,4 +61,20 @@ test('CR 603.10a · sem marcador ao morrer, o gatilho resolve sem nada; o alvo �
   let z = mesa(); let e2, w; [z, w] = poe(z, 0, 'Urso'); [z, e2] = poe(z, 0, EB);
   z = resolve(lanca(z, 'Choque', e2)); if (z.pending) z = escolheAlvo(z, w); z = resolve(z);
   eq(k(z, w), 0);
+});
+
+test('CR 603.4 · Iron Apprentice (texto oficial): entra com um +1/+1; ao morrer, "if it had counters on it", põe esses marcadores na criatura alvo sua', () => {
+  let s = mesa(); let u, ia; [s, u] = poe(s, 0, 'Urso'); [s, ia] = poe(s, 0, IA, 'hand'); s = mana(s);
+  s = resolve(act(s, legais(s, 0, x => x.t === 'cast' && x.oid === ia)[0]));
+  const st = E.stats(s, s.objects[ia]); eq([s.objects[ia].counters.p1p1, st.power, st.toughness], [1, 1, 1]);
+  s = resolve(lanca(s, 'Choque', ia));
+  if (s.pending) s = escolheAlvo(s, u); s = resolve(s);
+  eq(k(s, u), 1);
+});
+
+test('CR 603.4 / 704.5q · Iron Apprentice sem marcador ao morrer (o +1/+1 anulado por um −1/−1): o gatilho nem dispara', () => {
+  let s = mesa(); let u, ia; [s, u] = poe(s, 0, 'Urso'); [s, ia] = poe(s, 0, IA, 'hand'); s = mana(s);
+  s = resolve(act(s, legais(s, 0, x => x.t === 'cast' && x.oid === ia)[0]));
+  s = resolve(lanca(s, 'Murcha', ia));
+  eq([s.objects[ia].zone, s.stack.length, s.pending, k(s, u), k(s, u, 'm1m1')], ['graveyard', 0, null, 0, 0]);
 });

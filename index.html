@@ -6815,6 +6815,9 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-120 · CR 603.4 / 122.1 (Scryfall, consulta de 17/10/2026, rulings de 18/02/2022)
+  { name: 'Iron Apprentice', self: { entersWithCounters: 1 }, abilities: [{ kind: 'triggered', when: 'dies', condition: { tinhaMarcadores: true }, effects: [{ do: 'marcadores_da_fonte', target: 'creature-you-control' }] }], // "Iron Apprentice enters with a +1/+1 counter on it. · When Iron Apprentice dies, if it had counters on it, put those counters on target creature you control."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // T-119 · CR 107.6 · {Q} (Scryfall, consulta de 17/10/2026, rulings de 01/05/2008). Voar vem da palavra-chave.
   { name: 'Pili-Pala', abilities: [{ kind: 'activated', cost: { mana: '{2}', untapT: true }, effects: [{ do: 'add_mana', anyColor: true }] }], // "Flying · {2}, {Q}: Add one mana of any color."
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
@@ -10043,7 +10046,7 @@ MARCADOR_PT.m1m1 = '−1/−1'; // T-112 · auditoria D2: o registro e a pilha d
    As sete fichas de Papel, como a regra 111.10 as define (CR de 25/09/2026): encantamento Aura Role incolor, "enchant creature", e o
    que cada uma dá à criatura encantada. O efeito `papel` (`{ do: 'papel', papel: 'Monster', target }`) cria a ficha anexada ao alvo.
    Condição nova de gatilho: `resistenciaAte: N` ("if its toughness is N or less", conferida ao disparar e ao resolver, 603.4). */
-function condicoesT() { return ['resistenciaAte', 'selada', 'preparada', 'monarca', 'desceu', 'fonteDesvirada', 'primeiraManutencao', 'encantadaSubtipo']; } // T-114 · "if enchanted creature is a Wolf or Werewolf" // T-101 · "if ~ is untapped", "first upkeep each turn" // T-84 · desceu: "if you descended this turn" (700.11, 603.4) // T-62 · monarca: "if you're the monarch" ('voce') / "if an opponent is the monarch" ('oponente') (725.5, 603.4) // T-51 · preparada: "if this creature is (isn't) prepared" (722.3a) // T-31 · selada: "attacks while saddled" (702.171b) // função (içada): o validador roda na carga do módulo, antes desta linha
+function condicoesT() { return ['resistenciaAte', 'selada', 'preparada', 'monarca', 'desceu', 'fonteDesvirada', 'primeiraManutencao', 'encantadaSubtipo', 'tinhaMarcadores']; } // T-120 · "if it had counters on it" // T-114 · "if enchanted creature is a Wolf or Werewolf" // T-101 · "if ~ is untapped", "first upkeep each turn" // T-84 · desceu: "if you descended this turn" (700.11, 603.4) // T-62 · monarca: "if you're the monarch" ('voce') / "if an opponent is the monarch" ('oponente') (725.5, 603.4) // T-51 · preparada: "if this creature is (isn't) prepared" (722.3a) // T-31 · selada: "attacks while saddled" (702.171b) // função (içada): o validador roda na carga do módulo, antes desta linha
 /* ---------------- T-62 · CR 725.5 · o monarca nas condições (forma do script) ----------------
    Gatilho: `condition: { monarca: 'voce' | 'oponente' }` ("if you're the monarch" / "if an opponent is the monarch", conferida ao
    disparar e ao resolver, 603.4). Efeito: `onlyIf: 'monarca' | 'oponente-monarca'` e `amount: { per: 'se', se: 'monarca', sim, nao }`
@@ -10059,7 +10062,7 @@ function monarcaErrosT(sc) {
   for (const ab of abs) if (ab && ab.umaVezPorTurno != null && (ab.umaVezPorTurno !== true || ab.kind !== 'triggered' || ab.when !== 'crime')) errs.push('"umaVezPorTurno" só vale como true, num gatilho "crime"'); // T-86 · 603.2h
   for (const ab of abs) if (ab && ab.kind === 'triggered' && ab.when === 'expend' && !(Number.isInteger(ab.n) && ab.n >= 1)) errs.push('gatilho "expend": "n" é um inteiro, 1 ou mais (o N de "whenever you expend N")'); // T-85
   if (sc && sc.self && sc.self.atacaSeMonarcaDefende != null && sc.self.atacaSeMonarcaDefende !== true) errs.push('self.atacaSeMonarcaDefende só vale como true'); // T-70
-  for (const ab of ((sc && sc.abilities) || [])) for (const k of ['fonteDesvirada', 'primeiraManutencao']) if (ab && ab.condition && ab.condition[k] != null && ab.condition[k] !== true) errs.push(`condição ${k} só vale como true`); // T-101
+  for (const ab of ((sc && sc.abilities) || [])) for (const k of ['fonteDesvirada', 'primeiraManutencao', 'tinhaMarcadores']) if (ab && ab.condition && ab.condition[k] != null && ab.condition[k] !== true) errs.push(`condição ${k} só vale como true`); // T-101
   for (const ab of ((sc && sc.abilities) || [])) { const v = ab && ab.condition && ab.condition.encantadaSubtipo; if (v != null && !(Array.isArray(v) && v.length && v.every(x => typeof x === 'string' && x.trim()))) errs.push('condição encantadaSubtipo: lista de subtipos ("Wolf", "Werewolf")'); } // T-114
   if (sc && sc.self && sc.self.firebendingX != null && !PER_COUNTS.includes(sc.self.firebendingX)) errs.push('self.firebendingX é uma contagem conhecida (power-of-source, creatures-you-control…)'); // T-100 · 702.189
   for (const e of [...((sc && sc.effects) || []), ...((sc && sc.abilities) || []).flatMap(ab => ab.effects || [])]) if (e && e.do === 'pula' && (!['desvirar', 'compra', 'combate', 'turno'].includes(e.o) || (e.quando != null && (e.o !== 'combate' || !['neste-turno', 'todas-do-proximo-turno'].includes(e.quando))))) errs.push("pula: o é 'desvirar', 'compra', 'combate' ou 'turno'; quando ('neste-turno' | 'todas-do-proximo-turno') só no combate"); // T-99
@@ -23156,6 +23159,7 @@ function triggerConditionMet(s, o, cond) {
   if (cond.selada && !seladaAgoraT(s, o)) return false; // T-31 · CR 702.171b: "while saddled" (Toca ponto comum: triggerConditionMet)
   if (cond.fonteDesvirada && o.tapped) return false; // T-101 · 603.4 · "if ~ is untapped" (Howling Mine) (Toca ponto comum: triggerConditionMet)
   if (cond.primeiraManutencao && s.emPassoExtraT === 'upkeep') return false; // T-101 · 500.9 · "first upkeep each turn" (Paradox Haze)
+  if (cond.tinhaMarcadores && !Object.values((o.zone === 'battlefield' ? o.counters : (o.ultima || {}).counters) || {}).some(n => n > 0)) return false; // T-120 · 603.4 / 603.10a: "if it had counters on it" (a foto de quando saiu) (Toca ponto comum: triggerConditionMet)
   if (cond.encantadaSubtipo && !encantadaTemSubtipoT(s, o, cond.encantadaSubtipo)) return false; // T-114 · 603.4 · "if enchanted creature is a Wolf or Werewolf" (Toca ponto comum: triggerConditionMet)
   if (cond.desceu && !desceuNoTurnoT(s, o.controller)) return false; // T-84 · CR 700.11 / 603.4 · "if you descended this turn" (Toca ponto comum: triggerConditionMet)
   if (cond.monarca && !monarcaCondT(s, o.controller, cond.monarca)) return false; // T-62 · CR 725.5 / 603.4 · "if you're (an opponent is) the monarch" (Toca ponto comum: triggerConditionMet)
@@ -33618,6 +33622,7 @@ Object.assign(X_PT, { 'maldicoes-no-jogador': 'o número de Maldições no jogad
 Object.assign(EFEITO_PT_T, { exile_chosen: e => `${e.target === 'enchanted-player' ? 'o jogador encantado' : 'o alvo'} exila ${typeof e.amount === 'number' && e.amount > 1 ? e.amount + ' cartas' : 'uma carta'} do próprio cemitério` }); // T-94 · com a quantidade (antes dizia sempre "uma carta")
 const faixaDoDadoPT_T = (e, f) => !f || !e || !e.faixaDoDado ? f : `${f} (${e.faixaDoDado[1] == null ? `se o dado der ${e.faixaDoDado[0]} ou mais` : e.faixaDoDado[0] === e.faixaDoDado[1] ? `se o dado der ${e.faixaDoDado[0]}` : `se o dado der de ${e.faixaDoDado[0]} a ${e.faixaDoDado[1]}`})`; // T-66 · CR 706.3a
 Object.assign(CONDICAO_PT, { 'dado-duplos': 'se os dois dados derem o mesmo número' }); // T-66 · CR 706.5
+Object.assign(CONDICAO_PT, { tinhaMarcadores: 'se ela tinha marcadores' }); // T-120
 Object.assign(CONDICAO_PT, { encantadaSubtipo: 'se a criatura encantada é do subtipo pedido' }); // T-114
 Object.assign(CONDICAO_PT, { fonteDesvirada: 'se esta permanente está desvirada', primeiraManutencao: 'só na primeira manutenção do turno' }); // T-101
 Object.assign(CONDICAO_PT, { desceu: 'se você desceu neste turno (uma carta de permanente foi para o seu cemitério)' }); // T-84 · CR 700.11
