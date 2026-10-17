@@ -4889,6 +4889,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** a travessia de ilha (702.14c) do River Boa só vale quando o dado da carta traz "Islandwalk" nas palavras-chave (no app vem da Scryfall); o motor não a lê da linha impressa — mesmo caso do renome declarado na M-485.
 - **Teste:** `lt168.unit` (6 testes; falham no motor anterior).
 
+**M-487 · LT153 · revisão por lote CXXIX: nove cartas lidas que travam as listas iniciantes** ✅ (leva M-487, motor v112 sem mudança de forma; goldens intactos; nenhuma linha de código nova).
+- **Valor:** passam a jogar (APROVADAS): Sangrite Surge (golpe duplo), Oran-Rief Invoker, Fleeting Distraction, Hordeling Outburst, Moan of the Unhallowed (com lampejo do passado), Mausoleum Guard, Selfless Cathar, Gavony Unhallowed, Serpent Warrior. Textos da Scryfall consultados em 17/10/2026; leituras conferidas frase a frase no texto oficial.
+- **Revisão independente:** aprovada (revisão de M-486/M-487): 18 leituras conferidas frase a frase; `--confere` com 908 aprovadas; 83 sondas sem erro (recompra anulada; evocar; regenerar em combate e contra "can't be regenerated"; islandwalk; golpe duplo; sacrifício como custo; Evincar's Justice sem diferença observável por ser dois efeitos — mesmo padrão da Pestilence); fuzz com as 18 cartas (2×60 partidas) sem recusa nem exceção.
+- **Fora (declarado):** nenhum.
+- **Teste:** `lt169.unit` (5 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
