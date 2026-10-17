@@ -18193,8 +18193,8 @@ const __m42 = (function () {
       if (/^(\{[^}]+\})+$/.test(parte) && parte !== '{T}') { if (cost.mana) return null; cost.mana = parte; }
       else if (parte === '{T}') cost.tap = true;
       else if (/^sacrifice (this (creature|artifact|land|permanent)|~)$/i.test(parte)) cost.sacrifice = true;
-      else if (/^sacrifice an artifact or creature$/i.test(parte)) cost.sacrificeOther = { types: ['artifact', 'creature'] };
-      else if (/^sacrifice an artifact$/i.test(parte)) cost.sacrificeOther = { types: ['artifact'] };
+      else if (/^sacrifice an artifact or creature$/i.test(parte)) cost.sacrificeOther = { types: ['artifact', 'creature'], ...(/\b(artifact|creature)\b/i.test(tipoAtual) ? { includeSelf: true } : {}) }; // M-439 · a própria fonte serve se for de um dos tipos
+      else if (/^sacrifice an artifact$/i.test(parte)) cost.sacrificeOther = { types: ['artifact'], ...(/\bartifact\b/i.test(tipoAtual) ? { includeSelf: true } : {}) }; // M-439 · Throne of Geth
       else if (/^sacrifice an? (Food|Treasure|Clue|Blood)$/i.test(parte)) cost.sacrificeOther = { types: ['artifact'], subtype: parte.match(/(Food|Treasure|Clue|Blood)$/i)[1].replace(/^./, c => c.toUpperCase()) }; // M-398 · Cauldron Familiar
       else if (/^sacrifice a creature$/i.test(parte)) cost.sacrificeOther = { types: ['creature'], ...(/\bcreature\b/i.test(tipoAtual) ? { includeSelf: true } : {}) }; // LT13 · Phyrexian Tower · M-327: a criatura com esse custo pode se sacrificar (Viscera Seer)
       else if (/^sacrifice another creature$/i.test(parte)) cost.sacrificeOther = { types: ['creature'], outra: true };
@@ -23531,7 +23531,7 @@ function putTriggerOnStack(s, q, events) {
   for (let i = targets.length; i < targeted.length; i++) {
     const eff = targeted[i];
     const opts = legalTargets(s, q.controller, eff.target, q.source, eff.targetColor)
-      .filter(x => targetAllowed(s, eff, x, src) && !targets.some((y, j) => y && sameChoice(x, y) && !eff.alvoLivre && !(targeted[j] || {}).alvoLivre)); // 601.2c: alvos diferentes · M-363 · 115.3: alvoLivre (achado da revisão: a cópia de Agony Warp)
+      .filter(x => targetAllowed(s, eff, x, eff.doJogadorDoPrimeiro ? { ...src, targets } : src) && !targets.some((y, j) => y && sameChoice(x, y) && !eff.alvoLivre && !(targeted[j] || {}).alvoLivre)); // M-439 · doJogadorDoPrimeiro: o primeiro alvo já escolhido para este item (a cópia), não o da original // 601.2c: alvos diferentes · M-363 · 115.3: alvoLivre (achado da revisão: a cópia de Agony Warp)
     if (!opts.length) { if (eff.upTo) { targets.push(null); continue; } events.push({ kind: 'trigger-fizzled', name: q.name, when: q.when }); return false; } // M-338 · "up to one": sem alvo legal, segue sem alvo
     if (opts.length > 1 || eff.upTo) { s.pending = { kind: 'pick_target', p: q.controller, trigger: { ...q, alvos: targets }, options: opts, name: q.name, ...(targeted.length > 1 ? { qual: i + 1, de: targeted.length } : {}), ...(eff.upTo ? { semAlvo: true } : {}) }; return false; } // M-338 · "up to one": pergunta mesmo com uma opção (pode ser nenhuma)
     targets.push(opts[0]);
@@ -25347,7 +25347,8 @@ function legalActions(s, p, { adjudication = false } = {}) {
           return [c, ...opts.filter((x, i) => i > ant && !c.some(y => sameChoice(x, y))).map(x => c.concat([x])).filter(cc => !excedeSoma(s, need, cc))]; }).slice(0, COMBO_LIMIT);
         continue;
       }
-      if (eff.doJogadorDoPrimeiro) { combos = combos.flatMap(c => opts.filter(x => !c.some(y => sameChoice(x, y)) && controladaPeloPrimeiroM(s, c[0], s.objects[x.oid])).map(x => c.concat([x]))).slice(0, COMBO_LIMIT); if (!combos.length) return []; continue; } // M-437 · "target creature that player … controls" (sem par, não conjura: ruling de 01/03/2010)
+      if (eff.doJogadorDoPrimeiro) { const todos = legalTargets(s, p, eff.target, o.oid, eff.targetColor).filter(x => targetAllowed(s, eff, x, xv != null ? { controller: p, xPaid: xv } : undefined)); // M-439 · sem o corte de limitaAlvos antes do par: com muitas criaturas de um lado, o outro jogador sumia da escolha
+        combos = combos.flatMap(c => todos.filter(x => !c.some(y => sameChoice(x, y)) && controladaPeloPrimeiroM(s, c[0], s.objects[x.oid])).slice(0, TARGET_LIMIT).map(x => c.concat([x]))).slice(0, COMBO_LIMIT); if (!combos.length) return []; continue; } // M-437 · "target creature that player … controls" (sem par, não conjura: ruling de 01/03/2010)
       combos = eff.upTo ? addTarget(combos, opts).concat(combos) : eff.alvoLivre ? combos.flatMap(c => opts.map(x => c.concat([x]))).slice(0, COMBO_LIMIT) : addTarget(combos, opts); // M-363 · 115.3: outra palavra "target" pode repetir o objeto
     }
     const vistos = new Set(); // S47 · dois alvos opcionais repetiam a mesma combinação

@@ -4575,6 +4575,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nada novo.
 - **Teste:** `lt120.unit` (4 testes; falham no motor anterior).
 
+**M-439 · LT105 · correções da revisão independente de M-432…M-438** ✅ (leva M-439, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** (1) **Searing Blaze com muitas criaturas de um lado:** o par (oponente, criatura dele) continua oferecido — o limite de alvos agora corta depois do par, por jogador do primeiro alvo (601.2c); (2) **a cópia com alvos novos (Twincast):** o par é conferido contra o primeiro alvo da cópia, não o da original (707.10c); (3) **"Sacrifice an artifact" (ou "an artifact or creature") numa fonte desse tipo:** ela mesma pode ser sacrificada — muda a leitura de 10 cartas não aprovadas (Throne of Geth, Krark-Clan Ironworks, Arcbound Ravager…).
+- **Revisão independente:** os três itens são achados do revisor do lote M-432…M-438; cada um tem teste que falha no motor anterior.
+- **Fora (declarado):** nada novo.
+- **Teste:** `lt121.unit` (3 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
