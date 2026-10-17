@@ -468,10 +468,17 @@
    "n": "107.6",
    "regra": "Numbers and Symbols",
    "titulo": "Símbolo de desvirar {Q}",
-   "status": "ausente",
-   "falta": "O custo de habilidade não tem \"desvirar esta permanente\".",
+   "status": "coberta",
+   "falta": "T-119 (17/10/2026): coberta. Fora: {Q} numa permanente com marcador de atordoamento desvira sem consumir o marcador (122.1d não entra no pagamento do custo).",
    "esforco": "P",
-   "cartas": "rara (Shadowmoor/Eventide)"
+   "cartas": "rara (Shadowmoor/Eventide)",
+   "evidencia": "T-119 (17/10/2026): `cost.untapT` (\"{Q}\"): a oferta e o pagamento exigem a permanente virada e, se for criatura, sem enjoo (302.6); o pagamento a desvira; com `add_mana` é habilidade de mana, sem pilha (605.1a); não convive com {T} no validador; a mesa mostra \"{Q}\" no custo — Pili-Pala (Scryfall, 17/10/2026; rulings de 01/05/2008)",
+   "testes": [
+    "CR 107.6 / 605.1a · Pili-Pala (texto oficial): virada, {2} e desvirar dão uma mana da cor escolhida, sem pilha; ela fica desvirada",
+    "CR 107.6 · ruling de 01/05/2008: desvirada não paga {Q} — sem oferta e o pedido direto é recusado; sem {2}, também não",
+    "CR 302.6 · ruling de 01/05/2008: a criatura que não está sob seu controle desde o começo do turno não paga {Q}",
+    "CR 107.6 · validador: \"untapT\" é o custo {Q} (só como verdadeiro) e não convive com {T}"
+   ]
   },
   {
    "n": "107.7",

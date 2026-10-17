@@ -6119,7 +6119,7 @@ function validateScript(sc) {
       if (cost.xCor != null && !(typeof cost.xCor === 'string' && cost.xCor.length === 1 && 'WUBRG'.includes(cost.xCor) && /\{X\}/i.test(cost.mana || ''))) errs.push(`${tag}: "gaste só mana de uma cor em X" precisa de uma cor WUBRG e de {X} no custo`); // CR2c.7
       if (cost.crew != null && !(Number.isInteger(cost.crew) && cost.crew >= 0)) errs.push(`${tag}: tripular precisa de um número`); // CR2d.3
       if (cost.fromGraveyard != null && !(cost.fromGraveyard === true && (cost.exileSelf || cost.devolveSelf) && !cost.fromHand && !cost.tap)) errs.push(`${tag}: habilidade do cemitério precisa exilar a própria carta como custo ou devolvê-la ao campo (e não usa {T})`); // M-352 · 113.6 · M-398: "Return ~ from your graveyard to the battlefield" (Cauldron Familiar)
-      if (cost.crew == null && !cost.mana && !cost.tap && !cost.sacrifice && !cost.sacrificeOther && !cost.tapOther && !cost.life && !cost.discard && !cost.returnLand && !cost.revealColor && !cost.discardSelf && !cost.exileSelf && !cost.discardHand && !cost.removeCounters && !cost.poeMarcador && !cost.energia) errs.push(`${tag}: habilidade ativada sem custo`);
+      if (cost.crew == null && !cost.mana && !cost.tap && !cost.untapT /* T-119 · {Q} (Toca ponto comum) */ && !cost.sacrifice && !cost.sacrificeOther && !cost.tapOther && !cost.life && !cost.discard && !cost.returnLand && !cost.revealColor && !cost.discardSelf && !cost.exileSelf && !cost.discardHand && !cost.removeCounters && !cost.poeMarcador && !cost.energia) errs.push(`${tag}: habilidade ativada sem custo`);
       if (cost.energia != null && !(Number.isInteger(cost.energia) && cost.energia > 0)) errs.push(`${tag}: pagar energia precisa de uma quantidade inteira positiva`); // M-367
       if (cost.poeMarcador != null && !(cost.poeMarcador && /^[a-z][a-z0-9]*$/.test(cost.poeMarcador.tipo || '') && cost.poeMarcador.tipo !== 'lore' && Number.isInteger(cost.poeMarcador.n || 1) && (cost.poeMarcador.n || 1) > 0)) errs.push(`${tag}: pôr marcadores como custo precisa do tipo e de uma quantidade inteira`); // M-360 · 122.1 / 602.1
       if (ab.semMarcadorSacrifica != null && !(cost.removeCounters && cost.removeCounters.tipo === ab.semMarcadorSacrifica && (ab.effects || []).length && ab.effects.every(e => e.do === 'add_mana'))) errs.push(`${tag}: "sem marcador, sacrifique" só vale em habilidade de mana que remove esse marcador`); // M-250
@@ -6338,7 +6338,7 @@ function validateScript(sc) {
   if (sc && sc.replicate != null && sc.kicker) errs.push('replicar e reforço na mesma carta não são aceitos (os dois usam o pagamento repetido)');
   if (sc && sc.modeCount != null && !(Number.isInteger(sc.modeCount) && sc.modeCount >= 2 && (sc.modes || []).length && (sc.modeRepeat || sc.modeCount <= sc.modes.length))) errs.push('número de modos inválido');
   if (sc && sc.cumulativeUpkeep && !/\{/.test(String(sc.cumulativeUpkeep.mana || ''))) errs.push('manutenção cumulativa precisa de um custo de mana');
-  errs.push(...sagaErros(sc), ...tripularErros(sc), ...aventuraErros(sc), ...duplaFaceErros(sc), ...modalErros(sc), ...divididaErros(sc), ...classeErros(sc), ...batalhaErros(sc), ...papelErros(sc), ...nivelarErros(sc), ...salaErros(sc), ...virarErros(sc), ...selarErros(sc), ...embalsamarErrosT(sc), ...prototipoErros(sc), ...estacaoErros(sc), ...casoErros(sc), ...disfarceErros(sc), ...reconfigurarErros(sc), ...maisQueOlhosErros(sc), ...preparoErros(sc), ...monarcaErrosT(sc)); // T-62 · CR 725.5 · condições do monarca (mesma chamada) // T-51 · CR 722 · preparação (mesma chamada) // T-49 · CR 702.162 · More Than Meets the Eye (mesma chamada) // T-43 · CR 702.151 · reconfigurar (mesma chamada) // T-42 · CR 702.168 · disfarce (mesma chamada) // T-39 · CR 719 · Caso (mesma chamada) // T-37 · CR 721 · estação (mesma chamada) // T-36 · CR 718 · protótipo (mesma chamada) // T-31 · CR 702.171 · selar (mesma chamada) // T-29 · CR 710 · carta de virar (mesma chamada) // T-26 · CR 709.5 · Sala (mesma chamada) // T-24 · CR 711 · barras de nível (mesma chamada) // T-20 · CR 111.10 · papel conhecido (mesma chamada) // T-14 · CR 310.4 · defesa da batalha (mesma chamada) // T-12 · CR 716 · Classe (mesma chamada) // T-10 · CR 709 · carta dividida (mesma chamada) // T-8 · CR 712.3 · dupla face modal (mesma chamada) // T-7 · CR 712 · dupla face (mesma chamada) // T-5 · CR 715 · aventura (mesma chamada) // T-3 · CR 702.122 · tripular (mesma chamada da T-1) // T-1 · CR 714 · Saga: capítulos, read ahead e o marcador de entrada (função abaixo da âncora T das exportações)
+  errs.push(...sagaErros(sc), ...tripularErros(sc), ...aventuraErros(sc), ...duplaFaceErros(sc), ...modalErros(sc), ...divididaErros(sc), ...classeErros(sc), ...batalhaErros(sc), ...papelErros(sc), ...nivelarErros(sc), ...salaErros(sc), ...virarErros(sc), ...selarErros(sc), ...embalsamarErrosT(sc), ...desvirarErrosT(sc), ...prototipoErros(sc), ...estacaoErros(sc), ...casoErros(sc), ...disfarceErros(sc), ...reconfigurarErros(sc), ...maisQueOlhosErros(sc), ...preparoErros(sc), ...monarcaErrosT(sc)); // T-62 · CR 725.5 · condições do monarca (mesma chamada) // T-51 · CR 722 · preparação (mesma chamada) // T-49 · CR 702.162 · More Than Meets the Eye (mesma chamada) // T-43 · CR 702.151 · reconfigurar (mesma chamada) // T-42 · CR 702.168 · disfarce (mesma chamada) // T-39 · CR 719 · Caso (mesma chamada) // T-37 · CR 721 · estação (mesma chamada) // T-36 · CR 718 · protótipo (mesma chamada) // T-31 · CR 702.171 · selar (mesma chamada) // T-29 · CR 710 · carta de virar (mesma chamada) // T-26 · CR 709.5 · Sala (mesma chamada) // T-24 · CR 711 · barras de nível (mesma chamada) // T-20 · CR 111.10 · papel conhecido (mesma chamada) // T-14 · CR 310.4 · defesa da batalha (mesma chamada) // T-12 · CR 716 · Classe (mesma chamada) // T-10 · CR 709 · carta dividida (mesma chamada) // T-8 · CR 712.3 · dupla face modal (mesma chamada) // T-7 · CR 712 · dupla face (mesma chamada) // T-5 · CR 715 · aventura (mesma chamada) // T-3 · CR 702.122 · tripular (mesma chamada da T-1) // T-1 · CR 714 · Saga: capítulos, read ahead e o marcador de entrada (função abaixo da âncora T das exportações)
   return errs.concat(exampleErrors(sc));
 }
 const ATRASOS = ['next-upkeep', 'next-end-step', 'end-of-combat']; // CR2b.1 · momentos de gatilho atrasado que o motor conhece
@@ -6815,6 +6815,9 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-119 · CR 107.6 · {Q} (Scryfall, consulta de 17/10/2026, rulings de 01/05/2008). Voar vem da palavra-chave.
+  { name: 'Pili-Pala', abilities: [{ kind: 'activated', cost: { mana: '{2}', untapT: true }, effects: [{ do: 'add_mana', anyColor: true }] }], // "Flying · {2}, {Q}: Add one mana of any color."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // T-117 · grandeza (casualplaneswalker + Forge, consulta de 17/10/2026)
   { name: 'Page, Loose Leaf', produces: [['C']], abilities: [{ kind: 'activated', cost: { discard: 1, discardNomeT: 'Page, Loose Leaf' }, label: 'Grandeza', effects: [{ do: 'revela_ate_mao', match: 'instant-or-sorcery' }] }], // "{T}: Add {C}. · Grandeur — Discard another card named Page, Loose Leaf: Reveal cards from the top of your library until you reveal an instant or sorcery card. Put that card into your hand and the rest on the bottom of your library in a random order."
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
@@ -9944,6 +9947,9 @@ function embalsamarErrosT(sc) {
   return typeof sf.embalsamar === 'string' && /^(\{[^}]+\})+$/.test(sf.embalsamar) ? [] : ['embalsamar: self.embalsamar é o custo de "Embalm [custo]" em símbolos ({W}, {1}{U}…)'];
 }
 Object.assign(EXPORTS_T_SC, { embalsamarErrosT });
+/* T-119 · CR 107.6 · o custo {Q} ("untap this permanent"): `cost.untapT: true`; não convive com {T} no mesmo custo. */
+function desvirarErrosT(sc) { const errs = []; for (const ab of (sc && sc.abilities) || []) { const c = ab && ab.cost; if (!c || c.untapT == null) continue; if (c.untapT !== true) errs.push('{Q}: cost.untapT só vale como true'); if (c.tap) errs.push('{Q}: o custo não pode ter {T} e {Q} juntos'); } return errs; }
+Object.assign(EXPORTS_T_SC, { desvirarErrosT });
 /* ---------------- T-29 · CR 710 · cartas de virar (forma do script) ----------------
    O script mora no nome da parte normal (a carta listada como "A // B" usa o mesmo script, como as outras de duas partes):
    `self: { virar: true }` + `back: { name, types, subtypes, legendary, power, toughness, keywords, abilities }` (a parte alternativa,
@@ -23883,6 +23889,10 @@ function payAbilityCost(s, p, source, ab) {
     source.loyaltyTurn = s.turn.number;
     return;
   }
+  if (cost.untapT) { // T-119 · CR 107.6 / 302.6: {Q} só com a permanente virada e, se for criatura, sem enjoo (Toca ponto comum: payCost)
+    if (!source.tapped) throw new RuleError('custo', 'a permanente precisa estar virada para pagar {Q}');
+    if (isCreature(s, source) && enjoado(s, source) && !has(s, source, 'haste')) throw new RuleError('custo', 'criatura com enjoo não pode usar {Q}');
+  }
   if (cost.tap) {
     if (source.tapped) throw new RuleError('custo', 'a permanente já está virada');
     if (isCreature(s, source) && enjoado(s, source) && !has(s, source, 'haste')) throw new RuleError('custo', 'criatura com enjoo não pode usar {T}');
@@ -23909,6 +23919,7 @@ function payAbilityCost(s, p, source, ab) {
     poeMarcadores(s, source, cost.poeMarcador.tipo, cost.poeMarcador.n || 1);
   }
   if (cost.tap) { if (!source.tapped) noteEnchantedEvent(s, source); source.tapped = true; } // Leva 106 · "becomes tapped" de qualquer origem
+  if (cost.untapT) source.tapped = false; // T-119 · CR 107.6 · desvirar como custo (não é "virar para mana"; o atordoamento não entra aqui) (Toca ponto comum: payCost)
   if (cost.sacrifice) sacrifice(s, source.oid);
 }
 /** "at least N life more than your starting life total" (Ayli). Estado antigo sem `startLife` usa a vida do formato. */
@@ -23944,6 +23955,7 @@ const canPayAbility = (s, p, source, ab) => {
     return (source.counters.loyalty || 0) + (ab.loyalty === '-X' ? 0 : ab.loyalty) >= 0; // CR2c.7 · [−X] sempre dá com X = 0
   }
   if (cost.tap && (source.tapped || (isCreature(s, source) && enjoado(s, source) && !has(s, source, 'haste')))) return false;
+  if (cost.untapT && (!source.tapped || (isCreature(s, source) && enjoado(s, source) && !has(s, source, 'haste')))) return false; // T-119 · {Q} (Toca ponto comum: podeAtivar)
   if (!canPayExtra(s, p, cost, source.oid)) return false;
   if (ab.oncePerTurn && source.usedThisTurn) return false;
   if (ab.onlyIfLifeOverStart != null && !vidaAcimaDaInicial(s, p, ab.onlyIfLifeOverStart)) return false; // CR 602.5 · "Activate only if…"
@@ -35457,7 +35469,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   }
   function custoDaHabilidade(ab) {
     const c = ab.cost || {};
-    return [c.mana, c.tap ? '{T}' : null, c.discard ? (c.discard > 1 ? `descartar ${c.discard} cartas` : 'descartar uma carta') : null,
+    return [c.mana, c.tap ? '{T}' : null, c.untapT ? '{Q}' : null /* T-119 (Toca ponto comum: custoDaHabilidade) */, c.discard ? (c.discard > 1 ? `descartar ${c.discard} cartas` : 'descartar uma carta') : null,
       c.sacrifice ? 'sacrificar' : null, c.removeCounters ? `remover ${plural(c.removeCounters.n || 1, 'marcador ' + (MARCADOR_PT[c.removeCounters.tipo] || c.removeCounters.tipo), 'marcadores ' + (MARCADOR_PT[c.removeCounters.tipo] || c.removeCounters.tipo))}` : null, c.exileSelf ? (c.fromHand ? 'exilar esta carta da mão' : c.fromGraveyard ? 'exilar esta carta do cemitério' : 'exilar esta') : null, c.discardSelf ? 'descartar esta carta' : null, c.discardHand ? 'descartar a mão' : null, c.returnLand ? `devolver ${c.returnLand === true ? 'terreno' : c.returnLand} à mão` : null, c.sacrificeOther ? sacrificioPorExtenso(c.sacrificeOther) : null, c.tapOther ? 'virar outra' : null, c.craft ? (c.craft.amount > 1 ? `exilar ${c.craft.amount} materiais` : 'exilar um material') : null, c.energia ? `pagar ${'{E}'.repeat(c.energia)}` : null, c.poeMarcador ? `pôr ${plural(c.poeMarcador.n || 1, 'marcador ' + (MARCADOR_PT[c.poeMarcador.tipo] || c.poeMarcador.tipo), 'marcadores ' + (MARCADOR_PT[c.poeMarcador.tipo] || c.poeMarcador.tipo))} nesta` : null].filter(Boolean).join(', ');
   }
   /** R6 · custo do lampejo do passado por extenso: mana, ou "virar 3 criaturas brancas" (Battle Screech, Prismatic Strands). Antes o botão saía com o custo vazio. */
@@ -35585,7 +35597,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       // Agora: um botão por criatura; as cinco cores ficam juntas nele e a folha pergunta a cor em seguida (escolher → escolherCor).
       if (act.color && (ab.effects || []).some(e => e.do === 'protection')) { const c0 = custoDaHabilidade(ab);
         legal.push(doBtn(`Proteger de uma cor${c0 ? ` (${c0})` : ''}${(act.targets || []).length ? ` → ${act.targets.map(x => targetName(s, x)).join(' + ')}` : ''}`, act, { variant: 'primary' })); continue; }
-      if (act.color) { legal.push(doBtn(`Gerar {${act.color}}`, act)); continue; }
+      if (act.color) { const cq = (ab.cost || {}).untapT ? custoDaHabilidade(ab) : ''; legal.push(doBtn(`Gerar {${act.color}}${cq ? ` (${cq})` : ''}`, act)); continue; } // T-119 · com {Q}, o botão diz o custo ("Gerar {G} ({2}, {Q})")
       // R5 · habilidade que só gera mana de símbolo fixo (ficha Eldrazi Spawn: "Sacrifice this creature: Add {C}") diz a mana, não "Ativar"
       const soMana = (ab.effects || []).length && (ab.effects || []).every(e => e.do === 'add_mana' && Array.isArray(e.symbols));
       if (soMana) { const c0 = custoDaHabilidade(ab); legal.push(doBtn(`Gerar ${ab.effects.flatMap(e => e.symbols).map(x => `{${x}}`).join('')}${c0 ? ` (${c0})` : ''}`, act)); continue; }
