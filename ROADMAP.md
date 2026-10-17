@@ -4742,6 +4742,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nenhum. Seis cartas do corpus passaram a ser lidas, sem aprovação (Windcaller Aven, Titanoth Rex, Krosan Tusker, Void Beckoner, Splendor Mare, Avian Oddity).
 - **Teste:** `lt144.unit` (3 testes; falham no motor anterior).
 
+**M-463 · LT129 · Apostle's Blessing: "protection from artifacts or from the color of your choice"** ✅ (leva M-463, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** o **Apostle's Blessing** (pedido da trilha `listas`; 4 listas do catálogo) joga pelo leitor aprovado: mira um artefato ou criatura sua e, na resolução, você escolhe uma cor **ou "Artefatos"** — o botão novo aparece na mesa; com "Artefatos", criatura-artefato do oponente não a bloqueia nem a fere; com vermelho, o Bolt não a mira. Texto da Scryfall consultado em 17/10/2026.
+- **Primitiva:** a escolha de cor da resolução ganha a opção `artefatos` só quando o efeito pede (qualidade de proteção `tipo:artifact`, a mesma da K-17); alvo com seletor "artefato ou criatura sua".
+- **Revisão independente:** aprovada (22 sondas): proteção contra artefatos impede bloqueio, alvo e dano, desanexa o Equipamento (704.5n); bots não travam.
+- **Fora (declarado):** o bot e o goldfish continuam escolhendo uma cor (branco); **aviso à `bot`:** a opção "artefatos" existe na decisão `choose_color` desta carta.
+- **Teste:** `lt145.unit` (4 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

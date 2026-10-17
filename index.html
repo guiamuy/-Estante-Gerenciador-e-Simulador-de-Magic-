@@ -9741,6 +9741,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Lifecrafter\'s Gift': { texto: '179hu3y', leva: 'M-461' },
   // M-462 · revisão por lote CIX ("whenever you discard one or more cards": Magmakin Artillerist), texto da Scryfall de 17/10/2026 UTC, revisor independente
   'Magmakin Artillerist': { texto: '1widw5s', leva: 'M-462' },
+  // M-463 · revisão por lote CX ("protection from artifacts or from the color of your choice": Apostle's Blessing), texto da Scryfall de 17/10/2026 UTC, revisor independente
+  'Apostle\'s Blessing': { texto: 'gvwvw9', leva: 'M-463' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18026,6 +18028,7 @@ const __m42 = (function () {
     [new RegExp(`^(each opponent|target opponent|target player) gets ${N} poison counters?$`, 'i'), m => [com({ do: 'veneno', amount: num(m[2]) }, alvo(m[1]))]], // M-432 · 122.1f
     [new RegExp(`^you draw ${N} cards? and you lose ${N} life$`, 'i'), m => [{ do: 'draw', amount: num(m[1]) }, { do: 'lose', amount: num(m[2]) }]], // M-432 · Infectious Inquiry
     [/^proliferate$/i, () => [{ do: 'proliferate' }]], // M-433 · 701.34 (Thirsting Roots, Vivisurgeon's Insight; o efeito existe desde a V-2)
+    [/^target artifact or creature you control gains protection from artifacts or from the color of your choice until end of turn$/i, () => [{ do: 'protection', target: { tipos: ['artifact', 'creature'], de: 'you' }, ouArtefatos: true }]], // M-463 · Apostle's Blessing: na resolução, artefatos ou uma cor (702.16)
     [/^(target creature you control|target creature or enchantment you control) gains protection from the color of your choice until end of turn$/i, m => [{ do: 'protection', target: /enchantment/i.test(m[1]) ? 'creature-enchantment-you-control' : 'creature-you-control' }]], // M-324 · 702.16
     [/^(creatures you control|another target creature you control) gains? ([a-z]+)(?: and ([a-z]+))? until end of turn$/i, m => { const alvo2 = /^another/i.test(m[1]) ? 'other-creature-you-control' : 'each-own-creature'; const ks = [m[2], m[3]].filter(Boolean).map(k => k.toLowerCase()); return ks.every(k => KW.has(k)) ? ks.map(k => ({ do: 'keyword', keyword: k, target: alvo2 })) : null; }], // M-324
     [new RegExp(`^untap up to ${N} lands$`, 'i'), m => [{ do: 'untap_chosen', amount: num(m[1]), filter: { types: ['land'] } }]], // M-324 · Frantic Search
@@ -23234,7 +23237,7 @@ function resolveScript(s, o, events) {
   // S30 · mágica que pede uma cor decide na resolução, antes de aplicar o efeito (M-348: depois da conferência de alvos; a retomada leva os alvos
   // ainda legais e a cor, porque a carta sai da pilha enquanto o jogador decide — achado da revisão do lote XXI, Emerge Unscathed)
   if (sc.choose === 'color' && !o.chosenColor) {
-    s.pending = { kind: 'choose_color', p: o.controller, oid: o.oid };
+    s.pending = { kind: 'choose_color', p: o.controller, oid: o.oid, ...(effects.some(e => e && e.ouArtefatos) ? { ouArtefatos: true } : {}) }; // M-463 · "from artifacts or from the color of your choice"
     s.resume = { oid: o.oid, name: o.name, controller: o.controller, effects, alvos: chosen.map((t, i) => stillLegal[i] ? t : null), condicoes: condicoesDaMagia(o, effects) }; // M-351
     return;
   }
@@ -25063,7 +25066,9 @@ const HANDLERS = {
   },
   choose_color(s, a, ev) {
     if (!s.pending || s.pending.kind !== 'choose_color' || s.pending.p !== a.p) throw new RuleError('tempo', 'nenhuma cor a escolher');
-    if (!COLORS.includes(a.color) || a.color === 'C') throw new RuleError('cor', 'escolha uma cor');
+    const artefatosM = a.color === 'artefatos' && !!s.pending.ouArtefatos; // M-463 · Apostle's Blessing: proteção contra artefatos (qualidade 'tipo:artifact', K-17)
+    if (!artefatosM && (!COLORS.includes(a.color) || a.color === 'C')) throw new RuleError('cor', 'escolha uma cor');
+    if (artefatosM) a = { ...a, color: 'tipo:artifact' };
     if (s.pending.manaRestam) { // M-357 · a cor de uma das manas de "any combination of colors": entra na reserva agora; a próxima pede de novo
       const pk = s.pending; s.players[pk.p].pool[a.color] = (s.players[pk.p].pool[a.color] || 0) + 1;
       if (pk.manaRestam > 1) { s.pending = { ...pk, manaRestam: pk.manaRestam - 1 }; return; }
@@ -25504,7 +25509,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
       out.splice(0, out.length, ...out.filter(x => x.t !== 'attack'), ...base);
       for (const pw of pws) for (const x of base) if (x.attackers.some(oid => !exige(oid))) out.push({ ...x, alvos: { ...(x.alvos || {}), ...Object.fromEntries(x.attackers.filter(oid => !exige(oid)).map(oid => [oid, pw])) } });
     }
-    if (k === 'choose_color') ['W', 'U', 'B', 'R', 'G'].forEach(color => out.push({ t: 'choose_color', p, color }));
+    if (k === 'choose_color') ['W', 'U', 'B', 'R', 'G'].concat(s.pending.ouArtefatos ? ['artefatos'] : []).forEach(color => out.push({ t: 'choose_color', p, color })); // M-463
     if (k === 'commander_zone') { out.push({ t: 'commander_zone', p, yes: true }); out.push({ t: 'commander_zone', p, yes: false }); }
     if (k === 'pick_target') { s.pending.options.forEach((o, index) => out.push({ t: 'pick_target', p, index })); if (s.pending.semAlvo) out.push({ t: 'pick_target', p, nenhum: true }); } // M-338
     if (k === 'madness') {
@@ -33856,7 +33861,7 @@ function descreveEfeito(e) {
     case 'draw_up_to': return `pode comprar até ${plural(n, 'carta', 'cartas')}`;
     case 'look_top': return 'olha a carta do topo do grimório do jogador alvo';
     case 'look_hand': return 'olha a mão do jogador alvo';
-    case 'protection': return `${alvo || 'a criatura'} ganha proteção contra uma cor`;
+    case 'protection': return `${alvo || 'a criatura'} ganha proteção contra ${e.ouArtefatos ? 'artefatos ou uma cor' : 'uma cor'}`; // M-463
     case 'sem_alvo_de_oponentes': return `${alvo || 'a criatura'} não pode ser alvo de mágicas nem de habilidades dos oponentes de quem a conjurou neste turno`; // M-375
     case 'resistencia_cor': return `${alvo || 'a criatura'} ganha resistência a magia da cor escolhida até o fim do turno`; // M-255
     case 'nao_bloqueia_no_turno': return `${alvo || 'a criatura'} não pode bloquear neste turno`; // M-460
@@ -36383,7 +36388,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       banner = PriorityBanner({ title: `Escolha uma cor para ${alvo ? alvo.name : 'a permanente'}`,
         // R6 · mágica que pede a cor ao resolver (Prismatic Strands) não "entra no campo"
         hint: alvo && ['instant', 'sorcery'].some(k => ((s.facts[alvo.name] || {}).types || []).includes(k)) ? 'A mágica vale para a cor que você escolher agora.' : 'A carta pede uma cor ao entrar no campo.',
-        actions: [['W', 'Branco'], ['U', 'Azul'], ['B', 'Preto'], ['R', 'Vermelho'], ['G', 'Verde']].filter(([c]) => c !== E.corVedadaT(s)).map(([c, label]) => // T-90 · CR 105.4 · a cor vedada não vira botão (Toca ponto comum: table.js, banner da cor)
+        actions: [['W', 'Branco'], ['U', 'Azul'], ['B', 'Preto'], ['R', 'Vermelho'], ['G', 'Verde']].concat(s.pending.ouArtefatos ? [['artefatos', 'Artefatos']] : []).filter(([c]) => c !== E.corVedadaT(s)).map(([c, label]) => // M-463 · Apostle's Blessing // T-90 · CR 105.4 · a cor vedada não vira botão (Toca ponto comum: table.js, banner da cor)
           Button(label, { dataset: { color: c }, onClick: () => act({ t: 'choose_color', p: v, color: c }) })) });
     } else if (s.pending && s.pending.kind === 'triggers' && s.pending.p === v) {
       const mine = s.queued.filter(q => q.controller === v);
