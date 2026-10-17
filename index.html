@@ -9725,6 +9725,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Ravening Warg': { texto: 'psej35', leva: 'M-455' },
   // M-456 · revisão por lote CIII ("can't be blocked by tokens": Duskwatch Hunter), texto da Scryfall de 17/10/2026 UTC, revisor independente
   'Duskwatch Hunter': { texto: '1x5z34n', leva: 'M-456' },
+  // M-457 · revisão por lote CIV ("activate only during your upkeep": Llanowar Augur), texto da Scryfall de 17/10/2026 UTC, revisor independente
+  'Llanowar Augur': { texto: 'y1x134', leva: 'M-457' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18325,6 +18327,7 @@ const __m42 = (function () {
     const fraseSo = so && /\{X\}/.test(cost.mana || '') ? { texto: so[0].replace(/^\.\s*/, ''), lida: true } : null;
     if (fraseSo) { corpo = corpo.slice(0, so.index); cost.xCor = CORES[so[1].toLowerCase()]; }
     if (/\.\s*Activate only as a sorcery$/i.test(corpo)) { corpo = corpo.replace(/\.\s*Activate only as a sorcery$/i, ''); extra.sorceryOnly = true; }
+    { const su = corpo.match(/\.\s*Activate only during your upkeep$/i); if (su) { corpo = corpo.slice(0, su.index); extra.onlyInStep = ['upkeep']; extra.soNoSeuTurno = true; frases.push({ texto: 'Activate only during your upkeep', lida: true }); } } // M-457 · 602.5b (Llanowar Augur): a sua manutenção
     { const st = corpo.match(/\.\s*Activate only (during the end of combat step|during combat)$/i); if (st) { corpo = corpo.slice(0, st.index); extra.onlyInStep = /end of combat/i.test(st[1]) ? ['combat_end'] : ['combat_begin', 'combat_attackers', 'combat_blockers', 'combat_damage', 'combat_end']; frases.push({ texto: `Activate only ${st[1]}`, lida: true }); } } // M-377 · 602.5b (Desert)
     if (/^return ~ from your graveyard to the battlefield$/i.test(til(corpo, nome))) { cost.fromGraveyard = true; cost.devolveSelf = true; frases.push({ texto: m[1], lida: true }, { texto: corpo, lida: true }); return { kind: 'activated', cost, ...extra, effects: [{ do: 'reanimate', target: 'self-source' }] }; } // M-398 · Cauldron Familiar (113.6)
     const instante = /^Add (two|three|four|five) mana of any one color\.\s*Activate only as an instant$/i.test(corpo); if (instante) corpo = corpo.replace(/\.\s*Activate only as an instant$/i, ''); // M-342 · Lion's Eye Diamond: ativar exige prioridade, como toda ativação nesta mesa (602.5d não muda nada aqui)
@@ -24715,7 +24718,7 @@ const HANDLERS = {
     if (base.onlyIfLifeOverStart != null && !vidaAcimaDaInicial(s, a.p, base.onlyIfLifeOverStart)) throw new RuleError('vida', `só ativa com pelo menos ${base.onlyIfLifeOverStart} de vida acima da inicial`);
     if (base.onlyIfAttacking && o.attacking == null) throw new RuleError('tempo', 'só ativa enquanto esta criatura está atacando');
     if (base.onlyIfMetalcraft && !condicaoDoEfeito(s, o, 'metalcraft')) throw new RuleError('tempo', 'só ativa se você controla três ou mais artefatos'); // M-342 · 602.5b
-    if (base.onlyInStep && !base.onlyInStep.includes(s.turn.step)) throw new RuleError('tempo', `só ativa ${base.onlyInStep.length === 1 ? 'no passo final de combate' : 'durante o combate'}`); // M-377
+    if (base.onlyInStep && !base.onlyInStep.includes(s.turn.step)) throw new RuleError('tempo', `só ativa ${base.onlyInStep.length > 1 ? 'durante o combate' : base.onlyInStep[0] === 'upkeep' ? 'na sua manutenção' : 'no passo final de combate'}`); // M-377 · M-457
     if (base.onlyIfGraveyardAtLeast != null && s.zones[a.p].graveyard.length < base.onlyIfGraveyardAtLeast) throw new RuleError('tempo', `só ativa com ${base.onlyIfGraveyardAtLeast} ou mais cartas no seu cemitério`);
     delete s.sacrificadosNoCusto;
     const bloqueavaAntes = o.blocking; // Q11 · o custo pode sacrificar a fonte (Tinder Wall): a habilidade nasce sabendo quem ela bloqueava
