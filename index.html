@@ -23172,7 +23172,7 @@ function triggerConditionMet(s, o, cond) {
   if (cond.selada && !seladaAgoraT(s, o)) return false; // T-31 · CR 702.171b: "while saddled" (Toca ponto comum: triggerConditionMet)
   if (cond.fonteDesvirada && o.tapped) return false; // T-101 · 603.4 · "if ~ is untapped" (Howling Mine) (Toca ponto comum: triggerConditionMet)
   if (cond.primeiraManutencao && s.emPassoExtraT === 'upkeep') return false; // T-101 · 500.9 · "first upkeep each turn" (Paradox Haze)
-  if (cond.tinhaMarcadores && !Object.values((o.zone === 'battlefield' ? o.counters : (o.ultima || {}).counters) || {}).some(n => n > 0)) return false; // T-120 · 603.4 / 603.10a: "if it had counters on it" (a foto de quando saiu) (Toca ponto comum: triggerConditionMet)
+  if (cond.tinhaMarcadores && !Object.values((o.fotoT ? o.fotoT.counters : o.zone === 'battlefield' ? o.counters : (o.ultima || {}).counters) || {}).some(n => n > 0)) return false; // T-120 · 603.4 / 603.10a: "if it had counters on it" (a foto de quando saiu) (Toca ponto comum: triggerConditionMet)
   if (cond.encantadaSubtipo && !encantadaTemSubtipoT(s, o, cond.encantadaSubtipo)) return false; // T-114 · 603.4 · "if enchanted creature is a Wolf or Werewolf" (Toca ponto comum: triggerConditionMet)
   if (cond.desceu && !desceuNoTurnoT(s, o.controller)) return false; // T-84 · CR 700.11 / 603.4 · "if you descended this turn" (Toca ponto comum: triggerConditionMet)
   if (cond.monarca && !monarcaCondT(s, o.controller, cond.monarca)) return false; // T-62 · CR 725.5 / 603.4 · "if you're (an opponent is) the monarch" (Toca ponto comum: triggerConditionMet)
@@ -23290,8 +23290,9 @@ function naSombra(s, rotulo, legado, novo) {
   for (const q of s.queued.slice(n)) { const k = typeof q.when === 'string' ? q.when : 'descritor'; sombraGatilhos.porGatilho[k] = (sombraGatilhos.porGatilho[k] || 0) + 1; }
   if (velho !== nova && sombraGatilhos.diferencas.length < 20) sombraGatilhos.diferencas.push({ rotulo, velho, novo: nova });
 }
-const disparaZona = (s, o, de, para, ctrlAntes, ultima) => (para === 'battlefield' && de !== 'battlefield' && evoluirK(s, o), naSombra(s, `${o.name}: ${de} → ${para}`, // K-11 · evoluir (Toca ponto comum: disparaZona)
+const disparaZona = (s, o, de, para, ctrlAntes, ultima) => { const n0 = s.queued.length; const r = (para === 'battlefield' && de !== 'battlefield' && evoluirK(s, o), naSombra(s, `${o.name}: ${de} → ${para}`, // K-11 · evoluir (Toca ponto comum: disparaZona)
   () => gatilhosDeZonaLegado(s, o, de, para, ctrlAntes, ultima), () => gatilhosDeZona(s, o, de, para, ctrlAntes, ultima)), gatilhosDoTurnoM(s, o, de, para));
+  fotoDosGatilhosT(s, o, de, n0); return r; }; // T-125 · 603.10a: os gatilhos da própria permanente que saiu levam os marcadores de quando saiu (Toca ponto comum: disparaZona)
 /** M-389 · 603.7c · os gatilhos criados por uma mágica para "este turno": disparam a cada evento até a limpeza; o objeto que entrou viaja como `objeto` (603.7c, com a encarnação). */
 function gatilhosDoTurnoM(s, o, de, para) {
   if (!(s.gatilhosDoTurno || []).length || para !== 'battlefield' || de === 'battlefield' || isAbility(o)) return;
@@ -23558,6 +23559,7 @@ function marcasDoGatilho(s, q, oid) {
   if (q.objeto) s.objects[oid].objetoAtrasado = q.objeto; // CR2b.2 · "ela", com a encarnação mirada
   if (q.jogador != null) s.objects[oid].jogadorAtrasado = q.jogador; // CR2b.1 · o "jogador daquela mágica" do gatilho atrasado
   if (q.host) s.objects[oid].hostOid = q.host; // Leva 108 · a criatura encantada no momento do disparo
+  if (q.fotoT) s.objects[oid].fotoT = q.fotoT; // T-125 · 603.10a (Toca ponto comum: putTriggerOnStack)
   else { const h = hospedeiraDaFonteT(s, s.objects[q.source]); if (h) { s.objects[oid].hostOid = h.oid; s.objects[oid].hostZc = h.zc || 0; } } // T-118 · 608.2h / 113.7a: "a criatura encantada" de qualquer gatilho de Aura ou Equipamento é a do disparo, mesmo que a fonte saia (Toca ponto comum: putTriggerOnStack)
   if (q.hostZc != null) s.objects[oid].hostZc = q.hostZc; if (q.defensor != null) s.objects[oid].defensor = q.defensor; // M-401 · 400.7 e 508.5
   chargeWard(s, q.controller, oid, s.objects[oid].targets); // Leva 107 · proteção (ward) vale contra gatilho também
@@ -23936,7 +23938,7 @@ function payAbilityCost(s, p, source, ab) {
     poeMarcadores(s, source, cost.poeMarcador.tipo, cost.poeMarcador.n || 1);
   }
   if (cost.tap) { if (!source.tapped) noteEnchantedEvent(s, source); source.tapped = true; } // Leva 106 · "becomes tapped" de qualquer origem
-  if (cost.untapT) source.tapped = false; // T-119 · CR 107.6 · desvirar como custo (não é "virar para mana"; o atordoamento não entra aqui) (Toca ponto comum: payCost)
+  if (cost.untapT) desvira(s, source); // T-119 · CR 107.6 · desvirar como custo (não é "virar para mana") · T-125 · 122.1d / 118.11: com atordoamento, sai um marcador e o custo conta como pago (Toca ponto comum: payCost)
   if (cost.sacrifice) sacrifice(s, source.oid);
 }
 /** "at least N life more than your starting life total" (Ayli). Estado antigo sem `startLife` usa a vida do formato. */
@@ -24139,8 +24141,7 @@ function stateBased(s, events) {
       else { delete o.attachedTo; events.push({ kind: 'unattached', oid: o.oid, name: o.name }); }
       changed = true;
     }
-    // CR 704.5q: +1/+1 e −1/−1 na mesma permanente saem aos pares
-    for (const o of battlefield(s)) { const n = Math.min(o.counters.p1p1 || 0, o.counters.m1m1 || 0); if (n > 0) { o.counters.p1p1 -= n; o.counters.m1m1 -= n; changed = true; } }
+    // CR 704.5q: +1/+1 e −1/−1 na mesma permanente saem aos pares — T-125: aplicada depois de decidir quem morre nesta checagem (704.3: tudo ao mesmo tempo; quem morre leva os dois na última informação, 603.10a)
     // CR 704.5m: Aura no campo sem estar anexada (entrou sem ser conjurada), ou anexada a algo que ela não pode encantar
     for (const o of battlefield(s)) {
       const au = (s.facts[o.name].script || {}).aura; if (!au || o.faceDown || (s.facts[o.name].script || {}).bestow || o.escolheAnexoT || encantaJogadorOkT(s, o, au) /* T-94 · CR 303.4c: a Maldição no jogador que segue no jogo fica */) continue; /* T-22 · CR 303.4f: a Aura esperando a escolha do que encanta não cai · Toca ponto comum: stateBased 704.5m */ // V-19 · 708.2a: virada para baixo não é Aura · Toca ponto comum: stateBased (704.5m)
@@ -24164,6 +24165,7 @@ function stateBased(s, events) {
       if (r === 'destruida') morrem.push(o.oid);
       else if (r !== 'indestrutivel') { substituiDestruicao(s, o, r, events); changed = true; }
     }
+    for (const o of battlefield(s)) { if (morrem.includes(o.oid)) continue; const n = Math.min(o.counters.p1p1 || 0, o.counters.m1m1 || 0); if (n > 0) { o.counters.p1p1 -= n; o.counters.m1m1 -= n; changed = true; } } // CR 704.5q · T-125 (Toca ponto comum: stateBased)
     for (const o of campoInteiro(s)) delete o.deathtouched; // CR2a.9 · 704.5h: vale só para esta checagem (o indestrutível que perde a indestrutibilidade depois não morre)
     if (morrem.length) {
       s.saindoJuntas = morrem;
@@ -25858,7 +25860,7 @@ function resolveAbility(s, o, events) {
     const fonte = viva && r && (viva.zc || 0) !== r.zc ? (({ zc, ...m }) => ({ ...viva, kicked: undefined, bargained: undefined, evidenced: undefined, faceDown: undefined, ...m }))(r) : viva;
     // "atacou com três ou mais" é informação do combate que já passou: vale o que foi visto no disparo
     const { attackersAtLeast, atacaSozinha, entrouDesvirada, monarca, ...resto } = o.condicao; // M-252 · "ataca sozinha" também é do disparo · M-349 · "entra desvirada" idem · T-64 · o monarca é do controlador da habilidade (abaixo)
-    if ((fonte && !triggerConditionMet(s, o.hostOid && fonte ? { ...fonte, hostT: { oid: o.hostOid, z: o.hostZc } } : fonte, resto)) /* T-118 · 603.4 com a encantada do disparo (Toca ponto comum: resolveAbility) */ || (monarca && !monarcaCondT(s, o.controller, monarca))) { events.push({ kind: 'trigger-fizzled', name: o.name, when: 'condição' }); return; } // T-64 · CR 603.4 / 109.5: o "você" é quem controla a habilidade (Toca ponto comum: resolveAbility)
+    if ((fonte && !triggerConditionMet(s, o.hostOid || o.fotoT ? { ...fonte, ...(o.hostOid ? { hostT: { oid: o.hostOid, z: o.hostZc } } : {}), ...(o.fotoT ? { fotoT: o.fotoT } : {}) } : fonte, resto)) /* T-118 · 603.4 com a encantada do disparo (Toca ponto comum: resolveAbility) */ || (monarca && !monarcaCondT(s, o.controller, monarca))) { events.push({ kind: 'trigger-fizzled', name: o.name, when: 'condição' }); return; } // T-64 · CR 603.4 / 109.5: o "você" é quem controla a habilidade (Toca ponto comum: resolveAbility)
     o.condicaoConferida = true;
   }
   // R9 · 608.2b: com todos os alvos ilegais a habilidade sai da pilha antes de qualquer pergunta ou pagamento
@@ -28352,7 +28354,7 @@ function encantadaTemSubtipoT(s, aura, subs) {
    caminho comum do efeito `counters` (dobradores, 614.16; +1/+1 e −1/−1 se anulam depois, 704.5q). A fonte não perde nada (não é mover).
    Fora: se a carta já saiu do cemitério quando o gatilho resolve, a foto se perdeu e nada é posto (603.10a pediria a foto do gatilho). */
 function marcadoresDaFonteT(s, src, alvo, events) {
-  const f = src.ability ? s.objects[src.source] : src, foto = f && f.zone !== 'battlefield' ? ((f.ultima || {}).counters || {}) : (f && f.counters) || {};
+  const f = src.ability ? s.objects[src.source] : src, foto = src.fotoT ? src.fotoT.counters : f && f.zone !== 'battlefield' ? ((f.ultima || {}).counters || {}) : (f && f.counters) || {}; // T-125 · a foto do gatilho primeiro (a ficha que deixou de existir, a carta que mudou de zona)
   if (!alvo || alvo.zone !== 'battlefield') return 0; let n = 0;
   for (const [tipo, q] of Object.entries(foto)) if (q > 0) { applyEffect(s, src, { do: 'counters', amount: q, ...(tipo === 'p1p1' ? {} : { tipo }) }, { oid: alvo.oid }, events); n += q; }
   return n;
@@ -28399,7 +28401,7 @@ function continuaPagaOuSacrificaT(s, events) {
 function escolhaPagaOuSacrificaT(s, eff, events) {
   const st = s.pagaOuSacrificaT; if (!st) return;
   if (eff.k > 0 && s.manaCheck) payCost(s, eff.p, parseCost(`{${eff.k * st.mana}}`));
-  if (eff.k > 0) events.push({ kind: 'effect', do: 'pay', name: st.fonte.name, target: s.players[eff.p].name });
+  events.push({ kind: 'effect', do: 'paga_ou_sacrifica_escolha', name: st.fonte.name, target: s.players[eff.p].name, k: eff.k, mana: eff.k * st.mana, n: eff.N - eff.k });
   for (let i = 0; i < eff.N - eff.k; i++) st.sacrificios.push(eff.p);
   continuaPagaOuSacrificaT(s, events);
 }
@@ -28407,6 +28409,9 @@ function escolhaPagaOuSacrificaT(s, eff, events) {
    no rebase). CR 702.138c · "escapes with a +1/+1 counter" (`escape.comMarcadoresT`):
    a marca `escapouT` é da conjuração (vai da pilha para o campo) e soma os marcadores de entrada. */
 MARCAS_DA_CONJURACAO.push('escapouT');
+/** T-125 · 603.10a · os gatilhos que a própria permanente que saiu do campo acabou de disparar levam a foto dos marcadores dela (a ficha deixa de
+    existir na checagem seguinte; a carta pode mudar de zona antes de o gatilho resolver). */
+function fotoDosGatilhosT(s, o, de, n0) { if (de !== 'battlefield' || !o || !o.ultima) return; for (let i = n0; i < s.queued.length; i++) { const q = s.queued[i]; if (q && q.source === o.oid && !q.fotoT) q.fotoT = { counters: { ...(o.ultima.counters || {}) } }; } }
 let conferindoConcessaoT = false; // o tipo da encantada (camada 4) não depende desta concessão (ela não muda tipo): na volta do cálculo, ela fica de fora
 function concessaoVigenteT(s, aura, g) {
   if (!g || !g.seCriaturaT) return g; if (conferindoConcessaoT) return null;
@@ -33426,6 +33431,7 @@ Object.assign(EFEITO_PT_T, { vira_para_baixo: () => 'vira a criatura alvo para b
 /** T-59 · CR 700.6 / 700.12 / 700.9 · os predicados de tipo na frase do seletor. */
 const predicadosPT_T = sel => (sel.tapped ? ' virada' : sel.tapped === false ? ' desvirada' : '') + (sel.ativadaNoTurno ? ' que teve habilidade ativada neste turno' : '') + /* T-87 */ (sel.terrenoBasico === false ? ' que não seja terreno básico' : sel.terrenoBasico ? ' que é terreno básico' : '') + /* T-80 */ (sel.historico ? ' histórica' : sel.historico === false ? ' que não é histórica' : '') + (sel.foraDaLei ? ' fora da lei' : sel.foraDaLei === false ? ' que não é fora da lei' : '') + /* T-60 */ (sel.modificada ? ' modificada' : sel.modificada === false ? ' que não está modificada' : '');
 const LINHA_T = { preparada: ev => (ev.failed ? `${ev.name}: ${ev.motivo || 'não ficou preparada'}, nada muda` : `${ev.name} está preparada (pode conjurar uma cópia de ${ev.target})`), despreparada: ev => `${ev.name} deixou de estar preparada`, ciclo: ev => `Virou ${ev.target}${ev.motivo ? ` (${ev.motivo})` : ''}`, masmorra_completa: ev => `${ev.target} completou a masmorra ${ev.name}`, caso_resolvido: ev => (ev.failed ? `${ev.name}: a condição não valia mais, o Caso não foi resolvido` : `${ev.name} foi resolvido`), estacao: ev => (ev.failed ? `${ev.name}: a nave saiu do campo, a estação não pôs marcadores` : `${ev.name} recebeu ${ev.amount} marcador${ev.amount === 1 ? '' : 'es'} de carga (estação)${ev.total != null ? ` · ${ev.total} no total` : ''}`), selada: ev => (ev.failed ? `${ev.name}: a montaria saiu do campo, não foi selada` : `${ev.name} foi selada`), virar_carta: ev => (ev.failed ? `${ev.name} não virou${ev.motivo ? ` (${ev.motivo})` : ''}` : `${ev.name} virou: agora é ${ev.target}`), porta: ev => (ev.failed ? `${ev.name}: nenhuma porta para trancar ou destrancar` : `${ev.name} ${ev.acao} ${ev.porta} (${ev.target})`), nivel_sobe: ev => (ev.failed ? `${ev.name}: saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu de nível (nível ${ev.nivel})`), nivel_classe: ev => (ev.failed ? `${ev.name}: a Classe saiu do campo (ou de fase), não sobe de nível` : `${ev.name} subiu para o nível ${ev.amount}`), transformar: ev => `${ev.name} transformou em ${ev.target}`, converter: ev => `${ev.name} converteu em ${ev.target}`, aventura: ev => `${ev.name} foi para o exílio: ${ev.target} pode ser conjurada de lá` }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
+Object.assign(LINHA_T, { revela_ate_mao: ev => `${ev.target} revelou ${(ev.nomes || []).join(', ') || 'o grimório vazio'} (${ev.name}); ${ev.achada ? `${ev.achada} foi para a mão e as outras para o fundo` : 'nenhuma instantânea ou feitiço: todas para o fundo'}`, paga_ou_sacrifica_escolha: ev => `${ev.target} ${ev.k ? `pagou ${ev.mana} de mana por ${ev.k} criatura(s)` : 'não pagou'}${ev.n ? ` e vai sacrificar ${ev.n} permanente(s)` : ''} (${ev.name})` }); // T-125 · auditoria D5 (a linha do sacrifício do édito, que já faltava antes, fica como dívida declarada)
 Object.assign(LINHA_T, { descarta_a_mao: ev => `${ev.target} descartou a mão (${ev.amount === 1 ? 'uma carta' : ev.amount + ' cartas'}; ${ev.name})` }); Object.assign(EFEITO_PT_T, { descarta_a_mao: e => `${e.target === 'self' ? 'você descarta' : e.target === 'each-player' ? 'cada jogador descarta' : 'o jogador descarta'} a mão` }); // T-101
 Object.assign(LINHA_T, { copia_habilidade: ev => ev.failed ? `${ev.name}: a habilidade alvo já saiu da pilha, nada copiado` : `${ev.name} copiou a habilidade de ${ev.target}` }); Object.assign(EFEITO_PT_T, { copia_habilidade: e => `copia uma habilidade ${e.target && e.target.habilidades === 'disparadas' ? 'disparada' : 'ativada ou disparada'}${e.target && e.target.de === 'you' ? ' sua' : ''}; você pode escolher novos alvos para a cópia` }); // T-109 · 707.10b
 Object.assign(LINHA_T, { copia_magia: ev => ev.failed ? `${ev.name}: a mágica alvo já saiu da pilha, nada copiado` : `${ev.name} copiou ${ev.target}${ev.amount > 1 ? ` ${ev.amount} vezes` : ''}` }); Object.assign(EFEITO_PT_T, { copia_magia: e => `copia ${e.target && e.target.permanente ? 'uma mágica de permanente sua (a cópia vira ficha)' : e.target && e.target.de === 'you' ? 'uma mágica instantânea ou feitiço sua' : 'uma mágica instantânea ou feitiço'}${e.vezes && e.vezes.per === 'se' ? ' (duas vezes se esta foi conjurada de um cemitério)' : ''}; você pode escolher novos alvos para a cópia` }); // T-108 · 707.10

@@ -469,7 +469,7 @@
    "regra": "Numbers and Symbols",
    "titulo": "Símbolo de desvirar {Q}",
    "status": "coberta",
-   "falta": "T-119 (17/10/2026): coberta. Fora: {Q} numa permanente com marcador de atordoamento desvira sem consumir o marcador (122.1d não entra no pagamento do custo).",
+   "falta": "T-119/T-125 (17/10/2026): coberta. Fora: a fonte de {Q} não entra no pagamento automático (ativa-se à mão antes).",
    "esforco": "P",
    "cartas": "rara (Shadowmoor/Eventide)",
    "evidencia": "T-119 (17/10/2026): `cost.untapT` (\"{Q}\"): a oferta e o pagamento exigem a permanente virada e, se for criatura, sem enjoo (302.6); o pagamento a desvira; com `add_mana` é habilidade de mana, sem pilha (605.1a); não convive com {T} no validador; a mesa mostra \"{Q}\" no custo — Pili-Pala (Scryfall, 17/10/2026; rulings de 01/05/2008)",
@@ -477,7 +477,8 @@
     "CR 107.6 / 605.1a · Pili-Pala (texto oficial): virada, {2} e desvirar dão uma mana da cor escolhida, sem pilha; ela fica desvirada",
     "CR 107.6 · ruling de 01/05/2008: desvirada não paga {Q} — sem oferta e o pedido direto é recusado; sem {2}, também não",
     "CR 302.6 · ruling de 01/05/2008: a criatura que não está sob seu controle desde o começo do turno não paga {Q}",
-    "CR 107.6 · validador: \"untapT\" é o custo {Q} (só como verdadeiro) e não convive com {T}"
+    "CR 107.6 · validador: \"untapT\" é o custo {Q} (só como verdadeiro) e não convive com {T}",
+    "CR 122.1d / 118.11 · auditoria D4 (T-125): {Q} numa Pili-Pala atordoada — o desvirar vira tirar um marcador, o custo conta como pago e a mana sai; ela segue virada"
    ]
   },
   {
@@ -1758,7 +1759,7 @@
    "regra": "Counters",
    "titulo": "Marcadores e seus tipos",
    "status": "parcial",
-   "evidencia": "+1/+1 soma em poder/resistência (index.html:10340-10341; addCounters index.html:11579); lealdade (index.html:10301, 12125; rules.unit S21) · CR2c.5 (v88): b) marcador de palavra-chave (122.1b) — has() lê marcadores de voar, iniciativa, golpe duplo, toque mortífero, decaído, exaltado, ímpeto, resistência a magia, indestrutível, vínculo com a vida, ameaça, alcance, sombra, atropelar e vigilância; efeito counter_choice (commander.regras \"CR2c.5 · Call of the Death-Dweller\") · M-249/M-253 (v96): marcadores nomeados em permanente (counters com tipo; custo removeCounters; semMarcadorSacrifica) e marcadores de veneno em jogador (darVeneno; 10 = derrota); −1/−1 colocado por infectar (M-254). · auditoria independente CR2a/CR2h (11/10/2026): marcadores nomeados (M-249), de palavra-chave (CR2c.5), veneno (M-253) · T-91: marcador de radiação em jogador (728.1), também no proliferar · T-115 (17/10/2026): \"put its counters on target creature you control\" (`marcadores_da_fonte`): o mesmo número de cada tipo de marcador da foto de quando a fonte saiu do campo, pelo caminho comum dos marcadores — Enduring Bondwarden · T-120 (17/10/2026): Iron Apprentice — \"if it had counters on it\" (`condition.tinhaMarcadores`, pela foto de quando saiu, ao disparar e ao resolver)",
+   "evidencia": "+1/+1 soma em poder/resistência (index.html:10340-10341; addCounters index.html:11579); lealdade (index.html:10301, 12125; rules.unit S21) · CR2c.5 (v88): b) marcador de palavra-chave (122.1b) — has() lê marcadores de voar, iniciativa, golpe duplo, toque mortífero, decaído, exaltado, ímpeto, resistência a magia, indestrutível, vínculo com a vida, ameaça, alcance, sombra, atropelar e vigilância; efeito counter_choice (commander.regras \"CR2c.5 · Call of the Death-Dweller\") · M-249/M-253 (v96): marcadores nomeados em permanente (counters com tipo; custo removeCounters; semMarcadorSacrifica) e marcadores de veneno em jogador (darVeneno; 10 = derrota); −1/−1 colocado por infectar (M-254). · auditoria independente CR2a/CR2h (11/10/2026): marcadores nomeados (M-249), de palavra-chave (CR2c.5), veneno (M-253) · T-91: marcador de radiação em jogador (728.1), também no proliferar · T-115 (17/10/2026): \"put its counters on target creature you control\" (`marcadores_da_fonte`): o mesmo número de cada tipo de marcador da foto de quando a fonte saiu do campo, pelo caminho comum dos marcadores — Enduring Bondwarden · T-120 (17/10/2026): Iron Apprentice — \"if it had counters on it\" (`condition.tinhaMarcadores`, pela foto de quando saiu, ao disparar e ao resolver) · T-125 (17/10/2026): a foto dos marcadores viaja com o gatilho (fotoT); quem morre por resistência 0 leva os +1/+1 e −1/−1 antes da anulação (704.3)",
    "falta": "escudo, atordoamento, defesa, energia, experiência",
    "esforco": "M",
    "depende": [
@@ -1769,9 +1770,9 @@
     "CR 701.34a / 122.1 · proliferar também dá mais um marcador de radiação ao jogador que tem",
     "CR 603.10a · Enduring Bondwarden (texto oficial): ao morrer com marcadores +1/+1, põe o mesmo número na criatura alvo que você controla",
     "CR 122.1 · ruling de 14/04/2023: todos os tipos de marcador que ela tinha, inclusive −1/−1 (o que pode matar quem recebe); não é mover",
-    "CR 603.10a · sem marcador ao morrer, o gatilho resolve sem nada; o alvo é só criatura sua",
     "CR 603.4 · Iron Apprentice (texto oficial): entra com um +1/+1; ao morrer, \"if it had counters on it\", põe esses marcadores na criatura alvo sua",
-    "CR 603.4 / 704.5q · Iron Apprentice sem marcador ao morrer (o +1/+1 anulado por um −1/−1): o gatilho nem dispara"
+    "CR 704.3 / 704.5q · auditoria D1 (T-125): Iron Apprentice morto por um −1/−1 morre com os dois marcadores (anular e morrer são simultâneos) — o gatilho dispara e o alvo recebe +1/+1 e −1/−1",
+    "CR 603.10a · auditoria D2 (T-125): a foto vai com o gatilho — Iron Apprentice com três marcadores que volta ao campo antes de o gatilho resolver ainda dá três"
    ]
   },
   {

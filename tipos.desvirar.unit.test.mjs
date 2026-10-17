@@ -46,3 +46,9 @@ test('CR 107.6 · validador: "untapT" é o custo {Q} (só como verdadeiro) e nã
   eq(v({ mana: '{2}', untapT: true }), []);
   assert.ok(v({ mana: '{2}', untapT: 1 }).length); assert.ok(v({ untapT: true, tap: true }).length);
 });
+
+test('CR 122.1d / 118.11 · auditoria D4 (T-125): {Q} numa Pili-Pala atordoada — o desvirar vira tirar um marcador, o custo conta como pago e a mana sai; ela segue virada', () => {
+  let s = mesa(); let pp; [s, pp] = poe(s, 0, PP, 'battlefield', { tapped: true, counters: { stun: 1 } }); s = com(s, { C: 2 });
+  const d = act(s, ofertas(s, pp).find(a => a.color === 'R'));
+  eq([d.objects[pp].tapped, d.objects[pp].counters.stun || 0, d.players[0].pool.R], [true, 0, 1]);
+});

@@ -72,9 +72,24 @@ test('CR 603.4 · Iron Apprentice (texto oficial): entra com um +1/+1; ao morrer
   eq(k(s, u), 1);
 });
 
-test('CR 603.4 / 704.5q · Iron Apprentice sem marcador ao morrer (o +1/+1 anulado por um −1/−1): o gatilho nem dispara', () => {
+test('CR 704.3 / 704.5q · auditoria D1 (T-125): Iron Apprentice morto por um −1/−1 morre com os dois marcadores (anular e morrer são simultâneos) — o gatilho dispara e o alvo recebe +1/+1 e −1/−1', () => {
   let s = mesa(); let u, ia; [s, u] = poe(s, 0, 'Urso'); [s, ia] = poe(s, 0, IA, 'hand'); s = mana(s);
   s = resolve(act(s, legais(s, 0, x => x.t === 'cast' && x.oid === ia)[0]));
-  s = resolve(lanca(s, 'Murcha', ia));
-  eq([s.objects[ia].zone, s.stack.length, s.pending, k(s, u), k(s, u, 'm1m1')], ['graveyard', 0, null, 0, 0]);
+  s = lanca(s, 'Murcha', ia); const murcha = s.stack.at(-1);
+  s = passaAte(s, x => !x.stack.includes(murcha) || !!x.pending);
+  eq([s.objects[ia].zone, J(s.objects[ia].ultima.counters)], ['graveyard', { p1p1: 1, m1m1: 1 }]);
+  assert.ok(s.pending || s.stack.some(x => s.objects[x].name === IA), 'o gatilho disparou');
+  if (s.pending) s = escolheAlvo(s, u); s = resolve(s);
+  const st = E.stats(s, s.objects[u]); eq([st.power, st.toughness], [2, 2], 'os dois chegam ao Urso e se anulam');
+});
+
+test('CR 603.10a · auditoria D2 (T-125): a foto vai com o gatilho — Iron Apprentice com três marcadores que volta ao campo antes de o gatilho resolver ainda dá três', () => {
+  let s = mesa(); let u, ia; [s, u] = poe(s, 0, 'Urso'); [s, ia] = poe(s, 0, IA, 'battlefield', { counters: { p1p1: 3 } });
+  s = lanca(s, 'Choque', ia); const ch = s.stack.at(-1); // 3/3 com 3 de dano morre
+  s = passaAte(s, x => !x.stack.includes(ch) || !!x.pending);
+  if (s.pending) s = escolheAlvo(s, u);
+  assert.ok(s.stack.some(x => s.objects[x].name === IA), 'o gatilho está na pilha');
+  s = J(s); const gy = s.zones[0].graveyard; gy.splice(gy.indexOf(ia), 1); s.zones[0].battlefield.push(ia); Object.assign(s.objects[ia], { zone: 'battlefield', zc: (s.objects[ia].zc || 0) + 1, counters: { p1p1: 1 } }); delete s.objects[ia].ultima;
+  s = resolve(s);
+  eq(k(s, u), 3);
 });
