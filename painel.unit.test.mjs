@@ -178,11 +178,11 @@ test('R-2 · fonte sem rede ou com a cota esgotada devolve o que havia guardado 
 });
 
 /* ---------- modelo puro ---------- */
-test('R-2/R-20 · modelo: onze sub-abas na ordem das fatias (Pipeline antes da Eficiência; Jogo depois do Motor; Custo e Acervo no fim), todas com a leva e o que trazem; prontas: Pipeline (R-4), Eficiência (R-5), Roadmap (R-6), Motor (R-7), Jogo (R-18), Qualidade (R-8), Em curso (R-9), Skills (R-10), Modelos (R-11), Custo (R-19) e Acervo (R-20): todas', () => {
+test('R-2/R-21 · modelo: doze sub-abas na ordem das fatias (Pipeline antes da Eficiência; Jogo depois do Motor; Custo, Acervo e Experiência no fim), todas com a leva e o que trazem; prontas: Pipeline (R-4), Eficiência (R-5), Roadmap (R-6), Motor (R-7), Jogo (R-18), Qualidade (R-8), Em curso (R-9), Skills (R-10), Modelos (R-11), Custo (R-19), Acervo (R-20) e Experiência (R-21): todas', () => {
   const { modelo, app } = loadPainel();
-  assert.deepEqual(modelo.SUBABAS.map(a => a.id), ['pipeline', 'eficiencia', 'roadmap', 'motor', 'jogo', 'qualidade', 'curso', 'skills', 'modelos', 'custo', 'acervo']);
+  assert.deepEqual(modelo.SUBABAS.map(a => a.id), ['pipeline', 'eficiencia', 'roadmap', 'motor', 'jogo', 'qualidade', 'curso', 'skills', 'modelos', 'custo', 'acervo', 'experiencia']);
   for (const a of modelo.SUBABAS) { assert.match(a.leva, /^R-\d+$/); assert.ok(a.traz.length > 20); assert.equal(!!a.pronta, true, a.id + ' pronta'); assert.equal(!!app.VISOES[a.id], !!a.pronta, 'toda sub-aba pronta tem a visão que a desenha'); }
-  assert.deepEqual(modelo.SUBABAS.map(a => a.leva), ['R-4', 'R-5', 'R-6', 'R-7', 'R-18', 'R-8', 'R-9', 'R-10', 'R-11', 'R-19', 'R-20']);
+  assert.deepEqual(modelo.SUBABAS.map(a => a.leva), ['R-4', 'R-5', 'R-6', 'R-7', 'R-18', 'R-8', 'R-9', 'R-10', 'R-11', 'R-19', 'R-20', 'R-21']);
 });
 
 test('R-2 · modelo: carimbo dos dados, idade e farol com limiar declarado', () => {
@@ -719,4 +719,22 @@ test('R-20 · orçamento do Acervo: coleta.json a cada atualização (raw, fora 
   const d2 = await app.VISOES.acervo.carrega(fonte2, false);
   assert.equal(d2.coleta, null); assert.equal(d2.indice.total, 2764); assert.match(d2.avisos.join(' '), /coleta\.json indisponível/);
   assert.equal(modelo.resumoDoCatalogo({ coleta: d2.coleta, indice: d2.indice }).saude, null);
+});
+
+/* ---------- R-21 · BI2-6 · Experiência ---------- */
+test('R-21 · experienciaDasLevas: só levas com a medição do portão entram; instáveis e quedas por semana; instáveis por nome contam levas; última leva medida; durações; leva sem medição fica de fora', () => {
+  const { modelo } = loadPainel();
+  const levas = modelo.linhasDasLevas([
+    { id: 'R-19', trilha: 'radar', fim: '2026-10-14T12:00:00Z', testes_depois: 3051 },                                        // sem --portao
+    { id: 'R-20', trilha: 'radar', fim: '2026-10-16T23:40:00Z', instaveis: 1, instaveis_nomes: ['e2e · X11 scanner'], telas_auditadas: 14, quedas_orcamento: 0, portao_min: 25.1, testes_tela: 246 },
+    { id: 'M-408', trilha: 'motor', fim: '2026-10-17T01:00:00Z', instaveis: 2, instaveis_nomes: ['e2e · X11 scanner', 'e2e · P-12 silenciar'], telas_auditadas: 30, quedas_orcamento: 2, portao_min: 31.4 },
+    { id: 'R-21', trilha: 'radar', fim: '2026-10-21T01:00:00Z', instaveis: 0, telas_auditadas: 15, quedas_orcamento: 1, portao_min: 26 }
+  ]);
+  const x = modelo.experienciaDasLevas(levas);
+  assert.deepEqual(x.medidas.map(l => l.id), ['R-20', 'M-408', 'R-21']);
+  assert.equal(x.ultima.id, 'R-21'); assert.equal(x.instaveis, 3); assert.equal(x.quedas, 3); assert.deepEqual(x.duracoes, [25.1, 31.4, 26]);
+  assert.deepEqual(x.nomes, [{ nome: 'e2e · X11 scanner', vezes: 2 }, { nome: 'e2e · P-12 silenciar', vezes: 1 }]);
+  assert.equal(x.semanas.length, 2); assert.deepEqual(x.semanas.map(s => [s.instaveis, s.quedas, s.levas]), [[3, 2, 2], [0, 1, 1]]);
+  assert.deepEqual(modelo.experienciaDasLevas([]), { medidas: [], semanas: [], nomes: [], ultima: null, quedas: 0, instaveis: 0, duracoes: [] });
+  assert.equal(modelo.LIMIARES.quedasOrcamento.verde, 0); assert.ok(modelo.LIMIARES.portaoMin.verde < modelo.LIMIARES.portaoMin.amarelo);
 });

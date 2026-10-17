@@ -788,7 +788,8 @@ const __p2 = (function () {
     { id: 'skills', rotulo: 'Skills', titulo: 'Skills e rotinas', leva: 'R-10', pronta: true, traz: 'o catálogo de skills, uso por leva e em uso agora; fluxos do GitHub e rotinas do Claude com última e próxima execução' },
     { id: 'modelos', rotulo: 'Modelos', titulo: 'Modelos', leva: 'R-11', pronta: true, traz: 'levas, tempo e portão por modelo, e o consumo estimado do plano' },
     { id: 'custo', rotulo: 'Custo', titulo: 'Custo e escala', leva: 'R-19', pronta: true, traz: 'minutos de Actions por rodada, dia e mês, e o tamanho do index.html por leva' },
-    { id: 'acervo', rotulo: 'Acervo', titulo: 'Acervo de listas', leva: 'R-20', pronta: true, traz: 'listas do catálogo por formato e por fonte, saúde e frescor das fontes (MTGJSON, Magic Online, TopDeck.gg) e fichas pendentes' }
+    { id: 'acervo', rotulo: 'Acervo', titulo: 'Acervo de listas', leva: 'R-20', pronta: true, traz: 'listas do catálogo por formato e por fonte, saúde e frescor das fontes (MTGJSON, Magic Online, TopDeck.gg) e fichas pendentes' },
+    { id: 'experiencia', rotulo: 'Experiência', titulo: 'Experiência de desenvolvimento', leva: 'R-21', pronta: true, traz: 'o que o portão mediu em cada leva: testes instáveis por semana e por nome, quedas de orçamento, telas auditadas e a duração do portão local' }
   ];
   /** Limiares dos faróis (doc BI-painel-epicos.md, seção 3): editáveis aqui, exibidos em cada cartão. */
   const LIMIARES = {
@@ -1219,6 +1220,19 @@ const __p2 = (function () {
   }
   // R-20 · BI2-2 · Acervo: saúde da coleta (alertas param a coleta; avisos são formato sem evento), frescor (a lista mais nova entre as fontes vivas), fichas pendentes
   Object.assign(LIMIARES, { saudeCatalogo: { verde: 2, amarelo: 1, unidade: 'nível', texto: 'saúde da coleta: sem alertas nem avisos · só avisos · com alerta (a coleta falhou em alguma fonte)' }, frescorCatalogo: { verde: 1, amarelo: 3, unidade: 'dias', texto: 'lista mais nova entre as fontes: até 1 dia · até 3 dias · mais' }, pendentesCatalogo: { verde: 0, amarelo: 50, unidade: 'fichas', texto: 'fichas pendentes (cartas sem ficha da Scryfall): 0 · até 50 · mais' } });
+  /* ---------- R-21 · BI2-6 · Experiência (puro): o que o portão gravou na leva (telemetria.mjs --portao) ---------- */
+  /** Levas com medição do portão (campo telas_auditadas, portao_min ou instaveis_nomes): instáveis por semana e por nome, quedas de
+      orçamento e telas auditadas por leva, duração do portão. Leva sem a medição fica de fora (é "pendente de telemetria"). */
+  function experienciaDasLevas(linhas) {
+    const medidas = (linhas || []).filter(l => l.telas_auditadas != null || l.portao_min != null || Array.isArray(l.instaveis_nomes)).sort((a, b) => (a.data || 0) - (b.data || 0));
+    const semanas = porSemana(medidas).map(s => ({ semana: s.semana, instaveis: s.itens.reduce((n, l) => n + (l.instaveis || 0), 0), quedas: s.itens.reduce((n, l) => n + (l.quedas_orcamento || 0), 0), levas: s.itens.length }));
+    const porNome = new Map();
+    for (const l of medidas) for (const n of l.instaveis_nomes || []) porNome.set(n, (porNome.get(n) || 0) + 1);
+    const nomes = [...porNome.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([nome, vezes]) => ({ nome, vezes }));
+    const ultima = medidas.length ? medidas[medidas.length - 1] : null;
+    return { medidas, semanas, nomes, ultima, quedas: medidas.reduce((n, l) => n + (l.quedas_orcamento || 0), 0), instaveis: medidas.reduce((n, l) => n + (l.instaveis || 0), 0), duracoes: medidas.map(l => l.portao_min).filter(x => x != null) };
+  }
+  Object.assign(LIMIARES, { quedasOrcamento: { verde: 0, amarelo: 2, unidade: 'quedas', texto: 'quedas de orçamento no recorte (corridas locais do portão que caíram num teste de orçamento): 0 · até 2 · mais' }, portaoMin: { verde: 30, amarelo: 45, unidade: 'min', texto: 'duração do portão local (rápida + tela, mediana): ≤ 30 min · ≤ 45 min · mais' } });
   // R-18 · BI2-1 · Jogo: falhas da prova (menos é melhor), Shark até o fim (% das partidas), pior jogada (ms; a homologacao mediu 2,6 s a 6,7 s em 13–14/10)
   Object.assign(LIMIARES, { falhasProva: { verde: 0, amarelo: 2, unidade: 'listas com falha', texto: 'falhas na prova: 0 · até 2 · mais' }, sharkFim: { verde: 95, amarelo: 80, unidade: '% até o fim', texto: 'Shark × Shark até o fim: ≥ 95 % · ≥ 80 % · menos' }, piorJogada: { verde: 1000, amarelo: 3000, unidade: 'ms', texto: 'pior jogada do Shark: ≤ 1 s · ≤ 3 s · mais' } });
   // R-19 · BI2-5 · Custo: minutos de Actions no mês (referência: 2.000 min/mês do plano gratuito para repositório privado; o repositório é público e hoje não paga) e tamanho do index.html (app sem build: o arquivo inteiro vai ao aparelho)
@@ -1245,7 +1259,7 @@ const __p2 = (function () {
     coleta: 'raw · catalogo/coleta.json (saúde e contagens da última coleta; gravado pelo fluxo Catálogo)',
     indice: 'raw · catalogo/indice.json (só o cabeçalho: fontes, formatos, total, pendentes; lido uma vez por coleta e guardado por carimbo)'
   };
-  return { SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, levasPorRodada, compactaCommits, MAIN_URL, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, sharkPorVersao, minutosDasRodadas, serieDeTamanho, kb, cabecalhoDoIndice, resumoDoCatalogo, linhasDosRelatos, linhasDasTrilhas, resumoDoFluxo, fraseDoCron, linhasDosFluxos, linhasDasRotinas, porModelo, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
+  return { SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, levasPorRodada, compactaCommits, MAIN_URL, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, sharkPorVersao, minutosDasRodadas, serieDeTamanho, kb, cabecalhoDoIndice, resumoDoCatalogo, experienciaDasLevas, linhasDosRelatos, linhasDasTrilhas, resumoDoFluxo, fraseDoCron, linhasDosFluxos, linhasDasRotinas, porModelo, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
 })();
 
 /* ==== src/painel/ui.js ==== */
@@ -1639,6 +1653,48 @@ const __p4 = (function () {
             Barras({ id: 'pn-g-formatos', titulo: `Listas por formato · ${recorteTxt} (toque filtra)`, itens: porFormato, onBarra: v => api.filtra('formato', v), ativo: filtros.formato || null, vazio: 'sem formato neste recorte' }),
             Barras({ id: 'pn-g-fontes', titulo: `Listas por fonte · ${recorteTxt} (toque filtra)`, itens: porFonte, onBarra: v => api.filtra('fonte', v), ativo: filtros.fonte || null, vazio: 'sem fonte neste recorte' }),
             Barras({ id: 'pn-g-eventos', titulo: `Eventos lidos por fonte e formato · ${recorteTxt}`, itens: eventos, vazio: 'sem eventos neste recorte (MTGJSON não tem eventos)' })),
+          h('ul', { class: 'pn-notas ds-text ds-text--sm ds-text--muted', id: 'pn-notas' }, ...notas.map(n => h('li', {}, n)))
+        ];
+      }
+    },
+    // R-21 · BI2-6 · Experiência: só levas.jsonl (cache compartilhado com Modelos, Em curso e Qualidade)
+    experiencia: {
+      filtros: ['periodo', 'trilha', 'portao', 'conversa'], periodoPadrao: '30d',
+      linhas: d => M.linhasDasLevas(d.levas || []),
+      async carrega(fonte, forcar) {
+        const avisos = []; let levas = [];
+        try { levas = lerJsonl((await fonte.raw('telemetria', 'levas.jsonl', { ttl: 2 * 60000, forcar })).dado); } catch (e) { avisos.push('telemetria indisponível (levas.jsonl)'); }
+        return { em: Date.now(), levas, avisos, sem: {} };
+      },
+      desenha(d, filtros, api) {
+        const agora = Date.now();
+        const periodo = filtros.periodo || '30d';
+        const levas = M.linhasDasLevas(d.levas);
+        const rLev = recorte(levas, { periodo, trilha: filtros.trilha, portao: filtros.portao, conversa: filtros.conversa }, agora);
+        const x = M.experienciaDasLevas(rLev.linhas);
+        const recorteTxt = fraseDoRecorte({ ...filtros, periodo });
+        if (!M.experienciaDasLevas(levas).medidas.length) return [Empty('As medições chegam quando uma conversa registra a leva com o resumo do portão: `node telemetria.mjs leva \'{…}\' --portao` depois do `npm run publicar` (o portão deixa o resumo em .tmp/portao.json).', null, { icone: 'ampulheta', titulo: 'Pendente de telemetria', hero: true, id: 'pn-exp-pendente' })];
+        const u = x.ultima;
+        const cartoes = h('div', { class: 'pn-cartoes' },
+          Cartao({ id: 'pn-k-instaveis', rotulo: 'Testes instáveis', valor: u ? (u.instaveis || 0) : '—', unidade: u ? `na ${u.id} · ${x.instaveis} no recorte` : '', farol: u ? farol(u.instaveis || 0, LIMIARES.instaveis) : 'cinza', limiar: LIMIARES.instaveis, fonte: FONTES.levas, formula: 'instaveis da última leva medida · soma no recorte · ' + recorteTxt, em: u ? u.data : d.em, semDados: !u }),
+          Cartao({ id: 'pn-k-quedas', rotulo: 'Quedas de orçamento', valor: u ? x.quedas : '—', unidade: u ? `em ${x.medidas.length} levas medidas` : '', farol: u ? farol(x.quedas, LIMIARES.quedasOrcamento) : 'cinza', limiar: LIMIARES.quedasOrcamento, fonte: FONTES.levas, formula: 'soma de quedas_orcamento (corridas locais que caíram em teste de orçamento) · ' + recorteTxt, em: d.em, semDados: !u }),
+          Cartao({ id: 'pn-k-telas', rotulo: 'Telas auditadas', valor: u && u.telas_auditadas != null ? u.telas_auditadas : '—', unidade: u && u.telas_auditadas != null ? `na ${u.id} (auditaTela)` : '', fonte: FONTES.levas, formula: 'telas_auditadas da última leva medida (rótulos distintos do auditaTela na fase de tela)', em: u ? u.data : d.em, semDados: !(u && u.telas_auditadas != null) }),
+          Cartao({ id: 'pn-k-portao-min', rotulo: 'Portão local', valor: x.duracoes.length ? (Math.round(M.mediana(x.duracoes) * 10) / 10).toLocaleString('pt-BR') : '—', unidade: x.duracoes.length ? `min · mediana de ${x.duracoes.length}` : '', farol: x.duracoes.length ? farol(M.mediana(x.duracoes), LIMIARES.portaoMin) : 'cinza', limiar: LIMIARES.portaoMin, fonte: FONTES.levas, formula: 'portao_min (fase rápida + fase de tela, no clone) · ' + recorteTxt, em: d.em, semDados: !x.duracoes.length }));
+        const semanas = x.semanas.map(s => ({ chave: s.semana, rotulo: `sem. ${s.semana.slice(5).split('-').reverse().join('/')}`, valor: s.instaveis, dica: `${s.instaveis} instável(is) em ${s.levas} leva(s) · ${s.quedas} queda(s) de orçamento`, tom: s.instaveis ? 'negative' : 'accent' }));
+        const nomes = x.nomes.slice(0, 10).map(n => ({ chave: n.nome, rotulo: n.nome.replace(/^e2e · /, '').slice(0, 60), valor: n.vezes, dica: `${n.nome}: instável em ${n.vezes} leva(s)`, tom: 'negative' }));
+        const quedas = x.medidas.slice(-12).map(l => ({ chave: l.id, rotulo: l.id, valor: l.quedas_orcamento || 0, dica: `${l.id} (${l.trilha}) · ${l.quedas_orcamento || 0} queda(s) · portão ${l.portao_min != null ? l.portao_min + ' min' : '?'}`, tom: l.quedas_orcamento ? 'warning' : 'accent' }));
+        const telas = x.medidas.filter(l => l.telas_auditadas != null).slice(-12).map(l => ({ chave: l.id, rotulo: l.id, valor: l.telas_auditadas, dica: `${l.id} (${l.trilha}) · ${l.telas_auditadas} telas · ${l.testes_tela != null ? l.testes_tela + ' testes de tela' : ''}` }));
+        const notas = ['a medição é do portão no clone da conversa (npm run publicar e npm test); a rodada da fila no CI não grava telemetria — por rodada, veja Pipeline e Eficiência'];
+        if (x.medidas.length < rLev.linhas.length) notas.push(`${rLev.linhas.length - x.medidas.length} leva(s) do recorte sem a medição do portão (registradas sem --portao)`);
+        if (rLev.naoAplica.length) notas.push(`o filtro ${rLev.naoAplica.join(', ')} não se aplica a levas sem essa informação`);
+        for (const a of d.avisos || []) notas.push(a);
+        return [
+          cartoes,
+          h('div', { class: 'pn-graficos' },
+            Barras({ id: 'pn-g-instaveis-semana', titulo: `Instáveis por semana · ${recorteTxt}`, itens: semanas, vazio: 'sem leva medida neste recorte' }),
+            Barras({ id: 'pn-g-instaveis-nome', titulo: 'Testes instáveis por nome (levas em que caíram e passaram sozinhos)', itens: nomes, vazio: 'nenhum instável nas levas medidas' }),
+            Barras({ id: 'pn-g-quedas', titulo: `Quedas de orçamento por leva · ${recorteTxt}`, itens: quedas, vazio: 'sem leva medida neste recorte' }),
+            Barras({ id: 'pn-g-telas', titulo: `Telas auditadas por leva (auditaTela) · ${recorteTxt}`, itens: telas, vazio: 'sem leva com a fase de tela medida' })),
           h('ul', { class: 'pn-notas ds-text ds-text--sm ds-text--muted', id: 'pn-notas' }, ...notas.map(n => h('li', {}, n)))
         ];
       }

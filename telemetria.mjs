@@ -83,7 +83,9 @@ const ESQUEMA_LEVA = {
   portao: { ok: v => PORTOES.includes(v) }, golden_regravado: { ok: v => typeof v === 'boolean' },
   sha: { ok: v => typeof v === 'string' && /^[0-9a-f]{7,40}$/.test(v) },
   estimativa_levas: { ok: v => typeof v === 'number' && v > 0 && v <= 100 }, tamanho: { ok: v => ['½', '1', '2', '3'].includes(v) },
-  motivo: { ok: v => texto(v, 200) }, em: { ok: v => typeof v === 'string' && ISO.test(v) }
+  motivo: { ok: v => texto(v, 200) }, em: { ok: v => typeof v === 'string' && ISO.test(v) },
+  // R-21 · BI2-6 · o que o portão mediu (carregado de .tmp/portao.json por `leva … --portao`): nomes de teste não são dado de usuário
+  testes_tela: { ok: inteiro }, telas_auditadas: { ok: inteiro }, quedas_orcamento: { ok: inteiro }, portao_min: { ok: numero }, instaveis_nomes: { ok: v => Array.isArray(v) && v.length <= 10 && v.every(x => texto(x, 160)) }
 };
 const ESQUEMA_TRILHA = {
   conversa: { obrigatorio: true, ok: v => texto(v, 80) }, trilha: { obrigatorio: true, ok: v => typeof v === 'string' && /^[a-z]{2,20}$/.test(v) },
@@ -194,6 +196,25 @@ export function preparaPasta({ remoto, pasta }) {
 }
 /** Grava um registro: lê o arquivo do ramo, aplica, commit e push; se o push for recusado (outra sessão gravou antes), refaz
     sobre o ramo novo, até 5 vezes. Nunca força. */
+/** R-21 · BI2-6 · Carrega na leva o resumo que o portão deixou em `.tmp/portao.json` (portao.mjs): testes da fase rápida e de tela,
+    instáveis (contagem e até 10 nomes), telas auditadas, duração das fases e as quedas em testes de orçamento desde o último
+    consumo (histórico das corridas locais, verdes e vermelhas). Campo que a conversa já informou não é sobrescrito. Puro. */
+export function levaComPortao(registro, resumo) {
+  if (!resumo || typeof resumo !== 'object' || resumo.kind !== 'estante.portao') return { registro, consumidoEm: null };
+  const r = { ...registro };
+  const desde = resumo.consumidoEm ? Date.parse(resumo.consumidoEm) : 0;
+  const corridas = (resumo.historico || []).filter(h => Date.parse(h.em || '') > desde);
+  const poe = (k, v) => { if (r[k] === undefined && v != null) r[k] = v; };
+  const rapido = resumo.rapido || null, tela = resumo.tela || null;
+  if (rapido && rapido.passaram != null) poe('testes_depois', rapido.passaram + (tela && tela.passaram != null ? tela.passaram : 0));
+  if (tela && tela.passaram != null) poe('testes_tela', tela.passaram);
+  if (tela) { poe('instaveis', (tela.instaveis || []).length); if ((tela.instaveis || []).length) poe('instaveis_nomes', tela.instaveis.slice(0, 10)); poe('telas_auditadas', (tela.telas || []).length); }
+  poe('quedas_orcamento', corridas.reduce((n, h) => n + (h.quedasOrcamento || 0), 0));
+  const min = (rapido && rapido.minutos != null ? rapido.minutos : 0) + (tela && tela.minutos != null ? tela.minutos : 0);
+  if (rapido || tela) poe('portao_min', Math.round(min * 10) / 10);
+  if (rapido && tela && rapido.verde != null && tela.verde != null) poe('portao', rapido.verde && tela.verde ? 'verde' : 'vermelho');
+  return { registro: r, consumidoEm: resumo.em || null };
+}
 export function gravar({ tipo, registro, remoto, pasta, semPush = false, agora = () => new Date().toISOString(), autor = 'Telemetria Estante <noreply@anthropic.com>' }) {
   const erros = tipo === 'skills' ? [] : valida(tipo, registro);
   if (erros.length) throw new Error('registro recusado: ' + erros.join('; '));
@@ -232,13 +253,20 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       const caminho = join(pasta, arquivo); process.stdout.write(existsSync(caminho) ? readFileSync(caminho, 'utf8') : '');
     } else if (['leva', 'trilha', 'rotina', 'placar'].includes(comando)) {
       const bruto = args.slice(1).find(a => a.startsWith('{')); if (!bruto) throw new Error('faltou o registro JSON entre aspas simples');
-      const r = gravar({ tipo: comando, registro: JSON.parse(bruto), remoto, pasta, semPush });
+      let registro = JSON.parse(bruto);
+      const arquivoPortao = join(raiz, '.tmp', 'portao.json');
+      if (comando === 'leva' && args.includes('--portao')) {   // R-21 · carrega o resumo do portão e marca o consumo
+        let resumo = null; try { resumo = JSON.parse(readFileSync(arquivoPortao, 'utf8')); } catch (e) { throw new Error('--portao: não há .tmp/portao.json (rode o portão antes)'); }
+        const c = levaComPortao(registro, resumo); registro = c.registro;
+        writeFileSync(arquivoPortao, JSON.stringify({ ...resumo, consumidoEm: c.consumidoEm }, null, 1) + '\n');
+      }
+      const r = gravar({ tipo: comando, registro, remoto, pasta, semPush });
       console.log(`✓ ${comando} gravado em ${RAMO}/${r.arquivo}${r.enviado ? ' (enviado)' : ' (só na pasta)'}${r.tentativa > 1 ? `, ${r.tentativa}ª tentativa` : ''}`);
     } else if (comando === 'skills') {
       const r = gravar({ tipo: 'skills', registro: {}, remoto, pasta, semPush });
       console.log(`✓ skills.json regravado em ${RAMO}${r.enviado ? ' (enviado)' : ''}`);
     } else {
-      console.log('uso: node telemetria.mjs leva|trilha|rotina|placar \'{…}\' · skills · ler levas|trilhas|rotinas|placares|skills [--remoto url] [--pasta dir] [--sem-push]');
+      console.log('uso: node telemetria.mjs leva|trilha|rotina|placar \'{…}\' [--portao] · skills · ler levas|trilhas|rotinas|placares|skills [--remoto url] [--pasta dir] [--sem-push]');
       process.exit(comando ? 1 : 0);
     }
   } catch (e) { console.error('✗ ' + e.message); process.exit(1); }

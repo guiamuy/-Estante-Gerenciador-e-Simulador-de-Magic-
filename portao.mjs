@@ -19,7 +19,7 @@
      PORTAO_SEM_REPETIR=1 npm test sem a segunda chance (para caçar instabilidade)
    ===================================================================== */
 import { spawn } from 'node:child_process';
-import { readdirSync, appendFileSync, existsSync } from 'node:fs';
+import { readdirSync, appendFileSync, existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { availableParallelism } from 'node:os';
@@ -34,6 +34,34 @@ export function arquivosDaFase(fase, nomes = readdirSync(RAIZ)) {
 /** Nomes dos testes de primeiro nível que falharam, lidos da saída TAP. */
 export function falhasDoTap(tap) {
   return [...String(tap).matchAll(/^not ok \d+ - (.+)$/gm)].map((m) => m[1].trim()).filter((n) => !/\.test\.mjs$/.test(n));
+}
+/** R-21 · BI2-6 · Resumo de uma fase lido da saída TAP: passaram/caíram (linhas `# pass`/`# fail`), quedas em testes de
+    orçamento (nome com "orçamento"), telas auditadas (linhas `# auditaTela · <nome>` que o helper do e2e imprime). Puro. */
+export function resumoDoTap(tap) {
+  const s = String(tap || '');
+  const n = (rx) => { const m = s.match(rx); return m ? Number(m[1]) : null; };
+  const caidos = [...s.matchAll(/^\s*not ok \d+ - (.+?)\s*(?:# .*)?$/gm)].map((m) => m[1]).filter((x) => !/\.test\.mjs$/.test(x));
+  const quedasOrcamento = [...new Set(caidos.filter((x) => /or[çc]amento/i.test(x)))];
+  const telas = [...new Set([...s.matchAll(/^\s*# auditaTela · (.+?)\s*$/gm)].map((m) => m[1]))];
+  return { passaram: n(/^# pass (\d+)/m), cairam: n(/^# fail (\d+)/m), quedasOrcamento, telas };
+}
+/** R-21 · o resumo do portão vai para `.tmp/portao.json` (fora do git), por fase: a fase rápida e a de tela cada uma grava a sua parte,
+    o histórico guarda as últimas 30 corridas (verde ou vermelha). `node telemetria.mjs leva … --portao` carrega isso na leva. */
+export function juntaResumo(atual, parcial, agora = new Date().toISOString()) {
+  const base = atual && typeof atual === 'object' ? atual : {};
+  const historico = [...(base.historico || []), { em: agora, fase: parcial.fase, verde: !!parcial.verde, quedasOrcamento: (parcial.quedasOrcamento || []).length, instaveis: (parcial.instaveis || []).length }].slice(-30);
+  const novo = { kind: 'estante.portao', version: 1, em: agora, rapido: base.rapido || null, tela: base.tela || null, consumidoEm: base.consumidoEm || null, historico };
+  if (parcial.fase === 'rapido') novo.rapido = { em: agora, verde: !!parcial.verde, minutos: parcial.minutos ?? null, passaram: parcial.passaram, cairam: parcial.cairam, quedasOrcamento: parcial.quedasOrcamento || [] };
+  if (parcial.fase === 'tela') novo.tela = { em: agora, verde: !!parcial.verde, minutos: parcial.minutos ?? null, passaram: parcial.passaram, cairam: parcial.cairam, quedasOrcamento: parcial.quedasOrcamento || [], instaveis: parcial.instaveis || [], telas: parcial.telas || [] };
+  return novo;
+}
+const ARQUIVO_RESUMO = join(RAIZ, '.tmp', 'portao.json');
+function gravaResumo(parcial) {
+  try {
+    let atual = null; try { atual = JSON.parse(readFileSync(ARQUIVO_RESUMO, 'utf8')); } catch (e) { atual = null; }
+    mkdirSync(dirname(ARQUIVO_RESUMO), { recursive: true });
+    writeFileSync(ARQUIVO_RESUMO, JSON.stringify(juntaResumo(atual, parcial), null, 1) + '\n');
+  } catch (e) { /* o resumo nunca derruba o portão */ }
 }
 /** Padrão que casa só com aquele nome de teste (para --test-name-pattern). */
 export const padraoExato = (nome) => '^' + nome.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$';
@@ -137,6 +165,7 @@ async function principal() {
     // um processo por núcleo (o padrão do Node deixa um núcleo livre: em máquina de dois núcleos os arquivos rodavam em fila)
     const r = await roda(['--test', `--test-concurrency=${Math.max(2, availableParallelism())}`, ...arquivos]);
     console.log(`# fase 1 em ${minutos(Date.now() - inicio)}`);
+    gravaResumo({ fase: 'rapido', verde: r.ok, minutos: Math.round((Date.now() - inicio) / 6000) / 10, ...resumoDoTap(r.saida) });
     if (!r.ok) { console.error('\n✗ Fase rápida vermelha: a fase de tela nem começou.'); process.exit(1); }
   }
   if (fase === 'tudo' || fase === 'e2e') {
@@ -158,6 +187,8 @@ async function principal() {
       }
     }
     console.log(`# fase 2 em ${minutos(Date.now() - t0)}`);
+    const resumoTela = { fase: 'tela', verde: r.ok, minutos: Math.round((Date.now() - t0) / 6000) / 10, ...resumoDoTap(r.saida), instaveis: [] };
+    process.on('exit', () => gravaResumo(resumoTela));   // R-21 · grava no fim, verde ou vermelho (os instáveis entram abaixo)
     if (!r.ok) {
       const caidos = falhasDoTap(r.saida);
       if (process.env.PORTAO_SEM_REPETIR || !caidos.length || caidos.length > 5) {
@@ -173,6 +204,7 @@ async function principal() {
         if (!de.ok || !rodou) { console.error(`\n✗ Caiu de novo, sozinho: ${nome}\n  Não é instabilidade de carga. Portão vermelho.`); process.exit(1); }
         instaveis.push(nome);
       }
+      resumoTela.verde = true; resumoTela.instaveis = instaveis;
       console.log(`\n# ⚠ INSTÁVEIS — caíram com o portão inteiro e passaram sozinhos (${instaveis.length}). O portão passa, mas cada um é dívida da trilha dona:`);
       for (const nome of instaveis) {
         console.log(`#   · ${nome}`);

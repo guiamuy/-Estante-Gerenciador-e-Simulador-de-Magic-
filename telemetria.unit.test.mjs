@@ -6,7 +6,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { valida, privacidade, aplicar, lerJsonl, upsert, gravar, preparaPasta, skillsJson, SKILLS, ARQUIVOS, RAMO, SITUACOES } from './telemetria.mjs';
+import { valida, privacidade, aplicar, lerJsonl, upsert, gravar, preparaPasta, skillsJson, levaComPortao, SKILLS, ARQUIVOS, RAMO, SITUACOES } from './telemetria.mjs';
 
 const leva = (extra = {}) => ({ id: 'R-3', trilha: 'radar', conversa: 'radar · Painel Estante · 13/10', situacao: 'editando', ...extra });
 
@@ -108,4 +108,22 @@ test('R-3 · duas sessões gravando ao mesmo tempo: a segunda tem o push recusad
   assert.throws(() => gravar({ tipo: 'leva', registro: leva({ conversa: 'x@y.com' }), remoto: bare, pasta: p1 }), /registro recusado: conversa: parece e-mail/);
   assert.ok(existsSync(join(p1, '.git')));
   assert.equal(execFileSync('git', ['-C', p1, 'status', '--porcelain'], { encoding: 'utf8' }).trim(), '');
+});
+
+test('R-21 · levaComPortao: o resumo do portão entra na leva (testes, instáveis com nomes, telas auditadas, duração, portão, quedas de orçamento só das corridas depois do último consumo); campo já informado fica; sem resumo nada muda; o registro passa no esquema', () => {
+  const resumo = { kind: 'estante.portao', version: 1, em: '2026-10-17T01:00:00Z', consumidoEm: '2026-10-16T22:00:00Z',
+    rapido: { em: '2026-10-17T00:50:00Z', verde: true, minutos: 15.2, passaram: 3063, cairam: 0, quedasOrcamento: [] },
+    tela: { em: '2026-10-17T01:00:00Z', verde: true, minutos: 9.9, passaram: 246, cairam: 1, quedasOrcamento: [], instaveis: ['e2e · X11 scanner'], telas: ['custo 360', 'acervo 360'] },
+    historico: [{ em: '2026-10-16T21:00:00Z', fase: 'rapido', verde: false, quedasOrcamento: 2, instaveis: 0 }, { em: '2026-10-16T23:00:00Z', fase: 'rapido', verde: false, quedasOrcamento: 1, instaveis: 0 }, { em: '2026-10-17T00:50:00Z', fase: 'rapido', verde: true, quedasOrcamento: 0, instaveis: 0 }, { em: '2026-10-17T01:00:00Z', fase: 'tela', verde: true, quedasOrcamento: 0, instaveis: 1 }] };
+  const base = { id: 'R-21', trilha: 'radar', conversa: 'c', situacao: 'na-fila', bugs_achados: 0 };
+  const { registro, consumidoEm } = levaComPortao(base, resumo);
+  assert.equal(consumidoEm, '2026-10-17T01:00:00Z');
+  assert.deepEqual(registro, { ...base, testes_depois: 3309, testes_tela: 246, instaveis: 1, instaveis_nomes: ['e2e · X11 scanner'], telas_auditadas: 2, quedas_orcamento: 1, portao_min: 25.1, portao: 'verde' });
+  assert.deepEqual(valida('leva', registro), [], 'o registro carregado passa no esquema');
+  // campo informado pela conversa vence; resumo só da fase rápida não inventa tela
+  const r2 = levaComPortao({ ...base, testes_depois: 10, portao: 'vermelho' }, { ...resumo, tela: null, historico: [] }).registro;
+  assert.equal(r2.testes_depois, 10); assert.equal(r2.portao, 'vermelho'); assert.equal(r2.testes_tela, undefined); assert.equal(r2.instaveis, undefined); assert.equal(r2.quedas_orcamento, 0); assert.equal(r2.portao_min, 15.2);
+  assert.deepEqual(levaComPortao(base, null), { registro: base, consumidoEm: null });
+  assert.deepEqual(levaComPortao(base, { kind: 'outro' }), { registro: base, consumidoEm: null });
+  assert.ok(valida('leva', { ...base, instaveis_nomes: new Array(11).fill('x') }).length, 'mais de 10 nomes é recusado');
 });

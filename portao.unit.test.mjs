@@ -6,7 +6,7 @@ import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { arquivosDaFase, falhasDoTap, padraoExato, pushSemFiltro, navegadorDeTela, fatiasDeTela, fatiar, conferirFatias, ARQUIVO_DE_TELA } from './portao.mjs';
+import { arquivosDaFase, falhasDoTap, padraoExato, pushSemFiltro, navegadorDeTela, fatiasDeTela, fatiar, conferirFatias, resumoDoTap, juntaResumo, ARQUIVO_DE_TELA } from './portao.mjs';
 const RAIZ = dirname(fileURLToPath(import.meta.url));
 
 test('Q14 · as duas fases cobrem todos os arquivos de teste, sem repetir nenhum; o navegador fica sozinho na segunda', () => {
@@ -151,4 +151,21 @@ test('Q21 · o Playwright tem versão exata (sem faixa): versão nova pede outro
   const lock = JSON.parse(readFileSync(join(RAIZ, 'package-lock.json'), 'utf8'));
   assert.equal(lock.packages['node_modules/playwright'].version, pkg.devDependencies.playwright, 'o lockfile instala a mesma versão');
   assert.equal(lock.packages['node_modules/playwright-core'].version, pkg.devDependencies.playwright);
+});
+
+test('R-21 · resumoDoTap: passaram e caíram pelas linhas # pass/# fail, quedas em testes de orçamento pelo nome (sem repetir), telas auditadas pelas linhas "# auditaTela · nome" (sem repetir); arquivo que caiu não conta como queda de orçamento', () => {
+  const tap = ['TAP version 13', '# Subtest: painel.unit.test.mjs', '    ok 1 - R-19 · orçamento do Custo: rodadas', '    not ok 2 - Q8 · orçamento do apply com listas reais # TODO', '    not ok 3 - R-20 · orçamento do Acervo', '    not ok 4 - X11 scanner lento',
+    'not ok 1 - painel.unit.test.mjs', '# auditaTela · custo 360', '    # auditaTela · acervo 360', '# auditaTela · custo 360', '# pass 3060', '# fail 3', '# skipped 0'].join('\n');
+  assert.deepEqual(resumoDoTap(tap), { passaram: 3060, cairam: 3, quedasOrcamento: ['Q8 · orçamento do apply com listas reais', 'R-20 · orçamento do Acervo'], telas: ['custo 360', 'acervo 360'] });
+  assert.deepEqual(resumoDoTap(''), { passaram: null, cairam: null, quedasOrcamento: [], telas: [] });
+});
+
+test('R-21 · juntaResumo: cada fase grava a sua parte sem apagar a outra, o histórico guarda até 30 corridas (verde ou vermelha) e consumidoEm sobrevive', () => {
+  const r1 = juntaResumo(null, { fase: 'rapido', verde: true, minutos: 15.2, passaram: 3063, cairam: 0, quedasOrcamento: [] }, '2026-10-17T00:00:00Z');
+  assert.equal(r1.kind, 'estante.portao'); assert.equal(r1.version, 1); assert.equal(r1.tela, null); assert.equal(r1.rapido.passaram, 3063); assert.equal(r1.historico.length, 1);
+  const r2 = juntaResumo({ ...r1, consumidoEm: '2026-10-16T23:00:00Z' }, { fase: 'tela', verde: true, minutos: 9.9, passaram: 246, cairam: 1, quedasOrcamento: [], instaveis: ['e2e · X11 scanner'], telas: ['custo 360'] }, '2026-10-17T00:10:00Z');
+  assert.equal(r2.rapido.passaram, 3063, 'a fase de tela não apaga a rápida'); assert.deepEqual(r2.tela.instaveis, ['e2e · X11 scanner']); assert.deepEqual(r2.tela.telas, ['custo 360']);
+  assert.equal(r2.consumidoEm, '2026-10-16T23:00:00Z'); assert.deepEqual(r2.historico.map(h => [h.fase, h.verde, h.instaveis]), [['rapido', true, 0], ['tela', true, 1]]);
+  let r = r2; for (let i = 0; i < 40; i++) r = juntaResumo(r, { fase: 'rapido', verde: false, quedasOrcamento: ['Q8 · orçamento'] }, '2026-10-17T01:00:00Z');
+  assert.equal(r.historico.length, 30); assert.equal(r.rapido.verde, false); assert.equal(r.historico[29].quedasOrcamento, 1);
 });

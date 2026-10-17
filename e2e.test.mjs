@@ -2276,6 +2276,7 @@ test('e2e · A12 listas prontas: sem listas próprias da Estante; a lista na est
    ===================================================================== */
 /** O que toda tela precisa cumprir: sem rolagem lateral, alvo de toque ≥ 44px, sem erro no console. */
 async function auditaTela(page, nome) {
+  console.log(`# auditaTela · ${nome}`);   // R-21 · o portão conta as telas auditadas por esta linha (resumo em .tmp/portao.json)
   await page.waitForTimeout(350);   // deixa terminar a animação de entrada de diálogos e cartas
   const r = await page.evaluate(() => {
     const vis = el => { const b = el.getBoundingClientRect(); const st = getComputedStyle(el); return b.width > 0 && b.height > 0 && st.visibility !== 'hidden' && st.display !== 'none'; };
@@ -11931,7 +11932,7 @@ test('e2e · R-2 Painel Estante: outro e-mail é recusado e desconectado; o dono
   assert.equal(await page.evaluate(() => [window.__revogados, localStorage.getItem('painel.sessao')].join('|')), '1|');
   assert.equal(await page.locator('#pn-entrar').innerText(), 'Trocar de conta');
   await auditaTela(page, 'painel recusado');
-  // o dono entra: casca, faixa com o main, onze sub-abas (R-18 somou Jogo, R-19 Custo, R-20 Acervo), um pedido ao main
+  // o dono entra: casca, faixa com o main, doze sub-abas (R-18 somou Jogo, R-19 Custo, R-20 Acervo, R-21 Experiência), um pedido ao main
   await page.evaluate(() => localStorage.setItem('__e2e_email', 'gui.amuy@gmail.com'));
   await page.click('#pn-entrar'); await page.waitForSelector('#pn-abas');
   await page.waitForFunction(() => /main: G-264/.test(document.querySelector('#pn-main')?.innerText || ''));
@@ -11941,8 +11942,8 @@ test('e2e · R-2 Painel Estante: outro e-mail é recusado e desconectado; o dono
   assert.match(await page.innerText('#pn-main'), /main: G-264 · há 2 h/);
   assert.equal(await page.getAttribute('#pn-carimbo', 'data-farol'), 'verde');
   assert.match(await page.innerText('#pn-cota'), /57 de 60/);
-  assert.equal(await page.locator('#pn-abas .ds-tab').count(), 11);
-  assert.deepEqual(await page.$$eval('#pn-abas .ds-tab', es => es.map(e => e.dataset.tab)), ['pipeline', 'eficiencia', 'roadmap', 'motor', 'jogo', 'qualidade', 'curso', 'skills', 'modelos', 'custo', 'acervo']);
+  assert.equal(await page.locator('#pn-abas .ds-tab').count(), 12);
+  assert.deepEqual(await page.$$eval('#pn-abas .ds-tab', es => es.map(e => e.dataset.tab)), ['pipeline', 'eficiencia', 'roadmap', 'motor', 'jogo', 'qualidade', 'curso', 'skills', 'modelos', 'custo', 'acervo', 'experiencia']);
   await page.waitForSelector('#pn-visao-pipeline, #pn-sem-dados, #pn-em-breve');
   for (const id of ['#pn-atualizar', '#pn-sair', '#pn-tema', '#pn-voltar']) assert.ok((await page.locator(id).boundingBox()).height >= 44, id + ' com 44 px');
   // abrir outra sub-aba: dentro do prazo do cache não há pedido novo; o conteúdo diz a leva dela
@@ -12606,4 +12607,48 @@ test('e2e · M-408 · Fireball: a mesa pede os alvos, mostra o dano em cada e o 
   const fim = await page.evaluate(oid => { const s = window.__estanteMesa.estado(); return { zona: s.objects[oid].zone, vidaB: s.players[1].life }; }, imp);
   assert.deepEqual(fim, { zona: 'graveyard', vidaB: 18 }, '2 no Kitchen Imp 2/2 e 2 no oponente');
   assert.deepEqual(M.errors, []);
+});
+
+test('e2e · R-21 Painel · Experiência: sem leva medida fica "pendente de telemetria"; com levas medidas pelo portão mostra instáveis (farol), quedas de orçamento (farol), telas auditadas e duração do portão (farol), barras por semana, por nome, por leva; trilha filtra; notas; sem sobreposição nas quatro medidas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  const painel = base.replace('index.html', 'painel.html');
+  await page.setViewportSize({ width: 360, height: 780 });
+  const json = (r, corpo) => r.fulfill({ json: corpo, headers: { 'content-type': 'application/json', 'x-ratelimit-remaining': '50', 'x-ratelimit-limit': '60', 'access-control-expose-headers': 'etag, x-ratelimit-remaining, x-ratelimit-limit' } });
+  await page.route('https://api.github.com/**', r => json(r, /\/commits\?sha=main/.test(r.request().url()) ? [{ sha: 'ccc3333ccc3', commit: { message: 'Leva R-20 · acervo', committer: { date: new Date().toISOString() } } }] : []));
+  const h = n => new Date(Date.now() - n * 3600000).toISOString();
+  let levas = [{ id: 'R-19', trilha: 'radar', conversa: 'radar', situacao: 'publicada', fim: h(50), testes_depois: 3051 }];
+  await page.route('https://raw.githubusercontent.com/**', r => r.fulfill({ body: /levas\.jsonl/.test(r.request().url()) ? levas.map(l => JSON.stringify(l)).join('\n') : '', headers: { 'content-type': 'text/plain', 'access-control-allow-origin': '*' } }));
+  await page.addInitScript(() => {
+    const jwt = email => 'h.' + btoa(JSON.stringify({ email })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') + '.s';
+    window.__PAINEL_FETCH = async (url) => new Response(JSON.stringify(url.includes('securetoken') ? { user_id: 'uidE2E', id_token: jwt('gui.amuy@gmail.com'), refresh_token: 'ref-e2e', expires_in: '3600' } : { localId: 'uidE2E', idToken: jwt('gui.amuy@gmail.com'), refreshToken: 'ref-e2e', expiresIn: '3600', email: 'gui.amuy@gmail.com' }), { headers: { 'content-type': 'application/json' } });
+    window.__PAINEL_GOOGLE = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+  });
+  await page.goto(painel + '#experiencia'); await page.waitForSelector('#pn-entrar'); await page.click('#pn-entrar');
+  await page.waitForSelector('#pn-exp-pendente');
+  assert.match(await page.innerText('#pn-exp-pendente'), /Pendente de telemetria[\s\S]*--portao/);
+  await auditaTela(page, 'experiência pendente 360');
+  // levas medidas pelo portão (telemetria.mjs --portao)
+  levas = [...levas,
+    { id: 'R-20', trilha: 'radar', conversa: 'radar', situacao: 'publicada', fim: h(30), testes_depois: 3309, testes_tela: 246, instaveis: 1, instaveis_nomes: ['e2e · X11 scanner com foto inclinada'], telas_auditadas: 14, quedas_orcamento: 0, portao_min: 25.1, portao: 'verde' },
+    { id: 'M-408', trilha: 'motor', conversa: 'motor', situacao: 'na-fila', fim: h(3), testes_depois: 3310, testes_tela: 246, instaveis: 2, instaveis_nomes: ['e2e · X11 scanner com foto inclinada', 'e2e · P-12 silenciar'], telas_auditadas: 30, quedas_orcamento: 2, portao_min: 33.4, portao: 'verde' },
+    { id: 'R-21', trilha: 'radar', conversa: 'radar', situacao: 'na-fila', fim: h(1), testes_depois: 3312, testes_tela: 247, instaveis: 0, telas_auditadas: 15, quedas_orcamento: 1, portao_min: 26, portao: 'verde' }];
+  await page.click('#pn-atualizar'); await page.waitForSelector('#pn-k-instaveis');
+  assert.match(await page.innerText('#pn-k-instaveis'), /0[\s\S]*na R-21 · 3 no recorte/); assert.equal(await page.getAttribute('#pn-k-instaveis .pn-farol', 'data-farol'), 'verde');
+  assert.match(await page.innerText('#pn-k-quedas'), /3[\s\S]*em 3 levas medidas/); assert.equal(await page.getAttribute('#pn-k-quedas .pn-farol', 'data-farol'), 'vermelho');
+  assert.match(await page.innerText('#pn-k-telas'), /15[\s\S]*na R-21/);
+  assert.match(await page.innerText('#pn-k-portao-min'), /26[\s\S]*min · mediana de 3/); assert.equal(await page.getAttribute('#pn-k-portao-min .pn-farol', 'data-farol'), 'verde');
+  assert.match(await page.innerText('#pn-g-instaveis-nome'), /X11 scanner com foto inclinada[\s\S]*2[\s\S]*P-12 silenciar[\s\S]*1/);
+  assert.match(await page.innerText('#pn-g-quedas'), /R-20[\s\S]*0[\s\S]*M-408[\s\S]*2[\s\S]*R-21[\s\S]*1/);
+  assert.match(await page.innerText('#pn-g-telas'), /R-20[\s\S]*14[\s\S]*M-408[\s\S]*30[\s\S]*R-21[\s\S]*15/);
+  assert.match(await page.innerText('#pn-g-instaveis-semana'), /sem\. /);
+  assert.match(await page.innerText('#pn-notas'), /rodada da fila no CI não grava telemetria[\s\S]*1 leva\(s\) do recorte sem a medição do portão/);
+  await auditaTela(page, 'experiência 360');
+  // trilha filtra: só as da radar
+  await page.click('#pn-filtros [data-dim="trilha"][data-valor="radar"]');
+  await page.waitForFunction(() => location.hash.includes('trilha=radar'));
+  assert.match(await page.innerText('#pn-k-quedas'), /1[\s\S]*em 2 levas medidas/); assert.doesNotMatch(await page.innerText('#pn-g-quedas'), /M-408/);
+  assert.match(await page.innerText('#pn-k-instaveis'), /0[\s\S]*na R-21 · 1 no recorte/);
+  await emTodasAsMedidas(page, 'experiência filtrada');
+  if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.screenshot({ path: process.env.SHOTS + '/r21-experiencia.png', fullPage: true }); }
+  assert.deepEqual(errors, []);
 });
