@@ -1,5 +1,5 @@
 // T-126 · CR5 · Gatilho que funciona do cemitério em "When a Ninja you control enters" e a volta "attached to that creature"
-// (113.6k, 603.6, 303.4f, 303.4g, 400.7): Smoke Shroud. Texto oficial em .listas/oficiais-tipos.json (Scryfall, consulta de 17/10/2026).
+// (113.6m, 603.6, 303.4f, 303.4g, 400.7): Smoke Shroud. Texto oficial em .listas/oficiais-tipos.json (Scryfall, consulta de 17/10/2026).
 // E a correção da T-125 em putTriggerOnStack: o gatilho com foto dos marcadores perdia a criatura encantada do disparo (608.2h).
 // "Ninja", "Urso", "Metamorfo", "Muralha", "Choque", "Desanima", "Exila" e "Elo" são cartas de teste.
 import { test } from 'node:test';
@@ -101,10 +101,18 @@ test('CR 303.4g · Smoke Shroud: Ninja com proteção contra encantamentos — a
   eq(s.objects[sh].zone, 'graveyard');
 });
 
-test('CR 113.6k · Smoke Shroud no campo ou na mão não dispara pela entrada de um Ninja (só do cemitério)', () => {
+test('CR 113.6m · Smoke Shroud no campo ou na mão não dispara pela entrada de um Ninja (só do cemitério)', () => {
   let s = mesa(); let sh; [s, sh] = poe(s, 0, SS, 'hand');
   [s] = entra(s, 'Ninja');
   eq([!!s.pending, s.objects[sh].zone], [false, 'hand']);
+});
+
+test('CR 113.6m · T-129 (auditoria T-126…T-128, A2): Smoke Shroud no campo, anexada, não dispara pela entrada de um Ninja (nem pergunta)', () => {
+  let s = mesa(); let u; [s, u] = poe(s, 0, 'Urso');
+  let sh; [s, sh] = conjura(s, SS, 0, x => (x.targets || []).some(t => t.oid === u));
+  s = passaAte(s, x => !x.stack.length || !!x.pending); eq(s.objects[sh].attachedTo, u);
+  [s] = entra(s, 'Ninja');
+  eq([!!s.pending, s.stack.length, s.objects[sh].attachedTo], [false, 0, u]);
 });
 
 test('CR 608.2h · T-126 corrige a T-125: gatilho de uma Aura que saiu (com a foto dos marcadores) guarda a criatura encantada do disparo', () => {

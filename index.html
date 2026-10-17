@@ -6821,7 +6821,7 @@ const RAW_SCRIPTS = [
   { name: 'Feral Deathgorger', omen: { mana: '{1}{B}' }, abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'mover', target: { zona: 'graveyard' }, para: 'exile', upTo: true, mesmoCemiterioT: true }, { do: 'mover', target: { zona: 'graveyard' }, para: 'exile', upTo: true, mesmoCemiterioT: true }] }], // "When this creature enters, exile up to two target cards from a single graveyard." (dois alvos opcionais; o segundo do mesmo cemitério do primeiro)
     back: { name: 'Dusk Sight', types: ['sorcery'], subtypes: ['Omen'], colors: ['B'], effects: [{ do: 'counters', amount: 1, target: 'creature', upTo: true }, { do: 'draw', amount: 1 }] }, // "Put a +1/+1 counter on up to one target creature. Draw a card. (Then shuffle this card into its owner's library.)" (o embaralhar é do presságio, 720.3c)
     example: { action: 'omen', target: 'none', expect: { selfLife: 0 } } }, // o cenário de verdade está em tipos.devorador.unit
-  // T-126 · CR 603.6/113.6k (gatilho que funciona do cemitério), 303.4f/303.4g (Scryfall, consulta de 17/10/2026; sem rulings)
+  // T-126 · CR 603.6/113.6m (gatilho que funciona do cemitério), 303.4f/303.4g (Scryfall, consulta de 17/10/2026; sem rulings)
   { name: 'Smoke Shroud', aura: { enchant: 'creature' }, grants: { power: 1, toughness: 1, keywords: ['flying'] }, abilities: [{ kind: 'triggered', when: 'other-etb', fromGraveyard: true, filter: { subtype: 'Ninja' }, optional: true, effects: [{ do: 'volta_anexada_t' }] }], // "Enchant creature · Enchanted creature gets +1/+1 and has flying. · When a Ninja you control enters, you may return this card from your graveyard to the battlefield attached to that creature."
     example: { action: 'aura', target: 'own-creature', expect: { stats: [3, 3] } } },
   // T-123 · CR 508.1d / 702.138c (Scryfall, consulta de 17/10/2026, rulings de 24/01/2020)
@@ -23380,7 +23380,7 @@ function quemObserva(s, o, ctrl, lista, casa, saiu, conjurar = false) { // M-346
     const wCtrl = w.zone === 'battlefield' ? w.controller : w.ultima.controller;
     for (const ab of abilitiesOf(s, w)) {
       const d = ab.kind === 'triggered' && SC.gatilhoDoEvento(ab.when);
-      if (!d || d.objeto !== 'outra' || !casa(d)) continue;
+      if (!d || d.objeto !== 'outra' || !casa(d) || ab.fromGraveyard) continue; // T-129 · 113.6m: a que funciona do cemitério não dispara do campo (Smoke Shroud; Toca ponto comum: quemObserva)
       // de quem é o objeto observado — o seu (padrão), o de um oponente, o de qualquer um, ou "posto no SEU cemitério" (Angelic Renewal)
       const quem = d.quem || (ab.controller === 'opponent' ? 'oponente' : ab.anyController ? 'qualquer' : 'voce');
       if ((d.donoVoce || ab.ownerIsYou) ? o.owner !== wCtrl : quem === 'oponente' ? wCtrl === ctrl : (quem === 'voce' && wCtrl !== ctrl)) continue;
@@ -23505,7 +23505,7 @@ function queueTriggersLegado(s, when, objects, controller) {
       if (w.oid === o.oid) continue;
       const wCtrl = w.zone === 'battlefield' ? w.controller : w.ultima.controller;
       for (const ab of abilitiesOf(s, w)) {
-        if (ab.kind !== 'triggered' || ab.when !== other) continue;
+        if (ab.kind !== 'triggered' || ab.when !== other || ab.fromGraveyard) continue; // T-129 · 113.6m (o caminho antigo igual ao novo)
         // Q11 · "whenever another Elf enters" (Elvish Vanguard) dispara para Elfos de qualquer jogador; o padrão continua "sua"
         // CR2b.3 · 603.2: de quem é a permanente que o gatilho observa — a sua (padrão), a de um oponente, a de qualquer um,
         // ou "posta no SEU cemitério" (o dono é você, não importa quem controlava: Angelic Renewal)
@@ -24084,7 +24084,7 @@ function resolveTop(s, events = []) {
 function fimDaMagiaResolvida(s, item, o, dest, controller, comoCopia, scripted, events) {
   { const av = aventuraResolveu(s, item, o, controller, events); if (av) return { kind: 'resolved', oid: item, name: av, to: (s.objects[item] || {}).zone || 'exile', scripted: true, adjudicate: false }; } // T-5 · CR 715.3d · a Aventura que resolve é exilada pelo controlador, que pode conjurar a carta de lá (função abaixo da âncora T das exportações)
   { const rk = destinoAoResolverK(s, item, o, dest, events); if (rk) return { kind: 'resolved', oid: item, name: o.name, to: rk, scripted, adjudicate: s.mode === 'assisted' && !scripted }; } // K-33 · 702.27a recompra · K-35 · 702.88a ricochete (Toca ponto comum: resolveTop)
-  if (s.objects[item].zone === 'stack' && o.omen) { // S24 · presságio volta embaralhado para o grimório
+  if (s.objects[item].zone === 'stack' && o.omen && !events.some(e => e.kind === 'fizzled' && e.oid === item)) { // S24 · presságio volta embaralhado para o grimório · T-129 · 720.3d / 608.2b: só o que resolve; sem nenhum alvo legal vai ao cemitério (Toca ponto comum: fimDaMagiaResolvida)
     moveObject(s, item, 'library');
     shuffle(s, s.zones[s.objects[item].owner].library);
     return { kind: 'resolved', oid: item, name: o.name, to: 'library', scripted: true, adjudicate: false };
@@ -28320,7 +28320,7 @@ function mesmoCemiterioOkT(s, eff, x, targets, targeted) {
   return targets.every((y, j) => !y || y.oid == null || !(targeted[j] || {}).mesmoCemiterioT || !s.objects[y.oid] || s.objects[y.oid].owner === dono);
 }
 /* ---------------- T-126 · gatilho do cemitério em "a [subtipo] you control enters" e a volta anexada (Smoke Shroud) ----------------
-   - 113.6k / 603.6: a habilidade com `fromGraveyard: true` e `when: 'other-etb'` funciona do cemitério. Quem observa: as cartas do
+   - 113.6m / 603.6: a habilidade com `fromGraveyard: true` e `when: 'other-etb'` funciona do cemitério. Quem observa: as cartas do
      cemitério de quem controla a permanente que entrou ("you control"); o `filter` é o do gatilho de outra permanente.
    - Fica fora do modo sombra (o caminho antigo nunca olhou o cemitério para entradas): é chamado depois dele, no `disparaZona`.
    - A volta (`volta_anexada_t`): a fonte precisa estar no cemitério na encarnação do disparo (400.7) e a criatura lembrada no campo,

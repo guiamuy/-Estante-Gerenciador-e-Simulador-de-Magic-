@@ -82,3 +82,13 @@ test('CR 720.3 / 115.1 · Dusk Sight sem alvo ("up to one"): só compra, e volta
   s = resolve(act(s, om[0]));
   eq([s.zones[0].hand.length, s.objects[d].zone], [mao, 'library']);
 });
+
+test('CR 720.3d / 608.2b · T-129 (auditoria T-126…T-128, A1): Dusk Sight com o único alvo ilegal não resolve — vai ao cemitério, não ao grimório, e não compra', () => {
+  let s = mesa(); let u; [s, u] = poe(s, 1, 'Urso');
+  let d; [s, d] = poe(s, 0, FD, 'hand'); s = J(s); s.players[0].pool.B += 2;
+  s = act(s, legais(s, 0, x => x.t === 'cast' && x.oid === d && x.omen && (x.targets || []).some(t => t.oid === u))[0]);
+  s = J(s); s.zones[1].battlefield.splice(s.zones[1].battlefield.indexOf(u), 1); s.zones[1].graveyard.push(u); s.objects[u].zone = 'graveyard'; s.objects[u].zc = (s.objects[u].zc || 0) + 1; // o alvo some antes da resolução
+  const mao = s.zones[0].hand.length;
+  s = resolve(s);
+  eq([s.objects[d].zone, s.zones[0].hand.length], ['graveyard', mao]);
+});
