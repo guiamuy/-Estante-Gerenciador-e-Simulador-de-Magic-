@@ -4883,6 +4883,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** **renome sem a palavra-chave da Scryfall** — o renome (702.112) só vale quando o dado da carta traz "Renown" nas palavras-chave (no app vem da Scryfall); o motor não o lê da linha impressa como faz com evocar. **Alvos repetidos entre instâncias de "target" (115.3):** a oferta exige alvos distintos entre efeitos diferentes da mesma mágica (Kodama's Might encaixada em outra Kodama's Might com uma criatura só não é oferecida) — antigo e geral, fica para leva própria.
 - **Teste:** `lt167.unit` (9 testes; 5 falham no motor anterior).
 
+**M-486 · LT152 · revisão por lote CXXVIII: nove cartas lidas que travam as listas iniciantes** ✅ (leva M-486, motor v112 sem mudança de forma; goldens intactos; nenhuma linha de código nova).
+- **Valor:** passam a jogar (APROVADAS): Phyrexian Gargantua, Evincar's Justice (com recompra), Jedit's Dragoons, Ingot Chewer (com evocar), Pyre Charger, River Boa (islandwalk e regenerar), Uthden Troll, Phyrexian Ghoul, Weakness. Textos da Scryfall consultados em 17/10/2026; leituras conferidas frase a frase no texto oficial.
+- **Revisão independente:** aprovada (revisão de M-486/M-487): 18 leituras conferidas frase a frase; `--confere` com 908 aprovadas; 83 sondas sem erro (recompra anulada; evocar; regenerar em combate e contra "can't be regenerated"; islandwalk; golpe duplo; sacrifício como custo; Evincar's Justice sem diferença observável por ser dois efeitos — mesmo padrão da Pestilence); fuzz com as 18 cartas (2×60 partidas) sem recusa nem exceção.
+- **Fora (declarado):** a travessia de ilha (702.14c) do River Boa só vale quando o dado da carta traz "Islandwalk" nas palavras-chave (no app vem da Scryfall); o motor não a lê da linha impressa — mesmo caso do renome declarado na M-485.
+- **Teste:** `lt168.unit` (6 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
