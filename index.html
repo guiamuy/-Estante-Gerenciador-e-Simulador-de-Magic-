@@ -6082,7 +6082,7 @@ const REDUZ_POR = ['instants-sorceries-in-your-graveyard', 'creature-cards-in-yo
 /** S19 · um valor pode ser um número ou uma contagem do campo. */
 const isCount = v => v && typeof v === 'object' && (typeof v.per === 'string' || typeof v.subtype === 'string');
 const valueErrors = (v, label) => isCount(v) && v.per === 'soma' ? (Array.isArray(v.partes) && v.partes.length >= 2 && v.partes.every(x => isCount(x) && x.per !== 'soma') ? v.partes.flatMap((x, i) => valueErrors(x, `${label} (parte ${i + 1})`)) : [`${label}: "soma" precisa de duas ou mais contagens em "partes"`]) // M-358
-  : isCount(v) ? (v.per === 'se' && !(['metalcraft', 'cast-from-graveyard', 'kicked', 'not-cast-from-hand', 'bargained', 'threshold' /* M-412 */, 'morbid' /* M-416 */, ...onlyIfT()].includes(v.se) && Number.isInteger(v.sim) && Number.isInteger(v.nao)) ? [`${label}: "se" precisa da condição (metalcraft, cast-from-graveyard, kicked, bargained, not-cast-from-hand, monarca, oponente-monarca) e dos valores sim/não`] : v.subtype || PER_COUNTS.includes(v.per) ? [] : [`${label}: contagem "${v.per}" desconhecida`]) // M-331
+  : isCount(v) ? (v.per === 'se' && !(['metalcraft', 'cast-from-graveyard', 'kicked', 'not-cast-from-hand', 'bargained', 'threshold' /* M-412 */, 'morbid' /* M-416 */, 'landfall-turno' /* M-437 */, ...onlyIfT()].includes(v.se) && Number.isInteger(v.sim) && Number.isInteger(v.nao)) ? [`${label}: "se" precisa da condição (metalcraft, cast-from-graveyard, kicked, bargained, not-cast-from-hand, monarca, oponente-monarca) e dos valores sim/não`] : v.subtype || PER_COUNTS.includes(v.per) ? [] : [`${label}: contagem "${v.per}" desconhecida`]) // M-331
   : (Number.isInteger(v) ? [] : [`${label}: precisa ser inteiro ou contagem`]);
 /** S11b · evasão estática e escolhas feitas quando a permanente entra. */
 const EVASIONS = ['flying-only', 'power-less', 'three-or-more', 'not-monarch', 'unblockable']; // M-395 · "~ can't be blocked" (Blighted Agent, 509.1b) // M-391 · "can't be blocked by creatures the monarch controls" (Azure Fleet Admiral, 725) // M-349 · Troll of Khazad-dûm: "can't be blocked except by three or more creatures"
@@ -6363,6 +6363,7 @@ function effectErrors(effects, label, opcional) {
     if (e.do === 'discard_or_sacrifice_land_draw' && e.obrigatorio != null) errs.push(`${label} ${i + 1}: o descarte ou sacrifício obrigatório (sem "you may") não é coberto`); // M-411 · fica sem leitura, nunca opcional por engano
     if (e.do === 'discard_or_sacrifice_land_draw' && e.tipo != null && e.tipo !== 'artifact') errs.push(`${label} ${i + 1}: "tipo" do sacrifício é 'artifact' (sem tipo: terreno)`); // M-411
     if (e.do === 'ganha_habilidade') { const h = e.habilidade; if (!h || h.kind !== 'triggered' || !h.when || !gatilhoDoEvento(h.when)) errs.push(`${label} ${i + 1}: "habilidade" precisa ser uma habilidade disparada conhecida`); else errs.push(...effectErrors(h.effects, `${label} ${i + 1} (habilidade ganha)`)); } // M-429
+    if (e.doJogadorDoPrimeiro != null && !(e.doJogadorDoPrimeiro === true && i > 0 && isTargeted(e) && isTargeted(effects[0]))) errs.push(`${label} ${i + 1}: "doJogadorDoPrimeiro" só num alvo depois do primeiro`); // M-437
     if (e.mesmoNome != null && !(e.mesmoNome === true && e.do === 'bounce' && isTargeted(e))) errs.push(`${label} ${i + 1}: "mesmoNome" só em devolver um alvo`); // M-425
     if (e.excetoPrimeiro != null && !(e.excetoPrimeiro === true && e.cada && !isTargeted(e) && effects.slice(0, i).some(isTargeted))) errs.push(`${label} ${i + 1}: "excetoPrimeiro" só numa varredura (cada) sem alvo, depois de um efeito com alvo`); // M-422
     if (e.porContagem != null && (e.do !== 'add_mana' || !PER_COUNTS.includes(e.porContagem))) errs.push(`${label} ${i + 1}: "porContagem" só na mana, com uma contagem conhecida`); // M-423
@@ -9633,6 +9634,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   // M-436 · revisão por lote LXXXVII ("Whenever you cycle another card": Drannith Healer, Drannith Stinger), texto da Scryfall de 17/10/2026 UTC, revisor independente
   'Drannith Healer': { texto: '12ohodi', leva: 'M-436' },
   'Drannith Stinger': { texto: '1llzsx9', leva: 'M-436' },
+  // M-437 · revisão por lote LXXXVIII (alvo que depende do primeiro e landfall de mágica: Searing Blaze), texto da Scryfall de 17/10/2026 UTC, revisor independente
+  'Searing Blaze': { texto: '1031mvx', leva: 'M-437' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18286,6 +18289,7 @@ const __m42 = (function () {
   const FILTRO_TOPO = { colorless: { incolor: true }, 'instant or sorcery': { types: ['instant', 'sorcery'] }, creature: { types: ['creature'] }, artifact: { types: ['artifact'] }, land: { types: ['land'] }, 'creature or land': { types: ['creature', 'land'] } };
   const PRE_PARAGRAFO = [
     [/^choose (target creature or planeswalker|target creature)\. you get ((?:\{E\})+)(?: \([^)]*\))?, then you may pay any amount of \{E\}\. ~ deals that much damage to that (?:creature|permanent)(?:\.\s*|$)/i, m => [{ do: 'energia', amount: m[2].length / 3 }, { do: 'energia_dano', target: /planeswalker/i.test(m[1]) ? { tipos: ['creature', 'planeswalker'] } : { tipos: ['creature'] } }]], // M-405 · Galvanic Discharge, Harnessed Lightning
+    [/^~ deals (\d+) damage to target player or planeswalker and (\d+) damage to target creature that player or that planeswalker's controller controls(?:\.\s*|$)/i, m => [{ do: 'damage', amount: +m[1], target: { tipos: ['planeswalker'], jogadores: 'any' } }, { do: 'damage', amount: +m[2], target: { tipos: ['creature'] }, doJogadorDoPrimeiro: true }]], // M-437 · Searing Blaze
     [/^discard all the cards in your hand, then draw that many cards(?:\.\s*|$)/i, () => [{ do: 'descarta_a_mao', target: 'self' }, { do: 'draw', amount: { per: 'descartadas-assim' } }]], // M-434 · Tolarian Winds (701.9)
     [new RegExp(`^look at the top ${N} cards of your library, then put them back in any order(?:\\.\\s*|$)`, 'i'), m => { const c = num(m[1]); return c ? [{ do: 'look', count: c, amount: c, min: c, to: 'library-top', rest: 'stay', ordena: true }] : null; }], // M-339 · Ponder
     [/^(target player|target opponent) reveals (?:their|his or her) hand\. you choose an? (.+?) from it(?: with mana value (\d+) or less)?\. (?:that player|they) discards? that card(?:\.\s*|$)/i, m => {
@@ -18492,6 +18496,8 @@ const __m42 = (function () {
       if (tr && efeitos.length === 1 && efeitos[0].do === 'destroy' && efeitos[0].target === 'land') { efeitos.push({ do: 'damage', amount: +tr[1], target: 'each-creature', onlyIf: 'threshold' }, { do: 'damage', amount: +tr[1], target: 'each-player', onlyIf: 'threshold' }); frases.push({ texto: linha, lida: true }); continue; }
       const tm = mc.match(/^threshold — add ((?:\{[WUBRGC]\})+) instead if there are seven or more cards in your graveyard$/i); // M-417 · Cabal Ritual: a mana do limiar troca a mana impressa
       if (tm && efeitos.length && efeitos[efeitos.length - 1].do === 'add_mana' && Array.isArray(efeitos[efeitos.length - 1].symbols) && !efeitos[efeitos.length - 1].onlyIf) { efeitos[efeitos.length - 1].onlyIf = 'sem-limiar'; efeitos.push({ do: 'add_mana', symbols: tm[1].match(/[WUBRGC]/g), onlyIf: 'threshold' }); frases.push({ texto: linha, lida: true }); continue; }
+      const lf = mc.match(/^(?:landfall — )?if you had a land enter the battlefield under your control this turn, ~ deals (\d+) damage to that player or planeswalker and (\d+) damage to that creature instead$/i); // M-437 · Searing Blaze: o "instead" troca as duas quantias
+      if (lf && efeitos.length === 2 && efeitos[0].do === 'damage' && efeitos[1].do === 'damage' && efeitos[1].doJogadorDoPrimeiro && Number.isInteger(efeitos[0].amount) && Number.isInteger(efeitos[1].amount)) { efeitos[0].amount = { per: 'se', se: 'landfall-turno', sim: +lf[1], nao: efeitos[0].amount }; efeitos[1].amount = { per: 'se', se: 'landfall-turno', sim: +lf[2], nao: efeitos[1].amount }; frases.push({ texto: linha, lida: true }); continue; }
       const mb = mc.match(/^morbid — that creature gets ([+-]\d+)\/([+-]\d+) until end of turn instead if a creature died this turn$/i); // M-416 · mórbido que troca a quantia (Tragic Slip)
       if (mb && efeitos.length && efeitos[efeitos.length - 1].do === 'pump' && Number.isInteger(efeitos[efeitos.length - 1].power) && Number.isInteger(efeitos[efeitos.length - 1].toughness) && SC_ALVEJA(efeitos[efeitos.length - 1])) { const ult = efeitos[efeitos.length - 1]; ult.power = { per: 'se', se: 'morbid', sim: +mb[1], nao: ult.power }; ult.toughness = { per: 'se', se: 'morbid', sim: +mb[2], nao: ult.toughness }; frases.push({ texto: linha, lida: true }); continue; }
       const ms = mc.match(/^metalcraft — if you control three or more artifacts, (.+)$/i);
@@ -19185,6 +19191,7 @@ function createGame(setup) {
   s.turn.active = Number.isInteger(setup.first) && setup.first >= 0 && setup.first < s.players.length ? setup.first : sorteado;
   s.turn.priority = s.turn.active;
   s.players.forEach((_, pi) => draw(s, pi, rules.hand));
+  if (Object.values(s.facts).some(f => f && f.script && JSON.stringify(f.script).includes('"landfall-turno"'))) s.terrenoNoTurno = {}; // M-437 · só as partidas com carta de "landfall" de mágica guardam quem teve terreno entrando neste turno
   if (Object.values(s.facts).some(f => f && f.script && JSON.stringify(f.script).includes('"morbid"'))) s.morteNoTurno = 0; // M-416 · mórbido: só as partidas que têm carta de mórbido guardam "uma criatura morreu neste turno" (o estado das outras não muda)
   return s;
 }
@@ -19404,6 +19411,7 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
     if (((s.facts[o.name].script || {}).choose) === 'color' && !o.chosenColor) s.queuedChoices = (s.queuedChoices || []).concat([{ oid, p: o.controller, kind: 'color' }]);
   }
   if (fromZone === 'hand' && to === 'graveyard') noteDiscard(s, o.owner); // CR2b.4 · da mão para o cemitério é descarte
+  if (s.terrenoNoTurno && to === 'battlefield' && fromZone !== 'battlefield' && tiposDe(s, o).includes('land')) s.terrenoNoTurno[o.controller] = s.turn.number; // M-437
   if (s.morteNoTurno != null && fromZone === 'battlefield' && to === 'graveyard' && ultima && ultima.power != null) s.morteNoTurno = s.turn.number; // M-416 · mórbido: uma criatura morreu neste turno (o campo só existe nas partidas com carta de mórbido)
   // CR2-G R2a · 603.6 · entrar, morrer, sair do campo e "a anexada morre" são o mesmo evento de mudança de zona
   if (s.entrandoJuntas) s.entrandoJuntas.push([o.oid, fromZone, to, fromController, ultima]); else // M-426 · 603.6a: as que entram no mesmo evento se veem (pisca_volta junta os gatilhos)
@@ -21115,6 +21123,7 @@ function violaPortaEstandarte(s, p, need, chosen, selfOid) {
 function targetAllowed(s, eff, tgt, src) {
   const o = tgt && tgt.oid != null ? s.objects[tgt.oid] : null;
   if (!o) return true;
+  if (eff.doJogadorDoPrimeiro && src && (src.targets || [])[0] && src.targets[0] !== tgt && !controladaPeloPrimeiroM(s, src.targets[0], o)) return false; // M-437 · 608.2b: na resolução, a criatura precisa ser controlada pelo jogador do primeiro alvo
   const f = s.facts[o.name] || {};
   if (eff.targetNotLegendary && portadorLendarioV(s, o)) return false; // V-25 · 701.54c (1) (Toca ponto comum: targetAllowed)
   if (eff.targetNotLegendary && f.legendary) return false;
@@ -21139,6 +21148,8 @@ function targetAllowed(s, eff, tgt, src) {
   return true;
 }
 const sameTarget = (a, b) => a && b && a.oid === b.oid && a.player === b.player;
+/** M-437 · Searing Blaze: o jogador do primeiro alvo (o próprio jogador, ou quem controla o planeswalker — como era, se ele saiu) controla `o`? */
+function controladaPeloPrimeiroM(s, t0, o) { if (!t0 || !o) return false; const pw = t0.oid != null ? s.objects[t0.oid] : null; const q = t0.player != null ? t0.player : pw ? (pw.zone === 'battlefield' ? pw.controller : (pw.ultima && pw.ultima.controller != null ? pw.ultima.controller : pw.controller)) : null; return q != null && o.controller === q; }
 // Leva 106 · a condição extra do alvo (valor de mana, cor, lendária) é conferida de novo na resolução (608.2b),
 // contando pelo controlador de quem mira (Spellstutter Sprite: Fadas de quem conjurou, não do dono do alvo)
 /** CR 400.7 · o alvo guarda em `z` a encarnação do objeto que mirou; se o objeto mudou de zona desde então, é outro objeto. */
@@ -21182,6 +21193,7 @@ function condicaoDoEfeito(s, fonte, k) {
   if (k === 'metalcraft') return battlefield(s).filter(x => x.controller === fonte.controller && tiposDe(s, x).includes('artifact')).length >= 3;
   if (k === 'threshold') return (s.zones[fonte.controller] || { graveyard: [] }).graveyard.length >= 7; // M-412 · limiar (207.2c): a mágica ainda está na pilha, não conta
   if (k === 'sem-limiar') return (s.zones[fonte.controller] || { graveyard: [] }).graveyard.length < 7; // M-417
+  if (k === 'landfall-turno') return !!s.terrenoNoTurno && s.terrenoNoTurno[fonte.controller] === s.turn.number; // M-437 · Searing Blaze: "If you had a land enter the battlefield under your control this turn" (conferido na resolução; ruling de 08/11/2024)
   if (k === 'morbid') return s.morteNoTurno != null && s.morteNoTurno === s.turn.number; // M-416 · mórbido (207.2c; 700.4: "morrer" é ir do campo ao cemitério)
   if (k === 'cast-from-graveyard') return fonte.castFrom === 'graveyard';
   if (k === 'kicked') return !!fonte.kicked; // M-337
@@ -25333,6 +25345,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
           return [c, ...opts.filter((x, i) => i > ant && !c.some(y => sameChoice(x, y))).map(x => c.concat([x])).filter(cc => !excedeSoma(s, need, cc))]; }).slice(0, COMBO_LIMIT);
         continue;
       }
+      if (eff.doJogadorDoPrimeiro) { combos = combos.flatMap(c => opts.filter(x => !c.some(y => sameChoice(x, y)) && controladaPeloPrimeiroM(s, c[0], s.objects[x.oid])).map(x => c.concat([x]))).slice(0, COMBO_LIMIT); if (!combos.length) return []; continue; } // M-437 · "target creature that player … controls" (sem par, não conjura: ruling de 01/03/2010)
       combos = eff.upTo ? addTarget(combos, opts).concat(combos) : eff.alvoLivre ? combos.flatMap(c => opts.map(x => c.concat([x]))).slice(0, COMBO_LIMIT) : addTarget(combos, opts); // M-363 · 115.3: outra palavra "target" pode repetir o objeto
     }
     const vistos = new Set(); // S47 · dois alvos opcionais repetiam a mesma combinação
@@ -33109,7 +33122,7 @@ ALVO_PT['enchanted-player'] = 'quem está encantado'; // T-94 · CR 303.4b ("tha
 ALVO_PT['that-player'] = 'quem controla a mágica que disparou'; // M-322 · CR2b.9 (Bonecrusher Giant: "that spell's controller"); o portão R9b pegou a frase em inglês
 const PALAVRA_PT = { defender: 'defensor', /* M-370 */ infect: 'infectar', indestructible: 'indestrutível', hexproof: 'resistência a magia', flying: 'voar', haste: 'ímpeto', trample: 'atropelar', lifelink: 'vínculo com a vida', deathtouch: 'toque mortífero', vigilance: 'vigilância', reach: 'alcance', menace: 'ameaçar', 'first strike': 'iniciativa', 'double strike': 'golpe duplo',
   fear: 'medo', intimidate: 'intimidar', shadow: 'sombra', skulk: 'esgueirar', islandwalk: 'travessia de ilha', swampwalk: 'travessia de pântano', forestwalk: 'travessia de floresta', mountainwalk: 'travessia de montanha', plainswalk: 'travessia de planície' };
-const qtd = v => (typeof v === 'number' ? v : (v && v.per === 'se') ? `${v.nao} (${v.sim} ${({ metalcraft: 'com três artefatos ou mais', 'cast-from-graveyard': 'se veio do cemitério', kicked: 'com reforço', bargained: 'com barganha', threshold: 'com limiar' /* M-412 */, morbid: 'se uma criatura morreu neste turno' /* M-416 */, 'not-cast-from-hand': 'se não foi conjurada da mão', monarca: 'se você é o monarca', 'oponente-monarca': 'se um oponente é o monarca' /* T-64 */ })[v.se] || 'com a condição'})` : (v && v.per) ? 'X' : 1); // M-331
+const qtd = v => (typeof v === 'number' ? v : (v && v.per === 'se') ? `${v.nao} (${v.sim} ${({ metalcraft: 'com três artefatos ou mais', 'cast-from-graveyard': 'se veio do cemitério', kicked: 'com reforço', bargained: 'com barganha', threshold: 'com limiar' /* M-412 */, morbid: 'se uma criatura morreu neste turno', 'landfall-turno': 'se um terreno entrou sob seu controle neste turno' /* M-437 */ /* M-416 */, 'not-cast-from-hand': 'se não foi conjurada da mão', monarca: 'se você é o monarca', 'oponente-monarca': 'se um oponente é o monarca' /* T-64 */ })[v.se] || 'com a condição'})` : (v && v.per) ? 'X' : 1); // M-331
 const IGUAL_A = { party: 'ao número de criaturas do seu grupo', /* T-59 · CR 700.8 */ 'life-lost-this-turn': 'à vida que você perdeu neste turno', 'life-gained-this-turn': 'à vida que você ganhou neste turno', 'power-of-source': 'ao poder dela', 'power-of-target': 'ao poder do alvo' }; // M-248 · CR2b.10
 const plural = (n, um, muitos) => (n === 1 ? `${n} ${um}` : `${n} ${muitos}`);
 /** Uma frase por efeito. O que o dicionário não conhece vira o nome do efeito, nunca some. */
@@ -33499,7 +33512,7 @@ function descreveEfeito(e) {
   }
 }
 // Leva 131 · a condição do efeito entra na frase (Moon-Circuit Hacker: o aviso dizia "descarta 1 carta" no turno em que ela entrou, quando não descarta)
-const CONDICAO_PT = { kicked: 'se tiver sido reforçada', bargained: 'se tiver sido barganhada', 'paid-additional': 'se o custo adicional foi pago', metalcraft: 'com metalurgia', 'cast-from-graveyard': 'se foi conjurada do cemitério', 'source-entered-earlier': 'só se ela não entrou neste turno', 'not-attacked': 'só se você não atacou neste turno', evidenced: 'se colheu provas', 'not-evidenced': 'se não colheu provas', ferocious: 'se você controlar uma criatura com poder 4 ou mais', threshold: 'com limiar (sete cartas ou mais no seu cemitério)' /* M-412 */, morbid: 'se uma criatura morreu neste turno' /* M-416 */, 'sem-limiar': 'sem limiar' /* M-417 */, 'alvo-era-neve': 'se o terreno era nevado', 'alvo-era-lendario': 'se a mágica era lendária' /* M-414 */, 'alvo-era-seu': 'se a permanente era sua' }; // M-385 // M-351 · Extract a Confession (achado da revisão do lote XXIII: as duas frases pareciam dois sacrifícios)
+const CONDICAO_PT = { kicked: 'se tiver sido reforçada', bargained: 'se tiver sido barganhada', 'paid-additional': 'se o custo adicional foi pago', metalcraft: 'com metalurgia', 'cast-from-graveyard': 'se foi conjurada do cemitério', 'source-entered-earlier': 'só se ela não entrou neste turno', 'not-attacked': 'só se você não atacou neste turno', evidenced: 'se colheu provas', 'not-evidenced': 'se não colheu provas', ferocious: 'se você controlar uma criatura com poder 4 ou mais', threshold: 'com limiar (sete cartas ou mais no seu cemitério)' /* M-412 */, morbid: 'se uma criatura morreu neste turno', 'landfall-turno': 'se um terreno entrou sob seu controle neste turno' /* M-437 */ /* M-416 */, 'sem-limiar': 'sem limiar' /* M-417 */, 'alvo-era-neve': 'se o terreno era nevado', 'alvo-era-lendario': 'se a mágica era lendária' /* M-414 */, 'alvo-era-seu': 'se a permanente era sua' }; // M-385 // M-351 · Extract a Confession (achado da revisão do lote XXIII: as duas frases pareciam dois sacrifícios)
 const X_PT = { 'descartadas-assim': 'carta descartada assim', /* M-434 */ 'dano-causado': 'o dano causado assim', /* M-427 */ 'mesmo-nome-nos-cemiterios': 'carta com o mesmo nome em cada cemitério', 'attacking-creatures': 'criatura atacando', /* M-423 */ movidas: 'o número de cartas postas no cemitério assim', 'instants-sorceries-in-your-graveyard': 'mágicas instantâneas e feitiços no seu cemitério', 'flashback-cards-you-own-in-exile': 'cartas com lampejo do passado suas no exílio', /* M-358 */ 'cards-in-hand': 'cartas na sua mão', 'creature-cards-in-your-graveyard': 'cartas de criatura no seu cemitério', 'sacrificed-power': 'o poder da criatura sacrificada', 'sacrificed-toughness': 'a resistência da criatura sacrificada', 'sacrificed-mv': 'o valor de mana do que foi sacrificado' }; // M-354 · o que o X conta (achado da revisão do lote XXVI)
 Object.assign(X_PT, { 'moedas-ganhas': 'os lances ganhos', 'resultado-do-dado': 'o resultado do dado' }); // T-65 · T-66
 const faixaPT_T = (e, f) => jogadorEncantadoPT_T(e, faixaDoDadoPT_T(e, f)); // T-94 · "that player" das Maldições
