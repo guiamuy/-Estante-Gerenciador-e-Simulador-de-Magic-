@@ -4436,6 +4436,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** Bone Picker ("custa {3} a menos se uma criatura morreu neste turno") e as outras cartas de mórbido com gatilho ou custo seguem sem leitura; a condição já existe para elas.
 - **Teste:** `lt98.unit` (4 testes; falham no motor anterior).
 
+**M-417 · LT83 · limiar na mana: Cabal Ritual** ✅ (leva M-417, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** **Cabal Ritual passa a jogar** (43 listas do catálogo; APROVADAS, texto da Scryfall de 17/10/2026 UTC): {B}{B}{B}, ou {B}{B}{B}{B}{B} no lugar com sete cartas no seu cemitério. Condição nova `sem-limiar` (o outro lado do "instead"), contada junto com o limiar uma vez, no começo da resolução (como na M-412). Placar do Pauper (`main` + M-417 × catálogo de 17/10): **385 de 425 listas jogam** (a lista Pauper com Cabal Ritual ainda tem outra carta pendente).
+- **Revisão independente:** revisor independente do lote M-416…M-421 (cerca de 130 verificações dirigidas; diferencial do leitor no corpus de 34.083 cartas: só as 23 cartas das levas mudaram; equivalência de 18 partidas, 5.400 passos, estado idêntico; fuzz de 150 partidas e 74.849 ações sem exceção nem ação recusada): **aprovado** — o cemitério do oponente não conta; com limiar são cinco {B}, não oito; a cópia também funciona.
+- **Fora (declarado):** nada novo.
+- **Teste:** `lt99.unit` (3 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

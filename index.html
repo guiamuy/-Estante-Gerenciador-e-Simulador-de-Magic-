@@ -5688,7 +5688,7 @@ const CHOICE_EFFECTS = ['terreno_da_mao', 'exila_da_mao', 'revela_topo_transform
 /** S47 · condição do próprio efeito, olhando o que foi pago como custo. */
 /** M-249 · 122.1 · marcadores nomeados em português (o tipo é a chave em `counters`). */
 const MARCADOR_PT = { p1p1: '+1/+1', m0m1: '−0/−1', /* M-360 */ oil: 'de óleo', depletion: 'de esgotamento', charge: 'de carga', age: 'de idade', loyalty: 'de lealdade', time: 'de tempo', lore: 'de saga', poison: 'de veneno', energia: 'de energia' /* H-6 */ };
-const ONLY_IF = ['discarded-nonland', 'source-entered-earlier', 'paid-additional', 'kicked', 'not-attacked', 'metalcraft', 'cast-from-graveyard', 'alvo-era-seu', 'evidenced', 'not-evidenced', 'bargained', 'alvo-era-neve', 'alvo-era-lendario' /* M-414 · "If it was a legendary spell" (Glorious Gale, 608.2h) */, 'ferocious', /* M-399 · Temur Battle Rage */ 'threshold', /* M-412 · limiar (207.2c): sete cartas ou mais no seu cemitério, na resolução */ 'morbid', /* M-416 · mórbido (207.2c): uma criatura morreu neste turno */ ...onlyIfT()]; // T-62 · "if you're the monarch" / "if an opponent is the monarch" (onlyIfT, função içada da trilha tipos) // M-385 · "If that land was a snow land" (Thermokarst, 608.2h) · M-384 · 702.166b "If this spell was bargained" (Torch the Tower) // M-351 · "If evidence was collected, instead …" (Extract a Confession, 701.59 + 601.2b)
+const ONLY_IF = ['discarded-nonland', 'source-entered-earlier', 'paid-additional', 'kicked', 'not-attacked', 'metalcraft', 'cast-from-graveyard', 'alvo-era-seu', 'evidenced', 'not-evidenced', 'bargained', 'alvo-era-neve', 'alvo-era-lendario' /* M-414 · "If it was a legendary spell" (Glorious Gale, 608.2h) */, 'ferocious', /* M-399 · Temur Battle Rage */ 'threshold', /* M-412 · limiar (207.2c): sete cartas ou mais no seu cemitério, na resolução */ 'morbid', /* M-416 · mórbido (207.2c): uma criatura morreu neste turno */ 'sem-limiar', /* M-417 · o outro lado do "instead" do limiar (Cabal Ritual) */ ...onlyIfT()]; // T-62 · "if you're the monarch" / "if an opponent is the monarch" (onlyIfT, função içada da trilha tipos) // M-385 · "If that land was a snow land" (Thermokarst, 608.2h) · M-384 · 702.166b "If this spell was bargained" (Torch the Tower) // M-351 · "If evidence was collected, instead …" (Extract a Confession, 701.59 + 601.2b)
 /** S16 · custos que substituem o custo de mana, e o custo do lampejo do passado. */
 const ALT_COST_PARTS = ['returnTapped', 'mana', 'life', 'discard', 'returnLand', 'exileGraveyard', 'tapOther', 'sacrificeOther', 'discardSubtype', 'exileHandColor', 'free', 'revealHand', 'exileGraveyardTopo']; // M-362 · "exile the top three black cards of your graveyard" (Spinning Darkness) // M-351 · revealHand: "you may reveal your hand rather than pay" (Land Grant, 118.9) // CR2c.4 · Ilha entre as descartadas (Foil), exilar carta da cor da mão (Snapback), de graça (Mogg Salvage)
 /** S48 · fuga: conjura do cemitério pagando o custo, e a carta fica em jogo. */
@@ -9544,6 +9544,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Scorching Dragonfire': { texto: '17xlu5m', leva: 'M-415' },
   // M-416 · revisão por lote LXX (mórbido, 207.2c: Tragic Slip), texto da Scryfall de 17/10/2026 UTC, revisor independente
   'Tragic Slip': { texto: 'tm1zxi', leva: 'M-416' },
+  // M-417 · revisão por lote LXXI (limiar na mana: Cabal Ritual), texto da Scryfall de 17/10/2026 UTC, revisor independente
+  'Cabal Ritual': { texto: 'umseyo', leva: 'M-417' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18371,6 +18373,8 @@ const __m42 = (function () {
       if (th && efeitos.length && efeitos[efeitos.length - 1].do === 'damage' && Number.isInteger(efeitos[efeitos.length - 1].amount)) { const ult = efeitos[efeitos.length - 1]; ult.amount = { per: 'se', se: 'threshold', sim: +th[1], nao: ult.amount }; frases.push({ texto: linha, lida: true }); continue; }
       const tr = mc.match(/^if there are seven or more cards in your graveyard, instead destroy that land and ~ deals (\d+) damage to each creature and each player$/i); // M-412 · Rancid Earth: o "instead" repete a destruição e soma o dano, na ordem do texto; o limiar é contado no começo da resolução (antes de o terreno destruído ir ao cemitério)
       if (tr && efeitos.length === 1 && efeitos[0].do === 'destroy' && efeitos[0].target === 'land') { efeitos.push({ do: 'damage', amount: +tr[1], target: 'each-creature', onlyIf: 'threshold' }, { do: 'damage', amount: +tr[1], target: 'each-player', onlyIf: 'threshold' }); frases.push({ texto: linha, lida: true }); continue; }
+      const tm = mc.match(/^threshold — add ((?:\{[WUBRGC]\})+) instead if there are seven or more cards in your graveyard$/i); // M-417 · Cabal Ritual: a mana do limiar troca a mana impressa
+      if (tm && efeitos.length && efeitos[efeitos.length - 1].do === 'add_mana' && Array.isArray(efeitos[efeitos.length - 1].symbols) && !efeitos[efeitos.length - 1].onlyIf) { efeitos[efeitos.length - 1].onlyIf = 'sem-limiar'; efeitos.push({ do: 'add_mana', symbols: tm[1].match(/[WUBRGC]/g), onlyIf: 'threshold' }); frases.push({ texto: linha, lida: true }); continue; }
       const mb = mc.match(/^morbid — that creature gets ([+-]\d+)\/([+-]\d+) until end of turn instead if a creature died this turn$/i); // M-416 · mórbido que troca a quantia (Tragic Slip)
       if (mb && efeitos.length && efeitos[efeitos.length - 1].do === 'pump' && Number.isInteger(efeitos[efeitos.length - 1].power) && Number.isInteger(efeitos[efeitos.length - 1].toughness) && SC_ALVEJA(efeitos[efeitos.length - 1])) { const ult = efeitos[efeitos.length - 1]; ult.power = { per: 'se', se: 'morbid', sim: +mb[1], nao: ult.power }; ult.toughness = { per: 'se', se: 'morbid', sim: +mb[2], nao: ult.toughness }; frases.push({ texto: linha, lida: true }); continue; }
       const ms = mc.match(/^metalcraft — if you control three or more artifacts, (.+)$/i);
@@ -21051,6 +21055,7 @@ function condicaoDoEfeito(s, fonte, k) {
   if (!fonte) return false;
   if (k === 'metalcraft') return battlefield(s).filter(x => x.controller === fonte.controller && tiposDe(s, x).includes('artifact')).length >= 3;
   if (k === 'threshold') return (s.zones[fonte.controller] || { graveyard: [] }).graveyard.length >= 7; // M-412 · limiar (207.2c): a mágica ainda está na pilha, não conta
+  if (k === 'sem-limiar') return (s.zones[fonte.controller] || { graveyard: [] }).graveyard.length < 7; // M-417
   if (k === 'morbid') return s.morteNoTurno != null && s.morteNoTurno === s.turn.number; // M-416 · mórbido (207.2c; 700.4: "morrer" é ir do campo ao cemitério)
   if (k === 'cast-from-graveyard') return fonte.castFrom === 'graveyard';
   if (k === 'kicked') return !!fonte.kicked; // M-337
@@ -21072,7 +21077,7 @@ function effectAllowed(s, fonte, eff) {
   if (eff.onlyIf === 'ferocious') return !!fonte && battlefield(s).some(x => x.controller === fonte.controller && isCreature(s, x) && power(s, x) >= 4); // M-399 · ferocidade (palavra de habilidade, 207.2c), conferida na resolução
   if (eff.onlyIf === 'bargained') return !!fonte && !!fonte.bargained; // M-384 · 702.166b · "If this spell was bargained" (Torch the Tower)
   if (eff.onlyIf === 'kicked') return !!fonte && !!fonte.kicked; // CR 702.33d · "if this spell was kicked"
-  if (eff.onlyIf === 'metalcraft' || eff.onlyIf === 'cast-from-graveyard' || eff.onlyIf === 'threshold' || eff.onlyIf === 'morbid') return condicaoDoEfeito(s, fonte, eff.onlyIf); // M-331 · M-412 · M-416
+  if (eff.onlyIf === 'metalcraft' || eff.onlyIf === 'cast-from-graveyard' || eff.onlyIf === 'threshold' || eff.onlyIf === 'sem-limiar' || eff.onlyIf === 'morbid') return condicaoDoEfeito(s, fonte, eff.onlyIf); // M-331 · M-412 · M-416 · M-417
   if (doQueResolveT(eff.onlyIf)) return condicaoDoEfeito(s, fonte, eff.onlyIf); // T-65 · e as do lance da moeda // T-62 · CR 725.5 (Toca ponto comum: effectAllowed)
   if (eff.onlyIf === 'not-attacked') return !!fonte && !(s.players[fonte.controller] || {}).atacouCom; // M-248 · "unless you attacked this turn" (Chart a Course)
   if (eff.onlyIf === 'evidenced') return !!fonte && !!fonte.evidenced; // M-351 · 701.59 · "If evidence was collected" (Extract a Confession)
@@ -22877,7 +22882,7 @@ function resolveScript(s, o, events) {
     s.resume = { oid: o.oid, name: o.name, controller: o.controller, effects, alvos: chosen.map((t, i) => stillLegal[i] ? t : null), condicoes: condicoesDaMagia(o, effects) }; // M-351
     return;
   }
-  const limiarAntes = effects.some(e => e && e.onlyIf === 'threshold') ? condicaoDoEfeito(s, o, 'threshold') : null; // M-412 · o "instead" do limiar decide a frase inteira de uma vez: contado antes do primeiro efeito (achado da revisão: com o dano depois da destruição, a regeneração mudava o resultado)
+  const limiarAntes = effects.some(e => e && (e.onlyIf === 'threshold' || e.onlyIf === 'sem-limiar')) ? condicaoDoEfeito(s, o, 'threshold') : null; // M-417 · também "sem limiar" // M-412 · o "instead" do limiar decide a frase inteira de uma vez: contado antes do primeiro efeito (achado da revisão: com o dano depois da destruição, a regeneração mudava o resultado)
   let ti = 0, firstTarget = null, donoDoPrimeiro = null, modoAtual = null, neveDoPrimeiro = false, mordedorM = null, lendarioDoPrimeiro = false; // M-407 · M-414
   for (const [idx, eff] of effects.entries()) {
     if (eff.__modo != null && eff.__modo !== modoAtual) { modoAtual = eff.__modo; firstTarget = null; donoDoPrimeiro = null; neveDoPrimeiro = false; lendarioDoPrimeiro = false; } // CR 700.2d · cada modo é uma frase própria
@@ -22886,7 +22891,7 @@ function resolveScript(s, o, events) {
     if (eff.onlyIf === 'alvo-era-neve' && !neveDoPrimeiro) continue; // M-385 · "If that land was a snow land" (Thermokarst)
     if (eff.onlyIf === 'alvo-era-lendario' && !lendarioDoPrimeiro) continue; // M-414 · "If it was a legendary spell" (Glorious Gale): vale mesmo se a anulação não acontecer
     if (eff.onlyIf === 'alvo-era-seu' && donoDoPrimeiro !== o.controller) continue; // M-341 · "If you controlled that permanent" (608.2h: o controlador de antes do efeito)
-    if (eff.onlyIf === 'threshold' && limiarAntes != null) { if (!limiarAntes) continue; } else if (!effectAllowed(s, o, eff)) continue; // S47/S49 · condição do próprio efeito · M-412
+    if ((eff.onlyIf === 'threshold' || eff.onlyIf === 'sem-limiar') && limiarAntes != null) { if (limiarAntes !== (eff.onlyIf === 'threshold')) continue; } else if (!effectAllowed(s, o, eff)) continue; // S47/S49 · condição do próprio efeito · M-412
     if (SC.isTargeted(eff)) {
       const tgt = chosen[ti]; const ok = stillLegal[ti]; ti++;
       if (tgt == null && eff.upTo) continue; // "até N alvos" escolhido com menos: a instância sem alvo não faz nada (e não vira linha de falha)
@@ -33339,7 +33344,7 @@ function descreveEfeito(e) {
   }
 }
 // Leva 131 · a condição do efeito entra na frase (Moon-Circuit Hacker: o aviso dizia "descarta 1 carta" no turno em que ela entrou, quando não descarta)
-const CONDICAO_PT = { kicked: 'se tiver sido reforçada', bargained: 'se tiver sido barganhada', 'paid-additional': 'se o custo adicional foi pago', metalcraft: 'com metalurgia', 'cast-from-graveyard': 'se foi conjurada do cemitério', 'source-entered-earlier': 'só se ela não entrou neste turno', 'not-attacked': 'só se você não atacou neste turno', evidenced: 'se colheu provas', 'not-evidenced': 'se não colheu provas', ferocious: 'se você controlar uma criatura com poder 4 ou mais', threshold: 'com limiar (sete cartas ou mais no seu cemitério)' /* M-412 */, morbid: 'se uma criatura morreu neste turno' /* M-416 */, 'alvo-era-neve': 'se o terreno era nevado', 'alvo-era-lendario': 'se a mágica era lendária' /* M-414 */, 'alvo-era-seu': 'se a permanente era sua' }; // M-385 // M-351 · Extract a Confession (achado da revisão do lote XXIII: as duas frases pareciam dois sacrifícios)
+const CONDICAO_PT = { kicked: 'se tiver sido reforçada', bargained: 'se tiver sido barganhada', 'paid-additional': 'se o custo adicional foi pago', metalcraft: 'com metalurgia', 'cast-from-graveyard': 'se foi conjurada do cemitério', 'source-entered-earlier': 'só se ela não entrou neste turno', 'not-attacked': 'só se você não atacou neste turno', evidenced: 'se colheu provas', 'not-evidenced': 'se não colheu provas', ferocious: 'se você controlar uma criatura com poder 4 ou mais', threshold: 'com limiar (sete cartas ou mais no seu cemitério)' /* M-412 */, morbid: 'se uma criatura morreu neste turno' /* M-416 */, 'sem-limiar': 'sem limiar' /* M-417 */, 'alvo-era-neve': 'se o terreno era nevado', 'alvo-era-lendario': 'se a mágica era lendária' /* M-414 */, 'alvo-era-seu': 'se a permanente era sua' }; // M-385 // M-351 · Extract a Confession (achado da revisão do lote XXIII: as duas frases pareciam dois sacrifícios)
 const X_PT = { movidas: 'o número de cartas postas no cemitério assim', 'instants-sorceries-in-your-graveyard': 'mágicas instantâneas e feitiços no seu cemitério', 'flashback-cards-you-own-in-exile': 'cartas com lampejo do passado suas no exílio', /* M-358 */ 'cards-in-hand': 'cartas na sua mão', 'creature-cards-in-your-graveyard': 'cartas de criatura no seu cemitério', 'sacrificed-power': 'o poder da criatura sacrificada', 'sacrificed-toughness': 'a resistência da criatura sacrificada', 'sacrificed-mv': 'o valor de mana do que foi sacrificado' }; // M-354 · o que o X conta (achado da revisão do lote XXVI)
 Object.assign(X_PT, { 'moedas-ganhas': 'os lances ganhos', 'resultado-do-dado': 'o resultado do dado' }); // T-65 · T-66
 const faixaPT_T = (e, f) => jogadorEncantadoPT_T(e, faixaDoDadoPT_T(e, f)); // T-94 · "that player" das Maldições
