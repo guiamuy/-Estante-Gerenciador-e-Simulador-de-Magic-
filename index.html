@@ -5328,6 +5328,7 @@ const EFFECTS = {
   draw: { fields: ['amount'], targets: ['player', 'self'] },
   gain: { fields: ['amount'], targets: ['player', 'self', 'target-controller'] }, // M-335 · "Its controller gains life equal to its power" (Swords to Plowshares)
   lose: { fields: ['amount'], targets: ['player', 'opponent', 'self', 'target-controller', 'each-opponent'] },
+  veneno: { fields: ['amount'], targets: ['player', 'opponent', 'each-opponent'] }, // M-432 · "Each opponent gets a poison counter" (122.1f; 704.5c com dez)
   counters: { fields: ['amount'], targets: ['self-source', 'creature', 'first-target', 'creature-you-control', 'enchanted'] }, // M-401 · 'enchanted': a criatura equipada/encantada (Greatsword of Tyr) // M-395 · "target creature you control" (Idyllic Grange) // M-272 · first-target: o alvo de um efeito anterior
   pump: { fields: ['power', 'toughness'], targets: ['creature', 'creature-you-control', 'creature-opponent-controls', 'each-creature', 'each-opponent-creature', 'each-own-creature'] },
   tap: { fields: [], targets: ['self-source', 'enchanted', 'creature', 'permanent', 'permanent-opponent-controls'] },
@@ -9617,6 +9618,9 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   // M-430 · revisão por lote LXXXII ("attacks each combat if able": Monstrous Carabid, Ulamog's Crusher), texto da Scryfall de 17/10/2026 UTC, revisor independente
   'Monstrous Carabid': { texto: '1huc0xg', leva: 'M-430' },
   "Ulamog's Crusher": { texto: 'a5p0yv', leva: 'M-430' },
+  // M-432 · revisão por lote LXXXIII (veneno para cada oponente: Infectious Inquiry, Prologue to Phyresis), texto da Scryfall de 17/10/2026 UTC, revisor independente
+  'Infectious Inquiry': { texto: 'qapkry', leva: 'M-432' },
+  'Prologue to Phyresis': { texto: '1wch7yo', leva: 'M-432' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -17894,6 +17898,8 @@ const __m42 = (function () {
     [new RegExp(`^you gain ${N} life$`, 'i'), m => [{ do: 'gain', amount: num(m[1]) }]],
     [new RegExp(`^(each opponent|target opponent|target player) loses ${N} life and you gain ${N} life$`, 'i'), m => [com({ do: 'lose', amount: num(m[2]) }, alvo(m[1])), { do: 'gain', amount: num(m[3]) }]],
     [new RegExp(`^(each opponent|target opponent|target player) loses ${N} life$`, 'i'), m => [com({ do: 'lose', amount: num(m[2]) }, alvo(m[1]))]],
+    [new RegExp(`^(each opponent|target opponent|target player) gets ${N} poison counters?$`, 'i'), m => [com({ do: 'veneno', amount: num(m[2]) }, alvo(m[1]))]], // M-432 · 122.1f
+    [new RegExp(`^you draw ${N} cards? and you lose ${N} life$`, 'i'), m => [{ do: 'draw', amount: num(m[1]) }, { do: 'lose', amount: num(m[2]) }]], // M-432 · Infectious Inquiry
     [/^(target creature you control|target creature or enchantment you control) gains protection from the color of your choice until end of turn$/i, m => [{ do: 'protection', target: /enchantment/i.test(m[1]) ? 'creature-enchantment-you-control' : 'creature-you-control' }]], // M-324 · 702.16
     [/^(creatures you control|another target creature you control) gains? ([a-z]+)(?: and ([a-z]+))? until end of turn$/i, m => { const alvo2 = /^another/i.test(m[1]) ? 'other-creature-you-control' : 'each-own-creature'; const ks = [m[2], m[3]].filter(Boolean).map(k => k.toLowerCase()); return ks.every(k => KW.has(k)) ? ks.map(k => ({ do: 'keyword', keyword: k, target: alvo2 })) : null; }], // M-324
     [new RegExp(`^untap up to ${N} lands$`, 'i'), m => [{ do: 'untap_chosen', amount: num(m[1]), filter: { types: ['land'] } }]], // M-324 · Frantic Search
@@ -21383,6 +21389,8 @@ function applyEffect(s, src, eff, tgt, events) {
       moveObject(s, obj.oid, 'graveyard'); note({}); break;
     case 'draw': { const n = amountOf(s, src, eff.amount); draw(s, playerOf(), n); note({ amount: n }); } break;
     case 'gain': { const n = amountOf(s, src, eff.amount); const who = playerOf(); const g = ganhaVidaJogador(s, who, n); note({ amount: g, ...(g < n ? { failed: true } : {}) }); } break; // CR2d.10
+    case 'veneno': { const n = amountOf(s, src, eff.amount); // M-432 · Prologue to Phyresis, Infectious Inquiry
+      for (const q of eff.target === 'each-opponent' ? s.players.map((_, i) => i).filter(i => i !== ctrl && !s.players[i].lost) : [playerOf()]) darVeneno(s, q, n, events, src.name); break; }
     case 'lose':
       { const n = amountOf(s, src, eff.amount);
         if (eff.target === 'each-opponent') { s.players.forEach((pl, i) => { if (i !== ctrl && !pl.lost) perdeVida(s, i, n); }); note({ amount: n }); break; }
@@ -32170,6 +32178,7 @@ function effectLine(ev) {
     case 'morde': return ev.failed ? `${ev.name} não causou dano: a criatura alvo deixou de ser válida` : `${ev.name} não causou dano (poder ${ev.amount || 0})`; // M-407
     case 'damage': if (!ev.failed && !ev.prevented && ev.amount === 0) return `${ev.name} não causou dano a ${t} (0 de dano)`; // M-408 · 120.8: 0 de dano não é causado (Fireball com X menor que o número de alvos)
       return ev.failed ? `${ev.name} não causou dano: alvo ilegal` : ev.prevented ? `${ev.name}: o dano a ${t} foi prevenido` : `${ev.name} causou ${n} de dano a ${t}`; // M-397 · o dano prevenido não aparece como causado
+    case 'poison': return `${t} recebeu ${ev.amount === 1 ? '1 marcador de veneno' : `${ev.amount} marcadores de veneno`} (${ev.name})`; // M-432
     case 'reveal': return `${ev.name} revelou: ${t}`; // Leva 108
     case 'vence': return `${ev.name}: o controlador venceu o jogo`; // CR2h.6
     case 'perde': return `${ev.name}: ${t} perdeu o jogo`; // CR2h.6
@@ -33283,6 +33292,7 @@ function descreveEfeito(e) {
       return e.amount && IGUAL_A[e.amount.per] ? `causa dano igual ${IGUAL_A[e.amount.per]} a ${alvo || 'um alvo'}` : `causa ${n} de dano a ${alvo || 'um alvo'}${e.exilaSeMorrer ? ' (se o que recebeu esse dano fosse morrer neste turno, é exilado)' : ''}`; // CR2b.10 · M-384
     case 'gain': return e.amount && IGUAL_A[e.amount.per] ? `ganha vida igual ${IGUAL_A[e.amount.per]}` : `ganha ${n} de vida`;
     case 'lose': return `${alvo === 'cada oponente' ? 'cada oponente perde' : 'perde'} ${n} de vida`;
+    case 'veneno': return `${alvo === 'cada oponente' ? 'cada oponente recebe' : `${alvo || 'o jogador'} recebe`} ${n === 1 ? '1 marcador de veneno' : `${n} marcadores de veneno`}`; // M-432
     case 'counter': return `anula ${alvo || 'uma mágica'}${e.mvAte != null ? ` se o valor de mana dela for ${qtd(e.mvAte)} ou menos` : ''}${e.suspende ? ` e a exila com ${e.suspende} marcadores de tempo, com suspender` : ''}${e.exila ? ' e a exila' : ''}${e.topo ? ' e a põe no topo do grimório do dono' : ''}`; // M-269 · M-338 · M-395
     case 'destroy': return `destrói ${alvo || 'uma permanente'}`;
     case 'destroy_all': { const nomes = { artifact: 'artefatos', enchantment: 'encantamentos', creature: 'criaturas', land: 'terrenos', planeswalker: 'planeswalkers' }; // CR2c.2
