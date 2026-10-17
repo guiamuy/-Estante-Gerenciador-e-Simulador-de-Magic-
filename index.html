@@ -6817,6 +6817,9 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-123 · CR 508.1d / 702.138c (Scryfall, consulta de 17/10/2026, rulings de 24/01/2020)
+  { name: 'Underworld Rage-Hound', self: { atacaSePuder: true } /* a primitiva da M-430 (508.1d); a T-123 tinha feito a mesma em paralelo e cedeu no rebase */, escape: { mana: '{3}{R}', exileGraveyard: 3, comMarcadoresT: { p1p1: 1 } }, // "Underworld Rage-Hound attacks each combat if able. · Escape—{3}{R}, Exile three other cards from your graveyard. · Underworld Rage-Hound escapes with a +1/+1 counter on it."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // T-122 · CR 614.10 (Scryfall, consulta de 17/10/2026, rulings de 19/03/2021)
   { name: 'Stonehorn Dignitary', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'pula', o: 'combate', target: 'opponent' }] }], // "When Stonehorn Dignitary enters, target opponent skips their next combat phase."
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
@@ -19334,7 +19337,8 @@ function entradaModificada(s, o, xPago) {
     }
     for (const [k, v] of Object.entries(r.marcadores || {})) { const n = v === 'x' ? xPago : v === 'kicked' ? (o.kicked || 0) : v; if (n) marcadores[k] = (marcadores[k] || 0) + n; }
   }
-  for (const [k, n] of Object.entries(o.entraComK || {})) marcadores[k] = (marcadores[k] || 0) + n; delete o.entraComK; // K-4 · "volta com um marcador" (persistir, imortal): entra com ele
+  for (const [k, n] of Object.entries(o.entraComK || {})) marcadores[k] = (marcadores[k] || 0) + n; delete o.entraComK;
+  if (o.escapouT) for (const [k, n] of Object.entries((escapeOf(s, o) || {}).comMarcadoresT || {})) marcadores[k] = (marcadores[k] || 0) + n; // T-123 · 702.138c "escapes with a +1/+1 counter" (Toca ponto comum: entradaModificada) // K-4 · "volta com um marcador" (persistir, imortal): entra com ele
   for (const [k, n] of Object.entries(entraComPalavrasK(s, o, xPago))) marcadores[k] = (marcadores[k] || 0) + n; // K-37 · 702.32a/702.63a: "enters with N fade/time counters" (Toca ponto comum: entradaModificada)
   return { virada, marcadores, ...(pagaVida ? { pagaVida } : {}) };
 }
@@ -24356,6 +24360,7 @@ const HANDLERS = {
     }
     else if (a.escape) { // S48 · fuga: paga o mana e exila as outras cartas do cemitério
       payAlt(s, a.p, escapeOf(s, o), a.pay, a.oid, a.targets || []); // M-352 · 601.2f
+      if (escapeOf(s, o).comMarcadoresT) o.escapouT = true; // T-123 · 702.138c: "escapes with" vale para a permanente que esta mágica fugida vira (Toca ponto comum: HANDLERS.cast)
     }
     else if (a.disturb) { const db = disturbOf(s, { name: o.frontName || o.name }); // R9 · a carta já trocou de face: o custo está na frente
       if (s.manaCheck && !a.free) payCost(s, a.p, parseCost((db || {}).mana || '{0}')); }
@@ -24500,7 +24505,7 @@ const HANDLERS = {
     if (new Set(list).size !== list.length || list.some(x => !ok.has(x))) throw new RuleError('ataque', 'atacante inválido');
     // S59 · criatura provocada que pode atacar precisa atacar
     const faltando = mustAttack(s, a.p).filter(oid => !list.includes(oid));
-    if (faltando.length) throw new RuleError('ataque', `${s.objects[faltando[0]].name} foi provocada e precisa atacar`);
+    if (faltando.length) throw new RuleError('ataque', `${s.objects[faltando[0]].name} ${s.objects[faltando[0]].goaded ? 'foi provocada e ' : ''}precisa atacar`); // T-123 · nem toda obrigada foi provocada
     // M-228 · 508.1b: cada atacante ataca o jogador ou um planeswalker dele; a exigência do Gideon (+2) é cumprida sozinha se ninguém escolheu
     const alvos = { ...(a.alvos || {}) }, podemPw = new Set(pwsAtacaveis(s, a.p));
     for (const [oid, pw] of Object.entries(alvos)) if (!list.includes(oid) || !podemPw.has(pw)) throw new RuleError('ataque', 'alvo do ataque inválido: só um planeswalker de um oponente');
@@ -28399,6 +28404,10 @@ function escolhaPagaOuSacrificaT(s, eff, events) {
   for (let i = 0; i < eff.N - eff.k; i++) st.sacrificios.push(eff.p);
   continuaPagaOuSacrificaT(s, events);
 }
+/* T-123 · CR 508.1d · "~ attacks each combat if able": usa o `self.atacaSePuder` da M-430 (publicada antes; a T-123 fazia o mesmo com outro nome e cedeu
+   no rebase). CR 702.138c · "escapes with a +1/+1 counter" (`escape.comMarcadoresT`):
+   a marca `escapouT` é da conjuração (vai da pilha para o campo) e soma os marcadores de entrada. */
+MARCAS_DA_CONJURACAO.push('escapouT');
 let conferindoConcessaoT = false; // o tipo da encantada (camada 4) não depende desta concessão (ela não muda tipo): na volta do cálculo, ela fica de fora
 function concessaoVigenteT(s, aura, g) {
   if (!g || !g.seCriaturaT) return g; if (conferindoConcessaoT) return null;

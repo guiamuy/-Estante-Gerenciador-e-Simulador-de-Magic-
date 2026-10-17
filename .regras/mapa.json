@@ -4062,7 +4062,7 @@
    "regra": "Declare Attackers Step",
    "titulo": "Declaração de atacantes",
    "status": "parcial",
-   "evidencia": "ação attack (index.html:12331-12343) + eligibleAttackers (10752): desvirada, sem enjoo ou com ímpeto, defensor não ataca, provocada precisa atacar (mustAttack 10748), vira quem não tem vigilância, não usa a pilha, declaração ilegal é recusada sem mudar o estado; sonda p5/t2.mjs C1/C7/C8; rules.unit 'M6 · quem pode atacar...' e 'S59 · provocada ataca se puder'; combat.audit K5, K6, K9 · M-228 (v95): cada atacante ataca o jogador ou um planeswalker dele (ação attack com alvos; o.atacandoPw); dano de combate sem bloqueio vai para o planeswalker e tira lealdade (criatura-planeswalker também marca dano); planeswalker que saiu não recebe nada; exigência \"ataca X se puder\" (Gideon +2) · T-98 (conferência do mapa, 14/10/2026): 508.1b — também a batalha, por quem tem o protetor como jogador defensor (310.5) · T-102 (conferência do mapa, 14/10/2026): 508.1a — a permanente que vira criatura no turno em que entrou também está enjoada (enjoado lê entrouNoTurno); 508.1c — \"can't attack unless defending player is the monarch\" (Crown-Hunter Hireling, T-70)",
+   "evidencia": "ação attack (index.html:12331-12343) + eligibleAttackers (10752): desvirada, sem enjoo ou com ímpeto, defensor não ataca, provocada precisa atacar (mustAttack 10748), vira quem não tem vigilância, não usa a pilha, declaração ilegal é recusada sem mudar o estado; sonda p5/t2.mjs C1/C7/C8; rules.unit 'M6 · quem pode atacar...' e 'S59 · provocada ataca se puder'; combat.audit K5, K6, K9 · M-228 (v95): cada atacante ataca o jogador ou um planeswalker dele (ação attack com alvos; o.atacandoPw); dano de combate sem bloqueio vai para o planeswalker e tira lealdade (criatura-planeswalker também marca dano); planeswalker que saiu não recebe nada; exigência \"ataca X se puder\" (Gideon +2) · T-98 (conferência do mapa, 14/10/2026): 508.1b — também a batalha, por quem tem o protetor como jogador defensor (310.5) · T-102 (conferência do mapa, 14/10/2026): 508.1a — a permanente que vira criatura no turno em que entrou também está enjoada (enjoado lê entrouNoTurno); 508.1c — \"can't attack unless defending player is the monarch\" (Crown-Hunter Hireling, T-70) · T-123 (17/10/2026): (d) \"attacks each combat if able\" (`self.atacaCadaCombateT`, nas obrigadas de mustAttack só quando pode atacar) — Underworld Rage-Hound",
    "falta": "508.1b: a tela aplica um alvo ao grupo escolhido. 508.1c: só defensor e \"não pode atacar até o próximo turno\" como restrição; nada de \"não pode atacar sozinha\"; \"a menos que\" só o do monarca (T-70). 508.1d: só provocar, sem o cálculo de máximo de exigências. 508.1e bandos: ausente. 508.1g-j: custo para atacar (Propaganda, Ghostly Prison) ausente.",
    "esforco": "M",
    "depende": [
@@ -4071,7 +4071,9 @@
    ],
    "cartas": "evergreen",
    "testes": [
-    "CR 310.5 / 310.9b / 508.1b · a batalha pode ser atacada por quem tem o protetor como jogador defensor (o Cerco, pelo próprio controlador); o protetor nunca a ataca e o pedido é recusado"
+    "CR 310.5 / 310.9b / 508.1b · a batalha pode ser atacada por quem tem o protetor como jogador defensor (o Cerco, pelo próprio controlador); o protetor nunca a ataca e o pedido é recusado",
+    "CR 508.1d · Underworld Rage-Hound (texto oficial): ataca em todo combate se puder — o conjunto de atacantes sem ela é recusado e o Urso pode ficar",
+    "CR 508.1d · ruling de 24/01/2020: virada ou com enjoo, não precisa atacar"
    ]
   },
   {
@@ -9211,14 +9213,17 @@
    "regra": "Keyword Abilities",
    "titulo": "Escape",
    "status": "parcial",
-   "evidencia": "Chave de script `escape` (validador index.html:4605; Sentinel's Eyes :4914). cast() com a.escape exige a habilidade e a carta no cemitério (:12218-12226) e paga mana mais o exílio de outras cartas (:12261-12262); legalActions gera a ação com a escolha das cartas a exilar (:13083-13091); teste bogles.regras R5 (fuga por {W} exilando duas outras cartas, recusa sem duas).",
-   "falta": "Não fica marcado que a mágica/permanente \"escapou\" (702.138b): \"escapa com marcadores\" (702.138c) e \"escapa com habilidade\" (702.138d) não existem, nem cartas que checam se escaparam (Uro, Kroxa, Phlage).",
+   "evidencia": "Chave de script `escape` (validador index.html:4605; Sentinel's Eyes :4914). cast() com a.escape exige a habilidade e a carta no cemitério (:12218-12226) e paga mana mais o exílio de outras cartas (:12261-12262); legalActions gera a ação com a escolha das cartas a exilar (:13083-13091); teste bogles.regras R5 (fuga por {W} exilando duas outras cartas, recusa sem duas). · T-123 (17/10/2026): (c) \"escapes with a +1/+1 counter\" (`escape.comMarcadoresT`, marca `escapouT` da conjuração) — Underworld Rage-Hound",
+   "falta": "T-123 (17/10/2026): \"escapa com marcadores\" (702.138c) feito pela marca `escapouT` (só para o script que declara `comMarcadoresT`). Falta: \"escapa com habilidade\" (702.138d) e a marca geral de \"escapou\" (702.138b) para outras cartas. (Antes: Não fica marcado que a mágica/permanente \"escapou\" (702.138b): \"escapa com marcadores\" (702.138c) e \"escapa com habilidade\" (702.138d) não existem, nem cartas que checam se escaparam (Uro, Kroxa, Phlage).)",
    "esforco": "P",
    "depende": [
     "614.1c entra com marcadores",
     "603.11 gatilho ligado"
    ],
-   "cartas": "comum (Theros Beyond Death, Modern Horizons 3)"
+   "cartas": "comum (Theros Beyond Death, Modern Horizons 3)",
+   "testes": [
+    "CR 702.138c · fuga: do cemitério por {3}{R} e exilar três outras cartas; ela entra com um marcador +1/+1 (4/2); conjurada da mão, não"
+   ]
   },
   {
    "n": "702.139",
