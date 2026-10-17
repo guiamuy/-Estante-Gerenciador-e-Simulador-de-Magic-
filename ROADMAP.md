@@ -4901,6 +4901,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nenhum.
 - **Teste:** `lt170.unit` (5 testes; falham no motor anterior).
 
+**M-489 · LT155 · revisão por lote CXXXI: nove cartas lidas que travam as listas iniciantes** ✅ (leva M-489, motor v112 sem mudança de forma; goldens intactos; nenhuma linha de código nova).
+- **Valor:** passam a jogar (APROVADAS): Seal of Doom (não preta, sem regenerar), Sustainer of the Realm, Quirion Trailblazer, Brute Strength, Dragon Hatchling, Fiery Fall (reciclagem de terreno básico), Rolling Temblor (lampejo do passado), Geistflame (lampejo do passado), Kemba's Skyguard. Textos da Scryfall consultados em 17/10/2026; leituras conferidas frase a frase no texto oficial.
+- **Revisão independente:** aprovada (revisão de M-488/M-489): 18 leituras conferidas frase a frase; `--confere` com 926 aprovadas; 97 sondas sem erro (Seal of Doom contra preta e contra regeneração; Rolling Temblor contra voar e alcance; Dimir Guildmage só como feitiço e com o alvo escolhendo o descarte; Sustainer bloqueando no combate extra; reciclagem de básico); fuzz com as 18 cartas (40.715 ações) sem recusa nem exceção.
+- **Fora (declarado):** nenhum.
+- **Teste:** `lt171.unit` (5 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
