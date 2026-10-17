@@ -4651,6 +4651,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** duas saídas separadas dentro de uma mesma escolha pendente (por exemplo, uma escolha que devolve cartas em duas etapas) fecham no mesmo lote; não há carta no Pauper atual com esse caso.
 - **Teste:** `lt131.unit` (5 testes; falham no motor anterior).
 
+**M-450 · LT116 · Embiggen: "+1/+1 for each supertype, card type, and subtype it has"** ✅ (leva M-450, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** o **Embiggen** joga pelo leitor aprovado: conta, na resolução, os supertipos, tipos e subtipos que a criatura alvo tem agora (Legendary Artifact Creature — Treasure Dog ganha +5/+5; "Time Lord" é um subtipo só). Brushwagg não é alvo — nem o metamorfo, que tem todos os tipos de criatura (702.73a). Texto e rulings da Scryfall consultados em 17/10/2026.
+- **Primitiva:** contagem `tipos-do-alvo` (primeiro alvo, na resolução; o bônus não muda depois, ruling de 07/10/2022); a pilha explica o X.
+- **Revisão independente:** aprovada (15 verificações: supertipo, tipos e subtipos em vários casos, Dryad Arbor, terreno animado, virada para baixo, ficha não conta; Brushwagg e metamorfo não são alvo; o bônus fica fixo).
+- **Fora (declarado):** nenhum.
+- **Teste:** `lt132.unit` (4 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

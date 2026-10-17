@@ -6077,7 +6077,7 @@ function descreveGatilho(w, como = {}) { // M-401 · como.equipada: "a criatura 
 /** S11 · o que uma aura ou equipamento pode conceder. `per` conta permanentes
     e multiplica o bônus (Ancestral Mask, Ethereal Armor). */
 const ATTACH_KINDS = ['creature', 'permanent', 'land', 'creature-you-control', 'creature-or-planeswalker-you-control', 'creature-card-in-graveyard', 'player' /* T-94 · CR 303.4b · "Enchant player" (Maldições) (Toca ponto comum: ATTACH_KINDS) */, 'artifact-creature' /* T-113 · "Enchant artifact or creature" (Careful Cultivation): o mesmo nome de alvo de Resculpt (T-124) (Toca ponto comum: ATTACH_KINDS) */]; // CR2d.4 · "Enchant creature card in a graveyard" // Q11 · Setessan Training
-const PER_COUNTS = ['mesmo-nome-nos-cemiterios', 'attacking-creatures' /* M-423 · Rite of Flame ("each card named ~ in each graveyard") e Respite ("each attacking creature") */, 'enchantments-you-control', 'other-enchantments', 'auras-on-battlefield',
+const PER_COUNTS = ['tipos-do-alvo' /* M-450 · Embiggen */, 'mesmo-nome-nos-cemiterios', 'attacking-creatures' /* M-423 · Rite of Flame ("each card named ~ in each graveyard") e Respite ("each attacking creature") */, 'enchantments-you-control', 'other-enchantments', 'auras-on-battlefield',
   'creatures-you-control', 'other-creatures-you-control', 'elves-you-control', 'elves-on-battlefield', 'defenders-you-control', 'permanents-you-control', 'nonland-permanents-you-control', 'life-gained-this-turn', 'life-lost-this-turn',
   'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G', 'counters-on-source', 'opponents-empty-hand', 'trigger-value', 'chosen-type-permanents', 'sacrificed-toughness', 'sacrificed-mv', 'sacrificed-power', 'dano-causado' /* M-427 · "the damage dealt this way" */, 'descartadas-assim' /* M-434 · "draw that many cards" depois de descartar a mão */, 'creature-cards-in-your-graveyard', 'cards-in-hand', 'x', 'power-of-source', 'se', 'power-of-target',
   'instants-sorceries-in-your-graveyard', 'flashback-cards-you-own-in-exile', 'soma', 'party', 'movidas', ...perCountsT()]; // M-386 · `movidas`: "for each card put into your graveyard this way" (o que o efeito anterior desta habilidade moveu) // T-59 · CR 700.8 · quantas criaturas há no seu grupo (0 a 4) // M-358 · Seize the Storm (604.3); `soma`: { per: 'soma', partes: [contagem, contagem, …] }
@@ -9711,6 +9711,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Mystical Teachings': { texto: '14wo3nq', leva: 'M-448' },
   // M-449 · revisão por lote XCVII ("whenever one or more cards leave your graveyard": Spirit Mascot), texto da Scryfall de 17/10/2026 UTC, revisor independente
   'Spirit Mascot': { texto: '15nrcln', leva: 'M-449' },
+  // M-450 · revisão por lote XCVIII ("for each supertype, card type, and subtype it has": Embiggen), texto da Scryfall de 17/10/2026 UTC, revisor independente
+  'Embiggen': { texto: '1hi8g39', leva: 'M-450' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18082,6 +18084,7 @@ const __m42 = (function () {
     [/^you gain life equal to the number of cards in your hand$/i, () => [{ do: 'gain', amount: { per: 'cards-in-hand' } }]], // M-354 · Union of the Third Path
     [/^(?:it|~) deals 1 damage to (target opponent|target player|any target) for each creature card in your graveyard$/i, m => { const a = alvo(m[1]); return a ? [{ do: 'damage', amount: { per: 'creature-cards-in-your-graveyard' }, ...a }] : null; }], // M-354 · Lotleth Giant
     [/^~ deals damage equal to the sacrificed creature's power to (any target|target creature|target player|target player or planeswalker)$/i, m => { const a = alvo(m[1]); return a ? [{ do: 'damage', amount: { per: 'sacrificed-power' }, ...a }] : null; }], // M-354 · Fling (608.2h)
+    [/^[Uu]ntil end of turn, target non-([A-Z][a-z]+) creature gets \+1\/\+1 for each supertype, card type, and subtype it has$/, m => [{ do: 'pump', target: { tipos: ['creature'], semSubtipos: [m[1]] }, power: { per: 'tipos-do-alvo' }, toughness: { per: 'tipos-do-alvo' } }]], // M-450 · Embiggen (contagem na resolução; metamorfo tem todos os tipos de criatura, então é Brushwagg e não é alvo)
     [/^target creature gets ([+-]1)\/([+-]1) until end of turn for each (Swamp|Island|Forest|Mountain|Plains|Gate) you control$/i, m => [{ do: 'pump', target: 'creature', power: { subtype: m[3][0].toUpperCase() + m[3].slice(1).toLowerCase(), times: SINAL(m[1]) }, toughness: { subtype: m[3][0].toUpperCase() + m[3].slice(1).toLowerCase(), times: SINAL(m[2]) } }]], // M-354 · Defile (contagem na resolução)
     [new RegExp(`^impulso ${N} ate o fim do turno$`, 'i'), m => [{ do: 'exile_top_playable', amount: num(m[1]), ate: 'fim-do-turno' }]], // M-352 · Experimental Synthesizer (frase juntada em leParagrafo)
     [/^the owner of (target nonland permanent) puts it into their library second from the top or on the bottom$/i, m => { const a = alvo(m[1]); return a ? [{ do: 'topo_ou_fundo_do_dono', target: { semTipos: ['land'] }, segundo: true }] : null; }], // M-352 · Deem Inferior
@@ -21253,6 +21256,16 @@ const targetStillLegal = (s, p, kind, tgt, selfOid, color, eff, src) => mesmaEnc
 
 /* ---------------- S19 · valores dinâmicos ---------------- */
 /** Um valor de efeito pode ser um número ou uma contagem do campo. */
+/** M-450 · "+1/+1 for each supertype, card type, and subtype it has" (Embiggen): os de agora do primeiro alvo, contados na resolução (ruling de
+    07/10/2022: depois disso o bônus não muda). Ficha não é tipo. "Time Lord" é um subtipo só (205.3m). */
+const SUPERTIPOS_M = ['Basic', 'Legendary', 'Snow', 'World', 'Ongoing', 'Elite', 'Host'];
+function tiposDoAlvoM(s, src) {
+  const t = (src.targets || [])[0], o = t && t.oid != null ? s.objects[t.oid] : null; if (!o || o.zone !== 'battlefield' || !s.facts[o.name]) return 0;
+  const [antes, depois] = String(linhaDeTipo(s, o)).split(/\s+—\s+/);
+  const sup = (antes || '').split(/\s+/).filter(w => SUPERTIPOS_M.includes(w)).length;
+  const sub = (depois || '').replace(/\bTime Lord\b/g, 'TimeLord').split(/\s+/).filter(Boolean).length;
+  return sup + tiposDe(s, o).length + sub;
+}
 function amountOf(s, src, v) {
   if (v && typeof v === 'object' && (v.subtype || v.per)) {
     // S48 · o valor que o gatilho trouxe mora na habilidade, não na permanente que a gerou
@@ -21272,6 +21285,7 @@ function amountOf(s, src, v) {
     if (v.per === 'sacrificed-power') return (src.sacrificados || []).reduce((n, x) => n + Math.max(0, x.power || 0), 0) * (v.times || 1); // M-354 · Fling: o poder da criatura sacrificada como ela era no campo (608.2h)
     if (v.per === 'sacrificed-toughness') return (src.sacrificados || []).reduce((n, x) => n + Math.max(0, x.toughness || 0), 0) * (v.times || 1);
     if (v.per === 'sacrificed-mv') return (src.sacrificados || []).reduce((n, x) => n + (x.mv != null ? x.mv : (((s.facts[(s.objects[x.oid] || {}).name] || {}).cmc) || 0)), 0) * (v.times || 1); /* M-368 · 608.2h: pela foto */ // M-348 · Reckoner's Bargain (608.2h: o valor que a permanente tinha)
+    if (v.per === 'tipos-do-alvo') return tiposDoAlvoM(s, src) * (v.times || 1); // M-450 · Embiggen
     if (v.per === 'power-of-target') return countFor(s, src, 'power-of-target') * (v.times || 1); // M-338 · numa habilidade, os alvos moram na habilidade, não na permanente (Solitude)
     const base = src.ability ? (s.objects[src.source] || src) : src;
     return countFor(s, base, v.subtype ? v : v.per) * (v.times || 1);
@@ -33625,7 +33639,7 @@ function descreveEfeito(e) {
     case 'to_hand': return 'volta para a mão';
     case 'token': { const t = e.token || {}; const pd = (t.self || {}).ptDefinido, contaPT = v => v && v.per === 'soma' ? (v.partes || []).map(x => X_PT[x.per] || x.per).join(' mais ') : (v && (X_PT[v.per] || v.per)) || v; /* M-358 · achado da revisão: a ficha de P/T por contagem e as palavras-chave dela */
       const pt = pd ? `, com poder e resistência iguais a ${contaPT(pd.poder != null ? pd.poder : pd.resistencia)}${(t.keywords || []).length ? ` e ${t.keywords.map(k => PALAVRA_PT[k] || k).join(', ')}` : ''},` : t.power != null ? ` ${t.power}/${t.toughness}` : ''; return `cria ${plural(n, 'ficha', 'fichas')}${t.name ? ` de ${t.name}` : ''}${pt}${e.virada ? (n === 1 ? ' virada' : ' viradas') : ''}${e.amount && e.amount.per === 'power-of-source' ? ' (X = o poder dela)' : ''}`; } // M-426 · achado da revisão da M-421
-    case 'pump': { const p = e.power || 0, t = e.toughness || 0; const sinal = v => (v && (v.per || v.subtype) ? ((v.times || 1) < 0 ? '−X' : '+X') : v >= 0 ? `+${v}` : `−${Math.abs(v)}`); const quem = e.cada && e.cada.de === 'alvo' ? `cada criatura que ${e.target === 'opponent' ? 'o oponente alvo' : 'o jogador alvo'} controla` : (alvo || 'a criatura'); /* achado da revisão do lote XXIII: "cada criatura que cada criatura controla" */ if (p && p.per === 'se' && t && t.per === 'se') return `${quem} recebe ${sinal(p.nao)}/${sinal(t.nao)} (${sinal(p.sim)}/${sinal(t.sim)} ${CONDICAO_PT[p.se] || 'com a condição'}) até o fim do turno`; /* M-416 · mórbido (Tragic Slip) */ return `${quem} recebe ${sinal(p)}/${sinal(t)}${e.until === 'your-next-turn' ? ' até o seu próximo turno' : ' até o fim do turno'}${p && p.subtype ? ` (X = ${p.subtype === 'Gate' ? 'Portões' : p.subtype === 'Swamp' ? 'Pântanos' : p.subtype + 's'} que você controla)` : ''}`; } // R9b (achado da C-1): contagem por subtipo mostrava "−NaN" (Defile, Basilisk Gate) · M-351 · "cada criatura do jogador alvo" (Arms of Hadar)
+    case 'pump': { const p = e.power || 0, t = e.toughness || 0; const sinal = v => (v && (v.per || v.subtype) ? ((v.times || 1) < 0 ? '−X' : '+X') : v >= 0 ? `+${v}` : `−${Math.abs(v)}`); const quem = e.cada && e.cada.de === 'alvo' ? `cada criatura que ${e.target === 'opponent' ? 'o oponente alvo' : 'o jogador alvo'} controla` : (alvo || 'a criatura'); /* achado da revisão do lote XXIII: "cada criatura que cada criatura controla" */ if (p && p.per === 'se' && t && t.per === 'se') return `${quem} recebe ${sinal(p.nao)}/${sinal(t.nao)} (${sinal(p.sim)}/${sinal(t.sim)} ${CONDICAO_PT[p.se] || 'com a condição'}) até o fim do turno`; /* M-416 · mórbido (Tragic Slip) */ return `${quem} recebe ${sinal(p)}/${sinal(t)}${e.until === 'your-next-turn' ? ' até o seu próximo turno' : ' até o fim do turno'}${p && p.per === 'tipos-do-alvo' ? ' (X = supertipos, tipos e subtipos dela)' : ''}${p && p.subtype ? ` (X = ${p.subtype === 'Gate' ? 'Portões' : p.subtype === 'Swamp' ? 'Pântanos' : p.subtype + 's'} que você controla)` : ''}`; } // R9b (achado da C-1): contagem por subtipo mostrava "−NaN" (Defile, Basilisk Gate) · M-351 · "cada criatura do jogador alvo" (Arms of Hadar)
     case 'volta_ao_acaso': return `uma carta${e.tipos ? ' de ' + ({ creature: 'criatura', artifact: 'artefato', land: 'terreno', instant: 'mágica instantânea', sorcery: 'feitiço', enchantment: 'encantamento' }[e.tipos[0]] || e.tipos[0]) : ''} do seu cemitério, escolhida ao acaso, volta para a sua mão`; // M-369
     case 'dado': return `role ${e.quantos === 2 ? 'dois' : 'um'} d${e.lados}${e.ignora ? ' e ignore o menor' : ''}${Number.isInteger(e.mais) && e.mais ? ` e some ${e.mais}` : e.mais ? ' e some o modificador' : ''}`; // T-66 · CR 706
     case 'moeda': return `jogue uma moeda${e.ateperder ? ' até perder um lance' : ''}`; // T-65 · CR 705
