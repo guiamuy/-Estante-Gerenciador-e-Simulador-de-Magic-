@@ -4679,6 +4679,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** palavras-chave fora do vocabulário do motor deixam a frase sem leitura (não aproxima).
 - **Teste:** `lt136.unit` (3 testes; falham no motor anterior).
 
+**M-454 · LT120 · correções da revisão independente de M-443…M-446** ✅ (leva M-454, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** (1) **Sprout Swarm com recompra e convocar** passa a ser oferecida — antes a mesa nunca mostrava a jogada principal da carta, embora o motor aceitasse (702.51a, 601.2f); (2) **cascata com a Lightning Axe e o Goblin Anarchomancer:** "pay {5}" sem pagar o custo de mana custa {4} e é oferecido com quatro terrenos (601.2f, 118.9d); (3) o leitor só troca o nome curto (201.5c, número corrigido — a M-444 citava 201.4b) em carta lendária e nunca dentro do nome de outro objeto ("Koma's Coil", "Volo's Journal"); nenhuma leitura completa mudou.
+- **Revisão independente:** todos os itens são achados do revisor de M-443…M-446; (1), (3) e (4) têm teste que falha no motor anterior. O teste "a criatura do oponente não dispara" do `lt126` usava `poe` (não passa pela entrada no campo) e não provava nada: a linha saiu de lá e o `lt135` conjura a criatura do oponente de verdade (cobertura; passa nos dois motores). A própria M-454 passou pela revisão de M-447…M-454: aprovada (34 verificações).
+- **Fora (declarado):** convocar junto com "pay {N}" de custo adicional não é oferecido (nenhuma carta real tem os dois); recompra com convocar não combina com reforço.
+- **Teste:** `lt135.unit` (4 testes; três falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

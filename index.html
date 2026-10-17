@@ -18384,8 +18384,8 @@ const __m42 = (function () {
   const escapa = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   /** M-394 · 201.5 · o nome impresso e "this creature/artifact/…" (redação Oracle desde 2024) valem como "~"; dentro de aspas (habilidade concedida a outro objeto) o "this …" é do outro objeto e fica. */
   const ESTE_OBJETO = /\bthis (creature|artifact|enchantment|land|permanent|vehicle|equipment|aura)\b/gi;
-  const nomeCurtoRe = nome => { const i = String(nome || '').indexOf(', '); const c = i > 2 ? nome.slice(0, i) : null; return c ? new RegExp('\\b' + escapa(c) + '\\b(?!,)', 'g') : /(?!)/g; }; // M-444
-  const til = (t, nome) => String(t).replace(new RegExp(escapa(nome || '\u0000'), 'g'), '~').replace(nomeCurtoRe(nome), '~') /* M-444 · 201.4b: o nome curto da lendária ("Raphael" em "Raphael, Tough Turtle") */.split('"').map((p, i) => i % 2 ? p : p.replace(ESTE_OBJETO, '~')).join('"');
+  const nomeCurtoRe = nome => { const i = String(nome || '').indexOf(', '); const c = i > 2 && /\bLegendary\b/.test(tipoAtual || '') ? nome.slice(0, i) : null; return c ? new RegExp('\\b' + escapa(c) + '\\b(?!,|[\'’]s\\b)', 'g') : /(?!)/g; }; // M-444 · M-454: só na lendária (Elemental, My Dear não é) e nunca como parte do nome de outro objeto ("Koma's Coil", achados da revisão)
+  const til = (t, nome) => String(t).replace(new RegExp(escapa(nome || '\u0000'), 'g'), '~').replace(nomeCurtoRe(nome), '~') /* M-444 · 201.5c: o nome curto da lendária ("Raphael" em "Raphael, Tough Turtle") */.split('"').map((p, i) => i % 2 ? p : p.replace(ESTE_OBJETO, '~')).join('"');
   /** Um parágrafo de efeito de mágica → { efeitos, frases }. */
   /** M-335 · orações em sequência que formam um efeito só (no começo do parágrafo): revelar a mão e escolher o descarte; olhar o topo e pegar. */
   const FILTRO_DESCARTE = { 'nonland card': { notTypes: ['land'] }, 'noncreature, nonland card': { notTypes: ['creature', 'land'] }, 'nonland, noncreature card': { notTypes: ['creature', 'land'] } };
@@ -24503,7 +24503,7 @@ const HANDLERS = {
     if (alt && alt.emergirK) pagaEmergirK(s, a, o, alt); // K-47 · 702.119a: o custo de emergir menos o valor de mana da sacrificada (Toca ponto comum: HANDLERS.cast)
     if (alt && alt.harmonizarK) pagaHarmonizarK(s, a, o, alt); // K-55 · 702.180a/b: vira a criatura escolhida e paga o custo reduzido pelo poder dela (Toca ponto comum: HANDLERS.cast)
     if (a.mode != null && ((((f.script || {}).modes) || [])[a.mode] || {}).entrelacarK) pagaEntrelacarK(s, a, o, alt); // K-34 · 702.42a: o custo de entrelaçar (Toca ponto comum: HANDLERS.cast)
-    if (a.free && s.manaCheck) { const gA = genericoDoAdicional(s, o, a.add); if (gA) payCost(s, a.p, parseCost(`{${gA}}`)); } // M-446 · 118.9d: sem pagar o custo de mana, o {N} do custo adicional escolhido continua cobrado
+    if (a.free && s.manaCheck) { const gA = genericoDoAdicional(s, o, a.add); if (gA) payCost(s, a.p, parseCost('{0}'), genericoSemPagarM(s, a.p, o, a.targets || [], gA)); } // M-454 · 601.2f: a redução alcança o {N} também sem pagar o custo de mana (achado da revisão) // M-446 · 118.9d: sem pagar o custo de mana, o {N} do custo adicional escolhido continua cobrado
     if (a.kick && reforco && s.manaCheck && a.free) payCost(s, a.p, somaCusto(parseCost('{0}'), parseCost(reforco.mana), a.kick)); // M-337 · 118.9d: conjurada sem pagar (cascata, Covil), o reforço é custo adicional e é pago — antes era de graça
     if (escaladoNaAcaoK(s, a, o)) pagaEscalarK(s, a, o, alt); // K-48 · 702.120a: o custo de escalar, uma vez por modo além do primeiro (Toca ponto comum: HANDLERS.cast)
     if (spreeNaAcaoK(s, a, o)) pagaSpreeK(s, a, o, alt); // K-54 · 702.172a: os custos adicionais dos modos escolhidos (Toca ponto comum: HANDLERS.cast)
@@ -25471,7 +25471,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
           : [{ need: ((fc.script && fc.script.effects) || []).filter(SC.isTargeted), mode: null }];
         const rfK = fc.script && fc.script.kicker, kickOk = !!rfK && (!s.manaCheck || canPay(s, p, parseCost(rfK.mana))); // M-337 · 118.9d: o reforço também na conjuração sem pagar
         const addsF = (() => { const sp = fc.script && fc.script.additional, l = Array.isArray(sp) ? sp : sp ? [sp] : []; if (!l.length) return [{}]; const r = []; // M-446 · 118.9d: as formas do custo adicional também na conjuração sem pagar (antes só a primeira, e a mesa podia oferecer o que o apply recusava)
-          l.forEach((op, i) => { if (canPayExtra(s, p, op, oid) && (!op.generico || !s.manaCheck || canPay(s, p, parseCost(`{${op.generico}}`)))) { const pg = pagamentosDe(s, p, op, oid); (pg.length ? pg : [null]).forEach(pay => r.push({ add: i, ...(pay ? { pay } : {}) })); } });
+          l.forEach((op, i) => { if (canPayExtra(s, p, op, oid) && (!op.generico || !s.manaCheck || canPay(s, p, parseCost('{0}'), genericoSemPagarM(s, p, s.objects[oid], [], op.generico)))) { const pg = pagamentosDe(s, p, op, oid); (pg.length ? pg : [null]).forEach(pay => r.push({ add: i, ...(pay ? { pay } : {}) })); } });
           if (fc.script.additionalOptional) r.push({ add: null }); return r; })();
         const pushK = x => addsF.forEach(v => { const y = { ...x, ...v }; out.push(y); if (kickOk) out.push({ ...y, kick: 1 }); });
         for (const { need, mode } of listas) {
@@ -25918,6 +25918,9 @@ function legalActions(s, p, { adjudication = false } = {}) {
     const extra = castExtra(s, p, o, 0), chave = o.name + '|' + extra; // K-15 · cópias da mesma carta com o mesmo custo: os grupos são os mesmos (contados uma vez por chamada)
     const grupos = gruposDaChamadaK.get(chave) || gruposParaTaparK(s, p, o, f.cost, extra); gruposDaChamadaK.set(chave, grupos);
     for (const grupo of grupos) casts(o).forEach(x => out.push({ ...x, tapaK: grupo, pay: { ...(x.pay || {}), tapOther: grupo } }));
+    { const rk = f.recompraK; // M-454 · 702.51a + 601.2f: recompra junto com convocar (Sprout Swarm) — o grupo paga parte do custo total com a recompra (achado da revisão)
+      if (rk && rk.mana && !rk.extra) { const custoR = somaCusto(f.cost, parseCost(rk.mana), 1), extraR = castExtraK(s, p, o, 0, [], parseCost(rk.mana).generic || 0);
+        for (const grupo of gruposParaTaparK(s, p, o, custoR, extraR)) casts(o).forEach(x => { if (!x.kick) out.push({ ...x, tapaK: grupo, recompraK: true, pay: { ...(x.pay || {}), tapOther: grupo } }); }); } }
   }
   // K-10 · 702.133a · recomeçar: do cemitério, mágica instantânea ou feitiço, pagando o custo e descartando uma carta (a escolha é de quem paga)
   for (const oid of s.zones[p].graveyard) {
@@ -27060,6 +27063,11 @@ function genericoAdicionalK(s, a, o) {
   if ((f.escalarK || {}).mana) n += escaladoNaAcaoK(s, a, o) * (parseCost(f.escalarK.mana).generic || 0); // K-48
   { const sk = spreeNaAcaoK(s, a, o); if (sk) n += sk.generic || 0; } // K-54
   return n;
+}
+/** M-454 · 118.9d + 601.2f: conjurada sem pagar o custo de mana, o {N} do custo adicional escolhido é o único genérico do custo total: afinidade e
+    reduções tiram dele (nunca abaixo de zero). */
+function genericoSemPagarM(s, p, o, alvos, n) {
+  const af = Math.min(n, affinityDiscount(s, p, o, n)); return n - af - Math.min(n - af, reducaoPorAlvo(s, p, o, alvos) + reducaoPorCor(s, p, o) + reducaoDasClassesT(s, p, o));
 }
 function castExtraK(s, p, o, x, alvos, adic) {
   const f = s.facts[o.name], base = (o.zone === 'command' ? commanderTax(s, p, o.oid) : 0) + x * (f.cost.x || 0) + aumentoPorAlvo(s, alvos) /* M-364 */, af = affinityDiscount(s, p, o, base + adic);

@@ -1,4 +1,4 @@
-// M-444 · LT110 · o nome curto da lendária no texto (201.4b): "Raphael deals 1 damage" em Raphael, Tough Turtle ("Alliance — Whenever another creature you
+// M-444 · LT110 · o nome curto da lendária no texto (201.5c): "Raphael deals 1 damage" em Raphael, Tough Turtle ("Alliance — Whenever another creature you
 // control enters, Raphael deals 1 damage to target opponent."). Texto da Scryfall de 17/10/2026 UTC (.listas/oficiais-revisadas.json), caminho de produção
 // (APROVADAS). Falha no motor anterior.
 import { test } from 'node:test';
@@ -26,7 +26,7 @@ test('LT110 · Raphael, Tough Turtle joga pelo leitor aprovado', () => {
 test('LT110 · outra criatura sua entra: 1 de dano no oponente; a dele não', () => {
   let s = mesa(), r, u; [s, r] = poe(s, 0, c0.name); [s, u] = poe(s, 0, 'Urso', 'hand'); for (let i = 0; i < 3; i++) [s] = poe(s, 0, 'Forest');
   const t = resolve(act(s, legais(s, 0, a => a.t === 'cast' && a.oid === u)[0])); assert.equal(t.players[1].life, 19); assert.equal(t.players[0].life, 20);
-  let g = J(t), uo; [g, uo] = poe(g, 1, 'Urso'); g = resolve(g); assert.equal(g.players[1].life, 19);
+  // M-454 · a parte "a dele não" usava `poe` (não passa pela entrada no campo); o lt135 conjura a criatura do oponente de verdade
 });
 
 test('LT110 · o leitor troca o nome curto da lendária por "~" (e só a palavra inteira)', () => {
