@@ -5717,6 +5717,7 @@ const ALVO_SELETOR = {
   'creature-enchantment-you-control': { tipos: ['creature', 'enchantment'], de: 'you', tiposImpressos: true },
   'permanent-you-control': { de: 'you' }, 'creature-or-planeswalker-you-control': { tipos: ['creature', 'planeswalker'], de: 'you' },
   'permanent-you-own': { dono: 'you' },
+  'artifact-or-creature': { tipos: ['artifact', 'creature'] }, // T-113 · "Enchant artifact or creature" (Toca ponto comum: ALVO_SELETOR)
   'creature-card-in-graveyard': { zona: 'graveyard', tipos: ['creature'] }, 'card-in-any-graveyard': { zona: 'graveyard' },
   'creature-land-in-any-graveyard': { zona: 'graveyard', tipos: ['creature', 'land'] },
   'card-in-your-graveyard': { zona: 'graveyard', de: 'you' }, 'creature-in-your-graveyard': { zona: 'graveyard', de: 'you', tipos: ['creature'] },
@@ -6070,7 +6071,7 @@ function descreveGatilho(w, como = {}) { // M-401 · como.equipada: "a criatura 
 }
 /** S11 · o que uma aura ou equipamento pode conceder. `per` conta permanentes
     e multiplica o bônus (Ancestral Mask, Ethereal Armor). */
-const ATTACH_KINDS = ['creature', 'permanent', 'land', 'creature-you-control', 'creature-or-planeswalker-you-control', 'creature-card-in-graveyard', 'player' /* T-94 · CR 303.4b · "Enchant player" (Maldições) (Toca ponto comum: ATTACH_KINDS) */]; // CR2d.4 · "Enchant creature card in a graveyard" // Q11 · Setessan Training
+const ATTACH_KINDS = ['creature', 'permanent', 'land', 'creature-you-control', 'creature-or-planeswalker-you-control', 'creature-card-in-graveyard', 'player' /* T-94 · CR 303.4b · "Enchant player" (Maldições) (Toca ponto comum: ATTACH_KINDS) */, 'artifact-or-creature' /* T-113 · "Enchant artifact or creature" (Careful Cultivation) (Toca ponto comum: ATTACH_KINDS) */]; // CR2d.4 · "Enchant creature card in a graveyard" // Q11 · Setessan Training
 const PER_COUNTS = ['mesmo-nome-nos-cemiterios', 'attacking-creatures' /* M-423 · Rite of Flame ("each card named ~ in each graveyard") e Respite ("each attacking creature") */, 'enchantments-you-control', 'other-enchantments', 'auras-on-battlefield',
   'creatures-you-control', 'other-creatures-you-control', 'elves-you-control', 'elves-on-battlefield', 'defenders-you-control', 'permanents-you-control', 'nonland-permanents-you-control', 'life-gained-this-turn', 'life-lost-this-turn',
   'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G', 'counters-on-source', 'opponents-empty-hand', 'trigger-value', 'chosen-type-permanents', 'sacrificed-toughness', 'sacrificed-mv', 'sacrificed-power', 'dano-causado' /* M-427 · "the damage dealt this way" */, 'descartadas-assim' /* M-434 · "draw that many cards" depois de descartar a mão */, 'creature-cards-in-your-graveyard', 'cards-in-hand', 'x', 'power-of-source', 'se', 'power-of-target',
@@ -6812,6 +6813,10 @@ const RAW_SCRIPTS = [
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
+  // T-113 · CR 303.4 / 611.3a / 702.141 (Scryfall, consulta de 17/10/2026; texto literal do Forge de 12/10/2026)
+  { name: 'Careful Cultivation', aura: { enchant: 'artifact-or-creature' }, grants: { seCriaturaT: true, power: 1, toughness: 3, keywords: ['reach'], produces: [['G', 'G']] }, // "Enchant artifact or creature · As long as enchanted permanent is a creature, it gets +1/+3 and has reach and '{T}: Add {G}{G}.'"
+    abilities: [{ kind: 'activated', cost: { mana: '{1}{G}', discardSelf: true, fromHand: true }, label: 'Canal', effects: [{ do: 'token', amount: 1, token: { name: 'Human Monk', types: ['creature'], subtypes: ['Human', 'Monk'], power: 1, toughness: 1, colors: ['G'], abilities: [{ kind: 'activated', cost: { tap: true }, effects: [{ do: 'add_mana', symbols: ['G'] }] }] } }] }], // "Channel — {1}{G}, Discard Careful Cultivation: Create a 1/1 green Human Monk creature token with '{T}: Add {G}.'"
+    example: { action: 'aura', target: 'own-creature', expect: { stats: [3, 5] } } },
   // T-112 · CR 303.4 · Auras com gatilho de manutenção (Oracle pelo mtg.wtf, consulta de 17/10/2026)
   { name: 'Curse of the Pierced Heart', aura: { enchant: 'player' }, abilities: [{ kind: 'triggered', when: 'enchanted-player-upkeep', effects: [{ do: 'dano_jogador_ou_pw', amount: 1, target: 'enchanted-player' }] }], // "Enchant player · At the beginning of enchanted player's upkeep, this Aura deals 1 damage to that player or a planeswalker that player controls."
     example: { target: 'opponent', expect: { attached: false } } },
@@ -18834,7 +18839,7 @@ function hasLegado(s, o, k) {
   if ((o.temporarios || []).some(t => t.ate === 'seu-proximo-turno' && (t.palavras || []).includes(k) && vale(t.ts))) return true; // CR2d.13 · agora com carimbo
   return attachedTo(s, o).some(x => vale(x.anexadaEm) && ((grantsOf(s, x) || {}).keywords || []).map(w => String(w).toLowerCase()).includes(k));
 }
-const grantsOf = (s, o) => (o.bestowed || !(s.facts[o.name].script || {}).bestow) ? (s.facts[o.name].script || {}).grants : null;
+const grantsOf = (s, o) => (o.bestowed || !(s.facts[o.name].script || {}).bestow) ? concessaoVigenteT(s, o, (s.facts[o.name].script || {}).grants) : null; // T-113 · "As long as enchanted permanent is a creature" (Toca ponto comum: grantsOf)
 const attachSpec = (s, o) => { const sc = s.facts[o.name].script || {}; return sc.aura || sc.equip || null; };
 /** Auras e equipamentos anexados a esta permanente. */
 const attachedTo = (s, o) => s.zones.flatMap(z => z.battlefield).map(oid => s.objects[oid]).filter(x => x.attachedTo === o.oid && !x.phasedOut);
@@ -23937,6 +23942,7 @@ function auraTarget(f, bestowed) {
 function auraPodeEncantar(s, au, host) {
   const k = String(au.enchant || 'creature'), f = s.facts[host.name];
   if (k === 'creature-or-planeswalker-you-control') return isCreature(s, host) || f.types.includes('planeswalker');
+  if (k === 'artifact-or-creature') return isCreature(s, host) || tiposDe(s, host).includes('artifact'); // T-113 · 303.4c (Toca ponto comum: auraPodeEncantar)
   if (k === 'creature-card-in-graveyard') return host.zone === 'graveyard' ? f.types.includes('creature') : isCreature(s, host); // CR2d.4 · depois de devolver: "enchant creature put onto the battlefield with this Aura"
   if (k.startsWith('creature')) return isCreature(s, host); if (k === 'land') return f.types.includes('land') && (!au.subtype || new RegExp('\\b' + au.subtype + '\\b', 'i').test(f.typeText || ''));
   return true;
@@ -28272,6 +28278,15 @@ function danoJogadorOuPwT(s, src, eff, p, ctrl, events) {
   s.pending = { kind: 'choose_mode', p: ctrl, name: `${src.name}: ${n} de dano em quem?`, options: [s.players[p].name, ...pws.map(o => o.name)], rotulosProprios: true,
     opcoesK: [{ effects: [{ do: 'dano_fixo_t', amount: n, jogador: p }] }, ...pws.map(o => ({ effects: [{ do: 'dano_fixo_t', amount: n, oid: o.oid, z: o.zc || 0 }] }))],
     fonteK: { oid: src.ability ? src.source : src.oid, name: src.name, controller: ctrl } };
+}
+/* ---------------- T-113 · CR 611.3a · concessão condicionada ao tipo da encantada ----------------
+   `grants.seCriaturaT: true` ("As long as enchanted permanent is a creature, it gets … and has …"): a concessão inteira (P/R, palavras,
+   produção de mana, ativadas) só vale enquanto a permanente encantada for criatura; é conferida a cada leitura (efeito estático, 611.3a). */
+let conferindoConcessaoT = false; // o tipo da encantada (camada 4) não depende desta concessão (ela não muda tipo): na volta do cálculo, ela fica de fora
+function concessaoVigenteT(s, aura, g) {
+  if (!g || !g.seCriaturaT) return g; if (conferindoConcessaoT) return null;
+  const h = aura && aura.attachedTo ? s.objects[aura.attachedTo] : null; if (!h || h.zone !== 'battlefield') return null;
+  conferindoConcessaoT = true; try { return isCreature(s, h) ? g : null; } finally { conferindoConcessaoT = false; }
 }
 function excecaoDaFichaT(s, o) { if (!o || o.faceDown || o.zone !== 'battlefield') return null; const r = copiaVigenteT(s, o); return (r ? r.excecaoT : o.excecaoFichaT) || null; }
 function embalsamarHabilidadeT(sc) { const c = sc.self.embalsamar; return { kind: 'activated', cost: { mana: c, fromGraveyard: true, exileSelf: true }, sorceryOnly: true, label: `Embalsamar ${c}`, embalsamarT: true, effects: [{ do: 'embalsamar' }] }; }
