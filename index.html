@@ -5324,7 +5324,7 @@ const EFFECTS = {
   // S45 · o jogador alvo escolhe as cartas do próprio cemitério para exilar
   exile_chosen: { fields: ['amount'], targets: ['player', 'opponent', 'self'] },
   bounce: { fields: [], targets: ['creature', 'spell-or-creature', 'permanent', 'permanent-you-control', 'land-you-control', 'artifact'] },
-  counter: { fields: [], targets: ['spell', 'spell-or-ability', 'creature-spell', 'noncreature-spell', 'instant-spell', 'artifact-enchantment-spell', 'artifact-spell'] },
+  counter: { fields: [], targets: ['spell', 'spell-or-ability', 'creature-spell', 'noncreature-spell', 'instant-spell', 'sorcery-spell' /* M-419 · Envelop */, 'artifact-enchantment-spell', 'artifact-spell'] },
   draw: { fields: ['amount'], targets: ['player', 'self'] },
   gain: { fields: ['amount'], targets: ['player', 'self', 'target-controller'] }, // M-335 · "Its controller gains life equal to its power" (Swords to Plowshares)
   lose: { fields: ['amount'], targets: ['player', 'opponent', 'self', 'target-controller', 'each-opponent'] },
@@ -5722,7 +5722,7 @@ const ALVO_SELETOR = {
   player: { zona: 'nenhuma', jogadores: 'any' }, opponent: { zona: 'nenhuma', jogadores: 'opponent' },
   'spell-or-ability': { zona: 'stack', habilidades: true }, 'spell-or-creature': { ou: [{ zona: 'stack' }, { tipos: ['creature'] }] },
   spell: { zona: 'stack' }, 'creature-spell': { zona: 'stack', tipos: ['creature'] }, 'noncreature-spell': { zona: 'stack', semTipos: ['creature'] },
-  'instant-spell': { zona: 'stack', tipos: ['instant'] }, 'artifact-enchantment-spell': { zona: 'stack', tipos: ['artifact', 'enchantment'] },
+  'instant-spell': { zona: 'stack', tipos: ['instant'] }, 'sorcery-spell': { zona: 'stack', tipos: ['sorcery'] } /* M-419 */, 'artifact-enchantment-spell': { zona: 'stack', tipos: ['artifact', 'enchantment'] },
   'artifact-spell': { zona: 'stack', tipos: ['artifact'] },
 };
 /** M-230 · R1b · varreduras ("each creature …"): o mesmo seletor, com quantificador "cada" (não mira: ignora resistência a
@@ -5777,7 +5777,7 @@ const seletorDe = t => (t && typeof t === 'object') ? t : ALVO_SELETOR[t] || nul
 const selJogadores = sel => !!sel && (sel.ou ? sel.ou.some(selJogadores) : !!sel.jogadores);
 const selObjetos = sel => !!sel && (sel.ou ? sel.ou.some(selObjetos) : sel.zona !== 'nenhuma');
 const TARGETED = new Set(['any', 'creature', 'planeswalker', 'player', 'opponent', 'permanent', 'artifact', 'enchantment', 'artifact-enchantment', 'artifact-creature',
-  'spell', 'spell-or-ability', 'spell-or-creature', 'creature-spell', 'noncreature-spell', 'instant-spell', 'artifact-enchantment-spell', 'artifact-spell', 'creature-you-control', 'other-creature-you-control', 'creature-enchantment-you-control', 'permanent-you-control', 'land', 'land-you-control',
+  'spell', 'spell-or-ability', 'spell-or-creature', 'creature-spell', 'noncreature-spell', 'instant-spell', 'sorcery-spell', 'artifact-enchantment-spell', 'artifact-spell', 'creature-you-control', 'other-creature-you-control', 'creature-enchantment-you-control', 'permanent-you-control', 'land', 'land-you-control',
   'card-in-your-graveyard', 'creature-in-your-graveyard', 'permanent-in-your-graveyard', 'card-in-any-graveyard', 'creature-land-in-any-graveyard', 'creature-opponent-controls', 'permanent-opponent-controls', 'artifact-enchantment-opponent-controls', 'enchanted-creature', 'creature-blocked-by-source', 'permanent-you-own', 'creature-card-in-graveyard']); // CR2d.4 · Animate Dead // Q11 · M-222 · "target permanent you own"
 /** S8 · cenários: o que o teste automático monta e o que espera. */
 const EXAMPLE_TARGETS = ['opponent', 'self-player', 'enemy-creature', 'own-creature', 'own-land', 'own-forest', 'own-graveyard-creature', 'enemy-spell', 'enemy-instant', 'enemy-permanent', 'enemy-enchantment', 'none', 'own-instant' /* T-108 · uma mágica instantânea sua na pilha ("copy target … spell you control") */];
@@ -6357,6 +6357,7 @@ function effectErrors(effects, label, opcional) {
     if (e.dividido != null && !(e.do === 'damage' && typeof e.dividido === 'object' && (e.dividido.max == null || (Number.isInteger(e.dividido.max) && e.dividido.max >= 2)) && ['any', 'creature'].includes(e.target))) errs.push(`${label} ${i + 1}: "dividido" é dano dividido entre alvos (601.2d): { max: null | 2 ou mais }, alvo "any" ou "creature"`); // M-376
     if (e.do === 'discard_or_sacrifice_land_draw' && e.obrigatorio != null) errs.push(`${label} ${i + 1}: o descarte ou sacrifício obrigatório (sem "you may") não é coberto`); // M-411 · fica sem leitura, nunca opcional por engano
     if (e.do === 'discard_or_sacrifice_land_draw' && e.tipo != null && e.tipo !== 'artifact') errs.push(`${label} ${i + 1}: "tipo" do sacrifício é 'artifact' (sem tipo: terreno)`); // M-411
+    if (e.mvAte != null && (e.do !== 'counter' || !(Number.isInteger(e.mvAte) ? e.mvAte >= 0 : (e.mvAte && e.mvAte.per === 'se' && e.mvAte.se === 'kicked' && Number.isInteger(e.mvAte.sim) && Number.isInteger(e.mvAte.nao))))) errs.push(`${label} ${i + 1}: "mvAte" só na anulação: inteiro, ou se reforçada`); // M-419
     if (e.do === 'descarta_e_compra' && e.descarta != null && !(Number.isInteger(e.descarta) && e.descarta >= 1)) errs.push(`${label} ${i + 1}: "descarta" é quantas cartas se descartam (inteiro, 1 ou mais)`); // M-373
     if (e.do === 'morde' && !(i > 0 && effects[i - 1] && effects[i - 1].do === 'mordedor')) errs.push(`${label} ${i + 1}: "morde" vem logo depois de "mordedor" (a criatura que causa o dano)`); // M-407
     if (e.do === 'mordedor' && !(effects[i + 1] && effects[i + 1].do === 'morde')) errs.push(`${label} ${i + 1}: "mordedor" precisa de "morde" logo depois`); // M-407
@@ -9561,6 +9562,10 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Scavenger Drake': { texto: 'ptoc8v', leva: 'M-418' },
   'Soul Warden': { texto: 'c0jip', leva: 'M-418' },
   'Wretched Anurid': { texto: '1m7ly05', leva: 'M-418' },
+  // M-419 · revisão por lote LXXIII (anulação por tipo e por valor de mana: Envelop, Extinguish, Prohibit), texto da Scryfall de 17/10/2026 UTC, revisor independente
+  'Envelop': { texto: 'm8fq4r', leva: 'M-419' },
+  'Extinguish': { texto: 'm8fq4r', leva: 'M-419' },
+  'Prohibit': { texto: 'p9iq2z', leva: 'M-419' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -17758,7 +17763,7 @@ const __m42 = (function () {
     'each creature': 'each-creature', 'each opponent': 'each-opponent', 'each creature you control': 'each-own-creature',
     'each creature your opponents control': 'each-opponent-creature', 'each creature you don\'t control': 'each-opponent-creature',
     'creatures you control': 'each-own-creature', 'creatures your opponents control': 'each-opponent-creature', 'all creatures': 'each-creature',
-    'target spell': 'spell', 'target creature spell': 'creature-spell', 'target noncreature spell': 'noncreature-spell', 'target instant spell': 'instant-spell',
+    'target spell': 'spell', 'target creature spell': 'creature-spell', 'target noncreature spell': 'noncreature-spell', 'target instant spell': 'instant-spell', 'target sorcery spell': 'sorcery-spell' /* M-419 */,
     'target artifact spell': 'artifact-spell', 'target artifact or enchantment spell': 'artifact-enchantment-spell', 'target spell or ability': 'spell-or-ability'
   };
   /** "target nonlegendary creature", "target nonblack creature": alvo do vocabulário mais a restrição que o motor já confere. */
@@ -17857,6 +17862,7 @@ const __m42 = (function () {
     [/^exile (target [a-z ']+)$/i, m => [com({ do: 'exile' }, alvo(m[1]))]],
     [/^counter (target [a-z ']+) unless its controller pays (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => [com({ do: 'counter', unless: { mana: m[2] } }, alvo(m[1]))]],
     [/^counter target spell with mana value (\d+)$/i, m => [{ do: 'counter', target: 'spell', targetMv: +m[1] }]], // LT13
+    [/^counter target spell if its mana value is (\d+) or less$/i, m => [{ do: 'counter', target: 'spell', mvAte: +m[1] }]], // M-419 · Prohibit (mira qualquer mágica; confere na resolução)
     [/^counter (target [a-z ']+)$/i, m => [com({ do: 'counter' }, alvo(m[1]))]],
     [/^return (target [a-z ']+) to its owner's hand$/i, m => [com({ do: 'bounce' }, alvo(m[1]))]],
     [/^(target creature|target creature you control|creatures you control|creatures your opponents control|all creatures) gets? ([+-]\d+)\/([+-]\d+) until end of turn$/i, m => [com({ do: 'pump', power: SINAL(m[2]), toughness: SINAL(m[3]) }, alvo(m[1]))]],
@@ -18253,6 +18259,8 @@ const __m42 = (function () {
       if (/^if a creature enters this way, it enters with an additional \+1\/\+1 counter on it$/i.test(p) && efeitos.length && efeitos[efeitos.length - 1].do === 'reanimate') { efeitos[efeitos.length - 1].marcadorSeCriatura = 1; frases.push({ texto: p, lida: true }); continue; } // M-400 · Recommission
       const ik = p.match(new RegExp(`^if this spell was kicked, (?:it|~) deals ${N} damage(?: to that (?:creature|player|permanent|planeswalker))? instead$`, 'i')); // M-337 · 702.33d · Burst Lightning
       if (ik && efeitos.length && efeitos[efeitos.length - 1].do === 'damage' && Number.isInteger(efeitos[efeitos.length - 1].amount)) { const ult = efeitos[efeitos.length - 1]; ult.amount = { per: 'se', se: 'kicked', sim: num(ik[1]), nao: ult.amount }; frases.push({ texto: p, lida: true }); continue; }
+      const ip = p.match(/^if this spell was kicked, counter that spell if its mana value is (\d+) or less instead$/i); // M-419 · Prohibit (702.33d)
+      if (ip && efeitos.length && efeitos[efeitos.length - 1].do === 'counter' && Number.isInteger(efeitos[efeitos.length - 1].mvAte)) { const ult = efeitos[efeitos.length - 1]; ult.mvAte = { per: 'se', se: 'kicked', sim: +ip[1], nao: ult.mvAte }; frases.push({ texto: p, lida: true }); continue; }
       const ih = p.match(new RegExp(`^if this spell wasn't cast from your hand, draw ${N} cards instead$`, 'i')); // M-352 · Twinned Vision
       if (ih && efeitos.length && efeitos[efeitos.length - 1].do === 'draw' && Number.isInteger(efeitos[efeitos.length - 1].amount)) { const ult = efeitos[efeitos.length - 1]; ult.amount = { per: 'se', se: 'not-cast-from-hand', sim: num(ih[1]), nao: ult.amount }; frases.push({ texto: p, lida: true }); continue; }
       const ig = p.match(new RegExp(`^if this spell was cast from a graveyard, draw ${N} cards instead$`, 'i')); // M-331 · Plunder the Trollshaws
@@ -20972,7 +20980,7 @@ function legalTargetsLegado(s, p, kind, selfOid, color) {
     for (const oid of s.stack) { if (oid !== selfOid && !isAbility(s.objects[oid])) out.push({ oid }); }
     for (const o of battlefield(s)) if (isCreature(s, o) && targetable(s, p, o, srcObj)) out.push({ oid: o.oid });
   }
-  if (['spell', 'creature-spell', 'noncreature-spell', 'instant-spell', 'artifact-enchantment-spell', 'artifact-spell'].includes(kind)) {
+  if (['spell', 'creature-spell', 'noncreature-spell', 'instant-spell', 'sorcery-spell', 'artifact-enchantment-spell', 'artifact-spell'].includes(kind)) { // M-419 · sorcery-spell
     for (const oid of s.stack) {
       if (oid === selfOid || isAbility(s.objects[oid])) continue; // habilidade na pilha não é mágica
       const f = s.facts[s.objects[oid].name];
@@ -20982,6 +20990,7 @@ function legalTargetsLegado(s, p, kind, selfOid, color) {
       if (kind === 'creature-spell' && !creature) continue;
       if (kind === 'noncreature-spell' && creature) continue;
       if (kind === 'instant-spell' && !f.types.includes('instant')) continue;
+      if (kind === 'sorcery-spell' && !f.types.includes('sorcery')) continue; // M-419 · Envelop
       if (kind === 'artifact-enchantment-spell' && !f.types.includes('artifact') && !f.types.includes('enchantment')) continue;
       if (kind === 'artifact-spell' && !f.types.includes('artifact')) continue;
       out.push({ oid });
@@ -21281,6 +21290,7 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'counter':
       if (obj && obj.naoAnulavel && obj.zone === 'stack') { note({ failed: true, naoAnulavel: true }); break; }
       if (eff.target === 'remembered' && (!obj || obj.zone !== 'stack')) { note({ failed: true }); break; } // M-346 · "counter that spell": a mágica já saiu da pilha // M-345 · Delighted Halfling: "that spell can't be countered" (101.2)
+      if (eff.mvAte != null && obj && obj.zone === 'stack' && manaValueT(s, obj) > amountOf(s, src, eff.mvAte)) { note({ failed: true, mvAlto: manaValueT(s, obj) }); break; } // M-419 · Prohibit: "counter target spell if its mana value is N or less" — conferido na resolução; acima disso, a mágica alvo fica
       const custoUnless = eff.unless ? String(eff.unless.mana).replace(/\{X\}/g, `{${src.xPaid || 0}}`) : null; // M-338 · 107.3a: o X anunciado (Syncopate)
       if (eff.unless && s.manaCheck && canPay(s, obj.controller, parseCost(custoUnless))) {
         // S16 · o controlador da mágica decide se paga para salvá-la
@@ -32111,7 +32121,7 @@ function effectLine(ev) {
     case 'destroy': return ev.failed ? `${ev.name} não destruiu ${t}${ev.why ? ` (${ev.why})` : ': sem efeito'}` : `${ev.name} destruiu ${t}`; // R9b · Hydroblast em permanente que não é vermelha dizia "(indestrutível)"
     case 'exile': return `${ev.name} exilou ${t}`;
     case 'bounce': return `${ev.name} devolveu ${t} à mão do dono`;
-    case 'counter': if (ev.topo) return `${ev.name} anulou ${t} e a pôs no topo do grimório do dono`; if (ev.exilada) return `${ev.name} anulou ${t} e a exilou`; if (ev.suspensa) return `${ev.name} anulou ${t} e a exilou com ${ev.suspensa} marcadores de tempo (suspender)`; return ev.paid ? `${t} escapou de ${ev.name}: o custo foi pago` : ev.pending ? `${ev.name} espera o pagamento de ${t}` : ev.failed ? `${ev.name} não anulou ${t}: sem efeito` : `${ev.name} anulou ${t}`; // R9b · dizia "anulou" com a mágica ainda na pilha
+    case 'counter': if (ev.mvAlto != null) return `${ev.name} não anulou ${t}: o valor de mana é ${ev.mvAlto}`; /* M-419 */ if (ev.topo) return `${ev.name} anulou ${t} e a pôs no topo do grimório do dono`; if (ev.exilada) return `${ev.name} anulou ${t} e a exilou`; if (ev.suspensa) return `${ev.name} anulou ${t} e a exilou com ${ev.suspensa} marcadores de tempo (suspender)`; return ev.paid ? `${t} escapou de ${ev.name}: o custo foi pago` : ev.pending ? `${ev.name} espera o pagamento de ${t}` : ev.failed ? `${ev.name} não anulou ${t}: sem efeito` : `${ev.name} anulou ${t}`; // R9b · dizia "anulou" com a mágica ainda na pilha
     case 'counters': return ev.tipo ? `${ev.name} recebeu ${plural(n, 'marcador ' + (MARCADOR_PT[ev.tipo] || ev.tipo), 'marcadores ' + (MARCADOR_PT[ev.tipo] || ev.tipo))}` : `${ev.name} recebeu ${plural(n, 'marcador +1/+1', 'marcadores +1/+1')}`;
     case 'adapt': return n ? `${ev.name} adaptou: ${plural(n, 'marcador +1/+1', 'marcadores +1/+1')}` : `${ev.name} não adaptou: já tinha marcador +1/+1`;
     case 'return_chosen': return `${ev.name}: ${t} devolveu uma permanente à mão`;
@@ -32965,7 +32975,7 @@ function descreveAlvo(chave) {
 }
 const ALVO_PT = { 'delayed-object': 'essa permanente', 'each-opponent-creature': 'cada criatura dos oponentes', 'each-opponent-creature-planeswalker': 'cada oponente e cada criatura e planeswalker deles',
   'each-own-creature': 'cada criatura sua', 'each-flying-creature': 'cada criatura com voar', 'each-nonflying-creature': 'cada criatura sem voar', 'creature-spell': 'uma mágica de criatura',
-  'noncreature-spell': 'uma mágica que não é de criatura', 'instant-spell': 'uma mágica instantânea', 'artifact-spell': 'uma mágica de artefato', 'artifact-enchantment-spell': 'uma mágica de artefato ou encantamento',
+  'noncreature-spell': 'uma mágica que não é de criatura', 'instant-spell': 'uma mágica instantânea', 'sorcery-spell': 'uma mágica de feitiço' /* M-419 */, 'artifact-spell': 'uma mágica de artefato', 'artifact-enchantment-spell': 'uma mágica de artefato ou encantamento',
   'artifact-enchantment': 'um artefato ou encantamento', 'artifact-enchantment-opponent-controls': 'um artefato ou encantamento de um oponente', 'card-in-any-graveyard': 'uma carta de um cemitério',
   'creature-land-in-any-graveyard': 'uma carta de criatura ou terreno de um cemitério', 'creature-in-your-graveyard': 'uma carta de criatura do seu cemitério', 'permanent-in-your-graveyard': 'uma carta de permanente do seu cemitério',
   'creature-enchantment-you-control': 'uma criatura ou encantamento seu', 'other-creature-you-control': 'outra criatura sua', 'creature-you-control': 'uma criatura sua', 'creature-opponent-controls': 'uma criatura de um oponente',
@@ -33182,7 +33192,7 @@ function descreveEfeito(e) {
       return e.amount && IGUAL_A[e.amount.per] ? `causa dano igual ${IGUAL_A[e.amount.per]} a ${alvo || 'um alvo'}` : `causa ${n} de dano a ${alvo || 'um alvo'}${e.exilaSeMorrer ? ' (se o que recebeu esse dano fosse morrer neste turno, é exilado)' : ''}`; // CR2b.10 · M-384
     case 'gain': return e.amount && IGUAL_A[e.amount.per] ? `ganha vida igual ${IGUAL_A[e.amount.per]}` : `ganha ${n} de vida`;
     case 'lose': return `${alvo === 'cada oponente' ? 'cada oponente perde' : 'perde'} ${n} de vida`;
-    case 'counter': return `anula ${alvo || 'uma mágica'}${e.suspende ? ` e a exila com ${e.suspende} marcadores de tempo, com suspender` : ''}${e.exila ? ' e a exila' : ''}${e.topo ? ' e a põe no topo do grimório do dono' : ''}`; // M-269 · M-338 · M-395
+    case 'counter': return `anula ${alvo || 'uma mágica'}${e.mvAte != null ? ` se o valor de mana dela for ${qtd(e.mvAte)} ou menos` : ''}${e.suspende ? ` e a exila com ${e.suspende} marcadores de tempo, com suspender` : ''}${e.exila ? ' e a exila' : ''}${e.topo ? ' e a põe no topo do grimório do dono' : ''}`; // M-269 · M-338 · M-395
     case 'destroy': return `destrói ${alvo || 'uma permanente'}`;
     case 'destroy_all': { const nomes = { artifact: 'artefatos', enchantment: 'encantamentos', creature: 'criaturas', land: 'terrenos', planeswalker: 'planeswalkers' }; // CR2c.2
       const vm = e.mvMax != null ? ` de valor de mana ${e.mvMax} ou menos` : e.mvMin != null ? ` de valor de mana ${e.mvMin} ou mais` : '';
