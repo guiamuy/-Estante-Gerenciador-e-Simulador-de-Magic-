@@ -4606,6 +4606,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** a ordem só é marcada na conjuração normal (não pela insanidade nem pelo esgueirar-se); se a Cleric sair do campo antes de o gatilho resolver, a condição falha (a marca não fica na última informação).
 - **Teste:** `lt124.unit` (3 testes; falham no motor anterior).
 
+**M-443 · LT109 · "If you cast this spell during your main phase": Might of Old Krosa** ✅ (leva M-443, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** **Might of Old Krosa passa a jogar** (APROVADAS; texto da Scryfall de 17/10/2026 UTC). Condição nova `na-principal-propria`: a mágica guarda, ao ser conjurada, se foi na fase principal de quem a conjura (505.1); o "instead" troca +2/+2 por +4/+4. No turno do oponente ou no seu combate, +2/+2. Só a mágica que usa a condição guarda a marca, para o estado das outras partidas não mudar (as goldens acusaram a primeira versão, que marcava toda mágica).
+- **Revisão independente:** aprovada (23 verificações: fases principais e fora delas, nos dois turnos; segunda Might em resposta; cópia pelo Reverberate dá +2 e a original +4, 707.10; conjurada pela cascata na principal; marca só nas partidas com a carta). Sem achados.
+- **Fora (declarado):** a cópia (não conjurada) fica com +2/+2, como manda o texto.
+- **Teste:** `lt125.unit` (4 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
