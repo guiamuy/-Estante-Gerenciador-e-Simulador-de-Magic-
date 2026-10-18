@@ -5011,6 +5011,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** Haste (Minotaur Skullcleaver) e Flying (Soulblade Djinn, Skyscanner) só valem com o campo `keywords` da Scryfall (limitação já declarada em M-496).
 - **Teste:** `lt186.unit` (5 testes; falham no motor anterior).
 
+**M-505 · LT170 · revisão por lote CXLVI: nove cartas lidas que travam as listas iniciantes** ✅ (leva M-505, motor v112 sem mudança de forma; goldens intactos; nenhuma linha de código nova).
+- **Valor:** passam a jogar (APROVADAS): Metropolis Sprite (+1/-1), Quicksilver Fisher (compra e descarta ao entrar), Mist-Cloaked Herald (imbloqueável), Uncomfortable Chill (criaturas dos oponentes -2/-0; compra), Quick Study, Ghostly Changeling (metamorfo; +1/+1), Shimmering Grotto ({1},{T}: qualquer cor), Aerial Maneuver (+1/+1, voar e golpe primeiro), Fortress Cyclops (+3/+0 ao atacar, +0/+3 ao bloquear). Textos da Scryfall consultados em 17/10/2026; leituras conferidas frase a frase no texto oficial.
+- **Revisão independente:** aprovada (revisão de M-504/M-505/M-506): 27 leituras conferidas; `--confere` com 1.070 aprovadas; 56 sondas sem divergência (Annihilate não mira preta e a regeneração não salva; Zap não compra com alvo ilegal, 608.2b; Goblin Fireslinger nunca mira criatura; Soulblade Djinn só com mágica não-criatura do controlador e não em quem entra depois; Mesmerist sem alvo legal sai; Grim Roustabout com desencadear não bloqueia; Sunhome golpe duplo em combate real; Coat with Venom toque mortífero; Runewing não compra ao ser exilada); fuzz de 50 partidas (69.854 ações) sem recusa nem exceção.
+- **Fora (declarado):** Flying (Metropolis Sprite, Quicksilver Fisher) só vale com o campo `keywords` da Scryfall (limitação já declarada em M-496); o pagamento automático não usa o `{1}, {T}` da Shimmering Grotto (ative antes de conjurar, como a Unknown Shores da M-499).
+- **Teste:** `lt187.unit` (5 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
