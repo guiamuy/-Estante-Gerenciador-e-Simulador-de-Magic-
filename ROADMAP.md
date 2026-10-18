@@ -588,6 +588,19 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-rv | BI2-3 pessoas: contas e salas por dia (agregado, sem identificação, por fluxo com a conta de serviço); retenção só com opt-in | BI | 2 | decisão do dono (LGPD); `mtg-security-architect` |
 | 16º-rw | BI2-2b uso agregado opt-in (coleção, listas, scanner) com consentimento na tela "O que sai do aparelho" | BI | 2 | 16º-rv; `mtg-security-architect` |
 | 16º-rx | BI2-4 negócio: doações por plataforma (manual ou API com token) × custo mensal | BI | 2 | MON1 com dados reais |
+| 16º-ja ✅ | MJ · roadmap da mesa de patamar (leva J-1, 17/10): crítica medida da mesa em 360×780 e histórias MJ1–MJ12 | MJ | 1 | — |
+| 16º-jb | MJ1 a mesa numa tela só: os dois campos visíveis sem rolar, em fatias (cabeçalho do app fora da partida, topo numa linha, faixa compacta por lado, terrenos compactos, pilha e resumo fora do fluxo, tabuleiro com a altura da tela) | MJ | 3–4 | 16º-ja; T-130 publicada (mesma região) |
+| 16º-jc | MJ2 avisos fora do campo: o aviso flutuante não cobre cartas nem a mão | MJ | 1 | 16º-jb |
+| 16º-jd | MJ3 identidade por `oid` e continuidade (FLIP) entre mão, pilha, campo, cemitério e exílio | MJ | 2 | 16º-jb; `mtg-scale-architect` (quadros) |
+| 16º-je | MJ4 combate desenhado: setas de ataque e bloqueio com a prévia junto da seta | MJ | 2 | 16º-jd |
+| 16º-jf | MJ5 pilha com profundidade: cartões empilhados, topo levantado, resolução descendo ao destino | MJ | 1 | 16º-jb, 16º-jd |
+| 16º-jg | MJ6 mirar por arrasto com linha curva (tocar continua valendo) | MJ | 2 | 16º-je |
+| 16º-jh | MJ7 material: sombra que cresce ao levantar, luz do feltro, latão, dupla face virando | MJ | 1 | 16º-jb; tokens pelo `/ds` |
+| 16º-ji | MJ8 ritmo do turno: transições de fase e de vez, cena do oponente com continuidade | MJ | 1–2 | 16º-jd |
+| 16º-jj | MJ9 fim de partida com peso: placar, série, últimas jogadas | MJ | 1 | — |
+| 16º-jk | MJ10 espiar de patamar: carta grande com profundidade e brilho opcional | MJ | 1 | 16º-jh |
+| 16º-jl | MJ11 orçamento da mesa: passar a prioridade sem tarefa longa acima de 50 ms; quadros medidos no portão | MJ | 1–2 | `mtg-scale-architect`; redesenho por `oid` (MJ3) |
+| 16º-jm | MJ12 partículas por cor de mana (só se não custar quadros) | MJ | 1 | 16º-jl |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -9956,6 +9969,88 @@ prioridade, que é da mesa e conversa com o motor); K4 em uma ou duas levas.
   de novo, sem internet e volta, nada publicado; `auditaTela` nas quatro larguras, dois temas e fonte larga); e2e U2,
   N2 e N3 ajustados com justificativa (a entrada de Notícias e os destinos mudaram de forma).
 
+### MJ · Mesa de patamar (trilha `jogabilidade`, pedido de 17/10/2026)
+
+**Pedido (17/10/2026):** roadmap, desenvolvimento e entrega para elevar o patamar de design e UX/UI do modo Jogar.
+Referência de fluidez: Arena; estética: a da Estante (nogueira, papel, latão; nada de neon ou vidro). Celular primeiro
+(360×780, o aparelho do dono). Cada leva publicada sozinha e testável em menos de um minuto.
+
+**Crítica medida da mesa (leva J-1, 17/10/2026).** Partida contra o Shark (Pauper Elves × Boros Bully, semente 7, dados
+das cartas pelo Oracle do Forge, artes de mentira do mesmo tamanho), jogada por uma política gulosa (terreno, mágica,
+ataque com tudo) por 140 passos; quatro medidas (360×780, 384×832, 390×844, 412×891) nos dois temas; Chromium headless
+com densidade 3 e toque. Nenhum erro de console nas oito rodadas.
+
+| Problema | Medida (360×780) | Efeito para quem joga |
+|---|---|---|
+| A mesa não cabe numa tela | no meio da partida a página mede 1.407 px e rola 627 px; o **seu** campo começa em y = 809, fora da tela; no começo da partida, em y = 648, debaixo da bandeja | nunca se veem os dois campos juntos; para atacar ou bloquear é preciso rolar e lembrar o que está do outro lado |
+| Pouco campo útil | entre o topo (y = 142) e a bandeja (y = 567) sobram 425 px (54% da tela); cabeçalho do app 58 + topo da mesa 84 + bandeja aberta 213 = 355 px | o campo, que é o herói, fica com metade da tela |
+| Metadado ocupa campo | por lado: vida 58 px + quatro contadores 52 px + dois rótulos de zona ≈ 160 px antes da primeira carta | a informação de relance existe, mas em ladrilhos grandes que empurram as cartas |
+| Terrenos do tamanho das criaturas | um terreno sozinho ocupa uma fileira inteira (~150 px); terreno e permanente em duas fileiras por lado | o lado cresce para baixo a cada terreno |
+| Pilha e resumo no fluxo | a pilha (~230 px) e o resumo do turno (~56 px) entram **entre** os dois lados | o seu campo pula para baixo quando algo vai para a pilha |
+| Aviso por cima do campo | o aviso de três linhas ("Winding Way revelou…") cai no centro do seu campo | cobre quatro criaturas por alguns segundos |
+| Passar a prioridade pesa | tarefa longa de 64–77 ms a cada passe (oito medidas, máquina de mesa); quadros 53–58/s | no celular a mesma tarefa é algumas vezes maior: a mesa trava um instante a cada passe |
+
+As medidas nas outras larguras seguem a mesma forma (rolagem de 633 a 664 px no meio da partida). O que já está bom e
+fica: alvos de 44 px, nome sobre a arte, P/T, anel de estado, leque ×N, espiar com "Pode agora:", pilha explicada,
+bandeja que segue o dedo, som e efeitos da G4/G5.
+
+**Ordem:** valor percebido no celular ÷ custo em levas. MJ1 vem primeiro porque tudo o que vem depois (setas de
+combate, continuidade, mirar) só faz sentido com os dois campos na mesma tela. **Total estimado: 16 a 20 levas.**
+
+**MJ1 · A mesa numa tela só** ○ (3–4 levas, em fatias)
+- **Valor:** os dois campos, a vida dos dois e a sua mão cabem na tela sem rolar, como no Arena.
+- **Aceite:** em 360×780, partida com 17 permanentes (a mesma semente da crítica): rolagem vertical da página 0; os dois
+  lados visíveis ao mesmo tempo; pilha e resumo não mudam a posição de nenhuma carta; alvos de 44 px; nenhuma
+  sobreposição fora das declaradas; nas quatro medidas e nos dois temas.
+- **Fatias propostas** (a `mtg-slice-architect` confirma): (a) cabeçalho do app fora da partida, com saída pela faixa
+  de vez, e topo da mesa numa linha (+~100 px de campo); (b) faixa compacta por lado: vida e contadores numa linha de
+  44 px (+~110 px por lado); (c) terrenos compactos e pilha/resumo fora do fluxo, sobre a mesa; (d) tabuleiro com a
+  altura da tela: cada lado com altura própria e rolagem lateral dentro da fileira, nunca da página.
+- **Testes:** e2e "MJ1" com a medida (rolagem 0, topo do meu campo dentro da tela, distância entre os dois lados),
+  `auditaTela` nas quatro medidas e nos dois temas, capturas antes e depois; os e2e da mesa que leem posição ajustados
+  com justificativa.
+- **Depende de:** T-130 publicada (mexe em `src/app/table.js` ao mesmo tempo).
+- **Fora:** layout em paisagem e tablet; Commander com quatro jogadores.
+
+**MJ2 · Avisos fora do campo** ○ (1 leva) — o aviso flutuante encosta na bandeja e nunca cobre carta nem mão; aviso
+longo vira uma linha com "mais". Aceite: sobreposição medida entre o aviso e as cartas = 0.
+
+**MJ3 · A carta que se move é a mesma carta** ○ (2 levas) — identidade por `oid` entre dois desenhos e transição por
+posição medida (FLIP) entre mão, pilha, campo, cemitério e exílio, só com `transform` e `opacity`; o próximo toque
+conclui a animação. Aceite: o mesmo `oid` mantém o nó; nenhuma tarefa longa nova; movimento reduzido mostra o estado
+final. Destrava MJ4–MJ8.
+
+**MJ4 · Combate desenhado** ○ (2 levas) — setas curvas de ataque (vermelho) e de bloqueio (dourado) na camada de
+efeitos, com a prévia de combate junto da seta e a ordem de dano visível. Zero pixel de campo.
+
+**MJ5 · Pilha com profundidade** ○ (1 leva) — cartões empilhados com o topo levantado; ao resolver, a carta desce até o
+destino (MJ3).
+
+**MJ6 · Mirar por arrasto** ○ (2 levas) — arrastar da origem ao alvo com linha curva e retorno imediato; limiar de
+distância, cancelar ao voltar; tocar continua valendo.
+
+**MJ7 · Material** ○ (1 leva) — sombra que cresce ao levantar a carta, luz suave no feltro, latão com brilho leve, carta
+de duas faces virando em 3D curto; tokens novos pelo `/ds` nos dois temas.
+
+**MJ8 · Ritmo do turno** ○ (1–2 levas) — o trilho de fases acende em sequência, a faixa de vez desliza, a cena do
+oponente (H5) passa a mover as cartas (MJ3) em vez de redesenhar.
+
+**MJ9 · Fim de partida com peso** ○ (1 leva) — placar, série, as últimas jogadas e "Jogar de novo" num desfecho com
+presença.
+
+**MJ10 · Espiar de patamar** ○ (1 leva) — carta grande com leve profundidade e brilho opcional, desligados com menos
+movimento.
+
+**MJ11 · Orçamento da mesa** ○ (1–2 levas, com a `mtg-scale-architect`) — passar a prioridade sem tarefa longa acima de
+50 ms e quadros medidos no portão (teste de orçamento que falha ao estourar).
+
+**MJ12 · Partículas por cor de mana** ○ (1 leva) — só depois da MJ11 e só se não custar quadros.
+
+**Regras que valem para todo o épico:** só `transform`, `opacity` e `filter` leve em movimento; toda animação tem a
+variante de menos movimento; o próximo toque nunca espera efeito; nenhuma regra de jogo na tela (o que o motor não
+oferece não aparece); cores com significado fixo (vermelho ataca, dourado bloqueia, tracejado é alvo, azul é o
+oponente); capturas antes e depois nas quatro medidas e nos dois temas em toda leva.
+
 ### Y · Relatos (E60, pedido de 08/10/2026)
 
 **Pedido (08/10/2026):** registrar feedback de forma visual, estruturada e fluida, dentro e fora da partida: um atalho
@@ -11391,6 +11486,7 @@ Regras completas em `CLAUDE.md`. Trilhas em uso (o nome vai no rodapé `Trilha:`
 | `cartas` | Pauper, cartas de A a L: scripts à mão com texto oficial em `.listas/oficiais-cartas.json`; só abaixo da âncora `↓ C` dos scripts (levas `C-N`) |
 | `homologacao` | prova de partida do catálogo (`catalogo.prova.mjs`, fora do portão) e correção dos achados com teste antes (levas `H-N`) |
 | `radar` | Painel Estante (BI do dono): `painel.html`, `telemetria.mjs` e o ramo `telemetria`; não toca `index.html` (levas `R-N`) |
+| `jogabilidade` | MJ · mesa de patamar: layout, continuidade, combate desenhado, material e ritmo do modo Jogar; região da mesa (`src/app/table.js`, `src/ui/table-components.js`, `src/app/sentidos.js`, `#tb-fx`); não toca motor nem bot (levas `J-N`) |
 
 ### Publicar pela interface web
 
