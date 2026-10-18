@@ -64,7 +64,7 @@ const DB = Object.fromEntries([
   { ...card('Clue', 'Token Artifact — Clue', [], 0), id: 'tok-clue', oracle_text: '{2}, Sacrifice this artifact: Draw a card.', image_uris: { small: 'https://cards.scryfall.io/small/front/x/clue.png', normal: 'https://cards.scryfall.io/normal/front/x/clue.png' } }
 ].map(c => [c.name.toLowerCase(), c]));
 
-async function open(t, { dev = true, apresentacao = false, cena = false } = {}) {
+async function open(t, { dev = true, apresentacao = false, cena = false, porta = false } = {}) {
   const srv = await serve();
   const browser = await pw.chromium.launch(process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : {});
   // capturas de tela nas outras medidas e no tema escuro (ROADMAP §4): SHOT_W=360 SHOT_TEMA=dark
@@ -83,6 +83,8 @@ async function open(t, { dev = true, apresentacao = false, cena = false } = {}) 
   // D4b (leva 145) · a apresentação de primeira abertura só aparece no teste que a pede: os outros (e as abas que abrem
   // a partir do mesmo contexto, como as da partida online) começam direto na tela
   if (!apresentacao) await ctx.addInitScript(() => { window.__SEM_APRESENTACAO = true; });
+  // G-274 · a porta de entrada da primeira abertura só aparece no teste que a pede (o resto começa como quem já escolheu)
+  if (!porta) await ctx.addInitScript(() => { window.__SEM_PORTA = true; });
   // H5 · contra o bot a mesa mostra o turno dele quadro a quadro (segundos de espera, mesa sem toque). Só o teste que pede vê a cena;
   // os outros recebem o turno do bot de uma vez, como antes.
   if (!cena) await ctx.addInitScript(() => { window.__SEM_CENA = true; });
@@ -3272,6 +3274,7 @@ test('e2e · leva 102 coleção com imagens nítidas e visor da carta: grande, t
   const { page, errors, base } = await open(t);
   const ctx = await page.context().browser().newContext({ viewport: { width: 360, height: 780 }, deviceScaleFactor: 3, serviceWorkers: 'block' });
   await ctx.addInitScript(() => { window.__SEM_APRESENTACAO = true; }); // D4b · contexto novo: pula a apresentação como o harness faz
+  await ctx.addInitScript(() => { window.__SEM_PORTA = true; }); // G-274 · e a porta de entrada, idem
   const p3 = await ctx.newPage(); t.after(() => ctx.close());
   const erros3 = []; p3.on('pageerror', e => erros3.push(String(e)));
   const pedidas = [];
@@ -5158,6 +5161,78 @@ test('e2e · G-263 conta com e-mail: cria com erro na hora e sem fechar a folha,
   assert.deepEqual(errors, []);
 });
 
+/* G-274 · T6f-5 · relato #22: porta de entrada na primeira abertura */
+test('e2e · G-274 porta de entrada: a primeira abertura (até por um link) para na porta, sem a barra do app; Google, e-mail e Continuar sem conta com 44 px; sem internet só o sem conta; criar conta com e-mail leva ao destino pedido; reabrir vai direto', { skip }, async t => {
+  const { page, errors, base } = await open(t, { porta: true });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.addInitScript(() => {
+    window.__GOOGLE_CLIENT_ID = 'e2e.apps.googleusercontent.com';
+    window.__FIREBASE_API_KEY = 'chave-e2e';
+    const ok = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } });
+    window.__FIREBASE_FETCH = async (url, init) => {
+      const corpo = url.includes('securetoken') ? init.body : JSON.parse(init.body);
+      if (url.includes('securetoken')) return ok({ id_token: 'id-renovado', refresh_token: 'ref-porta-e2e', expires_in: '3600', user_id: 'uidPorta_1' });
+      if (url.includes('accounts:signUp')) return ok({ localId: 'uidPorta_1', email: corpo.email, idToken: 'id-porta', refreshToken: 'ref-porta-e2e', expiresIn: '3600' });
+      return ok({ error: { message: 'NOT_FOUND' } }, 404);
+    };
+  });
+  // 1 · um link direto para Listas, na primeira abertura, para na porta; a barra do app e o Relatar saem
+  await page.goto(base + '#/listas'); await page.waitForSelector('#porta');
+  assert.equal(await page.evaluate(() => location.hash), '#/entrar');
+  assert.equal(await page.locator('.ds-appbar:visible').count(), 0); assert.equal(await page.locator('#relatar-abrir:visible').count(), 0);
+  assert.equal(await page.innerText('#porta-titulo'), 'Estante');
+  // o ícone usa os ids próprios da abertura: com os do ícone da barra (escondida aqui) o gradiente não pintava e o ladrilho saía vazio
+  assert.ok(await page.$eval('.porta__ladrilho svg', svg => [...svg.querySelectorAll('[fill^="url(#"]')].every(el => /^url\(#estante-abertura-/.test(el.getAttribute('fill'))) && svg.querySelectorAll('[fill^="url(#"]').length > 0));
+  const alvos = await page.$$eval('#porta-acoes .ds-btn', bs => bs.map(b => [b.id, b.textContent.trim(), Math.round(b.getBoundingClientRect().height), b.classList.contains('ds-btn--primary')]));
+  assert.deepEqual(alvos.map(a => a.slice(0, 2)), [['porta-google', 'Continuar com Google'], ['porta-email', 'Entrar com e-mail'], ['porta-pular', 'Continuar sem conta']]);
+  assert.ok(alvos.every(a => a[2] >= 44), JSON.stringify(alvos)); assert.deepEqual(alvos.map(a => a[3]), [true, false, false], 'um primário só');
+  // as ações cabem na primeira tela, sem rolar (o polegar alcança)
+  assert.ok(await page.$eval('#porta-nota', el => el.getBoundingClientRect().bottom <= innerHeight), 'tudo numa tela em 360×780');
+  await page.waitForTimeout(700); // a cascata de entrada termina
+  for (const tema of ['dark', 'light']) { await page.evaluate(x => document.documentElement.setAttribute('data-theme', x), tema); for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await auditaTela(page, `porta de entrada ${w} ${tema}`); } }
+  await page.setViewportSize({ width: 360, height: 780 });
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/g274-porta.png' });
+  // 2 · sem internet: entrar fica desligado, com o aviso; sem conta continua
+  await page.context().setOffline(true); await page.waitForSelector('#porta-sem-rede');
+  assert.equal(await page.isDisabled('#porta-google'), true); assert.equal(await page.isDisabled('#porta-email'), true); assert.equal(await page.isDisabled('#porta-pular'), false);
+  await auditaTela(page, 'porta de entrada sem internet');
+  await page.context().setOffline(false); await page.waitForSelector('#porta-email:not([disabled])');
+  assert.equal(await page.locator('#porta-sem-rede').count(), 0);
+  // 3 · criar conta com e-mail pela mesma folha do Perfil: conectada, a porta leva ao destino pedido (Listas)
+  await page.click('#porta-email'); await page.waitForSelector('#conta-email-campo');
+  await page.click('#conta-email-modo [data-modo="criar"]');
+  await page.fill('#conta-email-campo', 'nova@exemplo.com'); await page.fill('#conta-senha', 'senha-certa-1');
+  await page.click('#conta-email-confirmar');
+  await page.waitForFunction(() => location.hash === '#/listas'); await page.waitForSelector('.ds-appbar', { state: 'visible' });
+  assert.equal(await page.locator('#porta').count(), 0);
+  // 4 · reabrir vai direto, sem porta
+  await page.reload(); await page.waitForSelector('.ds-appbar', { state: 'visible' });
+  assert.equal(await page.evaluate(() => location.hash), '#/listas'); assert.equal(await page.locator('#porta').count(), 0);
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#conta-sair');
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · G-274 porta de entrada sem conta ligada no app: só Continuar sem conta, como primário; depois dela vem a apresentação, e a porta não volta', { skip }, async t => {
+  const { page, errors, base } = await open(t, { porta: true, apresentacao: true });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base); await page.waitForSelector('#porta');
+  assert.equal(await page.locator('#porta-google, #porta-email').count(), 0);
+  assert.match(await page.innerText('#porta-acoes'), /A conta ainda não está ligada neste app/);
+  assert.equal(await page.$eval('#porta-pular', b => b.classList.contains('ds-btn--primary')), true);
+  assert.ok((await page.locator('#porta-pular').boundingBox()).height >= 44);
+  assert.equal(await page.locator('#apresentacao').count(), 0, 'a apresentação espera a porta');
+  await auditaTela(page, 'porta de entrada sem conta no app');
+  await page.click('#porta-pular');
+  await page.waitForSelector('#apresentacao'); assert.equal(await page.evaluate(() => location.hash), '#/');
+  await page.click('#apresentacao-pular'); await page.waitForSelector('#home');
+  await page.reload(); await page.waitForSelector('#home');
+  assert.equal(await page.locator('#porta').count(), 0); assert.equal(await page.locator('#apresentacao').count(), 0);
+  // o endereço da porta aberto à mão mostra a porta; sair por ela não repete a apresentação
+  await page.goto(base + '#/entrar'); await page.waitForSelector('#porta'); await page.click('#porta-pular'); await page.waitForSelector('#home');
+  assert.equal(await page.locator('#apresentacao').count(), 0);
+  assert.deepEqual(errors, []);
+});
+
 /* G-264 · T6f-2 · relato #18: esqueci a senha */
 test('e2e · G-264 esqueci a senha: só em Entrar, confere o e-mail na hora, manda o link sem dizer se há conta, e a folha continua aberta para entrar', { skip }, async t => {
   const { page, errors, base } = await open(t);
@@ -6837,6 +6912,7 @@ test('e2e · D4b apresentação de primeira abertura: três passos com Pular, ap
   assert.equal(await page.locator('#apresentacao').count(), 0);
   // Pular também marca como vista (em outro contexto limpo)
   const B = await page.context().browser().newContext({ viewport: { width: 360, height: 780 }, serviceWorkers: 'block' });
+  await B.addInitScript(() => { window.__SEM_PORTA = true; }); // G-274 · contexto limpo agora para na porta de entrada antes; aqui só a apresentação (a porta tem o teste "G-274")
   const p2 = await B.newPage(); await p2.goto(base + '#/listas'); await p2.waitForSelector('#apresentacao-pular'); await p2.keyboard.press('Escape'); // fechar de qualquer jeito conta como vista
   await p2.waitForSelector('#ds-overlay[data-open="false"]', { state: 'attached' }); await p2.waitForTimeout(300); await p2.reload(); await p2.waitForSelector('#decks-vazio'); await p2.waitForTimeout(600);
   assert.equal(await p2.locator('#apresentacao').count(), 0, 'pulou: não insiste');

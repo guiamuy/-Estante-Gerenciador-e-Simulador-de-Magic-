@@ -644,6 +644,28 @@ a { color: var(--accent); }
 .cat-topo[hidden] { display: none; }
 @media (prefers-reduced-motion: reduce) { .cat-topo.ds-btn { animation: none; } }
 .cat-filtro { align-items: center; gap: var(--space-2); }
+
+/* G-274 · T6f-5 · porta de entrada (relato #22): a tela inteira, sem a barra do app; marca no alto, valores no meio,
+   ações no fim ao alcance do polegar. Entrada em cascata curta (≤ 180 ms por item); com movimento reduzido, nada se move. */
+body[data-tela="entrar"] .ds-appbar { display: none; }
+.porta { min-height: 100vh; min-height: 100dvh; box-sizing: border-box; display: flex; flex-direction: column; gap: var(--space-6);
+  max-width: 440px; margin: 0 auto; padding: calc(var(--space-7) + env(safe-area-inset-top, 0px)) var(--space-4) calc(var(--space-5) + env(safe-area-inset-bottom, 0px)); }
+.porta__marca { display: flex; flex-direction: column; align-items: center; text-align: center; gap: var(--space-2); }
+.porta__ladrilho { display: inline-flex; margin-bottom: var(--space-2); filter: drop-shadow(0 6px 18px var(--overlay)); }
+.porta__ladrilho svg { display: block; }
+.porta__ladrilho .ab-moldura, .porta__ladrilho .ab-tabua, .porta__ladrilho .ab-carta { animation: none; } /* a montagem é da abertura; aqui o ícone já chega pronto */
+.porta__valores { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.porta__valor { display: flex; align-items: flex-start; gap: var(--space-3); color: var(--fg-muted); font-size: var(--text-md); line-height: var(--lh-md); }
+.porta__valor > svg { flex: none; color: var(--accent); margin-top: 1px; }
+.porta__acoes { margin-top: auto; display: flex; flex-direction: column; gap: var(--space-3); }
+.porta__acoes #porta-pular { align-self: center; }
+.porta__acoes #porta-nota { text-align: center; }
+.porta__erro:empty { display: none; }
+.porta__item { animation: porta-entra var(--dur-2) var(--ease-out) both; animation-delay: calc(var(--porta-i, 0) * var(--dur-1) / 2); }
+@keyframes porta-entra { from { opacity: 0; transform: translateY(var(--space-2)); } to { opacity: 1; transform: none; } }
+.porta[data-saida="true"] { opacity: 0; transform: translateY(calc(-1 * var(--space-2))); transition: opacity var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-out); }
+@media (prefers-reduced-motion: reduce) { .porta__item { animation: none; } .porta[data-saida="true"] { transition: none; } }
+:root[data-movimento="reduzido"] .porta__item { animation: none; }
 .inicio-nt__icone { color: var(--accent); flex: none; }
 .inicio-nt__titulo { margin: 0; flex: none; font-family: var(--font-display); font-size: var(--text-xl); line-height: var(--lh-xl); font-weight: var(--weight-regular); }
 .ds-atalho { flex-direction: column; align-items: flex-start; justify-content: space-between; gap: var(--space-3);
@@ -1459,7 +1481,7 @@ a.perfil-atalho { text-decoration: none; } /* R-15 · a entrada do painel é um 
 @media (hover: hover) { .ds-relatar:hover { color: var(--fg); } }
 @media (prefers-reduced-motion: reduce) { .ds-relatar { transition: none; } .ds-relatar:active { transform: none; } }
 body:has(#outlet .ds-fab:not([data-acoes="1"])) #relatar-abrir,
-body:is([data-tela="partida"], [data-tela="scanner"], [data-tela="perfil-relatos"]) #relatar-abrir { display: none; }
+body:is([data-tela="partida"], [data-tela="scanner"], [data-tela="perfil-relatos"], [data-tela="entrar"]) #relatar-abrir { display: none; }
 body:has(#outlet .ds-fab[data-acoes="1"]) #relatar-abrir { right: calc(var(--space-4) + 4px); bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px) + 56px + var(--space-3)); }
 body:not([data-tela="partida"]):not([data-tela="scanner"]) #outlet:not(:has(.ds-fab)) { padding-bottom: calc(48px + var(--space-6)); }
 /* o aviso flutuante sobe para cima do Relatar visível (como sobe para cima do botão de ação: --doca-h) */
@@ -12110,6 +12132,7 @@ const REGISTRO = [
   ['scanner.zoom', 'aparelho', false], ['scanner.lente', 'aparelho', false], ['scanner.lot', 'aparelho', false],
   ['offline.', 'aparelho', false], ['ocr.ready', 'aparelho', false], ['noticias.vista', 'aparelho', false],
   ['ui.ultimaLista', 'aparelho', false], ['collection.pending', 'aparelho', false], ['match.', 'aparelho', false],
+  ['ui.entrada', 'aparelho', false], // G-274 · a porta de entrada já foi atravessada neste aparelho (com conta ou sem)
   // derivado
   ['card.', 'derivado', false], ['rulings.', 'derivado', false], ['cambio.usd', 'derivado', false], ['names.catalog', 'derivado', false],
   ['catalogo.indice', 'derivado', false], ['catalogo.lista.', 'derivado', false], ['catalogo.fichas', 'derivado', false],
@@ -16127,6 +16150,123 @@ function createDecksHome({ decks, collection, files, cardRepo, backup = null, et
 
 /* ---------------- Leva 128 · /perfil ---------------- */
 /** Nome e foto de quem usa o aparelho, e o backup completo. Tudo local; a foto é reduzida aqui mesmo antes de guardar. */
+/** G-263 · T6f-1 · relato #18: criar conta ou entrar com e-mail e senha. G-274 · fora do Perfil: a porta de entrada usa a mesma folha. A senha só vai para o Identity Toolkit;
+    no aparelho fica o e-mail. Erro aparece embaixo dos campos, sem fechar a folha. */
+function dialogoEntrarComEmail({ conta, modo0 = 'entrar', email0 = '', ocupado = () => {}, aoEntrar = async () => {} }) {
+  let modo = modo0;
+  const erro = h('div', { class: 'conta-email__erro', id: 'conta-email-erro', role: 'alert' });
+  const email = h('input', { class: 'ds-input', type: 'email', id: 'conta-email-campo', value: email0, autocomplete: 'email', inputmode: 'email', autocapitalize: 'none', spellcheck: 'false', placeholder: 'nome@exemplo.com' });
+  const senha = h('input', { class: 'ds-input', type: 'password', id: 'conta-senha', autocomplete: 'current-password', placeholder: 'Senha' });
+  const olho = IconButton('olho', 'Mostrar senha', { id: 'conta-senha-mostrar', variant: 'ghost', onClick: () => {
+    const ver = senha.type === 'password'; senha.type = ver ? 'text' : 'password';
+    olho.setAttribute('aria-pressed', String(ver)); olho.setAttribute('aria-label', ver ? 'Esconder senha' : 'Mostrar senha'); senha.focus(); } });
+  olho.setAttribute('aria-pressed', 'false');
+  const dica = h('span', { class: 'ds-field__hint', id: 'conta-senha-dica' });
+  // G-264 · T6f-2 · esqueci a senha: manda o link para o e-mail digitado; a resposta não diz se há conta nele
+  const aviso = h('div', { class: 'conta-email__erro', id: 'conta-email-aviso', role: 'status' });
+  const esqueci = Button('Esqueci a senha', { variant: 'ghost', icone: 'email', id: 'conta-senha-esqueci', onClick: async () => {
+    if (esqueci.disabled) return;
+    clear(erro); clear(aviso); esqueci.disabled = true; esqueci.setAttribute('aria-busy', 'true');
+    const r = esqueci.querySelector('.ds-btn__rotulo'); r.textContent = 'Enviando…';
+    try {
+      await conta.redefinirSenha(email.value);
+      mount(aviso, Note('Se houver conta com ' + email.value.trim().toLowerCase() + ', chega nele um link para criar uma senha nova. Confira também o spam.')); // texto puro (P-1)
+    } catch (e) { mount(erro, Note(__m29.motivoDe(e), 'negative')); email.focus(); }
+    finally { esqueci.disabled = false; esqueci.removeAttribute('aria-busy'); r.textContent = 'Esqueci a senha'; }
+  } });
+  const vai = Button('', { variant: 'primary', icone: 'conferir', id: 'conta-email-confirmar', onClick: () => confirma() });
+  const rotulo = () => vai.querySelector('.ds-btn__rotulo');
+  const chips = [['entrar', 'Entrar'], ['criar', 'Criar conta']].map(([k, nome]) => Chip(nome, { pressed: k === modo, dataset: { modo: k }, onClick: () => { modo = k; pinta(); } }));
+  function pinta() {
+    chips.forEach(c => c.setAttribute('aria-pressed', String(c.dataset.modo === modo)));
+    senha.setAttribute('autocomplete', modo === 'criar' ? 'new-password' : 'current-password');
+    dica.textContent = modo === 'criar' ? 'Pelo menos 8 caracteres.' : '';
+    rotulo().textContent = modo === 'criar' ? 'Criar conta' : 'Entrar';
+    esqueci.classList.toggle('ds-hidden', modo === 'criar'); // .ds-btn é inline-flex: o atributo hidden sozinho não esconde
+    clear(erro); clear(aviso);
+  }
+  async function confirma() {
+    if (vai.disabled) return;
+    clear(erro); clear(aviso); vai.disabled = true; vai.setAttribute('aria-busy', 'true'); rotulo().textContent = modo === 'criar' ? 'Criando…' : 'Entrando…';
+    ocupado(true);
+    try {
+      await (modo === 'criar' ? conta.criarComEmail(email.value, senha.value) : conta.entrarComEmail(email.value, senha.value));
+      ocupado(false);
+      await aoEntrar(modo);
+    } catch (e) {
+      ocupado(false);
+      vai.disabled = false; vai.removeAttribute('aria-busy'); rotulo().textContent = modo === 'criar' ? 'Criar conta' : 'Entrar';
+      mount(erro, Note(__m29.motivoDe(e), 'negative'));
+      (/^email/.test(e && e.message) ? email : senha).focus();
+    }
+  }
+  const enter = ev => { if (ev.key === 'Enter') { ev.preventDefault(); confirma(); } };
+  email.addEventListener('keydown', enter); senha.addEventListener('keydown', enter);
+  Dialog({ title: 'Entrar com e-mail', body: Stack({},
+    h('div', { class: 'ds-segmentado', role: 'group', 'aria-label': 'Entrar ou criar conta', id: 'conta-email-modo' }, ...chips),
+    Field('E-mail', email),
+    h('label', { class: 'ds-field' }, h('span', { class: 'ds-field__label' }, 'Senha'), h('span', { class: 'conta-email__senha' }, senha, olho), dica),
+    Row({ class: 'ds-row--wrap' }, esqueci),
+    aviso,
+    Text('A senha não fica guardada no aparelho. A conta guarda o seu perfil na nuvem e o reconecta nos outros aparelhos.', { size: 'sm', tone: 'muted' }),
+    erro),
+    actions: [Button('Cancelar', { id: 'conta-email-cancelar', onClick: closeDialog }), vai] });
+  pinta();
+  (email0 ? senha : email).focus({ preventScroll: true });
+}
+/* ---------------- G-274 · T6f-5 · porta de entrada (relato #22) ----------------
+   Primeira abertura: boas-vindas com Google, e-mail e um "Continuar sem conta" discreto (decisão do dono, 18/10/2026).
+   Quem já entrou vai direto. A tela só desenha: a conta é a mesma do Perfil e o app decide quando ela aparece. */
+function createPortaDeEntrada({ conta = null, haptics = null, aoEntrar = () => {}, aoPular = () => {} }) {
+  const root = h('section', { class: 'porta', id: 'porta', 'aria-labelledby': 'porta-titulo' });
+  const st = { ocupado: false, erro: null };
+  const temRede = () => typeof navigator === 'undefined' || navigator.onLine !== false;
+  const comEmail = () => !!(conta && conta.comEmailDisponivel && conta.comEmailDisponivel());
+  const comGoogle = () => !!(conta && conta.disponivel && conta.disponivel());
+  const entrou = async () => {
+    if (haptics) haptics.evento('confirmacao');
+    root.dataset.saida = 'true'; // a porta se recolhe antes de abrir o app
+    await new Promise(r => setTimeout(r, 160));
+    aoEntrar();
+  };
+  async function google(btn) {
+    if (st.ocupado) return;
+    st.ocupado = true; st.erro = null; btn.setAttribute('aria-busy', 'true'); pinta();
+    try { await conta.entrar(); st.ocupado = false; toast('Conta conectada'); await entrou(); }
+    catch (e) { st.ocupado = false; st.erro = __m29.motivoDe(e); pinta(); }
+  }
+  const email = () => dialogoEntrarComEmail({ conta, ocupado: v => { st.ocupado = v; }, aoEntrar: async modo => {
+    closeDialog(); toast(modo === 'criar' ? 'Conta criada e conectada' : 'Conta conectada'); await entrou(); } });
+  const item = (i, ...filhos) => h('div', { class: 'porta__item', style: { '--porta-i': String(i) } }, ...filhos);
+  function pinta() {
+    const rede = temRede(), g = comGoogle(), e = comEmail(), nenhuma = !g && !e;
+    const googleBtn = g ? Button('Continuar com Google', { variant: 'primary', block: true, icone: 'externo', id: 'porta-google', disabled: st.ocupado || !rede, onClick: () => google(googleBtn) }) : null;
+    if (googleBtn && st.ocupado) googleBtn.setAttribute('aria-busy', 'true');
+    mount(root,
+      h('div', { class: 'porta__marca' },
+        // o ícone de ids próprios da abertura (os do ícone da barra ficam na barra escondida, e gradiente de dentro de display: none não pinta)
+        item(0, h('span', { class: 'porta__ladrilho', 'aria-hidden': 'true', html: __m4.iconeDoApp({ tamanho: 88, animado: true }) })),
+        item(1, Text('Estante', { size: '3xl', display: true, as: 'h1', attrs: { id: 'porta-titulo' } })),
+        item(2, Text('Listas, coleção, scanner e mesa com regras.', { tone: 'muted', attrs: { id: 'porta-frase' } }))),
+      h('ul', { class: 'porta__valores', id: 'porta-valores' },
+        ...[['proteger', 'Tudo funciona no aparelho, até sem internet.'], ['pessoa', 'Com a conta, o seu perfil vai junto para os outros aparelhos.'], ['jogar', 'Jogue com regras de verdade, contra o Shark ou a dois.']]
+          .map(([ic, t], k) => h('li', { class: 'porta__valor porta__item', style: { '--porta-i': String(3 + k) } }, Icone(ic, { tamanho: 20 }), h('span', {}, t)))),
+      h('div', { class: 'porta__acoes porta__item', id: 'porta-acoes', style: { '--porta-i': '6' } },
+        !rede && !nenhuma ? AvisoRede('Sem internet: entrar precisa de conexão. Sem conta, o app funciona igual.', { id: 'porta-sem-rede' }) : null,
+        nenhuma ? Note('A conta ainda não está ligada neste app. Tudo funciona no aparelho.', 'warning') : null,
+        googleBtn,
+        e ? Button('Entrar com e-mail', { block: true, icone: 'email', id: 'porta-email', variant: g ? undefined : 'primary', disabled: st.ocupado || !rede, onClick: email }) : null,
+        h('div', { class: 'porta__erro', id: 'porta-erro', role: 'alert' }, st.erro ? Note(st.erro, 'negative') : null),
+        Button('Continuar sem conta', { variant: nenhuma ? 'primary' : 'ghost', block: nenhuma, id: 'porta-pular', disabled: st.ocupado, onClick: () => { root.dataset.saida = 'true'; setTimeout(aoPular, 160); } }),
+        Text('Sem conta, tudo fica só neste aparelho. Dá para entrar depois, no Perfil.', { size: 'xs', tone: 'subtle', attrs: { id: 'porta-nota' } })));
+  }
+  pinta();
+  // a rede indo e voltando com a porta aberta: os botões acompanham
+  const rede = () => { if (!root.isConnected) { window.removeEventListener('online', rede); window.removeEventListener('offline', rede); return; } if (!st.ocupado) pinta(); };
+  if (typeof window !== 'undefined') { window.addEventListener('online', rede); window.addEventListener('offline', rede); }
+  return root;
+}
+
 function createPerfilScreen({ perfil, backup, conta = null, haptics = null, theme = null, apresentacao = null, dados = null, som = null, fichas = null, partidas = null, terrenos = null, relatos = null, apagar = null, nuvemConectada = () => false, bloqueios = null }) {
   const root = Stack(pad(), __m3.Carregando('Abrindo…', { tamanho: 'tela' }));
   const st = { salvo: null, nome: '', avatar: null, erro: null, ocupado: false, conta: null, contaOcupada: false };
@@ -16293,71 +16433,13 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
       Button('Sincronizar', { icone: 'atualizar', id: 'conta-sincronizar', variant: 'ghost', disabled: oc || e.estado === 'sincronizando', title: 'Sincronizar o perfil agora',
         onClick: async () => { await s.agora(); const f = s.estado(); if (f.estado === 'sincronizado') toast(f.desceu ? 'Perfil atualizado com a nuvem' : 'Perfil sincronizado'); } }));
   }
-  /** G-263 · T6f-1 · relato #18: criar conta ou entrar com e-mail e senha. A senha só vai para o Identity Toolkit;
-      no aparelho fica o e-mail. Erro aparece embaixo dos campos, sem fechar a folha. */
+  /** G-263 · a folha de e-mail e senha (G-274: a mesma da porta de entrada); aqui a conta chega com a transição de sucesso. */
   function abreEntrarComEmail(modo0 = 'entrar', email0 = '') {
-    let modo = modo0;
-    const erro = h('div', { class: 'conta-email__erro', id: 'conta-email-erro', role: 'alert' });
-    const email = h('input', { class: 'ds-input', type: 'email', id: 'conta-email-campo', value: email0, autocomplete: 'email', inputmode: 'email', autocapitalize: 'none', spellcheck: 'false', placeholder: 'nome@exemplo.com' });
-    const senha = h('input', { class: 'ds-input', type: 'password', id: 'conta-senha', autocomplete: 'current-password', placeholder: 'Senha' });
-    const olho = IconButton('olho', 'Mostrar senha', { id: 'conta-senha-mostrar', variant: 'ghost', onClick: () => {
-      const ver = senha.type === 'password'; senha.type = ver ? 'text' : 'password';
-      olho.setAttribute('aria-pressed', String(ver)); olho.setAttribute('aria-label', ver ? 'Esconder senha' : 'Mostrar senha'); senha.focus(); } });
-    olho.setAttribute('aria-pressed', 'false');
-    const dica = h('span', { class: 'ds-field__hint', id: 'conta-senha-dica' });
-    // G-264 · T6f-2 · esqueci a senha: manda o link para o e-mail digitado; a resposta não diz se há conta nele
-    const aviso = h('div', { class: 'conta-email__erro', id: 'conta-email-aviso', role: 'status' });
-    const esqueci = Button('Esqueci a senha', { variant: 'ghost', icone: 'email', id: 'conta-senha-esqueci', onClick: async () => {
-      if (esqueci.disabled) return;
-      clear(erro); clear(aviso); esqueci.disabled = true; esqueci.setAttribute('aria-busy', 'true');
-      const r = esqueci.querySelector('.ds-btn__rotulo'); r.textContent = 'Enviando…';
-      try {
-        await conta.redefinirSenha(email.value);
-        mount(aviso, Note('Se houver conta com ' + email.value.trim().toLowerCase() + ', chega nele um link para criar uma senha nova. Confira também o spam.')); // texto puro (P-1)
-      } catch (e) { mount(erro, Note(__m29.motivoDe(e), 'negative')); email.focus(); }
-      finally { esqueci.disabled = false; esqueci.removeAttribute('aria-busy'); r.textContent = 'Esqueci a senha'; }
-    } });
-    const vai = Button('', { variant: 'primary', icone: 'conferir', id: 'conta-email-confirmar', onClick: () => confirma() });
-    const rotulo = () => vai.querySelector('.ds-btn__rotulo');
-    const chips = [['entrar', 'Entrar'], ['criar', 'Criar conta']].map(([k, nome]) => Chip(nome, { pressed: k === modo, dataset: { modo: k }, onClick: () => { modo = k; pinta(); } }));
-    function pinta() {
-      chips.forEach(c => c.setAttribute('aria-pressed', String(c.dataset.modo === modo)));
-      senha.setAttribute('autocomplete', modo === 'criar' ? 'new-password' : 'current-password');
-      dica.textContent = modo === 'criar' ? 'Pelo menos 8 caracteres.' : '';
-      rotulo().textContent = modo === 'criar' ? 'Criar conta' : 'Entrar';
-      esqueci.classList.toggle('ds-hidden', modo === 'criar'); // .ds-btn é inline-flex: o atributo hidden sozinho não esconde
-      clear(erro); clear(aviso);
-    }
-    async function confirma() {
-      if (vai.disabled) return;
-      clear(erro); clear(aviso); vai.disabled = true; vai.setAttribute('aria-busy', 'true'); rotulo().textContent = modo === 'criar' ? 'Criando…' : 'Entrando…';
-      st.contaOcupada = true;
-      try {
-        await (modo === 'criar' ? conta.criarComEmail(email.value, senha.value) : conta.entrarComEmail(email.value, senha.value));
-        st.contaOcupada = false; try { st.conta = await conta.get(); } catch (e) { st.conta = null; }
-        if (haptics) haptics.evento('confirmacao');
-        st.contaChegou = Date.now(); // G-270 · a seção da conta chega com a transição de sucesso
-        closeDialog(); toast(modo === 'criar' ? 'Conta criada e conectada' : 'Conta conectada'); paint();
-      } catch (e) {
-        st.contaOcupada = false;
-        vai.disabled = false; vai.removeAttribute('aria-busy'); rotulo().textContent = modo === 'criar' ? 'Criar conta' : 'Entrar';
-        mount(erro, Note(__m29.motivoDe(e), 'negative'));
-        (/^email/.test(e && e.message) ? email : senha).focus();
-      }
-    }
-    const enter = ev => { if (ev.key === 'Enter') { ev.preventDefault(); confirma(); } };
-    email.addEventListener('keydown', enter); senha.addEventListener('keydown', enter);
-    Dialog({ title: 'Entrar com e-mail', body: Stack({},
-      h('div', { class: 'ds-segmentado', role: 'group', 'aria-label': 'Entrar ou criar conta', id: 'conta-email-modo' }, ...chips),
-      Field('E-mail', email),
-      h('label', { class: 'ds-field' }, h('span', { class: 'ds-field__label' }, 'Senha'), h('span', { class: 'conta-email__senha' }, senha, olho), dica),
-      Row({ class: 'ds-row--wrap' }, esqueci),
-      aviso,
-      Text('A senha não fica guardada no aparelho. A conta guarda o seu perfil na nuvem e o reconecta nos outros aparelhos.', { size: 'sm', tone: 'muted' }),
-      erro),
-      actions: [Button('Cancelar', { id: 'conta-email-cancelar', onClick: closeDialog }), vai] });
-    pinta();
-    (email0 ? senha : email).focus({ preventScroll: true });
+    dialogoEntrarComEmail({ conta, modo0, email0, ocupado: v => { st.contaOcupada = v; }, aoEntrar: async modo => {
+      try { st.conta = await conta.get(); } catch (e) { st.conta = null; }
+      if (haptics) haptics.evento('confirmacao');
+      st.contaChegou = Date.now(); // G-270 · a seção da conta chega com a transição de sucesso
+      closeDialog(); toast(modo === 'criar' ? 'Conta criada e conectada' : 'Conta conectada'); paint(); } });
   }
   /** G-266 · T6f-3 · nome de usuário único (@nome): lido da conta da Estante ao abrir o Perfil; Escolher/Trocar reserva. */
   function linhaUsuario(oc) {
@@ -18448,7 +18530,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
 }
 
 
-return { PainelEstatisticas, createDecksHome, createStarterDecks, createDeckEditor, createDeckScreen, createCollectionScreen, createPerfilScreen, createFichasScreen, createTerrenosScreen, createPartidasScreen, DeckLinha };
+return { createPortaDeEntrada, dialogoEntrarComEmail, PainelEstatisticas, createDecksHome, createStarterDecks, createDeckEditor, createDeckScreen, createCollectionScreen, createPerfilScreen, createFichasScreen, createTerrenosScreen, createPartidasScreen, DeckLinha };
 })();
 
 
@@ -39532,7 +39614,7 @@ const { detectEnvironment, ENVIRONMENTS } = __m10;
 const { createInstaller, registerServiceWorker } = __m11;
 const { createCardsScreen } = __m12;
 const { createDeckStore, createCollection } = __m14;
-const { createDecksHome, createStarterDecks, createDeckEditor, createDeckScreen, createCollectionScreen, createPerfilScreen, createFichasScreen, createTerrenosScreen, createPartidasScreen } = __m15;
+const { createDecksHome, createStarterDecks, createDeckEditor, createDeckScreen, createCollectionScreen, createPerfilScreen, createFichasScreen, createTerrenosScreen, createPartidasScreen, createPortaDeEntrada } = __m15;
 const { createTableSetup, createTableScreen, createSeriesScreen } = __m19;
 const { createNameIndex } = __m21;
 const { createOcr, createScannerScreen } = __m22;
@@ -39724,6 +39806,7 @@ const ROUTES = [
     dados: { baseLocal: () => __m12.painelBaseLocal({ local: localIndex, files: platform.files }),
       espaco: async () => ({ texto: descreveEspaco(await platform.persistence.estimate()), protecao: await platform.persistence.status() }),
       proteger: () => platform.persistence.request() } }) },
+  { path: '/entrar', title: 'Entrar', render: () => createPortaDeEntrada({ conta, haptics: platform.haptics, aoEntrar: () => saiDaPorta('conta'), aoPular: () => saiDaPorta('sem-conta') }) }, // G-274 · relato #22
   { path: '/ds', title: 'Design system', render: renderDS },
   { path: '*', title: 'Não encontrado', render: () => h('div', { class: 'ds-wrap', style: { paddingTop: 'var(--space-6)' } }, Empty('Rota não encontrada.')) }
 ];
@@ -39766,6 +39849,25 @@ function mostraApresentacao({ aoFechar } = {}) {
 async function primeiraAbertura() {
   if (typeof window !== 'undefined' && window.__SEM_APRESENTACAO) return false;
   try { return !(await platform.store.get(APRESENTACAO_KEY)); } catch (e) { return false; }
+}
+/* G-274 · T6f-5 · relato #22 · porta de entrada: na primeira abertura (sem a marca `ui.entrada` e sem conta conectada) o
+   app abre em /entrar; Google, e-mail ou "Continuar sem conta" gravam a marca e levam ao destino pedido (um convite de
+   sala aberto por quem ainda não escolheu chega à sala depois da porta). A apresentação de primeira abertura vem depois.
+   Testes pulam pelo gancho `window.__SEM_PORTA`. */
+const ENTRADA_KEY = 'ui.entrada';
+let destinoDaPorta = null;
+async function precisaDaPorta() {
+  if (typeof window !== 'undefined' && window.__SEM_PORTA) return false;
+  try { if (await platform.store.get(ENTRADA_KEY)) return false; } catch (e) { return false; } // sem disco: não prende ninguém na porta
+  try { if (conta && await conta.get()) { platform.store.set(ENTRADA_KEY, { via: 'conta', em: Date.now() }).catch(() => {}); return false; } } catch (e) { /* conta ilegível: a porta decide */ }
+  return true;
+}
+async function saiDaPorta(via) {
+  try { await platform.store.set(ENTRADA_KEY, { via, em: Date.now() }); } catch (e) { /* sem disco: entra assim mesmo */ }
+  const d = destinoDaPorta && !/^#\/entrar\b/.test(destinoDaPorta) ? destinoDaPorta : '#/';
+  destinoDaPorta = null;
+  location.hash = d;
+  if (await primeiraAbertura()) mostraApresentacao();
 }
 /** D3 · nome do perfil em memória: a tela inicial cumprimenta sem esperar o armazenamento (o botão da barra mantém). */
 let nomeDoPerfil = null;
@@ -40006,8 +40108,11 @@ async function boot(root) {
     const feitas = await __m24.migraReservas(decks, platform.store);
     if (feitas.length) { toast(feitas.length === 1 ? `Reserva separada em ${feitas[0]}` : `Reserva separada em ${feitas.length} listas`, 3600); }
   } catch (e) { /* sem armazenamento: a lista continua como estava */ }
+  // G-274 · primeira abertura sem conta: a porta de entrada vem antes de tudo; a apresentação, depois dela
+  const porta = await precisaDaPorta();
+  if (porta) { const h0 = location.hash || '#/'; destinoDaPorta = /^#\/entrar\b/.test(h0) ? '#/' : h0; history.replaceState(null, '', '#/entrar'); }
   router.start();
-  if (await primeiraAbertura()) mostraApresentacao();
+  if (!porta && await primeiraAbertura()) mostraApresentacao();
   // O1 · manutenção silenciosa: com rede, guarda o que ainda não está guardado
   // Q10 · uma passada por vez (o guardião garante), e também ao voltar para o app (o celular suspende a aba e
   // perde o evento "online"); no máximo uma a cada 10 minutos por esse caminho
