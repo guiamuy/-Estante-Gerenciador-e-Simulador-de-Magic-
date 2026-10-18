@@ -6235,7 +6235,7 @@ function validateScript(sc) {
     for (const ab of (sc && sc.abilities) || []) if (ab && temMvX(ab.effects) && !(ab.kind === 'activated' && /\{X\}/.test((ab.cost || {}).mana || ''))) errs.push('"targetMvIgualX" só em habilidade ativada com {X} no custo'); }
   for (const ab of (sc && sc.abilities) || []) if (ab && (ab.cost || {}).devolveSelf && !(ab.effects || []).some(e => e && e.do === 'reanimate' && e.target === 'self-source')) errs.push('"devolveSelf": a habilidade do cemitério precisa devolver a própria carta ao campo'); // M-398 · achado da revisão
   for (const ab of (sc && sc.abilities) || []) if (ab && ab.kind !== 'triggered' && (ab.effects || []).some(e => e && e.dividido)) errs.push('dano dividido: só em mágica e em habilidade disparada (a ativada ainda não divide — M-378)'); // M-378
-  for (const ab of (sc && sc.abilities) || []) if (ab.condition && !['lifeGained', 'attackersAtLeast', 'controlsOtherNamed', 'bargained', 'evidenced', 'kicked', 'opponentMoreLands', 'atacaSozinha', 'vidaPeloMenos', 'marcadoresNaFonte', 'entrouDesvirada', 'semTerrenoVirado', 'semCriaturas', 'segundaMagiaDoTurno' /* M-442 */, 'ferociousAoDisparar' /* M-455 */, ...condicoesK(), ...condicoesT()].includes(Object.keys(ab.condition)[0] || '')) errs.push('condição de gatilho desconhecida'); // K-59 · condições da trilha keywords (Toca ponto comum: validador de condições)
+  for (const ab of (sc && sc.abilities) || []) if (ab.condition && !['lifeGained', 'attackersAtLeast', 'controlsOtherNamed', 'bargained', 'evidenced', 'kicked', 'opponentMoreLands', 'atacaSozinha', 'vidaPeloMenos', 'marcadoresNaFonte', 'entrouDesvirada', 'semTerrenoVirado', 'semCriaturas', 'segundaMagiaDoTurno' /* M-442 */, 'ferociousAoDisparar' /* M-455 */, 'saiuPermanenteNoTurno' /* M-514 */, ...condicoesK(), ...condicoesT()].includes(Object.keys(ab.condition)[0] || '')) errs.push('condição de gatilho desconhecida'); // K-59 · condições da trilha keywords (Toca ponto comum: validador de condições)
   if (sc && sc.bargain != null && sc.bargain !== true) errs.push('barganha é uma marca, sem valor');
   if (sc && !sc.bargain && [...(sc.effects || []), ...((sc.modes || []).flatMap(m => (m && m.effects) || []))].some(e => e && (e.onlyIf === 'bargained' || (e.amount && e.amount.se === 'bargained')))) errs.push('"se barganhada" sem a barganha na carta'); // M-384 · achado da revisão
   if (sc && sc.evidence != null && !(Number.isInteger(sc.evidence) && sc.evidence > 0)) errs.push('colher provas precisa de um número inteiro positivo');
@@ -6864,6 +6864,11 @@ const RAW_SCRIPTS = [
     example: { target: 'own-creature', expect: { gone: true } } },
   { name: 'Epic Confrontation', effects: [{ do: 'lutador', target: 'creature-you-control' }, { do: 'pump', power: 1, toughness: 2, target: 'first-target' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }], // "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control."
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
+  // M-514 · CR 715 (Aventura) e 603.4 ("if" intermediário), texto da Scryfall de 18/10/2026 em .listas/oficiais-motor.json. "Flying" vem da linha da carta.
+  { name: 'Pegasus Guardian', self: { aventura: true }, omen: { mana: '{1}{W}' },
+    abilities: [{ kind: 'triggered', when: 'end-step', condition: { saiuPermanenteNoTurno: true }, effects: [{ do: 'token', amount: 1, token: { name: 'Pegasus', types: ['creature'], subtypes: ['Pegasus'], colors: ['W'], power: 1, toughness: 1, keywords: ['flying'] } }] }], // "At the beginning of your end step, if a permanent you controlled left the battlefield this turn, create a 1/1 white Pegasus creature token with flying."
+    back: { name: 'Rescue the Foal', types: ['instant'], colors: ['W'], effects: [{ do: 'pisca', target: 'creature-you-control' }] }, // "Exile target creature you control, then return that card to the battlefield under its owner's control."
+    example: { action: 'omen', target: 'own-creature', expect: { returnedToPlay: true } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
   // T-128 · CR 720 (presságio), 115.1, 601.2c/603.3d, 608.2b (Scryfall, consulta de 17/10/2026, rulings de 04/04/2025). "Flying, deathtouch" vêm da linha da carta.
   { name: 'Feral Deathgorger', omen: { mana: '{1}{B}' }, abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'mover', target: { zona: 'graveyard' }, para: 'exile', upTo: true, mesmoCemiterioT: true }, { do: 'mover', target: { zona: 'graveyard' }, para: 'exile', upTo: true, mesmoCemiterioT: true }] }], // "When this creature enters, exile up to two target cards from a single graveyard." (dois alvos opcionais; o segundo do mesmo cemitério do primeiro)
@@ -19097,6 +19102,8 @@ const __m42 = (function () {
     if (s2m) { condicao = { segundaMagiaDoTurno: true }; resto2 = s2m[1]; }
     const sn = !condicao && resto2.match(/^if you control no tapped lands, (.+)$/i); // M-373 · 603.4 (Martyr's Soul)
     if (sn) { condicao = { semTerrenoVirado: true }; resto2 = sn[1]; }
+    const sr = !condicao && resto2.match(/^if a permanent you controlled left the battlefield this turn, (.+)$/i); // M-514 · revolta (603.4)
+    if (sr) { condicao = { saiuPermanenteNoTurno: true }; resto2 = sr[1]; }
     const opcional = /^you may /i.test(resto2);
     let corpo = resto2.replace(/^you may /i, ''); const anexada = !!(g[1] && g[1].objeto === 'anexada'); if (!anexada) corpo = corpo.replace(/^it /i, '~ '); // M-401 · sob "Whenever enchanted/equipped creature …", "it" é a hospedeira, não a carta (Extra Arms)
     if (/(this creature|~)/i.test(cab) && !/\btarget\b/i.test(corpo)) corpo = corpo.replace(/ on it$/i, ' on ~'); // M-322 · "put a +1/+1 counter on it": "it" é a própria permanente da abertura
@@ -20050,6 +20057,7 @@ function createGame(setup) {
   s.turn.priority = s.turn.active;
   s.players.forEach((_, pi) => draw(s, pi, rules.hand));
   if (Object.values(s.facts).some(f => f && f.script && JSON.stringify(f.script).includes('"landfall-turno"'))) s.terrenoNoTurno = {}; // M-437 · só as partidas com carta de "landfall" de mágica guardam quem teve terreno entrando neste turno
+  if (Object.values(s.facts).some(f => f && f.script && JSON.stringify(f.script).includes('"saiuPermanenteNoTurno"'))) s.saidaNoTurnoM = {}; // M-514 · revolta: só as partidas que precisam guardam quem teve permanente saindo do campo neste turno
   if (Object.values(s.facts).some(f => f && f.script && JSON.stringify(f.script).includes('"morbid"'))) s.morteNoTurno = 0; // M-416 · mórbido: só as partidas que têm carta de mórbido guardam "uma criatura morreu neste turno" (o estado das outras não muda)
   return s;
 }
@@ -20274,6 +20282,7 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
   }
   if (fromZone === 'hand' && to === 'graveyard') noteDiscard(s, o.owner); // CR2b.4 · da mão para o cemitério é descarte
   if (s.terrenoNoTurno && to === 'battlefield' && fromZone !== 'battlefield' && tiposDe(s, o).includes('land')) s.terrenoNoTurno[o.controller] = s.turn.number; // M-437
+  if (s.saidaNoTurnoM && fromZone === 'battlefield' && to !== 'battlefield') s.saidaNoTurnoM[fromController] = s.turn.number; // M-514 · revolta: quem controlava quando saiu (fichas também)
   if (s.morteNoTurno != null && fromZone === 'battlefield' && to === 'graveyard' && ultima && ultima.power != null) s.morteNoTurno = s.turn.number; // M-416 · mórbido: uma criatura morreu neste turno (o campo só existe nas partidas com carta de mórbido)
   // CR2-G R2a · 603.6 · entrar, morrer, sair do campo e "a anexada morre" são o mesmo evento de mudança de zona
   if (s.entrandoJuntas) s.entrandoJuntas.push([o.oid, fromZone, to, fromController, ultima]); else // M-426 · 603.6a: as que entram no mesmo evento se veem (pisca_volta junta os gatilhos)
@@ -24071,6 +24080,7 @@ function triggerConditionMet(s, o, cond) {
   if (cond.atacaSozinha && !(s.combat && (s.combat.attackers || []).length === 1 && s.combat.attackers[0] === o.oid)) return false; // M-251 · 506.5 "attacks alone"
   if (cond.preparada != null && preparadaT(s, o) !== !!cond.preparada) return false; // T-51 · CR 722.3a · "if this creature is (isn't) prepared" (Toca ponto comum: triggerConditionMet)
   if (cond.ferociousAoDisparar && !battlefield(s).some(x => x.controller === o.controller && isCreature(s, x) && power(s, x) >= 4)) return false; // M-455 · "Ferocious — Whenever ~ attacks while you control a creature with power 4 or greater" (Ravening Warg): "while" faz parte do evento — só no disparo, não de novo na resolução
+  if (cond.saiuPermanenteNoTurno && !(s.saidaNoTurnoM && s.saidaNoTurnoM[o.controller] === s.turn.number)) return false; // M-514 · revolta: "if a permanent you controlled left the battlefield this turn" (603.4: ao disparar e ao resolver)
   if (cond.selada && !seladaAgoraT(s, o)) return false; // T-31 · CR 702.171b: "while saddled" (Toca ponto comum: triggerConditionMet)
   if (cond.fonteDesvirada && o.tapped) return false; // T-101 · 603.4 · "if ~ is untapped" (Howling Mine) (Toca ponto comum: triggerConditionMet)
   if (cond.primeiraManutencao && s.emPassoExtraT === 'upkeep') return false; // T-101 · 500.9 · "first upkeep each turn" (Paradox Haze)
