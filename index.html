@@ -10292,6 +10292,16 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Golgari Thug': { texto: '3am5qh', leva: 'M-520' },
   'Vivid Creek': { texto: '1724fqm', leva: 'M-520' },
   'Corrupt': { texto: '18hv5qg', leva: 'M-520' },
+  // M-521 · revisão por lote CLIX (cartas que o leitor já lia por inteiro e que mais travam as listas do catálogo), textos da Scryfall de 18/10/2026 UTC, revisor independente
+  'Vivid Crag': { texto: '68frzd', leva: 'M-521' },
+  'Sejiri Steppe': { texto: 'yq5nqg', leva: 'M-521' },
+  'Silent Clearing': { texto: '1l8xk96', leva: 'M-521' },
+  'Eladamri\'s Call': { texto: '1wv8hzg', leva: 'M-521' },
+  'Mana Tithe': { texto: 'tx1guc', leva: 'M-521' },
+  'Sword of the Animist': { texto: '1v8kl9e', leva: 'M-521' },
+  'Vivid Marsh': { texto: '1ba752x', leva: 'M-521' },
+  'Llanowar Reborn': { texto: '1mkst2j', leva: 'M-521' },
+  'Light Up the Stage': { texto: '10xtgow', leva: 'M-521' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -25979,10 +25989,10 @@ const HANDLERS = {
       if (pk.manaRestam > 1) { s.pending = { ...pk, manaRestam: pk.manaRestam - 1 }; return; }
       s.pending = null; resumeEffects(s, ev || []); return;
     }
-    const o = s.objects[s.pending.oid];
-    if (o) o.chosenColor = a.color;
+    const o = s.objects[s.pending.oid], soDaResolucaoM = !!s.pending.semGuardarM; // M-521 · cor do gatilho: só para esta resolução, a fonte não guarda
+    if (o && !soDaResolucaoM) o.chosenColor = a.color;
     if (s.resume && s.resume.oid === s.pending.oid) s.resume.chosenColor = a.color; // M-348 · a mágica já saiu da pilha: a cor viaja na retomada
-    s.queuedChoices = (s.queuedChoices || []).filter(c => c.oid !== s.pending.oid);
+    if (!soDaResolucaoM) s.queuedChoices = (s.queuedChoices || []).filter(c => c.oid !== s.pending.oid);
     s.pending = null;
     resumeEffects(s, ev || []);
   },
@@ -27004,6 +27014,14 @@ function resolveAbility(s, o, events) {
   const ok = targeted.map((eff, i) => targetStillLegal(s, o.controller, eff.target, chosen[i], o.oid, eff.targetColor, eff, o));
   const semNenhum = targeted.length && targeted.every((eff, i) => chosen[i] == null && eff.upTo); // M-338 · todos os "up to" vazios: resolve sem alvo
   if (targeted.length && !semNenhum && ok.every((x, i) => !x && !(chosen[i] == null && targeted[i].upTo))) { events.push({ kind: 'fizzled', oid: o.oid, name: o.name }); return; }
+  // M-521 · 702.16 · "gains protection from the color of your choice" num gatilho (Sejiri Steppe): quem controla escolhe a cor na resolução, depois da
+  // conferência de alvos e antes do efeito. A ativada (Mother of Runes) já traz a cor na ativação. A pergunta mostra o nome da fonte e a cor não fica
+  // guardada nela (semGuardarM): vale só para esta resolução.
+  if (!o.chosenColor && (o.effects || []).some(e => e && e.do === 'protection')) {
+    s.pending = { kind: 'choose_color', p: o.controller, oid: o.source || o.oid, semGuardarM: true, ...((o.effects || []).some(e => e && e.ouArtefatos) ? { ouArtefatos: true } : {}) };
+    s.resume = { oid: o.source || o.oid, name: o.name, controller: o.controller, ...(o.source && o.fonteZc != null ? { fonteZcR: o.fonteZc } : {}), effects: o.effects || [], alvo: chosen[0] || null, alvos: targeted.map((e, i) => ok[i] ? chosen[i] : null) };
+    return;
+  }
   let ti = 0, primeiro = null, donoDoPrimeiro = null, primeiroVazio = false, neveDoPrimeiro = false, mordedorH = null, lendarioDoPrimeiroH = false; /* M-414 */ /* M-407 · também nas habilidades (Vivien of the Arkbow −3) */ // M-385 · achado da revisão: a condição do terreno nevado também nas habilidades // M-327 · 608.2h: o controlador do alvo é o de antes do efeito
   const fonte = s.objects[o.source];
   for (const eff of o.effects || []) {
