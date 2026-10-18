@@ -871,3 +871,24 @@ test('L9 · versões vão e voltam no backup: a lista exportada leva as versões
   const volta = await decksB.get(d.id);
   eqJ(versoesDa(volta).map(v => [v.n, v.entries[0].qty]), [[1, 16], [2, 15]]);
 });
+
+test('G-272 · desfazer a exclusão: restore devolve a lista igual (mesmo id, datas e posição na ordem)', async () => {
+  let t = 1000; const store = P.memoryStore();
+  const decks = D.createDeckStore({ store, now: () => ++t });
+  const a = await decks.save({ name: 'A', format: 'pauper', entries: [] });
+  const b = await decks.save({ name: 'B', format: 'pauper', entries: [] });
+  const c = await decks.save({ name: 'C', format: 'pauper', entries: [] });
+  const ordem = async () => (await decks.list()).map(d => d.name).join(',');
+  assert.equal(await ordem(), 'C,B,A');
+  const tirada = await decks.get(b.id);
+  await decks.remove(b.id);
+  assert.equal(await ordem(), 'C,A');
+  const volta = await decks.restore(tirada);
+  assert.deepEqual({ ...volta }, { ...tirada });
+  assert.equal(await ordem(), 'C,B,A', 'volta no mesmo lugar: a data não muda');
+  assert.deepEqual({ ...(await decks.get(b.id)) }, { ...tirada });
+  await decks.restore(tirada);
+  assert.equal((await decks.list()).length, 3, 'restaurar duas vezes não duplica');
+  assert.equal(await decks.restore(null), null);
+  assert.ok(a && c);
+});

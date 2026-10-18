@@ -538,6 +538,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-es ✅ | T6f-5a trocar a senha da conta de e-mail no Perfil, conferindo a de agora (relato #18, fatia 5a, leva G-268) | P | 1 | teste no aparelho |
 | 16º-et ✅ | T6f-5b excluir a conta: confere quem é, limpa a nuvem da conta e só então a exclui; diz o que sai e o que fica (relato #18, fatia 5b, leva G-269) | P | 1 | teste no aparelho |
 | 16º-eu ✅ | T6f-6 transições da conta: botão ocupado com giro, erro com tremor curto, conta que entra sobe e brilha uma vez; com menos movimento, nada se mexe (relato #18, fatia 6 de 6, leva G-270) | P | 1 | teste no aparelho |
+| 16º-ev ✅ | I2b excluir pela estante: lixeira ao lado de cada lista em Listas, com confirmação e aviso com Desfazer (relato #21, leva G-272) | G | 1 | teste no aparelho |
 | 16º-ee ✅ | T6e-2 Enviar relato sem sair do app: com a conta conectada e a fila ligada, o relato vai para a fila do Firebase e o cartão mostra "Na fila" até o número do registro (relato #13, leva G-255) | T | 1 | — |
 | 16º-eh ✅ | T6e-2 prazo honesto do relato pela fila: o GitHub atrasa o agendamento em horas, a tela diz "de minutos a algumas horas" e a conversa que lê relatos roda a fila antes (relato #13, leva G-256) | T | 1 | 16º-ee |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
@@ -9234,6 +9235,20 @@ mesmo padrão de design".
 - **Testes:** U `table.unit` ×2; e2e "E50 janela do atacante" (pares na mesma linha, ícones, cores, nome falado,
   `auditaTela`) e e2e "I1" (fase em cima, largura inteira, ícone por linha, filete, resumo com a mesma linha;
   `auditaTela` claro e escuro).
+
+**I2b · Excluir pela estante (relato #21)** ✅ (leva G-272, trilha `geral`, 18/10/2026)
+- **Pedido:** lixeira ao lado de cada lista na listagem, para excluir sem abrir a lista; sempre confirmar; aviso sutil de
+  sucesso.
+- **Como:** em Listas, cada linha vira um par — o botão da lista (o mesmo `DeckLinha`, que leva à lista) e, ao lado, a
+  lixeira (ícone, 44 px, fantasma com o tom de perigo; nome falado "Excluir <lista>"; fora do botão da linha, porque
+  botão dentro de botão não existe). Toque: folha "Excluir lista?" com o nome e "A coleção não é afetada", Cancelar e
+  Excluir (perigo). Confirmado: a linha sai e o aviso "Lista excluída" traz **Desfazer** por 8 s; desfazer devolve a
+  lista igual — mesmo id, mesmas datas, mesma posição na ordem (`decks.restore`) — e as etiquetas, que só são esquecidas
+  depois que o Desfazer vence. Vale com filtro ligado e na última lista (vai ao estado vazio e volta).
+- **Testes:** U `decks.unit` (G-272: `restore` devolve igual, na mesma ordem, sem duplicar); e2e "G-272" (44 px ao lado da
+  linha, cancelar não apaga, excluir com aviso e Desfazer na mesma ordem, com filtro, última lista e estado vazio, duas
+  auditorias de tela). U2, D4a, D5, I2 e os demais testes de Listas continuam verdes.
+- **Fora:** excluir várias de uma vez; limpar etiquetas órfãs se o app fechar nos 8 s do Desfazer (dívida aceita na revisão de escala, custo de bytes).
 
 **I2 · Coleção e listas no mesmo padrão de filtro** ✅ (leva 185, 05/10/2026)
 - **Coleção:** a linha "N carta(s) · M cópia(s)" saiu de baixo do título (repetia o Painel). O **cabeçalho do Painel**

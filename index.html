@@ -1609,6 +1609,12 @@ body:has(#outlet .ds-fab[data-acoes="1"]) #outlet { padding-bottom: calc(56px + 
 .ds-list__item .ds-stack { min-width: 0; }
 /* Leva 110 · linha da lista: nome em cima, uma faixa de símbolos embaixo, posse como barra fina */
 .deck-item { align-items: center; gap: var(--space-3); }
+/* G-272 · relato #21: a linha da estante com a lixeira ao lado (a borda passa da linha para o par) */
+.deck-linha { display: flex; align-items: center; border-bottom: 1px solid var(--border); }
+.deck-linha:last-child { border-bottom: none; }
+.deck-linha > .ds-list__item { flex: 1 1 0; min-width: 0; border-bottom: none; }
+.deck-linha__excluir { flex: none; margin-right: var(--space-1); color: var(--fg-subtle); }
+.deck-excluir__nome { font-family: var(--font-display); font-size: var(--text-lg); color: var(--fg); overflow-wrap: anywhere; margin: 0; }
 .deck-item__corpo { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: var(--space-2); text-align: left; }
 .deck-item__nome { font-family: var(--font-display); font-size: var(--text-lg); line-height: 1.2; color: var(--fg); overflow-wrap: anywhere; hyphens: auto; }
 .deck-item__meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); color: var(--fg-muted); }
@@ -10825,6 +10831,15 @@ function createDeckStore({ store, now = () => Date.now() }) {
       await store.set(IDS, (await ids()).filter(x => x !== id));
       return true;
     },
+    /** G-272 · Desfazer a exclusão: a lista volta exatamente como era (mesmo id, mesmas datas, mesma posição na ordem). */
+    async restore(deck) {
+      if (!deck || !deck.id) return null;
+      await store.set(DECK(deck.id), deck);
+      const cur = await ids();
+      if (!cur.includes(deck.id)) await store.set(IDS, [...cur, deck.id]);
+      avisa(deck);
+      return deck;
+    },
     /** Backup completo: listas + coleção. O dado mora no aparelho. */
     /** Leva 128 · `extras` ({ perfil, prefs }) entram no arquivo como estão; sem eles o arquivo é o v2 de sempre. */
     async exportAll(collection, extras = null) {
@@ -15866,6 +15881,7 @@ function abrirFiltrosDeListas({ filtro, formatos, onChange, onLimpar }) {
     Button('Mostrar', { variant: 'primary', id: 'decks-filters-apply', onClick: closeDialog })] });
   aplica();
 }
+const EXCLUIR_DESFAZER_MS = 8000; // G-272 · tempo do Desfazer depois de excluir uma lista pela estante
 function createDecksHome({ decks, collection, files, cardRepo, backup = null, etiquetas = null }) {
   const list = h('div', { id: 'decks-list' }, __m3.Esqueleto({ linhas: 4, fala: 'Abrindo as listas…' })); // J4 · a espera já tem a forma da estante
   // J6 · o botão de ação só existe quando há listas (a estante vazia tem os próprios convites, e um primário só)
@@ -15952,10 +15968,29 @@ function createDecksHome({ decks, collection, files, cardRepo, backup = null, et
       const need = d.entries.reduce((s, e) => s + e.qty, 0);
       const have = d.entries.reduce((s, e) => s + Math.min(e.qty, owned[norm(e.name)] || 0), 0);
       const reserva = d.entries.filter(e => e.zone === 'side').reduce((s, e) => s + e.qty, 0);
-      return DeckLinha({ nome: d.name, formato: d.format, cores: coresDaLista(d.entries, guardadas), main: need - reserva, side: reserva,
-        posse: { have, need }, onClick: () => go('/lista?id=' + d.id), dataset: { deck: d.id }, etiquetas: __m32.de(etq, 'listas', d.id),
-        valor: (v => v.comPreco ? { texto: __m31.principal(v), fala: `valor estimado ${__m31.principal(v)}` + (v.semPreco ? `, ${v.semPreco} carta(s) sem preço` : '') } : null)(valores.get(d.id)) });
+      // G-272 · relato #21: a lixeira mora ao lado da linha (não dentro dela: botão dentro de botão não existe)
+      return h('div', { class: 'deck-linha', dataset: { deckLinha: d.id } },
+        DeckLinha({ nome: d.name, formato: d.format, cores: coresDaLista(d.entries, guardadas), main: need - reserva, side: reserva,
+          posse: { have, need }, onClick: () => go('/lista?id=' + d.id), dataset: { deck: d.id }, etiquetas: __m32.de(etq, 'listas', d.id),
+          valor: (v => v.comPreco ? { texto: __m31.principal(v), fala: `valor estimado ${__m31.principal(v)}` + (v.semPreco ? `, ${v.semPreco} carta(s) sem preço` : '') } : null)(valores.get(d.id)) }),
+        IconButton('lixeira', 'Excluir ' + d.name, { variant: 'ghost', classe: 'ds-btn--perigo deck-linha__excluir', dataset: { excluir: d.id }, onClick: () => confirmaExcluir(d) }));
     })));
+  }
+  /** G-272 · excluir pela estante: confirma, tira e oferece Desfazer por 8 s (a lista volta igual, com as etiquetas). */
+  function confirmaExcluir(d) {
+    Dialog({ title: 'Excluir lista?', body: Stack({},
+      h('p', { class: 'ds-text ds-text--md deck-excluir__nome' }, d.name),
+      Text('Some deste aparelho. A coleção não é afetada.', { tone: 'muted' })),
+      actions: [Button('Cancelar', { id: 'deck-excluir-cancelar', onClick: closeDialog }),
+        Button('Excluir', { variant: 'danger', icone: 'lixeira', id: 'deck-excluir-confirmar', onClick: async () => {
+          closeDialog();
+          await decks.remove(d.id);
+          let desfeito = false;
+          setTimeout(() => { if (!desfeito && etiquetas) etiquetas.esquece('listas', d.id).catch(() => {}); }, EXCLUIR_DESFAZER_MS + 500);
+          toast('Lista excluída', EXCLUIR_DESFAZER_MS, { acao: { rotulo: 'Desfazer', icone: 'desfazer', onClick: async () => {
+            desfeito = true; await decks.restore(d); toast('Lista de volta'); paint(); } } });
+          paint();
+        } })] });
   }
   const root = Stack({ ...pad(), class: 'ds-wrap decks-home' },
     // J6 · "Nova" e "Prontas" saíram do topo: moram no botão de ação (canto inferior direito), que é o primário da tela

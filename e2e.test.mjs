@@ -2779,6 +2779,52 @@ test('e2e · U2 parte 2 listas e coleção: ícones, rótulos curtos, cabeçalho
 });
 
 // E50 (leva 94) · todo diálogo tem um X fixo no topo; o ícone do app na barra é um ladrilho com relevo.
+
+/* G-272 · relato #21: excluir pela estante, com confirmação e Desfazer */
+test('e2e · G-272 lixeira na estante: 44 px ao lado da linha, confirma antes, aviso com Desfazer devolve a lista igual; com filtro e na última lista', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Azul', PAUPER);
+  await createDeck(page, base, 'Quatro cores Kor Skyfisher com um nome bem comprido', '20 Plains\n4 Kor Skyfisher');
+  await page.goto(base + '#/listas'); await page.waitForSelector('#decks-list .deck-linha__excluir');
+  const nomes = async () => page.$$eval('#decks-list .deck-item__nome', ns => ns.map(n => n.textContent));
+  const antes = await nomes();
+  // 1 · ao lado da linha (não dentro do botão da linha), com nome falado e alvo de 44 px
+  assert.equal(await page.locator('#decks-list .ds-list__item .deck-linha__excluir').count(), 0, 'não fica dentro do botão da linha');
+  const lixo = page.locator('#decks-list [data-excluir]').first();
+  assert.match(await lixo.getAttribute('aria-label'), /^Excluir /);
+  const caixa = await lixo.boundingBox(); assert.ok(caixa.width >= 44 && caixa.height >= 44, JSON.stringify(caixa));
+  await auditaTela(page, 'listas · lixeira na linha');
+  // 2 · cancelar não apaga
+  await lixo.click(); await page.waitForSelector('#deck-excluir-confirmar');
+  assert.match(await page.innerText('.ds-dialog'), /Excluir lista\?[\s\S]*A coleção não é afetada/);
+  await page.click('#deck-excluir-cancelar');
+  assert.deepEqual(await nomes(), antes);
+  // 3 · excluir: a linha sai e o aviso oferece Desfazer
+  const alvo = antes[0];
+  await page.locator(`#decks-list [aria-label="Excluir ${alvo}"]`).click(); await page.click('#deck-excluir-confirmar');
+  await page.waitForFunction(n => ![...document.querySelectorAll('#decks-list .deck-item__nome')].some(x => x.textContent === n), alvo);
+  await page.waitForSelector('#ds-toast[data-open="true"] .ds-toast__acao');
+  assert.match(await page.innerText('#ds-toast'), /Lista excluída/);
+  await auditaTela(page, 'listas · aviso com Desfazer');
+  // 4 · Desfazer devolve a lista no mesmo lugar
+  await page.click('#ds-toast .ds-toast__acao');
+  await page.waitForFunction(n => [...document.querySelectorAll('#decks-list .deck-item__nome')].some(x => x.textContent === n), alvo);
+  assert.deepEqual(await nomes(), antes, 'mesma ordem de antes');
+  // 5 · com filtro de texto: a lixeira some junto com a linha filtrada e a contagem acompanha
+  await page.fill('#decks-filter', 'Kor');
+  await page.waitForFunction(() => document.querySelectorAll('#decks-list .deck-linha').length === 1);
+  await page.click('#decks-list [data-excluir]'); await page.click('#deck-excluir-confirmar');
+  await page.waitForSelector('#decks-filtros-limpar-vazio');
+  await page.click('#decks-filtros-limpar-vazio');
+  // 6 · a última lista: excluir leva ao estado vazio, de onde o Desfazer também traz de volta
+  await page.waitForFunction(() => document.querySelectorAll('#decks-list .deck-linha').length === 1);
+  await page.click('#decks-list [data-excluir]'); await page.click('#deck-excluir-confirmar');
+  await page.waitForSelector('#decks-vazio');
+  await page.click('#ds-toast .ds-toast__acao');
+  await page.waitForSelector('#decks-list .deck-linha');
+  assert.deepEqual(errors, []);
+});
 test('e2e · E50 X no topo de todo diálogo (fixo ao rolar, fecha, foco não vai para ele) e ícone da barra com relevo', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.addInitScript(() => { window.__MTG_TEST = true; });
