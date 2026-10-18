@@ -16217,7 +16217,7 @@ function dialogoEntrarComEmail({ conta, modo0 = 'entrar', email0 = '', ocupado =
 /* ---------------- G-274 · T6f-5 · porta de entrada (relato #22) ----------------
    Primeira abertura: boas-vindas com Google, e-mail e um "Continuar sem conta" discreto (decisão do dono, 18/10/2026).
    Quem já entrou vai direto. A tela só desenha: a conta é a mesma do Perfil e o app decide quando ela aparece. */
-function createPortaDeEntrada({ conta = null, haptics = null, aoEntrar = () => {}, aoPular = () => {} }) {
+function createPortaDeEntrada({ conta = null, perfil = null, haptics = null, aoEntrar = () => {}, aoPular = () => {} }) {
   const root = h('section', { class: 'porta', id: 'porta', 'aria-labelledby': 'porta-titulo' });
   const st = { ocupado: false, erro: null };
   const temRede = () => typeof navigator === 'undefined' || navigator.onLine !== false;
@@ -16236,7 +16236,31 @@ function createPortaDeEntrada({ conta = null, haptics = null, aoEntrar = () => {
     catch (e) { st.ocupado = false; st.erro = __m29.motivoDe(e); pinta(); }
   }
   const email = () => dialogoEntrarComEmail({ conta, ocupado: v => { st.ocupado = v; }, aoEntrar: async modo => {
-    closeDialog(); toast(modo === 'criar' ? 'Conta criada e conectada' : 'Conta conectada'); await entrou(); } });
+    closeDialog(); toast(modo === 'criar' ? 'Conta criada e conectada' : 'Conta conectada');
+    if (modo === 'criar' && perfil) return pintaNome(); // G-275 · o perfil nasce com a conta: o nome na mesa, com pular
+    await entrou(); } });
+  /** G-275 · T6f-7b · logo depois de criar a conta: como você aparece na mesa (o mesmo nome do Perfil, que sincroniza). */
+  async function pintaNome() {
+    let atual = { nome: '' }; try { atual = await perfil.get(); } catch (e) { /* sem disco: em branco */ }
+    const campo = Input({ id: 'porta-nome', value: atual.nome || '', maxlength: String(perfil.NOME_MAX || 24), placeholder: 'Como você aparece na mesa', autocomplete: 'nickname' });
+    const erro = h('div', { class: 'porta__erro', id: 'porta-nome-erro', role: 'alert' });
+    const segue = async () => {
+      const nome = campo.value.trim(); if (!nome) { campo.focus(); return mount(erro, Note('Escreva um nome, ou toque em Pular.', 'negative')); }
+      try { await perfil.set({ nome }); document.dispatchEvent(new CustomEvent('estante:perfil')); } catch (e) { return mount(erro, Note('Não deu para guardar o nome agora. Tente de novo ou pule.', 'negative')); }
+      await entrou();
+    };
+    campo.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); segue(); } });
+    mount(root,
+      h('div', { class: 'porta__marca' },
+        item(0, h('span', { class: 'porta__ladrilho', 'aria-hidden': 'true', html: __m4.iconeDoApp({ tamanho: 88, animado: true }) })),
+        item(1, Text('Conta criada', { size: '2xl', display: true, as: 'h1', attrs: { id: 'porta-titulo' } })),
+        item(2, Text('Como você quer aparecer na mesa? Dá para trocar depois, no Perfil.', { tone: 'muted', attrs: { id: 'porta-frase' } }))),
+      h('div', { class: 'porta__item', id: 'porta-passo-nome', style: { '--porta-i': '3' } }, Field('Nome', campo)),
+      h('div', { class: 'porta__acoes porta__item', id: 'porta-acoes', style: { '--porta-i': '4' } }, erro,
+        Button('Seguir', { variant: 'primary', block: true, icone: 'seguir', id: 'porta-nome-seguir', onClick: segue }),
+        Button('Pular', { variant: 'ghost', id: 'porta-nome-pular', onClick: () => entrou() })));
+    campo.focus({ preventScroll: true });
+  }
   const item = (i, ...filhos) => h('div', { class: 'porta__item', style: { '--porta-i': String(i) } }, ...filhos);
   function pinta() {
     const rede = temRede(), g = comGoogle(), e = comEmail(), nenhuma = !g && !e;
@@ -16267,7 +16291,7 @@ function createPortaDeEntrada({ conta = null, haptics = null, aoEntrar = () => {
   return root;
 }
 
-function createPerfilScreen({ perfil, backup, conta = null, haptics = null, theme = null, apresentacao = null, dados = null, som = null, fichas = null, partidas = null, terrenos = null, relatos = null, apagar = null, nuvemConectada = () => false, bloqueios = null }) {
+function createPerfilScreen({ perfil, backup, conta = null, haptics = null, theme = null, apresentacao = null, dados = null, som = null, fichas = null, partidas = null, terrenos = null, relatos = null, apagar = null, nuvemConectada = () => false, bloqueios = null, aoSair = null }) {
   const root = Stack(pad(), __m3.Carregando('Abrindo…', { tamanho: 'tela' }));
   const st = { salvo: null, nome: '', avatar: null, erro: null, ocupado: false, conta: null, contaOcupada: false };
   const mudou = () => !!st.salvo && (st.nome !== st.salvo.nome || st.avatar !== st.salvo.avatar);
@@ -16611,7 +16635,7 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
         Row({ class: 'ds-row--wrap' },
           Button('Trocar a senha', { icone: 'editar', id: 'conta-senha-trocar', variant: 'ghost', disabled: oc || e.estado !== 'conectada', title: e.estado !== 'conectada' ? 'Entre de novo antes de trocar a senha' : 'Trocar a senha desta conta', onClick: () => abreTrocarSenha() }),
           botaoExcluir(c, oc, e.estado),
-          Button('Sair', { icone: 'desistir', id: 'conta-sair', variant: 'ghost', disabled: oc, onClick: () => acaoDaConta(async () => { await conta.sair(); toast('Conta desconectada'); }) }))));
+          Button('Sair', { icone: 'desistir', id: 'conta-sair', variant: 'ghost', disabled: oc, onClick: () => acaoDaConta(async () => { await conta.sair(); toast('Conta desconectada'); if (aoSair) aoSair(); /* G-275 · volta à porta */ }) }))));
     }
     return Surface({ class: 'ds-surface--pad', id: 'perfil-conta', dataset: { conectada: 'true', chegou: String(chegouAgora()) } }, Stack({}, cabeca,
       Row({ class: 'perfil-conta__quem' },
@@ -16634,7 +16658,7 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
           toast(await backup.restaurar(b.texto)); await carrega();
         }) }),
         botaoExcluir(c, oc, conta.estante ? conta.estante().estado : 'desligada'),
-        Button('Sair', { icone: 'desistir', id: 'conta-sair', variant: 'ghost', disabled: oc, onClick: () => acaoDaConta(async () => { await conta.sair(); toast('Conta desconectada'); }) }))));
+        Button('Sair', { icone: 'desistir', id: 'conta-sair', variant: 'ghost', disabled: oc, onClick: () => acaoDaConta(async () => { await conta.sair(); toast('Conta desconectada'); if (aoSair) aoSair(); /* G-275 · volta à porta */ }) }))));
   }
   /** G-270 · a seção acabou de ganhar a conta (entrada nos últimos 1,5 s): a transição de sucesso roda uma vez — a
       próxima pintura (sincronia, nome de usuário) já não repete. */
@@ -39796,7 +39820,7 @@ const ROUTES = [
     // Y3 · abrir a partida anexada: entra no lugar da salva (sem a parte online) e a série em curso sai
     partidas: { temSalva: async () => { try { const d = await platform.store.get(__m18.SAVE_KEY); return !!(d && d.kind === 'estante.match'); } catch (e) { return false; } },
       abre: async p => { const { online: _fora, ...opcoes } = p.options || {}; await platform.store.set(__m18.SAVE_KEY, { ...p, options: opcoes, savedAt: Date.now() }); await platform.store.remove(__m18.SERIE_KEY).catch(() => {}); location.hash = '#/partida'; } } }) }, // Y1 · Y3
-  { path: '/perfil', title: 'Perfil', render: () => createPerfilScreen({ perfil, backup, conta, bloqueios: online.bloqueios, nuvemConectada: () => { try { return online.modo === 'firebase' && conta.estante().estado === 'conectada' && !!conta.sessao.uid(); } catch (e) { return false; } },
+  { path: '/perfil', title: 'Perfil', render: () => createPerfilScreen({ perfil, backup, conta, bloqueios: online.bloqueios, nuvemConectada: () => { try { return online.modo === 'firebase' && conta.estante().estado === 'conectada' && !!conta.sessao.uid(); } catch (e) { return false; } }, aoSair: () => voltaAPorta(),
     apagar: (o = {}) => __m41.apagaTudoComNuvem({ nuvem: o.nuvem ? async () => { // P-13 · nuvem primeiro, com a conta ainda conectada; falhou: a sincronia volta
       try { sincronia.para(); } catch (e) { /* sem sincronia */ }
       let ok = false; try { const uid = conta.sessao.uid(); ok = !!uid && await __m40.createPerfilRemoto({ transporte: online.transporte, uid }).apagarTudo() && await online.bloqueios.apagarDaNuvem(); /* P-15 · a lista de bloqueados sai junto */ } catch (e) { ok = false; }
@@ -39806,7 +39830,7 @@ const ROUTES = [
     dados: { baseLocal: () => __m12.painelBaseLocal({ local: localIndex, files: platform.files }),
       espaco: async () => ({ texto: descreveEspaco(await platform.persistence.estimate()), protecao: await platform.persistence.status() }),
       proteger: () => platform.persistence.request() } }) },
-  { path: '/entrar', title: 'Entrar', render: () => createPortaDeEntrada({ conta, haptics: platform.haptics, aoEntrar: () => saiDaPorta('conta'), aoPular: () => saiDaPorta('sem-conta') }) }, // G-274 · relato #22
+  { path: '/entrar', title: 'Entrar', render: () => createPortaDeEntrada({ conta, perfil, haptics: platform.haptics, aoEntrar: () => saiDaPorta('conta'), aoPular: () => saiDaPorta('sem-conta') }) }, // G-274 · relato #22
   { path: '/ds', title: 'Design system', render: renderDS },
   { path: '*', title: 'Não encontrado', render: () => h('div', { class: 'ds-wrap', style: { paddingTop: 'var(--space-6)' } }, Empty('Rota não encontrada.')) }
 ];
@@ -39861,6 +39885,15 @@ async function precisaDaPorta() {
   try { if (await platform.store.get(ENTRADA_KEY)) return false; } catch (e) { return false; } // sem disco: não prende ninguém na porta
   try { if (conta && await conta.get()) { platform.store.set(ENTRADA_KEY, { via: 'conta', em: Date.now() }).catch(() => {}); return false; } } catch (e) { /* conta ilegível: a porta decide */ }
   return true;
+}
+/** G-275 · T6f-7b · Sair da conta volta à porta (a marca sai deste aparelho); o aviso de saída chega com ela. */
+function voltaAPorta() {
+  if (typeof window !== 'undefined' && window.__SEM_PORTA) return; // testes sem porta: Sair fica no Perfil, como antes
+  platform.store.remove(ENTRADA_KEY).catch(() => {});
+  destinoDaPorta = '#/';
+  const avisa = () => { window.removeEventListener('hashchange', avisa); setTimeout(() => __m3.toast('Conta desconectada. O que está no aparelho continua aqui.'), 0); };
+  window.addEventListener('hashchange', avisa);
+  location.hash = '#/entrar';
 }
 async function saiDaPorta(via) {
   try { await platform.store.set(ENTRADA_KEY, { via, em: Date.now() }); } catch (e) { /* sem disco: entra assim mesmo */ }

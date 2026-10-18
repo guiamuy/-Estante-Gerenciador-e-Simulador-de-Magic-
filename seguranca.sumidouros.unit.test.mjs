@@ -90,6 +90,7 @@ const PERMITIDOS = [
   { onde: 'pinta · html:', vale: ['logoLockup(30)'], por: 'catálogo /ds: marca do app' },
   { onde: 'pinta · html:', vale: ["logoSvg(32, 'mono')"], por: 'catálogo /ds: marca do app' },
   { onde: 'pinta · html:', vale: ['__m4.iconeDoApp({ tamanho: 88, animado: true })'], por: 'G-274 · porta de entrada: ícone do app, gerado pelo código (sem dado de fora)' },
+  { onde: 'pintaNome · html:', vale: ['__m4.iconeDoApp({ tamanho: 88, animado: true })'], por: 'G-275 · porta, passo do nome: o mesmo ícone do app' },
   { onde: 'pintaContorno · innerHTML', vale: ['W.toFixed(1)', 'H.toFixed(1)', "pts.map(q => `${(q.x - x0).toFixed(1)},${(q.y - y0).toFixed(1)}`).join(' ')"], por: 'scanner: só números da moldura' },
   { onde: 'appBar · html:', vale: ['logoLockup(30)'], por: 'marca do app na barra' }
 ];

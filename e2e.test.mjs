@@ -5203,6 +5203,8 @@ test('e2e · G-274 porta de entrada: a primeira abertura (até por um link) para
   await page.click('#conta-email-modo [data-modo="criar"]');
   await page.fill('#conta-email-campo', 'nova@exemplo.com'); await page.fill('#conta-senha', 'senha-certa-1');
   await page.click('#conta-email-confirmar');
+  // G-275 · criar a conta pede o nome na mesa antes; aqui, Pular (o Seguir tem o teste "G-275")
+  await page.waitForSelector('#porta-passo-nome'); await page.click('#porta-nome-pular');
   await page.waitForFunction(() => location.hash === '#/listas'); await page.waitForSelector('.ds-appbar', { state: 'visible' });
   assert.equal(await page.locator('#porta').count(), 0);
   // 4 · reabrir vai direto, sem porta
@@ -5230,6 +5232,42 @@ test('e2e · G-274 porta de entrada sem conta ligada no app: só Continuar sem c
   // o endereço da porta aberto à mão mostra a porta; sair por ela não repete a apresentação
   await page.goto(base + '#/entrar'); await page.waitForSelector('#porta'); await page.click('#porta-pular'); await page.waitForSelector('#home');
   assert.equal(await page.locator('#apresentacao').count(), 0);
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · G-275 porta de entrada: criar a conta pede o nome na mesa (vazio avisa, Seguir guarda e cumprimenta); Sair no Perfil volta à porta com o aviso, e sem conta segue', { skip }, async t => {
+  const { page, errors, base } = await open(t, { porta: true });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.addInitScript(() => {
+    window.__GOOGLE_CLIENT_ID = 'e2e.apps.googleusercontent.com';
+    window.__FIREBASE_API_KEY = 'chave-e2e';
+    const ok = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } });
+    window.__FIREBASE_FETCH = async (url, init) => {
+      const corpo = url.includes('securetoken') ? init.body : JSON.parse(init.body);
+      if (url.includes('securetoken')) return ok({ id_token: 'id-renovado', refresh_token: 'ref-porta2-e2e', expires_in: '3600', user_id: 'uidPorta_2' });
+      if (url.includes('accounts:signUp')) return ok({ localId: 'uidPorta_2', email: corpo.email, idToken: 'id-porta2', refreshToken: 'ref-porta2-e2e', expiresIn: '3600' });
+      return ok({ error: { message: 'NOT_FOUND' } }, 404);
+    };
+  });
+  await page.goto(base); await page.waitForSelector('#porta-email:not([disabled])');
+  await page.click('#porta-email'); await page.waitForSelector('#conta-email-campo');
+  await page.click('#conta-email-modo [data-modo="criar"]'); await page.fill('#conta-email-campo', 'mesa@exemplo.com'); await page.fill('#conta-senha', 'senha-certa-1');
+  await page.click('#conta-email-confirmar');
+  // 1 · o passo do nome: título, campo com foco, Seguir primário e Pular
+  await page.waitForSelector('#porta-passo-nome'); assert.equal(await page.innerText('#porta-titulo'), 'Conta criada');
+  assert.equal(await page.evaluate(() => document.activeElement && document.activeElement.id), 'porta-nome');
+  for (const id of ['#porta-nome-seguir', '#porta-nome-pular']) assert.ok((await page.locator(id).boundingBox()).height >= 44, id);
+  await page.waitForTimeout(500); await auditaTela(page, 'porta · nome na mesa');
+  await page.click('#porta-nome-seguir'); await page.waitForSelector('#porta-nome-erro .ds-note');
+  await page.fill('#porta-nome', 'Gui'); await page.press('#porta-nome', 'Enter');
+  await page.waitForSelector('#home'); assert.equal(await page.innerText('#home-titulo'), 'Olá, Gui');
+  // 2 · Sair (Perfil) volta à porta, com o aviso; o nome fica no aparelho
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#conta-sair'); await page.click('#conta-sair');
+  await page.waitForSelector('#porta'); assert.equal(await page.evaluate(() => location.hash), '#/entrar');
+  await page.waitForFunction(() => /Conta desconectada/.test((document.querySelector('#ds-toast') || {}).textContent || ''));
+  // 3 · sem conta, a porta leva ao início e não volta ao reabrir
+  await page.click('#porta-pular'); await page.waitForSelector('#home'); assert.equal(await page.innerText('#home-titulo'), 'Olá, Gui');
+  await page.reload(); await page.waitForSelector('#home'); assert.equal(await page.locator('#porta').count(), 0);
   assert.deepEqual(errors, []);
 });
 
