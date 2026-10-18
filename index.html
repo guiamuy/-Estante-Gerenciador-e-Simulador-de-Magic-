@@ -1711,6 +1711,30 @@ body:has(#outlet .ds-fab[data-acoes="1"]) #outlet { padding-bottom: calc(56px + 
    da partida): antes a bandeja parava no meio da tela e o aviso flutuante caía por cima da mão */
 .tb:has(.tb-dock) { display: flex; flex-direction: column; min-height: calc(100dvh - 58px - env(safe-area-inset-top, 0px)); padding-bottom: 0; }
 .tb:has(.tb-dock) > .tb-dock { margin-top: auto; }
+/* MJ1a (J-2) · partida em tela cheia: com a mesa aberta o cabeçalho do app sai (58 px a mais de campo em 360×780) e a
+   saída passa a ser o "Sair da partida" da linha de cima. O recorte da câmera, que o cabeçalho cuidava, vai para a mesa. */
+body[data-mesa-cheia="true"] .ds-appbar { display: none; }
+body[data-mesa-cheia="true"] .tb:has(.tb-dock) { min-height: 100dvh; padding-top: env(safe-area-inset-top, 0px); }
+/* a linha de cima usa a borda da tela até 8 px (o tabuleiro continua com 16): sobra folga para fonte de sistema mais larga
+   (a fonte do aparelho e a do CI são mais largas que a do teste local; a J-2 foi recusada pelo rótulo cortado no CI) */
+body[data-mesa-cheia="true"] .tb > .tb-top { column-gap: var(--space-1); row-gap: var(--space-1); padding: var(--space-2) var(--space-2) 0; }
+.tb-top > #tb-sair { flex: none; order: 0; color: var(--fg-muted); }
+/* a linha de cima nunca quebra: a faixa de vez cede o que sobra entre o Sair e as ferramentas (três ícones; quatro online) */
+/* abaixo de 360 px (fora das faixas suportadas) as ferramentas podem descer de linha e o rótulo segue inteiro, como antes */
+@media (min-width: 360px) {
+  body[data-mesa-cheia="true"] .tb > .tb-top > .tb-vez { flex: 0 1 auto; min-width: 0; max-width: calc(100% - 4 * var(--tap-min) - 2 * 2px - 3 * var(--space-1)); }
+  body[data-mesa-cheia="true"] .tb > .tb-top:has(#tb-chat) > .tb-vez { max-width: calc(100% - 5 * var(--tap-min) - 3 * 2px - 4 * var(--space-1)); }
+}
+body[data-mesa-cheia="true"] .tb > .tb-top .tb-vez__btn { min-width: 0; padding-right: var(--space-3); }
+body[data-mesa-cheia="true"] .tb > .tb-top .tb-vez__avatar { width: 30px; height: 30px; }
+body[data-mesa-cheia="true"] .tb > .tb-top .tb-vez__rotulo { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+body[data-mesa-cheia="true"] .tb > .tb-top > .tb-top__actions { flex: none; }
+/* o trilho de fases vira uma régua fina na linha de baixo; a linha "Turno N · Fulano … Principal 1" repetia a faixa e a
+   bandeja e sai em todas as larguras (o leitor de tela continua lendo pelo nome falado do trilho) */
+body[data-mesa-cheia="true"] .tb > .tb-top > .tb-steps { gap: 0; }
+body[data-mesa-cheia="true"] .tb-steps__head { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+body[data-mesa-cheia="true"] .tb-steps__list li { padding: 0 0 1px; border-bottom-width: 2px; font-size: var(--text-2xs); line-height: var(--lh-xs); }
+#tb[data-cena="true"] #tb-sair { pointer-events: none; }
 .tb-top { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding-top: var(--space-3); }
 .tb-top__actions { display: flex; gap: 2px; margin-left: auto; }
 /* U2 · ferramentas da mesa ao lado da faixa de vez (antes ocupavam uma linha inteira) */
@@ -37513,9 +37537,12 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       onDone: () => { adjudicating = null; paint(); }
     }) : null;
 
+    document.body.dataset.mesaCheia = 'true'; // MJ1a · a mesa aberta ocupa a tela inteira (o roteador tira a marca ao trocar de tela)
     mount(root,
       h('h1', { class: 'ds-sr-only' }, 'Mesa'), // D11 · a tela da partida tem título para o leitor de tela
       h('header', { class: 'tb-top ds-wrap' },
+        // MJ1a (J-2) · a partida ocupa a tela inteira: o cabeçalho do app sai e a saída mora aqui (a partida segue guardada)
+        IconButton('voltar', 'Sair da partida', { id: 'tb-sair', variant: 'ghost', onClick: () => go('/mesa') }),
         vezBox(s, v), vezPop,
         // Leva 121 · o placar da série (leva 114) mora no balão da faixa: ver vezDaMesa
         StepBar({ turn: s.turn.number || 0, step: s.turn.step, active: s.status === 'mulligan' ? 'mulligan' : s.players[s.turn.active].name, label: s.status === 'mulligan' ? 'Mão inicial' : E.STEP_PT[s.turn.step], ciclo: s.cicloT === 'noite' ? 'Noite' : s.cicloT === 'dia' ? 'Dia' : null }), // T-48 · CR 731.1 (Toca ponto comum: StepBar)
@@ -40237,6 +40264,7 @@ async function boot(root) {
     __m3.fechaToast(); // D1 · o aviso da tela anterior não atravessa para esta
     document.title = 'Estante · ' + (route.title || '');
     document.body.dataset.tela = (route.path === '*' ? 'nao-encontrado' : route.path.replace(/^\//, '') || 'inicio').replace(/\//g, '-'); // D7 · a superfície da mesa só vale em "partida"
+    delete document.body.dataset.mesaCheia; // MJ1a · o cabeçalho do app volta em toda tela; a mesa remarca ao se desenhar
     mount(outlet, route.render());
     if (!document.getElementById('relatar-abrir')) document.body.appendChild(__m38.BotaoRelatar()); // Y1 · Relatar das telas sem botão de ação
     marcaNav(bar, location.hash.replace(/^#/, '').split('?')[0] || '/');

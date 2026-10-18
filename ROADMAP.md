@@ -593,7 +593,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-rw | BI2-2b uso agregado opt-in (coleção, listas, scanner) com consentimento na tela "O que sai do aparelho" | BI | 2 | 16º-rv; `mtg-security-architect` |
 | 16º-rx | BI2-4 negócio: doações por plataforma (manual ou API com token) × custo mensal | BI | 2 | MON1 com dados reais |
 | 16º-ja ✅ | MJ · roadmap da mesa de patamar (leva J-1, 17/10): crítica medida da mesa em 360×780 e histórias MJ1–MJ12 | MJ | 1 | — |
-| 16º-jb | MJ1 a mesa numa tela só: os dois campos visíveis sem rolar, em fatias (cabeçalho do app fora da partida, topo numa linha, faixa compacta por lado, terrenos compactos, pilha e resumo fora do fluxo, tabuleiro com a altura da tela) | MJ | 3–4 | 16º-ja; T-130 publicada (mesma região) |
+| 16º-jb 🟡 | MJ1 a mesa numa tela só (MJ1a partida em tela cheia na leva J-2): os dois campos visíveis sem rolar, em fatias (cabeçalho do app fora da partida, topo numa linha, faixa compacta por lado, terrenos compactos, pilha e resumo fora do fluxo, tabuleiro com a altura da tela) | MJ | 3–4 | 16º-ja; T-130 publicada (mesma região) |
 | 16º-jc | MJ2 avisos fora do campo: o aviso flutuante não cobre cartas nem a mão | MJ | 1 | 16º-jb |
 | 16º-jd | MJ3 identidade por `oid` e continuidade (FLIP) entre mão, pilha, campo, cemitério e exílio | MJ | 2 | 16º-jb; `mtg-scale-architect` (quadros) |
 | 16º-je | MJ4 combate desenhado: setas de ataque e bloqueio com a prévia junto da seta | MJ | 2 | 16º-jd |
@@ -10103,15 +10103,29 @@ bandeja que segue o dedo, som e efeitos da G4/G5.
 **Ordem:** valor percebido no celular ÷ custo em levas. MJ1 vem primeiro porque tudo o que vem depois (setas de
 combate, continuidade, mirar) só faz sentido com os dois campos na mesma tela. **Total estimado: 16 a 20 levas.**
 
-**MJ1 · A mesa numa tela só** ○ (3–4 levas, em fatias)
+**MJ1 · A mesa numa tela só** 🟡 (3–4 levas, em fatias; MJ1a na leva J-2)
 - **Valor:** os dois campos, a vida dos dois e a sua mão cabem na tela sem rolar, como no Arena.
 - **Aceite:** em 360×780, partida com 17 permanentes (a mesma semente da crítica): rolagem vertical da página 0; os dois
   lados visíveis ao mesmo tempo; pilha e resumo não mudam a posição de nenhuma carta; alvos de 44 px; nenhuma
   sobreposição fora das declaradas; nas quatro medidas e nos dois temas.
-- **Fatias propostas** (a `mtg-slice-architect` confirma): (a) cabeçalho do app fora da partida, com saída pela faixa
-  de vez, e topo da mesa numa linha (+~100 px de campo); (b) faixa compacta por lado: vida e contadores numa linha de
-  44 px (+~110 px por lado); (c) terrenos compactos e pilha/resumo fora do fluxo, sobre a mesa; (d) tabuleiro com a
-  altura da tela: cada lado com altura própria e rolagem lateral dentro da fileira, nunca da página.
+- **Fatias** (confirmadas pela `mtg-slice-architect`, 17/10; uma leva cada, cada uma vai ao `main` sozinha):
+  - **MJ1a · Partida em tela cheia** ✅ (leva J-2) — com a mesa aberta o cabeçalho do app sai; "Sair da partida" (seta,
+    44 px) abre a linha de cima e volta a Jogar com a partida guardada ("Continuar partida" traz de volta); a faixa de
+    vez cede o espaço que sobra entre o Sair e as ferramentas (o rótulo nunca corta nas faixas suportadas); o trilho de
+    fases vira régua fina e a linha "Turno N · Fulano … Principal 1" (repetia a faixa e a bandeja) sai em todas as
+    larguras, ficando só para o leitor de tela. **Medida:** o campo começa em y = 86 nas quatro medidas (era 154 em
+    360×780, ~190 em 390×844); no meio da partida a rolagem caiu de 627 para 559 px (360×780). Recorte da câmera:
+    a mesa passa a cuidar dele (`safe-area-inset-top`). **Testes:** e2e "MJ1a" (cabeçalho fora, campo ≤ 90 px do topo,
+    Sair/faixa/ferramentas na mesma linha sem encostar, rótulo inteiro, régua com a fase atual, `auditaTela` nas quatro
+    medidas e nos dois temas, Sair → Jogar com cabeçalho → Continuar → mesma partida sem cabeçalho); e2e U8 com a
+    expectativa da linha repetida mudada com justificativa; e2e "Leva 128 perfil" grava a preferência de tema já no
+    Perfil (o botão de tema mora no cabeçalho, que sai na partida). **Fora:** abaixo de 360 px as ferramentas ainda podem descer
+    de linha (como antes). **Correção:** a primeira ida à fila foi recusada pelo e2e "Leva 121 · faixa de turno": com a
+    fonte do sistema do CI (mais larga que a do clone) o rótulo cortava 5 px em 360; a linha de cima passou a usar 8 px de
+    margem lateral (o tabuleiro continua com 16) e o e2e "MJ1a" ganhou o guarda-corpo com fonte larga (DejaVu Sans).
+  - **MJ1b · Faixa compacta por lado** ○ — vida e contadores numa linha de 44 px (+~110 px por lado).
+  - **MJ1c · Terrenos compactos, pilha e resumo por cima** ○ — o seu campo não pula quando algo vai para a pilha.
+  - **MJ1d · A mesa numa tela só** ○ — rolagem vertical 0 com 17 permanentes; cada fileira rola para o lado.
 - **Testes:** e2e "MJ1" com a medida (rolagem 0, topo do meu campo dentro da tela, distância entre os dois lados),
   `auditaTela` nas quatro medidas e nos dois temas, capturas antes e depois; os e2e da mesa que leem posição ajustados
   com justificativa.
@@ -10148,7 +10162,9 @@ presença.
 movimento.
 
 **MJ11 · Orçamento da mesa** ○ (1–2 levas, com a `mtg-scale-architect`) — passar a prioridade sem tarefa longa acima de
-50 ms e quadros medidos no portão (teste de orçamento que falha ao estourar).
+50 ms e quadros medidos no portão (teste de orçamento que falha ao estourar). **Medida da J-2 (360×780, 140 jogadas da partida da crítica, três
+amostras):** cada toque leva 37–39 ms na mediana, ~250 ms no percentil 90 e ~880 ms no pior caso, porque o turno do
+Shark roda dentro do toque que passa a prioridade; antes e depois da MJ1a os números são iguais (soma 14,9–15,6 s).
 
 **MJ12 · Partículas por cor de mana** ○ (1 leva) — só depois da MJ11 e só se não custar quadros.
 

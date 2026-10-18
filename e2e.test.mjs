@@ -3184,7 +3184,9 @@ test('e2e · U8 disposições por aparelho: Galaxy S, S+, Ultra e iPhone sem rol
     assert.equal(m.carta, parseInt(campo), `${nome}: carta desenhada no tamanho da faixa`);
     assert.equal(m.passosCortados, 0, `${nome}: nomes das fases inteiros`);
     if (w < 400) assert.equal(new Set(m.chipsY).size, 1, `${nome}: contadores de zona numa linha só: ${m.chipsY}`);
-    assert.equal(m.cabecalho === 'absolute', w < 375, `${nome}: a linha repetida do turno sai só na tela estreita`);
+    // MJ1a (leva J-2) · expectativa mudou de propósito: a linha "Turno N · Fulano … Principal 1" repetia a faixa de vez e a
+    // bandeja e saiu em todas as larguras (o campo ganha a altura dela); o leitor de tela continua lendo pelo nome do trilho
+    assert.equal(m.cabecalho, 'absolute', `${nome}: a linha repetida do turno sai em todas as larguras`);
     // leva 102 · sai da partida apagando o salvamento direto no banco e recarregando (o caminho pela tela de desistir
     // ficava instável com a máquina carregada: diálogo de fim de partida por cima da próxima navegação)
     await page.evaluate(k => new Promise(res => { const r = indexedDB.open('mtg', 1); r.onsuccess = () => { const tx = r.result.transaction('kv', 'readwrite'); tx.objectStore('kv').delete(k); tx.oncomplete = res; }; }), await page.evaluate(() => __m18.SAVE_KEY));
@@ -4939,8 +4941,9 @@ test('e2e · Leva 128 perfil: nome e foto na barra e na mesa, hot-seat preenchid
   else assert.ok(vez.foto === 'false' && !vez.img, 'vez do outro: sem a minha foto ' + JSON.stringify(vez));
   await auditaTela(page, 'mesa com perfil');
   // backup completo: o arquivo leva perfil e preferências; restaurar num aparelho limpo traz tudo de volta
-  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light')); await page.click('#theme-toggle'); await page.waitForTimeout(100); // grava a preferência de tema
+  // MJ1a (leva J-2) · na partida o cabeçalho do app sai (o botão de tema mora nele): a preferência de tema é gravada já no Perfil
   await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-backup-export');
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light')); await page.click('#theme-toggle'); await page.waitForTimeout(100); // grava a preferência de tema
   const [download] = await Promise.all([page.waitForEvent('download'), page.click('#perfil-backup-export')]);
   const texto = await (await download.createReadStream()).toArray().then(parts => Buffer.concat(parts).toString('utf8'));
   const dados = JSON.parse(texto);
@@ -13063,5 +13066,65 @@ test('e2e · R-25 Painel · Experiência com rodadas da fila (CI, rodadas.jsonl 
   await page.waitForFunction(() => /ficou vermelha/.test((document.querySelector('#pn-notas') || {}).textContent || ''));
   assert.match(await page.innerText('#pn-notas'), /última rodada da fila \(18560000003\) ficou vermelha: M-410, M-411, I-292, G-271/);
   if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.screenshot({ path: process.env.SHOTS + '/r25-experiencia-ci.png', fullPage: true }); }
+  assert.deepEqual(errors, []);
+});
+
+// MJ1a (leva J-2, trilha jogabilidade) · partida em tela cheia: com a mesa aberta o cabeçalho do app sai e o campo sobe
+// (crítica da J-1: em 360×780 o campo começava em y = 154; agora em ≤ 90); a saída é o "Sair da partida" na linha de cima,
+// que volta a Jogar com a partida guardada ("Continuar partida" traz de volta). O trilho de fases é uma régua fina.
+test('e2e · MJ1a partida em tela cheia: sem o cabeçalho do app, campo no alto, Sair e voltar, nas quatro medidas e nos dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/mesa');
+  await page.waitForSelector('.ds-appbar');
+  await page.fill('#mesa-seed', '4'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  await page.waitForSelector('#tb-pass');
+  for (const [w, hgt] of [[360, 780], [384, 832], [390, 844], [412, 891]]) for (const tema of ['dark', 'light']) {
+    await page.setViewportSize({ width: w, height: hgt });
+    await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema);
+    await page.waitForTimeout(250);
+    const m = await page.evaluate(() => {
+      const cx = sel => { const e = document.querySelector(sel); if (!e) return null; const b = e.getBoundingClientRect(); return { x: b.left, r: b.right, y: b.top, h: b.height, meio: b.top + b.height / 2 }; };
+      const barra = document.querySelector('.ds-appbar');
+      return { barra: !!barra && barra.getBoundingClientRect().height > 0 && getComputedStyle(barra).display !== 'none',
+        lado: cx('.tb-board .tb-side'), sair: cx('#tb-sair'), vez: cx('#tb-vez'), acoes: cx('.tb-top__actions'),
+        nomeSair: document.querySelector('#tb-sair').getAttribute('aria-label'),
+        atual: document.querySelectorAll('.tb-steps__list li[data-current="true"]').length,
+        cabecalho: getComputedStyle(document.querySelector('.tb-steps__head')).position,
+        corte: (r => r.scrollWidth - r.clientWidth)(document.querySelector('#tb-vez .tb-vez__rotulo')),
+        rolaLado: document.documentElement.scrollWidth - innerWidth };
+    });
+    const nome = `${w}×${hgt} ${tema}`;
+    assert.equal(m.barra, false, `${nome}: o cabeçalho do app sai durante a partida`);
+    assert.ok(m.lado.y <= 90, `${nome}: o campo começa no alto (y = ${Math.round(m.lado.y)}; era 154 antes da MJ1a)`);
+    assert.equal(m.nomeSair, 'Sair da partida');
+    assert.ok(m.sair.h >= 44, `${nome}: Sair com 44 px`);
+    assert.ok(Math.abs(m.sair.meio - m.vez.meio) < 4 && Math.abs(m.acoes.meio - m.vez.meio) < 4, `${nome}: Sair, faixa e ferramentas na mesma linha`);
+    assert.ok(m.sair.r <= m.vez.x + 1 && m.vez.r <= m.acoes.x + 1, `${nome}: nada encosta por cima do vizinho`);
+    assert.equal(m.corte, 0, `${nome}: o rótulo da faixa inteiro`);
+    assert.equal(m.atual, 1, `${nome}: a fase atual marcada na régua`);
+    assert.equal(m.cabecalho, 'absolute', `${nome}: a linha repetida do turno fica só para o leitor de tela`);
+    assert.ok(m.rolaLado <= 0, `${nome}: sem rolagem lateral`);
+    await auditaTela(page, `MJ1a · mesa ${nome}`);
+  }
+  await page.setViewportSize({ width: 360, height: 780 });
+  // J-2 recusada na fila: no CI a fonte do sistema é mais larga que a deste clone e o rótulo da faixa cortou 5 px em 360.
+  // Guarda-corpo: com uma fonte larga (DejaVu Sans, a do Ubuntu do CI) o rótulo continua inteiro e a linha não quebra.
+  await page.addStyleTag({ content: ':root{--font-ui:"DejaVu Sans",sans-serif !important}' }); await page.waitForTimeout(150);
+  const larga = await page.evaluate(() => { const r = document.querySelector('#tb-vez .tb-vez__rotulo'), v = document.querySelector('#tb-vez').getBoundingClientRect(), a = document.querySelector('.tb-top__actions').getBoundingClientRect();
+    return { corte: r.scrollWidth - r.clientWidth, mesmaLinha: Math.abs((v.top + v.height / 2) - (a.top + a.height / 2)) < 4 }; });
+  assert.equal(larga.corte, 0, 'fonte larga: rótulo da faixa inteiro em 360');
+  assert.ok(larga.mesmaLinha, 'fonte larga: faixa e ferramentas na mesma linha em 360');
+  // Sair volta a Jogar com o cabeçalho; Continuar traz a mesma partida, sem o cabeçalho
+  const turno = await page.evaluate(() => window.__estanteMesa ? window.__estanteMesa.estado().turn.number : null);
+  await page.click('#tb-sair');
+  await page.waitForSelector('#mesa-continue');
+  assert.match(page.url(), /#\/mesa$/);
+  assert.ok(await page.locator('.ds-appbar').isVisible(), 'fora da partida o cabeçalho volta');
+  await page.click('#mesa-continue');
+  await page.waitForSelector('#tb-pass');
+  assert.equal(await page.locator('.ds-appbar').isVisible(), false, 'de volta à partida, sem o cabeçalho');
+  if (turno != null) assert.equal(await page.evaluate(() => window.__estanteMesa.estado().turn.number), turno, 'a mesma partida');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/mj1a-mesa.png' });
   assert.deepEqual(errors, []);
 });
