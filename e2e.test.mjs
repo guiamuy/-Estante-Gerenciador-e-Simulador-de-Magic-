@@ -13128,3 +13128,71 @@ test('e2e · MJ1a partida em tela cheia: sem o cabeçalho do app, campo no alto,
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/mj1a-mesa.png' });
   assert.deepEqual(errors, []);
 });
+
+// MJ1b (leva J-3, trilha jogabilidade) · faixa compacta por lado: vida e contadores de zona (ícone + número) numa linha de
+// 44 px; os rótulos "Terrenos · N" e "Permanentes · N" ficam só para o leitor de tela. Crítica da J-1: em 360×780 cada lado
+// gastava ≈ 160 px de metadado antes da primeira carta (vida 58 + contadores 52 + dois rótulos); agora ≤ 76.
+test('e2e · MJ1b faixa compacta por lado: vida e contadores numa linha de 44 px, cartas logo abaixo, nas quatro medidas e nos dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start');
+  await page.fill('#mesa-seed', '4');
+  // contra o Shark: o lado do oponente tem os quatro contadores (a mão dele aparece)
+  await page.waitForFunction(() => { const c = document.querySelector('[data-opponent="shark"]'); return c && !c.disabled; }, null, { timeout: 8000 });
+  await page.click('[data-opponent="shark"]'); await page.waitForSelector('#mesa-bot-deck');
+  await page.waitForFunction(() => { const c = document.querySelector('[data-mode="full"]'); return c && !c.disabled; }, null, { timeout: 8000 });
+  await page.click('[data-mode="full"]');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  await page.waitForSelector('#tb-pass');
+  // os dois lados com terreno em campo (jogadas legais: terreno, senão passar), de volta à minha fase principal
+  for (let i = 0; i < 120; i++) {
+    const r = await page.evaluate(() => { const M = window.__estanteMesa, s = M.estado(), L = M.legais();
+      if (s.zones[0].battlefield.length && s.zones[1].battlefield.length && s.turn.active === 0 && s.turn.step === 'main1' && L.some(x => x.t === 'pass')) return 'pronto';
+      const a = L.find(x => x.t === 'play_land') || L.find(x => x.t === 'pass') || L.find(x => x.t === 'pick_done') || L[0]; if (a) M.act(a); return a ? a.t : 'nada'; });
+    if (r === 'pronto') break;
+    await page.waitForTimeout(r === 'nada' ? 200 : 30);
+  }
+  await page.waitForSelector('.tb-side--opp .tb-card'); await page.waitForSelector('.tb-side--me .tb-card');
+  for (const [w, hgt] of [[360, 780], [384, 832], [390, 844], [412, 891]]) for (const tema of ['dark', 'light']) {
+    await page.setViewportSize({ width: w, height: hgt });
+    await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema);
+    await page.waitForTimeout(250);
+    const lados = await page.$$eval('.tb-board .tb-side', ls => ls.map(l => {
+      const r = e => e.getBoundingClientRect(), cab = l.querySelector('.tb-side__head'), vida = l.querySelector('.tb-life');
+      const chips = [...l.querySelectorAll('.tb-chip')].map(c => ({ ...(b => ({ x: b.left, r: b.right, y: b.top, h: b.height, w: b.width, meio: b.top + b.height / 2 }))(r(c)), nome: c.getAttribute('aria-label'), icone: !!c.querySelector('.ds-icon svg') }));
+      const carta = l.querySelector('.tb-card'), rotulos = [...l.querySelectorAll('.tb-zone__label')];
+      return { lado: l.className, cab: r(cab).height, vida: { r: r(vida).right, meio: r(vida).top + r(vida).height / 2, h: r(vida).height }, chips,
+        cartaAbaixo: carta ? r(carta).top - r(l).top : null, rotulosVisiveis: rotulos.filter(x => r(x).width > 1).length, rotulosTexto: rotulos.map(x => x.textContent).join(' | ') };
+    }));
+    const nome = `${w}×${hgt} ${tema}`;
+    for (const l of lados) {
+      const quem = `${nome} ${/--me/.test(l.lado) ? 'meu lado' : 'oponente'}`;
+      assert.ok(l.cab <= 52, `${quem}: faixa da vida e contadores com ≤ 52 px (mediu ${Math.round(l.cab)}; eram ≈ 106 no oponente)`);
+      assert.ok(l.vida.h >= 44 && l.vida.h <= 48, `${quem}: vida com 44 px`);
+      assert.ok(l.chips.length >= 3, `${quem}: contadores à vista`);
+      for (const c of l.chips) {
+        assert.ok(c.h >= 44 && c.w >= 44, `${quem}: ${c.nome} tocável (${Math.round(c.w)}×${Math.round(c.h)})`);
+        assert.ok(c.icone, `${quem}: ${c.nome} com ícone`);
+        assert.match(c.nome, /^(Mão|Grimório|Cemitério|Exílio): \d+/, `${quem}: nome falado com a zona e o número`);
+        assert.ok(Math.abs(c.meio - l.vida.meio) < 4, `${quem}: ${c.nome} na linha da vida`);
+        assert.ok(c.x >= l.vida.r, `${quem}: ${c.nome} não encosta na vida`);
+      }
+      assert.ok(l.cartaAbaixo != null && l.cartaAbaixo <= 76, `${quem}: primeira carta a ${Math.round(l.cartaAbaixo)} px do topo do lado (era ≈ 160)`);
+      assert.equal(l.rotulosVisiveis, 0, `${quem}: rótulos de zona fora da vista`);
+      assert.match(l.rotulosTexto, /Terrenos/, `${quem}: o leitor de tela ainda lê a zona e a contagem`);
+    }
+    await auditaTela(page, `MJ1b · mesa ${nome}`);
+  }
+  // guarda-corpo de fonte larga (a do CI): em 360 a vida encolhe com reticências e os contadores não descem de linha
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.addStyleTag({ content: ':root{--font-ui:"DejaVu Sans",sans-serif !important}' }); await page.waitForTimeout(150);
+  const larga = await page.$$eval('.tb-board .tb-side', ls => ls.map(l => { const v = l.querySelector('.tb-life').getBoundingClientRect(), cs = [...l.querySelectorAll('.tb-chip')].map(c => c.getBoundingClientRect());
+    return { cab: l.querySelector('.tb-side__head').getBoundingClientRect().height, junto: cs.every(c => Math.abs(c.top - v.top) < 4 && c.left >= v.right) }; }));
+  for (const l of larga) { assert.ok(l.cab <= 52, `fonte larga: faixa com ${Math.round(l.cab)} px`); assert.ok(l.junto, 'fonte larga: contadores na linha da vida, sem encostar'); }
+  await auditaTela(page, 'MJ1b · mesa 360 com fonte larga');
+  // o contador continua abrindo a zona
+  await page.click('#tb-cemiterio-me'); await page.waitForSelector('.ds-dialog');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/mj1b-mesa.png' });
+  assert.deepEqual(errors, []);
+});

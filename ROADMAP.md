@@ -593,7 +593,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-rw | BI2-2b uso agregado opt-in (coleção, listas, scanner) com consentimento na tela "O que sai do aparelho" | BI | 2 | 16º-rv; `mtg-security-architect` |
 | 16º-rx | BI2-4 negócio: doações por plataforma (manual ou API com token) × custo mensal | BI | 2 | MON1 com dados reais |
 | 16º-ja ✅ | MJ · roadmap da mesa de patamar (leva J-1, 17/10): crítica medida da mesa em 360×780 e histórias MJ1–MJ12 | MJ | 1 | — |
-| 16º-jb 🟡 | MJ1 a mesa numa tela só (MJ1a partida em tela cheia na leva J-2): os dois campos visíveis sem rolar, em fatias (cabeçalho do app fora da partida, topo numa linha, faixa compacta por lado, terrenos compactos, pilha e resumo fora do fluxo, tabuleiro com a altura da tela) | MJ | 3–4 | 16º-ja; T-130 publicada (mesma região) |
+| 16º-jb 🟡 | MJ1 a mesa numa tela só (MJ1a partida em tela cheia na leva J-2; MJ1b faixa compacta por lado na J-3): os dois campos visíveis sem rolar, em fatias (cabeçalho do app fora da partida, topo numa linha, faixa compacta por lado, terrenos compactos, pilha e resumo fora do fluxo, tabuleiro com a altura da tela) | MJ | 3–4 | 16º-ja; T-130 publicada (mesma região) |
 | 16º-jc | MJ2 avisos fora do campo: o aviso flutuante não cobre cartas nem a mão | MJ | 1 | 16º-jb |
 | 16º-jd | MJ3 identidade por `oid` e continuidade (FLIP) entre mão, pilha, campo, cemitério e exílio | MJ | 2 | 16º-jb; `mtg-scale-architect` (quadros) |
 | 16º-je | MJ4 combate desenhado: setas de ataque e bloqueio com a prévia junto da seta | MJ | 2 | 16º-jd |
@@ -10132,7 +10132,7 @@ bandeja que segue o dedo, som e efeitos da G4/G5.
 **Ordem:** valor percebido no celular ÷ custo em levas. MJ1 vem primeiro porque tudo o que vem depois (setas de
 combate, continuidade, mirar) só faz sentido com os dois campos na mesma tela. **Total estimado: 16 a 20 levas.**
 
-**MJ1 · A mesa numa tela só** 🟡 (3–4 levas, em fatias; MJ1a na leva J-2)
+**MJ1 · A mesa numa tela só** 🟡 (4–5 levas, em fatias; MJ1a na leva J-2, MJ1b na J-3)
 - **Valor:** os dois campos, a vida dos dois e a sua mão cabem na tela sem rolar, como no Arena.
 - **Aceite:** em 360×780, partida com 17 permanentes (a mesma semente da crítica): rolagem vertical da página 0; os dois
   lados visíveis ao mesmo tempo; pilha e resumo não mudam a posição de nenhuma carta; alvos de 44 px; nenhuma
@@ -10152,7 +10152,22 @@ combate, continuidade, mirar) só faz sentido com os dois campos na mesma tela. 
     de linha (como antes). **Correção:** a primeira ida à fila foi recusada pelo e2e "Leva 121 · faixa de turno": com a
     fonte do sistema do CI (mais larga que a do clone) o rótulo cortava 5 px em 360; a linha de cima passou a usar 8 px de
     margem lateral (o tabuleiro continua com 16) e o e2e "MJ1a" ganhou o guarda-corpo com fonte larga (DejaVu Sans).
-  - **MJ1b · Faixa compacta por lado** ○ — vida e contadores numa linha de 44 px (+~110 px por lado).
+  - **MJ1b · Faixa compacta por lado** ✅ (leva J-3) — vida à esquerda e contadores de zona à direita numa linha de 44 px
+    em todas as larguras; cada contador é ícone + número (Mão, Grimório, Cemitério, Exílio, Comando e Companheiro; quatro
+    ícones novos no `/ds`: `cemiterio`, `exilio`, `comando`, `companheiro`), o nome da zona fica no nome falado e no title;
+    a vida perde a segunda altura (número em `--text-2xl`, nome e selos em uma linha cada, com reticências); "Terrenos · N"
+    e "Permanentes · N" (e a linha da zona vazia) saem da vista e ficam para o leitor de tela. Com cinco contadores ou mais
+    (Commander, mana flutuando) eles descem de linha. **Medida** (mesma partida da crítica, 360×780): faixa do oponente
+    96 → 44 px; lado do oponente no meio da partida 437 → 344 px, o seu 385 → 344 (o seu já cabia numa linha; ganhou os
+    rótulos); a página rola 559 → 425 px no meio da partida e **0 no começo** (era 85); nas outras medidas a mesma forma
+    (390×844: 536 → 398). **Testes:** e2e "MJ1b" (faixa ≤ 52 px nos dois lados, vida com 44 px, cada contador com ícone,
+    44×44, nome falado "Zona: N" e na linha da vida sem encostar, primeira carta a ≤ 76 px do topo do lado (era ≈ 160),
+    rótulos de zona fora da vista e ainda no texto, `auditaTela` nas quatro medidas e nos dois temas, guarda-corpo de fonte
+    larga em 360, o contador abre a zona). **Fora:** a contagem "Terrenos · N" não fica mais à vista (as pilhas ×N contam);
+    o Conversa (partida online) como selo da faixa de vez, previsto para esta fatia, vira fatia própria (MJ1e) — é outra
+    região (topo e testes online).
+  - **MJ1e · Conversa no selo da faixa de vez** ○ — na partida online o botão de conversa vira selo da faixa, para o rótulo
+    não cortar com nome longo em 360 (ressalva do design na J-2).
   - **MJ1c · Terrenos compactos, pilha e resumo por cima** ○ — o seu campo não pula quando algo vai para a pilha.
   - **MJ1d · A mesa numa tela só** ○ — rolagem vertical 0 com 17 permanentes; cada fileira rola para o lado.
 - **Testes:** e2e "MJ1" com a medida (rolagem 0, topo do meu campo dentro da tela, distância entre os dois lados),

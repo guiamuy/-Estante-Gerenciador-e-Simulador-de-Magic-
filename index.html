@@ -1798,26 +1798,34 @@ body[data-mesa-cheia="true"] .tb-steps__list li { padding: 0 0 1px; border-botto
 .tb-vez--troca { animation: tb-vez-troca var(--dur-3) var(--ease-out); }
 .tb-handoff .tb-vez { flex: none; width: min(100%, 360px); }
 @media (prefers-reduced-motion: reduce) { .tb-vez--troca { animation: none; } .tb-side { transition: none; } }
-.tb-side__head { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
-.tb-chips { display: flex; flex-wrap: wrap; gap: var(--space-1); flex: 1; }
+/* MJ1b (leva J-3) · faixa compacta por lado: vida à esquerda e contadores (ícone + número) à direita numa linha de 44 px
+   em todas as larguras; com cinco contadores ou mais (Commander, mana flutuando, partida online) eles descem de linha */
+.tb-side__head { display: flex; align-items: center; gap: var(--space-2); flex-wrap: nowrap; min-height: var(--tap-min); }
+.tb-side__head:has(.tb-chips > :nth-child(5)) { flex-wrap: wrap; }
+.tb-chips { display: flex; flex-wrap: nowrap; gap: var(--space-1); flex: 0 0 auto; margin-left: auto; }
+.tb-chips:has(> :nth-child(5)) { flex: 1 1 100%; flex-wrap: wrap; }
 .tb-chip[data-jogaveis] { position: relative; border-color: var(--accent); color: var(--fg); }
 .tb-chip__ponto { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: var(--radius-full); background: var(--accent); }
 .tb-chip {
-  display: inline-flex; align-items: center; gap: var(--space-1); min-height: var(--tap-min); padding: 0 var(--space-2);
-  border: 1px solid var(--border); border-radius: var(--radius-full); background: var(--bg-elev-2);
-  color: var(--fg-muted); font-size: var(--text-xs);
+  position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 2px; min-height: var(--tap-min); min-width: var(--tap-min);
+  padding: 0 var(--space-2) 0 6px; border: 1px solid var(--border); border-radius: var(--radius-2); background: var(--bg-elev-2);
+  color: var(--fg-muted); white-space: nowrap;
 }
-.tb-chip b { color: var(--fg); font-size: var(--text-sm); }
+.tb-chip b { color: var(--fg); font-size: var(--text-md); font-variant-numeric: tabular-nums; }
+.tb-chip__icone { flex: none; }
+.tb-chip__rotulo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 .tb-life {
-  display: inline-flex; align-items: center; gap: var(--space-2); min-height: var(--tap-min);
-  padding: var(--space-1) var(--space-3) var(--space-1) var(--space-2); border-radius: var(--radius-2);
+  display: inline-flex; align-items: center; gap: var(--space-2); min-height: var(--tap-min); flex: 0 1 auto; min-width: 0;
+  padding: 2px var(--space-3) 2px var(--space-2); border-radius: var(--radius-2);
   border: 1px solid var(--border-strong); background: var(--bg-elev-2); color: var(--fg); text-align: left;
 }
 .tb-life[data-active="true"] { border-color: var(--accent); box-shadow: var(--focus-ring); }
-.tb-life__n { font-family: var(--font-display); font-size: var(--text-3xl); line-height: 1; min-width: 2ch; text-align: center; }
-.tb-life__who { display: flex; flex-direction: column; font-size: var(--text-sm); }
-.tb-life__who small { color: var(--fg-muted); font-size: var(--text-xs); }
+.tb-life__n { font-family: var(--font-display); font-size: var(--text-2xl); line-height: 1; min-width: 2ch; text-align: center; font-variant-numeric: tabular-nums; }
+.tb-life__who { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-sm); line-height: var(--lh-sm); }
+.tb-life__who small { display: block; overflow: hidden; text-overflow: ellipsis; color: var(--fg-muted); font-size: var(--text-xs); line-height: var(--lh-xs); }
+/* MJ1b · "Terrenos · N" e "Permanentes · N" saem da vista (o leitor de tela continua lendo); a zona vazia também */
+.tb-side .tb-zone__label, .tb-side .tb-zone--empty { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 .tb-zone { display: flex; flex-direction: column; gap: var(--space-1); }
 .tb-zone__label { font-size: var(--text-xs); color: var(--fg-muted); }
@@ -2326,29 +2334,9 @@ button.col-dash__bar:active, .col-dash__bar--on { background: var(--accent-soft)
   .tb-steps__curto { display: inline; }
   .tb-steps__list li { position: relative; }
   .tb-dock__bar .tb-banner__actions .ds-btn { padding: 0 var(--space-2); font-size: var(--text-sm); }
-  /* contadores de zona numa grade de uma linha abaixo da vida (antes o Exílio caía sozinho numa segunda linha) */
-  .tb-life__n { font-size: var(--text-2xl); }
 }
-/* até 399 (Galaxy S, iPhone e S+ com zoom de tela): contadores de zona empilhados (número em cima) numa grade de
-   uma linha ao lado da vida — antes o Exílio caía sozinho numa segunda linha e empurrava as permanentes para baixo */
-@media (max-width: 399px) {
-  .tb-side__head { gap: var(--space-2); flex-wrap: nowrap; }
-  .tb-chips { flex: 1 1 0; min-width: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
-  .tb-chip { flex-direction: column-reverse; justify-content: center; gap: 0; padding: 2px var(--space-1); border-radius: var(--radius-2); line-height: 1.1; font-size: var(--text-2xs); white-space: nowrap; min-width: 0; }
-  .tb-chip b { font-size: var(--text-md); }
-  /* leva 143 (trilha bot, com autorização do usuário: o portão do main estava vermelho desde a leva 137) · com quatro
-     contadores (a mão do oponente aparece na partida online) eles não cabem ao lado da vida em 360 px e "Grimório"
-     encostava em "Cemitério": nesse caso os contadores ganham a linha de baixo inteira */
-  .tb-side__head:has(.tb-chips > :nth-child(4)) { flex-wrap: wrap; }
-  .tb-chips:has(> :nth-child(4)) { flex: 1 1 100%; }
-  /* Com fonte de sistema larga ou nome comprido (partida online), o contador de vida crescia e "Grimório" passava por cima
-     de "Cemitério". O nome encolhe com reticências, a vida fica com até metade da linha e o rótulo do contador de zona é
-     cortado dentro dele em vez de vazar. */
-  .tb-life { flex: 0 1 auto; min-width: 0; max-width: 50%; }
-  .tb-life__who { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .tb-life__who small { display: block; overflow: hidden; text-overflow: ellipsis; }
-  .tb-chip { overflow: hidden; }
-}
+/* (MJ1b, leva J-3) · a grade de contadores empilhados até 399 px e a quebra com quatro contadores (leva 143) foram
+   substituídas pela faixa compacta de 44 px em todas as larguras, perto de .tb-side__head */
 @media (min-width: 400px) {
   :root { --carta-campo: 92px; --carta-mao: 110px; --carta-pilha: 60px; }
 }
@@ -3134,7 +3122,12 @@ const ICONES = {
   cartaSai: '<path d="M15.5 10V5.3a1.8 1.8 0 0 0-1.8-1.8H6.3a1.8 1.8 0 0 0-1.8 1.8v11.9A1.8 1.8 0 0 0 6.3 19h5.2"/><path d="M17 20.5v-7"/><path d="M13.9 16.6 17 13.5l3.1 3.1"/>', // leva 160 · bloco Exportar da coleção: a carta que sai
   email: '<rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="M4 7l8 6 8-6"/>', // G-263 · entrar com e-mail e senha
   olho: '<path d="M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12s-3.5 6.5-9.5 6.5S2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.75"/>', // G-263 · mostrar a senha
-  ampulheta: '<path d="M6.5 3.5h11M6.5 20.5h11"/><path d="M7.5 3.5c0 4.5 4.5 5.5 4.5 8.5s-4.5 4-4.5 8.5M16.5 3.5c0 4.5-4.5 5.5-4.5 8.5s4.5 4 4.5 8.5"/>'
+  ampulheta: '<path d="M6.5 3.5h11M6.5 20.5h11"/><path d="M7.5 3.5c0 4.5 4.5 5.5 4.5 8.5s-4.5 4-4.5 8.5M16.5 3.5c0 4.5-4.5 5.5-4.5 8.5s4.5 4 4.5 8.5"/>',
+  // MJ1b (leva J-3) · os contadores de zona da mesa viram ícone + número
+  cemiterio: '<path d="M6.5 20.5V10a5.5 5.5 0 0 1 11 0v10.5"/><path d="M4 20.5h16"/><path d="M12 8.5v6M9.6 10.9h4.8"/>',
+  exilio: '<path d="M12 12a1.5 1.5 0 0 1 3 0a3 3 0 0 1-6 0a4.5 4.5 0 0 1 9 0a6 6 0 0 1-12 0"/>',
+  comando: '<path d="M4.5 17.5 3.5 7.5l4.75 4L12 5.5l3.75 6 4.75-4-1 10z"/><path d="M5 20.5h14"/>',
+  companheiro: '<circle cx="6.5" cy="10.5" r="1.6"/><circle cx="10" cy="6.5" r="1.6"/><circle cx="14" cy="6.5" r="1.6"/><circle cx="17.5" cy="10.5" r="1.6"/><path d="M12 11.5c-3 0-5.5 3.2-5.5 5.5 0 1.7 1.4 2.5 2.9 2.5 1.1 0 1.7-.6 2.6-.6s1.5.6 2.6.6c1.5 0 2.9-.8 2.9-2.5 0-2.3-2.5-5.5-5.5-5.5z"/>'
 };
 function Icone(nome, { tamanho = 20, classe = '' } = {}) {
   const el = h('span', { class: ('ds-icon ' + classe).trim(), 'aria-hidden': 'true', dataset: { icone: nome } });
@@ -33356,9 +33349,12 @@ function LifeCounter({ name, life, active, sub, onClick, id }) {
 
 /** Contagem de zona (grimório, cemitério…) que abre a zona. */
 // Leva 125 · `jogaveis`: quantas cartas da zona têm ação agora (lampejo do passado no cemitério, carta jogável do exílio)
-const ZoneChip = (label, n, onClick, id, jogaveis = 0) => h('button', { class: 'tb-chip', type: 'button', onClick, id, dataset: { ...(jogaveis ? { jogaveis: String(jogaveis) } : {}), ...(!n ? { zero: 'true' } : {}) }, // D6 · zero apagado
-  ...(jogaveis ? { 'aria-label': `${label}: ${n}, ${jogaveis === 1 ? 'uma carta pode ser jogada' : jogaveis + ' cartas podem ser jogadas'} agora` } : {}) },
-  label, h('b', {}, String(n)), jogaveis ? h('span', { class: 'tb-chip__ponto', 'aria-hidden': 'true' }) : null);
+// MJ1b (leva J-3) · ícone + número numa caixa de 44 px; o nome da zona fica no title, no nome falado e num texto só para o leitor
+const ICONE_DA_ZONA = { 'Mão': 'mao', 'Grimório': 'baralho', 'Cemitério': 'cemiterio', 'Exílio': 'exilio', 'Comando': 'comando', 'Companheiro': 'companheiro' };
+const ZoneChip = (label, n, onClick, id, jogaveis = 0) => h('button', { class: 'tb-chip', type: 'button', onClick, id, title: label, dataset: { ...(jogaveis ? { jogaveis: String(jogaveis) } : {}), ...(!n ? { zero: 'true' } : {}) }, // D6 · zero apagado
+  'aria-label': `${label}: ${n}` + (jogaveis ? `, ${jogaveis === 1 ? 'uma carta pode ser jogada' : jogaveis + ' cartas podem ser jogadas'} agora` : '') },
+  ICONE_DA_ZONA[label] ? Icone(ICONE_DA_ZONA[label], { tamanho: 18, classe: 'tb-chip__icone' }) : null,
+  h('span', { class: 'tb-chip__rotulo' }, label), h('b', {}, String(n)), jogaveis ? h('span', { class: 'tb-chip__ponto', 'aria-hidden': 'true' }) : null);
 
 const PHASES = [['início', ['untap', 'upkeep', 'draw']], ['principal 1', ['main1']],
   ['combate', ['combat_begin', 'combat_attackers', 'combat_blockers', 'combat_damage', 'combat_end']], ['principal 2', ['main2']], ['final', ['end', 'cleanup']]];
