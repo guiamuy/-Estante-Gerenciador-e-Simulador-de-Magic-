@@ -5045,6 +5045,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nenhum.
 - **Teste:** `lt191.unit` (2 testes; falham no motor anterior).
 
+**M-510 · LT174 · revisão por lote CL: nove cartas lidas que travam as listas iniciantes** ✅ (leva M-510, motor v112 sem mudança de forma; goldens intactos; nenhuma linha de código nova).
+- **Valor:** passam a jogar (APROVADAS): Cloudchaser Eagle (destrói encantamento ao entrar), Bloodcrazed Neonate (ataca se puder; marcador ao causar dano de combate a jogador), Traveler's Amulet, Cobbled Wings, Slagwurm Armor, Timber Gorge e Salt Marsh (entram virados), Seeker of Skybreak (desvira criatura alvo), Terminal Moraine (busca básico que entra virado). Textos da Scryfall consultados em 17/10/2026; leituras conferidas frase a frase no texto oficial.
+- **Revisão independente:** aprovada (revisão de M-510/M-511): 18 leituras conferidas; `--confere` com 1.098 aprovadas; 43 sondas sem divergência (Neonate só ganha marcador com dano de combate a jogador e não é obrigada com enjoo; buscas só de básico, com `pick_done` aceito e o básico virado no campo pela Moraine e pelo Elk; equipamentos só em velocidade de feitiço e em criatura sua, soltos quando a criatura sai; terras duplas entram viradas também por efeito; Nightscape Familiar reduz só o genérico de mágica azul ou vermelha sua, uma vez por mágica, dois acumulam; eco do Ticking Gnomes na manutenção seguinte); fuzz de 50 partidas (25.000 ações) sem recusa nem exceção. Observações gerais (não destas cartas): com criatura obrigada a atacar, a lista de ações repete cada ataque duas vezes; para terra de duas cores a lista de `tap_mana` oferece só a opção 0 (a outra é aceita quando pedida).
+- **Fora (declarado):** Flying (Cloudchaser Eagle) só vale com o campo `keywords` da Scryfall (limitação já declarada em M-496).
+- **Teste:** `lt192.unit` (5 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
