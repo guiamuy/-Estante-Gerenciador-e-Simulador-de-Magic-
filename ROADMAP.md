@@ -5024,6 +5024,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** Flying (Runewing) e Unleash (Grim Roustabout) só valem com o campo `keywords` da Scryfall (limitação já declarada em M-496).
 - **Teste:** `lt188.unit` (6 testes; falham no motor anterior).
 
+**M-507 · phyrexiano pago só com mana não esbarra mais na dor da fonte** ✅ (leva M-507, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** com 1 de vida, Mana Confluence e um Talismã, conjurar uma mágica {B/P}{B/P} pagando tudo com mana era oferecido pela mesa e recusado pelo motor ("vida insuficiente para pagar o phyrexiano depois da mana"). Agora é aceito: a conferência de vida depois da mana só vale quando algum símbolo phyrexiano é pago com vida (601.2g–h); o dano do Talismã não é custo (118.3) e a vida abaixo de 1 vira derrota pela ação de estado (704.5a). Vale para mágica e para habilidade ativada.
+- **Revisão independente:** aprovada: 9.120 casos sintéticos (vida 0 a 4; Confluence, Talismã, terreno de dor, City of Brass; {B/P}, {B/P}{B/P}, {1}{B/P}, {B}{B/P} em mágica e habilidade) batem com a regra independente — nada oferecido é recusado e nada não oferecido é aceito; 13.721 ações com cartas reais (Dismember, Gitaxian Probe, Tezzeret's Gambit, Apostle's Blessing, Skrelv) todas aceitas (754 eram recusadas no motor anterior); nenhuma aceitação antiga virou recusa. Resíduo antigo, sem carta real conhecida: habilidade com phyrexiano e "Pay N life" no mesmo custo é oferecida com vida que não paga os dois (o `vidasDe` das habilidades não soma `cost.life`) — registrado como pendência.
+- **Fora (declarado):** nenhum.
+- **Teste:** `lt189.unit` (2 testes; o primeiro falha no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

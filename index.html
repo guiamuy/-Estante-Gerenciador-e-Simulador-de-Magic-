@@ -24566,7 +24566,7 @@ function payAbilityCost(s, p, source, ab) {
       if (!(Number.isInteger(ab.vida) && ab.vida >= 0 && ab.vida <= nPhyrexianos(c))) throw new RuleError('custo', 'escolha quantos símbolos phyrexianos pagar com vida');
       if (s.players[p].life < 2 * ab.vida) throw new RuleError('custo', 'vida insuficiente para pagar o phyrexiano');
       comVidaDepois(2 * ab.vida + (cost.life || 0), () => payCost(s, p, custoPhyrexiano(c, ab.vida)));
-      if (s.players[p].life < 2 * ab.vida) throw new RuleError('custo', 'vida insuficiente para pagar o phyrexiano depois da mana'); // M-355 · 601.2g–h
+      if (ab.vida > 0 && s.players[p].life < 2 * ab.vida) throw new RuleError('custo', 'vida insuficiente para pagar o phyrexiano depois da mana'); // M-355 · 601.2g–h · M-507: sem símbolo pago com vida, não há o que conferir (a dor da fonte não é custo, 118.3)
       perdeVida(s, p, 2 * ab.vida);
     } else comVidaDepois(cost.life || 0, () => payCost(s, p, c)); // M-355 · 601.2h: a vida do custo sai do que sobra depois das fontes
   });
@@ -25024,7 +25024,7 @@ const HANDLERS = {
         if (!(Number.isInteger(a.vida) && a.vida >= 0 && a.vida <= nPhyrexianos(custo))) throw new RuleError('custo', 'escolha quantos símbolos phyrexianos pagar com vida');
         if (s.players[a.p].life < 2 * a.vida) throw new RuleError('custo', 'vida insuficiente para pagar o phyrexiano'); // 119.4
         comVidaDepois(2 * a.vida, () => payCost(s, a.p, custoPhyrexiano(custo, a.vida), extraPago, { criaturaDoComandante: true, oid: a.oid }));
-        if (s.players[a.p].life < 2 * a.vida) throw new RuleError('custo', 'vida insuficiente para pagar o phyrexiano depois da mana'); // M-355 · 601.2g–h: a mana vem antes
+        if (a.vida > 0 && s.players[a.p].life < 2 * a.vida) throw new RuleError('custo', 'vida insuficiente para pagar o phyrexiano depois da mana'); // M-355 · 601.2g–h: a mana vem antes · M-507: com vida 0 nada mais se paga; o dano do Talismã não é custo (118.3) e a vida abaixo de 1 é ação de estado (704.5a)
         perdeVida(s, a.p, 2 * a.vida);
       } else payCost(s, a.p, ...custoTapadoK(s, a, o, custo, extraPago), { criaturaDoComandante: true, oid: a.oid }); } // K-13 · convocar/improvisar (Toca ponto comum: o pagamento do custo normal) // M-273 // M-259 · a redução por alvo usa os alvos escolhidos
     if (a.kick && reforco && s.manaCheck && !a.free && (alt || a.flashback || a.escape || a.disturb || a.omen || a.bestow || a.plotted)) payCost(s, a.p, somaCusto(parseCost('{0}'), parseCost(reforco.mana), a.kick)); // CR2c.6 · 601.2f: o reforço soma ao custo alternativo
