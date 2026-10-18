@@ -5057,6 +5057,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** Echo (Ticking Gnomes) só vale com o campo `keywords` da Scryfall (limitação já declarada em M-496).
 - **Teste:** `lt193.unit` (5 testes; falham no motor anterior).
 
+**M-512 · LT176 · revisão por lote CLII: nove cartas lidas que travam as listas iniciantes** ✅ (leva M-512, motor v112 sem mudança de forma; goldens intactos; nenhuma linha de código nova).
+- **Valor:** passam a jogar (APROVADAS): Traumatic Visions (anula; ciclagem de terreno básico), Void Snare (devolve permanente que não é terreno), Bathe in Dragonfire, Weave Fate, Screeching Skaab (moe dois), Driver of the Dead (ao morrer, devolve criatura de valor 2 ou menos do cemitério ao campo), Convolute (anula a menos que pague {4}), Aesthir Glider (voa; não bloqueia), Dusk Legion Zealot (compra e perde 1). Textos da Scryfall consultados em 17/10/2026; leituras conferidas frase a frase no texto oficial.
+- **Revisão independente:** revisor independente junto com a M-513 (34 sondas de motor, 30 textos no leitor): as nove leituras batem frase a frase com o texto oficial (Convolute: quem decide pagar {4} é o controlador da mágica; Driver of the Dead: só criatura de valor 2 ou menos do seu cemitério; Void Snare: volta à mão do dono; Traumatic Visions: a ciclagem acha só terreno básico).
+- **Fora (declarado):** Flying (Aesthir Glider) só vale com o campo `keywords` da Scryfall (limitação já declarada em M-496).
+- **Teste:** `lt194.unit` (5 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
