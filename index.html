@@ -638,6 +638,12 @@ a { color: var(--accent); }
 .nt-topo[hidden] { display: none; }
 @keyframes nt-topo-entra { from { opacity: 0; transform: translateY(var(--space-2)); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .nt-topo.ds-btn { animation: none; } }
+/* G-273 · Topo das listas prontas: o mesmo desenho do Topo das Notícias (regras próprias: as do .nt-topo são espelhadas no painel) */
+.cat-topo.ds-btn { position: fixed; left: var(--space-4); bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px)); z-index: var(--z-overlay); min-height: 48px; padding: 0 var(--space-4) 0 var(--space-3);
+  border-radius: var(--radius-full); border-color: var(--border-strong); box-shadow: var(--btn-rest), var(--shadow-2); animation: nt-topo-entra var(--dur-2) var(--ease-out); }
+.cat-topo[hidden] { display: none; }
+@media (prefers-reduced-motion: reduce) { .cat-topo.ds-btn { animation: none; } }
+.cat-filtro { align-items: center; gap: var(--space-2); }
 .inicio-nt__icone { color: var(--accent); flex: none; }
 .inicio-nt__titulo { margin: 0; flex: none; font-family: var(--font-display); font-size: var(--text-xl); line-height: var(--lh-xl); font-weight: var(--weight-regular); }
 .ds-atalho { flex-direction: column; align-items: flex-start; justify-content: space-between; gap: var(--space-3);
@@ -15421,7 +15427,7 @@ const __m39 = (function () {
    lista aberta ou importada também. Importar cria uma lista comum na estante, com a origem marcada.
    O modelo é puro e tem teste sem navegador; a seção só desenha.
    ===================================================================== */
-const { h, mount, Stack, Row, Text, Button, IconButton, Input, Empty, Note, Badge, Icone, ManaPips, AvisoRede, toast, ComSimbolos } = __m3;
+const { h, mount, Stack, Row, Text, Button, IconButton, Input, Empty, Note, Badge, Icone, ManaPips, AvisoRede, toast, ComSimbolos, Dialog, closeDialog, Chip, Field, Simbolo } = __m3;
 const BASE = 'https://raw.githubusercontent.com/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-/catalogo/';
 const CHAVE_INDICE = 'catalogo.indice';
 const CHAVE_LISTA = id => 'catalogo.lista.' + id;
@@ -15453,10 +15459,69 @@ const resumoValido = l => !!(l && idValido(l.id) && typeof l.nome === 'string' &
 /** As listas válidas de um índice publicado (o que veio quebrado fica de fora). */
 const listasDoIndice = d => (d && d.versao === 1 && Array.isArray(d.listas) ? d.listas.filter(resumoValido) : []);
 /** Recorte por formato ('all' para todos) e por texto (nome, comandante, carta de destaque, código ou tipo, sem acento). */
-function filtraCatalogo(listas, { formato = 'all', texto = '' } = {}) {
+function filtraCatalogo(listas, { formato = 'all', texto = '', cores = [], modoCor = 'qualquer', origens = [], ordem = 'recente' } = {}) {
   const q = norm(texto);
-  return (listas || []).filter(l => (formato === 'all' || l.formato === formato)
-    && (!q || [l.nome, ...(l.comandante || []), l.destaque, l.codigo, l.tipo, l.jogador, l.torneio, l.evento].some(x => norm(x).includes(q))));
+  return ordenaCatalogo((listas || []).filter(l => (formato === 'all' || l.formato === formato)
+    && (!q || [l.nome, ...(l.comandante || []), l.destaque, l.codigo, l.tipo, l.jogador, l.torneio, l.evento].some(x => norm(x).includes(q)))
+    && casaCores(l, cores, modoCor) && (!origens || !origens.length || origens.includes(origemDe(l)))), ordem); // G-273
+}
+/* G-273 · relato #24 · filtros das listas prontas: cor (com o modo), onde a lista apareceu e a ordem. Tudo puro, a
+   partir do que o índice do catálogo já traz (`cores`, `fonte`, `tipo`, `valorUsd`, `posicao`, `data`). O índice não
+   traz estratégia (aggro, controle…): nenhuma fonte do coletor informa, e o filtro não inventa. */
+const CORES_DO_CATALOGO = [['W', 'Branco'], ['U', 'Azul'], ['B', 'Preto'], ['R', 'Vermelho'], ['G', 'Verde'], ['C', 'Incolor']];
+const MODOS_DE_COR = [['qualquer', 'Qualquer uma delas'], ['identidade', 'Só dentro delas'], ['exatas', 'Exatamente estas']];
+const ORIGENS = [['liga', 'Liga 5-0'], ['desafio', 'Desafio'], ['torneio', 'Torneio'], ['oficial', 'Produto oficial']];
+const ORDENS = [['recente', 'Mais nova'], ['barata', 'Menor valor'], ['cara', 'Maior valor'], ['colocacao', 'Melhor colocação']];
+/** O nome do conjunto de cores, como os jogadores chamam (guildas, fragmentos e cunhas). */
+const NOME_DO_CONJUNTO = { WU: 'Azorius', UB: 'Dimir', BR: 'Rakdos', RG: 'Gruul', WG: 'Selesnya', WB: 'Orzhov', UR: 'Izzet', BG: 'Golgari', WR: 'Boros', UG: 'Simic',
+  WUB: 'Esper', UBR: 'Grixis', BRG: 'Jund', WRG: 'Naya', WUG: 'Bant', WBG: 'Abzan', WUR: 'Jeskai', UBG: 'Sultai', WBR: 'Mardu', URG: 'Temur', WUBRG: 'Cinco cores' };
+const FILTRO_CATALOGO_VAZIO = Object.freeze({ cores: [], modoCor: 'qualquer', origens: [], ordem: 'recente' });
+const novoFiltroDoCatalogo = () => ({ ...FILTRO_CATALOGO_VAZIO, cores: [], origens: [] });
+const emOrdemWUBRG = cs => 'WUBRG'.split('').filter(c => cs.includes(c));
+/** As cores da lista, na ordem WUBRG (o índice traz "WR", "UBG"…; vazio é incolor). */
+const coresDaLista = l => emOrdemWUBRG(String((l && l.cores) || '').toUpperCase());
+/** Onde a lista apareceu: produto oficial (MTGJSON) ou, nas de torneio, o começo do `tipo` dado pelo coletor. */
+function origemDe(l) {
+  if (!deTorneio(l)) return 'oficial';
+  const t = norm(l.tipo);
+  return t.startsWith('liga') ? 'liga' : t.startsWith('desafio') ? 'desafio' : 'torneio';
+}
+/** A lista passa pelas cores escolhidas? Incolor (C) é a lista sem cor nenhuma. */
+function casaCores(l, cores, modo = 'qualquer') {
+  if (!cores || !cores.length) return true;
+  const tem = coresDaLista(l), coloridas = cores.filter(c => c !== 'C'), querIncolor = cores.includes('C');
+  if (modo === 'exatas') return tem.length ? tem.length === coloridas.length && coloridas.every(c => tem.includes(c)) : querIncolor && !coloridas.length;
+  if (modo === 'identidade') return tem.length ? tem.every(c => coloridas.includes(c)) : querIncolor;
+  return tem.length ? tem.some(c => coloridas.includes(c)) : querIncolor;
+}
+const filtrosDoCatalogoAtivos = f => (f && f.cores && f.cores.length ? 1 : 0) + (f && f.origens && f.origens.length ? 1 : 0) + (f && f.ordem && f.ordem !== 'recente' ? 1 : 0);
+/** Ordem do recorte: a do índice (mais nova primeiro) ou por valor ou colocação; quem não tem o dado vai para o fim. */
+function ordenaCatalogo(listas, ordem = 'recente') {
+  const v = l => (typeof l.valorUsd === 'number' && Number.isFinite(l.valorUsd) && l.valorUsd > 0 ? l.valorUsd : null);
+  const p = l => (Number.isInteger(l.posicao) && l.posicao > 0 ? l.posicao : null);
+  const chave = ordem === 'barata' || ordem === 'cara' ? v : ordem === 'colocacao' ? p : null;
+  if (!chave) return listas;
+  const sinal = ordem === 'cara' ? -1 : 1;
+  return listas.map((l, i) => ({ l, i, k: chave(l) })).sort((a, b) => (a.k == null) - (b.k == null) || (a.k != null && b.k != null ? sinal * (a.k - b.k) : 0) || a.i - b.i).map(x => x.l);
+}
+/** O conjunto escolhido em palavras: "Dimir (azul e preto)", "com azul ou preto", "só dentro de azul e preto". */
+function descreveCores(cores, modo = 'qualquer') {
+  if (!cores || !cores.length) return '';
+  const nome = c => (CORES_DO_CATALOGO.find(x => x[0] === c) || [c, c])[1].toLowerCase();
+  const cs = [...emOrdemWUBRG(cores), ...(cores.includes('C') ? ['C'] : [])];
+  const junta = (xs, e) => (xs.length < 2 ? xs.join('') : xs.slice(0, -1).join(', ') + ' ' + e + ' ' + xs[xs.length - 1]);
+  if (modo === 'exatas') { const chave = emOrdemWUBRG(cores).join(''), conj = cores.includes('C') ? null : NOME_DO_CONJUNTO[chave];
+    return conj ? `${conj} (${junta(cs.map(nome), 'e')})` : cs.length === 1 ? (cs[0] === 'C' ? 'incolor' : 'mono-' + nome(cs[0])) : 'exatamente ' + junta(cs.map(nome), 'e'); }
+  return (modo === 'identidade' ? 'só dentro de ' : 'com ') + junta(cs.map(nome), modo === 'identidade' ? 'e' : 'ou');
+}
+/** O recorte em uma linha, para a contagem: cores, onde apareceu e a ordem (quando não é a de sempre). */
+function descreveFiltroDoCatalogo(f) {
+  if (!f) return '';
+  const partes = [];
+  if (f.cores && f.cores.length) partes.push(descreveCores(f.cores, f.modoCor));
+  if (f.origens && f.origens.length) partes.push(f.origens.map(o => (ORIGENS.find(x => x[0] === o) || [o, o])[1]).join(' ou '));
+  if (f.ordem && f.ordem !== 'recente') partes.push('ordem: ' + (ORDENS.find(x => x[0] === f.ordem) || [f.ordem, f.ordem])[1].toLowerCase());
+  return partes.join(' · ');
 }
 /* G-248 · relato #15 · o nome é o da lista (o arquétipo, dado pelo coletor), o evento é informação à parte e o valor
    somado vem do índice. Tudo aqui é puro; índice de antes desta leva (sem `evento` nem `valorUsd`) desenha como antes. */
@@ -15600,13 +15665,52 @@ function CartaoCatalogo(l, { tenho = false, ocupado = false, onAdicionar = null,
       : IconButton('mais', `Adicionar ${l.nome}`, { variant: 'primary', classe: 'deck-item__add', disabled: ocupado, dataset: { catalogoAdd: l.id }, onClick: onAdicionar }));
 }
 
+/** G-273 · relato #24 · painel de filtros das listas prontas, no mesmo desenho do da estante: cor (com o modo), onde a
+    lista apareceu e a ordem. Cada toque já filtra; a contagem no alto diz quantas passam. */
+function abrirFiltrosDoCatalogo({ filtro, conta, onChange, onLimpar }) {
+  const f = { ...filtro, cores: [...filtro.cores], origens: [...filtro.origens] };
+  const contador = Text('', { size: 'sm', attrs: { id: 'catalogo-filtros-conta', 'aria-live': 'polite' } });
+  const aplica = () => { onChange({ ...f, cores: [...f.cores], origens: [...f.origens] }); const n = conta(); contador.textContent = `${n} ${n === 1 ? 'lista' : 'listas'}`; };
+  const varios = (lista, get, set, ds, simbolo = false) => Row({ class: 'ds-row--wrap' }, ...lista.map(([valor, rotulo]) => {
+    const c = simbolo ? h('button', { class: 'ds-chip ds-chip--simbolo', type: 'button', 'aria-pressed': String(get().includes(valor)), 'aria-label': rotulo, title: rotulo, dataset: { [ds]: valor } }, Simbolo(valor))
+      : Chip(rotulo, { pressed: get().includes(valor), dataset: { [ds]: valor } });
+    c.addEventListener('click', () => { const cur = get(); set(cur.includes(valor) ? cur.filter(x => x !== valor) : [...cur, valor]); c.setAttribute('aria-pressed', String(get().includes(valor))); aplica(); });
+    return c; }));
+  const unico = (lista, get, set, ds, padrao) => { const row = Row({ class: 'ds-row--wrap' }, ...lista.map(([valor, rotulo]) => {
+    const c = Chip(rotulo, { pressed: get() === valor, dataset: { [ds]: valor } });
+    c.addEventListener('click', () => { set(get() === valor ? padrao : valor); row.querySelectorAll('.ds-chip').forEach(x => x.setAttribute('aria-pressed', String(x.dataset[ds] === get()))); aplica(); });
+    return c; })); return row; };
+  const body = Stack({ id: 'catalogo-filtros' },
+    Field('Cor', Stack({ style: { gap: 'var(--space-1)' } },
+      varios(CORES_DO_CATALOGO, () => f.cores, v => { f.cores = v; }, 'catCor', true),
+      unico(MODOS_DE_COR, () => f.modoCor, v => { f.modoCor = v; }, 'catModo', 'qualquer'))),
+    Field('Onde apareceu', varios(ORIGENS, () => f.origens, v => { f.origens = v; }, 'catOrigem')),
+    Field('Ordem', unico(ORDENS, () => f.ordem, v => { f.ordem = v; }, 'catOrdem', 'recente')));
+  Dialog({ title: 'Filtrar listas prontas', body: Stack({}, contador, body), actions: [
+    Button('Limpar', { id: 'catalogo-filtros-limpar', onClick: () => { closeDialog(); onLimpar(); } }),
+    Button('Mostrar', { variant: 'primary', id: 'catalogo-filtros-mostrar', onClick: closeDialog })] });
+  aplica();
+}
+/* G-273 · o filtro das listas prontas vale enquanto o app está aberto: abrir uma lista e voltar não o desfaz */
+let filtroDoCatalogo = null;
+const SUFIXO_DA_ORDEM = { recente: 'da mais nova à mais antiga', barata: 'do menor ao maior valor', cara: 'do maior ao menor valor', colocacao: 'da melhor colocação' };
+
 /** A seção "Oficiais da Wizards" na tela de listas prontas. `formato` vem dos chips da tela; a busca é da seção. */
 function SecaoCatalogo({ catalogo, decks, formato = 'all', aoImportar = null }) {
   const box = h('section', { class: 'cat', id: 'catalogo', 'aria-labelledby': 'catalogo-titulo' });
-  const st = { estado: 'carregando', r: null, texto: '', mostra: LOTE, minhas: [], ocupado: null, formato, taxas: null };
+  const st = { estado: 'carregando', r: null, texto: '', mostra: LOTE, minhas: [], ocupado: null, formato, taxas: null, filtro: filtroDoCatalogo || novoFiltroDoCatalogo() };
   const temRede = () => typeof navigator === 'undefined' || navigator.onLine !== false;
   const buscaIn = Input({ id: 'catalogo-busca', placeholder: 'Nome, carta, evento ou jogador', onInput: e => { st.texto = e.target.value; st.mostra = LOTE; pintaLista(); } });
   buscaIn.setAttribute('type', 'search'); buscaIn.setAttribute('aria-label', 'Buscar nas listas oficiais'); buscaIn.autocomplete = 'off';
+  // G-273 · Filtros ao lado da busca, com o número de critérios num selo (como na estante e na coleção)
+  const guardaFiltro = f => { st.filtro = f; st.mostra = LOTE; filtroDoCatalogo = filtrosDoCatalogoAtivos(f) ? f : null; };
+  const limpaFiltro = () => { guardaFiltro(novoFiltroDoCatalogo()); pintaLista(); };
+  const recorteDe = () => filtraCatalogo(listasDoIndice(st.r && st.r.dados), { formato: st.formato, texto: st.texto, ...st.filtro });
+  const filtrosBtn = Button('Filtros', { id: 'catalogo-filtros-abrir', icone: 'filtro', onClick: () => abrirFiltrosDoCatalogo({ filtro: st.filtro,
+    conta: () => recorteDe().length, onChange: f => { guardaFiltro(f); pintaLista(); }, onLimpar: limpaFiltro }) });
+  const pintaSelo = () => { const n = filtrosDoCatalogoAtivos(st.filtro); let c = filtrosBtn.querySelector('.ds-btn__conta');
+    if (!c) { c = h('span', { class: 'ds-btn__conta' }); filtrosBtn.appendChild(c); }
+    c.textContent = n ? String(n) : ''; c.hidden = !n; filtrosBtn.setAttribute('aria-label', n ? `Filtros, ${n} ativo(s)` : 'Filtros'); filtrosBtn.dataset.ativos = String(n); };
   const listaBox = h('div', { id: 'catalogo-corpo' });
   async function adiciona(l) {
     if (st.ocupado) return;
@@ -15627,12 +15731,17 @@ function SecaoCatalogo({ catalogo, decks, formato = 'all', aoImportar = null }) 
     if (st.estado === 'erro') { const n = Note(__m3.seguro`<b>Não foi possível abrir o catálogo.</b> Confira a conexão e tente de novo.`, 'negative'); n.id = 'catalogo-erro';
       return mount(listaBox, n, Row({}, Button('Repetir', { icone: 'atualizar', id: 'catalogo-de-novo', onClick: () => carrega(true) }))); }
     if (st.estado === 'ausente' || !todas.length) return mount(listaBox, Empty('O catálogo ainda está sendo montado. Volte daqui a pouco.', null, { icone: 'caixa', titulo: 'Catálogo vazio', id: 'catalogo-vazio' }));
-    const recorte = filtraCatalogo(todas, { formato: st.formato, texto: st.texto });
-    const nomeFmt = ROTULO_DO_FORMATO[st.formato];
+    const recorte = recorteDe();
+    const nomeFmt = ROTULO_DO_FORMATO[st.formato], filtrando = filtrosDoCatalogoAtivos(st.filtro) > 0;
+    pintaSelo();
+    const limparBtn = id => Button('Limpar', { variant: 'ghost', icone: 'fechar', id, onClick: limpaFiltro });
+    if (!recorte.length && filtrando) return mount(listaBox, Empty(`Nenhuma lista passa por esses filtros: ${descreveFiltroDoCatalogo(st.filtro)}.`, limparBtn('catalogo-filtros-limpar-vazio'), { icone: 'filtro', titulo: 'Nada aqui', id: 'catalogo-recorte-vazio' }));
     if (!recorte.length) return mount(listaBox, Empty(st.texto ? `Nenhuma lista do catálogo com "${st.texto}".` : st.formato === 'pauper' ? 'Nenhum torneio de Pauper no catálogo agora, e as listas oficiais não têm Pauper. As de Pauper estão na Estante, acima.' : `Nenhuma lista de ${nomeFmt || 'este formato'} no catálogo agora: as ligas, os desafios e os torneios dos últimos 30 dias não trouxeram.`, null, { icone: 'filtro', titulo: 'Nada aqui', id: 'catalogo-recorte-vazio' }));
     const visiveis = recorte.slice(0, st.mostra);
     mount(listaBox,
-      Text(`${recorte.length} ${recorte.length === 1 ? 'lista' : 'listas'}${nomeFmt ? ' de ' + nomeFmt : ''}, da mais nova à mais antiga`, { size: 'xs', tone: 'muted', attrs: { id: 'catalogo-conta', 'aria-live': 'polite' } }),
+      Text(`${recorte.length} ${recorte.length === 1 ? 'lista' : 'listas'}${nomeFmt ? ' de ' + nomeFmt : ''}, ${SUFIXO_DA_ORDEM[st.filtro.ordem] || SUFIXO_DA_ORDEM.recente}`, { size: 'xs', tone: 'muted', attrs: { id: 'catalogo-conta', 'aria-live': 'polite' } }),
+      // G-273 · com filtro: o recorte em palavras e o Limpar, logo abaixo da contagem
+      filtrando ? Row({ class: 'ds-row--wrap cat-filtro' }, Text(descreveFiltroDoCatalogo(st.filtro), { size: 'xs', tone: 'muted', attrs: { id: 'catalogo-filtro-desc' } }), limparBtn('catalogo-filtros-limpar-faixa')) : null,
       h('div', { class: 'cat-lista', id: 'catalogo-lista' }, ...visiveis.map(l => CartaoCatalogo(l, { tenho: jaNaEstante(l, st.minhas), ocupado: st.ocupado === l.id, onAdicionar: () => adiciona(l), taxas: st.taxas }))),
       // T5 · respiro entre a última lista e o botão (relato #1: estava colado)
       recorte.length > visiveis.length ? h('div', { class: 'cat-mais' }, Button(`Mostrar mais ${Math.min(LOTE, recorte.length - visiveis.length)}`, { icone: 'descer', id: 'catalogo-mais', onClick: () => { st.mostra += LOTE; pintaLista(); } })) : null,
@@ -15652,7 +15761,8 @@ function SecaoCatalogo({ catalogo, decks, formato = 'all', aoImportar = null }) 
   mount(box,
     h('div', { class: 'cat__cabeca' }, Text('Catálogo', { size: 'lg', display: true, as: 'h2', attrs: { id: 'catalogo-titulo' } }),
       Text('Os decks lançados pela Wizards e as oito primeiras de torneios recentes, do mais novo ao mais antigo. Lista de torneio leva o nome das cartas que a definem; o evento vem embaixo. Um toque em + traz a lista para a sua estante.', { size: 'sm', tone: 'muted' })),
-    buscaIn, listaBox);
+    Row({ class: 'ds-row--wrap' }, h('div', { class: 'ds-grow', style: { minWidth: '160px' } }, buscaIn), filtrosBtn), listaBox);
+  pintaSelo();
   carrega();
   // G-248 · com a cotação o valor vira real; sem ela (ou sem internet) fica em dólar
   __m31.padrao.taxas().then(t => { if (t) { st.taxas = t; if (st.estado === 'pronto') pintaLista(); } }).catch(() => { /* fica em dólar */ });
@@ -15817,7 +15927,7 @@ function createCatalogoListaScreen({ catalogo, decks, cardRepo, store }) {
   return root;
 }
 
-return { indiceAntigo, linhasDoCartao, valorDoResumo, comResumo, precoDaCarta, fichasDoCatalogo, CHAVE_FICHAS, deTorneio, FONTES_DO_CATALOGO, CreditoDasFontes, VISOES, gruposPorTipo, gruposPorCusto, createCatalogoListaScreen, BASE, CHAVE_INDICE, PRAZO_MS, LOTE, FORMATOS, listasDoIndice, filtraCatalogo, imagemDaCarta, listaParaSalvar, jaNaEstante, createCatalogo, CartaoCatalogo, SecaoCatalogo };
+return { CORES_DO_CATALOGO, MODOS_DE_COR, ORIGENS, ORDENS, NOME_DO_CONJUNTO, novoFiltroDoCatalogo, coresDaLista, origemDe, casaCores, filtrosDoCatalogoAtivos, ordenaCatalogo, descreveCores, descreveFiltroDoCatalogo, abrirFiltrosDoCatalogo, indiceAntigo, linhasDoCartao, valorDoResumo, comResumo, precoDaCarta, fichasDoCatalogo, CHAVE_FICHAS, deTorneio, FONTES_DO_CATALOGO, CreditoDasFontes, VISOES, gruposPorTipo, gruposPorCusto, createCatalogoListaScreen, BASE, CHAVE_INDICE, PRAZO_MS, LOTE, FORMATOS, listasDoIndice, filtraCatalogo, imagemDaCarta, listaParaSalvar, jaNaEstante, createCatalogo, CartaoCatalogo, SecaoCatalogo };
 })();
 
 /* ==== src/app/decks.js ==== */
@@ -16938,6 +17048,19 @@ function createStarterDecks({ decks, catalogo = null }) {
       secaoOficial || Empty('As listas prontas chegam pela internet. Sem conexão agora: tente de novo depois.', null, { icone: 'caixa', titulo: 'Sem listas prontas', id: 'starter-vazio' }));
   }
   paint();
+  // G-273 · relato #24 · Topo: o mesmo botão das Notícias (canto oposto ao Relatar), depois de uma tela e meia rolada;
+  // mora no body e sai junto com a tela
+  const parado = () => document.documentElement.getAttribute('data-movimento') === 'reduzido' || !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const topo = h('button', { class: 'ds-btn cat-topo', type: 'button', id: 'prontas-topo', 'aria-label': 'Voltar ao topo', title: 'Voltar ao topo', dataset: { sobrepoe: 'acao' },
+    onClick: () => { window.scrollTo({ top: 0, behavior: parado() ? 'auto' : 'smooth' }); topo.hidden = true; } }, Icone('subir', { tamanho: 20 }), h('span', { class: 'ds-btn__rotulo' }, 'Topo'));
+  topo.hidden = true;
+  const rolou = () => {
+    if (!root.isConnected) { topo.remove(); window.removeEventListener('scroll', rolou); window.removeEventListener('hashchange', saiu); return; }
+    if (!topo.isConnected) document.body.appendChild(topo);
+    const v = window.scrollY > innerHeight * 1.5; if (topo.hidden === v) topo.hidden = !v;
+  };
+  const saiu = () => setTimeout(() => { if (!root.isConnected) rolou(); }, 0);
+  window.addEventListener('scroll', rolou, { passive: true }); window.addEventListener('hashchange', saiu);
   return root;
 }
 

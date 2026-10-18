@@ -197,3 +197,42 @@ test('G-249 · serviço: cópia antiga dentro do prazo é buscada de novo; cópi
   await store.set(K.CHAVE_INDICE, { em: agora, dados: { versao: 1, listas: [ANTIGA] } }); cai = true;
   const v = await C.indice(); assert.equal(v.origem, 'guardado'); assert.equal(v.velho, true); assert.equal(K.listasDoIndice(v.dados)[0].nome, '5-0 · Modern League');
 });
+
+test('G-273 · relato #24 · filtros das listas prontas: cor nos três modos (incolor incluso), onde apareceu, ordem e as frases do recorte', () => {
+  const T = (id, cores, extra = {}) => ({ id: 'mtgo-' + id, nome: id, formato: 'modern', tipo: 'Liga · 5-0', data: '2026-10-10', codigo: '', fonte: 'mtgo', cores, destaque: 'X', destaqueId: null, comandante: [], cartas: 60, ...extra });
+  const ls = [T('dimir', 'UB', { valorUsd: 300, posicao: 2 }), T('mono-u', 'U', { tipo: 'Desafio · 1º de 40', valorUsd: 50, posicao: 1 }), T('esper', 'WUB', { fonte: 'topdeck', tipo: 'Torneio · 3º de 20', posicao: 3 }),
+    T('rakdos', 'RB', { valorUsd: 120 }), T('eldrazi', ''), { ...L('oficial', 'Welcome Deck 2017', 'iniciante', { cores: 'U', valorUsd: 10 }) }];
+  const ids = f => J(K.filtraCatalogo(ls, f).map(l => l.nome));
+  // o índice traz as cores fora de ordem às vezes ("RB"): a lista sai em WUBRG
+  assert.deepEqual(J(K.coresDaLista(ls[3])), ['B', 'R']); assert.deepEqual(J(K.coresDaLista(ls[4])), []);
+  // qualquer uma delas: tem azul ou preto
+  assert.deepEqual(ids({ cores: ['U', 'B'] }), ['dimir', 'mono-u', 'esper', 'rakdos', 'Welcome Deck 2017']);
+  // só dentro delas: nenhuma cor fora de azul e preto
+  assert.deepEqual(ids({ cores: ['U', 'B'], modoCor: 'identidade' }), ['dimir', 'mono-u', 'Welcome Deck 2017']);
+  // exatamente estas: o conjunto Dimir
+  assert.deepEqual(ids({ cores: ['B', 'U'], modoCor: 'exatas' }), ['dimir']);
+  // incolor: a lista sem cor nenhuma, nos três modos
+  for (const modoCor of ['qualquer', 'identidade', 'exatas']) assert.deepEqual(ids({ cores: ['C'], modoCor }), ['eldrazi'], modoCor);
+  assert.deepEqual(ids({ cores: ['U', 'C'], modoCor: 'identidade' }), ['mono-u', 'eldrazi', 'Welcome Deck 2017']);
+  // onde apareceu: pelo começo do tipo; MTGJSON é produto oficial
+  assert.deepEqual(ls.map(l => K.origemDe(l)), ['liga', 'desafio', 'torneio', 'liga', 'liga', 'oficial']);
+  assert.deepEqual(ids({ origens: ['desafio', 'oficial'] }), ['mono-u', 'Welcome Deck 2017']);
+  // ordem: quem não tem o dado vai para o fim, na ordem do índice; sem filtro, a ordem do índice
+  assert.deepEqual(ids({ ordem: 'barata' }), ['Welcome Deck 2017', 'mono-u', 'rakdos', 'dimir', 'esper', 'eldrazi']);
+  assert.deepEqual(ids({ ordem: 'cara' }), ['dimir', 'rakdos', 'mono-u', 'Welcome Deck 2017', 'esper', 'eldrazi']);
+  assert.deepEqual(ids({ ordem: 'colocacao' }), ['mono-u', 'dimir', 'esper', 'rakdos', 'eldrazi', 'Welcome Deck 2017']);
+  assert.deepEqual(ids({}), ls.map(l => l.nome));
+  // junto com formato e texto, como antes
+  assert.deepEqual(ids({ formato: 'modern', texto: 'dim', cores: ['U'] }), ['dimir']);
+  // frases
+  assert.equal(K.descreveCores(['B', 'U'], 'exatas'), 'Dimir (azul e preto)');
+  assert.equal(K.descreveCores(['W', 'U', 'B', 'R', 'G'], 'exatas'), 'Cinco cores (branco, azul, preto, vermelho e verde)');
+  assert.equal(K.descreveCores(['U'], 'exatas'), 'mono-azul'); assert.equal(K.descreveCores(['C'], 'exatas'), 'incolor');
+  assert.equal(K.descreveCores(['U', 'B'], 'qualquer'), 'com azul ou preto'); assert.equal(K.descreveCores(['U', 'B'], 'identidade'), 'só dentro de azul e preto');
+  assert.equal(K.descreveFiltroDoCatalogo({ cores: ['U', 'B'], modoCor: 'exatas', origens: ['liga', 'desafio'], ordem: 'cara' }), 'Dimir (azul e preto) · Liga 5-0 ou Desafio · ordem: maior valor');
+  assert.equal(K.filtrosDoCatalogoAtivos(K.novoFiltroDoCatalogo()), 0);
+  assert.equal(K.filtrosDoCatalogoAtivos({ cores: ['U'], modoCor: 'qualquer', origens: ['liga'], ordem: 'cara' }), 3);
+  // os vinte conjuntos de duas e três cores têm nome, e só eles (mais as cinco cores)
+  assert.equal(Object.keys(K.NOME_DO_CONJUNTO).length, 21);
+  assert.ok(Object.keys(K.NOME_DO_CONJUNTO).every(k => k === K.coresDaLista({ cores: k }).join('')), 'chaves em WUBRG');
+});

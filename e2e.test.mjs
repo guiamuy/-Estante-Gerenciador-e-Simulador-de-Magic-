@@ -9207,6 +9207,65 @@ test('e2e · Z2 catálogo de listas oficiais em Listas prontas: seis formatos em
   assert.deepEqual(errors, []);
 });
 
+test('e2e · G-273 · relato #24 · Listas prontas: Filtros (cor nos três modos, onde apareceu, ordem) com selo, frase e Limpar; recorte vazio com saída; o filtro fica ao voltar; Topo depois de uma tela e meia', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await rotaCatalogo(page);
+  await page.goto(base + '#/listas/prontas'); await page.waitForSelector('#catalogo-lista');
+  const btn = await page.$eval('#catalogo-filtros-abrir', b => ({ h: Math.round(b.getBoundingClientRect().height), fala: b.getAttribute('aria-label'), selo: b.querySelector('.ds-btn__conta') ? b.querySelector('.ds-btn__conta').hidden : true }));
+  assert.deepEqual(btn, { h: btn.h, fala: 'Filtros', selo: true }); assert.ok(btn.h >= 44, 'Filtros com 44 px');
+  // 1 · Dimir exato: as nove de Commander azul e preto e o desafio de Vintage
+  await page.click('#catalogo-filtros-abrir'); await page.waitForSelector('#catalogo-filtros');
+  const cores = await page.$$eval('#catalogo-filtros [data-cat-cor]', cs => cs.map(c => [c.dataset.catCor, c.getAttribute('aria-label'), Math.round(c.getBoundingClientRect().height), Math.round(c.getBoundingClientRect().width)]));
+  assert.deepEqual(cores.map(c => c[0]), ['W', 'U', 'B', 'R', 'G', 'C']); assert.ok(cores.every(c => c[2] >= 44 && c[3] >= 44), JSON.stringify(cores));
+  await page.click('[data-cat-cor="U"]'); await page.click('[data-cat-cor="B"]');
+  assert.match(await page.innerText('#catalogo-filtros-conta'), /^\d+ listas?$/);
+  await page.click('[data-cat-modo="exatas"]');
+  assert.equal(await page.innerText('#catalogo-filtros-conta'), '10 listas');
+  await auditaTela(page, 'filtros das listas prontas');
+  await page.click('#catalogo-filtros-mostrar'); await page.waitForSelector('#catalogo-filtros', { state: 'detached' });
+  assert.match(await page.innerText('#catalogo-conta'), /^10 listas, da mais nova à mais antiga$/);
+  assert.equal(await page.innerText('#catalogo-filtro-desc'), 'Dimir (azul e preto)');
+  assert.equal(await page.$eval('#catalogo-filtros-abrir .ds-btn__conta', c => c.textContent), '1');
+  { const vistas = await page.$$eval('#catalogo-lista .cat-item', is => is.map(i => i.dataset.id)); assert.equal(vistas.length, 10);
+    assert.ok(vistas.every(id => CATALOGO_Z2.listas.find(l => l.id === id).cores === 'UB'), JSON.stringify(vistas)); }
+  // 2 · onde apareceu e ordem: só o desafio; a contagem diz a ordem escolhida
+  await page.click('#catalogo-filtros-abrir'); await page.waitForSelector('#catalogo-filtros');
+  await page.click('[data-cat-origem="desafio"]'); await page.click('[data-cat-ordem="cara"]');
+  assert.equal(await page.innerText('#catalogo-filtros-conta'), '1 lista');
+  await page.click('#catalogo-filtros-mostrar');
+  assert.equal(await page.innerText('#catalogo-conta'), '1 lista, do maior ao menor valor');
+  assert.equal(await page.getAttribute('#catalogo-lista .cat-item', 'data-id'), 'mtgo-vintage-challenge-32-2026-10-0412855600-1');
+  assert.equal(await page.$eval('#catalogo-filtros-abrir .ds-btn__conta', c => c.textContent), '3');
+  // 3 · recorte vazio: a frase diz o recorte e o Limpar devolve tudo
+  await page.click('#catalogo-filtros-abrir'); await page.waitForSelector('#catalogo-filtros');
+  await page.click('[data-cat-origem="desafio"]'); await page.click('[data-cat-origem="torneio"]');
+  assert.equal(await page.innerText('#catalogo-filtros-conta'), '0 listas');
+  await page.click('#catalogo-filtros-mostrar'); await page.waitForSelector('#catalogo-recorte-vazio');
+  assert.match(await page.innerText('#catalogo-recorte-vazio'), /Nenhuma lista passa por esses filtros: Dimir \(azul e preto\) · Torneio · ordem: maior valor\./);
+  await auditaTela(page, 'listas prontas sem nada no recorte');
+  await page.click('#catalogo-filtros-limpar-vazio'); await page.waitForSelector('#catalogo-lista');
+  assert.match(await page.innerText('#catalogo-conta'), /^40 listas, da mais nova/);
+  assert.equal(await page.$eval('#catalogo-filtros-abrir .ds-btn__conta', c => c.hidden), true);
+  // 4 · o filtro fica ao sair e voltar; o Limpar da faixa tira
+  await page.click('#catalogo-filtros-abrir'); await page.waitForSelector('#catalogo-filtros'); await page.click('[data-cat-cor="R"]'); await page.click('#catalogo-filtros-mostrar');
+  const comVermelho = await page.innerText('#catalogo-conta');
+  await page.goto(base + '#/listas'); await page.waitForSelector('#decks-vazio, .deck-linha');
+  await page.goto(base + '#/listas/prontas'); await page.waitForSelector('#catalogo-lista');
+  assert.equal(await page.innerText('#catalogo-conta'), comVermelho); assert.equal(await page.innerText('#catalogo-filtro-desc'), 'com vermelho');
+  await page.click('#catalogo-filtros-limpar-faixa'); await page.waitForFunction(() => /^40 listas/.test(document.querySelector('#catalogo-conta').textContent));
+  // 5 · Topo: escondido no alto; depois de uma tela e meia aparece, com 44 px, e volta ao começo; sai junto com a tela
+  await page.click('#catalogo-mais'); await page.evaluate(() => window.scrollTo(0, 0)); await page.waitForSelector('#prontas-topo', { state: 'hidden' });
+  assert.equal(await page.locator('#prontas-topo:visible').count(), 0);
+  await page.evaluate(() => window.scrollTo(0, innerHeight * 2)); await page.waitForSelector('#prontas-topo', { state: 'visible' }); await page.waitForTimeout(300); // a entrada (180 ms) termina
+  const tp = await page.$eval('#prontas-topo', b => ({ h: Math.round(b.getBoundingClientRect().height), fala: b.getAttribute('aria-label'), texto: b.textContent.trim() }));
+  assert.deepEqual(tp, { h: tp.h, fala: 'Voltar ao topo', texto: 'Topo' }); assert.ok(tp.h >= 44);
+  for (const tema of ['dark', 'light']) { await page.evaluate(x => document.documentElement.setAttribute('data-theme', x), tema); for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await page.evaluate(() => window.scrollTo(0, innerHeight * 2)); await page.waitForSelector('#prontas-topo', { state: 'visible' }); await auditaTela(page, `listas prontas com Topo ${w} ${tema}`); } }
+  await page.click('#prontas-topo'); await page.waitForFunction(() => window.scrollY < 2); await page.waitForSelector('#prontas-topo', { state: 'hidden' });
+  await page.goto(base + '#/listas'); await page.waitForFunction(() => !document.querySelector('#prontas-topo'), null, { timeout: 2000 });
+  assert.deepEqual(errors, []);
+});
+
 /* ---------------- Z3 · detalhe da lista do catálogo ---------------- */
 test('e2e · Z3 detalhe da lista do catálogo: o cartão abre a lista com arte, cores, comandante, descrição e fonte; visões Lista (por tipo), Agregado (por custo) e Galeria lembradas; carta abre a folha; estatísticas; Adicionar vira Abrir na estante', { skip }, async t => {
   const { page, errors, base } = await open(t);
