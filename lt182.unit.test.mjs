@@ -68,6 +68,6 @@ test('LT166 · Viridian Claw equipa por {1}: +1/+0 e golpe primeiro; Raven Famil
   t = tudo(act(t, legais(t, 0, a => a.t === 'cast' && a.oid === rf)[0]));
   assert.equal(t.zones[0].hand.length, h0 - 1 + 1); assert.equal(t.zones[0].library.length, l0 - 1); assert.ok(topo3.some(x => t.zones[0].hand.includes(x)), 'uma das três');
   assert.ok(E.hasKeyword(t, t.objects[rf], 'flying'));
-  t = passaAte(t, x => x.turn.active === 0 && x.turn.turn > 1 && x.pending && x.pending.kind === 'may_pay', 80);
+  t = passaAte(t, x => x.turn.active === 0 && x.turn.number > 1 && x.pending && x.pending.kind === 'may_pay', 80);
   t = resolve(act(t, { t: 'decline', p: 0 })); assert.equal(t.objects[rf].zone, 'graveyard', 'eco não pago');
 });

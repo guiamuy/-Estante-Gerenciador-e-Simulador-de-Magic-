@@ -5030,6 +5030,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nenhum.
 - **Teste:** `lt189.unit` (2 testes; o primeiro falha no motor anterior).
 
+**M-508 · LT172 · revisão por lote CXLVIII: nove cartas lidas que travam as listas iniciantes** ✅ (leva M-508, motor v112 sem mudança de forma; goldens intactos; nenhuma linha de código nova).
+- **Valor:** passam a jogar (APROVADAS): Seal of Strength (sacrificar: +3/+3), Berserkers of Blood Ridge (ataca se puder), Call to Mind (instantânea ou feitiço do seu cemitério para a mão), Submerged Boneyard (entra virado; {U} ou {B}), Enfeeblement (-2/-2), Drana's Emissary (na sua manutenção, cada oponente perde 1 e você ganha 1), Courier Griffin, Bloodbond Vampire (marcador ao ganhar vida), Defiant Bloodlord (ao ganhar vida, oponente alvo perde o mesmo tanto). Textos da Scryfall consultados em 17/10/2026; leituras conferidas frase a frase no texto oficial.
+- **Revisão independente:** aprovada: leituras conferidas frase a frase; 31 sondas (Defiant Bloodlord perde "that much" e só no oponente; Bloodbond um marcador por evento, dois ganhos simultâneos dão dois; Drana's Emissary só na manutenção do controlador; Berserkers obrigado a atacar e livre quando não pode; Call to Mind só do seu cemitério; Submerged Boneyard entra virado também posto por efeito; Seal of Strength sacrifício como custo; Enfeeblement sai com a criatura); fuzz de 120 partidas (42.133 ações) sem recusa nem exceção.
+- **Fora (declarado):** Flying (Courier Griffin, Drana's Emissary, Defiant Bloodlord) só vale com o campo `keywords` da Scryfall (limitação já declarada em M-496). Phyrexian Arena saiu do lote: o leitor não lê "you draw a card and lose 1 life" (fica para uma leva do leitor). O teste da M-500 (`lt182`) passa a esperar o eco pelo número do turno (`turn.number`; `turn.turn` não existe).
+- **Teste:** `lt190.unit` (6 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
