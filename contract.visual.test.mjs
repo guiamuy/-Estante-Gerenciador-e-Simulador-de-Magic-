@@ -90,7 +90,8 @@ test('A13 · carta da mesa: maior, com nome e P/T por cima da arte, anéis de es
   // estreita (76/92) e larga (92/110) ficam no bloco U8
   assert.match(carta, /\.tb-card \{[^}]*width: var\(--carta-campo\)/, 'carta do campo pelo token');
   assert.match(carta, /\.tb-card--hand \{ width: var\(--carta-mao\); \}/);
-  assert.match(componentCss, /:root \{ --carta-campo: 84px; --carta-mao: 100px; --carta-pilha: 56px; \}/, 'padrão 84/100/56');
+  // MJ1d (leva J-5) · expectativa mudou de propósito: o bloco padrão ganhou o token dos terrenos compactos (60 px)
+  assert.match(componentCss, /:root \{ --carta-campo: 84px; --carta-mao: 100px; --carta-pilha: 56px; --carta-terreno: 60px; \}/, 'padrão 84/100/56, terreno 60');
   assert.match(componentCss, /@media \(max-width: 374px\) \{\s*:root \{ --carta-campo: 76px; --carta-mao: 92px;/, 'Galaxy S');
   assert.match(componentCss, /@media \(min-width: 400px\) \{\s*:root \{ --carta-campo: 92px; --carta-mao: 110px;/, 'S+ e Ultra');
   assert.ok(carta.includes('.tb-card__label {') && carta.includes('.tb-card__pt {'), 'nome e P/T têm estilo próprio');

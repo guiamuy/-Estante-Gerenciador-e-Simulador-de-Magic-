@@ -13268,3 +13268,37 @@ test('e2e · MJ1c pilha e resumo por cima da mesa: o campo não desce, a faixa n
   assert.equal(await page.locator('#tb-stack').count(), resta.pilha.length ? 1 : 0, 'a faixa existe só com a pilha: ' + JSON.stringify(resta));
   assert.deepEqual(errors, []);
 });
+
+// MJ1d (leva J-5, trilha jogabilidade) · terrenos compactos: na fileira dos terrenos a carta usa --carta-terreno (≈ 72% da
+// carta do campo), e o lado encolhe ~28 px; as criaturas ficam no tamanho da faixa. Crítica da J-1: um terreno sozinho
+// ocupava uma fileira do tamanho da das criaturas.
+test('e2e · MJ1d terrenos compactos: a fileira dos terrenos usa a carta menor da faixa, criaturas no tamanho do campo, nas quatro medidas e nos dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start');
+  await page.fill('#mesa-seed', '4'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  await page.waitForSelector('#tb-pass');
+  await page.evaluate(() => { const M = window.__estanteMesa; const s = M.estado(); const p = s.turn.active;
+    for (const nm of ['Island', 'Island', 'Island', 'Delver of Secrets']) { const o = Object.values(M.estado().objects).find(x => x.owner === p && x.name === nm && x.zone !== 'battlefield'); if (o) M.act({ t: 'move', p, oid: o.oid, to: 'battlefield' }); } });
+  await page.waitForSelector('.tb-side--me [data-zone="lands"] .tb-card');
+  for (const [w, hgt, campo, terreno] of [[360, 780, 76, 56], [384, 832, 84, 60], [390, 844, 84, 60], [412, 891, 92, 66]]) for (const tema of ['dark', 'light']) {
+    await page.setViewportSize({ width: w, height: hgt });
+    await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema);
+    await page.waitForTimeout(250);
+    const m = await page.evaluate(() => {
+      const q = s => document.querySelector(s), r = el => el.getBoundingClientRect();
+      const terra = q('.tb-side--me [data-zone="lands"] .tb-card'), cria = q('.tb-side--me [data-zone="permanents"] .tb-card');
+      return { terra: Math.round(r(terra).width), cria: Math.round(r(cria).width),
+        filaTerra: Math.round(r(q('.tb-side--me [data-zone="lands"] .tb-row')).height), filaCria: Math.round(r(q('.tb-side--me [data-zone="permanents"] .tb-row')).height),
+      };
+    });
+    const nome = `${w}×${hgt} ${tema}`;
+    assert.equal(m.terra, terreno, `${nome}: terreno com ${terreno} px (era ${campo})`);
+    assert.equal(m.cria, campo, `${nome}: criatura no tamanho do campo`);
+    assert.ok(m.filaCria - m.filaTerra >= 20, `${nome}: a fileira dos terrenos é mais baixa (${m.filaTerra} × ${m.filaCria})`);
+    await auditaTela(page, `MJ1d · terrenos compactos ${nome}`);
+  }
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/mj1d-terrenos.png' });
+  assert.deepEqual(errors, []);
+});

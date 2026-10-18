@@ -1824,6 +1824,9 @@ body[data-mesa-cheia="true"] .tb-steps__list li { padding: 0 0 1px; border-botto
 .tb-life__n { font-family: var(--font-display); font-size: var(--text-2xl); line-height: 1; min-width: 2ch; text-align: center; font-variant-numeric: tabular-nums; }
 .tb-life__who { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-sm); line-height: var(--lh-sm); }
 .tb-life__who small { display: block; overflow: hidden; text-overflow: ellipsis; color: var(--fg-muted); font-size: var(--text-xs); line-height: var(--lh-xs); }
+/* MJ1d (leva J-5) · terrenos compactos: na fileira dos terrenos a carta usa --carta-terreno (≈ 72% da do campo); tudo o que
+   se mede pela carta do campo (leque, carta virada, folga) acompanha, porque a variável é trocada só dentro da fileira */
+.tb-side [data-zone="lands"] { --carta-campo: var(--carta-terreno); }
 /* MJ1b · "Terrenos · N" e "Permanentes · N" saem da vista (o leitor de tela continua lendo); a zona vazia também */
 .tb-side .tb-zone__label, .tb-side .tb-zone--empty { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
@@ -2349,9 +2352,9 @@ button.col-dash__bar:active, .col-dash__bar--on { background: var(--accent-soft)
    Galaxy S25+ e S25 Ultra 412×891 (DPR 3,5); as capturas do aparelho do usuário (1080×2340) dão 360×780.
    Faixas: estreita ≤ 374 (Galaxy S), padrão 375–399 (iPhone 390, S+ com zoom de tela), larga ≥ 400 (S+ e Ultra).
    Altura: com a barra do navegador, o 780 vira ~700 úteis; abaixo de 740 a mão encolhe para a mesa caber. */
-:root { --carta-campo: 84px; --carta-mao: 100px; --carta-pilha: 56px; }
+:root { --carta-campo: 84px; --carta-mao: 100px; --carta-pilha: 56px; --carta-terreno: 60px; } /* MJ1d (J-5) · terreno ≈ 72% da carta do campo */
 @media (max-width: 374px) {
-  :root { --carta-campo: 76px; --carta-mao: 92px; --carta-pilha: 52px; }
+  :root { --carta-campo: 76px; --carta-mao: 92px; --carta-pilha: 52px; --carta-terreno: 56px; }
   .tb-steps__longo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } /* o leitor de tela ainda lê o nome inteiro */
   .tb-steps__curto { display: inline; }
   .tb-steps__list li { position: relative; }
@@ -2360,7 +2363,7 @@ button.col-dash__bar:active, .col-dash__bar--on { background: var(--accent-soft)
 /* (MJ1b, leva J-3) · a grade de contadores empilhados até 399 px e a quebra com quatro contadores (leva 143) foram
    substituídas pela faixa compacta de 44 px em todas as larguras, perto de .tb-side__head */
 @media (min-width: 400px) {
-  :root { --carta-campo: 92px; --carta-mao: 110px; --carta-pilha: 60px; }
+  :root { --carta-campo: 92px; --carta-mao: 110px; --carta-pilha: 60px; --carta-terreno: 66px; }
 }
 @media (max-height: 740px) and (max-width: 399px) {
   :root { --carta-mao: 84px; }

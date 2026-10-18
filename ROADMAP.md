@@ -593,7 +593,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-rw | BI2-2b uso agregado opt-in (coleção, listas, scanner) com consentimento na tela "O que sai do aparelho" | BI | 2 | 16º-rv; `mtg-security-architect` |
 | 16º-rx | BI2-4 negócio: doações por plataforma (manual ou API com token) × custo mensal | BI | 2 | MON1 com dados reais |
 | 16º-ja ✅ | MJ · roadmap da mesa de patamar (leva J-1, 17/10): crítica medida da mesa em 360×780 e histórias MJ1–MJ12 | MJ | 1 | — |
-| 16º-jb 🟡 | MJ1 a mesa numa tela só (MJ1a partida em tela cheia na leva J-2; MJ1b faixa compacta por lado na J-3; MJ1c pilha e resumo por cima na J-4): os dois campos visíveis sem rolar, em fatias (cabeçalho do app fora da partida, topo numa linha, faixa compacta por lado, terrenos compactos, pilha e resumo fora do fluxo, tabuleiro com a altura da tela) | MJ | 3–4 | 16º-ja; T-130 publicada (mesma região) |
+| 16º-jb 🟡 | MJ1 a mesa numa tela só (MJ1a partida em tela cheia na leva J-2; MJ1b faixa compacta por lado na J-3; MJ1c pilha e resumo por cima na J-4; MJ1d terrenos compactos na J-5): os dois campos visíveis sem rolar, em fatias (cabeçalho do app fora da partida, topo numa linha, faixa compacta por lado, terrenos compactos, pilha e resumo fora do fluxo, tabuleiro com a altura da tela) | MJ | 3–4 | 16º-ja; T-130 publicada (mesma região) |
 | 16º-jc | MJ2 avisos fora do campo: o aviso flutuante não cobre cartas nem a mão | MJ | 1 | 16º-jb |
 | 16º-jd | MJ3 identidade por `oid` e continuidade (FLIP) entre mão, pilha, campo, cemitério e exílio | MJ | 2 | 16º-jb; `mtg-scale-architect` (quadros) |
 | 16º-je | MJ4 combate desenhado: setas de ataque e bloqueio com a prévia junto da seta | MJ | 2 | 16º-jd |
@@ -10156,7 +10156,7 @@ bandeja que segue o dedo, som e efeitos da G4/G5.
 **Ordem:** valor percebido no celular ÷ custo em levas. MJ1 vem primeiro porque tudo o que vem depois (setas de
 combate, continuidade, mirar) só faz sentido com os dois campos na mesma tela. **Total estimado: 16 a 20 levas.**
 
-**MJ1 · A mesa numa tela só** 🟡 (4–5 levas, em fatias; MJ1a na leva J-2, MJ1b na J-3, MJ1c na J-4)
+**MJ1 · A mesa numa tela só** 🟡 (5–6 levas, em fatias; MJ1a na leva J-2, MJ1b na J-3, MJ1c na J-4, MJ1d na J-5)
 - **Valor:** os dois campos, a vida dos dois e a sua mão cabem na tela sem rolar, como no Arena.
 - **Aceite:** em 360×780, partida com 17 permanentes (a mesma semente da crítica): rolagem vertical da página 0; os dois
   lados visíveis ao mesmo tempo; pilha e resumo não mudam a posição de nenhuma carta; alvos de 44 px; nenhuma
@@ -10203,7 +10203,15 @@ combate, continuidade, mirar) só faz sentido com os dois campos na mesma tela. 
     cartão e a prioridade, Esc e toque fora fecham, a faixa existe só com a pilha); e2e A14 com a expectativa mudada de
     propósito (o texto da pilha é conferido com o detalhe aberto). **Fora:** terrenos compactos (previstos nesta fatia)
     passam para a MJ1d, que é quem fecha a rolagem 0.
-  - **MJ1d · A mesa numa tela só** ○ — terrenos compactos e rolagem vertical 0 com 17 permanentes; cada fileira rola para o lado.
+  - **MJ1d · Terrenos compactos** ✅ (leva J-5) — na fileira dos terrenos a carta usa o token novo `--carta-terreno`
+    (56 px em ≤ 374, 60 px em 375–399, 66 px em ≥ 400; ≈ 72% da carta do campo), trocado só dentro da fileira: leque,
+    carta virada e folgas acompanham; criaturas e demais permanentes ficam no tamanho da faixa. **Medida** (a partida da
+    crítica, meio do jogo, mão aberta): cada lado 344 → 316 px em 360×780; a página rola 222 → 167 px (384: 226 → 159;
+    390: 214 → 147; 412: 226 → 153). **Testes:** e2e "MJ1d" (terreno no tamanho do token e criatura no do campo nas
+    quatro medidas, fileira dos terrenos ≥ 20 px mais baixa, `auditaTela` nos dois temas). **Fora:** a rolagem 0 — com a
+    mão aberta a bandeja mede 213 px em 360×780 e sozinha é maior que o que falta; vira a MJ1f.
+  - **MJ1f · A mesa numa tela só** ○ — rolagem vertical 0 com 17 permanentes em 360×780. Depende de como a bandeja da mão
+    convive com a mesa (decisão do dono): com a mão recolhida (69 px) a mesa da crítica já fica a ~23 px de caber.
 - **Testes:** e2e "MJ1" com a medida (rolagem 0, topo do meu campo dentro da tela, distância entre os dois lados),
   `auditaTela` nas quatro medidas e nos dois temas, capturas antes e depois; os e2e da mesa que leem posição ajustados
   com justificativa.
