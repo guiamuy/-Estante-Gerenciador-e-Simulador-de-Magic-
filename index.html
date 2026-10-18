@@ -20554,6 +20554,31 @@ function planoDePagamento(s, p, cost, extra, maxLife) {
       if (serve(soma(sem), sem)) found = sem; // M-355
     }
   }
+  // M-503 · 601.2g–h: o genérico sai da cor que sobra mais. A busca pega as primeiras fontes que pagam: com dois Pântanos e oito Florestas,
+  // {4}{B} virava os dois Pântanos e a segunda ativação da Hagra Sharpshooter sumia (achado da revisão de M-501/M-502). Troca-se só fonte
+  // simples por fonte simples (um terreno de uma cor, uma mana, sem outra habilidade ativada, sem custo de vida, sem restrição, que não é criatura): uma fonte que paga uma
+  // cor pedida pelo custo dá lugar a uma de outra cor quando, fora do plano, sobram pelo menos duas fontes simples a mais da outra cor. Fonte
+  // flexível (terreno duplo, de dor, de qualquer cor, criatura de mana) nunca entra no lugar de um básico (achado da revisão de M-503).
+  if (found && found.length) {
+    const pede = new Set([...Object.keys(cost.colored || {}).filter(c => cost.colored[c] > 0), ...(cost.hybrid || []).flat().filter(c => 'WUBRGC'.includes(c) && c.length === 1)]);
+    const corSimples = o => { const ps = productions(s, o), f = s.facts[o.name] || {}; if (ps.length !== 1 || ps[0].length !== 1 || comboDe(s, o) > 0 || isCreature(s, o) || !(f.types || []).includes('land') || ((f.script || {}).abilities || []).length) return null;
+      const opt = ps[0]; return restricaoDaOpcao(s, o, opt) || vidaDoToque(s, o, opt).some(x => x > 0) ? null : opt[0]; };
+    if (pede.size) {
+      const somaT = taps => { const P = { ...P0 }; for (const [oid, k, mana] of taps) (mana || productions(s, s.objects[oid])[k] || []).forEach(c => { P[c]++; }); return P; };
+      const usados = new Set(found.map(t => t[0]));
+      const sobra = c => src.filter(o => !usados.has(o.oid) && corSimples(o) === c).length;
+      for (let i = 0; i < found.length; i++) {
+        const [oid, k, mana] = found[i]; if (mana) continue;
+        const ct = corSimples(s.objects[oid]); if (!ct || !pede.has(ct)) continue;
+        for (const u of src) {
+          const cu = usados.has(u.oid) ? null : corSimples(u);
+          if (!cu || pede.has(cu) || sobra(cu) < sobra(ct) + 2) continue;
+          const tent = found.slice(); tent[i] = [u.oid, 0];
+          if (serve(somaT(tent), tent)) { usados.delete(oid); usados.add(u.oid); found = tent; break; }
+        }
+      }
+    }
+  }
   return found;
 }
 function tapForMana(s, oid, option, mana) {
