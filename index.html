@@ -5385,7 +5385,7 @@ const EFFECTS = {
   bounce: { fields: [], targets: ['creature', 'spell-or-creature', 'permanent', 'permanent-you-control', 'land-you-control', 'artifact'] },
   counter: { fields: [], targets: ['spell', 'spell-or-ability', 'creature-spell', 'noncreature-spell', 'instant-spell', 'sorcery-spell' /* M-419 · Envelop */, 'artifact-enchantment-spell', 'artifact-spell'] },
   draw: { fields: ['amount'], targets: ['player', 'self'] },
-  gain: { fields: ['amount'], targets: ['player', 'self', 'target-controller'] }, // M-335 · "Its controller gains life equal to its power" (Swords to Plowshares)
+  gain: { fields: ['amount'], targets: ['player', 'self', 'target-controller', 'target-owner' /* M-518 · "Its owner gains N life" (Path of Peace) */] }, // M-335 · "Its controller gains life equal to its power" (Swords to Plowshares)
   lose: { fields: ['amount'], targets: ['player', 'opponent', 'self', 'target-controller', 'each-opponent'] },
   veneno: { fields: ['amount'], targets: ['player', 'opponent', 'each-opponent'] }, // M-432 · "Each opponent gets a poison counter" (122.1f; 704.5c com dez)
   counters: { fields: ['amount'], targets: ['self-source', 'creature', 'first-target', 'creature-you-control', 'enchanted'] }, // M-401 · 'enchanted': a criatura equipada/encantada (Greatsword of Tyr) // M-395 · "target creature you control" (Idyllic Grange) // M-272 · first-target: o alvo de um efeito anterior
@@ -5454,7 +5454,7 @@ const EFFECTS = {
   connive: { fields: ['amount'], targets: ['self'] },
   // S13/S14 · zonas ocultas: vasculhar, olhar o topo, scry, surveil, moer e devolver ao topo
   search: { fields: ['amount'], targets: ['self', 'target-controller'] },
-  look: { fields: ['amount', 'count'], targets: ['self'] },
+  look: { fields: ['amount', 'count'], targets: ['self', 'player' /* M-518 · "look at the top card of target player's library" (Eye Spy): quem conjurou olha e decide */] },
   scry: { fields: ['amount'], targets: ['self'] },
   surveil: { fields: ['amount'], targets: ['self'] },
   mill: { fields: ['amount'], targets: ['self', 'player', 'opponent', 'target-controller'] },
@@ -5938,7 +5938,7 @@ function continuoErros(c, tag) {
   for (const k of Object.keys(c)) if (!CHAVES_CONTINUO.includes(k)) errs.push(`${tag}: chave "${k}" desconhecida`);
   const a = c.afetados;
   if (c.seAfetado != null) { if (typeof c.seAfetado !== 'object' || Array.isArray(c.seAfetado)) errs.push(`${tag}: "seAfetado" precisa ser um seletor`); else { errs.push(...seletorErros(c.seAfetado, `${tag}: seAfetado`)); for (const k of ['zona', 'ref', 'ou', 'jogadores', 'habilidades']) if (c.seAfetado[k] != null) errs.push(`${tag}: seAfetado não aceita "${k}"`); } }
-  if (c.se != null && !(c.se && Object.keys(c.se).length === 1 && (Number.isInteger(c.se.oponenteComVeneno) || TIPOS_DE_CARTA.includes(c.se.controlaTipo) || c.se.metalcraft === true || c.se.modificada === true || seMonarcaT(c.se)))) errs.push(`${tag}: "se" conhece só oponenteComVeneno (inteiro), controlaTipo (tipo de carta), metalcraft (true), modificada (true) ou monarca ('voce' ou 'oponente')`); // M-403 · 700.9 // M-363 // M-253 · Corrompido · M-351 · "as long as you control an artifact" (Goblin Tomb Raider)
+  if (c.se != null && !(c.se && Object.keys(c.se).length === 1 && (Number.isInteger(c.se.oponenteComVeneno) || TIPOS_DE_CARTA.includes(c.se.controlaTipo) || c.se.metalcraft === true || c.se.modificada === true || c.se.atacando === true /* M-518 */ || seMonarcaT(c.se)))) errs.push(`${tag}: "se" conhece só oponenteComVeneno (inteiro), controlaTipo (tipo de carta), metalcraft (true), modificada (true) ou monarca ('voce' ou 'oponente')`); // M-403 · 700.9 // M-363 // M-253 · Corrompido · M-351 · "as long as you control an artifact" (Goblin Tomb Raider)
   if (c.ward != null) errs.push(...wardCustoErrosK(c.ward, false).map(e => `${tag}: "ward" ${e}`)); // K-2 · 702.21
   if (a !== 'self' && a !== 'anexada' && a !== 'equipada-pela-anexada') {
     if (!a || typeof a !== 'object') errs.push(`${tag}: "afetados" precisa ser self, anexada ou um seletor (ou equipada-pela-anexada)`);
@@ -10259,6 +10259,11 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Eyetwitch': { texto: 'fryzkr', leva: 'M-517' },
   'Vivid Grove': { texto: '1vbk94s', leva: 'M-517' },
   'Urza\'s Cave': { texto: 'scdfih', leva: 'M-517' },
+  // M-518 · revisão por lote CLVI (quatro cartas que travavam listas com uma ou duas pendências: as que o leitor passa a ler nesta leva), textos da Scryfall de 18/10/2026 UTC, revisor independente
+  'Eye Spy': { texto: '13pdy70', leva: 'M-518' },
+  'Path of Peace': { texto: '1x8thyy', leva: 'M-518' },
+  'Grasping Scoundrel': { texto: 'qfq839', leva: 'M-518' },
+  'Armageddon': { texto: '16f7t4s', leva: 'M-518' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18798,6 +18803,8 @@ const __m42 = (function () {
     [/^return target nonland permanent and all other permanents with the same name as that permanent to their owners' hands$/i, () => [{ do: 'bounce', target: { semTipos: ['land'] }, mesmoNome: true }]], // M-425 · Echoing Truth
     [/^add \{([WUBRGC])\} for each (creature card in your graveyard|card named ~ in each graveyard)$/i, m => [{ do: 'add_mana', symbols: [m[1].toUpperCase()], porContagem: /named/i.test(m[2]) ? 'mesmo-nome-nos-cemiterios' : 'creature-cards-in-your-graveyard' }]], // M-423 · Songs of the Damned, Rite of Flame
     [/^~ deals damage to (target creature|any target) equal to the number of (plains|islands|swamps|mountains|forests) you control$/i, m => { const a = alvo(m[1]); return a ? [{ do: 'damage', amount: { per: m[2].toLowerCase() + '-you-control' }, ...a }] : null; }], // M-516 · Spitting Earth (contagem na resolução, 608.2h)
+    [/^destroy all (creatures|lands|artifacts|enchantments)$/i, m => [{ do: 'destroy_all', types: [{ creatures: 'creature', lands: 'land', artifacts: 'artifact', enchantments: 'enchantment' }[m[1].toLowerCase()]] }]], // M-518 · Armageddon (701.8; indestrutível fica)
+    [/^its owner gains (\d+) life$/i, m => [{ do: 'gain', amount: +m[1], target: 'target-owner' }]], // M-518 · Path of Peace (o dono do alvo anterior)
     [/^you gain 1 life for each attacking creature$/i, () => [{ do: 'gain', amount: { per: 'attacking-creatures' } }]], // M-423 · Respite (506.4)
     [/^you gain (\d+) life for each creature card in your graveyard$/i, m => { const k = +m[1]; return k > 0 ? [{ do: 'gain', amount: k === 1 ? { per: 'creature-cards-in-your-graveyard' } : { per: 'creature-cards-in-your-graveyard', times: k } }] : null; }], // M-513 · Gnaw to the Bone (contagem na resolução, 608.2h)
     [/^you gain life equal to the damage dealt this way$/i, () => [{ do: 'gain', amount: { per: 'dano-causado' } }]], // M-427 · Rite of Consumption, Corrupt, Syphon Soul (o dano causado de fato)
@@ -19214,6 +19221,7 @@ const __m42 = (function () {
     [new RegExp(`^reveal the top ${N} cards of your library\\. put (up to ${N}|an?) (instant and/or sorcery|creature|enchantment|artifact|land) cards? from among them into your hand and the rest(?: of the revealed cards)? into your graveyard(?:\\.\\s*|$)`, 'i'), m => { // M-424 · Pieces of the Puzzle, Tracker's Instincts
       const c = num(m[1]), k = m[3] ? num(m[3]) : 1, t = m[4].toLowerCase(), filtro = t === 'instant and/or sorcery' ? { types: ['instant', 'sorcery'] } : { types: [t] };
       return c && k && k <= c ? [{ do: 'look', count: c, amount: k, min: m[3] ? 0 : 1, revela: true, filter: filtro, to: 'hand', rest: 'graveyard' }] : null; }],
+    [/^look at the top card of target player's library\. you may put that card into their graveyard(?:\.\s*|$)/i, () => [{ do: 'look', count: 1, amount: 1, min: 0, to: 'graveyard', rest: 'stay', target: 'player' }]], // M-518 · Eye Spy (quem conjurou olha e decide)
     [new RegExp(`^reveal the top ${N} cards of your library\\. you may put an? (creature|land|artifact|enchantment) card from among them into your hand\\. put the rest into your graveyard(?:\\.\\s*|$)`, 'i'), m => { // M-513 · Satyr Wayfinder ("you may": zero ou uma)
       const c = num(m[1]); return c ? [{ do: 'look', count: c, amount: 1, min: 0, revela: true, filter: { types: [m[2].toLowerCase()] }, to: 'hand', rest: 'graveyard' }] : null; }],
     [new RegExp(`^mill ${N} cards\\. you may put a land card from among them into your hand\\. if you put an? ([a-z]+) card into your hand this way, you gain ${N} life(?:\\.\\s*|$)`, 'i'), m => { // M-513 · Town Greeter: escolhe entre as que foram mesmo para o cemitério
@@ -19330,6 +19338,8 @@ const __m42 = (function () {
         const CORN = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }; // M-352 · 601.2f · redução por cor (Goblin Anarchomancer, Thornscape Familiar)
         const rc = lp.match(/^each spell you cast that's (white|blue|black|red|green) or (white|blue|black|red|green) costs \{(\d+)\} less to cast$/i) || lp.match(/^(white|blue|black|red|green) spells and (white|blue|black|red|green) spells you cast cost \{(\d+)\} less to cast$/i);
         if (rc) { topo.self = { ...(topo.self || {}), reduzCor: { generic: +rc[3], cores: [CORN[rc[1].toLowerCase()], CORN[rc[2].toLowerCase()]] } }; frases.push({ texto: linha, lida: true }); continue; }
+        const atq = lp.match(/^~ gets ([+-]\d+)\/([+-]\d+) as long as it's attacking$/i); // M-518 · Grasping Scoundrel
+        if (atq) { topo.continuo = [...(topo.continuo || []), { afetados: 'self', poder: SINAL(atq[1]), resistencia: SINAL(atq[2]), se: { atacando: true } }]; frases.push({ texto: linha, lida: true }); continue; }
         const mcs = lp.match(/^metalcraft — ~ gets ([+-]\d+)\/([+-]\d+) as long as you control three or more artifacts$/i); // M-363 · Ardent Recruit (611.2)
         if (mcs) { topo.continuo = [...(topo.continuo || []), { afetados: 'self', poder: SINAL(mcs[1]), resistencia: SINAL(mcs[2]), se: { metalcraft: true } }]; frases.push({ texto: linha, lida: true }); continue; }
         const kwsDe = t => { const ks = t.split(/,\s*|\s+and\s+/).map(x => x.trim().toLowerCase()).filter(Boolean); return ks.length && ks.every(k => KW.has(k)) ? ks : null; }; // M-403
@@ -19845,6 +19855,7 @@ function condicaoContinua(s, x, se) {
   if (se.controlaTipo) return battlefield(s).some(o => o.controller === x.controller && tiposDe(s, o).includes(se.controlaTipo)); // a própria fonte conta se tiver o tipo
   if (se.monarca) return monarcaCondT(s, x.controller, se.monarca); // T-62 · CR 725.5 / 611.2 · "as long as you're the monarch" (Toca ponto comum: condicaoContinua)
   if (se.modificada) return predicadosDeTipoT(s, x, { modificada: true }); // M-403 · 700.9 · "~ has flying as long as it's modified" (Skyward Spider, Obstinate Gargoyle)
+  if (se.atacando) return x.zone === 'battlefield' && x.attacking != null; // M-518 · "as long as it's attacking" (Grasping Scoundrel, 611.2; 506.4: atacando até o fim do combate)
   if (se.metalcraft) return condicaoDoEfeito(s, x, 'metalcraft'); // M-363 · "Metalcraft — … as long as you control three or more artifacts" (Ardent Recruit)
   return true;
 }
@@ -22539,8 +22550,8 @@ function applyEffectM449(s, src, eff, tgt, events) {
       note({ amount: 1, pending: true }); break;
     }
     case 'look': {
-      const who = ctrl;
-      const from = s.zones[who].library.slice(0, eff.count);
+      const who = ctrl, dono = eff.target === 'player' ? playerOf() : ctrl; // M-518 · Eye Spy: o grimório é do jogador alvo; quem decide é quem conjurou
+      const from = s.zones[dono].library.slice(0, eff.count);
       if (!from.length) { note({ amount: 0 }); break; }
       // S59 · "ponha uma criatura entre elas no campo" é obrigatório, mas só se houver uma
       const servem = from.filter(oid => matchesFilter(s, s.objects[oid], eff.filter)).length;
@@ -23781,6 +23792,7 @@ function resumeEffects(s, events) {
     else if (eff.target === 'first-target') tgt = r.alvo || null;
     if (eff.target === 'self-source' && (src.ability ? src.fonteZc != null : r.fonteZcR != null)) { const f = src.ability ? s.objects[src.source] : s.objects[r.oid]; if (f && f.zone === 'battlefield' && (f.zc || 0) !== (src.ability ? src.fonteZc : r.fonteZcR)) { events.push({ kind: 'effect', do: eff.do, name: src.name, failed: true }); continue; } } // M-485 · 400.7 na retomada (Norn's Wellspring piscada depois da vidência; M-371/M-484 só cobriam antes da escolha)
     if (!effectAllowed(s, src, eff)) continue; // M-351 · a condição do efeito também vale depois de uma decisão ("if evidence was collected, instead …")
+    else if (eff.target === 'target-owner') { const t = r.alvo; tgt = t && t.oid != null && s.objects[t.oid] ? { player: s.objects[t.oid].owner } : null; } // M-518
     else if (eff.target === 'target-controller') { const t = r.alvo; tgt = { player: t && t.player != null ? t.player : t && t.oid != null && s.objects[t.oid] ? s.objects[t.oid].controller : r.controller }; }
     if (porJogador(eff)) aplicaPorJogador(s, src, eff, events); else if (eff.cada && eff.cada.de === 'alvo') aplicaCadaDoAlvo(s, src, eff, tgt, events); else if (ehVarredura(eff)) aplicaCada(s, src, eff, events); else // M-230 · a varredura também retoma depois de uma decisão; CR2-G R4b · M-351
     applyEffect(s, src, eff, tgt, events); // CR 704.4 · sem ações de estado entre os efeitos de uma mesma resolução
@@ -24113,6 +24125,8 @@ function resolveScript(s, o, events) {
       applyEffect(s, o, eff.do === 'morde' ? { ...eff, mordedor: mordedorM } : eff, tgt, events);
     } else if (eff.target === 'first-target') { // S42 · o mesmo alvo do efeito anterior
       if (firstTarget) applyEffect(s, o, eff, firstTarget, events);
+    } else if (eff.target === 'target-owner') { // M-518 · Path of Peace: "Its owner gains 4 life" (108.3: o dono não muda)
+      const t = firstTarget; if (t && t.oid != null && s.objects[t.oid]) applyEffect(s, o, eff, { player: s.objects[t.oid].owner }, events);
     } else if (eff.target === 'target-controller') {
       const t = firstTarget;
       const who = t && t.player != null ? t.player : donoDoPrimeiro != null ? donoDoPrimeiro : t && t.oid != null && s.objects[t.oid] ? s.objects[t.oid].controller : o.controller;
@@ -26966,6 +26980,7 @@ function resolveAbility(s, o, events) {
     if (!effectAllowed(s, doQueResolveT(eff.onlyIf) || eff.faixaDoDado ? o : fonte, eff)) continue; // S49 · condição do próprio efeito · T-64 · o monarca é visto do controlador da habilidade (109.5; Toca ponto comum: resolveAbility)
     if (eff.target === 'self-source' && o.fonteZc != null && fonte && fonte.zone === 'battlefield' && (fonte.zc || 0) !== o.fonteZc) { events.push({ kind: 'effect', do: eff.do, name: o.name, failed: true }); continue; } // M-371 · 400.7: a permanente que saiu e voltou é outro objeto
     if (SC.isTargeted(eff)) { const t = chosen[ti]; const legal = ok[ti]; ti++; if (ti === 1 && t == null && eff.upTo) primeiroVazio = true; if (!primeiro) { primeiro = t; donoDoPrimeiro = t && t.oid != null && s.objects[t.oid] ? s.objects[t.oid].controller : null; neveDoPrimeiro = !!(t && t.oid != null && s.objects[t.oid] && s.objects[t.oid].zone === 'battlefield' && temSubtipo(s, t.oid, 'Snow')); lendarioDoPrimeiroH = !!(t && t.oid != null && s.objects[t.oid] && !s.objects[t.oid].faceDown && (s.facts[s.objects[t.oid].name] || {}).legendary); /* M-428 */ } if (eff.do === 'mordedor') mordedorH = legal ? t : null; /* M-407 */ if (legal) applyEffect(s, o, eff.do === 'morde' ? { ...eff, mordedor: mordedorH } : eff, t, events); }
+    else if (eff.target === 'target-owner') { if (primeiro && primeiro.oid != null && s.objects[primeiro.oid]) applyEffect(s, o, eff, { player: s.objects[primeiro.oid].owner }, events); } // M-518 · "its owner" também em habilidade
     else if (eff.target === 'target-controller') { if (primeiroVazio) continue; const t = primeiro; applyEffect(s, o, eff, { player: t && t.player != null ? t.player : donoDoPrimeiro != null ? donoDoPrimeiro : o.controller }, events); } // M-327 · "its controller" também em habilidade (Ghost Quarter: quem busca é o dono do terreno destruído; antes era quem ativou)
     else if (eff.target === 'first-target') { if (primeiro) applyEffect(s, o, eff, primeiro, events); } // S42 · o mesmo alvo
     else if (porJogador(eff)) aplicaPorJogador(s, o, eff, events); // CR2-G R4b
@@ -34412,7 +34427,7 @@ function descreveContinuo(c) {
   if (c.troca) partes.push('troca o poder e a resistência'); // CR2d.9
   if (c.torna) partes.unshift(descreveTorna(c.torna));
   const se = c.seAfetado ? `enquanto for ${c.seAfetado.lendaria ? 'lendária' : ''}${c.seAfetado.lendaria && (c.seAfetado.tipos || []).length ? ' e ' : ''}${(c.seAfetado.tipos || []).map(x => TIPO_PT[x] || x).join(' ou ')}, ` : ''; // M-251
-  const seJogo = c.se ? (c.se.modificada ? 'enquanto estiver modificada, ' : c.se.metalcraft ? 'enquanto você controlar três artefatos ou mais, ' /* M-403 · faltava a vírgula */ : c.se.controlaTipo ? `enquanto você controlar ${({ artifact: 'um artefato', creature: 'uma criatura', enchantment: 'um encantamento', land: 'um terreno', planeswalker: 'um planeswalker' })[c.se.controlaTipo] || 'um ' + c.se.controlaTipo}, ` : `enquanto um oponente tiver ${c.se.oponenteComVeneno} ou mais marcadores de veneno, `) : ''; // M-253 · Corrompido · M-351 · controlaTipo
+  const seJogo = c.se ? (c.se.atacando ? 'enquanto estiver atacando, ' /* M-518 */ : c.se.modificada ? 'enquanto estiver modificada, ' : c.se.metalcraft ? 'enquanto você controlar três artefatos ou mais, ' /* M-403 · faltava a vírgula */ : c.se.controlaTipo ? `enquanto você controlar ${({ artifact: 'um artefato', creature: 'uma criatura', enchantment: 'um encantamento', land: 'um terreno', planeswalker: 'um planeswalker' })[c.se.controlaTipo] || 'um ' + c.se.controlaTipo}, ` : `enquanto um oponente tiver ${c.se.oponenteComVeneno} ou mais marcadores de veneno, `) : ''; // M-253 · Corrompido · M-351 · controlaTipo
   return `${seJogo}${se}${quem} ${partes.join(' e ')}`;
 }
 /** CR2-G R6 · a duração em português. */
