@@ -10264,6 +10264,9 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Path of Peace': { texto: '1x8thyy', leva: 'M-518' },
   'Grasping Scoundrel': { texto: 'qfq839', leva: 'M-518' },
   'Armageddon': { texto: '16f7t4s', leva: 'M-518' },
+  // M-519 · revisão por lote CLVII (Auras que concedem habilidade disparada entre aspas: as que o leitor passa a ler nesta leva), textos da Scryfall de 18/10/2026 UTC, revisor independente
+  'Infernal Scarring': { texto: '3kv71t', leva: 'M-519' },
+  'Sixth Sense': { texto: 'c1gmts', leva: 'M-519' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -19405,6 +19408,12 @@ const __m42 = (function () {
         if (ed) { const g1 = leGatilho(`When ~ enters, ${ed[1]}`, nome, frases), g2 = leGatilho(`When ~ dies, ${ed[1]}`, nome, []); if (g1 && g2) (topo.abilities = topo.abilities || []).push(g1, g2); continue; }
         if (GATILHOS.some(([re]) => re.test(lp.split(', ')[0]))) { const g = leGatilho(lp, nome, frases); if (g) (topo.abilities = topo.abilities || []).push(g); continue; } // gatilho (as frases do corpo já ficaram anotadas)
         if (/^(\{[^}]+\}|Sacrifice |Discard a card|Discard your hand|Exile ~ from your hand|Remove an? [a-z]+ counter from ~|Put an? [+-]\d\/[+-]\d counter on ~)/.test(lp) && lp.includes(': ')) { const a = leAtivada(lp, nome, frases); if (a) (topo.abilities = topo.abilities || []).push(a); continue; } // LT4 · ativada
+        const qg = lp.match(/^(?:enchanted|equipped) creature (?:gets ([+-]\d+)\/([+-]\d+) and )?has "(.+?)\.?"$/i); // M-519 · "Enchanted creature gets +2/+0 and has 'When this creature dies, draw a card.'" (Infernal Scarring)
+        if (qg) { const sub = [], g = leGatilho(qg[3], nome, sub), txt = JSON.stringify(g || {});
+          // só os gatilhos que a criatura concedida dispara por si (morrer, atacar, dano de combate a jogador) e sem efeito que fale de "it"/"~" (a fonte seria ambígua: a criatura ou a Aura)
+          if (g && ['dies', 'attacks', 'combat-damage'].includes(g.when) && !/self-source|enchanted|remembered|first-target/.test(txt) && !/(?:\bits?\b|~)/i.test(qg[3].replace(/^(?:when|whenever) this creature [^,]+, /i, ''))) {
+            topo.grants = { ...(topo.grants || {}), ...(qg[1] ? { power: SINAL(qg[1]), toughness: SINAL(qg[2]) } : {}), triggered: [...((topo.grants || {}).triggered || []), g] }; frases.push({ texto: linha, lida: true }); continue; }
+          frases.push({ texto: linha, lida: false, motivo: 'habilidade entre aspas concedida: só gatilho de morrer, atacar ou dano de combate a jogador, sem efeito na própria criatura (M-519)' }); continue; }
         const c = concessao(lp); if (c) { topo.grants = { ...(topo.grants || {}), ...c, ...(c.keywords && topo.grants && topo.grants.keywords ? { keywords: [...topo.grants.keywords, ...c.keywords] } : {}) }; frases.push({ texto: linha, lida: true }); continue; }
         frases.push({ texto: linha, lida: false, motivo: 'habilidade de permanente sem padrão conhecido' }); continue;
       }
