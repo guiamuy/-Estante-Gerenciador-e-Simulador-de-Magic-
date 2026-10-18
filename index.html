@@ -6142,6 +6142,7 @@ function descreveGatilho(w, como = {}) { // M-401 · como.equipada: "a criatura 
     e multiplica o bônus (Ancestral Mask, Ethereal Armor). */
 const ATTACH_KINDS = ['creature', 'permanent', 'land', 'creature-you-control', 'creature-or-planeswalker-you-control', 'creature-card-in-graveyard', 'player' /* T-94 · CR 303.4b · "Enchant player" (Maldições) (Toca ponto comum: ATTACH_KINDS) */, 'artifact-creature' /* T-113 · "Enchant artifact or creature" (Careful Cultivation): o mesmo nome de alvo de Resculpt (T-124) (Toca ponto comum: ATTACH_KINDS) */]; // CR2d.4 · "Enchant creature card in a graveyard" // Q11 · Setessan Training
 const PER_COUNTS = ['tipos-do-alvo' /* M-450 · Embiggen */, 'mesmo-nome-nos-cemiterios', 'attacking-creatures' /* M-423 · Rite of Flame ("each card named ~ in each graveyard") e Respite ("each attacking creature") */, 'enchantments-you-control', 'other-enchantments', 'auras-on-battlefield',
+  'plains-you-control', 'islands-you-control', 'swamps-you-control', 'mountains-you-control', 'forests-you-control' /* M-516 · "the number of Mountains you control" (Spitting Earth): terrenos com o subtipo, básicos ou não (305.6) */,
   'creatures-you-control', 'other-creatures-you-control', 'elves-you-control', 'elves-on-battlefield', 'defenders-you-control', 'permanents-you-control', 'nonland-permanents-you-control', 'life-gained-this-turn', 'life-lost-this-turn',
   'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G', 'counters-on-source', 'opponents-empty-hand', 'trigger-value', 'chosen-type-permanents', 'sacrificed-toughness', 'sacrificed-mv', 'sacrificed-power', 'dano-causado' /* M-427 · "the damage dealt this way" */, 'descartadas-assim' /* M-434 · "draw that many cards" depois de descartar a mão */, 'creature-cards-in-your-graveyard', 'cards-in-hand', 'x', 'power-of-source', 'se', 'power-of-target',
   'instants-sorceries-in-your-graveyard', 'flashback-cards-you-own-in-exile', 'soma', 'party', 'movidas', ...perCountsT()]; // M-386 · `movidas`: "for each card put into your graveyard this way" (o que o efeito anterior desta habilidade moveu) // T-59 · CR 700.8 · quantas criaturas há no seu grupo (0 a 4) // M-358 · Seize the Storm (604.3); `soma`: { per: 'soma', partes: [contagem, contagem, …] }
@@ -6155,7 +6156,7 @@ const valueErrors = (v, label) => isCount(v) && v.per === 'soma' ? (Array.isArra
   : isCount(v) ? (v.per === 'se' && !(['metalcraft', 'cast-from-graveyard', 'kicked', 'not-cast-from-hand', 'bargained', 'threshold' /* M-412 */, 'morbid' /* M-416 */, 'landfall-turno' /* M-437 */, 'na-principal-propria' /* M-443 */, ...onlyIfT()].includes(v.se) && Number.isInteger(v.sim) && Number.isInteger(v.nao)) ? [`${label}: "se" precisa da condição (metalcraft, cast-from-graveyard, kicked, bargained, not-cast-from-hand, monarca, oponente-monarca) e dos valores sim/não`] : v.subtype || PER_COUNTS.includes(v.per) ? [] : [`${label}: contagem "${v.per}" desconhecida`]) // M-331
   : (Number.isInteger(v) ? [] : [`${label}: precisa ser inteiro ou contagem`]);
 /** S11b · evasão estática e escolhas feitas quando a permanente entra. */
-const EVASIONS = ['flying-only', 'power-less', 'three-or-more', 'not-monarch', 'unblockable', 'not-tokens' /* M-456 · "can't be blocked by tokens" (Duskwatch Hunter) */]; // M-395 · "~ can't be blocked" (Blighted Agent, 509.1b) // M-391 · "can't be blocked by creatures the monarch controls" (Azure Fleet Admiral, 725) // M-349 · Troll of Khazad-dûm: "can't be blocked except by three or more creatures"
+const EVASIONS = ['flying-only', 'power-less', 'three-or-more', 'not-monarch', 'unblockable', 'not-tokens' /* M-456 · "can't be blocked by tokens" (Duskwatch Hunter) */, 'only-black' /* M-516 · "can't be blocked except by black creatures" (Prowling Nightstalker, 509.1b) */]; // M-395 · "~ can't be blocked" (Blighted Agent, 509.1b) // M-391 · "can't be blocked by creatures the monarch controls" (Azure Fleet Admiral, 725) // M-349 · Troll of Khazad-dûm: "can't be blocked except by three or more creatures"
 const CHOICES = ['color'];
 const STATIC_RULES = ['flagbearer', 'exile-instead-of-graveyard', 'opponent-creatures-enter-tapped'];
 const TRIGGER_PT = { etb: 'quando entra no campo', dies: 'quando morre', upkeep: 'na sua manutenção', attacks: 'quando ataca', blocks: 'quando bloqueia',
@@ -6325,7 +6326,7 @@ function validateScript(sc) {
     if ((g.perPower != null || g.perToughness != null) && !PER_COUNTS.includes(g.per)) errs.push(`bônus: contagem "${g.per}" desconhecida`);
     for (const k of g.keywords || []) if (!KEYWORDS.includes(String(k).toLowerCase())) errs.push(`bônus: palavra-chave "${k}" não é resolvida pelo motor`);
     if (g.naoDesvira != null && g.naoDesvira !== true) errs.push('bônus: naoDesvira só vale como true'); // CR2g.6
-    for (const k of ['naoAtaca', 'naoBloqueia']) if (g[k] != null && g[k] !== true) errs.push(`bônus: ${k} só vale como true`); // M-336 · 508.1c / 509.1b (Pacifism)
+    for (const k of ['naoAtaca', 'naoBloqueia', 'imbloqueavel' /* M-516 */]) if (g[k] != null && g[k] !== true) errs.push(`bônus: ${k} só vale como true`); // M-336 · 508.1c / 509.1b (Pacifism)
     for (const cor of [].concat(g.protection || []))
       if (cor !== 'chosen' && !'WUBRG'.includes(cor)) errs.push('bônus: proteção precisa ser "chosen" ou cores WUBRG');
     if (g.produces && !Array.isArray(g.produces)) errs.push('bônus: produces precisa ser lista de opções de mana');
@@ -10237,6 +10238,17 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Gnaw to the Bone': { texto: 'fi89ph', leva: 'M-513' },
   'Stinkweed Imp': { texto: '15drxd5', leva: 'M-513' },
   'Circle of the Land Druid': { texto: 'kiazb1', leva: 'M-513' },
+  // M-516 · revisão por lote CLIV (frases simples que travavam listas do catálogo: as dez cartas que o leitor passa a ler nesta leva), textos da Scryfall de 18/10/2026 UTC, revisor independente
+  'Coercion': { texto: 'pcu23y', leva: 'M-516' },
+  'Vengeance': { texto: '1dx08a7', leva: 'M-516' },
+  'Spitting Earth': { texto: '116efm8', leva: 'M-516' },
+  'Breath of Life': { texto: '1cxontv', leva: 'M-516' },
+  'Time Ebb': { texto: '1vrj0fj', leva: 'M-516' },
+  'Gravewaker': { texto: '7mwo3r', leva: 'M-516' },
+  'Tricks of the Trade': { texto: 'l9sm9f', leva: 'M-516' },
+  'Prowling Nightstalker': { texto: 'g50kxi', leva: 'M-516' },
+  'Nimble Innovator': { texto: '1kohao3', leva: 'M-516' },
+  'Agonizing Syphon': { texto: '1legir6', leva: 'M-516' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18686,6 +18698,7 @@ const __m42 = (function () {
     if (k === 'target opponent or planeswalker') return { target: { tipos: ['planeswalker'], jogadores: 'opponent' } }; // M-343
     if (k === 'target legendary creature') return { target: { tipos: ['creature'], lendaria: true } }; // M-343 · Karakas (205.4)
     if (k === 'up to one target tapped creature') return { target: 'creature', upTo: true, targetTapped: true }; // M-349 · Cryogen Relic
+    if (k === 'target tapped creature') return { target: 'creature', targetTapped: true }; // M-516 · Vengeance
     if (k === 'target noncreature artifact') return { target: { tipos: ['artifact'], semTipos: ['creature'] } }; // M-387 · Gorilla Shaman
     if (k === 'target creature or vehicle') return { target: { ou: [{ tipos: ['creature'] }, { subtipos: ['Vehicle'] }] } }; // M-383 · Ride's End
     if (k === 'target attacking creature') return { target: { tipos: ['creature'], atacando: true } }; // M-377 · Desert (seletor atacando, M-361)
@@ -18774,6 +18787,7 @@ const __m42 = (function () {
     [/^counter target spell with mana value (\d+)$/i, m => [{ do: 'counter', target: 'spell', targetMv: +m[1] }]], // LT13
     [/^return target nonland permanent and all other permanents with the same name as that permanent to their owners' hands$/i, () => [{ do: 'bounce', target: { semTipos: ['land'] }, mesmoNome: true }]], // M-425 · Echoing Truth
     [/^add \{([WUBRGC])\} for each (creature card in your graveyard|card named ~ in each graveyard)$/i, m => [{ do: 'add_mana', symbols: [m[1].toUpperCase()], porContagem: /named/i.test(m[2]) ? 'mesmo-nome-nos-cemiterios' : 'creature-cards-in-your-graveyard' }]], // M-423 · Songs of the Damned, Rite of Flame
+    [/^~ deals damage to (target creature|any target) equal to the number of (plains|islands|swamps|mountains|forests) you control$/i, m => { const a = alvo(m[1]); return a ? [{ do: 'damage', amount: { per: m[2].toLowerCase() + '-you-control' }, ...a }] : null; }], // M-516 · Spitting Earth (contagem na resolução, 608.2h)
     [/^you gain 1 life for each attacking creature$/i, () => [{ do: 'gain', amount: { per: 'attacking-creatures' } }]], // M-423 · Respite (506.4)
     [/^you gain (\d+) life for each creature card in your graveyard$/i, m => { const k = +m[1]; return k > 0 ? [{ do: 'gain', amount: k === 1 ? { per: 'creature-cards-in-your-graveyard' } : { per: 'creature-cards-in-your-graveyard', times: k } }] : null; }], // M-513 · Gnaw to the Bone (contagem na resolução, 608.2h)
     [/^you gain life equal to the damage dealt this way$/i, () => [{ do: 'gain', amount: { per: 'dano-causado' } }]], // M-427 · Rite of Consumption, Corrupt, Syphon Soul (o dano causado de fato)
@@ -18869,6 +18883,8 @@ const __m42 = (function () {
     [/^search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand$/i, () => [{ do: 'search', amount: 2, filter: { basic: true, types: ['land'] }, to: 'battlefield-tapped', reparte: ['battlefield-tapped', 'hand'] }]], // M-345 · Cultivate, Kodama's Reach: uma busca de até dois; o primeiro escolhido entra virado, o segundo vai para a mão (achado da revisão: um só entra virado, 609.3)
     [new RegExp(`^~ deals ${N} damage to each of one or two targets$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'any' }, { do: 'damage', amount: num(m[1]), target: 'any', upTo: true }]], // M-345 · Storm of Steel, Prismari Charm (601.2c: alvos diferentes)
     [/^return target artifact or creature card with mana value (\d+) or less from your graveyard to the battlefield$/i, m => [{ do: 'reanimate', target: 'card-in-your-graveyard', targetTypes: ['artifact', 'creature'], targetMvMax: +m[1] }]], // M-400 · Recommission
+    [/^return target creature card from your graveyard to the battlefield$/i, () => [{ do: 'reanimate', target: 'creature-in-your-graveyard' }]], // M-516 · Breath of Life
+    [/^return target creature card from your graveyard to the battlefield tapped$/i, () => [{ do: 'reanimate_tapped', target: 'creature-in-your-graveyard' }]], // M-516 · Gravewaker
     [/^return target creature card with mana value (\d+) or less from your graveyard to the battlefield$/i, m => [{ do: 'reanimate', target: 'creature-in-your-graveyard', targetMvMax: +m[1] }]], // LT13
     [/^return target creature or land card from a graveyard to its owner's hand$/i, () => [{ do: 'to_hand', target: 'creature-land-in-any-graveyard' }]], // LT9
     [/^~ connives$/i, () => [{ do: 'connive', amount: 1 }]], // LT9 · 701.50
@@ -18903,6 +18919,7 @@ const __m42 = (function () {
     [/^you may shuffle$/i, () => [{ do: 'embaralhar_grimorio', optional: true }]], // M-339 · Ponder (701.24)
     [/^its controller gains life equal to its power$/i, () => [{ do: 'gain', amount: { per: 'power-of-target' }, target: 'target-controller' }]], // M-335 · Swords to Plowshares (608.2h: o poder como era no campo)
     [/^each attacking creature doesn't untap during its controller's next untap step$/i, () => [{ do: 'nao_desvira', cada: { tipos: ['creature'], atacando: true } }]], // M-361 · Tangle (502.3, 506.4)
+    [/^put target creature on top of its owner's library$/i, () => [{ do: 'mover', para: 'library', posicao: 'topo', target: 'creature' }]], // M-516 · Time Ebb (a carta vai para o grimório do dono, 400.3)
     [/^put target creature card from your graveyard on top of your library$/i, () => [{ do: 'mover', para: 'library', posicao: 'topo', target: 'creature-in-your-graveyard' }]], // M-361 · Witch's Cottage, Mortuary Mire
     [/^if that (?:creature|creature or planeswalker|planeswalker) would die this turn, exile it instead$/i, () => [{ do: 'exila_se_morrer', target: 'first-target' }]], // M-384 · Suplex (614.1a) · M-415 · Fanged Flames: "that creature or planeswalker" (700.4: o planeswalker também morre)
     [/^until end of turn, target land you control becomes the basic land type of your choice in addition to its other types$/i, () => [{ do: 'tipo_basico', target: 'land-you-control' }]], // M-388 · Navigator's Compass (305.7)
@@ -19018,6 +19035,7 @@ const __m42 = (function () {
   ];
   const CONTAGENS = { 'enchantment you control': 'enchantments-you-control', 'other enchantment on the battlefield': 'other-enchantments', 'aura on the battlefield': 'auras-on-battlefield',
     'creature you control': 'creatures-you-control', 'other creature you control': 'other-creatures-you-control', 'elf you control': 'elves-you-control', 'elf on the battlefield': 'elves-on-battlefield',
+    'plains you control': 'plains-you-control', 'island you control': 'islands-you-control', 'swamp you control': 'swamps-you-control', 'mountain you control': 'mountains-you-control', 'forest you control': 'forests-you-control', // M-516
     'permanent you control': 'permanents-you-control', 'nonland permanent you control': 'nonland-permanents-you-control', 'creature with defender you control': 'defenders-you-control' };
   const contagem = t => CONTAGENS[String(t).toLowerCase().trim()];
   /** CR2e.3 · 614.11 · substituição de compra. */
@@ -19043,6 +19061,7 @@ const __m42 = (function () {
     if (m) { const kws = m[3] ? m[3].split(/,\s*|\s+and\s+/).map(x => x.trim().toLowerCase()) : []; if (kws.some(k => !KW.has(k))) return null; return { power: SINAL(m[1]), toughness: SINAL(m[2]), ...(kws.length ? { keywords: kws } : {}) }; }
     if (/^(?:enchanted|equipped) creature can't attack or block$/i.test(l)) return { naoAtaca: true, naoBloqueia: true }; // M-336 · Pacifism
     if (/^(?:enchanted|equipped) creature can't block$/i.test(l)) return { naoBloqueia: true }; // M-336
+    { const mi = l.match(/^(?:enchanted|equipped) creature (?:gets ([+-]\d+)\/([+-]\d+) and )?can't be blocked$/i); if (mi) return { ...(mi[1] ? { power: SINAL(mi[1]), toughness: SINAL(mi[2]) } : {}), imbloqueavel: true }; } // M-516 · Tricks of the Trade (509.1b)
     if (/^(?:enchanted|equipped) creature can't attack$/i.test(l)) return { naoAtaca: true }; // M-336
     m = l.match(/^(?:enchanted|equipped) (?:creature|permanent) has protection from ((?:white|blue|black|red|green)(?: and from (?:white|blue|black|red|green))*)$/i);
     if (m) return { protection: m[1].split(/ and from /).map(c => PROT[c.toLowerCase()]) };
@@ -19164,7 +19183,7 @@ const __m42 = (function () {
   const til = (t, nome) => String(t).replace(new RegExp(escapa(nome || '\u0000'), 'g'), '~').replace(nomeCurtoRe(nome), '~') /* M-444 · 201.5c: o nome curto da lendária ("Raphael" em "Raphael, Tough Turtle") */.split('"').map((p, i) => i % 2 ? p : p.replace(ESTE_OBJETO, '~')).join('"');
   /** Um parágrafo de efeito de mágica → { efeitos, frases }. */
   /** M-335 · orações em sequência que formam um efeito só (no começo do parágrafo): revelar a mão e escolher o descarte; olhar o topo e pegar. */
-  const FILTRO_DESCARTE = { 'nonland card': { notTypes: ['land'] }, 'noncreature, nonland card': { notTypes: ['creature', 'land'] }, 'nonland, noncreature card': { notTypes: ['creature', 'land'] } };
+  const FILTRO_DESCARTE = { card: {} /* M-516 · Coercion: qualquer carta */, 'nonland card': { notTypes: ['land'] }, 'noncreature, nonland card': { notTypes: ['creature', 'land'] }, 'nonland, noncreature card': { notTypes: ['creature', 'land'] } };
   const FILTRO_TOPO = { colorless: { incolor: true }, 'instant or sorcery': { types: ['instant', 'sorcery'] }, creature: { types: ['creature'] }, artifact: { types: ['artifact'] }, land: { types: ['land'] }, 'creature or land': { types: ['creature', 'land'] } };
   const PRE_PARAGRAFO = [
     [/^choose (target creature or planeswalker|target creature)\. you get ((?:\{E\})+)(?: \([^)]*\))?, then you may pay any amount of \{E\}\. ~ deals that much damage to that (?:creature|permanent)(?:\.\s*|$)/i, m => [{ do: 'energia', amount: m[2].length / 3 }, { do: 'energia_dano', target: /planeswalker/i.test(m[1]) ? { tipos: ['creature', 'planeswalker'] } : { tipos: ['creature'] } }]], // M-405 · Galvanic Discharge, Harnessed Lightning
@@ -19317,6 +19336,7 @@ const __m42 = (function () {
         if (/^~ can't be blocked$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'unblockable' }; frases.push({ texto: linha, lida: true }); continue; } // M-395 · Blighted Agent
         if (/^~ can't be blocked by tokens\.?$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'not-tokens' }; frases.push({ texto: linha, lida: true }); continue; } // M-456 · Duskwatch Hunter (509.1b)
         if (/^~ can't be blocked by creatures the monarch controls\.?$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'not-monarch' }; frases.push({ texto: linha, lida: true }); continue; } // M-391 · Azure Fleet Admiral (725)
+        if (/^~ can't be blocked except by black creatures\.?$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'only-black' }; frases.push({ texto: linha, lida: true }); continue; } // M-516 · Prowling Nightstalker
         if (/^~ can't be blocked except by creatures with flying$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'flying-only' }; frases.push({ texto: linha, lida: true }); continue; } // LT5
         if (/^creatures with power less than ~'s power can't block it$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'power-less' }; frases.push({ texto: linha, lida: true }); continue; } // LT5
         const sc = SUBST_COMPRA.find(([re]) => re.test(lp)); // CR2e.3 · 614.11
@@ -19919,6 +19939,7 @@ function countFor(s, src, per) {
   if (per === 'nonland-permanents-you-control') return perms.filter(o => o.controller === src.controller && !tiposDe(s, o).includes('land')).length; // M-252 · Idolized
   if (per === 'elves-you-control') return perms.filter(o => o.controller === src.controller && isElf(o)).length;
   if (per === 'elves-on-battlefield') return perms.filter(isElf).length;
+  { const sub = SUBTIPO_DE_TERRENO_M[per]; if (sub) return perms.filter(o => o.controller === src.controller && tiposDe(s, o).includes('land') && temSubtipo(s, o.oid, sub)).length; } // M-516 · Spitting Earth
   if (per === 'defenders-you-control') return perms.filter(o => o.controller === src.controller && has(s, o, 'defender')).length;
   if (per === 'life-gained-this-turn') return s.players[src.controller].lifeGained || 0;
   if (per === 'life-lost-this-turn') return s.players[src.controller].lifeLost || 0; // M-248 · Children of Korlis
@@ -20781,6 +20802,8 @@ function grantedToAll(s, o, k, corte = -1) {
   }
   return false;
 }
+/** M-516 · contagem → subtipo de terreno básico ("Mountains you control"). */
+const SUBTIPO_DE_TERRENO_M = { 'plains-you-control': 'Plains', 'islands-you-control': 'Island', 'swamps-you-control': 'Swamp', 'mountains-you-control': 'Mountain', 'forests-you-control': 'Forest' };
 const evasionOf = (s, o) => semImpressas(s, o) ? undefined : ((s.facts[o.name].script || {}).self || {}).evasion;
 
 /** Leva 122 · "X mana in any combination of colors" (Axebane Guardian): quantas manas de cor livre a fonte gera agora.
@@ -21532,6 +21555,8 @@ function porQueNaoBloqueia(s, blocker, attacker) {
   if (ev === 'power-less' && power(s, b) < power(s, a)) return 'poder menor que o da atacante';
   if (ev === 'not-monarch' && s.monarca != null && s.monarca === b.controller) return 'criaturas do monarca não a bloqueiam'; // M-391 · 725
   if (ev === 'unblockable') return 'não pode ser bloqueada'; // M-395 · 509.1b
+  if (ev === 'only-black' && !colorsOf(s, b).includes('B')) return 'só criaturas pretas a bloqueiam'; // M-516 · 509.1b (Prowling Nightstalker)
+  if (anexoProibe(s, a, 'imbloqueavel')) return 'não pode ser bloqueada'; // M-516 · "Enchanted creature … can't be blocked" (Tricks of the Trade, 509.1b)
   if (ev === 'not-tokens' && b.token) return 'fichas não a bloqueiam'; // M-456 · 509.1b (Duskwatch Hunter); 111.1: ficha é a permanente que não é carta
   // 'three-or-more' (M-349): cada bloqueador pode, mas o grupo precisa de três — conferido na declaração
   if (protections(s, a).some(c => casaProtecaoK(s, c, b))) return 'proteção contra o bloqueador'; // K-17 · 702.16f: qualquer qualidade (Toca ponto comum)
@@ -34338,7 +34363,8 @@ function descreveSeletor(sel) {
 }
 /** CR2-G R3a · efeito contínuo estático em português: quem é afetado, o +N/+N (fixo ou por contagem) e as palavras-chave. */
 const PER_PT = { 'creatures-you-control': 'criatura que você controla', 'other-creatures-you-control': 'outra criatura que você controla', 'enchantments-you-control': 'encantamento que você controla',
-  'other-enchantments': 'outro encantamento', 'auras-on-battlefield': 'Aura no campo', 'permanents-you-control': 'permanente que você controla', 'elves-you-control': 'Elfo que você controla',
+  'other-enchantments': 'outro encantamento', 'auras-on-battlefield': 'Aura no campo', 'permanents-you-control': 'permanente que você controla', 'elves-you-control': 'Elfo que você controla', 'plains-you-control': 'Planície que você controla', 'islands-you-control': 'Ilha que você controla', 'swamps-you-control': 'Pântano que você controla', 'mountains-you-control': 'Montanha que você controla', 'forests-you-control': 'Floresta que você controla', // M-516
+ 
   'counters-on-source': 'marcador +1/+1 nela', 'power-of-source': 'ponto de poder dela' };
 /** CR2-G R3c · "torna-se uma criatura artefato Inseto 0/1 com indestrutível e perde as outras habilidades". */
 const TIPO_PT = { artifact: 'artefato', creature: 'criatura', enchantment: 'encantamento', land: 'terreno', planeswalker: 'planeswalker', battle: 'batalha', kindred: 'tribal', instant: 'instantânea', sorcery: 'feitiço' };
