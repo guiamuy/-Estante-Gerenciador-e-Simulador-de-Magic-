@@ -5127,6 +5127,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** palavras-chave (Graft, Equip, Spectacle) só valem com o campo `keywords` da Scryfall (limitação já declarada em M-496). A mesa toca a mana de Silent Clearing pela primeira opção; a outra cor sai pelo pagamento automático (comportamento geral das terras de duas cores).
 - **Teste:** `lt203.unit` (8 testes; falham no motor anterior; o da Sejiri Steppe falha também só com as aprovações, sem a regra).
 
+**M-522 · LT184 · revisão por lote CLX: nove cartas lidas que travam listas do catálogo passam a jogar** ✅ (leva M-522, motor v112 sem mudança de forma; goldens intactos; nenhuma linha de código nova)
+- **Valor:** passam a jogar (APROVADAS): Tune the Narrative (7 listas do catálogo), Memorial to Folly (6), Karmic Guide (6), Basilisk Collar (6), Evolution Sage (6), Karn's Bastion (6), Chatterstorm (5), Bounce Off (5) e Expedite (4). Textos da Scryfall consultados em 18/10/2026; leituras conferidas frase a frase no texto oficial.
+- **Revisão independente:** revisor independente (junto com a M-523): as nove leituras batem frase a frase; 27 sondas de partida confirmaram alvo só no seu cemitério (Memorial to Folly, Karmic Guide), proteção contra preto e eco da Karmic Guide, tempestade contando as mágicas de todos e não as cópias, Veículo e dono no Bounce Off, equipar só como feitiço em criatura sua, proliferar em jogadores (energia) e em permanentes do oponente; Evolution Sage só com terreno seu. Nenhuma divergência.
+- **Fora (declarado):** palavras-chave (Flying, Protection, Echo, Storm, Equip) só valem com o campo `keywords` da Scryfall (limitação já declarada em M-496).
+- **Teste:** `lt204.unit` (8 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
