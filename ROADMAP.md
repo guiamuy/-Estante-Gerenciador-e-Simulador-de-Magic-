@@ -5133,6 +5133,11 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** palavras-chave (Flying, Protection, Echo, Storm, Equip) só valem com o campo `keywords` da Scryfall (limitação já declarada em M-496).
 - **Teste:** `lt204.unit` (8 testes; falham no motor anterior).
 
+**M-523 · LT185 · revisão por lote CLXI: nove cartas lidas que travam listas do catálogo passam a jogar** ✅ (leva M-523, motor v112 sem mudança de forma; goldens intactos; nenhuma linha de código nova)
+- **Valor:** passam a jogar (APROVADAS): Griptide (7 listas do catálogo), Thrashing Brontodon (7), Mycosynth Wellspring (6), Sacred Peaks (6), Sejiri Refuge (6), Rockfall Vale (6), Village Rites (5), Wild Cantor (5) e Dwarven Mine (3). Textos da Scryfall consultados em 18/10/2026; leituras conferidas frase a frase no texto oficial.
+- **Revisão independente:** revisor independente (junto com a M-522): as nove leituras batem frase a frase; sacrifício como custo (Village Rites só com criatura sua, Brontodon com enjoo), Mycosynth Wellspring só ao ir do campo ao cemitério (descartada não dispara) e com "you may", Griptide no grimório do dono, Montanhas não básicas e "outras" na Dwarven Mine (Sacred Peaks conta; ela mesma não) e na Rockfall Vale, Wild Cantor com {R} ou {G}. Nenhuma divergência. Observação sem efeito na partida: a tela de revisão do leitor lista só "When ~ enters" da Mycosynth (o gatilho de ir ao cemitério está no script e funciona).
+- **Teste:** `lt205.unit` (8 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
