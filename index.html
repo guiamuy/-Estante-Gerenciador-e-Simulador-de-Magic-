@@ -5474,6 +5474,7 @@ const EFFECTS = {
     'creature-you-control', 'card-in-any-graveyard', 'card-in-your-graveyard', 'creature-in-your-graveyard', 'permanent-in-your-graveyard', 'creature-land-in-any-graveyard'] },
   sacrifice_it: { fields: [], targets: ['permanent', 'self-source'] },
   pisca: { fields: [], targets: ['creature', 'creature-you-control', 'permanent', 'permanent-you-control'] },
+  topo_em_ordem: { fields: [], targets: ['player'] }, // M-515 · Drafna's Restoration: "Put any number of target [tipo] cards from target player's graveyard on top of their library in any order" (os alvos das cartas: `alvosLivres`, escolhidos logo depois de conjurar)
   transformar_pela_habilidade: { fields: [], targets: ['self'] }, // M-366 · montado pelo motor (701.27f); o script não o escreve
   revela_topo_transforma: { fields: [], targets: ['self'] }, // M-353 · Delver of Secrets: olha o topo; se for do tipo pedido, pode revelá-lo e transformar a fonte (701.28)
   exila_da_mao: { fields: ['amount'], targets: ['opponent', 'player'] },
@@ -6547,6 +6548,8 @@ function effectErrors(effects, label, opcional) {
       if (!(Number.isInteger(es.max) && es.max > 0)) errs.push(`${label} ${i + 1}: "escolheMoidas" precisa de max inteiro positivo`);
       if (vs != null && !(vs && typeof vs.subtipo === 'string' && /^[A-Z][a-z]+$/.test(vs.subtipo) && !['Basic', 'Nonbasic', 'Legendary', 'Snow', 'World', 'Ongoing', 'Token'].includes(vs.subtipo) && Number.isInteger(vs.vida) && vs.vida > 0)) errs.push(`${label} ${i + 1}: vidaSeSubtipo precisa do subtipo e da vida`);
     }
+    if (e.alvosLivres != null && !(e.do === 'topo_em_ordem' && e.alvosLivres && Array.isArray(e.alvosLivres.tipos) && e.alvosLivres.tipos.length && e.alvosLivres.tipos.every(x => TIPOS_DE_CARTA.includes(x)))) errs.push(`${label} ${i + 1}: "alvosLivres" só vale em topo_em_ordem, com tipos de carta`); // M-515
+    if (e.do === 'topo_em_ordem' && !e.alvosLivres) errs.push(`${label} ${i + 1}: topo_em_ordem precisa de alvosLivres`); // M-515
     // efeito com escolha interrompe a resolução: o que vem depois não pode ter alvo
     if (CHOICE_EFFECTS.includes(e.do) && effects.slice(i + 1).some(isTargeted)) errs.push(`${label} ${i + 1} (${e.do}): efeito com alvo depois de uma escolha`);
     if (e.cada != null) { // M-230 · varredura escrita como seletor: sem alvo e sobre objetos
@@ -6869,6 +6872,9 @@ const RAW_SCRIPTS = [
     abilities: [{ kind: 'triggered', when: 'end-step', condition: { saiuPermanenteNoTurno: true }, effects: [{ do: 'token', amount: 1, token: { name: 'Pegasus', types: ['creature'], subtypes: ['Pegasus'], colors: ['W'], power: 1, toughness: 1, keywords: ['flying'] } }] }], // "At the beginning of your end step, if a permanent you controlled left the battlefield this turn, create a 1/1 white Pegasus creature token with flying."
     back: { name: 'Rescue the Foal', types: ['instant'], colors: ['W'], effects: [{ do: 'pisca', target: 'creature-you-control' }] }, // "Exile target creature you control, then return that card to the battlefield under its owner's control."
     example: { action: 'omen', target: 'own-creature', expect: { returnedToPlay: true } } },
+  // M-515 · 115.1, 601.2c ("any number of target": de zero a todas), 608.2b (alvo que deixou de servir fica de fora), 401.4 ("in any order": quem conjura ordena). Texto da Scryfall de 18/10/2026 em .listas/oficiais-motor.json.
+  { name: "Drafna's Restoration", effects: [{ do: 'topo_em_ordem', target: 'player', alvosLivres: { tipos: ['artifact'] } }], // "Put any number of target artifact cards from target player's graveyard on top of their library in any order."
+    example: { target: 'opponent', expect: { selfLife: 0 } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
   // T-128 · CR 720 (presságio), 115.1, 601.2c/603.3d, 608.2b (Scryfall, consulta de 17/10/2026, rulings de 04/04/2025). "Flying, deathtouch" vêm da linha da carta.
   { name: 'Feral Deathgorger', omen: { mana: '{1}{B}' }, abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'mover', target: { zona: 'graveyard' }, para: 'exile', upTo: true, mesmoCemiterioT: true }, { do: 'mover', target: { zona: 'graveyard' }, para: 'exile', upTo: true, mesmoCemiterioT: true }] }], // "When this creature enters, exile up to two target cards from a single graveyard." (dois alvos opcionais; o segundo do mesmo cemitério do primeiro)
@@ -21652,7 +21658,7 @@ function efeitosDaMagia(s, o, mode) { const base = efeitosBaseDaMagia(s, o, mode
 /** CR2f.3 · 707.10: as escolhas feitas ao conjurar que a cópia leva (modo, modos, X pago, reforço, encaixe, custo alternativo, cor escolhida). */
 /** M-351 · as marcas de "como foi conjurada" que as condições de efeito leem (601.2b, 702.33d, 701.59): a carta as perde ao sair da pilha (400.7), a retomada as guarda. */
 const condicoesDaMagia = (o, effs) => { if (!(effs || []).some(e => e && (e.onlyIf || (e.amount && e.amount.per === 'se')))) return undefined; const c = {}; for (const k of ['evidenced', 'kicked', 'paidAdditional', 'discardedNonland', 'bargained', 'castFrom']) if (o && o[k] != null) c[k] = o[k]; return Object.keys(c).length ? c : undefined; }; // só quando o resto da resolução tem condição (o estado das partidas sem isso não muda)
-const marcasDaMagia = o => { if (!o) return {}; const m = {}; for (const k of ['mode', 'modes', 'xPaid', 'kicked', 'emendas', 'altIndex', 'chosenColor', 'divisao', 'prototipoT', 'sacrificados', 'bargained', 'evidenced', 'paidAdditional', 'discardedNonland', 'faceDown', 'escolheuModoT' /* T-110 · 707.10: a cópia copia os custos adicionais pagos e a face para baixo (707.2) */]) if (o[k] != null) m[k] = Array.isArray(o[k]) ? o[k].slice() : o[k]; return m; };
+const marcasDaMagia = o => { if (!o) return {}; const m = {}; for (const k of ['mode', 'modes', 'xPaid', 'kicked', 'emendas', 'altIndex', 'chosenColor', 'divisao', 'prototipoT', 'sacrificados', 'bargained', 'evidenced', 'paidAdditional', 'discardedNonland', 'faceDown', 'alvosLivresM' /* M-515 · 707.10: as cartas alvo de Drafna's Restoration */, 'escolheuModoT' /* T-110 · 707.10: a cópia copia os custos adicionais pagos e a face para baixo (707.2) */]) if (o[k] != null) m[k] = Array.isArray(o[k]) ? o[k].slice() : o[k]; return m; };
 const emendasDe = (s, oids) => oids.map(x => ({ name: s.objects[x].name, effects: ((s.facts[s.objects[x].name].script || {}).effects || []) }));
 const encaixavelEm = (s, carta, magia) => { const sp = ((s.facts[s.objects[carta].name] || {}).script || {}).splice; return !!sp && carta !== magia && temSubtipo(s, magia, sp.subtipo); };
 function efeitosBaseDaMagia(s, o, mode) {
@@ -21713,6 +21719,13 @@ function divisaoPossivel(s, p, oid, x) {
   const total = amountOf(s, { ...o, controller: p, xPaid: x != null ? x : o.xPaid }, e.amount);
   return ((e.dividido && e.dividido.igual) ? total >= 0 : total >= 1) && alvosDaDivisao(s, p, oid, e).length > 0; // M-408 · divisão igual: X = 0 é conjurável (0 de dano)
 }
+/** M-515 · "any number of target [tipo] cards from target player's graveyard": as cartas do cemitério do jogador alvo que podem ser alvo. */
+function alvosLivresDaMagiaM(s, need, chosen) {
+  const i = need.findIndex(e => e && e.alvosLivres); if (i < 0 || !chosen[i] || chosen[i].player == null || !s.zones[chosen[i].player]) return null;
+  const tipos = need[i].alvosLivres.tipos || [];
+  return s.zones[chosen[i].player].graveyard.filter(oid => tipos.some(x => (((s.facts[s.objects[oid].name] || {}).types) || []).includes(x)));
+}
+function iniciaAlvosLivresM(s, oid, livres, events) { const sp = s.objects[oid]; if (!sp || sp.zone !== 'stack') return; const from = livres.filter(x => s.objects[x] && s.objects[x].zone === 'graveyard'); if (from.length) startPick(s, { p: sp.controller, from, min: 0, max: from.length, to: 'alvo-livre', rest: 'stay', label: 'escolher os alvos', source: sp.name, alvoDaMagiaM: oid }, events); }
 function iniciaDivisao(s, oid, events) {
   const o = s.objects[oid], e = divisaoDaMagia(s, o); if (!e || o.divisao) return;
   const total = amountOf(s, o, e.amount), options = alvosDaDivisao(s, o.controller, oid, e);
@@ -22622,6 +22635,14 @@ function applyEffectM449(s, src, eff, tgt, events) {
       if (!mao.length) { if (s.zones[who].hand.length) startPick(s, { p: ctrl, from: [], mostrar: s.zones[who].hand.slice(), min: 0, max: 0, to: 'exile', rest: 'stay', filter: filtro, label: 'escolher a carta', source: src.name }, events); note({ amount: 0 }); break; }
       startPick(s, { p: ctrl, from: mao, mostrar: s.zones[who].hand.slice(), min: 1, max: 1, to: 'exile', rest: 'stay', filter: filtro, label: 'escolher a carta a exilar', source: src.name, ...(fonte && fonte.zone === 'battlefield' && !(src.ability && src.fonteZc != null && (fonte.zc || 0) !== src.fonteZc) ? { segura: { oid: fonte.oid, z: fonte.zc || 0 } } : {}) }, events); // 400.7: o gatilho do Fiend que saiu e voltou não liga a carta ao Fiend novo
       note({ amount: 1, pending: true }); break;
+    }
+    case 'topo_em_ordem': { // M-515 · só os alvos que ainda servem (no cemitério do jogador alvo, mesma encarnação, do tipo pedido: 608.2b); com mais de um, quem conjurou ordena
+      const who = playerOf(), tipos = (eff.alvosLivres || {}).tipos || [];
+      const alvos = ((src && src.alvosLivresM) || []).filter(x => { const c = s.objects[x.oid]; return c && c.zone === 'graveyard' && c.owner === who && (c.zc || 0) === x.z && tipos.some(k => (((s.facts[c.name] || {}).types) || []).includes(k)); }).map(x => x.oid);
+      note({ amount: alvos.length, target: s.players[who].name });
+      if (alvos.length <= 1) { for (const oid of alvos) moveObject(s, oid, 'library', { top: true }); break; }
+      startPick(s, { p: ctrl, from: alvos, min: alvos.length, max: alvos.length, to: 'library-top', rest: 'stay', label: 'ordenar o topo', source: `${src.name} — toque na ordem: a primeira fica no topo` }, events);
+      break;
     }
     case 'pisca_exila': { // M-351 · Ghostly Flicker: exila agora; quem devolve é pisca_volta, com todas juntas (400.7; 111.8 para fichas)
       if (!obj || obj.zone !== 'battlefield') { note({ failed: true }); break; }
@@ -23620,6 +23641,7 @@ function startPick(s, spec, events) {
     ...(spec.mostrar ? { mostrar: spec.mostrar } : {}), // Leva 107 · mão revelada inteira (Duress)
     ...(spec.depois ? { depois: spec.depois } : {}), // Leva 107 · "se fizer, compre duas" (Highway Robbery)
     ...(spec.onPicked ? { onPicked: spec.onPicked } : {}), // S59 · o que a carta escolhida recebe
+    ...(spec.alvoDaMagiaM != null ? { alvoDaMagiaM: spec.alvoDaMagiaM } : {}), // M-515 · a mágica que recebe os alvos escolhidos
     ...(spec.repartir ? { repartir: spec.repartir } : {}), // M-267 · os próximos destinos do repartir
     ...(spec.esconde ? { esconde: spec.esconde } : {}), // M-268 · a permanente do esconderijo
     ...(spec.copiaAoEntrar ? { copiaAoEntrar: spec.copiaAoEntrar } : {}) }; // CR2f.2 // M-268 · a permanente do esconderijo // M-267 · os próximos destinos do repartir
@@ -23649,6 +23671,7 @@ function concluiPick(s, events) {
     else if (where === 'desvira') { if (s.objects[oid] && s.objects[oid].zone === 'battlefield') desvira(s, s.objects[oid]); } // M-250 · CR2g.6
     else if (where === 'campeaoK') campeaoExilaK(s, oid, pk); // K-44 · 702.72a (Toca ponto comum: concluiPick)
     else if (where === 'entrarComK') entrarComPickK(s, oid, pk); // K-43 · devorar / amplificar (Toca ponto comum: concluiPick)
+    else if (where === 'alvo-livre') { const sp = s.objects[pk.alvoDaMagiaM]; if (sp && sp.zone === 'stack') sp.alvosLivresM = [...(sp.alvosLivresM || []), { oid, z: s.objects[oid].zc || 0 }]; } // M-515 · a carta vira alvo da mágica (fica onde está)
     else if (where === 'descarta-ou-sacrifica') { if (s.objects[oid].zone === 'hand') descartaCarta(s, oid); else sacrifice(s, oid); }
     else moveObject(s, oid, where);
   };
@@ -25296,6 +25319,7 @@ const HANDLERS = {
     if (a.kick && a.faceDown) throw new RuleError('custo', 'virada para baixo não tem reforço'); // 708.4
     const need = alvoAura ? [{ target: alvoAura }] : spellEffects(s, { name: o.name, mode: a.mode, ...(nModos ? { modes: a.modes } : {}), altIndex: a.alt != null ? a.alt : null, xPaid: a.x || 0, ...(a.emenda ? { emendas: emendasDe(s, a.emenda) } : {}) }, a.mode).filter(SC.isTargeted); // M-274 · alvos do texto encaixado também
     const chosen = a.targets || [];
+    const livresM = alvosLivresDaMagiaM(s, need, chosen); // M-515 · 601.2c vem antes de 601.2g: o que entra no cemitério pagando o custo não pode ser alvo
     const minAlvos = need.filter(x => !x.upTo).length; // S38 · "até N alvos" aceita menos
     if (chosen.length < minAlvos || chosen.length > need.length) throw new RuleError('alvo', `escolha ${minAlvos === need.length ? need.length : `de ${minAlvos} a ${need.length}`} alvo(s)`);
     // 601.2c · dois alvos da mesma mágica ou habilidade precisam ser diferentes
@@ -25435,6 +25459,7 @@ const HANDLERS = {
     if (delveN) { const cemiterio = s.zones[a.p].graveyard.filter(x => x !== a.oid); // M-263 · as cartas do delve: quem conjura escolhe
       startPick(s, { p: a.p, from: cemiterio, min: delveN, max: delveN, to: 'exile', rest: 'stay', label: 'delve', source: o.name }, []); }
     if (s.descarteDoCustoK) descarteDoCustoK(s, o); // K-49 · o descarte do custo de recompra, entrelaçar ou escalar: quem conjura escolhe (Toca ponto comum: HANDLERS.cast)
+    if (livresM && livresM.length) { if (s.pending) s.alvosLivresPendenteM = { oid: a.oid, from: livresM }; else iniciaAlvosLivresM(s, a.oid, livresM, events); } // M-515 · Drafna's Restoration: de zero a todas; com outra escolha da conjuração aberta, espera ela terminar
     chargeWard(s, a.p, a.oid, chosen); // S41 · vigilância do alvo
     disparaAlvejado(s, a.oid, chosen); // CR2b.9
     if (divisaoDaMagia(s, s.objects[a.oid])) { if (!divisaoPossivel(s, a.p, a.oid, a.x)) throw new RuleError('dividir', 'não há alvo para dividir o dano'); if (s.pending) s.divisaoPendente = a.oid; else iniciaDivisao(s, a.oid, events); } // M-376 · 601.2d
@@ -26224,6 +26249,7 @@ function apply(state, action) {
   if ((s.loteCemiterioM || s.loteDescarteM || s.saidasCemM) && !descarteEmCursoM(s)) fechaLoteCemiterioM(s); // M-449 · o lote fecha no fim da ação · M-475: não no meio de um descarte escolhido
   if (action.oid != null && s.objects[action.oid] && s.objects[action.oid].zone === 'stack' && !s.pending) modoDoOponentePendenteT(s, action.oid); // T-107 · 700.2e: o oponente escolhe o modo quando quem conjura escolheria (Toca ponto comum: apply, uma linha)
   if (s.players.some(pl => pl.manaCombateT)) podaManaDeCombateT(s); // T-102 · 702.189a: a mana da dobra de fogo gasta não volta (Toca ponto comum: apply, uma linha)
+  if (!s.pending && s.alvosLivresPendenteM) { const d = s.alvosLivresPendenteM; delete s.alvosLivresPendenteM; iniciaAlvosLivresM(s, d.oid, d.from, events); } // M-515 · revisão
   if (!s.pending && s.divisaoPendente) { const oid = s.divisaoPendente; delete s.divisaoPendente; if (s.objects[oid] && s.objects[oid].zone === 'stack') iniciaDivisao(s, oid, events); } // M-376
   if (!s.pending && (s.resume || s.magiaSuspensa)) resumeEffects(s, events); // M-374 · também a mágica parada numa escolha que já acabou · CR 704.4 · a decisão acabou: o resto da resolução vem antes de qualquer ação de estado
   stateBased(s, events);
@@ -33447,6 +33473,7 @@ function effectLine(ev) {
       return ev.failed ? `${ev.name} não causou dano: alvo ilegal` : ev.prevented ? `${ev.name}: o dano a ${t} foi prevenido` : `${ev.name} causou ${n} de dano a ${t}`; // M-397 · o dano prevenido não aparece como causado
     case 'poison': return `${t} recebeu ${ev.amount === 1 ? '1 marcador de veneno' : `${ev.amount} marcadores de veneno`} (${ev.name})`; // M-432
     case 'reveal': return `${ev.name} revelou: ${t}`; // Leva 108
+    case 'topo_em_ordem': return `${ev.name} pôs ${n === 1 ? '1 carta' : `${n || 0} cartas`} do cemitério de ${t} no topo do grimório`; // M-515
     case 'vence': return `${ev.name}: o controlador venceu o jogo`; // CR2h.6
     case 'perde': return `${ev.name}: ${t} perdeu o jogo`; // CR2h.6
     case 'turno_extra': return `${t} vai jogar um turno extra depois deste (${ev.name})`; // CR2g.2
@@ -34705,6 +34732,7 @@ function descreveEfeito(e) {
     case 'reveal_until': return `${e.who === 'self' ? 'você revela' : 'o controlador dela revela'} cartas do topo até ${e.match === 'creature' ? 'uma criatura' : e.match === 'creature-greater-mv' ? 'uma criatura de valor de mana maior' : `uma carta${e.permanentOnly ? ' de permanente' : ''} que divida um tipo com ela`}, põe no campo e ${e.rest === 'shuffle' ? 'embaralha as outras' : 'põe as outras no fundo em ordem aleatória'}`; // M-222
     case 'to_bottom': return 'põe a sua permanente alvo no fundo do grimório';
     case 'pisca': return `exila ${alvo || 'a permanente'} e a devolve ao campo sob o controle ${e.sob === 'voce' ? 'de quem conjurou' : 'do dono'}`; // M-349 · M-351
+    case 'topo_em_ordem': return `põe as cartas de artefato escolhidas do cemitério de ${alvo || 'um jogador'} no topo do grimório dele, na ordem que quem conjurou escolher`; // M-515
     case 'pisca_exila': return `exila ${alvo || 'a permanente'} (volta ao campo em seguida)`; // M-351 · Ghostly Flicker
     case 'pisca_volta': return `devolve as exiladas ao campo${e.sob === 'voce' ? ' sob o seu controle' : ''}`; // M-351
     case 'sacrifica_a_menos_que_devolva': return 'sacrifica esta permanente a menos que você devolva um artefato seu à mão';
