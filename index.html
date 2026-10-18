@@ -916,6 +916,7 @@ a { color: var(--accent); }
 .ds-btn__conta { min-width: 20px; height: 20px; padding: 0 6px; border-radius: var(--radius-full); background: var(--accent); color: var(--accent-fg);
   font-size: var(--text-xs); font-weight: var(--weight-bold); line-height: 20px; text-align: center; font-variant-numeric: tabular-nums; }
 .ds-btn__conta[hidden] { display: none; }
+.ds-btn[hidden] { display: none; } /* T-130 · a busca da folha de nomes esconde botões com `hidden`; sem esta linha o `display: inline-flex` do .ds-btn vencia o [hidden] do navegador (achado da T-130; a busca da T-77 nunca escondeu nada) */
 .ds-btn--perigo { color: var(--negative); }
 @media (hover: hover) { .ds-btn--perigo:hover { color: var(--negative); background-color: var(--bg-elev-2); } }
 .ds-list__seta { color: var(--fg-subtle); flex: none; margin-left: var(--space-1); }
@@ -19558,6 +19559,7 @@ function createGame(setup) {
   apelidosDeDuasPartesT(scripts, setup.cards); // T-6 · carta de duas partes da trilha tipos listada pelo nome completo ("A // B"): o script da frente vale para ela (função abaixo da âncora T das exportações)
   for (const [name, card] of Object.entries(setup.cards || {})) if (!scripts[name]) { const li = SC.scriptLido(card); if (li) scripts[name] = li; } // LT7 · lida e revisada: joga pelo script lido (validado na leitura)
   for (const [name, card] of Object.entries(setup.cards || {})) s.facts[name] = cardFacts(card);
+  const catalogoT = catalogoDeNomesT(setup.nomes); if (catalogoT) s.catalogoNomesT = catalogoT; // T-130 · CR 201.4 · os nomes de carta que o app conhece (função abaixo da âncora T das exportações)
   // o estado guarda só o que o motor executa; o cenário de teste (S8) fica fora
   // S24 · a face de trás vira um conjunto de fatos próprio
   const naPartida = new Set(Object.keys(setup.cards || {}).flatMap(n => [n, n.split(' // ')[0]])); // M-372 · as cartas da partida (e a frente de "A // B")
@@ -25669,7 +25671,7 @@ const HANDLERS = {
     const pd = s.pending;
     if (!pd || pd.kind !== 'choose_name' || pd.p !== a.p) throw new RuleError('tempo', 'nenhum nome de carta a escolher');
     const nome = a.nome != null ? a.nome : (pd.options || [])[a.index || 0];
-    if (!(pd.options || []).includes(nome)) throw new RuleError('escolha', 'esse nome não está entre os nomes de carta que valem aqui');
+    if (!(pd.options || []).includes(nome) && !(pd.catalogo || []).includes(nome)) throw new RuleError('escolha', 'esse nome não está entre os nomes de carta que valem aqui'); // T-130 · também os nomes do catálogo
     (s.nomesT = s.nomesT || {})[pd.oid] = { z: pd.z, nome };
     s.pending = null;
     if (pd.aoEntrar) { ev.push({ kind: 'choice-done', what: 'nome de carta', name: pd.source, amount: 1, nome }); return; } // T-79 · a escolha ao entrar não é parte de uma resolução
@@ -26493,7 +26495,7 @@ function clone(x) { return JSON.parse(JSON.stringify(x)); }
     O teste `fatos.imutaveis` roda partidas com os fatos blindados e derruba o portão se alguém alterar uma entrada por dentro. */
 function cloneEstado(state) {
   const s = {};
-  for (const k of Object.keys(state)) { const v = state[k]; if (v === undefined) continue; s[k] = k === 'facts' && v ? { ...v } : (v !== null && typeof v === 'object' ? JSON.parse(JSON.stringify(v)) : v); }
+  for (const k of Object.keys(state)) { const v = state[k]; if (v === undefined) continue; s[k] = k === 'facts' && v ? { ...v } : k === 'catalogoNomesT' && v ? v : (v !== null && typeof v === 'object' ? JSON.parse(JSON.stringify(v)) : v); } // T-130 · o catálogo de nomes é congelado em createGame e compartilhado entre estados
   return s;
 }
 function hashState(s) {
@@ -30742,6 +30744,39 @@ Object.assign(EXPORTS_T, { gruposGratisT });
 const chaveDeFaceT = a => (a && a.face != null ? '|face:' + a.face : '') + (a && a.porta ? '|porta:' + a.porta : '') + (a && a.prototipo ? '|prototipo' : '') + (a && a.omen ? '|omen' : ''); // T-41 · a Aventura também // T-26 · a porta destrancada também; T-36 · o protótipo também
 Object.assign(EXPORTS_T, { chaveDeFaceT });
 Object.assign(EXPORTS_T, { metadesDe, nomesDe });
+/* ---------------- T-130 · CR 201.4 · catálogo de nomes (decisão D14 do dono, 17/10/2026) ----------------
+   A lista das cartas da partida revelava a lista do oponente a quem escolhia um nome. Agora o app passa à partida os nomes de carta que
+   conhece (`setup.nomes = [{ name, type_line? }]`: todas as listas guardadas no aparelho, com a linha de tipo de quem tem dado), e a
+   decisão aceita qualquer nome do catálogo que case com o filtro do efeito. A oferta de `legalActions` continua a dos nomes da partida
+   (goldfish, Shark e o executor S8 escolhem como antes); a mesa lista `pending.catalogo`. Nome de duas partes entra pelas partes
+   (201.4b: a carta inteira nunca é um nome); sem linha de tipo o nome fica fora quando o efeito pede um tipo ("creature card name") e
+   entra quando só exclui ("nonland": o app não tem como provar, e nomear um terreno não muda nada no jogo — simplificação declarada).
+   O catálogo é congelado aqui e compartilhado entre estados (cloneEstado), como os fatos. */
+function catalogoDeNomesT(nomes) {
+  if (!Array.isArray(nomes) || !nomes.length) return null;
+  const t = {};
+  for (const x of nomes) {
+    const nome = x && typeof x.name === 'string' ? x.name : (typeof x === 'string' ? x : ''); if (!nome.trim()) continue;
+    const partes = nome.split(' // '), linhas = String((x && x.type_line) || '').toLowerCase().split('//');
+    partes.forEach((n, i) => {
+      n = n.trim(); if (!n || n.length > 141 || Object.prototype.hasOwnProperty.call(t, n)) return;
+      const tl = (linhas[i] || '').trim();
+      t[n] = Object.freeze(tl ? PERMANENT.concat(['instant', 'sorcery']).filter(k => tl.includes(k)) : []);
+    });
+  }
+  const n = Object.keys(t).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  return n.length ? Object.freeze({ n: Object.freeze(n), t: Object.freeze(t) }) : null;
+}
+/** Os nomes escolhíveis com o catálogo: os da partida (`ops`) mais os do catálogo que casam com o filtro; null sem catálogo. */
+function nomesDoCatalogoT(s, filtro, ops) {
+  const c = s.catalogoNomesT; if (!c) return null;
+  const pedeTipo = !!filtro && (filtro.tipos || []).length > 0; // "creature card name": sem a linha de tipo não dá para provar; "nonland" aceita o nome sem dado (nomear um terreno não muda nada no jogo; simplificação declarada no ROADMAP)
+  const out = new Set(ops || []);
+  for (const n of c.n) { const types = c.t[n] || []; if (pedeTipo && !types.length) continue; if (casaFiltroDoNomeT({ types }, filtro)) out.add(n); }
+  return [...out].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+}
+const catalogoDaEscolhaT = (s, filtro, ops) => { const c = nomesDoCatalogoT(s, filtro, ops); return c ? { catalogo: c } : {}; };
+Object.assign(EXPORTS_T, { catalogoDeNomesT, nomesDoCatalogoT });
 /* ---------------- T-77 · CR 201.4 · escolher um nome de carta ----------------
    - `escolhe_nome` (com `filtro` opcional: { tipos, semTipos }) abre a decisão `choose_name` para quem controla o efeito, na resolução;
      o nome fica guardado no objeto de onde o efeito veio (`s.nomesT[oid]`, com a encarnação: 400.7) e os efeitos seguintes o leem.
@@ -30771,7 +30806,7 @@ function escolheNomeT(s, src, eff, events) {
   const fonte = fonteDoNomeT(s, src), ops = nomesEscolhiveisT(s, eff.filtro);
   if (src.ability && src.fonteZc != null && (fonte.zc || 0) !== src.fonteZc) { events.push({ kind: 'effect', do: 'escolhe_nome', name: src.name, failed: true, saiu: true }); return; } // T-82 · 400.7: o gatilho da encarnação anterior não dá nome à nova
   if (!ops.length) { events.push({ kind: 'effect', do: 'escolhe_nome', name: src.name, failed: true }); return; }
-  s.pending = { kind: 'choose_name', p: src.controller, oid: fonte.oid, z: fonte.zc || 0, options: ops, source: src.name };
+  s.pending = { kind: 'choose_name', p: src.controller, oid: fonte.oid, z: fonte.zc || 0, options: ops, source: src.name, ...catalogoDaEscolhaT(s, eff.filtro, ops) };
 }
 function descartaNomeT(s, src, p, events) {
   const nome = nomeEscolhidoT(s, src), pl = s.players[p];
@@ -30905,7 +30940,7 @@ function nomeDeEstadoT(s, events) {
     if (!o || o.zone !== 'battlefield' || (o.zc || 0) !== w.z) continue;
     const ops = nomesEscolhiveisT(s, w.filtro);
     if (!ops.length) continue;
-    s.pending = { kind: 'choose_name', p: o.controller, oid: o.oid, z: w.z, options: ops, source: o.name, aoEntrar: true };
+    s.pending = { kind: 'choose_name', p: o.controller, oid: o.oid, z: w.z, options: ops, source: o.name, aoEntrar: true, ...catalogoDaEscolhaT(s, w.filtro, ops) };
     break;
   }
   if (!s.nomesEsperaT.length) delete s.nomesEsperaT;
@@ -32965,13 +33000,24 @@ function textoDoDanoDeComandante(s, p) {
 
 /** Monta o setup do motor a partir de listas salvas.
     seats = [{ name, deck?, dummy? }]; cards = { nome: carta completa }. */
-function buildSetup({ format, seed, seats, cards, manaCheck = false, mode = 'assisted', first = null }) {
+function buildSetup({ format, seed, seats, cards, manaCheck = false, mode = 'assisted', first = null, nomes = null }) {
   return {
     format, seed: seed >>> 0, mode, cards, manaCheck: mode === 'full' ? true : manaCheck, ...(first != null ? { first } : {}),
+    ...(Array.isArray(nomes) && nomes.length ? { nomes } : {}), // T-130 · CR 201.4 · os nomes de carta que o app conhece (catálogo do "nomeie uma carta"); sem o campo, só as cartas da partida
     players: seats.map(st => st.dummy ? { name: st.name || 'Goldfish', deck: [], dummy: true } : { name: st.name, deck: st.deck.entries })
   };
 }
 
+/** T-130 · CR 201.4 · o catálogo de nomes que a partida recebe (`setup.nomes`): nomes das listas dadas (`entradas`: entries de cada lista),
+ *  das cartas com dado (`cards`, com a linha de tipo) e das listas prontas do app (`prontas`: textos já lidos em entries). Só nome e tipo,
+ *  nunca a lista de quem é. Puro; com teste. Limite de 2.000 nomes (≈ 75 KB no pior caso: o catálogo viaja no setup, na partida salva a cada ação e na sala online). */
+function nomesDeCatalogo({ entradas = [], cards = null, prontas = [] } = {}) {
+  const tipo = new Map(); for (const c of Object.values(cards || {})) if (c && typeof c.name === 'string') tipo.set(c.name, String(c.type_line || ''));
+  const nomes = new Set();
+  for (const lista of [...entradas, ...prontas]) for (const e of lista || []) if (e && typeof e.name === 'string' && e.name.trim()) nomes.add(e.name.trim());
+  for (const n of tipo.keys()) nomes.add(n);
+  return [...nomes].sort((a, b) => a.localeCompare(b, 'pt-BR')).slice(0, 2000).map(name => (tipo.get(name) ? { name, type_line: tipo.get(name) } : { name }));
+}
 function nameOf(s, oid) { const o = s.objects[oid]; return o ? (o.faceDown && o.zone === 'battlefield' ? 'uma criatura virada para baixo' : o.name) : '?'; } // T-68 · CR 708.2 / 708.5 · o registro não revela a permanente virada para baixo (ao sair do campo ela é revelada, 708.9) (Toca ponto comum: nameOf do registro)
 // Leva 110 · registro: zona com preposição certa e vida como "perdeu 2 (20 → 18)"
 const DE_ZONA = { library: 'do grimório', hand: 'da mão', battlefield: 'do campo', graveyard: 'do cemitério', exile: 'do exílio', command: 'da zona de comando', stack: 'da pilha' };
@@ -34584,7 +34630,7 @@ function toquesDaContagem(grupos, conta) {
   for (const g of grupos) { let i = 0; (conta[g.chave] || []).forEach((n, k) => { for (let j = 0; j < n && i < g.oids.length; j++) out.push({ oid: g.oids[i++], option: k }); }); }
   return out;
 }
-return { LIMITE_COMANDANTE, danoDeComandante, textoDoDanoDeComandante, GRUPOS_DE_PARADA, PARADAS_PADRAO, paradasValidas, grupoDoPasso, usaParadas, paradasAtuais, iconeDaLinhaDoRegistro, donoDaLinha, iconeDaFase, trocaLegitima, cartaDaMesa, fontesDeMana, conferePagamento, planoDePagamento, gruposDeFontes, contagemDosToques, toquesDaContagem, sinaisDoResumo, iconeDaLinhaDoResumo, repeticaoDoCombo, chaveDaRepeticao, linhasDoCampo, rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, modificacoesDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveContinuo, descreveDano, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
+return { nomesDeCatalogo, LIMITE_COMANDANTE, danoDeComandante, textoDoDanoDeComandante, GRUPOS_DE_PARADA, PARADAS_PADRAO, paradasValidas, grupoDoPasso, usaParadas, paradasAtuais, iconeDaLinhaDoRegistro, donoDaLinha, iconeDaFase, trocaLegitima, cartaDaMesa, fontesDeMana, conferePagamento, planoDePagamento, gruposDeFontes, contagemDosToques, toquesDaContagem, sinaisDoResumo, iconeDaLinhaDoResumo, repeticaoDoCombo, chaveDaRepeticao, linhasDoCampo, rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, modificacoesDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveContinuo, descreveDano, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
 })();
 
 
@@ -34862,6 +34908,13 @@ const E = __m16;
 const T = __m18;
 const { h, mount, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge, Chip, Empty, Note, Spinner, Dialog, closeDialog, toast, simbolizar, Simbolo } = __m3;
 const { TableCard, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, StackPanel, CardPeek, PriorityBanner, AdjudicationPanel, Icone, IconButton, gestoDeBandeja, ligaGestoDeBandeja } = __m17;
+/** T-130 · CR 201.4 · as listas prontas do app em entries (dado público do próprio app), lidas uma vez: entram no catálogo de nomes do
+ *  "nomeie uma carta" para a folha não listar só as cartas da partida. */
+let PRONTAS_T130 = null;
+function prontasDoApp() {
+  if (!PRONTAS_T130) { try { PRONTAS_T130 = (__m24.STARTER_DECKS || []).map(d => (__m14.parseDeckText(d.text || '').entries || [])); } catch (e) { PRONTAS_T130 = []; } }
+  return PRONTAS_T130;
+}
 const { onLongPress } = __m20;
 const { norm } = __m7;
 const { FORMATS, coresDaLista } = __m14;
@@ -35103,7 +35156,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
               const cv = deckCoverage(theirs.entries.map(e => ({ ...e, key: norm(e.name) })), new Map(Object.entries(cards).map(([n, c]) => [norm(n), c])));
               if (!DEV && cv.pct < 100) { await online.sala.encerrar(on.codigo, 'lista-do-convidado'); throw new Error(`a lista de ${d.sala.convidado.nome} tem ${cv.pending.length} carta(s) que o motor não resolve`); }
               const seats = [{ name: meuNome(), deck: mine }, { name: d.sala.convidado.nome || 'Oponente', deck: theirs }];
-              const setup = T.buildSetup({ format: mine.format, seed: state.seed, seats, cards, manaCheck: true, mode: 'full' });
+              const setup = T.buildSetup({ format: mine.format, seed: state.seed, seats, cards, manaCheck: true, mode: 'full', nomes: T.nomesDeCatalogo({ entradas: [mine.entries, theirs.entries], cards, prontas: prontasDoApp() }) }); // T-130 · só as duas listas e as prontas: as outras listas da estante não saem do aparelho
               await online.sala.publicarSetup(on.codigo, setup);
               await guardarEIr(setup, 0, on.codigo, { melhorDe: state.melhorDe, assentos: seats.map(x => ({ name: x.name, entries: x.deck.entries })) });
             } catch (e) { on.publiquei = false; on.erro = 'Não foi possível preparar a mesa: ' + (e.message || e); paintOpponent(); }
@@ -35226,7 +35279,9 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
         // Q10 · e as imagens do jogo também (pequena do campo, grande da mão), em segundo plano
         if (keeper && keeper.guardarLista) { for (const d of [mine, theirs].filter(Boolean)) keeper.guardarLista(d).catch(() => {}); }
         else cardRepo.pin(names).catch(() => {});
-        const table = T.createTable(T.buildSetup({ format, seed: state.seed, seats, cards, manaCheck: state.mana, mode: state.mode }),
+        // T-130 · CR 201.4 · catálogo do "nomeie uma carta": todas as listas da estante (não saem do aparelho) e as prontas do app, com o tipo de quem tem dado
+        const nomes = T.nomesDeCatalogo({ entradas: all.map(d => d.entries), cards: { ...Object.fromEntries([...guardadas.values()].filter(c => c && c.name).map(c => [c.name, c])), ...cards }, prontas: prontasDoApp() });
+        const table = T.createTable(T.buildSetup({ format, seed: state.seed, seats, cards, manaCheck: state.mana, mode: state.mode, nomes }),
           { options: { autoPass: !state.stopAll, bot: comBot ? { nivel: 'shark', seat: 1 } : null, iniciada: Date.now(), minhaLista: mine.name } }); // I5 · o histórico diz quando e com que lista
         await store.set(T.SAVE_KEY, table.serialize());
         // Leva 114 · série: melhor de 3 guarda as listas (deck e reserva) de cada assento; partida única não guarda nada
@@ -36629,12 +36684,14 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       banner = PriorityBanner({ title: `${pd.source}: qual pilha vai para a mão de ${s.players[pd.dono].name}?`, hint: 'A outra vai para o cemitério.', tone: 'warning',
         actions: [0, 1].map(k => Button(rot(k), { variant: k ? undefined : 'primary', id: k ? undefined : 'tb-pilha_escolhe', onClick: () => act({ t: 'pilha_escolhe', p: v, pilha: k }) })) });
     } else if (s.pending && s.pending.kind === 'choose_name' && s.pending.p === v) { // T-77 · CR 201.4 · escolher um nome de carta (com busca: a lista tem os nomes de todas as cartas da partida) · Toca ponto comum: table.js
-      const pd = s.pending, ops = pd.options || [];
-      banner = PriorityBanner({ title: `${pd.source}: escolha um nome de carta`, hint: `${ops.length} ${ops.length === 1 ? 'nome' : 'nomes'} das cartas desta partida`, tone: 'warning',
+      const pd = s.pending, ops = pd.catalogo || pd.options || []; // T-130 · CR 201.4 · com catálogo, a folha lista todos os nomes que o app conhece (a lista do oponente não fica à vista)
+      banner = PriorityBanner({ title: `${pd.source}: escolha um nome de carta`, hint: pd.catalogo ? `${ops.length} nomes de carta (busque pelo nome)` : `${ops.length} ${ops.length === 1 ? 'nome' : 'nomes'} das cartas desta partida`, tone: 'warning',
         actions: [Button('Escolher o nome', { variant: 'primary', id: 'tb-choose_name', onClick: () => {
-          const botoes = ops.map(nome => { const b = Button(nome, { block: true, onClick: () => { closeDialog(); act({ t: 'choose_name', p: v, nome }); } }); b.dataset.nome = nome.toLocaleLowerCase('pt-BR'); return b; });
-          const busca = Input({ placeholder: 'Buscar pelo nome', onInput: e => { const q = String(e.target.value || '').trim().toLocaleLowerCase('pt-BR'); for (const b of botoes) b.hidden = !!q && !b.dataset.nome.includes(q); } });
-          Dialog({ title: pd.source, body: h('div', {}, busca, h('div', { class: 'tb-sheet__actions' }, ...botoes)), actions: [Button('Voltar', { onClick: closeDialog })] }); } })] });
+          const LIMITE = 300; // T-130 · com catálogo a folha pode ter centenas de nomes: sem busca, só os 300 primeiros ficam à mostra (o celular não pinta 2.000 botões); a busca olha todos
+          const botoes = ops.map((nome, i) => { const b = Button(nome, { block: true, onClick: () => { closeDialog(); act({ t: 'choose_name', p: v, nome }); } }); b.dataset.nome = nome.toLocaleLowerCase('pt-BR'); b.hidden = i >= LIMITE; return b; });
+          const aviso = ops.length > LIMITE ? Text(`Mostrando ${LIMITE} de ${ops.length} nomes · busque pelo nome para ver os outros`, { size: 'sm', tone: 'muted', attrs: { id: 'tb-choose_name-aviso' } }) : null;
+          const busca = Input({ placeholder: 'Buscar pelo nome', onInput: e => { const q = String(e.target.value || '').trim().toLocaleLowerCase('pt-BR'); let vistos = 0; for (const b of botoes) { const casa = !q || b.dataset.nome.includes(q); b.hidden = !casa || vistos >= LIMITE; if (casa) vistos++; } if (aviso) aviso.hidden = !!q && vistos <= LIMITE; } });
+          Dialog({ title: pd.source, body: h('div', {}, busca, aviso, h('div', { class: 'tb-sheet__actions' }, ...botoes)), actions: [Button('Voltar', { onClick: closeDialog })] }); } })] });
     } else if (s.pending && s.pending.kind === 'porta_escolha' && s.pending.p === v) { // T-27 · CR 709.5f/g · qual porta destrancar (ou trancar) · Toca ponto comum: table.js
       const pd = s.pending, ops = pd.options || [];
       banner = PriorityBanner({ title: `${pd.name}: ${pd.acao === 'trancar' ? 'qual porta trancar?' : pd.acao === 'destrancar' ? 'qual porta destrancar?' : 'trancar ou destrancar qual porta?'}`, hint: pd.sala, tone: 'warning',
@@ -37130,7 +37187,7 @@ function createSeriesScreen({ store, online = null }) {
         const o = serie.opcoes || {};
         const seats = serie.assentos.map(a => a.dummy ? { name: a.name, dummy: true } : { name: a.name, deck: { entries: a.atual } });
         const proxima = T.proximoJogo(serie, st.primeiro);
-        const table = T.createTable(T.buildSetup({ format: serie.formato, seed: (serie.semente + proxima.jogo * 7919) >>> 0, seats, cards: cartas, manaCheck: o.manaCheck !== false, mode: o.mode || 'full', first: st.primeiro }),
+        const table = T.createTable(T.buildSetup({ format: serie.formato, seed: (serie.semente + proxima.jogo * 7919) >>> 0, seats, cards: cartas, manaCheck: o.manaCheck !== false, mode: o.mode || 'full', first: st.primeiro, nomes: T.nomesDeCatalogo({ entradas: serie.assentos.map(a => a.atual || []), cards: cartas, prontas: prontasDoApp() }) }), // T-130
           { options: { autoPass: o.autoPass !== false, bot: o.bot || null, iniciada: Date.now(), minhaLista: o.minhaLista || '' } });
         await store.set(T.SAVE_KEY, table.serialize());
         await store.set(T.SERIE_KEY, proxima);
@@ -37166,7 +37223,7 @@ function createSeriesScreen({ store, online = null }) {
         // a troca do outro aparelho só vale se for a lista dele com cartas mudadas de lado; senão joga a original
         const listas = serie.assentos.map((a, i) => T.trocaLegitima(trocas['a' + i].entries, serie.formato, a.original) ? trocas['a' + i].entries : a.original);
         const tp = trocas['a' + perdedor].primeiro, primeiro = tp === 0 || tp === 1 ? tp : perdedor;
-        const setup = T.buildSetup({ format: serie.formato, seed: (serie.semente + N * 7919) >>> 0, seats: serie.assentos.map((a, i) => ({ name: a.name, deck: { entries: listas[i] } })), cards: cartas, manaCheck: true, mode: 'full', first: primeiro });
+        const setup = T.buildSetup({ format: serie.formato, seed: (serie.semente + N * 7919) >>> 0, seats: serie.assentos.map((a, i) => ({ name: a.name, deck: { entries: listas[i] } })), cards: cartas, manaCheck: true, mode: 'full', first: primeiro, nomes: T.nomesDeCatalogo({ entradas: listas, cards: cartas, prontas: prontasDoApp() }) });
         // as cartas são as mesmas da partida 1 e já estão nos dois aparelhos: não viajam de novo
         await online.sala.publicarProxima(on.codigo, N, { setup: { ...setup, cards: null }, primeiro });
       } catch (e) { st.publiquei = false; st.erro = 'Não foi possível preparar a próxima partida: ' + (e.message || e); paint(); }

@@ -124,3 +124,66 @@ test('CR 710.4 / 201.4c · na mão, a carta de virar se chama pela parte de cima
   [s] = terapia(s); s = act(s, { t: 'choose_name', p: 0, nome: 'Orochi Eggwatcher' }); s = passaAte(s, x => !x.stack.length || !!x.pending);
   eq(s.zones[1].hand.length, 0);
 });
+
+/* ---------------- T-130 · CR 201.4 · catálogo de nomes (decisão D14 do dono, 17/10/2026) ---------------- */
+const NOMES = [
+  { name: 'Pithing Needle', type_line: 'Artifact' }, { name: 'Plains', type_line: 'Basic Land — Plains' },
+  { name: 'Delver of Secrets // Insectile Aberration', type_line: 'Creature — Human Wizard // Creature — Human Insect' },
+  { name: 'Zumbi Sem Dado' }, { name: 'Urso', type_line: 'Creature — Bear' }, '  ', { name: '' }
+];
+function mesaComCatalogo(seed = 1) {
+  const deck = [...TODAS.map(name => ({ name, qty: 3, zone: 'main' })), { name: 'Swamp', qty: 10, zone: 'main' }, { name: 'Forest', qty: 6, zone: 'main' }];
+  let s = E.createGame({ format: 'livre', seed, mode: 'full', cards: C, scripts: SCRIPTS, nomes: NOMES, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  return passaAte(s, x => x.turn.active === 0 && x.turn.step === 'main1' && !x.stack.length && !x.pending);
+}
+
+test('T-130 · sem `nomes` no setup nada muda: a decisão não tem catálogo e nome fora da partida continua recusado', () => {
+  let s = mesa(); [s] = maoDe(s, 1, ['Urso']);
+  [s] = terapia(s);
+  assert.ok(!('catalogo' in s.pending) && !s.catalogoNomesT, 'sem catálogo');
+  assert.throws(() => E.apply(s, { t: 'choose_name', p: 0, nome: 'Pithing Needle' }), /nome/);
+});
+
+test('T-130 · CR 201.4 · com catálogo: a folha recebe os nomes do catálogo que casam com o filtro, a oferta do bot continua a da partida e a escolha aceita o nome do catálogo', () => {
+  let s = mesaComCatalogo();
+  assert.ok(Object.isFrozen(s.catalogoNomesT) && Object.isFrozen(s.catalogoNomesT.n), 'o catálogo é congelado em createGame');
+  [s] = maoDe(s, 1, ['Urso', 'Urso', 'Choque']);
+  eq(s.catalogoNomesT.n, ['Delver of Secrets', 'Insectile Aberration', 'Pithing Needle', 'Plains', 'Urso', 'Zumbi Sem Dado'], 'duas partes entram pelas partes (201.4b); vazios ficam fora');
+  eq(s.catalogoNomesT.t['Insectile Aberration'], ['creature'], 'a face de trás tem o tipo da própria linha');
+  [s] = terapia(s);
+  const pd = s.pending, ops = pd.options, cat = pd.catalogo;
+  assert.ok(ops.includes('Urso') && ops.includes('Cabal Therapy') && !ops.includes('Pithing Needle'), 'options continua os nomes da partida');
+  eq(legais(s, 0).filter(a => a.t === 'choose_name').length, ops.length, 'a oferta de legalActions não cresce com o catálogo (bot, goldfish e S8 iguais)');
+  assert.ok(cat.includes('Pithing Needle') && cat.includes('Delver of Secrets') && cat.includes('Insectile Aberration'), 'o catálogo entra na folha');
+  assert.ok(!cat.includes('Plains'), '"nonland": terreno do catálogo fica fora');
+  assert.ok(cat.includes('Zumbi Sem Dado'), '"nonland": o nome sem linha de tipo entra (o app não prova que é terreno; simplificação declarada)');
+  assert.ok(ops.every(n => cat.includes(n)), 'o catálogo contém os nomes da partida');
+  eq(cat, [...cat].sort((a, b) => a.localeCompare(b, 'pt-BR')), 'em ordem alfabética');
+  assert.throws(() => E.apply(s, { t: 'choose_name', p: 0, nome: 'Plains' }), /nome/);
+  assert.throws(() => E.apply(s, { t: 'choose_name', p: 0, nome: 'Carta Que Não Existe' }), /nome/);
+  const r = E.apply(s, { t: 'choose_name', p: 0, nome: 'Pithing Needle' });
+  assert.strictEqual(r.state.catalogoNomesT, s.catalogoNomesT, 'apply compartilha o catálogo entre estados (não clona)');
+  s = passaAte(r.state, x => !x.stack.length || !!x.pending);
+  eq(nomesNaMao(s, 1), ['Choque', 'Urso', 'Urso'], 'nomeou carta que não está na mão: nada sai');
+});
+
+test('T-130 · nome sem linha de tipo: entra sem filtro e com "nonland"; fica fora quando o efeito pede um tipo', () => {
+  let s = mesaComCatalogo();
+  eq(E.nomesDoCatalogoT(s, null, ['Urso']).includes('Zumbi Sem Dado'), true);
+  eq(E.nomesDoCatalogoT(s, { semTipos: ['land'] }, []).includes('Zumbi Sem Dado'), true);
+  eq(E.nomesDoCatalogoT(s, { semTipos: ['land'] }, []).includes('Plains'), false);
+  eq(E.nomesDoCatalogoT(s, { tipos: ['artifact'], semTipos: ['land'] }, []), ['Pithing Needle']);
+  eq(E.nomesDoCatalogoT(s, { tipos: ['creature'] }, []), ['Delver of Secrets', 'Insectile Aberration', 'Urso']);
+  eq(E.nomesDoCatalogoT(mesa(), null, ['Urso']), null, 'sem catálogo, null');
+  eq(E.catalogoDeNomesT([]), null); eq(E.catalogoDeNomesT(null), null);
+});
+
+test('T-130 · nomesDeCatalogo (mesa): nomes das listas, das cartas com dado e das prontas, só nome e tipo, em ordem, sem repetir', () => {
+  const r = T.nomesDeCatalogo({ entradas: [[{ name: 'Urso', qty: 4 }, { name: 'Choque', qty: 1 }], [{ name: 'Urso', qty: 2 }, { name: ' ', qty: 1 }]], cards: { Choque: { name: 'Choque', type_line: 'Instant', oracle_text: 'segredo' } }, prontas: [[{ name: 'Plains', qty: 10 }]] });
+  eq(r, [{ name: 'Choque', type_line: 'Instant' }, { name: 'Plains' }, { name: 'Urso' }]);
+  eq(T.nomesDeCatalogo(), []);
+  assert.ok(!JSON.stringify(r).includes('segredo'), 'só nome e tipo viajam');
+  assert.ok(!('nomes' in T.buildSetup({ format: 'livre', seed: 1, seats: [{ name: 'A', dummy: true }], cards: {} })), 'buildSetup sem nomes: campo ausente');
+  eq(T.buildSetup({ format: 'livre', seed: 1, seats: [{ name: 'A', dummy: true }], cards: {}, nomes: r }).nomes, r);
+});

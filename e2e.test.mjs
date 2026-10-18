@@ -11540,6 +11540,46 @@ test('e2e · T-27 · CR 709.5f · Sala: destrancar por efeito com as duas portas
   assert.deepEqual(M.errors, []);
 });
 
+/* ---------------- T-130 · CR 201.4 · catálogo de nomes no "nomeie uma carta" (decisão D14 do dono) ---------------- */
+test('e2e · T-130 · CR 201.4 · escolher um nome de carta: a folha lista o catálogo que o app conhece (listas prontas incluídas), com busca, e não diz mais "cartas desta partida"; o nome escolhido fora da partida vale e vai ao registro', { skip }, async t => {
+  // A espera de nome ao entrar (T-79) é anotada direto no estado, como o teste da T-27 faz com a porta: o motor é provado em tipos.nome.unit.
+  // O catálogo vem do app (createTableSetup → buildSetup.nomes): as listas da estante e as prontas do app. "Spellstutter Sprite" é das prontas
+  // e não está nesta partida; "Island" é terreno e o filtro "nonland" o deixa fora.
+  const M = await comLista125(t, '30 Island\n10 Faerie Miscreant', ['Island', 'Faerie Miscreant'], '4');
+  const { page } = M;
+  const nomes = await page.evaluate(() => { const s = window.__estanteMesa.estado(); return s.catalogoNomesT ? s.catalogoNomesT.n.length : 0; });
+  assert.ok(nomes > 100, 'a partida recebeu o catálogo de nomes do app: ' + nomes);
+  const terra = await M.oid('Island'); assert.ok(terra);
+  await page.evaluate(oid => { const s = window.__estanteMesa.estado(); (s.nomesEsperaT = s.nomesEsperaT || []).push({ oid, z: (s.objects[oid].zc || 0) + 1, p: 0, filtro: { semTipos: ['land'] } }); }, terra); // z: a encarnação que o terreno terá no campo (400.7)
+  assert.equal(await M.act({ t: 'play_land', p: 0, oid: terra }), true); await page.waitForTimeout(250);
+  const e = await M.est();
+  assert.equal(e.pend, 'choose_name', 'a mesa pergunta o nome: ' + JSON.stringify(e));
+  const dec = await M.decisao();
+  assert.match(dec, /escolha um nome de carta \| \d+ nomes de carta \(busque pelo nome\)/, dec);
+  assert.ok(!/desta partida/.test(dec), 'a dica não revela que a lista é a da partida');
+  await auditaTela(page, 'escolher um nome de carta (catálogo)');
+  await page.locator('#tb-choose_name').click(); await page.waitForSelector('.ds-dialog'); await page.waitForTimeout(250);
+  const botoes = (await page.locator('.ds-dialog .tb-sheet__actions button').allInnerTexts()).map(x => x.replace(/\s+/g, ' ').trim());
+  assert.ok(botoes.includes('Spellstutter Sprite') && botoes.includes('Faerie Miscreant'), 'catálogo e partida na mesma folha: ' + botoes.length);
+  assert.ok(!botoes.includes('Island'), '"nonland": terreno fora');
+  assert.ok(botoes.length > 100, 'mais do que as cartas da partida: ' + botoes.length);
+  const aMostra = await page.locator('.ds-dialog .tb-sheet__actions button:visible').count();
+  assert.ok(aMostra > 100 && aMostra <= 300, 'sem busca, no máximo 300 à mostra (o resto entra pela busca): ' + aMostra);
+  if (botoes.length > 300) assert.match(await page.locator('#tb-choose_name-aviso').innerText(), /^Mostrando 300 de \d+ nomes/);
+  await page.locator('.ds-dialog input').fill('spellstutter'); await page.waitForTimeout(150);
+  const visiveis = await page.locator('.ds-dialog .tb-sheet__actions button:visible').allInnerTexts();
+  assert.deepEqual(visiveis.map(x => x.trim()), ['Spellstutter Sprite'], 'a busca filtra: ' + JSON.stringify(visiveis));
+  const cx = await page.locator('.ds-dialog .tb-sheet__actions button:visible').first().boundingBox(); assert.ok(cx && cx.height >= 44, 'botão com 44 px ou mais: ' + JSON.stringify(cx));
+  await auditaTela(page, 'folha do nome com a busca');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/t130-nome.png' });
+  await page.locator('.ds-dialog .tb-sheet__actions button:visible').first().click(); await page.waitForTimeout(250);
+  const fim = await page.evaluate(oid => { const s = window.__estanteMesa.estado(); return { pend: s.pending && s.pending.kind, nome: s.nomesT && s.nomesT[oid] && s.nomesT[oid].nome }; }, terra);
+  assert.deepEqual(fim, { pend: null, nome: 'Spellstutter Sprite' });
+  const linhas = await page.evaluate(() => (window.__estanteMesa.registro ? window.__estanteMesa.registro() : []).map(String));
+  if (linhas.length) assert.ok(linhas.some(l => /escolheu o nome Spellstutter Sprite/.test(l)), 'registro: ' + JSON.stringify(linhas.slice(-6)));
+  assert.deepEqual(M.errors, []);
+});
+
 /* ---------------- P-20 · MON1 · Apoiar a Estante (prévia com dados de exemplo) ---------------- */
 test('e2e · P-20 Apoiar a Estante: todas as formas na tela, a da região primeiro (Brasil: Pix); prévia não copia nem abre; Perfil sem a entrada; sem rede o Pix segue; sem sobreposição nas quatro medidas e dois temas; volta ao Perfil', { skip }, async t => {
   const { page, errors, base } = await open(t);
