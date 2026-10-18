@@ -5945,6 +5945,7 @@ const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield
   'heroic',
   // CR2g.5 · 508.3d / 509.3c / 509.3f(e) · "whenever you attack", "whenever ~ becomes blocked", "whenever ~ attacks and isn't blocked"
   'you-attack', 'becomes-blocked', 'attacks-unblocked',
+  'combat-damage-creature', // M-513 · "Whenever this creature deals combat damage to a creature" (Stinkweed Imp): uma vez por criatura que recebeu dano dela; "that creature" é a recebedora, lembrada (sem alvo)
   // CR2b.9 · 603.2 / 115.9 · "whenever ~ becomes the target of a spell [or ability] [you control] [for the first time each turn]" (valente)
   'becomes-target',
   // M-342 · "When you play another land" (City of Traitors): só a ação especial de jogar terreno (305.1), não "pôr no campo"
@@ -6134,7 +6135,7 @@ const CHOICES = ['color'];
 const STATIC_RULES = ['flagbearer', 'exile-instead-of-graveyard', 'opponent-creatures-enter-tapped'];
 const TRIGGER_PT = { etb: 'quando entra no campo', dies: 'quando morre', upkeep: 'na sua manutenção', attacks: 'quando ataca', blocks: 'quando bloqueia',
   'other-etb': 'quando outra criatura sua entra', 'other-dies': 'quando outra criatura sua morre',
-  'combat-damage': 'quando causa dano de combate a um jogador', 'end-step': 'no início do seu passo final', 'each-upkeep': 'no início de cada manutenção', 'begin-combat': 'no início do combate no seu turno',
+  'combat-damage': 'quando causa dano de combate a um jogador', 'combat-damage-creature': 'quando causa dano de combate a uma criatura', 'end-step': 'no início do seu passo final', 'each-upkeep': 'no início de cada manutenção', 'begin-combat': 'no início do combate no seu turno',
   'enchanted-damages-opponent': 'quando a criatura encantada causa dano a um oponente', 'you-discard': 'quando você descarta uma carta', 'you-gain-life': 'sempre que você ganha vida', 'you-play-land': 'quando você joga outro terreno', heroic: 'heroico: quando você conjura uma mágica que mira esta criatura', 'becomes-target': 'quando se torna alvo', 'you-attack': 'sempre que você ataca', 'becomes-blocked': 'quando é bloqueada', 'attacks-unblocked': 'quando ataca e não é bloqueada', 'dealt-damage': 'quando recebe dano', 'attached-dies': 'quando a criatura anexada morre', 'attached-dies-or-exiled': 'quando a permanente encantada morre ou é exilada',
   'other-sacrificed': 'quando você sacrifica outra permanente',
   'leaves-battlefield': 'quando sai do campo de batalha', 'other-leaves-battlefield': 'quando outra criatura sua sai do campo', 'enchanted-deals-damage': 'quando a criatura encantada causa dano',
@@ -6539,6 +6540,12 @@ function effectErrors(effects, label, opcional) {
       if (e.onPicked.keyword && !KEYWORDS.includes(String(e.onPicked.keyword).toLowerCase())) errs.push(`${label} ${i + 1}: palavra-chave "${e.onPicked.keyword}" não é resolvida pelo motor`);
       if (e.onPicked.until != null && e.onPicked.until !== 'your-next-turn') errs.push(`${label} ${i + 1}: duração "${e.onPicked.until}" desconhecida`);
       if (e.onPicked.vidaSeTipo != null && !(e.onPicked.vidaSeTipo && TIPOS_DE_CARTA.includes(e.onPicked.vidaSeTipo.tipo) && Number.isInteger(e.onPicked.vidaSeTipo.vida) && e.onPicked.vidaSeTipo.vida > 0)) errs.push(`${label} ${i + 1}: vidaSeTipo precisa do tipo de carta e da vida`); // M-364
+    }
+    if (e.escolheMoidas != null) { // M-513 · "mill N cards. You may put a land card from among them into your hand" (Town Greeter)
+      const es = e.escolheMoidas || {}, vs = (es.onPicked || {}).vidaSeSubtipo;
+      if (e.do !== 'mill' || (e.target != null && e.target !== 'self')) errs.push(`${label} ${i + 1}: "escolheMoidas" só vale em moer o próprio grimório`);
+      if (!(Number.isInteger(es.max) && es.max > 0)) errs.push(`${label} ${i + 1}: "escolheMoidas" precisa de max inteiro positivo`);
+      if (vs != null && !(vs && typeof vs.subtipo === 'string' && /^[A-Z][a-z]+$/.test(vs.subtipo) && !['Basic', 'Nonbasic', 'Legendary', 'Snow', 'World', 'Ongoing', 'Token'].includes(vs.subtipo) && Number.isInteger(vs.vida) && vs.vida > 0)) errs.push(`${label} ${i + 1}: vidaSeSubtipo precisa do subtipo e da vida`);
     }
     // efeito com escolha interrompe a resolução: o que vem depois não pode ter alvo
     if (CHOICE_EFFECTS.includes(e.do) && effects.slice(i + 1).some(isTargeted)) errs.push(`${label} ${i + 1} (${e.do}): efeito com alvo depois de uma escolha`);
@@ -10189,6 +10196,12 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Convolute': { texto: 'tx1801', leva: 'M-512' },
   'Aesthir Glider': { texto: '1qgs0vu', leva: 'M-512' },
   'Dusk Legion Zealot': { texto: '7uccei', leva: 'M-512' },
+  // M-513 · revisão por lote CLIII (lista Pauper da liga MTGO de 17/10: as cinco cartas que o leitor passa a ler nesta leva), textos da Scryfall de 18/10/2026 UTC, revisor independente
+  'Satyr Wayfinder': { texto: '1w070j0', leva: 'M-513' },
+  'Town Greeter': { texto: '4ffakf', leva: 'M-513' },
+  'Gnaw to the Bone': { texto: 'fi89ph', leva: 'M-513' },
+  'Stinkweed Imp': { texto: '15drxd5', leva: 'M-513' },
+  'Circle of the Land Druid': { texto: 'kiazb1', leva: 'M-513' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18727,6 +18740,7 @@ const __m42 = (function () {
     [/^return target nonland permanent and all other permanents with the same name as that permanent to their owners' hands$/i, () => [{ do: 'bounce', target: { semTipos: ['land'] }, mesmoNome: true }]], // M-425 · Echoing Truth
     [/^add \{([WUBRGC])\} for each (creature card in your graveyard|card named ~ in each graveyard)$/i, m => [{ do: 'add_mana', symbols: [m[1].toUpperCase()], porContagem: /named/i.test(m[2]) ? 'mesmo-nome-nos-cemiterios' : 'creature-cards-in-your-graveyard' }]], // M-423 · Songs of the Damned, Rite of Flame
     [/^you gain 1 life for each attacking creature$/i, () => [{ do: 'gain', amount: { per: 'attacking-creatures' } }]], // M-423 · Respite (506.4)
+    [/^you gain (\d+) life for each creature card in your graveyard$/i, m => { const k = +m[1]; return k > 0 ? [{ do: 'gain', amount: k === 1 ? { per: 'creature-cards-in-your-graveyard' } : { per: 'creature-cards-in-your-graveyard', times: k } }] : null; }], // M-513 · Gnaw to the Bone (contagem na resolução, 608.2h)
     [/^you gain life equal to the damage dealt this way$/i, () => [{ do: 'gain', amount: { per: 'dano-causado' } }]], // M-427 · Rite of Consumption, Corrupt, Syphon Soul (o dano causado de fato)
     [/^until end of turn, target creature gets \+(\d+)\/\+(\d+) and gains "when (?:this creature|~) dies, return it to the battlefield tapped under its owner's control\.?"\.?$/i, m => [{ do: 'pump', power: +m[1], toughness: +m[2], target: 'creature' }, { do: 'ganha_habilidade', target: 'first-target', habilidade: { kind: 'triggered', when: 'dies', effects: [{ do: 'reanimate_tapped', target: 'self-source', controle: 'dono' }] } }]], // M-429 · Supernatural Stamina
     [/^counter target spell if its mana value is (\d+) or less$/i, m => [{ do: 'counter', target: 'spell', mvAte: +m[1] }]], // M-419 · Prohibit (mira qualquer mágica; confere na resolução)
@@ -18809,6 +18823,7 @@ const __m42 = (function () {
     [/^the owner of (target nonland permanent) puts it on the top or bottom of their library$/i, m => { const a = alvo(m[1]); return a ? [{ do: 'topo_ou_fundo_do_dono', target: { semTipos: ['land'] } }] : null; }], // M-352 · a forma sem "segundo" (canalizar de Moonsnare Prototype e afins)
     [new RegExp(`^impulso ${N} ate o proximo turno$`, 'i'), m => [{ do: 'exile_top_playable', amount: num(m[1]), ate: 'proximo-turno' }]], // M-349 · Wrenn's Resolve, Reckless Impulse, Clockwork Percussionist (frase juntada em leParagrafo)
     [/^return target instant or sorcery card from your graveyard to your hand$/i, () => [{ do: 'to_hand', target: { zona: 'graveyard', de: 'you', tipos: ['instant', 'sorcery'] } }]], // M-348 · Archaeomancer
+    [/^return target land card from your graveyard to your hand$/i, () => [{ do: 'to_hand', target: { zona: 'graveyard', de: 'you', tipos: ['land'] } }]], // M-513 · Circle of the Land Druid
     [/^target creature gains ([a-z ]+?)(?: and ([a-z ]+))? until end of turn$/i, m => { const ks = [m[1], m[2]].filter(Boolean).map(k => k.toLowerCase()); return ks.every(k => KW.has(k)) ? ks.map((k, i) => ({ do: 'keyword', keyword: k, target: i ? 'first-target' : 'creature' })) : null; }], // M-348 · Toxin Analysis (601.2c: um alvo só)
     [/^put all commanders you own from the command zone and from your graveyard into your hand$/i, () => [{ do: 'comandantes_para_mao' }]], // M-348 · Campfire
     [/^(?:then )?shuffle your graveyard into your library$/i, () => [{ do: 'cemiterio_no_grimorio' }]], // M-348 · Campfire
@@ -18923,6 +18938,7 @@ const __m42 = (function () {
     [/^when (this creature|this artifact|~) (?:dies|is put into a graveyard from the battlefield)$/i, 'dies'],
     [/^when (this creature|this artifact|~) leaves the battlefield$/i, 'leaves-battlefield'],
     [/^whenever (this creature|~) deals combat damage to a player$/i, 'combat-damage'],
+    [/^whenever (this creature|~) deals combat damage to a creature$/i, 'combat-damage-creature'], // M-513 · Stinkweed Imp
     [/^whenever (this creature|~) attacks$/i, 'attacks'],
     [/^whenever (this creature|~) attacks while you control a creature with power 4 or greater$/i, 'attacks', () => ({ condition: { ferociousAoDisparar: true } })], // M-455 · Ravening Warg (o prefixo "Ferocious — " é tirado antes)
     [/^whenever (?:equipped|enchanted) creature attacks$/i, { evento: 'ataca', objeto: 'anexada' }], // M-401 · Greatsword of Tyr
@@ -19062,6 +19078,9 @@ const __m42 = (function () {
     const cab = linha.slice(0, i), resto = linha.slice(i + 2).replace(/\.$/, '');
     const g = GATILHOS.find(([re]) => re.test(cab)); if (!g) return null;
     const extra = g[2] ? g[2](cab.match(g[0])) : {}; // LT10 · filtro e "de qualquer jogador" da abertura
+    if (g[1] === 'combat-damage-creature') { // M-513 · "that creature" é a que recebeu o dano: sem alvo (sem ward, sem escolha); outros corpos ficam sem leitura
+      if (!/^destroy that creature$/i.test(resto)) { frases.push({ texto: linha, lida: false, motivo: 'gatilho de dano de combate a uma criatura: só "destroy that creature" é lido' }); return null; }
+      frases.push({ texto: cab, lida: true }, { texto: resto, lida: true }); return { kind: 'triggered', when: 'combat-damage-creature', effects: [{ do: 'destroy', target: 'remembered' }] }; }
     if (extra && extra.soNaoCriatura) { // M-435 · numa criatura, ela mesma também dispara; "it" no efeito é a que entrou (Warstorm Surge), não a fonte: sem leitura
       if (/\bCreature\b/i.test(tipoAtual) || /\b(?:it|its)\b/i.test(resto)) { frases.push({ texto: linha, lida: false, motivo: 'gatilho de criatura sua que entra: a própria criatura ou "it" (a que entrou) o leitor ainda não lê' }); return null; }
       delete extra.soNaoCriatura; }
@@ -19128,7 +19147,12 @@ const __m42 = (function () {
       const c = num(m[1]); return c ? [{ do: 'look', count: c, amount: 1, min: 0, to: 'hand', rest: /random/i.test(m[3]) ? 'library-bottom-random' : 'library-bottom', revelaEscolhida: true, filter: { types: ['creature'], powerMax: +m[2] } }] : null; }],
     [new RegExp(`^reveal the top ${N} cards of your library\\. put (up to ${N}|an?) (instant and/or sorcery|creature|enchantment|artifact|land) cards? from among them into your hand and the rest(?: of the revealed cards)? into your graveyard(?:\\.\\s*|$)`, 'i'), m => { // M-424 · Pieces of the Puzzle, Tracker's Instincts
       const c = num(m[1]), k = m[3] ? num(m[3]) : 1, t = m[4].toLowerCase(), filtro = t === 'instant and/or sorcery' ? { types: ['instant', 'sorcery'] } : { types: [t] };
-      return c && k && k <= c ? [{ do: 'look', count: c, amount: k, min: m[3] ? 0 : 1, revela: true, filter: filtro, to: 'hand', rest: 'graveyard' }] : null; }]
+      return c && k && k <= c ? [{ do: 'look', count: c, amount: k, min: m[3] ? 0 : 1, revela: true, filter: filtro, to: 'hand', rest: 'graveyard' }] : null; }],
+    [new RegExp(`^reveal the top ${N} cards of your library\\. you may put an? (creature|land|artifact|enchantment) card from among them into your hand\\. put the rest into your graveyard(?:\\.\\s*|$)`, 'i'), m => { // M-513 · Satyr Wayfinder ("you may": zero ou uma)
+      const c = num(m[1]); return c ? [{ do: 'look', count: c, amount: 1, min: 0, revela: true, filter: { types: [m[2].toLowerCase()] }, to: 'hand', rest: 'graveyard' }] : null; }],
+    [new RegExp(`^mill ${N} cards\\. you may put a land card from among them into your hand\\. if you put an? ([a-z]+) card into your hand this way, you gain ${N} life(?:\\.\\s*|$)`, 'i'), m => { // M-513 · Town Greeter: escolhe entre as que foram mesmo para o cemitério
+      const c = num(m[1]), v = num(m[3]), sub = m[2].charAt(0).toUpperCase() + m[2].slice(1).toLowerCase();
+      return c && v && !['artifact', 'battle', 'creature', 'enchantment', 'instant', 'kindred', 'land', 'planeswalker', 'sorcery', 'basic', 'nonbasic', 'legendary', 'snow', 'world', 'ongoing', 'token', 'nonland', 'colorless', 'multicolored', 'white', 'blue', 'black', 'red', 'green'].includes(m[2].toLowerCase()) ? [{ do: 'mill', amount: c, escolheMoidas: { max: 1, filter: { types: ['land'] }, onPicked: { vidaSeSubtipo: { subtipo: sub, vida: v } } } }] : null; }]
   ];
   /** M-343 · "scry 1 and create a Treasure token": duas ações em sequência. Só quando as duas metades são lidas sozinhas e a segunda não
       tem pronome (it, its, them, that…) que dependa da primeira — senão a frase fica não lida. */
@@ -19206,7 +19230,8 @@ const __m42 = (function () {
   function ler(card) {
     const nome = (card && card.name) || ''; nomeAtual = nome; const tipo = String((card && card.type_line) || ''); tipoAtual = tipo;
     const texto = card && card.verso ? [card.oracle_text, '//', card.verso.oracle_text].join('\n') : card && card.oracle_text; // M-322 · a Aventura guardada à parte (.listas): mesma forma do app ("frente\n//\nverso")
-    const linhas = semLembrete(texto).split('\n').map(x => x.trim().replace(/^(?:undergrowth|threshold|delirium|revolt|morbid|raid|hellbent|landfall|ferocious|coven|alliance|magecraft) — (?=(?:when|whenever|at|as long as|if|that creature also)\b)/i, '')).filter(Boolean); // M-354 · 207.2c: palavra de habilidade não tem efeito de regra (Lotleth Giant)
+    const linhas = semLembrete(texto).split('\n').map(x => x.trim().replace(/^(?:undergrowth|threshold|delirium|revolt|morbid|raid|hellbent|landfall|ferocious|coven|alliance|magecraft) — (?=(?:when|whenever|at|as long as|if|that creature also)\b)/i, '')
+      .replace(/^(?!(?:Max speed|Solved|To solve|Visit|Prize|[IVX]+(?:, [IVX]+)*) — )[A-Z][A-Za-z'’-]*(?: [A-Za-z'’-]+){0,3} — (?=(?:When|Whenever|At the beginning)\b)/, '')).filter(Boolean); // M-354 · 207.2c: palavra de habilidade não tem efeito de regra (Lotleth Giant) · M-513 · 207.2d: nem a palavra de sabor ("Natural Recovery —", Circle of the Land Druid); ficam de fora os prefixos com regra (velocidade máxima, caso resolvido e condição do caso, visita e prêmio de atração, capítulo)
     const frases = [], efeitos = [], topo = {};
     const magica = /\b(Instant|Sorcery)\b/.test(tipo);
     let modos = null; const coresVida = []; // M-342
@@ -21572,7 +21597,7 @@ function dealCombatDamage(s) {
       amt = danoAposPrevencao(s, src, obj ? { obj } : { player }, amt, true); if (!amt) continue;
       if (ehPw && (danoEmBatalhaT(s, src, obj, amt) || danoEmPwCriaturaT(s, src, obj, amt))) { /* T-18 · CR 120.3e / 702.2b */ /* T-14 · CR 310.6 / 120.3h · Toca ponto comum: dealCombatDamage */ } else if (ehPw) { // M-228 · 120.3c: dano ao planeswalker tira lealdade; se ele também é criatura (Gideon no 0), o dano fica marcado (120.3e)
         obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - amt); if (isCreature(s, obj)) marcaDanoEmCriatura(s, src, obj, amt); noteDamaged(s, obj);
-      } else if (obj && amt > 0) { marcaDanoEmCriatura(s, src, obj, amt); noteEnchantedEvent(s, obj, 'recebe-dano'); noteDamaged(s, obj); if (has(s, fonteDoDano(s, src), 'deathtouch')) obj.deathtouched = true; }
+      } else if (obj && amt > 0) { marcaDanoEmCriatura(s, src, obj, amt); noteEnchantedEvent(s, obj, 'recebe-dano'); noteDamaged(s, obj); if (has(s, fonteDoDano(s, src), 'deathtouch')) obj.deathtouched = true; danoDeCombateACriaturaM(s, src, obj); } // M-513
       else {
         danoEmJogador(s, src, player, amt); golpesEmJogador.push({ fonte: src, jogador: player });
         darVeneno(s, player, toxicoDe(s, src), null, src.name); // M-253 · 702.164c: dano de combate a jogador com tóxico dá veneno
@@ -22481,8 +22506,14 @@ function applyEffectM449(s, src, eff, tgt, events) {
     }
     case 'mill': {
       const who = playerOf();
-      s.zones[who].library.slice(0, eff.amount).forEach(oid => moveObject(s, oid, 'graveyard'));
-      note({ amount: eff.amount }); break;
+      const moidasM = s.zones[who].library.slice(0, eff.amount); // M-513
+      moidasM.forEach(oid => moveObject(s, oid, 'graveyard'));
+      note({ amount: eff.amount });
+      if (eff.escolheMoidas) { // M-513 · Town Greeter: só as que estão mesmo no cemitério (uma substituição pode tê-las mandado a outro lugar)
+        const es = eff.escolheMoidas, from = moidasM.filter(oid => s.objects[oid] && s.objects[oid].zone === 'graveyard' && s.objects[oid].owner === who);
+        if (from.some(oid => matchesFilter(s, s.objects[oid], es.filter))) startPick(s, { p: who, from, min: 0, max: es.max, to: 'hand', rest: 'stay', filter: es.filter, onPicked: es.onPicked || null, revelaEscolhida: true, label: 'escolher entre as moídas', source: src.name }, events);
+      }
+      break;
     }
     case 'exile_graveyard': {
       const alvos = eff.target === 'all' ? s.players.map((_, i) => i) : eff.target === 'each-opponent' ? s.players.map((_, i) => i).filter(i => i !== ctrl) : [playerOf()]; // R11 · Soul-Guide Lantern
@@ -23622,6 +23653,7 @@ function concluiPick(s, events) {
   if (pk.depois && pk.depois.draw && pk.picked.length) draw(s, pk.p, pk.depois.draw); // Leva 107
   if (pk.segura && pk.picked.length) { const f = s.objects[pk.segura.oid]; if (f && f.zone === 'battlefield' && (f.zc || 0) === pk.segura.z) f.holding = pk.picked[0]; } // M-353 · a fonte que saiu antes não guarda nada (a carta fica exilada: 400.7)
   if (pk.senaoSacrifica && !pk.picked.length) { const f = s.objects[pk.senaoSacrifica.oid]; if (f && f.zone === 'battlefield' && (f.zc || 0) === pk.senaoSacrifica.z) sacrifice(s, f.oid, events); } // M-349 · Glint Hawk (400.7)
+  if (pk.onPicked && pk.onPicked.vidaSeSubtipo && pk.picked.some(oid => s.objects[oid] && s.objects[oid].zone === pk.to && matchesFilter(s, s.objects[oid], { subtypes: [pk.onPicked.vidaSeSubtipo.subtipo] }))) { const g = ganhaVidaJogador(s, pk.p, pk.onPicked.vidaSeSubtipo.vida); events.push({ kind: 'effect', do: 'gain', name: pk.source, target: s.players[pk.p].name, amount: g }); } // M-513 · Town Greeter: "if you put a Town card into your hand this way"
   if (pk.onPicked && pk.onPicked.vidaSeTipo && pk.picked.some(oid => s.objects[oid] && s.objects[oid].zone === pk.to && ((s.facts[s.objects[oid].name] || {}).types || []).includes(pk.onPicked.vidaSeTipo.tipo))) { const g = ganhaVidaJogador(s, pk.p, pk.onPicked.vidaSeTipo.vida); events.push({ kind: 'effect', do: 'gain', name: pk.source, target: s.players[pk.p].name, amount: g }); } // M-364 · Chrome Courier: "if you put an artifact card into your hand this way"
   // S59 · Trono dos Três Mortos: a criatura escolhida entra com marcadores e ganha a palavra-chave
   if (pk.onPicked) for (const oid of pk.picked) {
@@ -23745,6 +23777,12 @@ function gatilhosDaPermanente(s, evento, o, ordem, dados = {}, casa = () => true
   if (outra) quemObserva(s, o, o.controller, battlefield(s), d => SC.falaDe(d, evento) && casa(d, o.controller), false);
 }
 /** "a um oponente" é oponente de quem controla o gatilho, e só dano em jogador (Curiosity); "a um jogador", só em jogador. */
+/** M-513 · "Whenever this creature deals combat damage to a creature" (Stinkweed Imp): um gatilho por criatura que recebeu dano dela; "that creature" é a recebedora, lembrada na encarnação do dano (400.7). */
+function danoDeCombateACriaturaM(s, src, obj) {
+  if (!src || !obj || isAbility(src) || !s.facts[src.name]) return;
+  for (const ab of abilitiesOf(s, src)) if (ab.kind === 'triggered' && ab.when === 'combat-damage-creature' && triggerConditionMet(s, src, ab.condition))
+    s.queued.push({ source: src.oid, name: src.name, controller: src.controller, effects: ab.effects, when: ab.when, lembrada: { oid: obj.oid, z: obj.zc || 0 }, ...marcasDaHabilidade(ab) });
+}
 const casaDanoA = aJogador => (d, c) => !d.a || d.a === 'qualquer' || (aJogador != null && (d.a === 'jogador' || aJogador !== c));
 const noteEnchantedDealt = (s, host, amount, aJogador = null) => naSombra(s, `causa dano ${host && host.name}`, () => noteEnchantedDealtLegado(s, host, amount, aJogador),
   () => { if (amount > 0) gatilhosDaPermanente(s, 'causa-dano', host, ['anexada', 'self'], { value: amount }, casaDanoA(aJogador)); });
@@ -34678,7 +34716,7 @@ function descreveEfeito(e) {
     case 'venture': return e.into === 'Undercity' ? 'aventura-se na Cidade Baixa' : 'aventura na masmorra';
     case 'monarch': return e.quemDe ? 'quem controla a criatura que causou o dano se torna o monarca' : 'você se torna o monarca'; // M-332
     case 'initiative': return e.quemDe ? 'quem controla as criaturas que causaram o dano toma a iniciativa' : 'você toma a iniciativa'; // M-332
-    case 'mill': return `põe ${plural(n, 'carta', 'cartas')} do grimório no cemitério`;
+    case 'mill': return `põe ${plural(n, 'carta', 'cartas')} do grimório no cemitério${e.escolheMoidas ? ' e pode pôr um terreno dentre elas na mão' : ''}`; // M-513
     case 'explore': return 'explora: revela o topo; terreno vai para a mão, senão +1/+1 e a carta pode ir para o cemitério';
     case 'goad': return `provoca ${alvo || 'uma criatura'}`;
     case 'cant_attack': return `${alvo || 'a criatura'} não pode atacar`;
