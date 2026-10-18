@@ -593,7 +593,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-rw | BI2-2b uso agregado opt-in (coleção, listas, scanner) com consentimento na tela "O que sai do aparelho" | BI | 2 | 16º-rv; `mtg-security-architect` |
 | 16º-rx | BI2-4 negócio: doações por plataforma (manual ou API com token) × custo mensal | BI | 2 | MON1 com dados reais |
 | 16º-ja ✅ | MJ · roadmap da mesa de patamar (leva J-1, 17/10): crítica medida da mesa em 360×780 e histórias MJ1–MJ12 | MJ | 1 | — |
-| 16º-jb 🟡 | MJ1 a mesa numa tela só (MJ1a partida em tela cheia na leva J-2; MJ1b faixa compacta por lado na J-3): os dois campos visíveis sem rolar, em fatias (cabeçalho do app fora da partida, topo numa linha, faixa compacta por lado, terrenos compactos, pilha e resumo fora do fluxo, tabuleiro com a altura da tela) | MJ | 3–4 | 16º-ja; T-130 publicada (mesma região) |
+| 16º-jb 🟡 | MJ1 a mesa numa tela só (MJ1a partida em tela cheia na leva J-2; MJ1b faixa compacta por lado na J-3; MJ1c pilha e resumo por cima na J-4): os dois campos visíveis sem rolar, em fatias (cabeçalho do app fora da partida, topo numa linha, faixa compacta por lado, terrenos compactos, pilha e resumo fora do fluxo, tabuleiro com a altura da tela) | MJ | 3–4 | 16º-ja; T-130 publicada (mesma região) |
 | 16º-jc | MJ2 avisos fora do campo: o aviso flutuante não cobre cartas nem a mão | MJ | 1 | 16º-jb |
 | 16º-jd | MJ3 identidade por `oid` e continuidade (FLIP) entre mão, pilha, campo, cemitério e exílio | MJ | 2 | 16º-jb; `mtg-scale-architect` (quadros) |
 | 16º-je | MJ4 combate desenhado: setas de ataque e bloqueio com a prévia junto da seta | MJ | 2 | 16º-jd |
@@ -10132,7 +10132,7 @@ bandeja que segue o dedo, som e efeitos da G4/G5.
 **Ordem:** valor percebido no celular ÷ custo em levas. MJ1 vem primeiro porque tudo o que vem depois (setas de
 combate, continuidade, mirar) só faz sentido com os dois campos na mesma tela. **Total estimado: 16 a 20 levas.**
 
-**MJ1 · A mesa numa tela só** 🟡 (4–5 levas, em fatias; MJ1a na leva J-2, MJ1b na J-3)
+**MJ1 · A mesa numa tela só** 🟡 (4–5 levas, em fatias; MJ1a na leva J-2, MJ1b na J-3, MJ1c na J-4)
 - **Valor:** os dois campos, a vida dos dois e a sua mão cabem na tela sem rolar, como no Arena.
 - **Aceite:** em 360×780, partida com 17 permanentes (a mesma semente da crítica): rolagem vertical da página 0; os dois
   lados visíveis ao mesmo tempo; pilha e resumo não mudam a posição de nenhuma carta; alvos de 44 px; nenhuma
@@ -10168,8 +10168,18 @@ combate, continuidade, mirar) só faz sentido com os dois campos na mesma tela. 
     região (topo e testes online).
   - **MJ1e · Conversa no selo da faixa de vez** ○ — na partida online o botão de conversa vira selo da faixa, para o rótulo
     não cortar com nome longo em 360 (ressalva do design na J-2).
-  - **MJ1c · Terrenos compactos, pilha e resumo por cima** ○ — o seu campo não pula quando algo vai para a pilha.
-  - **MJ1d · A mesa numa tela só** ○ — rolagem vertical 0 com 17 permanentes; cada fileira rola para o lado.
+  - **MJ1c · Pilha e resumo por cima** ✅ (leva J-4) — a pilha virou uma faixa de 44 px (ícone, quantas, o nome do topo;
+    nome falado com quem, alvo e prioridade) que fica, junto com a faixa do resumo, numa camada de altura zero entre os
+    dois lados: ocupa só o vão (16 px entre os lados mais o fundo e o topo de cada um) e não cobre carta, vida nem contador;
+    um toque abre o cartão explicado de antes por cima da mesa (toque fora e Esc fecham, abrir um fecha o outro). O vão
+    entre os lados passou de 12 para 16 px para a faixa caber. Recusa, partida online e adjudicação continuam entre os
+    lados (raros). **Medida:** com a pilha ou o resumo à vista o seu lado não se mexe (antes descia ~230 px com a pilha e
+    ~56 com o resumo). **Testes:** e2e "MJ1c" (o vão entre os lados é o mesmo com a pilha, a faixa tocável e sem cobrir
+    carta, vida ou contador, `auditaTela` nas quatro medidas e nos dois temas, abrir não mexe no campo, detalhe com o
+    cartão e a prioridade, Esc e toque fora fecham, a faixa existe só com a pilha); e2e A14 com a expectativa mudada de
+    propósito (o texto da pilha é conferido com o detalhe aberto). **Fora:** terrenos compactos (previstos nesta fatia)
+    passam para a MJ1d, que é quem fecha a rolagem 0.
+  - **MJ1d · A mesa numa tela só** ○ — terrenos compactos e rolagem vertical 0 com 17 permanentes; cada fileira rola para o lado.
 - **Testes:** e2e "MJ1" com a medida (rolagem 0, topo do meu campo dentro da tela, distância entre os dois lados),
   `auditaTela` nas quatro medidas e nos dois temas, capturas antes e depois; os e2e da mesa que leem posição ajustados
   com justificativa.

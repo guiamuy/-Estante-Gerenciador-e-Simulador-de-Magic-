@@ -2105,6 +2105,10 @@ test('e2e · A14 a pilha explicada: cartões com quem, o que faz e alvo; priorid
   const meuIndice = () => page.evaluate(nome => window.__estanteMesa.estado().players.findIndex(p => p.name === nome), eu);
   await reveal(page);                                             // a prioridade foi para o outro (que tem Counterspell na mão): ele vê a pilha
   await page.waitForSelector('#tb-stack');
+  // MJ1c (leva J-4) · expectativa mudou de propósito: a pilha virou uma faixa de 44 px por cima da mesa (o campo não desce);
+  // a faixa diz quantas e o topo, e o cartão explicado abre num toque — o texto conferido aqui é o do detalhe aberto
+  assert.match(await page.getAttribute('#tb-stack-btn', 'aria-label'), /^Pilha, 1: Prodigal Sorcerer, de (Ana|Bia)/);
+  await page.click('#tb-stack-btn'); await page.waitForSelector('#tb-stack-painel', { state: 'visible' });
   const pilha = await page.innerText('#tb-stack');
   assert.match(pilha, /Pilha · 1/); assert.match(pilha, /Prodigal Sorcerer/); assert.match(pilha, new RegExp(`de ${eu}`)); assert.match(pilha, /entra no campo de batalha/); assert.match(pilha, /resolve a seguir/);
   assert.match(await page.innerText('#tb-stack-prio'), /Prioridade: (Ana|Bia)/);
@@ -13194,5 +13198,73 @@ test('e2e · MJ1b faixa compacta por lado: vida e contadores numa linha de 44 px
   // o contador continua abrindo a zona
   await page.click('#tb-cemiterio-me'); await page.waitForSelector('.ds-dialog');
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/mj1b-mesa.png' });
+  assert.deepEqual(errors, []);
+});
+
+// MJ1c (leva J-4, trilha jogabilidade) · pilha e resumo por cima da mesa: numa camada de altura zero entre os lados, a
+// faixa de 44 px fica no vão (não cobre carta nem a vida) e o detalhe abre por cima. Crítica da J-1: a pilha (~230 px) e o
+// resumo (~56 px) entravam entre os lados e o seu campo descia quando algo ia para a pilha.
+test('e2e · MJ1c pilha e resumo por cima da mesa: o campo não desce, a faixa não cobre carta nem vida, o detalhe abre e fecha, nas quatro medidas e nos dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  // Counterspell na mão do outro faz a pilha esperar (o mesmo arranjo do A14)
+  await createDeck(page, base, 'Magos', '10 Island\n10 Prodigal Sorcerer\n20 Counterspell', 'livre');
+  await page.goto(base + '#/mesa');
+  await page.click('[data-opponent="hotseat"]');
+  await page.fill('#mesa-me', 'Ana'); await page.fill('#mesa-them', 'Bia');
+  await page.click('[data-mana]');
+  await page.fill('#mesa-seed', '4');
+  await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  await reveal(page); await page.click('#tb-keep');
+  await reveal(page); await toMyMain(page);
+  await drawUntil(page, 'Island'); await handCard(page, 'Island').click(); await page.click('text=Jogar terreno');
+  await drawUntil(page, 'Prodigal Sorcerer');
+  await handCard(page, 'Prodigal Sorcerer').click();
+  await page.click('.ds-dialog >> text=Conjurar');
+  await reveal(page);
+  await page.waitForSelector('#tb-stack-btn');
+  const mede = () => page.evaluate(() => {
+    const r = el => { const b = el.getBoundingClientRect(); return { l: b.left, t: b.top, r: b.right, b: b.bottom, h: b.height }; };
+    const q = s => document.querySelector(s);
+    const inter = (a, b) => Math.max(0, Math.min(a.r, b.r) - Math.max(a.l, b.l)) * Math.max(0, Math.min(a.b, b.b) - Math.max(a.t, b.t));
+    const faixas = ['#tb-stack-btn', '#tb-resumo .tb-resumo__linha'].map(q).filter(Boolean).map(r);
+    const cobertos = [...document.querySelectorAll('.tb-board .tb-card, .tb-board .tb-life, .tb-board .tb-chip')]
+      .filter(el => faixas.some(f => inter(f, r(el)) > 4 * r(el).h)).map(el => el.getAttribute('aria-label') || el.className);
+    const centro = q('.tb-center');
+    return { vao: r(q('.tb-side--me')).t - r(q('.tb-side--opp')).b, centro: centro && getComputedStyle(centro).display !== 'none' ? r(centro).h : 0,
+      meuLado: Math.round(r(q('.tb-side--me')).t + scrollY), faixa: r(q('#tb-stack-btn')).h, cobertos,
+      aberto: q('#tb-stack-btn').getAttribute('aria-expanded'), painel: !q('#tb-stack-painel').hidden };
+  });
+  for (const [w, hgt] of [[360, 780], [384, 832], [390, 844], [412, 891]]) for (const tema of ['dark', 'light']) {
+    await page.setViewportSize({ width: w, height: hgt });
+    await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema);
+    await page.waitForTimeout(250);
+    const m = await mede(), nome = `${w}×${hgt} ${tema}`;
+    assert.ok(m.centro === 0 && m.vao <= 17, `${nome}: a pilha não ocupa lugar entre os lados (vão de ${Math.round(m.vao)} px, o mesmo sem pilha; antes a pilha empurrava ~230 px)`);
+    assert.ok(m.faixa >= 44, `${nome}: faixa da pilha tocável`);
+    assert.deepEqual(m.cobertos, [], `${nome}: a faixa fica no vão, sem cobrir carta, vida ou contador`);
+    assert.equal(m.aberto, 'false'); assert.equal(m.painel, false);
+    await auditaTela(page, `MJ1c · pilha recolhida ${nome}`);
+  }
+  await page.setViewportSize({ width: 360, height: 780 });
+  const fechada = await mede();
+  // abre por cima: o meu lado não desce nem um pixel; o detalhe tem o cartão explicado e a prioridade
+  await page.click('#tb-stack-btn'); await page.waitForSelector('#tb-stack-painel', { state: 'visible' }); await page.waitForTimeout(250);
+  const aberta = await mede();
+  assert.equal(aberta.meuLado, fechada.meuLado, 'abrir a pilha não mexe no campo');
+  assert.equal(aberta.aberto, 'true');
+  assert.match(await page.innerText('#tb-stack-painel'), /Prodigal Sorcerer[\s\S]*resolve a seguir/);
+  assert.match(await page.innerText('#tb-stack-prio'), /Prioridade: (Ana|Bia)/);
+  await auditaTela(page, 'MJ1c · pilha aberta 360');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/mj1c-pilha-aberta.png' });
+  await page.keyboard.press('Escape'); assert.equal(await page.locator('#tb-stack-painel').isVisible(), false, 'Esc fecha');
+  await page.click('#tb-stack-btn'); await page.waitForSelector('#tb-stack-painel', { state: 'visible' });
+  await page.locator('#tb-life-opp').dispatchEvent('pointerdown'); assert.equal(await page.locator('#tb-stack-painel').isVisible(), false, 'toque fora fecha');
+  // passando a prioridade, a faixa acompanha a pilha: existe enquanto houver algo nela
+  for (let i = 0; i < 8 && await page.locator('#tb-stack').count(); i++) { await reveal(page); if (await page.locator('#tb-pass').count()) await page.click('#tb-pass'); }
+  await reveal(page); if (await page.locator('#tb-adj-done').count()) await page.click('#tb-adj-done');
+  const resta = await page.evaluate(() => { const s = window.__estanteMesa.estado(); return { pilha: s.stack.map(o => s.objects[o].name), pend: s.pending && s.pending.kind, prio: s.turn.priority }; });
+  assert.equal(await page.locator('#tb-stack').count(), resta.pilha.length ? 1 : 0, 'a faixa existe só com a pilha: ' + JSON.stringify(resta));
   assert.deepEqual(errors, []);
 });

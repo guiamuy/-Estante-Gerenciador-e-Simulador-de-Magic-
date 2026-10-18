@@ -1758,7 +1758,7 @@ body[data-mesa-cheia="true"] .tb-steps__list li { padding: 0 0 1px; border-botto
 .tb-steps__curto { display: none; }
 
 
-.tb-board { display: flex; flex-direction: column; gap: var(--space-3); padding-top: var(--space-3); }
+.tb-board { display: flex; flex-direction: column; gap: var(--space-4); padding-top: var(--space-3); } /* MJ1c (J-4) · vão de 16 px: com o fundo do lado de cima (12 + 3) e o topo do de baixo (12 + 1), a faixa da pilha (44 px) cabe sem cobrir nada */
 .tb-side {
   display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3);
   background: var(--bg-elev-1); border: 1px solid var(--border); border-radius: var(--radius-2);
@@ -1913,6 +1913,28 @@ body[data-mesa-cheia="true"] .tb-steps__list li { padding: 0 0 1px; border-botto
 
 .tb-center { display: flex; flex-direction: column; gap: var(--space-2); }
 .tb-center:empty { display: none; }
+/* MJ1c (leva J-4) · pilha e resumo numa camada de altura zero entre os dois lados: a faixa de 44 px fica centrada no vão
+   entre os lados (sem cobrir carta nem a vida) e o detalhe abre por cima; o campo nunca desce quando algo vai para a pilha */
+.tb-camada { position: relative; z-index: var(--z-sticky); height: 0; margin-top: calc(-1 * var(--space-4)); }
+.tb-camada__linha { position: absolute; left: 0; right: 0; top: calc(-1 * var(--space-3) - 3px); /* encosta no conteúdo do lado de cima (padding 12 + borda de prateleira 3) */ display: flex; gap: var(--space-2); align-items: flex-start; pointer-events: none; }
+.tb-camada__linha > * { pointer-events: auto; }
+.tb-camada .tb-resumo { position: static; flex: 1 1 auto; min-width: 0; }
+.tb-camada .tb-resumo__linha { box-shadow: var(--shadow-1); }
+.tb-stack.tb-stack--faixa { flex: 1 1 auto; min-width: 0; padding: 0; border: 0; }
+/* com a pilha à vista o resumo encolhe para ícone, seta e X (o detalhe dele continua a um toque): a pilha é o agora */
+.tb-camada__linha:has(> .tb-stack) > .tb-resumo { flex: none; }
+.tb-camada__linha:has(> .tb-stack) .tb-resumo__titulo, .tb-camada__linha:has(> .tb-stack) .tb-resumo__sinais { display: none; }
+.tb-stack__faixa { display: flex; align-items: center; gap: var(--space-1); min-height: var(--tap-min); max-width: 100%; padding: 0 var(--space-2) 0 var(--space-3);
+  border: 1px dashed var(--accent); border-radius: var(--radius-2); background: var(--bg-elev-2); color: var(--fg); font: inherit; text-align: left; box-shadow: var(--shadow-1); }
+.tb-stack__faixa > .ds-icon { flex: none; color: var(--accent); }
+.tb-stack__conta { flex: none; font-variant-numeric: tabular-nums; }
+.tb-stack__topo { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-display); font-size: var(--text-sm); }
+.tb-stack__faixa > .tb-stack__seta { color: var(--fg-muted); transition: transform var(--dur-2) var(--ease-out); }
+.tb-stack[data-aberto="true"] .tb-stack__seta { transform: rotate(180deg); }
+.tb-stack__painel { position: absolute; left: 0; right: 0; top: calc(100% + var(--space-1)); z-index: var(--z-overlay); max-height: 46vh; overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-2);
+  padding: var(--space-2) var(--space-3); border-radius: var(--radius-2); background: var(--bg-elev-2); border: 1px dashed var(--accent); box-shadow: var(--shadow-3); animation: ds-rise var(--dur-2) var(--ease-out); }
+.tb-stack__painel[hidden] { display: none; }
+@media (prefers-reduced-motion: reduce) { .tb-stack__painel { animation: none; } .tb-stack__faixa > .tb-stack__seta { transition: none; } }
 .tb-stack { padding: var(--space-2) var(--space-3); border: 1px dashed var(--accent); border-radius: var(--radius-2); }
 .tb-stack__item { display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .tb-stack__item[data-top="true"] .tb-card__face { outline: 2px solid var(--accent); }
@@ -33377,7 +33399,9 @@ function StackStrip(items) {
 
 /** A14 · a pilha explicada: coluna de cartões do topo para baixo, o próximo a resolver em destaque,
     e de quem é a prioridade. `itens` vem de explicaPilha (table-model). */
-function StackPanel({ itens, prioridade, imgOf, onOpen, onPeek }) {
+// MJ1c (leva J-4) · com `onToggle` a pilha vira uma faixa de 44 px por cima da mesa (não empurra o campo): o ícone, quantas
+// e o nome do topo; um toque abre o detalhe por cima (o mesmo cartão explicado de antes). Sem `onToggle`, a pilha inteira.
+function StackPanel({ itens, prioridade, imgOf, onOpen, onPeek, aberto = true, onToggle = null }) {
   if (!itens.length) return null;
   const cartao = it => {
     const b = h('button', { class: 'tb-stack__card', type: 'button', 'aria-label': `${it.nome}, de ${it.quem}: ${it.oQueFaz}${it.alvos.length ? '. Alvo: ' + it.alvos.join(', ') : ''}`, onClick: () => onOpen && onOpen(it) },
@@ -33393,11 +33417,18 @@ function StackPanel({ itens, prioridade, imgOf, onOpen, onPeek }) {
     if (onPeek) __m20.onLongPress(b, { start: () => onPeek(it, true), end: () => onPeek(it, false) });
     return b;
   };
-  return h('section', { class: 'tb-stack', id: 'tb-stack', 'aria-label': 'pilha' },
-    h('div', { class: 'tb-stack__head' },
-      h('span', { class: 'tb-zone__label' }, `Pilha · ${itens.length}`),
-      prioridade ? h('span', { class: 'tb-stack__prio', id: 'tb-stack-prio' }, `Prioridade: ${prioridade}`) : null),
-    h('ol', { class: 'tb-stack__list' }, ...itens.map(it => h('li', { class: 'tb-stack__item', dataset: { top: String(it.topo), oid: it.oid } }, cartao(it)))));
+  const cabeca = h('div', { class: 'tb-stack__head' },
+    h('span', { class: 'tb-zone__label' }, `Pilha · ${itens.length}`),
+    prioridade ? h('span', { class: 'tb-stack__prio', id: 'tb-stack-prio' }, `Prioridade: ${prioridade}`) : null);
+  const lista = h('ol', { class: 'tb-stack__list' }, ...itens.map(it => h('li', { class: 'tb-stack__item', dataset: { top: String(it.topo), oid: it.oid } }, cartao(it))));
+  if (!onToggle) return h('section', { class: 'tb-stack', id: 'tb-stack', 'aria-label': 'pilha' }, cabeca, lista);
+  const topo = itens.find(it => it.topo) || itens[0];
+  const faixa = h('button', { class: 'tb-stack__faixa', type: 'button', id: 'tb-stack-btn', 'aria-expanded': String(aberto), 'aria-controls': 'tb-stack-painel',
+    'aria-label': `Pilha, ${itens.length}: ${topo.nome}, de ${topo.quem}${topo.alvos.length ? ', alvo ' + topo.alvos.join(', ') : ''}${prioridade ? '. Prioridade: ' + prioridade : ''}`, onClick: () => onToggle(!aberto) },
+    Icone('camadas', { tamanho: 20 }), h('b', { class: 'tb-stack__conta' }, String(itens.length)),
+    h('span', { class: 'tb-stack__topo' }, topo.nome), Icone('descer', { tamanho: 18, classe: 'tb-stack__seta' }));
+  return h('section', { class: 'tb-stack tb-stack--faixa', id: 'tb-stack', 'aria-label': 'pilha', dataset: { aberto: String(aberto) } },
+    faixa, h('div', { class: 'tb-stack__painel', id: 'tb-stack-painel', hidden: !aberto, dataset: { sobrepoe: 'true' } }, cabeca, lista));
 }
 
 /* A15 · espiar a carta: arte grande, nome, tipo, P/T, estado e texto de regras, mais as ações
@@ -36124,7 +36155,19 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const el = root.querySelector('#tb-resumo');
     if (el) { el.dataset.aberto = String(resumoAberto); const p = el.querySelector('#tb-resumo-painel'), b = el.querySelector('#tb-resumo-btn'); if (p) p.hidden = !resumoAberto; if (b) b.setAttribute('aria-expanded', String(resumoAberto)); }
     document.removeEventListener('pointerdown', foraDoResumo, true); document.removeEventListener('keydown', escDoResumo);
-    if (resumoAberto) { document.addEventListener('pointerdown', foraDoResumo, true); document.addEventListener('keydown', escDoResumo); }
+    if (resumoAberto) { if (pilhaAberta) abrePilha(false); document.addEventListener('pointerdown', foraDoResumo, true); document.addEventListener('keydown', escDoResumo); }
+  }
+  // MJ1c (leva J-4) · a pilha mora numa faixa de 44 px por cima da mesa, como o resumo: um toque abre o detalhe por cima,
+  // toque fora ou Esc fecham; a pilha vazia fecha sozinha. O campo dos dois lados não se mexe quando algo vai para a pilha.
+  let pilhaAberta = false;
+  const foraDaPilha = e => { const el = root.querySelector('#tb-stack'); if (el && !el.contains(e.target)) abrePilha(false); };
+  const escDaPilha = e => { if (e.key === 'Escape') abrePilha(false); };
+  function abrePilha(sim) {
+    pilhaAberta = !!sim;
+    const el = root.querySelector('#tb-stack');
+    if (el) { el.dataset.aberto = String(pilhaAberta); const p = el.querySelector('#tb-stack-painel'), b = el.querySelector('#tb-stack-btn'); if (p) p.hidden = !pilhaAberta; if (b) b.setAttribute('aria-expanded', String(pilhaAberta)); }
+    document.removeEventListener('pointerdown', foraDaPilha, true); document.removeEventListener('keydown', escDaPilha);
+    if (pilhaAberta) { if (resumoAberto) abreResumo(false); document.addEventListener('pointerdown', foraDaPilha, true); document.addEventListener('keydown', escDaPilha); }
   }
   function resumoBox() {
     // os turnos que terminaram desde o último OK (no máximo os dois últimos: o seu e o do oponente)
@@ -37586,7 +37629,8 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     // A14 · a pilha explicada em português, do topo para baixo
     const pilha = T.explicaPilha(s, { oracleDe: oracleOf });
     // E50 P6 · toque e segurar numa habilidade abrem/espiam a carta de origem (se ainda existir na mesa)
-    const painelPilha = StackPanel({ itens: pilha.itens, prioridade: pilha.prioridade, imgOf, onOpen: it => { const alvo = it.origem && s.objects[it.origem] ? it.origem : it.oid; openObject(alvo); }, onPeek: (it, aberto) => peek(it.origem && s.objects[it.origem] ? it.origem : it.oid, aberto) });
+    if (!pilha.itens.length && pilhaAberta) abrePilha(false);
+    const painelPilha = StackPanel({ itens: pilha.itens, prioridade: pilha.prioridade, imgOf, aberto: pilhaAberta, onToggle: abrePilha, onOpen: it => { const alvo = it.origem && s.objects[it.origem] ? it.origem : it.oid; openObject(alvo); }, onPeek: (it, aberto) => peek(it.origem && s.objects[it.origem] ? it.origem : it.oid, aberto) });
     const adj = adjudicating && s.status !== 'over' ? AdjudicationPanel({
       name: adjudicating.name, image: imgOf(adjudicating.name), oracle: oracleOf(adjudicating.name),
       controls: hasPriority(v) ? [Button('Comprar 1', { onClick: () => act({ t: 'draw', p: v, target: v, n: 1 }) })] : [],
@@ -37614,7 +37658,9 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
             actions: [Button('Cancelar', { onClick: closeDialog }), Button('Desistir', { variant: 'danger', onClick: () => { closeDialog(); const segue = serie && serie.melhorDe > 1 && T.resultadoDaSerie(T.registraJogo(serie, 1 - v)) == null; act({ t: 'concede', p: v }); if (sinc && !segue) online.sala.encerrar(table.online.codigo, 'desistiu').catch(() => {}); } })] }) }))),
       h('div', { class: 'tb-board ds-wrap' },
         opp != null ? side(s, opp, false) : null,
-        h('div', { class: 'tb-center' }, painelPilha, onlineBox(), recusaBox(), resumoBox(), adj),
+        h('div', { class: 'tb-center' }, onlineBox(), recusaBox(), adj),
+        // MJ1c (J-4) · pilha e resumo numa camada de altura zero entre os lados: ficam por cima, não empurram o campo
+        (resumo => painelPilha || resumo ? h('div', { class: 'tb-camada', dataset: { sobrepoe: 'true' } }, h('div', { class: 'tb-camada__linha' }, painelPilha, resumo)) : null)(resumoBox()),
         side(s, v, true)),
       dock(s, v));
     devolveFileiras(fileiras); mostraNovidade(s, v); // J2
