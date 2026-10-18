@@ -10129,6 +10129,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Courier Griffin': { texto: '1l08oc9', leva: 'M-508' },
   'Bloodbond Vampire': { texto: '1vo89fr', leva: 'M-508' },
   'Defiant Bloodlord': { texto: '1px9apc', leva: 'M-508' },
+  // M-509 · revisão por lote CXLIX (cartas que o leitor já lia por inteiro e que mais travam as listas iniciantes do catálogo), textos da Scryfall de 17/10/2026 UTC, revisor independente
+  'Phyrexian Arena': { texto: 'tli1ej', leva: 'M-509' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18441,7 +18443,7 @@ const __m42 = (function () {
     [new RegExp(`^(each opponent|target opponent|target player) loses ${N} life and you gain ${N} life$`, 'i'), m => [com({ do: 'lose', amount: num(m[2]) }, alvo(m[1])), { do: 'gain', amount: num(m[3]) }]],
     [new RegExp(`^(each opponent|target opponent|target player) loses ${N} life$`, 'i'), m => [com({ do: 'lose', amount: num(m[2]) }, alvo(m[1]))]],
     [new RegExp(`^(each opponent|target opponent|target player) gets ${N} poison counters?$`, 'i'), m => [com({ do: 'veneno', amount: num(m[2]) }, alvo(m[1]))]], // M-432 · 122.1f
-    [new RegExp(`^you draw ${N} cards? and you lose ${N} life$`, 'i'), m => [{ do: 'draw', amount: num(m[1]) }, { do: 'lose', amount: num(m[2]) }]], // M-432 · Infectious Inquiry
+    [new RegExp(`^you draw ${N} cards? and (?:you )?lose ${N} life$`, 'i'), m => [{ do: 'draw', amount: num(m[1]) }, { do: 'lose', amount: num(m[2]) }]], // M-432 · Infectious Inquiry · M-509: "you draw a card and lose 1 life" (Phyrexian Arena)
     [/^proliferate$/i, () => [{ do: 'proliferate' }]], // M-433 · 701.34 (Thirsting Roots, Vivisurgeon's Insight; o efeito existe desde a V-2)
     [/^target artifact or creature you control gains protection from artifacts or from the color of your choice until end of turn$/i, () => [{ do: 'protection', target: { tipos: ['artifact', 'creature'], de: 'you' }, ouArtefatos: true }]], // M-463 · Apostle's Blessing: na resolução, artefatos ou uma cor (702.16)
     [/^(target creature you control|target creature or enchantment you control) gains protection from the color of your choice until end of turn$/i, m => [{ do: 'protection', target: /enchantment/i.test(m[1]) ? 'creature-enchantment-you-control' : 'creature-you-control' }]], // M-324 · 702.16

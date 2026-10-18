@@ -5036,6 +5036,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** Flying (Courier Griffin, Drana's Emissary, Defiant Bloodlord) só vale com o campo `keywords` da Scryfall (limitação já declarada em M-496). Phyrexian Arena saiu do lote: o leitor não lê "you draw a card and lose 1 life" (fica para uma leva do leitor). O teste da M-500 (`lt182`) passa a esperar o eco pelo número do turno (`turn.number`; `turn.turn` não existe).
 - **Teste:** `lt190.unit` (6 testes; falham no motor anterior).
 
+**M-509 · leitor lê "you draw a card and lose N life" (Phyrexian Arena)** ✅ (leva M-509, motor v112 sem mudança de forma; goldens intactos).
+- **Valor:** a frase de M-432 ("You draw N cards and you lose N life") passa a aceitar a forma sem o segundo "you", como no texto atual da Phyrexian Arena; a Arena entra em APROVADAS (texto da Scryfall de 17/10/2026): na sua manutenção, você compra uma carta e perde 1 de vida.
+- **Revisão independente:** aprovada: a Arena só na manutenção do controlador, duas acumulam, com 1 de vida o jogador perde; 20 variações da frase — as erradas continuam não lidas ("each player draws…", "…for each…", "…unless…", sem o "you" inicial); entre 1.389 cartas do acervo só a Arena mudou de leitura; `--confere` com 1.080 aprovadas.
+- **Fora (declarado):** nenhum.
+- **Teste:** `lt191.unit` (2 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
