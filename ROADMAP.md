@@ -5094,6 +5094,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nenhum. A leitura nova destrava outras 60 cartas do acervo (Blanchwood Armor, Karmic Guide, Vedalken Dismisser, Fire Dragon, Brainbite e mais), que continuam sem jogar até uma revisão por lote.
 - **Teste:** `lt198.unit` (8 testes; falham no motor anterior).
 
+**M-517 · LT179 · revisão por lote CLV: nove cartas lidas que aparecem em mais listas do catálogo passam a jogar** ✅ (leva M-517, motor v112 sem mudança de forma; goldens intactos; nenhuma linha de código nova)
+- **Valor:** passam a jogar (APROVADAS): Emberheart Challenger (24 listas do catálogo), Starscape Cleric (19), Nova Hellkite (14), Vivid Grove (12), Primeval Titan (11), Eyetwitch (10), Samut, Hazoret's Champion (7), Indatha Triome (6) e Urza's Cave (6). Textos da Scryfall consultados em 18/10/2026; leituras conferidas frase a frase no texto oficial.
+- **Revisão independente:** revisor independente (junto com a M-516): as nove leituras batem frase a frase; Emberheart só na primeira mira sua do turno (a do oponente não conta), Starscape Cleric uma perda por evento de ganho, Primeval Titan aceita zero ou um terreno e busca também ao atacar, Vivid Grove só dá qualquer cor com marcador, Urza's Cave sacrifica como custo.
+- **Fora (declarado):** Eyetwitch herda a cobertura parcial de "learn" (V-13): só descartar para comprar; buscar uma Lição de fora do jogo não existe na mesa. Palavras-chave (Haste, Prowess, Flying, Trample, Offspring, Warp, Cycling, Learn) só valem com o campo `keywords` da Scryfall (limitação já declarada em M-496).
+- **Teste:** `lt199.unit` (6 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
