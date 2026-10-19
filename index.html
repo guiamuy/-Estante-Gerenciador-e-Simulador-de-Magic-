@@ -5572,7 +5572,7 @@ const EFFECTS = {
   ganha_habilidade: { fields: [], targets: ['first-target'] }, // M-429 · "and gains '<habilidade>' until end of turn" (Supernatural Stamina): a criatura alvo da frase ganha a habilidade disparada até o fim do turno (613.1f)
   sai_de_fase: { fields: [], targets: ['creature', 'permanent', 'first-target'] }, // M-261 · 702.26 "phases out"
   mare_alta: { fields: [], targets: ['self'] }, // M-262 · High Tide
-  topo_ou_fundo_do_dono: { fields: [], targets: ['permanent'] }, // M-264 · "The owner of target nonland permanent puts it on their choice of the top or bottom of their library"
+  topo_ou_fundo_do_dono: { fields: [], targets: ['permanent'] }, // M-533 · com `daPilhaM: true` o alvo é uma mágica (seletor com zona 'stack') // M-264 · "The owner of target nonland permanent puts it on their choice of the top or bottom of their library"
   revelar_topo_para_mao: { fields: [], targets: ['self'] }, // M-263 · Dark Confidant
   ganhar_controle: { fields: [], targets: ['creature', 'permanent', 'artifact'] },
   efeito_jogador: { fields: [], targets: ['self'] },
@@ -5813,7 +5813,7 @@ const EXTRA_COST_PARTS = ['sacrificeOther', 'tapOther', 'discard', 'returnLand',
    equivalência compara o caminho antigo com o novo em partidas aleatórias. Carta nova escreve o seletor direto:
    target: { tipos: ['creature'], de: 'opponent' }  ·  { zona: 'graveyard', de: 'you', tipos: ['creature'] }  ·  { jogadores: 'any' } */
 const SELETOR_ZONAS = ['battlefield', 'graveyard', 'stack', 'nenhuma'];
-const SELETOR_CHAVES = ['historico', 'foraDaLei', 'modificada', 'virada', 'metamorfose', 'terrenoBasico', 'ativadaNoTurno', 'tapped', /* T-87 · 700.10 e "tapped" · T-59 · CR 700.6 / 700.12 / 700.9 · T-73 · virada para baixo (708) · T-80 · terreno básico (205.4) */ 'zona', 'de', 'dono', 'tipos', 'semTipos', 'tiposImpressos', 'tiposDaCarta', 'subtipos', 'semSubtipos', 'palavra', 'semPalavra', 'mvMax', 'mvMin', 'outra', 'cor', 'semCor', 'permanente', 'jogadores', 'habilidades', 'ref', 'subtipoDaAura', 'lendaria', 'comToxico', 'ou', 'atacando', 'comMarcador' /* M-461 · "with a +1/+1 counter on it" */]; // M-361 · `atacando: true` (506.4)
+const SELETOR_CHAVES = ['historico', 'foraDaLei', 'modificada', 'virada', 'metamorfose', 'terrenoBasico', 'ativadaNoTurno', 'tapped', /* T-87 · 700.10 e "tapped" · T-59 · CR 700.6 / 700.12 / 700.9 · T-73 · virada para baixo (708) · T-80 · terreno básico (205.4) */ 'zona', 'de', 'dono', 'tipos', 'semTipos', 'tiposImpressos', 'tiposDaCarta', 'subtipos', 'semSubtipos', 'palavra', 'semPalavra', 'mvMax', 'mvMin', 'outra', 'cor', 'semCor', 'permanente', 'jogadores', 'habilidades', 'ref', 'subtipoDaAura', 'lendaria', 'comToxico', 'ou', 'atacando', 'comMarcador' /* M-461 · "with a +1/+1 counter on it" */, 'incolor' /* M-533 · "colorless spell" (105.2c; Consign to Memory) */]; // M-361 · `atacando: true` (506.4)
 const ALVO_SELETOR = {
   any: { tipos: ['creature', 'planeswalker'], jogadores: 'any' },
   creature: { tipos: ['creature'] }, planeswalker: { tipos: ['planeswalker'] }, permanent: {},
@@ -5875,6 +5875,7 @@ function seletorErros(sel, label) {
   for (const k of ['de', 'dono', 'jogadores']) if (sel[k] != null && !['you', 'opponent', 'any'].includes(sel[k]) && !(k === 'de' && sel[k] === 'alvo')) errs.push(`${label}: "${k}" precisa ser you, opponent ou any`); // M-351 · de: 'alvo' = o jogador alvo do efeito (Arms of Hadar)
   for (const k of ['tipos', 'semTipos']) for (const x of sel[k] || []) if (!TIPOS_DE_CARTA.includes(x)) errs.push(`${label}: tipo "${x}" desconhecido`);
   for (const k of ['cor', 'semCor']) if (sel[k] != null && !'WUBRG'.includes(sel[k])) errs.push(`${label}: cor precisa ser WUBRG`);
+  if (sel.incolor != null && sel.incolor !== true) errs.push(`${label}: "incolor" é uma marca (true)`); // M-533
   if (sel.habilidades != null && sel.zona !== 'stack') errs.push(`${label}: "habilidades" só vale com zona 'stack'`); // T-110
   if (sel.habilidades != null && ![true, 'so', 'disparadas'].includes(sel.habilidades)) errs.push(`${label}: "habilidades" é true (mágica ou habilidade), 'so' (só habilidade) ou 'disparadas' (só habilidade disparada)`); // T-109 · 707.10b
   if (sel.ref != null && !['bloqueada-pela-fonte', 'encantada-pela-fonte'].includes(sel.ref)) errs.push(`${label}: referência "${sel.ref}" desconhecida`);
@@ -10396,6 +10397,9 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Beanstalk Giant // Fertile Footsteps': { texto: '5jb5iw', leva: 'M-532' },
   'Lovestruck Beast // Heart\'s Desire': { texto: '1f5cj3x', leva: 'M-532' },
   'Smitten Swordmaster // Curry Favor': { texto: 'pevhf0', leva: 'M-532' },
+  // M-533 · revisão por lote CLXXI (Subtlety: a mágica alvo vai ao topo ou ao fundo do grimório do dono; Consign to Memory: replicar e anular habilidade disparada ou mágica incolor), textos da Scryfall de 19/10/2026 UTC, revisor independente
+  'Subtlety': { texto: 'mmy6px', leva: 'M-533' },
+  'Consign to Memory': { texto: '5kkomu', leva: 'M-533' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18847,6 +18851,7 @@ const __m42 = (function () {
     if (k === 'up to one target tapped creature') return { target: 'creature', upTo: true, targetTapped: true }; // M-349 · Cryogen Relic
     if (k === 'target tapped creature') return { target: 'creature', targetTapped: true }; // M-516 · Vengeance
     m = k.match(/^target nonartifact(?:, non(white|blue|black|red|green))? creature$/); if (m) return { target: { tipos: ['creature'], semTipos: ['artifact'] }, ...(m[1] ? { targetNotColor: CORES[m[1]] } : {}) }; // M-524 · Terror
+    if (k === 'target triggered ability or colorless spell') return { target: { ou: [{ zona: 'stack', habilidades: 'disparadas' }, { zona: 'stack', incolor: true }] } }; // M-533 · Consign to Memory
     if (k === 'target noncreature, nonland permanent') return { target: { semTipos: ['creature', 'land'] } }; // M-527 · Archive Arbiter (seletor de permanente)
     if (k === 'target noncreature artifact') return { target: { tipos: ['artifact'], semTipos: ['creature'] } }; // M-387 · Gorilla Shaman
     if (k === 'target creature or vehicle') return { target: { ou: [{ tipos: ['creature'] }, { subtipos: ['Vehicle'] }] } }; // M-383 · Ride's End
@@ -19038,6 +19043,7 @@ const __m42 = (function () {
     [/^(?:you )?gain life equal to the sacrificed permanent's mana value$/i, () => [{ do: 'gain', amount: { per: 'sacrificed-mv' } }]], // M-348 · Reckoner's Bargain
     [new RegExp(`^return up to ${N} target (creature|permanent) cards? from your graveyard to your hand$`, 'i'), m => [{ do: 'to_hand', target: m[2].toLowerCase() + '-in-your-graveyard', upTo: true, targetCount: num(m[1]) }]], // M-345 · Macabre Waltz, Dutiful Return (115.1d: até N)
     [/^put (?:~|this artifact) on top of its owner's library$/i, () => [{ do: 'topo_do_dono', target: 'self-source' }]], // M-345 · Sensei's Divining Top
+    [/^topo_fundo_magia_criatura_pw$/i, () => [{ do: 'topo_ou_fundo_do_dono', target: { zona: 'stack', tipos: ['creature', 'planeswalker'] }, upTo: true, daPilhaM: true }]], // M-533 · Subtlety ("up to one": pode não escolher)
     [/^put (?:it|~) on the bottom of its owner's library$/i, () => [{ do: 'mover', para: 'library', posicao: 'fundo', de: 'graveyard', target: 'self-source' }]], // M-532 · Murderous Rider ("When ~ dies": a carta no cemitério, 603.10a; se já saiu de lá, nada acontece)
     [/^you gain x life and each opponent loses x life, where x is the number of ([a-z]+?)s you control$/i, m => { const sub = m[1][0].toUpperCase() + m[1].slice(1).toLowerCase(); return [{ do: 'gain', amount: { subtype: sub } }, { do: 'lose', amount: { subtype: sub }, target: 'each-opponent' }]; }], // M-532 · Curry Favor (Smitten Swordmaster)
     [/^search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand$/i, () => [{ do: 'search', amount: 2, filter: { basic: true, types: ['land'] }, to: 'battlefield-tapped', reparte: ['battlefield-tapped', 'hand'] }]], // M-345 · Cultivate, Kodama's Reach: uma busca de até dois; o primeiro escolhido entra virado, o segundo vai para a mão (achado da revisão: um só entra virado, 609.3)
@@ -19139,7 +19145,8 @@ const __m42 = (function () {
     [/^kicker (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ kicker: { mana: m[1] } })], // M-337 · 702.33 (o motor reforça desde a S-série)
     [/^splice onto arcane (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ splice: { subtipo: 'Arcane', mana: m[1] } })], // M-334 · LT18 · 702.47 (o motor encaixa desde a M-273)
     [/^(?:evoke|dash|spectacle|surge) (?:\{[0-9WUBRGC]+\})+$/i, () => ({})], // (o motor lê da carta)
-    [/^plot (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ plot: { mana: m[1] } })], // M-524 · 702.170 (o motor trama desde a S53; Slickshot Show-Off)
+    [/^plot (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ plot: { mana: m[1] } })],
+    [/^replicate (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ replicate: m[1] })], // M-533 · 702.56 (o motor replica desde a M-265; Consign to Memory) // M-524 · 702.170 (o motor trama desde a S53; Slickshot Show-Off)
     [/^evoke\s*[—-]\s*exile an? (?:white|blue|black|red|green) card from your hand$/i, () => ({})], // M-338 · 702.74: o motor lê o evocar de exilar da carta (K-8)
     [/^you may pay (\d+) life and exile an? (white|blue|black|red|green) card from your hand rather than pay this spell's mana cost$/i, m => ({ alt: [{ label: `Pagar ${m[1]} de vida e exilar uma carta ${COR_NOME_PT[m[2].toLowerCase()]} da mão`, cost: { life: +m[1], exileHandColor: CORES[m[2].toLowerCase()] } }] })], // M-338 · Force of Will
     [/^(if it's not your turn, )?you may exile an? (white|blue|black|red|green) card from your hand rather than pay this spell's mana cost$/i, m => ({ alt: [{ label: `Exilar uma carta ${COR_NOME_PT[m[2].toLowerCase()]} da mão${m[1] ? ' (fora do seu turno)' : ''}`, cost: { exileHandColor: CORES[m[2].toLowerCase()] }, ...(m[1] ? { when: { naoSeuTurno: true } } : {}) }] })], // M-338 · Force of Negation, Snapback, Misdirection
@@ -19395,7 +19402,8 @@ const __m42 = (function () {
     texto = texto.replace(/^(you may )?(?:sacrifice an? (artifact|land) or discard a card|discard a card or sacrifice an? (artifact|land))\. if you do, draw (\w+) cards?/i, (m0, pode, t1, t2, n) => `${pode ? '' : 'must_'}descarta_ou_sacrifica ${t1 || t2} ${n}`); // M-411 · Vision of Love, K'un-Lun Warrior (Highway Robbery: o "or" ao contrário); "you may" faz parte do efeito: escolher nada é recusar
     texto = texto.replace(/(?:^|(?<=\. ))(?:then )?(you may )?discard (a card|two cards|three cards)\. if you do, draw (\w+) cards?/i, (m0, pode, q, n) => `${pode ? 'you may' : 'must'} discard ${q} to draw ${n} cards`); // M-406 · sem "you may" o descarte é obrigatório (antes virava opcional) // M-373 · "Then you may discard two cards. If you do, draw three cards" (Thrilling Discovery)
     texto = texto.replace(/^exile (target (?:creature|permanent)(?: you control)?), then return (?:it|that card) to the battlefield under its owner's control/i, 'pisca $1'); // M-349 · Ephemerate
-    texto = texto.replace(/^exile two target (artifacts, creatures, and\/or lands you control), then return those cards to the battlefield under your control/i, 'pisca_dois $1'); // M-351 · Ghostly Flicker
+    texto = texto.replace(/^exile two target (artifacts, creatures, and\/or lands you control), then return those cards to the battlefield under your control/i, 'pisca_dois $1');
+    texto = texto.replace(/^choose up to one target creature spell or planeswalker spell\. its owner puts it on their choice of the top or bottom of their library/i, 'topo_fundo_magia_criatura_pw'); // M-533 · Subtlety // M-351 · Ghostly Flicker
     texto = texto.replace(/exile the top card of your library\. until end of turn, you may play that card/i, 'impulso one ate o fim do turno'); // M-352
     texto = texto.replace(/exile the top (card|two cards|three cards) of your library\. you may play (?:it|them|those cards) this turn/i, (m0, q) => `impulso ${({ card: 'one', 'two cards': 'two', 'three cards': 'three' })[q.toLowerCase()]} ate o fim do turno`); // M-386 · Glimpse the Impossible
     texto = texto.replace(/^(target opponent|target player) reveals their hand and you choose a nonland card from it\. exile that card/i, 'exila_da_mao $1'); // M-353 · Mesmeric Fiend · Experimental Synthesizer
@@ -22152,6 +22160,7 @@ function selCasa(s, p, o, sel, selfOid, opts = {}) {
   if (sel.comMarcador && !(((o.counters || {})[sel.comMarcador] || 0) > 0)) return false; // M-461 · "with a +1/+1 counter on it" (Lifecrafter's Gift): o de agora (122.1)
   if (sel.comToxico && !toxicoDe(s, o)) return false; // M-253 · "creatures you control with toxic" // M-246 · 205.4 · lendária (virada para baixo não tem supertipo)
   if (sel.semCor && coresDe(s, o).includes(sel.semCor)) return false; // CR2d.8
+  if (sel.incolor && coresDe(s, o).length) return false; // M-533 · 105.2c "colorless"
   if (sel.subtipoDaAura) { // Q11 · aura de subtipo ("Enchant Forest"): a fonte diz o subtipo e o terreno precisa tê-lo
     const sub = selfOid && s.objects[selfOid] && s.facts[s.objects[selfOid].name] ? auraSubtype(s.facts[s.objects[selfOid].name]) : null;
     if (sub && !new RegExp('\\b' + sub + '\\b', 'i').test(f.typeText || o.name)) return false;
@@ -23196,7 +23205,7 @@ function applyEffectM449(s, src, eff, tgt, events) {
       note({ target: c.name, amount: vm }); break;
     }
     case 'topo_ou_fundo_do_dono': { // M-264 · quem escolhe é o dono da permanente
-      if (!obj || obj.zone !== 'battlefield') { note({ failed: true }); break; }
+      if (!obj || obj.zone !== (eff.daPilhaM ? 'stack' : 'battlefield') || (eff.daPilhaM && isAbility(obj))) { note({ failed: true }); break; } // M-533 · daPilhaM: a mágica alvo (Subtlety)
       s.pending = { kind: 'topo_fundo', p: obj.owner, oid: obj.oid, name: src.name, alvo: obj.name, ...(eff.segundo ? { segundo: true } : {}) }; // M-352 · "second from the top" (Deem Inferior)
       note({ target: obj.name, pending: true }); break;
     }
@@ -26061,7 +26070,7 @@ const HANDLERS = {
     if (!s.pending || s.pending.kind !== 'topo_fundo' || s.pending.p !== a.p) throw new RuleError('tempo', 'nada a pôr no grimório');
     const pk = s.pending; s.pending = null;
     const o = s.objects[pk.oid];
-    if (o && o.zone === 'battlefield') { moveObject(s, pk.oid, 'library', a.topo ? undefined : { top: false });
+    if (o && (o.zone === 'battlefield' || (o.zone === 'stack' && !isAbility(o)))) { moveObject(s, pk.oid, 'library', a.topo ? undefined : { top: false }); // M-533 · ou a mágica, da pilha (Subtlety)
       const lib = s.zones[o.owner].library; if (a.topo && pk.segundo && lib[0] === pk.oid && lib.length > 1) { lib[0] = lib[1]; lib[1] = pk.oid; } // M-352 · Deem Inferior: em segundo do topo
       ev.push({ kind: 'effect', do: 'mover', name: pk.name, target: o.name, para: 'library', posicao: a.topo ? (pk.segundo ? 'segundo' : 'topo') : 'fundo' }); }
     resumeEffects(s, ev);
@@ -35016,7 +35025,7 @@ function descreveEfeito(e) {
     case 'repartir_topo': return `olha as ${qtd(e.count)} cartas de cima e põe uma em cada destino, em ordem: ${(e.destinos || []).map(d => ({ hand: 'mão', 'library-bottom': 'fundo do grimório', 'library-top': 'topo do grimório', graveyard: 'cemitério', exile: 'exílio', 'exile-playable-turn': 'exílio (pode jogá-la neste turno)' })[d] || d).join(', ')}`; // M-267
     case 'embaralhar_do_cemiterio': return `embaralha até ${plural(n, 'carta', 'cartas')} do seu cemitério no grimório`; // M-265
     case 'revelar_topo_para_mao': return `revela a carta do topo e a põe na mão${e.perdeVidaPeloValor ? '; perde vida igual ao valor de mana dela' : ''}`; // M-263
-    case 'topo_ou_fundo_do_dono': return `o dono de ${alvo || 'uma permanente'} a põe ${e.segundo ? 'em segundo do topo' : 'no topo'} ou no fundo do grimório, à escolha dele`; // M-264 · M-352
+    case 'topo_ou_fundo_do_dono': return `o dono de ${alvo || (e.daPilhaM ? 'uma mágica' : 'uma permanente')} a põe ${e.segundo ? 'em segundo do topo' : 'no topo'} ou no fundo do grimório, à escolha dele`; // M-264 · M-352
     case 'mare_alta': return 'até o fim do turno, cada Ilha virada para mana dá {U} a mais (para qualquer jogador)'; // M-262
     case 'sai_de_fase': return `${alvo || 'a permanente'} sai de fase (trata-se como se não existisse até o próximo desvirar de quem a controla)`; // M-261
     case 'ganha_habilidade': return `essa criatura ganha "${descreveGatilho((e.habilidade || {}).when)}, ${descreveEfeitos((e.habilidade || {}).effects || [])}" até o fim do turno`; // M-429

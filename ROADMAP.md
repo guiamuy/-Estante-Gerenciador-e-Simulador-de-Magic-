@@ -5199,6 +5199,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nenhum.
 - **Teste:** `lt214.unit` (7 testes; falham no motor anterior).
 
+**M-533 · LT195 · revisão por lote CLXXI: Subtlety e Consign to Memory** ✅ (leva M-533, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** passam a jogar Subtlety (25 listas do catálogo, 3 de Modern a até 3 pendências) e Consign to Memory (299 listas). Textos da Scryfall consultados em 19/10/2026.
+- **Regra:** "choose up to one target creature spell or planeswalker spell. Its owner puts it on their choice of the top or bottom of their library" — o efeito do dono escolher topo ou fundo (M-264) passa a aceitar uma mágica alvo (`daPilhaM`): ela sai da pilha para o grimório do dono (não é anulada, 701.6); habilidade na pilha não serve. Seletor `incolor` ("colorless spell", 105.2c — pedido antigo da trilha `tipos`); "Counter target triggered ability or colorless spell" com o seletor de habilidade disparada da T-110; "Replicate {custo}" pelo leitor (o motor replica desde a M-265).
+- **Revisão independente:** revisor independente (junto com a M-532): Subtlety mira mágica de planeswalker e de criatura-artefato incolor, não mira Raio, habilidade nem a Aventura; cópia de mágica deixa de existir em vez de ir ao grimório; "up to one" sem alvo; dono diferente do controlador escolhe e recebe; evoke só com carta azul. Consign to Memory não mira ativada nem artefato colorido; anula gatilho do oponente e o sacrifício do evoke; replicar com alvos diferentes anula os dois. Moonsnare Prototype (o efeito em permanente) igual; nenhuma outra das 1.219 cartas revisadas mudou de cobertura. Sem divergências.
+- **Fora (declarado):** nenhum.
+- **Teste:** `lt215.unit` (4 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
