@@ -6404,6 +6404,7 @@ function validateScript(sc) {
     if (self.atacaSePuder != null && self.atacaSePuder !== true) errs.push('bônus próprio: "ataca se puder" só vale como true'); // M-430
     if (self.atacaSePuderSe != null && !(self.atacaSePuder === true && JSON.stringify(self.atacaSePuderSe) === '{"delirio":true}')) errs.push('bônus próprio: atacaSePuderSe é { delirio: true } e pede atacaSePuder'); // M-525
     if (self.entraComInstFeitDelveM != null && !(self.entraComInstFeitDelveM === true && sc.delve)) errs.push('bônus próprio: entraComInstFeitDelveM é verdadeiro e pede delve (as cartas exiladas pelo delve desta mágica)'); // M-530 · Murktide Regent
+    if (self.soBloqueiaVoadorasM != null && self.soBloqueiaVoadorasM !== true) errs.push('bônus próprio: soBloqueiaVoadorasM só vale como true'); // M-531 · Brazen Borrower
     if (self.naoBloqueiaPoderM != null && !(Number.isInteger(self.naoBloqueiaPoderM) && self.naoBloqueiaPoderM > 0)) errs.push('bônus próprio: naoBloqueiaPoderM é o poder mínimo que ela não bloqueia (inteiro positivo)'); // M-524 · Ironclaw Orcs
     if (self.reduzCor != null && !(self.reduzCor && Number.isInteger(self.reduzCor.generic) && self.reduzCor.generic > 0 && Array.isArray(self.reduzCor.cores) && self.reduzCor.cores.length && self.reduzCor.cores.every(c => 'WUBRG'.includes(c) && c.length === 1))) errs.push('bônus próprio: reduzCor pede generic inteiro positivo e cores WUBRG'); // M-352
     if (self.keywords != null && (!Array.isArray(self.keywords) || self.keywords.some(k => !KEYWORDS.includes(k)))) errs.push('bônus próprio: palavra-chave desconhecida');
@@ -10384,6 +10385,9 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   // M-530 · revisão por lote CLXVIII (Murktide Regent: marcadores pelo delve e gatilho por carta que sai do cemitério; Flow State: “instead put two”), textos da Scryfall de 19/10/2026 UTC, revisor independente
   'Murktide Regent': { texto: '1thk8j4', leva: 'M-530' },
   'Flow State': { texto: 'r1zxso', leva: 'M-530' },
+  // M-531 · revisão por lote CLXIX (o leitor lê a segunda face de Aventura e de preparação: Brazen Borrower e Pompous Battlemage), textos da Scryfall de 19/10/2026 UTC, revisor independente
+  'Brazen Borrower // Petty Theft': { texto: '16hj5l4', leva: 'M-531' },
+  'Pompous Battlemage // Improvised Act': { texto: 's5ty5l', leva: 'M-531' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -19442,11 +19446,22 @@ const __m42 = (function () {
     const linhas = semLembrete(texto).split('\n').map(x => x.trim().replace(/^(?:undergrowth|threshold|delirium|revolt|morbid|raid|hellbent|landfall|ferocious|coven|alliance|magecraft) — (?=(?:when|whenever|at|as long as|if|that creature also)\b)/i, '')
       .replace(/^(?!(?:Max speed|Solved|To solve|Visit|Prize|[IVX]+(?:, [IVX]+)*) — )[A-Z][A-Za-z'’-]*(?: [A-Za-z'’-]+){0,3} — (?=(?:When|Whenever|At the beginning)\b)/, '')).filter(Boolean); // M-354 · 207.2c: palavra de habilidade não tem efeito de regra (Lotleth Giant) · M-513 · 207.2d: nem a palavra de sabor ("Natural Recovery —", Circle of the Land Druid); ficam de fora os prefixos com regra (velocidade máxima, caso resolvido e condição do caso, visita e prêmio de atração, capítulo)
     const frases = [], efeitos = [], topo = {};
-    const magica = /\b(Instant|Sorcery)\b/.test(tipo);
+    const magica = /\b(Instant|Sorcery)\b/.test(tipo.split(' // ')[0]); // M-531 · Aventura e preparação: a linha de tipo do app junta as faces ("Creature — … // Instant — Adventure"); vale a da frente
     let modos = null; const coresVida = []; // M-342
     let gatModos = null; // M-527 · gatilho modal de permanente: o gatilho aberto e os modos lidos das linhas "•"
     for (const linha of linhas) {
-      if (linha === '//') { frases.push({ texto: linha, lida: false, motivo: 'segunda face (aventura, dupla face): o leitor ainda não lê' }); break; } // M-322
+      if (linha === '//') { // M-531 · Aventura (715.2: face de trás instantânea ou feitiço com o subtipo Adventure) e preparação (722.2: a mágica de preparação): o verso vem das faces da carta (app) ou do `verso` (.listas)
+        const vs = card && (card.verso || (Array.isArray(card.faces) && card.faces.length === 2 ? card.faces[1] : null)), lay = String((card && card.layout) || '').toLowerCase(), tipoV = String((vs && vs.type_line) || '');
+        const tiposV = /\bInstant\b/.test(tipoV) ? ['instant'] : /\bSorcery\b/.test(tipoV) ? ['sorcery'] : [], av = lay === 'adventure' && /\bAdventure\b/.test(tipoV), pr = lay === 'prepare' && !/\bAdventure\b/.test(tipoV);
+        if (vs && !magica && tiposV.length && (av || pr) && /\{/.test(String(vs.mana_cost || '')) && !/\{X\}/i.test(String(vs.mana_cost))) {
+          const n0 = nomeAtual, t0 = tipoAtual; let rv = null; try { rv = ler({ name: vs.name, type_line: tipoV, mana_cost: vs.mana_cost, oracle_text: vs.oracle_text, keywords: [], colors: [] }); } finally { nomeAtual = n0; tipoAtual = t0; }
+          const sv = rv && rv.script, soEfeitos = !!(sv && Array.isArray(sv.effects) && sv.effects.length && Object.keys(sv).every(k => k === 'name' || k === 'effects'));
+          if (rv && rv.completa && soEfeitos) { const cores = [...new Set(String(vs.mana_cost).match(/[WUBRG]/g) || [])];
+            topo.back = { name: vs.name, types: tiposV, colors: cores, ...(pr ? { mana: vs.mana_cost } : {}), effects: sv.effects };
+            if (av) { topo.omen = { mana: vs.mana_cost }; topo.self = { ...(topo.self || {}), aventura: true }; } else topo.self = { ...(topo.self || {}), preparo: true };
+            frases.push({ texto: linha, lida: true }, ...rv.frases.map(f => ({ ...f, texto: `${vs.name}: ${f.texto}` }))); break; }
+          frases.push({ texto: linha, lida: false, motivo: `segunda face (${av ? 'Aventura' : 'preparação'}): ${vs.name} sem leitura completa` }, ...((rv && rv.frases) || []).filter(f => !f.lida).map(f => ({ ...f, texto: `${vs.name}: ${f.texto}` }))); break; }
+        frases.push({ texto: linha, lida: false, motivo: 'segunda face (dupla face, dividida, X na Aventura): o leitor ainda não lê' }); break; } // M-322
       if (linhaDePalavras(linha)) { frases.push({ texto: linha, lida: true, palavras: true }); continue; }
       if (magica && /^teamwork \d+$/i.test(linha.replace(/\.$/, ''))) { frases.push({ texto: linha, lida: true, palavras: true }); continue; } // M-379 · 702.194 (K-70): o N vem do texto da carta (fatos.equipeK)
       if (!magica && /^sunburst$/i.test(linha.replace(/\.$/, ''))) { topo.sunburst = true; frases.push({ texto: linha, lida: true }); continue; } // M-451 · 702.44a: o motor guarda as cores gastas ao conjurar
@@ -19507,6 +19522,8 @@ const __m42 = (function () {
         if (/^~ can't be blocked by creatures the monarch controls\.?$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'not-monarch' }; frases.push({ texto: linha, lida: true }); continue; } // M-391 · Azure Fleet Admiral (725)
         if (/^~ can't be blocked except by walls and\/or creatures with flying\.?$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'flying-or-wall' }; frases.push({ texto: linha, lida: true }); continue; } // M-524 · Elven Riders
         if (/^~ enters with a \+1\/\+1 counter on it for each instant and sorcery card exiled with it\.?$/i.test(lp) && topo.delve) { topo.self = { ...(topo.self || {}), entraComInstFeitDelveM: true }; frases.push({ texto: linha, lida: true }); continue; } // M-530 · Murktide Regent (607.2a: as exiladas pelo delve)
+        if (/^~ enters prepared\.?$/i.test(lp)) { topo.self = { ...(topo.self || {}), preparo: true, entraPreparada: true }; frases.push({ texto: linha, lida: true }); continue; } // M-531 · 722.3a (Pompous Battlemage); a mágica de preparação vem do verso
+        if (/^~ can block only creatures with flying\.?$/i.test(lp)) { topo.self = { ...(topo.self || {}), soBloqueiaVoadorasM: true }; frases.push({ texto: linha, lida: true }); continue; } // M-531 · Brazen Borrower (509.1b)
         { const nbp = lp.match(/^~ can't block creatures with power (\d+) or greater\.?$/i); if (nbp) { topo.self = { ...(topo.self || {}), naoBloqueiaPoderM: +nbp[1] }; frases.push({ texto: linha, lida: true }); continue; } } // M-524 · Ironclaw Orcs
         if (/^~ can't be blocked except by black creatures\.?$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'only-black' }; frases.push({ texto: linha, lida: true }); continue; } // M-516 · Prowling Nightstalker
         if (/^~ can't be blocked except by creatures with flying$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'flying-only' }; frases.push({ texto: linha, lida: true }); continue; } // LT5
@@ -20176,7 +20193,7 @@ function createGame(setup) {
   const naPartida = new Set(Object.keys(setup.cards || {}).flatMap(n => [n, n.split(' // ')[0]])); // M-372 · as cartas da partida (e a frente de "A // B")
   for (const sc of Object.values(scripts)) {
     const b = sc.back; if (!b || s.facts[b.name]) continue;
-    if (!naPartida.has(sc.name)) continue; // M-372 · a face de trás de QUALQUER script só entra nos fatos da partida que tem a carta (antes, só a dos scripts da trilha tipos — T-5): Sorin, Kytheon, Lunarch Veteran, Sagu Wildling e todo `back` sem `self.duplaFace` iam para os fatos de toda partida (pedido da trilha listas, L-8) // T-5 · a face de trás das cartas da trilha tipos (aventura…) só entra nos fatos da partida que tem a carta: partida sem ela fica com o estado, e o hash, de antes
+    if (!naPartida.has(sc.name) && !naPartida.has(String(sc.name).split(' // ')[0])) continue; // M-531 · o script lido leva o nome inteiro da carta ("Brazen Borrower // Petty Theft") e a lista, o da frente // M-372 · a face de trás de QUALQUER script só entra nos fatos da partida que tem a carta (antes, só a dos scripts da trilha tipos — T-5): Sorin, Kytheon, Lunarch Veteran, Sagu Wildling e todo `back` sem `self.duplaFace` iam para os fatos de toda partida (pedido da trilha listas, L-8) // T-5 · a face de trás das cartas da trilha tipos (aventura…) só entra nos fatos da partida que tem a carta: partida sem ela fica com o estado, e o hash, de antes
     // Leva 107 · a face de trás tem subtipos e cor próprios (Luminous Phantom: Creature — Spirit Cleric, branca)
     const linhaTras = (b.types || []).join(' ') + ((b.subtypes || []).length ? ' — ' + b.subtypes.join(' ') : '');
     s.facts[b.name] = cardFacts({ name: b.name, type_line: linhaTras, power: b.power, toughness: b.toughness, keywords: b.keywords || [], colors: b.colors || [], oracle_text: '' });
@@ -21735,6 +21752,8 @@ const TRAVESSIAS = [['islandwalk', 'Island'], ['swampwalk', 'Swamp'], ['forestwa
 /** M-253 · "This creature can't block" (509.1a), impressa ou da ficha. */
 /** M-524 · 509.1b · "can't block creatures with power N or greater" (Ironclaw Orcs): o poder mínimo que esta criatura não bloqueia, ou null. */
 const naoBloqueiaPoderM = (s, o) => { if (o.faceDown || semImpressas(s, o)) return null; const v = ((((s.facts[o.name] || {}).script || {}).self || {}).naoBloqueiaPoderM); return v == null ? null : v; };
+/** M-531 · 509.1b · "can block only creatures with flying" (Brazen Borrower). */
+const soBloqueiaVoadorasM = (s, o) => !o.faceDown && !semImpressas(s, o) && !!((((s.facts[o.name] || {}).script || {}).self || {}).soBloqueiaVoadorasM);
 const naoBloqueia = (s, o) => (o.naoBloqueiaM != null && o.naoBloqueiaM === s.turn.number) /* M-460 */ || (!o.faceDown && !semImpressas(s, o) && !!((((s.facts[o.name] || {}).script || {}).self || {}).naoBloqueia)) || anexoProibe(s, o, 'naoBloqueia') || naoBloqueiaK(s, o); // M-336 · Pacifism · K-62 · 702.98a (Toca ponto comum: naoBloqueia)
 /** M-336 · "Enchanted creature can't attack or block" / "Equipped creature can't block": o anexo proíbe (509.1b, 508.1c). */
 const anexoProibe = (s, o, k) => attachedTo(s, o).some(x => !semImpressas(s, x) && !!((concessaoVigenteT(s, x, ((s.facts[x.name] || {}).script || {}).grants) || {})[k])); // T-118 · seCriaturaT (Toca ponto comum)
@@ -21751,6 +21770,7 @@ function porQueNaoBloqueia(s, blocker, attacker) {
   if (ev === 'not-monarch' && s.monarca != null && s.monarca === b.controller) return 'criaturas do monarca não a bloqueiam'; // M-391 · 725
   if (ev === 'unblockable') return 'não pode ser bloqueada'; // M-395 · 509.1b
   if (ev === 'only-black' && !colorsOf(s, b).includes('B')) return 'só criaturas pretas a bloqueiam'; // M-516 · 509.1b (Prowling Nightstalker)
+  if (soBloqueiaVoadorasM(s, b) && !has(s, a, 'flying')) return 'só bloqueia criaturas com voar'; // M-531 · 509.1b (Brazen Borrower)
   if (ev === 'flying-or-wall' && !has(s, b, 'flying') && !temSubtipoT(s, b, 'Wall')) return 'só Paredes e criaturas com voar a bloqueiam'; // M-524 · 509.1b (Elven Riders); metamorfo é Parede (702.73a, achado da revisão)
   { const lim = naoBloqueiaPoderM(s, b); if (lim != null && power(s, a) >= lim) return `não bloqueia criatura com poder ${lim} ou mais`; } // M-524 · 509.1b (Ironclaw Orcs): o poder da atacante na declaração
   if (anexoProibe(s, a, 'imbloqueavel')) return 'não pode ser bloqueada'; // M-516 · "Enchanted creature … can't be blocked" (Tricks of the Trade, 509.1b)
