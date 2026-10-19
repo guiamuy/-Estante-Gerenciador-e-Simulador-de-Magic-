@@ -1062,6 +1062,23 @@ body[data-tela="entrar"] .ds-appbar { display: none; }
 /* leva 123 · aviso com ação ("Nova versão pronta · Atualizar"): o botão herda a cor invertida do aviso */
 .ds-toast[data-acao="true"] { display: flex; align-items: center; gap: var(--space-3); pointer-events: auto; padding-right: var(--space-2); width: max-content; }
 .ds-toast__texto { flex: 1 1 auto; }
+/* MJ2 (J-8) · com left: 50% a caixa encolhia até metade da tela (180 px em 360) e o texto longo virava uma torre de linhas */
+.ds-toast { width: max-content; }
+.ds-toast[data-mais="true"] { padding-right: var(--space-1); }
+.ds-toast__mais { flex: none; color: inherit; border-color: transparent; background: transparent; box-shadow: none; pointer-events: auto; }
+/* MJ2 (J-8) · na partida o aviso é uma faixa de uma linha por cima da linha de cima (Sair, faixa de vez, ferramentas): ali
+   não há carta, vida nem mão; o campo começa logo abaixo e a bandeja da mão ocupa o pé da tela */
+/* sempre da largura toda: uma pílula curta no meio cortava a faixa de vez ao meio ("Turno [Desfeito]") */
+body[data-mesa-cheia="true"] .ds-toast { top: calc(var(--space-2) + env(safe-area-inset-top, 0px)); bottom: auto; left: var(--space-2); right: var(--space-2);
+  width: auto; max-width: 1104px; margin: 0 auto; display: flex; align-items: center; gap: var(--space-1); min-height: var(--tap-min);
+  padding-top: 0; padding-bottom: 0; transform: translateY(calc(-1 * var(--space-2))); }
+body[data-mesa-cheia="true"] .ds-toast[data-open="true"] { transform: none; }
+/* o aviso cobre a linha de cima só à vista: o toque passa para Sair, faixa de vez e ferramentas; só os botões do aviso
+   (ler tudo, ação) recebem toque (antes do ajuste, um aviso com botão segurava o toque no Registro e na faixa) */
+body[data-mesa-cheia="true"] .ds-toast { pointer-events: none; }
+body[data-mesa-cheia="true"] .ds-toast button { pointer-events: auto; }
+body[data-mesa-cheia="true"] .ds-toast:not([data-inteiro="true"]) .ds-toast__texto { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body[data-mesa-cheia="true"] .ds-toast[data-inteiro="true"] { padding-top: var(--space-2); padding-bottom: var(--space-2); }
 .ds-toast__acao { color: inherit; border-color: transparent; background: transparent; box-shadow: none; min-height: var(--tap-min); padding: 0 var(--space-3); font-weight: var(--weight-bold); }
 
 /* ---------------- estados ---------------- */
@@ -3647,10 +3664,25 @@ function toast(message, ms = 2400, { acao = null } = {}) {
   toastEl.appendChild(h('span', { class: 'ds-toast__texto' }, message));
   if (acao) toastEl.appendChild(h('button', { class: 'ds-btn ds-btn--ghost ds-toast__acao', type: 'button', onClick: () => { toastEl.dataset.open = 'false'; acao.onClick && acao.onClick(); } },
     acao.icone ? Icone(acao.icone, { tamanho: 18 }) : null, h('span', {}, acao.rotulo)));
-  toastEl.dataset.open = 'true'; toastEl.dataset.acao = String(!!acao);
+  toastEl.dataset.open = 'true'; toastEl.dataset.acao = String(!!acao); toastEl.dataset.inteiro = 'false'; toastEl.dataset.mais = 'false';
   clearTimeout(toastTimer);
   if (ms > 0) toastTimer = setTimeout(() => { toastEl.dataset.open = 'false'; }, ms);
+  // MJ2 (J-8) · na partida o aviso é uma linha só (por cima da linha de cima da mesa); o texto que não cabe ganha um botão
+  // de ícone que abre o aviso inteiro (e depois fecha). Fora da partida o texto quebra e o botão nunca aparece.
+  const vez = ++toastVez;
+  if (!acao) requestAnimationFrame(() => {
+    const t = toastEl.querySelector('.ds-toast__texto');
+    if (vez !== toastVez || toastEl.dataset.open !== 'true' || !t || t.scrollWidth <= t.clientWidth + 1) return;
+    const b = IconButton('descer', 'Ler o aviso inteiro', { variant: 'ghost', classe: 'ds-toast__mais', onClick: () => {
+      clearTimeout(toastTimer);
+      if (toastEl.dataset.inteiro === 'true') { toastEl.dataset.open = 'false'; return; }
+      toastEl.dataset.inteiro = 'true'; b.replaceChildren(Icone('fechar', { tamanho: 20 })); b.setAttribute('aria-label', 'Fechar o aviso'); b.title = 'Fechar o aviso';
+      toastTimer = setTimeout(() => { toastEl.dataset.open = 'false'; }, Math.max(ms, 8000));
+    } });
+    toastEl.appendChild(b); toastEl.dataset.mais = 'true';
+  });
 }
+let toastVez = 0;
 return { h, seguro, Text, Button, Field, Select, Chip, ManaPips, Tabs, CardFace, Dialog, closeDialog, toast, fechaToast, reservaDoca, Avatar, clear, mount, Stack, Row, Surface, Input, Textarea, Badge, List, ListItem, ListGroup, Empty, Note, Spinner, CardGrid,
   analisaSimbolos, SIMBOLO_RX, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, srcsetDaCarta, ImagemCarta, ICONES, Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso, Expansivel, Range, LinhaEstado, confirmaBotao, Dica, rotuloDeCampo, deveAncorar, instalaAncora, levaAte, levaSeEscondido, oQueEsconde, Carregando, Esqueleto, ArteDeEspera, BotaoDeAcao, usaRelatar, Bandeira, Chave };
 })();

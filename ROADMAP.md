@@ -594,7 +594,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-rx | BI2-4 negócio: doações por plataforma (manual ou API com token) × custo mensal | BI | 2 | MON1 com dados reais |
 | 16º-ja ✅ | MJ · roadmap da mesa de patamar (leva J-1, 17/10): crítica medida da mesa em 360×780 e histórias MJ1–MJ12 | MJ | 1 | — |
 | 16º-jb ✅ | MJ1 a mesa numa tela só (MJ1a partida em tela cheia na leva J-2; MJ1b faixa compacta por lado na J-3; MJ1c pilha e resumo por cima na J-4; MJ1d terrenos compactos na J-5; MJ1f mão por cima da mesa na J-6; MJ1e Conversa no selo da faixa de vez na J-7): os dois campos visíveis sem rolar, em fatias (cabeçalho do app fora da partida, topo numa linha, faixa compacta por lado, terrenos compactos, pilha e resumo fora do fluxo, tabuleiro com a altura da tela) | MJ | 3–4 | 16º-ja; T-130 publicada (mesma região) |
-| 16º-jc | MJ2 avisos fora do campo: o aviso flutuante não cobre cartas nem a mão | MJ | 1 | 16º-jb |
+| 16º-jc ✅ | MJ2 avisos fora do campo: o aviso flutuante não cobre cartas nem a mão (leva J-8: faixa de uma linha por cima da linha de cima da mesa) | MJ | 1 | 16º-jb |
 | 16º-jd | MJ3 identidade por `oid` e continuidade (FLIP) entre mão, pilha, campo, cemitério e exílio | MJ | 2 | 16º-jb; `mtg-scale-architect` (quadros) |
 | 16º-je | MJ4 combate desenhado: setas de ataque e bloqueio com a prévia junto da seta | MJ | 2 | 16º-jd |
 | 16º-jf | MJ5 pilha com profundidade: cartões empilhados, topo levantado, resolução descendo ao destino | MJ | 1 | 16º-jb, 16º-jd |
@@ -10314,8 +10314,25 @@ combate, continuidade, mirar) só faz sentido com os dois campos na mesma tela. 
 - **Depende de:** T-130 publicada (mexe em `src/app/table.js` ao mesmo tempo).
 - **Fora:** layout em paisagem e tablet; Commander com quatro jogadores.
 
-**MJ2 · Avisos fora do campo** ○ (1 leva) — o aviso flutuante encosta na bandeja e nunca cobre carta nem mão; aviso
+**MJ2 · Avisos fora do campo** ✅ (leva J-8) — o aviso flutuante encosta na bandeja e nunca cobre carta nem mão; aviso
 longo vira uma linha com "mais". Aceite: sobreposição medida entre o aviso e as cartas = 0.
+- **Feito:** na partida o aviso é uma faixa de 44 px, da largura da tela menos 16, por cima da linha de cima da mesa
+  (Sair, faixa de vez, ferramentas); o texto fica numa linha com reticências e, quando não cabe, ganha um botão só de
+  ícone (44 px, "Ler o aviso inteiro") que abre o texto todo e depois fecha. Fora da partida o aviso deixou de ficar preso
+  a metade da largura da tela (`left: 50%` encolhia a caixa a 180 px em 360 e o texto longo virava seis linhas).
+- **Divergência da história, de propósito:** "encosta na bandeja" deixou de ser possível sem cobrir carta depois da J-6
+  (o campo termina colado à bandeja); o único lugar sem carta, vida nem mão é a linha de cima.
+- **Medida (360×780, partida da crítica):** carta coberta pelo aviso longo 830 px² (mão recolhida) e 11.903 px² (mão aberta,
+  com vida e contadores) → 0 nas quatro medidas, nos dois temas, mão aberta e recolhida, aviso curto e longo.
+- **Testes:** e2e "MJ2" (sobreposição aviso × carta, mão, vida e contador = 0; acima do campo; 44 px e uma linha; botão
+  só no aviso que não cabe, 44 px e só ícone; abrir e fechar; `auditaTela` nos 16 casos; fora da partida o aviso longo usa
+  mais de 80% da largura e quebra em até três linhas); conferido também com a fonte do CI (DejaVu Sans).
+- **Correção no caminho:** na primeira versão o aviso com botão segurava o toque no Registro e na faixa de vez (A14 e Y2
+  caíram na fase de tela); na mesa o aviso deixa o toque passar e só os botões dele recebem toque (guarda no e2e "MJ2").
+- **Fora:** enquanto o aviso está à vista, a linha de cima fica coberta à vista, mas não ao toque (2,4 s no aviso comum,
+  6 s no "revelou"); o botão "ler tudo" fica por cima do Desistir enquanto o aviso está aberto; aberto
+  inteiro, o aviso desce sobre o alto do lado do oponente (só a pedido de quem tocou); a cena da jogada do oponente
+  (`.tb-cena`) e o botão Relatar continuam onde estão.
 
 **MJ3 · A carta que se move é a mesma carta** ○ (2 levas) — identidade por `oid` entre dois desenhos e transição por
 posição medida (FLIP) entre mão, pilha, campo, cemitério e exílio, só com `transform` e `opacity`; o próximo toque

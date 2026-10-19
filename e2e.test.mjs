@@ -13419,3 +13419,67 @@ test('e2e · MJ1e Conversa no selo da faixa de vez: colado à faixa, mesma cor, 
   if (process.env.SHOTS) { await A.screenshot({ path: process.env.SHOTS + '/mj1e-selo.png', clip: { x: 0, y: 0, width: 360, height: 120 } }); }
   assert.deepEqual(errors, []); assert.deepEqual(errosB, []);
 });
+
+// MJ2 (leva J-8, trilha jogabilidade) · avisos fora do campo: na partida o aviso flutuante é uma faixa de uma linha por cima
+// da linha de cima da mesa (era 24 px acima da bandeja, em cima das suas cartas: 830 px² de carta coberta com a mão
+// recolhida e 11.903 com a mão aberta, em 360×780); o texto que não cabe abre num toque. Fora da partida o aviso deixa de
+// ficar preso a metade da largura da tela (left: 50% encolhia a caixa a 180 px em 360 e o texto longo virava 6 linhas)
+test('e2e · MJ2 avisos fora do campo: na partida o aviso fica no alto, numa linha, sem cobrir carta, vida, contador ou mão; texto longo abre num toque; fora da partida usa a largura da tela', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start');
+  await page.fill('#mesa-seed', '4'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  await page.waitForSelector('#tb-pass');
+  await page.evaluate(() => { const M = window.__estanteMesa; const p = M.estado().turn.active;
+    for (const nm of ['Island', 'Island', 'Delver of Secrets']) { const o = Object.values(M.estado().objects).find(x => x.owner === p && x.name === nm && x.zone !== 'battlefield'); if (o) M.act({ t: 'move', p, oid: o.oid, to: 'battlefield' }); } });
+  await page.waitForSelector('.tb-side--me [data-zone="lands"] .tb-card');
+  const LONGO = 'Shark revelou: Lightning Bolt, Chain Lightning e Fireblast — o alvo é você e a sua criatura de 3/3';
+  const mede = () => page.evaluate(() => {
+    const R = e => e.getBoundingClientRect(), cruza = (a, b) => Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+    const el = document.querySelector('#ds-toast'), t = R(el), tx = el.querySelector('.ds-toast__texto');
+    const vis = sel => [...document.querySelectorAll(sel)].filter(e => e.offsetParent && R(e).width > 0);
+    const sob = sel => Math.round(vis(sel).reduce((s, e) => s + cruza(t, R(e)), 0));
+    const mais = el.querySelector('.ds-toast__mais');
+    return { y: t.top, fim: t.bottom, h: t.height, esq: t.left, dir: t.right, tela: innerWidth, ladoOpp: R(document.querySelector('.tb-side')).top,
+      cartas: sob('.tb-side .tb-card'), mao: sob('#tb-hand .tb-card'), vida: sob('.tb-life'), chips: sob('.tb-chip'),
+      linha: tx.getBoundingClientRect().height, corta: tx.scrollWidth > tx.clientWidth + 1,
+      mais: mais ? { h: R(mais).height, w: R(mais).width, nome: mais.getAttribute('aria-label'), texto: mais.textContent } : null };
+  });
+  const alterna = async aberta => { if ((await page.getAttribute('#tb-hand-toggle', 'aria-expanded')) !== String(aberta)) await page.click('#tb-hand-toggle'); await page.waitForTimeout(450); };
+  for (const [w, hgt] of [[360, 780], [384, 832], [390, 844], [412, 891]]) for (const tema of ['dark', 'light']) for (const aberta of [false, true]) {
+    await page.setViewportSize({ width: w, height: hgt }); await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema);
+    await page.evaluate(() => __m3.fechaToast({ tudo: true })); await alterna(aberta);
+    for (const [k, texto] of [['curto', 'Desfeito'], ['longo', LONGO]]) {
+      await page.evaluate(x => __m3.toast(x, 8000), texto); await page.waitForTimeout(350);
+      const m = await mede(), nome = `${w}×${hgt} ${tema}, mão ${aberta ? 'aberta' : 'recolhida'}, aviso ${k}`;
+      assert.equal(m.cartas + m.mao + m.vida + m.chips, 0, `${nome}: o aviso não cobre carta, mão, vida nem contador ${JSON.stringify(m)}`);
+      assert.ok(m.y >= 0 && m.fim <= m.ladoOpp, `${nome}: o aviso fica acima do campo (${m.fim} ≤ ${m.ladoOpp})`);
+      assert.ok(m.h >= 44 && m.linha <= 24, `${nome}: faixa de 44 px com uma linha de texto (${m.h}, ${m.linha})`);
+      assert.ok(m.esq >= 0 && m.dir <= m.tela, `${nome}: dentro da tela`);
+      if (k === 'curto') assert.equal(m.mais, null, `${nome}: aviso que cabe não ganha botão`);
+      else { assert.ok(m.mais && m.mais.h >= 44 && m.mais.w >= 44 && m.mais.nome === 'Ler o aviso inteiro' && m.mais.texto === '', `${nome}: o texto que não cabe ganha o botão de 44 px, só ícone ${JSON.stringify(m.mais)}`); }
+      await auditaTela(page, `MJ2 · ${nome}`);
+    }
+  }
+  // ler tudo: um toque abre o aviso inteiro, o segundo fecha
+  await page.setViewportSize({ width: 360, height: 780 }); await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark')); await alterna(false);
+  // com o aviso à vista, o toque passa para as ferramentas da linha de cima (só o botão do aviso recebe toque)
+  await page.evaluate(x => __m3.toast(x, 8000), LONGO); await page.waitForSelector('#ds-toast .ds-toast__mais');
+  await page.click('#tb-log', { timeout: 3000 }); await page.waitForSelector('.ds-dialog'); await page.keyboard.press('Escape'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
+  await page.evaluate(x => __m3.toast(x, 8000), LONGO); await page.waitForSelector('#ds-toast .ds-toast__mais');
+  assert.equal(await page.innerText('#ds-toast'), LONGO, 'o texto do aviso continua inteiro para quem lê (o botão é só ícone)');
+  await page.click('#ds-toast .ds-toast__mais'); await page.waitForSelector('#ds-toast[data-inteiro="true"]');
+  const inteiro = await mede(); assert.equal(inteiro.corta, false, 'aberto, o aviso mostra o texto inteiro');
+  assert.equal(inteiro.mais.nome, 'Fechar o aviso'); assert.ok(inteiro.mais.h >= 44);
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/mj2-aviso-inteiro.png', clip: { x: 0, y: 0, width: 360, height: 220 } });
+  await page.click('#ds-toast .ds-toast__mais'); await page.waitForSelector('#ds-toast[data-open="false"]');
+  // fora da partida: o aviso usa a largura da tela (antes ficava preso a metade: 180 px em 360)
+  await page.goto(base + '#/listas'); await page.waitForFunction(() => document.body.dataset.mesaCheia !== 'true');
+  await page.evaluate(x => __m3.toast(x, 8000), LONGO); await page.waitForTimeout(350);
+  const fora = await page.evaluate(() => { const e = document.querySelector('#ds-toast'), r = e.getBoundingClientRect(), tx = e.querySelector('.ds-toast__texto');
+    return { w: r.width, esq: r.left, dir: r.right, linhas: Math.round(tx.getBoundingClientRect().height / parseFloat(getComputedStyle(tx).lineHeight || '18')), mais: !!e.querySelector('.ds-toast__mais'), tela: innerWidth }; });
+  assert.ok(fora.w > fora.tela * 0.8 && fora.esq >= 0 && fora.dir <= fora.tela, `fora da partida o aviso longo usa a largura da tela ${JSON.stringify(fora)}`);
+  assert.ok(fora.linhas <= 3 && !fora.mais, `fora da partida o texto quebra em poucas linhas, sem botão ${JSON.stringify(fora)}`);
+  assert.deepEqual(errors, []);
+});
