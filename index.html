@@ -5956,7 +5956,7 @@ function continuoErros(c, tag) {
   for (const k of Object.keys(c)) if (!CHAVES_CONTINUO.includes(k)) errs.push(`${tag}: chave "${k}" desconhecida`);
   const a = c.afetados;
   if (c.seAfetado != null) { if (typeof c.seAfetado !== 'object' || Array.isArray(c.seAfetado)) errs.push(`${tag}: "seAfetado" precisa ser um seletor`); else { errs.push(...seletorErros(c.seAfetado, `${tag}: seAfetado`)); for (const k of ['zona', 'ref', 'ou', 'jogadores', 'habilidades']) if (c.seAfetado[k] != null) errs.push(`${tag}: seAfetado não aceita "${k}"`); } }
-  if (c.se != null && !(c.se && Object.keys(c.se).length === 1 && (Number.isInteger(c.se.oponenteComVeneno) || TIPOS_DE_CARTA.includes(c.se.controlaTipo) || c.se.metalcraft === true || c.se.modificada === true || c.se.atacando === true /* M-518 */ || seMonarcaT(c.se)))) errs.push(`${tag}: "se" conhece só oponenteComVeneno (inteiro), controlaTipo (tipo de carta), metalcraft (true), modificada (true) ou monarca ('voce' ou 'oponente')`); // M-403 · 700.9 // M-363 // M-253 · Corrompido · M-351 · "as long as you control an artifact" (Goblin Tomb Raider)
+  if (c.se != null && !(c.se && Object.keys(c.se).length === 1 && (Number.isInteger(c.se.oponenteComVeneno) || TIPOS_DE_CARTA.includes(c.se.controlaTipo) || c.se.metalcraft === true || c.se.modificada === true || c.se.atacando === true /* M-518 */ || c.se.delirio === true /* M-525 */ || seMonarcaT(c.se)))) errs.push(`${tag}: "se" conhece só oponenteComVeneno (inteiro), controlaTipo (tipo de carta), metalcraft (true), modificada (true) ou monarca ('voce' ou 'oponente')`); // M-403 · 700.9 // M-363 // M-253 · Corrompido · M-351 · "as long as you control an artifact" (Goblin Tomb Raider)
   if (c.ward != null) errs.push(...wardCustoErrosK(c.ward, false).map(e => `${tag}: "ward" ${e}`)); // K-2 · 702.21
   if (a !== 'self' && a !== 'anexada' && a !== 'equipada-pela-anexada') {
     if (!a || typeof a !== 'object') errs.push(`${tag}: "afetados" precisa ser self, anexada ou um seletor (ou equipada-pela-anexada)`);
@@ -6376,6 +6376,7 @@ function validateScript(sc) {
     if (self.reduzSeMira != null && !(self.reduzSeMira && Number.isInteger(self.reduzSeMira.generic) && self.reduzSeMira.generic > 0 && JSON.stringify(self.reduzSeMira.tipos) === '["creature"]')) errs.push('bônus próprio: reduzSeMira pede tipos [creature] e generic inteiro'); // M-259
     if (self.naoBloqueia != null && self.naoBloqueia !== true) errs.push('bônus próprio: "não bloqueia" só vale como true');
     if (self.atacaSePuder != null && self.atacaSePuder !== true) errs.push('bônus próprio: "ataca se puder" só vale como true'); // M-430
+    if (self.atacaSePuderSe != null && !(self.atacaSePuder === true && JSON.stringify(self.atacaSePuderSe) === '{"delirio":true}')) errs.push('bônus próprio: atacaSePuderSe é { delirio: true } e pede atacaSePuder'); // M-525
     if (self.naoBloqueiaPoderM != null && !(Number.isInteger(self.naoBloqueiaPoderM) && self.naoBloqueiaPoderM > 0)) errs.push('bônus próprio: naoBloqueiaPoderM é o poder mínimo que ela não bloqueia (inteiro positivo)'); // M-524 · Ironclaw Orcs
     if (self.reduzCor != null && !(self.reduzCor && Number.isInteger(self.reduzCor.generic) && self.reduzCor.generic > 0 && Array.isArray(self.reduzCor.cores) && self.reduzCor.cores.length && self.reduzCor.cores.every(c => 'WUBRG'.includes(c) && c.length === 1))) errs.push('bônus próprio: reduzCor pede generic inteiro positivo e cores WUBRG'); // M-352
     if (self.keywords != null && (!Array.isArray(self.keywords) || self.keywords.some(k => !KEYWORDS.includes(k)))) errs.push('bônus próprio: palavra-chave desconhecida');
@@ -10331,6 +10332,11 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Slickshot Show-Off': { texto: 'i85gx9', leva: 'M-524' },
   'Elven Riders': { texto: 'dgllh8', leva: 'M-524' },
   'Ironclaw Orcs': { texto: 'd7tbar', leva: 'M-524' },
+  // M-525 · revisão por lote CLXIII (delírio estático: Dragon's Rage Channeler e a classe; leitor ampliado na M-525), textos da Scryfall de 19/10/2026 UTC, revisor independente
+  'Dragon\'s Rage Channeler': { texto: 'a01q6y', leva: 'M-525' },
+  'Moldgraf Scavenger': { texto: 's00y6u', leva: 'M-525' },
+  'Kessig Dire Swine': { texto: '1ie8eu', leva: 'M-525' },
+  'Hound of the Farbogs': { texto: 'ps93r8', leva: 'M-525' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -19408,6 +19414,16 @@ const __m42 = (function () {
         const CORN = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }; // M-352 · 601.2f · redução por cor (Goblin Anarchomancer, Thornscape Familiar)
         const rc = lp.match(/^each spell you cast that's (white|blue|black|red|green) or (white|blue|black|red|green) costs \{(\d+)\} less to cast$/i) || lp.match(/^(white|blue|black|red|green) spells and (white|blue|black|red|green) spells you cast cost \{(\d+)\} less to cast$/i);
         if (rc) { topo.self = { ...(topo.self || {}), reduzCor: { generic: +rc[3], cores: [CORN[rc[1].toLowerCase()], CORN[rc[2].toLowerCase()]] } }; frases.push({ texto: linha, lida: true }); continue; }
+        { // M-525 · Delirium estático: "~ gets +N/+M [and has K] as long as there are four or more card types among cards in your graveyard", "~ has K as long as …", e "As long as …, ~ gets +N/+M, has K, and attacks each combat if able"
+          const DEL = 'there are four or more card types among cards in your graveyard', PAL = '(flying|trample|menace|vigilance|first strike|deathtouch|lifelink|haste|reach)';
+          const d1 = lp.match(new RegExp(`^(?:delirium — )?~ gets ([+-]\\d+)\\/([+-]\\d+)(?: and has ${PAL})? as long as ${DEL}$`, 'i'));
+          const d2 = !d1 && lp.match(new RegExp(`^(?:delirium — )?~ has ${PAL} as long as ${DEL}$`, 'i'));
+          const d3 = !d1 && !d2 && lp.match(new RegExp(`^(?:delirium — )?as long as ${DEL}, ~ gets ([+-]\\d+)\\/([+-]\\d+)(?:, has ${PAL},)? and attacks each combat if able$`, 'i'));
+          const dm = d1 || d2 || d3;
+          if (dm) { const pal = d2 ? dm[1] : dm[3], c = { afetados: 'self', ...(d2 ? {} : { poder: SINAL(dm[1]), resistencia: SINAL(dm[2]) }), ...(pal ? { palavras: [pal.toLowerCase()] } : {}), se: { delirio: true } };
+            topo.continuo = [...(topo.continuo || []), c]; if (d3) topo.self = { ...(topo.self || {}), atacaSePuder: true, atacaSePuderSe: { delirio: true } };
+            frases.push({ texto: linha, lida: true }); continue; }
+        }
         const atq = lp.match(/^~ gets ([+-]\d+)\/([+-]\d+) as long as it's attacking$/i); // M-518 · Grasping Scoundrel
         if (atq) { topo.continuo = [...(topo.continuo || []), { afetados: 'self', poder: SINAL(atq[1]), resistencia: SINAL(atq[2]), se: { atacando: true } }]; frases.push({ texto: linha, lida: true }); continue; }
         const mcs = lp.match(/^metalcraft — ~ gets ([+-]\d+)\/([+-]\d+) as long as you control three or more artifacts$/i); // M-363 · Ardent Recruit (611.2)
@@ -19927,12 +19943,16 @@ function bonusLegado(s, host) {
    próprio por contagem (self.per) viram atalhos; carta nova escreve `continuo: [...]` no script. */
 const SEM_CONTINUOS = Object.freeze([]);
 /** M-351 · 611.2 · condição de um efeito contínuo ("as long as …"), conferida a cada leitura: oponente com N venenos (M-253) ou "you control a <tipo>". */
+/** M-525 · Delirium · quantos tipos de carta (205.2a) há entre as cartas do cemitério de p; "tribal" antigo conta como kindred. */
+const tiposNoCemiterioM = (s, p) => new Set(((s.zones[p] || {}).graveyard || []).flatMap(oid => (((s.facts[(s.objects[oid] || {}).name] || {}).types) || []).map(x => x === 'tribal' ? 'kindred' : x).filter(x => TIPOS_DO_DELIRIO_M.includes(x)))).size;
+const TIPOS_DO_DELIRIO_M = ['artifact', 'battle', 'creature', 'enchantment', 'instant', 'kindred', 'land', 'planeswalker', 'sorcery']; // 205.2a (a mesma lista de TIPOS_DE_CARTA, que mora no módulo dos scripts)
 function condicaoContinua(s, x, se) {
   if (!se) return true;
   if (se.oponenteComVeneno != null) return alive(s).some(q => q !== x.controller && (s.players[q].poison || 0) >= se.oponenteComVeneno);
   if (se.controlaTipo) return battlefield(s).some(o => o.controller === x.controller && tiposDe(s, o).includes(se.controlaTipo)); // a própria fonte conta se tiver o tipo
   if (se.monarca) return monarcaCondT(s, x.controller, se.monarca); // T-62 · CR 725.5 / 611.2 · "as long as you're the monarch" (Toca ponto comum: condicaoContinua)
   if (se.modificada) return predicadosDeTipoT(s, x, { modificada: true }); // M-403 · 700.9 · "~ has flying as long as it's modified" (Skyward Spider, Obstinate Gargoyle)
+  if (se.delirio) return tiposNoCemiterioM(s, x.controller) >= 4; // M-525 · Delirium: "four or more card types among cards in your graveyard" (205.2a; 611.2b: vale enquanto for verdade)
   if (se.atacando) return x.zone === 'battlefield' && x.attacking != null; // M-518 · "as long as it's attacking" (Grasping Scoundrel, 611.2; 506.4: atacando até o fim do combate)
   if (se.metalcraft) return condicaoDoEfeito(s, x, 'metalcraft'); // M-363 · "Metalcraft — … as long as you control three or more artifacts" (Ardent Recruit)
   return true;
@@ -21620,7 +21640,7 @@ function mustAttack(s, p) {
   return battlefield(s).filter(o => o.controller === p && (o.goaded || exigePw(s, o) || atacaSePuder(s, o)) && podem.has(o.oid)).map(o => o.oid);
 }
 /** M-430 · 508.1d · "~ attacks each combat if able": entra na lista das que precisam atacar (só quando pode: virada, enjoada ou com custo para atacar não é obrigada). */
-const atacaSePuder = (s, o) => !o.faceDown && !semImpressas(s, o) && !!((((s.facts[o.name] || {}).script || {}).self || {}).atacaSePuder);
+const atacaSePuder = (s, o) => { if (o.faceDown || semImpressas(s, o)) return false; const sf = (((s.facts[o.name] || {}).script || {}).self || {}); return !!sf.atacaSePuder && (!sf.atacaSePuderSe || condicaoContinua(s, o, sf.atacaSePuderSe)); }; // M-525 · atacaSePuderSe: só enquanto a condição vale (delírio)
 /** M-228 · 506.3 / 508.1b: planeswalkers que p pode atacar (os dos oponentes que ainda jogam). */
 const pwsAtacaveis = (s, p) => battlefield(s).filter(o => o.controller !== p && !s.players[o.controller].lost && tiposDe(s, o).includes('planeswalker')).map(o => o.oid).concat(batalhasAtacaveisT(s, p)); // T-14 · CR 310.5 / 508.1b · e as batalhas que p pode atacar · Toca ponto comum: pwsAtacaveis
 /** M-228 · "attacks <planeswalker> during its controller's next turn if able" (Gideon +2): o planeswalker exigido, se ainda dá para atacá-lo. */
@@ -34529,7 +34549,7 @@ function descreveContinuo(c) {
   if (c.troca) partes.push('troca o poder e a resistência'); // CR2d.9
   if (c.torna) partes.unshift(descreveTorna(c.torna));
   const se = c.seAfetado ? `enquanto for ${c.seAfetado.lendaria ? 'lendária' : ''}${c.seAfetado.lendaria && (c.seAfetado.tipos || []).length ? ' e ' : ''}${(c.seAfetado.tipos || []).map(x => TIPO_PT[x] || x).join(' ou ')}, ` : ''; // M-251
-  const seJogo = c.se ? (c.se.atacando ? 'enquanto estiver atacando, ' /* M-518 */ : c.se.modificada ? 'enquanto estiver modificada, ' : c.se.metalcraft ? 'enquanto você controlar três artefatos ou mais, ' /* M-403 · faltava a vírgula */ : c.se.controlaTipo ? `enquanto você controlar ${({ artifact: 'um artefato', creature: 'uma criatura', enchantment: 'um encantamento', land: 'um terreno', planeswalker: 'um planeswalker' })[c.se.controlaTipo] || 'um ' + c.se.controlaTipo}, ` : `enquanto um oponente tiver ${c.se.oponenteComVeneno} ou mais marcadores de veneno, `) : ''; // M-253 · Corrompido · M-351 · controlaTipo
+  const seJogo = c.se ? (c.se.atacando ? 'enquanto estiver atacando, ' /* M-518 */ : c.se.delirio ? 'com delírio (4+ tipos de carta no seu cemitério), ' /* M-525 */ : c.se.modificada ? 'enquanto estiver modificada, ' : c.se.metalcraft ? 'enquanto você controlar três artefatos ou mais, ' /* M-403 · faltava a vírgula */ : c.se.controlaTipo ? `enquanto você controlar ${({ artifact: 'um artefato', creature: 'uma criatura', enchantment: 'um encantamento', land: 'um terreno', planeswalker: 'um planeswalker' })[c.se.controlaTipo] || 'um ' + c.se.controlaTipo}, ` : `enquanto um oponente tiver ${c.se.oponenteComVeneno} ou mais marcadores de veneno, `) : ''; // M-253 · Corrompido · M-351 · controlaTipo
   return `${seJogo}${se}${quem} ${partes.join(' e ')}`;
 }
 /** CR2-G R6 · a duração em português. */

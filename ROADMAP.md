@@ -5145,6 +5145,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** palavras-chave (Flying, Haste, Plot) só valem com o campo `keywords` da Scryfall (limitação já declarada em M-496).
 - **Teste:** `lt206.unit` (5 testes, com o metamorfo; falham no motor anterior).
 
+**M-525 · LT187 · revisão por lote CLXIII: delírio estático — Dragon's Rage Channeler e a classe** ✅ (leva M-525, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** passa a jogar Dragon's Rage Channeler (45 listas do catálogo, a carta que mais travava listas fora do Pauper), mais Moldgraf Scavenger, Kessig Dire Swine e Hound of the Farbogs. Textos da Scryfall consultados em 19/10/2026.
+- **Regra:** condição contínua `se.delirio` ("four or more card types among cards in your graveyard", 205.2a; vale enquanto for verdade, 611.2b; só o seu cemitério; "tribal" antigo conta como kindred) e `self.atacaSePuderSe` ("attacks each combat if able" só enquanto a condição vale, 508.1d). Leitor: as três formas do delírio estático ("~ gets +N/+M [and has K] as long as …", "~ has K as long as …", "As long as …, ~ gets +N/+M, has K, and attacks each combat if able"); vale para as outras cartas da classe (Backwoods Survivalists, Inquisitor's Ox, Moorland Drifter, Foul Watcher, Paranoid Parish-Blade, Thraben Foulbloods, Wildfire Wickerfolk), que ficam lidas e ainda não aprovadas.
+- **Revisão independente:** revisor independente (junto com a M-524): o delírio conta tipos distintos (criatura artefato vale dois; aventura conta a face de criatura; carta modal de dupla face só a da frente), só no seu cemitério, e liga e desliga na hora — inclusive no combate; o DRC com delírio recusa ataque sem ele, mas virado ou enjoado não é obrigado; bot e tela usam a mesma regra (`mustAttack`); Kessig atropela e Hound recusa bloqueio por uma só criatura. Nenhuma divergência.
+- **Fora (declarado):** delírio em gatilho, em ativada e em mágica ("If there are four or more card types…", Traverse the Ulvenwald, Ishkanah) não entra nesta leva.
+- **Teste:** `lt207.unit` (5 testes; 4 falham no motor anterior; o do cemitério do oponente é a guarda negativa).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
