@@ -6509,7 +6509,7 @@ function effectErrors(effects, label, opcional) {
     }
     if (e.do === 'prevenir') { // CR2-G R5b
       const L = `${label} ${i + 1}`;
-      if (e.quantidade != null && !(Number.isInteger(e.quantidade) && e.quantidade > 0)) errs.push(`${L}: "quantidade" precisa ser inteiro positivo (sem ela, previne todo o dano)`);
+      if (e.quantidade != null && !(Number.isInteger(e.quantidade) && e.quantidade > 0) && JSON.stringify(e.quantidade) !== '{"per":"x"}') errs.push(`${L}: "quantidade" precisa ser inteiro positivo ou o X pago (sem ela, previne todo o dano)`); // M-529 · Alabaster Potion
       if (e.deCor != null && !'WUBRG'.includes(e.deCor)) errs.push(`${L}: "deCor" precisa ser WUBRG`);
       if (e.deCriatura != null && !(e.deCriatura === true && e.todos)) errs.push(`${L}: "deCriatura" é uma marca (true) do escudo de todos`); // M-390 · Ethereal Haze
       if (e.target == null && e.cada == null && e.jogadores == null && !e.todos) errs.push(`${L}: prevenir precisa dizer a quem (alvo, "cada", "jogadores" ou "todos")`);
@@ -10363,6 +10363,9 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   // M-528 · revisão por lote CLXVI (delírio em mágica; leitor ampliado na M-528), textos da Scryfall de 19/10/2026 UTC, revisor independente
   'Unholy Heat': { texto: '1vg0exf', leva: 'M-528' },
   'Violent Urge': { texto: '1pg6hy3', leva: 'M-528' },
+  // M-529 · revisão por lote CLXVII (X na prevenção e na vida, “can't be regenerated this turn”; leitor ampliado na M-529), textos da Scryfall de 19/10/2026 UTC, revisor independente
+  'Disintegrate': { texto: 'ovhjnu', leva: 'M-529' },
+  'Alabaster Potion': { texto: '9dzgxd', leva: 'M-529' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18889,6 +18892,8 @@ const __m42 = (function () {
     [/^(target player|target opponent) loses the game$/i, m => [com({ do: 'perde' }, alvo(m[1]))]], // M-325 · 104.3e
     [/^put X ([a-z]+) counters on (this [a-z]+|~)$/i, m => [{ do: 'counters', tipo: m[1].toLowerCase(), amount: { per: 'x' }, target: 'self-source' }]], // M-325 · Helix Pinnacle (o X da habilidade, CR2c.7)
     [/^~ deals damage equal to its power to (each opponent|any target|target creature|target player|target opponent)$/i, m => [com({ do: 'damage', amount: { per: 'power-of-source' } }, alvo(m[1]))]], // M-323 · CR2b.10 (608.2h: o poder como era no campo, se ela saiu)
+    [/^target player gains X life$/i, () => [{ do: 'gain', amount: { per: 'x' }, target: 'player' }]], // M-529 · Alabaster Potion
+    [/^prevent the next X damage that would be dealt to any target this turn$/i, () => [{ do: 'prevenir', quantidade: { per: 'x' }, target: 'any' }]], // M-529 · Alabaster Potion (615.7)
     [/^~ deals X damage to (.+)$/i, m => { const a = alvo(m[1]); return a ? [{ do: 'damage', amount: { per: 'x' }, ...a }] : null; }],
     [/^destroy (target .+) with mana value x$/i, m => { const a = alvo(m[1]); return a ? [{ do: 'destroy', ...a, targetMvIgualX: true }] : null; }], // M-387 · Gorilla Shaman (107.3a) // M-343 · Volcanic Geyser, Blaze (o X pago, 107.3a)
     [/^~ deals X damage to each creature and each player$/i, () => [{ do: 'damage', amount: { per: 'x' }, target: 'each-creature' }, { do: 'damage', amount: { per: 'x' }, jogadores: 'cada' }]], // LT13 · CR2c.7 (Crypt Rats)
@@ -19393,6 +19398,7 @@ const __m42 = (function () {
       const dv = p.match(new RegExp(`^then if you control ${N} or more lands, untap that land$`, 'i')); // M-343 · Fabled Passage
       if (dv && efeitos.length && efeitos[efeitos.length - 1].do === 'search' && efeitos[efeitos.length - 1].to === 'battlefield-tapped' && efeitos[efeitos.length - 1].amount === 1) { efeitos[efeitos.length - 1].desviraSeTerrenos = num(dv[1]); frases.push({ texto: p, lida: true }); continue; }
       { const tw = p.match(/^if this spell was cast using teamwork, (.+)$/i); const te = tw && leFrase(tw[1]); if (te) { efeitos.push(...te.map(x => ({ ...x, __equipe: true }))); frases.push({ texto: p, lida: true }); continue; } } // M-379 · 702.194: o que só acontece com trabalho em equipe vai para o modo de equipe (K-70)
+      if (/^if it's a creature, it can't be regenerated this turn, and if it would die this turn, exile it instead$/i.test(p) && efeitos.length && efeitos[efeitos.length - 1].do === 'damage') { efeitos.push({ do: 'exila_se_morrer', target: 'first-target', semRegenerar: true }); frases.push({ texto: p, lida: true }); continue; } // M-529 · Disintegrate (701.15c, 614.1a; jogador como alvo: não há o que marcar)
       if (/^it can't be regenerated$/i.test(p) && efeitos.length && efeitos[efeitos.length - 1].do === 'destroy') { efeitos[efeitos.length - 1].semRegenerar = true; frases.push({ texto: p, lida: true }); continue; } // M-317 · 701.19c
       const e = leFrase(p);
       const du = !e && divideE(p); // M-343
@@ -20291,7 +20297,7 @@ function seriaDestruida(s, o, opts = {}) {
   if (has(s, o, 'indestructible')) return 'indestrutivel';
   const totem = attachedTo(s, o).find(x => !semImpressas(s, x) && (s.facts[x.name].script || {}).armaduraTotem);
   if (totem) return { totem: totem.oid };
-  if (!opts.semRegenerar && o.regenerar > 0) return 'regenerou';
+  if (!opts.semRegenerar && !(o.semRegenerarNoTurnoM != null && o.semRegenerarNoTurnoM === s.turn.number) && o.regenerar > 0) return 'regenerou'; // M-529 · "it can't be regenerated this turn" (Disintegrate)
   return 'destruida';
 }
 /** Aplica a substituição escolhida por seriaDestruida (o que não for 'destruida' nem 'indestrutivel'). */
@@ -20461,7 +20467,7 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
     for (const k of MARCAS_DA_CONJURACAO) delete o[k];
   }
   o.tapped = false; o.damage = 0; o.counters = {}; o.controller = to === 'battlefield' && controller != null ? controller : o.owner; delete o.controles; delete o.controladorBase; // CR2d.6 · 400.7 · CR2b.5 · 603.3a: entra já sob quem a pôs no campo
-  delete o.exilaSeMorrerNoTurno; // M-384 · 400.7
+  delete o.exilaSeMorrerNoTurno; delete o.semRegenerarNoTurnoM; // M-384 · M-529 · 400.7
   delete o.atacaComDefensorM; delete o.naoBloqueiaM; // M-458 · M-460 · 400.7
   delete o.tempToxico; delete o.tempResguardoCor; delete o.tempSemAlvoDe; delete o.tempNaoBloqueadaPor; delete o.tempImbloqueavel; delete o.tempImbloqueavelExceto; delete o.tempHabilidades; delete o.permissaoUsada; if (fromZone !== to) delete o.desenterrada; // M-255/M-256/M-257 · 400.7
   delete o.attacking; delete o.atacandoPw; delete o.exigeAtacarPw; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.pumpNext; delete o.goaded; delete o.keywordsNext; delete o.cantAttackNext; delete o.targets; delete o.attachedTo; delete o.tempKeywords; delete o.tempTs; delete o.anexadaEm; delete o.anexadaZ; delete o.mutavel; delete o.vira; delete o.prevenirDano; delete o.regenerar; delete o.temporarios; delete o.tempProtection; delete o.paired; // S39 · o vínculo de alma se desfaz ao sair do campo
@@ -23273,13 +23279,14 @@ function applyEffectM449(s, src, eff, tgt, events) {
       break;
     }
     case 'prevenir': { // CR2-G R5b · escudo até o fim do turno (a limpeza apaga s.prevencoes)
-      const escudo = { ...(eff.quantidade != null ? { quantidade: eff.quantidade } : {}), ...(eff.deCor ? { cor: eff.deCor } : {}), ...(eff.soCombate ? { combate: true } : {}), ...(eff.deCriatura ? { deCriatura: true } : {}) }; // M-390 · "dealt by creatures"
+      const qtdM = eff.quantidade != null && typeof eff.quantidade === 'object' ? amountOf(s, src, eff.quantidade) : eff.quantidade; // M-529 · "Prevent the next X damage" (Alabaster Potion)
+      const escudo = { ...(qtdM != null ? { quantidade: qtdM } : {}), ...(eff.deCor ? { cor: eff.deCor } : {}), ...(eff.soCombate ? { combate: true } : {}), ...(eff.deCriatura ? { deCriatura: true } : {}) }; // M-390 · "dealt by creatures"
       if (eff.todos) { s.prevencoes = [...(s.prevencoes || []), { ...escudo, todos: true }]; note({ todos: true, quantidade: eff.quantidade }); break; }
       const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
       const quem = tgt && tgt.player != null ? { player: tgt.player } : alvo ? { oid: alvo.oid, z: alvo.zc || 0 } : null;
       if (!quem) { note({ failed: true }); break; }
       s.prevencoes = [...(s.prevencoes || []), { ...escudo, alvo: quem }];
-      note({ name: alvo ? alvo.name : s.players[tgt.player].name, quantidade: eff.quantidade }); break;
+      note({ name: alvo ? alvo.name : s.players[tgt.player].name, quantidade: qtdM }); break;
     }
     case 'no_prevention': s.noPrevention = true; note({}); break; // S31 · 615.7: prevenção não se aplica no turno
     case 'prevent_spell': { // S52 · a mágica alvo não causa dano neste turno; a vida vem do dano prevenido de fato
@@ -23794,7 +23801,7 @@ function applyEffectM449(s, src, eff, tgt, events) {
     case 'transformar': transformaT(s, src.ability ? s.objects[src.source] : src, src, events); break; // T-7 · CR 701.27 · "transform ~"
     case 'tripulada': tripulada(s, src, events); break; // T-3 · CR 702.122e · a habilidade de tripular resolveu: "Whenever ~ becomes crewed"
     case 'untap': { const alvo = eff.target === 'enchanted' ? criaturaEncantada(s, src) : eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj; if (alvo) desvira(s, alvo); note({}); break; } // CR2g.6 · atordoamento
-    case 'exila_se_morrer': { if (obj && obj.zone === 'battlefield') { obj.exilaSeMorrerNoTurno = s.turn.number; note({ name: obj.name }); } else note({ failed: true }); break; } // M-384 · 614.1a (Suplex)
+    case 'exila_se_morrer': { if (eff.semRegenerar && obj && !tiposDe(s, obj).includes('creature')) { note({ failed: true }); break; } /* M-529 · Disintegrate: "If it's a creature" (achado da revisão: planeswalker não leva as marcas) */ if (obj && obj.zone === 'battlefield') { obj.exilaSeMorrerNoTurno = s.turn.number; if (eff.semRegenerar) obj.semRegenerarNoTurnoM = s.turn.number; /* M-529 · Disintegrate */ note({ name: obj.name }); } else note({ failed: true }); break; } // M-384 · 614.1a (Suplex)
     case 'nao_desvira': { const alvo = eff.target === 'enchanted' ? criaturaEncantada(s, src) : obj; if (alvo && alvo.zone === 'battlefield') { alvo.naoDesviraProximo = true; note({ name: alvo.name }); } else note({ failed: true }); break; } // CR2g.6
     default: break;
   }
@@ -34911,7 +34918,7 @@ function descreveEfeito(e) {
     case 'sacrifice_own': return 'sacrifica uma permanente sua';
     case 'regenerar': return `regenera ${e.target === 'self-source' ? 'esta criatura' : alvo || 'a criatura'} (na próxima vez que seria destruída neste turno, vira, perde o dano e sai do combate)`;
     case 'prevenir': { // CR2-G R5b
-      const quanto = e.quantidade ? `os próximos ${e.quantidade} de dano` : 'todo o dano';
+      const quanto = e.quantidade ? `os próximos ${typeof e.quantidade === 'object' ? 'X' : e.quantidade} de dano` : 'todo o dano'; // M-529 · o X
       const fonte = e.deCor ? ` de fontes ${{ W: 'brancas', U: 'azuis', B: 'pretas', R: 'vermelhas', G: 'verdes' }[e.deCor]}` : '';
       const quem = e.todos ? '' : e.target === '__quem' ? ' a __quem' : e.target === 'self-source' ? ' a esta permanente' : ` a ${alvo || 'o alvo'}`;
       return `previne ${quanto}${e.soCombate ? ' de combate' : ''}${fonte}${e.deCriatura ? ' que seria causado por criaturas' : ` que seria causado${quem}`} neste turno`; // M-390

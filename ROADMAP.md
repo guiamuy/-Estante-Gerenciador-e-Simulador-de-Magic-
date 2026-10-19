@@ -5172,6 +5172,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Revisão independente:** revisor independente (junto com a M-529): delírio conferido na resolução (Raio em resposta liga, tirar carta do cemitério desliga); a própria mágica e o cemitério do oponente não contam; Unholy Heat mira criatura ou planeswalker, não jogador; Violent Urge dá golpe duplo só com delírio, no mesmo alvo, e com alvo ilegal não faz nada. Nenhuma divergência.
 - **Teste:** `lt210.unit` (3 testes; falham no motor anterior).
 
+**M-529 · LT191 · revisão por lote CLXVII: Disintegrate e Alabaster Potion** ✅ (leva M-529, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** passam a jogar Disintegrate (3 listas do catálogo) e Alabaster Potion (2), ambas em listas a até 3 pendências. Textos da Scryfall consultados em 19/10/2026.
+- **Regra:** "it can't be regenerated this turn" vira marca do turno na criatura (701.15c: vale até o fim do turno, não só na destruição), junto do "if it would die this turn, exile it instead" que já existia (Suplex, 614.1a); o escudo de prevenção aceita o X pago ("Prevent the next X damage", 615.7) e "Target player gains X life". Leitor ampliado para as três frases.
+- **Revisão independente:** revisor independente (junto com a M-528): X=0 legal; o exílio vale para morrer por dano, destruição ou sacrifício no resto do turno; a regeneração volta no turno seguinte e depois de trocar de zona (400.7); o escudo de X prevenção se gasta entre eventos e some no fim do turno. **Uma divergência, corrigida nesta leva:** em planeswalker o Disintegrate punha a marca de "exilar se morrer", que o texto restringe a criatura ("If it's a creature") — agora só criatura recebe as marcas, com teste. Suplex, Torch the Tower e o delírio estático seguem iguais.
+- **Teste:** `lt211.unit` (4 testes; falham no motor anterior — o do planeswalker é o achado da revisão).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
