@@ -593,7 +593,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-rw | BI2-2b uso agregado opt-in (coleção, listas, scanner) com consentimento na tela "O que sai do aparelho" | BI | 2 | 16º-rv; `mtg-security-architect` |
 | 16º-rx | BI2-4 negócio: doações por plataforma (manual ou API com token) × custo mensal | BI | 2 | MON1 com dados reais |
 | 16º-ja ✅ | MJ · roadmap da mesa de patamar (leva J-1, 17/10): crítica medida da mesa em 360×780 e histórias MJ1–MJ12 | MJ | 1 | — |
-| 16º-jb 🟡 | MJ1 a mesa numa tela só (MJ1a partida em tela cheia na leva J-2; MJ1b faixa compacta por lado na J-3; MJ1c pilha e resumo por cima na J-4; MJ1d terrenos compactos na J-5; MJ1f mão por cima da mesa na J-6): os dois campos visíveis sem rolar, em fatias (cabeçalho do app fora da partida, topo numa linha, faixa compacta por lado, terrenos compactos, pilha e resumo fora do fluxo, tabuleiro com a altura da tela) | MJ | 3–4 | 16º-ja; T-130 publicada (mesma região) |
+| 16º-jb ✅ | MJ1 a mesa numa tela só (MJ1a partida em tela cheia na leva J-2; MJ1b faixa compacta por lado na J-3; MJ1c pilha e resumo por cima na J-4; MJ1d terrenos compactos na J-5; MJ1f mão por cima da mesa na J-6; MJ1e Conversa no selo da faixa de vez na J-7): os dois campos visíveis sem rolar, em fatias (cabeçalho do app fora da partida, topo numa linha, faixa compacta por lado, terrenos compactos, pilha e resumo fora do fluxo, tabuleiro com a altura da tela) | MJ | 3–4 | 16º-ja; T-130 publicada (mesma região) |
 | 16º-jc | MJ2 avisos fora do campo: o aviso flutuante não cobre cartas nem a mão | MJ | 1 | 16º-jb |
 | 16º-jd | MJ3 identidade por `oid` e continuidade (FLIP) entre mão, pilha, campo, cemitério e exílio | MJ | 2 | 16º-jb; `mtg-scale-architect` (quadros) |
 | 16º-je | MJ4 combate desenhado: setas de ataque e bloqueio com a prévia junto da seta | MJ | 2 | 16º-jd |
@@ -10196,7 +10196,7 @@ bandeja que segue o dedo, som e efeitos da G4/G5.
 **Ordem:** valor percebido no celular ÷ custo em levas. MJ1 vem primeiro porque tudo o que vem depois (setas de
 combate, continuidade, mirar) só faz sentido com os dois campos na mesma tela. **Total estimado: 16 a 20 levas.**
 
-**MJ1 · A mesa numa tela só** 🟡 (6 levas, em fatias; MJ1a na leva J-2, MJ1b na J-3, MJ1c na J-4, MJ1d na J-5, MJ1f na J-6; falta a MJ1e)
+**MJ1 · A mesa numa tela só** ✅ (6 levas, em fatias; MJ1a na leva J-2, MJ1b na J-3, MJ1c na J-4, MJ1d na J-5, MJ1f na J-6, MJ1e na J-7)
 - **Valor:** os dois campos, a vida dos dois e a sua mão cabem na tela sem rolar, como no Arena.
 - **Aceite:** em 360×780, partida com 17 permanentes (a mesma semente da crítica): rolagem vertical da página 0; os dois
   lados visíveis ao mesmo tempo; pilha e resumo não mudam a posição de nenhuma carta; alvos de 44 px; nenhuma
@@ -10230,8 +10230,18 @@ combate, continuidade, mirar) só faz sentido com os dois campos na mesma tela. 
     larga em 360, o contador abre a zona). **Fora:** a contagem "Terrenos · N" não fica mais à vista (as pilhas ×N contam);
     o Conversa (partida online) como selo da faixa de vez, previsto para esta fatia, vira fatia própria (MJ1e) — é outra
     região (topo e testes online).
-  - **MJ1e · Conversa no selo da faixa de vez** ○ — na partida online o botão de conversa vira selo da faixa, para o rótulo
-    não cortar com nome longo em 360 (ressalva do design na J-2).
+  - **MJ1e · Conversa no selo da faixa de vez** ✅ (leva J-7) — na partida online a Conversa virou um selo de 44 px colado à
+    faixa de vez (2 px de vão, cantos de dentro retos, a cor da faixa: latão na sua vez, azul na do oponente), com o ponto de
+    ligação e o número de novas, que passa a ser uma pílula invertida (antes era latão sobre latão); o Desfazer, que online
+    só aparecia apagado, saiu da linha de cima. Sair + faixa + selo + duas ferramentas ocupam o mesmo que fora do online.
+    **Medida (360×780, partida online):** espaço da faixa com nome longo 102 → 152 px, rótulo 48 → 98 px ("Seu turno"
+    aparecia "Seu …"); em 384 o rótulo vai de 72 para 122 px. **Testes:** e2e "MJ1e" (selo colado, mesma
+    linha, mesma cor e papel da faixa, 44 px, sem Desfazer online, "Seu turno" inteiro, espaço da faixa com nome longo, `auditaTela` nas quatro medidas e nos dois
+    temas, dos dois lados da mesa; número de novas com contraste ≥ 4,5 e pílula ≥ 3 contra a faixa; nome falado "Conversa, 1
+    nova(s)"; abrir a conversa igual); a asserção "online não desfaz" do U14 passou de "apagado" para "ausente" (expectativa
+    mudou de propósito). **Fora:** em 360 px, "Turno <nome>" com nome de mais de ~9 letras ainda ganha reticências, como
+    fora do online (o nome inteiro segue no nome falado; com a fonte do CI, mais larga, "Turno Jogador 1" já corta 3 px em
+    384 — foi o que recusou a primeira entrega: a asserção de rótulo inteiro passou a valer só para "Seu turno"); abaixo de 360 px o selo pode descer de linha com a faixa.
   - **MJ1c · Pilha e resumo por cima** ✅ (leva J-4) — a pilha virou uma faixa de 44 px (ícone, quantas, o nome do topo;
     nome falado com quem, alvo e prioridade) que fica, junto com a faixa do resumo, numa camada de altura zero entre os
     dois lados: ocupa só o vão (16 px entre os lados mais o fundo e o topo de cada um) e não cobre carta, vida nem contador;

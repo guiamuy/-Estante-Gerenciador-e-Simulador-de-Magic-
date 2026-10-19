@@ -1728,8 +1728,21 @@ body[data-mesa-cheia="true"] .tb > .tb-top { column-gap: var(--space-1); row-gap
 /* abaixo de 360 px (fora das faixas suportadas) as ferramentas podem descer de linha e o rótulo segue inteiro, como antes */
 @media (min-width: 360px) {
   body[data-mesa-cheia="true"] .tb > .tb-top > .tb-vez { flex: 0 1 auto; min-width: 0; max-width: calc(100% - 4 * var(--tap-min) - 2 * 2px - 3 * var(--space-1)); }
-  body[data-mesa-cheia="true"] .tb > .tb-top:has(#tb-chat) > .tb-vez { max-width: calc(100% - 5 * var(--tap-min) - 3 * 2px - 4 * var(--space-1)); }
 }
+/* MJ1e (J-7) · online, a Conversa é um selo colado à faixa de vez (2 px de vão, cantos de dentro retos) e o Desfazer sai:
+   Sair + faixa + selo + duas ferramentas somam o mesmo que Sair + faixa + três ferramentas, então vale o mesmo teto da faixa */
+.tb-top > .tb-vez-selo { flex: none; order: 0; position: relative; align-self: stretch; min-width: var(--tap-min); min-height: var(--tap-min);
+  margin-left: calc(2px - var(--space-1)); border-radius: var(--radius-1) var(--radius-full) var(--radius-full) var(--radius-1);
+  background: var(--accent); color: var(--accent-fg); box-shadow: var(--shadow-1); }
+.tb-top:has(> .tb-vez-selo) > .tb-vez { border-top-right-radius: var(--radius-1); border-bottom-right-radius: var(--radius-1); }
+.tb-top > .tb-vez-selo[data-papel="oponente"] { background: var(--player-opp); color: var(--player-opp-fg); }
+.tb-top > .tb-vez-selo[data-papel="mulligan"], .tb-top > .tb-vez-selo[data-papel="fim"] { background: var(--bg-elev-2); color: var(--fg); border: 1px solid var(--border); }
+.tb-vez-selo[data-papel="eu"] .ds-btn__conta { background: var(--accent-fg); color: var(--accent); }
+.tb-vez-selo[data-papel="oponente"] .ds-btn__conta { background: var(--player-opp-fg); color: var(--player-opp); }
+.tb-vez-selo .tb-online { box-shadow: 0 0 0 2px currentColor; }
+.tb-vez-selo:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+.tb-vez-selo--troca { animation: tb-vez-troca var(--dur-3) var(--ease-out); }
+@media (prefers-reduced-motion: reduce) { .tb-vez-selo--troca { animation: none; } }
 body[data-mesa-cheia="true"] .tb > .tb-top .tb-vez__btn { min-width: 0; padding-right: var(--space-3); }
 body[data-mesa-cheia="true"] .tb > .tb-top .tb-vez__avatar { width: 30px; height: 30px; }
 body[data-mesa-cheia="true"] .tb > .tb-top .tb-vez__rotulo { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
@@ -37806,15 +37819,18 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
         // MJ1a (J-2) · a partida ocupa a tela inteira: o cabeçalho do app sai e a saída mora aqui (a partida segue guardada)
         IconButton('voltar', 'Sair da partida', { id: 'tb-sair', variant: 'ghost', onClick: () => go('/mesa') }),
         vezBox(s, v), vezPop,
+        // MJ1e (J-7) · online, a Conversa é um selo colado à faixa de vez (mesma cor, com o ponto de ligação e o número de
+        // novas) e não mais uma quarta ferramenta: o rótulo da faixa tem online o mesmo espaço que fora dele
+        sinc ? (() => { const b = IconButton('conversa', 'Conversa', { id: 'tb-chat', variant: 'ghost', onClick: abreChat }); const lig = online.transporte.ligado();
+          b.classList.add('tb-vez-selo'); b.dataset.papel = vezEl ? vezEl.dataset.papel : 'eu'; if (vezEl && vezEl.classList.contains('tb-vez--troca')) b.classList.add('tb-vez-selo--troca');
+          b.appendChild(h('span', { class: 'tb-online', id: 'tb-online', role: 'img', dataset: { ligado: String(lig) }, 'aria-label': lig ? 'Partida online, conectada' : 'Partida online, reconectando' }));
+          b.title = `Conversa · sala ${table.online.codigo}` + (lig ? '' : ' · reconectando…'); return b; })() : null,
         // Leva 121 · o placar da série (leva 114) mora no balão da faixa: ver vezDaMesa
         StepBar({ turn: s.turn.number || 0, step: s.turn.step, active: s.status === 'mulligan' ? 'mulligan' : s.players[s.turn.active].name, label: s.status === 'mulligan' ? 'Mão inicial' : E.STEP_PT[s.turn.step], ciclo: s.cicloT === 'noite' ? 'Noite' : s.cicloT === 'dia' ? 'Dia' : null }), // T-48 · CR 731.1 (Toca ponto comum: StepBar)
         h('div', { class: 'tb-top__actions' },
           // U2 · ações de ícone com nome acessível; desistir continua pedindo confirmação
-          // leva 137 · conversa com o ponto de ligação dentro (cinco ícones não cabiam na linha da faixa em 360 px)
-          sinc ? (() => { const b = IconButton('conversa', 'Conversa', { id: 'tb-chat', variant: 'ghost', onClick: abreChat }); const lig = online.transporte.ligado();
-            b.appendChild(h('span', { class: 'tb-online', id: 'tb-online', role: 'img', dataset: { ligado: String(lig) }, 'aria-label': lig ? 'Partida online, conectada' : 'Partida online, reconectando' }));
-            b.title = `Conversa · sala ${table.online.codigo}` + (lig ? '' : ' · reconectando…'); return b; })() : null,
-          IconButton('desfazer', 'Desfazer', { id: 'tb-undo', variant: 'ghost', disabled: !podeVoltar(), title: sinc ? 'Online não dá para desfazer' : null, onClick: () => { if (table.undo()) { if (table.colhePassos) table.colhePassos(); adjudicating = null; semSentidos = true; save(); paint(); toast('Desfeito'); } } }),
+          // MJ1e (J-7) · online não dá para desfazer: o botão, que só aparecia apagado, sai (a Conversa foi para a faixa de vez)
+          sinc ? null : IconButton('desfazer', 'Desfazer', { id: 'tb-undo', variant: 'ghost', disabled: !podeVoltar(), onClick: () => { if (table.undo()) { if (table.colhePassos) table.colhePassos(); adjudicating = null; semSentidos = true; save(); paint(); toast('Desfeito'); } } }),
           IconButton('registro', 'Registro da partida', { id: 'tb-log', variant: 'ghost', onClick: openLog }),
           IconButton('desistir', 'Desistir', { id: 'tb-concede', variant: 'ghost', onClick: () => Dialog({ title: 'Desistir da partida?', body: Text(serie && serie.melhorDe > 1 ? 'Esta partida termina com vitória do oponente. A série continua se ainda não estiver decidida.' : 'A partida termina com vitória do oponente.', { tone: 'muted' }),
             actions: [Button('Cancelar', { onClick: closeDialog }), Button('Desistir', { variant: 'danger', onClick: () => { closeDialog(); const segue = serie && serie.melhorDe > 1 && T.resultadoDaSerie(T.registraJogo(serie, 1 - v)) == null; act({ t: 'concede', p: v }); if (sinc && !segue) online.sala.encerrar(table.online.codigo, 'desistiu').catch(() => {}); } })] }) }))),

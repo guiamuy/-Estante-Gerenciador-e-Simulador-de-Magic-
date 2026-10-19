@@ -6532,7 +6532,7 @@ test('e2e · Leva 133 partida online: criar sala, entrar com o código em outra 
   const estado = p => p.evaluate(() => JSON.stringify(window.__estanteMesa.estado()));
   const quemVe = p => p.evaluate(() => window.__estanteMesa.quemVe());
   assert.equal(await quemVe(A), 0); assert.equal(await quemVe(B), 1);
-  assert.equal(await A.locator('#tb-online').count(), 1, 'indicador de partida online'); assert.equal(await A.locator('#tb-undo').isDisabled(), true, 'online não desfaz');
+  assert.equal(await A.locator('#tb-online').count(), 1, 'indicador de partida online'); assert.equal(await A.locator('#tb-undo').count(), 0, 'online não desfaz'); // MJ1e (J-7) · expectativa mudou de propósito: o Desfazer, sempre apagado online, saiu da linha de cima
   await A.click('#tb-keep');
   await B.waitForFunction(() => window.__estanteMesa.estado().players[0].kept === true, null, { timeout: 10000 });
   assert.equal(await estado(A), await estado(B), 'depois do keep do anfitrião, as mesas são iguais');
@@ -13349,4 +13349,73 @@ test('e2e · MJ1f a mão aberta fica por cima da mesa: abrir e recolher não mex
   }
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/mj1f-mao-aberta.png' });
   assert.deepEqual(errors, []);
+});
+
+// MJ1e (leva J-7, trilha jogabilidade) · na partida online a Conversa vira um selo colado à faixa de vez e o Desfazer
+// (que online nunca funciona) sai: o rótulo da faixa tem online o mesmo espaço que fora dele (em 360 px eram 48 px para o
+// rótulo e "Seu turno" cortava; agora 98)
+test('e2e · MJ1e Conversa no selo da faixa de vez: colado à faixa, mesma cor, 44 px, número de novas legível, rótulo inteiro, sem Desfazer online, nas quatro medidas e nos dois temas', { skip }, async t => {
+  const { page: A, errors, base } = await open(t, { dev: false });
+  await A.addInitScript(() => { window.__MTG_TEST = true; }); await A.setViewportSize({ width: 360, height: 780 });
+  await createDeck(A, base, 'Coberta', '30 Island\n30 Counterspell', 'livre');
+  await A.goto(base + '#/mesa'); await A.waitForSelector('[data-opponent="online"]'); await A.click('[data-opponent="online"]');
+  await A.waitForFunction(() => document.querySelector('#online-criar') && !document.querySelector('#online-criar').disabled, null, { timeout: 10000 });
+  await A.click('#online-criar'); await A.waitForSelector('#online-codigo'); const codigo = (await A.innerText('#online-codigo')).trim();
+  const B = await A.context().newPage(); const errosB = [];
+  B.on('pageerror', e => errosB.push(String(e))); B.on('console', m => { if (m.type() === 'error' && !/Failed to load resource: net::ERR_/.test(m.text())) errosB.push(m.text()); });
+  await B.addInitScript(() => { window.__MTG_TEST = true; }); await B.setViewportSize({ width: 360, height: 780 });
+  await B.goto(base + '#/mesa'); await B.waitForSelector('[data-opponent="online"]'); await B.click('[data-opponent="online"]'); await B.click('[data-online-modo="entrar"]');
+  await B.waitForSelector('#online-codigo-input'); await B.fill('#online-codigo-input', codigo); await B.waitForFunction(() => !document.querySelector('#online-entrar').disabled, null, { timeout: 10000 }); await B.click('#online-entrar');
+  await A.waitForSelector('#tb-keep', { timeout: 20000 }); await A.click('#tb-keep');
+  await B.waitForSelector('#tb-keep', { timeout: 20000 }); await B.click('#tb-keep');
+  await A.waitForFunction(() => window.__estanteMesa.estado().status === 'playing', null, { timeout: 10000 });
+  await B.waitForFunction(() => window.__estanteMesa.estado().status === 'playing', null, { timeout: 10000 });
+  const mede = p => p.evaluate(() => {
+    const q = s => document.querySelector(s), r = s => { const b = q(s).getBoundingClientRect(); return { x: b.left, r: b.right, y: b.top, h: b.height, w: b.width }; };
+    const rot = q('#tb-vez .tb-vez__rotulo'), sel = q('#tb-chat');
+    const texto = rot.textContent; rot.textContent = 'Turno Maria Eduarda Fonseca Lima'; const espaco = q('#tb-vez').getBoundingClientRect().width; rot.textContent = texto; // teto da faixa com nome longo
+    return { espaco, vez: r('#tb-vez'), selo: r('#tb-chat'), acoes: r('.tb-top__actions'), sair: r('#tb-sair'), corte: rot.scrollWidth - rot.clientWidth, rotulo: rot.textContent,
+      naFerramenta: !!sel.closest('.tb-top__actions'), papelVez: q('#tb-vez').dataset.papel, papelSelo: sel.dataset.papel,
+      corVez: getComputedStyle(q('#tb-vez')).backgroundColor, corSelo: getComputedStyle(sel).backgroundColor, desfazer: document.querySelectorAll('#tb-undo').length,
+      doc: document.documentElement.scrollWidth, tela: innerWidth };
+  });
+  for (const [w, hgt] of [[360, 780], [384, 832], [390, 844], [412, 891]]) for (const tema of ['dark', 'light']) for (const [p, quem] of [[A, 'anfitrião'], [B, 'convidado']]) {
+    await p.setViewportSize({ width: w, height: hgt }); await p.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await p.waitForTimeout(200);
+    const m = await mede(p), nome = `${w}×${hgt} ${tema} (${quem})`;
+    assert.equal(m.desfazer, 0, `${nome}: online não há Desfazer (antes aparecia sempre apagado)`);
+    assert.equal(m.naFerramenta, false, `${nome}: a Conversa saiu das ferramentas`);
+    assert.ok(m.selo.x - m.vez.r >= 0 && m.selo.x - m.vez.r <= 3, `${nome}: o selo fica colado à faixa (vão ${m.selo.x - m.vez.r})`);
+    assert.ok(Math.abs(m.selo.y - m.vez.y) < 1 && m.selo.h >= 44 && m.selo.w >= 44 && m.vez.h >= 44, `${nome}: selo e faixa na mesma linha, com 44 px`);
+    assert.equal(m.papelSelo, m.papelVez, `${nome}: o selo acompanha a faixa (${m.papelVez})`);
+    assert.equal(m.corSelo, m.corVez, `${nome}: o selo tem a cor da faixa`);
+    // "Seu turno" cabe inteiro em todas as medidas (em 360 px aparecia "Seu …" antes da MJ1e). "Turno <nome>" depende do nome e
+    // da fonte do aparelho (a do CI é mais larga: "Turno Jogador 1" corta 3 px em 384 lá e não aqui): para ele vale o espaço da
+    // faixa, medido abaixo, e as reticências com nome longo são o limite declarado (igual ao de fora do online). Quem começa a
+    // partida varia (sorteio): o rótulo curto é o de quem tem a vez (papel "eu"), não o de uma página fixa
+    if (m.papelVez === 'eu') assert.equal(m.corte, 0, `${nome}: rótulo "${m.rotulo}" inteiro`);
+    assert.ok(m.selo.r <= m.acoes.x, `${nome}: o selo não invade as ferramentas`);
+    assert.ok(Math.abs(m.acoes.y - m.vez.y) < 1 && Math.abs(m.sair.y - m.vez.y) < 1, `${nome}: Sair, faixa, selo e ferramentas numa linha só`);
+    assert.ok(m.doc <= m.tela, `${nome}: sem rolagem lateral`);
+    if (w === 360) assert.ok(m.espaco >= 150, `${nome}: com nome longo a faixa tem o espaço de fora do online (${m.espaco} px; era 102)`);
+    await auditaTela(p, `MJ1e · ${nome}`);
+  }
+  for (const p of [A, B]) { await p.setViewportSize({ width: 360, height: 780 }); await p.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark')); }
+  // mensagem nova: o número aparece no selo, legível sobre a cor da faixa, e o nome falado conta as novas
+  await B.click('#tb-chat'); await B.waitForSelector('[data-frase="GG"]'); await B.click('[data-frase="GG"]'); await B.keyboard.press('Escape');
+  await A.waitForFunction(() => document.querySelector('#tb-chat') && document.querySelector('#tb-chat').dataset.novas === '1', null, { timeout: 10000 });
+  assert.equal(await A.getAttribute('#tb-chat', 'aria-label'), 'Conversa, 1 nova(s)');
+  const leitura = await A.evaluate(() => {
+    const lum = c => { const [r, g, b] = c.match(/[\d.]+/g).slice(0, 3).map(Number).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+    const razao = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
+    const c = document.querySelector('#tb-chat .ds-btn__conta'), cs = getComputedStyle(c), selo = getComputedStyle(document.querySelector('#tb-chat')).backgroundColor;
+    return { visivel: !c.hidden && c.getBoundingClientRect().width > 0, texto: c.textContent, numero: razao(cs.color, cs.backgroundColor), fundo: razao(cs.backgroundColor, selo) };
+  });
+  assert.ok(leitura.visivel && leitura.texto === '1', JSON.stringify(leitura));
+  assert.ok(leitura.numero >= 4.5, `o número contrasta com a própria pílula (${leitura.numero.toFixed(2)})`);
+  assert.ok(leitura.fundo >= 3, `a pílula se destaca da cor da faixa (${leitura.fundo.toFixed(2)}; antes era a mesma cor de destaque)`);
+  // abrir a conversa continua igual
+  await A.click('#tb-chat'); await A.waitForSelector('#tb-chat-lista .tb-chat__msg'); assert.match(await A.innerText('#tb-chat-lista'), /GG/);
+  await A.keyboard.press('Escape'); await A.waitForFunction(() => document.querySelector('#tb-chat').dataset.novas === '0');
+  if (process.env.SHOTS) { await A.screenshot({ path: process.env.SHOTS + '/mj1e-selo.png', clip: { x: 0, y: 0, width: 360, height: 120 } }); }
+  assert.deepEqual(errors, []); assert.deepEqual(errosB, []);
 });
