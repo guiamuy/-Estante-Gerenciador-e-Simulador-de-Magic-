@@ -5166,6 +5166,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** o rótulo do modo lido sai em inglês, como já acontecia nas mágicas modais lidas; "choose one or more"/"choose two" em gatilho e as aberturas "becomes tapped", "attacks or blocks" não entram. Das 155 permanentes com gatilho modal, as outras ainda esbarram em frases de modo sem padrão.
 - **Teste:** `lt209.unit` (4 testes; falham no motor anterior).
 
+**M-528 · LT190 · revisão por lote CLXVI: delírio em mágica — Unholy Heat e Violent Urge** ✅ (leva M-528, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** passam a jogar Unholy Heat (63 listas do catálogo) e Violent Urge (10). Textos da Scryfall consultados em 19/10/2026 (o texto atual da Violent Urge diz "and gains first strike"; o leitor aceita as duas redações).
+- **Regra:** `delirio` passa a valer como condição de efeito (`onlyIf`) e de quantia (`{ per: 'se', se: 'delirio' }`), conferido na resolução com a mesma conta do delírio estático da M-525 (a própria mágica ainda está na pilha e não conta; só o seu cemitério). Leitor: "Delirium — ~ deals N damage instead if …", "Delirium — If there are four or more card types …, that creature gains K until end of turn" e "Target creature gets +N/+M and [gains] K until end of turn".
+- **Revisão independente:** revisor independente (junto com a M-529): delírio conferido na resolução (Raio em resposta liga, tirar carta do cemitério desliga); a própria mágica e o cemitério do oponente não contam; Unholy Heat mira criatura ou planeswalker, não jogador; Violent Urge dá golpe duplo só com delírio, no mesmo alvo, e com alvo ilegal não faz nada. Nenhuma divergência.
+- **Teste:** `lt210.unit` (3 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
