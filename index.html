@@ -5643,6 +5643,7 @@ const EFFECTS = {
   trocar_com: { fields: [], targets: ['creature', 'permanent', 'artifact', 'creature-you-control', 'player', 'opponent'] },
   trocar: { fields: [], targets: ['self', 'creature', 'permanent', 'artifact', 'creature-opponent-controls', 'creature-you-control', 'player', 'opponent'] },
   embaralha_esta: { fields: [], targets: ['self'] },
+  anexa_a_ficha: { fields: [], targets: ['self'] }, // M-526 · "You may attach this Equipment to it" (Cori-Steel Cutter): a fonte vai para a ficha criada logo antes, na mesma resolução
   embaralhar_grimorio: { fields: [], targets: ['self'] }, // M-339 · "You may shuffle" (Ponder): com optional, a mesa pergunta // V-7 · "Shuffle ~ into its owner's library": a própria mágica, ao terminar de resolver (701.24)
   // V-7 · 701.10 dobrar e 701.11 triplicar. `o`: 'poder' | 'resistencia' | 'poder-resistencia' (efeito contínuo, `ate`) | 'vida' | 'marcadores' (`tipo`) | 'mana' (`cor`); `vezes`: 2 ou 3
   dobrar: { fields: [], targets: ['self', 'self-source', 'first-target', 'creature', 'creature-you-control', 'permanent', 'player', 'opponent', 'each-own-creature', 'each-creature'] },
@@ -10337,6 +10338,12 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Moldgraf Scavenger': { texto: 's00y6u', leva: 'M-525' },
   'Kessig Dire Swine': { texto: '1ie8eu', leva: 'M-525' },
   'Hound of the Farbogs': { texto: 'ps93r8', leva: 'M-525' },
+  // M-526 · revisão por lote CLXIV (“whenever you cast your second spell each turn”: Cori-Steel Cutter e a classe; leitor ampliado na M-526), textos da Scryfall de 19/10/2026 UTC, revisor independente
+  'Cori-Steel Cutter': { texto: 'ocmfwl', leva: 'M-526' },
+  'Pyromancer\'s Assault': { texto: '14pirb4', leva: 'M-526' },
+  'Monk of the Open Hand': { texto: '9gy84u', leva: 'M-526' },
+  'Jori En, Ruin Diver': { texto: 'b7tovl', leva: 'M-526' },
+  'Clarion Spirit': { texto: 'rakkv9', leva: 'M-526' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18879,6 +18886,7 @@ const __m42 = (function () {
     [/^add \{([WUBRGC])\} for each (creature card in your graveyard|card named ~ in each graveyard)$/i, m => [{ do: 'add_mana', symbols: [m[1].toUpperCase()], porContagem: /named/i.test(m[2]) ? 'mesmo-nome-nos-cemiterios' : 'creature-cards-in-your-graveyard' }]], // M-423 · Songs of the Damned, Rite of Flame
     [/^~ deals damage to (target creature|any target) equal to the number of (plains|islands|swamps|mountains|forests) you control$/i, m => { const a = alvo(m[1]); return a ? [{ do: 'damage', amount: { per: m[2].toLowerCase() + '-you-control' }, ...a }] : null; }], // M-516 · Spitting Earth (contagem na resolução, 608.2h)
     [/^destroy all (creatures|lands|artifacts|enchantments)$/i, m => [{ do: 'destroy_all', types: [{ creatures: 'creature', lands: 'land', artifacts: 'artifact', enchantments: 'enchantment' }[m[1].toLowerCase()]] }]], // M-518 · Armageddon (701.8; indestrutível fica)
+    [/^you may attach (?:this equipment|~) to it$/i, () => [{ do: 'anexa_a_ficha', optional: true }]], // M-526 · Cori-Steel Cutter (301.5: anexar o Equipamento por efeito)
     [/^its owner gains (\d+) life$/i, m => [{ do: 'gain', amount: +m[1], target: 'target-owner' }]], // M-518 · Path of Peace (o dono do alvo anterior)
     [/^you gain 1 life for each attacking creature$/i, () => [{ do: 'gain', amount: { per: 'attacking-creatures' } }]], // M-423 · Respite (506.4)
     [/^you gain (\d+) life for each creature card in your graveyard$/i, m => { const k = +m[1]; return k > 0 ? [{ do: 'gain', amount: k === 1 ? { per: 'creature-cards-in-your-graveyard' } : { per: 'creature-cards-in-your-graveyard', times: k } }] : null; }], // M-513 · Gnaw to the Bone (contagem na resolução, 608.2h)
@@ -19114,6 +19122,7 @@ const __m42 = (function () {
     [/^whenever another creature dies$/i, { evento: 'zona', de: 'battlefield', para: 'graveyard', objeto: 'outra', quem: 'qualquer' }, () => ({ filter: { types: ['creature'] } })], // M-418 · Hissing Iguanar (de qualquer jogador; 700.4)
     [/^whenever you cast an instant or sorcery spell$/i, 'other-cast', () => ({ filter: { anyTypes: ['instant', 'sorcery'] } })], // M-328
     [/^whenever you cast a noncreature spell$/i, 'other-cast', () => ({ filter: { noncreature: true } })],
+    [/^whenever you cast your second spell each turn$/i, 'other-cast', () => ({ filter: { segundaMagiaDoTurno: true } })], // M-526 · Flurry (Cori-Steel Cutter, Jeskai Devotee, Illvoi Operative)
     [/^whenever you cast a multicolored spell$/i, 'other-cast', () => ({ filter: { multicolorida: true } })], // M-460 · 105.2b
     [/^whenever you cast an? (?:white|blue|black|red|green)(?:-(?:white|blue|black|red|green))+ spell$/i, 'other-cast', m => ({ filter: { anyColors: [...new Set(m[0].toLowerCase().match(/white|blue|black|red|green/g).map(c => ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[c]))] } })], // M-395 · God-Pharaoh's Faithful // M-328
     [/^[Ww]henever you cast an? ([A-Z][a-z]+) spell$/, 'other-cast', m => ({ filter: { subtype: m[1] } })], // LT11 · "whenever you cast an Elf spell"
@@ -23678,6 +23687,13 @@ function applyEffectM449(s, src, eff, tgt, events) {
     case 'investigate': applyEffect(s, src, { do: 'token', amount: eff.amount == null ? 1 : eff.amount, token: PISTA_V }, tgt, events); break; // V-9 · 701.16a: pelo mesmo caminho de criar ficha (substituições de 701.7 valem)
     case 'trocar_com': s.trocaV = { fonte: src.oid, fz: encarnacaoV(s, src), ...(obj ? { oid: obj.oid, z: obj.zc || 0 } : { player: playerOf() }) }; break; // V-8 · anota o primeiro lado; `trocar` apaga
     case 'trocar': trocar(s, src, eff, tgt, events); break; // V-8 · 701.12
+    case 'anexa_a_ficha': { // M-526 · Cori-Steel Cutter: "You may attach this Equipment to it" — a ficha é a criada logo antes (o último 't' da partida)
+      const eq = src.ability ? s.objects[src.source] : s.objects[src.oid] || src, fid = eff.fichaM || ('t' + ((s.nextToken || 1) - 1)), f = s.objects[fid];
+      const zcEq = eff.zcM != null ? eff.zcM : src.ability ? src.fonteZc : null; // 400.7 · a encarnação do Equipamento quando o gatilho disparou
+      if (!eq || eq.zone !== 'battlefield' || (zcEq != null && (eq.zc || 0) !== zcEq) || !f || !f.token || f.zone !== 'battlefield' || f.controller !== ctrl || !tiposDe(s, f).includes('creature')) { note({ failed: true }); break; }
+      if (eff.optional) { s.pending = { kind: 'may_pay', p: ctrl, cost: null, name: src.name, then: { effects: [{ do: 'anexa_a_ficha', fichaM: fid, zcM: eq.zc || 0 }], source: eq.oid, name: src.name, controller: ctrl, targets: [] } }; note({ pending: true }); break; }
+      if (!anexoBarradoT(s, eq, f, events)) attachTo(s, eq, f.oid, events); note({ target: f.name }); break;
+    }
     case 'embaralhar_grimorio': { // M-339 · "You may shuffle" (Ponder): opcional vira pergunta; aceita, embaralha (701.24)
       if (eff.optional) { s.pending = { kind: 'may_pay', p: ctrl, cost: null, name: src.name, then: { effects: [{ do: 'embaralhar_grimorio' }], source: src.oid, name: src.name, controller: ctrl, targets: [] } }; note({ pending: true }); break; }
       shuffle(s, s.zones[ctrl].library); note({}); break;
@@ -24251,7 +24267,7 @@ function makeAbility(s, source, ab, targets, blockedAt = source.blocking) {
   s.objects[oid] = { oid, ability: true, name: source.name, source: source.oid, effects: ab.effects, owner: source.controller,
     controller: source.controller, zone: 'stack', tapped: false, sick: false, damage: 0, counters: {}, targets: carimbaAlvos(s, targets),
     ...(blockedAt ? { blockedAt } : {}) }; // Q11 · Tinder Wall: quem ela bloqueava, mesmo depois de sacrificada (última informação conhecida)
-  { const f = s.objects[source.oid]; if (f && !f.ability && (ab.effects || []).some(e => e && (e.ate === 'fonte-sair' || (['topo_do_dono', 'exila_da_mao', 'revela_topo_transforma', 'exile_return_transformed', 'craft_volta', 'endure', 'escolhe_nome', 'recomeca_jogo', 'marca_exiladas', 'exila_da_propria_mao', 'desenterrar' /* M-413 · 400.7: a carta que saiu do cemitério e voltou é outra */ /* T-95 · 607.2a: a encarnação da fonte (Toca ponto comum: makeAbility) */].includes(e.do) || e.remember || e.lembra || e.target === 'self-source')))) s.objects[oid].fonteZc = f.zc || 0; } // M-371 · também todo efeito em "esta permanente" (400.7) // M-353 · a habilidade lembra a encarnação da fonte (achado da revisão do lote XXV) // M-345 · também "put ~ on top" (achado da revisão) // CR2d.1 · 610.3a (auditoria M-308: também na ativada): se a fonte já saiu quando o efeito resolve, nada se move
+  { const f = s.objects[source.oid]; if (f && !f.ability && (ab.effects || []).some(e => e && (e.ate === 'fonte-sair' || (['topo_do_dono', 'exila_da_mao', 'revela_topo_transforma', 'exile_return_transformed', 'craft_volta', 'endure', 'escolhe_nome', 'recomeca_jogo', 'marca_exiladas', 'exila_da_propria_mao', 'anexa_a_ficha' /* M-526 · 400.7: o Equipamento que saiu e voltou não se anexa */, 'desenterrar' /* M-413 · 400.7: a carta que saiu do cemitério e voltou é outra */ /* T-95 · 607.2a: a encarnação da fonte (Toca ponto comum: makeAbility) */].includes(e.do) || e.remember || e.lembra || e.target === 'self-source')))) s.objects[oid].fonteZc = f.zc || 0; } // M-371 · também todo efeito em "esta permanente" (400.7) // M-353 · a habilidade lembra a encarnação da fonte (achado da revisão do lote XXV) // M-345 · também "put ~ on top" (achado da revisão) // CR2d.1 · 610.3a (auditoria M-308: também na ativada): se a fonte já saiu quando o efeito resolve, nada se move
   s.stack.push(oid);
   if (!ab.semCrimeT) crimeT(s, source.controller, s.objects[oid].targets); // T-86 · CR 700.13 · a habilidade ativada ou o gatilho posto na pilha que mira o oponente (Toca ponto comum: makeAbility, uma linha)
   return oid;
@@ -24304,6 +24320,7 @@ function matchesTriggerFilter(s, o, filter) {
   if ((filter.types || []).some(x => !tipos.includes(x))) return false;
   if (filter.anyTypes && !filter.anyTypes.some(x => tipos.includes(x))) return false; // R11 · "creature or planeswalker" (Cruel Celebrant)
   if (filter.noncreature && tipos.includes('creature')) return false;
+  if (filter.segundaMagiaDoTurno && o.ordemDaMagiaM !== 2) return false; // M-526 · "Whenever you cast your second spell each turn" (Flurry): só a segunda mágica que o jogador conjurou neste turno (cópias não são conjuradas)
   if (filter.multicolorida && colorsOf(s, o).length < 2) return false; // M-460 · 105.2b "multicolored spell"
   if (filter.anyColors && !filter.anyColors.some(c => colorsOf(s, o).includes(c))) return false; // M-395 · "a blue, black, or red spell" (God-Pharaoh's Faithful)
   if ((filter.historico != null || filter.foraDaLei != null || filter.modificada != null || filter.virada != null || filter.metamorfose != null) && !predicadosDeTipoT(s, o, filter, lki)) return false; // T-59 · CR 700.6 / 700.12 / 700.9: "whenever you cast a historic spell" · T-60 · 603.10a: quem saiu do campo, como era lá (Toca ponto comum: matchesTriggerFilter)
@@ -26163,7 +26180,7 @@ const HANDLERS = {
       moveObject(s, a.oid, 'stack');
       Object.assign(s.objects[a.oid], { controller: a.p, sneakAtaque: defender, ...(pwAtacado.pw ? { sneakPw: pwAtacado } : {}) });
       s.spellsThisTurn = (s.spellsThisTurn || 0) + 1;
-      contaMagiaK(s, a.p); // K-32 (Toca ponto comum: esgueirar-se)
+      contaMagiaK(s, a.p); if (partidaTemSurtoK(s) && s.objects[a.oid]) s.objects[a.oid].ordemDaMagiaM = magiasDoTurnoK(s, a.p); // K-32 (Toca ponto comum: esgueirar-se) · M-526: a ordem da mágica (segunda do turno)
       disparaEvento(s, 'conjurar', [s.objects[a.oid]]);
       s.turn.passes = 0;
       return;
@@ -26192,7 +26209,7 @@ const HANDLERS = {
     if (need.length) s.objects[oid].targets = carimbaAlvos(s, chosen);
     // Leva 108 · conjurar pela insanidade é conjurar: conta para tempestade, dispara "quando você conjura" e cobra ward
     s.spellsThisTurn = (s.spellsThisTurn || 0) + 1;
-    contaMagiaK(s, a.p); // K-32 (Toca ponto comum: cast_madness)
+    contaMagiaK(s, a.p); if (partidaTemSurtoK(s) && s.objects[oid]) s.objects[oid].ordemDaMagiaM = magiasDoTurnoK(s, a.p); // K-32 (Toca ponto comum: cast_madness) · M-526: a ordem da mágica (segunda do turno)
     disparaEvento(s, 'conjurar', [s.objects[oid]]);
     disparaHeroico(s, s.objects[oid]); // CR2b.8
     afterMadness(s);
@@ -33687,6 +33704,7 @@ function effectLine(ev) {
     case 'combate_extra': return ev.failed ? `${ev.name}: fora da fase principal, sem combate adicional` : `${ev.name}: depois desta fase principal vem um combate adicional e outra fase principal`; // CR2g.4
     case 'desvira_atacantes': return `${ev.name} desvirou ${n} criatura(s) que atacaram neste turno`;
     case 'animate': return `${t} virou criatura até o fim do turno`; // CR2d.2
+    case 'anexa_a_ficha': return ev.failed ? `${ev.name}: nada a anexar` : ev.pending ? `${ev.name}: anexar à ficha?` : `${ev.name} foi anexada a ${ev.target}`; // M-526
     case 'nao_bloqueia_no_turno': return ev.failed ? `${ev.name}: a criatura não estava mais no campo` : `${ev.target} não pode bloquear neste turno`; // M-460
     case 'ataca_com_defensor': return ev.failed ? `${ev.name}: a criatura não estava mais no campo` : `${ev.target || ev.name} pode atacar neste turno mesmo com defensor`; // M-458
     case 'imbloqueavel': return ev.failed ? `${ev.name}: a criatura não estava mais no campo` : `${ev.target || ev.name} não pode ser bloqueada neste turno${ev.exceto ? ', exceto por criaturas com ' + ({ haste: 'ímpeto', defender: 'defensor', flying: 'voar' }[ev.exceto] || ev.exceto) : ''}`; // M-370 (achado da revisão: o registro só dizia "resolveu")
@@ -34908,6 +34926,7 @@ function descreveEfeito(e) {
     case 'protection': return `${alvo || 'a criatura'} ganha proteção contra ${e.ouArtefatos ? 'artefatos ou uma cor' : 'uma cor'}`; // M-463
     case 'sem_alvo_de_oponentes': return `${alvo || 'a criatura'} não pode ser alvo de mágicas nem de habilidades dos oponentes de quem a conjurou neste turno`; // M-375
     case 'resistencia_cor': return `${alvo || 'a criatura'} ganha resistência a magia da cor escolhida até o fim do turno`; // M-255
+    case 'anexa_a_ficha': return 'você pode anexar este Equipamento à ficha criada'; // M-526
     case 'nao_bloqueia_no_turno': return `${alvo || 'a criatura'} não pode bloquear neste turno`; // M-460
     case 'ataca_com_defensor': return 'pode atacar neste turno mesmo com defensor'; // M-458
     case 'imbloqueavel': return `${alvo || 'a criatura'} não pode ser ${/^o /.test(alvo || '') ? 'bloqueado' : 'bloqueada'} neste turno${e.exceto ? ', exceto por criaturas com ' + (PALAVRA_PT[e.exceto] || e.exceto) : ''}`; // M-336 · M-370
