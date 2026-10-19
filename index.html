@@ -6405,6 +6405,7 @@ function validateScript(sc) {
     if (self.atacaSePuderSe != null && !(self.atacaSePuder === true && JSON.stringify(self.atacaSePuderSe) === '{"delirio":true}')) errs.push('bônus próprio: atacaSePuderSe é { delirio: true } e pede atacaSePuder'); // M-525
     if (self.entraComInstFeitDelveM != null && !(self.entraComInstFeitDelveM === true && sc.delve)) errs.push('bônus próprio: entraComInstFeitDelveM é verdadeiro e pede delve (as cartas exiladas pelo delve desta mágica)'); // M-530 · Murktide Regent
     if (self.soBloqueiaVoadorasM != null && self.soBloqueiaVoadorasM !== true) errs.push('bônus próprio: soBloqueiaVoadorasM só vale como true'); // M-531 · Brazen Borrower
+    if (self.atacaSeTem11M != null && self.atacaSeTem11M !== true) errs.push('bônus próprio: atacaSeTem11M só vale como true'); // M-532 · Lovestruck Beast
     if (self.naoBloqueiaPoderM != null && !(Number.isInteger(self.naoBloqueiaPoderM) && self.naoBloqueiaPoderM > 0)) errs.push('bônus próprio: naoBloqueiaPoderM é o poder mínimo que ela não bloqueia (inteiro positivo)'); // M-524 · Ironclaw Orcs
     if (self.reduzCor != null && !(self.reduzCor && Number.isInteger(self.reduzCor.generic) && self.reduzCor.generic > 0 && Array.isArray(self.reduzCor.cores) && self.reduzCor.cores.length && self.reduzCor.cores.every(c => 'WUBRG'.includes(c) && c.length === 1))) errs.push('bônus próprio: reduzCor pede generic inteiro positivo e cores WUBRG'); // M-352
     if (self.keywords != null && (!Array.isArray(self.keywords) || self.keywords.some(k => !KEYWORDS.includes(k)))) errs.push('bônus próprio: palavra-chave desconhecida');
@@ -10388,6 +10389,13 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   // M-531 · revisão por lote CLXIX (o leitor lê a segunda face de Aventura e de preparação: Brazen Borrower e Pompous Battlemage), textos da Scryfall de 19/10/2026 UTC, revisor independente
   'Brazen Borrower // Petty Theft': { texto: '16hj5l4', leva: 'M-531' },
   'Pompous Battlemage // Improvised Act': { texto: 's5ty5l', leva: 'M-531' },
+  // M-532 · revisão por lote CLXX (Aventuras lidas pela segunda face: Murderous Rider, Rimrock Knight, Order of Midnight, Beanstalk Giant, Lovestruck Beast, Smitten Swordmaster), textos da Scryfall de 19/10/2026 UTC, revisor independente
+  'Murderous Rider // Swift End': { texto: 'ousmm8', leva: 'M-532' },
+  'Rimrock Knight // Boulder Rush': { texto: '1w8rluu', leva: 'M-532' },
+  'Order of Midnight // Alter Fate': { texto: 'k2qvzz', leva: 'M-532' },
+  'Beanstalk Giant // Fertile Footsteps': { texto: '5jb5iw', leva: 'M-532' },
+  'Lovestruck Beast // Heart\'s Desire': { texto: '1f5cj3x', leva: 'M-532' },
+  'Smitten Swordmaster // Curry Favor': { texto: 'pevhf0', leva: 'M-532' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -19030,6 +19038,8 @@ const __m42 = (function () {
     [/^(?:you )?gain life equal to the sacrificed permanent's mana value$/i, () => [{ do: 'gain', amount: { per: 'sacrificed-mv' } }]], // M-348 · Reckoner's Bargain
     [new RegExp(`^return up to ${N} target (creature|permanent) cards? from your graveyard to your hand$`, 'i'), m => [{ do: 'to_hand', target: m[2].toLowerCase() + '-in-your-graveyard', upTo: true, targetCount: num(m[1]) }]], // M-345 · Macabre Waltz, Dutiful Return (115.1d: até N)
     [/^put (?:~|this artifact) on top of its owner's library$/i, () => [{ do: 'topo_do_dono', target: 'self-source' }]], // M-345 · Sensei's Divining Top
+    [/^put (?:it|~) on the bottom of its owner's library$/i, () => [{ do: 'mover', para: 'library', posicao: 'fundo', de: 'graveyard', target: 'self-source' }]], // M-532 · Murderous Rider ("When ~ dies": a carta no cemitério, 603.10a; se já saiu de lá, nada acontece)
+    [/^you gain x life and each opponent loses x life, where x is the number of ([a-z]+?)s you control$/i, m => { const sub = m[1][0].toUpperCase() + m[1].slice(1).toLowerCase(); return [{ do: 'gain', amount: { subtype: sub } }, { do: 'lose', amount: { subtype: sub }, target: 'each-opponent' }]; }], // M-532 · Curry Favor (Smitten Swordmaster)
     [/^search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand$/i, () => [{ do: 'search', amount: 2, filter: { basic: true, types: ['land'] }, to: 'battlefield-tapped', reparte: ['battlefield-tapped', 'hand'] }]], // M-345 · Cultivate, Kodama's Reach: uma busca de até dois; o primeiro escolhido entra virado, o segundo vai para a mão (achado da revisão: um só entra virado, 609.3)
     [new RegExp(`^~ deals ${N} damage to each of one or two targets$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'any' }, { do: 'damage', amount: num(m[1]), target: 'any', upTo: true }]], // M-345 · Storm of Steel, Prismari Charm (601.2c: alvos diferentes)
     [/^return target artifact or creature card with mana value (\d+) or less from your graveyard to the battlefield$/i, m => [{ do: 'reanimate', target: 'card-in-your-graveyard', targetTypes: ['artifact', 'creature'], targetMvMax: +m[1] }]], // M-400 · Recommission
@@ -19333,7 +19343,7 @@ const __m42 = (function () {
   /** M-394 · 201.5 · o nome impresso e "this creature/artifact/…" (redação Oracle desde 2024) valem como "~"; dentro de aspas (habilidade concedida a outro objeto) o "this …" é do outro objeto e fica. */
   const ESTE_OBJETO = /\bthis (creature|artifact|enchantment|land|permanent|vehicle|equipment|aura)\b/gi;
   const nomeCurtoRe = nome => { const n0 = String(nome || ''); const i = n0.indexOf(', ') > 2 ? n0.indexOf(', ') : n0.indexOf(' the ') /* M-480 · 201.5c também em "Arcanis the Omnipotent" → "Arcanis" */; const c = i > 2 && /\bLegendary\b/.test(tipoAtual || '') ? nome.slice(0, i) : null; return c ? new RegExp('\\b' + escapa(c) + '\\b(?!,|[\'’]s\\b| the\\b)' /* M-485 · "Tuktuk the Returned" é outro objeto */, 'g') : /(?!)/g; }; // M-444 · M-454: só na lendária (Elemental, My Dear não é) e nunca como parte do nome de outro objeto ("Koma's Coil", achados da revisão)
-  const til = (t, nome) => String(t).replace(new RegExp(escapa(nome || '\u0000'), 'g'), '~').replace(nomeCurtoRe(nome), '~') /* M-444 · 201.5c: o nome curto da lendária ("Raphael" em "Raphael, Tough Turtle") */.split('"').map((p, i) => i % 2 ? p : p.replace(ESTE_OBJETO, '~')).join('"');
+  const til = (t, nome) => String(t).replace(new RegExp(escapa(nome || '\u0000'), 'g'), '~').replace(new RegExp(escapa(String(nome || '').includes(' // ') ? String(nome).split(' // ')[0] : '\u0000'), 'g'), '~') /* M-532 · carta de duas faces ("Beanstalk Giant // Fertile Footsteps"): o texto da frente usa o nome da frente */.replace(nomeCurtoRe(nome), '~') /* M-444 · 201.5c: o nome curto da lendária ("Raphael" em "Raphael, Tough Turtle") */.split('"').map((p, i) => i % 2 ? p : p.replace(ESTE_OBJETO, '~')).join('"');
   /** Um parágrafo de efeito de mágica → { efeitos, frases }. */
   /** M-335 · orações em sequência que formam um efeito só (no começo do parágrafo): revelar a mão e escolher o descarte; olhar o topo e pegar. */
   const FILTRO_DESCARTE = { card: {} /* M-516 · Coercion: qualquer carta */, 'nonland card': { notTypes: ['land'] }, 'noncreature, nonland card': { notTypes: ['creature', 'land'] }, 'nonland, noncreature card': { notTypes: ['creature', 'land'] } };
@@ -19524,6 +19534,8 @@ const __m42 = (function () {
         if (/^~ enters with a \+1\/\+1 counter on it for each instant and sorcery card exiled with it\.?$/i.test(lp) && topo.delve) { topo.self = { ...(topo.self || {}), entraComInstFeitDelveM: true }; frases.push({ texto: linha, lida: true }); continue; } // M-530 · Murktide Regent (607.2a: as exiladas pelo delve)
         if (/^~ enters prepared\.?$/i.test(lp)) { topo.self = { ...(topo.self || {}), preparo: true, entraPreparada: true }; frases.push({ texto: linha, lida: true }); continue; } // M-531 · 722.3a (Pompous Battlemage); a mágica de preparação vem do verso
         if (/^~ can block only creatures with flying\.?$/i.test(lp)) { topo.self = { ...(topo.self || {}), soBloqueiaVoadorasM: true }; frases.push({ texto: linha, lida: true }); continue; } // M-531 · Brazen Borrower (509.1b)
+        if (/^~ can't attack unless you control a 1\/1 creature\.?$/i.test(lp)) { topo.self = { ...(topo.self || {}), atacaSeTem11M: true }; frases.push({ texto: linha, lida: true }); continue; } // M-532 · Lovestruck Beast (508.1c)
+        { const ptl = lp.match(/^~'s power and toughness are each equal to the number of lands you control\.?$/i); if (ptl) { topo.self = { ...(topo.self || {}), ptDefinido: { poder: { subtype: 'Land' }, resistencia: { subtype: 'Land' } } }; frases.push({ texto: linha, lida: true }); continue; } } // M-532 · Beanstalk Giant (604.3: vale em todas as zonas)
         { const nbp = lp.match(/^~ can't block creatures with power (\d+) or greater\.?$/i); if (nbp) { topo.self = { ...(topo.self || {}), naoBloqueiaPoderM: +nbp[1] }; frases.push({ texto: linha, lida: true }); continue; } } // M-524 · Ironclaw Orcs
         if (/^~ can't be blocked except by black creatures\.?$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'only-black' }; frases.push({ texto: linha, lida: true }); continue; } // M-516 · Prowling Nightstalker
         if (/^~ can't be blocked except by creatures with flying$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'flying-only' }; frases.push({ texto: linha, lida: true }); continue; } // LT5
@@ -21741,6 +21753,7 @@ function eligibleAttackers(s, p) {
   return battlefield(s).filter(o => o.controller === p && !ehBatalhaT(s, o) && isCreature(s, o) && !o.tapped && // T-15 · CR 508.1a: quem ataca não pode ser também batalha · Toca ponto comum: eligibleAttackers
     !o.cantAttackNext && // S61 · Cavernas Retorcidas: não pode atacar até o próximo turno de quem lançou
     !anexoProibe(s, o, 'naoAtaca') && // M-336 · Pacifism
+    !(((((s.facts[o.name] || {}).script || {}).self || {}).atacaSeTem11M && !o.faceDown && !semImpressas(s, o)) && !battlefield(s).some(x => x.controller === p && x.oid !== o.oid && isCreature(s, x) && !x.phasedOut && power(s, x) === 1 && toughness(s, x) === 1)) && // M-532 · 508.1c "can't attack unless you control a 1/1 creature" (Lovestruck Beast)
     !naoAtacaPeloMonarcaT(s, o) && // T-70 · CR 725.5 · "can't attack unless defending player is the monarch" (Toca ponto comum: eligibleAttackers)
     (!enjoado(s, o) || has(s, o, 'haste')) && (!has(s, o, 'defender') || o.atacaComDefensorM === s.turn.number /* M-458 · 702.3b */)).map(o => o.oid);
 }
@@ -22469,6 +22482,7 @@ function sacrificarJogadores(s, src, spec, quem, events, note) {
  * guarda o que exilou (para devolver ao sair). Devolve true se moveu. */
 function moverObjeto(s, src, alvo, m, ctrl) {
   if (!alvo || (m.de != null && ![].concat(m.de).includes(alvo.zone)) || (m.para === 'library' && alvo.zone === 'library')) return false;
+  if (m.de != null && m.target === 'self-source' && src.ability && src.fonteZc != null && (alvo.zc || 0) !== src.fonteZc) return false; // M-532 · 400.7 (achado da revisão: Murderous Rider que saiu do cemitério e voltou fica lá)
   if (m.lembra) { const fonte = src.ability ? s.objects[src.source] : src; if (fonte && fonte.zone === 'battlefield' && !(src.ability && src.fonteZc != null && (fonte.zc || 0) !== src.fonteZc)) fonte.holding = alvo.oid; } // M-353 · 400.7: o gatilho da encarnação antiga não liga a carta à nova (achado da revisão do lote XXV)
   if (m.ate === 'fonte-sair') { // CR2d.1 · 610.3: "até ~ sair do campo"
     const fonte = src.ability ? s.objects[src.source] : src;
