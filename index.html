@@ -6174,7 +6174,7 @@ const valueErrors = (v, label) => isCount(v) && v.per === 'soma' ? (Array.isArra
   : isCount(v) ? (v.per === 'se' && !(['metalcraft', 'cast-from-graveyard', 'kicked', 'not-cast-from-hand', 'bargained', 'threshold' /* M-412 */, 'morbid' /* M-416 */, 'landfall-turno' /* M-437 */, 'na-principal-propria' /* M-443 */, ...onlyIfT()].includes(v.se) && Number.isInteger(v.sim) && Number.isInteger(v.nao)) ? [`${label}: "se" precisa da condição (metalcraft, cast-from-graveyard, kicked, bargained, not-cast-from-hand, monarca, oponente-monarca) e dos valores sim/não`] : v.subtype || PER_COUNTS.includes(v.per) ? [] : [`${label}: contagem "${v.per}" desconhecida`]) // M-331
   : (Number.isInteger(v) ? [] : [`${label}: precisa ser inteiro ou contagem`]);
 /** S11b · evasão estática e escolhas feitas quando a permanente entra. */
-const EVASIONS = ['flying-only', 'power-less', 'three-or-more', 'not-monarch', 'unblockable', 'not-tokens' /* M-456 · "can't be blocked by tokens" (Duskwatch Hunter) */, 'only-black' /* M-516 · "can't be blocked except by black creatures" (Prowling Nightstalker, 509.1b) */]; // M-395 · "~ can't be blocked" (Blighted Agent, 509.1b) // M-391 · "can't be blocked by creatures the monarch controls" (Azure Fleet Admiral, 725) // M-349 · Troll of Khazad-dûm: "can't be blocked except by three or more creatures"
+const EVASIONS = ['flying-only', 'power-less', 'three-or-more', 'not-monarch', 'unblockable', 'not-tokens' /* M-456 · "can't be blocked by tokens" (Duskwatch Hunter) */, 'only-black' /* M-516 · "can't be blocked except by black creatures" (Prowling Nightstalker, 509.1b) */, 'flying-or-wall' /* M-524 · "can't be blocked except by Walls and/or creatures with flying" (Elven Riders, 509.1b) */]; // M-395 · "~ can't be blocked" (Blighted Agent, 509.1b) // M-391 · "can't be blocked by creatures the monarch controls" (Azure Fleet Admiral, 725) // M-349 · Troll of Khazad-dûm: "can't be blocked except by three or more creatures"
 const CHOICES = ['color'];
 const STATIC_RULES = ['flagbearer', 'exile-instead-of-graveyard', 'opponent-creatures-enter-tapped'];
 const TRIGGER_PT = { etb: 'quando entra no campo', dies: 'quando morre', upkeep: 'na sua manutenção', attacks: 'quando ataca', blocks: 'quando bloqueia',
@@ -6376,6 +6376,7 @@ function validateScript(sc) {
     if (self.reduzSeMira != null && !(self.reduzSeMira && Number.isInteger(self.reduzSeMira.generic) && self.reduzSeMira.generic > 0 && JSON.stringify(self.reduzSeMira.tipos) === '["creature"]')) errs.push('bônus próprio: reduzSeMira pede tipos [creature] e generic inteiro'); // M-259
     if (self.naoBloqueia != null && self.naoBloqueia !== true) errs.push('bônus próprio: "não bloqueia" só vale como true');
     if (self.atacaSePuder != null && self.atacaSePuder !== true) errs.push('bônus próprio: "ataca se puder" só vale como true'); // M-430
+    if (self.naoBloqueiaPoderM != null && !(Number.isInteger(self.naoBloqueiaPoderM) && self.naoBloqueiaPoderM > 0)) errs.push('bônus próprio: naoBloqueiaPoderM é o poder mínimo que ela não bloqueia (inteiro positivo)'); // M-524 · Ironclaw Orcs
     if (self.reduzCor != null && !(self.reduzCor && Number.isInteger(self.reduzCor.generic) && self.reduzCor.generic > 0 && Array.isArray(self.reduzCor.cores) && self.reduzCor.cores.length && self.reduzCor.cores.every(c => 'WUBRG'.includes(c) && c.length === 1))) errs.push('bônus próprio: reduzCor pede generic inteiro positivo e cores WUBRG'); // M-352
     if (self.keywords != null && (!Array.isArray(self.keywords) || self.keywords.some(k => !KEYWORDS.includes(k)))) errs.push('bônus próprio: palavra-chave desconhecida');
     if (self.craft != null) { const c = self.craft; // M-356 · CR 702.167a · "Craft with <materiais> <custo>"
@@ -10325,6 +10326,11 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Thrashing Brontodon': { texto: '1qo1f9q', leva: 'M-523' },
   'Rockfall Vale': { texto: '1desjvh', leva: 'M-523' },
   'Wild Cantor': { texto: '1ucfi5k', leva: 'M-523' },
+  // M-524 · revisão por lote CLXII (cartas que travam as listas do catálogo com 1 a 3 pendências; leitor ampliado na M-524), textos da Scryfall de 19/10/2026 UTC, revisor independente
+  'Terror': { texto: '6fhf8d', leva: 'M-524' },
+  'Slickshot Show-Off': { texto: 'i85gx9', leva: 'M-524' },
+  'Elven Riders': { texto: 'dgllh8', leva: 'M-524' },
+  'Ironclaw Orcs': { texto: 'd7tbar', leva: 'M-524' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18775,6 +18781,7 @@ const __m42 = (function () {
     if (k === 'target legendary creature') return { target: { tipos: ['creature'], lendaria: true } }; // M-343 · Karakas (205.4)
     if (k === 'up to one target tapped creature') return { target: 'creature', upTo: true, targetTapped: true }; // M-349 · Cryogen Relic
     if (k === 'target tapped creature') return { target: 'creature', targetTapped: true }; // M-516 · Vengeance
+    m = k.match(/^target nonartifact(?:, non(white|blue|black|red|green))? creature$/); if (m) return { target: { tipos: ['creature'], semTipos: ['artifact'] }, ...(m[1] ? { targetNotColor: CORES[m[1]] } : {}) }; // M-524 · Terror
     if (k === 'target noncreature artifact') return { target: { tipos: ['artifact'], semTipos: ['creature'] } }; // M-387 · Gorilla Shaman
     if (k === 'target creature or vehicle') return { target: { ou: [{ tipos: ['creature'] }, { subtipos: ['Vehicle'] }] } }; // M-383 · Ride's End
     if (k === 'target attacking creature') return { target: { tipos: ['creature'], atacando: true } }; // M-377 · Desert (seletor atacando, M-361)
@@ -18857,6 +18864,7 @@ const __m42 = (function () {
     [/^exile that creature$/i, () => [{ do: 'exile', target: 'first-target' }]], // M-331 · "Tap target creature. … exile that creature." (Dispatch)
     [/^destroy (target [a-z ']+)$/i, m => [com({ do: 'destroy' }, alvo(m[1]))]],
     [/^destroy (target creature, enchantment, or planeswalker)$/i, m => [com({ do: 'destroy' }, alvo(m[1]))]], // M-341 · Get Lost
+    [/^destroy (target nonartifact, non(?:white|blue|black|red|green) creature)$/i, m => [com({ do: 'destroy' }, alvo(m[1]))]], // M-524 · Terror (a vírgula ficava fora do padrão geral)
     [/^exile (target [a-z ']+) until ~ leaves the battlefield$/i, m => [com({ do: 'exile', ate: 'fonte-sair' }, alvo(m[1]))]], // CR2d.1 · 610.3
     [/^exile (target [a-z ']+)$/i, m => [com({ do: 'exile' }, alvo(m[1]))]],
     [/^counter (target [a-z ']+) unless its controller pays (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => [com({ do: 'counter', unless: { mana: m[2] } }, alvo(m[1]))]],
@@ -19057,6 +19065,7 @@ const __m42 = (function () {
     [/^kicker (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ kicker: { mana: m[1] } })], // M-337 · 702.33 (o motor reforça desde a S-série)
     [/^splice onto arcane (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ splice: { subtipo: 'Arcane', mana: m[1] } })], // M-334 · LT18 · 702.47 (o motor encaixa desde a M-273)
     [/^(?:evoke|dash|spectacle|surge) (?:\{[0-9WUBRGC]+\})+$/i, () => ({})], // (o motor lê da carta)
+    [/^plot (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ plot: { mana: m[1] } })], // M-524 · 702.170 (o motor trama desde a S53; Slickshot Show-Off)
     [/^evoke\s*[—-]\s*exile an? (?:white|blue|black|red|green) card from your hand$/i, () => ({})], // M-338 · 702.74: o motor lê o evocar de exilar da carta (K-8)
     [/^you may pay (\d+) life and exile an? (white|blue|black|red|green) card from your hand rather than pay this spell's mana cost$/i, m => ({ alt: [{ label: `Pagar ${m[1]} de vida e exilar uma carta ${COR_NOME_PT[m[2].toLowerCase()]} da mão`, cost: { life: +m[1], exileHandColor: CORES[m[2].toLowerCase()] } }] })], // M-338 · Force of Will
     [/^(if it's not your turn, )?you may exile an? (white|blue|black|red|green) card from your hand rather than pay this spell's mana cost$/i, m => ({ alt: [{ label: `Exilar uma carta ${COR_NOME_PT[m[2].toLowerCase()]} da mão${m[1] ? ' (fora do seu turno)' : ''}`, cost: { exileHandColor: CORES[m[2].toLowerCase()] }, ...(m[1] ? { when: { naoSeuTurno: true } } : {}) }] })], // M-338 · Force of Negation, Snapback, Misdirection
@@ -19417,6 +19426,8 @@ const __m42 = (function () {
         if (/^~ can't be blocked$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'unblockable' }; frases.push({ texto: linha, lida: true }); continue; } // M-395 · Blighted Agent
         if (/^~ can't be blocked by tokens\.?$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'not-tokens' }; frases.push({ texto: linha, lida: true }); continue; } // M-456 · Duskwatch Hunter (509.1b)
         if (/^~ can't be blocked by creatures the monarch controls\.?$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'not-monarch' }; frases.push({ texto: linha, lida: true }); continue; } // M-391 · Azure Fleet Admiral (725)
+        if (/^~ can't be blocked except by walls and\/or creatures with flying\.?$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'flying-or-wall' }; frases.push({ texto: linha, lida: true }); continue; } // M-524 · Elven Riders
+        { const nbp = lp.match(/^~ can't block creatures with power (\d+) or greater\.?$/i); if (nbp) { topo.self = { ...(topo.self || {}), naoBloqueiaPoderM: +nbp[1] }; frases.push({ texto: linha, lida: true }); continue; } } // M-524 · Ironclaw Orcs
         if (/^~ can't be blocked except by black creatures\.?$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'only-black' }; frases.push({ texto: linha, lida: true }); continue; } // M-516 · Prowling Nightstalker
         if (/^~ can't be blocked except by creatures with flying$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'flying-only' }; frases.push({ texto: linha, lida: true }); continue; } // LT5
         if (/^creatures with power less than ~'s power can't block it$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'power-less' }; frases.push({ texto: linha, lida: true }); continue; } // LT5
@@ -21628,6 +21639,8 @@ function eligibleBlockers(s, p) {
 const PALAVRA_PT_CORE = { haste: 'ímpeto', defender: 'defensor', flying: 'voar', reach: 'alcance' }; // M-370 · texto do motivo de bloqueio
 const TRAVESSIAS = [['islandwalk', 'Island'], ['swampwalk', 'Swamp'], ['forestwalk', 'Forest'], ['mountainwalk', 'Mountain'], ['plainswalk', 'Plains']];
 /** M-253 · "This creature can't block" (509.1a), impressa ou da ficha. */
+/** M-524 · 509.1b · "can't block creatures with power N or greater" (Ironclaw Orcs): o poder mínimo que esta criatura não bloqueia, ou null. */
+const naoBloqueiaPoderM = (s, o) => { if (o.faceDown || semImpressas(s, o)) return null; const v = ((((s.facts[o.name] || {}).script || {}).self || {}).naoBloqueiaPoderM); return v == null ? null : v; };
 const naoBloqueia = (s, o) => (o.naoBloqueiaM != null && o.naoBloqueiaM === s.turn.number) /* M-460 */ || (!o.faceDown && !semImpressas(s, o) && !!((((s.facts[o.name] || {}).script || {}).self || {}).naoBloqueia)) || anexoProibe(s, o, 'naoBloqueia') || naoBloqueiaK(s, o); // M-336 · Pacifism · K-62 · 702.98a (Toca ponto comum: naoBloqueia)
 /** M-336 · "Enchanted creature can't attack or block" / "Equipped creature can't block": o anexo proíbe (509.1b, 508.1c). */
 const anexoProibe = (s, o, k) => attachedTo(s, o).some(x => !semImpressas(s, x) && !!((concessaoVigenteT(s, x, ((s.facts[x.name] || {}).script || {}).grants) || {})[k])); // T-118 · seCriaturaT (Toca ponto comum)
@@ -21644,6 +21657,8 @@ function porQueNaoBloqueia(s, blocker, attacker) {
   if (ev === 'not-monarch' && s.monarca != null && s.monarca === b.controller) return 'criaturas do monarca não a bloqueiam'; // M-391 · 725
   if (ev === 'unblockable') return 'não pode ser bloqueada'; // M-395 · 509.1b
   if (ev === 'only-black' && !colorsOf(s, b).includes('B')) return 'só criaturas pretas a bloqueiam'; // M-516 · 509.1b (Prowling Nightstalker)
+  if (ev === 'flying-or-wall' && !has(s, b, 'flying') && !temSubtipoT(s, b, 'Wall')) return 'só Paredes e criaturas com voar a bloqueiam'; // M-524 · 509.1b (Elven Riders); metamorfo é Parede (702.73a, achado da revisão)
+  { const lim = naoBloqueiaPoderM(s, b); if (lim != null && power(s, a) >= lim) return `não bloqueia criatura com poder ${lim} ou mais`; } // M-524 · 509.1b (Ironclaw Orcs): o poder da atacante na declaração
   if (anexoProibe(s, a, 'imbloqueavel')) return 'não pode ser bloqueada'; // M-516 · "Enchanted creature … can't be blocked" (Tricks of the Trade, 509.1b)
   if (ev === 'not-tokens' && b.token) return 'fichas não a bloqueiam'; // M-456 · 509.1b (Duskwatch Hunter); 111.1: ficha é a permanente que não é carta
   // 'three-or-more' (M-349): cada bloqueador pode, mas o grupo precisa de três — conferido na declaração
