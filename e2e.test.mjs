@@ -13302,3 +13302,51 @@ test('e2e · MJ1d terrenos compactos: a fileira dos terrenos usa a carta menor d
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/mj1d-terrenos.png' });
   assert.deepEqual(errors, []);
 });
+
+// MJ1f (leva J-6, trilha jogabilidade; decisão do dono 18/10: "A") · a bandeja da mão fica por cima da mesa: presa embaixo e
+// fora do fluxo, a página reserva só a parte recolhida; abrir a mão não empurra a página nem mexe no campo, e com a mão
+// recolhida nada do campo fica escondido atrás da bandeja. Na partida da crítica (17 permanentes) a página não rola mais
+// em nenhuma das quatro medidas (era 627 px em 360×780 antes da J-2).
+test('e2e · MJ1f a mão aberta fica por cima da mesa: abrir e recolher não mexe no campo nem na altura da página, nada escondido com a mão recolhida, nas quatro medidas e nos dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start');
+  await page.fill('#mesa-seed', '4'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  await page.waitForSelector('#tb-pass');
+  await page.evaluate(() => { const M = window.__estanteMesa; const p = M.estado().turn.active;
+    for (const nm of ['Island', 'Island', 'Delver of Secrets']) { const o = Object.values(M.estado().objects).find(x => x.owner === p && x.name === nm && x.zone !== 'battlefield'); if (o) M.act({ t: 'move', p, oid: o.oid, to: 'battlefield' }); } });
+  await page.waitForSelector('.tb-side--me [data-zone="lands"] .tb-card');
+  const mede = () => page.evaluate(() => {
+    const q = s => document.querySelector(s), r = el => el.getBoundingClientRect();
+    const doca = q('#tb-dock'), corpo = q('#tb-hand-body'), eu = q('.tb-side--me');
+    return { pos: getComputedStyle(doca).position, altura: document.documentElement.scrollHeight, rola: document.documentElement.scrollHeight - innerHeight,
+      euY: Math.round(r(eu).top + scrollY), euFim: Math.round(r(eu).bottom + scrollY), docaTopo: Math.round(r(doca).top), corpoH: Math.round(r(corpo).height),
+      docaFundo: Math.round(r(doca).bottom), vh: innerHeight, aberta: q('#tb-hand-toggle').getAttribute('aria-expanded') };
+  });
+  const alterna = async aberta => { if ((await page.getAttribute('#tb-hand-toggle', 'aria-expanded')) !== String(aberta)) await page.click('#tb-hand-toggle'); await page.waitForTimeout(450); };
+  for (const [w, hgt] of [[360, 780], [384, 832], [390, 844], [412, 891]]) for (const tema of ['dark', 'light']) {
+    await page.setViewportSize({ width: w, height: hgt });
+    await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema);
+    const nome = `${w}×${hgt} ${tema}`;
+    await alterna(false);
+    const fechada = await mede();
+    assert.equal(fechada.pos, 'fixed', `${nome}: a bandeja fica presa embaixo, fora do fluxo`);
+    assert.ok(Math.abs(fechada.docaFundo - fechada.vh) <= 1, `${nome}: bandeja colada no pé da tela`);
+    // recolhida: rolando até o fim, o fim do seu lado fica acima da bandeja (nada escondido)
+    await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight)); await page.waitForTimeout(100);
+    const noFim = await page.evaluate(() => ({ fim: document.querySelector('.tb-side--me').getBoundingClientRect().bottom, doca: document.querySelector('#tb-dock').getBoundingClientRect().top }));
+    assert.ok(noFim.fim <= noFim.doca + 1, `${nome}: com a mão recolhida o seu campo termina acima da bandeja (${Math.round(noFim.fim)} × ${Math.round(noFim.doca)})`);
+    await page.evaluate(() => scrollTo(0, 0)); await page.waitForTimeout(100);
+    await auditaTela(page, `MJ1f · mão recolhida ${nome}`);
+    await alterna(true);
+    const aberta = await mede();
+    assert.equal(aberta.aberta, 'true'); assert.ok(aberta.corpoH > 60, `${nome}: a mão abriu (${aberta.corpoH} px)`);
+    assert.equal(aberta.altura, fechada.altura, `${nome}: abrir a mão não muda a altura da página`);
+    assert.equal(aberta.euY, fechada.euY, `${nome}: abrir a mão não mexe no seu campo`);
+    assert.ok(aberta.docaTopo < fechada.docaTopo - 60, `${nome}: a mão aberta sobe por cima da mesa`);
+    await auditaTela(page, `MJ1f · mão aberta ${nome}`);
+  }
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/mj1f-mao-aberta.png' });
+  assert.deepEqual(errors, []);
+});

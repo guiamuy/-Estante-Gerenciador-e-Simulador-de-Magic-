@@ -1715,6 +1715,11 @@ body:has(#outlet .ds-fab[data-acoes="1"]) #outlet { padding-bottom: calc(56px + 
    saída passa a ser o "Sair da partida" da linha de cima. O recorte da câmera, que o cabeçalho cuidava, vai para a mesa. */
 body[data-mesa-cheia="true"] .ds-appbar { display: none; }
 body[data-mesa-cheia="true"] .tb:has(.tb-dock) { min-height: 100dvh; padding-top: env(safe-area-inset-top, 0px); }
+/* MJ1f (leva J-6, decisão do dono 18/10 "A") · a bandeja da mão fica por cima da mesa: presa embaixo e fora do fluxo, a
+   página reserva só a parte recolhida (puxador e linha de ações, --doca-base); a mão aberta cobre a parte de baixo do seu
+   campo, como no Arena, e a página não rola por causa dela */
+body[data-mesa-cheia="true"] .tb:has(.tb-dock) { padding-bottom: var(--doca-base, 0px); }
+body[data-mesa-cheia="true"] .tb:has(.tb-dock) > .tb-dock { position: fixed; left: 0; right: 0; bottom: 0; margin: 0 auto; max-width: 1120px; }
 /* a linha de cima usa a borda da tela até 8 px (o tabuleiro continua com 16): sobra folga para fonte de sistema mais larga
    (a fonte do aparelho e a do CI são mais largas que a do teste local; a J-2 foi recusada pelo rótulo cortado no CI) */
 body[data-mesa-cheia="true"] .tb > .tb-top { column-gap: var(--space-1); row-gap: var(--space-1); padding: var(--space-2) var(--space-2) 0; }
@@ -1827,6 +1832,9 @@ body[data-mesa-cheia="true"] .tb-steps__list li { padding: 0 0 1px; border-botto
 /* MJ1d (leva J-5) · terrenos compactos: na fileira dos terrenos a carta usa --carta-terreno (≈ 72% da do campo); tudo o que
    se mede pela carta do campo (leque, carta virada, folga) acompanha, porque a variável é trocada só dentro da fileira */
 .tb-side [data-zone="lands"] { --carta-campo: var(--carta-terreno); }
+/* MJ1f (J-6) · as fileiras do campo com 4 px de folga em cima e embaixo (eram 8): cabe o anel de seleção (2 px + 2 px de
+   afastamento) e a mesa da crítica fecha a conta da tela em 360×780 */
+.tb-side .tb-row { padding-top: var(--space-1); padding-bottom: var(--space-1); }
 /* MJ1b · "Terrenos · N" e "Permanentes · N" saem da vista (o leitor de tela continua lendo); a zona vazia também */
 .tb-side .tb-zone__label, .tb-side .tb-zone--empty { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
@@ -1995,8 +2003,8 @@ body[data-mesa-cheia="true"] .tb-steps__list li { padding: 0 0 1px; border-botto
 .tb-dock__bar .tb-banner:has(.tb-banner__actions > :nth-child(3)) { flex-wrap: wrap; }
 .tb-dock__bar .tb-banner:has(.tb-banner__actions > :nth-child(3)) .tb-banner__actions { flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-start; }
 .tb-dock__bar .tb-banner__actions .ds-btn { padding: 0 var(--space-3); }
-.tb-dock[data-recolhida="true"] .tb-banner__text > span:not(.tb-momento):not(.tb-banner__mais) { display: none; } /* leva 110: o chip do momento fica */
-.tb-dock[data-recolhida="true"] .tb-iconbtn__rotulo { display: none; }
+.tb-dock[data-recolhida="true"]:not([data-campo="true"]) .tb-banner__text > span:not(.tb-momento):not(.tb-banner__mais) { display: none; } /* leva 110: o chip do momento fica */
+.tb-dock[data-recolhida="true"]:not([data-campo="true"]) .tb-iconbtn__rotulo { display: none; } /* MJ1f · recolhida pelo campo (ataque, bloqueio), a prévia continua escrita */
 /* Leva 110 · o momento na bandeja: ícone + palavra inteira, num chip; o texto completo abre no balão */
 .tb-dock__bar .tb-banner__text[data-compacto="true"] { flex: 0 1 auto; flex-direction: row; align-items: center; gap: var(--space-1); padding: 0 var(--space-2) 0 var(--space-3);
   border: 1px solid var(--border); border-radius: var(--radius-2); background: var(--bg-elev-2); box-shadow: var(--shadow-1); }
@@ -2957,7 +2965,10 @@ function instalaAncora(outlet) {
   const prende = e => {
     soltaAncora();
     const el = e.target && e.target.closest ? e.target.closest(CONTROLE_ANCORA) : null;
-    if (!el || !outlet.contains(el)) return;
+    // MJ1f (J-6) · controle numa camada presa à tela (a bandeja da mão) não depende da rolagem: ancorá-lo fazia a página
+    // crescer e rolar a cada abrir/recolher a mão
+    const naCamadaFixa = x => { for (let p = x; p && p !== document.body; p = p.parentElement) if (getComputedStyle(p).position === 'fixed') return true; return false; };
+    if (!el || !outlet.contains(el) || naCamadaFixa(el)) return;
     let marcado = false;
     const obs = new MutationObserver(() => { if (marcado) return; marcado = true; (typeof requestAnimationFrame === 'function' ? requestAnimationFrame : setTimeout)(() => { marcado = false; ajusta(); }); });
     ancora = { el, chave: chaveDoControle(el), topo: el.getBoundingClientRect().top, rota: location.hash, levou: false, rolou: false, obs, desde: Date.now(), sumiu: 0 };
@@ -34473,13 +34484,17 @@ function vezDaMesa(s, v, { bot = null, serie = null } = {}) {
 }
 /** U6 · a bandeja da mão: recolhida só quando a pessoa pediu e a mão não é necessária agora.
     Mulligan e descarte exigem a mão: ela abre sozinha e diz por quê. */
+// MJ1f (J-6) · com a mão aberta por cima da mesa, decisão que se toma tocando no campo (atacar, bloquear, alvo, sacrifício,
+// lendária, emparelhar) recolhe a mão enquanto dura: senão as próprias criaturas ficariam atrás dela
+const DECISAO_NO_CAMPO = ['attackers', 'blockers', 'pick_target', 'sacrifice', 'legend', 'choose_pair'];
 function bandejaDaMao(s, v, recolhida) {
   const total = (((s.zones || [])[v] || {}).hand || []).length;
   const pd = s.pending;
   const motivo = s.status === 'mulligan' ? 'mão inicial'
     : pd && pd.p === v && pd.kind === 'discard' ? 'descarte'
       : null;
-  return { aberta: !recolhida || !!motivo, forcada: !!(recolhida && motivo), motivo, total };
+  const noCampo = !motivo && !!pd && pd.p === v && DECISAO_NO_CAMPO.includes(pd.kind);
+  return { aberta: (!recolhida || !!motivo) && !noCampo, forcada: !!(recolhida && motivo), motivo, total, ...(noCampo ? { campo: true } : {}) };
 }
 /** U5 · o que faz uma permanente diferente das irmãs de mesmo nome (e por isso fica fora do leque). */
 const MODIFICADORES = ['pump', 'pumpNext', 'tempKeywords', 'keywordsNext', 'temporarios', 'copias', 'controles', // CR2d.13 · efeito com duração separa do leque
@@ -37632,22 +37647,22 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     if (statusAnterior === 'mulligan' && s.status !== 'mulligan' && maoRecolhida) { maoRecolhida = false; store.set(MAO_KEY, false).catch(() => {}); }
     statusAnterior = s.status;
     const band = T.bandejaDaMao(s, v, maoRecolhida);
-    const doca = h('div', { class: 'tb-dock', id: 'tb-dock', dataset: { recolhida: String(!band.aberta), forcada: String(band.forcada) } });
+    const doca = h('div', { class: 'tb-dock', id: 'tb-dock', dataset: { recolhida: String(!band.aberta), forcada: String(band.forcada), ...(band.campo ? { campo: 'true' } : {}) } });
     const bandeja = h('div', { class: 'tb-hand', id: 'tb-hand', 'aria-label': 'sua mão', dataset: { recolhida: String(!band.aberta), forcada: String(band.forcada) } });
-    const rotuloAria = aberta => band.forcada ? `Mão aberta para ${band.motivo} (${band.total} cartas)` : aberta ? `Recolher a mão (${band.total} cartas)` : `Mostrar a mão (${band.total} cartas)`;
+    const rotuloAria = aberta => band.forcada ? `Mão aberta para ${band.motivo} (${band.total} cartas)` : band.campo ? `Mão recolhida enquanto você escolhe no campo (${band.total} cartas)` : aberta ? `Recolher a mão (${band.total} cartas)` : `Mostrar a mão (${band.total} cartas)`;
     const aplica = aberta => {
       doca.dataset.recolhida = String(!aberta); bandeja.dataset.recolhida = String(!aberta);
       puxador.setAttribute('aria-expanded', String(aberta)); puxador.setAttribute('aria-label', rotuloAria(aberta));
     };
     const alterna = recolher => {
-      if (band.forcada) return;
+      if (band.forcada || band.campo) return;
       maoRecolhida = recolher != null ? recolher : !maoRecolhida;
       store.set(MAO_KEY, maoRecolhida).catch(() => {});
       aplica(!maoRecolhida);
       __m0.haptics.evento('toque');
     };
     const puxador = h('button', { class: 'tb-hand__toggle', id: 'tb-hand-toggle', type: 'button', 'aria-controls': 'tb-hand-body', 'aria-expanded': String(band.aberta),
-      'aria-label': rotuloAria(band.aberta), title: 'Mão', disabled: band.forcada, onClick: () => alterna() },
+      'aria-label': rotuloAria(band.aberta), title: 'Mão', disabled: band.forcada || !!band.campo, onClick: () => alterna() },
       Icone('mao', { tamanho: 22, classe: 'tb-hand__icone' }),
       h('span', { class: 'tb-hand__count' }, String(band.total)));
     const grip = h('div', { class: 'tb-dock__grip', 'aria-hidden': 'true' }, h('span', {}));
@@ -37667,6 +37682,15 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       h('div', { class: 'tb-hand__inner' }, hand.length ? h('div', { class: 'tb-row' }, ...hand) : h('span', { class: 'tb-zone__empty' }, 'mão vazia'))));
     doca.append(...[grip, decisao, barra, decisao ? null : aviso, bandeja].filter(Boolean));
     __m3.reservaDoca(doca); // o aviso flutuante (toast) sobe para ficar acima da bandeja, em vez de cobri-la
+    // MJ1f (J-6) · a página reserva só a bandeja recolhida (a doca sem o corpo da mão): a mão aberta fica por cima do campo
+    if (typeof ResizeObserver !== 'undefined') {
+      const corpo = bandeja.querySelector('.tb-hand__body');
+      const ro = new ResizeObserver(() => {
+        if (!doca.isConnected) { ro.disconnect(); return; }
+        document.documentElement.style.setProperty('--doca-base', `${Math.round(doca.getBoundingClientRect().height - (corpo ? corpo.getBoundingClientRect().height : 0))}px`);
+      });
+      ro.observe(doca);
+    }
     // arrasto na borda de cima (puxador e linha de ações): para baixo recolhe, para cima abre
     const zona = h('div', { class: 'tb-dock__zona', 'aria-hidden': 'true' });
     doca.prepend(zona);

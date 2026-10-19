@@ -21,6 +21,18 @@ test('U6 · mão inicial e descarte abrem sozinhos e dizem por quê', () => {
   assert.equal(T.bandejaDaMao(descarte, 0, false).forcada, false, 'aberta por escolha não conta como forçada');
 });
 
+// MJ1f (J-6) · a mão aberta fica por cima da mesa: decisão tomada no campo recolhe a mão enquanto dura
+test('MJ1f · atacar, bloquear, alvo, sacrifício, lendária e emparelhar recolhem a mão aberta; mão inicial e descarte continuam abrindo', () => {
+  for (const kind of ['attackers', 'blockers', 'pick_target', 'sacrifice', 'legend', 'choose_pair']) {
+    const b = T.bandejaDaMao(mesa({ pending: { kind, p: 0 } }), 0, false);
+    assert.equal(b.aberta, false, `${kind}: a mão sai da frente do campo`); assert.equal(b.campo, true); assert.equal(b.forcada, false);
+  }
+  assert.equal(T.bandejaDaMao(mesa({ pending: { kind: 'attackers', p: 1 } }), 0, false).aberta, true, 'a decisão do outro não recolhe a minha mão');
+  assert.equal(T.bandejaDaMao(mesa({ pending: { kind: 'may_pay', p: 0 } }), 0, false).aberta, true, 'decisão fora do campo mantém a mão');
+  assert.equal(T.bandejaDaMao(mesa({ pending: { kind: 'discard', p: 0, n: 1 } }), 0, false).aberta, true, 'descarte precisa da mão');
+  assert.equal('campo' in T.bandejaDaMao(mesa(), 0, false), false, 'sem decisão no campo, sem a marca');
+});
+
 test('U6 · mesa sem zonas não quebra', () => {
   assert.equal(T.bandejaDaMao({ zones: [] }, 0, true).total, 0);
 });

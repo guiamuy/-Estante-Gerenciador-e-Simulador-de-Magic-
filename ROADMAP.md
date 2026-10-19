@@ -593,7 +593,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-rw | BI2-2b uso agregado opt-in (coleção, listas, scanner) com consentimento na tela "O que sai do aparelho" | BI | 2 | 16º-rv; `mtg-security-architect` |
 | 16º-rx | BI2-4 negócio: doações por plataforma (manual ou API com token) × custo mensal | BI | 2 | MON1 com dados reais |
 | 16º-ja ✅ | MJ · roadmap da mesa de patamar (leva J-1, 17/10): crítica medida da mesa em 360×780 e histórias MJ1–MJ12 | MJ | 1 | — |
-| 16º-jb 🟡 | MJ1 a mesa numa tela só (MJ1a partida em tela cheia na leva J-2; MJ1b faixa compacta por lado na J-3; MJ1c pilha e resumo por cima na J-4; MJ1d terrenos compactos na J-5): os dois campos visíveis sem rolar, em fatias (cabeçalho do app fora da partida, topo numa linha, faixa compacta por lado, terrenos compactos, pilha e resumo fora do fluxo, tabuleiro com a altura da tela) | MJ | 3–4 | 16º-ja; T-130 publicada (mesma região) |
+| 16º-jb 🟡 | MJ1 a mesa numa tela só (MJ1a partida em tela cheia na leva J-2; MJ1b faixa compacta por lado na J-3; MJ1c pilha e resumo por cima na J-4; MJ1d terrenos compactos na J-5; MJ1f mão por cima da mesa na J-6): os dois campos visíveis sem rolar, em fatias (cabeçalho do app fora da partida, topo numa linha, faixa compacta por lado, terrenos compactos, pilha e resumo fora do fluxo, tabuleiro com a altura da tela) | MJ | 3–4 | 16º-ja; T-130 publicada (mesma região) |
 | 16º-jc | MJ2 avisos fora do campo: o aviso flutuante não cobre cartas nem a mão | MJ | 1 | 16º-jb |
 | 16º-jd | MJ3 identidade por `oid` e continuidade (FLIP) entre mão, pilha, campo, cemitério e exílio | MJ | 2 | 16º-jb; `mtg-scale-architect` (quadros) |
 | 16º-je | MJ4 combate desenhado: setas de ataque e bloqueio com a prévia junto da seta | MJ | 2 | 16º-jd |
@@ -10184,7 +10184,7 @@ bandeja que segue o dedo, som e efeitos da G4/G5.
 **Ordem:** valor percebido no celular ÷ custo em levas. MJ1 vem primeiro porque tudo o que vem depois (setas de
 combate, continuidade, mirar) só faz sentido com os dois campos na mesma tela. **Total estimado: 16 a 20 levas.**
 
-**MJ1 · A mesa numa tela só** 🟡 (5–6 levas, em fatias; MJ1a na leva J-2, MJ1b na J-3, MJ1c na J-4, MJ1d na J-5)
+**MJ1 · A mesa numa tela só** 🟡 (6 levas, em fatias; MJ1a na leva J-2, MJ1b na J-3, MJ1c na J-4, MJ1d na J-5, MJ1f na J-6; falta a MJ1e)
 - **Valor:** os dois campos, a vida dos dois e a sua mão cabem na tela sem rolar, como no Arena.
 - **Aceite:** em 360×780, partida com 17 permanentes (a mesma semente da crítica): rolagem vertical da página 0; os dois
   lados visíveis ao mesmo tempo; pilha e resumo não mudam a posição de nenhuma carta; alvos de 44 px; nenhuma
@@ -10238,8 +10238,26 @@ combate, continuidade, mirar) só faz sentido com os dois campos na mesma tela. 
     390: 214 → 147; 412: 226 → 153). **Testes:** e2e "MJ1d" (terreno no tamanho do token e criatura no do campo nas
     quatro medidas, fileira dos terrenos ≥ 20 px mais baixa, `auditaTela` nos dois temas). **Fora:** a rolagem 0 — com a
     mão aberta a bandeja mede 213 px em 360×780 e sozinha é maior que o que falta; vira a MJ1f.
-  - **MJ1f · A mesa numa tela só** ○ — rolagem vertical 0 com 17 permanentes em 360×780. Depende de como a bandeja da mão
-    convive com a mesa (decisão do dono): com a mão recolhida (69 px) a mesa da crítica já fica a ~23 px de caber.
+  - **MJ1f · A mesa numa tela só** ✅ (leva J-6; decisão do dono 18/10: "A") — a bandeja da mão fica presa ao pé da tela,
+    fora do fluxo da página; a página reserva só a parte recolhida (puxador e linha de ações, `--doca-base`, medida pela
+    própria bandeja); a mão aberta cobre a parte de baixo do seu campo, como no Arena, e abrir ou recolher não mexe no
+    campo nem na altura da página. Enquanto você decide tocando no campo (atacar, bloquear, alvo, sacrifício, lendária,
+    emparelhar) a mão recolhe sozinha e o botão da mão fica parado ("Mão recolhida enquanto você escolhe no campo"); a
+    escolha de deixar a mão aberta volta quando a decisão acaba; nesse caso a linha de ações continua com a prévia escrita
+    ("Se ninguém bloquear: …"). As fileiras do campo passaram a ter 4 px de folga em cima
+    e embaixo (eram 8).
+    **Medida** (a partida da crítica, 17 permanentes, mão aberta): a página **não rola** em 360×780, 384×832, 390×844 e
+    412×891 (era 167 px depois da J-5 e 627 antes da J-2); cada lado mede 300 px em 360×780 (era ~437 o do oponente).
+    **Correção no caminho:** a âncora de toque (I7) prendia o botão da mão, que agora está numa camada presa à tela: a
+    cada abrir e recolher a página crescia e rolava; controle dentro de camada `position: fixed` deixou de ser ancorado.
+    E o portão de tela pegou o atacante atrás da mão aberta (e2e E50: a Sky Pike não dava para tocar ao declarar ataque):
+    daí a mão recolher sozinha nas decisões tomadas no campo. Na segunda volta, M7 e A6 pegaram a prévia do ataque e do
+    bloqueio escondida pela bandeja recolhida: recolhida pelo campo, a bandeja mantém o texto.
+    **Testes:** unidade "MJ1f" em `bandeja.unit` (as seis decisões no campo recolhem a mão; a do outro, decisão fora do
+    campo e descarte não); e2e "MJ1f" (bandeja `fixed` colada no pé da tela; com a mão recolhida o fim do seu lado fica acima da
+    bandeja; abrir a mão não muda a altura da página nem a posição do seu campo e a bandeja sobe ≥ 60 px; `auditaTela`
+    com a mão aberta e recolhida, nas quatro medidas e nos dois temas). **Fora:** com mais permanentes que a crítica a
+    página ainda rola, e o que está atrás da mão aberta só aparece ao recolher a mão.
 - **Testes:** e2e "MJ1" com a medida (rolagem 0, topo do meu campo dentro da tela, distância entre os dois lados),
   `auditaTela` nas quatro medidas e nos dois temas, capturas antes e depois; os e2e da mesa que leem posição ajustados
   com justificativa.
