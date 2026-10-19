@@ -10344,6 +10344,11 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Monk of the Open Hand': { texto: '9gy84u', leva: 'M-526' },
   'Jori En, Ruin Diver': { texto: 'b7tovl', leva: 'M-526' },
   'Clarion Spirit': { texto: 'rakkv9', leva: 'M-526' },
+  // M-527 · revisão por lote CLXV (gatilho modal “choose one —” em permanente; leitor ampliado na M-527), textos da Scryfall de 19/10/2026 UTC, revisor independente
+  'Archive Arbiter': { texto: 'ajxpj1', leva: 'M-527' },
+  'Cosmogrand Zenith': { texto: '131rq3f', leva: 'M-527' },
+  'Plundering Barbarian': { texto: '1w6y1f7', leva: 'M-527' },
+  'Knight of Autumn': { texto: '15m7xgw', leva: 'M-527' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18795,6 +18800,7 @@ const __m42 = (function () {
     if (k === 'up to one target tapped creature') return { target: 'creature', upTo: true, targetTapped: true }; // M-349 · Cryogen Relic
     if (k === 'target tapped creature') return { target: 'creature', targetTapped: true }; // M-516 · Vengeance
     m = k.match(/^target nonartifact(?:, non(white|blue|black|red|green))? creature$/); if (m) return { target: { tipos: ['creature'], semTipos: ['artifact'] }, ...(m[1] ? { targetNotColor: CORES[m[1]] } : {}) }; // M-524 · Terror
+    if (k === 'target noncreature, nonland permanent') return { target: { semTipos: ['creature', 'land'] } }; // M-527 · Archive Arbiter (seletor de permanente)
     if (k === 'target noncreature artifact') return { target: { tipos: ['artifact'], semTipos: ['creature'] } }; // M-387 · Gorilla Shaman
     if (k === 'target creature or vehicle') return { target: { ou: [{ tipos: ['creature'] }, { subtipos: ['Vehicle'] }] } }; // M-383 · Ride's End
     if (k === 'target attacking creature') return { target: { tipos: ['creature'], atacando: true } }; // M-377 · Desert (seletor atacando, M-361)
@@ -18887,6 +18893,8 @@ const __m42 = (function () {
     [/^~ deals damage to (target creature|any target) equal to the number of (plains|islands|swamps|mountains|forests) you control$/i, m => { const a = alvo(m[1]); return a ? [{ do: 'damage', amount: { per: m[2].toLowerCase() + '-you-control' }, ...a }] : null; }], // M-516 · Spitting Earth (contagem na resolução, 608.2h)
     [/^destroy all (creatures|lands|artifacts|enchantments)$/i, m => [{ do: 'destroy_all', types: [{ creatures: 'creature', lands: 'land', artifacts: 'artifact', enchantments: 'enchantment' }[m[1].toLowerCase()]] }]], // M-518 · Armageddon (701.8; indestrutível fica)
     [/^you may attach (?:this equipment|~) to it$/i, () => [{ do: 'anexa_a_ficha', optional: true }]], // M-526 · Cori-Steel Cutter (301.5: anexar o Equipamento por efeito)
+    [/^put an? \+1\/\+1 counter on each creature you control$/i, () => [{ do: 'counters', amount: 1, cada: { tipos: ['creature'], de: 'you' } }]], // M-527 · Cosmogrand Zenith (122.1)
+    [/^destroy (target noncreature, nonland permanent)$/i, m => [com({ do: 'destroy' }, alvo(m[1]))]], // M-527 · Archive Arbiter
     [/^its owner gains (\d+) life$/i, m => [{ do: 'gain', amount: +m[1], target: 'target-owner' }]], // M-518 · Path of Peace (o dono do alvo anterior)
     [/^you gain 1 life for each attacking creature$/i, () => [{ do: 'gain', amount: { per: 'attacking-creatures' } }]], // M-423 · Respite (506.4)
     [/^you gain (\d+) life for each creature card in your graveyard$/i, m => { const k = +m[1]; return k > 0 ? [{ do: 'gain', amount: k === 1 ? { per: 'creature-cards-in-your-graveyard' } : { per: 'creature-cards-in-your-graveyard', times: k } }] : null; }], // M-513 · Gnaw to the Bone (contagem na resolução, 608.2h)
@@ -19394,6 +19402,7 @@ const __m42 = (function () {
     const frases = [], efeitos = [], topo = {};
     const magica = /\b(Instant|Sorcery)\b/.test(tipo);
     let modos = null; const coresVida = []; // M-342
+    let gatModos = null; // M-527 · gatilho modal de permanente: o gatilho aberto e os modos lidos das linhas "•"
     for (const linha of linhas) {
       if (linha === '//') { frases.push({ texto: linha, lida: false, motivo: 'segunda face (aventura, dupla face): o leitor ainda não lê' }); break; } // M-322
       if (linhaDePalavras(linha)) { frases.push({ texto: linha, lida: true, palavras: true }); continue; }
@@ -19412,6 +19421,9 @@ const __m42 = (function () {
       { const rp = linha.replace(/\.$/, '').match(/^(?:domain — )?this spell costs \{(\d+)\} less to cast for each (.+)$/i), per = rp && REDUZ_POR_TEXTO[rp[2].toLowerCase()]; // M-333 · 601.2f
         if (per) { topo.reduzPor = { generic: +rp[1], per }; frases.push({ texto: linha, lida: true }); continue; } }
       if (kc0) { Object.assign(topo, kc0); frases.push({ texto: linha, lida: true }); continue; }
+      if (!magica && gatModos) { const bp = linha.match(/^•\s*(.+)$/); // M-527 · os modos do gatilho modal
+        if (bp) { const semNome = bp[1].replace(/^[A-Z][A-Za-z'’ ,-]{1,40} — (?=[A-Z])/, ''); const sub = [], e = leParagrafo(semNome, nome, sub); frases.push(...sub); if (e && e.length) gatModos.modes.push({ label: bp[1].replace(/\.$/, ''), effects: e }); else gatModos.falhou = true; continue; }
+        gatModos = null; }
       if (!magica) { // LT3 · permanentes
         const lp = til(linha.replace(/\.$/, ''), nome).replace(/^(whenever you cast an? )((?:white|blue|black|red|green)(?:, (?:white|blue|black|red|green))*),? or (white|blue|black|red|green) spell/i, (m0, a, b, c) => a + b.split(', ').join('-') + '-' + c + ' spell'); /* M-395 · "a blue, black, or red spell": as vírgulas da lista de cores não separam gatilho e efeito */ // LT6 · o nome impresso vale como "~" · M-394: "this creature/artifact/…" também
 
@@ -19500,6 +19512,9 @@ const __m42 = (function () {
         if (egf) { topo.entersTappedUnless = { minOutrosDoSubtipo: [/^plains$/i.test(egf[2]) ? 'Plains' : egf[2].replace(/s$/, ''), num(egf[1])] }; /* M-395 · o singular de "Plains" é "Plains" (Idyllic Grange: antes virava "Plain" e nunca contava) */ frases.push({ texto: linha, lida: true }); continue; }
         const ed = lp.match(/^when ~ enters(?: the battlefield)? or is put into a graveyard from the battlefield, (.+)$/i); // LT11 · entra ou morre: dois gatilhos com o mesmo efeito
         if (ed) { const g1 = leGatilho(`When ~ enters, ${ed[1]}`, nome, frases), g2 = leGatilho(`When ~ dies, ${ed[1]}`, nome, []); if (g1 && g2) (topo.abilities = topo.abilities || []).push(g1, g2); continue; }
+        { const gmd = lp.match(/^(.+?), choose one\s*—$/i); // M-527 · "Whenever …, choose one —" (Territorial Kavu, Archive Arbiter, Cosmogrand Zenith)
+          if (gmd && GATILHOS.some(([re]) => re.test(gmd[1].split(', ')[0]))) { const g = leGatilho(`${gmd[1]}, draw a card`, nome, []);
+            if (g && Array.isArray(g.effects) && g.effects.length === 1 && g.effects[0].do === 'draw') { delete g.effects; g.modes = []; (topo.abilities = topo.abilities || []).push(g); gatModos = g; frases.push({ texto: linha, lida: true }); continue; } } }
         if (GATILHOS.some(([re]) => re.test(lp.split(', ')[0]))) { const g = leGatilho(lp, nome, frases); if (g) (topo.abilities = topo.abilities || []).push(g); continue; } // gatilho (as frases do corpo já ficaram anotadas)
         if (/^(\{[^}]+\}|Sacrifice |Discard a card|Discard your hand|Exile ~ from your hand|Remove an? [a-z]+ counter from ~|Put an? [+-]\d\/[+-]\d counter on ~)/.test(lp) && lp.includes(': ')) { const a = leAtivada(lp, nome, frases); if (a) (topo.abilities = topo.abilities || []).push(a); continue; } // LT4 · ativada
         const qg = lp.match(/^(?:enchanted|equipped) creature (?:gets ([+-]\d+)\/([+-]\d+) and )?has "(.+?)\.?"$/i); // M-519 · "Enchanted creature gets +2/+0 and has 'When this creature dies, draw a card.'" (Infernal Scarring)
@@ -19549,6 +19564,8 @@ const __m42 = (function () {
       const abX = (topo.abilities || []).some(a => usaX(a.effects) && !(a.kind === 'activated' && /\{X\}/.test((a.cost || {}).mana || '')));
       if ((xMagica && !(magica && temX)) || abX) frases.push({ texto: 'X sem {X} no custo', lida: false, motivo: 'o X precisa vir do custo pago (107.3), M-343' }); }
     if (topo.custoAlvoExtraL != null) { const d = efeitos.find(e => e && e.dividido && e.dividido.igual); if (d) d.dividido.custoAlvoExtra = topo.custoAlvoExtraL; else frases.push({ texto: 'custo a mais por alvo', lida: false, motivo: 'só com dano dividido igualmente (M-408)' }); delete topo.custoAlvoExtraL; } // M-408 · Fireball
+    for (const ab of topo.abilities || []) if (ab && ab.modes && ab.kind === 'triggered' && (ab.modes.length < 2 || ab.falhou)) { frases.push({ texto: 'gatilho modal', lida: false, motivo: 'algum modo sem padrão conhecido (M-527)' }); } // M-527
+    for (const ab of topo.abilities || []) if (ab && ab.falhou) delete ab.falhou;
     const lidas = frases.every(f => f.lida) && (!modos || (modos.length >= 2 && modos.every(Boolean)));
     let script = null;
     if (modos && modos.length && !efeitos.length) script = { name: nome, modes: modos.filter(Boolean), ...topo };

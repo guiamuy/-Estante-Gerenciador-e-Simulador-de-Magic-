@@ -5159,6 +5159,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** "Whenever an opponent casts their second spell each turn" (Monologue Tax, Mangara) e "a player casts" não entram nesta leva. Palavras-chave (Flurry, Equip) só pelo campo `keywords` da Scryfall (M-496).
 - **Teste:** `lt208.unit` (6 testes; falham no motor anterior — os dois últimos são os achados da revisão).
 
+**M-527 · LT189 · revisão por lote CLXV: gatilho modal em permanente ("When/Whenever …, choose one —")** ✅ (leva M-527, motor v112 sem mudança de forma; goldens intactos; só leitor)
+- **Valor:** passam a jogar Archive Arbiter (8 listas do catálogo), Cosmogrand Zenith (5), Plundering Barbarian (3) e Knight of Autumn (3). Textos da Scryfall consultados em 19/10/2026.
+- **Regra:** o motor executa modos em gatilho desde a Shambling Ghast (quem controla escolhe ao pôr na pilha, 700.2a); faltava o leitor. Agora ele lê a abertura do gatilho seguida de "choose one —" e cada linha "•" como um modo (o nome do modo, "Smash the Chest —", fica no rótulo e sai do efeito); gatilho com modo não lido não é aprovado. Frases novas: "Put a +1/+1 counter on each creature you control" e alvo "target noncreature, nonland permanent".
+- **Revisão independente:** revisor independente (junto com a M-526): o modo é escolhido ao pôr na pilha; modo sem alvo legal não é oferecido (Archive Arbiter só com criaturas e terrenos oferece só a vida); "noncreature, nonland" deixa fora artefato criatura, criaturas e terrenos; Cosmogrand dá +1/+1 só às suas; Shambling Ghast (script à mão) não mudou; concordância verde. Nenhuma divergência.
+- **Fora (declarado):** o rótulo do modo lido sai em inglês, como já acontecia nas mágicas modais lidas; "choose one or more"/"choose two" em gatilho e as aberturas "becomes tapped", "attacks or blocks" não entram. Das 155 permanentes com gatilho modal, as outras ainda esbarram em frases de modo sem padrão.
+- **Teste:** `lt209.unit` (4 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
