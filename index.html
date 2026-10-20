@@ -479,6 +479,8 @@ a { color: var(--accent); }
 .tb-fx-vinheta[data-tom="acento"] { background: var(--accent-soft); }
 /* a foto da carta que saiu da mesa */
 .tb-fx-fantasma { position: fixed; margin: 0; pointer-events: none; animation-fill-mode: both; animation-delay: var(--fx-atraso, 0s); }
+/* MJ3a · foto da carta que chega ao campo voando de onde estava (a animação é posta pelo script, só com transform) */
+.tb-voo { position: fixed; margin: 0; pointer-events: none; z-index: 1; transform-origin: center; will-change: transform; }
 .tb-fx-fantasma--morre { animation: tb-fx-morre var(--dur-fx) var(--ease-in-out) var(--fx-atraso, 0s) both; }
 .tb-fx-fantasma--exila { animation: tb-fx-exila var(--dur-4) var(--ease-out) var(--fx-atraso, 0s) both; }
 .tb-fx-fantasma--devolve { animation: tb-fx-devolve var(--dur-4) var(--ease-in-out) var(--fx-atraso, 0s) both; }
@@ -33535,7 +33537,8 @@ function TableCard(card, opts = {}) {
     class: ['tb-card', opts.size ? `tb-card--${opts.size}` : '', opts.entrou ? 'tb-card--entrou' : ''].filter(Boolean).join(' '), type: 'button',
     'aria-label': fala,
     dataset: { tapped: String(tapped), sick: String(sick), selected: String(!!opts.selected), eligible: String(!!opts.eligible), oid: card.oid || '', ...(card.attachedTo && card.zone === 'battlefield' ? { anexo: 'true' } : {}),
-      estado: est && est.anel ? est.anel : '', ...(opts.pilha ? { pilhaTotal: String(opts.pilha.total), pilhaViradas: String(opts.pilha.viradas) } : {}) },
+      estado: est && est.anel ? est.anel : '', ...(opts.pilha ? { pilhaTotal: String(opts.pilha.total), pilhaViradas: String(opts.pilha.viradas) } : {}),
+      ...(opts.pilha && opts.pilha.oids && opts.pilha.oids.length > 1 ? { oids: opts.pilha.oids.join(' ') } : {}) }, // MJ3a · quem chega a um leque acha o grupo
     onClick: opts.onClick
   },
   h('span', { class: 'tb-card__face' + (opts.verso ? ' tb-card__face--verso' : '') },
@@ -35607,6 +35610,24 @@ function planoDeEfeitos(eventos, { espectador = null, max = 16, passo = 60 } = {
   }
   return out.slice(0, max);
 }
+/* ---------------- MJ3a · a carta que chega ao campo voa de onde estava ----------------
+   A mesa é redesenhada inteira a cada jogada: a caixa de cada carta é medida antes e depois, e a carta que chegou ao campo
+   começa no lugar de onde veio (a mão, pelo mesmo oid; ou a faixa da pilha, quando resolve) e desliza até o lugar novo.
+   Puro: recebe caixas medidas ({ x, y, w, h }) e devolve o deslocamento e a escala de partida de cada voo. */
+function planoDeVoo({ antes = {}, pilha = null, chegaram = [] } = {}, { max = 8, minimo = 4 } = {}) {
+  const out = [], ok = c => !!c && c.w > 0 && c.h > 0, centro = c => [c.x + c.w / 2, c.y + c.h / 2];
+  for (const { oid, caixa, sozinha = true } of chegaram) {
+    if (out.length >= max || !ok(caixa)) continue;
+    const k = String(oid), daMao = ok(antes[k]) ? antes[k] : null, daPilha = !daMao && pilha && ok(pilha.caixa) && (pilha.oids || []).map(String).includes(k) ? pilha.caixa : null;
+    const de = daMao || daPilha; if (!de) continue;
+    const [x0, y0] = centro(de), [x1, y1] = centro(caixa), dx = Math.round(x0 - x1), dy = Math.round(y0 - y1);
+    if (Math.hypot(dx, dy) < minimo) continue;
+    // da mão a carta muda de tamanho mantendo a proporção; da faixa da pilha (larga e baixa) ela nasce do tamanho da altura da faixa
+    const escala = Math.round(Math.min(daMao ? de.w / caixa.w : de.h / caixa.h, 2) * 1000) / 1000;
+    out.push({ oid: k, origem: daMao ? 'mao' : 'pilha', dx, dy, escala, esconde: !!sozinha });
+  }
+  return out;
+}
 /* ---------------- H5 · roteiro da jogada ----------------
    Uma jogada sua pode disparar o turno inteiro do oponente. Dos passos guardados pelo modelo da mesa, este roteiro tira os
    QUADROS que valem ser vistos, em ordem: a sua jogada, cada jogada do oponente e cada passo em que algo aconteceu na mesa
@@ -35709,7 +35730,7 @@ function createSom({ store = null, criaContexto = null } = {}) {
     get tocados() { return tocados.slice(); }
   };
 }
-return { eventosSensoriais, planoDeSom, planoDeEfeitos, roteiroDaJogada, createSom, limpaPrefs, duracaoDe, RECEITAS, NOMES, ORDEM, SOM_DO_TIPO, CHAVE, GLOBAL_A_PARTIR_DE };
+return { eventosSensoriais, planoDeSom, planoDeEfeitos, planoDeVoo, roteiroDaJogada, createSom, limpaPrefs, duracaoDe, RECEITAS, NOMES, ORDEM, SOM_DO_TIPO, CHAVE, GLOBAL_A_PARTIR_DE };
 })();
 
 /* ==== src/app/table.js ==== */
@@ -36181,6 +36202,47 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     }
     const pilha = root.querySelector('#tb-stack');
     return { plano, fantasmas, parado, rPilha: pilha ? pilha.getBoundingClientRect() : null };
+  }
+  /* ---- MJ3a (J-9) · a carta que chega ao campo voa de onde estava: a mão (mesmo oid) ou a faixa da pilha ao resolver.
+     Como a mesa é redesenhada inteira, quem voa é uma foto da carta nova na camada de efeitos, por cima de tudo; a carta
+     de verdade espera invisível e aparece quando a foto pousa. O próximo toque na mesa conclui todos os voos na hora. ---- */
+  const voos = [];
+  const concluiVoos = () => { for (const a of voos.slice()) { try { a.finish(); } catch (e) { /* já acabou */ } } };
+  root.addEventListener('pointerdown', concluiVoos, { capture: true, passive: true });
+  const caixaDe = el => { const r = el.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; };
+  function medeVoo() {
+    if (semSentidos || !estadoOuvido || menosMovimento()) return null; // abrir, desfazer e movimento reduzido: nada voa
+    const antes = {};
+    for (const el of root.querySelectorAll('#tb-hand .tb-card[data-oid]')) { const c = caixaDe(el); if (c.w && c.h) antes[el.dataset.oid] = c; }
+    const faixa = root.querySelector('#tb-stack-btn');
+    return { antes, pilha: faixa ? { caixa: caixaDe(faixa), oids: (estadoOuvido.stack || []).map(String) } : null, campo: new Set([...vistos].map(String)) };
+  }
+  function voa(m, s) {
+    if (!m) return;
+    const chegaram = [];
+    for (const z of s.zones) for (const oid of z.battlefield) {
+      const k = String(oid); if (m.campo.has(k)) continue;
+      const el = root.querySelector(`.tb-side .tb-card[data-oid="${k}"]`) || root.querySelector(`.tb-side .tb-card[data-oids~="${k}"]`);
+      if (el) chegaram.push({ oid: k, caixa: caixaDe(el), sozinha: el.dataset.oid === k && !el.dataset.oids, el });
+    }
+    const plano = __m33.planoDeVoo({ antes: m.antes, pilha: m.pilha, chegaram });
+    root.dataset.voos = plano.map(p => `${p.origem}:${p.oid}`).join(' ');
+    if (!plano.length) return;
+    const dur = durFx('--dur-3'), ease = getComputedStyle(document.documentElement).getPropertyValue('--ease-out').trim() || 'ease-out';
+    for (const p of plano) {
+      const alvo = chegaram.find(c => c.oid === p.oid), c = alvo.caixa, foto = alvo.el.cloneNode(true);
+      foto.removeAttribute('id'); foto.disabled = true; foto.tabIndex = -1;
+      foto.classList.remove('tb-card--entrou'); foto.classList.add('tb-voo'); foto.dataset.voo = p.oid;
+      for (const x of foto.querySelectorAll('.tb-pill--qtd')) x.remove(); // a foto é uma carta só, não o grupo
+      Object.assign(foto.style, { left: `${c.x}px`, top: `${c.y}px`, width: `${c.w}px`, height: `${c.h}px` });
+      camadaFx().appendChild(foto);
+      if (p.esconde) alvo.el.style.opacity = '0';
+      const a = foto.animate([{ transform: `translate(${p.dx}px, ${p.dy}px) scale(${p.escala})` }, { transform: 'none' }], { duration: dur, easing: ease });
+      voos.push(a);
+      const fim = () => { const i = voos.indexOf(a); if (i >= 0) voos.splice(i, 1); foto.remove(); alvo.el.style.opacity = '';
+        const camada = document.getElementById('tb-fx'); if (camada && !camada.childElementCount) camada.remove(); };
+      a.onfinish = fim; a.oncancel = fim;
+    }
   }
   function aplicaEfeitos({ plano, fantasmas, parado, rPilha }, s, v) {
     const feitos = [], curto = durFx('--dur-fx-curto'), medio = durFx('--dur-fx'), longo = durFx('--dur-fx-longo');
@@ -37889,6 +37951,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const v = table.viewer();
     const fileiras = guardaFileiras();
     if (s.status === 'over') fechaJogoDaSerie(s); // antes de desenhar o placar
+    concluiVoos(); const voo = medeVoo(); // MJ3a · antes de ouvir (que troca o estado anterior) e de redesenhar
     const sentidos = ouve(s, v); // G4
     const cena = sentidos.length ? preparaEfeitos(sentidos, v) : null; // G5 · antes de redesenhar
     // A9 · hot-seat: quem recebe o aparelho confirma antes de ver a mão
@@ -37947,6 +38010,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     devolveFileiras(fileiras); mostraNovidade(s, v); // J2
     simbolizar(root); // U3 · custos, habilidades e textos da mesa em símbolos
     if (sinc) pintaChat(); // leva 137 · selo de mensagens novas
+    voa(voo, s); // MJ3a · antes de marcar o campo como visto
     // A13 · o que está no campo agora já foi visto: a próxima pintura só anima quem entrar
     vistos = new Set(s.zones.flatMap(z => z.battlefield));
     if (cena) aplicaEfeitos(cena, s, v); // G5 · por cima do desenho novo

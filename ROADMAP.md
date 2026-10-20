@@ -595,7 +595,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ja ✅ | MJ · roadmap da mesa de patamar (leva J-1, 17/10): crítica medida da mesa em 360×780 e histórias MJ1–MJ12 | MJ | 1 | — |
 | 16º-jb ✅ | MJ1 a mesa numa tela só (MJ1a partida em tela cheia na leva J-2; MJ1b faixa compacta por lado na J-3; MJ1c pilha e resumo por cima na J-4; MJ1d terrenos compactos na J-5; MJ1f mão por cima da mesa na J-6; MJ1e Conversa no selo da faixa de vez na J-7): os dois campos visíveis sem rolar, em fatias (cabeçalho do app fora da partida, topo numa linha, faixa compacta por lado, terrenos compactos, pilha e resumo fora do fluxo, tabuleiro com a altura da tela) | MJ | 3–4 | 16º-ja; T-130 publicada (mesma região) |
 | 16º-jc ✅ | MJ2 avisos fora do campo: o aviso flutuante não cobre cartas nem a mão (leva J-8: faixa de uma linha por cima da linha de cima da mesa) | MJ | 1 | 16º-jb |
-| 16º-jd | MJ3 identidade por `oid` e continuidade (FLIP) entre mão, pilha, campo, cemitério e exílio | MJ | 2 | 16º-jb; `mtg-scale-architect` (quadros) |
+| 16º-jd 🟡 | MJ3 identidade por `oid` e continuidade (FLIP) entre mão, pilha, campo, cemitério e exílio (MJ3a na leva J-9: chegar ao campo deslizando; faltam MJ3b e MJ3c) | MJ | 2 | 16º-jb; `mtg-scale-architect` (quadros) |
 | 16º-je | MJ4 combate desenhado: setas de ataque e bloqueio com a prévia junto da seta | MJ | 2 | 16º-jd |
 | 16º-jf | MJ5 pilha com profundidade: cartões empilhados, topo levantado, resolução descendo ao destino | MJ | 1 | 16º-jb, 16º-jd |
 | 16º-jg | MJ6 mirar por arrasto com linha curva (tocar continua valendo) | MJ | 2 | 16º-je |
@@ -10348,10 +10348,33 @@ longo vira uma linha com "mais". Aceite: sobreposição medida entre o aviso e a
   inteiro, o aviso desce sobre o alto do lado do oponente (só a pedido de quem tocou); a cena da jogada do oponente
   (`.tb-cena`) e o botão Relatar continuam onde estão.
 
-**MJ3 · A carta que se move é a mesma carta** ○ (2 levas) — identidade por `oid` entre dois desenhos e transição por
+**MJ3 · A carta que se move é a mesma carta** 🟡 (3 fatias; MJ3a na leva J-9) — identidade por `oid` entre dois desenhos e transição por
 posição medida (FLIP) entre mão, pilha, campo, cemitério e exílio, só com `transform` e `opacity`; o próximo toque
 conclui a animação. Aceite: o mesmo `oid` mantém o nó; nenhuma tarefa longa nova; movimento reduzido mostra o estado
 final. Destrava MJ4–MJ8.
+- **Fatias** (`mtg-slice-architect`, 19/10; uma leva cada):
+  - **MJ3a · Chegar ao campo deslizando** ✅ (leva J-9) — a carta que chega ao campo começa onde estava (na mão, pelo
+    mesmo `oid`; na faixa da pilha, quando resolve com a pilha à vista) e desliza até o lugar novo em `--dur-3` (280 ms),
+    só com `transform`. Como a mesa é redesenhada inteira, quem voa é uma foto da carta nova na camada de efeitos; a carta
+    de verdade espera invisível e aparece quando a foto pousa (quem chega a um leque que já existia não esconde o grupo).
+    O toque seguinte na mesa conclui todos os voos na hora; com movimento reduzido nada voa; desfazer e abrir a partida não
+    voam. Contra o goldfish a mágica resolve na mesma jogada, então a criatura voa da mão direto ao campo. **Medida:** a
+    jogada custa 11–15 ms com voo e 15 ms sem (movimento reduzido), em 360 e 390. **Testes:** `sentidos.unit` "MJ3a · plano
+    de voo" (mão, faixa da pilha, leque, caixa vazia, mínimo de 4 px, teto de 8); e2e "MJ3a" (o voo nasce a ≤ 6 px do centro
+    da carta na mão e com a largura dela, um voo de ≤ 300 ms só de `transform`, a foto pousa e a carta fica à vista, o toque
+    conclui antes dos 280 ms, movimento reduzido sem foto, a criatura conjurada voa da mão, `auditaTela`). **Correção no
+    caminho:** a fila recusou a J-9 uma vez pelo e2e "G-273" (catálogo, trilha `geral`), instável por desenho: media os
+    botões de cor no meio da entrada da folha (`ds-rise`, escala .985 → 43 px em vez de 44); ganhou espera explícita pelo
+    fim da animação. **Fora:** carta
+    que muda de lugar dentro do campo (vira, entra em combate, sai do leque) não desliza; o leque que ganha uma cópia não
+    se reorganiza com animação.
+  - **MJ3b · Sair do campo para a zona** ○ — quem morre, é exilado ou volta para a mão voa até o contador do cemitério, do
+    exílio ou da mão (hoje se desfaz no lugar, G5); mão → pilha voa até a faixa da pilha.
+  - **MJ3c · O oponente também joga cartas de verdade** ○ — a carta do oponente sai do contador da mão dele; verso até ser
+    revelada.
+- **Aceite reinterpretado (declarado):** "o mesmo `oid` mantém o nó" virou "a mesma carta na tela": a mesa continua
+  redesenhada inteira e a continuidade é visual (foto que voa). Manter o nó entre desenhos é a alavanca 6 da escala
+  (reconciliação), sem valor visível sozinho; fica para quando MJ4–MJ8 pedirem.
 
 **MJ4 · Combate desenhado** ○ (2 levas) — setas curvas de ataque (vermelho) e de bloqueio (dourado) na camada de
 efeitos, com a prévia de combate junto da seta e a ordem de dano visível. Zero pixel de campo.

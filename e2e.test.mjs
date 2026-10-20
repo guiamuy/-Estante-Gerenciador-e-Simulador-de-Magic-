@@ -9337,6 +9337,9 @@ test('e2e · G-273 · relato #24 · Listas prontas: Filtros (cor nos três modos
   assert.deepEqual(btn, { h: btn.h, fala: 'Filtros', selo: true }); assert.ok(btn.h >= 44, 'Filtros com 44 px');
   // 1 · Dimir exato: as nove de Commander azul e preto e o desafio de Vintage
   await page.click('#catalogo-filtros-abrir'); await page.waitForSelector('#catalogo-filtros');
+  // J-9 · espera explícita: a folha entra com ds-rise (escala .985) e, medida no meio da entrada, o botão de 44 px saía com 43
+  // (caiu duas vezes na fila com a J-9, que não toca no catálogo)
+  await page.waitForFunction(() => document.getAnimations().every(a => a.playState !== 'running'));
   const cores = await page.$$eval('#catalogo-filtros [data-cat-cor]', cs => cs.map(c => [c.dataset.catCor, c.getAttribute('aria-label'), Math.round(c.getBoundingClientRect().height), Math.round(c.getBoundingClientRect().width)]));
   assert.deepEqual(cores.map(c => c[0]), ['W', 'U', 'B', 'R', 'G', 'C']); assert.ok(cores.every(c => c[2] >= 44 && c[3] >= 44), JSON.stringify(cores));
   await page.click('[data-cat-cor="U"]'); await page.click('[data-cat-cor="B"]');
@@ -13481,5 +13484,69 @@ test('e2e · MJ2 avisos fora do campo: na partida o aviso fica no alto, numa lin
     return { w: r.width, esq: r.left, dir: r.right, linhas: Math.round(tx.getBoundingClientRect().height / parseFloat(getComputedStyle(tx).lineHeight || '18')), mais: !!e.querySelector('.ds-toast__mais'), tela: innerWidth }; });
   assert.ok(fora.w > fora.tela * 0.8 && fora.esq >= 0 && fora.dir <= fora.tela, `fora da partida o aviso longo usa a largura da tela ${JSON.stringify(fora)}`);
   assert.ok(fora.linhas <= 3 && !fora.mais, `fora da partida o texto quebra em poucas linhas, sem botão ${JSON.stringify(fora)}`);
+  assert.deepEqual(errors, []);
+});
+
+// MJ3a (leva J-9, trilha jogabilidade) · a carta que chega ao campo desliza de onde estava: da mão (mesmo oid) ou da
+// faixa da pilha quando resolve; o toque seguinte conclui o voo; com movimento reduzido nada voa
+test('e2e · MJ3a a carta que chega ao campo desliza da mão ou da pilha até o lugar; o toque conclui; movimento reduzido não move', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start');
+  await page.fill('#mesa-seed', '4'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  await page.waitForSelector('#tb-pass');
+  if ((await page.getAttribute('#tb-hand-toggle', 'aria-expanded')) !== 'true') await page.click('#tb-hand-toggle');
+  await page.waitForTimeout(450);
+  // traz para a mão as cartas do teste (mesa assistida: controle direto)
+  const prepara = () => page.evaluate(() => { const M = window.__estanteMesa, s = M.estado(), p = s.turn.active;
+    const pega = (nm, n) => Object.values(s.objects).filter(o => o.owner === p && o.name === nm && o.zone === 'library').slice(0, n).map(o => o.oid);
+    for (const oid of [...pega('Island', 3), ...pega('Delver of Secrets', 2)]) M.act({ t: 'move', p, oid, to: 'hand' });
+    return p; });
+  const p = await prepara(); await page.waitForTimeout(300);
+  const daMao = nm => page.evaluate(([nm, p]) => { const s = window.__estanteMesa.estado(); return Object.values(s.objects).filter(o => o.owner === p && o.name === nm && o.zone === 'hand').map(o => o.oid); }, [nm, p]);
+  const leva = (oid, extra = {}) => page.evaluate(([oid, p]) => {
+    const caixa = el => { if (!el) return null; const r = el.getBoundingClientRect(); return { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width }; };
+    const antes = caixa(document.querySelector(`#tb-hand .tb-card[data-oid="${oid}"]`));
+    window.__estanteMesa.act({ t: 'move', p, oid, to: 'battlefield' });
+    const foto = document.querySelector(`.tb-voo[data-voo="${oid}"]`), real = document.querySelector(`.tb-side .tb-card[data-oid="${oid}"], .tb-side .tb-card[data-oids~="${oid}"]`);
+    return { antes, foto: caixa(foto), real: caixa(real), opacidade: real ? real.style.opacity : null, voos: document.querySelector('#tb').dataset.voos || '',
+      anim: foto ? foto.getAnimations().map(a => ({ dur: a.effect.getTiming().duration, props: [...new Set(a.effect.getKeyframes().flatMap(k => Object.keys(k).filter(x => !['offset', 'easing', 'composite', 'computedOffset'].includes(x))))] })) : [] };
+  }, [oid, p]);
+  // 1 · movimento reduzido: nada voa, a carta aparece parada no lugar
+  await page.evaluate(() => document.documentElement.setAttribute('data-movimento', 'reduzido'));
+  const [i1, i2, i3] = await daMao('Island');
+  const parado = await leva(i1);
+  assert.equal(parado.foto, null, 'movimento reduzido: nenhuma foto voando'); assert.ok(parado.real && parado.opacidade === '', 'a carta já está no lugar, à vista');
+  await page.evaluate(() => document.documentElement.removeAttribute('data-movimento')); await page.waitForTimeout(300);
+  // 2 · da mão para o campo: a foto nasce sobre a carta da mão e pousa no lugar novo; a carta de verdade espera escondida
+  for (const [w, hgt] of [[360, 780], [390, 844]]) {
+    await page.setViewportSize({ width: w, height: hgt }); await page.waitForTimeout(450);
+    const oid = w === 360 ? i2 : i3; const m = await leva(oid);
+    assert.ok(m.antes && m.foto && m.real, `${w}: a carta estava na mão, voa e chega ${JSON.stringify(m)}`);
+    assert.match(m.voos, new RegExp(`(^| )mao:${oid}( |$)`));
+    assert.ok(Math.hypot(m.foto.cx - m.antes.cx, m.foto.cy - m.antes.cy) <= 6, `${w}: o voo começa onde a carta estava na mão ${JSON.stringify(m)}`);
+    assert.ok(Math.abs(m.foto.w - m.antes.w) <= 3, `${w}: com o tamanho da mão`);
+    assert.ok(m.anim.length === 1 && m.anim[0].dur <= 300 && m.anim[0].props.join() === 'transform', `${w}: um voo curto, só transform ${JSON.stringify(m.anim)}`);
+    // o grupo de Ilhas já estava no campo: quem chega ao leque não esconde o grupo
+    await page.waitForTimeout(450);
+    const depois = await page.evaluate(oid => ({ fotos: document.querySelectorAll('.tb-voo').length, op: (document.querySelector(`.tb-side .tb-card[data-oid="${oid}"], .tb-side .tb-card[data-oids~="${oid}"]`) || {}).style?.opacity }), oid);
+    assert.deepEqual(depois, { fotos: 0, op: '' }, `${w}: a foto pousou e a carta de verdade ficou à vista`);
+    await auditaTela(page, `MJ3a · ${w}×${hgt}`);
+  }
+  // 3 · o toque seguinte conclui o voo na hora (uma criatura sozinha: a carta de verdade espera escondida)
+  const [d1, d2] = await daMao('Delver of Secrets');
+  const m = await leva(d1);
+  assert.ok(m.foto && m.opacidade === '0', 'criatura sozinha: a de verdade espera a foto pousar ' + JSON.stringify(m));
+  await page.evaluate(() => document.querySelector('#tb').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
+  await page.waitForTimeout(60);
+  assert.deepEqual(await page.evaluate(oid => ({ fotos: document.querySelectorAll('.tb-voo').length, op: document.querySelector(`.tb-side .tb-card[data-oid="${oid}"]`).style.opacity }), d1), { fotos: 0, op: '' }, 'o toque concluiu o voo antes dos 280 ms');
+  // 4 · conjurar: contra o goldfish a mágica resolve na mesma jogada, então a criatura voa da mão direto para o campo
+  // (a origem "faixa da pilha", quando a pilha fica à vista entre duas jogadas, está no sentidos.unit "MJ3a · plano de voo")
+  const cast = await page.evaluate(oid => { const M = window.__estanteMesa, a = M.legais().find(x => x.t === 'cast' && x.oid === oid); if (!a) return null; M.act(a);
+    return { zona: M.estado().objects[oid].zone, voos: document.querySelector('#tb').dataset.voos || '', foto: !!document.querySelector(`.tb-voo[data-voo="${oid}"]`) }; }, d2);
+  assert.ok(cast && cast.zona === 'battlefield' && cast.foto, 'a criatura de 1 mana resolve e voa ' + JSON.stringify(cast));
+  assert.match(cast.voos, new RegExp(`(^| )mao:${d2}( |$)`));
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/mj3a-voo.png' });
   assert.deepEqual(errors, []);
 });

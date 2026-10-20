@@ -218,3 +218,26 @@ test('H5 · o modelo da mesa guarda os passos só quando a tela pede, e a colhei
   assert.deepEqual(J(mesa.colhePassos()), [], 'colheu, esvaziou');
   mesa.guardaPassos(false); mesa.act(mesa.state.pending ? E.legalActions(mesa.state, 0)[0] : { t: 'pass', p: 0 }); assert.deepEqual(J(mesa.colhePassos()), []);
 });
+
+test('MJ3a · plano de voo: a carta que chega ao campo sai da mão (mesmo oid) ou da faixa da pilha; o resto não voa', () => {
+  const cx = (x, y, w, h) => ({ x, y, w, h });
+  const antes = { 7: cx(100, 700, 100, 140) }, pilha = { caixa: cx(20, 380, 200, 44), oids: [9] };
+  const p = J(S.planoDeVoo({ antes, pilha, chegaram: [{ oid: 7, caixa: cx(16, 600, 60, 84) }, { oid: 9, caixa: cx(100, 200, 76, 106) }, { oid: 5, caixa: cx(200, 600, 60, 84) }] }));
+  assert.deepEqual(p.map(x => [x.oid, x.origem]), [['7', 'mao'], ['9', 'pilha']], 'oid 5 não estava na mão nem na pilha: entra sem voar');
+  // da mão: começa centrado na caixa antiga (150, 770) com a escala da largura antiga
+  assert.deepEqual([p[0].dx, p[0].dy, p[0].escala], [150 - 46, 770 - 642, Math.round(100 / 60 * 1000) / 1000]);
+  // da pilha: começa no centro da faixa, do tamanho da altura dela
+  assert.deepEqual([p[1].dx, p[1].dy, p[1].escala], [120 - 138, 402 - 253, Math.round(44 / 106 * 1000) / 1000]);
+  assert.equal(p[0].esconde, true, 'carta sozinha: a de verdade espera a foto pousar');
+  assert.equal(J(S.planoDeVoo({ antes, chegaram: [{ oid: 7, caixa: cx(16, 600, 60, 84), sozinha: false }] }))[0].esconde, false, 'chegou a um leque que já existia: o grupo fica à vista');
+});
+
+test('MJ3a · plano de voo: caixa vazia, deslocamento mínimo e teto de voos', () => {
+  const cx = (x, y, w, h) => ({ x, y, w, h });
+  assert.deepEqual(J(S.planoDeVoo({ antes: { 1: cx(0, 0, 0, 0) }, chegaram: [{ oid: 1, caixa: cx(10, 10, 60, 84) }] })), [], 'a mão recolhida não tem caixa: nada voa');
+  assert.deepEqual(J(S.planoDeVoo({ antes: { 1: cx(12, 10, 60, 84) }, chegaram: [{ oid: 1, caixa: cx(10, 10, 60, 84) }] })), [], 'menos de 4 px: não voa');
+  const muitos = Array.from({ length: 12 }, (_, i) => i + 1);
+  const p = S.planoDeVoo({ antes: Object.fromEntries(muitos.map(i => [i, cx(0, 700, 60, 84)])), chegaram: muitos.map(i => ({ oid: i, caixa: cx(i * 10, 100, 60, 84) })) });
+  assert.equal(p.length, 8, 'no máximo 8 voos por jogada');
+  assert.deepEqual(J(S.planoDeVoo()), []);
+});
