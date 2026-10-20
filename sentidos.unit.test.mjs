@@ -241,3 +241,27 @@ test('MJ3a · plano de voo: caixa vazia, deslocamento mínimo e teto de voos', (
   assert.equal(p.length, 8, 'no máximo 8 voos por jogada');
   assert.deepEqual(J(S.planoDeVoo()), []);
 });
+
+test('MJ3b · onde pousa a carta que saiu: contador da zona do dono, faixa da pilha, ou a própria carta na sua mão', () => {
+  const o = (zone, owner = 0) => ({ oid: 1, zone, owner, controller: 1 - owner });
+  assert.deepEqual(J(S.ondePousa(o('graveyard'), 0)), { zona: 'graveyard', lado: 'me' }, 'vai ao cemitério do dono, não de quem controlava');
+  assert.deepEqual(J(S.ondePousa(o('exile', 1), 0)), { zona: 'exile', lado: 'opp' });
+  assert.deepEqual(J(S.ondePousa(o('library', 1), 0)), { zona: 'library', lado: 'opp' });
+  assert.deepEqual(J(S.ondePousa(o('hand'), 0)), { zona: 'hand', lado: 'me', carta: true }, 'na sua mão: a própria carta, quando a mão está à vista');
+  assert.deepEqual(J(S.ondePousa(o('hand', 1), 0)), { zona: 'hand', lado: 'opp' }, 'na mão do oponente: o contador da mão');
+  assert.deepEqual(J(S.ondePousa(o('stack'), 0)), { zona: 'stack' });
+  assert.equal(S.ondePousa(o('battlefield'), 0), null, 'no campo quem voa é a chegada (MJ3a)');
+  assert.equal(S.ondePousa(null, 0), null);
+});
+
+test('MJ3b · plano de saída: a foto vai do centro da carta ao centro do alvo, encolhendo até a altura dele, sem crescer', () => {
+  const cx = (x, y, w, h) => ({ x, y, w, h });
+  assert.deepEqual(J(S.planoDeSaida([{ oid: 7, como: 'morre', de: cx(20, 300, 76, 106), para: cx(290, 190, 44, 44) }])),
+    [{ oid: '7', como: 'morre', dx: 254, dy: -141, escala: 0.415 }]);
+  assert.equal(S.planoDeSaida([{ oid: 1, como: 'devolve', de: cx(0, 0, 76, 106), para: cx(100, 600, 100, 140) }])[0].escala, 1, 'para a carta maior na mão: não cresce');
+  assert.equal(S.planoDeSaida([{ oid: 1, como: 'conjura', de: cx(0, 0, 100, 400), para: cx(100, 600, 300, 20) }])[0].escala, 0.25, 'faixa baixa: no mínimo um quarto');
+  assert.deepEqual(J(S.planoDeSaida([{ oid: 1, de: cx(0, 0, 0, 0), para: cx(1, 1, 44, 44) }, { oid: 2, de: cx(10, 10, 44, 44), para: cx(12, 10, 44, 44) }, { oid: 3, de: cx(0, 0, 44, 44) }])), [], 'sem caixa, sem alvo ou a menos de 4 px: se desfaz no lugar');
+  const muitos = Array.from({ length: 12 }, (_, i) => ({ oid: i, como: 'morre', de: cx(i * 10, 100, 60, 84), para: cx(300, 600, 44, 44) }));
+  assert.equal(S.planoDeSaida(muitos).length, 8, 'no máximo 8 voos por jogada');
+  assert.deepEqual(J(S.planoDeSaida()), []);
+});

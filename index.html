@@ -481,6 +481,9 @@ a { color: var(--accent); }
 .tb-fx-fantasma { position: fixed; margin: 0; pointer-events: none; animation-fill-mode: both; animation-delay: var(--fx-atraso, 0s); }
 /* MJ3a · foto da carta que chega ao campo voando de onde estava (a animação é posta pelo script, só com transform) */
 .tb-voo { position: fixed; margin: 0; pointer-events: none; z-index: 1; transform-origin: center; will-change: transform; }
+/* MJ3b · a foto é uma .tb-card (position: relative, declarada depois): sem esta regra, a segunda foto ao mesmo tempo
+   ficava no fluxo da camada, deslocada pela primeira (remoção global, dois voos juntos) */
+.tb-fx-camada > .tb-fx-fantasma, .tb-fx-camada > .tb-voo { position: fixed; }
 .tb-fx-fantasma--morre { animation: tb-fx-morre var(--dur-fx) var(--ease-in-out) var(--fx-atraso, 0s) both; }
 .tb-fx-fantasma--exila { animation: tb-fx-exila var(--dur-4) var(--ease-out) var(--fx-atraso, 0s) both; }
 .tb-fx-fantasma--devolve { animation: tb-fx-devolve var(--dur-4) var(--ease-in-out) var(--fx-atraso, 0s) both; }
@@ -35646,6 +35649,30 @@ function planoDeVoo({ antes = {}, pilha = null, chegaram = [] } = {}, { max = 8,
   }
   return out;
 }
+/* ---------------- MJ3b · a carta que sai voa até onde foi parar ----------------
+   A foto da carta que saiu do campo (morreu, foi exilada, voltou à mão) ou da mão (conjurada, descartada) voa até o
+   contador da zona do dono, ou até a faixa da pilha; na sua mão, até a própria carta quando a mão está à vista.
+   `ondePousa` diz qual alvo procurar na tela; `planoDeSaida` faz a conta do voo com as caixas medidas. Puros. */
+function ondePousa(o, espectador) {
+  if (!o) return null;
+  const lado = o.owner === espectador ? 'me' : 'opp';
+  if (o.zone === 'stack') return { zona: 'stack' };
+  if (o.zone === 'hand') return lado === 'me' ? { zona: 'hand', lado, carta: true } : { zona: 'hand', lado };
+  if (['graveyard', 'exile', 'library', 'command'].includes(o.zone)) return { zona: o.zone, lado };
+  return null; // no campo quem cuida é o voo de chegada (MJ3a); o resto não tem contador na mesa
+}
+function planoDeSaida(saidas = [], { max = 8, minimo = 4, escalaMin = 0.25 } = {}) {
+  const out = [], ok = c => !!c && c.w > 0 && c.h > 0, centro = c => [c.x + c.w / 2, c.y + c.h / 2];
+  for (const { oid, como, de, para } of saidas) {
+    if (out.length >= max || !ok(de) || !ok(para)) continue;
+    const [x0, y0] = centro(de), [x1, y1] = centro(para), dx = Math.round(x1 - x0), dy = Math.round(y1 - y0);
+    if (Math.hypot(dx, dy) < minimo) continue;
+    // a carta encolhe até a altura do alvo (um contador de 44 px), sem nunca crescer
+    const escala = Math.round(Math.max(escalaMin, Math.min(1, para.h / de.h)) * 1000) / 1000;
+    out.push({ oid: String(oid), como, dx, dy, escala });
+  }
+  return out;
+}
 /* ---------------- H5 · roteiro da jogada ----------------
    Uma jogada sua pode disparar o turno inteiro do oponente. Dos passos guardados pelo modelo da mesa, este roteiro tira os
    QUADROS que valem ser vistos, em ordem: a sua jogada, cada jogada do oponente e cada passo em que algo aconteceu na mesa
@@ -35748,7 +35775,7 @@ function createSom({ store = null, criaContexto = null } = {}) {
     get tocados() { return tocados.slice(); }
   };
 }
-return { eventosSensoriais, planoDeSom, planoDeEfeitos, planoDeVoo, roteiroDaJogada, createSom, limpaPrefs, duracaoDe, RECEITAS, NOMES, ORDEM, SOM_DO_TIPO, CHAVE, GLOBAL_A_PARTIR_DE };
+return { eventosSensoriais, planoDeSom, planoDeEfeitos, planoDeVoo, ondePousa, planoDeSaida, roteiroDaJogada, createSom, limpaPrefs, duracaoDe, RECEITAS, NOMES, ORDEM, SOM_DO_TIPO, CHAVE, GLOBAL_A_PARTIR_DE };
 })();
 
 /* ==== src/app/table.js ==== */
@@ -36209,14 +36236,16 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   const durFx = tok => { const x = parseFloat(getComputedStyle(document.documentElement).getPropertyValue(tok)); return Number.isFinite(x) && x > 0 ? x : 600; };
   const camadaFx = () => { let c = document.getElementById('tb-fx'); if (!c) { c = h('div', { id: 'tb-fx', class: 'tb-fx-camada', 'aria-hidden': 'true' }); document.body.appendChild(c); } return c; };
   const some = (el, ms) => setTimeout(() => { el.remove(); const c = document.getElementById('tb-fx'); if (c && !c.childElementCount) c.remove(); }, ms);
-  function preparaEfeitos(evs, v) {
+  function preparaEfeitos(evs, v, s) {
     const plano = __m33.planoDeEfeitos(evs, { espectador: v });
     const parado = menosMovimento(), fantasmas = [];
-    if (!parado) for (const p of plano) {
-      if (p.fx !== 'fantasma') continue;
-      const el = root.querySelector(`.tb-card[data-oid="${p.oid}"]`); if (!el) continue;
-      const r = el.getBoundingClientRect(); if (!r.width || !r.height) continue;
-      fantasmas.push({ p, r, clone: el.cloneNode(true) });
+    const foto = (p, el) => { if (!el) return; const r = el.getBoundingClientRect(); if (r.width && r.height) fantasmas.push({ p, r, clone: el.cloneNode(true) }); };
+    if (!parado) for (const p of plano) if (p.fx === 'fantasma') foto(p, root.querySelector(`.tb-card[data-oid="${p.oid}"]`));
+    // MJ3b · a mágica que sai da sua mão (para a pilha, ou já resolvida para o cemitério) também é fotografada;
+    // a que vira permanente voa pela chegada ao campo (MJ3a)
+    if (!parado && s) for (const e of evs) {
+      if (e.tipo !== 'conjura' || e.oid == null || !s.objects[e.oid] || s.objects[e.oid].zone === 'battlefield') continue;
+      if (fantasmas.length < 8 && !fantasmas.some(f => String(f.p.oid) === String(e.oid))) foto({ fx: 'fantasma', oid: e.oid, como: 'conjura', atraso: 0 }, root.querySelector(`#tb-hand .tb-card[data-oid="${e.oid}"]`));
     }
     const pilha = root.querySelector('#tb-stack');
     return { plano, fantasmas, parado, rPilha: pilha ? pilha.getBoundingClientRect() : null };
@@ -36286,12 +36315,46 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
         naCamada(n, p, longo); feitos.push('num:' + p.texto);
       }
     }
-    for (const { p, r, clone } of fantasmas) {
-      clone.removeAttribute('id'); clone.disabled = true; clone.tabIndex = -1; clone.className += ' tb-fx-fantasma tb-fx-fantasma--' + p.como;
+    // MJ3b · a foto voa até o contador da zona (ou a faixa da pilha, ou a carta na sua mão); sem alvo à vista, se desfaz no lugar
+    const destinoDe = oid => {
+      const d = __m33.ondePousa(s.objects[oid], v); if (!d) return null;
+      const lado = d.lado === 'me' ? '.tb-side--me' : '.tb-side--opp', vivo = el => el && el.getBoundingClientRect().width ? el : null;
+      const el = d.zona === 'stack' ? vivo(root.querySelector('#tb-stack-btn'))
+        : d.carta ? vivo(root.querySelector(`#tb-hand .tb-card[data-oid="${oid}"]`)) || vivo(root.querySelector('#tb-hand-toggle'))
+        : vivo(root.querySelector(`${lado} .tb-chip[data-zona="${d.zona}"]`));
+      return el ? { el, zona: d.zona } : null;
+    };
+    const saidas = [];
+    for (const f of fantasmas) { const d = destinoDe(f.p.oid); f.destino = d; if (d) saidas.push({ oid: f.p.oid, como: f.p.como, de: { x: f.r.left, y: f.r.top, w: f.r.width, h: f.r.height }, para: caixaDe(d.el) }); }
+    const rotas = new Map(__m33.planoDeSaida(saidas).map(x => [x.oid, x]));
+    const ease = getComputedStyle(document.documentElement).getPropertyValue('--ease-in-out').trim() || 'ease-in-out', pulso = durFx('--dur-2'), marcas = [];
+    for (const { p, r, clone, destino } of fantasmas) {
+      clone.removeAttribute('id'); clone.disabled = true; clone.tabIndex = -1;
       Object.assign(clone.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
-      clone.style.setProperty('--fx-dir', s.objects[p.oid] && s.objects[p.oid].owner === v ? '1' : '-1'); // devolvida: desce para a minha mão, sobe para a do oponente
-      naCamada(clone, p, p.como === 'morre' ? medio : curto + 120); feitos.push('fantasma:' + p.como);
+      const rota = rotas.get(String(p.oid));
+      if (!rota) {
+        clone.className += ' tb-fx-fantasma tb-fx-fantasma--' + p.como;
+        clone.style.setProperty('--fx-dir', s.objects[p.oid] && s.objects[p.oid].owner === v ? '1' : '-1'); // devolvida: desce para a minha mão, sobe para a do oponente
+        if (p.como !== 'conjura') { naCamada(clone, p, p.como === 'morre' ? medio : curto + 120); feitos.push('fantasma:' + p.como); }
+        continue;
+      }
+      clone.className += ' tb-fx-fantasma tb-voo'; clone.classList.remove('tb-card--entrou'); clone.dataset.saida = String(p.oid);
+      for (const x of clone.querySelectorAll('.tb-pill--qtd')) x.remove();
+      camadaFx().appendChild(clone);
+      // morrer escurece, exilar clareia; a carta para um instante, voa encolhendo e some ao pousar
+      const tinta = p.como === 'morre' ? 'grayscale(1) brightness(.7)' : p.como === 'exila' ? 'brightness(1.6)' : 'none';
+      const fim = `translate(${rota.dx}px, ${rota.dy}px) scale(${rota.escala})`;
+      const a = clone.animate([{ transform: 'none', opacity: 1, filter: 'none' }, { offset: 0.2, transform: 'none', opacity: 1, filter: tinta, easing: ease },
+        { offset: 0.85, transform: fim, opacity: 1, filter: tinta }, { transform: fim, opacity: 0, filter: tinta }], { duration: p.como === 'morre' ? medio : durFx('--dur-4'), delay: p.atraso || 0 });
+      voos.push(a);
+      const alvo = destino.el;
+      const pousa = () => { const i = voos.indexOf(a); if (i >= 0) voos.splice(i, 1); clone.remove();
+        if (alvo.isConnected && !menosMovimento()) alvo.animate([{ transform: 'scale(1.14)' }, { transform: 'none' }], { duration: pulso, easing: ease }); // o contador recebe a carta
+        const camada = document.getElementById('tb-fx'); if (camada && !camada.childElementCount) camada.remove(); };
+      a.onfinish = pousa; a.oncancel = pousa;
+      feitos.push('fantasma:' + p.como); marcas.push(`${p.como}:${destino.zona}:${p.oid}`);
     }
+    root.dataset.saidas = marcas.join(' ');
     if (feitos.length) { root.dataset.fx = feitos.join(' '); fxLog.push(...feitos); if (fxLog.length > 200) fxLog.splice(0, fxLog.length - 200); }
   }
   // Leva 128 · a foto do perfil entra no círculo da faixa de vez quando o turno é seu
@@ -37408,18 +37471,19 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const z = s.zones[p];
     const { lands, others } = T.linhasDoCampo(s, z.battlefield); // R5 · cada Aura ao lado de quem a carrega
     const pl = s.players[p];
+    const naZona = (k, el) => { if (el) el.dataset.zona = k; return el; }; // MJ3b · o voo de saída procura o contador pela zona
     const chips = h('div', { class: 'tb-chips' },
-      mine || pl.dummy ? null : ZoneChip('Mão', z.hand.length, null),
-      pl.dummy ? null : ZoneChip('Grimório', z.library.length, () => {
+      mine || pl.dummy ? null : naZona('hand', ZoneChip('Mão', z.hand.length, null)),
+      pl.dummy ? null : naZona('library', ZoneChip('Grimório', z.library.length, () => {
         const v = table.viewer();
         if (!hasPriority(v)) return;
         Dialog({ title: `Grimório de ${pl.name}`, body: Text(`${z.library.length} carta(s).`, { tone: 'muted' }),
           actions: [Button('Comprar 1', { onClick: () => { closeDialog(); act({ t: 'draw', p: v, target: p, n: 1 }); } }), Button('Fechar', { onClick: closeDialog })] });
-      }, mine ? 'tb-lib-me' : 'tb-lib-opp'),
-      ZoneChip('Cemitério', z.graveyard.length, () => openZone(p, 'graveyard', 'Cemitério'), mine ? 'tb-cemiterio-me' : null, mine ? jogaveisEm(z.graveyard) : 0),
+      }, mine ? 'tb-lib-me' : 'tb-lib-opp')),
+      naZona('graveyard', ZoneChip('Cemitério', z.graveyard.length, () => openZone(p, 'graveyard', 'Cemitério'), mine ? 'tb-cemiterio-me' : null, mine ? jogaveisEm(z.graveyard) : 0)),
       // as tramadas já aparecem na bandeja: o ponto do exílio conta só o resto
-      ZoneChip('Exílio', z.exile.length, () => openZone(p, 'exile', 'Exílio'), mine ? 'tb-exilio-me' : null, mine ? jogaveisEm(z.exile.filter(oid => s.objects[oid].plotted == null)) : 0),
-      s.format === 'commander' ? ZoneChip('Comando', z.command.length, () => openZone(p, 'command', 'Zona de comando')) : null,
+      naZona('exile', ZoneChip('Exílio', z.exile.length, () => openZone(p, 'exile', 'Exílio'), mine ? 'tb-exilio-me' : null, mine ? jogaveisEm(z.exile.filter(oid => s.objects[oid].plotted == null)) : 0)),
+      s.format === 'commander' ? naZona('command', ZoneChip('Comando', z.command.length, () => openZone(p, 'command', 'Zona de comando'))) : null,
       z.companion.length ? ZoneChip('Companheiro', z.companion.length, () => openZone(p, 'companion', 'Companheiro'), mine ? 'tb-comp-me' : 'tb-comp-opp') : null,
       poolView(pl));
     // S57 · masmorra: onde o marcador está agora
@@ -37971,7 +38035,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     if (s.status === 'over') fechaJogoDaSerie(s); // antes de desenhar o placar
     concluiVoos(); const voo = medeVoo(); // MJ3a · antes de ouvir (que troca o estado anterior) e de redesenhar
     const sentidos = ouve(s, v); // G4
-    const cena = sentidos.length ? preparaEfeitos(sentidos, v) : null; // G5 · antes de redesenhar
+    const cena = sentidos.length ? preparaEfeitos(sentidos, v, s) : null; // G5 · antes de redesenhar
     // A9 · hot-seat: quem recebe o aparelho confirma antes de ver a mão
     if (table.humans().length > 1 && v !== shownViewer && s.status !== 'over') { handoff = true; shownViewer = v; }
     pintaAbaRelatar(); // Y2
@@ -38031,7 +38095,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     voa(voo, s); // MJ3a · antes de marcar o campo como visto
     // A13 · o que está no campo agora já foi visto: a próxima pintura só anima quem entrar
     vistos = new Set(s.zones.flatMap(z => z.battlefield));
-    if (cena) aplicaEfeitos(cena, s, v); // G5 · por cima do desenho novo
+    if (cena) aplicaEfeitos(cena, s, v); else delete root.dataset.saidas; // G5 · por cima do desenho novo
   }
 
   return root;

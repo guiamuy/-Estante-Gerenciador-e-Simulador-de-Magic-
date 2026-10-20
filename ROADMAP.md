@@ -595,7 +595,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ja ✅ | MJ · roadmap da mesa de patamar (leva J-1, 17/10): crítica medida da mesa em 360×780 e histórias MJ1–MJ12 | MJ | 1 | — |
 | 16º-jb ✅ | MJ1 a mesa numa tela só (MJ1a partida em tela cheia na leva J-2; MJ1b faixa compacta por lado na J-3; MJ1c pilha e resumo por cima na J-4; MJ1d terrenos compactos na J-5; MJ1f mão por cima da mesa na J-6; MJ1e Conversa no selo da faixa de vez na J-7): os dois campos visíveis sem rolar, em fatias (cabeçalho do app fora da partida, topo numa linha, faixa compacta por lado, terrenos compactos, pilha e resumo fora do fluxo, tabuleiro com a altura da tela) | MJ | 3–4 | 16º-ja; T-130 publicada (mesma região) |
 | 16º-jc ✅ | MJ2 avisos fora do campo: o aviso flutuante não cobre cartas nem a mão (leva J-8: faixa de uma linha por cima da linha de cima da mesa) | MJ | 1 | 16º-jb |
-| 16º-jd 🟡 | MJ3 identidade por `oid` e continuidade (FLIP) entre mão, pilha, campo, cemitério e exílio (MJ3a na leva J-9: chegar ao campo deslizando; faltam MJ3b e MJ3c) | MJ | 2 | 16º-jb; `mtg-scale-architect` (quadros) |
+| 16º-jd 🟡 | MJ3 identidade por `oid` e continuidade (FLIP) entre mão, pilha, campo, cemitério e exílio (MJ3a na leva J-9: chegar ao campo deslizando; MJ3b na J-10: sair para a zona; falta MJ3c) | MJ | 2 | 16º-jb; `mtg-scale-architect` (quadros) |
 | 16º-je | MJ4 combate desenhado: setas de ataque e bloqueio com a prévia junto da seta | MJ | 2 | 16º-jd |
 | 16º-jf | MJ5 pilha com profundidade: cartões empilhados, topo levantado, resolução descendo ao destino | MJ | 1 | 16º-jb, 16º-jd |
 | 16º-jg | MJ6 mirar por arrasto com linha curva (tocar continua valendo) | MJ | 2 | 16º-je |
@@ -10362,7 +10362,7 @@ longo vira uma linha com "mais". Aceite: sobreposição medida entre o aviso e a
   inteiro, o aviso desce sobre o alto do lado do oponente (só a pedido de quem tocou); a cena da jogada do oponente
   (`.tb-cena`) e o botão Relatar continuam onde estão.
 
-**MJ3 · A carta que se move é a mesma carta** 🟡 (3 fatias; MJ3a na leva J-9) — identidade por `oid` entre dois desenhos e transição por
+**MJ3 · A carta que se move é a mesma carta** 🟡 (3 fatias; MJ3a na leva J-9, MJ3b na J-10) — identidade por `oid` entre dois desenhos e transição por
 posição medida (FLIP) entre mão, pilha, campo, cemitério e exílio, só com `transform` e `opacity`; o próximo toque
 conclui a animação. Aceite: o mesmo `oid` mantém o nó; nenhuma tarefa longa nova; movimento reduzido mostra o estado
 final. Destrava MJ4–MJ8.
@@ -10382,8 +10382,21 @@ final. Destrava MJ4–MJ8.
     fim da animação. **Fora:** carta
     que muda de lugar dentro do campo (vira, entra em combate, sai do leque) não desliza; o leque que ganha uma cópia não
     se reorganiza com animação.
-  - **MJ3b · Sair do campo para a zona** ○ — quem morre, é exilado ou volta para a mão voa até o contador do cemitério, do
-    exílio ou da mão (hoje se desfaz no lugar, G5); mão → pilha voa até a faixa da pilha.
+  - **MJ3b · Sair do campo para a zona** ✅ (leva J-10) — a carta que sai voa até onde foi parar: do campo para o contador
+    do cemitério ou do exílio do **dono**, ou de volta para a própria carta na sua mão (com a mão recolhida, para o puxador
+    da mão; na mão do oponente, para o contador dele); da sua mão, o descarte voa para o cemitério e a mágica conjurada
+    para a faixa da pilha (ou, já resolvida contra o goldfish, para o cemitério). A foto para um instante (morrer escurece,
+    exilar clareia), voa encolhendo até a altura do alvo e some ao pousar, e o contador dá um pulso curto. 420 ms
+    (`--dur-4`; morrer 560 ms, `--dur-fx`), só `transform`, `opacity` e `filter`; o toque seguinte conclui; movimento
+    reduzido não move; sem alvo à vista, a foto se desfaz no lugar como antes (G5). **Medida:** a jogada custa 12,8–14,7 ms com o voo de saída e 12,8–15,8 ms sem (movimento reduzido), em 360 e 390 (linhas `# medida` do e2e); +1,7 KB em gzip. **Testes:**
+    `sentidos.unit` "MJ3b · onde pousa" e "MJ3b · plano de saída"; e2e "MJ3b" (cemitério e exílio em 360 e 390, volta à
+    mão, descarte, mágica conjurada para a pilha: a foto nasce a ≤ 6 px da carta e pousa a ≤ 6 px do centro do alvo, nunca
+    cresce, ≤ 560 ms; movimento reduzido sem foto; o toque conclui; `auditaTela`). **Correção no caminho:** a foto da
+    camada de efeitos é uma `.tb-card`, cujo `position: relative` (declarado depois) vencia o `position: fixed` da foto:
+    desde a G5, a segunda foto ao mesmo tempo (remoção global, dois voos juntos) ficava no fluxo da camada, deslocada pela
+    primeira; o e2e "MJ3b" confere `position: fixed`. **Fora:** a carta que vai para o fundo ou o topo do grimório não
+    tem animação própria (voa para o contador do grimório); ficha que sai do campo deixa de existir e se desfaz no lugar;
+    a remoção global continua em fila de 60 ms, agora voando.
   - **MJ3c · O oponente também joga cartas de verdade** ○ — a carta do oponente sai do contador da mão dele; verso até ser
     revelada.
 - **Aceite reinterpretado (declarado):** "o mesmo `oid` mantém o nó" virou "a mesma carta na tela": a mesa continua

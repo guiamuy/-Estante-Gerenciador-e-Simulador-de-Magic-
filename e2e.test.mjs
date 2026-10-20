@@ -13550,3 +13550,87 @@ test('e2e · MJ3a a carta que chega ao campo desliza da mão ou da pilha até o 
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/mj3a-voo.png' });
   assert.deepEqual(errors, []);
 });
+
+// MJ3b (leva J-10, trilha jogabilidade) · a carta que sai voa até onde foi parar: do campo para o contador do cemitério
+// ou do exílio, de volta para a carta na mão; da mão (descarte, mágica conjurada) para o cemitério ou a faixa da pilha
+test('e2e · MJ3b a carta que sai do campo ou da mão voa até o contador da zona, a mão ou a pilha; o toque conclui; movimento reduzido não move', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start');
+  await page.fill('#mesa-seed', '4'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  await page.waitForSelector('#tb-pass');
+  if ((await page.getAttribute('#tb-hand-toggle', 'aria-expanded')) !== 'true') await page.click('#tb-hand-toggle');
+  await page.waitForTimeout(450);
+  // mesa assistida: põe no campo e na mão as cartas do teste (os voos de chegada são concluídos com um toque)
+  const p = await page.evaluate(() => { const M = window.__estanteMesa, s = M.estado(), p = s.turn.active;
+    const pega = (nm, n) => Object.values(s.objects).filter(o => o.owner === p && o.name === nm && o.zone === 'library').slice(0, n).map(o => o.oid);
+    for (const oid of [...pega('Island', 4), ...pega('Delver of Secrets', 3)]) M.act({ t: 'move', p, oid, to: 'battlefield' });
+    for (const oid of [...pega('Counterspell', 2), ...pega('Preordain', 1)]) M.act({ t: 'move', p, oid, to: 'hand' });
+    document.querySelector('#tb').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    return p; });
+  await page.waitForTimeout(500);
+  const ids = (nm, zona) => page.evaluate(([nm, zona, p]) => Object.values(window.__estanteMesa.estado().objects).filter(o => o.owner === p && o.name === nm && o.zone === zona).map(o => o.oid), [nm, zona, p]);
+  // tira a carta do lugar e mede a foto no começo e quase no fim do voo (a animação é parada e posta no ponto exato)
+  const sai = (oid, to, alvoSel, acao = null) => page.evaluate(([oid, to, alvoSel, acao, p]) => {
+    const M = window.__estanteMesa, caixa = el => { if (!el) return null; const r = el.getBoundingClientRect(); return { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width, h: r.height }; };
+    const antes = caixa(document.querySelector(`#tb .tb-card[data-oid="${oid}"]`) || document.querySelector(`#tb .tb-card[data-oids~="${oid}"]`));
+    const t0 = performance.now();
+    if (acao) M.act(M.legais().find(x => x.t === acao && x.oid === oid)); else M.act({ t: 'move', p, oid, to });
+    const ms = Math.round((performance.now() - t0) * 10) / 10;
+    const foto = document.querySelector(`.tb-voo[data-saida="${oid}"]`), saidas = document.querySelector('#tb').dataset.saidas || '';
+    if (!foto) return { antes, foto: null, saidas, zona: M.estado().objects[oid].zone, ms };
+    const a = foto.getAnimations()[0]; a.pause();
+    const dur = a.effect.getTiming().duration, props = [...new Set(a.effect.getKeyframes().flatMap(k => Object.keys(k).filter(x => !['offset', 'easing', 'composite', 'computedOffset'].includes(x))))];
+    a.currentTime = 0; const inicio = caixa(foto); a.currentTime = dur * 0.85; const pouso = caixa(foto);
+    const alvo = caixa(alvoSel === 'stack' ? document.querySelector('#tb-stack-btn') : document.querySelector(alvoSel.replace('OID', oid)));
+    return { antes, inicio, pouso, alvo, dur, props, saidas, zona: M.estado().objects[oid].zone, pos: getComputedStyle(foto).position, ms };
+  }, [oid, to, alvoSel, acao, p]);
+  const perto = (a, b, tol = 6) => a && b && Math.hypot(a.cx - b.cx, a.cy - b.cy) <= tol;
+  const confere = (m, rotulo, marca) => {
+    assert.ok(m.foto !== null && m.antes && m.inicio && m.pouso && m.alvo, `${rotulo}: a carta saiu e voou ${JSON.stringify(m)}`);
+    assert.match(m.saidas, marca, rotulo);
+    assert.equal(m.pos, 'fixed', `${rotulo}: a foto fica presa à tela, fora do fluxo da camada (com duas fotos juntas a segunda saía deslocada)`);
+    assert.ok(perto(m.inicio, m.antes), `${rotulo}: o voo começa onde a carta estava ${JSON.stringify(m)}`);
+    assert.ok(perto(m.pouso, m.alvo), `${rotulo}: e pousa no alvo ${JSON.stringify(m)}`);
+    assert.ok(m.pouso.h <= m.antes.h + 1, `${rotulo}: a carta encolhe ou fica do mesmo tamanho, nunca cresce`);
+    assert.ok(m.dur <= 560 && m.props.every(x => ['transform', 'opacity', 'filter'].includes(x)), `${rotulo}: voo curto, só transform, opacidade e tinta ${JSON.stringify(m)}`);
+  };
+  const segue = () => page.evaluate(() => { for (const a of document.getAnimations()) if (a.playState === 'paused') a.play(); });
+  const solta = () => page.evaluate(() => { for (const a of document.getAnimations()) if (a.effect && a.effect.target && a.effect.target.matches && a.effect.target.matches('.tb-voo')) a.finish(); });
+  // 1 · movimento reduzido: nada voa
+  await page.evaluate(() => document.documentElement.setAttribute('data-movimento', 'reduzido'));
+  const [i0, i1, i2, i3] = await ids('Island', 'battlefield');
+  const parado = await sai(i0, 'graveyard', '#tb-cemiterio-me');
+  assert.deepEqual([parado.foto, parado.saidas, parado.zona], [null, '', 'graveyard'], 'movimento reduzido: a carta vai ao cemitério sem foto voando');
+  t.diagnostic(`medida · MJ3b jogada sem voo (movimento reduzido): ${parado.ms} ms`);
+  await page.evaluate(() => document.documentElement.removeAttribute('data-movimento')); await page.waitForTimeout(300);
+  // 2 · do campo para o cemitério e para o exílio, nas duas larguras
+  const [d0, d1, d2] = await ids('Delver of Secrets', 'battlefield');
+  for (const [w, hgt, terra, bicho] of [[360, 780, i1, d0], [390, 844, i2, d1]]) {
+    await page.setViewportSize({ width: w, height: hgt }); await page.waitForTimeout(450);
+    const mt = await sai(terra, 'graveyard', '#tb-cemiterio-me'); t.diagnostic(`medida · MJ3b jogada com voo de saída em ${w}: ${mt.ms} ms`);
+    confere(mt, `${w} · terreno destruído`, new RegExp(`(^| )morre:graveyard:${terra}( |$)`)); await solta();
+    confere(await sai(bicho, 'exile', '#tb-exilio-me'), `${w} · criatura exilada`, new RegExp(`(^| )exila:exile:${bicho}( |$)`));
+    await segue(); await page.waitForTimeout(650);
+    assert.equal(await page.evaluate(() => document.querySelectorAll('.tb-voo').length), 0, `${w}: as fotos pousaram e sumiram`);
+    await auditaTela(page, `MJ3b · ${w}×${hgt}`);
+  }
+  // 3 · de volta à mão (aberta): a foto pousa sobre a própria carta na mão
+  confere(await sai(d2, 'hand', '#tb-hand .tb-card[data-oid="OID"]'), 'devolvida à mão', new RegExp(`(^| )devolve:hand:${d2}( |$)`)); await solta();
+  // 4 · da mão: descarte para o cemitério
+  const [c0] = await ids('Counterspell', 'hand');
+  confere(await sai(c0, 'graveyard', '#tb-cemiterio-me'), 'descarte', new RegExp(`(^| )descarte:graveyard:${c0}( |$)`)); await solta();
+  // 5 · a mágica conjurada sai da mão: para a faixa da pilha (se ela fica à vista) ou, já resolvida, para o cemitério
+  const [pre] = await ids('Preordain', 'hand');
+  const cast = await sai(pre, null, '#tb-cemiterio-me', 'cast');
+  const naPilha = cast.zona === 'stack'; t.diagnostic(`MJ3b · Preordain conjurado foi para: ${cast.zona}`);
+  if (naPilha) cast.alvo = await page.evaluate(() => { const r = document.querySelector('#tb-stack-btn').getBoundingClientRect(); return { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width, h: r.height }; });
+  confere(cast, `mágica conjurada (${cast.zona})`, new RegExp(`(^| )conjura:${naPilha ? 'stack' : 'graveyard'}:${pre}( |$)`));
+  // 6 · o toque na mesa conclui o voo na hora
+  await segue(); await page.evaluate(() => { document.querySelector('#tb').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); });
+  await page.waitForTimeout(60);
+  assert.equal(await page.evaluate(() => document.querySelectorAll('.tb-voo').length), 0, 'o toque concluiu os voos');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/mj3b-saida.png' });
+  assert.deepEqual(errors, []);
+});
