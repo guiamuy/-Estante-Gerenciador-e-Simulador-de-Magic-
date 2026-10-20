@@ -10435,6 +10435,9 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   // M-534 · revisão por lote CLXXII (Hearth Elemental: redução por instantâneas, feitiços e Aventuras no cemitério; Carnivorous Cultivator: Enroot), textos da Scryfall de 19/10/2026 UTC, revisor independente
   'Hearth Elemental // Stoke Genius': { texto: '1bz258v', leva: 'M-534' },
   'Carnivorous Cultivator // Enroot': { texto: '9gkrp', leva: 'M-534' },
+  // M-535 · revisão por lote CLXXIII (Aventuras: Realm-Cloaked Giant — destruir as não Gigantes; Hypnotic Sprite — anular mágica de valor de mana 3 ou menos), textos da Scryfall de 19/10/2026 UTC, revisor independente
+  'Realm-Cloaked Giant // Cast Off': { texto: '1xbcqzf', leva: 'M-535' },
+  'Hypnotic Sprite // Mesmeric Glare': { texto: '1q1lfw6', leva: 'M-535' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18886,6 +18889,7 @@ const __m42 = (function () {
     if (k === 'up to one target tapped creature') return { target: 'creature', upTo: true, targetTapped: true }; // M-349 · Cryogen Relic
     if (k === 'target tapped creature') return { target: 'creature', targetTapped: true }; // M-516 · Vengeance
     m = k.match(/^target nonartifact(?:, non(white|blue|black|red|green))? creature$/); if (m) return { target: { tipos: ['creature'], semTipos: ['artifact'] }, ...(m[1] ? { targetNotColor: CORES[m[1]] } : {}) }; // M-524 · Terror
+    { const mv = k.match(/^target spell with mana value (\d+) or less$/); if (mv) return { target: { zona: 'stack', mvMax: +mv[1] } }; } // M-535 · Mesmeric Glare (Hypnotic Sprite): restrição de alvo, conferida de novo na resolução (608.2b)
     if (k === 'target triggered ability or colorless spell') return { target: { ou: [{ zona: 'stack', habilidades: 'disparadas' }, { zona: 'stack', incolor: true }] } }; // M-533 · Consign to Memory
     if (k === 'target noncreature, nonland permanent') return { target: { semTipos: ['creature', 'land'] } }; // M-527 · Archive Arbiter (seletor de permanente)
     if (k === 'target noncreature artifact') return { target: { tipos: ['artifact'], semTipos: ['creature'] } }; // M-387 · Gorilla Shaman
@@ -18980,6 +18984,7 @@ const __m42 = (function () {
     [/^return target nonland permanent and all other permanents with the same name as that permanent to their owners' hands$/i, () => [{ do: 'bounce', target: { semTipos: ['land'] }, mesmoNome: true }]], // M-425 · Echoing Truth
     [/^add \{([WUBRGC])\} for each (creature card in your graveyard|card named ~ in each graveyard)$/i, m => [{ do: 'add_mana', symbols: [m[1].toUpperCase()], porContagem: /named/i.test(m[2]) ? 'mesmo-nome-nos-cemiterios' : 'creature-cards-in-your-graveyard' }]], // M-423 · Songs of the Damned, Rite of Flame
     [/^~ deals damage to (target creature|any target) equal to the number of (plains|islands|swamps|mountains|forests) you control$/i, m => { const a = alvo(m[1]); return a ? [{ do: 'damage', amount: { per: m[2].toLowerCase() + '-you-control' }, ...a }] : null; }], // M-516 · Spitting Earth (contagem na resolução, 608.2h)
+    [/^destroy all non-([a-z]+) creatures$/i, m => [{ do: 'destroy', cada: { tipos: ['creature'], semSubtipos: [m[1][0].toUpperCase() + m[1].slice(1).toLowerCase()] } }]], // M-535 · Cast Off (Realm-Cloaked Giant): "non-Giant" (205.3; metamorfo é Gigante)
     [/^destroy all (creatures|lands|artifacts|enchantments)$/i, m => [{ do: 'destroy_all', types: [{ creatures: 'creature', lands: 'land', artifacts: 'artifact', enchantments: 'enchantment' }[m[1].toLowerCase()]] }]], // M-518 · Armageddon (701.8; indestrutível fica)
     [/^you may attach (?:this equipment|~) to it$/i, () => [{ do: 'anexa_a_ficha', optional: true }]], // M-526 · Cori-Steel Cutter (301.5: anexar o Equipamento por efeito)
     [/^put an? \+1\/\+1 counter on each creature you control$/i, () => [{ do: 'counters', amount: 1, cada: { tipos: ['creature'], de: 'you' } }]], // M-527 · Cosmogrand Zenith (122.1)
@@ -18991,6 +18996,7 @@ const __m42 = (function () {
     [/^you gain life equal to the damage dealt this way$/i, () => [{ do: 'gain', amount: { per: 'dano-causado' } }]], // M-427 · Rite of Consumption, Corrupt, Syphon Soul (o dano causado de fato)
     [/^until end of turn, target creature gets \+(\d+)\/\+(\d+) and gains "when (?:this creature|~) dies, return it to the battlefield tapped under its owner's control\.?"\.?$/i, m => [{ do: 'pump', power: +m[1], toughness: +m[2], target: 'creature' }, { do: 'ganha_habilidade', target: 'first-target', habilidade: { kind: 'triggered', when: 'dies', effects: [{ do: 'reanimate_tapped', target: 'self-source', controle: 'dono' }] } }]], // M-429 · Supernatural Stamina
     [/^counter target spell if its mana value is (\d+) or less$/i, m => [{ do: 'counter', target: 'spell', mvAte: +m[1] }]], // M-419 · Prohibit (mira qualquer mágica; confere na resolução)
+    [/^counter (target spell with mana value \d+ or less)$/i, m => [com({ do: 'counter' }, alvo(m[1]))]], // M-535 · Mesmeric Glare
     [/^counter (target [a-z ']+)$/i, m => [com({ do: 'counter' }, alvo(m[1]))]],
     [/^return (target [a-z ']+) to its owner's hand$/i, m => [com({ do: 'bounce' }, alvo(m[1]))]],
     [/^(target creature|target creature you control|creatures you control|creatures your opponents control|all creatures) gets? ([+-]\d+)\/([+-]\d+) until end of turn$/i, m => [com({ do: 'pump', power: SINAL(m[2]), toughness: SINAL(m[3]) }, alvo(m[1]))]],
