@@ -6224,7 +6224,7 @@ const PER_COUNTS = ['tipos-do-alvo' /* M-450 · Embiggen */, 'mesmo-nome-nos-cem
   'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G', 'counters-on-source', 'opponents-empty-hand', 'trigger-value', 'chosen-type-permanents', 'sacrificed-toughness', 'sacrificed-mv', 'sacrificed-power', 'dano-causado' /* M-427 · "the damage dealt this way" */, 'descartadas-assim' /* M-434 · "draw that many cards" depois de descartar a mão */, 'creature-cards-in-your-graveyard', 'cards-in-hand', 'x', 'power-of-source', 'se', 'power-of-target',
   'instants-sorceries-in-your-graveyard', 'flashback-cards-you-own-in-exile', 'soma', 'party', 'movidas', ...perCountsT()]; // M-386 · `movidas`: "for each card put into your graveyard this way" (o que o efeito anterior desta habilidade moveu) // T-59 · CR 700.8 · quantas criaturas há no seu grupo (0 a 4) // M-358 · Seize the Storm (604.3); `soma`: { per: 'soma', partes: [contagem, contagem, …] }
 /** M-333 · 601.2f · "This spell costs {N} less to cast for each …": o que a redução conta (chave `reduzPor: { generic, per }` no topo do script). */
-const REDUZ_POR = ['instants-sorceries-in-your-graveyard', 'creature-cards-in-your-graveyard', 'land-cards-in-your-graveyard', 'creatures-on-battlefield',
+const REDUZ_POR = ['inst-feit-aventura-no-cemiterio' /* M-534 · Hearth Elemental */, 'instants-sorceries-in-your-graveyard', 'creature-cards-in-your-graveyard', 'land-cards-in-your-graveyard', 'creatures-on-battlefield',
   'creatures-opponents-control', 'basic-land-types-you-control', 'attacking-creatures', 'attacking-creatures-you-control', 'cards-drawn-this-turn',
   'creatures-attacked-this-turn', 'creatures-you-attacked-with-this-turn', 'morbid' /* M-440 · "if a creature died this turn": 1 ou 0 (Bone Picker) */];
 /** S19 · um valor pode ser um número ou uma contagem do campo. */
@@ -10432,6 +10432,9 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   // M-533 · revisão por lote CLXXI (Subtlety: a mágica alvo vai ao topo ou ao fundo do grimório do dono; Consign to Memory: replicar e anular habilidade disparada ou mágica incolor), textos da Scryfall de 19/10/2026 UTC, revisor independente
   'Subtlety': { texto: 'mmy6px', leva: 'M-533' },
   'Consign to Memory': { texto: '5kkomu', leva: 'M-533' },
+  // M-534 · revisão por lote CLXXII (Hearth Elemental: redução por instantâneas, feitiços e Aventuras no cemitério; Carnivorous Cultivator: Enroot), textos da Scryfall de 19/10/2026 UTC, revisor independente
+  'Hearth Elemental // Stoke Genius': { texto: '1bz258v', leva: 'M-534' },
+  'Carnivorous Cultivator // Enroot': { texto: '9gkrp', leva: 'M-534' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -19027,6 +19030,7 @@ const __m42 = (function () {
     [new RegExp(`^its controller creates ${N} (treasure|food|blood|map|clue) tokens?$`, 'i'), m => fichaPredefinida(m[1], m[2]).map(e => ({ ...e, target: 'target-controller' }))], // LT11 · "its controller": o controlador do alvo
     [new RegExp(`^~ deals ${N} damage to each non-([A-Z][a-z]+) creature$`), m => [{ do: 'damage', amount: num(m[1]), target: 'each-creature', exceptSubtype: m[2] }]], // LT11
     [/^each player sacrifices a nontoken creature of their choice$/i, () => [{ do: 'sacrifice_each', types: ['creature'], nontoken: true }]], // LT11 · 701.21
+    [/^search your library for a land card, put it into your graveyard$/i, () => [{ do: 'search', amount: 1, filter: { types: ['land'] }, to: 'graveyard' }]], // M-534 · Enroot (Carnivorous Cultivator); "then shuffle" é da busca
     [/^search your library for a creature card with (defender|flying|reach), reveal it, put it into your hand$/i, m => [{ do: 'search', amount: 1, filter: { types: ['creature'], keyword: m[1].toLowerCase() }, to: 'hand' }]], // LT11
     [/^prevent all combat damage that would be dealt this turn$/i, () => [{ do: 'fog' }]], // LT9
     [/^exile all cards from target player's graveyard$/i, () => [{ do: 'exile_graveyard', target: 'player' }]], // LT9
@@ -19390,6 +19394,7 @@ const __m42 = (function () {
   const PRE_PARAGRAFO = [
     [/^choose (target creature or planeswalker|target creature)\. you get ((?:\{E\})+)(?: \([^)]*\))?, then you may pay any amount of \{E\}\. ~ deals that much damage to that (?:creature|permanent)(?:\.\s*|$)/i, m => [{ do: 'energia', amount: m[2].length / 3 }, { do: 'energia_dano', target: /planeswalker/i.test(m[1]) ? { tipos: ['creature', 'planeswalker'] } : { tipos: ['creature'] } }]], // M-405 · Galvanic Discharge, Harnessed Lightning
     [/^~ deals (\d+) damage to target player or planeswalker and (\d+) damage to target creature that player or that planeswalker's controller controls(?:\.\s*|$)/i, m => [{ do: 'damage', amount: +m[1], target: { tipos: ['planeswalker'], jogadores: 'any' } }, { do: 'damage', amount: +m[2], target: { tipos: ['creature'] }, doJogadorDoPrimeiro: true }]], // M-437 · Searing Blaze
+    [new RegExp(`^discard your hand, then draw ${N} cards(?:\\.\\s*|$)`, 'i'), m => { const n = num(m[1]); return n ? [{ do: 'descarta_a_mao', target: 'self' }, { do: 'draw', amount: n }] : null; }], // M-534 · Stoke Genius (701.9)
     [/^discard all the cards in your hand, then draw that many cards(?:\.\s*|$)/i, () => [{ do: 'descarta_a_mao', target: 'self' }, { do: 'draw', amount: { per: 'descartadas-assim' } }]], // M-434 · Tolarian Winds (701.9)
     [new RegExp(`^look at the top ${N} cards of your library, then put them back in any order(?:\\.\\s*|$)`, 'i'), m => { const c = num(m[1]); return c ? [{ do: 'look', count: c, amount: c, min: c, to: 'library-top', rest: 'stay', ordena: true }] : null; }], // M-339 · Ponder
     [/^(target player|target opponent) reveals (?:their|his or her) hand\. you choose an? (.+?) from it(?: with mana value (\d+) or less)?\. (?:that player|they) discards? that card(?:\.\s*|$)/i, m => {
@@ -19523,6 +19528,7 @@ const __m42 = (function () {
         if (sv && pw != null && !magica) { (topo.abilities = topo.abilities || []).push({ kind: 'activated', label: 'Necrofagia', cost: { mana: sv[1], fromGraveyard: true, exileSelf: true }, sorceryOnly: true, effects: [{ do: 'counters', amount: pw, target: 'creature' }] }); frases.push({ texto: linha, lida: true }); continue; } }
       const kc0 = !magica && COM_CUSTO.map(([re, faz]) => { const m = linha.replace(/\.$/, '').match(re); return m && faz(m); }).find(Boolean); // LT5 · reciclagem em terreno
       { const ra = linha.replace(/\.$/, '').match(/^this spell costs \{(\d+)\} more to cast for each target beyond the first$/i); if (ra && magica) { topo.custoAlvoExtraL = +ra[1]; frases.push({ texto: linha, lida: true }); continue; } } // M-408 · 601.2f (Fireball): vai para o dano dividido igual da mesma carta
+      if (/^this spell costs \{X\} less to cast, where X is the number of cards in your graveyard that are instant cards, sorcery cards, and\/or have an Adventure$/i.test(linha.replace(/\.$/, ''))) { topo.reduzPor = { generic: 1, per: 'inst-feit-aventura-no-cemiterio' }; frases.push({ texto: linha, lida: true }); continue; } // M-534 · Hearth Elemental (601.2f)
       { const rm = linha.replace(/\.$/, '').match(/^this spell costs \{(\d+)\} less to cast if a creature died this turn$/i); if (rm) { topo.reduzPor = { generic: +rm[1], per: 'morbid' }; frases.push({ texto: linha, lida: true }); continue; } } // M-440 · Bone Picker (601.2f)
       { const rv = linha.replace(/\.$/, '').match(/^this spell costs \{(\d+)\} less to cast if it targets a tapped permanent$/i); if (rv && magica) { topo.reduzSeAlvoVirado = +rv[1]; frases.push({ texto: linha, lida: true }); continue; } } // M-383 · Ride's End
       { const rp = linha.replace(/\.$/, '').match(/^(?:domain — )?this spell costs \{(\d+)\} less to cast for each (.+)$/i), per = rp && REDUZ_POR_TEXTO[rp[2].toLowerCase()]; // M-333 · 601.2f
@@ -21438,6 +21444,7 @@ function contaParaReducao(s, p, per) {
   const atacando = () => ((s.combat && s.combat.attackers) || []).map(oid => s.objects[oid]).filter(x => x && x.zone === 'battlefield' && !x.phasedOut);
   switch (per) {
     case 'instants-sorceries-in-your-graveyard': return cem.filter(x => tipos(x).some(t => t === 'instant' || t === 'sorcery')).length;
+    case 'inst-feit-aventura-no-cemiterio': return cem.filter(x => tipos(x).some(t => t === 'instant' || t === 'sorcery') || !!((((s.facts[x.name] || {}).script || {}).self || {}).aventura)).length; // M-534 · 715.4 "has an Adventure" (carta de Aventura no cemitério; conta uma vez)
     case 'creature-cards-in-your-graveyard': return cem.filter(x => tipos(x).includes('creature')).length;
     case 'land-cards-in-your-graveyard': return cem.filter(x => tipos(x).includes('land')).length;
     case 'creatures-on-battlefield': return battlefield(s).filter(x => isCreature(s, x)).length;

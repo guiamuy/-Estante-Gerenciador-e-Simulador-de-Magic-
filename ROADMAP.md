@@ -5206,6 +5206,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nenhum.
 - **Teste:** `lt215.unit` (4 testes; falham no motor anterior).
 
+**M-534 · LT196 · revisão por lote CLXXII: Hearth Elemental e Carnivorous Cultivator** ✅ (leva M-534, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** passam a jogar Hearth Elemental // Stoke Genius (30 listas do catálogo) e Carnivorous Cultivator // Enroot (20). Textos da Scryfall consultados em 19/10/2026.
+- **Regra:** "This spell costs {X} less to cast, where X is the number of cards in your graveyard that are instant cards, sorcery cards, and/or have an Adventure" (601.2f; redução `inst-feit-aventura-no-cemiterio`, só da criatura: a Aventura paga o próprio custo); "Discard your hand, then draw N cards" (701.9) pelo leitor; "Search your library for a land card, put it into your graveyard, then shuffle" (a busca com destino cemitério).
+- **Revisão independente:** revisor independente (junto com a M-535), 39 sondas: a redução conta instantânea, feitiço (inclusive com insanidade) e carta de Aventura, não conta criatura, terreno, carta de preparação (722.2a) nem o cemitério do oponente, para em {R} e vale conjurando do exílio; o valor de mana na pilha continua 6; Stoke Genius com mão vazia, com insanidade e anulada (cemitério); Enroot só terreno, pode falhar e embaralha nos três casos; o gatilho do Cultivator escolhe entre terrenos e ignora o cemitério do oponente. Sem divergências.
+- **Fora (declarado):** nenhum.
+- **Teste:** `lt216.unit` (4 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
