@@ -6224,7 +6224,7 @@ function descreveGatilho(w, como = {}) { // M-401 · como.equipada: "a criatura 
 /** S11 · o que uma aura ou equipamento pode conceder. `per` conta permanentes
     e multiplica o bônus (Ancestral Mask, Ethereal Armor). */
 const ATTACH_KINDS = ['creature', 'permanent', 'land', 'creature-you-control', 'creature-or-planeswalker-you-control', 'creature-card-in-graveyard', 'player' /* T-94 · CR 303.4b · "Enchant player" (Maldições) (Toca ponto comum: ATTACH_KINDS) */, 'artifact-creature' /* T-113 · "Enchant artifact or creature" (Careful Cultivation): o mesmo nome de alvo de Resculpt (T-124) (Toca ponto comum: ATTACH_KINDS) */]; // CR2d.4 · "Enchant creature card in a graveyard" // Q11 · Setessan Training
-const PER_COUNTS = ['tipos-do-alvo' /* M-450 · Embiggen */, 'mesmo-nome-nos-cemiterios', 'attacking-creatures' /* M-423 · Rite of Flame ("each card named ~ in each graveyard") e Respite ("each attacking creature") */, 'enchantments-you-control', 'other-enchantments', 'auras-on-battlefield',
+const PER_COUNTS = ['cores-gastas' /* M-540 · convergir (Prismatic Ending): cores de mana gastas para conjurar esta mágica */, 'tipos-do-alvo' /* M-450 · Embiggen */, 'mesmo-nome-nos-cemiterios', 'attacking-creatures' /* M-423 · Rite of Flame ("each card named ~ in each graveyard") e Respite ("each attacking creature") */, 'enchantments-you-control', 'other-enchantments', 'auras-on-battlefield',
   'plains-you-control', 'islands-you-control', 'swamps-you-control', 'mountains-you-control', 'forests-you-control' /* M-516 · "the number of Mountains you control" (Spitting Earth): terrenos com o subtipo, básicos ou não (305.6) */,
   'creatures-you-control', 'other-creatures-you-control', 'elves-you-control', 'elves-on-battlefield', 'defenders-you-control', 'permanents-you-control', 'nonland-permanents-you-control', 'life-gained-this-turn', 'life-lost-this-turn',
   'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G', 'counters-on-source', 'opponents-empty-hand', 'trigger-value', 'chosen-type-permanents', 'sacrificed-toughness', 'sacrificed-mv', 'sacrificed-power', 'dano-causado' /* M-427 · "the damage dealt this way" */, 'descartadas-assim' /* M-434 · "draw that many cards" depois de descartar a mão */, 'creature-cards-in-your-graveyard', 'cards-in-hand', 'x', 'power-of-source', 'se', 'power-of-target',
@@ -6319,7 +6319,7 @@ function validateScript(sc) {
   if (sc && sc.plot && !sc.plot.mana) errs.push('plot sem custo de mana');
   if (sc && sc.foretell && !(sc.foretell.mana && /\{/.test(sc.foretell.mana))) errs.push('prenunciar sem custo de mana'); // M-382 · 702.143
   if (sc && sc.morph && !sc.morph.mana) errs.push('metamorfose sem custo de mana');
-  if (sc && sc.effects) for (const e of sc.effects) if (e && e.mvAteM != null && (e.do !== 'destroy' || !(Number.isInteger(e.mvAteM) ? e.mvAteM >= 0 : (e.mvAteM && e.mvAteM.per === 'se' && Number.isInteger(e.mvAteM.sim) && Number.isInteger(e.mvAteM.nao))))) errs.push('mvAteM: só em destroy, inteiro ou contagem "se"'); // M-537
+  if (sc && sc.effects) for (const e of sc.effects) if (e && e.mvAteM != null && (!['destroy', 'exile'].includes(e.do) || !(Number.isInteger(e.mvAteM) ? e.mvAteM >= 0 : (e.mvAteM && ((e.mvAteM.per === 'se' && Number.isInteger(e.mvAteM.sim) && Number.isInteger(e.mvAteM.nao)) || (e.mvAteM.per === 'cores-gastas' && Object.keys(e.mvAteM).length === 1)))))) errs.push('mvAteM: só em destroy ou exile, inteiro, contagem "se" ou cores gastas'); // M-540 // M-537
   if (sc && sc.entersTappedUnless && sc.entersTappedUnless.seuTurnoM == null && sc.entersTappedUnless.anyPlayerLifeAtMost == null && !Array.isArray(sc.entersTappedUnless.controlsSubtype) && !(Number.isInteger(sc.entersTappedUnless.pagaVida) && sc.entersTappedUnless.pagaVida > 0) && !Number.isInteger(sc.entersTappedUnless.maxOutrasTerras) && !Number.isInteger(sc.entersTappedUnless.minOutrasTerras) && !Number.isInteger(sc.entersTappedUnless.minBasicos) && !(Number.isInteger(sc.entersTappedUnless.ateTurnoProprio) && sc.entersTappedUnless.ateTurnoProprio > 0) && !(Array.isArray(sc.entersTappedUnless.minOutrosDoSubtipo) && typeof sc.entersTappedUnless.minOutrosDoSubtipo[0] === 'string' && Number.isInteger(sc.entersTappedUnless.minOutrosDoSubtipo[1]))) errs.push('entra virado a menos que: condição desconhecida');
   if (sc && sc.manaRule && !(/^[WUBRG]+$/.test(sc.manaRule.colors || '') && (sc.manaRule.damage || sc.manaRule.life || sc.manaRule.needsSubtype || sc.manaRule.needsType))) errs.push('regra de mana: precisa das cores e de dano, vida ou condição');
   for (const k of ((sc && sc.grantsAll) || {}).keywords || []) if (!KEYWORDS.includes(String(k).toLowerCase())) errs.push(`dá a todas: palavra-chave "${k}" não é resolvida pelo motor`);
@@ -10459,6 +10459,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   // M-539 · revisão por lote CLXXVII (Edge of Autumn: condição de quatro ou menos terrenos e ciclar sacrificando um terreno; Get Out: anular mágica de criatura ou encantamento, ou devolver uma ou duas permanentes suas), textos da Scryfall de 20/10/2026 UTC, revisor independente
   'Edge of Autumn': { texto: '1tcbcoo', leva: 'M-539' },
   'Get Out': { texto: '1g6fjh9', leva: 'M-539' },
+  // M-540 · revisão por lote CLXXVIII (Prismatic Ending: convergir — exilar se o valor de mana for no máximo o número de cores gastas), textos da Scryfall de 20/10/2026 UTC, revisor independente
+  'Prismatic Ending': { texto: 'xcuwg8', leva: 'M-540' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -19008,6 +19010,7 @@ const __m42 = (function () {
     [/^return target nonland permanent and all other permanents with the same name as that permanent to their owners' hands$/i, () => [{ do: 'bounce', target: { semTipos: ['land'] }, mesmoNome: true }]], // M-425 · Echoing Truth
     [/^add \{([WUBRGC])\} for each (creature card in your graveyard|card named ~ in each graveyard)$/i, m => [{ do: 'add_mana', symbols: [m[1].toUpperCase()], porContagem: /named/i.test(m[2]) ? 'mesmo-nome-nos-cemiterios' : 'creature-cards-in-your-graveyard' }]], // M-423 · Songs of the Damned, Rite of Flame
     [/^~ deals damage to (target creature|any target) equal to the number of (plains|islands|swamps|mountains|forests) you control$/i, m => { const a = alvo(m[1]); return a ? [{ do: 'damage', amount: { per: m[2].toLowerCase() + '-you-control' }, ...a }] : null; }], // M-516 · Spitting Earth (contagem na resolução, 608.2h)
+    [/^(?:converge — )?exile target nonland permanent if its mana value is less than or equal to the number of colors of mana spent to cast this spell$/i, () => [{ do: 'exile', target: { semTipos: ['land'] }, mvAteM: { per: 'cores-gastas' } }]], // M-540 · Prismatic Ending (convergir; mira qualquer permanente não terreno, confere na resolução)
     [/^destroy target creature if it has mana value (\d+) or less$/i, m => [{ do: 'destroy', target: 'creature', mvAteM: +m[1] }]], // M-537 · Fatal Push (mira qualquer criatura; confere na resolução)
     [/^tap up to two target creatures$/i, () => [{ do: 'tap', target: 'creature', upTo: true }, { do: 'tap', target: 'creature', upTo: true }]], // M-537 · Eddymurk Crab (como Dizzying Swoop)
     [/^destroy all non-([a-z]+) creatures$/i, m => [{ do: 'destroy', cada: { tipos: ['creature'], semSubtipos: [m[1][0].toUpperCase() + m[1].slice(1).toLowerCase()] } }]], // M-535 · Cast Off (Realm-Cloaked Giant): "non-Giant" (205.3; metamorfo é Gigante)
@@ -20927,6 +20930,7 @@ function payFrom(pool, cost, extraGeneric = 0, maxLife = Infinity) {
       const total = COLORS.reduce((t, c) => t + P0[c], 0);
       if (total < need) return null;
       let rest = need; const P1 = { ...P0 };
+      if (PREFERE_CORES_M) { const ja = new Set(['W', 'U', 'B', 'R', 'G'].filter(c => (P0[c] || 0) < (pool[c] || 0))); for (const c of ['W', 'U', 'B', 'R', 'G']) if (rest > 0 && !ja.has(c) && P1[c] > 0) { P1[c]--; rest--; } } // M-540 · convergir/sunburst: uma de cada cor nova antes do resto
       for (const c of ['C', 'W', 'U', 'B', 'R', 'G']) { const take = Math.min(P1[c], rest); P1[c] -= take; rest -= take; }
       return { pool: P1, life: life0 };
     }
@@ -21149,6 +21153,10 @@ let fonteReservada = null;
 /** M-345 · 106.6 · o que o pagamento em curso paga: { magia: oid } (conjurar) ou { habilidade: oid } (ativar); null = outra coisa (custo de
  * "a menos que", proteção…), e aí a mana restrita não serve. */
 let GASTO = null;
+/** M-540 · 601.2h · a mágica que está sendo paga conta as cores gastas (convergir, sunburst): o pagamento automático busca o plano com mais cores. */
+let PREFERE_CORES_M = false;
+const prefereCoresM = s => { const o = GASTO && GASTO.magia != null ? s.objects[GASTO.magia] : null; const sc = o ? ((s.facts[o.name] || {}).script || {}) : null; return !!sc && (!!sc.sunburst || JSON.stringify(sc.effects || []).includes('"cores-gastas"')); };
+const comPrefereCoresM = (s, f) => { const antes = PREFERE_CORES_M; PREFERE_CORES_M = prefereCoresM(s); try { return f(); } finally { PREFERE_CORES_M = antes; } };
 /** M-355 · 601.2h · vida que ainda precisa sobrar depois das fontes de mana para pagar a parte do custo paga com vida (phyrexiano escolhido,
  * "Pay N life" de habilidade). O planejador só aceita o plano em que a vida depois das fontes cobre isso. */
 let VIDA_DEPOIS = 0;
@@ -21221,7 +21229,7 @@ function anotaManaGasta(s, antes, depois) {
 /** M-451 · 702.44a sunburst: as cores de mana gastas para conjurar a mágica (incolor não é cor; custo adicional conta; sem pagar, nenhuma).
     Só na mágica que tem sunburst (o estado das outras não muda); a marca é da conjuração (400.7: some fora de mão → pilha → campo). */
 function coresGastasM(s, antes, depois) {
-  const o = GASTO && GASTO.magia != null ? s.objects[GASTO.magia] : null; if (!o || !((s.facts[o.name] || {}).script || {}).sunburst) return;
+  const o = GASTO && GASTO.magia != null ? s.objects[GASTO.magia] : null; const scG = o ? ((s.facts[o.name] || {}).script || {}) : {}; if (!o || !(scG.sunburst || JSON.stringify(scG.effects || []).includes('"cores-gastas"'))) return; // M-540 · também convergir
   const cs = new Set(o.coresGastasM || []); for (const c of COLORS) if (c !== 'C' && (antes[c] || 0) - (depois[c] || 0) > 0) cs.add(c);
   o.coresGastasM = COLORS.filter(c => cs.has(c));
 }
@@ -21246,12 +21254,15 @@ function sources(s, p) {
 /** Escolhe fontes desviradas para completar o pagamento. Busca limitada e determinística. */
 // CR 107.4f / 119.4 · símbolo phyrexiano: o plano tenta primeiro pagar tudo com mana (antes pagava 2 de vida com a Ilha desvirada);
 // só sem mana usa vida, e nunca mais vida do que o jogador tem. A escolha livre entre mana e vida entra com a CR2c (601.2f).
-function planTaps(s, p, cost, extra) { return (cost.hybrid || []).some(h => h.includes('P')) ? (planoDePagamento(s, p, cost, extra, 0) || planoDePagamento(s, p, cost, extra, s.players[p].life)) : planoDePagamento(s, p, cost, extra, Infinity); }
+function planTaps(s, p, cost, extra) { return comPrefereCoresM(s, () => planTapsM(s, p, cost, extra)); } // M-540
+function planTapsM(s, p, cost, extra) { return (cost.hybrid || []).some(h => h.includes('P')) ? (planoDePagamento(s, p, cost, extra, 0) || planoDePagamento(s, p, cost, extra, s.players[p].life)) : planoDePagamento(s, p, cost, extra, Infinity); }
 function planoDePagamento(s, p, cost, extra, maxLife) {
   const pl = s.players[p], P0 = (pl.manaRestrita || []).length ? poolUsavel(s, p) : pl.pool; // M-345
   if (payFrom(P0, cost, extra, maxLife)) return [];
   const src = sources(s, p).sort((a, b) => productions(s, a).length - productions(s, b).length || (a.oid < b.oid ? -1 : 1));
-  let budget = 4000, found = null;
+  let budget = 4000, found = null, melhorCoresM = -1; // M-540
+  const coresDoPlanoM = pool => { const r = payFrom(pool, cost, extra, maxLife); return r ? ['W', 'U', 'B', 'R', 'G'].filter(c => (pool[c] || 0) - (r.pool[c] || 0) > 0).length : -1; };
+  const tetoCoresM = Math.min(5, Object.values(cost.colored || {}).reduce((a, b) => a + b, 0) + (cost.generic || 0) + (extra || 0) + (cost.hybrid || []).length);
   // M-355 · 119.4 / 601.2g–h (achado da revisão): a vida cobrada pelas fontes se soma (duas Mana Confluence com 1 de vida não pagam) e o que se
   // paga com vida depois da mana (phyrexiano) sai da vida que sobra depois delas (vida, depois dano)
   const vidaOk = taps => { let v = 0, d = 0; for (const [oid, k, mana] of taps) { const o = s.objects[oid]; const [a, b] = vidaDoToque(s, o, mana || productions(s, o)[k]); v += a; d += b; }
@@ -21259,19 +21270,19 @@ function planoDePagamento(s, p, cost, extra, maxLife) {
   const serve = (pool, taps) => { const m = taps.length ? vidaOk(taps) : (VIDA_DEPOIS <= 0 || pl.life >= VIDA_DEPOIS ? maxLife : -1); return m >= 0 && !!payFrom(pool, cost, extra, m); };
   if (VIDA_DEPOIS > 0 && pl.life < VIDA_DEPOIS) return null;
   (function dfs(i, pool, taps) {
-    if (found || budget-- <= 0) return;
-    if (serve(pool, taps)) { found = taps; return; }
+    if ((found && (!PREFERE_CORES_M || melhorCoresM >= tetoCoresM)) || budget-- <= 0) return;
+    if (serve(pool, taps)) { if (!PREFERE_CORES_M) { found = taps; return; } const nc = coresDoPlanoM(pool); if (nc > melhorCoresM) { melhorCoresM = nc; found = taps; } return; } // M-540 · convergir: o plano com mais cores
     if (i === src.length) return;
     const o = src[i];
     const n = comboDe(s, o);
     // Leva 122 · fonte de combinação livre: o plano leva a divisão junto ([oid, 0, mana])
     if (n > 0) combinacoesUteis(n, cost).forEach(mana => {
-      if (found) return;
+      if (found && (!PREFERE_CORES_M || melhorCoresM >= tetoCoresM)) return;
       const P = { ...pool }; mana.forEach(c => { P[c]++; });
       dfs(i + 1, P, taps.concat([[o.oid, 0, mana]]));
     });
     else productions(s, o).forEach((opt, k) => {
-      if (found) return;
+      if (found && (!PREFERE_CORES_M || melhorCoresM >= tetoCoresM)) return;
       { const g = restricaoDaOpcao(s, o, opt); if (g && !serveGasto(s, g, GASTO)) return; } // M-345 · 106.6: a mana restrita só entra no plano do que ela paga
       const P = { ...pool }; opt.forEach(c => { P[c]++; });
       dfs(i + 1, P, taps.concat([[o.oid, k]]));
@@ -21285,7 +21296,7 @@ function planoDePagamento(s, p, cost, extra, maxLife) {
     const soma = taps => { const P = { ...P0 }; for (const [oid, k, mana] of taps) (mana || productions(s, s.objects[oid])[k] || []).forEach(c => { P[c]++; }); return P; };
     for (let i = found.length - 1; i >= 0 && found.length > 1; i--) {
       const sem = found.slice(0, i).concat(found.slice(i + 1));
-      if (serve(soma(sem), sem)) found = sem; // M-355
+      if (serve(soma(sem), sem) && (!PREFERE_CORES_M || coresDoPlanoM(soma(sem)) >= melhorCoresM)) found = sem; // M-355 · M-540: sem perder cor
     }
   }
   // M-503 · 601.2g–h: o genérico sai da cor que sobra mais. A busca pega as primeiras fontes que pagam: com dois Pântanos e oito Florestas,
@@ -21293,7 +21304,7 @@ function planoDePagamento(s, p, cost, extra, maxLife) {
   // simples por fonte simples (um terreno de uma cor, uma mana, sem outra habilidade ativada, sem custo de vida, sem restrição, que não é criatura): uma fonte que paga uma
   // cor pedida pelo custo dá lugar a uma de outra cor quando, fora do plano, sobram pelo menos duas fontes simples a mais da outra cor. Fonte
   // flexível (terreno duplo, de dor, de qualquer cor, criatura de mana) nunca entra no lugar de um básico (achado da revisão de M-503).
-  if (found && found.length) {
+  if (found && found.length && !PREFERE_CORES_M) { // M-540 · convergir: a troca por cor que sobra mais não vale (mudaria as cores gastas)
     const pede = new Set([...Object.keys(cost.colored || {}).filter(c => cost.colored[c] > 0), ...(cost.hybrid || []).flat().filter(c => 'WUBRGC'.includes(c) && c.length === 1)]);
     const corSimples = o => { const ps = productions(s, o), f = s.facts[o.name] || {}; if (ps.length !== 1 || ps[0].length !== 1 || comboDe(s, o) > 0 || isCreature(s, o) || !(f.types || []).includes('land') || ((f.script || {}).abilities || []).length) return null;
       const opt = ps[0]; return restricaoDaOpcao(s, o, opt) || vidaDoToque(s, o, opt).some(x => x > 0) ? null : opt[0]; };
@@ -21350,7 +21361,7 @@ function payCost(s, p, cost, extra = 0, paraQue) {
   ordemDeVirar(s, taps).forEach(([oid, k, mana]) => tapForMana(s, oid, k, mana)); // M-355 · 119.4: a fonte que cobra vida vira antes da que causa dano (pedido da homologacao)
   const antes = { ...s.players[p].pool }; // M-273 · para saber quanto de cada cor foi gasto
   if ((s.players[p].manaRestrita || []).length) return pagaComRestrita(s, p, cost, extra, paraQue, antes); // M-345
-  const r = payFrom(s.players[p].pool, cost, extra, 0) || payFrom(s.players[p].pool, cost, extra, s.players[p].life);
+  const r = comPrefereCoresM(s, () => payFrom(s.players[p].pool, cost, extra, 0) || payFrom(s.players[p].pool, cost, extra, s.players[p].life)); // M-540
   anotaManaGasta(s, s.players[p].pool, r.pool); // M-346
   s.players[p].pool = r.pool; perdeVida(s, p, r.life);
   if ((s.players[p].manaMarcada || []).length) gastaMarcada(s, p, antes, paraQue); // M-273
@@ -21361,7 +21372,7 @@ function pagaComRestrita(s, p, cost, extra, paraQue, antes) {
   const pl = s.players[p], usaveis = pl.manaRestrita.filter(t => serveGasto(s, t.gasto, GASTO)), U = {};
   for (const t of usaveis) U[t.cor] = (U[t.cor] || 0) + 1;
   const P = { ...pl.pool }; for (const [c, n] of Object.entries(U)) P[c] = (P[c] || 0) + n;
-  const r = payFrom(P, cost, extra, 0) || payFrom(P, cost, extra, pl.life);
+  const r = comPrefereCoresM(s, () => payFrom(P, cost, extra, 0) || payFrom(P, cost, extra, pl.life)); // M-540
   if (!r) throw new RuleError('mana', 'mana insuficiente');
   anotaManaGasta(s, P, r.pool); // M-346
   const novo = { ...r.pool }, gastas = new Set();
@@ -22476,6 +22487,7 @@ function amountOf(s, src, v) {
     if (v.per === 'se') return condicaoDoEfeito(s, src.ability && !doQueResolveT(v.se) ? s.objects[src.source] : src, v.se) ? v.sim : v.nao; // T-64 · o monarca é visto do controlador da habilidade (109.5) // M-331 · "… instead if …" (Galvanic Blast, Plunder the Trollshaws)
     if (v.per === 'soma') return (v.partes || []).reduce((n, x) => n + amountOf(s, src, x), 0) * (v.times || 1); // M-358 · "N, plus M" (Seize the Storm)
     if (v.per === 'resultado-do-dado') return ((src.dadoT || {}).resultado || 0) * (v.times || 1); // T-66 · CR 706.4 · "equal to the result"
+    if (v.per === 'cores-gastas') return (src.ability ? 0 : (src.coresGastasM || []).length) * (v.times || 1); // M-540 · convergir: a mágica guarda as cores da conjuração (sem pagar, nenhuma)
     if (v.per === 'vezes-que-desceu') return vezesQueDesceuT(s, src.controller) * (v.times || 1); // T-84 · CR 700.11 (Toca ponto comum: amountOf)
     if (v.per === 'maldicoes-no-jogador') return maldicoesNoJogadorT(s, src.jogadorAtrasado != null ? src.jogadorAtrasado : src.controller) * (v.times || 1); // T-94 · CR 303.4b (Toca ponto comum: amountOf)
     if (v.per === 'metade-de-x' || v.per === 'rad-total') return (v.per === 'rad-total' ? s.players.reduce((n, pl) => n + (pl.lost ? 0 : pl.rad || 0), 0) : Math.ceil((src.xPaid || 0) / 2)) * (v.times || 1); // T-91 · CR 728.1 · Contaminated Drink, Vault 12 (Toca ponto comum: amountOf)
@@ -22698,6 +22710,7 @@ function applyEffectM449(s, src, eff, tgt, events) {
     }
     case 'exile': { // S48 · a permanente pode lembrar o que exilou, para devolver depois — CR2-G R4a · atalho de mover
       // Leva 107 · ruling do Journey to Nowhere: se ele já saiu do campo quando o exílio resolve, a criatura fica exilada para sempre
+      if (eff.mvAteM != null && obj && manaValueT(s, obj) > amountOf(s, src, eff.mvAteM)) { note({ failed: true, why: 'valor de mana alto' }); break; } // M-540 · Prismatic Ending (608.2b: conferido na resolução)
       if (moverObjeto(s, src, obj, { para: 'exile', lembra: !!eff.remember, ...(eff.ate ? { ate: eff.ate } : {}) }, ctrl)) note({}); else note({ failed: true }); break;
     }
     case 'mover': { // CR2-G R4a · mover entre zonas
@@ -35033,7 +35046,7 @@ function descreveEfeito(e) {
       const fem = (e.types || [])[0] === 'creature'; // M-219 · "todas as criaturas" (a M-218 escrevia "todos os criaturas")
       return `destrói ${fem ? 'todas as' : 'todos os'} ${(e.types || []).map(x => nomes[x] || x).join(' e ')}${vm}`; }
     case 'edict': return `${alvo || 'o oponente'} sacrifica ${e.types && e.types[0] === 'creature' ? 'uma criatura' : 'uma permanente'} à escolha dele`;
-    case 'exile': return `exila ${alvo || 'uma permanente'}`;
+    case 'exile': return `exila ${alvo || 'uma permanente'}${e.mvAteM != null ? ` se o valor de mana dela for ${e.mvAteM.per === 'cores-gastas' ? 'no máximo o número de cores de mana gastas para conjurar esta mágica' : qtd(e.mvAteM) + ' ou menos'}` : ''}`; // M-540
     case 'bounce': return `devolve ${alvo || 'uma permanente'}${e.mesmoNome ? ' e todas as outras permanentes com o mesmo nome' : ''} para a mão do dono`; // M-425
     case 'to_hand': return 'volta para a mão';
     case 'token': { const t = e.token || {}; const pd = (t.self || {}).ptDefinido, contaPT = v => v && v.per === 'soma' ? (v.partes || []).map(x => X_PT[x.per] || x.per).join(' mais ') : (v && (X_PT[v.per] || v.per)) || v; /* M-358 · achado da revisão: a ficha de P/T por contagem e as palavras-chave dela */

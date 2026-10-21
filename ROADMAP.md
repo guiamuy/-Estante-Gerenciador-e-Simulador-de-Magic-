@@ -5248,6 +5248,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nenhum.
 - **Teste:** `lt221.unit` (6 testes; falham no motor anterior).
 
+**M-540 · LT202 · revisão por lote CLXXVIII: Prismatic Ending** ✅ (leva M-540, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** passa a jogar Prismatic Ending (102 listas do catálogo). Texto da Scryfall consultado em 20/10/2026.
+- **Regra:** convergir — "the number of colors of mana spent to cast this spell" (contagem nova `cores-gastas`, a mesma marca da conjuração do sunburst; incolor não é cor, 105.1); exilar "if its mana value is less than or equal to …" conferido ao resolver (`mvAteM` também em `exile`, 608.2b); mira qualquer permanente não terreno.
+- **Revisão independente:** revisor independente (junto com a M-541): cores distintas (incolor não conta, duas da mesma contam uma, a cor escolhida no terreno de qualquer cor conta), X = 0 com {W} exila valor 0 e 1, criatura com X no custo vale sem o X, condição só na resolução, conjurada sem pagar (cascata) e cópia contam 0, a marca não vaza entre conjurações. **Uma divergência, corrigida com teste:** o pagamento automático gastava sempre na mesma ordem (Plains, Plains e Island com X = 1 viravam as duas Plains; reserva {W}{C}{G} gastava o incolor) — agora, para mágica que conta as cores gastas (convergir e sunburst), o plano de pagamento busca o que dá mais cores e o genérico sai primeiro de cor nova (601.2h); nas outras mágicas nada muda.
+- **Fora (declarado):** nenhum.
+- **Teste:** `lt222.unit` (4 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
