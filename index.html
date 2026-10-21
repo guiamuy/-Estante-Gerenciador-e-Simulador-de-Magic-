@@ -6451,6 +6451,7 @@ function validateScript(sc) {
     if (self.entraComInstFeitDelveM != null && !(self.entraComInstFeitDelveM === true && sc.delve)) errs.push('bônus próprio: entraComInstFeitDelveM é verdadeiro e pede delve (as cartas exiladas pelo delve desta mágica)'); // M-530 · Murktide Regent
     if (self.soBloqueiaVoadorasM != null && self.soBloqueiaVoadorasM !== true) errs.push('bônus próprio: soBloqueiaVoadorasM só vale como true'); // M-531 · Brazen Borrower
     if (self.compraMaisUmM != null && self.compraMaisUmM !== true) errs.push('bônus próprio: compraMaisUmM só vale como true'); // M-542 · Quantum Riddler
+    if (self.danoViraMarcadorM != null && self.danoViraMarcadorM !== true) errs.push('bônus próprio: danoViraMarcadorM só vale como true'); // M-547 · Soul-Scar Mage
     if (self.atacaSeTem11M != null && self.atacaSeTem11M !== true) errs.push('bônus próprio: atacaSeTem11M só vale como true'); // M-532 · Lovestruck Beast
     if (self.naoBloqueiaPoderM != null && !(Number.isInteger(self.naoBloqueiaPoderM) && self.naoBloqueiaPoderM > 0)) errs.push('bônus próprio: naoBloqueiaPoderM é o poder mínimo que ela não bloqueia (inteiro positivo)'); // M-524 · Ironclaw Orcs
     if (self.reduzCor != null && !(self.reduzCor && Number.isInteger(self.reduzCor.generic) && self.reduzCor.generic > 0 && Array.isArray(self.reduzCor.cores) && self.reduzCor.cores.length && self.reduzCor.cores.every(c => 'WUBRG'.includes(c) && c.length === 1))) errs.push('bônus próprio: reduzCor pede generic inteiro positivo e cores WUBRG'); // M-352
@@ -10477,6 +10478,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Sunderflock': { texto: '1laj6sx', leva: 'M-545' },
   // M-546 · revisão por lote CLXXXIV (Oni-Cult Anvil: gatilho de artefatos que saem no seu turno, uma vez por turno), textos da Scryfall de 21/10/2026 UTC, revisor independente
   'Oni-Cult Anvil': { texto: '1gwy6wd', leva: 'M-546' },
+  // M-547 · revisão por lote CLXXXV (Soul-Scar Mage: dano não de combate vira marcadores -1/-1 na criatura do oponente), texto e rulings da Scryfall de 21/10/2026 UTC, revisor independente
+  'Soul-Scar Mage': { texto: 'k245cd', leva: 'M-547' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -19653,6 +19656,7 @@ const __m42 = (function () {
         if (/^~ can't be blocked except by walls and\/or creatures with flying\.?$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'flying-or-wall' }; frases.push({ texto: linha, lida: true }); continue; } // M-524 · Elven Riders
         if (/^~ enters with a \+1\/\+1 counter on it for each instant and sorcery card exiled with it\.?$/i.test(lp) && topo.delve) { topo.self = { ...(topo.self || {}), entraComInstFeitDelveM: true }; frases.push({ texto: linha, lida: true }); continue; } // M-530 · Murktide Regent (607.2a: as exiladas pelo delve)
         if (/^~ enters prepared\.?$/i.test(lp)) { topo.self = { ...(topo.self || {}), preparo: true, entraPreparada: true }; frases.push({ texto: linha, lida: true }); continue; } // M-531 · 722.3a (Pompous Battlemage); a mágica de preparação vem do verso
+        if (/^if a source you control would deal noncombat damage to a creature an opponent controls, put that many -1\/-1 counters on that creature instead\.?$/i.test(lp)) { topo.self = { ...(topo.self || {}), danoViraMarcadorM: true }; frases.push({ texto: linha, lida: true }); continue; } // M-547 · Soul-Scar Mage (614.1a)
         if (/^as long as you have one or fewer cards in hand, if you would draw one or more cards, you draw that many cards plus one instead\.?$/i.test(lp)) { topo.self = { ...(topo.self || {}), compraMaisUmM: true }; frases.push({ texto: linha, lida: true }); continue; } // M-542 · Quantum Riddler (614.11)
         if (/^~ can block only creatures with flying\.?$/i.test(lp)) { topo.self = { ...(topo.self || {}), soBloqueiaVoadorasM: true }; frases.push({ texto: linha, lida: true }); continue; } // M-531 · Brazen Borrower (509.1b)
         if (/^~ can't attack unless you control a 1\/1 creature\.?$/i.test(lp)) { topo.self = { ...(topo.self || {}), atacaSeTem11M: true }; frases.push({ texto: linha, lida: true }); continue; } // M-532 · Lovestruck Beast (508.1c)
@@ -20771,6 +20775,13 @@ const toxicoDe = (s, o) => !o ? 0 : (o.tempToxico || 0) + (o.faceDown || semImpr
 /** CR2a.9 · a fonte do dano de uma habilidade é o objeto de onde ela veio (o pinger com Basilisk Collar tem toque mortífero). */
 const fonteDoDano = (s, src) => (src && src.ability && s.objects[src.source]) || src;
 const infecta = (s, src0) => { const src = fonteDoDano(s, src0); return !!src && !!s.facts[src.name] && has(s, src, 'infect'); }; // fonte sem carta (efeito sintético) não infecta
+/** M-547 · Soul-Scar Mage: o dano não de combate que `src` causaria em `obj` vira marcadores −1/−1? (criatura de um oponente de quem controla a fonte,
+    e esse jogador controla uma permanente com a habilidade). */
+function almaCicatrizM(s, src, obj) {
+  if (!obj || obj.zone !== 'battlefield' || !isCreature(s, obj) || !src) return false;
+  const ctrl = src.controller != null ? src.controller : (fonteDoDano(s, src) || {}).controller; if (ctrl == null || obj.controller === ctrl) return false;
+  return battlefield(s).some(w => w.controller === ctrl && !w.faceDown && !semImpressas(s, w) && !!((((s.facts[w.name] || {}).script || {}).self || {}).danoViraMarcadorM));
+}
 function marcaDanoEmCriatura(s, src, obj, n) { if (infecta(s, src) || murchaK(s, src)) obj.counters.m1m1 = (obj.counters.m1m1 || 0) + n; else obj.damage += n; }
 /** M-254 · 702.90b · dano num jogador: de fonte com infectar vira veneno, sem perda de vida. */
 function danoEmJogador(s, src, p, n) { danoNoTurnoK(s, p, n); if (infecta(s, src)) darVeneno(s, p, n, null, src.name); else perdeVida(s, p, n); }
@@ -22748,11 +22759,13 @@ function applyEffectM449(s, src, eff, tgt, events) {
           note({ amount: total || n, ...(prevenido && !total ? { prevented: true } : {}) }); break;
         }
         // CR2-G R5b · prevenção num caminho só; o que foi prevenido de fato pode virar vida (S52)
-        n = danoSubstituido(s, src, obj ? { obj } : { player: playerOf() }, n, false); // CR2-G R5d
+        const almaM = obj && n > 0 && almaCicatrizM(s, src, obj); // M-547 · Soul-Scar Mage: o dono da criatura aplica a troca antes do aumento
+        if (!almaM) n = danoSubstituido(s, src, obj ? { obj } : { player: playerOf() }, n, false); // CR2-G R5d
         const resto = danoAposPrevencao(s, src, obj ? { obj } : { player: playerOf() }, n, false);
         if (n > 0 ? !resto : prevencaoLegado(s, src, obj)) { ganhaVida(n); note({ amount: n, prevented: true }); break; } // dano 0 prevenido continua no registro, como antes
         if (resto < n) ganhaVida(n - resto);
         n = resto;
+        if (almaM && n > 0) { const k = poeMarcadores(s, obj, 'm1m1', n); note({ amount: k, marcadores: true }); break; } // M-547 · 614.1a: o dano não é causado (sem vínculo, sem toque mortífero, sem gatilho de dano)
         if (eff.exilaSeMorrer && obj && n > 0) obj.exilaSeMorrerNoTurno = s.turn.number; // M-384 · 614.1a: "If a permanent dealt damage by ~ would die this turn, exile it instead" (só se o dano foi causado, depois da prevenção)
         const causou = (q, j = null) => { if (q > 0) src.danoCausado = (src.danoCausado || 0) + q; /* M-427 */ if (eff.acumula) { eff.acumula.n += q > 0 ? q : 0; if (j != null && q > 0) eff.acumula.jogador = j; } else causouDano(s, src, q, j); }; // M-407 · o "morde" junta as partes num evento de dano só
         if (obj && (danoEmBatalhaT(s, src, obj, n) || danoEmPwCriaturaT(s, src, obj, n))) { causou(n); note({ amount: n }); break; } // T-18 · CR 120.3e: planeswalker-criatura // T-14 · CR 310.6 / 120.3h · dano à batalha tira defesa · Toca ponto comum: applyEffect damage (uma linha)
@@ -29778,10 +29791,12 @@ Object.assign(EXPORTS_V, { proliferar, continuaVerbo });
    em si (c); não é dano de combate (d). A fonte do dano é a criatura (toque mortífero, vínculo com a vida, infectar, proteção). */
 function danoDeLuta(s, fonte, alvo, n, events) {
   if (!(n > 0)) return 0; // 120.8 · dano 0 não é dano
-  n = danoSubstituido(s, fonte, { obj: alvo }, n, false);
+  const almaM = almaCicatrizM(s, fonte, alvo); // M-547 · Soul-Scar Mage (ruling: na luta, a criatura do oponente recebe marcadores)
+  if (!almaM) n = danoSubstituido(s, fonte, { obj: alvo }, n, false);
   const resto = danoAposPrevencao(s, fonte, { obj: alvo }, n, false);
   const viradasT = { ...(fonte.faceDown ? { fonteVirada: true } : {}), ...(alvo.faceDown ? { alvoVirado: true } : {}) }; // T-74 · CR 708.2: a luta não revela quem está virada (Toca ponto comum: danoDeLuta)
   if (!(resto > 0)) { events.push({ kind: 'effect', do: 'damage', name: fonte.name, target: alvo.name, amount: n, prevented: true, ...viradasT }); return 0; }
+  if (almaM) { const k = poeMarcadores(s, alvo, 'm1m1', resto); events.push({ kind: 'effect', do: 'damage', name: fonte.name, target: alvo.name, amount: k, marcadores: true, ...viradasT }); return 0; } // M-547 · 614.16 (achado da revisão)
   marcaDanoEmCriatura(s, fonte, alvo, resto); noteEnchantedEvent(s, alvo, 'recebe-dano'); noteDamaged(s, alvo);
   if (has(s, fonte, 'deathtouch')) alvo.deathtouched = true;
   causouDano(s, fonte, resto, null);
@@ -33974,7 +33989,8 @@ function effectLine(ev) {
   switch (ev.do) {
     case 'mordedor': return `${ev.name} não causou dano: a criatura que ia causar o dano deixou de ser um alvo válido`; // M-407
     case 'morde': return ev.failed ? `${ev.name} não causou dano: a criatura alvo deixou de ser válida` : `${ev.name} não causou dano (poder ${ev.amount || 0})`; // M-407
-    case 'damage': if (!ev.failed && !ev.prevented && ev.amount === 0) return `${ev.name} não causou dano a ${t} (0 de dano)`; // M-408 · 120.8: 0 de dano não é causado (Fireball com X menor que o número de alvos)
+    case 'damage': if (ev.marcadores) return `${ev.name}: ${t} recebeu ${n === 1 ? '1 marcador -1/-1' : `${n} marcadores -1/-1`} em vez de dano`; // M-547 · Soul-Scar Mage (achado da revisão)
+      if (!ev.failed && !ev.prevented && ev.amount === 0) return `${ev.name} não causou dano a ${t} (0 de dano)`; // M-408 · 120.8: 0 de dano não é causado (Fireball com X menor que o número de alvos)
       return ev.failed ? `${ev.name} não causou dano: alvo ilegal` : ev.prevented ? `${ev.name}: o dano a ${t} foi prevenido` : `${ev.name} causou ${n} de dano a ${t}`; // M-397 · o dano prevenido não aparece como causado
     case 'poison': return `${t} recebeu ${ev.amount === 1 ? '1 marcador de veneno' : `${ev.amount} marcadores de veneno`} (${ev.name})`; // M-432
     case 'reveal': return `${ev.name} revelou: ${t}`; // Leva 108

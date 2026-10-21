@@ -5297,6 +5297,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nenhum.
 - **Teste:** `lt228.unit` (3 testes; falham no motor anterior).
 
+**M-547 · LT209 · revisão por lote CLXXXV: Soul-Scar Mage** ✅ (leva M-547, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** passa a jogar Soul-Scar Mage (25 listas do catálogo). Texto e rulings da Scryfall consultados em 21/10/2026.
+- **Regra:** substituição "If a source you control would deal noncombat damage to a creature an opponent controls, put that many -1/-1 counters on that creature instead" (`self.danoViraMarcadorM`, 614.1a): o dano não é causado (sem vínculo com a vida, toque mortífero ou gatilho de dano); não é prevenção (dano que não pode ser prevenido também vira marcador); vale na mordida e na luta (ruling de 18/04/2017); combate, criatura sua e jogador ficam como antes.
+- **Revisão independente:** 26 sondas de acordo com o texto e os rulings; dois achados corrigidos com teste — os marcadores não passavam pelos efeitos que mudam marcadores do dono da criatura (614.16: com o Doubling Season do oponente, um Choque punha 2 em vez de 4) e o registro da partida dizia "causou 2 de dano" em vez de "recebeu 2 marcadores −1/−1 em vez de dano". Achado anterior, fora desta leva: o infectar/murchar (`marcaDanoEmCriatura`) também põe os marcadores sem o Doubling Season do dono — vira a leva seguinte.
+- **Fora (declarado):** a ordem entre prevenção, aumento de dano e a troca por marcadores é fixa na escolha que mais favorece o dono da criatura (prevenção primeiro; o aumento não se aplica depois da troca) — a regra deixa ele escolher (ruling de 18/04/2017).
+- **Teste:** `lt229.unit` (4 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
