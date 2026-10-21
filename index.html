@@ -5591,6 +5591,7 @@ const EFFECTS = {
   comandantes_para_mao: { fields: [], targets: ['self'] }, // M-348 · Campfire: os comandantes seus na zona de comando e no cemitério vão para a mão (fora de Commander, nada)
   cemiterio_no_grimorio: { fields: [], targets: ['self'] }, // M-348 · Campfire: embaralha o cemitério no grimório
   compra_quem_controla_nome: { fields: [], targets: ['self'] }, // M-348 · Bonder's Ornament: cada jogador que controla uma permanente com o nome da fonte compra
+  sacrifica_e_compra: { fields: ['amount'], targets: ['self'] }, // M-549 · "You may sacrifice a permanent. If you do, draw N cards" (Witherbloom Charm)
   descarta_e_compra: { fields: ['amount'], targets: ['self'] }, // M-348 · "You may discard a card. If you do, draw N cards" (Pursue the Past) // M-342 · self-source: "sacrifice ~" (sem alvo)
   exile_self: { fields: [], targets: ['self'] },
   counter_choice: { fields: [], targets: ['self'] },
@@ -10486,6 +10487,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   // M-548 · revisão por lote CLXXXVI (Phelia, Exuberant Shepherd e Flickerwisp: exilar e devolver no próximo passo final), textos e rulings da Scryfall de 21/10/2026 UTC, revisor independente
   'Phelia, Exuberant Shepherd': { texto: 'zizcbj', leva: 'M-548' },
   'Flickerwisp': { texto: 'iojhlm', leva: 'M-548' },
+  // M-549 · revisão por lote CLXXXVII (Witherbloom Charm: sacrificar para comprar; destruir não terreno de valor 2 ou menos), texto da Scryfall de 21/10/2026 UTC, revisor independente
+  'Witherbloom Charm': { texto: 'qbauhe', leva: 'M-549' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -19177,6 +19180,8 @@ const __m42 = (function () {
     [/^target creature can't be blocked this turn$/i, () => [{ do: 'imbloqueavel', target: 'creature' }]], // M-336 · Rogue's Passage
     [new RegExp(`^you lose ${N} life$`, 'i'), m => [{ do: 'lose', amount: num(m[1]) }]], // M-335 · Thoughtseize (sem alvo: quem controla perde, como nos scripts à mão)
     [/^exile up to one other target creature$/i, () => [{ do: 'exile', target: { tipos: ['creature'], outra: true }, upTo: true }]], // M-338 · Solitude
+    [new RegExp(`^you may sacrifice a permanent to draw ${N} cards?$`, 'i'), m => { const n = num(m[1]); return n ? [{ do: 'sacrifica_e_compra', amount: n }] : null; }], // M-549 · Witherbloom Charm
+    [/^destroy target nonland permanent with mana value (\d+) or less$/i, m => [{ do: 'destroy', target: { semTipos: ['land'], mvMax: +m[1] } }]], // M-549 · Witherbloom Charm (restrição de alvo)
     [/^that creature's controller gains life equal to its power$/i, () => [{ do: 'gain', amount: { per: 'power-of-target' }, target: 'target-controller' }]], // M-338 · Solitude (608.2h)
     [/^~ gets ([+-]\d+)\/([+-]\d+) until end of turn and can attack this turn as though it didn't have defender$/i, m => [{ do: 'continuo', target: 'self-source', poder: SINAL(m[1]), resistencia: SINAL(m[2]) }, { do: 'ataca_com_defensor', target: 'self-source' }]], // M-458 · Nivix Cyclops
     [/^until end of turn, ~ gets ([+-]\d+)\/([+-]\d+) and creatures you control gain ([a-z ,]+)$/i, m => { const ks = m[3].split(/,\s*(?:and\s+)?|\s+and\s+/).map(x => x.trim().toLowerCase()).filter(Boolean); if (!ks.length || ks.some(k => !KW.has(k))) return null; // M-459 · Wargling (611.2c: as suas criaturas daquele momento)
@@ -19520,6 +19525,7 @@ const __m42 = (function () {
     texto = texto.replace(/^(target player|target opponent) reveals cards from the top of their library until they reveal a land card, then puts those cards into their graveyard/i, 'revela_ate_terreno_cemiterio $1'); // M-377 · Balustrade Spy
     texto = texto.replace(/^(you may )?(?:sacrifice an? (artifact|land) or discard a card|discard a card or sacrifice an? (artifact|land))\. if you do, draw (\w+) cards?/i, (m0, pode, t1, t2, n) => `${pode ? '' : 'must_'}descarta_ou_sacrifica ${t1 || t2} ${n}`); // M-411 · Vision of Love, K'un-Lun Warrior (Highway Robbery: o "or" ao contrário); "you may" faz parte do efeito: escolher nada é recusar
     texto = texto.replace(/(?:^|(?<=\. ))(?:then )?(you may )?discard (a card|two cards|three cards)\. if you do, draw (\w+) cards?/i, (m0, pode, q, n) => `${pode ? 'you may' : 'must'} discard ${q} to draw ${n} cards`); // M-406 · sem "you may" o descarte é obrigatório (antes virava opcional) // M-373 · "Then you may discard two cards. If you do, draw three cards" (Thrilling Discovery)
+    texto = texto.replace(/(?:^|(?<=\. ))you may sacrifice a permanent\. if you do, draw (\w+) cards?/i, (m0, n) => `you may sacrifice a permanent to draw ${n} cards`); // M-549 · Witherbloom Charm
     texto = texto.replace(/^exile (target (?:creature|permanent)(?: you control)?), then return (?:it|that card) to the battlefield under its owner's control/i, 'pisca $1'); // M-349 · Ephemerate
     texto = texto.replace(/^exile two target (artifacts, creatures, and\/or lands you control), then return those cards to the battlefield under your control/i, 'pisca_dois $1');
     texto = texto.replace(/^choose up to one target creature spell or planeswalker spell\. its owner puts it on their choice of the top or bottom of their library/i, 'topo_fundo_magia_criatura_pw'); // M-533 · Subtlety // M-351 · Ghostly Flicker
@@ -23156,6 +23162,12 @@ function applyEffectM449(s, src, eff, tgt, events) {
       for (const i of quem) draw(s, i, 1);
       note({ amount: quem.length }); break;
     }
+    case 'sacrifica_e_compra': { // M-549 · 701.21: quem controla escolhe uma permanente sua (ou nenhuma); só compra se sacrificou
+      const suas = battlefield(s).filter(o => o.controller === ctrl).map(o => o.oid);
+      if (!suas.length) { note({ amount: 0 }); break; }
+      startPick(s, { p: ctrl, from: suas, min: 0, max: 1, to: 'sacrificaM', rest: 'stay', label: 'sacrificar uma permanente (ou nenhuma)', source: src.name, depois: { draw: amountOf(s, src, eff.amount) } }, events);
+      note({ pending: true }); break;
+    }
     case 'descarta_e_compra': { // M-348 · "You may discard a card. If you do, draw N cards": o jogador escolhe a carta (ou nenhuma)
       const mao = s.zones[ctrl].hand.slice(), nd = eff.descarta || 1; // M-373 · "you may discard two cards. If you do, draw three cards" (Thrilling Discovery): todas ou nenhuma
       if (mao.length < nd) { note({ amount: 0 }); break; } // M-373 · sem cartas bastantes para descartar todas, não há o que oferecer (declarado)
@@ -24175,6 +24187,7 @@ function concluiPick(s, events) {
     else if (where === 'entrarComK') entrarComPickK(s, oid, pk); // K-43 · devorar / amplificar (Toca ponto comum: concluiPick)
     else if (where === 'alvo-livre') { const sp = s.objects[pk.alvoDaMagiaM]; if (sp && sp.zone === 'stack') sp.alvosLivresM = [...(sp.alvosLivresM || []), { oid, z: s.objects[oid].zc || 0 }]; } // M-515 · a carta vira alvo da mágica (fica onde está)
     else if (where === 'descarta-ou-sacrifica') { if (s.objects[oid].zone === 'hand') descartaCarta(s, oid); else sacrifice(s, oid); }
+    else if (where === 'sacrificaM') { const nome = s.objects[oid].name; if (s.objects[oid].zone === 'battlefield') { sacrifice(s, oid, events); events.push({ kind: 'effect', do: 'sacrifice_it', name: pk.source, target: nome }); } } // M-549 · Witherbloom Charm (achado da revisão: o registro conta o sacrifício)
     else moveObject(s, oid, where);
   };
   if (pk.revelaEscolhida && pk.picked.length) events.push({ kind: 'effect', do: 'reveal', name: pk.source, target: pk.picked.map(oid => s.objects[oid].name).join(', ') }); // M-335 · 701.20a
@@ -24184,7 +24197,7 @@ function concluiPick(s, events) {
   if (pk.shuffle) { shuffle(s, s.zones[pk.p].library);
     // CR 701.24b: "embaralhe e ponha a carta no topo" — a carta achada não entra no embaralhamento (Mystical Tutor)
     if (pk.to === 'library-top') { const lib = s.zones[pk.p].library; for (const oid of [...pk.picked].reverse()) { const i = lib.indexOf(oid); if (i >= 0) { lib.splice(i, 1); lib.unshift(oid); } } } }
-  if (pk.depois && pk.depois.draw && pk.picked.length) draw(s, pk.p, pk.depois.draw); // Leva 107
+  if (pk.depois && pk.depois.draw && pk.picked.length) { draw(s, pk.p, pk.depois.draw); if (pk.to === 'sacrificaM') events.push({ kind: 'effect', do: 'draw', name: pk.source, target: s.players[pk.p].name, amount: pk.depois.draw }); } // Leva 107 · M-549: o registro conta a compra
   if (pk.segura && pk.picked.length) { const f = s.objects[pk.segura.oid]; if (f && f.zone === 'battlefield' && (f.zc || 0) === pk.segura.z) f.holding = pk.picked[0]; } // M-353 · a fonte que saiu antes não guarda nada (a carta fica exilada: 400.7)
   if (pk.senaoSacrifica && !pk.picked.length) { const f = s.objects[pk.senaoSacrifica.oid]; if (f && f.zone === 'battlefield' && (f.zc || 0) === pk.senaoSacrifica.z) sacrifice(s, f.oid, events); } // M-349 · Glint Hawk (400.7)
   if (pk.onPicked && pk.onPicked.vidaSeSubtipo && pk.picked.some(oid => s.objects[oid] && s.objects[oid].zone === pk.to && matchesFilter(s, s.objects[oid], { subtypes: [pk.onPicked.vidaSeSubtipo.subtipo] }))) { const g = ganhaVidaJogador(s, pk.p, pk.onPicked.vidaSeSubtipo.vida); events.push({ kind: 'effect', do: 'gain', name: pk.source, target: s.players[pk.p].name, amount: g }); } // M-513 · Town Greeter: "if you put a Town card into your hand this way"
@@ -34879,7 +34892,8 @@ function descreveSeletor(sel) {
   const sem = (sel.semTipos || []).length ? ` que não seja ${(sel.semTipos || []).map(x => nomes[x] || x).join(' nem ')}` : '';
   const dono = zona === 'graveyard' ? (sel.de === 'you' ? ' do seu cemitério' : sel.de === 'opponent' ? ' do cemitério de um oponente' : ' de um cemitério')
     : sel.de === 'you' ? ' que você controla' : sel.de === 'opponent' ? ' que um oponente controla' : sel.dono === 'you' ? ' que é sua' : '';
-  return `${coisa}${predicadosPT_T(sel)}${sem}${dono}${sel.comToxico ? ' com tóxico' : ''}${sel.comMarcador === 'p1p1' ? ' com marcador +1/+1' : ''}${jog ? ' ou ' + jog : ''}`; // M-253 // T-59 · histórica, fora da lei, modificada
+  const vmM = Number.isInteger(sel.mvMax) ? ` de valor de mana ${sel.mvMax} ou menos` : Number.isInteger(sel.mvMin) ? ` de valor de mana ${sel.mvMin} ou mais` : ''; // M-549 · achado da revisão (Witherbloom Charm)
+  return `${coisa}${predicadosPT_T(sel)}${sem}${vmM}${dono}${sel.comToxico ? ' com tóxico' : ''}${sel.comMarcador === 'p1p1' ? ' com marcador +1/+1' : ''}${jog ? ' ou ' + jog : ''}`; // M-253 // T-59 · histórica, fora da lei, modificada
 }
 /** CR2-G R3a · efeito contínuo estático em português: quem é afetado, o +N/+N (fixo ou por contagem) e as palavras-chave. */
 const PER_PT = { 'creatures-you-control': 'criatura que você controla', 'other-creatures-you-control': 'outra criatura que você controla', 'enchantments-you-control': 'encantamento que você controla',
@@ -35312,6 +35326,7 @@ function descreveEfeito(e) {
     case 'comandantes_para_mao': return 'põe os seus comandantes da zona de comando e do cemitério na sua mão'; // M-348
     case 'cemiterio_no_grimorio': return 'embaralha o seu cemitério no grimório';
     case 'compra_quem_controla_nome': return 'cada jogador que controla uma permanente com este nome compra uma carta';
+    case 'sacrifica_e_compra': return `pode sacrificar uma permanente sua; se sacrificar, compra ${plural(n, 'carta', 'cartas')}`; // M-549
     case 'descarta_e_compra': return `${e.obrigatorio ? 'descarta' : 'pode descartar'} ${(e.descarta || 1) > 1 ? `${e.descarta} cartas` : 'uma carta'}; se fizer, compra ${plural(n, 'carta', 'cartas')}`; // M-373 · M-406
     case 'topo_do_dono': return 'põe esta permanente no topo do grimório do dono'; // M-345
     case 'sacrifice_it': return e.target === 'self-source' ? 'sacrifica esta permanente' : 'o controlador sacrifica a permanente alvo'; // M-342
