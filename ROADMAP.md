@@ -5255,6 +5255,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nenhum.
 - **Teste:** `lt222.unit` (4 testes; falham no motor anterior).
 
+**M-541 · LT203 · revisão por lote CLXXIX: Questing Druid // Seek the Beast** ✅ (leva M-541, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** passa a jogar Questing Druid // Seek the Beast (2 listas do catálogo). Texto da Scryfall consultado em 20/10/2026.
+- **Regra:** gatilho "whenever you cast a spell that's white, blue, black, or red" pelo leitor (filtro de cores já existente); "Until your next end step, you may play those cards" (`ate: 'proximo-final'`): a permissão acaba quando começa o próximo passo final de quem exilou (514); criada no seu passo final, vale até o do seu próximo turno.
+- **Revisão independente:** revisor independente (junto com a M-540): dispara para multicolorida com verde, híbrida R/G e criatura azul; não para verde puro, incolor, mágica do oponente nem cópia; a Aventura conjurada dispara outro Druida. Seek the Beast: terreno exilado respeita a jogada de terreno; duração conferida conjurada no seu passo final (até o do próximo turno seu), no do oponente e no seu turno; com uma carta no grimório exila só uma. Nenhuma outra das 1.986 cartas oficiais mudou. Sem divergências.
+- **Fora (declarado):** nenhum.
+- **Teste:** `lt223.unit` (3 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

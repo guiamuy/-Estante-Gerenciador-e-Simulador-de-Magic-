@@ -10461,6 +10461,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Get Out': { texto: '1g6fjh9', leva: 'M-539' },
   // M-540 · revisão por lote CLXXVIII (Prismatic Ending: convergir — exilar se o valor de mana for no máximo o número de cores gastas), textos da Scryfall de 20/10/2026 UTC, revisor independente
   'Prismatic Ending': { texto: 'xcuwg8', leva: 'M-540' },
+  // M-541 · revisão por lote CLXXIX (Questing Druid: gatilho por mágica branca, azul, preta ou vermelha; Seek the Beast: jogar as exiladas até o seu próximo passo final), textos da Scryfall de 20/10/2026 UTC, revisor independente
+  'Questing Druid // Seek the Beast': { texto: 'o75ynx', leva: 'M-541' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -19105,6 +19107,7 @@ const __m42 = (function () {
     [new RegExp(`^impulso ${N} ate o fim do turno$`, 'i'), m => [{ do: 'exile_top_playable', amount: num(m[1]), ate: 'fim-do-turno' }]], // M-352 · Experimental Synthesizer (frase juntada em leParagrafo)
     [/^the owner of (target nonland permanent) puts it into their library second from the top or on the bottom$/i, m => { const a = alvo(m[1]); return a ? [{ do: 'topo_ou_fundo_do_dono', target: { semTipos: ['land'] }, segundo: true }] : null; }], // M-352 · Deem Inferior
     [/^the owner of (target nonland permanent) puts it on the top or bottom of their library$/i, m => { const a = alvo(m[1]); return a ? [{ do: 'topo_ou_fundo_do_dono', target: { semTipos: ['land'] } }] : null; }], // M-352 · a forma sem "segundo" (canalizar de Moonsnare Prototype e afins)
+    [new RegExp(`^impulso ${N} ate o proximo final$`, 'i'), m => [{ do: 'exile_top_playable', amount: num(m[1]), ate: 'proximo-final' }]], // M-541 · Seek the Beast
     [new RegExp(`^impulso ${N} ate o proximo turno$`, 'i'), m => [{ do: 'exile_top_playable', amount: num(m[1]), ate: 'proximo-turno' }]], // M-349 · Wrenn's Resolve, Reckless Impulse, Clockwork Percussionist (frase juntada em leParagrafo)
     [/^return target instant or sorcery card from your graveyard to your hand$/i, () => [{ do: 'to_hand', target: { zona: 'graveyard', de: 'you', tipos: ['instant', 'sorcery'] } }]], // M-348 · Archaeomancer
     [/^return target land card from your graveyard to your hand$/i, () => [{ do: 'to_hand', target: { zona: 'graveyard', de: 'you', tipos: ['land'] } }]], // M-513 · Circle of the Land Druid
@@ -19266,7 +19269,8 @@ const __m42 = (function () {
     [/^whenever you cast an instant or sorcery spell$/i, 'other-cast', () => ({ filter: { anyTypes: ['instant', 'sorcery'] } })], // M-328
     [/^whenever you cast a noncreature spell$/i, 'other-cast', () => ({ filter: { noncreature: true } })],
     [/^whenever you cast your second spell each turn$/i, 'other-cast', () => ({ filter: { segundaMagiaDoTurno: true } })], // M-526 · Flurry (Cori-Steel Cutter, Jeskai Devotee, Illvoi Operative)
-    [/^whenever you cast a multicolored spell$/i, 'other-cast', () => ({ filter: { multicolorida: true } })], // M-460 · 105.2b
+    [/^whenever you cast a multicolored spell$/i, 'other-cast', () => ({ filter: { multicolorida: true } })],
+    [/^whenever you cast a spell that's ((?:white|blue|black|red|green)(?:-(?:white|blue|black|red|green))+)$/i, 'other-cast', m => ({ filter: { anyColors: [...new Set((m[1]).toLowerCase().match(/white|blue|black|red|green/g).map(c => ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[c]))] } })], // M-541 · Questing Druid // M-460 · 105.2b
     [/^whenever you cast an? (?:white|blue|black|red|green)(?:-(?:white|blue|black|red|green))+ spell$/i, 'other-cast', m => ({ filter: { anyColors: [...new Set(m[0].toLowerCase().match(/white|blue|black|red|green/g).map(c => ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[c]))] } })], // M-395 · God-Pharaoh's Faithful // M-328
     [/^[Ww]henever you cast an? ([A-Z][a-z]+) spell$/, 'other-cast', m => ({ filter: { subtype: m[1] } })], // LT11 · "whenever you cast an Elf spell"
     [/^[Ww]henever another ([A-Z][a-z]+) enters(?: the battlefield)?$/, 'other-etb', m => ({ anyController: true, filter: { types: ['creature'], subtype: m[1] } })], // LT10 · "another Elf enters" (de qualquer jogador)
@@ -19484,6 +19488,7 @@ const __m42 = (function () {
     texto = texto.replace(/^exile two target (artifacts, creatures, and\/or lands you control), then return those cards to the battlefield under your control/i, 'pisca_dois $1');
     texto = texto.replace(/^choose up to one target creature spell or planeswalker spell\. its owner puts it on their choice of the top or bottom of their library/i, 'topo_fundo_magia_criatura_pw'); // M-533 · Subtlety // M-351 · Ghostly Flicker
     texto = texto.replace(/exile the top card of your library\. until end of turn, you may play that card/i, 'impulso one ate o fim do turno'); // M-352
+    texto = texto.replace(/exile the top (card|two cards|three cards) of your library\. until your next end step, you may play (?:it|them|those cards)/i, (m0, q) => `impulso ${({ card: 'one', 'two cards': 'two', 'three cards': 'three' })[q.toLowerCase()]} ate o proximo final`); // M-541
     texto = texto.replace(/exile the top (card|two cards|three cards) of your library\. you may play (?:it|them|those cards) this turn/i, (m0, q) => `impulso ${({ card: 'one', 'two cards': 'two', 'three cards': 'three' })[q.toLowerCase()]} ate o fim do turno`); // M-386 · Glimpse the Impossible
     texto = texto.replace(/^(target opponent|target player) reveals their hand and you choose a nonland card from it\. exile that card/i, 'exila_da_mao $1'); // M-353 · Mesmeric Fiend · Experimental Synthesizer
     texto = texto.replace(/exile the top (card|two cards|three cards) of your library\. (?:you may play (?:it|them|those cards) until the end of your next turn|until the end of your next turn, you may play (?:it|them|those cards))/i, (m0, q) => `impulso ${q === 'card' ? 'one' : q.split(' ')[0]} ate o proximo turno`); // M-349 // M-348 · duas frases, um efeito (Pursue the Past, Melded Moxite)
@@ -19581,7 +19586,7 @@ const __m42 = (function () {
         if (bp) { const semNome = bp[1].replace(/^[A-Z][A-Za-z'’ ,-]{1,40} — (?=[A-Z])/, ''); const sub = [], e = leParagrafo(semNome, nome, sub); frases.push(...sub); if (e && e.length) gatModos.modes.push({ label: bp[1].replace(/\.$/, ''), effects: e }); else gatModos.falhou = true; continue; }
         gatModos = null; }
       if (!magica) { // LT3 · permanentes
-        const lp = til(linha.replace(/\.$/, ''), nome).replace(/^(whenever you cast an? )((?:white|blue|black|red|green)(?:, (?:white|blue|black|red|green))*),? or (white|blue|black|red|green) spell/i, (m0, a, b, c) => a + b.split(', ').join('-') + '-' + c + ' spell'); /* M-395 · "a blue, black, or red spell": as vírgulas da lista de cores não separam gatilho e efeito */ // LT6 · o nome impresso vale como "~" · M-394: "this creature/artifact/…" também
+        const lp = til(linha.replace(/\.$/, ''), nome).replace(/^(whenever you cast an? )((?:white|blue|black|red|green)(?:, (?:white|blue|black|red|green))*),? or (white|blue|black|red|green) spell/i, (m0, a, b, c) => a + b.split(', ').join('-') + '-' + c + ' spell').replace(/^(whenever you cast a spell that's )((?:white|blue|black|red|green)(?:, (?:white|blue|black|red|green))*),? or (white|blue|black|red|green)(?=,)/i, (m0, a, b, c) => a + b.split(', ').join('-') + '-' + c); /* M-541 · "a spell that's white, blue, black, or red" (Questing Druid) */ /* M-395 · "a blue, black, or red spell": as vírgulas da lista de cores não separam gatilho e efeito */ // LT6 · o nome impresso vale como "~" · M-394: "this creature/artifact/…" também
 
         const en = ENCHANT[lp.toLowerCase()]; if (en) { topo.aura = { enchant: en }; frases.push({ texto: linha, lida: true }); continue; }
         const eqE = lp.match(/^Equip—Pay ((?:\{E\})+)$/); if (eqE) { topo.equip = { enchant: 'creature', cost: { energia: eqE[1].match(/\{E\}/g).length } }; frases.push({ texto: linha, lida: true }); continue; } // M-367 · Inventor's Axe
@@ -20431,7 +20436,7 @@ function zoneList(s, obj, zone) { return zone === 'stack' ? s.stack : s.zones[ob
 const VOLTA_COMANDO = ['graveyard', 'exile', 'hand', 'library'];
 /** Leva 105 · marcas que a conjuração põe na carta (e que não atravessam outra mudança de zona). */
 const MARCAS_DA_CONJURACAO = ['xPaid', 'bestowed', 'evidenced', 'faceDown', 'prevista', 'flashback', 'paidAdditional', 'discardedNonland', 'altIndex', 'mode',
-  'bargained', 'omen', 'stormCopies', 'chosenColor', 'plotted', 'playableFromExile', 'jogavelSoNesteTurno', 'jogavelAte', 'escondida', 'suspensa', 'suspensaImpeto', 'jogavelSe', 'emendas', 'sneakAtaque', 'sneakPw', 'kicked', 'modes', 'castFrom', 'divisao', 'danoCausado' /* M-427 */, 'descartadas' /* M-434 */, 'ordemDaMagiaM' /* M-442 */, 'naPrincipalM' /* M-443 */, 'danoNoTurnoM' /* M-447 */, 'coresGastasM' /* M-451 */]; // M-376 · 'revealed' fica: a habilidade do Martyr of Sands lê depois do sacrifício
+  'bargained', 'omen', 'stormCopies', 'chosenColor', 'plotted', 'playableFromExile', 'jogavelSoNesteTurno', 'jogavelAte', 'jogavelAteFinalM' /* M-541 */, 'escondida', 'suspensa', 'suspensaImpeto', 'jogavelSe', 'emendas', 'sneakAtaque', 'sneakPw', 'kicked', 'modes', 'castFrom', 'divisao', 'danoCausado' /* M-427 */, 'descartadas' /* M-434 */, 'ordemDaMagiaM' /* M-442 */, 'naPrincipalM' /* M-443 */, 'danoNoTurnoM' /* M-447 */, 'coresGastasM' /* M-451 */]; // M-376 · 'revealed' fica: a habilidade do Martyr of Sands lê depois do sacrifício
 /* ---------------- CR2-G R5c · 701.8/614 · "se fosse destruída" ---------------- */
 /** O que acontece se `o` fosse destruída agora: 'indestrutivel' (não é destruída), { totem: aura } (702.89: a Aura com
  * armadura de totem é destruída no lugar e o dano sai), 'regenerou' (701.15: um escudo de regeneração é gasto) ou 'destruida'.
@@ -21744,6 +21749,7 @@ function enterStep(s, step) {
   }
   // CR2-G R2b · nos outros passos, os atrasados vêm antes; depois os do jogador ativo e os de cada jogador / dos oponentes
   // (CR2b.5 · 603.2b; CR 511.2: o fim do combate é de todos os jogadores, não só do ativo)
+  if (step === 'end') for (const pl of s.players.keys()) for (const oid of s.zones[pl].exile) { const x = s.objects[oid]; if (x && x.jogavelAteFinalM === s.turn.active) { delete x.playableFromExile; delete x.jogavelAteFinalM; } } // M-541 · "until your next end step": acaba quando o passo final de quem exilou começa
   if (SC.PASSOS_DO_GATILHO.includes(step) && !compraDoPrimeiroTurnoT(s, step)) { if (step !== 'upkeep') disparaPasso(s, step, 'seu'); disparaPasso(s, step, 'todos'); } // T-106 · 103.8a: o passo de compra pulado do primeiro turno não tem gatilhos de começo (Toca ponto comum: enterStep)
   designacoesNoPasso(s, step); // M-332 · CR 725.2 / 726.2 · monarca no passo final, iniciativa na manutenção
   if (step === 'main1') sagasNaPrincipal(s); // T-1 · CR 714.3c / 703.4f · marcador de lore em cada Saga do jogador ativo, antes da prioridade (função abaixo da âncora T das exportações)
@@ -23167,7 +23173,7 @@ function applyEffectM449(s, src, eff, tgt, events) {
       const n = amountOf(s, src, eff.amount);
       const topo = s.zones[ctrl].library.slice(0, n);
       if (eff.lembraExiladas) src.exiladasAgora = []; // M-386 · "those cards": as cartas, com a encarnação do exílio (400.7)
-      for (const oid of topo) { moveObject(s, oid, 'exile'); if (eff.lembraExiladas) src.exiladasAgora.push({ oid, z: s.objects[oid].zc || 0 }); s.objects[oid].playableFromExile = ctrl; if (eff.ate === 'proximo-turno') s.objects[oid].jogavelAte = { by: ctrl, turno: s.turn.number }; if (eff.ate === 'fim-do-turno') s.objects[oid].jogavelSoNesteTurno = true; } // M-352 · "Until end of turn, you may play that card" (Experimental Synthesizer) // M-349 · "until the end of your next turn" (Wrenn's Resolve)
+      for (const oid of topo) { moveObject(s, oid, 'exile'); if (eff.lembraExiladas) src.exiladasAgora.push({ oid, z: s.objects[oid].zc || 0 }); s.objects[oid].playableFromExile = ctrl; if (eff.ate === 'proximo-turno') s.objects[oid].jogavelAte = { by: ctrl, turno: s.turn.number }; if (eff.ate === 'fim-do-turno') s.objects[oid].jogavelSoNesteTurno = true; if (eff.ate === 'proximo-final') s.objects[oid].jogavelAteFinalM = ctrl; } // M-541 · Seek the Beast // M-352 · "Until end of turn, you may play that card" (Experimental Synthesizer) // M-349 · "until the end of your next turn" (Wrenn's Resolve)
       note({ amount: topo.length }); break;
     }
     case 'lembradas_ao_cemiterio': { // M-386 · 603.7c/400.7: só as que continuam no exílio, na mesma encarnação; a contagem fica na habilidade para "for each card put into your graveyard this way"
@@ -35205,7 +35211,7 @@ function descreveEfeito(e) {
     case 'cant_attack': return `${alvo || 'a criatura'} não pode atacar`;
     case 'lose_unless': return 'perde vida a menos que pague';
     case 'draw_free_cast': return 'compra e pode conjurar de graça';
-    case 'exile_top_playable': { const k = typeof e.amount === 'number' ? e.amount : 1; return `exila ${k > 1 ? `as ${k} cartas` : 'a carta'} de cima e pode ${k > 1 ? 'jogá-las' : 'jogá-la'}${e.ate === 'fim-do-turno' ? ' até o fim do turno' : e.ate === 'proximo-turno' ? ' até o fim do seu próximo turno' : ''}`; } // M-352
+    case 'exile_top_playable': { const k = typeof e.amount === 'number' ? e.amount : 1; return `exila ${k > 1 ? `as ${k} cartas` : 'a carta'} de cima e pode ${k > 1 ? 'jogá-las' : 'jogá-la'}${e.ate === 'fim-do-turno' ? ' até o fim do turno' : e.ate === 'proximo-turno' ? ' até o fim do seu próximo turno' : e.ate === 'proximo-final' ? ' até o seu próximo passo final' : ''}`; } // M-352 · M-541
     case 'prevent_spell': case 'prevent_color': return 'previne dano';
     case 'discard_chosen': return 'olha a mão do alvo e escolhe uma carta para ele descartar';
     case 'exile_chosen': return 'o alvo exila uma carta do próprio cemitério';
