@@ -5290,6 +5290,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nenhum.
 - **Teste:** `lt227.unit` (3 testes; falham no motor anterior).
 
+**M-546 · LT208 · revisão por lote CLXXXIV: Oni-Cult Anvil** ✅ (leva M-546, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** passa a jogar Oni-Cult Anvil (8 listas do catálogo; trava 7 listas de Pioneer). Texto da Scryfall consultado em 21/10/2026.
+- **Regra:** gatilho "whenever one or more artifacts you control leave the battlefield during your turn" (`artefatos-saem-seu-turno`: dispara na saída do primeiro artefato do controlador no turno dele; a própria fonte, se sai, também observa, 603.10a) com "This ability triggers only once each turn" (`umaVezPorTurno`, 603.2h, por objeto); o leitor passou a ler essa frase no fim de um gatilho. "{T}, Sacrifice an artifact" aceita a própria bigorna.
+- **Revisão independente:** sem divergências (23 sondas: sair do campo por sacrifício, destruição, volta à mão, exílio, artefato-criatura que morre, Tesouro, "cada jogador sacrifica"; "destruir todos os artefatos" cria um Construto só; uma vez por turno e de novo no turno seguinte; nada no turno do oponente nem com artefato que o oponente controla; duas bigornas, dois Construtos; a própria bigorna olha para trás; fuzz de 30.000 ações sem falha). As 4 cartas de crime com "This ability triggers only once each turn" seguem com o script escrito à mão, sem mudança.
+- **Fora (declarado):** nenhum.
+- **Teste:** `lt228.unit` (3 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

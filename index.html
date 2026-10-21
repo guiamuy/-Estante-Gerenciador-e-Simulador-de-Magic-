@@ -6041,7 +6041,7 @@ function continuoErros(c, tag) {
   if (!c.poder && !c.resistencia && !(c.palavras || []).length && !c.perPoder && !c.perResistencia && !c.torna && !(c.perde || []).length && c.cores == null && !c.troca) errs.push(`${tag}: não muda nada`);
   return errs;
 }
-const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield', 'enchanted-deals-damage', 'upkeep', 'attacks', 'blocks', 'other-etb', 'other-dies', 'combat-damage', 'combat-damage-player-or-pw' /* M-538 */, 'cast-self', 'other-cast', 'main2', 'end-of-combat', 'other-sacrificed', 'counters-added', 'third-draw', 'enchanted-tapped-or-damaged',
+const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield', 'enchanted-deals-damage', 'upkeep', 'attacks', 'blocks', 'other-etb', 'other-dies', 'combat-damage', 'combat-damage-player-or-pw' /* M-538 */, 'artefatos-saem-seu-turno' /* M-546 */, 'cast-self', 'other-cast', 'main2', 'end-of-combat', 'other-sacrificed', 'counters-added', 'third-draw', 'enchanted-tapped-or-damaged',
   // CR2b.3 · recebe dano (ela mesma); a permanente anexada morre / morre ou é exilada (Equipamento e Aura olham para trás)
   'dealt-damage', 'attached-dies', 'attached-dies-or-exiled',
   // CR2b.4 · a criatura encantada causa dano a um oponente (de quem controla a Aura); você descarta uma carta
@@ -6247,7 +6247,7 @@ const CHOICES = ['color'];
 const STATIC_RULES = ['flagbearer', 'exile-instead-of-graveyard', 'opponent-creatures-enter-tapped'];
 const TRIGGER_PT = { etb: 'quando entra no campo', dies: 'quando morre', upkeep: 'na sua manutenção', attacks: 'quando ataca', blocks: 'quando bloqueia',
   'other-etb': 'quando outra criatura sua entra', 'other-dies': 'quando outra criatura sua morre',
-  'combat-damage': 'quando causa dano de combate a um jogador', 'combat-damage-player-or-pw': 'quando causa dano de combate a um jogador ou planeswalker', 'combat-damage-creature': 'quando causa dano de combate a uma criatura', 'end-step': 'no início do seu passo final', 'each-upkeep': 'no início de cada manutenção', 'begin-combat': 'no início do combate no seu turno',
+  'combat-damage': 'quando causa dano de combate a um jogador', 'combat-damage-player-or-pw': 'quando causa dano de combate a um jogador ou planeswalker', 'artefatos-saem-seu-turno': 'quando um ou mais artefatos seus saem do campo no seu turno', 'combat-damage-creature': 'quando causa dano de combate a uma criatura', 'end-step': 'no início do seu passo final', 'each-upkeep': 'no início de cada manutenção', 'begin-combat': 'no início do combate no seu turno',
   'enchanted-damages-opponent': 'quando a criatura encantada causa dano a um oponente', 'you-discard': 'quando você descarta uma carta', 'you-gain-life': 'sempre que você ganha vida', 'you-play-land': 'quando você joga outro terreno', heroic: 'heroico: quando você conjura uma mágica que mira esta criatura', 'becomes-target': 'quando se torna alvo', 'you-attack': 'sempre que você ataca', 'becomes-blocked': 'quando é bloqueada', 'attacks-unblocked': 'quando ataca e não é bloqueada', 'dealt-damage': 'quando recebe dano', 'attached-dies': 'quando a criatura anexada morre', 'attached-dies-or-exiled': 'quando a permanente encantada morre ou é exilada',
   'other-sacrificed': 'quando você sacrifica outra permanente',
   'leaves-battlefield': 'quando sai do campo de batalha', 'other-leaves-battlefield': 'quando outra criatura sua sai do campo', 'enchanted-deals-damage': 'quando a criatura encantada causa dano',
@@ -10475,6 +10475,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'The Sackville-Bagginses': { texto: '1w8tr4u', leva: 'M-544' },
   // M-545 · revisão por lote CLXXXIII (Sunderflock: redução pelo maior valor de mana entre seus Elementais; “if you cast it”), textos da Scryfall de 20/10/2026 UTC, revisor independente
   'Sunderflock': { texto: '1laj6sx', leva: 'M-545' },
+  // M-546 · revisão por lote CLXXXIV (Oni-Cult Anvil: gatilho de artefatos que saem no seu turno, uma vez por turno), textos da Scryfall de 21/10/2026 UTC, revisor independente
+  'Oni-Cult Anvil': { texto: '1gwy6wd', leva: 'M-546' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -10861,7 +10863,7 @@ function monarcaErrosT(sc) {
   const errs = [], abs = [...((sc && sc.abilities) || []), ...((sc && sc.back && sc.back.abilities) || [])];
   for (const ab of abs) if (ab && ab.condition && ab.condition.monarca != null && !['voce', 'oponente'].includes(ab.condition.monarca)) errs.push('condição "monarca" do gatilho: \'voce\' ou \'oponente\'');
   for (const ab of abs) if (ab && ab.condition && ab.condition.desceu != null && ab.condition.desceu !== true) errs.push('condição "desceu" do gatilho: só true'); // T-84
-  for (const ab of abs) if (ab && ab.umaVezPorTurno != null && (ab.umaVezPorTurno !== true || ab.kind !== 'triggered' || ab.when !== 'crime')) errs.push('"umaVezPorTurno" só vale como true, num gatilho "crime"'); // T-86 · 603.2h
+  for (const ab of abs) if (ab && ab.umaVezPorTurno != null && (ab.umaVezPorTurno !== true || ab.kind !== 'triggered' || !['crime', 'artefatos-saem-seu-turno' /* M-546 */].includes(ab.when))) errs.push('"umaVezPorTurno" só vale como true, num gatilho "crime" ou de artefatos que saem'); // T-86 · 603.2h
   for (const ab of abs) if (ab && ab.kind === 'triggered' && ab.when === 'expend' && !(Number.isInteger(ab.n) && ab.n >= 1)) errs.push('gatilho "expend": "n" é um inteiro, 1 ou mais (o N de "whenever you expend N")'); // T-85
   if (sc && sc.self && sc.self.atacaSeMonarcaDefende != null && sc.self.atacaSeMonarcaDefende !== true) errs.push('self.atacaSeMonarcaDefende só vale como true'); // T-70
   for (const ab of ((sc && sc.abilities) || [])) for (const k of ['fonteDesvirada', 'primeiraManutencao', 'tinhaMarcadores']) if (ab && ab.condition && ab.condition[k] != null && ab.condition[k] !== true) errs.push(`condição ${k} só vale como true`); // T-101
@@ -19277,6 +19279,7 @@ const __m42 = (function () {
     [/^when ~ enters untapped$/i, 'etb', () => ({ condition: { entrouDesvirada: true } })], // M-349 · Gingerbread Cabin
     [/^when you play another land$/i, 'you-play-land'], // M-342 · City of Traitors (305.1: jogar, não pôr no campo)
     [/^whenever you sacrifice another permanent$/i, 'other-sacrificed'], // LT10
+    [/^whenever one or more artifacts you control leave the battlefield during your turn$/i, 'artefatos-saem-seu-turno'], // M-546 · Oni-Cult Anvil
     [/^whenever you sacrifice an artifact$/i, 'other-sacrificed', () => ({ filter: { types: ['artifact'] }, incluiSiM: true })], // M-543 · Biotech Specialist
     [/^whenever you sacrifice a token$/i, 'other-sacrificed', () => ({ filter: { token: true }, incluiSiM: true })], // M-543 · The Sackville-Bagginses
     [/^whenever a player sacrifices a creature$/i, { evento: 'sacrifica', objeto: 'outra', quem: 'qualquer' }, () => ({ filter: { types: ['creature'] } })], // M-418 · Mortician Beetle (a própria, sacrificada, não vê o marcador: dá no mesmo que "outra")
@@ -19395,7 +19398,8 @@ const __m42 = (function () {
   /** Uma linha de habilidade disparada → { ab, frases } ou null. "you may" vira optional; "it" na frase vira "~" (a própria permanente). */
   function leGatilho(linha, nome, frases) {
     const i = linha.indexOf(', '); if (i < 0) return null;
-    const cab = linha.slice(0, i), resto = linha.slice(i + 2).replace(/\.$/, '');
+    const cab = linha.slice(0, i); let resto = linha.slice(i + 2).replace(/\.$/, '');
+    const uvtM = resto.match(/^(.+?)\.\s*This ability triggers only once each turn$/i); if (uvtM) resto = uvtM[1]; // M-546 · "This ability triggers only once each turn" (603.2h)
     const g = GATILHOS.find(([re]) => re.test(cab)); if (!g) return null;
     const extra = g[2] ? g[2](cab.match(g[0])) : {}; // LT10 · filtro e "de qualquer jogador" da abertura
     if (g[1] === 'combat-damage-creature') { // M-513 · "that creature" é a que recebeu o dano: sem alvo (sem ward, sem escolha); outros corpos ficam sem leitura
@@ -19435,7 +19439,8 @@ const __m42 = (function () {
     frases.push({ texto: cab, lida: true }, ...(textoCond ? [{ texto: textoCond, lida: true }] : []), ...(textoMayPayM ? [{ texto: textoMayPayM + '. If you do', lida: true }] : []), ...sub);
     const doCemiterio = !!e && g[1] === 'other-cast' && e.length === 1 && e[0].do === 'to_hand' && e[0].target === 'self-source' && /from your graveyard to your hand$/i.test(corpo); // M-460 · 113.6k: "return this card from your graveyard" — o gatilho funciona do cemitério
     if (e && !doCemiterio && e.some(x => x.do === 'to_hand' && x.target === 'self-source' && !x.from) && /from your graveyard/i.test(corpo)) { frases.push({ texto: corpo, lida: false, motivo: 'volta do cemitério fora de um gatilho do cemitério' }); return null; } // M-460
-    return e ? { kind: 'triggered', when: g[1], ...extra, ...(condicao ? { condition: condicao } : {}), ...(mayPayM ? { mayPay: mayPayM } : {}), ...(opcional ? { optional: true } : {}), ...(doCemiterio ? { fromGraveyard: true } : {}), effects: e } : null;
+    if (e && uvtM) frases.push({ texto: 'This ability triggers only once each turn', lida: true }); // M-546
+    return e ? { kind: 'triggered', when: g[1], ...extra, ...(uvtM ? { umaVezPorTurno: true } : {}), ...(condicao ? { condition: condicao } : {}), ...(mayPayM ? { mayPay: mayPayM } : {}), ...(opcional ? { optional: true } : {}), ...(doCemiterio ? { fromGraveyard: true } : {}), effects: e } : null;
   }
   const semLembrete = t => String(t || '').replace(/\s*\([^)]*\)/g, '').trim();
   const KW = new Set(SC.KEYWORDS.map(k => k.toLowerCase()));
@@ -20587,6 +20592,23 @@ function entradaLegado(s, o, xPago) {
     if (self.chargePerKick && o.kicked) o.counters.charge = (o.counters.charge || 0) + o.kicked; // CR2c.1 · Everflowing Chalice
   }
 }
+/** M-546 · 603.2/603.10a · "Whenever one or more artifacts you control leave the battlefield during your turn, … This ability triggers only once each
+    turn" (Oni-Cult Anvil): dispara na saída do primeiro artefato do controlador no turno dele; a própria fonte, se sai, também observa (olha para
+    trás); "uma vez por turno" por objeto (400.7). Só nas partidas que têm a habilidade (as partidas-referência não mudam). */
+const PARTIDA_ARTEFATOS_SAEM_M = new WeakMap();
+function artefatosSaemM(s, o, p) {
+  if (s.turn.active !== p) return;
+  if (!PARTIDA_ARTEFATOS_SAEM_M.has(s.facts)) PARTIDA_ARTEFATOS_SAEM_M.set(s.facts, Object.values(s.facts).some(f => f && ((f.script || {}).abilities || []).some(ab => ab && ab.when === 'artefatos-saem-seu-turno')));
+  if (!PARTIDA_ARTEFATOS_SAEM_M.get(s.facts)) return;
+  const r = s.umaVezNoTurnoM && s.umaVezNoTurnoM.turno === s.turn.number ? s.umaVezNoTurnoM : (s.umaVezNoTurnoM = { turno: s.turn.number, uma: {} });
+  const fontes = battlefield(s).filter(w => w.controller === p).map(w => [w, w.zc || 0, abilitiesOf(s, w)]);
+  if (o.ultima && !o.ultima.faceDown && !o.ultima.semHabilidades && s.facts[o.name]) fontes.push([o, (o.zc || 0) - 1, (s.facts[o.name].script || {}).abilities || []]);
+  for (const [w, zc, abs] of fontes) abs.forEach((ab, i) => {
+    if (!ab || ab.kind !== 'triggered' || ab.when !== 'artefatos-saem-seu-turno') return;
+    const chave = w.oid + ':' + zc + ':' + i; if (ab.umaVezPorTurno) { if (r.uma[chave]) return; r.uma[chave] = true; }
+    s.queued.push({ source: w.oid, name: w.name, controller: p, effects: ab.effects, when: ab.when, ...marcasDaHabilidade(ab) });
+  });
+}
 function moveObject(s, oid, to, { top = true, controller } = {}) {
   const o = s.objects[oid]; if (!o) throw new RuleError('objeto', 'objeto inexistente');
   if (to !== 'stack' && !ZONE_NAMES.includes(to)) throw new RuleError('zona', 'zona inválida: ' + to);
@@ -20674,6 +20696,7 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
   }
   if (fromZone === 'hand' && to === 'graveyard') noteDiscard(s, o.owner); // CR2b.4 · da mão para o cemitério é descarte
   if (s.terrenoNoTurno && to === 'battlefield' && fromZone !== 'battlefield' && tiposDe(s, o).includes('land')) s.terrenoNoTurno[o.controller] = s.turn.number; // M-437
+  if (fromZone === 'battlefield' && to !== 'battlefield' && ultima && (ultima.tipos || []).includes('artifact')) artefatosSaemM(s, o, fromController); // M-546 · Oni-Cult Anvil
   if (s.saidaNoTurnoM && fromZone === 'battlefield' && to !== 'battlefield') s.saidaNoTurnoM[fromController] = s.turn.number; // M-514 · revolta: quem controlava quando saiu (fichas também)
   if (s.morteNoTurno != null && fromZone === 'battlefield' && to === 'graveyard' && ultima && ultima.power != null) s.morteNoTurno = s.turn.number; // M-416 · mórbido: uma criatura morreu neste turno (o campo só existe nas partidas com carta de mórbido)
   // CR2-G R2a · 603.6 · entrar, morrer, sair do campo e "a anexada morre" são o mesmo evento de mudança de zona
