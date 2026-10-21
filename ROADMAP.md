@@ -5283,6 +5283,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nenhum.
 - **Teste:** `lt226.unit` (4 testes; falham no motor anterior).
 
+**M-545 · LT207 · revisão por lote CLXXXIII: Sunderflock** ✅ (leva M-545, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** passa a jogar Sunderflock (20 listas do catálogo; trava 19 listas de Standard). Texto da Scryfall consultado em 20/10/2026.
+- **Regra:** redução "costs {X} less to cast, where X is the greatest mana value among Elementals you control" (`reduzPor` `maior-mv-elemental-seu`: o maior valor, não a soma; metamorfo conta; só o genérico, 601.2f); condição de gatilho "if you cast it" (`conjuradaM`, pela marca `castFrom` da conjuração; conferida no disparo, 603.4); "return all non-[subtipo] creatures to their owners' hands" pelo leitor.
+- **Revisão independente:** revisor independente, 41 sondas e fuzz próprio (30 partidas, 3.564 conferências da oferta contra o custo): o maior valor (três Elementais de 3 não somam), contam metamorfo, Elemental virado, Elemental do oponente que você controla e criatura que virou Elemental; não contam Elemental do oponente nem virado para baixo; só o genérico some ({U}{U} fica); o gatilho devolve não Elementais dos dois lados à mão do dono, não dispara reanimada, piscada ou como ficha-cópia, dispara para Clone conjurado copiando-a e resolve mesmo com ela removida em resposta (603.4). Nenhuma outra das 1.989 cartas oficiais mudou. Sem divergências.
+- **Fora (declarado):** nenhum.
+- **Teste:** `lt227.unit` (3 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

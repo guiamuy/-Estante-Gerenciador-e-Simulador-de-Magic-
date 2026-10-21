@@ -6230,7 +6230,7 @@ const PER_COUNTS = ['cores-gastas' /* M-540 · convergir (Prismatic Ending): cor
   'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G', 'counters-on-source', 'opponents-empty-hand', 'trigger-value', 'chosen-type-permanents', 'sacrificed-toughness', 'sacrificed-mv', 'sacrificed-power', 'dano-causado' /* M-427 · "the damage dealt this way" */, 'descartadas-assim' /* M-434 · "draw that many cards" depois de descartar a mão */, 'creature-cards-in-your-graveyard', 'cards-in-hand', 'x', 'power-of-source', 'se', 'power-of-target',
   'instants-sorceries-in-your-graveyard', 'flashback-cards-you-own-in-exile', 'soma', 'party', 'movidas', ...perCountsT()]; // M-386 · `movidas`: "for each card put into your graveyard this way" (o que o efeito anterior desta habilidade moveu) // T-59 · CR 700.8 · quantas criaturas há no seu grupo (0 a 4) // M-358 · Seize the Storm (604.3); `soma`: { per: 'soma', partes: [contagem, contagem, …] }
 /** M-333 · 601.2f · "This spell costs {N} less to cast for each …": o que a redução conta (chave `reduzPor: { generic, per }` no topo do script). */
-const REDUZ_POR = ['inst-feit-aventura-no-cemiterio' /* M-534 · Hearth Elemental */, 'instants-sorceries-in-your-graveyard', 'creature-cards-in-your-graveyard', 'land-cards-in-your-graveyard', 'creatures-on-battlefield',
+const REDUZ_POR = ['maior-mv-elemental-seu' /* M-545 · Sunderflock */, 'inst-feit-aventura-no-cemiterio' /* M-534 · Hearth Elemental */, 'instants-sorceries-in-your-graveyard', 'creature-cards-in-your-graveyard', 'land-cards-in-your-graveyard', 'creatures-on-battlefield',
   'creatures-opponents-control', 'basic-land-types-you-control', 'attacking-creatures', 'attacking-creatures-you-control', 'cards-drawn-this-turn',
   'creatures-attacked-this-turn', 'creatures-you-attacked-with-this-turn', 'morbid' /* M-440 · "if a creature died this turn": 1 ou 0 (Bone Picker) */];
 /** S19 · um valor pode ser um número ou uma contagem do campo. */
@@ -6346,7 +6346,7 @@ function validateScript(sc) {
     for (const ab of (sc && sc.abilities) || []) if (ab && temMvX(ab.effects) && !(ab.kind === 'activated' && /\{X\}/.test((ab.cost || {}).mana || ''))) errs.push('"targetMvIgualX" só em habilidade ativada com {X} no custo'); }
   for (const ab of (sc && sc.abilities) || []) if (ab && (ab.cost || {}).devolveSelf && !(ab.effects || []).some(e => e && e.do === 'reanimate' && e.target === 'self-source')) errs.push('"devolveSelf": a habilidade do cemitério precisa devolver a própria carta ao campo'); // M-398 · achado da revisão
   for (const ab of (sc && sc.abilities) || []) if (ab && ab.kind !== 'triggered' && (ab.effects || []).some(e => e && e.dividido)) errs.push('dano dividido: só em mágica e em habilidade disparada (a ativada ainda não divide — M-378)'); // M-378
-  for (const ab of (sc && sc.abilities) || []) if (ab.condition && !['lifeGained', 'attackersAtLeast', 'controlsOtherNamed', 'bargained', 'evidenced', 'kicked', 'opponentMoreLands', 'atacaSozinha', 'vidaPeloMenos', 'marcadoresNaFonte', 'entrouDesvirada', 'semTerrenoVirado', 'semCriaturas', 'segundaMagiaDoTurno' /* M-442 */, 'ferociousAoDisparar' /* M-455 */, 'saiuPermanenteNoTurno' /* M-514 */, ...condicoesK(), ...condicoesT()].includes(Object.keys(ab.condition)[0] || '')) errs.push('condição de gatilho desconhecida'); // K-59 · condições da trilha keywords (Toca ponto comum: validador de condições)
+  for (const ab of (sc && sc.abilities) || []) if (ab.condition && !['lifeGained', 'attackersAtLeast', 'controlsOtherNamed', 'bargained', 'evidenced', 'kicked', 'opponentMoreLands', 'atacaSozinha', 'vidaPeloMenos', 'marcadoresNaFonte', 'entrouDesvirada', 'semTerrenoVirado', 'semCriaturas', 'segundaMagiaDoTurno' /* M-442 */, 'ferociousAoDisparar' /* M-455 */, 'conjuradaM' /* M-545 */, 'saiuPermanenteNoTurno' /* M-514 */, ...condicoesK(), ...condicoesT()].includes(Object.keys(ab.condition)[0] || '')) errs.push('condição de gatilho desconhecida'); // K-59 · condições da trilha keywords (Toca ponto comum: validador de condições)
   if (sc && sc.bargain != null && sc.bargain !== true) errs.push('barganha é uma marca, sem valor');
   if (sc && !sc.bargain && [...(sc.effects || []), ...((sc.modes || []).flatMap(m => (m && m.effects) || []))].some(e => e && (e.onlyIf === 'bargained' || (e.amount && e.amount.se === 'bargained')))) errs.push('"se barganhada" sem a barganha na carta'); // M-384 · achado da revisão
   if (sc && sc.evidence != null && !(Number.isInteger(sc.evidence) && sc.evidence > 0)) errs.push('colher provas precisa de um número inteiro positivo');
@@ -10470,6 +10470,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Biotech Specialist': { texto: 'yw5ki', leva: 'M-543' },
   // M-544 · revisão por lote CLXXXII (The Sackville-Bagginses: sacrifício opcional na entrada; gatilho de sacrificar ficha), textos da Scryfall de 20/10/2026 UTC, revisor independente
   'The Sackville-Bagginses': { texto: '1w8tr4u', leva: 'M-544' },
+  // M-545 · revisão por lote CLXXXIII (Sunderflock: redução pelo maior valor de mana entre seus Elementais; “if you cast it”), textos da Scryfall de 20/10/2026 UTC, revisor independente
+  'Sunderflock': { texto: '1laj6sx', leva: 'M-545' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -19023,6 +19025,7 @@ const __m42 = (function () {
     [/^(?:converge — )?exile target nonland permanent if its mana value is less than or equal to the number of colors of mana spent to cast this spell$/i, () => [{ do: 'exile', target: { semTipos: ['land'] }, mvAteM: { per: 'cores-gastas' } }]], // M-540 · Prismatic Ending (convergir; mira qualquer permanente não terreno, confere na resolução)
     [/^destroy target creature if it has mana value (\d+) or less$/i, m => [{ do: 'destroy', target: 'creature', mvAteM: +m[1] }]], // M-537 · Fatal Push (mira qualquer criatura; confere na resolução)
     [/^tap up to two target creatures$/i, () => [{ do: 'tap', target: 'creature', upTo: true }, { do: 'tap', target: 'creature', upTo: true }]], // M-537 · Eddymurk Crab (como Dizzying Swoop)
+    [/^return all non-([a-z]+) creatures to their owners' hands$/i, m => [{ do: 'bounce', cada: { tipos: ['creature'], semSubtipos: [m[1][0].toUpperCase() + m[1].slice(1).toLowerCase()] } }]], // M-545 · Sunderflock
     [/^destroy all non-([a-z]+) creatures$/i, m => [{ do: 'destroy', cada: { tipos: ['creature'], semSubtipos: [m[1][0].toUpperCase() + m[1].slice(1).toLowerCase()] } }]], // M-535 · Cast Off (Realm-Cloaked Giant): "non-Giant" (205.3; metamorfo é Gigante)
     [/^destroy all (creatures|lands|artifacts|enchantments)$/i, m => [{ do: 'destroy_all', types: [{ creatures: 'creature', lands: 'land', artifacts: 'artifact', enchantments: 'enchantment' }[m[1].toLowerCase()]] }]], // M-518 · Armageddon (701.8; indestrutível fica)
     [/^you may attach (?:this equipment|~) to it$/i, () => [{ do: 'anexa_a_ficha', optional: true }]], // M-526 · Cori-Steel Cutter (301.5: anexar o Equipamento por efeito)
@@ -19411,6 +19414,8 @@ const __m42 = (function () {
     if (s2m) { condicao = { segundaMagiaDoTurno: true }; resto2 = s2m[1]; }
     const sn = !condicao && resto2.match(/^if you control no tapped lands, (.+)$/i); // M-373 · 603.4 (Martyr's Soul)
     if (sn) { condicao = { semTerrenoVirado: true }; resto2 = sn[1]; }
+    const scj = !condicao && resto2.match(/^if you cast it, (.+)$/i); // M-545 · Sunderflock (603.4)
+    if (scj) { condicao = { conjuradaM: true }; resto2 = scj[1]; }
     const sr = !condicao && resto2.match(/^if a permanent you controlled left the battlefield this turn, (.+)$/i); // M-514 · revolta (603.4)
     if (sr) { condicao = { saiuPermanenteNoTurno: true }; resto2 = sr[1]; }
     let mayPayM = null, textoMayPayM = ''; const mps = resto2.match(/^you may sacrifice another (creature or artifact|artifact or creature|creature|artifact)\. if you do, (.+)$/i); // M-544 · The Sackville-Bagginses (custo opcional do gatilho)
@@ -19588,6 +19593,7 @@ const __m42 = (function () {
         if (sv && pw != null && !magica) { (topo.abilities = topo.abilities || []).push({ kind: 'activated', label: 'Necrofagia', cost: { mana: sv[1], fromGraveyard: true, exileSelf: true }, sorceryOnly: true, effects: [{ do: 'counters', amount: pw, target: 'creature' }] }); frases.push({ texto: linha, lida: true }); continue; } }
       const kc0 = !magica && COM_CUSTO.map(([re, faz]) => { const m = linha.replace(/\.$/, '').match(re); return m && faz(m); }).find(Boolean); // LT5 · reciclagem em terreno
       { const ra = linha.replace(/\.$/, '').match(/^this spell costs \{(\d+)\} more to cast for each target beyond the first$/i); if (ra && magica) { topo.custoAlvoExtraL = +ra[1]; frases.push({ texto: linha, lida: true }); continue; } } // M-408 · 601.2f (Fireball): vai para o dano dividido igual da mesma carta
+      if (/^this spell costs \{X\} less to cast, where X is the greatest mana value among Elementals you control$/i.test(linha.replace(/\.$/, ''))) { topo.reduzPor = { generic: 1, per: 'maior-mv-elemental-seu' }; frases.push({ texto: linha, lida: true }); continue; } // M-545 · Sunderflock
       if (/^this spell costs \{X\} less to cast, where X is the number of cards in your graveyard that are instant cards, sorcery cards, and\/or have an Adventure$/i.test(linha.replace(/\.$/, ''))) { topo.reduzPor = { generic: 1, per: 'inst-feit-aventura-no-cemiterio' }; frases.push({ texto: linha, lida: true }); continue; } // M-534 · Hearth Elemental (601.2f)
       { const rm = linha.replace(/\.$/, '').match(/^this spell costs \{(\d+)\} less to cast if a creature died this turn$/i); if (rm) { topo.reduzPor = { generic: +rm[1], per: 'morbid' }; frases.push({ texto: linha, lida: true }); continue; } } // M-440 · Bone Picker (601.2f)
       { const rv = linha.replace(/\.$/, '').match(/^this spell costs \{(\d+)\} less to cast if it targets a tapped permanent$/i); if (rv && magica) { topo.reduzSeAlvoVirado = +rv[1]; frases.push({ texto: linha, lida: true }); continue; } } // M-383 · Ride's End
@@ -21527,6 +21533,7 @@ function contaParaReducao(s, p, per) {
   switch (per) {
     case 'instants-sorceries-in-your-graveyard': return cem.filter(x => tipos(x).some(t => t === 'instant' || t === 'sorcery')).length;
     case 'inst-feit-aventura-no-cemiterio': return cem.filter(x => tipos(x).some(t => t === 'instant' || t === 'sorcery') || !!((((s.facts[x.name] || {}).script || {}).self || {}).aventura)).length; // M-534 · 715.4 "has an Adventure" (carta de Aventura no cemitério; conta uma vez)
+    case 'maior-mv-elemental-seu': return battlefield(s).filter(x => x.controller === p && !x.phasedOut && (isChangeling(s, x, 'Elemental') || /\bElemental\b/.test(linhaDeTipo(s, x)))).reduce((m, x) => Math.max(m, manaValueT(s, x)), 0); // M-545 · Sunderflock (o maior valor de mana, não a soma)
     case 'creature-cards-in-your-graveyard': return cem.filter(x => tipos(x).includes('creature')).length;
     case 'land-cards-in-your-graveyard': return cem.filter(x => tipos(x).includes('land')).length;
     case 'creatures-on-battlefield': return battlefield(s).filter(x => isCreature(s, x)).length;
@@ -24529,6 +24536,7 @@ function triggerConditionMet(s, o, cond) {
   if (!cond) return true;
   if (cond.lifeGained != null && (s.players[o.controller].lifeGained || 0) < cond.lifeGained) return false;
   if (cond.semCriaturas && battlefield(s).some(x => isCreature(s, x))) return false; // M-396 · 603.4 · "if no creatures are on the battlefield" (Pestilence): conferido no disparo e na resolução
+  if (cond.conjuradaM && !o.castFrom) return false; // M-545 · "if you cast it" (Sunderflock): só a que veio da pilha conjurada
   if (cond.entrouDesvirada && o.tapped) return false; // M-349 · "When ~ enters untapped" (Gingerbread Cabin): como entrou
   if (cond.bargained && !o.bargained) return false;
   if (cond.evidenced && !o.evidenced) return false; // S41 · colher provas
@@ -27312,7 +27320,7 @@ function resolveAbility(s, o, events) {
     // CR2b.6 · 603.4 / 608.2h: se a fonte mudou de zona, a condição usa a última informação conhecida dela (o retrato do disparo)
     const fonte = viva && r && (viva.zc || 0) !== r.zc ? (({ zc, ...m }) => ({ ...viva, kicked: undefined, bargained: undefined, evidenced: undefined, faceDown: undefined, ...m }))(r) : viva;
     // "atacou com três ou mais" é informação do combate que já passou: vale o que foi visto no disparo
-    const { attackersAtLeast, atacaSozinha, entrouDesvirada, monarca, ferociousAoDisparar, ...resto } = o.condicao; // M-455 · o "while" da ferocidade também é do disparo // M-252 · "ataca sozinha" também é do disparo · M-349 · "entra desvirada" idem · T-64 · o monarca é do controlador da habilidade (abaixo)
+    const { attackersAtLeast, atacaSozinha, entrouDesvirada, monarca, ferociousAoDisparar, conjuradaM, ...resto } = o.condicao; // M-545 · "if you cast it" não deixa de ser verdade: conferido no disparo // M-455 · o "while" da ferocidade também é do disparo // M-252 · "ataca sozinha" também é do disparo · M-349 · "entra desvirada" idem · T-64 · o monarca é do controlador da habilidade (abaixo)
     if ((fonte && !triggerConditionMet(s, o.hostOid || o.fotoT ? { ...fonte, ...(o.hostOid ? { hostT: { oid: o.hostOid, z: o.hostZc } } : {}), ...(o.fotoT ? { fotoT: o.fotoT } : {}) } : fonte, resto)) /* T-118 · 603.4 com a encantada do disparo (Toca ponto comum: resolveAbility) */ || (monarca && !monarcaCondT(s, o.controller, monarca))) { events.push({ kind: 'trigger-fizzled', name: o.name, when: 'condição' }); return; } // T-64 · CR 603.4 / 109.5: o "você" é quem controla a habilidade (Toca ponto comum: resolveAbility)
     o.condicaoConferida = true;
   }
