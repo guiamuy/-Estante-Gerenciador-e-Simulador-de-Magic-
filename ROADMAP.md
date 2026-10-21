@@ -5241,6 +5241,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** o motor oferece até 24 combinações de três cartas, na ordem do cemitério (o mesmo teto dos outros custos com escolha); com cemitério muito grande (mais de ~26 cartas diferentes), as últimas não aparecem em nenhuma forma.
 - **Teste:** `lt220.unit` (4 testes; falham no motor anterior).
 
+**M-539 · LT201 · revisão por lote CLXXVII: Edge of Autumn e Get Out** ✅ (leva M-539, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** passam a jogar Edge of Autumn (19 listas do catálogo) e Get Out (22). Textos da Scryfall consultados em 20/10/2026.
+- **Regra:** "If you control four or fewer lands, …" condiciona o efeito inteiro, conferido ao resolver (`onlyIf: 'quatro-ou-menos-terrenos'`; sem a condição, também não embaralha); "Cycling—Sacrifice a land" (702.29a: custo sem mana, uma forma por terreno, o sacrifício dispara o que observa sacrifício); Get Out anula mágica de criatura ou encantamento e devolve "one or two target creatures and/or enchantments you own" (dono, não controlador; o segundo alvo é opcional e diferente do primeiro), pelo leitor.
+- **Revisão independente:** revisor independente (junto com a M-538): terrenos contados ao resolver (virados contam; os do oponente não); sem a condição não busca nem embaralha; ciclar oferece um terreno seu por forma (inclusive um tomado do oponente) e o sacrifício liga a revolta do Fatal Push e os gatilhos de sacrifício; Get Out anula criatura, encantamento, criatura-artefato e encantamento-criatura, nunca artefato puro nem habilidade, e devolve só o que você possui (inclusive o seu que o oponente controla), com o alvo que continua legal voltando. Nenhuma outra das 1.984 cartas oficiais mudou de cobertura ou de script lido. **Um achado de tela, corrigido com teste:** dois Forests (um virado, um desvirado) davam dois botões iguais "Ciclar · sacrificar Forest"; o rótulo agora separa como os alvos (`rotulosDeCiclar`, no modelo da mesa).
+- **Fora (declarado):** nenhum.
+- **Teste:** `lt221.unit` (6 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

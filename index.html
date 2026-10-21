@@ -5837,7 +5837,7 @@ const CHOICE_EFFECTS = ['terreno_da_mao', 'exila_da_mao', 'revela_topo_transform
 /** S47 · condição do próprio efeito, olhando o que foi pago como custo. */
 /** M-249 · 122.1 · marcadores nomeados em português (o tipo é a chave em `counters`). */
 const MARCADOR_PT = { p1p1: '+1/+1', m0m1: '−0/−1', /* M-360 */ oil: 'de óleo', depletion: 'de esgotamento', charge: 'de carga', age: 'de idade', loyalty: 'de lealdade', time: 'de tempo', lore: 'de saga', poison: 'de veneno', energia: 'de energia' /* H-6 */ };
-const ONLY_IF = ['delirio' /* M-528 · "Delirium — If there are four or more card types among cards in your graveyard, …" (Violent Urge), na resolução */, 'discarded-nonland', 'source-entered-earlier', 'paid-additional', 'kicked', 'not-attacked', 'metalcraft', 'cast-from-graveyard', 'alvo-era-seu', 'evidenced', 'not-evidenced', 'bargained', 'alvo-era-neve', 'alvo-era-lendario' /* M-414 · "If it was a legendary spell" (Glorious Gale, 608.2h) */, 'ferocious', /* M-399 · Temur Battle Rage */ 'threshold', /* M-412 · limiar (207.2c): sete cartas ou mais no seu cemitério, na resolução */ 'morbid', /* M-416 · mórbido (207.2c): uma criatura morreu neste turno */ 'sem-limiar', /* M-417 · o outro lado do "instead" do limiar (Cabal Ritual) */ 'nao-seu-turno', /* M-452 · "If it's not your turn" (Zealous Display) */ ...onlyIfT()]; // T-62 · "if you're the monarch" / "if an opponent is the monarch" (onlyIfT, função içada da trilha tipos) // M-385 · "If that land was a snow land" (Thermokarst, 608.2h) · M-384 · 702.166b "If this spell was bargained" (Torch the Tower) // M-351 · "If evidence was collected, instead …" (Extract a Confession, 701.59 + 601.2b)
+const ONLY_IF = ['quatro-ou-menos-terrenos' /* M-539 · "If you control four or fewer lands, …" (Edge of Autumn), na resolução */, 'delirio' /* M-528 · "Delirium — If there are four or more card types among cards in your graveyard, …" (Violent Urge), na resolução */, 'discarded-nonland', 'source-entered-earlier', 'paid-additional', 'kicked', 'not-attacked', 'metalcraft', 'cast-from-graveyard', 'alvo-era-seu', 'evidenced', 'not-evidenced', 'bargained', 'alvo-era-neve', 'alvo-era-lendario' /* M-414 · "If it was a legendary spell" (Glorious Gale, 608.2h) */, 'ferocious', /* M-399 · Temur Battle Rage */ 'threshold', /* M-412 · limiar (207.2c): sete cartas ou mais no seu cemitério, na resolução */ 'morbid', /* M-416 · mórbido (207.2c): uma criatura morreu neste turno */ 'sem-limiar', /* M-417 · o outro lado do "instead" do limiar (Cabal Ritual) */ 'nao-seu-turno', /* M-452 · "If it's not your turn" (Zealous Display) */ ...onlyIfT()]; // T-62 · "if you're the monarch" / "if an opponent is the monarch" (onlyIfT, função içada da trilha tipos) // M-385 · "If that land was a snow land" (Thermokarst, 608.2h) · M-384 · 702.166b "If this spell was bargained" (Torch the Tower) // M-351 · "If evidence was collected, instead …" (Extract a Confession, 701.59 + 601.2b)
 /** S16 · custos que substituem o custo de mana, e o custo do lampejo do passado. */
 const ALT_COST_PARTS = ['returnTapped', 'mana', 'life', 'discard', 'returnLand', 'exileGraveyard', 'tapOther', 'sacrificeOther', 'discardSubtype', 'exileHandColor', 'free', 'revealHand', 'exileGraveyardTopo']; // M-362 · "exile the top three black cards of your graveyard" (Spinning Darkness) // M-351 · revealHand: "you may reveal your hand rather than pay" (Land Grant, 118.9) // CR2c.4 · Ilha entre as descartadas (Foil), exilar carta da cor da mão (Snapback), de graça (Mogg Salvage)
 /** S48 · fuga: conjura do cemitério pagando o custo, e a carta fica em jogo. */
@@ -6378,7 +6378,8 @@ function validateScript(sc) {
   if (sc && (sc.disturb || sc.omen) && !sc.back) errs.push('disturb ou presságio sem face de trás');
   if (sc && sc.disturb && !sc.disturb.mana) errs.push('disturb sem custo');
   if (sc && sc.omen && !sc.omen.mana) errs.push('presságio sem custo');
-  if (sc && sc.cycling && !sc.cycling.mana && !(Number.isInteger(sc.cycling.life) && sc.cycling.life > 0)) errs.push('ciclar sem custo'); // M-341 · também "Cycling—Pay N life"
+  if (sc && sc.cycling && !sc.cycling.mana && !(Number.isInteger(sc.cycling.life) && sc.cycling.life > 0) && sc.cycling.sacrificaTerreno !== true) errs.push('ciclar sem custo'); // M-539 · "Cycling—Sacrifice a land"
+  if (sc && sc.cycling && sc.cycling.sacrificaTerreno != null && sc.cycling.sacrificaTerreno !== true) errs.push('ciclar: sacrificaTerreno só vale como true'); // M-341 · também "Cycling—Pay N life"
   if (sc && sc.transmute && !sc.transmute.mana) errs.push('transmutar sem custo');
   if (sc && sc.unearth != null && !(sc.unearth && typeof sc.unearth.mana === 'string')) errs.push('desenterrar sem custo'); // M-257 · 702.84
   if (sc && sc.backup != null && !(Number.isInteger(sc.backup) && sc.backup > 0)) errs.push('reforço precisa de um número inteiro'); // M-260 · 702.165
@@ -10455,6 +10456,9 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Eddymurk Crab': { texto: 'bv7hr2', leva: 'M-537' },
   // M-538 · revisão por lote CLXXVI (Psychic Frog: gatilho de dano a jogador ou planeswalker; custo de exilar três cartas do cemitério), textos da Scryfall de 20/10/2026 UTC, revisor independente
   'Psychic Frog': { texto: 'ca2eom', leva: 'M-538' },
+  // M-539 · revisão por lote CLXXVII (Edge of Autumn: condição de quatro ou menos terrenos e ciclar sacrificando um terreno; Get Out: anular mágica de criatura ou encantamento, ou devolver uma ou duas permanentes suas), textos da Scryfall de 20/10/2026 UTC, revisor independente
+  'Edge of Autumn': { texto: '1tcbcoo', leva: 'M-539' },
+  'Get Out': { texto: '1g6fjh9', leva: 'M-539' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18914,6 +18918,7 @@ const __m42 = (function () {
     if (k === 'target attacking creature') return { target: { tipos: ['creature'], atacando: true } }; // M-377 · Desert (seletor atacando, M-361)
     if (k === 'up to one target card from a graveyard') return { target: 'card-in-any-graveyard', upTo: true }; // M-373 · Heritage Reclamation (115.3: aceita zero)
     if (k === 'target instant or sorcery spell') return { target: 'spell', targetTypes: ['instant', 'sorcery'] }; // LT13
+    if (k === 'target creature or enchantment spell') return { target: 'spell', targetTypes: ['creature', 'enchantment'] }; // M-539 · Get Out
     if (k === 'target activated or triggered ability') return { target: { zona: 'stack', habilidades: 'so' } }; // M-536 · Stifle (habilidade de mana não vai à pilha, 605.3b)
     { const u = k.match(/^up to one (target .+)$/); if (u) { const a = alvo(u[1]); if (a && a.target != null && a.upTo == null) return { ...a, upTo: true }; } } // M-536 · "up to one target …" (115.3: aceita zero alvos; Impractical Joke)
     return null;
@@ -19019,6 +19024,7 @@ const __m42 = (function () {
     [/^counter target spell if its mana value is (\d+) or less$/i, m => [{ do: 'counter', target: 'spell', mvAte: +m[1] }]], // M-419 · Prohibit (mira qualquer mágica; confere na resolução)
     [/^counter (target spell with mana value \d+ or less)$/i, m => [com({ do: 'counter' }, alvo(m[1]))]], // M-535 · Mesmeric Glare
     [/^counter (target [a-z ']+)$/i, m => [com({ do: 'counter' }, alvo(m[1]))]],
+    [/^return one or two target creatures and\/or enchantments you own to your hand$/i, () => [{ do: 'bounce', target: { tipos: ['creature', 'enchantment'], dono: 'you' } }, { do: 'bounce', target: { tipos: ['creature', 'enchantment'], dono: 'you' }, upTo: true }]], // M-539 · Get Out (o segundo alvo é opcional; 601.2c: diferentes)
     [/^return (target [a-z ']+) to its owner's hand$/i, m => [com({ do: 'bounce' }, alvo(m[1]))]],
     [/^(target creature|target creature you control|creatures you control|creatures your opponents control|all creatures) gets? ([+-]\d+)\/([+-]\d+) until end of turn$/i, m => [com({ do: 'pump', power: SINAL(m[2]), toughness: SINAL(m[3]) }, alvo(m[1]))]],
     [/^creatures (target player|target opponent) controls? get ([+-]\d+)\/([+-]\d+) until end of turn$/i, m => [{ do: 'pump', target: m[1] === 'target player' ? 'player' : 'opponent', cada: { tipos: ['creature'], de: 'alvo' }, power: SINAL(m[2]), toughness: SINAL(m[3]) }]], // M-351 · Arms of Hadar
@@ -19203,7 +19209,8 @@ const __m42 = (function () {
     [/^as an additional cost to cast this spell, discard a card or pay \{(\d+)\}$/i, m => ({ additional: [{ discard: 1 }, { generico: +m[1] }] })], // M-441 · Lightning Axe (601.2b: um ou outro; o {5} entra no custo total, 601.2f) // M-346 · Bitter Triumph (601.2b: um ou outro)
     [/^as an additional cost to cast this spell, sacrifice an artifact or creature$/i, () => ({ additional: { sacrificeOther: { types: ['artifact', 'creature'] } } })], // LT10 · 601.2b
     [/^as an additional cost to cast this spell, sacrifice an? (land|creature|artifact|enchantment)$/i, m => ({ additional: { sacrificeOther: { types: [m[1].toLowerCase()] } } })], // M-334 · LT18 · 601.2b (Crop Rotation)
-    [/^cycling—pay (\d+) life$/i, m => ({ cycling: { life: +m[1] } })], // M-341 · Street Wraith
+    [/^cycling—pay (\d+) life$/i, m => ({ cycling: { life: +m[1] } })],
+    [/^cycling—sacrifice a land$/i, () => ({ cycling: { sacrificaTerreno: true } })], // M-539 · Edge of Autumn // M-341 · Street Wraith
     [/^bargain$/i, () => ({ bargain: true })], // M-384 · 702.166 (o motor barganha desde a S37)
     [/^web-slinging (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ alt: [{ label: `Balançar na teia · ${m[1]} e devolver uma criatura virada sua`, cost: { mana: m[1], returnTapped: true } }] })], // M-392 · 702.188
     [/^kicker (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ kicker: { mana: m[1] } })], // M-337 · 702.33 (o motor reforça desde a S-série)
@@ -19462,6 +19469,7 @@ const __m42 = (function () {
   function leParagrafo(texto0, nome, frases) {
     const efeitos = [];
     let texto = til(texto0, nome).trim(); // M-394
+    const poucasTerrasM = texto.match(/^if you control four or fewer lands, /i); if (poucasTerrasM) { texto = texto.slice(poucasTerrasM[0].length); frases.push({ texto: 'If you control four or fewer lands', lida: true }); } // M-539 · Edge of Autumn (o efeito todo fica condicionado, na resolução)
     texto = texto.replace(/^have ~ deal (\d+) damage to /i, '~ deals $1 damage to '); // M-418 · "you may have ~ deal N damage to …" (Hissing Iguanar): o "you may" já virou a pergunta do gatilho
     for (let achou = true; achou && texto;) { achou = false; // M-335
       for (const [re, faz] of PRE_PARAGRAFO) { const m = texto.match(re); const e = m && faz(m); if (!e) continue; efeitos.push(...e); frases.push({ texto: m[0].trim().replace(/\.$/, ''), lida: true }); texto = texto.slice(m[0].length).trim(); achou = true; break; } }
@@ -19516,6 +19524,7 @@ const __m42 = (function () {
       if (du) { frases.push({ texto: du[0], lida: true }, { texto: du[1], lida: true }); efeitos.push(...du[2], ...du[3]); continue; }
       if (e) { frases.push({ texto: p, lida: true }); efeitos.push(...e); } else { frases.push({ texto: p, lida: false, motivo: 'frase sem padrão conhecido' }); ok = false; }
     }
+    if (ok && poucasTerrasM) { if (!efeitos.length || efeitos.some(e => e.onlyIf)) return null; for (const e of efeitos) e.onlyIf = 'quatro-ou-menos-terrenos'; } // M-539
     return ok ? efeitos : null;
   }
   /** A carta → { script, frases: [{ texto, lida, motivo? }], completa }. Só mágicas instantâneas e feitiços (LT1–LT2): linhas de
@@ -22492,6 +22501,7 @@ function amountOf(s, src, v) {
 function condicaoDoEfeito(s, fonte, k) {
   if (!fonte) return false;
   if (k === 'metalcraft') return battlefield(s).filter(x => x.controller === fonte.controller && tiposDe(s, x).includes('artifact')).length >= 3;
+  if (k === 'quatro-ou-menos-terrenos') return battlefield(s).filter(x => x.controller === fonte.controller && tiposDe(s, x).includes('land')).length <= 4; // M-539 · Edge of Autumn
   if (k === 'revolta') return !!(s.saidaNoTurnoM && s.saidaNoTurnoM[fonte.controller] === s.turn.number); // M-537 · "if a permanent left the battlefield under your control this turn" (Fatal Push), na resolução
   if (k === 'inst-e-feit') { const g = ((s.zones[fonte.controller] || { graveyard: [] }).graveyard).map(x => (s.facts[s.objects[x].name] || {}).types || []); return g.some(tp => tp.includes('instant')) && g.some(tp => tp.includes('sorcery')); } // M-530 · Flow State, na resolução (a própria mágica ainda está na pilha)
   if (k === 'delirio') return tiposNoCemiterioM(s, fonte.controller) >= 4; // M-528 · delírio na resolução (a mágica ainda está na pilha e não conta)
@@ -22521,7 +22531,7 @@ function effectAllowed(s, fonte, eff) {
   if (eff.onlyIf === 'ferocious') return !!fonte && battlefield(s).some(x => x.controller === fonte.controller && isCreature(s, x) && power(s, x) >= 4); // M-399 · ferocidade (palavra de habilidade, 207.2c), conferida na resolução
   if (eff.onlyIf === 'bargained') return !!fonte && !!fonte.bargained; // M-384 · 702.166b · "If this spell was bargained" (Torch the Tower)
   if (eff.onlyIf === 'kicked') return !!fonte && !!fonte.kicked; // CR 702.33d · "if this spell was kicked"
-  if (eff.onlyIf === 'metalcraft' || eff.onlyIf === 'cast-from-graveyard' || eff.onlyIf === 'threshold' || eff.onlyIf === 'sem-limiar' || eff.onlyIf === 'morbid' || eff.onlyIf === 'nao-seu-turno' /* M-452 */ || eff.onlyIf === 'delirio' /* M-528 */) return condicaoDoEfeito(s, fonte, eff.onlyIf); // M-331 · M-412 · M-416 · M-417
+  if (eff.onlyIf === 'metalcraft' || eff.onlyIf === 'cast-from-graveyard' || eff.onlyIf === 'threshold' || eff.onlyIf === 'sem-limiar' || eff.onlyIf === 'morbid' || eff.onlyIf === 'nao-seu-turno' /* M-452 */ || eff.onlyIf === 'delirio' /* M-528 */ || eff.onlyIf === 'quatro-ou-menos-terrenos' /* M-539 */) return condicaoDoEfeito(s, fonte, eff.onlyIf); // M-331 · M-412 · M-416 · M-417
   if (doQueResolveT(eff.onlyIf)) return condicaoDoEfeito(s, fonte, eff.onlyIf); // T-65 · e as do lance da moeda // T-62 · CR 725.5 (Toca ponto comum: effectAllowed)
   if (eff.onlyIf === 'not-attacked') return !!fonte && !(s.players[fonte.controller] || {}).atacouCom; // M-248 · "unless you attacked this turn" (Chart a Course)
   if (eff.onlyIf === 'evidenced') return !!fonte && !!fonte.evidenced; // M-351 · 701.59 · "If evidence was collected" (Extract a Confession)
@@ -26343,7 +26353,9 @@ const HANDLERS = {
     const o = owns(s, a.p, a.oid, 'hand');
     const cy = (s.facts[o.name].script || {}).cycling;
     if (!cy) throw new RuleError('ciclar', 'esta carta não tem ciclar');
+    if (cy.sacrificaTerreno) { const tq = s.objects[a.sacrifica]; if (!tq || tq.zone !== 'battlefield' || tq.controller !== a.p || !tiposDe(s, tq).includes('land')) throw new RuleError('custo', 'sacrifique um terreno seu para ciclar'); } // M-539 · Edge of Autumn (601.2h: quem paga escolhe o terreno)
     if (s.manaCheck && !a.free) { if (cy.mana) payCost(s, a.p, parseCost(cy.mana)); if (cy.life) { if (s.players[a.p].life < cy.life) throw new RuleError('custo', 'vida insuficiente'); perdeVida(s, a.p, cy.life); } } // M-341 · 119.4: paga vida só quem tem
+    if (cy.sacrificaTerreno) sacrifice(s, a.sacrifica); // M-539 · o custo é pago junto com o descarte (602.2b)
     const madness = madnessOf(s, o);
     if (madness) { moveObject(s, o.oid, 'exile'); insanidadeNaPilhaK(s, a.p, o.oid); } // K-74 · 702.35a: gatilho na pilha (decisão D1 do dono; Toca ponto comum: HANDLERS.cycle)
     else moveObject(s, o.oid, 'graveyard');
@@ -26950,6 +26962,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
   // S22 · ciclar, da mão, a qualquer momento com prioridade
   for (const oid of s.zones[p].hand) {
     const cy = (s.facts[s.objects[oid].name].script || {}).cycling;
+    if (cy && cy.sacrificaTerreno) { if (!s.manaCheck || !cy.mana || canPay(s, p, parseCost(cy.mana))) for (const tq of battlefield(s)) if (tq.controller === p && tiposDe(s, tq).includes('land')) out.push({ t: 'cycle', p, oid, sacrifica: tq.oid }); continue; } // M-539 · uma ação por terreno (quem paga escolhe)
     if (cy && (!s.manaCheck || ((!cy.mana || canPay(s, p, parseCost(cy.mana))) && (!cy.life || s.players[p].life >= cy.life)))) out.push({ t: 'cycle', p, oid }); // M-341 · ciclar pagando vida
   }
   // S18 · ninjutsu, depois dos bloqueadores · S54 · esgueirar-se pelo mesmo caminho
@@ -34394,6 +34407,12 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
 
 /** Leva 131 · nome de cada alvo sem ambiguidade. Dois alvos com o mesmo nome ganham o que os separa: de quem é
     (espelho: a minha Faerie Seer e a do oponente) e, do mesmo dono, se está virada. Puro. */
+/** M-539 · o texto de cada botão de ciclar de uma carta: com custo de sacrificar terreno (Edge of Autumn), o terreno, separado como os alvos
+    (dois Forests, um virado e um desvirado); sem, o custo de mana ou de vida. Puro (achado da revisão independente). */
+function rotulosDeCiclar(s, v, ofertas, cy) {
+  const rot = rotulosDeAlvos(s, v, ofertas.map(c => ({ oid: c.sacrifica != null ? c.sacrifica : c.oid })));
+  return ofertas.map((c, i) => `Ciclar · ${c.sacrifica != null ? `sacrificar ${rot[i]}` : (cy || {}).mana || ((cy || {}).life ? `pagar ${(cy || {}).life} de vida` : '')}`);
+}
 function rotulosDeAlvos(s, v, alvos) {
   const ob = x => (x && x.oid != null ? s.objects[x.oid] : null);
   const base = alvos.map(x => (x.player != null ? s.players[x.player].name : ob(x).name));
@@ -35480,7 +35499,7 @@ function toquesDaContagem(grupos, conta) {
   for (const g of grupos) { let i = 0; (conta[g.chave] || []).forEach((n, k) => { for (let j = 0; j < n && i < g.oids.length; j++) out.push({ oid: g.oids[i++], option: k }); }); }
   return out;
 }
-return { nomesDeCatalogo, LIMITE_COMANDANTE, danoDeComandante, textoDoDanoDeComandante, GRUPOS_DE_PARADA, PARADAS_PADRAO, paradasValidas, grupoDoPasso, usaParadas, paradasAtuais, iconeDaLinhaDoRegistro, donoDaLinha, iconeDaFase, trocaLegitima, cartaDaMesa, fontesDeMana, conferePagamento, planoDePagamento, gruposDeFontes, contagemDosToques, toquesDaContagem, sinaisDoResumo, iconeDaLinhaDoResumo, repeticaoDoCombo, chaveDaRepeticao, linhasDoCampo, rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, modificacoesDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveContinuo, descreveDano, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
+return { rotulosDeCiclar, nomesDeCatalogo, LIMITE_COMANDANTE, danoDeComandante, textoDoDanoDeComandante, GRUPOS_DE_PARADA, PARADAS_PADRAO, paradasValidas, grupoDoPasso, usaParadas, paradasAtuais, iconeDaLinhaDoRegistro, donoDaLinha, iconeDaFase, trocaLegitima, cartaDaMesa, fontesDeMana, conferePagamento, planoDePagamento, gruposDeFontes, contagemDosToques, toquesDaContagem, sinaisDoResumo, iconeDaLinhaDoResumo, repeticaoDoCombo, chaveDaRepeticao, linhasDoCampo, rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, modificacoesDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveContinuo, descreveDano, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
 })();
 
 
@@ -37301,8 +37320,8 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     for (const tm of E.legalActions(s, v).filter(x => x.t === 'transmute' && x.oid === oid))
       legal.push(doBtn(`Transmutar · ${(f.script.transmute || {}).mana || ''}`, tm));
     // S22: ciclar
-    for (const cy of E.legalActions(s, v).filter(x => x.t === 'cycle' && x.oid === oid))
-      legal.push(doBtn(`Ciclar · ${(f.script.cycling || {}).mana || ((f.script.cycling || {}).life ? `pagar ${(f.script.cycling || {}).life} de vida` : '')}`, cy)); // M-341
+    { const ciclosM = E.legalActions(s, v).filter(x => x.t === 'cycle' && x.oid === oid), rotCyM = T.rotulosDeCiclar(s, v, ciclosM, (f.script || {}).cycling); // M-539 · dois terrenos de mesmo nome: o rótulo separa (achado da revisão)
+    ciclosM.forEach((cy, iCy) => legal.push(doBtn(rotCyM[iCy], cy))); } // M-341 · M-539
     // S18: ninjutsu, trocando um atacante sem bloqueio
     for (const nj of E.legalActions(s, v).filter(x => x.t === 'ninjutsu' && x.oid === oid))
       legal.push(doBtn(`${nj.sneak ? 'Esgueirar-se' : 'Ninjutsu'} · ${((nj.sneak ? f.script.sneak : f.script.ninjutsu) || {}).mana || ''} → devolve ${s.objects[nj.attacker].name}`, nj, { variant: 'primary' })); // R6 · esgueirar-se (Leonardo) saía como "Ninjutsu · " sem custo // Leva 131 · diz o custo e o que acontece com o atacante
