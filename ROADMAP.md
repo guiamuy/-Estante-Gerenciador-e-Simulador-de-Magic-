@@ -5227,6 +5227,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nenhum ("Damage can't be prevented this turn" já era lido).
 - **Teste:** `lt218.unit` (4 testes; falham no motor anterior).
 
+**M-537 · LT199 · revisão por lote CLXXV: Fatal Push e Eddymurk Crab** ✅ (leva M-537, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** passam a jogar Fatal Push (209 listas do catálogo) e Eddymurk Crab (24). Textos da Scryfall consultados em 20/10/2026.
+- **Regra:** destruir "if it has mana value N or less" confere o valor ao resolver (608.2b); revolta ("if a permanent left the battlefield under your control this turn") como condição nova `revolta`, ligada só quando um script a usa; "enters tapped if it's not your turn" (`entersTappedUnless.seuTurnoM`); "tap up to two target creatures" (aceita zero, 115.3).
+- **Revisão independente:** revisor independente (junto com a M-536): a revolta conta permanente seu que volta à mão, é exilado, sacrificado ou é ficha, o do oponente que você controlava e o que saiu em resposta ou no turno do oponente; não conta permanente do oponente nem saída do turno anterior; o valor de mana é conferido ao resolver e criatura com X vale sem o X no campo. Eddymurk Crab: criatura, terreno, Aventura e mágicas no cemitério do oponente não reduzem, o custo nunca passa de {U}{U}, entra virado no turno do oponente (também posto direto no campo) e o gatilho aceita zero, uma ou duas criaturas diferentes. Sem divergências; uma observação de robustez (parênteses na condição que liga a memória da revolta) corrigida sem mudança de comportamento.
+- **Fora (declarado):** nenhum.
+- **Teste:** `lt219.unit` (3 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
