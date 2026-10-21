@@ -6527,6 +6527,7 @@ function effectErrors(effects, label, opcional) {
     if (e.do === 'tap_or_untap' && e.optional != null && typeof e.optional !== 'boolean') errs.push(`${label} ${i + 1}: "opcional" precisa ser verdadeiro ou falso`); // Leva 131
     if (e.exilaSeMorrer != null && !(e.do === 'damage' && e.exilaSeMorrer === true)) errs.push(`${label} ${i + 1}: "exilaSeMorrer" é uma marca (true) do dano`); // M-384 · Torch the Tower
     if (e.marcaFonteM != null && !(e.marcaFonteM === true && e.do === 'exila_ate_final')) errs.push(`${label} ${i + 1}: "marcaFonteM" é uma marca (true) da exila_ate_final`); // M-548 · Phelia
+    if (e.semGanharVidaM != null && !(e.semGanharVidaM === true && e.do === 'damage')) errs.push(`${label} ${i + 1}: "semGanharVidaM" é uma marca (true) do dano`); // M-550 · Screaming Nemesis
     if (e.lembraExiladas != null && !(e.lembraExiladas === true && (e.do === 'exile_top_playable' || e.do === 'delayed'))) errs.push(`${label} ${i + 1}: "lembraExiladas" é uma marca (true) do exílio do topo e do gatilho atrasado`); // M-386 (o \`lembra\` do \`mover\` é outra coisa — achado da revisão: Leonin Relic-Warder)
     if (e.seRestar != null && !(e.seRestar === true && e.do === 'delayed' && e.lembraExiladas)) errs.push(`${label} ${i + 1}: "seRestar" é do gatilho atrasado que lembra as exiladas`); // M-386 · 603.4
     if (e.marcadorSeCriatura != null && !(e.do === 'reanimate' && e.target !== 'self-source' && Number.isInteger(e.marcadorSeCriatura) && e.marcadorSeCriatura > 0)) errs.push(`${label} ${i + 1}: "marcadorSeCriatura" é a quantidade de marcadores +1/+1 extras do reanimar`); // M-400
@@ -10489,6 +10490,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Flickerwisp': { texto: 'iojhlm', leva: 'M-548' },
   // M-549 · revisão por lote CLXXXVII (Witherbloom Charm: sacrificar para comprar; destruir não terreno de valor 2 ou menos), texto da Scryfall de 21/10/2026 UTC, revisor independente
   'Witherbloom Charm': { texto: 'qbauhe', leva: 'M-549' },
+  // M-550 · revisão por lote CLXXXVIII (Screaming Nemesis: o dano que recebe vai para outro alvo; quem levar não ganha vida pelo resto do jogo), texto da Scryfall de 21/10/2026 UTC, revisor independente
+  'Screaming Nemesis': { texto: '1to2voh', leva: 'M-550' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -19475,6 +19478,8 @@ const __m42 = (function () {
   const FILTRO_DESCARTE = { card: {} /* M-516 · Coercion: qualquer carta */, 'nonland card': { notTypes: ['land'] }, 'noncreature, nonland card': { notTypes: ['creature', 'land'] }, 'nonland, noncreature card': { notTypes: ['creature', 'land'] } };
   const FILTRO_TOPO = { colorless: { incolor: true }, 'instant or sorcery': { types: ['instant', 'sorcery'] }, creature: { types: ['creature'] }, artifact: { types: ['artifact'] }, land: { types: ['land'] }, 'creature or land': { types: ['creature', 'land'] } };
   const PRE_PARAGRAFO = [
+    [/^(?:it|~) deals that much damage to any other target(\. if a player is dealt damage this way, they can't gain life for the rest of the game)?(?:\.\s*|$)/i,
+      m => [{ do: 'damage', amount: { per: 'trigger-value' }, target: { tipos: ['creature', 'planeswalker', 'battle'], jogadores: 'any', outra: true }, ...(m[1] ? { semGanharVidaM: true } : {}) }]], // M-550 · Screaming Nemesis
     [/^exile (up to one )?(another|other) target (nonland )?permanent\. (?:at the beginning of the next end step, return that card to the battlefield under its owner's control|return that card to the battlefield under its owner's control at the beginning of the next end step)(\. if it entered under your control, put a \+1\/\+1 counter on ~)?(?:\.\s*|$)/i,
       m => [{ do: 'exila_ate_final', target: { ...(m[3] ? { semTipos: ['land'] } : {}), outra: true }, ...(m[1] ? { upTo: true } : {}), ...(m[4] ? { marcaFonteM: true } : {}) }]], // M-548 · Flickerwisp, Phelia (603.7)
     [/^choose (target creature or planeswalker|target creature)\. you get ((?:\{E\})+)(?: \([^)]*\))?, then you may pay any amount of \{E\}\. ~ deals that much damage to that (?:creature|permanent)(?:\.\s*|$)/i, m => [{ do: 'energia', amount: m[2].length / 3 }, { do: 'energia_dano', target: /planeswalker/i.test(m[1]) ? { tipos: ['creature', 'planeswalker'] } : { tipos: ['creature'] } }]], // M-405 · Galvanic Discharge, Harnessed Lightning
@@ -22073,13 +22078,14 @@ function dealCombatDamage(s) {
     if (s.fogged && !s.noPrevention) { s.combat.damageDone = true; return; } // S29 · Fog, salvo se a prevenção foi cancelada
     const golpesEmJogador = []; // M-258 · o dano de combate é simultâneo: um lote só
     const vinculo = new Map(); // CR2b.7 · vínculo vital: um evento de ganho por fonte, somando o dano a todos os recebedores
+    const agrupadoM = agrupaDanoM = new Map(); try { // M-550 · um gatilho de "is dealt damage" por permanente, com o total do passo de dano
     for (let [src, obj, player, amt, ehPw] of hits) {
       // CR2-G R5b · prevenção num caminho só (S30 cor; S11b prevenção e proteção, Leva 106: Flaring Pain vale para a proteção)
       amt = danoSubstituido(s, src, obj ? { obj } : { player }, amt, true); // CR2-G R5d · "causa N a mais / o dobro" vem antes da prevenção
       amt = danoAposPrevencao(s, src, obj ? { obj } : { player }, amt, true); if (!amt) continue;
       if (ehPw && (danoEmBatalhaT(s, src, obj, amt) || danoEmPwCriaturaT(s, src, obj, amt))) { /* T-18 · CR 120.3e / 702.2b */ /* T-14 · CR 310.6 / 120.3h · Toca ponto comum: dealCombatDamage */ } else if (ehPw) { // M-228 · 120.3c: dano ao planeswalker tira lealdade; se ele também é criatura (Gideon no 0), o dano fica marcado (120.3e)
-        obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - amt); if (isCreature(s, obj)) marcaDanoEmCriatura(s, src, obj, amt); noteDamaged(s, obj);
-      } else if (obj && amt > 0) { if (tiposDe(s, obj).includes('planeswalker')) { obj.counters = obj.counters || {}; obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - amt); } /* M-538 · 120.3c/e: o planeswalker-criatura que bloqueia perde lealdade e fica com o dano marcado (achado da revisão) */ marcaDanoEmCriatura(s, src, obj, amt); noteEnchantedEvent(s, obj, 'recebe-dano'); noteDamaged(s, obj); if (has(s, fonteDoDano(s, src), 'deathtouch')) obj.deathtouched = true; danoDeCombateACriaturaM(s, src, obj); } // M-513
+        obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - amt); if (isCreature(s, obj)) marcaDanoEmCriatura(s, src, obj, amt); noteDamaged(s, obj, amt);
+      } else if (obj && amt > 0) { if (tiposDe(s, obj).includes('planeswalker')) { obj.counters = obj.counters || {}; obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - amt); } /* M-538 · 120.3c/e: o planeswalker-criatura que bloqueia perde lealdade e fica com o dano marcado (achado da revisão) */ marcaDanoEmCriatura(s, src, obj, amt); noteEnchantedEvent(s, obj, 'recebe-dano'); noteDamaged(s, obj, amt); if (has(s, fonteDoDano(s, src), 'deathtouch')) obj.deathtouched = true; danoDeCombateACriaturaM(s, src, obj); } // M-513
       else {
         danoEmJogador(s, src, player, amt); golpesEmJogador.push({ fonte: src, jogador: player });
         darVeneno(s, player, toxicoDe(s, src), null, src.name); // M-253 · 702.164c: dano de combate a jogador com tóxico dá veneno
@@ -22091,6 +22097,7 @@ function dealCombatDamage(s) {
       if ((player != null && !obj) || (obj && tiposDe(s, obj).includes('planeswalker'))) disparaEvento(s, 'dano-combate-jpw', [src]); // M-538 · "to a player or planeswalker" (Psychic Frog): o atacado e o planeswalker-criatura que bloqueia; batalha não conta
       if (player != null && !obj) anelDanoV(s, src); // V-26 · 701.54c (4) (Toca ponto comum: dano de combate)
     }
+    } finally { agrupaDanoM = null; for (const [oid, n] of agrupadoM) { const o = s.objects[oid]; if (o) noteDamagedJaM(s, o, n); } } // M-550
     for (const v of vinculo.values()) ganhaVidaJogador(s, v.quem, v.n); // CR2b.7 · um ganho por criatura com vínculo vital
     disparaLoteDeDano(s, golpesEmJogador); // M-258
     designacoesNoDano(s, golpesEmJogador); // M-332 · CR 725.2 / 726.2
@@ -22781,13 +22788,14 @@ function applyEffectM449(s, src, eff, tgt, events) {
         n = resto;
         if (almaM && n > 0) { const k = poeMarcadores(s, obj, 'm1m1', n); note({ amount: k, marcadores: true }); break; } // M-547 · 614.1a: o dano não é causado (sem vínculo, sem toque mortífero, sem gatilho de dano)
         if (eff.exilaSeMorrer && obj && n > 0) obj.exilaSeMorrerNoTurno = s.turn.number; // M-384 · 614.1a: "If a permanent dealt damage by ~ would die this turn, exile it instead" (só se o dano foi causado, depois da prevenção)
+        let semVidaM = null; // M-550 · quem ficou sem ganhar vida (a linha do registro sai depois da do dano)
         const causou = (q, j = null) => { if (q > 0) src.danoCausado = (src.danoCausado || 0) + q; /* M-427 */ if (eff.acumula) { eff.acumula.n += q > 0 ? q : 0; if (j != null && q > 0) eff.acumula.jogador = j; } else causouDano(s, src, q, j); }; // M-407 · o "morde" junta as partes num evento de dano só
         if (obj && (danoEmBatalhaT(s, src, obj, n) || danoEmPwCriaturaT(s, src, obj, n))) { causou(n); note({ amount: n }); break; } // T-18 · CR 120.3e: planeswalker-criatura // T-14 · CR 310.6 / 120.3h · dano à batalha tira defesa · Toca ponto comum: applyEffect damage (uma linha)
         if (obj && !obj.faceDown && s.facts[obj.name].types.includes('planeswalker')) { obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - n); if (n > 0) marcaDanoNoTurnoM(s, obj); /* M-447 */ causou(n); note({ amount: n }); break; } // V-19 · virado para baixo recebe dano como criatura · Toca ponto comum: applyEffect damage
-        if (obj && n > 0) { marcaDanoEmCriatura(s, src, obj, n); noteEnchantedEvent(s, obj, 'recebe-dano'); noteDamaged(s, obj); if (has(s, fonteDoDano(s, src), 'deathtouch')) obj.deathtouched = true; } // CR2a.9 // CR 120.8: dano 0 não é dano
-        else danoEmJogador(s, src, playerOf(), n);
+        if (obj && n > 0) { marcaDanoEmCriatura(s, src, obj, n); noteEnchantedEvent(s, obj, 'recebe-dano'); noteDamaged(s, obj, n); if (has(s, fonteDoDano(s, src), 'deathtouch')) obj.deathtouched = true; } // CR2a.9 // CR 120.8: dano 0 não é dano
+        else { danoEmJogador(s, src, playerOf(), n); if (eff.semGanharVidaM && n > 0) { const pj = playerOf(), pl = s.players[pj]; if (pl && !pl.lost) { pl.efeitos = [...(pl.efeitos || []), { naoGanhaVida: true, ate: 'sempre', by: ctrl, ts: relogio(s), turno: s.turn.number }]; semVidaM = pl.name; } } } // M-550 · Screaming Nemesis (119.7)
         causou(n, obj ? null : playerOf()); // Leva 106 · vínculo com a vida e Armadillo Cloak/Spirit Link também fora do combate
-        note({ amount: n }); } break;
+        note({ amount: n }); if (semVidaM) events.push({ kind: 'effect', do: 'sem_ganhar_vida_m', name: src.name, target: semVidaM }); } break; // M-550 · a linha vem depois da do dano
     case 'destroy': {
       const alvoD = eff.target === 'enchanted' ? criaturaEncantada(s, src) : obj; // Leva 108 · Cryoshatter sem alvo
       if (eff.mvAteM != null && alvoD && manaValueT(s, alvoD) > amountOf(s, src, eff.mvAteM)) { note({ failed: true, why: 'valor de mana alto' }); break; } // M-537 · Fatal Push (608.2b)
@@ -24291,9 +24299,9 @@ function noteEnchantedDealtLegado(s, host, amount, aJogador = null) {
   }
 }
 /** CR2b.3 · "Whenever this creature is dealt damage": uma vez por instância de dano, mesmo letal. */
-function noteDamagedLegado(s, o) {
+function noteDamagedLegado(s, o, n) {
   for (const ab of abilitiesOf(s, o)) if (ab.kind === 'triggered' && ab.when === 'dealt-damage')
-    s.queued.push({ source: o.oid, name: o.name, controller: o.controller, effects: ab.effects, when: ab.when, ...(ab.optional ? { optional: true } : {}), ...(ab.mayPay ? { mayPay: ab.mayPay } : {}) });
+    s.queued.push({ source: o.oid, name: o.name, controller: o.controller, effects: ab.effects, when: ab.when, ...(n != null ? { value: n } : {}), ...(ab.optional ? { optional: true } : {}), ...(ab.mayPay ? { mayPay: ab.mayPay } : {}) });
 }
 function noteEnchantedEventLegado(s, host) {
   for (const x of attachedTo(s, host)) {
@@ -24337,7 +24345,11 @@ const noteEnchantedDealt = (s, host, amount, aJogador = null) => naSombra(s, `ca
   () => { if (amount > 0) gatilhosDaPermanente(s, 'causa-dano', host, ['anexada', 'self'], { value: amount }, casaDanoA(aJogador)); });
 /** M-447 · Needle Drop: a permanente que recebeu dano neste turno (só nas partidas que precisam; objeto novo não herda, 400.7: a marca sai na mudança de zona). */
 const marcaDanoNoTurnoM = (s, o) => { if (o && partidaTemSedeK(s)) o.danoNoTurnoM = s.turn.number; };
-const noteDamaged = (s, o) => (marcaDanoNoTurnoM(s, o), naSombra(s, `recebe dano ${o.name}`, () => noteDamagedLegado(s, o), () => gatilhosDaPermanente(s, 'recebe-dano', o, ['self']))); // M-447
+/* M-550 · 510.2: o dano de combate é um evento só — "is dealt damage" dispara uma vez por permanente, com o total (ruling de Screaming Nemesis: dois
+   bloqueadores, um gatilho). Enquanto `agrupaDanoM` existe (só dentro de dealCombatDamage), a quantia é somada e o gatilho sai no fim. */
+let agrupaDanoM = null;
+const noteDamagedJaM = (s, o, n) => naSombra(s, `recebe dano ${o.name}`, () => noteDamagedLegado(s, o, n), () => gatilhosDaPermanente(s, 'recebe-dano', o, ['self'], n != null ? { value: n } : {})); // M-550 · a quantia vai para o gatilho ("that much")
+const noteDamaged = (s, o, n) => { marcaDanoNoTurnoM(s, o); if (agrupaDanoM && n != null) { agrupaDanoM.set(o.oid, (agrupaDanoM.get(o.oid) || 0) + n); return; } noteDamagedJaM(s, o, n); }; // M-447
 /** `evento`: 'vira' (padrão) ou 'recebe-dano' — o caminho antigo não distinguia; a Aura de "vira ou recebe dano" fala dos dois. */
 const noteEnchantedEvent = (s, host, evento = 'vira') => naSombra(s, `${evento} ${host.name}`, () => noteEnchantedEventLegado(s, host),
   // no dano, os dela e os de "outra" vêm logo depois pelo noteDamaged (a ordem de antes: a Aura, depois ela)
@@ -29837,7 +29849,7 @@ function danoDeLuta(s, fonte, alvo, n, events) {
   const viradasT = { ...(fonte.faceDown ? { fonteVirada: true } : {}), ...(alvo.faceDown ? { alvoVirado: true } : {}) }; // T-74 · CR 708.2: a luta não revela quem está virada (Toca ponto comum: danoDeLuta)
   if (!(resto > 0)) { events.push({ kind: 'effect', do: 'damage', name: fonte.name, target: alvo.name, amount: n, prevented: true, ...viradasT }); return 0; }
   if (almaM) { const k = poeMarcadores(s, alvo, 'm1m1', resto); events.push({ kind: 'effect', do: 'damage', name: fonte.name, target: alvo.name, amount: k, marcadores: true, ...viradasT }); return 0; } // M-547 · 614.16 (achado da revisão)
-  marcaDanoEmCriatura(s, fonte, alvo, resto); noteEnchantedEvent(s, alvo, 'recebe-dano'); noteDamaged(s, alvo);
+  marcaDanoEmCriatura(s, fonte, alvo, resto); noteEnchantedEvent(s, alvo, 'recebe-dano'); noteDamaged(s, alvo, resto);
   if (has(s, fonte, 'deathtouch')) alvo.deathtouched = true;
   causouDano(s, fonte, resto, null);
   events.push({ kind: 'effect', do: 'damage', name: fonte.name, target: alvo.name, amount: resto, ...viradasT });
@@ -30833,7 +30845,7 @@ function danoEmPwCriaturaT(s, src, obj, n) {
   if (!obj || obj.faceDown || !tiposDe(s, obj).includes('planeswalker') || !isCreature(s, obj)) return false;
   if (!(n > 0)) return true;
   obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - n);
-  marcaDanoEmCriatura(s, src, obj, n); noteEnchantedEvent(s, obj, 'recebe-dano'); noteDamaged(s, obj);
+  marcaDanoEmCriatura(s, src, obj, n); noteEnchantedEvent(s, obj, 'recebe-dano'); noteDamaged(s, obj, n);
   if (has(s, fonteDoDano(s, src), 'deathtouch')) obj.deathtouched = true;
   return true;
 }
@@ -30938,7 +30950,7 @@ function danoEmBatalhaT(s, src, obj, n) {
   if (depois) obj.counters.defense = depois; else delete obj.counters.defense;
   if (tiposDe(s, obj).includes('planeswalker')) obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - n);
   if (isCreature(s, obj)) marcaDanoEmCriatura(s, src, obj, n);
-  noteDamaged(s, obj);
+  noteDamaged(s, obj, n);
   if (antes > 0 && !depois) ultimoMarcadorDeDefesaT(s, obj);
   return true;
 }
@@ -34049,6 +34061,7 @@ function effectLine(ev) {
     case 'exila_se_morrer': return ev.failed ? `${ev.name}: o alvo já não estava no campo` : `${t || ev.name}: se fosse morrer neste turno, é exilada`; // M-384
     case 'exila_ate_final': return ev.failed ? `${ev.name}: nada foi exilado` : ev.ficha ? `${ev.name}: ${t || 'a ficha'} foi exilada e deixou de existir` : `${ev.name}: ${t || 'a permanente'} foi exilada até o próximo passo final`; // M-548
     case 'lembradas_ao_campo': return ev.amount ? `${ev.name}: ${t || 'a carta exilada'} voltou ao campo sob o controle do dono${ev.marcador ? `; ${ev.name} ganhou um marcador +1/+1` : ''}` : ev.ficou ? `${ev.name}: a carta exilada não tinha como voltar ao campo e fica no exílio` : `${ev.name}: a carta exilada já não estava no exílio`; // M-548
+    case 'sem_ganhar_vida_m': return `${t} não pode ganhar vida pelo resto do jogo (${ev.name})`; // M-550
     case 'lembradas_ao_cemiterio': return `${ev.name}: ${ev.amount === 1 ? '1 carta exilada foi' : `${ev.amount || 0} cartas exiladas foram`} para o cemitério`; // M-386
     case 'nao_desvira': return ev.failed ? `${ev.name}: o alvo já não estava no campo` : `${t || ev.name}: não desvira no próximo passo de desvirar`;
     case 'combate_extra': return ev.failed ? `${ev.name}: fora da fase principal, sem combate adicional` : `${ev.name}: depois desta fase principal vem um combate adicional e outra fase principal`; // CR2g.4
@@ -35175,7 +35188,7 @@ function descreveEfeito(e) {
     case 'adapt': return `adapta ${e.amount}`;
     case 'return_chosen': return 'devolve uma permanente sua para a mão';
     case 'damage': if (e.dividido) { const q = e.target === 'creature' ? ['criaturas', 'quantas criaturas quiser'] : ['alvos', 'quantos alvos quiser']; return `causa ${n} de dano dividido como você quiser entre ${e.dividido.max ? `até ${e.dividido.max} ${q[0]}` : q[1]}`; } // M-376 · 601.2d
-      return e.amount && IGUAL_A[e.amount.per] ? `causa dano igual ${IGUAL_A[e.amount.per]} a ${alvo || 'um alvo'}` : `causa ${n} de dano a ${alvo || 'um alvo'}${e.exilaSeMorrer ? ' (se o que recebeu esse dano fosse morrer neste turno, é exilado)' : ''}`; // CR2b.10 · M-384
+      return (e.amount && IGUAL_A[e.amount.per] ? `causa dano igual ${IGUAL_A[e.amount.per]} a ${alvo || 'um alvo'}` : `causa ${n} de dano a ${alvo || 'um alvo'}${e.exilaSeMorrer ? ' (se o que recebeu esse dano fosse morrer neste turno, é exilado)' : ''}`) + (e.semGanharVidaM ? '; o jogador que receber esse dano não pode ganhar vida pelo resto do jogo' : ''); // CR2b.10 · M-384 · M-550
     case 'gain': return e.amount && IGUAL_A[e.amount.per] ? `ganha vida igual ${IGUAL_A[e.amount.per]}` : `ganha ${n} de vida`;
     case 'lose': return `${alvo === 'cada oponente' ? 'cada oponente perde' : 'perde'} ${n} de vida`;
     case 'veneno': return `${alvo === 'cada oponente' ? 'cada oponente recebe' : `${alvo || 'o jogador'} recebe`} ${n === 1 ? '1 marcador de veneno' : `${n} marcadores de veneno`}`; // M-432
