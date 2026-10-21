@@ -6447,6 +6447,7 @@ function validateScript(sc) {
     if (self.atacaSePuderSe != null && !(self.atacaSePuder === true && JSON.stringify(self.atacaSePuderSe) === '{"delirio":true}')) errs.push('bônus próprio: atacaSePuderSe é { delirio: true } e pede atacaSePuder'); // M-525
     if (self.entraComInstFeitDelveM != null && !(self.entraComInstFeitDelveM === true && sc.delve)) errs.push('bônus próprio: entraComInstFeitDelveM é verdadeiro e pede delve (as cartas exiladas pelo delve desta mágica)'); // M-530 · Murktide Regent
     if (self.soBloqueiaVoadorasM != null && self.soBloqueiaVoadorasM !== true) errs.push('bônus próprio: soBloqueiaVoadorasM só vale como true'); // M-531 · Brazen Borrower
+    if (self.compraMaisUmM != null && self.compraMaisUmM !== true) errs.push('bônus próprio: compraMaisUmM só vale como true'); // M-542 · Quantum Riddler
     if (self.atacaSeTem11M != null && self.atacaSeTem11M !== true) errs.push('bônus próprio: atacaSeTem11M só vale como true'); // M-532 · Lovestruck Beast
     if (self.naoBloqueiaPoderM != null && !(Number.isInteger(self.naoBloqueiaPoderM) && self.naoBloqueiaPoderM > 0)) errs.push('bônus próprio: naoBloqueiaPoderM é o poder mínimo que ela não bloqueia (inteiro positivo)'); // M-524 · Ironclaw Orcs
     if (self.reduzCor != null && !(self.reduzCor && Number.isInteger(self.reduzCor.generic) && self.reduzCor.generic > 0 && Array.isArray(self.reduzCor.cores) && self.reduzCor.cores.length && self.reduzCor.cores.every(c => 'WUBRG'.includes(c) && c.length === 1))) errs.push('bônus próprio: reduzCor pede generic inteiro positivo e cores WUBRG'); // M-352
@@ -10463,6 +10464,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Prismatic Ending': { texto: 'xcuwg8', leva: 'M-540' },
   // M-541 · revisão por lote CLXXIX (Questing Druid: gatilho por mágica branca, azul, preta ou vermelha; Seek the Beast: jogar as exiladas até o seu próximo passo final), textos da Scryfall de 20/10/2026 UTC, revisor independente
   'Questing Druid // Seek the Beast': { texto: 'o75ynx', leva: 'M-541' },
+  // M-542 · revisão por lote CLXXX (Quantum Riddler: com uma carta ou nenhuma na mão, compra uma a mais), textos da Scryfall de 20/10/2026 UTC, revisor independente
+  'Quantum Riddler': { texto: '8zlhlw', leva: 'M-542' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -19627,6 +19630,7 @@ const __m42 = (function () {
         if (/^~ can't be blocked except by walls and\/or creatures with flying\.?$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'flying-or-wall' }; frases.push({ texto: linha, lida: true }); continue; } // M-524 · Elven Riders
         if (/^~ enters with a \+1\/\+1 counter on it for each instant and sorcery card exiled with it\.?$/i.test(lp) && topo.delve) { topo.self = { ...(topo.self || {}), entraComInstFeitDelveM: true }; frases.push({ texto: linha, lida: true }); continue; } // M-530 · Murktide Regent (607.2a: as exiladas pelo delve)
         if (/^~ enters prepared\.?$/i.test(lp)) { topo.self = { ...(topo.self || {}), preparo: true, entraPreparada: true }; frases.push({ texto: linha, lida: true }); continue; } // M-531 · 722.3a (Pompous Battlemage); a mágica de preparação vem do verso
+        if (/^as long as you have one or fewer cards in hand, if you would draw one or more cards, you draw that many cards plus one instead\.?$/i.test(lp)) { topo.self = { ...(topo.self || {}), compraMaisUmM: true }; frases.push({ texto: linha, lida: true }); continue; } // M-542 · Quantum Riddler (614.11)
         if (/^~ can block only creatures with flying\.?$/i.test(lp)) { topo.self = { ...(topo.self || {}), soBloqueiaVoadorasM: true }; frases.push({ texto: linha, lida: true }); continue; } // M-531 · Brazen Borrower (509.1b)
         if (/^~ can't attack unless you control a 1\/1 creature\.?$/i.test(lp)) { topo.self = { ...(topo.self || {}), atacaSeTem11M: true }; frases.push({ texto: linha, lida: true }); continue; } // M-532 · Lovestruck Beast (508.1c)
         { const ptl = lp.match(/^~'s power and toughness are each equal to the number of lands you control\.?$/i); if (ptl) { topo.self = { ...(topo.self || {}), ptDefinido: { poder: { subtype: 'Land' }, resistencia: { subtype: 'Land' } } }; frases.push({ texto: linha, lida: true }); continue; } } // M-532 · Beanstalk Giant (604.3: vale em todas as zonas)
@@ -20684,8 +20688,18 @@ function quemCompra(s, p, primeiraDoPasso) {
   }
   return { quem, vence: false };
 }
-function draw(s, p0, n = 1, { primeiraDoPasso = false } = {}) {
+/** M-542 · 614.11 · Quantum Riddler: com uma carta ou nenhuma na mão, cada compra de uma ou mais cartas (um evento) compra uma a mais por permanente
+    sua com a habilidade (cada substituição se aplica uma vez; a condição não muda entre elas, porque nada foi comprado ainda). */
+const PARTIDA_COMPRA_MAIS_UM_M = new WeakMap();
+function compraMaisUmM(s, p, n) {
+  if (!(n > 0)) return 0;
+  if (!PARTIDA_COMPRA_MAIS_UM_M.has(s.facts)) PARTIDA_COMPRA_MAIS_UM_M.set(s.facts, Object.values(s.facts).some(f => f && ((f.script || {}).self || {}).compraMaisUmM));
+  if (!PARTIDA_COMPRA_MAIS_UM_M.get(s.facts) || s.zones[p].hand.length > 1) return 0;
+  return battlefield(s).filter(o => o.controller === p && !o.faceDown && !semImpressas(s, o) && !!((((s.facts[o.name] || {}).script || {}).self || {}).compraMaisUmM)).length;
+}
+function draw(s, p0, n = 1, { primeiraDoPasso = false, jaSubstituidaM = false } = {}) {
   if (s.players[p0].dummy) return;
+  if (!jaSubstituidaM) n += compraMaisUmM(s, p0, n); // achado da revisão: a continuação de uma compra (dragar) já veio com a compra a mais // M-542 · Quantum Riddler (614.11: substitui o evento de compra inteiro)
   for (let k = 0; k < n; k++) {
     if ((s.players[p0].drawnThisTurn || 0) >= 1 && limiteDeCompra(s, p0)) return; // M-262 · Narset: "Each opponent can't draw more than one card each turn"
     const qc = quemCompra(s, p0, primeiraDoPasso && k === 0), p = qc.quem; // CR2e.3 · 614.11
@@ -23603,8 +23617,8 @@ function applyEffectM449(s, src, eff, tgt, events) {
       note({ name: perm.name }); break;
     }
     case 'compra_k': { // K-57 · a compra que o jogador escolheu fazer (sem perguntar de novo por ela) e as que faltam
-      s.semDragarK = true; draw(s, eff.jogador, 1, { primeiraDoPasso: !!eff.primeira }); delete s.semDragarK;
-      if (eff.resto > 1) draw(s, eff.jogador, eff.resto - 1);
+      s.semDragarK = true; draw(s, eff.jogador, 1, { primeiraDoPasso: !!eff.primeira, jaSubstituidaM: true }); delete s.semDragarK; // M-542 · o evento já foi substituído (Quantum Riddler)
+      if (eff.resto > 1) draw(s, eff.jogador, eff.resto - 1, { jaSubstituidaM: true });
       break;
     }
     case 'dragar_k': { // K-57 · 702.52a: "mill N cards instead. If you do, return this card from your graveyard to your hand"
@@ -23614,7 +23628,7 @@ function applyEffectM449(s, src, eff, tgt, events) {
         moveObject(s, c.oid, 'hand');
         events.push({ kind: 'effect', do: 'dragar_k', name: c.name, target: s.players[p].name, amount: eff.n });
       }
-      if (eff.resto > 1) draw(s, p, eff.resto - 1);
+      if (eff.resto > 1) draw(s, p, eff.resto - 1, { jaSubstituidaM: true }); // M-542
       break;
     }
     case 'presente_k': { // K-56 · 702.174d-i: o jogador escolhido recebe o presente

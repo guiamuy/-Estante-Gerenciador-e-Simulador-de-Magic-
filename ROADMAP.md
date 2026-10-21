@@ -5262,6 +5262,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nenhum.
 - **Teste:** `lt223.unit` (3 testes; falham no motor anterior).
 
+**M-542 · LT204 · revisão por lote CLXXX: Quantum Riddler** ✅ (leva M-542, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** passa a jogar Quantum Riddler (119 listas do catálogo). Texto da Scryfall consultado em 20/10/2026.
+- **Regra:** "As long as you have one or fewer cards in hand, if you would draw one or more cards, you draw that many cards plus one instead" (`self.compraMaisUmM`, substituição do evento de compra inteiro, 614.11: "compre duas" vira três; vale também na compra do passo de compra e no gatilho de entrada; cada Riddler seu soma uma; o do oponente não muda a sua compra). A dobra ({1}{U}, 702.185) e o voar já eram lidos.
+- **Revisão independente:** revisor independente (junto com M-543/M-544): compre duas vira três, passo de compra 1 vira 2, "draw a card, then draw a card" dá 3, dois Riddlers +2, o do oponente não muda a sua compra, "target player draws" só ganha +1 se esse jogador tem o Riddler, dobra exilada na etapa final. **Uma divergência, corrigida com teste:** com uma carta de dragar no cemitério a compra a mais entrava duas vezes (a continuação da compra depois da escolha comprar/dragar era substituída de novo).
+- **Fora (declarado):** nenhum.
+- **Teste:** `lt224.unit` (5 testes; os da compra falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
