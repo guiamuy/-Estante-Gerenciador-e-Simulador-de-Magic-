@@ -484,6 +484,9 @@ a { color: var(--accent); }
 /* MJ3b · a foto é uma .tb-card (position: relative, declarada depois): sem esta regra, a segunda foto ao mesmo tempo
    ficava no fluxo da camada, deslocada pela primeira (remoção global, dois voos juntos) */
 .tb-fx-camada > .tb-fx-fantasma, .tb-fx-camada > .tb-voo { position: fixed; }
+/* MJ3c · a carta do oponente sai da mão dele de verso: o verso cobre a foto e some no meio do voo */
+.tb-voo__verso { position: absolute; inset: 0; z-index: 2; border-radius: var(--radius-card); pointer-events: none; }
+.tb-voo--verso { border-radius: var(--radius-card); overflow: hidden; box-shadow: var(--shadow-2); }
 .tb-fx-fantasma--morre { animation: tb-fx-morre var(--dur-fx) var(--ease-in-out) var(--fx-atraso, 0s) both; }
 .tb-fx-fantasma--exila { animation: tb-fx-exila var(--dur-4) var(--ease-out) var(--fx-atraso, 0s) both; }
 .tb-fx-fantasma--devolve { animation: tb-fx-devolve var(--dur-4) var(--ease-in-out) var(--fx-atraso, 0s) both; }
@@ -35731,17 +35734,20 @@ function planoDeEfeitos(eventos, { espectador = null, max = 16, passo = 60 } = {
    A mesa é redesenhada inteira a cada jogada: a caixa de cada carta é medida antes e depois, e a carta que chegou ao campo
    começa no lugar de onde veio (a mão, pelo mesmo oid; ou a faixa da pilha, quando resolve) e desliza até o lugar novo.
    Puro: recebe caixas medidas ({ x, y, w, h }) e devolve o deslocamento e a escala de partida de cada voo. */
-function planoDeVoo({ antes = {}, pilha = null, chegaram = [] } = {}, { max = 8, minimo = 4 } = {}) {
+function planoDeVoo({ antes = {}, pilha = null, chegaram = [], oponente = null } = {}, { max = 8, minimo = 4 } = {}) {
   const out = [], ok = c => !!c && c.w > 0 && c.h > 0, centro = c => [c.x + c.w / 2, c.y + c.h / 2];
+  const naMaoDele = oid => !!oponente && ok(oponente.caixa) && (oponente.oids || []).map(String).includes(oid); // MJ3c
   for (const { oid, caixa, sozinha = true } of chegaram) {
     if (out.length >= max || !ok(caixa)) continue;
     const k = String(oid), daMao = ok(antes[k]) ? antes[k] : null, daPilha = !daMao && pilha && ok(pilha.caixa) && (pilha.oids || []).map(String).includes(k) ? pilha.caixa : null;
-    const de = daMao || daPilha; if (!de) continue;
+    const daOponente = !daMao && !daPilha && naMaoDele(k) ? oponente.caixa : null;
+    const de = daMao || daPilha || daOponente; if (!de) continue;
     const [x0, y0] = centro(de), [x1, y1] = centro(caixa), dx = Math.round(x0 - x1), dy = Math.round(y0 - y1);
     if (Math.hypot(dx, dy) < minimo) continue;
     // da mão a carta muda de tamanho mantendo a proporção; da faixa da pilha (larga e baixa) ela nasce do tamanho da altura da faixa
     const escala = Math.round(Math.min(daMao ? de.w / caixa.w : de.h / caixa.h, 2) * 1000) / 1000;
-    out.push({ oid: k, origem: daMao ? 'mao' : 'pilha', dx, dy, escala, esconde: !!sozinha });
+    // MJ3c · da mão do oponente a carta sai do contador dele, de verso, e vira de frente no caminho
+    out.push({ oid: k, origem: daMao ? 'mao' : daPilha ? 'pilha' : 'oponente', dx, dy, escala, esconde: !!sozinha, ...(daOponente ? { verso: true } : {}) });
   }
   return out;
 }
@@ -36358,9 +36364,47 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const antes = {};
     for (const el of root.querySelectorAll('#tb-hand .tb-card[data-oid]')) { const c = caixaDe(el); if (c.w && c.h) antes[el.dataset.oid] = c; }
     const faixa = root.querySelector('#tb-stack-btn');
-    return { antes, pilha: faixa ? { caixa: caixaDe(faixa), oids: (estadoOuvido.stack || []).map(String) } : null, campo: new Set([...vistos].map(String)) };
+    // MJ3c · o contador da mão do oponente, como estava antes desta jogada, e as cartas que estavam nela
+    const chipDele = root.querySelector('.tb-side--opp .tb-chip[data-zona="hand"]'), ladoDele = chipDele && chipDele.closest('.tb-side');
+    const dele = ladoDele && ladoDele.dataset.p != null ? Number(ladoDele.dataset.p) : null;
+    const oponente = chipDele && dele != null && estadoOuvido.zones[dele] ? { caixa: caixaDe(chipDele), oids: estadoOuvido.zones[dele].hand.map(String) } : null;
+    return { antes, pilha: faixa ? { caixa: caixaDe(faixa), oids: (estadoOuvido.stack || []).map(String) } : null, oponente, campo: new Set([...vistos].map(String)) };
   }
-  function voa(m, s) {
+  /* MJ3b/MJ3c · onde pousa a carta que mudou de zona: o contador da zona do dono, a faixa da pilha ou a carta na sua mão */
+  function alvoNaMesa(s, v, oid) {
+    const d = __m33.ondePousa(s.objects[oid], v); if (!d) return null;
+    const lado = d.lado === 'me' ? '.tb-side--me' : '.tb-side--opp', vivo = el => el && el.getBoundingClientRect().width ? el : null;
+    const el = d.zona === 'stack' ? vivo(root.querySelector('#tb-stack-btn'))
+      : d.carta ? vivo(root.querySelector(`#tb-hand .tb-card[data-oid="${oid}"]`)) || vivo(root.querySelector('#tb-hand-toggle'))
+      : vivo(root.querySelector(`${lado} .tb-chip[data-zona="${d.zona}"]`));
+    return el ? { el, zona: d.zona } : null;
+  }
+  // MJ3c · o verso por cima da foto some no meio do caminho: a carta do oponente se revela enquanto voa
+  const versoQueVira = (foto, dur) => { const vs = h('span', { class: 'ds-verso tb-voo__verso' }); foto.appendChild(vs);
+    vs.animate([{ opacity: 1 }, { offset: 0.45, opacity: 1 }, { offset: 0.7, opacity: 0 }, { opacity: 0 }], { duration: dur, fill: 'forwards' }); };
+  function voaDeVerso(m, s, v, marcas) { // a carta que sai da mão do oponente e não vai ao campo: um verso voa até a zona
+    if (!m.oponente) return;
+    const c0 = m.oponente.caixa, w0 = Math.round(c0.h * 488 / 680), de = { x: c0.x + c0.w / 2 - w0 / 2, y: c0.y, w: w0, h: c0.h };
+    const saidas = [];
+    for (const oid of m.oponente.oids) {
+      const o = s.objects[oid]; if (!o || o.zone === 'hand' || o.zone === 'battlefield') continue;
+      const d = alvoNaMesa(s, v, oid); if (d) saidas.push({ oid, como: 'verso', de, para: caixaDe(d.el), zona: d.zona });
+    }
+    const ease = getComputedStyle(document.documentElement).getPropertyValue('--ease-in-out').trim() || 'ease-in-out';
+    for (const r of __m33.planoDeSaida(saidas)) {
+      const zona = saidas.find(x => String(x.oid) === r.oid).zona;
+      const foto = h('div', { class: 'tb-voo tb-voo--verso', dataset: { verso: r.oid } }, h('span', { class: 'ds-verso' }));
+      Object.assign(foto.style, { left: `${de.x}px`, top: `${de.y}px`, width: `${de.w}px`, height: `${de.h}px` });
+      camadaFx().appendChild(foto);
+      const fim = `translate(${r.dx}px, ${r.dy}px) scale(${r.escala})`;
+      const a = foto.animate([{ transform: 'none', opacity: 1, easing: ease }, { offset: 0.85, transform: fim, opacity: 1 }, { transform: fim, opacity: 0 }], { duration: durFx('--dur-4') });
+      voos.push(a);
+      const pousa = () => { const i = voos.indexOf(a); if (i >= 0) voos.splice(i, 1); foto.remove(); const camada = document.getElementById('tb-fx'); if (camada && !camada.childElementCount) camada.remove(); };
+      a.onfinish = pousa; a.oncancel = pousa;
+      marcas.push(`verso:${zona}:${r.oid}`);
+    }
+  }
+  function voa(m, s, v) {
     if (!m) return;
     const chegaram = [];
     for (const z of s.zones) for (const oid of z.battlefield) {
@@ -36368,8 +36412,10 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       const el = root.querySelector(`.tb-side .tb-card[data-oid="${k}"]`) || root.querySelector(`.tb-side .tb-card[data-oids~="${k}"]`);
       if (el) chegaram.push({ oid: k, caixa: caixaDe(el), sozinha: el.dataset.oid === k && !el.dataset.oids, el });
     }
-    const plano = __m33.planoDeVoo({ antes: m.antes, pilha: m.pilha, chegaram });
-    root.dataset.voos = plano.map(p => `${p.origem}:${p.oid}`).join(' ');
+    const plano = __m33.planoDeVoo({ antes: m.antes, pilha: m.pilha, oponente: m.oponente, chegaram });
+    const marcas = plano.map(p => `${p.origem}:${p.oid}`);
+    voaDeVerso(m, s, v, marcas);
+    root.dataset.voos = marcas.join(' ');
     if (!plano.length) return;
     const dur = durFx('--dur-3'), ease = getComputedStyle(document.documentElement).getPropertyValue('--ease-out').trim() || 'ease-out';
     for (const p of plano) {
@@ -36380,6 +36426,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       Object.assign(foto.style, { left: `${c.x}px`, top: `${c.y}px`, width: `${c.w}px`, height: `${c.h}px` });
       camadaFx().appendChild(foto);
       if (p.esconde) alvo.el.style.opacity = '0';
+      if (p.verso) versoQueVira(foto, dur);
       const a = foto.animate([{ transform: `translate(${p.dx}px, ${p.dy}px) scale(${p.escala})` }, { transform: 'none' }], { duration: dur, easing: ease });
       voos.push(a);
       const fim = () => { const i = voos.indexOf(a); if (i >= 0) voos.splice(i, 1); foto.remove(); alvo.el.style.opacity = '';
@@ -36412,14 +36459,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       }
     }
     // MJ3b · a foto voa até o contador da zona (ou a faixa da pilha, ou a carta na sua mão); sem alvo à vista, se desfaz no lugar
-    const destinoDe = oid => {
-      const d = __m33.ondePousa(s.objects[oid], v); if (!d) return null;
-      const lado = d.lado === 'me' ? '.tb-side--me' : '.tb-side--opp', vivo = el => el && el.getBoundingClientRect().width ? el : null;
-      const el = d.zona === 'stack' ? vivo(root.querySelector('#tb-stack-btn'))
-        : d.carta ? vivo(root.querySelector(`#tb-hand .tb-card[data-oid="${oid}"]`)) || vivo(root.querySelector('#tb-hand-toggle'))
-        : vivo(root.querySelector(`${lado} .tb-chip[data-zona="${d.zona}"]`));
-      return el ? { el, zona: d.zona } : null;
-    };
+    const destinoDe = oid => alvoNaMesa(s, v, oid);
     const saidas = [];
     for (const f of fantasmas) { const d = destinoDe(f.p.oid); f.destino = d; if (d) saidas.push({ oid: f.p.oid, como: f.p.como, de: { x: f.r.left, y: f.r.top, w: f.r.width, h: f.r.height }, para: caixaDe(d.el) }); }
     const rotas = new Map(__m33.planoDeSaida(saidas).map(x => [x.oid, x]));
@@ -37598,7 +37638,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const field = campoVazio ? []
       : [ZoneRow('Permanentes', landPiles(s, others, openObject), { zone: 'permanents', empty: 'nenhuma', count: others.length }), ZoneRow('Terrenos', landPiles(s, lands, openObject), { zone: 'lands', empty: 'nenhum', count: lands.filter(o => isLand(s, o)).length })];
     const ativo = s.status === 'playing' && s.turn.active === p;   // U7 · o lado de quem joga acende
-    return h('section', { class: ['tb-side', mine ? 'tb-side--me' : 'tb-side--opp'].join(' '), dataset: { ativo: String(ativo), campo: campoVazio ? 'vazio' : 'ocupado' },
+    return h('section', { class: ['tb-side', mine ? 'tb-side--me' : 'tb-side--opp'].join(' '), dataset: { ativo: String(ativo), campo: campoVazio ? 'vazio' : 'ocupado', p: String(p) },
       'aria-label': (mine ? 'seu lado' : 'lado do oponente') + (ativo ? ', turno ativo' : '') + (campoVazio ? ', campo vazio' : '') },
       h('div', { class: 'tb-side__head' }, life, chips),
       ...(mine ? field : field.reverse()));
@@ -38186,7 +38226,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     devolveFileiras(fileiras); mostraNovidade(s, v); // J2
     simbolizar(root); // U3 · custos, habilidades e textos da mesa em símbolos
     if (sinc) pintaChat(); // leva 137 · selo de mensagens novas
-    voa(voo, s); // MJ3a · antes de marcar o campo como visto
+    voa(voo, s, v); // MJ3a · antes de marcar o campo como visto
     // A13 · o que está no campo agora já foi visto: a próxima pintura só anima quem entrar
     vistos = new Set(s.zones.flatMap(z => z.battlefield));
     if (cena) aplicaEfeitos(cena, s, v); else delete root.dataset.saidas; // G5 · por cima do desenho novo

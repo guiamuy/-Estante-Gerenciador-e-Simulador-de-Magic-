@@ -13634,3 +13634,53 @@ test('e2e · MJ3b a carta que sai do campo ou da mão voa até o contador da zon
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/mj3b-saida.png' });
   assert.deepEqual(errors, []);
 });
+
+// MJ3c (leva J-11, trilha jogabilidade) · a carta que o oponente joga sai do contador da mão dele, de verso, e se revela
+// no caminho; a que vai à pilha ou a outra zona voa de verso até lá; com movimento reduzido nada voa
+test('e2e · MJ3c a carta do Shark sai do contador da mão dele de verso e se revela no voo; movimento reduzido não move', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 }); // o aparelho do dono
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', '5');
+  await page.waitForFunction(() => { const c = document.querySelector('[data-opponent="shark"]'); return c && !c.disabled; }, null, { timeout: 8000 });
+  await page.click('[data-opponent="shark"]'); await page.waitForSelector('#mesa-bot-deck');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass, #tb-pass-turn');
+  // cada foto que entra na camada de efeitos é medida na hora em que nasce (o voo ainda não andou)
+  await page.evaluate(() => { window.__voosMJ3c = [];
+    const caixa = el => { const r = el.getBoundingClientRect(); return { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width, h: r.height }; };
+    new MutationObserver(ms => { for (const m of ms) for (const n of m.addedNodes) for (const el of n.nodeType === 1 ? [n, ...n.querySelectorAll('.tb-voo')] : []) {
+      if (!el.matches('.tb-voo') || el.dataset.saida) continue;
+      const chip = document.querySelector('.tb-side--opp .tb-chip[data-zona="hand"]'), verso = el.querySelector('.tb-voo__verso') || (el.matches('.tb-voo--verso') ? el : null);
+      window.__voosMJ3c.push({ oid: el.dataset.voo || el.dataset.verso, deVerso: !!verso, opVerso: verso ? getComputedStyle(verso).opacity : null, foto: caixa(el), chip: chip ? caixa(chip) : null,
+        anim: el.getAnimations().map(a => [...new Set(a.effect.getKeyframes().flatMap(k => Object.keys(k).filter(x => !['offset', 'easing', 'composite', 'computedOffset'].includes(x))))].join()), voos: document.querySelector('#tb').dataset.voos || '' });
+    } }).observe(document.body, { childList: true, subtree: true }); });
+  const anda = async (ate, max = 80) => { for (let i = 0; i < max; i++) {
+    if (await page.evaluate(ate)) return true;
+    const pend = await page.evaluate(() => { const s = window.__estanteMesa.estado(); return s.pending && s.pending.p === window.__estanteMesa.quemVe() ? s.pending.kind : null; });
+    if (pend === 'discard') { await page.locator('#tb-hand .tb-card').first().click(); continue; }
+    let foi = false; for (const id of ['#tb-no-attack', '#tb-pass-turn', '#tb-pass']) if (await page.locator(id).count()) { await page.click(id).catch(() => {}); foi = true; break; }
+    if (!foi) await page.evaluate(() => document.querySelector('#tb').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
+    await page.waitForTimeout(120); } return false; };
+  // 1 · o Shark baixa um terreno da mão: a foto nasce no contador da mão dele, coberta pelo verso, e vira de frente no caminho
+  const viu = await anda(() => window.__voosMJ3c.some(v => / ?oponente:/.test(v.voos)));
+  assert.ok(viu, 'o Shark jogou uma carta da mão para o campo ' + JSON.stringify(await page.evaluate(() => window.__voosMJ3c)));
+  const v = await page.evaluate(() => window.__voosMJ3c.find(x => new RegExp(`(^| )oponente:${x.oid}( |$)`).test(x.voos)));
+  assert.ok(v && v.chip && v.deVerso && v.opVerso === '1', 'nasce de verso, sobre o contador da mão dele ' + JSON.stringify(v));
+  assert.ok(Math.hypot(v.foto.cx - v.chip.cx, v.foto.cy - v.chip.cy) <= 6, 'o voo começa no centro do contador da mão dele ' + JSON.stringify(v));
+  assert.ok(v.foto.h <= v.chip.h + 2, 'do tamanho do contador ' + JSON.stringify(v));
+  assert.equal(v.anim.join('|'), 'transform', 'a foto só se move com transform ' + JSON.stringify(v));
+  const pousou = await page.evaluate(async oid => { await new Promise(r => setTimeout(r, 450)); const el = document.querySelector(`.tb-side--opp .tb-card[data-oid="${oid}"], .tb-side--opp .tb-card[data-oids~="${oid}"]`);
+    return { fotos: document.querySelectorAll('.tb-voo').length, carta: !!el, op: el ? el.style.opacity : null, frente: el ? !el.querySelector('.ds-verso') : null }; }, v.oid);
+  assert.deepEqual(pousou, { fotos: 0, carta: true, op: '', frente: true }, 'pousou: a carta de verdade, de frente, no campo dele');
+  // o que mais o Shark tirou da mão nesta partida (pilha, cemitério) voou de verso até lá
+  const outros = await page.evaluate(() => window.__voosMJ3c.filter(x => /(^| )verso:/.test(x.voos) && x.deVerso));
+  for (const o of outros) assert.ok(o.chip && Math.hypot(o.foto.cx - o.chip.cx, o.foto.cy - o.chip.cy) <= 6, 'o verso sai do contador da mão dele ' + JSON.stringify(o));
+  t.diagnostic(`MJ3c · voos do Shark vistos: ${[...new Set((await page.evaluate(() => window.__voosMJ3c)).map(x => x.voos))].join(' | ')}`);
+  await auditaTela(page, 'MJ3c · 360×780 depois do turno do Shark');
+  // 2 · movimento reduzido: o turno seguinte do Shark não põe foto nenhuma na tela
+  await page.evaluate(() => { document.documentElement.setAttribute('data-movimento', 'reduzido'); window.__voosMJ3c.length = 0; window.__turnoMJ3c = window.__estanteMesa.estado().turn.number; });
+  await anda(() => window.__estanteMesa.estado().turn.number >= window.__turnoMJ3c + 2);
+  assert.deepEqual(await page.evaluate(() => window.__voosMJ3c), [], 'movimento reduzido: nada voou');
+  assert.deepEqual(errors, []);
+});

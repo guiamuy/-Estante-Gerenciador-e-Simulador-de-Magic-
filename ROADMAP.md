@@ -595,7 +595,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ja ✅ | MJ · roadmap da mesa de patamar (leva J-1, 17/10): crítica medida da mesa em 360×780 e histórias MJ1–MJ12 | MJ | 1 | — |
 | 16º-jb ✅ | MJ1 a mesa numa tela só (MJ1a partida em tela cheia na leva J-2; MJ1b faixa compacta por lado na J-3; MJ1c pilha e resumo por cima na J-4; MJ1d terrenos compactos na J-5; MJ1f mão por cima da mesa na J-6; MJ1e Conversa no selo da faixa de vez na J-7): os dois campos visíveis sem rolar, em fatias (cabeçalho do app fora da partida, topo numa linha, faixa compacta por lado, terrenos compactos, pilha e resumo fora do fluxo, tabuleiro com a altura da tela) | MJ | 3–4 | 16º-ja; T-130 publicada (mesma região) |
 | 16º-jc ✅ | MJ2 avisos fora do campo: o aviso flutuante não cobre cartas nem a mão (leva J-8: faixa de uma linha por cima da linha de cima da mesa) | MJ | 1 | 16º-jb |
-| 16º-jd 🟡 | MJ3 identidade por `oid` e continuidade (FLIP) entre mão, pilha, campo, cemitério e exílio (MJ3a na leva J-9: chegar ao campo deslizando; MJ3b na J-10: sair para a zona; falta MJ3c) | MJ | 2 | 16º-jb; `mtg-scale-architect` (quadros) |
+| 16º-jd ✅ | MJ3 identidade por `oid` e continuidade (FLIP) entre mão, pilha, campo, cemitério e exílio (MJ3a na J-9, MJ3b na J-10, MJ3c na J-11) | MJ | 2 | 16º-jb; `mtg-scale-architect` (quadros) |
 | 16º-je | MJ4 combate desenhado: setas de ataque e bloqueio com a prévia junto da seta | MJ | 2 | 16º-jd |
 | 16º-jf | MJ5 pilha com profundidade: cartões empilhados, topo levantado, resolução descendo ao destino | MJ | 1 | 16º-jb, 16º-jd |
 | 16º-jg | MJ6 mirar por arrasto com linha curva (tocar continua valendo) | MJ | 2 | 16º-je |
@@ -10418,7 +10418,7 @@ longo vira uma linha com "mais". Aceite: sobreposição medida entre o aviso e a
   inteiro, o aviso desce sobre o alto do lado do oponente (só a pedido de quem tocou); a cena da jogada do oponente
   (`.tb-cena`) e o botão Relatar continuam onde estão.
 
-**MJ3 · A carta que se move é a mesma carta** 🟡 (3 fatias; MJ3a na leva J-9, MJ3b na J-10) — identidade por `oid` entre dois desenhos e transição por
+**MJ3 · A carta que se move é a mesma carta** ✅ (3 fatias: MJ3a na J-9, MJ3b na J-10, MJ3c na J-11) — identidade por `oid` entre dois desenhos e transição por
 posição medida (FLIP) entre mão, pilha, campo, cemitério e exílio, só com `transform` e `opacity`; o próximo toque
 conclui a animação. Aceite: o mesmo `oid` mantém o nó; nenhuma tarefa longa nova; movimento reduzido mostra o estado
 final. Destrava MJ4–MJ8.
@@ -10453,8 +10453,18 @@ final. Destrava MJ4–MJ8.
     primeira; o e2e "MJ3b" confere `position: fixed`. **Fora:** a carta que vai para o fundo ou o topo do grimório não
     tem animação própria (voa para o contador do grimório); ficha que sai do campo deixa de existir e se desfaz no lugar;
     a remoção global continua em fila de 60 ms, agora voando.
-  - **MJ3c · O oponente também joga cartas de verdade** ○ — a carta do oponente sai do contador da mão dele; verso até ser
-    revelada.
+  - **MJ3c · O oponente também joga cartas de verdade** ✅ (leva J-11) — a carta que o oponente tira da mão sai do
+    contador da mão dele (Shark, online e o outro lado do jogo a dois): a que chega ao campo nasce do tamanho do contador,
+    coberta pelo verso escolhido em Aparência, e se revela no meio do voo (o verso some entre 45% e 70% dos 280 ms); a que
+    vai para a pilha, o cemitério, o exílio ou o grimório voa **de verso** até a faixa ou o contador da zona e some ao
+    pousar (420 ms), sem mostrar a carta antes de a mesa mostrar. A sua mão e a faixa da pilha à vista têm preferência
+    como origem. Só `transform` e `opacity`; o toque conclui; movimento reduzido não move. **Medida:** +0,9 KB em gzip.
+    **Testes:** `sentidos.unit` "MJ3c · plano de voo" (origem no contador dele, preferência da mão e da pilha, carta que não
+    estava na mão dele, contador fora da vista); e2e "MJ3c" (partida contra o Shark em 360×780: a foto nasce de verso a
+    ≤ 6 px do centro do contador da mão dele e do tamanho dele, só `transform`, pousa de frente no campo; as mágicas dele
+    voam de verso até a faixa da pilha e depois da pilha para o campo; movimento reduzido sem foto; `auditaTela`).
+    **Fora:** a carta revelada da mão dele (descarte, "revele") não aparece de frente no caminho; contra o goldfish não há
+    mão do oponente à vista, então nada voa dele.
 - **Aceite reinterpretado (declarado):** "o mesmo `oid` mantém o nó" virou "a mesma carta na tela": a mesa continua
   redesenhada inteira e a continuidade é visual (foto que voa). Manter o nó entre desenhos é a alavanca 6 da escala
   (reconciliação), sem valor visível sozinho; fica para quando MJ4–MJ8 pedirem.

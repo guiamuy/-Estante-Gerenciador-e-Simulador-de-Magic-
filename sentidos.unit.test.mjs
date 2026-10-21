@@ -265,3 +265,14 @@ test('MJ3b · plano de saída: a foto vai do centro da carta ao centro do alvo, 
   assert.equal(S.planoDeSaida(muitos).length, 8, 'no máximo 8 voos por jogada');
   assert.deepEqual(J(S.planoDeSaida()), []);
 });
+
+test('MJ3c · plano de voo: a carta que estava na mão do oponente sai do contador da mão dele, de verso; a sua mão e a pilha vêm antes', () => {
+  const cx = (x, y, w, h) => ({ x, y, w, h }), chip = cx(300, 40, 44, 44);
+  assert.deepEqual(J(S.planoDeVoo({ oponente: { caixa: chip, oids: ['9'] }, chegaram: [{ oid: 9, caixa: cx(100, 140, 76, 106) }] })),
+    [{ oid: '9', origem: 'oponente', dx: 184, dy: -131, escala: 0.415, esconde: true, verso: true }]);
+  // a mesma carta na sua mão ou na pilha à vista: essa origem vence (o contador do oponente é só para o que estava escondido)
+  assert.equal(S.planoDeVoo({ antes: { 9: cx(0, 700, 92, 128) }, oponente: { caixa: chip, oids: ['9'] }, chegaram: [{ oid: 9, caixa: cx(100, 140, 76, 106) }] })[0].origem, 'mao');
+  assert.equal(S.planoDeVoo({ pilha: { caixa: cx(0, 400, 300, 44), oids: ['9'] }, oponente: { caixa: chip, oids: ['9'] }, chegaram: [{ oid: 9, caixa: cx(100, 140, 76, 106) }] })[0].origem, 'pilha');
+  assert.deepEqual(J(S.planoDeVoo({ oponente: { caixa: chip, oids: ['8'] }, chegaram: [{ oid: 9, caixa: cx(100, 140, 76, 106) }] })), [], 'não estava na mão dele: não voa');
+  assert.deepEqual(J(S.planoDeVoo({ oponente: { caixa: cx(0, 0, 0, 0), oids: ['9'] }, chegaram: [{ oid: 9, caixa: cx(100, 140, 76, 106) }] })), [], 'sem contador à vista (goldfish): não voa');
+});
