@@ -5276,6 +5276,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nenhum.
 - **Teste:** `lt225.unit` (4 testes; falham no motor anterior).
 
+**M-544 · LT206 · revisão por lote CLXXXII: The Sackville-Bagginses** ✅ (leva M-544, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** passa a jogar The Sackville-Bagginses (40 listas do catálogo). Texto da Scryfall consultado em 20/10/2026.
+- **Regra:** custo opcional do gatilho "you may sacrifice another creature or artifact. If you do, …" (`mayPay.sacrificeOther`; quem paga escolhe; sem outra criatura ou artefato, não pergunta e nada acontece); a fonte do gatilho deixa de servir para "another" também nos custos opcionais que já existiam (o motor passava a fonte vazia); "When <nome no plural> enter"; gatilho "whenever you sacrifice a token" (da M-543).
+- **Revisão independente:** revisor independente (junto com M-542/M-543): a própria não aparece na oferta; sem outra criatura ou artefato, ou com a outra saindo com o gatilho na pilha, não pergunta; recusar não faz nada; Tesouro sacrificado pelo gatilho dá compra, Tesouro novo e perda de 1; destruída não conta; ficha do oponente não; a regra da lenda não é sacrifício; os custos opcionais que já existiam (Masked Vandal, Angelic Renewal, pagar vida) continuam iguais. **Dois achados, corrigidos com teste:** a pergunta da mesa dizia "exilar uma carta de criatura do seu cemitério" e o botão "Exilar" (agora "sacrificar outra criatura ou artefato" / "Sacrificar", pela função pura `textoDoCustoOpcionalM` do modelo da mesa); e a ficha-cópia do Sackville sacrificada não disparava o próprio gatilho (603.10a: agora dispara).
+- **Fora (declarado):** nenhum.
+- **Teste:** `lt226.unit` (4 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

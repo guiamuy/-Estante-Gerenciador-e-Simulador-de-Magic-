@@ -6350,7 +6350,7 @@ function validateScript(sc) {
   if (sc && sc.bargain != null && sc.bargain !== true) errs.push('barganha é uma marca, sem valor');
   if (sc && !sc.bargain && [...(sc.effects || []), ...((sc.modes || []).flatMap(m => (m && m.effects) || []))].some(e => e && (e.onlyIf === 'bargained' || (e.amount && e.amount.se === 'bargained')))) errs.push('"se barganhada" sem a barganha na carta'); // M-384 · achado da revisão
   if (sc && sc.evidence != null && !(Number.isInteger(sc.evidence) && sc.evidence > 0)) errs.push('colher provas precisa de um número inteiro positivo');
-  for (const ab of (sc && sc.abilities) || []) if (ab.mayPay && !ab.mayPay.mana && !ab.mayPay.exileFromGraveyard && !ab.mayPay.sacrificeSelf && !(Number.isInteger(ab.mayPay.pagarVida) && ab.mayPay.pagarVida > 0)) errs.push('custo opcional do gatilho sem custo'); // V-26 · "you may pay N life" (Toca ponto comum)
+  for (const ab of (sc && sc.abilities) || []) if (ab.mayPay && !ab.mayPay.mana && !ab.mayPay.exileFromGraveyard && !ab.mayPay.sacrificeSelf && !ab.mayPay.sacrificeOther /* M-544 */ && !(Number.isInteger(ab.mayPay.pagarVida) && ab.mayPay.pagarVida > 0)) errs.push('custo opcional do gatilho sem custo'); // V-26 · "you may pay N life" (Toca ponto comum)
   for (const [i, ab] of ((sc && sc.loyalty) || []).entries()) {
     if (!Number.isInteger(ab.cost) && ab.cost !== '-X') errs.push(`lealdade ${i + 1}: custo precisa ser inteiro (pode ser negativo) ou '-X'`); // CR2c.7 · [−X]
     if (!ab.label) errs.push(`lealdade ${i + 1}: falta o rótulo`);
@@ -10468,6 +10468,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Quantum Riddler': { texto: '8zlhlw', leva: 'M-542' },
   // M-543 · revisão por lote CLXXXI (Biotech Specialist: ficha Lander e gatilho de sacrificar artefato), textos da Scryfall de 20/10/2026 UTC, revisor independente
   'Biotech Specialist': { texto: 'yw5ki', leva: 'M-543' },
+  // M-544 · revisão por lote CLXXXII (The Sackville-Bagginses: sacrifício opcional na entrada; gatilho de sacrificar ficha), textos da Scryfall de 20/10/2026 UTC, revisor independente
+  'The Sackville-Bagginses': { texto: '1w8tr4u', leva: 'M-544' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -19411,6 +19413,8 @@ const __m42 = (function () {
     if (sn) { condicao = { semTerrenoVirado: true }; resto2 = sn[1]; }
     const sr = !condicao && resto2.match(/^if a permanent you controlled left the battlefield this turn, (.+)$/i); // M-514 · revolta (603.4)
     if (sr) { condicao = { saiuPermanenteNoTurno: true }; resto2 = sr[1]; }
+    let mayPayM = null, textoMayPayM = ''; const mps = resto2.match(/^you may sacrifice another (creature or artifact|artifact or creature|creature|artifact)\. if you do, (.+)$/i); // M-544 · The Sackville-Bagginses (custo opcional do gatilho)
+    if (mps) { mayPayM = { sacrificeOther: { types: mps[1].toLowerCase().split(' or ') } }; textoMayPayM = resto2.slice(0, resto2.length - mps[2].length).replace(/\.?\s*if you do,\s*$/i, ''); resto2 = mps[2]; }
     const opcional = /^you may /i.test(resto2);
     let corpo = resto2.replace(/^you may /i, ''); const anexada = !!(g[1] && g[1].objeto === 'anexada'); if (!anexada) corpo = corpo.replace(/^it /i, '~ '); // M-401 · sob "Whenever enchanted/equipped creature …", "it" é a hospedeira, não a carta (Extra Arms)
     if (/(this creature|~)/i.test(cab) && !/\btarget\b/i.test(corpo)) corpo = corpo.replace(/ on it$/i, ' on ~'); // M-322 · "put a +1/+1 counter on it": "it" é a própria permanente da abertura
@@ -19420,10 +19424,10 @@ const __m42 = (function () {
     if (e && opcional) for (const x of e) if ((x.do === 'descarta_e_compra' || x.do === 'discard_or_sacrifice_land_draw') && x.obrigatorio) delete x.obrigatorio; // M-411 · K'un-Lun Warrior: o "you may" do gatilho é o do efeito // M-406 · "you may discard…" no gatilho: o "you may" já virou a pergunta do gatilho (o script fica como era)
     if (e && g[1] === 'dies') for (const x of e) if (x.do === 'to_hand' && x.target === 'self-source' && x.from === 'battlefield') delete x.from; // M-339 · "when ~ is put into a graveyard…, return ~ to its owner's hand": do cemitério
     const textoCond = condicao ? resto.slice(0, resto.length - resto2.length).replace(/,\s*$/, '') : ''; // M-373 · achado da revisão: a ficha mostra também a condição (603.4), não só o efeito
-    frases.push({ texto: cab, lida: true }, ...(textoCond ? [{ texto: textoCond, lida: true }] : []), ...sub);
+    frases.push({ texto: cab, lida: true }, ...(textoCond ? [{ texto: textoCond, lida: true }] : []), ...(textoMayPayM ? [{ texto: textoMayPayM + '. If you do', lida: true }] : []), ...sub);
     const doCemiterio = !!e && g[1] === 'other-cast' && e.length === 1 && e[0].do === 'to_hand' && e[0].target === 'self-source' && /from your graveyard to your hand$/i.test(corpo); // M-460 · 113.6k: "return this card from your graveyard" — o gatilho funciona do cemitério
     if (e && !doCemiterio && e.some(x => x.do === 'to_hand' && x.target === 'self-source' && !x.from) && /from your graveyard/i.test(corpo)) { frases.push({ texto: corpo, lida: false, motivo: 'volta do cemitério fora de um gatilho do cemitério' }); return null; } // M-460
-    return e ? { kind: 'triggered', when: g[1], ...extra, ...(condicao ? { condition: condicao } : {}), ...(opcional ? { optional: true } : {}), ...(doCemiterio ? { fromGraveyard: true } : {}), effects: e } : null;
+    return e ? { kind: 'triggered', when: g[1], ...extra, ...(condicao ? { condition: condicao } : {}), ...(mayPayM ? { mayPay: mayPayM } : {}), ...(opcional ? { optional: true } : {}), ...(doCemiterio ? { fromGraveyard: true } : {}), effects: e } : null;
   }
   const semLembrete = t => String(t || '').replace(/\s*\([^)]*\)/g, '').trim();
   const KW = new Set(SC.KEYWORDS.map(k => k.toLowerCase()));
@@ -19594,7 +19598,7 @@ const __m42 = (function () {
         if (bp) { const semNome = bp[1].replace(/^[A-Z][A-Za-z'’ ,-]{1,40} — (?=[A-Z])/, ''); const sub = [], e = leParagrafo(semNome, nome, sub); frases.push(...sub); if (e && e.length) gatModos.modes.push({ label: bp[1].replace(/\.$/, ''), effects: e }); else gatModos.falhou = true; continue; }
         gatModos = null; }
       if (!magica) { // LT3 · permanentes
-        const lp = til(linha.replace(/\.$/, ''), nome).replace(/^(whenever you cast an? )((?:white|blue|black|red|green)(?:, (?:white|blue|black|red|green))*),? or (white|blue|black|red|green) spell/i, (m0, a, b, c) => a + b.split(', ').join('-') + '-' + c + ' spell').replace(/^(whenever you cast a spell that's )((?:white|blue|black|red|green)(?:, (?:white|blue|black|red|green))*),? or (white|blue|black|red|green)(?=,)/i, (m0, a, b, c) => a + b.split(', ').join('-') + '-' + c); /* M-541 · "a spell that's white, blue, black, or red" (Questing Druid) */ /* M-395 · "a blue, black, or red spell": as vírgulas da lista de cores não separam gatilho e efeito */ // LT6 · o nome impresso vale como "~" · M-394: "this creature/artifact/…" também
+        const lp = til(linha.replace(/\.$/, ''), nome).replace(/^(whenever you cast an? )((?:white|blue|black|red|green)(?:, (?:white|blue|black|red|green))*),? or (white|blue|black|red|green) spell/i, (m0, a, b, c) => a + b.split(', ').join('-') + '-' + c + ' spell').replace(/^(whenever you cast a spell that's )((?:white|blue|black|red|green)(?:, (?:white|blue|black|red|green))*),? or (white|blue|black|red|green)(?=,)/i, (m0, a, b, c) => a + b.split(', ').join('-') + '-' + c).replace(/^when ~ enter, /i, 'When ~ enters, '); /* M-544 · nome no plural ("When The Sackville-Bagginses enter") */ /* M-541 · "a spell that's white, blue, black, or red" (Questing Druid) */ /* M-395 · "a blue, black, or red spell": as vírgulas da lista de cores não separam gatilho e efeito */ // LT6 · o nome impresso vale como "~" · M-394: "this creature/artifact/…" também
 
         const en = ENCHANT[lp.toLowerCase()]; if (en) { topo.aura = { enchant: en }; frases.push({ texto: linha, lida: true }); continue; }
         const eqE = lp.match(/^Equip—Pay ((?:\{E\})+)$/); if (eqE) { topo.equip = { enchant: 'creature', cost: { energia: eqE[1].match(/\{E\}/g).length } }; frases.push({ texto: linha, lida: true }); continue; } // M-367 · Inventor's Axe
@@ -26056,7 +26060,7 @@ const HANDLERS = {
     if (pk.senao) { payCost(s, a.p, parseCost(pk.cost)); s.pending = null; ev.push({ kind: 'effect', do: 'pay', name: pk.name, target: s.players[a.p].name }); return resumeEffects(s, ev); } // CR2b.5 · pagou: o "senão" não acontece
     if (pk.cost) payCost(s, a.p, parseCost(pk.cost)); // S49 · decisão sem custo é só um "sim"
     if (pk.extra && pk.extra.sacrificeSelf) { const f = pk.then && s.objects[pk.then.source]; if (!f || f.zone !== 'battlefield') throw new RuleError('custo', 'a permanente não está mais no campo para ser sacrificada'); sacrifice(s, f.oid, ev); }
-    if (pk.extra) { if (!canPayExtra(s, a.p, pk.extra, null)) throw new RuleError('custo', 'não dá para pagar esse custo'); payExtraCosts(s, a.p, pk.extra, a.pay, null); }
+    if (pk.extra) { const fonteM = pk.then && pk.then.source != null ? pk.then.source : null; if (!canPayExtra(s, a.p, pk.extra, fonteM)) throw new RuleError('custo', 'não dá para pagar esse custo'); payExtraCosts(s, a.p, pk.extra, a.pay, fonteM); } // M-544 · "another": a fonte fica de fora
     s.pending = null;
     if (pk.then) { // S47 · pagou: agora os efeitos do gatilho acontecem
       const src = pk.then.fonteZc != null ? { oid: pk.then.habOid, ability: true, source: pk.then.source, fonteZc: pk.then.fonteZc, name: pk.then.name, controller: pk.then.controller } /* M-475 · 400.7: a habilidade confere a encarnação da fonte (Aurora/Sandstorm Eidolon) */ : s.objects[pk.then.source] || { oid: pk.then.source, name: pk.then.name, controller: pk.then.controller };
@@ -26772,7 +26776,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
       out.push({ t: 'decline_madness', p });
     }
     if (k === 'may_pay') {
-      if (s.pending.extra) pagamentosDe(s, p, s.pending.extra, null).forEach(pay => out.push({ t: 'pay', p, ...comPagamento(pay) })); // Leva 106
+      if (s.pending.extra) pagamentosDe(s, p, s.pending.extra, (s.pending.then || {}).source != null ? s.pending.then.source : null).forEach(pay => out.push({ t: 'pay', p, ...comPagamento(pay) })); // Leva 106 · M-544: a fonte do gatilho não paga "another"
       else if (!s.manaCheck || canPay(s, p, parseCost(s.pending.cost))) out.push({ t: 'pay', p });
       out.push({ t: 'decline', p });
     }
@@ -34457,6 +34461,14 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
     (espelho: a minha Faerie Seer e a do oponente) e, do mesmo dono, se está virada. Puro. */
 /** M-539 · o texto de cada botão de ciclar de uma carta: com custo de sacrificar terreno (Edge of Autumn), o terreno, separado como os alvos
     (dois Forests, um virado e um desvirado); sem, o custo de mana ou de vida. Puro (achado da revisão independente). */
+/** M-544 · a pergunta e o botão do custo opcional sem mana de um gatilho (achado da revisão: "sacrificar outra" saía como "exilar do cemitério"). Puro. */
+function textoDoCustoOpcionalM(extra, nome) {
+  const TIPO = { creature: 'criatura', artifact: 'artefato', enchantment: 'encantamento', land: 'terreno', planeswalker: 'planeswalker' };
+  if (extra.sacrificeSelf) return { titulo: `Sacrificar ${nome} para o efeito acontecer?`, botao: 'Sacrificar' };
+  if (extra.pagarVida != null) return { titulo: `${nome}: pagar ${extra.pagarVida} de vida para o efeito acontecer?`, botao: `Pagar ${extra.pagarVida} de vida` };
+  if (extra.sacrificeOther) { const ts = (extra.sacrificeOther.types || []).map(x => TIPO[x] || x); return { titulo: `${nome}: sacrificar outra ${ts.join(' ou ') || 'permanente'} para o efeito acontecer?`, botao: 'Sacrificar' }; }
+  return { titulo: `${nome}: exilar uma carta de criatura do seu cemitério para o efeito acontecer?`, botao: 'Exilar' };
+}
 function rotulosDeCiclar(s, v, ofertas, cy) {
   const rot = rotulosDeAlvos(s, v, ofertas.map(c => ({ oid: c.sacrifica != null ? c.sacrifica : c.oid })));
   return ofertas.map((c, i) => `Ciclar · ${c.sacrifica != null ? `sacrificar ${rot[i]}` : (cy || {}).mana || ((cy || {}).life ? `pagar ${(cy || {}).life} de vida` : '')}`);
@@ -35547,7 +35559,7 @@ function toquesDaContagem(grupos, conta) {
   for (const g of grupos) { let i = 0; (conta[g.chave] || []).forEach((n, k) => { for (let j = 0; j < n && i < g.oids.length; j++) out.push({ oid: g.oids[i++], option: k }); }); }
   return out;
 }
-return { rotulosDeCiclar, nomesDeCatalogo, LIMITE_COMANDANTE, danoDeComandante, textoDoDanoDeComandante, GRUPOS_DE_PARADA, PARADAS_PADRAO, paradasValidas, grupoDoPasso, usaParadas, paradasAtuais, iconeDaLinhaDoRegistro, donoDaLinha, iconeDaFase, trocaLegitima, cartaDaMesa, fontesDeMana, conferePagamento, planoDePagamento, gruposDeFontes, contagemDosToques, toquesDaContagem, sinaisDoResumo, iconeDaLinhaDoResumo, repeticaoDoCombo, chaveDaRepeticao, linhasDoCampo, rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, modificacoesDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveContinuo, descreveDano, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
+return { textoDoCustoOpcionalM, rotulosDeCiclar, nomesDeCatalogo, LIMITE_COMANDANTE, danoDeComandante, textoDoDanoDeComandante, GRUPOS_DE_PARADA, PARADAS_PADRAO, paradasValidas, grupoDoPasso, usaParadas, paradasAtuais, iconeDaLinhaDoRegistro, donoDaLinha, iconeDaFase, trocaLegitima, cartaDaMesa, fontesDeMana, conferePagamento, planoDePagamento, gruposDeFontes, contagemDosToques, toquesDaContagem, sinaisDoResumo, iconeDaLinhaDoResumo, repeticaoDoCombo, chaveDaRepeticao, linhasDoCampo, rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, modificacoesDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveContinuo, descreveDano, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
 })();
 
 
@@ -37654,16 +37666,14 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       const pv = s.pending.pagaVidaEntrada; // M-330 · terra de choque: pagar vida para entrar desvirada
       const titulo = pv ? `${s.pending.name}: pagar ${pv} de vida para entrar desvirado?` : senao ? (senao.sacrifica ? `${s.pending.name}: pagar ${s.pending.cost} de manutenção cumulativa?` : `${s.pending.name}: pagar ${s.pending.cost}?`)
         : !efeito ? `Pagar ${s.pending.cost} para ${alvo ? alvo.name : 'sua mágica'} não ser anulada?`
-        : extra && extra.sacrificeSelf ? `Sacrificar ${s.pending.name} para o efeito acontecer?` // CR2b.3 · Angelic Renewal
-        : extra && extra.pagarVida != null ? `${s.pending.name}: pagar ${extra.pagarVida} de vida para o efeito acontecer?` // V-26 · Call of the Ring (Toca ponto comum: pergunta do custo opcional)
-        : extra ? `${s.pending.name}: exilar uma carta de criatura do seu cemitério para o efeito acontecer?`
+        : extra ? T.textoDoCustoOpcionalM(extra, s.pending.name).titulo // CR2b.3 · Angelic Renewal · V-26 · Call of the Ring · M-544 · Sackville (Toca ponto comum: pergunta do custo opcional)
         : s.pending.cost ? `${s.pending.name}: pagar ${s.pending.cost}?`
         : `${s.pending.name}: fazer o efeito?`;
       const pagamentos = E.legalActions(s, v).filter(x => x.t === 'pay');
       // Leva 125 · a dica diz o que o efeito faz (antes: "o gatilho não faz nada", sem dizer o que se ganhava pagando)
       const oQueFaz = efeito ? T.descreveEfeitos((s.pending.then || {}).effects) : '';
       banner = PriorityBanner({ title: titulo, hint: pv ? `Pagando, você perde ${pv} de vida e ${s.pending.name} fica desvirado. Sem pagar, fica virado.` : efeito ? (oQueFaz ? `Se ${s.pending.cost ? 'pagar' : 'aceitar'}: ${oQueFaz}. Recusando, nada acontece.` : 'Se você recusar, o gatilho não faz nada.') : `${s.pending.name} está na pilha.`, tone: 'warning',
-        actions: [Button(pv ? `Pagar ${pv} de vida` : extra ? 'Exilar' : s.pending.cost ? `Pagar ${s.pending.cost}` : 'Fazer', { variant: 'primary', id: 'tb-pay',
+        actions: [Button(pv ? `Pagar ${pv} de vida` : extra ? T.textoDoCustoOpcionalM(extra, s.pending.name).botao /* M-544 */ : s.pending.cost ? `Pagar ${s.pending.cost}` : 'Fazer', { variant: 'primary', id: 'tb-pay',
           onClick: () => (pagamentos.length > 1 ? escolher(s.pending.name, pagamentos) : act(pagamentos[0] || { t: 'pay', p: v })) }),
           Button(pv ? 'Deixar virado' : efeito ? (s.pending.cost || extra ? 'Não pagar' : 'Não fazer') : 'Deixar anular', { id: 'tb-decline', onClick: () => act({ t: 'decline', p: v }) })] });
     } else if (s.pending && s.pending.kind === 'choose_type' && s.pending.p === v) {
