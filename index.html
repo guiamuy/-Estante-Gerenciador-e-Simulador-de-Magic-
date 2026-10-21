@@ -10466,6 +10466,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Questing Druid // Seek the Beast': { texto: 'o75ynx', leva: 'M-541' },
   // M-542 · revisão por lote CLXXX (Quantum Riddler: com uma carta ou nenhuma na mão, compra uma a mais), textos da Scryfall de 20/10/2026 UTC, revisor independente
   'Quantum Riddler': { texto: '8zlhlw', leva: 'M-542' },
+  // M-543 · revisão por lote CLXXXI (Biotech Specialist: ficha Lander e gatilho de sacrificar artefato), textos da Scryfall de 20/10/2026 UTC, revisor independente
+  'Biotech Specialist': { texto: 'yw5ki', leva: 'M-543' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18975,7 +18977,8 @@ const __m42 = (function () {
     food: { name: 'Food', types: ['artifact'], subtypes: ['Food'], colors: [], abilities: [{ kind: 'activated', cost: { mana: '{2}', tap: true, sacrifice: true }, effects: [{ do: 'gain', amount: 3 }] }] },
     blood: { name: 'Blood', types: ['artifact'], subtypes: ['Blood'], colors: [], abilities: [{ kind: 'activated', cost: { mana: '{1}', tap: true, sacrifice: true, discard: 1 }, effects: [{ do: 'draw', amount: 1 }] }] },
     map: { name: 'Map', types: ['artifact'], subtypes: ['Map'], colors: [], abilities: [{ kind: 'activated', cost: { mana: '{1}', tap: true, sacrifice: true }, sorceryOnly: true, effects: [{ do: 'explore', target: 'creature-you-control' }] }] },
-    clue: { name: 'Clue', types: ['artifact'], subtypes: ['Clue'], colors: [], abilities: [{ kind: 'activated', cost: { mana: '{2}', sacrifice: true }, effects: [{ do: 'draw', amount: 1 }] }] }
+    clue: { name: 'Clue', types: ['artifact'], subtypes: ['Clue'], colors: [], abilities: [{ kind: 'activated', cost: { mana: '{2}', sacrifice: true }, effects: [{ do: 'draw', amount: 1 }] }] },
+    lander: { name: 'Lander', types: ['artifact'], subtypes: ['Lander'], colors: [], abilities: [{ kind: 'activated', cost: { mana: '{2}', tap: true, sacrifice: true }, effects: [{ do: 'search', amount: 1, filter: { basic: true, types: ['land'] }, to: 'battlefield-tapped' }] }] } // M-543 · 111.10t (Biotech Specialist)
   };
   const fichaPredefinida = (q, nome) => { const d = FICHAS_PREDEFINIDAS[String(nome).toLowerCase()]; return d ? [{ do: 'token', amount: num(q), token: JSON.parse(JSON.stringify(d)) }] : null; };
   /* Padrões de frase de efeito de mágica (a frase já sem ponto final, com o nome da carta trocado por "~"). Cada um devolve a lista de
@@ -19065,10 +19068,10 @@ const __m42 = (function () {
     [/^~ deals (\d+) damage to any target that was dealt damage this turn$/i, m => [{ do: 'damage', amount: +m[1], target: 'any', targetDanoNoTurno: true }]], // M-447 · Needle Drop
     [new RegExp(`^(?:(you may|its controller may|that player may|target player may) )?search (?:your|their) library for (?:(up to) )?${N}(?: (.+?))? cards?(?: named (.+?))?(?:, reveal (?:it|them|that card))?(?:,? (?:and )?put (?:it|them|that card) (into (?:your|their) hand|onto the battlefield(?: tapped)?|on top of your library))?$`, 'i'), busca], // LT5 · 701.23
     [/^shuffle(?: your library)?$/i, () => []],
-    [new RegExp(`^create ${N} (treasure|food|blood|map|clue) tokens?$`, 'i'), m => fichaPredefinida(m[1], m[2])], // LT9 · 111.10
+    [new RegExp(`^create ${N} (treasure|food|blood|map|clue|lander) tokens?$`, 'i'), m => fichaPredefinida(m[1], m[2])], // LT9 · 111.10
     [/^investigate$/i, () => fichaPredefinida('a', 'clue')], // LT9 · 701.16
-    [new RegExp(`^draw ${N} cards? and create ${N} (treasure|food|blood|map|clue) tokens?$`, 'i'), m => [{ do: 'draw', amount: num(m[1]) }, ...fichaPredefinida(m[2], m[3])]], // LT11
-    [new RegExp(`^its controller creates ${N} (treasure|food|blood|map|clue) tokens?$`, 'i'), m => fichaPredefinida(m[1], m[2]).map(e => ({ ...e, target: 'target-controller' }))], // LT11 · "its controller": o controlador do alvo
+    [new RegExp(`^draw ${N} cards? and create ${N} (treasure|food|blood|map|clue|lander) tokens?$`, 'i'), m => [{ do: 'draw', amount: num(m[1]) }, ...fichaPredefinida(m[2], m[3])]], // LT11
+    [new RegExp(`^its controller creates ${N} (treasure|food|blood|map|clue|lander) tokens?$`, 'i'), m => fichaPredefinida(m[1], m[2]).map(e => ({ ...e, target: 'target-controller' }))], // LT11 · "its controller": o controlador do alvo
     [new RegExp(`^~ deals ${N} damage to each non-([A-Z][a-z]+) creature$`), m => [{ do: 'damage', amount: num(m[1]), target: 'each-creature', exceptSubtype: m[2] }]], // LT11
     [/^each player sacrifices a nontoken creature of their choice$/i, () => [{ do: 'sacrifice_each', types: ['creature'], nontoken: true }]], // LT11 · 701.21
     [/^search your library for a land card, put it into your graveyard$/i, () => [{ do: 'search', amount: 1, filter: { types: ['land'] }, to: 'graveyard' }]], // M-534 · Enroot (Carnivorous Cultivator); "then shuffle" é da busca
@@ -19266,6 +19269,8 @@ const __m42 = (function () {
     [/^when ~ enters untapped$/i, 'etb', () => ({ condition: { entrouDesvirada: true } })], // M-349 · Gingerbread Cabin
     [/^when you play another land$/i, 'you-play-land'], // M-342 · City of Traitors (305.1: jogar, não pôr no campo)
     [/^whenever you sacrifice another permanent$/i, 'other-sacrificed'], // LT10
+    [/^whenever you sacrifice an artifact$/i, 'other-sacrificed', () => ({ filter: { types: ['artifact'] }, incluiSiM: true })], // M-543 · Biotech Specialist
+    [/^whenever you sacrifice a token$/i, 'other-sacrificed', () => ({ filter: { token: true }, incluiSiM: true })], // M-543 · The Sackville-Bagginses
     [/^whenever a player sacrifices a creature$/i, { evento: 'sacrifica', objeto: 'outra', quem: 'qualquer' }, () => ({ filter: { types: ['creature'] } })], // M-418 · Mortician Beetle (a própria, sacrificada, não vê o marcador: dá no mesmo que "outra")
     [/^whenever another creature enters(?: the battlefield)?$/i, { evento: 'zona', para: 'battlefield', objeto: 'outra', quem: 'qualquer' }, () => ({ filter: { types: ['creature'] } })], // M-418 · Essence Warden (de qualquer jogador)
     [/^whenever another creature dies$/i, { evento: 'zona', de: 'battlefield', para: 'graveyard', objeto: 'outra', quem: 'qualquer' }, () => ({ filter: { types: ['creature'] } })], // M-418 · Hissing Iguanar (de qualquer jogador; 700.4)
@@ -19958,7 +19963,7 @@ function palavrasDaFrente(card, kw) {
 }
 function cardFacts(card) {
   const tl = String(card && card.type_line || '').toLowerCase().split('//')[0];
-  const types = PERMANENT.concat(['instant', 'sorcery']).filter(t => tl.includes(t));
+  const types = PERMANENT.concat(['instant', 'sorcery']).filter(t => new RegExp('\\b' + t + '\\b').test(tl)); // M-543 · palavra inteira: "Lander" não é terreno (achado da revisão)
   const kw = palavrasDaFrente(card, (card && card.keywords || []).map(k => String(k).toLowerCase()));
   semPalavraDoJogadorK(card, kw); // K-29 · "You have hexproof/shroud." é do jogador: a palavra não vale para a permanente sem a linha própria (Toca ponto comum: cardFacts)
   const num = v => (v == null || isNaN(parseInt(v, 10))) ? null : parseInt(v, 10);
@@ -24349,6 +24354,15 @@ function sacrifice(s, oid, events = []) {
   moveObject(s, oid, 'graveyard');
   naSombra(s, `sacrifica ${o.name}`, () => sacrificeLegado(s, o, dono), () => gatilhosDoSacrificio(s, o, dono));
   gatilhoAoSerSacrificadaM(s, o, dono); // M-466
+  gatilhoDeSiSacrificadaM(s, o, dono); // M-543
+}
+/** M-543 · 603.6c/603.10a · "Whenever you sacrifice a token / an artifact": a própria permanente sacrificada também conta, se ela mesma é o que o
+    gatilho pede (a ficha-cópia de The Sackville-Bagginses), vista como era no campo (achado da revisão). */
+function gatilhoDeSiSacrificadaM(s, o, dono) {
+  if (!o || !s.facts[o.name] || o.faceDown) return; // "you" é quem sacrificou (o controlador dela no campo)
+  for (const ab of (((s.facts[o.name] || {}).script || {}).abilities || [])) { const d = ab.kind === 'triggered' && ab.incluiSiM && SC.gatilhoDoEvento(ab.when);
+    if (!d || d.evento !== 'sacrifica' || d.objeto !== 'outra' || !matchesTriggerFilter(s, o, ab.filter)) continue;
+    s.queued.push({ source: o.oid, name: o.name, controller: dono, effects: ab.effects, when: ab.when, ...marcasDaHabilidade(ab) }); }
 }
 /** M-466 · "When you sacrifice it" (Heaped Harvest): o gatilho da própria permanente sacrificada (603.10a: como era no campo; o "você" é quem a sacrificou). */
 function gatilhoAoSerSacrificadaM(s, o, dono) {
@@ -24553,6 +24567,7 @@ function matchesTriggerFilter(s, o, filter) {
   if ((filter.types || []).some(x => !tipos.includes(x))) return false;
   if (filter.anyTypes && !filter.anyTypes.some(x => tipos.includes(x))) return false; // R11 · "creature or planeswalker" (Cruel Celebrant)
   if (filter.noncreature && tipos.includes('creature')) return false;
+  if (filter.token && !o.token) return false; // M-543 · "whenever you sacrifice a token" (The Sackville-Bagginses)
   if (filter.segundaMagiaDoTurno && o.ordemDaMagiaM !== 2) return false; // M-526 · "Whenever you cast your second spell each turn" (Flurry): só a segunda mágica que o jogador conjurou neste turno (cópias não são conjuradas)
   if (filter.multicolorida && colorsOf(s, o).length < 2) return false; // M-460 · 105.2b "multicolored spell"
   if (filter.anyColors && !filter.anyColors.some(c => colorsOf(s, o).includes(c))) return false; // M-395 · "a blue, black, or red spell" (God-Pharaoh's Faithful)

@@ -5269,6 +5269,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nenhum.
 - **Teste:** `lt224.unit` (5 testes; os da compra falham no motor anterior).
 
+**M-543 · LT205 · revisão por lote CLXXXI: Biotech Specialist** ✅ (leva M-543, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** passa a jogar Biotech Specialist (30 listas do catálogo). Texto da Scryfall consultado em 20/10/2026.
+- **Regra:** ficha Lander pré-definida (111.10t: "{2}, {T}, Sacrifice this token: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle") em "create a Lander token"; gatilhos "whenever you sacrifice an artifact" e "whenever you sacrifice a token" (filtro novo `token`, o sacrificado visto como era no campo, 603.10a), pelo leitor.
+- **Revisão independente:** revisor independente (junto com M-542/M-544): Tesouro, Pista, artefato-criatura e Lander sacrificados disparam; destruído não; o do oponente não; dois Biotechs dão 4. **Uma divergência, corrigida com teste:** o Lander era tratado também como terreno ("Lander" contém "land" na leitura da linha de tipo; disparava gatilho de terreno e podia ser alvo de "destroy target land") — a leitura dos tipos passou a exigir palavra inteira; nenhuma outra das 2.152 cartas oficiais muda.
+- **Fora (declarado):** nenhum.
+- **Teste:** `lt225.unit` (4 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
