@@ -5326,6 +5326,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** a descrição do efeito diz "causa X de dano" sem dizer que X é o dano recebido (padrão de todo valor de gatilho). **Pendência:** vínculo com a vida concedido (Aura) se perde quando a fonte do dano já saiu do campo (603.10/LKI).
 - **Teste:** `lt232.unit` (5 testes; falham no motor anterior).
 
+**M-551 · LT213 · revisão por lote CLXXXIX: Winternight Stories** ✅ (leva M-551, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** passa a jogar Winternight Stories (26 listas do catálogo). Texto e rulings da Scryfall consultados em 21/10/2026 (o harmonizar já existia, K-55).
+- **Regra:** efeito `descarta_dois_ou_tipo` — "Then discard two cards unless you discard a creature card" (701.9): quem descarta escolhe a primeira carta; se for criatura, a segunda é opcional, senão obrigatória; as escolhidas são descartadas juntas no fim; com uma carta só na mão, descarta essa. O leitor lê a forma geral "discard two cards unless you discard a [tipo] card".
+- **Revisão independente:** sem divergência de regra (uma criatura basta, sem criatura duas, criatura + outra pode, uma carta só é descartada; Aventura e carta de duas faces com criatura na frente contam, feitiço ou batalha na frente não — só a face da frente vale na mão; os descartes são juntos: insanidade e gatilhos de descarte disparam certo, Magmakin Artillerist dispara uma vez com 2; harmonizar do cemitério com redução pelo poder, sem pagar o colorido, momento de feitiço e exílio depois; fuzz de 36 mil ações e Shark × Shark sem falha). Um achado de tela: a folha mostra o título genérico "Escolha cartas" e não diz que é descarte nem que uma criatura basta (o mesmo vale para a escolha da M-549) — vai para a leva seguinte, que toca a mesa.
+- **Fora (declarado):** título e dica da folha de escolha ficam genéricos nesta leva (corrigido na M-552, que toca a mesa).
+- **Teste:** `lt233.unit` (3 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

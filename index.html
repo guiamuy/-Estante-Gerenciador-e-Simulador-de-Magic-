@@ -5592,6 +5592,7 @@ const EFFECTS = {
   cemiterio_no_grimorio: { fields: [], targets: ['self'] }, // M-348 · Campfire: embaralha o cemitério no grimório
   compra_quem_controla_nome: { fields: [], targets: ['self'] }, // M-348 · Bonder's Ornament: cada jogador que controla uma permanente com o nome da fonte compra
   sacrifica_e_compra: { fields: ['amount'], targets: ['self'] }, // M-549 · "You may sacrifice a permanent. If you do, draw N cards" (Witherbloom Charm)
+  descarta_dois_ou_tipo: { fields: [], targets: ['self'] }, // M-551 · "discard two cards unless you discard a [tipo] card" (Winternight Stories); `tipo`
   descarta_e_compra: { fields: ['amount'], targets: ['self'] }, // M-348 · "You may discard a card. If you do, draw N cards" (Pursue the Past) // M-342 · self-source: "sacrifice ~" (sem alvo)
   exile_self: { fields: [], targets: ['self'] },
   counter_choice: { fields: [], targets: ['self'] },
@@ -6542,6 +6543,7 @@ function effectErrors(effects, label, opcional) {
     if (e.excetoPrimeiro != null && !(e.excetoPrimeiro === true && e.cada && !isTargeted(e) && effects.slice(0, i).some(isTargeted))) errs.push(`${label} ${i + 1}: "excetoPrimeiro" só numa varredura (cada) sem alvo, depois de um efeito com alvo`); // M-422
     if (e.porContagem != null && (e.do !== 'add_mana' || !PER_COUNTS.includes(e.porContagem))) errs.push(`${label} ${i + 1}: "porContagem" só na mana, com uma contagem conhecida`); // M-423
     if (e.mvAte != null && (e.do !== 'counter' || !(Number.isInteger(e.mvAte) ? e.mvAte >= 0 : (e.mvAte && e.mvAte.per === 'se' && e.mvAte.se === 'kicked' && Number.isInteger(e.mvAte.sim) && Number.isInteger(e.mvAte.nao))))) errs.push(`${label} ${i + 1}: "mvAte" só na anulação: inteiro, ou se reforçada`); // M-419
+    if (e.do === 'descarta_dois_ou_tipo' && !FILTER_TYPES.includes(e.tipo)) errs.push(`${label} ${i + 1}: descarta_dois_ou_tipo precisa de um tipo conhecido`); // M-551
     if (e.do === 'descarta_e_compra' && e.descarta != null && !(Number.isInteger(e.descarta) && e.descarta >= 1)) errs.push(`${label} ${i + 1}: "descarta" é quantas cartas se descartam (inteiro, 1 ou mais)`); // M-373
     if (e.do === 'morde' && !(i > 0 && effects[i - 1] && effects[i - 1].do === 'mordedor')) errs.push(`${label} ${i + 1}: "morde" vem logo depois de "mordedor" (a criatura que causa o dano)`); // M-407
     if (e.do === 'mordedor' && !(effects[i + 1] && effects[i + 1].do === 'morde')) errs.push(`${label} ${i + 1}: "mordedor" precisa de "morde" logo depois`); // M-407
@@ -10492,6 +10494,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Witherbloom Charm': { texto: 'qbauhe', leva: 'M-549' },
   // M-550 · revisão por lote CLXXXVIII (Screaming Nemesis: o dano que recebe vai para outro alvo; quem levar não ganha vida pelo resto do jogo), texto da Scryfall de 21/10/2026 UTC, revisor independente
   'Screaming Nemesis': { texto: '1to2voh', leva: 'M-550' },
+  // M-551 · revisão por lote CLXXXIX (Winternight Stories: descartar duas cartas a menos que descarte uma criatura), texto da Scryfall de 21/10/2026 UTC, revisor independente
+  'Winternight Stories': { texto: 'ibk64d', leva: 'M-551' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -19183,6 +19187,7 @@ const __m42 = (function () {
     [/^target creature can't be blocked this turn$/i, () => [{ do: 'imbloqueavel', target: 'creature' }]], // M-336 · Rogue's Passage
     [new RegExp(`^you lose ${N} life$`, 'i'), m => [{ do: 'lose', amount: num(m[1]) }]], // M-335 · Thoughtseize (sem alvo: quem controla perde, como nos scripts à mão)
     [/^exile up to one other target creature$/i, () => [{ do: 'exile', target: { tipos: ['creature'], outra: true }, upTo: true }]], // M-338 · Solitude
+    [/^(?:then )?discard two cards unless you discard an? (creature|artifact|land|instant|sorcery|enchantment) card$/i, m => [{ do: 'descarta_dois_ou_tipo', tipo: m[1].toLowerCase() }]], // M-551 · Winternight Stories
     [new RegExp(`^you may sacrifice a permanent to draw ${N} cards?$`, 'i'), m => { const n = num(m[1]); return n ? [{ do: 'sacrifica_e_compra', amount: n }] : null; }], // M-549 · Witherbloom Charm
     [/^destroy target nonland permanent with mana value (\d+) or less$/i, m => [{ do: 'destroy', target: { semTipos: ['land'], mvMax: +m[1] } }]], // M-549 · Witherbloom Charm (restrição de alvo)
     [/^that creature's controller gains life equal to its power$/i, () => [{ do: 'gain', amount: { per: 'power-of-target' }, target: 'target-controller' }]], // M-338 · Solitude (608.2h)
@@ -23176,6 +23181,12 @@ function applyEffectM449(s, src, eff, tgt, events) {
       startPick(s, { p: ctrl, from: suas, min: 0, max: 1, to: 'sacrificaM', rest: 'stay', label: 'sacrificar uma permanente (ou nenhuma)', source: src.name, depois: { draw: amountOf(s, src, eff.amount) } }, events);
       note({ pending: true }); break;
     }
+    case 'descarta_dois_ou_tipo': { // M-551 · 701.9: escolha em duas etapas; o descarte é um só, no fim
+      const mao = s.zones[ctrl].hand.slice();
+      if (!mao.length) { note({ amount: 0 }); break; }
+      startPick(s, { p: ctrl, from: mao, min: 1, max: 1, to: 'stay', rest: 'stay', label: `descartar duas cartas ou uma de ${TIPO_PT_M[eff.tipo] || eff.tipo}`, source: src.name, descarteOuTipoM: { etapa: 1, tipo: eff.tipo } }, events);
+      note({ pending: true }); break;
+    }
     case 'descarta_e_compra': { // M-348 · "You may discard a card. If you do, draw N cards": o jogador escolhe a carta (ou nenhuma)
       const mao = s.zones[ctrl].hand.slice(), nd = eff.descarta || 1; // M-373 · "you may discard two cards. If you do, draw three cards" (Thrilling Discovery): todas ou nenhuma
       if (mao.length < nd) { note({ amount: 0 }); break; } // M-373 · sem cartas bastantes para descartar todas, não há o que oferecer (declarado)
@@ -24165,6 +24176,7 @@ function startPick(s, spec, events) {
     ...(spec.onPicked ? { onPicked: spec.onPicked } : {}), // S59 · o que a carta escolhida recebe
     ...(spec.alvoDaMagiaM != null ? { alvoDaMagiaM: spec.alvoDaMagiaM } : {}), // M-515 · a mágica que recebe os alvos escolhidos
     ...(spec.repartir ? { repartir: spec.repartir } : {}), // M-267 · os próximos destinos do repartir
+    ...(spec.descarteOuTipoM ? { descarteOuTipoM: spec.descarteOuTipoM } : {}), // M-551 · Winternight Stories
     ...(spec.esconde ? { esconde: spec.esconde } : {}), // M-268 · a permanente do esconderijo
     ...(spec.copiaAoEntrar ? { copiaAoEntrar: spec.copiaAoEntrar } : {}) }; // CR2f.2 // M-268 · a permanente do esconderijo // M-267 · os próximos destinos do repartir
   events.push({ kind: 'choice', what: spec.label, name: spec.source, amount: spec.from.length });
@@ -24177,6 +24189,20 @@ function iniciaRepartir(s, p, from, destinos, fonte, events) {
   if (!from.length || !destinos.length) return;
   if (from.length === 1) { const pk = { p, from, picked: from.slice(), to: destinos[0], rest: 'stay', label: 'repartir', source: fonte }; s.pending = { kind: 'pick', ...pk }; concluiPick(s, events); return; }
   startPick(s, { p, from, min: 1, max: 1, to: destinos[0], rest: 'stay', label: `repartir ${destinos[0]}`, source: fonte, repartir: { de: from, destinos: destinos.slice(1) } }, events);
+}
+const TIPO_PT_M = { creature: 'criatura', artifact: 'artefato', land: 'terreno', instant: 'instantânea', sorcery: 'feitiço', enchantment: 'encantamento', planeswalker: 'planeswalker' }; // M-551
+/** M-551 · "discard two cards unless you discard a [tipo] card": a primeira escolha; se for do tipo, a segunda é opcional, senão obrigatória; descarta junto no fim. */
+function descarteOuTipoM(s, pk, events) {
+  const d = pk.descarteOuTipoM, p = pk.p, ehTipo = oid => ((s.facts[s.objects[oid].name] || {}).types || []).includes(d.tipo);
+  if (d.etapa === 1) {
+    const c1 = pk.picked[0]; if (c1 == null) return;
+    const resto = s.zones[p].hand.filter(o => o !== c1);
+    if (!resto.length) { descartaCarta(s, c1); return; }
+    const doTipo = ehTipo(c1);
+    startPick(s, { p, from: resto, min: doTipo ? 0 : 1, max: 1, to: 'stay', rest: 'stay', label: doTipo ? 'descartar outra carta (opcional)' : 'descartar a segunda carta', source: pk.source, descarteOuTipoM: { etapa: 2, tipo: d.tipo, primeira: c1 } }, events);
+    return;
+  }
+  for (const oid of [d.primeira, ...pk.picked]) if (s.objects[oid] && s.objects[oid].zone === 'hand') descartaCarta(s, oid);
 }
 /** O que a escolha faz com as cartas, sem retomar os efeitos (quem chama de dentro de uma resolução continua sozinho). */
 function concluiPick(s, events) {
@@ -24224,6 +24250,7 @@ function concluiPick(s, events) {
   if (pk.antesDeEntrarK) antesDeEntrarFeitoK(s, pk, events); // K-45 · retoma a resolução (Toca ponto comum: concluiPick)
   if (pk.copiaAoEntrar && s.objects[pk.copiaAoEntrar] && s.objects[pk.copiaAoEntrar].zone === 'stack' && s.stack[s.stack.length - 1] === pk.copiaAoEntrar) { // CR2f.2 · retoma a resolução
     s.objects[pk.copiaAoEntrar].copiaEscolhida = pk.picked[0] || null; events.push(resolveTop(s, events)); s.turn.priority = s.turn.active; }
+  if (pk.descarteOuTipoM) descarteOuTipoM(s, pk, events); // M-551
   if (pk.repartir) iniciaRepartir(s, pk.p, pk.repartir.de.filter(oid => !pk.picked.includes(oid) && s.objects[oid].zone === 'library'), pk.repartir.destinos, pk.source, events); // M-267
 }
 /** Efeitos que ficaram esperando a escolha terminar. */
@@ -35340,6 +35367,7 @@ function descreveEfeito(e) {
     case 'cemiterio_no_grimorio': return 'embaralha o seu cemitério no grimório';
     case 'compra_quem_controla_nome': return 'cada jogador que controla uma permanente com este nome compra uma carta';
     case 'sacrifica_e_compra': return `pode sacrificar uma permanente sua; se sacrificar, compra ${plural(n, 'carta', 'cartas')}`; // M-549
+    case 'descarta_dois_ou_tipo': return `descarta duas cartas, a menos que descarte uma carta de ${TIPO_PT[e.tipo] || e.tipo}`; // M-551
     case 'descarta_e_compra': return `${e.obrigatorio ? 'descarta' : 'pode descartar'} ${(e.descarta || 1) > 1 ? `${e.descarta} cartas` : 'uma carta'}; se fizer, compra ${plural(n, 'carta', 'cartas')}`; // M-373 · M-406
     case 'topo_do_dono': return 'põe esta permanente no topo do grimório do dono'; // M-345
     case 'sacrifice_it': return e.target === 'self-source' ? 'sacrifica esta permanente' : 'o controlador sacrifica a permanente alvo'; // M-342
