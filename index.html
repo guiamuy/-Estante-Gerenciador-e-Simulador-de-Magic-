@@ -5647,6 +5647,8 @@ const EFFECTS = {
   // S61 · Masmorra do Mago Louco
   cant_attack: { fields: [], targets: ['creature'] },
   exile_top_playable: { fields: ['amount'], targets: ['self'] },
+  exila_ate_final: { fields: [], targets: ['permanent'] }, // M-548 · Flickerwisp, Phelia: exila e devolve no começo do próximo passo final, sob o controle do dono
+  lembradas_ao_campo: { fields: [], targets: ['self'] }, // M-548 · o atrasado da exila_ate_final (criado pelo motor, não por script)
   lembradas_ao_cemiterio: { fields: [], targets: ['self'] }, // M-386 · 603.7c: "if any of those cards remain exiled, put them into your graveyard" (Glimpse the Impossible)
   draw_free_cast: { fields: ['amount'], targets: ['self'] },
   /* ↓ K · efeitos da trilha keywords */
@@ -6523,6 +6525,7 @@ function effectErrors(effects, label, opcional) {
     if (e.do === 'delayed') { if (!ATRASOS.includes(e.when)) errs.push(`${label} ${i + 1}: momento "${e.when}" desconhecido para gatilho atrasado`); errs.push(...effectErrors(e.effects, `${label} ${i + 1} (atrasado)`)); }
     if (e.do === 'tap_or_untap' && e.optional != null && typeof e.optional !== 'boolean') errs.push(`${label} ${i + 1}: "opcional" precisa ser verdadeiro ou falso`); // Leva 131
     if (e.exilaSeMorrer != null && !(e.do === 'damage' && e.exilaSeMorrer === true)) errs.push(`${label} ${i + 1}: "exilaSeMorrer" é uma marca (true) do dano`); // M-384 · Torch the Tower
+    if (e.marcaFonteM != null && !(e.marcaFonteM === true && e.do === 'exila_ate_final')) errs.push(`${label} ${i + 1}: "marcaFonteM" é uma marca (true) da exila_ate_final`); // M-548 · Phelia
     if (e.lembraExiladas != null && !(e.lembraExiladas === true && (e.do === 'exile_top_playable' || e.do === 'delayed'))) errs.push(`${label} ${i + 1}: "lembraExiladas" é uma marca (true) do exílio do topo e do gatilho atrasado`); // M-386 (o \`lembra\` do \`mover\` é outra coisa — achado da revisão: Leonin Relic-Warder)
     if (e.seRestar != null && !(e.seRestar === true && e.do === 'delayed' && e.lembraExiladas)) errs.push(`${label} ${i + 1}: "seRestar" é do gatilho atrasado que lembra as exiladas`); // M-386 · 603.4
     if (e.marcadorSeCriatura != null && !(e.do === 'reanimate' && e.target !== 'self-source' && Number.isInteger(e.marcadorSeCriatura) && e.marcadorSeCriatura > 0)) errs.push(`${label} ${i + 1}: "marcadorSeCriatura" é a quantidade de marcadores +1/+1 extras do reanimar`); // M-400
@@ -10480,6 +10483,9 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Oni-Cult Anvil': { texto: '1gwy6wd', leva: 'M-546' },
   // M-547 · revisão por lote CLXXXV (Soul-Scar Mage: dano não de combate vira marcadores -1/-1 na criatura do oponente), texto e rulings da Scryfall de 21/10/2026 UTC, revisor independente
   'Soul-Scar Mage': { texto: 'k245cd', leva: 'M-547' },
+  // M-548 · revisão por lote CLXXXVI (Phelia, Exuberant Shepherd e Flickerwisp: exilar e devolver no próximo passo final), textos e rulings da Scryfall de 21/10/2026 UTC, revisor independente
+  'Phelia, Exuberant Shepherd': { texto: 'zizcbj', leva: 'M-548' },
+  'Flickerwisp': { texto: 'iojhlm', leva: 'M-548' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -19464,6 +19470,8 @@ const __m42 = (function () {
   const FILTRO_DESCARTE = { card: {} /* M-516 · Coercion: qualquer carta */, 'nonland card': { notTypes: ['land'] }, 'noncreature, nonland card': { notTypes: ['creature', 'land'] }, 'nonland, noncreature card': { notTypes: ['creature', 'land'] } };
   const FILTRO_TOPO = { colorless: { incolor: true }, 'instant or sorcery': { types: ['instant', 'sorcery'] }, creature: { types: ['creature'] }, artifact: { types: ['artifact'] }, land: { types: ['land'] }, 'creature or land': { types: ['creature', 'land'] } };
   const PRE_PARAGRAFO = [
+    [/^exile (up to one )?(another|other) target (nonland )?permanent\. (?:at the beginning of the next end step, return that card to the battlefield under its owner's control|return that card to the battlefield under its owner's control at the beginning of the next end step)(\. if it entered under your control, put a \+1\/\+1 counter on ~)?(?:\.\s*|$)/i,
+      m => [{ do: 'exila_ate_final', target: { ...(m[3] ? { semTipos: ['land'] } : {}), outra: true }, ...(m[1] ? { upTo: true } : {}), ...(m[4] ? { marcaFonteM: true } : {}) }]], // M-548 · Flickerwisp, Phelia (603.7)
     [/^choose (target creature or planeswalker|target creature)\. you get ((?:\{E\})+)(?: \([^)]*\))?, then you may pay any amount of \{E\}\. ~ deals that much damage to that (?:creature|permanent)(?:\.\s*|$)/i, m => [{ do: 'energia', amount: m[2].length / 3 }, { do: 'energia_dano', target: /planeswalker/i.test(m[1]) ? { tipos: ['creature', 'planeswalker'] } : { tipos: ['creature'] } }]], // M-405 · Galvanic Discharge, Harnessed Lightning
     [/^~ deals (\d+) damage to (target creature you don't control) and (\d+) damage to (target creature you control)(?:\.\s*|$)/i, m => [{ do: 'damage', amount: +m[1], target: { tipos: ['creature'], de: 'opponent' } }, { do: 'damage', amount: +m[3], target: { tipos: ['creature'], de: 'you' } }]], // M-536 · Reckless Rage (dois alvos, cada um com a sua quantia)
     [/^~ deals (\d+) damage to target player or planeswalker and (\d+) damage to target creature that player or that planeswalker's controller controls(?:\.\s*|$)/i, m => [{ do: 'damage', amount: +m[1], target: { tipos: ['planeswalker'], jogadores: 'any' } }, { do: 'damage', amount: +m[2], target: { tipos: ['creature'] }, doJogadorDoPrimeiro: true }]], // M-437 · Searing Blaze
@@ -23244,6 +23252,25 @@ function applyEffectM449(s, src, eff, tgt, events) {
       if (eff.lembraExiladas) src.exiladasAgora = []; // M-386 · "those cards": as cartas, com a encarnação do exílio (400.7)
       for (const oid of topo) { moveObject(s, oid, 'exile'); if (eff.lembraExiladas) src.exiladasAgora.push({ oid, z: s.objects[oid].zc || 0 }); s.objects[oid].playableFromExile = ctrl; if (eff.ate === 'proximo-turno') s.objects[oid].jogavelAte = { by: ctrl, turno: s.turn.number }; if (eff.ate === 'fim-do-turno') s.objects[oid].jogavelSoNesteTurno = true; if (eff.ate === 'proximo-final') s.objects[oid].jogavelAteFinalM = ctrl; } // M-541 · Seek the Beast // M-352 · "Until end of turn, you may play that card" (Experimental Synthesizer) // M-349 · "until the end of your next turn" (Wrenn's Resolve)
       note({ amount: topo.length }); break;
+    }
+    case 'exila_ate_final': { // M-548 · 603.7: o atrasado lembra a carta e a encarnação do exílio (400.7); ficha exilada deixa de existir e não volta (111.8)
+      if (!obj || obj.zone !== 'battlefield') { note({ failed: true }); break; }
+      const ficha = !!obj.token; moveObject(s, obj.oid, 'exile');
+      const x = s.objects[obj.oid];
+      if (ficha || !x || x.zone !== 'exile') { note({ ficha: true }); break; }
+      const fonte = src.ability ? s.objects[src.source] : src;
+      const marca = eff.marcaFonteM && fonte && fonte.zone === 'battlefield' ? { marcaFonteM: { oid: fonte.oid, z: fonte.zc || 0 } } : {}; // Phelia: a que estava no campo quando a habilidade resolveu
+      (s.atrasados = s.atrasados || []).push({ when: 'next-end-step', turno: s.turn.number, controller: ctrl, jogador: ctrl, objetos: [{ oid: x.oid, z: x.zc || 0 }],
+        name: src.name, source: fonte ? fonte.oid : src.oid, effects: [{ do: 'lembradas_ao_campo', ...marca }] });
+      note({}); break;
+    }
+    case 'lembradas_ao_campo': { // M-548 · volta sob o controle do dono, objeto novo (desvirada, sem marcadores); "if it entered under your control": você = quem controla o atrasado
+      let k = 0, nomes = [], ficou = 0, marcador = false;
+      for (const d of src.objetosAtrasados || []) { const x = s.objects[d.oid]; if (!x || x.zone !== 'exile' || (x.zc || 0) !== d.z) continue;
+        const dono = x.owner; moveObject(s, d.oid, 'battlefield', { controller: dono }); const y = s.objects[d.oid]; if (!y || y.zone !== 'battlefield') { if (y && y.zone === 'exile') ficou++; continue; }
+        y.controller = dono; k++; nomes.push(y.name);
+        if (eff.marcaFonteM && y.controller === ctrl) { const f = s.objects[eff.marcaFonteM.oid]; if (f && f.zone === 'battlefield' && (f.zc || 0) === eff.marcaFonteM.z && addCounters(s, f, 1) > 0) marcador = true; } }
+      note({ amount: k, ...(nomes.length ? { target: nomes.join(', ') } : {}), ...(ficou ? { ficou } : {}), ...(marcador ? { marcador: true } : {}) }); break;
     }
     case 'lembradas_ao_cemiterio': { // M-386 · 603.7c/400.7: só as que continuam no exílio, na mesma encarnação; a contagem fica na habilidade para "for each card put into your graveyard this way"
       let k = 0;
@@ -34007,6 +34034,8 @@ function effectLine(ev) {
     case 'gasta_energia': return ev.amount ? `${ev.name}: pagou ${ev.amount} de energia` : `${ev.name}: não pagou energia`; // M-393 · M-405
     case 'gatilho_no_turno': return `${ev.name}: neste turno, cada criatura sua que entrar ganha o efeito`; // M-389 · achado da revisão
     case 'exila_se_morrer': return ev.failed ? `${ev.name}: o alvo já não estava no campo` : `${t || ev.name}: se fosse morrer neste turno, é exilada`; // M-384
+    case 'exila_ate_final': return ev.failed ? `${ev.name}: nada foi exilado` : ev.ficha ? `${ev.name}: ${t || 'a ficha'} foi exilada e deixou de existir` : `${ev.name}: ${t || 'a permanente'} foi exilada até o próximo passo final`; // M-548
+    case 'lembradas_ao_campo': return ev.amount ? `${ev.name}: ${t || 'a carta exilada'} voltou ao campo sob o controle do dono${ev.marcador ? `; ${ev.name} ganhou um marcador +1/+1` : ''}` : ev.ficou ? `${ev.name}: a carta exilada não tinha como voltar ao campo e fica no exílio` : `${ev.name}: a carta exilada já não estava no exílio`; // M-548
     case 'lembradas_ao_cemiterio': return `${ev.name}: ${ev.amount === 1 ? '1 carta exilada foi' : `${ev.amount || 0} cartas exiladas foram`} para o cemitério`; // M-386
     case 'nao_desvira': return ev.failed ? `${ev.name}: o alvo já não estava no campo` : `${t || ev.name}: não desvira no próximo passo de desvirar`;
     case 'combate_extra': return ev.failed ? `${ev.name}: fora da fase principal, sem combate adicional` : `${ev.name}: depois desta fase principal vem um combate adicional e outra fase principal`; // CR2g.4
@@ -35218,6 +35247,8 @@ function descreveEfeito(e) {
     case 'perde': return `${alvo || 'você'} perde o jogo`; // CR2h.6
     case 'turno_extra': return alvo ? `${alvo} joga um turno extra depois deste` : 'você joga um turno extra depois deste'; // CR2g.2
     case 'exila_se_morrer': return `se ${alvo || 'a criatura'} fosse morrer neste turno, é exilada em vez disso`; // M-384
+    case 'exila_ate_final': return `exila ${e.upTo ? 'até uma permanente: ' : ''}${alvo || 'a permanente'}; no começo do próximo passo final, ela volta ao campo sob o controle do dono${e.marcaFonteM ? ' (se voltar sob o seu controle, esta criatura ganha um marcador +1/+1)' : ''}`; // M-548
+    case 'lembradas_ao_campo': return 'a carta exilada volta ao campo sob o controle do dono'; // M-548
     case 'lembradas_ao_cemiterio': return 'as cartas exiladas por ela que ainda estiverem no exílio vão para o cemitério'; // M-386
     case 'nao_desvira': return `${alvo || 'a criatura'} não desvira no próximo passo de desvirar de quem a controla`; // CR2g.6
     case 'combate_extra': return 'depois desta fase principal, um combate adicional e outra fase principal'; // CR2g.4
