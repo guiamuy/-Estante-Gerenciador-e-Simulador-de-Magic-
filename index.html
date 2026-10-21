@@ -23178,13 +23178,16 @@ function applyEffectM449(s, src, eff, tgt, events) {
     case 'sacrifica_e_compra': { // M-549 · 701.21: quem controla escolhe uma permanente sua (ou nenhuma); só compra se sacrificou
       const suas = battlefield(s).filter(o => o.controller === ctrl).map(o => o.oid);
       if (!suas.length) { note({ amount: 0 }); break; }
-      startPick(s, { p: ctrl, from: suas, min: 0, max: 1, to: 'sacrificaM', rest: 'stay', label: 'sacrificar uma permanente (ou nenhuma)', source: src.name, depois: { draw: amountOf(s, src, eff.amount) } }, events);
+      { const nM = amountOf(s, src, eff.amount);
+        startPick(s, { p: ctrl, from: suas, min: 0, max: 1, to: 'sacrificaM', rest: 'stay', label: 'sacrificar uma permanente (ou nenhuma)', source: src.name, depois: { draw: nM },
+          tituloM: 'Sacrificar uma permanente sua?', dicaM: `Toque na permanente a sacrificar para comprar ${nM === 1 ? '1 carta' : `${nM} cartas`}, ou confirme sem sacrificar` }, events); } // M-552
       note({ pending: true }); break;
     }
     case 'descarta_dois_ou_tipo': { // M-551 · 701.9: escolha em duas etapas; o descarte é um só, no fim
       const mao = s.zones[ctrl].hand.slice();
       if (!mao.length) { note({ amount: 0 }); break; }
-      startPick(s, { p: ctrl, from: mao, min: 1, max: 1, to: 'stay', rest: 'stay', label: `descartar duas cartas ou uma de ${TIPO_PT_M[eff.tipo] || eff.tipo}`, source: src.name, descarteOuTipoM: { etapa: 1, tipo: eff.tipo } }, events);
+      startPick(s, { p: ctrl, from: mao, min: 1, max: 1, to: 'stay', rest: 'stay', label: `descartar duas cartas ou uma de ${TIPO_PT_M[eff.tipo] || eff.tipo}`, source: src.name, descarteOuTipoM: { etapa: 1, tipo: eff.tipo },
+        tituloM: `Descarte: duas cartas, ou uma de ${TIPO_PT_M[eff.tipo] || eff.tipo}`, dicaM: `Toque na primeira carta a descartar. Se for ${TIPO_PT_M[eff.tipo] || eff.tipo}, ela basta.` }, events); // M-552
       note({ pending: true }); break;
     }
     case 'descarta_e_compra': { // M-348 · "You may discard a card. If you do, draw N cards": o jogador escolhe a carta (ou nenhuma)
@@ -24177,6 +24180,7 @@ function startPick(s, spec, events) {
     ...(spec.alvoDaMagiaM != null ? { alvoDaMagiaM: spec.alvoDaMagiaM } : {}), // M-515 · a mágica que recebe os alvos escolhidos
     ...(spec.repartir ? { repartir: spec.repartir } : {}), // M-267 · os próximos destinos do repartir
     ...(spec.descarteOuTipoM ? { descarteOuTipoM: spec.descarteOuTipoM } : {}), // M-551 · Winternight Stories
+    ...(spec.tituloM ? { tituloM: spec.tituloM } : {}), ...(spec.dicaM ? { dicaM: spec.dicaM } : {}), // M-552 · o que a folha de escolha diz
     ...(spec.esconde ? { esconde: spec.esconde } : {}), // M-268 · a permanente do esconderijo
     ...(spec.copiaAoEntrar ? { copiaAoEntrar: spec.copiaAoEntrar } : {}) }; // CR2f.2 // M-268 · a permanente do esconderijo // M-267 · os próximos destinos do repartir
   events.push({ kind: 'choice', what: spec.label, name: spec.source, amount: spec.from.length });
@@ -24199,7 +24203,10 @@ function descarteOuTipoM(s, pk, events) {
     const resto = s.zones[p].hand.filter(o => o !== c1);
     if (!resto.length) { descartaCarta(s, c1); return; }
     const doTipo = ehTipo(c1);
-    startPick(s, { p, from: resto, min: doTipo ? 0 : 1, max: 1, to: 'stay', rest: 'stay', label: doTipo ? 'descartar outra carta (opcional)' : 'descartar a segunda carta', source: pk.source, descarteOuTipoM: { etapa: 2, tipo: d.tipo, primeira: c1 } }, events);
+    const tp = TIPO_PT_M[d.tipo] || d.tipo, nome1 = s.objects[c1].name;
+    startPick(s, { p, from: resto, min: doTipo ? 0 : 1, max: 1, to: 'stay', rest: 'stay', label: doTipo ? 'descartar outra carta (opcional)' : 'descartar a segunda carta', source: pk.source, descarteOuTipoM: { etapa: 2, tipo: d.tipo, primeira: c1 },
+      tituloM: doTipo ? 'Descarte: pode parar aqui' : 'Descarte: escolha a segunda carta',
+      dicaM: doTipo ? `${nome1} é ${tp}: confirme para descartar só ela, ou toque em outra carta para descartar as duas` : `${nome1} não é ${tp}: toque na segunda carta a descartar` }, events); // M-552
     return;
   }
   for (const oid of [d.primeira, ...pk.picked]) if (s.objects[oid] && s.objects[oid].zone === 'hand') descartaCarta(s, oid);
@@ -38008,10 +38015,11 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       const LABEL = { 'colher provas': 'Colher provas: exile do cemitério', desvirar: 'Escolha o que desvirar', delve: 'Delve: escolha o que exilar do cemitério', 'descartar ou sacrificar': 'Descartar ou sacrificar um terreno?', 'escolher o descarte': 'Escolha o descarte do oponente', 'devolver para a mão': 'Escolha o que volta para a mão', 'scry': 'Vidência: escolha o que fica no topo', 'surveil': 'Vigiar: escolha o que fica no topo', 'vasculhar': 'Vasculhar o grimório', 'olhar o topo': 'Olhar o topo do grimório', 'ordenar o topo': 'Ponha de volta na ordem: a primeira escolhida fica em cima', 'devolver ao topo': 'Devolver ao topo', 'embaralhar no grimório': 'Escolha do seu cemitério o que embaralhar no grimório', 'exilar da mão': 'Escolha as cartas da mão a exilar', 'esconder': 'Esconderijo: escolha a carta a exilar virada para baixo', 'copiar ao entrar': 'Escolha o que ela copia ao entrar (ou confirme sem escolher)', 'repartir hand': 'Escolha a que vai para a mão', 'repartir library-bottom': 'Escolha a que vai para o fundo do grimório', 'repartir exile-playable-turn': 'Escolha a que vai para o exílio (pode jogar neste turno)' }; // M-265
       const REST = { 'library-bottom': 'vai para o fundo', 'graveyard': 'vai para o cemitério', 'stay': 'fica onde está', 'library-top': 'fica no topo' };
       // Leva 125 · o título diz de qual carta é a escolha; a contagem só aparece quando se escolhe mais de uma
-      const tituloPk = LABEL[pk.label] || 'Escolha cartas';
+      const tituloPk = pk.tituloM || LABEL[pk.label] || 'Escolha cartas'; // M-552 · o motor pode dizer o título
       banner = PriorityBanner({ title: pk.source ? `${pk.source} · ${tituloPk}` : tituloPk, tone: 'warning',
         // Leva 136 · olhar o topo com filtro (Lead the Stampede): o aviso diz o que pode ser pego e para onde vai
         hint: (() => { const TIPO = { creature: 'criaturas', land: 'terrenos', artifact: 'artefatos', enchantment: 'encantamentos' }, PARA = { hand: 'para a mão', battlefield: 'para o campo' };
+          if (pk.dicaM) return pk.dicaM; // M-552 · a dica vem do motor
           if (pk.reparte) return `A primeira que você tocar entra no campo virada; a segunda vai para a mão · ${pk.picked.length} de até ${pk.max}`; // M-345 · Cultivate
           if (pk.tudoOuNada) return `Toque em ${pk.max} cartas para descartar${(pk.depois || {}).draw ? ` e comprar ${pk.depois.draw}` : ''}, ou não descarte nenhuma`; // M-373 · Thrilling Discovery
           if (pk.needMv) return `Toque nas cartas até somar ${pk.needMv} de valor de mana: ${pk.picked.reduce((n, o) => n + ((s.facts[s.objects[o].name] || {}).cmc || 0), 0)} de ${pk.needMv}`; // colher provas

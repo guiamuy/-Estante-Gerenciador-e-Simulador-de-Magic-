@@ -5333,6 +5333,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** título e dica da folha de escolha ficam genéricos nesta leva (corrigido na M-552, que toca a mesa).
 - **Teste:** `lt233.unit` (3 testes; falham no motor anterior).
 
+**M-552 · a folha de escolha diz o que é (achados das revisões de M-549 e M-551)** ✅ (leva M-552, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** no sacrifício do Witherbloom Charm a folha pergunta "Sacrificar uma permanente sua?" e diz quantas cartas compra; no descarte do Winternight Stories diz que é descarte, que uma criatura basta e, na segunda escolha, se dá para parar ou não. Antes, "Escolha cartas" e "Toque na carta".
+- **Regra:** nenhuma regra muda; a escolha (`pick`) ganha `tituloM` e `dicaM` opcionais, dados pelo motor; a mesa (`__m19`) usa `tituloM` antes do mapa de rótulos e `dicaM` antes das dicas de sempre.
+- **Revisão independente:** feita nas revisões de M-549 e M-551 (são os achados delas).
+- **Fora (declarado):** a leitura dos campos na mesa não tem teste de tela próprio; o `e2e` inteiro rodou antes do envio.
+- **Teste:** `lt234.unit` (2 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
