@@ -5220,6 +5220,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nenhum.
 - **Teste:** `lt217.unit` (3 testes; falham no motor anterior).
 
+**M-536 · LT198 · revisão por lote CLXXIV: Stifle, Impractical Joke e Reckless Rage** ✅ (leva M-536, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** passam a jogar Stifle (18 listas do catálogo), Impractical Joke (16) e Reckless Rage (23). Textos da Scryfall consultados em 20/10/2026.
+- **Regra:** "Counter target activated or triggered ability" (alvo habilidade na pilha, nunca mágica; 113.1, 701.6), "up to one target …" (até um alvo: conjura sem alvo e resolve, 115.3) e "N damage to target creature you don't control and M damage to target creature you control" (dois alvos exigidos, um de cada lado), pelo leitor; o motor já tinha as peças.
+- **Revisão independente:** revisor independente (junto com a M-537), 89 sondas e 60 partidas aleatórias (64.883 ações): Stifle anula ciclar, gatilho de morte do oponente, gatilho próprio e ativada, não mira mágica, permanente nem habilidade de mana, e com o alvo sumido vai ao cemitério; Impractical Joke mira criatura e planeswalker de qualquer lado, nunca jogador, conjura sem alvo, e a regra "não prevenir" vale para o Fog e o Bolt do mesmo turno e acaba no seguinte (com o único alvo ilegal a mágica não resolve, 608.2b); Reckless Rage dá o dano no alvo que continua legal quando o outro fica ilegal ou muda de controlador. Nenhuma outra das 1.228 cartas revisadas mudou de cobertura. Sem divergências.
+- **Fora (declarado):** nenhum ("Damage can't be prevented this turn" já era lido).
+- **Teste:** `lt218.unit` (4 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

@@ -10440,6 +10440,10 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   // M-535 · revisão por lote CLXXIII (Aventuras: Realm-Cloaked Giant — destruir as não Gigantes; Hypnotic Sprite — anular mágica de valor de mana 3 ou menos), textos da Scryfall de 19/10/2026 UTC, revisor independente
   'Realm-Cloaked Giant // Cast Off': { texto: '1xbcqzf', leva: 'M-535' },
   'Hypnotic Sprite // Mesmeric Glare': { texto: '1q1lfw6', leva: 'M-535' },
+  // M-536 · revisão por lote CLXXIV (Stifle, Impractical Joke e Reckless Rage pelo leitor), textos da Scryfall de 20/10/2026 UTC, revisor independente
+  'Stifle': { texto: '1up4dp1', leva: 'M-536' },
+  'Impractical Joke': { texto: 'iaf3sm', leva: 'M-536' },
+  'Reckless Rage': { texto: '2tf7ap', leva: 'M-536' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -18899,6 +18903,8 @@ const __m42 = (function () {
     if (k === 'target attacking creature') return { target: { tipos: ['creature'], atacando: true } }; // M-377 · Desert (seletor atacando, M-361)
     if (k === 'up to one target card from a graveyard') return { target: 'card-in-any-graveyard', upTo: true }; // M-373 · Heritage Reclamation (115.3: aceita zero)
     if (k === 'target instant or sorcery spell') return { target: 'spell', targetTypes: ['instant', 'sorcery'] }; // LT13
+    if (k === 'target activated or triggered ability') return { target: { zona: 'stack', habilidades: 'so' } }; // M-536 · Stifle (habilidade de mana não vai à pilha, 605.3b)
+    { const u = k.match(/^up to one (target .+)$/); if (u) { const a = alvo(u[1]); if (a && a.target != null && a.upTo == null) return { ...a, upTo: true }; } } // M-536 · "up to one target …" (115.3: aceita zero alvos; Impractical Joke)
     return null;
   }
   const SINAL = t => (t.startsWith('-') ? -1 : 1) * +t.replace(/^[+-]/, '');
@@ -19401,6 +19407,7 @@ const __m42 = (function () {
   const FILTRO_TOPO = { colorless: { incolor: true }, 'instant or sorcery': { types: ['instant', 'sorcery'] }, creature: { types: ['creature'] }, artifact: { types: ['artifact'] }, land: { types: ['land'] }, 'creature or land': { types: ['creature', 'land'] } };
   const PRE_PARAGRAFO = [
     [/^choose (target creature or planeswalker|target creature)\. you get ((?:\{E\})+)(?: \([^)]*\))?, then you may pay any amount of \{E\}\. ~ deals that much damage to that (?:creature|permanent)(?:\.\s*|$)/i, m => [{ do: 'energia', amount: m[2].length / 3 }, { do: 'energia_dano', target: /planeswalker/i.test(m[1]) ? { tipos: ['creature', 'planeswalker'] } : { tipos: ['creature'] } }]], // M-405 · Galvanic Discharge, Harnessed Lightning
+    [/^~ deals (\d+) damage to (target creature you don't control) and (\d+) damage to (target creature you control)(?:\.\s*|$)/i, m => [{ do: 'damage', amount: +m[1], target: { tipos: ['creature'], de: 'opponent' } }, { do: 'damage', amount: +m[3], target: { tipos: ['creature'], de: 'you' } }]], // M-536 · Reckless Rage (dois alvos, cada um com a sua quantia)
     [/^~ deals (\d+) damage to target player or planeswalker and (\d+) damage to target creature that player or that planeswalker's controller controls(?:\.\s*|$)/i, m => [{ do: 'damage', amount: +m[1], target: { tipos: ['planeswalker'], jogadores: 'any' } }, { do: 'damage', amount: +m[2], target: { tipos: ['creature'] }, doJogadorDoPrimeiro: true }]], // M-437 · Searing Blaze
     [new RegExp(`^discard your hand, then draw ${N} cards(?:\\.\\s*|$)`, 'i'), m => { const n = num(m[1]); return n ? [{ do: 'descarta_a_mao', target: 'self' }, { do: 'draw', amount: n }] : null; }], // M-534 · Stoke Genius (701.9)
     [/^discard all the cards in your hand, then draw that many cards(?:\.\s*|$)/i, () => [{ do: 'descarta_a_mao', target: 'self' }, { do: 'draw', amount: { per: 'descartadas-assim' } }]], // M-434 · Tolarian Winds (701.9)
