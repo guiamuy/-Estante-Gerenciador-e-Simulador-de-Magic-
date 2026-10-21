@@ -5234,6 +5234,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nenhum.
 - **Teste:** `lt219.unit` (3 testes; falham no motor anterior).
 
+**M-538 · LT200 · revisão por lote CLXXVI: Psychic Frog** ✅ (leva M-538, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** passa a jogar Psychic Frog (57 listas do catálogo). Texto da Scryfall consultado em 20/10/2026.
+- **Regra:** gatilho novo "deals combat damage to a player or planeswalker" (`combat-damage-player-or-pw`, 510.2: o planeswalker atacado conta, a batalha e a criatura bloqueadora não) e custo "Exile N cards from your graveyard" (`exileFromGraveyard.amount`, 601.2h: uma forma por combinação, quem paga escolhe quais), pelo leitor; "~ gains <palavra-chave> until end of turn" na própria permanente.
+- **Revisão independente:** revisor independente (junto com a M-539): compra ao causar dano a jogador e a planeswalker atacado, não a batalha nem a criatura bloqueadora; golpe duplo compra duas vezes; o exílio de três exige três cartas diferentes do cemitério de quem ativa; descartar com insanidade abre a escolha; voar acaba no fim do turno. **Uma divergência, corrigida com teste:** bloqueado por um planeswalker-criatura, o dano só marcava a criatura — agora tira lealdade também (120.3c/e, a parte da lealdade já faltava antes) e o Frog compra.
+- **Fora (declarado):** o motor oferece até 24 combinações de três cartas, na ordem do cemitério (o mesmo teto dos outros custos com escolha); com cemitério muito grande (mais de ~26 cartas diferentes), as últimas não aparecem em nenhuma forma.
+- **Teste:** `lt220.unit` (4 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

@@ -6038,7 +6038,7 @@ function continuoErros(c, tag) {
   if (!c.poder && !c.resistencia && !(c.palavras || []).length && !c.perPoder && !c.perResistencia && !c.torna && !(c.perde || []).length && c.cores == null && !c.troca) errs.push(`${tag}: não muda nada`);
   return errs;
 }
-const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield', 'enchanted-deals-damage', 'upkeep', 'attacks', 'blocks', 'other-etb', 'other-dies', 'combat-damage', 'cast-self', 'other-cast', 'main2', 'end-of-combat', 'other-sacrificed', 'counters-added', 'third-draw', 'enchanted-tapped-or-damaged',
+const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield', 'enchanted-deals-damage', 'upkeep', 'attacks', 'blocks', 'other-etb', 'other-dies', 'combat-damage', 'combat-damage-player-or-pw' /* M-538 */, 'cast-self', 'other-cast', 'main2', 'end-of-combat', 'other-sacrificed', 'counters-added', 'third-draw', 'enchanted-tapped-or-damaged',
   // CR2b.3 · recebe dano (ela mesma); a permanente anexada morre / morre ou é exilada (Equipamento e Aura olham para trás)
   'dealt-damage', 'attached-dies', 'attached-dies-or-exiled',
   // CR2b.4 · a criatura encantada causa dano a um oponente (de quem controla a Aura); você descarta uma carta
@@ -6100,13 +6100,13 @@ const GATILHO_ZONA = {
 const PASSOS_DO_GATILHO = ['upkeep', 'draw', 'main1', 'combat_begin', 'combat_end', 'main2', 'end'];
 /* CR2-G R2c · os oito últimos nomes: descartar e comprar (de um jogador), sacrificar outra, receber marcadores, receber dano,
  * causar dano (`a`: qualquer/jogador/oponente) e virar — com a Aura ou o Equipamento observando a permanente anexada. */
-const EVENTOS_DE_OBJETO = ['conjurar', 'ataca', 'bloqueia', 'dano-combate', 'marcadores', 'recebe-dano', 'causa-dano', 'vira', 'sacrifica', 'bloqueada', 'nao-bloqueada']; // CR2g.5
+const EVENTOS_DE_OBJETO = ['conjurar', 'ataca', 'bloqueia', 'dano-combate', 'dano-combate-jpw' /* M-538 */, 'marcadores', 'recebe-dano', 'causa-dano', 'vira', 'sacrifica', 'bloqueada', 'nao-bloqueada']; // CR2g.5
 const EVENTOS_DE_JOGADOR = ['descarta', 'compra', 'ganha-vida', 'atacou', 'joga-terreno']; // CR2b.7 · 119.9 · CR2g.5 · 508.3d
 /** M-258 · 603.2c · evento em lote: "whenever one or more <criaturas suas> deal damage to your opponents" dispara uma vez por golpe simultâneo. */
 const EVENTOS_DE_LOTE = ['causam-dano', 'saem-do-cemiterio', 'sai-do-cemiterio' /* M-530 · "whenever an instant or sorcery card leaves your graveyard" (Murktide Regent): um disparo por carta, pelo mesmo observador da M-449 */, 'descartam' /* M-462 · "whenever you discard one or more cards" (Magmakin Artillerist) */]; // M-449 · "whenever one or more cards leave your graveyard": uma vez por evento (Spirit Mascot)
 /** De quem o gatilho observa o evento, por evento (o primeiro é o padrão). */
 const OBJETOS_DO_EVENTO = { zona: ['self', 'outra', 'anexada'], conjurar: ['self', 'outra'], ataca: ['self', 'outra', 'anexada'] /* M-401 · Greatsword of Tyr */, bloqueia: ['self', 'outra'],
-  'dano-combate': ['self', 'outra'], marcadores: ['self', 'outra'], 'recebe-dano': ['self', 'anexada'], 'causa-dano': ['self', 'anexada'],
+  'dano-combate': ['self', 'outra'], 'dano-combate-jpw': ['self'] /* M-538 */, marcadores: ['self', 'outra'], 'recebe-dano': ['self', 'anexada'], 'causa-dano': ['self', 'anexada'],
   vira: ['self', 'anexada'], sacrifica: ['outra', 'self' /* M-466 · "when you sacrifice it" (Heaped Harvest) */], bloqueada: ['self', 'outra'], 'nao-bloqueada': ['self', 'outra'] }; // CR2g.5
 const GATILHO_EVENTO = {
   upkeep: { evento: 'passo', passo: 'upkeep', turno: 'seu' },
@@ -6120,6 +6120,7 @@ const GATILHO_EVENTO = {
   attacks: { evento: 'ataca', objeto: 'self' },
   blocks: { evento: 'bloqueia', objeto: 'self' },
   'combat-damage': { evento: 'dano-combate', objeto: 'self' },
+  'combat-damage-player-or-pw': { evento: 'dano-combate-jpw', objeto: 'self' }, // M-538 · Psychic Frog
   'you-discard': { evento: 'descarta', quem: 'voce' },
   'third-draw': { evento: 'compra', n: 3, quem: 'voce' },
   'you-gain-life': { evento: 'ganha-vida', quem: 'voce' }, // CR2b.7
@@ -6206,7 +6207,7 @@ function descreveGatilho(w, como = {}) { // M-401 · como.equipada: "a criatura 
     if (ev.evento === 'sacrifica') return `quando ${jogador} sacrifica ${ev.quem === 'oponente' ? 'uma' : 'outra'} ${perm}`;
     if (ev.evento === 'conjurar') return ev.objeto !== 'outra' ? 'quando você conjura esta mágica' : `quando ${jogador} conjura uma mágica`;
     const a = { jogador: ' a um jogador', oponente: ' a um oponente' }[ev.a] || '';
-    const verbo = [].concat(ev.evento).map(e => ({ ataca: 'ataca', bloqueia: 'bloqueia', 'dano-combate': 'causa dano de combate a um jogador', marcadores: 'recebe marcadores +1/+1',
+    const verbo = [].concat(ev.evento).map(e => ({ ataca: 'ataca', bloqueia: 'bloqueia', 'dano-combate': 'causa dano de combate a um jogador', 'dano-combate-jpw': 'causa dano de combate a um jogador ou planeswalker', marcadores: 'recebe marcadores +1/+1',
       'recebe-dano': 'recebe dano', 'causa-dano': 'causa dano' + a, vira: 'vira', bloqueada: 'é bloqueada', 'nao-bloqueada': 'ataca e não é bloqueada' })[e]).join(' ou ');
     if (ev.objeto === 'anexada') return `quando a criatura ${como.equipada ? 'equipada' : 'encantada'} ${verbo}`; // M-401
     if (ev.objeto !== 'outra') return `quando ${verbo}`;
@@ -6243,7 +6244,7 @@ const CHOICES = ['color'];
 const STATIC_RULES = ['flagbearer', 'exile-instead-of-graveyard', 'opponent-creatures-enter-tapped'];
 const TRIGGER_PT = { etb: 'quando entra no campo', dies: 'quando morre', upkeep: 'na sua manutenção', attacks: 'quando ataca', blocks: 'quando bloqueia',
   'other-etb': 'quando outra criatura sua entra', 'other-dies': 'quando outra criatura sua morre',
-  'combat-damage': 'quando causa dano de combate a um jogador', 'combat-damage-creature': 'quando causa dano de combate a uma criatura', 'end-step': 'no início do seu passo final', 'each-upkeep': 'no início de cada manutenção', 'begin-combat': 'no início do combate no seu turno',
+  'combat-damage': 'quando causa dano de combate a um jogador', 'combat-damage-player-or-pw': 'quando causa dano de combate a um jogador ou planeswalker', 'combat-damage-creature': 'quando causa dano de combate a uma criatura', 'end-step': 'no início do seu passo final', 'each-upkeep': 'no início de cada manutenção', 'begin-combat': 'no início do combate no seu turno',
   'enchanted-damages-opponent': 'quando a criatura encantada causa dano a um oponente', 'you-discard': 'quando você descarta uma carta', 'you-gain-life': 'sempre que você ganha vida', 'you-play-land': 'quando você joga outro terreno', heroic: 'heroico: quando você conjura uma mágica que mira esta criatura', 'becomes-target': 'quando se torna alvo', 'you-attack': 'sempre que você ataca', 'becomes-blocked': 'quando é bloqueada', 'attacks-unblocked': 'quando ataca e não é bloqueada', 'dealt-damage': 'quando recebe dano', 'attached-dies': 'quando a criatura anexada morre', 'attached-dies-or-exiled': 'quando a permanente encantada morre ou é exilada',
   'other-sacrificed': 'quando você sacrifica outra permanente',
   'leaves-battlefield': 'quando sai do campo de batalha', 'other-leaves-battlefield': 'quando outra criatura sua sai do campo', 'enchanted-deals-damage': 'quando a criatura encantada causa dano',
@@ -6269,7 +6270,8 @@ function validateScript(sc) {
       if (cost.xCor != null && !(typeof cost.xCor === 'string' && cost.xCor.length === 1 && 'WUBRG'.includes(cost.xCor) && /\{X\}/i.test(cost.mana || ''))) errs.push(`${tag}: "gaste só mana de uma cor em X" precisa de uma cor WUBRG e de {X} no custo`); // CR2c.7
       if (cost.crew != null && !(Number.isInteger(cost.crew) && cost.crew >= 0)) errs.push(`${tag}: tripular precisa de um número`); // CR2d.3
       if (cost.fromGraveyard != null && !(cost.fromGraveyard === true && (cost.exileSelf || cost.devolveSelf) && !cost.fromHand && !cost.tap)) errs.push(`${tag}: habilidade do cemitério precisa exilar a própria carta como custo ou devolvê-la ao campo (e não usa {T})`); // M-352 · 113.6 · M-398: "Return ~ from your graveyard to the battlefield" (Cauldron Familiar)
-      if (cost.crew == null && !cost.mana && !cost.tap && !cost.untapT /* T-119 · {Q} (Toca ponto comum) */ && !cost.sacrifice && !cost.sacrificeOther && !cost.tapOther && !cost.life && !cost.discard && !cost.returnLand && !cost.revealColor && !cost.discardSelf && !cost.exileSelf && !cost.discardHand && !cost.removeCounters && !cost.poeMarcador && !cost.energia) errs.push(`${tag}: habilidade ativada sem custo`);
+      if (cost.crew == null && !cost.mana && !cost.tap && !cost.untapT /* T-119 · {Q} (Toca ponto comum) */ && !cost.sacrifice && !cost.sacrificeOther && !cost.tapOther && !cost.life && !cost.discard && !cost.returnLand && !cost.revealColor && !cost.discardSelf && !cost.exileSelf && !cost.discardHand && !cost.removeCounters && !cost.poeMarcador && !cost.energia && !cost.exileFromGraveyard /* M-538 */) errs.push(`${tag}: habilidade ativada sem custo`);
+      if (cost.exileFromGraveyard && cost.exileFromGraveyard.amount != null && !(Number.isInteger(cost.exileFromGraveyard.amount) && cost.exileFromGraveyard.amount >= 1)) errs.push(`${tag}: exileFromGraveyard.amount precisa ser inteiro ≥ 1`); // M-538
       if (cost.energia != null && !(Number.isInteger(cost.energia) && cost.energia > 0)) errs.push(`${tag}: pagar energia precisa de uma quantidade inteira positiva`); // M-367
       if (cost.poeMarcador != null && !(cost.poeMarcador && /^[a-z][a-z0-9]*$/.test(cost.poeMarcador.tipo || '') && cost.poeMarcador.tipo !== 'lore' && Number.isInteger(cost.poeMarcador.n || 1) && (cost.poeMarcador.n || 1) > 0)) errs.push(`${tag}: pôr marcadores como custo precisa do tipo e de uma quantidade inteira`); // M-360 · 122.1 / 602.1
       if (ab.semMarcadorSacrifica != null && !(cost.removeCounters && cost.removeCounters.tipo === ab.semMarcadorSacrifica && (ab.effects || []).length && ab.effects.every(e => e.do === 'add_mana'))) errs.push(`${tag}: "sem marcador, sacrifique" só vale em habilidade de mana que remove esse marcador`); // M-250
@@ -10451,6 +10453,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   // M-537 · revisão por lote CLXXV (Fatal Push: destruir se valor de mana ≤ 2, com revolta ≤ 4; Eddymurk Crab: entra virada fora do seu turno), textos da Scryfall de 20/10/2026 UTC, revisor independente
   'Fatal Push': { texto: 'mmsrzc', leva: 'M-537' },
   'Eddymurk Crab': { texto: 'bv7hr2', leva: 'M-537' },
+  // M-538 · revisão por lote CLXXVI (Psychic Frog: gatilho de dano a jogador ou planeswalker; custo de exilar três cartas do cemitério), textos da Scryfall de 20/10/2026 UTC, revisor independente
+  'Psychic Frog': { texto: 'ca2eom', leva: 'M-538' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -19095,6 +19099,7 @@ const __m42 = (function () {
     [new RegExp(`^impulso ${N} ate o proximo turno$`, 'i'), m => [{ do: 'exile_top_playable', amount: num(m[1]), ate: 'proximo-turno' }]], // M-349 · Wrenn's Resolve, Reckless Impulse, Clockwork Percussionist (frase juntada em leParagrafo)
     [/^return target instant or sorcery card from your graveyard to your hand$/i, () => [{ do: 'to_hand', target: { zona: 'graveyard', de: 'you', tipos: ['instant', 'sorcery'] } }]], // M-348 · Archaeomancer
     [/^return target land card from your graveyard to your hand$/i, () => [{ do: 'to_hand', target: { zona: 'graveyard', de: 'you', tipos: ['land'] } }]], // M-513 · Circle of the Land Druid
+    [/^~ gains ([a-z ]+?)(?: and ([a-z ]+))? until end of turn$/i, m => { const ks = [m[1], m[2]].filter(Boolean).map(k => k.toLowerCase()); return ks.every(k => KW.has(k)) ? ks.map(k => ({ do: 'keyword', keyword: k, target: 'self-source' })) : null; }], // M-538 · Psychic Frog ("This creature gains flying until end of turn")
     [/^target creature gains ([a-z ]+?)(?: and ([a-z ]+))? until end of turn$/i, m => { const ks = [m[1], m[2]].filter(Boolean).map(k => k.toLowerCase()); return ks.every(k => KW.has(k)) ? ks.map((k, i) => ({ do: 'keyword', keyword: k, target: i ? 'first-target' : 'creature' })) : null; }], // M-348 · Toxin Analysis (601.2c: um alvo só)
     [/^put all commanders you own from the command zone and from your graveyard into your hand$/i, () => [{ do: 'comandantes_para_mao' }]], // M-348 · Campfire
     [/^(?:then )?shuffle your graveyard into your library$/i, () => [{ do: 'cemiterio_no_grimorio' }]], // M-348 · Campfire
@@ -19217,6 +19222,7 @@ const __m42 = (function () {
     [/^when (this creature|this artifact|~) (?:dies|is put into a graveyard from the battlefield)$/i, 'dies'],
     [/^when (this creature|this artifact|~) leaves the battlefield$/i, 'leaves-battlefield'],
     [/^whenever (this creature|~) deals combat damage to a player$/i, 'combat-damage'],
+    [/^whenever (this creature|~) deals combat damage to a player or planeswalker$/i, 'combat-damage-player-or-pw'], // M-538 · Psychic Frog
     [/^whenever (this creature|~) deals combat damage to a creature$/i, 'combat-damage-creature'], // M-513 · Stinkweed Imp
     [/^whenever (this creature|~) attacks$/i, 'attacks'],
     [/^whenever (this creature|~) attacks while you control a creature with power 4 or greater$/i, 'attacks', () => ({ condition: { ferociousAoDisparar: true } })], // M-455 · Ravening Warg (o prefixo "Ferocious — " é tirado antes)
@@ -19312,6 +19318,7 @@ const __m42 = (function () {
       else if (/^sacrifice a creature$/i.test(parte)) cost.sacrificeOther = { types: ['creature'], ...(/\bcreature\b/i.test(tipoAtual) ? { includeSelf: true } : {}) }; // LT13 · Phyrexian Tower · M-327: a criatura com esse custo pode se sacrificar (Viscera Seer)
       else if (/^sacrifice another creature$/i.test(parte)) cost.sacrificeOther = { types: ['creature'], outra: true };
       else if (/^discard a card$/i.test(parte)) cost.discard = 1;
+      else if (/^exile (two|three|four|five) cards from your graveyard$/i.test(parte)) cost.exileFromGraveyard = { amount: { two: 2, three: 3, four: 4, five: 5 }[parte.match(/^exile (\w+)/i)[1].toLowerCase()] }; // M-538 · Psychic Frog
       else if (/^discard your hand$/i.test(parte)) cost.discardHand = true; // M-342 · Lion's Eye Diamond (602.1: o custo descarta a mão inteira)
       else if (/^exile ~ from your graveyard$/i.test(parte)) { cost.exileSelf = true; cost.fromGraveyard = true; } // M-352 · Bramble Wurm (113.6: habilidade que funciona do cemitério)
       else if (/^exile ~ from your hand$/i.test(parte)) { cost.exileSelf = true; cost.fromHand = true; } // M-342 · Spirit Guides (113.6: habilidade que funciona da mão)
@@ -19325,7 +19332,7 @@ const __m42 = (function () {
   }
   /** Uma linha de habilidade ativada ("custo: efeito. Activate only as a sorcery.") → { ab, frases } ou null. */
   function leAtivada(linha, nome, frases) {
-    const m = linha.match(/^((?:(?:\{[^}]+\})+|Sacrifice [^:,]+|Discard a card|Discard your hand|Exile ~ from your hand|Pay \d+ life|Remove an? [a-z]+ counter from ~|Put an? [+-]\d\/[+-]\d counter on ~)(?:,\s*(?:(?:\{[^}]+\})+|Sacrifice [^:,]+|Discard a card|Discard your hand|Pay \d+ life|Remove an? [a-z]+ counter from ~|Exile ~ from your graveyard|Exile ~))*): (.+)$/i); // M-352 · "Exile ~ from your graveyard" (Bramble Wurm) // M-348 · remover marcador, exilar ~ // M-342 · também "Exile ~ from your hand" e "Discard your hand" // M-329 · também "Pay N life" // LT9 · {2}{U} seguidos
+    const m = linha.match(/^((?:(?:\{[^}]+\})+|Sacrifice [^:,]+|Discard a card|Discard your hand|Exile ~ from your hand|Exile (?:two|three|four|five) cards from your graveyard|Pay \d+ life|Remove an? [a-z]+ counter from ~|Put an? [+-]\d\/[+-]\d counter on ~)(?:,\s*(?:(?:\{[^}]+\})+|Sacrifice [^:,]+|Discard a card|Discard your hand|Pay \d+ life|Remove an? [a-z]+ counter from ~|Exile ~ from your graveyard|Exile ~))*): (.+)$/i); // M-352 · "Exile ~ from your graveyard" (Bramble Wurm) // M-348 · remover marcador, exilar ~ // M-342 · também "Exile ~ from your hand" e "Discard your hand" // M-329 · também "Pay N life" // LT9 · {2}{U} seguidos
     if (!m) { frases.push({ texto: linha, lida: false, motivo: 'habilidade ativada sem padrão conhecido' }); return null; }
     const cost = leCusto(til(m[1], nome)); /* M-394 */ if (!cost) { frases.push({ texto: linha, lida: false, motivo: 'custo de ativação sem padrão conhecido' }); return null; }
     let corpo = m[2].replace(/\.$/, ''); const extra = {};
@@ -19659,7 +19666,7 @@ const __m42 = (function () {
           if (gmd && GATILHOS.some(([re]) => re.test(gmd[1].split(', ')[0]))) { const g = leGatilho(`${gmd[1]}, draw a card`, nome, []);
             if (g && Array.isArray(g.effects) && g.effects.length === 1 && g.effects[0].do === 'draw') { delete g.effects; g.modes = []; (topo.abilities = topo.abilities || []).push(g); gatModos = g; frases.push({ texto: linha, lida: true }); continue; } } }
         if (GATILHOS.some(([re]) => re.test(lp.split(', ')[0]))) { const g = leGatilho(lp, nome, frases); if (g) (topo.abilities = topo.abilities || []).push(g); continue; } // gatilho (as frases do corpo já ficaram anotadas)
-        if (/^(\{[^}]+\}|Sacrifice |Discard a card|Discard your hand|Exile ~ from your hand|Remove an? [a-z]+ counter from ~|Put an? [+-]\d\/[+-]\d counter on ~)/.test(lp) && lp.includes(': ')) { const a = leAtivada(lp, nome, frases); if (a) (topo.abilities = topo.abilities || []).push(a); continue; } // LT4 · ativada
+        if (/^(\{[^}]+\}|Sacrifice |Discard a card|Discard your hand|Exile ~ from your hand|Exile (?:two|three|four|five) cards from your graveyard|Remove an? [a-z]+ counter from ~|Put an? [+-]\d\/[+-]\d counter on ~)/.test(lp) && lp.includes(': ')) { const a = leAtivada(lp, nome, frases); if (a) (topo.abilities = topo.abilities || []).push(a); continue; } // LT4 · ativada
         const qg = lp.match(/^(?:enchanted|equipped) creature (?:gets ([+-]\d+)\/([+-]\d+) and )?has "(.+?)\.?"$/i); // M-519 · "Enchanted creature gets +2/+0 and has 'When this creature dies, draw a card.'" (Infernal Scarring)
         if (qg) { const sub = [], g = leGatilho(qg[3], nome, sub), txt = JSON.stringify(g || {});
           // só os gatilhos que a criatura concedida dispara por si (morrer, atacar, dano de combate a jogador) e sem efeito que fale de "it"/"~" (a fonte seria ambígua: a criatura ou a Aura)
@@ -21965,7 +21972,7 @@ function dealCombatDamage(s) {
       amt = danoAposPrevencao(s, src, obj ? { obj } : { player }, amt, true); if (!amt) continue;
       if (ehPw && (danoEmBatalhaT(s, src, obj, amt) || danoEmPwCriaturaT(s, src, obj, amt))) { /* T-18 · CR 120.3e / 702.2b */ /* T-14 · CR 310.6 / 120.3h · Toca ponto comum: dealCombatDamage */ } else if (ehPw) { // M-228 · 120.3c: dano ao planeswalker tira lealdade; se ele também é criatura (Gideon no 0), o dano fica marcado (120.3e)
         obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - amt); if (isCreature(s, obj)) marcaDanoEmCriatura(s, src, obj, amt); noteDamaged(s, obj);
-      } else if (obj && amt > 0) { marcaDanoEmCriatura(s, src, obj, amt); noteEnchantedEvent(s, obj, 'recebe-dano'); noteDamaged(s, obj); if (has(s, fonteDoDano(s, src), 'deathtouch')) obj.deathtouched = true; danoDeCombateACriaturaM(s, src, obj); } // M-513
+      } else if (obj && amt > 0) { if (tiposDe(s, obj).includes('planeswalker')) { obj.counters = obj.counters || {}; obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - amt); } /* M-538 · 120.3c/e: o planeswalker-criatura que bloqueia perde lealdade e fica com o dano marcado (achado da revisão) */ marcaDanoEmCriatura(s, src, obj, amt); noteEnchantedEvent(s, obj, 'recebe-dano'); noteDamaged(s, obj); if (has(s, fonteDoDano(s, src), 'deathtouch')) obj.deathtouched = true; danoDeCombateACriaturaM(s, src, obj); } // M-513
       else {
         danoEmJogador(s, src, player, amt); golpesEmJogador.push({ fonte: src, jogador: player });
         darVeneno(s, player, toxicoDe(s, src), null, src.name); // M-253 · 702.164c: dano de combate a jogador com tóxico dá veneno
@@ -21974,6 +21981,7 @@ function dealCombatDamage(s) {
       if (has(s, src, 'lifelink')) vinculo.set(src.oid, { quem: src.controller, n: ((vinculo.get(src.oid) || {}).n || 0) + amt }); // CR2d.10 · CR2b.7
       noteEnchantedDealt(s, src, amt, obj ? null : player); // S48 · Armadillo Cloak: a aura de quem causou o dano é avisada
       if (player != null && !obj) { const q0T = (s.queued || []).length; disparaEvento(s, 'dano-combate', [src]); valorDoDanoDeCombateT(s, q0T, src, amt); } // S18 · dano de combate ao jogador · T-103: "that many" é o dano causado (Toca ponto comum: dano de combate)
+      if ((player != null && !obj) || (obj && tiposDe(s, obj).includes('planeswalker'))) disparaEvento(s, 'dano-combate-jpw', [src]); // M-538 · "to a player or planeswalker" (Psychic Frog): o atacado e o planeswalker-criatura que bloqueia; batalha não conta
       if (player != null && !obj) anelDanoV(s, src); // V-26 · 701.54c (4) (Toca ponto comum: dano de combate)
     }
     for (const v of vinculo.values()) ganhaVidaJogador(s, v.quem, v.n); // CR2b.7 · um ganho por criatura com vínculo vital
@@ -25123,7 +25131,7 @@ function pagamentosDe(s, p, cost, selfOid) {
     multiplica(battlefield(s).filter(x => x.controller === p && s.facts[x.name].types.includes('land') && rx.test(s.facts[x.name].typeText || x.name)).map(x => x.oid), 'land');
   }
   if (cost.returnTapped) multiplica(viradasParaDevolverM(s, p, selfOid), 'devolve'); // M-392 · 702.188a: uma ação por criatura virada (quem paga escolhe)
-  if (cost.exileFromGraveyard) multiplica(s.zones[p].graveyard.filter(x => x !== selfOid && matchesFilter(s, s.objects[x], cost.exileFromGraveyard)), 'exile');
+  if (cost.exileFromGraveyard) { const cgy = s.zones[p].graveyard.filter(x => x !== selfOid && matchesFilter(s, s.objects[x], cost.exileFromGraveyard)), ngy = cost.exileFromGraveyard.amount || 1; multiplica(ngy > 1 ? combinacoes(cgy, ngy) : cgy, 'exile'); } // M-538 · "Exile three cards from your graveyard" (Psychic Frog): uma forma por combinação
   if (cost.craft) multiplica(combinacoes(materiaisDeCraft(s, p, cost.craft, selfOid), cost.craft.amount || 1), 'craft'); // M-356 · 702.167a: quem paga escolhe os materiais
   // Leva 107 · "Reveal X white cards" (Martyr of Sands): quem paga escolhe quantas revela, de 0 ao que tem
   if (cost.revealColor) {
@@ -25202,9 +25210,10 @@ function payExtraCosts(s, p, cost, pay, selfOid) {
   }
   if (cost.exileFromGraveyard) {
     // S32 · exilar do próprio cemitério como custo; sem carta que sirva, a habilidade não acontece
-    const oid = (pay && pay.exile) || s.zones[p].graveyard.find(x => matchesFilter(s, s.objects[x], cost.exileFromGraveyard));
-    if (!oid || !s.zones[p].graveyard.includes(oid) || !matchesFilter(s, s.objects[oid], cost.exileFromGraveyard)) throw new RuleError('custo', 'exile uma carta do seu cemitério como custo');
-    moveObject(s, oid, 'exile');
+    const ngy = cost.exileFromGraveyard.amount || 1; // M-538 · N cartas, todas diferentes, todas do seu cemitério
+    const lgy = ngy > 1 ? [].concat((pay && pay.exile) || s.zones[p].graveyard.filter(x => x !== selfOid && matchesFilter(s, s.objects[x], cost.exileFromGraveyard)).slice(0, ngy)) : [(pay && pay.exile) || s.zones[p].graveyard.find(x => matchesFilter(s, s.objects[x], cost.exileFromGraveyard))];
+    if (lgy.length !== ngy || new Set(lgy).size !== ngy || lgy.some(oid => !oid || !s.zones[p].graveyard.includes(oid) || !matchesFilter(s, s.objects[oid], cost.exileFromGraveyard))) throw new RuleError('custo', ngy > 1 ? `exile ${ngy} cartas do seu cemitério como custo` : 'exile uma carta do seu cemitério como custo');
+    for (const oid of lgy) moveObject(s, oid, 'exile');
   }
   if (cost.craft) { // M-356 · CR 702.167a · exila os materiais escolhidos (permanentes suas e/ou cartas do seu cemitério)
     const n = cost.craft.amount || 1, cands = materiaisDeCraft(s, p, cost.craft, selfOid);
@@ -25241,7 +25250,7 @@ const genericoDoAdicional = (s, o, add) => { const sp = (((s.facts[o.name] || {}
 const canPayExtra = (s, p, cost, selfOid) =>
   (cost.pagarVida == null || s.players[p].life >= cost.pagarVida) && // K-2 · 119.4: só paga a vida que tem
   (cost.crew == null || formasDeTripular(s, p, cost.crew, selfOid).length > 0) &&
-  (!cost.exileFromGraveyard || s.zones[p].graveyard.some(x => matchesFilter(s, s.objects[x], cost.exileFromGraveyard))) &&
+  (!cost.exileFromGraveyard || s.zones[p].graveyard.filter(x => matchesFilter(s, s.objects[x], cost.exileFromGraveyard)).length >= (cost.exileFromGraveyard.amount || 1)) && // M-538
   (!cost.craft || materiaisDeCraft(s, p, cost.craft, selfOid).length >= (cost.craft.amount || 1)) && // M-356
   (!cost.returnLand || !!defaultPayment(s, p, cost, selfOid).land) &&
   (!cost.discard || (s.zones[p].hand.filter(x => x !== selfOid).length >= cost.discard && (!cost.discardNomeT || s.zones[p].hand.some(x => x !== selfOid && s.objects[x].name === cost.discardNomeT)))) && // T-117 · grandeza (Toca ponto comum: canPay)
