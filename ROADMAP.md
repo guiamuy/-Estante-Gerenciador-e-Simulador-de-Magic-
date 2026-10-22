@@ -5368,6 +5368,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nenhum.
 - **Teste:** `lt238.unit` (2 testes; falham no motor anterior).
 
+**M-557 · LT216 · revisão por lote CXCII: Fiery Impulse, Stubborn Denial, Fading Hope, Broadside Barrage** ✅ (leva M-557, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** passam a jogar Fiery Impulse (14 listas do catálogo), Stubborn Denial (15), Fading Hope (3) e Broadside Barrage (25). Textos e rulings da Scryfall consultados em 21-22/10/2026.
+- **Regra:** maestria em feitiços (`se`/`condicaoDoEfeito` `spell-mastery`: duas ou mais instantâneas e/ou feitiços no seu cemitério, conferida na resolução — a própria mágica ainda está na pilha; ruling de Fiery Impulse); ferocidade troca a anulação condicional pela incondicional (`semUnlessSe: 'ferocious'` na anulação com "a menos que pague", conferida na resolução; ruling de 20/09/2014); "If its mana value was 3 or less" (`onlyIf` `alvo-mv-3-ou-menos`: o valor de mana do primeiro alvo antes do efeito, 608.2h, nos dois caminhos de resolução). A pilha explicada passa a dizer o "a menos que o controlador dela pague {N}" de toda anulação condicional (antes omitia).
+- **Revisão independente:** sem divergências de regra (64 sondas e 120 partidas aleatórias: maestria conferida na resolução, só instantâneas e feitiços do seu cemitério; ferocidade na resolução, criatura roubada conta e a do oponente não; Fading Hope devolve à mão do dono, vidência com ficha e com virada para baixo, sem vidência com alvo ilegal; Broadside compra antes de descartar). Três ajustes de texto da mesa corrigidos com teste: a ferocidade explicada na anulação, "do alvo" no lugar de "dela" na vidência, maestria sem parênteses dentro de parênteses
+- **Fora (declarado):** nenhum.
+- **Teste:** `lt239.unit` (4 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
