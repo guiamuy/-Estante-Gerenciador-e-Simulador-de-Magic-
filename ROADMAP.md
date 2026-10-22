@@ -5396,6 +5396,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** mesa de dois jogadores: "your opponents" é o único oponente. Mobilizar põe todas as fichas atacando o mesmo jogador ou planeswalker (o ruling de 04/04/2025 deixa escolher um por ficha) — limitação da palavra-chave, anterior a esta leva; só muda a partida com planeswalker ou batalha do oponente em campo.
 - **Teste:** `lt242.unit` (4 testes; três falham no motor anterior, o outro é o controle "no turno do oponente, conjura").
 
+**M-561 · LT220 · revisão por lote CXCVI: Myriad Landscape** ✅ (leva M-561, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** passa a jogar Myriad Landscape (66 listas do catálogo). Texto da Scryfall consultado em 22/10/2026.
+- **Regra:** "Search your library for up to two basic land cards that share a land type" — a escolha da busca exige um tipo de terreno em comum (205.3i) entre a carta nova e cada uma já escolhida, conferido na oferta e no aceite (`compartilhaTipoM` no `pick`); pode parar em uma ou em nenhuma; as achadas entram viradas.
+- **Revisão independente:** sem divergências (só básicos — comuns, nevados e Wastes —; depois da Floresta, só Floresta e Snow-Covered Forest, recusa Ilha e Wastes; Wastes primeiro não deixa acompanhar nada; 0, 1 ou 2 escolhas; entram viradas; embaralha mesmo com 0; fuzz de 40 partidas sem recusa)
+- **Fora (declarado):** nenhum.
+- **Teste:** `lt243.unit` (3 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

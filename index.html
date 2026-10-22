@@ -10560,6 +10560,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'City of Brass': { texto: 'wrcpwl', leva: 'M-559' },
   // M-560 · revisão por lote CXCV (Voice of Victory: os oponentes não conjuram mágicas no seu turno), texto e rulings da Scryfall de 22/10/2026 UTC, revisor independente
   'Voice of Victory': { texto: '1fcvf2r', leva: 'M-560' },
+  // M-561 · revisão por lote CXCVI (Myriad Landscape: busca dois terrenos básicos com um tipo em comum), texto da Scryfall de 22/10/2026 UTC, revisor independente
+  'Myriad Landscape': { texto: 'tdenw4', leva: 'M-561' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -19221,6 +19223,7 @@ const __m42 = (function () {
     [/^topo_fundo_magia_criatura_pw$/i, () => [{ do: 'topo_ou_fundo_do_dono', target: { zona: 'stack', tipos: ['creature', 'planeswalker'] }, upTo: true, daPilhaM: true }]], // M-533 · Subtlety ("up to one": pode não escolher)
     [/^put (?:it|~) on the bottom of its owner's library$/i, () => [{ do: 'mover', para: 'library', posicao: 'fundo', de: 'graveyard', target: 'self-source' }]], // M-532 · Murderous Rider ("When ~ dies": a carta no cemitério, 603.10a; se já saiu de lá, nada acontece)
     [/^you gain x life and each opponent loses x life, where x is the number of ([a-z]+?)s you control$/i, m => { const sub = m[1][0].toUpperCase() + m[1].slice(1).toLowerCase(); return [{ do: 'gain', amount: { subtype: sub } }, { do: 'lose', amount: { subtype: sub }, target: 'each-opponent' }]; }], // M-532 · Curry Favor (Smitten Swordmaster)
+    [/^search your library for up to two basic land cards that share a land type, put them onto the battlefield tapped$/i, () => [{ do: 'search', amount: 2, filter: { basic: true, types: ['land'] }, to: 'battlefield-tapped', compartilhaTipoM: true }]], // M-561 · Myriad Landscape (205.3i)
     [/^search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand$/i, () => [{ do: 'search', amount: 2, filter: { basic: true, types: ['land'] }, to: 'battlefield-tapped', reparte: ['battlefield-tapped', 'hand'] }]], // M-345 · Cultivate, Kodama's Reach: uma busca de até dois; o primeiro escolhido entra virado, o segundo vai para a mão (achado da revisão: um só entra virado, 609.3)
     [new RegExp(`^~ deals ${N} damage to each of one or two targets$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'any' }, { do: 'damage', amount: num(m[1]), target: 'any', upTo: true }]], // M-345 · Storm of Steel, Prismari Charm (601.2c: alvos diferentes)
     [/^return target artifact or creature card with mana value (\d+) or less from your graveyard to the battlefield$/i, m => [{ do: 'reanimate', target: 'card-in-your-graveyard', targetTypes: ['artifact', 'creature'], targetMvMax: +m[1] }]], // M-400 · Recommission
@@ -23015,7 +23018,7 @@ function applyEffectM449(s, src, eff, tgt, events) {
       if (!from.length) { shuffle(s, s.zones[who].library); note({ amount: 0 }); break; }
       // CR 701.23b: busca por uma qualidade em zona oculta não obriga a achar; sem filtro ("a card"), é obrigatória
       const qualidade = eff.filter && Object.keys(eff.filter).length > 0;
-      startPick(s, { p: who, from, min: eff.optional || qualidade ? 0 : eff.amount, max: eff.amount, to: eff.to || 'hand', rest: 'stay', shuffle: true, filter: eff.filter, label: 'vasculhar', source: src.name, ...(eff.revela ? { revelaEscolhida: true } : {}) /* M-351 · 701.20a: "reveal that card" (Land Grant) */, ...(Array.isArray(eff.reparte) ? { reparte: eff.reparte } : {}), ...(eff.desviraSeTerrenos ? { onPicked: { desviraSeTerrenos: eff.desviraSeTerrenos } } : {}) }, events); // M-343
+      startPick(s, { p: who, from, min: eff.optional || qualidade ? 0 : eff.amount, max: eff.amount, to: eff.to || 'hand', rest: 'stay', shuffle: true, filter: eff.filter, label: 'vasculhar', source: src.name, ...(eff.compartilhaTipoM ? { compartilhaTipoM: true } : {}), ...(eff.revela ? { revelaEscolhida: true } : {}) /* M-351 · 701.20a: "reveal that card" (Land Grant) */, ...(Array.isArray(eff.reparte) ? { reparte: eff.reparte } : {}), ...(eff.desviraSeTerrenos ? { onPicked: { desviraSeTerrenos: eff.desviraSeTerrenos } } : {}) }, events); // M-343
       break;
     }
     case 'transmute_busca': { // Leva 107 · resolução do transmutar: procura uma carta de mesmo valor e embaralha
@@ -24260,6 +24263,10 @@ function matchesFilter(s, o, filter) {
   const types = filter.types || [];
   return !types.length || types.some(x => (f.types || []).includes(x));
 }
+/** M-561 · 205.3i · "that share a land type": a carta nova tem um tipo de terreno em comum com cada uma já escolhida. */
+const TIPOS_DE_TERRENO_M = ['Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 'Desert', 'Gate', 'Lair', 'Locus', 'Mine', 'Power-Plant', 'Tower', 'Urza\'s', 'Cave', 'Sphere', 'Town', 'Planet'];
+const tiposDeTerrenoM = (s, oid) => (String((s.facts[s.objects[oid].name] || {}).typeText || '').split('—')[1] || '').trim().split(/\s+/).filter(x => TIPOS_DE_TERRENO_M.includes(x)); // a linha de tipo impressa (a carta está no grimório)
+const compartilhaTipoM = (s, pk, oid) => !pk.compartilhaTipoM || pk.picked.every(x => { const a = tiposDeTerrenoM(s, x); return tiposDeTerrenoM(s, oid).some(t => a.includes(t)); });
 function startPick(s, spec, events) {
   s.pending = { kind: 'pick', p: spec.p, from: spec.from, picked: [], min: spec.min || 0, max: spec.max,
     to: spec.to, rest: spec.rest || 'stay', shuffle: !!spec.shuffle, filter: spec.filter || null, label: spec.label, source: spec.source,
@@ -24270,6 +24277,7 @@ function startPick(s, spec, events) {
     ...(spec.reparte ? { reparte: spec.reparte } : {}), // M-345
     ...(spec.senaoSacrifica ? { senaoSacrifica: spec.senaoSacrifica } : {}), ...(spec.segura ? { segura: spec.segura } : {}), // M-353 · Mesmeric Fiend // M-349 · Glint Hawk · Cultivate: um destino por ordem de escolha
     ...(spec.revelaEscolhida ? { revelaEscolhida: true } : {}), // M-335 · 701.20a: revela só a carta escolhida
+    ...(spec.compartilhaTipoM ? { compartilhaTipoM: true } : {}), // M-561 · Myriad Landscape: "that share a land type"
     ...(spec.mostrar ? { mostrar: spec.mostrar } : {}), // Leva 107 · mão revelada inteira (Duress)
     ...(spec.depois ? { depois: spec.depois } : {}), // Leva 107 · "se fizer, compre duas" (Highway Robbery)
     ...(spec.onPicked ? { onPicked: spec.onPicked } : {}), // S59 · o que a carta escolhida recebe
@@ -26477,6 +26485,7 @@ const HANDLERS = {
     const pk = s.pending;
     if (!pk.from.includes(a.oid) || pk.picked.includes(a.oid)) throw new RuleError('escolha', 'carta inválida');
     if (!matchesFilter(s, s.objects[a.oid], pk.filter)) throw new RuleError('escolha', 'essa carta não serve para este efeito');
+    if (!compartilhaTipoM(s, pk, a.oid)) throw new RuleError('escolha', 'as cartas precisam ter um tipo de terreno em comum'); // M-561
     if (pk.picked.length >= pk.max) throw new RuleError('escolha', 'já escolheu o máximo');
     pk.picked.push(a.oid);
     // S55 · com exigência de valor de mana, a escolha fecha quando a soma chega lá
@@ -27071,7 +27080,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
     if (k === 'choose_room') (s.pending.options || []).forEach((id, index) => out.push({ t: 'choose_room', p, index, label: (s.pending.labels || [])[index] || id }));
     if (k === 'pick') {
       const pk = s.pending;
-      if (pk.picked.length < pk.max) pk.from.filter(oid => !pk.picked.includes(oid) && matchesFilter(s, s.objects[oid], pk.filter)).forEach(oid => out.push({ t: 'pick', p, oid }));
+      if (pk.picked.length < pk.max) pk.from.filter(oid => !pk.picked.includes(oid) && matchesFilter(s, s.objects[oid], pk.filter) && compartilhaTipoM(s, pk, oid) /* M-561 */).forEach(oid => out.push({ t: 'pick', p, oid }));
       if (pk.picked.length >= pk.min && !(pk.needMv && pickedMv(s, pk) < pk.needMv) && !(pk.tudoOuNada && pk.picked.length)) out.push({ t: 'pick_done', p }); // M-373 · tudo ou nada: depois da primeira, só termina escolhendo o máximo // M-310 · oferta = aceite: colher provas só confirma com o valor de mana somado (o fuzz com listas reais achou a oferta sem ele)
     }
     if (k === 'triggers') s.queued.filter(q => q.controller === p).forEach((q, i) => out.push({ t: 'order_trigger', p, index: i }));
@@ -35363,7 +35372,7 @@ function descreveEfeito(e) {
     case 'energia': return `você ganha ${e.amount === 1 ? 'um marcador' : (e.amount || 1) + ' marcadores'} de energia`; // M-367
     case 'mana_combinada': return e.amount === 1 ? 'adiciona uma mana da cor que você escolher' : `adiciona ${(e.amount || 2) + ' manas'} das cores que você escolher (pode misturar)`; // M-553 · uma mana só não "mistura" // M-357 · 106.1a
     case 'add_mana': if (e.symbols && !e.identity && !e.opponentLands) return `adiciona ${e.symbols.map(c => `{${c}}`).join('')}${e.porContagem ? ` para cada ${({ 'creature-cards-in-your-graveyard': 'carta de criatura no seu cemitério' })[e.porContagem] /* M-428 · "para cada cartas" */ || X_PT[e.porContagem] || 'um'}` : ''}`; /* M-423 · a mana dita (achado da revisão da M-409: "adiciona mana") */ return e.identity ? 'adiciona mana de uma cor da identidade do seu comandante' : e.opponentLands ? 'adiciona mana de uma cor que um terreno de um oponente poderia produzir' : e.anyColor ? 'adiciona mana de qualquer cor' : 'adiciona mana';
-    case 'search': return `procura ${plural(n, 'carta', 'cartas')} no grimório${e.reparte ? ' (a primeira entra virada, a segunda vai para a mão)' : ''}${e.desviraSeTerrenos ? ` (desvira a terra achada se você tiver ${e.desviraSeTerrenos} terrenos ou mais)` : ''}`; // M-343
+    case 'search': return `procura ${plural(n, 'carta', 'cartas')} no grimório${e.compartilhaTipoM ? ' com um tipo de terreno em comum' : ''}${e.reparte ? ' (a primeira entra virada, a segunda vai para a mão)' : ''}${e.desviraSeTerrenos ? ` (desvira a terra achada se você tiver ${e.desviraSeTerrenos} terrenos ou mais)` : ''}`; // M-343
     case 'scry': return `vidência ${n}: olha ${plural(n, 'carta', 'cartas')} de cima e decide o que fica no topo`;
     case 'surveil': return `vigia ${n}`;
     case 'look': { // M-354 · achado da revisão do lote XXVI: dizia "olha as 1 cartas" (contava o que vai para a mão, não o que se olha)
