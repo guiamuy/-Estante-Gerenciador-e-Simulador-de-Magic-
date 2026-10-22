@@ -5375,6 +5375,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nenhum.
 - **Teste:** `lt239.unit` (4 testes; falham no motor anterior).
 
+**M-558 · LT217 · revisão por lote CXCIII: Grim Monolith, Mana Vault, Basalt Monolith** ✅ (leva M-558, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** passam a jogar Mana Vault (129 listas do catálogo), Grim Monolith (72) e Basalt Monolith (18). Textos e rulings da Scryfall consultados em 22/10/2026.
+- **Regra:** o leitor lê "This artifact doesn't untap during your untap step" (`self.naoDesvira`, 502.3); gatilho "At the beginning of your draw step" (`draw-step`, 500.6); custo opcional de mana no gatilho ("you may pay {4}. If you do, …", `mayPay.mana`, 603.5); condição "if this artifact is tapped" (`fonteVirada`, 603.4: ao disparar e ao resolver); "~ deals N damage to you" (dano sem alvo em quem controla a fonte, `target: 'self'`).
+- **Revisão independente:** uma divergência, corrigida com teste: a condição "if this artifact is tapped" conferida na resolução com o Mana Vault já fora do campo (destruído com o gatilho na pilha) agora usa a última informação dele — saiu virado, causa o dano (603.4, 608.2h; vale também para o "if ~ is untapped" do Howling Mine). Conferido sem divergência: não desviram no passo de desvirar (nem roubados), desvirar de outra fonte funciona, {3}/{4} repetíveis, a mana CCC paga o próprio desvirar; Mana Vault pergunta na resolução, sem mana não pergunta, dano é dano (prevenível), controle trocado, só no passo de compra do controlador; fuzz de 80 partidas sem recusa
+- **Fora (declarado):** nenhum.
+- **Teste:** `lt240.unit` (4 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

@@ -5470,7 +5470,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
 
 /** Efeitos que o motor sabe aplicar. Cada um declara os campos que exige. */
 const EFFECTS = {
-  damage: { fields: ['amount'], targets: ['each-player', 'any', 'creature', 'planeswalker', 'player', 'opponent', 'target-controller', 'each-creature', 'each-opponent-creature', 'each-opponent-creature-planeswalker', 'each-own-creature', 'each-opponent', 'each-flying-creature', 'each-nonflying-creature', 'creature-opponent-controls', 'creature-blocked-by-source'] },
+  damage: { fields: ['amount'], targets: ['self' /* M-558 · "deals N damage to you": quem controla a fonte, sem alvo */, 'each-player', 'any', 'creature', 'planeswalker', 'player', 'opponent', 'target-controller', 'each-creature', 'each-opponent-creature', 'each-opponent-creature-planeswalker', 'each-own-creature', 'each-opponent', 'each-flying-creature', 'each-nonflying-creature', 'creature-opponent-controls', 'creature-blocked-by-source'] },
   destroy: { fields: [], targets: ['creature', 'permanent', 'artifact', 'enchantment', 'artifact-enchantment', 'land', 'enchanted-creature', 'enchanted'] },
   exile: { fields: [], targets: ['creature', 'permanent', 'artifact', 'artifact-creature', 'artifact-enchantment-opponent-controls', 'card-in-any-graveyard', 'creature-you-control'] }, // M-222 · Lukka −2: "Exile target creature you control"
   // S45 · o jogador alvo escolhe as cartas do próprio cemitério para exilar
@@ -10551,6 +10551,10 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Stubborn Denial': { texto: '2ot6zh', leva: 'M-557' },
   'Fading Hope': { texto: '74qumr', leva: 'M-557' },
   'Broadside Barrage': { texto: 'ebast8', leva: 'M-557' },
+  // M-558 · revisão por lote CXCIII (Grim Monolith, Mana Vault, Basalt Monolith: artefatos de mana que não desviram no passo de desvirar), textos e rulings da Scryfall de 22/10/2026 UTC, revisor independente
+  'Grim Monolith': { texto: 'vyxtdd', leva: 'M-558' },
+  'Mana Vault': { texto: '1n8q8bv', leva: 'M-558' },
+  'Basalt Monolith': { texto: '11wck46', leva: 'M-558' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -10924,7 +10928,7 @@ MARCADOR_PT.m1m1 = '−1/−1'; // T-112 · auditoria D2: o registro e a pilha d
    As sete fichas de Papel, como a regra 111.10 as define (CR de 25/09/2026): encantamento Aura Role incolor, "enchant creature", e o
    que cada uma dá à criatura encantada. O efeito `papel` (`{ do: 'papel', papel: 'Monster', target }`) cria a ficha anexada ao alvo.
    Condição nova de gatilho: `resistenciaAte: N` ("if its toughness is N or less", conferida ao disparar e ao resolver, 603.4). */
-function condicoesT() { return ['resistenciaAte', 'selada', 'preparada', 'monarca', 'desceu', 'fonteDesvirada', 'primeiraManutencao', 'encantadaSubtipo', 'tinhaMarcadores']; } // T-120 · "if it had counters on it" // T-114 · "if enchanted creature is a Wolf or Werewolf" // T-101 · "if ~ is untapped", "first upkeep each turn" // T-84 · desceu: "if you descended this turn" (700.11, 603.4) // T-62 · monarca: "if you're the monarch" ('voce') / "if an opponent is the monarch" ('oponente') (725.5, 603.4) // T-51 · preparada: "if this creature is (isn't) prepared" (722.3a) // T-31 · selada: "attacks while saddled" (702.171b) // função (içada): o validador roda na carga do módulo, antes desta linha
+function condicoesT() { return ['resistenciaAte', 'selada', 'preparada', 'monarca', 'desceu', 'fonteDesvirada', 'fonteVirada' /* M-558 */, 'primeiraManutencao', 'encantadaSubtipo', 'tinhaMarcadores']; } // T-120 · "if it had counters on it" // T-114 · "if enchanted creature is a Wolf or Werewolf" // T-101 · "if ~ is untapped", "first upkeep each turn" // T-84 · desceu: "if you descended this turn" (700.11, 603.4) // T-62 · monarca: "if you're the monarch" ('voce') / "if an opponent is the monarch" ('oponente') (725.5, 603.4) // T-51 · preparada: "if this creature is (isn't) prepared" (722.3a) // T-31 · selada: "attacks while saddled" (702.171b) // função (içada): o validador roda na carga do módulo, antes desta linha
 /* ---------------- T-62 · CR 725.5 · o monarca nas condições (forma do script) ----------------
    Gatilho: `condition: { monarca: 'voce' | 'oponente' }` ("if you're the monarch" / "if an opponent is the monarch", conferida ao
    disparar e ao resolver, 603.4). Efeito: `onlyIf: 'monarca' | 'oponente-monarca'` e `amount: { per: 'se', se: 'monarca', sim, nao }`
@@ -10940,7 +10944,7 @@ function monarcaErrosT(sc) {
   for (const ab of abs) if (ab && ab.umaVezPorTurno != null && (ab.umaVezPorTurno !== true || ab.kind !== 'triggered' || !['crime', 'artefatos-saem-seu-turno' /* M-546 */].includes(ab.when))) errs.push('"umaVezPorTurno" só vale como true, num gatilho "crime" ou de artefatos que saem'); // T-86 · 603.2h
   for (const ab of abs) if (ab && ab.kind === 'triggered' && ab.when === 'expend' && !(Number.isInteger(ab.n) && ab.n >= 1)) errs.push('gatilho "expend": "n" é um inteiro, 1 ou mais (o N de "whenever you expend N")'); // T-85
   if (sc && sc.self && sc.self.atacaSeMonarcaDefende != null && sc.self.atacaSeMonarcaDefende !== true) errs.push('self.atacaSeMonarcaDefende só vale como true'); // T-70
-  for (const ab of ((sc && sc.abilities) || [])) for (const k of ['fonteDesvirada', 'primeiraManutencao', 'tinhaMarcadores']) if (ab && ab.condition && ab.condition[k] != null && ab.condition[k] !== true) errs.push(`condição ${k} só vale como true`); // T-101
+  for (const ab of ((sc && sc.abilities) || [])) for (const k of ['fonteDesvirada', 'fonteVirada' /* M-558 */, 'primeiraManutencao', 'tinhaMarcadores']) if (ab && ab.condition && ab.condition[k] != null && ab.condition[k] !== true) errs.push(`condição ${k} só vale como true`); // T-101
   for (const ab of ((sc && sc.abilities) || [])) { const v = ab && ab.condition && ab.condition.encantadaSubtipo; if (v != null && !(Array.isArray(v) && v.length && v.every(x => typeof x === 'string' && x.trim()))) errs.push('condição encantadaSubtipo: lista de subtipos ("Wolf", "Werewolf")'); } // T-114
   if (sc && sc.self && sc.self.firebendingX != null && !PER_COUNTS.includes(sc.self.firebendingX)) errs.push('self.firebendingX é uma contagem conhecida (power-of-source, creatures-you-control…)'); // T-100 · 702.189
   for (const e of [...((sc && sc.effects) || []), ...((sc && sc.abilities) || []).flatMap(ab => ab.effects || [])]) if (e && e.do === 'pula' && (!['desvirar', 'compra', 'combate', 'turno'].includes(e.o) || (e.quando != null && (e.o !== 'combate' || !['neste-turno', 'todas-do-proximo-turno'].includes(e.quando))))) errs.push("pula: o é 'desvirar', 'compra', 'combate' ou 'turno'; quando ('neste-turno' | 'todas-do-proximo-turno') só no combate"); // T-99
@@ -19230,7 +19234,8 @@ const __m42 = (function () {
     [new RegExp(`^add ${N} mana in any combination of colors$`, 'i'), m => [{ do: 'mana_combinada', amount: num(m[1]) }]], // M-357 · 106.1a (Manamorphose)
     [/^return an? (permanent|land|creature) you control to its owner's hand$/i, m => [{ do: 'return_chosen', target: 'self', ...(m[1].toLowerCase() !== 'permanent' ? { filter: { types: [m[1].toLowerCase()] } } : {}) }]], // LT12
     [new RegExp(`^~ deals ${N} damage to that (artifact|creature|permanent|enchantment)'s controller$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'target-controller' }]], // LT12
-    [new RegExp(`^~ deals ${N} damage to that spell's controller$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'that-player' }]], // M-322 · quem controla a mágica que disparou
+    [new RegExp(`^~ deals ${N} damage to that spell's controller$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'that-player' }]],
+    [new RegExp(`^~ deals ${N} damage to you$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'self' }]], // M-558 · Mana Vault (sem alvo: quem controla a fonte) // M-322 · quem controla a mágica que disparou
     [new RegExp(`^~ deals ${N} damage to each opponent and each creature and planeswalker they control$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'each-opponent' }, { do: 'damage', amount: num(m[1]), target: 'each-opponent-creature-planeswalker' }]], // LT12
     [new RegExp(`^~ deals ${N} damage to each creature with flying$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'each-flying-creature' }]], // LT9
     [/^venture into the dungeon$/i, () => [{ do: 'venture' }]], // LT9 · 701.49
@@ -19335,6 +19340,7 @@ const __m42 = (function () {
     [/^whenever (?:equipped|enchanted) creature attacks$/i, { evento: 'ataca', objeto: 'anexada' }], // M-401 · Greatsword of Tyr
     [/^whenever (this creature|~) blocks$/i, 'blocks'],
     [/^at the beginning of your upkeep$/i, 'upkeep'],
+    [/^at the beginning of your draw step$/i, 'draw-step'], // M-558 · Mana Vault (500.6)
     [/^at the beginning of your end step$/i, 'end-step'],
     [/^at the beginning of combat on your turn$/i, 'begin-combat'],
     [/^whenever enchanted creature deals damage$/i, 'enchanted-deals-damage'],
@@ -19499,12 +19505,16 @@ const __m42 = (function () {
     if (s2m) { condicao = { segundaMagiaDoTurno: true }; resto2 = s2m[1]; }
     const sn = !condicao && resto2.match(/^if you control no tapped lands, (.+)$/i); // M-373 · 603.4 (Martyr's Soul)
     if (sn) { condicao = { semTerrenoVirado: true }; resto2 = sn[1]; }
+    const sft = !condicao && resto2.match(/^if (?:~|this (?:artifact|creature|land|permanent)) is (tapped|untapped), (.+)$/i); // M-558 · Mana Vault: "if this artifact is tapped" (603.4)
+    if (sft) { condicao = sft[1].toLowerCase() === 'tapped' ? { fonteVirada: true } : { fonteDesvirada: true }; resto2 = sft[2]; }
     const scj = !condicao && resto2.match(/^if you cast it, (.+)$/i); // M-545 · Sunderflock (603.4)
     if (scj) { condicao = { conjuradaM: true }; resto2 = scj[1]; }
     const sr = !condicao && resto2.match(/^if a permanent you controlled left the battlefield this turn, (.+)$/i); // M-514 · revolta (603.4)
     if (sr) { condicao = { saiuPermanenteNoTurno: true }; resto2 = sr[1]; }
     let mayPayM = null, textoMayPayM = ''; const mps = resto2.match(/^you may sacrifice another (creature or artifact|artifact or creature|creature|artifact)\. if you do, (.+)$/i); // M-544 · The Sackville-Bagginses (custo opcional do gatilho)
     if (mps) { mayPayM = { sacrificeOther: { types: mps[1].toLowerCase().split(' or ') } }; textoMayPayM = resto2.slice(0, resto2.length - mps[2].length).replace(/\.?\s*if you do,\s*$/i, ''); resto2 = mps[2]; }
+    const mpm = !mps && resto2.match(/^you may pay ((?:\{[0-9WUBRGC]\})+)\. if you do, (.+)$/i); // M-558 · Mana Vault: "you may pay {4}. If you do, untap this artifact" (603.5)
+    if (mpm) { mayPayM = { mana: mpm[1] }; textoMayPayM = `you may pay ${mpm[1]}`; resto2 = mpm[2]; }
     const opcional = /^you may /i.test(resto2);
     let corpo = resto2.replace(/^you may /i, ''); const anexada = !!(g[1] && g[1].objeto === 'anexada'); if (!anexada) corpo = corpo.replace(/^it /i, '~ '); // M-401 · sob "Whenever enchanted/equipped creature …", "it" é a hospedeira, não a carta (Extra Arms)
     if (/(this creature|~)/i.test(cab) && !/\btarget\b/i.test(corpo)) corpo = corpo.replace(/ on it$/i, ' on ~'); // M-322 · "put a +1/+1 counter on it": "it" é a própria permanente da abertura
@@ -19763,6 +19773,7 @@ const __m42 = (function () {
         if (/^(?:this land|~) enters(?: the battlefield)? tapped unless you control two or more other lands$/i.test(lp)) { topo.entersTappedUnless = { minOutrasTerras: 2 }; frases.push({ texto: linha, lida: true }); continue; } // M-340 · terras lentas
         if (/^(?:this land|~) enters(?: the battlefield)? tapped unless you control two or more basic lands$/i.test(lp)) { topo.entersTappedUnless = { minBasicos: 2 }; frases.push({ texto: linha, lida: true }); continue; } // M-340 · terras de batalha
         if (/^~ can't block$/i.test(lp)) { topo.self = { ...(topo.self || {}), naoBloqueia: true }; frases.push({ texto: linha, lida: true }); continue; } // M-340 · 509.1a
+        if (/^(?:~|this (?:artifact|creature|land|permanent)) doesn't untap during your untap step$/i.test(lp)) { topo.self = { ...(topo.self || {}), naoDesvira: true }; frases.push({ texto: linha, lida: true }); continue; } // M-558 · 502.3 (Grim Monolith, Mana Vault)
         if (/^~ attacks each combat if able$/i.test(lp)) { topo.self = { ...(topo.self || {}), atacaSePuder: true }; frases.push({ texto: linha, lida: true }); continue; } // M-430 · 508.1d: exigência de atacar (Monstrous Carabid, Ulamog's Crusher)
         const hz = lp.match(/^\{T\}, Pay (\d+) life: Add (?:(\{[WUBRG]\})(?: or (\{[WUBRG]\}))?|(one mana of any color))$/); // M-342 · 106.12 / 119.4: Horizon lands, Starting Town
         if (hz && !topo.manaRule) { const cs = hz[4] ? ['W', 'U', 'B', 'R', 'G'] : [hz[2], hz[3]].filter(Boolean).map(x => x[1]); topo.produces = [...(topo.produces || []), ...cs.map(c => [c])]; topo.manaRule = { colors: cs.join(''), life: +hz[1] }; coresVida.push(...cs); frases.push({ texto: linha, lida: true }); continue; }
@@ -24761,6 +24772,7 @@ function triggerConditionMet(s, o, cond) {
   if (cond.saiuPermanenteNoTurno && !(s.saidaNoTurnoM && s.saidaNoTurnoM[o.controller] === s.turn.number)) return false; // M-514 · revolta: "if a permanent you controlled left the battlefield this turn" (603.4: ao disparar e ao resolver)
   if (cond.selada && !seladaAgoraT(s, o)) return false; // T-31 · CR 702.171b: "while saddled" (Toca ponto comum: triggerConditionMet)
   if (cond.fonteDesvirada && o.tapped) return false; // T-101 · 603.4 · "if ~ is untapped" (Howling Mine) (Toca ponto comum: triggerConditionMet)
+  if (cond.fonteVirada && !o.tapped) return false; // M-558 · 603.4 · "if this artifact is tapped" (Mana Vault)
   if (cond.primeiraManutencao && s.emPassoExtraT === 'upkeep') return false; // T-101 · 500.9 · "first upkeep each turn" (Paradox Haze)
   if (cond.tinhaMarcadores && !Object.values((o.fotoT ? o.fotoT.counters : o.zone === 'battlefield' ? o.counters : (o.ultima || {}).counters) || {}).some(n => n > 0)) return false; // T-120 · 603.4 / 603.10a: "if it had counters on it" (a foto de quando saiu) (Toca ponto comum: triggerConditionMet)
   if (cond.encantadaSubtipo && !encantadaTemSubtipoT(s, o, cond.encantadaSubtipo)) return false; // T-114 · 603.4 · "if enchanted creature is a Wolf or Werewolf" (Toca ponto comum: triggerConditionMet)
@@ -27532,7 +27544,7 @@ function resolveAbility(s, o, events) {
   if (o.condicao && !o.condicaoConferida) {
     const viva = s.objects[o.source], r = o.fonteRetrato;
     // CR2b.6 · 603.4 / 608.2h: se a fonte mudou de zona, a condição usa a última informação conhecida dela (o retrato do disparo)
-    const fonte = viva && r && (viva.zc || 0) !== r.zc ? (({ zc, ...m }) => ({ ...viva, kicked: undefined, bargained: undefined, evidenced: undefined, faceDown: undefined, ...m }))(r) : viva;
+    const fonte = viva && r && (viva.zc || 0) !== r.zc ? (({ zc, ...m }) => ({ ...viva, kicked: undefined, bargained: undefined, evidenced: undefined, faceDown: undefined, tapped: !!(viva.ultima || {}).tapped /* M-558 · virada ou não, como saiu do campo (achado da revisão: Mana Vault destruído com o gatilho na pilha) */, ...m }))(r) : viva;
     // "atacou com três ou mais" é informação do combate que já passou: vale o que foi visto no disparo
     const { attackersAtLeast, atacaSozinha, entrouDesvirada, monarca, ferociousAoDisparar, conjuradaM, ...resto } = o.condicao; // M-545 · "if you cast it" não deixa de ser verdade: conferido no disparo // M-455 · o "while" da ferocidade também é do disparo // M-252 · "ataca sozinha" também é do disparo · M-349 · "entra desvirada" idem · T-64 · o monarca é do controlador da habilidade (abaixo)
     if ((fonte && !triggerConditionMet(s, o.hostOid || o.fotoT ? { ...fonte, ...(o.hostOid ? { hostT: { oid: o.hostOid, z: o.hostZc } } : {}), ...(o.fotoT ? { fotoT: o.fotoT } : {}) } : fonte, resto)) /* T-118 · 603.4 com a encantada do disparo (Toca ponto comum: resolveAbility) */ || (monarca && !monarcaCondT(s, o.controller, monarca))) { events.push({ kind: 'trigger-fizzled', name: o.name, when: 'condição' }); return; } // T-64 · CR 603.4 / 109.5: o "você" é quem controla a habilidade (Toca ponto comum: resolveAbility)
@@ -35521,7 +35533,7 @@ const faixaDoDadoPT_T = (e, f) => !f || !e || !e.faixaDoDado ? f : `${f} (${e.fa
 Object.assign(CONDICAO_PT, { 'dado-duplos': 'se os dois dados derem o mesmo número' }); // T-66 · CR 706.5
 Object.assign(CONDICAO_PT, { tinhaMarcadores: 'se ela tinha marcadores' }); // T-120
 Object.assign(CONDICAO_PT, { encantadaSubtipo: 'se a criatura encantada é do subtipo pedido' }); // T-114
-Object.assign(CONDICAO_PT, { fonteDesvirada: 'se esta permanente está desvirada', primeiraManutencao: 'só na primeira manutenção do turno' }); // T-101
+Object.assign(CONDICAO_PT, { fonteVirada: 'se esta permanente está virada' /* M-558 */, fonteDesvirada: 'se esta permanente está desvirada', primeiraManutencao: 'só na primeira manutenção do turno' }); // T-101
 Object.assign(CONDICAO_PT, { desceu: 'se você desceu neste turno (uma carta de permanente foi para o seu cemitério)' }); // T-84 · CR 700.11
 Object.assign(CONDICAO_PT, { monarca: 'se você é o monarca', 'oponente-monarca': 'se um oponente é o monarca', 'ganhou-moeda': 'se ganhar o lance', 'perdeu-moeda': 'se perder o lance', 'deu-cara': 'se der cara', 'deu-coroa': 'se der coroa' }); // T-62 · CR 725.5
 const descreveEfeitos = effects => (effects || []).map(e => { let f = descreveEfeito(e); const xp = e && e.amount && X_PT[e.amount.per]; if (f && xp && /\bX\b/.test(f)) f = `${f} (X = ${xp})`; f = faixaPT_T(e, f); /* T-66 */ return f && e.onlyIf && CONDICAO_PT[e.onlyIf] ? `${f} (${CONDICAO_PT[e.onlyIf]})` : f; }).filter(Boolean).join('; ');
