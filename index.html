@@ -10555,6 +10555,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Grim Monolith': { texto: 'vyxtdd', leva: 'M-558' },
   'Mana Vault': { texto: '1n8q8bv', leva: 'M-558' },
   'Basalt Monolith': { texto: '11wck46', leva: 'M-558' },
+  // M-559 · revisão por lote CXCIV (City of Brass: dano a quem controla toda vez que vira), texto e rulings da Scryfall de 22/10/2026 UTC, revisor independente
+  'City of Brass': { texto: 'wrcpwl', leva: 'M-559' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -19340,6 +19342,7 @@ const __m42 = (function () {
     [/^whenever (?:equipped|enchanted) creature attacks$/i, { evento: 'ataca', objeto: 'anexada' }], // M-401 · Greatsword of Tyr
     [/^whenever (this creature|~) blocks$/i, 'blocks'],
     [/^at the beginning of your upkeep$/i, 'upkeep'],
+    [/^whenever (?:~|this (?:land|artifact|creature|permanent)) becomes tapped$/i, { evento: 'vira' }], // M-559 · City of Brass (qualquer jeito de virar; virar ao entrar não é "tornar-se virada")
     [/^at the beginning of your draw step$/i, 'draw-step'], // M-558 · Mana Vault (500.6)
     [/^at the beginning of your end step$/i, 'end-step'],
     [/^at the beginning of combat on your turn$/i, 'begin-combat'],
