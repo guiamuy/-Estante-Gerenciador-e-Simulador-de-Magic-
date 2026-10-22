@@ -318,3 +318,33 @@ test('MJ4b · marcas da prévia: vida que muda vira número no marcador (letal q
   assert.deepEqual(J(S.marcasDaPrevia({ life: [0, 0], vida: [20, 20], mortos: [] })), [], 'nada muda: nenhuma marca');
   assert.deepEqual(J(S.marcasDaPrevia(null)), [], 'prévia inválida (bloqueio que a ameaça não aceita): nada');
 });
+
+test('MJ5 · monte da pilha: até três miniaturas, do fundo para o topo, com o topo marcado; a virada para baixo fica de verso', () => {
+  const it = (oid, extra = {}) => ({ oid, imagemDe: 'Carta ' + oid, topo: false, habilidade: false, ...extra });
+  const itens = [it(9, { topo: true }), it(8, { habilidade: true }), it(7, { imagemDe: null }), it(6)]; // explicaPilha: topo primeiro
+  assert.deepEqual(J(S.monteDaPilha(itens)), [
+    { oid: '7', imagemDe: null, topo: false, habilidade: false },
+    { oid: '8', imagemDe: 'Carta 8', topo: false, habilidade: true },
+    { oid: '9', imagemDe: 'Carta 9', topo: true, habilidade: false }], 'a quarta (a mais funda) não aparece; o topo é o último desenhado, por cima');
+  assert.deepEqual(J(S.monteDaPilha([it(1, { topo: true })])).map(m => m.oid), ['1']);
+  assert.deepEqual(J(S.monteDaPilha()), []);
+});
+
+test('MJ5 · quem desce da pilha: a mágica que saiu para cemitério, exílio, mão ou grimório; não a que ficou, nem o permanente, nem a habilidade ou a cópia que deixaram de existir', () => {
+  const s = st([ob(1, 'graveyard'), ob(2, 'exile'), ob(3, 'battlefield'), ob(4, 'stack'), ob(5, 'hand'), ob(6, 'library'), ob(8, 'graveyard', { ability: true })], { stack: [4] });
+  assert.deepEqual(J(S.saidasDaPilha([1, 2, 3, 4, 5, 6, 7, 8], s)), ['1', '2', '5', '6'], '7 (cópia) e 8 (habilidade) não descem; 3 vai pela chegada ao campo; 4 continua na pilha');
+  assert.deepEqual(J(S.saidasDaPilha(['1'], s)), ['1'], 'oid como texto ou número');
+  assert.deepEqual(J(S.saidasDaPilha([], s)), []);
+  assert.deepEqual(J(S.saidasDaPilha([1], null)), []);
+});
+
+test('MJ5 · plano de voo: o permanente que resolve sai da miniatura dele no monte (do tamanho da largura dela), não da faixa inteira', () => {
+  const cx = (x, y, w, h) => ({ x, y, w, h });
+  const pilha = { caixa: cx(20, 380, 200, 44), caixas: { 9: cx(30, 386, 23, 32) }, oids: [9, 4] };
+  const p = J(S.planoDeVoo({ pilha, chegaram: [{ oid: 9, caixa: cx(100, 200, 76, 106) }, { oid: 4, caixa: cx(200, 200, 76, 106) }] }));
+  assert.deepEqual(p.map(x => [x.oid, x.origem]), [['9', 'pilha'], ['4', 'pilha']]);
+  assert.deepEqual([p[0].dx, p[0].dy, p[0].escala], [Math.round(41.5 - 138), 402 - 253, Math.round(23 / 76 * 1000) / 1000], 'do centro da miniatura, na largura dela');
+  assert.deepEqual([p[1].dx, p[1].dy, p[1].escala], [120 - 238, 402 - 253, Math.round(44 / 106 * 1000) / 1000], 'sem miniatura à vista: da faixa, como antes');
+  const semCaixa = J(S.planoDeVoo({ pilha: { ...pilha, caixas: { 9: cx(0, 0, 0, 0) } }, chegaram: [{ oid: 9, caixa: cx(100, 200, 76, 106) }] }));
+  assert.equal(semCaixa[0].escala, Math.round(44 / 106 * 1000) / 1000, 'miniatura sem caixa (fora da tela): cai para a faixa');
+});

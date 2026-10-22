@@ -2291,7 +2291,10 @@ async function auditaTela(page, nome) {
     const alvoDe = el => { const d = getComputedStyle(el, '::after'); const esticado = d.content !== 'none' && d.position === 'absolute' && d.top === '0px' && d.bottom === '0px' && d.left === '0px' && d.right === '0px';
       return (esticado && el.offsetParent ? el.offsetParent : el).getBoundingClientRect(); };
     const pequenos = [...document.querySelectorAll('button, [role="button"], a[href], input:not([type="hidden"]):not([type="file"]):not(.ds-hidden), select, textarea, .ds-chip')]
-      .filter(el => vis(el) && !el.closest('.tb-card__pills') && !el.closest('.tb-peek') && !el.classList.contains('tb-peek__acao'))
+      .filter(el => vis(el) && !el.closest('.tb-card__pills') && !el.closest('.tb-peek') && !el.classList.contains('tb-peek__acao')
+        // MJ5 (J-14) · a camada de efeitos (#tb-fx) é desenho: sem toque, fora do leitor de tela; a foto que voa é uma cópia
+        // desativada da carta e encolhe até o alvo (a miniatura do monte tem 32 px) — não é alvo de toque
+        && !el.closest('#tb-fx'))
       .filter(el => alvoDe(el).height < 43.5)
       .map(el => (el.id ? '#' + el.id : '') + '.' + String(el.className).split(' ')[0] + ' «' + (el.getAttribute('aria-label') || el.textContent || '').trim().slice(0, 24) + '» ' + Math.round(alvoDe(el).height) + 'px');
     const larguraDoc = document.documentElement.scrollWidth, larguraTela = window.innerWidth;
@@ -13625,7 +13628,8 @@ test('e2e · MJ3b a carta que sai do campo ou da mão voa até o contador da zon
   const [pre] = await ids('Preordain', 'hand');
   const cast = await sai(pre, null, '#tb-cemiterio-me', 'cast');
   const naPilha = cast.zona === 'stack'; t.diagnostic(`MJ3b · Preordain conjurado foi para: ${cast.zona}`);
-  if (naPilha) cast.alvo = await page.evaluate(() => { const r = document.querySelector('#tb-stack-btn').getBoundingClientRect(); return { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width, h: r.height }; });
+  // MJ5 (J-14) · expectativa mudou de propósito: na pilha, a carta pousa na miniatura dela no monte da faixa, não no meio da faixa
+  if (naPilha) cast.alvo = await page.evaluate(oid => { const r = (document.querySelector(`#tb-stack-btn .tb-stack__mini[data-oid="${oid}"]`) || document.querySelector('#tb-stack-btn')).getBoundingClientRect(); return { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width, h: r.height }; }, pre);
   confere(cast, `mágica conjurada (${cast.zona})`, new RegExp(`(^| )conjura:${naPilha ? 'stack' : 'graveyard'}:${pre}( |$)`));
   // 6 · o toque na mesa conclui o voo na hora
   await segue(); await page.evaluate(() => { document.querySelector('#tb').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); });
@@ -13913,5 +13917,117 @@ test('e2e · MJ4b prévia junto da seta: dano previsto no marcador de vida e mar
   await page.evaluate(() => { const M = window.__estanteMesa; for (let i = 0; i < 20; i++) { const e = M.estado(); if (!['combat_blockers', 'combat_damage', 'combat_end'].includes(e.turn.step) || e.pending) break; M.act({ t: 'pass', p: e.turn.priority }); } });
   await reveal(page);
   assert.equal(await page.locator('#tb-previa').count(), 0, 'fora do combate, sem prévia');
+  assert.deepEqual(errors, []);
+});
+
+// MJ5 (leva J-14, trilha jogabilidade) · pilha com profundidade: a faixa mostra o monte (até três miniaturas, o topo
+// levantado, o topo novo sobe); a mágica que resolve ou é anulada desce do monte até o contador da zona; o permanente que
+// resolve voa da miniatura dele até o campo; o toque conclui; movimento reduzido não move; zero pixel de campo
+test('e2e · MJ5 pilha com profundidade: monte de miniaturas com o topo levantado; o que resolve desce do monte ao destino; zero pixel de campo; movimento reduzido não move', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 }); // o aparelho do dono
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start');
+  await page.fill('#mesa-seed', '4'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  await page.waitForSelector('#tb-pass');
+  const toca = () => page.evaluate(() => document.querySelector('#tb').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
+  // mesa assistida: terrenos no campo e as mágicas do teste na mão
+  const c = await page.evaluate(() => { const M = window.__estanteMesa, s = M.estado(), p = s.turn.active;
+    const pega = (nm, n) => Object.values(s.objects).filter(o => o.owner === p && o.name === nm && o.zone === 'library').slice(0, n).map(o => o.oid);
+    for (const oid of pega('Island', 4)) M.act({ t: 'move', p, oid, to: 'battlefield' });
+    const delvers = pega('Delver of Secrets', 3), counters = pega('Counterspell', 4); // a quarta fica na mão: com resposta possível a mesa não passa sozinha
+    for (const oid of [...delvers, ...counters]) M.act({ t: 'move', p, oid, to: 'hand' });
+    return { p, delvers, counters }; });
+  await toca(); await page.waitForTimeout(450);
+  const meuLado = () => page.evaluate(() => Math.round(document.querySelector('.tb-side--me').getBoundingClientRect().top + scrollY));
+  const semPilha = await meuLado();
+  const monte = () => page.evaluate(() => { const f = document.querySelector('#tb-stack-btn'); if (!f) return { semFaixa: JSON.stringify({ st: window.__estanteMesa.estado().stack, toast: (document.querySelector('#ds-toast') || {}).textContent, cena: window.__estanteMesa.cena() }) };
+    const ms = [...f.querySelectorAll('.tb-stack__mini')], r = el => { const b = el.getBoundingClientRect(); return { x: b.left, y: b.top, w: b.width, h: b.height }; };
+    return { faixa: r(f), conta: f.querySelector('.tb-stack__conta').textContent, sobe: f.querySelector('.tb-stack__monte').classList.contains('tb-stack__monte--sobe'),
+      oculto: f.querySelector('.tb-stack__monte').getAttribute('aria-hidden'), rotulo: f.getAttribute('aria-label'),
+      minis: ms.map(m => ({ oid: m.dataset.oid, topo: m.dataset.topo === 'true', ...r(m), img: !!m.querySelector('img') })) }; });
+  const conjura = (oid, alvo) => page.evaluate(([p, oid, alvo]) => window.__estanteMesa.act({ t: 'cast', p, oid, ...(alvo != null ? { targets: [{ oid: alvo }] } : {}), free: true }), [c.p, oid, alvo]);
+  // 1 · Delver na pilha, Counterspell nele, Counterspell no Counterspell, e mais um: o monte cresce até três, o topo sobe
+  const [d0, d1, d2] = c.delvers, [k0, k1, k2] = c.counters;
+  await conjura(d0); await toca();
+  await page.waitForTimeout(250); // o topo novo termina de subir (180 ms)
+  let m = await monte();
+  assert.ok(m && m.minis.length === 1 && m.minis[0].oid === String(d0) && m.minis[0].topo && m.sobe, 'uma mágica: uma miniatura, topo, que sobe ' + JSON.stringify(m));
+  assert.equal(m.oculto, 'true', 'o monte é desenho: o nome falado da faixa continua dizendo o topo');
+  assert.match(m.rotulo, /^Pilha, 1: Delver of Secrets/);
+  for (const [k, alvo, n] of [[k0, d0, 2], [k1, k0, 3], [k2, k1, 4]]) {
+    await conjura(k, alvo); await toca(); await page.waitForTimeout(250); m = await monte();
+    assert.ok(m.minis, `${n} na pilha: a faixa está à vista ${JSON.stringify(m)}`);
+    const topo = m.minis[m.minis.length - 1], baixo = m.minis[0];
+    assert.equal(m.conta, String(n)); assert.equal(m.minis.length, Math.min(n, 3), `${n} na pilha: até três miniaturas`);
+    assert.ok(topo.oid === String(k) && topo.topo && m.minis.filter(x => x.topo).length === 1 && m.sobe, `o Counterspell novo é o topo e sobe ${JSON.stringify(m)}`);
+    assert.ok(topo.y <= baixo.y - 2 && topo.x > baixo.x, `o topo fica levantado e à frente ${JSON.stringify(m)}`);
+    assert.ok(m.minis.every(x => Math.abs(x.w / x.h - 488 / 680) < 0.03 && x.y >= m.faixa.y && x.y + x.h <= m.faixa.y + m.faixa.h), 'miniaturas na proporção da carta, dentro da faixa ' + JSON.stringify(m));
+    assert.ok(m.faixa.h >= 44 && m.faixa.h <= 46, 'a faixa continua com 44 px');
+  }
+  assert.equal(await meuLado(), semPilha, 'zero pixel de campo: a pilha com quatro não mexe no seu lado');
+  // sem mudar o topo, o desenho seguinte não sobe de novo
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light')); await toca();
+  await page.evaluate(() => window.__estanteMesa.act({ t: 'move', p: window.__estanteMesa.estado().turn.active, oid: Object.values(window.__estanteMesa.estado().objects).find(o => o.zone === 'library' && o.name === 'Island').oid, to: 'hand' }));
+  assert.equal((await monte()).sobe, false, 'o topo é o mesmo: sem subir de novo');
+  for (const tema of ['light', 'dark']) { await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(250); await auditaTela(page, `MJ5 · monte de quatro 360 ${tema}`); }
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/mj5-monte.png' });
+  // 2 · no detalhe aberto, o cartão do topo também fica levantado
+  await page.click('#tb-stack-btn'); await page.waitForSelector('#tb-stack-painel', { state: 'visible' }); await page.waitForTimeout(250);
+  const painel = await page.evaluate(() => [...document.querySelectorAll('#tb-stack-painel .tb-stack__item')].map(li => ({ topo: li.dataset.top, t: getComputedStyle(li.querySelector('.tb-stack__card > .tb-card')).transform })));
+  assert.ok(painel[0].topo === 'true' && painel[0].t !== 'none' && painel.slice(1).every(x => x.t === 'none'), 'só o cartão do topo levantado ' + JSON.stringify(painel));
+  await auditaTela(page, 'MJ5 · detalhe aberto 360');
+  await page.keyboard.press('Escape');
+  // 3 · resolve: cada mágica que sai da pilha para o cemitério desce do lugar dela no monte até o contador
+  const resolve = () => page.evaluate(() => {
+    const M = window.__estanteMesa, caixa = el => { if (!el) return null; const r = el.getBoundingClientRect(); return { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width, h: r.height }; };
+    const minis = Object.fromEntries([...document.querySelectorAll('#tb-stack-btn .tb-stack__mini')].map(x => [x.dataset.oid, caixa(x)]));
+    const antes = M.estado().stack.length, t0 = performance.now();
+    M.act({ t: 'pass', p: M.estado().turn.priority });
+    const ms = Math.round((performance.now() - t0) * 10) / 10, voos = document.querySelector('#tb').dataset.voos || '';
+    const fotos = [...document.querySelectorAll('.tb-voo[data-desce]')].map(f => { const a = f.getAnimations()[0]; a.pause(); const dur = a.effect.getTiming().duration;
+      const props = [...new Set(a.effect.getKeyframes().flatMap(k => Object.keys(k).filter(x => !['offset', 'easing', 'composite', 'computedOffset'].includes(x))))];
+      a.currentTime = 0; const inicio = caixa(f); a.currentTime = dur * 0.85; const pouso = caixa(f); a.play();
+      return { oid: f.dataset.desce, inicio, pouso, dur, props, pos: getComputedStyle(f).position }; });
+    return { minis, antes, depois: M.estado().stack.length, voos, fotos, cemiterio: caixa(document.querySelector('#tb-cemiterio-me')), ms };
+  });
+  const perto = (a, b, tol = 6) => a && b && Math.hypot(a.cx - b.cx, a.cy - b.cy) <= tol;
+  const desceram = new Set();
+  for (let i = 0; i < 8 && (await page.evaluate(() => window.__estanteMesa.estado().stack.length)); i++) {
+    const r = await resolve(); t.diagnostic(`medida · MJ5 jogada que resolve da pilha (${r.antes} → ${r.depois}): ${r.ms} ms · ${r.voos}`);
+    for (const f of r.fotos) {
+      desceram.add(f.oid);
+      assert.match(r.voos, new RegExp(`(^| )desce:graveyard:${f.oid}( |$)`));
+      assert.equal(f.pos, 'fixed');
+      if (r.minis[f.oid]) assert.ok(perto(f.inicio, r.minis[f.oid], 2), `começa na miniatura dela ${JSON.stringify([f, r.minis[f.oid]])}`);
+      assert.ok(perto(f.pouso, r.cemiterio), `pousa no contador do cemitério ${JSON.stringify([f, r.cemiterio])}`);
+      assert.ok(f.dur <= 560 && f.props.every(x => ['transform', 'opacity'].includes(x)), 'voo curto, só transform e opacidade ' + JSON.stringify(f));
+    }
+    await toca(); await page.waitForTimeout(60);
+    assert.equal(await page.evaluate(() => document.querySelectorAll('.tb-voo').length), 0, 'o toque concluiu os voos');
+  }
+  const zonas = await page.evaluate(oids => oids.map(o => window.__estanteMesa.estado().objects[o].zone), [d0, k0, k1, k2]);
+  assert.deepEqual(zonas, ['graveyard', 'graveyard', 'graveyard', 'graveyard'], 'o Delver foi anulado; os Counterspells resolveram ou foram anulados');
+  for (const o of [k2, k1]) assert.ok(desceram.has(String(o)), `o Counterspell ${o}, que estava no monte, desceu ao cemitério: ${[...desceram]}`);
+  // 4 · o permanente que resolve voa da miniatura dele até o campo
+  await conjura(d1); await toca(); await page.waitForTimeout(300);
+  const chega = await page.evaluate(oid => {
+    const M = window.__estanteMesa, caixa = el => { const r = el.getBoundingClientRect(); return { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width, h: r.height }; };
+    const mini = caixa(document.querySelector(`#tb-stack-btn .tb-stack__mini[data-oid="${oid}"]`));
+    M.act({ t: 'pass', p: M.estado().turn.priority });
+    const f = document.querySelector(`.tb-voo[data-voo="${oid}"]`); if (!f) return { mini, foto: null, voos: document.querySelector('#tb').dataset.voos };
+    const a = f.getAnimations()[0]; a.pause(); a.currentTime = 0; const inicio = caixa(f); a.play();
+    return { mini, inicio, voos: document.querySelector('#tb').dataset.voos, zona: M.estado().objects[oid].zone };
+  }, d1);
+  assert.equal(chega.zona, 'battlefield'); assert.match(chega.voos, new RegExp(`(^| )pilha:${d1}( |$)`));
+  assert.ok(perto(chega.inicio, chega.mini, 2) && Math.abs(chega.inicio.w - chega.mini.w) <= 2, 'o permanente sai da miniatura dele, do tamanho dela ' + JSON.stringify(chega));
+  await toca(); await page.waitForTimeout(60);
+  // 5 · movimento reduzido: o monte aparece parado (topo levantado, sem subir) e nada desce
+  await page.evaluate(() => document.documentElement.setAttribute('data-movimento', 'reduzido'));
+  await conjura(d2); m = await monte();
+  assert.ok(m.minis.length === 1 && m.minis[0].topo && !m.sobe, 'movimento reduzido: o topo levantado, parado ' + JSON.stringify(m));
+  const r = await resolve(); t.diagnostic(`medida · MJ5 jogada que resolve sem voo (movimento reduzido): ${r.ms} ms`);
+  assert.deepEqual([r.fotos, await page.evaluate(() => document.querySelectorAll('.tb-voo').length)], [[], 0], 'movimento reduzido: nada voa');
   assert.deepEqual(errors, []);
 });

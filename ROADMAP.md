@@ -597,7 +597,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-jc ✅ | MJ2 avisos fora do campo: o aviso flutuante não cobre cartas nem a mão (leva J-8: faixa de uma linha por cima da linha de cima da mesa) | MJ | 1 | 16º-jb |
 | 16º-jd ✅ | MJ3 identidade por `oid` e continuidade (FLIP) entre mão, pilha, campo, cemitério e exílio (MJ3a na J-9, MJ3b na J-10, MJ3c na J-11) | MJ | 2 | 16º-jb; `mtg-scale-architect` (quadros) |
 | 16º-je ✅ | MJ4 combate desenhado: setas de ataque e bloqueio com a prévia junto da seta | MJ | 2 | 16º-jd |
-| 16º-jf | MJ5 pilha com profundidade: cartões empilhados, topo levantado, resolução descendo ao destino | MJ | 1 | 16º-jb, 16º-jd |
+| 16º-jf ✅ | MJ5 pilha com profundidade: cartões empilhados, topo levantado, resolução descendo ao destino | MJ | 1 | 16º-jb, 16º-jd |
 | 16º-jg | MJ6 mirar por arrasto com linha curva (tocar continua valendo) | MJ | 2 | 16º-je |
 | 16º-jh | MJ7 material: sombra que cresce ao levantar, luz do feltro, latão, dupla face virando | MJ | 1 | 16º-jb; tokens pelo `/ds` |
 | 16º-ji | MJ8 ritmo do turno: transições de fase e de vez, cena do oponente com continuidade | MJ | 1–2 | 16º-jd |
@@ -10633,8 +10633,38 @@ efeitos, com a prévia de combate junto da seta e a ordem de dano visível. Zero
     dano em planeswalker atacado não ganha número (a prévia do motor conta só vida de jogador); o número cobre o resumo do
     turno quando o marcador de vida fica logo abaixo dele.
 
-**MJ5 · Pilha com profundidade** ○ (1 leva) — cartões empilhados com o topo levantado; ao resolver, a carta desce até o
+**MJ5 · Pilha com profundidade** ✅ (leva J-14) — cartões empilhados com o topo levantado; ao resolver, a carta desce até o
 destino (MJ3).
+- **Entregue:** o ícone da faixa da pilha virou o **monte**: até três miniaturas de carta (63:88, 32 px de altura,
+  deslocadas 4 px cada), da mais funda para o topo; o topo fica levantado 3 px, com sombra maior e borda de latão
+  (`--accent`), e o topo novo sobe num movimento curto (`--dur-2`, só quando o topo muda; nunca na primeira pintura,
+  ao desfazer ou com movimento reduzido). No detalhe aberto, o cartão que resolve a seguir também fica levantado. A
+  mágica que sai da pilha para uma zona com contador (resolveu, foi anulada, voltou à mão, foi para o grimório) **desce
+  do lugar dela no monte** (ou do cartão no detalhe aberto) até o contador do dono, que recebe a carta com o pulso da
+  MJ3b; o permanente que resolve voa ao campo **da miniatura dele** (do tamanho dela), não mais do meio da faixa; a
+  mágica conjurada pousa na própria miniatura. Vale para os dois lados. O monte é desenho (`aria-hidden`): o nome
+  falado da faixa continua dizendo quantas e o topo. Funções puras `monteDaPilha` e `saidasDaPilha` (`__m33`);
+  `planoDeVoo` aceita a caixa de cada carta da pilha. Marca `desce:<zona>:<oid>` em `#tb[data-voos]`.
+- **Medidas** (360×780, Chromium da sessão, com a fase de tela rodando ao lado — números ruidosos): jogada que resolve
+  dois itens com as duas descidas 25–39 ms; resolver sem voo (movimento reduzido) 15–26 ms; zero pixel de campo (o seu
+  lado no mesmo lugar com 0 e com 4 na pilha); faixa continua com 44 px; +7,5 KB bruto, +1,9 KB gzip.
+- **Testes:** `sentidos.unit` (+3: monte do fundo para o topo, teto de três, verso da virada para baixo; quem desce —
+  não o que ficou, nem o permanente, nem habilidade ou cópia que deixaram de existir; voo do permanente a partir da
+  miniatura, e da faixa quando ela não está à vista); e2e "MJ5" (Delver + três Counterspells em cadeia em 360×780: o
+  monte cresce até três com o topo à frente e levantado, conta 4, sobe só quando o topo muda; zero pixel de campo;
+  `auditaTela` nos dois temas e com o detalhe aberto; resolver faz cada Counterspell descer da miniatura ao contador do
+  cemitério, só com transform e opacidade, ≤ 560 ms; o toque conclui; o Delver que resolve sai da miniatura dele;
+  movimento reduzido: topo levantado parado e nada voa). **Expectativa mudada de propósito:** no e2e "MJ3b", a mágica
+  conjurada pousa na miniatura dela no monte, não no meio da faixa.
+- **Correção no guarda-corpo (`auditaTela`):** a foto que voa na camada `#tb-fx` é uma cópia desativada da carta (um
+  `button`) e agora encolhe até a miniatura de 32 px; quatro testes de tela (K1, M-376, M-405, M-408) a contavam como alvo de
+  toque pequeno quando a auditoria caía no meio do voo. A camada de efeitos (sem toque, `aria-hidden`) saiu da conta de
+  alvos de toque; nada mais mudou na auditoria.
+- **Revisão de escala:** aprovado; a primeira versão clonava as cartas da pilha a cada pintura — passou a clonar só as
+  que saíram da pilha no estado novo.
+- **Fora:** carta sem imagem (sem internet e sem cache) fica como miniatura lisa, sem nome; a habilidade que resolve não
+  desce (deixa de existir); a quarta carta para baixo no monte não aparece (a conta diz quantas); a anulação continua com
+  o anel da G5 por cima, sem desenho próprio da descida.
 
 **MJ6 · Mirar por arrasto** ○ (2 levas) — arrastar da origem ao alvo com linha curva e retorno imediato; limiar de
 distância, cancelar ao voltar; tocar continua valendo.

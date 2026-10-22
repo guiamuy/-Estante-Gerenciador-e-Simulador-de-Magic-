@@ -1994,6 +1994,23 @@ body[data-mesa-cheia="true"] .tb-steps__list li { padding: 0 0 1px; border-botto
 .tb-stack__faixa { display: flex; align-items: center; gap: var(--space-1); min-height: var(--tap-min); max-width: 100%; padding: 0 var(--space-2) 0 var(--space-3);
   border: 1px dashed var(--accent); border-radius: var(--radius-2); background: var(--bg-elev-2); color: var(--fg); font: inherit; text-align: left; box-shadow: var(--shadow-1); }
 .tb-stack__faixa > .ds-icon { flex: none; color: var(--accent); }
+/* MJ5 · o monte da faixa: miniaturas de carta (63:88) deslocadas meio espaço cada, o topo levantado com sombra e latão */
+.tb-stack__monte { --tb-mini-h: calc(var(--tap-min) - var(--space-3)); position: relative; flex: none; display: block; height: var(--tb-mini-h);
+  width: calc(var(--tb-mini-h) * 488 / 680 + var(--space-2)); margin-right: var(--space-1); }
+.tb-stack__mini { position: absolute; left: 0; bottom: 0; height: 100%; aspect-ratio: 488 / 680; overflow: hidden; border-radius: var(--radius-1);
+  background: var(--bg-elev-3); border: 1px solid var(--border-strong); box-shadow: var(--shadow-1); }
+.tb-stack__mini:nth-child(2) { left: var(--space-1); }
+.tb-stack__mini:nth-child(3) { left: var(--space-2); }
+.tb-stack__mini img, .tb-stack__mini .ds-verso { display: block; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+.tb-stack__mini[data-topo="true"] { transform: translateY(calc(var(--space-1) * -0.75)); box-shadow: var(--shadow-2); border-color: var(--accent); }
+.tb-stack__monte--sobe > .tb-stack__mini[data-topo="true"] { animation: tb-pilha-sobe var(--dur-2) var(--ease-out); }
+@keyframes tb-pilha-sobe { from { transform: none; box-shadow: var(--shadow-1); } }
+@media (prefers-reduced-motion: reduce) { .tb-stack__monte--sobe > .tb-stack__mini[data-topo="true"] { animation: none; } }
+/* no detalhe aberto, o cartão que resolve a seguir também fica levantado */
+.tb-stack__item[data-top="true"] .tb-stack__card > .tb-card { transform: translateY(calc(var(--space-1) * -0.5)); box-shadow: var(--shadow-2); }
+/* a foto da mágica que desce da pilha até a zona */
+.tb-voo--pilha { overflow: hidden; border-radius: var(--radius-1); box-shadow: var(--shadow-2); }
+.tb-voo--pilha img, .tb-voo--pilha .ds-verso { display: block; width: 100%; height: 100%; object-fit: cover; }
 .tb-stack__conta { flex: none; font-variant-numeric: tabular-nums; }
 .tb-stack__topo { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-display); font-size: var(--text-sm); }
 .tb-stack__faixa > .tb-stack__seta { color: var(--fg-muted); transition: transform var(--dur-2) var(--ease-out); }
@@ -34051,7 +34068,9 @@ function StackStrip(items) {
     e de quem é a prioridade. `itens` vem de explicaPilha (table-model). */
 // MJ1c (leva J-4) · com `onToggle` a pilha vira uma faixa de 44 px por cima da mesa (não empurra o campo): o ícone, quantas
 // e o nome do topo; um toque abre o detalhe por cima (o mesmo cartão explicado de antes). Sem `onToggle`, a pilha inteira.
-function StackPanel({ itens, prioridade, imgOf, onOpen, onPeek, aberto = true, onToggle = null }) {
+// MJ5 (leva J-14) · o ícone da faixa vira o monte: até três miniaturas, de baixo para cima, com o topo levantado; `sobe`
+// (o topo mudou desde o desenho anterior) faz o topo novo subir num movimento curto
+function StackPanel({ itens, prioridade, imgOf, onOpen, onPeek, aberto = true, onToggle = null, sobe = false }) {
   if (!itens.length) return null;
   const cartao = it => {
     const b = h('button', { class: 'tb-stack__card', type: 'button', 'aria-label': `${it.nome}, de ${it.quem}: ${it.oQueFaz}${it.alvos.length ? '. Alvo: ' + it.alvos.join(', ') : ''}`, onClick: () => onOpen && onOpen(it) },
@@ -34075,7 +34094,10 @@ function StackPanel({ itens, prioridade, imgOf, onOpen, onPeek, aberto = true, o
   const topo = itens.find(it => it.topo) || itens[0];
   const faixa = h('button', { class: 'tb-stack__faixa', type: 'button', id: 'tb-stack-btn', 'aria-expanded': String(aberto), 'aria-controls': 'tb-stack-painel',
     'aria-label': `Pilha, ${itens.length}: ${topo.nome}, de ${topo.quem}${topo.alvos.length ? ', alvo ' + topo.alvos.join(', ') : ''}${prioridade ? '. Prioridade: ' + prioridade : ''}`, onClick: () => onToggle(!aberto) },
-    Icone('camadas', { tamanho: 20 }), h('b', { class: 'tb-stack__conta' }, String(itens.length)),
+    h('span', { class: 'tb-stack__monte' + (sobe ? ' tb-stack__monte--sobe' : ''), 'aria-hidden': 'true', dataset: { sobrepoe: 'true' } },
+      ...__m33.monteDaPilha(itens).map(m => h('span', { class: 'tb-stack__mini', dataset: { oid: m.oid, ...(m.topo ? { topo: 'true' } : {}) } },
+        m.imagemDe && imgOf && imgOf(m.imagemDe) ? imgDaMesa({ image: imgOf(m.imagemDe), images: null }, 'sm') : m.imagemDe ? null : h('span', { class: 'ds-verso' })))),
+    h('b', { class: 'tb-stack__conta' }, String(itens.length)),
     h('span', { class: 'tb-stack__topo' }, topo.nome), Icone('descer', { tamanho: 18, classe: 'tb-stack__seta' }));
   return h('section', { class: 'tb-stack tb-stack--faixa', id: 'tb-stack', 'aria-label': 'pilha', dataset: { aberto: String(aberto) } },
     faixa, h('div', { class: 'tb-stack__painel', id: 'tb-stack-painel', hidden: !aberto, dataset: { sobrepoe: 'true' } }, cabeca, lista));
@@ -36030,13 +36052,15 @@ function planoDeVoo({ antes = {}, pilha = null, chegaram = [], oponente = null }
   const naMaoDele = oid => !!oponente && ok(oponente.caixa) && (oponente.oids || []).map(String).includes(oid); // MJ3c
   for (const { oid, caixa, sozinha = true } of chegaram) {
     if (out.length >= max || !ok(caixa)) continue;
-    const k = String(oid), daMao = ok(antes[k]) ? antes[k] : null, daPilha = !daMao && pilha && ok(pilha.caixa) && (pilha.oids || []).map(String).includes(k) ? pilha.caixa : null;
+    const k = String(oid), daMao = ok(antes[k]) ? antes[k] : null, naPilha = !daMao && !!pilha && (pilha.oids || []).map(String).includes(k);
+    // MJ5 · a miniatura dessa carta no monte (ou o cartão no detalhe aberto), quando estava à vista; senão a faixa inteira
+    const daCartaDaPilha = naPilha && ok((pilha.caixas || {})[k]) ? pilha.caixas[k] : null, daPilha = daCartaDaPilha || (naPilha && ok(pilha.caixa) ? pilha.caixa : null);
     const daOponente = !daMao && !daPilha && naMaoDele(k) ? oponente.caixa : null;
     const de = daMao || daPilha || daOponente; if (!de) continue;
     const [x0, y0] = centro(de), [x1, y1] = centro(caixa), dx = Math.round(x0 - x1), dy = Math.round(y0 - y1);
     if (Math.hypot(dx, dy) < minimo) continue;
-    // da mão a carta muda de tamanho mantendo a proporção; da faixa da pilha (larga e baixa) ela nasce do tamanho da altura da faixa
-    const escala = Math.round(Math.min(daMao ? de.w / caixa.w : de.h / caixa.h, 2) * 1000) / 1000;
+    // da mão (e da miniatura do monte) a carta muda de tamanho mantendo a proporção; da faixa da pilha (larga e baixa) ela nasce do tamanho da altura da faixa
+    const escala = Math.round(Math.min(daMao || daCartaDaPilha ? de.w / caixa.w : de.h / caixa.h, 2) * 1000) / 1000;
     // MJ3c · da mão do oponente a carta sai do contador dele, de verso, e vira de frente no caminho
     out.push({ oid: k, origem: daMao ? 'mao' : daPilha ? 'pilha' : 'oponente', dx, dy, escala, esconde: !!sozinha, ...(daOponente ? { verso: true } : {}) });
   }
@@ -36065,6 +36089,19 @@ function planoDeSaida(saidas = [], { max = 8, minimo = 4, escalaMin = 0.25 } = {
     out.push({ oid: String(oid), como, dx, dy, escala });
   }
   return out;
+}
+/* ---------------- MJ5 · a pilha com profundidade ----------------
+   A faixa da pilha mostra um monte de até três miniaturas, de baixo para cima, com o topo levantado; o que sai da pilha
+   para uma zona com contador (mágica resolvida ou anulada: cemitério, exílio, mão, grimório) desce até ela. Puros:
+   `monteDaPilha` lê os itens de explicaPilha (topo primeiro); `saidasDaPilha` compara os oids da pilha de antes com o
+   estado novo (habilidade e cópia de mágica deixam de existir e não descem; o permanente vai pela chegada, MJ3a). */
+function monteDaPilha(itens = [], { max = 3 } = {}) {
+  return itens.slice(0, max).reverse().map(it => ({ oid: String(it.oid), imagemDe: it.imagemDe || null, topo: !!it.topo, habilidade: !!it.habilidade }));
+}
+function saidasDaPilha(antes = [], s) {
+  if (!s || !s.objects) return [];
+  const agora = new Set((s.stack || []).map(String));
+  return antes.map(String).filter(k => { const o = s.objects[k]; return !agora.has(k) && !!o && !o.ability && ['graveyard', 'exile', 'library', 'hand', 'command'].includes(o.zone); });
 }
 /* ---------------- MJ4a · setas do combate ----------------
    Quem ataca quem e quem bloqueia quem, desenhado entre as cartas: o ataque sai do atacante até a vida do defensor (ou o
@@ -36215,7 +36252,7 @@ function createSom({ store = null, criaContexto = null } = {}) {
     get tocados() { return tocados.slice(); }
   };
 }
-return { eventosSensoriais, planoDeSom, planoDeEfeitos, planoDeVoo, ondePousa, planoDeSaida, setasDoCombate, curvaDaSeta, marcasDaPrevia, roteiroDaJogada, createSom, limpaPrefs, duracaoDe, RECEITAS, NOMES, ORDEM, SOM_DO_TIPO, CHAVE, GLOBAL_A_PARTIR_DE };
+return { eventosSensoriais, planoDeSom, planoDeEfeitos, planoDeVoo, ondePousa, planoDeSaida, monteDaPilha, saidasDaPilha, setasDoCombate, curvaDaSeta, marcasDaPrevia, roteiroDaJogada, createSom, limpaPrefs, duracaoDe, RECEITAS, NOMES, ORDEM, SOM_DO_TIPO, CHAVE, GLOBAL_A_PARTIR_DE };
 })();
 
 /* ==== src/app/table.js ==== */
@@ -36694,6 +36731,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
      Como a mesa é redesenhada inteira, quem voa é uma foto da carta nova na camada de efeitos, por cima de tudo; a carta
      de verdade espera invisível e aparece quando a foto pousa. O próximo toque na mesa conclui todos os voos na hora. ---- */
   const voos = [];
+  let topoDaPilha = null; // MJ5 · o topo da pilha no desenho anterior
   const concluiVoos = () => { for (const a of voos.slice()) { try { a.finish(); } catch (e) { /* já acabou */ } } };
   root.addEventListener('pointerdown', concluiVoos, { capture: true, passive: true });
   const caixaDe = el => { const r = el.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; };
@@ -36706,13 +36744,23 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const chipDele = root.querySelector('.tb-side--opp .tb-chip[data-zona="hand"]'), ladoDele = chipDele && chipDele.closest('.tb-side');
     const dele = ladoDele && ladoDele.dataset.p != null ? Number(ladoDele.dataset.p) : null;
     const oponente = chipDele && dele != null && estadoOuvido.zones[dele] ? { caixa: caixaDe(chipDele), oids: estadoOuvido.zones[dele].hand.map(String) } : null;
-    return { antes, pilha: faixa ? { caixa: caixaDe(faixa), oids: (estadoOuvido.stack || []).map(String) } : null, oponente, campo: new Set([...vistos].map(String)) };
+    // MJ5 · cada carta da pilha à vista (o cartão do detalhe aberto ou a miniatura do monte): de onde o permanente voa ao
+    // campo e de onde a mágica resolvida desce até a zona; a foto é tirada agora, antes do redesenho
+    // (só se fotografa quem de fato saiu da pilha no estado novo: a pintura comum não clona nada)
+    const caixas = {}, fotos = {}, oidsDaPilha = (estadoOuvido.stack || []).map(String);
+    const descem = faixa ? new Set(__m33.saidasDaPilha(oidsDaPilha, table.state)) : new Set();
+    if (faixa) for (const el of root.querySelectorAll('#tb-stack-painel:not([hidden]) .tb-stack__item[data-oid] .tb-stack__card > .tb-card, #tb-stack-btn .tb-stack__mini[data-oid]')) {
+      const k = el.dataset.oid || el.closest('[data-oid]').dataset.oid, c = caixaDe(el);
+      if (caixas[k] || !c.w || !c.h) continue;
+      caixas[k] = c; if (descem.has(k)) fotos[k] = el.cloneNode(true);
+    }
+    return { antes, pilha: faixa ? { caixa: caixaDe(faixa), caixas, fotos, oids: oidsDaPilha } : null, oponente, campo: new Set([...vistos].map(String)) };
   }
   /* MJ3b/MJ3c · onde pousa a carta que mudou de zona: o contador da zona do dono, a faixa da pilha ou a carta na sua mão */
   function alvoNaMesa(s, v, oid) {
     const d = __m33.ondePousa(s.objects[oid], v); if (!d) return null;
     const lado = d.lado === 'me' ? '.tb-side--me' : '.tb-side--opp', vivo = el => el && el.getBoundingClientRect().width ? el : null;
-    const el = d.zona === 'stack' ? vivo(root.querySelector('#tb-stack-btn'))
+    const el = d.zona === 'stack' ? vivo(root.querySelector(`#tb-stack-btn .tb-stack__mini[data-oid="${oid}"]`)) || vivo(root.querySelector('#tb-stack-btn')) // MJ5 · pousa no monte
       : d.carta ? vivo(root.querySelector(`#tb-hand .tb-card[data-oid="${oid}"]`)) || vivo(root.querySelector('#tb-hand-toggle'))
       : vivo(root.querySelector(`${lado} .tb-chip[data-zona="${d.zona}"]`));
     return el ? { el, zona: d.zona } : null;
@@ -36742,6 +36790,35 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       marcas.push(`verso:${zona}:${r.oid}`);
     }
   }
+  /* MJ5 · a mágica que saiu da pilha para uma zona com contador (resolveu, foi anulada, voltou à mão, foi embaralhada) desce
+     do lugar onde estava no monte (ou no detalhe aberto) até o contador do dono; só a que estava à vista tem foto */
+  function desceDaPilha(m, s, v, marcas) {
+    if (!m.pilha || !m.pilha.fotos) return;
+    const saidas = [];
+    for (const oid of __m33.saidasDaPilha(m.pilha.oids, s)) {
+      const de = m.pilha.caixas[oid], d = de && alvoNaMesa(s, v, oid);
+      if (d && m.pilha.fotos[oid]) saidas.push({ oid, como: 'desce', de, para: caixaDe(d.el), zona: d.zona, el: d.el });
+    }
+    if (!saidas.length) return;
+    const ease = getComputedStyle(document.documentElement).getPropertyValue('--ease-in-out').trim() || 'ease-in-out', pulso = durFx('--dur-2');
+    for (const r of __m33.planoDeSaida(saidas)) {
+      const x = saidas.find(y => String(y.oid) === r.oid), de = x.de, foto = m.pilha.fotos[r.oid];
+      foto.removeAttribute('id');
+      if (foto.classList.contains('tb-stack__mini')) foto.className = 'tb-voo tb-voo--pilha'; else foto.classList.add('tb-voo', 'tb-voo--pilha');
+      delete foto.dataset.topo; delete foto.dataset.oid; foto.dataset.desce = r.oid;
+      Object.assign(foto.style, { left: `${de.x}px`, top: `${de.y}px`, width: `${de.w}px`, height: `${de.h}px` });
+      camadaFx().appendChild(foto);
+      // sai do monte, para um instante e desce encolhendo (ou do tamanho que já tem) até o contador, que recebe a carta
+      const fim = `translate(${r.dx}px, ${r.dy}px) scale(${r.escala})`;
+      const a = foto.animate([{ transform: 'none', opacity: 1, easing: ease }, { offset: 0.85, transform: fim, opacity: 1 }, { transform: fim, opacity: 0 }], { duration: durFx('--dur-4') });
+      voos.push(a);
+      const pousa = () => { const i = voos.indexOf(a); if (i >= 0) voos.splice(i, 1); foto.remove();
+        if (x.el.isConnected && !menosMovimento()) x.el.animate([{ transform: 'scale(1.14)' }, { transform: 'none' }], { duration: pulso, easing: ease });
+        const camada = document.getElementById('tb-fx'); if (camada && !camada.childElementCount) camada.remove(); };
+      a.onfinish = pousa; a.oncancel = pousa;
+      marcas.push(`desce:${x.zona}:${r.oid}`);
+    }
+  }
   function voa(m, s, v) {
     if (!m) return;
     const chegaram = [];
@@ -36753,6 +36830,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const plano = __m33.planoDeVoo({ antes: m.antes, pilha: m.pilha, oponente: m.oponente, chegaram });
     const marcas = plano.map(p => `${p.origem}:${p.oid}`);
     voaDeVerso(m, s, v, marcas);
+    desceDaPilha(m, s, v, marcas); // MJ5
     root.dataset.voos = marcas.join(' ');
     if (!plano.length) return;
     const dur = durFx('--dur-3'), ease = getComputedStyle(document.documentElement).getPropertyValue('--ease-out').trim() || 'ease-out';
@@ -38599,7 +38677,10 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const pilha = T.explicaPilha(s, { oracleDe: oracleOf });
     // E50 P6 · toque e segurar numa habilidade abrem/espiam a carta de origem (se ainda existir na mesa)
     if (!pilha.itens.length && pilhaAberta) abrePilha(false);
-    const painelPilha = StackPanel({ itens: pilha.itens, prioridade: pilha.prioridade, imgOf, aberto: pilhaAberta, onToggle: abrePilha, onOpen: it => { const alvo = it.origem && s.objects[it.origem] ? it.origem : it.oid; openObject(alvo); }, onPeek: (it, aberto) => peek(it.origem && s.objects[it.origem] ? it.origem : it.oid, aberto) });
+    // MJ5 · o topo novo sobe no monte (não na primeira pintura, nem ao desfazer)
+    const topoAgora = pilha.itens.length ? String(pilha.itens[0].oid) : null, sobe = !!topoAgora && !!voo && topoAgora !== topoDaPilha; // sem voo: abrir, desfazer, movimento reduzido
+    topoDaPilha = topoAgora;
+    const painelPilha = StackPanel({ itens: pilha.itens, prioridade: pilha.prioridade, imgOf, aberto: pilhaAberta, onToggle: abrePilha, sobe, onOpen: it => { const alvo = it.origem && s.objects[it.origem] ? it.origem : it.oid; openObject(alvo); }, onPeek: (it, aberto) => peek(it.origem && s.objects[it.origem] ? it.origem : it.oid, aberto) });
     const adj = adjudicating && s.status !== 'over' ? AdjudicationPanel({
       name: adjudicating.name, image: imgOf(adjudicating.name), oracle: oracleOf(adjudicating.name),
       controls: hasPriority(v) ? [Button('Comprar 1', { onClick: () => act({ t: 'draw', p: v, target: v, n: 1 }) })] : [],
