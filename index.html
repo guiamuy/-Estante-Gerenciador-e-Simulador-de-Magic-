@@ -10543,6 +10543,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Winternight Stories': { texto: 'ibk64d', leva: 'M-551' },
   // M-554 · revisão por lote CXC (Multiversal Passage: escolhe um tipo básico ao entrar; paga 2 de vida ou entra virado), texto da Scryfall de 21/10/2026 UTC, revisor independente
   'Multiversal Passage': { texto: '1wc5bxp', leva: 'M-554' },
+  // M-556 · revisão por lote CXCI (Up the Beanstalk: ao entrar e a cada mágica de valor 5 ou mais, compra), texto e rulings da Scryfall de 21/10/2026 UTC, revisor independente
+  'Up the Beanstalk': { texto: '19s5kx5', leva: 'M-556' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -19356,6 +19358,7 @@ const __m42 = (function () {
     [/^whenever another creature dies$/i, { evento: 'zona', de: 'battlefield', para: 'graveyard', objeto: 'outra', quem: 'qualquer' }, () => ({ filter: { types: ['creature'] } })], // M-418 · Hissing Iguanar (de qualquer jogador; 700.4)
     [/^whenever you cast an instant or sorcery spell$/i, 'other-cast', () => ({ filter: { anyTypes: ['instant', 'sorcery'] } })], // M-328
     [/^whenever you cast a noncreature spell$/i, 'other-cast', () => ({ filter: { noncreature: true } })],
+    [/^whenever you cast a spell with mana value (\d+) or greater$/i, 'other-cast', m => ({ filter: { mvMin: +m[1] } })], // M-556 · Up the Beanstalk
     [/^whenever you cast your second spell each turn$/i, 'other-cast', () => ({ filter: { segundaMagiaDoTurno: true } })], // M-526 · Flurry (Cori-Steel Cutter, Jeskai Devotee, Illvoi Operative)
     [/^whenever you cast a multicolored spell$/i, 'other-cast', () => ({ filter: { multicolorida: true } })],
     [/^whenever you cast a spell that's ((?:white|blue|black|red|green)(?:-(?:white|blue|black|red|green))+)$/i, 'other-cast', m => ({ filter: { anyColors: [...new Set((m[1]).toLowerCase().match(/white|blue|black|red|green/g).map(c => ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[c]))] } })], // M-541 · Questing Druid // M-460 · 105.2b
@@ -19775,6 +19778,8 @@ const __m42 = (function () {
         if (om) { const g1 = leGatilho(`Whenever another creature you control dies, ${om[2]}`, nome, frases), g2 = leGatilho(`When ~ dies, ${om[2]}`, nome, []); if (g1 && g2) { if (om[1]) g1.filter = { anyTypes: ['creature', 'planeswalker'] }; (topo.abilities = topo.abilities || []).push(g1, g2); } continue; }
         const ea = lp.match(/^whenever (?:~|this creature) enters or attacks, (.+)$/i); // M-378 · Inferno Titan: dois gatilhos com o mesmo efeito
         if (ea) { const g1 = leGatilho(`When ~ enters, ${ea[1]}`, nome, frases), g2 = leGatilho(`Whenever ~ attacks, ${ea[1]}`, nome, []); if (g1 && g2) (topo.abilities = topo.abilities || []).push(g1, g2); continue; }
+        { const ew = lp.match(/^when (?:~|this enchantment|this artifact|this creature|this permanent) enters and (whenever you cast [^,]+), (.+)$/i); // M-556 · Up the Beanstalk: dois gatilhos com o mesmo efeito
+          if (ew) { const g1 = leGatilho(`When ~ enters, ${ew[2]}`, nome, frases), g2 = leGatilho(`${ew[1]}, ${ew[2]}`, nome, []); if (g1 && g2) { (topo.abilities = topo.abilities || []).push(g1, g2); continue; } } }
         const es = lp.match(/^when (?:~|this artifact|this creature|this permanent) enters and when you sacrifice it, (.+)$/i); // M-466 · Heaped Harvest: dois gatilhos com o mesmo efeito
         if (es) { const g1 = leGatilho(`When ~ enters, ${es[1]}`, nome, frases), g2 = leGatilho(`When you sacrifice ~, ${es[1]}`, nome, []); if (g1 && g2) (topo.abilities = topo.abilities || []).push(g1, g2); continue; }
         const el2 = lp.match(/^when (?:~|this artifact|this creature|this permanent) enters or leaves the battlefield, (.+)$/i); // M-349 · Cryogen Relic: dois gatilhos
@@ -24766,6 +24771,7 @@ function matchesTriggerFilter(s, o, filter) {
   if (filter.token && !o.token) return false; // M-543 · "whenever you sacrifice a token" (The Sackville-Bagginses)
   if (filter.segundaMagiaDoTurno && o.ordemDaMagiaM !== 2) return false; // M-526 · "Whenever you cast your second spell each turn" (Flurry): só a segunda mágica que o jogador conjurou neste turno (cópias não são conjuradas)
   if (filter.multicolorida && colorsOf(s, o).length < 2) return false; // M-460 · 105.2b "multicolored spell"
+  if (filter.mvMin != null && manaValueT(s, o) < filter.mvMin) return false; // M-556 · "a spell with mana value N or greater" (202.3: na pilha, o X conta)
   if (filter.anyColors && !filter.anyColors.some(c => colorsOf(s, o).includes(c))) return false; // M-395 · "a blue, black, or red spell" (God-Pharaoh's Faithful)
   if ((filter.historico != null || filter.foraDaLei != null || filter.modificada != null || filter.virada != null || filter.metamorfose != null) && !predicadosDeTipoT(s, o, filter, lki)) return false; // T-59 · CR 700.6 / 700.12 / 700.9: "whenever you cast a historic spell" · T-60 · 603.10a: quem saiu do campo, como era lá (Toca ponto comum: matchesTriggerFilter)
   if (filter.semManaGasta && (!s.manaCheck || ((o.manaGasta || {})[filter.semManaGasta === 'colorida' ? 'colorida' : 'total'] || 0) > 0)) return false; // M-346 · Vexing Bauble, Void Mirror (603.4)

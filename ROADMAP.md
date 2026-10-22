@@ -5361,6 +5361,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nenhum.
 - **Teste:** `lt237.unit` (2 testes, 9 cartas × 2 nomes; o de cobertura falha no motor anterior — a jogada das duas faces já funcionava pelo dado da carta, faltava a carta ser reconhecida como completa, por isso as listas não jogavam).
 
+**M-556 · LT215 · revisão por lote CXCI: Up the Beanstalk** ✅ (leva M-556, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** passa a jogar Up the Beanstalk (10 listas do catálogo). Texto e ruling da Scryfall consultados em 21/10/2026.
+- **Regra:** "When this enchantment enters and whenever you cast a spell with mana value 5 or greater, draw a card." — o leitor lê "When ~ enters and whenever you cast …, [efeito]" como dois gatilhos com o mesmo efeito; filtro de gatilho `mvMin` ("a spell with mana value N or greater") pelo valor de mana na pilha, com o X (ruling de 01/09/2023, 202.3).
+- **Revisão independente:** sem divergências (compra ao entrar e ao voltar ao campo; dispara ao conjurar — anulada ainda compra; valor 5 sim, 4 não, X conta; custo alternativo ou reduzido não muda o valor; mágica de graça por cascata dispara; cópia, mágica do oponente e terreno não; duas Beanstalks, duas compras; Aventura usa o valor da face conjurada).
+- **Fora (declarado):** nenhum.
+- **Teste:** `lt238.unit` (2 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
