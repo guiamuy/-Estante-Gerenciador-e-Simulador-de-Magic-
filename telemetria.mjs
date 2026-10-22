@@ -20,7 +20,7 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const RAMO = 'telemetria';
-export const ARQUIVOS = { levas: 'levas.jsonl', trilhas: 'trilhas.json', rotinas: 'rotinas.json', placares: 'placares.jsonl', skills: 'skills.json', rodadas: 'rodadas.jsonl', pessoas: 'pessoas.jsonl' };
+export const ARQUIVOS = { levas: 'levas.jsonl', trilhas: 'trilhas.json', rotinas: 'rotinas.json', placares: 'placares.jsonl', skills: 'skills.json', rodadas: 'rodadas.jsonl', pessoas: 'pessoas.jsonl', retrato: 'retrato.json' };
 export const SITUACOES = ['editando', 'na-fila', 'recusada', 'publicada', 'parada', 'abandonada'];
 export const PORTOES = ['verde', 'recusada-conflito', 'recusada-guarda', 'recusada-conferencia', 'vermelho', 'instavel'];
 
@@ -133,7 +133,16 @@ const ESQUEMA_PESSOAS = {
   contas: { ok: inteiroOuNulo }, contas_novas: { ok: inteiroOuNulo }, perfis: { ok: inteiro },
   salas_criadas: { obrigatorio: true, ok: inteiro }, salas_total: { obrigatorio: true, ok: inteiro }, obs: { ok: v => texto(v, 120) }
 };
-const ESQUEMAS = { leva: ESQUEMA_LEVA, trilha: ESQUEMA_TRILHA, rotina: ESQUEMA_ROTINA, placar: ESQUEMA_PLACAR, rodada: ESQUEMA_RODADA, pessoas: ESQUEMA_PESSOAS };
+/** I-296 · S3 · retrato do GitHub gravado pelo fluxo Retrato (retrato.mjs): arquivo inteiro regravado a cada rodada. Só o que o
+ *  painel lê de cada resposta da API (ramos, rodadas, jobs, execuções, fluxos, commits, tamanhos), já sem e-mail. Teto de tamanho. */
+const CHAVE_RESPOSTA = /^(ramos|rodadas|pages|fluxos|commits|tamanhos|ramo\.[0-9a-f]{40}|jobs\.[0-9]{1,20})$/;
+const ESQUEMA_RETRATO = {
+  kind: { obrigatorio: true, ok: v => v === 'estante.retrato' }, version: { obrigatorio: true, ok: v => v === 1 }, em: { obrigatorio: true, ok: v => typeof v === 'string' && ISO.test(v) },
+  id: { ok: v => typeof v === 'string' && /^[0-9]{1,20}$/.test(v) }, pedidos: { ok: inteiro }, avisos: { ok: v => Array.isArray(v) && v.length <= 10 && v.every(x => texto(x, 160)) },
+  cobertura: { obrigatorio: true, ok: v => v && typeof v === 'object' && !Array.isArray(v) && inteiro(v.commits) && inteiro(v.ramos) && inteiro(v.rodadas) && (v.commitsDesde == null || ISO.test(String(v.commitsDesde))) && (v.dias == null || (Array.isArray(v.dias) && v.dias.length <= 400 && v.dias.every(d => /^\d{4}-\d{2}-\d{2}$/.test(d)))) },
+  respostas: { obrigatorio: true, ok: v => v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).every(k => CHAVE_RESPOSTA.test(k)) && Array.isArray(v.ramos) && Array.isArray(v.commits) && v.tamanhos && typeof v.tamanhos === 'object' && JSON.stringify(v).length <= 600000 }
+};
+const ESQUEMAS = { leva: ESQUEMA_LEVA, trilha: ESQUEMA_TRILHA, rotina: ESQUEMA_ROTINA, placar: ESQUEMA_PLACAR, rodada: ESQUEMA_RODADA, pessoas: ESQUEMA_PESSOAS, retrato: ESQUEMA_RETRATO };
 
 /** Valida contra o esquema: chave desconhecida, obrigatória ausente, valor fora da forma e privacidade. Devolve [] quando ok. */
 /** R-17 · BI2-1 · O registro de placar a partir do JSON que `catalogo.prova.mjs` grava ({ placar, culpadas, listas }):
@@ -195,6 +204,7 @@ export function aplicar(tipo, atual, registro, agora = new Date().toISOString())
     for (const d of (Array.isArray(registro) ? registro : [registro])) linhas = upsert(linhas, { ...d, em: d.em || agora }, 'dia');
     return escreverJsonl(linhas.sort((a, b) => String(a.dia).localeCompare(String(b.dia))));
   }
+  if (tipo === 'retrato') return JSON.stringify(registro) + '\n';   // I-296 · arquivo inteiro, uma linha (o git guarda a diferença)
   if (tipo === 'placar') { r.em = r.em || agora; return escreverJsonl([...lerJsonl(atual), r]); }
   if (tipo === 'trilha' || tipo === 'rotina') {
     r.atualizado = r.atualizado || agora;
@@ -261,8 +271,15 @@ export function rodadaDoResumo({ id, resumo = null, plano = null, portao = '', p
   r.quedas_orcamento = ((rp && rp.quedasOrcamento) || []).length + ((tl && tl.quedasOrcamento) || []).length;
   return r;
 }
-export function gravar({ tipo, registro, remoto, pasta, semPush = false, agora = () => new Date().toISOString(), autor = 'Telemetria Estante <noreply@anthropic.com>' }) {
+const ARQUIVO_EXTRA = /^[a-z0-9_-]+(\/[a-z0-9_-]+)*\/[0-9a-z_-]+\.json$/;
+/** I-296 · `extras`: arquivos JSON a mais no mesmo commit (ex.: `commits/2026-10-22.json` do retrato), cada um validado pela privacidade. */
+export function gravar({ tipo, registro, remoto, pasta, semPush = false, agora = () => new Date().toISOString(), autor = 'Telemetria Estante <noreply@anthropic.com>', extras = {} }) {
   const erros = tipo === 'skills' ? [] : valida(tipo, registro);
+  for (const [nome, conteudo] of Object.entries(extras || {})) {
+    if (!ARQUIVO_EXTRA.test(nome)) erros.push(`arquivo extra fora da forma: ${nome}`);
+    let obj = null; try { obj = JSON.parse(conteudo); } catch (e) { erros.push(`arquivo extra não é JSON: ${nome}`); }
+    const p = obj && privacidade(obj, nome); if (p) erros.push(p);
+  }
   if (erros.length) throw new Error('registro recusado: ' + erros.join('; '));
   const arquivo = tipo === 'skills' ? ARQUIVOS.skills : ARQUIVOS[tipo] || ARQUIVOS[tipo + (tipo === 'placar' ? 'es' : 's')];   // I-295 · `pessoas` já é o nome do arquivo
   let ultimo = null;
@@ -272,9 +289,10 @@ export function gravar({ tipo, registro, remoto, pasta, semPush = false, agora =
     const atual = existsSync(caminho) ? readFileSync(caminho, 'utf8') : '';
     const novo = tipo === 'skills' ? skillsJson(agora()) : aplicar(tipo, atual, registro, agora());
     writeFileSync(caminho, novo);
+    for (const [nome, conteudo] of Object.entries(extras || {})) { mkdirSync(join(pasta, nome, '..'), { recursive: true }); writeFileSync(join(pasta, nome), conteudo); }
     if (!existsSync(join(pasta, 'README.md'))) writeFileSync(join(pasta, 'README.md'), '# telemetria\n\nDados das sessões para o Painel Estante (`painel.html`), escritos por `node telemetria.mjs …`. Nenhum e-mail, uid ou token entra aqui. Fora da fila e do portão.\n');
     git(pasta, ['add', '-A']);
-    const resumo = tipo === 'skills' ? 'skills: catálogo regravado' : Array.isArray(registro) ? `${tipo}: ${registro.length} dia(s) até ${registro[registro.length - 1].dia}` : `${tipo}: ${registro.id || registro.conversa || registro.trilha || registro.dia} · ${registro.situacao || registro.status || registro.formato || ''}`.trim();
+    const resumo = tipo === 'skills' ? 'skills: catálogo regravado' : tipo === 'retrato' ? `retrato: ${registro.cobertura.ramos} ramos · ${registro.cobertura.rodadas} rodadas · ${registro.cobertura.commits} commits` : Array.isArray(registro) ? `${tipo}: ${registro.length} dia(s) até ${registro[registro.length - 1].dia}` : `${tipo}: ${registro.id || registro.conversa || registro.trilha || registro.dia} · ${registro.situacao || registro.status || registro.formato || ''}`.trim();
     git(pasta, ['-c', `user.name=${autor.split(' <')[0]}`, '-c', `user.email=${autor.split('<')[1].replace('>', '')}`, 'commit', '-q', '--allow-empty', '-m', `telemetria · ${resumo}`]);
     if (semPush) return { arquivo, tentativa, estado, enviado: false };
     try { git(pasta, ['push', '-q', 'origin', `${RAMO}:${RAMO}`]); return { arquivo, tentativa, estado, enviado: true }; }
@@ -317,7 +335,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       const r = gravar({ tipo: 'skills', registro: {}, remoto, pasta, semPush });
       console.log(`✓ skills.json regravado em ${RAMO}${r.enviado ? ' (enviado)' : ''}`);
     } else {
-      console.log('uso: node telemetria.mjs leva|trilha|rotina|placar|rodada|pessoas \'{…}\' [--portao] · skills · ler levas|trilhas|rotinas|placares|skills|rodadas|pessoas [--remoto url] [--pasta dir] [--sem-push]');
+      console.log('uso: node telemetria.mjs leva|trilha|rotina|placar|rodada|pessoas \'{…}\' [--portao] · skills · ler levas|trilhas|rotinas|placares|skills|rodadas|pessoas|retrato [--remoto url] [--pasta dir] [--sem-push]');
       process.exit(comando ? 1 : 0);
     }
   } catch (e) { console.error('✗ ' + e.message); process.exit(1); }

@@ -1,0 +1,46 @@
+# I-296 · S3 (decisão do dono, 22/10/2026): o retrato do GitHub que o Painel Estante lê sem token. A cada leva que entra na
+# fila ou é recusada (push em fila/* e recusada/*), a cada ramo apagado (leva publicada), no começo e no fim de cada rodada
+# da fila e a cada 30 minutos, lê pela API (token do próprio fluxo, só em cabeçalho) ramos, rodadas, jobs, execuções, fluxos,
+# commits do main e tamanho do index.html por leva, e grava `telemetria/retrato.json` (retrato.mjs do main), só com o que o
+# painel usa e sem e-mail. Nada mudou: sem commit. O `main` não recebe commit daqui. Trilha: infra.
+name: Retrato
+
+on:
+  push:
+    branches:
+      - 'fila/**'
+      - 'recusada/**'
+  delete:
+  workflow_run:
+    workflows: ['Fila de publicação']
+    types: [requested, completed]
+  schedule:
+    - cron: '7,37 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write    # só o ramo telemetria (o script nunca toca o main)
+  actions: read      # rodadas e jobs
+
+concurrency:
+  group: retrato
+  cancel-in-progress: true   # rajada de pushes vira um retrato só: o último vence
+
+jobs:
+  retrato:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09   # v5 (fixada por SHA; roda em Node 24)
+        with:
+          ref: main
+          persist-credentials: false   # o token vai pelo cabeçalho do git do runner, só no passo que grava
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444   # v5 (fixada por SHA; roda em Node 24)
+        with:
+          node-version: 22
+      - name: Ler a API e gravar o retrato no ramo telemetria
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config --global "http.${GITHUB_SERVER_URL}/.extraheader" "AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          node retrato.mjs --remoto "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git" --pasta "$RUNNER_TEMP/telemetria"
