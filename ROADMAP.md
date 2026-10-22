@@ -5410,6 +5410,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nenhum.
 - **Teste:** `lt244.unit` (4 testes; falham no motor anterior).
 
+**M-563 · LT222 · revisão por lote CXCVIII: Chrome Mox** ✅ (leva M-563, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** passa a jogar Chrome Mox (112 listas do catálogo). Texto e rulings da Scryfall consultados em 22/10/2026.
+- **Regra:** marca (palavra de habilidade "Imprint", 207.2c): ao entrar, você pode exilar uma carta não artefato e não terreno da mão (`imprime_da_mao`), ligada a este objeto (`marcadaM`, 607.2a; 400.7: o Mox que sai e volta é outro, sem carta); "{T}: Add one mana of any of the exiled card's colors" (`produces: [{ coresDaMarcadaM: true }]`): sem carta exilada ou com carta incolor, nada; nunca {C}; multicolorida, escolhe a cor a cada vez (rulings de 07/02/2025).
+- **Revisão independente:** uma divergência, corrigida com teste: o gatilho de um Mox piscado com o gatilho ainda na pilha ligava a carta ao Mox novo — agora o gatilho guarda o objeto da fonte (`fonteZc`), exila a carta mas não a liga ao objeto novo (400.7, 607.2a); a pilha explicada ganhou o texto do efeito. Conferido sem divergência (50 conferências): gatilho opcional, só não artefato e não terreno da sua mão, carta incolor exilada não gera mana nem {C}, multicolor e híbrida escolhem a cor, pagamento automático usa o Mox, dois Mox com cartas próprias, Mox destruído com o gatilho na pilha ainda exila, carta que sai do exílio corta a mana, Mox roubado gera para o novo controlador, sem habilidades não gera; fuzz de 60 partidas sem recusa
+- **Fora (declarado):** nenhum.
+- **Teste:** `lt245.unit` (4 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

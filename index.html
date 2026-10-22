@@ -5602,6 +5602,7 @@ const EFFECTS = {
   transformar_pela_habilidade: { fields: [], targets: ['self'] }, // M-366 · montado pelo motor (701.27f); o script não o escreve
   revela_topo_transforma: { fields: [], targets: ['self'] }, // M-353 · Delver of Secrets: olha o topo; se for do tipo pedido, pode revelá-lo e transformar a fonte (701.28)
   exila_da_mao: { fields: ['amount'], targets: ['opponent', 'player'] },
+  imprime_da_mao: { fields: [], targets: ['self'] }, // M-563 · Chrome Mox: "exile a nonartifact, nonland card from your hand", ligada à fonte
   terreno_da_mao: { fields: [], targets: ['self'] }, // M-354 · "You may put a land card from your hand onto the battlefield [tapped]" (Growth Spiral, Embrace the Paradox; 305.2: não é jogar terreno) // M-353 · Mesmeric Fiend: o jogador alvo revela a mão, você escolhe e exila; a fonte guarda a carta para devolver ao sair
   pisca_exila: { fields: [], targets: ['creature', 'creature-you-control', 'permanent', 'permanent-you-control'] }, // M-351 · Ghostly Flicker: "exile two target …, then return those cards" — a primeira metade (a mágica lembra o que exilou)
   pisca_volta: { fields: [], targets: ['self'] }, // M-351 · a segunda metade: devolve juntas as que exilou (`sob: 'voce'` = sob o seu controle; padrão: do dono); ficha não volta (111.8) // M-349 · Ephemerate: exila e devolve ao campo sob o controle do dono (objeto novo, 400.7)
@@ -6454,7 +6455,7 @@ function validateScript(sc) {
   // S19 · produção de mana declarada no script (Priest of Titania, Battlement)
   for (const opt of (sc && sc.produces) || []) {
     if (Array.isArray(opt)) continue;
-    if (!opt || (!opt.symbol && !opt.anyColor && opt.escolhida == null)) errs.push('produces: opção sem símbolo'); // T-90 · a cor escolhida (Toca ponto comum: validateScript, produces)
+    if (!opt || (!opt.symbol && !opt.anyColor && opt.escolhida == null && opt.coresDaMarcadaM !== true /* M-563 */)) errs.push('produces: opção sem símbolo'); // T-90 · a cor escolhida (Toca ponto comum: validateScript, produces)
     else if (opt.per && !PER_COUNTS.includes(opt.per)) errs.push(`produces: contagem "${opt.per}" desconhecida`);
     // Leva 122 · "em qualquer combinação de cores" só faz sentido para mana de qualquer cor
     if (opt && opt.combination != null && (opt.combination !== true || !opt.anyColor)) errs.push('produces: "combination" só vale como true, junto de anyColor');
@@ -10573,6 +10574,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Myriad Landscape': { texto: 'tdenw4', leva: 'M-561' },
   // M-562 · revisão por lote CXCVII (Green Sun's Zenith: busca criatura verde de valor até X e volta ao grimório), texto e rulings da Scryfall de 22/10/2026 UTC, revisor independente
   'Green Sun\'s Zenith': { texto: '117z91f', leva: 'M-562' },
+  // M-563 · revisão por lote CXCVIII (Chrome Mox: marca uma carta da mão e gera mana das cores dela), texto e rulings da Scryfall de 22/10/2026 UTC, revisor independente
+  'Chrome Mox': { texto: '187chm2', leva: 'M-563' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -19198,7 +19201,8 @@ const __m42 = (function () {
     [new RegExp(`^(?:~|this creature) endures ${N}$`, 'i'), m => [{ do: 'endure', amount: num(m[1]) }]], // M-380 · "it endures 1" (Fortress Kin-Guard)
     [/^revela_ate_terreno_cemiterio (target player|target opponent)$/i, m => [{ do: 'revela_ate_cemiterio', match: 'land', target: /opponent/i.test(m[1]) ? 'opponent' : 'player' }]], // M-377 · Balustrade Spy
     [/^search your library for an? (white|blue|black|red|green) creature card with mana value x or less, put it onto the battlefield$/i, m => [{ do: 'search', amount: 1, filter: { types: ['creature'], cores: [{ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[1].toLowerCase()]], mvMax: { per: 'x' } }, to: 'battlefield' }]], // M-562 · Green Sun's Zenith
-    [/^shuffle ~ into its owner's library$/i, () => [{ do: 'embaralha_esta' }]], // M-562 · Green Sun's Zenith (V-7: a mágica vai ao grimório do dono, não ao cemitério)
+    [/^shuffle ~ into its owner's library$/i, () => [{ do: 'embaralha_esta' }]],
+    [/^exile a nonartifact, nonland card from your hand$/i, () => [{ do: 'imprime_da_mao', filter: { notTypes: ['artifact', 'land'] } }]], // M-563 · Chrome Mox (Imprint é palavra de habilidade, 207.2c; o you may já virou a pergunta do gatilho) // M-562 · Green Sun's Zenith (V-7: a mágica vai ao grimório do dono, não ao cemitério)
     [/^search your library for a basic land card or an? ([A-Z][a-z]+) card, reveal it, put it into your hand$/i, m => [{ do: 'search', amount: 1, filter: { ou: [{ types: ['land'], basic: true }, { subtypes: [m[1]] }] }, to: 'hand' }]], // M-377 · Gatecreeper Vine
     [/^search your library for an instant card or a card with flash, reveal it, put it into your hand$/i, () => [{ do: 'search', amount: 1, filter: { ou: [{ types: ['instant'] }, { keyword: 'flash' }] }, to: 'hand', revela: true }]], // M-448 · Mystical Teachings (filtro "ou" da M-377; a carta achada é revelada, 701.20a)
     [/^~ deals X damage divided evenly, rounded down, among any number of targets$/i, () => [{ do: 'damage', amount: { per: 'x' }, target: 'any', dividido: { igual: true } }]], // M-408 · Fireball
@@ -19688,7 +19692,7 @@ const __m42 = (function () {
   function ler(card) {
     const nome = (card && card.name) || ''; nomeAtual = nome; const tipo = String((card && card.type_line) || ''); tipoAtual = tipo;
     const texto = card && card.verso ? [card.oracle_text, '//', card.verso.oracle_text].join('\n') : card && card.oracle_text; // M-322 · a Aventura guardada à parte (.listas): mesma forma do app ("frente\n//\nverso")
-    const linhas = semLembrete(texto).split('\n').map(x => x.trim().replace(/^(?:undergrowth|threshold|delirium|revolt|morbid|raid|hellbent|landfall|ferocious|coven|alliance|magecraft) — (?=(?:when|whenever|at|as long as|if|that creature also)\b)/i, '')
+    const linhas = semLembrete(texto).split('\n').map(x => x.trim().replace(/^(?:undergrowth|threshold|delirium|revolt|morbid|raid|hellbent|landfall|ferocious|coven|alliance|magecraft|imprint) — (?=(?:when|whenever|at|as long as|if|that creature also)\b)/i, '')
       .replace(/^(?!(?:Max speed|Solved|To solve|Visit|Prize|[IVX]+(?:, [IVX]+)*) — )[A-Z][A-Za-z'’-]*(?: [A-Za-z'’-]+){0,3} — (?=(?:When|Whenever|At the beginning)\b)/, '')).filter(Boolean); // M-354 · 207.2c: palavra de habilidade não tem efeito de regra (Lotleth Giant) · M-513 · 207.2d: nem a palavra de sabor ("Natural Recovery —", Circle of the Land Druid); ficam de fora os prefixos com regra (velocidade máxima, caso resolvido e condição do caso, visita e prêmio de atração, capítulo)
     const frases = [], efeitos = [], topo = {};
     const magica = /\b(Instant|Sorcery)\b/.test(tipo.split(' // ')[0]); // M-531 · Aventura e preparação: a linha de tipo do app junta as faces ("Creature — … // Instant — Adventure"); vale a da frente
@@ -19788,6 +19792,7 @@ const __m42 = (function () {
         if (edm) { topo.entra = [...(topo.entra || []), { afetados: 'self', virada: true, marcadores: { [edm[2].toLowerCase()]: num(edm[1]) } }]; frases.push({ texto: linha, lida: true }); continue; }
         if (/^(this land|this creature|~) enters(?: the battlefield)? tapped$/i.test(lp)) { topo.entersTapped = true; frases.push({ texto: linha, lida: true }); continue; }
         const nj = lp.match(/^ninjutsu (\{[^}]+\}(?:\{[^}]+\})*)$/i); if (nj) { topo.ninjutsu = { mana: nj[1] }; frases.push({ texto: linha, lida: true }); continue; }
+        if (/^\{T\}: Add one mana of any of the exiled card's colors$/i.test(lp)) { topo.produces = [...(topo.produces || []), { coresDaMarcadaM: true }]; frases.push({ texto: linha, lida: true }); continue; } // M-563 · Chrome Mox
         if (/^\{T\}: Add one mana of any color$/i.test(lp)) { topo.produces = [...(topo.produces || []), ['W'], ['U'], ['B'], ['R'], ['G']]; frases.push({ texto: linha, lida: true }); continue; } // M-348 · Bonder's Ornament (a mesma produção que parseProduction lê)
         const mana = lp.match(/^\{T\}: Add ((?:\{[WUBRGC]\})+(?: or (?:\{[WUBRGC]\})+)*)$/); if (mana) { topo.produces = [...(topo.produces || []), ...mana[1].split(' or ').map(x => x.match(/[WUBRGC]/g))]; frases.push({ texto: linha, lida: true }); continue; } // produção de mana (LT13: também "{T}: Add {B}{R}")
         const etu = lp.match(/^(?:this land|~) enters(?: the battlefield)? tapped unless you control an? (Plains|Island|Swamp|Mountain|Forest) or an? (Plains|Island|Swamp|Mountain|Forest)$/i); // LT13 · 305.7 · "check lands"
@@ -20781,7 +20786,7 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
   if (ultima) Object.assign(ultima, palavrasK || {}); // K-4 · 603.10a: persistir/imortal olham como ela era no campo (K-14: foto tirada antes de sair)
   delete o.ultima; delete o.naoDesviraProximo; // CR2g.6 · 400.7
   const segurava = fromZone === 'battlefield' ? o.holding : null;
-  delete o.holding; delete o.devolverAoSair;
+  delete o.holding; delete o.devolverAoSair; delete o.marcadaM; /* M-563 · 400.7: o objeto novo não tem carta ligada */
   if (segurava) o.devolverAoSair = segurava;
   const devolveAte = fromZone === 'battlefield' && to !== 'battlefield' ? (o.ate || []) : null; // CR2d.1 · 610.3
   delete o.ate;
@@ -21148,6 +21153,7 @@ function expandProduction(s, o, opt, visto) {
   const n = opt.per ? countFor(s, o, opt.per) : (opt.amount || 1);
   if (n <= 0) return [];
   if (opt.anyColor) return ['W', 'U', 'B', 'R', 'G'].map(c => Array(n).fill(c));
+  if (opt.coresDaMarcadaM) { const m = o.marcadaM, c = m && s.objects[m.oid]; if (!c || c.zone !== 'exile' || (c.zc || 0) !== m.z) return []; return ((s.facts[c.name] || {}).colors || []).filter(k => 'WUBRG'.includes(k) && k.length === 1).map(k => Array(n).fill(k)); } // M-563 · Chrome Mox: as cores da carta exilada com ele; nunca {C}
   if (opt.escolhida) return o.chosenColor ? [Array(n).fill(o.chosenColor)] : []; // T-90 · CR 106.1 / 605.1a · "one mana of the chosen color" (Portões); antes de escolher, nada (Toca ponto comum: expandProduction)
   return [Array(n).fill(opt.symbol)];
 }
@@ -23229,6 +23235,13 @@ function applyEffectM449(s, src, eff, tgt, events) {
       startPick(s, { p: ctrl, from: terrenos, min: 0, max: 1, to: eff.virado ? 'battlefield-tapped' : 'battlefield', rest: 'stay', label: eff.virado ? 'pôr um terreno no campo, virado' : 'pôr um terreno no campo', source: src.name }, events);
       note({ pending: true }); break;
     }
+    case 'imprime_da_mao': { // M-563 · Chrome Mox: a carta escolhida vai ao exílio ligada a esta fonte (se ainda for o mesmo objeto no campo)
+      const mao = s.zones[ctrl].hand.filter(x => matchesFilter(s, s.objects[x], eff.filter || {}));
+      const fonte = src.ability ? s.objects[src.source] : src;
+      if (!mao.length) { note({ amount: 0 }); break; }
+      startPick(s, { p: ctrl, from: mao, min: 1, max: 1, to: 'exile', rest: 'stay', filter: eff.filter || {}, label: 'exilar uma carta da mão', source: src.name, ...(fonte && fonte.zone === 'battlefield' && !(src.ability && src.fonteZc != null && (fonte.zc || 0) !== src.fonteZc) ? { imprime: { oid: fonte.oid, z: fonte.zc || 0 } } : {}) }, events);
+      note({ pending: true }); break;
+    }
     case 'exila_da_mao': { // M-353 · Mesmeric Fiend: revela a mão; VOCÊ escolhe; a carta vai ao exílio e a fonte a guarda (se ainda estiver no campo)
       const who = playerOf(), filtro = eff.filter || { notTypes: ['land'] };
       const mao = s.zones[who].hand.filter(x => matchesFilter(s, s.objects[x], filtro));
@@ -24290,7 +24303,7 @@ function startPick(s, spec, events) {
     ...(spec.discard ? { discard: true } : {}), // Leva 105 · escolha que é descarte (insanidade)
     ...(spec.tudoOuNada ? { tudoOuNada: true } : {}), // M-373 · ou escolhe o máximo (a escolha fecha sozinha), ou nenhuma
     ...(spec.reparte ? { reparte: spec.reparte } : {}), // M-345
-    ...(spec.senaoSacrifica ? { senaoSacrifica: spec.senaoSacrifica } : {}), ...(spec.segura ? { segura: spec.segura } : {}), // M-353 · Mesmeric Fiend // M-349 · Glint Hawk · Cultivate: um destino por ordem de escolha
+    ...(spec.senaoSacrifica ? { senaoSacrifica: spec.senaoSacrifica } : {}), ...(spec.segura ? { segura: spec.segura } : {}), ...(spec.imprime ? { imprime: spec.imprime } : {}), /* M-563 */ // M-353 · Mesmeric Fiend // M-349 · Glint Hawk · Cultivate: um destino por ordem de escolha
     ...(spec.revelaEscolhida ? { revelaEscolhida: true } : {}), // M-335 · 701.20a: revela só a carta escolhida
     ...(spec.compartilhaTipoM ? { compartilhaTipoM: true } : {}), // M-561 · Myriad Landscape: "that share a land type"
     ...(spec.mostrar ? { mostrar: spec.mostrar } : {}), // Leva 107 · mão revelada inteira (Duress)
@@ -24358,6 +24371,7 @@ function concluiPick(s, events) {
     // CR 701.24b: "embaralhe e ponha a carta no topo" — a carta achada não entra no embaralhamento (Mystical Tutor)
     if (pk.to === 'library-top') { const lib = s.zones[pk.p].library; for (const oid of [...pk.picked].reverse()) { const i = lib.indexOf(oid); if (i >= 0) { lib.splice(i, 1); lib.unshift(oid); } } } }
   if (pk.depois && pk.depois.draw && pk.picked.length) { draw(s, pk.p, pk.depois.draw); if (pk.to === 'sacrificaM') events.push({ kind: 'effect', do: 'draw', name: pk.source, target: s.players[pk.p].name, amount: pk.depois.draw }); } // Leva 107 · M-549: o registro conta a compra
+  if (pk.imprime && pk.picked.length) { const f = s.objects[pk.imprime.oid], c = s.objects[pk.picked[0]]; if (f && f.zone === 'battlefield' && (f.zc || 0) === pk.imprime.z && c && c.zone === 'exile') f.marcadaM = { oid: c.oid, z: c.zc || 0 }; } // M-563 · Chrome Mox: a ligação (607.2a)
   if (pk.segura && pk.picked.length) { const f = s.objects[pk.segura.oid]; if (f && f.zone === 'battlefield' && (f.zc || 0) === pk.segura.z) f.holding = pk.picked[0]; } // M-353 · a fonte que saiu antes não guarda nada (a carta fica exilada: 400.7)
   if (pk.senaoSacrifica && !pk.picked.length) { const f = s.objects[pk.senaoSacrifica.oid]; if (f && f.zone === 'battlefield' && (f.zc || 0) === pk.senaoSacrifica.z) sacrifice(s, f.oid, events); } // M-349 · Glint Hawk (400.7)
   if (pk.onPicked && pk.onPicked.vidaSeSubtipo && pk.picked.some(oid => s.objects[oid] && s.objects[oid].zone === pk.to && matchesFilter(s, s.objects[oid], { subtypes: [pk.onPicked.vidaSeSubtipo.subtipo] }))) { const g = ganhaVidaJogador(s, pk.p, pk.onPicked.vidaSeSubtipo.vida); events.push({ kind: 'effect', do: 'gain', name: pk.source, target: s.players[pk.p].name, amount: g }); } // M-513 · Town Greeter: "if you put a Town card into your hand this way"
@@ -24771,7 +24785,7 @@ function makeAbility(s, source, ab, targets, blockedAt = source.blocking) {
   s.objects[oid] = { oid, ability: true, name: source.name, source: source.oid, effects: ab.effects, owner: source.controller,
     controller: source.controller, zone: 'stack', tapped: false, sick: false, damage: 0, counters: {}, targets: carimbaAlvos(s, targets),
     ...(blockedAt ? { blockedAt } : {}) }; // Q11 · Tinder Wall: quem ela bloqueava, mesmo depois de sacrificada (última informação conhecida)
-  { const f = s.objects[source.oid]; if (f && !f.ability && (ab.effects || []).some(e => e && (e.ate === 'fonte-sair' || (['topo_do_dono', 'exila_da_mao', 'revela_topo_transforma', 'exile_return_transformed', 'craft_volta', 'endure', 'escolhe_nome', 'recomeca_jogo', 'marca_exiladas', 'exila_da_propria_mao', 'anexa_a_ficha' /* M-526 · 400.7: o Equipamento que saiu e voltou não se anexa */, 'desenterrar' /* M-413 · 400.7: a carta que saiu do cemitério e voltou é outra */ /* T-95 · 607.2a: a encarnação da fonte (Toca ponto comum: makeAbility) */].includes(e.do) || e.remember || e.lembra || e.target === 'self-source')))) s.objects[oid].fonteZc = f.zc || 0; } // M-371 · também todo efeito em "esta permanente" (400.7) // M-353 · a habilidade lembra a encarnação da fonte (achado da revisão do lote XXV) // M-345 · também "put ~ on top" (achado da revisão) // CR2d.1 · 610.3a (auditoria M-308: também na ativada): se a fonte já saiu quando o efeito resolve, nada se move
+  { const f = s.objects[source.oid]; if (f && !f.ability && (ab.effects || []).some(e => e && (e.ate === 'fonte-sair' || (['topo_do_dono', 'exila_da_mao', 'imprime_da_mao' /* M-563 */, 'revela_topo_transforma', 'exile_return_transformed', 'craft_volta', 'endure', 'escolhe_nome', 'recomeca_jogo', 'marca_exiladas', 'exila_da_propria_mao', 'anexa_a_ficha' /* M-526 · 400.7: o Equipamento que saiu e voltou não se anexa */, 'desenterrar' /* M-413 · 400.7: a carta que saiu do cemitério e voltou é outra */ /* T-95 · 607.2a: a encarnação da fonte (Toca ponto comum: makeAbility) */].includes(e.do) || e.remember || e.lembra || e.target === 'self-source')))) s.objects[oid].fonteZc = f.zc || 0; } // M-371 · também todo efeito em "esta permanente" (400.7) // M-353 · a habilidade lembra a encarnação da fonte (achado da revisão do lote XXV) // M-345 · também "put ~ on top" (achado da revisão) // CR2d.1 · 610.3a (auditoria M-308: também na ativada): se a fonte já saiu quando o efeito resolve, nada se move
   s.stack.push(oid);
   if (!ab.semCrimeT) crimeT(s, source.controller, s.objects[oid].targets); // T-86 · CR 700.13 · a habilidade ativada ou o gatilho posto na pilha que mira o oponente (Toca ponto comum: makeAbility, uma linha)
   return oid;
@@ -35499,6 +35513,7 @@ function descreveEfeito(e) {
     case 'revela_topo_transforma': return 'olha a carta do topo; se for instantânea ou feitiço, pode revelá-la e transformar esta permanente'; // M-353
     case 'revela_topo': return 'revela a carta do topo'; // M-353
     case 'terreno_da_mao': return `você pode pôr um terreno da sua mão no campo${e.virado ? ', virado' : ''}`; // M-354
+    case 'imprime_da_mao': return 'exila uma carta da sua mão que não seja artefato nem terreno, ligada a esta permanente'; // M-563 · Chrome Mox
     case 'exila_da_mao': return `${alvo || 'o oponente alvo'} revela a mão e você escolhe uma carta que não seja terreno para exilar (volta à mão do dono quando esta permanente sair do campo)`; // M-353
     case 'must_attack_source': return 'até uma criatura alvo de um oponente ataca esta planeswalker no próximo turno de quem a controla, se puder'; // M-228
     case 'prevent_self': return 'previne todo dano que seria causado a ela neste turno';
