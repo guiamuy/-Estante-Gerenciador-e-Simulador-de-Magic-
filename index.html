@@ -6489,6 +6489,7 @@ function validateScript(sc) {
     if (self.reduzSeMira != null && !(self.reduzSeMira && Number.isInteger(self.reduzSeMira.generic) && self.reduzSeMira.generic > 0 && JSON.stringify(self.reduzSeMira.tipos) === '["creature"]')) errs.push('bônus próprio: reduzSeMira pede tipos [creature] e generic inteiro'); // M-259
     if (self.naoBloqueia != null && self.naoBloqueia !== true) errs.push('bônus próprio: "não bloqueia" só vale como true');
     if (self.atacaSePuder != null && self.atacaSePuder !== true) errs.push('bônus próprio: "ataca se puder" só vale como true'); // M-430
+    if (self.descartaTerrenoAoEntrarM != null && self.descartaTerrenoAoEntrarM !== true) errs.push('bônus próprio: descartaTerrenoAoEntrarM só vale como true'); // M-564
     if (self.oponentesNaoConjuramNoSeuTurnoM != null && self.oponentesNaoConjuramNoSeuTurnoM !== true) errs.push('bônus próprio: oponentesNaoConjuramNoSeuTurnoM só vale como true'); // M-560
     if (self.atacaSePuderSe != null && !(self.atacaSePuder === true && JSON.stringify(self.atacaSePuderSe) === '{"delirio":true}')) errs.push('bônus próprio: atacaSePuderSe é { delirio: true } e pede atacaSePuder'); // M-525
     if (self.entraComInstFeitDelveM != null && !(self.entraComInstFeitDelveM === true && sc.delve)) errs.push('bônus próprio: entraComInstFeitDelveM é verdadeiro e pede delve (as cartas exiladas pelo delve desta mágica)'); // M-530 · Murktide Regent
@@ -10593,6 +10594,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Green Sun\'s Zenith': { texto: '117z91f', leva: 'M-562' },
   // M-563 · revisão por lote CXCVIII (Chrome Mox: marca uma carta da mão e gera mana das cores dela), texto e rulings da Scryfall de 22/10/2026 UTC, revisor independente
   'Chrome Mox': { texto: '187chm2', leva: 'M-563' },
+  // M-564 · revisão por lote CXCIX (Mox Diamond: descarta um terreno ou vai ao cemitério, antes de entrar), texto e rulings da Scryfall de 22/10/2026 UTC, revisor independente
+  'Mox Diamond': { texto: 'kb2rae', leva: 'M-564' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -19816,6 +19819,7 @@ const __m42 = (function () {
         if (etu) { topo.entersTappedUnless = { controlsSubtype: [etu[1], etu[2]] }; frases.push({ texto: linha, lida: true }); continue; }
         if (/^(?:this land|~) enters(?: the battlefield)? tapped unless you control two or more other lands$/i.test(lp)) { topo.entersTappedUnless = { minOutrasTerras: 2 }; frases.push({ texto: linha, lida: true }); continue; } // M-340 · terras lentas
         if (/^(?:this land|~) enters(?: the battlefield)? tapped unless you control two or more basic lands$/i.test(lp)) { topo.entersTappedUnless = { minBasicos: 2 }; frases.push({ texto: linha, lida: true }); continue; } // M-340 · terras de batalha
+        if (/^if (?:~|this artifact) would enter(?: the battlefield)?, you may discard a land card instead\. if you do, put (?:~|this artifact) onto the battlefield\. if you don't, put it into its owner's graveyard$/i.test(lp)) { topo.self = { ...(topo.self || {}), descartaTerrenoAoEntrarM: true }; frases.push({ texto: linha, lida: true }); continue; } // M-564 · Mox Diamond (614.1c)
         if (/^~ can't block$/i.test(lp)) { topo.self = { ...(topo.self || {}), naoBloqueia: true }; frases.push({ texto: linha, lida: true }); continue; } // M-340 · 509.1a
         if (/^(?:~|this (?:artifact|creature|land|permanent)) doesn't untap during your untap step$/i.test(lp)) { topo.self = { ...(topo.self || {}), naoDesvira: true }; frases.push({ texto: linha, lida: true }); continue; } // M-558 · 502.3 (Grim Monolith, Mana Vault)
         if (/^your opponents can't cast spells during your turn$/i.test(lp)) { topo.self = { ...(topo.self || {}), oponentesNaoConjuramNoSeuTurnoM: true }; frases.push({ texto: linha, lida: true }); continue; } // M-560 · Voice of Victory (101.2)
@@ -24331,7 +24335,7 @@ function startPick(s, spec, events) {
     ...(spec.descarteOuTipoM ? { descarteOuTipoM: spec.descarteOuTipoM } : {}), // M-551 · Winternight Stories
     ...(spec.tituloM ? { tituloM: spec.tituloM } : {}), ...(spec.dicaM ? { dicaM: spec.dicaM } : {}), // M-552 · o que a folha de escolha diz
     ...(spec.esconde ? { esconde: spec.esconde } : {}), // M-268 · a permanente do esconderijo
-    ...(spec.copiaAoEntrar ? { copiaAoEntrar: spec.copiaAoEntrar } : {}) }; // CR2f.2 // M-268 · a permanente do esconderijo // M-267 · os próximos destinos do repartir
+    ...(spec.copiaAoEntrar ? { copiaAoEntrar: spec.copiaAoEntrar } : {}), ...(spec.descarteAntesDeEntrarM ? { descarteAntesDeEntrarM: spec.descarteAntesDeEntrarM } : {}) /* M-564 */ }; // CR2f.2 // M-268 · a permanente do esconderijo // M-267 · os próximos destinos do repartir
   events.push({ kind: 'choice', what: spec.label, name: spec.source, amount: spec.from.length });
 }
 /** S55 · soma do valor de mana do que já foi escolhido. */
@@ -24405,6 +24409,10 @@ function concluiPick(s, events) {
   if (pk.delveDeM != null) { const sp = s.objects[pk.delveDeM]; if (sp && sp.zone === 'stack') sp.delveInstFeitM = (sp.delveInstFeitM || 0) + pk.picked.filter(oid => { const tp = (s.facts[s.objects[oid].name] || {}).types || []; return s.objects[oid].zone === 'exile' && (tp.includes('instant') || tp.includes('sorcery')); }).length; } // M-530 · 607.2a "exiled with it" (delve, 702.66)
   events.push({ kind: 'choice-done', what: pk.label, name: pk.source, amount: pk.picked.length });
   if (pk.antesDeEntrarK) antesDeEntrarFeitoK(s, pk, events); // K-45 · retoma a resolução (Toca ponto comum: concluiPick)
+  if (pk.descarteAntesDeEntrarM && s.objects[pk.descarteAntesDeEntrarM] && s.objects[pk.descarteAntesDeEntrarM].zone === 'stack' && s.stack[s.stack.length - 1] === pk.descarteAntesDeEntrarM) { // M-564 · Mox Diamond: descarta (ou não) e retoma a resolução
+    const c = pk.picked[0], m = s.objects[pk.descarteAntesDeEntrarM];
+    if (c && s.objects[c] && s.objects[c].zone === 'hand') { const nome = s.objects[c].name; descartaCarta(s, c); events.push({ kind: 'effect', do: 'discard', name: m.name, target: s.players[pk.p].name, amount: 1, carta: nome }); m.descarteDeEntradaM = c; /* achado da revisão: a linha do registro esperava jogador e quantidade */ } else m.descarteDeEntradaM = null;
+    events.push(resolveTop(s, events)); s.turn.priority = s.turn.active; }
   if (pk.copiaAoEntrar && s.objects[pk.copiaAoEntrar] && s.objects[pk.copiaAoEntrar].zone === 'stack' && s.stack[s.stack.length - 1] === pk.copiaAoEntrar) { // CR2f.2 · retoma a resolução
     s.objects[pk.copiaAoEntrar].copiaEscolhida = pk.picked[0] || null; events.push(resolveTop(s, events)); s.turn.priority = s.turn.active; }
   if (pk.descarteOuTipoM) descarteOuTipoM(s, pk, events); // M-551
@@ -25737,6 +25745,19 @@ function attachTo(s, o, hostOid, events) {
   events.push({ kind: 'effect', do: 'attach', name: o.name, target: host.name });
   return true;
 }
+/** M-564 · Mox Diamond: "If this artifact would enter, you may discard a land card instead…" — a escolha vem antes de entrar; sem terreno na mão ou
+ *  recusando, a mágica vai ao cemitério do dono e a permanente nunca entra (614.1c; ruling de 01/05/2008). */
+function descarteAntesDeEntrarM(s, item, o, dest, controller, events) {
+  if (dest !== 'battlefield' || o.faceDown || !((((s.facts[o.name] || {}).script) || {}).self || {}).descartaTerrenoAoEntrarM) return null;
+  if (o.descarteDeEntradaM === undefined) {
+    const terras = s.zones[controller].hand.filter(x => ((s.facts[s.objects[x].name] || {}).types || []).includes('land'));
+    if (terras.length) { startPick(s, { p: controller, from: terras, min: 0, max: 1, to: 'stay', rest: 'stay', label: 'descartar um terreno para entrar', source: o.name, descarteAntesDeEntrarM: item, tituloM: 'Descartar um terreno?', dicaM: 'Toque no terreno a descartar. Confirmar sem escolher: ela vai para o cemitério sem entrar.' }, events); return events.pop(); } // achado da revisão: uma linha só no registro
+    o.descarteDeEntradaM = null;
+  }
+  if (o.descarteDeEntradaM) { delete o.descarteDeEntradaM; return null; }
+  delete o.descarteDeEntradaM; events.push({ kind: 'effect', do: 'nao_entrou_m', name: o.name });
+  return fimDaMagiaResolvida(s, item, o, 'graveyard', controller, false, true, events);
+}
 function resolveTop(s, events = []) {
   const item = s.stack[s.stack.length - 1];
   const o = s.objects[item];
@@ -25778,6 +25799,7 @@ function resolveTop(s, events = []) {
   // CR2f.2 · 707.5 · "You may have this creature enter as a copy of …": a escolha vem ao entrar (antes dos gatilhos de entrada), pela
   // escolha de cartas que a mesa já conhece (0 ou 1); escolhido, a permanente entra já com os valores copiados
   { const ch = escolhaAntesDeEntrarK(s, item, o, dest, controller, events); if (ch) return ch; } // K-45 · 702.82a/702.38a: "as this enters" (Toca ponto comum: resolveTop)
+  { const md = descarteAntesDeEntrarM(s, item, o, dest, controller, events); if (md) return md; } // M-564 · Mox Diamond (Toca ponto comum: resolveTop)
   const comoCopia = dest === 'battlefield' && scripted && f.script.entraComoCopia;
   if (comoCopia && o.copiaEscolhida === undefined) {
     const opcoes = selecionar(s, controller, { ...(f.script.entraComoCopia.de || { tipos: ['creature'] }), zona: 'battlefield' }, item).map(x => x.oid).filter(x => x && x !== item);
@@ -34295,6 +34317,7 @@ function effectLine(ev) {
     case 'sacrifice_it': return ev.failed ? `${ev.name}: o alvo já não estava no campo` : ev.propria ? `${ev.name} foi sacrificada` : `${ev.name}: ${ev.name2 || t} foi sacrificada`; // M-397 · antes "Pestilence: A foi sacrificada"
     case 'reanimate_all': return n ? `${ev.name} devolveu ao campo ${(ev.nomes || []).join(', ')}` : `${ev.name} não devolveu nada`; // CR2c.5
     case 'exile_self': return `${ev.name} foi exilada`;
+    case 'nao_entrou_m': return `${ev.name} não entrou: nenhum terreno descartado, foi para o cemitério`; // M-564
     case 'counter_choice': return `${t} recebeu um marcador de ${PALAVRA_PT[ev.kind] || ev.kind} (${ev.name})`;
     case 'destroy_all': return n ? `${ev.name} destruiu ${(ev.nomes || []).join(', ')}` : `${ev.name} não destruiu nada`; // CR2c.2
     case 'edict': return `${ev.name}: ${t} não tinha o que sacrificar`;

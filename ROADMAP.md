@@ -5417,6 +5417,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nenhum.
 - **Teste:** `lt245.unit` (4 testes; falham no motor anterior).
 
+**M-564 · LT223 · revisão por lote CXCIX: Mox Diamond** ✅ (leva M-564, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** passa a jogar Mox Diamond (80 listas do catálogo). Texto e ruling da Scryfall consultados em 22/10/2026.
+- **Regra:** "If this artifact would enter, you may discard a land card instead…" (`self.descartaTerrenoAoEntrarM`, substituição 614.1c) decidida na resolução, antes de entrar, pela mesma escolha "antes de entrar" da K-45/CR2f.2 (`descarteAntesDeEntrarM`): descartando um terreno (descarte de verdade, com insanidade), entra; sem descartar ou sem terreno na mão, a mágica vai ao cemitério do dono e a permanente nunca entra — nada que olhe entrada dispara (ruling de 01/05/2008).
+- **Revisão independente:** sem divergência de regra (13 sondas e 40 partidas aleatórias: pergunta antes de entrar com a Mox na pilha, só cartas de terreno da mão — Dryad Arbor sim, carta de duas faces com verso terreno não —, descarte de verdade dispara "você descarta", entra e dispara o que olha entrada; recusando ou sem terreno, cemitério sem entrar; anulada, cemitério; controlada por outro jogador ou copiada, a escolha é de quem controla). Um achado no registro corrigido com teste: a linha do descarte saía "Island descarta undefined cartas"; agora "A descarta 1 carta (Mox Diamond)", e a escolha aparece numa linha só
+- **Fora (declarado):** Mox Diamond posta no campo por outro efeito (sem ser conjurada) ainda não passa pela escolha: entra sem descartar. Simplificação que muda a partida só nesse caso raro. Para recusar, o botão da folha continua "Confirmar" (a dica explica); o rótulo "Não descartar" fica como pedido à trilha `jogabilidade`, dona da folha.
+- **Teste:** `lt246.unit` (4 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
