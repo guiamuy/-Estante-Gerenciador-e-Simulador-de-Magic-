@@ -171,3 +171,14 @@ test('I-292 · `node telemetria.mjs rodada --ci`: tudo vem do ambiente (plano, r
   assert.notEqual(r.status, 0); assert.match(r.stderr + r.stdout, /parece e-mail/);
   assert.equal(lerJsonl(conteudo(bare, ARQUIVOS.rodadas)).length, 1, 'nada a mais no ramo');
 });
+
+test('I-295 · gravar `pessoas` (lista de dias) chega ao ramo como pessoas.jsonl — a primeira corrida do fluxo caiu porque o nome do arquivo era derivado por "+s" e `pessoas` já é o nome', { timeout: 60000 }, t => {
+  const { base, bare } = remotoLocal(); t.after(() => rmSync(base, { recursive: true, force: true }));
+  const dias = [{ dia: '2026-10-21', salas_criadas: 1, salas_total: 3, contas: 5, contas_novas: 1, perfis: 2 }, { dia: '2026-10-22', salas_criadas: 0, salas_total: 3, contas: 6, contas_novas: 1 }];
+  const r = gravar({ tipo: 'pessoas', registro: dias, remoto: bare, pasta: join(base, 'p'), agora: () => '2026-10-22T03:00:00Z' });
+  assert.equal(r.arquivo, ARQUIVOS.pessoas); assert.equal(r.enviado, true);
+  assert.deepEqual(lerJsonl(conteudo(bare, ARQUIVOS.pessoas)).map(l => [l.dia, l.contas, l.em]), [['2026-10-21', 5, '2026-10-22T03:00:00Z'], ['2026-10-22', 6, '2026-10-22T03:00:00Z']]);
+  const r2 = gravar({ tipo: 'pessoas', registro: { dia: '2026-10-22', salas_criadas: 2, salas_total: 5, contas: 7, contas_novas: 2 }, remoto: bare, pasta: join(base, 'p'), agora: () => '2026-10-23T03:00:00Z' });
+  assert.equal(r2.tentativa, 1); assert.deepEqual(lerJsonl(conteudo(bare, ARQUIVOS.pessoas)).map(l => [l.dia, l.contas]), [['2026-10-21', 5], ['2026-10-22', 7]]);
+  for (const tipo of ['leva', 'trilha', 'rotina', 'placar', 'rodada', 'pessoas']) assert.ok(ARQUIVOS[tipo] || ARQUIVOS[tipo + (tipo === 'placar' ? 'es' : 's')], 'todo tipo tem arquivo: ' + tipo);
+});

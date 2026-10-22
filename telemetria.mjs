@@ -264,7 +264,7 @@ export function rodadaDoResumo({ id, resumo = null, plano = null, portao = '', p
 export function gravar({ tipo, registro, remoto, pasta, semPush = false, agora = () => new Date().toISOString(), autor = 'Telemetria Estante <noreply@anthropic.com>' }) {
   const erros = tipo === 'skills' ? [] : valida(tipo, registro);
   if (erros.length) throw new Error('registro recusado: ' + erros.join('; '));
-  const arquivo = tipo === 'skills' ? ARQUIVOS.skills : ARQUIVOS[tipo + (tipo === 'placar' ? 'es' : 's')];
+  const arquivo = tipo === 'skills' ? ARQUIVOS.skills : ARQUIVOS[tipo] || ARQUIVOS[tipo + (tipo === 'placar' ? 'es' : 's')];   // I-295 · `pessoas` já é o nome do arquivo
   let ultimo = null;
   for (let tentativa = 1; tentativa <= 5; tentativa++) {
     const estado = preparaPasta({ remoto, pasta });
