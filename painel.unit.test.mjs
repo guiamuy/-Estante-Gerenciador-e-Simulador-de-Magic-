@@ -178,11 +178,11 @@ test('R-2 · fonte sem rede ou com a cota esgotada devolve o que havia guardado 
 });
 
 /* ---------- modelo puro ---------- */
-test('R-2/R-21 · modelo: doze sub-abas na ordem das fatias (Pipeline antes da Eficiência; Jogo depois do Motor; Custo, Acervo e Experiência no fim), todas com a leva e o que trazem; prontas: Pipeline (R-4), Eficiência (R-5), Roadmap (R-6), Motor (R-7), Jogo (R-18), Qualidade (R-8), Em curso (R-9), Skills (R-10), Modelos (R-11), Custo (R-19), Acervo (R-20) e Experiência (R-21): todas', () => {
+test('R-2/R-21/R-27 · modelo: treze sub-abas na ordem das fatias (Pipeline antes da Eficiência; Jogo depois do Motor; Custo, Acervo, Experiência e Pessoas no fim), todas com a leva e o que trazem; prontas: Pipeline (R-4), Eficiência (R-5), Roadmap (R-6), Motor (R-7), Jogo (R-18), Qualidade (R-8), Em curso (R-9), Skills (R-10), Modelos (R-11), Custo (R-19), Acervo (R-20) e Experiência (R-21): todas', () => {
   const { modelo, app } = loadPainel();
-  assert.deepEqual(modelo.SUBABAS.map(a => a.id), ['pipeline', 'eficiencia', 'roadmap', 'motor', 'jogo', 'qualidade', 'curso', 'skills', 'modelos', 'custo', 'acervo', 'experiencia']);
+  assert.deepEqual(modelo.SUBABAS.map(a => a.id), ['pipeline', 'eficiencia', 'roadmap', 'motor', 'jogo', 'qualidade', 'curso', 'skills', 'modelos', 'custo', 'acervo', 'experiencia', 'pessoas']);
   for (const a of modelo.SUBABAS) { assert.match(a.leva, /^R-\d+$/); assert.ok(a.traz.length > 20); assert.equal(!!a.pronta, true, a.id + ' pronta'); assert.equal(!!app.VISOES[a.id], !!a.pronta, 'toda sub-aba pronta tem a visão que a desenha'); }
-  assert.deepEqual(modelo.SUBABAS.map(a => a.leva), ['R-4', 'R-5', 'R-6', 'R-7', 'R-18', 'R-8', 'R-9', 'R-10', 'R-11', 'R-19', 'R-20', 'R-21']);
+  assert.deepEqual(modelo.SUBABAS.map(a => a.leva), ['R-4', 'R-5', 'R-6', 'R-7', 'R-18', 'R-8', 'R-9', 'R-10', 'R-11', 'R-19', 'R-20', 'R-21', 'R-27']);
 });
 
 test('R-2 · modelo: carimbo dos dados, idade e farol com limiar declarado', () => {
@@ -811,4 +811,26 @@ test('R-25 · rodadas da fila (CI): linhasDasRodadasCI normaliza (data pelo em, 
   assert.deepEqual(modelo.recorte(linhas, { trilha: 'motor' }).linhas.map(l => l.id), ['1'], 'rodada sem leva tem trilha [] (não undefined): fica de fora do recorte por trilha');
   assert.ok(modelo.LIMIARES.portaoCI.amarelo < 45 && modelo.LIMIARES.portaoCI.verde < modelo.LIMIARES.portaoCI.amarelo); assert.equal(modelo.LIMIARES.vermelhasCI.verde, 0);
   assert.ok(modelo.FONTES.rodadasCI.includes('rodadas.jsonl'));
+});
+
+test('R-27 · pessoas: linhasDasPessoas normaliza (dia válido, data ao meio-dia UTC, inteiros ou null, ordem por dia); resumoDasPessoas: totais do último dia, novas e salas somadas no recorte, perfis como % das contas, relatos por 100 contas, contas indisponíveis declaradas; recorte por período funciona; limiar de frescor', () => {
+  const { modelo } = loadPainel();
+  const linhas = modelo.linhasDasPessoas([
+    { dia: '2026-10-21', em: '2026-10-22T03:20:00Z', contas: 12, contas_novas: 2, perfis: 7, salas_criadas: 3, salas_total: 40 },
+    { dia: '2026-10-19', em: '2026-10-22T03:20:00Z', contas: 9, contas_novas: 1, salas_criadas: 0, salas_total: 36 },
+    { dia: '2026-10-20', em: '2026-10-22T03:20:00Z', contas: 10, contas_novas: 1, salas_criadas: 1, salas_total: 37 },
+    { dia: '21/10/2026', contas: 99 }, null, { dia: '2026-10-18', em: 'x', contas: null, contas_novas: null, salas_criadas: 2, salas_total: 36, obs: 'contas indisponíveis: HTTP 403' }
+  ]);
+  assert.deepEqual(linhas.map(l => [l.dia, l.contas, l.contas_novas, l.perfis, l.salas_criadas, l.em != null]), [['2026-10-18', null, null, null, 2, false], ['2026-10-19', 9, 1, null, 0, true], ['2026-10-20', 10, 1, null, 1, true], ['2026-10-21', 12, 2, 7, 3, true]]);
+  assert.equal(new Date(linhas[0].data).toISOString(), '2026-10-18T12:00:00.000Z');
+  const x = modelo.resumoDasPessoas(linhas, [{ numero: 1 }, { numero: 2 }, { numero: 3 }]);
+  assert.deepEqual([x.contas, x.novas, x.perfis, x.salasCriadas, x.salasTotal, x.relatosPorCem, x.nRelatos, x.semContas, x.ultima.dia], [12, 4, 7, 6, 40, 25, 3, false, '2026-10-21']);
+  const so18 = modelo.resumoDasPessoas(linhas.slice(0, 1), null);
+  assert.deepEqual([so18.contas, so18.semContas, so18.obs, so18.relatosPorCem, so18.perfis], [null, true, 'contas indisponíveis: HTTP 403', null, null]);
+  assert.deepEqual(modelo.resumoDasPessoas([], null), { dias: [], ultima: null, ultimaComContas: null, contas: null, novas: 0, perfis: null, salasCriadas: 0, salasTotal: null, relatosPorCem: null, nRelatos: null, semContas: false, obs: null });
+  const agora = Date.parse('2026-10-22T04:00:00Z');
+  assert.deepEqual(modelo.recorte(linhas, { periodo: '7d' }, agora).linhas.map(l => l.dia), ['2026-10-18', '2026-10-19', '2026-10-20', '2026-10-21']);
+  assert.deepEqual(modelo.recorte(linhas, { periodo: '7d', trilha: 'radar' }, agora).naoAplica, ['trilha'], 'pessoas não tem trilha');
+  assert.equal(modelo.LIMIARES.pessoasFrescor.verde, 1); assert.ok(modelo.FONTES.pessoas.includes('pessoas.jsonl'));
+  assert.equal(modelo.SUBABAS.find(a => a.id === 'pessoas').leva, 'R-27');
 });

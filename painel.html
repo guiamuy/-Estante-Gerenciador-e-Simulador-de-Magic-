@@ -374,6 +374,8 @@ a { color: var(--accent); }
 @media (prefers-reduced-motion: reduce) { #nav-offline::before { animation: none; } .ds-anel__barra { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .inicio__rapidos .ds-atalho__icone { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .nt-topo.ds-btn { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .cat-topo.ds-btn { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .porta__item { animation: none; } .porta[data-saida="true"] { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .inicio-jogar.ds-btn:active:not([disabled]), .inicio-jogar.ds-btn:active .ds-atalho__icone, .inicio-jogar.ds-btn:active .inicio-jogar__seta { transform: none; } .inicio-jogar--brilho::after { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .ds-nav:active { transform: none; } }
 @media (prefers-reduced-motion: reduce) { .ds-expansivel__seta { transition: none; } .ds-expansivel__corpo { animation: none; } }
@@ -471,9 +473,11 @@ body {
 @media (prefers-reduced-motion: reduce) { .ds-relatar { transition: none; } .ds-relatar:active { transform: none; } }
 @media (prefers-reduced-motion: reduce) { .tb-relatar__aba { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .troca-carta.is-chegou { animation: none; } .troca-carta { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .tb-vez-selo--troca { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .tb-vez-pop { animation: none; } .tb-vez__btn:active:not(:disabled) { transform: none; } }
 @media (prefers-reduced-motion: reduce) { .tb-vez--troca { animation: none; } .tb-side { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .tb-card--entrou { animation: none; } .tb-card, .tb-card__face { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .tb-stack__painel { animation: none; } .tb-stack__faixa > .tb-stack__seta { transition: none; } }
 .ds-icon { display: inline-flex; line-height: 0; }
 @media (prefers-reduced-motion: reduce) { .tb-hand__body, .tb-hand__chevron, .tb-dock, .tb-hand__toggle { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .tb-resumo__painel { animation: none; } .tb-resumo__faixa > .tb-resumo__seta { transition: none; } }
@@ -797,7 +801,8 @@ const __p2 = (function () {
     { id: 'modelos', rotulo: 'Modelos', titulo: 'Modelos', leva: 'R-11', pronta: true, traz: 'levas, tempo e portão por modelo, e o consumo estimado do plano' },
     { id: 'custo', rotulo: 'Custo', titulo: 'Custo e escala', leva: 'R-19', pronta: true, traz: 'minutos de Actions por rodada, dia e mês, e o tamanho do index.html por leva' },
     { id: 'acervo', rotulo: 'Acervo', titulo: 'Acervo de listas', leva: 'R-20', pronta: true, traz: 'listas do catálogo por formato e por fonte, saúde e frescor das fontes (MTGJSON, Magic Online, TopDeck.gg), fichas pendentes e a medida do scanner' },
-    { id: 'experiencia', rotulo: 'Experiência', titulo: 'Experiência de desenvolvimento', leva: 'R-21', pronta: true, traz: 'o que o portão mediu em cada leva: testes instáveis por semana e por nome, quedas de orçamento, telas auditadas e a duração do portão local' }
+    { id: 'experiencia', rotulo: 'Experiência', titulo: 'Experiência de desenvolvimento', leva: 'R-21', pronta: true, traz: 'o que o portão mediu em cada leva: testes instáveis por semana e por nome, quedas de orçamento, telas auditadas e a duração do portão local' },
+    { id: 'pessoas', rotulo: 'Pessoas', titulo: 'Pessoas', leva: 'R-27', pronta: true, traz: 'quantas contas existem e quantas nasceram por dia, perfis sincronizados, salas por dia e relatos por conta — só totais, ninguém identificado (decisão D13)' }
   ];
   /** Limiares dos faróis (doc BI-painel-epicos.md, seção 3): editáveis aqui, exibidos em cada cartão. */
   const LIMIARES = {
@@ -1270,6 +1275,23 @@ const __p2 = (function () {
     for (const n of ci || []) { const a = m.get(n.nome) || { nome: n.nome, levas: 0, rodadas: 0 }; a.rodadas += n.vezes; m.set(n.nome, a); }
     return [...m.values()].map(a => ({ ...a, vezes: a.levas + a.rodadas })).sort((a, b) => b.vezes - a.vezes || b.rodadas - a.rodadas || a.nome.localeCompare(b.nome));
   }
+  /* ---------- R-27 · BI2-3 · Pessoas (puro): telemetria/pessoas.jsonl, gravado pelo fluxo Pessoas (I-293) — só totais por dia ---------- */
+  /** Uma linha por dia: `data` pelo dia (UTC, meio-dia, para o recorte por período), totais como vieram; linha sem dia válido sai. */
+  function linhasDasPessoas(linhas) {
+    return (linhas || []).filter(l => l && /^\d{4}-\d{2}-\d{2}$/.test(l.dia)).map(l => ({ dia: l.dia, data: Date.parse(l.dia + 'T12:00:00Z'), em: Date.parse(l.em || '') || null, contas: Number.isInteger(l.contas) ? l.contas : null, contas_novas: Number.isInteger(l.contas_novas) ? l.contas_novas : null, perfis: Number.isInteger(l.perfis) ? l.perfis : null, salas_criadas: l.salas_criadas || 0, salas_total: l.salas_total || 0, obs: l.obs || null })).sort((a, b) => a.dia.localeCompare(b.dia));
+  }
+  /** Resumo do recorte: a última linha (dia mais recente) dá os totais; novas e salas somam os dias do recorte; relatos por 100 contas usa a tabela de relatos quando há. */
+  function resumoDasPessoas(linhas, relatos = null) {
+    const dias = (linhas || []).slice().sort((a, b) => a.dia.localeCompare(b.dia));
+    const ultima = dias.length ? dias[dias.length - 1] : null;
+    const comContas = dias.filter(l => l.contas != null), ultimaComContas = comContas.length ? comContas[comContas.length - 1] : null;
+    const novas = dias.reduce((n, l) => n + (l.contas_novas || 0), 0), salasCriadas = dias.reduce((n, l) => n + (l.salas_criadas || 0), 0);
+    const nRelatos = Array.isArray(relatos) ? relatos.length : null;
+    const porCem = nRelatos != null && ultimaComContas && ultimaComContas.contas > 0 ? Math.round(1000 * nRelatos / ultimaComContas.contas) / 10 : null;
+    return { dias, ultima, ultimaComContas, contas: ultimaComContas ? ultimaComContas.contas : null, novas, perfis: ultima && ultima.perfis != null ? ultima.perfis : null, salasCriadas, salasTotal: ultima ? ultima.salas_total : null, relatosPorCem: porCem, nRelatos, semContas: !!(ultima && ultima.contas == null), obs: ultima ? ultima.obs : null };
+  }
+  // R-27 · frescor da contagem (o fluxo roda uma vez por dia e a cada avanço do main): até 1 dia · até 2 · mais; salas por conta ativa não tem farol (é leitura)
+  Object.assign(LIMIARES, { pessoasFrescor: { verde: 1, amarelo: 2, unidade: 'dias', texto: 'idade da última contagem de pessoas: até 1 dia · até 2 dias · mais (o fluxo Pessoas parou ou o segredo sumiu)' } });
   // R-25 · o portão da fila tem 45 min de teto no CI (timeout-minutes do job portao): verde até 30, amarelo até 40, acima disso está perto de cair por tempo
   Object.assign(LIMIARES, { portaoCI: { verde: 30, amarelo: 40, unidade: 'min', texto: 'duração do portão da fila no CI (rápida + tela, mediana): ≤ 30 min · ≤ 40 min · mais (o job cai aos 45)' }, vermelhasCI: { verde: 0, amarelo: 1, unidade: 'rodadas', texto: 'rodadas da fila com portão vermelho no recorte: 0 · 1 · mais' } });
   /* ---------- R-24 · BI2-2 · scanner (puro): a última leva com medidas.scanner da telemetria ---------- */
@@ -1305,10 +1327,11 @@ const __p2 = (function () {
     pages: 'API GitHub · actions/runs (fluxo "pages build and deployment")',
     levas: 'ramo telemetria · levas.jsonl (escrito pelas sessões)',
     rodadasCI: 'ramo telemetria · rodadas.jsonl (uma linha por rodada da fila, gravada pelo job avanca do CI com o resumo do portão)',
+    pessoas: 'ramo telemetria · pessoas.jsonl (uma linha por dia, só totais, gravada pelo fluxo Pessoas com a conta de serviço: contas pelo Firebase Authentication, perfis e salas pelo banco)',
     coleta: 'raw · catalogo/coleta.json (saúde e contagens da última coleta; gravado pelo fluxo Catálogo)',
     indice: 'raw · catalogo/indice.json (só o cabeçalho: fontes, formatos, total, pendentes; lido uma vez por coleta e guardado por carimbo)'
   };
-  return { SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, levasPorRodada, compactaCommits, MAIN_URL, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, sharkPorVersao, minutosDasRodadas, serieDeTamanho, kb, cabecalhoDoIndice, resumoDoCatalogo, experienciaDasLevas, linhasDasRodadasCI, experienciaDasRodadas, instaveisPorNome, medidaDoScanner, linhasDosRelatos, linhasDasTrilhas, resumoDoFluxo, fraseDoCron, linhasDosFluxos, linhasDasRotinas, porModelo, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
+  return { SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, levasPorRodada, compactaCommits, MAIN_URL, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, sharkPorVersao, minutosDasRodadas, serieDeTamanho, kb, cabecalhoDoIndice, resumoDoCatalogo, experienciaDasLevas, linhasDasRodadasCI, experienciaDasRodadas, instaveisPorNome, linhasDasPessoas, resumoDasPessoas, medidaDoScanner, linhasDosRelatos, linhasDasTrilhas, resumoDoFluxo, fraseDoCron, linhasDosFluxos, linhasDasRotinas, porModelo, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
 })();
 
 /* ==== src/painel/ui.js ==== */
@@ -1768,6 +1791,46 @@ const __p4 = (function () {
             Barras({ id: 'pn-g-telas', titulo: `Telas auditadas por leva (auditaTela) · ${recorteTxt}`, itens: telas, vazio: 'sem leva com a fase de tela medida' }),
             Barras({ id: 'pn-g-rodadas-ci', titulo: `Instáveis por rodada da fila (CI) · ${recorteTxt}`, itens: rodadasCI, vazio: 'nenhuma rodada da fila com telemetria neste recorte' }),
             Barras({ id: 'pn-g-duracao-ci', titulo: `Duração do portão da fila por rodada (min) · ${recorteTxt}`, itens: duracoesCI, formato: v => Number(v).toLocaleString('pt-BR'), vazio: 'nenhuma rodada da fila com duração neste recorte' })),
+          h('ul', { class: 'pn-notas ds-text ds-text--sm ds-text--muted', id: 'pn-notas' }, ...notas.map(n => h('li', {}, n)))
+        ];
+      }
+    },
+    // R-27 · BI2-3 · Pessoas: pessoas.jsonl (só totais por dia) + a tabela de relatos (cache compartilhado com Qualidade) para relatos por conta
+    pessoas: {
+      filtros: ['periodo'], periodoPadrao: '30d',
+      linhas: d => M.linhasDasPessoas(d.pessoas || []),
+      async carrega(fonte, forcar) {
+        const avisos = []; let pessoas = [], relatos = null;
+        try { pessoas = lerJsonl((await fonte.raw('telemetria', 'pessoas.jsonl', { ttl: 10 * 60000, forcar })).dado); } catch (e) { avisos.push('contagem de pessoas ainda não gravada (o fluxo Pessoas roda uma vez por dia e a cada avanço do main)'); }
+        try { relatos = (await fonte.raw('relatos', 'relatos.json', { nome: 'relatos', ttl: 5 * 60000, forcar, transforma: txt => JSON.parse(txt) })).dado; } catch (e) { avisos.push('tabela de relatos indisponível: relatos por conta sem dado'); }
+        return { em: Date.now(), pessoas, relatos, avisos, sem: {} };
+      },
+      desenha(d, filtros, api) {
+        const agora = Date.now();
+        const periodo = filtros.periodo || '30d';
+        const todas = M.linhasDasPessoas(d.pessoas);
+        if (!todas.length) return [Empty('O fluxo Pessoas (I-293) ainda não gravou nenhuma contagem: ele roda uma vez por dia e a cada avanço do main, com a conta de serviço do Firebase. Quando gravar, aqui entram contas, perfis e salas por dia — só totais.', null, { icone: 'ampulheta', titulo: 'Pendente de contagem', hero: true, id: 'pn-pessoas-pendente' })];
+        const rec = recorte(todas, { periodo }, agora);
+        const x = M.resumoDasPessoas(rec.linhas, d.relatos ? M.linhasDosRelatos(d.relatos) : null);
+        const geral = M.resumoDasPessoas(todas, null);
+        const recorteTxt = fraseDoRecorte({ periodo });
+        const idadeDias = geral.ultima && geral.ultima.em ? (agora - geral.ultima.em) / 86400000 : null;
+        const cartoes = h('div', { class: 'pn-cartoes' },
+          Cartao({ id: 'pn-k-contas', rotulo: 'Contas', valor: geral.contas != null ? geral.contas.toLocaleString('pt-BR') : '—', unidade: geral.contas != null ? `até ${geral.ultimaComContas.dia.split('-').reverse().join('/')} · +${x.novas} ${recorteTxt}` : (geral.semContas ? 'a API de contas não respondeu' : ''), farol: idadeDias != null ? farol(idadeDias, LIMIARES.pessoasFrescor) : 'cinza', limiar: LIMIARES.pessoasFrescor, fonte: FONTES.pessoas, formula: 'contas (Firebase Authentication) até o fim do último dia contado; novas = soma de contas_novas no recorte · farol pela idade da contagem', em: geral.ultima ? geral.ultima.em : d.em, semDados: geral.contas == null }),
+          Cartao({ id: 'pn-k-perfis', rotulo: 'Perfis sincronizados', valor: geral.perfis != null ? geral.perfis.toLocaleString('pt-BR') : '—', unidade: geral.perfis != null && geral.contas ? `${Math.round(100 * geral.perfis / geral.contas)} % das contas` : '', fonte: FONTES.pessoas, formula: 'perfis/ no banco (contagem rasa) no último dia contado ÷ contas', em: geral.ultima ? geral.ultima.em : d.em, semDados: geral.perfis == null }),
+          Cartao({ id: 'pn-k-salas', rotulo: 'Salas criadas', valor: x.salasCriadas.toLocaleString('pt-BR'), unidade: `${recorteTxt} · ${geral.salasTotal != null ? geral.salasTotal.toLocaleString('pt-BR') + ' desde o início' : ''}`, fonte: FONTES.pessoas, formula: 'soma de salas_criadas (salas/ por criadaEm) nos dias do recorte; total = salas_total do último dia', em: geral.ultima ? geral.ultima.em : d.em, semDados: !rec.linhas.length }),
+          Cartao({ id: 'pn-k-relatos-conta', rotulo: 'Relatos por 100 contas', valor: x.relatosPorCem != null ? x.relatosPorCem.toLocaleString('pt-BR') : '—', unidade: x.relatosPorCem != null ? `${x.nRelatos} relato(s) · ${geral.contas} contas` : (d.relatos ? 'sem contagem de contas' : 'sem a tabela de relatos'), fonte: FONTES.relatos + ' ÷ ' + FONTES.pessoas, formula: 'relatos registrados (todos) ÷ contas do último dia contado × 100', em: d.em, semDados: x.relatosPorCem == null }));
+        const novasPorDia = rec.linhas.slice(-30).map(l => ({ chave: l.dia, rotulo: l.dia.slice(5).split('-').reverse().join('/'), valor: l.contas_novas || 0, dica: `${l.dia}: ${l.contas_novas != null ? l.contas_novas + ' conta(s) nova(s)' : 'contas indisponíveis'} · ${l.contas != null ? l.contas + ' no total' : ''}`, tom: l.contas_novas == null ? 'warning' : 'accent' }));
+        const salasPorDia = rec.linhas.slice(-30).map(l => ({ chave: l.dia, rotulo: l.dia.slice(5).split('-').reverse().join('/'), valor: l.salas_criadas, dica: `${l.dia}: ${l.salas_criadas} sala(s) criada(s) · ${l.salas_total} no total` }));
+        const notas = ['só totais por dia, gravados pelo fluxo Pessoas com a conta de serviço (decisão D13 do dono, 17/10): nenhum uid, e-mail, nome ou código de sala chega ao painel nem ao ramo telemetria; retenção e sessões só entram com o uso opt-in (BI2-2b)'];
+        if (geral.semContas) notas.push(`a API de contas não respondeu na última corrida${geral.obs ? ' (' + geral.obs + ')' : ''}: contas e novas ficam sem dado; perfis e salas seguem`);
+        if (rec.naoAplica.length) notas.push(`o filtro ${rec.naoAplica.join(', ')} não se aplica aqui`);
+        for (const a of d.avisos || []) notas.push(a);
+        return [
+          cartoes,
+          h('div', { class: 'pn-graficos' },
+            Barras({ id: 'pn-g-contas-dia', titulo: `Contas novas por dia · ${recorteTxt}`, itens: novasPorDia, vazio: 'nenhum dia contado neste recorte' }),
+            Barras({ id: 'pn-g-salas-dia', titulo: `Salas criadas por dia · ${recorteTxt}`, itens: salasPorDia, vazio: 'nenhum dia contado neste recorte' })),
           h('ul', { class: 'pn-notas ds-text ds-text--sm ds-text--muted', id: 'pn-notas' }, ...notas.map(n => h('li', {}, n)))
         ];
       }

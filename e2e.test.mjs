@@ -12215,8 +12215,8 @@ test('e2e · R-2 Painel Estante: outro e-mail é recusado e desconectado; o dono
   assert.match(await page.innerText('#pn-main'), /main: G-264 · há 2 h/);
   assert.equal(await page.getAttribute('#pn-carimbo', 'data-farol'), 'verde');
   assert.match(await page.innerText('#pn-cota'), /57 de 60/);
-  assert.equal(await page.locator('#pn-abas .ds-tab').count(), 12);
-  assert.deepEqual(await page.$$eval('#pn-abas .ds-tab', es => es.map(e => e.dataset.tab)), ['pipeline', 'eficiencia', 'roadmap', 'motor', 'jogo', 'qualidade', 'curso', 'skills', 'modelos', 'custo', 'acervo', 'experiencia']);
+  assert.equal(await page.locator('#pn-abas .ds-tab').count(), 13);   // R-27 · Pessoas
+  assert.deepEqual(await page.$$eval('#pn-abas .ds-tab', es => es.map(e => e.dataset.tab)), ['pipeline', 'eficiencia', 'roadmap', 'motor', 'jogo', 'qualidade', 'curso', 'skills', 'modelos', 'custo', 'acervo', 'experiencia', 'pessoas']);
   await page.waitForSelector('#pn-visao-pipeline, #pn-sem-dados, #pn-em-breve');
   for (const id of ['#pn-atualizar', '#pn-sair', '#pn-tema', '#pn-voltar']) assert.ok((await page.locator(id).boundingBox()).height >= 44, id + ' com 44 px');
   // abrir outra sub-aba: dentro do prazo do cache não há pedido novo; o conteúdo diz a leva dela
@@ -13682,5 +13682,57 @@ test('e2e · MJ3c a carta do Shark sai do contador da mão dele de verso e se re
   await page.evaluate(() => { document.documentElement.setAttribute('data-movimento', 'reduzido'); window.__voosMJ3c.length = 0; window.__turnoMJ3c = window.__estanteMesa.estado().turn.number; });
   await anda(() => window.__estanteMesa.estado().turn.number >= window.__turnoMJ3c + 2);
   assert.deepEqual(await page.evaluate(() => window.__voosMJ3c), [], 'movimento reduzido: nada voou');
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · R-27 Painel · Pessoas (BI2-3, D13): sem contagem fica "pendente de contagem"; com pessoas.jsonl mostra contas (novas no recorte, farol pela idade), perfis como % das contas, salas criadas no recorte e desde o início, relatos por 100 contas, barras por dia; período filtra; contas indisponíveis viram nota; nada identificável; sem sobreposição nas quatro medidas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  const painel = base.replace('index.html', 'painel.html');
+  await page.setViewportSize({ width: 360, height: 780 });
+  const json = (r, corpo) => r.fulfill({ json: corpo, headers: { 'content-type': 'application/json', 'x-ratelimit-remaining': '50', 'x-ratelimit-limit': '60', 'access-control-expose-headers': 'etag, x-ratelimit-remaining, x-ratelimit-limit' } });
+  await page.route('https://api.github.com/**', r => json(r, /\/commits\?sha=main/.test(r.request().url()) ? [{ sha: 'ccc3333ccc3', commit: { message: 'Leva R-27 · pessoas', committer: { date: new Date().toISOString() } } }] : []));
+  const dia = n => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+  const em = new Date(Date.now() - 3600000).toISOString();
+  let pessoas = [];
+  const relatos = { relatos: [{ numero: 1, titulo: 'a', criadoEm: em }, { numero: 2, titulo: 'b', criadoEm: em }, { numero: 3, titulo: 'c', criadoEm: em }] };
+  await page.route('https://raw.githubusercontent.com/**', r => { const u = r.request().url(); r.fulfill({ body: /pessoas\.jsonl/.test(u) ? pessoas.map(l => JSON.stringify(l)).join('\n') : /relatos\.json/.test(u) ? JSON.stringify(relatos) : '', headers: { 'content-type': 'text/plain', 'access-control-allow-origin': '*' } }); });
+  await page.addInitScript(() => {
+    const jwt = email => 'h.' + btoa(JSON.stringify({ email })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') + '.s';
+    window.__PAINEL_FETCH = async (url) => new Response(JSON.stringify(url.includes('securetoken') ? { user_id: 'uidE2E', id_token: jwt('gui.amuy@gmail.com'), refresh_token: 'ref-e2e', expires_in: '3600' } : { localId: 'uidE2E', idToken: jwt('gui.amuy@gmail.com'), refreshToken: 'ref-e2e', expiresIn: '3600', email: 'gui.amuy@gmail.com' }), { headers: { 'content-type': 'application/json' } });
+    window.__PAINEL_GOOGLE = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+  });
+  await page.goto(painel + '#pessoas'); await page.waitForSelector('#pn-entrar'); await page.click('#pn-entrar');
+  await page.waitForSelector('#pn-pessoas-pendente');
+  assert.match(await page.innerText('#pn-pessoas-pendente'), /Pendente de contagem[\s\S]*fluxo Pessoas/);
+  await auditaTela(page, 'pessoas pendente 360');
+  // a contagem chegou: 10 dias, um deles sem a API de contas
+  pessoas = [];
+  for (let n = 9; n >= 0; n--) pessoas.push({ dia: dia(n), em, contas: 30 - n, contas_novas: n === 9 ? 0 : 1, salas_criadas: n % 3 === 0 ? 2 : 0, salas_total: 50 - n, ...(n === 0 ? { perfis: 15 } : {}) });
+  pessoas[4] = { ...pessoas[4], contas: null, contas_novas: null, obs: 'contas indisponíveis: contas: HTTP 403' };
+  await page.click('#pn-atualizar'); await page.waitForSelector('#pn-k-contas');
+  assert.match(await page.innerText('#pn-k-contas'), /30[\s\S]*\+8 30 dias/); assert.equal(await page.getAttribute('#pn-k-contas .pn-farol', 'data-farol'), 'verde');
+  assert.match(await page.innerText('#pn-k-perfis'), /15[\s\S]*50 % das contas/);
+  assert.match(await page.innerText('#pn-k-salas'), /8[\s\S]*30 dias · 50 desde o início/);
+  assert.match(await page.innerText('#pn-k-relatos-conta'), /10[\s\S]*3 relato\(s\) · 30 contas/);
+  assert.match(await page.innerText('#pn-g-contas-dia'), /Contas novas por dia/); assert.equal(await page.locator('#pn-g-contas-dia .pn-barras__item').count(), 10);
+  assert.equal(await page.locator('#pn-g-contas-dia .pn-barras__barra[data-tom="warning"]').count(), 1, 'o dia sem contas fica marcado');
+  assert.equal(await page.locator('#pn-g-salas-dia .pn-barras__item').count(), 10);
+  assert.match(await page.innerText('#pn-notas'), /só totais por dia[\s\S]*nenhum uid, e-mail, nome ou código de sala/);
+  assert.doesNotMatch(await page.innerText('#pn-notas'), /não respondeu na última corrida/, 'o dia sem contas não é o último: sem aviso');
+  const texto = await page.innerText('#pn-conteudo'); assert.doesNotMatch(texto, /uidE2E|gui\.amuy|ESTA-/, 'nada identificável na tela');
+  await auditaTela(page, 'pessoas 360');
+  // período filtra: 7 dias
+  await page.click('#pn-filtros [data-dim="periodo"][data-valor="7d"]');
+  await page.waitForFunction(() => location.hash.includes('periodo=7d'));
+  const dentro = pessoas.filter(l => Date.now() - Date.parse(l.dia + 'T12:00:00Z') <= 7 * 86400000);   // a mesma regra do recorte (dia ao meio-dia UTC)
+  assert.match(await page.innerText('#pn-k-contas'), new RegExp('30[\\s\\S]*\\+' + dentro.reduce((n, l) => n + (l.contas_novas || 0), 0) + ' 7 dias')); assert.equal(await page.locator('#pn-g-contas-dia .pn-barras__item').count(), dentro.length);
+  await emTodasAsMedidas(page, 'pessoas filtrada');
+  // a última corrida sem a API de contas: cartão sem dado, nota com o motivo, perfis e salas seguem
+  pessoas = pessoas.map((l, i) => i === pessoas.length - 1 ? { ...l, contas: null, contas_novas: null, obs: 'contas indisponíveis: contas: HTTP 403' } : l);
+  await page.click('#pn-atualizar');
+  await page.waitForFunction(() => /não respondeu na última corrida/.test((document.querySelector('#pn-notas') || {}).textContent || ''));
+  assert.match(await page.innerText('#pn-k-contas'), /29[\s\S]*até /, 'o último dia com contas vale'); assert.match(await page.innerText('#pn-notas'), /HTTP 403/);
+  assert.match(await page.innerText('#pn-k-perfis'), /15/);
+  if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.screenshot({ path: process.env.SHOTS + '/r27-pessoas.png', fullPage: true }); }
   assert.deepEqual(errors, []);
 });
