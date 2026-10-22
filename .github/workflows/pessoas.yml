@@ -1,0 +1,37 @@
+# I-293 · BI2-3 Pessoas (decisão D13 do dono, 17/10/2026). Uma vez por dia (e a cada avanço do main, disparado pela fila),
+# conta contas, perfis sincronizados e salas com a conta de serviço do Firebase (segredo FIREBASE_SERVICE_ACCOUNT, só no
+# passo que precisa) e grava SÓ TOTAIS por dia em `telemetria/pessoas.jsonl` (pessoas.mjs do main). Nenhum uid, e-mail,
+# nome ou código de sala sai daqui. Sem o segredo, termina sem fazer nada. O `main` não recebe commit daqui. Trilha: infra.
+name: Pessoas
+
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write    # só o ramo telemetria (o script nunca toca o main)
+
+concurrency:
+  group: pessoas
+  cancel-in-progress: false
+
+jobs:
+  contagem:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09   # v5 (fixada por SHA; roda em Node 24)
+        with:
+          ref: main
+          persist-credentials: false   # o token vai pelo cabeçalho do git do runner, só no passo que grava
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444   # v5 (fixada por SHA; roda em Node 24)
+        with:
+          node-version: 22
+      - name: Contar e gravar por dia no ramo telemetria
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config --global "http.${GITHUB_SERVER_URL}/.extraheader" "AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          node pessoas.mjs --remoto "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git" --pasta "$RUNNER_TEMP/telemetria"
