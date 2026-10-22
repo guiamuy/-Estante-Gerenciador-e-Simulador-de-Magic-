@@ -12857,7 +12857,7 @@ test('e2e · R-20 Painel · Acervo: listas no acervo, saúde da coleta, lista ma
   brutos.length = 0; await page.click('#pn-atualizar');
   for (let i = 0; i < 50 && !brutos.length; i++) await page.waitForTimeout(100);
   await page.waitForFunction(() => !document.querySelector('#pn-atualizar').disabled);
-  assert.deepEqual(brutos, ['coleta.json', 'levas.jsonl'], 'R-24: as levas (medida do scanner) também são relidas; o índice não');
+  assert.deepEqual(brutos.filter(b => b !== 'retrato.json'), ['coleta.json', 'levas.jsonl'], 'R-24: as levas (medida do scanner) também são relidas; o índice não (R-28: o retrato do CI é relido a cada Atualizar, fora desta conta)');
   if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.screenshot({ path: process.env.SHOTS + '/r20-acervo.png', fullPage: true }); }
   assert.deepEqual(errors, []);
 });
@@ -14128,5 +14128,73 @@ test('e2e · MJ6a arrastar a mágica da mão até o alvo: alvos acesos, seta que
   await page.mouse.move(o2.x, o2.y - 80, { steps: 6 });
   assert.deepEqual([espiou, await page.evaluate(() => document.querySelector('#tb').dataset.mira || null)], [true, null], 'segurar espia; arrastar depois de espiar não vira mira');
   await page.mouse.up(); await page.waitForTimeout(250);
+  assert.deepEqual(errors, []);
+});
+
+// R-28 (trilha radar) · BI2-7 · o painel lê o retrato do CI (telemetria/retrato.json + commits/<dia>.json, I-296) antes da API
+test('e2e · R-28 Painel · retrato do CI: Pipeline e Eficiência abrem sem nenhum pedido à API (ramos, detalhes, rodada em curso, Pages, commits do main e por dia vêm do retrato); o rodapé diz "Retrato do CI de HH:MM · 0 à API" com farol verde; retrato velho (45 min) manda a fila ao vivo para a API (farol amarelo, pedidos contados) e o detalhe segue do retrato; sem retrato o rodapé volta à cota; sem sobreposição nas quatro medidas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  const painel = base.replace('index.html', 'painel.html');
+  await page.setViewportSize({ width: 360, height: 780 });
+  const SHA = n => String(n).padEnd(40, 'c');
+  const agora = Date.now(), iso = ms => new Date(ms).toISOString(), diaUtc = ms => iso(ms).slice(0, 10);
+  const dias = Array.from({ length: 10 }, (_, i) => diaUtc(agora - i * 86400000));
+  const commitDoDia = d => ({ sha: SHA(Number(d.replace(/-/g, '').slice(-6))), commit: { message: `Leva M-${d.slice(-2)} · carta do dia`, committer: { date: d + 'T12:00:00Z' }, author: { date: d + 'T11:00:00Z' } } });
+  const commits = dias.map(commitDoDia);
+  let em = iso(agora - 5 * 60000), comRetrato = true;
+  const retrato = () => ({ kind: 'estante.retrato', version: 1, em, id: '77', cobertura: { commits: commits.length, ramos: 3, rodadas: 2, dias: dias.slice().sort() },
+    respostas: { ramos: [{ name: 'main', commit: { sha: SHA(1) } }, { name: 'fila/R-28', commit: { sha: SHA(2) } }, { name: 'recusada/T-74', commit: { sha: SHA(3) } }],
+      ['ramo.' + SHA(2)]: { name: 'fila/R-28', commit: { sha: SHA(2), commit: { message: 'Leva R-28 · retrato', committer: { date: iso(agora - 20 * 60000) } } } },
+      ['ramo.' + SHA(3)]: { name: 'recusada/T-74', commit: { sha: SHA(3), commit: { message: 'RECUSADA pela fila · T-74\n\nCONFLITO ao pôr "Leva T-74" sobre o main somado a M-1, em: index.html.', committer: { date: iso(agora - 60 * 60000) } } } },
+      rodadas: { workflow_runs: [{ id: 9, name: 'Fila de publicação', status: 'in_progress', conclusion: null, run_started_at: iso(agora - 10 * 60000), updated_at: iso(agora - 60000), html_url: 'https://github.com/x/y/actions/runs/9' }, { id: 8, name: 'Fila de publicação', status: 'completed', conclusion: 'success', run_started_at: iso(agora - 3 * 3600000), updated_at: iso(agora - 3 * 3600000 + 20 * 60000), html_url: 'https://github.com/x/y/actions/runs/8' }] },
+      'jobs.9': { jobs: [{ id: 91, name: 'monta', status: 'completed', conclusion: 'success' }, { id: 92, name: 'portao', status: 'in_progress', conclusion: null }] },
+      pages: { workflow_runs: [{ id: 70, name: 'pages build and deployment', status: 'completed', conclusion: 'success', updated_at: iso(agora - 2 * 3600000) }] },
+      fluxos: { workflows: [{ id: 5, name: 'Fila de publicação', path: '.github/workflows/fila.yml', state: 'active' }] },
+      commits, tamanhos: Object.fromEntries(commits.map(c => [c.sha, 3900000])) } });
+  const pedidosApi = [];
+  const json = (r, corpo) => r.fulfill({ json: corpo, headers: { 'content-type': 'application/json', 'x-ratelimit-remaining': '50', 'x-ratelimit-limit': '60', 'access-control-expose-headers': 'etag, x-ratelimit-remaining, x-ratelimit-limit' } });
+  await page.route('https://api.github.com/**', r => {
+    const u = r.request().url(); pedidosApi.push(u); const R = retrato().respostas;
+    json(r, /\/branches\?/.test(u) ? R.ramos : /\/branches\//.test(u) ? R['ramo.' + SHA(2)] : /fila\.yml\/runs/.test(u) ? R.rodadas : /\/jobs/.test(u) ? R['jobs.9'] : /actions\/runs\?/.test(u) ? R.pages : /actions\/workflows\?/.test(u) ? R.fluxos : /commits\?sha=main/.test(u) ? commits : /contents\/index\.html/.test(u) ? { size: 3900000 } : []);
+  });
+  await page.route('https://raw.githubusercontent.com/**', r => {
+    const u = r.request().url(); const cab = { 'content-type': 'text/plain', 'access-control-allow-origin': '*' };
+    if (/telemetria\/retrato\.json/.test(u)) return r.fulfill({ body: comRetrato ? JSON.stringify(retrato()) : '', headers: cab });   // sem retrato: corpo vazio (um 404 real só ecoa no console do navegador)
+    const m = u.match(/telemetria\/commits\/(\d{4}-\d{2}-\d{2})\.json/);
+    if (m) return r.fulfill({ body: dias.includes(m[1]) ? JSON.stringify({ dia: m[1], em, commits: [commitDoDia(m[1])] }) : '', headers: cab });
+    r.fulfill({ body: '', headers: cab });
+  });
+  await page.addInitScript(() => {
+    const jwt = email => 'h.' + btoa(JSON.stringify({ email })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') + '.s';
+    window.__PAINEL_FETCH = async (url) => new Response(JSON.stringify(url.includes('securetoken') ? { user_id: 'uidE2E', id_token: jwt('gui.amuy@gmail.com'), refresh_token: 'ref-e2e', expires_in: '3600' } : { localId: 'uidE2E', idToken: jwt('gui.amuy@gmail.com'), refreshToken: 'ref-e2e', expiresIn: '3600', email: 'gui.amuy@gmail.com' }), { status: 200, headers: { 'content-type': 'application/json' } });
+    window.__PAINEL_GOOGLE = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+  });
+  await page.goto(painel + '#pipeline'); await page.waitForSelector('#pn-entrar'); await page.click('#pn-entrar');
+  await page.waitForSelector('#pn-k-fila');
+  await page.waitForFunction(() => (document.querySelector('#pn-rodape') || {}).getAttribute('data-retrato') === 'sim');
+  assert.deepEqual(pedidosApi, [], 'nenhum pedido à API: tudo pelo retrato');
+  assert.match(await page.innerText('#pn-k-fila'), /1[\s\S]*leva/); assert.match(await page.innerText('#pn-k-recusadas'), /1[\s\S]*leva/);
+  assert.match(await page.innerText('#pn-k-rodada'), /portao/); assert.match(await page.innerText('#pn-recusadas'), /T-74[\s\S]*conflito/i, 'o motivo da recusa veio do detalhe do retrato');
+  assert.match(await page.innerText('#pn-cota'), /^Retrato do CI de hoje às \d{2}:\d{2} · 0 à API$/); assert.equal(await page.getAttribute('#pn-cota', 'data-farol'), 'verde');
+  assert.match(await page.getAttribute('#pn-rodape .pn-rodape__cota', 'title'), /retrato de \d+ min: [1-9]\d* resposta\(s\) por ele, 0 pedido/);
+  await auditaTela(page, 'pipeline pelo retrato 360');
+  // Eficiência: os dias vêm dos arquivos por dia, nenhum pendente, nenhum pedido à API
+  await page.click('#pn-abas [data-tab="eficiencia"]'); await page.waitForSelector('#pn-k-levas');
+  await page.waitForFunction(() => /\d/.test((document.querySelector('#pn-k-levas') || {}).textContent || ''));
+  assert.deepEqual(pedidosApi, []); assert.doesNotMatch(await page.innerText('#pn-notas'), /ainda não lidos/);
+  assert.match(await page.innerText('#pn-k-levas'), /[5-8][\s\S]*7 dias/, 'uma leva por dia local nos 7 dias');
+  await emTodasAsMedidas(page, 'eficiencia pelo retrato');
+  // retrato velho: a fila ao vivo vai à API, o detalhe por sha segue do retrato, o rodapé avisa (amarelo) e conta os pedidos
+  em = iso(agora - 45 * 60000);
+  await page.click('#pn-abas [data-tab="pipeline"]'); await page.waitForSelector('#pn-k-fila');
+  await page.click('#pn-atualizar');
+  await page.waitForFunction(() => /· [1-9]\d* à API/.test((document.querySelector('#pn-cota') || {}).textContent || ''));
+  assert.ok(pedidosApi.length >= 3 && !pedidosApi.some(u => /\/branches\//.test(u)), 'ramos, rodadas, jobs e Pages pela API; o detalhe não: ' + pedidosApi.join(' '));
+  assert.equal(await page.getAttribute('#pn-cota', 'data-farol'), 'amarelo'); assert.match(await page.innerText('#pn-k-recusadas'), /1/);
+  // sem retrato (arquivo vazio e nada guardado dele): o rodapé volta à cota do GitHub; com cópia guardada, a cópia valeria
+  comRetrato = false; await page.evaluate(() => localStorage.removeItem('painel.cache.raw.telemetria.retrato.json')); await page.click('#pn-atualizar');
+  await page.waitForFunction(() => (document.querySelector('#pn-rodape') || {}).getAttribute('data-retrato') === 'nao');
+  assert.match(await page.innerText('#pn-cota'), /^GitHub: 50 de 60 pedidos nesta hora/);
+  if (process.env.SHOTS) { await page.screenshot({ path: process.env.SHOTS + '/r28-retrato.png', fullPage: true }); }
   assert.deepEqual(errors, []);
 });

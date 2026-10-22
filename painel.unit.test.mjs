@@ -142,7 +142,7 @@ function fonteFalsa(respostas) {
   let agora = 1000;
   const fetch = async (url, init) => { pedidos.push({ url, headers: init.headers }); const r = respostas.shift(); if (r instanceof Error) throw r; return r; };
   const resp = (status, corpo, headers = {}) => ({ ok: status >= 200 && status < 300, status, headers: { get: n => headers[n.toLowerCase()] ?? null }, json: async () => corpo });
-  const fonte = base.createFonte({ fetch, guarda, agora: () => agora, ttl: 600000 });
+  const fonte = base.createFonte({ fetch, guarda, agora: () => agora, ttl: 600000, retrato: false });   // R-28 · estes testes são da fonte crua (sem o retrato do CI)
   return { fonte, pedidos, resp, avanca: ms => { agora += ms; }, guarda };
 }
 
@@ -286,6 +286,10 @@ test('R-4 · Pipeline: ramos + detalhes viram linhas da fila (espera, posição 
   assert.equal(linhas[1].espera, 3600000); assert.equal(linhas[1].situacao, 'na-fila'); assert.equal(linhas[1].trilha, 'tipos');
   assert.equal(linhas[0].motivo.classe, 'conflito'); assert.equal(linhas[0].situacao, 'recusada');
   assert.equal(linhas[3].data, null); assert.equal(linhas[3].detalhe, false);
+  // R-28 · a forma real da API `branches/<nome>` (commit.commit.{message, committer}; o `commit.committer` de cima é o usuário): espera e motivo saem
+  const real = { aaaa111: { name: 'fila/T-62', commit: { sha: 'aaaa111', committer: { login: 'guiamuy' }, commit: { message: 'Leva T-62', committer: { date: '2026-10-13T19:00:00Z' } } } }, cccc333: { name: 'recusada/M-351', commit: { sha: 'cccc333', committer: { login: 'github-actions' }, commit: { message: 'RECUSADA pela fila · M-351\n\nCONFLITO ao pôr "x" sobre o main, em: index.html.', committer: { date: '2026-10-13T18:00:00Z' } } } } };
+  const reais = modelo.linhasDaFila(ramos, real, agora);
+  assert.equal(reais.find(l => l.leva === 'T-62').espera, 3600000); assert.deepEqual(reais.find(l => l.leva === 'M-351').motivo.arquivos, ['index.html']);
   const rod = modelo.linhasDasRodadas([
     { id: 1, status: 'completed', conclusion: 'success', run_started_at: '2026-10-13T18:00:00Z', updated_at: '2026-10-13T18:20:00Z', display_title: 'Fila' },
     { id: 2, status: 'completed', conclusion: 'failure', run_started_at: '2026-10-13T19:00:00Z', updated_at: '2026-10-13T19:30:00Z' },
@@ -367,7 +371,8 @@ test('R-5 · orçamento da Eficiência: um pedido por dia do período, dias pass
   assert.equal(Object.keys(d3.commits).length, 7); assert.ok(fonte.pedidos <= app.ORCAMENTO.fixos, `em regime: ${fonte.pedidos} (hoje + rodadas)`);
   fonte.zerar(); const d4 = await app.VISOES.eficiencia.carrega(fonte, false, { periodo: 'tudo' });
   assert.match(d4.avisos.join(' '), /30 dias/); assert.ok(fonte.pedidos <= app.ORCAMENTO.fixos + app.ORCAMENTO.detalhes);
-  assert.equal(chamadas.filter(u => /raw\.githubusercontent/.test(u)).length, 3, 'a telemetria é lida pelo raw (fora da cota): sem cache, e nas duas atualizações forçadas; a quarta vem do cache');
+  assert.equal(chamadas.filter(u => /raw\.githubusercontent.*levas\.jsonl/.test(u)).length, 3, 'a telemetria é lida pelo raw (fora da cota): sem cache, e nas duas atualizações forçadas; a quarta vem do cache');
+  assert.equal(chamadas.filter(u => /telemetria\/retrato\.json/.test(u)).length, 3, 'R-28 · o retrato do CI é lido uma vez por atualização (sem cache e nas forçadas); sem retrato válido, fica guardado como nulo por 2 min');
 });
 
 
@@ -746,7 +751,7 @@ test('R-22 · fonte com token: Authorization só nos pedidos à API (nunca ao ra
   const pedidos = []; let status = 200;
   const fetch = async (url, opts = {}) => { pedidos.push({ url, auth: (opts.headers || {}).Authorization || null }); return { ok: status === 200, status, headers: { get: n => n === 'x-ratelimit-remaining' ? '4999' : n === 'x-ratelimit-limit' ? '5000' : null }, json: async () => ({ ok: 1 }), text: async () => 'x' }; };
   let token = 'github_pat_abc';
-  const fonte = base.createFonte({ fetch, guarda, token: () => token });
+  const fonte = base.createFonte({ fetch, guarda, token: () => token, retrato: false });   // R-28 · o retrato do CI tem teste próprio; aqui é a fonte crua
   await fonte.api('/branches', { nome: 'ramos' }); await fonte.raw('telemetria', 'levas.jsonl');
   assert.deepEqual(pedidos.map(p => p.auth), ['Bearer github_pat_abc', null], 'token só na API');
   assert.equal(fonte.cota.limite, 5000); assert.equal(fonte.comToken, true);
@@ -833,4 +838,90 @@ test('R-27 · pessoas: linhasDasPessoas normaliza (dia válido, data ao meio-dia
   assert.deepEqual(modelo.recorte(linhas, { periodo: '7d', trilha: 'radar' }, agora).naoAplica, ['trilha'], 'pessoas não tem trilha');
   assert.equal(modelo.LIMIARES.pessoasFrescor.verde, 1); assert.ok(modelo.FONTES.pessoas.includes('pessoas.jsonl'));
   assert.equal(modelo.SUBABAS.find(a => a.id === 'pessoas').leva, 'R-27');
+});
+
+/* ---------- R-28 · BI2-7 · o retrato do CI no lugar da API ---------- */
+test('R-28 · respostaDoRetrato (puro): fresco responde ramos, rodadas, pages, fluxos, jobs.<id> e main (= commits); detalhe de ramo e tamanho por sha respondem mesmo velho; o resto não; diasDoRetrato exige todos os dias UTC do intervalo (dia depois do retrato conta como vazio); commitsDoRetrato filtra pela data do committer', () => {
+  const { base } = loadPainel();
+  const SHA = n => String(n).padStart(40, 'a');
+  const em = '2026-10-22T12:00:00Z', agora = Date.parse(em) + 5 * 60000;
+  const foto = { kind: 'estante.retrato', version: 1, em, id: '7', cobertura: { commits: 1, ramos: 1, rodadas: 1, dias: ['2026-10-20', '2026-10-21', '2026-10-22'] }, respostas: { ramos: [{ name: 'fila/R-28', commit: { sha: SHA(1) } }], ['ramo.' + SHA(1)]: { commit: { sha: SHA(1), commit: { message: 'x', committer: { date: em } } } }, rodadas: { workflow_runs: [{ id: 9, status: 'in_progress' }] }, 'jobs.9': { jobs: [{ name: 'portao', status: 'in_progress' }] }, pages: { workflow_runs: [] }, fluxos: { workflows: [] }, commits: [{ sha: SHA(2), commit: { message: 'Leva R-27 · x', committer: { date: em }, author: { date: em } } }], tamanhos: { [SHA(2)]: 3900000 } } };
+  const r = (nome, a = agora) => base.respostaDoRetrato(foto, nome, { agora: a });
+  assert.deepEqual(r('ramos'), foto.respostas.ramos); assert.deepEqual(r('rodadas'), foto.respostas.rodadas); assert.deepEqual(r('jobs.9').jobs[0].name, 'portao'); assert.deepEqual(r('pages'), { workflow_runs: [] }); assert.deepEqual(r('fluxos'), { workflows: [] });
+  assert.deepEqual(r('main'), foto.respostas.commits); assert.deepEqual(r('ramo.' + SHA(1)), foto.respostas['ramo.' + SHA(1)]); assert.deepEqual(r('tamanho.' + SHA(2)), { size: 3900000 }); assert.deepEqual(r('tamanho.' + SHA(2).slice(0, 7)), { size: 3900000 }, 'pelo sha curto também');
+  assert.equal(r('jobs.8'), undefined); assert.equal(r('tamanho.' + SHA(3)), undefined); assert.equal(r('commits.2026-10-21'), undefined, 'por dia vem dos arquivos'); assert.equal(r('outro'), undefined); assert.equal(r(null), undefined);
+  const velho = Date.parse(em) + 45 * 60000;
+  assert.equal(r('ramos', velho), undefined, 'velho: a fila ao vivo volta para a API'); assert.equal(r('main', velho), undefined); assert.equal(r('jobs.9', velho), undefined);
+  assert.deepEqual(r('ramo.' + SHA(1), velho), foto.respostas['ramo.' + SHA(1)], 'velho: o detalhe por sha não muda'); assert.deepEqual(r('tamanho.' + SHA(2), velho), { size: 3900000 });
+  assert.equal(base.respostaDoRetrato({ kind: 'outro', respostas: {} }, 'ramos'), undefined); assert.equal(base.respostaDoRetrato(null, 'ramos'), undefined);
+  const dia = d => Date.parse(d + 'T03:00:00Z');   // dia local de São Paulo começa às 03:00 UTC
+  assert.deepEqual(base.diasDoRetrato(foto, dia('2026-10-21'), dia('2026-10-22')), ['2026-10-21', '2026-10-22']);
+  assert.deepEqual(base.diasDoRetrato(foto, dia('2026-10-22'), dia('2026-10-23')), ['2026-10-22'], 'o 23/10 UTC ainda não existe: vazio, não falta');
+  assert.equal(base.diasDoRetrato(foto, dia('2026-10-19'), dia('2026-10-20')), null, 'o 19/10 não está gravado');
+  assert.equal(base.diasDoRetrato({ ...foto, cobertura: {} }, dia('2026-10-21'), dia('2026-10-22')), null);
+  const arquivos = [{ dia: '2026-10-21', commits: [{ sha: SHA(5), commit: { message: 'a', committer: { date: '2026-10-21T02:00:00Z' } } }, { sha: SHA(6), commit: { message: 'b', committer: { date: '2026-10-21T10:00:00Z' } } }] }, null, { dia: '2026-10-22', commits: [{ sha: SHA(7), commit: { message: 'c', committer: { date: '2026-10-22T02:59:00Z' } } }, { sha: SHA(8), commit: { message: 'd', committer: { date: '2026-10-22T03:00:00Z' } } }] }];
+  assert.deepEqual(base.commitsDoRetrato(arquivos, dia('2026-10-21'), dia('2026-10-22')).map(c => c.sha), [SHA(6), SHA(7)], 'só o dia local 21/10: 03:00 de 21/10 até 02:59 de 22/10 UTC');
+  assert.deepEqual(base.intervaloDoCaminho('/commits?sha=main&since=2026-10-21T03:00:00.000Z&until=2026-10-22T03:00:00.000Z&per_page=100'), { de: dia('2026-10-21'), ate: dia('2026-10-22') });
+  assert.equal(base.intervaloDoCaminho('/commits?sha=main&per_page=100'), null);
+});
+
+test('R-28 · fonte com o retrato do CI: Pipeline, Eficiência e Custo abrem com zero pedidos à API (ramos, detalhes, rodadas, jobs, Pages, commits do main, dias e tamanhos vêm do retrato e dos arquivos por dia); o orçamento de detalhes não conta o que o retrato responde; retrato velho (45 min) manda a fila ao vivo para a API mas segue respondendo detalhe e tamanho; Atualizar relê o retrato uma vez por atualização; o rodapé sabe quantos pedidos o retrato respondeu', async () => {
+  const { app, base } = loadPainel();
+  const guarda = base.createGuarda(null);
+  const SHA = n => String(n).padEnd(40, 'b');   // os sete primeiros caracteres distinguem (o painel usa o sha curto)
+  const agora = Date.now(), diaUtc = ms => new Date(ms).toISOString().slice(0, 10);
+  const dias = Array.from({ length: 12 }, (_, i) => diaUtc(agora - i * 86400000));
+  const commitDoDia = d => ({ sha: SHA(Number(d.replace(/-/g, '').slice(-6))), commit: { message: `Leva M-${d.slice(-2)} · carta`, committer: { date: d + 'T12:00:00Z' }, author: { date: d + 'T11:00:00Z' } } });
+  const commits = dias.map(commitDoDia);
+  let em = new Date(agora - 5 * 60000).toISOString();
+  const retrato = () => ({ kind: 'estante.retrato', version: 1, em, id: '77', cobertura: { commits: commits.length, ramos: 3, rodadas: 2, dias: dias.slice().sort() },
+    respostas: { ramos: [{ name: 'main', commit: { sha: SHA(1) } }, { name: 'fila/R-28', commit: { sha: SHA(2) } }, { name: 'recusada/T-74', commit: { sha: SHA(3) } }],
+      ['ramo.' + SHA(2)]: { name: 'fila/R-28', commit: { sha: SHA(2), commit: { message: 'Leva R-28 · x', committer: { date: new Date(agora - 20 * 60000).toISOString() } } } },
+      ['ramo.' + SHA(3)]: { name: 'recusada/T-74', commit: { sha: SHA(3), commit: { message: 'RECUSADA pela fila · T-74\n\nCONFLITO ao pôr "Leva T-74" sobre o main somado a M-1, em: index.html.', committer: { date: new Date(agora - 60 * 60000).toISOString() } } } },
+      rodadas: { workflow_runs: [{ id: 9, name: 'Fila de publicação', status: 'in_progress', conclusion: null, run_started_at: new Date(agora - 10 * 60000).toISOString(), updated_at: new Date(agora - 60000).toISOString() }, { id: 8, name: 'Fila de publicação', status: 'completed', conclusion: 'success', run_started_at: new Date(agora - 3 * 3600000).toISOString(), updated_at: new Date(agora - 3 * 3600000 + 20 * 60000).toISOString() }] },
+      'jobs.9': { jobs: [{ id: 91, name: 'monta', status: 'completed', conclusion: 'success' }, { id: 92, name: 'portao', status: 'in_progress', conclusion: null }] },
+      pages: { workflow_runs: [{ id: 70, name: 'pages build and deployment', status: 'completed', conclusion: 'success', updated_at: new Date(agora - 2 * 3600000).toISOString() }] },
+      fluxos: { workflows: [{ id: 5, name: 'Fila de publicação', path: '.github/workflows/fila.yml', state: 'active' }] },
+      commits, tamanhos: Object.fromEntries(commits.map(c => [c.sha, 3900000])) } });
+  const chamadas = [];
+  const fetch = async url => {
+    chamadas.push(url);
+    const ok = corpo => ({ ok: true, status: 200, headers: { get: () => null }, json: async () => JSON.parse(corpo), text: async () => corpo });
+    if (/telemetria\/retrato\.json/.test(url)) return ok(JSON.stringify(retrato()));
+    const m = url.match(/telemetria\/commits\/(\d{4}-\d{2}-\d{2})\.json/); if (m) return dias.includes(m[1]) ? ok(JSON.stringify({ dia: m[1], commits: [commitDoDia(m[1])] })) : { ok: false, status: 404, headers: { get: () => null }, text: async () => '' };
+    if (/raw\.githubusercontent/.test(url)) return { ok: false, status: 404, headers: { get: () => null }, text: async () => '' };
+    // API: só os que o retrato velho manda para cá
+    if (/\/branches\?/.test(url)) return ok(JSON.stringify(retrato().respostas.ramos));
+    if (/fila\.yml\/runs/.test(url)) return ok(JSON.stringify(retrato().respostas.rodadas));
+    if (/\/jobs/.test(url)) return ok(JSON.stringify(retrato().respostas['jobs.9']));
+    if (/actions\/runs\?/.test(url)) return ok(JSON.stringify(retrato().respostas.pages));
+    if (/commits\?sha=main/.test(url)) return ok(JSON.stringify(commits));
+    throw new Error('a API não deveria ser chamada: ' + url);
+  };
+  const fonte = base.createFonte({ fetch, guarda });
+  const soApi = () => chamadas.filter(u => /api\.github\.com/.test(u));
+  // Pipeline: tudo pelo retrato
+  const d = await app.VISOES.pipeline.carrega(fonte, false);
+  assert.equal(fonte.pedidos, 0, 'zero pedidos à API'); assert.deepEqual(soApi(), []);
+  assert.equal(d.ramos.length, 2); assert.equal(Object.keys(d.detalhes).length, 2, 'os dois detalhes, sem orçamento'); assert.equal(d.emCurso.id, 9); assert.equal(d.jobs.jobs[1].name, 'portao'); assert.equal(d.pages.conclusion, 'success'); assert.equal(d.commitsMain.length, 12);
+  assert.ok(fonte.retrato && fonte.retrato.fresco && fonte.retrato.servidos >= 6, 'o rodapé sabe: ' + JSON.stringify(fonte.retrato)); assert.equal(fonte.retrato.id, '77');
+  assert.ok(fonte.emCache('ramo.' + SHA(3)) && fonte.emCache('tamanho.' + commits[0].sha) && fonte.emCache('commits.' + dias[3]), 'o orçamento não conta o que o retrato responde');
+  assert.equal(chamadas.filter(u => /retrato\.json/.test(u)).length, 1, 'o retrato é lido uma vez por atualização');
+  // Eficiência 7 dias: commits por dia dos arquivos, sem pendentes
+  fonte.zerar(); const e = await app.VISOES.eficiencia.carrega(fonte, false, { periodo: '7d' });
+  assert.equal(fonte.pedidos, 0); assert.deepEqual(e.pendentes, []); assert.equal(Object.keys(e.commits).length, 7); assert.ok(Object.values(e.commits).every(l => l.length >= 1), 'um commit por dia local: ' + JSON.stringify(Object.values(e.commits).map(l => l.length)));
+  assert.ok(chamadas.filter(u => /commits\/\d{4}/.test(u)).length <= 8, 'um arquivo por dia UTC, no máximo 8 para 7 dias locais');
+  // Custo: tamanho por leva pelo retrato (nenhum contents/index.html)
+  fonte.zerar(); const c = await app.VISOES.custo.carrega(fonte, false);
+  assert.equal(fonte.pedidos, 0); assert.equal(Object.keys(c.tamanhos).length, 12); assert.ok(!chamadas.some(u => /contents\/index\.html/.test(u)));
+  // retrato velho: a fila ao vivo vai à API; detalhe e tamanho continuam pelo retrato
+  em = new Date(agora - 45 * 60000).toISOString(); chamadas.length = 0; fonte.zerar();
+  const guarda2 = base.createGuarda(null); const fonte2 = base.createFonte({ fetch, guarda: guarda2 });
+  const d2 = await app.VISOES.pipeline.carrega(fonte2, false);
+  assert.ok(fonte2.pedidos >= 3 && fonte2.pedidos <= app.ORCAMENTO.fixos + 1, 'ramos, rodadas, jobs, pages e main pela API: ' + fonte2.pedidos); assert.ok(!soApi().some(u => /\/branches\//.test(u)), 'detalhe por sha ainda pelo retrato');
+  assert.equal(Object.keys(d2.detalhes).length, 2); assert.equal(fonte2.retrato.fresco, false); assert.ok(fonte2.retrato.servidos >= 2);
+  // Atualizar (forçar): o retrato é relido uma vez, e de novo responde tudo quando fresco
+  em = new Date(agora - 60000).toISOString(); chamadas.length = 0; fonte2.zerar();
+  await app.VISOES.pipeline.carrega(fonte2, true);
+  assert.equal(chamadas.filter(u => /retrato\.json/.test(u)).length, 1); assert.equal(fonte2.pedidos, 0, 'fresco de novo: zero à API'); assert.equal(fonte2.retrato.fresco, true);
 });
