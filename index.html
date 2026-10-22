@@ -6570,6 +6570,7 @@ function effectErrors(effects, label, opcional) {
     if (e.exilaSeMorrer != null && !(e.do === 'damage' && e.exilaSeMorrer === true)) errs.push(`${label} ${i + 1}: "exilaSeMorrer" é uma marca (true) do dano`); // M-384 · Torch the Tower
     if (e.marcaFonteM != null && !(e.marcaFonteM === true && e.do === 'exila_ate_final')) errs.push(`${label} ${i + 1}: "marcaFonteM" é uma marca (true) da exila_ate_final`); // M-548 · Phelia
     if (e.semGanharVidaM != null && !(e.semGanharVidaM === true && e.do === 'damage')) errs.push(`${label} ${i + 1}: "semGanharVidaM" é uma marca (true) do dano`); // M-550 · Screaming Nemesis
+    if (e.do === 'exile_top_playable' && ((e.de != null && e.de !== 'that-player') || (e.soConjurar != null && e.soConjurar !== true))) errs.push(`${label} ${i + 1}: exílio do topo: "de" só that-player e "soConjurar" só true`); // M-566
     if (e.lembraExiladas != null && !(e.lembraExiladas === true && (e.do === 'exile_top_playable' || e.do === 'delayed'))) errs.push(`${label} ${i + 1}: "lembraExiladas" é uma marca (true) do exílio do topo e do gatilho atrasado`); // M-386 (o \`lembra\` do \`mover\` é outra coisa — achado da revisão: Leonin Relic-Warder)
     if (e.seRestar != null && !(e.seRestar === true && e.do === 'delayed' && e.lembraExiladas)) errs.push(`${label} ${i + 1}: "seRestar" é do gatilho atrasado que lembra as exiladas`); // M-386 · 603.4
     if (e.marcadorSeCriatura != null && !(e.do === 'reanimate' && e.target !== 'self-source' && Number.isInteger(e.marcadorSeCriatura) && e.marcadorSeCriatura > 0)) errs.push(`${label} ${i + 1}: "marcadorSeCriatura" é a quantidade de marcadores +1/+1 extras do reanimar`); // M-400
@@ -10598,6 +10599,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Mox Diamond': { texto: 'kb2rae', leva: 'M-564' },
   // M-565 · revisão por lote CC (Orcish Bowmasters: 1 de dano e amassar a cada compra extra do oponente), texto e rulings da Scryfall de 22/10/2026 UTC, revisor independente
   'Orcish Bowmasters': { texto: 'mpwr6i', leva: 'M-565' },
+  // M-566 · revisão por lote CCI (Ragavan: Tesouro e conjurar a carta do topo do oponente), texto e rulings da Scryfall de 22/10/2026 UTC, revisor independente
+  'Ragavan, Nimble Pilferer': { texto: '13m3p6n', leva: 'M-566' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -19199,7 +19202,8 @@ const __m42 = (function () {
     [/^~ deals (\d+) damage to any target that was dealt damage this turn$/i, m => [{ do: 'damage', amount: +m[1], target: 'any', targetDanoNoTurno: true }]], // M-447 · Needle Drop
     [new RegExp(`^(?:(you may|its controller may|that player may|target player may) )?search (?:your|their) library for (?:(up to) )?${N}(?: (.+?))? cards?(?: named (.+?))?(?:, reveal (?:it|them|that card))?(?:,? (?:and )?put (?:it|them|that card) (into (?:your|their) hand|onto the battlefield(?: tapped)?|on top of your library))?$`, 'i'), busca], // LT5 · 701.23
     [/^shuffle(?: your library)?$/i, () => []],
-    [new RegExp(`^create ${N} (treasure|food|blood|map|clue|lander) tokens?$`, 'i'), m => fichaPredefinida(m[1], m[2])], // LT9 · 111.10
+    [new RegExp(`^create ${N} (treasure|food|blood|map|clue|lander) tokens?$`, 'i'), m => fichaPredefinida(m[1], m[2])],
+    [/^create a treasure token and exile the top card of that player's library$/i, () => [...fichaPredefinida('a', 'treasure'), { do: 'exile_top_playable', amount: 1, de: 'that-player' }]], // M-566 · Ragavan (a permissão vem na frase seguinte) // LT9 · 111.10
     [/^investigate$/i, () => fichaPredefinida('a', 'clue')], // LT9 · 701.16
     [new RegExp(`^draw ${N} cards? and create ${N} (treasure|food|blood|map|clue|lander) tokens?$`, 'i'), m => [{ do: 'draw', amount: num(m[1]) }, ...fichaPredefinida(m[2], m[3])]], // LT11
     [new RegExp(`^its controller creates ${N} (treasure|food|blood|map|clue|lander) tokens?$`, 'i'), m => fichaPredefinida(m[1], m[2]).map(e => ({ ...e, target: 'target-controller' }))], // LT11 · "its controller": o controlador do alvo
@@ -19676,6 +19680,7 @@ const __m42 = (function () {
       if (/^if the creature you control has trample, excess damage is dealt to that creature's controller instead$/i.test(p) && efeitos.length && efeitos[efeitos.length - 1].do === 'morde') { efeitos[efeitos.length - 1].excessoComAtropelar = true; frases.push({ texto: p, lida: true }); continue; } // M-407 · Ram Through
       { const fh = p.match(/^if its mana value was 3 or less, scry (\d+)$/i); // M-557 · Fading Hope (608.2h: o valor de mana de antes de sair do campo)
         if (fh && efeitos.length && SC_ALVEJA(efeitos[efeitos.length - 1])) { efeitos.push({ do: 'scry', amount: +fh[1], onlyIf: 'alvo-mv-3-ou-menos' }); frases.push({ texto: p, lida: true }); continue; } }
+      { const ult = efeitos[efeitos.length - 1]; if (/^until end of turn, you may cast that card$/i.test(p) && ult && ult.do === 'exile_top_playable' && !ult.ate) { ult.ate = 'fim-do-turno'; ult.soConjurar = true; frases.push({ texto: p, lida: true }); continue; } } // M-566 · Ragavan
       if (/^if you controlled that permanent, draw a card$/i.test(p) && efeitos.length && SC_ALVEJA(efeitos[efeitos.length - 1])) { efeitos.push({ do: 'draw', amount: 1, onlyIf: 'alvo-era-seu' }); frases.push({ texto: p, lida: true }); continue; } // M-341 · Boomerang Basics
       { const ib = p.match(new RegExp(`^if this spell was bargained, instead it deals ${N} damage to that (?:creature|permanent|planeswalker)( and you scry ${N})?$`, 'i')); // M-384 · 702.166b · Torch the Tower
         const ult = efeitos[efeitos.length - 1];
@@ -20622,7 +20627,7 @@ function zoneList(s, obj, zone) { return zone === 'stack' ? s.stack : s.zones[ob
 const VOLTA_COMANDO = ['graveyard', 'exile', 'hand', 'library'];
 /** Leva 105 · marcas que a conjuração põe na carta (e que não atravessam outra mudança de zona). */
 const MARCAS_DA_CONJURACAO = ['xPaid', 'bestowed', 'evidenced', 'faceDown', 'prevista', 'flashback', 'paidAdditional', 'discardedNonland', 'altIndex', 'mode',
-  'bargained', 'omen', 'stormCopies', 'chosenColor', 'plotted', 'playableFromExile', 'jogavelSoNesteTurno', 'jogavelAte', 'jogavelAteFinalM' /* M-541 */, 'escondida', 'suspensa', 'suspensaImpeto', 'jogavelSe', 'emendas', 'sneakAtaque', 'sneakPw', 'kicked', 'modes', 'castFrom', 'divisao', 'danoCausado' /* M-427 */, 'descartadas' /* M-434 */, 'ordemDaMagiaM' /* M-442 */, 'naPrincipalM' /* M-443 */, 'danoNoTurnoM' /* M-447 */, 'coresGastasM' /* M-451 */]; // M-376 · 'revealed' fica: a habilidade do Martyr of Sands lê depois do sacrifício
+  'bargained', 'omen', 'stormCopies', 'chosenColor', 'plotted', 'playableFromExile', 'soConjurarM' /* M-566 */, 'jogavelSoNesteTurno', 'jogavelAte', 'jogavelAteFinalM' /* M-541 */, 'escondida', 'suspensa', 'suspensaImpeto', 'jogavelSe', 'emendas', 'sneakAtaque', 'sneakPw', 'kicked', 'modes', 'castFrom', 'divisao', 'danoCausado' /* M-427 */, 'descartadas' /* M-434 */, 'ordemDaMagiaM' /* M-442 */, 'naPrincipalM' /* M-443 */, 'danoNoTurnoM' /* M-447 */, 'coresGastasM' /* M-451 */]; // M-376 · 'revealed' fica: a habilidade do Martyr of Sands lê depois do sacrifício
 /* ---------------- CR2-G R5c · 701.8/614 · "se fosse destruída" ---------------- */
 /** O que acontece se `o` fosse destruída agora: 'indestrutivel' (não é destruída), { totem: aura } (702.89: a Aura com
  * armadura de totem é destruída no lugar e o dano sai), 'regenerou' (701.15: um escudo de regeneração é gasto) ou 'destruida'.
@@ -21659,6 +21664,8 @@ function valoresDeX(s, qtdX, pagavel) {
 /** M-267 · custo adicional "exile qualquer número de cartas [cor] da sua mão; esta mágica custa {N} a menos por carta" (March of Swirling
  * Mist): as cartas que servem e o desconto, que só tira do genérico (ruling: nunca abaixo do custo colorido). */
 /** M-270 · pode jogar do exílio: a permissão é do jogador e, se veio com condição ("as long as you control a Lukka planeswalker"), ela vale agora. */
+/** M-566 · cartas de outro dono no exílio que `p` pode conjurar ("you may cast that card": Ragavan). */
+const exilioDeOutrosM = (s, p) => s.players.flatMap((_, q) => q === p ? [] : s.zones[q].exile.filter(oid => { const o = s.objects[oid]; return o && o.soConjurarM && o.playableFromExile === p; }));
 const jogavelDoExilio = (s, p, o) => !!o && o.zone === 'exile' && o.playableFromExile === p && (!o.jogavelSe || battlefield(s).some(x => x.controller === p && !x.faceDown && (s.facts[x.name].types || []).includes('planeswalker') && temSubtipo(s, x.oid, o.jogavelSe)));
 const exilaveisParaDesconto = (s, p, o) => { const em = ((s.facts[o.name] || {}).script || {}).exilaDaMao; return em ? exilaveisDaMao(s, p, em.cor, o.oid) : []; };
 const descontoExilaMao = (s, o, k, extra) => { const em = ((s.facts[o.name] || {}).script || {}).exilaDaMao; if (!em || !k) return 0;
@@ -21767,6 +21774,7 @@ function flipTo(s, o, faceName) {
 function flipToFront(s, o) { if (o.frontName) { o.name = o.frontName; delete o.frontName; delete o.omen; } }
 
 /* ---------------- S16 · custos alternativos e lampejo do passado ---------------- */
+const altSoDaMaoM = alt => !!alt && alt.marcaK === 'dobradaK'; // M-566 · custos alternativos "from your hand" (dobra, 702.185a)
 const altCosts = (s, o) => ((s.facts[o.name].script || {}).alt) || altSemScriptK(s.facts[o.name]); // K-8 · carta sem script com "Evoke" (Toca ponto comum: altCosts)
 const flashbackOf = (s, o) => (s.facts[o.name].script || {}).flashback;
 const escapeOf = (s, o) => (s.facts[o.name].script || {}).escape; // S48 · fuga
@@ -22005,7 +22013,7 @@ function enterStep(s, step) {
 function fimDosEfeitosDoTurno(s) {
   for (const pl of s.players) delete pl.tempHexproof; // M-260 · resistência a magia do jogador acaba na limpeza
   for (const pl of s.players) if (pl.efeitos) { pl.efeitos = pl.efeitos.filter(e => e.ate !== 'fim-do-turno'); if (!pl.efeitos.length) delete pl.efeitos; } // CR2d.10
-  for (const pl of s.players.keys()) for (const oid of s.zones[pl].exile) { const x = s.objects[oid]; if (x && x.jogavelSoNesteTurno) { delete x.playableFromExile; delete x.jogavelSoNesteTurno; }
+  for (const pl of s.players.keys()) for (const oid of s.zones[pl].exile) { const x = s.objects[oid]; if (x && x.jogavelSoNesteTurno) { delete x.playableFromExile; delete x.jogavelSoNesteTurno; delete x.soConjurarM; /* M-566 */ }
     if (x && x.jogavelAte && x.jogavelAte.by === s.turn.active && s.turn.number > x.jogavelAte.turno) { delete x.playableFromExile; delete x.jogavelAte; } } // M-349 · acaba na limpeza do próximo turno de quem exilou // M-267 · "this turn"
   delete s.mareAlta; // M-262 · High Tide vale até o fim do turno
   delete s.gatilhosDoTurno; // M-389 · "this turn" acaba na limpeza (514.2)
@@ -22236,7 +22244,7 @@ function dealCombatDamage(s) {
       }
       if (has(s, src, 'lifelink')) vinculo.set(src.oid, { quem: src.controller, n: ((vinculo.get(src.oid) || {}).n || 0) + amt }); // CR2d.10 · CR2b.7
       noteEnchantedDealt(s, src, amt, obj ? null : player); // S48 · Armadillo Cloak: a aura de quem causou o dano é avisada
-      if (player != null && !obj) { const q0T = (s.queued || []).length; disparaEvento(s, 'dano-combate', [src]); valorDoDanoDeCombateT(s, q0T, src, amt); } // S18 · dano de combate ao jogador · T-103: "that many" é o dano causado (Toca ponto comum: dano de combate)
+      if (player != null && !obj) { const q0T = (s.queued || []).length; disparaEvento(s, 'dano-combate', [src]); valorDoDanoDeCombateT(s, q0T, src, amt); for (let k = q0T; k < (s.queued || []).length; k++) { const q = s.queued[k]; if (q && q.source === src.oid && q.jogador == null) q.jogador = player; } } /* M-566 · "that player": quem levou o dano */ // S18 · dano de combate ao jogador · T-103: "that many" é o dano causado (Toca ponto comum: dano de combate)
       if ((player != null && !obj) || (obj && tiposDe(s, obj).includes('planeswalker'))) disparaEvento(s, 'dano-combate-jpw', [src]); // M-538 · "to a player or planeswalker" (Psychic Frog): o atacado e o planeswalker-criatura que bloqueia; batalha não conta
       if (player != null && !obj) anelDanoV(s, src); // V-26 · 701.54c (4) (Toca ponto comum: dano de combate)
     }
@@ -23432,9 +23440,10 @@ function applyEffectM449(s, src, eff, tgt, events) {
     }
     case 'exile_top_playable': { // S61 · exila do topo e você pode jogar essas cartas
       const n = amountOf(s, src, eff.amount);
-      const topo = s.zones[ctrl].library.slice(0, n);
+      const doGrimorioM = eff.de === 'that-player' && src.jogadorAtrasado != null ? src.jogadorAtrasado : ctrl; // M-566 · "the top card of that player's library" (Ragavan)
+      const topo = s.zones[doGrimorioM].library.slice(0, n);
       if (eff.lembraExiladas) src.exiladasAgora = []; // M-386 · "those cards": as cartas, com a encarnação do exílio (400.7)
-      for (const oid of topo) { moveObject(s, oid, 'exile'); if (eff.lembraExiladas) src.exiladasAgora.push({ oid, z: s.objects[oid].zc || 0 }); s.objects[oid].playableFromExile = ctrl; if (eff.ate === 'proximo-turno') s.objects[oid].jogavelAte = { by: ctrl, turno: s.turn.number }; if (eff.ate === 'fim-do-turno') s.objects[oid].jogavelSoNesteTurno = true; if (eff.ate === 'proximo-final') s.objects[oid].jogavelAteFinalM = ctrl; } // M-541 · Seek the Beast // M-352 · "Until end of turn, you may play that card" (Experimental Synthesizer) // M-349 · "until the end of your next turn" (Wrenn's Resolve)
+      for (const oid of topo) { moveObject(s, oid, 'exile'); if (eff.lembraExiladas) src.exiladasAgora.push({ oid, z: s.objects[oid].zc || 0 }); s.objects[oid].playableFromExile = ctrl; if (eff.ate === 'proximo-turno') s.objects[oid].jogavelAte = { by: ctrl, turno: s.turn.number }; if (eff.ate === 'fim-do-turno') s.objects[oid].jogavelSoNesteTurno = true; if (eff.ate === 'proximo-final') s.objects[oid].jogavelAteFinalM = ctrl; if (eff.soConjurar) s.objects[oid].soConjurarM = true; /* M-566 · "you may cast that card": terreno não */ } // M-541 · Seek the Beast // M-352 · "Until end of turn, you may play that card" (Experimental Synthesizer) // M-349 · "until the end of your next turn" (Wrenn's Resolve)
       note({ amount: topo.length }); break;
     }
     case 'exila_ate_final': { // M-548 · 603.7: o atrasado lembra a carta e a encarnação do exílio (400.7); ficha exilada deixa de existir e não volta (111.8)
@@ -26016,7 +26025,7 @@ const HANDLERS = {
     if (!a.granted) { noPending(s); holder(s, a.p); } // M-268 · "you may play" de um efeito acontece durante a resolução
     // S61 · Cavernas das Runas: a carta exilada pode ser jogada de lá
     const exilada = s.objects[a.oid];
-    const doExilio = jogavelDoExilio(s, a.p, exilada) && exilada.owner === a.p; // M-270
+    const doExilio = jogavelDoExilio(s, a.p, exilada) && exilada.owner === a.p && !exilada.soConjurarM; // M-270 · M-566: "you may cast" não deixa jogar terreno
     const o = doExilio ? exilada : owns(s, a.p, a.oid, 'hand');
     faceEscolhidaT(s, a, o); // T-8 · CR 712.12 · dupla face modal jogada como terreno: a face escolhida vai para cima antes da conferência de tipo
     if (!s.facts[o.name].types.includes('land')) throw new RuleError('tipo', 'não é terreno');
@@ -26043,7 +26052,7 @@ const HANDLERS = {
     previstaNoCastM(s, a, o); // M-382 · 702.143a: conjurar a carta prenunciada pelo custo de prenunciar, num turno depois
     aerobendNoCastV(s, a, o); // V-30 · 701.65a: conjurar a carta aerobendida por {2} (Toca ponto comum: HANDLERS.cast)
     const fromExile = jogavelDoExilio(s, a.p, o); // M-270
-    if (!o || (o.owner !== a.p && !(fromExile && a.granted && o.cercoT)) || !(o.zone === 'hand' || fromGraveyard || fromPlot || fromExile || (o.zone === 'command' && o.commander))) throw new RuleError('objeto', 'só conjura da mão ou da zona de comando'); // T-72 · 310.12b: o Cerco derrotado de outro dono, pela decisão do gatilho de quem o controlava (Toca ponto comum: HANDLERS.cast)
+    if (!o || (o.owner !== a.p && !(fromExile && a.granted && o.cercoT) && !(fromExile && o.soConjurarM) /* M-566 · 601.2a: conjurar carta de outro dono com permissão (Ragavan) */) || !(o.zone === 'hand' || fromGraveyard || fromPlot || fromExile || (o.zone === 'command' && o.commander))) throw new RuleError('objeto', 'só conjura da mão ou da zona de comando'); // T-72 · 310.12b: o Cerco derrotado de outro dono, pela decisão do gatilho de quem o controlava (Toca ponto comum: HANDLERS.cast)
     if (a.flashback && !flashbackOf(s, o) && !consequenciaT(s, a)) throw new RuleError('lampejo', 'esta carta não tem lampejo do passado'); // T-32 · CR 702.127a: a metade de consequência é conferida depois de virar para ela (Toca ponto comum: HANDLERS.cast)
     if (a.retrace && !(s.facts[o.name].script || {}).retrace) throw new RuleError('retraçar', 'esta carta não tem retraçar'); // M-222 · 702.81
     if (a.recomecarK) pagaRecomecarK(s, a, o); // K-10 · 702.133a: confere e descarta a carta escolhida (custo adicional)
@@ -26107,6 +26116,7 @@ const HANDLERS = {
     // S16 · custo alternativo, lampejo do passado ou o custo normal
     const alt = a.alt != null ? altCosts(s, o)[a.alt] : null;
     if (a.alt != null && !alt) throw new RuleError('custo', 'custo alternativo inexistente');
+    if (alt && altSoDaMaoM(alt) && o.zone !== 'hand') throw new RuleError('custo', 'a dobra só se paga conjurando da mão'); // M-566 · 702.185a
     if (alt && !condicaoDoAlt(s, a.p, alt.when, a.oid)) throw new RuleError('custo', 'a condição do custo alternativo não vale agora');
     const caminhoNormal = !alt && !a.flashback && !a.escape && !a.disturb && !a.omen && !a.bestow && !a.faceDown && !a.aerobend && !a.prevista && !a.plotted && !a.free; // M-365 · M-382
     if (alt) { payAlt(s, a.p, alt.cost, a.pay, a.oid, a.targets || []); if (alt.cost && alt.cost.revealHand) events.push({ kind: 'reveal-hand', p: a.p, name: o.name, cards: s.zones[a.p].hand.filter(x => x !== a.oid).map(x => s.objects[x].name) }); } // M-351 · 701.20 · a mão revelada vai ao registro (Land Grant)
@@ -27261,12 +27271,12 @@ function legalActions(s, p, { adjudication = false } = {}) {
       else reforcos(o).forEach(n => adicionais(o).forEach(v => casts(o).forEach(x => empurra({ ...x, ...v, ...(n ? { kick: n } : {}) }))));
     }
   }
-  // S61 · Cavernas das Runas: as cartas exiladas que você pode jogar
-  for (const oid of s.zones[p].exile) {
+  // S61 · Cavernas das Runas: as cartas exiladas que você pode jogar · M-566: também as de outro dono que você pode conjurar (Ragavan)
+  for (const oid of s.zones[p].exile.concat(exilioDeOutrosM(s, p))) {
     const o = s.objects[oid]; if (!jogavelDoExilio(s, p, o)) continue; // M-270
     const f = s.facts[o.name];
-    if (f.types.includes('land')) { if (canSorcery && s.players[p].landsPlayed < terrenos) out.push({ t: 'play_land', p, oid }); continue; }
-    if (canSorcery || !isSorcerySpeed(f)) for (const xv of valoresDeX(s, (f.cost || {}).x || 0, x => payable(o, castExtra(s, p, o, x || 0)))) if (xv != null || payable(o, castExtra(s, p, o, 0))) (xv != null && xNoAlvo(f.script) ? casts(o, xv) : casts(o)).forEach(x => out.push(xv != null ? { ...x, x: xv } : x)); // T-52 · CR 601.2b / 107.3: com {X} no custo, uma oferta por X pagável, como da mão (achado da auditoria da T-51; Toca ponto comum: legalActions, exílio jogável)
+    if (f.types.includes('land')) { if (canSorcery && s.players[p].landsPlayed < terrenos && !o.soConjurarM /* M-566 */) out.push({ t: 'play_land', p, oid }); continue; }
+    if (canSorcery || !isSorcerySpeed(f)) for (const xv of valoresDeX(s, (f.cost || {}).x || 0, x => payable(o, castExtra(s, p, o, x || 0)))) if (xv != null || payable(o, castExtra(s, p, o, 0))) reforcos(o).forEach(n => adicionais(o).forEach(v => (xv != null && xNoAlvo(f.script) ? casts(o, xv) : casts(o)).forEach(x => out.push({ ...x, ...v, ...(n ? { kick: n } : {}), ...(xv != null ? { x: xv } : {}) })))); // M-566 · achado da revisão: reforço e custo adicional também do exílio · T-52 · CR 601.2b / 107.3: com {X} no custo, uma oferta por X pagável, como da mão (achado da auditoria da T-51; Toca ponto comum: legalActions, exílio jogável)
   }
   // S54 · metamorfose: conjura virada para baixo por {3}, como criatura
   if (canSorcery) for (const oid of s.zones[p].hand) {
@@ -27354,12 +27364,13 @@ function legalActions(s, p, { adjudication = false } = {}) {
     if (sn && (!s.manaCheck || canPay(s, p, parseCost(sn.mana))))
       if (s.turn.step === 'combat_blockers') unblockedAttackers(s, p).forEach(attacker => out.push({ t: 'ninjutsu', p, oid, attacker, sneak: true }));
   }
-  // S16 · custos alternativos da mão
-  for (const oid of s.zones[p].hand) {
+  // S16 · custos alternativos da mão · M-566 (achado da revisão): também do exílio com permissão de conjurar (601.2b)
+  for (const oid of s.zones[p].hand.concat(s.zones[p].exile.filter(x => jogavelDoExilio(s, p, s.objects[x])), exilioDeOutrosM(s, p))) {
     const o = s.objects[oid], f = s.facts[o.name];
     if (f.types.includes('land')) continue;
     if (!(canSorcery || !isSorcerySpeed(f))) continue;
     altCosts(s, o).forEach((alt, i) => {
+      if (o.zone !== 'hand' && (altSoDaMaoM(alt) || alt.doCemiterioK)) return; // M-566 · achado do portão: dobra só da mão (702.185a)
       if (!condicaoDoAlt(s, p, alt.when, oid) || !canPayAlt(s, p, alt.cost, oid)) return; // M-351
       pagamentosDe(s, p, alt.cost, oid).forEach(pay =>
         castWith(o, ((alt.effects || (f.script && f.script.effects)) || []).filter(SC.isTargeted)).forEach(x => out.push({ ...x, alt: i, ...comPagamento(pay) })));
@@ -27569,7 +27580,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
   // K-13 · 702.51/702.126 · convocar e improvisar: a mesma conjuração, virando criaturas (artefatos) suas para pagar parte do custo total;
   // quais virar é escolha de quem paga (uma ação por grupo, do menor ao maior, até o limite de formas de pagar)
   const gruposDaChamadaK = new Map();
-  if (s.manaCheck) for (const oid of s.zones[p].hand.concat(s.zones[p].command.filter(x => s.objects[x].commander), s.zones[p].exile.filter(x => jogavelDoExilio(s, p, s.objects[x])))) { // K-15 · da mão, da zona de comando e do exílio com permissão
+  if (s.manaCheck) for (const oid of s.zones[p].hand.concat(s.zones[p].command.filter(x => s.objects[x].commander), s.zones[p].exile.filter(x => jogavelDoExilio(s, p, s.objects[x])), exilioDeOutrosM(s, p))) { // M-566 · K-15 · da mão, da zona de comando e do exílio com permissão
     const o = s.objects[oid], f = s.facts[o.name];
     if (!f.tapaK || f.types.includes('land') || f.semCusto || (f.cost.x || 0) || !(canSorcery || !isSorcerySpeed(f))) continue;
     const extra = castExtra(s, p, o, 0), chave = o.name + '|' + extra; // K-15 · cópias da mesma carta com o mesmo custo: os grupos são os mesmos (contados uma vez por chamada)
@@ -35609,7 +35620,7 @@ function descreveEfeito(e) {
     case 'cant_attack': return `${alvo || 'a criatura'} não pode atacar`;
     case 'lose_unless': return 'perde vida a menos que pague';
     case 'draw_free_cast': return 'compra e pode conjurar de graça';
-    case 'exile_top_playable': { const k = typeof e.amount === 'number' ? e.amount : 1; return `exila ${k > 1 ? `as ${k} cartas` : 'a carta'} de cima e pode ${k > 1 ? 'jogá-las' : 'jogá-la'}${e.ate === 'fim-do-turno' ? ' até o fim do turno' : e.ate === 'proximo-turno' ? ' até o fim do seu próximo turno' : e.ate === 'proximo-final' ? ' até o seu próximo passo final' : ''}`; } // M-352 · M-541
+    case 'exile_top_playable': { const k = typeof e.amount === 'number' ? e.amount : 1; return `exila ${k > 1 ? `as ${k} cartas` : 'a carta'} de cima${e.de === 'that-player' ? ' do grimório desse jogador' : ''} e pode ${e.soConjurar ? (k > 1 ? 'conjurá-las' : 'conjurá-la') : k > 1 ? 'jogá-las' : 'jogá-la'}${e.ate === 'fim-do-turno' ? ' até o fim do turno' : e.ate === 'proximo-turno' ? ' até o fim do seu próximo turno' : e.ate === 'proximo-final' ? ' até o seu próximo passo final' : ''}`; } // M-352 · M-541
     case 'prevent_spell': case 'prevent_color': return 'previne dano';
     case 'discard_chosen': return 'olha a mão do alvo e escolhe uma carta para ele descartar';
     case 'exile_chosen': return 'o alvo exila uma carta do próprio cemitério';
