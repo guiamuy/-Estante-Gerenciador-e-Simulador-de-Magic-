@@ -5389,6 +5389,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nenhum.
 - **Teste:** `lt241.unit` (4 testes; falham no motor anterior).
 
+**M-560 · LT219 · revisão por lote CXCV: Voice of Victory** ✅ (leva M-560, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** passa a jogar Voice of Victory (104 listas do catálogo). Texto e rulings da Scryfall consultados em 22/10/2026.
+- **Regra:** "Your opponents can't cast spells during your turn." vira estática da permanente (`self.oponentesNaoConjuramNoSeuTurnoM`, 101.2), conferida a cada conjuração no mesmo ponto que barra "não pode conjurar neste turno" (T-92): no turno de quem a controla, o oponente não conjura mágica nenhuma (nem instantânea, nem por custo alternativo); habilidades continuam livres. Mobilizar 2 já existia.
+- **Revisão independente:** duas divergências: (1) sob a Voice o oponente ainda suspendia — corrigida com teste: suspender só vale quando se poderia conjurar (702.62a; ruling de 02/02/2024), e a mesma conferência (`proibidoConjurarM`) vale para o "não pode conjurar neste turno" da T-92; (2) Mobilizar manda as fichas todas para o mesmo defensor (com planeswalker do oponente em campo não dá para dividir) — comportamento anterior desta leva, da palavra-chave Mobilizar, declarado em "Fora". Conferido sem divergência: 20 formas de conjurar recusadas no turno de quem a controla (instantânea, lampejo, flashback, custo alternativo, descobrir, loucura), habilidades livres, Voice roubada vale para o novo controlador, virada para baixo ou sem habilidades não vale; fuzz de 40 partidas sem recusa
+- **Fora (declarado):** mesa de dois jogadores: "your opponents" é o único oponente. Mobilizar põe todas as fichas atacando o mesmo jogador ou planeswalker (o ruling de 04/04/2025 deixa escolher um por ficha) — limitação da palavra-chave, anterior a esta leva; só muda a partida com planeswalker ou batalha do oponente em campo.
+- **Teste:** `lt242.unit` (4 testes; três falham no motor anterior, o outro é o controle "no turno do oponente, conjura").
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

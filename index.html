@@ -6464,6 +6464,7 @@ function validateScript(sc) {
     if (self.reduzSeMira != null && !(self.reduzSeMira && Number.isInteger(self.reduzSeMira.generic) && self.reduzSeMira.generic > 0 && JSON.stringify(self.reduzSeMira.tipos) === '["creature"]')) errs.push('bônus próprio: reduzSeMira pede tipos [creature] e generic inteiro'); // M-259
     if (self.naoBloqueia != null && self.naoBloqueia !== true) errs.push('bônus próprio: "não bloqueia" só vale como true');
     if (self.atacaSePuder != null && self.atacaSePuder !== true) errs.push('bônus próprio: "ataca se puder" só vale como true'); // M-430
+    if (self.oponentesNaoConjuramNoSeuTurnoM != null && self.oponentesNaoConjuramNoSeuTurnoM !== true) errs.push('bônus próprio: oponentesNaoConjuramNoSeuTurnoM só vale como true'); // M-560
     if (self.atacaSePuderSe != null && !(self.atacaSePuder === true && JSON.stringify(self.atacaSePuderSe) === '{"delirio":true}')) errs.push('bônus próprio: atacaSePuderSe é { delirio: true } e pede atacaSePuder'); // M-525
     if (self.entraComInstFeitDelveM != null && !(self.entraComInstFeitDelveM === true && sc.delve)) errs.push('bônus próprio: entraComInstFeitDelveM é verdadeiro e pede delve (as cartas exiladas pelo delve desta mágica)'); // M-530 · Murktide Regent
     if (self.soBloqueiaVoadorasM != null && self.soBloqueiaVoadorasM !== true) errs.push('bônus próprio: soBloqueiaVoadorasM só vale como true'); // M-531 · Brazen Borrower
@@ -10557,6 +10558,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Basalt Monolith': { texto: '11wck46', leva: 'M-558' },
   // M-559 · revisão por lote CXCIV (City of Brass: dano a quem controla toda vez que vira), texto e rulings da Scryfall de 22/10/2026 UTC, revisor independente
   'City of Brass': { texto: 'wrcpwl', leva: 'M-559' },
+  // M-560 · revisão por lote CXCV (Voice of Victory: os oponentes não conjuram mágicas no seu turno), texto e rulings da Scryfall de 22/10/2026 UTC, revisor independente
+  'Voice of Victory': { texto: '1fcvf2r', leva: 'M-560' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -19777,6 +19780,7 @@ const __m42 = (function () {
         if (/^(?:this land|~) enters(?: the battlefield)? tapped unless you control two or more basic lands$/i.test(lp)) { topo.entersTappedUnless = { minBasicos: 2 }; frases.push({ texto: linha, lida: true }); continue; } // M-340 · terras de batalha
         if (/^~ can't block$/i.test(lp)) { topo.self = { ...(topo.self || {}), naoBloqueia: true }; frases.push({ texto: linha, lida: true }); continue; } // M-340 · 509.1a
         if (/^(?:~|this (?:artifact|creature|land|permanent)) doesn't untap during your untap step$/i.test(lp)) { topo.self = { ...(topo.self || {}), naoDesvira: true }; frases.push({ texto: linha, lida: true }); continue; } // M-558 · 502.3 (Grim Monolith, Mana Vault)
+        if (/^your opponents can't cast spells during your turn$/i.test(lp)) { topo.self = { ...(topo.self || {}), oponentesNaoConjuramNoSeuTurnoM: true }; frases.push({ texto: linha, lida: true }); continue; } // M-560 · Voice of Victory (101.2)
         if (/^~ attacks each combat if able$/i.test(lp)) { topo.self = { ...(topo.self || {}), atacaSePuder: true }; frases.push({ texto: linha, lida: true }); continue; } // M-430 · 508.1d: exigência de atacar (Monstrous Carabid, Ulamog's Crusher)
         const hz = lp.match(/^\{T\}, Pay (\d+) life: Add (?:(\{[WUBRG]\})(?: or (\{[WUBRG]\}))?|(one mana of any color))$/); // M-342 · 106.12 / 119.4: Horizon lands, Starting Town
         if (hz && !topo.manaRule) { const cs = hz[4] ? ['W', 'U', 'B', 'R', 'G'] : [hz[2], hz[3]].filter(Boolean).map(x => x[1]); topo.produces = [...(topo.produces || []), ...cs.map(c => [c])]; topo.manaRule = { colors: cs.join(''), life: +hz[1] }; coresVida.push(...cs); frases.push({ texto: linha, lida: true }); continue; }
@@ -28310,7 +28314,7 @@ function suspenderImpressoK(card) {
   return undefined;
 }
 /** "If you could begin to cast this card": no tempo de conjurá-la (instantânea ou lampejo: com a prioridade; senão, tempo de feitiço). */
-function podeSuspenderAgoraK(s, p, f) { return !f.types.includes('land') && s.turn.priority === p && !s.pending && !fracaoDeSegundo(s) && (!isSorcerySpeed(f) || canSorceryNow(s, p)); } // K-24 · 702.61a: com fração de segundo ninguém conjura, então não suspende
+function podeSuspenderAgoraK(s, p, f) { return !f.types.includes('land') && s.turn.priority === p && !s.pending && !fracaoDeSegundo(s) && !proibidoConjurarM(s, p) /* M-560 · achado da revisão (702.62a): quem não pode conjurar não suspende (Toca ponto comum: podeSuspenderAgoraK) */ && (!isSorcerySpeed(f) || canSorceryNow(s, p)); } // K-24 · 702.61a: com fração de segundo ninguém conjura, então não suspende
 /** K-24 · 702.62a · as ações de suspender que o jogador `p` tem agora (da mão, quando poderia conjurar a carta, pagando o custo).
     Desde a K-73 (decisão D2 do dono) entra no legalActions e a mesa desenha o botão "Suspender" (src/app/table.js). */
 function ofertasSuspenderK(s, p) {
@@ -32196,10 +32200,16 @@ function barraVedadaPeloTurnoT(s, a) { const m = vedadaPeloTurnoT(s, a); if (m) 
 /** T-93 · achado da auditoria (desempenho): a pergunta é feita por ação, pelo script da própria carta (resposta guardada no objeto do script),
  * sem varrer os fatos da partida a cada legalActions. Esgueirar-se (`ninjutsu` com `sneak`) é conjurar. */
 const ehConjurarT = a => ACOES_CONJURAR_T.includes(a.t) || (a.t === 'ninjutsu' && !!a.sneak);
+/** M-560 · quem não pode conjurar mágica nenhuma agora: "não pode conjurar neste turno" (T-92) e "Your opponents can't cast spells during your turn" (Voice of Victory, 101.2). */
+function proibidoConjurarM(s, p) {
+  if (s.semConjurarT && s.semConjurarT.turno === s.turn.number && s.semConjurarT.jogadores.includes(p)) return 'neste turno você não pode conjurar mágicas';
+  if (p !== s.turn.active) { const v = battlefield(s).find(x => x.controller === s.turn.active && !x.faceDown && !x.phasedOut && !semImpressas(s, x) && !!((((s.facts[x.name] || {}).script || {}).self || {}).oponentesNaoConjuramNoSeuTurnoM)); if (v) return `${v.name}: os oponentes não podem conjurar mágicas no turno de quem a controla`; }
+  return null;
+}
 function vedadaPeloTurnoT(s, a) {
   if (!a) return null;
   if (ehConjurarT(a)) {
-    if (s.semConjurarT && s.semConjurarT.turno === s.turn.number && s.semConjurarT.jogadores.includes(a.p)) return 'neste turno você não pode conjurar mágicas';
+    { const m = proibidoConjurarM(s, a.p); if (m) return m; } // T-92 · M-560 (Voice of Victory; achado da revisão: a mesma conferência barra suspender)
     const oid = a.oid != null ? a.oid : (s.pending || {}).oid, o = oid != null && s.objects[oid], sf = o && (((s.facts[o.name] || {}).script || {}).self);
     if (sf && sf.soEmCombate && !PASSOS_DE_COMBATE_T.includes(s.turn.step)) return `${o.name}: só durante o combate`;
     return null;
