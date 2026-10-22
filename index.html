@@ -6575,6 +6575,8 @@ function effectErrors(effects, label, opcional) {
       if (e.rest && !PICK_DESTS.includes(e.rest)) errs.push(`${label} ${i + 1}: resto "${e.rest}" desconhecido`);
       for (const t of (e.filter && e.filter.types) || []) if (!FILTER_TYPES.includes(t)) errs.push(`${label} ${i + 1}: filtro de tipo "${t}" desconhecido`);
       if (e.filter && e.filter.basic != null && typeof e.filter.basic !== 'boolean') errs.push(`${label} ${i + 1}: filtro "básico" precisa ser verdadeiro ou falso`);
+      if (e.filter && e.filter.cores != null && !(Array.isArray(e.filter.cores) && e.filter.cores.length && e.filter.cores.every(c => 'WUBRG'.includes(c) && c.length === 1))) errs.push(`${label} ${i + 1}: filtro de cor precisa de cores W, U, B, R ou G`); // M-562
+      if (e.filter && e.filter.mvMax != null && !(Number.isInteger(e.filter.mvMax) || (e.filter.mvMax && e.filter.mvMax.per === 'x'))) errs.push(`${label} ${i + 1}: filtro de valor de mana precisa ser inteiro ou X`); // M-562
       if (e.optional != null && typeof e.optional !== 'boolean') errs.push(`${label} ${i + 1}: "opcional" precisa ser verdadeiro ou falso`);
       for (const t of (e.filter && e.filter.subtypes) || []) if (typeof t !== 'string' || !t.trim()) errs.push(`${label} ${i + 1}: filtro de subtipo inválido`);
     }
@@ -10569,6 +10571,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Voice of Victory': { texto: '1fcvf2r', leva: 'M-560' },
   // M-561 · revisão por lote CXCVI (Myriad Landscape: busca dois terrenos básicos com um tipo em comum), texto da Scryfall de 22/10/2026 UTC, revisor independente
   'Myriad Landscape': { texto: 'tdenw4', leva: 'M-561' },
+  // M-562 · revisão por lote CXCVII (Green Sun's Zenith: busca criatura verde de valor até X e volta ao grimório), texto e rulings da Scryfall de 22/10/2026 UTC, revisor independente
+  'Green Sun\'s Zenith': { texto: '117z91f', leva: 'M-562' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -19193,6 +19197,8 @@ const __m42 = (function () {
     [/^untap ~$/i, () => [{ do: 'untap', target: 'self-source' }]], // M-373
     [new RegExp(`^(?:~|this creature) endures ${N}$`, 'i'), m => [{ do: 'endure', amount: num(m[1]) }]], // M-380 · "it endures 1" (Fortress Kin-Guard)
     [/^revela_ate_terreno_cemiterio (target player|target opponent)$/i, m => [{ do: 'revela_ate_cemiterio', match: 'land', target: /opponent/i.test(m[1]) ? 'opponent' : 'player' }]], // M-377 · Balustrade Spy
+    [/^search your library for an? (white|blue|black|red|green) creature card with mana value x or less, put it onto the battlefield$/i, m => [{ do: 'search', amount: 1, filter: { types: ['creature'], cores: [{ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[1].toLowerCase()]], mvMax: { per: 'x' } }, to: 'battlefield' }]], // M-562 · Green Sun's Zenith
+    [/^shuffle ~ into its owner's library$/i, () => [{ do: 'embaralha_esta' }]], // M-562 · Green Sun's Zenith (V-7: a mágica vai ao grimório do dono, não ao cemitério)
     [/^search your library for a basic land card or an? ([A-Z][a-z]+) card, reveal it, put it into your hand$/i, m => [{ do: 'search', amount: 1, filter: { ou: [{ types: ['land'], basic: true }, { subtypes: [m[1]] }] }, to: 'hand' }]], // M-377 · Gatecreeper Vine
     [/^search your library for an instant card or a card with flash, reveal it, put it into your hand$/i, () => [{ do: 'search', amount: 1, filter: { ou: [{ types: ['instant'] }, { keyword: 'flash' }] }, to: 'hand', revela: true }]], // M-448 · Mystical Teachings (filtro "ou" da M-377; a carta achada é revelada, 701.20a)
     [/^~ deals X damage divided evenly, rounded down, among any number of targets$/i, () => [{ do: 'damage', amount: { per: 'x' }, target: 'any', dividido: { igual: true } }]], // M-408 · Fireball
@@ -23020,12 +23026,13 @@ function applyEffectM449(s, src, eff, tgt, events) {
     case 'search': {
       // S46 · a busca pode ser do controlador do alvo, e pode ser opcional ("pode vasculhar")
       const who = eff.target === 'target-controller' ? playerOf() : ctrl;
-      const from = s.zones[who].library.filter(oid => matchesFilter(s, s.objects[oid], eff.filter));
+      const filtroM = eff.filter && eff.filter.mvMax != null && typeof eff.filter.mvMax === 'object' ? { ...eff.filter, mvMax: amountOf(s, src, eff.filter.mvMax) } : eff.filter; // M-562 · "with mana value X or less": o X anunciado (107.3a)
+      const from = s.zones[who].library.filter(oid => matchesFilter(s, s.objects[oid], filtroM));
       // Leva 108 · "then shuffle": buscar sem achar nada ainda embaralha (buscas opcionais contam como feitas)
       if (!from.length) { shuffle(s, s.zones[who].library); note({ amount: 0 }); break; }
       // CR 701.23b: busca por uma qualidade em zona oculta não obriga a achar; sem filtro ("a card"), é obrigatória
       const qualidade = eff.filter && Object.keys(eff.filter).length > 0;
-      startPick(s, { p: who, from, min: eff.optional || qualidade ? 0 : eff.amount, max: eff.amount, to: eff.to || 'hand', rest: 'stay', shuffle: true, filter: eff.filter, label: 'vasculhar', source: src.name, ...(eff.compartilhaTipoM ? { compartilhaTipoM: true } : {}), ...(eff.revela ? { revelaEscolhida: true } : {}) /* M-351 · 701.20a: "reveal that card" (Land Grant) */, ...(Array.isArray(eff.reparte) ? { reparte: eff.reparte } : {}), ...(eff.desviraSeTerrenos ? { onPicked: { desviraSeTerrenos: eff.desviraSeTerrenos } } : {}) }, events); // M-343
+      startPick(s, { p: who, from, min: eff.optional || qualidade ? 0 : eff.amount, max: eff.amount, to: eff.to || 'hand', rest: 'stay', shuffle: true, filter: filtroM, label: 'vasculhar', source: src.name, ...(eff.compartilhaTipoM ? { compartilhaTipoM: true } : {}), ...(eff.revela ? { revelaEscolhida: true } : {}) /* M-351 · 701.20a: "reveal that card" (Land Grant) */, ...(Array.isArray(eff.reparte) ? { reparte: eff.reparte } : {}), ...(eff.desviraSeTerrenos ? { onPicked: { desviraSeTerrenos: eff.desviraSeTerrenos } } : {}) }, events); // M-343
       break;
     }
     case 'transmute_busca': { // Leva 107 · resolução do transmutar: procura uma carta de mesmo valor e embaralha
@@ -23345,7 +23352,7 @@ function applyEffectM449(s, src, eff, tgt, events) {
       note({ amount: voltam.length, nomes: voltam }); break;
     }
     case 'exile_self': { // CR2c.5 · "Exile Ascend from Avernus": a própria mágica vai para o exílio ao terminar
-      if (!src.ability && s.objects[src.oid] && s.objects[src.oid].zone === 'stack') { moveObject(s, src.oid, 'exile'); note({ target: src.name }); }
+      if (!src.ability && s.objects[src.oid] && s.objects[src.oid].zone === 'stack' && !s.objects[src.oid].copiaDeMagia /* M-562 · achado da revisão: a cópia só deixa de existir (707.10a) */) { moveObject(s, src.oid, 'exile'); note({ target: src.name }); }
       break;
     }
     case 'counter_choice': { // CR2c.5 · "Put a <palavra> counter on either of them": entre as que esta mágica devolveu
@@ -24152,7 +24159,7 @@ function applyEffectM449(s, src, eff, tgt, events) {
       shuffle(s, s.zones[ctrl].library); note({}); break;
     }
     case 'embaralha_esta': { // V-7 · a mágica sai da pilha para o grimório do dono, que é embaralhado; não vai para o cemitério
-      if (!src.ability && s.objects[src.oid] && s.objects[src.oid].zone === 'stack') { const dono = s.objects[src.oid].owner; moveObject(s, src.oid, 'library'); shuffle(s, s.zones[dono].library); note({ target: src.name }); }
+      if (!src.ability && s.objects[src.oid] && s.objects[src.oid].zone === 'stack' && !s.objects[src.oid].copiaDeMagia /* M-562 · achado da revisão: a cópia só deixa de existir (707.10a) */) { const dono = s.objects[src.oid].owner; moveObject(s, src.oid, 'library'); shuffle(s, s.zones[dono].library); note({ target: src.name }); }
       break;
     }
     case 'dobrar': dobrar(s, src, eff, tgt, events); break; // V-7 · 701.10, 701.11
@@ -24262,6 +24269,7 @@ function matchesFilter(s, o, filter) {
   // S44 · "básico" e "um destes subtipos" (Sheltering Landscape)
   if (filter.basic && !/^\s*basic\b/i.test(f.typeText || '')) return false;
   if ((filter.historico != null || filter.foraDaLei != null || filter.modificada != null || filter.virada != null || filter.metamorfose != null) && !predicadosDeTipoT(s, o, filter)) return false; // T-59 · CR 700.6 / 700.12 / 700.9: "whenever you cast a historic spell", "outlaws you control" (Toca ponto comum: matchesFilter)
+  if (filter.cores && !filter.cores.every(c => (o.zone === 'battlefield' ? coresDe(s, o) : (f.colors || [])).includes(c))) return false; // M-562 · "a green creature card"
   if (filter.incolor && (o.zone === 'battlefield' ? coresDe(s, o) : (f.colors || [])).length) return false; // M-354 · "a colorless card" (Ancient Stirrings: terreno também é incolor, 105.2c)
   if ((filter.subtypes || []).length && !filter.subtypes.some(x => isChangeling(s, o, x) || new RegExp('\\b' + x + '\\b', 'i').test(f.typeText || ''))) return false; // K-1 · 702.73a: o metamorfo vale também no grimório e na mão
   if ((filter.notTypes || []).some(x => (f.types || []).includes(x))) return false; // S45 · "que não seja criatura nem terreno"
@@ -35379,7 +35387,7 @@ function descreveEfeito(e) {
     case 'energia': return `você ganha ${e.amount === 1 ? 'um marcador' : (e.amount || 1) + ' marcadores'} de energia`; // M-367
     case 'mana_combinada': return e.amount === 1 ? 'adiciona uma mana da cor que você escolher' : `adiciona ${(e.amount || 2) + ' manas'} das cores que você escolher (pode misturar)`; // M-553 · uma mana só não "mistura" // M-357 · 106.1a
     case 'add_mana': if (e.symbols && !e.identity && !e.opponentLands) return `adiciona ${e.symbols.map(c => `{${c}}`).join('')}${e.porContagem ? ` para cada ${({ 'creature-cards-in-your-graveyard': 'carta de criatura no seu cemitério' })[e.porContagem] /* M-428 · "para cada cartas" */ || X_PT[e.porContagem] || 'um'}` : ''}`; /* M-423 · a mana dita (achado da revisão da M-409: "adiciona mana") */ return e.identity ? 'adiciona mana de uma cor da identidade do seu comandante' : e.opponentLands ? 'adiciona mana de uma cor que um terreno de um oponente poderia produzir' : e.anyColor ? 'adiciona mana de qualquer cor' : 'adiciona mana';
-    case 'search': return `procura ${plural(n, 'carta', 'cartas')} no grimório${e.compartilhaTipoM ? ' com um tipo de terreno em comum' : ''}${e.reparte ? ' (a primeira entra virada, a segunda vai para a mão)' : ''}${e.desviraSeTerrenos ? ` (desvira a terra achada se você tiver ${e.desviraSeTerrenos} terrenos ou mais)` : ''}`; // M-343
+    case 'search': return `procura ${plural(n, 'carta', 'cartas')}${e.filter && e.filter.types && e.filter.types.includes('creature') && e.filter.cores ? ` de criatura ${e.filter.cores.map(c => ({ W: 'branca', U: 'azul', B: 'preta', R: 'vermelha', G: 'verde' })[c]).join(' e ')}` : ''}${e.filter && e.filter.mvMax != null ? ` de valor de mana ${typeof e.filter.mvMax === 'object' ? 'X' : e.filter.mvMax} ou menos` : ''} no grimório${e.to === 'battlefield' && !e.reparte ? ' e põe no campo de batalha' : ''}${e.compartilhaTipoM ? ' com um tipo de terreno em comum' : ''}${e.reparte ? ' (a primeira entra virada, a segunda vai para a mão)' : ''}${e.desviraSeTerrenos ? ` (desvira a terra achada se você tiver ${e.desviraSeTerrenos} terrenos ou mais)` : ''}`; // M-343
     case 'scry': return `vidência ${n}: olha ${plural(n, 'carta', 'cartas')} de cima e decide o que fica no topo`;
     case 'surveil': return `vigia ${n}`;
     case 'look': { // M-354 · achado da revisão do lote XXVI: dizia "olha as 1 cartas" (contava o que vai para a mão, não o que se olha)

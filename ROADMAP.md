@@ -5403,6 +5403,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nenhum.
 - **Teste:** `lt243.unit` (3 testes; falham no motor anterior).
 
+**M-562 · LT221 · revisão por lote CXCVII: Green Sun's Zenith** ✅ (leva M-562, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** passa a jogar Green Sun's Zenith (76 listas do catálogo). Texto e rulings da Scryfall consultados em 22/10/2026.
+- **Regra:** busca com filtro de cor (`cores`) e valor de mana até X (`mvMax: { per: 'x' }`, resolvido na resolução com o X anunciado, 107.3a); "Shuffle ~ into its owner's library" pelo efeito que já existia (`embaralha_esta`, V-7: a mágica vai ao grimório do dono, que é embaralhado; anulada, vai ao cemitério — ruling de 08/06/2016).
+- **Revisão independente:** duas divergências, corrigidas com teste: (1) **grave** — a cópia da Zenith (Twincast) que resolvia sem criatura que servisse derrubava o motor: mover a cópia para o grimório apagava o objeto antes do fim da resolução; agora a cópia só deixa de existir (707.10a), e a mesma correção vale para o `embaralha_esta` da V-7 e o `exile_self` de Ascend from Avernus; (2) a pilha explicada passa a dizer "criatura verde de valor de mana X ou menos … e põe no campo de batalha". Conferido sem divergência: X de 0 ao máximo, multicolor com verde serve, Dryad Arbor com X=0, X na carta procurada vale 0, a criatura entra desvirada e o gatilho de entrada vai à pilha, busca por qualidade pode não achar, anulada vai ao cemitério, quem busca é o controlador; fuzz de 40 partidas sem recusa
+- **Fora (declarado):** nenhum.
+- **Teste:** `lt244.unit` (4 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
