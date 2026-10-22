@@ -5354,6 +5354,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** **pedido à `bot`** — o Shark e o goldfish escolhem sempre Planície (a primeira opção) e nunca pagam 2 de vida; jogam a carta mal, sem travar. O registro do pagamento diz "desvirou" de um jeito torto (o mesmo das terras de choque, M-330).
 - **Teste:** `lt236.unit` (3 testes; falham no motor anterior).
 
+**M-555 · as nove Pathways que faltavam** ✅ (leva M-555, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** passam a jogar Riverglide, Clearwater, Blightstep, Needleverge, Hengegate, Barkchannel, Darkbore, Branchloft e Cragcrown Pathway (98 entradas em listas do catálogo; Riverglide sozinha em 44). Textos das duas faces da Scryfall consultados em 21/10/2026.
+- **Regra:** dupla face modal terreno // terreno (712.12), no mesmo formato da Brightclimb Pathway (T-8): o jogador escolhe a face ao jogar o terreno do turno; a frente dá a mana do texto dela, o verso entra desvirado e dá só a mana dele. Listadas pelo nome inteiro "A // B", também jogam.
+- **Revisão independente:** sem divergências (as nove nas três formas do dado — nome inteiro com faces, nome da frente com faces e só a frente; as duas faces oferecidas, mana de cada lado conforme o texto, desvirada, conta como o terreno do turno, a face fica; fora do campo só a frente vale; posta por efeito entra pela frente (712.14); devolvida e jogada de novo escolhe outra vez; fuzz de 20.000 ações e Shark × Shark sem falha).
+- **Fora (declarado):** nenhum.
+- **Teste:** `lt237.unit` (2 testes, 9 cartas × 2 nomes; o de cobertura falha no motor anterior — a jogada das duas faces já funcionava pelo dado da carta, faltava a carta ser reconhecida como completa, por isso as listas não jogavam).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

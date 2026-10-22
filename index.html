@@ -7496,6 +7496,25 @@ const RAW_SCRIPTS = [
     back: { name: 'Zof Bloodbog', types: ['land'], entersTapped: true, produces: [['B']] }, example: { target: 'none', expect: { opponentLife: -4, selfLife: 4 } } },
   { name: 'Brightclimb Pathway', self: { modal: true }, back: { name: 'Grimclimb Pathway', types: ['land'], produces: [['B']] }, // "{T}: Add {B}."
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // M-555 · as nove Pathways que faltavam (712.12, terreno // terreno): textos das duas faces da Scryfall de 21/10/2026, no formato da Brightclimb
+  { name: 'Barkchannel Pathway', self: { modal: true }, back: { name: 'Tidechannel Pathway', types: ['land'], produces: [['U']] }, // "{T}: Add {G}." // "{T}: Add {U}."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Blightstep Pathway', self: { modal: true }, back: { name: 'Searstep Pathway', types: ['land'], produces: [['R']] }, // "{T}: Add {B}." // "{T}: Add {R}."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Branchloft Pathway', self: { modal: true }, back: { name: 'Boulderloft Pathway', types: ['land'], produces: [['W']] }, // "{T}: Add {G}." // "{T}: Add {W}."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Clearwater Pathway', self: { modal: true }, back: { name: 'Murkwater Pathway', types: ['land'], produces: [['B']] }, // "{T}: Add {U}." // "{T}: Add {B}."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Cragcrown Pathway', self: { modal: true }, back: { name: 'Timbercrown Pathway', types: ['land'], produces: [['G']] }, // "{T}: Add {R}." // "{T}: Add {G}."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Darkbore Pathway', self: { modal: true }, back: { name: 'Slitherbore Pathway', types: ['land'], produces: [['G']] }, // "{T}: Add {B}." // "{T}: Add {G}."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Hengegate Pathway', self: { modal: true }, back: { name: 'Mistgate Pathway', types: ['land'], produces: [['U']] }, // "{T}: Add {W}." // "{T}: Add {U}."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Needleverge Pathway', self: { modal: true }, back: { name: 'Pillarverge Pathway', types: ['land'], produces: [['W']] }, // "{T}: Add {R}." // "{T}: Add {W}."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Riverglide Pathway', self: { modal: true }, back: { name: 'Lavaglide Pathway', types: ['land'], produces: [['R']] }, // "{T}: Add {U}." // "{T}: Add {R}."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // T-7 · CR 701.27 / 712 · dupla face que transforma (Oracle do Forge, clone de 11/10/2026). `self: { duplaFace: true }` + `back` (a face de
   // trás, sempre de permanente) e o efeito `transformar`. Defensor, voar e vínculo com a vida da frente vêm do texto da carta; os do
   // verso, de `back.keywords`. A cor do verso é a do indicador de cor da carta (`back.colors`).
