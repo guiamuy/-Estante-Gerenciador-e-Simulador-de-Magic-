@@ -6204,7 +6204,7 @@ function gatilhoErros(w, tag) {
   if (EVENTOS_DE_LOTE.includes(w.evento)) { if (w.a != null && !['oponente', 'jogador'].includes(w.a)) errs.push(`${tag}: "a" precisa ser oponente ou jogador`); if (w.quem != null && !['voce', 'oponente', 'qualquer'].includes(w.quem)) errs.push(`${tag}: "quem" precisa ser voce, oponente ou qualquer`); return errs; } // M-258 · M-449
   if (EVENTOS_DE_JOGADOR.includes(w.evento)) { // de um jogador: `quem` é quem descarta/compra, relativo a você
     if (w.quem != null && !['voce', 'oponente', 'qualquer'].includes(w.quem)) errs.push(`${tag}: "quem" precisa ser voce, oponente ou qualquer`);
-    if (w.evento === 'compra' && !(Number.isInteger(w.n) && w.n >= 1)) errs.push(`${tag}: "n" (qual compra do turno) precisa ser inteiro a partir de 1`);
+    if (w.evento === 'compra' && !(Number.isInteger(w.n) && w.n >= 1) && w.n !== 'exceto-primeira-do-passo' /* M-565 */) errs.push(`${tag}: "n" (qual compra do turno) precisa ser inteiro a partir de 1`);
     return errs;
   }
   if (w.evento === 'causa-dano' && w.a != null && !['qualquer', 'jogador', 'oponente'].includes(w.a)) errs.push(`${tag}: "a" precisa ser qualquer, jogador ou oponente`);
@@ -6247,7 +6247,7 @@ function descreveGatilho(w, como = {}) { // M-401 · como.equipada: "a criatura 
   if (ev.evento !== 'zona') {
     const jogador = ev.quem === 'oponente' ? 'um oponente' : ev.quem === 'qualquer' ? 'um jogador' : 'você';
     if (ev.evento === 'descarta') return `quando ${jogador} descarta uma carta`;
-    if (ev.evento === 'compra') return `quando ${jogador} compra a ${ORDINAL_PT[ev.n] || ev.n + 'ª'} carta do turno`;
+    if (ev.evento === 'compra') return ev.n === 'exceto-primeira-do-passo' ? `quando ${jogador} compra uma carta (menos a primeira no passo de compra dele)` /* M-565 */ : `quando ${jogador} compra a ${ORDINAL_PT[ev.n] || ev.n + 'ª'} carta do turno`;
     if (ev.evento === 'sacrifica') return `quando ${jogador} sacrifica ${ev.quem === 'oponente' ? 'uma' : 'outra'} ${perm}`;
     if (ev.evento === 'conjurar') return ev.objeto !== 'outra' ? 'quando você conjura esta mágica' : `quando ${jogador} conjura uma mágica`;
     const a = { jogador: ' a um jogador', oponente: ' a um oponente' }[ev.a] || '';
@@ -10596,6 +10596,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Chrome Mox': { texto: '187chm2', leva: 'M-563' },
   // M-564 · revisão por lote CXCIX (Mox Diamond: descarta um terreno ou vai ao cemitério, antes de entrar), texto e rulings da Scryfall de 22/10/2026 UTC, revisor independente
   'Mox Diamond': { texto: 'kb2rae', leva: 'M-564' },
+  // M-565 · revisão por lote CC (Orcish Bowmasters: 1 de dano e amassar a cada compra extra do oponente), texto e rulings da Scryfall de 22/10/2026 UTC, revisor independente
+  'Orcish Bowmasters': { texto: 'mpwr6i', leva: 'M-565' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -19222,6 +19224,7 @@ const __m42 = (function () {
     [/^revela_ate_terreno_cemiterio (target player|target opponent)$/i, m => [{ do: 'revela_ate_cemiterio', match: 'land', target: /opponent/i.test(m[1]) ? 'opponent' : 'player' }]], // M-377 · Balustrade Spy
     [/^search your library for an? (white|blue|black|red|green) creature card with mana value x or less, put it onto the battlefield$/i, m => [{ do: 'search', amount: 1, filter: { types: ['creature'], cores: [{ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[1].toLowerCase()]], mvMax: { per: 'x' } }, to: 'battlefield' }]], // M-562 · Green Sun's Zenith
     [/^shuffle ~ into its owner's library$/i, () => [{ do: 'embaralha_esta' }]],
+    [/^(?:then )?amass (orcs|zombies) (\d+)$/i, m => [{ do: 'amass', amount: +m[2], subtipo: m[1].toLowerCase() === 'orcs' ? 'Orc' : 'Zombie' }]], // M-565 · "amass Orcs N" (701.47)
     [/^exile a nonartifact, nonland card from your hand$/i, () => [{ do: 'imprime_da_mao', filter: { notTypes: ['artifact', 'land'] } }]], // M-563 · Chrome Mox (Imprint é palavra de habilidade, 207.2c; o you may já virou a pergunta do gatilho) // M-562 · Green Sun's Zenith (V-7: a mágica vai ao grimório do dono, não ao cemitério)
     [/^search your library for a basic land card or an? ([A-Z][a-z]+) card, reveal it, put it into your hand$/i, m => [{ do: 'search', amount: 1, filter: { ou: [{ types: ['land'], basic: true }, { subtypes: [m[1]] }] }, to: 'hand' }]], // M-377 · Gatecreeper Vine
     [/^search your library for an instant card or a card with flash, reveal it, put it into your hand$/i, () => [{ do: 'search', amount: 1, filter: { ou: [{ types: ['instant'] }, { keyword: 'flash' }] }, to: 'hand', revela: true }]], // M-448 · Mystical Teachings (filtro "ou" da M-377; a carta achada é revelada, 701.20a)
@@ -19386,7 +19389,8 @@ const __m42 = (function () {
     [/^whenever (this creature|~) blocks$/i, 'blocks'],
     [/^at the beginning of your upkeep$/i, 'upkeep'],
     [/^whenever (?:~|this (?:land|artifact|creature|permanent)) becomes tapped$/i, { evento: 'vira' }], // M-559 · City of Brass (qualquer jeito de virar; virar ao entrar não é "tornar-se virada")
-    [/^at the beginning of your draw step$/i, 'draw-step'], // M-558 · Mana Vault (500.6)
+    [/^at the beginning of your draw step$/i, 'draw-step'],
+    [/^whenever an opponent draws a card except the first one they draw in each of their draw steps$/i, { evento: 'compra', n: 'exceto-primeira-do-passo', quem: 'oponente' }], // M-565 · Orcish Bowmasters // M-558 · Mana Vault (500.6)
     [/^at the beginning of your end step$/i, 'end-step'],
     [/^at the beginning of combat on your turn$/i, 'begin-combat'],
     [/^whenever enchanted creature deals damage$/i, 'enchanted-deals-damage'],
@@ -19846,7 +19850,7 @@ const __m42 = (function () {
         if (om) { const g1 = leGatilho(`Whenever another creature you control dies, ${om[2]}`, nome, frases), g2 = leGatilho(`When ~ dies, ${om[2]}`, nome, []); if (g1 && g2) { if (om[1]) g1.filter = { anyTypes: ['creature', 'planeswalker'] }; (topo.abilities = topo.abilities || []).push(g1, g2); } continue; }
         const ea = lp.match(/^whenever (?:~|this creature) enters or attacks, (.+)$/i); // M-378 · Inferno Titan: dois gatilhos com o mesmo efeito
         if (ea) { const g1 = leGatilho(`When ~ enters, ${ea[1]}`, nome, frases), g2 = leGatilho(`Whenever ~ attacks, ${ea[1]}`, nome, []); if (g1 && g2) (topo.abilities = topo.abilities || []).push(g1, g2); continue; }
-        { const ew = lp.match(/^when (?:~|this enchantment|this artifact|this creature|this permanent) enters and (whenever you cast [^,]+), (.+)$/i); // M-556 · Up the Beanstalk: dois gatilhos com o mesmo efeito
+        { const ew = lp.match(/^when (?:~|this enchantment|this artifact|this creature|this permanent) enters and (whenever (?:you cast|an opponent draws) [^,]+), (.+)$/i); // M-565 · também Orcish Bowmasters // M-556 · Up the Beanstalk: dois gatilhos com o mesmo efeito
           if (ew) { const g1 = leGatilho(`When ~ enters, ${ew[2]}`, nome, frases), g2 = leGatilho(`${ew[1]}, ${ew[2]}`, nome, []); if (g1 && g2) { (topo.abilities = topo.abilities || []).push(g1, g2); continue; } } }
         const es = lp.match(/^when (?:~|this artifact|this creature|this permanent) enters and when you sacrifice it, (.+)$/i); // M-466 · Heaped Harvest: dois gatilhos com o mesmo efeito
         if (es) { const g1 = leGatilho(`When ~ enters, ${es[1]}`, nome, frases), g2 = leGatilho(`When you sacrifice ~, ${es[1]}`, nome, []); if (g1 && g2) (topo.abilities = topo.abilities || []).push(g1, g2); continue; }
@@ -20906,9 +20910,12 @@ function draw(s, p0, n = 1, { primeiraDoPasso = false, jaSubstituidaM = false } 
     if (!lib.length) { s.players[p].drewFromEmpty = true; return; }
     moveObject(s, lib[0], 'hand');
     s.players[p].drawnThisTurn = (s.players[p].drawnThisTurn || 0) + 1;
+    if (s.turn.step === 'draw' && s.turn.active === p && partidaTemExcetoPrimeiraM(s)) s.comprasNoPassoM = { n: ((s.comprasNoPassoM || {}).n || 0) + 1 }; // M-565 · "the first one they draw in each of their draw steps" (zerado a cada entrada no passo de compra, inclusive o passo a mais)
+    const primeiraM = s.turn.step === 'draw' && s.turn.active === p && s.comprasNoPassoM && s.comprasNoPassoM.n === 1;
     // S33 · gatilhos que observam a terceira compra, inclusive do cemitério
     const nCompra = s.players[p].drawnThisTurn; // CR2-G R2c · "a n-ésima compra do turno" (antes só a terceira)
-    naSombra(s, `compra ${p} #${nCompra}`, () => { if (nCompra === 3) queueZoneTriggers(s, p, 'third-draw'); }, () => gatilhosDeJogador(s, 'compra', p, nCompra));
+    if (primeiraM) s.primeiraDoPassoDeCompraM = true; // M-565
+    try { naSombra(s, `compra ${p} #${nCompra}`, () => { if (nCompra === 3) queueZoneTriggers(s, p, 'third-draw'); }, () => gatilhosDeJogador(s, 'compra', p, nCompra)); } finally { delete s.primeiraDoPassoDeCompraM; }
   }
 }
 
@@ -21894,7 +21901,7 @@ function gatilhosDeJogador(s, evento, p, n) {
       const c = w.zone === 'battlefield' ? w.controller : q;
       for (const ab of abilitiesOf(s, w)) {
         const d = ab.kind === 'triggered' && SC.gatilhoDoEvento(ab.when);
-        if (!SC.falaDe(d, evento) || (evento === 'compra' && d.n !== n) || !quemCasa(d, c, p)) continue;
+        if (!SC.falaDe(d, evento) || (evento === 'compra' && d.n !== n && !(d.n === 'exceto-primeira-do-passo' && !s.primeiraDoPassoDeCompraM)) || !quemCasa(d, c, p)) continue; // M-565 · Orcish Bowmasters
         if (w.zone === 'graveyard' && !ab.fromGraveyard) continue; // S33 · do cemitério só o que diz que funciona de lá
         if (!triggerConditionMet(s, w, ab.condition)) continue;
         s.queued.push({ source: w.oid, name: w.name, controller: c, effects: ab.effects, when: ab.when, ...((d.quem || 'voce') !== 'voce' ? { jogador: p } : {}), ...(evento === 'ganha-vida' || evento === 'atacou' ? { value: n } : {}), ...marcasDaHabilidade(ab) });
@@ -21974,6 +21981,7 @@ function enterStep(s, step) {
   designacoesNoPasso(s, step); // M-332 · CR 725.2 / 726.2 · monarca no passo final, iniciativa na manutenção
   if (step === 'main1') sagasNaPrincipal(s); // T-1 · CR 714.3c / 703.4f · marcador de lore em cada Saga do jogador ativo, antes da prioridade (função abaixo da âncora T das exportações)
   if (step === 'draw') {
+    delete s.comprasNoPassoM; // M-565 · cada passo de compra conta do zero (achado da revisão: passo a mais)
     const skip = s.turn.firstTurn && s.players.length === 2 && !s.emPassoExtraT; // 103.8a · T-106: o passo de compra a mais (500.8, 500.9) não é "o passo de compra" do primeiro turno (Toca ponto comum: enterStep)
     if (!skip) draw(s, a, 1, { primeiraDoPasso: true }); // CR2e.3 · a compra do turno é a primeira do passo de compra
   }
@@ -25221,6 +25229,8 @@ const descarteEmCursoM = s => !!(s.loteDescarteM && s.pending && s.pending.kind 
 function fechaLoteCemiterioM(s) { fechaLoteDescarteM(s); delete s.saidasCemM; const l = s.loteCemiterioM; if (!l) return; delete s.loteCemiterioM; for (const { i, ...q } of l) s.queued.push(q); }
 /* M-462 · 603.2c · "Whenever you discard one or more cards, … that much" (Magmakin Artillerist): uma vez por evento de descarte, com o valor = quantas
    cartas o jogador descartou nele (insanidade também é descarte, 702.35). O lote fecha nos mesmos pontos do da M-449; só nas partidas com o gatilho. */
+const TEM_EXCETO_PRIMEIRA_M = new WeakMap(); // M-565 · varre o script uma vez por fato
+const partidaTemExcetoPrimeiraM = s => Object.values(s.facts).some(f => { if (!f || typeof f !== 'object') return false; if (!TEM_EXCETO_PRIMEIRA_M.has(f)) TEM_EXCETO_PRIMEIRA_M.set(f, JSON.stringify(f.script || {}).includes('"exceto-primeira-do-passo"')); return TEM_EXCETO_PRIMEIRA_M.get(f); });
 const TEM_DESCARTAM_M = new WeakMap();
 const partidaTemDescartamM = s => Object.values(s.facts).some(f => { if (!f || typeof f !== 'object') return false; if (!TEM_DESCARTAM_M.has(f)) TEM_DESCARTAM_M.set(f, JSON.stringify(f.script || {}).includes('"descartam"')); return TEM_DESCARTAM_M.get(f); });
 function loteDescarteM(s, p) { if (!partidaTemDescartamM(s)) return; const l = s.loteDescarteM || (s.loteDescarteM = {}); l[p] = (l[p] || 0) + 1; }
