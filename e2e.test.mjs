@@ -14031,3 +14031,102 @@ test('e2e · MJ5 pilha com profundidade: monte de miniaturas com o topo levantad
   assert.deepEqual([r.fotos, await page.evaluate(() => document.querySelectorAll('.tb-voo').length)], [[], 0], 'movimento reduzido: nada voa');
   assert.deepEqual(errors, []);
 });
+
+// MJ6a (leva J-15, trilha jogabilidade) · mirar por arrasto: arrastar para cima a mágica da mão até o alvo conjura com
+// ele; os alvos legais acendem, a seta tracejada encaixa no alvo sob o dedo; soltar fora ou na origem cancela; tocar
+// continua abrindo a folha; arrasto de lado e segurar continuam sendo o que eram
+test('e2e · MJ6a arrastar a mágica da mão até o alvo: alvos acesos, seta que encaixa, soltar conjura, fora cancela, tocar abre a folha', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 }); // o aparelho do dono
+  await createDeck(page, base, 'Raios', '20 Mountain\n12 Lightning Bolt\n12 Grizzly Bear', 'livre');
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start');
+  await page.fill('#mesa-seed', '4'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  await page.waitForSelector('#tb-pass');
+  const toca = () => page.evaluate(() => document.querySelector('#tb').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
+  // mesa assistida: três Montanhas, três Lightning Bolt na mão e um Grizzly Bear no campo do oponente
+  const c = await page.evaluate(() => { const M = window.__estanteMesa, s = M.estado(), p = s.turn.active, q = 1 - p;
+    const pega = (dono, nm, n) => Object.values(s.objects).filter(o => o.owner === dono && o.name === nm && o.zone === 'library').slice(0, n).map(o => o.oid);
+    for (const oid of pega(p, 'Mountain', 3)) M.act({ t: 'move', p, oid, to: 'battlefield' });
+    const raios = pega(p, 'Lightning Bolt', 3); for (const oid of raios) M.act({ t: 'move', p, oid, to: 'hand' });
+    // a criatura do oponente (o goldfish joga com a própria lista); sem nenhuma, o seu Grizzly Bear
+    const criatura = Object.values(s.objects).find(o => o.owner === q && o.zone === 'library' && ((s.facts[o.name] || {}).types || []).includes('creature'));
+    const dono = criatura ? q : p, urso = criatura ? criatura.oid : pega(p, 'Grizzly Bear', 1)[0]; M.act({ t: 'move', p: dono, oid: urso, to: 'battlefield' });
+    return { p, q, raios, urso, ursoNoCampo: M.estado().objects[urso].zone }; });
+  assert.equal(c.ursoNoCampo, 'battlefield', 'a criatura alvo está no campo');
+  await toca(); await page.waitForTimeout(450);
+  if ((await page.getAttribute('#tb-hand-toggle', 'aria-expanded')) !== 'true') { await page.click('#tb-hand-toggle'); await page.waitForTimeout(450); }
+  assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('#tb-hand .tb-card')).touchAction), 'pan-x', 'no celular, arrastar de lado rola a mão e para cima fica com a mesa');
+  const centro = sel => page.evaluate(sel => { const r = document.querySelector(sel).getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }, sel);
+  const carta = oid => `#tb-hand .tb-card[data-oid="${oid}"]`;
+  const aVista = async oid => { await page.evaluate(sel => document.querySelector(sel).scrollIntoView({ inline: 'center', block: 'nearest' }), carta(oid)); await page.waitForTimeout(120); };
+  const arrasta = async (oid, ate, { solta = true, passos = 12, durante = null } = {}) => {
+    await aVista(oid);
+    const a = await centro(carta(oid)), b = typeof ate === 'string' ? await centro(ate) : ate;
+    await page.mouse.move(a.x, a.y); await page.mouse.down();
+    await page.mouse.move(a.x, a.y - 30, { steps: 4 });
+    const meio = durante ? (await page.waitForTimeout(350), await durante()) : null; // a mão termina de recolher (--dur-3)
+    await page.mouse.move(b.x, b.y, { steps: passos });
+    const sobre = await page.evaluate(() => ({ mira: document.querySelector('#tb').dataset.mira || null, alvo: (document.querySelector('#tb-mira') || { dataset: {} }).dataset.alvo || null,
+      sob: [...document.querySelectorAll('[data-mira="sob"]')].map(e => e.id || e.dataset.oid), seta: document.querySelectorAll('#tb-mira path').length }));
+    if (solta) await page.mouse.up();
+    return { meio, sobre };
+  };
+  const [r0, r1, r2] = c.raios;
+  // 1 · no meio da mira: só os alvos legais acesos (as Montanhas não), a mão recolhida, a carta levantada, a seta
+  const acesos = () => page.evaluate(() => ({ alvos: [...document.querySelectorAll('[data-mira="alvo"], [data-mira="sob"]')].map(e => e.id || e.dataset.oid).sort(),
+    mao: Math.round(document.querySelector('.tb-hand__body').getBoundingClientRect().height), carta: !!document.querySelector('#tb-fx .tb-mira__carta'), mira: document.querySelector('#tb').dataset.mira }));
+  const m1 = await arrasta(r0, `.tb-side .tb-card[data-oid="${c.urso}"]`, { solta: false, durante: acesos });
+  assert.equal(m1.meio.mira, r0, 'a mira começou ao passar do limiar ' + JSON.stringify(m1));
+  assert.deepEqual(m1.meio.alvos, [c.urso, 'tb-life-me', 'tb-life-opp'].sort(), 'acendem o urso e as duas vidas; terrenos não são alvo do Bolt ' + JSON.stringify(m1.meio));
+  assert.ok(m1.meio.carta && m1.meio.mao <= 2, 'a carta se levanta e a mão recolhe: o campo inteiro à vista ' + JSON.stringify(m1.meio));
+  assert.deepEqual([m1.sobre.alvo, m1.sobre.sob, m1.sobre.seta >= 2], [`o:${c.urso}`, [c.urso], true], 'sobre o urso a seta encaixa nele ' + JSON.stringify(m1.sobre));
+  for (const tema of ['dark', 'light']) { await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await auditaTela(page, `MJ6a · mirando 360 ${tema}`); }
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/mj6a-mirando.png' });
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  await page.mouse.up(); await page.waitForTimeout(200);
+  const depois1 = await page.evaluate(([oid, urso]) => { const s = window.__estanteMesa.estado(), o = s.objects[oid];
+    return { zona: o.zone, alvo: (o.targets || [])[0] && o.targets[0].oid, dialogo: !!document.querySelector('.ds-dialog'), mirou: document.querySelector('#tb').dataset.mirou, camada: !!document.querySelector('#tb-mira, .tb-mira__carta'), acesos: document.querySelectorAll('[data-mira]').length }; }, [r0, c.urso]);
+  assert.deepEqual(depois1, { zona: 'stack', alvo: c.urso, dialogo: false, mirou: `o:${c.urso}`, camada: false, acesos: 0 }, 'soltar no urso conjura o Bolt nele, sem abrir folha; a seta e a carta levantada somem');
+  await page.evaluate(() => { const M = window.__estanteMesa; M.act({ t: 'pass', p: M.estado().turn.priority }); });
+  await toca(); await page.waitForTimeout(300);
+  assert.equal(await page.evaluate(u => window.__estanteMesa.estado().objects[u].zone, c.urso), 'graveyard', 'o Bolt resolveu: o urso morreu');
+  // 2 · até a vida do oponente
+  if ((await page.getAttribute('#tb-hand-toggle', 'aria-expanded')) !== 'true') { await page.click('#tb-hand-toggle'); await page.waitForTimeout(450); }
+  const vida0 = await page.evaluate(q => window.__estanteMesa.estado().players[q].life, c.q);
+  const m2 = await arrasta(r1, '#tb-life-opp');
+  assert.equal(m2.sobre.alvo, `p:${c.q}`);
+  await page.waitForTimeout(150);
+  await page.evaluate(() => { const M = window.__estanteMesa; M.act({ t: 'pass', p: M.estado().turn.priority }); });
+  assert.equal(await page.evaluate(q => window.__estanteMesa.estado().players[q].life, c.q), vida0 - 3, 'o Bolt na vida do oponente tirou 3');
+  await toca(); await page.waitForTimeout(300);
+  if ((await page.getAttribute('#tb-hand-toggle', 'aria-expanded')) !== 'true') { await page.click('#tb-hand-toggle'); await page.waitForTimeout(450); }
+  // 3 · soltar no vazio e soltar de volta na carta cancelam: nada muda, nenhuma folha abre
+  const fica = async rotulo => { const r = await page.evaluate(oid => ({ zona: window.__estanteMesa.estado().objects[oid].zone, mirou: document.querySelector('#tb').dataset.mirou, dialogo: !!document.querySelector('.ds-dialog'), camada: !!document.querySelector('#tb-mira') }), r2);
+    assert.deepEqual(r, { zona: 'hand', mirou: 'cancelou', dialogo: false, camada: false }, rotulo); };
+  const vazio = await page.evaluate(() => { const r = document.querySelector('.tb-board').getBoundingClientRect(), b = document.querySelector('.tb-side--me').getBoundingClientRect(); return { x: r.left + 6, y: b.top - 6 }; });
+  await arrasta(r2, vazio); await page.waitForTimeout(150); await fica('soltar no vazio cancela');
+  await aVista(r2);
+  const origem = await centro(carta(r2));
+  await page.mouse.move(origem.x, origem.y); await page.mouse.down(); await page.mouse.move(origem.x, origem.y - 60, { steps: 5 }); await page.mouse.move(origem.x, origem.y, { steps: 5 }); await page.mouse.up();
+  await page.waitForTimeout(150); await fica('voltar à carta e soltar cancela');
+  // 4 · tocar continua abrindo a folha da carta
+  await page.waitForTimeout(450); // longe do toque anterior: não vira toque duplo
+  await aVista(r2); await page.waitForTimeout(450);
+  await page.click(carta(r2)); await page.waitForSelector('.ds-dialog');
+  assert.match(await page.innerText('.ds-dialog'), /Conjurar/);
+  await page.keyboard.press('Escape'); await page.waitForTimeout(250);
+  // 5 · arrasto de lado não mira; segurar espia e não vira mira
+  const lado = await page.evaluate(() => { const r = document.querySelector('#tb-hand .tb-card').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+  await page.mouse.move(lado.x, lado.y); await page.mouse.down(); await page.mouse.move(lado.x - 60, lado.y - 4, { steps: 6 });
+  assert.equal(await page.evaluate(() => document.querySelector('#tb').dataset.mira || null), null, 'de lado: não mira'); await page.mouse.up();
+  await page.waitForTimeout(450);
+  await aVista(r2);
+  const o2 = await centro(carta(r2));
+  await page.mouse.move(o2.x, o2.y); await page.mouse.down(); await page.waitForTimeout(700);
+  const espiou = await page.evaluate(() => !!document.querySelector('.tb-peek'));
+  await page.mouse.move(o2.x, o2.y - 80, { steps: 6 });
+  assert.deepEqual([espiou, await page.evaluate(() => document.querySelector('#tb').dataset.mira || null)], [true, null], 'segurar espia; arrastar depois de espiar não vira mira');
+  await page.mouse.up(); await page.waitForTimeout(250);
+  assert.deepEqual(errors, []);
+});

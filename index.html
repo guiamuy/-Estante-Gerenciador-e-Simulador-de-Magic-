@@ -2012,6 +2012,15 @@ body[data-mesa-cheia="true"] .tb-steps__list li { padding: 0 0 1px; border-botto
 .tb-voo--pilha { overflow: hidden; border-radius: var(--radius-1); box-shadow: var(--shadow-2); }
 .tb-voo--pilha img, .tb-voo--pilha .ds-verso { display: block; width: 100%; height: 100%; object-fit: cover; }
 .tb-stack__conta { flex: none; font-variant-numeric: tabular-nums; }
+/* MJ6a · mirar por arrasto: a carta levantada da mão, a seta tracejada (tracejado é alvo) e os alvos legais acesos */
+#tb-hand .tb-card { touch-action: pan-x; } /* arrastar de lado rola a mão; para cima é com a mesa */
+#tb[data-mira] .tb-hand__body { grid-template-rows: 0fr; } /* a mão recolhe enquanto mira: o campo inteiro fica à vista */
+.tb-fx-camada > .tb-mira__carta { position: fixed; margin: 0; pointer-events: none; transform: translateY(calc(var(--space-2) * -1)); box-shadow: var(--shadow-3); }
+.tb-mira { z-index: 1; }
+.tb-seta--mira { color: var(--accent); }
+.tb-seta--mira .tb-seta__traco { stroke-dasharray: 9 6; }
+.tb-card[data-mira="alvo"] .tb-card__face, .tb-life[data-mira="alvo"] { outline: 2px dashed var(--accent); outline-offset: 2px; }
+.tb-card[data-mira="sob"] .tb-card__face, .tb-life[data-mira="sob"] { outline: 3px solid var(--accent); outline-offset: 2px; }
 .tb-stack__topo { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-display); font-size: var(--text-sm); }
 .tb-stack__faixa > .tb-stack__seta { color: var(--fg-muted); transition: transform var(--dur-2) var(--ease-out); }
 .tb-stack[data-aberto="true"] .tb-stack__seta { transform: rotate(180deg); }
@@ -36147,6 +36156,32 @@ function saidasDaPilha(antes = [], s) {
   const agora = new Set((s.stack || []).map(String));
   return antes.map(String).filter(k => { const o = s.objects[k]; return !agora.has(k) && !!o && !o.ability && ['graveyard', 'exile', 'library', 'hand', 'command'].includes(o.zone); });
 }
+/* ---------------- MJ6a · mirar por arrasto ----------------
+   Arrastar para cima uma mágica da mão até o alvo conjura com ele. `alvosDoArrasto` lê as ações legais da carta (o motor
+   decide o que é legal) e agrupa as conjurações de um alvo só por alvo; `como` diz o que soltar faz: `conjura` (uma ação),
+   `pergunta` (só muda como pagar, X ou cor: a pergunta de sempre) ou `folha` (outra diferença: abre a folha da carta).
+   Carta que tem conjuração com dois alvos ou mais não mira por arrasto (soltar num alvo só esconderia a escolha).
+   `gestoDeMira` decide, pelo deslocamento do dedo, se o gesto é mira (para cima, a vertical domina), outro gesto
+   (rolar a mão de lado) ou ainda nada. Puros. */
+const CHAVES_DA_PERGUNTA = new Set(['t', 'p', 'oid', 'targets', 'pay', 'x', 'color', 'add']);
+function alvosDoArrasto(legais = [], oid) {
+  const k = String(oid), porAlvo = new Map();
+  const daCarta = legais.filter(a => a && a.t === 'cast' && String(a.oid) === k && Array.isArray(a.targets) && a.targets.length);
+  if (daCarta.some(a => a.targets.length > 1)) return [];
+  for (const a of daCarta) {
+    const x = a.targets[0]; if (!x || (x.oid == null && x.player == null)) continue;
+    const chave = x.oid != null ? 'o:' + x.oid : 'p:' + x.player;
+    if (!porAlvo.has(chave)) porAlvo.set(chave, { chave, alvo: x.oid != null ? { oid: String(x.oid) } : { player: x.player }, acoes: [] });
+    porAlvo.get(chave).acoes.push(a);
+  }
+  return [...porAlvo.values()].map(g => ({ ...g, como: g.acoes.length === 1 ? 'conjura' : g.acoes.every(a => Object.keys(a).every(c => CHAVES_DA_PERGUNTA.has(c))) ? 'pergunta' : 'folha' }));
+}
+function gestoDeMira(dx, dy, { limiar = 14 } = {}) {
+  const sobe = -dy, lado = Math.abs(dx);
+  if (sobe >= limiar && sobe >= lado) return 'mira';
+  if (Math.max(lado, Math.abs(dy)) >= limiar) return 'outro';
+  return null;
+}
 /* ---------------- MJ4a · setas do combate ----------------
    Quem ataca quem e quem bloqueia quem, desenhado entre as cartas: o ataque sai do atacante até a vida do defensor (ou o
    planeswalker atacado), o bloqueio sai do bloqueador até o atacante. Vale para a escolha em curso (`proposta`, o que
@@ -36296,7 +36331,7 @@ function createSom({ store = null, criaContexto = null } = {}) {
     get tocados() { return tocados.slice(); }
   };
 }
-return { eventosSensoriais, planoDeSom, planoDeEfeitos, planoDeVoo, ondePousa, planoDeSaida, monteDaPilha, saidasDaPilha, setasDoCombate, curvaDaSeta, marcasDaPrevia, roteiroDaJogada, createSom, limpaPrefs, duracaoDe, RECEITAS, NOMES, ORDEM, SOM_DO_TIPO, CHAVE, GLOBAL_A_PARTIR_DE };
+return { eventosSensoriais, planoDeSom, planoDeEfeitos, planoDeVoo, ondePousa, planoDeSaida, monteDaPilha, saidasDaPilha, alvosDoArrasto, gestoDeMira, setasDoCombate, curvaDaSeta, marcasDaPrevia, roteiroDaJogada, createSom, limpaPrefs, duracaoDe, RECEITAS, NOMES, ORDEM, SOM_DO_TIPO, CHAVE, GLOBAL_A_PARTIR_DE };
 })();
 
 /* ==== src/app/table.js ==== */
@@ -36833,6 +36868,94 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       a.onfinish = pousa; a.oncancel = pousa;
       marcas.push(`verso:${zona}:${r.oid}`);
     }
+  }
+  /* ---- MJ6a · mirar por arrasto: arrastar para cima uma mágica da mão até o alvo conjura com ele. A carta se levanta da
+     mão (uma cópia na camada de efeitos; a mão recolhe e o campo inteiro fica à vista), uma seta tracejada dourada vai da
+     carta ao dedo e encaixa no alvo legal sob ele (os legais acendem); soltar no alvo conjura, soltar fora ou de volta na
+     carta não faz nada. O motor decide o que é legal (alvosDoArrasto lê legalActions); tocar continua abrindo a folha. ---- */
+  let miraAtiva = null; // a mira em curso (redesenhar a mesa no meio dela, por jogada do outro, cancela)
+  const ALVO_DA_MIRA = '.tb-side .tb-card[data-oid], .tb-side .tb-card[data-oids], #tb-life-me, #tb-life-opp';
+  function armaMira(el, oid) {
+    let x0 = 0, y0 = 0, id = null, fase = null, mira = null, engole = false;
+    const fim = () => {
+      if (!mira) return;
+      for (const t of root.querySelectorAll('[data-mira]')) delete t.dataset.mira;
+      mira.svg.remove(); mira.carta.remove(); delete root.dataset.mira;
+      const camada = document.getElementById('tb-fx'); if (camada && !camada.childElementCount) camada.remove();
+      mira = null; fase = null; if (miraAtiva === fim) miraAtiva = null;
+    };
+    const alvoEm = (x, y) => {
+      for (const e of document.elementsFromPoint(x, y)) {
+        if (e.closest('#tb-hand')) continue;
+        const t = e.closest(ALVO_DA_MIRA); if (!t || !root.contains(t)) continue;
+        if (t.id === 'tb-life-me' || t.id === 'tb-life-opp') { const g = mira.porChave.get('p:' + (t.id === 'tb-life-me' ? mira.v : mira.outro)); if (g) return { g, el: t }; continue; }
+        for (const o of (t.dataset.oids ? t.dataset.oids.split(' ') : [t.dataset.oid])) { const g = mira.porChave.get('o:' + o); if (g) return { g, el: t }; }
+      }
+      return null;
+    };
+    const desenha = (x, y) => {
+      const sob = alvoEm(x, y), para = sob ? caixaDe(sob.el) : { x: x - 1, y: y - 1, w: 2, h: 2 }; // mede antes de escrever
+      if ((sob && sob.el) !== mira.sobEl) {
+        if (mira.sobEl) mira.sobEl.dataset.mira = 'alvo';
+        if (sob) { sob.el.dataset.mira = 'sob'; __m0.haptics.evento('toque'); }
+        mira.sobEl = sob ? sob.el : null;
+      }
+      mira.sob = sob;
+      const c = __m33.curvaDaSeta(mira.de, para);
+      mira.g.replaceChildren(...(c ? [svgEl('path', { class: 'tb-seta__sombra', d: c.d }), svgEl('path', { class: 'tb-seta__traco', d: c.d }), svgEl('polygon', { class: 'tb-seta__ponta', points: c.ponta })] : []));
+      mira.svg.dataset.alvo = sob ? sob.g.chave : '';
+    };
+    const comeca = () => {
+      const s = table.state, v = table.viewer();
+      if (!s || s.status !== 'playing' || handoff || document.querySelector('.tb-peek, .ds-dialog')) return false;
+      let legais = []; try { legais = E.legalActions(s, v); } catch (e) { return false; }
+      const alvos = __m33.alvosDoArrasto(legais, oid); if (!alvos.length) return false;
+      const de = caixaDe(el), carta = el.cloneNode(true);
+      carta.removeAttribute('id'); carta.disabled = true; carta.tabIndex = -1; carta.className = 'tb-card tb-mira__carta'; carta.dataset.mira = 'origem'; carta.dataset.sobrepoe = 'true'; // a carta levantada passa por cima do campo de propósito
+      Object.assign(carta.style, { left: `${de.x}px`, top: `${de.y}px`, width: `${de.w}px`, height: `${de.h}px` });
+      const svg = svgEl('svg', { id: 'tb-mira', class: 'tb-setas tb-mira', 'aria-hidden': 'true', focusable: 'false' }), g = svgEl('g', { class: 'tb-seta tb-seta--mira' });
+      svg.appendChild(g); camadaFx().append(svg, carta);
+      mira = { v, outro: s.players.findIndex((_, i) => i !== v), de, carta, svg, g, porChave: new Map(alvos.map(a => [a.chave, a])), sobEl: null, sob: null };
+      for (const a of alvos) {
+        const t = a.alvo.oid != null ? root.querySelector(`.tb-side .tb-card[data-oid="${a.alvo.oid}"]`) || root.querySelector(`.tb-side .tb-card[data-oids~="${a.alvo.oid}"]`) : root.querySelector(a.alvo.player === v ? '#tb-life-me' : '#tb-life-opp');
+        if (t) t.dataset.mira = 'alvo';
+      }
+      root.dataset.mira = String(oid); miraAtiva = fim;
+      __m0.haptics.evento('toque');
+      return true;
+    };
+    el.addEventListener('pointerdown', e => { if (e.button != null && e.button !== 0) return; x0 = e.clientX; y0 = e.clientY; id = e.pointerId; fase = 'pronto'; engole = false; });
+    el.addEventListener('pointermove', e => {
+      if (e.pointerId !== id || !fase) return;
+      if (fase === 'pronto') {
+        const gesto = __m33.gestoDeMira(e.clientX - x0, e.clientY - y0);
+        if (!gesto) return;
+        if (gesto === 'outro' || !comeca()) { fase = null; return; }
+        fase = 'mirando'; engole = true;
+        try { el.setPointerCapture(id); } catch (err) { /* sem captura: os eventos ainda chegam enquanto o dedo está na carta */ }
+      }
+      if (fase === 'mirando' && mira) { e.preventDefault(); desenha(e.clientX, e.clientY); }
+    });
+    const solta = e => {
+      if (e.pointerId !== id) return;
+      const estava = fase === 'mirando' && mira; fase = null;
+      if (!estava) return;
+      const sob = e.type === 'pointerup' ? (desenha(e.clientX, e.clientY), mira.sob) : null;
+      fim();
+      if (!sob) { root.dataset.mirou = 'cancelou'; return; }
+      root.dataset.mirou = sob.g.chave;
+      const { como, acoes } = sob.g;
+      if (como === 'conjura') act(acoes[0]); else if (como === 'pergunta') escolher(`Conjurar ${(table.state.objects[oid] || {}).name || 'a carta'}`, acoes); else openObject(oid);
+    };
+    el.addEventListener('pointerup', solta);
+    el.addEventListener('pointercancel', solta);
+    el.addEventListener('lostpointercapture', e => { if (fase === 'mirando') solta({ pointerId: e.pointerId, type: 'pointercancel' }); });
+    // o clique que chega depois de mirar não abre a folha da carta
+    el.addEventListener('click', e => { if (engole) { engole = false; e.stopImmediatePropagation(); e.preventDefault(); } }, true);
+  }
+  function armaMiras(s, v) {
+    if (!s || s.status !== 'playing' || handoff) return;
+    for (const el of root.querySelectorAll('#tb-hand .tb-card[data-oid]')) armaMira(el, el.dataset.oid);
   }
   /* MJ5 · a mágica que saiu da pilha para uma zona com contador (resolveu, foi anulada, voltou à mão, foi embaralhada) desce
      do lugar onde estava no monte (ou no detalhe aberto) até o contador do dono; só a que estava à vista tem foto */
@@ -38701,6 +38824,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const v = table.viewer();
     const fileiras = guardaFileiras();
     if (s.status === 'over') fechaJogoDaSerie(s); // antes de desenhar o placar
+    if (miraAtiva) miraAtiva(); // MJ6a · a mesa mudou no meio da mira: cancela
     concluiVoos(); const voo = medeVoo(); // MJ3a · antes de ouvir (que troca o estado anterior) e de redesenhar
     const sentidos = ouve(s, v); // G4
     const cena = sentidos.length ? preparaEfeitos(sentidos, v, s) : null; // G5 · antes de redesenhar
@@ -38762,6 +38886,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       dock(s, v));
     devolveFileiras(fileiras); mostraNovidade(s, v); // J2
     simbolizar(root); // U3 · custos, habilidades e textos da mesa em símbolos
+    armaMiras(s, v); // MJ6a · arrastar a mágica da mão até o alvo
     if (sinc) pintaChat(); // leva 137 · selo de mensagens novas
     voa(voo, s, v); // MJ3a · antes de marcar o campo como visto
     desenhaSetas(s, v); // MJ4a · depois do desenho novo, com as caixas no lugar

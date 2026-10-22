@@ -348,3 +348,25 @@ test('MJ5 · plano de voo: o permanente que resolve sai da miniatura dele no mon
   const semCaixa = J(S.planoDeVoo({ pilha: { ...pilha, caixas: { 9: cx(0, 0, 0, 0) } }, chegaram: [{ oid: 9, caixa: cx(100, 200, 76, 106) }] }));
   assert.equal(semCaixa[0].escala, Math.round(44 / 106 * 1000) / 1000, 'miniatura sem caixa (fora da tela): cai para a faixa');
 });
+
+test('MJ6a · alvos do arrasto: as conjurações de um alvo só, agrupadas por alvo; o que soltar faz (conjura, pergunta, folha)', () => {
+  const c = (oid, targets, extra = {}) => ({ t: 'cast', p: 0, oid, targets, ...extra });
+  const legais = [c('o5', [{ oid: 'o9' }]), c('o5', [{ player: 1 }]), c('o5', [{ player: 1 }], { x: 2 }), c('o5', [{ oid: 'o7' }], { pay: { tap: ['o1'] } }), c('o5', [{ oid: 'o7' }], { pay: { tap: ['o2'] } }),
+    c('o5', [{ oid: 'o8' }], { modes: [1] }), c('o5', [{ oid: 'o8' }], { modes: [2] }), c('o6', [{ oid: 'o9' }]), { t: 'play_land', p: 0, oid: 'o5' }, { t: 'cast', p: 0, oid: 'o5' }];
+  const a = J(S.alvosDoArrasto(legais, 'o5'));
+  assert.deepEqual(a.map(x => [x.chave, x.como, x.acoes.length]), [['o:o9', 'conjura', 1], ['p:1', 'pergunta', 2], ['o:o7', 'pergunta', 2], ['o:o8', 'folha', 2]],
+    'um alvo e uma ação: conjura; só muda X ou pagamento: a pergunta de sempre; muda o modo: a folha da carta');
+  assert.deepEqual(a[0].alvo, { oid: 'o9' }); assert.deepEqual(a[1].alvo, { player: 1 });
+  assert.deepEqual(J(S.alvosDoArrasto([c('o5', [{ oid: 'o9' }]), c('o5', [{ oid: 'o9' }, { oid: 'o7' }])], 'o5')), [], 'conjuração com dois alvos: a carta não mira por arrasto');
+  assert.deepEqual(J(S.alvosDoArrasto([{ t: 'cast', p: 0, oid: 'o5' }], 'o5')), [], 'mágica sem alvo: nada');
+  assert.deepEqual(J(S.alvosDoArrasto()), []);
+});
+
+test('MJ6a · gesto de mira: para cima além do limiar, com a vertical dominando, é mira; de lado é outro gesto; pouco é nada', () => {
+  assert.equal(S.gestoDeMira(0, -14), 'mira');
+  assert.equal(S.gestoDeMira(10, -20), 'mira');
+  assert.equal(S.gestoDeMira(20, -10), 'outro', 'de lado: rola a mão');
+  assert.equal(S.gestoDeMira(0, 20), 'outro', 'para baixo não mira');
+  assert.equal(S.gestoDeMira(5, -10), null, 'abaixo do limiar ainda é toque');
+  assert.equal(S.gestoDeMira(0, -10, { limiar: 8 }), 'mira');
+});

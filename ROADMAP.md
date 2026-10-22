@@ -598,7 +598,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-jd ✅ | MJ3 identidade por `oid` e continuidade (FLIP) entre mão, pilha, campo, cemitério e exílio (MJ3a na J-9, MJ3b na J-10, MJ3c na J-11) | MJ | 2 | 16º-jb; `mtg-scale-architect` (quadros) |
 | 16º-je ✅ | MJ4 combate desenhado: setas de ataque e bloqueio com a prévia junto da seta | MJ | 2 | 16º-jd |
 | 16º-jf ✅ | MJ5 pilha com profundidade: cartões empilhados, topo levantado, resolução descendo ao destino | MJ | 1 | 16º-jb, 16º-jd |
-| 16º-jg | MJ6 mirar por arrasto com linha curva (tocar continua valendo) | MJ | 2 | 16º-je |
+| 16º-jg ◐ | MJ6 mirar por arrasto com linha curva (tocar continua valendo) — MJ6a ✅ (J-15), MJ6b ○ | MJ | 2 | 16º-je |
 | 16º-jh | MJ7 material: sombra que cresce ao levantar, luz do feltro, latão, dupla face virando | MJ | 1 | 16º-jb; tokens pelo `/ds` |
 | 16º-ji | MJ8 ritmo do turno: transições de fase e de vez, cena do oponente com continuidade | MJ | 1–2 | 16º-jd |
 | 16º-jj | MJ9 fim de partida com peso: placar, série, últimas jogadas | MJ | 1 | — |
@@ -10689,8 +10689,30 @@ destino (MJ3).
   desce (deixa de existir); a quarta carta para baixo no monte não aparece (a conta diz quantas); a anulação continua com
   o anel da G5 por cima, sem desenho próprio da descida.
 
-**MJ6 · Mirar por arrasto** ○ (2 levas) — arrastar da origem ao alvo com linha curva e retorno imediato; limiar de
-distância, cancelar ao voltar; tocar continua valendo.
+**MJ6 · Mirar por arrasto** ◐ (2 fatias: MJ6a na J-15; MJ6b a seguir) — arrastar da origem ao alvo com linha curva e
+retorno imediato; limiar de distância, cancelar ao voltar; tocar continua valendo.
+- **Fatias** (`mtg-slice-architect`, 22/10; uma leva cada):
+  - **MJ6a · Arrastar a mágica da mão até o alvo** ✅ (leva J-15) — arrastar para cima (14 px, a vertical domina) uma
+    carta da mão que tenha conjuração com **um** alvo começa a mira: a carta se levanta da mão (uma cópia na camada de
+    efeitos, com sombra maior), a mão recolhe e o campo inteiro fica à vista, os alvos legais acendem com o contorno
+    tracejado de latão (tracejado é alvo) e uma seta tracejada vai da carta ao dedo; sobre um alvo legal (carta no campo
+    ou marcador de vida) a seta encaixa nele e o contorno fica cheio, com vibração curta ao começar e ao encaixar.
+    Soltar no alvo conjura com ele (uma ação: conjura; só muda como pagar, X ou cor: a pergunta de sempre; outra
+    diferença, como modo: abre a folha da carta); soltar fora, ou de volta na carta, cancela sem abrir nada. O clique
+    que o navegador manda depois de mirar não abre a folha; arrastar de lado continua rolando a mão (`touch-action:
+    pan-x` nas cartas da mão); segurar continua espiando, e arrastar depois de espiar não mira; tocar continua abrindo a
+    folha. Se a mesa muda no meio da mira (jogada do outro no online), a mira cancela. O motor decide o que é legal:
+    `__m33.alvosDoArrasto` lê `legalActions`; `gestoDeMira` decide o gesto. Zero pixel de campo (camada `#tb-fx`).
+    **Testes:** `sentidos.unit` (+2: alvos agrupados por alvo e o que soltar faz; carta com conjuração de dois alvos não
+    mira; mágica sem alvo nada; gesto para cima, de lado, abaixo do limiar); e2e "MJ6a" (Lightning Bolt em 360×780: só
+    os alvos legais acesos — a criatura e as duas vidas, não os terrenos —, a mão recolhida, a carta levantada, a seta
+    encaixa; soltar na criatura conjura nela sem folha e ela morre; na vida do oponente tira 3; soltar no vazio e voltar
+    à carta cancelam; tocar abre a folha; de lado não mira; segurar espia e não vira mira; `auditaTela` mirando nos
+    dois temas). **Revisão de escala:** aprovado (+2,9 KB gzip); dívida aceita para a MJ6b: agrupar o `pointermove` por
+    quadro (`requestAnimationFrame`). **Fora:** mágica com dois alvos ou mais; teclado e leitor de tela continuam pelo toque e pela folha (a
+    mira é atalho, não o único caminho).
+  - **MJ6b · Arrastar da permanente e do gatilho** ○ — habilidade com alvo arrastada da carta no campo; alvo de gatilho
+    arrastado do monte da pilha; mesmas regras de limiar, encaixe e cancelamento.
 
 **MJ7 · Material** ○ (1 leva) — sombra que cresce ao levantar a carta, luz suave no feltro, latão com brilho leve, carta
 de duas faces virando em 3D curto; tokens novos pelo `/ds` nos dois temas.
