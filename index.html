@@ -6457,6 +6457,7 @@ function validateScript(sc) {
     if (self.entraComInstFeitDelveM != null && !(self.entraComInstFeitDelveM === true && sc.delve)) errs.push('bônus próprio: entraComInstFeitDelveM é verdadeiro e pede delve (as cartas exiladas pelo delve desta mágica)'); // M-530 · Murktide Regent
     if (self.soBloqueiaVoadorasM != null && self.soBloqueiaVoadorasM !== true) errs.push('bônus próprio: soBloqueiaVoadorasM só vale como true'); // M-531 · Brazen Borrower
     if (self.compraMaisUmM != null && self.compraMaisUmM !== true) errs.push('bônus próprio: compraMaisUmM só vale como true'); // M-542 · Quantum Riddler
+    if (self.tipoBasicoAoEntrarM != null && self.tipoBasicoAoEntrarM !== true) errs.push('bônus próprio: tipoBasicoAoEntrarM só vale como true'); // M-554 · Multiversal Passage
     if (self.danoViraMarcadorM != null && self.danoViraMarcadorM !== true) errs.push('bônus próprio: danoViraMarcadorM só vale como true'); // M-547 · Soul-Scar Mage
     if (self.atacaSeTem11M != null && self.atacaSeTem11M !== true) errs.push('bônus próprio: atacaSeTem11M só vale como true'); // M-532 · Lovestruck Beast
     if (self.naoBloqueiaPoderM != null && !(Number.isInteger(self.naoBloqueiaPoderM) && self.naoBloqueiaPoderM > 0)) errs.push('bônus próprio: naoBloqueiaPoderM é o poder mínimo que ela não bloqueia (inteiro positivo)'); // M-524 · Ironclaw Orcs
@@ -10510,6 +10511,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Screaming Nemesis': { texto: '1to2voh', leva: 'M-550' },
   // M-551 · revisão por lote CLXXXIX (Winternight Stories: descartar duas cartas a menos que descarte uma criatura), texto da Scryfall de 21/10/2026 UTC, revisor independente
   'Winternight Stories': { texto: 'ibk64d', leva: 'M-551' },
+  // M-554 · revisão por lote CXC (Multiversal Passage: escolhe um tipo básico ao entrar; paga 2 de vida ou entra virado), texto da Scryfall de 21/10/2026 UTC, revisor independente
+  'Multiversal Passage': { texto: '1wc5bxp', leva: 'M-554' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -19731,6 +19734,9 @@ const __m42 = (function () {
         if (fl) { (topo.abilities = topo.abilities || []).push(...[fl[2], fl[3], fl[4]].map(x => ({ kind: 'activated', cost: { mana: fl[1], tap: true }, effects: [{ do: 'add_mana', symbols: x.match(/[WUBRG]/g) }] }))); frases.push({ texto: linha, lida: true }); continue; }
         const tri = lp.match(/^\{T\}: Add (\{[WUBRGC]\}), (\{[WUBRGC]\}), or (\{[WUBRGC]\})$/); if (tri) { topo.produces = [...(topo.produces || []), ...tri.slice(1, 4).map(x => x.match(/[WUBRGC]/g))]; frases.push({ texto: linha, lida: true }); continue; } // M-340 · tri-terras
         if (/^(?:this land|~) enters(?: the battlefield)? tapped unless you control two or fewer other lands$/i.test(lp)) { topo.entersTappedUnless = { maxOutrasTerras: 2 }; frases.push({ texto: linha, lida: true }); continue; } // M-336 · terras rápidas
+        { const tb = lp.match(/^as (?:~|this land) enters(?: the battlefield)?, choose a basic land type\. then you may pay (\d+) life\. if you don't, it enters(?: the battlefield)? tapped$/i); // M-554 · Multiversal Passage
+          if (tb) { topo.self = { ...(topo.self || {}), tipoBasicoAoEntrarM: true }; topo.entersTappedUnless = { pagaVida: +tb[1] }; frases.push({ texto: linha, lida: true }); continue; }
+          if (/^(?:~|this land) is the chosen type$/i.test(lp) && (topo.self || {}).tipoBasicoAoEntrarM) { frases.push({ texto: linha, lida: true }); continue; } } // M-554 · 305.7
         const ech = lp.match(/^as (?:~|this land) enters(?: the battlefield)?, you may pay (\d+) life\. if you don't, it enters(?: the battlefield)? tapped$/i); // M-330 · 614.12 (terras de choque)
         if (ech) { topo.entersTappedUnless = { pagaVida: +ech[1] }; frases.push({ texto: linha, lida: true }); continue; }
         const etv = lp.match(/^(?:this land|~) enters(?: the battlefield)? tapped unless a player has (\d+) or less life$/i); // LT13 · Razortrap Gorge
@@ -20725,6 +20731,7 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
   if (to === 'graveyard' && !o.token) desceuT(s, o); // T-84 · CR 700.11 · carta de permanente posta no cemitério do dono, de qualquer lugar (Toca ponto comum: moveObject)
   // CR2-G R5a · 614.1c/614.12 · "entra virada", "entra virada a menos que…", "entra com N marcadores": um caminho só
   if (to === 'battlefield') { entraTransformadaNaEntradaT(s, o); cicloNaEntradaT(s, o); } // T-55 · CR 614.12 / 712.14a / 702.145b: a face que entra é a que as substituições de entrada olham (Toca ponto comum: moveObject)
+  if (to === 'battlefield' && !o.faceDown && ((((s.facts[o.name] || {}).script || {}).self || {}).tipoBasicoAoEntrarM)) s.queuedChoices = (s.queuedChoices || []).concat([{ kind: 'tipo_basico_entrada', oid: o.oid, z: o.zc || 0, p: o.controller, name: o.name }]); // M-554 · a escolha vem antes do pagamento de vida
   if (to === 'battlefield') { const r = entradaModificada(s, o, xPago); if (r.virada != null) o.tapped = r.virada; if (r.pagaVida) s.queuedChoices = (s.queuedChoices || []).concat([{ kind: 'paga_vida_entrada', oid: o.oid, z: o.zc || 0, p: o.controller, n: r.pagaVida, name: o.name }]); for (const [k, n] of Object.entries(r.marcadores)) o.counters[k] = (o.counters[k] || 0) + marcadoresAoPor(s, o, k, n, true); } // CR2e.2 · 614.16: entrar com marcadores também é pôr marcadores
   if (to === 'battlefield') sagaEntrou(s, o); // T-2 · CR 714.3a / 122.6 / 714.3b · Saga que ENTRA no campo: o marcador de entrada dispara o capítulo aqui; com read ahead, fica anotada para a escolha (função abaixo da âncora T das exportações)
   // S21 · planeswalker entra com sua lealdade inicial
@@ -21674,7 +21681,7 @@ function defaultPayment(s, p, cost, selfOid) {
   if (cost.returnTapped) { const c = viradasParaDevolverM(s, p, selfOid)[0]; if (c) pay.devolve = c; } // M-392 · 702.188a
   if (cost.returnLand) {
     const rx = new RegExp('\\b' + cost.returnLand + '\\b', 'i');
-    const land = battlefield(s).find(x => x.controller === p && s.facts[x.name].types.includes('land') && rx.test(s.facts[x.name].typeText || x.name));
+    const land = battlefield(s).find(x => x.controller === p && tiposDe(s, x).includes('land') && rx.test(linhaDeTipo(s, x) || x.name)); // M-554 · achado da revisão: o tipo de agora (305.7), não a linha impressa
     if (land) pay.land = land.oid;
   }
   return pay;
@@ -21726,7 +21733,7 @@ function payAlt(s, p, cost, pay, selfOid, alvos) {
     const oid = (pay && pay.land) || (defaultPayment(s, p, cost, selfOid).land);
     const land = oid && s.objects[oid];
     // H-2 · 205.3i/305.6: "an Island" é qualquer terreno com o tipo Ilha (Tundra, Snow-Covered Island), como a oferta (defaultPayment) já conferia; antes o pagamento exigia o NOME e recusava a ação oferecida
-    if (!land || land.zone !== 'battlefield' || land.controller !== p || !s.facts[land.name].types.includes('land') || !new RegExp('\\b' + cost.returnLand + '\\b', 'i').test(s.facts[land.name].typeText || land.name)) throw new RuleError('custo', `devolva um ${cost.returnLand} que você controla`);
+    if (!land || land.zone !== 'battlefield' || land.controller !== p || !tiposDe(s, land).includes('land') || !new RegExp('\\b' + cost.returnLand + '\\b', 'i').test(linhaDeTipo(s, land) || land.name)) /* M-554 */ throw new RuleError('custo', `devolva um ${cost.returnLand} que você controla`);
     moveObject(s, oid, 'hand');
   }
   if (cost.returnTapped) { // M-392 · 702.188a · web-slinging: devolve uma criatura virada sua para a mão do dono (custo, 601.2h)
@@ -25099,6 +25106,11 @@ function flushTriggers(s, events) {
   // escolhas pendentes vêm antes dos gatilhos
   // M-330 · 614.12 · "you may pay 2 life; if you don't, it enters tapped": a terra entra virada e o controlador decide em seguida se paga
   // para desvirá-la (o resultado é o mesmo da escolha ao entrar; nada acontece entre a entrada e a decisão). Sem a vida (119.4), não há pergunta.
+  while ((s.queuedChoices || []).length && !s.pending && s.queuedChoices[0].kind === 'tipo_basico_entrada') { // M-554 · 614.12: "As this land enters, choose a basic land type"
+    const c = s.queuedChoices.shift(), t = s.objects[c.oid];
+    if (!t || t.zone !== 'battlefield' || (t.zc || 0) !== c.z || !s.players[c.p] || s.players[c.p].lost) continue;
+    s.pending = { kind: 'choose_type', p: c.p, oid: c.oid, options: ['Plains', 'Island', 'Swamp', 'Mountain', 'Forest'], tipoFixoM: { oid: c.oid, z: c.z } };
+  }
   while ((s.queuedChoices || []).length && !s.pending && s.queuedChoices[0].kind === 'paga_vida_entrada') {
     const c = s.queuedChoices.shift(), t = s.objects[c.oid];
     if (!t || t.zone !== 'battlefield' || (t.zc || 0) !== c.z || !s.players[c.p] || s.players[c.p].lost || s.players[c.p].life < c.n) continue;
@@ -25345,7 +25357,7 @@ function pagamentosDe(s, p, cost, selfOid) {
   if (cost.exileHandColor) multiplica(exilaveisDaMao(s, p, cost.exileHandColor, selfOid), 'exileHand');
   if (cost.returnLand) {
     const rx = new RegExp('\\b' + cost.returnLand + '\\b', 'i');
-    multiplica(battlefield(s).filter(x => x.controller === p && s.facts[x.name].types.includes('land') && rx.test(s.facts[x.name].typeText || x.name)).map(x => x.oid), 'land');
+    multiplica(battlefield(s).filter(x => x.controller === p && tiposDe(s, x).includes('land') && rx.test(linhaDeTipo(s, x) || x.name)).map(x => x.oid), 'land'); // M-554
   }
   if (cost.returnTapped) multiplica(viradasParaDevolverM(s, p, selfOid), 'devolve'); // M-392 · 702.188a: uma ação por criatura virada (quem paga escolhe)
   if (cost.exileFromGraveyard) { const cgy = s.zones[p].graveyard.filter(x => x !== selfOid && matchesFilter(s, s.objects[x], cost.exileFromGraveyard)), ngy = cost.exileFromGraveyard.amount || 1; multiplica(ngy > 1 ? combinacoes(cgy, ngy) : cgy, 'exile'); } // M-538 · "Exile three cards from your graveyard" (Psychic Frog): uma forma por combinação
@@ -25403,7 +25415,7 @@ function payExtraCosts(s, p, cost, pay, selfOid) {
   if (cost.returnLand) {
     const oid = (pay && pay.land) || (defaultPayment(s, p, cost, selfOid).land);
     const land = oid && s.objects[oid];
-    if (!land || land.zone !== 'battlefield' || land.controller !== p || !new RegExp('\\b' + cost.returnLand + '\\b', 'i').test(s.facts[land.name].typeText || land.name)) throw new RuleError('custo', `devolva um ${cost.returnLand} que você controla`);
+    if (!land || land.zone !== 'battlefield' || land.controller !== p || !new RegExp('\\b' + cost.returnLand + '\\b', 'i').test(linhaDeTipo(s, land) || land.name)) throw new RuleError('custo', `devolva um ${cost.returnLand} que você controla`); // M-554
     moveObject(s, oid, 'hand');
   }
   if (cost.discard) {
@@ -26445,10 +26457,11 @@ const HANDLERS = {
     const tipo = a.subtype != null ? a.subtype : pk.options[a.index || 0];
     if (!pk.options.includes(tipo)) throw new RuleError('escolha', 'tipo inválido');
     const o = s.objects[pk.oid];
-    if (pk.terreno) { const t = s.objects[pk.terreno.oid]; if (t && t.zone === 'battlefield' && (t.zc || 0) === pk.terreno.z) aplicaTemporario(s, t, { vira: { addTypes: true, types: ['land'], subtypes: [tipo] } }, pk.p); } // M-388 · 305.7 · até o fim do turno (a limpeza apaga o `vira`)
+    if (pk.tipoFixoM) { const t = s.objects[pk.tipoFixoM.oid]; if (t && t.zone === 'battlefield' && (t.zc || 0) === pk.tipoFixoM.z) aplicaTemporario(s, t, { vira: { addTypes: true, types: ['land'], subtypes: [tipo] }, ate: 'sempre' }, pk.p, t); } // M-554 · "This land is the chosen type" (305.7), sem prazo
+    else if (pk.terreno) { const t = s.objects[pk.terreno.oid]; if (t && t.zone === 'battlefield' && (t.zc || 0) === pk.terreno.z) aplicaTemporario(s, t, { vira: { addTypes: true, types: ['land'], subtypes: [tipo] } }, pk.p); } // M-388 · 305.7 · até o fim do turno (a limpeza apaga o `vira`)
     else if (o) o.chosenType = tipo;
     s.pending = null;
-    ev.push({ kind: 'choice-done', what: pk.terreno ? `tipo de terreno (${({ Plains: 'Planície', Island: 'Ilha', Swamp: 'Pântano', Mountain: 'Montanha', Forest: 'Floresta' })[tipo] || tipo})` : 'tipo de criatura', name: o ? o.name : '?', amount: 1 });
+    ev.push({ kind: 'choice-done', what: pk.terreno || pk.tipoFixoM ? `tipo de terreno (${({ Plains: 'Planície', Island: 'Ilha', Swamp: 'Pântano', Mountain: 'Montanha', Forest: 'Floresta' })[tipo] || tipo})` : 'tipo de criatura', name: o ? o.name : '?', amount: 1 });
     resumeEffects(s, ev);
   },
   /** M13 · 903.9: comandante na zona de comando ou onde caiu. */
@@ -26832,7 +26845,7 @@ function apply(state, action) {
     throw new RuleError('pendente', k === 'discard' ? `descarte ${state.pending.n} carta(s) primeiro` : k === 'attackers' ? 'declare os atacantes primeiro'
       : k === 'triggers' ? 'escolha a ordem dos gatilhos primeiro' : k === 'choose_color' ? 'escolha a cor primeiro'
       : k === 'commander_zone' ? 'decida se o comandante volta para a zona de comando primeiro'
-      : k === 'choose_type' ? (s.pending.terreno ? 'escolha o tipo básico de terreno primeiro' : 'escolha o tipo de criatura primeiro') // M-388
+      : k === 'choose_type' ? (state.pending.terreno || state.pending.tipoFixoM ? 'escolha o tipo básico de terreno primeiro' : 'escolha o tipo de criatura primeiro') // M-388 · M-554 (achado da revisão: `s` ainda não existia aqui)
       : k === 'choose_pair' ? 'escolha o par do vínculo de alma primeiro'
       : k === 'quantia' ? 'escolha a quantia primeiro' // M-405
       : k === 'legend' ? 'escolha qual lendária fica primeiro'
@@ -37886,8 +37899,8 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
           onClick: () => (pagamentos.length > 1 ? escolher(s.pending.name, pagamentos) : act(pagamentos[0] || { t: 'pay', p: v })) }),
           Button(pv ? 'Deixar virado' : efeito ? (s.pending.cost || extra ? 'Não pagar' : 'Não fazer') : 'Deixar anular', { id: 'tb-decline', onClick: () => act({ t: 'decline', p: v }) })] });
     } else if (s.pending && s.pending.kind === 'choose_type' && s.pending.p === v) {
-      const ehTerreno = !!s.pending.terreno, PT_BAS = { Plains: 'Planície', Island: 'Ilha', Swamp: 'Pântano', Mountain: 'Montanha', Forest: 'Floresta' }; // M-388 · Navigator's Compass
-      banner = PriorityBanner({ title: `${s.objects[s.pending.oid] ? s.objects[s.pending.oid].name + ' · ' : ''}${ehTerreno ? 'Escolha um tipo básico de terreno' : 'Escolha um tipo de criatura'}`, hint: ehTerreno ? `${(s.objects[s.pending.terreno.oid] || {}).name || 'O terreno'} ganha esse tipo, e a mana dele, até o fim do turno.` : 'O efeito conta as suas permanentes desse tipo. Os tipos vêm do que mais rende para o que menos rende.', tone: 'warning', // Leva 136 · diz de qual carta é a escolha
+      const ehTerreno = !!(s.pending.terreno || s.pending.tipoFixoM), PT_BAS = /* M-554 · Multiversal Passage */ { Plains: 'Planície', Island: 'Ilha', Swamp: 'Pântano', Mountain: 'Montanha', Forest: 'Floresta' }; // M-388 · Navigator's Compass
+      banner = PriorityBanner({ title: `${s.objects[s.pending.oid] ? s.objects[s.pending.oid].name + ' · ' : ''}${ehTerreno ? 'Escolha um tipo básico de terreno' : 'Escolha um tipo de criatura'}`, hint: s.pending.tipoFixoM ? `${(s.objects[s.pending.tipoFixoM.oid] || {}).name || 'O terreno'} passa a ser desse tipo, com a mana dele, enquanto estiver no campo.` : ehTerreno ? `${(s.objects[s.pending.terreno.oid] || {}).name || 'O terreno'} ganha esse tipo, e a mana dele, até o fim do turno.` : 'O efeito conta as suas permanentes desse tipo. Os tipos vêm do que mais rende para o que menos rende.', tone: 'warning', // Leva 136 · diz de qual carta é a escolha
         // Leva 106 · os tipos vêm do que mais rende para o menos; com muitos, "Outros tipos" abre a lista inteira
         actions: (() => {
           const ops = s.pending.options || [];

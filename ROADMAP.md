@@ -5347,6 +5347,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** nenhum.
 - **Teste:** `lt235.unit` (5 testes; falham no motor anterior).
 
+**M-554 · LT214 · revisão por lote CXC: Multiversal Passage** ✅ (leva M-554, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** passa a jogar Multiversal Passage (60 listas do catálogo). Texto da Scryfall consultado em 21/10/2026.
+- **Regra:** "As this land enters, choose a basic land type. Then you may pay 2 life. If you don't, it enters tapped. / This land is the chosen type." — `self.tipoBasicoAoEntrarM`: a escolha é ao entrar (614.12), antes do pagamento de vida (o mesmo das terras de choque, M-330); o terreno passa a ter o tipo escolhido e a habilidade de mana dele (305.7), sem prazo (objeto novo não lembra, 400.7). **Tocou a mesa** (`__m19`): a folha diz "tipo básico de terreno" e que vale enquanto ele estiver no campo.
+- **Revisão independente:** a carta bate com o texto (escolhe antes de pagar; com 1 de vida não há pergunta e entra virado; posta no campo por efeito também escolhe; duas de uma vez, duas escolhas; o tipo vale para Spitting Earth, landwalk, domínio, Snuff Out, Sulfur Falls; dá só a mana do tipo e continua nos turnos seguintes; Navigator's Compass igual à M-388; fuzz sem falha). Dois achados corrigidos com teste: o custo "devolva uma Ilha que você controla" (Daze, Quirion Ranger) lia a linha impressa e não o tipo de agora (vale também para a Navigator's Compass, que já existia); e uma ação errada com a escolha de tipo pendente quebrava com erro interno em vez de recusar (já existia desde a M-388).
+- **Fora (declarado):** **pedido à `bot`** — o Shark e o goldfish escolhem sempre Planície (a primeira opção) e nunca pagam 2 de vida; jogam a carta mal, sem travar. O registro do pagamento diz "desvirou" de um jeito torto (o mesmo das terras de choque, M-330).
+- **Teste:** `lt236.unit` (3 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
