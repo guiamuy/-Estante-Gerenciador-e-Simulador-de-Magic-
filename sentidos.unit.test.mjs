@@ -310,3 +310,11 @@ test('MJ4a · curva da seta: nasce por dentro da borda da origem, termina fora d
   assert.equal(S.curvaDaSeta(cx(0, 0, 40, 40), cx(2, 2, 40, 40)), null, 'caixas quase em cima uma da outra: sem seta');
   assert.equal(S.curvaDaSeta(cx(0, 0, 0, 0), para), null, 'origem sem caixa (fora da vista)');
 });
+
+test('MJ4b · marcas da prévia: vida que muda vira número no marcador (letal quando chega a zero) e quem morre ganha a marca, sem repetir', () => {
+  assert.deepEqual(J(S.marcasDaPrevia({ life: [0, -2], vida: [20, 18], mortos: [{ oid: 7, name: 'Sky Pike', controller: 0 }, { oid: 9, name: 'Sky Pike', controller: 1 }, { oid: 7 }] })),
+    [{ tipo: 'vida', jogador: 1, texto: '−2', tom: 'neg', letal: false }, { tipo: 'morre', oid: '7' }, { tipo: 'morre', oid: '9' }]);
+  assert.deepEqual(J(S.marcasDaPrevia({ life: [3, -5], vida: [23, 0], mortos: [] })).map(m => [m.texto, m.tom, m.letal]), [['+3', 'pos', false], ['−5', 'neg', true]], 'vínculo com a vida ganha número verde; a conta que zera é letal');
+  assert.deepEqual(J(S.marcasDaPrevia({ life: [0, 0], vida: [20, 20], mortos: [] })), [], 'nada muda: nenhuma marca');
+  assert.deepEqual(J(S.marcasDaPrevia(null)), [], 'prévia inválida (bloqueio que a ameaça não aceita): nada');
+});

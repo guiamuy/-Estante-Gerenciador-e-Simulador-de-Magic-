@@ -495,6 +495,13 @@ a { color: var(--accent); }
 .tb-seta--nova { animation: tb-seta-entra var(--dur-2) var(--ease-out) both; }
 @keyframes tb-seta-entra { from { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .tb-seta--nova { animation: none; } }
+/* MJ4b · prévia junto da seta: o dano previsto no canto do marcador de vida e a marca de quem vai ao cemitério */
+.tb-previa-camada { position: fixed; inset: 0; pointer-events: none; z-index: calc(var(--z-sticky) + 1); }
+.tb-previa { position: fixed; display: inline-flex; align-items: center; justify-content: center; transform: translate(-50%, -50%); border-radius: var(--radius-full); box-shadow: var(--shadow-1); }
+.tb-previa--vida { min-width: 28px; height: 22px; padding: 0 var(--space-1); font-size: var(--text-sm); font-weight: 700; line-height: 1; background: var(--bg-elev-1); border: 2px solid currentColor; color: var(--negative); font-variant-numeric: tabular-nums; }
+.tb-previa--vida[data-tom="pos"] { color: var(--positive); }
+.tb-previa--vida[data-letal="true"] { background: var(--negative); border-color: var(--negative); color: var(--bg); }
+.tb-previa--morre { width: 24px; height: 24px; transform: translate(-30%, -30%); background: var(--bg-elev-1); color: var(--fg); border: 2px solid var(--negative); }
 /* MJ3c · a carta do oponente sai da mão dele de verso: o verso cobre a foto e some no meio do voo */
 .tb-voo__verso { position: absolute; inset: 0; z-index: 2; border-radius: var(--radius-card); pointer-events: none; }
 .tb-voo--verso { border-radius: var(--radius-card); overflow: hidden; box-shadow: var(--shadow-2); }
@@ -36055,6 +36062,16 @@ function setasDoCombate(s, { atacando = null, alvos = null, bloqueios = null } =
   }
   return out.filter(x => x.para.oid != null || x.para.jogador != null);
 }
+/** MJ4b · a prévia do combate (previewCombat/previewAttack do motor) vira marcas junto das setas: quanto cada jogador
+    perde ou ganha de vida (sobre o marcador de vida, onde a seta de ataque chega) e quem morre (sobre a carta). Puro. */
+function marcasDaPrevia(pv) {
+  if (!pv) return [];
+  const out = [];
+  (pv.life || []).forEach((d, j) => { if (d) out.push({ tipo: 'vida', jogador: j, texto: (d < 0 ? '−' : '+') + Math.abs(d), tom: d < 0 ? 'neg' : 'pos', letal: d < 0 && pv.vida != null && pv.vida[j] <= 0 }); });
+  const vistos = new Set();
+  for (const m of pv.mortos || []) { const k = String(m.oid); if (m.oid != null && !vistos.has(k)) { vistos.add(k); out.push({ tipo: 'morre', oid: k }); } }
+  return out;
+}
 /** A curva de uma seta entre duas caixas ({ x, y, w, h }): nasce perto da borda da origem, por dentro, faz um arco leve
     sempre para o mesmo lado e termina a `folga` px da borda do alvo, com a ponta em triângulo. null quando as caixas
     quase se tocam. */
@@ -36175,7 +36192,7 @@ function createSom({ store = null, criaContexto = null } = {}) {
     get tocados() { return tocados.slice(); }
   };
 }
-return { eventosSensoriais, planoDeSom, planoDeEfeitos, planoDeVoo, ondePousa, planoDeSaida, setasDoCombate, curvaDaSeta, roteiroDaJogada, createSom, limpaPrefs, duracaoDe, RECEITAS, NOMES, ORDEM, SOM_DO_TIPO, CHAVE, GLOBAL_A_PARTIR_DE };
+return { eventosSensoriais, planoDeSom, planoDeEfeitos, planoDeVoo, ondePousa, planoDeSaida, setasDoCombate, curvaDaSeta, marcasDaPrevia, roteiroDaJogada, createSom, limpaPrefs, duracaoDe, RECEITAS, NOMES, ORDEM, SOM_DO_TIPO, CHAVE, GLOBAL_A_PARTIR_DE };
 })();
 
 /* ==== src/app/table.js ==== */
@@ -36748,11 +36765,42 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     if (s.pending.kind === 'blockers') return { bloqueios: [...plan.blocks.entries()] };
     return {};
   }
+  // MJ4b · a prévia que acompanha as setas: a mesma conta da dica da bandeja (previewAttack/previewCombat), guardada por
+  // estado e escolha para não refazer a simulação a cada pintura igual
+  let previaGuardada = { s: null, k: '', pv: null };
+  function previaDoCombate(s, v, esc) {
+    const k = JSON.stringify(esc);
+    if (previaGuardada.s === s && previaGuardada.k === k) return previaGuardada.pv;
+    let pv = null;
+    try {
+      if (esc.atacando) pv = esc.atacando.length ? E.previewAttack(s, esc.atacando, Object.keys(esc.alvos || {}).length ? esc.alvos : null) : null;
+      else if (esc.bloqueios) pv = E.previewCombat(s, esc.bloqueios);
+      else if (s.combat && !s.pending && ['combat_attackers', 'combat_blockers'].includes(s.turn.step) && (s.combat.attackers || []).length) pv = E.previewCombat(s, []); // declarado, antes do dano
+    } catch (e) { pv = null; }
+    previaGuardada = { s, k, pv }; return pv;
+  }
+  function desenhaPrevia(s, v, esc, cartaEl) {
+    let camada = root.querySelector('#tb-previa');
+    const marcas = __m33.marcasDaPrevia(previaDoCombate(s, v, esc));
+    const medidas = marcas.map(m => { const el = m.tipo === 'vida' ? root.querySelector(m.jogador === v ? '#tb-life-me' : '#tb-life-opp') : cartaEl(m.oid); return el ? { m, c: caixaDe(el) } : null; }).filter(x => x && x.c.w);
+    if (!medidas.length) { if (camada) camada.remove(); delete root.dataset.previa; return; }
+    const itens = medidas.map(({ m, c }) => {
+      const el = m.tipo === 'vida'
+        ? h('span', { class: 'tb-previa tb-previa--vida', dataset: { tom: m.tom, ...(m.letal ? { letal: 'true' } : {}), jogador: String(m.jogador) } }, m.texto)
+        : h('span', { class: 'tb-previa tb-previa--morre', dataset: { oid: m.oid } }, Icone('cemiterio', { tamanho: 14 }));
+      Object.assign(el.style, m.tipo === 'vida' ? { left: `${c.x + c.w}px`, top: `${c.y}px` } : { left: `${c.x}px`, top: `${c.y}px` }); // canto do marcador de vida; canto da carta
+      return el;
+    });
+    if (!camada) { camada = h('div', { id: 'tb-previa', class: 'tb-previa-camada', 'aria-hidden': 'true' }); root.appendChild(camada); }
+    camada.replaceChildren(...itens);
+    root.dataset.previa = medidas.map(({ m }) => m.tipo === 'vida' ? `vida:${m.jogador}:${m.texto}` : `morre:${m.oid}`).join(' ');
+  }
   function desenhaSetas(s, v) {
     if (root.isConnected) setasNaTela = true;
     let svg = root.querySelector('#tb-setas');
-    const setas = s && s.status === 'playing' ? __m33.setasDoCombate(s, escolhaDoCombate(s, v)) : [];
-    if (!setas.length) { if (svg) svg.remove(); setasVistas = new Set(); delete root.dataset.setas; return; }
+    const esc = s && s.status === 'playing' ? escolhaDoCombate(s, v) : {};
+    const setas = s && s.status === 'playing' ? __m33.setasDoCombate(s, esc) : [];
+    if (!setas.length) { if (svg) svg.remove(); setasVistas = new Set(); delete root.dataset.setas; const pr = root.querySelector('#tb-previa'); if (pr) pr.remove(); delete root.dataset.previa; return; }
     const cartaEl = oid => root.querySelector(`.tb-side .tb-card[data-oid="${oid}"]`) || root.querySelector(`.tb-side .tb-card[data-oids~="${oid}"]`);
     const alvoEl = p => p.oid != null ? cartaEl(p.oid) : root.querySelector(p.jogador === v ? '#tb-life-me' : '#tb-life-opp');
     const medidas = setas.map(x => { const a = cartaEl(x.de), b = alvoEl(x.para); return a && b ? { x, de: caixaDe(a), para: caixaDe(b) } : null; }).filter(Boolean); // mede tudo, depois escreve
@@ -36766,6 +36814,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     }
     if (!svg) { svg = svgEl('svg', { id: 'tb-setas', class: 'tb-setas', 'aria-hidden': 'true', focusable: 'false' }); root.appendChild(svg); }
     svg.replaceChildren(frag); setasVistas = novas; root.dataset.setas = marcas.join(' ');
+    desenhaPrevia(s, v, esc, cartaEl); // MJ4b
   }
   const redesenhaSetas = () => {
     if (!root.isConnected) { if (setasNaTela) window.removeEventListener('resize', redesenhaSetas); return; } // a mesa saiu: solta a janela (não segura a mesa velha na memória)
@@ -38020,7 +38069,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       const alvosDe = list => { const al = {}; for (const oid of list) { let ex = null; try { ex = E.exigePw(s, s.objects[oid]); } catch (e) { /* estado antigo */ } if (ex || plan.alvoPw) al[oid] = ex || plan.alvoPw; } return Object.keys(al).length ? al : null; };
       const listaAtual = [...new Set([...plan.attack, ...obrig])];
       // A16 · prévia do ataque, se ninguém bloquear, a cada toque
-      const pa = total ? T.descrevePrevia(s, E.previewAttack(s, listaAtual, alvosDe(listaAtual)), v) : null;
+      const pa = total ? T.descrevePrevia(s, previaDoCombate(s, v, escolhaDoCombate(s, v)), v) : null; // MJ4b · a mesma conta guardada das marcas junto da seta
       const trocaAlvo = pws.length ? Button(`Alvo: ${plan.alvoPw ? nameOf(s, plan.alvoPw) : s.players[s.combat ? s.combat.defender : 1 - v].name}`, { id: 'tb-attack-alvo', icone: 'seguir',
         onClick: () => { const ordem = [null, ...pws]; plan.alvoPw = ordem[(ordem.indexOf(plan.alvoPw) + 1) % ordem.length]; paint(); } }) : null;
       banner = PriorityBanner({ title: 'Declarar atacantes',
@@ -38029,7 +38078,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
           trocaAlvo, obrig.length ? null : Button('Sem ataque', { id: 'tb-no-attack', onClick: () => { resetPlan(); act({ t: 'attack', p: v, attackers: [] }); } })].filter(Boolean) });
     } else if (s.pending && s.pending.kind === 'blockers' && s.pending.p === v) {
       const blocks = [...plan.blocks.entries()];
-      const pv = E.previewCombat(s, blocks);
+      const pv = previaDoCombate(s, v, escolhaDoCombate(s, v)); // MJ4b · uma simulação por toque, dividida com as marcas
       const dp = T.descrevePrevia(s, pv, v);
       // A16 · a mesma prévia do ataque, agora com os bloqueios escolhidos, vida resultante e mortos dos dois lados
       const hint = dp ? `Prévia: ${dp.texto}.${pv.life[v] < 0 && s.players[v].life + pv.life[v] <= 0 ? ' Você morre assim.' : ''}` : 'Bloqueio inválido (ameaça pede dois bloqueadores).';

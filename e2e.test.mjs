@@ -13845,3 +13845,73 @@ test('e2e · MJ4a entrar e sair da mesa três vezes não acumula ouvinte de resi
   assert.ok(contagens[2] <= contagens[0], 'o número de ouvintes de resize não cresce a cada visita ' + JSON.stringify(contagens));
   assert.deepEqual(errors, []);
 });
+
+// MJ4b (leva J-13, trilha jogabilidade) · prévia junto da seta: o dano previsto no marcador de vida de quem leva e a marca
+// de cemitério em quem morre, iguais à prévia escrita na bandeja, enquanto se escolhe e até o dano
+test('e2e · MJ4b prévia junto da seta: dano previsto no marcador de vida e marca em quem morre, iguais à prévia escrita; somem depois do dano', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Peixes', '30 Island\n10 Sky Pike\n10 Wall Guard', 'livre');
+  await page.goto(base + '#/mesa');
+  await page.click('[data-opponent="hotseat"]');
+  await page.fill('#mesa-me', 'Ana'); await page.fill('#mesa-them', 'Bia'); await page.fill('#mesa-seed', '4');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep');
+  await page.click('#tb-keep'); await reveal(page); await page.click('#tb-keep'); await reveal(page);
+  // dois Sky Pike (2/1, voam) para quem joga; um Sky Pike para o outro, que pode bloquear e trocar com um deles
+  const { d, pikes, dele } = await page.evaluate(() => {
+    const M = window.__estanteMesa; const s = M.estado(), p = s.turn.active, d = 1 - p;
+    const pega = (dono, nm, n) => Object.values(s.objects).filter(o => o.owner === dono && o.name === nm && o.zone !== 'battlefield').slice(0, n).map(o => o.oid);
+    const pikes = pega(p, 'Sky Pike', 2), dele = pega(d, 'Sky Pike', 1)[0];
+    for (const oid of pikes) M.act({ t: 'move', p, oid, to: 'battlefield' });
+    M.act({ t: 'move', p, oid: dele, to: 'battlefield' });
+    const t0 = M.estado().turn.number;
+    for (let i = 0; i < 80; i++) { const e = M.estado(), pd = e.pending;
+      if (pd && pd.kind === 'attackers' && e.turn.active === p && e.turn.number >= t0 + 2) break;
+      if (pd && pd.kind === 'attackers') M.act({ t: 'attack', p: pd.p, attackers: [] });
+      else if (pd && pd.kind === 'blockers') M.act({ t: 'block', p: pd.p, blocks: [] });
+      else if (pd && pd.kind === 'discard') M.act({ t: 'discard', p: pd.p, oid: e.zones[pd.p].hand[0] });
+      else M.act({ t: 'pass', p: e.turn.priority }); }
+    return { d, pikes: pikes.map(String), dele: String(dele) };
+  });
+  await reveal(page); await page.waitForSelector('#tb-attack');
+  const le = () => page.evaluate(() => {
+    const caixa = el => { const r = el.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height, cx: r.left + r.width / 2, cy: r.top + r.height / 2 }; };
+    const lum = c => { const [r, g, b] = c.match(/[\d.]+/g).slice(0, 3).map(Number).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+    const razao = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
+    const vidas = [...document.querySelectorAll('#tb-previa .tb-previa--vida')].map(el => { const cs = getComputedStyle(el), jog = el.dataset.jogador;
+      const alvo = document.querySelector(document.querySelector('#tb-life-me') && +jog === (window.__estanteMesa.quemVe ? window.__estanteMesa.quemVe() : -1) ? '#tb-life-me' : '#tb-life-opp');
+      return { texto: el.textContent, jogador: +jog, caixa: caixa(el), alvo: caixa(alvo), contraste: razao(cs.color, cs.backgroundColor) }; });
+    const mortos = [...document.querySelectorAll('#tb-previa .tb-previa--morre')].map(el => { const c = document.querySelector(`.tb-side .tb-card[data-oid="${el.dataset.oid}"], .tb-side .tb-card[data-oids~="${el.dataset.oid}"]`); return { oid: el.dataset.oid, caixa: caixa(el), carta: c ? caixa(c) : null }; });
+    return { vidas, mortos, marca: document.querySelector('#tb').dataset.previa || '', dica: (document.querySelector('.tb-dock') || {}).innerText || '', pe: document.querySelector('#tb-previa') ? getComputedStyle(document.querySelector('#tb-previa')).pointerEvents : null };
+  });
+  const perto = (a, b, tol) => Math.abs(a.cx - b.x - b.w) <= tol && Math.abs(a.cy - b.y) <= tol; // o número fica no canto de cima, à direita, do marcador
+  // 1 · escolhendo os dois atacantes: o outro perde 4, escrito no marcador de vida dele; nada morre
+  for (const oid of pikes) { await page.click(`.tb-side--me .tb-card[data-oid="${oid}"]`); await page.waitForTimeout(450); }
+  let m = await le();
+  assert.deepEqual(m.vidas.map(x => [x.texto, x.jogador]), [['−4', d]], JSON.stringify(m));
+  assert.ok(perto(m.vidas[0].caixa, m.vidas[0].alvo, 4), 'no canto do marcador de vida de quem leva ' + JSON.stringify(m.vidas));
+  assert.equal(m.mortos.length, 0); assert.match(m.dica, /20 → 16/, 'a mesma conta da prévia escrita'); assert.equal(m.pe, 'none', 'a camada não pega toque');
+  assert.ok(m.vidas[0].contraste >= 4.5, `o número contrasta com a pílula (${m.vidas[0].contraste.toFixed(2)})`);
+  // 2 · quem defende bloqueia um Pike com o seu: os dois morrem, o outro passa e tira 2
+  await page.click('#tb-attack'); await reveal(page); await page.waitForSelector('#tb-block');
+  m = await le(); assert.deepEqual(m.vidas.map(x => x.texto), ['−4'], 'sem bloqueio ainda: os 4 de dano');
+  await page.click(`.tb-side--me .tb-card[data-oid="${dele}"]`); await page.locator('.ds-dialog button', { hasText: 'Bloquear Sky Pike' }).first().click();
+  m = await le();
+  assert.deepEqual(m.vidas.map(x => x.texto), ['−2'], JSON.stringify(m)); assert.match(m.dica, /20 → 18/);
+  assert.equal(m.mortos.length, 2, 'o Pike bloqueado e o que bloqueou: os dois com a marca ' + JSON.stringify(m.mortos));
+  assert.ok(m.mortos.some(x => x.oid === dele) && m.mortos.some(x => pikes.includes(x.oid)));
+  for (const x of m.mortos) assert.ok(x.carta && x.caixa.cx >= x.carta.x - 2 && x.caixa.cx <= x.carta.x + 16 && x.caixa.cy >= x.carta.y - 2 && x.caixa.cy <= x.carta.y + 16, 'a marca fica no canto de cima, à esquerda, da carta ' + JSON.stringify(x));
+  for (const tema of ['dark', 'light']) {
+    await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(120);
+    const c = (await le()).vidas[0]; assert.ok(c.contraste >= 4.5, `${tema}: número legível (${c.contraste.toFixed(2)})`);
+    await auditaTela(page, `MJ4b · 360×780 ${tema} bloqueando`);
+  }
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/mj4b-previa.png' });
+  // 3 · depois do dano a prévia some com as setas
+  await page.click('#tb-block'); await reveal(page);
+  await page.evaluate(() => { const M = window.__estanteMesa; for (let i = 0; i < 20; i++) { const e = M.estado(); if (!['combat_blockers', 'combat_damage', 'combat_end'].includes(e.turn.step) || e.pending) break; M.act({ t: 'pass', p: e.turn.priority }); } });
+  await reveal(page);
+  assert.equal(await page.locator('#tb-previa').count(), 0, 'fora do combate, sem prévia');
+  assert.deepEqual(errors, []);
+});
