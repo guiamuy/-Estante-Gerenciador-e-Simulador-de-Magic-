@@ -13736,3 +13736,112 @@ test('e2e · R-27 Painel · Pessoas (BI2-3, D13): sem contagem fica "pendente de
   if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.screenshot({ path: process.env.SHOTS + '/r27-pessoas.png', fullPage: true }); }
   assert.deepEqual(errors, []);
 });
+
+// MJ4a (leva J-12, trilha jogabilidade) · setas do combate: vermelha do atacante até a vida do defensor, dourada do
+// bloqueador ao atacante; aparecem enquanto se escolhe e ficam até o fim do combate; fora do toque e do layout
+test('e2e · MJ4a setas do combate: ataque até a vida, bloqueio até o atacante, da escolha ao fim do combate; não pegam toque nem espaço', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Peixes', '30 Island\n10 Sky Pike\n10 Wall Guard', 'livre');
+  await page.goto(base + '#/mesa');
+  await page.click('[data-opponent="hotseat"]');
+  await page.fill('#mesa-me', 'Ana'); await page.fill('#mesa-them', 'Bia'); await page.fill('#mesa-seed', '4');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep');
+  await page.click('#tb-keep'); await reveal(page); await page.click('#tb-keep'); await reveal(page);
+  // mesa assistida: dois Sky Pike para quem joga, uma Wall Guard (alcance) para o outro; dois turnos depois os Pike atacam
+  const { p, d, pikes, muro } = await page.evaluate(() => {
+    const M = window.__estanteMesa; const s = M.estado(), p = s.turn.active, d = 1 - p;
+    const pega = (dono, nm, n) => Object.values(s.objects).filter(o => o.owner === dono && o.name === nm && o.zone !== 'battlefield').slice(0, n).map(o => o.oid);
+    const pikes = pega(p, 'Sky Pike', 2), muro = pega(d, 'Wall Guard', 1)[0];
+    for (const oid of pikes) M.act({ t: 'move', p, oid, to: 'battlefield' });
+    M.act({ t: 'move', p, oid: muro, to: 'battlefield' });
+    const t0 = M.estado().turn.number;
+    for (let i = 0; i < 80; i++) { const e = M.estado(), pd = e.pending;
+      if (pd && pd.kind === 'attackers' && e.turn.active === p && e.turn.number >= t0 + 2) break;
+      if (pd && pd.kind === 'attackers') M.act({ t: 'attack', p: pd.p, attackers: [] });
+      else if (pd && pd.kind === 'blockers') M.act({ t: 'block', p: pd.p, blocks: [] });
+      else if (pd && pd.kind === 'discard') M.act({ t: 'discard', p: pd.p, oid: e.zones[pd.p].hand[0] });
+      else M.act({ t: 'pass', p: e.turn.priority }); }
+    return { p, d, pikes: pikes.map(String), muro: String(muro) };
+  });
+  await reveal(page); await page.waitForSelector('#tb-attack');
+  // mede cada seta: onde nasce (dentro da carta de origem) e onde está a ponta (logo fora da borda do alvo)
+  const setas = () => page.evaluate(() => [...document.querySelectorAll('#tb-setas .tb-seta')].map(g => {
+    const [de, para] = g.dataset.seta.split(':')[1].split('>'), tipo = g.dataset.seta.split(':')[0];
+    const m = g.querySelector('.tb-seta__traco').getAttribute('d').match(/^M ([\d.]+) ([\d.]+)/), tip = g.querySelector('.tb-seta__ponta').getAttribute('points').split(' ')[0].split(',').map(Number);
+    const caixa = sel => { const el = document.querySelector(sel); if (!el) return null; const r = el.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; };
+    const origem = caixa(`.tb-side .tb-card[data-oid="${de}"], .tb-side .tb-card[data-oids~="${de}"]`);
+    const alvo = /^j/.test(para) ? null : caixa(`.tb-side .tb-card[data-oid="${para}"], .tb-side .tb-card[data-oids~="${para}"]`);
+    return { tipo, de, para, proposta: g.dataset.proposta === 'true', cor: getComputedStyle(g).color, inicio: { x: +m[1], y: +m[2] }, ponta: { x: tip[0], y: tip[1] }, origem, alvo };
+  }));
+  const vida = sel => page.evaluate(sel => { const r = document.querySelector(sel).getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; }, sel);
+  const dentro = (pt, b, folga = 0) => pt.x >= b.x - folga && pt.x <= b.x + b.w + folga && pt.y >= b.y - folga && pt.y <= b.y + b.h + folga;
+  const confere = (x, alvo, rot) => { assert.ok(x.origem && dentro(x.inicio, x.origem), `${rot}: nasce dentro da carta de origem ${JSON.stringify(x)}`);
+    assert.ok(dentro(x.ponta, alvo, 8) && !dentro(x.ponta, alvo), `${rot}: a ponta fica logo fora da borda do alvo ${JSON.stringify({ x, alvo })}`); };
+  const cores = await page.evaluate(() => { const c = v => { const el = document.createElement('i'); el.style.color = `var(${v})`; document.body.appendChild(el); const x = getComputedStyle(el).color; el.remove(); return x; }; return { neg: c('--negative'), acento: c('--accent') }; });
+  assert.equal(await page.locator('#tb-setas').count(), 0, 'antes de escolher, nenhuma seta');
+  // 1 · escolhendo: cada toque num Pike põe a seta vermelha até a vida do outro, ainda como proposta
+  await page.click(`.tb-side--me .tb-card[data-oid="${pikes[0]}"]`);
+  let ss = await setas();
+  assert.deepEqual(ss.map(x => [x.tipo, x.de, x.para, x.proposta]), [['ataque', pikes[0], 'j' + d, true]]);
+  confere(ss[0], await vida('#tb-life-opp'), 'escolha'); assert.equal(ss[0].cor, cores.neg, 'ataque em vermelho');
+  await page.click(`.tb-side--me .tb-card[data-oid="${pikes[1]}"]`);
+  assert.equal((await setas()).length, 2, 'duas escolhidas, duas setas');
+  // a camada não pega toque nem ocupa espaço: o toque no Pike passa por ela (desmarca e marca de novo)
+  const camada = await page.evaluate(() => { const c = getComputedStyle(document.querySelector('#tb-setas')); return { pe: c.pointerEvents, pos: c.position, aria: document.querySelector('#tb-setas').getAttribute('aria-hidden') }; });
+  assert.deepEqual(camada, { pe: 'none', pos: 'fixed', aria: 'true' });
+  await page.click(`.tb-side--me .tb-card[data-oid="${pikes[1]}"]`); assert.equal((await setas()).length, 1, 'o toque atravessou a seta e desmarcou o Pike');
+  // medida: o toque que marca um atacante redesenha a mesa e as setas
+  const amostras = [];
+  for (let i = 0; i < 4; i++) { await page.waitForTimeout(450); // longe do toque duplo
+    amostras.push(await page.evaluate(oid => { const el = document.querySelector(`.tb-side--me .tb-card[data-oid="${oid}"]`); const t0 = performance.now(); el.click(); return [performance.now() - t0, document.querySelectorAll('#tb-setas .tb-seta').length]; }, pikes[1])); }
+  const tempos = amostras.map(x => x[0]).sort((a, b) => a - b);
+  t.diagnostic(`medida · MJ4a toque de ataque com setas (mediana de 4): ${Math.round((tempos[1] + tempos[2]) * 5) / 10} ms`);
+  assert.deepEqual(amostras.map(x => x[1]), [2, 1, 2, 1], 'cada toque põe e tira a seta');
+  await page.waitForTimeout(450); await page.click(`.tb-side--me .tb-card[data-oid="${pikes[1]}"]`); assert.equal((await setas()).length, 2);
+  // 2 · declarado: quem defende recebe o aparelho; as setas do ataque chegam à vida dele, agora do lado de baixo
+  await page.click('#tb-attack'); await reveal(page); await page.waitForSelector('#tb-block');
+  ss = await setas();
+  assert.deepEqual(ss.map(x => [x.tipo, x.de, x.para, x.proposta]).sort(), pikes.map(o => ['ataque', o, 'j' + d, false]).sort(), 'as duas setas declaradas');
+  for (const x of ss) confere(x, await vida('#tb-life-me'), 'declarado');
+  // 3 · bloqueando: a Wall Guard escolhe o primeiro Pike e a seta dourada vai até ele
+  await page.click(`.tb-side--me .tb-card[data-oid="${muro}"]`); await page.click(`.ds-dialog >> text=Bloquear Sky Pike`);
+  ss = await setas(); const bl = ss.find(x => x.tipo === 'bloqueio');
+  assert.ok(bl && bl.de === muro && bl.proposta && pikes.includes(bl.para), 'bloqueio escolhido com seta ' + JSON.stringify(ss));
+  confere(bl, bl.alvo, 'bloqueio'); assert.equal(bl.cor, cores.acento, 'bloqueio em dourado');
+  for (const [w, hgt] of [[360, 780], [390, 844]]) {
+    await page.setViewportSize({ width: w, height: hgt }); await page.waitForTimeout(250);
+    ss = await setas();
+    for (const x of ss) confere(x, x.tipo === 'bloqueio' ? x.alvo : await vida('#tb-life-me'), `${w} · ${x.tipo}`);
+    await auditaTela(page, `MJ4a · ${w}×${hgt} bloqueando`);
+  }
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/mj4a-setas.png' });
+  // 4 · depois do dano o combate acaba e as setas somem
+  await page.click('#tb-block'); await reveal(page);
+  await page.evaluate(() => { const M = window.__estanteMesa; for (let i = 0; i < 20; i++) { const e = M.estado(); if (!['combat_blockers', 'combat_damage', 'combat_end'].includes(e.turn.step) || e.pending) break; M.act({ t: 'pass', p: e.turn.priority }); } });
+  await reveal(page);
+  const fim = await page.evaluate(() => ({ passo: window.__estanteMesa.estado().turn.step, setas: document.querySelectorAll('#tb-setas .tb-seta').length }));
+  assert.ok(!['combat_attackers', 'combat_blockers', 'combat_damage', 'combat_end'].includes(fim.passo) && fim.setas === 0, 'fora do combate, nenhuma seta ' + JSON.stringify(fim));
+  assert.deepEqual(errors, []);
+});
+
+// MJ4a (leva J-12) · memória: a mesa que sai da tela não deixa ouvinte de "resize" preso à janela (achado da revisão de
+// escala: cada visita à mesa somava um ouvinte que segurava a mesa velha)
+test('e2e · MJ4a entrar e sair da mesa três vezes não acumula ouvinte de resize na janela', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await createDeck(page, base, 'Delver', PAUPER);
+  const cdp = await page.context().newCDPSession(page);
+  const ouvintes = async () => { const { result } = await cdp.send('Runtime.evaluate', { expression: 'window' });
+    const { listeners } = await cdp.send('DOMDebugger.getEventListeners', { objectId: result.objectId }); return listeners.filter(l => l.type === 'resize').length; };
+  const contagens = [];
+  for (let i = 0; i < 3; i++) {
+    await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep');
+    await page.goto(base + '#/listas'); await page.waitForTimeout(200);
+    await page.setViewportSize({ width: 360 + i, height: 780 }); await page.waitForTimeout(150); // a janela muda de tamanho com a mesa fora da tela
+    contagens.push(await ouvintes());
+  }
+  assert.ok(contagens[2] <= contagens[0], 'o número de ouvintes de resize não cresce a cada visita ' + JSON.stringify(contagens));
+  assert.deepEqual(errors, []);
+});

@@ -276,3 +276,37 @@ test('MJ3c · plano de voo: a carta que estava na mão do oponente sai do contad
   assert.deepEqual(J(S.planoDeVoo({ oponente: { caixa: chip, oids: ['8'] }, chegaram: [{ oid: 9, caixa: cx(100, 140, 76, 106) }] })), [], 'não estava na mão dele: não voa');
   assert.deepEqual(J(S.planoDeVoo({ oponente: { caixa: cx(0, 0, 0, 0), oids: ['9'] }, chegaram: [{ oid: 9, caixa: cx(100, 140, 76, 106) }] })), [], 'sem contador à vista (goldfish): não voa');
 });
+
+test('MJ4a · setas do combate: escolha em curso e combate declarado; ataque vai à vida do defensor ou ao planeswalker; bloqueio vai ao atacante; fora do combate não há seta', () => {
+  const objs = [ob(1, 'battlefield'), ob(2, 'battlefield'), ob(5, 'battlefield', { owner: 1, controller: 1 }), ob(6, 'battlefield', { owner: 1, controller: 1 }), ob(9, 'graveyard')];
+  const seta = x => [x.tipo, x.de, x.para.oid != null ? 'oid' + x.para.oid : 'j' + x.para.jogador, !!x.proposta];
+  // escolhendo atacantes: o defensor é o outro jogador; a exigência de planeswalker muda o alvo; carta fora do campo não vira seta
+  const esc = st(objs, { turn: { number: 3, active: 0, step: 'combat_attackers' } });
+  assert.deepEqual(J(S.setasDoCombate(esc, { atacando: [1, 2, 9], alvos: { 2: 6 } })).map(seta), [['ataque', '1', 'j1', true], ['ataque', '2', 'oid6', true]]);
+  // declarado: atacando o jogador 1, o 2 no planeswalker; bloqueio escolhido e bloqueio declarado
+  const dec = st([ob(1, 'battlefield', { attacking: 1 }), ob(2, 'battlefield', { attacking: 1, atacandoPw: 6 }), ob(5, 'battlefield', { owner: 1, controller: 1, blocking: 1 }), ob(6, 'battlefield', { owner: 1, controller: 1 })],
+    { turn: { number: 3, active: 0, step: 'combat_blockers' }, combat: { attackers: [1, 2], defender: 1 } });
+  assert.deepEqual(J(S.setasDoCombate(dec)).map(seta), [['ataque', '1', 'j1', false], ['ataque', '2', 'oid6', false], ['bloqueio', '5', 'oid1', false]]);
+  assert.deepEqual(J(S.setasDoCombate(dec, { bloqueios: [[6, 2]] })).map(seta).find(x => x[1] === '6'), ['bloqueio', '6', 'oid2', true], 'o bloqueio que ainda está sendo escolhido também tem seta');
+  assert.equal(new Set(J(S.setasDoCombate(dec, { atacando: [1] })).map(x => x.chave)).size, 3, 'a mesma seta não sai duas vezes (escolha e declaração)');
+  // o combate acabou (passo seguinte) ou a partida não tem combate: nenhuma seta
+  assert.deepEqual(J(S.setasDoCombate({ ...dec, turn: { ...dec.turn, step: 'main2' } })), []);
+  assert.deepEqual(J(S.setasDoCombate(st(objs))), []);
+  assert.deepEqual(J(S.setasDoCombate(null)), []);
+});
+
+test('MJ4a · curva da seta: nasce por dentro da borda da origem, termina fora da borda do alvo, arqueia para o mesmo lado e tem ponta', () => {
+  const cx = (x, y, w, h) => ({ x, y, w, h });
+  const de = cx(100, 500, 76, 106), para = cx(120, 40, 44, 44);
+  const c = S.curvaDaSeta(de, para);
+  assert.match(c.d, /^M [\d.]+ [\d.]+ Q [\d.-]+ [\d.-]+ [\d.]+ [\d.]+$/);
+  const dentro = (p, b) => p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h;
+  assert.ok(dentro(c.inicio, de), 'nasce dentro da carta, perto da borda ' + JSON.stringify(c));
+  assert.ok(!dentro(c.fim, para) && c.fim.y > para.y + para.h && c.fim.y < para.y + para.h + 8, 'a ponta para a 4 px da borda do alvo ' + JSON.stringify(c));
+  assert.equal(c.ponta.split(' ').length, 3, 'a ponta é um triângulo');
+  // a curva vai sempre para a direita de quem segue a seta: subindo, para a direita da tela; descendo, para a esquerda
+  const sobe = S.curvaDaSeta(de, para), desce = S.curvaDaSeta(para, de);
+  assert.ok(sobe.controle.x > (sobe.inicio.x + sobe.fim.x) / 2 && desce.controle.x < (desce.inicio.x + desce.fim.x) / 2, JSON.stringify([sobe, desce]));
+  assert.equal(S.curvaDaSeta(cx(0, 0, 40, 40), cx(2, 2, 40, 40)), null, 'caixas quase em cima uma da outra: sem seta');
+  assert.equal(S.curvaDaSeta(cx(0, 0, 0, 0), para), null, 'origem sem caixa (fora da vista)');
+});

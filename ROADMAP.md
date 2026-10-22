@@ -596,7 +596,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-jb ✅ | MJ1 a mesa numa tela só (MJ1a partida em tela cheia na leva J-2; MJ1b faixa compacta por lado na J-3; MJ1c pilha e resumo por cima na J-4; MJ1d terrenos compactos na J-5; MJ1f mão por cima da mesa na J-6; MJ1e Conversa no selo da faixa de vez na J-7): os dois campos visíveis sem rolar, em fatias (cabeçalho do app fora da partida, topo numa linha, faixa compacta por lado, terrenos compactos, pilha e resumo fora do fluxo, tabuleiro com a altura da tela) | MJ | 3–4 | 16º-ja; T-130 publicada (mesma região) |
 | 16º-jc ✅ | MJ2 avisos fora do campo: o aviso flutuante não cobre cartas nem a mão (leva J-8: faixa de uma linha por cima da linha de cima da mesa) | MJ | 1 | 16º-jb |
 | 16º-jd ✅ | MJ3 identidade por `oid` e continuidade (FLIP) entre mão, pilha, campo, cemitério e exílio (MJ3a na J-9, MJ3b na J-10, MJ3c na J-11) | MJ | 2 | 16º-jb; `mtg-scale-architect` (quadros) |
-| 16º-je | MJ4 combate desenhado: setas de ataque e bloqueio com a prévia junto da seta | MJ | 2 | 16º-jd |
+| 16º-je 🟡 | MJ4 combate desenhado: setas de ataque e bloqueio com a prévia junto da seta | MJ | 2 | 16º-jd |
 | 16º-jf | MJ5 pilha com profundidade: cartões empilhados, topo levantado, resolução descendo ao destino | MJ | 1 | 16º-jb, 16º-jd |
 | 16º-jg | MJ6 mirar por arrasto com linha curva (tocar continua valendo) | MJ | 2 | 16º-je |
 | 16º-jh | MJ7 material: sombra que cresce ao levantar, luz do feltro, latão, dupla face virando | MJ | 1 | 16º-jb; tokens pelo `/ds` |
@@ -10533,8 +10533,28 @@ final. Destrava MJ4–MJ8.
   redesenhada inteira e a continuidade é visual (foto que voa). Manter o nó entre desenhos é a alavanca 6 da escala
   (reconciliação), sem valor visível sozinho; fica para quando MJ4–MJ8 pedirem.
 
-**MJ4 · Combate desenhado** ○ (2 levas) — setas curvas de ataque (vermelho) e de bloqueio (dourado) na camada de
+**MJ4 · Combate desenhado** 🟡 (2 fatias; MJ4a na J-12) — setas curvas de ataque (vermelho) e de bloqueio (dourado) na camada de
 efeitos, com a prévia de combate junto da seta e a ordem de dano visível. Zero pixel de campo.
+- **Fatias** (`mtg-slice-architect`, 21/10; uma leva cada):
+  - **MJ4a · Setas do combate** ✅ (leva J-12) — enquanto se escolhe os atacantes, cada um ganha uma seta vermelha
+    (`--negative`) até a vida do defensor (ou o planeswalker atacado); enquanto se escolhe os bloqueios, a seta dourada
+    (`--accent`) vai do bloqueador ao atacante; declarado o combate, as setas ficam até o fim dele, para os dois lados
+    (goldfish, Shark, online, jogo a dois). Camada SVG `#tb-setas` presa à tela, sem toque e fora do leitor de tela (o
+    quadro de bloqueios e a dica da bandeja dizem o mesmo em palavras), acima do resumo e da faixa da pilha e abaixo de
+    aviso, folha e carta grande; zero pixel de campo; a seta nova aparece em `--dur-2` só com `opacity` (movimento
+    reduzido: parada); redesenhada a cada pintura, ao rolar uma fileira e ao girar a tela. **Medida:** o toque que marca
+    um atacante, com as setas, 7,8–9,4 ms (mediana; linha `# medida` do e2e); +2,7 KB em gzip. **Testes:** `sentidos.unit`
+    "MJ4a · setas do combate" (escolha e declaração, planeswalker, sem repetição, fora do combate) e "MJ4a · curva da
+    seta" (nasce dentro da origem, ponta a 4 px do alvo, lado da curva, caixas coladas); e2e "MJ4a" (jogo a dois em 360 e
+    390: seta da escolha, toque que atravessa a camada, setas declaradas na vida de quem defende, bloqueio dourado,
+    nenhuma seta depois do combate, `auditaTela`) e "MJ4a entrar e sair da mesa três vezes não acumula ouvinte de resize".
+    **Correção no caminho (revisão de escala):** o ouvinte de `resize` da janela, registrado a cada visita à mesa, nunca
+    saía e segurava a mesa velha na memória; agora ele se solta quando a mesa sai da tela (o teste contava 1, 2, 3; agora
+    fica parado). **Fora:** a seta cruza o resumo do turno e a faixa da pilha quando
+    passam entre os lados (por cima de propósito: embaixo deles a ponta sumia); a prévia junto da seta e a ordem de dano ficam na
+    MJ4b.
+  - **MJ4b · Prévia junto da seta** ○ — o dano previsto (−3) na ponta da seta, sobre a vida; a criatura que morreria
+    marcada; com vários bloqueadores, a ordem de dano 1, 2… nas setas douradas; a prévia da seta bate com a do texto.
 
 **MJ5 · Pilha com profundidade** ○ (1 leva) — cartões empilhados com o topo levantado; ao resolver, a carta desce até o
 destino (MJ3).

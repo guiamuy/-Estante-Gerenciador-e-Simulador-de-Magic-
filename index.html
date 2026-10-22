@@ -484,6 +484,17 @@ a { color: var(--accent); }
 /* MJ3b · a foto é uma .tb-card (position: relative, declarada depois): sem esta regra, a segunda foto ao mesmo tempo
    ficava no fluxo da camada, deslocada pela primeira (remoção global, dois voos juntos) */
 .tb-fx-camada > .tb-fx-fantasma, .tb-fx-camada > .tb-voo { position: fixed; }
+/* MJ4a · setas do combate: vermelho ataca, dourado bloqueia (as cores fixas da mesa); a sombra larga separa a seta da arte */
+.tb-setas { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; z-index: calc(var(--z-sticky) + 1); } /* acima do resumo e da faixa da pilha (que passam por cima do campo), abaixo de aviso, folha e carta grande */
+.tb-seta--ataque { color: var(--negative); }
+.tb-seta--bloqueio { color: var(--accent); }
+.tb-seta__sombra { fill: none; stroke: var(--bg); stroke-opacity: .6; stroke-width: 7; stroke-linecap: round; }
+.tb-seta__traco { fill: none; stroke: currentColor; stroke-width: 3.5; stroke-linecap: round; }
+.tb-seta__ponta { fill: currentColor; stroke: var(--bg); stroke-opacity: .6; stroke-width: 2; stroke-linejoin: round; paint-order: stroke; }
+.tb-seta[data-proposta="true"] { opacity: .85; }
+.tb-seta--nova { animation: tb-seta-entra var(--dur-2) var(--ease-out) both; }
+@keyframes tb-seta-entra { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .tb-seta--nova { animation: none; } }
 /* MJ3c · a carta do oponente sai da mão dele de verso: o verso cobre a foto e some no meio do voo */
 .tb-voo__verso { position: absolute; inset: 0; z-index: 2; border-radius: var(--radius-card); pointer-events: none; }
 .tb-voo--verso { border-radius: var(--radius-card); overflow: hidden; box-shadow: var(--shadow-2); }
@@ -35949,6 +35960,43 @@ function planoDeSaida(saidas = [], { max = 8, minimo = 4, escalaMin = 0.25 } = {
   }
   return out;
 }
+/* ---------------- MJ4a · setas do combate ----------------
+   Quem ataca quem e quem bloqueia quem, desenhado entre as cartas: o ataque sai do atacante até a vida do defensor (ou o
+   planeswalker atacado), o bloqueio sai do bloqueador até o atacante. Vale para a escolha em curso (`proposta`, o que
+   a tela ainda não declarou) e para o combate declarado, até o fim do combate. Puro: lê o estado e a escolha. */
+const PASSOS_DO_COMBATE = ['combat_attackers', 'combat_blockers', 'combat_damage', 'combat_end'];
+function setasDoCombate(s, { atacando = null, alvos = null, bloqueios = null } = {}) {
+  if (!s || !s.objects || !s.turn) return [];
+  const out = [], visto = new Set(), noCampo = oid => { const o = s.objects[oid]; return !!o && o.zone === 'battlefield'; };
+  const def = s.combat && s.combat.defender != null ? s.combat.defender : (s.players || []).length === 2 ? 1 - s.turn.active : null;
+  const poe = x => { const k = `${x.tipo}:${x.de}`; if (visto.has(k)) return; visto.add(k); out.push({ ...x, chave: `${k}>${x.para.oid != null ? x.para.oid : 'j' + x.para.jogador}` }); };
+  for (const oid of atacando || []) if (noCampo(oid)) { const pw = alvos && alvos[oid]; poe({ tipo: 'ataque', de: String(oid), para: pw != null ? { oid: String(pw) } : { jogador: def }, proposta: true }); }
+  for (const [b, a] of bloqueios || []) if (noCampo(b) && noCampo(a)) poe({ tipo: 'bloqueio', de: String(b), para: { oid: String(a) }, proposta: true });
+  if (s.combat && PASSOS_DO_COMBATE.includes(s.turn.step)) {
+    for (const oid of s.combat.attackers || []) { const o = s.objects[oid]; if (!noCampo(oid) || o.attacking == null) continue;
+      poe({ tipo: 'ataque', de: String(oid), para: o.atacandoPw != null && noCampo(o.atacandoPw) ? { oid: String(o.atacandoPw) } : { jogador: typeof o.attacking === 'number' ? o.attacking : def } }); }
+    for (const o of Object.values(s.objects)) if (o.zone === 'battlefield' && o.blocking != null && noCampo(o.blocking)) poe({ tipo: 'bloqueio', de: String(o.oid), para: { oid: String(o.blocking) } });
+  }
+  return out.filter(x => x.para.oid != null || x.para.jogador != null);
+}
+/** A curva de uma seta entre duas caixas ({ x, y, w, h }): nasce perto da borda da origem, por dentro, faz um arco leve
+    sempre para o mesmo lado e termina a `folga` px da borda do alvo, com a ponta em triângulo. null quando as caixas
+    quase se tocam. */
+function curvaDaSeta(de, para, { folga = 4, curva = 0.18, ponta = 11 } = {}) {
+  const ok = c => !!c && c.w > 0 && c.h > 0; if (!ok(de) || !ok(para)) return null;
+  const c0 = [de.x + de.w / 2, de.y + de.h / 2], c1 = [para.x + para.w / 2, para.y + para.h / 2];
+  const vx = c1[0] - c0[0], vy = c1[1] - c0[1], L = Math.hypot(vx, vy); if (L < 8) return null;
+  const ux = vx / L, uy = vy / L, borda = c => Math.min(ux ? (c.w / 2) / Math.abs(ux) : Infinity, uy ? (c.h / 2) / Math.abs(uy) : Infinity);
+  const r = n => Math.round(n * 10) / 10;
+  const p0 = [c0[0] + ux * borda(de) * 0.55, c0[1] + uy * borda(de) * 0.55], p1 = [c1[0] - ux * (borda(para) + folga), c1[1] - uy * (borda(para) + folga)];
+  const dist = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]); if (dist < ponta * 1.5) return null;
+  const meio = [(p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2], ctrl = [meio[0] - uy * curva * dist, meio[1] + ux * curva * dist];
+  const tx0 = p1[0] - ctrl[0], ty0 = p1[1] - ctrl[1], tl = Math.hypot(tx0, ty0) || 1, tx = tx0 / tl, ty = ty0 / tl;
+  const fim = [p1[0] - tx * ponta * 0.6, p1[1] - ty * ponta * 0.6], base = [p1[0] - tx * ponta, p1[1] - ty * ponta];
+  const asa = (sinal) => [base[0] - ty * ponta * 0.55 * sinal, base[1] + tx * ponta * 0.55 * sinal];
+  return { d: `M ${r(p0[0])} ${r(p0[1])} Q ${r(ctrl[0])} ${r(ctrl[1])} ${r(fim[0])} ${r(fim[1])}`, ponta: [p1, asa(1), asa(-1)].map(p => `${r(p[0])},${r(p[1])}`).join(' '),
+    inicio: { x: r(p0[0]), y: r(p0[1]) }, fim: { x: r(p1[0]), y: r(p1[1]) }, controle: { x: r(ctrl[0]), y: r(ctrl[1]) } };
+}
 /* ---------------- H5 · roteiro da jogada ----------------
    Uma jogada sua pode disparar o turno inteiro do oponente. Dos passos guardados pelo modelo da mesa, este roteiro tira os
    QUADROS que valem ser vistos, em ordem: a sua jogada, cada jogada do oponente e cada passo em que algo aconteceu na mesa
@@ -36051,7 +36099,7 @@ function createSom({ store = null, criaContexto = null } = {}) {
     get tocados() { return tocados.slice(); }
   };
 }
-return { eventosSensoriais, planoDeSom, planoDeEfeitos, planoDeVoo, ondePousa, planoDeSaida, roteiroDaJogada, createSom, limpaPrefs, duracaoDe, RECEITAS, NOMES, ORDEM, SOM_DO_TIPO, CHAVE, GLOBAL_A_PARTIR_DE };
+return { eventosSensoriais, planoDeSom, planoDeEfeitos, planoDeVoo, ondePousa, planoDeSaida, setasDoCombate, curvaDaSeta, roteiroDaJogada, createSom, limpaPrefs, duracaoDe, RECEITAS, NOMES, ORDEM, SOM_DO_TIPO, CHAVE, GLOBAL_A_PARTIR_DE };
 })();
 
 /* ==== src/app/table.js ==== */
@@ -36608,6 +36656,47 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       a.onfinish = fim; a.oncancel = fim;
     }
   }
+  /* ---- MJ4a · setas do combate: uma camada SVG por cima do campo, fora do layout, do toque e do leitor de tela (o quadro
+     de bloqueios e a dica da bandeja já dizem o mesmo em palavras). Redesenhada a cada pintura e ao rolar uma fileira. ---- */
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  let setasVistas = new Set(), setasPedido = 0, setasNaTela = false;
+  const svgEl = (tag, attrs) => { const el = document.createElementNS(SVG_NS, tag); for (const [k, x] of Object.entries(attrs)) el.setAttribute(k, x); return el; };
+  function escolhaDoCombate(s, v) { // o que a pessoa está escolhendo agora e a tela ainda não declarou
+    if (!s.pending || s.pending.p !== v) return {};
+    if (s.pending.kind === 'attackers') {
+      let obrig = []; try { obrig = E.mustAttack(s, v); } catch (e) { /* estado antigo */ }
+      const atacando = [...new Set([...plan.attack, ...obrig])], alvos = {};
+      for (const oid of atacando) { let ex = null; try { ex = E.exigePw(s, s.objects[oid]); } catch (e) { /* estado antigo */ } if (ex || plan.alvoPw) alvos[oid] = ex || plan.alvoPw; }
+      return { atacando, alvos };
+    }
+    if (s.pending.kind === 'blockers') return { bloqueios: [...plan.blocks.entries()] };
+    return {};
+  }
+  function desenhaSetas(s, v) {
+    if (root.isConnected) setasNaTela = true;
+    let svg = root.querySelector('#tb-setas');
+    const setas = s && s.status === 'playing' ? __m33.setasDoCombate(s, escolhaDoCombate(s, v)) : [];
+    if (!setas.length) { if (svg) svg.remove(); setasVistas = new Set(); delete root.dataset.setas; return; }
+    const cartaEl = oid => root.querySelector(`.tb-side .tb-card[data-oid="${oid}"]`) || root.querySelector(`.tb-side .tb-card[data-oids~="${oid}"]`);
+    const alvoEl = p => p.oid != null ? cartaEl(p.oid) : root.querySelector(p.jogador === v ? '#tb-life-me' : '#tb-life-opp');
+    const medidas = setas.map(x => { const a = cartaEl(x.de), b = alvoEl(x.para); return a && b ? { x, de: caixaDe(a), para: caixaDe(b) } : null; }).filter(Boolean); // mede tudo, depois escreve
+    const parado = menosMovimento(), novas = new Set(), marcas = [], frag = document.createDocumentFragment();
+    for (const m of medidas) {
+      const c = __m33.curvaDaSeta(m.de, m.para); if (!c) continue;
+      const g = svgEl('g', { class: `tb-seta tb-seta--${m.x.tipo}${!parado && !setasVistas.has(m.x.chave) ? ' tb-seta--nova' : ''}`, 'data-seta': m.x.chave, ...(m.x.proposta ? { 'data-proposta': 'true' } : {}) });
+      g.append(svgEl('path', { class: 'tb-seta__sombra', d: c.d }), svgEl('path', { class: 'tb-seta__traco', d: c.d }), svgEl('polygon', { class: 'tb-seta__ponta', points: c.ponta }));
+      frag.appendChild(g); novas.add(m.x.chave);
+      marcas.push(`${m.x.tipo}:${m.x.de}>${m.x.para.oid != null ? m.x.para.oid : 'vida' + m.x.para.jogador}`);
+    }
+    if (!svg) { svg = svgEl('svg', { id: 'tb-setas', class: 'tb-setas', 'aria-hidden': 'true', focusable: 'false' }); root.appendChild(svg); }
+    svg.replaceChildren(frag); setasVistas = novas; root.dataset.setas = marcas.join(' ');
+  }
+  const redesenhaSetas = () => {
+    if (!root.isConnected) { if (setasNaTela) window.removeEventListener('resize', redesenhaSetas); return; } // a mesa saiu: solta a janela (não segura a mesa velha na memória)
+    if (setasPedido || !root.querySelector('#tb-setas')) return;
+    setasPedido = requestAnimationFrame(() => { setasPedido = 0; if (root.isConnected && table) desenhaSetas(table.state, table.viewer()); }); };
+  root.addEventListener('scroll', redesenhaSetas, { capture: true, passive: true }); // a fileira de cartas rola de lado
+  window.addEventListener('resize', redesenhaSetas, { passive: true });
   function aplicaEfeitos({ plano, fantasmas, parado, rPilha }, s, v) {
     const feitos = [], curto = durFx('--dur-fx-curto'), medio = durFx('--dur-fx'), longo = durFx('--dur-fx-longo');
     const meu = oid => s.objects[oid] && s.objects[oid].controller === v;
@@ -38402,6 +38491,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     simbolizar(root); // U3 · custos, habilidades e textos da mesa em símbolos
     if (sinc) pintaChat(); // leva 137 · selo de mensagens novas
     voa(voo, s, v); // MJ3a · antes de marcar o campo como visto
+    desenhaSetas(s, v); // MJ4a · depois do desenho novo, com as caixas no lugar
     // A13 · o que está no campo agora já foi visto: a próxima pintura só anima quem entrar
     vistos = new Set(s.zones.flatMap(z => z.battlefield));
     if (cena) aplicaEfeitos(cena, s, v); else delete root.dataset.saidas; // G5 · por cima do desenho novo
