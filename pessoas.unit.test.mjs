@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { generateKeyPairSync } from 'node:crypto';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { contagens, rodada, carimbosDasContas, doBanco, diaDe, DIA_MS, ESCOPOS } from './pessoas.mjs';
+import { contagens, rodada, carimbosDasContas, doBanco, diaDe, DIA_MS, ESCOPOS, semSegredo } from './pessoas.mjs';
 import { valida, aplicar, lerJsonl, privacidade } from './telemetria.mjs';
 
 const RAIZ = dirname(fileURLToPath(import.meta.url));
@@ -91,4 +91,12 @@ test('I-293 · o fluxo Pessoas: agendado + à mão, só escrita em conteúdo, a�
   const passo = avanca.split('\n      - ').find(p => /gh workflow run pessoas\.yml/.test(p));
   assert.ok(passo, 'a fila dispara pessoas.yml'); assert.match(passo, /if: steps\.avanca\.outputs\.publicado != ''/);
   assert.match(passo, /gh workflow run pessoas\.yml --repo "\$GITHUB_REPOSITORY" --ref main \|\| echo "::warning::/);
+});
+
+test('I-294 · anotação sem segredo: token do Google, JWT e credencial em URL viram [oculto]; o código HTTP e o nome da etapa ficam; no máximo 300 caracteres', () => {
+  assert.equal(semSegredo('contas: HTTP 403'), 'contas: HTTP 403');
+  assert.equal(semSegredo('erro ya29.a0AfH6SMB-xyz_123 na chamada'), 'erro [oculto] na chamada');
+  assert.equal(semSegredo('jwt eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJ4In0.assinatura'), 'jwt [oculto]');
+  assert.equal(semSegredo('fatal: https://x-access-token:ghp_abc@github.com/a/b.git'), 'fatal: https[oculto]github.com/a/b.git');
+  assert.equal(semSegredo('x'.repeat(500)).length, 300); assert.equal(semSegredo(null), '');
 });

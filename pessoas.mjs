@@ -33,6 +33,8 @@ export async function tokenDaConta(conta, { busca = globalThis.fetch, agora = Da
   return j.access_token;
 }
 
+/** I-294 · texto de anotação sem segredo: token do Google, JWT ou credencial em URL viram [oculto]; no máximo 300 caracteres. */
+export const semSegredo = t => String(t || '').replace(/ya29\.[A-Za-z0-9._-]+|eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9._-]+|:\/\/[^@\/\s]+@/g, '[oculto]').slice(0, 300);
 /** AAAA-MM-DD em UTC. */
 export const diaDe = ms => new Date(ms).toISOString().slice(0, 10);
 
@@ -93,10 +95,21 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const conta = leConta(segredo); if (!conta || !conta.project_id) { console.error('FIREBASE_SERVICE_ACCOUNT não é a chave de uma conta de serviço'); process.exit(1); }
   const banco = urlDoBanco(readFileSync(new URL('./index.html', import.meta.url), 'utf8')); if (!banco) { console.error('FIREBASE_DB_URL não está no index.html'); process.exit(1); }
   const args = process.argv.slice(2), opt = n => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : null; };
-  const linhas = await rodada({ conta, banco, dias: Number(opt('--dias')) || 30, log: m => console.log(m) });
-  const { gravar, RAMO, remotoDoClone } = await import('./telemetria.mjs');
-  const { resolve } = await import('node:path');
-  const r = gravar({ tipo: 'pessoas', registro: linhas, remoto: opt('--remoto') || remotoDoClone(process.cwd()), pasta: resolve(opt('--pasta') || '.tmp/telemetria'), semPush: args.includes('--sem-push') });
-  const u = linhas[linhas.length - 1];
-  console.log(`✓ pessoas: ${linhas.length} dia(s) gravado(s) em ${RAMO}/${r.arquivo}${r.enviado ? ' (enviado)' : ' (só na pasta)'} · hoje: contas ${u.contas ?? '?'} (+${u.contas_novas ?? '?'}), perfis ${u.perfis ?? '?'}, salas ${u.salas_total} (+${u.salas_criadas})`);
+  // I-294 · os registros do Actions não são legíveis da sessão: etapa e erro saem como anotação (`::error::`/`::notice::`),
+  // sempre sem token, e-mail ou uid (as mensagens de erro deste arquivo só trazem o nome da etapa e o código HTTP).
+  let etapa = 'token';
+  try {
+    const linhas = await rodada({ conta, banco, dias: Number(opt('--dias')) || 30, log: m => { console.log(m); console.log('::warning::pessoas: ' + semSegredo(m)); } });
+    etapa = 'gravar';
+    const { gravar, RAMO, remotoDoClone } = await import('./telemetria.mjs');
+    const { resolve } = await import('node:path');
+    const r = gravar({ tipo: 'pessoas', registro: linhas, remoto: opt('--remoto') || remotoDoClone(process.cwd()), pasta: resolve(opt('--pasta') || '.tmp/telemetria'), semPush: args.includes('--sem-push') });
+    const u = linhas[linhas.length - 1];
+    const resumo = `pessoas: ${linhas.length} dia(s) gravado(s) em ${RAMO}/${r.arquivo}${r.enviado ? ' (enviado)' : ' (só na pasta)'} · hoje: contas ${u.contas ?? '?'} (+${u.contas_novas ?? '?'}), perfis ${u.perfis ?? '?'}, salas ${u.salas_total} (+${u.salas_criadas})`;
+    console.log('✓ ' + resumo); if (process.env.GITHUB_ACTIONS) console.log('::notice::' + resumo);
+  } catch (e) {
+    const msg = `pessoas: falhou na etapa "${etapa}": ${semSegredo(e && e.message || e)}`;
+    console.error(msg); if (process.env.GITHUB_ACTIONS) console.log('::error::' + msg);
+    process.exit(1);
+  }
 }
