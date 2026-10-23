@@ -3,12 +3,24 @@
 // Cada confronto entre as sete listas é jogado nos dois lados e nos dois assentos. Os dados das cartas vêm de
 // .listas/oficiais.json (texto oficial); cor, valor de mana e palavras-chave são derivados do texto.
 // Níveis: 'shark' (atual; 'shark:N' muda o número de mundos), 'shark-v5' e 'shark-v4' (congelados), 'shark-v3', 'shark-v2', 'shark-v1', 'amador', ou 'x:mull,av3,projeta,corrida,sub,valor,desdobra' para ligar peças do v3 uma a uma.
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { loadModules } from './_load.mjs';
 const { engine: E, bot: B, starter: ST, decks: D } = loadModules();
-const VOCAB = ['flying', 'haste', 'reach', 'trample', 'vigilance', 'deathtouch', 'lifelink', 'first strike', 'double strike', 'menace', 'defender', 'flash', 'hexproof', 'indestructible', 'shroud', 'changeling', 'devoid', 'storm', 'ward', 'prowess'];
-function cartasReais(raiz = '.') {
-  const of = JSON.parse(readFileSync(raiz + '/.listas/oficiais.json', 'utf8')).cartas;
+const VOCAB = ['flying', 'haste', 'reach', 'trample', 'vigilance', 'deathtouch', 'lifelink', 'first strike', 'double strike', 'menace', 'defender', 'flash', 'hexproof', 'indestructible', 'shroud', 'changeling', 'devoid', 'storm', 'ward', 'prowess',
+  // B-22 · habilidades de palavra-chave com custo que as listas do Shark escrevem (a Scryfall as põe em `keywords`; o Forge da prova também)
+  'madness', 'ninjutsu', 'flashback', 'cycling', 'islandcycling', 'swampcycling', 'mountaincycling', 'forestcycling', 'plainscycling', 'basic landcycling', 'landcycling',
+  'plot', 'replicate', 'equip', 'bestow', 'kicker', 'delve', 'evoke', 'affinity for artifacts', 'exploit', 'blitz', 'escape', 'unearth', 'transmute', 'dredge', 'buyback', 'convoke', 'cascade', 'surveil', 'suspend', 'morph', 'disguise', 'overload', 'miracle', 'rebound', 'retrace', 'modular', 'persist', 'undying', 'wither', 'infect', 'exalted', 'echo', 'fading', 'vanishing', 'cumulative upkeep', 'cipher', 'extort', 'evolve', 'outlast', 'afflict', 'afterlife', 'foretell', 'disturb', 'channel', 'casualty', 'toxic', 'backup', 'bargain', 'offspring', 'gift', 'impending', 'exhaust', 'prototype', 'scavenge', 'encore', 'adapt', 'monstrosity', 'mentor', 'riot', 'spectacle', 'embalm', 'eternalize', 'jump-start', 'crew', 'fabricate', 'improvise', 'partner', 'ravenous', 'reconfigure', 'squad', 'enlist', 'soulshift', 'bushido', 'ninjutsu', 'splice', 'graft', 'frenzy', 'hideaway', 'amplify', 'provoke', 'rampage', 'flanking', 'horsemanship', 'banding', 'phasing', 'shadow', 'skulk', 'ingest', 'myriad', 'melee', 'renown', 'dash', 'awaken', 'devour', 'conspire', 'recover', 'ripple', 'haunt', 'entwine', 'poisonous', 'absorb', 'aura swap', 'fortify', 'reinforce', 'transfigure', 'vanishing', 'wither', 'living weapon', 'battle cry', 'soulbond', 'unleash', 'bloodrush', 'tribute', 'dethrone', 'hidden agenda', 'exert', 'assist', 'ascend', 'tempting offer', 'boast', 'compleated', 'daybound', 'nightbound', 'decayed', 'training', 'read ahead', 'for mirrodin!', 'living metal', 'more than meets the eye', 'saddle', 'umbra armor', 'max speed', 'start your engines!', 'harmonize', 'mobilize', 'flurry', 'job select', 'tiered', 'station', 'warp', 'void', 'devoid', 'mayhem', 'threshold', 'landfall'];
+// B-22 · `arquivos`: quais `.listas/oficiais*.json` entram (o primeiro que traz a carta vence). As sete listas do torneio vivem em
+// oficiais.json; as cinco do Shark precisam dos outros (revisadas, tipos, listas…) e de oficiais-shark.json (texto da Scryfall).
+function oficiaisTodos(raiz = '.') {
+  return readdirSync(raiz + '/.listas').filter(f => /^oficiais.*\.json$/.test(f)).sort((a, b) => a === 'oficiais.json' ? -1 : b === 'oficiais.json' ? 1 : a.localeCompare(b));
+}
+function cartasReais(raiz = '.', arquivos = ['oficiais.json']) {
+  const vistas = new Set(), of = [];
+  for (const arq of arquivos) {
+    const j = JSON.parse(readFileSync(raiz + '/.listas/' + arq, 'utf8')), cs = Array.isArray(j.cartas) ? j.cartas : Object.values(j.cartas || {});
+    for (const c of cs) if (c && c.name && c.type_line && !vistas.has(c.name)) { vistas.add(c.name); of.push(c); }
+  }
   const out = {};
   for (const c of of) {
     const custo = c.mana_cost || '';
@@ -28,9 +40,16 @@ function cartasReais(raiz = '.') {
   return out;
 }
 
-const CARTAS = cartasReais(new URL('.', import.meta.url).pathname.replace(/\/$/, ''));
+const RAIZ = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
+const CARTAS = cartasReais(RAIZ);
+// B-22 · as cinco listas do Shark (`LISTAS_DO_SHARK`, dado do módulo do bot) na forma das sete do torneio, com os dados de carta de todos os oficiais
+let CARTAS_SHARK = null;
+function listasDoShark() {
+  if (!CARTAS_SHARK) CARTAS_SHARK = cartasReais(RAIZ, oficiaisTodos(RAIZ));
+  return (B.LISTAS_DO_SHARK || []).map(l => ({ id: l.id, name: l.nome, arquetipo: l.arquetipo, entries: D.parseDeckText(l.text).entries.filter(e => e.zone === 'main'), reserva: D.parseDeckText(l.text).entries.filter(e => e.zone === 'side'), cartas: CARTAS_SHARK }));
+}
 const listas = ST.STARTER_DECKS.filter(d => d.format === 'pauper').map(d => ({ name: d.name, entries: D.parseDeckText(d.text).entries.filter(e => e.zone !== 'side') }));
-export { cartasReais, listas, partida };
+export { cartasReais, oficiaisTodos, listas, partida, listasDoShark };
 // leva 126 · ORC=<ms> e MUNDOS=<n> trocam o orçamento e o número de mundos dos Sharks de informação justa (busca de pesos
 // em partidas rápidas); 'p:mao=0.5,poder=1.5' é o Shark atual com multiplicadores nas parcelas da avaliação.
 const ORC = +(process.env.ORC || 250), MUNDOSN = +(process.env.MUNDOS || 0);
@@ -46,7 +65,7 @@ const cria = nivel => {
   return { nivel, mulligan: f.has('mull') ? (s, p) => B.decideMulligan(s, p) : null, jogada: (s, p) => B.jogadaProfissional(s, p, opts) };
 };
 function partida(seed, n0, n1, d0, d1, max = 1500) {
-  const cards = {}; for (const e of [...d0.entries, ...d1.entries]) if (CARTAS[e.name]) cards[e.name] = CARTAS[e.name];
+  const cards = {}; for (const [d, e] of [...d0.entries.map(e => [d0, e]), ...d1.entries.map(e => [d1, e])]) { const base = d.cartas || CARTAS; if (base[e.name]) cards[e.name] = base[e.name]; } // B-22 · lista do Shark traz os próprios dados
   let s = E.createGame({ format: 'pauper', seed, mode: 'full', manaCheck: true, cards, players: [{ name: 'P0', deck: d0.entries }, { name: 'P1', deck: d1.entries }] });
   const J = [cria(n0), cria(n1)]; let ilegal = null, pior = 0, acoes = 0;
   for (let i = 0; i < max && s.status !== 'over'; i++) {

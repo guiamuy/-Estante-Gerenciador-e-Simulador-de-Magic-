@@ -11,6 +11,7 @@ import { createServer } from 'node:http';
 import { readFileSync, existsSync } from 'node:fs';
 import { join, extname } from 'node:path';
 import { ROOT } from './_load.mjs';
+import { listasDoShark } from './torneio.listas.mjs'; // B-22 · as cartas das cinco listas do Shark, com texto oficial
 
 let pw = null;
 try { pw = await import('playwright'); } catch (e) { if (process.env.CI) throw new Error('Playwright ausente no CI'); }
@@ -63,6 +64,9 @@ const DB = Object.fromEntries([
   { ...card('Voldaren Epicure', 'Creature — Vampire', ['R'], 1), mana_cost: '{R}', power: '1', toughness: '1', oracle_text: 'When this creature enters, it deals 1 damage to each opponent. Create a Blood token. (It\'s an artifact with "{1}, {T}, Discard a card, Sacrifice this artifact: Draw a card.")' },
   { ...card('Clue', 'Token Artifact — Clue', [], 0), id: 'tok-clue', oracle_text: '{2}, Sacrifice this artifact: Draw a card.', image_uris: { small: 'https://cards.scryfall.io/small/front/x/clue.png', normal: 'https://cards.scryfall.io/normal/front/x/clue.png' } }
 ].map(c => [c.name.toLowerCase(), c]));
+// B-22 · o Shark na mesa só joga com as suas cinco listas de torneio (`LISTAS_DO_SHARK`): a Scryfall falsa precisa das cartas delas, com o
+// texto oficial de `.listas/oficiais*.json` (o mesmo do torneio). Carta que o DB acima já tem fica como está (os testes antigos contam com ela).
+for (const l of listasDoShark()) for (const e of [...l.entries, ...l.reserva]) { const c = l.cartas[e.name], k = e.name.toLowerCase(); if (c && !DB[k]) DB[k] = { ...card(c.name, c.type_line, c.colors, c.cmc), ...c, id: c.name }; }
 
 async function open(t, { dev = true, apresentacao = false, cena = false, porta = false } = {}) {
   const srv = await serve();
@@ -659,7 +663,10 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   await page.waitForFunction(() => /Delver of Secrets/.test(document.body.innerText), null, { timeout: 15000 });
 
   // mesa: bot liberado (cobertura sai do que está guardado) e a partida roda
+  // B-22 · o Shark joga só Pauper, com as listas de torneio dele (guardadas pelo "Preparar tudo"): a mesa abre no formato da
+  // primeira lista (Commander) e precisa ir para o Pauper antes de escolher o Shark
   await page.goto(base + '#/mesa');
+  await page.waitForSelector('[data-table-format="pauper"]'); await page.click('[data-table-format="pauper"]');
   await page.fill('#mesa-seed', '9');
   await page.waitForFunction(() => { const c = document.querySelector('[data-opponent="shark"]'); return c && !c.disabled; }, null, { timeout: 8000 });
   await page.click('[data-opponent="shark"]');
@@ -822,7 +829,9 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   await page.waitForSelector('.deck-summary');
   await acaoJ6(page, 'deck-fab', '#deck-edit'); // J7 · a ação mora no botão de ação
   await page.waitForSelector('#deck-text');
-  await page.fill('#deck-text', PAUPER + '\n1 Lightning Bolt');
+  // B-22 · Lightning Bolt passou a ser carta guardada pelo "Preparar tudo" (está na lista Grixis Madness do Shark); a carta
+  // nunca vista agora é o Prodigal Sorcerer, que nenhuma lista nem a coleção deste teste tem
+  await page.fill('#deck-text', PAUPER + '\n1 Prodigal Sorcerer');
   await page.click('#deck-save');
   await page.waitForSelector('.deck-summary');
   // D8 (leva 153) · os avisos moram na linha de estado; o texto completo abre na folha
@@ -10405,12 +10414,13 @@ test('e2e · J6 arte escolhida só do meu lado: contra o Shark, a minha Forest s
   await page.route('https://api.scryfall.com/cards/search**', async r => { const q = new URL(r.request().url()).searchParams.get('q') || '';
     if (q === '!"Forest"') return r.fulfill({ json: { object: 'list', has_more: false, data: [0, 1].map(i => ({ object: 'card', id: 'forest-' + i, name: 'Forest', type_line: 'Basic Land — Forest', layout: 'normal', set: 's' + i, set_name: 'E' + i, collector_number: String(i), image_uris: Object.fromEntries(['small', 'normal', 'large'].map(k => [k, `https://cards.scryfall.io/${k}/front/x/forest-${i}.png`])) })) } });
     return r.fallback(); });
-  await createDeck(page, base, 'Verde', '30 Forest\n30 Grizzly Bear', 'livre');
+  await createDeck(page, base, 'Verde', '30 Forest\n30 Grizzly Bear', 'pauper'); // B-22 · o Shark joga só Pauper, com a lista dele: a partida fica no Pauper e o bot usa os Elfos (Forest dos dois lados);
   await page.goto(base + '#/perfil/terrenos?f=forest'); await page.waitForSelector('.ficha-opcao[data-opcao="forest-1"]', { timeout: 15000 }); await page.click('.ficha-opcao[data-opcao="forest-1"]');
   await page.waitForFunction(() => { const m = document.querySelector('.ficha-opcao[data-opcao="forest-1"] .ficha-opcao__marca'); return m && m.dataset.salvando === 'false'; }, null, { timeout: 12000 });
   // partida contra o Shark, os dois com a mesma lista
   await page.goto(base + '#/mesa'); await page.waitForFunction(() => { const c = document.querySelector('[data-opponent="shark"]'); return c && !c.disabled; }, null, { timeout: 15000 });
   await page.click('[data-opponent="shark"]'); await page.waitForSelector('#mesa-bot-deck');
+  await escolheLista(page, 'mesa-bot-deck', 'shark-elfos'); // B-22
   await page.waitForFunction(() => { const c = document.querySelector('[data-mode="full"]'); return c && !c.disabled; }, null, { timeout: 15000 });
   await page.click('[data-mode="full"]'); await page.fill('#mesa-seed', '3'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep', { timeout: 30000 }); await page.click('#tb-keep');
   // joga terrenos e passa turnos até os dois lados terem Forest em campo
@@ -10658,7 +10668,7 @@ test('e2e · V5 impressão da lista na mesa: a Forest escolhida na lista (V1) sa
   await page.route('https://api.scryfall.com/cards/search**', async r => { const q = new URL(r.request().url()).searchParams.get('q') || '';
     if (q === '!"Forest"') return r.fulfill({ json: { object: 'list', has_more: false, data: [0, 1].map(i => ({ object: 'card', id: 'forest-' + i, name: 'Forest', type_line: 'Basic Land — Forest', layout: 'normal', set: 's' + i, set_name: 'E' + i, collector_number: String(i), image_uris: Object.fromEntries(['small', 'normal', 'large'].map(k => [k, `https://cards.scryfall.io/${k}/front/x/forest-${i}.png`])) })) } });
     return r.fallback(); });
-  await createDeck(page, base, 'Verde', '30 Forest\n30 Grizzly Bear', 'livre');
+  await createDeck(page, base, 'Verde', '30 Forest\n30 Grizzly Bear', 'pauper'); // B-22 · o Shark joga só Pauper, com a lista dele: a partida fica no Pauper e o bot usa os Elfos (Forest dos dois lados);
   // a lista escolhe a impressão forest-1 para a Forest (V1)
   await page.click('.deck-slot[data-name="Forest"][data-zona="main"] .ds-card'); await page.waitForSelector('#deck-viewer-prints'); await page.click('#deck-viewer-prints');
   await page.waitForSelector('.ficha-opcao[data-impressao="forest-1"]', { timeout: 15000 }); await page.click('.ficha-opcao[data-impressao="forest-1"]');
@@ -10669,6 +10679,7 @@ test('e2e · V5 impressão da lista na mesa: a Forest escolhida na lista (V1) sa
   // partida contra o Shark, os dois com a mesma lista
   await page.goto(base + '#/mesa'); await page.waitForFunction(() => { const c = document.querySelector('[data-opponent="shark"]'); return c && !c.disabled; }, null, { timeout: 15000 });
   await page.click('[data-opponent="shark"]'); await page.waitForSelector('#mesa-bot-deck');
+  await escolheLista(page, 'mesa-bot-deck', 'shark-elfos'); // B-22
   await page.waitForFunction(() => { const c = document.querySelector('[data-mode="full"]'); return c && !c.disabled; }, null, { timeout: 15000 });
   await page.click('[data-mode="full"]'); await page.fill('#mesa-seed', '3'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep', { timeout: 30000 }); await page.click('#tb-keep');
   // joga terrenos e passa turnos até os dois lados terem Forest em campo
@@ -13771,6 +13782,7 @@ test('e2e · MJ3c a carta do Shark sai do contador da mão dele de verso e se re
   await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', '5');
   await page.waitForFunction(() => { const c = document.querySelector('[data-opponent="shark"]'); return c && !c.disabled; }, null, { timeout: 8000 });
   await page.click('[data-opponent="shark"]'); await page.waitForSelector('#mesa-bot-deck');
+  await escolheLista(page, 'mesa-bot-deck', 'shark-elfos'); // B-22 · o Shark joga com uma das listas dele; com os Elfos o primeiro voo dele é um terreno sozinho (sem mágica no mesmo redesenho, que move o contador)
   await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass, #tb-pass-turn');
   // cada foto que entra na camada de efeitos é medida na hora em que nasce (o voo ainda não andou)
   await page.evaluate(() => { window.__voosMJ3c = [];
@@ -14570,5 +14582,51 @@ test('e2e · MJ7 material: sombra que cresce ao segurar, luz do feltro só na pa
   assert.ok(ms < 400, 'a jogada com a virada não trava a mesa: ' + ms);
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/mj7-virou.png' });
   await auditaTela(page, 'MJ7 · depois da virada');
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · B-173 · o Shark só joga com as suas cinco listas de torneio: seletor com as cinco e a origem de cada uma, partida com a escolhida, "A dois" com a estante e Commander sem Shark', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; }); // acesso de teste à mesa (lê o estado do assento do Shark)
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/mesa');
+  await page.fill('#mesa-seed', '9');
+  await page.waitForFunction(() => { const c = document.querySelector('[data-opponent="shark"]'); return c && !c.disabled; }, null, { timeout: 8000 });
+  await page.click('[data-opponent="shark"]');
+  await page.waitForSelector('#mesa-bot-deck');
+  assert.match(await page.innerText('#mesa-opponent-note, body'), /cinco listas de torneio/, 'a tela diz que o Shark joga com as cinco listas');
+  // o seletor do Shark não oferece a estante: só as cinco, cada uma com arquétipo no nome e origem (torneio, colocação, jogador, data)
+  await page.click('#mesa-bot-deck'); await page.waitForSelector('.deck-picker__lista');
+  assert.deepEqual(await page.locator('.deck-picker__lista [data-deck-id]').evaluateAll(es => es.map(e => e.dataset.deckId)), ['shark-madness', 'shark-controle', 'shark-faeries', 'shark-terror', 'shark-elfos']);
+  assert.equal(await page.locator('.deck-picker__lista .deck-item__origem').count(), 5, 'cada lista diz de onde veio');
+  assert.match(await page.innerText('.deck-picker__lista'), /Pauper Challenge 32 · 1º de 44 · Magic Online · LucasG1ggs · 22\/10\/2026/);
+  await page.locator('.deck-picker__lista [data-deck-id="shark-elfos"]').click(); await page.waitForSelector('.deck-picker__lista', { state: 'detached' });
+  assert.match(await page.getAttribute('#mesa-bot-deck', 'aria-label'), /Mono Green Elves/);
+  // a partida começa com a lista escolhida: o assento do Shark tem a lista dos Elfos (60 cartas, Floresta no grimório), não a Delver
+  await page.waitForFunction(() => { const c = document.querySelector('[data-mode="full"]'); return c && !c.disabled; }, null, { timeout: 8000 });
+  await page.click('[data-mode="full"]');
+  await page.waitForFunction(() => !document.querySelector('#mesa-start').disabled, null, { timeout: 8000 });
+  await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass');
+  const doShark = await page.evaluate(() => { const s = window.__estanteMesa.estado(); const n = {}; for (const o of Object.values(s.objects)) if (o.owner === 1 && !o.token) n[o.name] = (n[o.name] || 0) + 1; return { total: Object.values(n).reduce((a, b) => a + b, 0), nomes: n, jogador: s.players[1].name }; });
+  assert.equal(doShark.jogador, 'Shark');
+  assert.equal(doShark.total, 60, 'o Shark joga com as 60 cartas da lista dele');
+  assert.ok(doShark.nomes['Forest'] >= 10 && doShark.nomes['Timberwatch Elf'] === 3, 'é a lista dos Elfos: ' + JSON.stringify(doShark.nomes));
+  assert.equal(doShark.nomes['Delver of Secrets'], undefined, 'não é a lista da estante');
+  // "A dois": a lista do oponente continua sendo a da estante (o seletor do Shark não vaza para cá)
+  await page.goto(base + '#/mesa'); await page.waitForSelector('[data-opponent="hotseat"]'); await page.click('[data-opponent="hotseat"]');
+  await page.waitForSelector('#mesa-theirs'); await page.click('#mesa-theirs'); await page.waitForSelector('.deck-picker__lista');
+  const daEstante = await page.locator('.deck-picker__lista [data-deck-id]').evaluateAll(es => es.map(e => e.dataset.deckId));
+  assert.equal(daEstante.length, 1); assert.ok(!daEstante[0].startsWith('shark-'), 'a dois escolhe da estante: ' + daEstante[0]);
+  await page.click('.ds-dialog >> text=Voltar'); await page.waitForSelector('.deck-picker__lista', { state: 'detached' });
+  // Commander: o Shark não tem lista nesse formato; a tela diz isso e Começar fica desligado (nada pela metade)
+  await createDeck(page, base, 'Cmd', 'Commander\n1 Mock Commander\n\nDeck\n99 Plains', 'commander');
+  await page.goto(base + '#/mesa'); await page.waitForSelector('[data-table-format="commander"]'); await page.click('[data-table-format="commander"]');
+  await page.waitForFunction(() => { const c = document.querySelector('[data-opponent="shark"]'); return c && !c.disabled; }, null, { timeout: 8000 });
+  await page.click('[data-opponent="shark"]');
+  await page.waitForSelector('#mesa-bot-sem-lista');
+  assert.match(await page.innerText('#mesa-bot-sem-lista'), /só joga Pauper/);
+  assert.equal(await page.locator('#mesa-bot-deck').count(), 0, 'sem seletor vazio');
+  assert.equal(await page.isDisabled('#mesa-start'), true, 'sem lista do Shark não há partida pela metade');
   assert.deepEqual(errors, []);
 });

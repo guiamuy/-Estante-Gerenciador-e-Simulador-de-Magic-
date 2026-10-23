@@ -1,0 +1,61 @@
+{
+  "sobre": "B-22 · cartas que as listas do Shark usam (principal ou reserva) e nenhum outro .listas/oficiais*.json traz. Texto oficial da Scryfall (api.scryfall.com/cards/named), com a data da consulta. Só para o torneio e os testes do bot; o app lê a Scryfall.",
+  "cartas": [
+    {
+      "name": "Fyndhorn Elves",
+      "mana_cost": "{G}",
+      "type_line": "Creature — Elf Druid",
+      "oracle_text": "{T}: Add {G}.",
+      "power": "1",
+      "toughness": "1",
+      "fonte": "https://api.scryfall.com/cards/named?exact=Fyndhorn+Elves",
+      "consulta": "2026-10-23"
+    },
+    {
+      "name": "Seat of the Synod",
+      "mana_cost": "",
+      "type_line": "Artifact Land",
+      "oracle_text": "{T}: Add {U}.",
+      "fonte": "https://api.scryfall.com/cards/named?exact=Seat+of+the+Synod",
+      "consulta": "2026-10-23"
+    },
+    {
+      "name": "Pyroblast",
+      "mana_cost": "{R}",
+      "type_line": "Instant",
+      "oracle_text": "Choose one —\n• Counter target spell if it's blue.\n• Destroy target permanent if it's blue.",
+      "fonte": "https://api.scryfall.com/cards/named?exact=Pyroblast",
+      "consulta": "2026-10-23",
+      "reserva": true
+    },
+    {
+      "name": "Gut Shot",
+      "mana_cost": "{R/P}",
+      "type_line": "Instant",
+      "oracle_text": "({R/P} can be paid with either {R} or 2 life.)\nGut Shot deals 1 damage to any target.",
+      "fonte": "https://api.scryfall.com/cards/named?exact=Gut+Shot",
+      "consulta": "2026-10-23",
+      "reserva": true
+    },
+    {
+      "name": "Monstrous Emergence",
+      "mana_cost": "{1}{G}",
+      "type_line": "Sorcery",
+      "oracle_text": "As an additional cost to cast this spell, choose a creature you control or reveal a creature card from your hand.\nMonstrous Emergence deals damage equal to the power of the creature you chose or the card you revealed to target creature.",
+      "fonte": "https://api.scryfall.com/cards/named?exact=Monstrous+Emergence",
+      "consulta": "2026-10-23",
+      "reserva": true
+    },
+    {
+      "name": "Spinewoods Paladin",
+      "mana_cost": "{4}{G}",
+      "type_line": "Creature — Human Knight",
+      "oracle_text": "Trample\nWhen this creature enters, you gain 3 life.\nPlot {3}{G} (You may pay {3}{G} and exile this card from your hand. Cast it as a sorcery on a later turn without paying its mana cost. Plot only as a sorcery.)",
+      "power": "5",
+      "toughness": "4",
+      "fonte": "https://api.scryfall.com/cards/named?exact=Spinewoods+Paladin",
+      "consulta": "2026-10-23",
+      "reserva": true
+    }
+  ]
+}

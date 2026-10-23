@@ -33055,6 +33055,8 @@ const __m25 = (function () {
    'shark-v8' é o Shark da leva 147, congelado.
    OPCIONAL DE GRAÇA (B10b): em empate, aceita o efeito opcional sem custo (a compra do Moon-Circuit Hacker).
    'shark-v9' é o Shark da leva 159, congelado. A opção `segura` existe só para o torneio (não pagou).
+   AS LISTAS DO SHARK (B-22, leva B-173): o Shark joga só com `LISTAS_DO_SHARK` (cinco listas Pauper de torneio, dado
+   deste módulo); a tela de preparação monta o deck dele a partir daí. Perfil por lista vem nas fatias seguintes da B-22.
    LIMITES DE HOJE: um lance à frente + resposta do oponente + combate; sem plano
    de vários turnos, sem blefe, sem jogar em volta de anulação ou truque; mulligan
    não olha cores; não troca reserva na melhor de três; esquece o que a vidência
@@ -34001,6 +34003,141 @@ const MUNDOS = 3; // quantos mundos possíveis entram na média de cada decisão
 /** U10 · a mesa tem um bot só: o Shark (o profissional). O amador continua aqui como
     sparring do torneio de aferição, sem aparecer para o usuário. */
 const NOME_DO_BOT = 'Shark';
+/** B-22 · AS LISTAS DO SHARK (leva B-173). O Shark joga só com estas cinco listas, escolhidas pelo catálogo de torneios do app
+    (ramo `catalogo`: 517 listas Pauper de 24/09 a 23/10/2026, agrupadas por semelhança de cartas; os cinco grupos mais frequentes,
+    e de cada grupo a lista mais recente com 1º ou 2º lugar — Liga 5-0 e torneio de até 16 jogadores valem como 3º/4º). Dado, não
+    código: nome, arquétipo (chave dos perfis das fatias seguintes), origem, jogador, data e o id no catálogo. Texto da lista no
+    formato das prontas (`parseDeckText`); a tela de preparação monta o deck a partir daqui. Ficaram de fora as listas com carta cuja
+    aprovação do motor não bate com o texto atual da Scryfall (Extract a Confession, Glimpse the Impossible, Abjure…), até o motor
+    reaprovar (M-575). Escolha feita em 23/10/2026. */
+const LISTAS_DO_SHARK = [
+  { id: "shark-madness", nome: "Grixis Madness · Grab the Prize", arquetipo: "Grixis Madness", format: "pauper", origem: "Pauper Challenge 32 · 1º de 44 · Magic Online", jogador: "LucasG1ggs", data: "2026-10-22", catalogo: "mtgo-pauper-challenge-32-2026-10-2212856962-1", text: `4 Lightning Bolt
+4 Lava Dart
+4 Grab the Prize
+3 Guttersnipe
+4 Highway Robbery
+4 Kessig Flamebreather
+3 Fireblast
+4 Fiery Temper
+3 Faithless Looting
+4 Sneaky Snacker
+4 Voldaren Epicure
+19 Mountain
+Sideboard
+2 Cast into the Fire
+3 Smash to Smithereens
+2 Searing Blaze
+3 Relic of Progenitus
+1 Red Elemental Blast
+4 Pyroblast` },
+  { id: "shark-controle", nome: "Dimir Control · Thorn of the Black Rose", arquetipo: "Dimir Control", format: "pauper", origem: "TheSideralWolf - tournament series: Pauper #4 · 1º de 104 · TopDeck", jogador: "Lorenzo Bergamini", data: "2026-09-27", catalogo: "topdeck-thesideralwolf-tournament-series-pauper-4-1", text: `4 Baleful Strix
+2 Bojuka Bog
+1 Bonder's Ornament
+1 Campfire
+2 Cast Down
+4 Contaminated Aquifer
+4 Counterspell
+2 Cut Down
+1 Dispel
+1 Grim Bauble
+2 Ice Tunnel
+8 Island
+4 Lórien Revealed
+1 Lose Focus
+2 Murmuring Mystic
+1 Nihil Spellbomb
+2 Plunder the Trollshaws
+4 Preordain
+2 Seat of the Synod
+1 Sewer-veillance Cam
+4 Snuff Out
+1 Suffocating Fumes
+1 Swamp
+2 Thorn of the Black Rose
+2 Trinket Mage
+1 Viridian Longbow
+Sideboard
+4 Annul
+1 Cut Down
+2 Duress
+4 Hydroblast
+1 Relic of Progenitus
+1 Steel Sabotage
+1 Suffocating Fumes
+1 Viridian Longbow` },
+  { id: "shark-faeries", nome: "Dimir Faeries · Spellstutter Sprite", arquetipo: "Dimir Faeries", format: "pauper", origem: "Pauper Challenge 32 · 2º de 63 · Magic Online", jogador: "barff", data: "2026-09-25", catalogo: "mtgo-pauper-challenge-32-2026-09-2512854910-2", text: `1 Bojuka Bog
+2 Cast Down
+4 Contaminated Aquifer
+3 Faerie Seer
+2 Contaminated Landscape
+2 Ninja of the Deep Hours
+4 Snuff Out
+2 Dispel
+2 Thorn of the Black Rose
+4 Lórien Revealed
+1 Suffocating Fumes
+1 Swamp
+1 Moon-Circuit Hacker
+10 Island
+4 Spellstutter Sprite
+4 Counterspell
+4 Baleful Strix
+4 Brainstorm
+2 Augur of Bolas
+1 Mukotai Ambusher
+1 Agony Warp
+1 Cut Down
+Sideboard
+2 Arms of Hadar
+4 Blue Elemental Blast
+2 Hydroblast
+4 Annul
+2 Relic of Progenitus
+1 Extract a Confession` },
+  { id: "shark-terror", nome: "Mono Blue Terror · Tolarian Terror", arquetipo: "Mono Blue Terror", format: "pauper", origem: "Pauper Challenge 32 · 2º · Magic Online", jogador: "discoverN", data: "2026-10-16", catalogo: "mtgo-pauper-challenge-32-2026-10-1612856583-2", text: `4 Mental Note
+4 Counterspell
+4 Tolarian Terror
+4 Brainstorm
+4 Lórien Revealed
+16 Island
+4 Cryptic Serpent
+2 Deem Inferior
+3 Ponder
+3 Dispel
+4 Delver of Secrets
+2 Sleep of the Dead
+1 Deep Analysis
+4 Thought Scour
+1 Murmuring Mystic
+Sideboard
+4 Hydroblast
+4 Annul
+4 Blue Elemental Blast
+2 Gut Shot
+1 Steel Sabotage` },
+  { id: "shark-elfos", nome: "Mono Green Elves · Timberwatch Elf", arquetipo: "Mono Green Elves", format: "pauper", origem: "Rebound Dimanche · 1º de 24 · TopDeck", jogador: "Romain Lechartier", data: "2026-10-04", catalogo: "topdeck-rebound-dimanche-1", text: `4 Avenging Hunter
+4 Elvish Mystic
+11 Forest
+1 Fyndhorn Elves
+4 Generous Ent
+1 Gingerbread Cabin
+2 Land Grant
+4 Lead the Stampede
+4 Llanowar Elves
+4 Masked Vandal
+4 Nyxborn Hydra
+4 Priest of Titania
+4 Quirion Ranger
+2 Sagu Wildling
+3 Timberwatch Elf
+4 Winding Way
+Sideboard
+3 Faerie Macabre
+4 Monstrous Emergence
+1 Sagu Wildling
+3 Spinewoods Paladin
+4 Vitu-Ghazi Inspector` },
+];
 /** Qualquer nível vindo da mesa (inclusive os antigos "amador" e "profissional") vira o Shark. */
 const nivelDaMesa = () => 'profissional';
 /** Bot pronto para jogar. Padrão: o Shark. */
@@ -34209,7 +34346,7 @@ function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date
 
 return { PESOS, LIMIAR_RESPOSTA, avalia, avaliaV2, avaliaV3, projetaCombate, riscoDeVolta, decideMulligan, simula, escolhe, chaveAcao, fontesDeMana,
   jogadaAmador, jogadaProfissional, decideAtaque, decideAtaqueProfissional, decideBloqueio, decideBloqueioProfissional,
-  notaComResposta, notaDoAtaque, resumoDoTurno, dicas, visaoDe, sementePublica, atualizaMemoria, MUNDOS, avaliadorCom, PESOS_ATUAIS, politicaRapida, rola, avaliaV4, planoDeMana, PERFIS, perfilDe, passoDoCombo, avaliadorDoPlano, notaDoAtaqueComTruque, custoDaResposta, criaBot, NOME_DO_BOT, nivelDaMesa };
+  notaComResposta, notaDoAtaque, resumoDoTurno, dicas, visaoDe, sementePublica, atualizaMemoria, MUNDOS, avaliadorCom, PESOS_ATUAIS, politicaRapida, rola, avaliaV4, planoDeMana, PERFIS, perfilDe, passoDoCombo, avaliadorDoPlano, notaDoAtaqueComTruque, custoDaResposta, criaBot, NOME_DO_BOT, nivelDaMesa, LISTAS_DO_SHARK };
 })();
 
 /* ==== src/ui/table-components.js ==== */
@@ -36809,27 +36946,37 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
     const pedida = all.find(d => String(d.id) === new URLSearchParams((location.hash.split('?')[1]) || '').get('lista')) || all[0];
     state.mine = pedida.id; state.theirs = (all.find(d => d.format === pedida.format) || pedida).id;
     const byId = id => all.find(d => d.id === id);
+    // B-22 · as listas do Shark são dado do próprio bot (cinco listas de torneio, `LISTAS_DO_SHARK`), não da estante: com o
+    // Shark na mesa só elas entram no seletor; a escolha do Shark fica à parte (`state.sharkDeck`) para não mexer na lista do "A dois"
+    const doShark = (__m25.LISTAS_DO_SHARK || []).map(l => ({ id: l.id, name: l.nome, format: l.format, entries: __m14.parseDeckText(l.text).entries, shark: l }));
+    const sharkById = id => doShark.find(d => d.id === id) || null;
+    const listasDoShark = () => doShark.filter(d => d.format === state.format);
+    const deckDoOponente = () => ehBot() ? sharkById(state.sharkDeck) : state.opponent === 'goldfish' ? null : byId(state.theirs);
     // A12 · modo de jogo: filtra as listas pelo formato, e o formato da partida vem da sua lista
     // Leva 149 · sem "Todos": a partida sempre tem um formato. Começa no formato da primeira lista da estante.
     const FORMAT_KEYS = [...new Set(['pauper', 'commander', 'livre', ...all.map(d => d.format)])].filter(k => all.some(d => d.format === k));
     state.format = pedida.format;
     const visiveis = () => all.filter(d => d.format === state.format);
+    state.sharkDeck = (listasDoShark()[0] || {}).id || null;
     // E50 P5 · o rótulo diz quantas cartas entram no grimório; a reserva fica de fora e é dita à parte
     const contaDeck = d => { let main = 0, side = 0; for (const e of d.entries) { if (e.zone === 'side') side += e.qty; else main += e.qty; } return { main, side }; };
     const optsDe = lista => lista.map(d => { const c = contaDeck(d); return { value: d.id, label: `${d.name} · ${FORMATS[d.format] || d.format} · ${c.main} cartas${c.side ? ` (+${c.side} na reserva)` : ''}` }; });
     const opts = optsDe(all);
     // Leva 110 · escolher a lista: a linha da estante (cores, formato, principal e reserva), não um <select> de texto
     let guardadas = new Map();
-    try { if (cardRepo && cardRepo.cached) guardadas = await cardRepo.cached(all.flatMap(d => d.entries.map(e => e.name))); } catch (e) { /* sem cache: sem cores */ }
+    try { if (cardRepo && cardRepo.cached) guardadas = await cardRepo.cached([...all, ...doShark].flatMap(d => d.entries.map(e => e.name))); } catch (e) { /* sem cache: sem cores */ }
     const linhaDe = (d, extra) => { const c = contaDeck(d); return __m15.DeckLinha({ nome: d.name, formato: d.format, cores: coresDaLista(d.entries, guardadas), main: c.main, side: c.side, ...extra }); };
-    function seletor(id, rotulo, valor, aoEscolher) {
-      const d = byId(valor);
+    // B-22 · a linha de uma lista do Shark diz de onde ela veio (torneio, colocação, jogador, data)
+    const origemDoShark = l => `${l.origem} · ${l.jogador} · ${l.data.split('-').reverse().join('/')}`;
+    const linhaDoShark = (d, extra) => { const el = linhaDe(d, extra); el.querySelector('.deck-item__corpo').append(h('span', { class: 'deck-item__origem ds-text ds-text--sm ds-text--muted' }, origemDoShark(d.shark))); return el; };
+    function seletor(id, rotulo, valor, aoEscolher, fonte = visiveis, acha = byId, linha = linhaDe) {
+      const d = acha(valor);
       const botao = h('button', { class: 'deck-picker', id, type: 'button', 'aria-haspopup': 'dialog', 'aria-label': `${rotulo}: ${d ? d.name : 'nenhuma'}. Trocar`,
         onClick: () => Dialog({ title: rotulo, body: h('div', { class: 'ds-list deck-picker__lista', role: 'radiogroup', 'aria-label': rotulo },
-          ...visiveis().map(x => linhaDe(x, { dataset: { deckId: x.id }, tag: 'button', attrs: { type: 'button', role: 'radio', 'aria-checked': String(x.id === valor), onClick: () => { closeDialog(); aoEscolher(x.id); } },
+          ...fonte().map(x => linha(x, { dataset: { deckId: x.id }, tag: 'button', attrs: { type: 'button', role: 'radio', 'aria-checked': String(x.id === valor), onClick: () => { closeDialog(); aoEscolher(x.id); } },
             fim: x.id === valor ? h('span', { class: 'deck-item__ja', 'aria-hidden': 'true' }, Icone('marcar', { tamanho: 20 })) : h('span', { class: 'deck-item__ja' }) }))),
           actions: [Button('Voltar', { onClick: closeDialog })] }) },
-        d ? linhaDe(d, { tag: 'span', fim: Icone('descer', { tamanho: 18, classe: 'ds-list__seta' }) }) : Text('Escolha uma lista', { tone: 'muted' }));
+        d ? linha(d, { tag: 'span', fim: Icone('descer', { tamanho: 18, classe: 'ds-list__seta' }) }) : Text('Escolha uma lista', { tone: 'muted' }));
       return ChipField(rotulo, botao);
     }
     const mineField = h('div', {});
@@ -36844,6 +36991,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
             const lista = visiveis();
             if (!lista.some(d => d.id === state.mine)) state.mine = (lista[0] || all[0]).id;
             if (!lista.some(d => d.id === state.theirs)) state.theirs = (lista[0] || all[0]).id;
+            state.sharkDeck = (listasDoShark()[0] || {}).id || null; // B-22
             paintFormat(); paintMine(); paintOpponent(); paintCoverage(); confereOponente();
           });
           return c;
@@ -36872,7 +37020,9 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
       // sem isso, "97%" não diz nada e uma versão antiga em cache parece bug de regra
       const faltam = [...new Set(cv.pending.map(x => x.name))];
       // S64 · a lista só joga sem internet se as cartas dela estiverem guardadas
-      const nomes = [...new Set(d.entries.map(e => e.name))];
+      // B-22 · com o Shark na mesa, a lista dele conta junto: "Offline" e "Baixar cartas" cobrem os dois lados
+      const dele = ehBot() ? deckDoOponente() : null;
+      const nomes = [...new Set([...d.entries, ...(dele ? dele.entries : [])].map(e => e.name))];
       let guardadas = 0;
       try { guardadas = await cardRepo.pinned(nomes); } catch (e) { /* sem armazenamento: some o aviso */ }
       const prontaOffline = guardadas >= nomes.length;
@@ -36902,8 +37052,8 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
     let covDeleRun = 0;
     async function confereOponente() {
       const run = ++covDeleRun;
-      const d = state.opponent === 'goldfish' ? null : byId(state.theirs);
-      if (!d) { state.coberturaDele = 100; state.faltamDele = []; return paintStart(); }
+      const d = deckDoOponente();
+      if (!d) { state.coberturaDele = ehBot() ? 0 : 100; state.faltamDele = []; return paintStart(); } // B-22 · Shark sem lista no formato não começa
       let cards = new Map();
       try { cards = await cardRepo.byNames(d.entries.map(e => e.name)); } catch (e) { /* sem rede */ }
       if (run !== covDeleRun) return;
@@ -36915,7 +37065,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
     let startBtn = null;
     function paintStart() {
       if (!startBtn) return;
-      const ok = DEV || (state.coverage === 100 && state.coberturaDele === 100);
+      const ok = (DEV || (state.coverage === 100 && state.coberturaDele === 100)) && !(ehBot() && !deckDoOponente()); // B-22 · Shark sem lista no formato: nada pela metade
       startBtn.disabled = !ok || state.busy;
       startBtn.classList.toggle('ds-hidden', state.opponent === 'online'); // leva 133 · online começa pela sala
       const xs = state.faltamDele;
@@ -36954,9 +37104,12 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
 
     const theirsField = h('div', {});
     const ehBot = () => state.opponent === 'shark';
+    // B-22 · o Shark joga só com as suas cinco listas de torneio; fora do Pauper ele não tem lista e a tela diz isso
     const paintOpponent = () => mount(theirsField, ehBot() ? Stack({},
-      Text('O Shark joga com a lista escolhida abaixo e explica no registro as decisões que tomar.', { size: 'sm', tone: 'muted' }),
-      seletor('mesa-bot-deck', 'Lista do bot', state.theirs, id => { state.theirs = id; paintOpponent(); confereOponente(); }))
+      Text('O Shark joga com uma das cinco listas de torneio abaixo, as mais fortes do Pauper hoje, e explica no registro as decisões que tomar.', { size: 'sm', tone: 'muted' }),
+      listasDoShark().length
+        ? seletor('mesa-bot-deck', 'Lista do Shark', state.sharkDeck, id => { state.sharkDeck = id; paintOpponent(); confereOponente(); paintCoverage(); }, listasDoShark, sharkById, linhaDoShark)
+        : h('div', { id: 'mesa-bot-sem-lista' }, Note('O Shark só joga Pauper. Troque o formato para Pauper para jogar contra ele.', 'warning')))
       : state.opponent === 'hotseat' ? Stack({},
       Row({ class: 'ds-row--wrap' },
         Field('Seu nome', Input({ id: 'mesa-me', value: state.me, onInput: e => { state.me = e.target.value; } })),
@@ -37086,7 +37239,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
         const bloqueado = travado && k === 'shark';
         const c = Chip(label, { icone, pressed: state.opponent === k, dataset: { opponent: k } }); c.title = longo; c.setAttribute('aria-label', longo);
         if (bloqueado) { c.disabled = true; c.title = 'O Shark precisa da lista 100% coberta pelo motor'; }
-        else c.addEventListener('click', () => { state.opponent = k; paintChips(); paintOpponent(); confereOponente(); paintStart(); });
+        else c.addEventListener('click', () => { state.opponent = k; paintChips(); paintOpponent(); confereOponente(); paintCoverage(); paintStart(); }); // B-22 · o ladrilho Offline conta a lista do Shark
         return c;
       }));
       mount(oppNota, travado
@@ -37106,7 +37259,8 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
     async function start() {
       if (state.busy) return;
       const comBot = ehBot();
-      const mine = byId(state.mine), theirs = state.opponent === 'hotseat' || comBot ? byId(state.theirs) : null;
+      const mine = byId(state.mine), theirs = deckDoOponente(); // B-22 · com o Shark, a lista é uma das cinco dele
+      if (comBot && !theirs) return;
       state.busy = true; startBtn.disabled = true; startBtn.querySelector('.ds-btn__rotulo').textContent = 'Buscando cartas…'; // U2 · o ícone fica
       try {
         const names = [...new Set([...mine.entries, ...(theirs ? theirs.entries : [])].map(e => e.name))];
@@ -37133,7 +37287,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
         if (keeper && keeper.guardarLista) { for (const d of [mine, theirs].filter(Boolean)) keeper.guardarLista(d).catch(() => {}); }
         else cardRepo.pin(names).catch(() => {});
         // T-130 · CR 201.4 · catálogo do "nomeie uma carta": todas as listas da estante (não saem do aparelho) e as prontas do app, com o tipo de quem tem dado
-        const nomes = T.nomesDeCatalogo({ entradas: all.map(d => d.entries), cards: { ...Object.fromEntries([...guardadas.values()].filter(c => c && c.name).map(c => [c.name, c])), ...cards }, prontas: prontasDoApp() });
+        const nomes = T.nomesDeCatalogo({ entradas: [...all.map(d => d.entries), ...(comBot && theirs ? [theirs.entries] : [])], cards: { ...Object.fromEntries([...guardadas.values()].filter(c => c && c.name).map(c => [c.name, c])), ...cards }, prontas: prontasDoApp() });
         const table = T.createTable(T.buildSetup({ format, seed: state.seed, seats, cards, manaCheck: state.mana, mode: state.mode, nomes }),
           { options: { autoPass: !state.stopAll, bot: comBot ? { nivel: 'shark', seat: 1 } : null, iniciada: Date.now(), minhaLista: mine.name } }); // I5 · o histórico diz quando e com que lista
         await store.set(T.SAVE_KEY, table.serialize());
@@ -41450,6 +41604,16 @@ function createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr, 
           rel.listas.fixadas += r.fixadas.length; rel.listas.faltando.push(...r.faltando.map(n => `${d.name}: ${n}`)); rel.imagens += r.imagens;
           if (!r.faltando.length) rel.listas.prontas++;
         }
+        // B-22 · as listas do Shark (dado do app, não da estante): sem elas guardadas o Shark não joga sem internet
+        if (prontas) {
+          const nomes = [...new Set(prontas())];
+          if (nomes.length) {
+            onProgress({ etapa: 'listas', texto: 'Guardando as listas do Shark…' });
+            const r = await semFalha(() => guardar(nomes, null), { fixadas: [], faltando: nomes });
+            rel.listas.fixadas += r.fixadas.length; rel.listas.faltando.push(...r.faltando.map(n => `Shark: ${n}`));
+            if (store && !r.faltando.length) await semFalha(() => store.set('offline.prontas', `${nomes.length}:${nomes.slice(0, 5).join('|')}`), null);
+          }
+        }
         onProgress({ etapa: 'colecao', texto: 'Guardando as cartas da coleção…' });
         const c = await semFalha(() => api.guardarColecao(), { fixadas: [], faltando: [], imagens: 0 });
         rel.colecao.fixadas = c.fixadas.length; rel.colecao.faltando = c.faltando; rel.imagens += c.imagens;
@@ -41713,6 +41877,8 @@ const temRede = () => typeof navigator === 'undefined' || navigator.onLine !== f
 const envVivo = { get id() { return environment.id; }, get online() { return environment.online; }, get label() { return environment.label; }, get reason() { return environment.reason; }, get fix() { return environment.fix; } };
 // O1 · o que é seu fica no aparelho: listas e coleção guardadas sozinhas, com rede
 const keeper = createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr, store: platform.store, persistence: platform.persistence, online: temRede,
+    // B-22 · as cinco listas do Shark (principal e reserva) ficam guardadas no aparelho: "Preparar tudo" e a manutenção silenciosa as pegam
+    prontas: () => (__m25.LISTAS_DO_SHARK || []).flatMap(l => __m14.parseDeckText(l.text).entries.map(e => e.name)),
   }); // G-262 · relato #17: as listas que vinham com o app saíram da tela; a pré-carga delas para jogar sem internet saiu junto
 keeper.vigiar();
 let environment = ENVIRONMENTS.online;

@@ -1039,3 +1039,42 @@ test('B9 · combo na mesa: as ações do laço são reconhecidas como repetiçã
   assert.equal(T.repeticaoDoCombo(fora.s, { t: 'pass', p: 0 }, 0, null), false);
   assert.equal(T.chaveDaRepeticao(fora.s), null);
 });
+
+/* ---- B-22 · as cinco listas do Shark (leva B-173) ---- */
+// O Shark só joga com `LISTAS_DO_SHARK` (dado do módulo: cinco listas de torneio do catálogo, escolhidas em 23/10/2026). A tela de
+// preparação monta o deck a partir daí e exige cobertura 100%; aqui se prova que o dado é são e que cada lista joga no motor.
+test('B-22 · as cinco listas do Shark: dado do módulo, ids únicos, 60 no principal e 15 na reserva, Pauper, com origem e data', () => {
+  const L = B.LISTAS_DO_SHARK;
+  assert.equal(L.length, 5);
+  assert.equal(new Set(L.map(l => l.id)).size, 5, 'ids únicos');
+  assert.deepEqual(J(L.map(l => l.arquetipo)), ['Grixis Madness', 'Dimir Control', 'Dimir Faeries', 'Mono Blue Terror', 'Mono Green Elves']);
+  const { decks: D } = loadModules();
+  for (const l of L) {
+    assert.equal(l.format, 'pauper', l.id);
+    assert.match(l.data, /^2026-\d\d-\d\d$/, l.id + ' tem data');
+    for (const k of ['nome', 'origem', 'jogador', 'catalogo']) assert.ok(l[k], `${l.id} tem ${k}`);
+    const { entries } = D.parseDeckText(l.text);
+    assert.equal(entries.filter(e => e.zone === 'main').reduce((n, e) => n + e.qty, 0), 60, l.id + ' principal');
+    assert.equal(entries.filter(e => e.zone === 'side').reduce((n, e) => n + e.qty, 0), 15, l.id + ' reserva');
+  }
+});
+process.env.ORC = process.env.ORC || '40'; // orçamento por decisão do torneio, só para o portão (lido na importação); a força se mede no torneio
+test('B-22 · cada lista do Shark tem dado oficial para toda carta e cobertura 100% no motor', async () => {
+  const { listasDoShark } = await import('./torneio.listas.mjs');
+  const { scripts: S } = loadModules();
+  for (const l of listasDoShark()) {
+    const semDado = l.entries.filter(e => !l.cartas[e.name]).map(e => e.name);
+    assert.deepEqual(J(semDado), [], l.id + ' sem dado oficial'); // J: a lista vem de outro reino (vm) e o deepEqual estrito compara protótipos
+    const cv = S.deckCoverage(l.entries, l.cartas);
+    assert.equal(cv.pct, 100, `${l.id}: ${cv.pending.map(p => p.name + ' (' + p.level + ')').join(', ')}`);
+  }
+});
+test('B-22 · cada lista do Shark joga uma partida Shark × Shark sem jogada ilegal e sem travar (orçamento curto)', async () => {
+  const { listasDoShark, partida } = await import('./torneio.listas.mjs');
+  const L = listasDoShark();
+  for (let i = 0; i < L.length; i++) {
+    const g = partida(2210 + i, 'shark', 'shark', L[i], L[(i + 1) % L.length], 400);
+    assert.equal(g.ilegal, null, `${L[i].id} × ${L[(i + 1) % L.length].id}: ${g.ilegal}`);
+    assert.ok(g.acoes > 20, `${L[i].id}: a partida andou (${g.acoes} ações)`);
+  }
+});

@@ -400,6 +400,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-z10 🟡 | Shark: truque próprio no ataque (conta com a habilidade usada depois dos bloqueios e espera os bloqueios); Elves medido por piloto: sem ganho demonstrado (leva 159) | B16 | 1 | bloqueio com truque, truque do oponente |
 | 16º-z9 🟡 | Shark: plano do baralho — Walls Combo fecha a mana infinita; vitórias pilotando a lista 18% → 33% (leva 147) | B9 | 1 | Elves e os outros perfis |
 | 16º-z2 ✅ | Shark usa todas as mecânicas, inclusive as dos terrenos: estoura o terreno que busca básico, abre mana com habilidades, ordena antes do corte do relógio; auditoria de uso (leva 143) | B21 | 1 | — |
+| 16º-sa 🟡 | B22 Shark profissional com cinco listas: fatia 1 ✅ (B-173) listas de torneio embutidas e seletor do Shark só com elas; fatias 2–9 (linha de base, um perfil por lista, jogar em volta, fechamento) | B22 | 9 | 16º-z2 |
 | 16º-y ✅ | Shark: olhar o turno seguinte (simulação até o próximo turno) — medido, não pagou, fica desligado; achado: a força está no plano de cada baralho (leva 131) | B15 | 1 | — |
 | 16º-w ✅ | Shark: pesos da avaliação postos à prova por torneio — nenhum paga; achado: o limite é a profundidade, não o peso (leva 126) | B20 | 1 | — |
 | 16º-j3 🟡 | Scanner de referência (E52): X14 resposta imediata (leva 127) | E52 | 2 de 6 a 7 | teste no aparelho: "até aceitar" no diagnóstico |
@@ -7364,6 +7365,49 @@ Wildfire × Rakdos Madness) mostrou este como o erro mais caro.
   Caretaker, em duas chamadas; o dano que fecha a partida achado com relógio curto, com o v6 errando).
 - **Depende de:** B17.
 
+**B22 · Shark profissional com cinco listas** 🟡 (pedido do dono de 23/10/2026; fatia 1 na leva B-173)
+- **Valor:** o Shark joga a nível competitivo com cinco listas Pauper de torneio, e o usuário só escolhe uma dessas
+  cinco para ele; cada lista ganha um perfil medido por piloto.
+- **As cinco listas (escolha de 23/10/2026, dado em `LISTAS_DO_SHARK`, módulo do bot):** do catálogo de torneios do app
+  (ramo `catalogo`, 517 listas Pauper de 24/09 a 23/10/2026) agrupadas por semelhança de cartas (Jaccard ≥ 0,45 sobre as
+  cartas não básicas), os cinco grupos mais frequentes: Grixis Madness (69 listas), Dimir Control (50), Dimir Faeries
+  (38), Mono Blue Terror (35), Mono Green Elves (26); corroborado pelo panorama do metagame de 31/08/2026
+  (coolstuffinc, "Understanding Pauper's metagame in 2026"). De cada grupo, a lista mais recente com 1º ou 2º lugar
+  (Liga 5-0 e torneio de até 16 jogadores contam como 3º/4º): Madness `LucasG1ggs` 1º de 44 (Challenge 32, 22/10) ·
+  Control `Lorenzo Bergamini` 1º de 104 (TheSideralWolf #4, 27/09) · Faeries `barff` 2º de 63 (Challenge 32, 25/09) ·
+  Terror `discoverN` 2º (Challenge 32, 16/10) · Elves `Romain Lechartier` 1º de 24 (Rebound Dimanche, 04/10). Ficaram de
+  fora as listas com carta cuja aprovação do motor não bate com o texto atual da Scryfall (Extract a Confession, em 75
+  listas; Glimpse the Impossible; Abjure; Barbed Batterfist) até a M-575 reaprovar; depois dela as listas podem ser
+  refrescadas. Fyndhorn Elves entrou em `.listas/oficiais-shark.json` (Scryfall, 23/10/2026): só a lista dos Elfos usa.
+- **Aceite:**
+  - com o Shark na mesa, o seletor "Lista do Shark" oferece só as cinco, cada uma com nome, arquétipo, origem
+    (torneio, colocação, jogador, data); "A dois" e online continuam escolhendo da estante ✅ (B-173);
+  - a partida começa com a lista escolhida; fora do Pauper o Shark não tem lista, a tela diz isso e Começar fica
+    desligado ✅ (B-173);
+  - cada lista tem dado oficial para toda carta, cobertura 100% no motor e joga Shark × Shark sem jogada ilegal ✅ (B-173);
+  - linha de base medida com as cinco (torneio por piloto) e registrada aqui (fatia 2);
+  - um perfil por lista (plano, mulligan, sequência, ameaças, respostas), cada um medido por piloto: novo ≥ antigo, zero
+    ilegais, p95 ≤ 400 ms (fatias 3–7); jogar em volta do que a lista do oponente tem (fatia 8);
+  - fechamento: nenhuma das cinco abaixo de 45% contra o campo das outras; p95 ≤ 400 ms no orçamento do celular (fatia 9).
+- **Fatias:** 1 listas embutidas + seletor restrito (B-173 ✅) · 2 linha de base · 3 Madness · 4 Terror · 5 Faeries ·
+  6 Control · 7 Elves · 8 jogar em volta · 9 fechamento.
+- **Decisão registrada (divergência dita antes de executar):** o Shark deixa de jogar com qualquer lista da estante,
+  inclusive fora do Pauper (Commander e livre ficam sem Shark). É o pedido do dono; se um dia quiser o Shark com
+  lista própria de novo, é um chip "lista da estante" no seletor, uma leva.
+- **Testes:** `bot.unit` (B-22: dado são, cobertura 100%, uma partida Shark × Shark por lista com orçamento curto);
+  `e2e` "B-173" (seletor com as cinco e a origem, partida com a escolhida, "A dois" com a estante, Commander sem Shark).
+  A Scryfall falsa do `e2e` passou a ter as cartas das cinco listas com o texto oficial de `.listas/oficiais*.json`
+  (carta que o DB do teste já tinha ficou como estava).
+- **Testes de outras trilhas ajustados pela decisão (declarado):** O1 (a mesa abre no Pauper antes de escolher o Shark; a
+  carta "nunca vista" sem internet passou a ser Prodigal Sorcerer, porque Lightning Bolt agora é guardada pelo "Preparar
+  tudo"), J6 e V5 (lista `Verde` em Pauper e o Shark com os Elfos, para haver Forest dos dois lados), MJ3c (o Shark com os
+  Elfos). **Achado para a `jogabilidade` (não corrigido aqui):** o voo da carta do oponente nasce ~15 px fora do centro do
+  contador da mão dele quando, no mesmo redesenho, aparece um chip novo no lado dele (cemitério) e o contador se move —
+  `medeVoo` mede o contador antes do redesenho. Reproduz no MJ3c com a lista Mono Blue Terror do Shark e semente 5.
+- **Depende de:** B21; a reaprovação da M-575 para refrescar as listas Dimir.
+- **Fora:** sideboard real na melhor de três (a reserva das listas vem junto, mas a troca fica para depois da B22);
+  outras listas; formatos além do Pauper.
+
 **B15 · Olhar o turno seguinte** ✅ (leva 132, 03/10/2026) — fechada com resultado negativo; **o Shark não mudou de jogo.**
 - **Pergunta:** simular o resto do turno e o turno inteiro do oponente (em vez de um lance) deixa o Shark mais forte?
 - **Entregue (desligado):** política rápida para os dois lados (`politicaRapida`), rolagem até o próprio turno seguinte
@@ -12347,7 +12391,7 @@ Regras completas em `CLAUDE.md`. Trilhas em uso (o nome vai no rodapé `Trilha:`
 
 | Trilha | Escopo |
 |---|---|
-| `bot` | Shark: B9–B20 |
+| `bot` | Shark: B9–B22 (B22: cinco listas de torneio e um perfil por lista) |
 | `motor` | épico R, regras e scripts de carta |
 | `geral` | design system, scanner, coleção, listas, offline, o que não é bot nem motor |
 | `infra` | portão, CI, publicação |
