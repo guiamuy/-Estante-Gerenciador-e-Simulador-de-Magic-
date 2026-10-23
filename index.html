@@ -2013,7 +2013,7 @@ body[data-mesa-cheia="true"] .tb-steps__list li { padding: 0 0 1px; border-botto
 .tb-voo--pilha img, .tb-voo--pilha .ds-verso { display: block; width: 100%; height: 100%; object-fit: cover; }
 .tb-stack__conta { flex: none; font-variant-numeric: tabular-nums; }
 /* MJ6a · mirar por arrasto: a carta levantada da mão, a seta tracejada (tracejado é alvo) e os alvos legais acesos */
-#tb-hand .tb-card { touch-action: pan-x; } /* arrastar de lado rola a mão; para cima é com a mesa */
+#tb-hand .tb-card, .tb-side .tb-card[data-mira-origem="true"] { touch-action: pan-x; } /* arrastar de lado rola a fileira; para cima é com a mesa */
 #tb[data-mira] .tb-hand__body { grid-template-rows: 0fr; } /* a mão recolhe enquanto mira: o campo inteiro fica à vista */
 .tb-fx-camada > .tb-mira__carta { position: fixed; margin: 0; pointer-events: none; transform: translateY(calc(var(--space-2) * -1)); box-shadow: var(--shadow-3); }
 .tb-mira { z-index: 1; }
@@ -36211,25 +36211,48 @@ function saidasDaPilha(antes = [], s) {
   const agora = new Set((s.stack || []).map(String));
   return antes.map(String).filter(k => { const o = s.objects[k]; return !agora.has(k) && !!o && !o.ability && ['graveyard', 'exile', 'library', 'hand', 'command'].includes(o.zone); });
 }
-/* ---------------- MJ6a · mirar por arrasto ----------------
-   Arrastar para cima uma mágica da mão até o alvo conjura com ele. `alvosDoArrasto` lê as ações legais da carta (o motor
-   decide o que é legal) e agrupa as conjurações de um alvo só por alvo; `como` diz o que soltar faz: `conjura` (uma ação),
-   `pergunta` (só muda como pagar, X ou cor: a pergunta de sempre) ou `folha` (outra diferença: abre a folha da carta).
-   Carta que tem conjuração com dois alvos ou mais não mira por arrasto (soltar num alvo só esconderia a escolha).
-   `gestoDeMira` decide, pelo deslocamento do dedo, se o gesto é mira (para cima, a vertical domina), outro gesto
-   (rolar a mão de lado) ou ainda nada. Puros. */
-const CHAVES_DA_PERGUNTA = new Set(['t', 'p', 'oid', 'targets', 'pay', 'x', 'color', 'add']);
-function alvosDoArrasto(legais = [], oid) {
+/* ---------------- MJ6a/MJ6b · mirar por arrasto ----------------
+   Arrastar para cima uma carta até o alvo age nele: a mágica da mão é conjurada (MJ6a); a permanente do campo ativa a
+   habilidade (MJ6b); a fonte de um gatilho que espera alvo escolhe o alvo (MJ6b). `alvosDoArrasto` lê as ações legais
+   da carta (o motor decide o que é legal) e agrupa as de um alvo só por alvo; `como` diz o que soltar faz: `age` (uma
+   ação), `pergunta` (mesma ação, só muda como pagar, X ou cor: a pergunta de sempre) ou `folha` (outra diferença — modo,
+   outra habilidade: abre a folha da carta). Carta que tem ação com dois alvos ou mais não mira por arrasto (soltar num
+   alvo só esconderia a escolha). `origensDaMira` diz de antemão que cartas do campo podem mirar (as com habilidade
+   ativada de um alvo, e a fonte do gatilho pendente): só elas trocam o gesto vertical pela mira. `gestoDeMira` decide,
+   pelo deslocamento do dedo, se o gesto é mira (para cima, a vertical domina), outro gesto (rolar) ou ainda nada. Puros. */
+const CHAVES_DA_PERGUNTA = new Set(['t', 'p', 'oid', 'index', 'fromHand', 'fromGraveyard', 'targets', 'pay', 'x', 'color', 'add', 'vida']);
+function alvosDoArrasto(legais = [], oid, { pending = null } = {}) {
   const k = String(oid), porAlvo = new Map();
-  const daCarta = legais.filter(a => a && a.t === 'cast' && String(a.oid) === k && Array.isArray(a.targets) && a.targets.length);
-  if (daCarta.some(a => a.targets.length > 1)) return [];
-  for (const a of daCarta) {
-    const x = a.targets[0]; if (!x || (x.oid == null && x.player == null)) continue;
+  const poe = (x, a) => {
+    if (!x || (x.oid == null && x.player == null)) return;
     const chave = x.oid != null ? 'o:' + x.oid : 'p:' + x.player;
     if (!porAlvo.has(chave)) porAlvo.set(chave, { chave, alvo: x.oid != null ? { oid: String(x.oid) } : { player: x.player }, acoes: [] });
     porAlvo.get(chave).acoes.push(a);
+  };
+  // MJ6b · gatilho esperando alvo: a origem é a permanente de onde ele veio (ele ainda não está na pilha)
+  if (pending && pending.kind === 'pick_target' && pending.trigger && pending.trigger.source != null && String(pending.trigger.source) === k) {
+    (pending.options || []).forEach((x, index) => poe(x, { t: 'pick_target', p: pending.p, index }));
+    return [...porAlvo.values()].map(g => ({ ...g, como: 'age' }));
   }
-  return [...porAlvo.values()].map(g => ({ ...g, como: g.acoes.length === 1 ? 'conjura' : g.acoes.every(a => Object.keys(a).every(c => CHAVES_DA_PERGUNTA.has(c))) ? 'pergunta' : 'folha' }));
+  const daCarta = legais.filter(a => a && (a.t === 'cast' || a.t === 'activate') && String(a.oid) === k && Array.isArray(a.targets) && a.targets.length);
+  if (daCarta.some(a => a.targets.length > 1)) return [];
+  for (const a of daCarta) poe(a.targets[0], a);
+  const mesma = (a, b) => a.t === b.t && (a.index ?? null) === (b.index ?? null);
+  return [...porAlvo.values()].map(g => ({ ...g, como: g.acoes.length === 1 ? 'age'
+    : g.acoes.every(a => mesma(a, g.acoes[0]) && Object.keys(a).every(c => CHAVES_DA_PERGUNTA.has(c))) ? 'pergunta' : 'folha' }));
+}
+function origensDaMira(s, v, { abilidadesDe = null, temAlvo = __m23.isTargeted } = {}) {
+  const out = new Set();
+  if (!s || !s.objects) return out;
+  const pd = s.pending;
+  if (pd && pd.kind === 'pick_target' && pd.p === v && pd.trigger && pd.trigger.source != null) out.add(String(pd.trigger.source));
+  const habs = abilidadesDe || (o => ((((s.facts || {})[o.name] || {}).script || {}).abilities || []));
+  for (const o of Object.values(s.objects)) {
+    if (!o || o.zone !== 'battlefield' || o.controller !== v) continue;
+    let abs = []; try { abs = habs(o) || []; } catch (e) { abs = []; }
+    if (abs.some(ab => ab && ab.kind === 'activated' && [...(ab.effects || []), ...(ab.modes || []).flatMap(m => (m && m.effects) || [])].filter(temAlvo).length >= 1)) out.add(String(o.oid));
+  }
+  return out;
 }
 function gestoDeMira(dx, dy, { limiar = 14 } = {}) {
   const sobe = -dy, lado = Math.abs(dx);
@@ -36386,7 +36409,7 @@ function createSom({ store = null, criaContexto = null } = {}) {
     get tocados() { return tocados.slice(); }
   };
 }
-return { eventosSensoriais, planoDeSom, planoDeEfeitos, planoDeVoo, ondePousa, planoDeSaida, monteDaPilha, saidasDaPilha, alvosDoArrasto, gestoDeMira, setasDoCombate, curvaDaSeta, marcasDaPrevia, roteiroDaJogada, createSom, limpaPrefs, duracaoDe, RECEITAS, NOMES, ORDEM, SOM_DO_TIPO, CHAVE, GLOBAL_A_PARTIR_DE };
+return { eventosSensoriais, planoDeSom, planoDeEfeitos, planoDeVoo, ondePousa, planoDeSaida, monteDaPilha, saidasDaPilha, alvosDoArrasto, origensDaMira, gestoDeMira, setasDoCombate, curvaDaSeta, marcasDaPrevia, roteiroDaJogada, createSom, limpaPrefs, duracaoDe, RECEITAS, NOMES, ORDEM, SOM_DO_TIPO, CHAVE, GLOBAL_A_PARTIR_DE };
 })();
 
 /* ==== src/app/table.js ==== */
@@ -36924,15 +36947,18 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       marcas.push(`verso:${zona}:${r.oid}`);
     }
   }
-  /* ---- MJ6a · mirar por arrasto: arrastar para cima uma mágica da mão até o alvo conjura com ele. A carta se levanta da
-     mão (uma cópia na camada de efeitos; a mão recolhe e o campo inteiro fica à vista), uma seta tracejada dourada vai da
-     carta ao dedo e encaixa no alvo legal sob ele (os legais acendem); soltar no alvo conjura, soltar fora ou de volta na
-     carta não faz nada. O motor decide o que é legal (alvosDoArrasto lê legalActions); tocar continua abrindo a folha. ---- */
+  /* ---- MJ6a/MJ6b · mirar por arrasto: arrastar para cima uma carta até o alvo age nele — a mágica da mão é conjurada, a
+     permanente do campo ativa a habilidade, a fonte do gatilho que espera alvo escolhe o alvo. A carta se levanta (uma
+     cópia na camada de efeitos; a mão recolhe e o campo inteiro fica à vista), uma seta tracejada dourada vai da carta ao
+     dedo e encaixa no alvo legal sob ele (os legais acendem); soltar no alvo age, soltar fora ou de volta na carta não faz
+     nada. O motor decide o que é legal (alvosDoArrasto lê legalActions); tocar continua abrindo a folha. O dedo é lido a
+     cada quadro (requestAnimationFrame), não a cada evento. ---- */
   let miraAtiva = null; // a mira em curso (redesenhar a mesa no meio dela, por jogada do outro, cancela)
   const ALVO_DA_MIRA = '.tb-side .tb-card[data-oid], .tb-side .tb-card[data-oids], #tb-life-me, #tb-life-opp';
   function armaMira(el, oid) {
-    let x0 = 0, y0 = 0, id = null, fase = null, mira = null, engole = false;
+    let x0 = 0, y0 = 0, id = null, fase = null, mira = null, engole = false, quadro = 0, ux = 0, uy = 0;
     const fim = () => {
+      if (quadro) { cancelAnimationFrame(quadro); quadro = 0; }
       if (!mira) return;
       for (const t of root.querySelectorAll('[data-mira]')) delete t.dataset.mira;
       mira.svg.remove(); mira.carta.remove(); delete root.dataset.mira;
@@ -36942,7 +36968,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const alvoEm = (x, y) => {
       for (const e of document.elementsFromPoint(x, y)) {
         if (e.closest('#tb-hand')) continue;
-        const t = e.closest(ALVO_DA_MIRA); if (!t || !root.contains(t)) continue;
+        const t = e.closest(ALVO_DA_MIRA); if (!t || !root.contains(t) || t === el) continue; // soltar na própria carta cancela
         if (t.id === 'tb-life-me' || t.id === 'tb-life-opp') { const g = mira.porChave.get('p:' + (t.id === 'tb-life-me' ? mira.v : mira.outro)); if (g) return { g, el: t }; continue; }
         for (const o of (t.dataset.oids ? t.dataset.oids.split(' ') : [t.dataset.oid])) { const g = mira.porChave.get('o:' + o); if (g) return { g, el: t }; }
       }
@@ -36960,11 +36986,13 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       mira.g.replaceChildren(...(c ? [svgEl('path', { class: 'tb-seta__sombra', d: c.d }), svgEl('path', { class: 'tb-seta__traco', d: c.d }), svgEl('polygon', { class: 'tb-seta__ponta', points: c.ponta })] : []));
       mira.svg.dataset.alvo = sob ? sob.g.chave : '';
     };
+    const agenda = (x, y) => { ux = x; uy = y; if (!quadro) quadro = requestAnimationFrame(() => { quadro = 0; if (mira) desenha(ux, uy); }); }; // um desenho por quadro
     const comeca = () => {
       const s = table.state, v = table.viewer();
       if (!s || s.status !== 'playing' || handoff || document.querySelector('.tb-peek, .ds-dialog')) return false;
+      const pending = s.pending && s.pending.p === v ? s.pending : null;
       let legais = []; try { legais = E.legalActions(s, v); } catch (e) { return false; }
-      const alvos = __m33.alvosDoArrasto(legais, oid); if (!alvos.length) return false;
+      const alvos = __m33.alvosDoArrasto(legais, oid, { pending }); if (!alvos.length) return false;
       const de = caixaDe(el), carta = el.cloneNode(true);
       carta.removeAttribute('id'); carta.disabled = true; carta.tabIndex = -1; carta.className = 'tb-card tb-mira__carta'; carta.dataset.mira = 'origem'; carta.dataset.sobrepoe = 'true'; // a carta levantada passa por cima do campo de propósito
       Object.assign(carta.style, { left: `${de.x}px`, top: `${de.y}px`, width: `${de.w}px`, height: `${de.h}px` });
@@ -36973,7 +37001,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       mira = { v, outro: s.players.findIndex((_, i) => i !== v), de, carta, svg, g, porChave: new Map(alvos.map(a => [a.chave, a])), sobEl: null, sob: null };
       for (const a of alvos) {
         const t = a.alvo.oid != null ? root.querySelector(`.tb-side .tb-card[data-oid="${a.alvo.oid}"]`) || root.querySelector(`.tb-side .tb-card[data-oids~="${a.alvo.oid}"]`) : root.querySelector(a.alvo.player === v ? '#tb-life-me' : '#tb-life-opp');
-        if (t) t.dataset.mira = 'alvo';
+        if (t && t !== el) t.dataset.mira = 'alvo'; // a própria carta não acende: soltar nela cancela
       }
       root.dataset.mira = String(oid); miraAtiva = fim;
       __m0.haptics.evento('toque');
@@ -36989,18 +37017,19 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
         fase = 'mirando'; engole = true;
         try { el.setPointerCapture(id); } catch (err) { /* sem captura: os eventos ainda chegam enquanto o dedo está na carta */ }
       }
-      if (fase === 'mirando' && mira) { e.preventDefault(); desenha(e.clientX, e.clientY); }
+      if (fase === 'mirando' && mira) { e.preventDefault(); agenda(e.clientX, e.clientY); }
     });
     const solta = e => {
       if (e.pointerId !== id) return;
       const estava = fase === 'mirando' && mira; fase = null;
       if (!estava) return;
-      const sob = e.type === 'pointerup' ? (desenha(e.clientX, e.clientY), mira.sob) : null;
+      if (quadro) { cancelAnimationFrame(quadro); quadro = 0; }
+      const sob = e.type === 'pointerup' ? (desenha(e.clientX, e.clientY), mira.sob) : null; // ao soltar, o desenho é na hora
       fim();
       if (!sob) { root.dataset.mirou = 'cancelou'; return; }
       root.dataset.mirou = sob.g.chave;
-      const { como, acoes } = sob.g;
-      if (como === 'conjura') act(acoes[0]); else if (como === 'pergunta') escolher(`Conjurar ${(table.state.objects[oid] || {}).name || 'a carta'}`, acoes); else openObject(oid);
+      const { como, acoes } = sob.g, nome = (table.state.objects[oid] || {}).name || 'a carta';
+      if (como === 'age') act(acoes[0]); else if (como === 'pergunta') escolher(acoes[0].t === 'cast' ? `Conjurar ${nome}` : `${nome}: ativar`, acoes); else openObject(oid);
     };
     el.addEventListener('pointerup', solta);
     el.addEventListener('pointercancel', solta);
@@ -37011,6 +37040,10 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   function armaMiras(s, v) {
     if (!s || s.status !== 'playing' || handoff) return;
     for (const el of root.querySelectorAll('#tb-hand .tb-card[data-oid]')) armaMira(el, el.dataset.oid);
+    // MJ6b · no campo, só quem pode mirar troca o gesto vertical pela mira (o resto continua rolando a mesa)
+    const origens = __m33.origensDaMira(s, v, { abilidadesDe: o => E.abilitiesOf(s, o) });
+    if (!origens.size) return;
+    for (const el of root.querySelectorAll('.tb-side--me .tb-card[data-oid]')) if (origens.has(el.dataset.oid)) { el.dataset.miraOrigem = 'true'; armaMira(el, el.dataset.oid); }
   }
   /* MJ5 · a mágica que saiu da pilha para uma zona com contador (resolveu, foi anulada, voltou à mão, foi embaralhada) desce
      do lugar onde estava no monte (ou no detalhe aberto) até o contador do dono; só a que estava à vista tem foto */

@@ -599,7 +599,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-jd ✅ | MJ3 identidade por `oid` e continuidade (FLIP) entre mão, pilha, campo, cemitério e exílio (MJ3a na J-9, MJ3b na J-10, MJ3c na J-11) | MJ | 2 | 16º-jb; `mtg-scale-architect` (quadros) |
 | 16º-je ✅ | MJ4 combate desenhado: setas de ataque e bloqueio com a prévia junto da seta | MJ | 2 | 16º-jd |
 | 16º-jf ✅ | MJ5 pilha com profundidade: cartões empilhados, topo levantado, resolução descendo ao destino | MJ | 1 | 16º-jb, 16º-jd |
-| 16º-jg ◐ | MJ6 mirar por arrasto com linha curva (tocar continua valendo) — MJ6a ✅ (J-15), MJ6b ○ | MJ | 2 | 16º-je |
+| 16º-jg ✅ | MJ6 mirar por arrasto com linha curva (tocar continua valendo) — MJ6a (J-15), MJ6b (J-16) | MJ | 2 | 16º-je |
 | 16º-jh | MJ7 material: sombra que cresce ao levantar, luz do feltro, latão, dupla face virando | MJ | 1 | 16º-jb; tokens pelo `/ds` |
 | 16º-ji | MJ8 ritmo do turno: transições de fase e de vez, cena do oponente com continuidade | MJ | 1–2 | 16º-jd |
 | 16º-jj | MJ9 fim de partida com peso: placar, série, últimas jogadas | MJ | 1 | — |
@@ -10703,7 +10703,7 @@ destino (MJ3).
   desce (deixa de existir); a quarta carta para baixo no monte não aparece (a conta diz quantas); a anulação continua com
   o anel da G5 por cima, sem desenho próprio da descida.
 
-**MJ6 · Mirar por arrasto** ◐ (2 fatias: MJ6a na J-15; MJ6b a seguir) — arrastar da origem ao alvo com linha curva e
+**MJ6 · Mirar por arrasto** ✅ (2 fatias: MJ6a na J-15; MJ6b na J-16) — arrastar da origem ao alvo com linha curva e
 retorno imediato; limiar de distância, cancelar ao voltar; tocar continua valendo.
 - **Fatias** (`mtg-slice-architect`, 22/10; uma leva cada):
   - **MJ6a · Arrastar a mágica da mão até o alvo** ✅ (leva J-15) — arrastar para cima (14 px, a vertical domina) uma
@@ -10725,8 +10725,31 @@ retorno imediato; limiar de distância, cancelar ao voltar; tocar continua valen
     dois temas). **Revisão de escala:** aprovado (+2,9 KB gzip); dívida aceita para a MJ6b: agrupar o `pointermove` por
     quadro (`requestAnimationFrame`). **Fora:** mágica com dois alvos ou mais; teclado e leitor de tela continuam pelo toque e pela folha (a
     mira é atalho, não o único caminho).
-  - **MJ6b · Arrastar da permanente e do gatilho** ○ — habilidade com alvo arrastada da carta no campo; alvo de gatilho
-    arrastado do monte da pilha; mesmas regras de limiar, encaixe e cancelamento.
+  - **MJ6b · Arrastar da permanente e do gatilho** ✅ (leva J-16) — o mesmo gesto da MJ6a vale no seu campo: arrastar
+    para cima uma permanente que tenha habilidade ativada com **um** alvo (Prodigal Sorcerer) acende os alvos legais e
+    soltar num deles ativa nela (uma ação: ativa; só muda o pagamento, X ou cor: a pergunta de sempre; outra habilidade
+    no mesmo alvo: a folha); enquanto um gatilho espera o alvo (`pick_target`), a **fonte** dele (a permanente de onde
+    veio: Harrier Strix ao entrar) vira origem e soltar num alvo escolhe. Só as permanentes que podem mirar (habilidade
+    ativada de um alvo pelo script, ou fonte do gatilho pendente — `__m33.origensDaMira`, com as habilidades concedidas
+    por `E.abilitiesOf`) trocam o gesto vertical pela mira (`touch-action: pan-x`, `data-mira-origem`); terreno e criatura
+    sem habilidade continuam rolando a mesa. A própria carta não acende e soltar nela cancela. Permanente virada (ou sem
+    ativação legal agora): o gesto começa e termina sem mira, porque o motor não oferece a ação. **Dívida da revisão de
+    escala da J-15 paga:** o dedo é desenhado uma vez por quadro (`requestAnimationFrame`), com o desenho na hora ao
+    soltar. **Testes:** `sentidos.unit` (+2: ativações agrupadas por alvo, mesma habilidade com pagamentos diferentes =
+    pergunta, duas habilidades no mesmo alvo = folha, conjurar ou ativar da mão = folha; gatilho pendente mira a partir da
+    fonte e só dela; origens da mira: suas permanentes com ativada de um alvo, também modal, a fonte do gatilho pendente
+    seu, não o do outro, não terreno, não criatura sem habilidade, não a permanente do oponente; habilidades concedidas
+    pelo `abilidadesDe`); e2e "MJ6b" (360×780, goldfish: só o Pinga tem o gesto; arrastar dele acende o urso e as duas
+    vidas, não ele mesmo nem as Ilhas, a carta se levanta, 30 movimentos num quadro viram um desenho, a seta encaixa no
+    urso, soltar ativa sem folha e o urso leva 1; Ilha arrastada não mira; Strix entra e o gatilho espera: a fonte vira
+    origem, arrastar dela até o leque de Ilhas escolhe uma e ela vira; Pinga virado não mira; `auditaTela` mirando do campo
+    nos dois temas). **Revisão de escala:** aprovado, +1,0 KB gzip; `origensDaMira` com 80 permanentes no campo custa 0,38 ms
+    por pintura (Node), sem `legalActions`. **Expectativa mudada de propósito:** no `sentidos.unit` da MJ6a, `como: 'conjura'` virou `'age'`,
+    porque o mesmo gesto agora ativa e escolhe alvo de gatilho. **Divergência da fatia:** a fatia dizia "arrastado do
+    monte da pilha", mas o gatilho que espera alvo ainda não está na pilha (o motor pergunta antes de pô-lo): a origem é a
+    permanente de onde ele veio, que é também o que a pessoa olha. **Fora:** habilidade ou gatilho com dois alvos ou mais;
+    alvo que é a própria carta (pelo toque ou pela bandeja); habilidade ativada de carta na mão ou no cemitério (ciclar
+    com alvo, canalizar) continua pela folha; leque de cartas iguais: soltar nele escolhe a primeira (são iguais).
 
 **MJ7 · Material** ○ (1 leva) — sombra que cresce ao levantar a carta, luz suave no feltro, latão com brilho leve, carta
 de duas faces virando em 3D curto; tokens novos pelo `/ds` nos dois temas.

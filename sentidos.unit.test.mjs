@@ -349,13 +349,14 @@ test('MJ5 · plano de voo: o permanente que resolve sai da miniatura dele no mon
   assert.equal(semCaixa[0].escala, Math.round(44 / 106 * 1000) / 1000, 'miniatura sem caixa (fora da tela): cai para a faixa');
 });
 
-test('MJ6a · alvos do arrasto: as conjurações de um alvo só, agrupadas por alvo; o que soltar faz (conjura, pergunta, folha)', () => {
+test('MJ6a · alvos do arrasto: as conjurações de um alvo só, agrupadas por alvo; o que soltar faz (age, pergunta, folha)', () => {
+  // MJ6b (J-16) · expectativa mudou de propósito: "conjura" virou "age" porque o mesmo gesto agora ativa habilidade e escolhe alvo de gatilho
   const c = (oid, targets, extra = {}) => ({ t: 'cast', p: 0, oid, targets, ...extra });
   const legais = [c('o5', [{ oid: 'o9' }]), c('o5', [{ player: 1 }]), c('o5', [{ player: 1 }], { x: 2 }), c('o5', [{ oid: 'o7' }], { pay: { tap: ['o1'] } }), c('o5', [{ oid: 'o7' }], { pay: { tap: ['o2'] } }),
     c('o5', [{ oid: 'o8' }], { modes: [1] }), c('o5', [{ oid: 'o8' }], { modes: [2] }), c('o6', [{ oid: 'o9' }]), { t: 'play_land', p: 0, oid: 'o5' }, { t: 'cast', p: 0, oid: 'o5' }];
   const a = J(S.alvosDoArrasto(legais, 'o5'));
-  assert.deepEqual(a.map(x => [x.chave, x.como, x.acoes.length]), [['o:o9', 'conjura', 1], ['p:1', 'pergunta', 2], ['o:o7', 'pergunta', 2], ['o:o8', 'folha', 2]],
-    'um alvo e uma ação: conjura; só muda X ou pagamento: a pergunta de sempre; muda o modo: a folha da carta');
+  assert.deepEqual(a.map(x => [x.chave, x.como, x.acoes.length]), [['o:o9', 'age', 1], ['p:1', 'pergunta', 2], ['o:o7', 'pergunta', 2], ['o:o8', 'folha', 2]],
+    'um alvo e uma ação: age; só muda X ou pagamento: a pergunta de sempre; muda o modo: a folha da carta');
   assert.deepEqual(a[0].alvo, { oid: 'o9' }); assert.deepEqual(a[1].alvo, { player: 1 });
   assert.deepEqual(J(S.alvosDoArrasto([c('o5', [{ oid: 'o9' }]), c('o5', [{ oid: 'o9' }, { oid: 'o7' }])], 'o5')), [], 'conjuração com dois alvos: a carta não mira por arrasto');
   assert.deepEqual(J(S.alvosDoArrasto([{ t: 'cast', p: 0, oid: 'o5' }], 'o5')), [], 'mágica sem alvo: nada');
@@ -369,4 +370,32 @@ test('MJ6a · gesto de mira: para cima além do limiar, com a vertical dominando
   assert.equal(S.gestoDeMira(0, 20), 'outro', 'para baixo não mira');
   assert.equal(S.gestoDeMira(5, -10), null, 'abaixo do limiar ainda é toque');
   assert.equal(S.gestoDeMira(0, -10, { limiar: 8 }), 'mira');
+});
+
+test('MJ6b · alvos do arrasto da permanente e do gatilho: ativações de um alvo agrupadas; habilidades diferentes no mesmo alvo abrem a folha; o gatilho pendente mira a partir da fonte', () => {
+  const at = (oid, index, targets, extra = {}) => ({ t: 'activate', p: 0, oid, index, targets, ...extra });
+  const legais = [at('o3', 0, [{ oid: 'o9' }]), at('o3', 0, [{ player: 1 }], { pay: { tap: ['o1'] } }), at('o3', 0, [{ player: 1 }], { pay: { tap: ['o2'] } }),
+    at('o3', 1, [{ oid: 'o7' }]), at('o3', 0, [{ oid: 'o7' }]), { t: 'activate', p: 0, oid: 'o3', index: 2 }, at('o4', 0, [{ oid: 'o9' }])];
+  const a = J(S.alvosDoArrasto(legais, 'o3'));
+  assert.deepEqual(a.map(x => [x.chave, x.como, x.acoes.length]), [['o:o9', 'age', 1], ['p:1', 'pergunta', 2], ['o:o7', 'folha', 2]],
+    'mesma habilidade, só muda o pagamento: pergunta; duas habilidades no mesmo alvo: a folha; a ativada sem alvo não entra');
+  assert.deepEqual(J(S.alvosDoArrasto([{ t: 'cast', p: 0, oid: 'o5', targets: [{ oid: 'o9' }] }, at('o5', 0, [{ oid: 'o9' }], { fromHand: true })], 'o5')).map(x => x.como), ['folha'], 'conjurar ou ativar da mão no mesmo alvo: a folha decide');
+  // gatilho esperando alvo: as opções do pendente, a partir da fonte; outra carta não mira
+  const pending = { kind: 'pick_target', p: 0, trigger: { source: 'o3', name: 'Bicho' }, options: [{ oid: 'o9' }, { player: 1 }, { oid: 'o3' }] };
+  const g = J(S.alvosDoArrasto([{ t: 'pick_target', p: 0, index: 0 }], 'o3', { pending }));
+  assert.deepEqual(g.map(x => [x.chave, x.como, x.acoes[0]]), [['o:o9', 'age', { t: 'pick_target', p: 0, index: 0 }], ['p:1', 'age', { t: 'pick_target', p: 0, index: 1 }], ['o:o3', 'age', { t: 'pick_target', p: 0, index: 2 }]]);
+  assert.deepEqual(J(S.alvosDoArrasto([], 'o4', { pending })), [], 'a mira do gatilho sai só da fonte');
+});
+
+test('MJ6b · origens da mira: suas permanentes com habilidade ativada de um alvo (também modal) e a fonte do gatilho pendente; terreno, criatura sem habilidade e a permanente do oponente não', () => {
+  const ab = (kind, effects, extra = {}) => ({ kind, effects, ...extra });
+  const facts = { Pinga: { script: { abilities: [ab('activated', [{ do: 'damage', target: 'any', n: 1 }], { cost: { tap: true } })] } },
+    Sem: { script: { abilities: [ab('activated', [{ do: 'draw', n: 1 }], { cost: { mana: '{1}' } }), ab('triggered', [{ do: 'damage', target: 'any', n: 1 }], { when: 'etb' })] } },
+    Modal: { script: { abilities: [ab('activated', [], { cost: { tap: true }, modes: [{ effects: [{ do: 'destroy', target: 'creature' }] }, { effects: [{ do: 'draw', n: 1 }] }] })] } }, Ilha: { script: {} } };
+  const s = st([ob(1, 'battlefield', { name: 'Pinga' }), ob(2, 'battlefield', { name: 'Sem' }), ob(3, 'battlefield', { name: 'Pinga', controller: 1, owner: 1 }), ob(4, 'hand', { name: 'Pinga' }), ob(5, 'battlefield', { name: 'Ilha' }), ob(6, 'battlefield', { name: 'Modal' })], { facts });
+  assert.deepEqual([...S.origensDaMira(s, 0)].sort(), ['1', '6'], 'só as suas, no campo, com ativada que mira');
+  assert.deepEqual([...S.origensDaMira({ ...s, pending: { kind: 'pick_target', p: 0, trigger: { source: 2 }, options: [] } }, 0)].sort(), ['1', '2', '6'], 'a fonte do gatilho entra enquanto ele espera o alvo');
+  assert.deepEqual([...S.origensDaMira({ ...s, pending: { kind: 'pick_target', p: 1, trigger: { source: 2 }, options: [] } }, 0)].sort(), ['1', '6'], 'gatilho do outro não');
+  assert.deepEqual([...S.origensDaMira(s, 0, { abilidadesDe: o => o.oid === 5 ? [ab('activated', [{ do: 'damage', target: 'any', n: 1 }])] : [] })], ['5'], 'quem conhece as habilidades concedidas pode dizer de onde elas vêm');
+  assert.deepEqual([...S.origensDaMira(null, 0)], []);
 });

@@ -14198,3 +14198,110 @@ test('e2e · R-28 Painel · retrato do CI: Pipeline e Eficiência abrem sem nenh
   if (process.env.SHOTS) { await page.screenshot({ path: process.env.SHOTS + '/r28-retrato.png', fullPage: true }); }
   assert.deepEqual(errors, []);
 });
+
+// MJ6b (leva J-16, trilha jogabilidade) · mirar por arrasto a partir do campo: a permanente com habilidade de um alvo e a
+// fonte do gatilho que espera alvo; só elas trocam o gesto vertical pela mira; o dedo é desenhado uma vez por quadro
+test('e2e · MJ6b arrastar da permanente ativa a habilidade no alvo; arrastar da fonte do gatilho escolhe o alvo; terreno não mira; um desenho por quadro', { skip }, async t => {
+  const { page, errors, base } = await open(t); // a mesa assistida (`move`) só existe no modo de desenvolvimento
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await comOficiais(page, ['Harrier Strix']); // "When this creature enters, tap target permanent." (texto oficial da lista)
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Pingas', '20 Island\n10 Prodigal Sorcerer\n10 Harrier Strix\n10 Grizzly Bear', 'livre');
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start');
+  await page.fill('#mesa-seed', '4'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  await page.waitForSelector('#tb-pass');
+  const toca = () => page.evaluate(() => document.querySelector('#tb').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
+  // mesa assistida: Montanhas não, Ilhas; o Pinga no seu campo; o Strix na mão; a criatura do oponente no campo dele
+  const c = await page.evaluate(() => { const M = window.__estanteMesa, s = M.estado(), p = s.turn.active, q = 1 - p;
+    const pega = (dono, nm, n) => Object.values(s.objects).filter(o => o.owner === dono && o.name === nm && o.zone === 'library').slice(0, n).map(o => o.oid);
+    for (const oid of pega(p, 'Island', 3)) M.act({ t: 'move', p, oid, to: 'battlefield' });
+    const [pinga] = pega(p, 'Prodigal Sorcerer', 1); M.act({ t: 'move', p, oid: pinga, to: 'battlefield' });
+    const [strix] = pega(p, 'Harrier Strix', 1); M.act({ t: 'move', p, oid: strix, to: 'hand' });
+    const criatura = Object.values(s.objects).find(o => o.owner === q && o.zone === 'library' && o.name === 'Grizzly Bear'); // 1/1: morre com 1 de dano
+    const dono = criatura ? q : p, urso = criatura ? criatura.oid : pega(p, 'Grizzly Bear', 1)[0]; M.act({ t: 'move', p: dono, oid: urso, to: 'battlefield' });
+    return { p, q, pinga, strix, urso, ilhas: M.estado().zones[p].battlefield.filter(o => M.estado().objects[o].name === 'Island') }; });
+  await toca(); await page.waitForTimeout(400);
+  // o Pinga acabou de entrar: passa um turno para ele poder virar
+  const turno0 = await page.evaluate(() => window.__estanteMesa.estado().turn.number);
+  for (let i = 0; i < 80; i++) {
+    const e = await estado121(page);
+    if (e.turno > turno0 && e.ativo === 0 && e.prio === 0 && e.passo === 'main1' && !e.pend && !e.pilha) break;
+    if (e.pend === 'discard') { await page.locator('#tb-hand .tb-card').first().click(); await page.waitForTimeout(60); continue; }
+    for (const id of ['#tb-no-block', '#tb-no-attack', '#tb-pass-turn', '#tb-pass']) if (await page.locator(id).count()) { await page.click(id).catch(() => {}); break; }
+    await page.waitForTimeout(60);
+  }
+  await toca(); await page.waitForTimeout(300);
+  if ((await page.getAttribute('#tb-hand-toggle', 'aria-expanded')) === 'true') { await page.click('#tb-hand-toggle'); await page.waitForTimeout(450); } // a mão aberta cobre o seu campo
+  const noCampo = oid => `.tb-side .tb-card[data-oid="${oid}"], .tb-side .tb-card[data-oids~="${oid}"]`;
+  const centro = sel => page.evaluate(sel => { const r = document.querySelector(sel).getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }, sel);
+  const origens = () => page.evaluate(() => [...document.querySelectorAll('.tb-side .tb-card[data-mira-origem="true"]')].map(e => e.dataset.oid).sort());
+  assert.deepEqual(await origens(), [c.pinga], 'só o Pinga troca o gesto vertical pela mira; Ilhas e o urso do outro não ' + JSON.stringify(c));
+  assert.equal(await page.evaluate(sel => getComputedStyle(document.querySelector(sel)).touchAction, noCampo(c.pinga)), 'pan-x');
+  const arrasta = async (deSel, ateSel, { solta = true, durante = null } = {}) => {
+    const a = await centro(deSel), b = await centro(ateSel);
+    await page.mouse.move(a.x, a.y); await page.mouse.down();
+    await page.mouse.move(a.x, a.y - 30, { steps: 4 }); await page.waitForTimeout(350);
+    const meio = durante ? await durante() : null;
+    await page.mouse.move(b.x, b.y, { steps: 10 }); await page.waitForTimeout(80);
+    const sobre = await page.evaluate(() => ({ mira: document.querySelector('#tb').dataset.mira || null, alvo: (document.querySelector('#tb-mira') || { dataset: {} }).dataset.alvo || null, sob: [...document.querySelectorAll('[data-mira="sob"]')].map(e => e.id || e.dataset.oid) }));
+    if (solta) { await page.mouse.up(); await page.waitForTimeout(150); }
+    return { meio, sobre };
+  };
+  // 1 · do Pinga até o urso: os alvos legais acendem (o urso e as duas vidas; o próprio Pinga não), um desenho por quadro, soltar ativa
+  const m1 = await arrasta(noCampo(c.pinga), noCampo(c.urso), { solta: false, durante: () => page.evaluate(async oid => {
+    const acesos = [...document.querySelectorAll('[data-mira="alvo"], [data-mira="sob"]')].map(e => e.id || e.dataset.oid).sort();
+    // 30 movimentos do dedo no mesmo quadro viram um desenho só
+    const g = document.querySelector('#tb-mira g'), el = document.querySelector(`.tb-side .tb-card[data-oid="${oid}"]`); let n = 0;
+    const mo = new MutationObserver(ms => { n += ms.filter(m => m.target === g).length; }); mo.observe(g, { childList: true });
+    const r = el.getBoundingClientRect();
+    for (let i = 0; i < 30; i++) el.dispatchEvent(new PointerEvent('pointermove', { pointerId: 1, clientX: r.left + 20, clientY: r.top - 60 - i, bubbles: true }));
+    await new Promise(res => requestAnimationFrame(() => requestAnimationFrame(res)));
+    mo.disconnect();
+    return { acesos, desenhos: n, mira: document.querySelector('#tb').dataset.mira || null, carta: !!document.querySelector('#tb-fx .tb-mira__carta') }; }, c.pinga) });
+  assert.equal(m1.meio.mira, c.pinga, 'a mira começou no Pinga ' + JSON.stringify(m1));
+  assert.deepEqual(m1.meio.acesos, [c.urso, 'tb-life-me', 'tb-life-opp'].sort(), 'acendem o urso e as duas vidas; o próprio Pinga e as Ilhas não ' + JSON.stringify(m1.meio));
+  assert.ok(m1.meio.carta, 'a carta do campo se levanta');
+  assert.ok(m1.meio.desenhos >= 1 && m1.meio.desenhos <= 2, `30 movimentos num quadro: um desenho (${m1.meio.desenhos})`);
+  assert.deepEqual([m1.sobre.alvo, m1.sobre.sob], [`o:${c.urso}`, [c.urso]], 'sobre o urso a seta encaixa ' + JSON.stringify(m1.sobre));
+  for (const tema of ['dark', 'light']) { await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await auditaTela(page, `MJ6b · mirando do campo 360 ${tema}`); }
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/mj6b-campo.png' });
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  await page.mouse.up(); await page.waitForTimeout(200);
+  // contra o goldfish a habilidade resolve assim que ninguém responde: o que vale é o resultado (o Pinga virou, o urso levou o dano)
+  await page.evaluate(() => { const M = window.__estanteMesa; for (let i = 0; i < 4 && M.estado().stack.length && !M.estado().pending; i++) M.act({ t: 'pass', p: M.estado().turn.priority }); }); await toca(); await page.waitForTimeout(300);
+  const d1 = await page.evaluate(pinga => { const s = window.__estanteMesa.estado();
+    return { virado: s.objects[pinga].tapped, pilha: s.stack.length, dialogo: !!document.querySelector('.ds-dialog'), mirou: document.querySelector('#tb').dataset.mirou, camada: !!document.querySelector('#tb-mira, .tb-mira__carta') }; }, c.pinga);
+  assert.deepEqual(d1, { virado: true, pilha: 0, dialogo: false, mirou: `o:${c.urso}`, camada: false }, 'soltar no urso ativa o Pinga nele, sem folha');
+  assert.equal(await page.evaluate(u => window.__estanteMesa.estado().objects[u].damage, c.urso), 1, 'a habilidade resolveu no urso: 1 de dano marcado');
+  // 2 · Ilha não mira: arrastar para cima não começa nada
+  const i0 = c.ilhas[0];
+  const m2 = await arrasta(noCampo(i0), '#tb-life-opp');
+  assert.equal(m2.sobre.mira, null, 'terreno sem habilidade com alvo: o arrasto não vira mira');
+  assert.equal(await page.evaluate(o => window.__estanteMesa.estado().objects[o].tapped, i0), false);
+  // 3 · o Strix entra e o gatilho espera o alvo: a fonte vira origem da mira; arrastar dela até uma Ilha escolhe
+  await page.evaluate(([p, oid]) => window.__estanteMesa.act({ t: 'cast', p, oid, free: true }), [c.p, c.strix]);
+  await page.evaluate(() => { const M = window.__estanteMesa; for (let i = 0; i < 4 && M.estado().stack.length && !M.estado().pending; i++) M.act({ t: 'pass', p: M.estado().turn.priority }); });
+  await toca(); await page.waitForTimeout(400);
+  const pend = await page.evaluate(() => { const s = window.__estanteMesa.estado(); return { kind: s.pending && s.pending.kind, fonte: s.pending && s.pending.trigger && s.pending.trigger.source, opcoes: s.pending ? (s.pending.options || []).length : 0 }; });
+  assert.equal(pend.kind, 'pick_target', 'o gatilho do Strix espera o alvo ' + JSON.stringify(pend));
+  assert.equal(String(pend.fonte), String(c.strix));
+  assert.ok(pend.opcoes >= 3);
+  assert.deepEqual(await origens(), [c.pinga, c.strix].sort(), 'enquanto o gatilho espera, a fonte dele também é origem (o Pinga continua: a troca do gesto é pela habilidade, não pela vez)');
+  const alvoIlha = c.ilhas[1];
+  const m3 = await arrasta(noCampo(c.strix), noCampo(alvoIlha), { solta: false, durante: () => page.evaluate(() => [...document.querySelectorAll('[data-mira="alvo"], [data-mira="sob"]')].length) });
+  assert.ok(m3.meio >= 3, 'os alvos do gatilho acendem ' + m3.meio);
+  // as Ilhas iguais estão num leque: soltar no leque escolhe uma delas (são iguais)
+  const noLeque = await page.evaluate(sel => { const el = document.querySelector(sel); return (el.dataset.oids || el.dataset.oid).split(' '); }, noCampo(alvoIlha));
+  assert.ok(m3.sobre.alvo && noLeque.includes(m3.sobre.alvo.slice(2)), 'a seta encaixa numa Ilha do leque ' + JSON.stringify([m3.sobre, noLeque]));
+  const escolhida = m3.sobre.alvo.slice(2);
+  await page.mouse.up(); await page.waitForTimeout(200);
+  const d3 = await page.evaluate(() => { const s = window.__estanteMesa.estado(); return { pend: s.pending && s.pending.kind, mirou: document.querySelector('#tb').dataset.mirou, dialogo: !!document.querySelector('.ds-dialog') }; });
+  assert.deepEqual(d3, { pend: null, mirou: `o:${escolhida}`, dialogo: false }, 'soltar na Ilha escolheu o alvo do gatilho, sem folha');
+  await page.evaluate(() => { const M = window.__estanteMesa; for (let i = 0; i < 4 && M.estado().stack.length && !M.estado().pending; i++) M.act({ t: 'pass', p: M.estado().turn.priority }); }); await toca(); await page.waitForTimeout(300);
+  assert.equal(await page.evaluate(o => window.__estanteMesa.estado().objects[o].tapped, escolhida), true, 'o gatilho resolveu: a Ilha virou');
+  assert.deepEqual(await origens(), [c.pinga], 'sem gatilho esperando, só o Pinga continua com o gesto');
+  // o Pinga virado: o gesto começa e termina sem mira, porque o motor não oferece a ativação
+  const m4 = await arrasta(noCampo(c.pinga), '#tb-life-opp');
+  assert.equal(m4.sobre.mira, null, 'virado, nada acende');
+  assert.deepEqual(errors, []);
+});
